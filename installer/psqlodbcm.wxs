@@ -20,12 +20,22 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="SystemFolder.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="Redist">
         <Component Id="psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Guid="41B28294-AE87-43FE-B615-531CD4911047">
-          <File Id="psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="psqlodbc.dll" KeyPath="yes" src="../Release/psqlodbc.dll">
-            <ODBCDriver Id="psqlodbc.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="PostgreSQL" />
-          </File>
+          <File Id="psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="psqlodbc.dll" KeyPath="yes" src="../Release/psqlodbc.dll" />
+          
+          <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
+          <!--       so we install the registry keys manually ourselves.                         -->
+          <Registry Id="psqlodbc.reg.1.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL" Type="string" Value="Installed" />
+          <Registry Id="psqlodbc.reg.2.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="APILevel" Type="string" Value="1" />
+          <Registry Id="psqlodbc.reg.3.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="ConnectFunctions" Type="string" Value="YYN" />
+          <Registry Id="psqlodbc.reg.4.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="Driver" Type="string" Value="[#psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756]" />
+          <Registry Id="psqlodbc.reg.5.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="DriverODBCVer" Type="string" Value="03.00" />
+          <Registry Id="psqlodbc.reg.6.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="FileUsage" Type="string" Value="0" />
+          <Registry Id="psqlodbc.reg.7.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="Setup" Type="string" Value="[#psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756]" />
+          <Registry Id="psqlodbc.reg.8.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="SQLLevel" Type="string" Value="1" />
+          <Registry Id="psqlodbc.reg.9.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL" Name="UsageCount" Type="integer" Value="1" />
         </Component>
       </Directory>
     </Directory>
-    
+     
   </Module>
 </Wix>
