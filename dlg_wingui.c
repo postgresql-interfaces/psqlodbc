@@ -433,6 +433,7 @@ ds_options2Proc(HWND hdlg,
 #ifndef DRIVER_CURSOR_IMPLEMENT
 			EnableWindow(GetDlgItem(hdlg, DS_UPDATABLECURSORS), FALSE);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
+			CheckDlgButton(hdlg, DS_SERVERSIDEPREPARE, ci->use_server_side_prepare);
 
 			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), atoi(ci->show_oid_column));
 
@@ -489,6 +490,7 @@ ds_options2Proc(HWND hdlg,
 #ifdef DRIVER_CURSOR_IMPLEMENT
 					ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
+					ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
 
 					/* OID Options */
 					sprintf(ci->fake_oid_index, "%d", IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));

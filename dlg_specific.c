@@ -786,7 +786,12 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 	sprintf(temp, "%d", ci->bytea_as_longvarbinary);
 	SQLWritePrivateProfileString(DSN,
-								 INI_INT8AS,
+								 INI_BYTEAASLONGVARBINARY,
+								 temp,
+								 ODBC_INI);
+	sprintf(temp, "%d", ci->use_server_side_prepare);
+	SQLWritePrivateProfileString(DSN,
+								 INI_USESERVERSIDEPREPARE,
 								 temp,
 								 ODBC_INI);
 }
