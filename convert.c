@@ -153,6 +153,22 @@ static int pg_hex2bin(UCHAR *src, UCHAR *dst, int length);
  */
 
 
+/*
+ *	Macros for BIGINT handling.
+ */
+#ifdef	ODBCINT64
+#ifdef	WIN32
+#define	ATOI64	_atoi64
+#define	ATOI64U	_atoi64
+#define	FORMATI64	"%I64d"
+#define	FORMATI64U	"%I64u"
+#else
+#define	ATOI64(val)	strtoll(val, NULL, 10)
+#define	ATOI64U(val)	strtoul(val, NULL, 10)
+#define	FORMATI64	"%lld"
+#define	FORMATI64U	"%llu"
+#endif /* WIN32 */
+#endif /* ODBCINT64 */
 
 /*
  *	TIMESTAMP <-----> SIMPLE_TIME
@@ -1133,24 +1149,22 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				break;
 
 #if (ODBCVER >= 0x0300) && defined(ODBCINT64)
-#ifdef WIN32
 			case SQL_C_SBIGINT:
 				len = 8;
 				if (bind_size > 0)
-					*(SQLBIGINT *) ((char *) rgbValue + (bind_row * bind_size)) = _atoi64(neut_str);
+					*(SQLBIGINT *) ((char *) rgbValue + (bind_row * bind_size)) = ATOI64(neut_str);
 				else
-					*((SQLBIGINT *) rgbValue + bind_row) = _atoi64(neut_str);
+					*((SQLBIGINT *) rgbValue + bind_row) = ATOI64(neut_str);
 				break;
 
 			case SQL_C_UBIGINT:
 				len = 8;
 				if (bind_size > 0)
-					*(SQLUBIGINT *) ((char *) rgbValue + (bind_row * bind_size)) = _atoi64(neut_str);
+					*(SQLUBIGINT *) ((char *) rgbValue + (bind_row * bind_size)) = ATOI64U(neut_str);
 				else
-					*((SQLUBIGINT *) rgbValue + bind_row) = _atoi64(neut_str);
+					*((SQLUBIGINT *) rgbValue + bind_row) = ATOI64U(neut_str);
 				break;
 
-#endif /* WIN32 */
 #endif /* ODBCINT64 */
 			case SQL_C_BINARY:
 
@@ -2502,18 +2516,16 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 #if (ODBCVER >= 0x0300) && defined(ODBCINT64)
-#ifdef WIN32
 		case SQL_C_SBIGINT:
-			sprintf(param_string, "%I64d",
+			sprintf(param_string, FORMATI64,
 					*((SQLBIGINT *) buffer));
 			break;
 
 		case SQL_C_UBIGINT:
-			sprintf(param_string, "%I64u",
+			sprintf(param_string, FORMATI64U,
 					*((SQLUBIGINT *) buffer));
 			break;
 
-#endif /* WIN32 */
 #endif /* ODBCINT64 */
 		case SQL_C_SSHORT:
 		case SQL_C_SHORT:
