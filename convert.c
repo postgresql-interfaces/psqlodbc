@@ -407,9 +407,6 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	int			bind_size = opts->bind_size;
 	int			result = COPY_OK;
 	ConnectionClass		*conn = SC_get_conn(stmt);
-#ifdef HAVE_LOCALE_H
-	char saved_locale[256];
-#endif /* HAVE_LOCALE_H */
 	BOOL		changed, true_is_minus1 = FALSE;
 	const char *neut_str = value;
 	char		midtemp[2][32];
@@ -1084,8 +1081,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_FLOAT:
+			{
 #ifdef HAVE_LOCALE_H
-				strcpy(saved_locale, setlocale(LC_ALL, NULL));
+				char *saved_locale;
+
+				saved_locale = strdup(setlocale(LC_ALL, NULL));
 				setlocale(LC_ALL, "C");
 #endif /* HAVE_LOCALE_H */
 				len = 4;
@@ -1095,12 +1095,17 @@ inolog("2stime fr=%d\n", std_time.fr);
 					*((SFLOAT *) rgbValue + bind_row) = (float) atof(neut_str);
 #ifdef HAVE_LOCALE_H
 				setlocale(LC_ALL, saved_locale);
+				free(saved_locale);
 #endif /* HAVE_LOCALE_H */
 				break;
+			}
 
 			case SQL_C_DOUBLE:
+			{
 #ifdef HAVE_LOCALE_H
-				strcpy(saved_locale, setlocale(LC_ALL, NULL));
+				char *saved_locale;
+
+				saved_locale = strdup(setlocale(LC_ALL, NULL));
 				setlocale(LC_ALL, "C");
 #endif /* HAVE_LOCALE_H */
 				len = 8;
@@ -1110,92 +1115,88 @@ inolog("2stime fr=%d\n", std_time.fr);
 					*((SDOUBLE *) rgbValue + bind_row) = atof(neut_str);
 #ifdef HAVE_LOCALE_H
 				setlocale(LC_ALL, saved_locale);
+				free(saved_locale);
 #endif /* HAVE_LOCALE_H */
 				break;
+			}
 
 #if (ODBCVER >= 0x0300)
-                        case SQL_C_NUMERIC:
-#ifdef HAVE_LOCALE_H
-			/* strcpy(saved_locale, setlocale(LC_ALL, NULL));
-			setlocale(LC_ALL, "C"); not needed currently */ 
-#endif /* HAVE_LOCALE_H */
+			case SQL_C_NUMERIC:
 			{
-			SQL_NUMERIC_STRUCT      *ns;
-			int	i, nlen, bit, hval, tv, dig, sta, olen;
-			char	calv[SQL_MAX_NUMERIC_LEN * 3];
-			const char *wv;
-			BOOL	dot_exist;
+				SQL_NUMERIC_STRUCT      *ns;
+				int	i, nlen, bit, hval, tv, dig, sta, olen;
+				char	calv[SQL_MAX_NUMERIC_LEN * 3];
+				const char *wv;
+				BOOL	dot_exist;
 
-			len = sizeof(SQL_NUMERIC_STRUCT);
-			if (bind_size > 0)
-				ns = (SQL_NUMERIC_STRUCT *) rgbValueBindRow;
-			else
-				ns = (SQL_NUMERIC_STRUCT *) rgbValue + bind_row;
-			for (wv = neut_str; *wv && isspace(*wv); wv++)
-				;
-			ns->sign = 1;
-			if (*wv == '-')
-			{
-				ns->sign = 0;
-				wv++;
-			}
-			else if (*wv == '+')
-				wv++;
-			while (*wv == '0') wv++;
-			ns->precision = 0;
-			ns->scale = 0;
-			for (nlen = 0, dot_exist = FALSE;; wv++) 
-			{
-				if (*wv == '.')
-				{
-					if (dot_exist)
-						break;
-					dot_exist = TRUE;
-				}
-				else if (!isdigit(*wv))
-						break;
+				len = sizeof(SQL_NUMERIC_STRUCT);
+				if (bind_size > 0)
+					ns = (SQL_NUMERIC_STRUCT *) rgbValueBindRow;
 				else
+					ns = (SQL_NUMERIC_STRUCT *) rgbValue + bind_row;
+				for (wv = neut_str; *wv && isspace(*wv); wv++)
+					;
+				ns->sign = 1;
+				if (*wv == '-')
 				{
-					if (dot_exist)
-						ns->scale++;
-					else
-						ns->precision++;
-					calv[nlen++] = *wv;
+					ns->sign = 0;
+					wv++;
 				}
-			}
-			memset(ns->val, 0, sizeof(ns->val));
-			for (hval = 0, bit = 1L, sta = 0, olen = 0; sta < nlen;)
-			{
-				for (dig = 0, i = sta; i < nlen; i++)
+				else if (*wv == '+')
+					wv++;
+				while (*wv == '0') wv++;
+				ns->precision = 0;
+				ns->scale = 0;
+				for (nlen = 0, dot_exist = FALSE;; wv++) 
 				{
-					tv = dig * 10 + calv[i] - '0';
-					dig = tv % 2;
-					calv[i] = tv / 2 + '0';
-					if (i == sta && tv < 2)
-						sta++;
-				}
-				if (dig > 0)
-					hval |= bit;
-				bit <<= 1;
-				if (bit >= (1L << 8))
-				{
-					ns->val[olen++] = hval;
-					hval = 0;
-					bit = 1L;
-					if (olen >= SQL_MAX_NUMERIC_LEN - 1)
+					if (*wv == '.')
 					{
-						ns->scale = sta - ns->precision;
-						break;
+						if (dot_exist)
+							break;
+						dot_exist = TRUE;
 					}
-				} 
+					else if (!isdigit(*wv))
+						break;
+					else
+					{
+						if (dot_exist)
+							ns->scale++;
+						else
+							ns->precision++;
+						calv[nlen++] = *wv;
+					}
+				}
+				memset(ns->val, 0, sizeof(ns->val));
+				for (hval = 0, bit = 1L, sta = 0, olen = 0; sta < nlen;)
+				{
+					for (dig = 0, i = sta; i < nlen; i++)
+					{
+						tv = dig * 10 + calv[i] - '0';
+						dig = tv % 2;
+						calv[i] = tv / 2 + '0';
+						if (i == sta && tv < 2)
+							sta++;
+					}
+					if (dig > 0)
+						hval |= bit;
+					bit <<= 1;
+					if (bit >= (1L << 8))
+					{
+						ns->val[olen++] = hval;
+						hval = 0;
+						bit = 1L;
+						if (olen >= SQL_MAX_NUMERIC_LEN - 1)
+						{
+							ns->scale = sta - ns->precision;
+							break;
+						}
+					} 
+				}
+				if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
+					ns->val[olen++] = hval;
+
+				break;
 			}
-			if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
-				ns->val[olen++] = hval;
-			}
-#ifdef HAVE_LOCALE_H
-			/* setlocale(LC_ALL, saved_locale); */
-#endif /* HAVE_LOCALE_H */
-			break;
 #endif /* ODBCVER */
 
 			case SQL_C_SSHORT:
