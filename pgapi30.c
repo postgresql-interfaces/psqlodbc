@@ -1744,7 +1744,10 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	}
 	for (i = 0, processed = 0; i < opts->rowset_size; i++)
 	{
-		global_idx = *bmark - 1;
+		if (bmark)
+		{
+			global_idx = *bmark - 1;
+		}
 		/* Note opts->row_operation_ptr is ignored */
 		switch (operation)
 		{
