@@ -1,37 +1,36 @@
-
 #
-# File:			win32.mak
+# File:			win32.mak(default ODBC3.0)
 #
 # Description:		psqlodbc Makefile for Win32.
 #
-# Configurations:	Debug, Release, MultibyteDebug, MultibyteRelease
+# Configurations:	ODBC30Debug, ODBC30, MultibyteDebug30, MultibyteODBC30
 # Build Types:		ALL, CLEAN
-# Usage:		NMAKE /f win32.mak CFG=[Release | Debug | MultibyteRelease | MultiByteDebug] [ALL | CLEAN]
+# Usage:		NMAKE /f win32_30.mak CFG=[ODBC30 | ODBC30Debug | MultibyteODBC30 | MultibyteDebug30] [ALL | CLEAN]
 #
 # Comments:		Created by Dave Page, 2001-02-12
 #
 
-!MESSAGE Building the PostgreSQL ODBC Driver for Win32...
+!MESSAGE Building the PostgreSQL ODBC 3.0 Driver for Win32...
 !MESSAGE
 !IF "$(CFG)" == ""
-CFG=MultibyteRelease
-!MESSAGE No configuration specified. Defaulting to Release.
+CFG=MultibyteODBC30
+!MESSAGE No configuration specified. Defaulting to ODBC30.
 !MESSAGE
 !ENDIF 
 
-!IF "$(CFG)" != "Release" && "$(CFG)" != "Debug" && "$(CFG)" != "MultibyteRelease" && "$(CFG)" != "MultibyteDebug"
+!IF "$(CFG)" != "ODBC30" && "$(CFG)" != "ODBC30Debug" && "$(CFG)" != "MultibyteODBC30" && "$(CFG)" != "MultibyteDebug30"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f win32.mak CFG=[Release | Debug | MultibyteRelease | MultiByteDebug] [ALL | CLEAN]
+!MESSAGE NMAKE /f win32_30.mak CFG=[ODBC30 | ODBC30Debug | MultibyteODBC30 | MultiByteDebug] [ALL | CLEAN]
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "Release" (Win32 Release DLL)
-!MESSAGE "Debug" (Win32 Debug DLL)
-!MESSAGE "MultibyteRelease" (Win32 Release DLL with Multibyte support)
-!MESSAGE "MultibyteDebug" (Win32 Debug DLL with Multibyte support)
+!MESSAGE "ODBC30" (Win32 Release DLL)
+!MESSAGE "ODBC30Debug" (Win32 Debug DLL)
+!MESSAGE "MultibyteODBC30" (Win32 Release DLL with Multibyte support)
+!MESSAGE "MultibyteDebug30" (Win32 Debug DLL with Multibyte support)
 !MESSAGE 
 !ERROR An invalid configuration was specified.
 !ENDIF 
@@ -42,19 +41,19 @@ NULL=
 NULL=nul
 !ENDIF 
 
-!IF  "$(CFG)" == "Release" || "$(CFG)" == "MultibyteRelease"
+!IF  "$(CFG)" == "ODBC30" || "$(CFG)" == "MultibyteODBC30"
 
-!IF "$(CFG)" == "MultibyteRelease"
-OUTDIR=.\MultibyteRelease
-OUTDIRBIN=.\MultibyteRelease
-INTDIR=.\MultibyteRelease
+!IF "$(CFG)" == "MultibyteODBC30"
+OUTDIR=.\MultibyteODBC30
+OUTDIRBIN=.\MultibyteODBC30
+INTDIR=.\MultibyteODBC30
 !ELSE
-OUTDIR=.\Release
-OUTDIRBIN=.\Release
-INTDIR=.\Release
+OUTDIR=.\ODBC30
+OUTDIRBIN=.\ODBC30
+INTDIR=.\ODBC30
 !ENDIF
 
-ALL : "$(OUTDIRBIN)\psqlodbc25.dll"
+ALL : "$(OUTDIRBIN)\psqlodbc.dll"
 
 
 CLEAN :
@@ -68,10 +67,11 @@ CLEAN :
 	-@erase "$(INTDIR)\environ.obj"
 	-@erase "$(INTDIR)\execute.obj"
 	-@erase "$(INTDIR)\info.obj"
+	-@erase "$(INTDIR)\info30.obj"
 	-@erase "$(INTDIR)\lobj.obj"
 	-@erase "$(INTDIR)\win_md5.obj"
 	-@erase "$(INTDIR)\misc.obj"
-!IF "$(CFG)" == "MultibyteRelease"
+!IF "$(CFG)" == "MultibyteODBC30"
 	-@erase "$(INTDIR)\multibyte.obj"
 !ENDIF
 	-@erase "$(INTDIR)\options.obj"
@@ -87,8 +87,10 @@ CLEAN :
 	-@erase "$(INTDIR)\tuple.obj"
 	-@erase "$(INTDIR)\tuplelist.obj"
 	-@erase "$(INTDIR)\odbcapi.obj"
+	-@erase "$(INTDIR)\odbcapi30.obj"
+	-@erase "$(INTDIR)\pgapi30.obj"
 	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\psqlodbc25.dll"
+	-@erase "$(OUTDIR)\psqlodbc.dll"
 	-@erase "$(OUTDIR)\psqlodbc.exp"
 	-@erase "$(OUTDIR)\psqlodbc.lib"
 	-@erase "$(OUTDIR)\psqlodbc.pch"
@@ -97,10 +99,10 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-!IF "$(CFG)" == "MultibyteRelease"
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+!IF "$(CFG)" == "MultibyteODBC30"
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ELSE
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ENDIF
 
 .c{$(INTDIR)}.obj::
@@ -142,8 +144,8 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"psqlodbc_api25.def" /out:"$(OUTDIRBIN)\psqlodbc25.dll" /implib:"$(OUTDIR)\psqlodbc.lib" 
-DEF_FILE= "psqlodbc_api25.def"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" 
+DEF_FILE= "psqlodbc_win32.def"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
 	"$(INTDIR)\columninfo.obj" \
@@ -155,10 +157,11 @@ LINK32_OBJS= \
 	"$(INTDIR)\environ.obj" \
 	"$(INTDIR)\execute.obj" \
 	"$(INTDIR)\info.obj" \
+	"$(INTDIR)\info30.obj" \
 	"$(INTDIR)\lobj.obj" \
 	"$(INTDIR)\win_md5.obj" \
 	"$(INTDIR)\misc.obj" \
-!IF "$(CFG)" == "MultibyteRelease"
+!IF "$(CFG)" == "MultibyteODBC30"
 	"$(INTDIR)\multibyte.obj" \
 !ENDIF
 	"$(INTDIR)\options.obj" \
@@ -173,24 +176,26 @@ LINK32_OBJS= \
 	"$(INTDIR)\tuple.obj" \
 	"$(INTDIR)\tuplelist.obj" \
 	"$(INTDIR)\odbcapi.obj" \
+	"$(INTDIR)\odbcapi30.obj" \
+	"$(INTDIR)\pgapi30.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
-"$(OUTDIRBIN)\psqlodbc25.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+"$(OUTDIRBIN)\psqlodbc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
 
-!ELSEIF  "$(CFG)" == "Debug" || "$(CFG)" == "MultibyteDebug"
+!ELSEIF  "$(CFG)" == "ODBC30Debug" || "$(CFG)" == "MultibyteDebug30"
 
-!IF "$(CFG)" == "MultibyteDebug"
-OUTDIR=.\MultibyteDebug
-INTDIR=.\MultibyteDebug
+!IF "$(CFG)" == "MultibyteDebug30"
+OUTDIR=.\MultibyteDebug30
+INTDIR=.\MultibyteDebug30
 !ELSE
-OUTDIR=.\Debug
-INTDIR=.\Debug
+OUTDIR=.\ODBC30Debug
+INTDIR=.\ODBC30Debug
 !ENDIF
 
-ALL : "$(OUTDIR)\psqlodbc25.dll"
+ALL : "$(OUTDIR)\psqlodbc.dll"
 
 
 CLEAN :
@@ -204,10 +209,11 @@ CLEAN :
 	-@erase "$(INTDIR)\environ.obj"
 	-@erase "$(INTDIR)\execute.obj"
 	-@erase "$(INTDIR)\info.obj"
+	-@erase "$(INTDIR)\info30.obj"
 	-@erase "$(INTDIR)\lobj.obj"
 	-@erase "$(INTDIR)\win_md5.obj"
 	-@erase "$(INTDIR)\misc.obj"
-!IF "$(CFG)" == "MultibyteDebug" 
+!IF "$(CFG)" == "MultibyteDebug30" 
 	-@erase "$(INTDIR)\multibyte.obj"
 !ENDIF
 	-@erase "$(INTDIR)\options.obj"
@@ -223,9 +229,11 @@ CLEAN :
 	-@erase "$(INTDIR)\tuple.obj"
 	-@erase "$(INTDIR)\tuplelist.obj"
 	-@erase "$(INTDIR)\odbcapi.obj"
+	-@erase "$(INTDIR)\odbcapi30.obj"
+	-@erase "$(INTDIR)\pgapi30.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
-	-@erase "$(OUTDIR)\psqlodbc25.dll"
+	-@erase "$(OUTDIR)\psqlodbc.dll"
 	-@erase "$(OUTDIR)\psqlodbc.exp"
 	-@erase "$(OUTDIR)\psqlodbc.ilk"
 	-@erase "$(OUTDIR)\psqlodbc.lib"
@@ -236,10 +244,10 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-!IF "$(CFG)" == "MultibyteDebug" 
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+!IF "$(CFG)" == "MultibyteDebug30" 
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 !ELSE
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 !ENDIF
 
 .c{$(INTDIR)}.obj::
@@ -281,8 +289,8 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"psqlodbc_api25.def" /out:"$(OUTDIR)\psqlodbc25.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept 
-DEF_FILE= "psqlodbc_api25.def"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept 
+DEF_FILE= "psqlodbc_win32.def"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
 	"$(INTDIR)\columninfo.obj" \
@@ -294,10 +302,11 @@ LINK32_OBJS= \
 	"$(INTDIR)\environ.obj" \
 	"$(INTDIR)\execute.obj" \
 	"$(INTDIR)\info.obj" \
+	"$(INTDIR)\info30.obj" \
 	"$(INTDIR)\lobj.obj" \
 	"$(INTDIR)\win_md5.obj" \
 	"$(INTDIR)\misc.obj" \
-!IF "$(CFG)" == "MultibyteDebug" 
+!IF "$(CFG)" == "MultibyteDebug30" 
 	"$(INTDIR)\multibyte.obj" \
 !ENDIF
 	"$(INTDIR)\options.obj" \
@@ -312,16 +321,18 @@ LINK32_OBJS= \
 	"$(INTDIR)\tuple.obj" \
 	"$(INTDIR)\tuplelist.obj" \
 	"$(INTDIR)\odbcapi.obj" \
+	"$(INTDIR)\odbcapi30.obj" \
+	"$(INTDIR)\pgapi30.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
-"$(OUTDIR)\psqlodbc25.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+"$(OUTDIR)\psqlodbc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
 
 !ENDIF 
 
-!IF "$(CFG)" == "Release" || "$(CFG)" == "Debug" || "$(CFG)" == "MultibyteRelease" || "$(CFG)" == "MultibyteDebug"
+!IF "$(CFG)" == "ODBC30" || "$(CFG)" == "ODBC30Debug" || "$(CFG)" == "MultibyteODBC30" || "$(CFG)" == "MultibyteDebug30"
 
 SOURCE=bind.c
 
@@ -383,6 +394,12 @@ SOURCE=info.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=info30.c
+
+"$(INTDIR)\info30.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE=lobj.c
 
 "$(INTDIR)\lobj.obj" : $(SOURCE) "$(INTDIR)"
@@ -395,7 +412,7 @@ SOURCE=misc.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-!IF "$(CFG)" == "MultibyteRelease" || "$(CFG)" == "MultibyteDebug" 
+!IF "$(CFG)" == "MultibyteODBC30" || "$(CFG)" == "MultibyteDebug30" 
 
 SOURCE=multibyte.c
 
@@ -431,22 +448,22 @@ SOURCE=psqlodbc.c
 
 SOURCE=psqlodbc.rc
 
-!IF "$(CFG)" == "Release"
+!IF "$(CFG)" == "ODBC30"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" $(SOURCE)
 !ENDIF
 
-!IF "$(CFG)" == "MultibyteRelease"
+!IF "$(CFG)" == "MultibyteODBC30"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" /d "MULTIBYTE" $(SOURCE)
 !ENDIF
 
-!IF "$(CFG)" == "Debug"
+!IF "$(CFG)" == "ODBC30Debug"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" $(SOURCE)
 !ENDIF
 
-!IF "$(CFG)" == "MultibyteDebug"
+!IF "$(CFG)" == "MultibyteDebug30"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" /d "MULTIBYTE" $(SOURCE)
 !ENDIF
@@ -506,6 +523,15 @@ SOURCE=odbcapi.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=odbcapi30.c
+
+"$(INTDIR)\odbcapi30.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=pgapi30.c
+
+"$(INTDIR)\pgapi30.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
 !ENDIF 
