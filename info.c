@@ -1270,13 +1270,15 @@ PGAPI_Tables(
 	if (conn->schema_support)
 	{
 		/* view is represented by its relkind since 7.1 */
-		strcpy(tables_query, "select relname, nspname, relkind from pg_class, pg_namespace");
+		strcpy(tables_query, "select relname, nspname, relkind"
+		" from pg_catalog.pg_class, pg_catalog.pg_namespace");
 		strcat(tables_query, " where relkind in ('r', 'v')");
 	}
 	else if (PG_VERSION_GE(conn, 7.1))
 	{
 		/* view is represented by its relkind since 7.1 */
-		strcpy(tables_query, "select relname, usename, relkind from pg_class, pg_user");
+		strcpy(tables_query, "select relname, usename, relkind"
+		" from pg_class, pg_user");
 		strcat(tables_query, " where relkind in ('r', 'v')");
 	}
 	else
@@ -1685,7 +1687,8 @@ PGAPI_Columns(
 	if (conn->schema_support)
 		sprintf(columns_query, "select u.nspname, c.relname, a.attname, a.atttypid"
 	   ", t.typname, a.attnum, a.attlen, %s, a.attnotnull, c.relhasrules, c.relkind"
-			" from pg_namespace u, pg_class c, pg_attribute a, pg_type t"
+			" from pg_catalog.pg_namespace u, pg_catalog.pg_class c,"
+			" pg_catalog.pg_attribute a, pg_catalog.pg_type t"
 			" where u.oid = c.relnamespace"
 			" and (not a.attisdropped)"
 			" and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0)",
@@ -2202,7 +2205,8 @@ PGAPI_SpecialColumns(
 	if (PG_VERSION_GE(conn, 7.2))
 		strcat(columns_query, ", c.relhasoids");
 	if (conn->schema_support)
-		strcat(columns_query, " from pg_namespace u, pg_class c where "
+		strcat(columns_query, " from pg_catalog.pg_namespace u,"
+		" pg_catalog.pg_class c where "
 			"u.oid = c.relnamespace");
 	else
 		strcat(columns_query, " from pg_user u, pg_class c where "
@@ -2562,7 +2566,9 @@ PGAPI_Statistics(
 	if (conn->schema_support)
 		sprintf(index_query, "select c.relname, i.indkey, i.indisunique"
 			", i.indisclustered, a.amname, c.relhasrules, n.nspname"
-			" from pg_index i, pg_class c, pg_class d, pg_am a, pg_namespace n"
+			" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
+			" pg_catalog.pg_class d, pg_catalog.pg_am a,"
+			" pg_catalog.pg_namespace n"
 			" where d.relname = '%s'"
 			" and n.nspname = '%s'"
 			" and n.oid = d.relnamespace"
@@ -2960,7 +2966,9 @@ PGAPI_PrimaryKeys(
 				 */
 				if (conn->schema_support)
 					sprintf(tables_query, "select ta.attname, ia.attnum"
-						" from pg_attribute ta, pg_attribute ia, pg_class c, pg_index i, pg_namespace n"
+						" from pg_catalog.pg_attribute ta,"
+						" pg_catalog.pg_attribute ia, pg_catalog.pg_class c,"
+						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
 						" where c.relname = '%s'"
 						" AND n.nspname = '%s'"
 						" AND c.oid = i.indrelid"
@@ -2990,7 +2998,9 @@ PGAPI_PrimaryKeys(
 				 */
 				if (conn->schema_support)
 					sprintf(tables_query, "select ta.attname, ia.attnum"
-						" from pg_attribute ta, pg_attribute ia, pg_class c, pg_index i, pg_namespace n"
+						" from pg_catalog.pg_attribute ta,"
+						" pg_catalog.pg_attribute ia, pg_catalog.pg_class c,"
+						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
 						" where c.relname = '%s_pkey'"
 						" AND n.nspname = '%s'"
 						" AND c.oid = i.indexrelid"
@@ -3125,7 +3135,10 @@ getClientTableName(ConnectionClass *conn, const char *serverSchemaName, char *se
 	if (!bError && continueExec)
 	{
 		if (conn->schema_support)
-			sprintf(query, "select OID from pg_class, pg_namespace where relname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverSchemaName);
+			sprintf(query, "select OID from pg_catalog.pg_class,"
+			" pg_catalog.pg_namespace"
+			" where relname = '%s' and pg_namespace.oid = relnamespace and"
+			" pg_namespace.nspname = '%s'", serverTableName, serverSchemaName);
 		else
 			sprintf(query, "select OID from pg_class where relname = '%s'", serverTableName);
 		if (res = CC_send_query(conn, query, NULL, CLEAR_RESULT_ON_ABORT), res)
@@ -3192,10 +3205,12 @@ getClientColumnName(ConnectionClass *conn, const char * serverSchemaName, const 
 	if (!bError && continueExec)
 	{
 		if (conn->schema_support)
-			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute, pg_namespace "
+			sprintf(query, "select attrelid, attnum from pg_catalog.pg_class,"
+			" pg_catalog.pg_attribute, pg_catalog.pg_namespace "
 				"where relname = '%s' and attrelid = pg_class.oid "
 				"and (not attisdropped) "
-				"and attname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverColumnName, serverSchemaName);
+				"and attname = '%s' and pg_namespace.oid = relnamespace and"
+				" pg_namespace.nspname = '%s'", serverTableName, serverColumnName, serverSchemaName);
 		else
 			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute "
 				"where relname = '%s' and attrelid = pg_class.oid "
@@ -3465,7 +3480,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 		mylog("%s: entering Foreign Key Case #2", func);
 		if (conn->schema_support)
 		{
-			schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn); 	
+			schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
 			sprintf(tables_query, "SELECT	pt.tgargs, "
 				"		pt.tgnargs, "
 				"		pt.tgdeferrable, "
@@ -3476,16 +3491,16 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 				"		pc1.oid, "
 				"		pc1.relname, "
 				"		pn.nspname "
-				"FROM	pg_class pc, "
-				"		pg_proc pp1, "
-				"		pg_proc pp2, "
-				"		pg_trigger pt1, "
-				"		pg_trigger pt2, "
-				"		pg_proc pp, "
-				"		pg_trigger pt, "
-				"		pg_class pc1, "
-				"		pg_namespace pn "
-				"		pg_namespace pn1 "
+				"FROM	pg_catalog.pg_class pc, "
+				"		pg_catalog.pg_proc pp1, "
+				"		pg_catalog.pg_proc pp2, "
+				"		pg_catalog.pg_trigger pt1, "
+				"		pg_catalog.pg_trigger pt2, "
+				"		pg_catalog.pg_proc pp, "
+				"		pg_catalog.pg_trigger pt, "
+				"		pg_catalog.pg_class pc1, "
+				"		pg_catalog.pg_namespace pn "
+				"		pg_catalog.pg_namespace pn1 "
 				"WHERE	pt.tgrelid = pc.oid "
 				"AND pp.oid = pt.tgfoid "
 				"AND pt1.tgconstrrelid = pc.oid "
@@ -3841,7 +3856,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	{
 		if (conn->schema_support)
 		{
-			schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn); 	
+			schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
 			sprintf(tables_query, "SELECT	pt.tgargs, "
 				"		pt.tgnargs, "
 				"		pt.tgdeferrable, "
@@ -3852,16 +3867,16 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 				"		pc1.oid, "
 				"		pc1.relname, "
 				"		pn.nspname "
-				"FROM	pg_class pc, "
-				"		pg_class pc1, "
-				"		pg_class pc2, "
-				"		pg_proc pp, "
-				"		pg_proc pp1, "
-				"		pg_trigger pt, "
-				"		pg_trigger pt1, "
-				"		pg_trigger pt2, "
-				"		pg_namespace pn "
-				"		pg_namespace pn1 "
+				"FROM	pg_catalog.pg_class pc, "
+				"		pg_catalog.pg_class pc1, "
+				"		pg_catalog.pg_class pc2, "
+				"		pg_catalog.pg_proc pp, "
+				"		pg_catalog.pg_proc pp1, "
+				"		pg_catalog.pg_trigger pt, "
+				"		pg_catalog.pg_trigger pt1, "
+				"		pg_catalog.pg_trigger pt2, "
+				"		pg_catalog.pg_namespace pn "
+				"		pg_catalog.pg_namespace pn1 "
 				"WHERE	pt.tgconstrrelid = pc.oid "
 				"	AND pt.tgrelid = pc1.oid "
 				"	AND pt1.tgfoid = pp1.oid "
@@ -4197,7 +4212,7 @@ PGAPI_ProcedureColumns(
 	{
 		strcpy(proc_query, "select proname, proretset, prorettype, "
 				"pronargs, proargtypes, nspname from "
-				"pg_namespace, pg_proc where "
+				"pg_catalog.pg_namespace, pg_catalog.pg_proc where "
 				"pg_proc.pronamespace = pg_namespace.oid "
 				"and (not proretset)");
 		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
@@ -4334,7 +4349,7 @@ PGAPI_ProcedureColumns(
 			QR_add_tuple(res, row);
 			while (isdigit(*params))
 				params++;
-		} 
+		}
 	}
 	QR_Destructor(tres);
 	/*
@@ -4387,7 +4402,9 @@ PGAPI_Procedures(
 		" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
 		   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 		   " '' as " "REMARKS" ","
-		   " case when prorettype = 0 then 1::int2 else 2::int2 end as "		  "PROCEDURE_TYPE" " from pg_namespace, pg_proc"
+		   " case when prorettype = 0 then 1::int2 else 2::int2 end"
+		   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
+		   " pg_catalog.pg_proc"
 		  " where pg_proc.pronamespace = pg_namespace.oid");
 		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
 		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
@@ -4446,7 +4463,7 @@ usracl_auth(char *usracl, const char *auth)
 		}
 	}
 	return addcnt;
-} 
+}
 static void
 useracl_upd(char (*useracl)[ACLMAX], QResultClass *allures, const char *user, const char *auth)
 {
@@ -4527,13 +4544,16 @@ PGAPI_TablePrivileges(
 	stmt->rowset_start = -1;
 	stmt->current_col = -1;
 	if (conn->schema_support)
-		strncpy_null(proc_query, "select relname, usename, relacl, nspname from pg_namespace, pg_class , pg_user where", sizeof(proc_query));
-	else 
-		strncpy_null(proc_query, "select relname, usename, relacl from pg_class , pg_user where", sizeof(proc_query)); 
+		strncpy_null(proc_query, "select relname, usename, relacl, nspname"
+		" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
+		" pg_catalog.pg_user where", sizeof(proc_query));
+	else
+		strncpy_null(proc_query, "select relname, usename, relacl"
+		" from pg_class , pg_user where", sizeof(proc_query));
 	if ((flag & PODBC_NOT_SEARCH_PATTERN) != 0)
 	{
 		if (conn->schema_support)
-		{ 
+		{
 			schema_strcat(proc_query, " nspname = '%.*s' and", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
 		}
 		my_strcat(proc_query, " relname = '%.*s' and", szTableName, cbTableName);
@@ -4552,8 +4572,8 @@ PGAPI_TablePrivileges(
 		my_strcat(proc_query, " relname like '%.*s' and", esc_table_name, escTbnamelen);
 	}
 	if (conn->schema_support)
-		strcat(proc_query, " pg_namespace.oid = relnamespace and"); 
-	strcat(proc_query, " pg_user.usesysid = relowner"); 
+		strcat(proc_query, " pg_namespace.oid = relnamespace and");
+	strcat(proc_query, " pg_user.usesysid = relowner");
 	if (res = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !res)
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error");
