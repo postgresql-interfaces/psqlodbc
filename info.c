@@ -1026,6 +1026,9 @@ PGAPI_GetFunctions(
 			pfExists[SQL_API_SQLSETPOS] = TRUE;
 			pfExists[SQL_API_SQLSETSCROLLOPTIONS] = TRUE;		/* odbc 1.0 */
 			pfExists[SQL_API_SQLTABLEPRIVILEGES] = TRUE;
+#if (ODBCVER >= 0x0300)
+			pfExists[SQL_API_SQLBULKOPERATIONS] = TRUE;
+#endif /* ODBCVER */
 		}
 	}
 	else
@@ -1036,6 +1039,7 @@ PGAPI_GetFunctions(
 		{
 			switch (fFunction)
 			{
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLALLOCCONNECT:
 					*pfExists = TRUE;
 					break;
@@ -1045,13 +1049,18 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLALLOCSTMT:
 					*pfExists = TRUE;
 					break;
+#endif /* ODBCVER */
 				case SQL_API_SQLBINDCOL:
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLCANCEL:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER >= 0x0300)
+				case SQL_API_SQLCOLATTRIBUTE:
+#else
 				case SQL_API_SQLCOLATTRIBUTES:
+#endif /* ODBCVER */
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLCONNECT:
@@ -1063,9 +1072,11 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLDISCONNECT:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLERROR:
 					*pfExists = TRUE;
 					break;
+#endif /* ODBCVER */
 				case SQL_API_SQLEXECDIRECT:
 					*pfExists = TRUE;
 					break;
@@ -1075,12 +1086,14 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLFETCH:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLFREECONNECT:
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLFREEENV:
 					*pfExists = TRUE;
 					break;
+#endif /* ODBCVER */
 				case SQL_API_SQLFREESTMT:
 					*pfExists = TRUE;
 					break;
@@ -1116,9 +1129,11 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLDRIVERCONNECT:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLGETCONNECTOPTION:
 					*pfExists = TRUE;
 					break;		/* partial */
+#endif /* ODBCVER */
 				case SQL_API_SQLGETDATA:
 					*pfExists = TRUE;
 					break;
@@ -1128,9 +1143,11 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLGETINFO:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLGETSTMTOPTION:
 					*pfExists = TRUE;
 					break;		/* partial */
+#endif /* ODBCVER */
 				case SQL_API_SQLGETTYPEINFO:
 					*pfExists = TRUE;
 					break;
@@ -1140,12 +1157,14 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLPUTDATA:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLSETCONNECTOPTION:
 					*pfExists = TRUE;
 					break;		/* partial */
 				case SQL_API_SQLSETSTMTOPTION:
 					*pfExists = TRUE;
 					break;
+#endif /* ODBCVER */
 				case SQL_API_SQLSPECIALCOLUMNS:
 					*pfExists = TRUE;
 					break;
@@ -1213,6 +1232,35 @@ PGAPI_GetFunctions(
 					break;		/* odbc 1.0 */
 				case SQL_API_SQLTABLEPRIVILEGES:
 					*pfExists = TRUE;
+					break;
+#if (ODBCVER >= 0x0300)
+				case SQL_API_SQLBULKOPERATIONS:	/* 24 */
+				case SQL_API_SQLALLOCHANDLE:	/* 1001 */
+				case SQL_API_SQLBINDPARAM:	/* 1002 */
+				case SQL_API_SQLCLOSECURSOR:	/* 1003 */
+				case SQL_API_SQLENDTRAN:	/* 1005 */
+				case SQL_API_SQLFETCHSCROLL:	/* 1021 */
+				case SQL_API_SQLFREEHANDLE:	/* 1006 */
+				case SQL_API_SQLGETCONNECTATTR:	/* 1007 */
+				case SQL_API_SQLGETDESCFIELD:	/* 1008 */
+				case SQL_API_SQLGETDIAGFIELD:	/* 1010 */
+				case SQL_API_SQLGETDIAGREC:	/* 1011 */
+				case SQL_API_SQLGETENVATTR:	/* 1012 */
+				case SQL_API_SQLGETSTMTATTR:	/* 1014 */
+				case SQL_API_SQLSETCONNECTATTR:	/* 1016 */
+				case SQL_API_SQLSETDESCFIELD:	/* 1017 */
+				case SQL_API_SQLSETENVATTR:	/* 1019 */
+				case SQL_API_SQLSETSTMTATTR:	/* 1020 */
+					*pfExists = TRUE;
+					break;
+				case SQL_API_SQLGETDESCREC:	/* 1009 */
+				case SQL_API_SQLSETDESCREC:	/* 1018 */
+				case SQL_API_SQLCOPYDESC:	/* 1004 */
+					*pfExists = FALSE;
+					break;
+#endif /* ODBCVER */
+				default:
+					*pfExists = FALSE;
 					break;
 			}
 		}
