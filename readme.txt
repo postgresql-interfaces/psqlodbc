@@ -23,10 +23,11 @@ IDE Method
     into this directory or just copy all the files into this directory.
 
 3.  Insert all of the source files (*.c, *.h, *.rc, *.def) into the Visual project
-    using the "Insert files into project" command.  You may have to do 2 inserts --
-    the first to get the 'c' and header files, and the second to get the def file.
-    Don't forget the .def file since it is an important part of the release.
-    You can even insert ".txt" files into the projects -- they will do nothing.
+    with the exception of md5.c using the "Insert files into project" command.  
+    You may have to do 2 inserts -- the first to get the 'c' and header files, and 
+    the second to get the def file. Don't forget the .def file since it is an 
+    important part of the release. You can even insert ".txt" files into the 
+    projects -- they will do nothing.
 	
 4.  Add the "wsock32.lib" library to the end of the list of libraries for linking
     using the Build settings menu.
