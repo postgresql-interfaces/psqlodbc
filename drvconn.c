@@ -44,10 +44,13 @@
 
 #include "dlg_specific.h"
 
+#define	NULL_IF_NULL(a) (a ? a : "(NULL)")
+
 static char * hide_password(const char *str)
 {
 	char *outstr, *pwdp;
 
+	if (!str)	return NULL;
 	outstr = strdup(str);
 	if (pwdp = strstr(outstr, "PWD="), !pwdp)
 		pwdp = strstr(outstr, "pwd=");
@@ -119,9 +122,10 @@ PGAPI_DriverConnect(
 	{
 		char	*hide_str = hide_password(connStrIn);
 
-		mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, hide_str);
-		qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, hide_str, fDriverCompletion);
-		free(hide_str);
+		mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, NULL_IF_NULL(hide_str));
+		qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
+		if (hide_str)
+			free(hide_str);
 	}
 #endif	/* FORCE_PASSWORD_DISPLAY */
 
@@ -268,16 +272,17 @@ dialog:
 		*pcbConnStrOut = len;
 
 #ifdef	FORCE_PASSWORD_DISPLAY
-	mylog("szConnStrOut = '%s' len=%d,%d\n", szConnStrOut, len, cbConnStrOutMax);
-	qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, szConnStrOut);
+	mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(szConnStrOut), len, cbConnStrOutMax);
+	qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
 #else
 	if (get_qlog() || get_mylog())
 	{
 		char	*hide_str = hide_password(szConnStrOut);
 
-		mylog("szConnStrOut = '%s' len=%d,%d\n", hide_str, len, cbConnStrOutMax);
-		qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, hide_str);
-		free(hide_str);
+		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(hide_str), len, cbConnStrOutMax);
+		qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
+		if (hide_str)
+			free(hide_str);
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
