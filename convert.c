@@ -1145,8 +1145,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 					{
 						if (dot_exist)
 							ns->scale++;
-						else
-							ns->precision++;
+
+						ns->precision++;
 						calv[nlen++] = *wv;
 					}
 				}
