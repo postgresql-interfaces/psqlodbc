@@ -168,7 +168,7 @@ static int pg_hex2bin(UCHAR *src, UCHAR *dst, int length);
 #define	FORMATI64U	"%I64u"
 #else
 #define	ATOI64(val)	strtoll(val, NULL, 10)
-#define	ATOI64U(val)	strtoul(val, NULL, 10)
+#define	ATOI64U(val)	strtoull(val, NULL, 10)
 #define	FORMATI64	"%lld"
 #define	FORMATI64U	"%llu"
 #endif /* WIN32 */
