@@ -566,7 +566,7 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			opts->bindings[row_idx].buflen = (Int4) Value;
 			break;
 		case SQL_DESC_PRECISION:
-			opts->bindings[row_idx].precision = (Int2) Value;
+			opts->bindings[row_idx].precision = (Int2)((Int4) Value);
 			break;
 		case SQL_DESC_SCALE:
 			opts->bindings[row_idx].scale = (Int4) Value;
@@ -713,10 +713,10 @@ APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			opts->parameters[para_idx].used = Value;
 			break;
 		case SQL_DESC_PRECISION:
-			opts->parameters[para_idx].precision = (Int2) Value;
+			opts->parameters[para_idx].precision = (Int2) ((Int4) Value);
 			break;
 		case SQL_DESC_SCALE:
-			opts->parameters[para_idx].scale = (Int2) Value;
+			opts->parameters[para_idx].scale = (Int2) ((Int4) Value);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
@@ -853,10 +853,10 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			ipdopts->parameters[para_idx].SQLType = (Int4) Value;
 			break;
 		case SQL_DESC_PARAMETER_TYPE:
-			ipdopts->parameters[para_idx].paramType = (Int2) Value;
+			ipdopts->parameters[para_idx].paramType = (Int2) ((Int4) Value);
 			break;
 		case SQL_DESC_SCALE:
-			ipdopts->parameters[para_idx].decimal_digits = (Int2) Value;
+			ipdopts->parameters[para_idx].decimal_digits = (Int2) ((Int4) Value);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */ 
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
@@ -1709,6 +1709,10 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 }
 
 #ifdef DRIVER_CURSOR_IMPLEMENT
+#define	CALC_BOOKMARK_ADDR(book, offset, bind_size, index) \
+	(book->buffer + offset + \
+	(bind_size > 0 ? bind_size : (SQL_C_VARBOOKMARK == book->returntype ? book->buflen : sizeof(UInt4))) * index)    	
+
 RETCODE	SQL_API
 PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 {
@@ -1716,12 +1720,13 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	ARDFields	*opts = SC_get_ARD(stmt);
 	RETCODE		ret;
-	UInt4		offset, bind_size = opts->bind_size, *bmark = NULL,
+	UInt4		offset, bind_size = opts->bind_size,
 			global_idx;
 	int		i, processed;
 	ConnectionClass	*conn;
 	BOOL		auto_commit_needed = FALSE;
 	QResultClass	*res;
+	BindInfoClass	*bookmark;
 
 	mylog("%s operation = %d\n", func, operation);
 	SC_clear_error(stmt);
@@ -1735,18 +1740,18 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	}
 	if (SQL_ADD != operation)
 	{
-		if (bmark = (UInt4 *) opts->bookmark->buffer, !bmark)
+		if (!(bookmark = opts->bookmark) || !(bookmark->buffer))
 		{
 			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "bookmark isn't specified");
 			return SQL_ERROR;
 		}
-		bmark = (UInt4 *)(((char *) bmark) + offset);
 	}
 	for (i = 0, processed = 0; i < opts->rowset_size; i++)
 	{
-		if (bmark)
+		if (SQL_ADD != operation)
 		{
-			global_idx = *bmark - 1;
+			memcpy(&global_idx, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, i), sizeof(UInt4));
+			global_idx--;
 		}
 		/* Note opts->row_operation_ptr is ignored */
 		switch (operation)
@@ -1767,13 +1772,6 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 		processed++;
 		if (SQL_ERROR == ret)
 			break;
-		if (SQL_ADD != operation)
-		{
-			if (bind_size > 0)
-				bmark += (bind_size >> 2);
-			else
-				bmark++;
-		} 
 	}
 	if (auto_commit_needed)
 		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);

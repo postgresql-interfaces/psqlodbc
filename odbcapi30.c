@@ -35,6 +35,8 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			   SQLHANDLE InputHandle, SQLHANDLE * OutputHandle)
 {
 	RETCODE		ret;
+	ConnectionClass	*conn;
+
 	mylog("[[SQLAllocHandle]]");
 	switch (HandleType)
 	{
@@ -50,6 +52,13 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			ENTER_CONN_CS((ConnectionClass *) InputHandle);
 			ret = PGAPI_AllocStmt(InputHandle, OutputHandle);
 			LEAVE_CONN_CS((ConnectionClass *) InputHandle);
+			break;
+		case SQL_HANDLE_DESC:
+			conn = (ConnectionClass *) InputHandle;
+			ENTER_CONN_CS(conn);
+			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "can't alloc Desc Handle yet"); 
+			LEAVE_CONN_CS(conn);
+			ret = SQL_ERROR;
 			break;
 		default:
 			ret = SQL_ERROR;

@@ -99,6 +99,9 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			if (ci->updatable_cursors)
 				value |= (SQL_CA1_POS_UPDATE | SQL_CA1_POS_DELETE
 				| SQL_CA1_BULK_ADD
+				| SQL_CA1_BULK_UPDATE_BY_BOOKMARK
+				| SQL_CA1_BULK_DELETE_BY_BOOKMARK
+				| SQL_CA1_BULK_FETCH_BY_BOOKMARK
 				);
 			break;
 		case SQL_STATIC_CURSOR_ATTRIBUTES2:
@@ -107,9 +110,9 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			if (ci->updatable_cursors)
 				value |= (SQL_CA2_OPT_ROWVER_CONCURRENCY
 				| SQL_CA2_CRC_EXACT
-				/* | SQL_CA2_SENSITIVITY_ADDITIONS
+				| SQL_CA2_SENSITIVITY_ADDITIONS
 				| SQL_CA2_SENSITIVITY_DELETIONS
-				| SQL_CA2_SENSITIVITY_UPDATES */
+				| SQL_CA2_SENSITIVITY_UPDATES
 				);
 			break;
 

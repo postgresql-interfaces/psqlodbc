@@ -185,14 +185,16 @@ PGAPI_BindCol(
 #endif /* ODBCVER */
 					break;
 				default:
-					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Column 0 is not of type SQL_C_BOOKMARK");
-inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
+					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK");
+inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 			}
 
 			opts->bookmark->buffer = rgbValue;
 			opts->bookmark->used = pcbValue;
+			opts->bookmark->buflen = cbValueMax;
+			opts->bookmark->returntype = fCType;
 		}
 		return SQL_SUCCESS;
 	}

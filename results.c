@@ -833,7 +833,7 @@ PGAPI_GetData(
 #endif /* ODBCVER */
 				break;
 			default:
-inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
+inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 				SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Column 0 is not of type SQL_C_BOOKMARK");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
@@ -899,12 +899,26 @@ inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 
 	if (get_bookmark)
 	{
-		*((UDWORD *) rgbValue) = SC_get_bookmark(stmt);
+		BOOL	contents_get = FALSE;
 
+		if (rgbValue)
+		{
+			if (SQL_C_BOOKMARK == fCType || 4 <= cbValueMax)
+			{
+				contents_get = TRUE; 
+				*((UDWORD *) rgbValue) = SC_get_bookmark(stmt);
+			}
+		}
 		if (pcbValue)
-			*pcbValue = 4;
+			*pcbValue = sizeof(UDWORD);
 
-		return SQL_SUCCESS;
+		if (contents_get)
+			return SQL_SUCCESS;
+		else
+		{
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the GetData.");
+			return SQL_SUCCESS_WITH_INFO;
+		}
 	}
 
 	field_type = QR_get_field_type(res, icol);
@@ -2475,6 +2489,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 		ARDFields	*opts = SC_get_ARD(stmt);
 		QResultClass	*ires = SC_get_Curres(istmt);
 		const char *cmdstr;
+		BindInfoClass	*bookmark;
 
 		cmdstr = QR_get_command((ires->next ? ires->next : ires));
 		if (cmdstr &&
@@ -2497,15 +2512,20 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 				if (SQL_ERROR == qret)
 					return qret;
 			}
-			if (opts->bookmark->buffer)
+			bookmark = opts->bookmark;
+			if (bookmark->buffer)
 			{
 				char	buf[32];
 				UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
-				sprintf(buf, "%ld", addpos + 1);
-				copy_and_convert_field(stmt, 0, buf,
-                         		SQL_C_ULONG, opts->bookmark->buffer + offset,
-					0, opts->bookmark->used ? opts->bookmark->used
+				sprintf(buf, "%lu", addpos + 1);
+				copy_and_convert_field(stmt,
+					PG_TYPE_INT4,
+					buf,
+                         		bookmark->returntype,
+					bookmark->buffer + offset,
+					bookmark->buflen,
+					bookmark->used ? bookmark->used
 					+ (offset >> 2) : NULL);
 			}
 		}

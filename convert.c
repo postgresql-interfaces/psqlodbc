@@ -377,7 +377,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 #endif /* HAVE_LOCALTIME_R */
 	int			pcbValueOffset,
 				rgbValueOffset;
-	char	   *rgbValueBindRow;
+	char	   *rgbValueBindRow, *pcbValueBindRow = NULL;
 	const char *ptr;
 	int			bind_row = stmt->bind_row;
 	int			bind_size = opts->bind_size;
@@ -430,8 +430,14 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	{
 		pcbValueOffset = bind_row * sizeof(SDWORD);
 		rgbValueOffset = bind_row * cbValueMax;
-
 	}
+	/*
+	 *	The following is applicable in case bind_size > 0
+	 *	or the fCType is of variable length. 
+	 */
+	rgbValueBindRow = (char *) rgbValue + rgbValueOffset;
+	if (pcbValue)
+		pcbValueBindRow = (char *) pcbValue + pcbValueOffset;
 
 	memset(&std_time, 0, sizeof(SIMPLE_TIME));
 
@@ -455,7 +461,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 		 */
 		if (pcbValue)
 		{
-			*(SDWORD *) ((char *) pcbValue + pcbValueOffset) = SQL_NULL_DATA;
+			*((SDWORD *) pcbValueBindRow) = SQL_NULL_DATA;
 			return COPY_OK;
 		}
 		else
@@ -590,7 +596,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				const char *vp;
 
 				/* this is an array of eight integers */
-				short	   *short_array = (short *) ((char *) rgbValue + rgbValueOffset);
+				short	   *short_array = (short *) rgbValueBindRow;
 
 				len = INDEX_KEYS_STORAGE_COUNT * 2;
 				vp = value;
@@ -632,7 +638,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 				/* There is no corresponding fCType for this. */
 				if (pcbValue)
-					*(SDWORD *) ((char *) pcbValue + pcbValueOffset) = len;
+					*((SDWORD *) pcbValueBindRow) = len;
 
 				return COPY_OK; /* dont go any further or the data will be
 								 * trashed */
@@ -644,13 +650,13 @@ inolog("2stime fr=%d\n", std_time.fr);
 			 */
 		case PG_TYPE_LO_UNDEFINED:
 
-			return convert_lo(stmt, value, fCType, ((char *) rgbValue + rgbValueOffset), cbValueMax, (SDWORD *) ((char *) pcbValue + pcbValueOffset));
+			return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SDWORD *) pcbValueBindRow);
 
 		default:
 
 			if (field_type == stmt->hdbc->lobj_type)	/* hack until permanent
 														 * type available */
-				return convert_lo(stmt, value, fCType, ((char *) rgbValue + rgbValueOffset), cbValueMax, (SDWORD *) ((char *) pcbValue + pcbValueOffset));
+				return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SDWORD *) pcbValueBindRow);
 	}
 
 	/* Change default into something useable */
@@ -660,8 +666,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
-
-	rgbValueBindRow = (char *) rgbValue + rgbValueOffset;
 
 #ifdef	UNICODE_SUPPORT
 	if (fCType == SQL_C_CHAR || fCType == SQL_C_WCHAR
@@ -954,7 +958,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					DATE_STRUCT *ds;
 
 					if (bind_size > 0)
-						ds = (DATE_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
+						ds = (DATE_STRUCT *) rgbValueBindRow;
 					else
 						ds = (DATE_STRUCT *) rgbValue + bind_row;
 					ds->year = std_time.y;
@@ -972,7 +976,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					TIME_STRUCT *ts;
 
 					if (bind_size > 0)
-						ts = (TIME_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
+						ts = (TIME_STRUCT *) rgbValueBindRow;
 					else
 						ts = (TIME_STRUCT *) rgbValue + bind_row;
 					ts->hour = std_time.hh;
@@ -990,7 +994,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					TIMESTAMP_STRUCT *ts;
 
 					if (bind_size > 0)
-						ts = (TIMESTAMP_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
+						ts = (TIMESTAMP_STRUCT *) rgbValueBindRow;
 					else
 						ts = (TIMESTAMP_STRUCT *) rgbValue + bind_row;
 					ts->year = std_time.y;
@@ -1006,7 +1010,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_BIT:
 				len = 1;
 				if (bind_size > 0)
-					*(UCHAR *) ((char *) rgbValue + (bind_row * bind_size)) = atoi(neut_str);
+					*((UCHAR *) rgbValueBindRow) = atoi(neut_str);
 				else
 					*((UCHAR *) rgbValue + bind_row) = atoi(neut_str);
 
@@ -1021,7 +1025,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_TINYINT:
 				len = 1;
 				if (bind_size > 0)
-					*(SCHAR *) ((char *) rgbValue + (bind_row * bind_size)) = atoi(neut_str);
+					*((SCHAR *) rgbValueBindRow) = atoi(neut_str);
 				else
 					*((SCHAR *) rgbValue + bind_row) = atoi(neut_str);
 				break;
@@ -1029,7 +1033,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_UTINYINT:
 				len = 1;
 				if (bind_size > 0)
-					*(UCHAR *) ((char *) rgbValue + (bind_row * bind_size)) = atoi(neut_str);
+					*((UCHAR *) rgbValueBindRow) = atoi(neut_str);
 				else
 					*((UCHAR *) rgbValue + bind_row) = atoi(neut_str);
 				break;
@@ -1041,7 +1045,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* HAVE_LOCALE_H */
 				len = 4;
 				if (bind_size > 0)
-					*(SFLOAT *) ((char *) rgbValue + (bind_row * bind_size)) = (float) atof(neut_str);
+					*((SFLOAT *) rgbValueBindRow) = (float) atof(neut_str);
 				else
 					*((SFLOAT *) rgbValue + bind_row) = (float) atof(neut_str);
 #ifdef HAVE_LOCALE_H
@@ -1056,7 +1060,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* HAVE_LOCALE_H */
 				len = 8;
 				if (bind_size > 0)
-					*(SDOUBLE *) ((char *) rgbValue + (bind_row * bind_size)) = atof(neut_str);
+					*((SDOUBLE *) rgbValueBindRow) = atof(neut_str);
 				else
 					*((SDOUBLE *) rgbValue + bind_row) = atof(neut_str);
 #ifdef HAVE_LOCALE_H
@@ -1079,7 +1083,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 			len = sizeof(SQL_NUMERIC_STRUCT);
 			if (bind_size > 0)
-				ns = (SQL_NUMERIC_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
+				ns = (SQL_NUMERIC_STRUCT *) rgbValueBindRow;
 			else
 				ns = (SQL_NUMERIC_STRUCT *) rgbValue + bind_row;
 			for (wv = neut_str; *wv && isspace(*wv); wv++)
@@ -1153,7 +1157,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_SHORT:
 				len = 2;
 				if (bind_size > 0)
-					*(SWORD *) ((char *) rgbValue + (bind_row * bind_size)) = atoi(neut_str);
+					*((SWORD *) rgbValueBindRow) = atoi(neut_str);
 				else
 					*((SWORD *) rgbValue + bind_row) = atoi(neut_str);
 				break;
@@ -1161,7 +1165,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_USHORT:
 				len = 2;
 				if (bind_size > 0)
-					*(UWORD *) ((char *) rgbValue + (bind_row * bind_size)) = atoi(neut_str);
+					*((UWORD *) rgbValueBindRow) = atoi(neut_str);
 				else
 					*((UWORD *) rgbValue + bind_row) = atoi(neut_str);
 				break;
@@ -1170,7 +1174,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_LONG:
 				len = 4;
 				if (bind_size > 0)
-					*(SDWORD *) ((char *) rgbValue + (bind_row * bind_size)) = atol(neut_str);
+					*((SDWORD *) rgbValueBindRow) = atol(neut_str);
 				else
 					*((SDWORD *) rgbValue + bind_row) = atol(neut_str);
 				break;
@@ -1178,7 +1182,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_ULONG:
 				len = 4;
 				if (bind_size > 0)
-					*(UDWORD *) ((char *) rgbValue + (bind_row * bind_size)) = atol(neut_str);
+					*((UDWORD *) rgbValueBindRow) = atol(neut_str);
 				else
 					*((UDWORD *) rgbValue + bind_row) = atol(neut_str);
 				break;
@@ -1187,7 +1191,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_SBIGINT:
 				len = 8;
 				if (bind_size > 0)
-					*(SQLBIGINT *) ((char *) rgbValue + (bind_row * bind_size)) = ATOI64(neut_str);
+					*((SQLBIGINT *) rgbValueBindRow) = ATOI64(neut_str);
 				else
 					*((SQLBIGINT *) rgbValue + bind_row) = ATOI64(neut_str);
 				break;
@@ -1195,7 +1199,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_UBIGINT:
 				len = 8;
 				if (bind_size > 0)
-					*(SQLUBIGINT *) ((char *) rgbValue + (bind_row * bind_size)) = ATOI64U(neut_str);
+					*((SQLUBIGINT *) rgbValueBindRow) = ATOI64U(neut_str);
 				else
 					*((SQLUBIGINT *) rgbValue + bind_row) = ATOI64U(neut_str);
 				break;
@@ -1206,8 +1210,24 @@ inolog("2stime fr=%d\n", std_time.fr);
 				if (PG_TYPE_UNKNOWN == field_type)
 				{
 					if (pcbValue)
-						*(SDWORD *) ((char *) pcbValue + pcbValueOffset) = SQL_NULL_DATA;
+						*((SDWORD *) pcbValueBindRow) = SQL_NULL_DATA;
 					return COPY_OK;
+				}
+				/* The following is for SQL_C_VARBOOKMARK */
+				else if (PG_TYPE_INT4 == field_type)
+				{
+					UInt4	ival = atol(neut_str);
+
+inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
+					if (pcbValue)
+						*((SDWORD *) pcbValueBindRow) = sizeof(ival);
+					if (cbValueMax >= sizeof(ival))
+					{
+						memcpy(rgbValueBindRow, &ival, sizeof(ival));
+						return COPY_OK;
+					}
+					else	
+						return COPY_RESULT_TRUNCATED;
 				}
 				else if (PG_TYPE_BYTEA != field_type)
 				{
@@ -1297,7 +1317,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 	/* store the length of what was copied, if there's a place for it */
 	if (pcbValue)
-		*(SDWORD *) ((char *) pcbValue + pcbValueOffset) = len;
+		*((SDWORD *) pcbValueBindRow) = len;
 
 	if (result == COPY_OK && stmt->current_col >= 0)
 		opts->bindings[stmt->current_col].data_left = 0;
