@@ -304,6 +304,7 @@ SC_Constructor(void)
 		rv->updatable = FALSE;
 		rv->error_recsize = -1;
 		rv->diag_row_count = 0;
+		rv->stmt_time = 0;
 		INIT_STMT_CS(rv);
 	}
 	return rv;
@@ -812,6 +813,15 @@ SC_get_error(StatementClass *self, int *number, char **message)
 }
 
 
+time_t
+SC_get_time(StatementClass *stmt)
+{
+	if (!stmt)
+		return time(NULL);
+	if (!stmt->stmt_time)
+		stmt->stmt_time = time(NULL);
+	return stmt->stmt_time;
+}
 /*
  *	Currently, the driver offers very simple bookmark support -- it is
  *	just the current row number.  But it could be more sophisticated

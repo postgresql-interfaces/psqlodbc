@@ -852,12 +852,28 @@ PGAPI_GetTypeInfo(
 
 		if (fSqlType == SQL_ALL_TYPES || fSqlType == sqlType)
 		{
+			int	pgtcount = 1, cnt;
+
+			if (SQL_INTEGER == sqlType && PG_VERSION_GE(SC_get_conn(stmt), 6.4))
+				pgtcount = 2;
+			for (cnt = 0; cnt < pgtcount; cnt ++)
+			{
+
 			row = (TupleNode *) malloc(sizeof(TupleNode) + (result_cols - 1) * sizeof(TupleField));
 
 			/* These values can't be NULL */
-			set_tuplefield_string(&row->tuple[0], pgtype_to_name(stmt, pgType));
+			if (1 == cnt)
+			{
+				set_tuplefield_string(&row->tuple[0], "serial");
+				set_tuplefield_int2(&row->tuple[6], SQL_NO_NULLS);
+inolog("serial in\n");
+			}
+			else
+			{
+				set_tuplefield_string(&row->tuple[0], pgtype_to_name(stmt, pgType));
+				set_tuplefield_int2(&row->tuple[6], pgtype_nullable(stmt, pgType));
+			}
 			set_tuplefield_int2(&row->tuple[1], (Int2) sqlType);
-			set_tuplefield_int2(&row->tuple[6], pgtype_nullable(stmt, pgType));
 			set_tuplefield_int2(&row->tuple[7], pgtype_case_sensitive(stmt, pgType));
 			set_tuplefield_int2(&row->tuple[8], pgtype_searchable(stmt, pgType));
 			set_tuplefield_int2(&row->tuple[10], pgtype_money(stmt, pgType));
@@ -873,8 +889,16 @@ PGAPI_GetTypeInfo(
 			set_nullfield_string(&row->tuple[3], pgtype_literal_prefix(stmt, pgType));
 			set_nullfield_string(&row->tuple[4], pgtype_literal_suffix(stmt, pgType));
 			set_nullfield_string(&row->tuple[5], pgtype_create_params(stmt, pgType));
-			set_nullfield_int2(&row->tuple[9], pgtype_unsigned(stmt, pgType));
-			set_nullfield_int2(&row->tuple[11], pgtype_auto_increment(stmt, pgType));
+			if (1 == cnt)
+			{
+				set_nullfield_int2(&row->tuple[9], TRUE);
+				set_nullfield_int2(&row->tuple[11], TRUE);
+			}
+			else
+			{
+				set_nullfield_int2(&row->tuple[9], pgtype_unsigned(stmt, pgType));
+				set_nullfield_int2(&row->tuple[11], pgtype_auto_increment(stmt, pgType));
+			}
 			set_nullfield_int2(&row->tuple[13], pgtype_scale(stmt, pgType, PG_STATIC));
 			set_nullfield_int2(&row->tuple[14], pgtype_scale(stmt, pgType, PG_STATIC));
 #if (ODBCVER >=0x0300)
@@ -885,6 +909,8 @@ PGAPI_GetTypeInfo(
 #endif /* ODBCVER */
 
 			QR_add_tuple(res, row);
+
+			}
 		}
 	}
 

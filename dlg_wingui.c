@@ -39,7 +39,7 @@ extern GLOBAL_VALUES globals;
 
 extern HINSTANCE NEAR s_hModule;
 static int	driver_optionsDraw(HWND, const ConnInfo *, int src, BOOL enable);
-static int	driver_options_update(HWND hdlg, ConnInfo *ci, BOOL);
+static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 
 void
 SetDlgStuff(HWND hdlg, const ConnInfo *ci)
@@ -48,11 +48,11 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	 * If driver attribute NOT present, then set the datasource name and
 	 * description
 	 */
-	if (ci->driver[0] == '\0')
-	{
+	/**if (ci->driver[0] == '\0')
+	{**/
 		SetDlgItemText(hdlg, IDC_DSNAME, ci->dsn);
 		SetDlgItemText(hdlg, IDC_DESC, ci->desc);
-	}
+	/**}**/
 
 	SetDlgItemText(hdlg, IDC_DATABASE, ci->database);
 	SetDlgItemText(hdlg, IDC_SERVER, ci->server);
@@ -170,7 +170,7 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 }
 
 static int
-driver_options_update(HWND hdlg, ConnInfo *ci, BOOL updateProfile)
+driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
 {
 	GLOBAL_VALUES *comval;
 
@@ -218,8 +218,8 @@ driver_options_update(HWND hdlg, ConnInfo *ci, BOOL updateProfile)
 	if (!ci)
 		GetDlgItemText(hdlg, DRV_CONNSETTINGS, comval->conn_settings, sizeof(comval->conn_settings));
 
-	if (updateProfile)
-		writeDriverCommoninfo(ci);
+	if (updateDriver)
+		writeDriverCommoninfo(ODBCINST_INI, updateDriver, comval);
 
 	/* fall through */
 	return 0;
@@ -250,7 +250,7 @@ driver_optionsProc(HWND hdlg,
 				case IDOK:
 					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
 					driver_options_update(hdlg, NULL,
-										  ci && ci->dsn && ci->dsn[0]);
+						ci ? ci->driver : NULL);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
@@ -291,7 +291,7 @@ global_optionsProc(HWND hdlg,
 				case IDOK:
 					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
-					writeDriverCommoninfo(NULL);
+					writeDriverCommoninfo(ODBCINST_INI, NULL, &globals);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
@@ -330,14 +330,14 @@ ds_options1Proc(HWND hdlg,
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
-					driver_options_update(hdlg, ci, FALSE);
+					driver_options_update(hdlg, ci, NULL);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
 					return TRUE;
 
 				case IDAPPLY:
-					driver_options_update(hdlg, ci, FALSE);
+					driver_options_update(hdlg, ci, NULL);
 					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
 					break;
 
@@ -346,7 +346,7 @@ ds_options1Proc(HWND hdlg,
 					break;
 
 				case IDNEXTPAGE:
-					driver_options_update(hdlg, ci, FALSE);
+					driver_options_update(hdlg, ci, NULL);
 
 					EndDialog(hdlg, FALSE);
 					DialogBoxParam(s_hModule,

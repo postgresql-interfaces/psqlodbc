@@ -31,6 +31,7 @@
 #define ODBCINST_INI					"ODBCINST.INI"
 #endif
 
+#define	ODBC_DATASOURCES	"ODBC Data Sources"
 
 #if (ODBCVER >= 0x0300)
 #ifdef  UNICODE_SUPPORT
@@ -202,7 +203,8 @@ int CALLBACK ds_options2Proc(HWND hdlg,
 #endif   /* WIN32 */
 
 void		updateGlobals(void);
-void		writeDriverCommoninfo(const ConnInfo *ci);
+void		writeDriverCommoninfo(const char *fileName, const char *sectionName,
+		const GLOBAL_VALUES *);
 void		writeDSNinfo(const ConnInfo *ci);
 void		getDSNdefaults(ConnInfo *ci);
 void		getDSNinfo(ConnInfo *ci, char overwrite);

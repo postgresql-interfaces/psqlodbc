@@ -1392,6 +1392,7 @@ PGAPI_ExtendedFetch(
 			break;
 
 		default:
+			SC_set_error(stmt, STMT_FETCH_OUT_OF_RANGE, "Unsupported PGAPI_ExtendedFetch Direction");
 			SC_log_error(func, "Unsupported PGAPI_ExtendedFetch Direction", stmt);
 			return SQL_ERROR;
 	}
@@ -1839,17 +1840,24 @@ SC_pos_reload(StatementClass *stmt, UDWORD global_ridx, UWORD *count, BOOL logCh
 	if (count)
 		*count = 0;
 	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_reload.");
 		return SQL_ERROR;
+	}
 	if (!stmt->ti)
 		parse_statement(stmt);	/* not preferable */
 	if (!stmt->updatable)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
 	res_ridx = global_ridx - stmt->rowset_start + res->base;
 	if (!(oid = getOid(res, global_ridx)))
+	{
+		SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?");
 		return SQL_SUCCESS_WITH_INFO;
+	}
 	getTid(res, global_ridx, &blocknum, &offset);
 	sprintf(tidval, "(%u, %u)", blocknum, offset);
 	res_cols = getNumResultCols(res);
@@ -1921,12 +1929,16 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 
 	mylog("SC_pos_reload_needed\n");
 	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_reload_needed.");
 		return SQL_ERROR;
+	}
 	if (!stmt->ti)
 		parse_statement(stmt);	/* not preferable */
 	if (!stmt->updatable)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
 	limitrow = stmt->rowset_start + res->rowset_size;
@@ -2069,12 +2081,16 @@ SC_pos_newload(StatementClass *stmt, UInt4 oid, BOOL tidRef)
 
 	mylog("positioned new ti=%x\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_newload.");
 		return SQL_ERROR;
+	}
 	if (!stmt->ti)
 		parse_statement(stmt);	/* not preferable */
 	if (!stmt->updatable)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
 	if (qres = positioned_load(stmt, tidRef ? USE_INSERTED_TID : 0, oid, NULL), qres)
@@ -2203,19 +2219,23 @@ SC_pos_update(StatementClass *stmt,
 	UInt2	pgoffset;
 	Int4	*used, bind_size = opts->bind_size;
 
-	mylog("POS UPDATE %d+%d fi=%x ti=%x\n", irow, SC_get_Curres(stmt)->base,fi, stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_update.");
 		return SQL_ERROR;
+	}
+	mylog("POS UPDATE %d+%d fi=%x ti=%x\n", irow, res->base, fi, stmt->ti);
 	if (!stmt->ti)
 		parse_statement(stmt);	/* not preferable */
 	if (!stmt->updatable)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
 	if (!(oid = getOid(res, global_ridx)))
 	{
-		SC_set_errormsg(stmt, "The row is already deleted");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_POSITION, "The row is already deleted ?");
 		return SQL_ERROR;
 	}
 	getTid(res, global_ridx, &blocknum, &pgoffset);
@@ -2264,7 +2284,10 @@ SC_pos_update(StatementClass *stmt,
 				blocknum, pgoffset, oid);
 		mylog("updstr=%s\n", updstr);
 		if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error");
 			return SQL_ERROR;
+		}
 		qstmt = (StatementClass *) hstmt;
 		apdopts = SC_get_APD(qstmt);
 		apdopts->param_bind_type = opts->bind_size;
@@ -2311,7 +2334,7 @@ SC_pos_update(StatementClass *stmt,
 	else
 	{
 		ret = SQL_SUCCESS_WITH_INFO;
-		SC_set_errormsg(stmt, "update list null");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "update list null");
 	}
 	if (SQL_SUCCESS == ret && res->keyset)
 	{
@@ -2354,17 +2377,21 @@ SC_pos_delete(StatementClass *stmt,
 
 	mylog("POS DELETE ti=%x\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_delete.");
 		return SQL_ERROR;
+	}
 	if (!stmt->ti)
 		parse_statement(stmt);	/* not preferable */
 	if (!stmt->updatable)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
 	if (!(oid = getOid(res, global_ridx)))
 	{
-		SC_set_errormsg(stmt, "The row is already deleted");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_POSITION, "The row is already deleted ?");
 		return SQL_ERROR;
 	}
 	getTid(res, global_ridx, &blocknum, &offset);
@@ -2516,12 +2543,16 @@ SC_pos_add(StatementClass *stmt,
 
 	mylog("POS ADD fi=%x ti=%x\n", fi, stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_add.");
 		return SQL_ERROR;
+	}
 	if (!stmt->ti)
 		parse_statement(stmt);	/* not preferable */
 	if (!stmt->updatable)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
 	num_cols = irdflds->nfields;
@@ -2531,7 +2562,10 @@ SC_pos_add(StatementClass *stmt,
 	else
 		sprintf(addstr, "insert into \"%s\" (", stmt->ti[0]->name);
 	if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error");
 		return SQL_ERROR;
+	}
 	if (opts->row_offset_ptr)
 		offset = *opts->row_offset_ptr;
 	else
@@ -2605,7 +2639,7 @@ SC_pos_add(StatementClass *stmt,
 	else
 	{
 		ret = SQL_SUCCESS_WITH_INFO;
-		SC_set_errormsg(stmt, "insert list null");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "insert list null");
 	}
 	PGAPI_FreeStmt(hstmt, SQL_DROP);
 	if (SQL_SUCCESS == ret && res->keyset)
@@ -2732,7 +2766,7 @@ PGAPI_SetPos(
 
 	if (!(res = SC_get_Curres(stmt)))
 	{
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Null statement result in PGAPI_SetPos.");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in PGAPI_SetPos.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2750,7 +2784,7 @@ PGAPI_SetPos(
 	}
 	else
 	{
-		if (irow > stmt->last_fetch_count)
+		if (SQL_ADD != fOption && irow > stmt->last_fetch_count)
 		{
 			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range");
 			SC_log_error(func, "", stmt);
@@ -2842,7 +2876,6 @@ PGAPI_SetPos(
 	else if (SC_get_IRD(stmt)->rowsFetched)
 		*(SC_get_IRD(stmt)->rowsFetched) = processed;
 	res->recent_processed_row_count = stmt->diag_row_count = processed;
-inolog("rowset=%d processed=%d ret=%d\n", opts->rowset_size, processed, ret);
 	return ret; 
 }
 

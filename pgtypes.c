@@ -79,9 +79,8 @@ Int2		sqlTypes[] = {
 	SQL_CHAR,
 #if (ODBCVER >= 0x0300)
 	SQL_TYPE_DATE,
-#else
-	SQL_DATE,
 #endif /* ODBCVER */
+	SQL_DATE,
 	SQL_DECIMAL,
 	SQL_DOUBLE,
 	SQL_FLOAT,
@@ -94,10 +93,9 @@ Int2		sqlTypes[] = {
 #if (ODBCVER >= 0x0300)
 	SQL_TYPE_TIME,
 	SQL_TYPE_TIMESTAMP,
-#else
+#endif /* ODBCVER */
 	SQL_TIME,
 	SQL_TIMESTAMP,
-#endif /* ODBCVER */
 	SQL_TINYINT,
 	SQL_VARBINARY,
 	SQL_VARCHAR,
@@ -109,9 +107,9 @@ Int2		sqlTypes[] = {
 	0
 };
 
-#if (ODBCVER >= 0x0300) && defined(OBDCINT64)
-/* #define	ALLOWED_C_BIGINT	SQL_C_SBIGINT */
-#define	ALLOWED_C_BIGINT	SQL_C_CHAR /* Delphi should be either ? */
+#if (ODBCVER >= 0x0300) && defined(ODBCINT64)
+#define	ALLOWED_C_BIGINT	SQL_C_SBIGINT
+/* #define	ALLOWED_C_BIGINT	SQL_C_CHAR */ /* Delphi should be either ? */
 #else
 #define	ALLOWED_C_BIGINT	SQL_C_CHAR
 #endif
@@ -143,9 +141,10 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
 			break;
 
-		case SQL_DATE:
 #if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
+#else
+		case SQL_DATE:
 #endif /* ODBCVER */
 			pgType = PG_TYPE_DATE;
 			break;
@@ -304,8 +303,8 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 		case PG_TYPE_INT8:
 			if (ci->int8_as != 0) 
 				return ci->int8_as;
-			if (conn->ms_jet) 
-				return SQL_NUMERIC; /* maybe a little better than SQL_VARCHAR */
+			/***if (conn->ms_jet) 
+				return SQL_NUMERIC; ***/ /* maybe a little better than SQL_VARCHAR */
 #if (ODBCVER >= 0x0300)
 			return SQL_BIGINT;
 #else

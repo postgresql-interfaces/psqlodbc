@@ -293,6 +293,29 @@ searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 	return FALSE;
 }
 
+/*
+ *	lower the unquoted name
+ */
+static
+void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
+{
+	if (!dquote)
+	{
+		char		*ptr;
+		encoded_str	encstr;
+		make_encoded_str(&encstr, conn, name);
+
+		/* lower case table name */
+		for (ptr = name; *ptr; ptr++)
+		{
+			encoded_nextchar(&encstr);
+			if (ENCODE_STATUS(encstr) != 0)
+				ptr++;
+			else
+				*ptr = tolower((unsigned char) *ptr);
+		}
+	}
+}
 
 char
 parse_statement(StatementClass *stmt)
@@ -661,7 +684,12 @@ parse_statement(StatementClass *stmt)
 			}
 			if (out_table && !in_table) /* new table */
 			{
-
+				if (!dquote)
+				{
+					if (token[0] == '(' ||
+					    token[0] == ')')
+						continue;
+				}
 				if (!(stmt->ntab % TAB_INCR))
 				{
 					ti = (TABLE_INFO **) realloc(ti, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *));
@@ -684,22 +712,7 @@ parse_statement(StatementClass *stmt)
 				ti[stmt->ntab]->updatable = 1;
 
 				strcpy(ti[stmt->ntab]->name, token);
-				if (!dquote)
-				{
-					char	   *ptr;
-					encoded_str	encstr;
-					make_encoded_str(&encstr, conn, ti[stmt->ntab]->name);
-
-					/* lower case table name */
-					for (ptr = ti[stmt->ntab]->name; *ptr; ptr++)
-					{
-						encoded_nextchar(&encstr);
-						if (ENCODE_STATUS(encstr) != 0)
-							ptr++;
-						else
-							*ptr = tolower((unsigned char) *ptr);
-					}
-				}
+				lower_the_name(ti[stmt->ntab]->name, conn, dquote);
 				mylog("got table = '%s'\n", ti[stmt->ntab]->name);
 
 				if (delim == ',')
@@ -729,6 +742,7 @@ parse_statement(StatementClass *stmt)
 				{
 					strcpy(ti[stmt->ntab - 1]->schema, ti[stmt->ntab - 1]->name);
 					strcpy(ti[stmt->ntab - 1]->name, token);
+					lower_the_name(ti[stmt->ntab - 1]->name, conn, dquote);
 					in_dot = FALSE;
 					continue;
 				}

@@ -48,6 +48,7 @@ int			convert_special_chars(const char *si, char *dst, int used, BOOL convlf,int
 int			convert_pgbinary_to_char(const char *value, char *rgbValue, int cbValueMax);
 int			convert_from_pgbinary(const unsigned char *value, unsigned char *rgbValue, int cbValueMax);
 int			convert_to_pgbinary(const unsigned char *in, char *out, int len);
+int		pg_hex2bin(const UCHAR *in, UCHAR *out, int len);
 void		encode(const char *in, char *out);
 void		decode(const char *in, char *out);
 int convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,

@@ -24,8 +24,20 @@ if test "$with_unixodbc" = yes && test "$with_iodbc" = yes; then
   AC_MSG_ERROR([ODBC driver cannot be built for both unixODBC and iODBC])
 fi
 
+#
+# Default odbc version number (--with-odbcver), default 0x0250
+#
+AC_MSG_CHECKING([for ODBC version number])
+PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC version number
+ [0x0250]],
+             [AC_DEFINE_UNQUOTED(ODBCVER, ${withval},
+          	[Define to ODBC version (--with-odbcver)])])
+AC_MSG_RESULT([$with_odbcver])
+
 AM_CONDITIONAL(with_unixodbc, [test $with_unixodbc = yes])
 AM_CONDITIONAL(with_iodbc, [test $with_iodbc = yes])
+
+AC_CHECK_FUNCS(strtoll)
 
 # to implement the thread-safe driver
 PGAC_ARG_BOOL(enable, pthreads, no,
@@ -37,7 +49,7 @@ PGAC_ARG_BOOL(enable, pthreads, no,
      AC_CHECK_LIB(c_r, gethostbyname)
      AC_CHECK_LIB(nsl, gethostbyname_r, [],
 	[AC_CHECK_FUNCS(getipnodebyname gethostbyname_r, break)])
-     if test "$ac_cv_func_gethostbyname_r" = yes || test "$ac_cv_lib_nsl_gethostbyname_r" = yes; then
+     if test x"$ac_cv_func_gethostbyname_r" = xyes || test x"$ac_cv_lib_nsl_gethostbyname_r" = xyes; then
 	AC_TRY_COMPILE([#include <netdb.h>],
 	[ gethostbyname_r((char *) 0, (struct hostent *) 0, (char *) 0, 0, (int *) 0);],
         [AC_DEFINE(PGS_REENTRANT_API_1, 1, [Define if you have 5 parameter gethostbyname_r])],

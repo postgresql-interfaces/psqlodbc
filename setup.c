@@ -395,7 +395,7 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg)
 	}
 
 	/* Update ODBC.INI */
-	writeDriverCommoninfo(&lpsetupdlg->ci);
+	writeDriverCommoninfo(ODBC_INI, lpsetupdlg->ci.dsn, &(lpsetupdlg->ci.drivers));
 	writeDSNinfo(&lpsetupdlg->ci);
 
 	/* If the data source name has changed, remove the old name */

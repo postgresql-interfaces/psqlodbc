@@ -126,7 +126,7 @@ PGAPI_Connect(
 	/* fill in any defaults */
 	getDSNdefaults(ci);
 
-	qlog("conn = %u, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password);
+	qlog("conn = %u, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
 
 	if (CC_connect(conn, AUTH_REQ_OK, NULL) <= 0)
 	{
@@ -675,7 +675,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			return 0;
 		}
 
-		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password);
+		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
 
 another_version_retry:
 

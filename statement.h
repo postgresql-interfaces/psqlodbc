@@ -10,6 +10,7 @@
 #define __STATEMENT_H__
 
 #include "psqlodbc.h"
+#include <time.h>
 
 #include "bind.h"
 #include "descriptor.h"
@@ -204,6 +205,7 @@ struct StatementClass_
 	Int4		from_pos;	
 	Int4		where_pos;
 	Int4		last_fetch_count_include_ommitted;
+	time_t		stmt_time;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
@@ -281,6 +283,7 @@ RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);
 void		SC_log_error(const char *func, const char *desc, const StatementClass *self);
+time_t		SC_get_time(StatementClass *self);
 unsigned long SC_get_bookmark(StatementClass *self);
 RETCODE		SC_pos_update(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, UDWORD index);

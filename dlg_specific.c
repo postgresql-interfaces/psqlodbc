@@ -319,7 +319,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, "CX") == 0)
 		unfoldCXAttribute(ci, value);
 
-	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password, ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
 }
 
 void
@@ -449,6 +449,13 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	while (*(DSN + strlen(DSN) - 1) == ' ')
 		*(DSN + strlen(DSN) - 1) = '\0';
 
+	if (ci->driver[0] == '\0' || overwrite)
+	{
+		SQLGetPrivateProfileString(ODBC_DATASOURCES, DSN, "", ci->driver, sizeof(ci->driver), ODBC_INI);
+		if (ci->driver[0] && stricmp(ci->driver, DBMS_NAME))
+			getCommonDefaults(ci->driver, ODBCINST_INI, ci);
+	}
+
 	/* Proceed with getting info for the given DSN. */
 
 	if (ci->desc[0] == '\0' || overwrite)
@@ -557,7 +564,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->port,
 		 ci->database,
 		 ci->username,
-		 ci->password);
+		 ci->password ? "xxxxx" : "");
 	qlog("          onlyread='%s',protocol='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
 		 ci->protocol,
@@ -579,33 +586,14 @@ getDSNinfo(ConnInfo *ci, char overwrite)
  *	to the ODBCINST.INI portion of the registry
  */
 void
-writeDriverCommoninfo(const ConnInfo *ci)
+writeDriverCommoninfo(const char *fileName, const char *sectionName,
+			 const GLOBAL_VALUES *comval)
 {
-	const char *sectionName;
-	const char *fileName;
-	const GLOBAL_VALUES *comval;
 	char		tmp[128];
 
-	if (ci)
-		if (ci->dsn && ci->dsn[0])
-		{
-			mylog("DSN=%s updating\n", ci->dsn);
-			comval = &(ci->drivers);
-			sectionName = ci->dsn;
-			fileName = ODBC_INI;
-		}
-		else
-		{
-			mylog("ci but dsn==NULL\n");
-			return;
-		}
-	else
-	{
-		mylog("drivers updating\n");
-		comval = &globals;
+	if (ODBCINST_INI == fileName && NULL == sectionName)
 		sectionName = DBMS_NAME;
-		fileName = ODBCINST_INI;
-	}
+ 
 	sprintf(tmp, "%d", comval->fetch_max);
 	SQLWritePrivateProfileString(sectionName,
 								 INI_FETCH, tmp, fileName);
@@ -631,7 +619,7 @@ writeDriverCommoninfo(const ConnInfo *ci)
 	/*
 	 * Never update the onlyread from this module.
 	 */
-	if (!ci)
+	if (ODBCINST_INI == fileName)
 	{
 		sprintf(tmp, "%d", comval->onlyread);
 		SQLWritePrivateProfileString(sectionName, INI_READONLY, tmp,

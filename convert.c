@@ -136,7 +136,6 @@ static unsigned int conv_from_octal(const unsigned char *s);
 static unsigned int conv_from_hex(const unsigned char *s);
 static char *conv_to_octal(unsigned char val, char *octal);
 static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
-static int pg_hex2bin(UCHAR *src, UCHAR *dst, int length);
 
 /*---------
  *			A Guide for date/time/timestamp conversions
@@ -166,11 +165,12 @@ static int pg_hex2bin(UCHAR *src, UCHAR *dst, int length);
 #define	ATOI64U	_atoi64
 #define	FORMATI64	"%I64d"
 #define	FORMATI64U	"%I64u"
-#else
+#elif	defined(HAVE_STRTOLL)
 #define	ATOI64(val)	strtoll(val, NULL, 10)
 #define	ATOI64U(val)	strtoull(val, NULL, 10)
 #define	FORMATI64	"%lld"
 #define	FORMATI64U	"%llu"
+#else /* HAVE_STRTOLL */
 #endif /* WIN32 */
 #endif /* ODBCINT64 */
 
@@ -369,8 +369,8 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	ARDFields	*opts = SC_get_ARD(stmt);
 	Int4		len = 0,
 				copy_len = 0;
-	SIMPLE_TIME st;
-	time_t		t = time(NULL);
+	SIMPLE_TIME std_time;
+	time_t		stmt_t = SC_get_time(stmt);
 	struct tm  *tim;
 #ifdef	HAVE_LOCALTIME_R
 	struct tm  tm;
@@ -433,17 +433,17 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 
 	}
 
-	memset(&st, 0, sizeof(SIMPLE_TIME));
+	memset(&std_time, 0, sizeof(SIMPLE_TIME));
 
 	/* Initialize current date */
 #ifdef	HAVE_LOCALTIME_R
-	tim = localtime_r(&t, &tm);
+	tim = localtime_r(&stmt_t, &tm);
 #else
-	tim = localtime(&t);
+	tim = localtime(&stmt_t);
 #endif /* HAVE_LOCALTIME_R */
-	st.m = tim->tm_mon + 1;
-	st.d = tim->tm_mday;
-	st.y = tim->tm_year + 1900;
+	std_time.m = tim->tm_mon + 1;
+	std_time.d = tim->tm_mday;
+	std_time.y = tim->tm_year + 1900;
 
 	mylog("copy_and_convert: field_type = %d, fctype = %d, value = '%s', cbValueMax=%d\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
 
@@ -490,38 +490,38 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 			 * PG_TYPE_CHAR,VARCHAR $$$
 			 */
 		case PG_TYPE_DATE:
-			sscanf(value, "%4d-%2d-%2d", &st.y, &st.m, &st.d);
+			sscanf(value, "%4d-%2d-%2d", &std_time.y, &std_time.m, &std_time.d);
 			break;
 
 		case PG_TYPE_TIME:
-			sscanf(value, "%2d:%2d:%2d", &st.hh, &st.mm, &st.ss);
+			sscanf(value, "%2d:%2d:%2d", &std_time.hh, &std_time.mm, &std_time.ss);
 			break;
 
 		case PG_TYPE_ABSTIME:
 		case PG_TYPE_DATETIME:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 		case PG_TYPE_TIMESTAMP:
-			st.fr = 0;
-			st.infinity = 0;
+			std_time.fr = 0;
+			std_time.infinity = 0;
 			if (strnicmp(value, "infinity", 8) == 0)
 			{
-				st.infinity = 1;
-				st.m = 12;
-				st.d = 31;
-				st.y = 9999;
-				st.hh = 23;
-				st.mm = 59;
-				st.ss = 59;
+				std_time.infinity = 1;
+				std_time.m = 12;
+				std_time.d = 31;
+				std_time.y = 9999;
+				std_time.hh = 23;
+				std_time.mm = 59;
+				std_time.ss = 59;
 			}
 			if (strnicmp(value, "-infinity", 9) == 0)
 			{
-				st.infinity = -1;
-				st.m = 0;
-				st.d = 0;
-				st.y = 0;
-				st.hh = 0;
-				st.mm = 0;
-				st.ss = 0;
+				std_time.infinity = -1;
+				std_time.m = 0;
+				std_time.d = 0;
+				std_time.y = 0;
+				std_time.hh = 0;
+				std_time.mm = 0;
+				std_time.ss = 0;
 			}
 			if (strnicmp(value, "invalid", 7) != 0)
 			{
@@ -529,11 +529,12 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				int			zone;
 
 				/*
-				 * sscanf(value, "%4d-%2d-%2d %2d:%2d:%2d", &st.y, &st.m,
-				 * &st.d, &st.hh, &st.mm, &st.ss);
+				 * sscanf(value, "%4d-%2d-%2d %2d:%2d:%2d", &std_time.y, &std_time.m,
+				 * &std_time.d, &std_time.hh, &std_time.mm, &std_time.ss);
 				 */
 				bZone = FALSE;	/* time zone stuff is unreliable */
-				timestamp2stime(value, &st, &bZone, &zone);
+				timestamp2stime(value, &std_time, &bZone, &zone);
+inolog("2stime fr=%d\n", std_time.fr);
 			}
 			else
 			{
@@ -541,18 +542,18 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				 * The timestamp is invalid so set something conspicuous,
 				 * like the epoch
 				 */
-				t = 0;
+				time_t	t = 0;
 #ifdef	HAVE_LOCALTIME_R
 				tim = localtime_r(&t, &tm);
 #else
 				tim = localtime(&t);
 #endif /* HAVE_LOCALTIME_R */
-				st.m = tim->tm_mon + 1;
-				st.d = tim->tm_mday;
-				st.y = tim->tm_year + 1900;
-				st.hh = tim->tm_hour;
-				st.mm = tim->tm_min;
-				st.ss = tim->tm_sec;
+				std_time.m = tim->tm_mon + 1;
+				std_time.d = tim->tm_mday;
+				std_time.y = tim->tm_year + 1900;
+				std_time.hh = tim->tm_hour;
+				std_time.mm = tim->tm_min;
+				std_time.ss = tim->tm_sec;
 			}
 			break;
 
@@ -680,13 +681,13 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 			case PG_TYPE_DATE:
 				len = 10;
 				if (cbValueMax > len)
-					sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d", st.y, st.m, st.d);
+					sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
 				break;
 
 			case PG_TYPE_TIME:
 				len = 8;
 				if (cbValueMax > len)
-					sprintf(rgbValueBindRow, "%.2d:%.2d:%.2d", st.hh, st.mm, st.ss);
+					sprintf(rgbValueBindRow, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
 				break;
 
 			case PG_TYPE_ABSTIME:
@@ -696,7 +697,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				len = 19;
 				if (cbValueMax > len)
 					sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
-							st.y, st.m, st.d, st.hh, st.mm, st.ss);
+							std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss);
 				break;
 
 			case PG_TYPE_BOOL:
@@ -956,9 +957,9 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 						ds = (DATE_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
 					else
 						ds = (DATE_STRUCT *) rgbValue + bind_row;
-					ds->year = st.y;
-					ds->month = st.m;
-					ds->day = st.d;
+					ds->year = std_time.y;
+					ds->month = std_time.m;
+					ds->day = std_time.d;
 				}
 				break;
 
@@ -974,9 +975,9 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 						ts = (TIME_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
 					else
 						ts = (TIME_STRUCT *) rgbValue + bind_row;
-					ts->hour = st.hh;
-					ts->minute = st.mm;
-					ts->second = st.ss;
+					ts->hour = std_time.hh;
+					ts->minute = std_time.mm;
+					ts->second = std_time.ss;
 				}
 				break;
 
@@ -992,13 +993,13 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 						ts = (TIMESTAMP_STRUCT *) ((char *) rgbValue + (bind_row * bind_size));
 					else
 						ts = (TIMESTAMP_STRUCT *) rgbValue + bind_row;
-					ts->year = st.y;
-					ts->month = st.m;
-					ts->day = st.d;
-					ts->hour = st.hh;
-					ts->minute = st.mm;
-					ts->second = st.ss;
-					ts->fraction = st.fr;
+					ts->year = std_time.y;
+					ts->month = std_time.m;
+					ts->day = std_time.d;
+					ts->hour = std_time.hh;
+					ts->minute = std_time.mm;
+					ts->second = std_time.ss;
+					ts->fraction = std_time.fr;
 				}
 				break;
 
@@ -1202,7 +1203,13 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 #endif /* ODBCINT64 */
 			case SQL_C_BINARY:
 
-				if (PG_TYPE_BYTEA != field_type)
+				if (PG_TYPE_UNKNOWN == field_type)
+				{
+					if (pcbValue)
+						*(SDWORD *) ((char *) pcbValue + pcbValueOffset) = SQL_NULL_DATA;
+					return COPY_OK;
+				}
+				else if (PG_TYPE_BYTEA != field_type)
 				{
 					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					return COPY_UNSUPPORTED_TYPE;
@@ -2513,7 +2520,7 @@ ResolveOneParam(QueryBuild *qb)
 	param_string[0] = '\0';
 	cbuf[0] = '\0';
 	memset(&st, 0, sizeof(st));
-	t = time(NULL);
+	t = SC_get_time(qb->stmt);
 #ifdef	HAVE_LOCALTIME_R
 	tim = localtime_r(&t, &tm);
 #else
@@ -3709,12 +3716,12 @@ pg_bin2hex(UCHAR *src, UCHAR *dst, int length)
 	return length;
 }
 
-static int
-pg_hex2bin(UCHAR *src, UCHAR *dst, int length)
+int
+pg_hex2bin(const UCHAR *src, UCHAR *dst, int length)
 {
-	UCHAR		chr,
-			   *src_wk,
-			   *dst_wk;
+	UCHAR		chr;
+	const UCHAR	*src_wk;
+	UCHAR		*dst_wk;
 	int		i, val;
 	BOOL		HByte = TRUE;
 

@@ -398,7 +398,7 @@ CC_lookup_characterset(ConnectionClass *self)
 				wenc = "BIG5";
 				break;
 		}
-		if (wenc && stricmp(encstr, wenc))
+		if (wenc && (!encstr || stricmp(encstr, wenc)))
 		{
 			QResultClass	*res;
 			char		query[64];

@@ -44,6 +44,23 @@
 
 #include "dlg_specific.h"
 
+static char * hide_password(const char *str)
+{
+	char *outstr, *pwdp;
+
+	outstr = strdup(str);
+	if (pwdp = strstr(outstr, "PWD="), !pwdp)
+		pwdp = strstr(outstr, "pwd=");
+	if (pwdp)
+	{
+		char	*p;
+
+		for (p=pwdp + 4; *p && *p != ';'; p++)
+			*p = 'x';
+	}
+	return outstr;
+}
+
 /* prototypes */
 void		dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci);
 static void dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci);
@@ -94,8 +111,19 @@ PGAPI_DriverConnect(
 
 	make_string(szConnStrIn, cbConnStrIn, connStrIn);
 
+#ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
 	qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
+#else
+	if (get_qlog() || get_mylog())
+	{
+		char	*hide_str = hide_password(connStrIn);
+
+		mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, hide_str);
+		qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, hide_str, fDriverCompletion);
+		free(hide_str);
+	}
+#endif	/* FORCE_PASSWORD_DISPLAY */
 
 	ci = &(conn->connInfo);
 
@@ -239,8 +267,19 @@ dialog:
 	if (pcbConnStrOut)
 		*pcbConnStrOut = len;
 
+#ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("szConnStrOut = '%s' len=%d,%d\n", szConnStrOut, len, cbConnStrOutMax);
 	qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, szConnStrOut);
+#else
+	if (get_qlog() || get_mylog())
+	{
+		char	*hide_str = hide_password(szConnStrOut);
+
+		mylog("szConnStrOut = '%s' len=%d,%d\n", hide_str, len, cbConnStrOutMax);
+		qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, hide_str);
+		free(hide_str);
+	}
+#endif /* FORCE_PASSWORD_DISPLAY */
 
 
 	mylog("PGAPI_DriverConnect: returning %d\n", result);
@@ -361,7 +400,17 @@ dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 	our_connect_string = strdup(connect_string);
 	strtok_arg = our_connect_string;
 
+#ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("our_connect_string = '%s'\n", our_connect_string);
+#else
+	if (get_mylog())
+	{
+		char	*hide_str = hide_password(our_connect_string);
+
+		mylog("our_connect_string = '%s'\n", hide_str);
+		free(hide_str);
+	}
+#endif /* FORCE_PASSWORD_DISPLAY */
 
 	while (1)
 	{
@@ -383,7 +432,13 @@ dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 		attribute = pair;		/* ex. DSN */
 		value = equals + 1;		/* ex. 'CEO co1' */
 
-		mylog("attribute = '%s', value = '%s'\n", attribute, value);
+#ifndef	FORCE_PASSWORD_DISPLAY
+		if (stricmp(attribute, INI_PASSWORD) == 0 ||
+		    stricmp(attribute, "pwd") == 0)
+			mylog("attribute = '%s', value = 'xxxxx'\n", attribute);
+		else
+#endif /* FORCE_PASSWORD_DISPLAY */
+			mylog("attribute = '%s', value = '%s'\n", attribute, value);
 
 		if (!attribute || !value)
 			continue;
@@ -412,7 +467,17 @@ dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 	our_connect_string = strdup(connect_string);
 	strtok_arg = our_connect_string;
 
+#ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("our_connect_string = '%s'\n", our_connect_string);
+#else
+	if (get_mylog())
+	{
+		char	*hide_str = hide_password(our_connect_string);
+
+		mylog("our_connect_string = '%s'\n", hide_str);
+		free(hide_str);
+	}
+#endif /* FORCE_PASSWORD_DISPLAY */
 
 	while (1)
 	{
@@ -434,7 +499,13 @@ dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 		attribute = pair;		/* ex. DSN */
 		value = equals + 1;		/* ex. 'CEO co1' */
 
-		mylog("attribute = '%s', value = '%s'\n", attribute, value);
+#ifndef	FORCE_PASSWORD_DISPLAY
+		if (stricmp(attribute, INI_PASSWORD) == 0 ||
+		    stricmp(attribute, "pwd") == 0)
+			mylog("attribute = '%s', value = 'xxxxx'\n", attribute);
+		else
+#endif /* FORCE_PASSWORD_DISPLAY */
+			mylog("attribute = '%s', value = '%s'\n", attribute, value);
 
 		if (!attribute || !value)
 			continue;

@@ -64,6 +64,16 @@ pthread_mutex_t	qlog_cs, mylog_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 static int	mylog_on = 0,
 			qlog_on = 0;
+
+int	get_mylog(void)
+{
+	return mylog_on;
+}
+int	get_qlog(void)
+{
+	return qlog_on;
+}
+
 void
 logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 {

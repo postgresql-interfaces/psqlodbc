@@ -930,7 +930,10 @@ PGAPI_PutData(
 				retval;
 	ParameterInfoClass *current_param;
 	ParameterImplClass *current_iparam;
-	char	   *buffer;
+	char	   *buffer, *putbuf, *allocbuf = NULL;
+	Int2		ctype;
+	SDWORD		putlen;
+	BOOL		lenset = FALSE;
 
 	mylog("%s: entering...\n", func);
 
@@ -951,8 +954,53 @@ PGAPI_PutData(
 	current_param = &(apdopts->parameters[stmt->current_exec_param]);
 	ipdopts = SC_get_IPD(stmt);
 	current_iparam = &(ipdopts->parameters[stmt->current_exec_param]);
+	ctype = current_param->CType;
 
 	conn = SC_get_conn(stmt);
+	if (ctype == SQL_C_DEFAULT)
+		ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
+	if (SQL_NTS == cbValue)
+	{
+#ifdef	UNICODE_SUPPORT
+		if (SQL_C_WCHAR == ctype)
+		{
+			putlen = 2 * ucs2strlen((SQLWCHAR *) rgbValue);
+			lenset = TRUE;
+		}
+		else
+#endif /* UNICODE_SUPPORT */
+		if (SQL_C_CHAR == ctype)
+		{
+			putlen = strlen(rgbValue);
+			lenset = TRUE;
+		}
+	}
+	if (!lenset)
+	{
+		if (cbValue < 0)
+			putlen = cbValue;
+		else
+#ifdef	UNICODE_SUPPORT
+		if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY || ctype == SQL_C_WCHAR)
+#else
+		if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY)
+#endif /* UNICODE_SUPPORT */
+			putlen = cbValue;
+		else
+			putlen = ctype_length(ctype);
+	}
+	putbuf = rgbValue;
+	if (current_iparam->PGType == conn->lobj_type && SQL_C_CHAR == ctype)
+	{
+		allocbuf = malloc(putlen / 2 + 1);
+		if (allocbuf)
+		{
+			pg_hex2bin(rgbValue, allocbuf, putlen);
+			putbuf = allocbuf;
+			putlen /= 2;
+		}
+	}
+
 	if (!stmt->put_data)
 	{							/* first call */
 		mylog("PGAPI_PutData: (1) cbValue = %d\n", cbValue);
@@ -967,7 +1015,7 @@ PGAPI_PutData(
 			return SQL_ERROR;
 		}
 
-		*current_param->EXEC_used = cbValue;
+		*current_param->EXEC_used = putlen;
 
 		if (cbValue == SQL_NULL_DATA)
 			return SQL_SUCCESS;
@@ -1011,62 +1059,20 @@ PGAPI_PutData(
 				return SQL_ERROR;
 			}
 
-			retval = lo_write(stmt->hdbc, stmt->lobj_fd, rgbValue, cbValue);
-			mylog("lo_write: cbValue=%d, wrote %d bytes\n", cbValue, retval);
+			retval = lo_write(stmt->hdbc, stmt->lobj_fd, putbuf, putlen);
+			mylog("lo_write: cbValue=%d, wrote %d bytes\n", putlen, retval);
 		}
 		else
 		{
-			Int2		ctype = current_param->CType;
-			if (ctype == SQL_C_DEFAULT)
-				ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
-
-#ifdef	UNICODE_SUPPORT
-			if (SQL_NTS == cbValue && SQL_C_WCHAR == ctype)
-				cbValue = 2 * ucs2strlen((SQLWCHAR *) rgbValue);
-#endif /* UNICODE_SUPPORT */
-			/* for handling fields */
-			if (cbValue == SQL_NTS)
+			current_param->EXEC_buffer = malloc(putlen + 1);
+			if (!current_param->EXEC_buffer)
 			{
-				current_param->EXEC_buffer = strdup(rgbValue);
-				if (!current_param->EXEC_buffer)
-				{
-					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
-					SC_log_error(func, "", stmt);
-					return SQL_ERROR;
-				}
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
+				SC_log_error(func, "", stmt);
+				return SQL_ERROR;
 			}
-			else
-			{
-#ifdef	UNICODE_SUPPORT
-				if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY || ctype == SQL_C_WCHAR)
-#else
-				if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY)
-#endif /* UNICODE_SUPPORT */
-				{
-					current_param->EXEC_buffer = malloc(cbValue + 1);
-					if (!current_param->EXEC_buffer)
-					{
-						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
-						SC_log_error(func, "", stmt);
-						return SQL_ERROR;
-					}
-					memcpy(current_param->EXEC_buffer, rgbValue, cbValue);
-					current_param->EXEC_buffer[cbValue] = '\0';
-				}
-				else
-				{
-					Int4		used = ctype_length(ctype);
-
-					current_param->EXEC_buffer = malloc(used);
-					if (!current_param->EXEC_buffer)
-					{
-						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
-						SC_log_error(func, "", stmt);
-						return SQL_ERROR;
-					}
-					memcpy(current_param->EXEC_buffer, rgbValue, used);
-				}
-			}
+			memcpy(current_param->EXEC_buffer, putbuf, putlen);
+			current_param->EXEC_buffer[putlen] = '\0';
 		}
 	}
 	else
@@ -1078,41 +1084,20 @@ PGAPI_PutData(
 		if (current_iparam->PGType == conn->lobj_type)
 		{
 			/* the large object fd is in EXEC_buffer */
-			retval = lo_write(stmt->hdbc, stmt->lobj_fd, rgbValue, cbValue);
-			mylog("lo_write(2): cbValue = %d, wrote %d bytes\n", cbValue, retval);
+			retval = lo_write(stmt->hdbc, stmt->lobj_fd, putbuf, putlen);
+			mylog("lo_write(2): cbValue = %d, wrote %d bytes\n", putlen, retval);
 
-			*current_param->EXEC_used += cbValue;
+			*current_param->EXEC_used += putlen;
 		}
 		else
 		{
-			Int2	ctype = current_param->CType;
-
-			if (ctype == SQL_C_DEFAULT)
-				ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
 			buffer = current_param->EXEC_buffer;
-			if (old_pos = *current_param->EXEC_used, SQL_NTS == old_pos)
+			old_pos = *current_param->EXEC_used;
+			if (putlen > 0)
 			{
-#ifdef	UNICODE_SUPPORT
-				if (SQL_C_WCHAR == ctype)
-					old_pos = 2 * ucs2strlen((SQLWCHAR *) buffer);
-				else
-#endif /* UNICODE_SUPPORT */
-				old_pos = strlen(buffer);
-			}
-			if (SQL_NTS == cbValue)
-			{
-#ifdef	UNICODE_SUPPORT
-				if (SQL_C_WCHAR == ctype)
-					cbValue = 2 * ucs2strlen((SQLWCHAR *) rgbValue);
-				else
-#endif /* UNICODE_SUPPORT */
-				cbValue = strlen(rgbValue);
-			}
-			if (cbValue > 0)
-			{
-				*current_param->EXEC_used += cbValue;
+				*current_param->EXEC_used += putlen;
 
-				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", cbValue, old_pos, *current_param->EXEC_used);
+				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", putlen, old_pos, *current_param->EXEC_used);
 
 				/* dont lose the old pointer in case out of memory */
 				buffer = realloc(current_param->EXEC_buffer, *current_param->EXEC_used + 1);
@@ -1123,7 +1108,7 @@ PGAPI_PutData(
 					return SQL_ERROR;
 				}
 
-				memcpy(&buffer[old_pos], rgbValue, cbValue);
+				memcpy(&buffer[old_pos], putbuf, putlen);
 				buffer[*current_param->EXEC_used] = '\0';
 
 				/* reassign buffer incase realloc moved it */
@@ -1136,6 +1121,8 @@ PGAPI_PutData(
 			}
 		}
 	}
+	if (allocbuf)
+		free(allocbuf);
 
 	return SQL_SUCCESS;
 }

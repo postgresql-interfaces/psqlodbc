@@ -94,6 +94,8 @@ extern void qlog(char *fmt,...);
 #endif
 #endif
 #define	inoqlog	qlog
+int	get_qlog(void);
+int	get_mylog(void);
 
 #ifndef WIN32
 #define DIRSEPARATOR		"/"

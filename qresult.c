@@ -708,11 +708,10 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 				mylog("end of tuple list -- setting inUse to false: this = %u\n", self);
 
 				self->inTuples = FALSE;
-				if (self->num_total_rows > 0)
+				qlog("    [ fetched %d rows ]\n", self->num_total_rows);
+				mylog("_next_tuple: 'C' fetch_total = %d & this_fetch = %d\n", self->num_total_rows, self->num_backend_rows);
+				if (self->num_backend_rows > 0)
 				{
-					qlog("    [ fetched %d rows ]\n", self->num_total_rows);
-					mylog("_next_tuple: 'C' fetch_max && fcount = %d\n", self->num_total_rows);
-
 					/* set to first row */
 					self->tupleField = self->backend_tuples + (offset * self->num_fields);
 					return TRUE;
@@ -720,7 +719,6 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 				else
 				{
 					/* We are surely done here (we read 0 tuples) */
-					qlog("    [ fetched 0 rows ]\n");
 					mylog("_next_tuple: 'C': DONE (fcount == 0)\n");
 					return -1;	/* end of tuples */
 				}
