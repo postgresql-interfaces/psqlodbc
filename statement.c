@@ -500,6 +500,15 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
 		return TRUE;
 	}
+	/*
+	 * We get here if a statement is prepared and executed to get the metadata.
+	 */
+	if (self->prepare && self->status == STMT_PREMATURE)
+	{
+		mylog("SC_opencheck: self->prepare && self->status == STMT_PREMATURE\n");
+		return FALSE;
+	}
+	
 	if (res = SC_get_Curres(self), NULL != res)
 	{
 		if (res->backend_tuples)

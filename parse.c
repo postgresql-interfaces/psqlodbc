@@ -334,6 +334,7 @@ parse_statement(StatementClass *stmt)
 	char		in_field = FALSE,
 				in_expr = FALSE,
 				in_func = FALSE,
+                out_func = FALSE,
 				in_dot = FALSE,
 				in_as = FALSE;
 	int			j,
@@ -350,6 +351,10 @@ parse_statement(StatementClass *stmt)
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		result;
 	BOOL		updatable = TRUE;
+
+	QResultClass*	resultClass;
+	HSTMT			privStmt;
+	
 
 	mylog("%s: entering...\n", func);
 
@@ -677,14 +682,33 @@ parse_statement(StatementClass *stmt)
 					out_table = TRUE; 
 					continue;
 			}
-			if (out_table && !in_table) /* new table */
+			if (out_table && !in_table && !in_func) /* new table */
 			{
 				if (!dquote)
 				{
 					if (token[0] == '(' ||
 					    token[0] == ')')
 						continue;
+                    
+					/* 
+					 * Detect a function call that looks like a table, eg.
+					 *   SELECT * FROM version()
+					 * 
+					 * This needs work to properly handle functions found in the from
+					 * clause, but this at least prevents nasty errors for now.
+					 *
+					 * DJP, 2005-01-08
+					 */
+					if (ptr[0] == '(')
+					{
+                        in_func = TRUE;
+						mylog("**** got function = '%s'\n", token);
+						mylog("FIXME: functions in the FROM clause are currently ignored!!\n");
+						continue;
+					}
 				}
+                
+            
 				if (!(stmt->ntab % TAB_INCR))
 				{
 					ti = (TABLE_INFO **) realloc(ti, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *));
@@ -725,6 +749,64 @@ parse_statement(StatementClass *stmt)
 				continue;
 			}
 
+			if (out_table && !in_table && in_func) /* old function */
+			{
+                /* Just skipped a function alias */
+                if (out_func)
+                {
+                    in_func = FALSE;
+                    out_func = FALSE;
+                    mylog("leaving func (and ignoring alias)\n");
+                    continue;
+                }
+                
+                /* Normal function, no alias */
+                if (token[0] == ')' && (ptr[0] == ',' || strlen(ptr) == 0))
+                {
+                    in_func = FALSE;
+                    
+                    /* 
+                     * TODO: shouldn't we cache the metadata somewhere? 
+                     */
+                    SC_pre_execute(stmt);
+					resultClass = SC_get_Curres(stmt);
+
+					mylog("PGAPI_NumResultCols: result = %u, status = %d, numcols = %d\n", resultClass, stmt->status, resultClass!= NULL ? QR_NumResultCols(resultClass) : -1);
+					if ((!resultClass) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
+					{
+						/* no query has been executed on this statement */
+						SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been executed with that handle");
+						SC_log_error(func, "", stmt);
+						return SQL_ERROR;
+					}
+					else if (!QR_command_maybe_successful(resultClass))
+					{
+						SC_set_errornumber(stmt, STMT_EXEC_ERROR);
+						SC_log_error(func, "", stmt);
+						return SQL_ERROR;
+					}
+					/* 
+					 * If the parse_statement is called to get the number of 
+					 * result columns throught SQLColAttribute. 
+					 */
+					irdflds->nfields = QR_NumPublicResultCols(resultClass);                    
+                    
+                    mylog("leaving func.\n");
+                    
+                    stmt->parse_status = STMT_PARSE_FATAL;
+					return	FALSE;
+                }
+                
+                /* Function with following alias */
+                if (token[0] == ')')
+                {
+                    out_func = TRUE;
+                    continue;
+                }
+                    
+                
+            }
+            
 			if (!dquote && stricmp(token, "JOIN") == 0)
 			{
 				in_table = FALSE;
