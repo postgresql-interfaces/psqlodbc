@@ -650,7 +650,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			 ci->drivers.text_as_longvarchar,
 			 ci->drivers.unknowns_as_longvarchar,
 			 ci->drivers.bools_as_char,
-			 MAX_TABLE_LEN);
+			 TABLE_NAME_STORAGE_LEN);
 
 #ifdef MULTIBYTE
 		encoding = check_client_encoding(ci->conn_settings);

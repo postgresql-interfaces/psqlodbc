@@ -304,7 +304,16 @@ PGAPI_GetInfo(
 
 		case SQL_MAX_COLUMN_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
+#ifdef	MAX_COLUMN_LEN
 			value = MAX_COLUMN_LEN;
+#endif /* MAX_COLUMN_LEN */
+			if (0 == value)
+			{
+				if (PG_VERSION_GE(conn, 7.3))
+					value = NAMEDATALEN_V73;
+				else
+					value = NAMEDATALEN_V72;
+			}
 			break;
 
 		case SQL_MAX_COLUMNS_IN_GROUP_BY:		/* ODBC 2.0 */
@@ -345,8 +354,15 @@ PGAPI_GetInfo(
 		case SQL_MAX_OWNER_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
 			value = 0;
+#ifdef	MAX_SCHEMA_LEN
 			if (conn->schema_support)
 				value = MAX_SCHEMA_LEN;
+#endif /* MAX_SCHEMA_LEN */
+			if (0 == value)
+			{
+				if (PG_VERSION_GE(conn, 7.3))
+					value = NAMEDATALEN_V73;
+			}
 			break;
 
 		case SQL_MAX_PROCEDURE_NAME_LEN:		/* ODBC 1.0 */
@@ -391,7 +407,16 @@ PGAPI_GetInfo(
 
 		case SQL_MAX_TABLE_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
+#ifdef	MAX_TABLE_LEN
 			value = MAX_TABLE_LEN;
+#endif /* MAX_TABLE_LEN */
+			if (0 == value)
+			{
+				if (PG_VERSION_GE(conn, 7.3))
+					value = NAMEDATALEN_V73;
+				else
+					value = NAMEDATALEN_V72;
+			}
 			break;
 
 		case SQL_MAX_TABLES_IN_SELECT:	/* ODBC 2.0 */
@@ -1634,7 +1659,7 @@ PGAPI_Columns(
 	}
 	else
 	{
-		char	esc_table_name[MAX_TABLE_LEN * 2];
+		char	esc_table_name[TABLE_NAME_STORAGE_LEN * 2];
 		int	escTbnamelen;
 
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
@@ -2295,7 +2320,7 @@ PGAPI_Statistics(
 	RETCODE		result;
 	char	   *table_name;
 	char		index_name[MAX_INFO_STRING];
-	short		fields_vector[16];
+	short		fields_vector[INDEX_KEYS_STORAGE_COUNT];
 	char		isunique[10],
 				isclustered[10],
 				ishash[MAX_INFO_STRING];
@@ -2520,7 +2545,7 @@ PGAPI_Statistics(
 	}
 	/* bind the vector column */
 	result = PGAPI_BindCol(hindx_stmt, 2, SQL_C_DEFAULT,
-						   fields_vector, 32, &fields_vector_len);
+				fields_vector, INDEX_KEYS_STORAGE_COUNT * 2, &fields_vector_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		stmt->errormsg = indx_stmt->errormsg;	/* "Couldn't bind column
@@ -2623,7 +2648,7 @@ PGAPI_Statistics(
 		{
 			i = 0;
 			/* add a row in this table for each field in the index */
-			while (i < 16 && fields_vector[i] != 0)
+			while (i < INDEX_KEYS_STORAGE_COUNT && fields_vector[i] != 0)
 			{
 				row = (TupleNode *) malloc(sizeof(TupleNode) +
 										   (13 - 1) *sizeof(TupleField));
@@ -2776,7 +2801,7 @@ PGAPI_PrimaryKeys(
 	char		tables_query[INFO_INQUIRY_LEN];
 	char		attname[MAX_INFO_STRING];
 	SDWORD		attname_len;
-	char		pktab[MAX_TABLE_LEN + 1], pkscm[MAX_TABLE_LEN + 1];
+	char		pktab[TABLE_NAME_STORAGE_LEN + 1], pkscm[TABLE_NAME_STORAGE_LEN + 1];
 	Int2		result_cols;
 	int			qno,
 				qstart,
@@ -3247,14 +3272,14 @@ PGAPI_ForeignKeys(
 	char		trig_deferrable[2];
 	char		trig_initdeferred[2];
 	char		trig_args[1024];
-	char		upd_rule[MAX_TABLE_LEN],
-				del_rule[MAX_TABLE_LEN];
-	char		pk_table_needed[MAX_TABLE_LEN + 1];
-char		fk_table_fetched[MAX_TABLE_LEN + 1];
-	char		fk_table_needed[MAX_TABLE_LEN + 1];
-char		pk_table_fetched[MAX_TABLE_LEN + 1];
-	char		schema_needed[MAX_SCHEMA_LEN + 1];
-char		schema_fetched[MAX_SCHEMA_LEN + 1];
+	char		upd_rule[TABLE_NAME_STORAGE_LEN],
+				del_rule[TABLE_NAME_STORAGE_LEN];
+	char		pk_table_needed[TABLE_NAME_STORAGE_LEN + 1];
+char		fk_table_fetched[TABLE_NAME_STORAGE_LEN + 1];
+	char		fk_table_needed[TABLE_NAME_STORAGE_LEN + 1];
+char		pk_table_fetched[TABLE_NAME_STORAGE_LEN + 1];
+	char		schema_needed[SCHEMA_NAME_STORAGE_LEN + 1];
+char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	char	   *pkey_ptr,
 			   *pkey_text,
 			   *fkey_ptr,
@@ -3552,7 +3577,7 @@ char		schema_fetched[MAX_SCHEMA_LEN + 1];
 			return SQL_ERROR;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 9, SQL_C_CHAR,
-					pk_table_fetched, MAX_TABLE_LEN, NULL);
+					pk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
 			stmt->errormsg = tbl_stmt->errormsg;
@@ -3565,7 +3590,7 @@ char		schema_fetched[MAX_SCHEMA_LEN + 1];
 if (conn->schema_support)
 {
 		result = PGAPI_BindCol(htbl_stmt, 10, SQL_C_CHAR,
-					schema_fetched, MAX_SCHEMA_LEN, NULL);
+					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
 			stmt->errormsg = tbl_stmt->errormsg;
@@ -3951,7 +3976,7 @@ if (conn->schema_support)
 			return SQL_ERROR;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 9, SQL_C_CHAR,
-					fk_table_fetched, MAX_TABLE_LEN, NULL);
+					fk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
 			stmt->errormsg = tbl_stmt->errormsg;
@@ -3964,7 +3989,7 @@ if (conn->schema_support)
 if (conn->schema_support)
 {
 		result = PGAPI_BindCol(htbl_stmt, 10, SQL_C_CHAR,
-					schema_fetched, MAX_SCHEMA_LEN, NULL);
+					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
 			stmt->errormsg = tbl_stmt->errormsg;
@@ -4336,7 +4361,7 @@ PGAPI_TablePrivileges(
 	}
 	else
 	{
-		char	esc_table_name[MAX_TABLE_LEN * 2];
+		char	esc_table_name[TABLE_NAME_STORAGE_LEN * 2];
 		int	escTbnamelen;
 
 		if (conn->schema_support)

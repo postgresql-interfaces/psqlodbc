@@ -812,7 +812,21 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 			return 8;
 
 		case PG_TYPE_NAME:
-			return NAME_FIELD_SIZE;
+			{
+				ConnectionClass *conn = SC_get_conn(stmt);
+				int	value = 0;
+#ifdef	NAME_FIELD_SIZE
+				value = NAME_FIELD_SIZE;
+#endif /* NAME_FIELD_SIZE */
+				if (0 == value)
+				{
+					if (PG_VERSION_GE(conn, 7.3))
+						value = NAMEDATALEN_V73;
+					else
+						value = NAMEDATALEN_V72;
+				}
+				return value;
+			}
 
 		case PG_TYPE_INT2:
 			return 5;

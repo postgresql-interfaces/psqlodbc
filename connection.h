@@ -221,7 +221,7 @@ struct col_info
 {
 	QResultClass *result;
 	char		*schema;
-	char		name[MAX_TABLE_LEN + 1];
+	char		name[TABLE_NAME_STORAGE_LEN + 1];
 };
 
  /* Translation DLL entry points */

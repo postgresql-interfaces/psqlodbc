@@ -65,8 +65,8 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	Int2		new_adtsize;
 	Int4		new_atttypmod = -1;
 
-	/* MAX_COLUMN_LEN may be sufficient but for safety */
-	char		new_field_name[2 * MAX_COLUMN_LEN + 1];
+	/* COLUMN_NAME_STORAGE_LEN may be sufficient but for safety */
+	char		new_field_name[2 * COLUMN_NAME_STORAGE_LEN + 1];
 	SocketClass *sock;
 	ConnInfo   *ci;
 
@@ -85,7 +85,7 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	/* now read in the descriptions */
 	for (lf = 0; lf < new_num_fields; lf++)
 	{
-		SOCK_get_string(sock, new_field_name, 2 * MAX_COLUMN_LEN);
+		SOCK_get_string(sock, new_field_name, 2 * COLUMN_NAME_STORAGE_LEN);
 		new_adtid = (Oid) SOCK_get_int(sock, 4);
 		new_adtsize = (Int2) SOCK_get_int(sock, 2);
 

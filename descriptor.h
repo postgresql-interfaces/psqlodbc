@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.6 2002/06/06 04:50:47 inoue Exp $
+ * $Id: descriptor.h,v 1.7 2002/09/06 05:51:45 hinoue Exp $
  *
  */
 
@@ -17,9 +17,9 @@
 typedef struct
 {
 	COL_INFO	*col_info; /* cached SQLColumns info for this table */
-	char		schema[MAX_SCHEMA_LEN + 1];
-	char		name[MAX_TABLE_LEN + 1];
-	char		alias[MAX_TABLE_LEN + 1];
+	char		schema[SCHEMA_NAME_STORAGE_LEN + 1];
+	char		name[TABLE_NAME_STORAGE_LEN + 1];
+	char		alias[TABLE_NAME_STORAGE_LEN + 1];
 	char		updatable;
 } TABLE_INFO;
 
@@ -38,9 +38,9 @@ typedef struct
 	char		dquote;
 	char		numeric;
 	char		updatable;
-	char		dot[MAX_TABLE_LEN + 1];
-	char		name[MAX_COLUMN_LEN + 1];
-	char		alias[MAX_COLUMN_LEN + 1];
+	char		dot[TABLE_NAME_STORAGE_LEN + 1];
+	char		name[COLUMN_NAME_STORAGE_LEN + 1];
+	char		alias[COLUMN_NAME_STORAGE_LEN + 1];
 	char		*schema;
 } FIELD_INFO;
 Int4 FI_precision(const FIELD_INFO *);

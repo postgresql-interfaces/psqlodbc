@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.69 2002/07/11 01:52:46 inoue Exp $
+ * $Id: psqlodbc.h,v 1.70 2002/09/06 05:51:45 hinoue Exp $
  *
  */
 
@@ -27,8 +27,10 @@
 #define ODBCVER						0x0250
 #endif   /* ODBCVER_REP */
 
-#ifndef NAMEDATALEN
-#define NAMEDATALEN					32
+#define NAMEDATALEN_V72					32
+#define NAMEDATALEN_V73					64
+#ifndef NAMESTORAGELEN
+#define NAMESTORAGELEN					64
 #endif   /* NAMEDATALEN */
 
 
@@ -128,10 +130,22 @@ typedef UInt4 Oid;
 #define BYTELEN						8
 #define VARHDRSZ					sizeof(Int4)
 
+#ifdef	NAMEDATALEN
 #define MAX_SCHEMA_LEN				NAMEDATALEN
 #define MAX_TABLE_LEN				NAMEDATALEN
 #define MAX_COLUMN_LEN				NAMEDATALEN
+#define NAME_FIELD_SIZE				NAMEDATALEN /* size of name fields */
+#if (NAMEDATALEN > NAMESTORAGELEN)
+#undef	NAMESTORAGELEN
+#define	NAMESTORAGELEN	NAMEDATALEN
+#endif
+#endif /* NAMEDATALEN */
 #define MAX_CURSOR_LEN				32
+
+#define SCHEMA_NAME_STORAGE_LEN			NAMESTORAGELEN
+#define TABLE_NAME_STORAGE_LEN			NAMESTORAGELEN
+#define COLUMN_NAME_STORAGE_LEN			NAMESTORAGELEN
+#define INDEX_KEYS_STORAGE_COUNT		32
 
 /*	Registry length limits */
 #define LARGE_REGISTRY_LEN			4096		/* used for special cases */
@@ -243,7 +257,6 @@ void		logs_on_off(int cnopen, int, int);
 #define TEXT_FIELD_SIZE				8190		/* size of text fields
 												 * (not including null
 												 * term) */
-#define NAME_FIELD_SIZE			NAMEDATALEN	/* size of name fields */
 #define MAX_VARCHAR_SIZE			254 /* maximum size of a varchar (not
 										 * including null term) */
 

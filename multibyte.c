@@ -245,16 +245,20 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			{
 				if (stat < 2 && character > 0x80)
 					stat = 2;
-				else if (stat = 2)
+				else if (stat == 2)
+				{
 					if (character >= 0x30 && character <= 0x39)
 						stat = 3;
 					else
 						stat = 1;
-				else if (stat = 3)
+				}
+				else if (stat == 3)
+				{
 					if (character >= 0x30 && character <= 0x39)
 						stat = 1;
 					else
 						stat = 3;
+				}
 				else
 					stat = 0;
 			}
@@ -284,7 +288,7 @@ pg_mbschr(int csc, const unsigned char *string, unsigned int character)
 			break;
 		}
 	}
-	return (rs);
+	return ((unsigned char *) rs);
 }
 
 int

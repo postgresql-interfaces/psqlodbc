@@ -132,7 +132,7 @@ char	   *mapFuncs[][2] = {
 static const char *mapFunction(const char *func, int param_count);
 static unsigned int conv_from_octal(const unsigned char *s);
 static unsigned int conv_from_hex(const unsigned char *s);
-static char *conv_to_octal(unsigned char val);
+static char *conv_to_octal(unsigned char val, char *octal);
 
 /*---------
  *			A Guide for date/time/timestamp conversions
@@ -552,11 +552,11 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				/* this is an array of eight integers */
 				short	   *short_array = (short *) ((char *) rgbValue + rgbValueOffset);
 
-				len = 32;
+				len = INDEX_KEYS_STORAGE_COUNT * 2;
 				vp = value;
 				nval = 0;
 				mylog("index=(");
-				for (i = 0; i < 16; i++)
+				for (i = 0; i < INDEX_KEYS_STORAGE_COUNT; i++)
 				{
 					if (sscanf(vp, "%hd", &short_array[i]) != 1)
 						break;
@@ -575,7 +575,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				}
 				mylog(") nval = %d\n", nval);
 
-				for (i = nval; i < 16; i++)
+				for (i = nval; i < INDEX_KEYS_STORAGE_COUNT; i++)
 					short_array[i] = 0;
 
 #if 0
@@ -994,7 +994,8 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 			{
 			SQL_NUMERIC_STRUCT      *ns;
 			int	i, nlen, bit, hval, tv, dig, sta, olen;
-			char	calv[SQL_MAX_NUMERIC_LEN * 3], *wv;
+			char	calv[SQL_MAX_NUMERIC_LEN * 3];
+			const char	*wv;
 			BOOL	dot_exist;
 
 			len = sizeof(SQL_NUMERIC_STRUCT);
@@ -2055,7 +2056,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 static BOOL
 ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 {
-	static int prec[] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25, 29, 32, 34, 37, 39};
+	static const int prec[] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25, 29, 32, 34, 37, 39};
 	Int4	i, j, k, ival, vlen, len, newlen;
 	unsigned char		calv[40];
 	const unsigned char	*val = (const unsigned char *) ns->val;
@@ -3298,22 +3299,21 @@ convert_from_pgbinary(const unsigned char *value, unsigned char *rgbValue, int c
 
 
 static char *
-conv_to_octal(unsigned char val)
+conv_to_octal(unsigned char val, char *octal)
 {
 	int			i;
-	static char x[6];
 
-	x[0] = '\\';
-	x[1] = '\\';
-	x[5] = '\0';
+	octal[0] = '\\';
+	octal[1] = '\\';
+	octal[5] = '\0';
 
 	for (i = 4; i > 1; i--)
 	{
-		x[i] = (val & 7) + '0';
+		octal[i] = (val & 7) + '0';
 		val >>= 3;
 	}
 
-	return x;
+	return octal;
 }
 
 
@@ -3331,7 +3331,7 @@ convert_to_pgbinary(const unsigned char *in, char *out, int len)
 			out[o++] = in[i];
 		else
 		{
-			strcpy(&out[o], conv_to_octal(in[i]));
+			conv_to_octal(in[i], &out[o]);
 			o += 5;
 		}
 	}
