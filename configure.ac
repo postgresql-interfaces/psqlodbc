@@ -37,7 +37,7 @@ AC_MSG_RESULT([$with_odbcver])
 AM_CONDITIONAL(with_unixodbc, [test $with_unixodbc = yes])
 AM_CONDITIONAL(with_iodbc, [test $with_iodbc = yes])
 
-AC_CHECK_FUNCS(strtoll)
+AC_CHECK_FUNCS(strtoul strtoll)
 AC_CHECK_LIB(socket, socket)
 
 # to implement the thread-safe driver
@@ -88,6 +88,10 @@ AC_CHECK_HEADERS([locale.h])
 AC_CHECK_HEADERS([sys/un.h])
 AC_CHECK_TYPES(uint8)
 PGAC_VAR_INT_TIMEZONE
+
+AC_C_CONST
+AC_TYPE_SIZE_T
+AC_STRUCT_TM
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

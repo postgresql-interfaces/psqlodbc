@@ -110,10 +110,10 @@ struct QResultClass_
 #define QR_set_field_info(self, field_num, name, adtid, adtsize)  (CI_set_field_info(self->fields, field_num, name, adtid, adtsize, -1))
 
 /* status macros */
-#define QR_command_successful(self)			( !(self->status == PGRES_BAD_RESPONSE || self->status == PGRES_NONFATAL_ERROR || self->status == PGRES_FATAL_ERROR))
+#define QR_command_successful(self)	( !(self->status == PGRES_BAD_RESPONSE || self->status == PGRES_NONFATAL_ERROR || self->status == PGRES_FATAL_ERROR))
 #define QR_command_maybe_successful(self) ( !(self->status == PGRES_BAD_RESPONSE || self->status == PGRES_FATAL_ERROR))
-#define QR_command_nonfatal(self)			( self->status == PGRES_NONFATAL_ERROR)
-#define QR_end_tuples(self)					( self->status == PGRES_END_TUPLES)
+#define QR_command_nonfatal(self)	( self->status == PGRES_NONFATAL_ERROR)
+#define QR_end_tuples(self)		( self->status == PGRES_END_TUPLES)
 #define QR_set_status(self, condition)		( self->status = condition )
 #define QR_set_aborted(self, aborted_)		( self->aborted = aborted_)
 #define QR_set_haskeyset(self)		(self->haskeyset = TRUE)
@@ -125,6 +125,34 @@ struct QResultClass_
 #define QR_get_aborted(self)				(self->aborted)
 
 #define QR_aborted(self)					(!self || self->aborted)
+
+#define QR_MALLOC_return_with_error(t, tp, s, self, n, m, r) \
+	{ \
+		if (t = (tp *) malloc(s), NULL == t) \
+		{ \
+			QR_set_status(self, n); \
+			QR_set_message(self, m); \
+			return r; \
+		} \
+	}
+#define QR_REALLOC_return_with_error(t, tp, s, self, m, r) \
+	{ \
+		if (t = (tp *) realloc(t, s), NULL == t) \
+		{ \
+			QR_set_status(self, PGRES_FATAL_ERROR); \
+			QR_set_message(self, m); \
+			return r; \
+		} \
+	}
+#define QR_MALLOC_exit_if_error(t, tp, s, self, n, m) \
+	{ \
+		if (t = (tp *) malloc(s), NULL == t) \
+		{ \
+			self->status = n; \
+			QR_set_message(self, m); \
+			goto MALLOC_exit; \
+		} \
+	}
 
 /*	Core Functions */
 QResultClass *QR_Constructor(void);

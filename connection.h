@@ -66,6 +66,7 @@ typedef enum
 #define CONN_IN_AUTOCOMMIT		1L 
 #define CONN_IN_TRANSACTION		(1L<<1)
 #define CONN_IN_MANUAL_TRANSACTION	(1L<<2)
+#define CONN_IN_ERROR_BEFORE_IDLE	(1L<<3)
 
 /* AutoCommit functions */
 #define CC_set_autocommit_off(x)	(x->transact_status &= ~CONN_IN_AUTOCOMMIT)
@@ -74,7 +75,7 @@ typedef enum
 
 /* Transaction in/not functions */
 #define CC_set_in_trans(x)	(x->transact_status |= CONN_IN_TRANSACTION)
-#define CC_set_no_trans(x)	(x->transact_status &= ~CONN_IN_TRANSACTION)
+#define CC_set_no_trans(x)	(x->transact_status &= ~(CONN_IN_TRANSACTION | CONN_IN_ERROR_BEFORE_IDLE))
 #define CC_is_in_trans(x)	(x->transact_status & CONN_IN_TRANSACTION)
 
 /* Manual transaction in/not functions */
@@ -82,16 +83,38 @@ typedef enum
 #define CC_set_no_manual_trans(x) (x->transact_status &= ~CONN_IN_MANUAL_TRANSACTION)
 #define CC_is_in_manual_trans(x) (x->transact_status & CONN_IN_MANUAL_TRANSACTION)
 
+/* Error waiting for ROLLBACK */
+#define CC_set_in_error_trans(x) (x->transact_status |= CONN_IN_ERROR_BEFORE_IDLE)
+#define CC_set_no_error_trans(x) (x->transact_status &= ~CONN_IN_ERROR_BEFORE_IDLE)
+#define CC_is_in_error_trans(x) (x->transact_status & CONN_IN_ERROR_BEFORE_IDLE)
+
 #define CC_get_errornumber(x)	(x->__error_number)
 #define CC_get_errormsg(x)	(x->__error_message)
 #define CC_set_errornumber(x, n)	(x->__error_number = n)
+
+#define CC_MALLOC_return_with_error(t, tp, s, x, m, ret) \
+	{ \
+		if (t = malloc(s), NULL == t) \
+		{ \
+			CC_set_error(x, CONN_NO_MEMORY_ERROR, m); \
+			return ret; \
+		} \
+	}
+#define CC_REALLOC_return_with_error(t, tp, s, x, m, ret) \
+	{ \
+		if (t = (tp *) realloc(t, s), NULL == t) \
+		{ \
+			CC_set_error(x, CONN_NO_MEMORY_ERROR, m); \
+			return ret; \
+		} \
+	}
 
 /* For Multi-thread */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
 #define ENTER_INNER_CONN_CS(x, entered) \
-	{ EnterCriticalSection(&((x)->cs)); entered = 1; }
+	{ EnterCriticalSection(&((x)->cs)); entered++; }
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_CONN_CS(x)	DeleteCriticalSection(&((x)->cs))
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
@@ -102,27 +125,37 @@ typedef enum
 		if (getMutexAttr()) \
 		{ \
 			if (pthread_mutex_lock(&((x)->cs)) == 0) \
-				entered = 1; \
+				entered++; \
 			else \
-				entered = -1; \
+				-1; \
 		} \
 		else \
-			entered = 0; \
+			0; \
 	}
 #define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_CONN_CS(x)	
 #define ENTER_CONN_CS(x)
-#define ENTER_INNER_CONN_CS(x, entered) {entered = 0;}
+#define ENTER_INNER_CONN_CS(x, entered) (0)
 #define LEAVE_CONN_CS(x)
 #define DELETE_CONN_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 #define	LEAVE_INNER_CONN_CS(entered, conn) \
-	{ if (entered > 0) LEAVE_CONN_CS(conn); }
-#define	RETURN_AFTER_LEAVE_CS(entered, conn, ret) \
-	{ if (entered > 0) LEAVE_CONN_CS(conn); return ret; }
+	{ \
+		if (entered > 0) \
+		{ \
+			LEAVE_CONN_CS(conn); \
+			entered--; \
+		} \
+	}
+#define	CLEANUP_FUNC_CONN_CS(entered, conn) \
+	while (entered > 0) \
+	{ \
+		LEAVE_CONN_CS(conn); \
+		entered--; \
+	}
 
 /* Authentication types */
 #define AUTH_REQ_OK									0
@@ -351,6 +384,8 @@ struct ConnectionClass_
 	int		be_key; /* auth code needed to send cancel */
 	UInt4		isolation;
 	char		*current_schema;
+	int		num_discardp;
+	char		**discardp;
 #if (ODBCVER >= 0x0300)
 	int		num_descs;
 	DescriptorClass	**descs;
@@ -412,6 +447,8 @@ void		CC_on_commit(ConnectionClass *conn);
 void		CC_on_abort(ConnectionClass *conn, UDWORD opt);
 void		ProcessRollback(ConnectionClass *conn, BOOL undo);
 const char	*CC_get_current_schema(ConnectionClass *conn);
+int		CC_mark_a_plan_to_discard(ConnectionClass *conn, const char *plannm);
+int		CC_discard_marked_plans(ConnectionClass *conn);
 
 /* CC_send_query options */
 #define	CLEAR_RESULT_ON_ABORT	1L

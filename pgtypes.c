@@ -756,6 +756,16 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 }
 
 static Int2
+getTimestampMaxDecimalDigits(StatementClass *stmt, Int4 type)
+{
+	ConnectionClass *conn = SC_get_conn(stmt);
+
+	if (PG_VERSION_LT(conn, 7.2))
+		return 0;
+	return 6;
+}
+
+static Int2
 getTimestampDecimalDigits(StatementClass *stmt, Int4 type, int col)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
@@ -1120,6 +1130,64 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 			return prec;
 	}
 	return -1;
+}
+
+/*
+ *	corrsponds to "min_scale" in ODBC 2.x.
+ */
+Int2
+pgtype_min_decimal_digits(StatementClass *stmt, Int4 type)
+{
+	switch (type)
+	{
+		case PG_TYPE_INT2:
+		case PG_TYPE_OID:
+		case PG_TYPE_XID:
+		case PG_TYPE_INT4:
+		case PG_TYPE_INT8:
+		case PG_TYPE_FLOAT4:
+		case PG_TYPE_FLOAT8:
+		case PG_TYPE_MONEY:
+		case PG_TYPE_BOOL:
+		case PG_TYPE_ABSTIME:
+		case PG_TYPE_TIMESTAMP:
+		case PG_TYPE_DATETIME:
+		case PG_TYPE_TIMESTAMP_NO_TMZONE:
+		case PG_TYPE_NUMERIC:
+			return 0;
+		default:
+			return -1;
+	}
+}
+
+/*
+ *	corrsponds to "max_scale" in ODBC 2.x.
+ */
+Int2
+pgtype_max_decimal_digits(StatementClass *stmt, Int4 type)
+{
+	switch (type)
+	{
+		case PG_TYPE_INT2:
+		case PG_TYPE_OID:
+		case PG_TYPE_XID:
+		case PG_TYPE_INT4:
+		case PG_TYPE_INT8:
+		case PG_TYPE_FLOAT4:
+		case PG_TYPE_FLOAT8:
+		case PG_TYPE_MONEY:
+		case PG_TYPE_BOOL:
+		case PG_TYPE_ABSTIME:
+		case PG_TYPE_TIMESTAMP:
+			return 0;
+		case PG_TYPE_DATETIME:
+		case PG_TYPE_TIMESTAMP_NO_TMZONE:
+			return getTimestampMaxDecimalDigits(stmt, type);
+		case PG_TYPE_NUMERIC:
+			return 38;
+		default:
+			return -1;
+	}
 }
 
 /*

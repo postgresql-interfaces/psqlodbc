@@ -140,7 +140,7 @@ PGAPI_ExecDirect(
 
 	mylog("%s: entering...\n", func);
 
-	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 
 	/*

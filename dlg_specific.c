@@ -140,6 +140,8 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 			flag |= BIT_PROTOCOL_64;
 		else if (strncmp(ci->protocol, PG63, strlen(PG63)) == 0)
 			flag |= BIT_PROTOCOL_63;
+		else if (strncmp(ci->protocol, "7.4", 3) == 0)
+			flag |= (BIT_PROTOCOL_63 | BIT_PROTOCOL_64);
 		switch (ci->drivers.unknown_sizes)
 		{
 			case UNKNOWNS_AS_DONTKNOW:

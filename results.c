@@ -736,7 +736,7 @@ inolog("COLUMN_TYPE=%d\n", value);
 			value = (fi && !fi->name[0] && !fi->alias[0]) ? SQL_UNNAMED : SQL_NAMED;
 			break;
 #endif /* ODBCVER */
-		case 1212:
+		case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
 			SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "this request may be for MS SQL Server");
 			return SQL_ERROR;
 		default:
@@ -1820,9 +1820,15 @@ positioned_load(StatementClass *stmt, UInt4 flag, UInt4 oid, const char *tidval)
 
 	len = strlen(stmt->load_statement);
 	if (tidval)
-	{
 		len += 100;
-		selstr = malloc(len);
+	else if ((flag & USE_INSERTED_TID) != 0)
+		len += 50;
+	else
+		len += 20;
+	SC_MALLOC_return_with_error(selstr, char, len, stmt,
+		"Couldn't alloc selstr", NULL)
+	if (tidval)
+	{
 		if (latest)
 		{
 			if (stmt->ti[0]->schema[0])
@@ -1836,17 +1842,9 @@ positioned_load(StatementClass *stmt, UInt4 flag, UInt4 oid, const char *tidval)
 			sprintf(selstr, "%s where ctid = '%s' and oid = %u", stmt->load_statement, tidval, oid); 
 	}
 	else if ((flag & USE_INSERTED_TID) != 0)
-	{
-		len += 50;
-		selstr = malloc(len);
 		sprintf(selstr, "%s where ctid = currtid(0, '(,)') and oid = %u", stmt->load_statement, oid);
-	} 
 	else
-	{
-		len += 20;
-		selstr = malloc(len);
 		sprintf(selstr, "%s where oid = %u", stmt->load_statement, oid);
-	} 
 
 	mylog("selstr=%s\n", selstr);
 	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, CLEAR_RESULT_ON_ABORT);
@@ -1945,7 +1943,7 @@ SC_pos_reload(StatementClass *stmt, UDWORD global_ridx, UWORD *count, BOOL logCh
 	return ret;
 }
 
-static	const int	ahead_fetch_count = 32;
+static	const int	pre_fetch_count = 32;
 static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per_fetch, int limitrow)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -2040,8 +2038,8 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 						int	j;
 						QResultClass	*qres;
 
-						if (rows_per_fetch >= ahead_fetch_count * 2)
-							keys_per_fetch = ahead_fetch_count;
+						if (rows_per_fetch >= pre_fetch_count * 2)
+							keys_per_fetch = pre_fetch_count;
 						else
 							keys_per_fetch = rows_per_fetch;
 						lodlen = strlen(stmt->load_statement);
@@ -2050,7 +2048,8 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 							3 + 4 * keys_per_fetch + 1
 							+ 1 + 2 + lodlen + 20 +
 							4 * keys_per_fetch + 1;
-						qval = malloc(allen);
+						SC_MALLOC_return_with_error(qval, char, allen,
+							stmt, "Couldn't alloc qval", -1)
 						sprintf(qval, "PREPARE \"%s\"", planname);
 						sval = strchr(qval, '\0');
 						for (j = 0; j < keys_per_fetch; j++)
@@ -2074,7 +2073,10 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 						strcpy(sval, ")");
 						qres = CC_send_query(conn, qval, NULL, CLEAR_RESULT_ON_ABORT);
 						if (qres)
+						{
 							res->reload_count = keys_per_fetch;
+							QR_Destructor(qres);
+						}
 						else
 						{
 							SC_set_error(stmt, STMT_EXEC_ERROR, "Prepare for Data Load Error");
@@ -2083,15 +2085,15 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 						}
 					}
 					allen = 25 + 23 * keys_per_fetch;
-					qval = realloc(qval, allen);
 				}
 				else
 				{
-					keys_per_fetch = ahead_fetch_count;
+					keys_per_fetch = pre_fetch_count;
 					lodlen = strlen(stmt->load_statement);
 					allen = lodlen + 20 + 23 * keys_per_fetch;
-					qval = malloc(allen);
 				}
+				SC_REALLOC_return_with_error(qval, char, allen,
+					stmt, "Couldn't alloc qval", -1)
 			}
 			if (res->reload_count > 0)
 			{
@@ -2156,7 +2158,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 	}
 	if (create_from_scratch)
 	{
-		rows_per_fetch = ((ahead_fetch_count - 1) / res->rowset_size + 1) * res->rowset_size;
+		rows_per_fetch = ((pre_fetch_count - 1) / res->rowset_size + 1) * res->rowset_size;
 		limitrow = RowIdx2GIdx(rows_per_fetch, stmt);
 	}
 	else

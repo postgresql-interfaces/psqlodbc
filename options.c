@@ -249,8 +249,9 @@ set_statement_option(ConnectionClass *conn,
 				conn->stmtOptions.use_bookmarks = vParam;
 			break;
 
-		case 1227:
-		case 1228:
+		case 1204: /* SQL_COPT_SS_PRESERVE_CURSORS ? */
+		case 1227: /* SQL_SOPT_SS_HIDDEN_COLUMNS ? */
+		case 1228: /* SQL_SOPT_SS_NOBROWSETABLE ? */
 			if (stmt)
 			{
 				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)");

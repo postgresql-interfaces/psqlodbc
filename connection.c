@@ -308,7 +308,8 @@ CC_Constructor()
 		rv->client_encoding = NULL;
 		rv->server_encoding = NULL;
 		rv->current_schema = NULL;
-
+		rv->num_discardp = 0;
+		rv->discardp = NULL;
 
 		/* Initialize statement options to defaults */
 		/* Statements under this conn will inherit these options */
@@ -550,8 +551,6 @@ CC_cleanup(ConnectionClass *self)
 	/* Free cached table info */
 	if (self->col_info)
 	{
-		int			i;
-
 		for (i = 0; i < self->ntables; i++)
 		{
 			if (self->col_info[i]->result)	/* Free the SQLColumns result structure */
@@ -565,6 +564,18 @@ CC_cleanup(ConnectionClass *self)
 		self->col_info = NULL;
 	}
 	self->ntables = 0;
+	if (self->num_discardp > 0 && self->discardp)
+	{
+		for (i = 0; i < self->num_discardp; i++)
+			free(self->discardp[i]);
+		self->num_discardp = 0;
+	}
+	if (self->discardp)
+	{
+		free(self->discardp);
+		self->discardp = NULL;
+	}
+
 	mylog("exit CC_Cleanup\n");
 	return TRUE;
 }
@@ -950,7 +961,9 @@ another_version_retry:
 	mylog("sending an empty query...\n");
 
 	res = CC_send_query(self, " ", NULL, CLEAR_RESULT_ON_ABORT);
-	if (res == NULL || QR_get_status(res) != PGRES_EMPTY_QUERY)
+	if (res == NULL ||
+	    (QR_get_status(res) != PGRES_EMPTY_QUERY &&
+	     QR_command_nonfatal(res)))
 	{
 		mylog("got no result from the empty query.  (probably database does not exist)\n");
 		CC_set_error(self, CONNECTION_NO_SUCH_DATABASE, "The database does not exist on the server\nor user authentication failed.");
@@ -1086,9 +1099,11 @@ CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
 {
 	int			i;
 
+	if (stmt->status == STMT_EXECUTING)
+		return FALSE;
 	for (i = 0; i < self->num_stmts; i++)
 	{
-		if (self->stmts[i] == stmt && stmt->status != STMT_EXECUTING)
+		if (self->stmts[i] == stmt)
 		{
 			self->stmts[i] = NULL;
 			return TRUE;
@@ -1221,9 +1236,14 @@ void	CC_on_commit(ConnectionClass *conn)
 	}
 	conn->result_uncommitted = 0;
 	CC_clear_cursors(conn, TRUE);
+	CC_discard_marked_plans(conn);
 }
 void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 {
+	BOOL	set_no_trans = FALSE;
+
+	if (0 != (opt & CONN_DEAD))
+		opt |= NO_TRANS;
 	if (CC_is_in_trans(conn))
 	{
 #ifdef	DRIVER_CURSOR_IMPLEMENT
@@ -1234,8 +1254,10 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 		{
 			CC_set_no_trans(conn);
 			CC_set_no_manual_trans(conn);
+			set_no_trans = TRUE;
 		}
 	}
+	CC_clear_cursors(conn, TRUE);
 	if (0 != (opt & CONN_DEAD))
 	{
 		conn->status = CONN_DOWN;
@@ -1245,8 +1267,9 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 			conn->sock = NULL;
 		}
 	}
+	else if (set_no_trans)
+		CC_discard_marked_plans(conn);
 	conn->result_uncommitted = 0;
-	CC_clear_cursors(conn, TRUE);
 }
 
 /*
@@ -1273,13 +1296,13 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	int			maxlen,
 				empty_reqs;
 	BOOL		msg_truncated,
-				ReadyToReturn,
+				ReadyToReturn = FALSE,
 				query_completed = FALSE,
 				before_64 = PG_VERSION_LT(self, 6.4),
 				aborted = FALSE,
 				used_passed_result_object = FALSE;
 	UDWORD		abort_opt;
-	int		entered;
+	int		func_cs_count = 0;
 
 	/* ERROR_MSG_LENGTH is suffcient */
 	char msgbuffer[ERROR_MSG_LENGTH + 1];
@@ -1315,13 +1338,14 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		return NULL;
 	}
 
-	ENTER_INNER_CONN_CS(self, entered);
+#define	return DONT_CALL_RETURN_FROM_HERE???
+	ENTER_INNER_CONN_CS(self, func_cs_count);
 	SOCK_put_char(sock, 'Q');
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
-		RETURN_AFTER_LEAVE_CS(entered, self, NULL);
+		goto cleanup;
 	}
 
 	if (issue_begin)
@@ -1333,12 +1357,11 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
-		RETURN_AFTER_LEAVE_CS(entered, self, NULL);
+		goto cleanup;
 	}
 
 	mylog("send_query: done sending query\n");
 
-	ReadyToReturn = FALSE;
 	empty_reqs = 0;
 	for (wq = query; isspace((UCHAR) *wq); wq++)
 		;
@@ -1353,7 +1376,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		if (!cmdres)
 		{
 			CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
-			RETURN_AFTER_LEAVE_CS(entered, self, NULL);
+			goto cleanup;
 		}
 	}
 	res = cmdres;
@@ -1522,7 +1545,11 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 					abort_opt = NO_TRANS | CONN_DEAD;
 				}
 				else
+				{
 					CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_WARNING);
+					if (CC_is_in_trans(self))
+						CC_set_in_error_trans(self);
+				}
 				CC_on_abort(self, abort_opt);
 				QR_set_status(res, PGRES_FATAL_ERROR);
 				QR_set_message(res, msgbuffer);
@@ -1629,6 +1656,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		}
 	}
 
+cleanup:
+	CLEANUP_FUNC_CONN_CS(func_cs_count, self);
 	/*
 	 * Break before being ready to return.
 	 */
@@ -1677,7 +1706,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 			}
 		}
 	}
-	RETURN_AFTER_LEAVE_CS(entered, self, retres);
+#undef	return
+	return retres;
 }
 
 
@@ -1762,6 +1792,8 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 			case 'E':
 				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
 				CC_set_errormsg(self, msgbuffer);
+				if (CC_is_in_trans(self))
+					CC_set_in_error_trans(self);
 				CC_on_abort(self, 0);
 
 				mylog("send_function(V): 'E' - %s\n", CC_get_errormsg(self));
@@ -2246,4 +2278,41 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	SOCK_ERRNO_SET(save_errno);
 
 	return ret;
+}
+
+int	CC_mark_a_plan_to_discard(ConnectionClass *conn, const char *plan)
+{
+	int	cnt = conn->num_discardp + 1;
+	char	*pname;
+
+	CC_REALLOC_return_with_error(conn->discardp, char *,
+		(cnt * sizeof(char *)), conn, "Couldn't alloc discardp.", -1) 
+	CC_MALLOC_return_with_error(pname, char, (strlen(plan) + 1),
+		conn, "Couldn't alloc discardp mem.", -1)
+	strcpy(pname, plan);
+	conn->discardp[conn->num_discardp++] = pname; 
+	return 1;
+}
+int	CC_discard_marked_plans(ConnectionClass *conn)
+{
+	int	i, cnt;
+	QResultClass *res;
+	char	cmd[32];
+
+	if ((cnt = conn->num_discardp) <= 0)
+		return 0;
+	for (i = cnt - 1; i >= 0; i--)
+	{
+		sprintf(cmd, "DEALLOCATE \"%s\"", conn->discardp[i]);
+		res = CC_send_query(conn, cmd, NULL, CLEAR_RESULT_ON_ABORT);
+		if (res)
+		{
+			QR_Destructor(res);
+			free(conn->discardp[i]);
+			conn->num_discardp--;
+		}
+		else
+			return -1;
+	}
+	return 1;
 }

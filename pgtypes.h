@@ -88,6 +88,8 @@ Int4		pgtype_desclength(StatementClass *stmt, Int4 type, int col, int handle_unk
 Int4		pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as);
 
 Int2		pgtype_decimal_digits(StatementClass *stmt, Int4 type, int col); /* corresponds to "scale" in ODBC 2.x */
+Int2		pgtype_min_decimal_digits(StatementClass *stmt, Int4 type); /* corresponds to "min_scale" in ODBC 2.x */
+Int2		pgtype_max_decimal_digits(StatementClass *stmt, Int4 type); /* corresponds to "max_scale" in ODBC 2.x */
 Int2		pgtype_scale(StatementClass *stmt, Int4 type, int col); /* ODBC 3.x " */
 Int2		pgtype_radix(StatementClass *stmt, Int4 type);
 Int2		pgtype_nullable(StatementClass *stmt, Int4 type);

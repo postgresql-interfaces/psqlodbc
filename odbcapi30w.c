@@ -306,7 +306,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 	SQLSMALLINT	*rgbL, blen, bMax;
         char    *rgbD = NULL;
 
-	mylog("[[SQLGetDiagField]] Handle=(%u,%x) Rec=%d Id=%d\n", fHandleType,
+	mylog("[[SQLGetDiagFieldW]] Handle=(%u,%x) Rec=%d Id=%d\n", fHandleType,
 			handle, iRecord, fDiagField);
 	switch (fDiagField)
 	{ 

@@ -184,6 +184,12 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 #ifdef	HAVE_UNIX_SOCKETS
 	{
 		un = (struct sockaddr_un *) malloc(sizeof(struct sockaddr_un));
+		if (!un)
+		{
+			self->errornumber = SOCKET_COULD_NOT_CREATE_SOCKET;
+			self->errormsg = "coulnd't allocate memory for un.";
+			return 0;
+		}
 		un->sun_family = family = AF_UNIX;
 		/* passing NULL means that this only suports the pg default "/tmp" */
 		UNIXSOCK_PATH(un, port, ((char *) NULL));

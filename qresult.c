@@ -145,6 +145,8 @@ QR_Constructor()
 void
 QR_Destructor(QResultClass *self)
 {
+	ConnectionClass	*conn = self->conn;
+
 	if (!self)	return;
 	mylog("QResult: in DESTRUCTOR\n");
 
@@ -159,7 +161,7 @@ QR_Destructor(QResultClass *self)
 	 * If conn is defined, then we may have used "backend_tuples", so in
 	 * case we need to, free it up.  Also, close the cursor.
 	 */
-	if (self->conn && self->conn->sock && CC_is_in_trans(self->conn))
+	if (conn && conn->sock && CC_is_in_trans(conn))
 	{
 		if (!QR_close(self))	/* close the cursor if there is one */
 		{
@@ -248,11 +250,10 @@ QR_set_notice(QResultClass *self, const char *msg)
 void
 QR_free_memory(QResultClass *self)
 {
-	register int lf,
-				row;
-	register TupleField *tuple = self->backend_tuples;
-	int			num_backend_rows = self->num_backend_rows;
-	int			num_fields = self->num_fields;
+	int		lf, row;
+	TupleField	*tuple = self->backend_tuples;
+	int		num_backend_rows = self->num_backend_rows;
+	int		num_fields = self->num_fields;
 
 	mylog("QResult: free memory in, fcount=%d\n", num_backend_rows);
 
@@ -278,18 +279,30 @@ QR_free_memory(QResultClass *self)
 	}
 	if (self->keyset)
 	{
+		ConnectionClass	*conn = self->conn;
+
 		free(self->keyset);
 		self->keyset = NULL;
 		self->count_keyset_allocated = 0;
-		if (self->reload_count > 0 && self->conn)
+		if (self->reload_count > 0 && conn && conn->sock)
 		{
-			QResultClass	*res;
-			char		cmd[64];
+			char	plannm[32];
 
-			sprintf(cmd, "DEALLOCATE \"_KEYSET_%x\"", self);
-			res = CC_send_query(self->conn, cmd, NULL, CLEAR_RESULT_ON_ABORT);
-			if (res)
-				QR_Destructor(res);
+			sprintf(plannm, "_KEYSET_%x", self);
+			if (CC_is_in_error_trans(conn))
+			{
+				CC_mark_a_plan_to_discard(conn, plannm);
+			}
+			else
+			{
+				QResultClass	*res;
+				char		cmd[64];
+
+				sprintf(cmd, "DEALLOCATE \"%s\"", plannm);
+				res = CC_send_query(conn, cmd, NULL, CLEAR_RESULT_ON_ABORT);
+				if (res)
+					QR_Destructor(res);
+			}
 		}
 		self->reload_count = 0;
 	}
@@ -386,13 +399,12 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor)
 		self->count_backend_allocated = self->count_keyset_allocated = 0;
 		if (self->num_fields > 0)
 		{
-			self->backend_tuples = (TupleField *) malloc(self->num_fields * sizeof(TupleField) * tuple_size);
-			if (!self->backend_tuples)
-			{
-				self->status = PGRES_FATAL_ERROR;
-				QR_set_message(self, "Could not get memory for tuple cache.");
-				return FALSE;
-			}
+			QR_MALLOC_return_with_error(self->backend_tuples,
+				TupleField,
+				(self->num_fields * sizeof(TupleField) * tuple_size),
+				self, PGRES_FATAL_ERROR,
+				"Could not get memory for tuple cache.",
+				FALSE)
 			self->count_backend_allocated = tuple_size;
 		}
 		if (self->haskeyset)
@@ -442,29 +454,35 @@ int
 QR_close(QResultClass *self)
 {
 	QResultClass *res;
+	ConnectionClass	*conn = self->conn;
+	int	ret = TRUE;
 
-	if (self->conn && self->cursor && self->conn->connInfo.drivers.use_declarefetch)
+	if (conn && self->cursor && conn->connInfo.drivers.use_declarefetch)
 	{
-		char		buf[64];
+		if (!CC_is_in_error_trans(conn))
+		{
+			char		buf[64];
 
-		sprintf(buf, "close %s", self->cursor);
-		mylog("QResult: closing cursor: '%s'\n", buf);
+			sprintf(buf, "close %s", self->cursor);
+			mylog("QResult: closing cursor: '%s'\n", buf);
 
-		res = CC_send_query(self->conn, buf, NULL, CLEAR_RESULT_ON_ABORT);
+			res = CC_send_query(conn, buf, NULL, CLEAR_RESULT_ON_ABORT);
+			if (NULL == res)
+			{
+				QR_set_status(self, PGRES_FATAL_ERROR);
+				QR_set_message(self, "Error closing cursor.");
+				ret = FALSE;
+			}
+			QR_Destructor(res);
+		}
 
 		self->inTuples = FALSE;
 		self->currTuple = -1;
 
 		free(self->cursor);
 		self->cursor = NULL;
-
-		if (res == NULL)
-		{
-			self->status = PGRES_FATAL_ERROR;
-			QR_set_message(self, "Error closing cursor.");
-			return FALSE;
-		}
-		QR_Destructor(res);
+		if (!ret)
+			return ret;
 
 		/* End the transaction if there are no cursors left on this conn */
 		if (CC_is_in_autocommit(self->conn) && CC_cursor_count(self->conn) == 0)
@@ -475,12 +493,12 @@ QR_close(QResultClass *self)
 			{
 				self->status = PGRES_FATAL_ERROR;
 				QR_set_message(self, "Error ending transaction.");
-				return FALSE;
+				ret = FALSE;
 			}
 		}
 	}
 
-	return TRUE;
+	return ret;
 }
 
 
@@ -599,21 +617,18 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 				self->count_backend_allocated = 0;
 				if (self->num_fields > 0)
 				{
-					self->backend_tuples = (TupleField *) realloc(self->backend_tuples,
-						self->num_fields * sizeof(TupleField) * self->cache_size);
-					if (!self->backend_tuples)
-					{
-						self->status = PGRES_FATAL_ERROR;
-						QR_set_message(self, "Out of memory while reading tuples.");
-						return FALSE;
-					}
+					QR_REALLOC_return_with_error(self->backend_tuples, TupleField, 
+						(self->num_fields * sizeof(TupleField) * self->cache_size),
+						self, "Out of memory while reading tuples.", FALSE)
 					self->count_backend_allocated = self->cache_size;
 				}
 			}
 			if (self->haskeyset && (!self->keyset || self->cache_size > self->count_keyset_allocated))
 			{
 				self->count_keyset_allocated = 0;
-				self->keyset = (KeySet *) realloc(self->keyset, sizeof(KeySet) * self->cache_size); 
+				QR_REALLOC_return_with_error(self->keyset, KeySet,
+					(sizeof(KeySet) * self->cache_size), 
+					self, "Out of memory while reading tuples.", FALSE)
 				self->count_keyset_allocated = self->cache_size;
 			}
 			sprintf(fetch, "fetch %d in %s", fetch_size, self->cursor);
@@ -709,14 +724,9 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 
 						mylog("REALLOC: old_count = %d, size = %d\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
 						tuple_size *= 2;
-						self->backend_tuples = (TupleField *) realloc(self->backend_tuples,
-					 		tuple_size * self->num_fields * sizeof(TupleField));
-						if (!self->backend_tuples)
-						{
-							self->status = PGRES_FATAL_ERROR;
-							QR_set_message(self, "Out of memory while reading tuples.");
-							return FALSE;
-						}
+						QR_REALLOC_return_with_error(self->backend_tuples, TupleField,
+							(tuple_size * self->num_fields * sizeof(TupleField)),
+							self, "Out of memory while reading tuples.", FALSE)
 						self->count_backend_allocated = tuple_size;
 					}
 					if (self->haskeyset &&
@@ -724,7 +734,9 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 					{
 						int	tuple_size = self->count_keyset_allocated;
 						tuple_size *= 2;
-						self->keyset = (KeySet *) realloc(self->keyset, sizeof(KeySet) * tuple_size);
+						QR_REALLOC_return_with_error(self->keyset, KeySet,
+							(sizeof(KeySet) * tuple_size),
+							self, "Out of memory while reading tuples.", FALSE)
 						self->count_keyset_allocated = tuple_size;
 					}
 				}
@@ -875,7 +887,11 @@ QR_read_tuple(QResultClass *self, char binary)
 			if (field_lf >= effective_cols)
 				buffer = tidoidbuf;
 			else
-				buffer = (char *) malloc(len + 1);
+				QR_MALLOC_return_with_error(buffer, char,
+					(len + 1), self,
+					PGRES_FATAL_ERROR,
+					"Couldn't allocate buffer",
+					FALSE);
 			SOCK_get_n_char(sock, buffer, len);
 			buffer[len] = '\0';
 

@@ -94,7 +94,7 @@ UInt4	utf8_to_ucs2_lf(const char *utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs
 	const UCHAR *str;
 
 /*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/
-	if (!utf8str || !ilen)
+	if (!utf8str)
 		return 0;
 /*mylog(" string=%s\n", utf8str);*/
 	if (!bufcount)
@@ -146,7 +146,7 @@ UInt4	utf8_to_ucs2_lf(const char *utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs
 			str += 2;
 		}
 	}
-	if (ocount && ocount < bufcount && ucs2str)
+	if (ocount < bufcount && ucs2str)
 		ucs2str[ocount] = 0;
 /*mylog(" ocount=%d\n", ocount);*/
 	return ocount;

@@ -263,6 +263,23 @@ struct StatementClass_
 #define	SC_is_lower_case(a, b) (b->connInfo.lower_case_identifier)
 #endif /* ODBCVER */
 
+#define	SC_MALLOC_return_with_error(t, tp, s, a, m, r) \
+	{ \
+		if (t = (tp *) malloc(s), NULL == t) \
+		{ \
+			SC_set_error(a, STMT_NO_MEMORY_ERROR, m); \
+			return r; \
+		} \
+	}
+#define	SC_REALLOC_return_with_error(t, tp, s, a, m, r) \
+	{ \
+		if (t = (tp *) realloc(t, s), NULL == t) \
+		{ \
+			SC_set_error(a, STMT_NO_MEMORY_ERROR, m); \
+			return r; \
+		} \
+	}
+
 /*	options for SC_free_params() */
 #define STMT_FREE_PARAMS_ALL				0
 #define STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY	1
@@ -299,8 +316,8 @@ struct StatementClass_
 StatementClass *SC_Constructor(void);
 void		InitializeStatementOptions(StatementOptions *opt);
 char		SC_Destructor(StatementClass *self);
-BOOL		SC_is_open(const StatementClass *self);
-RETCODE		SC_initialize_ifclosed(StatementClass *self, const char *func);
+BOOL		SC_opencheck(StatementClass *self, const char *func);
+RETCODE		SC_initialize_and_recycle(StatementClass *self);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt);
 void		SC_pre_execute(StatementClass *self);

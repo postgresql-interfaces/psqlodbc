@@ -157,6 +157,17 @@ static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
 
 
 /*
+ *	Macros for unsigned long handling.
+ */
+#ifdef	WIN32
+#define	ATOI32U	atol
+#elif	defined(HAVE_STRTOUL)
+#define	ATOI32U(val)	strtoul(val, NULL, 10)
+#else /* HAVE_STRTOUL */
+#define	ATOI32U	atol
+#endif /* WIN32 */
+
+/*
  *	Macros for BIGINT handling.
  */
 #ifdef	ODBCINT64
@@ -186,7 +197,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 			   *ptr;
 	int			scnt,
 				i;
-#if defined(WIN32) || defined(HAVE_INT_TIMEZONE)
+#ifdef	TIMEZONE_GLOBAL
 	long		timediff;
 #endif
 	BOOL		withZone = *bZone;
@@ -195,7 +206,8 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	*zone = 0;
 	st->fr = 0;
 	st->infinity = 0;
-	if ((scnt = sscanf(str, "%4d-%2d-%2d %2d:%2d:%2d%s", &st->y, &st->m, &st->d, &st->hh, &st->mm, &st->ss, rest)) < 6)
+	rest[0] = '\0';
+	if ((scnt = sscanf(str, "%4d-%2d-%2d %2d:%2d:%2d%32s", &st->y, &st->m, &st->d, &st->hh, &st->mm, &st->ss, rest)) < 6)
 		return FALSE;
 	else if (scnt == 6)
 		return TRUE;
@@ -237,7 +249,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	}
 	if (!withZone || !*bZone || st->y < 1970)
 		return TRUE;
-#if defined(WIN32) || defined(HAVE_INT_TIMEZONE)
+#ifdef	TIMEZONE_GLOBAL
 	if (!tzname[0] || !tzname[0][0])
 	{
 		*bZone = FALSE;
@@ -283,7 +295,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 			*bZone = TRUE;
 		}
 	}
-#endif   /* WIN32 */
+#endif /* TIMEZONE_GLOBAL */
 	return TRUE;
 }
 
@@ -316,7 +328,7 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, BOOL precision)
 		}
 	}
 	zonestr[0] = '\0';
-#if defined(WIN32) || defined(HAVE_INT_TIMEZONE)
+#ifdef	TIMEZONE_GLOBAL
 	if (bZone && tzname[0] && tzname[0][0] && st->y >= 1970)
 	{
 		long		zoneint;
@@ -342,7 +354,7 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, BOOL precision)
 		else
 			sprintf(zonestr, "+%02d", -(int) zoneint / 3600);
 	}
-#endif   /* WIN32 */
+#endif /* TIMEZONE_GLOBAL */
 	sprintf(str, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d%s%s", st->y, st->m, st->d, st->hh, st->mm, st->ss, precstr, zonestr);
 	return TRUE;
 }
@@ -853,8 +865,16 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 				if (cbValueMax > 0)
 				{
-					copy_len = (len >= cbValueMax) ? cbValueMax - 1 : len;
+					BOOL	already_copied = FALSE;
 
+					copy_len = (len >= cbValueMax) ? cbValueMax - 1 : len;
+#ifdef	WIN_UNICODE_SUPPORT
+					if (fCType == SQL_C_WCHAR)
+					{
+						copy_len /= 2;
+						copy_len *= 2;
+					}
+#endif /* WIN_UNICODE_SUPPORT */
 #ifdef HAVE_LOCALE_H
 					switch (field_type)
 					{
@@ -866,7 +886,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							char		*new_string;
 							int		i, j;
 
-							new_string = malloc( cbValueMax );
+							new_string = malloc(cbValueMax);
 							lc = localeconv();
 							for (i = 0, j = 0; ptr[i]; i++)
 								if (ptr[i] == '.')
@@ -879,17 +899,21 @@ inolog("2stime fr=%d\n", std_time.fr);
 							new_string[j] = '\0';
  							strncpy_null(rgbValueBindRow, new_string, copy_len + 1);
 							free(new_string);
+							already_copied = TRUE;
  							break;
 						}
-						default:
-						/*      Copy the data */
-						strncpy_null(rgbValueBindRow, ptr, copy_len + 1);
- 					}
-#else /* HAVE_LOCALE_H */
-					/* Copy the data */
-					memcpy(rgbValueBindRow, ptr, copy_len);
-					rgbValueBindRow[copy_len] = '\0';
+					}
 #endif /* HAVE_LOCALE_H */
+					if (!already_copied)
+					{
+						/* Copy the data */
+						memcpy(rgbValueBindRow, ptr, copy_len);
+						rgbValueBindRow[copy_len] = '\0';
+					}
+#ifdef	WIN_UNICODE_SUPPORT
+					if (fCType == SQL_C_WCHAR)
+						rgbValueBindRow[copy_len + 1] = '\0';
+#endif /* WIN_UNICODE_SUPPORT */
 
 					/* Adjust data_left for next time */
 					if (stmt->current_col >= 0)
@@ -1192,9 +1216,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_ULONG:
 				len = 4;
 				if (bind_size > 0)
-					*((UDWORD *) rgbValueBindRow) = atol(neut_str);
+					*((UDWORD *) rgbValueBindRow) = ATOI32U(neut_str);
 				else
-					*((UDWORD *) rgbValue + bind_row) = atol(neut_str);
+					*((UDWORD *) rgbValue + bind_row) = ATOI32U(neut_str);
 				break;
 
 #if (ODBCVER >= 0x0300) && defined(ODBCINT64)
@@ -1242,7 +1266,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				/* The following is for SQL_C_VARBOOKMARK */
 				else if (PG_TYPE_INT4 == field_type)
 				{
-					UInt4	ival = atol(neut_str);
+					UInt4	ival = ATOI32U(neut_str);
 
 inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					if (pcbValue)
@@ -1818,7 +1842,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 
 		new_statement = qb->query_statement;
 		qb->flags = FLGB_BUILDING_PREPARE_STATEMENT;
-		sprintf(new_statement, "PREPARE _PLAN%0x", stmt);
+		sprintf(new_statement, "PREPARE \"_PLAN%0x\"", stmt);
 		qb->npos = strlen(new_statement);
 		if (SQL_SUCCESS != PGAPI_NumParams(stmt, &marker_count))
 		{
@@ -1854,7 +1878,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, ';');
 		/* build the execute statement */
 		exe_statement = malloc(30 + 2 * marker_count);
-		sprintf(exe_statement, "EXECUTE _PLAN%0x", stmt);
+		sprintf(exe_statement, "EXECUTE \"_PLAN%0x\"", stmt);
 		if (marker_count > 0)
 		{
 			elen = strlen(exe_statement);
@@ -2410,7 +2434,9 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 	newlen = 0;
 	if (0 == ns->sign)
 		chrform[newlen++] = '-';
-	for (i = len - 1; i >= ns->scale; i--)
+	if (i = len - 1, i < ns->scale)
+		i = ns->scale;
+	for (; i >= ns->scale; i--)
 		chrform[newlen++] = calv[i] + '0';
 	if (ns->scale > 0)
 	{
@@ -3875,7 +3901,7 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 			}
 		}
 
-		oid = atoi(value);
+		oid = ATOI32U(value);
 		stmt->lobj_fd = lo_open(conn, oid, INV_READ);
 		if (stmt->lobj_fd < 0)
 		{

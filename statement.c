@@ -422,15 +422,26 @@ SC_set_prepared(StatementClass *stmt, BOOL prepared)
 	if (!prepared)
 	{
 		ConnectionClass *conn = SC_get_conn(stmt);
-		if (CONN_CONNECTED == conn->status)
-		{
-			QResultClass	*res;
-			char dealloc_stmt[128];
 
-			sprintf(dealloc_stmt, "DEALLOCATE _PLAN%0x", stmt);
-			res = CC_send_query(conn, dealloc_stmt, NULL, 0);
-			if (res)
-				QR_Destructor(res); 
+		if (conn && CONN_CONNECTED == conn->status)
+		{
+			char	plannm[32];
+
+			sprintf(plannm, "_PLAN%0x", stmt);
+			if (CC_is_in_error_trans(conn))
+			{
+				CC_mark_a_plan_to_discard(conn, plannm);
+			}
+			else
+			{
+				QResultClass	*res;
+				char dealloc_stmt[128];
+
+				sprintf(dealloc_stmt, "DEALLOCATE \"%s\"", plannm);
+				res = CC_send_query(conn, dealloc_stmt, NULL, 0);
+				if (res)
+					QR_Destructor(res);
+			} 
 		}
 	}
 	stmt->prepared = prepared;
@@ -457,7 +468,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 			self->execute_statement = NULL;
 		}
 		self->prepare = FALSE;
-		SC_set_prepared(self,FALSE);
+		SC_set_prepared(self, FALSE);
 		self->statement_type = STMT_TYPE_UNKNOWN;
 	}
 	if (self->stmt_with_params)
@@ -474,38 +485,31 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 	return 0;
 }
 
-BOOL	SC_is_open(const StatementClass *self)
+BOOL	SC_opencheck(StatementClass *self, const char *func)
 {
 	QResultClass	*res;
 
+	if (self->status == STMT_EXECUTING)
+	{
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
+		return TRUE;
+	}
 	if (res = SC_get_Curres(self), NULL != res)
 	{
 		if (res->backend_tuples)
+		{
+			SC_set_error(self, STMT_SEQUENCE_ERROR, "The cursor is open.");
+			SC_log_error(func, "", self);
 			return TRUE;
+		}
 	}
 
 	return	FALSE;
 }
 
 RETCODE
-SC_initialize_ifclosed(StatementClass *self, const char *func)
+SC_initialize_and_recycle(StatementClass *self)
 {
-	if (!self)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
-	if (self->status == STMT_EXECUTING)
-	{
-		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
-		return FALSE;
-	}
-	if (SC_is_open(self))
-	{
-		SC_set_error(self, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor is open");
-		SC_log_error(func, "", self);
-		return SQL_ERROR;
-	}
 	SC_initialize_stmts(self, TRUE);
 	if (!SC_recycle_statement(self))
 		return SQL_ERROR;
@@ -1031,6 +1035,7 @@ SC_fetch(StatementClass *self)
 	return result;
 }
 
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 
 RETCODE
 SC_execute(StatementClass *self)
@@ -1046,7 +1051,7 @@ SC_execute(StatementClass *self)
 	ConnInfo   *ci;
 	UDWORD		qflag = 0;
 	BOOL		auto_begin = FALSE, is_in_trans;
-	int		entered;
+	int		func_cs_count = 0;
 
 
 	conn = SC_get_conn(self);
@@ -1062,13 +1067,12 @@ SC_execute(StatementClass *self)
 	 * 2) we are in autocommit off state and the statement isn't of type
 	 * OTHER.
 	 */
-	ENTER_INNER_CONN_CS(conn, entered);
+	ENTER_INNER_CONN_CS(conn, func_cs_count);
 	if (CONN_EXECUTING == conn->status)
 	{
 		SC_set_error(self, STMT_SEQUENCE_ERROR, "Connection is already in use.");
-		SC_log_error(func, "", self);
 		mylog("%s: problem with connection\n", func);
-		RETURN_AFTER_LEAVE_CS(entered, conn, SQL_ERROR);
+		goto cleanup;
 	}
 	is_in_trans = CC_is_in_trans(conn);
 	if (!self->internal && !is_in_trans &&
@@ -1082,8 +1086,7 @@ SC_execute(StatementClass *self)
                 else if (!CC_begin(conn))
                 {
 			SC_set_error(self, STMT_EXEC_ERROR, "Could not begin a transaction");
-                        SC_log_error(func, "", self);
-                        RETURN_AFTER_LEAVE_CS(entered, conn, SQL_ERROR);
+			goto cleanup;
                 }
 	}
 
@@ -1161,7 +1164,7 @@ SC_execute(StatementClass *self)
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
 	self->status = STMT_FINISHED;
-	LEAVE_INNER_CONN_CS(entered, conn);
+	LEAVE_INNER_CONN_CS(func_cs_count, conn);
 
 	/* Check the status of the result */
 	if (res)
@@ -1203,8 +1206,7 @@ SC_execute(StatementClass *self)
 				{
 					QR_Destructor(res);
 					SC_set_error(self, STMT_NO_MEMORY_ERROR,"Could not get enough free memory to store the binding information");
-					SC_log_error(func, "", self);
-					return SQL_ERROR;
+					goto cleanup;
 				}
 			}
 		}
@@ -1270,6 +1272,9 @@ SC_execute(StatementClass *self)
 			SC_set_error(self, STMT_EXEC_ERROR, "SC_fetch to get a Procedure return failed.");
 		}
 	}
+#undef	return
+cleanup:
+	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
 	if (SC_get_errornumber(self) == STMT_OK)
 		return SQL_SUCCESS;
 	else if (SC_get_errornumber(self) == STMT_INFO_ONLY)
@@ -1288,9 +1293,10 @@ int enqueueNeedDataCallback(StatementClass *stmt, NeedDataCallfunc func, void *d
 {
 	if (stmt->num_callbacks >= stmt->allocated_callbacks)
 	{
-		stmt->callbacks = (NeedDataCallback *) realloc(stmt->callbacks,
+		SC_REALLOC_return_with_error(stmt->callbacks, NeedDataCallback,
 			sizeof(NeedDataCallback) * (stmt->allocated_callbacks +
-				CALLBACK_ALLOC_ONCE));
+				CALLBACK_ALLOC_ONCE), stmt,
+			 "Couldn't alloc callbacks", -1) 
 		stmt->allocated_callbacks += CALLBACK_ALLOC_ONCE;
 	}
 	stmt->callbacks[stmt->num_callbacks].func = func;

@@ -110,15 +110,19 @@ SQLColumns(HSTMT StatementHandle,
 		   SQLCHAR *TableName, SQLSMALLINT NameLength3,
 		   SQLCHAR *ColumnName, SQLSMALLINT NameLength4)
 {
+	CSTR func = "SQLColumns";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR	*ctName = CatalogName, *scName = SchemaName,
 		*tbName = TableName, *clName = ColumnName;
 
-	mylog("[SQLColumns]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 				clName, NameLength4, 0);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
@@ -306,13 +310,17 @@ RETCODE		SQL_API
 SQLExecDirect(HSTMT StatementHandle,
 			  SQLCHAR *StatementText, SQLINTEGER TextLength)
 {
+	CSTR func = "SQLExecDirect";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("[SQLExecDirect]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength, 0);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength, 0);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -524,13 +532,17 @@ RETCODE		SQL_API
 SQLGetTypeInfo(HSTMT StatementHandle,
 			   SQLSMALLINT DataType)
 {
+	CSTR func = "SQLGetTypeInfo";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("[SQLGetTypeInfo]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -685,14 +697,18 @@ SQLSpecialColumns(HSTMT StatementHandle,
 				  SQLSMALLINT NameLength3, SQLUSMALLINT Scope,
 				  SQLUSMALLINT Nullable)
 {
+	CSTR func = "SQLSpecialColumns";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
-	mylog("[SQLSpecialColumns]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
 			NameLength1, scName, NameLength2, tbName, NameLength3,
 							Scope, Nullable);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
@@ -742,14 +758,18 @@ SQLStatistics(HSTMT StatementHandle,
 			  SQLCHAR *TableName, SQLSMALLINT NameLength3,
 			  SQLUSMALLINT Unique, SQLUSMALLINT Reserved)
 {
+	CSTR func = "SQLStatistics";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
-	mylog("[SQLStatistics]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
 				 scName, NameLength2, tbName, NameLength3,
 				 Unique, Reserved);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
@@ -799,14 +819,18 @@ SQLTables(HSTMT StatementHandle,
 		  SQLCHAR *TableName, SQLSMALLINT NameLength3,
 		  SQLCHAR *TableType, SQLSMALLINT NameLength4)
 {
+	CSTR func = "SQLTables";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
-	mylog("[SQLTables]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 						TableType, NameLength4);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
@@ -904,15 +928,19 @@ SQLColumnPrivileges(
 					SQLCHAR *szColumnName,
 					SQLSMALLINT cbColumnName)
 {
+	CSTR func = "SQLColumnPrivileges";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*tbName = szTableName, *clName = szColumnName;
 
-	mylog("[SQLColumnPrivileges]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, tbName, cbTableName,
 						clName, cbColumnName);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
@@ -1019,16 +1047,20 @@ SQLForeignKeys(
 			   SQLCHAR *szFkTableName,
 			   SQLSMALLINT cbFkTableName)
 {
+	CSTR func = "SQLForeignKeys";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR *pkctName = szPkCatalogName, *pkscName = szPkSchemaName,
 		*pktbName = szPkTableName, *fkctName = szFkCatalogName,
 		*fkscName = szFkSchemaName, *fktbName = szFkTableName;
 
-	mylog("[SQLForeignKeys]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ForeignKeys(hstmt, pkctName, cbPkCatalogName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ForeignKeys(hstmt, pkctName, cbPkCatalogName,
 			pkscName, cbPkSchemaName, pktbName, cbPkTableName,
 			fkctName, cbFkCatalogName, fkscName, cbFkSchemaName,
 			fktbName, cbFkTableName);
@@ -1173,15 +1205,19 @@ SQLPrimaryKeys(
 			   SQLCHAR *szTableName,
 			   SQLSMALLINT cbTableName)
 {
+	CSTR func = "SQLPrimaryKeys";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*tbName = szTableName;
 
-	mylog("[SQLPrimaryKeys]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
@@ -1234,15 +1270,19 @@ SQLProcedureColumns(
 					SQLCHAR *szColumnName,
 					SQLSMALLINT cbColumnName)
 {
+	CSTR func = "SQLProcedureColumns";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*prName = szProcName, *clName = szColumnName;
 
-	mylog("[SQLProcedureColumns]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, prName, cbProcName,
 					clName, cbColumnName);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
@@ -1302,15 +1342,19 @@ SQLProcedures(
 			  SQLCHAR *szProcName,
 			  SQLSMALLINT cbProcName)
 {
+	CSTR func = "SQLProcedures";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*prName = szProcName;
 
-	mylog("[SQLProcedures]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
 					 scName, cbSchemaName, prName, cbProcName);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
@@ -1379,15 +1423,19 @@ SQLTablePrivileges(
 				   SQLCHAR *szTableName,
 				   SQLSMALLINT cbTableName)
 {
+	CSTR func = "SQLTablePrivileges";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*tbName = szTableName;
 
-	mylog("[SQLTablePrivileges]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName, 0);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
