@@ -77,7 +77,7 @@ extern unsigned char *pg_mbsinc(int ccsc, const unsigned char *current );
 typedef struct
 {
 	int	ccsc;
-	const char *encstr;
+	const unsigned char *encstr;
 	int	pos;
 	int	ccst;
 } encoded_str;
