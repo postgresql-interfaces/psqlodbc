@@ -48,7 +48,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	}
 
 	/*
-	 * According to the ODBC specs it is valid to call SQLPrepare mulitple
+	 * According to the ODBC specs it is valid to call SQLPrepare multiple
 	 * times. In that case, the bound SQL statement is replaced by the new
 	 * one
 	 */
@@ -303,6 +303,16 @@ PGAPI_Execute(
 	{
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
+#if (ODBCVER >= 0x0300)
+		/*
+	 	 *	Initialize the param_status_ptr 
+	 	 */
+		if (ipdopts->param_status_ptr)
+		{
+			for (i = 0; i <= end_row; i++)
+				ipdopts->param_status_ptr[i] = SQL_PARAM_UNUSED;
+		}
+#endif /* ODBCVER */
 		SC_recycle_statement(stmt);
 	}
 
@@ -312,8 +322,6 @@ next_param_row:
 	{
 		while (opts->param_operation_ptr[stmt->exec_current_row] == SQL_PARAM_IGNORE)
 		{
-			if (ipdopts->param_status_ptr)
-				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_UNUSED;
 			if (stmt->exec_current_row >= end_row)
 			{
 				stmt->exec_current_row = -1;
@@ -322,6 +330,11 @@ next_param_row:
 			++stmt->exec_current_row;
 		}
 	}
+	/*
+	 *	Initialize the current row status 
+	 */
+	if (ipdopts->param_status_ptr)
+		ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
 #endif /* ODBCVER */
 	/*
 	 * Check if statement has any data-at-execute parameters when it is
@@ -338,6 +351,11 @@ next_param_row:
 		Int4	bind_size = opts->param_bind_type;
 		Int4	current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
 
+		/*
+		 *	Increment the  number of currently processed rows 
+		 */
+		if (ipdopts->param_processed_ptr)
+			(*ipdopts->param_processed_ptr)++;
 		stmt->data_at_exec = -1;
 		for (i = 0; i < opts->allocated; i++)
 		{
@@ -393,8 +411,6 @@ next_param_row:
 		retval = SC_execute(stmt);
 		if (retval != SQL_ERROR)
 		{
-			if (ipdopts->param_processed_ptr)
-				(*ipdopts->param_processed_ptr)++;
 			/* special handling of result for keyset driven cursors */
 			if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
 			    SQL_CONCUR_READ_ONLY != stmt->options.scroll_concurrency)
@@ -783,11 +799,6 @@ PGAPI_ParamData(
 		stmt->current_exec_param = -1;
 
 		retval = SC_execute(stmt);
-		if (retval != SQL_ERROR)
-		{
-			if (ipdopts->param_processed_ptr)
-				(*ipdopts->param_processed_ptr)++;
-		}
 #if (ODBCVER >= 0x0300)
 		if (ipdopts->param_status_ptr)
 		{

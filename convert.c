@@ -2782,7 +2782,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 {
 	static const char *func = "convert_escape";
 	RETCODE	retval = SQL_SUCCESS;
-	char		buf[1024], key[65];
+	char		buf[1024], buf_small[128], key[65];
 	unsigned char	ucv;
 	UInt4		prtlen;
  
@@ -2838,25 +2838,25 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	if (strcmp(key, "d") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf, '}', sizeof(buf));
-		prtlen = snprintf(buf, sizeof(buf), "%s::date ", buf);
+		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
+		prtlen = snprintf(buf, sizeof(buf), "%s::date ", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
 	else if (strcmp(key, "t") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf, '}', sizeof(buf));
-		prtlen = snprintf(buf, sizeof(buf), "%s::time", buf);
+		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
+		prtlen = snprintf(buf, sizeof(buf), "%s::time", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
 	else if (strcmp(key, "ts") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf, '}', sizeof(buf));
+		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
 		if (PG_VERSION_LT(qb->conn, 7.1))
-			prtlen = snprintf(buf, sizeof(buf), "%s::datetime", buf);
+			prtlen = snprintf(buf, sizeof(buf), "%s::datetime", buf_small);
 		else
-			prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf);
+			prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
 	else if (strcmp(key, "oj") == 0) /* {oj syntax support for 7.1 * servers */
