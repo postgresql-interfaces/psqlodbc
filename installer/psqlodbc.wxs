@@ -57,7 +57,7 @@
       
 <!-- Cancel dialog -->
 
-      <Dialog Id="Cancel" Width="233" Height="127" Title="psqODBC" NoMinimize="yes">
+      <Dialog Id="Cancel" Width="233" Height="127" Title="psqlODBC" NoMinimize="yes">
         <Control Id="No" Type="PushButton" X="101" Y="101" Width="56" Height="17" Default="yes">
           <Text>&amp;Resume</Text>
           <Publish Event="EndDialog" Value="Return">1</Publish>
@@ -100,7 +100,7 @@
 
 <!-- Exit dialog -->
 
-      <Dialog Id="Exit_Dialog" Width="375" Height="270" Title="psqlODBC">
+      <Dialog Id="Exit_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)">
         
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -128,7 +128,7 @@
           <Text>{\Arial10Bold}Installation complete!</Text>
         </Control>
         <Control Id="ui2" Type="Text" X="10" Y="75" Width="365" Height="30" Transparent="yes">
-          <Text>Congratulations, psqlODBC has been successfully installed on your system.</Text>
+          <Text>Congratulations, psqlODBC $(var.VERSION) has been successfully installed on your system.</Text>
         </Control>  
         <Control Id="wc_txt3" Type="Text" X="10" Y="200" Width="365" Height="30" Transparent="yes">
           <Text>Click the finish button to exit from the installer.</Text>
@@ -137,7 +137,7 @@
       
 <!-- Welcome dialog -->
 
-      <Dialog Id="Welcome_Dialog" Width="375" Height="270" Title="psqlODBC" CustomPalette="yes">
+      <Dialog Id="Welcome_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
       
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -171,7 +171,7 @@
       
 <!-- Licence Dialogue -->
 
-      <Dialog Id="Licence_Dialog" Width="375" Height="270" Title="psqlODBC" CustomPalette="yes">
+      <Dialog Id="Licence_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
         
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -206,7 +206,7 @@
   
 <!-- Ready dialogue -->
 
-      <Dialog Id="Ready_Dialog" Width="375" Height="270" Title="PostgreSQL" CustomPalette="yes">
+      <Dialog Id="Ready_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
          
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -239,7 +239,7 @@
   
 <!-- Progress Dialogue -->
 
-      <Dialog Id="Progress_Dialog" Width="375" Height="270" Title="psqlODBC" CustomPalette="yes" Modeless="yes">
+      <Dialog Id="Progress_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes" Modeless="yes">
     
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
