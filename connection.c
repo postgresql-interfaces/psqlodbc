@@ -1193,6 +1193,8 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
  *	(i.e., C3326857) for SQL select statements.  This cursor is then used in future
  *	'declare cursor C3326857 for ...' and 'fetch 100 in C3326857' statements.
  */
+
+
 QResultClass *
 CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 {
@@ -1249,12 +1251,13 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		return NULL;
 	}
 
+	ENTER_CONN_CS(self);
 	SOCK_put_char(sock, 'Q');
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
-		return NULL;
+		RETURN_AFTER_LEAVE_CS(self, NULL);
 	}
 
 	if (issue_begin)
@@ -1266,7 +1269,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
-		return NULL;
+		RETURN_AFTER_LEAVE_CS(self, NULL);
 	}
 
 	mylog("send_query: done sending query\n");
@@ -1286,7 +1289,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		if (!cmdres)
 		{
 			CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
-			return NULL;
+			RETURN_AFTER_LEAVE_CS(self, NULL);
 		}
 	}
 	res = cmdres;
@@ -1610,7 +1613,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 			}
 		}
 	}
-	return retres;
+	RETURN_AFTER_LEAVE_CS(self, retres);
 }
 
 

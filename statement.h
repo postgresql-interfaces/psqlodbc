@@ -249,7 +249,7 @@ struct StatementClass_
 #define SC_is_prepare_before_exec(a)	((a->miscinfo & 4L) != 0)
 
 /* For Multi-thread */
-#if defined(WIN_FREETHREAD_SUPPORT)
+#if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_STMT_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_STMT_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))

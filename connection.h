@@ -87,7 +87,7 @@ typedef enum
 #define CC_set_errornumber(x, n)	(x->__error_number = n)
 
 /* For Multi-thread */
-#if defined(WIN_FREETHREAD_SUPPORT)
+#if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
@@ -104,6 +104,8 @@ typedef enum
 #define DELETE_CONN_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
+#define	RETURN_AFTER_LEAVE_CS(conn, ret) \
+	{ LEAVE_CONN_CS(conn); return ret; }
 
 /* Authentication types */
 #define AUTH_REQ_OK									0

@@ -378,7 +378,6 @@ PGAPI_Execute(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
-	ConnectionClass *conn;
 	int			i,
 				retval, start_row, end_row;
 	BOOL	exec_end, recycled = FALSE, recycle = TRUE;
@@ -425,15 +424,6 @@ PGAPI_Execute(
 	mylog("%s: clear errors...\n", func);
 
 	SC_clear_error(stmt);
-
-	conn = SC_get_conn(stmt);
-	if (conn->status == CONN_EXECUTING)
-	{
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Connection is already in use.");
-		SC_log_error(func, "", stmt);
-		mylog("%s: problem with connection\n", func);
-		return SQL_ERROR;
-	}
 
 	if (!stmt->statement)
 	{

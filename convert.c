@@ -3149,7 +3149,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	if (F_NewPos(qb) > 0 && isalnum(F_NewPtr(qb)[-1]))
 		CVT_APPEND_CHAR(qb, ' ');
 	
-	if (strcmp(key, "d") == 0)
+	if (stricmp(key, "d") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
@@ -3159,14 +3159,14 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			prtlen = snprintf(buf, sizeof(buf), "%s::date ", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
-	else if (strcmp(key, "t") == 0)
+	else if (stricmp(key, "t") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
 		prtlen = snprintf(buf, sizeof(buf), "%s::time", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
-	else if (strcmp(key, "ts") == 0)
+	else if (stricmp(key, "ts") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
@@ -3176,12 +3176,12 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
-	else if (strcmp(key, "oj") == 0) /* {oj syntax support for 7.1 * servers */
+	else if (stricmp(key, "oj") == 0) /* {oj syntax support for 7.1 * servers */
 	{
 		F_OldPrior(qp);
 		return SQL_SUCCESS; /* Continue at inner_process_tokens loop */
 	}
-	else if (strcmp(key, "fn") == 0)
+	else if (stricmp(key, "fn") == 0)
 	{
 		QueryBuild	nqb;
 		const char *mapExpr;

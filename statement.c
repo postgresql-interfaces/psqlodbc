@@ -1058,6 +1058,15 @@ SC_execute(StatementClass *self)
 	 * 2) we are in autocommit off state and the statement isn't of type
 	 * OTHER.
 	 */
+	ENTER_CONN_CS(conn);
+	if (CONN_EXECUTING == conn->status)
+	{
+		LEAVE_CONN_CS(conn);
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "Connection is already in use.");
+		SC_log_error(func, "", self);
+		mylog("%s: problem with connection\n", func);
+		return SQL_ERROR;
+	}
 	is_in_trans = CC_is_in_trans(conn);
 	if (!self->internal && !is_in_trans &&
 		(SC_is_fetchcursor(self) ||
@@ -1069,6 +1078,7 @@ SC_execute(StatementClass *self)
 			qflag |= GO_INTO_TRANSACTION;
                 else if (!CC_begin(conn))
                 {
+			LEAVE_CONN_CS(conn);
 			SC_set_error(self, STMT_EXEC_ERROR, "Could not begin a transaction");
                         SC_log_error(func, "", self);
                         return SQL_ERROR;
@@ -1149,6 +1159,7 @@ SC_execute(StatementClass *self)
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
 	self->status = STMT_FINISHED;
+	LEAVE_CONN_CS(conn);
 
 	/* Check the status of the result */
 	if (res)
