@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.73 2002/12/16 15:01:34 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.74 2003/01/02 11:45:41 dpage Exp $
  *
  */
 
@@ -165,7 +165,7 @@ typedef UInt4 Oid;
 #define KEYS_TABLE					"dd_fkey"
 
 /*	Info limits */
-#define MAX_INFO_STRING				128
+#define MAX_INFO_STRING				256
 #define MAX_KEYPARTS				20
 #define MAX_KEYLEN					512 /* max key of the form
 										 * "date+outlet+invoice" */
