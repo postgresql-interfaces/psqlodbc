@@ -11,6 +11,7 @@
 #include "multibyte.h"
 #include "connection.h"
 #include "pgapifunc.h"
+#include "qresult.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
