@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 7.2.5, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 7.3.1, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
@@ -25,11 +25,11 @@ if test "$with_unixodbc" = yes && test "$with_iodbc" = yes; then
 fi
 
 #
-# Default odbc version number (--with-odbcver), default 0x0250
+# Default odbc version number (--with-odbcver), default 0x0300
 #
 AC_MSG_CHECKING([for ODBC version number])
 PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC version number
- [0x0250]],
+ [0x0300]],
              [AC_DEFINE_UNQUOTED(ODBCVER, ${withval},
           	[Define to ODBC version (--with-odbcver)])])
 AC_MSG_RESULT([$with_odbcver])
