@@ -1510,6 +1510,12 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	mylog("PGAPI_SetConnectAttr %d\n", Attribute);
 	switch (Attribute)
 	{
+#if (ODBCVER >= 0x0351)
+		case SQL_ATTR_ANSI_APP:
+			if ((SQLUINTEGER)Value == SQL_AA_TRUE)
+				conn->unicode = 0;
+			break;
+#endif
 		case SQL_ATTR_METADATA_ID:
 			conn->stmtOptions.metadata_id = (SQLUINTEGER) Value;
 			break;
