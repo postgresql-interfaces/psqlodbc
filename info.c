@@ -46,7 +46,7 @@
 #define TRIGGER_DELETE 0x01
 #define TRIGGER_UPDATE 0x02
 
-#define	NULL_IF_NULL(a) (a ? a : "(NULL)")
+#define	NULL_IF_NULL(a) ((a) ? (const char*)(a) : "(NULL)")
 
 /* extern GLOBAL_VALUES globals; */
 
@@ -2577,7 +2577,7 @@ PGAPI_Statistics(
 			   *indx_stmt;
 	char		column_name[MAX_INFO_STRING],
 			table_qualifier[MAX_INFO_STRING],
-				relhasrules[10], relkind[8];
+				relhasrules[10];
 	char	  **column_names = NULL;
 	SQLINTEGER	column_name_len;
 	int			total_columns = 0;
