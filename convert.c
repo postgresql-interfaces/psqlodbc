@@ -2989,6 +2989,11 @@ ResolveOneParam(QueryBuild *qb)
 			if (param_sqltype == SQL_BIT)
 				CVT_APPEND_CHAR(qb, '\'');		/* Open Quote */
 
+			if (param_sqltype == SQL_SMALLINT)
+			{
+				CVT_APPEND_STR(qb, "(");
+			}
+
 			if (buf)
 			{
 				switch (used)
@@ -3008,7 +3013,7 @@ ResolveOneParam(QueryBuild *qb)
 			if (param_sqltype == SQL_SMALLINT)
 			{
 				/* needs cast because there is no automatic downcast from int4 constants */
-				CVT_APPEND_STR(qb, "::int2");
+				CVT_APPEND_STR(qb, ")::int2");
 			}
 
 			if (param_sqltype == SQL_BIT)
