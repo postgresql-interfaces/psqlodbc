@@ -107,7 +107,7 @@ PGAPI_Connect(
 
 	ci = &conn->connInfo;
 
-	make_string(szDSN, cbDSN, ci->dsn);
+	make_string(szDSN, cbDSN, ci->dsn, sizeof(ci->dsn));
 
 	/* get the values for the DSN from the registry */
 	memcpy(&ci->drivers, &globals, sizeof(globals));
@@ -120,8 +120,8 @@ PGAPI_Connect(
 	 * override values from DSN info with UID and authStr(pwd) This only
 	 * occurs if the values are actually there.
 	 */
-	make_string(szUID, cbUID, ci->username);
-	make_string(szAuthStr, cbAuthStr, ci->password);
+	make_string(szUID, cbUID, ci->username, sizeof(ci->username));
+	make_string(szAuthStr, cbAuthStr, ci->password, sizeof(ci->password));
 
 	/* fill in any defaults */
 	getDSNdefaults(ci);

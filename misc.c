@@ -259,14 +259,15 @@ strncpy_null(char *dst, const char *src, int len)
 /*------
  *	Create a null terminated string (handling the SQL_NTS thing):
  *		1. If buf is supplied, place the string in there
- *		   (assumes enough space) and return buf.
+ *		   (at most bufsize-1 bytes) and return buf.
  *		2. If buf is not supplied, malloc space and return this string
+ *		   (buflen is ignored in this case)
  *------
  */
 char *
-make_string(const char *s, int len, char *buf)
+make_string(const char *s, int len, char *buf, size_t bufsize)
 {
-	int			length;
+	unsigned int	length;
 	char	   *str;
 
 	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
@@ -275,6 +276,8 @@ make_string(const char *s, int len, char *buf)
 
 		if (buf)
 		{
+			if (length >= bufsize)
+				length = bufsize - 1;
 			strncpy_null(buf, s, length + 1);
 			return buf;
 		}

@@ -119,7 +119,7 @@ int	get_mylog(void);
 void		remove_newlines(char *string);
 char	   *strncpy_null(char *dst, const char *src, int len);
 char	   *trim(char *string);
-char	   *make_string(const char *s, int len, char *buf);
+char	   *make_string(const char *s, int len, char *buf, size_t bufsize);
 char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, int len, BOOL);
 char	   *my_strcat(char *buf, const char *fmt, const char *s, int len);
 char	   *schema_strcat(char *buf, const char *fmt, const char *s, int len,

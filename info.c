@@ -1397,7 +1397,7 @@ retry_public_schema:
 	show_views = FALSE;
 
 	/* make_string mallocs memory */
-	tableType = make_string(szTableType, cbTableType, NULL);
+	tableType = make_string(szTableType, cbTableType, NULL, 0);
 	if (tableType)
 	{
 		strcpy(table_types, tableType);
@@ -2637,7 +2637,7 @@ PGAPI_Statistics(
 	 * only use the table name... the owner should be redundant, and we
 	 * never use qualifiers.
 	 */
-	table_name = make_string(szTableName, cbTableName, NULL);
+	table_name = make_string(szTableName, cbTableName, NULL, 0);
 	if (!table_name)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No table name passed to PGAPI_Statistics.");
@@ -3033,7 +3033,8 @@ PGAPI_PrimaryKeys(
 	char		tables_query[INFO_INQUIRY_LEN];
 	char		attname[MAX_INFO_STRING];
 	SDWORD		attname_len;
-	char		pktab[TABLE_NAME_STORAGE_LEN + 1], pkscm[TABLE_NAME_STORAGE_LEN + 1];
+	char	   *pktab;
+	char		pkscm[TABLE_NAME_STORAGE_LEN + 1];
 	Int2		result_cols;
 	int			qno,
 				qstart,
@@ -3090,9 +3091,8 @@ PGAPI_PrimaryKeys(
 		internal_asis_type = INTERNAL_ASIS_TYPE;
 #endif /* UNICODE_SUPPORT */
 
-	pktab[0] = '\0';
-	make_string(szTableName, cbTableName, pktab);
-	if (pktab[0] == '\0')
+	pktab = make_string(szTableName, cbTableName, NULL, 0);
+	if (pktab == NULL || pktab[0] == '\0')
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No Table specified to PGAPI_PrimaryKeys.");
 		goto cleanup;
@@ -3257,6 +3257,9 @@ retry_public_schema:
 	ret = SQL_SUCCESS;
 
 cleanup:
+	if (pktab)
+		free(pktab);
+
 	/*
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.
@@ -3537,12 +3540,12 @@ PGAPI_ForeignKeys(
 	char		trig_args[1024];
 	char		upd_rule[TABLE_NAME_STORAGE_LEN],
 				del_rule[TABLE_NAME_STORAGE_LEN];
-	char		pk_table_needed[TABLE_NAME_STORAGE_LEN + 1];
-char		fk_table_fetched[TABLE_NAME_STORAGE_LEN + 1];
-	char		fk_table_needed[TABLE_NAME_STORAGE_LEN + 1];
-char		pk_table_fetched[TABLE_NAME_STORAGE_LEN + 1];
+	char	   *pk_table_needed;
+	char		fk_table_fetched[TABLE_NAME_STORAGE_LEN + 1];
+	char	   *fk_table_needed;
+	char		pk_table_fetched[TABLE_NAME_STORAGE_LEN + 1];
 	char		schema_needed[SCHEMA_NAME_STORAGE_LEN + 1];
-char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
+	char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	char	   *pkey_ptr,
 			   *pkey_text,
 			   *fkey_ptr,
@@ -3638,13 +3641,11 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 
 	tbl_stmt = (StatementClass *) htbl_stmt;
 
-	pk_table_needed[0] = '\0';
-	fk_table_needed[0] = '\0';
 	schema_needed[0] = '\0';
 	schema_fetched[0] = '\0';
 
-	make_string(szPkTableName, cbPkTableName, pk_table_needed);
-	make_string(szFkTableName, cbFkTableName, fk_table_needed);
+	pk_table_needed = make_string(szPkTableName, cbPkTableName, NULL, 0);
+	fk_table_needed = make_string(szFkTableName, cbFkTableName, NULL, 0);
 
 	conn = SC_get_conn(stmt);
 #ifdef	UNICODE_SUPPORT
@@ -3658,7 +3659,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	 * Case #2 -- Get the foreign keys in the specified table (fktab) that
 	 * refer to the primary keys of other table(s).
 	 */
-	if (fk_table_needed[0] != '\0')
+	if (fk_table_needed && fk_table_needed[0] != '\0')
 	{
 		mylog("%s: entering Foreign Key Case #2", func);
 		if (conn->schema_support)
@@ -3864,7 +3865,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			mylog("Foreign Key Case#2: trig_nargs = %d, num_keys = %d\n", trig_nargs, num_keys);
 
 			/* If there is a pk table specified, then check it. */
-			if (pk_table_needed[0] != '\0')
+			if (pk_table_needed && pk_table_needed[0] != '\0')
 			{
 				/* If it doesn't match, then continue */
 				if (strcmp(pk_table_fetched, pk_table_needed))
@@ -4302,6 +4303,12 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	ret = SQL_SUCCESS;
 
 cleanup:
+	if (fk_table_needed)
+		free(fk_table_needed);
+	if (pk_table_needed)
+		free(pk_table_needed);
+
+
 	/*
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.

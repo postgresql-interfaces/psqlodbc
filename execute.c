@@ -102,7 +102,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	if (!szSqlStr[0])
 		self->statement = strdup("");
 	else
-		self->statement = make_string(szSqlStr, cbSqlStr, NULL);
+		self->statement = make_string(szSqlStr, cbSqlStr, NULL, 0);
 	if (!self->statement)
 	{
 		SC_set_error(self, STMT_NO_MEMORY_ERROR, "No memory available to store statement");
@@ -147,7 +147,7 @@ PGAPI_ExecDirect(
 	 * keep a copy of the un-parametrized statement, in case they try to
 	 * execute this statement again
 	 */
-	stmt->statement = make_string(szSqlStr, cbSqlStr, NULL);
+	stmt->statement = make_string(szSqlStr, cbSqlStr, NULL, 0);
 	if (!stmt->statement)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "No memory available to store statement");
@@ -787,7 +787,7 @@ PGAPI_NativeSql(
 
 	mylog("%s: entering...cbSqlStrIn=%d\n", func, cbSqlStrIn);
 
-	ptr = (cbSqlStrIn == 0) ? "" : make_string(szSqlStrIn, cbSqlStrIn, NULL);
+	ptr = (cbSqlStrIn == 0) ? "" : make_string(szSqlStrIn, cbSqlStrIn, NULL, 0);
 	if (!ptr)
 	{
 		CC_set_error(conn, CONN_NO_MEMORY_ERROR, "No memory available to store native sql string");

@@ -95,7 +95,7 @@ PGAPI_DriverConnect(
 	RETCODE		dialog_result;
 #endif
 	RETCODE		result;
-	char		connStrIn[MAX_CONNECT_STRING];
+	char	   *connStrIn;
 	char		connStrOut[MAX_CONNECT_STRING];
 	int			retval;
 	char		salt[5];
@@ -112,7 +112,7 @@ PGAPI_DriverConnect(
 		return SQL_INVALID_HANDLE;
 	}
 
-	make_string(szConnStrIn, cbConnStrIn, connStrIn);
+	connStrIn = make_string(szConnStrIn, cbConnStrIn, NULL, 0);
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
@@ -290,6 +290,9 @@ dialog:
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
+
+	if (connStrIn)
+		free(connStrIn);
 
 	mylog("PGAPI_DriverConnect: returning %d\n", result);
 	return result;
