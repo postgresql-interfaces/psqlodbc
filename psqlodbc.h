@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.76 2003/04/23 09:49:47 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.77 2003/05/14 18:16:16 dpage Exp $
  *
  */
 
@@ -93,13 +93,13 @@ typedef UInt4 Oid;
 #if (ODBCVER >= 0x0300)
 #define DRIVER_ODBC_VER				"03.00"
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL+ Unicode (Beta)"
+#define DBMS_NAME				"PostgreSQL Unicode (Beta)"
 #else
-#define DBMS_NAME				"PostgreSQL+ (Beta)"
+#define DBMS_NAME				"PostgreSQL"
 #endif /* UNICODE_SUPPORT */
 #else
 #define DRIVER_ODBC_VER				"02.50"
-#define DBMS_NAME				"PostgreSQL"
+#define DBMS_NAME				"PostgreSQL Legacy"
 #endif   /* ODBCVER */
 
 #ifdef WIN32
