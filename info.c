@@ -1195,6 +1195,10 @@ PGAPI_GetFunctions(
 }
 
 
+#define	CSTR_SYS_TABLE	"SYSTEM TABLE"
+#define	CSTR_TABLE	"TABLE"
+#define	CSTR_VIEW	"VIEW"
+
 RETCODE		SQL_API
 PGAPI_Tables(
 			 HSTMT hstmt,
@@ -1329,11 +1333,17 @@ PGAPI_Tables(
 		i = 0;
 		while (table_type[i])
 		{
-			if (strstr(table_type[i], "SYSTEM TABLE"))
+			char *typestr = table_type[i];
+
+			while (isspace(*typestr))
+				typestr++;
+			if (*typestr == '\'')
+				typestr++;
+			if (strnicmp(typestr, CSTR_SYS_TABLE, strlen(CSTR_SYS_TABLE)) == 0)
 				show_system_tables = TRUE;
-			else if (strstr(table_type[i], "TABLE"))
+			else if (strnicmp(typestr, CSTR_TABLE, strlen(CSTR_TABLE)) == 0)
 				show_regular_tables = TRUE;
-			else if (strstr(table_type[i], "VIEW"))
+			else if (strnicmp(typestr, CSTR_VIEW, strlen(CSTR_VIEW)) == 0)
 				show_views = TRUE;
 			i++;
 		}
