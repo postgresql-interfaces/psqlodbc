@@ -1201,6 +1201,9 @@ PGAPI_Tables(
 	char		table_name[MAX_INFO_STRING],
 				table_owner[MAX_INFO_STRING],
 				relkind_or_hasrules[MAX_INFO_STRING];
+#ifdef	HAVE_STRTOK_R
+	char		*last;
+#endif /* HAVE_STRTOK_R */
 	ConnectionClass *conn;
 	ConnInfo   *ci;
 	char	   *prefix[32],
@@ -1268,9 +1271,17 @@ PGAPI_Tables(
 	/* Parse the extra systable prefix	*/
 	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
 	i = 0;
+#ifdef	HAVE_STRTOK_R
+	prefix[i] = strtok_r(prefixes, ";", &last);
+#else
 	prefix[i] = strtok(prefixes, ";");
+#endif /* HAVE_STRTOK_R */
 	while (prefix[i] && i < sizeof(prefix))
+#ifdef	HAVE_STRTOK_R
+		prefix[++i] = strtok_r(NULL, ";", &last);
+#else
 		prefix[++i] = strtok(NULL, ";");
+#endif /* HAVE_STRTOK_R */
 
 	/* Parse the desired table types to return */
 	show_system_tables = FALSE;
@@ -1284,9 +1295,17 @@ PGAPI_Tables(
 		strcpy(table_types, tableType);
 		free(tableType);
 		i = 0;
+#ifdef	HAVE_STRTOK_R
+		table_type[i] = strtok_r(table_types, ",", &last);
+#else
 		table_type[i] = strtok(table_types, ",");
+#endif /* HAVE_STRTOK_R */
 		while (table_type[i] && i < 32)
+#ifdef	HAVE_STRTOK_R
+			table_type[++i] = strtok_r(NULL, ",", &last);
+#else
 			table_type[++i] = strtok(NULL, ",");
+#endif /* HAVE_STRTOK_R */
 
 		/* Check for desired table types to return */
 		i = 0;

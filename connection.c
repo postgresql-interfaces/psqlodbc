@@ -1776,6 +1776,9 @@ CC_send_settings(ConnectionClass *self)
 	char		status = TRUE;
 	char	   *cs,
 			   *ptr;
+#ifdef	HAVE_STRTOK_R
+	char	*last;
+#endif /* HAVE_STRTOK_R */
 	static char *func = "CC_send_settings";
 
 
@@ -1826,7 +1829,11 @@ CC_send_settings(ConnectionClass *self)
 	if (ci->drivers.conn_settings[0] != '\0')
 	{
 		cs = strdup(ci->drivers.conn_settings);
+#ifdef	HAVE_STRTOK_R
+		ptr = strtok_r(cs, ";", &last);
+#else
 		ptr = strtok(cs, ";");
+#endif /* HAVE_STRTOK_R */
 		while (ptr)
 		{
 			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS);
@@ -1835,7 +1842,11 @@ CC_send_settings(ConnectionClass *self)
 
 			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
+#ifdef	HAVE_STRTOK_R
+			ptr = strtok_r(NULL, ";", &last);
+#else
 			ptr = strtok(NULL, ";");
+#endif /* HAVE_STRTOK_R */
 		}
 
 		free(cs);
@@ -1845,7 +1856,11 @@ CC_send_settings(ConnectionClass *self)
 	if (ci->conn_settings[0] != '\0')
 	{
 		cs = strdup(ci->conn_settings);
+#ifdef	HAVE_STRTOK_R
+		ptr = strtok_r(cs, ";", &last);
+#else
 		ptr = strtok(cs, ";");
+#endif /* HAVE_STRTOK_R */
 		while (ptr)
 		{
 			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS);
@@ -1854,7 +1869,11 @@ CC_send_settings(ConnectionClass *self)
 
 			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
+#ifdef	HAVE_STRTOK_R
+			ptr = strtok_r(NULL, ";", &last);
+#else
 			ptr = strtok(NULL, ";");
+#endif /* HAVE_STRTOK_R */
 		}
 
 		free(cs);

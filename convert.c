@@ -246,7 +246,11 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 		if (timediff == 0)		/* the same time zone */
 			return TRUE;
 		time0 -= timediff;
+#ifdef	HAVE_LOCALTIME_R
+		if (time0 >= 0 && (tm2 = localtime_r(&time0, &tm)) != NULL)
+#else
 		if (time0 >= 0 && (tm2 = localtime(&time0)) != NULL)
+#endif /* HAVE_LOCALTIME_R */
 		{
 			st->y = tm2->tm_year + 1900;
 			st->m = tm2->tm_mon + 1;
@@ -346,6 +350,9 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	SIMPLE_TIME st;
 	time_t		t = time(NULL);
 	struct tm  *tim;
+#ifdef	HAVE_LOCALTIME_R
+	struct tm  tm;
+#endif /* HAVE_LOCALTIME_R */
 	int			pcbValueOffset,
 				rgbValueOffset;
 	char	   *rgbValueBindRow;
@@ -402,7 +409,11 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	memset(&st, 0, sizeof(SIMPLE_TIME));
 
 	/* Initialize current date */
+#ifdef	HAVE_LOCALTIME_R
+	tim = localtime_r(&t, &tm);
+#else
 	tim = localtime(&t);
+#endif /* HAVE_LOCALTIME_R */
 	st.m = tim->tm_mon + 1;
 	st.d = tim->tm_mday;
 	st.y = tim->tm_year + 1900;
@@ -504,7 +515,11 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				 * like the epoch
 				 */
 				t = 0;
+#ifdef	HAVE_LOCALTIME_R
+				tim = localtime_r(&t, &tm);
+#else
 				tim = localtime(&t);
+#endif /* HAVE_LOCALTIME_R */
 				st.m = tim->tm_mon + 1;
 				st.d = tim->tm_mday;
 				st.y = tim->tm_year + 1900;
@@ -2177,6 +2192,9 @@ ResolveOneParam(QueryBuild *qb)
 	SIMPLE_TIME	st;
 	time_t		t;
 	struct tm	*tim;
+#ifdef	HAVE_LOCALTIME_R
+	struct tm	tm;
+#endif /* HAVE_LOCALTIME_R */
 	SDWORD		used;
 	char		*buffer, *buf, *allocbuf;
 	Oid		lobj_oid;
@@ -2279,7 +2297,11 @@ ResolveOneParam(QueryBuild *qb)
 	cbuf[0] = '\0';
 	memset(&st, 0, sizeof(st));
 	t = time(NULL);
+#ifdef	HAVE_LOCALTIME_R
+	tim = localtime_r(&t, &tm);
+#else
 	tim = localtime(&t);
+#endif /* HAVE_LOCALTIME_R */
 	st.m = tim->tm_mon + 1;
 	st.d = tim->tm_mday;
 	st.y = tim->tm_year + 1900;

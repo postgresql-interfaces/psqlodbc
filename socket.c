@@ -135,9 +135,11 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	if (iaddr == INADDR_NONE)
 	{
 #if defined (POSIX_MULTITHREAD_SUPPORT) 
-  #if defined (PGS_REENTRANT_API_1) // solaris, irix
+  #if defined (HAVE_GETIPNODEBYNAME) /* Free-BSD ? */
+	hp = getipnodebyname(hostname, AF_INET, 0, &error); 
+  #elif defined (PGS_REENTRANT_API_1) /* solaris, irix */
         hp = gethostbyname_r(hostname, hp, buf, bufsz, &error);
-  #elif defined (PGS_REENTRANT_API_2) // linux
+  #elif defined (PGS_REENTRANT_API_2) /* linux */
         int result = 0;
         result = gethostbyname_r(hostname, hp, buf, bufsz, &hp, &error);
         if (result)
@@ -159,6 +161,9 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	else
 		memcpy(&(self->sadr.sin_addr), (struct in_addr *) & iaddr, sizeof(iaddr));
 
+#if defined (HAVE_GETIPNODEBYNAME)
+	freehostent(hp);
+#endif /* HAVE_GETIPNODEBYNAME */
 	self->sadr.sin_family = AF_INET;
 	self->sadr.sin_port = htons(port);
 

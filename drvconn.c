@@ -352,6 +352,9 @@ dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 			   *value,
 			   *equals;
 	char	   *strtok_arg;
+#ifdef	HAVE_STRTOK_R
+	char	   *last;
+#endif /* HAVE_STRTOK_R */
 
 	CC_conninfo_init(ci);
 
@@ -362,7 +365,11 @@ dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 
 	while (1)
 	{
+#ifdef	HAVE_STRTOK_R
+		pair = strtok_r(strtok_arg, ";", &last);
+#else
 		pair = strtok(strtok_arg, ";");
+#endif /* HAVE_STRTOK_R */
 		if (strtok_arg)
 			strtok_arg = 0;
 		if (!pair)
@@ -398,6 +405,9 @@ dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 			   *value,
 			   *equals;
 	char	   *strtok_arg;
+#ifdef	HAVE_STRTOK_R
+	char	   *last;
+#endif /* HAVE_STRTOK_R */
 
 	our_connect_string = strdup(connect_string);
 	strtok_arg = our_connect_string;
@@ -406,7 +416,11 @@ dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 
 	while (1)
 	{
+#ifdef	HAVE_STRTOK_R
+		pair = strtok_r(strtok_arg, ";", &last);
+#else
 		pair = strtok(strtok_arg, ";");
+#endif /* HAVE_STRTOK_R */
 		if (strtok_arg)
 			strtok_arg = 0;
 		if (!pair)
