@@ -229,13 +229,13 @@ RETCODE SQL_API	SQLGetDiagRecW(SWORD fHandleType,
 }
 
 RETCODE SQL_API SQLColAttributeW(
-    HSTMT           hstmt,
-    SQLUSMALLINT       icol,
-    SQLUSMALLINT       fDescType,
-    PTR			rgbDesc,
-    SQLSMALLINT        cbDescMax,
-    SQLSMALLINT 	  *pcbDesc,
-    SQLINTEGER 		  *pfDesc)
+	SQLHSTMT		hstmt,
+	SQLUSMALLINT	iCol,
+	SQLUSMALLINT	iField,
+	SQLPOINTER		pCharAttr,
+	SQLSMALLINT		cbCharAttrMax,	
+	SQLSMALLINT  *pcbCharAttr,
+	SQLPOINTER		pNumAttr)
 {
 	RETCODE	ret;
 	BOOL	alloced = FALSE;
@@ -245,7 +245,7 @@ RETCODE SQL_API SQLColAttributeW(
 	mylog("[SQLColAttributeW]");
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
-	switch (fDescType)
+	switch (iField)
 	{ 
 		case SQL_DESC_BASE_COLUMN_NAME:
 		case SQL_DESC_BASE_TABLE_NAME:
@@ -260,31 +260,31 @@ RETCODE SQL_API SQLColAttributeW(
 		case SQL_DESC_TYPE_NAME:
 		case SQL_COLUMN_NAME:
 			alloced = TRUE;
-			bMax = cbDescMax * 3 / 2;
+			bMax = cbCharAttrMax * 3 / 2;
 			rgbD = malloc(bMax + 1);
 			rgbL = &blen;
                 	break;
 		default:
-			rgbD = rgbDesc;
-			bMax = cbDescMax;
-			rgbL = pcbDesc;
+			rgbD = pCharAttr;
+			bMax = cbCharAttrMax;
+			rgbL = pcbCharAttr;
 			break;
 	}
 
-	ret = PGAPI_ColAttributes(hstmt, icol, fDescType, rgbD,
-		bMax, rgbL, pfDesc);
+	ret = PGAPI_ColAttributes(hstmt, iCol, iField, rgbD,
+		bMax, rgbL, pNumAttr);
 	if (alloced)
 	{
-		blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDesc, cbDescMax / 2);
-		if (SQL_SUCCESS == ret && blen * 2 > cbDescMax)
+		blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / 2);
+		if (SQL_SUCCESS == ret && blen * 2 > cbCharAttrMax)
 		{
 			StatementClass	*stmt = (StatementClass *) hstmt;
 
 			ret = SQL_SUCCESS_WITH_INFO;
-			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the pCharAttr.");
 		}
-		if (pcbDesc)
-			*pcbDesc = blen * 2;
+		if (pcbCharAttr)
+			*pcbCharAttr = blen * 2;
 		free(rgbD);
 	}
 	LEAVE_STMT_CS((StatementClass *) hstmt);

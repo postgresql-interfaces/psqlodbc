@@ -243,6 +243,7 @@ SC_Constructor(void)
 		rv->status = STMT_ALLOCATED;
 		rv->internal = FALSE;
 		rv->transition_status = 0;
+		rv->num_params = -1; /* unknown */
 
 		rv->__error_message = NULL;
 		rv->__error_number = 0;
@@ -371,8 +372,11 @@ SC_Destructor(StatementClass *self)
 void
 SC_free_params(StatementClass *self, char option)
 {
-	APD_free_params(SC_get_APDF(self), option);
-	IPD_free_params(SC_get_IPDF(self), option);
+	if (option != STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY)
+	{
+		APD_free_params(SC_get_APDF(self), option);
+		IPD_free_params(SC_get_IPDF(self), option);
+	}
 	PDATA_free_params(SC_get_PDTI(self), option);
 	self->data_at_exec = -1;
 	self->current_exec_param = -1;
@@ -469,7 +473,9 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		}
 		self->prepare = FALSE;
 		SC_set_prepared(self, FALSE);
-		self->statement_type = STMT_TYPE_UNKNOWN;
+		self->statement_type = STMT_TYPE_UNKNOWN; /* unknown */
+		self->status = STMT_READY;
+		self->num_params = -1; /* unknown */
 	}
 	if (self->stmt_with_params)
 	{
@@ -648,15 +654,18 @@ SC_pre_execute(StatementClass *self)
 		if (self->statement_type == STMT_TYPE_SELECT)
 		{
 			char		old_pre_executing = self->pre_executing;
+			RETCODE		ret;
 
 			self->pre_executing = TRUE;
 			self->inaccurate_result = FALSE;
 
-			PGAPI_Execute(self, 0);
+			ret = PGAPI_Execute(self, 0);
 
 			self->pre_executing = old_pre_executing;
 
-			if (self->status == STMT_FINISHED)
+			if (self->status == STMT_FINISHED &&
+			    (SQL_SUCCESS == ret ||
+			     SQL_SUCCESS_WITH_INFO == ret))
 			{
 				mylog("              preprocess: after status = FINISHED, so set PREMATURE\n");
 				self->status = STMT_PREMATURE;

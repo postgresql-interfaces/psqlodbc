@@ -704,7 +704,8 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 	if (col < 0)
 		return maxsize;
 
-	result = SC_get_Curres(stmt);
+	if (result = SC_get_Curres(stmt), NULL == result)
+		return maxsize;
 
 	/*
 	 * Manual Result Sets -- use assigned column width (i.e., from

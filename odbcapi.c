@@ -115,6 +115,7 @@ SQLColumns(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR	*ctName = CatalogName, *scName = SchemaName,
 		*tbName = TableName, *clName = ColumnName;
+	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
@@ -124,7 +125,7 @@ SQLColumns(HSTMT StatementHandle,
 	else
 		ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
-				clName, NameLength4, 0);
+				clName, NameLength4, flag);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -157,7 +158,7 @@ SQLColumns(HSTMT StatementHandle,
 		{
 			ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
-				clName, NameLength4, 0);
+				clName, NameLength4, flag);
 			if (newCt)
 				free(newCt);
 			if (newSc)
@@ -328,13 +329,17 @@ SQLExecDirect(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLExecute(HSTMT StatementHandle)
 {
+	CSTR func = "SQLExecute";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("[SQLExecute]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Execute(StatementHandle, 0);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Execute(StatementHandle, 0);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }

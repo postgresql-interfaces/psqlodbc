@@ -12,6 +12,7 @@
 
 /*	Internal flags for catalog functions */
 #define	PODBC_NOT_SEARCH_PATTERN	1L
+#define	PODBC_SEARCH_PUBLIC_SCHEMA	(1L << 1)
 /*	Internal flags for PGAPI_Exec... functions */
 #define	PODBC_WITH_HOLD			1L
 /*	Flags for the error handling */

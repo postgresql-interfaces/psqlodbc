@@ -388,7 +388,9 @@ PGAPI_NumParams(
 	}
 
 
-	if (!stmt->statement)
+	if (stmt->num_params >= 0)
+		*pcpar = stmt->num_params;
+	else if (!stmt->statement)
 	{
 		/* no statement has been allocated */
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "PGAPI_NumParams called with no statement ready.");
@@ -407,8 +409,9 @@ PGAPI_NumParams(
 					in_quote = (in_quote ? FALSE : TRUE);
 			}
 		}
-		return SQL_SUCCESS;
+		stmt->num_params = *pcpar;
 	}
+	return SQL_SUCCESS;
 }
 
 
@@ -553,8 +556,7 @@ APD_free_params(APDFields *apdopts, char option)
 
 	if (option == STMT_FREE_PARAMS_ALL)
 	{
-		if (apdopts->parameters)
-			free(apdopts->parameters);
+		free(apdopts->parameters);
 		apdopts->parameters = NULL;
 		apdopts->allocated = 0;
 	}
@@ -588,8 +590,7 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 
 	if (option == STMT_FREE_PARAMS_ALL)
 	{
-		if (pdata->pdata)
-			free(pdata->pdata);
+		free(pdata->pdata);
 		pdata->pdata = NULL;
 		pdata->allocated = 0;
 	}
@@ -605,11 +606,11 @@ IPD_free_params(IPDFields *ipdopts, char option)
 {
 	mylog("IPD_free_params:  ENTER, self=%d\n", ipdopts);
 
-	if (ipdopts->parameters &&
-		option == STMT_FREE_PARAMS_ALL)
+	if (!ipdopts->parameters)
+		return;
+	if (option == STMT_FREE_PARAMS_ALL)
 	{
-		if (ipdopts->parameters)
-			free(ipdopts->parameters);
+		free(ipdopts->parameters);
 		ipdopts->parameters = NULL;
 		ipdopts->allocated = 0;
 	}

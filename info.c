@@ -46,9 +46,11 @@
 #define TRIGGER_DELETE 0x01
 #define TRIGGER_UPDATE 0x02
 
+#define	NULL_IF_NULL(a) (a ? a : "(NULL)")
 
 /* extern GLOBAL_VALUES globals; */
 
+CSTR	pubstr = "public";
 
 
 RETCODE		SQL_API
@@ -1316,10 +1318,10 @@ PGAPI_Tables(
 				view,
 				systable;
 	int			i;
-	SWORD			internal_asis_type = SQL_C_CHAR;
-	const char *likeeq = "like";
+	SWORD			internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	const char *likeeq = "like", *szSchemaName;
 
-	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -1338,7 +1340,10 @@ PGAPI_Tables(
 		return SQL_ERROR;
 	}
 	tbl_stmt = (StatementClass *) htbl_stmt;
+	szSchemaName = szTableOwner;
+	cbSchemaName = cbTableOwner;
 
+retry_public_schema:
 	/*
 	 * Create the query to find out the tables
 	 */
@@ -1364,11 +1369,11 @@ PGAPI_Tables(
 
 	if (conn->schema_support)
 	{
-		schema_strcat1(tables_query, " and nspname %s '%.*s'", likeeq, szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+		schema_strcat1(tables_query, " and nspname %s '%.*s'", likeeq, szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 		strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)");
 	}
 	else
-		my_strcat1(tables_query, " and usename %s '%.*s'", likeeq, szTableOwner, cbTableOwner);
+		my_strcat1(tables_query, " and usename %s '%.*s'", likeeq, szSchemaName, cbSchemaName);
 	my_strcat1(tables_query, " and relname %s '%.*s'", likeeq, szTableName, cbTableName);
 
 	/* Parse the extra systable prefix	*/
@@ -1472,6 +1477,29 @@ PGAPI_Tables(
 		goto cleanup;
 	}
 
+	/* If not found */
+	if (conn->schema_support &&
+	    (res = SC_get_Result(tbl_stmt)) &&
+	    0 == QR_get_num_total_tuples(res))
+	{
+		const char *user = CC_get_username(conn);
+
+		/*
+		 * If specified schema name == user_name and
+		 * the current schema is 'public',
+		 * retry the 'public' schema.
+		 */
+		if (szSchemaName &&
+		    (cbSchemaName == SQL_NTS ||
+		     cbSchemaName == (SWORD) strlen(user)) &&
+		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
+		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		{
+			szSchemaName = pubstr;
+			cbSchemaName = SQL_NTS;
+			goto retry_public_schema;
+		}
+	}
 #ifdef	UNICODE_SUPPORT
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
@@ -1707,7 +1735,7 @@ PGAPI_Columns(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	TupleNode  *row;
-	HSTMT		hcol_stmt;
+	HSTMT		hcol_stmt = NULL;
 	StatementClass *col_stmt;
 	char		columns_query[INFO_INQUIRY_LEN];
 	RETCODE		result;
@@ -1731,10 +1759,10 @@ PGAPI_Columns(
 	BOOL		relisaview;
 	ConnInfo   *ci;
 	ConnectionClass *conn;
-	SWORD		internal_asis_type = SQL_C_CHAR;
-	const char *likeeq = "like";
+	SWORD		internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	const char *likeeq = "like", *szSchemaName;
 
-	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -1748,7 +1776,10 @@ PGAPI_Columns(
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
 #endif /* UNICODE_SUPPORT */
+	szSchemaName = szTableOwner;
+	cbSchemaName = cbTableOwner;
 
+retry_public_schema:
 	/*
 	 * Create the query to find out the columns (Note: pre 6.3 did not
 	 * have the atttypmod field)
@@ -1774,9 +1805,9 @@ PGAPI_Columns(
 	{
 		my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName);
 		if (conn->schema_support)
-			schema_strcat(columns_query, " and u.nspname = '%.*s'", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+			schema_strcat(columns_query, " and u.nspname = '%.*s'", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 		else
-			my_strcat(columns_query, " and u.usename = '%.*s'", szTableOwner, cbTableOwner);
+			my_strcat(columns_query, " and u.usename = '%.*s'", szSchemaName, cbSchemaName);
 		my_strcat(columns_query, " and a.attname = '%.*s'", szColumnName, cbColumnName);
 	}
 	else
@@ -1787,9 +1818,9 @@ PGAPI_Columns(
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
 		my_strcat1(columns_query, " and c.relname %s '%.*s'", likeeq, esc_table_name, escTbnamelen);
 		if (conn->schema_support)
-			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 		else
-			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, szTableOwner, cbTableOwner);
+			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, szSchemaName, cbSchemaName);
 		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, szColumnName, cbColumnName);
 	}
 
@@ -1824,9 +1855,34 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_full_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
+	}
+
+	/* If not found */
+	if (conn->schema_support &&
+	    (flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
+	    (res = SC_get_Result(col_stmt)) &&
+	    0 == QR_get_num_total_tuples(res))
+	{
+		const char *user = CC_get_username(conn);
+
+		/*
+		 * If specified schema name == user_name and
+		 * the current schema is 'public',
+		 * retry the 'public' schema.
+		 */
+		if (szSchemaName &&
+		    (cbSchemaName == SQL_NTS ||
+		     cbSchemaName == (SWORD) strlen(user)) &&
+		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
+		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		{
+			PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+			hcol_stmt = NULL;
+			szSchemaName = pubstr;
+			cbSchemaName = SQL_NTS;
+			goto retry_public_schema;
+		}
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 1, internal_asis_type,
@@ -1834,9 +1890,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 2, internal_asis_type,
@@ -1844,9 +1898,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
@@ -1854,9 +1906,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 4, SQL_C_LONG,
@@ -1864,9 +1914,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 5, internal_asis_type,
@@ -1874,9 +1922,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 6, SQL_C_SHORT,
@@ -1884,9 +1930,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 7, SQL_C_LONG,
@@ -1894,9 +1938,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 8, SQL_C_LONG,
@@ -1904,9 +1946,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 9, internal_asis_type,
@@ -1914,9 +1954,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 10, internal_asis_type,
@@ -1924,9 +1962,7 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 11, internal_asis_type,
@@ -1934,17 +1970,13 @@ PGAPI_Columns(
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.");
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
 
@@ -2193,9 +2225,7 @@ PGAPI_Columns(
 	if (result != SQL_NO_DATA_FOUND)
 	{
 		SC_full_error_copy(stmt, col_stmt);
-		SC_log_error(func, "", stmt);
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 
 	/*
@@ -2240,7 +2270,9 @@ PGAPI_Columns(
 		QR_add_tuple(res, row);
 		ordinal++;
 	}
+	result = SQL_SUCCESS;
 
+cleanup:
 	/*
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.
@@ -2252,9 +2284,13 @@ PGAPI_Columns(
 	stmt->rowset_start = -1;
 	SC_set_current_col(stmt, -1);
 
-	PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+	if (SQL_SUCCESS != result &&
+	    SQL_SUCCESS_WITH_INFO != result)
+		SC_log_error(func, "", stmt);
+	if (hcol_stmt)
+		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	mylog("%s: EXIT,  stmt=%u\n", func, stmt);
-	return SQL_SUCCESS;
+	return result;
 }
 
 
@@ -2283,9 +2319,10 @@ PGAPI_SpecialColumns(
 	RETCODE		result;
 	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8];
 	BOOL		relisaview;
-	SWORD		internal_asis_type = SQL_C_CHAR;
+	SWORD		internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%u scnm=%x len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
+	mylog("%s: entering...stmt=%u scnm=%x len=%d colType=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner, fColType);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2297,7 +2334,10 @@ PGAPI_SpecialColumns(
 #endif /* UNICODE_SUPPORT */
 
 	stmt->manual_result = TRUE;
+	szSchemaName = szTableOwner;
+	cbSchemaName = cbTableOwner;
 
+retry_public_schema:
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
@@ -2316,9 +2356,9 @@ PGAPI_SpecialColumns(
 	my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName);
 	/* SchemaName cannot contain a string search pattern */
 	if (conn->schema_support)
-		schema_strcat(columns_query, " and u.nspname = '%.*s'", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+		schema_strcat(columns_query, " and u.nspname = '%.*s'", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 	else
-		my_strcat(columns_query, " and u.usename = '%.*s'", szTableOwner, cbTableOwner);
+		my_strcat(columns_query, " and u.usename = '%.*s'", szSchemaName, cbSchemaName);
 
 
 	result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
@@ -2339,6 +2379,32 @@ PGAPI_SpecialColumns(
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
+	}
+
+	/* If not found */
+	if (conn->schema_support &&
+	    (res = SC_get_Result(col_stmt)) &&
+	    0 == QR_get_num_total_tuples(res))
+	{
+		const char *user = CC_get_username(conn);
+
+		/*
+		 * If specified schema name == user_name and
+		 * the current schema is 'public',
+		 * retry the 'public' schema.
+		 */
+		if (szSchemaName &&
+		    (cbSchemaName == SQL_NTS ||
+		     cbSchemaName == (SWORD) strlen(user)) &&
+		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
+		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		{
+			PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+			hcol_stmt = NULL;
+			szSchemaName = pubstr;
+			cbSchemaName = SQL_NTS;
+			goto retry_public_schema;
+		}
 	}
 
 	result = PGAPI_BindCol(hcol_stmt, 1, internal_asis_type,
@@ -2517,9 +2583,10 @@ PGAPI_Statistics(
 	int			total_columns = 0;
 	ConnInfo   *ci;
 	char		buf[256];
-	SWORD		internal_asis_type = SQL_C_CHAR;
+	SWORD		internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2574,12 +2641,14 @@ PGAPI_Statistics(
 	if (!table_name)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No table name passed to PGAPI_Statistics.");
-		SC_log_error(func, "", stmt);
-		return SQL_ERROR;
+		goto cleanup;
 	}
+	szSchemaName = szTableOwner;
+	cbSchemaName = cbTableOwner;
+
 	table_qualifier[0] = '\0';
 	if (conn->schema_support)
-		schema_strcat(table_qualifier, "%.*s", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+		schema_strcat(table_qualifier, "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 
 	/*
 	 * we need to get a list of the field names first, so we can return
@@ -2603,7 +2672,7 @@ PGAPI_Statistics(
 	 * table_name parameter cannot contain a string search pattern. 
 	 */
 	result = PGAPI_Columns(hcol_stmt, "", 0, table_qualifier, SQL_NTS,
-						   table_name, SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN);
+						   table_name, SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN | PODBC_SEARCH_PUBLIC_SCHEMA);
 	col_stmt->internal = FALSE;
 
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
@@ -2623,6 +2692,8 @@ PGAPI_Statistics(
 	result = PGAPI_Fetch(hcol_stmt);
 	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
 	{
+		if (0 == total_columns)
+			PGAPI_GetData(hcol_stmt, 2, internal_asis_type, table_qualifier, sizeof(table_qualifier), NULL);
 		total_columns++;
 
 		column_names =
@@ -2638,13 +2709,13 @@ PGAPI_Statistics(
 		result = PGAPI_Fetch(hcol_stmt);
 	}
 
-	PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-	hcol_stmt = NULL;
 	if (result != SQL_NO_DATA_FOUND)
 	{
 		SC_full_error_copy(stmt, col_stmt);
 		goto cleanup;
 	}
+	PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+	hcol_stmt = NULL;
 	if (total_columns == 0)
 	{
 		/* Couldn't get column names in SQLStatistics.; */
@@ -2871,13 +2942,6 @@ PGAPI_Statistics(
 		SC_full_error_copy(stmt, indx_stmt);
 		goto cleanup;
 	}
-
-	/*
-	 * also, things need to think that this statement is finished so the
-	 * results can be retrieved.
-	 */
-	stmt->status = STMT_FINISHED;
-
 	ret = SQL_SUCCESS;
 
 cleanup:
@@ -2903,13 +2967,11 @@ cleanup:
 		free(column_names);
 	}
 
-	if (SQL_SUCCESS == ret)
-	{
-		/* set up the current tuple pointer for SQLFetch */
-		stmt->currTuple = -1;
-		stmt->rowset_start = -1;
-		SC_set_current_col(stmt, -1);
-	}
+	/* set up the current tuple pointer for SQLFetch */
+	stmt->currTuple = -1;
+	stmt->rowset_start = -1;
+	SC_set_current_col(stmt, -1);
+
 	mylog("%s: EXIT, stmt=%u, ret=%d\n", func, stmt, ret);
 
 	return ret;
@@ -2976,9 +3038,10 @@ PGAPI_PrimaryKeys(
 	int			qno,
 				qstart,
 				qend;
-	SWORD		internal_asis_type = SQL_C_CHAR;
+	SWORD		internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3026,6 +3089,7 @@ PGAPI_PrimaryKeys(
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
 #endif /* UNICODE_SUPPORT */
+
 	pktab[0] = '\0';
 	make_string(szTableName, cbTableName, pktab);
 	if (pktab[0] == '\0')
@@ -3033,9 +3097,13 @@ PGAPI_PrimaryKeys(
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No Table specified to PGAPI_PrimaryKeys.");
 		goto cleanup;
 	}
+	szSchemaName = szTableOwner;
+	cbSchemaName = cbTableOwner;
+
+retry_public_schema:
 	pkscm[0] = '\0';
 	if (conn->schema_support)
-		schema_strcat(pkscm, "%.*s", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+		schema_strcat(pkscm, "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   attname, MAX_INFO_STRING, &attname_len);
@@ -3131,6 +3199,29 @@ PGAPI_PrimaryKeys(
 		result = PGAPI_Fetch(htbl_stmt);
 		if (result != SQL_NO_DATA_FOUND)
 			break;
+	}
+
+	/* If not found */
+	if (conn->schema_support &&
+	    SQL_NO_DATA_FOUND == result)
+	{
+		const char *user = CC_get_username(conn);
+
+		/*
+		 * If specified schema name == user_name and
+		 * the current schema is 'public',
+		 * retry the 'public' schema.
+		 */
+		if (szSchemaName &&
+		    (cbSchemaName == SQL_NTS ||
+		     cbSchemaName == (SWORD) strlen(user)) &&
+		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
+		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		{
+			szSchemaName = pubstr;
+			cbSchemaName = SQL_NTS;
+			goto retry_public_schema;
+		}
 	}
 
 	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
@@ -4209,6 +4300,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 		goto cleanup;
 	}
 	ret = SQL_SUCCESS;
+
 cleanup:
 	/*
 	 * also, things need to think that this statement is finished so the
@@ -4576,9 +4668,10 @@ PGAPI_TablePrivileges(
 	char		(*useracl)[ACLMAX], *acl, *user, *delim, *auth;
 	char		*reln, *owner, *priv, *schnm = NULL;
 	RETCODE		result;
-	const char *likeeq = "like";
+	const char *likeeq = "like", *szSchemaName;
+	SWORD	cbSchemaName;
 
-	mylog("%s: entering... scnm=%x len-%d\n", func, szTableOwner, cbTableOwner);
+	mylog("%s: entering... scnm=%x len-%d\n", func, NULL_IF_NULL(szTableOwner), cbTableOwner);
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 
@@ -4611,6 +4704,10 @@ PGAPI_TablePrivileges(
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
 	SC_set_current_col(stmt, -1);
+	szSchemaName = szTableOwner;
+	cbSchemaName = cbTableOwner;
+
+retry_public_schema:
 	if (conn->schema_support)
 		strncpy_null(proc_query, "select relname, usename, relacl, nspname"
 		" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
@@ -4622,7 +4719,7 @@ PGAPI_TablePrivileges(
 	{
 		if (conn->schema_support)
 		{
-			schema_strcat(proc_query, " nspname = '%.*s' and", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+			schema_strcat(proc_query, " nspname = '%.*s' and", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 		}
 		my_strcat(proc_query, " relname = '%.*s' and", szTableName, cbTableName);
 	}
@@ -4633,7 +4730,7 @@ PGAPI_TablePrivileges(
 
 		if (conn->schema_support)
 		{
-			escTbnamelen = reallyEscapeCatalogEscapes(szTableOwner, cbTableOwner, esc_table_name, sizeof(esc_table_name), conn->ccsc);
+			escTbnamelen = reallyEscapeCatalogEscapes(szSchemaName, cbSchemaName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
 			schema_strcat1(proc_query, " nspname %s '%.*s' and", likeeq, esc_table_name, escTbnamelen, szTableName, cbTableName, conn);
 		}
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
@@ -4654,8 +4751,33 @@ PGAPI_TablePrivileges(
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error");
 		return SQL_ERROR;
 	}
-	strncpy_null(proc_query, "select usename, usesysid, usesuper from pg_user", sizeof(proc_query));
 	tablecount = QR_get_num_backend_tuples(res);
+	/* If not found */
+	if (conn->schema_support &&
+	    (flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
+	    0 == tablecount)
+	{
+		const char *user = CC_get_username(conn);
+
+		/*
+		 * If specified schema name == user_name and
+		 * the current schema is 'public',
+		 * retry the 'public' schema.
+		 */
+		if (szSchemaName &&
+		    (cbSchemaName == SQL_NTS ||
+		     cbSchemaName == (SWORD) strlen(user)) &&
+		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
+		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		{
+			QR_Destructor(res);
+			szSchemaName = pubstr;
+			cbSchemaName = SQL_NTS;
+			goto retry_public_schema;
+		}
+	}
+
+	strncpy_null(proc_query, "select usename, usesysid, usesuper from pg_user", sizeof(proc_query));
 	if (allures = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !allures)
 	{
 		QR_Destructor(res);

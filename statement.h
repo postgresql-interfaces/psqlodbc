@@ -200,6 +200,7 @@ struct StatementClass_
 	char		transition_status;	/* Transition status */
 	char		cursor_name[MAX_CURSOR_LEN + 1];
 
+	Int2		num_params;		/* number of parameters */
 	char	   *stmt_with_params;		/* statement after parameter
 										 * substitution */
 	int			stmt_size_limit;

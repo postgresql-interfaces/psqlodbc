@@ -48,7 +48,7 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	ret = PGAPI_Columns(StatementHandle, ctName, (SWORD) nmlen1,
            	scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
-           	clName, (SWORD) nmlen4, 0);
+           	clName, (SWORD) nmlen4, PODBC_SEARCH_PUBLIC_SCHEMA);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);

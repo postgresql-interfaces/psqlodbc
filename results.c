@@ -140,7 +140,13 @@ PGAPI_NumResultCols(
 		if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
 		{
 			/* no query has been executed on this statement */
-			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No query has been executed with that handle");
+			SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been executed with that handle");
+			SC_log_error(func, "", stmt);
+			return SQL_ERROR;
+		}
+		else if (!QR_command_maybe_successful(result))
+		{
+			SC_set_errornumber(stmt, STMT_EXEC_ERROR);
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}

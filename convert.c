@@ -779,7 +779,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (fCType == SQL_C_CHAR)
 					{
 						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
-						allocbuf = (SQLWCHAR *) malloc(2 * (wstrlen + 1));
+						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
 						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, allocbuf, wstrlen + 1);
 						len = WideCharToMultiByte(CP_ACP, 0, (LPCWSTR) allocbuf, wstrlen, NULL, 0, NULL, NULL);
 						changed = TRUE;
@@ -868,13 +868,13 @@ inolog("2stime fr=%d\n", std_time.fr);
 					BOOL	already_copied = FALSE;
 
 					copy_len = (len >= cbValueMax) ? cbValueMax - 1 : len;
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 					if (fCType == SQL_C_WCHAR)
 					{
-						copy_len /= 2;
-						copy_len *= 2;
+						copy_len /= WCLEN;
+						copy_len *= WCLEN;
 					}
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* UNICODE_SUPPORT */
 #ifdef HAVE_LOCALE_H
 					switch (field_type)
 					{
@@ -908,13 +908,14 @@ inolog("2stime fr=%d\n", std_time.fr);
 					{
 						/* Copy the data */
 						memcpy(rgbValueBindRow, ptr, copy_len);
+						/* Add null terminator */
+#ifdef	UNICODE_SUPPORT
+						if (fCType == SQL_C_WCHAR)
+							memset(rgbValueBindRow + copy_len, 0, WCLEN);
+						else
+#endif /* UNICODE_SUPPORT */
 						rgbValueBindRow[copy_len] = '\0';
 					}
-#ifdef	WIN_UNICODE_SUPPORT
-					if (fCType == SQL_C_WCHAR)
-						rgbValueBindRow[copy_len + 1] = '\0';
-#endif /* WIN_UNICODE_SUPPORT */
-
 					/* Adjust data_left for next time */
 					if (stmt->current_col >= 0)
 						pgdc->data_left -= copy_len;
@@ -942,11 +943,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 		if (SQL_C_WCHAR == fCType && ! wchanged)
 		{
-			if (cbValueMax > WCLEN * len)
+			if (cbValueMax > (SDWORD) (WCLEN * len))
 			{
 				char *str = strdup(rgbValueBindRow);
 				UInt4	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
-				if (cbValueMax < WCLEN * (SDWORD) ucount)
+				if (cbValueMax < (SDWORD) (WCLEN * ucount))
 					result = COPY_RESULT_TRUNCATED;
 				len = ucount * WCLEN;
 				free(str); 
@@ -2630,7 +2631,7 @@ ResolveOneParam(QueryBuild *qb)
 				case SQL_WLONGVARCHAR:
 					if (SQL_NTS == used)
 						used = strlen(buffer);
-					allocbuf = malloc(2 * (used + 1));
+					allocbuf = malloc(WCLEN * (used + 1));
 					used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
 						used, (LPWSTR) allocbuf, used + 1);
 					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);

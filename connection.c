@@ -2209,7 +2209,7 @@ CC_get_max_query_len(const ConnectionClass *conn)
 }
 
 /*
- *	This deosn't really return the CURRENT SCHEMA
+ *	This doesn't really return the CURRENT SCHEMA
  *	but there's no alternative.
  */
 const char *
