@@ -440,11 +440,11 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_INT8:
 			return "int8";
 		case PG_TYPE_NUMERIC:
-			return "numeric()";
+			return "numeric";
 		case PG_TYPE_VARCHAR:
-			return "varchar()";
+			return "varchar";
 		case PG_TYPE_BPCHAR:
-			return "char()";
+			return "char";
 		case PG_TYPE_TEXT:
 			return "text";
 		case PG_TYPE_NAME:
