@@ -758,7 +758,7 @@ getTimestampDecimalDigits(StatementClass *stmt, Int4 type, int col)
 	else
 		atttypmod = QR_get_atttypmod(result, col);
 	mylog("atttypmod2=%d\n", atttypmod);
-	return (atttypmod > -1 ? atttypmod : 0);
+	return (atttypmod > -1 ? atttypmod : 6);
 }
 
 
