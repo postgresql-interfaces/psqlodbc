@@ -443,7 +443,11 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_TEXT:
-			return conn->unicode ? SQL_C_WCHAR : SQL_C_CHAR;
+			/*
+			 * return conn->unicode ? SQL_C_WCHAR : SQL_C_CHAR;
+			 *	The following seems better.
+			 */
+			return SQL_C_CHAR;
 #endif /* UNICODE_SUPPORT */
 
 		default:

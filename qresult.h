@@ -94,7 +94,8 @@ struct QResultClass_
 #define QR_get_value_backend_row(self, tupleno, fieldno) ((self->backend_tuples + (tupleno * self->num_fields))[fieldno].value)
 
 /*	These functions are used by both manual and backend results */
-#define QR_NumResultCols(self)				(CI_get_num_fields(self->fields))
+#define QR_NumResultCols(self)		(CI_get_num_fields(self->fields))
+#define QR_NumPublicResultCols(self)	(self->haskeyset ? CI_get_num_fields(self->fields) - 2 : CI_get_num_fields(self->fields))
 #define QR_get_fieldname(self, fieldno_)	(CI_get_fieldname(self->fields, fieldno_))
 #define QR_get_fieldsize(self, fieldno_)	(CI_get_fieldsize(self->fields, fieldno_))
 #define QR_get_display_size(self, fieldno_) (CI_get_display_size(self->fields, fieldno_))

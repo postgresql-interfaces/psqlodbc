@@ -143,10 +143,7 @@ PGAPI_NumResultCols(
 			return SQL_ERROR;
 		}
 
-		*pccol = QR_NumResultCols(result);
-		/* updatable cursors */
-		if (result->keyset)
-			*pccol -= 2;
+		*pccol = QR_NumPublicResultCols(result);
 	}
 
 	return SQL_SUCCESS;
@@ -282,7 +279,7 @@ PGAPI_DescribeCol(
 			return SQL_ERROR;
 		}
 
-		if (icol >= QR_NumResultCols(res))
+		if (icol >= QR_NumPublicResultCols(res))
 		{
 			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.");
 			sprintf(buf, "Col#=%d, #Cols=%d", icol, QR_NumResultCols(res));
@@ -504,7 +501,7 @@ PGAPI_ColAttributes(
 			return SQL_ERROR;
 		}
 
-		cols = QR_NumResultCols(SC_get_Curres(stmt));
+		cols = QR_NumPublicResultCols(SC_get_Curres(stmt));
 
 		/*
 		 * Column Count is a special case.	The Column number is ignored
@@ -848,7 +845,7 @@ inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		icol--;
 
 		/* make sure the column number is valid */
-		num_cols = QR_NumResultCols(res);
+		num_cols = QR_NumPublicResultCols(res);
 		if (icol >= num_cols)
 		{
 			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number.");
@@ -1558,8 +1555,8 @@ PGAPI_MoreResults(
  */
 static Int2	getNumResultCols(const QResultClass *res)
 {
-	Int2	res_cols = QR_NumResultCols(res);
-	return res->keyset ? res_cols - 2 : res_cols;
+	Int2	res_cols = QR_NumPublicResultCols(res);
+	return res_cols;
 }
 static UInt4	getOid(const QResultClass *res, int index)
 {

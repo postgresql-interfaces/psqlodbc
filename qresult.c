@@ -793,13 +793,12 @@ QR_read_tuple(QResultClass *self, char binary)
 	char		tidoidbuf[32];
 
 	/* set the current row to read the fields into */
-	effective_cols = ci_num_fields;
+	effective_cols = QR_NumPublicResultCols(self);
 	this_tuplefield = self->backend_tuples + (self->num_backend_rows * num_fields);
 	if (self->haskeyset)
 	{
 		this_keyset = self->keyset + self->num_total_rows;
 		this_keyset->status = 0;
-		effective_cols -= 2;
 	}
 
 	bitmaplen = (Int2) ci_num_fields / BYTELEN;

@@ -808,19 +808,19 @@ PGAPI_GetTypeInfo(
 #endif /* ODBCVER */
 
 	QR_set_num_fields(res, 15);
-	QR_set_field_info(res, 0, "TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 1, "DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 2, "PRECISION", PG_TYPE_INT4, 4);
-	QR_set_field_info(res, 3, "LITERAL_PREFIX", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 4, "LITERAL_SUFFIX", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 5, "CREATE_PARAMS", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "LITERAL_PREFIX", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 4, "LITERAL_SUFFIX", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 5, "CREATE_PARAMS", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 6, "NULLABLE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 7, "CASE_SENSITIVE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 8, "SEARCHABLE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 9, "UNSIGNED_ATTRIBUTE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 10, "MONEY", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 11, "AUTO_INCREMENT", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 12, "LOCAL_TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 12, "LOCAL_TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 13, "MINIMUM_SCALE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 14, "MAXIMUM_SCALE", PG_TYPE_INT2, 2);
 #if (ODBCVER >=0x0399)
@@ -1396,11 +1396,11 @@ PGAPI_Tables(
 
 	/* set the field names */
 	QR_set_num_fields(res, 5);
-	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 3, "TABLE_TYPE", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 4, "REMARKS", PG_TYPE_TEXT, 254);
+	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "TABLE_TYPE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 4, "REMARKS", PG_TYPE_VARCHAR, 254);
 
 	/* add the tuples */
 	result = PGAPI_Fetch(htbl_stmt);
@@ -1825,18 +1825,18 @@ PGAPI_Columns(
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 4, "DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 5, "TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 5, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 6, "PRECISION", PG_TYPE_INT4, 4); /* COLUMN_SIZE */
 	QR_set_field_info(res, 7, "LENGTH", PG_TYPE_INT4, 4); /* BUFFER_LENGTH */
 	QR_set_field_info(res, 8, "SCALE", PG_TYPE_INT2, 2); /* DECIMAL_DIGITS ***/
 	QR_set_field_info(res, 9, "RADIX", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 10, "NULLABLE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 11, "REMARKS", PG_TYPE_TEXT, 254);
+	QR_set_field_info(res, 11, "REMARKS", PG_TYPE_VARCHAR, 254);
 
 	/* User defined fields */
 #if (ODBCVER >= 0x0300)
@@ -1845,7 +1845,7 @@ PGAPI_Columns(
 	QR_set_field_info(res, 14, "SQL_DATETIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 15, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 16, "ORDINAL_POSITION", PG_TYPE_INT4, 4);
-	QR_set_field_info(res, 17, "IS_NULLABLE", PG_TYPE_TEXT, 254);
+	QR_set_field_info(res, 17, "IS_NULLABLE", PG_TYPE_VARCHAR, 254);
 #endif /* ODBCVER */
 	QR_set_field_info(res, reserved_cols, "DISPLAY_SIZE", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, reserved_cols + 1, "FIELD_TYPE", PG_TYPE_INT4, 4);
@@ -2185,9 +2185,9 @@ PGAPI_SpecialColumns(
 
 	QR_set_num_fields(res, 8);
 	QR_set_field_info(res, 0, "SCOPE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 1, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 2, "DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 3, "TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 4, "PRECISION", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 5, "LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 6, "SCALE", PG_TYPE_INT2, 2);
@@ -2250,6 +2250,7 @@ PGAPI_SpecialColumns(
 			set_tuplefield_int2(&row->tuple[7], SQL_PC_NOT_PSEUDO);
 
 			QR_add_tuple(res, row);
+inolog("Add oid\n");
 
 		}
 		else if (fColType == SQL_ROWVER)
@@ -2268,6 +2269,7 @@ PGAPI_SpecialColumns(
 			set_tuplefield_int2(&row->tuple[7], SQL_PC_NOT_PSEUDO);
 
 			QR_add_tuple(res, row);
+inolog("Add ctid\n");
 		}
 	}
 
@@ -2355,19 +2357,19 @@ PGAPI_Statistics(
 
 	/* set the field names */
 	QR_set_num_fields(res, 13);
-	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 3, "NON_UNIQUE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 4, "INDEX_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 5, "INDEX_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 4, "INDEX_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 5, "INDEX_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 6, "TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 7, "SEQ_IN_INDEX", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 8, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 8, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 9, "COLLATION", PG_TYPE_CHAR, 1);
 	QR_set_field_info(res, 10, "CARDINALITY", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 11, "PAGES", PG_TYPE_INT4, 4);
-	QR_set_field_info(res, 12, "FILTER_CONDITION", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 12, "FILTER_CONDITION", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 
 	/*
 	 * only use the table name... the owner should be redundant, and we
@@ -2800,12 +2802,12 @@ PGAPI_PrimaryKeys(
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 4, "KEY_SEQ", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 5, "PK_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 5, "PK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 
 
 	result = PGAPI_AllocStmt(stmt->hdbc, &htbl_stmt);
@@ -3297,20 +3299,20 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info(res, 0, "PKTABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "PKTABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "PKTABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 3, "PKCOLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 4, "FKTABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 5, "FKTABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 6, "FKTABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 7, "FKCOLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "PKTABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "PKTABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "PKTABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "PKCOLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 4, "FKTABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 5, "FKTABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 6, "FKTABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 7, "FKCOLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 8, "KEY_SEQ", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 9, "UPDATE_RULE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 10, "DELETE_RULE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 11, "FK_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 12, "PK_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 13, "TRIGGER_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 11, "FK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 12, "PK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 13, "TRIGGER_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 #if (ODBCVER >= 0x0300)
 	QR_set_field_info(res, 14, "DEFERRABILITY", PG_TYPE_INT2, 2);
 #endif   /* ODBCVER >= 0x0300 */
@@ -4155,26 +4157,26 @@ PGAPI_ProcedureColumns(
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info(res, 0, "PROCEDURE_CAT", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "PROCEDUR_SCHEM", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "PROCEDURE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "PROCEDURE_CAT", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "PROCEDUR_SCHEM", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "PROCEDURE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 4, "COLUMN_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 5, "DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 6, "TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 6, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 7, "COLUMN_SIZE", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 8, "BUFFER_LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 9, "DECIMAL_DIGITS", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 10, "NUM_PREC_RADIX", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 11, "NULLABLE", PG_TYPE_INT2, 2);
-	QR_set_field_info(res, 12, "REMARKS", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 12, "REMARKS", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 #if (ODBCVER >= 0x0300)
-	QR_set_field_info(res, 13, "COLUMN_DEF", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 13, "COLUMN_DEF", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 14, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 15, "SQL_DATATIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 16, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 17, "ORIDINAL_POSITION", PG_TYPE_INT4, 4);
-	QR_set_field_info(res, 18, "IS_NULLABLE", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 18, "IS_NULLABLE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 #endif   /* ODBCVER >= 0x0300 */
 
 	if (0 == cbColumnName || !szColumnName || !szColumnName[0])
@@ -4422,13 +4424,13 @@ PGAPI_TablePrivileges(
 	res = QR_Constructor();
 	SC_set_Result(stmt, res);
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info(res, 0, "TABLE_CAT", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 1, "TABLE_SCHEM", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 3, "GRANTOR", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 4, "GRANTEE", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 5, "PRIVILEGE", PG_TYPE_TEXT, MAX_INFO_STRING);
-	QR_set_field_info(res, 6, "IS_GRANTABLE", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 0, "TABLE_CAT", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "TABLE_SCHEM", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "GRANTOR", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 4, "GRANTEE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 5, "PRIVILEGE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info(res, 6, "IS_GRANTABLE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 
 	/*
 	 * also, things need to think that this statement is finished so the

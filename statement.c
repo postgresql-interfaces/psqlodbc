@@ -837,7 +837,7 @@ SC_fetch(StatementClass *self)
 	}
 #endif   /* DRIVER_CURSOR_IMPLEMENT */
 
-	num_cols = QR_NumResultCols(res);
+	num_cols = QR_NumPublicResultCols(res);
 
 	result = SQL_SUCCESS;
 	self->last_fetch_count++;
@@ -861,12 +861,6 @@ SC_fetch(StatementClass *self)
 			opts->bookmark->used ? opts->bookmark->used + (offset >> 2) : NULL);
 	}
 
-#ifdef	DRIVER_CURSOR_IMPLEMENT
-	if (res->haskeyset)
-	{
-		num_cols -= 2;
-	}
-#endif   /* DRIVER_CURSOR_IMPLEMENT */
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
 		return SQL_SUCCESS;
 	for (lf = 0; lf < num_cols; lf++)
