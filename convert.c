@@ -2378,7 +2378,9 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 		chrform[newlen++] = '-';
 	for (i = len - 1; i >= ns->scale; i--)
 		chrform[newlen++] = calv[i] + '0';
-	if (ns->scale > 0)
+    if (!newlen)
+        chrform[newlen++] = '0';
+    if (ns->scale > 0)
 	{
 		chrform[newlen++] = '.';
 		for (; i >= 0; i--)
