@@ -346,8 +346,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			len = 0;
 		default:
 			/* unrecognized key */
-			conn->errormsg = "Unrecognized key passed to SQLGetInfo30.";
-			conn->errornumber = CONN_NOT_IMPLEMENTED_ERROR;
+			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unrecognized key passed to SQLGetInfo30.");
 			CC_log_error(func, "", conn);
 			return SQL_ERROR;
 	}
@@ -373,8 +372,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			if (len >= cbInfoValueMax)
 			{
 				result = SQL_SUCCESS_WITH_INFO;
-				conn->errornumber = CONN_TRUNCATED;
-				conn->errormsg = "The buffer was too small for tthe InfoValue.";
+				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for tthe InfoValue.");
 			}
 		}
 	}

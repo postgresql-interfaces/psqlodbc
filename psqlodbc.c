@@ -15,6 +15,7 @@
 
 #include "psqlodbc.h"
 #include "dlg_specific.h"
+#include "environ.h"
 
 #ifdef WIN32
 #include <winsock.h>
@@ -26,6 +27,9 @@ RETCODE SQL_API SQLDummyOrdinal(void);
 
 #ifdef WIN32
 HINSTANCE NEAR s_hModule;		/* Saved module handle. */
+#ifdef	WIN_MULTITHREAD_SUPPORT
+extern	CRITICAL_SECTION	qlog_cs, mylog_cs, conns_cs;
+#endif /* WIN_MULTITHREAD_SUPPORT */
 
 /*	This is where the Driver Manager attaches to this Driver */
 BOOL		WINAPI
@@ -53,6 +57,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				return FALSE;
 			}
 
+			INIT_QLOG_CS;
+			INIT_MYLOG_CS;
+			INIT_CONNS_CS;
 			getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 			break;
 
@@ -60,6 +67,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			break;
 
 		case DLL_PROCESS_DETACH:
+			DELETE_CONNS_CS;
+			DELETE_QLOG_CS;
+			DELETE_MYLOG_CS;
 			WSACleanup();
 			return TRUE;
 

@@ -153,8 +153,7 @@ PGAPI_BindCol(
 	opts = SC_get_ARD(stmt);
 	if (stmt->status == STMT_EXECUTING)
 	{
-		stmt->errormsg = "Can't bind columns while statement is still executing.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't bind columns while statement is still executing.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -180,9 +179,8 @@ PGAPI_BindCol(
 #endif /* ODBCVER */
 					break;
 				default:
-					stmt->errormsg = "Column 0 is not of type SQL_C_BOOKMARK";
+					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Column 0 is not of type SQL_C_BOOKMARK");
 inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
-					stmt->errornumber = STMT_PROGRAM_TYPE_OUT_OF_RANGE;
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 			}
@@ -204,8 +202,7 @@ inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 	/* check to see if the bindings were allocated */
 	if (!opts->bindings)
 	{
-		stmt->errormsg = "Could not allocate memory for bindings.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for bindings.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -285,8 +282,7 @@ PGAPI_DescribeParam(
 	opts = SC_get_APD(stmt);
 	if ((ipar < 1) || (ipar > opts->allocated))
 	{
-		stmt->errormsg = "Invalid parameter number for PGAPI_DescribeParam.";
-		stmt->errornumber = STMT_BAD_PARAMETER_NUMBER_ERROR;
+		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -374,8 +370,7 @@ PGAPI_NumParams(
 	if (!stmt->statement)
 	{
 		/* no statement has been allocated */
-		stmt->errormsg = "PGAPI_NumParams called with no statement ready.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "PGAPI_NumParams called with no statement ready.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}

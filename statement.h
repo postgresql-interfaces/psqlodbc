@@ -136,8 +136,8 @@ struct StatementClass_
 	IPDFields ipdopts;
 
 	STMT_Status status;
-	char	   *errormsg;
-	int			errornumber;
+	char	   *__error_message;
+	int			__error_number;
 
 	Int4		currTuple;		/* current absolute row number (GetData,
 								 * SetPos, SQLFetch) */
@@ -198,6 +198,10 @@ struct StatementClass_
 	Int4		from_pos;	
 	Int4		where_pos;
 	Int4		last_fetch_count_include_ommitted;
+#ifdef	WIN_MULTITHREAD_SUPPORT
+	CRITICAL_SECTION	cs;
+#endif /* WIN_MULTITHREAD_SUPPORT */
+
 };
 
 #define SC_get_conn(a)	  (a->hdbc)
@@ -209,6 +213,10 @@ struct StatementClass_
 #define SC_get_APD(a)  (&(a->apdopts))
 #define SC_get_IRD(a)  (&(a->irdopts))
 #define SC_get_IPD(a)  (&(a->ipdopts))
+
+#define	SC_get_errornumber(a) (a->__error_number)
+#define	SC_set_errornumber(a, n) (a->__error_number = n)
+#define	SC_get_errormsg(a) (a->__error_message)
 
 /*	options for SC_free_params() */
 #define STMT_FREE_PARAMS_ALL				0
@@ -222,6 +230,18 @@ struct StatementClass_
 #define SC_no_fetchcursor(a)	(a->miscinfo &= ~2L)
 #define SC_is_fetchcursor(a)	((a->miscinfo & 2L) != 0)
 
+/* For Multi-thread */
+#ifdef	WIN_MULTITHREAD_SUPPORT
+#define INIT_STMT_CS(x)		InitializeCriticalSection(&((x)->cs))
+#define ENTER_STMT_CS(x)	EnterCriticalSection(&((x)->cs))
+#define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
+#define DELETE_STMT_CS(x)	DeleteCriticalSection(&((x)->cs))
+#else
+#define INIT_STMT_CS(x)
+#define ENTER_STMT_CS(x)
+#define LEAVE_STMT_CS(x)
+#define DELETE_STMT_CS(x)
+#endif /* WIN_MULTITHREAD_SUPPORT */
 /*	Statement prototypes */
 StatementClass *SC_Constructor(void);
 void		InitializeStatementOptions(StatementOptions *opt);
@@ -233,8 +253,12 @@ char		SC_unbind_cols(StatementClass *self);
 char		SC_recycle_statement(StatementClass *self);
 
 void		SC_clear_error(StatementClass *self);
+void		SC_set_error(StatementClass *self, int errnum, const char *msg);
+void		SC_set_errormsg(StatementClass *self, const char *msg);
+void		SC_error_copy(StatementClass *self, const StatementClass *from);
+void		SC_full_error_copy(StatementClass *self, const StatementClass *from);
 char		SC_get_error(StatementClass *self, int *number, char **message);
-char	   *SC_create_errormsg(StatementClass *self);
+char		*SC_create_errormsg(const StatementClass *self);
 RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);

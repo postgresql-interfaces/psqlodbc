@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.7 2002/09/06 05:51:45 hinoue Exp $
+ * $Id: descriptor.h,v 1.8 2002/09/23 08:08:21 hinoue Exp $
  *
  */
 

@@ -459,6 +459,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 char *
 pgtype_to_name(StatementClass *stmt, Int4 type)
 {
+	ConnectionClass	*conn = SC_get_conn(stmt);
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
@@ -498,9 +499,12 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_ABSTIME:
 			return "abstime";
 		case PG_TYPE_DATETIME:
-			return "datetime";
+			if (PG_VERSION_GE(conn, 7.0))
+				return "timestamp with time zone";
+			else
+				return "datetime";
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
-			return "timestamp_nozone";
+			return "timestamp without time zone";
 		case PG_TYPE_TIMESTAMP:
 			return "timestamp";
 		case PG_TYPE_MONEY:
@@ -537,7 +541,7 @@ getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 	mylog("getNumericDecimalDigits: type=%d, col=%d\n", type, col);
 
 	if (col < 0)
-		return PG_NUMERIC_MAX_SCALE;
+		return default_decimal_digits;
 
 	result = SC_get_Curres(stmt);
 
@@ -583,7 +587,7 @@ getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 	mylog("getNumericColumnSize: type=%d, col=%d\n", type, col);
 
 	if (col < 0)
-		return max_column_size;
+		return default_column_size;
 
 	result = SC_get_Curres(stmt);
 

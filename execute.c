@@ -79,15 +79,13 @@ PGAPI_Prepare(HSTMT hstmt,
 		case STMT_EXECUTING:
 			mylog("**** PGAPI_Prepare: STMT_EXECUTING, error!\n");
 
-			self->errornumber = STMT_SEQUENCE_ERROR;
-			self->errormsg = "PGAPI_Prepare(): The handle does not point to a statement that is ready to be executed";
+			SC_set_error(self, STMT_SEQUENCE_ERROR, "PGAPI_Prepare(): The handle does not point to a statement that is ready to be executed");
 			SC_log_error(func, "", self);
 
 			return SQL_ERROR;
 
 		default:
-			self->errornumber = STMT_INTERNAL_ERROR;
-			self->errormsg = "An Internal Error has occured -- Unknown statement status.";
+			SC_set_error(self, STMT_INTERNAL_ERROR, "An Internal Error has occured -- Unknown statement status.");
 			SC_log_error(func, "", self);
 			return SQL_ERROR;
 	}
@@ -104,8 +102,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	self->statement = make_string(szSqlStr, cbSqlStr, NULL);
 	if (!self->statement)
 	{
-		self->errornumber = STMT_NO_MEMORY_ERROR;
-		self->errormsg = "No memory available to store statement";
+		SC_set_error(self, STMT_NO_MEMORY_ERROR, "No memory available to store statement");
 		SC_log_error(func, "", self);
 		return SQL_ERROR;
 	}
@@ -116,8 +113,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	/* Check if connection is onlyread (only selects are allowed) */
 	if (CC_is_onlyread(self->hdbc) && STMT_UPDATE(self))
 	{
-		self->errornumber = STMT_EXEC_ERROR;
-		self->errormsg = "Connection is readonly, only select statements are allowed.";
+		SC_set_error(self, STMT_EXEC_ERROR, "Connection is readonly, only select statements are allowed.");
 		SC_log_error(func, "", self);
 		return SQL_ERROR;
 	}
@@ -161,8 +157,7 @@ PGAPI_ExecDirect(
 	stmt->statement = make_string(szSqlStr, cbSqlStr, NULL);
 	if (!stmt->statement)
 	{
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
-		stmt->errormsg = "No memory available to store statement";
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "No memory available to store statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -184,8 +179,7 @@ PGAPI_ExecDirect(
 	/* Check if connection is onlyread (only selects are allowed) */
 	if (CC_is_onlyread(stmt->hdbc) && STMT_UPDATE(stmt))
 	{
-		stmt->errornumber = STMT_EXEC_ERROR;
-		stmt->errormsg = "Connection is readonly, only select statements are allowed.";
+		SC_set_error(stmt, STMT_EXEC_ERROR, "Connection is readonly, only select statements are allowed.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -241,7 +235,7 @@ PGAPI_Execute(
 		else
 		{
 			stmt->status = STMT_FINISHED;
-			if (stmt->errormsg == NULL)
+			if (NULL == SC_get_errormsg(stmt))
 			{
 				mylog("%s: premature statement but return SQL_SUCCESS\n", func);
 				return SQL_SUCCESS;
@@ -262,8 +256,7 @@ PGAPI_Execute(
 	conn = SC_get_conn(stmt);
 	if (conn->status == CONN_EXECUTING)
 	{
-		stmt->errormsg = "Connection is already in use.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Connection is already in use.");
 		SC_log_error(func, "", stmt);
 		mylog("%s: problem with connection\n", func);
 		return SQL_ERROR;
@@ -271,8 +264,7 @@ PGAPI_Execute(
 
 	if (!stmt->statement)
 	{
-		stmt->errornumber = STMT_NO_STMTSTRING;
-		stmt->errormsg = "This handle does not have a SQL statement stored in it";
+		SC_set_error(stmt, STMT_NO_STMTSTRING, "This handle does not have a SQL statement stored in it");
 		SC_log_error(func, "", stmt);
 		mylog("%s: problem with handle\n", func);
 		return SQL_ERROR;
@@ -294,8 +286,7 @@ PGAPI_Execute(
 	if ((stmt->prepare && stmt->status != STMT_READY) ||
 		(stmt->status != STMT_ALLOCATED && stmt->status != STMT_READY))
 	{
-		stmt->errornumber = STMT_STATUS_ERROR;
-		stmt->errormsg = "The handle does not point to a statement that is ready to be executed";
+		SC_set_error(stmt, STMT_STATUS_ERROR, "The handle does not point to a statement that is ready to be executed");
 		SC_log_error(func, "", stmt);
 		mylog("%s: problem with statement\n", func);
 		return SQL_ERROR;
@@ -466,8 +457,7 @@ next_param_row:
 		{
 			if (issued_begin = CC_begin(conn), !issued_begin)
 			{
-				stmt->errornumber = STMT_EXEC_ERROR;
-				stmt->errormsg = "Handle prepare error";
+				SC_set_error(stmt, STMT_EXEC_ERROR,  "Handle prepare error");
 				return SQL_ERROR;
 			}
 		}
@@ -476,8 +466,7 @@ next_param_row:
 		if (!res)
 		{
 			CC_abort(conn);
-			stmt->errornumber = STMT_EXEC_ERROR;
-			stmt->errormsg = "Handle prepare error";
+			SC_set_error(stmt, STMT_EXEC_ERROR, "Handle prepare error");
 			return SQL_ERROR;
 		}
 		SC_set_Result(stmt, res);
@@ -497,8 +486,7 @@ next_param_row:
 	if (stmt->options.cursor_type != cursor_type ||
 	    stmt->options.scroll_concurrency != scroll_concurrency)
 	{
-		stmt->errornumber = STMT_OPTION_VALUE_CHANGED;
-		stmt->errormsg = "cursor updatability changed";
+		SC_set_error(stmt, STMT_OPTION_VALUE_CHANGED, "cursor updatability changed");
 		return SQL_SUCCESS_WITH_INFO;
 	}
 	else 
@@ -553,8 +541,7 @@ PGAPI_Transact(
 		stmt_string = "ROLLBACK";
 	else
 	{
-		conn->errornumber = CONN_INVALID_ARGUMENT_NO;
-		conn->errormsg = "PGAPI_Transact can only be called with SQL_COMMIT or SQL_ROLLBACK as parameter";
+		CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "PGAPI_Transact can only be called with SQL_COMMIT or SQL_ROLLBACK as parameter");
 		CC_log_error(func, "", conn);
 		return SQL_ERROR;
 	}
@@ -693,8 +680,7 @@ PGAPI_NativeSql(
 	ptr = (cbSqlStrIn == 0) ? "" : make_string(szSqlStrIn, cbSqlStrIn, NULL);
 	if (!ptr)
 	{
-		conn->errornumber = CONN_NO_MEMORY_ERROR;
-		conn->errormsg = "No memory available to store native sql string";
+		CC_set_error(conn, CONN_NO_MEMORY_ERROR, "No memory available to store native sql string");
 		CC_log_error(func, "", conn);
 		return SQL_ERROR;
 	}
@@ -709,8 +695,7 @@ PGAPI_NativeSql(
 		if (len >= cbSqlStrMax)
 		{
 			result = SQL_SUCCESS_WITH_INFO;
-			conn->errornumber = STMT_TRUNCATED;
-			conn->errormsg = "The buffer was too small for the NativeSQL.";
+			CC_set_error(conn, STMT_TRUNCATED, "The buffer was too small for the NativeSQL.");
 		}
 	}
 
@@ -755,16 +740,14 @@ PGAPI_ParamData(
 
 	if (stmt->data_at_exec < 0)
 	{
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
-		stmt->errormsg = "No execution-time parameters for this statement";
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No execution-time parameters for this statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (stmt->data_at_exec > opts->allocated)
 	{
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
-		stmt->errormsg = "Too many execution-time parameters were present";
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Too many execution-time parameters were present");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -779,8 +762,7 @@ PGAPI_ParamData(
 		{
 			if (!CC_commit(stmt->hdbc))
 			{
-				stmt->errormsg = "Could not commit (in-line) a transaction";
-				stmt->errornumber = STMT_EXEC_ERROR;
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Could not commit (in-line) a transaction");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
@@ -888,8 +870,7 @@ PGAPI_PutData(
 	opts = SC_get_APD(stmt);
 	if (stmt->current_exec_param < 0)
 	{
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
-		stmt->errormsg = "Previous call was not SQLPutData or SQLParamData";
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Previous call was not SQLPutData or SQLParamData");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -905,8 +886,7 @@ PGAPI_PutData(
 		current_param->EXEC_used = (SDWORD *) malloc(sizeof(SDWORD));
 		if (!current_param->EXEC_used)
 		{
-			stmt->errornumber = STMT_NO_MEMORY_ERROR;
-			stmt->errormsg = "Out of memory in PGAPI_PutData (1)";
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (1)");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -924,8 +904,7 @@ PGAPI_PutData(
 			{
 				if (!CC_begin(stmt->hdbc))
 				{
-					stmt->errormsg = "Could not begin (in-line) a transaction";
-					stmt->errornumber = STMT_EXEC_ERROR;
+					SC_set_error(stmt, STMT_EXEC_ERROR, "Could not begin (in-line) a transaction");
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 				}
@@ -935,8 +914,7 @@ PGAPI_PutData(
 			current_param->lobj_oid = lo_creat(stmt->hdbc, INV_READ | INV_WRITE);
 			if (current_param->lobj_oid == 0)
 			{
-				stmt->errornumber = STMT_EXEC_ERROR;
-				stmt->errormsg = "Couldnt create large object.";
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt create large object.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
@@ -951,8 +929,7 @@ PGAPI_PutData(
 			stmt->lobj_fd = lo_open(stmt->hdbc, current_param->lobj_oid, INV_WRITE);
 			if (stmt->lobj_fd < 0)
 			{
-				stmt->errornumber = STMT_EXEC_ERROR;
-				stmt->errormsg = "Couldnt open large object for writing.";
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for writing.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
@@ -976,8 +953,7 @@ PGAPI_PutData(
 				current_param->EXEC_buffer = strdup(rgbValue);
 				if (!current_param->EXEC_buffer)
 				{
-					stmt->errornumber = STMT_NO_MEMORY_ERROR;
-					stmt->errormsg = "Out of memory in PGAPI_PutData (2)";
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 				}
@@ -993,8 +969,7 @@ PGAPI_PutData(
 					current_param->EXEC_buffer = malloc(cbValue + 1);
 					if (!current_param->EXEC_buffer)
 					{
-						stmt->errornumber = STMT_NO_MEMORY_ERROR;
-						stmt->errormsg = "Out of memory in PGAPI_PutData (2)";
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
 						SC_log_error(func, "", stmt);
 						return SQL_ERROR;
 					}
@@ -1008,8 +983,7 @@ PGAPI_PutData(
 					current_param->EXEC_buffer = malloc(used);
 					if (!current_param->EXEC_buffer)
 					{
-						stmt->errornumber = STMT_NO_MEMORY_ERROR;
-						stmt->errormsg = "Out of memory in PGAPI_PutData (2)";
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
 						SC_log_error(func, "", stmt);
 						return SQL_ERROR;
 					}
@@ -1066,8 +1040,7 @@ PGAPI_PutData(
 				buffer = realloc(current_param->EXEC_buffer, *current_param->EXEC_used + 1);
 				if (!buffer)
 				{
-					stmt->errornumber = STMT_NO_MEMORY_ERROR;
-					stmt->errormsg = "Out of memory in PGAPI_PutData (3)";
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR,"Out of memory in PGAPI_PutData (3)");
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 				}

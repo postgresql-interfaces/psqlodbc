@@ -839,8 +839,7 @@ parse_statement(StatementClass *stmt)
 						else
 						{
 							stmt->parse_status = STMT_PARSE_FATAL;
-							stmt->errornumber = STMT_EXEC_ERROR;
-							stmt->errormsg = "duplicated Table name";
+							SC_set_error(stmt, STMT_EXEC_ERROR, "duplicated Table name");
 							stmt->updatable = FALSE;
 							return FALSE;
 						}
@@ -951,8 +950,7 @@ parse_statement(StatementClass *stmt)
 					if (!tblFound)
 					{
 						stmt->parse_status = STMT_PARSE_FATAL;
-						stmt->errornumber = STMT_EXEC_ERROR;
-						stmt->errormsg = "Table not found";
+						SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found");
 						stmt->updatable = FALSE;
 						return FALSE;
 					}
@@ -992,8 +990,7 @@ parse_statement(StatementClass *stmt)
 			result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
 			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 			{
-				stmt->errormsg = "PGAPI_AllocStmt failed in parse_statement for columns.";
-				stmt->errornumber = STMT_NO_MEMORY_ERROR;
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.");
 				stmt->parse_status = STMT_PARSE_FATAL;
 				return FALSE;
 			}

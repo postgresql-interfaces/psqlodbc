@@ -170,6 +170,10 @@ QR_Destructor(QResultClass *self)
 	if (self->command)
 		free(self->command);
 
+	/* Free message info (this is from strdup()) */
+	if (self->message)
+		free(self->message);
+
 	/* Free notice info (this is from strdup()) */
 	if (self->notice)
 		free(self->notice);
@@ -184,7 +188,7 @@ QR_Destructor(QResultClass *self)
 
 
 void
-QR_set_command(QResultClass *self, char *msg)
+QR_set_command(QResultClass *self, const char *msg)
 {
 	if (self->command)
 		free(self->command);
@@ -194,7 +198,17 @@ QR_set_command(QResultClass *self, char *msg)
 
 
 void
-QR_set_notice(QResultClass *self, char *msg)
+QR_set_message(QResultClass *self, const char *msg)
+{
+	if (self->message)
+		free(self->message);
+
+	self->message = msg ? strdup(msg) : NULL;
+}
+
+
+void
+QR_set_notice(QResultClass *self, const char *msg)
 {
 	if (self->notice)
 		free(self->notice);
@@ -449,7 +463,7 @@ QR_next_tuple(QResultClass *self)
 	TupleField *the_tuples = self->backend_tuples;
 
 	/* ERROR_MSG_LENGTH is sufficient */
-	static char msgbuffer[ERROR_MSG_LENGTH + 1];
+	char msgbuffer[ERROR_MSG_LENGTH + 1];
 
 	/* QR_set_command() dups this string so doesn't need static */
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
@@ -610,10 +624,40 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 		switch (id)
 		{
 
-			case 'T':			/* Tuples within tuples cannot be handled */
-				self->status = PGRES_BAD_RESPONSE;
-				QR_set_message(self, "Tuples within tuples cannot be handled");
-				return FALSE;
+			case 'P':
+				mylog("Portal name within tuples ?? just ignore\n");
+				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
+				break;
+			case 'T':
+				mylog("Tuples within tuples ?? OK try to handle them\n");
+				self->inTuples = FALSE;
+				if (self->num_total_rows > 0)
+				{
+					mylog("fetched %d rows\n", self->num_total_rows);
+					/* set to first row */
+					self->tupleField = self->backend_tuples + (offset * self->num_fields);
+				}
+				else
+				{
+					mylog("    [ fetched 0 rows ]\n");
+				}
+				/* add new Result class */
+				self->next = QR_Constructor();
+				if (!self->next)
+				{
+					CC_set_error(self->conn, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
+					CC_on_abort(self->conn, NO_TRANS | CONN_DEAD);
+					return FALSE;
+				}
+				QR_set_cache_size(self->next, self->cache_size);
+				self = self->next;
+				if (!QR_fetch_tuples(self, self->conn, NULL))
+				{
+					CC_set_error(self->conn, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(self));
+					return FALSE;
+				}
+
+				return TRUE;
 			case 'B':			/* Tuples in binary format */
 			case 'D':			/* Tuples in ASCII format  */
 

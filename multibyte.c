@@ -422,8 +422,7 @@ CC_lookup_characterset(ConnectionClass *self)
 		if (stricmp(pg_CS_name(self->ccsc), encstr))
 		{
 			qlog(" Client encoding = '%s' and %s\n", self->client_encoding, pg_CS_name(self->ccsc));
-			self->errornumber = CONN_VALUE_OUT_OF_RANGE;  
-			self->errormsg = "client encoding mismatch"; 
+			CC_set_error(self, CONN_VALUE_OUT_OF_RANGE, "client encoding mismatch"); 
 		}
 	}
 	else

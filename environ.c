@@ -26,6 +26,9 @@ extern GLOBAL_VALUES globals;
 
 /* The one instance of the handles */
 ConnectionClass *conns[MAX_CONNECTIONS];
+#ifdef	WIN_MULTITHREAD_SUPPORT
+CRITICAL_SECTION	conns_cs;
+#endif /* WIN_MULTITHREAD_SUPPORT */
 
 
 RETCODE		SQL_API
@@ -110,7 +113,8 @@ PGAPI_StmtError(	HSTMT hstmt,
 	if (cbErrorMsgMax < 0)
 		return SQL_ERROR;
 
-	if (!SC_get_error(stmt, &status, &msg) || NULL == msg || !msg[0])
+	if (STMT_EXECUTING == stmt->status || !SC_get_error(stmt, &status, &msg)
+		 || NULL == msg || !msg[0])
 	{
 		mylog("SC_Get_error returned nothing.\n");
 		if (NULL != szSqlState)
@@ -336,7 +340,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 		return SQL_NO_DATA_FOUND;
 	if (cbErrorMsgMax < 0)
 		return SQL_ERROR;
-	if (!CC_get_error(conn, &status, &msg) || NULL == msg)
+	if (CONN_EXECUTING == conn->status || !CC_get_error(conn, &status, &msg) || NULL == msg)
 	{
 		mylog("CC_Get_error returned nothing.\n");
 		if (NULL != szSqlState)
@@ -436,7 +440,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, msglen, szErrorMsg);
 	if (once_again)
 	{
-		conn->errornumber = status;
+		CC_set_errornumber(conn, status);
 		return SQL_SUCCESS_WITH_INFO;
 	}
 	else
@@ -560,6 +564,7 @@ EN_Constructor(void)
 		rv->errormsg = 0;
 		rv->errornumber = 0;
 		rv->flag = 0;
+		INIT_ENV_CS(rv);
 	}
 
 	return rv;
@@ -585,6 +590,7 @@ EN_Destructor(EnvironmentClass *self)
 		if (conns[lf] && conns[lf]->henv == self)
 			rv = rv && CC_Destructor(conns[lf]);
 	}
+	DELETE_ENV_CS(self);
 	free(self);
 
 	mylog("exit EN_Destructor: rv = %d\n", rv);
@@ -618,18 +624,21 @@ EN_add_connection(EnvironmentClass *self, ConnectionClass *conn)
 
 	mylog("EN_add_connection: self = %u, conn = %u\n", self, conn);
 
+	ENTER_CONNS_CS;
 	for (i = 0; i < MAX_CONNECTIONS; i++)
 	{
 		if (!conns[i])
 		{
 			conn->henv = self;
 			conns[i] = conn;
+			LEAVE_CONNS_CS;
 
 			mylog("       added at i =%d, conn->henv = %u, conns[i]->henv = %u\n", i, conn->henv, conns[i]->henv);
 
 			return TRUE;
 		}
 	}
+	LEAVE_CONNS_CS;
 
 	return FALSE;
 }
@@ -643,7 +652,9 @@ EN_remove_connection(EnvironmentClass *self, ConnectionClass *conn)
 	for (i = 0; i < MAX_CONNECTIONS; i++)
 		if (conns[i] == conn && conns[i]->status != CONN_EXECUTING)
 		{
+			ENTER_CONNS_CS;
 			conns[i] = NULL;
+			LEAVE_CONNS_CS;
 			return TRUE;
 		}
 

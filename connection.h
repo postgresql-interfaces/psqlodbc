@@ -60,8 +60,9 @@ typedef enum
 #define CONN_TRUNCATED								215
 
 /* Conn_status defines */
-#define CONN_IN_AUTOCOMMIT							0x01
-#define CONN_IN_TRANSACTION							0x02
+#define CONN_IN_AUTOCOMMIT		1L 
+#define CONN_IN_TRANSACTION		(1L<<1)
+#define CONN_IN_MANUAL_TRANSACTION	(1L<<2)
 
 /* AutoCommit functions */
 #define CC_set_autocommit_off(x)	(x->transact_status &= ~CONN_IN_AUTOCOMMIT)
@@ -72,6 +73,28 @@ typedef enum
 #define CC_set_in_trans(x)	(x->transact_status |= CONN_IN_TRANSACTION)
 #define CC_set_no_trans(x)	(x->transact_status &= ~CONN_IN_TRANSACTION)
 #define CC_is_in_trans(x)	(x->transact_status & CONN_IN_TRANSACTION)
+
+/* Manual transaction in/not functions */
+#define CC_set_in_manual_trans(x) (x->transact_status |= CONN_IN_MANUAL_TRANSACTION)
+#define CC_set_no_manual_trans(x) (x->transact_status &= ~CONN_IN_MANUAL_TRANSACTION)
+#define CC_is_in_manual_trans(x) (x->transact_status & CONN_IN_MANUAL_TRANSACTION)
+
+#define CC_get_errornumber(x)	(x->__error_number)
+#define CC_get_errormsg(x)	(x->__error_message)
+#define CC_set_errornumber(x, n)	(x->__error_number = n)
+
+/* For Multi-thread */
+#ifdef	WIN_MULTITHREAD_SUPPORT
+#define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
+#define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
+#define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
+#define DELETE_CONN_CS(x)	DeleteCriticalSection(&((x)->cs))
+#else
+#define INIT_CONN_CS(x)	
+#define ENTER_CONN_CS(x)
+#define LEAVE_CONN_CS(x)
+#define DELETE_CONN_CS(x)
+#endif /* WIN_MULTITHREAD_SUPPORT */
 
 
 /* Authentication types */
@@ -263,8 +286,8 @@ struct ConnectionClass_
 	StatementOptions stmtOptions;
 	ARDFields	ardOptions;
 	APDFields	apdOptions;
-	char	   *errormsg;
-	int			errornumber;
+	char	   *__error_message;
+	int			__error_number;
 	CONN_Status status;
 	ConnInfo	connInfo;
 	StatementClass **stmts;
@@ -301,6 +324,9 @@ struct ConnectionClass_
 	int		be_key; /* auth code needed to send cancel */
 	UInt4		isolation;
 	char		*current_schema;
+#ifdef	WIN_MULTITHREAD_SUPPORT
+	CRITICAL_SECTION	cs;
+#endif /* WIN_MULTITHREAD_SUPPORT */
 };
 
 
@@ -331,6 +357,8 @@ int			CC_set_translation(ConnectionClass *self);
 char		CC_connect(ConnectionClass *self, char password_req, char *salt);
 char		CC_add_statement(ConnectionClass *self, StatementClass *stmt);
 char		CC_remove_statement(ConnectionClass *self, StatementClass *stmt);
+void		CC_set_error(ConnectionClass *self, int number, const char *message);
+void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);
 QResultClass *CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag);
 void		CC_clear_error(ConnectionClass *self);

@@ -371,8 +371,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			*((SQLUINTEGER *) Value) = 0;
 			break;
 		case SQL_ATTR_METADATA_ID:
-			conn->errornumber = STMT_INVALID_OPTION_IDENTIFIER;
-			conn->errormsg = "Unsupported connect attribute (Get)";
+			CC_set_error(conn, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported connect attribute (Get)");
 			CC_log_error(func, "", conn);
 			return SQL_ERROR;
 		default:
@@ -429,8 +428,7 @@ void	Desc_set_error(SQLHDESC hdesc, int errornumber, const char *errormsg)
 	if (!hstmt)
 		return;
 	stmt = (StatementClass *) hstmt;
-	stmt->errornumber = errornumber;
-	stmt->errormsg = errormsg; /* should be static */
+	SC_set_error(stmt, errornumber, errormsg);
 }
 
 static  void column_bindings_set(ARDFields *opts, int cols, BOOL maxset)
@@ -530,8 +528,7 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			if (Value != tptr)
 			{
 				ret = SQL_ERROR;
-				stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
-				stmt->errormsg = "INDICATOR != OCTET_LENGTH_PTR"; 
+				SC_set_error(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
 			}
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
@@ -572,7 +569,7 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_LENGTH:
 		case SQL_DESC_NUM_PREC_RADIX:
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	return ret;
 }
@@ -662,8 +659,7 @@ APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			    Value != opts->parameters[RecNumber - 1].used)
 			{
 				ret = SQL_ERROR;
-				stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
-				stmt->errormsg = "INDICATOR != OCTET_LENGTH_PTR"; 
+				SC_set_error(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
 			}
 			break;
 		case SQL_DESC_OCTET_LENGTH:
@@ -690,7 +686,7 @@ APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_LENGTH:
 		case SQL_DESC_NUM_PREC_RADIX:
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	return ret;
 }
@@ -744,7 +740,7 @@ IRDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_UNSIGNED: /* read-only */
 		case SQL_DESC_UPDATABLE: /* read-only */
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	return ret;
 }
@@ -769,7 +765,7 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			if (SQL_UNNAMED !=  (SQLUINTEGER) Value)
 			{
 				ret = SQL_ERROR;
-				stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER;
+				SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER);
 			}
 			break;
 		case SQL_DESC_TYPE:
@@ -829,7 +825,7 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	return ret;
 }
@@ -951,7 +947,7 @@ ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
 		case SQL_DESC_LENGTH:
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	switch (rettype)
 	{
@@ -1065,7 +1061,7 @@ APDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
 		case SQL_DESC_LENGTH:
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	switch (rettype)
 	{
@@ -1148,7 +1144,7 @@ IRDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			bCallColAtt = TRUE;
 			break; 
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	if (bCallColAtt)
 	{
@@ -1278,7 +1274,7 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INVALID_DESCRIPTOR_IDENTIFIER; 
+			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
 	}
 	switch (rettype)
 	{
@@ -1379,8 +1375,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			 * case SQL_ATTR_PREDICATE_PTR: case
 			 * SQL_ATTR_PREDICATE_OCTET_LENGTH_PTR:
 			 */
-			stmt->errornumber = STMT_INVALID_OPTION_IDENTIFIER;
-			stmt->errormsg = "Unsupported statement option (Get)";
+			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Get)");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		default:
@@ -1409,8 +1404,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_CONNECTION_DEAD:
 		case SQL_ATTR_CONNECTION_TIMEOUT:
 		case SQL_ATTR_METADATA_ID:
-			conn->errornumber = STMT_INVALID_OPTION_IDENTIFIER;
-			conn->errormsg = "Unsupported connect attribute (Set)";
+			CC_set_error(conn, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported connect attribute (Set)");
 			return SQL_ERROR;
 		default:
 			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, (UDWORD) Value);
@@ -1450,13 +1444,12 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 			ret = IPDGetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INTERNAL_ERROR; 
-			stmt->errormsg = "Error not implemented";
+			SC_set_error(stmt, STMT_INTERNAL_ERROR, "Error not implemented");
 	}
 	if (ret == SQL_ERROR)
 	{
-		if (!stmt->errormsg && stmt->errornumber == STMT_INVALID_DESCRIPTOR_IDENTIFIER) 
-			stmt->errormsg = "can't SQLGetDescField for this descriptor identifier"; 
+		if (!SC_get_errormsg(stmt) && SC_get_errornumber(stmt) == STMT_INVALID_DESCRIPTOR_IDENTIFIER)
+			SC_set_errormsg(stmt, "can't SQLGetDescField for this descriptor identifier"); 
 		SC_log_error(func, "", stmt);
 	}
 	return ret;
@@ -1493,13 +1486,12 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 			ret = IPDSetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		default:ret = SQL_ERROR;
-			stmt->errornumber = STMT_INTERNAL_ERROR; 
-			stmt->errormsg = "Error not implemented";
+			SC_set_error(stmt, STMT_INTERNAL_ERROR, "Error not implemented");
 	}
 	if (ret == SQL_ERROR)
 	{
-		if (!stmt->errormsg && stmt->errornumber == STMT_INVALID_DESCRIPTOR_IDENTIFIER) 
-			stmt->errormsg = "can't SQLSetDescField for this descriptor identifier"; 
+		if (!SC_get_errormsg(stmt) && SC_get_errornumber(stmt) == STMT_INVALID_DESCRIPTOR_IDENTIFIER) 
+			SC_set_errormsg(stmt, "can't SQLSetDescField for this descriptor identifier"); 
 		SC_log_error(func, "", stmt);
 	}
 	return ret;
@@ -1534,8 +1526,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			 * case SQL_ATTR_PREDICATE_PTR: case
 			 * SQL_ATTR_PREDICATE_OCTET_LENGTH_PTR:
 			 */
-			stmt->errornumber = STMT_INVALID_OPTION_IDENTIFIER;
-			stmt->errormsg = "Unsupported statement option (Set)";
+			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Set)");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 
@@ -1609,8 +1600,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	{
 		if (bmark = (UInt4 *) opts->bookmark->buffer, !bmark)
 		{
-			stmt->errornumber = STMT_INVALID_OPTION_IDENTIFIER;
-			stmt->errormsg = "bookmark isn't specified";
+			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "bookmark isn't specified");
 			return SQL_ERROR;
 		}
 		bmark += (offset >> 4);

@@ -35,19 +35,28 @@ RETCODE		SQL_API
 SQLAllocHandle(SQLSMALLINT HandleType,
 			   SQLHANDLE InputHandle, SQLHANDLE * OutputHandle)
 {
+	RETCODE		ret;
 	mylog("[[SQLAllocHandle]]");
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
-			return PGAPI_AllocEnv(OutputHandle);
+			ret = PGAPI_AllocEnv(OutputHandle);
+			break;
 		case SQL_HANDLE_DBC:
-			return PGAPI_AllocConnect(InputHandle, OutputHandle);
+			ENTER_ENV_CS((EnvironmentClass *) InputHandle);
+			ret = PGAPI_AllocConnect(InputHandle, OutputHandle);
+			LEAVE_ENV_CS((EnvironmentClass *) InputHandle);
+			break;
 		case SQL_HANDLE_STMT:
-			return PGAPI_AllocStmt(InputHandle, OutputHandle);
+			ENTER_CONN_CS((ConnectionClass *) InputHandle);
+			ret = PGAPI_AllocStmt(InputHandle, OutputHandle);
+			LEAVE_CONN_CS((ConnectionClass *) InputHandle);
+			break;
 		default:
+			ret = SQL_ERROR;
 			break;
 	}
-	return SQL_ERROR;
+	return ret;
 }
 
 /*	SQLBindParameter/SQLSetParam -> SQLBindParam */
@@ -58,20 +67,29 @@ SQLBindParam(HSTMT StatementHandle,
 			 SQLSMALLINT ParameterScale, PTR ParameterValue,
 			 SQLINTEGER *StrLen_or_Ind)
 {
+	RETCODE			ret;
 	int			BufferLength = 512;		/* Is it OK ? */
 
 	mylog("[[SQLBindParam]]");
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	SC_clear_error((StatementClass *) StatementHandle);
-	return PGAPI_BindParameter(StatementHandle, ParameterNumber, SQL_PARAM_INPUT, ValueType, ParameterType, LengthPrecision, ParameterScale, ParameterValue, BufferLength, StrLen_or_Ind);
+	ret = PGAPI_BindParameter(StatementHandle, ParameterNumber, SQL_PARAM_INPUT, ValueType, ParameterType, LengthPrecision, ParameterScale, ParameterValue, BufferLength, StrLen_or_Ind);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	return ret;
 }
 
 /*	New function */
 RETCODE		SQL_API
 SQLCloseCursor(HSTMT StatementHandle)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLCloseCursor]]");
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	SC_clear_error((StatementClass *) StatementHandle);
-	return PGAPI_FreeStmt(StatementHandle, SQL_CLOSE);
+	ret = PGAPI_FreeStmt(StatementHandle, SQL_CLOSE);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	return ret;
 }
 
 /*	SQLColAttributes -> SQLColAttribute */
@@ -81,11 +99,16 @@ SQLColAttribute(HSTMT StatementHandle,
 				PTR CharacterAttribute, SQLSMALLINT BufferLength,
 				SQLSMALLINT *StringLength, PTR NumericAttribute)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLColAttribute]]");
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	SC_clear_error((StatementClass *) StatementHandle);
-	return PGAPI_ColAttributes(StatementHandle, ColumnNumber,
+	ret = PGAPI_ColAttributes(StatementHandle, ColumnNumber,
 					   FieldIdentifier, CharacterAttribute, BufferLength,
 							   StringLength, NumericAttribute);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	return ret;
 }
 
 static HSTMT
@@ -137,18 +160,27 @@ RETCODE		SQL_API
 SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 		   SQLSMALLINT CompletionType)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLEndTran]]");
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
-			return PGAPI_Transact(Handle, SQL_NULL_HDBC, CompletionType);
+			ENTER_ENV_CS((EnvironmentClass *) Handle);
+			ret = PGAPI_Transact(Handle, SQL_NULL_HDBC, CompletionType);
+			LEAVE_ENV_CS((EnvironmentClass *) Handle);
+			break;
 		case SQL_HANDLE_DBC:
+			ENTER_CONN_CS((ConnectionClass *) Handle);
 			CC_clear_error((ConnectionClass *) Handle);
-			return PGAPI_Transact(SQL_NULL_HENV, Handle, CompletionType);
+			ret = PGAPI_Transact(SQL_NULL_HENV, Handle, CompletionType);
+			LEAVE_CONN_CS((ConnectionClass *) Handle);
+			break;
 		default:
+			ret = SQL_ERROR;
 			break;
 	}
-	return SQL_ERROR;
+	return ret;
 }
 
 /*	SQLExtendedFetch -> SQLFetchScroll */
@@ -158,12 +190,13 @@ SQLFetchScroll(HSTMT StatementHandle,
 {
 	static char *func = "SQLFetchScroll";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
-	RETCODE		ret;
+	RETCODE		ret = SQL_SUCCESS;
 	IRDFields	*irdopts = SC_get_IRD(stmt);
 	SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
 	SQLINTEGER *pcRow = irdopts->rowsFetched, bkmarkoff = 0;
 
 	mylog("[[%s]] %d,%d\n", func, FetchOrientation, FetchOffset);
+	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	if (FetchOrientation == SQL_FETCH_BOOKMARK)
 	{
@@ -175,14 +208,15 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 		}
 		else
 		{
-			stmt->errornumber = STMT_SEQUENCE_ERROR;
-			stmt->errormsg = "Bookmark isn't specifed yet";
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bookmark isn't specifed yet");
 			SC_log_error(func, "", stmt);
-			return SQL_ERROR;
+			ret = SQL_ERROR;
 		}
 	}
-	ret = PGAPI_ExtendedFetch(StatementHandle, FetchOrientation, FetchOffset,
+	if (SQL_SUCCESS == ret)
+		ret = PGAPI_ExtendedFetch(StatementHandle, FetchOrientation, FetchOffset,
 				pcRow, rowStatusArray, bkmarkoff);
+	LEAVE_STMT_CS(stmt);
 	if (ret != SQL_SUCCESS)
 		mylog("%s return = %d\n", func, ret);
 	return ret;
@@ -192,19 +226,24 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 RETCODE		SQL_API
 SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
+	RETCODE		ret;
 	mylog("[[SQLFreeHandle]]");
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
-			return PGAPI_FreeEnv(Handle);
+			ret = PGAPI_FreeEnv(Handle);
+			break;
 		case SQL_HANDLE_DBC:
-			return PGAPI_FreeConnect(Handle);
+			ret = PGAPI_FreeConnect(Handle);
+			break;
 		case SQL_HANDLE_STMT:
-			return PGAPI_FreeStmt(Handle, SQL_DROP);
+			ret = PGAPI_FreeStmt(Handle, SQL_DROP);
+			break;
 		default:
+			ret = SQL_ERROR;
 			break;
 	}
-	return SQL_ERROR;
+	return ret;
 }
 
 /*	new function */
@@ -214,9 +253,12 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 				PTR Value, SQLINTEGER BufferLength,
 				SQLINTEGER *StringLength)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLGetDescField]]\n");
-	return PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
+	ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 			Value, BufferLength, StringLength);
+	return ret;
 }
 
 /*	new function */
@@ -240,9 +282,12 @@ SQLGetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				PTR DiagInfo, SQLSMALLINT BufferLength,
 				SQLSMALLINT *StringLength)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLGetDiagField]] Handle=(%u,%x) Rec=%d Id=%d\n", HandleType, Handle, RecNumber, DiagIdentifier);
-	return PGAPI_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier,
+	ret = PGAPI_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier,
 				DiagInfo, BufferLength, StringLength);
+	return ret;
 }
 
 /*	SQLError -> SQLDiagRec */
@@ -252,9 +297,12 @@ SQLGetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 			  SQLINTEGER *NativeError, SQLCHAR *MessageText,
 			  SQLSMALLINT BufferLength, SQLSMALLINT *TextLength)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLGetDiagRec]]\n");
-	return PGAPI_GetDiagRec(HandleType, Handle, RecNumber, Sqlstate,
+	ret = PGAPI_GetDiagRec(HandleType, Handle, RecNumber, Sqlstate,
 			NativeError, MessageText, BufferLength, TextLength);
+	return ret;
 }
 
 /*	new function */
@@ -263,13 +311,16 @@ SQLGetEnvAttr(HENV EnvironmentHandle,
 			  SQLINTEGER Attribute, PTR Value,
 			  SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
+	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
 	mylog("[[SQLGetEnvAttr]] %d\n", Attribute);
+	ENTER_ENV_CS(env);
+	ret = SQL_SUCCESS;
 	switch (Attribute)
 	{
 		case SQL_ATTR_CONNECTION_POOLING:
-			*((unsigned int *) Value) = SQL_CP_OFF;
+			*((unsigned int *) Value) = EN_is_pooling(env) ? SQL_CP_ONE_PER_DRIVER : SQL_CP_OFF;
 			break;
 		case SQL_ATTR_CP_MATCH:
 			*((unsigned int *) Value) = SQL_CP_RELAXED_MATCH;
@@ -282,9 +333,10 @@ SQLGetEnvAttr(HENV EnvironmentHandle,
 			break;
 		default:
 			env->errornumber = CONN_INVALID_ARGUMENT_NO;
-			return SQL_ERROR;
+			ret = SQL_ERROR;
 	}
-	return SQL_SUCCESS;
+	LEAVE_ENV_CS(env);
+	return ret;
 }
 
 /*	SQLGetConnectOption -> SQLGetconnectAttr */
@@ -293,10 +345,15 @@ SQLGetConnectAttr(HDBC ConnectionHandle,
 				  SQLINTEGER Attribute, PTR Value,
 				  SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLGetConnectAttr]] %d\n", Attribute);
+	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	CC_clear_error((ConnectionClass *) ConnectionHandle);
-	return PGAPI_GetConnectAttr(ConnectionHandle, Attribute,Value,
+	ret = PGAPI_GetConnectAttr(ConnectionHandle, Attribute,Value,
 			BufferLength, StringLength);
+	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	return ret;
 }
 
 /*	SQLGetStmtOption -> SQLGetStmtAttr */
@@ -305,12 +362,16 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 			   SQLINTEGER Attribute, PTR Value,
 			   SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
+	RETCODE	ret;
 	static char *func = "SQLGetStmtAttr";
 
 	mylog("[[%s]] Handle=%u %d\n", func, StatementHandle, Attribute);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	SC_clear_error((StatementClass *) StatementHandle);
-	return PGAPI_GetStmtAttr(StatementHandle, Attribute, Value,
+	ret = PGAPI_GetStmtAttr(StatementHandle, Attribute, Value,
 			BufferLength, StringLength);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	return ret;
 }
 
 /*	SQLSetConnectOption -> SQLSetConnectAttr */
@@ -319,12 +380,16 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 				  SQLINTEGER Attribute, PTR Value,
 				  SQLINTEGER StringLength)
 {
+	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[[SQLSetConnectAttr]] %d\n", Attribute);
+	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
-	return PGAPI_SetConnectAttr(ConnectionHandle, Attribute, Value,
+	ret = PGAPI_SetConnectAttr(ConnectionHandle, Attribute, Value,
 				  StringLength);
+	LEAVE_CONN_CS(conn);
+	return ret;
 }
 
 /*	new function */
@@ -363,36 +428,59 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 			  SQLINTEGER Attribute, PTR Value,
 			  SQLINTEGER StringLength)
 {
+	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
 	mylog("[[SQLSetEnvAttr]] att=%d,%u\n", Attribute, Value);
+	ENTER_ENV_CS(env);
 	switch (Attribute)
 	{
 		case SQL_ATTR_CONNECTION_POOLING:
-			if ((SQLUINTEGER) Value == SQL_CP_OFF)
-				return SQL_SUCCESS;
+			switch ((SQLUINTEGER) Value)
+			{
+			 	case SQL_CP_OFF:
+					EN_unset_pooling(env);
+					ret = SQL_SUCCESS;
+					break;
+#ifdef	WIN_MULTITHREAD_SUPPORT
+				case SQL_CP_ONE_PER_DRIVER:
+					EN_set_pooling(env);
+					ret = SQL_SUCCESS;
+					break;
+#endif /* WIN_MULTITHREAD_SUPPORT */
+				default:
+					ret = SQL_SUCCESS_WITH_INFO;
+			}
 			break;
 		case SQL_ATTR_CP_MATCH:
 			/* *((unsigned int *) Value) = SQL_CP_RELAXED_MATCH; */
-			return SQL_SUCCESS;
+			ret = SQL_SUCCESS;
+			break;
 		case SQL_ATTR_ODBC_VERSION:
 			if ((SQLUINTEGER) Value == SQL_OV_ODBC2)
 				EN_set_odbc2(env);
 			else
 				EN_set_odbc3(env);
-			return SQL_SUCCESS;
+			ret = SQL_SUCCESS;
 			break;
 		case SQL_ATTR_OUTPUT_NTS:
 			if ((SQLUINTEGER) Value == SQL_TRUE)
-				return SQL_SUCCESS;
+				ret = SQL_SUCCESS;
+			else
+				ret = SQL_SUCCESS_WITH_INFO;
+	
 			break;
 		default:
 			env->errornumber = CONN_INVALID_ARGUMENT_NO;
-			return SQL_ERROR;
+			ret = SQL_ERROR;
 	}
-	env->errornumber = CONN_OPTION_VALUE_CHANGED;
-	env->errormsg = "SetEnv changed to ";
-	return SQL_SUCCESS_WITH_INFO;
+	if (SQL_SUCCESS_WITH_INFO == ret)
+	{
+		env->errornumber = CONN_OPTION_VALUE_CHANGED;
+		env->errormsg = "SetEnv changed to ";
+	}
+	LEAVE_ENV_CS(env);
+	return ret;
 }
 
 /*	SQLSet(Param/Scroll/Stmt)Option -> SQLSetStmtAttr */
@@ -403,10 +491,14 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 {
 	static char *func = "SQLSetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	RETCODE	ret;
 
 	mylog("[[%s]] Handle=%u %d,%u\n", func, StatementHandle, Attribute, Value);
+	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	return PGAPI_SetStmtAttr(StatementHandle, Attribute, Value, StringLength);
+	ret = PGAPI_SetStmtAttr(StatementHandle, Attribute, Value, StringLength);
+	LEAVE_STMT_CS(stmt);
+	return ret;
 }
 
 #define SQL_FUNC_ESET(pfExists, uwAPI) \
@@ -491,8 +583,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLNUMPARAMS);		/* 63 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLPARAMOPTIONS); 64 deprecated */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPRIMARYKEYS);	/* 65 */
-	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURECOLUMNS); /* 66 not implemeted yet */ 
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURECOLUMNS);	/* 66 */ 
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURES);		/* 67 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETPOS);		/* 68 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSCROLLOPTIONS); 69 deprecated */
@@ -535,16 +626,21 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 RETCODE	SQL_API
 SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 {
+	RETCODE	ret;
 	static char	*func = "SQLBulkOperations";
-#ifndef	DRIVER_CURSOR_IMPLEMENT
 	StatementClass	*stmt = (StatementClass *) hstmt;
+
+	ENTER_STMT_CS(stmt);
+#ifndef	DRIVER_CURSOR_IMPLEMENT
 	stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
 	stmt->errormsg = "driver must be compiled with the DRIVER_CURSOR_IMPLEMENT option";
 	SC_log_error(func, "", stmt);
-	return SQL_ERROR;
+	ret = SQL_ERROR;
 #else
 	mylog("[[%s]] Handle=%u %d\n", func, hstmt, operation);
 	SC_clear_error((StatementClass *) hstmt);
-	return	PGAPI_BulkOperations(hstmt, operation);
+	ret = PGAPI_BulkOperations(hstmt, operation);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
+	LEAVE_STMT_CS(stmt);
+	return ret;
 }	

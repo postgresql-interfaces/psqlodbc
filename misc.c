@@ -59,6 +59,9 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 	return;
 }
 
+#ifdef	WIN_MULTITHREAD_SUPPORT
+CRITICAL_SECTION	qlog_cs, mylog_cs;
+#endif /* WIN_MULTITHREAD_SUPPORT */
 static int	mylog_on = 0,
 			qlog_on = 0;
 void
@@ -69,6 +72,8 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 				qlog_on_count = 0,
 				qlog_off_count = 0;
 
+	ENTER_MYLOG_CS;
+	ENTER_QLOG_CS;
 	if (mylog_onoff)
 		mylog_on_count += cnopen;
 	else
@@ -89,6 +94,8 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 		qlog_on = 0;
 	else
 		qlog_on = globals.commlog;
+	LEAVE_QLOG_CS;
+	LEAVE_MYLOG_CS;
 }
 
 #ifdef MY_LOG
@@ -99,6 +106,7 @@ mylog(char *fmt,...)
 	char		filebuf[80];
 	static FILE *LOGFP = NULL;
 
+	ENTER_MYLOG_CS;
 	if (mylog_on)
 	{
 		va_start(args, fmt);
@@ -110,11 +118,18 @@ mylog(char *fmt,...)
 			setbuf(LOGFP, NULL);
 		}
 
+#ifdef	WIN_MULTITHREAD_SUPPORT
+#ifdef	WIN32
+		if (LOGFP)
+			fprintf(LOGFP, "[%d]", GetCurrentThreadId());
+#endif /* WIN32 */
+#endif /* WIN_MULTITHREAD_SUPPORT */
 		if (LOGFP)
 			vfprintf(LOGFP, fmt, args);
 
 		va_end(args);
 	}
+	LEAVE_MYLOG_CS;
 }
 #else
 void
@@ -132,6 +147,7 @@ qlog(char *fmt,...)
 	char		filebuf[80];
 	static FILE *LOGFP = NULL;
 
+	ENTER_QLOG_CS;
 	if (qlog_on)
 	{
 		va_start(args, fmt);
@@ -148,6 +164,7 @@ qlog(char *fmt,...)
 
 		va_end(args);
 	}
+	LEAVE_QLOG_CS;
 }
 #endif
 

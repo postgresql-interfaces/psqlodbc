@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.70 2002/09/06 05:51:45 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.71 2002/09/23 08:08:21 hinoue Exp $
  *
  */
 
@@ -34,6 +34,9 @@
 #endif   /* NAMEDATALEN */
 
 
+#ifndef	WIN32
+#undef	WIN_MULTITHREAD_SUPPORT
+#endif
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
@@ -89,7 +92,11 @@ typedef UInt4 Oid;
 #define DRIVERNAME					"PostgreSQL ODBC"
 #if (ODBCVER >= 0x0300)
 #define DRIVER_ODBC_VER				"03.00"
-#define DBMS_NAME					"PostgreSQL30"
+#ifdef	UNICODE_SUPPORT
+#define DBMS_NAME				"PostgreSQL+ Unicode (Beta)"
+#else
+#define DBMS_NAME				"PostgreSQL+ (Beta)"
+#endif /* UNICODE_SUPPORT */
 #else
 #define DRIVER_ODBC_VER				"02.50"
 #define DBMS_NAME					"PostgreSQL"

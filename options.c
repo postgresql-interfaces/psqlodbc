@@ -91,8 +91,10 @@ set_statement_option(ConnectionClass *conn,
 			setval = SQL_CURSOR_FORWARD_ONLY;
 			if (ci->drivers.lie)
 				setval = vParam;
+#ifdef	DECLAREFETCH_FORWARDONLY
 			else if (ci->drivers.use_declarefetch)
 				;
+#endif /* DECLAREFETCH_FORWARDONLY */
 			else if (SQL_CURSOR_STATIC == vParam)
 				setval = vParam;
 			else if (SQL_CURSOR_KEYSET_DRIVEN == vParam)
@@ -194,14 +196,12 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */
 			if (stmt)
 			{
-				stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-				stmt->errormsg = "Simulated positioned update/delete not supported.  Use the cursor library.";
+				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.");
 				SC_log_error(func, "", stmt);
 			}
 			if (conn)
 			{
-				conn->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-				conn->errormsg = "Simulated positioned update/delete not supported.  Use the cursor library.";
+				CC_set_error(conn, STMT_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.");
 				CC_log_error(func, "", conn);
 			}
 			return SQL_ERROR;
@@ -217,13 +217,11 @@ set_statement_option(ConnectionClass *conn,
 		case 1228:
 			if (stmt)
 			{
-				stmt->errornumber = STMT_OPTION_NOT_FOR_THE_DRIVER;
-				stmt->errormsg = "The option may be for MS SQL Server(Set)";
+				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)");
 			}
 			else if (conn)
 			{
-				conn->errornumber = STMT_OPTION_NOT_FOR_THE_DRIVER;
-				conn->errormsg = "The option may be for MS SQL Server(Set)";
+				CC_set_error(conn, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)");
 			}
 			return SQL_ERROR;
 		default:
@@ -232,15 +230,13 @@ set_statement_option(ConnectionClass *conn,
 
 				if (stmt)
 				{
-					stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-					stmt->errormsg = "Unknown statement option (Set)";
+					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)");
 					sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
 					SC_log_error(func, option, stmt);
 				}
 				if (conn)
 				{
-					conn->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-					conn->errormsg = "Unknown statement option (Set)";
+					CC_set_error(conn, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)");
 					sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
 					CC_log_error(func, option, conn);
 				}
@@ -253,13 +249,11 @@ set_statement_option(ConnectionClass *conn,
 	{
 		if (stmt)
 		{
-			stmt->errormsg = "Requested value changed.";
-			stmt->errornumber = STMT_OPTION_VALUE_CHANGED;
+			SC_set_error(stmt, STMT_OPTION_VALUE_CHANGED, "Requested value changed.");
 		}
 		if (conn)
 		{
-			conn->errormsg = "Requested value changed.";
-			conn->errornumber = STMT_OPTION_VALUE_CHANGED;
+			CC_set_error(conn, STMT_OPTION_VALUE_CHANGED, "Requested value changed.");
 		}
 		return SQL_SUCCESS_WITH_INFO;
 	}
@@ -356,8 +350,7 @@ PGAPI_SetConnectOption(
 					break;
 
 				default:
-					conn->errormsg = "Illegal parameter value for SQL_AUTOCOMMIT";
-					conn->errornumber = CONN_INVALID_ARGUMENT_NO;
+					CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_AUTOCOMMIT");
 					CC_log_error(func, "", conn);
 					return SQL_ERROR;
 			}
@@ -379,8 +372,7 @@ PGAPI_SetConnectOption(
 			retval = SQL_SUCCESS;
                         if (CC_is_in_trans(conn))
 			{
-				conn->errormsg = "Cannot switch isolation level while a transaction is in progress";
-				conn->errornumber = CONN_TRANSACT_IN_PROGRES;
+				CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress");
 				CC_log_error(func, "", conn);
 				return SQL_ERROR;
 			}
@@ -402,8 +394,7 @@ PGAPI_SetConnectOption(
 			}
 			if (SQL_ERROR == retval)
 			{
-				conn->errornumber = CONN_INVALID_ARGUMENT_NO;
-				conn->errormsg = "Illegal parameter value for SQL_TXN_ISOLATION";
+				CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_TXN_ISOLATION");
 				CC_log_error(func, "", conn);
 				return SQL_ERROR;
 			}
@@ -425,8 +416,7 @@ PGAPI_SetConnectOption(
 					QR_Destructor(res);
 				if (SQL_ERROR == retval)
 				{
-					conn->errornumber = STMT_EXEC_ERROR;
-					conn->errormsg = "ISOLATION change request to the server error";
+					CC_set_error(conn, STMT_EXEC_ERROR, "ISOLATION change request to the server error");
 					return SQL_ERROR;
 				}
 			}
@@ -445,8 +435,7 @@ PGAPI_SetConnectOption(
 			{
 				char		option[64];
 
-				conn->errormsg = "Unknown connect option (Set)";
-				conn->errornumber = CONN_UNSUPPORTED_OPTION;
+				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)");
 				sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
 				if (fOption == 30002 && vParam)
 				{
@@ -465,7 +454,7 @@ PGAPI_SetConnectOption(
 					if (0 == cmp)
 					{
 						mylog("Microsoft Jet !!!!\n");
-						conn->errornumber = 0;
+						CC_set_errornumber(conn, 0);
 						conn->ms_jet = 1;
 						return SQL_SUCCESS;
 					}
@@ -477,8 +466,7 @@ PGAPI_SetConnectOption(
 
 	if (changed)
 	{
-		conn->errornumber = CONN_OPTION_VALUE_CHANGED;
-		conn->errormsg = "Requested value changed.";
+		CC_set_error(conn, CONN_OPTION_VALUE_CHANGED, "Requested value changed.");
 		return SQL_SUCCESS_WITH_INFO;
 	}
 	else
@@ -551,8 +539,7 @@ PGAPI_GetConnectOption(
 			{
 				char		option[64];
 
-				conn->errormsg = "Unknown connect option (Get)";
-				conn->errornumber = CONN_UNSUPPORTED_OPTION;
+				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Get)");
 				sprintf(option, "fOption=%d", fOption);
 				CC_log_error(func, option, conn);
 				return SQL_ERROR;
@@ -627,8 +614,7 @@ PGAPI_GetStmtOption(
 				if ((stmt->currTuple < 0) ||
 					(stmt->currTuple >= QR_get_num_backend_tuples(res)))
 				{
-					stmt->errormsg = "Not positioned on a valid row.";
-					stmt->errornumber = STMT_INVALID_CURSOR_STATE_ERROR;
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.");
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 				}
@@ -637,8 +623,7 @@ PGAPI_GetStmtOption(
 			{
 				if (stmt->currTuple == -1 || !res || !res->tupleField)
 				{
-					stmt->errormsg = "Not positioned on a valid row.";
-					stmt->errornumber = STMT_INVALID_CURSOR_STATE_ERROR;
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.");
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 				}
@@ -646,8 +631,7 @@ PGAPI_GetStmtOption(
 
 			if (fOption == SQL_GET_BOOKMARK && stmt->options.use_bookmarks == SQL_UB_OFF)
 			{
-				stmt->errormsg = "Operation invalid because use bookmarks not enabled.";
-				stmt->errornumber = STMT_OPERATION_INVALID;
+				SC_set_error(stmt, STMT_OPERATION_INVALID, "Operation invalid because use bookmarks not enabled.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
@@ -716,8 +700,7 @@ PGAPI_GetStmtOption(
 			{
 				char		option[64];
 
-				stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-				stmt->errormsg = "Unknown statement option (Get)";
+				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Get)");
 				sprintf(option, "fOption=%d", fOption);
 				SC_log_error(func, option, stmt);
 				return SQL_ERROR;

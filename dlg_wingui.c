@@ -170,6 +170,7 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	ShowWindow(GetDlgItem(hdlg, IDNEXTPAGE), enable ? SW_HIDE : SW_SHOW);
 	return 0;
 }
+
 static int
 driver_options_update(HWND hdlg, ConnInfo *ci, BOOL updateProfile)
 {
@@ -292,7 +293,7 @@ global_optionsProc(HWND hdlg,
 				case IDOK:
 					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
-					driver_options_update(hdlg, NULL, TRUE);
+					writeDriverCommoninfo(NULL);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);

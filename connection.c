@@ -181,8 +181,7 @@ PGAPI_Disconnect(
 
 	if (conn->status == CONN_EXECUTING)
 	{
-		conn->errornumber = CONN_IN_USE;
-		conn->errormsg = "A transaction is currently being executed";
+		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed");
 		CC_log_error(func, "", conn);
 		return SQL_ERROR;
 	}
@@ -219,8 +218,7 @@ PGAPI_FreeConnect(
 	/* Remove the connection from the environment */
 	if (!EN_remove_connection(conn->henv, conn))
 	{
-		conn->errornumber = CONN_IN_USE;
-		conn->errormsg = "A transaction is currently being executed";
+		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed");
 		CC_log_error(func, "", conn);
 		return SQL_ERROR;
 	}
@@ -258,8 +256,8 @@ CC_Constructor()
 	{
 		rv->henv = NULL;		/* not yet associated with an environment */
 
-		rv->errormsg = NULL;
-		rv->errornumber = 0;
+		rv->__error_message = NULL;
+		rv->__error_number = 0;
 		rv->errormsg_created = FALSE;
 
 		rv->status = CONN_NOT_CONNECTED;
@@ -309,6 +307,7 @@ CC_Constructor()
 		InitializeStatementOptions(&rv->stmtOptions);
 		InitializeARDFields(&rv->ardOptions);
 		InitializeAPDFields(&rv->apdOptions);
+		INIT_CONN_CS(rv);
 	}
 	return rv;
 }
@@ -334,6 +333,9 @@ CC_Destructor(ConnectionClass *self)
 	}
 	mylog("after free statement holders\n");
 
+	if (self->__error_message)
+		free(self->__error_message);
+	DELETE_CONN_CS(self);
 	free(self);
 
 	mylog("exit CC_Destructor\n");
@@ -368,8 +370,10 @@ CC_cursor_count(ConnectionClass *self)
 void
 CC_clear_error(ConnectionClass *self)
 {
-	self->errornumber = 0;
-	self->errormsg = NULL;
+	self->__error_number = 0;
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_message = NULL;
 	self->errormsg_created = FALSE;
 }
 
@@ -552,8 +556,7 @@ CC_set_translation(ConnectionClass *self)
 
 	if (self->translation_handle == NULL)
 	{
-		self->errornumber = CONN_UNABLE_TO_LOAD_DLL;
-		self->errormsg = "Could not load the translation DLL.";
+		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Could not load the translation DLL.");
 		return FALSE;
 	}
 
@@ -567,8 +570,7 @@ CC_set_translation(ConnectionClass *self)
 
 	if (self->DataSourceToDriver == NULL || self->DriverToDataSource == NULL)
 	{
-		self->errornumber = CONN_UNABLE_TO_LOAD_DLL;
-		self->errormsg = "Could not find translation DLL functions.";
+		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Could not find translation DLL functions.");
 		return FALSE;
 	}
 #endif
@@ -618,7 +620,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	ConnInfo   *ci = &(self->connInfo);
 	int			areq = -1;
 	int			beresp;
-	static char		msgbuffer[ERROR_MSG_LENGTH];
+	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
 	static char *func = "CC_connect";
 
@@ -676,15 +678,13 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 		if (self->status != CONN_NOT_CONNECTED)
 		{
-			self->errormsg = "Already connected.";
-			self->errornumber = CONN_OPENDB_ERROR;
+			CC_set_error(self, CONN_OPENDB_ERROR, "Already connected.");
 			return 0;
 		}
 
 		if (ci->server[0] == '\0' || ci->port[0] == '\0' || ci->database[0] == '\0')
 		{
-			self->errornumber = CONN_INIREAD_ERROR;
-			self->errormsg = "Missing server name, port, or database name in call to CC_connect.";
+			CC_set_error(self, CONN_INIREAD_ERROR, "Missing server name, port, or database name in call to CC_connect.");
 			return 0;
 		}
 
@@ -701,8 +701,7 @@ another_version_retry:
 			self->sock = SOCK_Constructor(self);
 			if (!self->sock)
 			{
-				self->errornumber = CONNECTION_SERVER_NOT_REACHED;
-				self->errormsg = "Could not open a socket to the server";
+				CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not open a socket to the server");
 				return 0;
 			}
 		}
@@ -715,8 +714,7 @@ another_version_retry:
 		if (SOCK_get_errcode(sock) != 0)
 		{
 			mylog("connection to the server socket failed.\n");
-			self->errornumber = CONNECTION_SERVER_NOT_REACHED;
-			self->errormsg = "Could not connect to the server";
+			CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not connect to the server");
 			return 0;
 		}
 		mylog("connection to the server socket succeeded.\n");
@@ -760,8 +758,7 @@ another_version_retry:
 		if (sock->errornumber != 0)
 		{
 			mylog("couldn't send the authentication block properly.\n");
-			self->errornumber = CONN_INVALID_AUTHENTICATION;
-			self->errormsg = "Sending the authentication packet failed";
+			CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Sending the authentication packet failed");
 			return 0;
 		}
 		mylog("sent the authentication block successfully.\n");
@@ -795,9 +792,8 @@ another_version_retry:
 				case 'E':
 
 					SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
-					self->errornumber = CONN_INVALID_AUTHENTICATION;
-					self->errormsg = msgbuffer;
-					qlog("ERROR from backend during authentication: '%s'\n", self->errormsg);
+					CC_set_error(self, CONN_INVALID_AUTHENTICATION, msgbuffer);
+					qlog("ERROR from backend during authentication: '%s'\n", msgbuffer);
 					if (strncmp(msgbuffer, "Unsupported frontend protocol", 29) == 0)
 					{			/* retry older version */
 						if (PROTOCOL_63(ci))
@@ -838,13 +834,11 @@ another_version_retry:
 							break;
 
 						case AUTH_REQ_KRB4:
-							self->errormsg = "Kerberos 4 authentication not supported";
-							self->errornumber = CONN_AUTH_TYPE_UNSUPPORTED;
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Kerberos 4 authentication not supported");
 							return 0;
 
 						case AUTH_REQ_KRB5:
-							self->errormsg = "Kerberos 5 authentication not supported";
-							self->errornumber = CONN_AUTH_TYPE_UNSUPPORTED;
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Kerberos 5 authentication not supported");
 							return 0;
 
 						case AUTH_REQ_PASSWORD:
@@ -852,8 +846,7 @@ another_version_retry:
 
 							if (ci->password[0] == '\0')
 							{
-								self->errornumber = CONNECTION_NEED_PASSWORD;
-								self->errormsg = "A password is required for this connection.";
+								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.");
 								return -areq;		/* need password */
 							}
 
@@ -867,35 +860,30 @@ another_version_retry:
 							break;
 
 						case AUTH_REQ_CRYPT:
-							self->errormsg = "Password crypt authentication not supported";
-							self->errornumber = CONN_AUTH_TYPE_UNSUPPORTED;
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Password crypt authentication not supported");
 							return 0;
 						case AUTH_REQ_MD5:
 							mylog("in AUTH_REQ_MD5\n");
 							if (ci->password[0] == '\0')
 							{
-								self->errornumber = CONNECTION_NEED_PASSWORD;
-								self->errormsg = "A password is required for this connection.";
+								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.");
 								if (salt_para)
 									memcpy(salt_para, salt, sizeof(salt));
 								return -areq; /* need password */
 							}
 							if (md5_auth_send(self, salt))
 							{
-								self->errormsg = "md5 hashing failed";
-								self->errornumber = CONN_INVALID_AUTHENTICATION;
+								CC_set_error(self, CONN_INVALID_AUTHENTICATION, "md5 hashing failed");
 								return 0;
 							}
 							break;
 
 						case AUTH_REQ_SCM_CREDS:
-							self->errormsg = "Unix socket credential authentication not supported";
-							self->errornumber = CONN_AUTH_TYPE_UNSUPPORTED;
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Unix socket credential authentication not supported");
 							return 0;
 
 						default:
-							self->errormsg = "Unknown authentication type";
-							self->errornumber = CONN_AUTH_TYPE_UNSUPPORTED;
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Unknown authentication type");
 							return 0;
 					}
 					break;
@@ -911,8 +899,7 @@ another_version_retry:
 					while (SOCK_get_string(sock, notice, sizeof(notice) - 1)) ;
 					break;
 				default:
-					self->errormsg = "Unexpected protocol character during authentication";
-					self->errornumber = CONN_INVALID_AUTHENTICATION;
+					CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Unexpected protocol character during authentication");
 					return 0;
 			}
 
@@ -937,8 +924,7 @@ another_version_retry:
 	if (res == NULL || QR_get_status(res) != PGRES_EMPTY_QUERY)
 	{
 		mylog("got no result from the empty query.  (probably database does not exist)\n");
-		self->errornumber = CONNECTION_NO_SUCH_DATABASE;
-		self->errormsg = "The database does not exist on the server\nor user authentication failed.";
+		CC_set_error(self, CONNECTION_NO_SUCH_DATABASE, "The database does not exist on the server\nor user authentication failed.");
 		if (res != NULL)
 			QR_Destructor(res);
 		return 0;
@@ -978,7 +964,7 @@ another_version_retry:
 	if (PG_VERSION_GE(self, 6.4))
 	{
 		CC_lookup_characterset(self);
-		if (self->errornumber != 0)
+		if (CC_get_errornumber(self) != 0)
 			return 0;
 #ifdef UNICODE_SUPPORT
 		if (self->unicode)
@@ -989,8 +975,7 @@ another_version_retry:
 				QResultClass	*res;
 				if (PG_VERSION_LT(self, 7.1))
 				{
-					self->errornumber = CONN_NOT_IMPLEMENTED_ERROR;
-					self->errormsg = "UTF-8 conversion isn't implemented before 7.1";
+					CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "UTF-8 conversion isn't implemented before 7.1");
 					return 0;
 				}
 				if (self->client_encoding)
@@ -1013,8 +998,7 @@ another_version_retry:
 #ifdef UNICODE_SUPPORT
 	else if (self->unicode)
 	{
-		self->errornumber = CONN_NOT_IMPLEMENTED_ERROR;
-		self->errormsg = "Unicode isn't supported before 6.4";
+		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "Unicode isn't supported before 6.4");
 		return 0;
 	}
 #endif /* UNICODE_SUPPORT */
@@ -1096,14 +1080,14 @@ CC_create_errormsg(ConnectionClass *self)
 {
 	SocketClass *sock = self->sock;
 	int			pos;
-	static char msg[4096];
+	char	 msg[4096];
 
 	mylog("enter CC_create_errormsg\n");
 
 	msg[0] = '\0';
 
-	if (self->errormsg)
-		strcpy(msg, self->errormsg);
+	if (CC_get_errormsg(self))
+		strncpy(msg, CC_get_errormsg(self), sizeof(msg));
 
 	mylog("msg = '%s'\n", msg);
 
@@ -1114,7 +1098,26 @@ CC_create_errormsg(ConnectionClass *self)
 	}
 
 	mylog("exit CC_create_errormsg\n");
-	return msg;
+	return msg ? strdup(msg) : NULL;
+}
+
+
+void
+CC_set_error(ConnectionClass *self, int number, const char *message)
+{
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_number = number;
+	self->__error_message = message ? strdup(message) : NULL;
+}
+
+
+void
+CC_set_errormsg(ConnectionClass *self, const char *message)
+{
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_message = message ? strdup(message) : NULL;
 }
 
 
@@ -1122,24 +1125,28 @@ char
 CC_get_error(ConnectionClass *self, int *number, char **message)
 {
 	int			rv;
+	char *msgcrt;
 
 	mylog("enter CC_get_error\n");
 
 	/* Create a very informative errormsg if it hasn't been done yet. */
 	if (!self->errormsg_created)
 	{
-		self->errormsg = CC_create_errormsg(self);
+		msgcrt = CC_create_errormsg(self);
+		if (self->__error_message)
+			free(self->__error_message);
+		self->__error_message = msgcrt;
 		self->errormsg_created = TRUE;
 	}
 
-	if (self->errornumber)
+	if (CC_get_errornumber(self))
 	{
-		*number = self->errornumber;
-		*message = self->errormsg;
+		*number = CC_get_errornumber(self);
+		*message = CC_get_errormsg(self);
 	}
-	rv = (self->errornumber != 0);
+	rv = (CC_get_errornumber(self) != 0);
 
-	self->errornumber = 0;		/* clear the error */
+	self->__error_number = 0;		/* clear the error */
 
 	mylog("exit CC_get_error\n");
 
@@ -1156,6 +1163,7 @@ void	CC_on_commit(ConnectionClass *conn)
 			ProcessRollback(conn, FALSE);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 		CC_set_no_trans(conn);
+		CC_set_no_manual_trans(conn);
 	}
 	conn->result_uncommitted = 0;
 }
@@ -1168,7 +1176,10 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 			ProcessRollback(conn, TRUE);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 		if (0 != (opt & NO_TRANS))
+		{
 			CC_set_no_trans(conn);
+			CC_set_no_manual_trans(conn);
+		}
 	}
 	if (0 != (opt & CONN_DEAD))
 		conn->status = CONN_DOWN;
@@ -1207,7 +1218,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	UDWORD		abort_opt;
 
 	/* ERROR_MSG_LENGTH is suffcient */
-	static char msgbuffer[ERROR_MSG_LENGTH + 1];
+	char msgbuffer[ERROR_MSG_LENGTH + 1];
 
 	/* QR_set_command() dups this string so doesn't need static */
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
@@ -1219,8 +1230,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	maxlen = CC_get_max_query_len(self);
 	if (maxlen > 0 && maxlen < (int) strlen(query) + 1)
 	{
-		self->errornumber = CONNECTION_MSG_TOO_LONG;
-		self->errormsg = "Query string is too long";
+		CC_set_error(self, CONNECTION_MSG_TOO_LONG, "Query string is too long");
 		return NULL;
 	}
 
@@ -1229,8 +1239,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 
 	if (SOCK_get_errcode(sock) != 0)
 	{
-		self->errornumber = CONNECTION_COULD_NOT_SEND;
-		self->errormsg = "Could not send Query to backend";
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
 		return NULL;
 	}
@@ -1238,21 +1247,19 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	SOCK_put_char(sock, 'Q');
 	if (SOCK_get_errcode(sock) != 0)
 	{
-		self->errornumber = CONNECTION_COULD_NOT_SEND;
-		self->errormsg = "Could not send Query to backend";
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
 		return NULL;
 	}
 
 	if (issue_begin)
-		SOCK_put_n_char(sock, "begin;", 6);
+		SOCK_put_n_char(sock, "BEGIN;", 6);
 	SOCK_put_string(sock, query);
 	SOCK_flush_output(sock);
 
 	if (SOCK_get_errcode(sock) != 0)
 	{
-		self->errornumber = CONNECTION_COULD_NOT_SEND;
-		self->errormsg = "Could not send Query to backend";
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
 		return NULL;
 	}
@@ -1273,8 +1280,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		cmdres = QR_Constructor();
 		if (!cmdres)
 		{
-			self->errornumber = CONNECTION_COULD_NOT_RECEIVE;
-			self->errormsg = "Could not create result info in send_query.";
+			CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
 			return NULL;
 		}
 	}
@@ -1286,10 +1292,9 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 
 		if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
 		{
-			self->errornumber = CONNECTION_NO_RESPONSE;
-			self->errormsg = "No response from the backend";
+			CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from the backend");
 
-			mylog("send_query: 'id' - %s\n", self->errormsg);
+			mylog("send_query: 'id' - %s\n", CC_get_errormsg(self));
 			CC_on_abort(self, NO_TRANS | CONN_DEAD);
 			ReadyToReturn = TRUE;
 			retres = NULL;
@@ -1311,9 +1316,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
 				if (SOCK_get_errcode(sock) != 0)
 				{
-					self->errornumber = CONNECTION_NO_RESPONSE;
-					self->errormsg = "No response from backend while receiving a portal query command";
-					mylog("send_query: 'C' - %s\n", self->errormsg);
+					CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from backend while receiving a portal query command");
+					mylog("send_query: 'C' - %s\n", CC_get_errormsg(self));
 					CC_on_abort(self, NO_TRANS | CONN_DEAD);
 					ReadyToReturn = TRUE;
 					retres = NULL;
@@ -1409,7 +1413,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				swallow = SOCK_get_char(sock);
 				if ((swallow != '\0') || SOCK_get_errcode(sock) != 0)
 				{
-					self->errornumber = CONNECTION_BACKEND_CRAZY;
+					CC_set_errornumber(self, CONNECTION_BACKEND_CRAZY);
 					QR_set_message(res, "Unexpected protocol character from backend (send_query - I)");
 					QR_set_status(res, PGRES_FATAL_ERROR);
 					ReadyToReturn = TRUE;
@@ -1442,11 +1446,11 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				abort_opt = 0;
 				if (!strncmp(msgbuffer, "FATAL", 5))
 				{
-					self->errornumber = CONNECTION_SERVER_REPORTED_ERROR;
+					CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_ERROR);
 					abort_opt = NO_TRANS | CONN_DEAD;
 				}
 				else
-					self->errornumber = CONNECTION_SERVER_REPORTED_WARNING;
+					CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_WARNING);
 				CC_on_abort(self, abort_opt);
 				QR_set_status(res, PGRES_FATAL_ERROR);
 				QR_set_message(res, msgbuffer);
@@ -1467,8 +1471,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 					res->next = QR_Constructor();
 					if (!res->next)
 					{
-						self->errornumber = CONNECTION_COULD_NOT_RECEIVE;
-						self->errormsg = "Could not create result info in send_query.";
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
 						ReadyToReturn = TRUE;
 						retres = NULL;
 						break;
@@ -1487,8 +1490,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 						QR_set_haskeyset(res);
 					if (!QR_fetch_tuples(res, self, qi ? qi->cursor : NULL))
 					{
-						self->errornumber = CONNECTION_COULD_NOT_RECEIVE;
-						self->errormsg = QR_get_message(res);
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res));
 						ReadyToReturn = TRUE;
 						if (PGRES_FATAL_ERROR == QR_get_status(res))
 							retres = cmdres;
@@ -1508,8 +1510,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 					ReadyToReturn = TRUE;
 					if (!QR_fetch_tuples(res, NULL, NULL))
 					{
-						self->errornumber = CONNECTION_COULD_NOT_RECEIVE;
-						self->errormsg = QR_get_message(res);
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res));
 						retres = NULL;
 						break;
 					}
@@ -1537,11 +1538,10 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				retres = cmdres;
 				break;
 			default:
-				self->errornumber = CONNECTION_BACKEND_CRAZY;
-				self->errormsg = "Unexpected protocol character from backend (send_query)";
+				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)");
 				CC_on_abort(self, NO_TRANS | CONN_DEAD);
 
-				mylog("send_query: error - %s\n", self->errormsg);
+				mylog("send_query: error - %s\n", CC_get_errormsg(self));
 				ReadyToReturn = TRUE;
 				retres = NULL;
 				break;
@@ -1600,8 +1600,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				/*
 				 *	If error message isn't set
 				 */
-				if (retres && (!self->errormsg || !self->errormsg[0]))
-					self->errormsg = QR_get_message(retres);
+				if (retres && (!CC_get_errormsg(self) || !CC_get_errormsg(self)[0]))
+					CC_set_errormsg(self, QR_get_message(retres));
 			}
 		}
 	}
@@ -1618,15 +1618,14 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	SocketClass *sock = self->sock;
 
 	/* ERROR_MSG_LENGTH is sufficient */
-	static char msgbuffer[ERROR_MSG_LENGTH + 1];
+	char msgbuffer[ERROR_MSG_LENGTH + 1];
 	int			i;
 
 	mylog("send_function(): conn=%u, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
 
 	if (SOCK_get_errcode(sock) != 0)
 	{
-		self->errornumber = CONNECTION_COULD_NOT_SEND;
-		self->errormsg = "Could not send function to backend";
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
 		return FALSE;
 	}
@@ -1634,8 +1633,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	SOCK_put_string(sock, "F ");
 	if (SOCK_get_errcode(sock) != 0)
 	{
-		self->errornumber = CONNECTION_COULD_NOT_SEND;
-		self->errormsg = "Could not send function to backend";
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
 		return FALSE;
 	}
@@ -1684,11 +1682,11 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 
 			case 'E':
 				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
-				self->errormsg = msgbuffer;
+				CC_set_errormsg(self, msgbuffer);
 				CC_on_abort(self, 0);
 
-				mylog("send_function(V): 'E' - %s\n", self->errormsg);
-				qlog("ERROR from backend during send_function: '%s'\n", self->errormsg);
+				mylog("send_function(V): 'E' - %s\n", CC_get_errormsg(self));
+				qlog("ERROR from backend during send_function: '%s'\n", CC_get_errormsg(self));
 
 				return FALSE;
 
@@ -1696,11 +1694,10 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 				break;
 
 			default:
-				self->errornumber = CONNECTION_BACKEND_CRAZY;
-				self->errormsg = "Unexpected protocol character from backend (send_function, args)";
+				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_function, args)");
 				CC_on_abort(self, NO_TRANS | CONN_DEAD);
 
-				mylog("send_function: error - %s\n", self->errormsg);
+				mylog("send_function: error - %s\n", CC_get_errormsg(self));
 				return FALSE;
 		}
 	}
@@ -1731,10 +1728,10 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 
 			case 'E':
 				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
-				self->errormsg = msgbuffer;
+				CC_set_errormsg(self, msgbuffer);
 				CC_on_abort(self, 0);
-				mylog("send_function(G): 'E' - %s\n", self->errormsg);
-				qlog("ERROR from backend during send_function: '%s'\n", self->errormsg);
+				mylog("send_function(G): 'E' - %s\n", CC_get_errormsg(self));
+				qlog("ERROR from backend during send_function: '%s'\n", CC_get_errormsg(self));
 
 				return FALSE;
 
@@ -1751,11 +1748,10 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 				return TRUE;
 
 			default:
-				self->errornumber = CONNECTION_BACKEND_CRAZY;
-				self->errormsg = "Unexpected protocol character from backend (send_function, result)";
+				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_function, result)");
 				CC_on_abort(self, NO_TRANS | CONN_DEAD);
 
-				mylog("send_function: error - %s\n", self->errormsg);
+				mylog("send_function: error - %s\n", CC_get_errormsg(self));
 				return FALSE;
 		}
 	}
@@ -2030,8 +2026,8 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 
 	if (self)
 	{
-		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, nullcheck(self->errormsg));
-		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, nullcheck(self->errormsg));
+		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
 		qlog("            ------------------------------------------------------------\n");
 		qlog("            henv=%u, conn=%u, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
 		qlog("            sock=%u, stmts=%u, lobj_type=%d\n", self->sock, self->stmts, self->lobj_type);

@@ -29,6 +29,25 @@
 */
 #define Q_LOG
 
+#ifdef	WIN_MULTITHREAD_SUPPORT
+#define	INIT_QLOG_CS	InitializeCriticalSection(&qlog_cs)
+#define	ENTER_QLOG_CS	EnterCriticalSection(&qlog_cs)
+#define	LEAVE_QLOG_CS	LeaveCriticalSection(&qlog_cs)
+#define	DELETE_QLOG_CS	DeleteCriticalSection(&qlog_cs)
+#define	INIT_MYLOG_CS	InitializeCriticalSection(&mylog_cs)
+#define	ENTER_MYLOG_CS	EnterCriticalSection(&mylog_cs)
+#define	LEAVE_MYLOG_CS	LeaveCriticalSection(&mylog_cs)
+#define	DELETE_MYLOG_CS	DeleteCriticalSection(&mylog_cs)
+#else
+#define	INIT_QLOG_CS
+#define	ENTER_QLOG_CS
+#define	LEAVE_QLOG_CS
+#define	DELETE_QLOG_CS
+#define	INIT_MYLOG_CS
+#define	ENTER_MYLOG_CS
+#define	LEAVE_MYLOG_CS
+#define	DELETE_MYLOG_CS
+#endif /* WIN_MULTITHREAD_SUPPORT */
 
 #ifdef MY_LOG
 #define MYLOGFILE			"mylog_"
@@ -39,7 +58,7 @@
 #endif /* WIN32 */
 extern void mylog(char *fmt,...);
 
-#else
+#else /* MY_LOG */
 #ifndef WIN32
 #define mylog(args...)			/* GNU convention for variable arguments */
 #else

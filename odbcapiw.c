@@ -40,9 +40,11 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
 	clName = ucs2_to_utf8(ColumnName, NameLength4, &nmlen4);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_Columns(StatementHandle, ctName, (SWORD) nmlen1,
            	scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
            	clName, (SWORD) nmlen4, 0);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (ctName)
 		free(ctName);
 	if (scName);
@@ -65,12 +67,14 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	RETCODE	ret;
 	
 	mylog("[SQLConnectW]");
+	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	((ConnectionClass *) ConnectionHandle)->unicode = 1;
 	svName = ucs2_to_utf8(ServerName, NameLength1, &nmlen1);
 	usName = ucs2_to_utf8(UserName, NameLength2, &nmlen2);
 	auth = ucs2_to_utf8(Authentication, NameLength3, &nmlen3);
 	ret = PGAPI_Connect(ConnectionHandle, svName, (SWORD) nmlen1,
            	usName, (SWORD) nmlen2, auth, (SWORD) nmlen3);
+	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
 	if (svName);
 		free(svName);
 	if (usName);
@@ -95,12 +99,14 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 	RETCODE	ret;
 
 	mylog("[SQLDriverConnectW]");
+	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	((ConnectionClass *) hdbc)->unicode = 1;
 	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen);
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
 	ret = PGAPI_DriverConnect(hdbc, hwnd, szIn, (SWORD) inlen,
 		szOut, cbConnStrOutMax, &olen, fDriverCompletion);
+	LEAVE_CONN_CS((ConnectionClass *) hdbc);
 	if (ret != SQL_ERROR)
 	{
 		UInt4 outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
@@ -126,12 +132,14 @@ RETCODE SQL_API SQLBrowseConnectW(
 	RETCODE	ret;
 
 	mylog("[SQLBrowseConnectW]");
+	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	((ConnectionClass *) hdbc)->unicode = 1;
 	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen);
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
 	ret = PGAPI_BrowseConnect(hdbc, szIn, (SWORD) inlen,
 		szOut, cbConnStrOutMax, &olen);
+	LEAVE_CONN_CS((ConnectionClass *) hdbc);
 	if (ret != SQL_ERROR)
 	{
 		UInt4	outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
@@ -172,6 +180,7 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 	mylog("[SQLDescribeColW]");
 	buflen = BufferLength * 3 + 1;
 	clName = malloc(buflen);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_DescribeCol(StatementHandle, ColumnNumber,
 		clName, buflen, &nmlen, DataType, ColumnSize,
 		DecimalDigits, Nullable);
@@ -182,12 +191,12 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 		{
 			StatementClass	*stmt = (StatementClass *) StatementHandle;
 			ret = SQL_SUCCESS_WITH_INFO;
-			stmt->errornumber = STMT_TRUNCATED;
-			stmt->errormsg = "Column name too large";
+			SC_set_error(stmt, STMT_TRUNCATED, "Column name too large");
 		}
 		if (NameLength)
 			*NameLength = nmcount;
 	}
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	free(clName); 
 	return ret;
 }
@@ -201,7 +210,9 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 
 	mylog("[SQLExecDirectW]");
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_ExecDirect(StatementHandle, stxt, slen);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (stxt);
 		free(stxt);
 	return ret;
@@ -218,6 +229,7 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 	mylog("[SQLGetCursorNameW]");
 	buflen = BufferLength * 3 + 1;
 	crName = malloc(buflen);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_GetCursorName(StatementHandle, crName, buflen, &clen);
 	if (ret == SQL_SUCCESS)	
 	{
@@ -226,12 +238,12 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 		{
 			StatementClass *stmt = (StatementClass *) StatementHandle;
 			ret = SQL_SUCCESS_WITH_INFO;
-			stmt->errornumber = STMT_TRUNCATED;
-			stmt->errormsg = "Cursor name too large";
+			SC_set_error(stmt, STMT_TRUNCATED, "Cursor name too large");
 		}
 		if (NameLength)
 			*NameLength = utf8_to_ucs2(crName, (Int4) clen, CursorName, BufferLength);
 	}
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	free(crName);
 	return ret;
 }
@@ -243,6 +255,7 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret;
 
+	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	conn->unicode = 1;
 	CC_clear_error(conn);
 #if (ODBCVER >= 0x0300)
@@ -266,6 +279,7 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	if (SQL_ERROR == ret)
 		CC_log_error("SQLGetInfoW", "", conn);
 #endif
+	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
 	return ret;
 }
 
@@ -278,7 +292,9 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 
 	mylog("[SQLPrepareW]");
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_Prepare(StatementHandle, stxt, slen);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (stxt);
 		free(stxt);
 	return ret;
@@ -293,7 +309,9 @@ RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
 
 	mylog("[SQLSetCursorNameW]");
 	crName = ucs2_to_utf8(CursorName, NameLength, &nlen);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_SetCursorName(StatementHandle, crName, (SWORD) nlen);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (crName);
 		free(crName);
 	return ret;
@@ -314,9 +332,11 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1);
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
            (SWORD) nmlen1, scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		Scope, Nullable);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -340,9 +360,11 @@ RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1);
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
-	return PGAPI_Statistics(StatementHandle, ctName, (SWORD) nmlen1,
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	ret = PGAPI_Statistics(StatementHandle, ctName, (SWORD) nmlen1,
            scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, Unique,
 		Reserved);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -367,9 +389,11 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
 	tbType = ucs2_to_utf8(TableType, NameLength4, &nmlen4);
-	return PGAPI_Tables(StatementHandle, ctName, (SWORD) nmlen1,
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	ret = PGAPI_Tables(StatementHandle, ctName, (SWORD) nmlen1,
            scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
            tbType, (SWORD) nmlen4);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -401,9 +425,11 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
 	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3);
 	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4);
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	ret = PGAPI_ColumnPrivileges(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		clName, (SWORD) nmlen4);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -441,10 +467,12 @@ RETCODE SQL_API SQLForeignKeysW(
 	fkctName = ucs2_to_utf8(szFkCatalogName, cbFkCatalogName, &nmlen4);
 	fkscName = ucs2_to_utf8(szFkSchemaName, cbFkSchemaName, &nmlen5);
 	fktbName = ucs2_to_utf8(szFkTableName, cbFkTableName, &nmlen6);
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	ret = PGAPI_ForeignKeys(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		fkctName, (SWORD) nmlen4, fkscName, (SWORD) nmlen5,
 		fktbName, (SWORD) nmlen6);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -474,6 +502,7 @@ RETCODE SQL_API SQLNativeSqlW(
 	SQLINTEGER	buflen, olen;
 
 	mylog("[SQLNativeSqlW]");
+	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	((ConnectionClass *) hdbc)->unicode = 1;
 	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen);
 	buflen = 3 * cbSqlStrMax + 1;
@@ -490,12 +519,12 @@ RETCODE SQL_API SQLNativeSqlW(
 			ConnectionClass	*conn = (ConnectionClass *) hdbc;
 
 			ret = SQL_SUCCESS_WITH_INFO;
-			conn->errornumber = CONN_TRUNCATED;
-			conn->errormsg = "Sql string too large";
+			CC_set_error(conn, CONN_TRUNCATED, "Sql string too large");
 		}
 		if (pcbSqlStr)
 			*pcbSqlStr = szcount;
 	}
+	LEAVE_CONN_CS((ConnectionClass *) hdbc);
 	free(szOut);
 	return ret;
 }
@@ -517,8 +546,10 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
 	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3);
-	return PGAPI_PrimaryKeys(hstmt, ctName, (SWORD) nmlen1,
+	ENTER_STMT_CS((StatementClass *) hstmt);
+	ret = PGAPI_PrimaryKeys(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -548,9 +579,11 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
 	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3);
 	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4);
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	ret = PGAPI_ProcedureColumns(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3,
 		clName, (SWORD) nmlen4);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -579,8 +612,10 @@ RETCODE SQL_API SQLProceduresW(
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
 	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3);
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	ret = PGAPI_Procedures(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -607,8 +642,10 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
 	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3);
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	ret = PGAPI_TablePrivileges(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, 0);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName);
 		free(ctName);
 	if (scName);
@@ -622,5 +659,10 @@ RETCODE SQL_API	SQLGetTypeInfoW(
 		SQLHSTMT	StatementHandle,
 		SQLSMALLINT	DataType)
 {
-	return PGAPI_GetTypeInfo(StatementHandle, DataType);
+	RETCODE	ret;
+
+	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
+	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	return ret;
 }

@@ -27,6 +27,7 @@
 
 #include "tuple.h"
 #include "pgtypes.h"
+#include "dlg_specific.h"
 
 #include "environ.h"
 #include "connection.h"
@@ -602,7 +603,9 @@ PGAPI_GetInfo(
 		case SQL_SCROLL_OPTIONS:		/* ODBC 1.0 */
 			len = 4;
 			value = SQL_SO_FORWARD_ONLY;
+#ifdef	DECLAREFETCH_FORWARDONLY
 			if (!ci->drivers.use_declarefetch)
+#endif /* DECLAREFETCH_FORWARDONLY */
 				value |= SQL_SO_STATIC;
 			if (ci->updatable_cursors)
 				value |= SQL_SO_KEYSET_DRIVEN;
@@ -711,8 +714,7 @@ PGAPI_GetInfo(
 
 		default:
 			/* unrecognized key */
-			conn->errormsg = "Unrecognized key passed to PGAPI_GetInfo.";
-			conn->errornumber = CONN_NOT_IMPLEMENTED_ERROR;
+			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unrecognized key passed to PGAPI_GetInfo.");
 			return SQL_ERROR;
 	}
 
@@ -745,8 +747,7 @@ PGAPI_GetInfo(
 			if (len >= cbInfoValueMax)
 			{
 				result = SQL_SUCCESS_WITH_INFO;
-				conn->errornumber = CONN_TRUNCATED;
-				conn->errormsg = "The buffer was too small for tthe InfoValue.";
+				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for tthe InfoValue.");
 			}
 		}
 	}
@@ -972,7 +973,10 @@ PGAPI_GetFunctions(
 			pfExists[SQL_API_SQLNUMPARAMS] = TRUE;
 			pfExists[SQL_API_SQLPARAMOPTIONS] = TRUE;
 			pfExists[SQL_API_SQLPRIMARYKEYS] = TRUE;
-			pfExists[SQL_API_SQLPROCEDURECOLUMNS] = FALSE;
+			if (PG_VERSION_LT(conn, 6.5))
+				pfExists[SQL_API_SQLPROCEDURECOLUMNS] = FALSE;
+			else
+				pfExists[SQL_API_SQLPROCEDURECOLUMNS] = TRUE;
 			if (PG_VERSION_LT(conn, 6.5))
 				pfExists[SQL_API_SQLPROCEDURES] = FALSE;
 			else
@@ -1148,7 +1152,10 @@ PGAPI_GetFunctions(
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLPROCEDURECOLUMNS:
-					*pfExists = FALSE;
+					if (PG_VERSION_LT(conn, 6.5))
+						*pfExists = FALSE;
+					else
+						*pfExists = TRUE;
 					break;
 				case SQL_API_SQLPROCEDURES:
 					if (PG_VERSION_LT(conn, 6.5))
@@ -1227,8 +1234,7 @@ PGAPI_Tables(
 	result = PGAPI_AllocStmt(stmt->hdbc, &htbl_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
-		stmt->errormsg = "Couldn't allocate statement for PGAPI_Tables result.";
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Tables result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1265,7 +1271,7 @@ PGAPI_Tables(
 	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
 	i = 0;
 	prefix[i] = strtok(prefixes, ";");
-	while (prefix[i] && i < 32)
+	while (prefix[i] && i < sizeof(prefix))
 		prefix[++i] = strtok(NULL, ";");
 
 	/* Parse the desired table types to return */
@@ -1336,8 +1342,7 @@ PGAPI_Tables(
 	result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = SC_create_errormsg(htbl_stmt);
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_full_error_copy(stmt, htbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1347,8 +1352,7 @@ PGAPI_Tables(
 						   table_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = tbl_stmt->errormsg;
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_error_copy(stmt, tbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1358,8 +1362,7 @@ PGAPI_Tables(
 						   table_owner, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = tbl_stmt->errormsg;
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_error_copy(stmt, tbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1368,8 +1371,7 @@ PGAPI_Tables(
 						   relkind_or_hasrules, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = tbl_stmt->errormsg;
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_error_copy(stmt, tbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1377,8 +1379,7 @@ PGAPI_Tables(
 
 	if (res = QR_Constructor(), !res)
 	{
-		stmt->errormsg = "Couldn't allocate memory for PGAPI_Tables result.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Tables result.");
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1472,12 +1473,11 @@ PGAPI_Tables(
 			if (conn->schema_support)
 				set_tuplefield_string(&row->tuple[1], GET_SCHEMA_NAME(table_owner));
 			else
-				/* set_tuplefield_string(&row->tuple[1], ""); */
 				set_tuplefield_null(&row->tuple[1]);
 			set_tuplefield_string(&row->tuple[2], table_name);
 			set_tuplefield_string(&row->tuple[3], systable ? "SYSTEM TABLE" : (view ? "VIEW" : "TABLE"));
-			/*set_tuplefield_string(&row->tuple[4], "");*/
-			set_tuplefield_string(&row->tuple[4], "TABLE");
+			set_tuplefield_string(&row->tuple[4], "");
+			/*** set_tuplefield_string(&row->tuple[4], "TABLE"); ***/
 
 			QR_add_tuple(res, row);
 		}
@@ -1485,8 +1485,7 @@ PGAPI_Tables(
 	}
 	if (result != SQL_NO_DATA_FOUND)
 	{
-		stmt->errormsg = SC_create_errormsg(htbl_stmt);
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_full_error_copy(stmt, htbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1683,8 +1682,7 @@ PGAPI_Columns(
 	result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
-		stmt->errormsg = "Couldn't allocate statement for PGAPI_Columns result.";
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Columns result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1696,8 +1694,7 @@ PGAPI_Columns(
 							  strlen(columns_query));
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = SC_create_errormsg(hcol_stmt);
-		stmt->errornumber = col_stmt->errornumber;
+		SC_full_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1707,8 +1704,7 @@ PGAPI_Columns(
 						   table_owner, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1718,8 +1714,7 @@ PGAPI_Columns(
 						   table_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1729,8 +1724,7 @@ PGAPI_Columns(
 						   field_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1740,8 +1734,7 @@ PGAPI_Columns(
 						   &field_type, 4, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1751,8 +1744,7 @@ PGAPI_Columns(
 						   field_type_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1762,8 +1754,7 @@ PGAPI_Columns(
 						   &field_number, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1773,8 +1764,7 @@ PGAPI_Columns(
 						   &field_length, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1784,8 +1774,7 @@ PGAPI_Columns(
 						   &mod_length, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1795,8 +1784,7 @@ PGAPI_Columns(
 						   not_null, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1806,8 +1794,7 @@ PGAPI_Columns(
 						   relhasrules, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -1815,8 +1802,7 @@ PGAPI_Columns(
 
 	if (res = QR_Constructor(), !res)
 	{
-		stmt->errormsg = "Couldn't allocate memory for PGAPI_Columns result.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.");
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -2035,8 +2021,7 @@ PGAPI_Columns(
 	}
 	if (result != SQL_NO_DATA_FOUND)
 	{
-		stmt->errormsg = SC_create_errormsg(hcol_stmt);
-		stmt->errornumber = col_stmt->errornumber;
+		SC_full_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -2163,8 +2148,7 @@ PGAPI_SpecialColumns(
 	result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
-		stmt->errormsg = "Couldn't allocate statement for SQLSpecialColumns result.";
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for SQLSpecialColumns result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2176,8 +2160,7 @@ PGAPI_SpecialColumns(
 							  strlen(columns_query));
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = SC_create_errormsg(hcol_stmt);
-		stmt->errornumber = col_stmt->errornumber;
+		SC_full_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -2187,8 +2170,7 @@ PGAPI_SpecialColumns(
 						   relhasrules, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -2357,8 +2339,7 @@ PGAPI_Statistics(
 
 	if (res = QR_Constructor(), !res)
 	{
-		stmt->errormsg = "Couldn't allocate memory for PGAPI_Statistics result.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Statistics result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2395,8 +2376,7 @@ PGAPI_Statistics(
 	table_name = make_string(szTableName, cbTableName, NULL);
 	if (!table_name)
 	{
-		stmt->errormsg = "No table name passed to PGAPI_Statistics.";
-		stmt->errornumber = STMT_INTERNAL_ERROR;
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No table name passed to PGAPI_Statistics.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2411,8 +2391,7 @@ PGAPI_Statistics(
 	result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = "PGAPI_AllocStmt failed in PGAPI_Statistics for columns.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in PGAPI_Statistics for columns.");
 		goto SEEYA;
 	}
 
@@ -2432,9 +2411,7 @@ PGAPI_Statistics(
 
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;	/* "SQLColumns failed in
-												 * SQLStatistics."; */
-		stmt->errornumber = col_stmt->errornumber;		/* STMT_EXEC_ERROR; */
+		SC_error_copy(stmt, col_stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		goto SEEYA;
 	}
@@ -2442,8 +2419,7 @@ PGAPI_Statistics(
 						 column_name, sizeof(column_name), &column_name_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = col_stmt->errormsg;
-		stmt->errornumber = col_stmt->errornumber;
+		SC_error_copy(stmt, col_stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		goto SEEYA;
 
@@ -2468,10 +2444,9 @@ PGAPI_Statistics(
 
 	if (result != SQL_NO_DATA_FOUND || total_columns == 0)
 	{
-		stmt->errormsg = SC_create_errormsg(hcol_stmt); /* "Couldn't get column
+		SC_full_error_copy(stmt, col_stmt); /* "Couldn't get column
 														 * names in
 														 * SQLStatistics."; */
-		stmt->errornumber = col_stmt->errornumber;
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		goto SEEYA;
 
@@ -2483,8 +2458,7 @@ PGAPI_Statistics(
 	result = PGAPI_AllocStmt(stmt->hdbc, &hindx_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = "PGAPI_AllocStmt failed in SQLStatistics for indices.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in SQLStatistics for indices.");
 		goto SEEYA;
 
 	}
@@ -2524,9 +2498,7 @@ PGAPI_Statistics(
 		 * "Couldn't execute index query (w/SQLExecDirect) in
 		 * SQLStatistics.";
 		 */
-		stmt->errormsg = SC_create_errormsg(hindx_stmt);
-
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_full_error_copy(stmt, indx_stmt);
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 	}
@@ -2536,21 +2508,19 @@ PGAPI_Statistics(
 						   index_name, MAX_INFO_STRING, &index_name_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = indx_stmt->errormsg;	/* "Couldn't bind column
-												 * in SQLStatistics."; */
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_error_copy(stmt, indx_stmt);	/* "Couldn't bind column 
+						* in SQLStatistics."; */
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 
 	}
 	/* bind the vector column */
 	result = PGAPI_BindCol(hindx_stmt, 2, SQL_C_DEFAULT,
-				fields_vector, INDEX_KEYS_STORAGE_COUNT * 2, &fields_vector_len);
+			fields_vector, INDEX_KEYS_STORAGE_COUNT * 2, &fields_vector_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = indx_stmt->errormsg;	/* "Couldn't bind column
-												 * in SQLStatistics."; */
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_error_copy(stmt, indx_stmt); /* "Couldn't bind column 
+						 * in SQLStatistics."; */
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 
@@ -2560,9 +2530,8 @@ PGAPI_Statistics(
 						   isunique, sizeof(isunique), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = indx_stmt->errormsg;	/* "Couldn't bind column
-												 * in SQLStatistics."; */
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_error_copy(stmt, indx_stmt);	/* "Couldn't bind column 
+						 * in SQLStatistics."; */
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 	}
@@ -2572,9 +2541,8 @@ PGAPI_Statistics(
 						   isclustered, sizeof(isclustered), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = indx_stmt->errormsg;	/* "Couldn't bind column
-												 * in SQLStatistics."; */
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_error_copy(stmt, indx_stmt);	/* "Couldn't bind column *
+						 * in SQLStatistics."; */
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 
@@ -2585,9 +2553,8 @@ PGAPI_Statistics(
 						   ishash, sizeof(ishash), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = indx_stmt->errormsg;	/* "Couldn't bind column
-												 * in SQLStatistics."; */
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_error_copy(stmt, indx_stmt);	/* "Couldn't bind column * 
+						 * in SQLStatistics."; */
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 
@@ -2597,8 +2564,7 @@ PGAPI_Statistics(
 					relhasrules, sizeof(relhasrules), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = indx_stmt->errormsg;
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_error_copy(stmt, indx_stmt);
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 	}
@@ -2708,8 +2674,7 @@ PGAPI_Statistics(
 	if (result != SQL_NO_DATA_FOUND)
 	{
 		/* "SQLFetch failed in SQLStatistics."; */
-		stmt->errormsg = SC_create_errormsg(hindx_stmt);
-		stmt->errornumber = indx_stmt->errornumber;
+		SC_full_error_copy(stmt, indx_stmt);
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 		goto SEEYA;
 	}
@@ -2767,8 +2732,7 @@ PGAPI_ColumnPrivileges(
 
 	/* Neither Access or Borland care about this. */
 
-	stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-	stmt->errormsg = "not implemented";
+	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "not implemented");
 	SC_log_error(func, "Function not implemented", stmt);
 	return SQL_ERROR;
 }
@@ -2819,8 +2783,7 @@ PGAPI_PrimaryKeys(
 
 	if (res = QR_Constructor(), !res)
 	{
-		stmt->errormsg = "Couldn't allocate memory for PGAPI_PrimaryKeys result.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_PrimaryKeys result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2848,8 +2811,7 @@ PGAPI_PrimaryKeys(
 	result = PGAPI_AllocStmt(stmt->hdbc, &htbl_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
-		stmt->errormsg = "Couldn't allocate statement for Primary Key result.";
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for Primary Key result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2860,8 +2822,7 @@ PGAPI_PrimaryKeys(
 	make_string(szTableName, cbTableName, pktab);
 	if (pktab[0] == '\0')
 	{
-		stmt->errormsg = "No Table specified to PGAPI_PrimaryKeys.";
-		stmt->errornumber = STMT_INTERNAL_ERROR;
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No Table specified to PGAPI_PrimaryKeys.");
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -2874,8 +2835,7 @@ PGAPI_PrimaryKeys(
 						   attname, MAX_INFO_STRING, &attname_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errormsg = tbl_stmt->errormsg;
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_error_copy(stmt, tbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -2952,8 +2912,7 @@ PGAPI_PrimaryKeys(
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = SC_create_errormsg(htbl_stmt);
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_full_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -2991,8 +2950,7 @@ PGAPI_PrimaryKeys(
 
 	if (result != SQL_NO_DATA_FOUND)
 	{
-		stmt->errormsg = SC_create_errormsg(htbl_stmt);
-		stmt->errornumber = tbl_stmt->errornumber;
+		SC_full_error_copy(stmt, htbl_stmt);
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -3318,8 +3276,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 
 	if (res = QR_Constructor(), !res)
 	{
-		stmt->errormsg = "Couldn't allocate memory for PGAPI_ForeignKeys result.";
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_ForeignKeys result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -3373,8 +3330,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	result = PGAPI_AllocStmt(stmt->hdbc, &htbl_stmt);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
-		stmt->errornumber = STMT_NO_MEMORY_ERROR;
-		stmt->errormsg = "Couldn't allocate statement for PGAPI_ForeignKeys result.";
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys result.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -3483,8 +3439,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = SC_create_errormsg(htbl_stmt);
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_full_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3494,8 +3449,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 							   trig_args, sizeof(trig_args), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3505,8 +3459,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 							   &trig_nargs, 0, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3516,8 +3469,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 						 trig_deferrable, sizeof(trig_deferrable), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3527,8 +3479,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 					 trig_initdeferred, sizeof(trig_initdeferred), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3538,8 +3489,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 							   upd_rule, sizeof(upd_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3549,8 +3499,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 							   del_rule, sizeof(del_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3560,8 +3509,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 							   &relid1, sizeof(relid1), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3570,8 +3518,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 							   &relid2, sizeof(relid2), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3580,8 +3527,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 					pk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3593,8 +3539,7 @@ if (conn->schema_support)
 					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3607,8 +3552,7 @@ if (conn->schema_support)
 
 		if (result != SQL_SUCCESS)
 		{
-			stmt->errormsg = SC_create_errormsg(htbl_stmt);
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_full_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3617,8 +3561,7 @@ if (conn->schema_support)
 		keyresult = PGAPI_AllocStmt(stmt->hdbc, &hpkey_stmt);
 		if ((keyresult != SQL_SUCCESS) && (keyresult != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errornumber = STMT_NO_MEMORY_ERROR;
-			stmt->errormsg = "Couldn't allocate statement for PGAPI_ForeignKeys (pkeys) result.";
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys (pkeys) result.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -3627,8 +3570,7 @@ if (conn->schema_support)
 								  pkey, sizeof(pkey), NULL);
 		if (keyresult != SQL_SUCCESS)
 		{
-			stmt->errornumber = STMT_NO_MEMORY_ERROR;
-			stmt->errormsg = "Couldn't bindcol for primary keys for PGAPI_ForeignKeys result.";
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't bindcol for primary keys for PGAPI_ForeignKeys result.");
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(hpkey_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3655,8 +3597,7 @@ if (conn->schema_support)
 			keyresult = PGAPI_PrimaryKeys(hpkey_stmt, NULL, 0, schema_fetched, SQL_NTS, pk_table_fetched, SQL_NTS);
 			if (keyresult != SQL_SUCCESS)
 			{
-				stmt->errornumber = STMT_NO_MEMORY_ERROR;
-				stmt->errormsg = "Couldn't get primary keys for PGAPI_ForeignKeys result.";
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't get primary keys for PGAPI_ForeignKeys result.");
 				SC_log_error(func, "", stmt);
 				PGAPI_FreeStmt(hpkey_stmt, SQL_DROP);
 				return SQL_ERROR;
@@ -3882,8 +3823,7 @@ if (conn->schema_support)
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = SC_create_errormsg(htbl_stmt);
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3893,8 +3833,7 @@ if (conn->schema_support)
 							   trig_args, sizeof(trig_args), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3904,8 +3843,7 @@ if (conn->schema_support)
 							   &trig_nargs, 0, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3915,8 +3853,7 @@ if (conn->schema_support)
 						 trig_deferrable, sizeof(trig_deferrable), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3926,8 +3863,7 @@ if (conn->schema_support)
 					 trig_initdeferred, sizeof(trig_initdeferred), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3937,8 +3873,7 @@ if (conn->schema_support)
 							   upd_rule, sizeof(upd_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3948,8 +3883,7 @@ if (conn->schema_support)
 							   del_rule, sizeof(del_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3959,8 +3893,7 @@ if (conn->schema_support)
 						&relid1, sizeof(relid1), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3969,8 +3902,7 @@ if (conn->schema_support)
 						&relid2, sizeof(relid2), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -3979,26 +3911,24 @@ if (conn->schema_support)
 					fk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
 		}
 
-if (conn->schema_support)
-{
-		result = PGAPI_BindCol(htbl_stmt, 10, SQL_C_CHAR,
-					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (conn->schema_support)
 		{
-			stmt->errormsg = tbl_stmt->errormsg;
-			stmt->errornumber = tbl_stmt->errornumber;
-			SC_log_error(func, "", stmt);
-			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
-			return SQL_ERROR;
+			result = PGAPI_BindCol(htbl_stmt, 10, SQL_C_CHAR,
+					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
+			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			{
+				SC_error_copy(stmt, tbl_stmt);
+				SC_log_error(func, "", stmt);
+				PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
+				return SQL_ERROR;
+			}
 		}
-}
 
 		result = PGAPI_Fetch(htbl_stmt);
 		if (result == SQL_NO_DATA_FOUND)
@@ -4006,8 +3936,7 @@ if (conn->schema_support)
 
 		if (result != SQL_SUCCESS)
 		{
-			stmt->errormsg = SC_create_errormsg(htbl_stmt);
-			stmt->errornumber = tbl_stmt->errornumber;
+			SC_full_error_copy(stmt, tbl_stmt);
 			SC_log_error(func, "", stmt);
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
@@ -4126,8 +4055,7 @@ if (conn->schema_support)
 	}
 	else
 	{
-		stmt->errormsg = "No tables specified to PGAPI_ForeignKeys.";
-		stmt->errornumber = STMT_INTERNAL_ERROR;
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No tables specified to PGAPI_ForeignKeys.");
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
@@ -4160,13 +4088,179 @@ PGAPI_ProcedureColumns(
 {
 	static char *func = "PGAPI_ProcedureColumns";
 	StatementClass	*stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn = SC_get_conn(stmt);
+	char		proc_query[INFO_INQUIRY_LEN];
+	Int2		result_cols;
+	TupleNode	*row;
+	char		*schema_name, *procname, *params;
+	QResultClass *res, *tres;
+	Int4		tcount, paramcount, i, j, pgtype;
 
 	mylog("%s: entering...\n", func);
 
-	stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-	stmt->errormsg = "not implemented";
-	SC_log_error(func, "Function not implemented", stmt);
-	return SQL_ERROR;
+	if (PG_VERSION_LT(conn, 6.5))
+	{
+		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Version is too old");
+		SC_log_error(func, "Function not implemented", stmt);
+		return SQL_ERROR;
+	}
+	if (!SC_recycle_statement(stmt))
+		return SQL_ERROR;
+	if (conn->schema_support)
+	{
+		strcpy(proc_query, "select proname, proretset, prorettype, "
+				"pronargs, proargtypes, nspname from "
+				"pg_namespace, pg_proc where "
+				"pg_proc.pronamespace = pg_namespace.oid "
+				"and (not proretset)");
+		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
+		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
+		strcat(proc_query, " order by nspname, proname, proretset");
+	}
+	else
+	{
+		strcpy(proc_query, "select proname, proretset, prorettype, "
+				"pronargs, proargtypes from pg_proc where "
+				"(not proretset)");
+		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
+		strcat(proc_query, " order by proname, proretset");
+	}
+	if (tres = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !tres)
+	{
+		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ProcedureColumns query error");
+		return SQL_ERROR;
+	}
+
+	stmt->manual_result = TRUE;
+	stmt->errormsg_created = TRUE;
+	if (res = QR_Constructor(), !res)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_ProcedureColumns result.");
+		SC_log_error(func, "", stmt);
+		return SQL_ERROR;
+	}
+	SC_set_Result(stmt, res);
+
+	/*
+	 * the binding structure for a statement is not set up until
+	 * a statement is actually executed, so we'll have to do this
+	 * ourselves.
+	 */
+#if (ODBCVER >= 0x0300)
+	result_cols = 19;
+#else
+	result_cols = 13;
+#endif /* ODBCVER */
+	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+
+	/* set the field names */
+	QR_set_num_fields(res, result_cols);
+	QR_set_field_info(res, 0, "PROCEDURE_CAT", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 1, "PROCEDUR_SCHEM", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 2, "PROCEDURE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 3, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 4, "COLUMN_TYPE", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 5, "DATA_TYPE", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 6, "TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 7, "COLUMN_SIZE", PG_TYPE_INT4, 4);
+	QR_set_field_info(res, 8, "BUFFER_LENGTH", PG_TYPE_INT4, 4);
+	QR_set_field_info(res, 9, "DECIMAL_DIGITS", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 10, "NUM_PREC_RADIX", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 11, "NULLABLE", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 12, "REMARKS", PG_TYPE_TEXT, MAX_INFO_STRING);
+#if (ODBCVER >= 0x0300)
+	QR_set_field_info(res, 13, "COLUMN_DEF", PG_TYPE_TEXT, MAX_INFO_STRING);
+	QR_set_field_info(res, 14, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 15, "SQL_DATATIME_SUB", PG_TYPE_INT2, 2);
+	QR_set_field_info(res, 16, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
+	QR_set_field_info(res, 17, "ORIDINAL_POSITION", PG_TYPE_INT4, 4);
+	QR_set_field_info(res, 18, "IS_NULLABLE", PG_TYPE_TEXT, MAX_INFO_STRING);
+#endif   /* ODBCVER >= 0x0300 */
+
+	if (0 == cbColumnName || !szColumnName || !szColumnName[0])
+		tcount = QR_get_num_total_tuples(tres);
+	else
+		tcount = 0;
+	for (i = 0; i < tcount; i++)
+	{
+		if (conn->schema_support)
+			schema_name = GET_SCHEMA_NAME(QR_get_value_backend_row(tres, i, 5));
+		else
+			schema_name = NULL;
+		procname = QR_get_value_backend_row(tres, i, 0);
+		pgtype = atoi(QR_get_value_backend_row(tres, i, 2));
+		if (pgtype != 0)
+		{
+			row = (TupleNode *) malloc(sizeof(TupleNode) + (result_cols - 1) *sizeof(TupleField));
+			set_tuplefield_null(&row->tuple[0]);
+			set_nullfield_string(&row->tuple[1], schema_name);
+			set_tuplefield_string(&row->tuple[2], procname);
+			set_tuplefield_string(&row->tuple[3], "");
+			set_tuplefield_int2(&row->tuple[4], SQL_RETURN_VALUE);
+			set_tuplefield_int2(&row->tuple[5], pgtype_to_concise_type(stmt, pgtype));
+			set_tuplefield_string(&row->tuple[6], pgtype_to_name(stmt, pgtype));
+			set_nullfield_int4(&row->tuple[7], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&row->tuple[8], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+			set_nullfield_int2(&row->tuple[9], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
+			set_nullfield_int2(&row->tuple[10], pgtype_radix(stmt, pgtype));
+			set_tuplefield_int2(&row->tuple[11], SQL_NULLABLE_UNKNOWN);
+			set_tuplefield_null(&row->tuple[12]);
+#if (ODBCVER >= 0x0300)
+			set_tuplefield_null(&row->tuple[13]);
+			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype));
+			set_nullfield_int2(&row->tuple[15], pgtype_to_datetime_sub(stmt, pgtype));
+			set_nullfield_int4(&row->tuple[16], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&row->tuple[17], 0);
+			set_tuplefield_string(&row->tuple[18], "");
+#endif   /* ODBCVER >= 0x0300 */
+			QR_add_tuple(res, row);
+		}
+		paramcount = atoi(QR_get_value_backend_row(tres, i, 3));
+		params = QR_get_value_backend_row(tres, i, 4);
+		for (j = 0; j < paramcount; j++)
+		{
+			while (isspace(*params))
+				params++;
+			sscanf(params, "%d", &pgtype);
+			row = (TupleNode *) malloc(sizeof(TupleNode) + (result_cols - 1) *sizeof(TupleField));
+			set_tuplefield_null(&row->tuple[0]);
+			set_nullfield_string(&row->tuple[1], schema_name);
+			set_tuplefield_string(&row->tuple[2], procname);
+			set_tuplefield_string(&row->tuple[3], "");
+			set_tuplefield_int2(&row->tuple[4], SQL_PARAM_INPUT);
+			set_tuplefield_int2(&row->tuple[5], pgtype_to_concise_type(stmt, pgtype));
+			set_tuplefield_string(&row->tuple[6], pgtype_to_name(stmt, pgtype));
+			set_nullfield_int4(&row->tuple[7], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&row->tuple[8], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+			set_nullfield_int2(&row->tuple[9], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
+			set_nullfield_int2(&row->tuple[10], pgtype_radix(stmt, pgtype));
+			set_tuplefield_int2(&row->tuple[11], SQL_NULLABLE_UNKNOWN);
+			set_tuplefield_null(&row->tuple[12]);
+#if (ODBCVER >= 0x0300)
+			set_tuplefield_null(&row->tuple[13]);
+			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype));
+			set_nullfield_int2(&row->tuple[15], pgtype_to_datetime_sub(stmt, pgtype));
+			set_nullfield_int4(&row->tuple[16], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&row->tuple[17], j + 1);
+			set_tuplefield_string(&row->tuple[18], "");
+#endif   /* ODBCVER >= 0x0300 */
+			QR_add_tuple(res, row);
+			while (isdigit(*params))
+				params++;
+		} 
+	}
+	QR_Destructor(tres);
+	/*
+	 * also, things need to think that this statement is finished so the
+	 * results can be retrieved.
+	 */
+	stmt->status = STMT_FINISHED;
+	/* set up the current tuple pointer for SQLFetch */
+	stmt->currTuple = -1;
+	stmt->rowset_start = -1;
+	stmt->current_col = -1;
+
+	return SQL_SUCCESS;
 }
 
 
@@ -4190,8 +4284,7 @@ PGAPI_Procedures(
 
 	if (PG_VERSION_LT(conn, 6.5))
 	{
-		stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-		stmt->errormsg = "Version is too old";
+		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Version is too old");
 		SC_log_error(func, "Function not implemented", stmt);
 		return SQL_ERROR;
 	}
@@ -4202,30 +4295,29 @@ PGAPI_Procedures(
 	 * The following seems the simplest implementation
 	 */
 	if (conn->schema_support)
+	{
 		strcpy(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
 		" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
 		   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 		   " '' as " "REMARKS" ","
-		   " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_namespace, pg_proc where");
+		   " case when prorettype = 0 then 1::int2 else 2::int2 end as "		  "PROCEDURE_TYPE" " from pg_namespace, pg_proc"
+		  " where pg_proc.pronamespace = pg_namespace.oid");
+		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
+		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
+	}
 	else
+	{
 		strcpy(proc_query, "select '' as " "PROCEDURE_CAT" ", '' as " "PROCEDURE_SCHEM" ","
 		" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
 		   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 		   " '' as " "REMARKS" ","
 		   " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_proc");
-	if (conn->schema_support)
-	{
-		strcat(proc_query, " where pg_proc.pronamespace = pg_namespace.oid");
-		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
-		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
-	}
-	else
 		my_strcat(proc_query, " where proname like '%.*s'", szProcName, cbProcName);
+	}
 
 	if (res = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !res)
 	{
-		stmt->errornumber = STMT_EXEC_ERROR;
-		stmt->errormsg = "PGAPI_Procedures query error";
+		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Procedures query error");
 		return SQL_ERROR;
 	}
 	SC_set_Result(stmt, res);
@@ -4377,8 +4469,7 @@ PGAPI_TablePrivileges(
 	strcat(proc_query, " pg_user.usesysid = relowner"); 
 	if (res = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !res)
 	{
-		stmt->errornumber = STMT_EXEC_ERROR;
-		stmt->errormsg = "PGAPI_TablePrivileges query error";
+		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error");
 		return SQL_ERROR;
 	}
 	strncpy_null(proc_query, "select usename, usesysid, usesuper from pg_user", sizeof(proc_query));
@@ -4386,8 +4477,7 @@ PGAPI_TablePrivileges(
 	if (allures = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !allures)
 	{
 		QR_Destructor(res);
-		stmt->errornumber = STMT_EXEC_ERROR;
-		stmt->errormsg = "PGAPI_TablePrivileges query error";
+		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error");
 		return SQL_ERROR;
 	}
 	usercount = QR_get_num_backend_tuples(allures);

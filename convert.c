@@ -424,8 +424,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 		}
 		else
 		{
-			stmt->errornumber = STMT_RETURN_NULL_WITHOUT_INDICATOR;
-			stmt->errormsg = "StrLen_or_IndPtr was a null pointer and NULL data was retrieved";	
+			SC_set_error(stmt, STMT_RETURN_NULL_WITHOUT_INDICATOR, "StrLen_or_IndPtr was a null pointer and NULL data was retrieved");	
 			SC_log_error(func, "", stmt);
 			return	SQL_ERROR;
 		}
@@ -995,7 +994,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 			SQL_NUMERIC_STRUCT      *ns;
 			int	i, nlen, bit, hval, tv, dig, sta, olen;
 			char	calv[SQL_MAX_NUMERIC_LEN * 3];
-			const char	*wv;
+			const char *wv;
 			BOOL	dot_exist;
 
 			len = sizeof(SQL_NUMERIC_STRUCT);
@@ -1447,8 +1446,8 @@ enlarge_query_statement(QueryBuild *qb, unsigned int newsize)
 		qb->str_alsize = 0;
 		if (qb->stmt)
 		{
-			qb->stmt->errormsg = "Query buffer overflow in copy_statement_with_parameters";
-			qb->stmt->errornumber = STMT_EXEC_ERROR;
+			
+			SC_set_error(qb->stmt, STMT_EXEC_ERROR, "Query buffer overflow in copy_statement_with_parameters");
 			SC_log_error(func, "", qb->stmt);
 		}
 		else
@@ -1465,8 +1464,7 @@ enlarge_query_statement(QueryBuild *qb, unsigned int newsize)
 		qb->str_alsize = 0;
 		if (qb->stmt)
 		{
-			qb->stmt->errormsg = "Query buffer allocate error in copy_statement_with_parameters";
-			qb->stmt->errornumber = STMT_EXEC_ERROR;
+			SC_set_error(qb->stmt, STMT_EXEC_ERROR, "Query buffer allocate error in copy_statement_with_parameters");
 		}
 		else
 		{
@@ -1688,7 +1686,7 @@ copy_statement_with_parameters(StatementClass *stmt)
 
 	if (ci->disallow_premature)
 		prepare_dummy_cursor = stmt->pre_executing;
-	if (prepare_dummy_cursor);
+	if (prepare_dummy_cursor)
 		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
 
 
@@ -1775,10 +1773,9 @@ copy_statement_with_parameters(StatementClass *stmt)
 		retval = inner_process_tokens(qp, qb);
 		if (SQL_ERROR == retval)
 		{
-			if (0 == stmt->errornumber)
+			if (0 == SC_get_errornumber(stmt))
 			{
-				stmt->errornumber = qb->errornumber;
-				stmt->errormsg = qb->errormsg;
+				SC_set_error(stmt, qb->errornumber, qb->errormsg);
 			}
 			SC_log_error(func, "", stmt);
 			QB_Destructor(qb);
@@ -3481,8 +3478,7 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		{
 			if (!CC_begin(conn))
 			{
-				stmt->errormsg = "Could not begin (in-line) a transaction";
-				stmt->errornumber = STMT_EXEC_ERROR;
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Could not begin (in-line) a transaction");
 				return COPY_GENERAL_ERROR;
 			}
 		}
@@ -3491,8 +3487,7 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		stmt->lobj_fd = lo_open(conn, oid, INV_READ);
 		if (stmt->lobj_fd < 0)
 		{
-			stmt->errornumber = STMT_EXEC_ERROR;
-			stmt->errormsg = "Couldnt open large object for reading.";
+			SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for reading.");
 			return COPY_GENERAL_ERROR;
 		}
 
@@ -3515,8 +3510,7 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 
 	if (stmt->lobj_fd < 0)
 	{
-		stmt->errornumber = STMT_EXEC_ERROR;
-		stmt->errormsg = "Large object FD undefined for multiple read.";
+		SC_set_error(stmt, STMT_EXEC_ERROR, "Large object FD undefined for multiple read.");
 		return COPY_GENERAL_ERROR;
 	}
 
@@ -3530,16 +3524,14 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		{
 			if (!CC_commit(conn))
 			{
-				stmt->errormsg = "Could not commit (in-line) a transaction";
-				stmt->errornumber = STMT_EXEC_ERROR;
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Could not commit (in-line) a transaction");
 				return COPY_GENERAL_ERROR;
 			}
 		}
 
 		stmt->lobj_fd = -1;
 
-		stmt->errornumber = STMT_EXEC_ERROR;
-		stmt->errormsg = "Error reading from large object.";
+		SC_set_error(stmt, STMT_EXEC_ERROR, "Error reading from large object.");
 		return COPY_GENERAL_ERROR;
 	}
 
@@ -3565,8 +3557,7 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		{
 			if (!CC_commit(conn))
 			{
-				stmt->errormsg = "Could not commit (in-line) a transaction";
-				stmt->errornumber = STMT_EXEC_ERROR;
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Could not commit (in-line) a transaction");
 				return COPY_GENERAL_ERROR;
 			}
 		}

@@ -232,8 +232,7 @@ dialog:
 			for (clen = strlen(szConnStrOut) - 1; clen >= 0 && szConnStrOut[clen] != ';'; clen--)
 				szConnStrOut[clen] = '\0';
 			result = SQL_SUCCESS_WITH_INFO;
-			conn->errornumber = CONN_TRUNCATED;
-			conn->errormsg = "The buffer was too small for the ConnStrOut.";
+			CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the ConnStrOut.");
 		}
 	}
 

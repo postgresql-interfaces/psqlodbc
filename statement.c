@@ -99,8 +99,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 	if (!stmt)
 	{
-		conn->errornumber = CONN_STMT_ALLOC_ERROR;
-		conn->errormsg = "No more memory to allocate a further SQL-statement";
+		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "No more memory to allocate a further SQL-statement");
 		*phstmt = SQL_NULL_HSTMT;
 		CC_log_error(func, "", conn);
 		return SQL_ERROR;
@@ -108,8 +107,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 	if (!CC_add_statement(conn, stmt))
 	{
-		conn->errormsg = "Maximum number of connections exceeded.";
-		conn->errornumber = CONN_STMT_ALLOC_ERROR;
+		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "Maximum number of connections exceeded.");
 		CC_log_error(func, "", conn);
 		SC_Destructor(stmt);
 		*phstmt = SQL_NULL_HSTMT;
@@ -158,8 +156,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		{
 			if (!CC_remove_statement(conn, stmt))
 			{
-				stmt->errornumber = STMT_SEQUENCE_ERROR;
-				stmt->errormsg = "Statement is currently executing a transaction.";
+				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;		/* stmt may be executing a
 										 * transaction */
@@ -195,8 +192,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		SC_free_params(stmt, STMT_FREE_PARAMS_ALL);
 	else
 	{
-		stmt->errormsg = "Invalid option passed to PGAPI_FreeStmt.";
-		stmt->errornumber = STMT_OPTION_OUT_OF_RANGE_ERROR;
+		SC_set_error(stmt, STMT_OPTION_OUT_OF_RANGE_ERROR, "Invalid option passed to PGAPI_FreeStmt.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -261,8 +257,8 @@ SC_Constructor(void)
 		rv->status = STMT_ALLOCATED;
 		rv->internal = FALSE;
 
-		rv->errormsg = NULL;
-		rv->errornumber = 0;
+		rv->__error_message = NULL;
+		rv->__error_number = 0;
 		rv->errormsg_created = FALSE;
 
 		rv->statement = NULL;
@@ -306,6 +302,7 @@ SC_Constructor(void)
 		rv->updatable = FALSE;
 		rv->error_recsize = -1;
 		rv->diag_row_count = 0;
+		INIT_STMT_CS(rv);
 	}
 	return rv;
 }
@@ -366,8 +363,7 @@ SC_Destructor(StatementClass *self)
 	SC_clear_error(self);
 	if (STMT_EXECUTING == self->status)
 	{
-		self->errornumber = STMT_SEQUENCE_ERROR;
-		self->errormsg = "Statement is currently executing a transaction.";
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
 		return FALSE;
 	}
 
@@ -408,6 +404,9 @@ SC_Destructor(StatementClass *self)
 	IRDFields_free(&(self->irdopts));
 	IPDFields_free(&(self->ipdopts));
 	
+	if (self->__error_message)
+		free(self->__error_message);
+	DELETE_STMT_CS(self);
 	free(self);
 
 	mylog("SC_Destructor: EXIT\n");
@@ -470,8 +469,7 @@ SC_recycle_statement(StatementClass *self)
 	/* This would not happen */
 	if (self->status == STMT_EXECUTING)
 	{
-		self->errornumber = STMT_SEQUENCE_ERROR;
-		self->errormsg = "Statement is currently executing a transaction.";
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
 		return FALSE;
 	}
 
@@ -503,8 +501,7 @@ SC_recycle_statement(StatementClass *self)
 			break;
 
 		default:
-			self->errormsg = "An internal error occured while recycling statements";
-			self->errornumber = STMT_INTERNAL_ERROR;
+			SC_set_error(self, STMT_INTERNAL_ERROR, "An internal error occured while recycling statements");
 			return FALSE;
 	}
 
@@ -545,8 +542,8 @@ SC_recycle_statement(StatementClass *self)
 	self->bind_row = 0;
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 
-	self->errormsg = NULL;
-	self->errornumber = 0;
+	self->__error_message = NULL;
+	self->__error_number = 0;
 	self->errormsg_created = FALSE;
 
 	self->lobj_fd = -1;
@@ -624,8 +621,10 @@ SC_unbind_cols(StatementClass *self)
 void
 SC_clear_error(StatementClass *self)
 {
-	self->errornumber = 0;
-	self->errormsg = NULL;
+	self->__error_number = 0;
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_message = NULL;
 	self->errormsg_created = FALSE;
 	self->errorpos = 0;
 	self->error_recsize = -1;
@@ -638,23 +637,23 @@ SC_clear_error(StatementClass *self)
  *	of the result, statement, connection, and socket messages.
  */
 char *
-SC_create_errormsg(StatementClass *self)
+SC_create_errormsg(const StatementClass *self)
 {
 	QResultClass *res = SC_get_Curres(self);
 	ConnectionClass *conn = self->hdbc;
 	int			pos;
 	BOOL			detailmsg = FALSE;
-	static char msg[4096];
+	char			 msg[4096];
 
 	msg[0] = '\0';
 
 	if (res && res->message)
 	{
-		strcpy(msg, res->message);
+		strncpy(msg, res->message, sizeof(msg));
 		detailmsg = TRUE;
 	}
-	else if (self->errormsg)
-		strcpy(msg, self->errormsg);
+	else if (SC_get_errormsg(self))
+		strncpy(msg, SC_get_errormsg(self), sizeof(msg));
 
 	if (!msg[0] && res && QR_get_notice(res))
 	{
@@ -666,16 +665,16 @@ SC_create_errormsg(StatementClass *self)
 			msg[len] = '\0';
 		}
 		else
-			return notice;
+			return strdup(notice);
 	}
 	if (conn)
 	{
 		SocketClass *sock = conn->sock;
 
-		if (!detailmsg && conn->errormsg && conn->errormsg[0] != '\0')
+		if (!detailmsg && CC_get_errormsg(conn) && (CC_get_errormsg(conn))[0] != '\0')
 		{
 			pos = strlen(msg);
-			sprintf(&msg[pos], ";\n%s", conn->errormsg);
+			sprintf(&msg[pos], ";\n%s", CC_get_errormsg(conn));
 		}
 
 		if (sock && sock->errormsg && sock->errormsg[0] != '\0')
@@ -684,31 +683,73 @@ SC_create_errormsg(StatementClass *self)
 			sprintf(&msg[pos], ";\n%s", sock->errormsg);
 		}
 	}
-	return msg;
+	return msg[0] ? strdup(msg) : NULL;
 }
 
+
+void
+SC_set_error(StatementClass *self, int number, const char *message)
+{
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_number = number;
+	self->__error_message = message ? strdup(message) : NULL;
+}
+
+
+void
+SC_set_errormsg(StatementClass *self, const char *message)
+{
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_message = message ? strdup(message) : NULL;
+}
+
+
+void
+SC_error_copy(StatementClass *self, const StatementClass *from)
+{
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_number = from->__error_number;
+	self->__error_message = from->__error_message ? strdup(from->__error_message) : NULL;
+}
+
+
+void
+SC_full_error_copy(StatementClass *self, const StatementClass *from)
+{
+	if (self->__error_message)
+		free(self->__error_message);
+	self->__error_number = from->__error_number;
+	self->__error_message = SC_create_errormsg(from);
+	self->errormsg_created = TRUE;
+}
 
 char
 SC_get_error(StatementClass *self, int *number, char **message)
 {
-	char		rv;
+	char	rv, *msgcrt;
 
 	/* Create a very informative errormsg if it hasn't been done yet. */
 	if (!self->errormsg_created)
 	{
-		self->errormsg = SC_create_errormsg(self);
+		msgcrt = SC_create_errormsg(self);
+		if (self->__error_message)
+			free(self->__error_message);
+		self->__error_message = msgcrt; 
 		self->errormsg_created = TRUE;
 		self->errorpos = 0;
 		self->error_recsize = -1;
 	}
 
-	if (self->errornumber)
+	if (SC_get_errornumber(self))
 	{
-		*number = self->errornumber;
-		*message = self->errormsg;
+		*number = SC_get_errornumber(self);
+		*message = self->__error_message;
 	}
 
-	rv = (self->errornumber != 0);
+	rv = (SC_get_errornumber(self) != 0);
 
 	return rv;
 }
@@ -779,8 +820,7 @@ SC_fetch(StatementClass *self)
 		else
 		{
 			mylog("SC_fetch: error\n");
-			self->errornumber = STMT_EXEC_ERROR;
-			self->errormsg = "Error fetching next row";
+			SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row");
 			SC_log_error(func, "", self);
 			return SQL_ERROR;
 		}
@@ -872,22 +912,19 @@ SC_fetch(StatementClass *self)
 					break;		/* OK, do next bound column */
 
 				case COPY_UNSUPPORTED_TYPE:
-					self->errormsg = "Received an unsupported type from Postgres.";
-					self->errornumber = STMT_RESTRICTED_DATA_TYPE_ERROR;
+					SC_set_error(self, STMT_RESTRICTED_DATA_TYPE_ERROR, "Received an unsupported type from Postgres.");
 					SC_log_error(func, "", self);
 					result = SQL_ERROR;
 					break;
 
 				case COPY_UNSUPPORTED_CONVERSION:
-					self->errormsg = "Couldn't handle the necessary data type conversion.";
-					self->errornumber = STMT_RESTRICTED_DATA_TYPE_ERROR;
+					SC_set_error(self, STMT_RESTRICTED_DATA_TYPE_ERROR, "Couldn't handle the necessary data type conversion.");
 					SC_log_error(func, "", self);
 					result = SQL_ERROR;
 					break;
 
 				case COPY_RESULT_TRUNCATED:
-					self->errornumber = STMT_TRUNCATED;
-					self->errormsg = "Fetched item was truncated.";
+					SC_set_error(self, STMT_TRUNCATED, "Fetched item was truncated.");
 					qlog("The %dth item was truncated\n", lf + 1);
 					qlog("The buffer size = %d", opts->bindings[lf].buflen);
 					qlog(" and the value is '%s'\n", value);
@@ -905,8 +942,7 @@ SC_fetch(StatementClass *self)
 					break;
 
 				default:
-					self->errormsg = "Unrecognized return value from copy_and_convert_field.";
-					self->errornumber = STMT_INTERNAL_ERROR;
+					SC_set_error(self, STMT_INTERNAL_ERROR, "Unrecognized return value from copy_and_convert_field.");
 					SC_log_error(func, "", self);
 					result = SQL_ERROR;
 					break;
@@ -931,6 +967,7 @@ SC_execute(StatementClass *self)
 	QueryInfo	qi;
 	ConnInfo   *ci;
 	UDWORD		qflag = 0;
+	BOOL		auto_begin = FALSE, is_in_trans;
 
 
 	conn = SC_get_conn(self);
@@ -946,17 +983,18 @@ SC_execute(StatementClass *self)
 	 * 2) we are in autocommit off state and the statement isn't of type
 	 * OTHER.
 	 */
-	if (!self->internal && !CC_is_in_trans(conn) &&
+	is_in_trans = CC_is_in_trans(conn);
+	if (!self->internal && !is_in_trans &&
 		(SC_is_fetchcursor(self) ||
 		 (!CC_is_in_autocommit(conn) && self->statement_type != STMT_TYPE_OTHER)))
 	{
 		mylog("   about to begin a transaction on statement = %u\n", self);
+		auto_begin = TRUE;
 		if (PG_VERSION_GE(conn, 7.1))
 			qflag |= GO_INTO_TRANSACTION;
                 else if (!CC_begin(conn))
                 {
-                        self->errormsg = "Could not begin a transaction";
-                        self->errornumber = STMT_EXEC_ERROR;
+			SC_set_error(self, STMT_EXEC_ERROR, "Could not begin a transaction");
                         SC_log_error(func, "", self);
                         return SQL_ERROR;
                 }
@@ -1024,8 +1062,13 @@ SC_execute(StatementClass *self)
 		 * Above seems wrong. Even in case of autocommit, started
 		 * transactions must be committed. (Hiroshi, 02/11/2001)
 		 */
-		if (!self->internal && CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
-			CC_commit(conn);
+		if (CC_is_in_trans(conn))
+		{
+			if (!is_in_trans)
+				CC_set_in_manual_trans(conn);
+			if (!self->internal && CC_is_in_autocommit(conn) && !CC_is_in_manual_trans(conn))
+				CC_commit(conn);
+		}
 	}
 
 	conn->status = oldstatus;
@@ -1038,9 +1081,9 @@ SC_execute(StatementClass *self)
 		was_nonfatal = QR_command_nonfatal(res);
 
 		if (was_ok)
-			self->errornumber = STMT_OK;
+			SC_set_errornumber(self, STMT_OK);
 		else
-			self->errornumber = was_nonfatal ? STMT_INFO_ONLY : STMT_ERROR_TAKEN_FROM_BACKEND;
+			SC_set_errornumber(self, was_nonfatal ? STMT_INFO_ONLY : STMT_ERROR_TAKEN_FROM_BACKEND);
 
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
@@ -1065,8 +1108,7 @@ SC_execute(StatementClass *self)
 				if (opts->bindings == NULL)
 				{
 					QR_Destructor(res);
-					self->errornumber = STMT_NO_MEMORY_ERROR;
-					self->errormsg = "Could not get enough free memory to store the binding information";
+					SC_set_error(self, STMT_NO_MEMORY_ERROR,"Could not get enough free memory to store the binding information");
 					SC_log_error(func, "", self);
 					return SQL_ERROR;
 				}
@@ -1078,8 +1120,7 @@ SC_execute(StatementClass *self)
 		/* Bad Error -- The error message will be in the Connection */
 		if (self->statement_type == STMT_TYPE_CREATE)
 		{
-			self->errornumber = STMT_CREATE_TABLE_ERROR;
-			self->errormsg = "Error creating the table";
+			SC_set_error(self, STMT_CREATE_TABLE_ERROR, "Error creating the table");
 
 			/*
 			 * This would allow the table to already exists, thus
@@ -1090,8 +1131,7 @@ SC_execute(StatementClass *self)
 		}
 		else
 		{
-			self->errornumber = STMT_EXEC_ERROR;
-			self->errormsg = conn->errormsg;
+			SC_set_error(self, STMT_EXEC_ERROR, CC_get_errormsg(conn));
 		}
 
 		if (!self->internal)
@@ -1109,8 +1149,8 @@ SC_execute(StatementClass *self)
 
 	apdopts = SC_get_APD(self);
 	if (self->statement_type == STMT_TYPE_PROCCALL &&
-		(self->errornumber == STMT_OK ||
-		 self->errornumber == STMT_INFO_ONLY) &&
+		(SC_get_errornumber(self) == STMT_OK ||
+		 SC_get_errornumber(self) == STMT_INFO_ONLY) &&
 		apdopts->parameters &&
 		apdopts->parameters[0].buffer &&
 		apdopts->parameters[0].paramType == SQL_PARAM_OUTPUT)
@@ -1125,24 +1165,22 @@ SC_execute(StatementClass *self)
 			ret = PGAPI_GetData(hstmt, 1, apdopts->parameters[0].CType, apdopts->parameters[0].buffer, apdopts->parameters[0].buflen, apdopts->parameters[0].used);
 			if (ret != SQL_SUCCESS)
 			{
-				self->errornumber = STMT_EXEC_ERROR;
-				self->errormsg = "GetData to Procedure return failed.";
+				SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.");
 			}
 		}
 		else
 		{
-			self->errornumber = STMT_EXEC_ERROR;
-			self->errormsg = "SC_fetch to get a Procedure return failed.";
+			SC_set_error(self, STMT_EXEC_ERROR, "SC_fetch to get a Procedure return failed.");
 		}
 	}
-	if (self->errornumber == STMT_OK)
+	if (SC_get_errornumber(self) == STMT_OK)
 		return SQL_SUCCESS;
-	else if (self->errornumber == STMT_INFO_ONLY)
+	else if (SC_get_errornumber(self) == STMT_INFO_ONLY)
 		return SQL_SUCCESS_WITH_INFO;
 	else
 	{
-		if (!self->errormsg || !self->errormsg[0])
-			self->errormsg = "Error while executing the query";
+		if (!SC_get_errormsg(self) || !SC_get_errormsg(self)[0])
+			SC_set_errormsg(self, "Error while executing the query");
 		SC_log_error(func, "", self);
 		return SQL_ERROR;
 	}
@@ -1161,8 +1199,8 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		const ARDFields	*opts = SC_get_ARD(self);
 		const APDFields	*apdopts = SC_get_APD(self);
 
-		qlog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, nullcheck(self->errormsg));
-		mylog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, nullcheck(self->errormsg));
+		qlog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		mylog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
 		qlog("                 ------------------------------------------------------------\n");
 		qlog("                 hdbc=%u, stmt=%u, result=%u\n", self->hdbc, self, res);
 		qlog("                 manual_result=%d, prepare=%d, internal=%d\n", self->manual_result, self->prepare, self->internal);

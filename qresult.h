@@ -113,7 +113,6 @@ struct QResultClass_
 #define QR_command_nonfatal(self)			( self->status == PGRES_NONFATAL_ERROR)
 #define QR_end_tuples(self)					( self->status == PGRES_END_TUPLES)
 #define QR_set_status(self, condition)		( self->status = condition )
-#define QR_set_message(self, message_)		( self->message = message_)
 #define QR_set_aborted(self, aborted_)		( self->aborted = aborted_)
 #define QR_set_haskeyset(self)		(self->haskeyset = TRUE)
 
@@ -133,8 +132,9 @@ int			QR_next_tuple(QResultClass *self);
 int			QR_close(QResultClass *self);
 char		QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor);
 void		QR_free_memory(QResultClass *self);
-void		QR_set_command(QResultClass *self, char *msg);
-void		QR_set_notice(QResultClass *self, char *msg);
+void		QR_set_command(QResultClass *self, const char *msg);
+void		QR_set_message(QResultClass *self, const char *msg);
+void		QR_set_notice(QResultClass *self, const char *msg);
 
 void		QR_set_num_fields(QResultClass *self, int new_num_fields);	/* manual result only */
 

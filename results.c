@@ -62,8 +62,7 @@ PGAPI_RowCount(
 	{
 		if (stmt->status != STMT_FINISHED)
 		{
-			stmt->errornumber = STMT_SEQUENCE_ERROR;
-			stmt->errormsg = "Can't get row count while statement is still executing.";
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't get row count while statement is still executing.");
 			SC_log_error(func, "", stmt);
 			return	SQL_ERROR;
 		}
@@ -82,7 +81,7 @@ PGAPI_RowCount(
 		}
 	}
 
-	stmt->errornumber = STMT_SEQUENCE_ERROR;
+	SC_set_errornumber(stmt, STMT_SEQUENCE_ERROR);
 	SC_log_error(func, "Bad return value", stmt);
 	return SQL_ERROR;
 }
@@ -139,8 +138,7 @@ PGAPI_NumResultCols(
 		if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
 		{
 			/* no query has been executed on this statement */
-			stmt->errornumber = STMT_SEQUENCE_ERROR;
-			stmt->errormsg = "No query has been executed with that handle";
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No query has been executed with that handle");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -244,8 +242,7 @@ PGAPI_DescribeCol(
 		{
 			if (icol >= irdflds->nfields)
 			{
-				stmt->errornumber = STMT_INVALID_COLUMN_NUMBER_ERROR;
-				stmt->errormsg = "Invalid column number in DescribeCol.";
+				SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
@@ -280,16 +277,14 @@ PGAPI_DescribeCol(
 		if ((NULL == res) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
 		{
 			/* no query has been executed on this statement */
-			stmt->errornumber = STMT_SEQUENCE_ERROR;
-			stmt->errormsg = "No query has been assigned to this statement.";
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No query has been assigned to this statement.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
 
 		if (icol >= QR_NumResultCols(res))
 		{
-			stmt->errornumber = STMT_INVALID_COLUMN_NUMBER_ERROR;
-			stmt->errormsg = "Invalid column number in DescribeCol.";
+			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.");
 			sprintf(buf, "Col#=%d, #Cols=%d", icol, QR_NumResultCols(res));
 			SC_log_error(func, buf, stmt);
 			return SQL_ERROR;
@@ -324,8 +319,7 @@ PGAPI_DescribeCol(
 		if (len >= cbColNameMax)
 		{
 			result = SQL_SUCCESS_WITH_INFO;
-			stmt->errornumber = STMT_TRUNCATED;
-			stmt->errormsg = "The buffer was too small for the colName.";
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the colName.");
 		}
 	}
 
@@ -482,8 +476,7 @@ PGAPI_ColAttributes(
 		{
 			if (col_idx >= cols)
 			{
-				stmt->errornumber = STMT_INVALID_COLUMN_NUMBER_ERROR;
-				stmt->errormsg = "Invalid column number in ColAttributes.";
+				SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
@@ -506,8 +499,7 @@ PGAPI_ColAttributes(
 
 		if ((NULL == SC_get_Curres(stmt)) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
 		{
-			stmt->errormsg = "Can't get column attributes: no result found.";
-			stmt->errornumber = STMT_SEQUENCE_ERROR;
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't get column attributes: no result found.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -532,8 +524,7 @@ PGAPI_ColAttributes(
 
 		if (col_idx >= cols)
 		{
-			stmt->errornumber = STMT_INVALID_COLUMN_NUMBER_ERROR;
-			stmt->errormsg = "Invalid column number in ColAttributes.";
+			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -741,12 +732,10 @@ inolog("COLUMN_TYPE=%d\n", value);
 			break;
 #endif /* ODBCVER */
 		case 1212:
-			stmt->errornumber = STMT_OPTION_NOT_FOR_THE_DRIVER;
-			stmt->errormsg = "this request may be for MS SQL Server";
+			SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "this request may be for MS SQL Server");
 			return SQL_ERROR;
 		default:
-			stmt->errornumber = STMT_INVALID_OPTION_IDENTIFIER;
-			stmt->errormsg = "ColAttribute for this type not implemented yet";
+			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "ColAttribute for this type not implemented yet");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 	}
@@ -764,8 +753,7 @@ inolog("COLUMN_TYPE=%d\n", value);
 			if (len >= cbDescMax)
 			{
 				result = SQL_SUCCESS_WITH_INFO;
-				stmt->errornumber = STMT_TRUNCATED;
-				stmt->errormsg = "The buffer was too small for the rgbDesc.";
+				SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
 			}
 		}
 
@@ -816,16 +804,14 @@ PGAPI_GetData(
 
 	if (STMT_EXECUTING == stmt->status)
 	{
-		stmt->errormsg = "Can't get data while statement is still executing.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't get data while statement is still executing.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (stmt->status != STMT_FINISHED)
 	{
-		stmt->errornumber = STMT_STATUS_ERROR;
-		stmt->errormsg = "GetData can only be called after the successful execution on a SQL statement";
+		SC_set_error(stmt, STMT_STATUS_ERROR, "GetData can only be called after the successful execution on a SQL statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -834,8 +820,7 @@ PGAPI_GetData(
 	{
 		if (stmt->options.use_bookmarks == SQL_UB_OFF)
 		{
-			stmt->errornumber = STMT_COLNUM_ERROR;
-			stmt->errormsg = "Attempt to retrieve bookmark with bookmark usage disabled";
+			SC_set_error(stmt, STMT_COLNUM_ERROR, "Attempt to retrieve bookmark with bookmark usage disabled");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -849,9 +834,8 @@ PGAPI_GetData(
 #endif /* ODBCVER */
 				break;
 			default:
-				stmt->errormsg = "Column 0 is not of type SQL_C_BOOKMARK";
-				inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
-				stmt->errornumber = STMT_PROGRAM_TYPE_OUT_OF_RANGE;
+inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
+				SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Column 0 is not of type SQL_C_BOOKMARK");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 		}
@@ -867,8 +851,7 @@ PGAPI_GetData(
 		num_cols = QR_NumResultCols(res);
 		if (icol >= num_cols)
 		{
-			stmt->errormsg = "Invalid column number.";
-			stmt->errornumber = STMT_INVALID_COLUMN_NUMBER_ERROR;
+			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -881,8 +864,7 @@ PGAPI_GetData(
 		if ((stmt->currTuple < 0) ||
 			(stmt->currTuple >= num_rows))
 		{
-			stmt->errormsg = "Not positioned on a valid row for GetData.";
-			stmt->errornumber = STMT_INVALID_CURSOR_STATE_ERROR;
+			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row for GetData.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -907,8 +889,7 @@ PGAPI_GetData(
 		/* it's a SOCKET result (backend data) */
 		if (stmt->currTuple == -1 || !res || !res->tupleField)
 		{
-			stmt->errormsg = "Not positioned on a valid row for GetData.";
-			stmt->errornumber = STMT_INVALID_CURSOR_STATE_ERROR;
+			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row for GetData.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -946,20 +927,17 @@ PGAPI_GetData(
 			return SQL_SUCCESS;
 
 		case COPY_UNSUPPORTED_TYPE:
-			stmt->errormsg = "Received an unsupported type from Postgres.";
-			stmt->errornumber = STMT_RESTRICTED_DATA_TYPE_ERROR;
+			SC_set_error(stmt, STMT_RESTRICTED_DATA_TYPE_ERROR, "Received an unsupported type from Postgres.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 
 		case COPY_UNSUPPORTED_CONVERSION:
-			stmt->errormsg = "Couldn't handle the necessary data type conversion.";
-			stmt->errornumber = STMT_RESTRICTED_DATA_TYPE_ERROR;
+			SC_set_error(stmt, STMT_RESTRICTED_DATA_TYPE_ERROR, "Couldn't handle the necessary data type conversion.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 
 		case COPY_RESULT_TRUNCATED:
-			stmt->errornumber = STMT_TRUNCATED;
-			stmt->errormsg = "The buffer was too small for the GetData.";
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the GetData.");
 			return SQL_SUCCESS_WITH_INFO;
 
 		case COPY_GENERAL_ERROR:		/* error msg already filled in */
@@ -971,8 +949,7 @@ PGAPI_GetData(
 			return SQL_NO_DATA_FOUND;
 
 		default:
-			stmt->errormsg = "Unrecognized return value from copy_and_convert_field.";
-			stmt->errornumber = STMT_INTERNAL_ERROR;
+			SC_set_error(stmt, STMT_INTERNAL_ERROR, "Unrecognized return value from copy_and_convert_field.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 	}
@@ -1004,8 +981,7 @@ PGAPI_Fetch(
 
 	if (!(res = SC_get_Curres(stmt)))
 	{
-		stmt->errormsg = "Null statement result in PGAPI_Fetch.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Null statement result in PGAPI_Fetch.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1014,24 +990,21 @@ PGAPI_Fetch(
 	opts = SC_get_ARD(stmt);
 	if (opts->bookmark->buffer)
 	{
-		stmt->errornumber = STMT_COLNUM_ERROR;
-		stmt->errormsg = "Not allowed to bind a bookmark column when using PGAPI_Fetch";
+		SC_set_error(stmt, STMT_COLNUM_ERROR, "Not allowed to bind a bookmark column when using PGAPI_Fetch");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (stmt->status == STMT_EXECUTING)
 	{
-		stmt->errormsg = "Can't fetch while statement is still executing.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't fetch while statement is still executing.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (stmt->status != STMT_FINISHED)
 	{
-		stmt->errornumber = STMT_STATUS_ERROR;
-		stmt->errormsg = "Fetch can only be called after the successful execution on a SQL statement";
+		SC_set_error(stmt, STMT_STATUS_ERROR, "Fetch can only be called after the successful execution on a SQL statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1040,8 +1013,7 @@ PGAPI_Fetch(
 	{
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
-		stmt->errormsg = "Bindings were not allocated properly.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bindings were not allocated properly.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1176,8 +1148,7 @@ PGAPI_ExtendedFetch(
 	{
 		if (fFetchType != SQL_FETCH_NEXT)
 		{
-			stmt->errornumber = STMT_FETCH_OUT_OF_RANGE;
-			stmt->errormsg = "The fetch type for PGAPI_ExtendedFetch isn't allowed with ForwardOnly cursor.";
+			SC_set_error(stmt, STMT_FETCH_OUT_OF_RANGE, "The fetch type for PGAPI_ExtendedFetch isn't allowed with ForwardOnly cursor.");
 			return SQL_ERROR;
 		}
 	}
@@ -1186,8 +1157,7 @@ PGAPI_ExtendedFetch(
 
 	if (!(res = SC_get_Curres(stmt)))
 	{
-		stmt->errormsg = "Null statement result in PGAPI_ExtendedFetch.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Null statement result in PGAPI_ExtendedFetch.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1199,24 +1169,21 @@ PGAPI_ExtendedFetch(
 	 */
 	if (opts->bookmark->buffer && stmt->options.use_bookmarks == SQL_UB_OFF)
 	{
-		stmt->errornumber = STMT_COLNUM_ERROR;
-		stmt->errormsg = "Attempt to retrieve bookmark with bookmark usage disabled";
+		SC_set_error(stmt, STMT_COLNUM_ERROR, "Attempt to retrieve bookmark with bookmark usage disabled");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (stmt->status == STMT_EXECUTING)
 	{
-		stmt->errormsg = "Can't fetch while statement is still executing.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't fetch while statement is still executing.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (stmt->status != STMT_FINISHED)
 	{
-		stmt->errornumber = STMT_STATUS_ERROR;
-		stmt->errormsg = "ExtendedFetch can only be called after the successful execution on a SQL statement";
+		SC_set_error(stmt, STMT_STATUS_ERROR, "ExtendedFetch can only be called after the successful execution on a SQL statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1225,8 +1192,7 @@ PGAPI_ExtendedFetch(
 	{
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
-		stmt->errormsg = "Bindings were not allocated properly.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bindings were not allocated properly.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1299,8 +1265,7 @@ PGAPI_ExtendedFetch(
 			{
 				if (opts->rowset_size > num_tuples)
 				{
-					stmt->errornumber = STMT_POS_BEFORE_RECORDSET;
-					stmt->errormsg = "fetch prior from eof and before the beggining";
+					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beggining");
 				}
 				stmt->rowset_start = num_tuples <= 0 ? 0 : (num_tuples - opts->rowset_size);
 
@@ -1310,8 +1275,7 @@ PGAPI_ExtendedFetch(
 #ifdef	DRIVER_CURSOR_IMPLEMENT
 				if (i = getNthValid(res, stmt->rowset_start - 1, SQL_FETCH_PRIOR, opts->rowset_size, &stmt->rowset_start), i < -1)
 				{
-					stmt->errormsg = "fetch prior and before the beggining";
-					stmt->errornumber = STMT_POS_BEFORE_RECORDSET;
+					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining");
 					stmt->rowset_start = 0;
 				}
 				else if (i <= 0)
@@ -1321,8 +1285,7 @@ PGAPI_ExtendedFetch(
 #else
 				if (stmt->rowset_start < opts->rowset_size)
 				{
-					stmt->errormsg = "fetch prior and before the beggining";
-					stmt->errornumber = STMT_POS_BEFORE_RECORDSET;
+					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining");
 					stmt->rowset_start = 0;
 				}
 				else
@@ -1557,7 +1520,7 @@ PGAPI_ExtendedFetch(
 		return SQL_ERROR;
 	else if (truncated)
 		return SQL_SUCCESS_WITH_INFO;
-	else if (stmt->errornumber == STMT_POS_BEFORE_RECORDSET)
+	else if (SC_get_errornumber(stmt) == STMT_POS_BEFORE_RECORDSET)
 		return SQL_SUCCESS_WITH_INFO;
 	else
 		return SQL_SUCCESS;
@@ -1919,8 +1882,7 @@ SC_pos_reload(StatementClass *stmt, UDWORD global_ridx, UWORD *count, BOOL logCh
 		}
 		else
 		{
-			stmt->errornumber = STMT_ROW_VERSION_CHANGED;
-			stmt->errormsg = "the content was deleted after last fetch";
+			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was deleted after last fetch");
 			ret = SQL_SUCCESS_WITH_INFO;
 			if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 			{
@@ -1929,8 +1891,8 @@ SC_pos_reload(StatementClass *stmt, UDWORD global_ridx, UWORD *count, BOOL logCh
 		}
 		QR_Destructor(qres);
 	}
-	else if (stmt->errornumber == 0)
-		stmt->errornumber = STMT_ERROR_TAKEN_FROM_BACKEND;
+	else if (SC_get_errornumber(stmt) == 0)
+		SC_set_errornumber(stmt, STMT_ERROR_TAKEN_FROM_BACKEND);
 	if (count)
 		*count = rcnt;
 	return ret;
@@ -2147,8 +2109,7 @@ SC_pos_newload(StatementClass *stmt, UInt4 oid, BOOL tidRef)
 						res->num_fields * sizeof(TupleField) * tuple_size);
 					if (!res->backend_tuples)
 					{
-						stmt->errornumber = res->status = PGRES_FATAL_ERROR;
-						stmt->errormsg = "Out of memory while reading tuples.";
+						SC_set_error(stmt, res->status = PGRES_FATAL_ERROR, "Out of memory while reading tuples.");
 						QR_Destructor(qres);
 						return SQL_ERROR;
 					}
@@ -2176,8 +2137,7 @@ SC_pos_newload(StatementClass *stmt, UInt4 oid, BOOL tidRef)
 			ret = SQL_NO_DATA_FOUND;
 		else
 		{
-			stmt->errornumber = STMT_ROW_VERSION_CHANGED;
-			stmt->errormsg = "the driver cound't identify inserted rows";
+			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the driver cound't identify inserted rows");
 			ret = SQL_ERROR;
 		}
 		QR_Destructor(qres);
@@ -2201,8 +2161,7 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow
 				ret = SC_pos_reload(stmt, global_ridx, (UWORD *) 0, TRUE);
 			else if (updcnt == 0)
 			{
-				stmt->errornumber = STMT_ROW_VERSION_CHANGED;
-				stmt->errormsg = "the content was changed before updation";
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before updation");
 				ret = SQL_ERROR;
 				if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 					SC_pos_reload(stmt, global_ridx, (UWORD *) 0, FALSE);
@@ -2212,10 +2171,9 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow
 		}
 		else
 			ret = SQL_ERROR;
-		if (ret == SQL_ERROR && stmt->errornumber == 0)
+		if (ret == SQL_ERROR && SC_get_errornumber(stmt) == 0)
 		{
-			stmt->errornumber = STMT_ERROR_TAKEN_FROM_BACKEND;
-			stmt->errormsg = "SetPos update return error";
+			SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "SetPos update return error");
 		}
 	}
 	return ret;
@@ -2251,7 +2209,7 @@ SC_pos_update(StatementClass *stmt,
 	}
 	if (!(oid = getOid(res, global_ridx)))
 	{
-		stmt->errormsg = "The row is already deleted";
+		SC_set_errormsg(stmt, "The row is already deleted");
 		return SQL_ERROR;
 	}
 	getTid(res, global_ridx, &blocknum, &pgoffset);
@@ -2333,14 +2291,12 @@ SC_pos_update(StatementClass *stmt,
 		ret = PGAPI_ExecDirect(hstmt, updstr, strlen(updstr));
 		if (ret == SQL_ERROR)
 		{
-			stmt->errornumber = qstmt->errornumber;
-			stmt->errormsg = qstmt->errormsg;
+			SC_error_copy(stmt, qstmt);
 		}
 		else if (ret == SQL_NEED_DATA)	/* must be fixed */
 		{
 			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-			stmt->errornumber = STMT_INVALID_CURSOR_STATE_ERROR;
-			stmt->errormsg = "SetPos with data_at_exec not yet supported";
+			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "SetPos with data_at_exec not yet supported");
 			ret = SQL_ERROR;
 		}
 		ret = irow_update(ret, stmt, qstmt, irow, global_ridx);
@@ -2349,7 +2305,7 @@ SC_pos_update(StatementClass *stmt,
 	else
 	{
 		ret = SQL_SUCCESS_WITH_INFO;
-		stmt->errormsg = "update list null";
+		SC_set_errormsg(stmt, "update list null");
 	}
 	if (SQL_SUCCESS == ret && res->keyset)
 	{
@@ -2402,7 +2358,7 @@ SC_pos_delete(StatementClass *stmt,
 	}
 	if (!(oid = getOid(res, global_ridx)))
 	{
-		stmt->errormsg = "The row is already deleted";
+		SC_set_errormsg(stmt, "The row is already deleted");
 		return SQL_ERROR;
 	}
 	getTid(res, global_ridx, &blocknum, &offset);
@@ -2433,8 +2389,7 @@ SC_pos_delete(StatementClass *stmt,
 				SC_pos_reload(stmt, global_ridx, (UWORD *) 0, TRUE);
 			else if (dltcnt == 0)
 			{
-				stmt->errornumber = STMT_ROW_VERSION_CHANGED;
-				stmt->errormsg = "the content was changed before deletion";
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before deletion");
 				ret = SQL_ERROR;
 				if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 					SC_pos_reload(stmt, global_ridx, (UWORD *) 0, FALSE);
@@ -2447,10 +2402,9 @@ SC_pos_delete(StatementClass *stmt,
 	}
 	else
 		ret = SQL_ERROR;
-	if (ret == SQL_ERROR && stmt->errornumber == 0)
+	if (ret == SQL_ERROR && SC_get_errornumber(stmt) == 0)
 	{
-		stmt->errornumber = STMT_ERROR_TAKEN_FROM_BACKEND;
-		stmt->errormsg = "SetPos delete return error";
+		SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "SetPos delete return error");
 	}
 	if (qres)
 		QR_Destructor(qres);
@@ -2526,8 +2480,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 		}
 		else
 		{
-			stmt->errornumber = STMT_ERROR_TAKEN_FROM_BACKEND;
-			stmt->errormsg = "SetPos insert return error";
+			SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "SetPos insert return error");
 		}
 	}
 	return ret;
@@ -2630,14 +2583,12 @@ SC_pos_add(StatementClass *stmt,
 		ret = PGAPI_ExecDirect(hstmt, addstr, strlen(addstr));
 		if (ret == SQL_ERROR)
 		{
-			stmt->errornumber = qstmt->errornumber;
-			stmt->errormsg = qstmt->errormsg;
+			SC_error_copy(stmt, qstmt);
 		}
 		else if (ret == SQL_NEED_DATA)		/* must be fixed */
 		{
 			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-			stmt->errornumber = STMT_INVALID_CURSOR_STATE_ERROR;
-			stmt->errormsg = "SetPos with data_at_exec not yet supported";
+			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "SetPos with data_at_exec not yet supported");
 			ret = SQL_ERROR;
 		}
 		brow_save = stmt->bind_row; 
@@ -2648,7 +2599,7 @@ SC_pos_add(StatementClass *stmt,
 	else
 	{
 		ret = SQL_SUCCESS_WITH_INFO;
-		stmt->errormsg = "insert list null";
+		SC_set_errormsg(stmt, "insert list null");
 	}
 	PGAPI_FreeStmt(hstmt, SQL_DROP);
 	if (SQL_SUCCESS == ret && res->keyset)
@@ -2768,16 +2719,14 @@ PGAPI_SetPos(
 #endif   /* DRIVER_CURSOR_IMPLEMENT */
 	if (fOption != SQL_POSITION && fOption != SQL_REFRESH)
 	{
-		stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-		stmt->errormsg = "Only SQL_POSITION/REFRESH is supported for PGAPI_SetPos";
+		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Only SQL_POSITION/REFRESH is supported for PGAPI_SetPos");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (!(res = SC_get_Curres(stmt)))
 	{
-		stmt->errormsg = "Null statement result in PGAPI_SetPos.";
-		stmt->errornumber = STMT_SEQUENCE_ERROR;
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Null statement result in PGAPI_SetPos.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2786,8 +2735,7 @@ PGAPI_SetPos(
 	{
 		if (SQL_POSITION == fOption)
 		{
-			stmt->errornumber = STMT_INVALID_CURSOR_POSITION;
-			stmt->errormsg = "Bulk Position operations not allowed.";
+			SC_set_error(stmt, STMT_INVALID_CURSOR_POSITION, "Bulk Position operations not allowed.");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -2798,8 +2746,7 @@ PGAPI_SetPos(
 	{
 		if (irow > stmt->last_fetch_count)
 		{
-			stmt->errornumber = STMT_ROW_OUT_OF_RANGE;
-			stmt->errormsg = "Row value out of range";
+			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -2906,8 +2853,7 @@ PGAPI_SetScrollOptions( HSTMT hstmt,
 
 	mylog("PGAPI_SetScrollOptions fConcurrency=%d crowKeyset=%d crowRowset=%d\n",
 		  fConcurrency, crowKeyset, crowRowset);
-	stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-	stmt->errormsg = "SetScroll option not implemeted";
+	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "SetScroll option not implemeted");
 
 	SC_log_error(func, "Function not implemented", hstmt);
 	return SQL_ERROR;
@@ -2937,8 +2883,7 @@ PGAPI_SetCursorName(
 
 	if (len <= 0 || len > sizeof(stmt->cursor_name) - 1)
 	{
-		stmt->errornumber = STMT_INVALID_CURSOR_NAME;
-		stmt->errormsg = "Invalid Cursor Name";
+		SC_set_error(stmt, STMT_INVALID_CURSOR_NAME, "Invalid Cursor Name");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2971,8 +2916,7 @@ PGAPI_GetCursorName(
 
 	if (stmt->cursor_name[0] == '\0')
 	{
-		stmt->errornumber = STMT_NO_CURSOR_NAME;
-		stmt->errormsg = "No Cursor name available";
+		SC_set_error(stmt, STMT_NO_CURSOR_NAME, "No Cursor name available");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -2987,8 +2931,7 @@ PGAPI_GetCursorName(
 		if (len >= cbCursorMax)
 		{
 			result = SQL_SUCCESS_WITH_INFO;
-			stmt->errornumber = STMT_TRUNCATED;
-			stmt->errormsg = "The buffer was too small for the GetCursorName.";
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the GetCursorName.");
 		}
 	}
 

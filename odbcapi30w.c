@@ -30,9 +30,11 @@ RETCODE	SQL_API	SQLGetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 
 	mylog("[SQLGetStmtAttrW]");
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
 	ret = PGAPI_GetStmtAttr(hstmt, fAttribute, rgbValue,
 		cbValueMax, pcbValue);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	return ret;
 }
 
@@ -44,9 +46,11 @@ RETCODE SQL_API	SQLSetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 
 	mylog("[SQLSetStmtAttrW]");
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
 	ret = PGAPI_SetStmtAttr(hstmt, fAttribute, rgbValue,
 		cbValueMax);
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 	return ret;
 }
 
@@ -59,9 +63,11 @@ RETCODE SQL_API	SQLGetConnectAttrW(HDBC hdbc,
 	RETCODE	ret;
 
 	mylog("[SQLGetConnectAttrW]");
+	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	CC_clear_error((ConnectionClass *) hdbc);
 	ret = PGAPI_GetConnectAttr(hdbc, fAttribute, rgbValue,
 		cbValueMax, pcbValue);
+	LEAVE_CONN_CS((ConnectionClass *) hdbc);
 	return ret;
 }
 
@@ -73,9 +79,11 @@ RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
 	RETCODE	ret;
 
 	mylog("[SQLSetConnectAttrW]");
+	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	CC_clear_error((ConnectionClass *) hdbc);
 	ret = PGAPI_SetConnectAttr(hdbc, fAttribute, rgbValue,
 		cbValue);
+	LEAVE_CONN_CS((ConnectionClass *) hdbc);
 	return ret;
 }
 
@@ -233,6 +241,7 @@ RETCODE SQL_API SQLColAttributeW(
         char    *rgbD = NULL;
 
 	mylog("[SQLColAttributeW]");
+	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
 	switch (fDescType)
 	{ 
@@ -270,13 +279,13 @@ RETCODE SQL_API SQLColAttributeW(
 			StatementClass	*stmt = (StatementClass *) hstmt;
 
 			ret = SQL_SUCCESS_WITH_INFO;
-			stmt->errornumber = STMT_TRUNCATED;
-			stmt->errormsg = "The buffer was too small for the rgbDesc.";
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
 		}
 		if (pcbDesc)
 			*pcbDesc = blen * 2;
 		free(rgbD);
 	}
+	LEAVE_STMT_CS((StatementClass *) hstmt);
 
 	return ret;
 }
