@@ -317,7 +317,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 			stmt->execute_statement = NULL;
 		}
 	}
-#if (ODBCVER >= 0x0300)
+
 	ipdopts = SC_get_IPDF(stmt);
 	if (ipdopts->param_status_ptr)
 	{
@@ -334,7 +334,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 				break;
 		}
 	}
-#endif /* ODBCVER */
+
 	if (end_row = stmt->exec_end_row, end_row < 0)
 	{
 		apdopts = SC_get_APDF(stmt);
@@ -350,7 +350,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 		stmt->exec_current_row++;
 	if (res)
 	{
-#if (ODBCVER >= 0x0300)
+
         	EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
 		const char *cmd = QR_get_command(res);
 
@@ -367,7 +367,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 			if (0 == count)
 				retval = SQL_NO_DATA;
 		}
-#endif /* ODBCVER */
+
 		stmt->diag_row_count = res->recent_processed_row_count;
 	}
 	/*
@@ -503,7 +503,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	{
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
-#if (ODBCVER >= 0x0300)
+
 		/*
 	 	 *	Initialize the param_status_ptr 
 	 	 */
@@ -512,13 +512,13 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			for (i = 0; i <= end_row; i++)
 				ipdopts->param_status_ptr[i] = SQL_PARAM_UNUSED;
 		}
-#endif /* ODBCVER */
+
 		if (recycle && !recycled)
 			SC_recycle_statement(stmt);
 	}
 
 next_param_row:
-#if (ODBCVER >= 0x0300)
+
 	if (apdopts->param_operation_ptr)
 	{
 		while (apdopts->param_operation_ptr[stmt->exec_current_row] == SQL_PARAM_IGNORE)
@@ -536,7 +536,7 @@ next_param_row:
 	 */
 	if (ipdopts->param_status_ptr)
 		ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
-#endif /* ODBCVER */
+
 	/*
 	 * Check if statement has any data-at-execute parameters when it is
 	 * not in SC_pre_execute.

@@ -386,10 +386,8 @@ struct ConnectionClass_
 	char		*current_schema;
 	int		num_discardp;
 	char		**discardp;
-#if (ODBCVER >= 0x0300)
 	int		num_descs;
 	DescriptorClass	**descs;
-#endif /* ODBCVER */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
@@ -423,12 +421,9 @@ char		CC_abort(ConnectionClass *self);
 int			CC_set_translation(ConnectionClass *self);
 char		CC_connect(ConnectionClass *self, char password_req, char *salt);
 char		CC_add_statement(ConnectionClass *self, StatementClass *stmt);
-char		CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
-;
-#if (ODBCVER >= 0x0300)
+char		CC_remove_statement(ConnectionClass *self, StatementClass *stmt);
 char		CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc);
 char		CC_remove_descriptor(ConnectionClass *self, DescriptorClass *desc);
-#endif /* ODBCVER */
 void		CC_set_error(ConnectionClass *self, int number, const char *message);
 void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);

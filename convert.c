@@ -980,9 +980,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 		switch (fCType)
 		{
 			case SQL_C_DATE:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_TYPE_DATE:		/* 91 */
-#endif
+
 				len = 6;
 				{
 					DATE_STRUCT *ds;
@@ -998,9 +997,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_TIME:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_TYPE_TIME:		/* 92 */
-#endif
+
 				len = 6;
 				{
 					TIME_STRUCT *ts;
@@ -1016,9 +1014,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_TYPE_TIMESTAMP:	/* 93 */
-#endif
+
 				len = 16;
 				{
 					TIMESTAMP_STRUCT *ts;
@@ -1108,7 +1105,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 			}
 
-#if (ODBCVER >= 0x0300)
 			case SQL_C_NUMERIC:
 			{
 				SQL_NUMERIC_STRUCT      *ns;
@@ -1185,7 +1181,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 				break;
 			}
-#endif /* ODBCVER */
 
 			case SQL_C_SSHORT:
 			case SQL_C_SHORT:
@@ -1221,7 +1216,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					*((UDWORD *) rgbValue + bind_row) = ATOI32U(neut_str);
 				break;
 
-#if (ODBCVER >= 0x0300) && defined(ODBCINT64)
+#ifdef ODBCINT64
 			case SQL_C_SBIGINT:
 			case SQL_BIGINT: /* Is this needed ? */
 				len = 8;
@@ -2326,7 +2321,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	return SQL_SUCCESS;
 }
 
-#if (ODBCVER >= 0x0300)
 static BOOL
 ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 {
@@ -2449,7 +2443,6 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 	chrform[newlen] = '\0';
 	return TRUE;
 }
-#endif /* ODBCVER */
 
 /*
  *
@@ -2666,7 +2659,7 @@ ResolveOneParam(QueryBuild *qb)
 					*((SDWORD *) buffer));
 			break;
 
-#if (ODBCVER >= 0x0300) && defined(ODBCINT64)
+#ifdef ODBCINT64
 		case SQL_C_SBIGINT:
 			sprintf(param_string, FORMATI64,
 					*((SQLBIGINT *) buffer));
@@ -2714,9 +2707,7 @@ ResolveOneParam(QueryBuild *qb)
 			}
 
 		case SQL_C_DATE:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_DATE:		/* 91 */
-#endif
 			{
 				DATE_STRUCT *ds = (DATE_STRUCT *) buffer;
 
@@ -2728,9 +2719,7 @@ ResolveOneParam(QueryBuild *qb)
 			}
 
 		case SQL_C_TIME:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_TIME:		/* 92 */
-#endif
 			{
 				TIME_STRUCT *ts = (TIME_STRUCT *) buffer;
 
@@ -2742,9 +2731,7 @@ ResolveOneParam(QueryBuild *qb)
 			}
 
 		case SQL_C_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_TIMESTAMP:	/* 93 */
-#endif
 			{
 				TIMESTAMP_STRUCT *tss = (TIMESTAMP_STRUCT *) buffer;
 
@@ -2761,11 +2748,9 @@ ResolveOneParam(QueryBuild *qb)
 				break;
 
 			}
-#if (ODBCVER >= 0x0300)
 		case SQL_C_NUMERIC:
 			if (ResolveNumericParam((SQL_NUMERIC_STRUCT *) buffer, param_string))
 				break;
-#endif
 		default:
 			/* error */
 			qb->errormsg = "Unrecognized C_parameter type in copy_statement_with_parameters";
@@ -2812,9 +2797,7 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 		case SQL_DATE:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:	/* 91 */
-#endif
 			if (buf)
 			{				/* copy char data to time */
 				my_strcpy(cbuf, sizeof(cbuf), buf, used);
@@ -2827,9 +2810,7 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 		case SQL_TIME:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_TIME:	/* 92 */
-#endif
 			if (buf)
 			{				/* copy char data to time */
 				my_strcpy(cbuf, sizeof(cbuf), buf, used);
@@ -2842,9 +2823,7 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 		case SQL_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_TIMESTAMP:	/* 93 */
-#endif
 
 			if (buf)
 			{

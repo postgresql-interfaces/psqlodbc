@@ -105,7 +105,6 @@ PGAPI_GetInfo(
 			value = SQL_AT_ADD_COLUMN;
 			if (PG_VERSION_GE(conn, 7.3))
 				value |= SQL_AT_DROP_COLUMN;
-#if (ODBCVER >= 0x0300)
 			value |= SQL_AT_ADD_COLUMN_SINGLE;
 			if (PG_VERSION_GE(conn, 7.1))
 				value |= SQL_AT_ADD_CONSTRAINT
@@ -118,7 +117,6 @@ PGAPI_GetInfo(
 					| SQL_AT_DROP_TABLE_CONSTRAINT_CASCADE
 					| SQL_AT_DROP_COLUMN_RESTRICT
 					| SQL_AT_DROP_COLUMN_CASCADE;
-#endif /* ODBCVER */
 			break;
 
 		case SQL_BOOKMARK_PERSISTENCE:	/* ODBC 2.0 */
@@ -820,11 +818,7 @@ PGAPI_GetTypeInfo(
 	}
 	SC_set_Result(stmt, res);
 
-#if (ODBCVER >= 0x0300)
 	result_cols = 19;
-#else
-	result_cols = 15;
-#endif /* ODBCVER */
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	QR_set_num_fields(res, result_cols);
@@ -843,12 +837,10 @@ PGAPI_GetTypeInfo(
 	QR_set_field_info(res, 12, "LOCAL_TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 13, "MINIMUM_SCALE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 14, "MAXIMUM_SCALE", PG_TYPE_INT2, 2);
-#if (ODBCVER >=0x0300)
 	QR_set_field_info(res, 15, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 16, "SQL_DATATIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 17, "NUM_PREC_RADIX", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 18, "INTERVAL_PRECISION", PG_TYPE_INT2, 2);
-#endif /* ODBCVER */
 
 	for (i = 0, sqlType = sqlTypes[0]; sqlType; sqlType = sqlTypes[++i])
 	{
@@ -906,12 +898,10 @@ inolog("serial in\n");
 			}
 			set_nullfield_int2(&row->tuple[13], pgtype_min_decimal_digits(stmt, pgType));
 			set_nullfield_int2(&row->tuple[14], pgtype_max_decimal_digits(stmt, pgType));
-#if (ODBCVER >=0x0300)
 			set_nullfield_int2(&row->tuple[15], pgtype_to_sqldesctype(stmt, pgType, PG_STATIC));
 			set_nullfield_int2(&row->tuple[16], pgtype_to_datetime_sub(stmt, pgType));
 			set_nullfield_int4(&row->tuple[17], pgtype_radix(stmt, pgType));
 			set_nullfield_int4(&row->tuple[18], 0);
-#endif /* ODBCVER */
 
 			QR_add_tuple(res, row);
 
@@ -942,99 +932,76 @@ PGAPI_GetFunctions(
 
 	if (fFunction == SQL_API_ALL_FUNCTIONS)
 	{
-#if (ODBCVER < 0x0300)
-		if (ci->drivers.lie)
-		{
-			int			i;
+		memset(pfExists, 0, sizeof(UWORD) * 100);
 
-			memset(pfExists, 0, sizeof(UWORD) * 100);
+		/* ODBC core functions */
+		pfExists[SQL_API_SQLALLOCCONNECT] = TRUE;
+		pfExists[SQL_API_SQLALLOCENV] = TRUE;
+		pfExists[SQL_API_SQLALLOCSTMT] = TRUE;
+		pfExists[SQL_API_SQLBINDCOL] = TRUE;
+		pfExists[SQL_API_SQLCANCEL] = TRUE;
+		pfExists[SQL_API_SQLCOLATTRIBUTES] = TRUE;
+		pfExists[SQL_API_SQLCONNECT] = TRUE;
+		pfExists[SQL_API_SQLDESCRIBECOL] = TRUE;		/* partial */
+		pfExists[SQL_API_SQLDISCONNECT] = TRUE;
+		pfExists[SQL_API_SQLERROR] = TRUE;
+		pfExists[SQL_API_SQLEXECDIRECT] = TRUE;
+		pfExists[SQL_API_SQLEXECUTE] = TRUE;
+		pfExists[SQL_API_SQLFETCH] = TRUE;
+		pfExists[SQL_API_SQLFREECONNECT] = TRUE;
+		pfExists[SQL_API_SQLFREEENV] = TRUE;
+		pfExists[SQL_API_SQLFREESTMT] = TRUE;
+		pfExists[SQL_API_SQLGETCURSORNAME] = TRUE;
+		pfExists[SQL_API_SQLNUMRESULTCOLS] = TRUE;
+		pfExists[SQL_API_SQLPREPARE] = TRUE;			/* complete? */
+		pfExists[SQL_API_SQLROWCOUNT] = TRUE;
+		pfExists[SQL_API_SQLSETCURSORNAME] = TRUE;
+		pfExists[SQL_API_SQLSETPARAM] = FALSE;			/* odbc 1.0 */
+		pfExists[SQL_API_SQLTRANSACT] = TRUE;
 
-			pfExists[SQL_API_SQLALLOCENV] = TRUE;
-			pfExists[SQL_API_SQLFREEENV] = TRUE;
-			for (i = SQL_API_SQLALLOCCONNECT; i <= SQL_NUM_FUNCTIONS; i++)
-				pfExists[i] = TRUE;
-			for (i = SQL_EXT_API_START; i <= SQL_EXT_API_LAST; i++)
-				pfExists[i] = TRUE;
-		}
+		/* ODBC level 1 functions */
+		pfExists[SQL_API_SQLBINDPARAMETER] = TRUE;
+		pfExists[SQL_API_SQLCOLUMNS] = TRUE;
+		pfExists[SQL_API_SQLDRIVERCONNECT] = TRUE;
+		pfExists[SQL_API_SQLGETCONNECTOPTION] = TRUE;		/* partial */
+		pfExists[SQL_API_SQLGETDATA] = TRUE;
+		pfExists[SQL_API_SQLGETFUNCTIONS] = TRUE;
+		pfExists[SQL_API_SQLGETINFO] = TRUE;
+		pfExists[SQL_API_SQLGETSTMTOPTION] = TRUE;		/* partial */
+		pfExists[SQL_API_SQLGETTYPEINFO] = TRUE;
+		pfExists[SQL_API_SQLPARAMDATA] = TRUE;
+		pfExists[SQL_API_SQLPUTDATA] = TRUE;
+		pfExists[SQL_API_SQLSETCONNECTOPTION] = TRUE;		/* partial */
+		pfExists[SQL_API_SQLSETSTMTOPTION] = TRUE;
+		pfExists[SQL_API_SQLSPECIALCOLUMNS] = TRUE;
+		pfExists[SQL_API_SQLSTATISTICS] = TRUE;
+		pfExists[SQL_API_SQLTABLES] = TRUE;
+
+		/* ODBC level 2 functions */
+		pfExists[SQL_API_SQLBROWSECONNECT] = FALSE;
+		pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
+		pfExists[SQL_API_SQLDATASOURCES] = FALSE;		/* only implemented by DM */
+		pfExists[SQL_API_SQLDESCRIBEPARAM] = FALSE;		/* not properly implemented */
+		pfExists[SQL_API_SQLDRIVERS] = FALSE;			/* only implemented by DM */
+		pfExists[SQL_API_SQLEXTENDEDFETCH] = TRUE;
+		pfExists[SQL_API_SQLFOREIGNKEYS] = TRUE;
+		pfExists[SQL_API_SQLMORERESULTS] = TRUE;
+		pfExists[SQL_API_SQLNATIVESQL] = TRUE;
+		pfExists[SQL_API_SQLNUMPARAMS] = TRUE;
+		pfExists[SQL_API_SQLPARAMOPTIONS] = TRUE;
+		pfExists[SQL_API_SQLPRIMARYKEYS] = TRUE;
+		if (PG_VERSION_LT(conn, 6.5))
+			pfExists[SQL_API_SQLPROCEDURECOLUMNS] = FALSE;
 		else
-#endif
-		{
-			memset(pfExists, 0, sizeof(UWORD) * 100);
-
-			/* ODBC core functions */
-			pfExists[SQL_API_SQLALLOCCONNECT] = TRUE;
-			pfExists[SQL_API_SQLALLOCENV] = TRUE;
-			pfExists[SQL_API_SQLALLOCSTMT] = TRUE;
-			pfExists[SQL_API_SQLBINDCOL] = TRUE;
-			pfExists[SQL_API_SQLCANCEL] = TRUE;
-			pfExists[SQL_API_SQLCOLATTRIBUTES] = TRUE;
-			pfExists[SQL_API_SQLCONNECT] = TRUE;
-			pfExists[SQL_API_SQLDESCRIBECOL] = TRUE;	/* partial */
-			pfExists[SQL_API_SQLDISCONNECT] = TRUE;
-			pfExists[SQL_API_SQLERROR] = TRUE;
-			pfExists[SQL_API_SQLEXECDIRECT] = TRUE;
-			pfExists[SQL_API_SQLEXECUTE] = TRUE;
-			pfExists[SQL_API_SQLFETCH] = TRUE;
-			pfExists[SQL_API_SQLFREECONNECT] = TRUE;
-			pfExists[SQL_API_SQLFREEENV] = TRUE;
-			pfExists[SQL_API_SQLFREESTMT] = TRUE;
-			pfExists[SQL_API_SQLGETCURSORNAME] = TRUE;
-			pfExists[SQL_API_SQLNUMRESULTCOLS] = TRUE;
-			pfExists[SQL_API_SQLPREPARE] = TRUE;		/* complete? */
-			pfExists[SQL_API_SQLROWCOUNT] = TRUE;
-			pfExists[SQL_API_SQLSETCURSORNAME] = TRUE;
-			pfExists[SQL_API_SQLSETPARAM] = FALSE;		/* odbc 1.0 */
-			pfExists[SQL_API_SQLTRANSACT] = TRUE;
-
-			/* ODBC level 1 functions */
-			pfExists[SQL_API_SQLBINDPARAMETER] = TRUE;
-			pfExists[SQL_API_SQLCOLUMNS] = TRUE;
-			pfExists[SQL_API_SQLDRIVERCONNECT] = TRUE;
-			pfExists[SQL_API_SQLGETCONNECTOPTION] = TRUE;		/* partial */
-			pfExists[SQL_API_SQLGETDATA] = TRUE;
-			pfExists[SQL_API_SQLGETFUNCTIONS] = TRUE;
-			pfExists[SQL_API_SQLGETINFO] = TRUE;
-			pfExists[SQL_API_SQLGETSTMTOPTION] = TRUE;	/* partial */
-			pfExists[SQL_API_SQLGETTYPEINFO] = TRUE;
-			pfExists[SQL_API_SQLPARAMDATA] = TRUE;
-			pfExists[SQL_API_SQLPUTDATA] = TRUE;
-			pfExists[SQL_API_SQLSETCONNECTOPTION] = TRUE;		/* partial */
-			pfExists[SQL_API_SQLSETSTMTOPTION] = TRUE;
-			pfExists[SQL_API_SQLSPECIALCOLUMNS] = TRUE;
-			pfExists[SQL_API_SQLSTATISTICS] = TRUE;
-			pfExists[SQL_API_SQLTABLES] = TRUE;
-
-			/* ODBC level 2 functions */
-			pfExists[SQL_API_SQLBROWSECONNECT] = FALSE;
-			pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
-			pfExists[SQL_API_SQLDATASOURCES] = FALSE;	/* only implemented by
-														 * DM */
-			pfExists[SQL_API_SQLDESCRIBEPARAM] = FALSE; /* not properly
-														 * implemented */
-			pfExists[SQL_API_SQLDRIVERS] = FALSE;		/* only implemented by
-														 * DM */
-			pfExists[SQL_API_SQLEXTENDEDFETCH] = TRUE;
-			pfExists[SQL_API_SQLFOREIGNKEYS] = TRUE;
-			pfExists[SQL_API_SQLMORERESULTS] = TRUE;
-			pfExists[SQL_API_SQLNATIVESQL] = TRUE;
-			pfExists[SQL_API_SQLNUMPARAMS] = TRUE;
-			pfExists[SQL_API_SQLPARAMOPTIONS] = TRUE;
-			pfExists[SQL_API_SQLPRIMARYKEYS] = TRUE;
-			if (PG_VERSION_LT(conn, 6.5))
-				pfExists[SQL_API_SQLPROCEDURECOLUMNS] = FALSE;
-			else
-				pfExists[SQL_API_SQLPROCEDURECOLUMNS] = TRUE;
-			if (PG_VERSION_LT(conn, 6.5))
-				pfExists[SQL_API_SQLPROCEDURES] = FALSE;
-			else
-				pfExists[SQL_API_SQLPROCEDURES] = TRUE;
-			pfExists[SQL_API_SQLSETPOS] = TRUE;
-			pfExists[SQL_API_SQLSETSCROLLOPTIONS] = TRUE;		/* odbc 1.0 */
-			pfExists[SQL_API_SQLTABLEPRIVILEGES] = TRUE;
-#if (ODBCVER >= 0x0300)
-			pfExists[SQL_API_SQLBULKOPERATIONS] = TRUE;
-#endif /* ODBCVER */
-		}
+			pfExists[SQL_API_SQLPROCEDURECOLUMNS] = TRUE;
+		if (PG_VERSION_LT(conn, 6.5))
+			pfExists[SQL_API_SQLPROCEDURES] = FALSE;
+		else
+			pfExists[SQL_API_SQLPROCEDURES] = TRUE;
+		pfExists[SQL_API_SQLSETPOS] = TRUE;
+		pfExists[SQL_API_SQLSETSCROLLOPTIONS] = TRUE;		/* odbc 1.0 */
+		pfExists[SQL_API_SQLTABLEPRIVILEGES] = TRUE;
+		pfExists[SQL_API_SQLBULKOPERATIONS] = TRUE;
 	}
 	else
 	{
@@ -1044,28 +1011,13 @@ PGAPI_GetFunctions(
 		{
 			switch (fFunction)
 			{
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLALLOCCONNECT:
-					*pfExists = TRUE;
-					break;
-				case SQL_API_SQLALLOCENV:
-					*pfExists = TRUE;
-					break;
-				case SQL_API_SQLALLOCSTMT:
-					*pfExists = TRUE;
-					break;
-#endif /* ODBCVER */
 				case SQL_API_SQLBINDCOL:
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLCANCEL:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER >= 0x0300)
 				case SQL_API_SQLCOLATTRIBUTE:
-#else
-				case SQL_API_SQLCOLATTRIBUTES:
-#endif /* ODBCVER */
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLCONNECT:
@@ -1077,11 +1029,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLDISCONNECT:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLERROR:
-					*pfExists = TRUE;
-					break;
-#endif /* ODBCVER */
 				case SQL_API_SQLEXECDIRECT:
 					*pfExists = TRUE;
 					break;
@@ -1091,14 +1038,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLFETCH:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLFREECONNECT:
-					*pfExists = TRUE;
-					break;
-				case SQL_API_SQLFREEENV:
-					*pfExists = TRUE;
-					break;
-#endif /* ODBCVER */
 				case SQL_API_SQLFREESTMT:
 					*pfExists = TRUE;
 					break;
@@ -1117,16 +1056,7 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLSETCURSORNAME:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLSETPARAM:
-					*pfExists = FALSE;
-					break;		/* odbc 1.0 */
-				case SQL_API_SQLTRANSACT:
-					*pfExists = TRUE;
-					break;
-#endif /* ODBCVER */
-
-					/* ODBC level 1 functions */
+				/* ODBC level 1 functions */
 				case SQL_API_SQLBINDPARAMETER:
 					*pfExists = TRUE;
 					break;
@@ -1136,11 +1066,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLDRIVERCONNECT:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLGETCONNECTOPTION:
-					*pfExists = TRUE;
-					break;		/* partial */
-#endif /* ODBCVER */
 				case SQL_API_SQLGETDATA:
 					*pfExists = TRUE;
 					break;
@@ -1150,11 +1075,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLGETINFO:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLGETSTMTOPTION:
-					*pfExists = TRUE;
-					break;		/* partial */
-#endif /* ODBCVER */
 				case SQL_API_SQLGETTYPEINFO:
 					*pfExists = TRUE;
 					break;
@@ -1164,14 +1084,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLPUTDATA:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLSETCONNECTOPTION:
-					*pfExists = TRUE;
-					break;		/* partial */
-				case SQL_API_SQLSETSTMTOPTION:
-					*pfExists = TRUE;
-					break;
-#endif /* ODBCVER */
 				case SQL_API_SQLSPECIALCOLUMNS:
 					*pfExists = TRUE;
 					break;
@@ -1182,7 +1094,7 @@ PGAPI_GetFunctions(
 					*pfExists = TRUE;
 					break;
 
-					/* ODBC level 2 functions */
+				/* ODBC level 2 functions */
 				case SQL_API_SQLBROWSECONNECT:
 					*pfExists = FALSE;
 					break;
@@ -1213,11 +1125,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLNUMPARAMS:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLPARAMOPTIONS:
-					*pfExists = TRUE;
-					break;
-#endif /* ODBCVER */
 				case SQL_API_SQLPRIMARYKEYS:
 					*pfExists = TRUE;
 					break;
@@ -1236,15 +1143,9 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLSETPOS:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER < 0x0300)
-				case SQL_API_SQLSETSCROLLOPTIONS:
-					*pfExists = TRUE;
-					break;		/* odbc 1.0 */
-#endif /* ODBCVER */
 				case SQL_API_SQLTABLEPRIVILEGES:
 					*pfExists = TRUE;
 					break;
-#if (ODBCVER >= 0x0300)
 				case SQL_API_SQLBULKOPERATIONS:	/* 24 */
 				case SQL_API_SQLALLOCHANDLE:	/* 1001 */
 				case SQL_API_SQLBINDPARAM:	/* 1002 */
@@ -1269,7 +1170,6 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLCOPYDESC:	/* 1004 */
 					*pfExists = FALSE;
 					break;
-#endif /* ODBCVER */
 				default:
 					*pfExists = FALSE;
 					break;
@@ -1986,17 +1886,12 @@ retry_public_schema:
 	}
 	SC_set_Result(stmt, res);
 
-	/* the binding structure for a statement is not set up until */
-
-	/*
+	/* the binding structure for a statement is not set up until
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
 	 */
-#if (ODBCVER >= 0x0300)
 	reserved_cols = 18;
-#else
-	reserved_cols = 12;
-#endif /* ODBCVER */
+
 	result_cols = reserved_cols + 2;
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
@@ -2016,14 +1911,12 @@ retry_public_schema:
 	QR_set_field_info(res, 11, "REMARKS", PG_TYPE_VARCHAR, 254);
 
 	/* User defined fields */
-#if (ODBCVER >= 0x0300)
 	QR_set_field_info(res, 12, "COLUMN_DEF", PG_TYPE_INT4, 254);
 	QR_set_field_info(res, 13, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 14, "SQL_DATETIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 15, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 16, "ORDINAL_POSITION", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 17, "IS_NULLABLE", PG_TYPE_VARCHAR, 254);
-#endif /* ODBCVER */
 	QR_set_field_info(res, reserved_cols, "DISPLAY_SIZE", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, reserved_cols + 1, "FIELD_TYPE", PG_TYPE_INT4, 4);
 
@@ -2070,15 +1963,12 @@ retry_public_schema:
 			set_nullfield_int2(&row->tuple[9], pgtype_radix(stmt, the_type));
 			set_tuplefield_int2(&row->tuple[10], SQL_NO_NULLS);
 			set_tuplefield_string(&row->tuple[11], "");
-
-#if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&row->tuple[12]);
 			set_tuplefield_int2(&row->tuple[13], sqltype);
 			set_tuplefield_null(&row->tuple[14]);
 			set_tuplefield_int4(&row->tuple[15], pgtype_transfer_octet_length(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[16], ordinal);
 			set_tuplefield_string(&row->tuple[17], "No");
-#endif /* ODBCVER */
 			set_tuplefield_int4(&row->tuple[reserved_cols], pgtype_display_size(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[reserved_cols + 1], the_type);
 
@@ -2142,9 +2032,7 @@ retry_public_schema:
 				set_tuplefield_int4(&row->tuple[6], column_size);
 				set_tuplefield_int4(&row->tuple[7], column_size + 2);		/* sign+dec.point */
 				set_nullfield_int2(&row->tuple[8], decimal_digits);
-#if (ODBCVER >= 0x0300)
 				set_tuplefield_null(&row->tuple[15]);
-#endif /* ODBCVER */
 				set_tuplefield_int4(&row->tuple[reserved_cols], column_size + 2);	/* sign+dec.point */
 			}
 		}
@@ -2179,9 +2067,7 @@ retry_public_schema:
 
 			set_tuplefield_int4(&row->tuple[6], mod_length);
 			set_tuplefield_int4(&row->tuple[7], mod_length);
-#if (ODBCVER >= 0x0300)
 			set_tuplefield_int4(&row->tuple[15], pgtype_transfer_octet_length(stmt, field_type, PG_STATIC, PG_STATIC));
-#endif /* ODBCVER */
 			set_tuplefield_int4(&row->tuple[reserved_cols], mod_length);
 		}
 
@@ -2191,9 +2077,7 @@ retry_public_schema:
 
 			set_tuplefield_int4(&row->tuple[6], pgtype_column_size(stmt, field_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[7], pgtype_buffer_length(stmt, field_type, PG_STATIC, PG_STATIC));
-#if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&row->tuple[15]);
-#endif /* ODBCVER */
 			set_tuplefield_int4(&row->tuple[reserved_cols], pgtype_display_size(stmt, field_type, PG_STATIC, PG_STATIC));
 		}
 		if (useStaticScale)
@@ -2213,13 +2097,11 @@ retry_public_schema:
 		set_nullfield_int2(&row->tuple[9], pgtype_radix(stmt, field_type));
 		set_tuplefield_int2(&row->tuple[10], (Int2) (not_null[0] == '1' ? SQL_NO_NULLS : pgtype_nullable(stmt, field_type)));
 		set_tuplefield_string(&row->tuple[11], "");
-#if (ODBCVER >= 0x0300)
 		set_tuplefield_null(&row->tuple[12]);
 		set_tuplefield_int2(&row->tuple[13], concise_type);
 		set_nullfield_int2(&row->tuple[14], pgtype_to_datetime_sub(stmt, field_type));
 		set_tuplefield_int4(&row->tuple[16], ordinal);
 		set_tuplefield_null(&row->tuple[17]);
-#endif /* ODBCVER */
 		set_tuplefield_int4(&row->tuple[reserved_cols + 1], field_type);
 
 		QR_add_tuple(res, row);
@@ -2262,14 +2144,12 @@ retry_public_schema:
 		set_nullfield_int2(&row->tuple[9], pgtype_radix(stmt, the_type));
 		set_tuplefield_int2(&row->tuple[10], SQL_NO_NULLS);
 		set_tuplefield_string(&row->tuple[11], "");
-#if (ODBCVER >= 0x0300)
 		set_tuplefield_null(&row->tuple[12]);
 		set_tuplefield_int2(&row->tuple[13], sqltype);
 		set_tuplefield_null(&row->tuple[14]);
 		set_tuplefield_int4(&row->tuple[15], pgtype_transfer_octet_length(stmt, the_type, PG_STATIC, PG_STATIC));
 		set_tuplefield_int4(&row->tuple[16], ordinal);
 		set_tuplefield_string(&row->tuple[17], "No");
-#endif /* ODBCVER */
 		set_tuplefield_int4(&row->tuple[reserved_cols], pgtype_display_size(stmt, the_type, PG_STATIC, PG_STATIC));
 		set_tuplefield_int4(&row->tuple[reserved_cols + 1], the_type);
 
@@ -3565,10 +3445,7 @@ PGAPI_ForeignKeys(
 				upd_rule_type = 0,
 				del_rule_type = 0;
 	SWORD		internal_asis_type = SQL_C_CHAR;
-
-#if (ODBCVER >= 0x0300)
 	SWORD		defer_type;
-#endif
 	char		pkey[MAX_INFO_STRING];
 	Int2		result_cols;
 	UInt4		relid1, relid2;
@@ -3595,11 +3472,7 @@ PGAPI_ForeignKeys(
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
 	 */
-#if (ODBCVER >= 0x0300)
 	result_cols = 15;
-#else
-	result_cols = 14;
-#endif /* ODBCVER */
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
@@ -3618,9 +3491,7 @@ PGAPI_ForeignKeys(
 	QR_set_field_info(res, 11, "FK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 12, "PK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 13, "TRIGGER_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-#if (ODBCVER >= 0x0300)
 	QR_set_field_info(res, 14, "DEFERRABILITY", PG_TYPE_INT2, 2);
-#endif   /* ODBCVER >= 0x0300 */
 
 	/*
 	 * also, things need to think that this statement is finished so the
@@ -3943,7 +3814,6 @@ PGAPI_ForeignKeys(
 			else if (!strcmp(upd_rule, "RI_FKey_setnull_del"))
 				del_rule_type = SQL_SET_NULL;
 
-#if (ODBCVER >= 0x0300)
 			/* Set deferrability type */
 			if (!strcmp(trig_initdeferred, "y"))
 				defer_type = SQL_INITIALLY_DEFERRED;
@@ -3951,7 +3821,6 @@ PGAPI_ForeignKeys(
 				defer_type = SQL_INITIALLY_IMMEDIATE;
 			else
 				defer_type = SQL_NOT_DEFERRABLE;
-#endif   /* ODBCVER >= 0x0300 */
 
 			/* Get to first primary key */
 			pkey_ptr = trig_args;
@@ -3984,9 +3853,7 @@ PGAPI_ForeignKeys(
 				set_tuplefield_null(&row->tuple[11]);
 				set_tuplefield_null(&row->tuple[12]);
 				set_tuplefield_string(&row->tuple[13], trig_args);
-#if (ODBCVER >= 0x0300)
 				set_tuplefield_int2(&row->tuple[14], defer_type);
-#endif   /* ODBCVER >= 0x0300 */
 
 				QR_add_tuple(res, row);
 				if (fkey_alloced)
@@ -4221,7 +4088,6 @@ PGAPI_ForeignKeys(
 			else if (!strcmp(upd_rule, "RI_FKey_setnull_del"))
 				del_rule_type = SQL_SET_NULL;
 
-#if (ODBCVER >= 0x0300)
 			/* Set deferrability type */
 			if (!strcmp(trig_initdeferred, "y"))
 				defer_type = SQL_INITIALLY_DEFERRED;
@@ -4229,7 +4095,6 @@ PGAPI_ForeignKeys(
 				defer_type = SQL_INITIALLY_IMMEDIATE;
 			else
 				defer_type = SQL_NOT_DEFERRABLE;
-#endif   /* ODBCVER >= 0x0300 */
 
 			mylog("Foreign Key Case#1: trig_nargs = %d, num_keys = %d\n", trig_nargs, num_keys);
 
@@ -4275,10 +4140,8 @@ PGAPI_ForeignKeys(
 
 				set_tuplefield_string(&row->tuple[13], trig_args);
 
-#if (ODBCVER >= 0x0300)
 				mylog(" defer_type = %d\n", defer_type);
 				set_tuplefield_int2(&row->tuple[14], defer_type);
-#endif   /* ODBCVER >= 0x0300 */
 
 				QR_add_tuple(res, row);
 				if (pkey_alloced)
@@ -4414,11 +4277,7 @@ PGAPI_ProcedureColumns(
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
 	 */
-#if (ODBCVER >= 0x0300)
 	result_cols = 19;
-#else
-	result_cols = 13;
-#endif /* ODBCVER */
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
@@ -4436,14 +4295,12 @@ PGAPI_ProcedureColumns(
 	QR_set_field_info(res, 10, "NUM_PREC_RADIX", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 11, "NULLABLE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 12, "REMARKS", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-#if (ODBCVER >= 0x0300)
 	QR_set_field_info(res, 13, "COLUMN_DEF", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 14, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 15, "SQL_DATATIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 16, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 17, "ORIDINAL_POSITION", PG_TYPE_INT4, 4);
 	QR_set_field_info(res, 18, "IS_NULLABLE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-#endif   /* ODBCVER >= 0x0300 */
 
 	if (0 == cbColumnName || !szColumnName || !szColumnName[0])
 		tcount = QR_get_num_total_tuples(tres);
@@ -4473,14 +4330,12 @@ PGAPI_ProcedureColumns(
 			set_nullfield_int2(&row->tuple[10], pgtype_radix(stmt, pgtype));
 			set_tuplefield_int2(&row->tuple[11], SQL_NULLABLE_UNKNOWN);
 			set_tuplefield_null(&row->tuple[12]);
-#if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&row->tuple[13]);
 			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
 			set_nullfield_int2(&row->tuple[15], pgtype_to_datetime_sub(stmt, pgtype));
 			set_nullfield_int4(&row->tuple[16], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[17], 0);
 			set_tuplefield_string(&row->tuple[18], "");
-#endif   /* ODBCVER >= 0x0300 */
 			QR_add_tuple(res, row);
 		}
 		paramcount = atoi(QR_get_value_backend_row(tres, i, 3));
@@ -4504,14 +4359,12 @@ PGAPI_ProcedureColumns(
 			set_nullfield_int2(&row->tuple[10], pgtype_radix(stmt, pgtype));
 			set_tuplefield_int2(&row->tuple[11], SQL_NULLABLE_UNKNOWN);
 			set_tuplefield_null(&row->tuple[12]);
-#if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&row->tuple[13]);
 			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
 			set_nullfield_int2(&row->tuple[15], pgtype_to_datetime_sub(stmt, pgtype));
 			set_nullfield_int4(&row->tuple[16], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[17], j + 1);
 			set_tuplefield_string(&row->tuple[18], "");
-#endif   /* ODBCVER >= 0x0300 */
 			QR_add_tuple(res, row);
 			while (isdigit(*params))
 				params++;

@@ -16,7 +16,6 @@
 
 #include "psqlodbc.h"
 
-#if (ODBCVER >= 0x0300)
 #include <stdio.h>
 #include <string.h>
 
@@ -1846,4 +1845,4 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	return ret;
 }	
 #endif /* DRIVER_CURSOR_IMPLEMENT */
-#endif /* ODBCVER >= 0x0300 */
+

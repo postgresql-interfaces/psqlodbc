@@ -399,9 +399,8 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 		DWORD	err = SQL_ERROR;
 		char    szMsg[SQL_MAX_MESSAGE_LENGTH];
 
-#if (ODBCVER >= 0x0300)
 		ret = SQLInstallerError(1, &err, szMsg, sizeof(szMsg), NULL);
-#endif /* ODBCVER */
+
 		if (hwndParent)
 		{
 			char		szBuf[MAXPGPATH];

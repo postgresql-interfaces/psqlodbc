@@ -36,7 +36,6 @@
 #include "statement.h"
 #include "qresult.h"
 
-#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLAllocConnect(HENV EnvironmentHandle,
 				HDBC FAR * ConnectionHandle)
@@ -75,7 +74,6 @@ SQLAllocStmt(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
-#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLBindCol(HSTMT StatementHandle,
@@ -285,28 +283,6 @@ SQLDisconnect(HDBC ConnectionHandle)
 	return ret;
 }
 
-#if (ODBCVER < 0x0300)
-RETCODE		SQL_API
-SQLError(HENV EnvironmentHandle,
-		 HDBC ConnectionHandle, HSTMT StatementHandle,
-		 SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
-		 SQLCHAR *MessageText, SQLSMALLINT BufferLength,
-		 SQLSMALLINT *TextLength)
-{
-	RETCODE	ret;
-
-	mylog("[SQLError]");
-	if (NULL != EnvironmentHandle)
-		ENTER_ENV_CS((EnvironmentClass *) EnvironmentHandle);
-	ret = PGAPI_Error(EnvironmentHandle, ConnectionHandle, StatementHandle,
-		   Sqlstate, NativeError, MessageText, BufferLength,
-		TextLength);
-	if (NULL != EnvironmentHandle)
-		LEAVE_ENV_CS((EnvironmentClass *) EnvironmentHandle);
-	return ret;
-}
-#endif /* ODBCVER */
-
 RETCODE		SQL_API
 SQLExecDirect(HSTMT StatementHandle,
 			  SQLCHAR *StatementText, SQLINTEGER TextLength)
@@ -353,7 +329,6 @@ SQLFetch(HSTMT StatementHandle)
 
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-#if (ODBCVER >= 0x0300)
 	if (SC_get_conn(stmt)->driver_version >= 0x0300)
 	{
 		IRDFields	*irdopts = SC_get_IRDF(stmt);
@@ -367,7 +342,6 @@ SQLFetch(HSTMT StatementHandle)
 		stmt->transition_status = 6;
 	}
 	else
-#endif
 	{
 		mylog("[%s]", func);
 		ret = PGAPI_Fetch(StatementHandle);
@@ -375,28 +349,6 @@ SQLFetch(HSTMT StatementHandle)
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
-
-#if (ODBCVER < 0x0300) 
-RETCODE		SQL_API
-SQLFreeConnect(HDBC ConnectionHandle)
-{
-	RETCODE	ret;
-
-	mylog("[SQLFreeConnect]");
-	ret = PGAPI_FreeConnect(ConnectionHandle);
-	return ret;
-}
-
-RETCODE		SQL_API
-SQLFreeEnv(HENV EnvironmentHandle)
-{
-	RETCODE	ret;
-
-	mylog("[SQLFreeEnv]");
-	ret = PGAPI_FreeEnv(EnvironmentHandle);
-	return ret;
-}
-#endif /* ODBCVER */ 
 
 RETCODE		SQL_API
 SQLFreeStmt(HSTMT StatementHandle,
@@ -408,23 +360,6 @@ SQLFreeStmt(HSTMT StatementHandle,
 	ret = PGAPI_FreeStmt(StatementHandle, Option);
 	return ret;
 }
-
-#if (ODBCVER < 0x0300)
-RETCODE		SQL_API
-SQLGetConnectOption(HDBC ConnectionHandle,
-					SQLUSMALLINT Option, PTR Value)
-{
-	RETCODE	ret;
-	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
-
-	mylog("[SQLGetConnectOption]");
-	ENTER_CONN_CS(conn);
-	CC_clear_error(conn);
-	ret = PGAPI_GetConnectOption(ConnectionHandle, Option, Value);
-	LEAVE_CONN_CS(conn);
-	return ret;
-}
-#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLGetCursorName(HSTMT StatementHandle,
@@ -471,11 +406,10 @@ SQLGetFunctions(HDBC ConnectionHandle,
 	mylog("[SQLGetFunctions]");
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
-#if (ODBCVER >= 0x0300)
+
 	if (FunctionId == SQL_API_ODBC3_ALL_FUNCTIONS)
 		ret = PGAPI_GetFunctions30(ConnectionHandle, FunctionId, Supported);
 	else
-#endif
 	{
 		ret = PGAPI_GetFunctions(ConnectionHandle, FunctionId, Supported);
 	}
@@ -492,7 +426,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
-#if (ODBCVER >= 0x0300)
+
 	mylog("[SQLGetInfo(30)]");
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
 							 BufferLength, StringLength)) == SQL_ERROR)
@@ -506,32 +440,10 @@ SQLGetInfo(HDBC ConnectionHandle,
 	}
 	if (SQL_ERROR == ret)
 		CC_log_error("SQLGetInfo30", "", conn);
-#else
-	mylog("[SQLGetInfo]");
-	if (ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
-			BufferLength, StringLength), SQL_ERROR == ret)
-		CC_log_error("PGAPI_GetInfo", "", conn);
-#endif
+
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
-
-#if (ODBCVER < 0x0300)
-RETCODE		SQL_API
-SQLGetStmtOption(HSTMT StatementHandle,
-				 SQLUSMALLINT Option, PTR Value)
-{
-	RETCODE	ret;
-	StatementClass *stmt = (StatementClass *) StatementHandle;
-
-	mylog("[SQLGetStmtOption]");
-	ENTER_STMT_CS(stmt);
-	SC_clear_error(stmt);
-	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value);
-	LEAVE_STMT_CS(stmt);
-	return ret;
-}
-#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLGetTypeInfo(HSTMT StatementHandle,
@@ -627,23 +539,6 @@ SQLRowCount(HSTMT StatementHandle,
 	return ret;
 }
 
-#if (ODBCVER < 0x0300)
-RETCODE		SQL_API
-SQLSetConnectOption(HDBC ConnectionHandle,
-					SQLUSMALLINT Option, SQLUINTEGER Value)
-{
-	RETCODE	ret;
-	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
-
-	mylog("[SQLSetConnectionOption]");
-	ENTER_CONN_CS(conn);
-	CC_clear_error(conn);
-	ret = PGAPI_SetConnectOption(ConnectionHandle, Option, Value);
-	LEAVE_CONN_CS(conn);
-	return ret;
-}
-#endif /* ODBCVER */
-
 RETCODE		SQL_API
 SQLSetCursorName(HSTMT StatementHandle,
 				 SQLCHAR *CursorName, SQLSMALLINT NameLength)
@@ -676,23 +571,6 @@ SQLSetParam(HSTMT StatementHandle,
 	 */
 	return SQL_ERROR;
 }
-
-#if (ODBCVER < 0x0300)
-RETCODE		SQL_API
-SQLSetStmtOption(HSTMT StatementHandle,
-				 SQLUSMALLINT Option, SQLUINTEGER Value)
-{
-	RETCODE	ret;
-	StatementClass *stmt = (StatementClass *) StatementHandle;
-
-	mylog("[SQLSetStmtOption]");
-	ENTER_STMT_CS(stmt);
-	SC_clear_error(stmt);
-	ret = PGAPI_SetStmtOption(StatementHandle, Option, Value);
-	LEAVE_STMT_CS(stmt);
-	return ret;
-}
-#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLSpecialColumns(HSTMT StatementHandle,
@@ -877,49 +755,6 @@ SQLTables(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
-
-#if (ODBCVER < 0x0300)
-RETCODE		SQL_API
-SQLTransact(HENV EnvironmentHandle,
-			HDBC ConnectionHandle, SQLUSMALLINT CompletionType)
-{
-	RETCODE	ret;
-
-	mylog("[SQLTransact]");
-	if (NULL != EnvironmentHandle)
-		ENTER_ENV_CS((EnvironmentClass *) EnvironmentHandle);
-	else
-		ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	ret = PGAPI_Transact(EnvironmentHandle, ConnectionHandle, CompletionType);
-	if (NULL != EnvironmentHandle)
-		LEAVE_ENV_CS((EnvironmentClass *) EnvironmentHandle);
-	else
-		LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
-	return ret;
-}
-
-RETCODE		SQL_API
-SQLColAttributes(
-				 HSTMT hstmt,
-				 SQLUSMALLINT icol,
-				 SQLUSMALLINT fDescType,
-				 PTR rgbDesc,
-				 SQLSMALLINT cbDescMax,
-				 SQLSMALLINT *pcbDesc,
-				 SQLINTEGER *pfDesc)
-{
-	RETCODE	ret;
-	StatementClass *stmt = (StatementClass *) hstmt;
-
-	mylog("[SQLColAttributes]");
-	ENTER_STMT_CS(stmt);
-	SC_clear_error(stmt);
-	ret = PGAPI_ColAttributes(hstmt, icol, fDescType, rgbDesc,
-							   cbDescMax, pcbDesc, pfDesc);
-	LEAVE_STMT_CS(stmt);
-	return ret;
-}
-#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLColumnPrivileges(

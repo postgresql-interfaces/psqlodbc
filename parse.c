@@ -245,11 +245,8 @@ getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k)
 	char	   *str;
 	Int2	reserved_cols;
 
-#if (ODBCVER >= 0x0300)
 	reserved_cols = 18;
-#else
-	reserved_cols = 12;
-#endif /* ODBCVER */
+
 	if (fi->name[0] == '\0')
 		strcpy(fi->name, QR_get_value_manual(col_info->result, k, 3));
 

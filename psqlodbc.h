@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.86 2004/07/19 15:20:46 dpage Exp $
+ * $Id: psqlodbc.h,v 1.87 2004/07/21 12:29:59 dpage Exp $
  *
  */
 
@@ -27,7 +27,7 @@
 /* Must come before sql.h */
 #ifndef ODBCVER
 #define ODBCVER						0x0300
-#endif   /* ODBCVER_REP */
+#endif   /* ODBCVER */
 
 #define NAMEDATALEN_V72					32
 #define NAMEDATALEN_V73					64

@@ -263,7 +263,7 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	conn->unicode = 1;
 	CC_clear_error(conn);
-#if (ODBCVER >= 0x0300)
+
 	mylog("[SQLGetInfoW(30)]");
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
            	BufferLength, StringLength)) == SQL_ERROR)
@@ -277,13 +277,7 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	}
 	if (SQL_ERROR == ret)
 		CC_log_error("SQLGetInfoW(30)", "", conn);
-#else
-	mylog("[SQLGetInfoW]");
-	ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
-           	BufferLength, StringLength);
-	if (SQL_ERROR == ret)
-		CC_log_error("SQLGetInfoW", "", conn);
-#endif
+
 	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
 	return ret;
 }

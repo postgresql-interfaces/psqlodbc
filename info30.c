@@ -8,7 +8,6 @@
 
 #include "psqlodbc.h"
 
-#if (ODBCVER >= 0x0300)
 #include "connection.h"
 #include "pgapifunc.h"
 
@@ -405,4 +404,4 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		*pcbInfoValue = len;
 	return result;
 }
-#endif /* ODBCVER >= 0x0300 */
+

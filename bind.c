@@ -80,7 +80,7 @@ PGAPI_BindParameter(
 	ipdopts->parameters[ipar].precision = 0;
 	ipdopts->parameters[ipar].scale = 0;
 	ipdopts->parameters[ipar].PGType = sqltype_to_pgtype(stmt, fSqlType);
-#if (ODBCVER >= 0x0300)
+
 	switch (fCType)
 	{
 		case SQL_C_NUMERIC:
@@ -96,7 +96,6 @@ PGAPI_BindParameter(
 	}
 	apdopts->parameters[ipar].precision = ipdopts->parameters[ipar].precision;
 	apdopts->parameters[ipar].scale = ipdopts->parameters[ipar].scale;
-#endif /* ODBCVER */
 
 	/*
 	 * If rebinding a parameter that had data-at-exec stuff in it, then
@@ -187,9 +186,8 @@ PGAPI_BindCol(
 			switch (fCType)
 			{
 				case SQL_C_BOOKMARK:
-#if (ODBCVER >= 0x0300)
 				case SQL_C_VARBOOKMARK:
-#endif /* ODBCVER */
+
 					break;
 				default:
 					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK");
@@ -254,11 +252,10 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		opts->bindings[icol].buffer = rgbValue;
 		opts->bindings[icol].used = (Int4 *) pcbValue;
 		opts->bindings[icol].returntype = fCType;
-#if (ODBCVER >= 0x0300)
+
 		if (SQL_C_NUMERIC == fCType)
 			opts->bindings[icol].precision = 32;
 		else
-#endif /* ODBCVER */
 			opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
 

@@ -205,7 +205,7 @@ PGAPI_DescribeCol(
 	SC_clear_error(stmt);
 
 	irdflds = SC_get_IRDF(stmt);
-#if (ODBCVER >= 0x0300)
+
 	if (0 == icol) /* bookmark column */
 	{
 		SQLSMALLINT	fType = stmt->options.use_bookmarks == SQL_UB_VARIABLE ? SQL_BINARY : SQL_INTEGER;
@@ -224,7 +224,7 @@ PGAPI_DescribeCol(
 			*pfNullable = SQL_NO_NULLS;
 		return SQL_SUCCESS;
 	}
-#endif /* ODBCVER */
+
 	/*
 	 * Dont check for bookmark column. This is the responsibility of the
 	 * driver manager.
@@ -430,7 +430,6 @@ PGAPI_ColAttributes(
 	 * is ignored anyway, so it may be 0.
 	 */
 
-#if (ODBCVER >= 0x0300)
 	if (0 == icol && SQL_DESC_COUNT != fDescType) /* bookmark column */
 	{
 		switch (fDescType)
@@ -446,7 +445,7 @@ PGAPI_ColAttributes(
 		}
 		return SQL_SUCCESS;
 	}
-#endif /* ODBCVER */
+
 	col_idx = icol - 1;
 
 	/* atoi(ci->unknown_sizes); */
@@ -471,11 +470,8 @@ PGAPI_ColAttributes(
 		 * Column Count is a special case.	The Column number is ignored
 		 * in this case.
 		 */
-#if (ODBCVER >= 0x0300)
+
 		if (fDescType == SQL_DESC_COUNT)
-#else
-		if (fDescType == SQL_COLUMN_COUNT)
-#endif /* ODBCVER */
 		{
 			if (pfDesc)
 				*pfDesc = cols;
@@ -521,11 +517,7 @@ PGAPI_ColAttributes(
 		 * Column Count is a special case.	The Column number is ignored
 		 * in this case.
 		 */
-#if (ODBCVER >= 0x0300)
 		if (fDescType == SQL_DESC_COUNT)
-#else
-		if (fDescType == SQL_COLUMN_COUNT)
-#endif /* ODBCVER */
 		{
 			if (pfDesc)
 				*pfDesc = cols;
@@ -584,11 +576,7 @@ inolog("AUTO_INCREMENT=%d\n", value);
 			}
 			/* otherwise same as column name -- FALL THROUGH!!! */
 
-#if (ODBCVER >= 0x0300)
 		case SQL_DESC_NAME:
-#else
-		case SQL_COLUMN_NAME:
-#endif /* ODBCVER */
 			p = fi ? (fi->alias[0] ? fi->alias : fi->name) : QR_get_fieldname(SC_get_Curres(stmt), col_idx);
 
 			mylog("PGAPI_ColAttr: COLUMN_NAME = '%s'\n", p);
@@ -607,11 +595,7 @@ inolog("AUTO_INCREMENT=%d\n", value);
 inolog("COLUMN_MONEY=%d\n", value);
 			break;
 
-#if (ODBCVER >= 0x0300)
 		case SQL_DESC_NULLABLE:
-#else
-		case SQL_COLUMN_NULLABLE:
-#endif /* ODBCVER */
 			value = fi ? fi->nullable : pgtype_nullable(stmt, field_type);
 inolog("COLUMN_NULLABLE=%d\n", value);
 			break;
@@ -685,7 +669,7 @@ inolog("COLUMN_TYPE=%d\n", value);
 
 			mylog("PGAPI_ColAttr: UPDATEABLE = %d\n", value);
 			break;
-#if (ODBCVER >= 0x0300)
+
 		case SQL_DESC_BASE_COLUMN_NAME:
 
 			p = fi ? fi->name : QR_get_fieldname(SC_get_Curres(stmt), col_idx);
@@ -741,7 +725,7 @@ inolog("COLUMN_TYPE=%d\n", value);
 		case SQL_DESC_UNNAMED:
 			value = (fi && !fi->name[0] && !fi->alias[0]) ? SQL_UNNAMED : SQL_NAMED;
 			break;
-#endif /* ODBCVER */
+
 		case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
 			SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "this request may be for MS SQL Server");
 			return SQL_ERROR;
@@ -840,9 +824,7 @@ PGAPI_GetData(
 		switch (fCType)
 		{
 			case SQL_C_BOOKMARK:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_VARBOOKMARK:
-#endif /* ODBCVER */
 				break;
 			default:
 inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
@@ -2383,7 +2365,7 @@ pos_update_callback(RETCODE retcode, void *para)
 		else
 			s->res->keyset[s->global_ridx].status |= (SQL_ROW_UPDATED  | CURS_SELF_UPDATED);
 	}
-#if (ODBCVER >= 0x0300)
+
 	if (s->irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -2395,7 +2377,6 @@ pos_update_callback(RETCODE retcode, void *para)
 				s->irdflds->rowStatusArray[s->irow] = ret;
 		}
 	}
-#endif /* ODBCVER */
 
 	return ret;
 }
@@ -2637,7 +2618,7 @@ SC_pos_delete(StatementClass *stmt,
 		else
 			res->keyset[global_ridx].status |= (SQL_ROW_DELETED | CURS_SELF_DELETED);
 	}
-#if (ODBCVER >= 0x0300)
+
 	if (irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -2649,7 +2630,7 @@ SC_pos_delete(StatementClass *stmt,
 				irdflds->rowStatusArray[irow] = ret;
 		}
 	}
-#endif /* ODBCVER */
+
 	return ret;
 }
 
@@ -2755,7 +2736,7 @@ pos_add_callback(RETCODE retcode, void *para)
 		else
 			s->res->keyset[global_ridx].status |= (SQL_ROW_ADDED | CURS_SELF_ADDED);
 	}
-#if (ODBCVER >= 0x0300)
+
 	if (s->irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -2767,7 +2748,6 @@ pos_add_callback(RETCODE retcode, void *para)
 				s->irdflds->rowStatusArray[s->irow] = ret;
 		}
 	}
-#endif /* ODBCVER */
 
 	return ret;
 }
@@ -2912,9 +2892,8 @@ RETCODE
 SC_pos_refresh(StatementClass *stmt, UWORD irow , UDWORD global_ridx)
 {
 	RETCODE	ret;
-#if (ODBCVER >= 0x0300)
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-#endif /* ODBCVER */
+
 	/* save the last_fetch_count */
 	int		last_fetch = stmt->last_fetch_count;
 	int		last_fetch2 = stmt->last_fetch_count_include_ommitted;
@@ -2930,7 +2909,7 @@ SC_pos_refresh(StatementClass *stmt, UWORD irow , UDWORD global_ridx)
 	stmt->last_fetch_count = last_fetch;
 	stmt->last_fetch_count_include_ommitted = last_fetch2;
 	stmt->bind_row = bind_save;
-#if (ODBCVER >= 0x0300)
+
 	if (irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -2947,7 +2926,6 @@ SC_pos_refresh(StatementClass *stmt, UWORD irow , UDWORD global_ridx)
 				break;
 		}
 	}
-#endif /* ODBCVER */
 
 	return SQL_SUCCESS;
 }
@@ -3009,10 +2987,9 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			continue;
 		}	
 		s->ridx = s->nrow;
-#if (ODBCVER >= 0x0300)
+
 		if (0 != s->irow || !s->opts->row_operation_ptr || s->opts->row_operation_ptr[s->nrow] == SQL_ROW_PROCEED)
 		{
-#endif /* ODBCVER */
 			switch (s->fOption)
 			{
 #ifdef	DRIVER_CURSOR_IMPLEMENT
@@ -3040,9 +3017,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 				return ret;
 			}
 			s->processed++;
-#if (ODBCVER >= 0x0300)
 		}
-#endif /* ODBCVER */
 		if (SQL_ERROR != ret)
 			s->nrow++;
 	}
@@ -3115,11 +3090,8 @@ PGAPI_SetPos(
 		return SQL_ERROR;
 	}
 
-#if (ODBCVER >= 0x0300)
 	rowsetSize = (s.stmt->transition_status == 7 ? s.opts->size_of_rowset_odbc2 : s.opts->size_of_rowset);
-#else
-	rowsetSize = s.opts->size_of_rowset_odbc2;
-#endif /* ODBCVER */
+
 	if (s.irow == 0) /* bulk operation */
 	{
 		if (SQL_POSITION == s.fOption)
@@ -3186,10 +3158,9 @@ PGAPI_SetPos(
 			continue;
 		}
 		ridx = nrow;
-#if (ODBCVER >= 0x0300)
+		
 		if (0 != irow || !opts->row_operation_ptr || opts->row_operation_ptr[nrow] == SQL_ROW_PROCEED)
 		{
-#endif /* ODBCVER */
 			switch (fOption)
 			{
 #ifdef	DRIVER_CURSOR_IMPLEMENT
@@ -3212,9 +3183,7 @@ PGAPI_SetPos(
 			processed++;
 			if (SQL_ERROR == ret)
 				break;
-#if (ODBCVER >= 0x0300)
 		}
-#endif /* ODBCVER */
 		nrow++;
 	}
 	if (SQL_ERROR == ret)

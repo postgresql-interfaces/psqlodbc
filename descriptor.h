@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.12 2003/12/09 10:01:37 hinoue Exp $
+ * $Id: descriptor.h,v 1.13 2004/07/21 12:29:58 dpage Exp $
  *
  */
 
@@ -64,9 +64,7 @@ typedef struct DescriptorHeader_
  */
 struct ARDFields_
 {
-#if (ODBCVER >= 0x0300)
 	int		size_of_rowset; /* for ODBC3 fetch operation */
-#endif /* ODBCVER */
 	int		bind_size;	/* size of each structure if using
 					 * Row-wise Binding */
 	UInt2		*row_operation_ptr;
@@ -154,7 +152,6 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *self);
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall);
 void	APD_free_params(APDFields *self, char option);
 void	IPD_free_params(IPDFields *self, char option);
-#if (ODBCVER >= 0x0300)
 RETCODE	DC_set_stmt(DescriptorClass *desc, StatementClass *stmt);
 void	DC_clear_error(DescriptorClass *desc);
 void	DC_set_error(DescriptorClass *desc, int errornumber, const char * errormsg);
@@ -163,7 +160,6 @@ PG_ErrorInfo *DC_get_error(DescriptorClass *self);
 int	DC_get_errornumber(const DescriptorClass *self);
 const char *DC_get_errormsg(const DescriptorClass *self);
 void	DC_log_error(const char *func, const char *desc, const DescriptorClass *self);
-#endif /* ODBCVER */
 
 /*	Error numbers about descriptor handle */
 #define DESC_OK						0
