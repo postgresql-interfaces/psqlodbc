@@ -133,6 +133,7 @@ struct StatementClass_
 	QResultClass *curres;		/* the current result in the chain */
 	HSTMT FAR  *phstmt;
 	StatementOptions options;
+	StatementOptions options_orig;
 	ARDFields ardopts;
 	IRDFields irdopts;
 	APDFields apdopts;

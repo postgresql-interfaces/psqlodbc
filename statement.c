@@ -117,7 +117,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 	*phstmt = (HSTMT) stmt;
 
 	/* Copy default statement options based from Connection options */
-	stmt->options = conn->stmtOptions;
+	stmt->options = stmt->options_orig = conn->stmtOptions;
 	stmt->ardopts = conn->ardOptions;
 	stmt->ardopts.bookmark = (BindInfoClass *) malloc(sizeof(BindInfoClass));
 	stmt->ardopts.bookmark->buffer = NULL;
@@ -560,6 +560,14 @@ SC_recycle_statement(StatementClass *self)
 	if (self->load_statement)
 		free(self->load_statement);
 	self->load_statement = NULL;
+	/*
+	 *	reset the current attr setting to the original one.
+	 */
+	self->options.scroll_concurrency = self->options_orig.scroll_concurrency;
+	self->options.cursor_type = self->options_orig.cursor_type;
+	self->options.keyset_size = self->options_orig.keyset_size;
+	self->options.maxLength = self->options_orig.maxLength;
+	self->options.maxRows = self->options_orig.maxRows;
 
 	return TRUE;
 }

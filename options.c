@@ -75,7 +75,16 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->stmtOptions.scroll_concurrency = setval;
 			else if (stmt)
-				stmt->options.scroll_concurrency = setval;
+			{
+				if (SC_get_Result(stmt))
+				{
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The attr can't be changed because the cursor is open.");
+					SC_log_error(func, "", stmt);
+					return SQL_ERROR;
+				}
+				stmt->options.scroll_concurrency =
+				stmt->options_orig.scroll_concurrency = setval;
+			}
 			if (setval != vParam)
 				changed = TRUE;
 			mylog("-> %d\n", setval);
@@ -107,7 +116,16 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->stmtOptions.cursor_type = setval;
 			else if (stmt)
+			{
+				if (SC_get_Result(stmt))
+				{
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The attr can't be changed because the cursor is open.");
+					SC_log_error(func, "", stmt);
+					return SQL_ERROR;
+				}
+				stmt->options_orig.cursor_type =
 				stmt->options.cursor_type = setval;
+			}
 			if (setval != vParam)
 				changed = TRUE;
 			mylog("-> %d\n", setval);
@@ -119,7 +137,13 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->stmtOptions.keyset_size = vParam;
 			if (stmt)
-				stmt->options.keyset_size = vParam;
+			{
+				stmt->options_orig.keyset_size = vParam;
+				if (!SC_get_Result(stmt)) 
+					stmt->options.keyset_size = vParam;
+				if (stmt->options.keyset_size != (int)vParam)
+					changed = TRUE;
+			}
 
 			break;
 
@@ -141,7 +165,13 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->stmtOptions.maxLength = vParam;
 			if (stmt)
-				stmt->options.maxLength = vParam;
+			{
+				stmt->options_orig.maxLength = vParam;
+				if (!SC_get_Result(stmt)) 
+					stmt->options.maxLength = vParam;
+				if (stmt->options.maxLength != (int)vParam)
+					changed = TRUE;
+			}
 			break;
 
 		case SQL_MAX_ROWS:		/* ignored, but saved */
@@ -149,7 +179,13 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->stmtOptions.maxRows = vParam;
 			if (stmt)
-				stmt->options.maxRows = vParam;
+			{
+				stmt->options_orig.maxRows = vParam;
+				if (!SC_get_Result(stmt)) 
+					stmt->options.maxRows = vParam;
+				if (stmt->options.maxRows != (int)vParam)
+					changed = TRUE;
+			}
 			break;
 
 		case SQL_NOSCAN:		/* ignored */
