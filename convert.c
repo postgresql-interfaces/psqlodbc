@@ -44,9 +44,15 @@
 #endif
 
 #ifdef	__CYGWIN__
-#define TIMEZONE_GLOBAL _timezone
+#  define TIMEZONE_GLOBAL _timezone
 #elif	defined(WIN32) || defined(HAVE_INT_TIMEZONE)
-#define TIMEZONE_GLOBAL timezone
+#  ifdef __BORLANDC__
+#    define timezone _timzone
+#    define daylight _daylight
+#    define TIMEZONE_GLOBAL _timezone
+#  else
+#    define TIMEZONE_GLOBAL timezone
+#  endif
 #endif
 
 /*
