@@ -179,6 +179,10 @@ LINK32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "Debug"
 
+OUTDIR=.\Debug
+OUTDIRBIN=.\Debug
+INTDIR=.\Debug
+
 ALL : "$(OUTDIR)\psqlodbc.dll"
 
 
