@@ -2,7 +2,7 @@
 #
 # GNUMakefile for psqlodbc (Postgres ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/GNUmakefile,v 1.18 2001/08/27 00:38:55 petere Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/GNUmakefile,v 1.19 2001/09/11 23:27:10 petere Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ ifdef MULTIBYTE
 OBJS += multibyte.o
 endif
 
-SHLIB_LINK = $(filter -lm, $(LIBS))
+SHLIB_LINK = $(filter -lm -lnsl -lsocket, $(LIBS))
 
 all: all-lib
 
