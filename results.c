@@ -1127,7 +1127,8 @@ PGAPI_ExtendedFetch(
 					SDWORD irow,
 					UDWORD FAR * pcrow,
 					UWORD FAR * rgfRowStatus,
-					SQLINTEGER bookmark_offset)
+					SQLINTEGER bookmark_offset,
+					SQLINTEGER rowsetSize)
 {
 	static char *func = "PGAPI_ExtendedFetch";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -1214,7 +1215,7 @@ PGAPI_ExtendedFetch(
 
 	/* Initialize to no rows fetched */
 	if (rgfRowStatus)
-		for (i = 0; i < opts->rowset_size; i++)
+		for (i = 0; i < rowsetSize; i++)
 			*(rgfRowStatus + i) = SQL_ROW_NOROW;
 
 	if (pcrow)
@@ -1237,7 +1238,7 @@ PGAPI_ExtendedFetch(
 			 * SQL_FETCH_FIRST.
 			 */
 
-			progress_size = (save_rowset_size > 0 ? save_rowset_size : opts->rowset_size);
+			progress_size = (save_rowset_size > 0 ? save_rowset_size : rowsetSize);
 			if (stmt->rowset_start < 0)
 				stmt->rowset_start = 0;
 
@@ -1278,17 +1279,17 @@ PGAPI_ExtendedFetch(
 			}
 			if (stmt->rowset_start >= num_tuples)
 			{
-				if (opts->rowset_size > num_tuples)
+				if (rowsetSize > num_tuples)
 				{
 					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beggining");
 				}
-				stmt->rowset_start = num_tuples <= 0 ? 0 : (num_tuples - opts->rowset_size);
+				stmt->rowset_start = num_tuples <= 0 ? 0 : (num_tuples - rowsetSize);
 
 			}
 			else
 			{
 #ifdef	DRIVER_CURSOR_IMPLEMENT
-				if (i = getNthValid(res, stmt->rowset_start - 1, SQL_FETCH_PRIOR, opts->rowset_size, &stmt->rowset_start), i < -1)
+				if (i = getNthValid(res, stmt->rowset_start - 1, SQL_FETCH_PRIOR, rowsetSize, &stmt->rowset_start), i < -1)
 				{
 					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining");
 					stmt->rowset_start = 0;
@@ -1318,7 +1319,7 @@ PGAPI_ExtendedFetch(
 		case SQL_FETCH_LAST:
 			mylog("SQL_FETCH_LAST: num_tuples=%d, currtuple=%d\n", num_tuples, stmt->currTuple);
 
-			stmt->rowset_start = num_tuples <= 0 ? 0 : (num_tuples - opts->rowset_size);
+			stmt->rowset_start = num_tuples <= 0 ? 0 : (num_tuples - rowsetSize);
 			break;
 
 		case SQL_FETCH_ABSOLUTE:
@@ -1434,7 +1435,7 @@ PGAPI_ExtendedFetch(
 	/* If *new* rowset is prior to result_set, return no data found */
 	if (stmt->rowset_start < 0)
 	{
-		if (stmt->rowset_start + opts->rowset_size <= 0)
+		if (stmt->rowset_start + rowsetSize <= 0)
 		{
 			EXTFETCH_RETURN_BOF(stmt, res)
 		}
@@ -1449,7 +1450,7 @@ PGAPI_ExtendedFetch(
 	stmt->currTuple = RowIdx2GIdx(-1, stmt);
 
 	/* increment the base row in the tuple cache */
-	QR_set_rowset_size(res, opts->rowset_size);
+	QR_set_rowset_size(res, rowsetSize);
 	if (SC_is_fetchcursor(stmt))
 		QR_inc_base(res, stmt->last_fetch_count_include_ommitted);
 	else
@@ -1464,7 +1465,7 @@ PGAPI_ExtendedFetch(
 	mylog("PGAPI_ExtendedFetch: new currTuple = %d\n", stmt->currTuple);
 
 	truncated = error = FALSE;
-	for (i = 0, currp = stmt->rowset_start; i < opts->rowset_size; currp++)
+	for (i = 0, currp = stmt->rowset_start; i < rowsetSize; currp++)
 	{
 		stmt->bind_row = i;		/* set the binding location */
 		result = SC_fetch(stmt);
@@ -2758,7 +2759,7 @@ PGAPI_SetPos(
 	UWORD		nrow;
 	ARDFields	*opts;
 	BindInfoClass *bindings;
-	UDWORD		global_ridx;
+	UDWORD		global_ridx, rowsetSize;
 	BOOL		auto_commit_needed = FALSE;
 
 	if (!stmt)
@@ -2789,6 +2790,11 @@ PGAPI_SetPos(
 		return SQL_ERROR;
 	}
 
+#if (ODBCVER >= 0x0300)
+	rowsetSize = (stmt->transition_status == 7 ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
+#else
+	rowsetSize = opts->size_of_rowset_odbc2;
+#endif /* ODBCVER */
 	if (irow == 0) /* bulk operation */
 	{
 		if (SQL_POSITION == fOption)
@@ -2798,7 +2804,7 @@ PGAPI_SetPos(
 			return SQL_ERROR;
 		}
 		start_row = 0;
-		end_row = opts->rowset_size - 1;
+		end_row = rowsetSize - 1;
 	}
 	else
 	{

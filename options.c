@@ -215,7 +215,7 @@ set_statement_option(ConnectionClass *conn,
 			 */
 
 			if (stmt && stmt->save_rowset_size <= 0 && stmt->last_fetch_count > 0)
-				stmt->save_rowset_size = SC_get_ARD(stmt)->rowset_size;
+				stmt->save_rowset_size = SC_get_ARD(stmt)->size_of_rowset_odbc2;
 
 			if (vParam < 1)
 			{
@@ -224,9 +224,9 @@ set_statement_option(ConnectionClass *conn,
 			}
 
 			if (conn)
-				conn->ardOptions.rowset_size = vParam;
+				conn->ardOptions.size_of_rowset_odbc2 = vParam;
 			if (stmt)
-				SC_get_ARD(stmt)->rowset_size = vParam;
+				SC_get_ARD(stmt)->size_of_rowset_odbc2 = vParam;
 			break;
 
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */
@@ -739,7 +739,7 @@ PGAPI_GetStmtOption(
 			break;
 
 		case SQL_ROWSET_SIZE:
-			*((SDWORD *) pvParam) = SC_get_ARD(stmt)->rowset_size;
+			*((SDWORD *) pvParam) = SC_get_ARD(stmt)->size_of_rowset_odbc2;
 			break;
 
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */

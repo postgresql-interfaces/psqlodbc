@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include <string.h>
 
+/*	Internal flags for catalog functions */
 #define	PODBC_NOT_SEARCH_PATTERN	1L
+/*	Flags for the error handling */
 #define	PODBC_ALLOW_PARTIAL_EXTRACT	1L
 #define	PODBC_ERROR_CLEAR		(1L << 1)
 
@@ -173,7 +175,8 @@ RETCODE SQL_API PGAPI_ExtendedFetch(
 					SQLINTEGER irow,
 					SQLUINTEGER *pcrow,
 					SQLUSMALLINT *rgfRowStatus,
-					SQLINTEGER FetchOffset);
+					SQLINTEGER FetchOffset,
+					SQLINTEGER rowsetSize);
 RETCODE SQL_API PGAPI_ForeignKeys(
 				  HSTMT hstmt,
 				  SQLCHAR *szPkCatalogName,

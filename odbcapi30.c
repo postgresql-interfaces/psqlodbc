@@ -222,8 +222,13 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 		}
 	}
 	if (SQL_SUCCESS == ret)
+	{
+		ARDFields	*opts = SC_get_ARD(stmt);
+
 		ret = PGAPI_ExtendedFetch(StatementHandle, FetchOrientation, FetchOffset,
-				pcRow, rowStatusArray, bkmarkoff);
+				pcRow, rowStatusArray, bkmarkoff, opts->size_of_rowset);
+		stmt->transition_status = 6;
+	}
 	LEAVE_STMT_CS(stmt);
 	if (ret != SQL_SUCCESS)
 		mylog("%s return = %d\n", func, ret);

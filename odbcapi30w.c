@@ -291,4 +291,62 @@ RETCODE SQL_API SQLColAttributeW(
 
 	return ret;
 }
+
+RETCODE SQL_API SQLGetDiagFieldW(
+    SQLSMALLINT        fHandleType,
+    SQLHANDLE          handle,
+    SQLSMALLINT        iRecord,
+    SQLSMALLINT        fDiagField,
+    SQLPOINTER         rgbDiagInfo,
+    SQLSMALLINT        cbDiagInfoMax,
+    SQLSMALLINT    *pcbDiagInfo)
+{
+	RETCODE	ret;
+	BOOL	alloced = FALSE;
+	SQLSMALLINT	*rgbL, blen, bMax;
+        char    *rgbD = NULL;
+
+	mylog("[[SQLGetDiagField]] Handle=(%u,%x) Rec=%d Id=%d\n", fHandleType,
+			handle, iRecord, fDiagField);
+	switch (fDiagField)
+	{ 
+		case SQL_DIAG_DYNAMIC_FUNCTION:
+		case SQL_DIAG_CLASS_ORIGIN:
+		case SQL_DIAG_CONNECTION_NAME:
+		case SQL_DIAG_MESSAGE_TEXT:
+		case SQL_DIAG_SERVER_NAME:
+		case SQL_DIAG_SQLSTATE:
+		case SQL_DIAG_SUBCLASS_ORIGIN:
+			alloced = TRUE;
+			bMax = cbDiagInfoMax * 3 / 2;
+			rgbD = malloc(bMax + 1);
+			rgbL = &blen;
+                	break;
+		default:
+			rgbD = rgbDiagInfo;
+			bMax = cbDiagInfoMax;
+			rgbL = pcbDiagInfo;
+			break;
+	}
+
+	ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
+		bMax, rgbL);
+	if (alloced)
+	{
+		blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / 2);
+		if (SQL_SUCCESS == ret && blen * 2 > cbDiagInfoMax)
+		{
+			StatementClass	*stmt = (StatementClass *) handle;
+
+			ret = SQL_SUCCESS_WITH_INFO;
+			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDiagInfo.");
+		}
+		if (pcbDiagInfo)
+			*pcbDiagInfo = blen * 2;
+		free(rgbD);
+	}
+
+	return ret;
+}
+
 #endif /* ODBCVER >= 0x0300 */

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.9 2002/12/16 15:01:33 hinoue Exp $
+ * $Id: descriptor.h,v 1.10 2003/07/31 01:57:50 hinoue Exp $
  *
  */
 
@@ -49,7 +49,9 @@ Int4 FI_scale(const FIELD_INFO *);
 struct ARDFields_
 {
 	StatementClass	*stmt;
-	int		rowset_size;
+#if (ODBCVER >= 0x0300)
+	int		size_of_rowset; /* for ODBC3 fetch operations */
+#endif /* ODBCVER */
 	int		bind_size;	/* size of each structure if using Row
 							* Binding */
 	UInt2		*row_operation_ptr;
@@ -57,6 +59,7 @@ struct ARDFields_
 	BindInfoClass	*bookmark;
 	BindInfoClass	*bindings;
 	int		allocated;
+	int		size_of_rowset_odbc2; /* for SQLExtendedFetch */
 };
 
 struct APDFields_

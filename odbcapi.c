@@ -298,12 +298,14 @@ SQLFetch(HSTMT StatementHandle)
 	if (SC_get_conn(stmt)->driver_version >= 0x0300)
 	{
 		IRDFields	*irdopts = SC_get_IRD(stmt);
+		ARDFields	*ardopts = SC_get_ARD(stmt);
 		SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
 		SQLINTEGER *pcRow = irdopts->rowsFetched;
 
 		mylog("[[%s]]", func);
 		ret = PGAPI_ExtendedFetch(StatementHandle, SQL_FETCH_NEXT, 0,
-								   pcRow, rowStatusArray, 0);
+								   pcRow, rowStatusArray, 0, ardopts->size_of_rowset);
+		stmt->transition_status = 6;
 	}
 	else
 #endif
@@ -793,7 +795,8 @@ SQLExtendedFetch(
 	mylog("[SQLExtendedFetch]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0);
+	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0, SC_get_ARD(stmt)->size_of_rowset_odbc2);
+	stmt->transition_status = 7;
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }

@@ -478,7 +478,7 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_ARRAY_SIZE:
-			opts->rowset_size = (SQLUINTEGER) Value;
+			opts->size_of_rowset = (SQLUINTEGER) Value;
 			return ret; 
 		case SQL_DESC_ARRAY_STATUS_PTR:
 			opts->row_operation_ptr = Value;
@@ -949,7 +949,7 @@ ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_ARRAY_SIZE:
-			ival = opts->rowset_size;
+			ival = opts->size_of_rowset;
 			break; 
 		case SQL_DESC_ARRAY_STATUS_PTR:
 			rettype = SQL_IS_POINTER;
@@ -1462,7 +1462,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			*((SQLUINTEGER *) Value) = SC_get_ARD(stmt)->rowset_size;
+			*((SQLUINTEGER *) Value) = SC_get_ARD(stmt)->size_of_rowset;
 			len = 4;
 			break;
 		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
@@ -1712,7 +1712,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_IRD(stmt)->rowsFetched = (SQLUINTEGER *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			SC_get_ARD(stmt)->rowset_size = (SQLUINTEGER) Value;
+			SC_get_ARD(stmt)->size_of_rowset = (SQLUINTEGER) Value;
 			break;
 		default:
 			return PGAPI_SetStmtOption(StatementHandle, (UWORD) Attribute, (UDWORD) Value);
@@ -1758,7 +1758,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 			return SQL_ERROR;
 		}
 	}
-	for (i = 0, processed = 0; i < opts->rowset_size; i++)
+	for (i = 0, processed = 0; i < opts->size_of_rowset; i++)
 	{
 		if (SQL_ADD != operation)
 		{

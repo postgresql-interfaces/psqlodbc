@@ -105,3 +105,4 @@ SQLGetStmtAttrW		@125
 SQLSetStmtAttrW		@126
 SQLSetDescFieldW	@127
 SQLGetTypeInfoW		@128
+SQLGetDiagFieldW	@129

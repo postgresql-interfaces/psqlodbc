@@ -183,6 +183,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		 * this should discard all the results, but leave the statement
 		 * itself in place (it can be executed again)
 		 */
+		stmt->transition_status = 0;
 		if (!SC_recycle_statement(stmt))
 		{
 			/* errormsg passed in above */
@@ -227,8 +228,11 @@ void
 InitializeARDFields(ARDFields *opt)
 {
 	memset(opt, 0, sizeof(ARDFields));
-	opt->rowset_size = 1;
+#if (ODBCVER >= 0x0300)
+	opt->size_of_rowset = 1;
+#endif /* ODBCVER */
 	opt->bind_size = 0;		/* default is to bind by column */
+	opt->size_of_rowset_odbc2 = 1;
 }
 /*
  * APDFields initialize
@@ -259,6 +263,7 @@ SC_Constructor(void)
 		rv->prepared = FALSE;
 		rv->status = STMT_ALLOCATED;
 		rv->internal = FALSE;
+		rv->transition_status = 0;
 
 		rv->__error_message = NULL;
 		rv->__error_number = 0;
@@ -1283,7 +1288,13 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		QResultClass *res = SC_get_Result(self);
 		const ARDFields	*opts = SC_get_ARD(self);
 		const APDFields	*apdopts = SC_get_APD(self);
+		int	rowsetSize;
 
+#if (ODBCVER >= 0x0300)
+		rowsetSize = (7 == self->transition_status ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
+#else
+		rowsetSize = opts->size_of_rowset_odbc2;
+#endif /* ODBCVER */
 		qlog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
 		mylog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
 		qlog("                 ------------------------------------------------------------\n");
@@ -1295,7 +1306,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		qlog("                 stmt_with_params='%s'\n", nullcheck(self->stmt_with_params));
 		qlog("                 data_at_exec=%d, current_exec_param=%d, put_data=%d\n", self->data_at_exec, self->current_exec_param, self->put_data);
 		qlog("                 currTuple=%d, current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
-		qlog("                 maxRows=%d, rowset_size=%d, keyset_size=%d, cursor_type=%d, scroll_concurrency=%d\n", self->options.maxRows, opts->rowset_size, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
+		qlog("                 maxRows=%d, rowset_size=%d, keyset_size=%d, cursor_type=%d, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
 		qlog("                 cursor_name='%s'\n", nullcheck(self->cursor_name));
 
 		qlog("                 ----------------QResult Info -------------------------------\n");

@@ -182,7 +182,7 @@ struct StatementClass_
 						 * prepared at the server ? */
 	char		internal;		/* Is this statement being called
 								 * internally? */
-
+	char		transition_status;	/* Transition status */
 	char		cursor_name[MAX_CURSOR_LEN + 1];
 
 	char	   *stmt_with_params;		/* statement after parameter
