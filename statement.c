@@ -353,6 +353,8 @@ SC_Destructor(StatementClass *self)
 	cancelNeedDataState(self);
 	if (self->callbacks)
 		free(self->callbacks);
+    
+    GDATA_unbind_cols(SC_get_GDTI(self), TRUE);
 
 	DELETE_STMT_CS(self);
 	free(self);
