@@ -101,6 +101,22 @@ PGAPI_GetInfo(
 		case SQL_ALTER_TABLE:	/* ODBC 2.0 */
 			len = 4;
 			value = SQL_AT_ADD_COLUMN;
+			if (PG_VERSION_GE(conn, 7.3))
+				value |= SQL_AT_DROP_COLUMN;
+#if (ODBCVER >= 0x0300)
+			value |= SQL_AT_ADD_COLUMN_SINGLE;
+			if (PG_VERSION_GE(conn, 7.1))
+				value |= SQL_AT_ADD_CONSTRAINT
+					| SQL_AT_ADD_TABLE_CONSTRAINT
+					| SQL_AT_CONSTRAINT_INITIALLY_DEFERRED
+					| SQL_AT_CONSTRAINT_INITIALLY_IMMEDIATE
+					| SQL_AT_CONSTRAINT_DEFERRABLE;
+			if (PG_VERSION_GE(conn, 7.3))
+				value |= SQL_AT_DROP_TABLE_CONSTRAINT_RESTRICT
+					| SQL_AT_DROP_TABLE_CONSTRAINT_CASCADE
+					| SQL_AT_DROP_COLUMN_RESTRICT
+					| SQL_AT_DROP_COLUMN_CASCADE;
+#endif /* ODBCVER */
 			break;
 
 		case SQL_BOOKMARK_PERSISTENCE:	/* ODBC 2.0 */
@@ -777,7 +793,7 @@ PGAPI_GetTypeInfo(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	TupleNode  *row;
-	int			i;
+	int			i, result_cols;
 
 	/* Int4 type; */
 	Int4		pgType;
@@ -799,13 +815,14 @@ PGAPI_GetTypeInfo(
 	}
 	SC_set_Result(stmt, res);
 
-#if (ODBCVER >= 0x0399)
-	extend_column_bindings(SC_get_ARD(stmt), 19);
+#if (ODBCVER >= 0x0300)
+	result_cols = 19;
 #else
-	extend_column_bindings(SC_get_ARD(stmt), 15);
+	result_cols = 15;
 #endif /* ODBCVER */
+	extend_column_bindings(SC_get_ARD(stmt), result_cols);
 
-	QR_set_num_fields(res, 15);
+	QR_set_num_fields(res, result_cols);
 	QR_set_field_info(res, 0, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 1, "DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 2, "PRECISION", PG_TYPE_INT4, 4);
@@ -821,7 +838,7 @@ PGAPI_GetTypeInfo(
 	QR_set_field_info(res, 12, "LOCAL_TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info(res, 13, "MINIMUM_SCALE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 14, "MAXIMUM_SCALE", PG_TYPE_INT2, 2);
-#if (ODBCVER >=0x0399)
+#if (ODBCVER >=0x0300)
 	QR_set_field_info(res, 15, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 16, "SQL_DATATIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 17, "NUM_PREC_RADIX", PG_TYPE_INT4, 4);
@@ -834,7 +851,7 @@ PGAPI_GetTypeInfo(
 
 		if (fSqlType == SQL_ALL_TYPES || fSqlType == sqlType)
 		{
-			row = (TupleNode *) malloc(sizeof(TupleNode) + (15 - 1) *sizeof(TupleField));
+			row = (TupleNode *) malloc(sizeof(TupleNode) + (result_cols - 1) * sizeof(TupleField));
 
 			/* These values can't be NULL */
 			set_tuplefield_string(&row->tuple[0], pgtype_to_name(stmt, pgType));
@@ -859,9 +876,9 @@ PGAPI_GetTypeInfo(
 			set_nullfield_int2(&row->tuple[11], pgtype_auto_increment(stmt, pgType));
 			set_nullfield_int2(&row->tuple[13], pgtype_scale(stmt, pgType, PG_STATIC));
 			set_nullfield_int2(&row->tuple[14], pgtype_scale(stmt, pgType, PG_STATIC));
-#if (ODBCVER >=0x0399)
-			set_nullfield_int2(&row->tuple[15], pgtype_sqldesctype(stmt, pgType));
-			set_nullfield_int2(&row->tuple[16], pgtype_datetime_sub(stmt, pgType));
+#if (ODBCVER >=0x0300)
+			set_nullfield_int2(&row->tuple[15], pgtype_to_sqldesctype(stmt, pgType));
+			set_nullfield_int2(&row->tuple[16], pgtype_to_datetime_sub(stmt, pgType));
 			set_nullfield_int4(&row->tuple[17], pgtype_radix(stmt, pgType));
 			set_nullfield_int4(&row->tuple[18], 0);
 #endif /* ODBCVER */

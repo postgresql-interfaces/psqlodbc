@@ -117,7 +117,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 				INI_TRUEISMINUS1,
 				ci->true_is_minus1,
 				INI_INT8AS,
-				ci->true_is_minus1);
+				ci->int8_as);
 	/* Abbrebiation is needed ? */
 	if (abbrev || strlen(connect_string) >= len)
 	{
