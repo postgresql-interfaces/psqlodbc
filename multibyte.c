@@ -398,6 +398,9 @@ CC_lookup_characterset(ConnectionClass *self)
 			case 950:
 				wenc = "BIG5";
 				break;
+                        case 1250:
+                                wenc = "WIN1250";
+                                break;
 			case 1252:
 				if (PG_VERSION_GE(self, 7.2))
 					wenc = "latin9";
