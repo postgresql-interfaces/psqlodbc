@@ -632,8 +632,8 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 
 	ENTER_STMT_CS(stmt);
 #ifndef	DRIVER_CURSOR_IMPLEMENT
-	stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-	stmt->errormsg = "driver must be compiled with the DRIVER_CURSOR_IMPLEMENT option";
+	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR,
+	"driver must be compiled with the DRIVER_CURSOR_IMPLEMENT option");
 	SC_log_error(func, "", stmt);
 	ret = SQL_ERROR;
 #else
