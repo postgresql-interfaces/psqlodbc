@@ -35,6 +35,7 @@
 #include "connection.h"
 #include "statement.h"
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLAllocConnect(HENV EnvironmentHandle,
 				HDBC FAR * ConnectionHandle)
@@ -73,6 +74,7 @@ SQLAllocStmt(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLBindCol(HSTMT StatementHandle,
@@ -232,6 +234,7 @@ SQLDisconnect(HDBC ConnectionHandle)
 	return ret;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLError(HENV EnvironmentHandle,
 		 HDBC ConnectionHandle, HSTMT StatementHandle,
@@ -251,6 +254,7 @@ SQLError(HENV EnvironmentHandle,
 		LEAVE_ENV_CS((EnvironmentClass *) EnvironmentHandle);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLExecDirect(HSTMT StatementHandle,
@@ -311,6 +315,7 @@ SQLFetch(HSTMT StatementHandle)
 	return ret;
 }
 
+#if (ODBCVER < 0x0300) 
 RETCODE		SQL_API
 SQLFreeConnect(HDBC ConnectionHandle)
 {
@@ -330,6 +335,7 @@ SQLFreeEnv(HENV EnvironmentHandle)
 	ret = PGAPI_FreeEnv(EnvironmentHandle);
 	return ret;
 }
+#endif /* ODBCVER */ 
 
 RETCODE		SQL_API
 SQLFreeStmt(HSTMT StatementHandle,
@@ -342,6 +348,7 @@ SQLFreeStmt(HSTMT StatementHandle,
 	return ret;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLGetConnectOption(HDBC ConnectionHandle,
 					SQLUSMALLINT Option, PTR Value)
@@ -356,6 +363,8 @@ SQLGetConnectOption(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
+#endif /* ODBCVER */
+
 RETCODE		SQL_API
 SQLGetCursorName(HSTMT StatementHandle,
 				 SQLCHAR *CursorName, SQLSMALLINT BufferLength,
@@ -446,6 +455,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 	return ret;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLGetStmtOption(HSTMT StatementHandle,
 				 SQLUSMALLINT Option, PTR Value)
@@ -460,6 +470,7 @@ SQLGetStmtOption(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLGetTypeInfo(HSTMT StatementHandle,
@@ -551,6 +562,7 @@ SQLRowCount(HSTMT StatementHandle,
 	return ret;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLSetConnectOption(HDBC ConnectionHandle,
 					SQLUSMALLINT Option, SQLUINTEGER Value)
@@ -565,6 +577,7 @@ SQLSetConnectOption(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLSetCursorName(HSTMT StatementHandle,
@@ -599,6 +612,7 @@ SQLSetParam(HSTMT StatementHandle,
 	return SQL_ERROR;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLSetStmtOption(HSTMT StatementHandle,
 				 SQLUSMALLINT Option, SQLUINTEGER Value)
@@ -613,6 +627,7 @@ SQLSetStmtOption(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLSpecialColumns(HSTMT StatementHandle,
@@ -675,6 +690,7 @@ SQLTables(HSTMT StatementHandle,
 	return ret;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLTransact(HENV EnvironmentHandle,
 			HDBC ConnectionHandle, SQLUSMALLINT CompletionType)
@@ -715,6 +731,7 @@ SQLColAttributes(
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLColumnPrivileges(
