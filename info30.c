@@ -363,6 +363,14 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		/* char/binary data */
 		len = strlen(p);
 
+                /* Note that at this point we don't know if we've been called just
+                 * to get the length of the output. If it's unicode, then we better
+                 * adjust to bytes now, so we don't return a buffer size that's too
+                 * small.
+                 */
+                if (conn->unicode)
+                    len *= WCLEN;
+                
 		if (rgbInfoValue)
 		{
 #ifdef	UNICODE_SUPPORT
@@ -378,7 +386,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			if (len >= cbInfoValueMax)
 			{
 				result = SQL_SUCCESS_WITH_INFO;
-				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for tthe InfoValue.");
+				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the InfoValue.");
 			}
 		}
 	}
