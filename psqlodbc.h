@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.79 2003/10/25 04:19:22 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.80 2003/11/10 07:10:07 hinoue Exp $
  *
  */
 
@@ -308,17 +308,22 @@ void		logs_on_off(int cnopen, int, int);
 
 #include "misc.h"
 
+int	initialize_global_cs(void);
+#ifdef	POSIX_MULTITHTREAD_SUPPORT
+const pthread_mutexattr_t *getMutexAttr(void);
+#endif /* POSIX_MULTITHTREAD_SUPPORT */
 #ifdef	UNICODE_SUPPORT
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
 UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
+
 /*#define	_MEMORY_DEBUG_ */
 #ifdef	_MEMORY_DEBUG_
-void	   *debug_alloc(size_t);
-void	   *debug_realloc(void *, size_t);
-char	   *debug_strdup(const char *);
+void		*debug_alloc(size_t);
+void		*debug_realloc(void *, size_t);
+char		*debug_strdup(const char *);
 void		debug_free(void *);
 void		debug_memory_check(void);
 

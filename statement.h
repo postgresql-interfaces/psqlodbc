@@ -299,6 +299,8 @@ struct StatementClass_
 StatementClass *SC_Constructor(void);
 void		InitializeStatementOptions(StatementOptions *opt);
 char		SC_Destructor(StatementClass *self);
+BOOL		SC_is_open(const StatementClass *self);
+RETCODE		SC_initialize_ifclosed(StatementClass *self, const char *func);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt);
 void		SC_pre_execute(StatementClass *self);

@@ -139,13 +139,8 @@ PGAPI_ExecDirect(
 
 	mylog("%s: entering...\n", func);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
-
-	SC_initialize_stmts(stmt, TRUE);
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	/*
 	 * keep a copy of the un-parametrized statement, in case they try to
@@ -160,9 +155,6 @@ PGAPI_ExecDirect(
 	}
 
 	mylog("**** %s: hstmt=%u, statement='%s'\n", func, hstmt, stmt->statement);
-
-	stmt->prepare = FALSE;
-	SC_set_prepared(stmt, FALSE);
 
 	/*
 	 * If an SQLPrepare was performed prior to this, but was left in the

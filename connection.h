@@ -93,7 +93,7 @@ typedef enum
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_CONN_CS(x)	DeleteCriticalSection(&((x)->cs))
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
-#define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs),0)
+#define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
 #define ENTER_CONN_CS(x)	pthread_mutex_lock(&((x)->cs))
 #define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))

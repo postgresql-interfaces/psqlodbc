@@ -25,14 +25,54 @@ GLOBAL_VALUES globals;
 
 RETCODE SQL_API SQLDummyOrdinal(void);
 
-#ifdef WIN32
-HINSTANCE NEAR s_hModule;		/* Saved module handle. */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 extern	CRITICAL_SECTION	qlog_cs, mylog_cs, conns_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 extern	pthread_mutex_t 	qlog_cs, mylog_cs, conns_cs;
+static	pthread_mutexattr_t	recur_attr;
+const pthread_mutexattr_t*	getMutexAttr(void)
+{
+	static int	init = 1;
+
+	if (init)
+	{
+		if (0 != pthread_mutexattr_init(&recur_attr))
+			return NULL;
+		if (0 != pthread_mutexattr_settype(&recur_attr, PTHREAD_MUTEX_RECURSIVE_NP))
+			return NULL;
+	}
+	init = 0;
+
+	return	&recur_attr;
+}
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
+int	initialize_global_cs(void)
+{
+	static	int	init = 1;
+
+	if (!init)
+		return 0;
+	init = 0;
+#ifdef	POSIX_MULTITHREAD_SUPPORT
+	getMutexAttr();
+#endif /* POSIX_MULTITHREAD_SUPPORT */
+	INIT_QLOG_CS;
+	INIT_MYLOG_CS;
+	INIT_CONNS_CS;
+
+	return 0;
+}
+
+static void finalize_global_cs(void)
+{
+	DELETE_CONNS_CS;
+	DELETE_QLOG_CS;
+	DELETE_MYLOG_CS;
+}
+
+#ifdef WIN32
+HINSTANCE NEAR s_hModule;		/* Saved module handle. */
 /*	This is where the Driver Manager attaches to this Driver */
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
@@ -59,9 +99,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				return FALSE;
 			}
 
-			INIT_QLOG_CS;
-			INIT_MYLOG_CS;
-			INIT_CONNS_CS;
+			initialize_global_cs();
 			getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 			break;
 
@@ -69,9 +107,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			break;
 
 		case DLL_PROCESS_DETACH:
-			DELETE_CONNS_CS;
-			DELETE_QLOG_CS;
-			DELETE_MYLOG_CS;
+			finalize_global_cs();
 			WSACleanup();
 			return TRUE;
 
@@ -104,6 +140,7 @@ static BOOL
 __attribute__((constructor))
 init(void)
 {
+	initialize_global_cs();
 	getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 	return TRUE;
 }
@@ -117,6 +154,7 @@ init(void)
 BOOL
 _init(void)
 {
+	initialize_global_cs();
 	getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 	return TRUE;
 }
@@ -124,6 +162,7 @@ _init(void)
 BOOL
 _fini(void)
 {
+	finalize_global_cs();
 	return TRUE;
 }
 #endif   /* not __GNUC__ */

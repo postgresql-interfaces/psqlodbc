@@ -344,10 +344,10 @@ SC_Destructor(StatementClass *self)
 	}
 
 	/* Free the parsed field information */
-	DC_Destructor(SC_get_ARDi(self));
-	DC_Destructor(SC_get_APDi(self));
-	DC_Destructor(SC_get_IRDi(self));
-	DC_Destructor(SC_get_IPDi(self));
+	DC_Destructor((DescriptorClass *) SC_get_ARDi(self));
+	DC_Destructor((DescriptorClass *) SC_get_APDi(self));
+	DC_Destructor((DescriptorClass *) SC_get_IRDi(self));
+	DC_Destructor((DescriptorClass *) SC_get_IPDi(self));
 	
 	if (self->__error_message)
 		free(self->__error_message);
@@ -444,7 +444,9 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 			free(self->execute_statement);
 			self->execute_statement = NULL;
 		}
+		self->prepare = FALSE;
 		SC_set_prepared(self,FALSE);
+		self->statement_type = STMT_TYPE_UNKNOWN;
 	}
 	if (self->stmt_with_params)
 	{
@@ -458,6 +460,45 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 	}
 
 	return 0;
+}
+
+BOOL	SC_is_open(const StatementClass *self)
+{
+	QResultClass	*res;
+
+	if (res = SC_get_Curres(self), NULL != res)
+	{
+		if (res->backend_tuples)
+			return TRUE;
+	}
+
+	return	FALSE;
+}
+
+RETCODE
+SC_initialize_ifclosed(StatementClass *self, const char *func)
+{
+	if (!self)
+	{
+		SC_log_error(func, "", NULL);
+		return SQL_INVALID_HANDLE;
+	}
+	if (self->status == STMT_EXECUTING)
+	{
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
+		return FALSE;
+	}
+	if (SC_is_open(self))
+	{
+		SC_set_error(self, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor is open");
+		SC_log_error(func, "", self);
+		return SQL_ERROR;
+	}
+	SC_initialize_stmts(self, TRUE);
+	if (!SC_recycle_statement(self))
+		return SQL_ERROR;
+
+	return SQL_SUCCESS;
 }
 
 /*
@@ -525,7 +566,7 @@ SC_recycle_statement(StatementClass *self)
 		self->ntab = 0;
 	}
 	/* Free the parsed field information */
-	DC_Destructor(SC_get_IRD(self));
+	DC_Destructor((DescriptorClass *) SC_get_IRD(self));
 
 	self->parse_status = STMT_PARSE_NONE;
 	self->updatable = FALSE;

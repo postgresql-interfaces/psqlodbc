@@ -1217,7 +1217,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 #endif /* ODBCINT64 */
 			case SQL_C_BINARY:
-				if (PG_TYPE_UNKNOWN == field_type)
+				if (PG_TYPE_UNKNOWN == field_type ||
+				    PG_TYPE_TEXT == field_type ||
+				    PG_TYPE_VARCHAR == field_type ||
+				    PG_TYPE_BPCHAR == field_type)
 				{
 					int	len = SQL_NULL_DATA;
 
@@ -1226,7 +1229,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (pcbValue)
 						*((SDWORD *) pcbValueBindRow) = len;
 					if (len > 0 && cbValueMax > 0)
+					{
 						memcpy(rgbValueBindRow, neut_str, len < cbValueMax ? len : cbValueMax);
+						if (cbValueMax >= len + 1)
+							rgbValueBindRow[len] = '\0';
+					}
 					if (cbValueMax >= len)
 						return COPY_OK;
 					else

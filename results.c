@@ -115,7 +115,7 @@ PGAPI_NumResultCols(
 	SC_clear_error(stmt);
 
 	parse_ok = FALSE;
-	if (ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->manual_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (stmt->parse_status == STMT_PARSE_NONE)
 		{
@@ -227,7 +227,7 @@ PGAPI_DescribeCol(
 	icol--;						/* use zero based column numbers */
 
 	parse_ok = FALSE;
-	if (ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->manual_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (stmt->parse_status == STMT_PARSE_NONE)
 		{
@@ -451,7 +451,7 @@ PGAPI_ColAttributes(
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
 	parse_ok = FALSE;
-	if (ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->manual_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (stmt->parse_status == STMT_PARSE_NONE)
 		{

@@ -797,14 +797,12 @@ PGAPI_GetTypeInfo(
 	/* Int4 type; */
 	Int4		pgType;
 	Int2		sqlType;
+	RETCODE		result;
 
 	mylog("%s: entering...fSqlType = %d\n", func, fSqlType);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	stmt->manual_result = TRUE;
 	if (res = QR_Constructor(), !res)
@@ -1322,11 +1320,8 @@ PGAPI_Tables(
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	stmt->manual_result = TRUE;
 	stmt->errormsg_created = TRUE;
@@ -1743,11 +1738,8 @@ PGAPI_Columns(
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	stmt->manual_result = TRUE;
 	stmt->errormsg_created = TRUE;
@@ -2262,11 +2254,8 @@ PGAPI_SpecialColumns(
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
 #ifdef	UNICODE_SUPPORT
@@ -2497,11 +2486,8 @@ PGAPI_Statistics(
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	stmt->manual_result = TRUE;
 	stmt->errormsg_created = TRUE;
@@ -2906,11 +2892,14 @@ PGAPI_ColumnPrivileges(
 {
 	CSTR func = "PGAPI_ColumnPrivileges";
 	StatementClass	*stmt = (StatementClass *) hstmt;
+	RETCODE	result;
 
 	mylog("%s: entering...\n", func);
 
 	/* Neither Access or Borland care about this. */
 
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "not implemented");
 	SC_log_error(func, "Function not implemented", stmt);
 	return SQL_ERROR;
@@ -2953,11 +2942,8 @@ PGAPI_PrimaryKeys(
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 	stmt->manual_result = TRUE;
 	stmt->errormsg_created = TRUE;
 
@@ -3460,11 +3446,8 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 
 	mylog("%s: entering...stmt=%u\n", func, stmt);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		return SQL_INVALID_HANDLE;
-	}
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	stmt->manual_result = TRUE;
 	stmt->errormsg_created = TRUE;
@@ -4274,6 +4257,7 @@ PGAPI_ProcedureColumns(
 	char		*schema_name, *procname, *params;
 	QResultClass *res, *tres;
 	Int4		tcount, paramcount, i, j, pgtype;
+	RETCODE		result;
 	const char *likeeq = "like";
 
 	mylog("%s: entering...\n", func);
@@ -4284,8 +4268,8 @@ PGAPI_ProcedureColumns(
 		SC_log_error(func, "Function not implemented", stmt);
 		return SQL_ERROR;
 	}
-	if (!SC_recycle_statement(stmt))
-		return SQL_ERROR;
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 	if (conn->schema_support)
 	{
 		strcpy(proc_query, "select proname, proretset, prorettype, "
@@ -4459,6 +4443,7 @@ PGAPI_Procedures(
 	ConnectionClass *conn = SC_get_conn(stmt);
 	char		proc_query[INFO_INQUIRY_LEN];
 	QResultClass *res;
+	RETCODE		result;
 	const char *likeeq = "like";
 
 	mylog("%s: entering... scnm=%x len=%d\n", func, szProcOwner, cbProcOwner);
@@ -4469,8 +4454,8 @@ PGAPI_Procedures(
 		SC_log_error(func, "Function not implemented", stmt);
 		return SQL_ERROR;
 	}
-	if (!SC_recycle_statement(stmt))
-		return SQL_ERROR;
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	/*
 	 * The following seems the simplest implementation
@@ -4588,11 +4573,12 @@ PGAPI_TablePrivileges(
 	BOOL		grpauth, sys, su;
 	char		(*useracl)[ACLMAX], *acl, *user, *delim, *auth;
 	char		*reln, *owner, *priv, *schnm = NULL;
+	RETCODE		result;
 	const char *likeeq = "like";
 
 	mylog("%s: entering... scnm=%x len-%d\n", func, szTableOwner, cbTableOwner);
-	if (!SC_recycle_statement(stmt))
-		return SQL_ERROR;
+	if (result = SC_initialize_ifclosed(stmt, func), SQL_SUCCESS != result)
+		return result;
 
 	/*
 	 * a statement is actually executed, so we'll have to do this
