@@ -27,6 +27,7 @@
 								 * of getpid ? */
 #endif
 #include "connection.h"
+#include "multibyte.h"
 
 extern GLOBAL_VALUES globals;
 void		generate_filename(const char *, const char *, char *);
@@ -289,6 +290,55 @@ make_string(const char *s, int len, char *buf)
 	return NULL;
 }
 
+/*------
+ *	Create a null terminated lower-case string if the
+ *	original string contains upper-case characters.
+ *	The SQL_NTS length is considered.
+ *------
+ */
+char *
+make_lstring_ifneeded(ConnectionClass *conn, const char *s, int len, BOOL ifallupper)
+{
+	int	length = len;
+	char	   *str = NULL;
+
+	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(s)) > 0)))
+	{
+		int	i;
+		const char *ptr;
+		encoded_str encstr;
+
+		make_encoded_str(&encstr, conn, s);
+		for (i = 0, ptr = s; i < length; i++, ptr++)
+		{
+			encoded_nextchar(&encstr);
+			if (ENCODE_STATUS(encstr) != 0)
+				continue;
+			if (ifallupper && islower(*ptr))
+			{
+				if (str)
+				{
+					free(str);
+					str = NULL;
+				}
+				break;
+			} 
+			if (tolower(*ptr) != *ptr)
+			{
+				if (!str)
+				{
+					str = malloc(length + 1);
+					memcpy(str, s, length);
+					str[length] = '\0';
+				}
+				str[i] = tolower(*ptr);
+			}
+		}
+	}
+
+	return str;
+}
+
 
 /*
  *	Concatenate a single formatted argument to a given buffer handling the SQL_NTS thing.
@@ -357,4 +407,34 @@ trim(char *s)
 	}
 
 	return s;
+}
+
+char *
+my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len)
+{
+	int	length = len;
+
+	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(s)) > 0)))
+	{
+		int	pos = strlen(buf);
+
+		if (s1)
+			sprintf(&buf[pos], fmt, s1, length, s);
+		else
+			sprintf(&buf[pos], fmt, length, s);
+		return buf;
+	}
+	return NULL;
+}
+
+char *
+schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len, const char *tbname, int tbnmlen, ConnectionClass *conn)
+{
+	if (!s || 0 == len)
+	{
+		if (conn->schema_support && tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
+			return my_strcat1(buf, fmt, s1, CC_get_current_schema(conn), SQL_NTS);
+		return NULL;
+	}
+	return my_strcat1(buf, fmt, s1, s, len);
 }

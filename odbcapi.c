@@ -34,6 +34,7 @@
 #include "environ.h"
 #include "connection.h"
 #include "statement.h"
+#include "qresult.h"
 
 #if (ODBCVER < 0x0300)
 RETCODE		SQL_API
@@ -111,13 +112,58 @@ SQLColumns(HSTMT StatementHandle,
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	SQLCHAR	*ctName = CatalogName, *scName = SchemaName,
+		*tbName = TableName, *clName = ColumnName;
 
 	mylog("[SQLColumns]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Columns(StatementHandle, CatalogName, NameLength1,
-					SchemaName, NameLength2, TableName, NameLength3,
-					ColumnName, NameLength4, 0);
+	ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
+				scName, NameLength2, tbName, NameLength3,
+				clName, NameLength4, 0);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}	
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (newCl = make_lstring_ifneeded(conn, ColumnName, NameLength4, ifallupper))
+		{
+			clName = newCl;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
+				scName, NameLength2, tbName, NameLength3,
+				clName, NameLength4, 0);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+			if (newCl)
+				free(newCl);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -288,7 +334,7 @@ SQLExecute(HSTMT StatementHandle)
 RETCODE		SQL_API
 SQLFetch(HSTMT StatementHandle)
 {
-	static char *func = "SQLFetch";
+	CSTR func = "SQLFetch";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
@@ -641,13 +687,50 @@ SQLSpecialColumns(HSTMT StatementHandle,
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
 	mylog("[SQLSpecialColumns]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, CatalogName,
-			NameLength1, SchemaName, NameLength2, TableName, NameLength3,
-								Scope, Nullable);
+	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
+			NameLength1, scName, NameLength2, tbName, NameLength3,
+							Scope, Nullable);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
+			NameLength1, scName, NameLength2, tbName, NameLength3,
+							Scope, Nullable);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -661,13 +744,50 @@ SQLStatistics(HSTMT StatementHandle,
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
 	mylog("[SQLStatistics]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Statistics(StatementHandle, CatalogName, NameLength1,
-				 SchemaName, NameLength2, TableName, NameLength3, Unique,
-							Reserved);
+	ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
+				 scName, NameLength2, tbName, NameLength3,
+				 Unique, Reserved);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
+				 scName, NameLength2, tbName, NameLength3,
+				 Unique, Reserved);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+		}	
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -681,13 +801,50 @@ SQLTables(HSTMT StatementHandle,
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
 	mylog("[SQLTables]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Tables(StatementHandle, CatalogName, NameLength1,
-						SchemaName, NameLength2, TableName, NameLength3,
+	ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
+				scName, NameLength2, tbName, NameLength3,
 						TableType, NameLength4);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
+				scName, NameLength2, tbName, NameLength3,
+						TableType, NameLength4);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -749,13 +906,58 @@ SQLColumnPrivileges(
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
+		*tbName = szTableName, *clName = szColumnName;
 
 	mylog("[SQLColumnPrivileges]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ColumnPrivileges(hstmt, szCatalogName, cbCatalogName,
-					szSchemaName, cbSchemaName, szTableName, cbTableName,
-								  szColumnName, cbColumnName);
+	ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
+				scName, cbSchemaName, tbName, cbTableName,
+						clName, cbColumnName);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (newCl = make_lstring_ifneeded(conn, szColumnName, cbColumnName, ifallupper))
+		{
+			clName = newCl;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
+				scName, cbSchemaName, tbName, cbTableName,
+						clName, cbColumnName);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+			if (newCl)
+				free(newCl);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -819,14 +1021,76 @@ SQLForeignKeys(
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	SQLCHAR *pkctName = szPkCatalogName, *pkscName = szPkSchemaName,
+		*pktbName = szPkTableName, *fkctName = szFkCatalogName,
+		*fkscName = szFkSchemaName, *fktbName = szFkTableName;
 
 	mylog("[SQLForeignKeys]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ForeignKeys(hstmt, szPkCatalogName, cbPkCatalogName,
-						   szPkSchemaName, cbPkSchemaName, szPkTableName,
-						 cbPkTableName, szFkCatalogName, cbFkCatalogName,
-		   szFkSchemaName, cbFkSchemaName, szFkTableName, cbFkTableName);
+	ret = PGAPI_ForeignKeys(hstmt, pkctName, cbPkCatalogName,
+			pkscName, cbPkSchemaName, pktbName, cbPkTableName,
+			fkctName, cbFkCatalogName, fkscName, cbFkSchemaName,
+			fktbName, cbFkTableName);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newPkct = NULL, *newPksc = NULL, *newPktb = NULL,
+			*newFkct = NULL, *newFksc = NULL, *newFktb = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newPkct = make_lstring_ifneeded(conn, szPkCatalogName, cbPkCatalogName, ifallupper))
+		{
+			pkctName = newPkct;
+			reexec = TRUE;
+		}
+		if (newPksc = make_lstring_ifneeded(conn, szPkSchemaName, cbPkSchemaName, ifallupper))
+		{
+			pkscName = newPksc;
+			reexec = TRUE;
+		}
+		if (newPktb = make_lstring_ifneeded(conn, szPkTableName, cbPkTableName, ifallupper))
+		{
+			pktbName = newPktb;
+			reexec = TRUE;
+		}
+		if (newFkct = make_lstring_ifneeded(conn, szFkCatalogName, cbFkCatalogName, ifallupper))
+		{
+			fkctName = newFkct;
+			reexec = TRUE;
+		}
+		if (newFksc = make_lstring_ifneeded(conn, szFkSchemaName, cbFkSchemaName, ifallupper))
+		{
+			fkscName = newFksc;
+			reexec = TRUE;
+		}
+		if (newFktb = make_lstring_ifneeded(conn, szFkTableName, cbFkTableName, ifallupper))
+		{
+			fktbName = newFktb;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_ForeignKeys(hstmt, pkctName, cbPkCatalogName,
+			pkscName, cbPkSchemaName, pktbName, cbPkTableName,
+			fkctName, cbFkCatalogName, fkscName, cbFkSchemaName,
+			fktbName, cbFkTableName);
+			if (newPkct)
+				free(newPkct);
+			if (newPksc)
+				free(newPksc);
+			if (newPktb)
+				free(newPktb);
+			if (newFkct)
+				free(newFkct);
+			if (newFksc)
+				free(newFksc);
+			if (newFktb)
+				free(newFktb);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -911,12 +1175,49 @@ SQLPrimaryKeys(
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
+		*tbName = szTableName;
 
 	mylog("[SQLPrimaryKeys]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_PrimaryKeys(hstmt, szCatalogName, cbCatalogName,
-				   szSchemaName, cbSchemaName, szTableName, cbTableName);
+	ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
+			scName, cbSchemaName, tbName, cbTableName);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt = NULL, *newSc = NULL, *newTb = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
+			scName, cbSchemaName, tbName, cbTableName);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -935,13 +1236,58 @@ SQLProcedureColumns(
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
+		*prName = szProcName, *clName = szColumnName;
 
 	mylog("[SQLProcedureColumns]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ProcedureColumns(hstmt, szCatalogName, cbCatalogName,
-					  szSchemaName, cbSchemaName, szProcName, cbProcName,
-								  szColumnName, cbColumnName);
+	ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
+				scName, cbSchemaName, prName, cbProcName,
+					clName, cbColumnName);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt = NULL, *newSc = NULL, *newPr = NULL, *newCl = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newPr = make_lstring_ifneeded(conn, szProcName, cbProcName, ifallupper))
+		{
+			prName = newPr;
+			reexec = TRUE;
+		}
+		if (newCl = make_lstring_ifneeded(conn, szColumnName, cbColumnName, ifallupper))
+		{
+			clName = newCl;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
+				scName, cbSchemaName, prName, cbProcName,
+					clName, cbColumnName);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newPr)
+				free(newPr);
+			if (newCl)
+				free(newCl);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -958,12 +1304,49 @@ SQLProcedures(
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
+		*prName = szProcName;
 
 	mylog("[SQLProcedures]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Procedures(hstmt, szCatalogName, cbCatalogName,
-					 szSchemaName, cbSchemaName, szProcName, cbProcName);
+	ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
+					 scName, cbSchemaName, prName, cbProcName);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt = NULL, *newSc = NULL, *newPr = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newPr = make_lstring_ifneeded(conn, szProcName, cbProcName, ifallupper))
+		{
+			prName = newPr;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
+					 scName, cbSchemaName, prName, cbProcName);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newPr)
+				free(newPr);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -998,12 +1381,49 @@ SQLTablePrivileges(
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
+		*tbName = szTableName;
 
 	mylog("[SQLTablePrivileges]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_TablePrivileges(hstmt, szCatalogName, cbCatalogName,
-				   szSchemaName, cbSchemaName, szTableName, cbTableName, 0);
+	ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
+			scName, cbSchemaName, tbName, cbTableName, 0);
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	{
+		BOOL	ifallupper = TRUE, reexec = FALSE;
+		char *newCt = NULL, *newSc = NULL, *newTb = NULL;
+		ConnectionClass *conn = SC_get_conn(stmt);
+
+		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
+			ifallupper = FALSE;
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		{
+			ctName = newCt;
+			reexec = TRUE;
+		}
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		{
+			scName = newSc;
+			reexec = TRUE;
+		}
+		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper))
+		{
+			tbName = newTb;
+			reexec = TRUE;
+		}
+		if (reexec)
+		{
+			ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
+			scName, cbSchemaName, tbName, cbTableName, 0);
+			if (newCt)
+				free(newCt);
+			if (newSc)
+				free(newSc);
+			if (newTb)
+				free(newTb);
+		}
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }

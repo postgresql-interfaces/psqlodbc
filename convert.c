@@ -365,7 +365,7 @@ int
 copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 fCType,
 					   PTR rgbValue, SDWORD cbValueMax, SDWORD *pcbValue)
 {
-	static char *func = "copy_and_convert_field";
+	CSTR func = "copy_and_convert_field";
 	ARDFields	*opts = SC_get_ARD(stmt);
 	Int4		len = 0,
 				copy_len = 0;
@@ -1558,7 +1558,7 @@ static int
 enlarge_query_statement(QueryBuild *qb, unsigned int newsize)
 {
 	unsigned int newalsize = INIT_MIN_ALLOC;
-	static char *func = "enlarge_statement";
+	CSTR func = "enlarge_statement";
 
 	if (qb->str_size_limit > 0 && qb->str_size_limit < (int) newsize)
 	{
@@ -1773,7 +1773,7 @@ insert_without_target(const char *stmt, int *endpos)
 static	int
 Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
-	const static char *func = "Prepare_and_convert";
+	CSTR func = "Prepare_and_convert";
 	char	*new_statement, *exe_statement = NULL;
 	int	retval;
 
@@ -1880,7 +1880,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 int
 copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 {
-	static char *func = "copy_statement_with_parameters";
+	CSTR		func = "copy_statement_with_parameters";
 	RETCODE		retval;
 	QueryParse	query_org, *qp;
 	QueryBuild	query_crt, *qb;
@@ -2084,7 +2084,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 {
-	static char *func = "inner_process_tokens";
+	CSTR func = "inner_process_tokens";
 	BOOL	lf_conv = qb->lf_conv;
 
 	RETCODE	retval;
@@ -2386,6 +2386,8 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 		for (; i >= 0; i--)
 			chrform[newlen++] = calv[i] + '0';
 	}
+	if (0 == len)
+		chrform[newlen++] = '0';
 	chrform[newlen] = '\0';
 	return TRUE;
 }
@@ -2397,7 +2399,7 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 static int
 ResolveOneParam(QueryBuild *qb)
 {
-	const char *func = "ResolveOneParam";
+	CSTR func = "ResolveOneParam";
 
 	ConnectionClass *conn = qb->conn;
 	ConnInfo   *ci = &(conn->connInfo);
@@ -2566,7 +2568,7 @@ ResolveOneParam(QueryBuild *qb)
 			allocbuf = malloc(2 * (used + 1));
 			used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
 				used, (LPWSTR) allocbuf, used + 1);
-			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used);
+			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
 			free(allocbuf);
 			allocbuf = buf;
 #else
@@ -2576,7 +2578,7 @@ ResolveOneParam(QueryBuild *qb)
 
 #ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
-			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / 2, &used);
+			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / 2, &used, FALSE);
 			used *= 2;
 			break;
 #endif /* UNICODE_SUPPORT */
@@ -2997,7 +2999,7 @@ static int
 processParameters(QueryParse *qp, QueryBuild *qb,
 		UInt4 *output_count, Int4 param_pos[][2])
 {
-	static const char *func = "processParameters";
+	CSTR func = "processParameters";
 	int retval, innerParenthesis, param_count;
 	BOOL stop;
 
@@ -3092,7 +3094,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 static int
 convert_escape(QueryParse *qp, QueryBuild *qb)
 {
-	static const char *func = "convert_escape";
+	CSTR func = "convert_escape";
 	RETCODE	retval = SQL_SUCCESS;
 	char		buf[1024], buf_small[128], key[65];
 	unsigned char	ucv;

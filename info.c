@@ -59,7 +59,7 @@ PGAPI_GetInfo(
 			  SWORD cbInfoValueMax,
 			  SWORD FAR * pcbInfoValue)
 {
-	static char *func = "PGAPI_GetInfo";
+	CSTR func = "PGAPI_GetInfo";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci;
 	char	   *p = NULL,
@@ -790,7 +790,7 @@ PGAPI_GetTypeInfo(
 				  HSTMT hstmt,
 				  SWORD fSqlType)
 {
-	static char *func = "PGAPI_GetTypeInfo";
+	CSTR func = "PGAPI_GetTypeInfo";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	TupleNode  *row;
@@ -929,7 +929,7 @@ PGAPI_GetFunctions(
 				   UWORD fFunction,
 				   UWORD FAR * pfExists)
 {
-	static char *func = "PGAPI_GetFunctions";
+	CSTR func = "PGAPI_GetFunctions";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci = &(conn->connInfo);
 
@@ -1285,7 +1285,7 @@ PGAPI_Tables(
 			 UCHAR FAR * szTableType,
 			 SWORD cbTableType)
 {
-	static char *func = "PGAPI_Tables";
+	CSTR func = "PGAPI_Tables";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	StatementClass *tbl_stmt;
 	QResultClass	*res;
@@ -1314,6 +1314,7 @@ PGAPI_Tables(
 				systable;
 	int			i;
 	SWORD			internal_asis_type = SQL_C_CHAR;
+	const char *likeeq = "like";
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -1362,10 +1363,10 @@ PGAPI_Tables(
 	}
 
 	if (conn->schema_support)
-		schema_strcat(tables_query, " and nspname like '%.*s'", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+		schema_strcat1(tables_query, " and nspname %s '%.*s'", likeeq, szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
 	else
-		my_strcat(tables_query, " and usename like '%.*s'", szTableOwner, cbTableOwner);
-	my_strcat(tables_query, " and relname like '%.*s'", szTableName, cbTableName);
+		my_strcat1(tables_query, " and usename %s '%.*s'", likeeq, szTableOwner, cbTableOwner);
+	my_strcat1(tables_query, " and relname %s '%.*s'", likeeq, szTableName, cbTableName);
 
 	/* Parse the extra systable prefix	*/
 	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
@@ -1705,7 +1706,7 @@ PGAPI_Columns(
 			  SWORD cbColumnName,
 			  UWORD	flag)
 {
-	static char *func = "PGAPI_Columns";
+	CSTR func = "PGAPI_Columns";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	TupleNode  *row;
@@ -1734,7 +1735,9 @@ PGAPI_Columns(
 	ConnInfo   *ci;
 	ConnectionClass *conn;
 	SWORD		internal_asis_type = SQL_C_CHAR;
-
+	const char *likeeq = "like";
+	const char *mzTableOwner = szTableOwner, *mzTableName = szTableName,
+		*mzColumnName = szColumnName;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -1777,12 +1780,19 @@ PGAPI_Columns(
 
 	if ((flag & PODBC_NOT_SEARCH_PATTERN) != 0) 
 	{
-		my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName);
+		likeeq = "=";
+	}
+	else
+	{
+	}
+	if ((flag & PODBC_NOT_SEARCH_PATTERN) != 0) 
+	{
+		my_strcat1(columns_query, " and c.relname %s '%.*s'", likeeq, mzTableName, cbTableName);
 		if (conn->schema_support)
-			schema_strcat(columns_query, " and u.nspname = '%.*s'", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, mzTableOwner, cbTableOwner, mzTableName, cbTableName, conn);
 		else
-			my_strcat(columns_query, " and u.usename = '%.*s'", szTableOwner, cbTableOwner);
-		my_strcat(columns_query, " and a.attname = '%.*s'", szColumnName, cbColumnName);
+			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, mzTableOwner, cbTableOwner);
+		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, mzColumnName, cbColumnName);
 	}
 	else
 	{
@@ -1790,12 +1800,13 @@ PGAPI_Columns(
 		int	escTbnamelen;
 
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
-		my_strcat(columns_query, " and c.relname like '%.*s'", esc_table_name, escTbnamelen);
+		mzTableName = esc_table_name;
+		my_strcat1(columns_query, " and c.relname %s '%.*s'", likeeq, mzTableName, escTbnamelen);
 		if (conn->schema_support)
-			schema_strcat(columns_query, " and u.nspname like '%.*s'", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
+			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, szTableOwner, cbTableOwner, mzTableName, cbTableName, conn);
 		else
-			my_strcat(columns_query, " and u.usename like '%.*s'", szTableOwner, cbTableOwner);
-		my_strcat(columns_query, " and a.attname like '%.*s'", szColumnName, cbColumnName);
+			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, mzTableOwner, cbTableOwner);
+		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, mzColumnName, cbColumnName);
 	}
 
 	/*
@@ -2242,7 +2253,7 @@ PGAPI_SpecialColumns(
 					 UWORD fScope,
 					 UWORD fNullable)
 {
-	static char *func = "PGAPI_SpecialColumns";
+	CSTR func = "PGAPI_SpecialColumns";
 	TupleNode  *row;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
@@ -2461,7 +2472,7 @@ PGAPI_Statistics(
 				 UWORD fUnique,
 				 UWORD fAccuracy)
 {
-	static char *func = "PGAPI_Statistics";
+	CSTR func = "PGAPI_Statistics";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	QResultClass	*res;
@@ -2901,7 +2912,7 @@ PGAPI_ColumnPrivileges(
 					   UCHAR FAR * szColumnName,
 					   SWORD cbColumnName)
 {
-	static char *func = "PGAPI_ColumnPrivileges";
+	CSTR func = "PGAPI_ColumnPrivileges";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
 	mylog("%s: entering...\n", func);
@@ -2929,7 +2940,7 @@ PGAPI_PrimaryKeys(
 				  UCHAR FAR * szTableName,
 				  SWORD cbTableName)
 {
-	static char *func = "PGAPI_PrimaryKeys";
+	CSTR func = "PGAPI_PrimaryKeys";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	ConnectionClass *conn;
@@ -3410,7 +3421,7 @@ PGAPI_ForeignKeys(
 				  UCHAR FAR * szFkTableName,
 				  SWORD cbFkTableName)
 {
-	static char *func = "PGAPI_ForeignKeys";
+	CSTR func = "PGAPI_ForeignKeys";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	TupleNode  *row;
@@ -4262,7 +4273,7 @@ PGAPI_ProcedureColumns(
 					   UCHAR FAR * szColumnName,
 					   SWORD cbColumnName)
 {
-	static char *func = "PGAPI_ProcedureColumns";
+	CSTR func = "PGAPI_ProcedureColumns";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	char		proc_query[INFO_INQUIRY_LEN];
@@ -4271,6 +4282,7 @@ PGAPI_ProcedureColumns(
 	char		*schema_name, *procname, *params;
 	QResultClass *res, *tres;
 	Int4		tcount, paramcount, i, j, pgtype;
+	const char *likeeq = "like";
 
 	mylog("%s: entering...\n", func);
 
@@ -4289,8 +4301,8 @@ PGAPI_ProcedureColumns(
 				"pg_catalog.pg_namespace, pg_catalog.pg_proc where "
 				"pg_proc.pronamespace = pg_namespace.oid "
 				"and (not proretset)");
-		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
-		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
+		schema_strcat1(proc_query, " and nspname %s '%.*s'", likeeq, szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
+		my_strcat1(proc_query, " and proname %s '%.*s'", likeeq, szProcName, cbProcName);
 		strcat(proc_query, " order by nspname, proname, proretset");
 	}
 	else
@@ -4298,7 +4310,7 @@ PGAPI_ProcedureColumns(
 		strcpy(proc_query, "select proname, proretset, prorettype, "
 				"pronargs, proargtypes from pg_proc where "
 				"(not proretset)");
-		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
+		my_strcat1(proc_query, " and proname %s '%.*s'", likeeq, szProcName, cbProcName);
 		strcat(proc_query, " order by proname, proretset");
 	}
 	if (tres = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !tres)
@@ -4450,11 +4462,12 @@ PGAPI_Procedures(
 				 UCHAR FAR * szProcName,
 				 SWORD cbProcName)
 {
-	static char *func = "PGAPI_Procedures";
+	CSTR func = "PGAPI_Procedures";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	char		proc_query[INFO_INQUIRY_LEN];
 	QResultClass *res;
+	const char *likeeq = "like";
 
 	mylog("%s: entering... scnm=%x len=%d\n", func, szProcOwner, cbProcOwner);
 
@@ -4480,8 +4493,8 @@ PGAPI_Procedures(
 		   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
 		   " pg_catalog.pg_proc"
 		  " where pg_proc.pronamespace = pg_namespace.oid");
-		schema_strcat(proc_query, " and nspname like '%.*s'", szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
-		my_strcat(proc_query, " and proname like '%.*s'", szProcName, cbProcName);
+		schema_strcat1(proc_query, " and nspname %s '%.*s'", likeeq, szProcOwner, cbProcOwner, szProcName, cbProcName, conn);
+		my_strcat1(proc_query, " and proname %s '%.*s'", likeeq, szProcName, cbProcName);
 	}
 	else
 	{
@@ -4490,7 +4503,7 @@ PGAPI_Procedures(
 		   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 		   " '' as " "REMARKS" ","
 		   " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_proc");
-		my_strcat(proc_query, " where proname like '%.*s'", szProcName, cbProcName);
+		my_strcat1(proc_query, " where proname %s '%.*s'", likeeq, szProcName, cbProcName);
 	}
 
 	if (res = CC_send_query(conn, proc_query, NULL, CLEAR_RESULT_ON_ABORT), !res)
@@ -4573,7 +4586,7 @@ PGAPI_TablePrivileges(
 					  UWORD flag)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
-	static char *func = "PGAPI_TablePrivileges";
+	CSTR func = "PGAPI_TablePrivileges";
 	ConnectionClass *conn = SC_get_conn(stmt);
 	Int2		result_cols;
 	char		proc_query[INFO_INQUIRY_LEN];
@@ -4583,6 +4596,7 @@ PGAPI_TablePrivileges(
 	BOOL		grpauth, sys, su;
 	char		(*useracl)[ACLMAX], *acl, *user, *delim, *auth;
 	char		*reln, *owner, *priv, *schnm = NULL;
+	const char *likeeq = "like";
 
 	mylog("%s: entering... scnm=%x len-%d\n", func, szTableOwner, cbTableOwner);
 	if (!SC_recycle_statement(stmt))
@@ -4640,10 +4654,10 @@ PGAPI_TablePrivileges(
 		if (conn->schema_support)
 		{
 			escTbnamelen = reallyEscapeCatalogEscapes(szTableOwner, cbTableOwner, esc_table_name, sizeof(esc_table_name), conn->ccsc);
-			schema_strcat(proc_query, " nspname like '%.*s' and", esc_table_name, escTbnamelen, szTableName, cbTableName, conn);
+			schema_strcat1(proc_query, " nspname %s '%.*s' and", likeeq, esc_table_name, escTbnamelen, szTableName, cbTableName, conn);
 		}
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
-		my_strcat(proc_query, " relname like '%.*s' and", esc_table_name, escTbnamelen);
+		my_strcat1(proc_query, " relname %s '%.*s' and", likeeq, esc_table_name, escTbnamelen);
 	}
 	if (conn->schema_support)
 		strcat(proc_query, " pg_namespace.oid = relnamespace and");

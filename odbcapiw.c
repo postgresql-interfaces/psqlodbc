@@ -34,17 +34,22 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *clName;
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLColumnsW]");
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
-	clName = ucs2_to_utf8(ColumnName, NameLength4, &nmlen4);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	clName = ucs2_to_utf8(ColumnName, NameLength4, &nmlen4, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_Columns(StatementHandle, ctName, (SWORD) nmlen1,
            	scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
            	clName, (SWORD) nmlen4, 0);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -69,9 +74,9 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	mylog("[SQLConnectW]");
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	((ConnectionClass *) ConnectionHandle)->unicode = 1;
-	svName = ucs2_to_utf8(ServerName, NameLength1, &nmlen1);
-	usName = ucs2_to_utf8(UserName, NameLength2, &nmlen2);
-	auth = ucs2_to_utf8(Authentication, NameLength3, &nmlen3);
+	svName = ucs2_to_utf8(ServerName, NameLength1, &nmlen1, FALSE);
+	usName = ucs2_to_utf8(UserName, NameLength2, &nmlen2, FALSE);
+	auth = ucs2_to_utf8(Authentication, NameLength3, &nmlen3, FALSE);
 	ret = PGAPI_Connect(ConnectionHandle, svName, (SWORD) nmlen1,
            	usName, (SWORD) nmlen2, auth, (SWORD) nmlen3);
 	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
@@ -101,7 +106,7 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 	mylog("[SQLDriverConnectW]");
 	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	((ConnectionClass *) hdbc)->unicode = 1;
-	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen);
+	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen, FALSE);
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
 	ret = PGAPI_DriverConnect(hdbc, hwnd, szIn, (SWORD) inlen,
@@ -134,7 +139,7 @@ RETCODE SQL_API SQLBrowseConnectW(
 	mylog("[SQLBrowseConnectW]");
 	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	((ConnectionClass *) hdbc)->unicode = 1;
-	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen);
+	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen, FALSE);
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
 	ret = PGAPI_BrowseConnect(hdbc, szIn, (SWORD) inlen,
@@ -209,7 +214,7 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 	UInt4	slen;
 
 	mylog("[SQLExecDirectW]");
-	stxt = ucs2_to_utf8(StatementText, TextLength, &slen);
+	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_ExecDirect(StatementHandle, stxt, slen);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
@@ -291,7 +296,7 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 	UInt4	slen;
 
 	mylog("[SQLPrepareW]");
-	stxt = ucs2_to_utf8(StatementText, TextLength, &slen);
+	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_Prepare(StatementHandle, stxt, slen);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
@@ -308,7 +313,7 @@ RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
 	UInt4	nlen;
 
 	mylog("[SQLSetCursorNameW]");
-	crName = ucs2_to_utf8(CursorName, NameLength, &nlen);
+	crName = ucs2_to_utf8(CursorName, NameLength, &nlen, FALSE);
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_SetCursorName(StatementHandle, crName, (SWORD) nlen);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
@@ -327,16 +332,21 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
 	UInt4	nmlen1, nmlen2, nmlen3;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
+	ConnectionClass *conn;
+	BOOL lower_id;
 	
 	mylog("[SQLSpecialColumnsW]");
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
            (SWORD) nmlen1, scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		Scope, Nullable);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -355,16 +365,21 @@ RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
 	UInt4	nmlen1, nmlen2, nmlen3;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
+	ConnectionClass *conn;
+	BOOL lower_id;
 
 	mylog("[SQLStatisticsW]");
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_Statistics(StatementHandle, ctName, (SWORD) nmlen1,
            scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, Unique,
 		Reserved);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -383,17 +398,22 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *tbType;
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
+	ConnectionClass *conn;
+	BOOL lower_id;
 
 	mylog("[SQLTablesW]");
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3);
-	tbType = ucs2_to_utf8(TableType, NameLength4, &nmlen4);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	tbType = ucs2_to_utf8(TableType, NameLength4, &nmlen4, FALSE);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_Tables(StatementHandle, ctName, (SWORD) nmlen1,
            scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
            tbType, (SWORD) nmlen4);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -419,17 +439,22 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *clName;
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLColumnPrivilegesW]");
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
-	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3);
-	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4);
-	ENTER_STMT_CS((StatementClass *) hstmt);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
+	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_ColumnPrivileges(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		clName, (SWORD) nmlen4);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -459,20 +484,25 @@ RETCODE SQL_API SQLForeignKeysW(
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *fkctName, *fkscName, *fktbName;
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
+	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLForeignKeysW]");
-	ctName = ucs2_to_utf8(szPkCatalogName, cbPkCatalogName, &nmlen1);
-	scName = ucs2_to_utf8(szPkSchemaName, cbPkSchemaName, &nmlen2);
-	tbName = ucs2_to_utf8(szPkTableName, cbPkTableName, &nmlen3);
-	fkctName = ucs2_to_utf8(szFkCatalogName, cbFkCatalogName, &nmlen4);
-	fkscName = ucs2_to_utf8(szFkSchemaName, cbFkSchemaName, &nmlen5);
-	fktbName = ucs2_to_utf8(szFkTableName, cbFkTableName, &nmlen6);
-	ENTER_STMT_CS((StatementClass *) hstmt);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(szPkCatalogName, cbPkCatalogName, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(szPkSchemaName, cbPkSchemaName, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(szPkTableName, cbPkTableName, &nmlen3, lower_id);
+	fkctName = ucs2_to_utf8(szFkCatalogName, cbFkCatalogName, &nmlen4, lower_id);
+	fkscName = ucs2_to_utf8(szFkSchemaName, cbFkSchemaName, &nmlen5, lower_id);
+	fktbName = ucs2_to_utf8(szFkTableName, cbFkTableName, &nmlen6, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_ForeignKeys(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		fkctName, (SWORD) nmlen4, fkscName, (SWORD) nmlen5,
 		fktbName, (SWORD) nmlen6);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -504,7 +534,7 @@ RETCODE SQL_API SQLNativeSqlW(
 	mylog("[SQLNativeSqlW]");
 	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	((ConnectionClass *) hdbc)->unicode = 1;
-	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen);
+	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen, FALSE);
 	buflen = 3 * cbSqlStrMax + 1;
 	szOut = malloc(buflen);
 	ret = PGAPI_NativeSql(hdbc, szIn, (SQLINTEGER) slen,
@@ -541,15 +571,20 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
 	UInt4	nmlen1, nmlen2, nmlen3;
+	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLPrimaryKeysW]");
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
-	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3);
-	ENTER_STMT_CS((StatementClass *) hstmt);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_PrimaryKeys(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -573,17 +608,22 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	RETCODE	ret;
 	char	*ctName, *scName, *prName, *clName;
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLProcedureColumnsW]");
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
-	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3);
-	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4);
-	ENTER_STMT_CS((StatementClass *) hstmt);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
+	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, lower_id);
+	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_ProcedureColumns(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3,
 		clName, (SWORD) nmlen4);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -607,15 +647,20 @@ RETCODE SQL_API SQLProceduresW(
 	RETCODE	ret;
 	char	*ctName, *scName, *prName;
 	UInt4	nmlen1, nmlen2, nmlen3;
+	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLProceduresW]");
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
-	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3);
-	ENTER_STMT_CS((StatementClass *) hstmt);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
+	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, lower_id);
+	ENTER_STMT_CS(stmt);
 	ret = PGAPI_Procedures(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
 	if (scName)
@@ -637,11 +682,16 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
 	UInt4	nmlen1, nmlen2, nmlen3;
+	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass *conn;
+	BOOL	lower_id; 
 
 	mylog("[SQLTablePrivilegesW]");
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2);
-	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3);
+	conn = SC_get_conn(stmt);
+	lower_id = SC_is_lower_case(stmt, conn);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
+	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	ret = PGAPI_TablePrivileges(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, 0);

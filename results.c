@@ -38,7 +38,7 @@ PGAPI_RowCount(
 			   HSTMT hstmt,
 			   SDWORD FAR * pcrow)
 {
-	static char *func = "PGAPI_RowCount";
+	CSTR func = "PGAPI_RowCount";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
 	ConnInfo   *ci;
@@ -98,7 +98,7 @@ PGAPI_NumResultCols(
 					HSTMT hstmt,
 					SWORD FAR * pccol)
 {
-	static char *func = "PGAPI_NumResultCols";
+	CSTR func = "PGAPI_NumResultCols";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *result;
 	char		parse_ok;
@@ -168,7 +168,7 @@ PGAPI_DescribeCol(
 				  SWORD FAR * pibScale,
 				  SWORD FAR * pfNullable)
 {
-	static char *func = "PGAPI_DescribeCol";
+	CSTR func = "PGAPI_DescribeCol";
 
 	/* gets all the information about a specific column */
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -382,7 +382,7 @@ PGAPI_ColAttributes(
 					SWORD FAR * pcbDesc,
 					SDWORD FAR * pfDesc)
 {
-	static char *func = "PGAPI_ColAttributes";
+	CSTR func = "PGAPI_ColAttributes";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	IRDFields	*irdflds;
 	Int4		col_idx, field_type = 0;
@@ -780,7 +780,7 @@ PGAPI_GetData(
 			  SDWORD cbValueMax,
 			  SDWORD FAR * pcbValue)
 {
-	static char *func = "PGAPI_GetData";
+	CSTR func = "PGAPI_GetData";
 	QResultClass *res;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	int			num_cols,
@@ -975,7 +975,7 @@ RETCODE		SQL_API
 PGAPI_Fetch(
 			HSTMT hstmt)
 {
-	static char *func = "PGAPI_Fetch";
+	CSTR func = "PGAPI_Fetch";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ARDFields	*opts;
 	QResultClass *res;
@@ -1130,7 +1130,7 @@ PGAPI_ExtendedFetch(
 					SQLINTEGER bookmark_offset,
 					SQLINTEGER rowsetSize)
 {
-	static char *func = "PGAPI_ExtendedFetch";
+	CSTR func = "PGAPI_ExtendedFetch";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ARDFields	*opts;
 	QResultClass *res;
@@ -1556,7 +1556,7 @@ RETCODE		SQL_API
 PGAPI_MoreResults(
 				  HSTMT hstmt)
 {
-	const char *func = "PGAPI_MoreResults";
+	CSTR func = "PGAPI_MoreResults";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 
@@ -2750,7 +2750,7 @@ PGAPI_SetPos(
 			 UWORD fOption,
 			 UWORD fLock)
 {
-	static char *func = "PGAPI_SetPos";
+	CSTR func = "PGAPI_SetPos";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -2911,7 +2911,7 @@ PGAPI_SetScrollOptions( HSTMT hstmt,
 				SDWORD crowKeyset,
 				UWORD crowRowset)
 {
-	static char *func = "PGAPI_SetScrollOptions";
+	CSTR func = "PGAPI_SetScrollOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("PGAPI_SetScrollOptions fConcurrency=%d crowKeyset=%d crowRowset=%d\n",
@@ -2930,7 +2930,7 @@ PGAPI_SetCursorName(
 					UCHAR FAR * szCursor,
 					SWORD cbCursor)
 {
-	static char *func = "PGAPI_SetCursorName";
+	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	int			len;
 
@@ -2964,7 +2964,7 @@ PGAPI_GetCursorName(
 					SWORD cbCursorMax,
 					SWORD FAR * pcbCursor)
 {
-	static char *func = "PGAPI_GetCursorName";
+	CSTR func = "PGAPI_GetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	int			len = 0;
 	RETCODE		result;

@@ -121,7 +121,9 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 				INI_BYTEAASLONGVARBINARY,
 				ci->bytea_as_longvarbinary,
 				INI_USESERVERSIDEPREPARE,
-				ci->use_server_side_prepare);
+				ci->use_server_side_prepare,
+				INI_LOWERCASEIDENTIFIER,
+				ci->lower_case_identifier);
 	/* Abbrebiation is needed ? */
 	if (abbrev || strlen(connect_string) >= len)
 	{
@@ -183,6 +185,8 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 			flag |= BIT_BYTEAASLONGVARBINARY;
 		if (ci->use_server_side_prepare)
 			flag |= BIT_USESERVERSIDEPREPARE;
+		if (ci->lower_case_identifier)
+			flag |= BIT_LOWERCASEIDENTIFIER;
 
 		sprintf(&connect_string[hlen],
 				";A6=%s;A7=%d;A8=%d;B0=%d;B1=%d;%s=%d;C2=%s;CX=%02x%lx",
@@ -254,6 +258,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	ci->true_is_minus1 = (char)((flag & BIT_TRUEISMINUS1) != 0);
 	ci->bytea_as_longvarbinary = (char)((flag & BIT_BYTEAASLONGVARBINARY) != 0);
 	ci->use_server_side_prepare = (char)((flag & BIT_USESERVERSIDEPREPARE) != 0);
+	ci->lower_case_identifier = (char)((flag & BIT_LOWERCASEIDENTIFIER) != 0);
 }
 void
 copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
@@ -316,6 +321,8 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->bytea_as_longvarbinary = atoi(value);
 	else if (stricmp(attribute, INI_USESERVERSIDEPREPARE) == 0)
 		ci->use_server_side_prepare = atoi(value);
+	else if (stricmp(attribute, INI_LOWERCASEIDENTIFIER) == 0)
+		ci->lower_case_identifier = atoi(value);
 	else if (stricmp(attribute, "CX") == 0)
 		unfoldCXAttribute(ci, value);
 
@@ -423,6 +430,8 @@ getDSNdefaults(ConnInfo *ci)
 		ci->bytea_as_longvarbinary = DEFAULT_BYTEAASLONGVARBINARY;
 	if (ci->use_server_side_prepare < 0)
 		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
+	if (ci->lower_case_identifier < 0)
+		ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
 }
 
 int
@@ -558,6 +567,13 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		SQLGetPrivateProfileString(DSN, INI_USESERVERSIDEPREPARE, "", temp, sizeof(temp), ODBC_INI);
 		if (temp[0])
 			ci->use_server_side_prepare = atoi(temp);
+	}
+
+	if (ci->lower_case_identifier < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_LOWERCASEIDENTIFIER, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->lower_case_identifier = atoi(temp);
 	}
 
 	/* Allow override of odbcinst.ini parameters here */
@@ -785,6 +801,11 @@ writeDSNinfo(const ConnInfo *ci)
 	sprintf(temp, "%d", ci->use_server_side_prepare);
 	SQLWritePrivateProfileString(DSN,
 								 INI_USESERVERSIDEPREPARE,
+								 temp,
+								 ODBC_INI);
+	sprintf(temp, "%d", ci->lower_case_identifier);
+	SQLWritePrivateProfileString(DSN,
+								 INI_LOWERCASEIDENTIFIER,
 								 temp,
 								 ODBC_INI);
 }

@@ -116,7 +116,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 			case SQL_DESC_SCHEMA_NAME:
 			case SQL_DESC_TABLE_NAME:
 			case SQL_DESC_TYPE_NAME:
-				uval = ucs2_to_utf8(Value, BufferLength / 2, &vallen);
+				uval = ucs2_to_utf8(Value, BufferLength / 2, &vallen, FALSE);
 				val_alloced = TRUE;
 			break;
 		}

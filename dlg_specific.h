@@ -102,6 +102,7 @@
 #define INI_INT8AS				"BI"
 #define INI_BYTEAASLONGVARBINARY		"ByteaAsLongVarBinary"
 #define INI_USESERVERSIDEPREPARE		"UseServerSidePrepare"
+#define INI_LOWERCASEIDENTIFIER			"LowerCaseIdentifier"
 /* Bit representaion for abbreviated connection strings */
 #define BIT_LFCONVERSION			(1L)
 #define BIT_UPDATABLECURSORS			(1L<<1)
@@ -129,8 +130,9 @@
 #define BIT_TRUEISMINUS1			(1L<<23)
 #define BIT_BYTEAASLONGVARBINARY		(1L<<24)
 #define BIT_USESERVERSIDEPREPARE		(1L<<25)
+#define BIT_LOWERCASEIDENTIFIER			(1L<<26)
 
-#define EFFECTIVE_BIT_COUNT			26
+#define EFFECTIVE_BIT_COUNT			27
 
 
 /*	Connection Defaults */
@@ -176,6 +178,7 @@
 #define DEFAULT_INT8AS			0
 #define DEFAULT_BYTEAASLONGVARBINARY	0
 #define DEFAULT_USESERVERSIDEPREPARE	0
+#define DEFAULT_LOWERCASEIDENTIFIER	0
 
 /*	prototypes */
 void		getCommonDefaults(const char *section, const char *filename, ConnInfo *ci);

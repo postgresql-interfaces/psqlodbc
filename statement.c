@@ -81,7 +81,7 @@ RETCODE		SQL_API
 PGAPI_AllocStmt(HDBC hdbc,
 				HSTMT FAR * phstmt)
 {
-	static char *func = "PGAPI_AllocStmt";
+	CSTR func = "PGAPI_AllocStmt";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	StatementClass *stmt;
 
@@ -135,7 +135,7 @@ RETCODE		SQL_API
 PGAPI_FreeStmt(HSTMT hstmt,
 			   UWORD fOption)
 {
-	static char *func = "PGAPI_FreeStmt";
+	CSTR func = "PGAPI_FreeStmt";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("%s: entering...hstmt=%u, fOption=%d\n", func, hstmt, fOption);
@@ -218,6 +218,9 @@ InitializeStatementOptions(StatementOptions *opt)
 	opt->cursor_type = SQL_CURSOR_FORWARD_ONLY;
 	opt->retrieve_data = SQL_RD_ON;
 	opt->use_bookmarks = SQL_UB_OFF;
+#if (ODBCVER >= 0x0300)
+	opt->metadata_id = SQL_FALSE;
+#endif /* ODBCVER */
 }
 
 
@@ -845,7 +848,7 @@ SC_get_bookmark(StatementClass *self)
 RETCODE
 SC_fetch(StatementClass *self)
 {
-	static char *func = "SC_fetch";
+	CSTR func = "SC_fetch";
 	QResultClass *res = SC_get_Curres(self);
 	ARDFields	*opts;
 	int			retval,
@@ -1024,7 +1027,7 @@ SC_fetch(StatementClass *self)
 RETCODE
 SC_execute(StatementClass *self)
 {
-	static char *func = "SC_execute";
+	CSTR func = "SC_execute";
 	ConnectionClass *conn;
 	APDFields	*apdopts;
 	char		was_ok, was_nonfatal, was_rows_affected = 1;

@@ -50,7 +50,7 @@ PGAPI_AllocConnect(
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 	ConnectionClass *conn;
-	static char *func = "PGAPI_AllocConnect";
+	CSTR func = "PGAPI_AllocConnect";
 
 	mylog("%s: entering...\n", func);
 
@@ -95,7 +95,7 @@ PGAPI_Connect(
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci;
-	static char *func = "PGAPI_Connect";
+	CSTR func = "PGAPI_Connect";
 
 	mylog("%s: entering...\n", func);
 
@@ -150,7 +150,7 @@ PGAPI_BrowseConnect(
 					SWORD cbConnStrOutMax,
 					SWORD FAR * pcbConnStrOut)
 {
-	static char *func = "PGAPI_BrowseConnect";
+	CSTR func = "PGAPI_BrowseConnect";
 
 	mylog("%s: entering...\n", func);
 
@@ -164,7 +164,7 @@ PGAPI_Disconnect(
 				 HDBC hdbc)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
-	static char *func = "PGAPI_Disconnect";
+	CSTR func = "PGAPI_Disconnect";
 
 
 	mylog("%s: entering...\n", func);
@@ -202,7 +202,7 @@ PGAPI_FreeConnect(
 				  HDBC hdbc)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
-	static char *func = "PGAPI_FreeConnect";
+	CSTR func = "PGAPI_FreeConnect";
 
 	mylog("%s: entering...\n", func);
 	mylog("**** in %s: hdbc=%u\n", func, hdbc);
@@ -623,7 +623,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	int			beresp;
 	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
-	static char *func = "CC_connect";
+	CSTR		func = "CC_connect";
 	char	   *encoding;
 
 	mylog("%s: entering...\n", func);
@@ -1786,7 +1786,7 @@ CC_send_settings(ConnectionClass *self)
 #ifdef	HAVE_STRTOK_R
 	char	*last;
 #endif /* HAVE_STRTOK_R */
-	static char *func = "CC_send_settings";
+	CSTR func = "CC_send_settings";
 
 
 	mylog("%s: entering...\n", func);
@@ -1915,7 +1915,7 @@ CC_lookup_lo(ConnectionClass *self)
 	HSTMT		hstmt;
 	StatementClass *stmt;
 	RETCODE		result;
-	static char *func = "CC_lookup_lo";
+	CSTR func = "CC_lookup_lo";
 
 	mylog("%s: entering...\n", func);
 
@@ -2000,7 +2000,7 @@ CC_lookup_pg_version(ConnectionClass *self)
 	char		szVersion[32];
 	int			major,
 				minor;
-	static char *func = "CC_lookup_pg_version";
+	CSTR		func = "CC_lookup_pg_version";
 
 	mylog("%s: entering...\n", func);
 

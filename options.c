@@ -36,7 +36,7 @@ set_statement_option(ConnectionClass *conn,
 					 UWORD fOption,
 					 UDWORD vParam)
 {
-	static char *func = "set_statement_option";
+	CSTR func = "set_statement_option";
 	char		changed = FALSE;
 	ConnInfo   *ci = NULL;
 	UDWORD		setval;
@@ -68,7 +68,7 @@ set_statement_option(ConnectionClass *conn,
 			setval = SQL_CONCUR_READ_ONLY;
 			if (SQL_CONCUR_READ_ONLY == vParam)
 				;
-			if (ci->drivers.lie)
+			else if (ci->drivers.lie)
 				setval = vParam;
 			else if (ci->updatable_cursors)
 				setval = SQL_CONCUR_ROWVER;
@@ -305,7 +305,7 @@ PGAPI_SetConnectOption(
 					   UWORD fOption,
 					   UDWORD vParam)
 {
-	static char *func = "PGAPI_SetConnectOption";
+	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	char		changed = FALSE;
 	RETCODE		retval;
@@ -480,7 +480,7 @@ PGAPI_SetConnectOption(
 					char *asPara;
 					if (conn->unicode)
 					{
-						asPara = ucs2_to_utf8((SQLWCHAR *) vParam, -1, NULL);
+						asPara = ucs2_to_utf8((SQLWCHAR *) vParam, -1, NULL, FALSE);
 						cmp = strcmp(asPara, "Microsoft Jet");
 						free(asPara);
 					}
@@ -517,7 +517,7 @@ PGAPI_GetConnectOption(
 					   UWORD fOption,
 					   PTR pvParam)
 {
-	static char *func = "PGAPI_GetConnectOption";
+	CSTR func = "PGAPI_GetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci = &(conn->connInfo);
 
@@ -603,7 +603,7 @@ PGAPI_SetStmtOption(
 					UWORD fOption,
 					UDWORD vParam)
 {
-	static char *func = "PGAPI_SetStmtOption";
+	CSTR func = "PGAPI_SetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("%s: entering...\n", func);
@@ -629,7 +629,7 @@ PGAPI_GetStmtOption(
 					UWORD fOption,
 					PTR pvParam)
 {
-	static char *func = "PGAPI_GetStmtOption";
+	CSTR func = "PGAPI_GetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
 	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.77 2003/05/14 18:16:16 dpage Exp $
+ * $Id: psqlodbc.h,v 1.78 2003/08/27 10:17:53 hinoue Exp $
  *
  */
 
@@ -242,6 +242,9 @@ typedef struct StatementOptions_
 	int			retrieve_data;
 	int			use_bookmarks;
 	void			*bookmark_ptr;
+#if (ODBCVER >= 0x0300)
+	int			metadata_id;
+#endif /* ODBCVER */
 } StatementOptions;
 
 /*	Used to pass extra query info to send_query */
@@ -278,7 +281,7 @@ void		logs_on_off(int cnopen, int, int);
 
 #ifdef	UNICODE_SUPPORT
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
-char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen);
+char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
 UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */

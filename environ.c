@@ -36,7 +36,7 @@ pthread_mutex_t     conns_cs;
 RETCODE		SQL_API
 PGAPI_AllocEnv(HENV FAR * phenv)
 {
-	static char *func = "PGAPI_AllocEnv";
+	CSTR func = "PGAPI_AllocEnv";
 
 	mylog("**** in PGAPI_AllocEnv ** \n");
 
@@ -66,7 +66,7 @@ PGAPI_AllocEnv(HENV FAR * phenv)
 RETCODE		SQL_API
 PGAPI_FreeEnv(HENV henv)
 {
-	static char *func = "PGAPI_FreeEnv";
+	CSTR func = "PGAPI_FreeEnv";
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 
 	mylog("**** in PGAPI_FreeEnv: env = %u ** \n", env);
@@ -672,7 +672,7 @@ EN_remove_connection(EnvironmentClass *self, ConnectionClass *conn)
 
 
 void
-EN_log_error(char *func, char *desc, EnvironmentClass *self)
+EN_log_error(const char *func, char *desc, EnvironmentClass *self)
 {
 	if (self)
 		qlog("ENVIRON ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, self->errormsg);

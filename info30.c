@@ -16,7 +16,7 @@ RETCODE		SQL_API
 PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 				SWORD cbInfoValueMax, SWORD FAR * pcbInfoValue)
 {
-	static char *func = "PGAPI_GetInfo30";
+	CSTR func = "PGAPI_GetInfo30";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);
 	char	   *p = NULL;

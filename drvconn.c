@@ -87,7 +87,7 @@ PGAPI_DriverConnect(
 					SWORD FAR * pcbConnStrOut,
 					UWORD fDriverCompletion)
 {
-	static char *func = "PGAPI_DriverConnect";
+	CSTR func = "PGAPI_DriverConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci;
 

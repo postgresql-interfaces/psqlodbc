@@ -36,10 +36,10 @@ PGAPI_Prepare(HSTMT hstmt,
 			  UCHAR FAR * szSqlStr,
 			  SDWORD cbSqlStr)
 {
-	static char *func = "PGAPI_Prepare";
+	CSTR func = "PGAPI_Prepare";
 	StatementClass *self = (StatementClass *) hstmt;
 
-	mylog("%s: entering...\n", func);
+	mylog("%s: entering... len=%d\n", func, cbSqlStr);
 
 	if (!self)
 	{
@@ -134,7 +134,7 @@ PGAPI_ExecDirect(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	RETCODE		result;
-	static char *func = "PGAPI_ExecDirect";
+	CSTR func = "PGAPI_ExecDirect";
 
 	mylog("%s: entering...\n", func);
 
@@ -195,7 +195,7 @@ PGAPI_ExecDirect(
 static
 RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 {
-	static const char *func = "Exec_with_parameters_resolved";
+	CSTR func = "Exec_with_parameters_resolved";
 	RETCODE		retval;
 	int		end_row, cursor_type, scroll_concurrency;
 	ConnectionClass	*conn;
@@ -374,7 +374,7 @@ RETCODE		SQL_API
 PGAPI_Execute(
 			  HSTMT hstmt)
 {
-	static char *func = "PGAPI_Execute";
+	CSTR func = "PGAPI_Execute";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
@@ -606,7 +606,7 @@ PGAPI_Transact(
 			   HDBC hdbc,
 			   UWORD fType)
 {
-	static char *func = "PGAPI_Transact";
+	CSTR func = "PGAPI_Transact";
 	extern ConnectionClass *conns[];
 	ConnectionClass *conn;
 	QResultClass *res;
@@ -684,7 +684,7 @@ RETCODE		SQL_API
 PGAPI_Cancel(
 			 HSTMT hstmt)		/* Statement to cancel. */
 {
-	static char *func = "PGAPI_Cancel";
+	CSTR func = "PGAPI_Cancel";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	RETCODE		result;
@@ -775,7 +775,7 @@ PGAPI_NativeSql(
 				SDWORD cbSqlStrMax,
 				SDWORD FAR * pcbSqlStr)
 {
-	static char *func = "PGAPI_NativeSql";
+	CSTR func = "PGAPI_NativeSql";
 	int			len = 0;
 	char	   *ptr;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -824,7 +824,7 @@ PGAPI_ParamData(
 				HSTMT hstmt,
 				PTR FAR * prgbValue)
 {
-	static char *func = "PGAPI_ParamData";
+	CSTR func = "PGAPI_ParamData";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
@@ -921,7 +921,7 @@ PGAPI_PutData(
 			  PTR rgbValue,
 			  SDWORD cbValue)
 {
-	static char *func = "PGAPI_PutData";
+	CSTR func = "PGAPI_PutData";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	APDFields	*apdopts;

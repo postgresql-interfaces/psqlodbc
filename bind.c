@@ -41,7 +41,7 @@ PGAPI_BindParameter(
 					SDWORD FAR * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
-	static char *func = "PGAPI_BindParameter";
+	CSTR func = "PGAPI_BindParameter";
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 
@@ -141,7 +141,7 @@ PGAPI_BindCol(
 			  SDWORD FAR * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
-	static char *func = "PGAPI_BindCol";
+	CSTR func = "PGAPI_BindCol";
 	ARDFields	*opts;
 
 	mylog("%s: entering...\n", func);
@@ -276,7 +276,7 @@ PGAPI_DescribeParam(
 					SWORD FAR * pfNullable)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
-	static char *func = "PGAPI_DescribeParam";
+	CSTR func = "PGAPI_DescribeParam";
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 
@@ -328,7 +328,7 @@ PGAPI_ParamOptions(
 				   UDWORD crow,
 				   UDWORD FAR * pirow)
 {
-	static char *func = "PGAPI_ParamOptions";
+	CSTR func = "PGAPI_ParamOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	APDFields	*apdopts;
 
@@ -358,7 +358,7 @@ PGAPI_NumParams(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	char		in_quote = FALSE;
 	unsigned int i;
-	static char *func = "PGAPI_NumParams";
+	CSTR func = "PGAPI_NumParams";
 
 	mylog("%s: entering...\n", func);
 
@@ -431,7 +431,7 @@ create_empty_bindings(int num_columns)
 void
 extend_parameter_bindings(APDFields *self, int num_params)
 {
-	static char *func = "extend_parameter_bindings";
+	CSTR func = "extend_parameter_bindings";
 	ParameterInfoClass *new_bindings;
 
 	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
@@ -464,7 +464,7 @@ extend_parameter_bindings(APDFields *self, int num_params)
 void
 extend_iparameter_bindings(IPDFields *self, int num_params)
 {
-	static char *func = "extend_iparameter_bindings";
+	CSTR func = "extend_iparameter_bindings";
 	ParameterImplClass *new_bindings;
 
 	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
@@ -497,7 +497,7 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 void
 reset_a_parameter_binding(APDFields *self, int ipar)
 {
-	static char *func = "reset_a_parameter_binding";
+	CSTR func = "reset_a_parameter_binding";
 
 	mylog("%s: entering ... self=%u, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
 
@@ -530,7 +530,7 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 void
 reset_a_iparameter_binding(IPDFields *self, int ipar)
 {
-	static char *func = "reset_a_iparameter_binding";
+	CSTR func = "reset_a_iparameter_binding";
 
 	mylog("%s: entering ... self=%u, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
 
@@ -610,7 +610,7 @@ IPD_free_params(IPDFields *ipdopts, char option)
 void
 extend_column_bindings(ARDFields *self, int num_columns)
 {
-	static char *func = "extend_column_bindings";
+	CSTR func = "extend_column_bindings";
 	BindInfoClass *new_bindings;
 	int			i;
 
@@ -664,7 +664,7 @@ extend_column_bindings(ARDFields *self, int num_columns)
 void
 reset_a_column_binding(ARDFields *self, int icol)
 {
-	static char *func = "reset_a_column_binding";
+	CSTR func = "reset_a_column_binding";
 
 	mylog("%s: entering ... self=%u, bindings_allocated=%d, icol=%d\n", func, self, self->allocated, icol);
 

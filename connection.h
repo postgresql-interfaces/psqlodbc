@@ -203,6 +203,7 @@ typedef struct
 	signed char	int8_as;
 	signed char	bytea_as_longvarbinary;
 	signed char	use_server_side_prepare;
+	signed char	lower_case_identifier;
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
 
@@ -346,7 +347,6 @@ struct ConnectionClass_
 #define CC_get_DSN(x)						(x->connInfo.dsn)
 #define CC_get_username(x)					(x->connInfo.username)
 #define CC_is_onlyread(x)					(x->connInfo.onlyread[0] == '1')
-
 
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0

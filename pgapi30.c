@@ -36,7 +36,7 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 		SQLSMALLINT BufferLength, SQLSMALLINT *TextLength)
 {
 	RETCODE		ret;
-	static const char *func = "PGAPI_GetDiagRec";
+	CSTR func = "PGAPI_GetDiagRec";
 
 	mylog("%s entering rec=%d", func, RecNumber);
 	switch (HandleType)
@@ -85,7 +85,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	StatementClass	*stmt;
 	SDWORD		rc;
 	SWORD		pcbErrm;
-	static const char *func = "PGAPI_GetDiagField";
+	CSTR func = "PGAPI_GetDiagField";
 
 	mylog("%s entering rec=%d", func, RecNumber);
 	switch (HandleType)
@@ -362,7 +362,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			SQLINTEGER Attribute, PTR Value,
 			SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
-	static const char *func = "PGAPI_GetConnectAttr";
+	CSTR func = "PGAPI_GetConnectAttr";
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
 	SQLINTEGER	len = 4;
@@ -383,9 +383,8 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			*((SQLUINTEGER *) Value) = 0;
 			break;
 		case SQL_ATTR_METADATA_ID:
-			CC_set_error(conn, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported connect attribute (Get)");
-			CC_log_error(func, "", conn);
-			return SQL_ERROR;
+			*((SQLUINTEGER *) Value) = conn->stmtOptions.metadata_id;
+			break;
 		default:
 			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value);
 	}
@@ -1409,7 +1408,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 		SQLINTEGER Attribute, PTR Value,
 		SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
-	static char *func = "PGAPI_GetStmtAttr";
+	CSTR func = "PGAPI_GetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE		ret = SQL_SUCCESS;
 	int			len = 0;
@@ -1487,15 +1486,12 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			else
 				*((SQLUINTEGER *) Value) = SQL_UNSPECIFIED;
 			break;
+		case SQL_ATTR_METADATA_ID:		/* 10014 */
+			*((SQLUINTEGER *) Value) = stmt->options.metadata_id;
+			break;
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
 			/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
-		case SQL_ATTR_METADATA_ID:		/* 10014 */
-
-			/*
-			 * case SQL_ATTR_PREDICATE_PTR: case
-			 * SQL_ATTR_PREDICATE_OCTET_LENGTH_PTR:
-			 */
 			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Get)");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
@@ -1520,11 +1516,13 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	mylog("PGAPI_SetConnectAttr %d\n", Attribute);
 	switch (Attribute)
 	{
+		case SQL_ATTR_METADATA_ID:
+			conn->stmtOptions.metadata_id = (SQLUINTEGER) Value;
+			break;
 		case SQL_ATTR_ASYNC_ENABLE:
 		case SQL_ATTR_AUTO_IPD:
 		case SQL_ATTR_CONNECTION_DEAD:
 		case SQL_ATTR_CONNECTION_TIMEOUT:
-		case SQL_ATTR_METADATA_ID:
 		case SQL_ATTR_ENLIST_IN_DTC:
 			CC_set_error(conn, STMT_OPTION_NOT_FOR_THE_DRIVER, "Unsupported connect attribute (Set)");
 			return SQL_ERROR;
@@ -1545,7 +1543,7 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	HSTMT		hstmt;
 	SQLUINTEGER	descType;
 	StatementClass *stmt;
-	static const char *func = "PGAPI_GetDescField";
+	CSTR func = "PGAPI_GetDescField";
 
 	mylog("%s h=%u rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
 	hstmt = statementHandleFromDescHandle(DescriptorHandle, &descType);
@@ -1600,7 +1598,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	HSTMT		hstmt;
 	SQLUINTEGER	descType;
 	StatementClass *stmt;
-	static const char *func = "PGAPI_SetDescField";
+	CSTR func = "PGAPI_SetDescField";
 
 	mylog("%s h=%u rec=%d field=%d val=%x,%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, Value, BufferLength);
 	hstmt = statementHandleFromDescHandle(DescriptorHandle, &descType);
@@ -1651,7 +1649,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 		SQLINTEGER Attribute, PTR Value,
 		SQLINTEGER StringLength)
 {
-	static char *func = "PGAPI_SetStmtAttr";
+	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("%s Handle=%u %d,%u\n", func, StatementHandle, Attribute, Value);
@@ -1668,7 +1666,6 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 		/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 		case SQL_ATTR_IMP_ROW_DESC:	/* 10012 (read-only) */
 		case SQL_ATTR_IMP_PARAM_DESC:	/* 10013 (read-only) */
-		case SQL_ATTR_METADATA_ID:		/* 10014 */
 
 			/*
 			 * case SQL_ATTR_PREDICATE_PTR: case
@@ -1678,6 +1675,9 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 
+		case SQL_ATTR_METADATA_ID:		/* 10014 */
+			stmt->options.metadata_id = (SQLUINTEGER) Value;
+			break;
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:		/* 16 */
 			stmt->options.bookmark_ptr = Value;
 			break;
@@ -1728,7 +1728,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 RETCODE	SQL_API
 PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 {
-	static char	*func = "PGAPI_BulkOperations";
+	CSTR func = "PGAPI_BulkOperations";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	ARDFields	*opts = SC_get_ARD(stmt);
 	RETCODE		ret;

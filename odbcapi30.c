@@ -196,7 +196,7 @@ RETCODE		SQL_API
 SQLFetchScroll(HSTMT StatementHandle,
 			   SQLSMALLINT FetchOrientation, SQLINTEGER FetchOffset)
 {
-	static char *func = "SQLFetchScroll";
+	CSTR func = "SQLFetchScroll";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE		ret = SQL_SUCCESS;
 	IRDFields	*irdopts = SC_get_IRD(stmt);
@@ -376,7 +376,7 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 			   SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
 	RETCODE	ret;
-	static char *func = "SQLGetStmtAttr";
+	CSTR func = "SQLGetStmtAttr";
 
 	mylog("[[%s]] Handle=%u %d\n", func, StatementHandle, Attribute);
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
@@ -428,7 +428,7 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  PTR Data, SQLINTEGER *StringLength,
 			  SQLINTEGER *Indicator)
 {
-	const char *func = "SQLSetDescRec";
+	CSTR func = "SQLSetDescRec";
 
 	mylog("[[SQLSetDescRec]]\n");
 	mylog("Error not implemented\n");
@@ -502,7 +502,7 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 			   SQLINTEGER Attribute, PTR Value,
 			   SQLINTEGER StringLength)
 {
-	static char *func = "SQLSetStmtAttr";
+	CSTR func = "SQLSetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
@@ -640,7 +640,7 @@ RETCODE	SQL_API
 SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 {
 	RETCODE	ret;
-	static char	*func = "SQLBulkOperations";
+	CSTR func = "SQLBulkOperations";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
 	ENTER_STMT_CS(stmt);

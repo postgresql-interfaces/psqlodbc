@@ -309,9 +309,7 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 		for (ptr = name; *ptr; ptr++)
 		{
 			encoded_nextchar(&encstr);
-			if (ENCODE_STATUS(encstr) != 0)
-				ptr++;
-			else
+			if (ENCODE_STATUS(encstr) == 0)
 				*ptr = tolower((unsigned char) *ptr);
 		}
 	}
@@ -320,7 +318,7 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 char
 parse_statement(StatementClass *stmt)
 {
-	static char *func = "parse_statement";
+	CSTR		func = "parse_statement";
 	char		token[256], stoken[256];
 	char		delim,
 				quote,

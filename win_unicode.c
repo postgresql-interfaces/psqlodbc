@@ -27,7 +27,7 @@ UInt4	ucs2strlen(const SQLWCHAR *ucs2str)
 		;
 	return len;
 }
-char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen)
+char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
 /*mylog("ucs2_to_utf8 %x ilen=%d ", ucs2str, ilen);*/
@@ -49,8 +49,13 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen)
 		{
 			if (!*wstr)
 				break;
-			else if (0 == (*wstr & 0xff80))
-				utf8str[len++] = (char) *wstr;
+			else if (0 == (*wstr & 0xff80)) /* ASCII */
+			{
+				if (lower_identifier)
+					utf8str[len++] = (char) tolower(*wstr);
+				else
+					utf8str[len++] = (char) *wstr;
+			}
 			else if ((*wstr & byte3check) == 0)
 			{
 				byte2code = byte2_base |

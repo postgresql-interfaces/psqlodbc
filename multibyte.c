@@ -366,7 +366,7 @@ void
 CC_lookup_characterset(ConnectionClass *self)
 {
 	char		*encstr;
-	static char *func = "CC_lookup_characterset";
+	CSTR func = "CC_lookup_characterset";
 
 	mylog("%s: entering...\n", func);
 	if (PG_VERSION_LT(self, 7.2))

@@ -819,6 +819,7 @@ Int4
 pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
+	ConnInfo	*ci = &(conn->connInfo);
 
 	switch (type)
 	{
@@ -882,7 +883,7 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 			return getTimestampColumnSize(stmt, type, col);
 
 		case PG_TYPE_BOOL:
-			return conn->connInfo.true_is_minus1 ? 2 : 1;
+			return ci->true_is_minus1 ? 2 : 1;
 
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_NO_TOTAL;
@@ -891,6 +892,8 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 
 			if (type == stmt->hdbc->lobj_type)	/* hack until permanent
 												 * type is available */
+				return SQL_NO_TOTAL;
+			if (PG_TYPE_BYTEA == type && ci->bytea_as_longvarbinary)
 				return SQL_NO_TOTAL;
 
 			/* Handle Character types and unknown types */
