@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.16 2004/07/21 11:39:15 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.17 2005/03/02 14:37:52 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -32,7 +32,10 @@ EXTRA_psqlodbc_la_SOURCES = md5.c
 EXTRA_DIST = README.unix license.txt notice.txt readme.txt odbcinst.ini \
 	libtool.m4 psqlodbc_win32.def win32.mak \
 	dlg_wingui.c win_setup.h win_md5.c setup.c \
-	win_unicode.c psqlodbc.rc psqlodbc.reg
+	win_unicode.c psqlodbc.rc psqlodbc.reg \
+    installer/banner.bmp installer/lgpl.rtf \
+    installer/Make.bat installer/psqlodbc.wxs \
+    installer/psqlodbcm.wxs installer/README.txt
 	
 MAINTAINERCLEANFILES = \
 	Makefile.in config.guess config.h.in config.sub configure \
