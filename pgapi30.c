@@ -1727,7 +1727,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "bookmark isn't specified");
 			return SQL_ERROR;
 		}
-		bmark += (offset >> 4);
+		bmark = (UInt4 *)(((char *) bmark) + offset);
 	}
 	for (i = 0, processed = 0; i < opts->rowset_size; i++)
 	{
