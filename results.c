@@ -978,7 +978,7 @@ PGAPI_Fetch(
 
 	if (!(res = SC_get_Curres(stmt)))
 	{
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Null statement result in PGAPI_Fetch.");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in PGAPI_Fetch.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1001,13 +1001,15 @@ PGAPI_Fetch(
 
 	if (stmt->status != STMT_FINISHED)
 	{
-		SC_set_error(stmt, STMT_STATUS_ERROR, "Fetch can only be called after the successful execution on a SQL statement");
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Fetch can only be called after the successful execution on a SQL statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
 	if (opts->bindings == NULL)
 	{
+		if (stmt->statement_type != STMT_TYPE_SELECT)
+			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bindings were not allocated properly.");
@@ -1187,6 +1189,8 @@ PGAPI_ExtendedFetch(
 
 	if (opts->bindings == NULL)
 	{
+		if (stmt->statement_type != STMT_TYPE_SELECT)
+			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bindings were not allocated properly.");
@@ -1480,7 +1484,6 @@ PGAPI_ExtendedFetch(
 				}
 				else
 					rgfRowStatus[i] = SQL_ROW_SUCCESS;
-				res->keyset[currp].status |= CURS_IN_ROWSET;
 				/* refresh the status */
 				/* if (SQL_ROW_DELETED != pstatus) */
 				res->keyset[currp].status &= (~KEYSET_INFO_PUBLIC);
@@ -1489,6 +1492,10 @@ PGAPI_ExtendedFetch(
 			else
 				*(rgfRowStatus + i) = SQL_ROW_SUCCESS;
 		}
+#ifdef	DRIVER_CURSOR_IMPLEMENT
+		if (SQL_ERROR != result && res->keyset)
+			res->keyset[currp].status |= CURS_IN_ROWSET;
+#endif   /* DRIVER_CURSOR_IMPLEMENT */
 		i++;
 	}
 
