@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.80 2003/11/10 07:10:07 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.81 2003/12/09 10:01:38 hinoue Exp $
  *
  */
 
@@ -19,7 +19,9 @@
 #endif
 
 #include <stdio.h>				/* for FILE* pointers: see GLOBAL_VALUES */
-
+#ifdef POSIX_MULTITHREAD_SUPPORT
+#include <pthread.h>
+#endif
 #include "version.h"
 
 /* Must come before sql.h */
@@ -120,10 +122,10 @@ typedef UInt4 Oid;
 #ifdef	UNICODE_SUPPORT
 #define DRIVER_FILE_NAME			"PSQLODBC30W.DLL"
 #else
-#define DRIVER_FILE_NAME			"PSQLODBC30.DLL"
+#define DRIVER_FILE_NAME			"PSQLODBC.DLL"
 #endif   /* UNICODE_SUPPORT */
 #else
-#define DRIVER_FILE_NAME			"PSQLODBC.DLL"
+#define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
 #endif   /* ODBCVER */
 #else
 #define DRIVER_FILE_NAME			"libpsqlodbc.so"
@@ -309,9 +311,15 @@ void		logs_on_off(int cnopen, int, int);
 #include "misc.h"
 
 int	initialize_global_cs(void);
-#ifdef	POSIX_MULTITHTREAD_SUPPORT
+#ifdef	POSIX_MULTITHREAD_SUPPORT
+#if	!defined(HAVE_ECO_THREAD_LOCKS)
+#define	POSIX_THREADMUTEX_SUPPORT
+#endif /* HAVE_ECO_THREAD_LOCKS */
+#endif /* POSIX_MULTITHREAD_SUPPORT */
+
+#ifdef	POSIX_THREADMUTEX_SUPPORT
 const pthread_mutexattr_t *getMutexAttr(void);
-#endif /* POSIX_MULTITHTREAD_SUPPORT */
+#endif /* POSIX_THREADMUTEX_SUPPORT */
 #ifdef	UNICODE_SUPPORT
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
@@ -322,6 +330,7 @@ UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *uc
 /*#define	_MEMORY_DEBUG_ */
 #ifdef	_MEMORY_DEBUG_
 void		*debug_alloc(size_t);
+void		*debug_calloc(size_t, size_t);
 void		*debug_realloc(void *, size_t);
 char		*debug_strdup(const char *);
 void		debug_free(void *);
@@ -329,6 +338,7 @@ void		debug_memory_check(void);
 
 #define malloc	debug_alloc
 #define realloc debug_realloc
+#define calloc	debug_calloc
 #define strdup	debug_strdup
 #define free	debug_free
 #endif   /* _MEMORY_DEBUG_ */

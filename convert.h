@@ -46,8 +46,8 @@ int			convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOOL 
 int			convert_special_chars(const char *si, char *dst, int used, BOOL convlf,int ccsc);
 
 int			convert_pgbinary_to_char(const char *value, char *rgbValue, int cbValueMax);
-int			convert_from_pgbinary(const unsigned char *value, unsigned char *rgbValue, int cbValueMax);
-int			convert_to_pgbinary(const unsigned char *in, char *out, int len);
+int			convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, int cbValueMax);
+int			convert_to_pgbinary(const UCHAR *in, char *out, int len);
 int		pg_hex2bin(const UCHAR *in, UCHAR *out, int len);
 void		encode(const char *in, char *out);
 void		decode(const char *in, char *out);

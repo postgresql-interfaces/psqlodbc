@@ -132,9 +132,9 @@ char	   *mapFuncs[][2] = {
 };
 
 static const char *mapFunction(const char *func, int param_count);
-static unsigned int conv_from_octal(const unsigned char *s);
-static unsigned int conv_from_hex(const unsigned char *s);
-static char *conv_to_octal(unsigned char val, char *octal);
+static unsigned int conv_from_octal(const UCHAR *s);
+static unsigned int conv_from_hex(const UCHAR *s);
+static char *conv_to_octal(UCHAR val, char *octal);
 static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
 
 /*---------
@@ -224,7 +224,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 			}
 			for (i = 1; i < 10; i++)
 			{
-				if (!isdigit((unsigned char) rest[i]))
+				if (!isdigit((UCHAR) rest[i]))
 					break;
 			}
 			for (; i < 10; i++)
@@ -355,6 +355,7 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, Int4 field_type, void *val
 	BindInfoClass *bic = &(opts->bindings[col]);
 	UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
+	SC_set_current_col(stmt, -1);
 	return copy_and_convert_field(stmt, field_type, value, (Int2) bic->returntype, (PTR) (bic->buffer + offset),
 							 (SDWORD) bic->buflen, (SDWORD *) (bic->used + (offset >> 2)));
 }
@@ -391,7 +392,6 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	const char *neut_str = value;
 	char		midtemp[2][32];
 	int			mtemp_cnt = 0;
-	static GetDataClass sgdc;
 	GetDataClass *pgdc;
 #ifdef	UNICODE_SUPPORT
 	BOOL	wchanged =   FALSE;
@@ -618,10 +618,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 					nval++;
 
 					/* skip the current token */
-					while ((*vp != '\0') && (!isspace((unsigned char) *vp)))
+					while ((*vp != '\0') && (!isspace((UCHAR) *vp)))
 						vp++;
 					/* and skip the space to the next token */
-					while ((*vp != '\0') && (isspace((unsigned char) *vp)))
+					while ((*vp != '\0') && (isspace((UCHAR) *vp)))
 						vp++;
 					if (*vp == '\0')
 						break;
@@ -739,7 +739,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			default:
 				if (stmt->current_col < 0)
 				{
-					pgdc = &sgdc;
+					pgdc = &(gdata->fdata);
 					pgdc->data_left = -1;
 				}
 				else
@@ -1266,7 +1266,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 
 				if (stmt->current_col < 0)
 				{
-					pgdc = &sgdc;
+					pgdc = &(gdata->fdata);
 					pgdc->data_left = -1;
 				}
 				else
@@ -1720,9 +1720,9 @@ into_table_from(const char *stmt)
 	if (strnicmp(stmt, "into", 4))
 		return FALSE;
 	stmt += 4;
-	if (!isspace((unsigned char) *stmt))
+	if (!isspace((UCHAR) *stmt))
 		return FALSE;
-	while (isspace((unsigned char) *(++stmt)));
+	while (isspace((UCHAR) *(++stmt)));
 	switch (*stmt)
 	{
 		case '\0':
@@ -1735,21 +1735,21 @@ into_table_from(const char *stmt)
 				do
 					while (*(++stmt) != '\"' && *stmt);
 				while (*stmt && *(++stmt) == '\"');
-				while (*stmt && !isspace((unsigned char) *stmt) && *stmt != '\"')
+				while (*stmt && !isspace((UCHAR) *stmt) && *stmt != '\"')
 					stmt++;
 			}
 			while (*stmt == '\"');
 			break;
 		default:
-			while (!isspace((unsigned char) *(++stmt)));
+			while (!isspace((UCHAR) *(++stmt)));
 			break;
 	}
 	if (!*stmt)
 		return FALSE;
-	while (isspace((unsigned char) *(++stmt)));
+	while (isspace((UCHAR) *(++stmt)));
 	if (strnicmp(stmt, "from", 4))
 		return FALSE;
-	return isspace((unsigned char) stmt[4]);
+	return isspace((UCHAR) stmt[4]);
 }
 
 /*----------
@@ -1763,14 +1763,14 @@ table_for_update(const char *stmt, int *endpos)
 {
 	const char *wstmt = stmt;
 
-	while (isspace((unsigned char) *(++wstmt)));
+	while (isspace((UCHAR) *(++wstmt)));
 	if (!*wstmt)
 		return FALSE;
 	if (strnicmp(wstmt, "update", 6))
 		return FALSE;
 	wstmt += 6;
 	*endpos = wstmt - stmt;
-	return !wstmt[0] || isspace((unsigned char) wstmt[0]);
+	return !wstmt[0] || isspace((UCHAR) wstmt[0]);
 }
 
 /*----------
@@ -1784,20 +1784,20 @@ insert_without_target(const char *stmt, int *endpos)
 {
 	const char *wstmt = stmt;
 
-	while (isspace((unsigned char) *(++wstmt)));
+	while (isspace((UCHAR) *(++wstmt)));
 	if (!*wstmt)
 		return FALSE;
 	if (strnicmp(wstmt, "VALUES", 6))
 		return FALSE;
 	wstmt += 6;
-	if (!wstmt[0] || !isspace((unsigned char) wstmt[0]))
+	if (!wstmt[0] || !isspace((UCHAR) wstmt[0]))
 		return FALSE;
-	while (isspace((unsigned char) *(++wstmt)));
+	while (isspace((UCHAR) *(++wstmt)));
 	if (*wstmt != '(' || *(++wstmt) != ')')
 		return FALSE;
 	wstmt++;
 	*endpos = wstmt - stmt;
-	return !wstmt[0] || isspace((unsigned char) wstmt[0])
+	return !wstmt[0] || isspace((UCHAR) wstmt[0])
 		|| ';' == wstmt[0];
 }
 
@@ -2223,7 +2223,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qp->in_dquote = TRUE;
 		else
 		{
-			if (isspace((unsigned char) oldchar))
+			if (isspace((UCHAR) oldchar))
 			{
 				if (!qp->prev_token_end)
 				{
@@ -2308,8 +2308,8 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 {
 	static const int prec[] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25, 29, 32, 34, 37, 39};
 	Int4	i, j, k, ival, vlen, len, newlen;
-	unsigned char		calv[40];
-	const unsigned char	*val = (const unsigned char *) ns->val;
+	UCHAR		calv[40];
+	const UCHAR	*val = (const UCHAR *) ns->val;
 	BOOL	next_figure;
 
 	if (0 == ns->precision)
@@ -3140,7 +3140,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	CSTR func = "convert_escape";
 	RETCODE	retval = SQL_SUCCESS;
 	char		buf[1024], buf_small[128], key[65];
-	unsigned char	ucv;
+	UCHAR	ucv;
 	UInt4		prtlen;
  
 	if (F_OldChar(qp) == '{') /* skip the first { */
@@ -3160,16 +3160,16 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		if (F_OldChar(qp) == '?')
 		{
 			qb->param_number++;
-			while (isspace((unsigned char) qp->statement[++qp->opos]));
+			while (isspace((UCHAR) qp->statement[++qp->opos]));
 			if (F_OldChar(qp) != '=')
 			{
 				F_OldPrior(qp);
 				return SQL_SUCCESS;
 			}
-			while (isspace((unsigned char) qp->statement[++qp->opos]));
+			while (isspace((UCHAR) qp->statement[++qp->opos]));
 		}
 		if (strnicmp(F_OldPtr(qp), "call", lit_call_len) ||
-			!isspace((unsigned char) F_OldPtr(qp)[lit_call_len]))
+			!isspace((UCHAR) F_OldPtr(qp)[lit_call_len]))
 		{
 			F_OldPrior(qp);
 			return SQL_SUCCESS;
@@ -3562,7 +3562,7 @@ convert_pgbinary_to_char(const char *value, char *rgbValue, int cbValueMax)
 
 
 static unsigned int
-conv_from_octal(const unsigned char *s)
+conv_from_octal(const UCHAR *s)
 {
 	int			i,
 				y = 0;
@@ -3576,7 +3576,7 @@ conv_from_octal(const unsigned char *s)
 
 
 static unsigned int
-conv_from_hex(const unsigned char *s)
+conv_from_hex(const UCHAR *s)
 {
 	int			i,
 				y = 0,
@@ -3600,7 +3600,7 @@ conv_from_hex(const unsigned char *s)
 
 /*	convert octal escapes to bytes */
 int
-convert_from_pgbinary(const unsigned char *value, unsigned char *rgbValue, int cbValueMax)
+convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, int cbValueMax)
 {
 	size_t		i,
 				ilen = strlen(value);
@@ -3645,7 +3645,7 @@ convert_from_pgbinary(const unsigned char *value, unsigned char *rgbValue, int c
 
 
 static char *
-conv_to_octal(unsigned char val, char *octal)
+conv_to_octal(UCHAR val, char *octal)
 {
 	int			i;
 
@@ -3665,7 +3665,7 @@ conv_to_octal(unsigned char val, char *octal)
 
 /*	convert non-ascii bytes to octal escape sequences */
 int
-convert_to_pgbinary(const unsigned char *in, char *out, int len)
+convert_to_pgbinary(const UCHAR *in, char *out, int len)
 {
 	int			i,
 				o = 0;
@@ -3702,11 +3702,11 @@ encode(const char *in, char *out)
 			sprintf(&out[o], "%%2B");
 			o += 3;
 		}
-		else if (isspace((unsigned char) in[i]))
+		else if (isspace((UCHAR) in[i]))
 			out[o++] = '+';
-		else if (!isalnum((unsigned char) in[i]))
+		else if (!isalnum((UCHAR) in[i]))
 		{
-			sprintf(&out[o], "%%%02x", (unsigned char) in[i]);
+			sprintf(&out[o], "%%%02x", (UCHAR) in[i]);
 			o += 3;
 		}
 		else

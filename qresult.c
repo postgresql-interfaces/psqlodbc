@@ -128,6 +128,7 @@ QR_Constructor()
 		rv->rowset_size = 1;
 		rv->haskeyset = 0;
 		rv->keyset = NULL;
+		rv->reload_count = 0;
 		rv->rb_alloc = 0;
 		rv->rb_count = 0;
 		rv->rollback = NULL;
@@ -280,6 +281,17 @@ QR_free_memory(QResultClass *self)
 		free(self->keyset);
 		self->keyset = NULL;
 		self->count_keyset_allocated = 0;
+		if (self->reload_count > 0 && self->conn)
+		{
+			QResultClass	*res;
+			char		cmd[64];
+
+			sprintf(cmd, "DEALLOCATE \"_KEYSET_%x\"", self);
+			res = CC_send_query(self->conn, cmd, NULL, CLEAR_RESULT_ON_ABORT);
+			if (res)
+				QR_Destructor(res);
+		}
+		self->reload_count = 0;
 	}
 	if (self->rollback)
 	{

@@ -85,7 +85,7 @@ getNextToken(
 	smax--;
 
 	/* skip leading delimiters */
-	while (isspace((unsigned char) s[i]) || s[i] == ',')
+	while (isspace((UCHAR) s[i]) || s[i] == ',')
 	{
 		/* mylog("skipping '%c'\n", s[i]); */
 		i++;
@@ -114,7 +114,7 @@ getNextToken(
 			token[out++] = s[i++];
 			continue;
 		}
-		if (isspace((unsigned char) s[i]) || s[i] == ',')
+		if (isspace((UCHAR) s[i]) || s[i] == ',')
 			break;
 		/* Handle quoted stuff */
 		if (out == 0 && (s[i] == '\"' || s[i] == '\''))
@@ -157,18 +157,18 @@ getNextToken(
 		}
 
 		/* Check for numeric literals */
-		if (out == 0 && isdigit((unsigned char) s[i]))
+		if (out == 0 && isdigit((UCHAR) s[i]))
 		{
 			if (numeric)
 				*numeric = TRUE;
 			token[out++] = s[i++];
-			while (isalnum((unsigned char) s[i]) || s[i] == '.')
+			while (isalnum((UCHAR) s[i]) || s[i] == '.')
 				token[out++] = s[i++];
 
 			break;
 		}
 
-		if (ispunct((unsigned char) s[i]) && s[i] != '_')
+		if (ispunct((UCHAR) s[i]) && s[i] != '_')
 		{
 			mylog("got ispunct: s[%d] = '%c'\n", i, s[i]);
 
@@ -192,7 +192,7 @@ getNextToken(
 	token[out] = '\0';
 
 	/* find the delimiter  */
-	while (isspace((unsigned char) s[i]))
+	while (isspace((UCHAR) s[i]))
 		i++;
 
 	/* return the most priority delimiter */
@@ -213,7 +213,7 @@ getNextToken(
 	}
 
 	/* skip trailing blanks  */
-	while (isspace((unsigned char) s[i]))
+	while (isspace((UCHAR) s[i]))
 		i++;
 
 	return &s[i];
@@ -310,7 +310,7 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 		{
 			encoded_nextchar(&encstr);
 			if (ENCODE_STATUS(encstr) == 0)
-				*ptr = tolower((unsigned char) *ptr);
+				*ptr = tolower((UCHAR) *ptr);
 		}
 	}
 }

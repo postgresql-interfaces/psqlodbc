@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.11 2003/10/25 04:19:19 hinoue Exp $
+ * $Id: descriptor.h,v 1.12 2003/12/09 10:01:37 hinoue Exp $
  *
  */
 
@@ -145,7 +145,7 @@ typedef struct
 
 void InitializeEmbeddedDescriptor(DescriptorClass *, StatementClass *stmt,
 				UInt4 desc_type);
-void	DC_Destructor(desc);
+void	DC_Destructor(DescriptorClass *desc);
 void	InitializeARDFields(ARDFields *self);
 void	InitializeAPDFields(APDFields *self);
 /* void	InitializeIRDFields(IRDFields *self);

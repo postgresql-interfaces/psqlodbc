@@ -727,7 +727,7 @@ IRDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->rowStatusArray = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_DESC_ROWS_PROCESSED_PTR:
-			opts->rowsFetched = (SQLUINTEGER *) Value;
+			opts->rowsFetched = (UInt4 *) Value;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 		case SQL_DESC_COUNT: /* read-only */
@@ -784,7 +784,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ipdopts->param_status_ptr = (SQLUSMALLINT *) Value;
 			return ret;
 		case SQL_DESC_ROWS_PROCESSED_PTR:
-			ipdopts->param_processed_ptr = (SQLUINTEGER *) Value;
+			ipdopts->param_processed_ptr = (UInt4 *) Value;
 			return ret;
 		case SQL_DESC_UNNAMED: /* only SQL_UNNAMED is allowed */ 
 			if (SQL_UNNAMED !=  (SQLUINTEGER) Value)
@@ -1416,7 +1416,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			*((SQLUINTEGER **) Value) = SC_get_APDF(stmt)->param_offset_ptr;
+			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_APDF(stmt)->param_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
@@ -1432,7 +1432,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			*((SQLUINTEGER **) Value) = SC_get_IPDF(stmt)->param_processed_ptr;
+			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_IPDF(stmt)->param_processed_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
@@ -1440,7 +1440,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			*((SQLUINTEGER **) Value) = SC_get_ARDF(stmt)->row_offset_ptr;
+			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_ARDF(stmt)->row_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
@@ -1452,7 +1452,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			*((SQLUINTEGER **) Value) = SC_get_IRDF(stmt)->rowsFetched;
+			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_IRDF(stmt)->rowsFetched;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
@@ -1686,7 +1686,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			stmt->options.bookmark_ptr = Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			SC_get_APDF(stmt)->param_offset_ptr = (SQLUINTEGER *) Value;
+			SC_get_APDF(stmt)->param_offset_ptr = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
 			SC_get_APDF(stmt)->param_bind_type = (SQLUINTEGER) Value;
@@ -1698,13 +1698,13 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_IPDF(stmt)->param_status_ptr = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			SC_get_IPDF(stmt)->param_processed_ptr = (SQLUINTEGER *) Value;
+			SC_get_IPDF(stmt)->param_processed_ptr = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
 			SC_get_APDF(stmt)->paramset_size = (SQLUINTEGER) Value;
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			SC_get_ARDF(stmt)->row_offset_ptr = (SQLUINTEGER *) Value;
+			SC_get_ARDF(stmt)->row_offset_ptr = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
 			SC_get_ARDF(stmt)->row_operation_ptr = Value;
@@ -1713,7 +1713,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_IRDF(stmt)->rowStatusArray = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			SC_get_IRDF(stmt)->rowsFetched = (SQLUINTEGER *) Value;
+			SC_get_IRDF(stmt)->rowsFetched = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
 			SC_get_ARDF(stmt)->size_of_rowset = (SQLUINTEGER) Value;
@@ -1741,9 +1741,10 @@ typedef struct
 }	bop_cdata;
 
 static 
-RETCODE	bulk_ope_callback(RETCODE retcode, bop_cdata *s)
+RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 {
 	RETCODE	ret = retcode;
+	bop_cdata *s = (bop_cdata *) para;
 	UInt4		offset, bind_size, global_idx;
 	ConnectionClass	*conn;
 	QResultClass	*res;

@@ -75,7 +75,7 @@ pg_ismb(int characterset_code)
 #endif
 
 int
-pg_CS_code(const unsigned char *characterset_string)
+pg_CS_code(const UCHAR *characterset_string)
 {
 	int i = 0, c = -1;
   	unsigned len = 0;
@@ -96,7 +96,7 @@ pg_CS_code(const unsigned char *characterset_string)
 	return (c);
 }
 
-unsigned char *
+UCHAR *
 pg_CS_name(int characterset_code)
 {
 	int i;
@@ -273,30 +273,30 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 }
 
 
-unsigned char *
-pg_mbschr(int csc, const unsigned char *string, unsigned int character)
+UCHAR *
+pg_mbschr(int csc, const UCHAR *string, unsigned int character)
 {
 	int			mb_st = 0;
-	const unsigned char *s, *rs = NULL;
+	const UCHAR *s, *rs = NULL;
 
 	for(s = string; *s ; s++) 
 	{
-		mb_st = pg_CS_stat(mb_st, (unsigned char) *s, csc);
+		mb_st = pg_CS_stat(mb_st, (UCHAR) *s, csc);
 		if (mb_st == 0 && (*s == character))
 		{
 			rs = s;
 			break;
 		}
 	}
-	return ((unsigned char *) rs);
+	return ((UCHAR *) rs);
 }
 
 int
-pg_mbslen(int csc, const unsigned char *string)
+pg_mbslen(int csc, const UCHAR *string)
 {
-	unsigned char *s;
+	UCHAR *s;
 	int len, cs_stat;
-	for (len = 0, cs_stat = 0, s = (unsigned char *) string; *s != 0; s++)
+	for (len = 0, cs_stat = 0, s = (UCHAR *) string; *s != 0; s++)
 	{
 		cs_stat = pg_CS_stat(cs_stat,(unsigned int) *s, csc);
 		if (cs_stat < 2)
@@ -305,8 +305,8 @@ pg_mbslen(int csc, const unsigned char *string)
 	return len;
 }
 
-unsigned char *
-pg_mbsinc(int csc, const unsigned char *current )
+UCHAR *
+pg_mbsinc(int csc, const UCHAR *current )
 {
 	int mb_stat = 0;
 	if (*current != 0)
@@ -314,7 +314,7 @@ pg_mbsinc(int csc, const unsigned char *current )
 		mb_stat = (int) pg_CS_stat(mb_stat, *current, csc);
 		if (mb_stat == 0)
 			mb_stat = 1;
-		return ((unsigned char *) current + mb_stat);
+		return ((UCHAR *) current + mb_stat);
 	}
 	else
 		return NULL;
@@ -396,6 +396,12 @@ CC_lookup_characterset(ConnectionClass *self)
 				break;
 			case 950:
 				wenc = "BIG5";
+				break;
+			case 1252:
+				if (PG_VERSION_GE(self, 7.2))
+					wenc = "latin9";
+				else
+					wenc = "latin1";
 				break;
 		}
 		if (wenc && (!encstr || stricmp(encstr, wenc)))

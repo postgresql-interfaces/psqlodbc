@@ -228,8 +228,8 @@ struct StatementClass_
 	NeedDataCallback	*callbacks;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
-#elif defined(POSIX_MULTITHREAD_SUPPORT)
-    pthread_mutex_t     cs;
+#elif defined(POSIX_THREADMUTEX_SUPPORT)
+	pthread_mutex_t		cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 };
@@ -284,7 +284,7 @@ struct StatementClass_
 #define ENTER_STMT_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_STMT_CS(x)	DeleteCriticalSection(&((x)->cs))
-#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#elif defined(POSIX_THREADMUTEX_SUPPORT)
 #define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs),0)
 #define ENTER_STMT_CS(x)	pthread_mutex_lock(&((x)->cs))
 #define LEAVE_STMT_CS(x)	pthread_mutex_unlock(&((x)->cs))
@@ -326,6 +326,7 @@ RETCODE		SC_pos_update(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_add(StatementClass *self, UWORD irow);
+int		SC_set_current_col(StatementClass *self, int col);
 
 DescriptorClass	*SC_set_ARD(StatementClass *stmt, DescriptorClass *desc);
 DescriptorClass	*SC_set_APD(StatementClass *stmt, DescriptorClass *desc);

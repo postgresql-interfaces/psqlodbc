@@ -707,7 +707,11 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			return 0;
 		}
 
-		if (ci->server[0] == '\0' || ci->port[0] == '\0' || ci->database[0] == '\0')
+		if (ci->port[0] == '\0' ||
+#ifdef	WIN32
+			ci->server[0] == '\0' ||
+#endif /* WIN32 */
+			ci->database[0] == '\0')
 		{
 			CC_set_error(self, CONN_INIREAD_ERROR, "Missing server name, port, or database name in call to CC_connect.");
 			return 0;
@@ -1275,6 +1279,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				aborted = FALSE,
 				used_passed_result_object = FALSE;
 	UDWORD		abort_opt;
+	int		entered;
 
 	/* ERROR_MSG_LENGTH is suffcient */
 	char msgbuffer[ERROR_MSG_LENGTH + 1];
@@ -1310,13 +1315,13 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		return NULL;
 	}
 
-	ENTER_CONN_CS(self);
+	ENTER_INNER_CONN_CS(self, entered);
 	SOCK_put_char(sock, 'Q');
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
-		RETURN_AFTER_LEAVE_CS(self, NULL);
+		RETURN_AFTER_LEAVE_CS(entered, self, NULL);
 	}
 
 	if (issue_begin)
@@ -1328,14 +1333,14 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
 		CC_on_abort(self, NO_TRANS | CONN_DEAD);
-		RETURN_AFTER_LEAVE_CS(self, NULL);
+		RETURN_AFTER_LEAVE_CS(entered, self, NULL);
 	}
 
 	mylog("send_query: done sending query\n");
 
 	ReadyToReturn = FALSE;
 	empty_reqs = 0;
-	for (wq = query; isspace((unsigned char) *wq); wq++)
+	for (wq = query; isspace((UCHAR) *wq); wq++)
 		;
 	if (*wq == '\0')
 		empty_reqs = 1;
@@ -1348,7 +1353,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		if (!cmdres)
 		{
 			CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
-			RETURN_AFTER_LEAVE_CS(self, NULL);
+			RETURN_AFTER_LEAVE_CS(entered, self, NULL);
 		}
 	}
 	res = cmdres;
@@ -1672,7 +1677,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 			}
 		}
 	}
-	RETURN_AFTER_LEAVE_CS(self, retres);
+	RETURN_AFTER_LEAVE_CS(entered, self, retres);
 }
 
 
@@ -2195,38 +2200,30 @@ CC_get_current_schema(ConnectionClass *conn)
 int
 CC_send_cancel_request(const ConnectionClass *conn)
 {
-#ifdef WIN32
-	int			save_errno = (WSAGetLastError());
-#else
-	int			save_errno = errno;
-#endif
+	int			save_errno = SOCK_ERRNO;
 	int			tmpsock = -1;
 	struct
 	{
 		uint32		packetlen;
 		CancelRequestPacket cp;
 	}			crp;
+	BOOL	ret = TRUE;
 
 	/* Check we have an open connection */
-	if (!conn)
+	if (!conn || !conn->sock)
 		return FALSE;
-
-	if (conn->sock == NULL )
-	{
-		return FALSE;
-	}
 
 	/*
 	 * We need to open a temporary connection to the postmaster. Use the
 	 * information saved by connectDB to do this with only kernel calls.
 	*/
-	if ((tmpsock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((tmpsock = socket(conn->sock->sadr->sa_family, SOCK_STREAM, 0)) < 0)
 	{
 		return FALSE;
 	}
-	if (connect(tmpsock, (struct sockaddr *)&(conn->sock->sadr),
-				sizeof(conn->sock->sadr)) < 0)
+	if (connect(tmpsock, conn->sock->sadr, conn->sock->sadr_len) < 0)
 	{
+		closesocket(tmpsock);
 		return FALSE;
 	}
 
@@ -2240,15 +2237,13 @@ CC_send_cancel_request(const ConnectionClass *conn)
 
 	if (send(tmpsock, (char *) &crp, sizeof(crp), 0) != (int) sizeof(crp))
 	{
-		return FALSE;
+		save_errno = SOCK_ERRNO;
+		ret = FALSE;
 	}
 
 	/* Sent it, done */
 	closesocket(tmpsock);
-#ifdef WIN32
-	WSASetLastError(save_errno);
-#else
-	errno = save_errno;
-#endif
-	return TRUE;
+	SOCK_ERRNO_SET(save_errno);
+
+	return ret;
 }

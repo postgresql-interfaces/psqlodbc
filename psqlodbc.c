@@ -29,8 +29,11 @@ RETCODE SQL_API SQLDummyOrdinal(void);
 extern	CRITICAL_SECTION	qlog_cs, mylog_cs, conns_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 extern	pthread_mutex_t 	qlog_cs, mylog_cs, conns_cs;
+
+#ifdef	POSIX_THREADMUTEX_SUPPORT
+#ifdef	PG_RECURSIVE_MUTEXATTR
 static	pthread_mutexattr_t	recur_attr;
-const pthread_mutexattr_t*	getMutexAttr(void)
+const	pthread_mutexattr_t*	getMutexAttr(void)
 {
 	static int	init = 1;
 
@@ -38,13 +41,20 @@ const pthread_mutexattr_t*	getMutexAttr(void)
 	{
 		if (0 != pthread_mutexattr_init(&recur_attr))
 			return NULL;
-		if (0 != pthread_mutexattr_settype(&recur_attr, PTHREAD_MUTEX_RECURSIVE_NP))
+		if (0 != pthread_mutexattr_settype(&recur_attr, PG_RECURSIVE_MUTEXATTR))
 			return NULL;
 	}
 	init = 0;
 
 	return	&recur_attr;
 }
+#else
+const	pthread_mutexattr_t*	getMutexAttr(void)
+{
+	return NULL;
+}
+#endif /* PG_RECURSIVE_MUTEXATTR */
+#endif /* POSIX_THREADMUTEX_SUPPORT */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 int	initialize_global_cs(void)
@@ -54,9 +64,9 @@ int	initialize_global_cs(void)
 	if (!init)
 		return 0;
 	init = 0;
-#ifdef	POSIX_MULTITHREAD_SUPPORT
+#ifdef	POSIX_THREADMUTEX_SUPPORT
 	getMutexAttr();
-#endif /* POSIX_MULTITHREAD_SUPPORT */
+#endif /* POSIX_THREADMUTEX_SUPPORT */
 	INIT_QLOG_CS;
 	INIT_MYLOG_CS;
 	INIT_CONNS_CS;

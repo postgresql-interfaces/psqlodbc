@@ -19,7 +19,7 @@
 #ifndef WIN32
 #include <stdlib.h>
 #include <string.h>				/* for memset */
-#endif
+#endif /* WIN32 */
 
 extern GLOBAL_VALUES globals;
 
@@ -60,20 +60,21 @@ SOCK_Constructor(const ConnectionClass *conn)
 			rv->buffer_size = conn->connInfo.drivers.socket_buffersize;
 		else
 			rv->buffer_size = globals.socket_buffersize;
-		rv->buffer_in = (unsigned char *) malloc(rv->buffer_size);
+		rv->buffer_in = (UCHAR *) malloc(rv->buffer_size);
 		if (!rv->buffer_in)
 		{
 			free(rv);
 			return NULL;
 		}
 
-		rv->buffer_out = (unsigned char *) malloc(rv->buffer_size);
+		rv->buffer_out = (UCHAR *) malloc(rv->buffer_size);
 		if (!rv->buffer_out)
 		{
 			free(rv->buffer_in);
 			free(rv);
 			return NULL;
 		}
+		rv->sadr = NULL;
 		rv->errormsg = NULL;
 		rv->errornumber = 0;
 		rv->reverse = FALSE;
@@ -100,6 +101,8 @@ SOCK_Destructor(SocketClass *self)
 
 	if (self->buffer_out)
 		free(self->buffer_out);
+	if (self->sadr != (struct sockaddr *) &(self->sadr_in))
+		free(self->sadr);
 
 	free(self);
 }
@@ -109,14 +112,19 @@ char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 {
 #if defined (POSIX_MULTITHREAD_SUPPORT)
-    const int bufsz = 8192; 
-    char buf[bufsz];
-    int error = 0;
-    struct hostent host;
-    struct hostent* hp = &host;
+	const int bufsz = 8192; 
+	char buf[bufsz];
+	int error = 0;
+	struct hostent host;
+	struct hostent* hp = &host;
 #else
-    struct hostent* hp;
-#endif 
+	struct hostent* hp;
+#endif /* POSIX_MULTITHREAD_SUPPORT */
+	struct sockaddr_in *in;
+#ifdef	HAVE_UNIX_SOCKETS
+	struct sockaddr_un *un;
+#endif /* HAVE_UNIX_SOCKETS */
+	int	family, sLen; 
 	unsigned long iaddr;
 
 	if (self->socket != -1)
@@ -126,57 +134,97 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		return 0;
 	}
 
-	memset((char *) &(self->sadr), 0, sizeof(self->sadr));
 
 	/*
 	 * If it is a valid IP address, use it. Otherwise use hostname lookup.
 	 */
-	iaddr = inet_addr(hostname);
-	if (iaddr == INADDR_NONE)
+	if (hostname && hostname[0])
 	{
+		iaddr = inet_addr(hostname);
+		memset((char *) &(self->sadr_in), 0, sizeof(self->sadr_in));
+		in = &(self->sadr_in);
+		in->sin_family = family = AF_INET;
+		in->sin_port = htons(port);
+		sLen = sizeof(self->sadr_in);
+		if (iaddr == INADDR_NONE)
+		{
 #if defined (POSIX_MULTITHREAD_SUPPORT) 
   #if defined (HAVE_GETIPNODEBYNAME) /* Free-BSD ? */
-	hp = getipnodebyname(hostname, AF_INET, 0, &error); 
+			hp = getipnodebyname(hostname, AF_INET, 0, &error); 
   #elif defined (PGS_REENTRANT_API_1) /* solaris, irix */
-        hp = gethostbyname_r(hostname, hp, buf, bufsz, &error);
+			hp = gethostbyname_r(hostname, hp, buf, bufsz, &error);
   #elif defined (PGS_REENTRANT_API_2) /* linux */
-        int result = 0;
-        result = gethostbyname_r(hostname, hp, buf, bufsz, &hp, &error);
-        if (result)
-          hp = 0;
+			int result = 0;
+			result = gethostbyname_r(hostname, hp, buf, bufsz, &hp, &error);
+			if (result)
+				hp = NULL;
   #else
-        hp = gethostbyname(hostname);
-  #endif
+			hp = gethostbyname(hostname);
+  #endif /* HAVE_GETIPNODEBYNAME */
 #else
-        hp = gethostbyname(hostname);
-#endif
-		if (hp == NULL)
-		{
-			self->errornumber = SOCKET_HOST_NOT_FOUND;
-			self->errormsg = "Could not resolve hostname.";
-			return 0;
+			hp = gethostbyname(hostname);
+#endif /* POSIX_MULTITHREAD_SUPPORT */
+			if (hp == NULL)
+			{
+				self->errornumber = SOCKET_HOST_NOT_FOUND;
+				self->errormsg = "Could not resolve hostname.";
+				return 0;
+			}
+			memcpy(&(in->sin_addr), hp->h_addr, hp->h_length);
 		}
-		memcpy(&(self->sadr.sin_addr), hp->h_addr, hp->h_length);
-	}
-	else
-		memcpy(&(self->sadr.sin_addr), (struct in_addr *) & iaddr, sizeof(iaddr));
+		else
+			memcpy(&(in->sin_addr), (struct in_addr *) & iaddr, sizeof(iaddr));
+		self->sadr = (struct sockaddr *) in;
 
 #if defined (HAVE_GETIPNODEBYNAME)
-	freehostent(hp);
+		freehostent(hp);
 #endif /* HAVE_GETIPNODEBYNAME */
-	self->sadr.sin_family = AF_INET;
-	self->sadr.sin_port = htons(port);
+	}
+	else
+#ifdef	HAVE_UNIX_SOCKETS
+	{
+		un = (struct sockaddr_un *) malloc(sizeof(struct sockaddr_un));
+		un->sun_family = family = AF_UNIX;
+		/* passing NULL means that this only suports the pg default "/tmp" */
+		UNIXSOCK_PATH(un, port, ((char *) NULL));
+		sLen = UNIXSOCK_LEN(un);
+		self->sadr = (struct sockaddr *) un;
+	}
+#else
+	{
+		self->errornumber = SOCKET_HOST_NOT_FOUND;
+		self->errormsg = "Hostname isn't specified.";
+		return 0;
+	}
+#endif /* HAVE_UNIX_SOCKETS */
 
-	self->socket = socket(AF_INET, SOCK_STREAM, 0);
+	self->socket = socket(family, SOCK_STREAM, 0);
 	if (self->socket == -1)
 	{
 		self->errornumber = SOCKET_COULD_NOT_CREATE_SOCKET;
 		self->errormsg = "Could not create Socket.";
 		return 0;
 	}
+#ifdef	TCP_NODELAY
+	if (family == AF_INET)
+	{
+		int i, len;
 
-	if (connect(self->socket, (struct sockaddr *) & (self->sadr),
-				sizeof(self->sadr)) < 0)
+		i = 1;
+		len = sizeof(i);
+		if (setsockopt(self->socket, IPPROTO_TCP, TCP_NODELAY, (char *) &i, len) < 0)
+		{
+			self->errornumber = SOCKET_COULD_NOT_CONNECT;
+			self->errormsg = "Could not set socket to NODELAY.";
+			closesocket(self->socket);
+			self->socket = (SOCKETFD) - 1;
+			return 0;
+		}
+	}
+#endif /* TCP_NODELAY */
+
+	self->sadr_len = sLen;
+	if (connect(self->socket, self->sadr, sLen) < 0)
 	{
 		self->errornumber = SOCKET_COULD_NOT_CONNECT;
 		self->errormsg = "Could not connect to remote socket.";
@@ -184,6 +232,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		self->socket = (SOCKETFD) - 1;
 		return 0;
 	}
+
 	return 1;
 }
 
@@ -222,7 +271,7 @@ SOCK_put_n_char(SocketClass *self, char *buffer, int len)
 	}
 
 	for (lf = 0; lf < len; lf++)
-		SOCK_put_next_byte(self, (unsigned char) buffer[lf]);
+		SOCK_put_next_byte(self, (UCHAR) buffer[lf]);
 }
 
 
@@ -254,7 +303,7 @@ SOCK_put_string(SocketClass *self, char *string)
 	len = strlen(string) + 1;
 
 	for (lf = 0; lf < len; lf++)
-		SOCK_put_next_byte(self, (unsigned char) string[lf]);
+		SOCK_put_next_byte(self, (UCHAR) string[lf]);
 }
 
 
@@ -325,21 +374,28 @@ SOCK_put_int(SocketClass *self, int value, short len)
 void
 SOCK_flush_output(SocketClass *self)
 {
-	int			written;
+	int			written, pos = 0;
 
 	if (!self)
 		return;
-	written = send(self->socket, (char *) self->buffer_out, self->buffer_filled_out, 0);
-	if (written != self->buffer_filled_out)
+	do
 	{
-		self->errornumber = SOCKET_WRITE_ERROR;
-		self->errormsg = "Could not flush socket buffer.";
-	}
-	self->buffer_filled_out = 0;
+		written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+		if (written < 0)
+		{
+			if (SOCK_ERRNO == EINTR)
+				continue;
+			self->errornumber = SOCKET_WRITE_ERROR;
+			self->errormsg = "Could not flush socket buffer.";
+			break;
+		}
+		pos += written;
+		self->buffer_filled_out -= written;
+	} while (self->buffer_filled_out > 0);
 }
 
 
-unsigned char
+UCHAR
 SOCK_get_next_byte(SocketClass *self)
 {
 	if (!self)
@@ -350,12 +406,15 @@ SOCK_get_next_byte(SocketClass *self)
 		 * there are no more bytes left in the buffer so reload the buffer
 		 */
 		self->buffer_read_in = 0;
+retry:
 		self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
 
 		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
 
 		if (self->buffer_filled_in < 0)
 		{
+			if (SOCK_ERRNO == EINTR)
+				goto retry;
 			self->errornumber = SOCKET_READ_ERROR;
 			self->errormsg = "Error while reading from the socket.";
 			self->buffer_filled_in = 0;
@@ -374,9 +433,9 @@ SOCK_get_next_byte(SocketClass *self)
 
 
 void
-SOCK_put_next_byte(SocketClass *self, unsigned char next_byte)
+SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 {
-	int			bytes_sent;
+	int			bytes_sent, pos = 0;
 
 	if (!self)
 		return;
@@ -385,12 +444,19 @@ SOCK_put_next_byte(SocketClass *self, unsigned char next_byte)
 	if (self->buffer_filled_out == self->buffer_size)
 	{
 		/* buffer is full, so write it out */
-		bytes_sent = send(self->socket, (char *) self->buffer_out, self->buffer_size, 0);
-		if (bytes_sent != self->buffer_size)
+		do
 		{
-			self->errornumber = SOCKET_WRITE_ERROR;
-			self->errormsg = "Error while writing to the socket.";
-		}
-		self->buffer_filled_out = 0;
+			bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+			if (bytes_sent < 0)
+			{
+				if (SOCK_ERRNO == EINTR)
+					continue;
+				self->errornumber = SOCKET_WRITE_ERROR;
+				self->errormsg = "Error while writing to the socket.";
+				break;
+			}
+			pos += bytes_sent;
+			self->buffer_filled_out -= bytes_sent;
+		} while (self->buffer_filled_out > 0);
 	}
 }

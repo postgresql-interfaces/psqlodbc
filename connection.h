@@ -90,22 +90,39 @@ typedef enum
 #if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
+#define ENTER_INNER_CONN_CS(x, entered) \
+	{ EnterCriticalSection(&((x)->cs)); entered = 1; }
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_CONN_CS(x)	DeleteCriticalSection(&((x)->cs))
-#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#elif defined(POSIX_THREADMUTEX_SUPPORT)
 #define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
 #define ENTER_CONN_CS(x)	pthread_mutex_lock(&((x)->cs))
+#define ENTER_INNER_CONN_CS(x, entered) \
+	{ \
+		if (getMutexAttr()) \
+		{ \
+			if (pthread_mutex_lock(&((x)->cs)) == 0) \
+				entered = 1; \
+			else \
+				entered = -1; \
+		} \
+		else \
+			entered = 0; \
+	}
 #define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_CONN_CS(x)	
 #define ENTER_CONN_CS(x)
+#define ENTER_INNER_CONN_CS(x, entered) {entered = 0;}
 #define LEAVE_CONN_CS(x)
 #define DELETE_CONN_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
-#define	RETURN_AFTER_LEAVE_CS(conn, ret) \
-	{ LEAVE_CONN_CS(conn); return ret; }
+#define	LEAVE_INNER_CONN_CS(entered, conn) \
+	{ if (entered > 0) LEAVE_CONN_CS(conn); }
+#define	RETURN_AFTER_LEAVE_CS(entered, conn, ret) \
+	{ if (entered > 0) LEAVE_CONN_CS(conn); return ret; }
 
 /* Authentication types */
 #define AUTH_REQ_OK									0
@@ -340,8 +357,8 @@ struct ConnectionClass_
 #endif /* ODBCVER */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
-#elif defined(POSIX_MULTITHREAD_SUPPORT)
-    pthread_mutex_t     cs;
+#elif defined(POSIX_THREADMUTEX_SUPPORT)
+	pthread_mutex_t		cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 };
 

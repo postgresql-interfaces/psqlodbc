@@ -66,6 +66,7 @@ Int4 pgtypes_defined[]	= {
 				PG_TYPE_MONEY,
 				PG_TYPE_BOOL,
 				PG_TYPE_BYTEA,
+				PG_TYPE_NUMERIC,
 				PG_TYPE_LO_UNDEFINED,
 				0 };
 */
@@ -243,7 +244,7 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
  *	types that are unknown.  All other pg routines in here return a suitable default.
  */
 Int2
-pgtype_to_concise_type(StatementClass *stmt, Int4 type)
+pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
@@ -262,9 +263,15 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 
 #ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
+			if (col >= 0 &&
+			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
+				return conn->unicode ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 			return conn->unicode ? SQL_WCHAR : SQL_CHAR;
 
 		case PG_TYPE_VARCHAR:
+			if (col >= 0 &&
+			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
+				return conn->unicode ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 			return conn->unicode ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		case PG_TYPE_TEXT:
@@ -274,9 +281,15 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 
 #else
 		case PG_TYPE_BPCHAR:
+			if (col >= 0 &&
+			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
+				return SQL_LONGVARCHAR;
 			return SQL_CHAR;
 
 		case PG_TYPE_VARCHAR:
+			if (col >= 0 &&
+			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
+				return SQL_LONGVARCHAR;
 			return SQL_VARCHAR;
 
 		case PG_TYPE_TEXT:
@@ -360,11 +373,11 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 }
 
 Int2
-pgtype_to_sqldesctype(StatementClass *stmt, Int4 type)
+pgtype_to_sqldesctype(StatementClass *stmt, Int4 type, int col)
 {
 	Int2	rettype;
 
-	switch (rettype = pgtype_to_concise_type(stmt, type))
+	switch (rettype = pgtype_to_concise_type(stmt, type, col))
 	{
 #if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
@@ -379,7 +392,7 @@ pgtype_to_sqldesctype(StatementClass *stmt, Int4 type)
 Int2
 pgtype_to_datetime_sub(StatementClass *stmt, Int4 type)
 {
-	switch (pgtype_to_concise_type(stmt, type))
+	switch (pgtype_to_concise_type(stmt, type, PG_STATIC))
 	{
 #if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
@@ -489,11 +502,11 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_INT8:
 			return "int8";
 		case PG_TYPE_NUMERIC:
-			return "numeric";
+			return "numeric()";
 		case PG_TYPE_VARCHAR:
-			return "varchar";
+			return "varchar()";
 		case PG_TYPE_BPCHAR:
-			return "char";
+			return "char()";
 		case PG_TYPE_TEXT:
 			return "text";
 		case PG_TYPE_NAME:
@@ -515,10 +528,12 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_ABSTIME:
 			return "abstime";
 		case PG_TYPE_DATETIME:
-			if (PG_VERSION_GE(conn, 7.0))
-				return "timestamp with time zone";
-			else
+			if (PG_VERSION_GT(conn, 7.1))
+				return "timestamptz";
+			else if (PG_VERSION_LT(conn, 7.0))
 				return "datetime";
+			else
+				return "timestamp";
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			return "timestamp without time zone";
 		case PG_TYPE_TIMESTAMP:
@@ -1352,6 +1367,8 @@ pgtype_create_params(StatementClass *stmt, Int4 type)
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 			return "max. length";
+		case PG_TYPE_NUMERIC:
+			return "precision, scale";
 		default:
 			return NULL;
 	}

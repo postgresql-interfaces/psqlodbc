@@ -171,7 +171,9 @@ dialog:
 
 			/* Password is not a required parameter. */
 			if (ci->username[0] == '\0' ||
+#ifdef	WIN32
 				ci->server[0] == '\0' ||
+#endif /* WIN32 */
 				ci->database[0] == '\0' ||
 				ci->port[0] == '\0' ||
 				password_required)
@@ -197,7 +199,9 @@ dialog:
 	 * Cancel to get out)
 	 */
 	if (ci->username[0] == '\0' ||
+#ifdef	WIN32
 		ci->server[0] == '\0' ||
+#endif /* WIN32 */
 		ci->database[0] == '\0' ||
 		ci->port[0] == '\0')
 	{

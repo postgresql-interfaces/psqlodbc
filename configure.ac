@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 07.03.0200, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 07.03.0205, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
@@ -38,6 +38,7 @@ AM_CONDITIONAL(with_unixodbc, [test $with_unixodbc = yes])
 AM_CONDITIONAL(with_iodbc, [test $with_iodbc = yes])
 
 AC_CHECK_FUNCS(strtoll)
+AC_CHECK_LIB(socket, socket)
 
 # to implement the thread-safe driver
 PGAC_ARG_BOOL(enable, pthreads, no,
@@ -47,7 +48,9 @@ PGAC_ARG_BOOL(enable, pthreads, no,
      AC_DEFINE(_REENTRANT, 1,
 	[Define _REENTRANT for several plaforms])
      AC_CHECK_LIB(c_r, gethostbyname)
-     AC_CHECK_LIB(nsl, gethostbyname_r, [],
+     AC_CHECK_LIB(pthreads, pthread_create, [],
+       [AC_CHECK_LIB(pthread, pthread_create)])
+     AC_CHECK_LIB(nsl, gethostbyname_r, [AC_DEFINE(HAVE_GETHOSTBYNAME_R, 1, [])],
 	[AC_CHECK_FUNCS(getipnodebyname gethostbyname_r, break)])
      if test x"$ac_cv_func_gethostbyname_r" = xyes || test x"$ac_cv_lib_nsl_gethostbyname_r" = xyes; then
 	AC_TRY_COMPILE([#include <netdb.h>],
@@ -55,9 +58,15 @@ PGAC_ARG_BOOL(enable, pthreads, no,
         [AC_DEFINE(PGS_REENTRANT_API_1, 1, [Define if you have 5 parameter gethostbyname_r])],
         [AC_DEFINE(PGS_REENTRANT_API_2, 1, [Define if you have 6 parameter gethostbyname_r])])
      fi
-     AC_CHECK_FUNCS(localtime_r strtok_r)
-     AC_CHECK_LIB(pthreads, pthread_create, [],
-       [AC_CHECK_LIB(pthread, pthread_create)])
+     AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
+     if test x"$ac_cv_func_pthread_mutexattr_settype" = xyes; then
+	AC_TRY_COMPILE([#include <pthread.h>],
+	[ int i = PTHREAD_MUTEX_RECURSIVE;],
+        [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE, [Define if you have PTHREAD_MUTEX_RECURSIVE])], [
+	AC_TRY_COMPILE([#include <pthread.h>],
+	[ int i = PTHREAD_MUTEX_RECURSIVE_NP;],
+        [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP, [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
+     fi
     ])
 
 # Allow for overriding the default location of the odbcinst.ini
@@ -76,6 +85,7 @@ AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 
 AC_CHECK_HEADERS([locale.h])
+AC_CHECK_HEADERS([sys/un.h])
 AC_CHECK_TYPES(uint8)
 PGAC_VAR_INT_TIMEZONE
 

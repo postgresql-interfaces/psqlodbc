@@ -73,8 +73,8 @@ extern Int2 sqlTypes[];
 
 Int4		sqltype_to_pgtype(StatementClass *stmt, Int2 fSqlType);
 
-Int2		pgtype_to_concise_type(StatementClass *stmt, Int4 type);
-Int2		pgtype_to_sqldesctype(StatementClass *stmt, Int4 type);
+Int2		pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col);
+Int2		pgtype_to_sqldesctype(StatementClass *stmt, Int4 type, int col);
 Int2		pgtype_to_datetime_sub(StatementClass *stmt, Int4 type);
 Int2		pgtype_to_ctype(StatementClass *stmt, Int4 type);
 const char	*pgtype_to_name(StatementClass *stmt, Int4 type);

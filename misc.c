@@ -136,8 +136,8 @@ mylog(char *fmt,...)
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-        if (LOGFP)
-            fprintf(LOGFP, "[%d]", pthread_self());
+		if (LOGFP)
+			fprintf(LOGFP, "[%d]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 		if (LOGFP)
 			vfprintf(LOGFP, fmt, args);

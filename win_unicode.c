@@ -91,7 +91,7 @@ UInt4	utf8_to_ucs2_lf(const char *utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs
 {
 	int	i;
 	UInt4	ocount, wcode;
-	const unsigned char *str;
+	const UCHAR *str;
 
 /*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/
 	if (!utf8str || !ilen)

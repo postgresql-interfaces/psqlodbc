@@ -392,7 +392,7 @@ statement_type(const char *statement)
 	int			i;
 
 	/* ignore leading whitespace in query string */
-	while (*statement && (isspace((unsigned char) *statement) || *statement == '('))
+	while (*statement && (isspace((UCHAR) *statement) || *statement == '('))
 		statement++;
 
 	for (i = 0; Statement_Type[i].s; i++)
@@ -400,6 +400,18 @@ statement_type(const char *statement)
 			return Statement_Type[i].type;
 
 	return STMT_TYPE_OTHER;
+}
+
+int
+SC_set_current_col(StatementClass *stmt, int col)
+{
+	if (col == stmt->current_col)
+		return col;
+	if (col >= 0)
+		reset_a_getdata_info(SC_get_GDTI(stmt), col + 1);
+	stmt->current_col = col;
+
+	return stmt->current_col;
 }
 
 void
@@ -587,7 +599,7 @@ SC_recycle_statement(StatementClass *self)
 
 	self->currTuple = -1;
 	self->rowset_start = -1;
-	self->current_col = -1;
+	SC_set_current_col(self, -1);
 	self->bind_row = 0;
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 
@@ -926,6 +938,7 @@ SC_fetch(StatementClass *self)
 		UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
 		sprintf(buf, "%ld", SC_get_bookmark(self));
+		SC_set_current_col(self, -1);
 		result = copy_and_convert_field(self, 0, buf,
 			 SQL_C_ULONG, bookmark->buffer + offset, 0,
 			bookmark->used ? bookmark->used + (offset >> 2) : NULL);
@@ -1033,6 +1046,7 @@ SC_execute(StatementClass *self)
 	ConnInfo   *ci;
 	UDWORD		qflag = 0;
 	BOOL		auto_begin = FALSE, is_in_trans;
+	int		entered;
 
 
 	conn = SC_get_conn(self);
@@ -1048,14 +1062,13 @@ SC_execute(StatementClass *self)
 	 * 2) we are in autocommit off state and the statement isn't of type
 	 * OTHER.
 	 */
-	ENTER_CONN_CS(conn);
+	ENTER_INNER_CONN_CS(conn, entered);
 	if (CONN_EXECUTING == conn->status)
 	{
-		LEAVE_CONN_CS(conn);
 		SC_set_error(self, STMT_SEQUENCE_ERROR, "Connection is already in use.");
 		SC_log_error(func, "", self);
 		mylog("%s: problem with connection\n", func);
-		return SQL_ERROR;
+		RETURN_AFTER_LEAVE_CS(entered, conn, SQL_ERROR);
 	}
 	is_in_trans = CC_is_in_trans(conn);
 	if (!self->internal && !is_in_trans &&
@@ -1068,10 +1081,9 @@ SC_execute(StatementClass *self)
 			qflag |= GO_INTO_TRANSACTION;
                 else if (!CC_begin(conn))
                 {
-			LEAVE_CONN_CS(conn);
 			SC_set_error(self, STMT_EXEC_ERROR, "Could not begin a transaction");
                         SC_log_error(func, "", self);
-                        return SQL_ERROR;
+                        RETURN_AFTER_LEAVE_CS(entered, conn, SQL_ERROR);
                 }
 	}
 
@@ -1149,7 +1161,7 @@ SC_execute(StatementClass *self)
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
 	self->status = STMT_FINISHED;
-	LEAVE_CONN_CS(conn);
+	LEAVE_INNER_CONN_CS(entered, conn);
 
 	/* Check the status of the result */
 	if (res)
@@ -1164,7 +1176,7 @@ SC_execute(StatementClass *self)
 
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
-		self->current_col = -1;
+		SC_set_current_col(self, -1);
 		self->rowset_start = -1;
 
 		/* issue "ABORT" when query aborted */
@@ -1378,57 +1390,3 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 	}
 #undef PRN_NULLCHECK
 }
-
-/*	Map sql commands to statement types */
-static struct
-{
-	int	number;
-	const	char	* ver3str;
-	const	char	* ver2str;
-}	Descriptor_sqlstate[] =
-
-{
-	{ STMT_OK,  "00000", "00000" }, /* OK */
-	{ STMT_EXEC_ERROR, "HY000", "S1000" }, /* also a general error */
-	{ STMT_STATUS_ERROR, "HY010", "S1010" },
-	{ STMT_SEQUENCE_ERROR, "HY010", "S1010" }, /* Function sequence error */
-	{ STMT_NO_MEMORY_ERROR, "HY001", "S1001" }, /* memory allocation failure */
-	{ STMT_COLNUM_ERROR, "07009", "S1002" }, /* invalid column number */
-	{ STMT_NO_STMTSTRING, "HY001", "S1001" }, /* having no stmtstring is also a malloc problem */
-	{ STMT_ERROR_TAKEN_FROM_BACKEND, "HY000", "S1000" }, /* general error */
-	{ STMT_INTERNAL_ERROR, "HY000", "S1000" }, /* general error */
-	{ STMT_STILL_EXECUTING, "HY010", "S1010" },
-	{ STMT_NOT_IMPLEMENTED_ERROR, "HYC00", "S1C00" }, /* == 'driver not 
-							  * capable' */
-	{ STMT_BAD_PARAMETER_NUMBER_ERROR, "07009", "S1093" },
-	{ STMT_OPTION_OUT_OF_RANGE_ERROR, "HY092", "S1092" },
-	{ STMT_INVALID_COLUMN_NUMBER_ERROR, "07009", "S1002" },
-	{ STMT_RESTRICTED_DATA_TYPE_ERROR, "07006", "07006" },
-	{ STMT_INVALID_CURSOR_STATE_ERROR, "07005", "24000" },
-	{ STMT_OPTION_VALUE_CHANGED, "01S02", "01S02" },
-	{ STMT_CREATE_TABLE_ERROR, "42S01", "S0001" }, /* table already exists */
-	{ STMT_NO_CURSOR_NAME, "S1015", "S1015" },
-	{ STMT_INVALID_CURSOR_NAME, "34000", "34000" },
-	{ STMT_INVALID_ARGUMENT_NO, "HY024", "S1009" }, /* invalid argument value */
-	{ STMT_ROW_OUT_OF_RANGE, "HY107", "S1107" },
-	{ STMT_OPERATION_CANCELLED, "HY008", "S1008" },
-	{ STMT_INVALID_CURSOR_POSITION, "HY109", "S1109" },
-	{ STMT_VALUE_OUT_OF_RANGE, "HY019", "22003" },
-	{ STMT_OPERATION_INVALID, "HY011", "S1011" },
-	{ STMT_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" }, 
-	{ STMT_BAD_ERROR, "08S01", "08S01" }, /* communication link failure */
-	{ STMT_INVALID_OPTION_IDENTIFIER, "HY092", "HY092" },
-	{ STMT_RETURN_NULL_WITHOUT_INDICATOR, "22002", "22002" },
-	{ STMT_ERROR_IN_ROW, "01S01", "01S01" },
-	{ STMT_INVALID_DESCRIPTOR_IDENTIFIER, "HY091", "HY091" },
-	{ STMT_OPTION_NOT_FOR_THE_DRIVER, "HYC00", "HYC00" },
-	{ STMT_FETCH_OUT_OF_RANGE, "HY106", "S1106" },
-	{ STMT_COUNT_FIELD_INCORRECT, "07002", "07002" },
-
-
-	{ STMT_ROW_VERSION_CHANGED,  "01001", "01001" }, /* data changed */
-	{ STMT_TRUNCATED, "01004", "01004" }, /* data truncated */
-	{ STMT_INFO_ONLY, "00000", "00000" }, /* just information that is returned, no error */
-	{ STMT_POS_BEFORE_RECORDSET, "01S06", "01S06" },
-};
-

@@ -75,6 +75,7 @@ struct ParameterImplClass_
 
 typedef struct
 {
+	GetDataClass	fdata;
 	Int4		allocated;
 	GetDataClass	*gdata;
 }	GetDataInfo;

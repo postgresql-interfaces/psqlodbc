@@ -63,23 +63,23 @@
 extern void CC_lookup_characterset(ConnectionClass *self);
 
 extern int pg_CS_stat(int stat,unsigned int charcter,int characterset_code);
-extern int pg_CS_code(const unsigned char *stat_string);
-extern unsigned char *pg_CS_name(int code);
+extern int pg_CS_code(const UCHAR *stat_string);
+extern UCHAR *pg_CS_name(int code);
 
 typedef struct pg_CS
 {
-	unsigned char *name;
+	UCHAR *name;
 	int code;
 }pg_CS;
-extern int pg_mbslen(int ccsc, const unsigned char *string);
-extern unsigned char *pg_mbschr(int ccsc, const unsigned char *string, unsigned int character);
-extern unsigned char *pg_mbsinc(int ccsc, const unsigned char *current );
+extern int pg_mbslen(int ccsc, const UCHAR *string);
+extern UCHAR *pg_mbschr(int ccsc, const UCHAR *string, unsigned int character);
+extern UCHAR *pg_mbsinc(int ccsc, const UCHAR *current );
 
 /* Old Type Compatible */
 typedef struct
 {
 	int	ccsc;
-	const unsigned char *encstr;
+	const UCHAR *encstr;
 	int	pos;
 	int	ccst;
 } encoded_str;

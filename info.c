@@ -898,7 +898,7 @@ inolog("serial in\n");
 			set_nullfield_int2(&row->tuple[13], pgtype_scale(stmt, pgType, PG_STATIC));
 			set_nullfield_int2(&row->tuple[14], pgtype_scale(stmt, pgType, PG_STATIC));
 #if (ODBCVER >=0x0300)
-			set_nullfield_int2(&row->tuple[15], pgtype_to_sqldesctype(stmt, pgType));
+			set_nullfield_int2(&row->tuple[15], pgtype_to_sqldesctype(stmt, pgType, PG_STATIC));
 			set_nullfield_int2(&row->tuple[16], pgtype_to_datetime_sub(stmt, pgType));
 			set_nullfield_int4(&row->tuple[17], pgtype_radix(stmt, pgType));
 			set_nullfield_int4(&row->tuple[18], 0);
@@ -913,7 +913,7 @@ inolog("serial in\n");
 	stmt->status = STMT_FINISHED;
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	return SQL_SUCCESS;
 }
@@ -1626,7 +1626,7 @@ PGAPI_Tables(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 	mylog("%s: EXIT,  stmt=%u\n", func, stmt);
@@ -2023,7 +2023,7 @@ PGAPI_Columns(
 				set_tuplefield_string(&row->tuple[1], "");
 			set_tuplefield_string(&row->tuple[2], table_name);
 			set_tuplefield_string(&row->tuple[3], "oid");
-			sqltype = pgtype_to_concise_type(stmt, the_type);
+			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
 			set_tuplefield_int2(&row->tuple[4], sqltype);
 			set_tuplefield_string(&row->tuple[5], "OID");
 
@@ -2056,6 +2056,7 @@ PGAPI_Columns(
 								   (result_cols - 1) *sizeof(TupleField));
 
 
+		sqltype = SQL_TYPE_NULL;	/* unspecified */
 		set_tuplefield_string(&row->tuple[0], "");
 		/* see note in SQLTables() */
 		if (conn->schema_support)
@@ -2064,7 +2065,7 @@ PGAPI_Columns(
 			set_tuplefield_string(&row->tuple[1], "");
 		set_tuplefield_string(&row->tuple[2], table_name);
 		set_tuplefield_string(&row->tuple[3], field_name);
-		sqltype = pgtype_to_concise_type(stmt, field_type);
+		sqltype = pgtype_to_concise_type(stmt, field_type, -1);
 		set_tuplefield_int2(&row->tuple[4], sqltype);
 		set_tuplefield_string(&row->tuple[5], field_type_name);
 
@@ -2119,14 +2120,20 @@ PGAPI_Columns(
 			if (mod_length >= 4)
 				mod_length -= 4;	/* the length is in atttypmod - 4 */
 
-			if (mod_length > ci->drivers.max_varchar_size || mod_length <= 0)
+			/* if (mod_length > ci->drivers.max_varchar_size || mod_length <= 0) */
+			if (mod_length <= 0)
 				mod_length = ci->drivers.max_varchar_size;
+			if (mod_length > ci->drivers.max_varchar_size)
+				sqltype = SQL_LONGVARCHAR;
+			else
+				sqltype = (field_type == PG_TYPE_BPCHAR) ? SQL_CHAR : SQL_VARCHAR;
 
 			mylog("%s: field type is VARCHAR,BPCHAR: field_type = %d, mod_length = %d\n", func, field_type, mod_length);
 
 			set_tuplefield_int4(&row->tuple[6], mod_length);
 			set_tuplefield_int4(&row->tuple[7], mod_length);
 			set_nullfield_int2(&row->tuple[8], pgtype_decimal_digits(stmt, field_type, PG_STATIC));
+			set_tuplefield_int2(&row->tuple[13], sqltype);
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_int4(&row->tuple[15], pgtype_transfer_octet_length(stmt, field_type, PG_STATIC, PG_STATIC));
 #endif /* ODBCVER */
@@ -2146,12 +2153,18 @@ PGAPI_Columns(
 			set_tuplefield_int4(&row->tuple[reserved_cols], pgtype_display_size(stmt, field_type, PG_STATIC, PG_STATIC));
 		}
 
+		if (SQL_TYPE_NULL == sqltype)
+		{
+			sqltype = pgtype_to_concise_type(stmt, field_type, PG_STATIC);
+			set_tuplefield_int2(&row->tuple[13], pgtype_to_sqldesctype(stmt, field_type, PG_STATIC));
+		}
+		set_tuplefield_int2(&row->tuple[4], sqltype);
+
 		set_nullfield_int2(&row->tuple[9], pgtype_radix(stmt, field_type));
 		set_tuplefield_int2(&row->tuple[10], (Int2) (not_null[0] == '1' ? SQL_NO_NULLS : pgtype_nullable(stmt, field_type)));
 		set_tuplefield_string(&row->tuple[11], "");
 #if (ODBCVER >= 0x0300)
 		set_tuplefield_null(&row->tuple[12]);
-		set_tuplefield_int2(&row->tuple[13], pgtype_to_sqldesctype(stmt, field_type));
 		set_nullfield_int2(&row->tuple[14], pgtype_to_datetime_sub(stmt, field_type));
 		set_tuplefield_int4(&row->tuple[16], ordinal);
 		set_tuplefield_null(&row->tuple[17]);
@@ -2191,7 +2204,7 @@ PGAPI_Columns(
 			set_tuplefield_string(&row->tuple[1], "");
 		set_tuplefield_string(&row->tuple[2], table_name);
 		set_tuplefield_string(&row->tuple[3], "xmin");
-		sqltype = pgtype_to_concise_type(stmt, the_type);
+		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
 		set_tuplefield_int2(&row->tuple[4], sqltype);
 		set_tuplefield_string(&row->tuple[5], pgtype_to_name(stmt, the_type));
 		set_tuplefield_int4(&row->tuple[6], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
@@ -2224,7 +2237,7 @@ PGAPI_Columns(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	mylog("%s: EXIT,  stmt=%u\n", func, stmt);
@@ -2384,7 +2397,7 @@ PGAPI_SpecialColumns(
 
 			set_tuplefield_null(&row->tuple[0]);
 			set_tuplefield_string(&row->tuple[1], "ctid");
-			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, the_type));
+			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
 			set_tuplefield_string(&row->tuple[3], pgtype_to_name(stmt, the_type));
 			set_tuplefield_int4(&row->tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
@@ -2406,7 +2419,7 @@ inolog("Add ctid\n");
 
 			set_tuplefield_int2(&row->tuple[0], SQL_SCOPE_SESSION);
 			set_tuplefield_string(&row->tuple[1], "oid");
-			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, PG_TYPE_OID));
+			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, PG_TYPE_OID, PG_STATIC));
 			set_tuplefield_string(&row->tuple[3], "OID");
 			set_tuplefield_int4(&row->tuple[4], pgtype_column_size(stmt, PG_TYPE_OID, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[5], pgtype_buffer_length(stmt, PG_TYPE_OID, PG_STATIC, PG_STATIC));
@@ -2426,7 +2439,7 @@ inolog("Add ctid\n");
 
 				set_tuplefield_null(&row->tuple[0]);
 				set_tuplefield_string(&row->tuple[1], "xmin");
-				set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, the_type));
+				set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
 				set_tuplefield_string(&row->tuple[3], pgtype_to_name(stmt, the_type));
 				set_tuplefield_int4(&row->tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
 				set_tuplefield_int4(&row->tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
@@ -2441,7 +2454,7 @@ inolog("Add ctid\n");
 	stmt->status = STMT_FINISHED;
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	mylog("%s: EXIT,  stmt=%u\n", func, stmt);
 	return SQL_SUCCESS;
@@ -2862,7 +2875,7 @@ PGAPI_Statistics(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	error = FALSE;
 
@@ -3153,7 +3166,7 @@ PGAPI_PrimaryKeys(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	mylog("%s: EXIT, stmt=%u\n", func, stmt);
 	return SQL_SUCCESS;
@@ -3166,7 +3179,7 @@ PGAPI_PrimaryKeys(
  *	future version. The way is very forcible currently.
  */
 static BOOL
-isMultibyte(const unsigned char *str)
+isMultibyte(const UCHAR *str)
 {
 	for (; *str; str++)
 	{
@@ -3509,7 +3522,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 
 	result = PGAPI_AllocStmt(stmt->hdbc, &htbl_stmt);
@@ -4368,7 +4381,7 @@ PGAPI_ProcedureColumns(
 			set_tuplefield_string(&row->tuple[2], procname);
 			set_tuplefield_string(&row->tuple[3], "");
 			set_tuplefield_int2(&row->tuple[4], SQL_RETURN_VALUE);
-			set_tuplefield_int2(&row->tuple[5], pgtype_to_concise_type(stmt, pgtype));
+			set_tuplefield_int2(&row->tuple[5], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
 			set_tuplefield_string(&row->tuple[6], pgtype_to_name(stmt, pgtype));
 			set_nullfield_int4(&row->tuple[7], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[8], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
@@ -4378,7 +4391,7 @@ PGAPI_ProcedureColumns(
 			set_tuplefield_null(&row->tuple[12]);
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&row->tuple[13]);
-			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype));
+			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
 			set_nullfield_int2(&row->tuple[15], pgtype_to_datetime_sub(stmt, pgtype));
 			set_nullfield_int4(&row->tuple[16], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[17], 0);
@@ -4399,7 +4412,7 @@ PGAPI_ProcedureColumns(
 			set_tuplefield_string(&row->tuple[2], procname);
 			set_tuplefield_string(&row->tuple[3], "");
 			set_tuplefield_int2(&row->tuple[4], SQL_PARAM_INPUT);
-			set_tuplefield_int2(&row->tuple[5], pgtype_to_concise_type(stmt, pgtype));
+			set_tuplefield_int2(&row->tuple[5], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
 			set_tuplefield_string(&row->tuple[6], pgtype_to_name(stmt, pgtype));
 			set_nullfield_int4(&row->tuple[7], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[8], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
@@ -4409,7 +4422,7 @@ PGAPI_ProcedureColumns(
 			set_tuplefield_null(&row->tuple[12]);
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&row->tuple[13]);
-			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype));
+			set_nullfield_int2(&row->tuple[14], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
 			set_nullfield_int2(&row->tuple[15], pgtype_to_datetime_sub(stmt, pgtype));
 			set_nullfield_int4(&row->tuple[16], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&row->tuple[17], j + 1);
@@ -4429,7 +4442,7 @@ PGAPI_ProcedureColumns(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	return SQL_SUCCESS;
 }
@@ -4506,7 +4519,7 @@ PGAPI_Procedures(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 
 	return SQL_SUCCESS;
 }
@@ -4615,7 +4628,7 @@ PGAPI_TablePrivileges(
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
-	stmt->current_col = -1;
+	SC_set_current_col(stmt, -1);
 	if (conn->schema_support)
 		strncpy_null(proc_query, "select relname, usename, relacl, nspname"
 		" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"

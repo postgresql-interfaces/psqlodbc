@@ -72,11 +72,12 @@ struct QResultClass_
 	TupleField *backend_tuples; /* data from the backend (the tuple cache) */
 	TupleField *tupleField;		/* current backend tuple being retrieved */
 
-	char		inTuples;		/* is a fetch of rows from the backend in
-								 * progress? */
-	char		aborted;		/* was aborted? */
-	char		haskeyset;		/* this result contains keyset ? */
+	char		inTuples;	/* is a fetch of rows from the backend
+						in  progress ? */
+	char		aborted;	/* was aborted ? */
+	char		haskeyset;	/* this result contains keyset ? */
 	KeySet		*keyset;
+	UInt4		reload_count;
 	UInt2		rb_alloc;	/* count of allocated rollback info */	
 	UInt2		rb_count;	/* count of rollback info */	
 	Rollback	*rollback;	

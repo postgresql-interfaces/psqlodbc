@@ -346,7 +346,7 @@ SQLFetch(HSTMT StatementHandle)
 		IRDFields	*irdopts = SC_get_IRDF(stmt);
 		ARDFields	*ardopts = SC_get_ARDF(stmt);
 		SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
-		SQLINTEGER *pcRow = irdopts->rowsFetched;
+		SQLINTEGER *pcRow = (SQLINTEGER *) irdopts->rowsFetched;
 
 		mylog("[[%s]]", func);
 		ret = PGAPI_ExtendedFetch(StatementHandle, SQL_FETCH_NEXT, 0,

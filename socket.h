@@ -10,10 +10,12 @@
 #define __SOCKET_H__
 
 #include "psqlodbc.h"
+#include <errno.h>
 
 #ifndef WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -26,14 +28,21 @@
 #ifndef _IN_ADDR_T
 #define _IN_ADDR_T
 typedef unsigned int in_addr_t;
-#endif
+#endif /* _IN_ADDR_T */
 #define INADDR_NONE ((in_addr_t)-1)
-#endif
+#endif /* _IN_ADDR_NONE */
 
+#define SOCK_ERRNO	errno
+#define SOCK_ERRNO_SET(e)	(errno = e)
+#ifdef	HAVE_SYS_UN_H
+#define HAVE_UNIX_SOCKETS
+#endif /* HAVE_SYS_UN_H */
 #else
 #include <winsock.h>
 #define SOCKETFD SOCKET
-#endif
+#define SOCK_ERRNO	(WSAGetLastError())
+#define SOCK_ERRNO_SET(e)	WSASetLastError(e)
+#endif /* WIN32 */
 
 #define SOCKET_ALREADY_CONNECTED			1
 #define SOCKET_HOST_NOT_FOUND				2
@@ -54,14 +63,16 @@ struct SocketClass_
 	int			buffer_filled_in;
 	int			buffer_filled_out;
 	int			buffer_read_in;
-	unsigned char *buffer_in;
-	unsigned char *buffer_out;
+	UCHAR *buffer_in;
+	UCHAR *buffer_out;
 
 	SOCKETFD	socket;
 
 	char	   *errormsg;
 	int			errornumber;
-	struct sockaddr_in	sadr; /* Used for handling connections for cancel */
+	struct sockaddr	*sadr; /* Used for handling connections for cancel */
+	int		sadr_len;
+	struct sockaddr_in sadr_in; /* Used for INET connections */
 
 	char		reverse;		/* used to handle Postgres 6.2 protocol
 								 * (reverse byte order) */
@@ -76,6 +87,36 @@ struct SocketClass_
 #define SOCK_get_errcode(self)	(self ? self->errornumber : SOCKET_CLOSED)
 #define SOCK_get_errmsg(self)	(self ? self->errormsg : "socket closed")
 
+/*
+ *	code taken from postgres libpq et al.
+ */
+#ifndef WIN32
+#define DEFAULT_PGSOCKET_DIR	"/tmp"
+#define UNIXSOCK_PATH(sun, port, defpath) \
+	snprintf((sun)->sun_path, sizeof((sun)->sun_path), "%s/.s.PGSQL.%d", \
+		((defpath) && *(defpath) != '\0') ? (defpath) : \
+			DEFAULT_PGSOCKET_DIR, \
+			(port))
+
+/*
+ *	We do this because sun_len is in BSD's struct, while others don't.
+ *	We never actually set BSD's sun_len, and I can't think of a
+ *	platform-safe way of doing it, but the code still works. bjm
+ */
+#ifndef	offsetof
+#define offsetof(type, field)	((long) &((type *)0)->field)
+#endif /* offsetof */
+#if defined(SUN_LEN)
+#define UNIXSOCK_LEN(sun) SUN_LEN(sun)
+#else
+#define UNIXSOCK_LEN(sun) \
+	(strlen((sun)->sun_path) + offsetof(struct sockaddr_un, sun_path))
+#endif /* SUN_LEN */
+#endif /* WIN32 */
+/*
+ *	END code taken from postgres libpq et al.
+ */
+
 
 /* Socket prototypes */
 SocketClass *SOCK_Constructor(const ConnectionClass *conn);
@@ -88,8 +129,8 @@ void		SOCK_put_string(SocketClass *self, char *string);
 int			SOCK_get_int(SocketClass *self, short len);
 void		SOCK_put_int(SocketClass *self, int value, short len);
 void		SOCK_flush_output(SocketClass *self);
-unsigned char SOCK_get_next_byte(SocketClass *self);
-void		SOCK_put_next_byte(SocketClass *self, unsigned char next_byte);
+UCHAR		SOCK_get_next_byte(SocketClass *self);
+void		SOCK_put_next_byte(SocketClass *self, UCHAR next_byte);
 void		SOCK_clear_error(SocketClass *self);
 
-#endif
+#endif /* __SOCKET_H__ */

@@ -723,6 +723,13 @@ void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 	Int2	lf;
 
 inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%x", freeall, self->allocated, self->gdata);
+	if (self->fdata.ttlbuf)
+	{
+		free(self->fdata.ttlbuf);
+		self->fdata.ttlbuf = NULL;
+	}
+	self->fdata.ttlbuflen = self->fdata.ttlbufused = 0;
+	self->fdata.data_left = -1;
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_getdata_info(self, lf);
 	if (freeall)
@@ -736,6 +743,9 @@ inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%x", freeall, self->allo
 
 void GetDataInfoInitialize(GetDataInfo *gdata_info)
 {
+	gdata_info->fdata.data_left = -1;
+	gdata_info->fdata.ttlbuf = NULL;
+	gdata_info->fdata.ttlbuflen = gdata_info->fdata.ttlbufused = 0;
 	gdata_info->allocated = 0;
 	gdata_info->gdata = NULL;
 }

@@ -26,7 +26,7 @@ struct EnvironmentClass_
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
-    pthread_mutex_t     cs;
+	pthread_mutex_t		cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 };
 
