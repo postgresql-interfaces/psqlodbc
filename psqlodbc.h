@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.85 2004/07/11 17:10:21 petere Exp $
+ * $Id: psqlodbc.h,v 1.86 2004/07/19 15:20:46 dpage Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 
 #include <sql.h>
 #include <sqlext.h>
-#if defined(UNICODE_SUPPORT) && !defined(WIN32)
+#if !defined(WIN32)
 # include <sqlucode.h>
 #endif
 
@@ -125,28 +125,11 @@ typedef UInt4 Oid;
 /* Driver stuff */
 
 #define DRIVERNAME				"PostgreSQL ODBC"
-#if (ODBCVER >= 0x0300)
 #define DRIVER_ODBC_VER				"03.00"
-#ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL Unicode"
-#else
 #define DBMS_NAME				"PostgreSQL"
-#endif /* UNICODE_SUPPORT */
-#else
-#define DRIVER_ODBC_VER				"02.50"
-#define DBMS_NAME				"PostgreSQL Legacy"
-#endif   /* ODBCVER */
 
 #ifdef WIN32
-#if (ODBCVER >= 0x0300)
-#ifdef	UNICODE_SUPPORT
-#define DRIVER_FILE_NAME			"PSQLODBC30W.DLL"
-#else
 #define DRIVER_FILE_NAME			"PSQLODBC.DLL"
-#endif   /* UNICODE_SUPPORT */
-#else
-#define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
-#endif   /* ODBCVER */
 #else
 #define DRIVER_FILE_NAME			"libpsqlodbc.so"
 #endif   /* WIN32 */
@@ -155,18 +138,18 @@ typedef UInt4 Oid;
 #define BLCKSZ						4096
 #define MAXPGPATH					1024
 
-#define MAX_MESSAGE_LEN				65536		/* This puts a limit on
-												 * query size but I don't */
- /* see an easy way round this - DJP 24-1-2001 */
+#define MAX_MESSAGE_LEN				65536	/* This puts a limit on
+							 * query size but I don't */
+							 /* see an easy way round this - DJP 24-1-2001 */
 #define MAX_CONNECT_STRING			4096
 #define ERROR_MSG_LENGTH			4096
-#define FETCH_MAX					100 /* default number of rows to cache
-										 * for declare/fetch */
+#define FETCH_MAX				100 	/* default number of rows to cache
+							 * for declare/fetch */
 #define TUPLE_MALLOC_INC			100
-#define SOCK_BUFFER_SIZE			4096		/* default socket buffer
-												 * size */
-#define MAX_CONNECTIONS				128 /* conns per environment
-										 * (arbitrary)	*/
+#define SOCK_BUFFER_SIZE			4096	/* default socket buffer
+							 * size */
+#define MAX_CONNECTIONS				128 	/* conns per environment
+							 * (arbitrary)	*/
 #define MAX_FIELDS					512
 #define BYTELEN						8
 #define VARHDRSZ					sizeof(Int4)
@@ -189,34 +172,34 @@ typedef UInt4 Oid;
 #define INDEX_KEYS_STORAGE_COUNT		32
 
 /*	Registry length limits */
-#define LARGE_REGISTRY_LEN			4096		/* used for special cases */
-#define MEDIUM_REGISTRY_LEN			256 /* normal size for
-										 * user,database,etc. */
+#define LARGE_REGISTRY_LEN			4096	/* used for special cases */
+#define MEDIUM_REGISTRY_LEN			256 	/* normal size for
+							 * user,database,etc. */
 #define SMALL_REGISTRY_LEN			10	/* for 1/0 settings */
 
 
 /*	These prefixes denote system tables */
 #define POSTGRES_SYS_PREFIX			"pg_"
-#define KEYS_TABLE					"dd_fkey"
+#define KEYS_TABLE				"dd_fkey"
 
 /*	Info limits */
 #define MAX_INFO_STRING				128
 #define MAX_KEYPARTS				20
-#define MAX_KEYLEN					512 /* max key of the form
-										 * "date+outlet+invoice" */
-#define MAX_ROW_SIZE				0	/* Unlimited rowsize with the
-										 * Tuple Toaster */
-#define MAX_STATEMENT_LEN			0	/* Unlimited statement size with
-										 * 7.0 */
+#define MAX_KEYLEN				512 		/* max key of the form
+								 * "date+outlet+invoice" */
+#define MAX_ROW_SIZE				0		/* Unlimited rowsize with the
+								 * Tuple Toaster */
+#define MAX_STATEMENT_LEN			0		/* Unlimited statement size with
+								 * 7.0 */
 
 /* Previously, numerous query strings were defined of length MAX_STATEMENT_LEN */
 /* Now that's 0, lets use this instead. DJP 24-1-2001 */
 #define STD_STATEMENT_LEN			MAX_MESSAGE_LEN
 
 #define PG62						"6.2"		/* "Protocol" key setting
-												 * to force Postgres 6.2 */
+									 * to force Postgres 6.2 */
 #define PG63						"6.3"		/* "Protocol" key setting
-												 * to force postgres 6.3 */
+									 * to force postgres 6.3 */
 #define PG64						"6.4"
 
 typedef struct ConnectionClass_ ConnectionClass;
@@ -254,7 +237,7 @@ typedef struct GlobalValues_
 	char		ksqo;
 	char		unique_index;
 	char		onlyread;		/* readonly is reserved on Digital C++
-								 * compiler */
+						 * compiler */
 	char		use_declarefetch;
 	char		text_as_longvarchar;
 	char		unknowns_as_longvarchar;
@@ -277,17 +260,15 @@ typedef struct StatementOptions_
 	int			retrieve_data;
 	int			use_bookmarks;
 	void			*bookmark_ptr;
-#if (ODBCVER >= 0x0300)
 	int			metadata_id;
-#endif /* ODBCVER */
 } StatementOptions;
 
 /*	Used to pass extra query info to send_query */
 typedef struct QueryInfo_
 {
-	int			row_size;
-	QResultClass *result_in;
-	char	   *cursor;
+	int		row_size;
+	QResultClass	*result_in;
+	char		*cursor;
 } QueryInfo;
 
 /*	Used to save the error information */
@@ -301,6 +282,7 @@ typedef struct
         Int4    diag_row_count;
         char    __error_message[1];
 }       PG_ErrorInfo;
+
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
 void ER_Destructor(PG_ErrorInfo *);
 RETCODE SQL_API ER_ReturnError(PG_ErrorInfo *, SWORD, UCHAR FAR *,
@@ -308,25 +290,25 @@ RETCODE SQL_API ER_ReturnError(PG_ErrorInfo *, SWORD, UCHAR FAR *,
 
 void		logs_on_off(int cnopen, int, int);
 
-#define PG_TYPE_LO_UNDEFINED			(-999)		/* hack until permanent
-												 * type available */
-#define PG_TYPE_LO_NAME				"lo"
-#define OID_ATTNUM					(-2)		/* the attnum in pg_index
-												 * of the oid */
+#define PG_TYPE_LO_UNDEFINED		(-999)	/* hack until permanent
+						 * type available */
+#define PG_TYPE_LO_NAME			"lo"
+#define OID_ATTNUM			(-2)	/* the attnum in pg_index
+						 * of the oid */
 
 /* sizes */
-#define TEXT_FIELD_SIZE				8190		/* size of text fields
-												 * (not including null
-												 * term) */
-#define MAX_VARCHAR_SIZE			254 /* maximum size of a varchar (not
-										 * including null term) */
+#define TEXT_FIELD_SIZE			8190	/* size of text fields
+						 * (not including null
+						 * term) */
+#define MAX_VARCHAR_SIZE		254 	/* maximum size of a varchar (not
+						 * including null term) */
 
 #define PG_NUMERIC_MAX_PRECISION	1000
 #define PG_NUMERIC_MAX_SCALE		1000
 
 #define INFO_INQUIRY_LEN		8192	/* this seems sufficiently big for
-										 * queries used in info.c inoue
-										 * 2001/05/17 */
+						 * queries used in info.c inoue
+						 * 2001/05/17 */
 
 #include "misc.h"
 
@@ -340,13 +322,11 @@ int	initialize_global_cs(void);
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 const pthread_mutexattr_t *getMutexAttr(void);
 #endif /* POSIX_THREADMUTEX_SUPPORT */
-#ifdef	UNICODE_SUPPORT
 #define WCLEN sizeof(SQLWCHAR)
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
 UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
-#endif /* UNICODE_SUPPORT */
 
 /*#define	_MEMORY_DEBUG_ */
 #ifdef	_MEMORY_DEBUG_
