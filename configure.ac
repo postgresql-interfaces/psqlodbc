@@ -7,6 +7,9 @@ AM_CONFIG_HEADER([config.h])
 AM_MAINTAINER_MODE
 
 
+AC_DEFINE(DRIVER_CURSOR_IMPLEMENT, 1,
+	[Define to 1 to build with driver cursors option)])
+
 PGAC_ARG_BOOL(with, unixodbc, no,
               [  --with-unixodbc         build ODBC driver for unixODBC],
               [AC_DEFINE(WITH_UNIXODBC, 1,
@@ -23,6 +26,27 @@ fi
 
 AM_CONDITIONAL(with_unixodbc, [test $with_unixodbc = yes])
 AM_CONDITIONAL(with_iodbc, [test $with_iodbc = yes])
+
+# to implement the thread-safe driver
+PGAC_ARG_BOOL(enable, pthreads, no,
+    [  --enable-pthreads         build pthread implementation if possible],
+    [AC_DEFINE(POSIX_MULTITHREAD_SUPPORT, 1,
+	[Define to 1 to build with pthreads support (--enable-pthreads)])
+     AC_DEFINE(_REENTRANT, 1,
+	[Define _REENTRANT for several plaforms])
+     AC_CHECK_LIB(c_r, gethostbyname)
+     AC_CHECK_LIB(nsl, gethostbyname_r, [],
+	[AC_CHECK_FUNCS(getipnodebyname gethostbyname_r, break)])
+     if test "$ac_cv_func_gethostbyname_r" = yes || test "$ac_cv_lib_nsl_gethostbyname_r" = yes; then
+	AC_TRY_COMPILE([#include <netdb.h>],
+	[ gethostbyname_r((char *) 0, (struct hostent *) 0, (char *) 0, 0, (int *) 0);],
+        [AC_DEFINE(PGS_REENTRANT_API_1, 1, [Define if you have 5 parameter gethostbyname_r])],
+        [AC_DEFINE(PGS_REENTRANT_API_2, 1, [Define if you have 6 parameter gethostbyname_r])])
+     fi
+     AC_CHECK_FUNCS(localtime_r strtok_r)
+     AC_CHECK_LIB(pthreads, pthread_create, [],
+       [AC_CHECK_LIB(pthread, pthread_create)])
+    ])
 
 # Allow for overriding the default location of the odbcinst.ini
 # file which is normally ${sysconfdir} (i.e., ${prefix}/etc).

@@ -21,6 +21,7 @@ The configure script will accept the following useful options:
 --with-iodbc
 --with-unixodbc
 --with-odbcinst=DIR
+--enable-pthreads (thread-safe driver on some platforms)
 --help
 
 Building a distribution
