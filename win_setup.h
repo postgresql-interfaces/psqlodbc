@@ -12,7 +12,7 @@ typedef struct tagSETUPDLG
 	HWND		hwndParent;		/* Parent window handle */
 	LPCSTR		lpszDrvr;		/* Driver description */
 	ConnInfo	ci;
-	char		szDSN[MAXDSNAME];		/* Original data source name */
+	char		szDSN[MAXDSNAME];	/* Original data source name */
 	BOOL		fNewDSN;		/* New data source flag */
 	BOOL		fDefault;		/* Default data source flag */
 
