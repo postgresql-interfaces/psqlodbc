@@ -391,7 +391,7 @@ SC_Destructor(StatementClass *self)
 		int	i;
 
 		for (i = 0; i < self->ntab; i++)
-			if (self->ti[i]);
+			if (self->ti[i])
 				free(self->ti[i]);
 
 		free(self->ti);
