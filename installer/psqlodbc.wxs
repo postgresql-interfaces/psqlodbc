@@ -54,7 +54,6 @@
 <!-- Bitmaps -->
 
       <Binary Id="BannerBmp" src="banner.bmp" />
-      <Binary Id="RemoveIcon" src="remove.ico" />
       
 <!-- Cancel dialog -->
 
