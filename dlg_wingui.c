@@ -564,15 +564,10 @@ makeDriversList(HWND lwnd, const ConnInfo *ci)
 
 	hmodule = GetModuleHandle("ODBC32");
 	if (!hmodule)	return lcount;
-	addr = GetProcAddress(hmodule, "SQLAllocHandle");
+	addr = GetProcAddress(hmodule, "SQLAllocEnv");
 	if (!addr)	return lcount;
-	ret = (*addr)(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
-	if (SQL_SUCCESS == ret)
-	{
-		addr = GetProcAddress(hmodule, "SQLSetEnvAttr");
-		if (addr)
-			ret = (*addr)(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER) SQL_OV_ODBC3, 0);
-	} 
+	ret = (*addr)(&henv);
+	if (SQL_SUCCESS != ret)	return lcount;
 	do
 	{
 		ret = SQLDrivers(henv, direction,
@@ -591,9 +586,9 @@ makeDriversList(HWND lwnd, const ConnInfo *ci)
 		}
 		direction = SQL_FETCH_NEXT;
 	} while (1);
-	addr = GetProcAddress(hmodule, "SQLFreeHandle");
+	addr = GetProcAddress(hmodule, "SQLFreeEnv");
 	if (addr)
-		(*addr)(SQL_HANDLE_ENV, henv);
+		(*addr)(henv);
 
 	return lcount;
 }

@@ -395,15 +395,18 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 	/* Write the data source name */
 	if (!SQLWriteDSNToIni(lpszDSN, lpsetupdlg->lpszDrvr))
 	{
-		DWORD	err;
+		RETCODE	ret = SQL_ERROR;
+		DWORD	err = SQL_ERROR;
 		char    szMsg[SQL_MAX_MESSAGE_LENGTH];
 
-		SQLInstallerError(1, &err, szMsg, sizeof(szMsg), NULL);
+#if (ODBCVER >= 0x0300)
+		ret = SQLInstallerError(1, &err, szMsg, sizeof(szMsg), NULL);
+#endif /* ODBCVER */
 		if (hwndParent)
 		{
 			char		szBuf[MAXPGPATH];
 
-			if (SQL_SUCCESS != err)
+			if (SQL_SUCCESS != ret)
 			{
 				LoadString(s_hModule, IDS_BADDSN, szBuf, sizeof(szBuf));
 				wsprintf(szMsg, szBuf, lpszDSN);
@@ -437,11 +440,11 @@ ChangeDriverName(HWND hwndParent, LPSETUPDLG lpsetupdlg, LPCSTR driver_name)
 
 	if (!ci->dsn[0])
 	{
-		err = ODBC_ERROR_INVALID_DSN;
+		err = IDS_BADDSN;
 	}
 	else if (!driver_name || strnicmp(driver_name, "postgresql", 10))
 	{
-		err = ODBC_ERROR_INVALID_NAME;
+		err = IDS_BADDSN;
 	}
 	else
 	{
@@ -451,7 +454,7 @@ ChangeDriverName(HWND hwndParent, LPSETUPDLG lpsetupdlg, LPCSTR driver_name)
 		if (!SetDSNAttributes(hwndParent, lpsetupdlg, &err))
 		{
 			if (!err)
-				err = ODBC_ERROR_INVALID_DSN;
+				err = IDS_BADDSN;
 			lpsetupdlg->lpszDrvr = lpszDrvr;
 		}
 	}
