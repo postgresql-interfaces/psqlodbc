@@ -733,8 +733,6 @@ PGAPI_GetInfo(
 
 	result = SQL_SUCCESS;
 
-	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
-
 	/*
 	 * NOTE, that if rgbInfoValue is NULL, then no warnings or errors
 	 * should result and just pcbInfoValue is returned, which indicates
@@ -751,15 +749,12 @@ PGAPI_GetInfo(
                  * small.
                  */
                 if (conn->unicode)
-                    len = (len * WCLEN) - 1;
+                    len = len * WCLEN;
 
 		if (rgbInfoValue)
 		{
 			if (conn->unicode)
-			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
-				len *= WCLEN;
-			}
 			else
 				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
@@ -782,9 +777,12 @@ PGAPI_GetInfo(
 		}
 	}
 
-	if (pcbInfoValue)
-		*pcbInfoValue = len;			
 
+	if (pcbInfoValue)
+		*pcbInfoValue = len;		
+	
+	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
+	
 	return result;
 }
 

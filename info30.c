@@ -356,7 +356,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			return SQL_ERROR;
 	}
 	result = SQL_SUCCESS;
-	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
+
 	if (p)
 	{
 		/* char/binary data */
@@ -368,16 +368,13 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
                  * small.
                  */
                 if (conn->unicode)
-                    len = (len * WCLEN) - 1;
+                    len = len * WCLEN;
                 
 		if (rgbInfoValue)
 		{
 
 			if (conn->unicode)
-			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
-				len *= WCLEN;
-			}
 			else
 				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
@@ -401,11 +398,10 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 	}
 
 	if (pcbInfoValue)
-		if (conn->unicode)
-			*pcbInfoValue = len - 2;	
-		else
-			*pcbInfoValue = len;
-		
+		*pcbInfoValue = len;
+
+	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
+	
 	return result;
 }
 
