@@ -1947,6 +1947,10 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 		stmt->stmt_with_params = NULL;
 	}
 
+	SC_no_fetchcursor(stmt);
+	SC_no_pre_executable(stmt);
+	if (stmt->statement_type == STMT_TYPE_SELECT)
+		SC_set_pre_executable(stmt);
 	qb = &query_crt;
 	if (stmt->prepared || (buildPrepareStatement && stmt->options.scroll_concurrency == SQL_CONCUR_READ_ONLY))
 	{
@@ -1964,7 +1968,6 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	/* For selects, prepend a declare cursor to the statement */
 	if (stmt->statement_type == STMT_TYPE_SELECT)
 	{
-		SC_set_pre_executable(stmt);
 		if (prepare_dummy_cursor || ci->drivers.use_declarefetch)
 		{
 			if (prepare_dummy_cursor)

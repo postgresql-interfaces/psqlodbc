@@ -293,6 +293,8 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 
 		if (kres = res->next, kres)
 		{
+			if (kres->fields)
+				CI_Destructor(kres->fields);
 			kres->fields = res->fields;
 			res->fields = NULL;
 			kres->num_fields = res->num_fields;

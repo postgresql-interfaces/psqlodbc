@@ -276,7 +276,13 @@ PGAPI_DescribeCol(
 		if ((NULL == res) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
 		{
 			/* no query has been executed on this statement */
-			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No query has been assigned to this statement.");
+			SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been assigned to this statement.");
+			SC_log_error(func, "", stmt);
+			return SQL_ERROR;
+		}
+		else if (!QR_command_maybe_successful(res))
+		{
+			SC_set_errornumber(stmt, STMT_EXEC_ERROR);
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
@@ -1566,6 +1572,8 @@ PGAPI_MoreResults(
 	if (res = SC_get_Curres(stmt), res)
 	{
 		stmt->diag_row_count = res->recent_processed_row_count;
+		stmt->rowset_start = -1;
+		stmt->currTuple = -1;
 		return SQL_SUCCESS;
 	} 
 	return SQL_NO_DATA_FOUND;
