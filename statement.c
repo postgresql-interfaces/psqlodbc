@@ -1022,7 +1022,12 @@ SC_execute(StatementClass *self)
 	static char *func = "SC_execute";
 	ConnectionClass *conn;
 	APDFields	*apdopts;
-	char		was_ok, was_nonfatal;
+	char		was_ok, was_nonfatal, was_rows_affected = 1;
+	/* was_rows_affected is set to 0 iff an UPDATE or DELETE affects 
+	 * no rows. In this instance the driver should return
+	 * SQL_NO_DATA_FOUND instead of SQL_SUCCESS.
+	 */
+ 
 	QResultClass	*res = NULL;
 	Int2		oldstatus,
 				numcols;
@@ -1142,6 +1147,13 @@ SC_execute(StatementClass *self)
 	{
 		was_ok = QR_command_successful(res);
 		was_nonfatal = QR_command_nonfatal(res);
+		if (res->command &&
+			(strncmp(res->command, "UPDATE", 6) == 0 ||
+			strncmp(res->command, "DELETE", 6) == 0) &&
+			strtoul(res->command + 7, NULL, 0) == 0)
+		{
+			was_rows_affected = 0;
+		}
 
 		if (was_ok)
 			SC_set_errornumber(self, STMT_OK);
@@ -1244,7 +1256,10 @@ SC_execute(StatementClass *self)
 		}
 	}
 	if (SC_get_errornumber(self) == STMT_OK)
-		return SQL_SUCCESS;
+		if (was_rows_affected)
+			return SQL_SUCCESS;
+		else
+			return SQL_NO_DATA_FOUND;
 	else if (SC_get_errornumber(self) == STMT_INFO_ONLY)
 		return SQL_SUCCESS_WITH_INFO;
 	else
