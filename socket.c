@@ -106,7 +106,15 @@ SOCK_Destructor(SocketClass *self)
 char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 {
-	struct hostent *host;
+#if defined (POSIX_MULTITHREAD_SUPPORT)
+    const int bufsz = 8192; 
+    char buf[bufsz];
+    int error = 0;
+    struct hostent host;
+    struct hostent* hp = &host;
+#else
+    struct hostent* hp;
+#endif 
 	unsigned long iaddr;
 
 	if (self->socket != -1)
@@ -124,14 +132,25 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	iaddr = inet_addr(hostname);
 	if (iaddr == INADDR_NONE)
 	{
-		host = gethostbyname(hostname);
-		if (host == NULL)
+#if defined (POSIX_MULTITHREAD_SUPPORT) 
+  #if defined (PGS_REENTRANT_API_1) // solaris, irix
+        hp = gethostbyname_r(hostname, hp, buf, bufsz, &error);
+  #elif defined (PGS_REENTRANT_API_2) // linux
+        int result = 0;
+        result = gethostbyname_r(hostname, hp, buf, bufsz, &hp, &error);
+        if (result)
+          hp = 0;
+  #endif
+#else
+        hp = gethostbyname(hostname);
+#endif
+		if (hp == NULL)
 		{
 			self->errornumber = SOCKET_HOST_NOT_FOUND;
 			self->errormsg = "Could not resolve hostname.";
 			return 0;
 		}
-		memcpy(&(self->sadr.sin_addr), host->h_addr, host->h_length);
+		memcpy(&(self->sadr.sin_addr), hp->h_addr, hp->h_length);
 	}
 	else
 		memcpy(&(self->sadr.sin_addr), (struct in_addr *) & iaddr, sizeof(iaddr));

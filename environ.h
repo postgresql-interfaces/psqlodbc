@@ -19,8 +19,10 @@ struct EnvironmentClass_
 	char	   *errormsg;
 	int		errornumber;
 	Int4	flag;
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+    pthread_mutex_t     cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 };
 
@@ -43,7 +45,7 @@ void		EN_log_error(char *func, char *desc, EnvironmentClass *self);
 #define	EN_unset_pooling(env) (env->flag &= ~EN_CONN_POOLING)
 
 /* For Multi-thread */
-#ifdef  WIN_MULTITHREAD_SUPPORT
+#if defined( WIN_MULTITHREAD_SUPPORT)
 #define	INIT_CONNS_CS	InitializeCriticalSection(&conns_cs)
 #define	ENTER_CONNS_CS	EnterCriticalSection(&conns_cs)
 #define	LEAVE_CONNS_CS	LeaveCriticalSection(&conns_cs)
@@ -52,6 +54,15 @@ void		EN_log_error(char *func, char *desc, EnvironmentClass *self);
 #define ENTER_ENV_CS(x)		EnterCriticalSection(&((x)->cs))
 #define LEAVE_ENV_CS(x)		LeaveCriticalSection(&((x)->cs))
 #define DELETE_ENV_CS(x)	DeleteCriticalSection(&((x)->cs))
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#define	INIT_CONNS_CS	pthread_mutex_init(&conns_cs,0)
+#define	ENTER_CONNS_CS	pthread_mutex_lock(&conns_cs)
+#define	LEAVE_CONNS_CS	pthread_mutex_unlock(&conns_cs)
+#define	DELETE_CONNS_CS	pthread_mutex_destroy(&conns_cs)
+#define INIT_ENV_CS(x)		pthread_mutex_init(&((x)->cs),0)
+#define ENTER_ENV_CS(x)		pthread_mutex_lock(&((x)->cs))
+#define LEAVE_ENV_CS(x)		pthread_mutex_unlock(&((x)->cs))
+#define DELETE_ENV_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define	INIT_CONNS_CS
 #define	ENTER_CONNS_CS

@@ -1404,7 +1404,8 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_CONNECTION_DEAD:
 		case SQL_ATTR_CONNECTION_TIMEOUT:
 		case SQL_ATTR_METADATA_ID:
-			CC_set_error(conn, STMT_INVALID_OPTION_IDENTIFIER, "Unsupported connect attribute (Set)");
+		case SQL_ATTR_ENLIST_IN_DTC:
+			CC_set_error(conn, STMT_OPTION_NOT_FOR_THE_DRIVER, "Unsupported connect attribute (Set)");
 			return SQL_ERROR;
 		default:
 			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, (UDWORD) Value);

@@ -15,6 +15,9 @@
 #include <string.h>
 #include "descriptor.h"
 
+#if defined (POSIX_MULTITHREAD_SUPPORT)
+#include <pthread.h>
+#endif
 
 typedef enum
 {
@@ -84,11 +87,16 @@ typedef enum
 #define CC_set_errornumber(x, n)	(x->__error_number = n)
 
 /* For Multi-thread */
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_CONN_CS(x)	DeleteCriticalSection(&((x)->cs))
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs),0)
+#define ENTER_CONN_CS(x)	pthread_mutex_lock(&((x)->cs))
+#define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
+#define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_CONN_CS(x)	
 #define ENTER_CONN_CS(x)
@@ -321,8 +329,10 @@ struct ConnectionClass_
 	int		be_key; /* auth code needed to send cancel */
 	UInt4		isolation;
 	char		*current_schema;
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+    pthread_mutex_t     cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 };
 

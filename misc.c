@@ -57,8 +57,10 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 	return;
 }
 
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 CRITICAL_SECTION	qlog_cs, mylog_cs;
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+pthread_mutex_t	qlog_cs, mylog_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 static int	mylog_on = 0,
 			qlog_on = 0;
@@ -122,6 +124,10 @@ mylog(char *fmt,...)
 			fprintf(LOGFP, "[%d]", GetCurrentThreadId());
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
+#if defined(POSIX_MULTITHREAD_SUPPORT)
+        if (LOGFP)
+            fprintf(LOGFP, "[%d]", pthread_self());
+#endif /* POSIX_MULTITHREAD_SUPPORT */
 		if (LOGFP)
 			vfprintf(LOGFP, fmt, args);
 

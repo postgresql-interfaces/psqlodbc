@@ -442,7 +442,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 					EN_unset_pooling(env);
 					ret = SQL_SUCCESS;
 					break;
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT) || defined(POSIX_MULTITHREAD_SUPPORT)
 				case SQL_CP_ONE_PER_DRIVER:
 					EN_set_pooling(env);
 					ret = SQL_SUCCESS;

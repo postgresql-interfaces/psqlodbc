@@ -26,8 +26,10 @@ extern GLOBAL_VALUES globals;
 
 /* The one instance of the handles */
 ConnectionClass *conns[MAX_CONNECTIONS];
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 CRITICAL_SECTION	conns_cs;
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+pthread_mutex_t     conns_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 

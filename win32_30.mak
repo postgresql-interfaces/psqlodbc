@@ -304,7 +304,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\info.obj" \
 	"$(INTDIR)\info30.obj" \
 	"$(INTDIR)\lobj.obj" \
-	"$(INTDIR)\win_md5.obj"
+	"$(INTDIR)\win_md5.obj" \
 	"$(INTDIR)\misc.obj" \
 !IF "$(CFG)" == "MultibyteDebug30" 
 	"$(INTDIR)\multibyte.obj" \

@@ -29,7 +29,7 @@
 */
 #define Q_LOG
 
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 #define	INIT_QLOG_CS	InitializeCriticalSection(&qlog_cs)
 #define	ENTER_QLOG_CS	EnterCriticalSection(&qlog_cs)
 #define	LEAVE_QLOG_CS	LeaveCriticalSection(&qlog_cs)
@@ -38,6 +38,15 @@
 #define	ENTER_MYLOG_CS	EnterCriticalSection(&mylog_cs)
 #define	LEAVE_MYLOG_CS	LeaveCriticalSection(&mylog_cs)
 #define	DELETE_MYLOG_CS	DeleteCriticalSection(&mylog_cs)
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#define	INIT_QLOG_CS	pthread_mutex_init(&qlog_cs,0)
+#define	ENTER_QLOG_CS	pthread_mutex_lock(&qlog_cs)
+#define	LEAVE_QLOG_CS	pthread_mutex_unlock(&qlog_cs)
+#define	DELETE_QLOG_CS	pthread_mutex_destroy(&qlog_cs)
+#define	INIT_MYLOG_CS	pthread_mutex_init(&mylog_cs,0)
+#define	ENTER_MYLOG_CS	pthread_mutex_lock(&mylog_cs)
+#define	LEAVE_MYLOG_CS	pthread_mutex_unlock(&mylog_cs)
+#define	DELETE_MYLOG_CS	pthread_mutex_destroy(&mylog_cs)
 #else
 #define	INIT_QLOG_CS
 #define	ENTER_QLOG_CS

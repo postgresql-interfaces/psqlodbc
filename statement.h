@@ -14,6 +14,9 @@
 #include "bind.h"
 #include "descriptor.h"
 
+#if defined (POSIX_MULTITHREAD_SUPPORT)
+#include <pthread.h>
+#endif
 
 #ifndef FALSE
 #define FALSE	(BOOL)0
@@ -143,7 +146,7 @@ struct StatementClass_
 								 * SetPos, SQLFetch) */
 	int			save_rowset_size;		/* saved rowset size in case of
 										 * change/FETCH_NEXT */
-	int			rowset_start;	/* start of rowset (an absolute row
+	Int4			rowset_start;	/* start of rowset (an absolute row
 								 * number) */
 	int			bind_row;		/* current offset for Multiple row/column
 								 * binding */
@@ -198,8 +201,10 @@ struct StatementClass_
 	Int4		from_pos;	
 	Int4		where_pos;
 	Int4		last_fetch_count_include_ommitted;
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+    pthread_mutex_t     cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 };
@@ -231,11 +236,16 @@ struct StatementClass_
 #define SC_is_fetchcursor(a)	((a->miscinfo & 2L) != 0)
 
 /* For Multi-thread */
-#ifdef	WIN_MULTITHREAD_SUPPORT
+#if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_STMT_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_STMT_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_STMT_CS(x)	DeleteCriticalSection(&((x)->cs))
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs),0)
+#define ENTER_STMT_CS(x)	pthread_mutex_lock(&((x)->cs))
+#define LEAVE_STMT_CS(x)	pthread_mutex_unlock(&((x)->cs))
+#define DELETE_STMT_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_STMT_CS(x)
 #define ENTER_STMT_CS(x)

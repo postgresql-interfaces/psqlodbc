@@ -1012,7 +1012,7 @@ PGAPI_Fetch(
 			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bindings were not allocated properly.");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Bindings were not allocated properly.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
@@ -1193,7 +1193,7 @@ PGAPI_ExtendedFetch(
 			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bindings were not allocated properly.");
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Bindings were not allocated properly.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
