@@ -3137,7 +3137,10 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
-		prtlen = snprintf(buf, sizeof(buf), "%s::date ", buf_small);
+		if (PG_VERSION_LT(qb->conn, 7.3))
+			prtlen = snprintf(buf, sizeof(buf), "%s ", buf_small);
+		else
+			prtlen = snprintf(buf, sizeof(buf), "%s::date ", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 	}
 	else if (strcmp(key, "t") == 0)
