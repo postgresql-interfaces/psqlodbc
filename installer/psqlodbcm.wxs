@@ -3,7 +3,7 @@
   <Module 
     Id="psqlODBC"
     Guid="BD868C41-BB9B-4AA7-A3F1-DB1FA1A02610" 
-    Version="08.00.0004" 
+    Version="$(var.VERSION)" 
     Language="1033">
     
     <Package 
