@@ -401,7 +401,16 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 	}
 
 	if (pcbInfoValue)
-		*pcbInfoValue = len;
+	{
+		if (p)  /* Don't include terminator for strings */
+			if (conn->unicode)
+				*pcbInfoValue = len - WCLEN; 
+			else
+				*pcbInfoValue = len - 1;
+		else
+			*pcbInfoValue = len;	
+	}
+		
 	return result;
 }
 
