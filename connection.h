@@ -154,7 +154,6 @@ typedef struct _StartupPacket6_2
 
 typedef ProtocolVersion MsgType;
 
-#define PG_PROTOCOL(m,n)   (((m) << 16) | (n))
 #define CANCEL_REQUEST_CODE PG_PROTOCOL(1234,5678)
 
 typedef struct CancelRequestPacket
@@ -315,10 +314,8 @@ struct ConnectionClass_
 	char		unicode;
 	char		result_uncommitted;
 	char		schema_support;
-#ifdef	MULTIBYTE
 	char		*client_encoding;
 	char		*server_encoding;
-#endif   /* MULTIBYTE */
 	int		ccsc;
 	int		be_pid;	/* pid returned by backend */
 	int		be_key; /* auth code needed to send cancel */

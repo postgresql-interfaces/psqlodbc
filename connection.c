@@ -30,9 +30,7 @@
 #include "lobj.h"
 #include "dlg_specific.h"
 
-#ifdef MULTIBYTE
 #include "multibyte.h"
-#endif
 
 #include "pgapifunc.h"
 #include "md5.h"
@@ -294,10 +292,8 @@ CC_Constructor()
 		rv->result_uncommitted = 0;
 		rv->schema_support = 0;
 		rv->isolation = SQL_TXN_READ_COMMITTED;
-#ifdef	MULTIBYTE
 		rv->client_encoding = NULL;
 		rv->server_encoding = NULL;
-#endif   /* MULTIBYTE */
 		rv->current_schema = NULL;
 
 
@@ -502,14 +498,12 @@ CC_cleanup(ConnectionClass *self)
 	self->status = CONN_NOT_CONNECTED;
 	self->transact_status = CONN_IN_AUTOCOMMIT;
 	CC_conninfo_init(&(self->connInfo));
-#ifdef	MULTIBYTE
 	if (self->client_encoding)
 		free(self->client_encoding);
 	self->client_encoding = NULL;
 	if (self->server_encoding)
 		free(self->server_encoding);
 	self->server_encoding = NULL;
-#endif   /* MULTIBYTE */
 	if (self->current_schema)
 		free(self->current_schema);
 	self->current_schema = NULL;
@@ -623,10 +617,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
 	static char *func = "CC_connect";
-
-#ifdef	MULTIBYTE
 	char	   *encoding;
-#endif   /* MULTIBYTE */
 
 	mylog("%s: entering...\n", func);
 
@@ -654,7 +645,6 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			 ci->drivers.bools_as_char,
 			 TABLE_NAME_STORAGE_LEN);
 
-#ifdef MULTIBYTE
 		encoding = check_client_encoding(ci->conn_settings);
 		if (encoding && strcmp(encoding, "OTHER"))
 			self->client_encoding = strdup(encoding);
@@ -670,11 +660,6 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			 ci->drivers.extra_systable_prefixes,
 			 ci->drivers.conn_settings,
 			 encoding ? encoding : "");
-#else
-		qlog("                extra_systable_prefixes='%s', conn_settings='%s'\n",
-			 ci->drivers.extra_systable_prefixes,
-			 ci->drivers.conn_settings);
-#endif
 
 		if (self->status != CONN_NOT_CONNECTED)
 		{
@@ -960,7 +945,6 @@ another_version_retry:
 	/*
 	 *	Multibyte handling is available ?
 	 */
-#ifdef MULTIBYTE
 	if (PG_VERSION_GE(self, 6.4))
 	{
 		CC_lookup_characterset(self);
@@ -1002,7 +986,6 @@ another_version_retry:
 		return 0;
 	}
 #endif /* UNICODE_SUPPORT */
-#endif /* MULTIBYTE */
 	ci->updatable_cursors = 0;
 #ifdef	DRIVER_CURSOR_IMPLEMENT
 	if (!ci->drivers.use_declarefetch &&

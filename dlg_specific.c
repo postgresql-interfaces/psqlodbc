@@ -21,9 +21,7 @@
 
 #include "convert.h"
 
-#ifdef MULTIBYTE
 #include "multibyte.h"
-#endif
 #include "pgapifunc.h"
 
 #ifndef BOOL
@@ -535,16 +533,10 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->fake_oid_index,
 		 ci->show_system_tables);
 
-#ifdef MULTIBYTE
 	check_client_encoding(ci->conn_settings);
 	qlog("          conn_settings='%s',conn_encoding='%s'\n",
 		 ci->conn_settings,
 		 check_client_encoding(ci->conn_settings));
-#else
-	qlog("          conn_settings='%s'\n",
-		 ci->conn_settings);
-#endif
-
 	qlog("          translation_dll='%s',translation_option='%s'\n",
 		 ci->translation_dll,
 		 ci->translation_option);

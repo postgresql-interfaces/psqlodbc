@@ -19,9 +19,7 @@
 #include <string.h>
 
 #ifndef WIN32
-#if HAVE_PWD_H
 #include <pwd.h>
-#endif
 #include <sys/types.h>
 #include <unistd.h>
 #else

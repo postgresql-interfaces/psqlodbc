@@ -22,9 +22,7 @@
 
 #include "convert.h"
 
-#ifdef MULTIBYTE
 #include "multibyte.h"
-#endif
 #include "pgapifunc.h"
 
 #ifndef BOOL

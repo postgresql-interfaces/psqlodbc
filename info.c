@@ -37,9 +37,7 @@
 #include "misc.h"
 #include "pgtypes.h"
 #include "pgapifunc.h"
-#ifdef	MULTIBYTE
 #include "multibyte.h"
-#endif
 
 
 /*	Trigger related stuff for SQLForeign Keys */
@@ -1517,9 +1515,7 @@ reallyEscapeCatalogEscapes(const char *src, int srclen, char *dest, int dst_len,
 	int	i, outlen;
 	const char *in;
 	BOOL	escape_in = FALSE;
-#ifdef MULTIBYTE
 	encoded_str	encstr;
-#endif
 
 	if (srclen == SQL_NULL_DATA)
 	{
@@ -1530,19 +1526,15 @@ reallyEscapeCatalogEscapes(const char *src, int srclen, char *dest, int dst_len,
 		srclen = strlen(src);
 	if (srclen <= 0)
 		return STRCPY_FAIL;
-#ifdef MULTIBYTE
 	encoded_str_constr(&encstr, ccsc, src);
-#endif
 	for (i = 0, in = src, outlen = 0; i < srclen && outlen < dst_len; i++, in++)
 	{
-#ifdef MULTIBYTE
                 encoded_nextchar(&encstr);
                 if (ENCODE_STATUS(encstr) != 0)
                 {
                         dest[outlen++] = *in;
                         continue;
                 }
-#endif
 		if (escape_in)
 		{
 			switch (*in)
@@ -2977,7 +2969,6 @@ PGAPI_PrimaryKeys(
 }
 
 
-#ifdef	MULTIBYTE
 /*
  *	Multibyte support stuff for SQLForeignKeys().
  *	There may be much more effective way in the
@@ -3201,7 +3192,6 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	}
 	return ret;
 }
-#endif   /* MULTIBYTE */
 
 RETCODE		SQL_API
 PGAPI_ForeignKeys(
@@ -3246,10 +3236,8 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			   *fkey_text;
 
 	ConnectionClass *conn;
-#ifdef	MULTIBYTE
 	BOOL		pkey_alloced,
 				fkey_alloced;
-#endif   /* MULTIBYTE */
 	int			i,
 				j,
 				k,
@@ -3348,10 +3336,8 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	make_string(szFkTableName, cbFkTableName, fk_table_needed);
 
 	conn = SC_get_conn(stmt);
-#ifdef	MULTIBYTE
 	pkey_text = fkey_text = NULL;
 	pkey_alloced = fkey_alloced = FALSE;
-#endif   /* MULTIBYTE */
 
 	/*
 	 * Case #2 -- Get the foreign keys in the specified table (fktab) that
@@ -3620,21 +3606,15 @@ if (conn->schema_support)
 					num_keys = 0;
 					break;
 				}
-#ifdef	MULTIBYTE
 				pkey_text = getClientColumnName(conn, relid2, pkey_ptr, &pkey_alloced);
-#else
-				pkey_text = pkey_ptr;
-#endif   /* MULTIBYTE */
 				mylog("%s: pkey_ptr='%s', pkey='%s'\n", func, pkey_text, pkey);
 				if (strcmp(pkey_text, pkey))
 				{
 					num_keys = 0;
 					break;
 				}
-#ifdef	MULTIBYTE
 				if (pkey_alloced)
 					free(pkey_text);
-#endif   /* MULTIBYTE */
 				/* Get to next primary key */
 				for (k = 0; k < 2; k++)
 					pkey_ptr += strlen(pkey_ptr) + 1;
@@ -3688,13 +3668,9 @@ if (conn->schema_support)
 			{
 				row = (TupleNode *) malloc(sizeof(TupleNode) + (result_cols - 1) *sizeof(TupleField));
 
-#ifdef	MULTIBYTE
 				pkey_text = getClientColumnName(conn, relid2, pkey_ptr, &pkey_alloced);
 				fkey_text = getClientColumnName(conn, relid1, fkey_ptr, &fkey_alloced);
-#else
-				pkey_text = pkey_ptr;
-				fkey_text = fkey_ptr;
-#endif   /* MULTIBYTE */
+
 				mylog("%s: pk_table = '%s', pkey_ptr = '%s'\n", func, pk_table_fetched, pkey_text);
 				set_tuplefield_null(&row->tuple[0]);
 				set_tuplefield_string(&row->tuple[1], GET_SCHEMA_NAME(schema_fetched));
@@ -3719,14 +3695,12 @@ if (conn->schema_support)
 #endif   /* ODBCVER >= 0x0300 */
 
 				QR_add_tuple(res, row);
-#ifdef	MULTIBYTE
 				if (fkey_alloced)
 					free(fkey_text);
 				fkey_alloced = FALSE;
 				if (pkey_alloced)
 					free(pkey_text);
 				pkey_alloced = FALSE;
-#endif   /* MULTIBYTE */
 				/* next primary/foreign key */
 				for (i = 0; i < 2; i++)
 				{
@@ -3996,13 +3970,9 @@ if (conn->schema_support)
 
 			for (k = 0; k < num_keys; k++)
 			{
-#ifdef	MULTIBYTE
 				pkey_text = getClientColumnName(conn, relid1, pkey_ptr, &pkey_alloced);
 				fkey_text = getClientColumnName(conn, relid2, fkey_ptr, &fkey_alloced);
-#else
-				pkey_text = pkey_ptr;
-				fkey_text = fkey_ptr;
-#endif   /* MULTIBYTE */
+
 				mylog("pkey_ptr = '%s', fk_table = '%s', fkey_ptr = '%s'\n", pkey_text, fk_table_fetched, fkey_text);
 
 				row = (TupleNode *) malloc(sizeof(TupleNode) + (result_cols - 1) *sizeof(TupleField));
@@ -4036,14 +4006,12 @@ if (conn->schema_support)
 #endif   /* ODBCVER >= 0x0300 */
 
 				QR_add_tuple(res, row);
-#ifdef	MULTIBYTE
 				if (pkey_alloced)
 					free(pkey_text);
 				pkey_alloced = FALSE;
 				if (fkey_alloced)
 					free(fkey_text);
 				fkey_alloced = FALSE;
-#endif   /* MULTIBYTE */
 
 				/* next primary/foreign key */
 				for (j = 0; j < 2; j++)
@@ -4062,12 +4030,10 @@ if (conn->schema_support)
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
 	}
-#ifdef	MULTIBYTE
 	if (pkey_alloced)
 		free(pkey_text);
 	if (fkey_alloced)
 		free(fkey_text);
-#endif   /* MULTIBYTE */
 
 	PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 

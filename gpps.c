@@ -26,10 +26,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <ctype.h>
-
-#if HAVE_PWD_H
 #include <pwd.h>
-#endif
 
 #include <sys/types.h>
 #include <string.h>

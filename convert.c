@@ -23,9 +23,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#ifdef MULTIBYTE
 #include "multibyte.h"
-#endif
 
 #include <time.h>
 #ifdef HAVE_LOCALE_H
@@ -1233,9 +1231,7 @@ typedef struct _QueryParse {
 	BOOL		proc_no_param;
 	unsigned	int declare_pos;
 	UInt4		flags;
-#ifdef MULTIBYTE
 	encoded_str	encstr;
-#endif   /* MULTIBYTE */
 }	QueryParse;
 
 static int
@@ -1254,9 +1250,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->proc_no_param = TRUE;
 	q->declare_pos = 0;
 	q->flags = 0;
-#ifdef MULTIBYTE
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
-#endif   /* MULTIBYTE */
 
 	return q->stmt_len;
 }
@@ -1649,11 +1643,8 @@ insert_without_target(const char *stmt, int *endpos)
 		|| ';' == wstmt[0];
 }
 
-#ifdef MULTIBYTE
 #define		my_strchr(conn, s1,c1) pg_mbschr(conn->ccsc, s1,c1)
-#else
-#define		my_strchr(conn, s1,c1) strchr(s1,c1)
-#endif
+
 /*
  *	This function inserts parameters into an SQL statements.
  *	It will also modify a SELECT statement for use with declare/fetch cursors.
@@ -1880,7 +1871,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, qp->where_pos - qp->from_pos - 5);
 		}
 	}
-#ifdef MULTIBYTE
 	oldchar = encoded_byte_check(&qp->encstr, qp->opos);
 	if (ENCODE_STATUS(qp->encstr) != 0)
 	{
@@ -1891,9 +1881,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * From here we are guaranteed to handle a 1-byte character.
 	 */
-#else
-	oldchar = qp->statement[qp->opos];
-#endif
 
 	if (qp->in_escape)			/* escape check */
 	{
@@ -2710,10 +2697,8 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 		retval = inner_process_tokens(qp, qb);
 		if (retval == SQL_ERROR)
 			return retval;
-#ifdef MULTIBYTE
 		if (ENCODE_STATUS(qp->encstr) != 0)
 			continue;
-#endif
 		if (qp->in_dquote || qp->in_quote || qp->in_escape)
 			continue;
 
@@ -3161,10 +3146,7 @@ convert_special_chars(const char *si, char *dst, int used, BOOL convlf, int ccsc
 				out = 0,
 				max;
 	char	   *p = NULL;
-#ifdef MULTIBYTE
 	encoded_str	encstr;
-#endif
-
 
 	if (used == SQL_NTS)
 		max = strlen(si);
@@ -3175,13 +3157,10 @@ convert_special_chars(const char *si, char *dst, int used, BOOL convlf, int ccsc
 		p = dst;
 		p[0] = '\0';
 	}
-#ifdef MULTIBYTE
 	encoded_str_constr(&encstr, ccsc, si);
-#endif
 
 	for (i = 0; i < max && si[i]; i++)
 	{
-#ifdef MULTIBYTE
 		encoded_nextchar(&encstr);
 		if (ENCODE_STATUS(encstr) != 0)
 		{
@@ -3190,7 +3169,6 @@ convert_special_chars(const char *si, char *dst, int used, BOOL convlf, int ccsc
 			out++;
 			continue;
 		}
-#endif
 		if (convlf && si[i] == '\r' && si[i + 1] == '\n')
 			continue;
 		else if (si[i] == '\'' || si[i] == '\\')

@@ -34,19 +34,13 @@
 #include "pgtypes.h"
 #include "pgapifunc.h"
 
-#ifdef MULTIBYTE
 #include "multibyte.h"
-#endif
 
 #define FLD_INCR	32
 #define TAB_INCR	8
 #define COL_INCR	16
 
-#ifdef	MULTIBYTE
 char	   *getNextToken(int ccsc, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
-#else
-char	   *getNextToken(char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
-#endif /* MULTIBYTE */
 void		getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
 char		searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
 
@@ -76,18 +70,14 @@ Int4 FI_scale(const FIELD_INFO *fi)
 
 char *
 getNextToken(
-#ifdef	MULTIBYTE
 	int ccsc, /* client encoding */
-#endif /* MULTIBYTE */
 	char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
 	int			i = 0;
 	int			out = 0;
 	char		qc,
 				in_escape = FALSE;
-#ifdef MULTIBYTE
 	encoded_str	encstr;
-#endif
 
 	if (smax <= 1)
 		return NULL;
@@ -114,20 +104,16 @@ getNextToken(
 	if (numeric)
 		*numeric = FALSE;
 
-#ifdef MULTIBYTE
 	encoded_str_constr(&encstr, ccsc, &s[i]);
-#endif
 	/* get the next token */
 	while (s[i] != '\0' && out < smax)
 	{
-#ifdef MULTIBYTE
 		encoded_nextchar(&encstr);
 		if (ENCODE_STATUS(encstr) != 0)
 		{
 			token[out++] = s[i++];
 			continue;
 		}
-#endif
 		if (isspace((unsigned char) s[i]) || s[i] == ',')
 			break;
 		/* Handle quoted stuff */
@@ -148,14 +134,12 @@ getNextToken(
 			i++;				/* dont return the quote */
 			while (s[i] != '\0' && out != smax)
 			{
-#ifdef MULTIBYTE
 				encoded_nextchar(&encstr);
 				if (ENCODE_STATUS(encstr) != 0)
 				{
 					token[out++] = s[i++];
 					continue;
 				}
-#endif
 				if (s[i] == qc && !in_escape)
 					break;
 				if (s[i] == '\\' && !in_escape)
@@ -360,11 +344,7 @@ parse_statement(StatementClass *stmt)
 	stmt->from_pos = -1;
 	stmt->where_pos = -1;
 
-#ifdef MULTIBYTE
 	while (pptr = ptr, (ptr = getNextToken(conn->ccsc, pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
-#else
-	while (pptr = ptr, (ptr = getNextToken(pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
-#endif
 	{
 		unquoted = !(quote || dquote);
 
@@ -707,20 +687,16 @@ parse_statement(StatementClass *stmt)
 				if (!dquote)
 				{
 					char	   *ptr;
-#ifdef	MULTIBYTE
 					encoded_str	encstr;
 					make_encoded_str(&encstr, conn, ti[stmt->ntab]->name);
-#endif   /* MULTIBYTE */
 
 					/* lower case table name */
 					for (ptr = ti[stmt->ntab]->name; *ptr; ptr++)
 					{
-#ifdef	MULTIBYTE
 						encoded_nextchar(&encstr);
 						if (ENCODE_STATUS(encstr) != 0)
 							ptr++;
 						else
-#endif   /* MULTIBYTE */
 							*ptr = tolower((unsigned char) *ptr);
 					}
 				}

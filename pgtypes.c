@@ -706,9 +706,7 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 				if (conn->unicode || conn->ms_jet)
 					return attlen;
 #if (ODBCVER >= 0x0300)
-#ifdef MULTIBYTE
 				return attlen;
-#endif /* MULTIBYTE */
 #endif /* ODBCVER */
 				return p;
 		}
@@ -1000,12 +998,10 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 			Int4	prec = pgtype_column_size(stmt, type, col, handle_unknown_size_as), maxvarc;
 			if (conn->unicode)
 				return prec * 2;
-#ifdef MULTIBYTE
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
 				coef = 3;
 			else
-#endif   /* MULTIBYTE */
 			if ((conn->connInfo).lf_conversion)
 				/* CR -> CR/LF */
 				coef = 2;
@@ -1079,12 +1075,10 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 		case PG_TYPE_BPCHAR:
 			if (conn->unicode)
 				return prec * 2;
-#ifdef MULTIBYTE
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
 				coef = 3;
 			else
-#endif   /* MULTIBYTE */
 			if ((conn->connInfo).lf_conversion)
 				/* CR -> CR/LF */
 				coef = 2;

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.71 2002/09/23 08:08:21 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.72 2002/10/16 07:39:53 dpage Exp $
  *
  */
 
@@ -13,7 +13,7 @@
 #define __PSQLODBC_H__
 
 #ifndef WIN32
-#include "pg_config.h"
+#include "config.h"
 #else
 #include <windows.h>
 #endif
@@ -117,9 +117,8 @@ typedef UInt4 Oid;
 #endif   /* WIN32 */
 
 /* Limits */
-#ifdef WIN32
 #define BLCKSZ						4096
-#endif
+#define MAXPGPATH					1024
 
 #define MAX_MESSAGE_LEN				65536		/* This puts a limit on
 												 * query size but I don't */
