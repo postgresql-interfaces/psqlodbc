@@ -57,9 +57,9 @@ BEGIN
     PUSHBUTTON      "全体設定",IDC_DRIVER,269,155,53,15
     PUSHBUTTON      "デ－タソ－ス",IDC_DATASOURCE,269,132,53,15
     GROUPBOX        "既定の認証",IDC_STATIC,11,119,235,59
-    LTEXT           "PostgreSQL Ver7.3  Copyright (C) 1998-2002; Insight Distribution Systems",
+    LTEXT           "PostgreSQL Ver8.0  Copyright (C) 1998-2004 PostgreSQL Global Development Group",
                     IDC_STATIC,36,186,302,9
-    LTEXT           "In the original form, Japanese patch Hiroshi-saito",
+    LTEXT           "In the original form, Japanese patch Hiroshi-Saito",
                     IDC_STATIC,35,198,295,8
     PUSHBUTTON      "管理",IDC_MANAGEDSN,295,10,50,14
 END
@@ -295,8 +295,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 7,5,0,2
- PRODUCTVERSION 7,5,0,2
+ FILEVERSION 8,0,0,3
+ PRODUCTVERSION 8,0,0,3
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -314,12 +314,12 @@ BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver"
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "07.05.0002"
+            VALUE "FileVersion", "08.00.0003"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftｮ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "07.05.0002"
+            VALUE "ProductVersion", "08.00.0003"
         END
     END
     BLOCK "VarFileInfo"
@@ -594,8 +594,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,0,0,2
- PRODUCTVERSION 8,0,0,2
+ FILEVERSION 8,0,0,3
+ PRODUCTVERSION 8,0,0,3
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -613,12 +613,12 @@ BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver"
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.00.0002"
+            VALUE "FileVersion", "08.00.0003"
             VALUE "InternalName", "psqlodbc"
-            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
+            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftｮ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.00.0002"
+            VALUE "ProductVersion", "08.00.0003"
         END
     END
     BLOCK "VarFileInfo"
