@@ -951,7 +951,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 				mtemp_cnt++;
 			}
 			else
+			{
+				qlog("couldn't convert money type to %d\n", fCType);
 				return COPY_UNSUPPORTED_TYPE;
+			}
 		}
 
 		switch (fCType)
@@ -1196,6 +1199,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 #if (ODBCVER >= 0x0300) && defined(ODBCINT64)
 			case SQL_C_SBIGINT:
+			case SQL_BIGINT: /* Is this needed ? */
 				len = 8;
 				if (bind_size > 0)
 					*((SQLBIGINT *) rgbValueBindRow) = ATOI64(neut_str);
@@ -1213,12 +1217,20 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 #endif /* ODBCINT64 */
 			case SQL_C_BINARY:
-
 				if (PG_TYPE_UNKNOWN == field_type)
 				{
+					int	len = SQL_NULL_DATA;
+
+					if (neut_str)
+						len = strlen(neut_str);
 					if (pcbValue)
-						*((SDWORD *) pcbValueBindRow) = SQL_NULL_DATA;
-					return COPY_OK;
+						*((SDWORD *) pcbValueBindRow) = len;
+					if (len > 0 && cbValueMax > 0)
+						memcpy(rgbValueBindRow, neut_str, len < cbValueMax ? len : cbValueMax);
+					if (cbValueMax >= len)
+						return COPY_OK;
+					else
+						return COPY_RESULT_TRUNCATED;
 				}
 				/* The following is for SQL_C_VARBOOKMARK */
 				else if (PG_TYPE_INT4 == field_type)
@@ -1239,6 +1251,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				else if (PG_TYPE_BYTEA != field_type)
 				{
 					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
+					qlog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					return COPY_UNSUPPORTED_TYPE;
 				}
 				/* truncate if necessary */
@@ -1318,6 +1331,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				break;
 
 			default:
+				qlog("conversion to the type %d isn't supported\n", fCType);
 				return COPY_UNSUPPORTED_TYPE;
 		}
 	}

@@ -561,7 +561,7 @@ inolog("AUTO_INCREMENT=%d\n", value);
 			 * case SQL_COLUMN_COUNT:
 			 */
 		case SQL_COLUMN_DISPLAY_SIZE: /* == SQL_DESC_DISPLAY_SIZE */
-			value = fi ? fi->display_size : pgtype_display_size(stmt, field_type, col_idx, unknown_sizes);
+			value = (fi && 0 != fi->display_size) ? fi->display_size : pgtype_display_size(stmt, field_type, col_idx, unknown_sizes);
 
 			mylog("PGAPI_ColAttributes: col %d, display_size= %d\n", col_idx, value);
 

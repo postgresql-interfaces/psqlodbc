@@ -43,7 +43,7 @@ void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
 #define	EN_is_odbc2(env) ((env->flag & EN_OV_ODBC2) != 0)
 #define	EN_is_odbc3(env) ((env->flag & EN_OV_ODBC2) == 0)
 #define EN_set_odbc2(env) (env->flag |= EN_OV_ODBC2)
-#define EN_set_odbc3(env) (env->flag &= EN_OV_ODBC2)
+#define EN_set_odbc3(env) (env->flag &= ~EN_OV_ODBC2)
 #define	EN_is_pooling(env) ((env->flag & EN_CONN_POOLING) != 0)
 #define	EN_set_pooling(env) (env->flag |= EN_CONN_POOLING)
 #define	EN_unset_pooling(env) (env->flag &= ~EN_CONN_POOLING)
