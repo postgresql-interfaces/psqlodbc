@@ -11,6 +11,6 @@ REGEDIT4
 "Driver"="PSQLODBC25.DLL"
 "DriverODBCVer"="02.50"
 "FileUsage"="0"
-"Setup"="PSQLODBC25.DLL"
+"Setup"="PSQLODBC.DLL"
 "SQLLevel"="1"
 "UsageCount"=dword:00000001

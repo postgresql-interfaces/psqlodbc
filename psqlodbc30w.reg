@@ -12,7 +12,7 @@ REGEDIT4
 "Driver"="PSQLODBC30W.DLL"
 "DriverODBCVer"="03.00"
 "FileUsage"="0"
-"Setup"="PSQLODBC30W.DLL"
+"Setup"="PSQLODBC.DLL"
 "SQLLevel"="1"
 "UsageCount"=dword:00000001
 
