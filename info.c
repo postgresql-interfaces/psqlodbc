@@ -1668,7 +1668,7 @@ PGAPI_Columns(
 			" from pg_namespace u, pg_class c, pg_attribute a, pg_type t"
 			" where u.oid = c.relnamespace"
 			" and (not a.attisdropped)"
-	  " and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0)",
+			" and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0)",
 			"a.atttypmod");
 	else
 		sprintf(columns_query, "select u.usename, c.relname, a.attname, a.atttypid"
@@ -3087,7 +3087,7 @@ getClientTableName(ConnectionClass *conn, const char *serverSchemaName, char *se
 	if (!bError && continueExec)
 	{
 		if (conn->schema_support)
-			sprintf(query, "select OID from pg_class where relname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverSchemaName);
+			sprintf(query, "select OID from pg_class, pg_namespace where relname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverSchemaName);
 		else
 			sprintf(query, "select OID from pg_class where relname = '%s'", serverTableName);
 		if (res = CC_send_query(conn, query, NULL, CLEAR_RESULT_ON_ABORT), res)
@@ -3154,7 +3154,7 @@ getClientColumnName(ConnectionClass *conn, const char * serverSchemaName, const 
 	if (!bError && continueExec)
 	{
 		if (conn->schema_support)
-			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute "
+			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute, pg_namespace "
 				"where relname = '%s' and attrelid = pg_class.oid "
 				"and (not attisdropped) "
 				"and attname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverColumnName, serverSchemaName);
@@ -3449,8 +3449,8 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 				"AND pt2.tgfoid = pp2.oid "
 				"AND pt2.tgconstrrelid = pc.oid "
 				"AND ((pc.relname='%s') "
-				"AND (pg_namespace.oid = pc.relnamespace) "
-				"AND (pg_namespace.nspname = '%s') "
+				"AND (pn.oid = pc.relnamespace) "
+				"AND (pn.nspname = '%s') "
 				"AND (pp.proname LIKE '%%ins') "
 				"AND (pp1.proname LIKE '%%upd') "
 				"AND (pp2.proname LIKE '%%del') "
@@ -3826,8 +3826,8 @@ if (conn->schema_support)
 				"	AND pc2.oid = pt.tgrelid "
 				"	AND ("
 				"		 (pc.relname='%s') "
-				"	AND  (pg_namespace.oid = pc.relnamespace) "
-				"	AND  (pg_namespace.nspname = '%s') "
+				"	AND  (pn.oid = pc.relnamespace) "
+				"	AND  (pn.nspname = '%s') "
 				"	AND  (pp.proname Like '%%upd') "
 				"	AND  (pp1.proname Like '%%del')"
 				"	AND	 (pt1.tgrelid = pt.tgconstrrelid) "
