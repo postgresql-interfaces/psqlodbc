@@ -92,7 +92,16 @@ PGAPI_Prepare(HSTMT hstmt,
 
 	SC_initialize_stmts(self, TRUE);
 
-	self->statement = make_string(szSqlStr, cbSqlStr, NULL);
+	if (!szSqlStr)
+	{
+		SC_set_error(self, STMT_NO_MEMORY_ERROR, "the query is NULL");
+		SC_log_error(func, "", self);
+		return SQL_ERROR;
+	}
+	if (!szSqlStr[0])
+		self->statement = strdup("");
+	else
+		self->statement = make_string(szSqlStr, cbSqlStr, NULL);
 	if (!self->statement)
 	{
 		SC_set_error(self, STMT_NO_MEMORY_ERROR, "No memory available to store statement");
