@@ -175,17 +175,15 @@ PGAPI_GetInfo(
 		case SQL_CURSOR_COMMIT_BEHAVIOR:		/* ODBC 1.0 */
 			len = 2;
 			value = SQL_CB_CLOSE;
-			if (ci->updatable_cursors)
-				if (!ci->drivers.use_declarefetch)
-					value = SQL_CB_PRESERVE;
+			if (!ci->drivers.use_declarefetch)
+				value = SQL_CB_PRESERVE;
 			break;
 
 		case SQL_CURSOR_ROLLBACK_BEHAVIOR:		/* ODBC 1.0 */
 			len = 2;
 			value = SQL_CB_CLOSE;
-			if (ci->updatable_cursors)
-				if (!ci->drivers.use_declarefetch)
-					value = SQL_CB_PRESERVE;
+			if (!ci->drivers.use_declarefetch)
+				value = SQL_CB_PRESERVE;
 			break;
 
 		case SQL_DATA_SOURCE_NAME:		/* ODBC 1.0 */

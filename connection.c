@@ -151,10 +151,13 @@ PGAPI_BrowseConnect(
 					SWORD FAR * pcbConnStrOut)
 {
 	CSTR func = "PGAPI_BrowseConnect";
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("%s: entering...\n", func);
 
-	return SQL_SUCCESS;
+	CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "not implemented");
+	CC_log_error(func, "Function not implemented", conn);
+	return SQL_ERROR;
 }
 
 

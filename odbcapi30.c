@@ -578,7 +578,8 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSPECIALCOLUMNS);	/* 52 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSTATISTICS);		/* 53 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLES); /* 54 */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT);	/* 55 */
+	if (ci->drivers.lie)
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT); /* 55 not implemented yet */
 	if (ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); /* 56 not implemented yet */ 
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDATASOURCES);	/* 57 */
