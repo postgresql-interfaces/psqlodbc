@@ -7,7 +7,7 @@
  *
  * API functions:	SQLColAttributeW, SQLGetStmtAttrW, SQLSetStmtAttrW,
  			SQLSetConnectAttrW, SQLGetConnectAttrW,
-			SQLGetDescFieldW, SQLGetDescRecW, SQLGetDiagFieldW,
+			SQLGetDescFieldW, SQLGetDiagFieldW,
 			SQLGetDiagRecW,
  *-------
  */

@@ -247,7 +247,7 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 	return ret;
 }
 
-/*	new function */
+/* TODO - Implement this!! */
 RETCODE		SQL_API
 SQLGetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLCHAR *Name,
@@ -394,7 +394,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 	return ret;
 }
 
-/*	new fucntion */
+/* TODO - Implement this! */
 RETCODE		SQL_API
 SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLSMALLINT Type,
