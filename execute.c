@@ -101,7 +101,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	}
 
 	self->prepare = TRUE;
-	self->prepared = FALSE;
+	SC_set_prepared(self, FALSE);
 	self->statement_type = statement_type(self->statement);
 
 	/* Check if connection is onlyread (only selects are allowed) */
@@ -152,7 +152,7 @@ PGAPI_ExecDirect(
 	mylog("**** %s: hstmt=%u, statement='%s'\n", func, hstmt, stmt->statement);
 
 	stmt->prepare = FALSE;
-	stmt->prepared = FALSE;
+	SC_set_prepared(stmt, FALSE);
 
 	/*
 	 * If an SQLPrepare was performed prior to this, but was left in the
@@ -304,7 +304,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 			res->next = NULL;
 			QR_Destructor(res);
 			res = kres;
-			stmt->prepared = TRUE;
+			SC_set_prepared(stmt, TRUE);
 		}
 		else
 		{

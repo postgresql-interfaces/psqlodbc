@@ -262,7 +262,7 @@ struct StatementClass_
 StatementClass *SC_Constructor(void);
 void		InitializeStatementOptions(StatementOptions *opt);
 char		SC_Destructor(StatementClass *self);
-int			statement_type(char *statement);
+int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt);
 void		SC_pre_execute(StatementClass *self);
 char		SC_unbind_cols(StatementClass *self);
@@ -275,6 +275,7 @@ void		SC_error_copy(StatementClass *self, const StatementClass *from);
 void		SC_full_error_copy(StatementClass *self, const StatementClass *from);
 char		SC_get_error(StatementClass *self, int *number, char **message);
 char		*SC_create_errormsg(const StatementClass *self);
+void		SC_set_prepared(StatementClass *self, BOOL);
 RETCODE		SC_initialize_stmts(StatementClass *self, BOOL);
 RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);

@@ -433,7 +433,7 @@ SC_free_params(StatementClass *self, char option)
 
 
 int
-statement_type(char *statement)
+statement_type(const char *statement)
 {
 	int			i;
 
@@ -448,6 +448,28 @@ statement_type(char *statement)
 	return STMT_TYPE_OTHER;
 }
 
+void
+SC_set_prepared(StatementClass *stmt, BOOL prepared)
+{
+	if (prepared == stmt->prepared)
+		return;
+	if (!prepared)
+	{
+		ConnectionClass *conn = SC_get_conn(stmt);
+		if (CONN_CONNECTED == conn->status)
+		{
+			QResultClass	*res;
+			char dealloc_stmt[128];
+
+			sprintf(dealloc_stmt, "DEALLOCATE _PLAN%0x", stmt);
+			res = CC_send_query(conn, dealloc_stmt, NULL, 0);
+			if (res)
+				QR_Destructor(res); 
+		}
+	}
+	stmt->prepared = prepared;
+}
+
 /*
  *	Initialize stmt_with_params, load_statement and execute_statement
  *		member pointer deallocating corresponding prepared plan.
@@ -456,10 +478,19 @@ statement_type(char *statement)
 RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
-	if (initializeOriginal && self->statement)
+	if (initializeOriginal)
 	{
-		free(self->statement);
-		self->statement = NULL;
+		if (self->statement)
+		{
+			free(self->statement);
+			self->statement = NULL;
+		}
+		if (self->execute_statement)
+		{
+			free(self->execute_statement);
+			self->execute_statement = NULL;
+		}
+		SC_set_prepared(self,FALSE);
 	}
 	if (self->stmt_with_params)
 	{
@@ -471,26 +502,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		free(self->load_statement);
 		self->load_statement = NULL;
 	}
-	if (self->execute_statement)
-	{
-		free(self->execute_statement);
-		self->execute_statement = NULL;
-	}
-	if (self->prepared)
-	{
-		ConnectionClass *conn = SC_get_conn(self);
-		if (CONN_CONNECTED == conn->status)
-		{
-			QResultClass	*res;
-			char dealloc_stmt[128];
 
-			sprintf(dealloc_stmt, "DEALLOCATE _PLAN%0x", self);
-			res = CC_send_query(conn, dealloc_stmt, NULL, 0);
-			if (res)
-				QR_Destructor(res); 
-		}
-		self->prepared = FALSE;
-	}
 	return 0;
 }
 
