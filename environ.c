@@ -541,7 +541,7 @@ PGAPI_Error(
 	else if (SQL_NULL_HDBC != hdbc)
 		ret = PGAPI_ConnectError(hdbc, -1, szSqlState, pfNativeError,
 			 szErrorMsg, cbErrorMsgMax, pcbErrorMsg, flag);
-	else if (SQL_NULL_HENV != hdbc)
+	else if (SQL_NULL_HENV != henv)
 		ret = PGAPI_EnvError(henv, -1, szSqlState, pfNativeError,
 			 szErrorMsg, cbErrorMsgMax, pcbErrorMsg, flag);
 	else

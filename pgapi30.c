@@ -295,6 +295,18 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
+				case SQL_DIAG_ROW_NUMBER:
+					*((SQLINTEGER *) DiagInfoPtr) = SQL_ROW_NUMBER_UNKNOWN;
+					if (StringLengthPtr)
+						*StringLengthPtr = sizeof(SQLINTEGER);
+					ret = SQL_SUCCESS;
+					break;
+				case SQL_DIAG_COLUMN_NUMBER:
+					*((SQLINTEGER *) DiagInfoPtr) = SQL_COLUMN_NUMBER_UNKNOWN;
+					if (StringLengthPtr)
+						*StringLengthPtr = sizeof(SQLINTEGER);
+					ret = SQL_SUCCESS;
+					break;
 				case SQL_DIAG_RETURNCODE: /* driver manager returns */
 					break;
 			}
