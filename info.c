@@ -1665,7 +1665,7 @@ PGAPI_Columns(
 	   ", t.typname, a.attnum, a.attlen, %s, a.attnotnull, c.relhasrules"
 			" from pg_namespace u, pg_class c, pg_attribute a, pg_type t"
 			" where u.oid = c.relnamespace"
-	  " and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0)",
+	  " and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0) and not(attisdropped)",
 			"a.atttypmod");
 	else
 		sprintf(columns_query, "select u.usename, c.relname, a.attname, a.atttypid"
@@ -2898,6 +2898,8 @@ PGAPI_PrimaryKeys(
 						" AND ia.attrelid = i.indexrelid"
 						" AND ta.attrelid = i.indrelid"
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
+                                                " AND NOT(ta.attisdropped)"
+                                                " AND NOT(ia.attisdropped)"
 						" order by ia.attnum", pktab, pkscm);
 				else
 					sprintf(tables_query, "select ta.attname, ia.attnum"
@@ -2925,6 +2927,8 @@ PGAPI_PrimaryKeys(
 						" AND ia.attrelid = i.indexrelid"
 						" AND ta.attrelid = i.indrelid"
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
+                                                " AND NOT(ta.attisdropped)"
+                                                " AND NOT(ia.attisdropped)"
 						" order by ia.attnum", pktab, pkscm);
 				else
 					sprintf(tables_query, "select ta.attname, ia.attnum"
@@ -3119,7 +3123,7 @@ getClientColumnName(ConnectionClass *conn, const char * serverSchemaName, const 
 		if (conn->schema_support)
 			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute "
 				"where relname = '%s' and attrelid = pg_class.oid "
-				"and attname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverColumnName, serverSchemaName);
+				"and attname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s' and not(attisdropped)", serverTableName, serverColumnName, serverSchemaName);
 		else
 			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute "
 				"where relname = '%s' and attrelid = pg_class.oid "
