@@ -63,6 +63,7 @@
 #define PG_TYPE_TIME_WITH_TMZONE	1266		/* since 7.1 */
 #define PG_TYPE_TIMESTAMP		1296	/* deprecated since 7.0 */
 #define PG_TYPE_NUMERIC			1700
+#define INTERNAL_ASIS_TYPE		(-9999)
 
 /* extern Int4 pgtypes_defined[]; */
 extern Int2 sqlTypes[];
@@ -99,7 +100,7 @@ char	   *pgtype_literal_prefix(StatementClass *stmt, Int4 type);
 char	   *pgtype_literal_suffix(StatementClass *stmt, Int4 type);
 char	   *pgtype_create_params(StatementClass *stmt, Int4 type);
 
-Int2		sqltype_to_default_ctype(Int2 sqltype);
+Int2		sqltype_to_default_ctype(const ConnectionClass *stmt, Int2 sqltype);
 Int4		ctype_length(Int2 ctype);
 
 #define	USE_ZONE	FALSE

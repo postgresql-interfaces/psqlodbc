@@ -39,6 +39,10 @@
 #include "connection.h"
 #include "pgapifunc.h"
 
+#if defined(UNICODE_SUPPORT) && defined(WIN32)
+#define	WIN_UNICODE_SUPPORT
+#endif
+
 #ifdef	__CYGWIN__
 #define TIMEZONE_GLOBAL _timezone
 #elif	defined(WIN32) || defined(HAVE_INT_TIMEZONE)
@@ -378,6 +382,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	int			bind_row = stmt->bind_row;
 	int			bind_size = opts->bind_size;
 	int			result = COPY_OK;
+	ConnectionClass		*conn = SC_get_conn(stmt);
 #ifdef HAVE_LOCALE_H
 	char saved_locale[256];
 #endif /* HAVE_LOCALE_H */
@@ -390,6 +395,10 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 #ifdef	UNICODE_SUPPORT
 	BOOL	wchanged =   FALSE;
 #endif /* UNICODE_SUPPORT */
+#ifdef	WIN_UNICODE_SUPPORT
+	SQLWCHAR	*allocbuf = NULL;
+	Int4		wstrlen;	
+#endif /* WIN_UNICODE_SUPPORT */
 
 	if (stmt->current_col >= 0)
 	{
@@ -516,7 +525,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 			}
 			if (strnicmp(value, "invalid", 7) != 0)
 			{
-				BOOL		bZone = (field_type != PG_TYPE_TIMESTAMP_NO_TMZONE && PG_VERSION_GE(SC_get_conn(stmt), 7.2));
+				BOOL		bZone = (field_type != PG_TYPE_TIMESTAMP_NO_TMZONE && PG_VERSION_GE(conn, 7.2));
 				int			zone;
 
 				/*
@@ -654,10 +663,11 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	rgbValueBindRow = (char *) rgbValue + rgbValueOffset;
 
 #ifdef	UNICODE_SUPPORT
-	if (fCType == SQL_C_CHAR || fCType == SQL_C_WCHAR)
+	if (fCType == SQL_C_CHAR || fCType == SQL_C_WCHAR
 #else
-	if (fCType == SQL_C_CHAR)
+	if (fCType == SQL_C_CHAR
 #endif /* UNICODE_SUPPORT */
+	    || fCType == INTERNAL_ASIS_TYPE)
 	{
 		/* Special character formatting as required */
 
@@ -724,7 +734,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 					pbic = &opts->bindings[stmt->current_col];
 				if (pbic->data_left < 0)
 				{
-					BOOL lf_conv = SC_get_conn(stmt)->connInfo.lf_conversion;
+					BOOL lf_conv = conn->connInfo.lf_conversion;
 #ifdef	UNICODE_SUPPORT
 					if (fCType == SQL_C_WCHAR)
 					{
@@ -741,12 +751,27 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 						changed = TRUE;
 					}
 					else
+#ifdef	WIN_UNICODE_SUPPORT
+					if (fCType == SQL_C_CHAR)
+					{
+						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
+						allocbuf = (SQLWCHAR *) malloc(2 * (wstrlen + 1));
+						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, allocbuf, wstrlen + 1);
+						len = WideCharToMultiByte(CP_ACP, 0, (LPCWSTR) allocbuf, wstrlen, NULL, 0, NULL, NULL);
+						changed = TRUE;
+					}
+					else
+#endif /* WIN_UNICODE_SUPPORT */
 						/* convert linefeeds to carriage-return/linefeed */
 						len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
 					if (cbValueMax == 0)		/* just returns length
 												 * info */
 					{
 						result = COPY_RESULT_TRUNCATED;
+#ifdef	WIN_UNICODE_SUPPORT
+						if (allocbuf)
+							free(allocbuf);
+#endif /* WIN_UNICODE_SUPPORT */
 						break;
 					}
 					if (!pbic->ttlbuf)
@@ -772,6 +797,15 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 							len *= 2; 
 						}
 						else
+#ifdef	WIN_UNICODE_SUPPORT
+						if (fCType == SQL_C_CHAR)
+						{
+							len = WideCharToMultiByte(CP_ACP, 0, allocbuf, wstrlen, pbic->ttlbuf, pbic->ttlbuflen, NULL, NULL);
+							free(allocbuf);
+							allocbuf = NULL;
+						}
+						else
+#endif /* WIN_UNICODE_SUPPORT */
 							convert_linefeeds(neut_str, pbic->ttlbuf, pbic->ttlbuflen, lf_conv, &changed);
 						ptr = pbic->ttlbuf;
 						pbic->ttlbufused = len;
@@ -2439,6 +2473,11 @@ ResolveOneParam(QueryBuild *qb)
 		CVT_APPEND_STR(qb, "NULL");
 		return SQL_SUCCESS;
 	}
+	/* Handle DEFAULT_PARAM parameter data */
+	if (used == SQL_DEFAULT_PARAM)
+	{
+		return SQL_SUCCESS;
+	}
 
 	/*
 	 * If no buffer, and it's not null, then what the hell is it? Just
@@ -2468,7 +2507,7 @@ ResolveOneParam(QueryBuild *qb)
 
 	/* replace DEFAULT with something we can use */
 	if (param_ctype == SQL_C_DEFAULT)
-		param_ctype = sqltype_to_default_ctype(param_sqltype);
+		param_ctype = sqltype_to_default_ctype(conn, param_sqltype);
 
 	allocbuf = buf = NULL;
 	param_string[0] = '\0';
@@ -2488,8 +2527,30 @@ ResolveOneParam(QueryBuild *qb)
 	switch (param_ctype)
 	{
 		case SQL_C_BINARY:
-		case SQL_C_CHAR:
 			buf = buffer;
+			break;
+		case SQL_C_CHAR:
+#ifdef	WIN_UNICODE_SUPPORT
+			switch (param_sqltype)
+			{
+				case SQL_WCHAR:
+				case SQL_WVARCHAR:
+				case SQL_WLONGVARCHAR:
+					if (SQL_NTS == used)
+						used = strlen(buffer);
+					allocbuf = malloc(2 * (used + 1));
+					used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
+						used, (LPWSTR) allocbuf, used + 1);
+					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used);
+					free(allocbuf);
+					allocbuf = buf;
+					break;
+				default:
+					buf = buffer;
+			}
+#else
+			buf = buffer;
+#endif /* WIN_UNICODE_SUPPORT */
 			break;
 
 #ifdef	UNICODE_SUPPORT

@@ -169,18 +169,10 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			break;
 
 		case SQL_LONGVARBINARY:
-			switch (conn->lobj_type)
-			{
-				case PG_TYPE_LO_UNDEFINED:
-					if (ci->bytea_as_longvarbinary)
-					{
-						pgType = PG_TYPE_BYTEA;
-						break;
-					}
-				default:
-					pgType = conn->lobj_type;
-					break;
-			}
+			if (ci->bytea_as_longvarbinary)
+				pgType = PG_TYPE_BYTEA;
+			else
+				pgType = conn->lobj_type;
 			break;
 
 		case SQL_LONGVARCHAR:
@@ -293,13 +285,10 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 #endif /* UNICODE_SUPPORT */
 
 		case PG_TYPE_BYTEA:
-			switch (conn->lobj_type)
-			{
-				case PG_TYPE_LO_UNDEFINED:	
-					if (ci->bytea_as_longvarbinary)
-						return SQL_LONGVARBINARY;
-			}
-			return SQL_VARBINARY;
+			if (ci->bytea_as_longvarbinary)
+				return SQL_LONGVARBINARY;
+			else
+				return SQL_VARBINARY;
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_LONGVARBINARY;
 
@@ -469,11 +458,9 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_TEXT:
-			return conn->unicode ? SQL_C_WCHAR : SQL_C_CHAR;
-			/*	The following seems worse.
-			 *
+			if (conn->unicode && ! conn->ms_jet && ! stmt->manual_result)
+				return SQL_C_WCHAR;
 			return SQL_C_CHAR;
-			 */
 #endif /* UNICODE_SUPPORT */
 
 		default:
@@ -832,6 +819,8 @@ getTimestampColumnSize(StatementClass *stmt, Int4 type, int col)
 Int4
 pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
 {
+	ConnectionClass *conn = SC_get_conn(stmt);
+
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
@@ -845,7 +834,6 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 
 		case PG_TYPE_NAME:
 			{
-				ConnectionClass *conn = SC_get_conn(stmt);
 				int	value = 0;
 #ifdef	NAME_FIELD_SIZE
 				value = NAME_FIELD_SIZE;
@@ -895,10 +883,7 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 			return getTimestampColumnSize(stmt, type, col);
 
 		case PG_TYPE_BOOL:
-		{
-			BOOL	true_is_minus1 = FALSE;
-			return true_is_minus1 ? 2 : 1;
-		}
+			return conn->connInfo.true_is_minus1 ? 2 : 1;
 
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_NO_TOTAL;
@@ -915,7 +900,7 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 }
 
 /*
- *	"precision in ODBC 3.x.
+ *	precision in ODBC 3.x.
  */
 Int4
 pgtype_precision(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
@@ -1372,7 +1357,7 @@ pgtype_create_params(StatementClass *stmt, Int4 type)
 
 
 Int2
-sqltype_to_default_ctype(Int2 sqltype)
+sqltype_to_default_ctype(const ConnectionClass *conn, Int2 sqltype)
 {
 	/*
 	 * from the table on page 623 of ODBC 2.0 Programmer's Reference
@@ -1398,6 +1383,8 @@ sqltype_to_default_ctype(Int2 sqltype)
 		case SQL_WCHAR:
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
+			if (conn->ms_jet || ! conn->unicode)
+				return SQL_C_CHAR;
 			return SQL_C_WCHAR;
 #endif /* UNICODE_SUPPORT */
 

@@ -1018,7 +1018,7 @@ PGAPI_PutData(
 		{
 			Int2		ctype = current_param->CType;
 			if (ctype == SQL_C_DEFAULT)
-				ctype = sqltype_to_default_ctype(current_iparam->SQLType);
+				ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
 
 #ifdef	UNICODE_SUPPORT
 			if (SQL_NTS == cbValue && SQL_C_WCHAR == ctype)
@@ -1088,7 +1088,7 @@ PGAPI_PutData(
 			Int2	ctype = current_param->CType;
 
 			if (ctype == SQL_C_DEFAULT)
-				ctype = sqltype_to_default_ctype(current_iparam->SQLType);
+				ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
 			buffer = current_param->EXEC_buffer;
 			if (old_pos = *current_param->EXEC_used, SQL_NTS == old_pos)
 			{

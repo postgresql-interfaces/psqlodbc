@@ -1239,6 +1239,7 @@ PGAPI_Tables(
 				view,
 				systable;
 	int			i;
+	SWORD			internal_asis_type = SQL_C_CHAR;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -1393,7 +1394,11 @@ PGAPI_Tables(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(htbl_stmt, 1, SQL_C_CHAR,
+#ifdef	UNICODE_SUPPORT
+	if (conn->unicode)
+		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
+	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   table_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1403,7 +1408,7 @@ PGAPI_Tables(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(htbl_stmt, 2, SQL_C_CHAR,
+	result = PGAPI_BindCol(htbl_stmt, 2, internal_asis_type,
 						   table_owner, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1412,7 +1417,7 @@ PGAPI_Tables(
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 		return SQL_ERROR;
 	}
-	result = PGAPI_BindCol(htbl_stmt, 3, SQL_C_CHAR,
+	result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 						   relkind_or_hasrules, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1652,6 +1657,7 @@ PGAPI_Columns(
 	BOOL		relisaview;
 	ConnInfo   *ci;
 	ConnectionClass *conn;
+	SWORD		internal_asis_type = SQL_C_CHAR;
 
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
@@ -1667,6 +1673,10 @@ PGAPI_Columns(
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+#ifdef	UNICODE_SUPPORT
+	if (conn->unicode)
+		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
 
 	/*
 	 * Create the query to find out the columns (Note: pre 6.3 did not
@@ -1741,7 +1751,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 1, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 1, internal_asis_type,
 						   table_owner, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1751,7 +1761,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 2, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 2, internal_asis_type,
 						   table_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1761,7 +1771,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 3, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
 						   field_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1781,7 +1791,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 5, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 5, internal_asis_type,
 						   field_type_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1821,7 +1831,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 9, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 9, internal_asis_type,
 						   not_null, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1831,7 +1841,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 10, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 10, internal_asis_type,
 						   relhasrules, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -1841,7 +1851,7 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 11, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 11, internal_asis_type,
 						   relkind, sizeof(relkind), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2165,8 +2175,9 @@ PGAPI_SpecialColumns(
 	StatementClass *col_stmt;
 	char		columns_query[INFO_INQUIRY_LEN];
 	RETCODE		result;
-	char		relhasrules[MAX_INFO_STRING], relkind[8];
+	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8];
 	BOOL		relisaview;
+	SWORD		internal_asis_type = SQL_C_CHAR;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
 
@@ -2177,19 +2188,24 @@ PGAPI_SpecialColumns(
 	}
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+#ifdef	UNICODE_SUPPORT
+	if (conn->unicode)
+		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
 
 	stmt->manual_result = TRUE;
 
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
+	strcpy(columns_query, "select c.relhasrules, c.relkind");
+	if (PG_VERSION_GE(conn, 7.2))
+		strcat(columns_query, ", c.relhasoids");
 	if (conn->schema_support)
-		sprintf(columns_query, "select c.relhasrules, c.relkind "
-			"from pg_namespace u, pg_class c where "
+		strcat(columns_query, " from pg_namespace u, pg_class c where "
 			"u.oid = c.relnamespace");
 	else
-		sprintf(columns_query, "select c.relhasrules, c.relkind "
-			"from pg_user u, pg_class c where "
+		strcat(columns_query, " from pg_user u, pg_class c where "
 			"u.usesysid = c.relowner");
 
 	/* TableName cannot contain a string search pattern */
@@ -2222,8 +2238,8 @@ PGAPI_SpecialColumns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 1, SQL_C_CHAR,
-						   relhasrules, MAX_INFO_STRING, NULL);
+	result = PGAPI_BindCol(hcol_stmt, 1, internal_asis_type,
+					relhasrules, sizeof(relhasrules), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, col_stmt);
@@ -2232,7 +2248,7 @@ PGAPI_SpecialColumns(
 		return SQL_ERROR;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 2, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 2, internal_asis_type,
 					relkind, sizeof(relkind), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2240,6 +2256,19 @@ PGAPI_SpecialColumns(
 		SC_log_error(func, "", stmt);
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		return SQL_ERROR;
+	}
+	relhasoids[0] = '1';
+	if (PG_VERSION_GE(conn, 7.2))
+	{
+		result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
+					relhasoids, sizeof(relhasoids), NULL);
+		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		{
+			SC_error_copy(stmt, col_stmt);
+			SC_log_error(func, "", stmt);
+			PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+			return SQL_ERROR;
+		}
 	}
 
 	result = PGAPI_Fetch(hcol_stmt);
@@ -2263,11 +2292,39 @@ PGAPI_SpecialColumns(
 	QR_set_field_info(res, 6, "SCALE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 7, "PSEUDO_COLUMN", PG_TYPE_INT2, 2);
 
-	if (!relisaview)
+	if (relisaview)
+	{
+		/* there's no oid for views */
+		if (fColType == SQL_BEST_ROWID)
+		{
+			return SQL_NO_DATA_FOUND;
+		}
+		else if (fColType == SQL_ROWVER)
+		{
+			Int2		the_type = PG_TYPE_TID;
+
+			row = (TupleNode *) malloc(sizeof(TupleNode) + (8 - 1) *sizeof(TupleField));
+
+			set_tuplefield_null(&row->tuple[0]);
+			set_tuplefield_string(&row->tuple[1], "ctid");
+			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, the_type));
+			set_tuplefield_string(&row->tuple[3], pgtype_to_name(stmt, the_type));
+			set_tuplefield_int4(&row->tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&row->tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int2(&row->tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
+			set_tuplefield_int2(&row->tuple[7], SQL_PC_NOT_PSEUDO);
+
+			QR_add_tuple(res, row);
+inolog("Add ctid\n");
+		}
+	}
+	else
 	{
 		/* use the oid value for the rowid */
 		if (fColType == SQL_BEST_ROWID)
 		{
+			if (relhasoids[0] != '1')
+				return SQL_NO_DATA_FOUND;
 			row = (TupleNode *) malloc(sizeof(TupleNode) + (8 - 1) *sizeof(TupleField));
 
 			set_tuplefield_int2(&row->tuple[0], SQL_SCOPE_SESSION);
@@ -2301,45 +2358,6 @@ PGAPI_SpecialColumns(
 
 				QR_add_tuple(res, row);
 			}
-		}
-	}
-	else
-	{
-		/* use the oid value for the rowid */
-		if (fColType == SQL_BEST_ROWID)
-		{
-			row = (TupleNode *) malloc(sizeof(TupleNode) + (8 - 1) *sizeof(TupleField));
-
-			set_tuplefield_int2(&row->tuple[0], SQL_SCOPE_SESSION);
-			set_tuplefield_string(&row->tuple[1], "oid");
-			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, PG_TYPE_OID));
-			set_tuplefield_string(&row->tuple[3], "OID");
-			set_tuplefield_int4(&row->tuple[4], pgtype_column_size(stmt, PG_TYPE_OID, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&row->tuple[5], pgtype_buffer_length(stmt, PG_TYPE_OID, PG_STATIC, PG_STATIC));
-			set_tuplefield_int2(&row->tuple[6], pgtype_decimal_digits(stmt, PG_TYPE_OID, PG_STATIC));
-			set_tuplefield_int2(&row->tuple[7], SQL_PC_NOT_PSEUDO);
-
-			QR_add_tuple(res, row);
-inolog("Add oid\n");
-
-		}
-		else if (fColType == SQL_ROWVER)
-		{
-			Int2		the_type = PG_TYPE_TID;
-
-			row = (TupleNode *) malloc(sizeof(TupleNode) + (8 - 1) *sizeof(TupleField));
-
-			set_tuplefield_null(&row->tuple[0]);
-			set_tuplefield_string(&row->tuple[1], "ctid");
-			set_tuplefield_int2(&row->tuple[2], pgtype_to_concise_type(stmt, the_type));
-			set_tuplefield_string(&row->tuple[3], pgtype_to_name(stmt, the_type));
-			set_tuplefield_int4(&row->tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&row->tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
-			set_tuplefield_int2(&row->tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
-			set_tuplefield_int2(&row->tuple[7], SQL_PC_NOT_PSEUDO);
-
-			QR_add_tuple(res, row);
-inolog("Add ctid\n");
 		}
 	}
 
@@ -2394,6 +2412,7 @@ PGAPI_Statistics(
 	char		error = TRUE;
 	ConnInfo   *ci;
 	char		buf[256];
+	SWORD		internal_asis_type = SQL_C_CHAR;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -2408,6 +2427,10 @@ PGAPI_Statistics(
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+#ifdef	UNICODE_SUPPORT
+	if (conn->unicode)
+		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
 
 	if (res = QR_Constructor(), !res)
 	{
@@ -2487,7 +2510,7 @@ PGAPI_Statistics(
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 		goto SEEYA;
 	}
-	result = PGAPI_BindCol(hcol_stmt, 4, SQL_C_CHAR,
+	result = PGAPI_BindCol(hcol_stmt, 4, internal_asis_type,
 						 column_name, sizeof(column_name), &column_name_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2576,7 +2599,7 @@ PGAPI_Statistics(
 	}
 
 	/* bind the index name column */
-	result = PGAPI_BindCol(hindx_stmt, 1, SQL_C_CHAR,
+	result = PGAPI_BindCol(hindx_stmt, 1, internal_asis_type,
 						   index_name, MAX_INFO_STRING, &index_name_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2598,7 +2621,7 @@ PGAPI_Statistics(
 
 	}
 	/* bind the "is unique" column */
-	result = PGAPI_BindCol(hindx_stmt, 3, SQL_C_CHAR,
+	result = PGAPI_BindCol(hindx_stmt, 3, internal_asis_type,
 						   isunique, sizeof(isunique), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2609,7 +2632,7 @@ PGAPI_Statistics(
 	}
 
 	/* bind the "is clustered" column */
-	result = PGAPI_BindCol(hindx_stmt, 4, SQL_C_CHAR,
+	result = PGAPI_BindCol(hindx_stmt, 4, internal_asis_type,
 						   isclustered, sizeof(isclustered), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2621,7 +2644,7 @@ PGAPI_Statistics(
 	}
 
 	/* bind the "is hash" column */
-	result = PGAPI_BindCol(hindx_stmt, 5, SQL_C_CHAR,
+	result = PGAPI_BindCol(hindx_stmt, 5, internal_asis_type,
 						   ishash, sizeof(ishash), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2632,7 +2655,7 @@ PGAPI_Statistics(
 
 	}
 
-	result = PGAPI_BindCol(hindx_stmt, 6, SQL_C_CHAR,
+	result = PGAPI_BindCol(hindx_stmt, 6, internal_asis_type,
 					relhasrules, sizeof(relhasrules), NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -2843,6 +2866,7 @@ PGAPI_PrimaryKeys(
 	int			qno,
 				qstart,
 				qend;
+	SWORD		internal_asis_type = SQL_C_CHAR;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -2891,6 +2915,10 @@ PGAPI_PrimaryKeys(
 	tbl_stmt = (StatementClass *) htbl_stmt;
 
 	conn = SC_get_conn(stmt);
+#ifdef	UNICODE_SUPPORT
+	if (conn->unicode)
+		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
 	pktab[0] = '\0';
 	make_string(szTableName, cbTableName, pktab);
 	if (pktab[0] == '\0')
@@ -2904,7 +2932,7 @@ PGAPI_PrimaryKeys(
 	if (conn->schema_support)
 		schema_strcat(pkscm, "%.*s", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
 
-	result = PGAPI_BindCol(htbl_stmt, 1, SQL_C_CHAR,
+	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   attname, MAX_INFO_STRING, &attname_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
@@ -3329,6 +3357,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	SWORD		trig_nargs,
 				upd_rule_type = 0,
 				del_rule_type = 0;
+	SWORD		internal_asis_type = SQL_C_CHAR;
 
 #if (ODBCVER >= 0x0300)
 	SWORD		defer_type;
@@ -3420,6 +3449,10 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 	make_string(szFkTableName, cbFkTableName, fk_table_needed);
 
 	conn = SC_get_conn(stmt);
+#ifdef	UNICODE_SUPPORT
+	if (conn->unicode)
+		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
 	pkey_text = fkey_text = NULL;
 	pkey_alloced = fkey_alloced = FALSE;
 
@@ -3433,81 +3466,79 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 		if (conn->schema_support)
 		{
 			schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn); 	
-			sprintf(tables_query,
-				"SELECT	pt1.tgargs, "
-				"		pt1.tgnargs, "
-				"		pt1.tgdeferrable, "
-				"		pt1.tginitdeferred, "
+			sprintf(tables_query, "SELECT	pt.tgargs, "
+				"		pt.tgnargs, "
+				"		pt.tgdeferrable, "
+				"		pt.tginitdeferred, "
+				"		pp1.proname, "
 				"		pp2.proname, "
-				"		pp3.proname, "
+				"		pc.oid, "
 				"		pc1.oid, "
-				"		pc2.oid, "
-				"		pc2.relname, "
-				"		pn2.nspname "
-				"FROM	pg_class pc1, "
-				"		pg_class pc2, "
+				"		pc1.relname, "
+				"		pn.nspname "
+				"FROM	pg_class pc, "
 				"		pg_proc pp1, "
 				"		pg_proc pp2, "
-				"		pg_proc pp3, "
 				"		pg_trigger pt1, "
 				"		pg_trigger pt2, "
-				"		pg_trigger pt3, "
-				"		pg_namespace pn1, "
-				"		pg_namespace pn2 "
-				"WHERE	pt1.tgrelid = pc1.oid "
+				"		pg_proc pp, "
+				"		pg_trigger pt, "
+				"		pg_class pc1, "
+				"		pg_namespace pn "
+				"		pg_namespace pn1 "
+				"WHERE	pt.tgrelid = pc.oid "
+				"AND pp.oid = pt.tgfoid "
+				"AND pt1.tgconstrrelid = pc.oid "
 				"AND pp1.oid = pt1.tgfoid "
-				"AND pt2.tgconstrrelid = pc1.oid "
-				"AND pp2.oid = pt2.tgfoid "
-				"AND pt3.tgfoid = pp3.oid "
-				"AND pt3.tgconstrrelid = pc1.oid "
-				"AND pc1.relname='%s' "
-				"AND pn1.oid = pc1.relnamespace "
-				"AND pn1.nspname = '%s' "
-				"AND pp1.proname LIKE '%%ins' "
-				"AND pp2.proname LIKE '%%upd' "
-				"AND pp3.proname LIKE '%%del' "
-				"AND pt2.tgrelid=pt1.tgconstrrelid "
-				"AND pt2.tgconstrname=pt1.tgconstrname "
-				"AND pt3.tgrelid=pt1.tgconstrrelid "
-				"AND pt3.tgconstrname=pt1.tgconstrname "
-				"AND pt1.tgconstrrelid=pc2.oid "
-				"AND pc2.relnamespace=pn2.oid ",
+				"AND pt2.tgfoid = pp2.oid "
+				"AND pt2.tgconstrrelid = pc.oid "
+				"AND ((pc.relname='%s') "
+				"AND (pn1.oid = pc.relnamespace) "
+				"AND (pn1.nspname = '%s') "
+				"AND (pp.proname LIKE '%%ins') "
+				"AND (pp1.proname LIKE '%%upd') "
+				"AND (pp2.proname LIKE '%%del') "
+				"AND (pt1.tgrelid=pt.tgconstrrelid) "
+				"AND (pt1.tgconstrname=pt.tgconstrname) "
+				"AND (pt2.tgrelid=pt.tgconstrrelid) "
+				"AND (pt2.tgconstrname=pt.tgconstrname) "
+				"AND (pt.tgconstrrelid=pc1.oid) "
+				"AND (pc1.relnamespace=pn.oid))",
 				fk_table_needed, schema_needed);
 		}
 		else
-			sprintf(tables_query,
-				"SELECT	pt1.tgargs, "
-				"		pt1.tgnargs, "
-				"		pt1.tgdeferrable, "
-				"		pt1.tginitdeferred, "
+			sprintf(tables_query, "SELECT	pt.tgargs, "
+				"		pt.tgnargs, "
+				"		pt.tgdeferrable, "
+				"		pt.tginitdeferred, "
+				"		pp1.proname, "
 				"		pp2.proname, "
-				"		pp3.proname, "
+				"		pc.oid, "
 				"		pc1.oid, "
-				"		pc2.oid, "
-				"		pc2.relname "
-				"FROM	pg_class pc1, "
-				"		pg_class pc2, "
+				"		pc1.relname "
+				"FROM	pg_class pc, "
 				"		pg_proc pp1, "
 				"		pg_proc pp2, "
-				"		pg_proc pp3, "
-				"		pg_trigger pt1 "
+				"		pg_trigger pt1, "
 				"		pg_trigger pt2, "
-				"		pg_trigger pt3 "
-				"WHERE	pt1.tgrelid = pc1.oid "
+				"		pg_proc pp, "
+				"		pg_trigger pt, "
+				"		pg_class pc1 "
+				"WHERE	pt.tgrelid = pc.oid "
+				"AND pp.oid = pt.tgfoid "
+				"AND pt1.tgconstrrelid = pc.oid "
 				"AND pp1.oid = pt1.tgfoid "
-				"AND pt2.tgconstrrelid = pc1.oid "
-				"AND pp2.oid = pt2.tgfoid "
-				"AND pt3.tgfoid = pp3.oid "
-				"AND pt3.tgconstrrelid = pc1.oid "
-				"AND pc1.relname='%s' "
-				"AND pp1.proname LIKE '%%ins' "
-				"AND pp2.proname LIKE '%%upd' "
-				"AND pp3.proname LIKE '%%del' "
-				"AND pt2.tgrelid=pt1.tgconstrrelid "
-				"AND pt2.tgconstrname=pt1.tgconstrname "
-				"AND pt3.tgrelid=pt1.tgconstrrelid "
-				"AND pt3.tgconstrname=pt1.tgconstrname "
-				"AND pt1.tgconstrrelid=pc2.oid ",
+				"AND pt2.tgfoid = pp2.oid "
+				"AND pt2.tgconstrrelid = pc.oid "
+				"AND ((pc.relname='%s') "
+				"AND (pp.proname LIKE '%%ins') "
+				"AND (pp1.proname LIKE '%%upd') "
+				"AND (pp2.proname LIKE '%%del') "
+				"AND (pt1.tgrelid=pt.tgconstrrelid) "
+				"AND (pt1.tgconstrname=pt.tgconstrname) "
+				"AND (pt2.tgrelid=pt.tgconstrrelid) "
+				"AND (pt2.tgconstrname=pt.tgconstrname) "
+				"AND (pt.tgconstrrelid=pc1.oid)) ",
 				fk_table_needed);
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
@@ -3540,7 +3571,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 3, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 						 trig_deferrable, sizeof(trig_deferrable), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3550,7 +3581,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 4, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
 					 trig_initdeferred, sizeof(trig_initdeferred), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3560,7 +3591,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 5, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 5, internal_asis_type,
 							   upd_rule, sizeof(upd_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3570,7 +3601,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 6, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 6, internal_asis_type,
 							   del_rule, sizeof(del_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3598,7 +3629,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
 		}
-		result = PGAPI_BindCol(htbl_stmt, 9, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 9, internal_asis_type,
 					pk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3608,18 +3639,18 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 			return SQL_ERROR;
 		}
 
-if (conn->schema_support)
-{
-		result = PGAPI_BindCol(htbl_stmt, 10, SQL_C_CHAR,
-					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (conn->schema_support)
 		{
-			SC_error_copy(stmt, tbl_stmt);
-			SC_log_error(func, "", stmt);
-			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
-			return SQL_ERROR;
+			result = PGAPI_BindCol(htbl_stmt, 10, internal_asis_type,
+					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
+			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			{
+				SC_error_copy(stmt, tbl_stmt);
+				SC_log_error(func, "", stmt);
+				PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
+				return SQL_ERROR;
+			}
 		}
-}
 
 		result = PGAPI_Fetch(htbl_stmt);
 		if (result == SQL_NO_DATA_FOUND)
@@ -3641,7 +3672,7 @@ if (conn->schema_support)
 			return SQL_ERROR;
 		}
 
-		keyresult = PGAPI_BindCol(hpkey_stmt, 4, SQL_C_CHAR,
+		keyresult = PGAPI_BindCol(hpkey_stmt, 4, internal_asis_type,
 								  pkey, sizeof(pkey), NULL);
 		if (keyresult != SQL_SUCCESS)
 		{
@@ -3811,75 +3842,77 @@ if (conn->schema_support)
 		if (conn->schema_support)
 		{
 			schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn); 	
-			sprintf(tables_query,
-				"SELECT	pt1.tgargs, "
-				"		pt1.tgnargs, "
-				"		pt1.tgdeferrable, "
-				"		pt1.tginitdeferred, "
+			sprintf(tables_query, "SELECT	pt.tgargs, "
+				"		pt.tgnargs, "
+				"		pt.tgdeferrable, "
+				"		pt.tginitdeferred, "
+				"		pp.proname, "
 				"		pp1.proname, "
-				"		pp2.proname, "
+				"		pc.oid, "
 				"		pc1.oid, "
-				"		pc2.oid, "
-				"		pc2.relname, "
-				"		pn2.nspname "
-				"FROM	pg_class pc1, "
+				"		pc1.relname, "
+				"		pn.nspname "
+				"FROM	pg_class pc, "
+				"		pg_class pc1, "
 				"		pg_class pc2, "
-				"		pg_class pc3, "
+				"		pg_proc pp, "
 				"		pg_proc pp1, "
-				"		pg_proc pp2, "
+				"		pg_trigger pt, "
 				"		pg_trigger pt1, "
 				"		pg_trigger pt2, "
-				"		pg_trigger pt3, "
-				"		pg_namespace pn1, "
-				"		pg_namespace pn2 "
-				"WHERE	pt1.tgconstrrelid = pc1.oid "
-				"	AND pt1.tgrelid = pc2.oid "
-				"	AND pt2.tgfoid = pp2.oid "
+				"		pg_namespace pn "
+				"		pg_namespace pn1 "
+				"WHERE	pt.tgconstrrelid = pc.oid "
+				"	AND pt.tgrelid = pc1.oid "
+				"	AND pt1.tgfoid = pp1.oid "
+				"	AND pt1.tgconstrrelid = pc1.oid "
 				"	AND pt2.tgconstrrelid = pc2.oid "
-				"	AND pt3.tgconstrrelid = pc3.oid "
-				"	AND pt3.tgfoid = pp1.oid "
-				"	AND pc3.oid = pt1.tgrelid "
-				"	AND pc1.relname='%s' "
-				"	AND pn1.oid = pc1.relnamespace "
-				"	AND pn1.nspname = '%s' "
-				"	AND pp1.proname LIKE '%%upd' "
-				"	AND pp2.proname LIKE '%%del'"
-				"	AND	pt2.tgrelid = pt1.tgconstrrelid "
-				"	AND	pt3.tgrelid = pt1.tgconstrrelid "
-				"	AND pn2.oid = pc2.relnamespace ",
+				"	AND pt2.tgfoid = pp.oid "
+				"	AND pc2.oid = pt.tgrelid "
+				"	AND ("
+				"		 (pc.relname='%s') "
+				"	AND  (pn1.oid = pc.relnamespace) "
+				"	AND  (pn1.nspname = '%s') "
+				"	AND  (pp.proname Like '%%upd') "
+				"	AND  (pp1.proname Like '%%del')"
+				"	AND	 (pt1.tgrelid = pt.tgconstrrelid) "
+				"	AND	 (pt2.tgrelid = pt.tgconstrrelid) "
+				"	AND (pn.oid = pc1.relnamespace) "
+				"		)",
 				pk_table_needed, schema_needed);
 		}
 		else
-			sprintf(tables_query,
-				"SELECT	pt1.tgargs, "
-				"		pt1.tgnargs, "
-				"		pt1.tgdeferrable, "
-				"		pt1.tginitdeferred, "
+			sprintf(tables_query, "SELECT	pt.tgargs, "
+				"		pt.tgnargs, "
+				"		pt.tgdeferrable, "
+				"		pt.tginitdeferred, "
+				"		pp.proname, "
 				"		pp1.proname, "
-				"		pp2.proname, "
+				"		pc.oid, "
 				"		pc1.oid, "
-				"		pc2.oid, "
-				"		pc2.relname "
-				"FROM	pg_class pc1, "
+				"		pc1.relname "
+				"FROM	pg_class pc, "
+				"		pg_class pc1, "
 				"		pg_class pc2, "
-				"		pg_class pc3, "
+				"		pg_proc pp, "
 				"		pg_proc pp1, "
-				"		pg_proc pp2, "
+				"		pg_trigger pt, "
 				"		pg_trigger pt1, "
-				"		pg_trigger pt2, "
-				"		pg_trigger pt3 "
-				"WHERE	pt1.tgconstrrelid = pc1.oid "
-				"	AND pt1.tgrelid = pc2.oid "
-				"	AND pt2.tgfoid = pp2.oid "
+				"		pg_trigger pt2 "
+				"WHERE	pt.tgconstrrelid = pc.oid "
+				"	AND pt.tgrelid = pc1.oid "
+				"	AND pt1.tgfoid = pp1.oid "
+				"	AND pt1.tgconstrrelid = pc1.oid "
 				"	AND pt2.tgconstrrelid = pc2.oid "
-				"	AND pt3.tgconstrrelid = pc3.oid "
-				"	AND pt3.tgfoid = pp1.oid "
-				"	AND pc3.oid = pt1.tgrelid "
-				"	AND pc1.relname='%s' "
-				"	AND pp1.proname Like '%%upd' "
-				"	AND pp2.proname Like '%%del' "
-				"	AND pt2.tgrelid = pt1.tgconstrrelid "
-				"	AND pt3.tgrelid = pt1.tgconstrrelid ",
+				"	AND pt2.tgfoid = pp.oid "
+				"	AND pc2.oid = pt.tgrelid "
+				"	AND ("
+				"		 (pc.relname='%s') "
+				"	AND  (pp.proname Like '%%upd') "
+				"	AND  (pp1.proname Like '%%del')"
+				"	AND	 (pt1.tgrelid = pt.tgconstrrelid) "
+				"	AND	 (pt2.tgrelid = pt.tgconstrrelid) "
+				"		)",
 				pk_table_needed);
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
@@ -3911,7 +3944,7 @@ if (conn->schema_support)
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 3, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 						 trig_deferrable, sizeof(trig_deferrable), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3921,7 +3954,7 @@ if (conn->schema_support)
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 4, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
 					 trig_initdeferred, sizeof(trig_initdeferred), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3931,7 +3964,7 @@ if (conn->schema_support)
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 5, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 5, internal_asis_type,
 							   upd_rule, sizeof(upd_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3941,7 +3974,7 @@ if (conn->schema_support)
 			return SQL_ERROR;
 		}
 
-		result = PGAPI_BindCol(htbl_stmt, 6, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 6, internal_asis_type,
 							   del_rule, sizeof(del_rule), NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3969,7 +4002,7 @@ if (conn->schema_support)
 			PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 			return SQL_ERROR;
 		}
-		result = PGAPI_BindCol(htbl_stmt, 9, SQL_C_CHAR,
+		result = PGAPI_BindCol(htbl_stmt, 9, internal_asis_type,
 					fk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -3981,7 +4014,7 @@ if (conn->schema_support)
 
 		if (conn->schema_support)
 		{
-			result = PGAPI_BindCol(htbl_stmt, 10, SQL_C_CHAR,
+			result = PGAPI_BindCol(htbl_stmt, 10, internal_asis_type,
 					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
 			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 			{
