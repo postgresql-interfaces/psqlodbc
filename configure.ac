@@ -10,20 +10,40 @@ AM_MAINTAINER_MODE
 AC_DEFINE(DRIVER_CURSOR_IMPLEMENT, 1,
 	[Define to 1 to build with driver cursors option)])
 
+#
+# Decide which ODBC driver manager to use
+#
 PGAC_ARG_BOOL(with, unixodbc, no,
-              [  --with-unixodbc         build ODBC driver for unixODBC],
-              [AC_DEFINE(WITH_UNIXODBC, 1,
-                         [Define to 1 to build with unixODBC support (--with-unixodbc)])
-               AC_DEFINE(SQL_WCHART_CONVERT, [], [Define to use wchar_t as SQLWCHAR in unixODBC])])
+              [  --with-unixodbc         build ODBC driver for unixODBC (default)],
+              [AC_CHECK_LIB(odbcinst, SQLGetPrivateProfileString, [],
+                            [AC_MSG_ERROR([unixODBC driver manager not found])])])
 
 PGAC_ARG_BOOL(with, iodbc, no,
               [  --with-iodbc            build ODBC driver for iODBC],
-              [AC_DEFINE(WITH_IODBC, 1,
-                         [Define to 1 to build with iODBC support (--with-iodbc)])])
+              [AC_CHECK_LIB(iodbcinst, SQLGetPrivateProfileString, [],
+                            [AC_MSG_ERROR([iODBC driver manager not found])])])
 
 if test "$with_unixodbc" = yes && test "$with_iodbc" = yes; then
   AC_MSG_ERROR([ODBC driver cannot be built for both unixODBC and iODBC])
 fi
+
+if test "$with_unixodbc" != yes && test "$with_iodbc" != yes; then
+  AC_CHECK_LIB(odbcinst, SQLGetPrivateProfileString,
+               [with_unixodbc=yes],
+               [AC_CHECK_LIB(iodbcinst, SQLGetPrivateProfileString,
+                             [with_iodbc=yes],
+                             [AC_MSG_ERROR([no suitable ODBC driver manager found])])])
+fi
+
+if test "$with_unixodbc" = yes; then
+  AC_DEFINE(WITH_UNIXODBC, 1, [Define to 1 to build with unixODBC support])
+  AC_DEFINE(SQL_WCHART_CONVERT, [], [Define to use wchar_t as SQLWCHAR in unixODBC])
+fi
+
+if test "$with_iodbc" = yes; then
+  AC_DEFINE(WITH_IODBC, 1, [Define to 1 to build with iODBC support])
+fi
+
 
 #
 # Default odbc version number (--with-odbcver), default 0x0300
@@ -46,8 +66,6 @@ AC_ARG_ENABLE(unicode,
                          [Define to disable mapping SQL* to SQL*W])
                AC_CHECK_FUNCS(iswascii)])
 
-AM_CONDITIONAL(with_unixodbc, [test $with_unixodbc = yes])
-AM_CONDITIONAL(with_iodbc, [test $with_iodbc = yes])
 AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
 
 AC_CHECK_FUNCS(strtoul strtoll)

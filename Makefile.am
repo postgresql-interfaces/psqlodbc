@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.12 2004/07/05 09:55:16 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.13 2004/07/10 22:26:26 petere Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -18,11 +18,11 @@ psqlodbc_la_SOURCES = \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
 	statement.c tuple.c tuplelist.c dlg_specific.c odbcapi.c \
 	multibyte.c \
-	gpps.c odbcapi30.c pgapi30.c info30.c descriptor.c
+	odbcapi30.c pgapi30.c info30.c descriptor.c
 
 psqlodbc_la_SOURCES += \
 	bind.h columninfo.h connection.h convert.h descriptor.h \
-	dlg_specific.h environ.h gpps.h \
+	dlg_specific.h environ.h \
 	lobj.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
 	tuplelist.h version.h
@@ -33,16 +33,6 @@ psqlodbc_la_SOURCES += \
 endif
 
 EXTRA_psqlodbc_la_SOURCES = md5.c
-
-if with_unixodbc
-psqlodbc_la_LIBADD = -lodbcinst
-else
-if with_iodbc
-psqlodbc_la_LIBADD = -liodbcinst
-else
-AM_CPPFLAGS = -DODBCINSTDIR='"$(odbcinst_ini_dir)"'
-endif
-endif
 
 dist_pkgdata_DATA = odbc.sql odbc-drop.sql
 BUILT_SOURCES = odbc-drop.sql

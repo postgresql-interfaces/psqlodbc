@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.83 2004/07/01 09:20:56 dpage Exp $
+ * $Id: psqlodbc.h,v 1.84 2004/07/10 22:26:27 petere Exp $
  *
  */
 
@@ -39,14 +39,9 @@
 #ifndef	WIN32
 #undef	WIN_MULTITHREAD_SUPPORT
 #endif
-#if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
+
 #include <sql.h>
 #include <sqlext.h>
-#else
-#include "iodbc.h"
-#include "isql.h"
-#include "isqlext.h"
-#endif
 
 #if defined(WIN32)
 #include <odbcinst.h>
@@ -55,7 +50,7 @@
 #elif defined(WITH_IODBC)
 #include <iodbcinst.h>
 #else
-#include "gpps.h"
+#error "don't know where to get odbcinst.h"
 #endif
 
 
