@@ -1696,7 +1696,8 @@ copy_statement_with_parameters(StatementClass *stmt)
 		if (stmt->parse_status == STMT_PARSE_FATAL)
 		{
 			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-			return SQL_ERROR;
+			if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
+				stmt->options.cursor_type = SQL_CURSOR_STATIC;
 		}
 		else if (!stmt->updatable)
 		{
