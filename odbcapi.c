@@ -40,11 +40,12 @@ SQLAllocConnect(HENV EnvironmentHandle,
 				HDBC FAR * ConnectionHandle)
 {
 	RETCODE	ret;
+	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
 	mylog("[SQLAllocConnect]");
-	ENTER_ENV_CS((EnvironmentClass *) EnvironmentHandle);
+	ENTER_ENV_CS(env);
 	ret = PGAPI_AllocConnect(EnvironmentHandle, ConnectionHandle);
-	LEAVE_ENV_CS((EnvironmentClass *) EnvironmentHandle);
+	LEAVE_ENV_CS(env);
 	return ret;
 }
 
@@ -63,12 +64,13 @@ SQLAllocStmt(HDBC ConnectionHandle,
 			 HSTMT *StatementHandle)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLAllocStmt]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	CC_clear_error((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_AllocStmt(ConnectionHandle, StatementHandle);
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -79,13 +81,14 @@ SQLBindCol(HSTMT StatementHandle,
 		   SQLINTEGER *StrLen_or_Ind)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLBindCol]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_BindCol(StatementHandle, ColumnNumber,
 				   TargetType, TargetValue, BufferLength, StrLen_or_Ind);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -105,14 +108,15 @@ SQLColumns(HSTMT StatementHandle,
 		   SQLCHAR *ColumnName, SQLSMALLINT NameLength4)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLColumns]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_Columns(StatementHandle, CatalogName, NameLength1,
 					SchemaName, NameLength2, TableName, NameLength3,
 					ColumnName, NameLength4, 0);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -124,13 +128,14 @@ SQLConnect(HDBC ConnectionHandle,
 		   SQLCHAR *Authentication, SQLSMALLINT NameLength3)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLConnect]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	CC_clear_error((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_Connect(ConnectionHandle, ServerName, NameLength1,
 					 UserName, NameLength2, Authentication, NameLength3);
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -145,13 +150,14 @@ SQLDriverConnect(HDBC hdbc,
 				 UWORD fDriverCompletion)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[SQLDriverConnect]");
-	ENTER_CONN_CS((ConnectionClass *) hdbc);
-	CC_clear_error((ConnectionClass *) hdbc);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_DriverConnect(hdbc, hwnd, szConnStrIn, cbConnStrIn,
 		szConnStrOut, cbConnStrOutMax, pcbConnStrOut, fDriverCompletion);
-	LEAVE_CONN_CS((ConnectionClass *) hdbc);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 RETCODE		SQL_API
@@ -164,13 +170,14 @@ SQLBrowseConnect(
 				 SQLSMALLINT *pcbConnStrOut)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[SQLBrowseConnect]");
-	ENTER_CONN_CS((ConnectionClass *) hdbc);
-	CC_clear_error((ConnectionClass *) hdbc);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_BrowseConnect(hdbc, szConnStrIn, cbConnStrIn,
 						   szConnStrOut, cbConnStrOutMax, pcbConnStrOut);
-	LEAVE_CONN_CS((ConnectionClass *) hdbc);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -199,14 +206,15 @@ SQLDescribeCol(HSTMT StatementHandle,
 			   SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLDescribeCol]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_DescribeCol(StatementHandle, ColumnNumber,
 							 ColumnName, BufferLength, NameLength,
 						  DataType, ColumnSize, DecimalDigits, Nullable);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -214,12 +222,13 @@ RETCODE		SQL_API
 SQLDisconnect(HDBC ConnectionHandle)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLDisconnect]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	CC_clear_error((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_Disconnect(ConnectionHandle);
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -248,12 +257,13 @@ SQLExecDirect(HSTMT StatementHandle,
 			  SQLCHAR *StatementText, SQLINTEGER TextLength)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLExecDirect]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -261,12 +271,13 @@ RETCODE		SQL_API
 SQLExecute(HSTMT StatementHandle)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLExecute]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_Execute(StatementHandle);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -336,12 +347,13 @@ SQLGetConnectOption(HDBC ConnectionHandle,
 					SQLUSMALLINT Option, PTR Value)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLGetConnectOption]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	CC_clear_error((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_GetConnectOption(ConnectionHandle, Option, Value);
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 RETCODE		SQL_API
@@ -350,13 +362,14 @@ SQLGetCursorName(HSTMT StatementHandle,
 				 SQLSMALLINT *NameLength)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLGetCursorName]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_GetCursorName(StatementHandle, CursorName, BufferLength,
 							   NameLength);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -367,13 +380,14 @@ SQLGetData(HSTMT StatementHandle,
 		   SQLINTEGER *StrLen_or_Ind)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLGetData]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_GetData(StatementHandle, ColumnNumber, TargetType,
 						 TargetValue, BufferLength, StrLen_or_Ind);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -382,10 +396,11 @@ SQLGetFunctions(HDBC ConnectionHandle,
 				SQLUSMALLINT FunctionId, SQLUSMALLINT *Supported)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLGetFunctions]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	CC_clear_error((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 #if (ODBCVER >= 0x0300)
 	if (FunctionId == SQL_API_ODBC3_ALL_FUNCTIONS)
 		ret = PGAPI_GetFunctions30(ConnectionHandle, FunctionId, Supported);
@@ -394,7 +409,7 @@ SQLGetFunctions(HDBC ConnectionHandle,
 	{
 		ret = PGAPI_GetFunctions(ConnectionHandle, FunctionId, Supported);
 	}
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 RETCODE		SQL_API
@@ -405,7 +420,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 	RETCODE		ret;
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 #if (ODBCVER >= 0x0300)
 	mylog("[SQLGetInfo(30)]");
@@ -427,7 +442,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 			BufferLength, StringLength), SQL_ERROR == ret)
 		CC_log_error("PGAPI_GetInfo", "", conn);
 #endif
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -436,12 +451,13 @@ SQLGetStmtOption(HSTMT StatementHandle,
 				 SQLUSMALLINT Option, PTR Value)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLGetStmtOption]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -450,12 +466,13 @@ SQLGetTypeInfo(HSTMT StatementHandle,
 			   SQLSMALLINT DataType)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLGetTypeInfo]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -464,12 +481,13 @@ SQLNumResultCols(HSTMT StatementHandle,
 				 SQLSMALLINT *ColumnCount)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLNumResultCols]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_NumResultCols(StatementHandle, ColumnCount);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -478,12 +496,13 @@ SQLParamData(HSTMT StatementHandle,
 			 PTR *Value)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLParamData]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ParamData(StatementHandle, Value);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -492,12 +511,13 @@ SQLPrepare(HSTMT StatementHandle,
 		   SQLCHAR *StatementText, SQLINTEGER TextLength)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLPrepare]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_Prepare(StatementHandle, StatementText, TextLength);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -506,12 +526,13 @@ SQLPutData(HSTMT StatementHandle,
 		   PTR Data, SQLINTEGER StrLen_or_Ind)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLPutData]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_PutData(StatementHandle, Data, StrLen_or_Ind);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -520,12 +541,13 @@ SQLRowCount(HSTMT StatementHandle,
 			SQLINTEGER *RowCount)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLRowCount]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_RowCount(StatementHandle, RowCount);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -534,12 +556,13 @@ SQLSetConnectOption(HDBC ConnectionHandle,
 					SQLUSMALLINT Option, SQLUINTEGER Value)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLSetConnectionOption]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	CC_clear_error((ConnectionClass *) ConnectionHandle);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_SetConnectOption(ConnectionHandle, Option, Value);
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -548,12 +571,13 @@ SQLSetCursorName(HSTMT StatementHandle,
 				 SQLCHAR *CursorName, SQLSMALLINT NameLength)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLSetCursorName]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_SetCursorName(StatementHandle, CursorName, NameLength);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -580,12 +604,13 @@ SQLSetStmtOption(HSTMT StatementHandle,
 				 SQLUSMALLINT Option, SQLUINTEGER Value)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLSetStmtOption]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_SetStmtOption(StatementHandle, Option, Value);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -598,14 +623,15 @@ SQLSpecialColumns(HSTMT StatementHandle,
 				  SQLUSMALLINT Nullable)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLSpecialColumns]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, CatalogName,
 			NameLength1, SchemaName, NameLength2, TableName, NameLength3,
 								Scope, Nullable);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -617,14 +643,15 @@ SQLStatistics(HSTMT StatementHandle,
 			  SQLUSMALLINT Unique, SQLUSMALLINT Reserved)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLStatistics]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_Statistics(StatementHandle, CatalogName, NameLength1,
 				 SchemaName, NameLength2, TableName, NameLength3, Unique,
 							Reserved);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -636,14 +663,15 @@ SQLTables(HSTMT StatementHandle,
 		  SQLCHAR *TableType, SQLSMALLINT NameLength4)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLTables]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_Tables(StatementHandle, CatalogName, NameLength1,
 						SchemaName, NameLength2, TableName, NameLength3,
 						TableType, NameLength4);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -677,13 +705,14 @@ SQLColAttributes(
 				 SQLINTEGER *pfDesc)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLColAttributes]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ColAttributes(hstmt, icol, fDescType, rgbDesc,
 							   cbDescMax, pcbDesc, pfDesc);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -700,14 +729,15 @@ SQLColumnPrivileges(
 					SQLSMALLINT cbColumnName)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLColumnPrivileges]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ColumnPrivileges(hstmt, szCatalogName, cbCatalogName,
 					szSchemaName, cbSchemaName, szTableName, cbTableName,
 								  szColumnName, cbColumnName);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -721,13 +751,14 @@ SQLDescribeParam(
 				 SQLSMALLINT *pfNullable)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLDescribeParam]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_DescribeParam(hstmt, ipar, pfSqlType, pcbParamDef,
 							   pibScale, pfNullable);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -740,12 +771,13 @@ SQLExtendedFetch(
 				 SQLUSMALLINT *rgfRowStatus)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLExtendedFetch]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -766,14 +798,16 @@ SQLForeignKeys(
 			   SQLSMALLINT cbFkTableName)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLForeignKeys]");
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ForeignKeys(hstmt, szPkCatalogName, cbPkCatalogName,
 						   szPkSchemaName, cbPkSchemaName, szPkTableName,
 						 cbPkTableName, szFkCatalogName, cbFkCatalogName,
 		   szFkSchemaName, cbFkSchemaName, szFkTableName, cbFkTableName);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -781,12 +815,13 @@ RETCODE		SQL_API
 SQLMoreResults(HSTMT hstmt)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLMoreResults]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_MoreResults(hstmt);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -800,13 +835,14 @@ SQLNativeSql(
 			 SQLINTEGER *pcbSqlStr)
 {
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[SQLNativeSql]");
-	ENTER_CONN_CS((ConnectionClass *) hdbc);
-	CC_clear_error((ConnectionClass *) hdbc);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
 	ret = PGAPI_NativeSql(hdbc, szSqlStrIn, cbSqlStrIn, szSqlStr,
 						   cbSqlStrMax, pcbSqlStr);
-	LEAVE_CONN_CS((ConnectionClass *) hdbc);
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
@@ -816,12 +852,13 @@ SQLNumParams(
 			 SQLSMALLINT *pcpar)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLNumParams]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_NumParams(hstmt, pcpar);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -832,12 +869,13 @@ SQLParamOptions(
 				SQLUINTEGER *pirow)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLParamOptions]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ParamOptions(hstmt, crow, pirow);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -852,13 +890,14 @@ SQLPrimaryKeys(
 			   SQLSMALLINT cbTableName)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLPrimaryKeys]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_PrimaryKeys(hstmt, szCatalogName, cbCatalogName,
 				   szSchemaName, cbSchemaName, szTableName, cbTableName);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -875,14 +914,15 @@ SQLProcedureColumns(
 					SQLSMALLINT cbColumnName)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLProcedureColumns]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_ProcedureColumns(hstmt, szCatalogName, cbCatalogName,
 					  szSchemaName, cbSchemaName, szProcName, cbProcName,
 								  szColumnName, cbColumnName);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -897,13 +937,14 @@ SQLProcedures(
 			  SQLSMALLINT cbProcName)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLProcedures]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_Procedures(hstmt, szCatalogName, cbCatalogName,
 					 szSchemaName, cbSchemaName, szProcName, cbProcName);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -915,12 +956,13 @@ SQLSetPos(
 		  SQLUSMALLINT fLock)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLSetPos]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_SetPos(hstmt, irow, fOption, fLock);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -935,13 +977,14 @@ SQLTablePrivileges(
 				   SQLSMALLINT cbTableName)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLTablePrivileges]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_TablePrivileges(hstmt, szCatalogName, cbCatalogName,
 				   szSchemaName, cbSchemaName, szTableName, cbTableName, 0);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -959,13 +1002,14 @@ SQLBindParameter(
 				 SQLINTEGER *pcbValue)
 {
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLBindParameter]");
-	ENTER_STMT_CS((StatementClass *) hstmt);
-	SC_clear_error((StatementClass *) hstmt);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
 	ret = PGAPI_BindParameter(hstmt, ipar, fParamType, fCType,
 					   fSqlType, cbColDef, ibScale, rgbValue, cbValueMax,
 							   pcbValue);
-	LEAVE_STMT_CS((StatementClass *) hstmt);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }

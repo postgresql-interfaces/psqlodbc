@@ -39,7 +39,7 @@ int			copy_and_convert_field_bindinfo(StatementClass *stmt, Int4 field_type, voi
 int copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 fCType,
 					   PTR rgbValue, SDWORD cbValueMax, SDWORD *pcbValue);
 
-int			copy_statement_with_parameters(StatementClass *stmt);
+int		copy_statement_with_parameters(StatementClass *stmt, BOOL);
 BOOL		convert_money(const char *s, char *sout, size_t soutmax);
 char		parse_datetime(const char *buf, SIMPLE_TIME *st);
 int			convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOOL *changed);

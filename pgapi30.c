@@ -249,18 +249,19 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					*((SQLINTEGER *) DiagInfoPtr) = 0;
 					ret = SQL_NO_DATA_FOUND;
 					stmt = (StatementClass *) Handle;
-					do
+					rtn = PGAPI_StmtError(Handle, -1, NULL,
+						 NULL, NULL, 0, &pcbErrm, 0);
+					switch (rtn)
 					{
-						rtn = PGAPI_StmtError(Handle, RecNumber,
-                        				NULL, NULL, NULL,
-							0, &pcbErrm, 0);
-						if (SQL_SUCCESS == rtn ||
-					    	    SQL_SUCCESS_WITH_INFO == rtn)
-						{
-							*((SQLINTEGER *) DiagInfoPtr)++;
+						case SQL_SUCCESS:
+						case SQL_SUCCESS_WITH_INFO:
 							ret = SQL_SUCCESS;
-						}
-					} while (pcbErrm >= stmt->error_recsize);
+							if (pcbErrm > 0)
+								*((SQLINTEGER *) DiagInfoPtr) = (pcbErrm  - 1)/ stmt->error_recsize + 1;
+							break;
+						default:
+							break;
+					}
 					if (StringLengthPtr)
 						*StringLengthPtr = sizeof(SQLINTEGER);
 					break;
@@ -597,6 +598,29 @@ static  void parameter_bindings_set(APDFields *opts, int params, BOOL maxset)
 	}
 }
 
+static  void parameter_ibindings_set(IPDFields *opts, int params, BOOL maxset)
+{
+	int	i;
+
+	if (params == opts->allocated)
+		return;
+	if (params > opts->allocated)
+	{
+		extend_iparameter_bindings(opts, params);
+		return;
+	}
+	if (maxset)	return;
+
+	for (i = opts->allocated; i > params; i--)
+		reset_a_iparameter_binding(opts, i);
+	opts->allocated = params;
+	if (0 == params)
+	{
+		free(opts->parameters);
+		opts->parameters = NULL;
+	}
+}
+
 static RETCODE SQL_API
 APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
@@ -751,7 +775,6 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 {
 	RETCODE		ret = SQL_SUCCESS;
 	IPDFields	*ipdopts = SC_get_IPD(stmt);
-	APDFields	*apdopts = SC_get_APD(stmt);
 
 	switch (FieldIdentifier)
 	{
@@ -769,12 +792,13 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_TYPE:
-			parameter_bindings_set(apdopts, RecNumber, TRUE);
-			apdopts->parameters[RecNumber - 1].SQLType = (Int4) Value;
+			parameter_ibindings_set(ipdopts, RecNumber, TRUE);
+			reset_a_iparameter_binding(ipdopts, RecNumber);
+			ipdopts->parameters[RecNumber - 1].SQLType = (Int4) Value;
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
-			parameter_bindings_set(apdopts, RecNumber, TRUE);
-			switch (apdopts->parameters[RecNumber - 1].SQLType)
+			parameter_ibindings_set(ipdopts, RecNumber, TRUE);
+			switch (ipdopts->parameters[RecNumber - 1].SQLType)
 			{
 				case SQL_DATETIME:
 				case SQL_TYPE_DATE:
@@ -783,30 +807,30 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 				switch ((Int4) Value)
 				{
 					case SQL_CODE_DATE:
-						apdopts->parameters[RecNumber - 1].SQLType = SQL_TYPE_DATE;
+						ipdopts->parameters[RecNumber - 1].SQLType = SQL_TYPE_DATE;
 						break;
 					case SQL_CODE_TIME:
-						apdopts->parameters[RecNumber - 1].SQLType = SQL_TYPE_TIME;
+						ipdopts->parameters[RecNumber - 1].SQLType = SQL_TYPE_TIME;
 						break;
 					case SQL_CODE_TIMESTAMP:
-						apdopts->parameters[RecNumber - 1].SQLType = SQL_TYPE_TIMESTAMP;
+						ipdopts->parameters[RecNumber - 1].SQLType = SQL_TYPE_TIMESTAMP;
 						break;
 				}
 				break;
 			}
 			break;
 		case SQL_DESC_CONCISE_TYPE:
-			parameter_bindings_set(apdopts, RecNumber, TRUE);
-			apdopts->parameters[RecNumber - 1].SQLType = (Int4) Value;
+			parameter_ibindings_set(ipdopts, RecNumber, TRUE);
+			ipdopts->parameters[RecNumber - 1].SQLType = (Int4) Value;
 			break;
 		case SQL_DESC_COUNT:
-			parameter_bindings_set(apdopts, (SQLUINTEGER) Value, FALSE);
+			parameter_ibindings_set(ipdopts, (SQLUINTEGER) Value, FALSE);
 			break; 
 		case SQL_DESC_PARAMETER_TYPE:
-			apdopts->parameters[RecNumber - 1].paramType = (Int2) Value;
+			ipdopts->parameters[RecNumber - 1].paramType = (Int2) Value;
 			break;
 		case SQL_DESC_SCALE:
-			apdopts->parameters[RecNumber - 1].decimal_digits = (Int2) Value;
+			ipdopts->parameters[RecNumber - 1].decimal_digits = (Int2) Value;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */ 
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
@@ -1186,7 +1210,6 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	SQLINTEGER	ival = 0, len, rettype = 0;
 	PTR		ptr = NULL;
 	const IPDFields	*ipdopts = SC_get_IPD(stmt);
-	const APDFields	*apdopts = SC_get_APD(stmt);
 
 	switch (FieldIdentifier)
 	{
@@ -1202,7 +1225,7 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			ival = SQL_UNNAMED;
 			break;
 		case SQL_DESC_TYPE:
-			switch (apdopts->parameters[RecNumber - 1].SQLType)
+			switch (ipdopts->parameters[RecNumber - 1].SQLType)
 			{
 				case SQL_TYPE_DATE:
 				case SQL_TYPE_TIME:
@@ -1210,11 +1233,11 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 					ival = SQL_DATETIME;
 					break;
 				default:
-					ival = apdopts->parameters[RecNumber - 1].SQLType;
+					ival = ipdopts->parameters[RecNumber - 1].SQLType;
 			}
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
-			switch (apdopts->parameters[RecNumber - 1].SQLType)
+			switch (ipdopts->parameters[RecNumber - 1].SQLType)
 			{
 				case SQL_TYPE_DATE:
 					ival = SQL_CODE_DATE;
@@ -1229,30 +1252,30 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_CONCISE_TYPE:
-			ival = apdopts->parameters[RecNumber - 1].SQLType;
+			ival = ipdopts->parameters[RecNumber - 1].SQLType;
 			break;
 		case SQL_DESC_COUNT:
-			ival = apdopts->allocated;
+			ival = ipdopts->allocated;
 			break; 
 		case SQL_DESC_PARAMETER_TYPE:
-			ival = apdopts->parameters[RecNumber - 1].paramType;
+			ival = ipdopts->parameters[RecNumber - 1].paramType;
 			break;
 		case SQL_DESC_PRECISION:
-			switch (apdopts->parameters[RecNumber - 1].CType)
+			switch (ipdopts->parameters[RecNumber - 1].SQLType)
 			{
-				case SQL_C_TYPE_DATE:
-				case SQL_C_TYPE_TIME:
-				case SQL_C_TYPE_TIMESTAMP:
+				case SQL_TYPE_DATE:
+				case SQL_TYPE_TIME:
+				case SQL_TYPE_TIMESTAMP:
 				case SQL_DATETIME:
-					ival = apdopts->parameters[RecNumber - 1].decimal_digits;
+					ival = ipdopts->parameters[RecNumber - 1].decimal_digits;
 					break;
 			}
 			break;
 		case SQL_DESC_SCALE:
-			switch (apdopts->parameters[RecNumber - 1].CType)
+			switch (ipdopts->parameters[RecNumber - 1].SQLType)
 			{
-				case SQL_C_NUMERIC:
-					ival = apdopts->parameters[RecNumber - 1].decimal_digits;
+				case SQL_NUMERIC:
+					ival = ipdopts->parameters[RecNumber - 1].decimal_digits;
 					break;
 			}
 			break;

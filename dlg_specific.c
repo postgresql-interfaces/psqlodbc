@@ -61,7 +61,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	hlen = strlen(connect_string);
 	if (!abbrev)
 		sprintf(&connect_string[hlen],
-				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
+				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
 				INI_READONLY,
 				ci->onlyread,
 				INI_PROTOCOL,
@@ -117,7 +117,11 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 				INI_TRUEISMINUS1,
 				ci->true_is_minus1,
 				INI_INT8AS,
-				ci->int8_as);
+				ci->int8_as,
+				INI_BYTEAASLONGVARBINARY,
+				ci->bytea_as_longvarbinary,
+				INI_USESERVERSIDEPREPARE,
+				ci->use_server_side_prepare);
 	/* Abbrebiation is needed ? */
 	if (abbrev || strlen(connect_string) >= len)
 	{
@@ -175,6 +179,10 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 			flag |= BIT_FAKEOIDINDEX;
 		if (ci->true_is_minus1)
 			flag |= BIT_TRUEISMINUS1;
+		if (ci->bytea_as_longvarbinary)
+			flag |= BIT_BYTEAASLONGVARBINARY;
+		if (ci->use_server_side_prepare)
+			flag |= BIT_USESERVERSIDEPREPARE;
 
 		sprintf(&connect_string[hlen],
 				";A6=%s;A7=%d;A8=%d;B0=%d;B1=%d;%s=%d;C2=%s;CX=%02x%lx",
@@ -244,6 +252,8 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	sprintf(ci->show_oid_column, "%d", (char)((flag & BIT_SHOWOIDCOLUMN) != 0));
 	sprintf(ci->fake_oid_index, "%d", (char)((flag & BIT_FAKEOIDINDEX) != 0));
 	ci->true_is_minus1 = (char)((flag & BIT_TRUEISMINUS1) != 0);
+	ci->bytea_as_longvarbinary = (char)((flag & BIT_BYTEAASLONGVARBINARY) != 0);
+	ci->use_server_side_prepare = (char)((flag & BIT_USESERVERSIDEPREPARE) != 0);
 }
 void
 copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
@@ -302,6 +312,10 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->true_is_minus1 = atoi(value);
 	else if (stricmp(attribute, INI_INT8AS) == 0)
 		ci->int8_as = atoi(value);
+	else if (stricmp(attribute, INI_BYTEAASLONGVARBINARY) == 0)
+		ci->bytea_as_longvarbinary = atoi(value);
+	else if (stricmp(attribute, INI_USESERVERSIDEPREPARE) == 0)
+		ci->use_server_side_prepare = atoi(value);
 	else if (stricmp(attribute, "CX") == 0)
 		unfoldCXAttribute(ci, value);
 
@@ -405,6 +419,10 @@ getDSNdefaults(ConnInfo *ci)
 		ci->true_is_minus1 = DEFAULT_TRUEISMINUS1;
 	if (ci->int8_as < -100)
 		ci->int8_as = DEFAULT_INT8AS;
+	if (ci->bytea_as_longvarbinary < 0)
+		ci->bytea_as_longvarbinary = DEFAULT_BYTEAASLONGVARBINARY;
+	if (ci->use_server_side_prepare < 0)
+		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 }
 
 
@@ -514,6 +532,20 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		SQLGetPrivateProfileString(DSN, INI_INT8AS, "", temp, sizeof(temp), ODBC_INI);
 		if (temp[0])
 			ci->int8_as = atoi(temp);
+	}
+
+	if (ci->bytea_as_longvarbinary < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_BYTEAASLONGVARBINARY, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->bytea_as_longvarbinary = atoi(temp);
+	}
+
+	if (ci->use_server_side_prepare < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_USESERVERSIDEPREPARE, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->use_server_side_prepare = atoi(temp);
 	}
 
 	/* Allow override of odbcinst.ini parameters here */
@@ -748,6 +780,11 @@ writeDSNinfo(const ConnInfo *ci)
 								 temp,
 								 ODBC_INI);
 	sprintf(temp, "%d", ci->int8_as);
+	SQLWritePrivateProfileString(DSN,
+								 INI_INT8AS,
+								 temp,
+								 ODBC_INI);
+	sprintf(temp, "%d", ci->bytea_as_longvarbinary);
 	SQLWritePrivateProfileString(DSN,
 								 INI_INT8AS,
 								 temp,

@@ -66,7 +66,7 @@ Int4 pgtypes_defined[]	= {
 				PG_TYPE_MONEY,
 				PG_TYPE_BOOL,
 				PG_TYPE_BYTEA,
-				PG_TYPE_LO,
+				PG_TYPE_LO_UNDEFINED,
 				0 };
 */
 
@@ -169,7 +169,18 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			break;
 
 		case SQL_LONGVARBINARY:
-			pgType = PG_TYPE_LO;
+			switch (conn->lobj_type)
+			{
+				case PG_TYPE_LO_UNDEFINED:
+					if (ci->bytea_as_longvarbinary)
+					{
+						pgType = PG_TYPE_BYTEA;
+						break;
+					}
+				default:
+					pgType = conn->lobj_type;
+					break;
+			}
 			break;
 
 		case SQL_LONGVARCHAR:
@@ -282,8 +293,14 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 #endif /* UNICODE_SUPPORT */
 
 		case PG_TYPE_BYTEA:
+			switch (conn->lobj_type)
+			{
+				case PG_TYPE_LO_UNDEFINED:	
+					if (ci->bytea_as_longvarbinary)
+						return SQL_LONGVARBINARY;
+			}
 			return SQL_VARBINARY;
-		case PG_TYPE_LO:
+		case PG_TYPE_LO_UNDEFINED:
 			return SQL_LONGVARBINARY;
 
 		case PG_TYPE_INT2:
@@ -446,7 +463,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 
 		case PG_TYPE_BYTEA:
 			return SQL_C_BINARY;
-		case PG_TYPE_LO:
+		case PG_TYPE_LO_UNDEFINED:
 			return SQL_C_BINARY;
 #ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
@@ -469,7 +486,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 }
 
 
-char *
+const char *
 pgtype_to_name(StatementClass *stmt, Int4 type)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -527,7 +544,7 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_BYTEA:
 			return "bytea";
 
-		case PG_TYPE_LO:
+		case PG_TYPE_LO_UNDEFINED:
 			return PG_TYPE_LO_NAME;
 
 		default:
@@ -883,7 +900,7 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 			return true_is_minus1 ? 2 : 1;
 		}
 
-		case PG_TYPE_LO:
+		case PG_TYPE_LO_UNDEFINED:
 			return SQL_NO_TOTAL;
 
 		default:

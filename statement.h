@@ -84,6 +84,7 @@ typedef enum
 #define STMT_INVALID_DESCRIPTOR_IDENTIFIER				31
 #define STMT_OPTION_NOT_FOR_THE_DRIVER					32
 #define STMT_FETCH_OUT_OF_RANGE						33
+#define STMT_COUNT_FIELD_INCORRECT					34
 
 /* statement types */
 enum
@@ -175,9 +176,9 @@ struct StatementClass_
 	char		errormsg_created;		/* has an informative error msg
 										 * been created?  */
 	char		manual_result;	/* Is the statement result manually built? */
-	char		prepare;		/* is this statement a prepared statement
-								 * or direct */
-
+	char		prepare;		/* is this statement a prepared statement ? */
+	char		prepared;		/* is this statement already
+						 * prepared at the server ? */
 	char		internal;		/* Is this statement being called
 								 * internally? */
 
@@ -199,6 +200,7 @@ struct StatementClass_
 	SWORD		error_recsize;
 	Int4		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
+	char		*execute_statement; /* to execute the prepared plans */
 	Int4		from_pos;	
 	Int4		where_pos;
 	Int4		last_fetch_count_include_ommitted;
@@ -235,9 +237,12 @@ struct StatementClass_
 #define SC_set_fetchcursor(a)	(a->miscinfo |= 2L)
 #define SC_no_fetchcursor(a)	(a->miscinfo &= ~2L)
 #define SC_is_fetchcursor(a)	((a->miscinfo & 2L) != 0)
+#define SC_set_prepare_before_exec(a)	(a->miscinfo |= 4L)
+#define SC_no_prepare_before_exec(a)	(a->miscinfo &= ~4L)
+#define SC_is_prepare_before_exec(a)	((a->miscinfo & 4L) != 0)
 
 /* For Multi-thread */
-#if defined(WIN_MULTITHREAD_SUPPORT)
+#if defined(WIN_FREETHREAD_SUPPORT)
 #define INIT_STMT_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_STMT_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
@@ -270,6 +275,7 @@ void		SC_error_copy(StatementClass *self, const StatementClass *from);
 void		SC_full_error_copy(StatementClass *self, const StatementClass *from);
 char		SC_get_error(StatementClass *self, int *number, char **message);
 char		*SC_create_errormsg(const StatementClass *self);
+RETCODE		SC_initialize_stmts(StatementClass *self, BOOL);
 RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);

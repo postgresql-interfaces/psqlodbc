@@ -661,6 +661,7 @@ RETCODE SQL_API	SQLGetTypeInfoW(
 {
 	RETCODE	ret;
 
+	mylog("[SQLGetInfoW]");
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);

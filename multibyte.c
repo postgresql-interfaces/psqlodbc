@@ -386,12 +386,12 @@ CC_lookup_characterset(ConnectionClass *self)
 				wenc = "SJIS";
 				break;
 			case 936:
-				if (!encstr || PG_VERSION_LE(self, 7.2))
+				if (!encstr || PG_VERSION_GT(self, 7.2))
 					wenc = "GBK";
 				break;
 			case 949:
-				if (!encstr || PG_VERSION_LE(self, 7.2) ||
-					stricmp(encstr, "EUC_KR"))  
+				if (!encstr ||
+				  (PG_VERSION_GT(self, 7.2) && stricmp(encstr, "EUC_KR")))  
 					wenc = "UHC";
 				break;
 			case 950:

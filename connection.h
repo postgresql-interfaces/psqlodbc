@@ -87,7 +87,7 @@ typedef enum
 #define CC_set_errornumber(x, n)	(x->__error_number = n)
 
 /* For Multi-thread */
-#if defined(WIN_MULTITHREAD_SUPPORT)
+#if defined(WIN_FREETHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
@@ -201,6 +201,8 @@ typedef struct
 	char		lf_conversion;
 	char		true_is_minus1;
 	char		int8_as;
+	char		bytea_as_longvarbinary;
+	char		use_server_side_prepare;
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
 

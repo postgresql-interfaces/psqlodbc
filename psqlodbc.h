@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.72 2002/10/16 07:39:53 dpage Exp $
+ * $Id: psqlodbc.h,v 1.73 2002/12/16 15:01:34 hinoue Exp $
  *
  */
 
@@ -89,7 +89,7 @@ typedef UInt4 Oid;
 
 /* Driver stuff */
 
-#define DRIVERNAME					"PostgreSQL ODBC"
+#define DRIVERNAME				"PostgreSQL ODBC"
 #if (ODBCVER >= 0x0300)
 #define DRIVER_ODBC_VER				"03.00"
 #ifdef	UNICODE_SUPPORT
@@ -99,7 +99,7 @@ typedef UInt4 Oid;
 #endif /* UNICODE_SUPPORT */
 #else
 #define DRIVER_ODBC_VER				"02.50"
-#define DBMS_NAME					"PostgreSQL"
+#define DBMS_NAME				"PostgreSQL"
 #endif   /* ODBCVER */
 
 #ifdef WIN32
@@ -190,6 +190,7 @@ typedef struct QResultClass_ QResultClass;
 typedef struct SocketClass_ SocketClass;
 typedef struct BindInfoClass_ BindInfoClass;
 typedef struct ParameterInfoClass_ ParameterInfoClass;
+typedef struct ParameterImplClass_ ParameterImplClass;
 typedef struct ColumnInfoClass_ ColumnInfoClass;
 typedef struct TupleListClass_ TupleListClass;
 typedef struct EnvironmentClass_ EnvironmentClass;
@@ -253,7 +254,7 @@ typedef struct QueryInfo_
 
 void		logs_on_off(int cnopen, int, int);
 
-#define PG_TYPE_LO					(-999)		/* hack until permanent
+#define PG_TYPE_LO_UNDEFINED			(-999)		/* hack until permanent
 												 * type available */
 #define PG_TYPE_LO_NAME				"lo"
 #define OID_ATTNUM					(-2)		/* the attnum in pg_index

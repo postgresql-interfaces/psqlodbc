@@ -254,6 +254,7 @@ SC_Constructor(void)
 		rv->curres = NULL;
 		rv->manual_result = FALSE;
 		rv->prepare = FALSE;
+		rv->prepared = FALSE;
 		rv->status = STMT_ALLOCATED;
 		rv->internal = FALSE;
 
@@ -264,6 +265,7 @@ SC_Constructor(void)
 		rv->statement = NULL;
 		rv->stmt_with_params = NULL;
 		rv->load_statement = NULL;
+		rv->execute_statement = NULL;
 		rv->stmt_size_limit = -1;
 		rv->statement_type = STMT_TYPE_UNKNOWN;
 
@@ -352,6 +354,8 @@ void IRDFields_free(IRDFields * self)
 
 void IPDFields_free(IPDFields * self)
 {
+	/* param bindings */
+	IPD_free_params(self, STMT_FREE_PARAMS_ALL);
 }
 
 char
@@ -375,15 +379,7 @@ SC_Destructor(StatementClass *self)
 		QR_Destructor(res);
 	}
 
-	if (self->statement)
-		free(self->statement);
-	if (self->stmt_with_params)
-	{
-		free(self->stmt_with_params);
-		self->stmt_with_params = NULL;
-	}
-	if (self->load_statement)
-		free(self->load_statement);
+	SC_initialize_stmts(self, TRUE);
 
         /* Free the parsed table information */
 	if (self->ti)
@@ -423,6 +419,7 @@ void
 SC_free_params(StatementClass *self, char option)
 {
 	APD_free_params(SC_get_APD(self), option);
+	IPD_free_params(SC_get_IPD(self), option);
 	self->data_at_exec = -1;
 	self->current_exec_param = -1;
 	self->put_data = FALSE;
@@ -451,6 +448,51 @@ statement_type(char *statement)
 	return STMT_TYPE_OTHER;
 }
 
+/*
+ *	Initialize stmt_with_params, load_statement and execute_statement
+ *		member pointer deallocating corresponding prepared plan.
+ *	Also initialize statement member pointer if specified.
+ */
+RETCODE
+SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
+{
+	if (initializeOriginal && self->statement)
+	{
+		free(self->statement);
+		self->statement = NULL;
+	}
+	if (self->stmt_with_params)
+	{
+		free(self->stmt_with_params);
+		self->stmt_with_params = NULL;
+	}
+	if (self->load_statement)
+	{
+		free(self->load_statement);
+		self->load_statement = NULL;
+	}
+	if (self->execute_statement)
+	{
+		free(self->execute_statement);
+		self->execute_statement = NULL;
+	}
+	if (self->prepared)
+	{
+		ConnectionClass *conn = SC_get_conn(self);
+		if (CONN_CONNECTED == conn->status)
+		{
+			QResultClass	*res;
+			char dealloc_stmt[128];
+
+			sprintf(dealloc_stmt, "DEALLOCATE _PLAN%0x", self);
+			res = CC_send_query(conn, dealloc_stmt, NULL, 0);
+			if (res)
+				QR_Destructor(res); 
+		}
+		self->prepared = FALSE;
+	}
+	return 0;
+}
 
 /*
  *	Called from SQLPrepare if STMT_PREMATURE, or
@@ -554,12 +596,7 @@ SC_recycle_statement(StatementClass *self)
 	 * SQLParamData/SQLPutData is called.
 	 */
 	SC_free_params(self, STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY);
-	if (self->stmt_with_params)
-		free(self->stmt_with_params);
-	self->stmt_with_params = NULL;
-	if (self->load_statement)
-		free(self->load_statement);
-	self->load_statement = NULL;
+	SC_initialize_stmts(self, FALSE);
 	/*
 	 *	reset the current attr setting to the original one.
 	 */
@@ -1101,8 +1138,13 @@ SC_execute(StatementClass *self)
 		}
 		else
 		{
+			QResultClass	*tres;
+
 			/* see if the query did return any result columns */
-			numcols = QR_NumResultCols(res);
+			for (tres = res, numcols = 0; !numcols && tres; tres = tres->next)
+			{
+				numcols = QR_NumResultCols(tres);
+			}
 			/* now allocate the array to hold the binding info */
 			if (numcols > 0)
 			{

@@ -83,6 +83,9 @@ PGAPI_RowCount(
 
 	*pcrow = -1;
 	return SQL_SUCCESS;
+	/* SC_set_errornumber(stmt, STMT_SEQUENCE_ERROR);
+	SC_log_error(func, "Bad return value", stmt);
+	return SQL_ERROR; */
 }
 
 

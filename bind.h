@@ -24,6 +24,7 @@ struct BindInfoClass_
 								 * not counting the '\0') */
 	char	   *ttlbuf;			/* to save the large result */
 	Int4		ttlbuflen;		/* the buffer length */
+	Int4		ttlbufused;		/* used length of the buffer */
 	Int2		returntype;		/* kind of conversion to be applied when
 								 * returning (SQL_C_DEFAULT,
 								 * SQL_C_CHAR...) */
@@ -41,22 +42,34 @@ struct ParameterInfoClass_
 	Int4	   *used;
 	Int2		paramType;
 	Int2		CType;
-	Int2		SQLType;
-	Int2		decimal_digits;
-	UInt4		column_size;
 	Oid			lobj_oid;
-	Int4	   *EXEC_used;		/* amount of data OR the oid of the large
-								 * object */
-	char	   *EXEC_buffer;	/* the data or the FD of the large object */
+	Int4	   *EXEC_used;		/* amount of data */
+	char	   *EXEC_buffer; 	/* the data */
 	Int2		precision;	/* the precision for numeric or timestamp type */
 	Int2		scale;		/* the scale for numeric type */
 	char		data_at_exec;
+};
+
+/*
+ * ParameterImplClass -- stores implemntation information about a parameter
+ */
+struct ParameterImplClass_
+{
+	Int2		paramType;
+	Int2		SQLType;
+	Int4		PGType;
+	UInt4		column_size;
+	Int2		decimal_digits;
+	Int2		precision;	/* the precision for numeric or timestamp type */
+	Int2		scale;		/* the scale for numeric type */
 };
 
 BindInfoClass *create_empty_bindings(int num_columns);
 void	extend_column_bindings(ARDFields *opts, int num_columns);
 void	reset_a_column_binding(ARDFields *opts, int icol);
 void	extend_parameter_bindings(APDFields *opts, int num_columns);
+void	extend_iparameter_bindings(IPDFields *opts, int num_columns);
 void	reset_a_parameter_binding(APDFields *opts, int ipar);
+void	reset_a_iparameter_binding(IPDFields *opts, int ipar);
 
 #endif

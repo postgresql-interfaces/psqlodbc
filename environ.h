@@ -55,7 +55,7 @@ void		EN_log_error(char *func, char *desc, EnvironmentClass *self);
 #define	LEAVE_CONNS_CS	LeaveCriticalSection(&conns_cs)
 #define	DELETE_CONNS_CS	DeleteCriticalSection(&conns_cs)
 #define INIT_ENV_CS(x)		InitializeCriticalSection(&((x)->cs))
-#define ENTER_ENV_CS(x)		EnterCriticalSection(&((x)->cs))
+#define ENTER_ENV_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_ENV_CS(x)		LeaveCriticalSection(&((x)->cs))
 #define DELETE_ENV_CS(x)	DeleteCriticalSection(&((x)->cs))
 #elif defined(POSIX_MULTITHREAD_SUPPORT)

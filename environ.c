@@ -301,6 +301,9 @@ PGAPI_StmtError(	HSTMT hstmt,
 			case STMT_OPTION_NOT_FOR_THE_DRIVER:
 				pg_sqlstate_set(env, szSqlState, "HYC00", "HYC00");
 				break;
+			case STMT_COUNT_FIELD_INCORRECT:
+				pg_sqlstate_set(env, szSqlState, "07002", "07002");
+				break;
 			case STMT_EXEC_ERROR:
 			default:
 				pg_sqlstate_set(env, szSqlState, "HY000", "S1000");

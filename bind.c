@@ -42,7 +42,8 @@ PGAPI_BindParameter(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	static char *func = "PGAPI_BindParameter";
-	APDFields	*opts;
+	APDFields	*apdopts;
+	IPDFields	*ipdopts;
 
 	mylog("%s: entering...\n", func);
 
@@ -53,71 +54,77 @@ PGAPI_BindParameter(
 	}
 	SC_clear_error(stmt);
 
-	opts = SC_get_APD(stmt);
-	if (opts->allocated < ipar)
-		extend_parameter_bindings(opts, ipar);
+	apdopts = SC_get_APD(stmt);
+	if (apdopts->allocated < ipar)
+		extend_parameter_bindings(apdopts, ipar);
+	ipdopts = SC_get_IPD(stmt);
+	if (ipdopts->allocated < ipar)
+		extend_iparameter_bindings(ipdopts, ipar);
 
 	/* use zero based column numbers for the below part */
 	ipar--;
 
 	/* store the given info */
-	opts->parameters[ipar].buflen = cbValueMax;
-	opts->parameters[ipar].buffer = rgbValue;
-	opts->parameters[ipar].used = pcbValue;
-	opts->parameters[ipar].paramType = fParamType;
-	opts->parameters[ipar].CType = fCType;
-	opts->parameters[ipar].SQLType = fSqlType;
-	opts->parameters[ipar].column_size = cbColDef;
-	opts->parameters[ipar].decimal_digits = ibScale;
-	opts->parameters[ipar].precision = 0;
-	opts->parameters[ipar].scale = 0;
+	apdopts->parameters[ipar].buflen = cbValueMax;
+	apdopts->parameters[ipar].buffer = rgbValue;
+	apdopts->parameters[ipar].used = pcbValue;
+	apdopts->parameters[ipar].paramType = fParamType;
+	apdopts->parameters[ipar].CType = fCType;
+	ipdopts->parameters[ipar].SQLType = fSqlType;
+	ipdopts->parameters[ipar].paramType = fParamType;
+	ipdopts->parameters[ipar].column_size = cbColDef;
+	ipdopts->parameters[ipar].decimal_digits = ibScale;
+	ipdopts->parameters[ipar].precision = 0;
+	ipdopts->parameters[ipar].scale = 0;
+	ipdopts->parameters[ipar].PGType = sqltype_to_pgtype(stmt, fSqlType);
 #if (ODBCVER >= 0x0300)
 	switch (fCType)
 	{
 		case SQL_C_NUMERIC:
 			if (cbColDef > 0)
-				opts->parameters[ipar].precision = (UInt2) cbColDef;
+				ipdopts->parameters[ipar].precision = (UInt2) cbColDef;
 			if (ibScale > 0)
-				opts->parameters[ipar].scale = ibScale;
+				ipdopts->parameters[ipar].scale = ibScale;
 			break;
 		case SQL_C_TYPE_TIMESTAMP:
 			if (ibScale > 0)
-				opts->parameters[ipar].precision = ibScale;
+				ipdopts->parameters[ipar].precision = ibScale;
 			break;
 	}
+	apdopts->parameters[ipar].precision = ipdopts->parameters[ipar].precision;
+	apdopts->parameters[ipar].scale = ipdopts->parameters[ipar].scale;
 #endif /* ODBCVER */
 
 	/*
 	 * If rebinding a parameter that had data-at-exec stuff in it, then
 	 * free that stuff
 	 */
-	if (opts->parameters[ipar].EXEC_used)
+	if (apdopts->parameters[ipar].EXEC_used)
 	{
-		free(opts->parameters[ipar].EXEC_used);
-		opts->parameters[ipar].EXEC_used = NULL;
+		free(apdopts->parameters[ipar].EXEC_used);
+		apdopts->parameters[ipar].EXEC_used = NULL;
 	}
 
-	if (opts->parameters[ipar].EXEC_buffer)
+	if (apdopts->parameters[ipar].EXEC_buffer)
 	{
-		if (opts->parameters[ipar].SQLType != SQL_LONGVARBINARY)
-			free(opts->parameters[ipar].EXEC_buffer);
-		opts->parameters[ipar].EXEC_buffer = NULL;
+		free(apdopts->parameters[ipar].EXEC_buffer);
+		apdopts->parameters[ipar].EXEC_buffer = NULL;
 	}
 
-	if (pcbValue && opts->param_offset_ptr)
-		pcbValue += (*opts->param_offset_ptr >> 2);
+	if (pcbValue && apdopts->param_offset_ptr)
+		pcbValue += (*apdopts->param_offset_ptr >> 2);
 	/* Data at exec macro only valid for C char/binary data */
 	if (pcbValue && (*pcbValue == SQL_DATA_AT_EXEC ||
 					 *pcbValue <= SQL_LEN_DATA_AT_EXEC_OFFSET))
-		opts->parameters[ipar].data_at_exec = TRUE;
+		apdopts->parameters[ipar].data_at_exec = TRUE;
 	else
-		opts->parameters[ipar].data_at_exec = FALSE;
+		apdopts->parameters[ipar].data_at_exec = FALSE;
 
 	/* Clear premature result */
 	if (stmt->status == STMT_PREMATURE)
 		SC_recycle_statement(stmt);
 
-	mylog("PGAPI_BindParamater: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d, rgbValue=%d, *pcbValue = %d, data_at_exec = %d\n", ipar, fParamType, fCType, fSqlType, cbColDef, ibScale, rgbValue, pcbValue ? *pcbValue : -777, opts->parameters[ipar].data_at_exec);
+	mylog("PGAPI_BindParamater: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d, rgbValue=%d, *pcbValue = %d, data_at_exec = %d\n", ipar, fParamType, fCType, fSqlType, cbColDef, ibScale, rgbValue, pcbValue ? *pcbValue : -777, apdopts->parameters[ipar].data_at_exec);
 
 	return SQL_SUCCESS;
 }
@@ -224,6 +231,7 @@ inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 			free(opts->bindings[icol].ttlbuf);
 		opts->bindings[icol].ttlbuf = NULL;
 		opts->bindings[icol].ttlbuflen = 0;
+		opts->bindings[icol].ttlbufused = 0;
 		opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
 	}
@@ -268,7 +276,8 @@ PGAPI_DescribeParam(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	static char *func = "PGAPI_DescribeParam";
-	APDFields	*opts;
+	APDFields	*apdopts;
+	IPDFields	*ipdopts;
 
 	mylog("%s: entering...\n", func);
 
@@ -279,13 +288,14 @@ PGAPI_DescribeParam(
 	}
 	SC_clear_error(stmt);
 
-	opts = SC_get_APD(stmt);
-	if ((ipar < 1) || (ipar > opts->allocated))
+	apdopts = SC_get_APD(stmt);
+	if ((ipar < 1) || (ipar > apdopts->allocated))
 	{
 		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
+	ipdopts = SC_get_IPD(stmt);
 
 	ipar--;
 
@@ -295,16 +305,16 @@ PGAPI_DescribeParam(
 	 */
 	/* parameter markers, not bound parameters.  */
 	if (pfSqlType)
-		*pfSqlType = opts->parameters[ipar].SQLType;
+		*pfSqlType = ipdopts->parameters[ipar].SQLType;
 
 	if (pcbColDef)
-		*pcbColDef = opts->parameters[ipar].column_size;
+		*pcbColDef = ipdopts->parameters[ipar].column_size;
 
 	if (pibScale)
-		*pibScale = opts->parameters[ipar].decimal_digits;
+		*pibScale = ipdopts->parameters[ipar].decimal_digits;
 
 	if (pfNullable)
-		*pfNullable = pgtype_nullable(stmt, opts->parameters[ipar].paramType);
+		*pfNullable = pgtype_nullable(stmt, apdopts->parameters[ipar].paramType);
 
 	return SQL_SUCCESS;
 }
@@ -319,12 +329,12 @@ PGAPI_ParamOptions(
 {
 	static char *func = "PGAPI_ParamOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
-	APDFields	*opts;
+	APDFields	*apdopts;
 
 	mylog("%s: entering... %d %x\n", func, crow, pirow);
 
-	opts = SC_get_APD(stmt);
-	opts->paramset_size = crow;
+	apdopts = SC_get_APD(stmt);
+	apdopts->paramset_size = crow;
 	SC_get_IPD(stmt)->param_processed_ptr = (UInt4 *) pirow;
 	return SQL_SUCCESS;
 }
@@ -356,7 +366,6 @@ PGAPI_NumParams(
 		SC_log_error(func, "", NULL);
 		return SQL_INVALID_HANDLE;
 	}
-	SC_clear_error(stmt);
 
 	if (pcpar)
 		*pcpar = 0;
@@ -412,6 +421,7 @@ create_empty_bindings(int num_columns)
 		new_bindings[i].data_left = -1;
 		new_bindings[i].ttlbuf = NULL;
 		new_bindings[i].ttlbuflen = 0;
+		new_bindings[i].ttlbufused = 0;
 	}
 
 	return new_bindings;
@@ -451,6 +461,39 @@ extend_parameter_bindings(APDFields *self, int num_params)
 }
 
 void
+extend_iparameter_bindings(IPDFields *self, int num_params)
+{
+	static char *func = "extend_iparameter_bindings";
+	ParameterImplClass *new_bindings;
+
+	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+
+	/*
+	 * if we have too few, allocate room for more, and copy the old
+	 * entries into the new structure
+	 */
+	if (self->allocated < num_params)
+	{
+		new_bindings = (ParameterImplClass *) realloc(self->parameters, sizeof(ParameterImplClass) * num_params);
+		if (!new_bindings)
+		{
+			mylog("%s: unable to create %d new bindings from %d old bindings\n", func, num_params, self->allocated);
+
+			self->parameters = NULL;
+			self->allocated = 0;
+			return;
+		}
+		memset(&new_bindings[self->allocated], 0,
+			sizeof(ParameterImplClass) * (num_params - self->allocated));
+
+		self->parameters = new_bindings;
+		self->allocated = num_params;
+	}
+
+	mylog("exit extend_iparameter_bindings\n");
+}
+
+void
 reset_a_parameter_binding(APDFields *self, int ipar)
 {
 	static char *func = "reset_a_parameter_binding";
@@ -466,6 +509,7 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 	self->parameters[ipar].used = 0;
 	self->parameters[ipar].paramType = 0;
 	self->parameters[ipar].CType = 0;
+	self->parameters[ipar].data_at_exec = FALSE;
 	if (self->parameters[ipar].EXEC_used)
 	{
 		free(self->parameters[ipar].EXEC_used);
@@ -474,60 +518,92 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 
 	if (self->parameters[ipar].EXEC_buffer)
 	{
-		if (self->parameters[ipar].SQLType != SQL_LONGVARBINARY)
-			free(self->parameters[ipar].EXEC_buffer);
+		free(self->parameters[ipar].EXEC_buffer);
 		self->parameters[ipar].EXEC_buffer = NULL;
 	}
+	self->parameters[ipar].lobj_oid = 0;
+	self->parameters[ipar].precision = 0;
+	self->parameters[ipar].scale = 0;
+}
+
+void
+reset_a_iparameter_binding(IPDFields *self, int ipar)
+{
+	static char *func = "reset_a_iparameter_binding";
+
+	mylog("%s: entering ... self=%u, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
+
+	if (ipar < 1 || ipar > self->allocated)
+		return;
+
+	ipar--;
+	self->parameters[ipar].paramType = 0;
 	self->parameters[ipar].SQLType = 0;
 	self->parameters[ipar].column_size = 0;
 	self->parameters[ipar].decimal_digits = 0;
 	self->parameters[ipar].precision = 0;
 	self->parameters[ipar].scale = 0;
-	self->parameters[ipar].data_at_exec = FALSE;
-	self->parameters[ipar].lobj_oid = 0;
 }
 
 /*
  *	Free parameters and free the memory.
  */
 void
-APD_free_params(APDFields *self, char option)
+APD_free_params(APDFields *apdopts, char option)
 {
 	int			i;
 
-	mylog("APD_free_params:  ENTER, self=%d\n", self);
+	mylog("APD_free_params:  ENTER, self=%d\n", apdopts);
 
-	if (!self->parameters)
+	if (!apdopts->parameters)
 		return;
 
-	for (i = 0; i < self->allocated; i++)
+	for (i = 0; i < apdopts->allocated; i++)
 	{
-		if (self->parameters[i].data_at_exec)
+		if (apdopts->parameters[i].data_at_exec)
 		{
-			if (self->parameters[i].EXEC_used)
+			if (apdopts->parameters[i].EXEC_used)
 			{
-				free(self->parameters[i].EXEC_used);
-				self->parameters[i].EXEC_used = NULL;
+				free(apdopts->parameters[i].EXEC_used);
+				apdopts->parameters[i].EXEC_used = NULL;
 			}
-
-			if (self->parameters[i].EXEC_buffer)
+			if (apdopts->parameters[i].EXEC_buffer)
 			{
-				if (self->parameters[i].SQLType != SQL_LONGVARBINARY)
-					free(self->parameters[i].EXEC_buffer);
-				self->parameters[i].EXEC_buffer = NULL;
+				free(apdopts->parameters[i].EXEC_buffer);
+				apdopts->parameters[i].EXEC_buffer = NULL;
 			}
 		}
 	}
 
 	if (option == STMT_FREE_PARAMS_ALL)
 	{
-		if (self->parameters)
-			free(self->parameters);
-		self->parameters = NULL;
-		self->allocated = 0;
+		if (apdopts->parameters)
+			free(apdopts->parameters);
+		apdopts->parameters = NULL;
+		apdopts->allocated = 0;
 	}
 
 	mylog("APD_free_params:  EXIT\n");
+}
+
+/*
+ *	Free parameters and free the memory.
+ */
+void
+IPD_free_params(IPDFields *ipdopts, char option)
+{
+	mylog("IPD_free_params:  ENTER, self=%d\n", ipdopts);
+
+	if (ipdopts->parameters &&
+		option == STMT_FREE_PARAMS_ALL)
+	{
+		if (ipdopts->parameters)
+			free(ipdopts->parameters);
+		ipdopts->parameters = NULL;
+		ipdopts->allocated = 0;
+	}
+
+	mylog("IPD_free_params:  EXIT\n");
 }
 
 void
@@ -614,6 +690,7 @@ reset_a_column_binding(ARDFields *self, int icol)
 			free(self->bindings[icol].ttlbuf);
 		self->bindings[icol].ttlbuf = NULL;
 		self->bindings[icol].ttlbuflen = 0;
+		self->bindings[icol].ttlbufused = 0;
 	}
 }
 

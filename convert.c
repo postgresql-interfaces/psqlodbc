@@ -131,6 +131,8 @@ static const char *mapFunction(const char *func, int param_count);
 static unsigned int conv_from_octal(const unsigned char *s);
 static unsigned int conv_from_hex(const unsigned char *s);
 static char *conv_to_octal(unsigned char val, char *octal);
+static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
+static int pg_hex2bin(UCHAR *src, UCHAR *dst, int length);
 
 /*---------
  *			A Guide for date/time/timestamp conversions
@@ -614,7 +616,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 			 * This is a large object OID, which is used to store
 			 * LONGVARBINARY objects.
 			 */
-		case PG_TYPE_LO:
+		case PG_TYPE_LO_UNDEFINED:
 
 			return convert_lo(stmt, value, fCType, ((char *) rgbValue + rgbValueOffset), cbValueMax, (SDWORD *) ((char *) pcbValue + pcbValueOffset));
 
@@ -695,10 +697,6 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				 */
 			case PG_TYPE_BYTEA:/* convert binary data to hex strings
 								 * (i.e, 255 = "FF") */
-				len = convert_pgbinary_to_char(neut_str, rgbValueBindRow, cbValueMax);
-
-				/***** THIS IS NOT PROPERLY IMPLEMENTED *****/
-				break;
 
 			default:
 				if (stmt->current_col < 0)
@@ -720,8 +718,15 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 					}
 					else
 #endif /* UNICODE_SUPPORT */
-					/* convert linefeeds to carriage-return/linefeed */
-					len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
+					if (PG_TYPE_BYTEA == field_type)
+					{
+						len = convert_from_pgbinary(neut_str, NULL, 0);
+						len *= 2;
+						changed = TRUE;
+					}
+					else
+						/* convert linefeeds to carriage-return/linefeed */
+						len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
 					if (cbValueMax == 0)		/* just returns length
 												 * info */
 					{
@@ -744,8 +749,16 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 						}
 						else
 #endif /* UNICODE_SUPPORT */
-						convert_linefeeds(neut_str, pbic->ttlbuf, pbic->ttlbuflen, lf_conv, &changed);
+						if (PG_TYPE_BYTEA == field_type)
+						{
+							len = convert_from_pgbinary(neut_str, pbic->ttlbuf, pbic->ttlbuflen);
+							pg_bin2hex(pbic->ttlbuf, pbic->ttlbuf, len);
+							len *= 2; 
+						}
+						else
+							convert_linefeeds(neut_str, pbic->ttlbuf, pbic->ttlbuflen, lf_conv, &changed);
 						ptr = pbic->ttlbuf;
+						pbic->ttlbufused = len;
 					}
 					else
 					{
@@ -758,7 +771,10 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 					}
 				}
 				else
+				{
 					ptr = pbic->ttlbuf;
+					len = pbic->ttlbufused;
+				}
 
 				mylog("DEFAULT: len = %d, ptr = '%s'\n", len, ptr);
 
@@ -766,7 +782,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				{
 					if (pbic->data_left > 0)
 					{
-						ptr += strlen(ptr) - pbic->data_left;
+						ptr += len - pbic->data_left;
 						len = pbic->data_left;
 					}
 					else
@@ -1138,6 +1154,11 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 #endif /* ODBCINT64 */
 			case SQL_C_BINARY:
 
+				if (PG_TYPE_BYTEA != field_type)
+				{
+					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
+					return COPY_UNSUPPORTED_TYPE;
+				}
 				/* truncate if necessary */
 				/* convert octal escapes to bytes */
 
@@ -1150,12 +1171,24 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 					pbic = &opts->bindings[stmt->current_col];
 				if (!pbic->ttlbuf)
 					pbic->ttlbuflen = 0;
-				if (len = strlen(neut_str), len >= (int) pbic->ttlbuflen)
+				if (pbic->data_left < 0)
 				{
-					pbic->ttlbuf = realloc(pbic->ttlbuf, len + 1);
-					pbic->ttlbuflen = len + 1;
+					if (cbValueMax <= 0)
+					{
+						len = convert_from_pgbinary(neut_str, NULL, 0);
+						result = COPY_RESULT_TRUNCATED;
+						break;
+					}
+					if (len = strlen(neut_str), len >= (int) pbic->ttlbuflen)
+					{
+						pbic->ttlbuf = realloc(pbic->ttlbuf, len + 1);
+						pbic->ttlbuflen = len + 1;
+					}
+					len = convert_from_pgbinary(neut_str, pbic->ttlbuf, pbic->ttlbuflen);
+					pbic->ttlbufused = len;
 				}
-				len = convert_from_pgbinary(neut_str, pbic->ttlbuf, pbic->ttlbuflen);
+				else
+					len = pbic->ttlbufused;
 				ptr = pbic->ttlbuf;
 
 				if (stmt->current_col >= 0)
@@ -1194,8 +1227,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 				 */
 				if (len > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
-
-				if (pbic->ttlbuf)
+				else if (pbic->ttlbuf)
 				{
 					free(pbic->ttlbuf);
 					pbic->ttlbuf = NULL;
@@ -1232,6 +1264,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 #define	FLGP_CURSOR_CHECK_OK	(1L << 1)
 #define	FLGP_SELECT_INTO		(1L << 2)
 #define	FLGP_SELECT_FOR_UPDATE	(1L << 3)
+#define	FLGP_BUILDING_PREPARE_STATEMENT	(1L << 4)
 typedef struct _QueryParse {
 	const char	*statement;
 	int		statement_type;
@@ -1252,7 +1285,7 @@ typedef struct _QueryParse {
 static int
 QP_initialize(QueryParse *q, const StatementClass *stmt)
 {
-	q->statement = stmt->statement;
+	q->statement = stmt->execute_statement ? stmt->execute_statement : stmt->statement;
 	q->statement_type = stmt->statement_type;
 	q->opos = 0;
 	q->from_pos = -1;
@@ -1274,6 +1307,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_INACCURATE_RESULT	(1L << 1)
 #define	FLGB_CREATE_KEYSET	(1L << 2)
 #define	FLGB_KEYSET_DRIVEN	(1L << 3)
+#define	FLGB_BUILDING_PREPARE_STATEMENT	(1L << 4)
 typedef struct _QueryBuild {
 	char	*query_statement;
 	UInt4	str_size_limit;
@@ -1282,6 +1316,7 @@ typedef struct _QueryBuild {
 	int	current_row;
 	int	param_number;
 	APDFields *apdopts;
+	IPDFields *ipdopts;
 	UInt4	load_stmt_len;
 	UInt4	flags;
 	BOOL	lf_conv;
@@ -1303,11 +1338,13 @@ QB_initialize(QueryBuild *qb, UInt4 size, StatementClass *stmt, ConnectionClass 
 	qb->load_stmt_len = 0;
 	qb->stmt = stmt;
 	qb->apdopts = NULL;
+	qb->ipdopts = NULL;
 	if (conn)
 		qb->conn = conn;
 	else if (stmt)
 	{
 		qb->apdopts = SC_get_APD(stmt);
+		qb->ipdopts = SC_get_IPD(stmt);
 		qb->conn = SC_get_conn(stmt);
 		if (stmt->pre_executing)
 			qb->flags |= FLGB_PRE_EXECUTING;
@@ -1658,6 +1695,106 @@ insert_without_target(const char *stmt, int *endpos)
 		|| ';' == wstmt[0];
 }
 
+static	int
+Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
+{
+	const static char *func = "Prepare_and_convert";
+	char	*new_statement, *exe_statement = NULL;
+	int	retval;
+
+	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
+		return SQL_ERROR;
+	if (!stmt->prepared) /*  not yet prepared */
+	{
+		int	i, elen;
+		SWORD	marker_count;
+		const IPDFields *ipdopts = qb->ipdopts;
+
+		new_statement = qb->query_statement;
+		qb->flags = FLGB_BUILDING_PREPARE_STATEMENT;
+		sprintf(new_statement, "PREPARE _PLAN%0x", stmt);
+		qb->npos = strlen(new_statement);
+		if (SQL_SUCCESS != PGAPI_NumParams(stmt, &marker_count))
+		{
+			QB_Destructor(qb);
+			return SQL_ERROR;
+		}
+		if (marker_count > 0)
+		{
+			CVT_APPEND_CHAR(qb, '(');
+			for (i = 0; i < marker_count; i++)
+			{
+				if (i > 0)
+					CVT_APPEND_STR(qb, ", ");
+				CVT_APPEND_STR(qb, pgtype_to_name(stmt, ipdopts->parameters[i].PGType));
+			}
+			CVT_APPEND_CHAR(qb, ')');
+		}
+		CVT_APPEND_STR(qb, " as ");
+		for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
+		{
+			retval = inner_process_tokens(qp, qb);
+			if (SQL_ERROR == retval)
+			{
+				if (0 == SC_get_errornumber(stmt))
+				{
+					SC_set_error(stmt, qb->errornumber, qb->errormsg);
+				}
+				SC_log_error(func, "", stmt);
+				QB_Destructor(qb);
+				return retval;
+			}
+		}
+		CVT_APPEND_CHAR(qb, ';');
+		/* build the execute statement */
+		exe_statement = malloc(30 + 2 * marker_count);
+		sprintf(exe_statement, "EXECUTE _PLAN%0x", stmt);
+		if (marker_count > 0)
+		{
+			elen = strlen(exe_statement);
+			exe_statement[elen++] = '(';
+			for (i = 0; i < marker_count; i++)
+			{
+				if (i > 0)
+					exe_statement[elen++] = ',';
+				exe_statement[elen++]  = '?';
+			}
+			exe_statement[elen++] = ')';
+			exe_statement[elen] = '\0';
+		}
+		stmt->execute_statement = exe_statement;
+		QP_initialize(qp, stmt);
+	}
+	qb->flags = 0;
+	qb->param_number = -1;
+	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
+	{
+		retval = inner_process_tokens(qp, qb);
+		if (SQL_ERROR == retval)
+		{
+			if (0 == SC_get_errornumber(stmt))
+			{
+				SC_set_error(stmt, qb->errornumber, qb->errormsg);
+			}
+			SC_log_error(func, "", stmt);
+			if (exe_statement)
+			{
+				free(exe_statement);
+				stmt->execute_statement = NULL;
+			}
+			QB_Destructor(qb);
+			return retval;
+		}
+	}
+	/* make sure new_statement is always null-terminated */
+	CVT_TERMINATE(qb);
+
+	if (exe_statement)
+		SC_set_prepare_before_exec(stmt);
+	stmt->stmt_with_params = qb->query_statement;
+	return SQL_SUCCESS;
+}
+
 #define		my_strchr(conn, s1,c1) pg_mbschr(conn->ccsc, s1,c1)
 
 /*
@@ -1666,7 +1803,7 @@ insert_without_target(const char *stmt, int *endpos)
  *	This function does a dynamic memory allocation to get rid of query size limit!
  */
 int
-copy_statement_with_parameters(StatementClass *stmt)
+copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 {
 	static char *func = "copy_statement_with_parameters";
 	RETCODE		retval;
@@ -1689,12 +1826,6 @@ copy_statement_with_parameters(StatementClass *stmt)
 	current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
 	qp = &query_org;
 	QP_initialize(qp, stmt);
-
-	if (ci->disallow_premature)
-		prepare_dummy_cursor = stmt->pre_executing;
-	if (prepare_dummy_cursor)
-		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
-
 
 #ifdef	DRIVER_CURSOR_IMPLEMENT
 	if (stmt->statement_type != STMT_TYPE_SELECT)
@@ -1731,6 +1862,7 @@ copy_statement_with_parameters(StatementClass *stmt)
 		stmt->options.cursor_type = SQL_CURSOR_STATIC;
 #endif   /* DRIVER_CURSOR_IMPLEMENT */
 
+	stmt->miscinfo = 0;
 	/* If the application hasn't set a cursor name, then generate one */
 	if (stmt->cursor_name[0] == '\0')
 		sprintf(stmt->cursor_name, "SQL_CUR%p", stmt);
@@ -1739,12 +1871,21 @@ copy_statement_with_parameters(StatementClass *stmt)
 		free(stmt->stmt_with_params);
 		stmt->stmt_with_params = NULL;
 	}
+
 	qb = &query_crt;
+	if (stmt->prepared || (buildPrepareStatement && stmt->options.scroll_concurrency == SQL_CONCUR_READ_ONLY))
+	{
+		return Prepare_and_convert(stmt, qp, qb);
+	}
+
+	if (ci->disallow_premature)
+		prepare_dummy_cursor = stmt->pre_executing;
+	if (prepare_dummy_cursor)
+		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
 	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
 		return SQL_ERROR;
 	new_statement = qb->query_statement;
 
-	stmt->miscinfo = 0;
 	/* For selects, prepend a declare cursor to the statement */
 	if (stmt->statement_type == STMT_TYPE_SELECT)
 	{
@@ -2183,11 +2324,13 @@ ResolveOneParam(QueryBuild *qb)
 
 	ConnectionClass *conn = qb->conn;
 	ConnInfo   *ci = &(conn->connInfo);
-	APDFields *opts = qb->apdopts;
+	const APDFields *apdopts = qb->apdopts;
+	const IPDFields *ipdopts = qb->ipdopts;
 
 	int		param_number;
 	char		param_string[128], tmp[256],
 			cbuf[PG_NUMERIC_MAX_PRECISION * 2]; /* seems big enough to handle the data in this function */
+	Int4		param_pgtype;
 	Int2		param_ctype, param_sqltype;
 	SIMPLE_TIME	st;
 	time_t		t;
@@ -2199,15 +2342,16 @@ ResolveOneParam(QueryBuild *qb)
 	char		*buffer, *buf, *allocbuf;
 	Oid		lobj_oid;
 	int		lobj_fd, retval;
-	UInt4	offset = opts->param_offset_ptr ? *opts->param_offset_ptr : 0;
+	UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 	UInt4	current_row = qb->current_row;
+	BOOL	handling_large_object = FALSE;
 
 	/*
 	 * Its a '?' parameter alright
 	 */
 	param_number = ++qb->param_number;
 
-	if (param_number >= opts->allocated)
+	if (param_number >= apdopts->allocated)
 	{
 		if (0 != (qb->flags & FLGB_PRE_EXECUTING))
 		{
@@ -2217,40 +2361,59 @@ ResolveOneParam(QueryBuild *qb)
 		}
 		else
 		{
-			CVT_APPEND_CHAR(qb, '?');
-			return SQL_SUCCESS;
+			qb->errormsg = "The # of binded parameters < the # of parameter markers";
+			qb->errornumber = STMT_COUNT_FIELD_INCORRECT;
+			CVT_TERMINATE(qb);	/* just in case */
+			return SQL_ERROR;
 		}
 	}
-
-	/* Assign correct buffers based on data at exec param or not */
-	if (opts->parameters[param_number].data_at_exec)
+	if (SQL_PARAM_OUTPUT == apdopts->parameters[param_number].paramType)
 	{
-		used = opts->parameters[param_number].EXEC_used ? *opts->parameters[param_number].EXEC_used : SQL_NTS;
-		buffer = opts->parameters[param_number].EXEC_buffer;
+		qb->errormsg = "Output parameter isn't available";
+		qb->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
+		CVT_TERMINATE(qb);	/* just in case */
+		return SQL_ERROR;
+	}
+
+	if (0 != (qb->flags & FLGB_BUILDING_PREPARE_STATEMENT))
+	{
+		char	pnum[16];
+
+		sprintf(pnum, "$%d", param_number + 1);
+		CVT_APPEND_STR(qb, pnum); 
+		return SQL_SUCCESS;
+	} 
+	/* Assign correct buffers based on data at exec param or not */
+	if (apdopts->parameters[param_number].data_at_exec)
+	{
+		used = apdopts->parameters[param_number].EXEC_used ? *apdopts->parameters[param_number].EXEC_used : SQL_NTS;
+		buffer = apdopts->parameters[param_number].EXEC_buffer;
+		if (apdopts->parameters[param_number].lobj_oid)
+			handling_large_object = TRUE;
 	}
 	else
 	{
-		UInt4	bind_size = opts->param_bind_type;
+		UInt4	bind_size = apdopts->param_bind_type;
 		UInt4	ctypelen;
 
-		buffer = opts->parameters[param_number].buffer + offset;
+		buffer = apdopts->parameters[param_number].buffer + offset;
 		if (current_row > 0)
 		{
 			if (bind_size > 0)
 				buffer += (bind_size * current_row);
-			else if (ctypelen = ctype_length(opts->parameters[param_number].CType), ctypelen > 0)
+			else if (ctypelen = ctype_length(apdopts->parameters[param_number].CType), ctypelen > 0)
 				buffer += current_row * ctypelen;
 			else 
-				buffer += current_row * opts->parameters[param_number].buflen;
+				buffer += current_row * apdopts->parameters[param_number].buflen;
 		}
-		if (opts->parameters[param_number].used)
+		if (apdopts->parameters[param_number].used)
 		{
 			UInt4	p_offset = offset;
 			if (bind_size > 0)
 				p_offset = offset + bind_size * current_row;
 			else
 				p_offset = offset + sizeof(SDWORD) * current_row;
-			used = *(SDWORD *)((char *)opts->parameters[param_number].used + p_offset);
+			used = *(SDWORD *)((char *)apdopts->parameters[param_number].used + p_offset);
 		}
 		else
 			used = SQL_NTS;
@@ -2275,15 +2438,16 @@ ResolveOneParam(QueryBuild *qb)
 			qb->flags |= FLGB_INACCURATE_RESULT;
 			return SQL_SUCCESS;
 		}
-		else
+		else if (!handling_large_object)
 		{
 			CVT_APPEND_CHAR(qb, '?');
 			return SQL_SUCCESS;
 		}
 	}
 
-	param_ctype = opts->parameters[param_number].CType;
-	param_sqltype = opts->parameters[param_number].SQLType;
+	param_ctype = apdopts->parameters[param_number].CType;
+	param_sqltype = ipdopts->parameters[param_number].SQLType;
+	param_pgtype = ipdopts->parameters[param_number].PGType;
 
 	mylog("%s: from(fcType)=%d, to(fSqlType)=%d\n", func,
 				param_ctype, param_sqltype);
@@ -2541,22 +2705,56 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 		case SQL_BINARY:
-		case SQL_VARBINARY:/* non-ascii characters should be
-							* converted to octal */
-			CVT_APPEND_CHAR(qb, '\'');	/* Open Quote */
-
-			mylog("SQL_VARBINARY: about to call convert_to_pgbinary, used = %d\n", used);
-
-			CVT_APPEND_BINARY(qb, buf, used);
-
-			CVT_APPEND_CHAR(qb, '\'');	/* Close Quote */
-
-			break;
-
+		case SQL_VARBINARY:
 		case SQL_LONGVARBINARY:
+			switch (param_ctype)
+			{
+				case SQL_C_BINARY:
+					break;
+				case SQL_C_CHAR:
+					switch (used)
+					{
+						case SQL_NTS:
+							used = strlen(buf);
+							break;
+					}
+					allocbuf = malloc(used / 2 + 1);
+					if (allocbuf)
+					{
+						pg_hex2bin(buf, allocbuf, used);
+						buf = allocbuf;
+						used /= 2;
+					}
+					break;
+				default:
+					qb->errormsg = "Could not convert the ctype to binary type";
+					qb->errornumber = STMT_EXEC_ERROR;
+					return SQL_ERROR;
+			}
+			if (param_pgtype == PG_TYPE_BYTEA)
+			{
+				/* non-ascii characters should be
+				 * converted to octal
+				 */
+				CVT_APPEND_CHAR(qb, '\'');	/* Open Quote */
 
-			if (opts->parameters[param_number].data_at_exec)
-				lobj_oid = opts->parameters[param_number].lobj_oid;
+				mylog("SQL_VARBINARY: about to call convert_to_pgbinary, used = %d\n", used);
+
+				CVT_APPEND_BINARY(qb, buf, used);
+
+				CVT_APPEND_CHAR(qb, '\'');	/* Close Quote */
+
+				break;
+			}
+			if (param_pgtype != conn->lobj_type)
+			{
+				qb->errormsg = "Could not convert binary other than LO type";
+				qb->errornumber = STMT_EXEC_ERROR;
+				return SQL_ERROR;
+			}
+
+			if (apdopts->parameters[param_number].data_at_exec)
+				lobj_oid = apdopts->parameters[param_number].lobj_oid;
 			else
 			{
 				/* begin transaction if needed */
@@ -2609,7 +2807,7 @@ ResolveOneParam(QueryBuild *qb)
 			 * parameter marker -- the data has already been sent to
 			 * the large object
 			 */
-			sprintf(param_string, "'%d'", lobj_oid);
+			sprintf(param_string, "'%d'::lo", lobj_oid);
 			CVT_APPEND_STR(qb, param_string);
 
 			break;
@@ -2671,10 +2869,8 @@ ResolveOneParam(QueryBuild *qb)
 
 			break;
 	}
-#ifdef	UNICODE_SUPPORT
 	if (allocbuf)
 		free(allocbuf);
-#endif /* UNICODE_SUPPORT */
 	return SQL_SUCCESS;
 }
 
@@ -3275,22 +3471,32 @@ convert_from_pgbinary(const unsigned char *value, unsigned char *rgbValue, int c
 		{
 			if (value[i + 1] == '\\')
 			{
-				rgbValue[o] = value[i];
+				if (rgbValue)
+					rgbValue[o] = value[i];
 				i += 2;
 			}
 			else
 			{
-				rgbValue[o] = conv_from_octal(&value[i]);
+				if (rgbValue)
+					rgbValue[o] = conv_from_octal(&value[i]);
 				i += 4;
 			}
 		}
 		else
-			rgbValue[o] = value[i++];
-		mylog("convert_from_pgbinary: i=%d, rgbValue[%d] = %d, %c\n", i, o, rgbValue[o], rgbValue[o]);
+		{
+			if (rgbValue)
+				rgbValue[o] = value[i];
+			i++;
+		}
+		/** if (rgbValue)
+			mylog("convert_from_pgbinary: i=%d, rgbValue[%d] = %d, %c\n", i, o, rgbValue[o], rgbValue[o]); ***/
 		o++;
 	}
 
-	rgbValue[o] = '\0';			/* extra protection */
+	if (rgbValue)
+		rgbValue[o] = '\0';		/* extra protection */
+
+	mylog("convert_from_pgbinary: in=%d, out = %d\n", ilen, o);
 
 	return o;
 }
@@ -3430,6 +3636,37 @@ pg_bin2hex(UCHAR *src, UCHAR *dst, int length)
 	return length;
 }
 
+static int
+pg_hex2bin(UCHAR *src, UCHAR *dst, int length)
+{
+	UCHAR		chr,
+			   *src_wk,
+			   *dst_wk;
+	int		i, val;
+	BOOL		HByte = TRUE;
+
+	for (i = 0, src_wk = src, dst_wk = dst; i < length; i++, src_wk++)
+	{
+		chr = *src_wk;
+		if (chr >= 'a' && chr <= 'f')
+			val = chr - 'a' + 10;
+		else if (chr >= 'A' && chr <= 'F')
+			val = chr - 'A' + 10;
+		else
+			val = chr - '0';
+		if (HByte)
+			*dst_wk = (val << 4);
+		else
+		{
+			*dst_wk += val; 
+			dst_wk++;
+		}
+		HByte = !HByte;
+	}
+	*dst_wk = '\0';
+	return length;
+}
+
 /*-------
  *	1. get oid (from 'value')
  *	2. open the large object
@@ -3458,8 +3695,20 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
 	ARDFields	*opts = SC_get_ARD(stmt);
-	int			factor = (fCType == SQL_C_CHAR ? 2 : 1);
+	int			factor;
 
+	switch (fCType)
+	{
+		case SQL_C_CHAR:
+			factor = 2;
+			break;
+		case SQL_C_BINARY:
+			factor = 1;
+			break;
+		default:
+			SC_set_error(stmt, STMT_EXEC_ERROR, "Could not convert lo to the c-type");
+			return COPY_GENERAL_ERROR;
+	}
 	/* If using SQLGetData, then current_col will be set */
 	if (stmt->current_col >= 0)
 	{

@@ -70,8 +70,8 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			DELETE_CONNS_CS;
-            DELETE_MYLOG_CS;
 			DELETE_QLOG_CS;
+			DELETE_MYLOG_CS;
 			WSACleanup();
 			return TRUE;
 

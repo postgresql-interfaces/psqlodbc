@@ -238,6 +238,8 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->lf_conversion = -1;
 		conninfo->true_is_minus1 = -1;
 		conninfo->int8_as = -101;
+		conninfo->bytea_as_longvarbinary = -1;
+		conninfo->use_server_side_prepare = -1;
 		memcpy(&(conninfo->drivers), &globals, sizeof(globals));
 }
 /*
@@ -273,7 +275,7 @@ CC_Constructor()
 
 		rv->num_stmts = STMT_INCREMENT;
 
-		rv->lobj_type = PG_TYPE_LO;
+		rv->lobj_type = PG_TYPE_LO_UNDEFINED;
 
 		rv->ntables = 0;
 		rv->col_info = NULL;

@@ -1637,7 +1637,8 @@ PGAPI_Columns(
 				ordinal;
 	char		useStaticPrecision;
 	char		not_null[MAX_INFO_STRING],
-				relhasrules[MAX_INFO_STRING];
+				relhasrules[MAX_INFO_STRING], relkind[8];
+	BOOL		relisaview;
 	ConnInfo   *ci;
 	ConnectionClass *conn;
 
@@ -1662,14 +1663,15 @@ PGAPI_Columns(
 	 */
 	if (conn->schema_support)
 		sprintf(columns_query, "select u.nspname, c.relname, a.attname, a.atttypid"
-	   ", t.typname, a.attnum, a.attlen, %s, a.attnotnull, c.relhasrules"
+	   ", t.typname, a.attnum, a.attlen, %s, a.attnotnull, c.relhasrules, c.relkind"
 			" from pg_namespace u, pg_class c, pg_attribute a, pg_type t"
 			" where u.oid = c.relnamespace"
-	  " and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0) and not(attisdropped)",
+			" and (not a.attisdropped)"
+	  " and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0)",
 			"a.atttypmod");
 	else
 		sprintf(columns_query, "select u.usename, c.relname, a.attname, a.atttypid"
-	   ", t.typname, a.attnum, a.attlen, %s, a.attnotnull, c.relhasrules"
+	   ", t.typname, a.attnum, a.attlen, %s, a.attnotnull, c.relhasrules, c.relkind"
 			" from pg_user u, pg_class c, pg_attribute a, pg_type t"
 			" where u.usesysid = c.relowner"
 	  " and c.oid= a.attrelid and a.atttypid = t.oid and (a.attnum > 0)",
@@ -1828,6 +1830,16 @@ PGAPI_Columns(
 		return SQL_ERROR;
 	}
 
+	result = PGAPI_BindCol(hcol_stmt, 11, SQL_C_CHAR,
+						   relkind, sizeof(relkind), NULL);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	{
+		SC_error_copy(stmt, col_stmt);
+		SC_log_error(func, "", stmt);
+		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+		return SQL_ERROR;
+	}
+
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.");
@@ -1887,9 +1899,13 @@ PGAPI_Columns(
 	 * table
 	 */
 
+	if (PG_VERSION_GE(conn, 7.1))
+		relisaview = (relkind[0] == 'v');
+	else
+		relisaview = (relhasrules[0] == '1');
 	if (result != SQL_ERROR && !stmt->internal)
 	{
-		if (relhasrules[0] != '1' &&
+		if (!relisaview &&
 			(atoi(ci->show_oid_column) ||
 			 strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0))
 		{
@@ -2059,7 +2075,7 @@ PGAPI_Columns(
 	 * Put the row version column at the end so it might not be mistaken
 	 * for a key field.
 	 */
-	if (relhasrules[0] != '1' && !stmt->internal && atoi(ci->row_versioning))
+	if (!relisaview && !stmt->internal && atoi(ci->row_versioning))
 	{
 		/* For Row Versioning fields */
 		the_type = PG_TYPE_INT4;
@@ -2138,7 +2154,8 @@ PGAPI_SpecialColumns(
 	StatementClass *col_stmt;
 	char		columns_query[INFO_INQUIRY_LEN];
 	RETCODE		result;
-	char		relhasrules[MAX_INFO_STRING];
+	char		relhasrules[MAX_INFO_STRING], relkind[8];
+	BOOL		relisaview;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
 
@@ -2156,11 +2173,11 @@ PGAPI_SpecialColumns(
 	 * Create the query to find out if this is a view or not...
 	 */
 	if (conn->schema_support)
-		sprintf(columns_query, "select c.relhasrules "
+		sprintf(columns_query, "select c.relhasrules, c.relkind "
 			"from pg_namespace u, pg_class c where "
 			"u.oid = c.relnamespace");
 	else
-		sprintf(columns_query, "select c.relhasrules "
+		sprintf(columns_query, "select c.relhasrules, c.relkind "
 			"from pg_user u, pg_class c where "
 			"u.usesysid = c.relowner");
 
@@ -2204,7 +2221,21 @@ PGAPI_SpecialColumns(
 		return SQL_ERROR;
 	}
 
+	result = PGAPI_BindCol(hcol_stmt, 2, SQL_C_CHAR,
+					relkind, sizeof(relkind), NULL);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	{
+		SC_error_copy(stmt, col_stmt);
+		SC_log_error(func, "", stmt);
+		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+		return SQL_ERROR;
+	}
+
 	result = PGAPI_Fetch(hcol_stmt);
+	if (PG_VERSION_GE(conn, 7.1))
+		relisaview = (relkind[0] == 'v');
+	else
+		relisaview = (relhasrules[0] == '1');
 	PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 
 	res = QR_Constructor();
@@ -2221,7 +2252,7 @@ PGAPI_SpecialColumns(
 	QR_set_field_info(res, 6, "SCALE", PG_TYPE_INT2, 2);
 	QR_set_field_info(res, 7, "PSEUDO_COLUMN", PG_TYPE_INT2, 2);
 
-	if (relhasrules[0] != '1')
+	if (!relisaview)
 	{
 		/* use the oid value for the rowid */
 		if (fColType == SQL_BEST_ROWID)
@@ -2345,7 +2376,7 @@ PGAPI_Statistics(
 			   *indx_stmt;
 	char		column_name[MAX_INFO_STRING],
 			table_qualifier[MAX_INFO_STRING],
-				relhasrules[10];
+				relhasrules[10], relkind[8];
 	char	  **column_names = 0;
 	SQLINTEGER	column_name_len;
 	int			total_columns = 0;
@@ -2599,6 +2630,8 @@ PGAPI_Statistics(
 		goto SEEYA;
 	}
 
+	relhasrules[0] = '0';
+	result = PGAPI_Fetch(hindx_stmt);
 	/* fake index of OID */
 	if (relhasrules[0] != '1' && atoi(ci->show_oid_column) && atoi(ci->fake_oid_index))
 	{
@@ -2635,7 +2668,6 @@ PGAPI_Statistics(
 		QR_add_tuple(res, row);
 	}
 
-	result = PGAPI_Fetch(hindx_stmt);
 	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
 	{
 		/* If only requesting unique indexs, then just return those. */
@@ -2898,8 +2930,8 @@ PGAPI_PrimaryKeys(
 						" AND ia.attrelid = i.indexrelid"
 						" AND ta.attrelid = i.indrelid"
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
-                                                " AND NOT(ta.attisdropped)"
-                                                " AND NOT(ia.attisdropped)"
+						" AND (NOT ta.attisdropped)"
+						" AND (NOT ia.attisdropped)"
 						" order by ia.attnum", pktab, pkscm);
 				else
 					sprintf(tables_query, "select ta.attname, ia.attnum"
@@ -2927,8 +2959,8 @@ PGAPI_PrimaryKeys(
 						" AND ia.attrelid = i.indexrelid"
 						" AND ta.attrelid = i.indrelid"
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
-                                                " AND NOT(ta.attisdropped)"
-                                                " AND NOT(ia.attisdropped)"
+						" AND (NOT ta.attisdropped)"
+						" AND (NOT ia.attisdropped)"
 						" order by ia.attnum", pktab, pkscm);
 				else
 					sprintf(tables_query, "select ta.attname, ia.attnum"
@@ -3123,7 +3155,8 @@ getClientColumnName(ConnectionClass *conn, const char * serverSchemaName, const 
 		if (conn->schema_support)
 			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute "
 				"where relname = '%s' and attrelid = pg_class.oid "
-				"and attname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s' and not(attisdropped)", serverTableName, serverColumnName, serverSchemaName);
+				"and (not attisdropped) "
+				"and attname = '%s' and pg_namespace.oid = relnamespace and pg_namespace.nspname = '%s'", serverTableName, serverColumnName, serverSchemaName);
 		else
 			sprintf(query, "select attrelid, attnum from pg_class, pg_attribute "
 				"where relname = '%s' and attrelid = pg_class.oid "

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.8 2002/09/23 08:08:21 hinoue Exp $
+ * $Id: descriptor.h,v 1.9 2002/12/16 15:01:33 hinoue Exp $
  *
  */
 
@@ -85,6 +85,8 @@ struct IPDFields_
 	StatementClass	*stmt;
 	UInt4		*param_processed_ptr;
 	UInt2		*param_status_ptr;
+	ParameterImplClass	*parameters;
+	int			allocated;
 };
 
 void	InitializeARDFields(ARDFields *self);
@@ -97,6 +99,7 @@ void	IRDFields_free(IRDFields *self);
 void	IPDFields_free(IPDFields *self);
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall);
 void	APD_free_params(APDFields *self, char option);
+void	IPD_free_params(IPDFields *self, char option);
 #if (ODBCVER >= 0x0300)
 void	Desc_set_error(SQLHDESC hdesc, int errornumber, const char * errormsg);
 #endif /* ODBCVER */
