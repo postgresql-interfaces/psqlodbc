@@ -737,7 +737,7 @@ parse_statement(StatementClass *stmt)
 					in_dot = TRUE;
 					continue;
 				}
-				if (!dquote && stricmp(token, "as"))
+				if (dquote || stricmp(token, "as"))
 				{
 					if (stricmp(token, "LEFT") == 0 ||
 					    stricmp(token, "RIGHT") == 0 ||
@@ -745,8 +745,11 @@ parse_statement(StatementClass *stmt)
 					    stricmp(token, "FULL") == 0 ||
 					    stricmp(token, "ON") == 0)
 					{
-						in_table = FALSE;
-						continue;
+						if (!dquote)
+						{
+							in_table = FALSE;
+							continue;
+						}
 					}
 					strcpy(ti[stmt->ntab - 1]->alias, token);
 					mylog("alias for table '%s' is '%s'\n", ti[stmt->ntab - 1]->name, ti[stmt->ntab - 1]->alias);
