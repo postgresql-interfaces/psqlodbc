@@ -927,7 +927,7 @@ parse_statement(StatementClass *stmt)
 			 	 	 * We also have to check as follows.
 			 	 	 */
 					sprintf(token, "select nspname from pg_namespace n, pg_class c"
-						" where c.relnamespace=n.oid and c.oid='%s'::regclass", ti[i]->name);
+						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", ti[i]->name);
 					res = CC_send_query(conn, token, NULL, CLEAR_RESULT_ON_ABORT);
 					if (res)
 					{
