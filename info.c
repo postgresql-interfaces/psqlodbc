@@ -219,7 +219,8 @@ PGAPI_GetInfo(
 			 * the driver
 			 */
 			/* version number to the dbms version string */
-			sprintf(tmp, "%s %s", POSTGRESDRIVERVERSION, conn->pg_version);
+			snprintf(tmp, sizeof(tmp) - 1, "%s %s", POSTGRESDRIVERVERSION, conn->pg_version);
+                        tmp[sizeof(tmp) - 1] = '\0';
 			p = tmp;
 			break;
 
