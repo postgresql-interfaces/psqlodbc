@@ -18,10 +18,9 @@
  *-------
  */
 
-#ifndef ODBCVER
-#define ODBCVER 0x0300
-#endif
 #include "psqlodbc.h"
+
+#if (ODBCVER >= 0x0300)
 #include <stdio.h>
 #include <string.h>
 
@@ -644,3 +643,4 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }	
+#endif /* ODBCVER >= 0x0300 */
