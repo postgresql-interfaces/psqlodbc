@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.87 2004/07/21 12:29:59 dpage Exp $
+ * $Id: psqlodbc.h,v 1.88 2005/02/14 13:07:11 dpage Exp $
  *
  */
 
@@ -146,7 +146,7 @@ typedef UInt4 Oid;
 #define FETCH_MAX				100 	/* default number of rows to cache
 							 * for declare/fetch */
 #define TUPLE_MALLOC_INC			100
-#define SOCK_BUFFER_SIZE			4096	/* default socket buffer
+#define SOCK_BUFFER_SIZE			8192	/* default socket buffer
 							 * size */
 #define MAX_CONNECTIONS				128 	/* conns per environment
 							 * (arbitrary)	*/
