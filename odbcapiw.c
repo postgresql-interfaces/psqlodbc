@@ -47,11 +47,11 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
 	if (tbName)
 		free(tbName);
-	if (clName);
+	if (clName)
 		free(clName);
 	return ret;
 }
@@ -75,11 +75,11 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	ret = PGAPI_Connect(ConnectionHandle, svName, (SWORD) nmlen1,
            	usName, (SWORD) nmlen2, auth, (SWORD) nmlen3);
 	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
-	if (svName);
+	if (svName)
 		free(svName);
-	if (usName);
+	if (usName)
 		free(usName);
-	if (auth);
+	if (auth)
 		free(auth);
 	return ret;
 }
@@ -114,7 +114,7 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 			*pcbConnStrOut = outlen;
 	}
 	free(szOut);
-	if (szIn);
+	if (szIn)
 		free(szIn);
 	return ret;
 }
@@ -147,7 +147,7 @@ RETCODE SQL_API SQLBrowseConnectW(
 			*pcbConnStrOut = outlen;
 	}
 	free(szOut);
-	if (szIn);
+	if (szIn)
 		free(szIn);
 	return ret;
 }
@@ -213,7 +213,7 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_ExecDirect(StatementHandle, stxt, slen);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	if (stxt);
+	if (stxt)
 		free(stxt);
 	return ret;
 }
@@ -295,7 +295,7 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_Prepare(StatementHandle, stxt, slen);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	if (stxt);
+	if (stxt)
 		free(stxt);
 	return ret;
 }
@@ -312,7 +312,7 @@ RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_SetCursorName(StatementHandle, crName, (SWORD) nlen);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	if (crName);
+	if (crName)
 		free(crName);
 	return ret;
 }
@@ -337,11 +337,11 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
            (SWORD) nmlen1, scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		Scope, Nullable);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
 	return ret;
 }
@@ -365,11 +365,11 @@ RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
            scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, Unique,
 		Reserved);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
 	return ret;
 }
@@ -394,13 +394,13 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
            scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
            tbType, (SWORD) nmlen4);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
-	if (tbType);
+	if (tbType)
 		free(tbType);
 	return ret;
 }
@@ -430,13 +430,13 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
 		clName, (SWORD) nmlen4);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
-	if (clName);
+	if (clName)
 		free(clName);
 	return ret;
 }
@@ -473,17 +473,17 @@ RETCODE SQL_API SQLForeignKeysW(
 		fkctName, (SWORD) nmlen4, fkscName, (SWORD) nmlen5,
 		fktbName, (SWORD) nmlen6);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
-	if (fkctName);
+	if (fkctName)
 		free(fkctName);
-	if (fkscName);
+	if (fkscName)
 		free(fkscName);
-	if (fktbName);
+	if (fktbName)
 		free(fktbName);
 	return ret;
 }
@@ -509,7 +509,7 @@ RETCODE SQL_API SQLNativeSqlW(
 	szOut = malloc(buflen);
 	ret = PGAPI_NativeSql(hdbc, szIn, (SQLINTEGER) slen,
 		szOut, buflen, &olen);
-	if (szIn);
+	if (szIn)
 		free(szIn);
 	if (ret == SQL_SUCCESS)
 	{
@@ -550,11 +550,11 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	ret = PGAPI_PrimaryKeys(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
 	return ret;
 }
@@ -584,13 +584,13 @@ RETCODE SQL_API SQLProcedureColumnsW(
 		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3,
 		clName, (SWORD) nmlen4);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (prName);
+	if (prName)
 		free(prName);
-	if (clName);
+	if (clName)
 		free(clName);
 	return ret;
 }
@@ -616,11 +616,11 @@ RETCODE SQL_API SQLProceduresW(
 	ret = PGAPI_Procedures(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (prName);
+	if (prName)
 		free(prName);
 	return ret;
 }
@@ -646,11 +646,11 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	ret = PGAPI_TablePrivileges(hstmt, ctName, (SWORD) nmlen1,
 		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, 0);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
-	if (ctName);
+	if (ctName)
 		free(ctName);
-	if (scName);
+	if (scName)
 		free(scName);
-	if (tbName);
+	if (tbName)
 		free(tbName);
 	return ret;
 }

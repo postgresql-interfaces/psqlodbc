@@ -11,6 +11,10 @@
 
 #include "psqlodbc.h"
 
+#if defined (POSIX_MULTITHREAD_SUPPORT)
+#include <pthread.h>
+#endif
+
 #define ENV_ALLOC_ERROR 1
 
 /**********		Environment Handle	*************/

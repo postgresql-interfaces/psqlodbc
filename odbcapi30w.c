@@ -219,7 +219,7 @@ RETCODE SQL_API	SQLGetDiagRecW(SWORD fHandleType,
 		if (pcbErrorMsg)
         		*pcbErrorMsg = tlen;
 	}
-        if (qstr);
+        if (qstr)
         	free(qstr);
 	if (mtxt)
         	free(mtxt);

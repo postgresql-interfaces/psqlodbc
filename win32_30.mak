@@ -528,9 +528,9 @@ SOURCE=odbcapi30.c
 "$(INTDIR)\odbcapi30.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
-SOURCE=pgcapi30.c
+SOURCE=pgapi30.c
 
-"$(INTDIR)\pgcapi30.obj" : $(SOURCE) "$(INTDIR)"
+"$(INTDIR)\pgapi30.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

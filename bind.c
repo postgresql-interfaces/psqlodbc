@@ -521,7 +521,7 @@ APD_free_params(APDFields *self, char option)
 
 	if (option == STMT_FREE_PARAMS_ALL)
 	{
-		if (self->parameters);
+		if (self->parameters)
 			free(self->parameters);
 		self->parameters = NULL;
 		self->allocated = 0;
