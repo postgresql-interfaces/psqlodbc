@@ -1272,10 +1272,7 @@ retry_public_schema:
 	}
 
 	if (conn->schema_support)
-	{
 		schema_strcat1(tables_query, " and nspname %s '%.*s'", likeeq, szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
-		strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)");
-	}
 	else
 		my_strcat1(tables_query, " and usename %s '%.*s'", likeeq, szSchemaName, cbSchemaName);
 	my_strcat1(tables_query, " and relname %s '%.*s'", likeeq, szTableName, cbTableName);
