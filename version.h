@@ -4,13 +4,15 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
+ * Note:            The version number should also be updated in :
+ *                  psqlobdc.rc, configure.ac and installer/make.bat
  */
 
 #ifndef __VERSION_H__
 #define __VERSION_H__
 
-#define POSTGRESDRIVERVERSION		"08.00.0005"
-#define POSTGRES_RESOURCE_VERSION	"08.00.0005\0"
-#define PG_DRVFILE_VERSION		8,0,0,05
+#define POSTGRESDRIVERVERSION		"08.00.0100"
+#define POSTGRES_RESOURCE_VERSION	"08.00.0100\0"
+#define PG_DRVFILE_VERSION		8,0,1,00
 
 #endif
