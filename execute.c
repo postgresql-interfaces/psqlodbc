@@ -990,7 +990,7 @@ PGAPI_PutData(
 #ifdef	UNICODE_SUPPORT
 		if (SQL_C_WCHAR == ctype)
 		{
-			putlen = 2 * ucs2strlen((SQLWCHAR *) rgbValue);
+			putlen = WCLEN * ucs2strlen((SQLWCHAR *) rgbValue);
 			lenset = TRUE;
 		}
 		else

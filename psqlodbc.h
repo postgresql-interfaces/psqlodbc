@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.81 2003/12/09 10:01:38 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.82 2004/02/04 08:55:28 dpage Exp $
  *
  */
 
@@ -321,6 +321,7 @@ int	initialize_global_cs(void);
 const pthread_mutexattr_t *getMutexAttr(void);
 #endif /* POSIX_THREADMUTEX_SUPPORT */
 #ifdef	UNICODE_SUPPORT
+#define WCLEN sizeof(SQLWCHAR)
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
 UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);

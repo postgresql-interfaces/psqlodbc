@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define	byte3check	0xf800
+#define	byte3check	0xfffff800
 #define	byte2_base	0x80c0
 #define	byte2_mask1	0x07c0
 #define	byte2_mask2	0x003f
@@ -19,6 +19,19 @@
 #define	byte3_mask1	0xf000
 #define	byte3_mask2	0x0fc0
 #define	byte3_mask3	0x003f
+
+#ifndef WIN32
+#ifdef HAVE_ISWASCII
+#include <wctype.h>
+#else
+#include <wchar.h>
+#include <ctype.h>
+int	iswascii(wchar_t c)
+{
+	return isascii(wctob(c));
+}
+#endif  /* HAVE_ISWASCII */
+#endif  /* WIN32 */
 
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str)
 {
@@ -49,7 +62,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL lower_i
 		{
 			if (!*wstr)
 				break;
-			else if (0 == (*wstr & 0xff80)) /* ASCII */
+			else if (0 == (*wstr & 0xffffff80)) /* ASCII */
 			{
 				if (lower_identifier)
 					utf8str[len++] = (char) tolower(*wstr);

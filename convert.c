@@ -763,7 +763,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (fCType == SQL_C_WCHAR)
 					{
 						len = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
-						len *= 2;
+						len *= WCLEN;
 						wchanged = changed = TRUE;
 					}
 					else
@@ -810,7 +810,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 						if (fCType == SQL_C_WCHAR)
 						{
-							utf8_to_ucs2_lf(neut_str, -1, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / 2);
+							utf8_to_ucs2_lf(neut_str, -1, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
 						}
 						else
 #endif /* UNICODE_SUPPORT */
@@ -942,18 +942,18 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 		if (SQL_C_WCHAR == fCType && ! wchanged)
 		{
-			if (cbValueMax > 2 * len)
+			if (cbValueMax > WCLEN * len)
 			{
 				char *str = strdup(rgbValueBindRow);
-				UInt4	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / 2);
-				if (cbValueMax < 2 * (SDWORD) ucount)
+				UInt4	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
+				if (cbValueMax < WCLEN * (SDWORD) ucount)
 					result = COPY_RESULT_TRUNCATED;
-				len = ucount * 2;
+				len = ucount * WCLEN;
 				free(str); 
 			}
 			else
 			{
-				len *= 2;
+				len *= WCLEN;
 				result = COPY_RESULT_TRUNCATED;
 			}
 		}
@@ -2647,8 +2647,8 @@ ResolveOneParam(QueryBuild *qb)
 
 #ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
-			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / 2, &used, FALSE);
-			used *= 2;
+			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / WCLEN, &used, FALSE);
+			used *= WCLEN;
 			break;
 #endif /* UNICODE_SUPPORT */
 

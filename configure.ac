@@ -13,7 +13,8 @@ AC_DEFINE(DRIVER_CURSOR_IMPLEMENT, 1,
 PGAC_ARG_BOOL(with, unixodbc, no,
               [  --with-unixodbc         build ODBC driver for unixODBC],
               [AC_DEFINE(WITH_UNIXODBC, 1,
-                         [Define to 1 to build with unixODBC support (--with-unixodbc)])])
+                         [Define to 1 to build with unixODBC support (--with-unixodbc)])
+               AC_DEFINE(SQL_WCHART_CONVERT, [], [Define to use wchar_t as SQLWCHAR in unixODBC])])
 
 PGAC_ARG_BOOL(with, iodbc, no,
               [  --with-iodbc            build ODBC driver for iODBC],
@@ -34,8 +35,20 @@ PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC versi
           	[Define to ODBC version (--with-odbcver)])])
 AC_MSG_RESULT([$with_odbcver])
 
+# to implement the Unicode driver
+AC_ARG_ENABLE(unicode,
+              [  --enable-unicode            build ODBC driver for Unicode],
+              [AC_DEFINE(UNICODE_SUPPORT, 1,
+                         [Define to 1 to build with Unicode support (--enable-unicode)])
+               AC_DEFINE(UNICODE, [],
+                         [Define to use wide APIs])
+               AC_DEFINE(SQL_NOUNICODEMAP, [],
+                         [Define to disable mapping SQL* to SQL*W])
+               AC_CHECK_FUNCS(iswascii)])
+
 AM_CONDITIONAL(with_unixodbc, [test $with_unixodbc = yes])
 AM_CONDITIONAL(with_iodbc, [test $with_iodbc = yes])
+AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
 
 AC_CHECK_FUNCS(strtoul strtoll)
 AC_CHECK_LIB(socket, socket)

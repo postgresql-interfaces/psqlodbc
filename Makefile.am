@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.9 2003/12/09 10:01:37 hinoue Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.10 2004/02/04 08:55:28 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -27,6 +27,11 @@ psqlodbc_la_SOURCES += \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
 	tuplelist.h version.h
 
+if enable_unicode
+psqlodbc_la_SOURCES += \
+	odbcapi30w.c odbcapiw.c win_unicode.c
+endif
+
 EXTRA_psqlodbc_la_SOURCES = md5.c
 
 if with_unixodbc
@@ -45,7 +50,7 @@ BUILT_SOURCES = odbc-drop.sql
 EXTRA_DIST = README.unix license.txt notice.txt readme.txt odbcinst.ini \
 	libtool.m4 psqlodbc_win32.def psqlodbc_apiw.def psqlodbc_api30w.def \
 	psqlodbc_api25.def win32.mak win32_30w.mak win32_25.mak \
-	dlg_wingui.c win_unicode.c win_setup.h win_md5.c setup.c \
+	dlg_wingui.c win_setup.h win_md5.c setup.c \
 	psqlodbc.reg psqlodbc25.reg psqlodbc30w.reg
 MAINTAINERCLEANFILES = odbc-drop.sql \
 	Makefile.in config.guess config.h.in config.sub configure \

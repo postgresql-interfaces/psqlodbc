@@ -369,7 +369,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			if (conn->unicode)
 			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
-				len *= 2;
+				len *= WCLEN;
 			}
 			else
 #endif /* UNICODE_SUPPORT */
