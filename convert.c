@@ -2558,40 +2558,17 @@ ResolveOneParam(QueryBuild *qb)
 		case SQL_C_BINARY:
 			buf = buffer;
 			break;
-/*********************
- * it's not correct to convert depending on param_sqltype, 
- * because the client_encoding is always unicode.
- * We need conversion in any case.
-*/
 
 		case SQL_C_CHAR:
 #ifdef	WIN_UNICODE_SUPPORT
-			switch (param_sqltype)
-			{
-				case SQL_WCHAR:
-				case SQL_WVARCHAR:
-				case SQL_WLONGVARCHAR:
-					if (SQL_NTS == used)
-						used = strlen(buffer);
-					allocbuf = malloc(2 * (used + 1));
-					used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
-						used, (LPWSTR) allocbuf, used + 1);
-					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used);
-					free(allocbuf);
-					allocbuf = buf;
-					break;
-				default:
-
-				        if (SQL_NTS == used)
-						used = strlen(buffer);
-					allocbuf = malloc(2 * (used + 1));
-					used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
-						used, (LPWSTR) allocbuf, used + 1);
-					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used);
-					free(allocbuf);
-					allocbuf = buf;
-					buf = buffer;
-			}
+			if (SQL_NTS == used)
+				used = strlen(buffer);
+			allocbuf = malloc(2 * (used + 1));
+			used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
+				used, (LPWSTR) allocbuf, used + 1);
+			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used);
+			free(allocbuf);
+			allocbuf = buf;
 #else
 			buf = buffer;
 #endif /* WIN_UNICODE_SUPPORT */
