@@ -1848,7 +1848,7 @@ positioned_load(StatementClass *stmt, UInt4 flag, UInt4 oid, const char *tidval)
 			sprintf(selstr, "%s where ctid = '%s' and oid = %u", stmt->load_statement, tidval, oid); 
 	}
 	else if ((flag & USE_INSERTED_TID) != 0)
-		sprintf(selstr, "%s where ctid = currtid(0, '(,)') and oid = %u", stmt->load_statement, oid);
+		sprintf(selstr, "%s where ctid = currtid(0, '(0,0)') and oid = %u", stmt->load_statement, oid);
 	else
 		sprintf(selstr, "%s where oid = %u", stmt->load_statement, oid);
 

@@ -2115,7 +2115,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 				 * 1st query is for field information
 				 * 2nd query is keyset gathering
 				 */
-				CVT_APPEND_STR(qb, " where ctid = '(,)';select ctid, oid from ");
+				CVT_APPEND_STR(qb, " where ctid = '(0,0)';select ctid, oid from ");
 				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, npos - qp->from_pos - 5);
 			}
 		}
@@ -2158,7 +2158,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		qb->load_stmt_len = qb->npos;
 		if (0 != (qb->flags & FLGB_KEYSET_DRIVEN))
 		{
-			CVT_APPEND_STR(qb, "where ctid = '(,)';select CTID, OID from ");
+			CVT_APPEND_STR(qb, "where ctid = '(0,0)';select CTID, OID from ");
 			CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, qp->where_pos - qp->from_pos - 5);
 		}
 	}
