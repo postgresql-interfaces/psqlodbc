@@ -358,7 +358,7 @@ struct ConnectionClass_
 	int			lobj_type;
 	int			ntables;
 	COL_INFO  **col_info;
-	long		translation_option;
+	UDWORD		translation_option;
 	HINSTANCE	translation_handle;
 	DataSourceToDriverProc DataSourceToDriver;
 	DriverToDataSourceProc DriverToDataSource;

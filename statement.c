@@ -853,7 +853,7 @@ SC_get_time(StatementClass *stmt)
  *	just the current row number.  But it could be more sophisticated
  *	someday, such as mapping a key to a 32 bit value
  */
-unsigned long
+UInt4
 SC_get_bookmark(StatementClass *self)
 {
 	return (self->currTuple + 1);

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82 2004/02/04 08:55:28 dpage Exp $
+ * $Id: psqlodbc.h,v 1.83 2004/07/01 09:20:56 dpage Exp $
  *
  */
 
@@ -58,27 +58,40 @@
 #include "gpps.h"
 #endif
 
-#ifndef WIN32
-#define Int4 long int
-#define UInt4 unsigned int
-#define Int2 short
-#define UInt2 unsigned short
 
-#if !defined(WITH_UNIXODBC) && !defined(WITH_IODBC)
+#ifndef WIN32
+
+# if defined(HAVE_INTTYPES_H)
+#  include <inttypes.h>
+# else
+#  if defined(HAVE_STDINT_H)
+#   include <stdint.h>
+#  endif
+# endif
+
+# define Int4 int32_t
+# define UInt4 uint32_t
+# define Int2 int16_t
+# define UInt2 uint16_t
+
+# if !defined(WITH_UNIXODBC) && !defined(WITH_IODBC)
 typedef float SFLOAT;
 typedef double SDOUBLE;
+# endif
+
+# ifndef CALLBACK
+#  define CALLBACK
+# endif
+
+#else /* WIN32 */
+
+# define Int4 int
+# define UInt4 unsigned int
+# define Int2 short
+# define UInt2 unsigned short
+
 #endif
 
-#ifndef CALLBACK
-#define CALLBACK
-#endif
-
-#else
-#define Int4 int
-#define UInt4 unsigned int
-#define Int2 short
-#define UInt2 unsigned short
-#endif
 
 typedef UInt4 Oid;
 

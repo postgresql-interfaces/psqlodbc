@@ -127,7 +127,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	/* Abbrebiation is needed ? */
 	if (abbrev || strlen(connect_string) >= len)
 	{
-		unsigned long flag = 0;
+		UInt4 flag = 0;
 		if (ci->disallow_premature)
 			flag |= BIT_DISALLOWPREMATURE;
 		if (ci->allow_keyset)
@@ -209,7 +209,7 @@ static void
 unfoldCXAttribute(ConnInfo *ci, const char *value)
 {
 	int		count;
-	unsigned long	flag;
+	UInt4		flag;
 
 	if (strlen(value) < 2)
 	{

@@ -125,7 +125,11 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	struct sockaddr_un *un;
 #endif /* HAVE_UNIX_SOCKETS */
 	int	family, sLen; 
-	unsigned long iaddr;
+#ifdef WIN32
+        UInt4 iaddr;
+#else
+	in_addr_t iaddr;
+#endif
 
 	if (self->socket != -1)
 	{

@@ -339,7 +339,7 @@ RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);
 void		SC_log_error(const char *func, const char *desc, const StatementClass *self);
 time_t		SC_get_time(StatementClass *self);
-unsigned long SC_get_bookmark(StatementClass *self);
+UInt4		SC_get_bookmark(StatementClass *self);
 RETCODE		SC_pos_update(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, UDWORD index);
