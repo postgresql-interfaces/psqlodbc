@@ -1,0 +1,10 @@
+psqlODBC README for *nix Systems
+================================
+
+Since psqlODBC has be moved from the main PostgreSQL source tree, we have yet
+to create a new build system for the driver. Currently, in order to build under
+*nix systems, it is recommended that you copy the files in this directory to
+src/interfaces/odbc in your PostgreSQL source tree, then re-run configure with
+the required options from the top of the tree. The driver can then be built
+using make as per normal.
+
