@@ -77,7 +77,11 @@ Int2		sqlTypes[] = {
 	/* SQL_BINARY, -- Commented out because VarBinary is more correct. */
 	SQL_BIT,
 	SQL_CHAR,
+#if (ODBCVER >= 0x0300)
+	SQL_TYPE_DATE,
+#else
 	SQL_DATE,
+#endif /* ODBCVER */
 	SQL_DECIMAL,
 	SQL_DOUBLE,
 	SQL_FLOAT,
@@ -87,8 +91,13 @@ Int2		sqlTypes[] = {
 	SQL_NUMERIC,
 	SQL_REAL,
 	SQL_SMALLINT,
+#if (ODBCVER >= 0x0300)
+	SQL_TYPE_TIME,
+	SQL_TYPE_TIMESTAMP,
+#else
 	SQL_TIME,
 	SQL_TIMESTAMP,
+#endif /* ODBCVER */
 	SQL_TINYINT,
 	SQL_VARBINARY,
 	SQL_VARCHAR,
