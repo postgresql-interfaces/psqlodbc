@@ -290,4 +290,15 @@ RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_add(StatementClass *self, UWORD irow);
 
+/*
+ *	Macros to convert global index <-> relative index in resultset/rowset
+ */
+/* a global index to the relative index in a rowset */
+#define	GIdx2RowIdx(gidx, stmt)	(gidx - stmt->rowset_start)
+/* a global index to the relative index in a resultset(not a rowset) */
+#define	GIdx2ResultIdx(gidx, stmt, res)	((stmt->rowset_start < 0) ? res->base : gidx - stmt->rowset_start + res->base)
+/* a relative index in a rowset to the global index */
+#define	RowIdx2GIdx(ridx, stmt)	(ridx + stmt->rowset_start)
+/* a relative index in a resultset to the global index */
+#define	ResultIdx2GIdx(ridx, stmt, res)	(ridx - res->base + stmt->rowset_start)
 #endif

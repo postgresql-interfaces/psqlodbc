@@ -875,9 +875,7 @@ inolog("Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 				value = QR_get_value_manual(res, stmt->currTuple, icol);
 			else
 			{
-				Int4	curt = res->base;
-				if (stmt->rowset_start >= 0)
-					curt += (stmt->currTuple - stmt->rowset_start);
+				Int4	curt = GIdx2ResultIdx(stmt->currTuple, stmt, res);
 				value = QR_get_value_backend_row(res, curt, icol);
 			}
 			mylog("     value = '%s'\n", value);
@@ -1434,7 +1432,7 @@ PGAPI_ExtendedFetch(
 	}
 
 	/* currTuple is always 1 row prior to the rowset */
-	stmt->currTuple = stmt->rowset_start - 1;
+	stmt->currTuple = RowIdx2GIdx(-1, stmt);
 
 	/* increment the base row in the tuple cache */
 	QR_set_rowset_size(res, opts->rowset_size);
@@ -1504,13 +1502,13 @@ PGAPI_ExtendedFetch(
 
 	/* Save the fetch count for SQLSetPos */
 	stmt->last_fetch_count = i;
-	stmt->last_fetch_count_include_ommitted = currp - stmt->rowset_start;
+	stmt->last_fetch_count_include_ommitted = GIdx2RowIdx(currp, stmt);
 
 	/* Reset next binding row */
 	stmt->bind_row = 0;
 
 	/* Move the cursor position to the first row in the result set. */
-	stmt->currTuple = stmt->rowset_start;
+	stmt->currTuple = RowIdx2GIdx(0, stmt);
 
 	/* For declare/fetch, need to reset cursor to beginning of rowset */
 	if (SC_is_fetchcursor(stmt) && !stmt->manual_result)
@@ -1667,7 +1665,7 @@ static void UndoRollback(StatementClass *stmt, QResultClass *res)
 		status = keyset[index].status;
 		if (0 != (status & CURS_SELF_ADDING))
 		{
-			ridx = index - stmt->rowset_start + res->base;
+			ridx = GIdx2ResultIdx(index, stmt, res);
 			if (ridx >=0 && ridx < res->num_backend_rows)
 			{
 				TupleField *tuple = res->backend_tuples + res->num_fields * ridx;
@@ -1852,7 +1850,7 @@ SC_pos_reload(StatementClass *stmt, UDWORD global_ridx, UWORD *count, BOOL logCh
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
-	res_ridx = global_ridx - stmt->rowset_start + res->base;
+	res_ridx = GIdx2ResultIdx(global_ridx, stmt, res);
 	if (!(oid = getOid(res, global_ridx)))
 	{
 		SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?");
@@ -1941,7 +1939,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
-	limitrow = stmt->rowset_start + res->rowset_size;
+	limitrow = RowIdx2GIdx(res->rowset_size, stmt);
 	if (limitrow > res->num_total_rows)
 		limitrow = res->num_total_rows;
 	if (create_from_scratch)
@@ -1954,7 +1952,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 			if (res->backend_tuples[i].value)
 				free(res->backend_tuples[i].value);
 		}
-		brows = limitrow - stmt->rowset_start;
+		brows = GIdx2RowIdx(limitrow, stmt);
 		if (brows > res->count_backend_allocated)
 		{
 			res->backend_tuples = realloc(res->backend_tuples, sizeof(TupleField) * res->num_fields * brows);
@@ -1998,7 +1996,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 					{
 						if (oid == getOid(res, k))
 						{
-							l = k - stmt->rowset_start + res->base;
+							l = GIdx2ResultIdx(k, stmt, res);
 							tuple = res->backend_tuples + res->num_fields * l;
 							tuplew = qres->backend_tuples + qres->num_fields * j;
 							for (m = 0; m < res->num_fields; m++, tuple++, tuplew++)
@@ -2118,7 +2116,7 @@ SC_pos_newload(StatementClass *stmt, UInt4 oid, BOOL tidRef)
 			}
 			KeySetSet(tuplen, qres->num_fields, res->keyset + res->num_total_rows);
 
-			if (res->num_total_rows == res->num_backend_rows - res->base + stmt->rowset_start)
+			if (res->num_total_rows == ResultIdx2GIdx(res->num_backend_rows, stmt, res))
 			{
 				if (res->num_backend_rows >= res->count_backend_allocated)
 				{
@@ -2644,7 +2642,7 @@ SC_pos_add(StatementClass *stmt,
 	PGAPI_FreeStmt(hstmt, SQL_DROP);
 	if (SQL_SUCCESS == ret && res->keyset)
 	{
-		int	global_ridx = res->num_total_rows + stmt->rowset_start - res->base - 1;
+		int	global_ridx = res->num_total_rows - 1;
 		if (CC_is_in_trans(conn))
 		{
 
@@ -2813,7 +2811,7 @@ PGAPI_SetPos(
 	ridx = -1;
 	for (i = nrow = 0, processed = 0; nrow <= end_row; i++)
 	{
-		global_ridx = i + stmt->rowset_start;
+		global_ridx = RowIdx2GIdx(i, stmt);
 		if (SQL_ADD != fOption)
 		{
 			if ((int) global_ridx >= res->num_total_rows)
@@ -2869,7 +2867,7 @@ PGAPI_SetPos(
 	{
 		if (SQL_ADD != fOption && ridx >= 0) /* for SQLGetData */
 		{ 
-			stmt->currTuple = stmt->rowset_start + ridx;
+			stmt->currTuple = RowIdx2GIdx(ridx, stmt);
 			QR_set_position(res, ridx);
 		}
 	}

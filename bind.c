@@ -177,7 +177,6 @@ PGAPI_BindCol(
 		else
 		{
 			/* Make sure it is the bookmark data type */
-			if (fCType == SQL_C_BOOKMARK)
 			switch (fCType)
 			{
 				case SQL_C_BOOKMARK:

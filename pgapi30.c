@@ -1460,11 +1460,23 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			*((HSTMT *) Value) = descHandleFromStatementHandle(StatementHandle, Attribute); 
 			break;
-		case SQL_ATTR_AUTO_IPD:	/* 10001 */
-			/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 
 		case SQL_ATTR_CURSOR_SCROLLABLE:		/* -1 */
+			len = 4;
+			if (SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
+				*((SQLUINTEGER *) Value) = SQL_NONSCROLLABLE;
+			else
+				*((SQLUINTEGER *) Value) = SQL_SCROLLABLE;
+			break;
 		case SQL_ATTR_CURSOR_SENSITIVITY:		/* -2 */
+			len = 4;
+			if (SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency)
+				*((SQLUINTEGER *) Value) = SQL_INSENSITIVE;
+			else
+				*((SQLUINTEGER *) Value) = SQL_UNSPECIFIED;
+			break;
+		case SQL_ATTR_AUTO_IPD:	/* 10001 */
+			/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
 		case SQL_ATTR_METADATA_ID:		/* 10014 */
 
@@ -1704,7 +1716,8 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	ARDFields	*opts = SC_get_ARD(stmt);
 	RETCODE		ret;
-	UInt4		offset, bind_size = opts->bind_size, *bmark = NULL;
+	UInt4		offset, bind_size = opts->bind_size, *bmark = NULL,
+			global_idx;
 	int		i, processed;
 	ConnectionClass	*conn;
 	BOOL		auto_commit_needed = FALSE;
@@ -1731,6 +1744,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	}
 	for (i = 0, processed = 0; i < opts->rowset_size; i++)
 	{
+		global_idx = *bmark - 1;
 		/* Note opts->row_operation_ptr is ignored */
 		switch (operation)
 		{
@@ -1738,13 +1752,13 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 				ret = SC_pos_add(stmt, (UWORD) i);
 				break;
 			case SQL_UPDATE_BY_BOOKMARK:
-				ret = SC_pos_update(stmt, (UWORD) i, *bmark);
+				ret = SC_pos_update(stmt, (UWORD) i, global_idx);
 				break;
 			case SQL_DELETE_BY_BOOKMARK:
-				ret = SC_pos_delete(stmt, (UWORD) i, *bmark);
+				ret = SC_pos_delete(stmt, (UWORD) i, global_idx);
 				break;
 			case SQL_FETCH_BY_BOOKMARK:
-				ret = SC_pos_refresh(stmt, (UWORD) i, *bmark);
+				ret = SC_pos_refresh(stmt, (UWORD) i, global_idx);
 				break;
 		}
 		processed++;

@@ -958,9 +958,7 @@ SC_fetch(StatementClass *self)
 				value = QR_get_value_backend(res, lf);
 			else
 			{
-				int curt = res->base;
-				if (self->rowset_start >= 0)
-					curt += (self->currTuple - self->rowset_start);
+				int	curt = GIdx2ResultIdx(self->currTuple, self, res);
 				value = QR_get_value_backend_row(res, curt, lf);
 			}
 

@@ -661,7 +661,7 @@ PGAPI_GetStmtOption(
 				return SQL_ERROR;
 			}
 
-			ridx = stmt->currTuple - stmt->rowset_start + res->base;
+			ridx = GIdx2ResultIdx(stmt->currTuple, stmt, res);
 			if (stmt->manual_result || !SC_is_fetchcursor(stmt))
 			{
 				/* make sure we're positioned on a valid row */
