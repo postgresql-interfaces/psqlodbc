@@ -195,14 +195,14 @@ typedef struct
 	char		translation_dll[MEDIUM_REGISTRY_LEN];
 	char		translation_option[SMALL_REGISTRY_LEN];
 	char		focus_password;
-	char		disallow_premature;
-	char		allow_keyset;
-	char		updatable_cursors;
-	char		lf_conversion;
-	char		true_is_minus1;
-	char		int8_as;
-	char		bytea_as_longvarbinary;
-	char		use_server_side_prepare;
+	signed char	disallow_premature;
+	signed char	allow_keyset;
+	signed char	updatable_cursors;
+	signed char	lf_conversion;
+	signed char	true_is_minus1;
+	signed char	int8_as;
+	signed char	bytea_as_longvarbinary;
+	signed char	use_server_side_prepare;
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
 
