@@ -885,7 +885,8 @@ PGAPI_ParamData(
 		retval = Exec_with_parameters_resolved(stmt, &exec_end);
 		if (exec_end)
 			return retval;
-		return PGAPI_Execute(stmt);
+		if (retval = PGAPI_Execute(stmt), SQL_NEED_DATA != retval)
+			return retval;
 	}
 
 	/*
