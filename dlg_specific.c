@@ -286,6 +286,11 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
 
+#ifdef HAVE_UNIX_SOCKETS
+	else if (stricmp(attribute, INI_UDS) == 0)
+		strcpy(ci->uds, value);
+#endif
+
 	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, "A0") == 0)
 		strcpy(ci->onlyread, value);
 
@@ -491,6 +496,11 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->port[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
+
+#ifdef HAVE_UNIX_SOCKETS
+	if (ci->uds[0] == '\0' || overwrite)
+		SQLGetPrivateProfileString(DSN, INI_UDS, "", ci->uds, sizeof(ci->uds), ODBC_INI);
+#endif
 
 	if (ci->onlyread[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_READONLY, "", ci->onlyread, sizeof(ci->onlyread), ODBC_INI);
@@ -724,6 +734,13 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_PORT,
 								 ci->port,
 								 ODBC_INI);
+
+#ifdef HAVE_UNIX_SOCKETS
+	SQLWritePrivateProfileString(DSN,
+								 INI_UDS,
+								 ci->uds,
+								 ODBC_INI);
+#endif
 
 	SQLWritePrivateProfileString(DSN,
 								 INI_USER,

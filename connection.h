@@ -19,6 +19,10 @@
 #include <pthread.h>
 #endif
 
+#if !defined WIN32 && defined HAVE_SYS_UN_H && !defined HAVE_UNIX_SOCKETS
+#define HAVE_UNIX_SOCKETS
+#endif
+
 typedef enum
 {
 	CONN_NOT_CONNECTED,			/* Connection has not been established */
@@ -239,6 +243,9 @@ typedef struct
 	char		conn_settings[LARGE_REGISTRY_LEN];
 	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
+#ifdef HAVE_UNIX_SOCKETS
+	char		uds[LARGE_REGISTRY_LEN];
+#endif
 	char		onlyread[SMALL_REGISTRY_LEN];
 	char		fake_oid_index[SMALL_REGISTRY_LEN];
 	char		show_oid_column[SMALL_REGISTRY_LEN];

@@ -725,7 +725,16 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			return 0;
 		}
 
-		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
+		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s',"
+#ifdef HAVE_UNIX_SOCKETS
+		      " uds = '%s',"
+#endif
+		      " database = '%s', username = '%s',"
+		      " password='%s'\n", ci->dsn, ci->server, ci->port,
+#ifdef HAVE_UNIX_SOCKETS
+		      ci->uds,
+#endif
+		      ci->database, ci->username, ci->password ? "xxxxx" : "");
 
 another_version_retry:
 
@@ -747,7 +756,11 @@ another_version_retry:
 
 		mylog("connecting to the server socket...\n");
 
-		SOCK_connect_to(sock, (short) atoi(ci->port), ci->server);
+		SOCK_connect_to(sock, (short) atoi(ci->port), ci->server
+#ifdef HAVE_UNIX_SOCKETS
+				, ci->uds
+#endif
+				);
 		if (SOCK_get_errcode(sock) != 0)
 		{
 			mylog("connection to the server socket failed.\n");

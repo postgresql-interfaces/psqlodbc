@@ -34,7 +34,7 @@ typedef unsigned int in_addr_t;
 
 #define SOCK_ERRNO	errno
 #define SOCK_ERRNO_SET(e)	(errno = e)
-#ifdef	HAVE_SYS_UN_H
+#if defined HAVE_SYS_UN_H && !defined HAVE_UNIX_SOCKETS
 #define HAVE_UNIX_SOCKETS
 #endif /* HAVE_SYS_UN_H */
 #else
@@ -121,7 +121,12 @@ struct SocketClass_
 /* Socket prototypes */
 SocketClass *SOCK_Constructor(const ConnectionClass *conn);
 void		SOCK_Destructor(SocketClass *self);
-char		SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname);
+char		SOCK_connect_to(SocketClass *self, unsigned short port,
+				char *hostname
+#ifdef HAVE_UNIX_SOCKETS
+				, char *uds
+#endif
+				);
 void		SOCK_get_n_char(SocketClass *self, char *buffer, int len);
 void		SOCK_put_n_char(SocketClass *self, char *buffer, int len);
 BOOL		SOCK_get_string(SocketClass *self, char *buffer, int bufsize);

@@ -38,6 +38,14 @@
 #define INI_KDESC			"Description"	/* Data source description */
 #define INI_SERVER			"Servername"	/* Name of Server running PostgreSQL */
 #define INI_PORT			"Port"		/* Port on which the Postmaster is listening */
+
+#if !defined WIN32 && defined HAVE_SYS_UN_H
+#ifndef HAVE_UNIX_SOCKETS
+#define HAVE_UNIX_SOCKETS
+#endif
+#define INI_UDS				"Uds"		/* Unix domain socket path*/
+#endif
+
 #define INI_DATABASE			"Database"	/* Database Name */
 #define INI_USER			"Username"	/* Default User Name */
 #define INI_PASSWORD			"Password"	/* Default Password */

@@ -109,7 +109,11 @@ SOCK_Destructor(SocketClass *self)
 
 
 char
-SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
+SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname
+#ifdef HAVE_UNIX_SOCKETS
+		, char *uds /* unix domain socket path */
+#endif
+		)
 {
 #if defined (POSIX_MULTITHREAD_SUPPORT)
 	const int bufsz = 8192; 
@@ -140,7 +144,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 
 
 	/*
-	 * If it is a valid IP address, use it. Otherwise use hostname lookup.
+	 * If it is a valid IP address, use it. Otherwise use AF_UNIX socket.
 	 */
 	if (hostname && hostname[0])
 	{
@@ -196,7 +200,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		}
 		un->sun_family = family = AF_UNIX;
 		/* passing NULL means that this only suports the pg default "/tmp" */
-		UNIXSOCK_PATH(un, port, ((char *) NULL));
+		UNIXSOCK_PATH(un, port, uds);
 		sLen = UNIXSOCK_LEN(un);
 		self->sadr = (struct sockaddr *) un;
 	}
