@@ -1827,6 +1827,17 @@ CC_send_settings(ConnectionClass *self)
 
 	}
 
+	/* extra_float_digits (applicable since 7.4) */
+	if (PG_VERSION_GT(self, 7.3))
+	{
+		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS);
+		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			status = FALSE;
+
+		mylog("%s: result %d, status %d from set extra_float_digits\n", func, result, status);
+
+	}
+
 	/* Global settings */
 	if (ci->drivers.conn_settings[0] != '\0')
 	{
