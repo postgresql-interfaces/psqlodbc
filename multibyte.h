@@ -1,3 +1,5 @@
+#ifndef	__MULTIBUYTE_H__
+#define	__MULTIBUYTE_H__
 /*
  *
  * Multibyte library header ( psqlODBC Only )
@@ -88,3 +90,4 @@ void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str);
 extern int encoded_nextchar(encoded_str *encstr);
 extern int encoded_byte_check(encoded_str *encstr, int abspos);
 #define check_client_encoding(X) pg_CS_name(pg_CS_code(X))
+#endif /* __MULTIBUYTE_H__ */

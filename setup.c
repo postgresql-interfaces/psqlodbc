@@ -110,7 +110,7 @@ ConfigDSN(HWND hwnd,
 											 (LONG) (LPSTR) lpsetupdlg));
 		}
 		else if (lpsetupdlg->ci.dsn[0])
-			fSuccess = SetDSNAttributes(hwnd, lpsetupdlg);
+			fSuccess = SetDSNAttributes(hwnd, lpsetupdlg, NULL);
 		else
 			fSuccess = FALSE;
 	}
@@ -194,6 +194,7 @@ ConfigDlgProc(HWND hdlg,
 	LPSETUPDLG	lpsetupdlg;
 	ConnInfo   *ci;
 	DWORD		cmd;
+	char		strbuf[64];
 
 	switch (wMsg)
 	{
@@ -204,7 +205,8 @@ ConfigDlgProc(HWND hdlg,
 
 			/* Hide the driver connect message */
 			ShowWindow(GetDlgItem(hdlg, DRV_MSG_LABEL), SW_HIDE);
-			SetWindowText(GetDlgItem(hdlg, IDOK), "Save");
+			LoadString(s_hModule, IDS_ADVANCE_SAVE, strbuf, sizeof(strbuf));
+			SetWindowText(GetDlgItem(hdlg, IDOK), strbuf);
 
 			SetWindowLong(hdlg, DWL_USER, lParam);
 			CenterDialog(hdlg); /* Center dialog */
@@ -224,6 +226,8 @@ ConfigDlgProc(HWND hdlg,
 			/* Initialize dialog fields */
 			SetDlgStuff(hdlg, ci);
 
+			if (lpsetupdlg->fNewDSN || !ci->dsn[0])
+				ShowWindow(GetDlgItem(hdlg, IDC_MANAGEDSN), SW_HIDE);
 			if (lpsetupdlg->fDefault)
 			{
 				EnableWindow(GetDlgItem(hdlg, IDC_DSNAME), FALSE);
@@ -272,7 +276,7 @@ ConfigDlgProc(HWND hdlg,
 					GetDlgStuff(hdlg, &lpsetupdlg->ci);
 
 					/* Update ODBC.INI */
-					SetDSNAttributes(hdlg, lpsetupdlg);
+					SetDSNAttributes(hdlg, lpsetupdlg, NULL);
 					if (IDAPPLY == cmd)
 						break;
 					/* Return to caller */
@@ -290,6 +294,14 @@ ConfigDlgProc(HWND hdlg,
 					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_GLOBAL),
 						 hdlg, global_optionsProc, (LPARAM) &lpsetupdlg->ci);
+
+					return TRUE;
+				case IDC_MANAGEDSN:
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					if (DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_DRIVER_CHANGE),
+						hdlg, manage_dsnProc,
+						(LPARAM) lpsetupdlg) > 0)
+						EndDialog(hdlg, 0);
 
 					return TRUE;
 			}
@@ -368,12 +380,14 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
  *--------
  */
 BOOL		INTFUNC
-SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg)
+SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 {
 	LPCSTR		lpszDSN;		/* Pointer to data source name */
 
 	lpszDSN = lpsetupdlg->ci.dsn;
 
+	if (errcode)
+		*errcode = 0;
 	/* Validate arguments */
 	if (lpsetupdlg->fNewDSN && !*lpsetupdlg->ci.dsn)
 		return FALSE;
@@ -381,16 +395,24 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg)
 	/* Write the data source name */
 	if (!SQLWriteDSNToIni(lpszDSN, lpsetupdlg->lpszDrvr))
 	{
+		DWORD	err;
+		char    szMsg[SQL_MAX_MESSAGE_LENGTH];
+
+		SQLInstallerError(1, &err, szMsg, sizeof(szMsg), NULL);
 		if (hwndParent)
 		{
 			char		szBuf[MAXPGPATH];
-			char		szMsg[MAXPGPATH];
 
-			LoadString(s_hModule, IDS_BADDSN, szBuf, sizeof(szBuf));
-			wsprintf(szMsg, szBuf, lpszDSN);
+			if (SQL_SUCCESS != err)
+			{
+				LoadString(s_hModule, IDS_BADDSN, szBuf, sizeof(szBuf));
+				wsprintf(szMsg, szBuf, lpszDSN);
+			}
 			LoadString(s_hModule, IDS_MSGTITLE, szBuf, sizeof(szBuf));
 			MessageBox(hwndParent, szMsg, szBuf, MB_ICONEXCLAMATION | MB_OK);
 		}
+		if (errcode)
+			*errcode = err;
 		return FALSE;
 	}
 
@@ -403,3 +425,37 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg)
 		SQLRemoveDSNFromIni(lpsetupdlg->szDSN);
 	return TRUE;
 }
+
+
+#ifdef	WIN32
+
+BOOL	INTFUNC
+ChangeDriverName(HWND hwndParent, LPSETUPDLG lpsetupdlg, LPCSTR driver_name)
+{
+	DWORD   err = 0;
+	ConnInfo	*ci = &lpsetupdlg->ci;
+
+	if (!ci->dsn[0])
+	{
+		err = ODBC_ERROR_INVALID_DSN;
+	}
+	else if (!driver_name || strnicmp(driver_name, "postgresql", 10))
+	{
+		err = ODBC_ERROR_INVALID_NAME;
+	}
+	else
+	{
+		LPCSTR	lpszDrvr = lpsetupdlg->lpszDrvr;
+
+		lpsetupdlg->lpszDrvr = driver_name;
+		if (!SetDSNAttributes(hwndParent, lpsetupdlg, &err))
+		{
+			if (!err)
+				err = ODBC_ERROR_INVALID_DSN;
+			lpsetupdlg->lpszDrvr = lpszDrvr;
+		}
+	}
+	return (err == 0);
+}
+
+#endif /* WIN32 */

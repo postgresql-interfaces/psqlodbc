@@ -179,7 +179,7 @@ typedef struct
 {
 	char		dsn[MEDIUM_REGISTRY_LEN];
 	char		desc[MEDIUM_REGISTRY_LEN];
-	char		driver[MEDIUM_REGISTRY_LEN];
+	char		drivername[MEDIUM_REGISTRY_LEN];
 	char		server[MEDIUM_REGISTRY_LEN];
 	char		database[MEDIUM_REGISTRY_LEN];
 	char		username[MEDIUM_REGISTRY_LEN];

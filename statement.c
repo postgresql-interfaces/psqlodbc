@@ -154,6 +154,8 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		/* Remove the statement from the connection's statement list */
 		if (conn)
 		{
+			QResultClass	*res;
+
 			if (!CC_remove_statement(conn, stmt))
 			{
 				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.");
@@ -163,9 +165,9 @@ PGAPI_FreeStmt(HSTMT hstmt,
 			}
 
 			/* Free any cursors and discard any result info */
-			if (SC_get_Result(stmt))
+			if (res = SC_get_Result(stmt), res)
 			{
-				QR_Destructor(SC_get_Result(stmt));
+				QR_Destructor(res);
 				SC_set_Result(stmt,  NULL);
 			}
 		}
@@ -364,6 +366,7 @@ SC_Destructor(StatementClass *self)
 {
 	QResultClass	*res = SC_get_Result(self);
 
+	if (!self)	return FALSE;
 	mylog("SC_Destructor: self=%u, self->result=%u, self->hdbc=%u\n", self, res, self->hdbc);
 	SC_clear_error(self);
 	if (STMT_EXECUTING == self->status)

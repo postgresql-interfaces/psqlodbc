@@ -461,13 +461,12 @@ CC_cleanup(ConnectionClass *self)
 	/* We are always in the middle of a transaction, */
 	/* even if we are in auto commit. */
 	if (self->sock)
+	{
 		CC_abort(self);
 
-	mylog("after CC_abort\n");
+		mylog("after CC_abort\n");
 
-	/* This actually closes the connection to the dbase */
-	if (self->sock)
-	{
+		/* This actually closes the connection to the dbase */
 		SOCK_Destructor(self->sock);
 		self->sock = NULL;
 	}
@@ -501,14 +500,20 @@ CC_cleanup(ConnectionClass *self)
 	self->transact_status = CONN_IN_AUTOCOMMIT;
 	CC_conninfo_init(&(self->connInfo));
 	if (self->client_encoding)
+	{
 		free(self->client_encoding);
-	self->client_encoding = NULL;
+		self->client_encoding = NULL;
+	}
 	if (self->server_encoding)
+	{
 		free(self->server_encoding);
-	self->server_encoding = NULL;
+		self->server_encoding = NULL;
+	}
 	if (self->current_schema)
+	{
 		free(self->current_schema);
-	self->current_schema = NULL;
+		self->current_schema = NULL;
+	}
 	/* Free cached table info */
 	if (self->col_info)
 	{

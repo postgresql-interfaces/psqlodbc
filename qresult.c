@@ -41,6 +41,7 @@
 void
 QR_set_num_fields(QResultClass *self, int new_num_fields)
 {
+	if (!self)	return;
 	mylog("in QR_set_num_fields\n");
 
 	CI_set_num_fields(self->fields, new_num_fields);
@@ -143,11 +144,15 @@ QR_Constructor()
 void
 QR_Destructor(QResultClass *self)
 {
+	if (!self)	return;
 	mylog("QResult: in DESTRUCTOR\n");
 
 	/* manual result set tuples */
 	if (self->manual_tuples)
+	{
 		TL_Destructor(self->manual_tuples);
+		self->manual_tuples = NULL;
+	}
 
 	/*
 	 * If conn is defined, then we may have used "backend_tuples", so in
@@ -160,26 +165,44 @@ QR_Destructor(QResultClass *self)
 
 	/* Should have been freed in the close() but just in case... */
 	if (self->cursor)
+	{
 		free(self->cursor);
+		self->cursor = NULL;
+	}
 
 	/* Free up column info */
 	if (self->fields)
+	{
 		CI_Destructor(self->fields);
+		self->fields = NULL;
+	}
 
 	/* Free command info (this is from strdup()) */
 	if (self->command)
+	{
 		free(self->command);
+		self->command = NULL;
+	}
 
 	/* Free message info (this is from strdup()) */
 	if (self->message)
+	{
 		free(self->message);
+		self->message = NULL;
+	}
 
 	/* Free notice info (this is from strdup()) */
 	if (self->notice)
+	{
 		free(self->notice);
+		self->notice = NULL;
+	}
 	/* Destruct the result object in the chain */
 	if (self->next)
+	{
 		QR_Destructor(self->next);
+		self->next = NULL;
+	}
 
 	free(self);
 

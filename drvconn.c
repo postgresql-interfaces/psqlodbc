@@ -317,6 +317,7 @@ dconn_FDriverConnectProc(
 						 LPARAM lParam)
 {
 	ConnInfo   *ci;
+	char	strbuf[64];
 
 	switch (wMsg)
 	{
@@ -326,7 +327,8 @@ dconn_FDriverConnectProc(
 			/* Change the caption for the setup dialog */
 			SetWindowText(hdlg, "PostgreSQL Connection");
 
-			SetWindowText(GetDlgItem(hdlg, IDC_DATASOURCE), "Connection");
+			LoadString(s_hModule, IDS_ADVANCE_CONNECTION, strbuf, sizeof(strbuf));
+			SetWindowText(GetDlgItem(hdlg, IDC_DATASOURCE), strbuf);
 
 			/* Hide the DSN and description fields */
 			ShowWindow(GetDlgItem(hdlg, IDC_DSNAMETEXT), SW_HIDE);

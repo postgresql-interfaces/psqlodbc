@@ -19,6 +19,7 @@
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
 #include "dlg_specific.h"
+#include "win_setup.h"
 
 #include "convert.h"
 
@@ -232,14 +233,17 @@ driver_optionsProc(HWND hdlg,
 				   LPARAM lParam)
 {
 	ConnInfo   *ci;
+	char	strbuf[128];
 
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
 			SetWindowLong(hdlg, DWL_USER, lParam);		/* save for OK etc */
 			ci = (ConnInfo *) lParam;
-			SetWindowText(hdlg, "Advanced Options (Default)");
-			SetWindowText(GetDlgItem(hdlg, IDOK), "Save");
+			LoadString(s_hModule, IDS_ADVANCE_OPTION_DEF, strbuf, sizeof(strbuf)); 
+			SetWindowText(hdlg, strbuf);
+			LoadString(s_hModule, IDS_ADVANCE_SAVE, strbuf, sizeof(strbuf)); 
+			SetWindowText(GetDlgItem(hdlg, IDOK), strbuf);
 			ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);
 			driver_optionsDraw(hdlg, ci, 0, TRUE);
 			break;
@@ -250,7 +254,7 @@ driver_optionsProc(HWND hdlg,
 				case IDOK:
 					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
 					driver_options_update(hdlg, NULL,
-						ci ? ci->driver : NULL);
+						ci ? ci->drivername : NULL);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
@@ -309,6 +313,7 @@ ds_options1Proc(HWND hdlg,
 				   LPARAM lParam)
 {
 	ConnInfo   *ci;
+	char	strbuf[128];
 
 	switch (wMsg)
 	{
@@ -316,10 +321,23 @@ ds_options1Proc(HWND hdlg,
 			SetWindowLong(hdlg, DWL_USER, lParam);		/* save for OK etc */
 			ci = (ConnInfo *) lParam;
 			if (ci && ci->dsn && ci->dsn[0])
-				SetWindowText(hdlg, "Advanced Options (DSN 1/2)");
+			{
+				DWORD	cmd;
+				char	fbuf[64];
+
+				cmd = LoadString(s_hModule,
+						IDS_ADVANCE_OPTION_DSN1,
+						fbuf,
+						sizeof(fbuf));
+				if (cmd <= 0)
+					strcpy(fbuf, "Advanced Options (%s) 1/2");
+				sprintf(strbuf, fbuf, ci->dsn);
+				SetWindowText(hdlg, strbuf);
+			}
 			else
 			{
-				SetWindowText(hdlg, "Advanced Options (Connection 1/2)");
+				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON1, strbuf, sizeof(strbuf)); 
+				SetWindowText(hdlg, strbuf);
 				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);
 			}
 			driver_optionsDraw(hdlg, ci, 1, FALSE);
@@ -378,15 +396,24 @@ ds_options2Proc(HWND hdlg,
 			SetWindowLong(hdlg, DWL_USER, lParam);		/* save for OK */
 
 			/* Change window caption */
-			if (ci->driver[0])
+			if (ci && ci->dsn && ci->dsn[0])
 			{
-				SetWindowText(hdlg, "Advanced Options (Connection 2/2)");
-				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);				}
-			else
-			{
-				sprintf(buf, "Advanced Options (%s) 2/2", ci->dsn);
+				char	fbuf[64];
+
+				cmd = LoadString(s_hModule,
+						IDS_ADVANCE_OPTION_DSN2,
+						fbuf,
+						sizeof(fbuf));
+				if (cmd <= 0)
+					strcpy(fbuf, "Advanced Options (%s) 2/2");
+				sprintf(buf, fbuf, ci->dsn);
 				SetWindowText(hdlg, buf);
 			}
+			else
+			{
+				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON2, buf, sizeof(buf)); 
+				SetWindowText(hdlg, buf);
+				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);				}
 
 			/* Readonly */
 			CheckDlgButton(hdlg, DS_READONLY, atoi(ci->onlyread));
@@ -434,6 +461,7 @@ ds_options2Proc(HWND hdlg,
 			EnableWindow(GetDlgItem(hdlg, DS_UPDATABLECURSORS), FALSE);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 			CheckDlgButton(hdlg, DS_SERVERSIDEPREPARE, ci->use_server_side_prepare);
+			CheckDlgButton(hdlg, DS_BYTEAASLONGVARBINARY, ci->bytea_as_longvarbinary);
 
 			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), atoi(ci->show_oid_column));
 
@@ -491,6 +519,7 @@ ds_options2Proc(HWND hdlg,
 					ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 					ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
+					ci->bytea_as_longvarbinary = IsDlgButtonChecked(hdlg, DS_BYTEAASLONGVARBINARY);
 
 					/* OID Options */
 					sprintf(ci->fake_oid_index, "%d", IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));
@@ -511,6 +540,99 @@ ds_options2Proc(HWND hdlg,
 						MAKEINTRESOURCE(DLG_OPTIONS_DRV),
                                          	hdlg, ds_options1Proc, (LPARAM) ci);
 					break;
+
+				case IDCANCEL:
+					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
+					return TRUE;
+			}
+	}
+
+	return FALSE;
+}
+
+static int
+makeDriversList(HWND lwnd, const ConnInfo *ci)
+{
+	HMODULE	hmodule;
+	SQLHENV	henv;
+	int	lcount = 0, iidx;
+	char	drvname[64], drvatt[128];
+	SQLUSMALLINT	direction = SQL_FETCH_FIRST;
+	SQLSMALLINT	drvncount, drvacount;
+	SQLRETURN	ret;
+	FARPROC		addr;
+
+	hmodule = GetModuleHandle("ODBC32");
+	if (!hmodule)	return lcount;
+	addr = GetProcAddress(hmodule, "SQLAllocHandle");
+	if (!addr)	return lcount;
+	ret = (*addr)(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+	if (SQL_SUCCESS == ret)
+	{
+		addr = GetProcAddress(hmodule, "SQLSetEnvAttr");
+		if (addr)
+			ret = (*addr)(henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER) SQL_OV_ODBC3, 0);
+	} 
+	do
+	{
+		ret = SQLDrivers(henv, direction,
+			drvname, sizeof(drvname), &drvncount, 
+			drvatt, sizeof(drvatt), &drvacount); 
+		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+			break;
+		if (strnicmp(drvname, "postgresql", 10) == 0)
+		{
+			iidx = SendMessage(lwnd, LB_ADDSTRING, 0, (LPARAM) drvname);
+			if (LB_ERR != iidx && stricmp(drvname, ci->drivername) == 0)
+{
+				SendMessage(lwnd, LB_SETCURSEL, (WPARAM) iidx, (LPARAM) 0);
+}
+			lcount++;
+		}
+		direction = SQL_FETCH_NEXT;
+	} while (1);
+	addr = GetProcAddress(hmodule, "SQLFreeHandle");
+	if (addr)
+		(*addr)(SQL_HANDLE_ENV, henv);
+
+	return lcount;
+}
+
+int			CALLBACK
+manage_dsnProc(HWND hdlg, UINT wMsg,
+		WPARAM wParam, LPARAM lParam)
+{
+	LPSETUPDLG	lpsetupdlg;
+	ConnInfo	*ci;
+	HWND		lwnd;
+	int		sidx;
+	char		drvname[64];
+
+	switch (wMsg)
+	{
+		case WM_INITDIALOG:
+			SetWindowLong(hdlg, DWL_USER, lParam);
+			lpsetupdlg = (LPSETUPDLG) lParam;
+			ci = &lpsetupdlg->ci;
+			lwnd = GetDlgItem(hdlg, IDC_DRIVER_LIST);
+			makeDriversList(lwnd, ci);
+			break;
+
+		case WM_COMMAND:
+			switch (GET_WM_COMMAND_ID(wParam, lParam))
+			{
+				case IDOK:
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					lwnd = GetDlgItem(hdlg, IDC_DRIVER_LIST);
+					sidx = SendMessage(lwnd, LB_GETCURSEL,
+						(WPARAM) 0, (LPARAM) 0);
+					if (LB_ERR == sidx)
+						return FALSE;
+					sidx = SendMessage(lwnd, LB_GETTEXT,
+						(WPARAM) sidx, (LPARAM) drvname);
+					if (LB_ERR == sidx)
+						return FALSE;
+					ChangeDriverName(hdlg, lpsetupdlg, drvname);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);

@@ -200,6 +200,10 @@ int CALLBACK ds_options2Proc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,
 			   LPARAM lParam);
+int CALLBACK manage_dsnProc(HWND hdlg,
+			   UINT wMsg,
+			   WPARAM wParam,
+			   LPARAM lParam);
 #endif   /* WIN32 */
 
 void		updateGlobals(void);
@@ -211,5 +215,7 @@ void		getDSNinfo(ConnInfo *ci, char overwrite);
 void		makeConnectString(char *connect_string, const ConnInfo *ci, UWORD);
 void		copyAttributes(ConnInfo *ci, const char *attribute, const char *value);
 void		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value);
+int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);
+int     changeDriverNameOfaDSN(const char *dsn, const char *driver_name, DWORD *errcode);
 
 #endif

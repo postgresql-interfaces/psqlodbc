@@ -48,7 +48,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	/* fundamental info */
 	sprintf(connect_string, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
 			got_dsn ? "DSN" : "DRIVER",
-			got_dsn ? ci->dsn : ci->driver,
+			got_dsn ? ci->dsn : ci->drivername,
 			ci->database,
 			ci->server,
 			ci->port,
@@ -262,7 +262,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		strcpy(ci->dsn, value);
 
 	else if (stricmp(attribute, "driver") == 0)
-		strcpy(ci->driver, value);
+		strcpy(ci->drivername, value);
 
 	else if (stricmp(attribute, INI_DATABASE) == 0)
 		strcpy(ci->database, value);
@@ -425,6 +425,11 @@ getDSNdefaults(ConnInfo *ci)
 		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 }
 
+int
+getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
+{
+	return SQLGetPrivateProfileString(ODBC_DATASOURCES, dsn, "", driver_name, namelen, ODBC_INI);
+}
 
 void
 getDSNinfo(ConnInfo *ci, char overwrite)
@@ -439,7 +444,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
  */
 	if (DSN[0] == '\0')
 	{
-		if (ci->driver[0] != '\0')
+		if (ci->drivername[0] != '\0')
 			return;
 		else
 			strcpy(DSN, INI_DSN);
@@ -449,11 +454,11 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	while (*(DSN + strlen(DSN) - 1) == ' ')
 		*(DSN + strlen(DSN) - 1) = '\0';
 
-	if (ci->driver[0] == '\0' || overwrite)
+	if (ci->drivername[0] == '\0' || overwrite)
 	{
-		SQLGetPrivateProfileString(ODBC_DATASOURCES, DSN, "", ci->driver, sizeof(ci->driver), ODBC_INI);
-		if (ci->driver[0] && stricmp(ci->driver, DBMS_NAME))
-			getCommonDefaults(ci->driver, ODBCINST_INI, ci);
+		getDriverNameFromDSN(DSN, ci->drivername, sizeof(ci->drivername));
+		if (ci->drivername[0] && stricmp(ci->drivername, DBMS_NAME))
+			getCommonDefaults(ci->drivername, ODBCINST_INI, ci);
 	}
 
 	/* Proceed with getting info for the given DSN. */

@@ -4,6 +4,15 @@
 //
 #define IDS_BADDSN                      1
 #define IDS_MSGTITLE                    2
+#define IDS_ADVANCE_OPTION_DEF          3
+#define IDOK2                           3
+#define IDS_ADVANCE_SAVE                4
+#define IDCANCEL2                       4
+#define IDS_ADVANCE_OPTION_DSN1         5
+#define IDS_ADVANCE_OPTION_CON1         6
+#define IDS_ADVANCE_OPTION_DSN2         7
+#define IDS_ADVANCE_OPTION_CON2         8
+#define IDS_ADVANCE_CONNECTION          9
 #define DLG_OPTIONS_DRV                 102
 #define DLG_OPTIONS_DS                  103
 #define DLG_OPTIONS_GLOBAL              104
@@ -14,6 +23,7 @@
 #define IDC_DATABASE                    408
 #define DLG_CONFIG                      1001
 #define IDC_PORT                        1002
+#define DLG_DRIVER_CHANGE               1002
 #define IDC_USER                        1006
 #define IDC_PASSWORD                    1009
 #define DS_READONLY                     1011
@@ -65,16 +75,20 @@
 #define DS_INT8_AS_DOUBLE               1071
 #define DS_INT8_AS_INT4                 1072
 #define DRV_MSG_LABEL2                  1073
+#define DS_BYTEAASLONGVARBINARY         1073
 #define IDAPPLY                         1074
-#define DS_SERVERSIDEPREPARE		1075
+#define DS_SERVERSIDEPREPARE            1075
+#define IDC_DRIVERNAME                  1076
+#define IDC_MANAGEDSN                   1077
+#define IDC_DRIVER_LIST                 1078
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        105
+#define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1076
+#define _APS_NEXT_CONTROL_VALUE         1079
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
