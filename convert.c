@@ -39,10 +39,6 @@
 #include "connection.h"
 #include "pgapifunc.h"
 
-#if defined(UNICODE_SUPPORT) && defined(WIN32)
-#define	WIN_UNICODE_SUPPORT
-#endif
-
 #ifdef	__CYGWIN__
 #  define TIMEZONE_GLOBAL _timezone
 #elif	defined(WIN32) || defined(HAVE_INT_TIMEZONE)
@@ -412,13 +408,11 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	char		midtemp[2][32];
 	int			mtemp_cnt = 0;
 	GetDataClass *pgdc;
-#ifdef	UNICODE_SUPPORT
 	BOOL	wchanged =   FALSE;
-#endif /* UNICODE_SUPPORT */
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	WIN32
 	SQLWCHAR	*allocbuf = NULL;
 	Int4		wstrlen;	
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* WIN32 */
 
 	if (stmt->current_col >= 0)
 	{
@@ -693,11 +687,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
 
-#ifdef	UNICODE_SUPPORT
 	if (fCType == SQL_C_CHAR || fCType == SQL_C_WCHAR
-#else
-	if (fCType == SQL_C_CHAR
-#endif /* UNICODE_SUPPORT */
 	    || fCType == INTERNAL_ASIS_TYPE)
 	{
 		/* Special character formatting as required */
@@ -766,7 +756,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				if (pgdc->data_left < 0)
 				{
 					BOOL lf_conv = conn->connInfo.lf_conversion;
-#ifdef	UNICODE_SUPPORT
+
 					if (fCType == SQL_C_WCHAR)
 					{
 						len = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
@@ -774,7 +764,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						wchanged = changed = TRUE;
 					}
 					else
-#endif /* UNICODE_SUPPORT */
+
 					if (PG_TYPE_BYTEA == field_type)
 					{
 						len = convert_from_pgbinary(neut_str, NULL, 0);
@@ -782,7 +772,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						changed = TRUE;
 					}
 					else
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	WIN32
 					if (fCType == SQL_C_CHAR)
 					{
 						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
@@ -792,17 +782,17 @@ inolog("2stime fr=%d\n", std_time.fr);
 						changed = TRUE;
 					}
 					else
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* WIN32 */
 						/* convert linefeeds to carriage-return/linefeed */
 						len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
 					if (cbValueMax == 0)		/* just returns length
 												 * info */
 					{
 						result = COPY_RESULT_TRUNCATED;
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	WIN32
 						if (allocbuf)
 							free(allocbuf);
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* WIN32 */
 						break;
 					}
 					if (!pgdc->ttlbuf)
@@ -814,13 +804,13 @@ inolog("2stime fr=%d\n", std_time.fr);
 							pgdc->ttlbuf = realloc(pgdc->ttlbuf, len + 1);
 							pgdc->ttlbuflen = len + 1;
 						}
-#ifdef	UNICODE_SUPPORT
+
 						if (fCType == SQL_C_WCHAR)
 						{
 							utf8_to_ucs2_lf(neut_str, -1, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
 						}
 						else
-#endif /* UNICODE_SUPPORT */
+
 						if (PG_TYPE_BYTEA == field_type)
 						{
 							len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
@@ -828,7 +818,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							len *= 2; 
 						}
 						else
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	WIN32
 						if (fCType == SQL_C_CHAR)
 						{
 							len = WideCharToMultiByte(CP_ACP, 0, allocbuf, wstrlen, pgdc->ttlbuf, pgdc->ttlbuflen, NULL, NULL);
@@ -836,7 +826,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							allocbuf = NULL;
 						}
 						else
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* WIN32 */
 							convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
 						ptr = pgdc->ttlbuf;
 						pgdc->ttlbufused = len;
@@ -875,13 +865,12 @@ inolog("2stime fr=%d\n", std_time.fr);
 					BOOL	already_copied = FALSE;
 
 					copy_len = (len >= cbValueMax) ? cbValueMax - 1 : len;
-#ifdef	UNICODE_SUPPORT
+
 					if (fCType == SQL_C_WCHAR)
 					{
 						copy_len /= WCLEN;
 						copy_len *= WCLEN;
 					}
-#endif /* UNICODE_SUPPORT */
 #ifdef HAVE_LOCALE_H
 					switch (field_type)
 					{
@@ -916,11 +905,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 						/* Copy the data */
 						memcpy(rgbValueBindRow, ptr, copy_len);
 						/* Add null terminator */
-#ifdef	UNICODE_SUPPORT
+
 						if (fCType == SQL_C_WCHAR)
 							memset(rgbValueBindRow + copy_len, 0, WCLEN);
 						else
-#endif /* UNICODE_SUPPORT */
+
 						rgbValueBindRow[copy_len] = '\0';
 					}
 					/* Adjust data_left for next time */
@@ -947,7 +936,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 				break;
 		}
-#ifdef	UNICODE_SUPPORT
+
 		if (SQL_C_WCHAR == fCType && ! wchanged)
 		{
 			if (cbValueMax > (SDWORD) (WCLEN * len))
@@ -965,7 +954,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 				result = COPY_RESULT_TRUNCATED;
 			}
 		}
-#endif /* UNICODE_SUPPORT */
 
 	}
 	else
@@ -2634,7 +2622,7 @@ ResolveOneParam(QueryBuild *qb)
 			buf = buffer;
 			break;
 		case SQL_C_CHAR:
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	WIN32
 			switch (param_sqltype)
 			{
 				case SQL_WCHAR:
@@ -2654,15 +2642,13 @@ ResolveOneParam(QueryBuild *qb)
 			}
 #else
 			buf = buffer;
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* WIN32 */
 			break;
 
-#ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
 			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / WCLEN, (UInt4 *) &used, FALSE);
 			used *= WCLEN;
 			break;
-#endif /* UNICODE_SUPPORT */
 
 		case SQL_C_DOUBLE:
 			sprintf(param_string, "%.15g",
@@ -2798,11 +2784,9 @@ ResolveOneParam(QueryBuild *qb)
 		case SQL_CHAR:
 		case SQL_VARCHAR:
 		case SQL_LONGVARCHAR:
-#ifdef	UNICODE_SUPPORT
 		case SQL_WCHAR:
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
-#endif /* UNICODE_SUPPORT */
 
 			CVT_APPEND_CHAR(qb, '\'');	/* Open Quote */
 

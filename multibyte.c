@@ -376,59 +376,7 @@ CC_lookup_characterset(ConnectionClass *self)
 		encstr = CC_lookup_cs_new(self);
 	if (self->client_encoding)
 		free(self->client_encoding);
-#ifndef	UNICODE_SUPPORT
-#ifdef	WIN32
-	else
-	{
-		const char *wenc = NULL;
-		switch (GetACP())
-		{
-			case 932:
-				wenc = "SJIS";
-				break;
-			case 936:
-				if (!encstr || PG_VERSION_GT(self, 7.2))
-					wenc = "GBK";
-				break;
-			case 949:
-				if (!encstr ||
-				  (PG_VERSION_GT(self, 7.2) && stricmp(encstr, "EUC_KR")))  
-					wenc = "UHC";
-				break;
-			case 950:
-				wenc = "BIG5";
-				break;
-                        case 1250:
-                                wenc = "WIN1250";
-                                break;
-			case 1252:
-				if (PG_VERSION_GE(self, 7.2))
-					wenc = "latin9";
-				else
-					wenc = "latin1";
-				break;
-		}
-		if (wenc && (!encstr || stricmp(encstr, wenc)))
-		{
-			QResultClass	*res;
-			char		query[64];
-			int		errnum = CC_get_errornumber(self);
 
-			sprintf(query, "set client_encoding to '%s'", wenc);
-			res = CC_send_query(self, query, NULL, CLEAR_RESULT_ON_ABORT);
-			CC_set_errornumber(self, errnum);
-			if (res)
-			{
-				self->client_encoding = strdup(wenc);
-				self->ccsc = pg_CS_code(self->client_encoding);
-				QR_Destructor(res);
-				free(encstr);
-				return;
-			}
-		}
-	}
-#endif /* WIN32 */
-#endif /* UNICODE_SUPPORT */
 	if (encstr)
 	{
 		self->client_encoding = encstr;

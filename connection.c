@@ -1008,7 +1008,7 @@ another_version_retry:
 		CC_lookup_characterset(self);
 		if (CC_get_errornumber(self) != 0)
 			return 0;
-#ifdef UNICODE_SUPPORT
+		
 		if (self->unicode)
 		{
 			if (!self->client_encoding ||
@@ -1032,18 +1032,13 @@ another_version_retry:
 				}
 			}
 		}
-#else
-		{
-		}
-#endif /* UNICODE_SUPPORT */
 	}
-#ifdef UNICODE_SUPPORT
 	else if (self->unicode)
 	{
 		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "Unicode isn't supported before 6.4");
 		return 0;
 	}
-#endif /* UNICODE_SUPPORT */
+
 	ci->updatable_cursors = 0;
 #ifdef	DRIVER_CURSOR_IMPLEMENT
 	if (!ci->drivers.use_declarefetch &&

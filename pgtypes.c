@@ -100,11 +100,9 @@ Int2		sqlTypes[] = {
 	SQL_TINYINT,
 	SQL_VARBINARY,
 	SQL_VARCHAR,
-#ifdef	UNICODE_SUPPORT
 	SQL_WCHAR,
 	SQL_WVARCHAR,
 	SQL_WLONGVARCHAR,
-#endif /* UNICODE_SUPPORT */
 	0
 };
 
@@ -132,11 +130,9 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			pgType = PG_TYPE_BPCHAR;
 			break;
 
-#ifdef	UNICODE_SUPPORT
 		case SQL_WCHAR:
 			pgType = PG_TYPE_BPCHAR;
 			break;
-#endif /* UNICODE_SUPPORT */
 
 		case SQL_BIT:
 			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
@@ -179,11 +175,9 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			pgType = ci->drivers.text_as_longvarchar ? PG_TYPE_TEXT : PG_TYPE_VARCHAR;
 			break;
 
-#ifdef	UNICODE_SUPPORT
 		case SQL_WLONGVARCHAR:
 			pgType = ci->drivers.text_as_longvarchar ? PG_TYPE_TEXT : PG_TYPE_VARCHAR;
 			break;
-#endif /* UNICODE_SUPPORT */
 
 		case SQL_REAL:
 			pgType = PG_TYPE_FLOAT4;
@@ -216,11 +210,9 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			pgType = PG_TYPE_VARCHAR;
 			break;
 
-#if	UNICODE_SUPPORT
 		case SQL_WVARCHAR:
 			pgType = PG_TYPE_VARCHAR;
 			break;
-#endif /* UNICODE_SUPPORT */
 
 		default:
 			pgType = 0;			/* ??? */
@@ -261,7 +253,6 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 		case PG_TYPE_NAME:
 			return SQL_CHAR;
 
-#ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
 			if (col >= 0 &&
 			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
@@ -278,23 +269,6 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 			return ci->drivers.text_as_longvarchar ? 
 				(conn->unicode ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR) :
 				(conn->unicode ? SQL_WVARCHAR : SQL_VARCHAR);
-
-#else
-		case PG_TYPE_BPCHAR:
-			if (col >= 0 &&
-			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
-				return SQL_LONGVARCHAR;
-			return SQL_CHAR;
-
-		case PG_TYPE_VARCHAR:
-			if (col >= 0 &&
-			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
-				return SQL_LONGVARCHAR;
-			return SQL_VARCHAR;
-
-		case PG_TYPE_TEXT:
-			return ci->drivers.text_as_longvarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
-#endif /* UNICODE_SUPPORT */
 
 		case PG_TYPE_BYTEA:
 			if (ci->bytea_as_longvarbinary)
@@ -466,14 +440,12 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 			return SQL_C_BINARY;
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_C_BINARY;
-#ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_TEXT:
 			if (conn->unicode && ! conn->ms_jet && ! stmt->manual_result)
 				return SQL_C_WCHAR;
 			return SQL_C_CHAR;
-#endif /* UNICODE_SUPPORT */
 
 		default:
 			/* hack until permanent type is available */
@@ -1466,15 +1438,12 @@ sqltype_to_default_ctype(const ConnectionClass *conn, Int2 sqltype)
 		case SQL_BIGINT:
 			return ALLOWED_C_BIGINT;
 #endif
-
-#ifdef	UNICODE_SUPPORT
 		case SQL_WCHAR:
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
 			if (conn->ms_jet || ! conn->unicode)
 				return SQL_C_CHAR;
 			return SQL_C_WCHAR;
-#endif /* UNICODE_SUPPORT */
 
 		case SQL_BIT:
 			return SQL_C_BIT;
@@ -1581,9 +1550,7 @@ ctype_length(Int2 ctype)
 
 		case SQL_C_BINARY:
 		case SQL_C_CHAR:
-#ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
-#endif /* UNICODE_SUPPORT */
 			return 0;
 
 		default:				/* should never happen */

@@ -987,14 +987,12 @@ PGAPI_PutData(
 		ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
 	if (SQL_NTS == cbValue)
 	{
-#ifdef	UNICODE_SUPPORT
 		if (SQL_C_WCHAR == ctype)
 		{
 			putlen = WCLEN * ucs2strlen((SQLWCHAR *) rgbValue);
 			lenset = TRUE;
 		}
 		else
-#endif /* UNICODE_SUPPORT */
 		if (SQL_C_CHAR == ctype)
 		{
 			putlen = strlen(rgbValue);
@@ -1006,11 +1004,7 @@ PGAPI_PutData(
 		if (cbValue < 0)
 			putlen = cbValue;
 		else
-#ifdef	UNICODE_SUPPORT
 		if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY || ctype == SQL_C_WCHAR)
-#else
-		if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY)
-#endif /* UNICODE_SUPPORT */
 			putlen = cbValue;
 		else
 			putlen = ctype_length(ctype);

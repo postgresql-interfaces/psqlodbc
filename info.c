@@ -757,15 +757,13 @@ PGAPI_GetInfo(
 
 		if (rgbInfoValue)
 		{
-#ifdef	UNICODE_SUPPORT
 			if (conn->unicode)
 			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
 				len *= WCLEN;
 			}
 			else
-#endif /* UNICODE_SUPPORT */
-			strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
+				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
 			if (len >= cbInfoValueMax)
 			{
@@ -1508,10 +1506,10 @@ retry_public_schema:
 			goto retry_public_schema;
 		}
 	}
-#ifdef	UNICODE_SUPPORT
+
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-#endif /* UNICODE_SUPPORT */
+
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   table_name, MAX_INFO_STRING, NULL);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
@@ -1780,10 +1778,10 @@ PGAPI_Columns(
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-#ifdef	UNICODE_SUPPORT
+
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-#endif /* UNICODE_SUPPORT */
+
 	szSchemaName = szTableOwner;
 	cbSchemaName = cbTableOwner;
 
@@ -2336,10 +2334,9 @@ PGAPI_SpecialColumns(
 		return result;
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-#ifdef	UNICODE_SUPPORT
+
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-#endif /* UNICODE_SUPPORT */
 
 	stmt->manual_result = TRUE;
 	szSchemaName = szTableOwner;
@@ -2604,10 +2601,9 @@ PGAPI_Statistics(
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-#ifdef	UNICODE_SUPPORT
+
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-#endif /* UNICODE_SUPPORT */
 
 	if (res = QR_Constructor(), !res)
 	{
@@ -3094,10 +3090,9 @@ PGAPI_PrimaryKeys(
 	tbl_stmt = (StatementClass *) htbl_stmt;
 
 	conn = SC_get_conn(stmt);
-#ifdef	UNICODE_SUPPORT
+
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-#endif /* UNICODE_SUPPORT */
 
 	pktab = make_string(szTableName, cbTableName, NULL, 0);
 	if (pktab == NULL || pktab[0] == '\0')
@@ -3656,10 +3651,10 @@ PGAPI_ForeignKeys(
 	fk_table_needed = make_string(szFkTableName, cbFkTableName, NULL, 0);
 
 	conn = SC_get_conn(stmt);
-#ifdef	UNICODE_SUPPORT
+
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-#endif /* UNICODE_SUPPORT */
+
 	pkey_text = fkey_text = NULL;
 	pkey_alloced = fkey_alloced = FALSE;
 

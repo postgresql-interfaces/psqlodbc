@@ -477,7 +477,6 @@ PGAPI_SetConnectOption(
 				if (fOption == 30002 && vParam)
 				{
 					int	cmp;
-#ifdef	UNICODE_SUPPORT
 					char *asPara;
 					if (conn->unicode)
 					{
@@ -486,8 +485,8 @@ PGAPI_SetConnectOption(
 						free(asPara);
 					}
 					else
-#endif /* UNICODE_SUPPORT */
-					cmp = strncmp((char *) vParam, "Microsoft Jet", 13);
+						cmp = strncmp((char *) vParam, "Microsoft Jet", 13);
+					
 					if (0 == cmp)
 					{
 						mylog("Microsoft Jet !!!!\n");

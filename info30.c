@@ -373,15 +373,14 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
                 
 		if (rgbInfoValue)
 		{
-#ifdef	UNICODE_SUPPORT
+
 			if (conn->unicode)
 			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
 				len *= WCLEN;
 			}
 			else
-#endif /* UNICODE_SUPPORT */
-			strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
+				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
 			if (len >= cbInfoValueMax)
 			{
