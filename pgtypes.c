@@ -303,8 +303,8 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type)
 		case PG_TYPE_INT8:
 			if (ci->int8_as != 0) 
 				return ci->int8_as;
-			/***if (conn->ms_jet) 
-				return SQL_NUMERIC; ***/ /* maybe a little better than SQL_VARCHAR */
+			if (conn->ms_jet) 
+				return SQL_NUMERIC; /* maybe a little better than SQL_VARCHAR */
 #if (ODBCVER >= 0x0300)
 			return SQL_BIGINT;
 #else

@@ -633,6 +633,7 @@ PGAPI_GetStmtOption(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
 	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);
+	int	ridx;
 
 	mylog("%s: entering...\n", func);
 
@@ -653,12 +654,19 @@ PGAPI_GetStmtOption(
 		case SQL_ROW_NUMBER:
 
 			res = SC_get_Curres(stmt);
+			if (!res)
+			{
+				SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor has no result.");
+				SC_log_error(func, "", stmt);
+				return SQL_ERROR;
+			}
 
-			if (stmt->manual_result || !ci->drivers.use_declarefetch)
+			ridx = stmt->currTuple - stmt->rowset_start + res->base;
+			if (stmt->manual_result || !SC_is_fetchcursor(stmt))
 			{
 				/* make sure we're positioned on a valid row */
-				if ((stmt->currTuple < 0) ||
-					(stmt->currTuple >= QR_get_num_backend_tuples(res)))
+				if ((ridx < 0) ||
+					(ridx >= QR_get_num_backend_tuples(res)))
 				{
 					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.");
 					SC_log_error(func, "", stmt);
@@ -667,7 +675,7 @@ PGAPI_GetStmtOption(
 			}
 			else
 			{
-				if (stmt->currTuple == -1 || !res || !res->tupleField)
+				if (stmt->currTuple < 0 || !res->tupleField)
 				{
 					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.");
 					SC_log_error(func, "", stmt);

@@ -13,4 +13,4 @@
 #define POSTGRES_RESOURCE_VERSION	"07.03.0100\0"
 #define PG_DRVFILE_VERSION		7,3,01,00
 
-#endif
+#endif /* VERSION_H__ */
