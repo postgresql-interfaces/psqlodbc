@@ -71,7 +71,7 @@ PGAPI_BindParameter(
 	/* store the given info */
 	apdopts->parameters[ipar].buflen = cbValueMax;
 	apdopts->parameters[ipar].buffer = rgbValue;
-	apdopts->parameters[ipar].used = pcbValue;
+	apdopts->parameters[ipar].used = (Int4 *) pcbValue;
 	apdopts->parameters[ipar].CType = fCType;
 	ipdopts->parameters[ipar].SQLType = fSqlType;
 	ipdopts->parameters[ipar].paramType = fParamType;
@@ -200,7 +200,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 
 			bookmark = ARD_AllocBookmark(opts);
 			bookmark->buffer = rgbValue;
-			bookmark->used = pcbValue;
+			bookmark->used = (Int4 *) pcbValue;
 			bookmark->buflen = cbValueMax;
 			bookmark->returntype = fCType;
 		}
@@ -252,7 +252,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		/* ok, bind that column */
 		opts->bindings[icol].buflen = cbValueMax;
 		opts->bindings[icol].buffer = rgbValue;
-		opts->bindings[icol].used = pcbValue;
+		opts->bindings[icol].used = (Int4 *) pcbValue;
 		opts->bindings[icol].returntype = fCType;
 #if (ODBCVER >= 0x0300)
 		if (SQL_C_NUMERIC == fCType)

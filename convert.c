@@ -2640,7 +2640,7 @@ ResolveOneParam(QueryBuild *qb)
 					allocbuf = malloc(WCLEN * (used + 1));
 					used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
 						used, (LPWSTR) allocbuf, used + 1);
-					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
+					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, (UInt4 *) &used, FALSE);
 					free(allocbuf);
 					allocbuf = buf;
 					break;
@@ -2654,7 +2654,7 @@ ResolveOneParam(QueryBuild *qb)
 
 #ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
-			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / WCLEN, &used, FALSE);
+			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / WCLEN, (UInt4 *) &used, FALSE);
 			used *= WCLEN;
 			break;
 #endif /* UNICODE_SUPPORT */

@@ -952,9 +952,9 @@ SC_fetch(StatementClass *self)
 
 		sprintf(buf, "%ld", SC_get_bookmark(self));
 		SC_set_current_col(self, -1);
-		result = copy_and_convert_field(self, 0, buf,
-			 SQL_C_ULONG, bookmark->buffer + offset, 0,
-			bookmark->used ? bookmark->used + (offset >> 2) : NULL);
+		result = copy_and_convert_field(self, 0, buf, SQL_C_ULONG,
+						bookmark->buffer + offset, 0,
+						(SDWORD *) (bookmark->used ? bookmark->used + (offset >> 2) : NULL));
 	}
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
@@ -1270,7 +1270,11 @@ SC_execute(StatementClass *self)
 		{
 			APDFields	*apdopts = SC_get_APDF(self);
 
-			ret = PGAPI_GetData(hstmt, 1, apdopts->parameters[0].CType, apdopts->parameters[0].buffer, apdopts->parameters[0].buflen, apdopts->parameters[0].used);
+			ret = PGAPI_GetData(hstmt, 1,
+					    apdopts->parameters[0].CType,
+					    apdopts->parameters[0].buffer,
+					    apdopts->parameters[0].buflen,
+					    (SDWORD *) apdopts->parameters[0].used);
 			if (ret != SQL_SUCCESS)
 			{
 				SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.");

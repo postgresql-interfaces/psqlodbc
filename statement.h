@@ -19,12 +19,6 @@
 #include <pthread.h>
 #endif
 
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
 
 typedef enum
 {

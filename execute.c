@@ -1033,7 +1033,7 @@ PGAPI_PutData(
 
 		estmt->put_data = TRUE;
 
-		current_pdata->EXEC_used = (SDWORD *) malloc(sizeof(SDWORD));
+		current_pdata->EXEC_used = malloc(sizeof(SDWORD));
 		if (!current_pdata->EXEC_used)
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (1)");

@@ -2518,7 +2518,7 @@ SC_pos_update(StatementClass *stmt,
 						(SQLSMALLINT) fi[i]->decimal_digits,
 						bindings[i].buffer,
 						bindings[i].buflen,
-						bindings[i].used);
+						(SQLINTEGER *) bindings[i].used);
 				}
 			}
 		}
@@ -2700,8 +2700,9 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
                          		bookmark->returntype,
 					bookmark->buffer + offset,
 					bookmark->buflen,
-					bookmark->used ? bookmark->used
-					+ (offset >> 2) : NULL);
+					(SDWORD *) (bookmark->used
+						    ? (bookmark->used + (offset >> 2))
+						    : NULL));
 			}
 		}
 		else
@@ -2856,7 +2857,7 @@ SC_pos_add(StatementClass *stmt,
 					(SQLSMALLINT) fi[i]->decimal_digits,
 					bindings[i].buffer,
 					bindings[i].buflen,
-					bindings[i].used);
+					(SQLINTEGER *) bindings[i].used);
 			}
 		}
 		else

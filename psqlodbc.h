@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.84 2004/07/10 22:26:27 petere Exp $
+ * $Id: psqlodbc.h,v 1.85 2004/07/11 17:10:21 petere Exp $
  *
  */
 
@@ -26,7 +26,7 @@
 
 /* Must come before sql.h */
 #ifndef ODBCVER
-#define ODBCVER						0x0250
+#define ODBCVER						0x0300
 #endif   /* ODBCVER_REP */
 
 #define NAMEDATALEN_V72					32
@@ -42,6 +42,9 @@
 
 #include <sql.h>
 #include <sqlext.h>
+#if defined(UNICODE_SUPPORT) && !defined(WIN32)
+# include <sqlucode.h>
+#endif
 
 #if defined(WIN32)
 #include <odbcinst.h>
@@ -90,6 +93,15 @@ typedef double SDOUBLE;
 
 typedef UInt4 Oid;
 
+
+#ifndef FALSE
+#define FALSE	(BOOL)0
+#endif
+#ifndef TRUE
+#define TRUE	(BOOL)1
+#endif
+
+
 #ifndef WIN32
 #define stricmp strcasecmp
 #define strnicmp strncasecmp
@@ -116,7 +128,7 @@ typedef UInt4 Oid;
 #if (ODBCVER >= 0x0300)
 #define DRIVER_ODBC_VER				"03.00"
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL Unicode (Beta)"
+#define DBMS_NAME				"PostgreSQL Unicode"
 #else
 #define DBMS_NAME				"PostgreSQL"
 #endif /* UNICODE_SUPPORT */

@@ -8,7 +8,7 @@ AM_MAINTAINER_MODE
 
 
 AC_DEFINE(DRIVER_CURSOR_IMPLEMENT, 1,
-	[Define to 1 to build with driver cursors option)])
+          [Define to 1 to build with driver cursors option.])
 
 #
 # Decide which ODBC driver manager to use
@@ -49,15 +49,15 @@ fi
 # Default odbc version number (--with-odbcver), default 0x0300
 #
 AC_MSG_CHECKING([for ODBC version number])
-PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC version number
- [0x0300]],
-             [AC_DEFINE_UNQUOTED(ODBCVER, ${withval},
-          	[Define to ODBC version (--with-odbcver)])])
+PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC version number [[0x0300]]],
+             [],
+             [with_odbcver=0x0300])
 AC_MSG_RESULT([$with_odbcver])
+AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver], [Define to ODBC version (--with-odbcver)])
 
 # to implement the Unicode driver
-AC_ARG_ENABLE(unicode,
-              [  --enable-unicode            build ODBC driver for Unicode],
+PGAC_ARG_BOOL(enable, unicode, yes,
+              [  --enable-unicode        build ODBC driver for Unicode [[yes]]],
               [AC_DEFINE(UNICODE_SUPPORT, 1,
                          [Define to 1 to build with Unicode support (--enable-unicode)])
                AC_DEFINE(UNICODE, [],
@@ -73,7 +73,7 @@ AC_CHECK_LIB(socket, socket)
 
 # to implement the thread-safe driver
 PGAC_ARG_BOOL(enable, pthreads, no,
-    [  --enable-pthreads         build pthread implementation if possible],
+    [  --enable-pthreads       build pthread implementation if possible],
     [AC_DEFINE(POSIX_MULTITHREAD_SUPPORT, 1,
 	[Define to 1 to build with pthreads support (--enable-pthreads)])
      AC_DEFINE(_REENTRANT, 1,
@@ -100,14 +100,6 @@ PGAC_ARG_BOOL(enable, pthreads, no,
      fi
     ])
 
-# Allow for overriding the default location of the odbcinst.ini
-# file which is normally ${sysconfdir} (i.e., ${prefix}/etc).
-PGAC_ARG_REQ(with, odbcinst,
-             [  --with-odbcinst=DIR     default directory for odbcinst.ini [sysconfdir]],
-             [odbcinst_ini_dir=$withval],
-             [odbcinst_ini_dir="\${sysconfdir}"])
-AC_SUBST([odbcinst_ini_dir])
-
 AC_PROG_CC
 
 AC_LIBTOOL_WIN32_DLL
@@ -119,6 +111,10 @@ AC_CHECK_HEADERS([locale.h])
 AC_CHECK_HEADERS([sys/un.h])
 AC_CHECK_TYPES(uint8)
 PGAC_VAR_INT_TIMEZONE
+
+# unixODBC wants the following to get sane behavior for ODBCINT64
+AC_CHECK_SIZEOF(long)
+AC_CHECK_TYPES(long long)
 
 AC_C_CONST
 AC_TYPE_SIZE_T
