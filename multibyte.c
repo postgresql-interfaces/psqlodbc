@@ -389,7 +389,8 @@ CC_lookup_characterset(ConnectionClass *self)
 				wenc = "GBK";
 				break;
 			case 949:
-				wenc = "UHC";
+				if (!encstr || stricmp(encstr, "EUC_KR"))  
+					wenc = "UHC";
 				break;
 			case 950:
 				wenc = "BIG5";
@@ -399,9 +400,11 @@ CC_lookup_characterset(ConnectionClass *self)
 		{
 			QResultClass	*res;
 			char		query[64];
+			int		errnum = CC_get_errornumber(self);
 
 			sprintf(query, "set client_encoding to '%s'", wenc);
 			res = CC_send_query(self, query, NULL, CLEAR_RESULT_ON_ABORT);
+			CC_set_errornumber(self, errnum);
 			if (res)
 			{
 				self->client_encoding = strdup(wenc);

@@ -1065,7 +1065,8 @@ SC_execute(StatementClass *self)
 		}
 	}
 
-	conn->status = oldstatus;
+	if (CONN_DOWN != conn->status)
+		conn->status = oldstatus;
 	self->status = STMT_FINISHED;
 
 	/* Check the status of the result */
@@ -1112,7 +1113,9 @@ SC_execute(StatementClass *self)
 	else
 	{
 		/* Bad Error -- The error message will be in the Connection */
-		if (self->statement_type == STMT_TYPE_CREATE)
+		if (!conn->sock)
+			SC_set_error(self, STMT_BAD_ERROR, CC_get_errormsg(conn));
+		else if (self->statement_type == STMT_TYPE_CREATE)
 		{
 			SC_set_error(self, STMT_CREATE_TABLE_ERROR, "Error creating the table");
 

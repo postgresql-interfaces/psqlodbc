@@ -433,6 +433,10 @@ PGAPI_ConnectError(	HDBC hdbc,
 			case STMT_VALUE_OUT_OF_RANGE:
 				pg_sqlstate_set(env, szSqlState, "HY019", "22003");
 				break;
+			case CONNECTION_COULD_NOT_SEND:
+			case CONNECTION_COULD_NOT_RECEIVE:
+				pg_sqlstate_set(env, szSqlState, "08S01", "08S01");
+				break;
 			default:
 				pg_sqlstate_set(env, szSqlState, "HY000", "S1000");
 				/* general error */

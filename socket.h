@@ -73,8 +73,8 @@ struct SocketClass_
 
 
 /* error functions */
-#define SOCK_get_errcode(self)		(self->errornumber)
-#define SOCK_get_errmsg(self)		(self->errormsg)
+#define SOCK_get_errcode(self)	(self ? self->errornumber : SOCKET_CLOSED)
+#define SOCK_get_errmsg(self)	(self ? self->errormsg : "socket closed")
 
 
 /* Socket prototypes */

@@ -939,6 +939,7 @@ another_version_retry:
 	 * function instead.
 	 */
 	CC_send_settings(self);
+	CC_clear_error(self);			/* clear any error */
 	CC_lookup_lo(self);			/* a hack to get the oid of
 						   our large object oid type */
 
@@ -1165,7 +1166,14 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 		}
 	}
 	if (0 != (opt & CONN_DEAD))
+	{
 		conn->status = CONN_DOWN;
+		if (conn->sock)
+		{
+			SOCK_Destructor(conn->sock);
+			conn->sock = NULL;
+		}
+	}
 	conn->result_uncommitted = 0;
 }
 
@@ -1208,6 +1216,13 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 
 	mylog("send_query(): conn=%u, query='%s'\n", self, query);
 	qlog("conn=%u, query='%s'\n", self, query);
+
+	if (!self->sock)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query(connection dead)");
+		CC_on_abort(self, NO_TRANS);
+		return NULL;
+	}
 
 	/* Indicate that we are sending a query to the backend */
 	maxlen = CC_get_max_query_len(self);
@@ -1605,6 +1620,13 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	int			i;
 
 	mylog("send_function(): conn=%u, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
+
+	if (!self->sock)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function(connection dead)");
+		CC_on_abort(self, NO_TRANS);
+		return FALSE;
+	}
 
 	if (SOCK_get_errcode(sock) != 0)
 	{

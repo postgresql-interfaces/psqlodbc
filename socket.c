@@ -86,6 +86,8 @@ void
 SOCK_Destructor(SocketClass *self)
 {
 	mylog("SOCK_Destructor\n");
+	if (!self)
+		return;
 	if (self->socket != -1)
 	{
 		SOCK_put_char(self, 'X');
@@ -140,6 +142,8 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
         result = gethostbyname_r(hostname, hp, buf, bufsz, &hp, &error);
         if (result)
           hp = 0;
+  #else
+        hp = gethostbyname(hostname);
   #endif
 #else
         hp = gethostbyname(hostname);
@@ -184,6 +188,8 @@ SOCK_get_n_char(SocketClass *self, char *buffer, int len)
 {
 	int			lf;
 
+	if (!self)
+		return;
 	if (!buffer)
 	{
 		self->errornumber = SOCKET_NULLPOINTER_PARAMETER;
@@ -201,6 +207,8 @@ SOCK_put_n_char(SocketClass *self, char *buffer, int len)
 {
 	int			lf;
 
+	if (!self)
+		return;
 	if (!buffer)
 	{
 		self->errornumber = SOCKET_NULLPOINTER_PARAMETER;
@@ -248,6 +256,8 @@ SOCK_put_string(SocketClass *self, char *string)
 int
 SOCK_get_int(SocketClass *self, short len)
 {
+	if (!self)
+		return 0;
 	switch (len)
 	{
 		case 2:
@@ -285,6 +295,8 @@ SOCK_put_int(SocketClass *self, int value, short len)
 {
 	unsigned int rv;
 
+	if (!self)
+		return;
 	switch (len)
 	{
 		case 2:
@@ -310,6 +322,8 @@ SOCK_flush_output(SocketClass *self)
 {
 	int			written;
 
+	if (!self)
+		return;
 	written = send(self->socket, (char *) self->buffer_out, self->buffer_filled_out, 0);
 	if (written != self->buffer_filled_out)
 	{
@@ -323,6 +337,8 @@ SOCK_flush_output(SocketClass *self)
 unsigned char
 SOCK_get_next_byte(SocketClass *self)
 {
+	if (!self)
+		return 0;
 	if (self->buffer_read_in >= self->buffer_filled_in)
 	{
 		/*
@@ -357,6 +373,8 @@ SOCK_put_next_byte(SocketClass *self, unsigned char next_byte)
 {
 	int			bytes_sent;
 
+	if (!self)
+		return;
 	self->buffer_out[self->buffer_filled_out++] = next_byte;
 
 	if (self->buffer_filled_out == self->buffer_size)

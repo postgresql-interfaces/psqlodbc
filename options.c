@@ -526,6 +526,16 @@ PGAPI_GetConnectOption(
 			*((UDWORD *) pvParam) = conn->isolation;
 			break;
 
+#ifdef	SQL_ATTR_CONNECTION_DEAD
+		case SQL_ATTR_CONNECTION_DEAD:
+#else
+		case 1209:
+#endif /* SQL_ATTR_CONNECTION_DEAD */
+			mylog("CONNECTION_DEAD status=%d", conn->status);
+			*((SQLUINTEGER *) pvParam) = (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN);
+			mylog(" val=%d\n", *((SQLUINTEGER *) pvParam));
+                        break;
+
 			/* These options should be handled by driver manager */
 		case SQL_ODBC_CURSORS:
 		case SQL_OPT_TRACE:
