@@ -10,7 +10,7 @@
  *
  *	Sverre H. Huseby <sverrehu@online.no>
  *
- * $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.1 2001/11/12 00:54:28 inoue Exp $
+ * $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.3 2001/11/12 01:59:43 momjian Exp $
  */
 
 
