@@ -1795,6 +1795,13 @@ PGAPI_Columns(
 		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, szColumnName, cbColumnName);
 	}
 
+	if (!atoi(ci->show_system_tables))
+	{
+		if (conn->schema_support)
+			strcat(columns_query, "  and nspname !~ '^" POSTGRES_SYS_PREFIX "'");
+		else
+			strcat(columns_query, "  and relname !~ '^" POSTGRES_SYS_PREFIX "'");
+	}
 	/*
 	 * give the output in the order the columns were defined when the
 	 * table was created
@@ -4636,6 +4643,13 @@ PGAPI_TablePrivileges(
 		}
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
 		my_strcat1(proc_query, " relname %s '%.*s' and", likeeq, esc_table_name, escTbnamelen);
+	}
+	if (!atoi(conn->connInfo.show_system_tables))
+	{
+		if (conn->schema_support)
+			strcat(proc_query, " nspname !~ '^" POSTGRES_SYS_PREFIX "' and");
+		else
+			strcat(proc_query, " relname !~ '^" POSTGRES_SYS_PREFIX "' and");
 	}
 	if (conn->schema_support)
 		strcat(proc_query, " pg_namespace.oid = relnamespace and");

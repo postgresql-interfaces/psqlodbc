@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "environ.h"
 #include "connection.h"
 #include "statement.h"
 #include "qresult.h"
@@ -348,7 +349,27 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	else
 		stmt->exec_current_row++;
 	if (res)
+	{
+#if (ODBCVER >= 0x0300)
+        	EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
+		const char *cmd = QR_get_command(res);
+
+		if (retval == SQL_SUCCESS && cmd && EN_is_odbc3(env))
+		{
+			int	count;
+
+			if (sscanf(cmd , "UPDATE %d", &count) == 1)
+				;
+			else if (sscanf(cmd , "DELETE %d", &count) == 1)
+				;
+			else
+				count = -1;
+			if (0 == count)
+				retval = SQL_NO_DATA;
+		}
+#endif /* ODBCVER */
 		stmt->diag_row_count = res->recent_processed_row_count;
+	}
 	/*
 	 *	The cursor's info was changed ?
 	 */

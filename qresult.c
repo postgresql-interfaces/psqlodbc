@@ -159,7 +159,11 @@ QR_Destructor(QResultClass *self)
 	 * case we need to, free it up.  Also, close the cursor.
 	 */
 	if (self->conn && self->conn->sock && CC_is_in_trans(self->conn))
-		QR_close(self);			/* close the cursor if there is one */
+	{
+		if (!QR_close(self))	/* close the cursor if there is one */
+		{
+		}
+	}
 
 	QR_free_memory(self);		/* safe to call anyway */
 

@@ -1177,6 +1177,32 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 	return rv;
 }
 
+static void CC_clear_cursors(ConnectionClass *self, BOOL allcursors)
+{
+	int	i;
+	StatementClass	*stmt;
+	QResultClass	*res;
+
+	for (i = 0; i < self->num_stmts; i++)
+	{
+		stmt = self->stmts[i];
+		if (stmt && (res = SC_get_Result(stmt)) &&
+			res->cursor && res->cursor[0])
+		{
+		/*
+		 * non-holdable cursors are automatically closed
+		 * at commit time.
+		 * all cursors are automatically closed
+		 * at rollback time.
+		 */
+			if (res->cursor)
+			{
+				free(res->cursor);
+				res->cursor = NULL;
+			}
+		}
+	}
+}
 
 void	CC_on_commit(ConnectionClass *conn)
 {
@@ -1190,6 +1216,7 @@ void	CC_on_commit(ConnectionClass *conn)
 		CC_set_no_manual_trans(conn);
 	}
 	conn->result_uncommitted = 0;
+	CC_clear_cursors(conn, TRUE);
 }
 void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 {
@@ -1215,6 +1242,7 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 		}
 	}
 	conn->result_uncommitted = 0;
+	CC_clear_cursors(conn, TRUE);
 }
 
 /*
