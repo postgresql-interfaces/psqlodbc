@@ -783,15 +783,7 @@ PGAPI_GetInfo(
 	}
 
 	if (pcbInfoValue)
-	{
-		if (p)  /* Don't include terminator for strings */
-			if (conn->unicode)
-				*pcbInfoValue = len - WCLEN;
-			else
-				*pcbInfoValue = len - 1;
-		else
-			*pcbInfoValue = len;			
-	}
+		*pcbInfoValue = len;			
 
 	return result;
 }
