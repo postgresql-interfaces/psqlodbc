@@ -3424,7 +3424,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 		{
 			schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn); 	
 			sprintf(tables_query,
-				"SELECT	pt.tgargs, "
+				"SELECT	pt1.tgargs, "
 				"		pt1.tgnargs, "
 				"		pt1.tgdeferrable, "
 				"		pt1.tginitdeferred, "
