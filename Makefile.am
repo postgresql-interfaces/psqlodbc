@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.13 2004/07/10 22:26:26 petere Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.14 2004/07/17 21:01:07 petere Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -34,17 +34,11 @@ endif
 
 EXTRA_psqlodbc_la_SOURCES = md5.c
 
-dist_pkgdata_DATA = odbc.sql odbc-drop.sql
-BUILT_SOURCES = odbc-drop.sql
-
 EXTRA_DIST = README.unix license.txt notice.txt readme.txt odbcinst.ini \
 	libtool.m4 psqlodbc_win32.def win32.mak \
 	dlg_wingui.c win_setup.h win_md5.c setup.c \
 	psqlodbc.reg
-MAINTAINERCLEANFILES = odbc-drop.sql \
+MAINTAINERCLEANFILES = \
 	Makefile.in config.guess config.h.in config.sub configure \
 	install-sh missing mkinstalldirs aclocal.m4 ltmain.sh \
 	libtool.m4 depcomp
-
-$(srcdir)/odbc-drop.sql: $(srcdir)/odbc.sql
-	sed -n '/^CREATE OR REPLACE FUNCTION/s/CREATE OR REPLACE FUNCTION \([^ (][^ (]*([^)]*)\).*/DROP FUNCTION \1;/p' $(srcdir)/odbc.sql >$(srcdir)/odbc-drop.sql

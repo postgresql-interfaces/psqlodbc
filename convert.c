@@ -56,7 +56,7 @@
 #endif
 
 /*
- *	How to map ODBC scalar functions {fn func(args)} to Postgres.
+ *	How to map ODBC scalar functions {fn func(args)} to PostgreSQL.
  *	This is just a simple substitution.  List augmented from:
  *	http://www.merant.com/datadirect/download/docs/odbc16/Odbcref/rappc.htm
  *	- thomas 2000-04-03
@@ -68,15 +68,15 @@ char	   *mapFuncs[][2] = {
 /*	{ "DIFFERENCE", "difference" }, how to ? */
 	{"INSERT", "substring($1 from 1 for $2 - 1) || $4 || substring($1 from $2 + $3)" },
 	{"LCASE", "lower($*)" },
-	{"LEFT", "ltrunc($*)" },
+	{"LEFT", "substring($1 for $2)" },
 	{"%2LOCATE", "strpos($2,  $1)" },	/* 2 parameters */
 	{"%3LOCATE", "strpos(substring($2 from $3), $1) + $3 - 1" },	/* 3 parameters */
-	{"LENGTH", "char_length($*)"},
+/*	{ "LENGTH",		 "length"	  }, built_in */
 /*	{ "LTRIM",		 "ltrim"	  }, built_in */
-	{"RIGHT", "rtrunc($*)" },
-	{"SPACE", "repeat('' '', $1)" },
+	{"RIGHT", "substring($1 from char_length($1) - $2 + 1)" },
+	{"SPACE", "repeat(' ', $1)" },
 /*	{ "REPEAT",		 "repeat"	  }, built_in */
-/*	{ "REPLACE", "replace" }, ??? */
+/*	{ "REPLACE",		 "replace"	  }, built_in */
 /*	{ "RTRIM",		 "rtrim"	  }, built_in */
 /*	{ "SOUNDEX", "soundex" }, how to ? */
 	{"SUBSTRING", "substr($*)" },
@@ -86,7 +86,7 @@ char	   *mapFuncs[][2] = {
 /*	{ "ACOS",		 "acos"		  }, built_in */
 /*	{ "ASIN",		 "asin"		  }, built_in */
 /*	{ "ATAN",		 "atan"		  }, built_in */
-/*	{ "ATAN2",		 "atan2"	  }, bui;t_in */
+/*	{ "ATAN2",		 "atan2"	  }, built_in */
 	{"CEILING", "ceil($*)" },
 /*	{ "COS",		 "cos" 		  }, built_in */
 /*	{ "COT",		 "cot" 		  }, built_in */
@@ -109,12 +109,14 @@ char	   *mapFuncs[][2] = {
 	{"TRUNCATE", "trunc($*)" },
 
 	{"CURRENT_DATE", "current_date" },
-	{"CURRENT_TIME", "current_time" },
-	{"CURRENT_TIMESTAMP", "current_timestamp" },
-	{"LOCALTIME", "localtime" },
-	{"LOCALTIMESTAMP", "localtimestamp" },
-	{"CURRENT_USER", "cast(current_user as text)" },
-	{"SESSION_USER", "cast(session_user as text)" },
+	{"%0CURRENT_TIME", "current_time" },
+	{"%1CURRENT_TIME", "current_time($1)" },
+	{"%0CURRENT_TIMESTAMP", "current_timestamp" },
+	{"%1CURRENT_TIMESTAMP", "current_timestamp($1)" },
+	{"%0LOCALTIME", "localtime" },
+	{"%1LOCALTIME", "localtime($1)" },
+	{"%0LOCALTIMESTAMP", "localtimestamp" },
+	{"%1LOCALTIMESTAMP", "localtimestamp($1)" },
 	{"CURDATE",	 "current_date" },
 	{"CURTIME",	 "current_time" },
 	{"DAYNAME",	 "to_char($1, 'Day')" },
@@ -131,9 +133,11 @@ char	   *mapFuncs[][2] = {
 	{"WEEK",	"cast(extract(week from $1) as integer)" },
 	{"YEAR",	"cast(extract(year from $1) as integer)" },
 
-/*	{ "DATABASE",	 "database"   }, */
+	{"DATABASE", "current_database()" },
 	{"IFNULL", "coalesce($*)" },
 	{"USER", "cast(current_user as text)" },
+	{"CURRENT_USER", "cast(current_user as text)" },
+	{"SESSION_USER", "cast(session_user as text)" },
 	{0, 0}
 };
 

@@ -1,5 +1,5 @@
 <!--
-$Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/odbc.sgml,v 1.1 2002/10/21 23:12:51 bmomjian Exp $
+$Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/odbc.sgml,v 1.2 2004/07/17 21:01:07 petere Exp $
 -->
 
  <chapter id="odbc">
@@ -143,24 +143,6 @@ $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/odbc.sgml,v 1.1 2002/10/2
     layout, use the <option>--with-odbcinst</> option.  To be most
     useful, it should be arranged that the driver and the driver
     manager read the same configuration file.
-   </para>
-
-   <para>
-    <indexterm><primary>odbc.sql</></>
-    Additionally, you should install the ODBC catalog extensions.  That will
-    provide a number of functions mandated by the ODBC standard that are not
-    supplied by <productname>PostgreSQL</> by default. The file
-    <filename>/usr/local/pgsql/share/odbc.sql</> (in the default installation layout)
-    contains the appropriate definitions, which you can install as follows:
-<programlisting>
-psql -d template1 -f <replaceable>LOCATION</>/odbc.sql
-</programlisting>
-    where specifying <literal>template1</literal> as the target
-    database will ensure that all subsequent new databases will have
-    these same definitions.  If for any reason you want to remove
-    these functions again, run the file
-    <filename>odbc-drop.sql</filename> through
-    <command>psql</command>.
    </para>
   </sect1>
 
