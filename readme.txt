@@ -45,15 +45,17 @@ IDE Method
 Command Line Method
 -------------------
 
-1.  From a command prompt, CD to the directory containing the source code.
+1. From a command prompt, run the vcvars32.bat file that comes with Visual C++. This 
+   will setup the environment for using the VC++ compiler.
+   
+2. CD to the directory containing the source code.
 
-2.  Use NMAKE to build the dll eg:
+3. Use NMAKE to build the dll eg:
 
-    C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL
+      C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL
 
-    Possible configurations are Release, Debug, MultiByteRelease or MultiByteDebug
-    Possible build types are ALL or CLEAN
-
+      Possible configurations are Release and Debug.
+      Possible build types are ALL or CLEAN.
 
 II.  Using Large Objects for handling LongVarBinary (OLE Objects in Access)
 
