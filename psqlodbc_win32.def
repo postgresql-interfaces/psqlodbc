@@ -47,7 +47,7 @@ SQLPrimaryKeys @65
 SQLProcedureColumns @66
 SQLProcedures @67
 SQLSetPos @68
-SQLSetScrollOptions @69
+;SQLSetScrollOptions @69
 SQLTablePrivileges @70
 SQLBindParameter @72
 
