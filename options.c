@@ -55,7 +55,7 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->ardOptions.bind_size = vParam;
 			if (stmt)
-				SC_get_ARD(stmt)->bind_size = vParam;
+				SC_get_ARDF(stmt)->bind_size = vParam;
 			break;
 
 		case SQL_CONCURRENCY:
@@ -215,7 +215,7 @@ set_statement_option(ConnectionClass *conn,
 			 */
 
 			if (stmt && stmt->save_rowset_size <= 0 && stmt->last_fetch_count > 0)
-				stmt->save_rowset_size = SC_get_ARD(stmt)->size_of_rowset_odbc2;
+				stmt->save_rowset_size = SC_get_ARDF(stmt)->size_of_rowset_odbc2;
 
 			if (vParam < 1)
 			{
@@ -226,7 +226,7 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->ardOptions.size_of_rowset_odbc2 = vParam;
 			if (stmt)
-				SC_get_ARD(stmt)->size_of_rowset_odbc2 = vParam;
+				SC_get_ARDF(stmt)->size_of_rowset_odbc2 = vParam;
 			break;
 
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */
@@ -699,7 +699,7 @@ PGAPI_GetStmtOption(
 			break;
 
 		case SQL_BIND_TYPE:
-			*((SDWORD *) pvParam) = SC_get_ARD(stmt)->bind_size;
+			*((SDWORD *) pvParam) = SC_get_ARDF(stmt)->bind_size;
 			break;
 
 		case SQL_CONCURRENCY:	/* NOT REALLY SUPPORTED */
@@ -739,7 +739,7 @@ PGAPI_GetStmtOption(
 			break;
 
 		case SQL_ROWSET_SIZE:
-			*((SDWORD *) pvParam) = SC_get_ARD(stmt)->size_of_rowset_odbc2;
+			*((SDWORD *) pvParam) = SC_get_ARDF(stmt)->size_of_rowset_odbc2;
 			break;
 
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */

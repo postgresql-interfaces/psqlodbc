@@ -277,6 +277,14 @@ CC_Constructor()
 		memset(rv->stmts, 0, sizeof(StatementClass *) * STMT_INCREMENT);
 
 		rv->num_stmts = STMT_INCREMENT;
+#if (ODBCVER >= 0x0300)
+		rv->descs = (DescriptorClass **) malloc(sizeof(DescriptorClass *) * STMT_INCREMENT);
+		if (!rv->descs)
+			return NULL;
+		memset(rv->descs, 0, sizeof(DescriptorClass *) * STMT_INCREMENT);
+
+		rv->num_descs = STMT_INCREMENT;
+#endif /* ODBCVER */
 
 		rv->lobj_type = PG_TYPE_LO_UNDEFINED;
 
@@ -332,6 +340,13 @@ CC_Destructor(ConnectionClass *self)
 		free(self->stmts);
 		self->stmts = NULL;
 	}
+#if (ODBCVER >= 0x0300)
+	if (self->descs)
+	{
+		free(self->descs);
+		self->descs = NULL;
+	}
+#endif /* ODBCVER */
 	mylog("after free statement holders\n");
 
 	if (self->__error_message)
@@ -454,6 +469,7 @@ CC_cleanup(ConnectionClass *self)
 {
 	int			i;
 	StatementClass *stmt;
+	DescriptorClass *desc;
 
 	if (self->status == CONN_EXECUTING)
 		return FALSE;
@@ -489,6 +505,20 @@ CC_cleanup(ConnectionClass *self)
 			self->stmts[i] = NULL;
 		}
 	}
+#if (ODBCVER >= 0x0300)
+	/* Free all the descs on this connection */
+	for (i = 0; i < self->num_descs; i++)
+	{
+		desc = self->descs[i];
+		if (desc)
+		{
+			DC_get_conn(desc) = NULL;	/* prevent any more dbase interactions */
+			DC_Destructor(desc);
+			free(desc);
+			self->descs[i] = NULL;
+		}
+	}
+#endif /* ODBCVER */
 
 	/* Check for translation dll */
 #ifdef WIN32
@@ -1196,8 +1226,6 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
  *	(i.e., C3326857) for SQL select statements.  This cursor is then used in future
  *	'declare cursor C3326857 for ...' and 'fetch 100 in C3326857' statements.
  */
-
-
 QResultClass *
 CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 {
@@ -1810,7 +1838,7 @@ CC_send_settings(ConnectionClass *self)
 	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
 
 	/* Set the Datestyle to the format the driver expects it to be in */
-	result = PGAPI_ExecDirect(hstmt, "set DateStyle to 'ISO'", SQL_NTS);
+	result = PGAPI_ExecDirect(hstmt, "set DateStyle to 'ISO'", SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		status = FALSE;
 
@@ -1819,7 +1847,7 @@ CC_send_settings(ConnectionClass *self)
 	/* Disable genetic optimizer based on global flag */
 	if (ci->drivers.disable_optimizer)
 	{
-		result = PGAPI_ExecDirect(hstmt, "set geqo to 'OFF'", SQL_NTS);
+		result = PGAPI_ExecDirect(hstmt, "set geqo to 'OFF'", SQL_NTS, 0);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 			status = FALSE;
 
@@ -1830,7 +1858,7 @@ CC_send_settings(ConnectionClass *self)
 	/* KSQO (not applicable to 7.1+ - DJP 21/06/2002) */
 	if (ci->drivers.ksqo && PG_VERSION_LT(self, 7.1))
 	{
-		result = PGAPI_ExecDirect(hstmt, "set ksqo to 'ON'", SQL_NTS);
+		result = PGAPI_ExecDirect(hstmt, "set ksqo to 'ON'", SQL_NTS, 0);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 			status = FALSE;
 
@@ -1841,7 +1869,7 @@ CC_send_settings(ConnectionClass *self)
 	/* extra_float_digits (applicable since 7.4) */
 	if (PG_VERSION_GT(self, 7.3))
 	{
-		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS);
+		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS, 0);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 			status = FALSE;
 
@@ -1860,7 +1888,7 @@ CC_send_settings(ConnectionClass *self)
 #endif /* HAVE_STRTOK_R */
 		while (ptr)
 		{
-			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS);
+			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
 			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 				status = FALSE;
 
@@ -1887,7 +1915,7 @@ CC_send_settings(ConnectionClass *self)
 #endif /* HAVE_STRTOK_R */
 		while (ptr)
 		{
-			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS);
+			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
 			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 				status = FALSE;
 
@@ -1934,7 +1962,7 @@ CC_lookup_lo(ConnectionClass *self)
 		return;
 	stmt = (StatementClass *) hstmt;
 
-	result = PGAPI_ExecDirect(hstmt, "select oid from pg_type where typname='" PG_TYPE_LO_NAME "'", SQL_NTS);
+	result = PGAPI_ExecDirect(hstmt, "select oid from pg_type where typname='" PG_TYPE_LO_NAME "'", SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		PGAPI_FreeStmt(hstmt, SQL_DROP);
@@ -2020,7 +2048,7 @@ CC_lookup_pg_version(ConnectionClass *self)
 	stmt = (StatementClass *) hstmt;
 
 	/* get the server's version if possible	 */
-	result = PGAPI_ExecDirect(hstmt, "select version()", SQL_NTS);
+	result = PGAPI_ExecDirect(hstmt, "select version()", SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		PGAPI_FreeStmt(hstmt, SQL_DROP);

@@ -216,7 +216,7 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 	mylog("[SQLExecDirectW]");
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	ret = PGAPI_ExecDirect(StatementHandle, stxt, slen);
+	ret = PGAPI_ExecDirect(StatementHandle, stxt, slen, 0);
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
 	if (stxt)
 		free(stxt);

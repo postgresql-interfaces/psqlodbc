@@ -126,7 +126,7 @@ PGAPI_NumResultCols(
 		if (stmt->parse_status != STMT_PARSE_FATAL)
 		{
 			parse_ok = TRUE;
-			*pccol = SC_get_IRD(stmt)->nfields;
+			*pccol = SC_get_IRDF(stmt)->nfields;
 			mylog("PARSE: PGAPI_NumResultCols: *pccol = %d\n", *pccol);
 		}
 	}
@@ -198,7 +198,7 @@ PGAPI_DescribeCol(
 
 	SC_clear_error(stmt);
 
-	irdflds = SC_get_IRD(stmt);
+	irdflds = SC_get_IRDF(stmt);
 #if (ODBCVER >= 0x0300)
 	if (0 == icol) /* bookmark column */
 	{
@@ -414,7 +414,7 @@ PGAPI_ColAttributes(
 
 	if (pcbDesc)
 		*pcbDesc = 0;
-	irdflds = SC_get_IRD(stmt);
+	irdflds = SC_get_IRDF(stmt);
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
 
@@ -985,6 +985,7 @@ PGAPI_Fetch(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ARDFields	*opts;
 	QResultClass *res;
+	BindInfoClass	*bookmark;
 
 	mylog("PGAPI_Fetch: stmt = %u, stmt->result= %u\n", stmt, SC_get_Curres(stmt));
 
@@ -1004,8 +1005,8 @@ PGAPI_Fetch(
 	}
 
 	/* Not allowed to bind a bookmark column when using SQLFetch. */
-	opts = SC_get_ARD(stmt);
-	if (opts->bookmark->buffer)
+	opts = SC_get_ARDF(stmt);
+	if ((bookmark = opts->bookmark) && bookmark->buffer)
 	{
 		SC_set_error(stmt, STMT_COLNUM_ERROR, "Not allowed to bind a bookmark column when using PGAPI_Fetch");
 		SC_log_error(func, "", stmt);
@@ -1140,6 +1141,7 @@ PGAPI_ExtendedFetch(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ARDFields	*opts;
 	QResultClass *res;
+	BindInfoClass	*bookmark;
 	int			num_tuples,
 				i,
 				save_rowset_size,
@@ -1182,12 +1184,12 @@ PGAPI_ExtendedFetch(
 		return SQL_ERROR;
 	}
 
-	opts = SC_get_ARD(stmt);
+	opts = SC_get_ARDF(stmt);
 	/*
 	 * If a bookmark colunmn is bound but bookmark usage is off, then
 	 * error
 	 */
-	if (opts->bookmark->buffer && stmt->options.use_bookmarks == SQL_UB_OFF)
+	if ((bookmark = opts->bookmark) && bookmark->buffer && stmt->options.use_bookmarks == SQL_UB_OFF)
 	{
 		SC_set_error(stmt, STMT_COLNUM_ERROR, "Attempt to retrieve bookmark with bookmark usage disabled");
 		SC_log_error(func, "", stmt);
@@ -1852,7 +1854,7 @@ SC_pos_reload(StatementClass *stmt, UDWORD global_ridx, UWORD *count, BOOL logCh
 	UInt4		oid, blocknum;
 	QResultClass *res,
 			   *qres;
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
 	char		tidval[32];
 
@@ -1939,7 +1941,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 	Int4		i, limitrow;
 	UWORD		qcount;
 	QResultClass	*res;
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	UInt4		oid, blocknum, lodlen;
@@ -2221,6 +2223,56 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow
 	}
 	return ret;
 }
+
+/* SQL_NEED_DATA callback for SC_pos_update */
+typedef struct
+{
+	BOOL		updyes;
+	QResultClass	*res;
+	StatementClass	*stmt, *qstmt;
+	IRDFields	*irdflds;
+	UWORD		irow;
+	UDWORD		global_ridx;
+}	pup_cdata;
+static RETCODE
+pos_update_callback(RETCODE retcode, pup_cdata *s)
+{
+	RETCODE	ret = retcode;
+
+	if (s->updyes)
+	{
+		mylog("pos_update_callback in\n");
+		ret = irow_update(ret, s->stmt, s->qstmt, s->irow, s->global_ridx);
+		PGAPI_FreeStmt(s->qstmt, SQL_DROP);
+	}
+	s->updyes = FALSE;
+	if (SQL_SUCCESS == ret && s->res->keyset)
+	{
+		ConnectionClass	*conn = SC_get_conn(s->stmt);
+
+		if (CC_is_in_trans(conn))
+		{
+			s->res->keyset[s->global_ridx].status |= (SQL_ROW_UPDATED  | CURS_SELF_UPDATING);
+		}
+		else
+			s->res->keyset[s->global_ridx].status |= (SQL_ROW_UPDATED  | CURS_SELF_UPDATED);
+	}
+#if (ODBCVER >= 0x0300)
+	if (s->irdflds->rowStatusArray)
+	{
+		switch (ret)
+		{
+			case SQL_SUCCESS:
+				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_UPDATED;
+				break;
+			default:
+				s->irdflds->rowStatusArray[s->irow] = ret;
+		}
+	}
+#endif /* ODBCVER */
+
+	return ret;
+}
 RETCODE
 SC_pos_update(StatementClass *stmt,
 			  UWORD irow, UDWORD global_ridx)
@@ -2228,44 +2280,48 @@ SC_pos_update(StatementClass *stmt,
 	int			i,
 				num_cols,
 				upd_cols;
-	QResultClass *res;
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	ARDFields	*opts = SC_get_ARD(stmt);
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	pup_cdata	s;
+	ConnectionClass	*conn;
+	ARDFields	*opts = SC_get_ARDF(stmt);
 	BindInfoClass *bindings = opts->bindings;
-	FIELD_INFO	**fi = SC_get_IRD(stmt)->fi;
+	FIELD_INFO	**fi;
 	char		updstr[4096];
 	RETCODE		ret;
 	UInt4	oid, offset, blocknum;
 	UInt2	pgoffset;
 	Int4	*used, bind_size = opts->bind_size;
 
-	if (!(res = SC_get_Curres(stmt)))
+	s.stmt = stmt;
+	s.irow = irow;
+	s.global_ridx = global_ridx;
+	s.irdflds = SC_get_IRDF(s.stmt);
+	fi = s.irdflds->fi;
+	if (!(s.res = SC_get_Curres(s.stmt)))
 	{
-		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_update.");
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_update.");
 		return SQL_ERROR;
 	}
-	mylog("POS UPDATE %d+%d fi=%x ti=%x\n", irow, res->base, fi, stmt->ti);
-	if (!stmt->ti)
-		parse_statement(stmt);	/* not preferable */
-	if (!stmt->updatable)
+	mylog("POS UPDATE %d+%d fi=%x ti=%x\n", s.irow, s.res->base, fi, s.stmt->ti);
+	if (!s.stmt->ti)
+		parse_statement(s.stmt);	/* not preferable */
+	if (!s.stmt->updatable)
 	{
-		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
+		s.stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(s.stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
-	if (!(oid = getOid(res, global_ridx)))
+	if (!(oid = getOid(s.res, s.global_ridx)))
 	{
-		SC_set_error(stmt, STMT_INVALID_CURSOR_POSITION, "The row is already deleted ?");
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_POSITION, "The row is already deleted ?");
 		return SQL_ERROR;
 	}
-	getTid(res, global_ridx, &blocknum, &pgoffset);
+	getTid(s.res, s.global_ridx, &blocknum, &pgoffset);
 
-	if (stmt->ti[0]->schema[0])
-		sprintf(updstr, "update \"%s\".\"%s\" set", stmt->ti[0]->schema, stmt->ti[0]->name);
+	if (s.stmt->ti[0]->schema[0])
+		sprintf(updstr, "update \"%s\".\"%s\" set", s.stmt->ti[0]->schema, s.stmt->ti[0]->name);
 	else
-		sprintf(updstr, "update \"%s\" set", stmt->ti[0]->name);
-	num_cols = irdflds->nfields;
+		sprintf(updstr, "update \"%s\" set", s.stmt->ti[0]->name);
+	num_cols = s.irdflds->nfields;
 	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 	for (i = upd_cols = 0; i < num_cols; i++)
 	{
@@ -2273,9 +2329,9 @@ SC_pos_update(StatementClass *stmt,
 		{
 			used += (offset >> 2);
 			if (bind_size > 0)
-				used += (bind_size * irow / 4);
+				used += (bind_size * s.irow / 4);
 			else	
-				used += irow; 
+				used += s.irow; 
 			mylog("%d used=%d,%x\n", i, *used, used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
@@ -2289,13 +2345,14 @@ SC_pos_update(StatementClass *stmt,
 		else
 			mylog("%d null bind\n", i);
 	}
+	conn = SC_get_conn(s.stmt);
+	s.updyes = FALSE;
 	if (upd_cols > 0)
 	{
 		HSTMT		hstmt;
 		int			j;
-		int			res_cols = QR_NumResultCols(res);
+		int			res_cols = QR_NumResultCols(s.res);
 		ConnInfo	*ci = &(conn->connInfo);
-		StatementClass *qstmt;
 		APDFields	*apdopts;
 		Int4		fieldtype = 0;
 
@@ -2306,11 +2363,11 @@ SC_pos_update(StatementClass *stmt,
 		mylog("updstr=%s\n", updstr);
 		if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
 		{
-			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error");
+			SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error");
 			return SQL_ERROR;
 		}
-		qstmt = (StatementClass *) hstmt;
-		apdopts = SC_get_APD(qstmt);
+		s.qstmt = (StatementClass *) hstmt;
+		apdopts = SC_get_APDF(s.qstmt);
 		apdopts->param_bind_type = opts->bind_size;
 		apdopts->param_offset_ptr = opts->row_offset_ptr;
 		for (i = j = 0; i < num_cols; i++)
@@ -2319,67 +2376,49 @@ SC_pos_update(StatementClass *stmt,
 			{
 				used += (offset >> 2);
 				if (bind_size > 0)
-					used += (bind_size * irow / 4);
+					used += (bind_size * s.irow / 4);
 				else
-					used += irow;
+					used += s.irow;
 				mylog("%d used=%d\n", i, *used);
 				if (*used != SQL_IGNORE && fi[i]->updatable)
 				{
-					fieldtype = QR_get_field_type(res, i);
-					PGAPI_BindParameter(hstmt, (SQLUSMALLINT) ++j,
-								 SQL_PARAM_INPUT, bindings[i].returntype,
-					  pgtype_to_concise_type(stmt, fieldtype),
-															fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(stmt, fieldtype, i, ci->drivers.unknown_sizes),
-									(SQLSMALLINT) fi[i]->decimal_digits,
-										bindings[i].buffer,
-										bindings[i].buflen,
-										bindings[i].used);
+					fieldtype = QR_get_field_type(s.res, i);
+					PGAPI_BindParameter(hstmt,
+						(SQLUSMALLINT) ++j,
+						SQL_PARAM_INPUT,
+						bindings[i].returntype,
+						pgtype_to_concise_type(s.stmt, fieldtype),
+																fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, ci->drivers.unknown_sizes),
+						(SQLSMALLINT) fi[i]->decimal_digits,
+						bindings[i].buffer,
+						bindings[i].buflen,
+						bindings[i].used);
 				}
 			}
 		}
-		qstmt->exec_start_row = qstmt->exec_end_row = irow; 
-		ret = PGAPI_ExecDirect(hstmt, updstr, strlen(updstr));
+		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
+		s.updyes = TRUE; 
+		ret = PGAPI_ExecDirect(hstmt, updstr, SQL_NTS, 0);
 		if (ret == SQL_ERROR)
 		{
-			SC_error_copy(stmt, qstmt);
+			SC_error_copy(s.stmt, s.qstmt);
 		}
 		else if (ret == SQL_NEED_DATA)	/* must be fixed */
 		{
-			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "SetPos with data_at_exec not yet supported");
-			ret = SQL_ERROR;
+			pup_cdata *cbdata = (pup_cdata *) malloc(sizeof(pup_cdata));
+			memcpy(cbdata, &s, sizeof(pup_cdata));
+			s.stmt->execute_delegate = s.qstmt;
+			enqueueNeedDataCallback(s.stmt, pos_update_callback, cbdata);
+			return ret;
 		}
-		ret = irow_update(ret, stmt, qstmt, irow, global_ridx);
-		PGAPI_FreeStmt(hstmt, SQL_DROP);
 	}
 	else
 	{
 		ret = SQL_SUCCESS_WITH_INFO;
-		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "update list null");
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "update list null");
 	}
-	if (SQL_SUCCESS == ret && res->keyset)
-	{
-		if (CC_is_in_trans(conn))
-		{
-			res->keyset[global_ridx].status |= (SQL_ROW_UPDATED  | CURS_SELF_UPDATING);
-		}
-		else
-			res->keyset[global_ridx].status |= (SQL_ROW_UPDATED  | CURS_SELF_UPDATED);
-	}
-#if (ODBCVER >= 0x0300)
-	if (irdflds->rowStatusArray)
-	{
-		switch (ret)
-		{
-			case SQL_SUCCESS:
-				irdflds->rowStatusArray[irow] = SQL_ROW_UPDATED;
-				break;
-			default:
-				irdflds->rowStatusArray[irow] = ret;
-		}
-	}
-#endif /* ODBCVER */
 
+	ret = pos_update_callback(ret, &s);
 	return ret;
 }
 RETCODE
@@ -2389,8 +2428,8 @@ SC_pos_delete(StatementClass *stmt,
 	UWORD		offset;
 	QResultClass *res, *qres;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	ARDFields	*opts = SC_get_ARD(stmt);
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	ARDFields	*opts = SC_get_ARDF(stmt);
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	BindInfoClass *bindings = opts->bindings;
 	char		dltstr[4096];
 	RETCODE		ret;
@@ -2495,7 +2534,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 	{
 		int		addcnt;
 		UInt4		oid;
-		ARDFields	*opts = SC_get_ARD(stmt);
+		ARDFields	*opts = SC_get_ARDF(stmt);
 		QResultClass	*ires = SC_get_Curres(istmt);
 		const char *cmdstr;
 		BindInfoClass	*bookmark;
@@ -2522,7 +2561,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 					return qret;
 			}
 			bookmark = opts->bookmark;
-			if (bookmark->buffer)
+			if (bookmark && bookmark->buffer)
 			{
 				char	buf[32];
 				UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
@@ -2545,6 +2584,65 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 	}
 	return ret;
 }
+
+/* SQL_NEED_DATA callback for SC_pos_add */
+typedef struct
+{
+	BOOL		updyes;
+	QResultClass	*res;
+	StatementClass	*stmt, *qstmt;
+	IRDFields	*irdflds;
+	UWORD		irow;
+}	padd_cdata;
+
+static RETCODE
+pos_add_callback(RETCODE retcode, padd_cdata *s)
+{
+	RETCODE	ret = retcode;
+
+	if (s->updyes)
+	{
+		int	brow_save;
+		
+		mylog("pos_add_callback in\n");
+		brow_save = s->stmt->bind_row; 
+		s->stmt->bind_row = s->irow; 
+		ret = irow_insert(ret, s->stmt, s->qstmt, s->res->num_total_rows);
+		s->stmt->bind_row = brow_save;
+	}
+	s->updyes = FALSE; 
+	PGAPI_FreeStmt((HSTMT) s->qstmt, SQL_DROP);
+	if (SQL_SUCCESS == ret && s->res->keyset)
+	{
+		int	global_ridx = s->res->num_total_rows - 1;
+		ConnectionClass	*conn = SC_get_conn(s->stmt);
+
+		if (CC_is_in_trans(conn))
+		{
+
+			AddRollback(conn, s->res, global_ridx, NULL);
+			s->res->keyset[global_ridx].status |= (SQL_ROW_ADDED | CURS_SELF_ADDING);
+		}
+		else
+			s->res->keyset[global_ridx].status |= (SQL_ROW_ADDED | CURS_SELF_ADDED);
+	}
+#if (ODBCVER >= 0x0300)
+	if (s->irdflds->rowStatusArray)
+	{
+		switch (ret)
+		{
+			case SQL_SUCCESS:
+				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_ADDED;
+				break;
+			default:
+				s->irdflds->rowStatusArray[s->irow] = ret;
+		}
+	}
+#endif /* ODBCVER */
+
+	return ret;
+}
+
 RETCODE
 SC_pos_add(StatementClass *stmt,
 		   UWORD irow)
@@ -2553,15 +2651,14 @@ SC_pos_add(StatementClass *stmt,
 				add_cols,
 				i;
 	HSTMT		hstmt;
-	StatementClass *qstmt;
+
+	padd_cdata	s;
 	ConnectionClass	*conn;
 	ConnInfo	*ci;
-	QResultClass *res;
-	ARDFields	*opts = SC_get_ARD(stmt);
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	ARDFields	*opts = SC_get_ARDF(stmt);
 	APDFields	*apdopts;
 	BindInfoClass *bindings = opts->bindings;
-	FIELD_INFO	**fi = SC_get_IRD(stmt)->fi;
+	FIELD_INFO	**fi = SC_get_IRDF(stmt)->fi;
 	char		addstr[4096];
 	RETCODE		ret;
 	UInt4		offset;
@@ -2569,36 +2666,39 @@ SC_pos_add(StatementClass *stmt,
 	Int4		fieldtype;
 
 	mylog("POS ADD fi=%x ti=%x\n", fi, stmt->ti);
-	if (!(res = SC_get_Curres(stmt)))
+	s.stmt = stmt;
+	s.irow = irow;
+	if (!(s.res = SC_get_Curres(s.stmt)))
 	{
-		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_add.");
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_add.");
 		return SQL_ERROR;
 	}
-	if (!stmt->ti)
-		parse_statement(stmt);	/* not preferable */
-	if (!stmt->updatable)
+	if (!s.stmt->ti)
+		parse_statement(s.stmt);	/* not preferable */
+	if (!s.stmt->updatable)
 	{
-		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
+		s.stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(s.stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only");
 		return SQL_ERROR;
 	}
-	num_cols = irdflds->nfields;
-	conn = SC_get_conn(stmt);
-	if (stmt->ti[0]->schema[0])
-		sprintf(addstr, "insert into \"%s\".\"%s\" (", stmt->ti[0]->schema, stmt->ti[0]->name);
+	s.irdflds = SC_get_IRDF(s.stmt);
+	num_cols = s.irdflds->nfields;
+	conn = SC_get_conn(s.stmt);
+	if (s.stmt->ti[0]->schema[0])
+		sprintf(addstr, "insert into \"%s\".\"%s\" (", s.stmt->ti[0]->schema, s.stmt->ti[0]->name);
 	else
-		sprintf(addstr, "insert into \"%s\" (", stmt->ti[0]->name);
+		sprintf(addstr, "insert into \"%s\" (", s.stmt->ti[0]->name);
 	if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
 	{
-		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error");
+		SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error");
 		return SQL_ERROR;
 	}
 	if (opts->row_offset_ptr)
 		offset = *opts->row_offset_ptr;
 	else
 		offset = 0;
-	qstmt = (StatementClass *) hstmt;
-	apdopts = SC_get_APD(qstmt);
+	s.qstmt = (StatementClass *) hstmt;
+	apdopts = SC_get_APDF(s.qstmt);
 	apdopts->param_bind_type = opts->bind_size;
 	apdopts->param_offset_ptr = opts->row_offset_ptr;
 	ci = &(conn->connInfo);
@@ -2608,34 +2708,35 @@ SC_pos_add(StatementClass *stmt,
 		{
 			used += (offset >> 2);
 			if (bind_size > 0)
-				used += (bind_size * irow / 4);
+				used += (bind_size * s.irow / 4);
 			else
-				used += irow;
+				used += s.irow;
 			mylog("%d used=%d\n", i, *used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
-				fieldtype = QR_get_field_type(res, i);
+				fieldtype = QR_get_field_type(s.res, i);
 				if (add_cols)
 					sprintf(addstr, "%s, \"%s\"", addstr, fi[i]->name);
 				else
 					sprintf(addstr, "%s\"%s\"", addstr, fi[i]->name);
-				PGAPI_BindParameter(hstmt, (SQLUSMALLINT) ++add_cols,
-								 SQL_PARAM_INPUT, bindings[i].returntype,
-					  pgtype_to_concise_type(stmt, fieldtype),
-															fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(stmt, fieldtype, i, ci->drivers.unknown_sizes),
-									(SQLSMALLINT) fi[i]->decimal_digits,
-									bindings[i].buffer,
-									bindings[i].buflen,
-									bindings[i].used);
+				PGAPI_BindParameter(hstmt,
+					(SQLUSMALLINT) ++add_cols,
+					SQL_PARAM_INPUT,
+					bindings[i].returntype,
+					pgtype_to_concise_type(s.stmt, fieldtype),
+															fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, ci->drivers.unknown_sizes),
+					(SQLSMALLINT) fi[i]->decimal_digits,
+					bindings[i].buffer,
+					bindings[i].buflen,
+					bindings[i].used);
 			}
 		}
 		else
 			mylog("%d null bind\n", i);
 	}
+	s.updyes = FALSE;
 	if (add_cols > 0)
 	{
-		int	brow_save;
-
 		sprintf(addstr, "%s) values (", addstr);
 		for (i = 0; i < add_cols; i++)
 		{
@@ -2646,54 +2747,29 @@ SC_pos_add(StatementClass *stmt,
 		}
 		strcat(addstr, ")");
 		mylog("addstr=%s\n", addstr);
-		qstmt->exec_start_row = qstmt->exec_end_row = irow; 
-		ret = PGAPI_ExecDirect(hstmt, addstr, strlen(addstr));
+		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
+		s.updyes = TRUE; 
+		ret = PGAPI_ExecDirect(hstmt, addstr, SQL_NTS, 0);
 		if (ret == SQL_ERROR)
 		{
-			SC_error_copy(stmt, qstmt);
+			SC_error_copy(s.stmt, s.qstmt);
 		}
 		else if (ret == SQL_NEED_DATA)		/* must be fixed */
 		{
-			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "SetPos with data_at_exec not yet supported");
-			ret = SQL_ERROR;
+			padd_cdata *cbdata = (padd_cdata *) malloc(sizeof(padd_cdata));
+			memcpy(cbdata, &s, sizeof(padd_cdata));
+			s.stmt->execute_delegate = s.qstmt;
+			enqueueNeedDataCallback(s.stmt, pos_add_callback, cbdata);
+			return ret;
 		}
-		brow_save = stmt->bind_row; 
-		stmt->bind_row = irow; 
-		ret = irow_insert(ret, stmt, qstmt, res->num_total_rows);
-		stmt->bind_row = brow_save; 
 	}
 	else
 	{
 		ret = SQL_SUCCESS_WITH_INFO;
-		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "insert list null");
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "insert list null");
 	}
-	PGAPI_FreeStmt(hstmt, SQL_DROP);
-	if (SQL_SUCCESS == ret && res->keyset)
-	{
-		int	global_ridx = res->num_total_rows - 1;
-		if (CC_is_in_trans(conn))
-		{
 
-			AddRollback(conn, res, global_ridx, NULL);
-			res->keyset[global_ridx].status |= (SQL_ROW_ADDED | CURS_SELF_ADDING);
-		}
-		else
-			res->keyset[global_ridx].status |= (SQL_ROW_ADDED | CURS_SELF_ADDED);
-	}
-#if (ODBCVER >= 0x0300)
-	if (irdflds->rowStatusArray)
-	{
-		switch (ret)
-		{
-			case SQL_SUCCESS:
-				irdflds->rowStatusArray[irow] = SQL_ROW_ADDED;
-				break;
-			default:
-				irdflds->rowStatusArray[irow] = ret;
-		}
-	}
-#endif /* ODBCVER */
+	ret = pos_add_callback(ret, &s);
 
 	return ret;
 }
@@ -2708,7 +2784,7 @@ SC_pos_refresh(StatementClass *stmt, UWORD irow , UDWORD global_ridx)
 {
 	RETCODE	ret;
 #if (ODBCVER >= 0x0300)
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
 #endif /* ODBCVER */
 	/* save the last_fetch_count */
 	int		last_fetch = stmt->last_fetch_count;
@@ -2747,6 +2823,118 @@ SC_pos_refresh(StatementClass *stmt, UWORD irow , UDWORD global_ridx)
 	return SQL_SUCCESS;
 }
 
+/*	SQL_NEED_DATA callback for PGAPI_SetPos */
+typedef struct
+{
+	BOOL		need_data_callback, auto_commit_needed;
+	QResultClass	*res;
+	StatementClass	*stmt;
+	ARDFields	*opts;
+	GetDataInfo	*gdata;
+	int	idx, start_row, end_row, processed, ridx;
+	UWORD	fOption, irow, nrow;
+}	spos_cdata;
+static 
+RETCODE spos_callback(RETCODE retcode, spos_cdata *s)
+{
+	RETCODE	ret;
+	ConnectionClass	*conn;
+	UDWORD	global_ridx;
+
+	ret = retcode;
+	if (s->need_data_callback)
+	{
+		mylog("spos_callback in\n");
+		s->processed++;
+		if (SQL_ERROR != retcode)
+		{
+			s->nrow++;
+			s->idx++;
+		}
+	}
+	else
+	{
+		s->ridx = -1;
+		s->idx = s->nrow = s->processed = 0;
+	}
+	s->need_data_callback = FALSE;
+	for (; SQL_ERROR != ret && s->nrow <= s->end_row; s->idx++)
+	{
+		global_ridx = RowIdx2GIdx(s->idx, s->stmt);
+		if (SQL_ADD != s->fOption)
+		{
+			if ((int) global_ridx >= s->res->num_total_rows)
+				break;
+#ifdef	DRIVER_CURSOR_IMPLEMENT
+			if (s->res->keyset) /* the row may be deleted and not in the rowset */
+			{
+				if (0 == (s->res->keyset[global_ridx].status & CURS_IN_ROWSET))
+					continue;
+			}
+#endif   /* DRIVER_CURSOR_IMPLEMENT */
+		}
+		if (s->nrow < s->start_row)
+		{
+			s->nrow++;
+			continue;
+		}	
+		s->ridx = s->nrow;
+#if (ODBCVER >= 0x0300)
+		if (0 != s->irow || !s->opts->row_operation_ptr || s->opts->row_operation_ptr[s->nrow] == SQL_ROW_PROCEED)
+		{
+#endif /* ODBCVER */
+			switch (s->fOption)
+			{
+#ifdef	DRIVER_CURSOR_IMPLEMENT
+				case SQL_UPDATE:
+					ret = SC_pos_update(s->stmt, s->nrow, global_ridx);
+					break;
+				case SQL_DELETE:
+					ret = SC_pos_delete(s->stmt, s->nrow, global_ridx);
+					break;
+				case SQL_ADD:
+					ret = SC_pos_add(s->stmt, s->nrow);
+					break;
+#endif   /* DRIVER_CURSOR_IMPLEMENT */
+				case SQL_REFRESH:
+					ret = SC_pos_refresh(s->stmt, s->nrow, global_ridx);
+					break;
+			}
+			if (SQL_NEED_DATA == ret)
+			{
+				spos_cdata *cbdata = (spos_cdata *) malloc(sizeof(spos_cdata));
+
+				memcpy(cbdata, s, sizeof(spos_cdata));
+				cbdata->need_data_callback = TRUE;
+				enqueueNeedDataCallback(s->stmt, spos_callback, cbdata);
+				return ret;
+			}
+			s->processed++;
+#if (ODBCVER >= 0x0300)
+		}
+#endif /* ODBCVER */
+		if (SQL_ERROR != ret)
+			s->nrow++;
+	}
+	conn = SC_get_conn(s->stmt);
+	if (SQL_ERROR == ret)
+		CC_abort(conn);
+	if (s->auto_commit_needed)
+		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
+	if (s->irow > 0)
+	{
+		if (SQL_ADD != s->fOption && s->ridx >= 0) /* for SQLGetData */
+		{ 
+			s->stmt->currTuple = RowIdx2GIdx(s->ridx, s->stmt);
+			QR_set_position(s->res, s->ridx);
+		}
+	}
+	else if (SC_get_IRDF(s->stmt)->rowsFetched)
+		*(SC_get_IRDF(s->stmt)->rowsFetched) = s->processed;
+	s->res->recent_processed_row_count = s->stmt->diag_row_count = s->processed;
+	return ret;
+}
+ 
 /*
  *	This positions the cursor within a rowset, that was positioned using SQLExtendedFetch.
  *	This will be useful (so far) only when using SQLGetData after SQLExtendedFetch.
@@ -2760,88 +2948,92 @@ PGAPI_SetPos(
 {
 	CSTR func = "PGAPI_SetPos";
 	RETCODE	ret;
-	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	QResultClass *res;
-	int		num_cols, i, start_row, end_row, processed, ridx;
-	UWORD		nrow;
-	ARDFields	*opts;
-	BindInfoClass *bindings;
-	UDWORD		global_ridx, rowsetSize;
-	BOOL		auto_commit_needed = FALSE;
+	ConnectionClass	*conn;
+	int		num_cols, i, rowsetSize;
+	GetDataClass	*gdata = NULL;
+	spos_cdata	s;
 
-	if (!stmt)
+	s.stmt = (StatementClass *) hstmt;
+	if (!s.stmt)
 	{
 		SC_log_error(func, "", NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
-	opts = SC_get_ARD(stmt);
-	bindings = opts->bindings;
+	s.irow = irow;
+	s.fOption = fOption;
+	s.auto_commit_needed = FALSE;
+	s.opts = SC_get_ARDF(s.stmt);
+	gdata = SC_get_GDTI(s.stmt)->gdata;
 #ifdef	DRIVER_CURSOR_IMPLEMENT
-	mylog("%s fOption=%d irow=%d lock=%d currt=%d\n", func, fOption, irow, fLock, stmt->currTuple);
-	if (stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY)
+	mylog("%s fOption=%d irow=%d lock=%d currt=%d\n", func, s.fOption, s.irow, fLock, s.stmt->currTuple);
+	if (s.stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY)
 		;
 	else
 #endif   /* DRIVER_CURSOR_IMPLEMENT */
-	if (fOption != SQL_POSITION && fOption != SQL_REFRESH)
+	if (s.fOption != SQL_POSITION && s.fOption != SQL_REFRESH)
 	{
-		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Only SQL_POSITION/REFRESH is supported for PGAPI_SetPos");
-		SC_log_error(func, "", stmt);
+		SC_set_error(s.stmt, STMT_NOT_IMPLEMENTED_ERROR, "Only SQL_POSITION/REFRESH is supported for PGAPI_SetPos");
+		SC_log_error(func, "", s.stmt);
 		return SQL_ERROR;
 	}
 
-	if (!(res = SC_get_Curres(stmt)))
+	if (!(s.res = SC_get_Curres(s.stmt)))
 	{
-		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in PGAPI_SetPos.");
-		SC_log_error(func, "", stmt);
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in PGAPI_SetPos.");
+		SC_log_error(func, "", s.stmt);
 		return SQL_ERROR;
 	}
 
 #if (ODBCVER >= 0x0300)
-	rowsetSize = (stmt->transition_status == 7 ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
+	rowsetSize = (s.stmt->transition_status == 7 ? s.opts->size_of_rowset_odbc2 : s.opts->size_of_rowset);
 #else
-	rowsetSize = opts->size_of_rowset_odbc2;
+	rowsetSize = s.opts->size_of_rowset_odbc2;
 #endif /* ODBCVER */
-	if (irow == 0) /* bulk operation */
+	if (s.irow == 0) /* bulk operation */
 	{
-		if (SQL_POSITION == fOption)
+		if (SQL_POSITION == s.fOption)
 		{
-			SC_set_error(stmt, STMT_INVALID_CURSOR_POSITION, "Bulk Position operations not allowed.");
-			SC_log_error(func, "", stmt);
+			SC_set_error(s.stmt, STMT_INVALID_CURSOR_POSITION, "Bulk Position operations not allowed.");
+			SC_log_error(func, "", s.stmt);
 			return SQL_ERROR;
 		}
-		start_row = 0;
-		end_row = rowsetSize - 1;
+		s.start_row = 0;
+		s.end_row = rowsetSize - 1;
 	}
 	else
 	{
-		if (SQL_ADD != fOption && irow > stmt->last_fetch_count)
+		if (SQL_ADD != s.fOption && s.irow > s.stmt->last_fetch_count)
 		{
-			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range");
-			SC_log_error(func, "", stmt);
+			SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range");
+			SC_log_error(func, "", s.stmt);
 			return SQL_ERROR;
 		}
-		start_row = end_row = irow - 1;
+		s.start_row = s.end_row = s.irow - 1;
 	}
 
-	num_cols = QR_NumResultCols(res);
+	num_cols = QR_NumResultCols(s.res);
 	/* Reset for SQLGetData */
-	if (bindings)
+	if (gdata)
 		for (i = 0; i < num_cols; i++)
-			bindings[i].data_left = -1;
+			gdata[i].data_left = -1;
 	ret = SQL_SUCCESS;
 #ifdef	DRIVER_CURSOR_IMPLEMENT
-	switch (fOption)
+	conn = SC_get_conn(s.stmt);
+	switch (s.fOption)
 	{
 		case SQL_UPDATE:
 		case SQL_DELETE:
 		case SQL_ADD:
-			if (auto_commit_needed = CC_is_in_autocommit(conn), auto_commit_needed)
+			if (s.auto_commit_needed = CC_is_in_autocommit(conn), s.auto_commit_needed)
 				PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF);
 			break;
 	}
 #endif   /* DRIVER_CURSOR_IMPLEMENT */
+
+	s.need_data_callback = FALSE;
+	return spos_callback(SQL_SUCCESS, &s);
+#ifdef	NOT_USED
 	ridx = -1;
 	for (i = nrow = 0, processed = 0; nrow <= end_row; i++)
 	{
@@ -2885,6 +3077,8 @@ PGAPI_SetPos(
 					ret = SC_pos_refresh(stmt, nrow, global_ridx);
 					break;
 			}
+			if (SQL_NEED_DATA == ret)
+				return ret;
 			processed++;
 			if (SQL_ERROR == ret)
 				break;
@@ -2905,10 +3099,11 @@ PGAPI_SetPos(
 			QR_set_position(res, ridx);
 		}
 	}
-	else if (SC_get_IRD(stmt)->rowsFetched)
-		*(SC_get_IRD(stmt)->rowsFetched) = processed;
+	else if (SC_get_IRDF(stmt)->rowsFetched)
+		*(SC_get_IRDF(stmt)->rowsFetched) = processed;
 	res->recent_processed_row_count = stmt->diag_row_count = processed;
-	return ret; 
+	return ret;
+#endif /* NOT_USED */ 
 }
 
 

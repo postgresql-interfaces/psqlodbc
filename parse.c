@@ -350,7 +350,7 @@ parse_statement(StatementClass *stmt)
 	ConnectionClass *conn = stmt->hdbc;
 	HSTMT		hcol_stmt;
 	StatementClass *col_stmt;
-	IRDFields	*irdflds = SC_get_IRD(stmt);
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		result;
 	BOOL		updatable = TRUE;
 

@@ -334,6 +334,10 @@ struct ConnectionClass_
 	int		be_key; /* auth code needed to send cancel */
 	UInt4		isolation;
 	char		*current_schema;
+#if (ODBCVER >= 0x0300)
+	int		num_descs;
+	DescriptorClass	**descs;
+#endif /* ODBCVER */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
@@ -349,7 +353,7 @@ struct ConnectionClass_
 #define CC_get_DSN(x)						(x->connInfo.dsn)
 #define CC_get_username(x)					(x->connInfo.username)
 #define CC_is_onlyread(x)					(x->connInfo.onlyread[0] == '1')
-
+ 
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0
 #define CONN_OVERWRITE			1
@@ -367,7 +371,12 @@ char		CC_abort(ConnectionClass *self);
 int			CC_set_translation(ConnectionClass *self);
 char		CC_connect(ConnectionClass *self, char password_req, char *salt);
 char		CC_add_statement(ConnectionClass *self, StatementClass *stmt);
-char		CC_remove_statement(ConnectionClass *self, StatementClass *stmt);
+char		CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
+;
+#if (ODBCVER >= 0x0300)
+char		CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc);
+char		CC_remove_descriptor(ConnectionClass *self, DescriptorClass *desc);
+#endif /* ODBCVER */
 void		CC_set_error(ConnectionClass *self, int number, const char *message);
 void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);
@@ -380,7 +389,7 @@ void		CC_lookup_lo(ConnectionClass *conn);
 void		CC_lookup_pg_version(ConnectionClass *conn);
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
-int			CC_get_max_query_len(const ConnectionClass *self);
+int		CC_get_max_query_len(const ConnectionClass *self);
 int		CC_send_cancel_request(const ConnectionClass *conn);
 void		CC_on_commit(ConnectionClass *conn);
 void		CC_on_abort(ConnectionClass *conn, UDWORD opt);

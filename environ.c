@@ -89,6 +89,133 @@ pg_sqlstate_set(const EnvironmentClass *env, UCHAR *szSqlState, const UCHAR *ver
 	strcpy(szSqlState, EN_is_odbc3(env) ? ver3str : ver2str);
 }
 
+PG_ErrorInfo	*ER_Constructor(SDWORD errnumber, const char *msg)
+{
+	PG_ErrorInfo	*error;
+	Int4		aladd, errsize;
+
+	if (DESC_OK == errnumber)
+		return NULL;
+	if (msg)
+	{
+		errsize = strlen(msg);
+		aladd = errsize;
+	}
+	else
+	{
+		errsize = -1;
+		aladd = 0;
+	}
+	error = (PG_ErrorInfo *) malloc(sizeof(PG_ErrorInfo) + aladd);
+	if (error)
+	{
+		memset(error, 0, sizeof(PG_ErrorInfo));
+		error->status = errnumber;
+		error->errorsize = errsize;
+		if (errsize > 0)
+			memcpy(error->__error_message, msg, errsize);
+		error->__error_message[aladd] = '\0';
+        	error->recsize = -1;
+	}
+	return error;
+}
+void
+ER_Destructor(PG_ErrorInfo *self)
+{
+        if (self->__error_message)
+                free(self->__error_message);
+	free(self);
+}
+
+#define	DRVMNGRDIV	511
+/*		Returns the next SQL error information. */
+RETCODE		SQL_API
+ER_ReturnError(PG_ErrorInfo *error,
+		SWORD	RecNumber,
+		UCHAR FAR * szSqlState,
+		SDWORD FAR * pfNativeError,
+		UCHAR FAR * szErrorMsg,
+		SWORD cbErrorMsgMax,
+		SWORD FAR * pcbErrorMsg,
+		UWORD flag)
+{
+	/* CC: return an error of a hstmt  */
+	BOOL		partial_ok = ((flag & PODBC_ALLOW_PARTIAL_EXTRACT) != 0),
+			clear_str = ((flag & PODBC_ERROR_CLEAR) != 0);
+	const char	*msg;
+	SWORD		msglen, stapos, wrtlen, pcblen;
+
+	if (!error)
+		return SQL_NO_DATA_FOUND;
+	msg = error->__error_message;
+	mylog("ER_GetError: status = %d, msg = #%s#\n", error->status, msg);
+	msglen = (SWORD) strlen(msg);
+	/*
+	 *	Even though an application specifies a larger error message
+	 *	buffer, the driver manager changes it silently.
+	 *	Therefore we divide the error message into ... 
+	 */
+	if (error->recsize < 0)
+	{
+		if (cbErrorMsgMax > 0)
+			error->recsize = cbErrorMsgMax - 1; /* apply the first request */
+		else
+			error->recsize = DRVMNGRDIV;
+	}
+	if (RecNumber < 0)
+	{
+		if (0 == error->errorpos)
+			RecNumber = 1;
+		else
+			RecNumber = 2 + (error->errorpos - 1) / error->recsize;
+	}
+	stapos = (RecNumber - 1) * error->recsize;
+	if (stapos > msglen)
+		return SQL_NO_DATA_FOUND; 
+	pcblen = wrtlen = msglen - stapos;
+	if (pcblen > error->recsize)
+		pcblen = error->recsize;
+	if (0 == cbErrorMsgMax)
+		wrtlen = 0; 
+	else if (wrtlen >= cbErrorMsgMax)
+	{
+		if (partial_ok)
+			wrtlen = cbErrorMsgMax - 1;
+		else if (cbErrorMsgMax <= error->recsize)
+			wrtlen = 0;
+		else 
+			wrtlen = error->recsize;
+	}
+	if (wrtlen > pcblen)
+		wrtlen = pcblen;
+	if (NULL != pcbErrorMsg)
+		*pcbErrorMsg = pcblen;
+
+	if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
+	{
+		memcpy(szErrorMsg, msg + stapos, wrtlen);
+		szErrorMsg[wrtlen] = '\0';
+	}
+
+	if (NULL != pfNativeError)
+		*pfNativeError = error->status;
+
+	if (NULL != szSqlState)
+		strncpy(szSqlState, error->sqlstate, 6);
+
+	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, pcblen, szErrorMsg);
+	if (clear_str)
+	{
+		error->errorpos = stapos + wrtlen;
+		if (error->errorpos >= msglen)
+			ER_Destructor(error);
+	}
+	if (wrtlen == 0)
+		return SQL_SUCCESS_WITH_INFO;
+	else
+		return SQL_SUCCESS;
+}
+
 #define	DRVMNGRDIV	511
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API

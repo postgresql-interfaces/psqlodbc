@@ -27,7 +27,6 @@
 #include "qresult.h"
 #include "pgapifunc.h"
 
-static HSTMT statementHandleFromDescHandle(SQLHDESC, SQLINTEGER *descType); 
 /*	SQLError -> SQLDiagRec */
 RETCODE		SQL_API
 PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
@@ -57,8 +56,8 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					TextLength, 0);
 			break;
 		case SQL_HANDLE_DESC:
-			ret = PGAPI_StmtError(statementHandleFromDescHandle(Handle, NULL),
-					RecNumber, Sqlstate, NativeError,
+			ret = PGAPI_DescError(Handle, RecNumber, Sqlstate,
+					NativeError,
 					MessageText, BufferLength,
 					TextLength, 0);
 			break;
@@ -81,7 +80,6 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 {
 	RETCODE		ret = SQL_ERROR, rtn;
 	ConnectionClass	*conn;
-	SQLHANDLE	stmtHandle;
 	StatementClass	*stmt;
 	SDWORD		rc;
 	SWORD		pcbErrm;
@@ -295,13 +293,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
-				case SQL_DIAG_ROW_NUMBER:
+                                case SQL_DIAG_ROW_NUMBER:
 					*((SQLINTEGER *) DiagInfoPtr) = SQL_ROW_NUMBER_UNKNOWN;
 					if (StringLengthPtr)
 						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
-				case SQL_DIAG_COLUMN_NUMBER:
+                                case SQL_DIAG_COLUMN_NUMBER:
 					*((SQLINTEGER *) DiagInfoPtr) = SQL_COLUMN_NUMBER_UNKNOWN;
 					if (StringLengthPtr)
 						*StringLengthPtr = sizeof(SQLINTEGER);
@@ -312,8 +310,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 			}
 			break;
 		case SQL_HANDLE_DESC:
-			stmtHandle = statementHandleFromDescHandle(Handle, NULL); 
-			conn = (ConnectionClass *) SC_get_conn(((StatementClass *) stmtHandle)); 
+			conn = DC_get_conn(((DescriptorClass *) Handle)); 
 			switch (DiagIdentifier)
 			{
 				case SQL_DIAG_CLASS_ORIGIN:
@@ -334,10 +331,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_NATIVE:
 				case SQL_DIAG_NUMBER:
 				case SQL_DIAG_SQLSTATE:
-					ret = PGAPI_GetDiagField(SQL_HANDLE_STMT,
-						stmtHandle, RecNumber,
-						DiagIdentifier, DiagInfoPtr,
-						BufferLength, StringLengthPtr);
+					ret = PGAPI_DescError(Handle, RecNumber,
+                        			DiagInfoPtr, NULL, NULL,
+						0, NULL, 0);
+					if (StringLengthPtr)  
+						*StringLengthPtr = 5;
+					if (SQL_SUCCESS_WITH_INFO == ret)  
+						ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_RETURNCODE: /* driver manager returns */
 					break;
@@ -396,50 +396,20 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 static SQLHDESC
 descHandleFromStatementHandle(HSTMT StatementHandle, SQLINTEGER descType) 
 {
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
+
 	switch (descType)
 	{
 		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
-			return StatementHandle;	/* this is bogus */
-		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
-			return (HSTMT) ((SQLUINTEGER) StatementHandle + 1) ; /* this is bogus */
+			return (HSTMT) stmt->ard;
+		case SQL_ATTR_APP_PARAM_DESC:		/* 10011 */
+			return (HSTMT) stmt->apd;
 		case SQL_ATTR_IMP_ROW_DESC:		/* 10012 */
-			return (HSTMT) ((SQLUINTEGER) StatementHandle + 2); /* this is bogus */
-		case SQL_ATTR_IMP_PARAM_DESC:	/* 10013 */
-			return (HSTMT) ((SQLUINTEGER) StatementHandle + 3); /* this is bogus */
+			return (HSTMT) stmt->ird;
+		case SQL_ATTR_IMP_PARAM_DESC:		/* 10013 */
+			return (HSTMT) stmt->ipd;
 	}
 	return (HSTMT) 0;
-}
-static HSTMT
-statementHandleFromDescHandle(SQLHDESC DescHandle, SQLINTEGER *descType) 
-{
-	SQLUINTEGER res = (SQLUINTEGER) DescHandle % 4;
-	if (descType)
-	{
-		switch (res)
-		{
-			case 0: *descType = SQL_ATTR_APP_ROW_DESC; /* 10010 */
-				break;
-			case 1: *descType = SQL_ATTR_APP_PARAM_DESC; /* 10011 */
-				break;
-			case 2: *descType = SQL_ATTR_IMP_ROW_DESC; /* 10012 */
-				break;
-			case 3: *descType = SQL_ATTR_IMP_PARAM_DESC; /* 10013 */
-				break;
-		}
-	}
-	return (HSTMT) ((SQLUINTEGER) DescHandle - res);
-}
-
-void	Desc_set_error(SQLHDESC hdesc, int errornumber, const char *errormsg)
-{
-	SQLINTEGER	descType;
-	HSTMT	hstmt = statementHandleFromDescHandle(hdesc, &descType);
-	StatementClass	*stmt;
-
-	if (!hstmt)
-		return;
-	stmt = (StatementClass *) hstmt;
-	SC_set_error(stmt, errornumber, errormsg);
 }
 
 static  void column_bindings_set(ARDFields *opts, int cols, BOOL maxset)
@@ -466,12 +436,12 @@ static  void column_bindings_set(ARDFields *opts, int cols, BOOL maxset)
 }
 
 static RETCODE SQL_API
-ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	PTR		tptr;
-	ARDFields	*opts = SC_get_ARD(stmt);
+	ARDFields	*opts = (ARDFields *) (desc + 1);
 	SQLSMALLINT	row_idx;
 
 	switch (FieldIdentifier)
@@ -500,29 +470,31 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber < 0 || RecNumber > opts->allocated)
 	{
-		SC_set_errornumber(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR);
+		DC_set_error(desc, STMT_INVALID_COLUMN_NUMBER_ERROR, "invalid column number");
 		return SQL_ERROR;
 	}
 	if (0 == RecNumber) /* bookmark column */
 	{
+		BindInfoClass	*bookmark = ARD_AllocBookmark(opts);
+
 		switch (FieldIdentifier)
 		{
 			case SQL_DESC_DATA_PTR:
-				opts->bookmark->buffer = Value;
+				bookmark->buffer = Value;
 				break;
 			case SQL_DESC_INDICATOR_PTR:
-				tptr = opts->bookmark->used;
+				tptr = bookmark->used;
 				if (Value != tptr)
 				{
-					SC_set_error(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
+					DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
 					ret = SQL_ERROR;
 				}
 				break;
 			case SQL_DESC_OCTET_LENGTH_PTR:
-				opts->bookmark->used = Value;
+				bookmark->used = Value;
 				break;
 			default:
-				SC_set_errornumber(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR);
+				DC_set_error(desc, STMT_INVALID_COLUMN_NUMBER_ERROR, "invalid column number");
 				ret = SQL_ERROR;
 		}
 		return ret;
@@ -567,7 +539,7 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			if (Value != tptr)
 			{
 				ret = SQL_ERROR;
-				SC_set_error(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
+				DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
 			}
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
@@ -587,7 +559,8 @@ ARDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_LENGTH:
 		case SQL_DESC_NUM_PREC_RADIX:
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invalid descriptor identifier"); 
 	}
 	return ret;
 }
@@ -639,11 +612,11 @@ static  void parameter_ibindings_set(IPDFields *opts, int params, BOOL maxset)
 }
 
 static RETCODE SQL_API
-APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	APDFields	*opts = SC_get_APD(stmt);
+	APDFields	*opts = (APDFields *) (desc + 1);
 	SQLSMALLINT	para_idx;
 
 	switch (FieldIdentifier)
@@ -672,7 +645,8 @@ APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <=0 || RecNumber > opts->allocated)
 	{
-		SC_set_errornumber(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR);
+		DC_set_error(desc, STMT_BAD_PARAMETER_NUMBER_ERROR,
+				"bad parameter number");
 		return SQL_ERROR;
 	}
 	para_idx = RecNumber - 1; 
@@ -714,7 +688,7 @@ APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			if (Value != opts->parameters[para_idx].used)
 			{
 				ret = SQL_ERROR;
-				SC_set_error(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
+				DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
 			}
 			break;
 		case SQL_DESC_OCTET_LENGTH:
@@ -734,17 +708,18 @@ APDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_LENGTH:
 		case SQL_DESC_NUM_PREC_RADIX:
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invaid descriptor identifier"); 
 	}
 	return ret;
 }
 
 static RETCODE SQL_API
-IRDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+IRDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	IRDFields	*opts = SC_get_IRD(stmt);
+	IRDFields	*opts = (IRDFields *) (desc + 1);
 
 	switch (FieldIdentifier)
 	{
@@ -789,17 +764,18 @@ IRDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_UNSIGNED: /* read-only */
 		case SQL_DESC_UPDATABLE: /* read-only */
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invalid descriptor identifier"); 
 	}
 	return ret;
 }
 
 static RETCODE SQL_API
-IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	IPDFields	*ipdopts = SC_get_IPD(stmt);
+	IPDFields	*ipdopts = (IPDFields *) (desc + 1);
 	SQLSMALLINT	para_idx;
 
 	switch (FieldIdentifier)
@@ -814,7 +790,8 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			if (SQL_UNNAMED !=  (SQLUINTEGER) Value)
 			{
 				ret = SQL_ERROR;
-				SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER);
+				DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+					"invalid descriptor identifier");
 			}
 			return ret;
 		case SQL_DESC_COUNT:
@@ -828,7 +805,8 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 	{
-		SC_set_errornumber(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR);
+		DC_set_error(desc, STMT_BAD_PARAMETER_NUMBER_ERROR,
+				"bad parameter number");
 		return SQL_ERROR;
 	}
 	para_idx = RecNumber - 1;
@@ -886,39 +864,41 @@ IPDSetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invalid descriptor identifier"); 
 	}
 	return ret;
 }
 
 
 static RETCODE SQL_API
-ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
 		SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	len, ival, rettype = 0;
 	PTR		ptr = NULL;
-	const ARDFields	*opts = SC_get_ARD(stmt);
+	const ARDFields	*opts = (ARDFields *) (desc + 1);
 	SQLSMALLINT	row_idx;
 
 	len = 4;
 	if (0 == RecNumber) /* bookmark */
 	{
+		BindInfoClass	*bookmark = opts->bookmark;
 		switch (FieldIdentifier)
 		{
 			case SQL_DESC_DATA_PTR:
 				rettype = SQL_IS_POINTER;
-				ptr = opts->bookmark->buffer;
+				ptr = bookmark ? bookmark->buffer : NULL;
 				break;
 			case SQL_DESC_INDICATOR_PTR:
 				rettype = SQL_IS_POINTER;
-				ptr = opts->bookmark->used;
+				ptr = bookmark ? bookmark->used : NULL;
 				break;
 			case SQL_DESC_OCTET_LENGTH_PTR:
 				rettype = SQL_IS_POINTER;
-				ptr = opts->bookmark->used;
+				ptr = bookmark ? bookmark->used : NULL;
 				break;
 		}
 		if (ptr)
@@ -940,7 +920,8 @@ ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		default:
 			if (RecNumber <= 0 || RecNumber > opts->allocated)
 			{
-				SC_set_errornumber(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR);
+				DC_set_error(desc, STMT_INVALID_COLUMN_NUMBER_ERROR,
+					"invalid column number");
 				return SQL_ERROR;
 			}
 	}
@@ -1012,7 +993,10 @@ ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			ival = opts->bindings[row_idx].buflen;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
-			ival = SQL_DESC_ALLOC_AUTO;
+			if (desc->embedded)
+				ival = SQL_DESC_ALLOC_AUTO;
+			else
+				ival = SQL_DESC_ALLOC_USER;
 			break;
 		case SQL_DESC_PRECISION:
 			ival = opts->bindings[row_idx].precision;
@@ -1026,7 +1010,8 @@ ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
 		case SQL_DESC_LENGTH:
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invalid descriptor identifier"); 
 	}
 	switch (rettype)
 	{
@@ -1047,14 +1032,14 @@ ARDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 }
 
 static RETCODE SQL_API
-APDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
 		SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	ival = 0, len, rettype = 0;
 	PTR		ptr = NULL;
-	const APDFields	*opts = SC_get_APD(stmt);
+	const APDFields	*opts = (const APDFields *) (desc + 1);
 	SQLSMALLINT	para_idx;
 
 	len = 4;
@@ -1068,7 +1053,8 @@ APDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			break; 
 		default:if (RecNumber <= 0 || RecNumber > opts->allocated)
 			{
-				SC_set_errornumber(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR);
+				DC_set_error(desc, STMT_BAD_PARAMETER_NUMBER_ERROR,
+					"bad parameter number");
 				return SQL_ERROR;
 			} 
 	}
@@ -1142,7 +1128,10 @@ APDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			ival = opts->allocated;
 			break; 
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
-			ival = SQL_DESC_ALLOC_AUTO;
+			if (desc->embedded)
+				ival = SQL_DESC_ALLOC_AUTO;
+			else
+				ival = SQL_DESC_ALLOC_USER;
 			break;
 		case SQL_DESC_NUM_PREC_RADIX:
 			ival = 10;
@@ -1156,7 +1145,8 @@ APDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
 		case SQL_DESC_LENGTH:
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+					"invalid descriptor identifer"); 
 	}
 	switch (rettype)
 	{
@@ -1177,7 +1167,7 @@ APDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 }
 
 static RETCODE SQL_API
-IRDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
 		SQLINTEGER *StringLength)
 {
@@ -1185,7 +1175,7 @@ IRDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 	SQLINTEGER	ival = 0, len, rettype = 0;
 	PTR		ptr = NULL;
 	BOOL		bCallColAtt = FALSE;
-	const IRDFields	*opts = SC_get_IRD(stmt);
+	const IRDFields	*opts = (IRDFields *) (desc + 1);
 
 	switch (FieldIdentifier)
 	{
@@ -1239,12 +1229,15 @@ IRDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			bCallColAtt = TRUE;
 			break; 
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invalid descriptor identifier"); 
 	}
 	if (bCallColAtt)
 	{
 		SQLSMALLINT	pcbL;
+		StatementClass	*stmt;
 
+		stmt = opts->stmt;
 		ret = PGAPI_ColAttributes(stmt, RecNumber,
 			FieldIdentifier, Value, (SQLSMALLINT) BufferLength,
 				&pcbL, &ival);
@@ -1273,14 +1266,14 @@ IRDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 }
 
 static RETCODE SQL_API
-IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
+IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
 		SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	ival = 0, len, rettype = 0;
 	PTR		ptr = NULL;
-	const IPDFields	*ipdopts = SC_get_IPD(stmt);
+	const IPDFields	*ipdopts = (const IPDFields *) (desc + 1);
 	SQLSMALLINT	para_idx;
 
 	switch (FieldIdentifier)
@@ -1291,7 +1284,8 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 			break; 
 		default:if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 			{
-				SC_set_errornumber(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR);
+				DC_set_error(desc, STMT_BAD_PARAMETER_NUMBER_ERROR,
+					"bad parameter number");
 				return SQL_ERROR;
 			}
 	}
@@ -1382,7 +1376,8 @@ IPDGetField(StatementClass *stmt, SQLSMALLINT RecNumber,
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		default:ret = SQL_ERROR;
-			SC_set_errornumber(stmt, STMT_INVALID_DESCRIPTOR_IDENTIFIER); 
+			DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
+				"invalid descriptor identifier"); 
 	}
 	switch (rettype)
 	{
@@ -1421,47 +1416,47 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			*((SQLUINTEGER **) Value) = SC_get_APD(stmt)->param_offset_ptr;
+			*((SQLUINTEGER **) Value) = SC_get_APDF(stmt)->param_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
-			*((SQLUINTEGER *) Value) = SC_get_APD(stmt)->param_bind_type;
+			*((SQLUINTEGER *) Value) = SC_get_APDF(stmt)->param_bind_type;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_OPERATION_PTR:		/* 19 */
-			*((SQLUSMALLINT **) Value) = SC_get_APD(stmt)->param_operation_ptr;
+			*((SQLUSMALLINT **) Value) = SC_get_APDF(stmt)->param_operation_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_STATUS_PTR: /* 20 */
-			*((SQLUSMALLINT **) Value) = SC_get_IPD(stmt)->param_status_ptr;
+			*((SQLUSMALLINT **) Value) = SC_get_IPDF(stmt)->param_status_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			*((SQLUINTEGER **) Value) = SC_get_IPD(stmt)->param_processed_ptr;
+			*((SQLUINTEGER **) Value) = SC_get_IPDF(stmt)->param_processed_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
-			*((SQLUINTEGER *) Value) = SC_get_APD(stmt)->paramset_size;
+			*((SQLUINTEGER *) Value) = SC_get_APDF(stmt)->paramset_size;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			*((SQLUINTEGER **) Value) = SC_get_ARD(stmt)->row_offset_ptr;
+			*((SQLUINTEGER **) Value) = SC_get_ARDF(stmt)->row_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
-			*((SQLUSMALLINT **) Value) = SC_get_ARD(stmt)->row_operation_ptr;
+			*((SQLUSMALLINT **) Value) = SC_get_ARDF(stmt)->row_operation_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_STATUS_PTR:	/* 25 */
-			*((SQLUSMALLINT **) Value) = SC_get_IRD(stmt)->rowStatusArray;
+			*((SQLUSMALLINT **) Value) = SC_get_IRDF(stmt)->rowStatusArray;
 			len = 4;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			*((SQLUINTEGER **) Value) = SC_get_IRD(stmt)->rowsFetched;
+			*((SQLUINTEGER **) Value) = SC_get_IRDF(stmt)->rowsFetched;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			*((SQLUINTEGER *) Value) = SC_get_ARD(stmt)->size_of_rowset;
+			*((SQLUINTEGER *) Value) = SC_get_ARDF(stmt)->size_of_rowset;
 			len = 4;
 			break;
 		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
@@ -1539,51 +1534,46 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 			PTR Value, SQLINTEGER BufferLength,
 			SQLINTEGER *StringLength)
 {
-	RETCODE		ret = SQL_SUCCESS;
-	HSTMT		hstmt;
-	SQLUINTEGER	descType;
-	StatementClass *stmt;
 	CSTR func = "PGAPI_GetDescField";
+	RETCODE		ret = SQL_SUCCESS;
+	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
 	mylog("%s h=%u rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
-	hstmt = statementHandleFromDescHandle(DescriptorHandle, &descType);
-	mylog("stmt=%x type=%d\n", hstmt, descType);
-	stmt = (StatementClass *) hstmt;
-	switch (descType)
+	switch (desc->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-			ret = ARDGetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
+			ret = ARDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			ret = APDGetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
+			ret = APDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:
-			ret = IRDGetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
+			ret = IRDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			ret = IPDGetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
+			ret = IPDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		default:ret = SQL_ERROR;
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "Error not implemented");
+			DC_set_error(desc, STMT_INTERNAL_ERROR, "Error not implemented");
 	}
 	if (ret == SQL_ERROR)
 	{
-		if (!SC_get_errormsg(stmt))
+		if (!DC_get_errormsg(desc))
 		{
-			switch (SC_get_errornumber(stmt))
+			switch (DC_get_errornumber(desc))
 			{
 				case STMT_INVALID_DESCRIPTOR_IDENTIFIER:
-					SC_set_errormsg(stmt, "can't SQLGetDescField for this descriptor identifier");
+					DC_set_errormsg(desc, "can't SQLGetDescField for this descriptor identifier");
 					break;
 				case STMT_INVALID_COLUMN_NUMBER_ERROR:
-					SC_set_errormsg(stmt, "can't SQLGetDescField for this column number");
+					DC_set_errormsg(desc, "can't SQLGetDescField for this column number");
 					break;
 				case STMT_BAD_PARAMETER_NUMBER_ERROR:
-					SC_set_errormsg(stmt, "can't SQLGetDescField for this parameter number");
+					DC_set_errormsg(desc, "can't SQLGetDescField for this parameter number");
 					break;
 			}
 		} 
-		SC_log_error(func, "", stmt);
+		DC_log_error(func, "", desc);
 	}
 	return ret;
 }
@@ -1594,51 +1584,46 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
 			PTR Value, SQLINTEGER BufferLength)
 {
-	RETCODE		ret = SQL_SUCCESS;
-	HSTMT		hstmt;
-	SQLUINTEGER	descType;
-	StatementClass *stmt;
 	CSTR func = "PGAPI_SetDescField";
+	RETCODE		ret = SQL_SUCCESS;
+	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
 	mylog("%s h=%u rec=%d field=%d val=%x,%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, Value, BufferLength);
-	hstmt = statementHandleFromDescHandle(DescriptorHandle, &descType);
-	mylog("stmt=%x type=%d\n", hstmt, descType);
-	stmt = (StatementClass *) hstmt;
-	switch (descType)
+	switch (desc->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-			ret = ARDSetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength);
+			ret = ARDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			ret = APDSetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength);
+			ret = APDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:
-			ret = IRDSetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength);
+			ret = IRDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			ret = IPDSetField(stmt, RecNumber, FieldIdentifier, Value, BufferLength);
+			ret = IPDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		default:ret = SQL_ERROR;
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "Error not implemented");
+			DC_set_error(desc, STMT_INTERNAL_ERROR, "Error not implemented");
 	}
 	if (ret == SQL_ERROR)
 	{
-		if (!SC_get_errormsg(stmt))
+		if (!DC_get_errormsg(desc))
 		{
-			switch (SC_get_errornumber(stmt))
+			switch (DC_get_errornumber(desc))
 			{
 				case STMT_INVALID_DESCRIPTOR_IDENTIFIER:
-					SC_set_errormsg(stmt, "can't SQLSetDescField for this descriptor identifier");
+					DC_set_errormsg(desc, "can't SQLSetDescField for this descriptor identifier");
 				case STMT_INVALID_COLUMN_NUMBER_ERROR:
-					SC_set_errormsg(stmt, "can't SQLSetDescField for this column number");
+					DC_set_errormsg(desc, "can't SQLSetDescField for this column number");
 					break;
 				case STMT_BAD_PARAMETER_NUMBER_ERROR:
-					SC_set_errormsg(stmt, "can't SQLSetDescField for this parameter number");
+					DC_set_errormsg(desc, "can't SQLSetDescField for this parameter number");
 					break;
 				break;
 			}
 		} 
-		SC_log_error(func, "", stmt);
+		DC_log_error(func, "", desc);
 	}
 	return ret;
 }
@@ -1649,6 +1634,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 		SQLINTEGER Attribute, PTR Value,
 		SQLINTEGER StringLength)
 {
+	RETCODE	ret = SQL_SUCCESS;
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
@@ -1660,8 +1646,6 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
 
-		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
-		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
 		/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 		case SQL_ATTR_IMP_ROW_DESC:	/* 10012 (read-only) */
@@ -1676,43 +1660,63 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			return SQL_ERROR;
 
 		case SQL_ATTR_METADATA_ID:		/* 10014 */
-			stmt->options.metadata_id = (SQLUINTEGER) Value;
+			stmt->options.metadata_id = (SQLUINTEGER) Value; 
+			break;
+		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
+			if (SQL_NULL_HDESC == Value)
+			{
+				stmt->ard = &(stmt->ardi);
+			}
+			else
+			{ 
+				stmt->ard = (ARDClass *) Value;
+			}
+			break;
+		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
+			if (SQL_NULL_HDESC == Value)
+			{
+				stmt->apd = &(stmt->apdi);
+			}
+			else
+			{ 
+				stmt->apd = (APDClass *) Value;
+			}
 			break;
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:		/* 16 */
 			stmt->options.bookmark_ptr = Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			SC_get_APD(stmt)->param_offset_ptr = (SQLUINTEGER *) Value;
+			SC_get_APDF(stmt)->param_offset_ptr = (SQLUINTEGER *) Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
-			SC_get_APD(stmt)->param_bind_type = (SQLUINTEGER) Value;
+			SC_get_APDF(stmt)->param_bind_type = (SQLUINTEGER) Value;
 			break;
 		case SQL_ATTR_PARAM_OPERATION_PTR:		/* 19 */
-			SC_get_APD(stmt)->param_operation_ptr = Value;
+			SC_get_APDF(stmt)->param_operation_ptr = Value;
 			break;
 		case SQL_ATTR_PARAM_STATUS_PTR:			/* 20 */
-			SC_get_IPD(stmt)->param_status_ptr = (SQLUSMALLINT *) Value;
+			SC_get_IPDF(stmt)->param_status_ptr = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			SC_get_IPD(stmt)->param_processed_ptr = (SQLUINTEGER *) Value;
+			SC_get_IPDF(stmt)->param_processed_ptr = (SQLUINTEGER *) Value;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
-			SC_get_APD(stmt)->paramset_size = (SQLUINTEGER) Value;
+			SC_get_APDF(stmt)->paramset_size = (SQLUINTEGER) Value;
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			SC_get_ARD(stmt)->row_offset_ptr = (SQLUINTEGER *) Value;
+			SC_get_ARDF(stmt)->row_offset_ptr = (SQLUINTEGER *) Value;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
-			SC_get_ARD(stmt)->row_operation_ptr = Value;
+			SC_get_ARDF(stmt)->row_operation_ptr = Value;
 			break;
 		case SQL_ATTR_ROW_STATUS_PTR:	/* 25 */
-			SC_get_IRD(stmt)->rowStatusArray = (SQLUSMALLINT *) Value;
+			SC_get_IRDF(stmt)->rowStatusArray = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			SC_get_IRD(stmt)->rowsFetched = (SQLUINTEGER *) Value;
+			SC_get_IRDF(stmt)->rowsFetched = (SQLUINTEGER *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			SC_get_ARD(stmt)->size_of_rowset = (SQLUINTEGER) Value;
+			SC_get_ARDF(stmt)->size_of_rowset = (SQLUINTEGER) Value;
 			break;
 		default:
 			return PGAPI_SetStmtOption(StatementHandle, (UWORD) Attribute, (UDWORD) Value);
@@ -1725,73 +1729,119 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	(book->buffer + offset + \
 	(bind_size > 0 ? bind_size : (SQL_C_VARBOOKMARK == book->returntype ? book->buflen : sizeof(UInt4))) * index)    	
 
-RETCODE	SQL_API
-PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operation)
+/*	SQL_NEED_DATA callback for PGAPI_BulkOperations */
+typedef struct
 {
-	CSTR func = "PGAPI_BulkOperations";
-	StatementClass	*stmt = (StatementClass *) hstmt;
-	ARDFields	*opts = SC_get_ARD(stmt);
-	RETCODE		ret;
-	UInt4		offset, bind_size = opts->bind_size,
-			global_idx;
-	int		i, processed;
+	StatementClass	*stmt;
+	SQLSMALLINT	operation;
+	char		need_data_callback;
+	char		auto_commit_needed;
+	ARDFields	*opts;
+	int		idx, processed;
+}	bop_cdata;
+
+static 
+RETCODE	bulk_ope_callback(RETCODE retcode, bop_cdata *s)
+{
+	RETCODE	ret = retcode;
+	UInt4		offset, bind_size, global_idx;
 	ConnectionClass	*conn;
-	BOOL		auto_commit_needed = FALSE;
 	QResultClass	*res;
+	IRDFields	*irdflds;
 	BindInfoClass	*bookmark;
 
-	mylog("%s operation = %d\n", func, operation);
-	SC_clear_error(stmt);
-	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
-	
-	if (SQL_FETCH_BY_BOOKMARK != operation)
+	if (s->need_data_callback)
 	{
-		conn = SC_get_conn(stmt);
-		if (auto_commit_needed = CC_is_in_autocommit(conn), auto_commit_needed)
-			PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF);
+		mylog("bulk_ope_callback in\n");
+		s->processed++;
+		s->idx++;
 	}
-	if (SQL_ADD != operation)
+	else
 	{
-		if (!(bookmark = opts->bookmark) || !(bookmark->buffer))
-		{
-			SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "bookmark isn't specified");
-			return SQL_ERROR;
-		}
+		s->idx = s->processed = 0;
 	}
-	for (i = 0, processed = 0; i < opts->size_of_rowset; i++)
+	s->need_data_callback = FALSE;
+	bookmark = s->opts->bookmark;
+	offset = s->opts->row_offset_ptr ? *(s->opts->row_offset_ptr) : 0;
+	bind_size = s->opts->bind_size;
+	for (; SQL_ERROR != ret && s->idx < s->opts->size_of_rowset; s->idx++)
 	{
-		if (SQL_ADD != operation)
+		if (SQL_ADD != s->operation)
 		{
-			memcpy(&global_idx, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, i), sizeof(UInt4));
+			memcpy(&global_idx, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, s->idx), sizeof(UInt4));
 			global_idx--;
 		}
 		/* Note opts->row_operation_ptr is ignored */
-		switch (operation)
+		switch (s->operation)
 		{
 			case SQL_ADD:
-				ret = SC_pos_add(stmt, (UWORD) i);
+				ret = SC_pos_add(s->stmt, (UWORD) s->idx);
 				break;
 			case SQL_UPDATE_BY_BOOKMARK:
-				ret = SC_pos_update(stmt, (UWORD) i, global_idx);
+				ret = SC_pos_update(s->stmt, (UWORD) s->idx, global_idx);
 				break;
 			case SQL_DELETE_BY_BOOKMARK:
-				ret = SC_pos_delete(stmt, (UWORD) i, global_idx);
+				ret = SC_pos_delete(s->stmt, (UWORD) s->idx, global_idx);
 				break;
 			case SQL_FETCH_BY_BOOKMARK:
-				ret = SC_pos_refresh(stmt, (UWORD) i, global_idx);
+				ret = SC_pos_refresh(s->stmt, (UWORD) s->idx, global_idx);
 				break;
 		}
-		processed++;
-		if (SQL_ERROR == ret)
-			break;
+		if (SQL_NEED_DATA == ret)
+		{
+			bop_cdata *cbdata = (bop_cdata *) malloc(sizeof(bop_cdata));
+			memcpy(cbdata, s, sizeof(bop_cdata));
+			cbdata->need_data_callback = TRUE;
+			enqueueNeedDataCallback(s->stmt, bulk_ope_callback, cbdata);
+			return ret;
+		}
+		s->processed++;
 	}
-	if (auto_commit_needed)
+	conn = SC_get_conn(s->stmt);
+	if (s->auto_commit_needed)
 		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
-	if (SC_get_IRD(stmt)->rowsFetched)
-		*(SC_get_IRD(stmt)->rowsFetched) = processed;
+	irdflds = SC_get_IRDF(s->stmt);
+	if (irdflds->rowsFetched)
+		*(irdflds->rowsFetched) = s->processed;
 
-	if (res = SC_get_Curres(stmt), res)
-		res->recent_processed_row_count = stmt->diag_row_count = processed;
+	if (res = SC_get_Curres(s->stmt), res)
+		res->recent_processed_row_count = s->stmt->diag_row_count = s->processed;
+	return ret;
+}
+
+RETCODE	SQL_API
+PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
+{
+	CSTR func = "PGAPI_BulkOperations";
+	bop_cdata	s;
+	RETCODE		ret;
+	ConnectionClass	*conn;
+	BindInfoClass	*bookmark;
+
+	mylog("%s operation = %d\n", func, operationX);
+	s.stmt = (StatementClass *) hstmt;
+	s.operation = operationX;
+	SC_clear_error(s.stmt);
+	s.opts = SC_get_ARDF(s.stmt);
+	
+	s.auto_commit_needed = FALSE;
+	if (SQL_FETCH_BY_BOOKMARK != s.operation)
+	{
+		conn = SC_get_conn(s.stmt);
+		if (s.auto_commit_needed = (char) CC_is_in_autocommit(conn), s.auto_commit_needed)
+			PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF);
+	}
+	if (SQL_ADD != s.operation)
+	{
+		if (!(bookmark = s.opts->bookmark) || !(bookmark->buffer))
+		{
+			SC_set_error(s.stmt, STMT_INVALID_OPTION_IDENTIFIER, "bookmark isn't specified");
+			return SQL_ERROR;
+		}
+	}
+
+	s.need_data_callback = FALSE;
+	ret = bulk_ope_callback(SQL_SUCCESS, &s);
 	return ret;
 }	
 #endif /* DRIVER_CURSOR_IMPLEMENT */

@@ -39,7 +39,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	CSTR func = "PGAPI_Prepare";
 	StatementClass *self = (StatementClass *) hstmt;
 
-	mylog("%s: entering... len=%d\n", func, cbSqlStr);
+	mylog("%s: entering...\n", func);
 
 	if (!self)
 	{
@@ -130,7 +130,8 @@ RETCODE		SQL_API
 PGAPI_ExecDirect(
 				 HSTMT hstmt,
 				 UCHAR FAR * szSqlStr,
-				 SDWORD cbSqlStr)
+				 SDWORD cbSqlStr,
+				 UWORD flag)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	RETCODE		result;
@@ -183,7 +184,7 @@ PGAPI_ExecDirect(
 
 	mylog("%s: calling PGAPI_Execute...\n", func);
 
-	result = PGAPI_Execute(hstmt);
+	result = PGAPI_Execute(hstmt, flag);
 
 	mylog("%s: returned %hd from PGAPI_Execute\n", func, result);
 	return result;
@@ -293,8 +294,6 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 
 		if (kres = res->next, kres)
 		{
-			if (kres->fields)
-				CI_Destructor(kres->fields);
 			kres->fields = res->fields;
 			res->fields = NULL;
 			kres->num_fields = res->num_fields;
@@ -326,7 +325,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 		}
 	}
 #if (ODBCVER >= 0x0300)
-	ipdopts = SC_get_IPD(stmt);
+	ipdopts = SC_get_IPDF(stmt);
 	if (ipdopts->param_status_ptr)
 	{
 		switch (retval)
@@ -345,7 +344,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 #endif /* ODBCVER */
 	if (end_row = stmt->exec_end_row, end_row < 0)
 	{
-		apdopts = SC_get_APD(stmt);
+		apdopts = SC_get_APDF(stmt);
 		end_row = apdopts->paramset_size - 1;
 	}
 	if (stmt->inaccurate_result ||
@@ -373,8 +372,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 
 /*	Execute a prepared SQL statement */
 RETCODE		SQL_API
-PGAPI_Execute(
-			  HSTMT hstmt)
+PGAPI_Execute(HSTMT hstmt, UWORD flag)
 {
 	CSTR func = "PGAPI_Execute";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -393,7 +391,7 @@ PGAPI_Execute(
 		return SQL_INVALID_HANDLE;
 	}
 
-	apdopts = SC_get_APD(stmt);
+	apdopts = SC_get_APDF(stmt);
 	/*
 	 * If the statement is premature, it means we already executed it from
 	 * an SQLPrepare/SQLDescribeCol type of scenario.  So just return
@@ -487,7 +485,7 @@ PGAPI_Execute(
 		end_row = apdopts->paramset_size - 1; 
 	if (stmt->exec_current_row < 0)
 		stmt->exec_current_row = start_row;
-	ipdopts = SC_get_IPD(stmt);
+	ipdopts = SC_get_IPDF(stmt);
 	if (stmt->exec_current_row == start_row)
 	{
 		if (ipdopts->param_processed_ptr)
@@ -748,6 +746,7 @@ PGAPI_Cancel(
 	stmt->data_at_exec = -1;
 	stmt->current_exec_param = -1;
 	stmt->put_data = FALSE;
+	cancelNeedDataState(stmt);
 
 	return SQL_SUCCESS;
 }
@@ -817,11 +816,11 @@ PGAPI_ParamData(
 				PTR FAR * prgbValue)
 {
 	CSTR func = "PGAPI_ParamData";
-	StatementClass *stmt = (StatementClass *) hstmt;
+	StatementClass *stmt = (StatementClass *) hstmt, *estmt;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
-	int			i,
-				retval;
+	RETCODE		retval;
+	int		i;
 	ConnInfo   *ci;
 
 	mylog("%s: entering...\n", func);
@@ -832,18 +831,19 @@ PGAPI_ParamData(
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
-	apdopts = SC_get_APD(stmt);
 
-	mylog("%s: data_at_exec=%d, params_alloc=%d\n", func, stmt->data_at_exec, apdopts->allocated);
+	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
+	apdopts = SC_get_APDF(estmt);
+	mylog("%s: data_at_exec=%d, params_alloc=%d\n", func, estmt->data_at_exec, apdopts->allocated);
 
-	if (stmt->data_at_exec < 0)
+	if (estmt->data_at_exec < 0)
 	{
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No execution-time parameters for this statement");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
-	if (stmt->data_at_exec > apdopts->allocated)
+	if (estmt->data_at_exec > apdopts->allocated)
 	{
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Too many execution-time parameters were present");
 		SC_log_error(func, "", stmt);
@@ -851,33 +851,36 @@ PGAPI_ParamData(
 	}
 
 	/* close the large object */
-	if (stmt->lobj_fd >= 0)
+	if (estmt->lobj_fd >= 0)
 	{
-		lo_close(stmt->hdbc, stmt->lobj_fd);
+		lo_close(estmt->hdbc, estmt->lobj_fd);
 
 		/* commit transaction if needed */
-		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(stmt->hdbc))
+		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(estmt->hdbc))
 		{
-			if (!CC_commit(stmt->hdbc))
+			if (!CC_commit(estmt->hdbc))
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Could not commit (in-line) a transaction");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
 		}
-		stmt->lobj_fd = -1;
+		estmt->lobj_fd = -1;
 	}
 
 	/* Done, now copy the params and then execute the statement */
-	ipdopts = SC_get_IPD(stmt);
-	if (stmt->data_at_exec == 0)
+	ipdopts = SC_get_IPDF(estmt);
+	if (estmt->data_at_exec == 0)
 	{
 		BOOL	exec_end;
 
-		retval = Exec_with_parameters_resolved(stmt, &exec_end);
+		retval = Exec_with_parameters_resolved(estmt, &exec_end);
 		if (exec_end)
-			return retval;
-		if (retval = PGAPI_Execute(stmt), SQL_NEED_DATA != retval)
+		{
+			stmt->execute_delegate = NULL;
+			return dequeueNeedDataCallback(retval, stmt);
+		}
+		if (retval = PGAPI_Execute(estmt, 0), SQL_NEED_DATA != retval)
 			return retval;
 	}
 
@@ -885,17 +888,29 @@ PGAPI_ParamData(
 	 * Set beginning param;  if first time SQLParamData is called , start
 	 * at 0. Otherwise, start at the last parameter + 1.
 	 */
-	i = stmt->current_exec_param >= 0 ? stmt->current_exec_param + 1 : 0;
+	i = estmt->current_exec_param >= 0 ? estmt->current_exec_param + 1 : 0;
 
 	/* At least 1 data at execution parameter, so Fill in the token value */
 	for (; i < apdopts->allocated; i++)
 	{
 		if (apdopts->parameters[i].data_at_exec)
 		{
-			stmt->data_at_exec--;
-			stmt->current_exec_param = i;
-			stmt->put_data = FALSE;
-			*prgbValue = apdopts->parameters[i].buffer;	/* token */
+			estmt->data_at_exec--;
+			estmt->current_exec_param = i;
+			estmt->put_data = FALSE;
+			if (prgbValue)
+			{
+				/* returns token here */
+				if (stmt->execute_delegate)
+				{
+					UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
+					UInt4	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen; 
+
+					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
+				}
+				else
+					*prgbValue = apdopts->parameters[i].buffer;
+			}
 			break;
 		}
 	}
@@ -915,17 +930,19 @@ PGAPI_PutData(
 			  SDWORD cbValue)
 {
 	CSTR func = "PGAPI_PutData";
-	StatementClass *stmt = (StatementClass *) hstmt;
+	StatementClass *stmt = (StatementClass *) hstmt, *estmt;
 	ConnectionClass *conn;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
+	PutDataInfo	*pdata;
 	int			old_pos,
 				retval;
 	ParameterInfoClass *current_param;
 	ParameterImplClass *current_iparam;
+	PutDataClass	*current_pdata;
 	char	   *buffer, *putbuf, *allocbuf = NULL;
 	Int2		ctype;
-	SDWORD		putlen;
+	SDWORD          putlen;
 	BOOL		lenset = FALSE;
 
 	mylog("%s: entering...\n", func);
@@ -936,20 +953,23 @@ PGAPI_PutData(
 		return SQL_INVALID_HANDLE;
 	}
 
-	apdopts = SC_get_APD(stmt);
-	if (stmt->current_exec_param < 0)
+	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
+	apdopts = SC_get_APDF(estmt);
+	if (estmt->current_exec_param < 0)
 	{
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Previous call was not SQLPutData or SQLParamData");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
 
-	current_param = &(apdopts->parameters[stmt->current_exec_param]);
-	ipdopts = SC_get_IPD(stmt);
-	current_iparam = &(ipdopts->parameters[stmt->current_exec_param]);
+	current_param = &(apdopts->parameters[estmt->current_exec_param]);
+	ipdopts = SC_get_IPDF(estmt);
+	current_iparam = &(ipdopts->parameters[estmt->current_exec_param]);
+	pdata = SC_get_PDTI(estmt);
+	current_pdata = &(pdata->pdata[estmt->current_exec_param]);
 	ctype = current_param->CType;
 
-	conn = SC_get_conn(stmt);
+	conn = SC_get_conn(estmt);
 	if (ctype == SQL_C_DEFAULT)
 		ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
 	if (SQL_NTS == cbValue)
@@ -994,21 +1014,21 @@ PGAPI_PutData(
 		}
 	}
 
-	if (!stmt->put_data)
+	if (!estmt->put_data)
 	{							/* first call */
 		mylog("PGAPI_PutData: (1) cbValue = %d\n", cbValue);
 
-		stmt->put_data = TRUE;
+		estmt->put_data = TRUE;
 
-		current_param->EXEC_used = (SDWORD *) malloc(sizeof(SDWORD));
-		if (!current_param->EXEC_used)
+		current_pdata->EXEC_used = (SDWORD *) malloc(sizeof(SDWORD));
+		if (!current_pdata->EXEC_used)
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (1)");
 			SC_log_error(func, "", stmt);
 			return SQL_ERROR;
 		}
 
-		*current_param->EXEC_used = putlen;
+		*current_pdata->EXEC_used = putlen;
 
 		if (cbValue == SQL_NULL_DATA)
 			return SQL_SUCCESS;
@@ -1018,9 +1038,9 @@ PGAPI_PutData(
 		if (current_iparam->PGType == conn->lobj_type)
 		{
 			/* begin transaction if needed */
-			if (!CC_is_in_trans(stmt->hdbc))
+			if (!CC_is_in_trans(conn))
 			{
-				if (!CC_begin(stmt->hdbc))
+				if (!CC_begin(conn))
 				{
 					SC_set_error(stmt, STMT_EXEC_ERROR, "Could not begin (in-line) a transaction");
 					SC_log_error(func, "", stmt);
@@ -1029,8 +1049,8 @@ PGAPI_PutData(
 			}
 
 			/* store the oid */
-			current_param->lobj_oid = lo_creat(stmt->hdbc, INV_READ | INV_WRITE);
-			if (current_param->lobj_oid == 0)
+			current_pdata->lobj_oid = lo_creat(conn, INV_READ | INV_WRITE);
+			if (current_pdata->lobj_oid == 0)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt create large object.");
 				SC_log_error(func, "", stmt);
@@ -1044,28 +1064,28 @@ PGAPI_PutData(
 			/***current_param->EXEC_buffer = (char *) &current_param->lobj_oid;***/
 
 			/* store the fd */
-			stmt->lobj_fd = lo_open(stmt->hdbc, current_param->lobj_oid, INV_WRITE);
-			if (stmt->lobj_fd < 0)
+			estmt->lobj_fd = lo_open(conn, current_pdata->lobj_oid, INV_WRITE);
+			if (estmt->lobj_fd < 0)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for writing.");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
 
-			retval = lo_write(stmt->hdbc, stmt->lobj_fd, putbuf, putlen);
+			retval = lo_write(conn, estmt->lobj_fd, putbuf, putlen);
 			mylog("lo_write: cbValue=%d, wrote %d bytes\n", putlen, retval);
 		}
 		else
 		{
-			current_param->EXEC_buffer = malloc(putlen + 1);
-			if (!current_param->EXEC_buffer)
+			current_pdata->EXEC_buffer = malloc(putlen + 1);
+			if (!current_pdata->EXEC_buffer)
 			{
 				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (2)");
 				SC_log_error(func, "", stmt);
 				return SQL_ERROR;
 			}
-			memcpy(current_param->EXEC_buffer, putbuf, putlen);
-			current_param->EXEC_buffer[putlen] = '\0';
+			memcpy(current_pdata->EXEC_buffer, putbuf, putlen);
+			current_pdata->EXEC_buffer[putlen] = '\0';
 		}
 	}
 	else
@@ -1077,23 +1097,23 @@ PGAPI_PutData(
 		if (current_iparam->PGType == conn->lobj_type)
 		{
 			/* the large object fd is in EXEC_buffer */
-			retval = lo_write(stmt->hdbc, stmt->lobj_fd, putbuf, putlen);
+			retval = lo_write(conn, estmt->lobj_fd, putbuf, putlen);
 			mylog("lo_write(2): cbValue = %d, wrote %d bytes\n", putlen, retval);
 
-			*current_param->EXEC_used += putlen;
+			*current_pdata->EXEC_used += putlen;
 		}
 		else
 		{
-			buffer = current_param->EXEC_buffer;
-			old_pos = *current_param->EXEC_used;
+			buffer = current_pdata->EXEC_buffer;
+			old_pos = *current_pdata->EXEC_used;
 			if (putlen > 0)
 			{
-				*current_param->EXEC_used += putlen;
+				*current_pdata->EXEC_used += putlen;
 
-				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", putlen, old_pos, *current_param->EXEC_used);
+				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", putlen, old_pos, *current_pdata->EXEC_used);
 
 				/* dont lose the old pointer in case out of memory */
-				buffer = realloc(current_param->EXEC_buffer, *current_param->EXEC_used + 1);
+				buffer = realloc(current_pdata->EXEC_buffer, *current_pdata->EXEC_used + 1);
 				if (!buffer)
 				{
 					SC_set_error(stmt, STMT_NO_MEMORY_ERROR,"Out of memory in PGAPI_PutData (3)");
@@ -1102,10 +1122,10 @@ PGAPI_PutData(
 				}
 
 				memcpy(&buffer[old_pos], putbuf, putlen);
-				buffer[*current_param->EXEC_used] = '\0';
+				buffer[*current_pdata->EXEC_used] = '\0';
 
 				/* reassign buffer incase realloc moved it */
-				current_param->EXEC_buffer = buffer;
+				current_pdata->EXEC_buffer = buffer;
 			}
 			else
 			{

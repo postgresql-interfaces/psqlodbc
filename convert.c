@@ -351,7 +351,7 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, BOOL precision)
 int
 copy_and_convert_field_bindinfo(StatementClass *stmt, Int4 field_type, void *value, int col)
 {
-	ARDFields *opts = SC_get_ARD(stmt);
+	ARDFields *opts = SC_get_ARDF(stmt);
 	BindInfoClass *bic = &(opts->bindings[col]);
 	UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
@@ -366,7 +366,8 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 					   PTR rgbValue, SDWORD cbValueMax, SDWORD *pcbValue)
 {
 	CSTR func = "copy_and_convert_field";
-	ARDFields	*opts = SC_get_ARD(stmt);
+	ARDFields	*opts = SC_get_ARDF(stmt);
+	GetDataInfo	*gdata = SC_get_GDTI(stmt);
 	Int4		len = 0,
 				copy_len = 0;
 	SIMPLE_TIME std_time;
@@ -390,8 +391,8 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	const char *neut_str = value;
 	char		midtemp[2][32];
 	int			mtemp_cnt = 0;
-	static BindInfoClass sbic;
-	BindInfoClass *pbic;
+	static GetDataClass sgdc;
+	GetDataClass *pgdc;
 #ifdef	UNICODE_SUPPORT
 	BOOL	wchanged =   FALSE;
 #endif /* UNICODE_SUPPORT */
@@ -402,19 +403,25 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 
 	if (stmt->current_col >= 0)
 	{
-		pbic = &opts->bindings[stmt->current_col];
-		if (pbic->data_left == -2)
-			pbic->data_left = (cbValueMax > 0) ? 0 : -1; /* This seems to be *
-						 * needed by ADO ? */
-		if (pbic->data_left == 0)
+		if (stmt->current_col >= opts->allocated)
 		{
-			if (pbic->ttlbuf != NULL)
+			return SQL_ERROR;
+		}
+		if (gdata->allocated != opts->allocated)
+			extend_getdata_info(gdata, opts->allocated, TRUE);
+		pgdc = &gdata->gdata[stmt->current_col];
+		if (pgdc->data_left == -2)
+			pgdc->data_left = (cbValueMax > 0) ? 0 : -1; /* This seems to be *
+						 * needed by ADO ? */
+		if (pgdc->data_left == 0)
+		{
+			if (pgdc->ttlbuf != NULL)
 			{
-				free(pbic->ttlbuf);
-				pbic->ttlbuf = NULL;
-				pbic->ttlbuflen = 0;
+				free(pgdc->ttlbuf);
+				pgdc->ttlbuf = NULL;
+				pgdc->ttlbuflen = 0;
 			}
-			pbic->data_left = -2;		/* needed by ADO ? */
+			pgdc->data_left = -2;		/* needed by ADO ? */
 			return COPY_NO_DATA_FOUND;
 		}
 	}
@@ -732,12 +739,12 @@ inolog("2stime fr=%d\n", std_time.fr);
 			default:
 				if (stmt->current_col < 0)
 				{
-					pbic = &sbic;
-					pbic->data_left = -1;
+					pgdc = &sgdc;
+					pgdc->data_left = -1;
 				}
 				else
-					pbic = &opts->bindings[stmt->current_col];
-				if (pbic->data_left < 0)
+					pgdc = &gdata->gdata[stmt->current_col];
+				if (pgdc->data_left < 0)
 				{
 					BOOL lf_conv = conn->connInfo.lf_conversion;
 #ifdef	UNICODE_SUPPORT
@@ -779,69 +786,69 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* WIN_UNICODE_SUPPORT */
 						break;
 					}
-					if (!pbic->ttlbuf)
-						pbic->ttlbuflen = 0;
+					if (!pgdc->ttlbuf)
+						pgdc->ttlbuflen = 0;
 					if (changed || len >= cbValueMax)
 					{
-						if (len >= (int) pbic->ttlbuflen)
+						if (len >= (int) pgdc->ttlbuflen)
 						{
-							pbic->ttlbuf = realloc(pbic->ttlbuf, len + 1);
-							pbic->ttlbuflen = len + 1;
+							pgdc->ttlbuf = realloc(pgdc->ttlbuf, len + 1);
+							pgdc->ttlbuflen = len + 1;
 						}
 #ifdef	UNICODE_SUPPORT
 						if (fCType == SQL_C_WCHAR)
 						{
-							utf8_to_ucs2_lf(neut_str, -1, lf_conv, (SQLWCHAR *) pbic->ttlbuf, len / 2);
+							utf8_to_ucs2_lf(neut_str, -1, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / 2);
 						}
 						else
 #endif /* UNICODE_SUPPORT */
 						if (PG_TYPE_BYTEA == field_type)
 						{
-							len = convert_from_pgbinary(neut_str, pbic->ttlbuf, pbic->ttlbuflen);
-							pg_bin2hex(pbic->ttlbuf, pbic->ttlbuf, len);
+							len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+							pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
 							len *= 2; 
 						}
 						else
 #ifdef	WIN_UNICODE_SUPPORT
 						if (fCType == SQL_C_CHAR)
 						{
-							len = WideCharToMultiByte(CP_ACP, 0, allocbuf, wstrlen, pbic->ttlbuf, pbic->ttlbuflen, NULL, NULL);
+							len = WideCharToMultiByte(CP_ACP, 0, allocbuf, wstrlen, pgdc->ttlbuf, pgdc->ttlbuflen, NULL, NULL);
 							free(allocbuf);
 							allocbuf = NULL;
 						}
 						else
 #endif /* WIN_UNICODE_SUPPORT */
-							convert_linefeeds(neut_str, pbic->ttlbuf, pbic->ttlbuflen, lf_conv, &changed);
-						ptr = pbic->ttlbuf;
-						pbic->ttlbufused = len;
+							convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
+						ptr = pgdc->ttlbuf;
+						pgdc->ttlbufused = len;
 					}
 					else
 					{
-						if (pbic->ttlbuf)
+						if (pgdc->ttlbuf)
 						{
-							free(pbic->ttlbuf);
-							pbic->ttlbuf = NULL;
+							free(pgdc->ttlbuf);
+							pgdc->ttlbuf = NULL;
 						}
 						ptr = neut_str;
 					}
 				}
 				else
 				{
-					ptr = pbic->ttlbuf;
-					len = pbic->ttlbufused;
+					ptr = pgdc->ttlbuf;
+					len = pgdc->ttlbufused;
 				}
 
 				mylog("DEFAULT: len = %d, ptr = '%s'\n", len, ptr);
 
 				if (stmt->current_col >= 0)
 				{
-					if (pbic->data_left > 0)
+					if (pgdc->data_left > 0)
 					{
-						ptr += len - pbic->data_left;
-						len = pbic->data_left;
+						ptr += len - pgdc->data_left;
+						len = pgdc->data_left;
 					}
 					else
-						pbic->data_left = len;
+						pgdc->data_left = len;
 				}
 
 				if (cbValueMax > 0)
@@ -886,7 +893,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 					/* Adjust data_left for next time */
 					if (stmt->current_col >= 0)
-						pbic->data_left -= copy_len;
+						pgdc->data_left -= copy_len;
 				}
 
 				/*
@@ -897,10 +904,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 					result = COPY_RESULT_TRUNCATED;
 				else
 				{
-					if (pbic->ttlbuf != NULL)
+					if (pgdc->ttlbuf != NULL)
 					{
-						free(pbic->ttlbuf);
-						pbic->ttlbuf = NULL;
+						free(pgdc->ttlbuf);
+						pgdc->ttlbuf = NULL;
 					}
 				}
 
@@ -1239,14 +1246,14 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 
 				if (stmt->current_col < 0)
 				{
-					pbic = &sbic;
-					pbic->data_left = -1;
+					pgdc = &sgdc;
+					pgdc->data_left = -1;
 				}
 				else
-					pbic = &opts->bindings[stmt->current_col];
-				if (!pbic->ttlbuf)
-					pbic->ttlbuflen = 0;
-				if (pbic->data_left < 0)
+					pgdc = &gdata->gdata[stmt->current_col];
+				if (!pgdc->ttlbuf)
+					pgdc->ttlbuflen = 0;
+				if (pgdc->data_left < 0)
 				{
 					if (cbValueMax <= 0)
 					{
@@ -1254,17 +1261,17 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 						result = COPY_RESULT_TRUNCATED;
 						break;
 					}
-					if (len = strlen(neut_str), len >= (int) pbic->ttlbuflen)
+					if (len = strlen(neut_str), len >= (int) pgdc->ttlbuflen)
 					{
-						pbic->ttlbuf = realloc(pbic->ttlbuf, len + 1);
-						pbic->ttlbuflen = len + 1;
+						pgdc->ttlbuf = realloc(pgdc->ttlbuf, len + 1);
+						pgdc->ttlbuflen = len + 1;
 					}
-					len = convert_from_pgbinary(neut_str, pbic->ttlbuf, pbic->ttlbuflen);
-					pbic->ttlbufused = len;
+					len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+					pgdc->ttlbufused = len;
 				}
 				else
-					len = pbic->ttlbufused;
-				ptr = pbic->ttlbuf;
+					len = pgdc->ttlbufused;
+				ptr = pgdc->ttlbuf;
 
 				if (stmt->current_col >= 0)
 				{
@@ -1272,15 +1279,15 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					 * Second (or more) call to SQLGetData so move the
 					 * pointer
 					 */
-					if (pbic->data_left > 0)
+					if (pgdc->data_left > 0)
 					{
-						ptr += len - pbic->data_left;
-						len = pbic->data_left;
+						ptr += len - pgdc->data_left;
+						len = pgdc->data_left;
 					}
 
 					/* First call to SQLGetData so initialize data_left */
 					else
-						pbic->data_left = len;
+						pgdc->data_left = len;
 
 				}
 
@@ -1293,7 +1300,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 
 					/* Adjust data_left for next time */
 					if (stmt->current_col >= 0)
-						pbic->data_left -= copy_len;
+						pgdc->data_left -= copy_len;
 				}
 
 				/*
@@ -1302,10 +1309,10 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				 */
 				if (len > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
-				else if (pbic->ttlbuf)
+				else if (pgdc->ttlbuf)
 				{
-					free(pbic->ttlbuf);
-					pbic->ttlbuf = NULL;
+					free(pgdc->ttlbuf);
+					pgdc->ttlbuf = NULL;
 				}
 				mylog("SQL_C_BINARY: len = %d, copy_len = %d\n", len, copy_len);
 				break;
@@ -1320,7 +1327,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 		*((SDWORD *) pcbValueBindRow) = len;
 
 	if (result == COPY_OK && stmt->current_col >= 0)
-		opts->bindings[stmt->current_col].data_left = 0;
+		gdata->gdata[stmt->current_col].data_left = 0;
 	return result;
 
 }
@@ -1392,6 +1399,7 @@ typedef struct _QueryBuild {
 	int	param_number;
 	APDFields *apdopts;
 	IPDFields *ipdopts;
+	PutDataInfo *pdata;
 	UInt4	load_stmt_len;
 	UInt4	flags;
 	BOOL	lf_conv;
@@ -1414,12 +1422,14 @@ QB_initialize(QueryBuild *qb, UInt4 size, StatementClass *stmt, ConnectionClass 
 	qb->stmt = stmt;
 	qb->apdopts = NULL;
 	qb->ipdopts = NULL;
+	qb->pdata = NULL;
 	if (conn)
 		qb->conn = conn;
 	else if (stmt)
 	{
-		qb->apdopts = SC_get_APD(stmt);
-		qb->ipdopts = SC_get_IPD(stmt);
+		qb->apdopts = SC_get_APDF(stmt);
+		qb->ipdopts = SC_get_IPDF(stmt);
+		qb->pdata = SC_get_PDTI(stmt);
 		qb->conn = SC_get_conn(stmt);
 		if (stmt->pre_executing)
 			qb->flags |= FLGB_PRE_EXECUTING;
@@ -2381,9 +2391,7 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 		chrform[newlen++] = '-';
 	for (i = len - 1; i >= ns->scale; i--)
 		chrform[newlen++] = calv[i] + '0';
-    if (!newlen)
-        chrform[newlen++] = '0';
-    if (ns->scale > 0)
+	if (ns->scale > 0)
 	{
 		chrform[newlen++] = '.';
 		for (; i >= 0; i--)
@@ -2408,6 +2416,7 @@ ResolveOneParam(QueryBuild *qb)
 	ConnInfo   *ci = &(conn->connInfo);
 	const APDFields *apdopts = qb->apdopts;
 	const IPDFields *ipdopts = qb->ipdopts;
+	PutDataInfo *pdata = qb->pdata;
 
 	int		param_number;
 	char		param_string[128], tmp[256],
@@ -2449,7 +2458,7 @@ ResolveOneParam(QueryBuild *qb)
 			return SQL_ERROR;
 		}
 	}
-	if (SQL_PARAM_OUTPUT == apdopts->parameters[param_number].paramType)
+	if (SQL_PARAM_OUTPUT == ipdopts->parameters[param_number].paramType)
 	{
 		qb->errormsg = "Output parameter isn't available";
 		qb->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
@@ -2468,9 +2477,11 @@ ResolveOneParam(QueryBuild *qb)
 	/* Assign correct buffers based on data at exec param or not */
 	if (apdopts->parameters[param_number].data_at_exec)
 	{
-		used = apdopts->parameters[param_number].EXEC_used ? *apdopts->parameters[param_number].EXEC_used : SQL_NTS;
-		buffer = apdopts->parameters[param_number].EXEC_buffer;
-		if (apdopts->parameters[param_number].lobj_oid)
+		if (pdata->allocated != apdopts->allocated)
+			extend_putdata_info(pdata, apdopts->allocated, TRUE);
+		used = pdata->pdata[param_number].EXEC_used ? *pdata->pdata[param_number].EXEC_used : SQL_NTS;
+		buffer = pdata->pdata[param_number].EXEC_buffer;
+		if (pdata->pdata[param_number].lobj_oid)
 			handling_large_object = TRUE;
 	}
 	else
@@ -2563,17 +2574,25 @@ ResolveOneParam(QueryBuild *qb)
 		case SQL_C_BINARY:
 			buf = buffer;
 			break;
-
 		case SQL_C_CHAR:
 #ifdef	WIN_UNICODE_SUPPORT
-			if (SQL_NTS == used)
-				used = strlen(buffer);
-			allocbuf = malloc(2 * (used + 1));
-			used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
-				used, (LPWSTR) allocbuf, used + 1);
-			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
-			free(allocbuf);
-			allocbuf = buf;
+			switch (param_sqltype)
+			{
+				case SQL_WCHAR:
+				case SQL_WVARCHAR:
+				case SQL_WLONGVARCHAR:
+					if (SQL_NTS == used)
+						used = strlen(buffer);
+					allocbuf = malloc(2 * (used + 1));
+					used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
+						used, (LPWSTR) allocbuf, used + 1);
+					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
+					free(allocbuf);
+					allocbuf = buf;
+					break;
+				default:
+					buf = buffer;
+			}
 #else
 			buf = buffer;
 #endif /* WIN_UNICODE_SUPPORT */
@@ -2853,7 +2872,7 @@ ResolveOneParam(QueryBuild *qb)
 			}
 
 			if (apdopts->parameters[param_number].data_at_exec)
-				lobj_oid = apdopts->parameters[param_number].lobj_oid;
+				lobj_oid = pdata->pdata[param_number].lobj_oid;
 			else
 			{
 				/* begin transaction if needed */
@@ -3793,10 +3812,10 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 	int			retval,
 				result,
 				left = -1;
-	BindInfoClass *bindInfo = NULL;
+	GetDataClass *gdata = NULL;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
-	ARDFields	*opts = SC_get_ARD(stmt);
+	GetDataInfo	*gdata_info = SC_get_GDTI(stmt);
 	int			factor;
 
 	switch (fCType)
@@ -3814,8 +3833,8 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 	/* If using SQLGetData, then current_col will be set */
 	if (stmt->current_col >= 0)
 	{
-		bindInfo = &opts->bindings[stmt->current_col];
-		left = bindInfo->data_left;
+		gdata = &gdata_info->gdata[stmt->current_col];
+		left = gdata->data_left;
 	}
 
 	/*
@@ -3823,7 +3842,7 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 	 * for reading
 	 */
 
-	if (!bindInfo || bindInfo->data_left == -1)
+	if (!gdata || gdata->data_left == -1)
 	{
 		/* begin transaction if needed */
 		if (!CC_is_in_trans(conn))
@@ -3848,8 +3867,8 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		if (retval >= 0)
 		{
 			left = lo_tell(conn, stmt->lobj_fd);
-			if (bindInfo)
-				bindInfo->data_left = left;
+			if (gdata)
+				gdata->data_left = left;
 
 			/* return to beginning */
 			lo_lseek(conn, stmt->lobj_fd, 0L, SEEK_SET);
@@ -3897,10 +3916,10 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 	if (pcbValue)
 		*pcbValue = left < 0 ? SQL_NO_TOTAL : left * factor;
 
-	if (bindInfo && bindInfo->data_left > 0)
-		bindInfo->data_left -= retval;
+	if (gdata && gdata->data_left > 0)
+		gdata->data_left -= retval;
 
-	if (!bindInfo || bindInfo->data_left == 0)
+	if (!gdata || gdata->data_left == 0)
 	{
 		lo_close(conn, stmt->lobj_fd);
 

@@ -12,6 +12,8 @@
 
 /*	Internal flags for catalog functions */
 #define	PODBC_NOT_SEARCH_PATTERN	1L
+/*	Internal flags for PGAPI_Exec... functions */
+#define	PODBC_WITH_HOLD			1L
 /*	Flags for the error handling */
 #define	PODBC_ALLOW_PARTIAL_EXTRACT	1L
 #define	PODBC_ERROR_CLEAR		(1L << 1)
@@ -75,8 +77,8 @@ RETCODE SQL_API PGAPI_StmtError(HSTMT StatementHandle, SWORD RecNumber,
 			SQLSMALLINT *TextLength, UWORD flag);
 
 RETCODE SQL_API PGAPI_ExecDirect(HSTMT StatementHandle,
-				 SQLCHAR *StatementText, SQLINTEGER TextLength);
-RETCODE SQL_API PGAPI_Execute(HSTMT StatementHandle);
+		SQLCHAR *StatementText, SQLINTEGER TextLength, UWORD flag);
+RETCODE SQL_API PGAPI_Execute(HSTMT StatementHandle, UWORD flag);
 RETCODE SQL_API PGAPI_Fetch(HSTMT StatementHandle);
 RETCODE SQL_API PGAPI_FreeConnect(HDBC ConnectionHandle);
 RETCODE SQL_API PGAPI_FreeEnv(HENV EnvironmentHandle);
@@ -287,11 +289,20 @@ RETCODE SQL_API PGAPI_SetStmtAttr(HSTMT StatementHandle,
 		SQLINTEGER StringLength);
 RETCODE SQL_API PGAPI_BulkOperations(HSTMT StatementHandle,
 			SQLSMALLINT operation);
+RETCODE SQL_API PGAPI_AllocDesc(HDBC ConnectionHandle,
+				SQLHDESC *DescriptorHandle);
+RETCODE SQL_API PGAPI_FreeDesc(SQLHDESC DescriptorHandle);
+RETCODE SQL_API PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
+				SQLHDESC TargetDescHandle);
 RETCODE SQL_API PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
 			PTR Value, SQLINTEGER BufferLength);
 RETCODE SQL_API PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
 			PTR Value, SQLINTEGER BufferLength, SQLINTEGER *StringLength);
+RETCODE SQL_API PGAPI_DescError(SQLHDESC DescriptorHandle, SWORD RecNumber,
+			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
+			SQLCHAR *MessageText, SQLSMALLINT BufferLength,
+			SQLSMALLINT *TextLength, UWORD flag);
 #endif /* ODBCVER */
 #endif   /* define_PG_API_FUNC_H__ */

@@ -56,9 +56,9 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 		case SQL_HANDLE_DESC:
 			conn = (ConnectionClass *) InputHandle;
 			ENTER_CONN_CS(conn);
-			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "can't alloc Desc Handle yet"); 
+			ret = PGAPI_AllocDesc(InputHandle, OutputHandle);
 			LEAVE_CONN_CS(conn);
-			ret = SQL_ERROR;
+			mylog("Descriptor OutputHandle=%x\n", *OutputHandle);
 			break;
 		default:
 			ret = SQL_ERROR;
@@ -119,48 +119,17 @@ SQLColAttribute(HSTMT StatementHandle,
 	return ret;
 }
 
-static HSTMT
-descHandleFromStatementHandle(HSTMT StatementHandle, SQLINTEGER descType) 
-{
-	switch (descType)
-	{
-		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
-			return StatementHandle;	/* this is bogus */
-		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
-			return (HSTMT) ((SQLUINTEGER) StatementHandle + 1) ; /* this is bogus */
-		case SQL_ATTR_IMP_ROW_DESC:		/* 10012 */
-			return (HSTMT) ((SQLUINTEGER) StatementHandle + 2); /* this is bogus */
-		case SQL_ATTR_IMP_PARAM_DESC:	/* 10013 */
-			return (HSTMT) ((SQLUINTEGER) StatementHandle + 3); /* this is bogus */
-	}
-	return (HSTMT) 0;
-}
-static HSTMT
-statementHandleFromDescHandle(HSTMT DescHandle, SQLINTEGER *descType) 
-{
-	SQLUINTEGER res = (SQLUINTEGER) DescHandle % 4;
-	switch (res)
-	{
-		case 0: *descType = SQL_ATTR_APP_ROW_DESC; /* 10010 */
-			break;
-		case 1: *descType = SQL_ATTR_APP_PARAM_DESC; /* 10011 */
-			break;
-		case 2: *descType = SQL_ATTR_IMP_ROW_DESC; /* 10012 */
-			break;
-		case 3: *descType = SQL_ATTR_IMP_PARAM_DESC; /* 10013 */
-			break;
-	}
-	return (HSTMT) ((SQLUINTEGER) DescHandle - res);
-}
-
 /*	new function */
 RETCODE		SQL_API
 SQLCopyDesc(SQLHDESC SourceDescHandle,
 			SQLHDESC TargetDescHandle)
 {
+	RETCODE	ret;
+
 	mylog("[[SQLCopyDesc]]\n");
-	mylog("Error not implemented\n");
-	return SQL_ERROR;
+	DC_clear_error((DescriptorClass *) TargetDescHandle);
+	ret = PGAPI_CopyDesc(SourceDescHandle, TargetDescHandle);
+	return ret;
 }
 
 /*	SQLTransact -> SQLEndTran */
@@ -199,7 +168,7 @@ SQLFetchScroll(HSTMT StatementHandle,
 	CSTR func = "SQLFetchScroll";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE		ret = SQL_SUCCESS;
-	IRDFields	*irdopts = SC_get_IRD(stmt);
+	IRDFields	*irdopts = SC_get_IRDF(stmt);
 	SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
 	SQLINTEGER *pcRow = irdopts->rowsFetched, bkmarkoff = 0;
 
@@ -223,7 +192,7 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 	}
 	if (SQL_SUCCESS == ret)
 	{
-		ARDFields	*opts = SC_get_ARD(stmt);
+		ARDFields	*opts = SC_get_ARDF(stmt);
 
 		ret = PGAPI_ExtendedFetch(StatementHandle, FetchOrientation, FetchOffset,
 				pcRow, rowStatusArray, bkmarkoff, opts->size_of_rowset);
@@ -252,6 +221,9 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 		case SQL_HANDLE_STMT:
 			ret = PGAPI_FreeStmt(Handle, SQL_DROP);
 			break;
+		case SQL_HANDLE_DESC:
+			ret = PGAPI_FreeDesc(Handle);
+			break;
 		default:
 			ret = SQL_ERROR;
 			break;
@@ -269,6 +241,7 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 	RETCODE	ret;
 
 	mylog("[[SQLGetDescField]]\n");
+	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 			Value, BufferLength, StringLength);
 	return ret;
@@ -285,6 +258,7 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 {
 	mylog("[[SQLGetDescRec]]\n");
 	mylog("Error not implemented\n");
+	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	return SQL_ERROR;
 }
 
@@ -414,6 +388,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret;
 
 	mylog("[[SQLSetDescField]] h=%u rec=%d field=%d val=%x\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
+	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
 	return ret;
@@ -432,6 +407,7 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 
 	mylog("[[SQLSetDescRec]]\n");
 	mylog("Error not implemented\n");
+	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	return SQL_ERROR;
 }
 
@@ -579,7 +555,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSTATISTICS);		/* 53 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLES); /* 54 */
 	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT); /* 55 not implemented yet */
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT); /* 55 not implmented yet */
 	if (ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); /* 56 not implemented yet */ 
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDATASOURCES);	/* 57 */
@@ -608,8 +584,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLALLOCHANDLE);	/* 1001 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLBINDPARAM);		/* 1002 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLCLOSECURSOR);	/* 1003 */
-	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOPYDESC); /* 1004 not implemented yet */
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLCOPYDESC);		/* 1004 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLENDTRAN);		/* 1005 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFREEHANDLE);		/* 1006 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETCONNECTATTR);	/* 1007 */

@@ -125,6 +125,12 @@ enum
 	STMT_FETCH_EXTENDED
 };
 
+typedef	RETCODE	(*NeedDataCallfunc)(RETCODE, void *);
+typedef	struct
+{
+	NeedDataCallfunc	func;
+	void			*data;
+}	NeedDataCallback;
 
 /********	Statement Handle	***********/
 struct StatementClass_
@@ -136,10 +142,16 @@ struct StatementClass_
 	HSTMT FAR  *phstmt;
 	StatementOptions options;
 	StatementOptions options_orig;
-	ARDFields ardopts;
-	IRDFields irdopts;
-	APDFields apdopts;
-	IPDFields ipdopts;
+	/* attached descriptor handles */
+	ARDClass	*ard;
+	APDClass	*apd;
+	IRDClass	*ird;
+	IPDClass	*ipd;
+	/* implicit descriptor handles */
+	ARDClass	ardi;
+	IRDClass	irdi;
+	APDClass	apdi;
+	IPDClass	ipdi;
 
 	STMT_Status status;
 	char	   *__error_message;
@@ -147,6 +159,7 @@ struct StatementClass_
 
 	Int4		currTuple;		/* current absolute row number (GetData,
 								 * SetPos, SQLFetch) */
+	GetDataInfo	gdata_info;
 	int			save_rowset_size;		/* saved rowset size in case of
 										 * change/FETCH_NEXT */
 	Int4			rowset_start;	/* start of rowset (an absolute row
@@ -171,6 +184,7 @@ struct StatementClass_
 	int			data_at_exec;	/* Number of params needing SQLPutData */
 	int			current_exec_param;		/* The current parameter for
 										 * SQLPutData */
+	PutDataInfo	pdata_info;
 
 	char		put_data;		/* Has SQLPutData been called yet? */
 
@@ -182,6 +196,7 @@ struct StatementClass_
 						 * prepared at the server ? */
 	char		internal;		/* Is this statement being called
 								 * internally? */
+
 	char		transition_status;	/* Transition status */
 	char		cursor_name[MAX_CURSOR_LEN + 1];
 
@@ -206,6 +221,11 @@ struct StatementClass_
 	Int4		where_pos;
 	Int4		last_fetch_count_include_ommitted;
 	time_t		stmt_time;
+	/* SQL_NEED_DATA Callback list */
+	StatementClass	*execute_delegate;
+	UInt2		allocated_callbacks;
+	UInt2		num_callbacks;
+	NeedDataCallback	*callbacks;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
@@ -219,16 +239,26 @@ struct StatementClass_
 #define SC_get_Result(a)  (a->result)
 #define SC_set_Curres(a, b)  (a->curres = b)
 #define SC_get_Curres(a)  (a->curres)
-#define SC_get_ARD(a)  (&(a->ardopts))
-#define SC_get_APD(a)  (&(a->apdopts))
-#define SC_get_IRD(a)  (&(a->irdopts))
-#define SC_get_IPD(a)  (&(a->ipdopts))
+#define SC_get_ARD(a)  (a->ard)
+#define SC_get_APD(a)  (a->apd)
+#define SC_get_IRD(a)  (a->ird)
+#define SC_get_IPD(a)  (a->ipd)
+#define SC_get_ARDF(a)  (&(SC_get_ARD(a)->ardopts))
+#define SC_get_APDF(a)  (&(SC_get_APD(a)->apdopts))
+#define SC_get_IRDF(a)  (&(SC_get_IRD(a)->irdopts))
+#define SC_get_IPDF(a)  (&(SC_get_IPD(a)->ipdopts))
+#define SC_get_ARDi(a)  (&(a->ardi))
+#define SC_get_APDi(a)  (&(a->apdi))
+#define SC_get_IRDi(a)  (&(a->irdi))
+#define SC_get_IPDi(a)  (&(a->ipdi))
+#define SC_get_GDTI(a)  (&(a->gdata_info))
+#define SC_get_PDTI(a)  (&(a->pdata_info))
 
 #define	SC_get_errornumber(a) (a->__error_number)
 #define	SC_set_errornumber(a, n) (a->__error_number = n)
 #define	SC_get_errormsg(a) (a->__error_message)
 #if (ODBCVER >= 0x0300)
-#define	SC_is_lower_case(a, b) (a->options.metadata_id || b->connInfo.lower_case_identifier)
+#define	SC_is_lower_case(a, b) (a->options.metadata_id, b->connInfo.lower_case_identifier)
 #else
 #define	SC_is_lower_case(a, b) (b->connInfo.lower_case_identifier)
 #endif /* ODBCVER */
@@ -294,6 +324,12 @@ RETCODE		SC_pos_update(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, UDWORD index);
 RETCODE		SC_pos_add(StatementClass *self, UWORD irow);
+
+DescriptorClass	*SC_set_ARD(StatementClass *stmt, DescriptorClass *desc);
+DescriptorClass	*SC_set_APD(StatementClass *stmt, DescriptorClass *desc);
+int		enqueueNeedDataCallback(StatementClass *self, NeedDataCallfunc, void *);
+RETCODE		dequeueNeedDataCallback(RETCODE, StatementClass *self);
+void		cancelNeedDataState(StatementClass *self);
 
 /*
  *	Macros to convert global index <-> relative index in resultset/rowset

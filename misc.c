@@ -110,12 +110,12 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 }
 
 #ifdef MY_LOG
+static FILE *LOGFP = NULL;
 void
 mylog(char *fmt,...)
 {
 	va_list		args;
 	char		filebuf[80];
-	static FILE *LOGFP = NULL;
 
 	ENTER_MYLOG_CS;
 	if (mylog_on)

@@ -84,6 +84,8 @@ PGAPI_AllocStmt(HDBC hdbc,
 	CSTR func = "PGAPI_AllocStmt";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	StatementClass *stmt;
+	ARDFields	*ardopts;
+	BindInfoClass	*bookmark;
 
 	mylog("%s: entering...\n", func);
 
@@ -118,10 +120,9 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 	/* Copy default statement options based from Connection options */
 	stmt->options = stmt->options_orig = conn->stmtOptions;
-	stmt->ardopts = conn->ardOptions;
-	stmt->ardopts.bookmark = (BindInfoClass *) malloc(sizeof(BindInfoClass));
-	stmt->ardopts.bookmark->buffer = NULL;
-	stmt->ardopts.bookmark->used = NULL;
+	stmt->ardi.ardopts = conn->ardOptions;
+	ardopts = SC_get_ARDF(stmt);
+	bookmark = ARD_AllocBookmark(ardopts);
 
 	stmt->stmt_size_limit = CC_get_max_query_len(conn);
 	/* Save the handle for later */
@@ -224,31 +225,6 @@ InitializeStatementOptions(StatementOptions *opt)
 }
 
 
-/*
- * ARDFields initialize
- */
-void
-InitializeARDFields(ARDFields *opt)
-{
-	memset(opt, 0, sizeof(ARDFields));
-#if (ODBCVER >= 0x0300)
-	opt->size_of_rowset = 1;
-#endif /* ODBCVER */
-	opt->bind_size = 0;		/* default is to bind by column */
-	opt->size_of_rowset_odbc2 = 1;
-}
-/*
- * APDFields initialize
- */
-void
-InitializeAPDFields(APDFields *opt)
-{
-	memset(opt, 0, sizeof(APDFields));
-	opt->paramset_size = 1;
-	opt->param_bind_type = 0;	/* default is to bind by column */
-}
-
-
 StatementClass *
 SC_Constructor(void)
 {
@@ -303,10 +279,14 @@ SC_Constructor(void)
 
 		/* Clear Statement Options -- defaults will be set in AllocStmt */
 		memset(&rv->options, 0, sizeof(StatementOptions));
-		memset(&rv->ardopts, 0, sizeof(ARDFields));
-		memset(&rv->apdopts, 0, sizeof(APDFields));
-		memset(&rv->irdopts, 0, sizeof(IRDFields));
-		memset(&rv->ipdopts, 0, sizeof(IPDFields));
+		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->ardi),
+				rv, SQL_ATTR_APP_ROW_DESC);
+		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->apdi),
+				rv, SQL_ATTR_APP_PARAM_DESC);
+		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->irdi),
+				rv, SQL_ATTR_IMP_ROW_DESC);
+		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->ipdi),
+				rv, SQL_ATTR_IMP_PARAM_DESC);
 
 		rv->pre_executing = FALSE;
 		rv->inaccurate_result = FALSE;
@@ -315,58 +295,15 @@ SC_Constructor(void)
 		rv->error_recsize = -1;
 		rv->diag_row_count = 0;
 		rv->stmt_time = 0;
+		rv->execute_delegate = NULL;
+		rv->allocated_callbacks = 0;
+		rv->num_callbacks = 0;
+		rv->callbacks = NULL;
+		GetDataInfoInitialize(SC_get_GDTI(rv));
+		PutDataInfoInitialize(SC_get_PDTI(rv));
 		INIT_STMT_CS(rv);
 	}
 	return rv;
-}
-
-
-void ARDFields_free(ARDFields * self)
-{
-	if (self->bookmark)
-	{
-		free(self->bookmark);
-		self->bookmark = NULL;
-	}
-	/*
-	 * the memory pointed to by the bindings is not deallocated by the
-	 * driver but by the application that uses that driver, so we don't
-	 * have to care
-	 */
-	ARD_unbind_cols(self, TRUE);
-}
-
-void APDFields_free(APDFields * self)
-{
-	/* param bindings */
-	APD_free_params(self, STMT_FREE_PARAMS_ALL);
-}
-
-void IRDFields_free(IRDFields * self)
-{
-	/* Free the parsed field information */
-	if (self->fi)
-	{
-		int			i;
-
-		for (i = 0; i < (int) self->nfields; i++)
-		{
-			if (self->fi[i])
-			{
-				if (self->fi[i]->schema)
-					free(self->fi[i]->schema);
-				free(self->fi[i]);
-			}
-		}
-		free(self->fi);
-		self->fi = NULL;
-	}
-}
-
-void IPDFields_free(IPDFields * self)
-{
-	/* param bindings */
-	IPD_free_params(self, STMT_FREE_PARAMS_ALL);
 }
 
 char
@@ -407,13 +344,17 @@ SC_Destructor(StatementClass *self)
 	}
 
 	/* Free the parsed field information */
-	ARDFields_free(&(self->ardopts));
-	APDFields_free(&(self->apdopts));
-	IRDFields_free(&(self->irdopts));
-	IPDFields_free(&(self->ipdopts));
+	DC_Destructor(SC_get_ARDi(self));
+	DC_Destructor(SC_get_APDi(self));
+	DC_Destructor(SC_get_IRDi(self));
+	DC_Destructor(SC_get_IPDi(self));
 	
 	if (self->__error_message)
 		free(self->__error_message);
+	cancelNeedDataState(self);
+	if (self->callbacks)
+		free(self->callbacks);
+
 	DELETE_STMT_CS(self);
 	free(self);
 
@@ -430,8 +371,9 @@ SC_Destructor(StatementClass *self)
 void
 SC_free_params(StatementClass *self, char option)
 {
-	APD_free_params(SC_get_APD(self), option);
-	IPD_free_params(SC_get_IPD(self), option);
+	APD_free_params(SC_get_APDF(self), option);
+	IPD_free_params(SC_get_IPDF(self), option);
+	PDATA_free_params(SC_get_PDTI(self), option);
 	self->data_at_exec = -1;
 	self->current_exec_param = -1;
 	self->put_data = FALSE;
@@ -583,7 +525,7 @@ SC_recycle_statement(StatementClass *self)
 		self->ntab = 0;
 	}
 	/* Free the parsed field information */
-	IRDFields_free(SC_get_IRD(self));
+	DC_Destructor(SC_get_IRD(self));
 
 	self->parse_status = STMT_PARSE_NONE;
 	self->updatable = FALSE;
@@ -621,6 +563,7 @@ SC_recycle_statement(StatementClass *self)
 	 */
 	SC_free_params(self, STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY);
 	SC_initialize_stmts(self, FALSE);
+	cancelNeedDataState(self);
 	/*
 	 *	reset the current attr setting to the original one.
 	 */
@@ -652,7 +595,7 @@ SC_pre_execute(StatementClass *self)
 			self->pre_executing = TRUE;
 			self->inaccurate_result = FALSE;
 
-			PGAPI_Execute(self);
+			PGAPI_Execute(self, 0);
 
 			self->pre_executing = old_pre_executing;
 
@@ -677,11 +620,17 @@ SC_pre_execute(StatementClass *self)
 char
 SC_unbind_cols(StatementClass *self)
 {
-	ARDFields	*opts = SC_get_ARD(self);
+	ARDFields	*opts = SC_get_ARDF(self);
+	GetDataInfo	*gdata = SC_get_GDTI(self);
+	BindInfoClass	*bookmark;
 
 	ARD_unbind_cols(opts, FALSE);
-	opts->bookmark->buffer = NULL;
-	opts->bookmark->used = NULL;
+	GDATA_unbind_cols(gdata, FALSE);
+	if (bookmark = opts->bookmark, bookmark != NULL)
+	{
+		bookmark->buffer = NULL;
+		bookmark->used = NULL;
+	}
 
 	return 1;
 }
@@ -851,6 +800,7 @@ SC_fetch(StatementClass *self)
 	CSTR func = "SC_fetch";
 	QResultClass *res = SC_get_Curres(self);
 	ARDFields	*opts;
+	GetDataInfo	*gdata;
 	int			retval,
 				result;
 
@@ -859,6 +809,7 @@ SC_fetch(StatementClass *self)
 	Oid			type;
 	char	   *value;
 	ColumnInfoClass *coli;
+	BindInfoClass	*bookmark;
 
 	/* TupleField *tupleField; */
 	ConnInfo   *ci = &(SC_get_conn(self)->connInfo);
@@ -921,32 +872,35 @@ SC_fetch(StatementClass *self)
 	self->last_fetch_count++;
 	self->last_fetch_count_include_ommitted++;
 
-	opts = SC_get_ARD(self);
+	opts = SC_get_ARDF(self);
 	/*
 	 * If the bookmark column was bound then return a bookmark. Since this
 	 * is used with SQLExtendedFetch, and the rowset size may be greater
 	 * than 1, and an application can use row or column wise binding, use
 	 * the code in copy_and_convert_field() to handle that.
 	 */
-	if (opts->bookmark->buffer)
+	if ((bookmark = opts->bookmark) && bookmark->buffer)
 	{
 		char		buf[32];
 		UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
 		sprintf(buf, "%ld", SC_get_bookmark(self));
 		result = copy_and_convert_field(self, 0, buf,
-			 SQL_C_ULONG, opts->bookmark->buffer + offset, 0,
-			opts->bookmark->used ? opts->bookmark->used + (offset >> 2) : NULL);
+			 SQL_C_ULONG, bookmark->buffer + offset, 0,
+			bookmark->used ? bookmark->used + (offset >> 2) : NULL);
 	}
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
 		return SQL_SUCCESS;
+	gdata = SC_get_GDTI(self);
+	if (gdata->allocated != opts->allocated)
+		extend_getdata_info(gdata, opts->allocated, TRUE);
 	for (lf = 0; lf < num_cols; lf++)
 	{
 		mylog("fetch: cols=%d, lf=%d, opts = %u, opts->bindings = %u, buffer[] = %u\n", num_cols, lf, opts, opts->bindings, opts->bindings[lf].buffer);
 
 		/* reset for SQLGetData */
-		opts->bindings[lf].data_left = -1;
+		gdata->gdata[lf].data_left = -1;
 
 		if (opts->bindings[lf].buffer != NULL)
 		{
@@ -1029,13 +983,8 @@ SC_execute(StatementClass *self)
 {
 	CSTR func = "SC_execute";
 	ConnectionClass *conn;
-	APDFields	*apdopts;
-	char		was_ok, was_nonfatal, was_rows_affected = 1;
-	/* was_rows_affected is set to 0 iff an UPDATE or DELETE affects 
-	 * no rows. In this instance the driver should return
-	 * SQL_NO_DATA_FOUND instead of SQL_SUCCESS.
-	 */
- 
+	IPDFields	*ipdopts;
+	char		was_ok, was_nonfatal;
 	QResultClass	*res = NULL;
 	Int2		oldstatus,
 				numcols;
@@ -1166,13 +1115,6 @@ SC_execute(StatementClass *self)
 	{
 		was_ok = QR_command_successful(res);
 		was_nonfatal = QR_command_nonfatal(res);
-		if (res->command &&
-			(strncmp(res->command, "UPDATE", 6) == 0 ||
-			strncmp(res->command, "DELETE", 6) == 0) &&
-			strtoul(res->command + 7, NULL, 0) == 0)
-		{
-			was_rows_affected = 0;
-		}
 
 		if (was_ok)
 			SC_set_errornumber(self, STMT_OK);
@@ -1202,7 +1144,7 @@ SC_execute(StatementClass *self)
 			/* now allocate the array to hold the binding info */
 			if (numcols > 0)
 			{
-				ARDFields	*opts = SC_get_ARD(self);
+				ARDFields	*opts = SC_get_ARDF(self);
 				extend_column_bindings(opts, numcols);
 				if (opts->bindings == NULL)
 				{
@@ -1248,13 +1190,12 @@ SC_execute(StatementClass *self)
 		last->next = res;
 	}
 
-	apdopts = SC_get_APD(self);
+	ipdopts = SC_get_IPDF(self);
 	if (self->statement_type == STMT_TYPE_PROCCALL &&
 		(SC_get_errornumber(self) == STMT_OK ||
 		 SC_get_errornumber(self) == STMT_INFO_ONLY) &&
-		apdopts->parameters &&
-		apdopts->parameters[0].buffer &&
-		apdopts->parameters[0].paramType == SQL_PARAM_OUTPUT)
+		ipdopts->parameters &&
+		ipdopts->parameters[0].paramType == SQL_PARAM_OUTPUT)
 	{							/* get the return value of the procedure
 								 * call */
 		RETCODE		ret;
@@ -1263,6 +1204,8 @@ SC_execute(StatementClass *self)
 		ret = SC_fetch(hstmt);
 		if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO)
 		{
+			APDFields	*apdopts = SC_get_APDF(self);
+
 			ret = PGAPI_GetData(hstmt, 1, apdopts->parameters[0].CType, apdopts->parameters[0].buffer, apdopts->parameters[0].buflen, apdopts->parameters[0].used);
 			if (ret != SQL_SUCCESS)
 			{
@@ -1275,10 +1218,7 @@ SC_execute(StatementClass *self)
 		}
 	}
 	if (SC_get_errornumber(self) == STMT_OK)
-		if (was_rows_affected)
-			return SQL_SUCCESS;
-		else
-			return SQL_NO_DATA_FOUND;
+		return SQL_SUCCESS;
 	else if (SC_get_errornumber(self) == STMT_INFO_ONLY)
 		return SQL_SUCCESS_WITH_INFO;
 	else
@@ -1290,6 +1230,60 @@ SC_execute(StatementClass *self)
 	}
 }
 
+#define	CALLBACK_ALLOC_ONCE	4
+int enqueueNeedDataCallback(StatementClass *stmt, NeedDataCallfunc func, void *data)
+{
+	if (stmt->num_callbacks >= stmt->allocated_callbacks)
+	{
+		stmt->callbacks = (NeedDataCallback *) realloc(stmt->callbacks,
+			sizeof(NeedDataCallback) * (stmt->allocated_callbacks +
+				CALLBACK_ALLOC_ONCE));
+		stmt->allocated_callbacks += CALLBACK_ALLOC_ONCE;
+	}
+	stmt->callbacks[stmt->num_callbacks].func = func;
+	stmt->callbacks[stmt->num_callbacks].data = data;
+	stmt->num_callbacks++;
+
+inolog("enqueueNeedDataCallack stmt=%x, func=%x, count=%d\n", stmt, func, stmt->num_callbacks);
+	return stmt->num_callbacks;
+}
+
+RETCODE dequeueNeedDataCallback(RETCODE retcode, StatementClass *stmt)
+{
+	RETCODE			ret;
+	NeedDataCallfunc	func;
+	void			*data;
+	int			i, cnt;
+
+	mylog("dequeueNeedDataCallback ret=%d count=%d\n", retcode, stmt->num_callbacks);
+	if (SQL_NEED_DATA == retcode)
+		return retcode;
+	if (stmt->num_callbacks <= 0)
+		return retcode;
+	func = stmt->callbacks[0].func;
+	data = stmt->callbacks[0].data;
+	for (i = 1; i < stmt->num_callbacks; i++)
+		stmt->callbacks[i - 1] = stmt->callbacks[i];
+	cnt = --stmt->num_callbacks;
+	ret = (*func)(retcode, data);
+	free(data);
+	if (SQL_NEED_DATA != ret && cnt > 0)
+		ret = dequeueNeedDataCallback(ret, stmt);
+	return ret;
+}
+
+void	cancelNeedDataState(StatementClass *stmt)
+{
+	int	cnt = stmt->num_callbacks, i;
+
+	stmt->num_callbacks = 0;
+	for (i = 0; i < cnt; i++)
+	{
+		if (stmt->callbacks[i].data)
+			free(stmt->callbacks[i].data);
+	}
+	stmt->execute_delegate = NULL;
+}
 
 void
 SC_log_error(const char *func, const char *desc, const StatementClass *self)
@@ -1300,8 +1294,8 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 	if (self)
 	{
 		QResultClass *res = SC_get_Result(self);
-		const ARDFields	*opts = SC_get_ARD(self);
-		const APDFields	*apdopts = SC_get_APD(self);
+		const ARDFields	*opts = SC_get_ARDF(self);
+		const APDFields	*apdopts = SC_get_APDF(self);
 		int	rowsetSize;
 
 #if (ODBCVER >= 0x0300)
@@ -1343,3 +1337,57 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 	}
 #undef PRN_NULLCHECK
 }
+
+/*	Map sql commands to statement types */
+static struct
+{
+	int	number;
+	const	char	* ver3str;
+	const	char	* ver2str;
+}	Descriptor_sqlstate[] =
+
+{
+	{ STMT_OK,  "00000", "00000" }, /* OK */
+	{ STMT_EXEC_ERROR, "HY000", "S1000" }, /* also a general error */
+	{ STMT_STATUS_ERROR, "HY010", "S1010" },
+	{ STMT_SEQUENCE_ERROR, "HY010", "S1010" }, /* Function sequence error */
+	{ STMT_NO_MEMORY_ERROR, "HY001", "S1001" }, /* memory allocation failure */
+	{ STMT_COLNUM_ERROR, "07009", "S1002" }, /* invalid column number */
+	{ STMT_NO_STMTSTRING, "HY001", "S1001" }, /* having no stmtstring is also a malloc problem */
+	{ STMT_ERROR_TAKEN_FROM_BACKEND, "HY000", "S1000" }, /* general error */
+	{ STMT_INTERNAL_ERROR, "HY000", "S1000" }, /* general error */
+	{ STMT_STILL_EXECUTING, "HY010", "S1010" },
+	{ STMT_NOT_IMPLEMENTED_ERROR, "HYC00", "S1C00" }, /* == 'driver not 
+							  * capable' */
+	{ STMT_BAD_PARAMETER_NUMBER_ERROR, "07009", "S1093" },
+	{ STMT_OPTION_OUT_OF_RANGE_ERROR, "HY092", "S1092" },
+	{ STMT_INVALID_COLUMN_NUMBER_ERROR, "07009", "S1002" },
+	{ STMT_RESTRICTED_DATA_TYPE_ERROR, "07006", "07006" },
+	{ STMT_INVALID_CURSOR_STATE_ERROR, "07005", "24000" },
+	{ STMT_OPTION_VALUE_CHANGED, "01S02", "01S02" },
+	{ STMT_CREATE_TABLE_ERROR, "42S01", "S0001" }, /* table already exists */
+	{ STMT_NO_CURSOR_NAME, "S1015", "S1015" },
+	{ STMT_INVALID_CURSOR_NAME, "34000", "34000" },
+	{ STMT_INVALID_ARGUMENT_NO, "HY024", "S1009" }, /* invalid argument value */
+	{ STMT_ROW_OUT_OF_RANGE, "HY107", "S1107" },
+	{ STMT_OPERATION_CANCELLED, "HY008", "S1008" },
+	{ STMT_INVALID_CURSOR_POSITION, "HY109", "S1109" },
+	{ STMT_VALUE_OUT_OF_RANGE, "HY019", "22003" },
+	{ STMT_OPERATION_INVALID, "HY011", "S1011" },
+	{ STMT_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" }, 
+	{ STMT_BAD_ERROR, "08S01", "08S01" }, /* communication link failure */
+	{ STMT_INVALID_OPTION_IDENTIFIER, "HY092", "HY092" },
+	{ STMT_RETURN_NULL_WITHOUT_INDICATOR, "22002", "22002" },
+	{ STMT_ERROR_IN_ROW, "01S01", "01S01" },
+	{ STMT_INVALID_DESCRIPTOR_IDENTIFIER, "HY091", "HY091" },
+	{ STMT_OPTION_NOT_FOR_THE_DRIVER, "HYC00", "HYC00" },
+	{ STMT_FETCH_OUT_OF_RANGE, "HY106", "S1106" },
+	{ STMT_COUNT_FIELD_INCORRECT, "07002", "07002" },
+
+
+	{ STMT_ROW_VERSION_CHANGED,  "01001", "01001" }, /* data changed */
+	{ STMT_TRUNCATED, "01004", "01004" }, /* data truncated */
+	{ STMT_INFO_ONLY, "00000", "00000" }, /* just information that is returned, no error */
+	{ STMT_POS_BEFORE_RECORDSET, "01S06", "01S06" },
+};
+

@@ -44,6 +44,7 @@ PGAPI_BindParameter(
 	CSTR func = "PGAPI_BindParameter";
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
+	PutDataInfo	*pdata_info;
 
 	mylog("%s: entering...\n", func);
 
@@ -54,12 +55,15 @@ PGAPI_BindParameter(
 	}
 	SC_clear_error(stmt);
 
-	apdopts = SC_get_APD(stmt);
+	apdopts = SC_get_APDF(stmt);
 	if (apdopts->allocated < ipar)
 		extend_parameter_bindings(apdopts, ipar);
-	ipdopts = SC_get_IPD(stmt);
+	ipdopts = SC_get_IPDF(stmt);
 	if (ipdopts->allocated < ipar)
 		extend_iparameter_bindings(ipdopts, ipar);
+	pdata_info = SC_get_PDTI(stmt);
+	if (pdata_info->allocated < ipar)
+		extend_putdata_info(pdata_info, ipar, FALSE);
 
 	/* use zero based column numbers for the below part */
 	ipar--;
@@ -68,7 +72,6 @@ PGAPI_BindParameter(
 	apdopts->parameters[ipar].buflen = cbValueMax;
 	apdopts->parameters[ipar].buffer = rgbValue;
 	apdopts->parameters[ipar].used = pcbValue;
-	apdopts->parameters[ipar].paramType = fParamType;
 	apdopts->parameters[ipar].CType = fCType;
 	ipdopts->parameters[ipar].SQLType = fSqlType;
 	ipdopts->parameters[ipar].paramType = fParamType;
@@ -99,16 +102,16 @@ PGAPI_BindParameter(
 	 * If rebinding a parameter that had data-at-exec stuff in it, then
 	 * free that stuff
 	 */
-	if (apdopts->parameters[ipar].EXEC_used)
+	if (pdata_info->pdata[ipar].EXEC_used)
 	{
-		free(apdopts->parameters[ipar].EXEC_used);
-		apdopts->parameters[ipar].EXEC_used = NULL;
+		free(pdata_info->pdata[ipar].EXEC_used);
+		pdata_info->pdata[ipar].EXEC_used = NULL;
 	}
 
-	if (apdopts->parameters[ipar].EXEC_buffer)
+	if (pdata_info->pdata[ipar].EXEC_buffer)
 	{
-		free(apdopts->parameters[ipar].EXEC_buffer);
-		apdopts->parameters[ipar].EXEC_buffer = NULL;
+		free(pdata_info->pdata[ipar].EXEC_buffer);
+		pdata_info->pdata[ipar].EXEC_buffer = NULL;
 	}
 
 	if (pcbValue && apdopts->param_offset_ptr)
@@ -143,6 +146,8 @@ PGAPI_BindCol(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindCol";
 	ARDFields	*opts;
+	GetDataInfo	*gdata_info;
+	BindInfoClass	*bookmark;
 
 	mylog("%s: entering...\n", func);
 
@@ -155,9 +160,7 @@ PGAPI_BindCol(
 		return SQL_INVALID_HANDLE;
 	}
 
-
-
-	opts = SC_get_ARD(stmt);
+	opts = SC_get_ARDF(stmt);
 	if (stmt->status == STMT_EXECUTING)
 	{
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't bind columns while statement is still executing.");
@@ -169,10 +172,14 @@ PGAPI_BindCol(
 	/* If the bookmark column is being bound, then just save it */
 	if (icol == 0)
 	{
+		bookmark = opts->bookmark;
 		if (rgbValue == NULL)
 		{
-			opts->bookmark->buffer = NULL;
-			opts->bookmark->used = NULL;
+			if (bookmark)
+			{
+				bookmark->buffer = NULL;
+				bookmark->used = NULL;
+			}
 		}
 		else
 		{
@@ -191,10 +198,11 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 					return SQL_ERROR;
 			}
 
-			opts->bookmark->buffer = rgbValue;
-			opts->bookmark->used = pcbValue;
-			opts->bookmark->buflen = cbValueMax;
-			opts->bookmark->returntype = fCType;
+			bookmark = ARD_AllocBookmark(opts);
+			bookmark->buffer = rgbValue;
+			bookmark->used = pcbValue;
+			bookmark->buflen = cbValueMax;
+			bookmark->returntype = fCType;
 		}
 		return SQL_SUCCESS;
 	}
@@ -206,6 +214,9 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 	 */
 	if (icol > opts->allocated)
 		extend_column_bindings(opts, icol);
+	gdata_info = SC_get_GDTI(stmt);
+	if (icol > gdata_info->allocated)
+		extend_getdata_info(gdata_info, icol, FALSE);
 
 	/* check to see if the bindings were allocated */
 	if (!opts->bindings)
@@ -219,7 +230,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 	icol--;
 
 	/* Reset for SQLGetData */
-	opts->bindings[icol].data_left = -1;
+	gdata_info->gdata[icol].data_left = -1;
 
 	if (rgbValue == NULL)
 	{
@@ -228,13 +239,13 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		opts->bindings[icol].buffer = NULL;
 		opts->bindings[icol].used = NULL;
 		opts->bindings[icol].returntype = SQL_C_CHAR;
-		if (opts->bindings[icol].ttlbuf)
-			free(opts->bindings[icol].ttlbuf);
-		opts->bindings[icol].ttlbuf = NULL;
-		opts->bindings[icol].ttlbuflen = 0;
-		opts->bindings[icol].ttlbufused = 0;
 		opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
+		if (gdata_info->gdata[icol].ttlbuf)
+			free(gdata_info->gdata[icol].ttlbuf);
+		gdata_info->gdata[icol].ttlbuf = NULL;
+		gdata_info->gdata[icol].ttlbuflen = 0;
+		gdata_info->gdata[icol].ttlbufused = 0;
 	}
 	else
 	{
@@ -289,14 +300,14 @@ PGAPI_DescribeParam(
 	}
 	SC_clear_error(stmt);
 
-	apdopts = SC_get_APD(stmt);
+	apdopts = SC_get_APDF(stmt);
 	if ((ipar < 1) || (ipar > apdopts->allocated))
 	{
 		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.");
 		SC_log_error(func, "", stmt);
 		return SQL_ERROR;
 	}
-	ipdopts = SC_get_IPD(stmt);
+	ipdopts = SC_get_IPDF(stmt);
 
 	ipar--;
 
@@ -315,7 +326,7 @@ PGAPI_DescribeParam(
 		*pibScale = ipdopts->parameters[ipar].decimal_digits;
 
 	if (pfNullable)
-		*pfNullable = pgtype_nullable(stmt, apdopts->parameters[ipar].paramType);
+		*pfNullable = pgtype_nullable(stmt, ipdopts->parameters[ipar].paramType);
 
 	return SQL_SUCCESS;
 }
@@ -334,9 +345,9 @@ PGAPI_ParamOptions(
 
 	mylog("%s: entering... %d %x\n", func, crow, pirow);
 
-	apdopts = SC_get_APD(stmt);
+	apdopts = SC_get_APDF(stmt);
 	apdopts->paramset_size = crow;
-	SC_get_IPD(stmt)->param_processed_ptr = (UInt4 *) pirow;
+	SC_get_IPDF(stmt)->param_processed_ptr = (UInt4 *) pirow;
 	return SQL_SUCCESS;
 }
 
@@ -404,7 +415,7 @@ PGAPI_NumParams(
 /*
  *	 Bindings Implementation
  */
-BindInfoClass *
+static BindInfoClass *
 create_empty_bindings(int num_columns)
 {
 	BindInfoClass *new_bindings;
@@ -419,10 +430,6 @@ create_empty_bindings(int num_columns)
 		new_bindings[i].buflen = 0;
 		new_bindings[i].buffer = NULL;
 		new_bindings[i].used = NULL;
-		new_bindings[i].data_left = -1;
-		new_bindings[i].ttlbuf = NULL;
-		new_bindings[i].ttlbuflen = 0;
-		new_bindings[i].ttlbufused = 0;
 	}
 
 	return new_bindings;
@@ -508,21 +515,8 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 	self->parameters[ipar].buflen = 0;
 	self->parameters[ipar].buffer = 0;
 	self->parameters[ipar].used = 0;
-	self->parameters[ipar].paramType = 0;
 	self->parameters[ipar].CType = 0;
 	self->parameters[ipar].data_at_exec = FALSE;
-	if (self->parameters[ipar].EXEC_used)
-	{
-		free(self->parameters[ipar].EXEC_used);
-		self->parameters[ipar].EXEC_used = NULL;
-	}
-
-	if (self->parameters[ipar].EXEC_buffer)
-	{
-		free(self->parameters[ipar].EXEC_buffer);
-		self->parameters[ipar].EXEC_buffer = NULL;
-	}
-	self->parameters[ipar].lobj_oid = 0;
 	self->parameters[ipar].precision = 0;
 	self->parameters[ipar].scale = 0;
 }
@@ -552,29 +546,10 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 void
 APD_free_params(APDFields *apdopts, char option)
 {
-	int			i;
-
 	mylog("APD_free_params:  ENTER, self=%d\n", apdopts);
 
 	if (!apdopts->parameters)
 		return;
-
-	for (i = 0; i < apdopts->allocated; i++)
-	{
-		if (apdopts->parameters[i].data_at_exec)
-		{
-			if (apdopts->parameters[i].EXEC_used)
-			{
-				free(apdopts->parameters[i].EXEC_used);
-				apdopts->parameters[i].EXEC_used = NULL;
-			}
-			if (apdopts->parameters[i].EXEC_buffer)
-			{
-				free(apdopts->parameters[i].EXEC_buffer);
-				apdopts->parameters[i].EXEC_buffer = NULL;
-			}
-		}
-	}
 
 	if (option == STMT_FREE_PARAMS_ALL)
 	{
@@ -585,6 +560,41 @@ APD_free_params(APDFields *apdopts, char option)
 	}
 
 	mylog("APD_free_params:  EXIT\n");
+}
+
+void
+PDATA_free_params(PutDataInfo *pdata, char option)
+{
+	int			i;
+
+	mylog("PDATA_free_params:  ENTER, self=%d\n", pdata);
+
+	if (!pdata->pdata)
+		return;
+
+	for (i = 0; i < pdata->allocated; i++)
+	{
+		if (pdata->pdata[i].EXEC_used)
+		{
+			free(pdata->pdata[i].EXEC_used);
+			pdata->pdata[i].EXEC_used = NULL;
+		}
+		if (pdata->pdata[i].EXEC_buffer)
+		{
+			free(pdata->pdata[i].EXEC_buffer);
+			pdata->pdata[i].EXEC_buffer = NULL;
+		}
+	}
+
+	if (option == STMT_FREE_PARAMS_ALL)
+	{
+		if (pdata->pdata)
+			free(pdata->pdata);
+		pdata->pdata = NULL;
+		pdata->allocated = 0;
+	}
+
+	mylog("PDATA_free_params:  EXIT\n");
 }
 
 /*
@@ -665,6 +675,7 @@ void
 reset_a_column_binding(ARDFields *self, int icol)
 {
 	CSTR func = "reset_a_column_binding";
+	BindInfoClass	*bookmark;
 
 	mylog("%s: entering ... self=%u, bindings_allocated=%d, icol=%d\n", func, self, self->allocated, icol);
 
@@ -674,8 +685,11 @@ reset_a_column_binding(ARDFields *self, int icol)
 	/* use zero based col numbers from here out */
 	if (0 == icol)
 	{
-		self->bookmark->buffer = NULL;
-		self->bookmark->used = NULL;
+		if (bookmark = self->bookmark, bookmark != NULL)
+		{
+			bookmark->buffer = NULL;
+			bookmark->used = NULL;
+		}
 	}
 	else
 	{
@@ -685,13 +699,7 @@ reset_a_column_binding(ARDFields *self, int icol)
 		self->bindings[icol].buflen = 0;
 		self->bindings[icol].buffer = NULL;
 		self->bindings[icol].used = NULL;
-		self->bindings[icol].data_left = -1;
 		self->bindings[icol].returntype = SQL_C_CHAR;
-		if (self->bindings[icol].ttlbuf)
-			free(self->bindings[icol].ttlbuf);
-		self->bindings[icol].ttlbuf = NULL;
-		self->bindings[icol].ttlbuflen = 0;
-		self->bindings[icol].ttlbufused = 0;
 	}
 }
 
@@ -699,6 +707,7 @@ void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
 	Int2	lf;
 
+inolog("ARD_unbind_cols freeall=%d allocated=%d bindings=%x", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_column_binding(self, lf);
 	if (freeall)
@@ -708,4 +717,184 @@ void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 		self->bindings = NULL;
 		self->allocated = 0;
 	}
-} 
+}
+void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
+{
+	Int2	lf;
+
+inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%x", freeall, self->allocated, self->gdata);
+	for (lf = 1; lf <= self->allocated; lf++)
+		reset_a_getdata_info(self, lf);
+	if (freeall)
+	{
+		if (self->gdata)
+			free(self->gdata);
+		self->gdata = NULL;
+		self->allocated = 0;
+	}
+}
+
+void GetDataInfoInitialize(GetDataInfo *gdata_info)
+{
+	gdata_info->allocated = 0;
+	gdata_info->gdata = NULL;
+}
+static GetDataClass *
+create_empty_gdata(int num_columns)
+{
+	GetDataClass	*new_gdata;
+	int			i;
+
+	new_gdata = (GetDataClass *) malloc(num_columns * sizeof(GetDataClass));
+	if (!new_gdata)
+		return NULL;
+
+	for (i = 0; i < num_columns; i++)
+	{
+		new_gdata[i].data_left = -1;
+		new_gdata[i].ttlbuf = NULL;
+		new_gdata[i].ttlbuflen = 0;
+		new_gdata[i].ttlbufused = 0;
+	}
+
+	return new_gdata;
+}
+void
+extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
+{
+	CSTR func = "extend_getdata_info";
+	GetDataClass	*new_gdata;
+	int			i;
+
+	mylog("%s: entering ... self=%u, gdata_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
+
+	/*
+	 * if we have too few, allocate room for more, and copy the old
+	 * entries into the new structure
+	 */
+	if (self->allocated < num_columns)
+	{
+		new_gdata = create_empty_gdata(num_columns);
+		if (!new_gdata)
+		{
+			mylog("%s: unable to create %d new gdata from %d old gdata\n", func, num_columns, self->allocated);
+
+			if (self->gdata)
+			{
+				free(self->gdata);
+				self->gdata = NULL;
+			}
+			self->allocated = 0;
+			return;
+		}
+		if (self->gdata)
+		{
+			for (i = 0; i < self->allocated; i++)
+				new_gdata[i] = self->gdata[i];
+			free(self->gdata);
+		}
+		self->gdata = new_gdata;
+		self->allocated = num_columns;
+	}
+	else if (shrink && self->allocated > num_columns)
+	{
+		for (i = self->allocated; i > num_columns; i--)
+			reset_a_getdata_info(self, i);
+		self->allocated = num_columns;
+		if (0 == num_columns)
+		{
+			free(self->gdata);
+			self->gdata = NULL;
+		}
+	} 
+
+	/*
+	 * There is no reason to zero out extra gdata if there are more
+	 * than needed.  If an app has allocated extra gdata, let it worry
+	 * about it by unbinding those columns.
+	 */
+
+	mylog("exit extend_gdata_info\n");
+}
+void	reset_a_getdata_info(GetDataInfo *gdata_info, int icol)
+{
+	if (icol < 1 || icol > gdata_info->allocated)
+		return;
+	icol--;
+	if (gdata_info->gdata[icol].ttlbuf)
+	{
+		free(gdata_info->gdata[icol].ttlbuf);
+		gdata_info->gdata[icol].ttlbuf = NULL;
+	}
+	gdata_info->gdata[icol].ttlbuflen =
+	gdata_info->gdata[icol].ttlbufused = 0;
+	gdata_info->gdata[icol].data_left = -1;
+}
+
+void PutDataInfoInitialize(PutDataInfo *pdata_info)
+{
+	pdata_info->allocated = 0;
+	pdata_info->pdata = NULL;
+}
+void
+extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
+{
+	CSTR func = "extend_putdata_info";
+	PutDataClass	*new_pdata;
+
+	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+
+	/*
+	 * if we have too few, allocate room for more, and copy the old
+	 * entries into the new structure
+	 */
+	if (self->allocated < num_params)
+	{
+		new_pdata = (PutDataClass *) realloc(self->pdata, sizeof(PutDataClass) * num_params);
+		if (!new_pdata)
+		{
+			mylog("%s: unable to create %d new pdata from %d old pdata\n", func, num_params, self->allocated);
+
+			self->pdata = NULL;
+			self->allocated = 0;
+			return;
+		}
+		memset(&new_pdata[self->allocated], 0,
+			sizeof(PutDataClass) * (num_params - self->allocated));
+
+		self->pdata = new_pdata;
+		self->allocated = num_params;
+	}
+	else if (shrink && self->allocated > num_params)
+	{
+		int	i;
+
+		for (i = self->allocated; i > num_params; i--)
+			reset_a_putdata_info(self, i);
+		self->allocated = num_params;
+		if (0 == num_params)
+		{
+			free(self->pdata);
+			self->pdata = NULL;
+		}
+	}
+
+	mylog("exit extend_putdata_info\n");
+}
+void	reset_a_putdata_info(PutDataInfo *pdata_info, int ipar)
+{
+	if (ipar < 1 || ipar > pdata_info->allocated)
+		return;
+	ipar--;
+	if (pdata_info->pdata[ipar].EXEC_used)
+	{
+		free(pdata_info->pdata[ipar].EXEC_used);
+		pdata_info->pdata[ipar].EXEC_used = NULL;
+	}
+	if (pdata_info->pdata[ipar].EXEC_buffer)
+	{
+		free(pdata_info->pdata[ipar].EXEC_buffer);
+		pdata_info->pdata[ipar].EXEC_buffer = NULL;
+	}
+	pdata_info->pdata[ipar].lobj_oid = 0;
+}

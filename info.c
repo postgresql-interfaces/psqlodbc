@@ -819,7 +819,7 @@ PGAPI_GetTypeInfo(
 #else
 	result_cols = 15;
 #endif /* ODBCVER */
-	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	QR_set_num_fields(res, result_cols);
 	QR_set_field_info(res, 0, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
@@ -1110,12 +1110,14 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLSETCURSORNAME:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLSETPARAM:
 					*pfExists = FALSE;
 					break;		/* odbc 1.0 */
 				case SQL_API_SQLTRANSACT:
 					*pfExists = TRUE;
 					break;
+#endif /* ODBCVER */
 
 					/* ODBC level 1 functions */
 				case SQL_API_SQLBINDPARAMETER:
@@ -1204,9 +1206,11 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLNUMPARAMS:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLPARAMOPTIONS:
 					*pfExists = TRUE;
 					break;
+#endif /* ODBCVER */
 				case SQL_API_SQLPRIMARYKEYS:
 					*pfExists = TRUE;
 					break;
@@ -1225,9 +1229,11 @@ PGAPI_GetFunctions(
 				case SQL_API_SQLSETPOS:
 					*pfExists = TRUE;
 					break;
+#if (ODBCVER < 0x0300)
 				case SQL_API_SQLSETSCROLLOPTIONS:
 					*pfExists = TRUE;
 					break;		/* odbc 1.0 */
+#endif /* ODBCVER */
 				case SQL_API_SQLTABLEPRIVILEGES:
 					*pfExists = TRUE;
 					break;
@@ -1460,7 +1466,7 @@ PGAPI_Tables(
 	else
 		strcat(tables_query, " and usesysid = relowner order by relname");
 
-	result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
+	result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_full_error_copy(stmt, htbl_stmt);
@@ -1517,7 +1523,7 @@ PGAPI_Tables(
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
 	 */
-	extend_column_bindings(SC_get_ARD(stmt), 5);
+	extend_column_bindings(SC_get_ARDF(stmt), 5);
 
 	/* set the field names */
 	QR_set_num_fields(res, 5);
@@ -1734,8 +1740,6 @@ PGAPI_Columns(
 	ConnectionClass *conn;
 	SWORD		internal_asis_type = SQL_C_CHAR;
 	const char *likeeq = "like";
-	const char *mzTableOwner = szTableOwner, *mzTableName = szTableName,
-		*mzColumnName = szColumnName;
 
 	mylog("%s: entering...stmt=%u scnm=%x len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -1778,19 +1782,12 @@ PGAPI_Columns(
 
 	if ((flag & PODBC_NOT_SEARCH_PATTERN) != 0) 
 	{
-		likeeq = "=";
-	}
-	else
-	{
-	}
-	if ((flag & PODBC_NOT_SEARCH_PATTERN) != 0) 
-	{
-		my_strcat1(columns_query, " and c.relname %s '%.*s'", likeeq, mzTableName, cbTableName);
+		my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName);
 		if (conn->schema_support)
-			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, mzTableOwner, cbTableOwner, mzTableName, cbTableName, conn);
+			schema_strcat(columns_query, " and u.nspname = '%.*s'", szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
 		else
-			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, mzTableOwner, cbTableOwner);
-		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, mzColumnName, cbColumnName);
+			my_strcat(columns_query, " and u.usename = '%.*s'", szTableOwner, cbTableOwner);
+		my_strcat(columns_query, " and a.attname = '%.*s'", szColumnName, cbColumnName);
 	}
 	else
 	{
@@ -1798,13 +1795,12 @@ PGAPI_Columns(
 		int	escTbnamelen;
 
 		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
-		mzTableName = esc_table_name;
-		my_strcat1(columns_query, " and c.relname %s '%.*s'", likeeq, mzTableName, escTbnamelen);
+		my_strcat1(columns_query, " and c.relname %s '%.*s'", likeeq, esc_table_name, escTbnamelen);
 		if (conn->schema_support)
-			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, szTableOwner, cbTableOwner, mzTableName, cbTableName, conn);
+			schema_strcat1(columns_query, " and u.nspname %s '%.*s'", likeeq, szTableOwner, cbTableOwner, szTableName, cbTableName, conn);
 		else
-			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, mzTableOwner, cbTableOwner);
-		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, mzColumnName, cbColumnName);
+			my_strcat1(columns_query, " and u.usename %s '%.*s'", likeeq, szTableOwner, cbTableOwner);
+		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, szColumnName, cbColumnName);
 	}
 
 	/*
@@ -1827,8 +1823,7 @@ PGAPI_Columns(
 
 	mylog("%s: hcol_stmt = %u, col_stmt = %u\n", func, hcol_stmt, col_stmt);
 
-	result = PGAPI_ExecDirect(hcol_stmt, columns_query,
-							  strlen(columns_query));
+	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_full_error_copy(stmt, col_stmt);
@@ -1968,7 +1963,7 @@ PGAPI_Columns(
 	reserved_cols = 12;
 #endif /* ODBCVER */
 	result_cols = reserved_cols + 2;
-	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
@@ -2315,8 +2310,7 @@ PGAPI_SpecialColumns(
 
 	mylog("%s: hcol_stmt = %u, col_stmt = %u\n", func, hcol_stmt, col_stmt);
 
-	result = PGAPI_ExecDirect(hcol_stmt, columns_query,
-							  strlen(columns_query));
+	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_full_error_copy(stmt, col_stmt);
@@ -2367,7 +2361,7 @@ PGAPI_SpecialColumns(
 
 	res = QR_Constructor();
 	SC_set_Result(stmt, res);
-	extend_column_bindings(SC_get_ARD(stmt), 8);
+	extend_column_bindings(SC_get_ARDF(stmt), 8);
 
 	QR_set_num_fields(res, 8);
 	QR_set_field_info(res, 0, "SCOPE", PG_TYPE_INT2, 2);
@@ -2533,7 +2527,7 @@ PGAPI_Statistics(
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
 	 */
-	extend_column_bindings(SC_get_ARD(stmt), 13);
+	extend_column_bindings(SC_get_ARDF(stmt), 13);
 
 	/* set the field names */
 	QR_set_num_fields(res, 13);
@@ -2675,7 +2669,7 @@ PGAPI_Statistics(
 	else
 		strcat(index_query, " i.indisunique, c.relname");
 
-	result = PGAPI_ExecDirect(hindx_stmt, index_query, strlen(index_query));
+	result = PGAPI_ExecDirect(hindx_stmt, index_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		/*
@@ -2982,7 +2976,7 @@ PGAPI_PrimaryKeys(
 	 * ourselves.
 	 */
 	result_cols = 6;
-	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
@@ -3107,7 +3101,7 @@ PGAPI_PrimaryKeys(
 		}
 		mylog("%s: tables_query='%s'\n", func, tables_query);
 
-		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
+		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
 			SC_full_error_copy(stmt, tbl_stmt);
@@ -3494,7 +3488,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 #else
 	result_cols = 14;
 #endif /* ODBCVER */
-	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
@@ -3639,7 +3633,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 				"AND (pt.tgconstrrelid=pc1.oid)) ",
 				fk_table_needed);
 
-		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
+		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
@@ -4013,7 +4007,7 @@ char		schema_fetched[SCHEMA_NAME_STORAGE_LEN + 1];
 				"		)",
 				pk_table_needed);
 
-		result = PGAPI_ExecDirect(htbl_stmt, tables_query, strlen(tables_query));
+		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
 			SC_error_copy(stmt, tbl_stmt);
@@ -4337,7 +4331,7 @@ PGAPI_ProcedureColumns(
 #else
 	result_cols = 13;
 #endif /* ODBCVER */
-	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
@@ -4516,7 +4510,7 @@ PGAPI_Procedures(
 	 * results can be retrieved.
 	 */
 	stmt->status = STMT_FINISHED;
-	extend_column_bindings(SC_get_ARD(stmt), 8);
+	extend_column_bindings(SC_get_ARDF(stmt), 8);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	stmt->rowset_start = -1;
@@ -4605,7 +4599,7 @@ PGAPI_TablePrivileges(
 	 * ourselves.
 	 */
 	result_cols = 7;
-	extend_column_bindings(SC_get_ARD(stmt), result_cols);
+	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	/* set the field names */
 	stmt->manual_result = TRUE;

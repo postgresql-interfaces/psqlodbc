@@ -89,6 +89,7 @@ CLEAN :
 	-@erase "$(INTDIR)\odbcapi.obj"
 	-@erase "$(INTDIR)\odbcapi30.obj"
 	-@erase "$(INTDIR)\pgapi30.obj"
+	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\psqlodbc.dll"
 	-@erase "$(OUTDIR)\psqlodbc.exp"
@@ -178,6 +179,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\odbcapi.obj" \
 	"$(INTDIR)\odbcapi30.obj" \
 	"$(INTDIR)\pgapi30.obj" \
+	"$(INTDIR)\descriptor.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
 "$(OUTDIRBIN)\psqlodbc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -231,6 +233,7 @@ CLEAN :
 	-@erase "$(INTDIR)\odbcapi.obj"
 	-@erase "$(INTDIR)\odbcapi30.obj"
 	-@erase "$(INTDIR)\pgapi30.obj"
+	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\psqlodbc.dll"
@@ -323,6 +326,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\odbcapi.obj" \
 	"$(INTDIR)\odbcapi30.obj" \
 	"$(INTDIR)\pgapi30.obj" \
+	"$(INTDIR)\descriptor.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
 "$(OUTDIR)\psqlodbc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -531,6 +535,11 @@ SOURCE=odbcapi30.c
 SOURCE=pgapi30.c
 
 "$(INTDIR)\pgapi30.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=descriptor.c
+
+"$(INTDIR)\descriptor.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

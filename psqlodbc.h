@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.78 2003/08/27 10:17:53 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.79 2003/10/25 04:19:22 hinoue Exp $
  *
  */
 
@@ -85,6 +85,19 @@ typedef UInt4 Oid;
 #define strnicmp strncasecmp
 #else
 #define snprintf _snprintf
+#endif
+
+#ifndef	SQL_ATTR_APP_ROW_DESC
+#define	SQL_ATTR_APP_ROW_DESC	10010
+#endif
+#ifndef	SQL_ATTR_APP_PARAM_DESC
+#define	SQL_ATTR_APP_PARAM_DESC	10011
+#endif
+#ifndef	SQL_ATTR_IMP_ROW_DESC
+#define	SQL_ATTR_IMP_ROW_DESC	10012
+#endif
+#ifndef	SQL_ATTR_IMP_PARAM_DESC
+#define	SQL_ATTR_IMP_PARAM_DESC	10013
 #endif
 
 /* Driver stuff */
@@ -254,6 +267,22 @@ typedef struct QueryInfo_
 	QResultClass *result_in;
 	char	   *cursor;
 } QueryInfo;
+
+/*	Used to save the error information */
+typedef struct
+{
+        SDWORD  status;
+        SDWORD  errorsize;
+        SWORD   recsize;
+        SWORD   errorpos;
+        char    sqlstate[8];
+        Int4    diag_row_count;
+        char    __error_message[1];
+}       PG_ErrorInfo;
+PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
+void ER_Destructor(PG_ErrorInfo *);
+RETCODE SQL_API ER_ReturnError(PG_ErrorInfo *, SWORD, UCHAR FAR *,
+			SDWORD FAR *, UCHAR FAR *, SWORD, SWORD FAR *, UWORD);
 
 void		logs_on_off(int cnopen, int, int);
 

@@ -86,6 +86,7 @@ CLEAN :
 	-@erase "$(INTDIR)\tuple.obj"
 	-@erase "$(INTDIR)\tuplelist.obj"
 	-@erase "$(INTDIR)\odbcapi.obj"
+	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\psqlodbc25.dll"
 	-@erase "$(OUTDIR)\psqlodbc.exp"
@@ -172,6 +173,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\tuple.obj" \
 	"$(INTDIR)\tuplelist.obj" \
 	"$(INTDIR)\odbcapi.obj" \
+	"$(INTDIR)\descriptor.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
 "$(OUTDIRBIN)\psqlodbc25.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -222,6 +224,7 @@ CLEAN :
 	-@erase "$(INTDIR)\tuple.obj"
 	-@erase "$(INTDIR)\tuplelist.obj"
 	-@erase "$(INTDIR)\odbcapi.obj"
+	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\psqlodbc25.dll"
@@ -311,6 +314,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\tuple.obj" \
 	"$(INTDIR)\tuplelist.obj" \
 	"$(INTDIR)\odbcapi.obj" \
+	"$(INTDIR)\descriptor.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
 "$(OUTDIR)\psqlodbc25.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
@@ -502,6 +506,11 @@ SOURCE=win_md5.c
 SOURCE=odbcapi.c
 
 "$(INTDIR)\odbcapi.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=descriptor.c
+
+"$(INTDIR)\descriptor.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

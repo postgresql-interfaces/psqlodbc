@@ -174,7 +174,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 		if (SQL_SUCCESS == ret && blen * 2 > cbValueMax)
 		{
 			ret = SQL_SUCCESS_WITH_INFO;
-			Desc_set_error(hdesc, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
+			DC_set_error(hdesc, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
 		}
 		if (pcbValue)
 			*pcbValue = blen * 2;

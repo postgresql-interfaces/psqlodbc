@@ -348,7 +348,7 @@ CC_lookup_cs_old(ConnectionClass *self)
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		return encstr;
 
-	result = PGAPI_ExecDirect(hstmt, "Show Client_Encoding", SQL_NTS);
+	result = PGAPI_ExecDirect(hstmt, "Show Client_Encoding", SQL_NTS, 0);
 	if (result == SQL_SUCCESS_WITH_INFO)
 	{
 		char sqlState[8], errormsg[128], enc[32];

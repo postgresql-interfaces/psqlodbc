@@ -312,7 +312,7 @@ SQLExecDirect(HSTMT StatementHandle,
 	mylog("[SQLExecDirect]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength);
+	ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength, 0);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -326,7 +326,7 @@ SQLExecute(HSTMT StatementHandle)
 	mylog("[SQLExecute]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_Execute(StatementHandle);
+	ret = PGAPI_Execute(StatementHandle, 0);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -343,8 +343,8 @@ SQLFetch(HSTMT StatementHandle)
 #if (ODBCVER >= 0x0300)
 	if (SC_get_conn(stmt)->driver_version >= 0x0300)
 	{
-		IRDFields	*irdopts = SC_get_IRD(stmt);
-		ARDFields	*ardopts = SC_get_ARD(stmt);
+		IRDFields	*irdopts = SC_get_IRDF(stmt);
+		ARDFields	*ardopts = SC_get_ARDF(stmt);
 		SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
 		SQLINTEGER *pcRow = irdopts->rowsFetched;
 
@@ -997,7 +997,7 @@ SQLExtendedFetch(
 	mylog("[SQLExtendedFetch]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0, SC_get_ARD(stmt)->size_of_rowset_odbc2);
+	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0, SC_get_ARDF(stmt)->size_of_rowset_odbc2);
 	stmt->transition_status = 7;
 	LEAVE_STMT_CS(stmt);
 	return ret;
