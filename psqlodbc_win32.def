@@ -5,7 +5,7 @@ EXPORTS
 ;SQLAllocStmt @3
 SQLBindCol @4
 SQLCancel @5
-; SQLColAttributes @6 */
+; SQLColAttributes @6
 SQLConnect @7
 SQLDescribeCol @8
 SQLDisconnect @9
@@ -24,7 +24,6 @@ SQLSetCursorName @21
 ;SQLTransact @23
 SQLColumns @40
 SQLDriverConnect @41
-;SQLGetConnectOption @42
 SQLGetData @43
 SQLGetFunctions @44
 SQLGetInfo @45
@@ -32,8 +31,6 @@ SQLGetInfo @45
 SQLGetTypeInfo @47
 SQLParamData @48
 SQLPutData @49
-;SQLSetConnectOption @50
-;SQLSetStmtOption @51
 SQLSpecialColumns @52
 SQLStatistics @53
 SQLTables @54
@@ -80,3 +77,32 @@ SQLDummyOrdinal @199
 dconn_FDriverConnectProc @200
 DllMain @201
 ConfigDSN @202
+
+SQLColAttributeW	@101
+SQLColumnPrivilegesW	@102
+SQLColumnsW		@103
+SQLConnectW		@104
+SQLDescribeColW		@106
+SQLExecDirectW		@107
+SQLForeignKeysW		@108
+SQLGetConnectAttrW	@109
+SQLGetCursorNameW	@110
+SQLGetInfoW		@111
+SQLNativeSqlW		@112
+SQLPrepareW		@113
+SQLPrimaryKeysW		@114
+SQLProcedureColumnsW	@115
+SQLProceduresW		@116
+SQLSetConnectAttrW	@117
+SQLSetCursorNameW	@118
+SQLSpecialColumnsW	@119
+SQLStatisticsW		@120
+SQLTablesW		@121
+SQLTablePrivilegesW	@122
+SQLDriverConnectW	@123
+SQLGetDiagRecW		@124
+SQLGetStmtAttrW		@125
+SQLSetStmtAttrW		@126
+SQLSetDescFieldW	@127
+SQLGetTypeInfoW		@128
+SQLGetDiagFieldW	@129
