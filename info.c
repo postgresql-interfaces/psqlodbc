@@ -751,7 +751,7 @@ PGAPI_GetInfo(
                  * small.
                  */
                 if (conn->unicode)
-                    len *= WCLEN;
+                    len = (len * WCLEN) - 1;
 
 		if (rgbInfoValue)
 		{

@@ -368,7 +368,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
                  * small.
                  */
                 if (conn->unicode)
-                    len *= WCLEN;
+                    len = (len * WCLEN) - 1;
                 
 		if (rgbInfoValue)
 		{
@@ -401,7 +401,10 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 	}
 
 	if (pcbInfoValue)
-		*pcbInfoValue = len;	
+		if (conn->unicode)
+			*pcbInfoValue = len - 2;	
+		else
+			*pcbInfoValue = len;
 		
 	return result;
 }
