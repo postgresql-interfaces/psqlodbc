@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+  <Module 
+    Id="psqlODBC"
+    Guid="BD868C41-BB9B-4AA7-A3F1-DB1FA1A02610" 
+    Version="08.00.0004" 
+    Language="1033">
+    
+    <Package 
+      Id="A182B0DB-ED70-46C7-AED4-5C92D6F05756" 
+      Description="PostgreSQL ODBC Driver"
+      Keywords="PostgreSQL, ODBC" 
+      Manufacturer="PostgreSQL Global Development Group" 
+      InstallerVersion="110" 
+      Platforms="Intel" 
+      Languages="1033" 
+      Compressed="yes" 
+      SummaryCodepage="1252" />
+    
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="SystemFolder.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="Redist">
+        <Component Id="psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Guid="41B28294-AE87-43FE-B615-531CD4911047">
+          <File Id="psqlodbc.dll.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="psqlodbc.dll" KeyPath="yes" src="../Release/psqlodbc.dll">
+            <ODBCDriver Id="psqlodbc.A182B0DB_ED70_46C7_AED4_5C92D6F05756" Name="PostgreSQL" />
+          </File>
+        </Component>
+      </Directory>
+    </Directory>
+    
+  </Module>
+</Wix>

@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+  
+<!-- Product details -->
+
+  <Product 
+    Manufacturer="PostgreSQL Global Development Group" 
+    Id="BD868C41-BB9B-4AA7-A3F1-DB1FA1A02610" 
+    Name="psqlODBC" 
+    Version="$(var.VERSION)" 
+    Language="1033">
+      
+<!-- Package details -->
+
+	<Package 
+      Id="15462631-9E20-4834-A4E4-AA1425B751B6" 
+      Keywords="PostgreSQL, ODBC" 
+      Comments="PostgreSQL ODBC Driver"
+      Manufacturer="PostgreSQL Global Development Group" 
+      InstallerVersion="110" 
+      Languages="1033" 
+      Compressed="yes" 
+      SummaryCodepage="1252" />
+        
+<!-- Directories -->
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="SystemFolder" Name="." SourceName="System32">
+        <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
+      </Directory>
+    </Directory>
+        
+<!-- Features -->
+
+	<Feature Id="psqlodbc" Title="psqlODBC" Level="1">
+      <MergeRef Id="psqlodbcm" />
+    </Feature>
+    <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab"/>
+    
+<!-- Properties -->
+
+    <Property Id="UILANG" Value="1033"/>
+    <Property Id="_Title">{\Arial8Bold}</Property>
+    <Property Id="DefaultUIFont">MSSansSerif8</Property>
+    <Property Id="ALLUSERS">2</Property>
+    
+<!-- UI -->
+
+    <UI>
+      <TextStyle Id="Arial8Bold" FaceName="Arial" Size="8" Bold="yes" />
+      <TextStyle Id="Arial14" FaceName="Arial" Size="14" />
+      <TextStyle Id="MSSansSerif8" FaceName="MS Sans Serif" Size="8" />
+
+<!-- Bitmaps -->
+
+      <Binary Id="BannerBmp" src="banner.bmp" />
+      <Binary Id="RemoveIcon" src="remove.ico" />
+      
+<!-- Cancel dialog -->
+
+      <Dialog Id="Cancel" Width="233" Height="127" Title="psqODBC" NoMinimize="yes">
+        <Control Id="No" Type="PushButton" X="101" Y="101" Width="56" Height="17" Default="yes">
+          <Text>&amp;Resume</Text>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        <Control Id="Yes" Type="PushButton" X="164" Y="101" Width="56" Height="17" Cancel="yes">
+          <Text>&amp;Exit Setup</Text>
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        <Control Id="Text" Type="Text" X="10" Y="9" Width="210" Height="59">
+          <Text>Installation is not complete.  If you quit the setup program now, the application will not be installed. You can run the setup program at a later time to complete the installation.</Text>
+        </Control>
+        <Control Id="Text2515" Type="Text" X="10" Y="68" Width="210" Height="30">
+          <Text>To continue installing, click Resume.  To quit the setup program, click Exit Setup.</Text>
+        </Control>
+      </Dialog>
+
+<!-- Fatal Error dialog -->
+
+      <Dialog Id="Fatal_Error" X="40" Y="40" Width="240" Height="81" Title="Fatal Error">
+        <Control Id="OK" Type="PushButton" X="172" Y="56" Width="56" Height="17" Default="yes">
+          <Text>OK</Text>
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        <Control Id="Text" Type="Text" X="10" Y="9" Width="220" Height="37">
+          <Text>Installation ended prematurely because of an error.</Text>
+        </Control>
+      </Dialog>
+
+<!-- User Exit dialog -->
+
+      <Dialog Id="User_Exit" Width="240" Height="81" Title="psqlODBC Setup Cancelled">
+        <Control Id="OK" Type="PushButton" X="172" Y="56" Width="56" Height="17" Default="yes">
+          <Text>OK</Text>
+          <Publish Event="EndDialog" Value="Exit">1</Publish>
+        </Control>
+        <Control Id="Text" Type="Text" X="10" Y="9" Width="220" Height="44">
+          <Text>psqlODBC Setup was interrupted before it was fully installed.</Text>
+        </Control>
+      </Dialog>
+
+<!-- Exit dialog -->
+
+      <Dialog Id="Exit_Dialog" Width="375" Height="270" Title="psqlODBC">
+        
+        <!-- common dialog items -->
+        <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
+        <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
+        <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
+      
+        <!-- dialog buttons -->
+        <Control Id="OK" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes" Cancel="yes">
+          <Text>&amp;Finish</Text>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        <Control Id="PushButton" Type="PushButton" X="189" Y="244" Width="56" Height="17">
+          <Text>&lt; &amp;Back</Text>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+          <Condition Action="disable">1</Condition>
+        </Control>
+        <Control Id="PushButton1" Type="PushButton" X="309" Y="244" Width="56" Height="17">
+          <Text>Cancel</Text>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+          <Condition Action="disable">1</Condition>
+        </Control>
+      
+        <!-- dialog specific controls -->
+        <Control Id="uit1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
+          <Text>{\Arial10Bold}Installation complete!</Text>
+        </Control>
+        <Control Id="ui2" Type="Text" X="10" Y="75" Width="365" Height="30" Transparent="yes">
+          <Text>Congratulations, psqlODBC has been successfully installed on your system.</Text>
+        </Control>  
+        <Control Id="wc_txt3" Type="Text" X="10" Y="200" Width="365" Height="30" Transparent="yes">
+          <Text>Click the finish button to exit from the installer.</Text>
+        </Control>
+      </Dialog>
+      
+<!-- Welcome dialog -->
+
+      <Dialog Id="Welcome_Dialog" Width="375" Height="270" Title="psqlODBC" CustomPalette="yes">
+      
+        <!-- common dialog items -->
+        <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
+        <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
+        <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
+    
+        <!-- dialog buttons -->
+        <Control Id="Next" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes">
+          <Text>&amp;Next &gt;</Text>
+          <Publish Event="NewDialog" Value="Licence_Dialog">1</Publish>
+        </Control>
+        <Control Id="Previous" Type="PushButton" X="189" Y="244" Width="56" Height="17" Disabled="yes">
+          <Text>&lt; &amp;Back</Text>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="309" Y="244" Width="56" Height="17" Cancel="yes">
+          <Text>Cancel</Text>
+          <Publish Event="SpawnDialog" Value="Cancel">1</Publish>
+        </Control>
+    
+        <!-- dialog specific controls -->
+        <Control Id="wc_txt1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
+          <Text>{\Arial10Bold}Welcome to the psqlODBC Installation Wizard</Text>
+        </Control>
+        <Control Id="wc_txt2" Type="Text" X="10" Y="75" Width="365" Height="30" Transparent="yes">
+          <Text>It is strongly recommended that you exit all Windows programs before continuing with this installation.</Text>
+        </Control>
+        <Control Id="wc_txt3" Type="Text" X="12" Y="100" Width="365" Height="30" Transparent="yes">
+          <Text>Click the 'Next' button to continue, or 'Cancel' if you wish to abort the installation and try again later.</Text>
+        </Control>
+      </Dialog>
+      
+<!-- Licence Dialogue -->
+
+      <Dialog Id="Licence_Dialog" Width="375" Height="270" Title="psqlODBC" CustomPalette="yes">
+        
+        <!-- common dialog items -->
+        <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
+        <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
+        <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
+        
+        <!-- dialog buttons -->
+        <Control Id="Next" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes">
+          <Text>&amp;Next &gt;</Text>
+          <Publish Event="NewDialog" Value="Ready_Dialog">1</Publish>
+        </Control>
+        <Control Id="Previous" Type="PushButton" X="189" Y="244" Width="56" Height="17">
+          <Text>&lt; &amp;Back</Text>
+          <Publish Event="NewDialog" Value="Welcome_Dialog">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="309" Y="244" Width="56" Height="17" Cancel="yes">
+          <Text>Cancel</Text>
+          <Publish Event="SpawnDialog" Value="Cancel">1</Publish>
+        </Control>
+        
+        <!-- dialog specific controls -->
+        <Control Id="wt1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
+           <Text>{\Arial10Bold}Licence</Text>
+        </Control>
+        <Control Id="wt2" Type="Text" X="5" Y="55" Width="365" Height="15">
+          <Text>Please read the psqlODBC licence completely before you continue.</Text>
+        </Control>
+        <Control Id="lgpl_rtf" Type="ScrollableText" X="5" Y="73" Width="365" Height="155" Sunken="yes">
+          <Text src="lgpl.rtf" />
+        </Control>
+      </Dialog>
+  
+<!-- Ready dialogue -->
+
+      <Dialog Id="Ready_Dialog" Width="375" Height="270" Title="PostgreSQL" CustomPalette="yes">
+         
+        <!-- common dialog items -->
+        <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
+        <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
+        <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
+         
+        <!-- dialog buttons -->
+        <Control Id="Next" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes">
+          <Text>&amp;Next &gt;</Text>
+          <Publish Event="Remove" Value="ALL">MaintenanceType = "Remove"</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        <Control Id="Previous" Type="PushButton" X="189" Y="244" Width="56" Height="17">
+          <Text>&lt; &amp;Back</Text>
+          <Publish Event="NewDialog" Value="Licence_Dialog">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="309" Y="244" Width="56" Height="17" Cancel="yes">
+          <Text>Cancel</Text>
+          <Publish Event="SpawnDialog" Value="Cancel">1</Publish>
+        </Control>
+        
+        <!-- dialog specific controls -->
+        <Control Id="re_txt1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
+          <Text>{\Arial10Bold}Ready to install</Text>
+        </Control>
+        <Control Id="re_txt2" Type="Text" X="5" Y="80" Width="365" Height="30">
+          <Text>psqlODBC is now ready to be installed. Click Next to complete the installation.</Text>
+        </Control>
+      </Dialog>
+  
+<!-- Progress Dialogue -->
+
+      <Dialog Id="Progress_Dialog" Width="375" Height="270" Title="psqlODBC" CustomPalette="yes" Modeless="yes">
+    
+        <!-- common dialog items -->
+        <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
+        <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
+        <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
+        
+        <!-- dialog specific controls -->
+        <Control Id="ct1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
+          <Text>{\Arial10Bold}Installing...</Text>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="309" Y="244" Width="56" Height="17" Cancel="yes">
+          <Text>Cancel</Text>
+          <Publish Event="SpawnDialog" Value="Cancel">1</Publish>
+        </Control>
+        <Control Id="progtxt" Type="Text" X="15" Y="100" Width="340" Height="15">
+          <Subscribe Event="ActionText" Attribute="Text" />
+        </Control>
+        <Control Id="progdata" Type="Text" X="15" Y="75" Width="340" Height="15">
+          <Text>Initializing...</Text>
+          <Subscribe Event="ActionData" Attribute="Text" />
+        </Control>
+        <Control Id="progress" Type="ProgressBar" X="15" Y="130" Width="340" Height="20" ProgressBlocks="yes" Text="Install progress">
+          <Subscribe Event="SetProgress" Attribute="Progress" />
+        </Control>
+      </Dialog>
+  
+<!-- UI Sequence -->
+
+      <InstallUISequence>
+      
+        <Show Dialog="Fatal_Error" OnExit="error" />
+        <Show Dialog="User_Exit" OnExit="cancel" />
+        <Show Dialog="Exit_Dialog" OnExit="success" />
+
+        <LaunchConditions After="AppSearch" />
+    
+        <Show Dialog="Welcome_Dialog" After="MigrateFeatureStates">NOT Installed</Show>
+        <Show Dialog="Progress_Dialog" After="Welcome_Dialog" />
+        
+      </InstallUISequence>
+      
+    </UI>   
+  </Product>
+</Wix>
