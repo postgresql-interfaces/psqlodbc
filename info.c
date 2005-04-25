@@ -1217,7 +1217,8 @@ PGAPI_Tables(
 				table_types[MAX_INFO_STRING];
 	char		show_system_tables,
 				show_regular_tables,
-				show_views;
+				show_views,
+				remarks[254]; //Added for holding Table Description, if any.
 	char		regular_table,
 				view,
 				systable;
@@ -1254,9 +1255,19 @@ retry_public_schema:
 	if (conn->schema_support)
 	{
 		/* view is represented by its relkind since 7.1 */
-		strcpy(tables_query, "select relname, nspname, relkind"
-		" from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
-		strcat(tables_query, " where relkind in ('r', 'v')");
+
+		/* Previously it was:
+		 * strcpy(tables_query, "select relname, nspname, relkind"
+		 * from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
+		 * strcat(tables_query, " where relkind in ('r', 'v')");
+		 * Modified query to retrieve the description of the table:
+		 */	
+
+		strcpy(tables_query,"SELECT DISTINCT tt.relname, tt.nspname, tt.relkind, COALESCE(d.description,'') from");
+        strcat(tables_query," (SELECT c.oid as oid, c.tableoid as tableoid, n.nspname as nspname, c.relname, c.relkind");
+		strcat(tables_query," FROM pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace");
+		strcat(tables_query," WHERE c.relkind IN ('r', 'v') ");
+
 	}
 	else if (PG_VERSION_GE(conn, 7.1))
 	{
@@ -1264,6 +1275,7 @@ retry_public_schema:
 		strcpy(tables_query, "select relname, usename, relkind"
 		" from pg_class c, pg_user u");
 		strcat(tables_query, " where relkind in ('r', 'v')");
+
 	}
 	else
 	{
@@ -1276,6 +1288,7 @@ retry_public_schema:
 	else
 		my_strcat1(tables_query, " and usename %s '%.*s'", likeeq, szSchemaName, cbSchemaName);
 	my_strcat1(tables_query, " and relname %s '%.*s'", likeeq, szTableName, cbTableName);
+
 
 	/* Parse the extra systable prefix	*/
 	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
@@ -1367,7 +1380,17 @@ retry_public_schema:
 		strcat(tables_query, " and relname !~ '^xinv[0-9]+'");
 
 	if (conn->schema_support)
-		strcat(tables_query, " and n.oid = relnamespace order by nspname, relname");
+	{
+		/* Previously it was:
+		 * strcat(tables_query, " and n.oid = relnamespace order by nspname, relname");
+		 * Modified query to retrieve the description of the table:
+		 */	
+
+		strcat(tables_query," ) AS tt LEFT JOIN pg_catalog.pg_description d ");
+		strcat(tables_query," ON (tt.oid = d.objoid AND tt.tableoid = d.classoid AND d.objsubid = 0)");
+		strcat(tables_query," order by nspname, relname");
+	}
+
 	else
 		strcat(tables_query, " and usesysid = relowner order by relname");
 
@@ -1427,6 +1450,17 @@ retry_public_schema:
 		SC_error_copy(stmt, tbl_stmt);
 		goto cleanup;
 	}
+
+	/* Binds the description column to variable 'remarks' */
+
+	result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
+							   remarks, 254, NULL);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	{
+			SC_error_copy(stmt, tbl_stmt);
+			goto cleanup;
+	}
+
 
 	if (res = QR_Constructor(), !res)
 	{
@@ -1525,7 +1559,7 @@ retry_public_schema:
 				set_tuplefield_null(&row->tuple[1]);
 			set_tuplefield_string(&row->tuple[2], table_name);
 			set_tuplefield_string(&row->tuple[3], systable ? "SYSTEM TABLE" : (view ? "VIEW" : "TABLE"));
-			set_tuplefield_string(&row->tuple[4], "");
+			set_tuplefield_string(&row->tuple[4], remarks);
 			/*** set_tuplefield_string(&row->tuple[4], "TABLE"); ***/
 
 			QR_add_tuple(res, row);
