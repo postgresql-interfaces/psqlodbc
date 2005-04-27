@@ -2639,6 +2639,8 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 		case SQL_C_WCHAR:
+            if (SQL_NTS == used)
+                used = WCLEN * wcslen((SQLWCHAR *) buffer);
 			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used / WCLEN, (UInt4 *) &used, FALSE);
 			used *= WCLEN;
 			break;
