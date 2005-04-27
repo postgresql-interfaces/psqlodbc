@@ -1022,7 +1022,7 @@ another_version_retry:
 		if (self->unicode)
 		{
 			if (!self->client_encoding ||
-			    stricmp(self->client_encoding, "UNICODE"))
+			    !stricmp(self->client_encoding, "UNICODE"))
 			{
 				QResultClass	*res;
 				if (PG_VERSION_LT(self, 7.1))
