@@ -111,7 +111,18 @@ set_statement_option(ConnectionClass *conn,
 				if (ci->updatable_cursors)
 					setval = vParam;
 				else
+				{
+					changed = TRUE;
 					setval = SQL_CURSOR_STATIC; /* at least scrollable */
+				}
+			}
+			else if (SQL_CURSOR_DYNAMIC == vParam)
+			{
+				changed = TRUE;
+				if (ci->updatable_cursors)
+					setval = SQL_CURSOR_KEYSET_DRIVEN;
+				else
+					setval = SQL_CURSOR_STATIC;
 			}
 			if (conn)
 				conn->stmtOptions.cursor_type = setval;
