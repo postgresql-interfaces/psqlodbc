@@ -61,7 +61,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	hlen = strlen(connect_string);
 	if (!abbrev)
 		sprintf(&connect_string[hlen],
-				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
+				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
 				INI_READONLY,
 				ci->onlyread,
 				INI_PROTOCOL,
