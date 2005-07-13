@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.88 2005/02/14 13:07:11 dpage Exp $
+ * $Id: psqlodbc.h,v 1.89 2005/07/13 14:23:35 dpage Exp $
  *
  */
 
@@ -90,9 +90,9 @@ typedef double SDOUBLE;
 
 #endif
 
-
+#ifndef USE_LIBPQ
 typedef UInt4 Oid;
-
+#endif /* USE_LIBPQ */
 
 #ifndef FALSE
 #define FALSE	(BOOL)0

@@ -15,7 +15,12 @@
 
 #include  "psqlodbc.h"
 
+#ifdef USE_LIBPQ
+#include  "libpqconnection.h"
+#else
 #include  "connection.h"
+#endif /* USE_LIBPQ */
+
 #include  <windowsx.h>
 #include  <string.h>
 #include  <stdlib.h>

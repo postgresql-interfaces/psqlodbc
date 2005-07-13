@@ -32,7 +32,13 @@
 
 #include "pgapifunc.h"
 #include "environ.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "statement.h"
 #include "qresult.h"
 
@@ -124,7 +130,7 @@ SQLColumns(HSTMT StatementHandle,
 		ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 				clName, NameLength4, flag);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
@@ -141,7 +147,7 @@ SQLColumns(HSTMT StatementHandle,
 		{
 			scName = newSc;
 			reexec = TRUE;
-		}	
+		}
 		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
 		{
 			tbName = newTb;
@@ -594,7 +600,7 @@ SQLSpecialColumns(HSTMT StatementHandle,
 		ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
 			NameLength1, scName, NameLength2, tbName, NameLength3,
 							Scope, Nullable);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
@@ -655,7 +661,7 @@ SQLStatistics(HSTMT StatementHandle,
 		ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
 				 scName, NameLength2, tbName, NameLength3,
 				 Unique, Reserved);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
@@ -689,7 +695,7 @@ SQLStatistics(HSTMT StatementHandle,
 				free(newSc);
 			if (newTb)
 				free(newTb);
-		}	
+		}
 	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
@@ -716,7 +722,7 @@ SQLTables(HSTMT StatementHandle,
 		ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 						TableType, NameLength4);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
@@ -783,7 +789,7 @@ SQLColumnPrivileges(
 		ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, tbName, cbTableName,
 						clName, cbColumnName);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
@@ -904,7 +910,7 @@ SQLForeignKeys(
 			pkscName, cbPkSchemaName, pktbName, cbPkTableName,
 			fkctName, cbFkCatalogName, fkscName, cbFkSchemaName,
 			fktbName, cbFkTableName);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newPkct = NULL, *newPksc = NULL, *newPktb = NULL,
@@ -1059,7 +1065,7 @@ SQLPrimaryKeys(
 	else
 		ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt = NULL, *newSc = NULL, *newTb = NULL;
@@ -1125,7 +1131,7 @@ SQLProcedureColumns(
 		ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, prName, cbProcName,
 					clName, cbColumnName);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt = NULL, *newSc = NULL, *newPr = NULL, *newCl = NULL;
@@ -1196,7 +1202,7 @@ SQLProcedures(
 	else
 		ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
 					 scName, cbSchemaName, prName, cbProcName);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt = NULL, *newSc = NULL, *newPr = NULL;
@@ -1277,7 +1283,7 @@ SQLTablePrivileges(
 	else
 		ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName, 0);
-	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
+	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		char *newCt = NULL, *newSc = NULL, *newTb = NULL;

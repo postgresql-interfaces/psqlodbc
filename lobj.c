@@ -12,6 +12,8 @@
  *--------
  */
 
+#ifndef USE_LIBPQ
+
 #include "lobj.h"
 
 #include "connection.h"
@@ -184,3 +186,5 @@ lo_unlink(ConnectionClass *conn, Oid lobjId)
 	else
 		return retval;
 }
+
+#endif /* USE_LIBPQ */

@@ -12,6 +12,8 @@
  *-------
  */
 
+#ifndef USE_LIBPQ
+
 #include "socket.h"
 
 #include "connection.h"
@@ -116,7 +118,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname
 		)
 {
 #if defined (POSIX_MULTITHREAD_SUPPORT)
-	const int bufsz = 8192; 
+	const int bufsz = 8192;
 	char buf[bufsz];
 	int error = 0;
 	struct hostent host;
@@ -128,7 +130,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname
 #ifdef	HAVE_UNIX_SOCKETS
 	struct sockaddr_un *un;
 #endif /* HAVE_UNIX_SOCKETS */
-	int	family, sLen; 
+	int	family, sLen;
 #ifdef WIN32
         UInt4 iaddr;
 #else
@@ -156,9 +158,9 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname
 		sLen = sizeof(self->sadr_in);
 		if (iaddr == INADDR_NONE)
 		{
-#if defined (POSIX_MULTITHREAD_SUPPORT) 
+#if defined (POSIX_MULTITHREAD_SUPPORT)
   #if defined (HAVE_GETIPNODEBYNAME) /* Free-BSD ? */
-			hp = getipnodebyname(hostname, AF_INET, 0, &error); 
+			hp = getipnodebyname(hostname, AF_INET, 0, &error);
   #elif defined (PGS_REENTRANT_API_1) /* solaris, irix */
 			hp = gethostbyname_r(hostname, hp, buf, bufsz, &error);
   #elif defined (PGS_REENTRANT_API_2) /* linux */
@@ -474,3 +476,6 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 		} while (self->buffer_filled_out > 0);
 	}
 }
+
+
+#endif /* USE_LIBPQ */

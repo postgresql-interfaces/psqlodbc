@@ -15,8 +15,13 @@
 #include "pgtypes.h"
 #include "columninfo.h"
 
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
 #include "socket.h"
+#endif /* USE_LIBPQ*/
+
 #include <stdlib.h>
 #include <string.h>
 #include "pgapifunc.h"
@@ -50,6 +55,17 @@ CI_Destructor(ColumnInfoClass *self)
 	free(self);
 }
 
+
+#ifdef USE_LIBPQ
+
+/* Reading Fields part is already done in the mapping part, skipping it while using Libpq */
+char
+CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
+{
+	return 'T';
+}
+
+#else
 
 /*
  *	Read in field descriptions.
@@ -120,6 +136,7 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	return (SOCK_get_errcode(sock) == 0);
 }
 
+#endif /* USE_LIBPQ */
 
 void
 CI_free_memory(ColumnInfoClass *self)

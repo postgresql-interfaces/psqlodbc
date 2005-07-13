@@ -30,7 +30,13 @@
 #include "dlg_specific.h"
 
 #include "environ.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "statement.h"
 #include "qresult.h"
 #include "bind.h"
@@ -1218,7 +1224,7 @@ PGAPI_Tables(
 	char		show_system_tables,
 				show_regular_tables,
 				show_views,
-				remarks[254]; //Added for holding Table Description, if any.
+				remarks[254]; /*Added for holding Table Description, if any.*/
 	char		regular_table,
 				view,
 				systable;

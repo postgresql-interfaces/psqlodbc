@@ -36,7 +36,13 @@
 #include "bind.h"
 #include "pgtypes.h"
 #include "lobj.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "pgapifunc.h"
 
 #ifdef	__CYGWIN__
@@ -470,9 +476,12 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	std_time.m = tim->tm_mon + 1;
 	std_time.d = tim->tm_mday;
 	std_time.y = tim->tm_year + 1900;
-
+	/* Setting the value as NULL when 
+	 * PQgetvalue returns a null terminated string.*/
+	value = ((char *) value)[0]?value:NULL;
 	mylog("copy_and_convert: field_type = %d, fctype = %d, value = '%s', cbValueMax=%d\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
-
+	
+	
 	if (!value)
 	{
 		/*
@@ -2911,7 +2920,12 @@ ResolveOneParam(QueryBuild *qb)
 				}
 
 				/* store the oid */
+#ifdef USE_LIBPQ
+				lobj_oid = lo_creat(conn->pgconn, INV_READ | INV_WRITE);
+#else
 				lobj_oid = lo_creat(conn, INV_READ | INV_WRITE);
+#endif /* USE_LIBPQ */
+
 				if (lobj_oid == 0)
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
@@ -2920,17 +2934,27 @@ ResolveOneParam(QueryBuild *qb)
 				}
 
 				/* store the fd */
+#ifdef USE_LIBPQ
+				lobj_fd = lo_open(conn->pgconn, lobj_oid, INV_WRITE);
+#else
 				lobj_fd = lo_open(conn, lobj_oid, INV_WRITE);
+#endif /* USE_LIBPQ */
+
 				if (lobj_fd < 0)
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldnt open (in-line) large object for writing.";
 					return SQL_ERROR;
 				}
+#ifdef USE_LIBPQ
+			retval = lo_write(conn->pgconn, lobj_fd, buffer, used);
+			lo_close(conn->pgconn, lobj_fd);
 
+#else
 				retval = lo_write(conn, lobj_fd, buffer, used);
 
 				lo_close(conn, lobj_fd);
+#endif /* USE_LIBPQ */
 
 				/* commit transaction if needed */
 				if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(conn))
@@ -3891,7 +3915,12 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		}
 
 		oid = ATOI32U(value);
+#ifdef USE_LIBPQ
+			stmt->lobj_fd = lo_open(conn->pgconn, oid, INV_READ);
+#else
 		stmt->lobj_fd = lo_open(conn, oid, INV_READ);
+#endif /* USE_LIBPQ*/
+
 		if (stmt->lobj_fd < 0)
 		{
 			SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for reading.");
@@ -3899,15 +3928,30 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		}
 
 		/* Get the size */
+#ifdef USE_LIBPQ
+			retval = lo_lseek(conn->pgconn, stmt->lobj_fd, 0L, SEEK_END);
+#else
 		retval = lo_lseek(conn, stmt->lobj_fd, 0L, SEEK_END);
+#endif /* USE_LIBPQ*/
+
 		if (retval >= 0)
 		{
+#ifdef USE_LIBPQ
+			left = lo_tell(conn->pgconn, stmt->lobj_fd);
+#else
 			left = lo_tell(conn, stmt->lobj_fd);
+#endif /* USE_LIBPQ*/
+
 			if (gdata)
 				gdata->data_left = left;
 
 			/* return to beginning */
+#ifdef USE_LIBPQ
+			lo_lseek(conn->pgconn, stmt->lobj_fd, 0L, SEEK_SET);
+#else
 			lo_lseek(conn, stmt->lobj_fd, 0L, SEEK_SET);
+#endif /* USE_LIBPQ*/
+
 		}
 	}
 	mylog("lo data left = %d\n", left);
@@ -3921,10 +3965,20 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		return COPY_GENERAL_ERROR;
 	}
 
+#ifdef USE_LIBPQ
+	retval = lo_read(conn->pgconn, stmt->lobj_fd, (char *) rgbValue, factor > 1 ? (cbValueMax - 1) / factor : cbValueMax);
+#else
 	retval = lo_read(conn, stmt->lobj_fd, (char *) rgbValue, factor > 1 ? (cbValueMax - 1) / factor : cbValueMax);
+#endif /* USE_LIBPQ */
+
 	if (retval < 0)
 	{
+#ifdef USE_LIBPQ
+		lo_close(conn->pgconn, stmt->lobj_fd);
+#else
 		lo_close(conn, stmt->lobj_fd);
+#endif /* USE_LIBPQ */
+
 
 		/* commit transaction if needed */
 		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(conn))
@@ -3957,7 +4011,11 @@ convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 
 	if (!gdata || gdata->data_left == 0)
 	{
+#ifdef USE_LIBPQ
+		lo_close(conn->pgconn, stmt->lobj_fd);
+#else
 		lo_close(conn, stmt->lobj_fd);
+#endif /* USE_LIBPQ */
 
 		/* commit transaction if needed */
 		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(conn))

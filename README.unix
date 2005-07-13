@@ -21,6 +21,9 @@ The configure script will accept the following useful options:
 --with-iodbc
 --with-unixodbc
 --with-odbcinst=DIR
+--with-libpq	(build a libpq enabled version of psqlodbc. default = yes)
+--with-pgsql-include=DIR  (Look for postgreSQL include files in DIR if libpq is enabled)
+--with-pgsql=DIR        (look for PostgreSQL libraries and headers in DIR if libpq is enabled)
 --enable-pthreads (thread-safe driver on some platforms)
 --help
 

@@ -20,7 +20,12 @@
 #include <string.h>
 #include "dlg_specific.h"
 #include "environ.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
 #include "statement.h"
 #include "bind.h"
 #include "qresult.h"
@@ -1293,13 +1298,13 @@ PGAPI_ExtendedFetch(
 					EXTFETCH_RETURN_BOF(stmt, res)
 				}
 #else
-				if (stmt->rowset_start < opts->rowset_size)
+				if (stmt->rowset_start < opts->size_of_rowset)
 				{
 					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining");
 					stmt->rowset_start = 0;
 				}
 				else
-					stmt->rowset_start -= opts->rowset_size;
+					stmt->rowset_start -= opts->size_of_rowset;
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 			}
 			break;
@@ -1414,7 +1419,9 @@ PGAPI_ExtendedFetch(
 	 */
 	if (SC_is_fetchcursor(stmt) && !stmt->manual_result)
 	{
+#ifndef USE_LIBPQ
 		if (QR_end_tuples(res))
+#endif /* USE_LIBPQ */
 			return SQL_NO_DATA_FOUND;
 	}
 	else

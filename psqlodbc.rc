@@ -30,7 +30,11 @@ LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
 DLG_CONFIG DIALOGEX 65, 43, 359, 219
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+#ifdef USE_LIBPQ
+CAPTION "PostgreSQL ODBC (libpq) セットアップ"
+#else
 CAPTION "PostgreSQL ODBC セットアップ"
+#endif
 FONT 9, "ＭＳ ゴシック", 0, 0, 0x1
 BEGIN
     RTEXT           "デ－タソ－ス名:(&N)",IDC_DSNAMETEXT,2,9,63,17,NOT 
@@ -295,8 +299,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,0,1,2
- PRODUCTVERSION 8,0,1,2
+ FILEVERSION 8,1,0,1
+ PRODUCTVERSION 8,1,0,1
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -311,15 +315,19 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+#ifdef USE_LIBPQ
+            VALUE "Comments", "PostgreSQL ODBC driver (libpq based)"
+#else
             VALUE "Comments", "PostgreSQL ODBC driver"
+#endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.00.0102"
+            VALUE "FileVersion", "08.01.0001"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftｮ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.00.0102"
+            VALUE "ProductVersion", "08.01.0001"
         END
     END
     BLOCK "VarFileInfo"
@@ -368,7 +376,11 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 DLG_CONFIG DIALOGEX 65, 43, 305, 130
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
-CAPTION "PostgreSQL ODBC Driver (psqlODBC) Setup"
+#ifdef USE_LIBPQ
+CAPTION "PostgreSQL ODBC Driver (libpq) Setup"
+#else
+CAPTION "PostgreSQL ODBC Driver Setup"
+#endif
 FONT 10, "Terminal", 0, 0, 0x0
 BEGIN
     RTEXT           "&Data Source",IDC_DSNAMETEXT,5,25,50,12,NOT WS_GROUP
@@ -594,8 +606,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,0,1,2
- PRODUCTVERSION 8,0,1,2
+ FILEVERSION 8,1,0,1
+ PRODUCTVERSION 8,1,0,1
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -610,15 +622,19 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+#ifdef USE_LIBPQ
+            VALUE "Comments", "PostgreSQL ODBC driver (libpq based)"
+#else
             VALUE "Comments", "PostgreSQL ODBC driver"
+#endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.00.0102"
+            VALUE "FileVersion", "08.01.0001"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftｮ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.00.0102"
+            VALUE "ProductVersion", "08.01.0001"
         END
     END
     BLOCK "VarFileInfo"

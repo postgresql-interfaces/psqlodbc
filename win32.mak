@@ -5,9 +5,9 @@
 #
 # Configurations:	Debug, Release
 # Build Types:		ALL, CLEAN
-# Usage:		NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN]
-#
+# Usage:	 	NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN] [MODE=[USE_LIBPQ | USE_SOCK]  PG_INC=<PostgreSQL include folder>]
 # Comments:		Created by Dave Page, 2001-02-12
+#				Modified by Anoop Kumar, 2005-06-27
 #
 
 !MESSAGE Building the PostgreSQL Unicode 3.0 Driver for Win32...
@@ -15,15 +15,33 @@
 !IF "$(CFG)" == ""
 CFG=Release
 !MESSAGE No configuration specified. Defaulting to Release.
-!MESSAGE
 !ENDIF 
+
+!IF "$(MODE)" == ""
+MODE=USE_LIBPQ
+!MESSAGE  Using Libpq.
+!ENDIF 
+
+!IF "$(MODE)"  == "USE_LIBPQ" 
+!IF "$(PG_INC)" == ""
+PG_INC=C:\Program Files\PostgreSQL\8.0\include
+!MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
+!ENDIF 
+
+!IF "$(PG_LIB)" == ""
+PG_LIB=C:\Program Files\PostgreSQL\8.0\lib\ms
+!MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
+!ENDIF 
+!ENDIF
+
+!MESSAGE
 
 !IF "$(CFG)" != "Release" && "$(CFG)" != "Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN]
+!MESSAGE NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN] [MODE=[USE_LIBPQ | USE_SOCK] PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
@@ -32,6 +50,22 @@ CFG=Release
 !MESSAGE 
 !ERROR An invalid configuration was specified.
 !ENDIF 
+
+!IF "$(MODE)"  != "USE_LIBPQ" && "$(MODE)"  != "USE_SOCK"
+!MESSAGE Invalid mode "$(MODE)" specified.
+!MESSAGE You can specify the connection mode and PostgreSQL include folder
+!MESSAGE by defining the macros MODE  and  PG_INC on the command line. For example:
+!MESSAGE 
+!MESSAGE NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN] [MODE=[USE_LIBPQ | USE_SOCK] PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
+!MESSAGE 
+!MESSAGE Possible choices for mode are:
+!MESSAGE 
+!MESSAGE "USE_LIBPQ" (Using Libpq Interface)
+!MESSAGE "USE_SOCK"   (Using Socket)
+!MESSAGE 
+!ERROR An invalid mode was specified.
+!ENDIF 
+
 
 !IF "$(OS)" == "Windows_NT"
 NULL=
@@ -93,7 +127,12 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+
+!IF "$(MODE)"=="USE_LIBPQ"
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+!ELSE
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+!ENDIF
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -134,7 +173,14 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
+
+!IF "$(MODE)"=="USE_LIBPQ"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /libpath:"$(PG_LIB)"
+!ELSE
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" 
+!ENDIF
+
+
 DEF_FILE= "psqlodbc_win32.def"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
@@ -234,7 +280,12 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+
+!IF "$(MODE)"=="USE_LIBPQ"
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+!ELSE
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+!ENDIF
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -275,7 +326,13 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
+
+!IF "$(MODE)"=="USE_LIBPQ"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept /libpath:"$(PG_LIB)"
+!ELSE
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept 
+!ENDIF
+
 DEF_FILE= "psqlodbc_win32.def"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
@@ -452,6 +509,20 @@ SOURCE=psqlodbc.c
 
 SOURCE=psqlodbc.rc
 
+!IF "$(MODE)" == "USE_LIBPQ"
+
+!IF "$(CFG)" == "Release"
+"$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
+	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" /d "MULTIBYTE" /d "USE_LIBPQ" $(SOURCE)
+!ENDIF
+
+!IF "$(CFG)" == "Debug"
+"$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
+	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" /d "USE_LIBPQ" $(SOURCE)
+!ENDIF
+
+!ELSE
+
 !IF "$(CFG)" == "Release"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" /d "MULTIBYTE" $(SOURCE)
@@ -460,6 +531,8 @@ SOURCE=psqlodbc.rc
 !IF "$(CFG)" == "Debug"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" $(SOURCE)
+!ENDIF
+
 !ENDIF
 
 

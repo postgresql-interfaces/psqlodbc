@@ -18,7 +18,13 @@
 #include <string.h>
 
 #include "pgapifunc.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "statement.h"
 
 
@@ -91,7 +97,7 @@ RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
 /*      new function */
 RETCODE  SQL_API
 SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
-				SQLSMALLINT FieldIdentifier, PTR Value, 
+				SQLSMALLINT FieldIdentifier, PTR Value,
 				SQLINTEGER BufferLength)
 {
 	RETCODE	ret;
@@ -232,7 +238,7 @@ RETCODE SQL_API SQLColAttributeW(
 	SQLUSMALLINT	iCol,
 	SQLUSMALLINT	iField,
 	SQLPOINTER		pCharAttr,
-	SQLSMALLINT		cbCharAttrMax,	
+	SQLSMALLINT		cbCharAttrMax,
 	SQLSMALLINT  *pcbCharAttr,
 	SQLPOINTER		pNumAttr)
 {
@@ -245,7 +251,7 @@ RETCODE SQL_API SQLColAttributeW(
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
 	switch (iField)
-	{ 
+	{
 		case SQL_DESC_BASE_COLUMN_NAME:
 		case SQL_DESC_BASE_TABLE_NAME:
 		case SQL_DESC_CATALOG_NAME:
@@ -308,7 +314,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 	mylog("[[SQLGetDiagFieldW]] Handle=(%u,%x) Rec=%d Id=%d\n", fHandleType,
 			handle, iRecord, fDiagField);
 	switch (fDiagField)
-	{ 
+	{
 		case SQL_DIAG_DYNAMIC_FUNCTION:
 		case SQL_DIAG_CLASS_ORIGIN:
 		case SQL_DIAG_CONNECTION_NAME:

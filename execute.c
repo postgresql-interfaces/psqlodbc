@@ -19,7 +19,13 @@
 #include <string.h>
 
 #include "environ.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "statement.h"
 #include "qresult.h"
 #include "convert.h"
@@ -226,7 +232,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 
 	/*
 	 *	Dummy exection to get the column info.
-	 */ 
+	 */
 	if (stmt->inaccurate_result && conn->connInfo.disallow_premature)
 	{
 		BOOL		in_trans = CC_is_in_trans(conn);
@@ -301,7 +307,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 		if (res && QR_command_maybe_successful(res))
 		{
 			QResultClass	*kres;
-		
+
 			kres = res->next;
 			SC_set_Result(stmt, kres);
 			res->next = NULL;
@@ -323,13 +329,13 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	{
 		switch (retval)
 		{
-			case SQL_SUCCESS: 
+			case SQL_SUCCESS:
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS;
 				break;
-			case SQL_SUCCESS_WITH_INFO: 
+			case SQL_SUCCESS_WITH_INFO:
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS_WITH_INFO;
 				break;
-			default: 
+			default:
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
 				break;
 		}
@@ -493,9 +499,9 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	}
 
 	if (start_row = stmt->exec_start_row, start_row < 0)
-		start_row = 0; 
+		start_row = 0;
 	if (end_row = stmt->exec_end_row, end_row < 0)
-		end_row = apdopts->paramset_size - 1; 
+		end_row = apdopts->paramset_size - 1;
 	if (stmt->exec_current_row < 0)
 		stmt->exec_current_row = start_row;
 	ipdopts = SC_get_IPDF(stmt);
@@ -505,7 +511,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			*ipdopts->param_processed_ptr = 0;
 
 		/*
-	 	 *	Initialize the param_status_ptr 
+	 	 *	Initialize the param_status_ptr
 	 	 */
 		if (ipdopts->param_status_ptr)
 		{
@@ -532,7 +538,7 @@ next_param_row:
 		}
 	}
 	/*
-	 *	Initialize the current row status 
+	 *	Initialize the current row status
 	 */
 	if (ipdopts->param_status_ptr)
 		ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
@@ -553,7 +559,7 @@ next_param_row:
 		Int4	current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
 
 		/*
-		 *	Increment the  number of currently processed rows 
+		 *	Increment the  number of currently processed rows
 		 */
 		if (ipdopts->param_processed_ptr)
 			(*ipdopts->param_processed_ptr)++;
@@ -866,7 +872,11 @@ PGAPI_ParamData(
 	/* close the large object */
 	if (estmt->lobj_fd >= 0)
 	{
+#ifdef USE_LIBPQ
+		lo_close(estmt->hdbc->pgconn, estmt->lobj_fd);
+#else
 		lo_close(estmt->hdbc, estmt->lobj_fd);
+#endif /* USE_LIBPQ */
 
 		/* commit transaction if needed */
 		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(estmt->hdbc))
@@ -917,7 +927,7 @@ PGAPI_ParamData(
 				if (stmt->execute_delegate)
 				{
 					UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-					UInt4	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen; 
+					UInt4	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen;
 
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
 				}
@@ -1056,7 +1066,11 @@ PGAPI_PutData(
 			}
 
 			/* store the oid */
+#ifdef USE_LIBPQ
+			current_pdata->lobj_oid = lo_creat(conn->pgconn, INV_READ | INV_WRITE);
+#else
 			current_pdata->lobj_oid = lo_creat(conn, INV_READ | INV_WRITE);
+#endif /* USE_LIBPQ */
 			if (current_pdata->lobj_oid == 0)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt create large object.");
@@ -1071,7 +1085,11 @@ PGAPI_PutData(
 			/***current_param->EXEC_buffer = (char *) &current_param->lobj_oid;***/
 
 			/* store the fd */
+#ifdef USE_LIBPQ
+			estmt->lobj_fd = lo_open(conn->pgconn, current_pdata->lobj_oid, INV_WRITE);
+#else
 			estmt->lobj_fd = lo_open(conn, current_pdata->lobj_oid, INV_WRITE);
+#endif /* USE_LIBPQ */
 			if (estmt->lobj_fd < 0)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for writing.");
@@ -1079,7 +1097,11 @@ PGAPI_PutData(
 				return SQL_ERROR;
 			}
 
+#ifdef USE_LIBPQ
+			retval = lo_write(conn->pgconn, estmt->lobj_fd, putbuf, putlen);
+#else
 			retval = lo_write(conn, estmt->lobj_fd, putbuf, putlen);
+#endif /* USE_LIBPQ */
 			mylog("lo_write: cbValue=%d, wrote %d bytes\n", putlen, retval);
 		}
 		else
@@ -1104,7 +1126,11 @@ PGAPI_PutData(
 		if (current_iparam->PGType == conn->lobj_type)
 		{
 			/* the large object fd is in EXEC_buffer */
+#ifdef USE_LIBPQ
+			retval = lo_write(conn->pgconn, estmt->lobj_fd, putbuf, putlen);
+#else
 			retval = lo_write(conn, estmt->lobj_fd, putbuf, putlen);
+#endif /* USE_LIBPQ */
 			mylog("lo_write(2): cbValue = %d, wrote %d bytes\n", putlen, retval);
 
 			*current_pdata->EXEC_used += putlen;

@@ -52,10 +52,23 @@ Command Line Method
 
 3. Use NMAKE to build the dll eg:
 
-      C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL
+      a. Using Libpq Interface (Default):
+            C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL PG_INC="c:\postgresql\include"
+	    or
+            C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL MODE=USE_LIBPQ PG_INC="c:\postgresql\include"
 
-      Possible configurations are Release and Debug.
-      Possible build types are ALL or CLEAN.
+	    Possible configurations are Release and Debug.
+            Possible build types are ALL or CLEAN.
+            PG_INC must contain the include folder name of PostgreSQL installation.
+
+      b. Using Socket:
+            C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL MODE=USE_SOCK
+
+	    Possible configurations are Release and Debug.
+            Possible build types are ALL or CLEAN.
+      
+      c. For cleaning up intermediate files:
+	    C:\psqlodbc\> nmake /f win32.mak CFG=Release CLEAN MODE=USE_SOCK
 
 II.  Using Large Objects for handling LongVarBinary (OLE Objects in Access)
 

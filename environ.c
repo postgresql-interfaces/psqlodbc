@@ -15,7 +15,12 @@
 
 #include "environ.h"
 
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "dlg_specific.h"
 #include "statement.h"
 #include <stdlib.h>
@@ -156,7 +161,7 @@ ER_ReturnError(PG_ErrorInfo *error,
 	/*
 	 *	Even though an application specifies a larger error message
 	 *	buffer, the driver manager changes it silently.
-	 *	Therefore we divide the error message into ... 
+	 *	Therefore we divide the error message into ...
 	 */
 	if (error->recsize < 0)
 	{
@@ -174,19 +179,19 @@ ER_ReturnError(PG_ErrorInfo *error,
 	}
 	stapos = (RecNumber - 1) * error->recsize;
 	if (stapos > msglen)
-		return SQL_NO_DATA_FOUND; 
+		return SQL_NO_DATA_FOUND;
 	pcblen = wrtlen = msglen - stapos;
 	if (pcblen > error->recsize)
 		pcblen = error->recsize;
 	if (0 == cbErrorMsgMax)
-		wrtlen = 0; 
+		wrtlen = 0;
 	else if (wrtlen >= cbErrorMsgMax)
 	{
 		if (partial_ok)
 			wrtlen = cbErrorMsgMax - 1;
 		else if (cbErrorMsgMax <= error->recsize)
 			wrtlen = 0;
-		else 
+		else
 			wrtlen = error->recsize;
 	}
 	if (wrtlen > pcblen)
@@ -263,7 +268,7 @@ PGAPI_StmtError(	HSTMT hstmt,
 	/*
 	 *	Even though an application specifies a larger error message
 	 *	buffer, the driver manager changes it silently.
-	 *	Therefore we divide the error message into ... 
+	 *	Therefore we divide the error message into ...
 	 */
 	if (stmt->error_recsize < 0)
 	{
@@ -281,19 +286,19 @@ PGAPI_StmtError(	HSTMT hstmt,
 	}
 	stapos = (RecNumber - 1) * stmt->error_recsize;
 	if (stapos > msglen)
-		return SQL_NO_DATA_FOUND; 
+		return SQL_NO_DATA_FOUND;
 	pcblen = wrtlen = msglen - stapos;
 	if (pcblen > stmt->error_recsize)
 		pcblen = stmt->error_recsize;
 	if (0 == cbErrorMsgMax)
-		wrtlen = 0; 
+		wrtlen = 0;
 	else if (wrtlen >= cbErrorMsgMax)
 	{
 		if (partial_ok)
 			wrtlen = cbErrorMsgMax - 1;
 		else if (cbErrorMsgMax <= stmt->error_recsize)
 			wrtlen = 0;
-		else 
+		else
 			wrtlen = stmt->error_recsize;
 	}
 	if (wrtlen > pcblen)
@@ -608,7 +613,7 @@ PGAPI_EnvError(		HENV henv,
 	if (!EN_get_error(env, &status, &msg) || NULL == msg)
 	{
 			mylog("EN_get_error: status = %d, msg = #%s#\n", status, msg);
-		
+
 		if (NULL != szSqlState)
 			pg_sqlstate_set(env, szSqlState, "00000", "00000");
 		if (NULL != pcbErrorMsg)

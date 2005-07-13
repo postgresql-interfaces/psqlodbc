@@ -15,7 +15,12 @@
 #include "statement.h"
 
 #include "bind.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
 #include "qresult.h"
 #include "convert.h"
 #include "environ.h"
@@ -235,7 +240,11 @@ SC_Constructor(void)
 		rv->phstmt = NULL;
 		rv->result = NULL;
 		rv->curres = NULL;
+#ifdef USE_LIBPQ
+		rv->manual_result = TRUE;
+#else
 		rv->manual_result = FALSE;
+#endif /* USE_LIBPQ */
 		rv->prepare = FALSE;
 		rv->prepared = FALSE;
 		rv->status = STMT_ALLOCATED;
@@ -614,7 +623,12 @@ SC_recycle_statement(StatementClass *self)
 	 * Reset only parameters that have anything to do with results
 	 */
 	self->status = STMT_READY;
-	self->manual_result = FALSE;	/* very important */
+#ifdef USE_LIBPQ
+		self->manual_result = TRUE;		/* very important */
+#else
+		self->manual_result = FALSE;
+#endif /* USE_LIBPQ */
+
 
 	self->currTuple = -1;
 	self->rowset_start = -1;
@@ -760,6 +774,19 @@ SC_create_errormsg(const StatementClass *self)
 		else
 			return strdup(notice);
 	}
+#ifdef USE_LIBPQ
+	if (conn)
+	{
+		PGconn *pgconn = conn->pgconn;
+
+		if (!detailmsg && CC_get_errormsg(conn) && (CC_get_errormsg(conn))[0] != '\0')
+		{
+			pos = strlen(msg);
+			sprintf(&msg[pos], ";\n%s", CC_get_errormsg(conn));
+		}
+
+	}
+#else
 	if (conn)
 	{
 		SocketClass *sock = conn->sock;
@@ -776,6 +803,7 @@ SC_create_errormsg(const StatementClass *self)
 			sprintf(&msg[pos], ";\n%s", sock->errormsg);
 		}
 	}
+#endif /* USE_LIBPQ */
 	return msg[0] ? strdup(msg) : NULL;
 }
 
@@ -1232,7 +1260,11 @@ SC_execute(StatementClass *self)
 	else
 	{
 		/* Bad Error -- The error message will be in the Connection */
+#ifdef USE_LIBPQ
+		if (!conn->pgconn)
+#else
 		if (!conn->sock)
+#endif /* USE_LIBPQ */
 			SC_set_error(self, STMT_BAD_ERROR, CC_get_errormsg(conn));
 		else if (self->statement_type == STMT_TYPE_CREATE)
 		{

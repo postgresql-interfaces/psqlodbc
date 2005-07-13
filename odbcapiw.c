@@ -22,7 +22,11 @@
 #include <string.h>
 
 #include "pgapifunc.h"
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
 #include "statement.h"
 
 RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
@@ -36,7 +40,7 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLColumnsW]");
 	conn = SC_get_conn(stmt);
@@ -70,7 +74,7 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	char	*svName, *usName, *auth;
 	UInt4	nmlen1, nmlen2, nmlen3;
 	RETCODE	ret;
-	
+
 	mylog("[SQLConnectW]");
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	((ConnectionClass *) ConnectionHandle)->unicode = 1;
@@ -202,7 +206,7 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 			*NameLength = nmcount;
 	}
 	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	free(clName); 
+	free(clName);
 	return ret;
 }
 
@@ -236,7 +240,7 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 	crName = malloc(buflen);
 	ENTER_STMT_CS((StatementClass *) StatementHandle);
 	ret = PGAPI_GetCursorName(StatementHandle, crName, buflen, &clen);
-	if (ret == SQL_SUCCESS)	
+	if (ret == SQL_SUCCESS)
 	{
 		UInt4	nmcount = utf8_to_ucs2(crName, (Int4) clen, CursorName, BufferLength);
 		if (nmcount > (UInt4) BufferLength)
@@ -329,7 +333,7 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
-	
+
 	mylog("[SQLSpecialColumnsW]");
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
@@ -435,7 +439,7 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLColumnPrivilegesW]");
 	conn = SC_get_conn(stmt);
@@ -480,7 +484,7 @@ RETCODE SQL_API SQLForeignKeysW(
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLForeignKeysW]");
 	conn = SC_get_conn(stmt);
@@ -567,7 +571,7 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	UInt4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLPrimaryKeysW]");
 	conn = SC_get_conn(stmt);
@@ -604,7 +608,7 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLProcedureColumnsW]");
 	conn = SC_get_conn(stmt);
@@ -643,7 +647,7 @@ RETCODE SQL_API SQLProceduresW(
 	UInt4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLProceduresW]");
 	conn = SC_get_conn(stmt);
@@ -678,7 +682,7 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	UInt4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[SQLTablePrivilegesW]");
 	conn = SC_get_conn(stmt);

@@ -10,7 +10,9 @@
 #define __COLUMNINFO_H__
 
 #include "psqlodbc.h"
-
+#ifdef USE_LIBPQ
+#include <libpq-fe.h>
+#endif /* USE_LIBPQ */
 struct ColumnInfoClass_
 {
 	Int2		num_fields;

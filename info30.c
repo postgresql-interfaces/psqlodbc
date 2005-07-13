@@ -8,7 +8,12 @@
 
 #include "psqlodbc.h"
 
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "pgapifunc.h"
 
 RETCODE		SQL_API
@@ -183,11 +188,11 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			len = 4;
 			value = SQL_CT_CREATE_TABLE | SQL_CT_COLUMN_CONSTRAINT
 				| SQL_CT_COLUMN_DEFAULT;
-			if (PG_VERSION_GE(conn, 6.5)) 
-				value |= SQL_CT_GLOBAL_TEMPORARY; 
-			if (PG_VERSION_GE(conn, 7.0)) 
+			if (PG_VERSION_GE(conn, 6.5))
+				value |= SQL_CT_GLOBAL_TEMPORARY;
+			if (PG_VERSION_GE(conn, 7.0))
 				value |= SQL_CT_TABLE_CONSTRAINT
-					| SQL_CT_CONSTRAINT_NAME_DEFINITION 
+					| SQL_CT_CONSTRAINT_NAME_DEFINITION
 					| SQL_CT_CONSTRAINT_INITIALLY_DEFERRED
 					| SQL_CT_CONSTRAINT_INITIALLY_IMMEDIATE
 					| SQL_CT_CONSTRAINT_DEFERRABLE;
@@ -296,7 +301,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_SQL92_NUMERIC_VALUE_FUNCTIONS:
 			len = 4;
-			value = SQL_SNVF_BIT_LENGTH | SQL_SNVF_CHAR_LENGTH 
+			value = SQL_SNVF_BIT_LENGTH | SQL_SNVF_CHAR_LENGTH
 				| SQL_SNVF_CHARACTER_LENGTH | SQL_SNVF_EXTRACT
 				| SQL_SNVF_OCTET_LENGTH | SQL_SNVF_POSITION;
 			break;
@@ -315,7 +320,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 					| SQL_SRJO_FULL_OUTER_JOIN | SQL_SRJO_INNER_JOIN
 					| SQL_SRJO_INTERSECT_JOIN | SQL_SRJO_LEFT_OUTER_JOIN
 					| SQL_SRJO_NATURAL_JOIN | SQL_SRJO_RIGHT_OUTER_JOIN
-					| SQL_SRJO_UNION_JOIN; 
+					| SQL_SRJO_UNION_JOIN;
 			break;
 		case SQL_SQL92_REVOKE:
 			len = 4;
@@ -369,7 +374,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
                  */
                 if (conn->unicode)
                     len = len * WCLEN;
-                
+
 		if (rgbInfoValue)
 		{
 
@@ -401,7 +406,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		*pcbInfoValue = len;
 
 	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
-	
+
 	return result;
 }
 

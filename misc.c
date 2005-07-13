@@ -26,7 +26,13 @@
 #include <process.h>			/* Byron: is this where Windows keeps def.
 								 * of getpid ? */
 #endif
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "multibyte.h"
 
 extern GLOBAL_VALUES globals;
@@ -325,7 +331,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const char *s, int len, BOOL ifallu
 					str = NULL;
 				}
 				break;
-			} 
+			}
 			if (tolower(*ptr) != *ptr)
 			{
 				if (!str)

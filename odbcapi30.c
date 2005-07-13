@@ -24,7 +24,13 @@
 #include <string.h>
 
 #include "environ.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "statement.h"
 #include "pgapifunc.h"
 
@@ -456,7 +462,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 				ret = SQL_SUCCESS;
 			else
 				ret = SQL_SUCCESS_WITH_INFO;
-	
+
 			break;
 		default:
 			env->errornumber = CONN_INVALID_ARGUMENT_NO;
@@ -556,7 +562,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	if (ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT); /* 55 not implmented yet */
 	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); /* 56 not implemented yet */ 
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); /* 56 not implemented yet */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDATASOURCES);	/* 57 */
 	if (ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLDESCRIBEPARAM); /* 58 not properly implemented */
@@ -572,7 +578,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLNUMPARAMS);		/* 63 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLPARAMOPTIONS); 64 deprecated */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPRIMARYKEYS);	/* 65 */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURECOLUMNS);	/* 66 */ 
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURECOLUMNS);	/* 66 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURES);		/* 67 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETPOS);		/* 68 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSCROLLOPTIONS); 69 deprecated */
@@ -631,5 +637,5 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 	LEAVE_STMT_CS(stmt);
 	return ret;
-}	
+}
 

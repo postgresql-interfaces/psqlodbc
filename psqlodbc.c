@@ -87,14 +87,16 @@ HINSTANCE NEAR s_hModule;		/* Saved module handle. */
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 {
+#ifndef USE_LIBPQ
 	WORD		wVersionRequested;
 	WSADATA		wsaData;
+#endif /* USE_LIBPQ */
 
 	switch (ul_reason_for_call)
 	{
 		case DLL_PROCESS_ATTACH:
 			s_hModule = hInst;	/* Save for dialog boxes */
-
+#ifndef USE_LIBPQ
 			/* Load the WinSock Library */
 			wVersionRequested = MAKEWORD(1, 1);
 
@@ -108,7 +110,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				WSACleanup();
 				return FALSE;
 			}
-
+#endif /* USE_LIBPQ */
 			initialize_global_cs();
 			getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 			break;
@@ -118,7 +120,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			finalize_global_cs();
+#ifndef USE_LIBPQ
 			WSACleanup();
+#endif /* USE_LIBPQ*/
 			return TRUE;
 
 		case DLL_THREAD_DETACH:

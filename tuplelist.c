@@ -51,9 +51,10 @@ TL_Destructor(TupleListClass *self)
 			   *tp;
 
 	mylog("TupleList: in DESTRUCTOR\n");
-
+	if(self && self->list_start)
+	{
 	node = self->list_start;
-	while (node != NULL)
+		while (node)
 	{
 		for (lf = 0; lf < self->num_fields; lf++)
 			if (node->tuple[lf].value != NULL)
@@ -63,6 +64,7 @@ TL_Destructor(TupleListClass *self)
 		node = tp;
 	}
 
+	}
 	free(self);
 
 	mylog("TupleList: exit DESTRUCTOR\n");

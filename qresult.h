@@ -11,12 +11,18 @@
 
 #include "psqlodbc.h"
 
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
 #include "socket.h"
+#endif /* USE_LIBPQ */
+
 #include "columninfo.h"
 #include "tuplelist.h"
 #include "tuple.h"
 
+#ifndef USE_LIBPQ
 enum QueryResultCode_
 {
 	PGRES_EMPTY_QUERY = 0,
@@ -37,7 +43,7 @@ enum QueryResultCode_
 	PGRES_INTERNAL_ERROR
 };
 typedef enum QueryResultCode_ QueryResultCode;
-
+#endif /*USE _LIBPQ */
 
 struct QResultClass_
 {
@@ -61,7 +67,11 @@ struct QResultClass_
 	int			rowset_size;
 	Int4			recent_processed_row_count;
 
+#ifdef USE_LIBPQ
+	ExecStatusType status;
+#else
 	QueryResultCode status;
+#endif /* USE_LIBPQ*/
 
 	char	   *message;
 	char	   *cursor;			/* The name of the cursor for select
@@ -78,21 +88,28 @@ struct QResultClass_
 	char		haskeyset;	/* this result contains keyset ? */
 	KeySet		*keyset;
 	UInt4		reload_count;
-	UInt2		rb_alloc;	/* count of allocated rollback info */	
-	UInt2		rb_count;	/* count of rollback info */	
-	Rollback	*rollback;	
-	UInt2		dl_alloc;	/* count of allocated deleted info */	
-	UInt2		dl_count;	/* count of deleted info */	
-	UInt4		*deleted;	
+	UInt2		rb_alloc;	/* count of allocated rollback info */
+	UInt2		rb_count;	/* count of rollback info */
+	Rollback	*rollback;
+	UInt2		dl_alloc;	/* count of allocated deleted info */
+	UInt2		dl_count;	/* count of deleted info */
+	UInt4		*deleted;
 };
 
 #define QR_get_fields(self)					(self->fields)
 
 
 /*	These functions are for retrieving data from the qresult */
+#ifdef USE_LIBPQ
+/* Retrieve results from manual_tuples since it has the results */
+#define QR_get_value_manual(self, tupleno, fieldno) (TL_get_fieldval(self->manual_tuples, tupleno, fieldno))
+#define QR_get_value_backend(self,fieldno)			(TL_get_fieldval(self->manual_tuples,self->currTuple, fieldno))
+#define QR_get_value_backend_row(self, tupleno, fieldno) (TL_get_fieldval(self->manual_tuples, tupleno, fieldno))
+#else
 #define QR_get_value_manual(self, tupleno, fieldno) (TL_get_fieldval(self->manual_tuples, tupleno, fieldno))
 #define QR_get_value_backend(self, fieldno)			(self->tupleField[fieldno].value)
 #define QR_get_value_backend_row(self, tupleno, fieldno) ((self->backend_tuples + (tupleno * self->num_fields))[fieldno].value)
+#endif /* USE_LIBPQ */
 
 /*	These functions are used by both manual and backend results */
 #define QR_NumResultCols(self)		(CI_get_num_fields(self->fields))

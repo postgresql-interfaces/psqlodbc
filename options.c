@@ -17,7 +17,13 @@
 #include <string.h>
 
 #include "environ.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "statement.h"
 #include "qresult.h"
 #include "pgapifunc.h"

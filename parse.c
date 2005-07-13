@@ -29,7 +29,13 @@
 #include <ctype.h>
 
 #include "statement.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "qresult.h"
 #include "pgtypes.h"
 #include "pgapifunc.h"
@@ -353,8 +359,6 @@ parse_statement(StatementClass *stmt)
 	BOOL		updatable = TRUE;
 
 	QResultClass*	resultClass;
-	HSTMT			privStmt;
-	
 
 	mylog("%s: entering...\n", func);
 

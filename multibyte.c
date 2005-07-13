@@ -9,7 +9,13 @@
  */
 
 #include "multibyte.h"
+
+#ifdef USE_LIBPQ
+#include "libpqconnection.h"
+#else
 #include "connection.h"
+#endif /* USE_LIBPQ */
+
 #include "pgapifunc.h"
 #include "qresult.h"
 #include <string.h>
@@ -194,11 +200,11 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 /* EUC_JP Support */
 		case EUC_JP:
 			{
-				if (stat < 3 && 
+				if (stat < 3 &&
 					character == 0x8f)	/* JIS X 0212 */
 					stat = 3;
 				else
-				if (stat != 2 && 
+				if (stat != 2 &&
 					(character == 0x8e ||
 					character > 0xa0))	/* Half Katakana HighByte & Kanji HighByte */
 					stat = 2;
@@ -280,7 +286,7 @@ pg_mbschr(int csc, const UCHAR *string, unsigned int character)
 	int			mb_st = 0;
 	const UCHAR *s, *rs = NULL;
 
-	for(s = string; *s ; s++) 
+	for(s = string; *s ; s++)
 	{
 		mb_st = pg_CS_stat(mb_st, (UCHAR) *s, csc);
 		if (mb_st == 0 && (*s == character))
@@ -385,7 +391,7 @@ CC_lookup_characterset(ConnectionClass *self)
 		if (stricmp(pg_CS_name(self->ccsc), encstr))
 		{
 			qlog(" Client encoding = '%s' and %s\n", self->client_encoding, pg_CS_name(self->ccsc));
-			CC_set_error(self, CONN_VALUE_OUT_OF_RANGE, "client encoding mismatch"); 
+			CC_set_error(self, CONN_VALUE_OUT_OF_RANGE, "client encoding mismatch");
 		}
 	}
 	else
@@ -406,15 +412,15 @@ int encoded_nextchar(encoded_str *encstr)
 {
 	int	chr;
 
-	chr = encstr->encstr[++encstr->pos]; 
+	chr = encstr->encstr[++encstr->pos];
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
-	return chr; 
+	return chr;
 }
 int encoded_byte_check(encoded_str *encstr, int abspos)
 {
 	int	chr;
 
-	chr = encstr->encstr[encstr->pos = abspos]; 
+	chr = encstr->encstr[encstr->pos = abspos];
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
-	return chr; 
+	return chr;
 }
