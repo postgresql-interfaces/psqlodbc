@@ -1,4 +1,4 @@
-LIBRARY psqlodbc
+LIBRARY psqlodbclibpq
 EXPORTS
 ;SQLAllocConnect @1
 ;SQLAllocEnv @2

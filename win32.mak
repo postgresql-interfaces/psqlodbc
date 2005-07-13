@@ -79,7 +79,7 @@ OUTDIR=.\Release
 OUTDIRBIN=.\Release
 INTDIR=.\Release
 
-ALL : "$(OUTDIRBIN)\psqlodbc.dll"
+ALL : "$(OUTDIRBIN)\psqlodbclibpq.dll"
 
 
 CLEAN :
@@ -118,10 +118,10 @@ CLEAN :
 	-@erase "$(INTDIR)\odbcapi30.obj"
 	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\vc60.idb"
-	-@erase "$(OUTDIR)\psqlodbc.dll"
-	-@erase "$(OUTDIR)\psqlodbc.exp"
-	-@erase "$(OUTDIR)\psqlodbc.lib"
-	-@erase "$(OUTDIR)\psqlodbc.pch"
+	-@erase "$(OUTDIR)\psqlodbclibpq.dll"
+	-@erase "$(OUTDIR)\psqlodbclibpq.exp"
+	-@erase "$(OUTDIR)\psqlodbclibpq.lib"
+	-@erase "$(OUTDIR)\psqlodbclibpq.pch"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -129,9 +129,9 @@ CLEAN :
 CPP=cl.exe
 
 !IF "$(MODE)"=="USE_LIBPQ"
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbclibpq.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ELSE
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbclibpq.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ENDIF
 
 .c{$(INTDIR)}.obj::
@@ -175,9 +175,9 @@ BSC32_SBRS= \
 LINK32=link.exe
 
 !IF "$(MODE)"=="USE_LIBPQ"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /libpath:"$(PG_LIB)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbclibpq.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbclibpq.dll" /implib:"$(OUTDIR)\psqlodbclibpq.lib" /libpath:"$(PG_LIB)"
 !ELSE
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbclibpq.pdb" /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIRBIN)\psqlodbclibpq.dll" /implib:"$(OUTDIR)\psqlodbclibpq.lib" 
 !ENDIF
 
 
@@ -218,7 +218,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\descriptor.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
-"$(OUTDIRBIN)\psqlodbc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+"$(OUTDIRBIN)\psqlodbclibpq.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
@@ -229,7 +229,7 @@ OUTDIR=.\Debug
 OUTDIRBIN=.\Debug
 INTDIR=.\Debug
 
-ALL : "$(OUTDIR)\psqlodbc.dll"
+ALL : "$(OUTDIR)\psqlodbclibpq.dll"
 
 
 CLEAN :
@@ -269,12 +269,12 @@ CLEAN :
 	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
-	-@erase "$(OUTDIR)\psqlodbc.dll"
-	-@erase "$(OUTDIR)\psqlodbc.exp"
-	-@erase "$(OUTDIR)\psqlodbc.ilk"
-	-@erase "$(OUTDIR)\psqlodbc.lib"
-	-@erase "$(OUTDIR)\psqlodbc.pdb"
-	-@erase "$(OUTDIR)\psqlodbc.pch"
+	-@erase "$(OUTDIR)\psqlodbclibpq.dll"
+	-@erase "$(OUTDIR)\psqlodbclibpq.exp"
+	-@erase "$(OUTDIR)\psqlodbclibpq.ilk"
+	-@erase "$(OUTDIR)\psqlodbclibpq.lib"
+	-@erase "$(OUTDIR)\psqlodbclibpq.pdb"
+	-@erase "$(OUTDIR)\psqlodbclibpq.pch"
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
@@ -282,9 +282,9 @@ CLEAN :
 CPP=cl.exe
 
 !IF "$(MODE)"=="USE_LIBPQ"
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbclibpq.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 !ELSE
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbclibpq.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 !ENDIF
 
 .c{$(INTDIR)}.obj::
@@ -328,9 +328,9 @@ BSC32_SBRS= \
 LINK32=link.exe
 
 !IF "$(MODE)"=="USE_LIBPQ"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept /libpath:"$(PG_LIB)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbclibpq.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbclibpq.dll" /implib:"$(OUTDIR)\psqlodbclibpq.lib" /pdbtype:sept /libpath:"$(PG_LIB)"
 !ELSE
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbc.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbclibpq.pdb" /debug /machine:I386 /def:"psqlodbc_win32.def" /out:"$(OUTDIR)\psqlodbclibpq.dll" /implib:"$(OUTDIR)\psqlodbclibpq.lib" /pdbtype:sept 
 !ENDIF
 
 DEF_FILE= "psqlodbc_win32.def"
@@ -370,7 +370,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\descriptor.obj" \
 	"$(INTDIR)\psqlodbc.res"
 
-"$(OUTDIR)\psqlodbc.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+"$(OUTDIR)\psqlodbclibpq.dll" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
