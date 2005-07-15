@@ -3060,7 +3060,6 @@ PGAPI_SetPos(
 {
 	CSTR func = "PGAPI_SetPos";
 	RETCODE	ret;
-	ConnectionClass	*conn;
 	int		num_cols, i, rowsetSize;
 	GetDataClass	*gdata = NULL;
 	spos_cdata	s;

@@ -743,7 +743,7 @@ QR_read_tuple(QResultClass *self, char binary)
 	TupleField *this_tuplefield;
 	KeySet	*this_keyset = NULL;
 	Int2		bitmaplen;		/* len of the bitmap in bytes */
-	Int4		len;
+	Int4		len=0;
 	char	   *buffer;
 	int		ci_num_fields = QR_NumResultCols(self);	/* speed up access */
 	int		num_fields = self->num_fields;	/* speed up access */
