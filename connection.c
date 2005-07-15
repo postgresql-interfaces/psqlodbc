@@ -3248,7 +3248,12 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
 			}
 			for(j=0;j < num_attributes ;j++)
 			{
-				set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j],PQgetvalue(pgres,i,j));
+				/* PQgetvalue returns an empty string even the data value is null. 
+				  * An additional checking is provided to set the null value */
+				if (PQgetisnull(pgres,i,j)) 
+					set_tuplefield_null(&qres->manual_tuples->list_end->tuple[j]);
+				else
+					set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j],PQgetisnull(pgres,i,j)?NULL:PQgetvalue(pgres,i,j));
 			}
 
 	}

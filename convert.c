@@ -476,12 +476,8 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	std_time.m = tim->tm_mon + 1;
 	std_time.d = tim->tm_mday;
 	std_time.y = tim->tm_year + 1900;
-	/* Setting the value as NULL when 
-	 * PQgetvalue returns a null terminated string.*/
-	value = ((char *) value)[0]?value:NULL;
+
 	mylog("copy_and_convert: field_type = %d, fctype = %d, value = '%s', cbValueMax=%d\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
-	
-	
 	if (!value)
 	{
 		/*
