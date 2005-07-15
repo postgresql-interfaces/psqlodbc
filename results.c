@@ -3060,6 +3060,9 @@ PGAPI_SetPos(
 {
 	CSTR func = "PGAPI_SetPos";
 	RETCODE	ret;
+#ifdef	DRIVER_CURSOR_IMPLEMENT
+    ConnectionClass *conn;
+#endif
 	int		num_cols, i, rowsetSize;
 	GetDataClass	*gdata = NULL;
 	spos_cdata	s;
