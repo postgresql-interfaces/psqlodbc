@@ -156,13 +156,17 @@ QR_Destructor(QResultClass *self)
 		TL_Destructor(self->manual_tuples);
 		self->manual_tuples = NULL;
 	}
-
+    
 	/*
 	 * If conn is defined, then we may have used "backend_tuples", so in
 	 * case we need to, free it up.  Also, close the cursor.
 	 */
 #ifdef USE_LIBPQ
-	self->backend_tuples = NULL;
+	if (self->backend_tuples)
+	{
+		free(self->backend_tuples);
+		self->backend_tuples = NULL;
+ 	}
 	if (conn && conn->pgconn && CC_is_in_trans(conn))
 #else
 	if (conn && conn->sock && CC_is_in_trans(conn))
