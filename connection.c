@@ -2854,7 +2854,11 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	ENTER_INNER_CONN_CS(self, func_cs_count);
 
 	if (issue_begin)
+    {
 		res = LIBPQ_execute_query(self,"BEGIN");
+        QR_Destructor(res);
+    }
+    
 	res = LIBPQ_execute_query(self,query);
 
 	if((!res) || (res->status == PGRES_EMPTY_QUERY) )
@@ -3181,6 +3185,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	}
 	qres=CC_mapping(pgres,qres);
 	QR_set_command(qres, cmdbuffer);
+    PQclear(pgres);
 	return qres;
 }
 
@@ -3253,7 +3258,7 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
 				if (PQgetisnull(pgres,i,j)) 
 					set_tuplefield_null(&qres->manual_tuples->list_end->tuple[j]);
 				else
-					set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j],PQgetisnull(pgres,i,j)?NULL:PQgetvalue(pgres,i,j));
+					set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j], PQgetvalue(pgres,i,j));
 			}
 
 	}
