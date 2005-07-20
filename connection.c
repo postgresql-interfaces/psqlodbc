@@ -3115,6 +3115,7 @@ LIBPQ_connect(ConnectionClass *self)
 		CC_set_error(self,CONNECTION_COULD_NOT_ESTABLISH,PQerrorMessage(self->pgconn));
 		mylog("could not establish connection to the database %s \n",PQerrorMessage(self->pgconn));
 		PQfinish(self->pgconn);
+        self->pgconn = NULL;
 		free(conninfo);
 		return 0;
 	}
