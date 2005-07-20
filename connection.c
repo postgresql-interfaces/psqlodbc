@@ -2561,13 +2561,6 @@ CC_cleanup(ConnectionClass *self)
 }
 
 
-static void
-exit_nicely(PGconn *conn)
-{
-        PQfinish(conn);
-        exit(1);
-}
-
 char
 CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
@@ -3121,7 +3114,7 @@ LIBPQ_connect(ConnectionClass *self)
 	{
 		CC_set_error(self,CONNECTION_COULD_NOT_ESTABLISH,PQerrorMessage(self->pgconn));
 		mylog("could not establish connection to the database %s \n",PQerrorMessage(self->pgconn));
-		exit_nicely(self->pgconn);
+		PQfinish(self->pgconn);
 		free(conninfo);
 		return 0;
 	}
