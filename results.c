@@ -2134,7 +2134,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 	UWORD		offset;
 	char		*sval; ****/
 	char		*qval = NULL;
-	Int4		rowc, rows_per_fetch;
+	Int4		rowc, rows_per_fetch=0;
 	BOOL		create_from_scratch = (0 != flag);
 
 	mylog("SC_pos_reload_needed\n");
