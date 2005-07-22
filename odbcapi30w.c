@@ -144,7 +144,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 {
 	RETCODE	ret;
 	BOOL	alloced = FALSE;
-	SQLINTEGER	blen, bMax, *pcbV;
+	SQLINTEGER	blen=0, bMax, *pcbV;
         char    *rgbV = NULL;
 
 	mylog("[SQLGetDescFieldW]");
@@ -244,7 +244,7 @@ RETCODE SQL_API SQLColAttributeW(
 {
 	RETCODE	ret;
 	BOOL	alloced = FALSE;
-	SQLSMALLINT	*rgbL, blen, bMax;
+	SQLSMALLINT	*rgbL, blen=0, bMax;
         char    *rgbD = NULL;
 
 	mylog("[SQLColAttributeW]");
@@ -308,7 +308,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 {
 	RETCODE	ret;
 	BOOL	alloced = FALSE;
-	SQLSMALLINT	*rgbL, blen, bMax;
+	SQLSMALLINT	*rgbL, blen=0, bMax;
         char    *rgbD = NULL;
 
 	mylog("[[SQLGetDiagFieldW]] Handle=(%u,%x) Rec=%d Id=%d\n", fHandleType,
