@@ -1578,7 +1578,7 @@ do { \
 	while (qp->statement[qp->opos] != '\0' && qp->statement[qp->opos] != ch) \
 	{ \
 	    buf[c++] = qp->statement[qp->opos++]; \
-		if (c >= maxsize) \
+		if (c >= maxsize - 1) \
 			break; \
 	} \
 	if (qp->statement[qp->opos] == '\0') \

@@ -2360,13 +2360,20 @@ CC_Constructor()
 		CC_conninfo_init(&(rv->connInfo));
 		rv->stmts = (StatementClass **) malloc(sizeof(StatementClass *) * STMT_INCREMENT);
 		if (!rv->stmts)
+        {
+            free(rv);
 			return NULL;
+        }
 		memset(rv->stmts, 0, sizeof(StatementClass *) * STMT_INCREMENT);
 
 		rv->num_stmts = STMT_INCREMENT;
 		rv->descs = (DescriptorClass **) malloc(sizeof(DescriptorClass *) * STMT_INCREMENT);
 		if (!rv->descs)
+        {
+            free(rv->stmts);
+            free(rv);
 			return NULL;
+        }
 		memset(rv->descs, 0, sizeof(DescriptorClass *) * STMT_INCREMENT);
 
 		rv->num_descs = STMT_INCREMENT;
@@ -2857,6 +2864,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	if((!res) || (res->status == PGRES_EMPTY_QUERY) )
 	{
 		QR_Destructor(res);
+        res = NULL;
 		goto cleanup;
 	}
 	else
@@ -3141,6 +3149,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not allocate memory for result set");
 		QR_Destructor(qres);
+        return NULL;
 	}
 	qres->status = PQresultStatus(pgres);
 	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
