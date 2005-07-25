@@ -46,12 +46,13 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	BOOL		abbrev = (len < 1024);
 
 	/* fundamental info */
-	sprintf(connect_string, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
+	sprintf(connect_string, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;SSLMODE=%s;UID=%s;PWD=%s",
 			got_dsn ? "DSN" : "DRIVER",
 			got_dsn ? ci->dsn : ci->drivername,
 			ci->database,
 			ci->server,
 			ci->port,
+            ci->sslmode,
 			ci->username,
 			ci->password);
 
@@ -285,6 +286,9 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
+    
+	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, "sslmode") == 0)
+		strcpy(ci->sslmode, value);
 
 #ifndef USE_LIBPQ
 #ifdef HAVE_UNIX_SOCKETS
@@ -335,7 +339,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, "CX") == 0)
 		unfoldCXAttribute(ci, value);
 
-	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',sslmode='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->sslmode, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
 }
 
 void
@@ -406,6 +410,9 @@ getDSNdefaults(ConnInfo *ci)
 {
 	if (ci->port[0] == '\0')
 		strcpy(ci->port, DEFAULT_PORT);
+    
+	if (ci->sslmode[0] == '\0')
+		strcpy(ci->sslmode, DEFAULT_SSLMODE);
 
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
@@ -499,6 +506,9 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (ci->port[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
 
+	if (ci->sslmode[0] == '\0' || overwrite)
+		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
+    
 #ifndef USE_LIBPQ
 #ifdef HAVE_UNIX_SOCKETS
 	if (ci->uds[0] == '\0' || overwrite)
@@ -737,6 +747,11 @@ writeDSNinfo(const ConnInfo *ci)
 	SQLWritePrivateProfileString(DSN,
 								 INI_PORT,
 								 ci->port,
+								 ODBC_INI);
+                                 
+	SQLWritePrivateProfileString(DSN,
+								 INI_SSLMODE,
+								 ci->sslmode,
 								 ODBC_INI);
 
 #ifndef USE_LIBPQ

@@ -245,6 +245,7 @@ typedef struct
 	char		conn_settings[LARGE_REGISTRY_LEN];
 	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
+	char		sslmode[MEDIUM_REGISTRY_LEN];
 #ifdef HAVE_UNIX_SOCKETS
 	char		uds[LARGE_REGISTRY_LEN];
 #endif

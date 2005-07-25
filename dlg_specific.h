@@ -43,6 +43,7 @@
 #define INI_KDESC			"Description"	/* Data source description */
 #define INI_SERVER			"Servername"	/* Name of Server running PostgreSQL */
 #define INI_PORT			"Port"		/* Port on which the Postmaster is listening */
+#define INI_SSLMODE         "SSLmode"
 
 #if !defined WIN32 && defined HAVE_SYS_UN_H
 #ifndef HAVE_UNIX_SOCKETS
@@ -129,6 +130,7 @@
 
 /*	Connection Defaults */
 #define DEFAULT_PORT			"5432"
+#define DEFAULT_SSLMODE         "prefer"
 #define DEFAULT_READONLY		0
 #define DEFAULT_PROTOCOL		"6.4"	/* the latest protocol is the default */
 #define DEFAULT_USEDECLAREFETCH		0

@@ -1248,12 +1248,12 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			return 0;
 		}
 
-		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s',"
+		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s', sslmode = '%s'"
 #ifdef HAVE_UNIX_SOCKETS
 		      " uds = '%s',"
 #endif
 		      " database = '%s', username = '%s',"
-		      " password='%s'\n", ci->dsn, ci->server, ci->port,
+		      " password='%s'\n", ci->dsn, ci->server, ci->port, ci->sslmode,
 #ifdef HAVE_UNIX_SOCKETS
 		      ci->uds,
 #endif
@@ -2639,9 +2639,9 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			return 0;
 		}
 
-		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s',"
+		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s', sslmode = '%s',"
 		      " database = '%s', username = '%s',"
-		      " password='%s'\n", ci->dsn, ci->server, ci->port,
+		      " password='%s'\n", ci->dsn, ci->server, ci->port, ci->sslmode,
 		      ci->database, ci->username, ci->password ? "xxxxx" : "");
 
 
@@ -3104,6 +3104,19 @@ LIBPQ_connect(ConnectionClass *self)
 	}
 
 
+	if(self->connInfo.sslmode[0] != '\0')
+	{
+		size_t size = (sizeof(char) * (strlen(" sslmode=") + strlen(self->connInfo.sslmode) + 1));
+		conninfo = (char *)realloc(conninfo,size+strlen(conninfo));
+		if(!conninfo)
+		{
+			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(sslmode)");
+			mylog("i could not allocate memory for sslmode \n");
+		}
+		conninfo = strcat(conninfo," sslmode=");
+		conninfo = strcat(conninfo,self->connInfo.sslmode);
+	}
+    
 	if(self->connInfo.password[0] != '\0')
 	{
 		size_t size = (sizeof(char) * (strlen(" password=") + strlen(self->connInfo.password) + 1));

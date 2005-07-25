@@ -60,6 +60,11 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_USER, ci->username);
 	SetDlgItemText(hdlg, IDC_PASSWORD, ci->password);
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
+    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "prefer" ));
+    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "allow" ));
+    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "require" ));
+    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "disable" ));
+    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_SELECTSTRING, -1, (LPARAM) ((LPSTR) ci->sslmode ));
 }
 
 
@@ -73,6 +78,7 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	GetDlgItemText(hdlg, IDC_USER, ci->username, sizeof(ci->username));
 	GetDlgItemText(hdlg, IDC_PASSWORD, ci->password, sizeof(ci->password));
 	GetDlgItemText(hdlg, IDC_PORT, ci->port, sizeof(ci->port));
+    GetDlgItemText(hdlg, IDC_SSLMODE, ci->sslmode, sizeof(ci->sslmode));
 }
 
 
