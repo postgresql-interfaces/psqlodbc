@@ -3154,6 +3154,9 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	PGresult *pgres;
 	char		*ptr;
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
+    char		errbuffer[ERROR_MSG_LENGTH + 1];
+    int         pos=0;
+    
 	strcpy(cmdbuffer,query);
 	mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 	pgres = PQexec(self->pgconn,query);
@@ -3173,8 +3176,14 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	}
 	if ( (PQresultStatus(pgres) != PGRES_EMPTY_QUERY) && (PQresultStatus(pgres) != PGRES_TUPLES_OK) )
     {
-		mylog("inside if loop got no result from the empty query.  (probably database does not exist)\n");
-		CC_set_error(self, CONNECTION_NO_SUCH_DATABASE, "The database does not exist on the server");
+        snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
+        /* Remove the training CR that libpq adds to the message */
+        pos = strlen(errbuffer);
+        if (pos)
+            errbuffer[pos - 1] = '\0';
+
+		mylog("the server returned the error: %s\n", errbuffer);
+		CC_set_error(self, CONNECTION_SERVER_REPORTED_ERROR, errbuffer);
         PQclear(pgres);
 		return qres;
     }
