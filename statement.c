@@ -366,6 +366,8 @@ SC_Destructor(StatementClass *self)
     GDATA_unbind_cols(SC_get_GDTI(self), TRUE);
 
 	DELETE_STMT_CS(self);
+    if (self->pdata_info.pdata != 0)
+        free(self->pdata_info.pdata);
 	free(self);
 
 	mylog("SC_Destructor: EXIT\n");
