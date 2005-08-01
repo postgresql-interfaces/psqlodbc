@@ -259,8 +259,11 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			value = SQL_IS_INSERT_LITERALS | SQL_IS_INSERT_SEARCHED | SQL_IS_SELECT_INTO;
 			break;
 		case SQL_MAX_IDENTIFIER_LEN:
-			len = 4;
-			value = 32;
+			len = 2;
+            if (PG_VERSION_GT(conn, 7.2)) 
+			    value = 64;
+            else
+                value = 32;
 			break;
 		case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
 			len = 0;
