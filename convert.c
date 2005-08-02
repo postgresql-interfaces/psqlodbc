@@ -944,19 +944,23 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 		if (SQL_C_WCHAR == fCType && ! wchanged)
 		{
-			if (cbValueMax > (SDWORD) (WCLEN * len))
+			if (cbValueMax > (SDWORD) (WCLEN * (len + 1)))
 			{
 				char *str = strdup(rgbValueBindRow);
 				UInt4	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
 				if (cbValueMax < (SDWORD) (WCLEN * ucount))
 					result = COPY_RESULT_TRUNCATED;
-				len = ucount * WCLEN;
+				// len = ucount * WCLEN;
 				free(str); 
 			}
 			else
 			{
-				len *= WCLEN;
-				result = COPY_RESULT_TRUNCATED;
+                if ((SDWORD) (len + WCLEN) <= cbValueMax)
+                {
+                    result = COPY_OK;
+                }
+                else
+                    result = COPY_RESULT_TRUNCATED; 
 			}
 		}
 
