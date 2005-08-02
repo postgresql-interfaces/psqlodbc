@@ -950,7 +950,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 				UInt4	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
 				if (cbValueMax < (SDWORD) (WCLEN * ucount))
 					result = COPY_RESULT_TRUNCATED;
-				// len = ucount * WCLEN;
 				free(str); 
 			}
 			else
