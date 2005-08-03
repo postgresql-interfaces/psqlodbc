@@ -1924,6 +1924,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 				{
 					CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_ERROR);
 					abort_opt = NO_TRANS | CONN_DEAD;
+                    ReadyToReturn = TRUE;
+                    retres = NULL;
 				}
 				else
 				{
