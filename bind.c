@@ -191,7 +191,7 @@ PGAPI_BindCol(
 					break;
 				default:
 					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK");
-inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
+                    mylog("Bind column 0 is type %d not of type SQL_C_BOOKMARK\n", fCType);
 					SC_log_error(func, "", stmt);
 					return SQL_ERROR;
 			}
@@ -705,7 +705,7 @@ void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
 	Int2	lf;
 
-inolog("ARD_unbind_cols freeall=%d allocated=%d bindings=%x", freeall, self->allocated, self->bindings);
+    mylog("ARD_unbind_cols freeall=%d allocated=%d bindings=%x\n", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_column_binding(self, lf);
 	if (freeall)
@@ -720,7 +720,7 @@ void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 {
 	Int2	lf;
 
-inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%x", freeall, self->allocated, self->gdata);
+    mylog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%x\n", freeall, self->allocated, self->gdata);
 	if (self->fdata.ttlbuf)
 	{
 		free(self->fdata.ttlbuf);
