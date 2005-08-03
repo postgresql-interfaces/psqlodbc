@@ -3160,6 +3160,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	strcpy(cmdbuffer,query);
 	mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 	pgres = PQexec(self->pgconn,query);
+
 	qres=QR_Constructor();
 	if(!qres)
 	{
@@ -3168,25 +3169,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
         return NULL;
 	}
 	qres->status = PQresultStatus(pgres);
-	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
-	{
-		mylog("The query was executed successfully and the query did not return any result \n");
-		PQclear(pgres);
-		return qres;
-	}
-	if ( (PQresultStatus(pgres) != PGRES_EMPTY_QUERY) && (PQresultStatus(pgres) != PGRES_TUPLES_OK) )
-    {
-        snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
-        /* Remove the training CR that libpq adds to the message */
-        pos = strlen(errbuffer);
-        if (pos)
-            errbuffer[pos - 1] = '\0';
-
-		mylog("the server returned the error: %s\n", errbuffer);
-		CC_set_error(self, CONNECTION_SERVER_REPORTED_ERROR, errbuffer);
-        PQclear(pgres);
-		return qres;
-    }
+    
 	if (strnicmp(cmdbuffer, "BEGIN", 5) == 0)
 	{
 		CC_set_in_trans(self);
@@ -3208,6 +3191,27 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		else
 			qres->recent_processed_row_count = -1;
 	}
+
+	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
+	{
+		mylog("The query was executed successfully and the query did not return any result \n");
+		PQclear(pgres);
+		return qres;
+	}
+	if ( (PQresultStatus(pgres) != PGRES_EMPTY_QUERY) && (PQresultStatus(pgres) != PGRES_TUPLES_OK) )
+    {
+        snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
+        /* Remove the training CR that libpq adds to the message */
+        pos = strlen(errbuffer);
+        if (pos)
+            errbuffer[pos - 1] = '\0';
+
+		mylog("the server returned the error: %s\n", errbuffer);
+		CC_set_error(self, CONNECTION_SERVER_REPORTED_ERROR, errbuffer);
+        PQclear(pgres);
+		return qres;
+    }
+
 	qres=CC_mapping(pgres,qres);
 	QR_set_command(qres, cmdbuffer);
     PQclear(pgres);
