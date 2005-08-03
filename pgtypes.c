@@ -140,6 +140,7 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
 			break;
 
+        case SQL_DATE:
 		case SQL_TYPE_DATE:
 			pgType = PG_TYPE_DATE;
 			break;
