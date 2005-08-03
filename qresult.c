@@ -162,6 +162,13 @@ QR_Destructor(QResultClass *self)
 	 * case we need to, free it up.  Also, close the cursor.
 	 */
 #ifdef USE_LIBPQ
+    
+    /*
+     * FIXME!!!
+     * This is *very wrong*, however, without it we get crashes when 
+     * freeing backend_tuples as we should in QR_free_memory. We don't 
+     * appear to leak here though thankfully!! DJP - 2005-08-02
+     */
 	if (self->backend_tuples)
 	{
 		free(self->backend_tuples);
