@@ -337,6 +337,7 @@ SC_Destructor(StatementClass *self)
 	}
 
 	SC_initialize_stmts(self, TRUE);
+    SC_free_params(self, STMT_FREE_PARAMS_ALL);
 
         /* Free the parsed table information */
 	if (self->ti)
