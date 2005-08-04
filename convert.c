@@ -2665,7 +2665,7 @@ ResolveOneParam(QueryBuild *qb)
 
 		case SQL_C_SLONG:
 		case SQL_C_LONG:
-			sprintf(param_string, "%ld",
+			sprintf(param_string, "%d",
 					*((SDWORD *) buffer));
 			break;
 
@@ -2694,7 +2694,7 @@ ResolveOneParam(QueryBuild *qb)
 			break;
 
 		case SQL_C_ULONG:
-			sprintf(param_string, "%lu",
+			sprintf(param_string, "%u",
 					*((UDWORD *) buffer));
 			break;
 
