@@ -152,10 +152,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_CATALOG_NAME:
 			len = 0;
-			if (PG_VERSION_LE(conn, 7.2))
-				p = "N";
-			else
-				p = "Y"; /* hopefully */
+            p = "N";
 			break;
 		case SQL_COLLATION_SEQ:
 			len = 0;
