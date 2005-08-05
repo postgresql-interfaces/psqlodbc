@@ -3239,7 +3239,12 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
 	{
 		typid = PQftype(pgres,i);
 		atttypmod = PQfmod(pgres,i);
-		typlen = PQfsize(pgres,i);
+
+        if (PG_TYPE_NUMERIC == typid)
+            typlen = ((atttypmod - 4)  >> 16) & 0xffff;
+        else
+            typlen = PQfsize(pgres,i);
+        
 		if(typlen == -1 || PG_TYPE_VARCHAR == typid)
 			typlen = MAX_VARCHAR_SIZE;
 		switch (typid)
