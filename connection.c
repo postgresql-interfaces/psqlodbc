@@ -3214,7 +3214,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		return qres;
     }
 
-	qres=CC_mapping(pgres,qres);
+	qres=CC_mapping(self,pgres,qres);
 	QR_set_command(qres, cmdbuffer);
     PQclear(pgres);
 	return qres;
@@ -3225,7 +3225,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
  */
 
 QResultClass *
-CC_mapping(PGresult *pgres,QResultClass *qres)
+CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 {
 	int i=0,j=0;
 	TupleNode *node, *temp;
@@ -3233,6 +3233,7 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
 	int atttypmod,typlen;
 	int num_attributes = PQnfields(pgres);
 	int num_tuples = PQntuples(pgres);
+    ConnInfo   *ci = &(self->connInfo);
 
 	CI_set_num_fields(qres->fields, num_attributes);
 	for(i = 0 ; i < num_attributes ; i++)
@@ -3265,20 +3266,29 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
             case PG_TYPE_VARCHAR:
                 typlen = atttypmod;
                 break;
-            
-            /* bytea and text have no defined maximum size, so we use SQL_NO_TOTAL per the docs */
-            /* http://msdn.microsoft.com/library/default.asp?url=/library/en-us/odbc/htm/odbccolumn_size.asp */
-            case PG_TYPE_BYTEA:
-            case PG_TYPE_TEXT:
-                typlen = SQL_NO_TOTAL;
-                break;
         
             default:
                 typlen = PQfsize(pgres,i);
         }
         
+        /* 
+         * FIXME - The following is somewhat borked with regard to driver.unknownsizes
+         *         It works, but basically is not aware of different variable length types
+         *         (UNKNOWNS_AS_MAX), and UNKNOWNS_AS_LONGEST won't work because we don't
+         *         have data at this point 
+         */
 		if(typlen == -1)
-			typlen = MAX_VARCHAR_SIZE;
+        {
+            switch (ci->drivers.unknown_sizes)
+            {
+                case UNKNOWNS_AS_DONTKNOW:
+				    typlen = SQL_NO_TOTAL;
+                    break;
+                
+			    default:
+				    typlen = ci->drivers.max_longvarchar_size;
+            }
+		}
         
 		CI_set_field_info(qres->fields, i, PQfname(pgres,i),
 			  typid, (Int2)typlen, atttypmod);
