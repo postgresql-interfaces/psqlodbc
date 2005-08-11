@@ -3239,14 +3239,8 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
 	{
 		typid = PQftype(pgres,i);
 		atttypmod = PQfmod(pgres,i);
-
-        if (PG_TYPE_NUMERIC == typid)
-            typlen = ((atttypmod - 4)  >> 16) & 0xffff;
-        else
-            typlen = PQfsize(pgres,i);
         
-		if(typlen == -1 || PG_TYPE_VARCHAR == typid)
-			typlen = MAX_VARCHAR_SIZE;
+        /* Setup the typmod */
 		switch (typid)
 		{
 			case PG_TYPE_DATETIME:
@@ -3259,6 +3253,33 @@ CC_mapping(PGresult *pgres,QResultClass *qres)
 		}
 		if (atttypmod < 0)
 			atttypmod = -1;
+        
+        /* Setup the typlen */
+        switch (typid)
+        {
+            case PG_TYPE_NUMERIC:
+                typlen = (atttypmod >> 16) & 0xffff;
+                break;
+            
+            case PG_TYPE_BPCHAR:
+            case PG_TYPE_VARCHAR:
+                typlen = atttypmod;
+                break;
+            
+            /* bytea and text have no defined maximum size, so we use SQL_NO_TOTAL per the docs */
+            /* http://msdn.microsoft.com/library/default.asp?url=/library/en-us/odbc/htm/odbccolumn_size.asp */
+            case PG_TYPE_BYTEA:
+            case PG_TYPE_TEXT:
+                typlen = SQL_NO_TOTAL;
+                break;
+        
+            default:
+                typlen = PQfsize(pgres,i);
+        }
+        
+		if(typlen == -1)
+			typlen = MAX_VARCHAR_SIZE;
+        
 		CI_set_field_info(qres->fields, i, PQfname(pgres,i),
 			  typid, (Int2)typlen, atttypmod);
 	}
