@@ -3189,7 +3189,11 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		trim(cmdbuffer); /* get rid of trailing space */
 		ptr = strrchr(cmdbuffer, ' ');
 		if (ptr)
-			qres->recent_processed_row_count = atoi(ptr + 1);
+#ifdef USE_LIBPQ
+			qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
+#else
+ 			qres->recent_processed_row_count = atoi(ptr + 1);
+#endif	/* USE_LIBPQ */
 		else
 			qres->recent_processed_row_count = -1;
 	}

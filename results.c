@@ -55,13 +55,14 @@ PGAPI_RowCount(
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
+#ifndef USE_LIBPQ
 	if (stmt->manual_result)
 	{
 		if (pcrow)
 			*pcrow = -1;
 		return SQL_SUCCESS;
 	}
-
+#endif /* USE_LIBPQ */
 	res = SC_get_Curres(stmt);
 	if (res && pcrow)
 	{
