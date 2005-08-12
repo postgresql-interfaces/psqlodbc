@@ -407,7 +407,7 @@ PGconn			*LIBPQ_Constructor();
 void			LIBPQ_Destructor(PGconn *pgconn);
 int			LIBPQ_connect(ConnectionClass *self);
 QResultClass		*LIBPQ_execute_query(ConnectionClass *self,char *query);
-QResultClass		*CC_mapping(PGresult *pgres,QResultClass *qres);
+QResultClass		*CC_mapping(ConnectionClass *self,PGresult *pgres,QResultClass *qres);
 /* CC_send_query options */
 #define	CLEAR_RESULT_ON_ABORT	1L
 #define	CREATE_KEYSET		(1L << 1) /* create keyset for updatable curosrs */
