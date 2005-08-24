@@ -358,6 +358,15 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	{
 
         	EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
+#ifdef USE_LIBPQ
+		if (!res->recent_processed_row_count && res->status == PGRES_COMMAND_OK && EN_is_odbc3(env))
+		{
+			if ((strnicmp(stmt->statement, "UPDATE", 6) == 0) || 
+				(strnicmp(stmt->statement, "DELETE", 6) == 0))
+				retval = SQL_NO_DATA_FOUND;
+		}
+
+#else
 		const char *cmd = QR_get_command(res);
 
 		if (retval == SQL_SUCCESS && cmd && EN_is_odbc3(env))
@@ -373,6 +382,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 			if (0 == count)
 				retval = SQL_NO_DATA;
 		}
+#endif  /* USE_LIBPQ */
 
 		stmt->diag_row_count = res->recent_processed_row_count;
 	}
