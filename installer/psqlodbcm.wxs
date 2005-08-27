@@ -22,12 +22,12 @@
         <Component Id="psqlodbc.files" Guid="F66FBDE8-2E5C-4759-A8DC-85052DAA1374">
         
           <!-- PostgreSQL -->
-          <File Id="psqlodbclibpq.dll" LongName="psqlodbclibpq.dll" Name="psqlod~1.dll" KeyPath="yes" src="../Release/psqlodbclibpq.dll" />
+          <File Id="psqlodbclibpq.dll" LongName="psqlodbclibpq.dll" Name="psqlodXX.dll" KeyPath="yes" src="../Release/psqlodbclibpq.dll" />
           <File Id="libpq.dll" Name="libpq.dll" src="C:\Windows\System32\libpq.dll" />
           
           <!-- Gettext -->
-          <File Id="libintl-2.dll" LongName="libintl-2.dll" Name="libint~1.dll" src="C:\Windows\System32\libintl-2.dll" />
-          <File Id="libiconv-2.dll" LongName="libiconv-2.dll" Name="libico~1.dll" src="C:\Windows\System32\libiconv-2.dll" />
+          <File Id="libintl_2.dll" LongName="libintl-2.dll" Name="libintXX.dll" src="C:\Windows\System32\libintl-2.dll" />
+          <File Id="libiconv_2.dll" LongName="libiconv-2.dll" Name="libicoXX.dll" src="C:\Windows\System32\libiconv-2.dll" />
           
           <!-- SSL -->
           <File Id="libeay32.dll" Name="libeay32.dll" src="C:\Windows\System32\libeay32.dll" />
