@@ -18,7 +18,7 @@
       SummaryCodepage="1252" />
     
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="SystemFolder" Name="Redist">
+      <Directory Id="BINDIR" Name=".">
         <Component Id="psqlodbc.files" Guid="F66FBDE8-2E5C-4759-A8DC-85052DAA1374">
         
           <!-- PostgreSQL -->

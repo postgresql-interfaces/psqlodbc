@@ -25,15 +25,49 @@
 <!-- Directories -->
 
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="SystemFolder" Name="." SourceName="System32">
-        <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
+      <Directory Id="ProgramFilesFolder" Name="PFiles">
+        <Directory Id="BASEDIR" Name="psqlODBC">
+          <Directory Id="BINDIR" Name="bin">
+            <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
+          </Directory>
+          <Directory Id="DOCSDIR" Name="docs">
+            <Component Id="docs" Guid="99F6DEB2-7FC4-497e-8358-C44724681BCA">
+              <File Id="docs.index.html" Name="index.htm" LongName="index.html" DiskId="1" src="../docs/index.html" />
+              <File Id="docs.config.html" Name="config.htm" LongName="config.html" DiskId="1" src="../docs/config.html" />
+              <File Id="docs.faq.html" Name="faq.htm" LongName="faq.html" DiskId="1" src="../docs/faq.html" />
+              <File Id="docs.howto_accesslo.html" Name="howto1.htm" LongName="accesslo.html" DiskId="1" src="../docs/howto-accesslo.html" />
+              <File Id="docs.howto_accessvba.html" Name="howto2.htm" LongName="accessvba.html" DiskId="1" src="../docs/howto-accessvba.html" />
+              <File Id="docs.howto_bo.html" Name="howto3.htm" LongName="howto-bo.html" DiskId="1" src="../docs/howto-bo.html" />
+              <File Id="docs.howto_ch.html" Name="howto4.htm" LongName="howto-ch.html" DiskId="1" src="../docs/howto-ch.html" />
+              <File Id="docs.howto_csharp.html" Name="howto5.htm" LongName="howto-csharp.html" DiskId="1" src="../docs/howto-csharp.html" />
+              <File Id="docs.howto_debian.html" Name="howto6.htm" LongName="howto-debian.html" DiskId="1" src="../docs/howto-debian.html" />
+              <File Id="docs.howto_redhat.html" Name="howto7.htm" LongName="howto-redhat.html" DiskId="1" src="../docs/howto-redhat.html" />
+              <File Id="docs.howto_vb.html" Name="howto8.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
+              <File Id="docs.howto_vblo.html" Name="howto9.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
+              <File Id="docs.unix_compilation.html" Name="unix.htm" LongName="unix-compilation.html" DiskId="1" src="../docs/unix-compilation.html" />
+              <File Id="docs.win32_compilation.html" Name="win32.htm" LongName="win32-compilation.html" DiskId="1" src="../docs/win32-compilation.html" />
+             
+              <Shortcut Id="docs.index.html" Directory="SMDIR" Name="docs" LongName="Documentation index" Target="[#docs.index.html]" Description="psqlODBC documentation, HOWTOs and FAQs" Show="normal" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
+        <Directory Id="SMDIR" Name="psqlODBC" LongName="psqlODBC $(var.VERSION)" />
       </Directory>
     </Directory>
         
 <!-- Features -->
 
-	<Feature Id="psqlodbc" Title="psqlODBC" Level="1">
-      <MergeRef Id="psqlodbcm" />
+	<Feature Id="psqlodbc" Title="psqlODBC" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
+      <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries." ConfigurableDirectory="BINDIR">
+        <MergeRef Id="psqlodbcm" />
+      </Feature>
+      
+      <Feature Id="docs" Title="Documentation" Level="1" Description="Documentation, FAQs and HOWTOs." ConfigurableDirectory="DOCSDIR">
+        <ComponentRef Id="docs" />
+      </Feature>
+      
     </Feature>
     <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab"/>
     
@@ -54,6 +88,62 @@
 <!-- Bitmaps -->
 
       <Binary Id="BannerBmp" src="banner.bmp" />
+      <Binary Id="UpBmp" src="up.bmp" />
+      <Binary Id="NewBmp" src="new.bmp" />
+        
+<!-- UI Text -->
+
+      <UIText Id="AbsentPath" />
+      <UIText Id="bytes">bytes</UIText>
+      <UIText Id="GB">GB</UIText>
+      <UIText Id="KB">KB</UIText>
+      <UIText Id="MB">MB</UIText>
+      <UIText Id="MenuAbsent">Entire feature will be unavailable</UIText>
+      <UIText Id="MenuCD">Will be installed to run from CD</UIText>
+      <UIText Id="MenuLocal">Will be installed on local hard drive</UIText>
+      <UIText Id="MenuNetwork">Will be installed to run from network</UIText>
+      <UIText Id="NewFolder">Fldr|New Folder</UIText>
+      <UIText Id="SelAbsentAbsent">This feature will remain uninstalled</UIText>
+      <UIText Id="SelAbsentCD">This feature will be installed to run from CD</UIText>
+      <UIText Id="SelAbsentLocal">This feature will be installed on the local hard drive</UIText>
+      <UIText Id="SelAbsentNetwork">This feature will be installed to run from the network</UIText>
+      <UIText Id="SelCDAbsent">This feature will be uninstalled completely, you won't be able to run it from CD</UIText>
+      <UIText Id="SelCDCD">This feature will remain to be run from CD</UIText>
+      <UIText Id="SelCDLocal">This feature will change from run from CD state to be installed on the local hard drive</UIText>
+      <UIText Id="SelChildCostNeg">This feature frees up [1] on your hard drive.</UIText>
+      <UIText Id="SelChildCostPos">This feature requires [1] on your hard drive.</UIText>
+      <UIText Id="SelLocalAbsent">This feature will be completely removed</UIText>
+      <UIText Id="SelLocalCD">This feature will be removed from your local hard drive, but will be still available to run from CD</UIText>
+      <UIText Id="SelLocalLocal">This feature will remain on your local hard drive</UIText>
+      <UIText Id="SelLocalNetwork">This feature will be removed from your local hard drive, but will be still available to run from the network</UIText>
+      <UIText Id="SelNetworkAbsent">This feature will be uninstalled completely, you won't be able to run it from the network</UIText>
+      <UIText Id="SelNetworkLocal">This feature will change from run from network state to be installed on the local hard drive</UIText>
+      <UIText Id="SelNetworkNetwork">This feature will remain to be run from the network</UIText>
+      <UIText Id="SelParentCostNegNeg">This feature frees up [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures free up [4] on your hard drive.</UIText>
+      <UIText Id="SelParentCostNegPos">This feature frees up [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures require [4] on your hard drive.</UIText>
+      <UIText Id="SelParentCostPosNeg">This feature requires [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures free up [4] on your hard drive.</UIText>
+      <UIText Id="SelParentCostPosPos">This feature requires [1] on your hard drive. It has [2] of [3] subfeatures selected. The subfeatures require [4] on your hard drive.</UIText>
+      <UIText Id="VolumeCostAvailable">Available</UIText>
+      <UIText Id="VolumeCostDifference">Difference</UIText>
+      <UIText Id="VolumeCostRequired">Required</UIText>
+      <UIText Id="VolumeCostSize">Disk Size</UIText>
+      <UIText Id="VolumeCostVolume">Volume</UIText>
+      <UIText Id="TimeRemaining">Time remaining: {[1] minutes }{[2] seconds}</UIText>
+      <UIText Id="SelNetworkAdvertise">This feature will change from run from network state to set to be installed when required</UIText>
+      <UIText Id="SelLocalAdvertise">This feature will be removed from your local hard drive, but will be set to be installed when required</UIText>
+      <UIText Id="SelCostPending">Compiling cost for this feature...</UIText>
+      <UIText Id="SelCDAdvertise">This feature will change from run from CD state to set to be installed when required</UIText>
+      <UIText Id="SelAdvertiseNetwork">This feature will be available to run from the network</UIText>
+      <UIText Id="SelAdvertiseLocal">This feature will be installed on your local hard drive</UIText>
+      <UIText Id="SelAdvertiseCD">This feature will be available to run from CD</UIText>
+      <UIText Id="SelAdvertiseAdvertise">Will be installed when required</UIText>
+      <UIText Id="SelAdvertiseAbsent">This feature will become unavailable</UIText>
+      <UIText Id="SelAbsentAdvertise">This feature will be set to be installed when required</UIText>
+      <UIText Id="MenuAllNetwork">Entire feature will be installed to run from network</UIText>
+      <UIText Id="MenuAllLocal">Entire feature will be installed on local hard drive</UIText>
+      <UIText Id="MenuAllCD">Entire feature will be installed to run from CD</UIText>
+      <UIText Id="ScriptInProgress">Gathering required information...</UIText>
+      <UIText Id="MenuAdvertise">Feature will be installed when required</UIText>
       
 <!-- Cancel dialog -->
 
@@ -135,6 +225,42 @@
         </Control>
       </Dialog>
       
+<!-- Browse dialog --> 
+
+      <Dialog Id="Browse" Width="348" Height="193" Title="psqlODBC (libpq) $(var.VERSION)">
+        <Control Id="TailText" Type="Text" X="9" Y="151" Width="55" Height="14" TabSkip="no">
+          <Text>&amp;Folder name:</Text>
+        </Control>
+        <Control Id="Tail" Type="PathEdit" X="65" Y="147" Width="212" Height="18" Property="_BrowseProperty" Indirect="yes">
+          <Text></Text>
+        </Control>
+        <Control Id="OK" Type="PushButton" X="282" Y="148" Width="56" Height="17" Default="yes">
+          <Text>OK</Text>
+          <Publish Event="SetTargetPath" Value="[_BrowseProperty]">1</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="282" Y="172" Width="56" Height="17" Cancel="yes">
+          <Text>Cancel</Text>
+          <Publish Event="Reset" Value="0">1</Publish>
+          <Publish Event="EndDialog" Value="Return">NOT BaseBrowse</Publish>
+          <Publish Event="SpawnDialog" Value="Cancel">BaseBrowse</Publish>
+        </Control>
+        <Control Id="ComboText" Type="Text" X="10" Y="13" Width="54" Height="15" TabSkip="no">
+          <Text>&amp;Look in:</Text>
+        </Control>
+        <Control Id="Combo" Type="DirectoryCombo" X="65" Y="10" Width="230" Height="80" Property="_BrowseProperty" Indirect="yes" Removable="yes" Fixed="yes" Remote="yes" CDROM="yes">
+          <Text></Text>
+          <Subscribe Event="IgnoreChange" Attribute="IgnoreChange" />
+        </Control>
+        <Control Id="Up" Type="PushButton" X="300" Y="9" Width="17" Height="17" Icon="yes" FixedSize="yes" IconSize="16" Text="UpBmp">
+          <Publish Event="DirectoryListUp" Value="0">1</Publish>
+        </Control>
+        <Control Id="NewFolder" Type="PushButton" X="320" Y="9" Width="17" Height="17" Icon="yes" FixedSize="yes" IconSize="16" Text="NewBmp">
+          <Publish Event="DirectoryListNew" Value="0">1</Publish>
+        </Control>
+        <Control Id="List" Type="DirectoryList" X="8" Y="29" Width="330" Height="115" Property="_BrowseProperty" Sunken="yes" Indirect="yes" TabSkip="no" />
+      </Dialog>
+      
 <!-- Welcome dialog -->
 
       <Dialog Id="Welcome_Dialog" Width="375" Height="270" Title="psqlODBC (libpq) $(var.VERSION)" CustomPalette="yes">
@@ -143,7 +269,7 @@
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
         <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
         <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
-    
+     
         <!-- dialog buttons -->
         <Control Id="Next" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes">
           <Text>&amp;Next &gt;</Text>
@@ -156,7 +282,7 @@
           <Text>Cancel</Text>
           <Publish Event="SpawnDialog" Value="Cancel">1</Publish>
         </Control>
-    
+      
         <!-- dialog specific controls -->
         <Control Id="wc_txt1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
           <Text>{\Arial10Bold}Welcome to the psqlODBC Installation Wizard</Text>
@@ -181,7 +307,7 @@
         <!-- dialog buttons -->
         <Control Id="Next" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes">
           <Text>&amp;Next &gt;</Text>
-          <Publish Event="NewDialog" Value="Ready_Dialog">1</Publish>
+          <Publish Event="NewDialog" Value="Selection_Dialog">1</Publish>
         </Control>
         <Control Id="Previous" Type="PushButton" X="189" Y="244" Width="56" Height="17">
           <Text>&lt; &amp;Back</Text>
@@ -203,6 +329,58 @@
           <Text src="lgpl.rtf" />
         </Control>
       </Dialog>
+      
+<!-- Feature selection dialog -->
+
+      <Dialog Id="Selection_Dialog" Width="375" Height="270" Title="psqlODBC (libpq) $(var.VERSION)" CustomPalette="yes">
+       
+        <!-- common dialog items -->
+        <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
+        <Control Id="wc_l1" Type="Line" X="0" Y="46" Width="378" Height="1" />
+        <Control Id="wc_l2" Type="Line" X="0" Y="234" Width="378" Height="1" />
+            
+        <!-- dialog buttons -->
+        <Control Id="Next" Type="PushButton" X="244" Y="244" Width="56" Height="17" Default="yes">
+          <Text>&amp;Next &gt;</Text>
+          <Publish Event="NewDialog" Value="Ready_Dialog">1</Publish>
+        </Control>
+        <Control Id="Previous" Type="PushButton" X="189" Y="244" Width="56" Height="17">
+          <Text>&lt; &amp;Back</Text>
+          <Publish Event="NewDialog" Value="Licence_Dialog">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="309" Y="244" Width="56" Height="17" Cancel="yes">
+          <Text>Cancel</Text>
+          <Publish Event="SpawnDialog" Value="Cancel">1</Publish>
+        </Control>
+            
+        <!-- dialog specific controls -->
+        <Control Id="ot1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
+          <Text>{\Arial10Bold}Feature selection</Text>
+        </Control>
+        <Control Id="FeatureTree" Type="SelectionTree" X="5" Y="56" Width="205" Height="133" Property="_BrowseProperty" />
+        <Control Id="SelectionFrame" Type="GroupBox" X="216" Y="51" Width="150" Height="135" />
+        <Control Id="ItemDescription" Type="Text" X="221" Y="61" Width="136" Height="80">
+          <Subscribe Event="SelectionDescription" Attribute="Text" />
+        </Control>
+        <Control Id="Size" Type="Text" X="221" Y="135" Width="137" Height="45">
+          <Subscribe Event="SelectionSize" Attribute="Text" />
+        </Control>
+        <Control Id="LocationFrame" Type="GroupBox" X="5" Y="190" Width="360" Height="40" />
+        <Control Id="LocationPath" Type="Text" X="11" Y="213" Width="283" Height="11">
+          <Text>Path</Text>
+          <Subscribe Event="SelectionPath" Attribute="Text" /> 
+        </Control>
+        <Control Id="LocationText" Type="Text" X="11" Y="200" Width="261" Height="11">
+          <Text>Current location:</Text>
+          <Subscribe Event="SelectionPathOn" Attribute="Visible" />
+          <Condition Action="hide">Installed</Condition>
+        </Control>
+            
+        <Control Id="PushButton44" Type="PushButton" X="300" Y="209" Width="56" Height="17" TabSkip="yes">
+          <Text>B&amp;rowse</Text>
+          <Publish Event="SelectionBrowse" Value="Browse">1</Publish>
+        </Control>
+      </Dialog>
   
 <!-- Ready dialogue -->
 
@@ -221,7 +399,7 @@
         </Control>
         <Control Id="Previous" Type="PushButton" X="189" Y="244" Width="56" Height="17">
           <Text>&lt; &amp;Back</Text>
-          <Publish Event="NewDialog" Value="Licence_Dialog">1</Publish>
+          <Publish Event="NewDialog" Value="Selection_Dialog">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="309" Y="244" Width="56" Height="17" Cancel="yes">
           <Text>Cancel</Text>
