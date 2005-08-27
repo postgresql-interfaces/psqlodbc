@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>Compiling psqlODBC on Windows</title>
+  </HEAD>
+
+  <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
+  
+<h1>Compiling psqlODBC on Windows</h1>
+
+<p>
+This page describes how to build the PostgreSQL ODBC Driver (psqlodbc.dll) on Win32 platforms.
+Microsoft Visual C++ version 4.0 or higher is required. Other compilers may work 
+but have not been formally tested. The psqlodbc.dll may be built either in the 
+VC++ IDE or from the command line:
+</p>
+
+<h2>IDE Method</h2>
+
+<ol>
+<li>Create a new project workspace with the type DLL.  For the name, type in the
+    name "psqlodbc".</li>
+
+<li>The above step creates the directory "psqlodbc" under the 
+    "\\&lt;Visual C++ top level directory&gt;\\projects" path to hold the source files.
+    (example, \\msdev\\projects\\psqlodbc).  Now, either unzip the source code release
+    into this directory or just copy all the files into this directory.</li>
+
+<li>Insert all of the source files (*.c, *.h, *.rc, *.def) into the Visual project
+    using the "Insert files into project" command.  You may have to do 2 inserts --
+    the first to get the 'c' and header files, and the second to get the def file.
+    Note, that from 07.01.0009, the file md5.c should <b>not</b> included in the project,
+    this file is only used under *nix - the file win_md5.c is used instead in Win32.
+    The file md5.h <b>is</b> required.
+    Don't forget the .def file since it is an important part of the release.
+    You can even insert ".txt" files into the projects -- they will do nothing.</li>
+	
+<li>Add the "wsock32.lib" library to the end of the list of libraries for linking
+    using the Build settings menu.</li>
+	
+<li>Select the type of build on the toolbar (i.e., Release or Debug).  This is
+    one of the useful features of the visual c++ environment in that you can
+    browse the entire project if you build the "Debug" release.  For release
+    purposes however, select "Release" build.</li>
+
+<li>Build the dll by selecting Build from the build menu.</li>
+
+<li>When complete, the "psqlodbc.dll" file is under the "Release" subdirectory.
+    (i.e., "\\msdev\\projects\\psqlodbc\\release\\psqlodbc.dll")</li>
+</ol>
+
+</p>
+
+<h2>Command Line Method</h2>
+
+<p>
+
+<ol>
+<li>From a command prompt, run the vcvars32.bat file that comes with Visual C++. This will
+setup the environment for using the VC++ compiler.</li>
+
+<li>CD to the directory containing the source code.</li>
+
+<li>Use NMAKE to build the dll eg:<br><br>
+
+    <code>C:\\psqlodbc\\> nmake /f win32.mak CFG=Release ALL</code><br><br>
+
+    Possible configurations are Release and Debug.<br>
+    Possible build types are ALL or CLEAN.</li>
+</ol>
+
+</p>
+
+</body>
+</html>

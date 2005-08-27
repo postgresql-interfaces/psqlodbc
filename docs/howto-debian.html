@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>psqlODBC HOWTO - Debian</title>
+  </HEAD>
+
+  <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
+  
+<h1>psqlODBC HOWTO - Debian</h1>
+
+<p>
+
+<i>
+Author: Oliver Elphick (olly@lfix.co.uk)<br>
+Release Date: 17 April 2002<br>
+Amendments: 16 July 2002<br>
+Amendments: 17 March 2003<br>
+Amendments: 11 August 2005<br>
+Description: Debian Linux: HOWTO set up odbc-postgresql with unixodbc to allow access to other Unix programs
+</i>
+<br><br>
+<p>
+Please be aware that these notes were written for the Debian installation of 
+PostgreSQL and UnixODBC.  With other distributions, or with the upstream
+source, package names and pathnames will be different.
+
+<p>
+<b>1.</b> Install odbc-postgresql and the packages unixodbc and odbcinst1<br><br>
+
+<b>2.</b> Add a PostgreSQL driver to /etc/odbcinst.ini:<br><br>
+
+<blockquote><i># odbcinst -i -d -f /usr/share/psqlodbc/odbcinst.ini.template</i></blockquote>
+
+<b>3.</b> Add the template1 database (with read only access) to the default odbc.ini<br><br>
+
+<blockquote><i># cat /usr/share/doc/odbc-postgresql/examples/odbc.ini.template &gt;&gt;/etc/odbc.ini</i></blockquote>
+
+   Edit /etc/odbc.ini as required, to add extra databases, change the read only
+   status and so on.<br><br>
+
+<b>4.</b> For release 07 of psqlodbc, add ODBC required functions to the databases that you wish to access from ODBC:<br><br>
+
+<i><blockquote>
+   # su -s /bin/bash - postgres<br>
+   $ for dbname in database1 database2 ...<br>
+     do<br>
+     &nbsp;&nbsp;&nbsp;&nbsp;psql -d  $dbname &lt; /usr/share/psqlodbc/odbc.sql<br>
+     done<br>
+</i></blockquote>
+
+   If you include template1 in the list, any database created in future will
+   automatically have these functions included when it is created.
+</p>
+<p>For release 08, step 4 is not required, because the driver does the conversion automatically.
+</p>
+<p>
+At this point, you should be able to use the ODBC access features of any
+application to connect to any of the listed databases.   For example, in
+StarOffice, you can click New->Database, select the ODBC database type
+and browse the list of databases from /etc/odbc.ini and ~/.odbc.ini.
+</p>
+
+<p>
+Each user has or can have a file ~/.odbc.ini, whose structure is the same
+as /etc/odbc.ini.  This file is read together with the /etc/odbc.ini to give
+a complete list of databases accessible to the user.  (Of course, any
+access restrictions imposed by pg_hba.conf are still applicable.)
+</p>
+
+<p>
+You can create templates for different databases and allow users to add
+them to their own ~/.odbc.ini.  Use the odbc.ini template file provided in
+/usr/share/doc/odbc-postgresql/examples/odbc.ini.template as a model.
+</p>
+
+<p>
+A good and reliable way for a user to add a template to his ~/.odbc.ini
+without risk of damaging his file is for him to use this command:
+</p>
+
+<blockquote><i>$ odbcinst -i -s -f /path/to/your/template/file</i></blockquote>
+
+<p>
+Note: I have had a report that OpenOffice objects to tabs and/or whitespace
+in ~/.odbc.ini and /etc/odbc.ini.  I have not found this problem with
+StarOffice 5, however.  Neither does it seem to be a problem in openoffice.org 1.4.
+</p>
+
+<b>Sample odbcinst.ini file</b>
+
+<blockquote>
+<pre>
+[PostgreSQL]
+Description=PostgreSQL ODBC driver for Linux and Windows
+Driver=/usr/lib/postgresql/lib/libodbcpsql.so
+Setup=/usr/lib/odbc/libodbcpsqlS.so
+Debug = 0
+CommLog = 1
+</pre>
+</blockquote>
+
+<b>Sample odbc.ini file</b>
+
+<blockquote>
+<pre>
+[PostgreSQL]
+Description         = PostgreSQL template1
+Driver              = PostgreSQL
+Trace               = No
+TraceFile           = /tmp/odbc.log
+Database            = template1
+Servername          = localhost
+UserName            =
+Password            =
+Port                = 5432
+Protocol            = 6.4
+ReadOnly            = Yes
+RowVersioning       = No
+ShowSystemTables    = No
+ShowOidColumn       = No
+FakeOidIndex        = No
+ConnSettings        =
+</pre>
+</blockquote>
+
+<p>This additional sample connection sets the schema search path in ConnSettings, to give
+access to a schema that would otherwise be inaccessible.</p>
+
+<blockquote>
+<pre>
+[Production]
+Description         = Production control 
+databaseDriver      = PostgreSQL
+Trace               = NoTrace
+File                = /tmp/odbc.log
+Database            = production
+Servername          = localhost
+UserName            = 
+Password            =
+Port                = 5432
+Protocol            = 6.4
+ReadOnly            = No
+RowVersioning       = Yes
+ShowSystemTables    = No
+ShowOidColumn       = No
+FakeOidIndex        = No
+ConnSettings        = SET SEARCH_PATH TO prod, public
+
+</pre>
+</blockquote>
+
+</p>
+
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>psqlODBC Configuration Options</title>
+  </HEAD>
+
+  <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
+  
+<h1>psqlODBC Configuration Options</h1>
+  
+<h2>Advanced Options (Driver) Dialog Box</h2>
+
+<ul>
+<li><b>DEFAULTS:</b> Press to this button restore the normal defaults for the 
+settings described below.<br />&nbsp;</li>
+
+<li><b>Disable Genetic Optimizer:</b> Automatically
+turns off the backend genetic optimizer at connection time. This
+is a convenience feature rather than having to type it in the connect settings.
+This feature was added when we noticed the backend seemed to have
+big problems optimizing some queries.<br />&nbsp;</li>
+
+<li><b>KSQO (Keyset Query Optimization):</b>
+This feature helps certain queries run in the backend without crashing.
+Some applications, specifically the MS Jet Database Engine, use "keyset"
+queries of the form:<br><br>
+
+<code>select...where (a = 1 AND b = 1 AND c = 1) OR (a=1 AND b=1 AND
+c = 2)...</code><br><br>
+
+These types of queries will most likely crash the backend without the KSQO
+feature.<br />&nbsp;</li>
+
+<li><b>CommLog (C:\psqlodbc.log):</b>
+Log communications to/from the backend to that file. This is good
+for debugging problems.<br />&nbsp;</li>
+
+<li><b>Recognize Unique Indexes:</b>
+This controls what SQLStatistics() will return about unique indexes.
+By default it is set to false. This setting allows Access 95 and
+97 to ask the user at link time what the index should be. This is
+meant as a workaround until the backend canonifier can handle the Microsoft
+Access queries better. For some applications (i.e., Access 2.0), you must
+set this option to update any tables.<br />&nbsp;</li>
+
+<li><b>ReadOnly (default):</b> New
+datasources will inherit the state of this box for the datasource readonly
+attribute.<br />&nbsp;</li>
+
+<li><b>Use Declare/Fetch:</b> If
+true, the driver automatically uses declare cursor/fetch to handle
+SELECT statements and keeps 100 rows in a cache. This is mostly a
+great advantage, especially if you are only interested in reading and not
+updating. It results in the driver not sucking down lots of memory
+to buffer the entire result set. If set to false, cursors will not
+be used and the driver will retrieve the entire result set. For very
+large tables, this is very inefficient and may use up all the Windows memory/resources.
+However, it may handle updates better since the tables are not kept open,
+as they are when using cursors. This was the style of the old podbc32
+driver. However, the behavior of the memory allocation is much improved
+so even when not using cursors, performance should at least be better than
+the old podbc32.<br />&nbsp;</li>
+
+<li><b>Parse Statements:</b> If enabled,
+the driver will parse an SQL query statement to identify the columns and
+tables and gather statistics about them such as precision, nullability,
+aliases, etc. It then reports this information in SQLDescribeCol,
+SQLColAttributes, and SQLNumResultCols. <b>Prior to Postgres 6.4,
+this was the only accurate way of getting information on precision from
+a query result.</b><br><br>
+
+If the parser can not deal with a column (because it is a function
+or expression, etc.), it will fallback to executing the statement which
+is the old style of getting the info. The parser is fairly
+sophisticated and can handle many things such as column and table aliases,
+quoted identifiers, literals, joins, cross-products, etc. It can
+correctly identify a function or expression column, regardless of the complexity,
+but it does not attempt to determine the data type or precision of these
+columns.<br />&nbsp;</li>
+
+<li><b>Unknown Sizes: </b>This controls
+what SQLDescribeCol and SQLColAttributes will return as to precision for
+character data types (varchar, text, and unknown) in a result set when
+the precision is unknown. <b>This was more of a workaround for pre-6.4
+versions of Postgres not being able to return the defined column width
+of the varchar data type</b>.<br><br>
+
+<ul>
+
+<li><i>Maximum</i>: Always
+return the maximum precision of the data type.</li>
+
+<li><i>Dont Know</i>: Return "Don't Know"
+value and let application decide.</li>
+
+<li><i>Longest</i>: Return
+the longest string length of the column of any row. Beware of this
+setting when using cursors because the cache size may not be a good representation
+of the longest column in the cache.</li>
+
+<br>
+
+<i>MS Access</i>: Seems to handle <i>Maximum</i> setting ok, as well as all the others.<br>
+<i>Borland</i>: If sizes are large and lots of columns, Borland may crash badly (it doesn't seem to handle memory allocation well)
+if using <i>Maximum</i> size.
+
+</ul><br>
+
+<li><b>Data Type Options:</b> affects how some data types are mapped:<br />&nbsp;</li>
+
+<ul>
+
+<li><i>Text as LongVarChar</i>:
+Postgres TEXT type is mapped to SQLLongVarchar, otherwise SQLVarchar.</li>
+
+<li><i>Unknowns as LongVarChar</i>: Unknown types (arrays, etc) are mapped to SQLLongVarChar, otherwise SQLVarchar</li>
+
+<li><i>Bools as Char</i>: Bools are mapped to SQL_CHAR, otherwise to SQL_BIT.</li>
+
+</ul><br>
+
+<li><b>Cache Size:</b>When using
+cursors, this is the row size of the tuple cache. If not using cursors,
+this is how many tuples to allocate memory for at any given time.
+The default is 100 rows for either case.<br />&nbsp;</li>
+
+<li><b>Max Varchar</b> The maximum
+precision of the Varchar and BPChar(char[x]) types. The default is 254
+which actually means 255 because of the null terminator. Note, if
+you set this value higher than 254, Access will not let you index on varchar
+columns!<br />&nbsp;</li>
+
+<li><b>Max LongVarChar:</b> The maximum
+precision of the LongVarChar type. The default is 4094 which actually
+means 4095 with the null terminator. You can even specify (-4) for
+this size, which is the odbc SQL_NO_TOTAL value.<br />&nbsp;</li>
+
+<li><b>SysTable Prefixes:</b> The
+additional prefixes of table names to regard as System Tables. The
+driver already treats names that begin with "pg_" as system tables.
+Here you can add additional ones, such as data dictionary tables (dd_).
+Separate each prefix with a semicolon (;)<br />&nbsp;</li>
+
+<li><b>Connect Settings: </b>These commands
+will be sent to the backend upon a successful connection. Use
+a semi-colon (;) to separate commands. This can now handle any query,
+even if it returns results. The results will be thrown away however!<br />&nbsp;</li>
+</ul>
+
+<h2>Advanced Options (DataSource or Connection) Dialog Box</h2>
+
+<ul>
+
+<li><b>ReadOnly:</b> Whether the
+datasource will allow updates. For new datsources, the default value
+comes from the Advanced Options (Driver) dialog box.<br />&nbsp;</li>
+
+<li><b>Connect Settings:</b> The
+driver sends these commands to the backend upon a successful connection.&nbsp;
+It sends these settings AFTER it sends the driver "Connect Settings".
+Use a semi-colon (;) to separate commands. This can now handle any
+query, even if it returns results. The results will be thrown away
+however!<br />&nbsp;</li>
+
+<li><b>Row Versioning:</b> Allows
+applications to detect whether data has been modified by other users while
+you are attempting to update a row. It also speeds the update process
+since every single column does not need to be specified in the where clause
+to update a row. The driver uses the "xmin" system field of Postgres
+to allow for row versioning. Microsoft products seem to use this
+option well. See the <a "http://gborg.postgresql.org/project/psqlodbc/faq/faq.php">faq</a>
+for details on what you need to do to your database to allow for the row
+versioning feature to be used.<br />&nbsp;</li>
+
+<li><b>Disallow Premature:</b>
+Disallow Premature is an option to compensate for the lack of a server's functionality.
+For example (Middleware) applications issue the following ODBC API calls.<br><br>
+
+   SQLPreapare(hstmt, "select ...", ..)<br><br>
+
+In most cases they have to know how many fields, what kind
+of fields they would return and so they would issue<br><br>
+
+   SQLNumResultCols and/or <br>
+   SQLDescribeCols/SQLColAttribute etc.<br><br>
+
+The problem is how the psqlODBC driver answers the inquiry. PostgreSQL hasn't 
+provided the Prepare functionality yet and we couldn't ask the backend about 
+it directly.
+
+When using Disallow Premature, the driver will get the column info as follows:<br><br>
+<i>
+&nbsp;&nbsp;&nbsp;begin;(unless in a transaction)<br>
+&nbsp;&nbsp;&nbsp;declare cursor .. for select ...<br>
+&nbsp;&nbsp;&nbsp;fetch backward in ..<br>
+&nbsp;&nbsp;&nbsp;close ..<br><br>
+</i>
+The driver gets the field info using the fetch backward's result. The fetch backward 
+command returns no row but returns the field info. I also expected the the fetch
+backward command returns immediately but unfortunately it isn't always true. 
+The 7.1 or later servers <b>do</b> seem to return from the fetch backward command 
+immediately.<br />&nbsp;</li>
+
+<li><b>Show System Tables:</b> The
+driver will treat system tables as regular tables in SQLTables. This
+is good for Access so you can see system tables.<br />&nbsp;</li>
+
+<li><b>OID Options:</b><br />&nbsp;</li>
+
+<ul>
+<li><i>Show Column</i> - Includes the OID
+in SQLColumns. This is good for using as a unique identifier to update
+records if no good key exists OR if the key has many parts, which
+blows up the backend.<br />&nbsp;</li>
+
+<li><i>Fake Index</i> - This option
+fakes a unique index on OID. This is useful when there is not a real
+unique index on OID and for apps which can't ask what the unique identifier
+should be (i.e, Access 2.0).</li><br>
+
+</ul></li><br>
+
+<li><b>Protocol</b> (note that the protocol option has no effect from version 08.01.0001 onwards):<br />&nbsp;</li>
+
+<ul>
+<li><b>6.2:</b> Forces driver to
+use Postgres 6.2 protocol, which had different byte ordering, protocol,
+and other semantics.<br />&nbsp;</li>
+
+<li><b>6.3</b>: Use the 6.3 protocol. This is compatible
+with both 6.3 and 6.4 backends.<br />&nbsp;</li>
+
+<li><b>6.4</b>: Use the 6.4 protocol. This is only compatible
+with 6.4 backends.<br />&nbsp;</li>
+
+</ul>
+</ul>
+
+</body>
+</html>

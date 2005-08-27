@@ -1,0 +1,178 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>psqlODBC HOWTO - Access VBA</title>
+  </HEAD>
+
+  <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
+  
+<h1>psqlODBC HOWTO - Access VBA</h1>
+
+<p>
+
+<i>
+Author: Mark A. Taff (mark@libertycreek.net)<br>
+Release Date: 12 February 2002<br>
+Description: Example based Mini-Howto on using Microsoft Access VBA with PostgreSQL
+</i>
+<br><br>
+Here is some VBA code I have written as it can be hard to find 
+answers related to the PostgreSQL ODBC driver.  Specifically, how to programmatically 
+link and unlink PostgreSQL relations in a MS Access database.  This is tested with 
+Access 2000 on win2k with PostgreSQL 7.1.3 on Red Hat 7.2.<br><br>
+
+The tricky thing here is the special way to specify the Connection parameters so 
+Access will accept them in the context of an Access table definition object (as 
+opposed to an ADODB connection object).  The code is heavily commented to explain 
+it, and consists of two subroutines, one to link a new relation and another to 
+unlink it.<br><br>
+
+I am making it available for public knowledge WITHOUT ANY WARRANTY, but I sure 
+hope it makes someone else's life a bit easier.
+
+<h2>Code</h2>
+
+<blockquote>
+<pre>
+
+Private Sub Link_ODBCTbl(serverConn As String, rstrTblSrc As String, _
+                         rstrTblDest As String, db As Database) 
+LogEvent "Entering " & APP_NAME & ": Form_Login.Link_ODBCTbbl(" & _
+         rstrTblSrc & ")", etDebug 
+On Error GoTo Err_Handler
+
+StartWork "Adding relation: " & rstrTblSrc
+
+    Dim tdf As TableDef
+    Dim connOptions As String
+    Dim myConn As String
+    Dim myLen As Integer
+    Dim bNoErr As Boolean
+
+    bNoErr = True
+
+    Set tdf = db.CreateTableDef(rstrTblDest)
+    ' don't need next line, as only called if doesn't exist locally
+    'db.TableDefs.Delete rstrTblDest 
+    ' this is 1st error, as doesn't exist locally yet; maybe wrong key
+
+
+' The length of the connection string allowed is limited such that you can't 
+' specify all of the PostgreSQL ODBC driver options as you normally would. 
+' For those that want to do it normally, you are limited to somewhere between 
+' 269 characters (works) and 274 (doesn't work). Using a dsn is not a workaround. 
+' 
+' ***WORKAROUND*** Tested Access 2000 on Win2k, PostgreSQL 7.1.3 on Red Hat 7.2 
+' 
+' The connection string begins as usual, for example: 
+'
+'   "ODBC;DRIVER={PostgreSQL};DATABASE=database_name_to_connect_to;" & _
+'   "SERVER=ip_address_to_connect_to;PORT=5432;Uid=username_to_connect_as;" & _
+'   "Pwd=password_of_user;" & _ 
+' 
+' For all other parameters, you must code them in the same way Access stores them 
+' in the hidden MSysObjects table.  Here is a cross-reference table: 
+' 
+'   PG_ODBC_PARAMETER           ACCESS_PARAMETER
+'   *********************************************
+'   READONLY                    A0
+'   PROTOCOL                    A1
+'   FAKEOIDINDEX                A2  'A2 must be 0 unless A3=1
+'   SHOWOIDCOLUMN               A3
+'   ROWVERSIONING               A4
+'   SHOWSYSTEMTABLES            A5
+'   CONNSETTINGS                A6
+'   FETCH                       A7
+'   SOCKET                      A8
+'   UNKNOWNSIZES                A9  ' range [0-2]
+'   MAXVARCHARSIZE              B0
+'   MAXLONGVARCHARSIZE          B1
+'   DEBUG                       B2
+'   COMMLOG                     B3
+'   OPTIMIZER                   B4  ' note that 1 = _cancel_ generic optimizer...
+'   KSQO                        B5
+'   USEDECLAREFETCH             B6
+'   TEXTASLONGVARCHAR           B7
+'   UNKNOWNSASLONGVARCHAR       B8
+'   BOOLSASCHAR                 B9
+'   PARSE                       C0
+'   CANCELASFREESTMT            C1
+'   EXTRASYSTABLEPREFIXES       C2
+'
+' So the parameter part of the connection string might look like: '
+'   "A0=0;A1=6.4;A2=0;A3=0;A4=0;A5=0;A6=;A7=100;A8=4096;A9=0;" & _
+'   "B0=254;B1=8190;B2=0;B3=0;B4=1;B5=1;B6=0;B7=1;B8=0;B9=1;C0=0;C1=0;C2=dd_"
+'
+' Concatenating those four strings together will give you a working connection  
+' string (but you may want to change the options specified). 
+' 
+' NOTES:
+'   `Disallow Premature` in driver dialog is not stored by Access.
+'   string must begin with `ODBC;` or you will get error
+'   `3170 Could not find installable ISAM`.
+
+'Debug.Print svr.Conn
+
+myConn = "ODBC;DRIVER={PostgreSQL};" & serverConn & _
+            "A0=0;A1=6.4;A2=0;A3=0;A4=0;A5=0;A6=;A7=100;A8=4096;A9=0;" & _
+            "B0=254;B1=8190;B2=0;B3=0;B4=1;B5=1;B6=0;B7=1;B8=0;B9=1;" & _
+            "C0=0;C1=0;C2=dd_"
+
+    tdf.Connect = myConn
+    tdf.SourceTableName = rstrTblSrc
+    db.TableDefs.Append tdf
+    db.TableDefs.Refresh
+
+    ' If we made it this far without errors, table was linked...
+    If bNoErr Then
+        LogEvent "Form_Login.Link_ODBCTbl: Linked new relation: " & _
+                 rstrTblSrc, etDebug
+    End If
+
+    'Debug.Print "Linked new relation: " & rstrTblSrc ' Link new relation
+
+    Set tdf = Nothing
+
+Exit Sub
+
+Err_Handler:
+    bNoErr = False
+    Debug.Print Err.Number & " : " & Err.Description
+    If Err.Number <> 0 Then LogError Err.Number, Err.Description, APP_NAME & _
+                                     ": Form_Login.Link_ODBCTbl"
+    Resume Next
+
+End Sub
+
+Private Sub UnLink_ODBCTbl(rstrTblName As String, db As Database) 
+LogEvent "Entering " & APP_NAME & ": Form_Login.UnLink_ODBCTbbl", etDebug 
+On Error GoTo Err_Handler
+
+    StartWork "Removing revoked relation: " & rstrTblName
+
+    ' Delete the revoked relation...that'll teach 'em not to get on my bad side
+    ' I only call this sub after verifying the relation exists locally, so I 
+    ' don't check if it exists here prior to trying to delete it, however if you 
+    ' aren't careful...
+    db.TableDefs.Delete rstrTblName
+    db.TableDefs.Refresh
+
+    Debug.Print "Removed revoked relation: " & rstrTblName
+
+Exit Sub
+
+Err_Handler:
+    Debug.Print Err.Number & " : " & Err.Description
+    If Err.Number <> 0 Then LogError Err.Number, Err.Description, APP_NAME & _
+                                     ": Form_Login.UnLink_ODBCTbl"
+    Resume Next
+
+End Sub
+
+</pre>
+</blockquote>
+</p>
+
+</body>
+</html>
