@@ -64,7 +64,7 @@
         <MergeRef Id="psqlodbcm" />
       </Feature>
       
-      <Feature Id="docs" Title="Documentation" Level="1" Description="Documentation, FAQs and HOWTOs." ConfigurableDirectory="DOCSDIR">
+      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs." ConfigurableDirectory="DOCSDIR">
         <ComponentRef Id="docs" />
       </Feature>
       
