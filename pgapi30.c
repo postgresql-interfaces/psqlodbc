@@ -382,6 +382,9 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			*((SQLUINTEGER *) Value) = SQL_FALSE;
 			break;
 		case SQL_ATTR_CONNECTION_DEAD:
+#ifdef USE_LIBPQ
+			CC_is_server_alive(conn);
+#endif 	/* USE_LIBPQ */
 			*((SQLUINTEGER *) Value) = (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN);
 			break;
 		case SQL_ATTR_CONNECTION_TIMEOUT:

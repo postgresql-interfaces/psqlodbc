@@ -3336,6 +3336,26 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 		return qres;
 }
 
+void
+CC_is_server_alive(ConnectionClass *conn)
+{
+	PGresult *res;
+	if((PQstatus(conn->pgconn)) != CONNECTION_OK)
+		conn->status = CONN_NOT_CONNECTED;
+	res = PQexec(conn->pgconn,"SELECT 1");
+	if(PQresultStatus(res) != PGRES_TUPLES_OK)
+	{
+		PQclear(res);
+		conn->status = CONN_DOWN;
+	}
+	else
+	{
+		PQclear(res);
+		conn->status = CONN_CONNECTED;
+	}
+
+}
+
 
 #endif /* USE_LIBPQ */
 
