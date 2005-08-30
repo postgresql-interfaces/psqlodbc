@@ -356,6 +356,10 @@ BEGIN
     IDS_ADVANCE_OPTION_DSN2 "高度な設定 (%s 設定2)"
     IDS_ADVANCE_OPTION_CON2 "高度な設定 (コネクション設定2)"
     IDS_ADVANCE_CONNECTION  "コネクション"
+    IDS_SSLREQUEST_PREFER   "優先"
+    IDS_SSLREQUEST_ALLOW    "考慮"
+    IDS_SSLREQUEST_REQUIRE  "必要"
+    IDS_SSLREQUEST_DISABLE  "無効"
 END
 
 #endif    // Japanese resources
@@ -666,6 +670,10 @@ BEGIN
     IDS_ADVANCE_OPTION_DSN2 "Advanced Options (%s) 2/2"
     IDS_ADVANCE_OPTION_CON2 "Advanced Options (Connection 2/2)"
     IDS_ADVANCE_CONNECTION  "Connection"
+    IDS_SSLREQUEST_PREFER   "prefer"
+    IDS_SSLREQUEST_ALLOW    "allow"
+    IDS_SSLREQUEST_REQUIRE  "require"
+    IDS_SSLREQUEST_DISABLE  "disable"
 END
 
 #endif    // English (U.S.) resources

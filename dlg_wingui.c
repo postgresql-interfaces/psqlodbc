@@ -45,6 +45,8 @@ static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 void
 SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 {
+	char buff[MEDIUM_REGISTRY_LEN+1]; 
+
 	/*
 	 * If driver attribute NOT present, then set the datasource name and
 	 * description
@@ -60,17 +62,35 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_USER, ci->username);
 	SetDlgItemText(hdlg, IDC_PASSWORD, ci->password);
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
-    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "prefer" ));
-    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "allow" ));
-    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "require" ));
-    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (LPARAM) ((LPSTR) "disable" ));
-    SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_SELECTSTRING, -1, (LPARAM) ((LPSTR) ci->sslmode ));
+
+	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
+	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
+	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
+	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
+	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+    
+	if (!strcmp(ci->sslmode, "allow"))
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
+	else if (!strcmp(ci->sslmode, "require"))
+        LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
+    else if (!strcmp(ci->sslmode, "disable"))
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
+    else
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
+
+	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_SELECTSTRING, -1, (WPARAM) ((LPSTR) buff));
+
 }
 
 
 void
 GetDlgStuff(HWND hdlg, ConnInfo *ci)
 {
+	int sslposition;
+
 	GetDlgItemText(hdlg, IDC_DESC, ci->desc, sizeof(ci->desc));
 
 	GetDlgItemText(hdlg, IDC_DATABASE, ci->database, sizeof(ci->database));
@@ -78,7 +98,18 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	GetDlgItemText(hdlg, IDC_USER, ci->username, sizeof(ci->username));
 	GetDlgItemText(hdlg, IDC_PASSWORD, ci->password, sizeof(ci->password));
 	GetDlgItemText(hdlg, IDC_PORT, ci->port, sizeof(ci->port));
-    GetDlgItemText(hdlg, IDC_SSLMODE, ci->sslmode, sizeof(ci->sslmode));
+	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
+	switch(sslposition)
+	{
+		case 1:	strcpy(ci->sslmode, "allow");
+				break;
+		case 2:	strcpy(ci->sslmode, "require");
+				break;
+		case 3:	strcpy(ci->sslmode, "disable");
+				break;
+		default: strcpy(ci->sslmode, "prefer");
+	}
+
 }
 
 

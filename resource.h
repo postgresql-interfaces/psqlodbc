@@ -13,6 +13,10 @@
 #define IDS_ADVANCE_OPTION_DSN2         7
 #define IDS_ADVANCE_OPTION_CON2         8
 #define IDS_ADVANCE_CONNECTION          9
+#define IDS_SSLREQUEST_PREFER           10
+#define IDS_SSLREQUEST_ALLOW            11
+#define IDS_SSLREQUEST_REQUIRE          12
+#define IDS_SSLREQUEST_DISABLE          13
 #define DLG_OPTIONS_DRV                 102
 #define DLG_OPTIONS_DS                  103
 #define DLG_OPTIONS_GLOBAL              104
