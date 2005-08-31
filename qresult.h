@@ -130,6 +130,7 @@ struct QResultClass_
 #define QR_command_successful(self)	( !(self->status == PGRES_BAD_RESPONSE || self->status == PGRES_NONFATAL_ERROR || self->status == PGRES_FATAL_ERROR))
 #define QR_command_maybe_successful(self) ( !(self->status == PGRES_BAD_RESPONSE || self->status == PGRES_FATAL_ERROR))
 #define QR_command_nonfatal(self)	( self->status == PGRES_NONFATAL_ERROR)
+#define QR_command_fatal(self)	( self->status == PGRES_FATAL_ERROR)
 #define QR_end_tuples(self)		( self->status == PGRES_END_TUPLES)
 #define QR_set_status(self, condition)		( self->status = condition )
 #define QR_set_aborted(self, aborted_)		( self->aborted = aborted_)
