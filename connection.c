@@ -3171,9 +3171,9 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
         return NULL;
 	}
 	qres->status = PQresultStatus(pgres);
-	/* I assume PGRES_FATAL_ERROR is returned when the server is dead. 
-	 * Siva Kumar.K 30-8-2005 */
-	if(qres->status == PGRES_FATAL_ERROR)
+	
+	/* Check the connection status */
+	if(PQstatus(self->pgconn) == CONNECTION_BAD)
 	{
 		snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
 		/* Remove the training CR that libpq adds to the message */
