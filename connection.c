@@ -3159,15 +3159,11 @@ LIBPQ_connect(ConnectionClass *self)
 QResultClass *
 LIBPQ_execute_query(ConnectionClass *self,char *query)
 {
-	QResultClass *qres;
-	PGresult *pgres;
-	char		*ptr;
-	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
-    char		errbuffer[ERROR_MSG_LENGTH + 1];
-    int         pos=0;
+	QResultClass	*qres;
+	PGresult	*pgres;
+	char		errbuffer[ERROR_MSG_LENGTH + 1];
+	int		pos=0;
     
-	strcpy(cmdbuffer,query);
-	mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 	pgres = PQexec(self->pgconn,query);
 
 	qres=QR_Constructor();
@@ -3175,7 +3171,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not allocate memory for result set");
 		QR_Destructor(qres);
-        return NULL;
+        	return NULL;
 	}
 	qres->status = PQresultStatus(pgres);
 	
@@ -3195,13 +3191,13 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		return qres;
 	}
     
-	if (strnicmp(cmdbuffer, "BEGIN", 5) == 0)
+	if (strnicmp(query, "BEGIN", 5) == 0)
 	{
 		CC_set_in_trans(self);
 	}
-	else if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
+	else if (strnicmp(query, "COMMIT", 6) == 0)
 		CC_on_commit(self);
-	else if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
+	else if (strnicmp(query, "ROLLBACK", 8) == 0)
 	{
 		/* 
 		   The method of ROLLBACK an original form ....
@@ -3210,23 +3206,12 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		if (PG_VERSION_LT(self, 8.0) || !(contains_token(query, " TO ")))
 			CC_on_abort(self, NO_TRANS);
 	}
-	else if (strnicmp(cmdbuffer, "END", 3) == 0)
+	else if (strnicmp(query, "END", 3) == 0)
 		CC_on_commit(self);
-	else if (strnicmp(cmdbuffer, "ABORT", 5) == 0)
+	else if (strnicmp(query, "ABORT", 5) == 0)
 		CC_on_abort(self, NO_TRANS);
 	else
-	{
-		trim(cmdbuffer); /* get rid of trailing space */
-		ptr = strrchr(cmdbuffer, ' ');
-		if (ptr)
-#ifdef USE_LIBPQ
-			qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
-#else
- 			qres->recent_processed_row_count = atoi(ptr + 1);
-#endif	/* USE_LIBPQ */
-		else
-			qres->recent_processed_row_count = -1;
-	}
+		qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
 
 	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
 	{
@@ -3234,23 +3219,25 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		PQclear(pgres);
 		return qres;
 	}
+
 	if ( (PQresultStatus(pgres) != PGRES_EMPTY_QUERY) && (PQresultStatus(pgres) != PGRES_TUPLES_OK) )
-    {
-        snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
-        /* Remove the training CR that libpq adds to the message */
-        pos = strlen(errbuffer);
-        if (pos)
-            errbuffer[pos - 1] = '\0';
+	{
+	        snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
+
+	        /* Remove the training CR that libpq adds to the message */
+	        pos = strlen(errbuffer);
+	        if (pos)
+	            errbuffer[pos - 1] = '\0';
 
 		mylog("the server returned the error: %s\n", errbuffer);
 		CC_set_error(self, CONNECTION_SERVER_REPORTED_ERROR, errbuffer);
-        PQclear(pgres);
+	        PQclear(pgres);
 		return qres;
-    }
+	}
 
 	qres=CC_mapping(self,pgres,qres);
-	QR_set_command(qres, cmdbuffer);
-    PQclear(pgres);
+	QR_set_command(qres, query);
+	PQclear(pgres);
 	return qres;
 }
 
