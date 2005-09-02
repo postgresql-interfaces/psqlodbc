@@ -447,3 +447,20 @@ schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int le
 	}
 	return my_strcat1(buf, fmt, s1, s, len);
 }
+
+int 
+contains_token(char *data, char *token)
+{
+	int	i, tlen, dlen;
+
+	dlen = strlen(data);
+	tlen = strlen(token);
+
+	for (i = 0; i < dlen-tlen+1; i++)
+	{
+		if (!strnicmp((const char *)data+i, token, tlen))
+			return 1;
+	}
+
+	return 0;
+}

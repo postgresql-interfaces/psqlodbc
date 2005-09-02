@@ -1822,7 +1822,14 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 					else if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
 						CC_on_commit(self);
 					else if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
-						CC_on_abort(self, NO_TRANS);
+					{
+						/* 
+						   The method of ROLLBACK an original form ....
+						   ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] savepoint_name
+						 */
+						if (PG_VERSION_LT(self, 8.0) || !(contains_token(query, " TO ")))
+							CC_on_abort(self, NO_TRANS);
+					}
 					else if (strnicmp(cmdbuffer, "END", 3) == 0)
 						CC_on_commit(self);
 					else if (strnicmp(cmdbuffer, "ABORT", 5) == 0)
@@ -3195,7 +3202,14 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	else if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
 		CC_on_commit(self);
 	else if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
-		CC_on_abort(self, NO_TRANS);
+	{
+		/* 
+		   The method of ROLLBACK an original form ....
+		   ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] savepoint_name
+		 */
+		if (PG_VERSION_LT(self, 8.0) || !(contains_token(query, " TO ")))
+			CC_on_abort(self, NO_TRANS);
+	}
 	else if (strnicmp(cmdbuffer, "END", 3) == 0)
 		CC_on_commit(self);
 	else if (strnicmp(cmdbuffer, "ABORT", 5) == 0)

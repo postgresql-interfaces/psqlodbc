@@ -116,16 +116,16 @@ int	get_mylog(void);
 #endif
 
 
-void		remove_newlines(char *string);
-char	   *strncpy_null(char *dst, const char *src, int len);
-char	   *trim(char *string);
-char	   *make_string(const char *s, int len, char *buf, size_t bufsize);
-char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, int len, BOOL);
-char	   *my_strcat(char *buf, const char *fmt, const char *s, int len);
-char	   *schema_strcat(char *buf, const char *fmt, const char *s, int len,
+void	remove_newlines(char *string);
+char	*strncpy_null(char *dst, const char *src, int len);
+char	*trim(char *string);
+char	*make_string(const char *s, int len, char *buf, size_t bufsize);
+char	*make_lstring_ifneeded(ConnectionClass *, const char *s, int len, BOOL);
+char	*my_strcat(char *buf, const char *fmt, const char *s, int len);
+char	*schema_strcat(char *buf, const char *fmt, const char *s, int len,
 		const char *, int, ConnectionClass *conn);
-char	   *my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len);
-char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
+char	*my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len);
+char	*schema_strcat1(char *buf, const char *fmt, const char *s1,
 				const char *s, int len,
 				const char *, int, ConnectionClass *conn);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
@@ -137,7 +137,8 @@ char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
 #define STRCPY_TRUNCATED	(-1)
 #define STRCPY_NULL			(-2)
 
-int			my_strcpy(char *dst, int dst_len, const char *src, int src_len);
+int	my_strcpy(char *dst, int dst_len, const char *src, int src_len);
+int	contains_token(char *data, char *token);
 
 /* Define a type for defining a constant string expression */
 #define CSTR static const char * const
