@@ -9,7 +9,7 @@
   
     <h1>psqlODBC FAQ</h1>
 
-    <p>Last updated: $Date: 2005/08/27 22:00:54 $</p>
+    <p>Last updated: $Date: 2005/09/06 15:19:13 $</p>
 
     <P>Current maintainer: Dave Page (<a href="mailto:dpage@postgresql.org">dpage@postgresql.org</a>)</p>
 
@@ -31,6 +31,7 @@
     <a href="#2.2">2.2</a>) What's the difference between a File DSN, System DSN, and User DSN?<br>
     <a href="#2.3">2.3</a>) How do I access more advanced driver and/or datasource options?<br>
     <a href="#2.4">2.4</a>) Where can I discover more information about ODBC errors?<br>
+    <a href="#2.5">2.5</a>) There are 2 drivers installed - which should I use?<br>
 
     <h2>3) Connections</h2>
     <a href="#3.1">3.1</a>) Why do I get a message like "Failed to authenticate client as Postgres user using unknown authentication type:be_recvauth: unrecognized message type: 65536" when I try to connect to a datasource?<br>
@@ -145,6 +146,23 @@
     This is good for applications that give misleading, little, or no descriptive information 
     when something goes wrong (VisData is a good example).
     </p>
+
+    <h3><a name="2.5">2.5</a>) There are 2 drivers installed - which should I use?</h3>
+    <p>
+    <b>PostgreSQL Unicode</b> is a Unicode enabled driver that will work well with modern versions of
+    applications such as Microsoft Access, with character from a huge range of languages. You should
+    use this driver with PostgreSQL databases encoded as 'UNICODE' (more precisely known as 'UTF-8' in
+    PostgreSQL).
+    </p>
+    <p>
+    <b>PostgreSQL ANSI</b> is an ANSI driver which is also able to handle some multibyte character sets
+    such as EUC_JP, BIG5 and Shift-JIS. This driver should also be used with databases encoded using
+    any of the LATIN charactersets.
+    </p>
+    <p>
+    Note that some applications (notably Borland BDE) do not work properly with Unicode ODBC drivers.
+    In this case, you must use the ANSI driver.
+    </p>
     
 
     <h2>3) Connections</h2>
@@ -207,10 +225,9 @@
 
     <h3><a name="4.1">4.1</a>) Why do characters with umlauts or accents, or other non-ASCII characters show up in some applications as '?'</h3>
     <p>
-    You probably chose SQL_ASCII as your database encoding. If you need to use non-7bit ASCII 
-    characters, you should use the appropriate encoding for your data. See 
-    <a href="http://www.postgresql.org/docs/8.0/interactive/multibyte.html">http://www.postgresql.org/docs/8.0/interactive/multibyte.html<a/>
-    for more details.
+    You are probably using the <b>PostgreSQL Unicode</b> driver with non-Unicode,
+    8 bit data - for example, from one of the LATIN encodings. You should either 
+    use the <b>PostgreSQL ANSI</b> driver, or move your data to a Unicode database.
     </p>
     
     <h3><a name="4.2">4.2</a>) What data types does the driver support?</h3>
