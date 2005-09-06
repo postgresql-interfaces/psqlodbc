@@ -22,7 +22,8 @@
         <Component Id="psqlodbc.files" Guid="F66FBDE8-2E5C-4759-A8DC-85052DAA1374">
         
           <!-- PostgreSQL -->
-          <File Id="psqlodbclibpq.dll" LongName="psqlodbclibpq.dll" Name="psqlodXX.dll" KeyPath="yes" src="../Release/psqlodbclibpq.dll" />
+          <File Id="psqlodbca.dll" LongName="psqlodbca.dll" Name="psqlodxA.dll" KeyPath="yes" src="../Release/psqlodbca.dll" />
+          <File Id="psqlodbcw.dll" LongName="psqlodbcw.dll" Name="psqlodxW.dll" KeyPath="yes" src="../Release/psqlodbcw.dll" />
           <File Id="libpq.dll" Name="libpq.dll" src="C:\Windows\System32\libpq.dll" />
           
           <!-- Gettext -->
@@ -35,15 +36,25 @@
           
           <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
           <!--       so we install the registry keys manually ourselves.                         -->
-          <Registry Id="psqlodbc.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL-libpq" Type="string" Value="Installed" />
-          <Registry Id="psqlodbc.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="APILevel" Type="string" Value="1" />
-          <Registry Id="psqlodbc.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="ConnectFunctions" Type="string" Value="YYN" />
-          <Registry Id="psqlodbc.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="Driver" Type="string" Value="[#psqlodbclibpq.dll]" />
-          <Registry Id="psqlodbc.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="DriverODBCVer" Type="string" Value="03.00" />
-          <Registry Id="psqlodbc.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="FileUsage" Type="string" Value="0" />
-          <Registry Id="psqlodbc.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="Setup" Type="string" Value="[#psqlodbclibpq.dll]" />
-          <Registry Id="psqlodbc.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="SQLLevel" Type="string" Value="1" />
-          <Registry Id="psqlodbc.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL-libpq" Name="UsageCount" Type="integer" Value="1" />
+          <Registry Id="psqlodbca.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL ANSI" Type="string" Value="Installed" />
+          <Registry Id="psqlodbca.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="APILevel" Type="string" Value="1" />
+          <Registry Id="psqlodbca.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="ConnectFunctions" Type="string" Value="YYN" />
+          <Registry Id="psqlodbca.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="Driver" Type="string" Value="[#psqlodbca.dll]" />
+          <Registry Id="psqlodbca.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="DriverODBCVer" Type="string" Value="03.00" />
+          <Registry Id="psqlodbca.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="FileUsage" Type="string" Value="0" />
+          <Registry Id="psqlodbca.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="Setup" Type="string" Value="[#psqlodbca.dll]" />
+          <Registry Id="psqlodbca.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="SQLLevel" Type="string" Value="1" />
+          <Registry Id="psqlodbca.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="UsageCount" Type="integer" Value="1" />
+
+          <Registry Id="psqlodbcw.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL Unicode" Type="string" Value="Installed" />
+          <Registry Id="psqlodbcw.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="APILevel" Type="string" Value="1" />
+          <Registry Id="psqlodbcw.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="ConnectFunctions" Type="string" Value="YYN" />
+          <Registry Id="psqlodbcw.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="Driver" Type="string" Value="[#psqlodbcw.dll]" />
+          <Registry Id="psqlodbcw.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="DriverODBCVer" Type="string" Value="03.00" />
+          <Registry Id="psqlodbcw.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="FileUsage" Type="string" Value="0" />
+          <Registry Id="psqlodbcw.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="Setup" Type="string" Value="[#psqlodbcw.dll]" />
+          <Registry Id="psqlodbcw.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="SQLLevel" Type="string" Value="1" />
+          <Registry Id="psqlodbcw.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="UsageCount" Type="integer" Value="1" />
         </Component>
       </Directory>
     </Directory>

@@ -38,12 +38,12 @@
 
 #define	ODBC_DATASOURCES		"ODBC Data Sources"
 
-#define INI_DSN				DBMS_NAME
+#define INI_DSN				DRIVERNAME
 
 #define INI_KDESC			"Description"	/* Data source description */
 #define INI_SERVER			"Servername"	/* Name of Server running PostgreSQL */
 #define INI_PORT			"Port"		/* Port on which the Postmaster is listening */
-#define INI_SSLMODE         "SSLmode"
+#define INI_SSLMODE         		"SSLmode"
 
 #if !defined WIN32 && defined HAVE_SYS_UN_H
 #ifndef HAVE_UNIX_SOCKETS

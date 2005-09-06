@@ -30,10 +30,18 @@ LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
 DLG_CONFIG DIALOGEX 65, 43, 359, 219
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+#ifdef UNICODE_SUPPORT
 #ifdef USE_LIBPQ
-CAPTION "PostgreSQL ODBC (libpq) セットアップ"
+CAPTION "PostgreSQL Unicode ODBC (libpq) セットアップ"
 #else
-CAPTION "PostgreSQL ODBC セットアップ"
+CAPTION "PostgreSQL Unicode ODBC セットアップ"
+#endif
+#else
+#ifdef USE_LIBPQ
+CAPTION "PostgreSQL ANSI ODBC (libpq) セットアップ"
+#else
+CAPTION "PostgreSQL ANSI ODBC セットアップ"
+#endif
 #endif
 FONT 9, "ＭＳ ゴシック", 0, 0, 0x1
 BEGIN
@@ -318,10 +326,18 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+#ifdef UNICODE_SUPPORT
 #ifdef USE_LIBPQ
-            VALUE "Comments", "PostgreSQL ODBC driver (libpq based)"
+            VALUE "Comments", "PostgreSQL Unicode ODBC driver (libpq based)"
 #else
-            VALUE "Comments", "PostgreSQL ODBC driver"
+            VALUE "Comments", "PostgreSQL Unicode ODBC driver"
+#endif
+#else
+#ifdef USE_LIBPQ
+            VALUE "Comments", "PostgreSQL ANSI ODBC driver (libpq based)"
+#else
+            VALUE "Comments", "PostgreSQL ANSI ODBC driver"
+#endif
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
@@ -383,10 +399,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 DLG_CONFIG DIALOGEX 65, 43, 305, 130
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+#ifdef UNICODE_SUPPORT
 #ifdef USE_LIBPQ
-CAPTION "PostgreSQL ODBC Driver (libpq) Setup"
+CAPTION "PostgreSQL Unicode ODBC (libpq)"
 #else
-CAPTION "PostgreSQL ODBC Driver Setup"
+CAPTION "PostgreSQL Unicode ODBC"
+#endif
+#else
+#ifdef USE_LIBPQ
+CAPTION "PostgreSQL ANSI ODBC (libpq)"
+#else
+CAPTION "PostgreSQL ANSI ODBC"
+#endif
 #endif
 FONT 10, "Terminal", 0, 0, 0x0
 BEGIN
@@ -632,10 +656,18 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+#ifdef UNICODE_SUPPORT
 #ifdef USE_LIBPQ
-            VALUE "Comments", "PostgreSQL ODBC driver (libpq based)"
+            VALUE "Comments", "PostgreSQL Unicode ODBC driver (libpq based)"
 #else
-            VALUE "Comments", "PostgreSQL ODBC driver"
+            VALUE "Comments", "PostgreSQL Unicode ODBC driver"
+#endif
+#else
+#ifdef USE_LIBPQ
+            VALUE "Comments", "PostgreSQL ANSI ODBC driver (libpq based)"
+#else
+            VALUE "Comments", "PostgreSQL ANSI ODBC driver"
+#endif
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"

@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbclibpq, 08.01.0004, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 08.01.0004, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
@@ -53,6 +53,19 @@ PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC versi
              [with_odbcver=0x0300])
 AC_MSG_RESULT([$with_odbcver])
 AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver], [Define to ODBC version (--with-odbcver)])
+
+# to implement the Unicode driver 	 
+PGAC_ARG_BOOL(enable, unicode, yes, 	 
+	[  --enable-unicode        build ODBC driver for Unicode [[yes]]], 	 
+	[AC_DEFINE(UNICODE_SUPPORT, 1, 	 
+		[Define to 1 to build with Unicode support (--enable-unicode)]) 	 
+	 AC_DEFINE(UNICODE, [], 	 
+		[Define to use wide APIs]) 	 
+	 AC_DEFINE(SQL_NOUNICODEMAP, [], 	 
+		[Define to disable mapping SQL* to SQL*W]) 	 
+	 AC_CHECK_FUNCS(iswascii)]) 	 
+  	 
+AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
 
 AC_CHECK_FUNCS(strtoul strtoll)
 

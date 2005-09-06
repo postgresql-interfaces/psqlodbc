@@ -748,7 +748,7 @@ PGAPI_GetInfo(
 	{
 		/* char/binary data */
 		len = strlen(p);
-                
+#ifdef  UNICODE_SUPPORT                
                 /* Note that at this point we don't know if we've been called just
                  * to get the length of the output. If it's unicode, then we better
                  * adjust to bytes now, so we don't return a buffer size that's too
@@ -756,12 +756,15 @@ PGAPI_GetInfo(
                  */
                 if (conn->unicode)
                     len = len * WCLEN;
+#endif
 
 		if (rgbInfoValue)
 		{
+#ifdef  UNICODE_SUPPORT
 			if (conn->unicode)
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
 			else
+#endif
 				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
 			if (len >= cbInfoValueMax)
@@ -1431,8 +1434,10 @@ retry_public_schema:
 		}
 	}
 
+#ifdef  UNICODE_SUPPORT
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   table_name, MAX_INFO_STRING, NULL);
@@ -1713,10 +1718,10 @@ PGAPI_Columns(
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-
+#ifdef  UNICODE_SUPPORT
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-
+#endif
 	szSchemaName = szTableOwner;
 	cbSchemaName = cbTableOwner;
 
@@ -2249,10 +2254,10 @@ PGAPI_SpecialColumns(
 		return result;
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-
+#ifdef  UNICODE_SUPPORT
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-
+#endif
 	stmt->manual_result = TRUE;
 	szSchemaName = szTableOwner;
 	cbSchemaName = cbTableOwner;
@@ -2516,10 +2521,10 @@ PGAPI_Statistics(
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-
+#ifdef  UNICODE_SUPPORT
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-
+#endif
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Statistics result.");
@@ -3005,10 +3010,10 @@ PGAPI_PrimaryKeys(
 	tbl_stmt = (StatementClass *) htbl_stmt;
 
 	conn = SC_get_conn(stmt);
-
+#ifdef  UNICODE_SUPPORT
 	if (conn->unicode)
 		internal_asis_type = INTERNAL_ASIS_TYPE;
-
+#endif
 	pktab = make_string(szTableName, cbTableName, NULL, 0);
 	if (pktab == NULL || pktab[0] == '\0')
 	{
@@ -4824,3 +4829,4 @@ mylog("guid=%s\n", uid);
 	QR_Destructor(allures); 
 	return SQL_SUCCESS;
 }
+

@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.22 2005/08/27 23:19:32 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.23 2005/09/06 07:47:25 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -17,9 +17,9 @@ psqlodbc_la_SOURCES = \
 	environ.c execute.c lobj.c win_md5.c misc.c options.c \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
 	statement.c tuple.c tuplelist.c dlg_specific.c odbcapi.c \
-	multibyte.c odbcapi30w.c odbcapiw.c \
+	multibyte.c \
 	odbcapi30.c pgapi30.c info30.c descriptor.c \
-    win_unicode.c
+	win_unicode.c
 
 psqlodbc_la_SOURCES += \
 	bind.h columninfo.h connection.h convert.h descriptor.h \
@@ -28,25 +28,31 @@ psqlodbc_la_SOURCES += \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
 	tuplelist.h version.h
 
+if enable_unicode 	 
+psqlodbc_la_SOURCES += \ 	 
+	odbcapi30w.c odbcapiw.c win_unicode.c 	 
+endif
+
 EXTRA_psqlodbc_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt odbcinst.ini \
-	libtool.m4 psqlodbc_win32.def win32.mak \
+	libtool.m4 psqlodbca.def psqlodbcw.def win32.mak \
 	dlg_wingui.c win_setup.h win_md5.c setup.c \
-	psqlodbc.rc psqlodbc.reg \
-    docs/index.html docs/config.html \
-    docs/faq.html docs/howto-accesslo.html \
-    docs/howto-accessvba.html docs/howto-bo.html \
-    docs/howto-ch.html docs/howto-csharp.html \
-    docs/howto-debian.html docs/howto-redhat.html \
-    docs/howto-vb.html docs/howto-vblo.html \
-    docs/unix-compilation.html docs/win32-compilation.html \
-    installer/banner.bmp installer/lgpl.rtf \
-    installer/new.bmp installer/up.bmp \
-    installer/Make.bat installer/psqlodbc.wxs \
-    installer/psqlodbcm.wxs installer/README.txt
+	win_unicode.c psqlodbc.rc psqlodbc.reg \
+	docs/index.html docs/config.html \
+	docs/faq.html docs/howto-accesslo.html \
+	docs/howto-accessvba.html docs/howto-bo.html \
+	docs/howto-ch.html docs/howto-csharp.html \
+	docs/howto-debian.html docs/howto-redhat.html \
+	docs/howto-vb.html docs/howto-vblo.html \
+	docs/unix-compilation.html docs/win32-compilation.html \
+	installer/banner.bmp installer/lgpl.rtf \
+	installer/new.bmp installer/up.bmp \
+	installer/Make.bat installer/psqlodbc.wxs \
+	installer/psqlodbcm.wxs installer/README.txt
 	
 MAINTAINERCLEANFILES = \
 	Makefile.in config.guess config.h.in config.sub configure \
 	install-sh missing mkinstalldirs aclocal.m4 ltmain.sh \
 	libtool.m4 depcomp
+

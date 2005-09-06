@@ -366,7 +366,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 	{
 		/* char/binary data */
 		len = strlen(p);
-
+#ifdef  UNICODE_SUPPORT
                 /* Note that at this point we don't know if we've been called just
                  * to get the length of the output. If it's unicode, then we better
                  * adjust to bytes now, so we don't return a buffer size that's too
@@ -374,13 +374,14 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
                  */
                 if (conn->unicode)
                     len = len * WCLEN;
-
+#endif
 		if (rgbInfoValue)
 		{
-
+#ifdef  UNICODE_SUPPORT
 			if (conn->unicode)
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
 			else
+#endif
 				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
 			if (len >= cbInfoValueMax)

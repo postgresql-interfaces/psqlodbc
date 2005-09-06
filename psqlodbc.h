@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.89 2005/07/13 14:23:35 dpage Exp $
+ * $Id: psqlodbc.h,v 1.90 2005/09/06 07:47:26 dpage Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 
 #include <sql.h>
 #include <sqlext.h>
-#if !defined(WIN32)
+#if defined(UNICODE_SUPPORT) && !defined(WIN32)
 # include <sqlucode.h>
 #endif
 
@@ -123,13 +123,21 @@ typedef UInt4 Oid;
 #endif
 
 /* Driver stuff */
-
-#define DRIVERNAME				"PostgreSQL ODBC"
-#define DRIVER_ODBC_VER				"03.00"
 #define DBMS_NAME				"PostgreSQL"
+#define DRIVER_ODBC_VER				"03.00"
+
+#ifdef  UNICODE_SUPPORT 	 
+#define DRIVERNAME				"PostgreSQL Unicode"	 
+#else
+#define DRIVERNAME				"PostgreSQL ANSI"
+#endif /* UNICODE_SUPPORT */
 
 #ifdef WIN32
-#define DRIVER_FILE_NAME			"PSQLODBC.DLL"
+#ifdef  UNICODE_SUPPORT
+#define DRIVER_FILE_NAME			"PSQLODBCW.DLL"
+#else
+#define DRIVER_FILE_NAME			"PSQLODBCA.DLL"
+#endif
 #else
 #define DRIVER_FILE_NAME			"libpsqlodbc.so"
 #endif   /* WIN32 */
@@ -322,11 +330,13 @@ int	initialize_global_cs(void);
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 const pthread_mutexattr_t *getMutexAttr(void);
 #endif /* POSIX_THREADMUTEX_SUPPORT */
+#ifdef  UNICODE_SUPPORT
 #define WCLEN sizeof(SQLWCHAR)
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
 UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
+#endif /* UNICODE_SUPPORT */
 
 /*#define	_MEMORY_DEBUG_ */
 #ifdef	_MEMORY_DEBUG_
