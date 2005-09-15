@@ -252,7 +252,7 @@ struct StatementClass_
 #define	SC_get_errornumber(a) (a->__error_number)
 #define	SC_set_errornumber(a, n) (a->__error_number = n)
 #define	SC_get_errormsg(a) (a->__error_message)
-#define	SC_is_lower_case(a, b) (a->options.metadata_id, b->connInfo.lower_case_identifier)
+#define	SC_is_lower_case(a, b) (a->options.metadata_id || b->connInfo.lower_case_identifier)
 
 #define	SC_MALLOC_return_with_error(t, tp, s, a, m, r) \
 	{ \
