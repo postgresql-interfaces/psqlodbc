@@ -22,9 +22,9 @@
         <Component Id="psqlodbc.files" Guid="F66FBDE8-2E5C-4759-A8DC-85052DAA1374">
         
           <!-- PostgreSQL -->
-          <File Id="psqlodbca.dll" LongName="psqlodbca.dll" Name="psqlodxA.dll" KeyPath="yes" src="../Release/psqlodbca.dll" />
-          <File Id="psqlodbcw.dll" LongName="psqlodbcw.dll" Name="psqlodxW.dll" KeyPath="yes" src="../Release/psqlodbcw.dll" />
-          <File Id="libpq.dll" Name="libpq.dll" src="C:\Windows\System32\libpq.dll" />
+          <File Id="psqlodbca.dll" LongName="psqlodbca.dll" Name="psqlodxA.dll" src="../ANSI-Release/psqlodbca.dll" />
+          <File Id="psqlodbcw.dll" LongName="psqlodbcw.dll" Name="psqlodxW.dll" src="../Unicode-Release/psqlodbcw.dll" />
+          <File Id="libpq.dll" Name="libpq.dll" src="C:\Windows\System32\libpq.dll" KeyPath="yes" />
           
           <!-- Gettext -->
           <File Id="libintl_2.dll" LongName="libintl-2.dll" Name="libintXX.dll" src="C:\Windows\System32\libintl-2.dll" />
