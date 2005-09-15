@@ -69,6 +69,7 @@ struct QResultClass_
 
 #ifdef USE_LIBPQ
 	ExecStatusType status;
+        int            ntuples;
 #else
 	QueryResultCode status;
 #endif /* USE_LIBPQ*/

@@ -3244,6 +3244,11 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	        PQclear(pgres);
 		return qres;
 	}
+        
+        if (PQresultStatus(pgres) == PGRES_TUPLES_OK)
+        {
+            qres->ntuples = PQntuples(pgres);
+        }
 
 	qres=CC_mapping(self,pgres,qres);
 	QR_set_command(qres, query);
