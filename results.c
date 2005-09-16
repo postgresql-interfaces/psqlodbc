@@ -74,13 +74,6 @@ PGAPI_RowCount(
 		}
 		if (res->recent_processed_row_count >= 0)
 		{
-#ifdef USE_LIBPQ
-                        if (res->recent_processed_row_count == 0 && res->ntuples > 0)
-                        {
-                            *pcrow = res->ntuples;
-                            return SQL_SUCCESS;
-                        }
-#endif
 			*pcrow = res->recent_processed_row_count;
 			mylog("**** PGAPI_RowCount(): THE ROWS: *pcrow = %d\n", *pcrow);
 

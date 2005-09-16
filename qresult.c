@@ -135,9 +135,6 @@ QR_Constructor()
 		rv->dl_alloc = 0;
 		rv->dl_count = 0;
 		rv->deleted = NULL;
-#ifdef USE_LIBPQ
-                rv->ntuples = 0;
-#endif
 	}
 
 	mylog("exit QR_Constructor\n");
