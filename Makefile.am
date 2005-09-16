@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.23 2005/09/06 07:47:25 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.24 2005/09/16 23:05:00 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -18,8 +18,7 @@ psqlodbc_la_SOURCES = \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
 	statement.c tuple.c tuplelist.c dlg_specific.c odbcapi.c \
 	multibyte.c \
-	odbcapi30.c pgapi30.c info30.c descriptor.c \
-	win_unicode.c
+	odbcapi30.c pgapi30.c info30.c descriptor.c
 
 psqlodbc_la_SOURCES += \
 	bind.h columninfo.h connection.h convert.h descriptor.h \
