@@ -2359,7 +2359,11 @@ CC_handle_notice(void *arg, const char *msg)
 
        if (qres == NULL)
        {
-           // No query in progress, so just drop the notice
+           /* Log the notice to stderr and any logs 'cos */
+           /* there's not much else we can do with it.   */
+           fprintf(stderr, "NOTICE from backend outside of a query: '%s'\n", msg);
+           mylog("~~~ NOTICE: '%s'\n", msg);
+           qlog("NOTICE from backend outside of a query: '%s'\n", msg);
            return;
        }
 
