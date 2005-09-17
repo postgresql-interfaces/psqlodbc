@@ -1092,7 +1092,7 @@ SC_execute(StatementClass *self)
 	CSTR func = "SC_execute";
 	ConnectionClass *conn;
 	IPDFields	*ipdopts;
-	char		was_ok, was_nonfatal,was_fatal;
+	char		was_ok, was_nonfatal;
 	QResultClass	*res = NULL;
 	Int2		oldstatus,
 				numcols;
@@ -1220,14 +1220,18 @@ SC_execute(StatementClass *self)
 	{
 		was_ok = QR_command_successful(res);
 		was_nonfatal = QR_command_nonfatal(res);
-		was_fatal = QR_command_fatal(res);
 
 		if (was_ok)
 			SC_set_errornumber(self, STMT_OK);
-		else if (was_fatal)
-			SC_set_errornumber(self,STMT_BAD_ERROR);
 		else
 			SC_set_errornumber(self, was_nonfatal ? STMT_INFO_ONLY : STMT_ERROR_TAKEN_FROM_BACKEND);
+
+#ifdef USE_LIBPQ
+                if (QR_command_fatal(res) && PQstatus(conn->pgconn) == CONNECTION_BAD)
+                {
+                    SC_set_errornumber(self, STMT_BAD_ERROR);
+                }
+#endif /* USE_LIBPQ */
 
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
