@@ -2349,6 +2349,29 @@ CC_send_cancel_request(const ConnectionClass *conn)
 }
 
 #else
+
+static void
+CC_handle_notice(void *arg, const char *msg)
+{
+       QResultClass    *qres;
+
+       qres = (QResultClass*)(arg);
+
+       if (qres == NULL)
+       {
+           // No query in progress, so just drop the notice
+           return;
+       }
+
+       if (QR_command_successful(qres))
+       {
+               QR_set_status(qres, PGRES_NONFATAL_ERROR);
+               QR_set_notice(qres, msg);       /* will dup this string */
+               mylog("~~~ NOTICE: '%s'\n", msg);
+               qlog("NOTICE from backend during send_query: '%s'\n", msg);
+       }
+}
+
 /*
  *	Connection class implementation using libpq.
  *	Memory Allocation for PGconn is handled by libpq.
@@ -3161,6 +3184,9 @@ LIBPQ_connect(ConnectionClass *self)
 	}
 	/* free the conninfo structure */
 	free(conninfo);
+ 
+        /* setup the notice handler */
+        PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
 	mylog("connection to the database succeeded.\n");
 	return 1;
 }
@@ -3173,8 +3199,6 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	PGresult	*pgres;
 	char		errbuffer[ERROR_MSG_LENGTH + 1];
 	int		pos=0;
-    
-	pgres = PQexec(self->pgconn,query);
 
 	qres=QR_Constructor();
 	if(!qres)
@@ -3183,6 +3207,11 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		QR_Destructor(qres);
         	return NULL;
 	}
+
+        PQsetNoticeProcessor(self->pgconn, CC_handle_notice, qres);
+        pgres = PQexec(self->pgconn,query);
+        PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
+
 	qres->status = PQresultStatus(pgres);
 	
 	/* Check the connection status */
@@ -3382,7 +3411,6 @@ CC_is_server_alive(ConnectionClass *conn)
 	}
 
 }
-
 
 #endif /* USE_LIBPQ */
 
