@@ -20,13 +20,7 @@
 #include <string.h>
 
 #include "environ.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "statement.h"
 #include "descriptor.h"
 #include "qresult.h"
@@ -382,9 +376,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			*((SQLUINTEGER *) Value) = SQL_FALSE;
 			break;
 		case SQL_ATTR_CONNECTION_DEAD:
-#ifdef USE_LIBPQ
 			CC_is_server_alive(conn);
-#endif 	/* USE_LIBPQ */
 			*((SQLUINTEGER *) Value) = (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN);
 			break;
 		case SQL_ATTR_CONNECTION_TIMEOUT:

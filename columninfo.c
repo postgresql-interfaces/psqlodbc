@@ -14,14 +14,7 @@
 
 #include "pgtypes.h"
 #include "columninfo.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#include "socket.h"
-#endif /* USE_LIBPQ*/
-
 #include <stdlib.h>
 #include <string.h>
 #include "pgapifunc.h"
@@ -54,89 +47,6 @@ CI_Destructor(ColumnInfoClass *self)
 
 	free(self);
 }
-
-
-#ifdef USE_LIBPQ
-
-/* Reading Fields part is already done in the mapping part, skipping it while using Libpq */
-char
-CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
-{
-	return 'T';
-}
-
-#else
-
-/*
- *	Read in field descriptions.
- *	If self is not null, then also store the information.
- *	If self is null, then just read, don't store.
- */
-char
-CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
-{
-	Int2		lf;
-	int			new_num_fields;
-	Oid			new_adtid;
-	Int2		new_adtsize;
-	Int4		new_atttypmod = -1;
-
-	/* COLUMN_NAME_STORAGE_LEN may be sufficient but for safety */
-	char		new_field_name[2 * COLUMN_NAME_STORAGE_LEN + 1];
-	SocketClass *sock;
-	ConnInfo   *ci;
-
-	sock = CC_get_socket(conn);
-	ci = &conn->connInfo;
-
-	/* at first read in the number of fields that are in the query */
-	new_num_fields = (Int2) SOCK_get_int(sock, sizeof(Int2));
-
-	mylog("num_fields = %d\n", new_num_fields);
-
-	if (self)
-		/* according to that allocate memory */
-		CI_set_num_fields(self, new_num_fields);
-
-	/* now read in the descriptions */
-	for (lf = 0; lf < new_num_fields; lf++)
-	{
-		SOCK_get_string(sock, new_field_name, 2 * COLUMN_NAME_STORAGE_LEN);
-		new_adtid = (Oid) SOCK_get_int(sock, 4);
-		new_adtsize = (Int2) SOCK_get_int(sock, 2);
-
-		/* If 6.4 protocol, then read the atttypmod field */
-		if (PG_VERSION_GE(conn, 6.4))
-		{
-			mylog("READING ATTTYPMOD\n");
-			new_atttypmod = (Int4) SOCK_get_int(sock, 4);
-
-			/* Subtract the header length */
-			switch (new_adtid)
-			{
-				case PG_TYPE_DATETIME:
-				case PG_TYPE_TIMESTAMP_NO_TMZONE:
-				case PG_TYPE_TIME:
-				case PG_TYPE_TIME_WITH_TMZONE:
-					break;
-				default:
-					new_atttypmod -= 4;
-			}
-			if (new_atttypmod < 0)
-				new_atttypmod = -1;
-
-		}
-
-		mylog("CI_read_fields: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d\n", new_field_name, new_adtid, new_adtsize, new_atttypmod);
-
-		if (self)
-			CI_set_field_info(self, lf, new_field_name, new_adtid, new_adtsize, new_atttypmod);
-	}
-
-	return (SOCK_get_errcode(sock) == 0);
-}
-
-#endif /* USE_LIBPQ */
 
 void
 CI_free_memory(ColumnInfoClass *self)

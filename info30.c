@@ -7,13 +7,7 @@
  */
 
 #include "psqlodbc.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "pgapifunc.h"
 
 RETCODE		SQL_API

@@ -12,13 +12,7 @@
  */
 
 #include "environ.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "descriptor.h"
 #include "statement.h"
 

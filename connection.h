@@ -1,18 +1,16 @@
 /* File:			connection.h
  *
- * Description:		See "connection.c"
+ * Description:		See "CONNECTION.c"
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
  */
 
-#ifndef USE_LIBPQ
-
 #ifndef __CONNECTION_H__
 #define __CONNECTION_H__
 
 #include "psqlodbc.h"
-
+#include <libpq-fe.h>
 #include <stdlib.h>
 #include <string.h>
 #include "descriptor.h"
@@ -25,51 +23,46 @@
 #define HAVE_UNIX_SOCKETS
 #endif
 
-typedef enum
-{
-	CONN_NOT_CONNECTED,			/* Connection has not been established */
-	CONN_CONNECTED,				/* Connection is up and has been
-								 * established */
-	CONN_DOWN,					/* Connection is broken */
-	CONN_EXECUTING				/* the connection is currently executing a
-								 * statement */
-} CONN_Status;
-
 /*	These errors have general sql error state */
-#define CONNECTION_SERVER_NOT_REACHED				101
-#define CONNECTION_MSG_TOO_LONG						103
-#define CONNECTION_COULD_NOT_SEND					104
-#define CONNECTION_NO_SUCH_DATABASE					105
-#define CONNECTION_BACKEND_CRAZY					106
-#define CONNECTION_NO_RESPONSE						107
-#define CONNECTION_SERVER_REPORTED_ERROR			108
-#define CONNECTION_COULD_NOT_RECEIVE				109
-#define CONNECTION_SERVER_REPORTED_WARNING			110
-#define CONNECTION_NEED_PASSWORD					112
+#define CONNECTION_SERVER_NOT_REACHED			101
+#define CONNECTION_MSG_TOO_LONG					103
+#define CONNECTION_COULD_NOT_SEND				104
+#define CONNECTION_NO_SUCH_DATABASE				105
+#define CONNECTION_BACKEND_CRAZY				106
+#define CONNECTION_NO_RESPONSE					107
+#define CONNECTION_SERVER_REPORTED_ERROR		108
+#define CONNECTION_COULD_NOT_RECEIVE			109
+#define CONNECTION_SERVER_REPORTED_WARNING		110
+#define CONNECTION_NEED_PASSWORD				112
+#define CONNECTION_COULD_NOT_ESTABLISH			113
 
 /*	These errors correspond to specific SQL states */
-#define CONN_INIREAD_ERROR							201
-#define CONN_OPENDB_ERROR							202
-#define CONN_STMT_ALLOC_ERROR						203
-#define CONN_IN_USE									204
-#define CONN_UNSUPPORTED_OPTION						205
+#define CONN_INIREAD_ERROR						201
+#define CONN_OPENDB_ERROR						202
+#define CONN_STMT_ALLOC_ERROR					203
+#define CONN_IN_USE								204
+#define CONN_UNSUPPORTED_OPTION					205
 /* Used by SetConnectoption to indicate unsupported options */
-#define CONN_INVALID_ARGUMENT_NO					206
+#define CONN_INVALID_ARGUMENT_NO				206
 /* SetConnectOption: corresponds to ODBC--"S1009" */
-#define CONN_TRANSACT_IN_PROGRES					207
-#define CONN_NO_MEMORY_ERROR						208
-#define CONN_NOT_IMPLEMENTED_ERROR					209
-#define CONN_INVALID_AUTHENTICATION					210
-#define CONN_AUTH_TYPE_UNSUPPORTED					211
-#define CONN_UNABLE_TO_LOAD_DLL						212
+#define CONN_TRANSACT_IN_PROGRES				207
+#define CONN_NO_MEMORY_ERROR					208
+#define CONN_NOT_IMPLEMENTED_ERROR				209
+#define CONN_INVALID_AUTHENTICATION				210
+#define CONN_AUTH_TYPE_UNSUPPORTED				211
+#define CONN_UNABLE_TO_LOAD_DLL					212
 
-#define CONN_OPTION_VALUE_CHANGED					213
-#define CONN_VALUE_OUT_OF_RANGE						214
+#define CONN_OPTION_VALUE_CHANGED				213
+#define CONN_VALUE_OUT_OF_RANGE					214
 
-#define CONN_TRUNCATED								215
+#define CONN_TRUNCATED							215
+
+
+#define CONN_MEMORY_ALLOCATION_FAILED			301
+#define COULD_NOT_GET_RESULT_BACK				302
 
 /* Conn_status defines */
-#define CONN_IN_AUTOCOMMIT		1L 
+#define CONN_IN_AUTOCOMMIT		1L
 #define CONN_IN_TRANSACTION		(1L<<1)
 #define CONN_IN_MANUAL_TRANSACTION	(1L<<2)
 #define CONN_IN_ERROR_BEFORE_IDLE	(1L<<3)
@@ -141,7 +134,7 @@ typedef enum
 #define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
-#define INIT_CONN_CS(x)	
+#define INIT_CONN_CS(x)
 #define ENTER_CONN_CS(x)
 #define ENTER_INNER_CONN_CS(x, entered) (0)
 #define LEAVE_CONN_CS(x)
@@ -163,27 +156,20 @@ typedef enum
 		entered--; \
 	}
 
-/* Authentication types */
-#define AUTH_REQ_OK									0
-#define AUTH_REQ_KRB4								1
-#define AUTH_REQ_KRB5								2
-#define AUTH_REQ_PASSWORD							3
-#define AUTH_REQ_CRYPT								4
-#define AUTH_REQ_MD5								5
-#define AUTH_REQ_SCM_CREDS							6
 
-/*	Startup Packet sizes */
-#define SM_DATABASE									64
-#define SM_USER										32
-#define SM_OPTIONS									64
-#define SM_UNUSED									64
-#define SM_TTY										64
+#define AUTH_REQ_OK								0
+#define AUTH_REQ_KRB4							1
+#define AUTH_REQ_KRB5							2
+#define AUTH_REQ_PASSWORD						3
+#define AUTH_REQ_CRYPT							4
+#define AUTH_REQ_MD5							5
+#define AUTH_REQ_SCM_CREDS						6
 
 /*	Old 6.2 protocol defines */
-#define NO_AUTHENTICATION							7
-#define PATH_SIZE									64
-#define ARGV_SIZE									64
-#define USRNAMEDATALEN		16
+#define NO_AUTHENTICATION						7
+#define PATH_SIZE								64
+#define ARGV_SIZE								64
+#define USRNAMEDATALEN							16
 
 typedef unsigned int ProtocolVersion;
 
@@ -192,47 +178,25 @@ typedef unsigned int ProtocolVersion;
 #define PG_PROTOCOL_63								PG_PROTOCOL(1, 0)
 #define PG_PROTOCOL_62								PG_PROTOCOL(0, 0)
 
-/*	This startup packet is to support latest Postgres protocol (6.4, 6.3) */
-typedef struct _StartupPacket
-{
-	ProtocolVersion protoVersion;
-	char		database[SM_DATABASE];
-	char		user[SM_USER];
-	char		options[SM_OPTIONS];
-	char		unused[SM_UNUSED];
-	char		tty[SM_TTY];
-} StartupPacket;
 
-
-/*	This startup packet is to support pre-Postgres 6.3 protocol */
-typedef struct _StartupPacket6_2
+typedef enum
 {
-	unsigned int authtype;
-	char		database[PATH_SIZE];
-	char		user[USRNAMEDATALEN];
-	char		options[ARGV_SIZE];
-	char		execfile[ARGV_SIZE];
-	char		tty[PATH_SIZE];
-} StartupPacket6_2;
+	CONN_NOT_CONNECTED,			/* Connection has not been established */
+	CONN_CONNECTED,				/* Connection is up and has been
+								 * established */
+	CONN_DOWN,					/* Connection is broken */
+	CONN_EXECUTING				/* the connection is currently executing a
+								 * statement */
+} CONN_Status;
 
 /* Transferred from pqcomm.h:  */
 
 
 typedef ProtocolVersion MsgType;
 
-#define CANCEL_REQUEST_CODE PG_PROTOCOL(1234,5678)
-
-typedef struct CancelRequestPacket
-{
-	/* Note that each field is stored in network byte order! */
-	MsgType		cancelRequestCode;	/* code to identify a cancel request */
-	unsigned int	backendPID;	/* PID of client's backend */
-	unsigned int	cancelAuthCode; /* secret key to authorize cancel */
-} CancelRequestPacket;
-
 /*	Structure to hold all the connection attributes for a specific
-	connection (used for both registry and file, DSN and DRIVER)
-*/
+	connection (used for both registry and file, DSN and DRIVER) */
+
 typedef struct
 {
 	char		dsn[MEDIUM_REGISTRY_LEN];
@@ -246,9 +210,6 @@ typedef struct
 	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
 	char		sslmode[MEDIUM_REGISTRY_LEN];
-#ifdef HAVE_UNIX_SOCKETS
-	char		uds[LARGE_REGISTRY_LEN];
-#endif
 	char		onlyread[SMALL_REGISTRY_LEN];
 	char		fake_oid_index[SMALL_REGISTRY_LEN];
 	char		show_oid_column[SMALL_REGISTRY_LEN];
@@ -268,6 +229,7 @@ typedef struct
 	signed char	lower_case_identifier;
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
+
 
 /*	Macro to determine is the connection using 6.2 protocol? */
 #define PROTOCOL_62(conninfo_)		(strncmp((conninfo_)->protocol, PG62, strlen(PG62)) == 0)
@@ -328,29 +290,13 @@ struct col_info
 #define HINSTANCE void *
 #endif
 
-typedef BOOL (FAR WINAPI * DataSourceToDriverProc) (UDWORD,
-																SWORD,
-																PTR,
-																SDWORD,
-																PTR,
-																SDWORD,
-															SDWORD FAR *,
-															 UCHAR FAR *,
-																SWORD,
-															SWORD FAR *);
+typedef BOOL (FAR WINAPI * DataSourceToDriverProc) 
+	(UDWORD,SWORD,PTR,SDWORD,PTR,SDWORD,SDWORD FAR *,UCHAR FAR *,SWORD,SWORD FAR *);
 
-typedef BOOL (FAR WINAPI * DriverToDataSourceProc) (UDWORD,
-																SWORD,
-																PTR,
-																SDWORD,
-																PTR,
-																SDWORD,
-															SDWORD FAR *,
-															 UCHAR FAR *,
-																SWORD,
-															SWORD FAR *);
+typedef BOOL (FAR WINAPI * DriverToDataSourceProc) 
+	(UDWORD,SWORD,PTR,SDWORD,PTR,SDWORD,SDWORD FAR *,UCHAR FAR *,SWORD,SWORD FAR *);
 
-/*******	The Connection handle	************/
+ /*******	The Connection handle	************/
 struct ConnectionClass_
 {
 	HENV		henv;			/* environment this connection was created
@@ -364,7 +310,7 @@ struct ConnectionClass_
 	ConnInfo	connInfo;
 	StatementClass **stmts;
 	int			num_stmts;
-	SocketClass *sock;
+	PGconn *pgconn;
 	int			lobj_type;
 	int			ntables;
 	COL_INFO  **col_info;
@@ -407,13 +353,12 @@ struct ConnectionClass_
 
 
 /* Accessor functions */
-#define CC_get_socket(x)					(x->sock)
 #define CC_get_database(x)					(x->connInfo.database)
 #define CC_get_server(x)					(x->connInfo.server)
 #define CC_get_DSN(x)						(x->connInfo.dsn)
 #define CC_get_username(x)					(x->connInfo.username)
 #define CC_is_onlyread(x)					(x->connInfo.onlyread[0] == '1')
- 
+
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0
 #define CONN_OVERWRITE			1
@@ -437,10 +382,10 @@ char		CC_remove_descriptor(ConnectionClass *self, DescriptorClass *desc);
 void		CC_set_error(ConnectionClass *self, int number, const char *message);
 void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);
-QResultClass *CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag);
+QResultClass   *CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag);
 void		CC_clear_error(ConnectionClass *self);
 char	   *CC_create_errormsg(ConnectionClass *self);
-int			CC_send_function(ConnectionClass *conn, int fnid, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
+int		CC_send_function(ConnectionClass *conn, int fnid, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
 char		CC_send_settings(ConnectionClass *self);
 void		CC_lookup_lo(ConnectionClass *conn);
 void		CC_lookup_pg_version(ConnectionClass *conn);
@@ -455,6 +400,13 @@ const char	*CC_get_current_schema(ConnectionClass *conn);
 int		CC_mark_a_plan_to_discard(ConnectionClass *conn, const char *plannm);
 int		CC_discard_marked_plans(ConnectionClass *conn);
 
+/* Accessor functions*/
+PGconn			*LIBPQ_Constructor();
+void			LIBPQ_Destructor(PGconn *pgconn);
+int			LIBPQ_connect(ConnectionClass *self);
+QResultClass		*LIBPQ_execute_query(ConnectionClass *self,char *query);
+QResultClass		*CC_mapping(ConnectionClass *self,PGresult *pgres,QResultClass *qres);
+void 		CC_is_server_alive(ConnectionClass *conn);
 /* CC_send_query options */
 #define	CLEAR_RESULT_ON_ABORT	1L
 #define	CREATE_KEYSET		(1L << 1) /* create keyset for updatable curosrs */
@@ -464,5 +416,3 @@ int		CC_discard_marked_plans(ConnectionClass *conn);
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
 
 #endif /* __CONNECTION_H__ */
-
-#endif /* USE_LIBPQ */

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.90 2005/09/06 07:47:26 dpage Exp $
+ * $Id: psqlodbc.h,v 1.91 2005/09/19 13:31:59 anoop Exp $
  *
  */
 
@@ -89,10 +89,6 @@ typedef double SDOUBLE;
 # define UInt2 unsigned short
 
 #endif
-
-#ifndef USE_LIBPQ
-typedef UInt4 Oid;
-#endif /* USE_LIBPQ */
 
 #ifndef FALSE
 #define FALSE	(BOOL)0
@@ -213,7 +209,6 @@ typedef UInt4 Oid;
 typedef struct ConnectionClass_ ConnectionClass;
 typedef struct StatementClass_ StatementClass;
 typedef struct QResultClass_ QResultClass;
-typedef struct SocketClass_ SocketClass;
 typedef struct BindInfoClass_ BindInfoClass;
 typedef struct ParameterInfoClass_ ParameterInfoClass;
 typedef struct ParameterImplClass_ ParameterImplClass;

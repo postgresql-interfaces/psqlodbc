@@ -22,11 +22,7 @@
 #include <string.h>
 
 #include "pgapifunc.h"
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
 #include "statement.h"
 
 RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,

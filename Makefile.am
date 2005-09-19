@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.24 2005/09/16 23:05:00 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.25 2005/09/19 13:31:58 anoop Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -14,8 +14,8 @@ psqlodbc_la_LDFLAGS = -module -no-undefined -avoid-version
 
 psqlodbc_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
-	environ.c execute.c lobj.c win_md5.c misc.c options.c \
-	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
+	environ.c execute.c win_md5.c misc.c options.c \
+	pgtypes.c psqlodbc.c qresult.c results.c parse.c \
 	statement.c tuple.c tuplelist.c dlg_specific.c odbcapi.c \
 	multibyte.c \
 	odbcapi30.c pgapi30.c info30.c descriptor.c
@@ -23,13 +23,13 @@ psqlodbc_la_SOURCES = \
 psqlodbc_la_SOURCES += \
 	bind.h columninfo.h connection.h convert.h descriptor.h \
 	dlg_specific.h environ.h \
-	lobj.h libpqconnection.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
-	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
+	connection.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
+	psqlodbc.h qresult.h resource.h statement.h tuple.h \
 	tuplelist.h version.h
 
 if enable_unicode 	 
-psqlodbc_la_SOURCES += \ 	 
-	odbcapi30w.c odbcapiw.c win_unicode.c 	 
+psqlodbc_la_SOURCES += \
+odbcapi30w.c odbcapiw.c win_unicode.c 	 
 endif
 
 EXTRA_psqlodbc_la_SOURCES = md5.c

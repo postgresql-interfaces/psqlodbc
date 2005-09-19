@@ -118,98 +118,90 @@ AC_C_CONST
 AC_TYPE_SIZE_T
 AC_STRUCT_TM
 
-#Decide whether libpq or socket based driver to be built 
-PGAC_ARG_BOOL(with, libpq, yes,
-          [  --with-libpq            build libpq enabled odbc driver(default)],[use_libpq=yes],[use_libpq=no])
 
 #
 #Options for pgsql headers and libraries
 #
-if test "$use_libpq" = "yes"; then
-        AC_MSG_CHECKING(for pgsql include files)
-        AC_ARG_WITH(pgsql-include,
-        [  --with-pgsql-include=DIR  Look for postgreSQL include files in DIR],
-        [if test "$withval" != no; then
-            AC_MSG_RESULT(yes)
-            pgsql_include="$withval"
-        else
-            AC_MSG_RESULT(no)
-            AC_MSG_ERROR([you must specify a directory when using --with-pgsql-include=DIR])
-         fi])
-fi
+
+AC_MSG_CHECKING(for pgsql include files)
+AC_ARG_WITH(pgsql-include,
+[  --with-pgsql-include=DIR  Look for postgreSQL include files in DIR],
+[if test "$withval" != no; then
+     AC_MSG_RESULT(yes)
+     pgsql_include="$withval"
+else
+     AC_MSG_RESULT(no)
+     AC_MSG_ERROR([you must specify a directory when using --with-pgsql-include=DIR])
+fi])
 
 #
 # Library directories
 #
-if test "$use_libpq" = "yes"; then
-        AC_MSG_CHECKING(for pgsql)
-        AC_ARG_WITH(pgsql,
-        [  --with-pgsql=DIR        look for PostgreSQL libraries and headers in DIR],
-        [if test "$withval" != no
-        then
-            AC_MSG_RESULT(yes)
-            LIBPQ_HOME="$withval"
-        else
-            AC_MSG_RESULT(no)
-        fi], [
-        AC_MSG_RESULT(yes)
-        LIBPQ_HOME="/usr/local/pgsql"
-        if test "$pgsql_include" = ""
-        then
-                if test ! -f "${LIBPQ_HOME}/include/libpq-fe.h"
-                then
-                    LIBPQ_HOME=/usr/local
-                    if test ! -f "${LIBPQ_HOME}/include/libpq-fe.h"
-                    then
-                        LIBPQ_HOME=/usr
-                    fi
-                fi
-                if test -f "/usr/include/libpq-fe.h"
-                then
-                    pgsql_include="/usr/include"
-                else
-                    if test -f "/usr/include/pgsql/libpq-fe.h"
-                    then
-                        pgsql_include="/usr/include/pgsql"
-                    fi
-                fi
-         fi
+AC_MSG_CHECKING(for pgsql)
+AC_ARG_WITH(pgsql,
+[  --with-pgsql=DIR        look for PostgreSQL libraries and headers in DIR],
+[if test "$withval" != no
+then
+     AC_MSG_RESULT(yes)
+     LIBPQ_HOME="$withval"
+else
+     AC_MSG_RESULT(no)
+fi], [
+AC_MSG_RESULT(yes)
+LIBPQ_HOME="/usr/local/pgsql"
+if test "$pgsql_include" = ""
+then
+     if test ! -f "${LIBPQ_HOME}/include/libpq-fe.h"
+     then
+          LIBPQ_HOME=/usr/local
+          if test ! -f "${LIBPQ_HOME}/include/libpq-fe.h"
+          then
+               LIBPQ_HOME=/usr
+          fi
+      fi
+      if test -f "/usr/include/libpq-fe.h"
+      then
+           pgsql_include="/usr/include"
+      else
+           if test -f "/usr/include/pgsql/libpq-fe.h"
+           then
+                pgsql_include="/usr/include/pgsql"
+            fi
+      fi
+fi
 	])
 #
 # Check for libpq libraries and headers
 #
-        if test -n "${LIBPQ_HOME}"
-        then
-            OLD_LDFLAGS="$LDFLAGS"
-            OLD_CPPFLAGS="$CPPFLAGS"
-            LDFLAGS="$LDFLAGS -L${LIBPQ_HOME}/lib"
-            AC_CHECK_LIB(pq, PQexec, [pgsql_cv_libpq=yes], [pgsql_cv_libpq=no])
+if test -n "${LIBPQ_HOME}"
+then
+    OLD_LDFLAGS="$LDFLAGS"
+    OLD_CPPFLAGS="$CPPFLAGS"
+    LDFLAGS="$LDFLAGS -L${LIBPQ_HOME}/lib"
+    AC_CHECK_LIB(pq, PQexec, [pgsql_cv_libpq=yes], [pgsql_cv_libpq=no])
 
-            if test "$pgsql_include" != ""
-            then
-                CPPFLAGS="$CPPFLAGS -I${pgsql_include}"
-            else
-                CPPFLAGS="$CPPFLAGS -I${LIBPQ_HOME}/include"
-            fi
-            AC_CHECK_HEADER(libpq-fe.h, [pgsql_cv_libpqfe_h=yes], [pgsql_cv_libpqfe_h=no])
+    if test "$pgsql_include" != ""
+    then
+         CPPFLAGS="$CPPFLAGS -I${pgsql_include}"
+    else
+         CPPFLAGS="$CPPFLAGS -I${LIBPQ_HOME}/include"
+    fi
+    AC_CHECK_HEADER(libpq-fe.h, [pgsql_cv_libpqfe_h=yes], [pgsql_cv_libpqfe_h=no])
 
-            if test "$pgsql_cv_libpq" = "yes" -a "$pgsql_cv_libpqfe_h" = "yes"
-            then
-                AC_MSG_CHECKING(pgsql in ${LIBPQ_HOME})
-                AC_MSG_RESULT(ok)
-            else
-                AC_MSG_CHECKING(pgsql in ${LIBPQ_HOME})
-                AC_MSG_RESULT(failed)
-                LDFLAGS="$OLD_LDFLAGS"
-                CPPFLAGS="$OLD_CPPFLAGS"
-                AC_MSG_ERROR([you must specify a valid pgsql installation with --with-pgsql=DIR])
-            fi
-            LIBS="$LIBS -lpq"
-            CPPFLAGS="$CPPFLAGS -DUSE_LIBPQ"
+    if test "$pgsql_cv_libpq" = "yes" -a "$pgsql_cv_libpqfe_h" = "yes"
+    then
+         AC_MSG_CHECKING(pgsql in ${LIBPQ_HOME})
+         AC_MSG_RESULT(ok)
+    else
+         AC_MSG_CHECKING(pgsql in ${LIBPQ_HOME})
+         AC_MSG_RESULT(failed)
+         LDFLAGS="$OLD_LDFLAGS"
+         CPPFLAGS="$OLD_CPPFLAGS"
+         AC_MSG_ERROR([you must specify a valid pgsql installation with --with-pgsql=DIR])
+    fi
+    LIBS="$LIBS -lpq"
+    CPPFLAGS="$CPPFLAGS "
 
-        fi
-else
-        AC_CHECK_LIB(socket, socket)
 fi
 
 AC_CONFIG_FILES([Makefile])

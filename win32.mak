@@ -7,25 +7,20 @@
 # Build Types:		ALL, CLEAN
 # Usage:	 	NMAKE /f win32.mak [CFG=[Release | Debug]]
 #                                          [ENCODING=[ANSI | UNICODE]]
-#                                          [MODE=[USE_LIBPQ | USE_SOCK]  PG_INC=<PostgreSQL include folder>]
+#                                          [PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
 #                                          [ALL | CLEAN] 
 # Comments:		Created by Dave Page, 2001-02-12
-#				Modified by Anoop Kumar, 2005-06-27
+#				Modified by Siva Kumar , 2005-09-15
+#				Modified by Anoop Kumar, 2005-09-19
 #
 
-!MESSAGE Building the PostgreSQL ODBC Driver for Win32...
+!MESSAGE Building the PostgreSQL ODBC Driver for Win32 (Libpq Version)...
 !MESSAGE
 !IF "$(CFG)" == ""
 CFG=Release
 !MESSAGE No configuration specified. Defaulting to Release.
 !ENDIF 
 
-!IF "$(MODE)" == ""
-MODE=USE_LIBPQ
-!MESSAGE  Using Libpq.
-!ENDIF 
-
-!IF "$(MODE)"  == "USE_LIBPQ"
 !IF "$(PG_INC)" == ""
 PG_INC=C:\Program Files\PostgreSQL\8.0\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
@@ -35,16 +30,17 @@ PG_INC=C:\Program Files\PostgreSQL\8.0\include
 PG_LIB=C:\Program Files\PostgreSQL\8.0\lib\ms
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF 
-!ENDIF
 
 !IF "$(ENCODING)" == "ANSI"
 DLLNAME=psqlodbca
 !MESSAGE Building an ANSI driver.
 !ENDIF 
+
 !IF "$(ENCODING)" == "UNICODE"
 DLLNAME=psqlodbcw
 !MESSAGE Building a Unicode driver.
 !ENDIF
+
 !IF "$(ENCODING)" == ""
 DLLNAME=psqlodbca
 ENCODING=ANSI
@@ -60,7 +56,7 @@ ENCODING=ANSI
 !MESSAGE 
 !MESSAGE NMAKE /f win32.mak [CFG=[Release | Debug]]
 !MESSAGE                    [ENCODING=[ANSI | UNICODE]]
-!MESSAGE                    [MODE=[USE_LIBPQ | USE_SOCK] PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
+!MESSAGE                    [PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
 !MESSAGE                    [ALL | CLEAN]
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
@@ -71,24 +67,6 @@ ENCODING=ANSI
 !ERROR An invalid configuration was specified.
 !ENDIF 
 
-!IF "$(MODE)"  != "USE_LIBPQ" && "$(MODE)"  != "USE_SOCK"
-!MESSAGE Invalid mode "$(MODE)" specified.
-!MESSAGE You can specify the connection mode and PostgreSQL include folder
-!MESSAGE by defining the macros MODE  and  PG_INC on the command line. For example:
-!MESSAGE 
-!MESSAGE NMAKE /f win32.mak [CFG=[Release | Debug]]
-!MESSAGE                    [ENCODING=[ANSI | UNICODE]]
-!MESSAGE                    [MODE=[USE_LIBPQ | USE_SOCK] PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
-!MESSAGE                    [ALL | CLEAN]
-!MESSAGE 
-!MESSAGE Possible choices for mode are:
-!MESSAGE 
-!MESSAGE "USE_LIBPQ"  (Using Libpq Interface)
-!MESSAGE "USE_SOCK"   (Using Socket)
-!MESSAGE 
-!ERROR An invalid mode was specified.
-!ENDIF 
-
 !IF "$(ENCODING)"  != "ANSI" && "$(ENCODING)"  != "UNICODE"
 !MESSAGE Invalid encoding "$(ENCODING)" specified.
 !MESSAGE You can specify the connection mode and PostgreSQL include folder
@@ -96,7 +74,7 @@ ENCODING=ANSI
 !MESSAGE 
 !MESSAGE NMAKE /f win32.mak [CFG=[Release | Debug]]
 !MESSAGE                    [ENCODING=[ANSI | UNICODE]]
-!MESSAGE                    [MODE=[USE_LIBPQ | USE_SOCK] PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
+!MESSAGE                    [PG_INC=<PG include folder> PG_LIB=<PG lib folder>]
 !MESSAGE                    [ALL | CLEAN]
 !MESSAGE 
 !MESSAGE Possible choices for mode are:
@@ -140,7 +118,6 @@ CLEAN :
 	-@erase "$(INTDIR)\execute.obj"
 	-@erase "$(INTDIR)\info.obj"
 	-@erase "$(INTDIR)\info30.obj"
-	-@erase "$(INTDIR)\lobj.obj"
 	-@erase "$(INTDIR)\win_md5.obj"
 	-@erase "$(INTDIR)\misc.obj"
 	-@erase "$(INTDIR)\pgapi30.obj"
@@ -158,7 +135,6 @@ CLEAN :
 	-@erase "$(INTDIR)\qresult.obj"
 	-@erase "$(INTDIR)\results.obj"
 	-@erase "$(INTDIR)\setup.obj"
-	-@erase "$(INTDIR)\socket.obj"
 	-@erase "$(INTDIR)\statement.obj"
 	-@erase "$(INTDIR)\tuple.obj"
 	-@erase "$(INTDIR)\tuplelist.obj"
@@ -177,22 +153,12 @@ CLEAN :
 CPP=cl.exe
 
 !IF "$(ENCODING)"=="UNICODE"
-
-!IF "$(MODE)"=="USE_LIBPQ"
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "UNICODE_SUPPORT" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "UNICODE_SUPPORT"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ELSE
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "UNICODE_SUPPORT" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ENDIF
 
-!ELSE
-
-!IF "$(MODE)"=="USE_LIBPQ"
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "$(PG_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
-!ELSE
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)" /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
-!ENDIF
-
-!ENDIF
+#!ENDIF
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -234,12 +200,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 
-!IF "$(MODE)"=="USE_LIBPQ"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DLLNAME).pdb" /machine:I386 /def:"$(DLLNAME).def" /out:"$(OUTDIRBIN)\$(DLLNAME).dll" /implib:"$(OUTDIR)\$(DLLNAME).lib" /libpath:"$(PG_LIB)"
-!ELSE
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DLLNAME).pdb" /machine:I386 /def:"$(DLLNAME).def" /out:"$(OUTDIRBIN)\$(DLLNAME).dll" /implib:"$(OUTDIR)\$(DLLNAME).lib" 
-!ENDIF
-
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib  /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DLLNAME).pdb" /machine:I386 /def:"$(DLLNAME).def" /out:"$(OUTDIRBIN)\$(DLLNAME).dll" /implib:"$(OUTDIR)\$(DLLNAME).lib" /libpath:"$(PG_LIB)"
 
 DEF_FILE= "$(DLLNAME).def"
 LINK32_OBJS= \
@@ -254,7 +215,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\execute.obj" \
 	"$(INTDIR)\info.obj" \
 	"$(INTDIR)\info30.obj" \
-	"$(INTDIR)\lobj.obj" \
 	"$(INTDIR)\win_md5.obj" \
 	"$(INTDIR)\misc.obj" \
 	"$(INTDIR)\pgapi30.obj" \
@@ -271,7 +231,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\qresult.obj" \
 	"$(INTDIR)\results.obj" \
 	"$(INTDIR)\setup.obj" \
-	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\statement.obj" \
 	"$(INTDIR)\tuple.obj" \
 	"$(INTDIR)\tuplelist.obj" \
@@ -312,7 +271,6 @@ CLEAN :
 	-@erase "$(INTDIR)\execute.obj"
 	-@erase "$(INTDIR)\info.obj"
 	-@erase "$(INTDIR)\info30.obj"
-	-@erase "$(INTDIR)\lobj.obj"
 	-@erase "$(INTDIR)\win_md5.obj"
 	-@erase "$(INTDIR)\misc.obj"
 	-@erase "$(INTDIR)\pgapi30.obj"
@@ -330,7 +288,6 @@ CLEAN :
 	-@erase "$(INTDIR)\qresult.obj"
 	-@erase "$(INTDIR)\results.obj"
 	-@erase "$(INTDIR)\setup.obj"
-	-@erase "$(INTDIR)\socket.obj"
 	-@erase "$(INTDIR)\statement.obj"
 	-@erase "$(INTDIR)\tuple.obj"
 	-@erase "$(INTDIR)\tuplelist.obj"
@@ -352,21 +309,9 @@ CLEAN :
 CPP=cl.exe
 
 !IF "$(ENCODING)"=="UNICODE"
-
-!IF "$(MODE)"=="USE_LIBPQ"
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "UNICODE_SUPPORT" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "UNICODE_SUPPORT"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 !ELSE
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "UNICODE_SUPPORT" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
-!ENDIF
-
-!ELSE
-
-!IF "$(MODE)"=="USE_LIBPQ"
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
-!ELSE
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "$(MODE)"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
-!ENDIF
-
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od  /I "$(PG_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS"  /D "ODBCVER=0x0300" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\$(DLLNAME).pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 !ENDIF
 
 
@@ -410,11 +355,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 
-!IF "$(MODE)"=="USE_LIBPQ"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbclibpq.pdb" /debug /machine:I386 /def:"$(DLLNAME).def" /out:"$(OUTDIR)\$(DLLNAME).dll" /implib:"$(OUTDIR)\$(DLLNAME).lib" /pdbtype:sept /libpath:"$(PG_LIB)"
-!ELSE
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\$(DLLNAME).pdb" /debug /machine:I386 /def:"$(DLLNAME).def" /out:"$(OUTDIR)\$(DLLNAME).dll" /implib:"$(OUTDIR)\$(DLLNAME).lib" /pdbtype:sept 
-!ENDIF
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib  /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbclibpq.pdb" /debug /machine:I386 /def:"$(DLLNAME).def" /out:"$(OUTDIR)\$(DLLNAME).dll" /implib:"$(OUTDIR)\$(DLLNAME).lib" /pdbtype:sept /libpath:"$(PG_LIB)"
 
 DEF_FILE= "$(DLLNAME).def"
 LINK32_OBJS= \
@@ -429,7 +370,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\execute.obj" \
 	"$(INTDIR)\info.obj" \
 	"$(INTDIR)\info30.obj" \
-	"$(INTDIR)\lobj.obj" \
 	"$(INTDIR)\win_md5.obj" \
 	"$(INTDIR)\misc.obj" \
 	"$(INTDIR)\pgapi30.obj" \
@@ -446,7 +386,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\qresult.obj" \
 	"$(INTDIR)\results.obj" \
 	"$(INTDIR)\setup.obj" \
-	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\statement.obj" \
 	"$(INTDIR)\tuple.obj" \
 	"$(INTDIR)\tuplelist.obj" \
@@ -530,11 +469,6 @@ SOURCE=info30.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=lobj.c
-
-"$(INTDIR)\lobj.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
 
 SOURCE=misc.c
 
@@ -599,58 +533,27 @@ SOURCE=psqlodbc.rc
 
 !IF "$(ENCODING)"=="UNICODE"
 
-!IF "$(MODE)" == "USE_LIBPQ"
-
 !IF "$(CFG)" == "Release"
 "$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "NDEBUG" /d "MULTIBYTE" /d "USE_LIBPQ" /d "UNICODE_SUPPORT" $(SOURCE)
+	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "NDEBUG" /d "MULTIBYTE"  /d "UNICODE_SUPPORT" $(SOURCE)
 !ENDIF
 
 !IF "$(CFG)" == "Debug"
 "$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "_DEBUG" /d "MULTIBYTE" /d "USE_LIBPQ" /d "UNICODE_SUPPORT" $(SOURCE)
+	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "_DEBUG" /d "MULTIBYTE"  /d "UNICODE_SUPPORT" $(SOURCE)
 !ENDIF
 
 !ELSE
 
+
 !IF "$(CFG)" == "Release"
 "$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "NDEBUG" /d "MULTIBYTE" /d "UNICODE_SUPPORT" $(SOURCE)
+	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "NDEBUG" /d "MULTIBYTE"  $(SOURCE)
 !ENDIF
 
 !IF "$(CFG)" == "Debug"
 "$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "_DEBUG" /d "MULTIBYTE" /d "UNICODE_SUPPORT" $(SOURCE)
-!ENDIF
-
-!ENDIF
-
-!ELSE
-
-!IF "$(MODE)" == "USE_LIBPQ"
-
-!IF "$(CFG)" == "Release"
-"$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "NDEBUG" /d "MULTIBYTE" /d "USE_LIBPQ" $(SOURCE)
-!ENDIF
-
-!IF "$(CFG)" == "Debug"
-"$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "_DEBUG" /d "MULTIBYTE" /d "USE_LIBPQ" $(SOURCE)
-!ENDIF
-
-!ELSE
-
-!IF "$(CFG)" == "Release"
-"$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "NDEBUG" /d "MULTIBYTE" $(SOURCE)
-!ENDIF
-
-!IF "$(CFG)" == "Debug"
-"$(INTDIR)\$(DLLNAME).res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "_DEBUG" /d "MULTIBYTE" $(SOURCE)
-!ENDIF
-
+	$(RSC) /l 0x809 /fo"$(INTDIR)\$(DLLNAME).res" /d "_DEBUG" /d "MULTIBYTE"  $(SOURCE)
 !ENDIF
 
 !ENDIF
@@ -671,12 +574,6 @@ SOURCE=results.c
 SOURCE=setup.c
 
 "$(INTDIR)\setup.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=socket.c
-
-"$(INTDIR)\socket.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

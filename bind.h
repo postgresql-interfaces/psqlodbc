@@ -10,9 +10,8 @@
 #define __BIND_H__
 
 #include "psqlodbc.h"
-#ifdef USE_LIBPQ
 #include <libpq-fe.h>
-#endif /* USE_LIBPQ */
+
 /*
  * BindInfoClass -- stores information about a bound column
  */

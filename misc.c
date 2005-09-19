@@ -27,12 +27,7 @@
 								 * of getpid ? */
 #endif
 
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "multibyte.h"
 
 extern GLOBAL_VALUES globals;

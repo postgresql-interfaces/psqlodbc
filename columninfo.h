@@ -10,9 +10,8 @@
 #define __COLUMNINFO_H__
 
 #include "psqlodbc.h"
-#ifdef USE_LIBPQ
 #include <libpq-fe.h>
-#endif /* USE_LIBPQ */
+
 struct ColumnInfoClass_
 {
 	Int2		num_fields;
@@ -33,7 +32,6 @@ struct ColumnInfoClass_
 ColumnInfoClass *CI_Constructor(void);
 void		CI_Destructor(ColumnInfoClass *self);
 void		CI_free_memory(ColumnInfoClass *self);
-char		CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn);
 
 /* functions for setting up the fields from within the program, */
 /* without reading from a socket */

@@ -10,12 +10,7 @@
 #define __DLG_SPECIFIC_H__
 
 #include "psqlodbc.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
 
 #ifdef WIN32
 #include  <windowsx.h>

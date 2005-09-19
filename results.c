@@ -20,12 +20,7 @@
 #include <string.h>
 #include "dlg_specific.h"
 #include "environ.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
 #include "statement.h"
 #include "bind.h"
 #include "qresult.h"
@@ -55,14 +50,6 @@ PGAPI_RowCount(
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
-#ifndef USE_LIBPQ
-	if (stmt->manual_result)
-	{
-		if (pcrow)
-			*pcrow = -1;
-		return SQL_SUCCESS;
-	}
-#endif /* USE_LIBPQ */
 	res = SC_get_Curres(stmt);
 	if (res && pcrow)
 	{
@@ -1420,9 +1407,6 @@ PGAPI_ExtendedFetch(
 	 */
 	if (SC_is_fetchcursor(stmt) && !stmt->manual_result)
 	{
-#ifndef USE_LIBPQ
-		if (QR_end_tuples(res))
-#endif /* USE_LIBPQ */
 			return SQL_NO_DATA_FOUND;
 	}
 	else

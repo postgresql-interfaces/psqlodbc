@@ -14,13 +14,7 @@
  */
 
 #include "environ.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "dlg_specific.h"
 #include "statement.h"
 #include <stdlib.h>

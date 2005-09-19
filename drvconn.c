@@ -16,19 +16,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
 
 #ifndef WIN32
 #include <sys/types.h>
-#include <sys/socket.h>
 #define NEAR
-#else
-#include <winsock.h>
 #endif
 
 #include <string.h>

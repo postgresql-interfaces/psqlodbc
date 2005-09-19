@@ -28,15 +28,8 @@
 #include "tuple.h"
 #include "pgtypes.h"
 #include "dlg_specific.h"
-
 #include "environ.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "statement.h"
 #include "qresult.h"
 #include "bind.h"

@@ -18,20 +18,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <libpq/libpq-fs.h>
 #include "environ.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "statement.h"
 #include "qresult.h"
 #include "convert.h"
 #include "bind.h"
 #include "pgtypes.h"
-#include "lobj.h"
 #include "pgapifunc.h"
 
 /*extern GLOBAL_VALUES globals;*/
@@ -358,32 +352,12 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	{
 
         	EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
-#ifdef USE_LIBPQ
 		if (!res->recent_processed_row_count && res->status == PGRES_COMMAND_OK && EN_is_odbc3(env))
 		{
 			if ((strnicmp(stmt->statement, "UPDATE", 6) == 0) || 
 				(strnicmp(stmt->statement, "DELETE", 6) == 0))
 				retval = SQL_NO_DATA_FOUND;
 		}
-
-#else
-		const char *cmd = QR_get_command(res);
-
-		if (retval == SQL_SUCCESS && cmd && EN_is_odbc3(env))
-		{
-			int	count;
-
-			if (sscanf(cmd , "UPDATE %d", &count) == 1)
-				;
-			else if (sscanf(cmd , "DELETE %d", &count) == 1)
-				;
-			else
-				count = -1;
-			if (0 == count)
-				retval = SQL_NO_DATA;
-		}
-#endif  /* USE_LIBPQ */
-
 		stmt->diag_row_count = res->recent_processed_row_count;
 	}
 	/*
@@ -407,8 +381,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	StatementClass *stmt = (StatementClass *) hstmt;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
-	int			i,
-				retval, start_row, end_row;
+	int	i, 	retval, start_row, end_row;
 	BOOL	exec_end, recycled = FALSE, recycle = TRUE;
 
 	mylog("%s: entering...\n", func);
@@ -882,11 +855,7 @@ PGAPI_ParamData(
 	/* close the large object */
 	if (estmt->lobj_fd >= 0)
 	{
-#ifdef USE_LIBPQ
 		lo_close(estmt->hdbc->pgconn, estmt->lobj_fd);
-#else
-		lo_close(estmt->hdbc, estmt->lobj_fd);
-#endif /* USE_LIBPQ */
 
 		/* commit transaction if needed */
 		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(estmt->hdbc))
@@ -1082,11 +1051,8 @@ PGAPI_PutData(
 			}
 
 			/* store the oid */
-#ifdef USE_LIBPQ
 			current_pdata->lobj_oid = lo_creat(conn->pgconn, INV_READ | INV_WRITE);
-#else
-			current_pdata->lobj_oid = lo_creat(conn, INV_READ | INV_WRITE);
-#endif /* USE_LIBPQ */
+
 			if (current_pdata->lobj_oid == 0)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt create large object.");
@@ -1101,11 +1067,7 @@ PGAPI_PutData(
 			/***current_param->EXEC_buffer = (char *) &current_param->lobj_oid;***/
 
 			/* store the fd */
-#ifdef USE_LIBPQ
 			estmt->lobj_fd = lo_open(conn->pgconn, current_pdata->lobj_oid, INV_WRITE);
-#else
-			estmt->lobj_fd = lo_open(conn, current_pdata->lobj_oid, INV_WRITE);
-#endif /* USE_LIBPQ */
 			if (estmt->lobj_fd < 0)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for writing.");
@@ -1113,11 +1075,7 @@ PGAPI_PutData(
 				return SQL_ERROR;
 			}
 
-#ifdef USE_LIBPQ
 			retval = lo_write(conn->pgconn, estmt->lobj_fd, putbuf, putlen);
-#else
-			retval = lo_write(conn, estmt->lobj_fd, putbuf, putlen);
-#endif /* USE_LIBPQ */
 			mylog("lo_write: cbValue=%d, wrote %d bytes\n", putlen, retval);
 		}
 		else
@@ -1142,11 +1100,7 @@ PGAPI_PutData(
 		if (current_iparam->PGType == conn->lobj_type)
 		{
 			/* the large object fd is in EXEC_buffer */
-#ifdef USE_LIBPQ
 			retval = lo_write(conn->pgconn, estmt->lobj_fd, putbuf, putlen);
-#else
-			retval = lo_write(conn, estmt->lobj_fd, putbuf, putlen);
-#endif /* USE_LIBPQ */
 			mylog("lo_write(2): cbValue = %d, wrote %d bytes\n", putlen, retval);
 
 			*current_pdata->EXEC_used += putlen;

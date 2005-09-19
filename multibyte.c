@@ -9,13 +9,7 @@
  */
 
 #include "multibyte.h"
-
-#ifdef USE_LIBPQ
-#include "libpqconnection.h"
-#else
 #include "connection.h"
-#endif /* USE_LIBPQ */
-
 #include "pgapifunc.h"
 #include "qresult.h"
 #include <string.h>
