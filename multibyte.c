@@ -29,6 +29,7 @@ pg_CS CS_Table[] =
 	{ "EUC_TW",	EUC_TW },
 	{ "JOHAB", JOHAB },
 	{ "UNICODE",	UTF8 },
+	{ "UTF8",	UTF8 },		/* Corresponding from Version 8.1 */
 	{ "MULE_INTERNAL",MULE_INTERNAL },
 	{ "LATIN1",	LATIN1 },
 	{ "LATIN2",	LATIN2 },
@@ -41,11 +42,14 @@ pg_CS CS_Table[] =
 	{ "LATIN9", LATIN9 },
 	{ "LATIN10", LATIN10 },
 	{ "WIN1256", WIN1256 },
-	{ "TCVN", TCVN },
+	{ "TCVN", WIN1258 },
+	{ "WIN1258", WIN1258 },		/* Corresponding from Version 8.1 */
 	{ "WIN874", WIN874 },
 	{ "KOI8",	KOI8R },
 	{ "WIN",	WIN1251 },
-	{ "ALT",	ALT },
+	{ "WIN1251",	WIN1251 },	/* Corresponding from Version 8.1 */
+	{ "ALT",	WIN866  },
+	{ "WIN866",	WIN866  },	/* Corresponding from Version 8.1 */
 	{ "ISO_8859_5", ISO_8859_5 },
 	{ "ISO_8859_6", ISO_8859_6 },
 	{ "ISO_8859_7", ISO_8859_7 },
@@ -399,6 +403,12 @@ CC_lookup_characterset(ConnectionClass *self)
 				break; 	 
 			case 1250: 	 
 				wenc = "WIN1250"; 	 
+				break; 	 
+			case 1251: 	 
+				if (PG_VERSION_GE(self, 8.1)) 	 
+					wenc = "WIN1251"; 	 
+				else
+					wenc = "WIN"; 	 
 				break; 	 
 			case 1252: 	 
 				if (PG_VERSION_GE(self, 7.2)) 	 
