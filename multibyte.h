@@ -44,6 +44,12 @@
 #define UHC					31  /* UHC */
 #define WIN1250				32	/* windows-1250 */
 #define GB18030				33	/* GB18030 */
+
+#define UNICODE				34  /* UNICODE ( < Ver8.1) */
+#define TCVN				35  /* TCVN ( < Ver8.1) */
+#define ALT				36  /* ALT ( < Var8.1) */
+#define WIN				37  /* WIN ( < Ver8.1) */
+
 #define OTHER				-1
 
 #define MAX_CHARACTERSET_NAME	24
