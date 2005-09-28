@@ -246,8 +246,10 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 		case PG_TYPE_CHAR2:
 		case PG_TYPE_CHAR4:
 		case PG_TYPE_CHAR8:
-		case PG_TYPE_NAME:
 			return SQL_CHAR;
+
+		case PG_TYPE_NAME:
+			return SQL_VARCHAR;
 
 #ifdef  UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
