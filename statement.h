@@ -150,6 +150,7 @@ struct StatementClass_
 	STMT_Status status;
 	char	   *__error_message;
 	int			__error_number;
+	char		__sqlstate[SQLSTATE_LENGTH];
 
 	Int4		currTuple;		/* current absolute row number (GetData,
 								 * SetPos, SQLFetch) */
@@ -322,6 +323,8 @@ void		SC_error_copy(StatementClass *self, const StatementClass *from);
 void		SC_full_error_copy(StatementClass *self, const StatementClass *from);
 char		SC_get_error(StatementClass *self, int *number, char **message);
 char		*SC_create_errormsg(const StatementClass *self);
+void		SC_set_sqlstate(StatementClass *self, const char *sqlstate);
+char		*SC_get_sqlstate(StatementClass *self);
 void		SC_set_prepared(StatementClass *self, BOOL);
 RETCODE		SC_initialize_stmts(StatementClass *self, BOOL);
 RETCODE		SC_execute(StatementClass *self);

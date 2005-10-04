@@ -277,6 +277,7 @@ CC_clear_error(ConnectionClass *self)
 		free(self->__error_message);
 	self->__error_message = NULL;
 	self->errormsg_created = FALSE;
+	self->__sqlstate[0] = '\0';
 }
 
 
@@ -494,6 +495,19 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 	mylog("exit CC_get_error\n");
 
 	return rv;
+}
+
+void CC_set_sqlstate(ConnectionClass *self, const char *sqlstate)
+{
+    if (sqlstate)
+        snprintf(self->__sqlstate, SQLSTATE_LENGTH, "%s", sqlstate);
+    else
+        self->__sqlstate[0] = '\0';
+}
+
+char *CC_get_sqlstate(ConnectionClass *self)
+{
+    return self->__sqlstate;
 }
 
 static void CC_clear_cursors(ConnectionClass *self, BOOL allcursors)
@@ -948,6 +962,7 @@ CC_Constructor()
 		rv->__error_message = NULL;
 		rv->__error_number = 0;
 		rv->errormsg_created = FALSE;
+		rv->__sqlstate[0] = '\0';
 
 		rv->status = CONN_NOT_CONNECTED;
 		rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
@@ -1818,16 +1833,18 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 
 	if ( (PQresultStatus(pgres) != PGRES_EMPTY_QUERY) && (PQresultStatus(pgres) != PGRES_TUPLES_OK) )
 	{
-	        snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
-
-	        /* Remove the training CR that libpq adds to the message */
-	        pos = strlen(errbuffer);
-	        if (pos)
-	            errbuffer[pos - 1] = '\0';
+		snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
+		
+		/* Remove the training CR that libpq adds to the message */
+		pos = strlen(errbuffer);
+		if (pos)
+			errbuffer[pos - 1] = '\0';
 
 		mylog("the server returned the error: %s\n", errbuffer);
 		CC_set_error(self, CONNECTION_SERVER_REPORTED_ERROR, errbuffer);
-	        PQclear(pgres);
+		CC_set_sqlstate(self, PQresultErrorField(pgres, PG_DIAG_SQLSTATE));
+
+		PQclear(pgres);
 		return qres;
 	}
 

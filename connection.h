@@ -306,6 +306,7 @@ struct ConnectionClass_
 	APDFields	apdOptions;
 	char	   *__error_message;
 	int			__error_number;
+	char		__sqlstate[SQLSTATE_LENGTH + 1];  /* Set only by LIBPQ_execute_query() */
 	CONN_Status status;
 	ConnInfo	connInfo;
 	StatementClass **stmts;
@@ -399,6 +400,8 @@ void		ProcessRollback(ConnectionClass *conn, BOOL undo);
 const char	*CC_get_current_schema(ConnectionClass *conn);
 int		CC_mark_a_plan_to_discard(ConnectionClass *conn, const char *plannm);
 int		CC_discard_marked_plans(ConnectionClass *conn);
+void		CC_set_sqlstate(ConnectionClass *self, const char *sqlstate);
+char		*CC_get_sqlstate(ConnectionClass *self);
 
 /* Accessor functions*/
 PGconn			*LIBPQ_Constructor();

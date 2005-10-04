@@ -245,6 +245,7 @@ SC_Constructor(void)
 		rv->__error_message = NULL;
 		rv->__error_number = 0;
 		rv->errormsg_created = FALSE;
+		rv->__sqlstate[0] = '\0';
 
 		rv->statement = NULL;
 		rv->stmt_with_params = NULL;
@@ -844,6 +845,21 @@ SC_get_error(StatementClass *self, int *number, char **message)
 	return rv;
 }
 
+void
+SC_set_sqlstate(StatementClass *self, const char *sqlstate)
+{
+    if (sqlstate)
+        snprintf(self->__sqlstate, SQLSTATE_LENGTH, "%s", sqlstate);
+    else
+        self->__sqlstate[0] = '\0';
+}
+
+char *
+SC_get_sqlstate(StatementClass *self)
+{
+    return self->__sqlstate;
+}
+
 
 time_t
 SC_get_time(StatementClass *stmt)
@@ -1192,10 +1208,11 @@ SC_execute(StatementClass *self)
 		else
 			SC_set_errornumber(self, was_nonfatal ? STMT_INFO_ONLY : STMT_ERROR_TAKEN_FROM_BACKEND);
 
-                if (QR_command_fatal(res) && PQstatus(conn->pgconn) == CONNECTION_BAD)
-                {
-                    SC_set_errornumber(self, STMT_BAD_ERROR);
-                }
+		if (QR_command_fatal(res) && PQstatus(conn->pgconn) == CONNECTION_BAD)
+		    SC_set_errornumber(self, STMT_BAD_ERROR);
+
+		if (SC_get_errornumber(self) == STMT_ERROR_TAKEN_FROM_BACKEND)
+			SC_set_sqlstate(self, CC_get_sqlstate(conn));
 
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;

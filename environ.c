@@ -352,8 +352,8 @@ PGAPI_StmtError(	HSTMT hstmt,
 				/* having no stmtstring is also a malloc problem */
 				break;
 			case STMT_ERROR_TAKEN_FROM_BACKEND:
-				pg_sqlstate_set(env, szSqlState, "HY000", "S1000");
-				/* general error */
+				pg_sqlstate_set(env, szSqlState, SC_get_sqlstate(stmt), "S1000");
+				/* Use the ODBC 3 sqlstate reported by the backend. */
 				break;
 			case STMT_INTERNAL_ERROR:
 				pg_sqlstate_set(env, szSqlState, "HY000", "S1000");

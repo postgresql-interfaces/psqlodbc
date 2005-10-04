@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.91 2005/09/19 13:31:59 anoop Exp $
+ * $Id: psqlodbc.h,v 1.92 2005/10/04 19:03:19 dpage Exp $
  *
  */
 
@@ -147,7 +147,8 @@ typedef double SDOUBLE;
 							 /* see an easy way round this - DJP 24-1-2001 */
 #define MAX_CONNECT_STRING			4096
 #define ERROR_MSG_LENGTH			4096
-#define FETCH_MAX				100 	/* default number of rows to cache
+#define SQLSTATE_LENGTH				8
+#define FETCH_MAX					100 	/* default number of rows to cache
 							 * for declare/fetch */
 #define TUPLE_MALLOC_INC			100
 #define SOCK_BUFFER_SIZE			8192	/* default socket buffer
@@ -281,7 +282,7 @@ typedef struct
         SDWORD  errorsize;
         SWORD   recsize;
         SWORD   errorpos;
-        char    sqlstate[8];
+        char    sqlstate[SQLSTATE_LENGTH];
         Int4    diag_row_count;
         char    __error_message[1];
 }       PG_ErrorInfo;
