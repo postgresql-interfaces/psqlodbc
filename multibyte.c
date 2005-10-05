@@ -28,7 +28,7 @@ pg_CS CS_Table[] =
 	{ "EUC_KR",	EUC_KR },
 	{ "EUC_TW",	EUC_TW },
 	{ "JOHAB", JOHAB },
-	{ "UNICODE",	UNICODE },
+	{ "UNICODE",	PG_UNICODE },
 	{ "UTF8",	UTF8 },		/* Corresponding from Version 8.1 */
 	{ "MULE_INTERNAL",MULE_INTERNAL },
 	{ "LATIN1",	LATIN1 },
