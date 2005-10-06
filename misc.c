@@ -21,6 +21,8 @@
 #ifndef WIN32
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #else
 #include <process.h>			/* Byron: is this where Windows keeps def.
@@ -118,6 +120,10 @@ mylog(char *fmt,...)
 	va_list		args;
 	char		filebuf[80];
 
+#ifndef WIN32
+	int		filedes=0;
+#endif
+
 	ENTER_MYLOG_CS;
 	if (mylog_on)
 	{
@@ -126,7 +132,12 @@ mylog(char *fmt,...)
 		if (!LOGFP)
 		{
 			generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
+#ifdef WIN32
 			LOGFP = fopen(filebuf, PG_BINARY_A);
+#else
+			filedes = open(filebuf, O_WRONLY | O_APPEND | O_CREAT, S_IWUSR | S_IRUSR);
+			LOGFP = fdopen(filedes, PG_BINARY_A);
+#endif
 			setbuf(LOGFP, NULL);
 		}
 
@@ -163,6 +174,10 @@ qlog(char *fmt,...)
 	char		filebuf[80];
 	static FILE *LOGFP = NULL;
 
+#ifndef WIN32
+        int             filedes=0;
+#endif
+
 	ENTER_QLOG_CS;
 	if (qlog_on)
 	{
@@ -171,7 +186,12 @@ qlog(char *fmt,...)
 		if (!LOGFP)
 		{
 			generate_filename(QLOGDIR, QLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
+#ifdef WIN32
+                        LOGFP = fopen(filebuf, PG_BINARY_A);
+#else
+                        filedes = open(filebuf, O_WRONLY | O_APPEND | O_CREAT, S_IWUSR | S_IRUSR);
+                        LOGFP = fdopen(filedes, PG_BINARY_A);
+#endif
 			setbuf(LOGFP, NULL);
 		}
 
