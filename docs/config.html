@@ -66,7 +66,7 @@ the old podbc32.<br />&nbsp;</li>
 the driver will parse an SQL query statement to identify the columns and
 tables and gather statistics about them such as precision, nullability,
 aliases, etc. It then reports this information in SQLDescribeCol,
-SQLColAttributes, and SQLNumResultCols. <b>Prior to Postgres 6.4,
+SQLColAttributes, and SQLNumResultCols. <b>Prior to PostgreSQL 6.4,
 this was the only accurate way of getting information on precision from
 a query result.</b><br><br>
 
@@ -83,7 +83,7 @@ columns.<br />&nbsp;</li>
 what SQLDescribeCol and SQLColAttributes will return as to precision for
 character data types (varchar, text, and unknown) in a result set when
 the precision is unknown. <b>This was more of a workaround for pre-6.4
-versions of Postgres not being able to return the defined column width
+versions of PostgreSQL not being able to return the defined column width
 of the varchar data type</b>.<br><br>
 
 <ul>
@@ -112,7 +112,7 @@ if using <i>Maximum</i> size.
 <ul>
 
 <li><i>Text as LongVarChar</i>:
-Postgres TEXT type is mapped to SQLLongVarchar, otherwise SQLVarchar.</li>
+PostgreSQL TEXT type is mapped to SQLLongVarchar, otherwise SQLVarchar.</li>
 
 <li><i>Unknowns as LongVarChar</i>: Unknown types (arrays, etc) are mapped to SQLLongVarChar, otherwise SQLVarchar</li>
 
@@ -167,7 +167,7 @@ however!<br />&nbsp;</li>
 applications to detect whether data has been modified by other users while
 you are attempting to update a row. It also speeds the update process
 since every single column does not need to be specified in the where clause
-to update a row. The driver uses the "xmin" system field of Postgres
+to update a row. The driver uses the "xmin" system field of PostgreSQL
 to allow for row versioning. Microsoft products seem to use this
 option well. See the <a "http://gborg.postgresql.org/project/psqlodbc/faq/faq.php">faq</a>
 for details on what you need to do to your database to allow for the row
@@ -225,7 +225,7 @@ should be (i.e, Access 2.0).</li><br>
 
 <ul>
 <li><b>6.2:</b> Forces driver to
-use Postgres 6.2 protocol, which had different byte ordering, protocol,
+use PostgreSQL 6.2 protocol, which had different byte ordering, protocol,
 and other semantics.<br />&nbsp;</li>
 
 <li><b>6.3</b>: Use the 6.3 protocol. This is compatible

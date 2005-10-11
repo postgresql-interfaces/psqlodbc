@@ -9,7 +9,7 @@
   
     <h1>psqlODBC FAQ</h1>
 
-    <p>Last updated: $Date: 2005/09/06 15:19:13 $</p>
+    <p>Last updated: $Date: 2005/10/11 07:47:11 $</p>
 
     <P>Current maintainer: Dave Page (<a href="mailto:dpage@postgresql.org">dpage@postgresql.org</a>)</p>
 
@@ -264,7 +264,7 @@
     which?) so in order to use row versioning, you must overload the int4eq function 
     for use with the xid type. Also, you need to create an operator to compare xid to 
     int4. You must do this for each database you want to use this feature on. This will 
-    probably not be necessary in Postgres 6.4 since it will be added. Here are the details:
+    probably not be necessary in PostgreSQL 6.4 since it will be added. Here are the details:
     </p>
     <pre>
     create function int4eq(xid,int4)
@@ -288,10 +288,10 @@
     Large objects are mapped to LONGVARBINARY in the driver to allow storing things like OLE 
     objects in Microsoft Access. Multiple SQLPutData and SQLGetData calls are usually used to 
     send and retrieve these objects. The driver creates a new large object and simply inserts 
-    its 'identifier' into the respective table. However, since Postgres uses an 'Oid' to identify 
-    a Large Object, it is necessary to create a new Postgres type to be able to discriminate 
+    its 'identifier' into the respective table. However, since PostgreSQL uses an 'Oid' to identify 
+    a Large Object, it is necessary to create a new PostgreSQL type to be able to discriminate 
     between an ordinary Oid and a Large Object Oid. Until this new type becomes an official 
-    part of Postgres, it must be added into the desired database and looked up for each connection. 
+    part of PostgreSQL, it must be added into the desired database and looked up for each connection. 
     The type used in the driver is simply called "lo" and here is the command used to create it:
     </p>
     <pre>
@@ -317,7 +317,7 @@
     <p>
     Another important note is that this new type is lacking in functionality. It will not cleanup after 
     itself on updates and deletes, thus leaving orphans around and using up extra disk space. And 
-    currently, Postgres does not support the vacuuming of large objects.
+    currently, PostgreSQL does not support the vacuuming of large objects.
     </p>
     <p>
     It would not be too difficult to write a interim stand-alone cleanup process to run at some interval 
@@ -351,7 +351,7 @@
     The question marks are replaced with the key values
     </p>
     <p>
-    Prior to Postgres 6.4, this was a major problem. But there are at least 2 fixes in place for this as 
+    Prior to PostgreSQL 6.4, this was a major problem. But there are at least 2 fixes in place for this as 
     of 6.4. One of the fixes is called KSQO (Keyset Query Optimization). As of 6.4, the driver now turns 
     this on by default, although this can be changed in the Advanced Driver options settings.
     </p>
@@ -378,7 +378,7 @@
     <ul>
       <li>Check Text as LongVarchar</li>
       <li>Uncheck Unknowns as LongVarchar</li>
-      <li>Parse Statements option: Enable it, if using a protocol earlier than Postgres 6.4</li>
+      <li>Parse Statements option: Enable it, if using a protocol earlier than PostgreSQL 6.4</li>
       <li>Unknown Sizes Options: Set to "Longest"</li>
     </ul>
 
@@ -387,7 +387,7 @@
     When using the 6.4 protocol, this problem should not be an issue.
     </p>
     <p>
-    Prior to the Postgres 6.4 protocol, the backend did not return the size of 
+    Prior to the PostgreSQL 6.4 protocol, the backend did not return the size of 
     varchar/char datatypes in a query result and Borland relies heavily on this 
     for both simple queries and the data dictionary import. Therefore, there are 
     several driver options that were developed to help out with this.
@@ -429,7 +429,7 @@
 
     <h3><a name="6.3">6.3</a>) Why does MS Access sometimes complain about a GROUP BY or ORDER BY not being in the target list?</h3>
     <p>
-    This message comes from the PostgreSQL backend. Postgres currently requires fields 
+    This message comes from the PostgreSQL backend. PostgreSQL currently requires fields 
     in the ORDER BY and GROUP BY clauses to be included in the target list. However, 
     this restriction has been lifted in PostgreSQL 6.4+
     </p>
@@ -460,7 +460,7 @@
     empty string.
     </p>
     <p>
-    So when Access retrieves a row from PostgreSQl with fields containing the empty string, it 
+    So when Access retrieves a row from PostgreSQL with fields containing the empty string, it 
     automatically translates them into NULL values. When you try updating this row, the query sent 
     from Access 2000 to PostgreSQL will fail to update the row. An example:
     </p>
