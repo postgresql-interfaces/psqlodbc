@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.25 2005/09/19 13:31:58 anoop Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.26 2005/10/12 08:12:30 petere Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -11,6 +11,8 @@ AUTOMAKE_OPTIONS = 1.6 foreign
 lib_LTLIBRARIES = psqlodbc.la
 
 psqlodbc_la_LDFLAGS = -module -no-undefined -avoid-version
+
+psqlodbc_la_LIBADD = -lpq
 
 psqlodbc_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
