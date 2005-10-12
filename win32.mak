@@ -22,12 +22,12 @@ CFG=Release
 !ENDIF 
 
 !IF "$(PG_INC)" == ""
-PG_INC=C:\Program Files\PostgreSQL\8.1\include
+PG_INC=$(PROGRAMFILES)\PostgreSQL\8.1\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF 
 
 !IF "$(PG_LIB)" == ""
-PG_LIB=C:\Program Files\PostgreSQL\8.1\lib\ms
+PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.1\lib\ms
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF 
 
