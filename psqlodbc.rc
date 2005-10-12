@@ -310,8 +310,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,1,0,5
- PRODUCTVERSION 8,1,0,5
+ FILEVERSION 8,1,0,6
+ PRODUCTVERSION 8,1,0,6
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -341,12 +341,12 @@ BEGIN
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.01.0005"
+            VALUE "FileVersion", "08.01.0006"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft® is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.01.0005"
+            VALUE "ProductVersion", "08.01.0006"
         END
     END
     BLOCK "VarFileInfo"
@@ -640,8 +640,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,1,0,5
- PRODUCTVERSION 8,1,0,5
+ FILEVERSION 8,1,0,6
+ PRODUCTVERSION 8,1,0,6
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -671,12 +671,12 @@ BEGIN
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.01.0005"
+            VALUE "FileVersion", "08.01.0006"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft® is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.01.0005"
+            VALUE "ProductVersion", "08.01.0006"
         END
     END
     BLOCK "VarFileInfo"
