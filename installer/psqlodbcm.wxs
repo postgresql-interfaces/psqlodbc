@@ -24,19 +24,19 @@
           <!-- PostgreSQL -->
           <File Id="psqlodbca.dll" LongName="psqlodbca.dll" Name="psqlodxA.dll" src="../ANSI-Release/psqlodbca.dll" />
           <File Id="psqlodbcw.dll" LongName="psqlodbcw.dll" Name="psqlodxW.dll" src="../Unicode-Release/psqlodbcw.dll" />
-          <File Id="libpq.dll" Name="libpq.dll" src="C:\Program Files\PostgreSQL\8.1\bin\libpq.dll" KeyPath="yes" />
+          <File Id="libpq.dll" Name="libpq.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\libpq.dll" KeyPath="yes" />
           
           <!-- Gettext -->
-          <File Id="libintl_2.dll" LongName="libintl-2.dll" Name="libintXX.dll" src="C:\Program Files\PostgreSQL\8.1\bin\libintl-2.dll" />
-          <File Id="libiconv_2.dll" LongName="libiconv-2.dll" Name="libicoXX.dll" src="C:\Program Files\PostgreSQL\8.1\bin\libiconv-2.dll" />
+          <File Id="libintl_2.dll" LongName="libintl-2.dll" Name="libintXX.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\libintl-2.dll" />
+          <File Id="libiconv_2.dll" LongName="libiconv-2.dll" Name="libicoXX.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\libiconv-2.dll" />
           
           <!-- SSL -->
-          <File Id="libeay32.dll" Name="libeay32.dll" src="C:\Program Files\PostgreSQL\8.1\bin\libeay32.dll" />
-          <File Id="ssleay32.dll" Name="ssleay32.dll" src="C:\Program Files\PostgreSQL\8.1\bin\ssleay32.dll" />
+          <File Id="libeay32.dll" Name="libeay32.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\libeay32.dll" />
+          <File Id="ssleay32.dll" Name="ssleay32.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\ssleay32.dll" />
  
           <!-- MIT Kerberos -->
-          <File Id="comerr32.dll" Name="comerr32.dll" src="C:\Program Files\PostgreSQL\8.1\bin\comerr32.dll" />
-          <File Id="krb5_32.dll" Name="krb5_32.dll" src="C:\Program Files\PostgreSQL\8.1\bin\krb5_32.dll" />
+          <File Id="comerr32.dll" Name="comerr32.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\comerr32.dll" />
+          <File Id="krb5_32.dll" Name="krb5_32.dll" src="$(var.PROGRAMFILES)\PostgreSQL\8.1\bin\krb5_32.dll" />
           
           <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
           <!--       so we install the registry keys manually ourselves.                         -->
