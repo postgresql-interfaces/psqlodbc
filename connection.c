@@ -1185,7 +1185,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	/* QResultClass *res; */
 	PGconn *pgconn;
 	ConnInfo   *ci = &(self->connInfo);
-	int			areq = -1,connect_return;
+	int			connect_return;
 	char	   *encoding;
 	/* char	   *conninfo; */
 	CSTR		func = "CC_connect";
@@ -1362,7 +1362,6 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 char *
 CC_create_errormsg(ConnectionClass *self)
 {
-	PGconn *pgconn = self->pgconn;
 	char	 msg[4096];
 
 	mylog("enter CC_create_errormsg\n");
@@ -1575,8 +1574,6 @@ int
 CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *args, int nargs)
 {
 	char			done;
-	PGconn *pgconn=self->pgconn;
-
 
 	mylog("send_function(): conn=%u, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
 

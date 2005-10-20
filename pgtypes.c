@@ -579,7 +579,8 @@ getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 static Int4
 getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 {
-	Int4	atttypmod = -1, max_column_size = PG_NUMERIC_MAX_PRECISION + PG_NUMERIC_MAX_SCALE, default_column_size = 28;
+	Int4	atttypmod = -1;
+	Int4	default_column_size = 28;
 	QResultClass *result;
 	ColumnInfoClass *flds;
 

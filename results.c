@@ -1593,8 +1593,8 @@ static void getTid(const QResultClass *res, int index, UInt4 *blocknum, UInt2 *o
 static void KeySetSet(const TupleField *tuple, int num_fields, KeySet *keyset)
 {
 	sscanf(tuple[num_fields - 2].value, "(%u,%hu)",
-			&keyset->blocknum, &keyset->offset);
-	sscanf(tuple[num_fields - 1].value, "%u", &keyset->oid);
+		   (unsigned int *) &keyset->blocknum, &keyset->offset);
+	sscanf(tuple[num_fields - 1].value, "%u", (unsigned int *) &keyset->oid);
 }
 
 static void DiscardDeleted(QResultClass *res, int index);
@@ -2023,7 +2023,7 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 						else
 							keys_per_fetch = rows_per_fetch;
 						lodlen = strlen(stmt->load_statement);
-						sprintf(planname, "_KEYSET_%0x", res);
+						sprintf(planname, "_KEYSET_%p", res);
 						allen = 8 + strlen(planname) +
 							3 + 4 * keys_per_fetch + 1
 							+ 1 + 2 + lodlen + 20 +
@@ -2077,7 +2077,7 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 			}
 			if (res->reload_count > 0)
 			{
-				sprintf(qval, "EXECUTE \"_KEYSET_%x\"(", res);
+				sprintf(qval, "EXECUTE \"_KEYSET_%p\"(", res);
 				sval = qval;
 			}
 			else
@@ -2112,13 +2112,7 @@ SC_pos_reload_needed(StatementClass *stmt, UDWORD flag)
 	Int4		i, limitrow;
 	UWORD		qcount;
 	QResultClass	*res;
-	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	/**** UInt4		oid, blocknum, lodlen;
-	UWORD		offset;
-	char		*sval; ****/
-	char		*qval = NULL;
 	Int4		rowc, rows_per_fetch=0;
 	BOOL		create_from_scratch = (0 != flag);
 
@@ -2450,7 +2444,6 @@ SC_pos_update(StatementClass *stmt,
 	{
 		HSTMT		hstmt;
 		int			j;
-		int			res_cols = QR_NumResultCols(s.res);
 		ConnInfo	*ci = &(conn->connInfo);
 		APDFields	*apdopts;
 		Int4		fieldtype = 0;
@@ -2527,9 +2520,7 @@ SC_pos_delete(StatementClass *stmt,
 	UWORD		offset;
 	QResultClass *res, *qres;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	ARDFields	*opts = SC_get_ARDF(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	BindInfoClass *bindings = opts->bindings;
 	char		dltstr[4096];
 	RETCODE		ret;
 	UInt4		oid, blocknum, qflag;
@@ -2665,7 +2656,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, int addpos
 				char	buf[32];
 				UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
-				sprintf(buf, "%lu", addpos + 1);
+				sprintf(buf, "%d", addpos + 1);
 				SC_set_current_col(stmt, -1);
 				copy_and_convert_field(stmt,
 					PG_TYPE_INT4,

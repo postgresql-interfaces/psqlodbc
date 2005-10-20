@@ -202,7 +202,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
 				EFFECTIVE_BIT_COUNT,
-				flag);
+				(long unsigned int) flag);
 	}
 }
 
@@ -215,7 +215,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	if (strlen(value) < 2)
 	{
 		count = 3;
-		sscanf(value, "%lx", &flag);
+		sscanf(value, "%lx", (long unsigned int *) &flag);
 	}
 	else
 	{
@@ -223,7 +223,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		memcpy(cnt, value, 2);
 		cnt[2] = '\0';
 		sscanf(cnt, "%x", &count);
-		sscanf(value + 2, "%lx", &flag);
+		sscanf(value + 2, "%lx", (long unsigned int *) &flag);
 	}
 	ci->disallow_premature = (char)((flag & BIT_DISALLOWPREMATURE) != 0);
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);

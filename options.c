@@ -645,7 +645,6 @@ PGAPI_GetStmtOption(
 	CSTR func = "PGAPI_GetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
-	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);
 	int	ridx;
 
 	mylog("%s: entering...\n", func);

@@ -434,7 +434,7 @@ SC_set_prepared(StatementClass *stmt, BOOL prepared)
 		{
 			char	plannm[32];
 
-			sprintf(plannm, "_PLAN%0x", stmt);
+			sprintf(plannm, "_PLAN%p", stmt);
 			if (CC_is_in_error_trans(conn))
 			{
 				CC_mark_a_plan_to_discard(conn, plannm);
@@ -764,8 +764,6 @@ SC_create_errormsg(const StatementClass *self)
 	}
 	if (conn)
 	{
-		PGconn *pgconn = conn->pgconn;
-
 		if (!detailmsg && CC_get_errormsg(conn) && (CC_get_errormsg(conn))[0] != '\0')
 		{
 			pos = strlen(msg);
@@ -972,7 +970,7 @@ SC_fetch(StatementClass *self)
 		char		buf[32];
 		UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
-		sprintf(buf, "%ld", SC_get_bookmark(self));
+		sprintf(buf, "%ld", (long int) SC_get_bookmark(self));
 		SC_set_current_col(self, -1);
 		result = copy_and_convert_field(self, 0, buf, SQL_C_ULONG,
 						bookmark->buffer + offset, 0,

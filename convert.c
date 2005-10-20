@@ -1851,7 +1851,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 
 		new_statement = qb->query_statement;
 		qb->flags = FLGB_BUILDING_PREPARE_STATEMENT;
-		sprintf(new_statement, "PREPARE \"_PLAN%0x\"", stmt);
+		sprintf(new_statement, "PREPARE \"_PLAN%p\"", stmt);
 		qb->npos = strlen(new_statement);
 		if (SQL_SUCCESS != PGAPI_NumParams(stmt, &marker_count))
 		{
@@ -1887,7 +1887,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, ';');
 		/* build the execute statement */
 		exe_statement = malloc(30 + 2 * marker_count);
-		sprintf(exe_statement, "EXECUTE \"_PLAN%0x\"", stmt);
+		sprintf(exe_statement, "EXECUTE \"_PLAN%p\"", stmt);
 		if (marker_count > 0)
 		{
 			elen = strlen(exe_statement);
@@ -2371,7 +2371,7 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 			o2val = ival % div;
 			if (0 == ns->sign)
 				o1val *= -1;
-			sprintf(chrform, "%d.%0.*d", o1val, ns->scale, o2val);
+			sprintf(chrform, "%d.%.*d", o1val, ns->scale, o2val);
 		}
 		return TRUE;
 	}
@@ -2674,7 +2674,7 @@ ResolveOneParam(QueryBuild *qb)
 		case SQL_C_SLONG:
 		case SQL_C_LONG:
 			sprintf(param_string, "%d",
-					*((SDWORD *) buffer));
+					(int) *((SDWORD *) buffer));
 			break;
 
 #ifdef ODBCINT64
@@ -2703,7 +2703,7 @@ ResolveOneParam(QueryBuild *qb)
 
 		case SQL_C_ULONG:
 			sprintf(param_string, "%u",
-					*((UDWORD *) buffer));
+					(unsigned int) *((UDWORD *) buffer));
 			break;
 
 		case SQL_C_USHORT:

@@ -136,7 +136,7 @@
 #else
 #define INIT_CONN_CS(x)
 #define ENTER_CONN_CS(x)
-#define ENTER_INNER_CONN_CS(x, entered) (0)
+#define ENTER_INNER_CONN_CS(x, entered) ((void)(0))
 #define LEAVE_CONN_CS(x)
 #define DELETE_CONN_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */

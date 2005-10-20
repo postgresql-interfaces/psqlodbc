@@ -300,8 +300,8 @@ struct StatementClass_
 #define DELETE_STMT_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_STMT_CS(x)
-#define ENTER_STMT_CS(x)
-#define LEAVE_STMT_CS(x)
+#define ENTER_STMT_CS(x)	((void)(0))
+#define LEAVE_STMT_CS(x)	((void)(0))
 #define DELETE_STMT_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 /*	Statement prototypes */

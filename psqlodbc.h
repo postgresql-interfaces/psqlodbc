@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.92 2005/10/04 19:03:19 dpage Exp $
+ * $Id: psqlodbc.h,v 1.93 2005/10/20 13:06:10 petere Exp $
  *
  */
 
@@ -20,6 +20,7 @@
 
 #include <stdio.h>				/* for FILE* pointers: see GLOBAL_VALUES */
 #ifdef POSIX_MULTITHREAD_SUPPORT
+#define _XOPEN_SOURCE
 #include <pthread.h>
 #endif
 #include "version.h"

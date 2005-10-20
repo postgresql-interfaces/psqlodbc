@@ -402,8 +402,6 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  PTR Data, SQLINTEGER *StringLength,
 			  SQLINTEGER *Indicator)
 {
-	CSTR func = "SQLSetDescRec";
-
 	mylog("[[SQLSetDescRec]]\n");
 	mylog("Error not implemented\n");
 	DC_clear_error((DescriptorClass *) DescriptorHandle);

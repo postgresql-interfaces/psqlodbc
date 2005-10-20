@@ -361,7 +361,6 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			SQLINTEGER Attribute, PTR Value,
 			SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
-	CSTR func = "PGAPI_GetConnectAttr";
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
 	SQLINTEGER	len = 4;
@@ -1640,7 +1639,6 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 		SQLINTEGER Attribute, PTR Value,
 		SQLINTEGER StringLength)
 {
-	RETCODE	ret = SQL_SUCCESS;
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 

@@ -300,7 +300,7 @@ QR_free_memory(QResultClass *self)
 		{
 			char	plannm[32];
 
-			sprintf(plannm, "_KEYSET_%x", self);
+			sprintf(plannm, "_KEYSET_%p", self);
 			if (CC_is_in_error_trans(conn))
 			{
 				CC_mark_a_plan_to_discard(conn, plannm);
@@ -718,7 +718,6 @@ QR_read_tuple(QResultClass *self, char binary)
 	char	   *buffer;
 	int		ci_num_fields = QR_NumResultCols(self);	/* speed up access */
 	int		num_fields = self->num_fields;	/* speed up access */
-	ConnectionClass *conn = self->conn;
 	ColumnInfoClass *flds;
 	int		effective_cols;
 	char		tidoidbuf[32];
