@@ -1012,6 +1012,7 @@ CC_Constructor()
 		rv->current_schema = NULL;
 		rv->num_discardp = 0;
 		rv->discardp = NULL;
+		rv->pgconn = NULL;
 
 		/* Initialize statement options to defaults */
 		/* Statements under this conn will inherit these options */
