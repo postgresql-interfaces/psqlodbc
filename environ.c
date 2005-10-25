@@ -723,11 +723,16 @@ EN_Destructor(EnvironmentClass *self)
 	 */
 
 	/* Free any connections belonging to this environment */
+	ENTER_CONNS_CS;
 	for (lf = 0; lf < MAX_CONNECTIONS; lf++)
 	{
 		if (conns[lf] && conns[lf]->henv == self)
+		{
 			rv = rv && CC_Destructor(conns[lf]);
+			conns[lf] = NULL;
+		}
 	}
+	LEAVE_CONNS_CS;
 	DELETE_ENV_CS(self);
 	free(self);
 
