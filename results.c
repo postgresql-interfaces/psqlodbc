@@ -842,24 +842,37 @@ inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 			return SQL_ERROR;
 		}
 	}
-
-	if (stmt->manual_result || !SC_is_fetchcursor(stmt))
+	if (stmt->manual_result)
 	{
-		/* make sure we're positioned on a valid row */
-		num_rows = QR_get_num_total_tuples(res);
-		if ((stmt->currTuple < 0) ||
-			(stmt->currTuple >= num_rows))
+		if(!SC_is_fetchcursor(stmt))
 		{
-			SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row for GetData.");
-			SC_log_error(func, "", stmt);
-			return SQL_ERROR;
+			/* make sure we're positioned on a valid row */
+			num_rows = QR_get_num_total_tuples(res);
+			if ((stmt->currTuple < 0) ||
+				(stmt->currTuple >= num_rows))
+			{
+				SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row for GetData.");
+				SC_log_error(func, "", stmt);
+				return SQL_ERROR;
+			}
 		}
-		mylog("     num_rows = %d\n", num_rows);
+		else
+		{
+			if (stmt->currTuple < 0)
+			{
+				SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row for GetData.");
+				SC_log_error(func, "", stmt);
+				return SQL_ERROR;
+			}
+		}
 
 		if (!get_bookmark)
 		{
 			if (stmt->manual_result)
-				value = QR_get_value_manual(res, stmt->currTuple, icol);
+				if(SC_is_fetchcursor(stmt))
+					value = QR_get_value_manual(res, (stmt->currTuple % stmt->hdbc->connInfo.drivers.fetch_max), icol);
+				else
+					value = QR_get_value_manual(res, stmt->currTuple, icol);
 			else
 			{
 				Int4	curt = GIdx2ResultIdx(stmt->currTuple, stmt, res);
@@ -1405,9 +1418,12 @@ PGAPI_ExtendedFetch(
 	 * Handle Declare Fetch style specially because the end is not really
 	 * the end...
 	 */
-	if (SC_is_fetchcursor(stmt) && !stmt->manual_result)
+	if (SC_is_fetchcursor(stmt) )
 	{
+		if(!stmt->manual_result)
+		{
 			return SQL_NO_DATA_FOUND;
+		}
 	}
 	else
 	{

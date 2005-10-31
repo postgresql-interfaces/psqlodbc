@@ -1925,6 +1925,10 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 		CI_set_field_info(qres->fields, i, PQfname(pgres,i),
 			  typid, (Int2)typlen, atttypmod);
 	}
+	if (qres->manual_tuples)
+	{
+		TL_Destructor(qres->manual_tuples);
+	}
 	qres->manual_tuples = TL_Constructor(num_attributes);
 	qres->manual_tuples->num_tuples = (Int4)num_tuples;
 	for(i=0;i < num_tuples;i++)

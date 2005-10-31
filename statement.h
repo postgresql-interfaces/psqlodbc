@@ -306,6 +306,7 @@ struct StatementClass_
 #endif /* WIN_MULTITHREAD_SUPPORT */
 /*	Statement prototypes */
 StatementClass *SC_Constructor(void);
+void		SC_set_handle(StatementClass *self,QResultClass *res);
 void		InitializeStatementOptions(StatementOptions *opt);
 char		SC_Destructor(StatementClass *self);
 BOOL		SC_opencheck(StatementClass *self, const char *func);

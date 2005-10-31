@@ -167,6 +167,8 @@ PGAPI_FreeStmt(HSTMT hstmt,
 			/* Free any cursors and discard any result info */
 			if (res = SC_get_Result(stmt), res)
 			{
+				if(SC_is_fetchcursor(stmt))
+					SC_set_handle(stmt,res);
 				QR_Destructor(res);
 				SC_set_Result(stmt,  NULL);
 			}
@@ -201,6 +203,19 @@ PGAPI_FreeStmt(HSTMT hstmt,
 	}
 
 	return SQL_SUCCESS;
+}
+
+
+/*
+ * For Declare/Fetch, setting the parameters to close the cursor.
+ */
+void 
+SC_set_handle(StatementClass *self,QResultClass *res)
+{
+	res->conn = self->hdbc;
+	if(!res->cursor)
+		res->cursor = malloc(sizeof(self->cursor_name));
+	strcpy(res->cursor,self->cursor_name);
 }
 
 
@@ -608,6 +623,8 @@ SC_recycle_statement(StatementClass *self)
 	/* Free any cursors */
 	if (res = SC_get_Result(self), res)
 	{
+		if(SC_is_fetchcursor(self))
+			SC_set_handle(self,res);
 		QR_Destructor(res);
 		SC_set_Result(self, NULL);
 	}
@@ -894,6 +911,10 @@ SC_fetch(StatementClass *self)
 				lf;
 	Oid			type;
 	char	   *value;
+	char		fetch[128];
+
+	QueryInfo	qi;
+	UDWORD 		qflag = 0;
 	ColumnInfoClass *coli;
 	BindInfoClass	*bookmark;
 
@@ -903,19 +924,42 @@ SC_fetch(StatementClass *self)
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 	coli = QR_get_fields(res);	/* the column info */
 
+	/* Issue the fetch query here in case of declare fetch for subsequent rows */
+	if (SC_is_fetchcursor(self) && ((self->currTuple % ci->drivers.fetch_max) >= QR_get_num_total_tuples(res) - 1))
+	{
+		qi.result_in = NULL;
+		qi.cursor = self->cursor_name;
+		qi.row_size = ci->drivers.fetch_max;
+		sprintf(fetch, "fetch %d in %s",ci->drivers.fetch_max , self->cursor_name);
+		res = CC_send_query(self->hdbc, fetch, &qi, qflag);
+		SC_set_Result(self,res);
+	}
+
 	mylog("manual_result = %d, use_declarefetch = %d\n", self->manual_result, ci->drivers.use_declarefetch);
 
-	if (self->manual_result || !SC_is_fetchcursor(self))
+	if (self->manual_result)
 	{
-		if (self->currTuple >= QR_get_num_total_tuples(res) - 1 ||
-			(self->options.maxRows > 0 && self->currTuple == self->options.maxRows - 1))
+		if(!SC_is_fetchcursor(self))
 		{
-			/*
-			 * if at the end of the tuples, return "no data found" and set
-			 * the cursor past the end of the result set
-			 */
-			self->currTuple = QR_get_num_total_tuples(res);
-			return SQL_NO_DATA_FOUND;
+			if (self->currTuple >= QR_get_num_total_tuples(res) - 1 ||
+				(self->options.maxRows > 0 && self->currTuple == self->options.maxRows - 1))
+			{
+				/*
+				 * if at the end of the tuples, return "no data found" and set
+				 * the cursor past the end of the result set
+				 */
+				self->currTuple = QR_get_num_total_tuples(res);
+				return SQL_NO_DATA_FOUND;
+			}
+		}
+		else
+		{
+			if ((((self->currTuple + 1) % ci->drivers.fetch_max) >= QR_get_num_total_tuples(res)) &&
+				QR_get_num_total_tuples(res) < ci->drivers.fetch_max)
+			{
+				self->currTuple = QR_get_num_total_tuples(res);
+				return SQL_NO_DATA_FOUND;
+			}
 		}
 
 		mylog("**** SC_fetch: manual_result\n");
@@ -940,6 +984,7 @@ SC_fetch(StatementClass *self)
 			return SQL_ERROR;
 		}
 	}
+
 #ifdef	DRIVER_CURSOR_IMPLEMENT
 	if (res->haskeyset)
 	{
