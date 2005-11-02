@@ -512,7 +512,8 @@ QR_next_tuple(QResultClass *self)
 	char		fetch[128];
 	QueryInfo	qi;
 	ConnInfo   *ci = NULL;
-	if (fetch_count < fetch_count)
+
+	if (fetch_count < num_backend_rows)
 	{
 		/* return a row from cache */
 		mylog("next_tuple: fetch_count < fcount: returning tuple %d, fcount = %d\n", fetch_count, num_backend_rows);
