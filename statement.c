@@ -1045,7 +1045,7 @@ SC_fetch(StatementClass *self)
 
 			if (self->manual_result)
 			{
-				value = QR_get_value_manual(res, self->currTuple, lf);
+				value = QR_get_value_manual(res, (self->currTuple >= ci->drivers.fetch_max) ? (self->currTuple % ci->drivers.fetch_max) : self->currTuple, lf);
 				mylog("manual_result\n");
 			}
 			else if (SC_is_fetchcursor(self))
