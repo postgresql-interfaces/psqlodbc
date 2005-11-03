@@ -31,17 +31,9 @@ DLG_CONFIG DIALOGEX 65, 43, 359, 219
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 #ifdef UNICODE_SUPPORT
-#ifdef USE_LIBPQ
-CAPTION "PostgreSQL Unicode ODBC (libpq) セットアップ"
-#else
 CAPTION "PostgreSQL Unicode ODBC セットアップ"
-#endif
-#else
-#ifdef USE_LIBPQ
-CAPTION "PostgreSQL ANSI ODBC (libpq) セットアップ"
 #else
 CAPTION "PostgreSQL ANSI ODBC セットアップ"
-#endif
 #endif
 FONT 9, "ＭＳ ゴシック", 0, 0, 0x1
 BEGIN
@@ -327,17 +319,9 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
 #ifdef UNICODE_SUPPORT
-#ifdef USE_LIBPQ
-            VALUE "Comments", "PostgreSQL Unicode ODBC driver (libpq based)"
-#else
             VALUE "Comments", "PostgreSQL Unicode ODBC driver"
-#endif
-#else
-#ifdef USE_LIBPQ
-            VALUE "Comments", "PostgreSQL ANSI ODBC driver (libpq based)"
 #else
             VALUE "Comments", "PostgreSQL ANSI ODBC driver"
-#endif
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
@@ -400,19 +384,11 @@ DLG_CONFIG DIALOGEX 65, 43, 305, 130
 STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | 
     WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 #ifdef UNICODE_SUPPORT
-#ifdef USE_LIBPQ
-CAPTION "PostgreSQL Unicode ODBC (libpq)"
-#else
 CAPTION "PostgreSQL Unicode ODBC"
-#endif
-#else
-#ifdef USE_LIBPQ
-CAPTION "PostgreSQL ANSI ODBC (libpq)"
 #else
 CAPTION "PostgreSQL ANSI ODBC"
 #endif
-#endif
-FONT 10, "Terminal", 0, 0, 0x0
+FONT 8, "MS Sans Serif"
 BEGIN
     RTEXT           "&Data Source",IDC_DSNAMETEXT,5,25,50,12,NOT WS_GROUP
     EDITTEXT        IDC_DSNAME,57,24,72,12,ES_AUTOHSCROLL | WS_GROUP
@@ -445,7 +421,7 @@ DLG_OPTIONS_DRV DIALOGEX 0, 0, 303, 228
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Advanced Options (DataSource)"
-FONT 10, "Terminal", 0, 0, 0x0
+FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Page 1",IDPREVPAGE,5,5,40,15,WS_DISABLED
     PUSHBUTTON      "Page 2",IDNEXTPAGE,49,5,40,15
@@ -498,7 +474,7 @@ DLG_OPTIONS_DS DIALOGEX 0, 0, 287, 239
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Advanced Options (DataSource)"
-FONT 10, "Terminal", 0, 0, 0x0
+FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Page 2",IDNEXTPAGE,49,5,40,15,WS_DISABLED
     PUSHBUTTON      "Page 1",IDPREVPAGE,5,5,40,15
@@ -545,7 +521,7 @@ BEGIN
                     WS_GROUP | WS_TABSTOP,53,167,59,10
     CONTROL         "Fake &Index",DS_FAKEOIDINDEX,"Button",BS_AUTOCHECKBOX | 
                     WS_GROUP | WS_TABSTOP,155,166,51,10
-    LTEXT           "Connect &Settings",IDC_STATIC,5,188,62,17
+    LTEXT           "Connect\n&Settings",IDC_STATIC,5,188,62,17
     EDITTEXT        DS_CONNSETTINGS,47,188,235,27,ES_MULTILINE | 
                     ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN
     DEFPUSHBUTTON   "OK",IDOK,121,220,50,14,WS_GROUP
@@ -557,7 +533,7 @@ DLG_OPTIONS_GLOBAL DIALOGEX 0, 0, 306, 87
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Global settings"
-FONT 10, "Terminal", 0, 0, 0x0
+FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log - Communications log)",
                     DRV_COMMLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,24,
@@ -575,7 +551,7 @@ DLG_DRIVER_CHANGE DIALOGEX 0, 0, 306, 87
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
 CAPTION "Driver up/downgrade"
-FONT 10, "Terminal", 0, 0, 0x0
+FONT 8, "MS Sans Serif"
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,82,68,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,172,67,50,15
@@ -657,17 +633,9 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
 #ifdef UNICODE_SUPPORT
-#ifdef USE_LIBPQ
-            VALUE "Comments", "PostgreSQL Unicode ODBC driver (libpq based)"
-#else
             VALUE "Comments", "PostgreSQL Unicode ODBC driver"
-#endif
-#else
-#ifdef USE_LIBPQ
-            VALUE "Comments", "PostgreSQL ANSI ODBC driver (libpq based)"
 #else
             VALUE "Comments", "PostgreSQL ANSI ODBC driver"
-#endif
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
