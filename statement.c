@@ -931,8 +931,24 @@ SC_fetch(StatementClass *self)
 		qi.cursor = self->cursor_name;
 		qi.row_size = ci->drivers.fetch_max;
 		sprintf(fetch, "fetch %d in %s",ci->drivers.fetch_max , self->cursor_name);
-		res = CC_send_query(self->hdbc, fetch, &qi, qflag);
-		TL_Destructor(self->result->manual_tuples);
+
+        /* Cleanup the QR. We need to kill off the cursor first, or this will crash */
+        if (self->result->cursor)
+	    {
+		    free(self->result->cursor);
+      		self->result->cursor = NULL;
+	    }
+
+        if (self->result)
+        {
+            QR_Destructor(self->result);
+            self->result = NULL;
+        }
+
+        /* Finished cleanup */
+
+        res = CC_send_query(self->hdbc, fetch, &qi, qflag);
+		
 		SC_set_Result(self,res);
 	}
 
