@@ -1,4 +1,4 @@
-rem @echo off
+@echo off
 
 if NOT "%1"=="" SET VERSION="%1"
 if NOT "%1"=="" GOTO GOT_VERSION
