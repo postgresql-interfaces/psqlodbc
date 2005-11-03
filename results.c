@@ -1157,8 +1157,7 @@ PGAPI_ExtendedFetch(
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
 
-	/* if (SC_is_fetchcursor(stmt) && !stmt->manual_result) */
-	if (SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type && !stmt->manual_result)
+	if (SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
 	{
 		if (fFetchType != SQL_FETCH_NEXT)
 		{

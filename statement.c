@@ -932,6 +932,7 @@ SC_fetch(StatementClass *self)
 		qi.row_size = ci->drivers.fetch_max;
 		sprintf(fetch, "fetch %d in %s",ci->drivers.fetch_max , self->cursor_name);
 		res = CC_send_query(self->hdbc, fetch, &qi, qflag);
+		TL_Destructor(self->result->manual_tuples);
 		SC_set_Result(self,res);
 	}
 
