@@ -1,14 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
   <Module 
-    Id="psqlODBC (libpq)"
+    Id="psqlODBC"
     Guid="5BFFAF7C-2B0A-4ea2-8348-86459DD8ADB8" 
     Version="$(var.VERSION)" 
     Language="1033">
     
     <Package 
       Id="DCD49637-94AD-49dc-9F8C-00322562E4B6" 
-      Description="PostgreSQL ODBC Driver (libpq)"
+      Description="PostgreSQL ODBC Driver"
       Keywords="PostgreSQL, ODBC" 
       Manufacturer="PostgreSQL Global Development Group" 
       InstallerVersion="110" 
