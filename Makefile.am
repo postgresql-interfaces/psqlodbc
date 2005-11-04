@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.27 2005/11/03 22:07:17 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.28 2005/11/04 19:30:16 petere Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -45,7 +45,6 @@ EXTRA_DIST = license.txt readme.txt odbcinst.ini \
 	docs/faq.html docs/howto-accesslo.html \
 	docs/howto-accessvba.html docs/howto-bo.html \
 	docs/howto-ch.html docs/howto-csharp.html \
-	docs/howto-debian.html docs/howto-redhat.html \
 	docs/howto-vb.html docs/howto-vblo.html \
 	docs/unix-compilation.html docs/win32-compilation.html \
 	installer/banner.bmp installer/lgpl.rtf \
