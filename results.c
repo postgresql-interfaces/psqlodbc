@@ -1482,6 +1482,7 @@ PGAPI_ExtendedFetch(
 	{
 		stmt->bind_row = i;		/* set the binding location */
 		result = SC_fetch(stmt);
+		res = SC_get_Curres(stmt);
 #ifdef	DRIVER_CURSOR_IMPLEMENT
 		if (SQL_SUCCESS_WITH_INFO == result && 0 == stmt->last_fetch_count && res->keyset)
 		{

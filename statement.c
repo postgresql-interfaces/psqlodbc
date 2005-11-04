@@ -922,7 +922,6 @@ SC_fetch(StatementClass *self)
 	ConnInfo   *ci = &(SC_get_conn(self)->connInfo);
 
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
-	coli = QR_get_fields(res);	/* the column info */
 
 	/* Issue the fetch query here in case of declare fetch for subsequent rows */
 	if (SC_is_fetchcursor(self) && ((self->currTuple % ci->drivers.fetch_max) >= QR_get_num_total_tuples(res) - 1))
@@ -930,14 +929,15 @@ SC_fetch(StatementClass *self)
 		qi.result_in = NULL;
 		qi.cursor = self->cursor_name;
 		qi.row_size = ci->drivers.fetch_max;
-		sprintf(fetch, "fetch %d in %s",ci->drivers.fetch_max , self->cursor_name);
+		sprintf(fetch, "fetch %d in %s",ci->drivers.fetch_max ,self->cursor_name);
 
-        /* Cleanup the QR. We need to kill off the cursor first, or this will crash */
+        /* Cleanup the QR. We need to kill off the cursor first, or this willcrash */
+
         if (self->result->cursor)
-	    {
-		    free(self->result->cursor);
-      		self->result->cursor = NULL;
-	    }
+        {
+            free(self->result->cursor);
+            self->result->cursor = NULL;
+        }
 
         if (self->result)
         {
@@ -948,10 +948,10 @@ SC_fetch(StatementClass *self)
         /* Finished cleanup */
 
         res = CC_send_query(self->hdbc, fetch, &qi, qflag);
-		
 		SC_set_Result(self,res);
 	}
 
+    coli = QR_get_fields(res);	/* the column info */
 	mylog("manual_result = %d, use_declarefetch = %d\n", self->manual_result, ci->drivers.use_declarefetch);
 
 	if (self->manual_result)
