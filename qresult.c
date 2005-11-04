@@ -145,9 +145,9 @@ QR_Constructor()
 void
 QR_Destructor(QResultClass *self)
 {
-	ConnectionClass	*conn = self->conn;
-
 	if (!self)	return;
+
+	ConnectionClass	*conn = self->conn;
 	mylog("QResult: in DESTRUCTOR\n");
 
 	/* manual result set tuples */
