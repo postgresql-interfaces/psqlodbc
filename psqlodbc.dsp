@@ -50,7 +50,7 @@ RSC=rc.exe
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x809 /d "NDEBUG"
-# ADD RSC /l 0x809 /d "NDEBUG"
+# ADD RSC /l 0x809 /d "NDEBUG" /d "MULTIBYTE"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
@@ -79,7 +79,7 @@ LINK32=link.exe
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x809 /fo"ANSI-Release/psqlodbc.res" /d "NDEBUG"
-# ADD RSC /l 0x809 /d "NDEBUG"
+# ADD RSC /l 0x809 /d "NDEBUG" /d "MULTIBYTE" /d "UNICODE_SUPPORT"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo /o"ANSI-Release/psqlodbc.bsc"
 # ADD BSC32 /nologo
@@ -109,7 +109,7 @@ LINK32=link.exe
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x809 /fo"ANSI-Release/psqlodbc.res" /d "NDEBUG"
-# ADD RSC /l 0x809 /d "_DEBUG"
+# ADD RSC /l 0x809 /d "_DEBUG" /d "MULTIBYTE"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo /o"ANSI-Release/psqlodbc.bsc"
 # ADD BSC32 /nologo
@@ -138,12 +138,13 @@ LINK32=link.exe
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x809 /fo"Unicode-Release/psqlodbc.res" /d "NDEBUG"
-# ADD RSC /l 0x809 /d "_DEBUG"
+# ADD RSC /l 0x809 /d "_DEBUG" /d "MULTIBYTE" /d "UNICODE_SUPPORT"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo /o"Unicode-Release/psqlodbc.bsc"
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib /nologo /dll /pdb:"Unicode-Release/psqlodbcw.pdb" /machine:I386 /out:"Unicode-Release/psqlodbcw.dll" /libpath:"C:/Program Files/PostgreSQL/8.1/lib/ms"
+# SUBTRACT BASE LINK32 /pdb:none
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib /nologo /dll /profile /debug /machine:I386 /out:"Unicode-Debug/psqlodbcw.dll" /libpath:"C:/Program Files/PostgreSQL/8.1/lib/ms"
 
 !ENDIF 
