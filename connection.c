@@ -1259,10 +1259,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 		connect_return = LIBPQ_connect(self);
 		if(0 == connect_return)
-		{
-			CC_set_error(self, CONNECTION_COULD_NOT_ESTABLISH, "Could not connect to the server");
-			return 0;
-		}
+            return 0;
 
 		mylog("connection to the database succeeded.\n");
 
@@ -1667,7 +1664,9 @@ LIBPQ_connect(ConnectionClass *self)
 		if(!conninfo)
 		{
 			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(server)");
+            CC_set_sqlstate(self, "08000");
 			mylog("could not allocate memory for server \n");
+            return 0;
 		}
 		conninfo = strcpy(conninfo," host=");
 		conninfo = strcat(conninfo,self->connInfo.server);
@@ -1681,7 +1680,9 @@ LIBPQ_connect(ConnectionClass *self)
 		if(!conninfo)
 		{
 			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(port)");
+            CC_set_sqlstate(self, "08000");
 			mylog("could not allocate memory for port \n");
+            return 0;
 		}
 		conninfo = strcat(conninfo," port=");
 		conninfo = strcat(conninfo,self->connInfo.port);
@@ -1695,7 +1696,9 @@ LIBPQ_connect(ConnectionClass *self)
 		if(!conninfo)
 		{
 			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(database)");
+            CC_set_sqlstate(self, "08000");
 			mylog("i could not allocate memory for dbname \n");
+            return 0;
 		}
 		conninfo = strcat(conninfo," dbname=");
 		conninfo = strcat(conninfo,self->connInfo.database);
@@ -1709,7 +1712,9 @@ LIBPQ_connect(ConnectionClass *self)
 		if(!conninfo)
 		{
 			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(username)");
+            CC_set_sqlstate(self, "08000");
 			mylog("i could not allocate memory for username \n");
+            return 0;
 		}
 		conninfo = strcat(conninfo," user=");
 		conninfo = strcat(conninfo,self->connInfo.username);
@@ -1723,7 +1728,9 @@ LIBPQ_connect(ConnectionClass *self)
 		if(!conninfo)
 		{
 			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(sslmode)");
+            CC_set_sqlstate(self, "08000");
 			mylog("i could not allocate memory for sslmode \n");
+            return 0;
 		}
 		conninfo = strcat(conninfo," sslmode=");
 		conninfo = strcat(conninfo,self->connInfo.sslmode);
@@ -1736,7 +1743,9 @@ LIBPQ_connect(ConnectionClass *self)
 		if(!conninfo)
 		{
 			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(password)");
+            CC_set_sqlstate(self, "08000");
 			mylog("i could not allocate memory for password \n");
+            return 0;
 		}
 		conninfo = strcat(conninfo," password=");
 		conninfo = strcat(conninfo,self->connInfo.password);
@@ -1745,8 +1754,9 @@ LIBPQ_connect(ConnectionClass *self)
 	self->pgconn = PQconnectdb(conninfo);
 	if (PQstatus(self->pgconn) != CONNECTION_OK)
 	{
-		CC_set_error(self,CONNECTION_COULD_NOT_ESTABLISH,PQerrorMessage(self->pgconn));
-		mylog("could not establish connection to the database %s \n",PQerrorMessage(self->pgconn));
+		CC_set_error(self,CONNECTION_COULD_NOT_ESTABLISH, PQerrorMessage(self->pgconn));
+        CC_set_sqlstate(self, "08001");
+		mylog("Could not establish connection to the database; LIBPQ returned -> %s \n",PQerrorMessage(self->pgconn));
 		PQfinish(self->pgconn);
         self->pgconn = NULL;
 		free(conninfo);
@@ -1755,9 +1765,10 @@ LIBPQ_connect(ConnectionClass *self)
 	/* free the conninfo structure */
 	free(conninfo);
  
-        /* setup the notice handler */
-        PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
-	mylog("connection to the database succeeded.\n");
+    /* setup the notice handler */
+    PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
+
+    mylog("connection to the database succeeded.\n");
 	return 1;
 }
 
