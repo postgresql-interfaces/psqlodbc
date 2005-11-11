@@ -35,13 +35,13 @@
               <File Id="docs.index.html" Name="index.htm" LongName="index.html" DiskId="1" src="../docs/index.html" />
               <File Id="docs.config.html" Name="config.htm" LongName="config.html" DiskId="1" src="../docs/config.html" />
               <File Id="docs.faq.html" Name="faq.htm" LongName="faq.html" DiskId="1" src="../docs/faq.html" />
-              <File Id="docs.howto_accesslo.html" Name="howto1.htm" LongName="accesslo.html" DiskId="1" src="../docs/howto-accesslo.html" />
-              <File Id="docs.howto_accessvba.html" Name="howto2.htm" LongName="accessvba.html" DiskId="1" src="../docs/howto-accessvba.html" />
+              <File Id="docs.howto_accesslo.html" Name="howto1.htm" LongName="howto-accesslo.html" DiskId="1" src="../docs/howto-accesslo.html" />
+              <File Id="docs.howto_accessvba.html" Name="howto2.htm" LongName="howto-accessvba.html" DiskId="1" src="../docs/howto-accessvba.html" />
               <File Id="docs.howto_bo.html" Name="howto3.htm" LongName="howto-bo.html" DiskId="1" src="../docs/howto-bo.html" />
               <File Id="docs.howto_ch.html" Name="howto4.htm" LongName="howto-ch.html" DiskId="1" src="../docs/howto-ch.html" />
               <File Id="docs.howto_csharp.html" Name="howto5.htm" LongName="howto-csharp.html" DiskId="1" src="../docs/howto-csharp.html" />
-              <File Id="docs.howto_vb.html" Name="howto8.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
-              <File Id="docs.howto_vblo.html" Name="howto9.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
+              <File Id="docs.howto_vb.html" Name="howto6.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
+              <File Id="docs.howto_vblo.html" Name="howto7.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
               <File Id="docs.unix_compilation.html" Name="unix.htm" LongName="unix-compilation.html" DiskId="1" src="../docs/unix-compilation.html" />
               <File Id="docs.win32_compilation.html" Name="win32.htm" LongName="win32-compilation.html" DiskId="1" src="../docs/win32-compilation.html" />
              
