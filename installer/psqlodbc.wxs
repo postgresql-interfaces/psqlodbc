@@ -51,7 +51,7 @@
         </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
-        <Directory Id="SMDIR" Name="psqlODBC" LongName="psqlODBC $(var.VERSION)" />
+        <Directory Id="SMDIR" Name="psqlODBC" />
       </Directory>
     </Directory>
         
