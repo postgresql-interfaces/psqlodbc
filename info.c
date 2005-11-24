@@ -570,7 +570,7 @@ PGAPI_GetInfo(
 
 		case SQL_QUALIFIER_LOCATION:	/* ODBC 2.0 */
 			len = 2;
-			value = SQL_QL_START;
+			value = 0;
 			break;
 
 		case SQL_QUALIFIER_NAME_SEPARATOR:		/* ODBC 1.0 */

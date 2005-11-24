@@ -146,7 +146,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_CATALOG_NAME:
 			len = 0;
-            p = "N";
+			p = "N";
 			break;
 		case SQL_COLLATION_SEQ:
 			len = 0;
