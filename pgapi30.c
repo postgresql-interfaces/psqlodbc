@@ -363,7 +363,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 {
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
-	SQLINTEGER	len = 4;
+	SQLINTEGER	len = sizeof(SQLUINTEGER);
 
 	mylog("PGAPI_GetConnectAttr %d\n", Attribute);
 	switch (Attribute)
@@ -386,6 +386,36 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			break;
 		default:
 			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value);
+
+			/* We need to make sure the length is set correct for these... */
+			switch (Attribute)
+			{
+				case SQL_ACCESS_MODE:
+				case SQL_AUTOCOMMIT:
+				case SQL_LOGIN_TIMEOUT:
+				case SQL_PACKET_SIZE:
+				case SQL_QUIET_MODE:
+				case SQL_TXN_ISOLATION:
+					len = sizeof(UDWORD);
+					break;
+
+				case SQL_CURRENT_QUALIFIER:
+				case SQL_ODBC_CURSORS:
+				case SQL_OPT_TRACE:
+				case SQL_OPT_TRACEFILE:
+				case SQL_TRANSLATE_DLL:
+				case SQL_TRANSLATE_OPTION:
+					len = 0;
+					break;
+
+#ifdef	SQL_ATTR_CONNECTION_DEAD
+		case SQL_ATTR_CONNECTION_DEAD:
+#else
+		case 1209:
+#endif /* SQL_ATTR_CONNECTION_DEAD */
+					len = sizeof(SQLUINTEGER);
+					break;
+			}
 	}
 	if (StringLength)
 		*StringLength = len;
