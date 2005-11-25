@@ -24,10 +24,13 @@ RETCODE SQL_API PGAPI_AllocConnect(HENV EnvironmentHandle,
 RETCODE SQL_API PGAPI_AllocEnv(HENV FAR * EnvironmentHandle);
 RETCODE SQL_API PGAPI_AllocStmt(HDBC ConnectionHandle,
 				HSTMT *StatementHandle);
-RETCODE SQL_API PGAPI_BindCol(HSTMT StatementHandle,
-			  SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
-			  PTR TargetValue, SQLINTEGER BufferLength,
-			  SQLINTEGER *StrLen_or_Ind);
+RETCODE SQL_API PGAPI_BindCol(	
+			HSTMT hstmt,
+			SQLUSMALLINT icol, 
+			SQLSMALLINT fCType,
+			PTR rgbValue, 
+			SQLINTEGER cbValueMax,
+			SQLINTEGER *pcbValue);
 RETCODE SQL_API PGAPI_Cancel(HSTMT StatementHandle);
 RETCODE SQL_API PGAPI_Columns(HSTMT StatementHandle,
 			  SQLCHAR *CatalogName, SQLSMALLINT NameLength1,
@@ -58,27 +61,43 @@ RETCODE SQL_API PGAPI_DescribeCol(HSTMT StatementHandle,
 				  SQLSMALLINT *DataType, SQLUINTEGER *ColumnSize,
 				  SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable);
 RETCODE SQL_API PGAPI_Disconnect(HDBC ConnectionHandle);
-RETCODE SQL_API PGAPI_Error(HENV EnvironmentHandle,
-			HDBC ConnectionHandle, HSTMT StatementHandle,
-			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
-			SQLCHAR *MessageText, SQLSMALLINT BufferLength,
-			SQLSMALLINT *TextLength);
+RETCODE SQL_API PGAPI_Error(HENV henv,
+			HDBC hdbc, 
+			HSTMT hstmt,
+			SQLCHAR *szSqlState,
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg);
 /* Helper functions for Error handling */
-RETCODE SQL_API PGAPI_EnvError(HENV EnvironmentHandle, SWORD RecNumber,
-			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
-			SQLCHAR *MessageText, SQLSMALLINT BufferLength,
-			SQLSMALLINT *TextLength, UWORD flag);
-RETCODE SQL_API PGAPI_ConnectError(HDBC ConnectionHandle, SWORD RecNumber,
-			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
-			SQLCHAR *MessageText, SQLSMALLINT BufferLength,
-			SQLSMALLINT *TextLength, UWORD flag);
-RETCODE SQL_API PGAPI_StmtError(HSTMT StatementHandle, SWORD RecNumber,
-			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
-			SQLCHAR *MessageText, SQLSMALLINT BufferLength,
-			SQLSMALLINT *TextLength, UWORD flag);
-
-RETCODE SQL_API PGAPI_ExecDirect(HSTMT StatementHandle,
-		SQLCHAR *StatementText, SQLINTEGER TextLength, UWORD flag);
+RETCODE SQL_API PGAPI_EnvError(HENV henv, 
+			SWORD RecNumber,
+			SQLCHAR *szSqlState, 
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg, 
+			UWORD flag);
+RETCODE SQL_API PGAPI_ConnectError(HDBC hdbc, 
+			SWORD RecNumber,
+			SQLCHAR *szSqlState, 
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg, 
+			UWORD flag);
+RETCODE SQL_API PGAPI_StmtError(HSTMT hstmt, 
+			SWORD RecNumber,
+			SQLCHAR *szSqlState, 
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg, 
+			UWORD flag);
+RETCODE SQL_API PGAPI_ExecDirect(HSTMT hstmt,
+			SQLCHAR *szSqlStr, 
+			SQLINTEGER cbSqlStr, 
+			UWORD flag);
 RETCODE SQL_API PGAPI_Execute(HSTMT StatementHandle, UWORD flag);
 RETCODE SQL_API PGAPI_Fetch(HSTMT StatementHandle);
 RETCODE SQL_API PGAPI_FreeConnect(HDBC ConnectionHandle);
@@ -90,10 +109,12 @@ RETCODE SQL_API PGAPI_GetConnectOption(HDBC ConnectionHandle,
 RETCODE SQL_API PGAPI_GetCursorName(HSTMT StatementHandle,
 					SQLCHAR *CursorName, SQLSMALLINT BufferLength,
 					SQLSMALLINT *NameLength);
-RETCODE SQL_API PGAPI_GetData(HSTMT StatementHandle,
-			  SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
-			  PTR TargetValue, SQLINTEGER BufferLength,
-			  SQLINTEGER *StrLen_or_Ind);
+RETCODE SQL_API PGAPI_GetData(HSTMT hstmt,
+				SQLUSMALLINT icol, 
+				SQLSMALLINT fCType,
+				PTR rgbValue, 
+				SQLINTEGER cbValueMax,
+				SQLINTEGER *pcbValue);
 RETCODE SQL_API PGAPI_GetFunctions(HDBC ConnectionHandle,
 				   SQLUSMALLINT FunctionId, SQLUSMALLINT *Supported);
 RETCODE SQL_API PGAPI_GetFunctions30(HDBC ConnectionHandle,
@@ -112,14 +133,17 @@ RETCODE SQL_API PGAPI_NumResultCols(HSTMT StatementHandle,
 					SQLSMALLINT *ColumnCount);
 RETCODE SQL_API PGAPI_ParamData(HSTMT StatementHandle,
 				PTR *Value);
-RETCODE SQL_API PGAPI_Prepare(HSTMT StatementHandle,
-			  SQLCHAR *StatementText, SQLINTEGER TextLength);
-RETCODE SQL_API PGAPI_PutData(HSTMT StatementHandle,
-			  PTR Data, SQLINTEGER StrLen_or_Ind);
-RETCODE SQL_API PGAPI_RowCount(HSTMT StatementHandle,
-			   SQLINTEGER *RowCount);
-RETCODE SQL_API PGAPI_SetConnectOption(HDBC ConnectionHandle,
-					   SQLUSMALLINT Option, SQLUINTEGER Value);
+RETCODE SQL_API PGAPI_Prepare(HSTMT hstmt,
+				SQLCHAR *szSqlStr, 
+				SQLINTEGER cbSqlStr);
+RETCODE SQL_API PGAPI_PutData(HSTMT hstmt,
+				PTR rgbValue, 
+				SQLINTEGER cbValue);
+RETCODE SQL_API PGAPI_RowCount(HSTMT hstmt,
+				SQLINTEGER *pcrow);
+RETCODE SQL_API PGAPI_SetConnectOption(HDBC hdbc,
+					SQLUSMALLINT fOption, 
+					SQLUINTEGER vParam);
 RETCODE SQL_API PGAPI_SetCursorName(HSTMT StatementHandle,
 					SQLCHAR *CursorName, SQLSMALLINT NameLength);
 RETCODE SQL_API PGAPI_SetParam(HSTMT StatementHandle,
@@ -127,8 +151,9 @@ RETCODE SQL_API PGAPI_SetParam(HSTMT StatementHandle,
 			   SQLSMALLINT ParameterType, SQLUINTEGER LengthPrecision,
 			   SQLSMALLINT ParameterScale, PTR ParameterValue,
 			   SQLINTEGER *StrLen_or_Ind);
-RETCODE SQL_API PGAPI_SetStmtOption(HSTMT StatementHandle,
-					SQLUSMALLINT Option, SQLUINTEGER Value);
+RETCODE SQL_API PGAPI_SetStmtOption(HSTMT hstmt,
+					SQLUSMALLINT fOption, 
+					SQLUINTEGER vParam);
 RETCODE SQL_API PGAPI_SpecialColumns(HSTMT StatementHandle,
 					 SQLUSMALLINT IdentifierType, SQLCHAR *CatalogName,
 					 SQLSMALLINT NameLength1, SQLCHAR *SchemaName,
@@ -165,20 +190,18 @@ RETCODE SQL_API PGAPI_ColumnPrivileges(
 					   SQLSMALLINT cbTableName,
 					   SQLCHAR *szColumnName,
 					   SQLSMALLINT cbColumnName);
-RETCODE SQL_API PGAPI_DescribeParam(
-					HSTMT hstmt,
+RETCODE SQL_API PGAPI_DescribeParam(HSTMT hstmt,
 					SQLUSMALLINT ipar,
 					SQLSMALLINT *pfSqlType,
-					SQLUINTEGER *pcbParamDef,
+					SQLUINTEGER *pcbColDef,
 					SQLSMALLINT *pibScale,
 					SQLSMALLINT *pfNullable);
-RETCODE SQL_API PGAPI_ExtendedFetch(
-					HSTMT hstmt,
+RETCODE SQL_API PGAPI_ExtendedFetch(HSTMT hstmt,
 					SQLUSMALLINT fFetchType,
 					SQLINTEGER irow,
 					SQLUINTEGER *pcrow,
 					SQLUSMALLINT *rgfRowStatus,
-					SQLINTEGER FetchOffset,
+					SQLINTEGER bookmark_offset,
 					SQLINTEGER rowsetSize);
 RETCODE SQL_API PGAPI_ForeignKeys(
 				  HSTMT hstmt,
@@ -206,8 +229,7 @@ RETCODE SQL_API PGAPI_NativeSql(
 RETCODE SQL_API PGAPI_NumParams(
 				HSTMT hstmt,
 				SQLSMALLINT *pcpar);
-RETCODE SQL_API PGAPI_ParamOptions(
-				   HSTMT hstmt,
+RETCODE SQL_API PGAPI_ParamOptions(HSTMT hstmt,
 				   SQLUINTEGER crow,
 				   SQLUINTEGER *pirow);
 RETCODE SQL_API PGAPI_PrimaryKeys(
@@ -300,9 +322,13 @@ RETCODE SQL_API PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 RETCODE SQL_API PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
 			PTR Value, SQLINTEGER BufferLength, SQLINTEGER *StringLength);
-RETCODE SQL_API PGAPI_DescError(SQLHDESC DescriptorHandle, SWORD RecNumber,
-			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
-			SQLCHAR *MessageText, SQLSMALLINT BufferLength,
-			SQLSMALLINT *TextLength, UWORD flag);
+RETCODE SQL_API PGAPI_DescError(SQLHDESC hdesc, 
+				SWORD RecNumber,
+				SQLCHAR *szSqlState, 
+				SQLINTEGER *pfNativeError,
+				SQLCHAR *szErrorMsg, 
+				SQLSMALLINT cbErrorMsgMax,
+				SQLSMALLINT *pcbErrorMsg, 
+				UWORD flag);
 			
 #endif   /* define_PG_API_FUNC_H__ */

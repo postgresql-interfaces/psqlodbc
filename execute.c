@@ -33,9 +33,9 @@
 
 /*		Perform a Prepare on the SQL statement */
 RETCODE		SQL_API
-PGAPI_Prepare(HSTMT hstmt,
-			  UCHAR FAR * szSqlStr,
-			  SDWORD cbSqlStr)
+PGAPI_Prepare(	HSTMT hstmt,
+		SQLCHAR *szSqlStr, 
+		SQLINTEGER cbSqlStr)
 {
 	CSTR func = "PGAPI_Prepare";
 	StatementClass *self = (StatementClass *) hstmt;
@@ -128,11 +128,10 @@ PGAPI_Prepare(HSTMT hstmt,
 
 /*		Performs the equivalent of SQLPrepare, followed by SQLExecute. */
 RETCODE		SQL_API
-PGAPI_ExecDirect(
-				 HSTMT hstmt,
-				 UCHAR FAR * szSqlStr,
-				 SDWORD cbSqlStr,
-				 UWORD flag)
+PGAPI_ExecDirect(HSTMT hstmt,
+			SQLCHAR *szSqlStr, 
+			SQLINTEGER cbSqlStr, 
+			UWORD flag)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	RETCODE		result;
@@ -760,13 +759,12 @@ PGAPI_Cancel(
  *	observing buffer limits and truncation.
  */
 RETCODE		SQL_API
-PGAPI_NativeSql(
-				HDBC hdbc,
-				UCHAR FAR * szSqlStrIn,
-				SDWORD cbSqlStrIn,
-				UCHAR FAR * szSqlStr,
-				SDWORD cbSqlStrMax,
-				SDWORD FAR * pcbSqlStr)
+PGAPI_NativeSql(HDBC hdbc,
+		SQLCHAR *szSqlStrIn,
+		SQLINTEGER cbSqlStrIn,
+		SQLCHAR *szSqlStr,
+		SQLINTEGER cbSqlStrMax,
+		SQLINTEGER *pcbSqlStr)
 {
 	CSTR func = "PGAPI_NativeSql";
 	int			len = 0;
@@ -926,10 +924,9 @@ PGAPI_ParamData(
  *	Used in conjunction with SQLParamData.
  */
 RETCODE		SQL_API
-PGAPI_PutData(
-			  HSTMT hstmt,
-			  PTR rgbValue,
-			  SDWORD cbValue)
+PGAPI_PutData(HSTMT hstmt,
+		PTR rgbValue, 
+		SQLINTEGER cbValue)
 {
 	CSTR func = "PGAPI_PutData";
 	StatementClass *stmt = (StatementClass *) hstmt, *estmt;

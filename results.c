@@ -34,9 +34,8 @@
 
 
 RETCODE		SQL_API
-PGAPI_RowCount(
-			   HSTMT hstmt,
-			   SDWORD FAR * pcrow)
+PGAPI_RowCount(HSTMT hstmt,
+		SQLINTEGER *pcrow)
 {
 	CSTR func = "PGAPI_RowCount";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -378,14 +377,13 @@ PGAPI_DescribeCol(
 
 /*		Returns result column descriptor information for a result set. */
 RETCODE		SQL_API
-PGAPI_ColAttributes(
-					HSTMT hstmt,
-					UWORD icol,
-					UWORD fDescType,
-					PTR rgbDesc,
-					SWORD cbDescMax,
-					SWORD FAR * pcbDesc,
-					SDWORD FAR * pfDesc)
+PGAPI_ColAttributes(HSTMT hstmt,
+			SQLUSMALLINT icol,
+			SQLUSMALLINT fDescType,
+			PTR rgbDesc,
+			SQLSMALLINT cbDescMax,
+			SQLSMALLINT *pcbDesc,
+			SQLINTEGER *pfDesc)
 {
 	CSTR func = "PGAPI_ColAttributes";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -761,13 +759,12 @@ inolog("COLUMN_TYPE=%d\n", value);
 
 /*	Returns result data for a single column in the current row. */
 RETCODE		SQL_API
-PGAPI_GetData(
-			  HSTMT hstmt,
-			  UWORD icol,
-			  SWORD fCType,
-			  PTR rgbValue,
-			  SDWORD cbValueMax,
-			  SDWORD FAR * pcbValue)
+PGAPI_GetData(HSTMT hstmt,
+		SQLUSMALLINT icol, 
+		SQLSMALLINT fCType,
+		PTR rgbValue, 
+		SQLINTEGER cbValueMax,
+		SQLINTEGER *pcbValue)
 {
 	CSTR func = "PGAPI_GetData";
 	QResultClass *res;
@@ -1120,14 +1117,13 @@ getNthValid(QResultClass *res, Int4 sta, UWORD orientation, UInt4 nth, Int4 *nea
 	
 /*	This fetchs a block of data (rowset). */
 RETCODE		SQL_API
-PGAPI_ExtendedFetch(
-					HSTMT hstmt,
-					UWORD fFetchType,
-					SDWORD irow,
-					UDWORD FAR * pcrow,
-					UWORD FAR * rgfRowStatus,
-					SQLINTEGER bookmark_offset,
-					SQLINTEGER rowsetSize)
+PGAPI_ExtendedFetch(HSTMT hstmt,
+			SQLUSMALLINT fFetchType,
+			SQLINTEGER irow,
+			SQLUINTEGER *pcrow,
+			SQLUSMALLINT *rgfRowStatus,
+			SQLINTEGER bookmark_offset,
+			SQLINTEGER rowsetSize)
 {
 	CSTR func = "PGAPI_ExtendedFetch";
 	StatementClass *stmt = (StatementClass *) hstmt;

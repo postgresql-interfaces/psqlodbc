@@ -221,13 +221,13 @@ ER_ReturnError(PG_ErrorInfo *error,
 #define	DRVMNGRDIV	511
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
-PGAPI_StmtError(	HSTMT hstmt,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
+PGAPI_StmtError(	HSTMT hstmt, 
+			SWORD RecNumber,
+			SQLCHAR *szSqlState, 
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg, 
 			UWORD flag)
 {
 	/* CC: return an error of a hstmt  */
@@ -453,13 +453,13 @@ PGAPI_StmtError(	HSTMT hstmt,
 }
 
 RETCODE		SQL_API
-PGAPI_ConnectError(	HDBC hdbc,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
+PGAPI_ConnectError(HDBC hdbc, 
+			SWORD RecNumber,
+			SQLCHAR *szSqlState, 
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg, 
 			UWORD flag)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -586,13 +586,13 @@ PGAPI_ConnectError(	HDBC hdbc,
 }
 
 RETCODE		SQL_API
-PGAPI_EnvError(		HENV henv,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
+PGAPI_EnvError(		HENV henv, 
+			SWORD RecNumber,
+			SQLCHAR *szSqlState, 
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg, 
 			UWORD flag)
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
@@ -647,15 +647,14 @@ PGAPI_EnvError(		HENV henv,
 
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
-PGAPI_Error(
-			HENV henv,
-			HDBC hdbc,
+PGAPI_Error(		HENV henv,
+			HDBC hdbc, 
 			HSTMT hstmt,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg)
+			SQLCHAR *szSqlState,
+			SQLINTEGER *pfNativeError,
+			SQLCHAR *szErrorMsg, 
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT *pcbErrorMsg)
 {
 	RETCODE	ret;
 	UWORD	flag = PODBC_ALLOW_PARTIAL_EXTRACT | PODBC_ERROR_CLEAR;

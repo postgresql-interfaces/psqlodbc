@@ -547,14 +547,14 @@ DC_log_error(const char *func, const char *desc, const DescriptorClass *self)
 
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
-PGAPI_DescError(	SQLHDESC hdesc,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
-			UWORD flag)
+PGAPI_DescError(SQLHDESC hdesc, 
+		SWORD RecNumber,
+		SQLCHAR *szSqlState, 
+		SQLINTEGER *pfNativeError,
+		SQLCHAR *szErrorMsg, 
+		SQLSMALLINT cbErrorMsgMax,
+		SQLSMALLINT *pcbErrorMsg, 
+		UWORD flag)
 {
 	/* CC: return an error of a hdesc  */
 	DescriptorClass *desc = (DescriptorClass *) hdesc;

@@ -30,15 +30,15 @@
 RETCODE		SQL_API
 PGAPI_BindParameter(
 					HSTMT hstmt,
-					UWORD ipar,
-					SWORD fParamType,
-					SWORD fCType,
-					SWORD fSqlType,
-					UDWORD cbColDef,
-					SWORD ibScale,
+					SQLUSMALLINT ipar,
+					SQLSMALLINT fParamType,
+					SQLSMALLINT fCType,
+					SQLSMALLINT fSqlType,
+					SQLUINTEGER cbColDef,
+					SQLSMALLINT ibScale,
 					PTR rgbValue,
-					SDWORD cbValueMax,
-					SDWORD FAR * pcbValue)
+					SQLINTEGER cbValueMax,
+					SQLINTEGER *pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindParameter";
@@ -135,12 +135,12 @@ PGAPI_BindParameter(
 /*	Associate a user-supplied buffer with a database column. */
 RETCODE		SQL_API
 PGAPI_BindCol(
-			  HSTMT hstmt,
-			  UWORD icol,
-			  SWORD fCType,
-			  PTR rgbValue,
-			  SDWORD cbValueMax,
-			  SDWORD FAR * pcbValue)
+			HSTMT hstmt,
+			SQLUSMALLINT icol, 
+			SQLSMALLINT fCType,
+			PTR rgbValue, 
+			SQLINTEGER cbValueMax,
+			SQLINTEGER *pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindCol";
@@ -275,13 +275,12 @@ PGAPI_BindCol(
  *	data type (most likely varchar).
  */
 RETCODE		SQL_API
-PGAPI_DescribeParam(
-					HSTMT hstmt,
-					UWORD ipar,
-					SWORD FAR * pfSqlType,
-					UDWORD FAR * pcbColDef,
-					SWORD FAR * pibScale,
-					SWORD FAR * pfNullable)
+PGAPI_DescribeParam(HSTMT hstmt,
+			SQLUSMALLINT ipar,
+			SQLSMALLINT *pfSqlType,
+			SQLUINTEGER *pcbColDef,
+			SQLSMALLINT *pibScale,
+			SQLSMALLINT *pfNullable)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_DescribeParam";
@@ -331,10 +330,9 @@ PGAPI_DescribeParam(
 
 /*	Sets multiple values (arrays) for the set of parameter markers. */
 RETCODE		SQL_API
-PGAPI_ParamOptions(
-				   HSTMT hstmt,
-				   UDWORD crow,
-				   UDWORD FAR * pirow)
+PGAPI_ParamOptions(HSTMT hstmt,
+		   SQLUINTEGER crow,
+		   SQLUINTEGER *pirow)
 {
 	CSTR func = "PGAPI_ParamOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;

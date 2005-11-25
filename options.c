@@ -312,10 +312,9 @@ set_statement_option(ConnectionClass *conn,
 
 /* Implements only SQL_AUTOCOMMIT */
 RETCODE		SQL_API
-PGAPI_SetConnectOption(
-					   HDBC hdbc,
-					   UWORD fOption,
-					   UDWORD vParam)
+PGAPI_SetConnectOption(HDBC hdbc,
+			SQLUSMALLINT fOption, 
+			SQLUINTEGER vParam)
 {
 	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -611,10 +610,9 @@ PGAPI_GetConnectOption(
 
 
 RETCODE		SQL_API
-PGAPI_SetStmtOption(
-					HSTMT hstmt,
-					UWORD fOption,
-					UDWORD vParam)
+PGAPI_SetStmtOption(HSTMT hstmt,
+			SQLUSMALLINT fOption, 
+			SQLUINTEGER vParam)
 {
 	CSTR func = "PGAPI_SetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
