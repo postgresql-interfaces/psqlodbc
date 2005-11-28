@@ -343,7 +343,7 @@ SC_Destructor(StatementClass *self)
 	}
 
 	SC_initialize_stmts(self, TRUE);
-    SC_free_params(self, STMT_FREE_PARAMS_ALL);
+	SC_free_params(self, STMT_FREE_PARAMS_ALL);
 
         /* Free the parsed table information */
 	if (self->ti)
@@ -370,11 +370,11 @@ SC_Destructor(StatementClass *self)
 	if (self->callbacks)
 		free(self->callbacks);
     
-    GDATA_unbind_cols(SC_get_GDTI(self), TRUE);
+	GDATA_unbind_cols(SC_get_GDTI(self), TRUE);
 
 	DELETE_STMT_CS(self);
-    if (self->pdata_info.pdata != 0)
-        free(self->pdata_info.pdata);
+	if (self->pdata_info.pdata != 0)
+		free(self->pdata_info.pdata);
 	free(self);
 
 	mylog("SC_Destructor: EXIT\n");
@@ -951,7 +951,7 @@ SC_fetch(StatementClass *self)
 		SC_set_Result(self,res);
 	}
 
-    coli = QR_get_fields(res);	/* the column info */
+	coli = QR_get_fields(res);	/* the column info */
 	mylog("manual_result = %d, use_declarefetch = %d\n", self->manual_result, ci->drivers.use_declarefetch);
 
 	if (self->manual_result)
@@ -1062,10 +1062,10 @@ SC_fetch(StatementClass *self)
 
 			if (self->manual_result)
 			{
-                if (ci->drivers.use_declarefetch)
-				    value = QR_get_value_manual(res, (self->currTuple >= ci->drivers.fetch_max) ? (self->currTuple % ci->drivers.fetch_max) : self->currTuple, lf);
-                else
-                    value = QR_get_value_manual(res, self->currTuple, lf);
+				if ((ci->drivers.use_declarefetch) && (self->currTuple >= QR_get_num_total_tuples(res)))
+					value = QR_get_value_manual(res, (self->currTuple >= ci->drivers.fetch_max) ? (self->currTuple % ci->drivers.fetch_max) : self->currTuple, lf);
+		                else
+					value = QR_get_value_manual(res, self->currTuple, lf);
 				mylog("manual_result\n");
 			}
 			else if (SC_is_fetchcursor(self))
