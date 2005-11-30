@@ -301,12 +301,15 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 		{
 			QResultClass	*kres;
 
-			kres = res->next;
-			SC_set_Result(stmt, kres);
-			res->next = NULL;
-			QR_Destructor(res);
-			res = kres;
-			SC_set_prepared(stmt, TRUE);
+			if (kres = res->next, kres)
+			{
+				kres = res->next;
+				SC_set_Result(stmt, kres);
+				res->next = NULL;
+				QR_Destructor(res);
+				res = kres;
+				SC_set_prepared(stmt, TRUE);
+			}
 		}
 		else
 		{
