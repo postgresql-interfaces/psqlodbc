@@ -84,7 +84,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	SWORD		pcbErrm;
 	CSTR func = "PGAPI_GetDiagField";
 
-	mylog("%s entering rec=%d", func, RecNumber);
+	mylog("%s entering rec=%d, HandleType=%d, DiagIdentifier=%d\n", func, RecNumber, HandleType, DiagIdentifier);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -276,7 +276,6 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					if (stmt->status == STMT_FINISHED)
 					{
 						QResultClass *res = SC_get_Curres(stmt);
-
 						if (res && QR_NumResultCols(res) > 0 && !SC_is_fetchcursor(stmt))
 							rc = QR_get_num_total_tuples(res) - res->dl_count;
 					}

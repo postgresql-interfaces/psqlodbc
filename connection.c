@@ -1478,6 +1478,11 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
         res = NULL;
 		goto cleanup;
 	}
+	else if  (res->status == PGRES_COMMAND_OK)
+	{
+		mylog("send_query: done sending command\n");
+		goto cleanup;
+	}
 	else
 	{
 		mylog("send_query: done sending query\n");
@@ -1781,6 +1786,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	char		errbuffer[ERROR_MSG_LENGTH + 1];
 	int		pos=0;
 
+	mylog("LIBPQ_execute_query: entering ...\n");
 	qres=QR_Constructor();
 	if(!qres)
 	{
@@ -1792,6 +1798,8 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
         PQsetNoticeProcessor(self->pgconn, CC_handle_notice, qres);
         pgres = PQexec(self->pgconn,query);
         PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
+
+	mylog("LIBPQ_execute_query: query = %s\n",query);
 
 	qres->status = PQresultStatus(pgres);
 	
@@ -1831,7 +1839,15 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	else if (strnicmp(query, "ABORT", 5) == 0)
 		CC_on_abort(self, NO_TRANS);
 	else
-		qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
+	{
+		if (PQcmdTuples(pgres)[0])
+			qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
+		else if (self->connInfo.drivers.use_declarefetch)
+			qres->recent_processed_row_count = -1;
+		else
+			qres->recent_processed_row_count = PQntuples(pgres);
+		mylog("LIBPQ_execute_query: recent_processed_row_count = %i\n",qres->recent_processed_row_count);
+	}
 
 	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
 	{
@@ -1857,6 +1873,8 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		return qres;
 	}
 
+	mylog("LIBPQ_execute_query: rest types ...\n");
+
 	qres=CC_mapping(self,pgres,qres);
 	QR_set_command(qres, query);
 	PQclear(pgres);
@@ -1870,6 +1888,7 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 QResultClass *
 CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 {
+	CSTR func = "CC_mapping";
 	int i=0,j=0;
 	TupleNode *node, *temp;
 	Oid typid;
@@ -1878,9 +1897,12 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 	int num_tuples = PQntuples(pgres);
     ConnInfo   *ci = &(self->connInfo);
 
+	mylog("%s: entering ...\n",func);
 	CI_set_num_fields(qres->fields, num_attributes);
+	mylog("%s: rows = %i, columns = %i\n",func,num_tuples,num_attributes);
 	for(i = 0 ; i < num_attributes ; i++)
 	{
+		mylog("%s: column = %i\n",func,i);
 		typid = PQftype(pgres,i);
 		atttypmod = PQfmod(pgres,i);
         
@@ -1933,6 +1955,7 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
             }
 		}
         
+		mylog("%s: set field info: name = %s, typ = %i, typlen = %i, attypmod = %i\n", func, PQfname(pgres,i), typid, (Int2)typlen, atttypmod);
 		CI_set_field_info(qres->fields, i, PQfname(pgres,i),
 			  typid, (Int2)typlen, atttypmod);
 	}
@@ -1970,9 +1993,15 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 				/* PQgetvalue returns an empty string even the data value is null. 
 				  * An additional checking is provided to set the null value */
 				if (PQgetisnull(pgres,i,j)) 
+				{
+/* mylog("%s: fetch column = %s, value = NULL\n",func,PQfname(pgres,j)); */
 					set_tuplefield_null(&qres->manual_tuples->list_end->tuple[j]);
+				}
 				else
+				{
+/* mylog("%s: fetch column = %s, value = %s\n",func,PQfname(pgres,j),PQgetvalue(pgres,i,j)); */
 					set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j], PQgetvalue(pgres,i,j));
+				}
 			}
 
 	}
