@@ -741,12 +741,10 @@ PGAPI_Cancel(
 
 	/* In the middle of SQLParamData/SQLPutData, so cancel that. */
 
-	/*
-	 * Note, any previous data-at-exec buffers will be freed in the
-	 * recycle
-	 */
-	/* if they call SQLExecDirect or SQLExecute again. */
+	/* Free all previous data-at-exec buffers */
+	mylog("%s: Clearing parameters et al.\n", func);
 
+	SC_free_params(stmt, STMT_FREE_PARAMS_ALL);
 	stmt->data_at_exec = -1;
 	stmt->current_exec_param = -1;
 	stmt->put_data = FALSE;
