@@ -1895,7 +1895,7 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 	int atttypmod,typlen;
 	int num_attributes = PQnfields(pgres);
 	int num_tuples = PQntuples(pgres);
-    ConnInfo   *ci = &(self->connInfo);
+	ConnInfo   *ci = &(self->connInfo);
 
 	mylog("%s: entering ...\n",func);
 	CI_set_num_fields(qres->fields, num_attributes);
@@ -1906,7 +1906,7 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 		typid = PQftype(pgres,i);
 		atttypmod = PQfmod(pgres,i);
         
-        /* Setup the typmod */
+		/* Setup the typmod */
 		switch (typid)
 		{
 			case PG_TYPE_DATETIME:
@@ -1920,40 +1920,40 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 		if (atttypmod < 0)
 			atttypmod = -1;
         
-        /* Setup the typlen */
-        switch (typid)
-        {
-            case PG_TYPE_NUMERIC:
-                typlen = (atttypmod >> 16) & 0xffff;
-                break;
+		/* Setup the typlen */
+		switch (typid)
+		{
+			case PG_TYPE_NUMERIC:
+				typlen = (atttypmod >> 16) & 0xffff;
+				break;
             
-            case PG_TYPE_BPCHAR:
-            case PG_TYPE_VARCHAR:
-                typlen = atttypmod;
-                break;
+			case PG_TYPE_BPCHAR:
+			case PG_TYPE_VARCHAR:
+				typlen = atttypmod;
+				break;
         
-            default:
-                typlen = PQfsize(pgres,i);
-        }
+			default:
+		                typlen = PQfsize(pgres,i);
+        	}
         
-        /* 
-         * FIXME - The following is somewhat borked with regard to driver.unknownsizes
-         *         It works, but basically is not aware of different variable length types
-         *         (UNKNOWNS_AS_MAX), and UNKNOWNS_AS_LONGEST won't work because we don't
-         *         have data at this point 
-         */
+	        /* 
+	         * FIXME - The following is somewhat borked with regard to driver.unknownsizes
+	         *         It works, but basically is not aware of different variable length types
+	         *         (UNKNOWNS_AS_MAX), and UNKNOWNS_AS_LONGEST won't work because we don't
+	         *         have data at this point 
+	         */
 		if(typlen == -1)
-        {
-            switch (ci->drivers.unknown_sizes)
-            {
-                case UNKNOWNS_AS_DONTKNOW:
-				    typlen = SQL_NO_TOTAL;
-                    break;
+		{
+			switch (ci->drivers.unknown_sizes)
+			{
+				case UNKNOWNS_AS_DONTKNOW:
+					typlen = SQL_NO_TOTAL;
+					break;
                 
-			    default:
-				    typlen = ci->drivers.max_longvarchar_size;
-            }
-		}
+				default:
+					typlen = ci->drivers.max_longvarchar_size;
+            		}
+		}	
         
 		mylog("%s: set field info: name = %s, typ = %i, typlen = %i, attypmod = %i\n", func, PQfname(pgres,i), typid, (Int2)typlen, atttypmod);
 		CI_set_field_info(qres->fields, i, PQfname(pgres,i),
@@ -1994,12 +1994,12 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 				  * An additional checking is provided to set the null value */
 				if (PQgetisnull(pgres,i,j)) 
 				{
-/* mylog("%s: fetch column = %s, value = NULL\n",func,PQfname(pgres,j)); */
+					mylog("%s: fetch column = %s, value = NULL\n",func,PQfname(pgres,j));
 					set_tuplefield_null(&qres->manual_tuples->list_end->tuple[j]);
 				}
 				else
 				{
-/* mylog("%s: fetch column = %s, value = %s\n",func,PQfname(pgres,j),PQgetvalue(pgres,i,j)); */
+					mylog("%s: fetch column = %s, value = %s\n",func,PQfname(pgres,j),PQgetvalue(pgres,i,j));
 					set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j], PQgetvalue(pgres,i,j));
 				}
 			}
