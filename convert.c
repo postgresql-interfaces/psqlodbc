@@ -1860,14 +1860,24 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		}
 		if (marker_count > 0)
 		{
-			CVT_APPEND_CHAR(qb, '(');
-			for (i = 0; i < marker_count; i++)
+			if (ipdopts && (ipdopts->allocated == marker_count))
 			{
-				if (i > 0)
-					CVT_APPEND_STR(qb, ", ");
-				CVT_APPEND_STR(qb, pgtype_to_name(stmt, ipdopts->parameters[i].PGType));
+				CVT_APPEND_CHAR(qb, '(');
+				for (i = 0; i < marker_count; i++)
+				{
+					if (i > 0)
+						CVT_APPEND_STR(qb, ", ");
+					CVT_APPEND_STR(qb, pgtype_to_name(stmt, ipdopts->parameters[i].PGType));
+				}
+				CVT_APPEND_CHAR(qb, ')');
 			}
-			CVT_APPEND_CHAR(qb, ')');
+			else
+			{
+				SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, "The # of binded parameters < the # of parameter markers");
+				SC_set_sqlstate(stmt, "07002");
+				QB_Destructor(qb);
+				return SQL_ERROR;
+			}
 		}
 		CVT_APPEND_STR(qb, " as ");
 		for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
