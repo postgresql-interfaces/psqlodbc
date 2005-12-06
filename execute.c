@@ -308,8 +308,8 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 				res->next = NULL;
 				QR_Destructor(res);
 				res = kres;
-				SC_set_prepared(stmt, TRUE);
 			}
+			SC_set_prepared(stmt, TRUE);
 		}
 		else
 		{
