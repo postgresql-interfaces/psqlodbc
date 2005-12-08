@@ -42,6 +42,7 @@
               <File Id="docs.howto_csharp.html" Name="howto5.htm" LongName="howto-csharp.html" DiskId="1" src="../docs/howto-csharp.html" />
               <File Id="docs.howto_vb.html" Name="howto6.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
               <File Id="docs.howto_vblo.html" Name="howto7.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
+              <File Id="docs.release.html" Name="release.htm" LongName="release.html" DiskId="1" src="../docs/release.html" />
               <File Id="docs.unix_compilation.html" Name="unix.htm" LongName="unix-compilation.html" DiskId="1" src="../docs/unix-compilation.html" />
               <File Id="docs.win32_compilation.html" Name="win32.htm" LongName="win32-compilation.html" DiskId="1" src="../docs/win32-compilation.html" />
              
