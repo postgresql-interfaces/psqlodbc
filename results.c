@@ -447,7 +447,7 @@ PGAPI_ColAttributes(HSTMT hstmt,
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
 	parse_ok = FALSE;
-	if (!stmt->manual_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (stmt->parse_status == STMT_PARSE_NONE)
 		{
