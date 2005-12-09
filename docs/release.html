@@ -9,49 +9,6 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlodbc 8.01.0104</h2>
-This is next development snapshot with mainly stability fixes.<br>
-It's recommended to upgrade from 8.01.0103 to this snapshot.<br>
-<br>
-It contains only psqlodbca.dll and psqlodbcw.dll. You can install it<br>
-only over some installed release version with additional DLLs.<br>
-<br>
-Changes:<br>
-List of fixes:<br>
-1) psqlodbc-autocommit_off.diff<br>
-   add commit after set basic options in SQLDriverConnect when autocommit is turned off<br>
-2) psqlodbc-bindparam_count_error.diff<br>
-   driver doesn't fail when there isn't bind enough parameters<br>
-3) psqlodbc-colattributes_manual_result.diff<br>
-   collattributes doesn't work since switch to libpq.<br>
-   There is still problem with select '' as xx from table<br>
-4) psqlodbc-fetchcursor.diff<br>
-   SQLTables after SQLExecDirect has problem with GetData for all rows<br>
-5) psqlodbc-paramlen.diff<br>
-   grow MAXKEYLEN for SQLConfigDataSource<br>
-6) psqlodbc-server_side_prepare2.diff<br>
-   repair behaviour of more queries in one statement<br>
-<br>
-Regards,<br>
-Luf<br>
-<br>
-<h2>psqlODBC 08.01.0103</h2>
-This development snapshot fixes:<br>
-- RowCount problem in SELECT - but Dave announce it doesn't work in VB6<br>
-- Server side prepare - but only first run in allocated statement<br>
-   (http://pgfoundry.org/tracker/index.php?func=detail&aid=1000460&group_id=1000125&atid=538)<br>
-- Table names repeated in BDE with usedeclarefetch=1<br>
-- Binding parameters are now freed in SQLCancel<br>
-- Skip fetching data for commands<br>
-<br>
-We are not sure if "Binding parameters are now freed in SQLCancel"<br>
-doesn't broke your applications. Please try it and send us report.<br>
-It's not recommended to use it in production environment without<br>
-testing.<br>
-<br>
-Regards,<br>
-Luf<br>
-<br>
 <h2>psqlODBC 08.01.0102</h2>
 http://www.postgresql.org/ftp/odbc/versions. This version includes the<br>
 following changes:<br>
