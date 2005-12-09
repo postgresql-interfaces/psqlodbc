@@ -1426,21 +1426,14 @@ QResultClass *
 CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 {
 	QResultClass *cmdres = NULL,
-			   *retres = NULL,
-			   *res ;
+			     *retres = NULL,
+			     *res ;
 	BOOL	clear_result_on_abort = ((flag & CLEAR_RESULT_ON_ABORT) != 0),
-		create_keyset = ((flag & CREATE_KEYSET) != 0),
-		issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self));
-	char		 *wq;
-	int			id=0;
+			create_keyset = ((flag & CREATE_KEYSET) != 0),
+			issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self));
 	PGconn *pgconn = self->pgconn;
-	int			maxlen,
-				empty_reqs;
-	BOOL		ReadyToReturn = FALSE,
-				query_completed = FALSE,
-				before_64 = PG_VERSION_LT(self, 6.4),
-				aborted = FALSE,
-				used_passed_result_object = FALSE;
+	int			maxlen;
+	BOOL		used_passed_result_object = FALSE;
 	int		func_cs_count = 0;
 
 
@@ -1470,17 +1463,33 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	if (issue_begin)
     {
 		res = LIBPQ_execute_query(self,"BEGIN");
-        QR_Destructor(res);
+		if ((!res) || (res->status != PGRES_COMMAND_OK))
+		{
+			CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
+			CC_on_abort(self, NO_TRANS | CONN_DEAD);
+			QR_Destructor(res);
+			res = NULL;
+			goto cleanup;
+		}
     }
     
 	res = LIBPQ_execute_query(self,query);
 
-	if((!res) || (res->status == PGRES_EMPTY_QUERY) )
+	if(!res)
 	{
+		goto cleanup;
+	}
+#ifdef NOT_USED
+	else if ((res->status == PGRES_EMPTY_QUERY) || (res->status == PGRES_FATAL_ERROR) ||
+		     (res->status == PGRES_BAD_RESPONSE))
+	{
+		mylog("send_query: failed -> abort\n");
+		QR_set_aborted(res, TRUE);
 		QR_Destructor(res);
         res = NULL;
 		goto cleanup;
 	}
+#endif /* NOT_USED */
 	else if  (res->status == PGRES_COMMAND_OK)
 	{
 		mylog("send_query: done sending command\n");
@@ -1488,91 +1497,71 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 	}
 	else
 	{
-		mylog("send_query: done sending query\n");
+		mylog("send_query: done sending query with status: %i\n",res->status);
 
-		empty_reqs = 0;
-		for (wq = query; isspace((UCHAR) *wq); wq++)
-		;
-		if (*wq == '\0')
-			empty_reqs = 1;
 		cmdres = qi ? qi->result_in : NULL;
 		if (cmdres)
 			used_passed_result_object = TRUE;
 		if (!used_passed_result_object)
 		{
+			if ((res->status == PGRES_EMPTY_QUERY) || (res->status == PGRES_FATAL_ERROR) ||
+			    (res->status == PGRES_BAD_RESPONSE))
+			{
+				mylog("send_query: sended query failed -> abort\n");
+				QR_set_aborted(res, TRUE);
+				QR_Destructor(res);
+		        res = NULL;
+				goto cleanup;
+			}
 			if (create_keyset)
 				QR_set_haskeyset(res->next);
 			if (!QR_fetch_tuples(res, self, qi ? qi->cursor : NULL))
 			{
 				CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res));
-				if (PGRES_FATAL_ERROR == QR_get_status(res))
-					retres = cmdres;
-				else
-					retres = NULL;
 			}
 		}
 		else
-		{				/* next fetch, so reuse an existing result */
-			/*
-			* called from QR_next_tuple and must return
-			* immediately.
-			*/
+		{
+			/* next fetch, so reuse an existing result */
+			mylog("send_query: next fetch -> reuse result\n");
 			if (!QR_fetch_tuples(res, NULL, NULL))
 			{
 				CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res));
-				retres = NULL;
+				if (PGRES_FATAL_ERROR == QR_get_status(res))
+				{
+					QR_set_aborted(res, TRUE);
+					retres = cmdres;
+				}
 			}
-			retres = cmdres;
 		}
 	}
 
 cleanup:
 	CLEANUP_FUNC_CONN_CS(func_cs_count, self);
-	/*
-	 * Cleanup garbage results before returning.
-	 */
-	if (cmdres && retres != cmdres && !used_passed_result_object)
-	{
-		QR_Destructor(cmdres);
-	}
+#undef	return
 	/*
 	 * Cleanup the aborted result if specified
 	 */
 	if (retres)
 	{
-		if (aborted)
+		/*
+		 *	discard results other than errors.
+		 */
+		QResultClass	*qres;
+		for (qres = retres; qres->next; qres = retres)
 		{
-			if (clear_result_on_abort)
-			{
-	   			if (!used_passed_result_object)
-				{
-					QR_Destructor(retres);
-					retres = NULL;
-				}
-			}
-			if (retres)
-			{
-				/*
-				 *	discard results other than errors.
-				 */
-				QResultClass	*qres;
-				for (qres = retres; qres->next; qres = retres)
-				{
-					if (QR_get_aborted(qres))
-						break;
-					retres = qres->next;
-					qres->next = NULL;
-					QR_Destructor(qres);
-				}
-				/*
-				 *	If error message isn't set
-				 */
-				if (retres && (!CC_get_errormsg(self) || !CC_get_errormsg(self)[0]))
-					CC_set_errormsg(self, QR_get_message(retres));
-			}
+			if (QR_get_aborted(qres))
+				break;
+			retres = qres->next;
+			qres->next = NULL;
+			QR_Destructor(qres);
 		}
+		/*
+		 *	If error message isn't set
+		 */
+		if (retres && (!CC_get_errormsg(self) || !CC_get_errormsg(self)[0]))
+			CC_set_errormsg(self, QR_get_message(retres));
 	}
-#undef	return
 	return res;
 }
 
@@ -1785,7 +1774,7 @@ QResultClass *
 LIBPQ_execute_query(ConnectionClass *self,char *query)
 {
 	QResultClass	*qres;
-	PGresult	*pgres;
+	PGresult	*pgres = NULL, *pgresnew = NULL;
 	char		errbuffer[ERROR_MSG_LENGTH + 1];
 	int		pos=0;
 
@@ -1794,13 +1783,27 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	if(!qres)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not allocate memory for result set");
+		CC_on_abort(self, CONN_DEAD);
 		QR_Destructor(qres);
-        	return NULL;
+		return NULL;
 	}
 
-        PQsetNoticeProcessor(self->pgconn, CC_handle_notice, qres);
-        pgres = PQexec(self->pgconn,query);
-        PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
+	PQsetNoticeProcessor(self->pgconn, CC_handle_notice, qres);
+	if (!PQsendQuery(self->pgconn,query))
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not send query to backend");
+		CC_on_abort(self, CONN_DEAD);
+		QR_Destructor(qres);
+		return NULL;
+	}
+	while (pgresnew = PQgetResult(self->pgconn))
+	{
+		mylog("LIBPQ_execute_query: get next result with status = %i\n",PQresultStatus(pgresnew));
+		if (pgres)
+			PQclear(pgres);
+		pgres = pgresnew;
+	}
+	PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
 
 	mylog("LIBPQ_execute_query: query = %s\n",query);
 
