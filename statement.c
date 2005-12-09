@@ -242,9 +242,11 @@ SC_Constructor(void)
 {
 	StatementClass *rv;
 
+	mylog("SC_Constructor: entering ...\n");
 	rv = (StatementClass *) malloc(sizeof(StatementClass));
 	if (rv)
 	{
+		mylog("SC_Constructor: created stmt = %u\n",rv);
 		rv->hdbc = NULL;		/* no connection associated yet */
 		rv->phstmt = NULL;
 		rv->result = NULL;
@@ -974,6 +976,7 @@ SC_fetch(StatementClass *self)
 			if ((((self->currTuple + 1) % ci->drivers.fetch_max) >= QR_get_num_total_tuples(res)) &&
 				QR_get_num_total_tuples(res) < ci->drivers.fetch_max)
 			{
+				SC_no_fetchcursor(self);
 				self->currTuple = QR_get_num_total_tuples(res);
 				return SQL_NO_DATA_FOUND;
 			}
