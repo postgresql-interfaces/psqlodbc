@@ -35,6 +35,23 @@ List of fixes:<br>
 Regards,<br>
 Luf<br>
 <br>
+<h2>psqlODBC 08.01.0103</h2>
+This development snapshot fixes:<br>
+- RowCount problem in SELECT - but Dave announce it doesn't work in VB6<br>
+- Server side prepare - but only first run in allocated statement<br>
+   (http://pgfoundry.org/tracker/index.php?func=detail&aid=1000460&group_id=1000125&atid=538)<br>
+- Table names repeated in BDE with usedeclarefetch=1<br>
+- Binding parameters are now freed in SQLCancel<br>
+- Skip fetching data for commands<br>
+<br>
+We are not sure if "Binding parameters are now freed in SQLCancel"<br>
+doesn't broke your applications. Please try it and send us report.<br>
+It's not recommended to use it in production environment without<br>
+testing.<br>
+<br>
+Regards,<br>
+Luf<br>
+<br>
 <h2>psqlODBC 08.01.0102</h2>
 http://www.postgresql.org/ftp/odbc/versions. This version includes the<br>
 following changes:<br>
