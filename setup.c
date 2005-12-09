@@ -31,7 +31,7 @@ extern GLOBAL_VALUES	globals;
 /* Constants */
 #define MIN(x,y)	  ((x) < (y) ? (x) : (y))
 
-#define MAXKEYLEN		(15+1)	/* Max keyword length */
+#define MAXKEYLEN		(21+1)	/* Max keyword length */
 #define MAXDESC			(255+1) /* Max description length */
 #define MAXDSNAME		(32+1)	/* Max data source name length */
 
