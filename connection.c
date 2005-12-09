@@ -1343,6 +1343,9 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 		ci->updatable_cursors = ci->allow_keyset;
 #endif /* DRIVER_CURSOR_IMPLEMENT */
 
+	if (!CC_is_in_autocommit(self))
+		CC_commit(self);
+
 	CC_clear_error(self);		/* clear any initial command errors */
 	self->status = CONN_CONNECTED;
 
