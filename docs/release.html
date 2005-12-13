@@ -9,60 +9,57 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.01.0102</h2>
-http://www.postgresql.org/ftp/odbc/versions. This version includes the<br>
-following changes:<br>
+<h2>The next release preparation psqlODBC 08.01.02xx</h2>
+<li>Notes:psqlODBC 08.01.0104</li><br>
+Changes:<br>
+1) add commit after set basic options in SQLDriverConnect when autocommit is turned off<br>
+2) driver doesn't fail when there isn't bind enough parameters<br>
+3) collattributes doesn't work since switch to libpq.<br>
+   There is still problem with select '' as xx from table<br>
+4) SQLTables after SQLExecDirect has problem with GetData for all rows<br>
+5) grow MAXKEYLEN for SQLConfigDataSource<br>
+6) repair behaviour of more queries in one statement<br>
 <br>
-- Server side prepare now works correctly.<br>
-- A bug in SQLTables that shows up in Borland SQL Explorer in<br>
-Declare/Fetch mode has been fixed.<br>
-- A number of inconsistent internal APIs have been cleaned up. These<br>
+<li>Notes:psqlODBC 08.01.0103</li><br>
+Changes:<br>
+1) RowCount problem in SELECT - but Dave announce it doesn't work in VB6<br>
+2) Server side prepare - but only first run in allocated statement<br>
+   (http://pgfoundry.org/tracker/index.php?func=detail&aid=1000460&group_id=1000125&atid=538)<br>
+3) Table names repeated in BDE with usedeclarefetch=1<br>
+4) Binding parameters are now freed in SQLCancel<br>
+5) Skip fetching data for commands<br>
+<br>
+<li>Notes:psqlODBC 08.01.0102</li><br>
+Changes:<br>
+1) Server side prepare now works correctly.<br>
+2) A bug in SQLTables that shows up in Borland SQL Explorer in<br>
+3) Declare/Fetch mode has been fixed.<br>
+4) A number of inconsistent internal APIs have been cleaned up. These<br>
 issues only showed up on some OS's.<br>
-- Correct value returned by SQLGetInfo for<br>
+5) Correct value returned by SQLGetInfo for<br>
 SQL_CATALOG_LOCATION/SQL_QUALIFIER_LOCATION. This prevented use of the<br>
 driver in Visual Studio 2005.<br>
-<br>
-In other news, I'd like to thank Ludek Finstrle (Luf) who is responsible<br>
-for fixing the first of those two bugs, and has also been working on<br>
-other non-trivial issues deep inside the driver. To help with his work,<br>
-Luf has suggested a more formal method of releasing psqlODBC development<br>
-snapshots for testing - something which I must admit I should have done<br>
-a while back. <br>
-<br>
-To that end, development snapshots will now be released on the pgFoundry<br>
-project site at http://pgfoundry.org/frs/?group_id=1000125. Release<br>
-versions of the driver will continue to be released on the PostgreSQL<br>
-mirror network. To help identify different versions of the driver, the<br>
-following version numbering scheme will be used. <br>
-<br>
-The first two sets of two numbers will continue to roughly track the<br>
-current PostgreSQL version.<br>
 <br>
 The last four numbers will represent the build. If the last 2 digits are<br>
 both zero, a stable version is indicated. If the last two digits are<br>
 non-zero, it is a development snapshot. <br>
-<br>
 So, starting with the next stable release, we will have:<br>
-<br>
 08.01.0200 - Stable<br>
 08.01.0201 - Development<br>
 ...<br>
 ...<br>
 08.01.0299 - Development<br>
 08.01.0300 - Stable<br>
+Of course, we won't necessarily have 99 snaphosts between stable releases!<br>
 <br>
-Of course, we won't necessarily have 99 snaphosts between stable<br>
-releases!<br>
-<br>
-<h2>psqlODBC 08.01.0101</h2>
+<li>Notes:psqlODBC 08.01.0101</li><br>
+Changes:<br>
 This release fixes a serious problem in non-declare/fetch mode where<br>
 recordsets over the configured declare/fetch cache size were returned<br>
 incorrectly. It is advised that all users of v08.01.0100 upgrade as soon<br>
 as possible.<br>
 <br>
-Regards, Dave.<br>
-<br>
-<h2>psqlODBC 08.01.0100</h2>
+<h2>psqlODBC 08.01.0100 Release</h2>
 This release represents a major change to the driver over previous versions;<br>
 in particular, the network code has been replaced with the PostgreSQL libpq<br>
 library. This allows us to more easily take advantage of updates and new<br>
@@ -84,41 +81,32 @@ Please post any bug reports to the pgsql-odbc@postgresql.org mailing list.<br>
 <br>
 I'd like to take this opportunity to thank all those involved with the<br>
 development, testing and bug fixing of the updated driver.<br>
-<br>
-Dave Page<br>
 PostgreSQL Core Team<br>
 <br>
-<h2>psqlODBC 08.00.0102</h2>
+<li>Notes:psqlODBC 08.00.0102</li><br>
 This is a bug fix release<br>
 of the pre-libpq version of the driver, specifically to fix a bug<br>
 affecting Unix users<br>
 (http://gborg.postgresql.org/project/psqlodbc/bugs/bugupdate.php?1176)<br>
 <br>
-<h2>psqlODBC 08.00.0100</h2>
+<h2>psqlODBC 08.00.0100 Release</h2>
 The driver is available in source form, as well as a dll, merge module<br>
 and msi installer for Windows.<br>
 <br>
 Regards, Dave.<br>
 <br>
-<h2>psqlODBC 08.00.0005</h2>
+<li>Notes:psqlODBC 08.00.0005</li><br>
 This version<br>
 contains a some recent fixes, and is packaged in a new installer built<br>
 entirely using open source tools (specifically, the Wix toolkit).<br>
 <br>
-Please give this version a try to test for any major issues before I<br>
-package a more formal release. <br>
-<br>
-Regards, Dave.<br>
-<br>
-<h2>psqlODBC 08.00.0002</h2>
+<li>Notes:psqlODBC 08.00.0002</li><br>
 This version of the driver is a minor update<br>
 with a fix to the string sizing code in SQLGetInfo, and removal of the<br>
 need for tables to be in the search path or public schema for them to be<br>
 returned by SQLTables.<br>
 <br>
-Regards, Dave.<br>
-<br>
-<h2>psqlODBC 08.00.0001</h2>
+<li>Notes:psqlODBC 08.00.0001</li><br>
 The purpose of this version is to try to get something stable, with<br>
 proper schema/without OID support ready for the 8.0 release<br>
 (particularly the win32 release). To that end, this release is mainly a<br>
@@ -136,8 +124,6 @@ send a patch) and turned off by default.<br>
 I'd appreciate it if ppl could test it a little with Updateable Cursors<br>
 *turned off* and report any bugs.<br>
 <br>
-Regards, Dave.<br>
-<br>
 <h2>psqlODBC 07.05.0001</h2>
 This is version 07.05.0001. For those that don't know or don't recall<br>
 how the versioning works, the major and minor number track the latest<br>
@@ -150,9 +136,7 @@ In other words, this driver is build 01 of development version 00, and<br>
 is expected to work with PostgreSQL 7.5dev. :-) The leading zeros are an<br>
 ODBC thing...<br>
 <br>
-Regards, Dave.<br>
-<br>
-<h2>psqlODBC 07.03.0100</h2>
+<h2>psqlODBC 07.03.0100 Release</h2>
 I'm pleased to announce the long awaited new version of psqlODBC. This<br>
 release represents a major change in the packaging and distribution of<br>
 psqlODBC. In particular the following points should be noted:<br>
@@ -182,14 +166,11 @@ In addition, this driver fixes an annoying problem with recent builds of<br>
 PostgreSQL on Redhat systems that have a particularly long compiler<br>
 version string that caused a buffer overflow resulting in a GPF on<br>
 Windows upon connection to the database.<br>
-<br>
 The driver is released under the LGPL, and can be downloaded from the<br>
 Downloads page on the website at<br>
 http://gborg.postgresql.org/project/psqlodbc/projdisplay.php<br>
 <br>
-Regards, Dave.<br>
-<br>
-<h2>=== gborg.postgresql.org ===</h2>
+<h2>=== gborg.postgresql.org(This is the past history.) ===</h2>
 1.33 by hinoue Annotate  <br>
 Thu Feb 5 09:11:44 2004 (2 weeks, 3 days ago)<br>
 Changed since 1.32: +3 -3 [Select for Diff] <br>
