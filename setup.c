@@ -345,7 +345,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			else if (*lpsz == '=')
 				break;			/* Valid key found */
 		}
-		/* Determine the key's index in the key table (-1 if not found) */
+		/* Determine the key */
 		cbKey = lpsz - lpszStart;
 		if (cbKey < sizeof(aszKey))
 		{
@@ -353,13 +353,15 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			aszKey[cbKey] = '\0';
 		}
 
-		/* Locate end of key value */
+		/* Locate end of key value - added support for delimiter ; */
 		lpszStart = ++lpsz;
-		for (; *lpsz; lpsz++)
+		for (; *lpsz && *lpsz != ';'; lpsz++)
 			;
 
-		/* lpsetupdlg->aAttr[iElement].fSupplied = TRUE; */
-		_fmemcpy(value, lpszStart, MIN(lpsz - lpszStart + 1, MAXPGPATH));
+		/* Determine the value */
+		cbKey = MIN(lpsz - lpszStart, MAXPGPATH);
+		_fmemcpy(value, lpszStart, cbKey);
+		value[cbKey] = '\0';
 
 		mylog("aszKey='%s', value='%s'\n", aszKey, value);
 
