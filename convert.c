@@ -1860,7 +1860,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		}
 		if (marker_count > 0)
 		{
-			if (ipdopts && (ipdopts->allocated == marker_count))
+			if (ipdopts->allocated >= marker_count)
 			{
 				CVT_APPEND_CHAR(qb, '(');
 				for (i = 0; i < marker_count; i++)

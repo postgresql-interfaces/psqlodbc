@@ -542,6 +542,7 @@ next_param_row:
 		UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 		Int4	bind_size = apdopts->param_bind_type;
 		Int4	current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
+		SWORD	param_count;
 
 		/*
 		 *	Increment the  number of currently processed rows
@@ -549,7 +550,16 @@ next_param_row:
 		if (ipdopts->param_processed_ptr)
 			(*ipdopts->param_processed_ptr)++;
 		stmt->data_at_exec = -1;
-		for (i = 0; i < apdopts->allocated; i++)
+		/* Check bind parameters count */
+		if (SQL_SUCCESS != PGAPI_NumParams(stmt, &param_count))
+			return SQL_ERROR;
+		if (param_count > apdopts->allocated)
+		{
+			SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, "The # of binded parameters < the # of parameter markers");
+			SC_set_sqlstate(stmt, "07002");
+			return SQL_ERROR;
+		}
+		for (i = 0; i < param_count; i++)
 		{
 			Int4	   *pcVal = apdopts->parameters[i].used;
 
@@ -740,11 +750,6 @@ PGAPI_Cancel(
 	}
 
 	/* In the middle of SQLParamData/SQLPutData, so cancel that. */
-
-	/* Free all previous data-at-exec buffers */
-	mylog("%s: Clearing parameters et al.\n", func);
-
-	SC_free_params(stmt, STMT_FREE_PARAMS_ALL);
 	stmt->data_at_exec = -1;
 	stmt->current_exec_param = -1;
 	stmt->put_data = FALSE;
@@ -819,10 +824,13 @@ PGAPI_ParamData(
 	CSTR func = "PGAPI_ParamData";
 	StatementClass *stmt = (StatementClass *) hstmt, *estmt;
 	APDFields	*apdopts;
+/* not used
 	IPDFields	*ipdopts;
+ */
 	RETCODE		retval;
 	int		i;
 	ConnInfo   *ci;
+	SWORD		param_count;
 
 	mylog("%s: entering...\n", func);
 
@@ -844,7 +852,17 @@ PGAPI_ParamData(
 		return SQL_ERROR;
 	}
 
-	if (estmt->data_at_exec > apdopts->allocated)
+	/* Check bind parameters count */
+	if (SQL_SUCCESS != PGAPI_NumParams(stmt, &param_count))
+		return SQL_ERROR;
+	if (param_count > apdopts->allocated)
+	{
+		SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, "The # of binded parameters < the # of parameter markers");
+		SC_set_sqlstate(stmt, "07002");
+		return SQL_ERROR;
+	}
+
+	if (estmt->data_at_exec > param_count)
 	{
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Too many execution-time parameters were present");
 		SC_log_error(func, "", stmt);
@@ -870,7 +888,9 @@ PGAPI_ParamData(
 	}
 
 	/* Done, now copy the params and then execute the statement */
+/* Luf - I don't see why this is called
 	ipdopts = SC_get_IPDF(estmt);
+ */
 	if (estmt->data_at_exec == 0)
 	{
 		BOOL	exec_end;
@@ -892,7 +912,7 @@ PGAPI_ParamData(
 	i = estmt->current_exec_param >= 0 ? estmt->current_exec_param + 1 : 0;
 
 	/* At least 1 data at execution parameter, so Fill in the token value */
-	for (; i < apdopts->allocated; i++)
+	for (; i < param_count; i++)
 	{
 		if (apdopts->parameters[i].data_at_exec)
 		{
