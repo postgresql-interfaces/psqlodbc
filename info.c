@@ -1763,7 +1763,8 @@ retry_public_schema:
 		my_strcat1(columns_query, " and a.attname %s '%.*s'", likeeq, szColumnName, cbColumnName);
 	}
 
-	if (!atoi(ci->show_system_tables))
+	if ((!atoi(ci->show_system_tables)) &&
+	    (((cbTableName != SQL_NTS) && (cbTableName < 4)) || (strncmp(szTableName,"pg_",3))))
 	{
 		if (conn->schema_support)
 			strcat(columns_query, "  and nspname !~ '^" POSTGRES_SYS_PREFIX "'");
