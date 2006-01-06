@@ -53,7 +53,7 @@ RETCODE  SQL_API SQLGetConnectOptionW(HDBC ConnectionHandle,
            SQLUSMALLINT Option, PTR Value)
 {
 	mylog("[SQLGetConnectOptionW]");
-	((ConnectionClass *) ConnectionHandle)->unicode = 1;
+	CC_set_in_unicode_driver((ConnectionClass *) ConnectionHandle);
 	return PGAPI_GetConnectOption(ConnectionHandle, Option, Value);
 } 
 

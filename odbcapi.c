@@ -89,8 +89,10 @@ SQLBindCol(HSTMT StatementHandle,
 	mylog("[SQLBindCol]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_BindCol(StatementHandle, ColumnNumber,
 				   TargetType, TargetValue, BufferLength, StrLen_or_Ind);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -98,9 +100,14 @@ SQLBindCol(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLCancel(HSTMT StatementHandle)
 {
+	RETCODE	ret;
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
+
 	mylog("[SQLCancel]");
-	SC_clear_error((StatementClass *) StatementHandle);
-	return PGAPI_Cancel(StatementHandle);
+	/* Not that neither ENTER_STMT_CS nor StartRollbackState is called */
+	/* SC_clear_error((StatementClass *) StatementHandle); maybe this neither */
+	ret = PGAPI_Cancel(StatementHandle);
+	return DiscardStatementSvp(stmt, ret, FALSE);
 }
 
 RETCODE		SQL_API
@@ -115,11 +122,16 @@ SQLColumns(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR	*ctName = CatalogName, *scName = SchemaName,
 		*tbName = TableName, *clName = ColumnName;
-	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
+	UWORD	flag	= PODBC_SEARCH_PUBLIC_SCHEMA;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -169,6 +181,7 @@ SQLColumns(HSTMT StatementHandle,
 				free(newCl);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -264,9 +277,11 @@ SQLDescribeCol(HSTMT StatementHandle,
 	mylog("[SQLDescribeCol]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_DescribeCol(StatementHandle, ColumnNumber,
 							 ColumnName, BufferLength, NameLength,
 						  DataType, ColumnSize, DecimalDigits, Nullable);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -314,14 +329,21 @@ SQLExecDirect(HSTMT StatementHandle,
 	CSTR func = "SQLExecDirect";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	if (PG_VERSION_GE(SC_get_conn(stmt), 7.4))
+		flag |= PODBC_WITH_HOLD;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength, 0);
+	{
+		StartRollbackState(stmt);
+		ret = PGAPI_ExecDirect(StatementHandle, StatementText, TextLength, flag);
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -332,14 +354,21 @@ SQLExecute(HSTMT StatementHandle)
 	CSTR func = "SQLExecute";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	if (PG_VERSION_GE(SC_get_conn(stmt), 7.4))
+		flag |= PODBC_WITH_HOLD;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_Execute(StatementHandle, 0);
+	{
+		StartRollbackState(stmt);
+		ret = PGAPI_Execute(StatementHandle, flag);
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -353,6 +382,7 @@ SQLFetch(HSTMT StatementHandle)
 
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 #if (ODBCVER >= 0x0300)
 	if (SC_get_conn(stmt)->driver_version >= 0x0300)
 	{
@@ -372,6 +402,7 @@ SQLFetch(HSTMT StatementHandle)
 		mylog("[%s]", func);
 		ret = PGAPI_Fetch(StatementHandle);
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -437,8 +468,10 @@ SQLGetCursorName(HSTMT StatementHandle,
 	mylog("[SQLGetCursorName]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_GetCursorName(StatementHandle, CursorName, BufferLength,
 							   NameLength);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -455,8 +488,10 @@ SQLGetData(HSTMT StatementHandle,
 	mylog("[SQLGetData]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_GetData(StatementHandle, ColumnNumber, TargetType,
 						 TargetValue, BufferLength, StrLen_or_Ind);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -487,6 +522,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 		   SQLUSMALLINT InfoType, PTR InfoValue,
 		   SQLSMALLINT BufferLength, SQLSMALLINT *StringLength)
 {
+	CSTR	func = "SQLGetInfo";
 	RETCODE		ret;
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 
@@ -495,23 +531,25 @@ SQLGetInfo(HDBC ConnectionHandle,
 #if (ODBCVER >= 0x0300)
 	mylog("[SQLGetInfo(30)]");
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
-							 BufferLength, StringLength)) == SQL_ERROR)
+				BufferLength, StringLength)) == SQL_ERROR)
 	{
-		if (((ConnectionClass *) ConnectionHandle)->driver_version >= 0x0300)
+		if (conn->driver_version >= 0x0300)
 		{
 			CC_clear_error(conn);
 			ret = PGAPI_GetInfo30(ConnectionHandle, InfoType, InfoValue,
 								   BufferLength, StringLength);
+			goto cleanup;
 		}
 	}
 	if (SQL_ERROR == ret)
-		CC_log_error("SQLGetInfo30", "", conn);
+		CC_log_error("SQLGetInfo(30)", "", conn);
 #else
-	mylog("[SQLGetInfo]");
+	mylog("[%s]", func);
 	if (ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
 			BufferLength, StringLength), SQL_ERROR == ret)
-		CC_log_error("PGAPI_GetInfo", "", conn);
+		CC_log_error(func, "", conn);
 #endif
+cleanup:
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
@@ -521,13 +559,19 @@ RETCODE		SQL_API
 SQLGetStmtOption(HSTMT StatementHandle,
 				 SQLUSMALLINT Option, PTR Value)
 {
+	CSTR	func = "SQLGetStmtOption";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("[SQLGetStmtOption]");
+	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value);
+#ifdef WIN32
+	/* what ? */
+	ret = DiscardRollbackState(stmt, ret, FALSE);
+#endif
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -547,7 +591,11 @@ SQLGetTypeInfo(HSTMT StatementHandle,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
+	{
+		StartRollbackState(stmt);
 		ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -562,7 +610,9 @@ SQLNumResultCols(HSTMT StatementHandle,
 	mylog("[SQLNumResultCols]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_NumResultCols(StatementHandle, ColumnCount);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -578,6 +628,7 @@ SQLParamData(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	ret = PGAPI_ParamData(StatementHandle, Value);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -592,7 +643,9 @@ SQLPrepare(HSTMT StatementHandle,
 	mylog("[SQLPrepare]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_Prepare(StatementHandle, StatementText, TextLength);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -608,6 +661,7 @@ SQLPutData(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	ret = PGAPI_PutData(StatementHandle, Data, StrLen_or_Ind);
+	ret = DiscardStatementSvp(stmt, ret, TRUE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -622,7 +676,9 @@ SQLRowCount(HSTMT StatementHandle,
 	mylog("[SQLRowCount]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_RowCount(StatementHandle, RowCount);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -654,7 +710,9 @@ SQLSetCursorName(HSTMT StatementHandle,
 	mylog("[SQLSetCursorName]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_SetCursorName(StatementHandle, CursorName, NameLength);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -688,7 +746,9 @@ SQLSetStmtOption(HSTMT StatementHandle,
 	mylog("[SQLSetStmtOption]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_SetStmtOption(StatementHandle, Option, Value);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -710,6 +770,7 @@ SQLSpecialColumns(HSTMT StatementHandle,
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -752,6 +813,7 @@ SQLSpecialColumns(HSTMT StatementHandle,
 				free(newTb);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -771,6 +833,7 @@ SQLStatistics(HSTMT StatementHandle,
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -813,6 +876,7 @@ SQLStatistics(HSTMT StatementHandle,
 				free(newTb);
 		}	
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -832,6 +896,7 @@ SQLTables(HSTMT StatementHandle,
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -874,6 +939,7 @@ SQLTables(HSTMT StatementHandle,
 				free(newTb);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -914,8 +980,10 @@ SQLColAttributes(
 	mylog("[SQLColAttributes]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_ColAttributes(hstmt, icol, fDescType, rgbDesc,
 							   cbDescMax, pcbDesc, pfDesc);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -938,16 +1006,22 @@ SQLColumnPrivileges(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*tbName = szTableName, *clName = szColumnName;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, tbName, cbTableName,
-						clName, cbColumnName);
+						clName, cbColumnName, flag);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -980,7 +1054,7 @@ SQLColumnPrivileges(
 		{
 			ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, tbName, cbTableName,
-						clName, cbColumnName);
+						clName, cbColumnName, flag);
 			if (newCt)
 				free(newCt);
 			if (newSc)
@@ -991,6 +1065,7 @@ SQLColumnPrivileges(
 				free(newCl);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1010,8 +1085,10 @@ SQLDescribeParam(
 	mylog("[SQLDescribeParam]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_DescribeParam(hstmt, ipar, pfSqlType, pcbParamDef,
 							   pibScale, pfNullable);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1030,8 +1107,10 @@ SQLExtendedFetch(
 	mylog("[SQLExtendedFetch]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0, SC_get_ARDF(stmt)->size_of_rowset_odbc2);
 	stmt->transition_status = 7;
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1062,6 +1141,7 @@ SQLForeignKeys(
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1128,6 +1208,7 @@ SQLForeignKeys(
 				free(newFktb);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1141,7 +1222,9 @@ SQLMoreResults(HSTMT hstmt)
 	mylog("[SQLMoreResults]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_MoreResults(hstmt);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1178,7 +1261,9 @@ SQLNumParams(
 	mylog("[SQLNumParams]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_NumParams(hstmt, pcpar);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1195,7 +1280,9 @@ SQLParamOptions(
 	mylog("[SQLParamOptions]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_ParamOptions(hstmt, crow, pirow);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1219,6 +1306,7 @@ SQLPrimaryKeys(
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1259,6 +1347,7 @@ SQLPrimaryKeys(
 				free(newTb);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1280,16 +1369,22 @@ SQLProcedureColumns(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*prName = szProcName, *clName = szColumnName;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, prName, cbProcName,
-					clName, cbColumnName);
+					clName, cbColumnName, flag);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -1322,7 +1417,7 @@ SQLProcedureColumns(
 		{
 			ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, prName, cbProcName,
-					clName, cbColumnName);
+					clName, cbColumnName, flag);
 			if (newCt)
 				free(newCt);
 			if (newSc)
@@ -1333,6 +1428,7 @@ SQLProcedureColumns(
 				free(newCl);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1356,6 +1452,7 @@ SQLProcedures(
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1396,6 +1493,7 @@ SQLProcedures(
 				free(newPr);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1413,7 +1511,9 @@ SQLSetPos(
 	mylog("[SQLSetPos]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_SetPos(hstmt, irow, fOption, fLock);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1433,15 +1533,21 @@ SQLTablePrivileges(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*tbName = szTableName;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
-			scName, cbSchemaName, tbName, cbTableName, 0);
+			scName, cbSchemaName, tbName, cbTableName, flag);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -1477,6 +1583,7 @@ SQLTablePrivileges(
 				free(newTb);
 		}
 	}
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1500,9 +1607,11 @@ SQLBindParameter(
 	mylog("[SQLBindParameter]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_BindParameter(hstmt, ipar, fParamType, fCType,
 					   fSqlType, cbColDef, ibScale, rgbValue, cbValueMax,
 							   pcbValue);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }

@@ -1,5 +1,5 @@
 -- PostgreSQL catalog extensions for ODBC compatibility
--- $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/odbc.sql,v 1.7 2001/12/21 06:01:36 thomas Exp $
+-- $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/odbc.sql,v 1.7.4.1 2006/01/06 21:36:56 dpage Exp $
 
 -- ODBC functions are described here:
 -- <http://msdn.microsoft.com/library/en-us/odbc/htm/odbcscalar_functions.asp>

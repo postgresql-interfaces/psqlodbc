@@ -95,7 +95,7 @@ PGAPI_DriverConnect(
 	RETCODE		dialog_result;
 #endif
 	RETCODE		result;
-	char		connStrIn[MAX_CONNECT_STRING];
+	char		*connStrIn = NULL;
 	char		connStrOut[MAX_CONNECT_STRING];
 	int			retval;
 	char		salt[5];
@@ -112,18 +112,18 @@ PGAPI_DriverConnect(
 		return SQL_INVALID_HANDLE;
 	}
 
-	make_string(szConnStrIn, cbConnStrIn, connStrIn);
+	connStrIn = make_string(szConnStrIn, cbConnStrIn, NULL, 0);
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
-	qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
+	qlog("conn=%x, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
 #else
 	if (get_qlog() || get_mylog())
 	{
 		char	*hide_str = hide_password(connStrIn);
 
 		mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, NULL_IF_NULL(hide_str));
-		qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
+		qlog("conn=%x, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
 		if (hide_str)
 			free(hide_str);
 	}
@@ -142,7 +142,13 @@ PGAPI_DriverConnect(
 	getDSNinfo(ci, CONN_DONT_OVERWRITE);
 	dconn_get_common_attributes(connStrIn, ci);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
+	if (connStrIn)
+	{
+		free(connStrIn);
+		connStrIn = NULL;
+	}
 
+inolog("before getDSNdefaults\n");
 	/* Fill in any default parameters if they are not there. */
 	getDSNdefaults(ci);
 	/* initialize pg_version */
@@ -154,6 +160,7 @@ dialog:
 #endif
 	ci->focus_password = password_required;
 
+inolog("DriverCompletion=%d\n", fDriverCompletion);
 	switch (fDriverCompletion)
 	{
 #ifdef WIN32
@@ -210,6 +217,7 @@ dialog:
 		return SQL_NO_DATA_FOUND;
 	}
 
+inolog("before CC_connect\n");
 	/* do the actual connect */
 	retval = CC_connect(conn, password_required, salt);
 	if (retval < 0)
@@ -259,16 +267,17 @@ dialog:
 		 * applications (Access) by implementing the correct behavior,
 		 * anyway.
 		 */
-		strncpy_null(szConnStrOut, connStrOut, cbConnStrOutMax);
+		/*strncpy_null(szConnStrOut, connStrOut, cbConnStrOutMax);*/
+		strncpy(szConnStrOut, connStrOut, cbConnStrOutMax);
 
 		if (len >= cbConnStrOutMax)
 		{
 			int			clen;
 
-			for (clen = strlen(szConnStrOut) - 1; clen >= 0 && szConnStrOut[clen] != ';'; clen--)
+			for (clen = cbConnStrOutMax - 1; clen >= 0 && szConnStrOut[clen] != ';'; clen--)
 				szConnStrOut[clen] = '\0';
 			result = SQL_SUCCESS_WITH_INFO;
-			CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the ConnStrOut.");
+			CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the ConnStrOut.", func);
 		}
 	}
 
@@ -277,20 +286,21 @@ dialog:
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(szConnStrOut), len, cbConnStrOutMax);
-	qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
+	qlog("conn=%x, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
 #else
 	if (get_qlog() || get_mylog())
 	{
 		char	*hide_str = hide_password(szConnStrOut);
 
 		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(hide_str), len, cbConnStrOutMax);
-		qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
+		qlog("conn=%x, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
 		if (hide_str)
 			free(hide_str);
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
-
+	if (connStrIn)
+		free(connStrIn);
 	mylog("PGAPI_DriverConnect: returning %d\n", result);
 	return result;
 }
@@ -302,7 +312,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 {
 	int			dialog_result;
 
-	mylog("dconn_DoDialog: ci = %u\n", ci);
+	mylog("dconn_DoDialog: ci = %x\n", ci);
 
 	if (hwnd)
 	{

@@ -15,12 +15,18 @@
 #define IDS_ADVANCE_CONNECTION          9
 #define DLG_OPTIONS_DRV                 102
 #define DLG_OPTIONS_DS                  103
-#define DLG_OPTIONS_GLOBAL              104
-#define IDC_DSNAME                      400
-#define IDC_DSNAMETEXT                  401
-#define IDC_DESC                        404
-#define IDC_SERVER                      407
-#define IDC_DATABASE                    408
+#define DLG_OPTIONS_GLOBAL		104
+#define IDC_DSNAME			400
+#define IDC_DSNAMETEXT			401
+#define IDC_DESC			404
+#define IDC_SERVER			407
+#define IDC_DATABASE			408
+#define IDC_SSLMODE			409
+#define IDS_SSLREQUEST_PREFER		410
+#define IDS_SSLREQUEST_ALLOW		411
+#define IDS_SSLREQUEST_REQUIRE		412
+#define IDS_SSLREQUEST_DISABLE		413
+#define IDC_NOTICE_USER			414
 #define DLG_CONFIG                      1001
 #define IDC_PORT                        1002
 #define DLG_DRIVER_CHANGE               1002
@@ -81,14 +87,18 @@
 #define IDC_DRIVERNAME                  1076
 #define IDC_MANAGEDSN                   1077
 #define IDC_DRIVER_LIST                 1078
+#define DS_PG74				1079
+#define DS_NO_ROLLBACK			1080
+#define DS_TRANSACTION_ROLLBACK		1081
+#define DS_STATEMENT_ROLLBACK		1082
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        106
+#define _APS_NEXT_RESOURCE_VALUE        105
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1079
+#define _APS_NEXT_CONTROL_VALUE         1083
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

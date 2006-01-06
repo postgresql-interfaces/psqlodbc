@@ -118,6 +118,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			finalize_global_cs();
+forcelog("DETACH PROCESS\n");
 			WSACleanup();
 			return TRUE;
 

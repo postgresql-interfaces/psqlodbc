@@ -23,6 +23,77 @@
 #include "pgapifunc.h"
 
 
+void	TI_Constructor(TABLE_INFO *self, const ConnectionClass *conn)
+{
+	memset(self, 0, sizeof(TABLE_INFO));
+	TI_set_updatable(self);
+	if (PG_VERSION_LT(conn, 7.2))
+	{
+		char	qual[32];
+
+		STR_TO_NAME(self->bestitem, OID_NAME);
+		sprintf(qual, "\"oid\" = %%u");
+		STR_TO_NAME(self->bestqual, qual);
+		TI_set_hasoids(self);
+		TI_set_hasoids_checked(self);
+	}
+}
+void	TI_Destructor(TABLE_INFO **ti, int count)
+{
+	int	i;
+
+inolog("TI_Destructor count=%d\n", count);
+	if (ti)
+	{
+		for (i = 0; i < count; i++)
+		{
+			if (ti[i])
+			{
+				NULL_THE_NAME(ti[i]->schema_name);
+				NULL_THE_NAME(ti[i]->table_name);
+				NULL_THE_NAME(ti[i]->table_alias);
+				NULL_THE_NAME(ti[i]->bestitem);
+				NULL_THE_NAME(ti[i]->bestqual);
+				free(ti[i]);
+				ti[i] = NULL;
+			}
+		}
+	}
+}
+void	FI_Constructor(FIELD_INFO *self, BOOL reuse)
+{
+inolog("FI_Constructor reuse=%d\n", reuse);
+	if (reuse)
+		FI_Destructor(&self, 1, FALSE);
+	memset(self, 0, sizeof(FIELD_INFO));
+}
+void	FI_Destructor(FIELD_INFO **fi, int count, BOOL freeFI)
+{
+	int	i;
+
+inolog("FI_Destructor count=%d\n", count);
+	if (fi)
+	{
+		for (i = 0; i < count; i++)
+		{
+			if (fi[i])
+			{
+				NULL_THE_NAME(fi[i]->column_name);
+				NULL_THE_NAME(fi[i]->column_alias);
+				NULL_THE_NAME(fi[i]->schema_name);
+				NULL_THE_NAME(fi[i]->before_dot);
+				if (freeFI)
+				{
+					free(fi[i]);
+					fi[i] = NULL;
+				}
+			}
+		}
+		if (freeFI)
+			free(fi);
+	}
+}
+
 void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 {
 	memset(self, 0, sizeof(DescriptorClass));
@@ -37,6 +108,7 @@ inolog("ARDFields_free %x bookmark=%x", self, self->bookmark);
 		free(self->bookmark);
 		self->bookmark = NULL;
 	}
+inolog(" hey");
 	/*
 	 * the memory pointed to by the bindings is not deallocated by the
 	 * driver but by the application that uses that driver, so we don't
@@ -61,20 +133,10 @@ static void IRDFields_free(IRDFields * self)
 	/* Free the parsed field information */
 	if (self->fi)
 	{
-		int			i;
-
-		for (i = 0; i < (int) self->nfields; i++)
-		{
-			if (self->fi[i])
-			{
-				if (self->fi[i]->schema)
-					free(self->fi[i]->schema);
-				free(self->fi[i]);
-			}
-		}
-		free(self->fi);
+		FI_Destructor(self->fi, self->nfields, TRUE);
 		self->fi = NULL;
 	}
+	self->nfields = 0;
 }
 
 static void IPDFields_free(IPDFields * self)
@@ -186,7 +248,7 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 {
 	int	i;
 
-	mylog("CC_add_descriptor: self=%u, desc=%u\n", self, desc);
+	mylog("CC_add_descriptor: self=%x, desc=%x\n", self, desc);
 
 	for (i = 0; i < self->num_descs; i++)
 	{
@@ -232,13 +294,13 @@ RETCODE SQL_API PGAPI_AllocDesc(HDBC ConnectionHandle,
 		else
 		{
 			free(desc);
-			CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "Maximum number of descriptors exceeded");
+			CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "Maximum number of descriptors exceeded", func);
 			ret = SQL_ERROR;
 		} 
 	}
 	else
 	{
-		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "No more memory ti allocate a further descriptor");
+		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "No more memory ti allocate a further descriptor",func);
 		ret = SQL_ERROR;
 	}
 	return ret;
@@ -369,7 +431,7 @@ PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
 	}
 	if (target->type_defined)
 	{
-inolog("CopyDesc source type=%d -> target type=%d\n", src->desc_type, target->desc_type);
+inolog("source type=%d -> target type=%d\n", src->desc_type, target->desc_type);
 		if (SQL_ATTR_IMP_ROW_DESC == target->desc_type)
 		{
 			mylog("can't modify IRD\n");
@@ -479,6 +541,8 @@ static struct
 }	Descriptor_sqlstate[] =
 
 {
+	{ DESC_ERROR_IN_ROW, "01S01", "01S01" },
+	{ DESC_OPTION_VALUE_CHANGED, "01S02", "01S02" },
 	{ DESC_OK,  "00000", "00000" }, /* OK */
 	{ DESC_EXEC_ERROR, "HY000", "S1000" }, /* also a general error */
 	{ DESC_STATUS_ERROR, "HY010", "S1010" },
@@ -496,7 +560,6 @@ static struct
 	{ DESC_INVALID_COLUMN_NUMBER_ERROR, "07009", "S1002" },
 	{ DESC_RESTRICTED_DATA_TYPE_ERROR, "07006", "07006" },
 	{ DESC_INVALID_CURSOR_STATE_ERROR, "07005", "24000" },
-	{ DESC_OPTION_VALUE_CHANGED, "01S02", "01S02" },
 	{ DESC_CREATE_TABLE_ERROR, "42S01", "S0001" }, /* table already exists */
 	{ DESC_NO_CURSOR_NAME, "S1015", "S1015" },
 	{ DESC_INVALID_CURSOR_NAME, "34000", "34000" },
@@ -510,7 +573,6 @@ static struct
 	{ DESC_BAD_ERROR, "08S01", "08S01" }, /* communication link failure */
 	{ DESC_INVALID_OPTION_IDENTIFIER, "HY092", "HY092" },
 	{ DESC_RETURN_NULL_WITHOUT_INDICATOR, "22002", "22002" },
-	{ DESC_ERROR_IN_ROW, "01S01", "01S01" },
 	{ DESC_INVALID_DESCRIPTOR_IDENTIFIER, "HY091", "HY091" },
 	{ DESC_OPTION_NOT_FOR_THE_DRIVER, "HYC00", "HYC00" },
 	{ DESC_FETCH_OUT_OF_RANGE, "HY106", "S1106" },
@@ -519,10 +581,12 @@ static struct
 
 static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *desc)
 {
+	CSTR func = "DC_create_erroinfo";
 	PG_ErrorInfo	*error;
 	ConnectionClass	*conn;
 	EnvironmentClass	*env;
 	Int4	errornum;
+	BOOL		env_is_odbc3 = TRUE;
 
 	if (desc->pgerror)
 		return desc->pgerror;
@@ -531,11 +595,13 @@ static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *desc)
 	if (!error)
 		return error;
 	conn = DC_get_conn(desc);
-	env = (EnvironmentClass *) conn->henv;
+	if (conn && (env = (EnvironmentClass *) conn->henv))
+		env_is_odbc3 = EN_is_odbc3(env);
+	errornum -= LOWEST_DESC_ERROR;
 	if (errornum < 0 ||
 	    errornum >= sizeof(Descriptor_sqlstate) / sizeof(Descriptor_sqlstate[0]))
-		errornum = 1;
-	strcpy(error->sqlstate, EN_is_odbc3(env) ? Descriptor_sqlstate[errornum].ver3str : Descriptor_sqlstate[errornum].ver2str); 
+		errornum = 1 - LOWEST_DESC_ERROR;
+	strcpy(error->sqlstate, env_is_odbc3 ? Descriptor_sqlstate[errornum].ver3str : Descriptor_sqlstate[errornum].ver2str); 
         return error;
 }
 void
@@ -560,11 +626,13 @@ PGAPI_DescError(	SQLHDESC hdesc,
 			SWORD FAR * pcbErrorMsg,
 			UWORD flag)
 {
+	CSTR func = "PGAPI_DescError";
 	/* CC: return an error of a hdesc  */
 	DescriptorClass *desc = (DescriptorClass *) hdesc;
 
+	mylog("%s RecN=%d\n", func);
 	desc->pgerror = DC_create_errorinfo(desc);
-	return ER_ReturnError(desc->pgerror, RecNumber, szSqlState,
+	return ER_ReturnError(&(desc->pgerror), RecNumber, szSqlState,
 				pfNativeError, szErrorMsg, cbErrorMsgMax,
 				pcbErrorMsg, flag);
 }

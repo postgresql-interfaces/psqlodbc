@@ -34,9 +34,14 @@ set_tuplefield_null(TupleField *tuple_field)
 void
 set_tuplefield_string(TupleField *tuple_field, const char *string)
 {
-	tuple_field->len = strlen(string);
-	tuple_field->value = malloc(strlen(string) + 1);
-	strcpy(tuple_field->value, string);
+	if (string)
+	{
+		tuple_field->len = strlen(string);
+		tuple_field->value = malloc(strlen(string) + 1);
+		strcpy(tuple_field->value, string);
+	}
+	else
+		set_tuplefield_null(tuple_field);
 }
 
 

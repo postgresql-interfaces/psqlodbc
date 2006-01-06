@@ -1,0 +1,115 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define to 1 to build with driver cursors option) */
+#undef DRIVER_CURSOR_IMPLEMENT
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the `gethostbyname_r' function. */
+#undef HAVE_GETHOSTBYNAME_R
+
+/* Define to 1 if you have the `getipnodebyname' function. */
+#undef HAVE_GETIPNODEBYNAME
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the global variable 'int timezone'. */
+#undef HAVE_INT_TIMEZONE
+
+/* Define to 1 if you have the `c_r' library (-lc_r). */
+#undef HAVE_LIBC_R
+
+/* Define to 1 if you have the `nsl' library (-lnsl). */
+#undef HAVE_LIBNSL
+
+/* Define to 1 if you have the `pthread' library (-lpthread). */
+#undef HAVE_LIBPTHREAD
+
+/* Define to 1 if you have the `pthreads' library (-lpthreads). */
+#undef HAVE_LIBPTHREADS
+
+/* Define to 1 if you have the `localtime_r' function. */
+#undef HAVE_LOCALTIME_R
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the `strtok_r' function. */
+#undef HAVE_STRTOK_R
+
+/* Define to 1 if you have the `strtoll' function. */
+#undef HAVE_STRTOLL
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if the system has the type `uint8'. */
+#undef HAVE_UINT8
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to ODBC version (--with-odbcver) */
+#undef ODBCVER
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define if you have 5 parameter gethostbyname_r */
+#undef PGS_REENTRANT_API_1
+
+/* Define if you have 6 parameter gethostbyname_r */
+#undef PGS_REENTRANT_API_2
+
+/* Define to 1 to build with pthreads support (--enable-pthreads) */
+#undef POSIX_MULTITHREAD_SUPPORT
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Version number of package */
+#undef VERSION
+
+/* Define to 1 to build with iODBC support (--with-iodbc) */
+#undef WITH_IODBC
+
+/* Define to 1 to build with unixODBC support (--with-unixodbc) */
+#undef WITH_UNIXODBC
+
+/* Force define to 1 to build with unicode support */
+#define UNICODE_SUPPORT 1
+
+/* Define _REENTRANT for several plaforms */
+#undef _REENTRANT

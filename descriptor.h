@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.12 2003/12/09 10:01:37 hinoue Exp $
+ * $Id: descriptor.h,v 1.12.2.1 2006/01/06 21:36:55 dpage Exp $
  *
  */
 
@@ -16,35 +16,111 @@
 
 typedef struct
 {
-	COL_INFO	*col_info; /* cached SQLColumns info for this table */
-	char		schema[SCHEMA_NAME_STORAGE_LEN + 1];
-	char		name[TABLE_NAME_STORAGE_LEN + 1];
-	char		alias[TABLE_NAME_STORAGE_LEN + 1];
-	char		updatable;
-} TABLE_INFO;
+	char	*name;
+} pgNAME;
+#define	GET_NAME(the_name)	(the_name.name)
+#define	SAFE_NAME(the_name)	(the_name.name ? the_name.name : NULL_STRING)
+#define	PRINT_NAME(the_name)	(the_name.name ? the_name.name : PRINT_NULL)
+#define	NAME_IS_NULL(the_name)	(NULL == the_name.name)
+#define	NAME_IS_VALID(the_name)	(NULL != the_name.name)
+#define	INIT_NAME(the_name) (the_name.name = NULL)
+#define	NULL_THE_NAME(the_name) \
+do { \
+	if (the_name.name) free(the_name.name); \
+	the_name.name = NULL; \
+} while (0)
+#define	STR_TO_NAME(the_name, str) \
+do { \
+	if ((the_name).name) \
+		free((the_name).name); \
+	(the_name).name = strdup((str)); \
+} while (0)
+#define	NAME_TO_STR(str, the_name) \
+do {\
+	if (the_name.name) strcpy(str, the_name.name); \
+	else *str = '\0'; \
+} while (0)
+#define	NAME_TO_NAME(to, from) \
+do { \
+	if ((to).name) \
+		free((to).name); \
+	if ((from).name) \
+		(to).name = strdup(from.name); \
+	else \
+		(to).name = NULL; \
+} while (0)
+#define	MOVE_NAME(to, from) \
+do { \
+	if ((to).name) \
+		free((to).name); \
+	(to).name = (from).name; \
+	(from).name = NULL; \
+} while (0)
+#define	SET_NAME(the_name, str) ((the_name).name = (str))
 
+#define	NAMECMP(name1, name2) (strcmp(SAFE_NAME(name1), SAFE_NAME(name2)))
+#define	NAMEICMP(name1, name2) (stricmp(SAFE_NAME(name1), SAFE_NAME(name2)))
+
+enum {
+	TI_UPDATABLE	=	1L
+	,TI_HASOIDS_CHECKED	=	(1L << 1)
+	,TI_HASOIDS	=	(1L << 2)
+};
 typedef struct
 {
-	TABLE_INFO *ti;		/* resolve to explicit table names */
-	int			column_size; /* precision in 2.x */
-	int			decimal_digits; /* scale in 2.x */
-	int			display_size;
-	int			length;
-	int			type;
+	UInt4		table_oid;
+	COL_INFO	*col_info; /* cached SQLColumns info for this table */
+	pgNAME		schema_name;
+	pgNAME		table_name;
+	pgNAME		table_alias;
+	pgNAME		bestitem;
+	pgNAME		bestqual;
+	UInt4		flags;
+} TABLE_INFO;
+#define	TI_set_updatable(ti)	(ti->flags |= TI_UPDATABLE)
+#define	TI_is_updatable(ti)	(0 != (ti->flags &= TI_UPDATABLE))
+#define	TI_no_updatable(ti)	(ti->flags &= (~TI_UPDATABLE))
+#define	TI_set_hasoids_checked(ti)	(ti->flags |= TI_HASOIDS_CHECKED)
+#define	TI_checked_hasoids(ti)		(0 != (ti->flags &= TI_HASOIDS))
+#define	TI_set_hasoids(ti)	(ti->flags |= TI_HASOIDS)
+#define	TI_has_oids(ti)		(0 != (ti->flags &= TI_HASOIDS))
+#define	TI_set_has_no_oids(ti)	(ti->flags &= (~TI_HASOIDS))
+void	TI_Constructor(TABLE_INFO *, const ConnectionClass *);
+void	TI_Destructor(TABLE_INFO **, int);
+
+enum {
+	FIELD_INITIALIZED 	= 0
+	,FIELD_PARSING		= 1L
+	,FIELD_TEMP_SET		= (1L << 1)
+	,FIELD_COL_ATTRIBUTE	= (1L << 2)
+	,FIELD_PARSED_OK	= (1L << 3)
+};
+typedef struct
+{
+	char		flag;
+	char		updatable;
+	Int2		attnum;
+	pgNAME		schema_name;
+	TABLE_INFO *ti;	/* to resolve explicit table names */
+	pgNAME		column_name;
+	pgNAME		column_alias;
 	char		nullable;
 	char		func;
+	int		column_size; /* precision in 2.x */
+	int		decimal_digits; /* scale in 2.x */
+	int		display_size;
+	int		length;
+	int		type;
 	char		expr;
 	char		quote;
 	char		dquote;
 	char		numeric;
-	char		updatable;
-	char		dot[TABLE_NAME_STORAGE_LEN + 1];
-	char		name[COLUMN_NAME_STORAGE_LEN + 1];
-	char		alias[COLUMN_NAME_STORAGE_LEN + 1];
-	char		*schema;
+	pgNAME		before_dot;
 } FIELD_INFO;
 Int4 FI_precision(const FIELD_INFO *);
 Int4 FI_scale(const FIELD_INFO *);
+void	FI_Constructor(FIELD_INFO *, BOOL reuse);
+void	FI_Destructor(FIELD_INFO **, int, BOOL freeFI);
 
 typedef struct DescriptorHeader_
 {
@@ -166,40 +242,43 @@ void	DC_log_error(const char *func, const char *desc, const DescriptorClass *sel
 #endif /* ODBCVER */
 
 /*	Error numbers about descriptor handle */
-#define DESC_OK						0
-#define DESC_EXEC_ERROR					1
-#define DESC_STATUS_ERROR				2
-#define DESC_SEQUENCE_ERROR				3
-#define DESC_NO_MEMORY_ERROR				4
-#define DESC_COLNUM_ERROR				5
-#define DESC_NO_STMTSTRING				6
-#define DESC_ERROR_TAKEN_FROM_BACKEND			7
-#define DESC_INTERNAL_ERROR				8
-#define DESC_STILL_EXECUTING				9
-#define DESC_NOT_IMPLEMENTED_ERROR			10
-#define DESC_BAD_PARAMETER_NUMBER_ERROR			11
-#define DESC_OPTION_OUT_OF_RANGE_ERROR			12
-#define DESC_INVALID_COLUMN_NUMBER_ERROR		13
-#define DESC_RESTRICTED_DATA_TYPE_ERROR			14
-#define DESC_INVALID_CURSOR_STATE_ERROR			15
-#define DESC_OPTION_VALUE_CHANGED			16
-#define DESC_CREATE_TABLE_ERROR				17
-#define DESC_NO_CURSOR_NAME				18
-#define DESC_INVALID_CURSOR_NAME			19
-#define DESC_INVALID_ARGUMENT_NO			20
-#define DESC_ROW_OUT_OF_RANGE				21
-#define DESC_OPERATION_CANCELLED			22
-#define DESC_INVALID_CURSOR_POSITION			23
-#define DESC_VALUE_OUT_OF_RANGE				24
-#define DESC_OPERATION_INVALID				25
-#define DESC_PROGRAM_TYPE_OUT_OF_RANGE			26
-#define DESC_BAD_ERROR					27
-#define DESC_INVALID_OPTION_IDENTIFIER			28
-#define DESC_RETURN_NULL_WITHOUT_INDICATOR		29
-#define DESC_ERROR_IN_ROW				30
-#define DESC_INVALID_DESCRIPTOR_IDENTIFIER		31
-#define DESC_OPTION_NOT_FOR_THE_DRIVER			32
-#define DESC_FETCH_OUT_OF_RANGE				33
-#define DESC_COUNT_FIELD_INCORRECT			34
-
+enum {
+	LOWEST_DESC_ERROR		= -2
+	/* minus means warning/notice message */
+	,DESC_ERROR_IN_ROW		= -2
+	,DESC_OPTION_VALUE_CHANGED	= -1
+	,DESC_OK			= 0
+	,DESC_EXEC_ERROR
+	,DESC_STATUS_ERROR
+	,DESC_SEQUENCE_ERROR
+	,DESC_NO_MEMORY_ERROR
+	,DESC_COLNUM_ERROR
+	,DESC_NO_STMTSTRING
+	,DESC_ERROR_TAKEN_FROM_BACKEND
+	,DESC_INTERNAL_ERROR
+	,DESC_STILL_EXECUTING
+	,DESC_NOT_IMPLEMENTED_ERROR
+	,DESC_BAD_PARAMETER_NUMBER_ERROR
+	,DESC_OPTION_OUT_OF_RANGE_ERROR
+	,DESC_INVALID_COLUMN_NUMBER_ERROR
+	,DESC_RESTRICTED_DATA_TYPE_ERROR
+	,DESC_INVALID_CURSOR_STATE_ERROR
+	,DESC_CREATE_TABLE_ERROR
+	,DESC_NO_CURSOR_NAME
+	,DESC_INVALID_CURSOR_NAME
+	,DESC_INVALID_ARGUMENT_NO
+	,DESC_ROW_OUT_OF_RANGE
+	,DESC_OPERATION_CANCELLED
+	,DESC_INVALID_CURSOR_POSITION
+	,DESC_VALUE_OUT_OF_RANGE
+	,DESC_OPERATION_INVALID	
+	,DESC_PROGRAM_TYPE_OUT_OF_RANGE
+	,DESC_BAD_ERROR
+	,DESC_INVALID_OPTION_IDENTIFIER
+	,DESC_RETURN_NULL_WITHOUT_INDICATOR
+	,DESC_INVALID_DESCRIPTOR_IDENTIFIER
+	,DESC_OPTION_NOT_FOR_THE_DRIVER
+	,DESC_FETCH_OUT_OF_RANGE
+	,DESC_COUNT_FIELD_INCORRECT
+};
 #endif /* __DESCRIPTOR_H__ */

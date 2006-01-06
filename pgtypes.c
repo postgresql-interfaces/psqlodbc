@@ -16,6 +16,8 @@
  *--------
  */
 
+#include "psqlodbc.h"
+
 #include "pgtypes.h"
 
 #include "dlg_specific.h"
@@ -24,6 +26,7 @@
 #include "environ.h"
 #include "qresult.h"
 
+#define	EXPERIMENTAL_CURRENTLY
 
 
 Int4		getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as);
@@ -144,9 +147,8 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
 
 #if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
-#else
-		case SQL_DATE:
 #endif /* ODBCVER */
+		case SQL_DATE:
 			pgType = PG_TYPE_DATE;
 			break;
 
@@ -258,8 +260,9 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 		case PG_TYPE_CHAR2:
 		case PG_TYPE_CHAR4:
 		case PG_TYPE_CHAR8:
+			return conn->unicode ? SQL_WCHAR : SQL_CHAR;
 		case PG_TYPE_NAME:
-			return SQL_CHAR;
+			return conn->unicode ? SQL_WVARCHAR : SQL_VARCHAR;
 
 #ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
@@ -368,6 +371,10 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 			if (type == stmt->hdbc->lobj_type)
 				return SQL_LONGVARBINARY;
 
+#ifdef	EXPERIMENTAL_CURRENTLY
+			if (conn->unicode)
+				return ci->drivers.unknowns_as_longvarchar ? SQL_WLONGVARCHAR : SQL_WVARCHAR;
+#endif	/* EXPERIMENTAL_CURRENTLY */
 			return ci->drivers.unknowns_as_longvarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
 	}
 }
@@ -470,7 +477,11 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_TEXT:
-			if (conn->unicode && ! conn->ms_jet && ! stmt->manual_result)
+			if (CC_is_in_unicode_driver(conn)
+#ifdef	NOT_USED
+			    && ! stmt->catalog_result)
+#endif /* NOT USED */
+				)
 				return SQL_C_WCHAR;
 			return SQL_C_CHAR;
 #endif /* UNICODE_SUPPORT */
@@ -480,6 +491,11 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 			if (type == stmt->hdbc->lobj_type)
 				return SQL_C_BINARY;
 
+			/* Experimental, Does this work ? */
+#ifdef	EXPERIMENTAL_CURRENTLY
+			if (conn->unicode)
+				return SQL_C_WCHAR;
+#endif	/* EXPERIMENTAL_CURRENTLY */
 			return SQL_C_CHAR;
 	}
 }
@@ -502,11 +518,11 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_INT8:
 			return "int8";
 		case PG_TYPE_NUMERIC:
-			return "numeric()";
+			return "numeric";
 		case PG_TYPE_VARCHAR:
-			return "varchar()";
+			return "varchar";
 		case PG_TYPE_BPCHAR:
-			return "char()";
+			return "char";
 		case PG_TYPE_TEXT:
 			return "text";
 		case PG_TYPE_NAME:
@@ -516,6 +532,7 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_OID:
 			return "oid";
 		case PG_TYPE_INT4:
+inolog("pgtype_to_name int4\n");
 			return "int4";
 		case PG_TYPE_FLOAT4:
 			return "float4";
@@ -566,7 +583,7 @@ static Int2
 getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 {
 	Int4		atttypmod = -1, default_decimal_digits = 6;
-	QResultClass *result;
+	QResultClass	*result;
 	ColumnInfoClass *flds;
 
 	mylog("getNumericDecimalDigits: type=%d, col=%d\n", type, col);
@@ -580,22 +597,19 @@ getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 	 * Manual Result Sets -- use assigned column width (i.e., from
 	 * set_tuplefield_string)
 	 */
-	if (stmt->manual_result)
+	atttypmod = QR_get_atttypmod(result, col);
+	if (atttypmod > -1)
+		return (atttypmod & 0xffff);
+	if (stmt->catalog_result)
 	{
 		flds = result->fields;
 		if (flds)
 		{
-			atttypmod = flds->atttypmod[col];
-			if (atttypmod < 0 && flds->adtsize[col] > 0)
+			if (flds->adtsize[col] > 0)
 				return flds->adtsize[col];
 		}
-		if (atttypmod < 0)
-			return default_decimal_digits;
+		return default_decimal_digits;
 	}
-	else 
-		atttypmod = QR_get_atttypmod(result, col);
-	if (atttypmod > -1)
-		return (atttypmod & 0xffff);
 	else
 	{
 		Int4 dsp_size = QR_get_display_size(result, col);
@@ -626,22 +640,19 @@ getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 	 * Manual Result Sets -- use assigned column width (i.e., from
 	 * set_tuplefield_string)
 	 */
-	if (stmt->manual_result)
+	atttypmod = QR_get_atttypmod(result, col);
+	if (atttypmod > -1)
+		return (atttypmod >> 16) & 0xffff;
+	if (stmt->catalog_result)
 	{
 		flds = result->fields;
 		if (flds)
 		{
-			atttypmod = flds->atttypmod[col];
-			if (atttypmod < 0 && flds->adtsize[col] > 0)
+			if (flds->adtsize[col] > 0)
 				return 2 * flds->adtsize[col];
 		}
-		if (atttypmod < 0)
-			return default_column_size;
+		return default_column_size;
 	}
-	else
-		atttypmod = QR_get_atttypmod(result, col);
-	if (atttypmod > -1)
-		return (atttypmod >> 16) & 0xffff;
 	else
 	{
 		Int4	dsp_size = QR_get_display_size(result, col);
@@ -658,12 +669,10 @@ getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 Int4
 getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
 {
-	int			p = -1, attlen = -1,
-				maxsize;
-	QResultClass *result;
-	ColumnInfoClass *flds;
+	int		p = -1, attlen = -1, adtsize = -1, maxsize;
+	QResultClass	*result;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	ConnInfo   *ci = &(conn->connInfo);
+	ConnInfo	*ci = &(conn->connInfo);
 
 	mylog("getCharColumnSize: type=%d, col=%d, unknown = %d\n", type, col, handle_unknown_size_as);
 
@@ -708,16 +717,15 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 		return maxsize;
 
 	/*
-	 * Manual Result Sets -- use assigned column width (i.e., from
+	 * Catalog Result Sets -- use assigned column width (i.e., from
 	 * set_tuplefield_string)
 	 */
-	if (stmt->manual_result)
+	adtsize = QR_get_fieldsize(result, col);
+	if (adtsize > 0)
+		return adtsize;
+	if (stmt->catalog_result)
 	{
-		flds = result->fields;
-		if (flds)
-			return flds->adtsize[col];
-		else
-			return maxsize;
+		return maxsize;
 	}
 
 	p = QR_get_display_size(result, col); /* longest */
@@ -740,11 +748,26 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 		}
 	}
 
+	if (maxsize <= 0)
+		return maxsize;
 	/* The type is really unknown */
-	if (type == PG_TYPE_BPCHAR || handle_unknown_size_as == UNKNOWNS_AS_LONGEST)
+	if (type == PG_TYPE_BPCHAR)
+	{
+		mylog("getCharColumnSize: BP_CHAR LONGEST: p = %d\n", p);
+		if (p > 0)
+			return p;
+	}
+	switch (type)
+	{
+		case PG_TYPE_BPCHAR:
+		case PG_TYPE_VARCHAR:
+		case PG_TYPE_TEXT:
+			return maxsize;
+	}
+	if (handle_unknown_size_as == UNKNOWNS_AS_LONGEST)
 	{
 		mylog("getCharColumnSize: LONGEST: p = %d\n", p);
-		if (p >= 0)
+		if (p > 0)
 			return p;
 	}
 
@@ -772,7 +795,6 @@ getTimestampDecimalDigits(StatementClass *stmt, Int4 type, int col)
 	ConnectionClass *conn = SC_get_conn(stmt);
 	Int4		atttypmod;
 	QResultClass *result;
-	ColumnInfoClass *flds;
 
 	mylog("getTimestampDecimalDigits: type=%d, col=%d\n", type, col);
 
@@ -783,20 +805,7 @@ getTimestampDecimalDigits(StatementClass *stmt, Int4 type, int col)
 
 	result = SC_get_Curres(stmt);
 
-	/*
-	 * Manual Result Sets -- use assigned column width (i.e., from
-	 * set_tuplefield_string)
-	 */
-	atttypmod = 0;
-	if (stmt->manual_result)
-	{
-		flds = result->fields;
-		if (flds)
-			atttypmod = flds->atttypmod[col];
-		mylog("atttypmod1=%d\n", atttypmod);
-	}
-	else
-		atttypmod = QR_get_atttypmod(result, col);
+	atttypmod = QR_get_atttypmod(result, col);
 	mylog("atttypmod2=%d\n", atttypmod);
 	return (atttypmod > -1 ? atttypmod : 6);
 }
@@ -861,8 +870,11 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 		case PG_TYPE_NAME:
 			{
 				int	value = 0;
+				if (PG_VERSION_GE(conn, 7.4))
+					value = CC_get_max_idlen(conn);
 #ifdef	NAME_FIELD_SIZE
-				value = NAME_FIELD_SIZE;
+				else
+					value = NAME_FIELD_SIZE;
 #endif /* NAME_FIELD_SIZE */
 				if (0 == value)
 				{
@@ -1035,13 +1047,14 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 			{
 			int	coef = 1;
 			Int4	prec = pgtype_column_size(stmt, type, col, handle_unknown_size_as), maxvarc;
+#ifdef  UNICODE_SUPPORT
 			if (conn->unicode)
-				return prec * 2;
+				return prec * WCLEN;
+#endif
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
-				coef = 3;
-			else
-			if ((conn->connInfo).lf_conversion)
+				coef = conn->mb_maxbyte_per_char;
+			if (coef < 2 && (conn->connInfo).lf_conversion)
 				/* CR -> CR/LF */
 				coef = 2;
 			if (coef == 1)
@@ -1112,13 +1125,14 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 	{
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
+#ifdef  UNICODE_SUPPORT
 			if (conn->unicode)
-				return prec * 2;
+				return prec * WCLEN;
+#endif
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
-				coef = 3;
-			else
-			if ((conn->connInfo).lf_conversion)
+				coef =conn->mb_maxbyte_per_char;
+			if (coef < 2 && (conn->connInfo).lf_conversion)
 				/* CR -> CR/LF */
 				coef = 2;
 			if (coef == 1)
@@ -1183,9 +1197,9 @@ pgtype_max_decimal_digits(StatementClass *stmt, Int4 type)
 			return 0;
 		case PG_TYPE_DATETIME:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
-			return getTimestampMaxDecimalDigits(stmt, type);
-		case PG_TYPE_NUMERIC:
 			return 38;
+		case PG_TYPE_NUMERIC:
+			return getNumericDecimalDigits(stmt, type, -1);
 		default:
 			return -1;
 	}
@@ -1471,7 +1485,7 @@ sqltype_to_default_ctype(const ConnectionClass *conn, Int2 sqltype)
 		case SQL_WCHAR:
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
-			if (conn->ms_jet || ! conn->unicode)
+			if (!conn->unicode)
 				return SQL_C_CHAR;
 			return SQL_C_WCHAR;
 #endif /* UNICODE_SUPPORT */

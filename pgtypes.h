@@ -63,6 +63,8 @@
 #define PG_TYPE_TIME_WITH_TMZONE	1266		/* since 7.1 */
 #define PG_TYPE_TIMESTAMP		1296	/* deprecated since 7.0 */
 #define PG_TYPE_NUMERIC			1700
+#define PG_TYPE_RECORD			2249
+#define PG_TYPE_VOID			2278
 #define INTERNAL_ASIS_TYPE		(-9999)
 
 /* extern Int4 pgtypes_defined[]; */

@@ -40,21 +40,32 @@ typedef unsigned int in_addr_t;
 #else
 #include <winsock.h>
 #define SOCKETFD SOCKET
-#define SOCK_ERRNO	(WSAGetLastError())
+#define SOCK_ERRNO		(WSAGetLastError())
 #define SOCK_ERRNO_SET(e)	WSASetLastError(e)
+#ifndef	EWOULDBLOCK
+#define	EWOULDBLOCK	WSAEWOULDBLOCK
+#endif /* EWOULDBLOCK */
+#ifndef	ECONNRESET
+#define	ECONNRESET	WSAECONNRESET
+#endif /* ECONNRESET */
 #endif /* WIN32 */
 
-#define SOCKET_ALREADY_CONNECTED			1
-#define SOCKET_HOST_NOT_FOUND				2
+#define SOCKET_ALREADY_CONNECTED		1
+#define SOCKET_HOST_NOT_FOUND			2
 #define SOCKET_COULD_NOT_CREATE_SOCKET		3
-#define SOCKET_COULD_NOT_CONNECT			4
-#define SOCKET_READ_ERROR					5
-#define SOCKET_WRITE_ERROR					6
+#define SOCKET_COULD_NOT_CONNECT		4
+#define SOCKET_READ_ERROR			5
+#define SOCKET_WRITE_ERROR			6
 #define SOCKET_NULLPOINTER_PARAMETER		7
-#define SOCKET_PUT_INT_WRONG_LENGTH			8
-#define SOCKET_GET_INT_WRONG_LENGTH			9
-#define SOCKET_CLOSED						10
+#define SOCKET_PUT_INT_WRONG_LENGTH		8
+#define SOCKET_GET_INT_WRONG_LENGTH		9
+#define SOCKET_CLOSED				10
+#define SOCKET_READ_TIMEOUT			11
+#define SOCKET_WRITE_TIMEOUT			12
 
+#ifdef WIN32
+typedef        int (*PQFUNC)();
+#endif
 
 struct SocketClass_
 {
@@ -67,12 +78,24 @@ struct SocketClass_
 	UCHAR *buffer_out;
 
 	SOCKETFD	socket;
+	unsigned int	pversion;
+	int		reslen;
 
-	char	   *errormsg;
-	int			errornumber;
+	char		*errormsg;
+	int		errornumber;
 	struct sockaddr	*sadr; /* Used for handling connections for cancel */
 	int		sadr_len;
 	struct sockaddr_in sadr_in; /* Used for INET connections */
+	/* SSL stuff */
+	void		*ssl;		/* libpq ssl */
+	void		*pqconn;	/* libpq PGConn */
+#ifdef DYNAMIC_LINK
+	HMODULE		libpq;		/* libpq library */
+#endif
+	PQFUNC		pqfinish;	/* PQFinish */
+	PQFUNC		recv;		/* openssl SSL_read */
+	PQFUNC		send;		/* openssl SSL_write */
+	PQFUNC		get_error;	/* openssl SSL_get_error */
 
 	char		reverse;		/* used to handle Postgres 6.2 protocol
 								 * (reverse byte order) */
@@ -122,15 +145,18 @@ struct SocketClass_
 SocketClass *SOCK_Constructor(const ConnectionClass *conn);
 void		SOCK_Destructor(SocketClass *self);
 char		SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname);
+int		SOCK_get_id(SocketClass *self);
 void		SOCK_get_n_char(SocketClass *self, char *buffer, int len);
 void		SOCK_put_n_char(SocketClass *self, char *buffer, int len);
 BOOL		SOCK_get_string(SocketClass *self, char *buffer, int bufsize);
-void		SOCK_put_string(SocketClass *self, char *string);
+void		SOCK_put_string(SocketClass *self, const char *string);
 int			SOCK_get_int(SocketClass *self, short len);
 void		SOCK_put_int(SocketClass *self, int value, short len);
 void		SOCK_flush_output(SocketClass *self);
 UCHAR		SOCK_get_next_byte(SocketClass *self);
 void		SOCK_put_next_byte(SocketClass *self, UCHAR next_byte);
+int		SOCK_get_response_length(SocketClass *self);
 void		SOCK_clear_error(SocketClass *self);
+UInt4		SOCK_skip_n_bytes(SocketClass *self, UInt4 skip_length);
 
 #endif /* __SOCKET_H__ */

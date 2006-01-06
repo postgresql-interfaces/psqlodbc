@@ -91,6 +91,7 @@ void	extend_parameter_bindings(APDFields *opts, int num_params);
 void	extend_iparameter_bindings(IPDFields *opts, int num_params);
 void	reset_a_parameter_binding(APDFields *opts, int ipar);
 void	reset_a_iparameter_binding(IPDFields *opts, int ipar);
+int	CountParameters(const StatementClass *stmt, Int2 *inCount, Int2 *ioCount, Int2 *outputCount);
 void	GetDataInfoInitialize(GetDataInfo *gdata);
 void	extend_getdata_info(GetDataInfo *gdata, int num_columns, BOOL shrink);
 void	reset_a_getdata_info(GetDataInfo *gdata, int icol);
@@ -99,5 +100,9 @@ void	PutDataInfoInitialize(PutDataInfo *pdata);
 void	extend_putdata_info(PutDataInfo *pdata, int num_params, BOOL shrink);
 void	reset_a_putdata_info(PutDataInfo *pdata, int ipar);
 void	PDATA_free_params(PutDataInfo *pdata, char option);
+void	SC_param_next(const StatementClass*, int *param_number, ParameterInfoClass **, ParameterImplClass **);
+
+RETCODE       prepareParameters(StatementClass *stmt);
+void	decideHowToPrepare(StatementClass *stmt);
 
 #endif

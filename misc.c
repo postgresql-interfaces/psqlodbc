@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #ifndef WIN32
 #include <pwd.h>
@@ -28,161 +29,6 @@
 #endif
 #include "connection.h"
 #include "multibyte.h"
-
-extern GLOBAL_VALUES globals;
-void		generate_filename(const char *, const char *, char *);
-
-
-void
-generate_filename(const char *dirname, const char *prefix, char *filename)
-{
-	int			pid = 0;
-
-#ifndef WIN32
-	struct passwd *ptr = 0;
-
-	ptr = getpwuid(getuid());
-#endif
-	pid = getpid();
-	if (dirname == 0 || filename == 0)
-		return;
-
-	strcpy(filename, dirname);
-	strcat(filename, DIRSEPARATOR);
-	if (prefix != 0)
-		strcat(filename, prefix);
-#ifndef WIN32
-	strcat(filename, ptr->pw_name);
-#endif
-	sprintf(filename, "%s%u%s", filename, pid, ".log");
-	return;
-}
-
-#if defined(WIN_MULTITHREAD_SUPPORT)
-CRITICAL_SECTION	qlog_cs, mylog_cs;
-#elif defined(POSIX_MULTITHREAD_SUPPORT)
-pthread_mutex_t	qlog_cs, mylog_cs;
-#endif /* WIN_MULTITHREAD_SUPPORT */
-static int	mylog_on = 0,
-			qlog_on = 0;
-
-int	get_mylog(void)
-{
-	return mylog_on;
-}
-int	get_qlog(void)
-{
-	return qlog_on;
-}
-
-void
-logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
-{
-	static int	mylog_on_count = 0,
-				mylog_off_count = 0,
-				qlog_on_count = 0,
-				qlog_off_count = 0;
-
-	ENTER_MYLOG_CS;
-	ENTER_QLOG_CS;
-	if (mylog_onoff)
-		mylog_on_count += cnopen;
-	else
-		mylog_off_count += cnopen;
-	if (mylog_on_count > 0)
-		mylog_on = 1;
-	else if (mylog_off_count > 0)
-		mylog_on = 0;
-	else
-		mylog_on = globals.debug;
-	if (qlog_onoff)
-		qlog_on_count += cnopen;
-	else
-		qlog_off_count += cnopen;
-	if (qlog_on_count > 0)
-		qlog_on = 1;
-	else if (qlog_off_count > 0)
-		qlog_on = 0;
-	else
-		qlog_on = globals.commlog;
-	LEAVE_QLOG_CS;
-	LEAVE_MYLOG_CS;
-}
-
-#ifdef MY_LOG
-static FILE *LOGFP = NULL;
-void
-mylog(char *fmt,...)
-{
-	va_list		args;
-	char		filebuf[80];
-
-	ENTER_MYLOG_CS;
-	if (mylog_on)
-	{
-		va_start(args, fmt);
-
-		if (!LOGFP)
-		{
-			generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
-			setbuf(LOGFP, NULL);
-		}
-
-#ifdef	WIN_MULTITHREAD_SUPPORT
-#ifdef	WIN32
-		if (LOGFP)
-			fprintf(LOGFP, "[%d]", GetCurrentThreadId());
-#endif /* WIN32 */
-#endif /* WIN_MULTITHREAD_SUPPORT */
-#if defined(POSIX_MULTITHREAD_SUPPORT)
-		if (LOGFP)
-			fprintf(LOGFP, "[%d]", pthread_self());
-#endif /* POSIX_MULTITHREAD_SUPPORT */
-		if (LOGFP)
-			vfprintf(LOGFP, fmt, args);
-
-		va_end(args);
-	}
-	LEAVE_MYLOG_CS;
-}
-#else
-void
-MyLog(char *fmt,...)
-{
-}
-#endif
-
-
-#ifdef Q_LOG
-void
-qlog(char *fmt,...)
-{
-	va_list		args;
-	char		filebuf[80];
-	static FILE *LOGFP = NULL;
-
-	ENTER_QLOG_CS;
-	if (qlog_on)
-	{
-		va_start(args, fmt);
-
-		if (!LOGFP)
-		{
-			generate_filename(QLOGDIR, QLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
-			setbuf(LOGFP, NULL);
-		}
-
-		if (LOGFP)
-			vfprintf(LOGFP, fmt, args);
-
-		va_end(args);
-	}
-	LEAVE_QLOG_CS;
-}
-#endif
-
 
 /*
  *	returns STRCPY_FAIL, STRCPY_TRUNCATED, or #bytes copied
@@ -264,7 +110,7 @@ strncpy_null(char *dst, const char *src, int len)
  *------
  */
 char *
-make_string(const char *s, int len, char *buf)
+make_string(const char *s, int len, char *buf, size_t bufsize)
 {
 	int			length;
 	char	   *str;
@@ -272,14 +118,17 @@ make_string(const char *s, int len, char *buf)
 	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
 	{
 		length = (len > 0) ? len : strlen(s);
-
 		if (buf)
 		{
+			if (length >= bufsize)
+				length = bufsize - 1;
 			strncpy_null(buf, s, length + 1);
 			return buf;
 		}
 
+inolog("malloc size=%d\n", length);
 		str = malloc(length + 1);
+inolog("str=%x\n", str);
 		if (!str)
 			return NULL;
 
@@ -409,6 +258,10 @@ trim(char *s)
 	return s;
 }
 
+/*
+ *	my_strcat1 is a extension of my_strcat.
+ *	It can have 1 more parameter than my_strcat.
+ */
 char *
 my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len)
 {

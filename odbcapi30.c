@@ -34,10 +34,11 @@ RETCODE		SQL_API
 SQLAllocHandle(SQLSMALLINT HandleType,
 			   SQLHANDLE InputHandle, SQLHANDLE * OutputHandle)
 {
+	CSTR	func = "SQLAllocHandle";
 	RETCODE		ret;
 	ConnectionClass	*conn;
 
-	mylog("[[SQLAllocHandle]]");
+	mylog("[[%s]]", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -58,7 +59,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocDesc(InputHandle, OutputHandle);
 			LEAVE_CONN_CS(conn);
-			mylog("Descriptor OutputHandle=%x\n", *OutputHandle);
+inolog("OutputHandle=%x\n", *OutputHandle);
 			break;
 		default:
 			ret = SQL_ERROR;
@@ -75,14 +76,18 @@ SQLBindParam(HSTMT StatementHandle,
 			 SQLSMALLINT ParameterScale, PTR ParameterValue,
 			 SQLINTEGER *StrLen_or_Ind)
 {
+	CSTR	func = "SQLBindParam";
 	RETCODE			ret;
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	int			BufferLength = 512;		/* Is it OK ? */
 
-	mylog("[[SQLBindParam]]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	mylog("[[%s]]", func);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_BindParameter(StatementHandle, ParameterNumber, SQL_PARAM_INPUT, ValueType, ParameterType, LengthPrecision, ParameterScale, ParameterValue, BufferLength, StrLen_or_Ind);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -90,13 +95,17 @@ SQLBindParam(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLCloseCursor(HSTMT StatementHandle)
 {
+	CSTR	func = "SQLCloseCursor";
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	mylog("[[SQLCloseCursor]]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	mylog("[[%s]]", func);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_FreeStmt(StatementHandle, SQL_CLOSE);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -107,15 +116,19 @@ SQLColAttribute(HSTMT StatementHandle,
 				PTR CharacterAttribute, SQLSMALLINT BufferLength,
 				SQLSMALLINT *StringLength, PTR NumericAttribute)
 {
+	CSTR	func = "SQLColAttribute";
 	RETCODE	ret;
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
-	mylog("[[SQLColAttribute]]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	mylog("[[%s]]", func);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_ColAttributes(StatementHandle, ColumnNumber,
 					   FieldIdentifier, CharacterAttribute, BufferLength,
 							   StringLength, NumericAttribute);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -124,10 +137,10 @@ RETCODE		SQL_API
 SQLCopyDesc(SQLHDESC SourceDescHandle,
 			SQLHDESC TargetDescHandle)
 {
+	CSTR	func = "SQLCopyDesc";
 	RETCODE	ret;
 
-	mylog("[[SQLCopyDesc]]\n");
-	DC_clear_error((DescriptorClass *) TargetDescHandle);
+	mylog("[[%s]]\n", func);
 	ret = PGAPI_CopyDesc(SourceDescHandle, TargetDescHandle);
 	return ret;
 }
@@ -137,9 +150,10 @@ RETCODE		SQL_API
 SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 		   SQLSMALLINT CompletionType)
 {
+	CSTR	func = "SQLEndTran";
 	RETCODE	ret;
 
-	mylog("[[SQLEndTran]]");
+	mylog("[[%s]]", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -175,6 +189,7 @@ SQLFetchScroll(HSTMT StatementHandle,
 	mylog("[[%s]] %d,%d\n", func, FetchOrientation, FetchOffset);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	if (FetchOrientation == SQL_FETCH_BOOKMARK)
 	{
 		if (stmt->options.bookmark_ptr)
@@ -185,8 +200,7 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 		}
 		else
 		{
-			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bookmark isn't specifed yet");
-			SC_log_error(func, "", stmt);
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bookmark isn't specifed yet", func);
 			ret = SQL_ERROR;
 		}
 	}
@@ -198,6 +212,7 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 				pcRow, rowStatusArray, bkmarkoff, opts->size_of_rowset);
 		stmt->transition_status = 6;
 	}
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ret != SQL_SUCCESS)
 		mylog("%s return = %d\n", func, ret);
@@ -208,8 +223,9 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 RETCODE		SQL_API
 SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
+	CSTR	func = "SQLFreeHandle";
 	RETCODE		ret;
-	mylog("[[SQLFreeHandle]]");
+	mylog("[[%s]]", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -241,7 +257,6 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 	RETCODE	ret;
 
 	mylog("[[SQLGetDescField]]\n");
-	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 			Value, BufferLength, StringLength);
 	return ret;
@@ -258,7 +273,6 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 {
 	mylog("[[SQLGetDescRec]]\n");
 	mylog("Error not implemented\n");
-	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	return SQL_ERROR;
 }
 
@@ -351,13 +365,16 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 {
 	RETCODE	ret;
 	CSTR func = "SQLGetStmtAttr";
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
 	mylog("[[%s]] Handle=%u %d\n", func, StatementHandle, Attribute);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	SC_clear_error((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_GetStmtAttr(StatementHandle, Attribute, Value,
 			BufferLength, StringLength);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }
 
@@ -387,8 +404,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	mylog("[[SQLSetDescField]] h=%u rec=%d field=%d val=%x\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
-	DC_clear_error((DescriptorClass *) DescriptorHandle);
+	mylog("[[SQLSetDescField]] h=%x rec=%d field=%d val=%x\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
 	return ret;
@@ -407,7 +423,6 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 
 	mylog("[[SQLSetDescRec]]\n");
 	mylog("Error not implemented\n");
-	DC_clear_error((DescriptorClass *) DescriptorHandle);
 	return SQL_ERROR;
 }
 
@@ -482,10 +497,12 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	mylog("[[%s]] Handle=%u %d,%u\n", func, StatementHandle, Attribute, Value);
+	mylog("[[%s]] Handle=%x %d,%u\n", func, StatementHandle, Attribute, Value);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_SetStmtAttr(StatementHandle, Attribute, Value, StringLength);
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -500,6 +517,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	ConnectionClass	*conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);
 
+inolog("lie=%d\n", ci->drivers.lie);
 	CC_clear_error(conn);
 	if (fFunction != SQL_API_ODBC3_ALL_FUNCTIONS)
 		return SQL_ERROR;
@@ -514,7 +532,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	 * i);
 	 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLBINDCOL);		/* 4 */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLCANCEL); /* 5 */
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLCANCEL);		/* 5 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLATTRIBUTE);	/* 6 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLCONNECT);		/* 7 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDESCRIBECOL);	/* 8 */
@@ -553,14 +571,14 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSTMTOPTION); 51 deprecated */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSPECIALCOLUMNS);	/* 52 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSTATISTICS);		/* 53 */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLES); /* 54 */
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLES);		/* 54 */
 	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT); /* 55 not implmented yet */
-	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); /* 56 not implemented yet */ 
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT);	/* 55 */
+	/* if (PG_VERSION_GE(conn, 7.4) || ci->drivers.lie)
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); */ /* 56 */ 
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDATASOURCES);	/* 57 */
-	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLDESCRIBEPARAM); /* 58 not properly implemented */
+	if ((PROTOCOL_74(ci)  && ci->use_server_side_prepare) || ci->drivers.lie)
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLDESCRIBEPARAM); /* 58 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLEXTENDEDFETCH); /* 59 deprecated ? */
 
 	/*
@@ -577,7 +595,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURES);		/* 67 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETPOS);		/* 68 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSCROLLOPTIONS); 69 deprecated */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLEPRIVILEGES);		/* 70 */
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLEPRIVILEGES);	/* 70 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLDRIVERS); */	/* 71 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLBINDPARAMETER);	/* 72 */
 
@@ -606,7 +624,7 @@ PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETENVATTR);		/* 1019 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSTMTATTR);	/* 1020 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFETCHSCROLL);	/* 1021 */
-	if (ci->updatable_cursors)
+	if (0 != ci->updatable_cursors)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLBULKOPERATIONS);	/* 24 */
 
 	return SQL_SUCCESS;
@@ -620,16 +638,11 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
 	ENTER_STMT_CS(stmt);
-#ifndef	DRIVER_CURSOR_IMPLEMENT
-	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR,
-	"driver must be compiled with the DRIVER_CURSOR_IMPLEMENT option");
-	SC_log_error(func, "", stmt);
-	ret = SQL_ERROR;
-#else
-	mylog("[[%s]] Handle=%u %d\n", func, hstmt, operation);
-	SC_clear_error((StatementClass *) hstmt);
+	mylog("[[%s]] Handle=%x %d\n", func, hstmt, operation);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_BulkOperations(hstmt, operation);
-#endif /* DRIVER_CURSOR_IMPLEMENT */
+	ret = DiscardStatementSvp(stmt,ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }	

@@ -30,26 +30,32 @@ LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
 DLG_CONFIG DIALOGEX 65, 43, 359, 219
 STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_VISIBLE | 
     WS_CAPTION | WS_SYSMENU
-CAPTION "PostgreSQL ODBC セットアップ"
-FONT 9, "ＭＳ ゴシック"
+CAPTION "PostgreSQL Japanese ODBC セットアップ"
+FONT 9, "ＭＳ ゴシック", 0, 0, 0x1
 BEGIN
     RTEXT           "デ－タソ－ス名:(&N)",IDC_DSNAMETEXT,2,9,63,17,NOT 
                     WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
-    EDITTEXT        IDC_DSNAME,71,12,188,13,ES_AUTOHSCROLL | WS_GROUP,
+    EDITTEXT        IDC_DSNAME,72,12,188,13,ES_AUTOHSCROLL | WS_GROUP,
                     WS_EX_TRANSPARENT
     RTEXT           "説明:(&D)",IDC_DESCTEXT,5,31,60,16,SS_CENTERIMAGE | NOT 
-                     WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
-    EDITTEXT        IDC_DESC,71,32,189,13,ES_AUTOHSCROLL,WS_EX_TRANSPARENT
+                    WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
+    EDITTEXT        IDC_DESC,72,32,188,13,ES_AUTOHSCROLL,WS_EX_TRANSPARENT
+    RTEXT           "SSL Mode:(&L)",IDC_STATIC,16,49,49,9,NOT WS_GROUP
+    COMBOBOX        IDC_SSLMODE,72,47,90,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+    LTEXT           "libpqライブラリload不可:SSL接続は使用できません",
+                    IDC_NOTICE_USER,165,50,190,10,NOT WS_VISIBLE | 
+                    WS_DISABLED
     RTEXT           "サ－バ－名:(&S)",IDC_STATIC,17,68,48,15,NOT WS_GROUP
-    EDITTEXT        IDC_SERVER,69,66,203,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_SERVER,72,66,203,14,ES_AUTOHSCROLL
     RTEXT           "デ－タベ－ス名:(&b)",IDC_STATIC,5,91,60,15,NOT WS_GROUP
-    EDITTEXT        IDC_DATABASE,69,88,203,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DATABASE,72,88,203,14,ES_AUTOHSCROLL
     RTEXT           "&Port:",IDC_STATIC,281,101,22,11
     EDITTEXT        IDC_PORT,307,99,37,14,ES_AUTOHSCROLL
     RTEXT           "ユ－ザ－名:(&U)",IDC_STATIC,18,139,47,15
-    EDITTEXT        IDC_USER,71,135,162,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_USER,72,135,162,14,ES_AUTOHSCROLL
     RTEXT           "パスワ－ド:(&w)",IDC_STATIC,21,159,46,15
-    EDITTEXT        IDC_PASSWORD,71,157,162,13,ES_PASSWORD | ES_AUTOHSCROLL
+    EDITTEXT        IDC_PASSWORD,72,157,162,13,ES_PASSWORD | ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",IDOK,295,61,52,14,WS_GROUP
     PUSHBUTTON      "キャンセル",IDCANCEL,296,80,51,14
     GROUPBOX        "オプション (高度な設定)",IDC_OPTIONS,249,119,99,59,
@@ -57,12 +63,10 @@ BEGIN
     PUSHBUTTON      "全体設定",IDC_DRIVER,269,155,53,15
     PUSHBUTTON      "デ－タソ－ス",IDC_DATASOURCE,269,132,53,15
     GROUPBOX        "既定の認証",IDC_STATIC,11,119,235,59
-    LTEXT           "PostgreSQL Ver7.3  Copyright (C) 1998-2002; Insight Distribution Systems",
+    LTEXT           "PostgreSQL Ver7.3  Copyright (C) 1998-2005; Insight Distribution Systems",
                     IDC_STATIC,36,186,302,9
     LTEXT           "In the original form, Japanese patch Hiroshi-saito",
                     IDC_STATIC,35,198,295,8
-   // CONTROL         "IDB_BANNER",IDC_STATIC,"Static",SS_BITMAP,8,3,16,15,
-   //                 WS_EX_TRANSPARENT | WS_EX_STATICEDGE
     PUSHBUTTON      "管理",IDC_MANAGEDSN,295,10,50,14
 END
 
@@ -78,8 +82,8 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,15,26,140,10
     CONTROL         "一般ログ出力をする(&L) (C:\\psqlodbc.log)",DRV_COMMLOG,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,24,170,10
-    CONTROL         "&KSQO (ｸｴﾘｰｷｰｾｯﾄ最適化オプション)",DRV_KSQO,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,41,145,10
+    CONTROL         "&KSQO (クエリ－キ－セット最適化オプション)",DRV_KSQO,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,41,145,10
     CONTROL         "ユニ－クインデックスを使う(&I)",DRV_UNIQUEINDEX,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,129,10
     CONTROL         "ステ－トメントの構文解析を行なう(&a)",DRV_PARSE,"Button",
@@ -105,13 +109,13 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,123,132,117,10
     CONTROL         "CharとしてBoolsを扱う",DRV_BOOLS_CHAR,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,243,132,96,10
-    LTEXT           "キャッシュサイズ:",IDC_STATIC,21,189,42,8
+    LTEXT           "キャッシュサイズ:",IDC_STATIC,21,189,39,8
     EDITTEXT        DRV_CACHE_SIZE,69,187,35,12,ES_AUTOHSCROLL
     LTEXT           "最大&Varchar:",IDC_STATIC,13,167,54,8
     EDITTEXT        DRV_VARCHAR_SIZE,70,166,35,12,ES_AUTOHSCROLL
-    LTEXT           "最大Lon&gVarChar:",IDC_STATIC,145,167,67,8
+    LTEXT           "最大Lon&gVarChar:",IDC_STATIC,148,168,66,8
     EDITTEXT        DRV_LONGVARCHAR_SIZE,219,166,35,12,ES_AUTOHSCROLL
-    LTEXT           "ｼｽﾃﾑﾃｰﾌﾞﾙ ﾌﾟﾚﾌｨｸｽ:",IDC_STATIC,140,189,74,9
+    LTEXT           "システムテ－ブル プレフィクス:",IDC_STATIC,140,189,74,9
     EDITTEXT        DRV_EXTRASYSTABLEPREFIXES,219,187,71,12,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",IDOK,5,221,50,15,WS_GROUP
     PUSHBUTTON      "キャンセル",IDCANCEL,68,221,50,15
@@ -158,13 +162,22 @@ BEGIN
                     WS_TABSTOP,184,108,40,10
     CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,227,108,29,10
-    GROUPBOX        "プロトコルバ－ジョン",IDC_STATIC,5,128,296,25
-    CONTROL         "7.X,6.4+",DS_PG64,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,18,139,49,10
+    GROUPBOX        "プロトコルバ－ジョン",IDC_STATIC,5,128,150,25
+    CONTROL         "7.4+",DS_PG74,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,
+                    139,30,10
+    CONTROL         "6.4+",DS_PG64,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
+                    52,139,30,10
     CONTROL         "6.3",DS_PG63,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    87,139,26,10
+                    90,140,26,10
     CONTROL         "6.2",DS_PG62,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    140,140,26,10
+                    118,140,26,10
+    GROUPBOX        "エラー時のロールバック発行",IDC_STATIC,160,128,141,25
+    CONTROL         "無し",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,165,139,30,10
+    CONTROL         "全キャンセル",DS_TRANSACTION_ROLLBACK,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,200,139,46,10
+    CONTROL         "文単位",DS_STATEMENT_ROLLBACK,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,255,139,35,10
     GROUPBOX        "OID オプション",IDC_STATIC,5,158,296,25
     CONTROL         "カラム列表示(&C)",DS_SHOWOIDCOLUMN,"Button",
                     BS_AUTOCHECKBOX | WS_GROUP,16,169,72,10
@@ -209,7 +222,7 @@ BEGIN
     PUSHBUTTON      "キャンセル",IDCANCEL,172,67,50,15
     GROUPBOX        "ドライバリスト",IDC_STATIC,5,5,296,58
     LTEXT           "ドライバを選択してください",IDC_STATIC,11,33,105,8
-    LISTBOX         IDC_DRIVER_LIST,117,23,151,32,LBS_SORT | 
+    LISTBOX         IDC_DRIVER_LIST,124,19,170,33,LBS_SORT | 
                     LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
@@ -225,6 +238,8 @@ BEGIN
     DLG_CONFIG, DIALOG
     BEGIN
         VERTGUIDE, 65
+        VERTGUIDE, 72
+        VERTGUIDE, 260
         BOTTOMMARGIN, 210
     END
 
@@ -297,13 +312,13 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION PG_DRVFILE_VERSION
- PRODUCTVERSION PG_DRVFILE_VERSION
+ FILEVERSION 7,3,2,57
+ PRODUCTVERSION 7,3,2,57
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
- FILEFLAGS 0x1L
+ FILEFLAGS 0x9L
 #else
- FILEFLAGS 0x0L
+ FILEFLAGS 0x8L
 #endif
  FILEOS 0x4L
  FILETYPE 0x2L
@@ -311,25 +326,25 @@ VS_VERSION_INFO VERSIONINFO
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904e4"
+        BLOCK "041104e4"
         BEGIN
-            VALUE "Comments", "PostgreSQL ODBC driver\0"
-            VALUE "CompanyName", "Insight Distribution Systems\0"
-            VALUE "FileDescription", "PostgreSQL Driver\0"
-            VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
-            VALUE "InternalName", "psqlodbc\0"
+            VALUE "Comments", "PostgreSQL ODBC driver Japanese\0"
+            VALUE "CompanyName", "PostgreSQL Global Development Group\0"
+            VALUE "FileDescription", "PostgreSQL Driver Japanese\0"
+            VALUE "FileVersion", "07.03.0257\0"
+            VALUE "InternalName", "psqlodbc35w\0"
             VALUE "LegalCopyright", "\0"
-            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftｮ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
-            VALUE "OriginalFilename", "psqlodbc.dll\0"
-            VALUE "PrivateBuild", "\0"
+            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftョ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
+            VALUE "OriginalFilename", "psqlodbc35w.dll\0"
+            VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
             VALUE "ProductName", "Microsoft Open Database Connectivity\0"
-            VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
+            VALUE "ProductVersion", "07.03.0257\0"
             VALUE "SpecialBuild", "\0"
         END
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x409, 1252
+        VALUE "Translation", 0x411, 1252
     END
 END
 
@@ -352,6 +367,14 @@ BEGIN
     IDS_ADVANCE_OPTION_DSN2 "高度な設定 (%s 設定2)"
     IDS_ADVANCE_OPTION_CON2 "高度な設定 (コネクション設定2)"
     IDS_ADVANCE_CONNECTION  "コネクション"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_SSLREQUEST_PREFER   "優先"
+    IDS_SSLREQUEST_ALLOW    "考慮"
+    IDS_SSLREQUEST_REQUIRE  "必要"
+    IDS_SSLREQUEST_DISABLE  "無効"
 END
 
 #endif    // 日本語 resources
@@ -381,26 +404,28 @@ BEGIN
     RTEXT           "&Data Source",IDC_DSNAMETEXT,5,25,50,12,NOT WS_GROUP
     EDITTEXT        IDC_DSNAME,57,24,72,12,ES_AUTOHSCROLL | WS_GROUP
     RTEXT           "Des&cription",IDC_DESCTEXT,145,24,45,12,NOT WS_GROUP
-    EDITTEXT        IDC_DESC,192,24,107,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_DESC,192,22,104,12,ES_AUTOHSCROLL
     RTEXT           "Data&base",IDC_STATIC,16,40,38,12,NOT WS_GROUP
     EDITTEXT        IDC_DATABASE,57,39,72,12,ES_AUTOHSCROLL
+    RTEXT           "SS&L Mode",IDC_STATIC,145,40,45,12,NOT WS_GROUP
+    COMBOBOX        IDC_SSLMODE,192,36,104,50,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
     RTEXT           "&Server",IDC_STATIC,26,55,29,12,NOT WS_GROUP
     EDITTEXT        IDC_SERVER,57,54,72,12,ES_AUTOHSCROLL
     RTEXT           "&Port",IDC_STATIC,168,56,22,12
-    EDITTEXT        IDC_PORT,192,55,37,12,ES_AUTOHSCROLL
+    EDITTEXT        IDC_PORT,192,54,37,12,ES_AUTOHSCROLL
     RTEXT           "&User Name",IDC_STATIC,16,70,39,12
     EDITTEXT        IDC_USER,57,69,72,12,ES_AUTOHSCROLL
     RTEXT           "Pass&word",IDC_STATIC,156,72,34,9
-    EDITTEXT        IDC_PASSWORD,192,71,72,12,ES_PASSWORD | ES_AUTOHSCROLL
+    EDITTEXT        IDC_PASSWORD,192,70,72,12,ES_PASSWORD | ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",IDOK,12,100,44,15,WS_GROUP
-    PUSHBUTTON      "Cancel",IDCANCEL,77,100,44,15
-    GROUPBOX        "Options",IDC_OPTIONS,152,88,140,35,BS_LEFT
-    PUSHBUTTON      "Datasource",IDC_DATASOURCE,172,101,50,14
-    PUSHBUTTON      "Global",IDC_DRIVER,232,101,50,14
-    CTEXT           "Please supply any missing information required to
-connect.",
-                    DRV_MSG_LABEL,12,4,249,10
-    PUSHBUTTON      "Manage(DSN)",IDC_MANAGEDSN,257,1,52,14
+    PUSHBUTTON      "Cancel",IDCANCEL,66,100,44,15
+    GROUPBOX        "Options",IDC_OPTIONS,121,87,177,35,BS_LEFT
+    PUSHBUTTON      "Datasource",IDC_DATASOURCE,128,101,50,14
+    PUSHBUTTON      "Global",IDC_DRIVER,184,101,50,14
+    LTEXT           "Please supply any missing information required to connect.",
+                    DRV_MSG_LABEL,12,5,249,10
+    PUSHBUTTON      "Manage DSN",IDC_MANAGEDSN,240,101,52,14
 END
 
 DLG_OPTIONS_DRV DIALOG DISCARDABLE  0, 0, 287, 231
@@ -446,7 +471,7 @@ BEGIN
     EDITTEXT        DRV_VARCHAR_SIZE,70,160,35,12,ES_AUTOHSCROLL
     LTEXT           "Max Lon&gVarChar:",IDC_STATIC,125,161,67,8
     EDITTEXT        DRV_LONGVARCHAR_SIZE,199,160,35,12,ES_AUTOHSCROLL
-    LTEXT           "SysTable &Prefixes:",IDC_STATIC,125,183,61,18
+    LTEXT           "SysTable &Prefixes:",IDC_STATIC,126,178,61,18
     EDITTEXT        DRV_EXTRASYSTABLEPREFIXES,199,181,71,12,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",IDOK,5,212,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,81,211,50,15
@@ -493,24 +518,33 @@ BEGIN
                     WS_TABSTOP,184,105,40,10
     CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,227,105,29,10
-    GROUPBOX        "Protocol",IDC_STATIC,5,125,277,25
-    CONTROL         "7.X,6.4+",DS_PG64,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,44,136,49,10
+    GROUPBOX        "Protocol",IDC_STATIC,5,124,136,25
+    CONTROL         "7.4+",DS_PG74,"Button",BS_AUTORADIOBUTTON | WS_GROUP,11,
+                    136,31,10
+    CONTROL         "6.4+",DS_PG64,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
+                    45,136,27,10
     CONTROL         "6.3",DS_PG63,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    117,136,26,10
+                    79,136,26,10
     CONTROL         "6.2",DS_PG62,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    191,136,26,10
+                    110,136,26,10
     GROUPBOX        "OID Options",IDC_STATIC,5,155,277,25
     CONTROL         "Show &Column",DS_SHOWOIDCOLUMN,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,53,167,59,10
+                    WS_GROUP | WS_TABSTOP,13,166,67,10
     CONTROL         "Fake &Index",DS_FAKEOIDINDEX,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,155,166,51,10
-    LTEXT           "Connect &Settings:",IDC_STATIC,5,192,62,17
+                    WS_GROUP | WS_TABSTOP,80,166,59,10
+    LTEXT           "Connect &Settings:",IDC_STATIC,5,192,57,17
     EDITTEXT        DS_CONNSETTINGS,71,188,211,27,ES_MULTILINE | 
                     ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN
     DEFPUSHBUTTON   "OK",IDOK,5,220,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,81,220,50,14
     PUSHBUTTON      "Apply",IDAPPLY,156,220,50,14
+    GROUPBOX        "Rollback of an error",IDC_STATIC,145,124,137,25
+    CONTROL         "No",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,147,136,22,9
+    CONTROL         "Transaction",DS_TRANSACTION_ROLLBACK,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,171,136,57,9
+    CONTROL         "Statement",DS_STATEMENT_ROLLBACK,"Button",
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,229,136,47,9
 END
 
 DLG_OPTIONS_GLOBAL DIALOG DISCARDABLE  0, 0, 306, 87
@@ -539,7 +573,7 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,172,67,50,15
     GROUPBOX        "Drivers List",IDC_STATIC,5,5,296,58
     LTEXT           "Select the driver",IDC_STATIC,31,33,73,8
-    LISTBOX         IDC_DRIVER_LIST,117,23,151,32,LBS_SORT | 
+    LISTBOX         IDC_DRIVER_LIST,117,18,151,32,LBS_SORT | 
                     LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
@@ -571,6 +605,7 @@ BEGIN
         RIGHTMARGIN, 282
         TOPMARGIN, 5
         BOTTOMMARGIN, 231
+        HORZGUIDE, 136
     END
 
     DLG_OPTIONS_GLOBAL, DIALOG
@@ -599,13 +634,13 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION PG_DRVFILE_VERSION
- PRODUCTVERSION PG_DRVFILE_VERSION
+ FILEVERSION 7,3,2,57
+ PRODUCTVERSION 7,3,2,57
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
- FILEFLAGS 0x1L
+ FILEFLAGS 0x9L
 #else
- FILEFLAGS 0x0L
+ FILEFLAGS 0x8L
 #endif
  FILEOS 0x4L
  FILETYPE 0x2L
@@ -617,15 +652,15 @@ BEGIN
         BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver\0"
             VALUE "CompanyName", "Insight Distribution Systems\0"
-            VALUE "FileDescription", "PostgreSQL Driver\0"
-            VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
+            VALUE "FileDescription", "PostgreSQL Driver English\0"
+            VALUE "FileVersion", "07.03.0257\0"
             VALUE "InternalName", "psqlodbc\0"
             VALUE "LegalCopyright", "\0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc.dll\0"
-            VALUE "PrivateBuild", "\0"
+            VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
             VALUE "ProductName", "Microsoft Open Database Connectivity\0"
-            VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
+            VALUE "ProductVersion", "07.03.0257\0"
             VALUE "SpecialBuild", "\0"
         END
     END
@@ -654,6 +689,14 @@ BEGIN
     IDS_ADVANCE_OPTION_DSN2 "Advanced Options (%s) 2/2"
     IDS_ADVANCE_OPTION_CON2 "Advanced Options (Connection 2/2)"
     IDS_ADVANCE_CONNECTION  "Connection"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_SSLREQUEST_PREFER   "prefer"
+    IDS_SSLREQUEST_ALLOW    "allow"
+    IDS_SSLREQUEST_REQUIRE  "require"
+    IDS_SSLREQUEST_DISABLE  "disable"
 END
 
 #endif    // 英語 (ｱﾒﾘｶ) resources

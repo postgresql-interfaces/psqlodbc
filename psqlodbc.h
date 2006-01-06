@@ -5,18 +5,22 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82 2004/02/04 08:55:28 dpage Exp $
+ * $Id: psqlodbc.h,v 1.82.2.1 2006/01/06 21:36:57 dpage Exp $
  *
  */
 
 #ifndef __PSQLODBC_H__
 #define __PSQLODBC_H__
 
+/* #define	__MS_REPORTS_ANSI_CHAR__ */
+
 #ifndef WIN32
 #include "config.h"
 #else
 #include <windows.h>
 #endif
+
+#include <libpq-fe.h>
 
 #include <stdio.h>				/* for FILE* pointers: see GLOBAL_VALUES */
 #ifdef POSIX_MULTITHREAD_SUPPORT
@@ -58,6 +62,9 @@
 #include "gpps.h"
 #endif
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
 #ifndef WIN32
 #define Int4 long int
 #define UInt4 unsigned int
@@ -80,7 +87,9 @@ typedef double SDOUBLE;
 #define UInt2 unsigned short
 #endif
 
+#ifdef WIN32
 typedef UInt4 Oid;
+#endif
 
 #ifndef WIN32
 #define stricmp strcasecmp
@@ -106,9 +115,13 @@ typedef UInt4 Oid;
 
 #define DRIVERNAME				"PostgreSQL ODBC"
 #if (ODBCVER >= 0x0300)
+#if (ODBCVER >= 0x0351)
+#define DRIVER_ODBC_VER				"03.51"
+#else
 #define DRIVER_ODBC_VER				"03.00"
+#endif /* ODBCVER 0x0351 */
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL Unicode (Beta)"
+#define DBMS_NAME				"PostgreSQL Japanese"
 #else
 #define DBMS_NAME				"PostgreSQL"
 #endif /* UNICODE_SUPPORT */
@@ -120,16 +133,29 @@ typedef UInt4 Oid;
 #ifdef WIN32
 #if (ODBCVER >= 0x0300)
 #ifdef	UNICODE_SUPPORT
+#if (ODBCVER >= 0x0350)
+#define DRIVER_FILE_NAME			"PSQLODBC35W.DLL"
+#else
 #define DRIVER_FILE_NAME			"PSQLODBC30W.DLL"
+#endif /* ODBCVER 0x0350 */
 #else
 #define DRIVER_FILE_NAME			"PSQLODBC.DLL"
 #endif   /* UNICODE_SUPPORT */
 #else
 #define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
-#endif   /* ODBCVER */
+#endif   /* ODBCVER 0x0300 */
 #else
 #define DRIVER_FILE_NAME			"libpsqlodbc.so"
 #endif   /* WIN32 */
+
+#define	NULL_CATALOG_NAME				""
+
+/* ESCAPEs */
+#define	ESCAPE_IN_LITERAL				'\\'
+#define	BYTEA_ESCAPE_CHAR				'\\'
+#define	SEARCH_PATTERN_ESCAPE				'\\'
+#define	LITERAL_QUOTE					'\''
+#define	IDENTIFIER_QUOTE				'\"'
 
 /* Limits */
 #define BLCKSZ						4096
@@ -198,6 +224,10 @@ typedef UInt4 Oid;
 #define PG63						"6.3"		/* "Protocol" key setting
 												 * to force postgres 6.3 */
 #define PG64						"6.4"
+#define PG74REJECTED					"rejected7.4"
+#define PG74						"7.4"
+
+typedef int	(*PQFUNC)();
 
 typedef struct ConnectionClass_ ConnectionClass;
 typedef struct StatementClass_ StatementClass;
@@ -207,9 +237,7 @@ typedef struct BindInfoClass_ BindInfoClass;
 typedef struct ParameterInfoClass_ ParameterInfoClass;
 typedef struct ParameterImplClass_ ParameterImplClass;
 typedef struct ColumnInfoClass_ ColumnInfoClass;
-typedef struct TupleListClass_ TupleListClass;
 typedef struct EnvironmentClass_ EnvironmentClass;
-typedef struct TupleNode_ TupleNode;
 typedef struct TupleField_ TupleField;
 typedef struct KeySet_ KeySet;
 typedef struct Rollback_ Rollback;
@@ -219,7 +247,7 @@ typedef struct IRDFields_ IRDFields;
 typedef struct IPDFields_ IPDFields;
 
 typedef struct col_info COL_INFO;
-typedef struct lo_arg LO_ARG;
+typedef struct odbc_lo_arg LO_ARG;
 
 typedef struct GlobalValues_
 {
@@ -282,8 +310,9 @@ typedef struct
         char    __error_message[1];
 }       PG_ErrorInfo;
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
+PG_ErrorInfo	*ER_Dup(const PG_ErrorInfo *from);
 void ER_Destructor(PG_ErrorInfo *);
-RETCODE SQL_API ER_ReturnError(PG_ErrorInfo *, SWORD, UCHAR FAR *,
+RETCODE SQL_API ER_ReturnError(PG_ErrorInfo **, SWORD, UCHAR FAR *,
 			SDWORD FAR *, UCHAR FAR *, SWORD, SWORD FAR *, UWORD);
 
 void		logs_on_off(int cnopen, int, int);
@@ -308,8 +337,6 @@ void		logs_on_off(int cnopen, int, int);
 										 * queries used in info.c inoue
 										 * 2001/05/17 */
 
-#include "misc.h"
-
 int	initialize_global_cs(void);
 #ifdef	POSIX_MULTITHREAD_SUPPORT
 #if	!defined(HAVE_ECO_THREAD_LOCKS)
@@ -323,17 +350,19 @@ const pthread_mutexattr_t *getMutexAttr(void);
 #ifdef	UNICODE_SUPPORT
 #define WCLEN sizeof(SQLWCHAR)
 UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
-char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL tolower);
+char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, Int4 *olen, BOOL tolower);
 UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
 
-/*#define	_MEMORY_DEBUG_ */
 #ifdef	_MEMORY_DEBUG_
 void		*debug_alloc(size_t);
 void		*debug_calloc(size_t, size_t);
 void		*debug_realloc(void *, size_t);
 char		*debug_strdup(const char *);
+void		*debug_memcpy(void *, const void *, size_t);
+void		*debug_memset(void *, int c, size_t);
+char		*debug_strcpy(char *, const char *);
 void		debug_free(void *);
 void		debug_memory_check(void);
 
@@ -342,6 +371,18 @@ void		debug_memory_check(void);
 #define calloc	debug_calloc
 #define strdup	debug_strdup
 #define free	debug_free
+#define strcpy	debug_strcpy
+#define memcpy	debug_memcpy
+#define memset	debug_memset
 #endif   /* _MEMORY_DEBUG_ */
 
+#ifdef	__cplusplus
+}
 #endif
+
+#include "misc.h"
+
+CSTR	NULL_STRING = "";
+CSTR	PRINT_NULL = "(null)";
+CSTR	OID_NAME = "oid";
+#endif /* __PSQLODBC_H__ */

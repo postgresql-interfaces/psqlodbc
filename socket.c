@@ -19,6 +19,7 @@
 #ifndef WIN32
 #include <stdlib.h>
 #include <string.h>				/* for memset */
+#include <sys/time.h>
 #endif /* WIN32 */
 
 extern GLOBAL_VALUES globals;
@@ -33,6 +34,7 @@ extern GLOBAL_VALUES globals;
 #define FALSE	(BOOL)0
 #endif
 
+#define	SOCK_set_error(s, _no, _msg)	(s->errornumber = _no, s->errormsg = _msg, mylog("socket error=%d %s\n", _no, _msg))
 
 void
 SOCK_clear_error(SocketClass *self)
@@ -51,7 +53,18 @@ SOCK_Constructor(const ConnectionClass *conn)
 
 	if (rv != NULL)
 	{
-		rv->socket = (SOCKETFD) - 1;
+		rv->socket = (SOCKETFD) -1;
+#ifdef DYNAMIC_LINK
+		rv->libpq = NULL;
+#endif
+		rv->ssl = NULL;
+		rv->pqconn = NULL;
+		rv->pqfinish = NULL;
+		rv->recv = NULL;
+		rv->send = NULL;
+		rv->get_error = NULL;
+		rv->pversion = 0;
+		rv->reslen = 0;
 		rv->buffer_filled_in = 0;
 		rv->buffer_filled_out = 0;
 		rv->buffer_read_in = 0;
@@ -91,9 +104,28 @@ SOCK_Destructor(SocketClass *self)
 		return;
 	if (self->socket != -1)
 	{
-		SOCK_put_char(self, 'X');
-		SOCK_flush_output(self);
-		closesocket(self->socket);
+		if (self->pqconn)
+		{
+			if (self->pqfinish && self->pqconn)
+				(*self->pqfinish)(self->pqconn);
+			self->pqfinish = NULL;
+			self->pqconn = NULL;
+			self->ssl = NULL;
+#ifdef	WIN32
+#ifdef DYNAMIC_LINK
+			if (self->libpq)
+				FreeLibrary(self->libpq);
+#endif
+#endif	/* WIN32 */
+		}
+		else
+		{
+			SOCK_put_char(self, 'X');
+			if (PG_PROTOCOL_74 == self->pversion)
+				SOCK_put_int(self, 4, 4);
+			SOCK_flush_output(self);
+			closesocket(self->socket);
+		}
 	}
 
 	if (self->buffer_in)
@@ -101,7 +133,7 @@ SOCK_Destructor(SocketClass *self)
 
 	if (self->buffer_out)
 		free(self->buffer_out);
-	if (self->sadr != (struct sockaddr *) &(self->sadr_in))
+	if (self->sadr && self->sadr != (struct sockaddr *) &(self->sadr_in))
 		free(self->sadr);
 
 	free(self);
@@ -129,8 +161,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 
 	if (self->socket != -1)
 	{
-		self->errornumber = SOCKET_ALREADY_CONNECTED;
-		self->errormsg = "Socket is already connected";
+		SOCK_set_error(self, SOCKET_ALREADY_CONNECTED, "Socket is already connected");
 		return 0;
 	}
 
@@ -166,8 +197,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 			if (hp == NULL)
 			{
-				self->errornumber = SOCKET_HOST_NOT_FOUND;
-				self->errormsg = "Could not resolve hostname.";
+				SOCK_set_error(self, SOCKET_HOST_NOT_FOUND, "Could not resolve hostname.");
 				return 0;
 			}
 			memcpy(&(in->sin_addr), hp->h_addr, hp->h_length);
@@ -186,8 +216,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		un = (struct sockaddr_un *) malloc(sizeof(struct sockaddr_un));
 		if (!un)
 		{
-			self->errornumber = SOCKET_COULD_NOT_CREATE_SOCKET;
-			self->errormsg = "coulnd't allocate memory for un.";
+			SOCK_set_error(self, SOCKET_COULD_NOT_CREATE_SOCKET, "coulnd't allocate memory for un.");
 			return 0;
 		}
 		un->sun_family = family = AF_UNIX;
@@ -198,8 +227,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	}
 #else
 	{
-		self->errornumber = SOCKET_HOST_NOT_FOUND;
-		self->errormsg = "Hostname isn't specified.";
+		SOCK_set_error(self, SOCKET_HOST_NOT_FOUND, "Hostname isn't specified.");
 		return 0;
 	}
 #endif /* HAVE_UNIX_SOCKETS */
@@ -207,8 +235,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	self->socket = socket(family, SOCK_STREAM, 0);
 	if (self->socket == -1)
 	{
-		self->errornumber = SOCKET_COULD_NOT_CREATE_SOCKET;
-		self->errormsg = "Could not create Socket.";
+		SOCK_set_error(self, SOCKET_COULD_NOT_CREATE_SOCKET, "Could not create Socket.");
 		return 0;
 	}
 #ifdef	TCP_NODELAY
@@ -220,10 +247,9 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		len = sizeof(i);
 		if (setsockopt(self->socket, IPPROTO_TCP, TCP_NODELAY, (char *) &i, len) < 0)
 		{
-			self->errornumber = SOCKET_COULD_NOT_CONNECT;
-			self->errormsg = "Could not set socket to NODELAY.";
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to NODELAY.");
 			closesocket(self->socket);
-			self->socket = (SOCKETFD) - 1;
+			self->socket = (SOCKETFD) -1;
 			return 0;
 		}
 	}
@@ -232,16 +258,160 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	self->sadr_len = sLen;
 	if (connect(self->socket, self->sadr, sLen) < 0)
 	{
-		self->errornumber = SOCKET_COULD_NOT_CONNECT;
-		self->errormsg = "Could not connect to remote socket.";
+		SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket.");
 		closesocket(self->socket);
-		self->socket = (SOCKETFD) - 1;
+		self->socket = (SOCKETFD) -1;
 		return 0;
 	}
 
 	return 1;
 }
 
+
+/*
+ *	To handle EWOULDBLOCK etc (mainly for libpq non-blocking connection).
+ */
+#define	MAX_RETRY_COUNT	8
+static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
+{
+	int	ret;
+	fd_set	fds;
+	struct	timeval	tm;
+
+	do {
+		FD_ZERO(&fds);
+		FD_SET(sock->socket, &fds);
+		if (!output && sock->ssl)
+		{
+			tm.tv_sec = retry_count;
+			tm.tv_usec = 0;
+		}
+		ret = select(1, output ? NULL : &fds, output ? &fds : NULL, NULL, sock->ssl ? &tm : NULL);
+	} while (ret < 0 && EINTR == SOCK_ERRNO);
+	if (0 == ret && retry_count > MAX_RETRY_COUNT)
+	{
+		ret = -1;
+		SOCK_set_error(sock, output ? SOCKET_WRITE_TIMEOUT : SOCKET_READ_TIMEOUT, "SOCK_wait_for_ready timeout");
+	}
+	return ret;
+}
+/*
+ *	The stuff for SSL.
+ */
+/* #include <openssl/ssl.h>*/
+#define SSL_ERROR_NONE			0
+#define SSL_ERROR_SSL			1
+#define SSL_ERROR_WANT_READ		2
+#define SSL_ERROR_WANT_WRITE		3
+#define SSL_ERROR_WANT_X509_LOOKUP	4
+#define SSL_ERROR_SYSCALL		5 /* look at error stack/return value/errno */
+#define SSL_ERROR_ZERO_RETURN		6
+#define SSL_ERROR_WANT_CONNECT		7
+#define SSL_ERROR_WANT_ACCEPT		8
+/*
+ *	recv more than 1 bytes using SSL.
+ */
+static int SOCK_SSL_recv(SocketClass *sock, void *buffer, int len)
+{
+	CSTR	func = "SOCK_SSL_recv";
+	int n, err, retry_count = 0;
+
+retry:
+	n = (*sock->recv)(sock->ssl, buffer, len);
+	err = (*sock->get_error)(sock->ssl, len);
+inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, SOCK_ERRNO);
+	switch (err)
+	{
+		case	SSL_ERROR_NONE:
+			break;
+		case	SSL_ERROR_WANT_READ:
+			retry_count++;
+			if (SOCK_wait_for_ready(sock, FALSE, retry_count) >= 0)
+				goto retry;
+			n = -1;
+			break;
+		case	SSL_ERROR_WANT_WRITE:
+			goto retry;
+			break;
+		case	SSL_ERROR_SYSCALL:
+			if (-1 != n)
+			{
+				n = -1;
+				SOCK_ERRNO_SET(ECONNRESET);
+			}
+			break;
+		case	SSL_ERROR_SSL:
+		case	SSL_ERROR_ZERO_RETURN:
+			n = -1;
+			SOCK_ERRNO_SET(ECONNRESET);
+			break;
+		default:
+			n = -1;
+	}
+
+	return n;
+}
+
+/*
+ *	send more than 1 bytes using SSL.
+ */
+static int SOCK_SSL_send(SocketClass *sock, void *buffer, int len)
+{
+	CSTR	func = "SOCK_SSL_send";
+	int n, err, retry_count = 0;
+
+retry:
+	n = (*sock->send)(sock->ssl, buffer, len);
+	err = (*sock->get_error)(sock->ssl, len);
+inolog("%s: %d get_error=%d Lasterror=%d\n", func,  n, err, SOCK_ERRNO);
+	switch (err)
+	{
+		case	SSL_ERROR_NONE:
+			break;
+		case	SSL_ERROR_WANT_READ:
+		case	SSL_ERROR_WANT_WRITE:
+			retry_count++;
+			if (SOCK_wait_for_ready(sock, TRUE, retry_count) >= 0)
+				goto retry;
+			n = -1;
+			break;
+		case	SSL_ERROR_SYSCALL:
+			if (-1 != n)
+			{
+				n = -1;
+				SOCK_ERRNO_SET(ECONNRESET);
+			}
+			break;
+		case	SSL_ERROR_SSL:
+		case	SSL_ERROR_ZERO_RETURN:
+			n = -1;
+			SOCK_ERRNO_SET(ECONNRESET);
+			break;
+		default:
+			n = -1;
+	}
+
+	return n;
+}
+
+
+int
+SOCK_get_id(SocketClass *self)
+{
+	int	id;
+
+	if (self->reslen > 0)
+	{
+		mylog("SOCK_get_id has to eat %d bytes\n", self->reslen);
+		do
+		{
+			SOCK_get_next_byte(self);
+		} while (self->reslen > 0);
+	}
+	id = SOCK_get_next_byte(self);
+	self->reslen = 0;
+	return id;
+}
 
 void
 SOCK_get_n_char(SocketClass *self, char *buffer, int len)
@@ -252,8 +422,7 @@ SOCK_get_n_char(SocketClass *self, char *buffer, int len)
 		return;
 	if (!buffer)
 	{
-		self->errornumber = SOCKET_NULLPOINTER_PARAMETER;
-		self->errormsg = "get_n_char was called with NULL-Pointer";
+		SOCK_set_error(self, SOCKET_NULLPOINTER_PARAMETER, "get_n_char was called with NULL-Pointer");
 		return;
 	}
 
@@ -271,8 +440,7 @@ SOCK_put_n_char(SocketClass *self, char *buffer, int len)
 		return;
 	if (!buffer)
 	{
-		self->errornumber = SOCKET_NULLPOINTER_PARAMETER;
-		self->errormsg = "put_n_char was called with NULL-Pointer";
+		SOCK_set_error(self, SOCKET_NULLPOINTER_PARAMETER, "put_n_char was called with NULL-Pointer");
 		return;
 	}
 
@@ -301,7 +469,7 @@ SOCK_get_string(SocketClass *self, char *buffer, int bufsize)
 
 
 void
-SOCK_put_string(SocketClass *self, char *string)
+SOCK_put_string(SocketClass *self, const char *string)
 {
 	register int lf;
 	int			len;
@@ -343,8 +511,7 @@ SOCK_get_int(SocketClass *self, short len)
 			}
 
 		default:
-			self->errornumber = SOCKET_GET_INT_WRONG_LENGTH;
-			self->errormsg = "Cannot read ints of that length";
+			SOCK_set_error(self, SOCKET_GET_INT_WRONG_LENGTH, "Cannot read ints of that length");
 			return 0;
 	}
 }
@@ -370,8 +537,7 @@ SOCK_put_int(SocketClass *self, int value, short len)
 			return;
 
 		default:
-			self->errornumber = SOCKET_PUT_INT_WRONG_LENGTH;
-			self->errormsg = "Cannot write ints of that length";
+			SOCK_set_error(self, SOCKET_PUT_INT_WRONG_LENGTH, "Cannot write ints of that length");
 			return;
 	}
 }
@@ -380,19 +546,32 @@ SOCK_put_int(SocketClass *self, int value, short len)
 void
 SOCK_flush_output(SocketClass *self)
 {
-	int			written, pos = 0;
+	int	written, pos = 0, retry_count = 0;
 
 	if (!self)
 		return;
 	do
 	{
-		written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+//#ifdef	WIN32
+		if (self->ssl)
+			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
+		else
+//#endif /* WIN32 */
+			written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 		if (written < 0)
 		{
-			if (SOCK_ERRNO == EINTR)
-				continue;
-			self->errornumber = SOCKET_WRITE_ERROR;
-			self->errormsg = "Could not flush socket buffer.";
+			switch (SOCK_ERRNO)
+			{
+				case EINTR:
+					continue;
+					break;
+				case EWOULDBLOCK:
+					retry_count++;
+					if (SOCK_wait_for_ready(self, TRUE, retry_count) >= 0)
+						continue;
+					break;
+			}
+			SOCK_set_error(self, SOCKET_WRITE_ERROR, "Could not flush socket buffer.");
 			break;
 		}
 		pos += written;
@@ -404,6 +583,8 @@ SOCK_flush_output(SocketClass *self)
 UCHAR
 SOCK_get_next_byte(SocketClass *self)
 {
+	int	retry_count = 0;
+
 	if (!self)
 		return 0;
 	if (self->buffer_read_in >= self->buffer_filled_in)
@@ -413,35 +594,50 @@ SOCK_get_next_byte(SocketClass *self)
 		 */
 		self->buffer_read_in = 0;
 retry:
-		self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
+//#ifdef	WIN32
+		if (self->ssl)
+			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
+		else
+//#endif /* WIN32 */
+			self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
 
 		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
 
 		if (self->buffer_filled_in < 0)
 		{
-			if (SOCK_ERRNO == EINTR)
-				goto retry;
-			self->errornumber = SOCKET_READ_ERROR;
-			self->errormsg = "Error while reading from the socket.";
+mylog("Lasterror=%d\n", SOCK_ERRNO);
+			switch (SOCK_ERRNO)
+			{
+				case	EINTR:
+					goto retry;
+					break;
+				case	EWOULDBLOCK:
+					retry_count++;
+					if (SOCK_wait_for_ready(self, FALSE, retry_count) >= 0)
+						goto retry;
+					break;
+			}
+			if (0 == self->errornumber)
+				SOCK_set_error(self, SOCKET_READ_ERROR, "Error while reading from the socket.");
 			self->buffer_filled_in = 0;
 			return 0;
 		}
 		if (self->buffer_filled_in == 0)
 		{
-			self->errornumber = SOCKET_CLOSED;
-			self->errormsg = "Socket has been closed.";
+			SOCK_set_error(self, SOCKET_CLOSED, "Socket has been closed.");
 			self->buffer_filled_in = 0;
 			return 0;
 		}
 	}
+	if (PG_PROTOCOL_74 == self->pversion)
+		self->reslen--;
 	return self->buffer_in[self->buffer_read_in++];
 }
-
 
 void
 SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 {
-	int			bytes_sent, pos = 0;
+	int	bytes_sent, pos = 0, retry_count = 0;
 
 	if (!self)
 		return;
@@ -452,17 +648,43 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 		/* buffer is full, so write it out */
 		do
 		{
-			bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+//#ifdef	WIN32
+			if (self->ssl)
+				bytes_sent = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
+			else
+//#endif	/* WIN32 */
+				bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 			if (bytes_sent < 0)
 			{
-				if (SOCK_ERRNO == EINTR)
-					continue;
-				self->errornumber = SOCKET_WRITE_ERROR;
-				self->errormsg = "Error while writing to the socket.";
+				switch (SOCK_ERRNO)
+				{
+					case	EINTR:
+						continue;
+					case	EWOULDBLOCK:
+						retry_count++;
+						if (SOCK_wait_for_ready(self, TRUE, retry_count) >= 0)
+							continue;
+				}
+				if (0 == self->errornumber)
+					SOCK_set_error(self, SOCKET_WRITE_ERROR, "Error while writing to the socket.");
 				break;
 			}
 			pos += bytes_sent;
 			self->buffer_filled_out -= bytes_sent;
 		} while (self->buffer_filled_out > 0);
 	}
+}
+
+int
+SOCK_get_response_length(SocketClass *self)
+{
+	int     leng = -1;
+
+	if (PG_PROTOCOL_74 == self->pversion)
+	{
+		leng = SOCK_get_int(self, 4) - 4;
+		self->reslen = leng;
+	}
+
+	return leng;
 }

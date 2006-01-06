@@ -2,9 +2,9 @@
  *
  * Description:		See "tuple.c"
  *
- * Important NOTE:	The TupleField structure is used both to hold backend data and
- *					manual result set data.  The "set_" functions and the TupleNode
- *					structure are only used for manual result sets by info routines.
+ * Important NOTE:	The TupleField structure is used both to hold backend
+			data and manual result set data. The "set_" functions
+			are only used for manual result sets by info routines.
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
@@ -22,14 +22,6 @@ struct TupleField_
 	void	   *value;			/* an array representing the value */
 };
 
-/*	Used ONLY for manual result sets */
-struct TupleNode_
-{
-	struct TupleNode_ *prev,
-			   *next;
-	TupleField	tuple[1];
-};
-
 /*	keyset(TID + OID) info */
 struct KeySet_
 {
@@ -41,9 +33,10 @@ struct KeySet_
 /*	Rollback(index + original TID) info */
 struct Rollback_
 {
-	UDWORD	index;
+	DWORD	index;
 	UDWORD	blocknum;
 	UWORD	offset;
+	UWORD	option;
 };
 #define	KEYSET_INFO_PUBLIC	0x07
 #define	CURS_SELF_ADDING	(1L << 3)
@@ -68,5 +61,7 @@ void		set_tuplefield_null(TupleField *tuple_field);
 void		set_tuplefield_string(TupleField *tuple_field, const char *string);
 void		set_tuplefield_int2(TupleField *tuple_field, Int2 value);
 void		set_tuplefield_int4(TupleField *tuple_field, Int4 value);
+int	ClearCachedRows(TupleField *tuple, Int4 num_fields, int num_rows);
+int	ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, Int4 num_fields, int num_rows);
 
 #endif

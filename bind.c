@@ -30,15 +30,15 @@
 RETCODE		SQL_API
 PGAPI_BindParameter(
 					HSTMT hstmt,
-					UWORD ipar,
-					SWORD fParamType,
-					SWORD fCType,
-					SWORD fSqlType,
-					UDWORD cbColDef,
-					SWORD ibScale,
+					SQLUSMALLINT ipar,
+					SQLSMALLINT fParamType,
+					SQLSMALLINT fCType,
+					SQLSMALLINT fSqlType,
+					SQLUINTEGER cbColDef,
+					SQLSMALLINT ibScale,
 					PTR rgbValue,
-					SDWORD cbValueMax,
-					SDWORD FAR * pcbValue)
+					SQLINTEGER cbValueMax,
+					SQLINTEGER FAR * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindParameter";
@@ -79,7 +79,8 @@ PGAPI_BindParameter(
 	ipdopts->parameters[ipar].decimal_digits = ibScale;
 	ipdopts->parameters[ipar].precision = 0;
 	ipdopts->parameters[ipar].scale = 0;
-	ipdopts->parameters[ipar].PGType = sqltype_to_pgtype(stmt, fSqlType);
+	if (0 == ipdopts->parameters[ipar].PGType)
+		ipdopts->parameters[ipar].PGType = sqltype_to_pgtype(stmt, fSqlType);
 #if (ODBCVER >= 0x0300)
 	switch (fCType)
 	{
@@ -116,18 +117,23 @@ PGAPI_BindParameter(
 
 	if (pcbValue && apdopts->param_offset_ptr)
 		pcbValue += (*apdopts->param_offset_ptr >> 2);
+#ifdef	NOT_USED /* evaluation of pcbValue here is dangerous */
 	/* Data at exec macro only valid for C char/binary data */
 	if (pcbValue && (*pcbValue == SQL_DATA_AT_EXEC ||
 					 *pcbValue <= SQL_LEN_DATA_AT_EXEC_OFFSET))
 		apdopts->parameters[ipar].data_at_exec = TRUE;
 	else
 		apdopts->parameters[ipar].data_at_exec = FALSE;
+#endif /* NOT_USED */
 
 	/* Clear premature result */
 	if (stmt->status == STMT_PREMATURE)
 		SC_recycle_statement(stmt);
 
-	mylog("PGAPI_BindParamater: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d, rgbValue=%d, *pcbValue = %d, data_at_exec = %d\n", ipar, fParamType, fCType, fSqlType, cbColDef, ibScale, rgbValue, pcbValue ? *pcbValue : -777, apdopts->parameters[ipar].data_at_exec);
+	mylog("%s: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d,", func, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale);
+	/*** mylog("rgbValue=%x, pcbValue = %x(%d), data_at_exec = %d\n", rgbValue, pcbValue, pcbValue ? *pcbValue : -777, apdopts->parameters[ipar].data_at_exec); ***/
+
+	mylog("rgbValue=%x, pcbValue = %x, data_at_exec = %d\n", rgbValue, pcbValue, apdopts->parameters[ipar].data_at_exec);
 
 	return SQL_SUCCESS;
 }
@@ -148,10 +154,11 @@ PGAPI_BindCol(
 	ARDFields	*opts;
 	GetDataInfo	*gdata_info;
 	BindInfoClass	*bookmark;
+	RETCODE		ret = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
 
-	mylog("**** PGAPI_BindCol: stmt = %u, icol = %d\n", stmt, icol);
+	mylog("**** PGAPI_BindCol: stmt = %x, icol = %d\n", stmt, icol);
 	mylog("**** : fCType=%d rgb=%x valusMax=%d pcb=%x\n", fCType, rgbValue, cbValueMax, pcbValue);
 
 	if (!stmt)
@@ -163,12 +170,13 @@ PGAPI_BindCol(
 	opts = SC_get_ARDF(stmt);
 	if (stmt->status == STMT_EXECUTING)
 	{
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't bind columns while statement is still executing.");
-		SC_log_error(func, "", stmt);
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Can't bind columns while statement is still executing.", func);
 		return SQL_ERROR;
 	}
 
+#define	return	DONT_CALL_RETURN_FROM_HERE ???
 	SC_clear_error(stmt);
+	/* StartRollbackState(stmt); */
 	/* If the bookmark column is being bound, then just save it */
 	if (icol == 0)
 	{
@@ -192,10 +200,10 @@ PGAPI_BindCol(
 #endif /* ODBCVER */
 					break;
 				default:
-					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK");
+					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK", func);
 inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
-					SC_log_error(func, "", stmt);
-					return SQL_ERROR;
+					ret = SQL_ERROR;
+					goto cleanup;
 			}
 
 			bookmark = ARD_AllocBookmark(opts);
@@ -204,7 +212,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 			bookmark->buflen = cbValueMax;
 			bookmark->returntype = fCType;
 		}
-		return SQL_SUCCESS;
+		goto cleanup;
 	}
 
 	/*
@@ -221,9 +229,9 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 	/* check to see if the bindings were allocated */
 	if (!opts->bindings)
 	{
-		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for bindings.");
-		SC_log_error(func, "", stmt);
-		return SQL_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for bindings.", func);
+		ret = SQL_ERROR;
+		goto cleanup;
 	}
 
 	/* use zero based col numbers from here out */
@@ -262,10 +270,14 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 			opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
 
-		mylog("       bound buffer[%d] = %u\n", icol, opts->bindings[icol].buffer);
+		mylog("       bound buffer[%d] = %x\n", icol, opts->bindings[icol].buffer);
 	}
 
-	return SQL_SUCCESS;
+cleanup:
+#undef	return
+	if (stmt->internal)
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	return ret;
 }
 
 
@@ -290,8 +302,9 @@ PGAPI_DescribeParam(
 	CSTR func = "PGAPI_DescribeParam";
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
+	RETCODE		ret = SQL_SUCCESS;
 
-	mylog("%s: entering...\n", func);
+	mylog("%s: entering...%d\n", func, ipar);
 
 	if (!stmt)
 	{
@@ -301,34 +314,72 @@ PGAPI_DescribeParam(
 	SC_clear_error(stmt);
 
 	apdopts = SC_get_APDF(stmt);
-	if ((ipar < 1) || (ipar > apdopts->allocated))
+	ipdopts = SC_get_IPDF(stmt);
+	/*if ((ipar < 1) || (ipar > ipdopts->allocated))*/
+	if ((ipar < 1) || (ipar > stmt->num_params))
 	{
-		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.");
-		SC_log_error(func, "", stmt);
+inolog("num_params=%d\n", stmt->num_params);
+		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.", func);
 		return SQL_ERROR;
 	}
-	ipdopts = SC_get_IPDF(stmt);
+	extend_iparameter_bindings(ipdopts, stmt->num_params);
+
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	/* StartRollbackState(stmt); */
+	if (NOT_YET_PREPARED == stmt->prepared)
+	{
+		decideHowToPrepare(stmt);
+inolog("howTo=%d\n", SC_get_prepare_method(stmt));
+		switch (SC_get_prepare_method(stmt))
+		{
+			case USING_PARSE_REQUEST:
+			case USING_UNNAMED_PARSE_REQUEST:
+				if (ret = prepareParameters(stmt), SQL_ERROR == ret)
+					goto cleanup;
+		}
+	}
 
 	ipar--;
-
 	/*
 	 * This implementation is not very good, since it is supposed to
 	 * describe
 	 */
 	/* parameter markers, not bound parameters.  */
 	if (pfSqlType)
-		*pfSqlType = ipdopts->parameters[ipar].SQLType;
+	{
+inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType,
+ipdopts->parameters[ipar].PGType);
+		if (ipdopts->parameters[ipar].SQLType)
+			*pfSqlType = ipdopts->parameters[ipar].SQLType;
+		else if (ipdopts->parameters[ipar].PGType)
+			*pfSqlType = pgtype_to_concise_type(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC);
+	}
 
 	if (pcbColDef)
-		*pcbColDef = ipdopts->parameters[ipar].column_size;
+	{
+		*pcbColDef = 0;
+		if (ipdopts->parameters[ipar].SQLType)
+			*pcbColDef = ipdopts->parameters[ipar].column_size;
+		if (0 == *pcbColDef && ipdopts->parameters[ipar].PGType)
+			*pcbColDef = pgtype_column_size(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC, PG_STATIC);
+	}
 
 	if (pibScale)
-		*pibScale = ipdopts->parameters[ipar].decimal_digits;
+	{
+		*pibScale = 0;
+		if (ipdopts->parameters[ipar].SQLType)
+			*pibScale = ipdopts->parameters[ipar].decimal_digits;
+		else if (ipdopts->parameters[ipar].PGType)
+			*pibScale = pgtype_scale(stmt, ipdopts->parameters[ipar].PGType, -1);
+	}
 
 	if (pfNullable)
 		*pfNullable = pgtype_nullable(stmt, ipdopts->parameters[ipar].paramType);
-
-	return SQL_SUCCESS;
+cleanup:
+#undef	return
+	if (stmt->internal)
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	return ret;
 }
 
 
@@ -367,8 +418,6 @@ PGAPI_NumParams(
 				SWORD FAR * pcpar)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
-	char		in_quote = FALSE;
-	unsigned int i;
 	CSTR func = "PGAPI_NumParams";
 
 	mylog("%s: entering...\n", func);
@@ -383,34 +432,60 @@ PGAPI_NumParams(
 		*pcpar = 0;
 	else
 	{
-		SC_log_error(func, "pcpar was null", stmt);
+		SC_set_error(stmt, STMT_EXEC_ERROR, "parameter count address is null", func);
 		return SQL_ERROR;
 	}
-
-
+inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	if (stmt->num_params >= 0)
 		*pcpar = stmt->num_params;
 	else if (!stmt->statement)
 	{
 		/* no statement has been allocated */
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "PGAPI_NumParams called with no statement ready.");
-		SC_log_error(func, "", stmt);
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "PGAPI_NumParams called with no statement ready.", func);
 		return SQL_ERROR;
 	}
 	else
 	{
-		for (i = 0; i < strlen(stmt->statement); i++)
+		char	*sptr, bchar;
+		char	in_literal = FALSE, in_identifier = FALSE;
+		char	multi = FALSE, del_found = FALSE;
+
+		stmt->proc_return = 0;
+		for (sptr = stmt->statement, bchar = '\0'; *sptr; sptr++)
 		{
-			if (stmt->statement[i] == '?' && !in_quote)
-				(*pcpar)++;
-			else
+			if (!multi && del_found)
 			{
-				if (stmt->statement[i] == '\'')
-					in_quote = (in_quote ? FALSE : TRUE);
+				if (!isspace(*sptr))
+					multi = TRUE;
+			}
+			if (!in_literal && !in_identifier)
+			{
+				if (*sptr == '?')
+				{
+					if (0 == *pcpar && bchar == '{')
+						stmt->proc_return = 1;
+					(*pcpar)++;
+				}
+				else if (*sptr == ';')
+					del_found = TRUE;
+				if (!isspace(*sptr))
+					bchar = *sptr;
+			}
+			if (*sptr == LITERAL_QUOTE)
+			{
+				if (!in_identifier)
+					in_literal = !in_literal;
+			}
+			else if (*sptr == IDENTIFIER_QUOTE)
+			{
+				if (!in_literal)
+					in_identifier = !in_identifier;
 			}
 		}
 		stmt->num_params = *pcpar;
+		stmt->multi_statement = multi;
 	}
+inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	return SQL_SUCCESS;
 }
 
@@ -444,7 +519,7 @@ extend_parameter_bindings(APDFields *self, int num_params)
 	CSTR func = "extend_parameter_bindings";
 	ParameterInfoClass *new_bindings;
 
-	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%x, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -477,7 +552,7 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 	CSTR func = "extend_iparameter_bindings";
 	ParameterImplClass *new_bindings;
 
-	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%x, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -509,7 +584,7 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 {
 	CSTR func = "reset_a_parameter_binding";
 
-	mylog("%s: entering ... self=%u, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
+	mylog("%s: entering ... self=%x, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
 
 	if (ipar < 1 || ipar > self->allocated)
 		return;
@@ -529,7 +604,7 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 {
 	CSTR func = "reset_a_iparameter_binding";
 
-	mylog("%s: entering ... self=%u, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
+	mylog("%s: entering ... self=%x, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
 
 	if (ipar < 1 || ipar > self->allocated)
 		return;
@@ -541,6 +616,51 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 	self->parameters[ipar].decimal_digits = 0;
 	self->parameters[ipar].precision = 0;
 	self->parameters[ipar].scale = 0;
+	self->parameters[ipar].PGType = 0;
+}
+
+int
+CountParameters(const StatementClass *self, Int2 *inputCount, Int2 *ioCount, Int2 *outputCount)
+{
+	CSTR func = "CountParameters";
+	IPDFields	*ipdopts = SC_get_IPDF(self);
+	int	i, num_params, valid_count;
+
+	if (inputCount)
+		*inputCount = 0;
+	if (ioCount)
+		*ioCount = 0;
+	if (outputCount)
+		*outputCount = 0;
+	if (!ipdopts)	return -1;
+	num_params = self->num_params;
+	if (ipdopts->allocated < num_params)
+		num_params = ipdopts->allocated;
+	for (i = 0, valid_count = 0; i < num_params; i++)
+	{
+		if (SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
+		{
+			if (outputCount)
+			{
+				(*outputCount)++;
+				valid_count++;
+			}
+		}
+		else if (SQL_PARAM_INPUT_OUTPUT == ipdopts->parameters[i].paramType)
+		{
+			if (ioCount)
+			{
+				(*ioCount)++;
+				valid_count++;
+			}
+		}
+		else if (inputCount)
+		{
+			 (*inputCount)++;
+			valid_count++;
+		}
+	}
+	return valid_count;
 }
 
 /*
@@ -569,7 +689,7 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 {
 	int			i;
 
-	mylog("PDATA_free_params:  ENTER, self=%d\n", pdata);
+	mylog("PDATA_free_params:  ENTER, self=%x\n", pdata);
 
 	if (!pdata->pdata)
 		return;
@@ -604,7 +724,7 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 void
 IPD_free_params(IPDFields *ipdopts, char option)
 {
-	mylog("IPD_free_params:  ENTER, self=%d\n", ipdopts);
+	mylog("IPD_free_params:  ENTER, self=%x\n", ipdopts);
 
 	if (!ipdopts->parameters)
 		return;
@@ -625,7 +745,7 @@ extend_column_bindings(ARDFields *self, int num_columns)
 	BindInfoClass *new_bindings;
 	int			i;
 
-	mylog("%s: entering ... self=%u, bindings_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
+	mylog("%s: entering ... self=%x, bindings_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -678,7 +798,7 @@ reset_a_column_binding(ARDFields *self, int icol)
 	CSTR func = "reset_a_column_binding";
 	BindInfoClass	*bookmark;
 
-	mylog("%s: entering ... self=%u, bindings_allocated=%d, icol=%d\n", func, self, self->allocated, icol);
+	mylog("%s: entering ... self=%x, bindings_allocated=%d, icol=%d\n", func, self, self->allocated, icol);
 
 	if (icol > self->allocated)
 		return;
@@ -777,7 +897,7 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 	GetDataClass	*new_gdata;
 	int			i;
 
-	mylog("%s: entering ... self=%u, gdata_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
+	mylog("%s: entering ... self=%x, gdata_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -853,7 +973,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 	CSTR func = "extend_putdata_info";
 	PutDataClass	*new_pdata;
 
-	mylog("%s: entering ... self=%u, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%x, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -908,4 +1028,35 @@ void	reset_a_putdata_info(PutDataInfo *pdata_info, int ipar)
 		pdata_info->pdata[ipar].EXEC_buffer = NULL;
 	}
 	pdata_info->pdata[ipar].lobj_oid = 0;
+}
+
+void SC_param_next(const StatementClass *stmt, int *param_number, ParameterInfoClass **apara, ParameterImplClass **ipara)
+{
+	int	next;
+	IPDFields	*ipdopts = SC_get_IPDF(stmt);
+
+	if (*param_number < 0)
+		next = stmt->proc_return;
+	else
+		next = *param_number + 1;
+	if (stmt->discard_output_params)
+	{
+		for (;next < ipdopts->allocated && SQL_PARAM_OUTPUT == ipdopts->parameters[next].paramType; next++) ;
+	}
+	*param_number = next;
+	if (ipara)
+	{
+		if (next < ipdopts->allocated)
+			*ipara = ipdopts->parameters + next;
+		else
+			*ipara = NULL;
+	}
+	if (apara)
+	{
+		APDFields	*apdopts = SC_get_APDF(stmt);
+		if (next < apdopts->allocated)
+			*apara = apdopts->parameters + next;
+		else
+			*apara = NULL;
+	}
 }

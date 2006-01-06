@@ -32,7 +32,7 @@ extern GLOBAL_VALUES	globals;
 /* Constants */
 #define MIN(x,y)	  ((x) < (y) ? (x) : (y))
 
-#define MAXKEYLEN		(15+1)	/* Max keyword length */
+#define MAXKEYLEN		(32+1)	/* Max keyword length */
 #define MAXDESC			(255+1) /* Max description length */
 #define MAXDSNAME		(32+1)	/* Max data source name length */
 
@@ -304,6 +304,14 @@ ConfigDlgProc(HWND hdlg,
 						EndDialog(hdlg, 0);
 
 					return TRUE;
+			}
+			break;
+		case WM_CTLCOLORSTATIC:
+			if (lParam == (LPARAM)GetDlgItem(hdlg, IDC_NOTICE_USER))
+			{
+				HBRUSH hBrush = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+				SetTextColor((HDC)wParam, RGB(255, 0, 0));
+				return (long)hBrush;
 			}
 			break;
 	}

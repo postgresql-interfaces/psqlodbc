@@ -2,17 +2,13 @@
  * Module:			qresult.c
  *
  * Description:		This module contains functions related to
- *					managing result information (i.e, fetching rows
- *					from the backend, managing the tuple cache, etc.)
- *					and retrieving it.	Depending on the situation, a
- *					QResultClass will hold either data from the backend
- *					or a manually built result (see "qresult.h" to
- *					see which functions/macros are for manual or backend
- *					results.  For manually built results, the
- *					QResultClass simply points to TupleList and
- *					ColumnInfo structures, which actually hold the data.
+ *			managing result information (i.e, fetching rows
+ *			from the backend, managing the tuple cache, etc.)
+ *			and retrieving it.	Depending on the situation, a
+ *			QResultClass will hold either data from the backend
+ *			or a manually built result.
  *
- * Classes:			QResultClass (Functions prefix: "QR_")
+ * Classes:		QResultClass (Functions prefix: "QR_")
  *
  * API functions:	none
  *
@@ -21,10 +17,12 @@
  */
 
 #include "qresult.h"
+#include "statement.h"
 
 #include "misc.h"
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #ifndef TRUE
 #define TRUE	(BOOL)1
@@ -33,6 +31,7 @@
 #define FALSE	(BOOL)0
 #endif
 
+static char QR_read_a_tuple_from_db(QResultClass *, char);
 
 /*
  *	Used for building a Manual Result only
@@ -41,14 +40,12 @@
 void
 QR_set_num_fields(QResultClass *self, int new_num_fields)
 {
+	BOOL	allocrelatt = FALSE;
+
 	if (!self)	return;
 	mylog("in QR_set_num_fields\n");
 
-	CI_set_num_fields(self->fields, new_num_fields);
-	if (self->manual_tuples)
-		TL_Destructor(self->manual_tuples);
-
-	self->manual_tuples = TL_Constructor(new_num_fields);
+	CI_set_num_fields(self->fields, new_num_fields, allocrelatt);
 
 	mylog("exit QR_set_num_fields\n");
 }
@@ -57,7 +54,7 @@ QR_set_num_fields(QResultClass *self, int new_num_fields)
 void
 QR_set_position(QResultClass *self, int pos)
 {
-	self->tupleField = self->backend_tuples + ((self->base + pos) * self->num_fields);
+	self->tupleField = self->backend_tuples + ((QR_get_rowstart_in_cache(self) + pos) * self->num_fields);
 }
 
 
@@ -71,14 +68,60 @@ QR_set_cache_size(QResultClass *self, int cache_size)
 void
 QR_set_rowset_size(QResultClass *self, int rowset_size)
 {
-	self->rowset_size = rowset_size;
+	self->rowset_size_include_ommitted = rowset_size;
+}
+
+void
+QR_set_cursor(QResultClass *self, const char *name)
+{
+	ConnectionClass	*conn = QR_get_conn(self);
+
+	if (self->cursor_name)
+	{
+		free(self->cursor_name);
+		if (conn)
+			conn->ncursors--;
+		self->cursTuple = -1;
+		self->pstatus = 0;
+	}
+	if (name)
+	{
+		self->cursor_name = strdup(name);
+		if (conn)
+			conn->ncursors++;
+	}
+	else
+	{
+		self->cursor_name = NULL;
+		QR_set_no_cursor(self);
+	}
 }
 
 
 void
-QR_inc_base(QResultClass *self, int base_inc)
+QR_set_num_cached_rows(QResultClass *self, int num_rows)
 {
+	self->num_cached_rows = num_rows;
+	if (QR_synchronize_keys(self))
+		self->num_cached_keys = self->num_cached_rows;
+}
+
+void
+QR_set_rowstart_in_cache(QResultClass *self, int start)
+{
+	if (QR_synchronize_keys(self))
+		self->key_base = start;
+	self->base = start;
+}
+
+void
+QR_inc_rowstart_in_cache(QResultClass *self, int base_inc)
+{
+	if (!QR_has_valid_base(self))
+		mylog("QR_inc_rowstart_in_cache called while the cache is not ready\n");
 	self->base += base_inc;
+	if (QR_synchronize_keys(self))
+		self->key_base = self->base;
 }
 
 
@@ -95,7 +138,8 @@ QR_Constructor()
 
 	if (rv != NULL)
 	{
-		rv->status = PGRES_EMPTY_QUERY;
+		rv->rstatus = PGRES_EMPTY_QUERY;
+		rv->pstatus = 0;
 
 		/* construct the column info */
 		if (!(rv->fields = CI_Constructor()))
@@ -103,38 +147,53 @@ QR_Constructor()
 			free(rv);
 			return NULL;
 		}
-		rv->manual_tuples = NULL;
 		rv->backend_tuples = NULL;
+		rv->sqlstate[0] = '\0';
 		rv->message = NULL;
 		rv->command = NULL;
 		rv->notice = NULL;
 		rv->conn = NULL;
 		rv->next = NULL;
-		rv->inTuples = FALSE;
+		rv->pstatus = 0;
 		rv->count_backend_allocated = 0;
 		rv->count_keyset_allocated = 0;
-		rv->num_total_rows = 0;
-		rv->num_backend_rows = 0;
-		rv->fetch_count = 0;
-		rv->base = 0;
+		rv->num_total_read = 0;
+		rv->num_cached_rows = 0;
+		rv->num_cached_keys = 0;
+		rv->fetch_number = 0;
+		QR_set_rowstart_in_cache(rv, -1);
+		rv->key_base = -1;
 		rv->recent_processed_row_count = -1;
-		rv->currTuple = -1;
+		rv->cursTuple = -1;
+		rv->move_offset = 0;
 		rv->num_fields = 0;
+		rv->num_key_fields = PG_NUM_NORMAL_KEYS; /* CTID + OID */
 		rv->tupleField = NULL;
-		rv->cursor = NULL;
+		rv->cursor_name = NULL;
 		rv->aborted = FALSE;
 
 		rv->cache_size = 0;
-		rv->rowset_size = 1;
-		rv->haskeyset = 0;
+		rv->rowset_size_include_ommitted = 1;
+		rv->flags = 0;
+		rv->move_direction = 0;
 		rv->keyset = NULL;
 		rv->reload_count = 0;
 		rv->rb_alloc = 0;
 		rv->rb_count = 0;
 		rv->rollback = NULL;
+		rv->ad_alloc = 0;
+		rv->ad_count = 0;
+		rv->added_keyset = NULL;
+		rv->added_tuples = NULL;
+		rv->up_alloc = 0;
+		rv->up_count = 0;
+		rv->updated = NULL;
+		rv->updated_keyset = NULL;
+		rv->updated_tuples = NULL;
 		rv->dl_alloc = 0;
 		rv->dl_count = 0;
 		rv->deleted = NULL;
+		rv->deleted_keyset = NULL;
 	}
 
 	mylog("exit QR_Constructor\n");
@@ -143,42 +202,35 @@ QR_Constructor()
 
 
 void
-QR_Destructor(QResultClass *self)
+QR_close_result(QResultClass *self, BOOL destroy)
 {
-	ConnectionClass	*conn = self->conn;
+	ConnectionClass	*conn;
 
 	if (!self)	return;
-	mylog("QResult: in DESTRUCTOR\n");
-
-	/* manual result set tuples */
-	if (self->manual_tuples)
-	{
-		TL_Destructor(self->manual_tuples);
-		self->manual_tuples = NULL;
-	}
+	mylog("QResult: in QR_close_result\n");
 
 	/*
 	 * If conn is defined, then we may have used "backend_tuples", so in
 	 * case we need to, free it up.  Also, close the cursor.
 	 */
-	if (conn && conn->sock && CC_is_in_trans(conn))
+	if ((conn = QR_get_conn(self)) && conn->sock)
 	{
-		if (!QR_close(self))	/* close the cursor if there is one */
+		if (CC_is_in_trans(conn) ||
+		    QR_is_withhold(self))
 		{
+			if (!QR_close(self))	/* close the cursor if there is one */
+			{
+			}
 		}
 	}
 
 	QR_free_memory(self);		/* safe to call anyway */
 
 	/* Should have been freed in the close() but just in case... */
-	if (self->cursor)
-	{
-		free(self->cursor);
-		self->cursor = NULL;
-	}
+	QR_set_cursor(self, NULL);
 
 	/* Free up column info */
-	if (self->fields)
+	if (destroy && self->fields)
 	{
 		CI_Destructor(self->fields);
 		self->fields = NULL;
@@ -205,13 +257,22 @@ QR_Destructor(QResultClass *self)
 		self->notice = NULL;
 	}
 	/* Destruct the result object in the chain */
-	if (self->next)
-	{
-		QR_Destructor(self->next);
-		self->next = NULL;
-	}
+	QR_Destructor(self->next);
+	self->next = NULL;
 
-	free(self);
+	mylog("QResult: exit close_result\n");
+	if (destroy)
+	{
+		free(self);
+	}
+}
+
+void
+QR_Destructor(QResultClass *self)
+{
+	mylog("QResult: enter DESTRUCTOR\n");
+	if (!self)	return;
+	QR_close_result(self, TRUE);
 
 	mylog("QResult: exit DESTRUCTOR\n");
 }
@@ -236,6 +297,31 @@ QR_set_message(QResultClass *self, const char *msg)
 	self->message = msg ? strdup(msg) : NULL;
 }
 
+void
+QR_add_message(QResultClass *self, const char *msg)
+{
+	char	*message = self->message;
+	Int4	alsize, pos;
+
+	if (!msg || !msg[0])
+		return;
+	if (message)
+	{
+		pos = strlen(message) + 1;
+		alsize = pos + strlen(msg) + 1;
+	}
+	else
+	{
+		pos = 0;
+		alsize = strlen(msg) + 1;
+	}
+	message = realloc(message, alsize);
+	if (pos > 0)
+		message[pos - 1] = ';';
+	strcpy(message + pos, msg);
+	self->message = message;
+}
+
 
 void
 QR_set_notice(QResultClass *self, const char *msg)
@@ -246,40 +332,86 @@ QR_set_notice(QResultClass *self, const char *msg)
 	self->notice = msg ? strdup(msg) : NULL;
 }
 
+void
+QR_add_notice(QResultClass *self, const char *msg)
+{
+	char	*message = self->notice;
+	Int4	alsize, pos;
+
+	if (!msg || !msg[0])
+		return;
+	if (message)
+	{
+		pos = strlen(message) + 1;
+		alsize = pos + strlen(msg) + 1;
+	}
+	else
+	{
+		pos = 0;
+		alsize = strlen(msg) + 1;
+	}
+	message = realloc(message, alsize);
+	if (pos > 0)
+		message[pos - 1] = ';';
+	strcpy(message + pos, msg);
+	self->notice = message;
+}
+
+
+TupleField	*QR_AddNew(QResultClass *self)
+{
+	UInt4	alloc, num_fields;
+
+	if (!self)	return	NULL;
+inolog("QR_AddNew %dth row(%d fields) alloc=%d\n", self->num_cached_rows, QR_NumResultCols(self), self->count_backend_allocated);
+	if (num_fields = QR_NumResultCols(self), !num_fields)	return	NULL;
+	if (self->num_fields <= 0)
+	{
+		self->num_fields = num_fields;
+		QR_set_reached_eof(self);
+	}
+	alloc = self->count_backend_allocated;
+	if (!self->backend_tuples)
+	{
+		self->num_cached_rows = 0;
+		alloc = TUPLE_MALLOC_INC;
+		self->backend_tuples = malloc(alloc * sizeof(TupleField) * num_fields);
+	}
+	else if (self->num_cached_rows >= self->count_backend_allocated)
+	{
+		alloc = self->count_backend_allocated * 2;
+		self->backend_tuples = realloc(self->backend_tuples, alloc * sizeof(TupleField) * num_fields);
+	}
+	self->count_backend_allocated = alloc;
+
+	if (self->backend_tuples)
+	{
+		memset(self->backend_tuples + num_fields * self->num_cached_rows, 0, num_fields * sizeof(TupleField));
+		self->num_cached_rows++;
+		self->ad_count++;
+	}
+	return self->backend_tuples + num_fields * (self->num_cached_rows - 1);
+}
 
 void
 QR_free_memory(QResultClass *self)
 {
-	int		lf, row;
 	TupleField	*tuple = self->backend_tuples;
-	int		num_backend_rows = self->num_backend_rows;
+	int		num_backend_rows = self->num_cached_rows;
 	int		num_fields = self->num_fields;
 
 	mylog("QResult: free memory in, fcount=%d\n", num_backend_rows);
 
 	if (self->backend_tuples)
 	{
-		for (row = 0; row < num_backend_rows; row++)
-		{
-			mylog("row = %d, num_fields = %d\n", row, num_fields);
-			for (lf = 0; lf < num_fields; lf++)
-			{
-				if (tuple[lf].value != NULL)
-				{
-					mylog("free [lf=%d] %u\n", lf, tuple[lf].value);
-					free(tuple[lf].value);
-				}
-			}
-			tuple += num_fields;	/* next row */
-		}
-
+		ClearCachedRows(self->backend_tuples, num_fields, num_backend_rows);
 		free(self->backend_tuples);
 		self->count_backend_allocated = 0;
 		self->backend_tuples = NULL;
 	}
 	if (self->keyset)
 	{
-		ConnectionClass	*conn = self->conn;
+		ConnectionClass	*conn = QR_get_conn(self);
 
 		free(self->keyset);
 		self->keyset = NULL;
@@ -291,7 +423,7 @@ QR_free_memory(QResultClass *self)
 			sprintf(plannm, "_KEYSET_%x", self);
 			if (CC_is_in_error_trans(conn))
 			{
-				CC_mark_a_plan_to_discard(conn, plannm);
+				CC_mark_a_object_to_discard(conn, 's',plannm);
 			}
 			else
 			{
@@ -299,9 +431,8 @@ QR_free_memory(QResultClass *self)
 				char		cmd[64];
 
 				sprintf(cmd, "DEALLOCATE \"%s\"", plannm);
-				res = CC_send_query(conn, cmd, NULL, CLEAR_RESULT_ON_ABORT);
-				if (res)
-					QR_Destructor(res);
+				res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+				QR_Destructor(res);
 			}
 		}
 		self->reload_count = 0;
@@ -316,13 +447,54 @@ QR_free_memory(QResultClass *self)
 	if (self->deleted)
 	{
 		free(self->deleted);
-		self->dl_alloc = 0;
-		self->dl_count = 0;
 		self->deleted = NULL;
 	}
+	if (self->deleted_keyset)
+	{
+		free(self->deleted_keyset);
+		self->deleted_keyset = NULL;
+	}
+	self->dl_alloc = 0;
+	self->dl_count = 0;
+	/* clear added info */
+	if (self->added_keyset)
+	{
+		free(self->added_keyset);
+		self->added_keyset = NULL;
+	}
+	if (self->added_tuples)
+	{
+		ClearCachedRows(self->added_tuples, num_fields, self->ad_count);
+		free(self->added_tuples);
+		self->added_tuples = NULL;
+	}
+	self->ad_alloc = 0;
+	self->ad_count = 0;
+	/* clear updated info */
+	if (self->updated)
+	{
+		free(self->updated);
+		self->updated = NULL;
+	}
+	if (self->updated_keyset)
+	{
+		free(self->updated_keyset);
+		self->updated_keyset = NULL;
+	}
+	if (self->updated_tuples)
+	{
+		ClearCachedRows(self->updated_tuples, num_fields, self->up_count);
+		free(self->updated_tuples);
+		self->updated_tuples = NULL;
+	}
+	self->up_alloc = 0;
+	self->up_count = 0;
 
-	self->num_total_rows = 0;
-	self->num_backend_rows = 0;
+	self->num_total_read = 0;
+	self->num_cached_rows = 0;
+	self->num_cached_keys = 0;
+	self->cursTuple = -1;
+	self->pstatus = 0;
 
 	mylog("QResult: free memory out\n");
 }
@@ -330,8 +502,9 @@ QR_free_memory(QResultClass *self)
 
 /*	This function is called by send_query() */
 char
-QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor)
+QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 {
+	CSTR		func = "QR_fetch_tuples";
 	int			tuple_size;
 
 	/*
@@ -343,47 +516,45 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor)
 	if (conn != NULL)
 	{
 		ConnInfo   *ci = &(conn->connInfo);
-		BOOL		fetch_cursor = (ci->drivers.use_declarefetch && cursor && cursor[0]);
+		BOOL		fetch_cursor = (cursor && cursor[0]);
 
-		self->conn = conn;
+		QR_set_conn(self, conn);
 
-		mylog("QR_fetch_tuples: cursor = '%s', self->cursor=%u\n", (cursor == NULL) ? "" : cursor, self->cursor);
+		mylog("%s: cursor = '%s', self->cursor=%x\n", func, (cursor == NULL) ? "" : cursor, QR_get_cursor(self));
 
-		if (self->cursor)
-			free(self->cursor);
-		self->cursor = NULL;
-
+		if (cursor && !cursor[0])
+			cursor = NULL;
 		if (fetch_cursor)
 		{
-			if (!cursor || cursor[0] == '\0')
+			if (!cursor)
 			{
-				self->status = PGRES_INTERNAL_ERROR;
+				QR_set_rstatus(self, PGRES_INTERNAL_ERROR);
 				QR_set_message(self, "Internal Error -- no cursor for fetch");
 				return FALSE;
 			}
-			self->cursor = strdup(cursor);
 		}
+		QR_set_cursor(self, cursor);
 
 		/*
 		 * Read the field attributes.
 		 *
 		 * $$$$ Should do some error control HERE! $$$$
 		 */
-		if (CI_read_fields(self->fields, self->conn))
+		if (CI_read_fields(self->fields, QR_get_conn(self)))
 		{
-			self->status = PGRES_FIELDS_OK;
+			QR_set_rstatus(self, PGRES_FIELDS_OK);
 			self->num_fields = CI_get_num_fields(self->fields);
-			if (self->haskeyset)
-				self->num_fields -= 2;
+			if (QR_haskeyset(self))
+				self->num_fields -= self->num_key_fields;
 		}
 		else
 		{
-			self->status = PGRES_BAD_RESPONSE;
+			QR_set_rstatus(self, PGRES_BAD_RESPONSE);
 			QR_set_message(self, "Error reading field information");
 			return FALSE;
 		}
 
-		mylog("QR_fetch_tuples: past CI_read_fields: num_fields = %d\n", self->num_fields);
+		mylog("%s: past CI_read_fields: num_fields = %d\n", func, self->num_fields);
 
 		if (fetch_cursor)
 		{
@@ -399,34 +570,29 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor)
 		self->count_backend_allocated = self->count_keyset_allocated = 0;
 		if (self->num_fields > 0)
 		{
-			QR_MALLOC_return_with_error(self->backend_tuples,
-				TupleField,
-				(self->num_fields * sizeof(TupleField) * tuple_size),
-				self, PGRES_FATAL_ERROR,
-				"Could not get memory for tuple cache.",
-				FALSE)
+			QR_MALLOC_return_with_error(self->backend_tuples, TupleField, self->num_fields * sizeof(TupleField) * tuple_size, self, "Could not get memory for tuple cache.", FALSE);
 			self->count_backend_allocated = tuple_size;
 		}
-		if (self->haskeyset)
+		if (QR_haskeyset(self))
 		{
 			if (self->keyset = (KeySet *) calloc(sizeof(KeySet), tuple_size), !self->keyset)
 			{
-				self->status = PGRES_FATAL_ERROR;
+				QR_set_rstatus(self, PGRES_FATAL_ERROR);
 				QR_set_message(self, "Could not get memory for tuple cache.");
 				return FALSE;
 			}
 			self->count_keyset_allocated = tuple_size;
 		}
 
-		self->inTuples = TRUE;
+		QR_set_fetching_tuples(self);
 
 		/* Force a read to occur in next_tuple */
-		self->num_total_rows = 0;
-		self->num_backend_rows = tuple_size + 1;
-		self->fetch_count = tuple_size + 1;
-		self->base = 0;
+		QR_set_num_cached_rows(self, 0);
+		QR_set_next_in_cache(self, 0);
+		QR_set_rowstart_in_cache(self, 0);
+		self->key_base = 0;
 
-		return QR_next_tuple(self);
+		return QR_next_tuple(self, NULL);
 	}
 	else
 	{
@@ -435,9 +601,9 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor)
 		 * reallocate memory for them!
 		 */
 
-		if (!CI_read_fields(NULL, self->conn))
+		if (!CI_read_fields(NULL, QR_get_conn(self)))
 		{
-			self->status = PGRES_BAD_RESPONSE;
+			QR_set_rstatus(self, PGRES_BAD_RESPONSE);
 			QR_set_message(self, "Error reading field information");
 			return FALSE;
 		}
@@ -448,50 +614,49 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, char *cursor)
 
 /*
  *	Close the cursor and end the transaction (if no cursors left)
- *	We only close cursor/end the transaction if a cursor was used.
+ *	We only close the cursor if other cursors are used.
  */
 int
 QR_close(QResultClass *self)
 {
+	ConnectionClass	*conn;
 	QResultClass *res;
-	ConnectionClass	*conn = self->conn;
 	int	ret = TRUE;
 
-	if (conn && self->cursor && conn->connInfo.drivers.use_declarefetch)
+	conn = QR_get_conn(self);
+	if (self && QR_get_cursor(self))
 	{
-		if (!CC_is_in_error_trans(conn))
+		if (CC_is_in_error_trans(conn))
+		{
+			if (QR_is_withhold(self))
+				CC_mark_a_object_to_discard(conn, 'p', QR_get_cursor(self));
+		}
+		else
 		{
 			char		buf[64];
 
-			sprintf(buf, "close %s", self->cursor);
+			sprintf(buf, "close \"%s\"", QR_get_cursor(self));
 			mylog("QResult: closing cursor: '%s'\n", buf);
 
-			res = CC_send_query(conn, buf, NULL, CLEAR_RESULT_ON_ABORT);
-			if (NULL == res)
-			{
-				QR_set_status(self, PGRES_FATAL_ERROR);
-				QR_set_message(self, "Error closing cursor.");
-				ret = FALSE;
-			}
+			res = CC_send_query(conn, buf, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 			QR_Destructor(res);
 		}
 
-		self->inTuples = FALSE;
-		self->currTuple = -1;
+		QR_set_no_fetching_tuples(self);
+		self->cursTuple = -1;
 
-		free(self->cursor);
-		self->cursor = NULL;
+		QR_set_cursor(self, NULL);
 		if (!ret)
 			return ret;
 
 		/* End the transaction if there are no cursors left on this conn */
-		if (CC_is_in_autocommit(self->conn) && CC_cursor_count(self->conn) == 0)
+		if (CC_is_in_autocommit(conn) && CC_cursor_count(conn) == 0)
 		{
-			mylog("QResult: END transaction on conn=%u\n", self->conn);
+			mylog("QResult: END transaction on conn=%x\n", conn);
 
-			if (!CC_commit(self->conn))
+			if (!CC_commit(conn))
 			{
-				self->status = PGRES_FATAL_ERROR;
+				QR_set_rstatus(self, PGRES_FATAL_ERROR);
 				QR_set_message(self, "Error ending transaction.");
 				ret = FALSE;
 			}
@@ -502,21 +667,130 @@ QR_close(QResultClass *self)
 }
 
 
+BOOL
+QR_get_tupledata(QResultClass *self, BOOL binary)
+{
+	BOOL	haskeyset = QR_haskeyset(self);
+	UInt4	num_total_rows = QR_get_num_total_tuples(self);
+
+inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
+	if (!QR_get_cursor(self))
+	{
+ 
+		if (self->num_fields > 0 &&
+		    num_total_rows >= self->count_backend_allocated)
+		{
+			int	tuple_size = self->count_backend_allocated;
+
+			mylog("REALLOC: old_count = %d, size = %d\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
+			if (tuple_size < 1)
+				tuple_size = TUPLE_MALLOC_INC;
+			else
+				tuple_size *= 2;
+			QR_REALLOC_return_with_error(self->backend_tuples, TupleField, tuple_size * self->num_fields * sizeof(TupleField), self, "Out of memory while reading tuples.", FALSE);
+			self->count_backend_allocated = tuple_size;
+		}
+		if (haskeyset &&
+		    self->num_cached_keys >= self->count_keyset_allocated)
+		{
+			int	tuple_size = self->count_keyset_allocated;
+
+			if (tuple_size < 1)
+				tuple_size = TUPLE_MALLOC_INC;
+			else
+				tuple_size *= 2;
+			QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * tuple_size, self, "Out of mwmory while allocating keyset", FALSE);
+			self->count_keyset_allocated = tuple_size;
+		}
+	}
+
+	if (!QR_read_a_tuple_from_db(self, (char) binary))
+	{
+		QR_set_rstatus(self, PGRES_BAD_RESPONSE);
+		QR_set_message(self, "Error reading the tuple");
+		return FALSE;
+	}
+inolog("!!%x->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
+	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
+		self->num_total_read = self->cursTuple + 1;
+inolog("!!cursTup=%d total_read=%d\n", self->cursTuple, self->num_total_read);
+	if (self->num_fields > 0)
+	{
+		QR_inc_num_cache(self);
+	}
+	else if (haskeyset)
+		self->num_cached_keys++;
+
+	return TRUE;
+}
+
+static int enlargeKeyCache(QResultClass *self, Int4 add_size, const char *message)
+{
+	Int4	alloc, alloc_req, num_fields = self->num_fields;
+	BOOL	curs = (NULL != QR_get_cursor(self));
+
+	if (add_size <= 0)
+		return self->count_keyset_allocated;
+	alloc = self->count_backend_allocated;
+	if (num_fields > 0 && ((alloc_req = (Int4)self->num_cached_rows + add_size) > alloc || !self->backend_tuples))
+	{
+		if (1 > alloc)
+		{
+			if (curs)
+				alloc = alloc_req;
+			else
+				alloc = (alloc_req > TUPLE_MALLOC_INC ? alloc_req : TUPLE_MALLOC_INC);
+		}
+		else
+		{
+			do
+			{ 
+				alloc *= 2;
+			} while (alloc < alloc_req);
+		}
+		self->count_backend_allocated = 0;
+		QR_REALLOC_return_with_error(self->backend_tuples, TupleField, num_fields * sizeof(TupleField) * alloc, self, message, -1);
+		self->count_backend_allocated = alloc;
+	}
+	alloc = self->count_keyset_allocated;
+	if (QR_haskeyset(self) && ((alloc_req = (Int4)self->num_cached_keys + add_size) > alloc || !self->keyset))
+	{
+		if (1 > alloc)
+		{
+			if (curs)
+				alloc = alloc_req;
+			else
+				alloc = (alloc_req > TUPLE_MALLOC_INC ? alloc_req : TUPLE_MALLOC_INC);
+		}
+		else
+		{
+			do
+			{ 
+				alloc *= 2;
+			} while (alloc < alloc_req);
+		}
+		self->count_keyset_allocated = 0;
+		QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * alloc, self, message, -1); 
+		self->count_keyset_allocated = alloc;
+	}
+	return alloc;
+}
+
 /*	This function is called by fetch_tuples() AND SQLFetch() */
 int
-QR_next_tuple(QResultClass *self)
+QR_next_tuple(QResultClass *self, StatementClass *stmt)
 {
-	int			id;
-	QResultClass *res;
+	CSTR	func = "QR_next_tuple";
+	int			id, ret = TRUE;
 	SocketClass *sock;
 
 	/* Speed up access */
-	int			fetch_count = self->fetch_count;
-	int			num_backend_rows = self->num_backend_rows;
-	int			fetch_size,
-				offset = 0;
-	int			end_tuple = self->rowset_size + self->base;
-	char		corrected = FALSE;
+	int		fetch_number = self->fetch_number, cur_fetch;
+	Int4		num_total_rows;
+	Int4		num_backend_rows = self->num_cached_rows,
+			num_fields = self->num_fields, num_rows_in;
+	Int4		req_size, fetch_size, offset = 0,	end_tuple;
+	char		boundary_adjusted = FALSE;
 	TupleField *the_tuples = self->backend_tuples;
 
 	/* ERROR_MSG_LENGTH is sufficient */
@@ -526,155 +800,323 @@ QR_next_tuple(QResultClass *self)
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
 	char		fetch[128];
 	QueryInfo	qi;
+	ConnectionClass	*conn;
 	ConnInfo   *ci = NULL;
-	BOOL		msg_truncated;
-	UDWORD		abort_opt;
+	BOOL		msg_truncated, rcvend, internally_invoked = FALSE;
+	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
+	Int4		response_length;
 
-	if (fetch_count < num_backend_rows)
-	{
-		/* return a row from cache */
-		mylog("next_tuple: fetch_count < fcount: returning tuple %d, fcount = %d\n", fetch_count, num_backend_rows);
-		self->tupleField = the_tuples + (fetch_count * self->num_fields);		/* next row */
-		self->fetch_count++;
-		return TRUE;
-	}
-	else if (self->num_backend_rows < self->cache_size)
-	{
-		/* last row from cache */
-		/* We are done because we didn't even get CACHE_SIZE tuples */
-		mylog("next_tuple: fcount < CACHE_SIZE: fcount = %d, fetch_count = %d\n", num_backend_rows, fetch_count);
-		self->tupleField = NULL;
-		self->status = PGRES_END_TUPLES;
-		/* end of tuples */
-		return -1;
-	}
-	else
-	{
-		/*
-		 * See if we need to fetch another group of rows. We may be being
-		 * called from send_query(), and if so, don't send another fetch,
-		 * just fall through and read the tuples.
-		 */
-		self->tupleField = NULL;
+inolog("Oh %x->fetch_number=%d\n", self, self->fetch_number);
+inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt ? stmt->currTuple : -1, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
 
-		if (!self->inTuples)
+	num_total_rows = QR_get_num_total_tuples(self);
+	conn = QR_get_conn(self);
+	req_size = self->rowset_size_include_ommitted;
+	if (QR_once_reached_eof(self) && self->cursTuple >= (Int4) QR_get_num_total_read(self))
+		curr_eof = TRUE;
+	if (0 != self->move_offset)
+	{
+		char		movecmd[256];
+		QResultClass	*mres;
+		UInt4		movement, moved;
+
+		movement = self->move_offset;
+		if (QR_is_moving_backward(self))
 		{
-			ci = &(self->conn->connInfo);
-			if (!self->cursor || !ci->drivers.use_declarefetch)
+			if (self->cache_size > req_size)
 			{
-				mylog("next_tuple: ALL_ROWS: done, fcount = %d, fetch_count = %d\n", self->num_total_rows, fetch_count);
-				self->tupleField = NULL;
-				self->status = PGRES_END_TUPLES;
-				return -1;		/* end of tuples */
-			}
-
-			if (self->base == num_backend_rows)
-			{
-				int	row, lf;
-				TupleField *tuple = self->backend_tuples;
-
-				/* not a correction */
-				/* Determine the optimum cache size.  */
-				if (ci->drivers.fetch_max % self->rowset_size == 0)
-					fetch_size = ci->drivers.fetch_max;
-				else if (self->rowset_size < ci->drivers.fetch_max)
-					fetch_size = (ci->drivers.fetch_max / self->rowset_size) * self->rowset_size;
-				else
-					fetch_size = self->rowset_size;
-
-				self->cache_size = fetch_size;
-				/* clear obsolete tuples */
-inolog("clear obsolete %d tuples\n", num_backend_rows);
-				for (row = 0; row < num_backend_rows; row++)
-				{
-					for (lf = 0; lf < self->num_fields; lf++)
-					{
-						if (tuple[lf].value != NULL)
-						{
-							free(tuple[lf].value);
-							tuple[lf].value = NULL;
-						}
-					}
-					tuple += self->num_fields;
-				}
-				self->fetch_count = 1;
+				int	incr_move = self->cache_size - (req_size < 0 ? 1 : req_size);
+				
+				movement += incr_move;
+				if (movement > (UInt4)(self->cursTuple + 1))
+					movement = self->cursTuple + 1;
 			}
 			else
+				self->cache_size = req_size;
+inolog("cache=%d rowset=%d movement=%d\n", self->cache_size, req_size, movement);
+			sprintf(movecmd, "move backward %u in \"%s\"", movement, QR_get_cursor(self));
+		}
+		else if (QR_is_moving_forward(self))
+			sprintf(movecmd, "move %u in \"%s\"", movement, QR_get_cursor(self));
+		else
+		{
+			sprintf(movecmd, "move all in \"%s\"", QR_get_cursor(self));
+			movement = INT_MAX;
+		}
+		mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
+		if (!QR_command_maybe_successful(mres))
+		{
+			QR_Destructor(mres);
+			if (stmt)
+				SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
+			return -1;
+		}
+		moved = movement;
+		if (sscanf(mres->command, "MOVE %u", &moved) > 0)
+		{
+inolog("moved=%d ? %d\n", moved, movement);
+        		if (moved < movement)
 			{
-				/* need to correct */
-				corrected = TRUE;
-
-				fetch_size = end_tuple - num_backend_rows;
-
-				self->cache_size += fetch_size;
-
-				offset = self->fetch_count;
-				self->fetch_count++;
-			}
-
-			if (!self->backend_tuples || self->cache_size > self->count_backend_allocated)
-			{
-				self->count_backend_allocated = 0;
-				if (self->num_fields > 0)
+				if (0 <  moved)
+					moved++;
+				else if (QR_is_moving_backward(self) && self->cursTuple < 0)
+					;
+				else if (QR_is_moving_not_backward(self) && curr_eof)
+					;
+				else
+					moved++;
+				if (QR_is_moving_not_backward(self))
 				{
-					QR_REALLOC_return_with_error(self->backend_tuples, TupleField, 
-						(self->num_fields * sizeof(TupleField) * self->cache_size),
-						self, "Out of memory while reading tuples.", FALSE)
-					self->count_backend_allocated = self->cache_size;
+					curr_eof = TRUE;
+					if (!QR_once_reached_eof(self))
+					{
+						self->num_total_read = self->cursTuple + moved;
+						QR_set_reached_eof(self);
+					}
+				}
+				if (QR_is_moving_from_the_last(self))  /* in case of FETCH LAST */
+				{
+					UInt4	bmovement, mback;
+					Int4	rowset_start = self->cursTuple + 1, back_offset = self->move_offset, backpt;
+inolog("FETCH LAST case\n");
+					if (getNthValid(self, QR_get_num_total_tuples(self) - 1, SQL_FETCH_PRIOR, self->move_offset, &backpt) < 0)
+					{
+						/* the rowset_start is on BOF */
+						self->tupleField = NULL;
+						SC_set_rowset_start(stmt, -1, TRUE);
+						stmt->currTuple = -1;
+						return -1;
+					}
+					back_offset = QR_get_num_total_tuples(self) - backpt;
+inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
+					if (back_offset + 1 > (Int4) self->ad_count)
+					{
+						bmovement = back_offset + 1 - self->ad_count;
+						sprintf(movecmd, "move backward %u in \"%s\"", bmovement, QR_get_cursor(self));
+						QR_Destructor(mres);
+						mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
+						if (!QR_command_maybe_successful(mres))
+						{
+							QR_Destructor(mres);
+							if (stmt)
+								SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
+							return -1;
+						}
+
+						if (sscanf(mres->command, "MOVE %u", &mback) > 0)
+						{
+							if (mback < bmovement)
+								mback++;
+							if (moved < mback)
+							{
+								QR_set_move_backward(self);
+								mback -= moved;
+								moved = mback;
+								self->move_offset = moved;
+								rowset_start = self->cursTuple - moved + 1;
+							}
+							else
+							{
+								QR_set_move_forward(self);
+								moved-= mback;
+								self->move_offset = moved;
+								rowset_start = self->cursTuple + moved + 1;
+							}
+						}
+					}
+					else
+					{
+						QR_set_move_forward(self);
+						self->move_offset = moved + self->ad_count - back_offset - 1;
+						rowset_start = self->cursTuple +self->move_offset + 1;
+						/* adjust move_offset */
+						/*** self->move_offset++; ***/
+					}
+					if (stmt)
+					{
+						SC_set_rowset_start(stmt, rowset_start, TRUE); /* affects the result's rowset_start but it is reset immediately ... */
+						stmt->currTuple = RowIdx2GIdx(-1, stmt);
+					}
 				}
 			}
-			if (self->haskeyset && (!self->keyset || self->cache_size > self->count_keyset_allocated))
-			{
-				self->count_keyset_allocated = 0;
-				QR_REALLOC_return_with_error(self->keyset, KeySet,
-					(sizeof(KeySet) * self->cache_size), 
-					self, "Out of memory while reading tuples.", FALSE)
-				self->count_keyset_allocated = self->cache_size;
-			}
-			sprintf(fetch, "fetch %d in %s", fetch_size, self->cursor);
+		}
+		/* ... by the following call */ 
+		QR_set_rowstart_in_cache(self, -1);
+		if (QR_is_moving_backward(self))
+		{
+			self->cursTuple -= moved;
+			offset = moved - self->move_offset;
+		}
+		else
+		{
+			self->cursTuple += moved;
+			offset = self->move_offset - moved;
+		}
+		QR_Destructor(mres);
 
-			mylog("next_tuple: sending actual fetch (%d) query '%s'\n", fetch_size, fetch);
+		self->move_offset = 0;
+		num_backend_rows = self->num_cached_rows;
+	}
+	else if (fetch_number < num_backend_rows)
+	{
+		/* return a row from cache */
+		mylog("%s: fetch_number < fcount: returning tuple %d, fcount = %d\n", func, fetch_number, num_backend_rows);
+		self->tupleField = the_tuples + (fetch_number * num_fields);
+inolog("tupleField=%x\n", self->tupleField);
+		/* move to next row */
+		QR_inc_next_in_cache(self);
+		return TRUE;
+	}
+	else if (QR_once_reached_eof(self))
+	{
+		BOOL	reached_eod = FALSE;
+		UInt4	num_total_read = self->num_total_read;
+
+		if (stmt)
+		{
+			if (stmt->currTuple + 1 >= num_total_rows)
+				reached_eod = TRUE;
+		}
+		else if (self->cursTuple + 1 >= (Int4)num_total_read)
+		{
+			if (self->ad_count == 0)
+				reached_eod = TRUE;
+		}
+		if (reached_eod)
+		{
+			mylog("next_tuple: fetch end\n");
+			self->tupleField = NULL;
+			/* end of tuples */
+			return -1;
+		}
+	}
+
+	end_tuple = req_size + QR_get_rowstart_in_cache(self);
+	/*
+	 * See if we need to fetch another group of rows. We may be being
+	 * called from send_query(), and if so, don't send another fetch,
+	 * just fall through and read the tuples.
+	 */
+	self->tupleField = NULL;
+
+	if (!QR_is_fetching_tuples(self))
+	{
+		ci = &(conn->connInfo);
+		if (!QR_get_cursor(self))
+		{
+			mylog("%s: ALL_ROWS: done, fcount = %d, fetch_number = %d\n", func, QR_get_num_total_tuples(self), fetch_number);
+			self->tupleField = NULL;
+			QR_set_reached_eof(self);
+			return -1;		/* end of tuples */
+		}
+
+		if (QR_get_rowstart_in_cache(self) >= num_backend_rows ||
+		    QR_is_moving(self))
+		{
+			TupleField *tuple = self->backend_tuples;
+
+			/* not a correction */
+			/* Determine the optimum cache size.  */
+			if (ci->drivers.fetch_max % req_size == 0)
+				fetch_size = ci->drivers.fetch_max;
+			else if ((Int4)req_size < ci->drivers.fetch_max)
+				/*fetch_size = (ci->drivers.fetch_max / req_size + 1) * req_size;*/
+				fetch_size = (ci->drivers.fetch_max / req_size) * req_size;
+			else
+				fetch_size = req_size;
+
+			self->cache_size = fetch_size;
+			/* clear obsolete tuples */
+inolog("clear obsolete %d tuples\n", num_backend_rows);
+			ClearCachedRows(tuple, num_fields, num_backend_rows);
+			QR_stop_movement(self);
+			self->move_offset = 0;
+			QR_set_next_in_cache(self, offset + 1);
+		}
+		else
+		{
+			/* 
+			 *	The rowset boundary doesn't match that of
+			 *	the inner resultset. Enlarge the resultset
+			 *	and fetch the rest of the rowset.
+			 */
+			/* The next fetch size is */
+			fetch_size = end_tuple - num_backend_rows;
+			if (fetch_size <= 0)
+			{
+				mylog("corrupted fetch_size end_tuple=%d <= cached_rows=%d\n", end_tuple, num_backend_rows);
+				return -1;
+			}
+			/* and enlarge the cache size */
+			self->cache_size += fetch_size;
+			offset = self->fetch_number;
+			QR_inc_next_in_cache(self);
+			boundary_adjusted = TRUE;
+		}
+
+		if (enlargeKeyCache(self, self->cache_size - num_backend_rows, "Out of memory while reading tuples") < 0)
+			return FALSE;
+		if (PROTOCOL_74(ci))
+		{
+			if (!SendExecuteRequest(stmt, QR_get_cursor(self),
+				fetch_size))
+				return FALSE;
+			if (!SendSyncRequest(conn))
+				return FALSE;
+		}
+		else
+		{
+			QResultClass	*res;
+			sprintf(fetch, "fetch %d in \"%s\"", fetch_size, QR_get_cursor(self));
+
+			mylog("%s: sending actual fetch (%d) query '%s'\n", func, fetch_size, fetch);
 
 			/* don't read ahead for the next tuple (self) ! */
 			qi.row_size = self->cache_size;
 			qi.result_in = self;
 			qi.cursor = NULL;
-			res = CC_send_query(self->conn, fetch, &qi, CLEAR_RESULT_ON_ABORT);
-			if (res == NULL)
+			res = CC_send_query(conn, fetch, &qi, 0, stmt);
+			if (!QR_command_maybe_successful(res))
 			{
-				self->status = PGRES_FATAL_ERROR;
+				QR_set_rstatus(self, PGRES_FATAL_ERROR);
 				QR_set_message(self, "Error fetching next group.");
 				return FALSE;
 			}
-			self->inTuples = TRUE;
 		}
-		else
-		{
-			mylog("next_tuple: inTuples = true, falling through: fcount = %d, fetch_count = %d\n", self->num_backend_rows, self->fetch_count);
-
-			/*
-			 * This is a pre-fetch (fetching rows right after query but
-			 * before any real SQLFetch() calls.  This is done so the
-			 * field attributes are available.
-			 */
-			self->fetch_count = 0;
-		}
+		internally_invoked = TRUE;
+		cur_fetch = 0;
+		QR_set_fetching_tuples(self);
 	}
-
-	if (!corrected)
+	else
 	{
-		self->base = 0;
-		self->num_backend_rows = 0;
+		mylog("%s: inTuples = true, falling through: fcount = %d, fetch_number = %d\n", func, self->num_cached_rows, self->fetch_number);
+
+		/*
+		 * This is a pre-fetch (fetching rows right after query but
+		 * before any real SQLFetch() calls.  This is done so the
+		 * field attributes are available.
+		 */
+		QR_set_next_in_cache(self, 0);
 	}
 
-	sock = CC_get_socket(self->conn);
+	if (!boundary_adjusted)
+	{
+		QR_set_rowstart_in_cache(self, offset);
+		QR_set_num_cached_rows(self, 0);
+	}
+
+	sock = CC_get_socket(conn);
 	self->tupleField = NULL;
-	ci = &(self->conn->connInfo);
+	ci = &(conn->connInfo);
+	num_rows_in = self->num_cached_rows;
 
-	for (;;)
+	curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
+inolog("reached_eof_now=%d\n", reached_eof_now);
+	for (rcvend = FALSE; !rcvend;)
 	{
-		id = SOCK_get_char(sock);
-
+		id = SOCK_get_id(sock);
+		response_length = SOCK_get_response_length(sock);
+inolog("id='%c' response_length=%d\n", id, response_length);
 		switch (id)
 		{
 
@@ -684,12 +1126,12 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 				break;
 			case 'T':
 				mylog("Tuples within tuples ?? OK try to handle them\n");
-				self->inTuples = FALSE;
-				if (self->num_total_rows > 0)
+				QR_set_no_fetching_tuples(self);
+				if (self->num_total_read > 0)
 				{
-					mylog("fetched %d rows\n", self->num_total_rows);
+					mylog("fetched %d rows\n", self->num_total_read);
 					/* set to first row */
-					self->tupleField = self->backend_tuples + (offset * self->num_fields);
+					self->tupleField = self->backend_tuples + (offset * num_fields);
 				}
 				else
 				{
@@ -699,130 +1141,234 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 				self->next = QR_Constructor();
 				if (!self->next)
 				{
-					CC_set_error(self->conn, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.");
-					CC_on_abort(self->conn, NO_TRANS | CONN_DEAD);
+					CC_set_error(conn, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
+					CC_on_abort(conn, CONN_DEAD);
 					return FALSE;
 				}
 				QR_set_cache_size(self->next, self->cache_size);
 				self = self->next;
-				if (!QR_fetch_tuples(self, self->conn, NULL))
+				if (!QR_fetch_tuples(self, conn, NULL))
 				{
-					CC_set_error(self->conn, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(self));
+					CC_set_error(conn, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(self), func);
 					return FALSE;
 				}
 
-				return TRUE;
+				rcvend = TRUE;
+				break;
+
 			case 'B':			/* Tuples in binary format */
 			case 'D':			/* Tuples in ASCII format  */
 
-				if (!self->cursor || !ci->drivers.use_declarefetch)
-				{ 
-					if (self->num_fields > 0 &&
-					    self->num_total_rows >= self->count_backend_allocated)
-					{
-						int	tuple_size = self->count_backend_allocated;
-
-						mylog("REALLOC: old_count = %d, size = %d\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
-						tuple_size *= 2;
-						QR_REALLOC_return_with_error(self->backend_tuples, TupleField,
-							(tuple_size * self->num_fields * sizeof(TupleField)),
-							self, "Out of memory while reading tuples.", FALSE)
-						self->count_backend_allocated = tuple_size;
-					}
-					if (self->haskeyset &&
-				 	    self->num_total_rows >= self->count_keyset_allocated)
-					{
-						int	tuple_size = self->count_keyset_allocated;
-						tuple_size *= 2;
-						QR_REALLOC_return_with_error(self->keyset, KeySet,
-							(sizeof(KeySet) * tuple_size),
-							self, "Out of memory while reading tuples.", FALSE)
-						self->count_keyset_allocated = tuple_size;
-					}
-				}
-
-				if (!QR_read_tuple(self, (char) (id == 0)))
+				if (!QR_get_tupledata(self, id == 'B'))
 				{
-					self->status = PGRES_BAD_RESPONSE;
-					QR_set_message(self, "Error reading the tuple");
-					return FALSE;
+					ret = FALSE;
+					rcvend = TRUE;
 				}
-				self->num_total_rows++;
-				if (self->num_fields > 0)
-					self->num_backend_rows++;
+				cur_fetch++;
 				break;			/* continue reading */
 
 			case 'C':			/* End of tuple list */
 				SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
 				QR_set_command(self, cmdbuffer);
 
-				mylog("end of tuple list -- setting inUse to false: this = %u\n", self);
+				mylog("end of tuple list -- setting inUse to false: this = %x %s\n", self, cmdbuffer);
 
-				self->inTuples = FALSE;
-				qlog("    [ fetched %d rows ]\n", self->num_total_rows);
-				mylog("_next_tuple: 'C' fetch_total = %d & this_fetch = %d\n", self->num_total_rows, self->num_backend_rows);
-				if (self->num_backend_rows > 0)
+				qlog("    [ fetched %d rows ]\n", self->num_total_read);
+				mylog("_%s: 'C' fetch_total = %d & this_fetch = %d\n", func, self->num_total_read, self->num_cached_rows);
+				if (QR_is_fetching_tuples(self))
 				{
-					/* set to first row */
-					self->tupleField = self->backend_tuples + (offset * self->num_fields);
-					return TRUE;
+					QR_set_no_fetching_tuples(self);
+					if (internally_invoked)
+					{
+						if (PROTOCOL_74(ci)) /* Execute completed without accepting Portal Suspend */
+							reached_eof_now = TRUE;
+						else if (cur_fetch < fetch_size)
+							reached_eof_now = TRUE;
+					}
+					else if (self->num_cached_rows < self->cache_size)
+						reached_eof_now = TRUE;
+					else if (!QR_get_cursor(self))
+						reached_eof_now = TRUE;
 				}
-				else
+				if (reached_eof_now)
 				{
-					/* We are surely done here (we read 0 tuples) */
-					mylog("_next_tuple: 'C': DONE (fcount == 0)\n");
-					return -1;	/* end of tuples */
+					/* last row from cache */
+					/* We are done because we didn't even get CACHE_SIZE tuples */
+					mylog("%s: backend_rows < CACHE_SIZE: brows = %d, cache_size = %d\n", func, num_backend_rows, self->cache_size);
 				}
+				if (!internally_invoked ||
+				    PG_VERSION_LE(conn, 6.3))
+					rcvend = TRUE;
+				break;
 
 			case 'E':			/* Error */
-				msg_truncated = SOCK_get_string(sock, msgbuffer,
- ERROR_MSG_LENGTH);
-
-				/* Remove a newline */
-				if (msgbuffer[0] != '\0' && msgbuffer[strlen(msgbuffer) - 1] == '\n')
-					msgbuffer[strlen(msgbuffer) - 1] = '\0';
-
-				abort_opt = 0;
-				if (!strncmp(msgbuffer, "FATAL", 5))
-					abort_opt = NO_TRANS | CONN_DEAD;
-				CC_on_abort(self->conn, abort_opt);
-				QR_set_status(self, PGRES_FATAL_ERROR);
-				QR_set_message(self, msgbuffer);
-				QR_set_aborted(self, TRUE);
+				msg_truncated = handle_error_message(conn, msgbuffer, sizeof(msgbuffer), self->sqlstate, "next_tuple", self);
 
 				mylog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
 				qlog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
-				while (msg_truncated)
-					msg_truncated = SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
 
-				return FALSE;
+				rcvend = TRUE;
+				ret = FALSE;
+				break;
 
 			case 'N':			/* Notice */
-				msg_truncated = SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
-				QR_set_notice(self, cmdbuffer);
-				if (QR_command_successful(self))
-					QR_set_status(self, PGRES_NONFATAL_ERROR);
+				msg_truncated = handle_notice_message(conn, cmdbuffer, sizeof(cmdbuffer), self->sqlstate, "next_tuple", self);
 				qlog("NOTICE from backend in next_tuple: '%s'\n", msgbuffer);
-				while (msg_truncated)
-					msg_truncated = SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
 				continue;
 
-			default:			/* this should only happen if the backend
-								 * dumped core */
-				mylog("QR_next_tuple: Unexpected result from backend: id = '%c' (%d)\n", id, id);
-				qlog("QR_next_tuple: Unexpected result from backend: id = '%c' (%d)\n", id, id);
+			case 'Z':	/* Ready for query */
+				EatReadyForQuery(conn);
+				if (QR_is_fetching_tuples(self))
+				{
+					reached_eof_now = TRUE;
+					QR_set_no_fetching_tuples(self);
+				}
+				rcvend = TRUE;
+				break;
+			case 's':	/* portal suspend */
+				mylog("portal suspend");
+				QR_set_no_fetching_tuples(self);
+				break;
+			default:
+				/* skip the unexpected response if possible */
+				if (response_length >= 0)
+					break;
+				/* this should only happen if the backend
+					* dumped core ??? */
+				mylog("%s: Unexpected result from backend: id = '%c' (%d)\n", func, id, id);
+				qlog("%s: Unexpected result from backend: id = '%c' (%d)\n", func, id, id);
 				QR_set_message(self, "Unexpected result from backend. It probably crashed");
-				self->status = PGRES_FATAL_ERROR;
-				CC_on_abort(self->conn, NO_TRANS | CONN_DEAD);
-				return FALSE;
+				QR_set_rstatus(self, PGRES_FATAL_ERROR);
+				CC_on_abort(conn, CONN_DEAD);
+				ret = FALSE;
+				rcvend = TRUE;
 		}
 	}
-	return TRUE;
+
+	if (!QR_is_fetching_tuples(self))
+	{
+		Int4	start_idx = 0;
+
+		num_backend_rows = self->num_cached_rows;
+		if (reached_eof_now)
+		{
+			mylog("%s: reached eof now\n", func);
+			QR_set_reached_eof(self);
+			if (!curr_eof)
+				self->cursTuple++;
+			if (self->ad_count > 0 &&
+			    cur_fetch < fetch_size)
+			{
+				/* We have to append the tuples(keys) info from the added tuples(keys) here */
+				Int4 add_size;
+				TupleField	*tuple, *added_tuple;
+
+				if (curr_eof)
+				{
+					start_idx = CacheIdx2GIdx(offset, stmt, self) - self->num_total_read;
+					add_size = self->ad_count - start_idx;
+					if (0 == num_backend_rows)
+					{
+						offset = 0;
+						QR_set_rowstart_in_cache(self, offset);
+						QR_set_next_in_cache(self, offset);
+					}
+				}
+				else
+				{
+					start_idx = 0;
+					add_size = self->ad_count;
+				}
+				if (add_size > fetch_size - cur_fetch)
+					add_size = fetch_size - cur_fetch;
+inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add_size, start_idx, offset - num_backend_rows + start_idx);
+				if (add_size > fetch_size - cur_fetch)
+					add_size = fetch_size - cur_fetch;
+				else if (add_size < 0)
+					add_size = 0;
+				if (enlargeKeyCache(self, add_size, "Out of memory while adding tuples") < 0)
+					return FALSE;
+				/* append the KeySet info first */
+				memcpy(self->keyset + num_backend_rows, (void *)(self->added_keyset + start_idx), sizeof(KeySet) * add_size);
+				/* and append the tuples info */
+				tuple = self->backend_tuples + num_fields * num_backend_rows;
+				memset(tuple, 0, sizeof(TupleField) * num_fields * add_size);
+				added_tuple = self->added_tuples + num_fields * start_idx;
+				ReplaceCachedRows(tuple, added_tuple, num_fields, add_size);
+				self->num_cached_rows += add_size;
+				self->num_cached_keys += add_size;
+				num_backend_rows = self->num_cached_rows;
+			}
+		}
+		if (offset < num_backend_rows)
+		{
+			/* set to first row */
+			self->tupleField = self->backend_tuples + (offset * num_fields);
+		}
+		else
+		{
+			/* We are surely done here (we read 0 tuples) */
+			mylog("_%s: 'C': DONE (fcount == %d)\n", func, num_backend_rows);
+			ret = -1;	/* end of tuples */
+		}
+	}
+
+	/*
+	 If the cursor operation was invoked inside this function,
+	 we have to set the status bits here.
+	*/
+	if (internally_invoked && self->keyset && (self->dl_count > 0 || self->up_count > 0))
+	{
+		int	i, lf;
+		Int4	lidx, hidx;
+		UInt4	*deleted = self->deleted, *updated = self->updated;
+ 
+		num_backend_rows = QR_get_num_cached_tuples(self);
+		/* For simplicty, use CURS_NEEDS_REREAD bit to mark the row */
+		for (i = num_rows_in; i < num_backend_rows; i++)
+			self->keyset[i].status |= CURS_NEEDS_REREAD;
+		hidx = RowIdx2GIdx(num_backend_rows, stmt);
+		lidx = hidx - num_backend_rows;
+		/* deleted info */
+		for (i = 0; i < self->dl_count && hidx > (Int4)deleted[i]; i++)
+		{
+			if (lidx <= (Int4)deleted[i])
+			{
+				lf = num_backend_rows - hidx + deleted[i];
+				self->keyset[lf].status = self->deleted_keyset[i].status;
+				/* mark the row off */
+				self->keyset[lf].status &= (~CURS_NEEDS_REREAD);
+			}
+		} 
+		for (i = self->up_count - 1; i >= 0; i--)
+		{
+			if (hidx > (Int4)updated[i] &&
+			    lidx <= (Int4)updated[i])
+			{
+				lf = num_backend_rows - hidx + updated[i];
+				/* in case the row is marked off */
+				if (0 == (self->keyset[lf].status & CURS_NEEDS_REREAD))
+					continue;
+				self->keyset[lf] = self->updated_keyset[i];
+				ReplaceCachedRows(self->backend_tuples + lf * num_fields, self->updated_tuples + i * num_fields, num_fields, 1);
+				self->keyset[lf].status &= (~CURS_NEEDS_REREAD); 
+			}
+		} 
+		/* reset CURS_NEEDS_REREAD bit */
+		for (i = 0; i < num_backend_rows; i++)
+		{
+			self->keyset[i].status &= (~CURS_NEEDS_REREAD);
+/*inolog("keyset[%d].status=%x\n", i, self->keyset[i].status);*/
+		}
+	}
+
+inolog("%s returning %d offset=%d\n", func, ret, offset);
+	return ret;
 }
 
 
-char
-QR_read_tuple(QResultClass *self, char binary)
+static char
+QR_read_a_tuple_from_db(QResultClass *self, char binary)
 {
 	Int2		field_lf;
 	TupleField *this_tuplefield;
@@ -836,17 +1382,19 @@ QR_read_tuple(QResultClass *self, char binary)
 	char	   *buffer;
 	int		ci_num_fields = QR_NumResultCols(self);	/* speed up access */
 	int		num_fields = self->num_fields;	/* speed up access */
-	SocketClass *sock = CC_get_socket(self->conn);
+	SocketClass *sock = CC_get_socket(QR_get_conn(self));
 	ColumnInfoClass *flds;
 	int		effective_cols;
 	char		tidoidbuf[32];
+	ConnInfo	*ci = &(QR_get_conn(self)->connInfo);
 
 	/* set the current row to read the fields into */
 	effective_cols = QR_NumPublicResultCols(self);
-	this_tuplefield = self->backend_tuples + (self->num_backend_rows * num_fields);
-	if (self->haskeyset)
+	this_tuplefield = self->backend_tuples + (self->num_cached_rows * num_fields);
+	if (QR_haskeyset(self))
 	{
-		this_keyset = self->keyset + self->num_total_rows;
+		/* this_keyset = self->keyset + self->cursTuple + 1; */
+		this_keyset = self->keyset + self->num_cached_keys;
 		this_keyset->status = 0;
 	}
 
@@ -858,7 +1406,17 @@ QR_read_tuple(QResultClass *self, char binary)
 	 * At first the server sends a bitmap that indicates which database
 	 * fields are null
 	 */
-	SOCK_get_n_char(sock, bitmap, bitmaplen);
+	if (PROTOCOL_74(ci))
+	{
+		int	numf = SOCK_get_int(sock, sizeof(Int2));
+if (effective_cols > 0)
+inolog("%dth record in cache numf=%d\n", self->num_cached_rows, numf);
+else
+inolog("%dth record in key numf=%d\n", self->num_cached_keys, numf);
+	}
+	else
+		SOCK_get_n_char(sock, bitmap, bitmaplen);
+
 
 	bitmap_pos = 0;
 	bitcnt = 0;
@@ -868,7 +1426,7 @@ QR_read_tuple(QResultClass *self, char binary)
 	for (field_lf = 0; field_lf < ci_num_fields; field_lf++)
 	{
 		/* Check if the current field is NULL */
-		if (!(bmp & 0200))
+		if (!PROTOCOL_74(ci) && (!(bmp & 0200)))
 		{
 			/* YES, it is NULL ! */
 			this_tuplefield[field_lf].len = 0;
@@ -881,17 +1439,25 @@ QR_read_tuple(QResultClass *self, char binary)
 			 * the field (four bytes)
 			 */
 			len = SOCK_get_int(sock, VARHDRSZ);
+inolog("QR_read_a_tuple_from_db len=%d\n", len);
+			if (PROTOCOL_74(ci))
+			{
+				if (len < 0)
+				{
+					/* YES, it is NULL ! */
+					this_tuplefield[field_lf].len = 0;
+					this_tuplefield[field_lf].value = 0;
+					continue;
+				}
+			}
+			else
 			if (!binary)
 				len -= VARHDRSZ;
 
 			if (field_lf >= effective_cols)
 				buffer = tidoidbuf;
 			else
-				QR_MALLOC_return_with_error(buffer, char,
-					(len + 1), self,
-					PGRES_FATAL_ERROR,
-					"Couldn't allocate buffer",
-					FALSE);
+				buffer = (char *) malloc(len + 1);
 			SOCK_get_n_char(sock, buffer, len);
 			buffer[len] = '\0';
 
@@ -937,6 +1503,6 @@ QR_read_tuple(QResultClass *self, char binary)
 		else
 			bmp <<= 1;
 	}
-	self->currTuple++;
+	self->cursTuple++;
 	return TRUE;
 }

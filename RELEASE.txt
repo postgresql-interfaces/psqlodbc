@@ -1,0 +1,90 @@
+********************************************************************************
+*
+* This is an unnofficial branch of psqlODBC contributed back to the PostgreSQL
+* community by Hiroshi Inoue and Hiroshi Saito. This branch is not officially
+* supported, and is provided for convenience only.
+*
+********************************************************************************
+
+<Changes>
+
+[7.3.0257]
+
+1. Fault correction of the division SQLGetData to SQL_C_WCHAR.
+
+[7.3.0256]
+
+1. SQLSetPos does not position to current-row to renewal of unblock cursor. 
+   (Data is unacquirable by SQLGetData etc.)
+
+[7.3.0255]
+
+1. bug fix: leak of a return value clearance
+2. Correspondence Windows English Dialog.
+3. Changes into the libpq link method.
+
+[7.3.0254]
+
+1. Setting menu of SSLMODE is added.
+2. Correspondence to domain type lo (an approvement is still required).
+3. bug fix: LIBPQ version cancellation request transmitting correspondence.
+4. Correction of the exclusive control between threads of SQLCancel
+
+[7.3.0253]
+
+1. Compilation of escape usage.
+   (preliminaries corresponding to a literal-escape abolition schedule)
+2. Correspondence of libpq and openssl.
+3. SQLProcedureColumns()RESULT_COLS row is outputted.
+4. bug fix: server-side prepare the number check of parameters.
+5. bug fix: parameter bind without a parameter marker is disregarded.
+6. bug fix: Retrying without carrying out a select operation to EWOULDBLOCK of socket/SSL-read.
+7. Abolition of abolition in manual_result mode, TupleList, and TupleNode employment
+
+[7.3.0252]
+
+1. Bug fix: Multi-byte employment by a table name etc.
+2. The text (varchar/char) type key assignation was enabled by MS-Access.
+
+[7.3.0251]
+
+1. Suppression of SQLColumnPrivilege support
+   It rejects using information_schema.column_privileges.
+2. Binary mode is used for a bytea type parameter value setup.
+   (Performs by the sequence of SQLPrepare->SQLExecute by server_side_prepare employment)
+3. Coexistence of LO type and bytea type.
+   When the parameter of LongVarBinary exists not by SQLPrepare->SQLExecute but by 
+   SQLExecDirect at the time of direct dispatching, the Parse/Describe function of 
+   a protocol 3 is used, the model in saver of LongVarBinary is acquired beforehand, 
+   and a bytea type and LO type are recognized.
+
+[Feature of Driver7.3.025x]
+
+1. Correspondence protocol 3
+   Options, such as client encoding, are set up by the start-up packet.
+   This makes the most of the mechanism of Parse/Bind/Execute.
+   .The outfit of SQLDescribeParam
+   .PREPARE/EXECUTE is changed from the command base to the protocol base.
+   .FETCH command is changed to an Execute request as it has come out.
+   .Moreover, bytea and lo type coexistence is possible.
+   .Others...
+
+2. Enhancement in declare/fetch mode (7.4 or later)
+   Even if a certain renewal occurs on the way by holdable cursor exploitation, 
+   a commitment is possible in comfort.
+   Moreover, the static update cursor was supported.
+   (Only for SQLSetPos correspondence, SQLBulkOperation are un-supporting)  
+   Bug fix of the cursor which can be updated.
+
+3. Rollback support of a syntactical unit at the time of an error.(8.0 or later)
+   Can choose from three Transaction module,Statement module,Nothing.
+   These can be specified by data source setup.
+
+4. Output parameter support (8.1 or later)
+   Corresponded to the output parameter of the function introduced by 8.1.
+   (Only the return value of a function was supported before.)
+
+------------------------------------------------------------------------------
+Contribute: Hiroshi Inoue.
+Assistance: Hiroshi Saito.
+
