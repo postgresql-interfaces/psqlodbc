@@ -56,11 +56,14 @@ Dim rs as New ADODB.Recordset
           "PWD=&lt;MyPassword&gt;;" &amp; _
           "Database=&lt;MyDatabaseName&gt;"
  
+  'Clear the table
+  cn.Execute "DELETE FROM vbtest;"
+  
   'For updateable recordsets we would typically open a Dynamic recordset.
   'Forward Only recordsets are much faster but can only scroll forward and 
   'are read only. Snapshot recordsets are read only, but scroll in both 
   'directions. 
-  rs.Open "SELECT id, data FROM vbtest", cn, adOpenDynamic
+  rs.Open "SELECT id, data, accessed FROM vbtest", cn, adOpenDynamic, adLockOptimistic
  
   'Loop though the recordset and print the results
   'We will also update the accessed column, but this time access it through 
@@ -83,7 +86,7 @@ Dim rs as New ADODB.Recordset
   cn.Execute "INSERT INTO vbtest (id, data) VALUES (23, 'Some random data');"
 
   'Refresh the recordset to get that last record...
-  rs.Refresh
+  rs.Requery
 
   'Get the record count
   rs.MoveLast
