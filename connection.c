@@ -1506,16 +1506,22 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
 		{
 			if ((res->status == PGRES_EMPTY_QUERY) || (res->status == PGRES_BAD_RESPONSE))
 			{
-				mylog("send_query: sending query failed -> abort\n");
-				QR_set_aborted(res, TRUE);
+				if (CC_is_in_autocommit(self) && !CC_is_in_manual_trans(self))
+				{
+					mylog("send_query: sending query failed -> abort\n");
+					QR_set_aborted(res, TRUE);
+				}
 				QR_Destructor(res);
 				res = NULL;
 				goto cleanup;
 			}
 			else if (res->status == PGRES_FATAL_ERROR)
 			{
-				mylog("send_query: sended query failed -> abort\n");
-				QR_set_aborted(res, TRUE);
+				if (CC_is_in_autocommit(self) && !CC_is_in_manual_trans(self))
+				{
+					mylog("send_query: sended query failed -> abort\n");
+					QR_set_aborted(res, TRUE);
+				}
 				goto cleanup;
 			}
 			if (create_keyset)
