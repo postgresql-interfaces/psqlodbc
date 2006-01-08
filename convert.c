@@ -917,7 +917,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 						/* Add null terminator */
 #ifdef	UNICODE_SUPPORT
 						if (fCType == SQL_C_WCHAR)
+						{
 							memset(rgbValueBindRow + copy_len, 0, WCLEN);
+							wchanged = TRUE;
+						}
 						else
 #endif /* UNICODE_SUPPORT */
 						rgbValueBindRow[copy_len] = '\0';
