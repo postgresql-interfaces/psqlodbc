@@ -3721,6 +3721,7 @@ SC_pos_update(StatementClass *stmt,
 		apdopts = SC_get_APDF(s.qstmt);
 		apdopts->param_bind_type = opts->bind_size;
 		apdopts->param_offset_ptr = opts->row_offset_ptr;
+		SC_set_delegate(s.stmt, s.qstmt);
 		for (i = j = 0; i < num_cols; i++)
 		{
 			if (used = bindings[i].used, used != NULL)
@@ -3754,7 +3755,6 @@ SC_pos_update(StatementClass *stmt,
 		{
 			pup_cdata *cbdata = (pup_cdata *) malloc(sizeof(pup_cdata));
 			memcpy(cbdata, &s, sizeof(pup_cdata));
-			SC_set_delegate(s.stmt, s.qstmt);
 			enqueueNeedDataCallback(s.stmt, pos_update_callback, cbdata);
 			return ret;
 		}
@@ -4098,6 +4098,7 @@ SC_pos_add(StatementClass *stmt,
 	apdopts = SC_get_APDF(s.qstmt);
 	apdopts->param_bind_type = opts->bind_size;
 	apdopts->param_offset_ptr = opts->row_offset_ptr;
+	SC_set_delegate(s.stmt, s.qstmt);
 	ci = &(conn->connInfo);
 	for (i = add_cols = 0; i < num_cols; i++)
 	{
@@ -4153,7 +4154,6 @@ SC_pos_add(StatementClass *stmt,
 		{
 			padd_cdata *cbdata = (padd_cdata *) malloc(sizeof(padd_cdata));
 			memcpy(cbdata, &s, sizeof(padd_cdata));
-			SC_set_delegate(s.stmt, s.qstmt);
 			enqueueNeedDataCallback(s.stmt, pos_add_callback, cbdata);
 			goto cleanup;
 		}

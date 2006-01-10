@@ -331,14 +331,14 @@ BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver Japanese\0"
             VALUE "CompanyName", "PostgreSQL Global Development Group\0"
             VALUE "FileDescription", "PostgreSQL Driver Japanese\0"
-            VALUE "FileVersion", "07.03.0257\0"
+            VALUE "FileVersion", "07.03.0258\0"
             VALUE "InternalName", "psqlodbc35w\0"
             VALUE "LegalCopyright", "\0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  MicrosoftÉá is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
             VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
             VALUE "ProductName", "Microsoft Open Database Connectivity\0"
-            VALUE "ProductVersion", "07.03.0257\0"
+            VALUE "ProductVersion", "07.03.0258\0"
             VALUE "SpecialBuild", "\0"
         END
     END
@@ -382,7 +382,7 @@ END
 
 
 /////////////////////////////////////////////////////////////////////////////
-// âpåÍ (±“ÿ∂) resources
+// âpåÍ (ÉAÉÅÉäÉJ) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 #ifdef _WIN32
@@ -653,14 +653,14 @@ BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver\0"
             VALUE "CompanyName", "Insight Distribution Systems\0"
             VALUE "FileDescription", "PostgreSQL Driver English\0"
-            VALUE "FileVersion", "07.03.0257\0"
+            VALUE "FileVersion", "07.03.0258\0"
             VALUE "InternalName", "psqlodbc\0"
             VALUE "LegalCopyright", "\0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc.dll\0"
             VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
             VALUE "ProductName", "Microsoft Open Database Connectivity\0"
-            VALUE "ProductVersion", "07.03.0257\0"
+            VALUE "ProductVersion", "07.03.0258\0"
             VALUE "SpecialBuild", "\0"
         END
     END
@@ -699,7 +699,7 @@ BEGIN
     IDS_SSLREQUEST_DISABLE  "disable"
 END
 
-#endif    // âpåÍ (±“ÿ∂) resources
+#endif    // âpåÍ (ÉAÉÅÉäÉJ) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

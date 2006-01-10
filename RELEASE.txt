@@ -8,6 +8,12 @@
 
 <Changes>
 
+[7.3.0258]
+
+1. bug fix: SQLBulkOperations rollback option.
+   There was a case where a rollback was not published in SQLBulkOperations 
+   as option specification at the time of error generating.
+
 [7.3.0257]
 
 1. Fault correction of the division SQLGetData to SQL_C_WCHAR.
