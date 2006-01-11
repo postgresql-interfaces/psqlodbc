@@ -10,6 +10,13 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>The next release preparation psqlODBC 08.01.02xx</h2>
+<li>Notes:psqlODBC 08.01.0105</li><br>
+Changes:<br>
+1) fix problem with rollback aborted queries
+2) SQLColumns or SQLColAttribute may return bad answer when Show system tables is turned off
+3) adds support for ; delimited options in ConfigDSN
+4) fixes problem with binding parameters and SQLCancel without SQLFreeStmt
+<br>
 <li>Notes:psqlODBC 08.01.0104</li><br>
 Changes:<br>
 1) add commit after set basic options in SQLDriverConnect when autocommit is turned off<br>
