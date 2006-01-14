@@ -123,6 +123,7 @@ AC_STRUCT_TM
 # Find libpq headers and libraries
 #
 AC_PATH_PROGS(PG_CONFIG, pg_config)
+AC_ARG_VAR(PG_CONFIG, [path to pg_config program])
 if test -z "$PG_CONFIG" ; then
   AC_MSG_ERROR([pg_config not found])
 fi
