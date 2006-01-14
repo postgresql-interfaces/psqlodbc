@@ -2,19 +2,22 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.30 2005/12/08 08:57:42 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.31 2006/01/14 18:12:00 petere Exp $
 #
 #-------------------------------------------------------------------------
 
 AUTOMAKE_OPTIONS = 1.6 foreign
 
-lib_LTLIBRARIES = psqlodbc.la
+if enable_unicode
+lib_LTLIBRARIES = psqlodbcw.la
+else
+lib_LTLIBRARIES = psqlodbca.la
+endif
 
-psqlodbc_la_LDFLAGS = -module -no-undefined -avoid-version
+AM_LDFLAGS = -module -no-undefined -avoid-version
+LIBS += -lpq
 
-psqlodbc_la_LIBADD = -lpq
-
-psqlodbc_la_SOURCES = \
+psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
 	environ.c execute.c win_md5.c misc.c options.c \
 	pgtypes.c psqlodbc.c qresult.c results.c parse.c \
@@ -22,19 +25,18 @@ psqlodbc_la_SOURCES = \
 	multibyte.c \
 	odbcapi30.c pgapi30.c info30.c descriptor.c
 
-psqlodbc_la_SOURCES += \
+psqlodbca_la_SOURCES += \
 	bind.h columninfo.h connection.h convert.h descriptor.h \
 	dlg_specific.h environ.h \
 	connection.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h statement.h tuple.h \
 	tuplelist.h version.h
 
-if enable_unicode 	 
-psqlodbc_la_SOURCES += \
-odbcapi30w.c odbcapiw.c win_unicode.c 	 
-endif
+psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
+	odbcapi30w.c odbcapiw.c win_unicode.c 	 
 
-EXTRA_psqlodbc_la_SOURCES = md5.c
+EXTRA_psqlodbca_la_SOURCES = md5.c
+EXTRA_psqlodbcw_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt odbcinst.ini \
 	libtool.m4 psqlodbca.def psqlodbcw.def win32.mak \
@@ -58,4 +60,3 @@ MAINTAINERCLEANFILES = \
 	Makefile.in config.guess config.h.in config.sub configure \
 	install-sh missing mkinstalldirs aclocal.m4 ltmain.sh \
 	libtool.m4 depcomp
-

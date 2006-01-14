@@ -56,7 +56,7 @@ AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver], [Define to ODBC version (--with-odb
 
 # to implement the Unicode driver 	 
 PGAC_ARG_BOOL(enable, unicode, yes, 	 
-	[  --enable-unicode        build ODBC driver for Unicode [[yes]]], 	 
+	[  --disable-unicode       build non-Unicode driver], 	 
 	[AC_DEFINE(UNICODE_SUPPORT, 1, 	 
 		[Define to 1 to build with Unicode support (--enable-unicode)]) 	 
 	 AC_DEFINE(UNICODE, [], 	 
