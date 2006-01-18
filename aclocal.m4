@@ -889,7 +889,7 @@ AC_DEFUN([AM_MAINTAINER_MODE],
 
 AU_DEFUN([jm_MAINTAINER_MODE], [AM_MAINTAINER_MODE])
 
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.1 2006/01/06 21:36:57 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.2 2006/01/18 09:26:19 dpage Exp $
 
 # This file defines new macros to process configure command line
 # arguments, to replace the brain-dead AC_ARG_WITH and AC_ARG_ENABLE.
@@ -4647,7 +4647,7 @@ AC_MSG_RESULT([$SED])
 ])
 
 # Macros that test various C library quirks
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.1 2006/01/06 21:36:57 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.2 2006/01/18 09:26:19 dpage Exp $
 
 
 # PGAC_VAR_INT_TIMEZONE

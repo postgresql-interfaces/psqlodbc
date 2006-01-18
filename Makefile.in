@@ -18,7 +18,7 @@
 #
 # Makefile.am for psqlodbc (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/Makefile.in,v 1.1.2.1 2006/01/06 21:36:57 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/Makefile.in,v 1.1.2.2 2006/01/18 09:26:19 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
