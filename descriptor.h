@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.12.2.1 2006/01/06 21:36:55 dpage Exp $
+ * $Id: descriptor.h,v 1.12.2.2 2006/01/18 09:52:14 dpage Exp $
  *
  */
 

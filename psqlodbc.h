@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.1 2006/01/06 21:36:57 dpage Exp $
+ * $Id: psqlodbc.h,v 1.82.2.2 2006/01/18 09:52:16 dpage Exp $
  *
  */
 
