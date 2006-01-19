@@ -1868,14 +1868,14 @@ adjustLikePattern(const char *src, int srclen, char escape_ch, int *result_len, 
 RETCODE		SQL_API
 PGAPI_Columns(
 			  HSTMT hstmt,
-			  UCHAR FAR * szTableQualifier, /* OA */
-			  SWORD cbTableQualifier,
-			  UCHAR FAR * szTableOwner, /* PV */
-			  SWORD cbTableOwner,
-			  UCHAR FAR * szTableName, /* PV */
-			  SWORD cbTableName,
-			  UCHAR FAR * szColumnName, /* PV */
-			  SWORD cbColumnName,
+			  const SQLCHAR FAR * szTableQualifier, /* OA */
+			  SQLSMALLINT cbTableQualifier,
+			  const SQLCHAR FAR * szTableOwner, /* PV */
+			  SQLSMALLINT cbTableOwner,
+			  const SQLCHAR FAR * szTableName, /* PV */
+			  SQLSMALLINT cbTableName,
+			  const SQLCHAR FAR * szColumnName, /* PV */
+			  SQLSMALLINT cbColumnName,
 			  UWORD	flag)
 {
 	CSTR func = "PGAPI_Columns";
@@ -1907,7 +1907,7 @@ PGAPI_Columns(
 	BOOL	search_pattern,	relisaview;
 	ConnInfo   *ci;
 	ConnectionClass *conn;
-	SWORD		internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const char	*like_or_eq;
 	const char	*szSchemaName;
 

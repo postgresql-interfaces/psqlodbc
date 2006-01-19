@@ -160,7 +160,7 @@ RETCODE SQL_API SQLBrowseConnectW(
 {
 	CSTR func = "SQLBrowseConnectW";
 	char	*szIn, *szOut;
-	UInt4	inlen, obuflen;
+	Int4	inlen, obuflen;
 	SWORD	olen;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;

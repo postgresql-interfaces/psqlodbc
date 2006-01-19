@@ -2931,7 +2931,8 @@ CC_get_current_schema(ConnectionClass *conn)
 	return (const char *) conn->current_schema;
 }
 
-// static int LIBPQ_send_cancel_request(const ConnectionClass *conn);
+static int LIBPQ_send_cancel_request(const ConnectionClass *conn);
+
 int
 CC_send_cancel_request(const ConnectionClass *conn)
 {
@@ -3048,8 +3049,8 @@ enum {
 	CONNECTION_OK =	0
 	,CONNECTION_BAD
 };
-#endif
 extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
+#endif
 static int
 LIBPQ_connect(ConnectionClass *self)
 {

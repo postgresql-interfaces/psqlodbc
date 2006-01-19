@@ -1321,7 +1321,7 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 	{
 		int	i, lf;
 		Int4	lidx, hidx;
-		UInt4	*deleted = self->deleted, *updated = self->updated;
+		Int4	*deleted = self->deleted, *updated = self->updated;
  
 		num_backend_rows = QR_get_num_cached_tuples(self);
 		/* For simplicty, use CURS_NEEDS_REREAD bit to mark the row */
@@ -1330,9 +1330,9 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 		hidx = RowIdx2GIdx(num_backend_rows, stmt);
 		lidx = hidx - num_backend_rows;
 		/* deleted info */
-		for (i = 0; i < self->dl_count && hidx > (Int4)deleted[i]; i++)
+		for (i = 0; i < self->dl_count && hidx > deleted[i]; i++)
 		{
-			if (lidx <= (Int4)deleted[i])
+			if (lidx <= deleted[i])
 			{
 				lf = num_backend_rows - hidx + deleted[i];
 				self->keyset[lf].status = self->deleted_keyset[i].status;
@@ -1342,8 +1342,8 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 		} 
 		for (i = self->up_count - 1; i >= 0; i--)
 		{
-			if (hidx > (Int4)updated[i] &&
-			    lidx <= (Int4)updated[i])
+			if (hidx > updated[i] &&
+			    lidx <= updated[i])
 			{
 				lf = num_backend_rows - hidx + updated[i];
 				/* in case the row is marked off */

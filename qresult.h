@@ -96,11 +96,11 @@ struct QResultClass_
 	TupleField	*added_tuples;	/* added data by myself */
 	UInt2		dl_alloc;	/* count of allocated deleted info */	
 	UInt2		dl_count;	/* count of deleted info */	
-	UInt4		*deleted;	/* deleted index info */
+	Int4		*deleted;	/* deleted index info */
 	KeySet		*deleted_keyset;	/* deleted keyset info */
 	UInt2		up_alloc;	/* count of allocated updated info */	
 	UInt2		up_count;	/* count of updated info */	
-	UInt4		*updated;	/* updated index info */
+	Int4		*updated;	/* updated index info */
 	KeySet		*updated_keyset;	/* uddated keyset info */
 	TupleField	*updated_tuples;	/* uddated data by myself */
 };

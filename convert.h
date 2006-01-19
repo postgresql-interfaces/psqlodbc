@@ -49,8 +49,6 @@ int			convert_pgbinary_to_char(const char *value, char *rgbValue, int cbValueMax
 int			convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, int cbValueMax);
 int		convert_to_pgbinary(const UCHAR *in, char *out, int len, UInt4 flags);
 int		pg_hex2bin(const UCHAR *in, UCHAR *out, int len);
-void		encode(const char *in, char *out);
-void		decode(const char *in, char *out);
 int convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		   SDWORD cbValueMax, SDWORD *pcbValue);
 

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.2 2006/01/18 09:52:16 dpage Exp $
+ * $Id: psqlodbc.h,v 1.82.2.3 2006/01/19 13:39:59 h-saito Exp $
  *
  */
 
@@ -295,7 +295,7 @@ typedef struct QueryInfo_
 {
 	int			row_size;
 	QResultClass *result_in;
-	char	   *cursor;
+	const char	   *cursor;
 } QueryInfo;
 
 /*	Used to save the error information */
