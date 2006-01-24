@@ -537,11 +537,9 @@ SOCK_flush_output(SocketClass *self)
 		return;
 	do
 	{
-#ifdef	WIN32
 		if (self->ssl)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 		else
-#endif /* WIN32 */
 			written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 		if (written < 0)
 		{
@@ -579,11 +577,9 @@ SOCK_get_next_byte(SocketClass *self)
 		 */
 		self->buffer_read_in = 0;
 retry:
-#ifdef	WIN32
 		if (self->ssl)
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else
-#endif /* WIN32 */
 			self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
 
 		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
@@ -633,11 +629,9 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 		/* buffer is full, so write it out */
 		do
 		{
-#ifdef	WIN32
 			if (self->ssl)
 				bytes_sent = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 			else
-#endif	/* WIN32 */
 				bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 			if (bytes_sent < 0)
 			{
