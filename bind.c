@@ -34,11 +34,11 @@ PGAPI_BindParameter(
 					SQLSMALLINT fParamType,
 					SQLSMALLINT fCType,
 					SQLSMALLINT fSqlType,
-					SQLUINTEGER cbColDef,
+					SQLULEN cbColDef,
 					SQLSMALLINT ibScale,
 					PTR rgbValue,
-					SQLINTEGER cbValueMax,
-					SQLINTEGER FAR * pcbValue)
+					SQLLEN cbValueMax,
+					SQLLEN FAR * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindParameter";
@@ -143,11 +143,11 @@ PGAPI_BindParameter(
 RETCODE		SQL_API
 PGAPI_BindCol(
 			  HSTMT hstmt,
-			  UWORD icol,
-			  SWORD fCType,
+			  SQLUSMALLINT icol,
+			  SQLSMALLINT fCType,
 			  PTR rgbValue,
-			  SDWORD cbValueMax,
-			  SDWORD FAR * pcbValue)
+			  SQLLEN cbValueMax,
+			  SQLLEN FAR * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindCol";
@@ -292,11 +292,11 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_DescribeParam(
 					HSTMT hstmt,
-					UWORD ipar,
-					SWORD FAR * pfSqlType,
-					UDWORD FAR * pcbColDef,
-					SWORD FAR * pibScale,
-					SWORD FAR * pfNullable)
+					SQLUSMALLINT ipar,
+					SQLSMALLINT FAR * pfSqlType,
+					SQLULEN FAR * pcbParamDef,
+					SQLSMALLINT FAR * pibScale,
+					SQLSMALLINT FAR * pfNullable)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_DescribeParam";
@@ -355,13 +355,13 @@ ipdopts->parameters[ipar].PGType);
 			*pfSqlType = pgtype_to_concise_type(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC);
 	}
 
-	if (pcbColDef)
+	if (pcbParamDef)
 	{
-		*pcbColDef = 0;
+		*pcbParamDef = 0;
 		if (ipdopts->parameters[ipar].SQLType)
-			*pcbColDef = ipdopts->parameters[ipar].column_size;
-		if (0 == *pcbColDef && ipdopts->parameters[ipar].PGType)
-			*pcbColDef = pgtype_column_size(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC, PG_STATIC);
+			*pcbParamDef = ipdopts->parameters[ipar].column_size;
+		if (0 == *pcbParamDef && ipdopts->parameters[ipar].PGType)
+			*pcbParamDef = pgtype_column_size(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC, PG_STATIC);
 	}
 
 	if (pibScale)
@@ -387,8 +387,8 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_ParamOptions(
 				   HSTMT hstmt,
-				   UDWORD crow,
-				   UDWORD FAR * pirow)
+				   SQLULEN crow,
+				   SQLULEN FAR * pirow)
 {
 	CSTR func = "PGAPI_ParamOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -415,10 +415,11 @@ PGAPI_ParamOptions(
 RETCODE		SQL_API
 PGAPI_NumParams(
 				HSTMT hstmt,
-				SWORD FAR * pcpar)
+				SQLSMALLINT FAR * pcpar)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_NumParams";
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = '$';
 
 	mylog("%s: entering...\n", func);
 
@@ -446,9 +447,11 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	}
 	else
 	{
-		char	*sptr, bchar;
-		char	in_literal = FALSE, in_identifier = FALSE;
-		char	multi = FALSE, del_found = FALSE;
+		const	char *sptr, *tag = NULL;
+		int	taglen;
+		char	bchar;
+		char	in_literal = FALSE, in_identifier = FALSE,
+			in_dollar_quote = FALSE, multi = FALSE, del_found = FALSE;
 
 		stmt->proc_return = 0;
 		for (sptr = stmt->statement, bchar = '\0'; *sptr; sptr++)
@@ -458,7 +461,30 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 				if (!isspace(*sptr))
 					multi = TRUE;
 			}
-			if (!in_literal && !in_identifier)
+			if (in_dollar_quote)
+			{
+				if (*sptr == dollar_quote)
+				{
+					if (strncmp(sptr, tag, taglen) == 0)
+					{
+						in_dollar_quote = FALSE;
+						tag = NULL;
+						sptr += taglen;
+						sptr--;
+					}
+				}
+			}
+			else if (in_literal)
+			{
+				if (*sptr == literal_quote)
+					in_literal = FALSE;
+			}
+			else if (in_identifier)
+			{
+				if (*sptr == identifier_quote)
+					in_identifier = FALSE;
+			}
+			else
 			{
 				if (*sptr == '?')
 				{
@@ -468,18 +494,25 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 				}
 				else if (*sptr == ';')
 					del_found = TRUE;
+				else if (*sptr == dollar_quote)
+				{
+					char	*dollar_next;
+
+					in_dollar_quote = TRUE;
+					tag = sptr;
+					taglen = 0; 
+					if (dollar_next = strchr(sptr + 1, dollar_quote))
+					{
+						taglen = dollar_next - sptr + 1;
+						sptr = dollar_next;
+					}
+				}
+				else if (*sptr == literal_quote)
+					in_literal = TRUE;
+				else if (*sptr == identifier_quote)
+					in_identifier = TRUE;
 				if (!isspace(*sptr))
 					bchar = *sptr;
-			}
-			if (*sptr == LITERAL_QUOTE)
-			{
-				if (!in_identifier)
-					in_literal = !in_literal;
-			}
-			else if (*sptr == IDENTIFIER_QUOTE)
-			{
-				if (!in_literal)
-					in_identifier = !in_identifier;
 			}
 		}
 		stmt->num_params = *pcpar;
@@ -610,6 +643,7 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 		return;
 
 	ipar--;
+	NULL_THE_NAME(self->parameters[ipar].paramName);
 	self->parameters[ipar].paramType = 0;
 	self->parameters[ipar].SQLType = 0;
 	self->parameters[ipar].column_size = 0;

@@ -21,7 +21,6 @@
 #include <ctype.h>
 #ifndef	WIN32
 #include <errno.h>
-#include <openssl/ssl.h>
 #endif /* WIN32 */
 
 #include "environ.h"
@@ -88,12 +87,12 @@ PGAPI_AllocConnect(
 RETCODE		SQL_API
 PGAPI_Connect(
 			  HDBC hdbc,
-			  UCHAR FAR * szDSN,
-			  SWORD cbDSN,
-			  UCHAR FAR * szUID,
-			  SWORD cbUID,
-			  UCHAR FAR * szAuthStr,
-			  SWORD cbAuthStr)
+			  const SQLCHAR FAR * szDSN,
+			  SQLSMALLINT cbDSN,
+			  const SQLCHAR FAR * szUID,
+			  SQLSMALLINT cbUID,
+			  const SQLCHAR FAR * szAuthStr,
+			  SQLSMALLINT cbAuthStr)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci;
@@ -146,12 +145,12 @@ PGAPI_Connect(
 
 RETCODE		SQL_API
 PGAPI_BrowseConnect(
-					HDBC hdbc,
-					UCHAR FAR * szConnStrIn,
-					SWORD cbConnStrIn,
-					UCHAR FAR * szConnStrOut,
-					SWORD cbConnStrOutMax,
-					SWORD FAR * pcbConnStrOut)
+				HDBC hdbc,
+				const SQLCHAR FAR * szConnStrIn,
+				SQLSMALLINT cbConnStrIn,
+				SQLCHAR FAR * szConnStrOut,
+				SQLSMALLINT cbConnStrOutMax,
+				SQLSMALLINT FAR * pcbConnStrOut)
 {
 	CSTR func = "PGAPI_BrowseConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -672,8 +671,8 @@ inolog("md5 pwd=%s user=%s\n", ci->password, ci->username);
 inolog("putting p\n");
 		SOCK_put_char(sock, 'p');
 }
-	SOCK_put_int(sock, 4 + strlen(pwd2) + 1, 4);
-	SOCK_put_n_char(sock, pwd2, strlen(pwd2) + 1);
+	SOCK_put_int(sock, 4 + (int) strlen(pwd2) + 1, 4);
+	SOCK_put_n_char(sock, pwd2, (int) strlen(pwd2) + 1);
 	SOCK_flush_output(sock);
 	free(pwd2);
 	return 0; 
@@ -741,7 +740,7 @@ inolog("new_format=%d\n", new_format);
 				case 'S':
 					strncat(msgbuf, msgbuffer + 1, buflen);
 					strncat(msgbuf, ": ", buflen);
-					buflen -= (strlen(msgbuffer) + 1);
+					buflen -= (int) (strlen(msgbuffer) + 1);
 					break;
 				case 'M':
 					strncat(msgbuf, msgbuffer + 1, buflen);
@@ -761,8 +760,8 @@ inolog("new_format=%d\n", new_format);
 		msg_truncated = SOCK_get_string(sock, msgbuf, buflen);
 
 		/* Remove a newline */
-		if (msgbuf[0] != '\0' && msgbuf[strlen(msgbuf) - 1] == '\n')
-			msgbuf[strlen(msgbuf) - 1] = '\0';
+		if (msgbuf[0] != '\0' && msgbuf[(int)strlen(msgbuf) - 1] == '\n')
+			msgbuf[(int)strlen(msgbuf) - 1] = '\0';
 
 		mylog("%s: 'E' - %s\n", comment, msgbuf);
 		qlog("ERROR from backend during %s: '%s'\n", comment, msgbuf);
@@ -983,7 +982,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	CSTR	func = "protocol3_packet_build";
 	SocketClass	*sock = self->sock;
 	ConnInfo	*ci = &(self->connInfo);
-	int	slen;
+	Int4	slen;
 	char	*packet, *ppacket;
 	ProtocolVersion	pversion;
 	const	char	*opts[20][2], *enc = NULL;
@@ -1036,7 +1035,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_opts_build";
 	ConnInfo	*ci = &(self->connInfo);
-	int	slen;
+	Int4	slen;
 	char	*conninfo, *ppacket;
 	const	char	*opts[20][2];
 	int	cnt, i;
@@ -1067,7 +1066,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 		ppacket += strlen(opts[i][1]);
 	}
 	*ppacket = '\0';
-	mylog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
+inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
 	return conninfo;
 }
 
@@ -1125,13 +1124,13 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		return 0;
 	}
 
-	mylog("%s: DSN = '%s', server = '%s', port = '%s', sslmode = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->sslmode, ci->database, ci->username, ci->password ? "xxxxx" : "");
+	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
 
 	return 1;
 }
 
 static	char	CC_setenv(ConnectionClass *self);
-// #ifdef	WIN32 SAITO cut
+#ifdef	WIN32
 static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -1154,7 +1153,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	return 1;
 }
-// #endif /* WIN32 */
+#endif /* WIN32 */
 
 static char
 original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -1493,12 +1492,12 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	mylog("%s: entering...\n", func);
 
-//#ifdef	WIN32
-	mylog("sslmode=%s\n", self->connInfo.sslmode);
+#ifdef	WIN32
+inolog("sslmode=%s\n", self->connInfo.sslmode);
 	if (self->connInfo.sslmode[0] != 'd')
 		ret = LIBPQ_CC_connect(self, password_req, salt_para);
 	else
-//#endif /* WIN32 */
+#endif /* WIN32 */
 		ret = original_CC_connect(self, password_req, salt_para);
 	if (ret <= 0)
 		return ret;
@@ -1921,12 +1920,16 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	query_rollback = (rollback_on_error && PG_VERSION_GE(self, 8.0));
 	if (!query_rollback && consider_rollback )
 	{
-		if (stmt && !SC_accessed_db(stmt))
+		if (stmt)
 		{
-			if (SQL_ERROR == SetStatementSvp(stmt))
+			StatementClass	*astmt = SC_get_ancestor(stmt);
+			if (!SC_accessed_db(astmt))
 			{
-				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
-				goto cleanup;
+				if (SQL_ERROR == SetStatementSvp(astmt))
+				{
+					SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
+					goto cleanup;
+				}
 			}
 		}
 	}
@@ -2932,12 +2935,11 @@ CC_get_current_schema(ConnectionClass *conn)
 }
 
 static int LIBPQ_send_cancel_request(const ConnectionClass *conn);
-
 int
 CC_send_cancel_request(const ConnectionClass *conn)
 {
 	int			save_errno = SOCK_ERRNO;
-	int			tmpsock = -1;
+	SOCKETFD		tmpsock = -1;
 	struct
 	{
 		uint32		packetlen;
@@ -2953,9 +2955,7 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	if (!sock)
 		return FALSE;
 
-#ifdef DYNAMIC_LINK
-	if (sock->libpq)
-#endif
+	if (sock->via_libpq)
 		return LIBPQ_send_cancel_request(conn);
 	/*
 	 * We need to open a temporary connection to the postmaster. Use the
@@ -3043,92 +3043,47 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	return 1;
 }
 
-//#ifdef	WIN32
-#ifdef DYNAMIC_LINK
+#ifdef	DYNAMIC_LOAD
 enum {
 	CONNECTION_OK =	0
 	,CONNECTION_BAD
 };
+#endif /* DYNAMIC_LOAD */
+
+#ifdef WIN32
 extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
-#endif
+#endif /* WIN32 */
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
 	CSTR	func = "LIBPQ_connect";
 	char	ret = 0;
 	char *conninfo = NULL;
-#ifdef DYNAMIC_LINK
-	HMODULE	hmodule = NULL,	hopenssl = NULL;
-	static const char * const libarray[] = {"ssleay32", "libssl32", "libeay32"};
-#endif
-	PQFUNC	prc, finish_prc = NULL;
 	void		*pqconn = NULL;
 	SocketClass	*sock;
 	int	socket = -1, pqret;
+	static const char * const libarray[] = {"ssleay32", "libssl32", "libeay32"};
 
 	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
 	sock = self->sock;
-	mylog("sock=%x\n", sock);
-	if (sock)
-	{
-#ifdef DYNAMIC_LINK
-		hmodule = sock->libpq;
-#endif
-		finish_prc = sock->pqfinish;
-	}
-#ifdef DYNAMIC_LINK
-inolog("hmodule=%x pqfinish=%x\n", hmodule, finish_prc);
-	if (!hmodule)
-	{
-		if (hmodule = LIBPQ_load(FALSE), !hmodule)
-		{
-			CC_set_error(self, CONN_OPENDB_ERROR, "Could not load libpq library", func);
-			return 0;
-		}
-	}
+inolog("sock=%x\n", sock);
 	if (!sock)
 	{
 		sock = SOCK_Constructor(self);
 		if (!sock)
 		{
-			FreeLibrary(hmodule);
 			CC_set_error(self, CONN_OPENDB_ERROR, "Could not construct a socket to the server", func);
 			goto cleanup1;
 		}
 	}
-	sock->libpq = hmodule;
-#endif
-	if (!finish_prc)
-	{
-#ifdef DYNAMIC_LINK
-		finish_prc = (PQFUNC) GetProcAddress(hmodule, "PQfinish");
-		if (!finish_prc)
-		{
-			CC_set_error(self, CONN_OPENDB_ERROR, "PQfinish not found", func);
-			FreeLibrary(hmodule);
-			return 0;
-		}
-#else
-		finish_prc = (PQFUNC) PQfinish;
-#endif
-	}
-	sock->pqfinish = finish_prc;
-#ifdef DYNAMIC_LINK
-	prc = (PQFUNC) GetProcAddress(hmodule, "PQconnectdb");
-	if (!prc)
-	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "function PQconnectdb not found", func);
-		goto cleanup1;
-	}
-#else
-	prc = (PQFUNC) PQconnectdb;
-#endif
+	sock->via_libpq = TRUE;
+
 	if (!(conninfo = protocol3_opts_build(self)))
 	{
 		CC_set_error(self, CONN_OPENDB_ERROR, "Could'nt allcate conninfo", func);
 		goto cleanup1;
 	}
-	pqconn = (void *)(*prc)(conninfo);
+	pqconn = PQconnectdb(conninfo);
 	free(conninfo);
 	if (!pqconn)
 	{
@@ -3136,38 +3091,16 @@ inolog("hmodule=%x pqfinish=%x\n", hmodule, finish_prc);
 		goto cleanup1;
 	}
 	sock->pqconn = pqconn;
-#ifdef DYNAMIC_LINK
-	prc = (PQFUNC) GetProcAddress(hmodule, "PQstatus");
-	if (!prc)
-	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "function PQstatus not found", func);
-		goto cleanup1;
-	}
-inolog("PQStatus found\n");
-#else
-	prc = (PQFUNC) PQstatus;
-#endif
-	pqret = (*prc)(pqconn);
+	pqret = PQstatus(pqconn);
 	if (CONNECTION_OK != pqret)
 	{
 		const char	*errmsg;
 inolog("status=%d\n", pqret);
-#ifdef DYNAMIC_LINK
-		prc = (PQFUNC) GetProcAddress(hmodule, "PQerrorMessage");
-		if (!prc)
-		{
-			CC_set_error(self, CONN_OPENDB_ERROR, "function PQerrorMessage not found", func);
-			goto cleanup1;
-		}
-inolog("PQErrorMessage found\n");
-#else
-		prc = (PQFUNC) PQerrorMessage;
-#endif
-		errmsg = (const char *)(*prc)(pqconn);
+		errmsg = PQerrorMessage(pqconn);
 		if (CONNECTION_BAD == pqret && strstr(errmsg, "no password"))
 		{
 			mylog("password retry\n");
-			(*finish_prc)(pqconn);
+			PQfinish(pqconn);
 			self->sock = sock;
 			return -1;
 		}
@@ -3187,43 +3120,17 @@ cleanup1:
 	}
 	mylog("libpq connection to the database succeeded.\n");
 	ret = 0;
-#ifdef DYNAMIC_LINK
-	prc = (PQFUNC) GetProcAddress(hmodule, "PQsocket");
-	if (!prc)
-	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "PQsocket function not found", func);
-		goto cleanup2;
-	}
-#else
-	prc = (PQFUNC) PQsocket;
-#endif
-	socket = (*prc)(pqconn);
+	socket = PQsocket(pqconn);
 inolog("socket=%d\n", socket);
 	sock->socket = socket;
-#ifdef DYNAMIC_LINK
-	prc = (PQFUNC) GetProcAddress(hmodule, "PQgetssl");
-	if (!prc)
-	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "PQgetssl function not found", func);
-		goto cleanup2;
-	}
-#else
-	prc = (PQFUNC) PQgetssl;
-#endif
-	sock->ssl = (void *)(*prc)(pqconn);
-#ifdef DYNAMIC_LINK
-	prc = (PQFUNC) GetProcAddress(hmodule, "PQprotocolVersion");
-#else
-	prc = (PQFUNC) PQprotocolVersion;
-#endif
-	if (prc)
+	sock->ssl = PQgetssl(pqconn);
 	{
 		int	pversion;
 		ConnInfo	*ci = &self->connInfo;
 
 		sock->pversion = PG_PROTOCOL_74;
 		strcpy(ci->protocol, PG74);
-		pversion = (*prc)(pqconn);
+		pversion = PQprotocolVersion(pqconn);
 		switch (pversion)
 		{
 			case 2:
@@ -3232,22 +3139,11 @@ inolog("socket=%d\n", socket);
 				break;
 		}
 	}
-	else		
-	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "PQprotocolVersion function not found", func);
-		goto cleanup2;
-	}
 	mylog("procotol=%s\n", self->connInfo.protocol);
-#ifdef DYNAMIC_LINK
-	prc = (PQFUNC) GetProcAddress(hmodule, "PQserverVersion");
-#else
-	prc = (PQFUNC) PQserverVersion;
-#endif
-	if (prc)
 	{
 		int pversion, on;
 
-		pversion = (*prc)(pqconn);
+		pversion = PQserverVersion(pqconn);
 		self->pg_version_major = pversion / 10000;
 		self->pg_version_minor = (pversion % 10000) / 100;
 		sprintf(self->pg_version, "%d.%d",  self->pg_version_major, self->pg_version_minor);
@@ -3258,63 +3154,22 @@ inolog("socket=%d\n", socket);
 		/* ioctlsocket(sock, FIONBIO , 0);
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof(on)); */
 	}
-	else
-	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "PQserverlVersion function not found", func);
-		goto cleanup2;
-	}
 	if (sock->ssl)
 	{
-		PQFUNC	funcs[3];
-#ifdef DYNAMIC_LINK
-		int	count;
-
-		count  = sizeof(funcs) / sizeof(PQFUNC);
-		hopenssl = GetOpenssl(funcs, &count);
-/***
-		for (i = 0, prc = NULL; i < sizeof(libarray) / sizeof(const char * const) && !prc; i++)
-		{
-			if (hopenssl = GetModuleHandle(libarray[i]), NULL != hopenssl)
-				prc = (PQFUNC) GetProcAddress(hopenssl, "SSL_read");
-		}
-***/
-				
-		if (!hopenssl)
-		{
-			CC_set_error(self, CONN_OPENDB_ERROR, "couldn't load openssl library", func);
-			goto cleanup2;
-		}
-		switch (count)
-		{
-			case 0:
-				CC_set_error(self, CONN_OPENDB_ERROR, "function SSL_read not found", func);
-				goto cleanup2;
-				break;
-			case 1:
-				CC_set_error(self, CONN_OPENDB_ERROR, "function SSL_write not found", func);
-				goto cleanup2;
-				break;
-			case 2:
-				CC_set_error(self, CONN_OPENDB_ERROR, "function SSL_get_error not found", func);
-				goto cleanup2;
-				break;
-		}
-		sock->recv = funcs[0];
-		sock->send = funcs[1];
-		sock->get_error = funcs[2];
 		/* flags = fcntl(sock, F_GETFL);
 		fcntl(sock, F_SETFL, flags & (~O_NONBLOCKING));*/
-#else
-		sock->recv = (PQFUNC) SSL_read;
-		sock->send = (PQFUNC) SSL_write;
-		sock->get_error = (PQFUNC) SSL_get_error;
-#endif
 	}
 	mylog("Server version=%s\n", self->pg_version);
 	ret = 1;
-cleanup2:
 	if (ret)
+	{
 		self->sock = sock;
+		if (!CC_get_username(self)[0])
+		{
+			mylog("PQuser=%s\n", PQuser(pqconn));
+			strcpy(self->connInfo.username, PQuser(pqconn));
+		}
+	}
 	else
 	{
 		SOCK_Destructor(sock);
@@ -3332,53 +3187,17 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 	char	errbuf[256];
 	void	*cancel;
 	SocketClass	*sock = CC_get_socket(conn);
-#ifdef DYNAMIC_LINK
-	HMODULE	libpq = sock->libpq;
-	static	PQFUNC	PQgetCancel = NULL;	
-	static	PQFUNC	PQfreeCancel = NULL;	
-	static	PQFUNC	PQcancel = NULL;
-#else
-	static	PQFUNC	PQgetCancelX = NULL;	
-	static	PQFUNC	PQfreeCancelX = NULL;
-	static	PQFUNC	PQcancelX = NULL;
-#endif
 
 	if (!sock)
 		return FALSE;
-#ifdef DYNAMIC_LINK
-	if (!PQgetCancel)
-	{
-		if (PQgetCancel = (PQFUNC)GetProcAddress(libpq, "PQgetCancel"), !PQgetCancel)
-			return FALSE;
-	}
-	if (!PQfreeCancel)
-	{
-		if (PQfreeCancel = (PQFUNC)GetProcAddress(libpq, "PQfreeCancel"), !PQfreeCancel)
-			return FALSE;
-	}
-	if (!PQcancel)
-	{
-		if (PQcancel = (PQFUNC)GetProcAddress(libpq, "PQcancel"), !PQcancel)
-			return FALSE;
-	}
-	cancel = (void *)(*PQgetCancel)(sock->pqconn);
+		
+	cancel = PQgetCancel(sock->pqconn);
 	if(!cancel)
 		return FALSE;
-	ret = (*PQcancel)(cancel, errbuf, sizeof(errbuf));
-	(*PQfreeCancel)(cancel);
-#else
-	PQgetCancelX = (PQFUNC) PQgetCancel;	
-	PQfreeCancelX = (PQFUNC) PQfreeCancel;	
-	PQcancelX = (PQFUNC) PQcancel;	
-	cancel = (void *)(*PQgetCancelX)(sock->pqconn);
-	if(!cancel)
-		return FALSE;
-	ret = (*PQcancelX)(cancel, errbuf, sizeof(errbuf));
-	(*PQfreeCancelX)(cancel);
-#endif
+	ret = PQcancel(cancel, errbuf, sizeof(errbuf));
+	PQfreeCancel(cancel);
 	if(1 == ret)
 		return TRUE;
 	else
 		return FALSE;
 }
-//#endif /* WIN32 */

@@ -13,8 +13,8 @@
 #include "pgapifunc.h"
 
 RETCODE		SQL_API
-PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
-				SWORD cbInfoValueMax, SWORD FAR * pcbInfoValue)
+PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
+			SQLSMALLINT cbInfoValueMax, SQLSMALLINT FAR * pcbInfoValue)
 {
 	CSTR func = "PGAPI_GetInfo30";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -42,6 +42,8 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		case SQL_FORWARD_ONLY_CURSOR_ATTRIBUTES2:
 			len = 4;
 			value = SQL_CA2_READ_ONLY_CONCURRENCY;
+			if (!ci->drivers.use_declarefetch || ci->drivers.lie)
+				value |= SQL_CA2_CRC_EXACT;
 			break;
 		case SQL_KEYSET_CURSOR_ATTRIBUTES1:
 			len = 4;

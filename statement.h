@@ -20,13 +20,6 @@
 #include <pthread.h>
 #endif
 
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-
 typedef enum
 {
 	STMT_ALLOCATED,				/* The statement handle is allocated, but
@@ -196,12 +189,12 @@ struct StatementClass_
 	int			__error_number;
 	PG_ErrorInfo	*pgerror;
 
-	Int4		currTuple;	/* current absolute row number (GetData,
+	SQLLEN		currTuple;	/* current absolute row number (GetData,
 						 * SetPos, SQLFetch) */
 	GetDataInfo	gdata_info;
 	int		save_rowset_size;	/* saved rowset size in case of
 							 * change/FETCH_NEXT */
-	Int4		rowset_start;	/* start of rowset (an absolute row
+	SQLLEN		rowset_start;	/* start of rowset (an absolute row
 								 * number) */
 	Int2		bind_row;	/* current offset for Multiple row/column
 						 * binding */
@@ -237,6 +230,7 @@ struct StatementClass_
 	char		multi_statement; /* -1:unknown 0:single 1:multi */
 	char		rbonerr;	 /* rollback on error */
 	char		discard_output_params;	 /* discard output parameters on parse stage */
+	char		cancel_info;	 /* cancel information */
 	pgNAME		cursor_name;
 	char		*plan_name;
 	Int2		num_params;
@@ -253,12 +247,12 @@ struct StatementClass_
 						 * result is inaccurate */
 	char		miscinfo;
 	char		updatable;
-	Int4		diag_row_count;
+	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
 	char		*execute_statement; /* to execute the prepared plans */
 	Int4		from_pos;	
 	Int4		where_pos;
-	Int4		last_fetch_count_include_ommitted;
+	SQLLEN		last_fetch_count_include_ommitted;
 	time_t		stmt_time;
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
@@ -398,16 +392,19 @@ enum
 #if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_STMT_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_STMT_CS(x)	EnterCriticalSection(&((x)->cs))
+#define TRY_ENTER_STMT_CS(x)	TryEnterCriticalSection(&((x)->cs))
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_STMT_CS(x)	DeleteCriticalSection(&((x)->cs))
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
 #define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs),0)
 #define ENTER_STMT_CS(x)	pthread_mutex_lock(&((x)->cs))
+#define TRY_ENTER_STMT_CS(x)	(0 == pthread_mutex_trylock(&((x)->cs)))
 #define LEAVE_STMT_CS(x)	pthread_mutex_unlock(&((x)->cs))
 #define DELETE_STMT_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_STMT_CS(x)
 #define ENTER_STMT_CS(x)
+#define TRY_ENTER_STMT_CS(x)	(1)
 #define LEAVE_STMT_CS(x)
 #define DELETE_STMT_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
@@ -431,21 +428,26 @@ void		SC_full_error_copy(StatementClass *self, const StatementClass *from, BOOL)
 void		SC_replace_error_with_res(StatementClass *self, int errnum, const char *msg, const QResultClass*, BOOL);
 void		SC_set_prepared(StatementClass *self, BOOL);
 void		SC_set_planname(StatementClass *self, const char *plan_name);
-void		SC_set_rowset_start(StatementClass *self, int, BOOL);
-void		SC_inc_rowset_start(StatementClass *self, int);
+void		SC_set_rowset_start(StatementClass *self, SQLLEN, BOOL);
+void		SC_inc_rowset_start(StatementClass *self, SQLLEN);
 RETCODE		SC_initialize_stmts(StatementClass *self, BOOL);
 RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);
 void		SC_log_error(const char *func, const char *desc, const StatementClass *self);
 time_t		SC_get_time(StatementClass *self);
-UInt4		SC_get_bookmark(StatementClass *self);
-RETCODE		SC_pos_reload(StatementClass *self, DWORD index, UWORD *, Int4);
-RETCODE		SC_pos_update(StatementClass *self, UWORD irow, UDWORD index);
-RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, UDWORD index);
-RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, UDWORD index);
+SQLULEN		SC_get_bookmark(StatementClass *self);
+RETCODE		SC_pos_reload(StatementClass *self, SQLULEN index, UWORD *, Int4);
+RETCODE		SC_pos_update(StatementClass *self, UWORD irow, SQLULEN index);
+RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, SQLULEN index);
+RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, SQLULEN index);
 RETCODE		SC_pos_add(StatementClass *self, UWORD irow);
 int		SC_set_current_col(StatementClass *self, int col);
+
+BOOL	SC_IsExecuting(const StatementClass *self);
+BOOL	SC_SetExecuting(StatementClass *self, BOOL on);
+BOOL	SC_SetCancelRequest(StatementClass *self);
+BOOL	SC_AcceptedCancelRequest(const StatementClass *self);
 
 DescriptorClass	*SC_set_ARD(StatementClass *stmt, DescriptorClass *desc);
 DescriptorClass	*SC_set_APD(StatementClass *stmt, DescriptorClass *desc);

@@ -38,7 +38,7 @@
 RETCODE		SQL_API
 PGAPI_RowCount(
 			   HSTMT hstmt,
-			   SDWORD FAR * pcrow)
+			   SQLLEN FAR * pcrow)
 {
 	CSTR func = "PGAPI_RowCount";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -97,7 +97,7 @@ inolog("returning RowCount=%d\n", *pcrow);
 RETCODE		SQL_API
 PGAPI_NumResultCols(
 					HSTMT hstmt,
-					SWORD FAR * pccol)
+					SQLSMALLINT FAR * pccol)
 {
 	CSTR func = "PGAPI_NumResultCols";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -180,14 +180,14 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_DescribeCol(
 				  HSTMT hstmt,
-				  UWORD icol,
-				  UCHAR FAR * szColName,
-				  SWORD cbColNameMax,
-				  SWORD FAR * pcbColName,
-				  SWORD FAR * pfSqlType,
-				  UDWORD FAR * pcbColDef,
-				  SWORD FAR * pibScale,
-				  SWORD FAR * pfNullable)
+				  SQLUSMALLINT icol,
+				  SQLCHAR FAR * szColName,
+				  SQLSMALLINT cbColNameMax,
+				  SQLSMALLINT FAR * pcbColName,
+				  SQLSMALLINT FAR * pfSqlType,
+				  SQLULEN FAR * pcbColDef,
+				  SQLSMALLINT FAR * pibScale,
+				  SQLSMALLINT FAR * pfNullable)
 {
 	CSTR func = "PGAPI_DescribeCol";
 
@@ -198,8 +198,8 @@ PGAPI_DescribeCol(
 	QResultClass *res;
 	char	   *col_name = NULL;
 	Int4		fieldtype = 0;
-	int			column_size = 0,
-				decimal_digits = 0;
+	SQLULEN		column_size = 0;
+	SQLINTEGER	decimal_digits = 0;
 	ConnInfo   *ci;
 	char		parse_ok;
 	FIELD_INFO	*fi;
@@ -402,7 +402,7 @@ inolog("answering bookmark info\n");
 		if (decimal_digits < 0)
 			decimal_digits = 0;
 
-		*pibScale = decimal_digits;
+		*pibScale = (SQLSMALLINT) decimal_digits;
 		mylog("describeCol: col %d  *pibScale = %d\n", icol, *pibScale);
 	}
 
@@ -428,12 +428,12 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_ColAttributes(
 					HSTMT hstmt,
-					UWORD icol,
-					UWORD fDescType,
+					SQLUSMALLINT icol,
+					SQLUSMALLINT fDescType,
 					PTR rgbDesc,
-					SWORD cbDescMax,
-					SWORD FAR * pcbDesc,
-					SDWORD FAR * pfDesc)
+					SQLSMALLINT cbDescMax,
+					SQLSMALLINT FAR * pcbDesc,
+					SQLLEN FAR * pfDesc)
 {
 	CSTR func = "PGAPI_ColAttributes";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -598,7 +598,10 @@ inolog("answering bookmark info\n");
 	switch (fDescType)
 	{
 		case SQL_COLUMN_AUTO_INCREMENT: /* == SQL_DESC_AUTO_UNIQUE_VALUE */
-			value = pgtype_auto_increment(stmt, field_type);
+			if (fi && fi->auto_increment)
+				value = TRUE;
+			else
+				value = pgtype_auto_increment(stmt, field_type);
 			if (value == -1)	/* non-numeric becomes FALSE (ODBC Doc) */
 				value = FALSE;
 inolog("AUTO_INCREMENT=%d\n", value);
@@ -835,11 +838,11 @@ inolog("COLUMN_TYPE=%d\n", value);
 RETCODE		SQL_API
 PGAPI_GetData(
 			  HSTMT hstmt,
-			  UWORD icol,
-			  SWORD fCType,
+			  SQLUSMALLINT icol,
+			  SQLSMALLINT fCType,
 			  PTR rgbValue,
-			  SDWORD cbValueMax,
-			  SDWORD FAR * pcbValue)
+			  SQLLEN cbValueMax,
+			  SQLLEN FAR * pcbValue)
 {
 	CSTR func = "PGAPI_GetData";
 	QResultClass *res;
@@ -963,11 +966,11 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 			if (SQL_C_BOOKMARK == fCType || 4 <= cbValueMax)
 			{
 				contents_get = TRUE; 
-				*((UDWORD *) rgbValue) = SC_get_bookmark(stmt);
+				*((SQLULEN *) rgbValue) = SC_get_bookmark(stmt);
 			}
 		}
 		if (pcbValue)
-			*pcbValue = sizeof(UDWORD);
+			*pcbValue = sizeof(SQLULEN);
 
 		if (contents_get)
 			result = SQL_SUCCESS;
@@ -1148,15 +1151,15 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 	count = 0;
 	if (QR_get_cursor(res))
 	{
-		Int4	*deleted = res->deleted;
+		UInt4	*deleted = res->deleted;
 
 		*nearest = sta - 1 + nth;
 		if (SQL_FETCH_PRIOR == orientation)
 		{
-			for (i = res->dl_count - 1; i >=0 && *nearest <= deleted[i]; i--)
+			for (i = res->dl_count - 1; i >=0 && *nearest <= (Int4) deleted[i]; i--)
 			{
 inolog("deleted[%d]=%d\n", i, deleted[i]);
-				if (sta >= deleted[i])
+				if (sta >= (Int4)deleted[i])
 					(*nearest)--;
 			}
 inolog("nearest=%d\n", *nearest);
@@ -1172,9 +1175,9 @@ inolog("nearest=%d\n", *nearest);
 		{
 			if (!QR_once_reached_eof(res))
 				num_tuples = INT_MAX;
-			for (i = 0; i < res->dl_count && *nearest >= deleted[i]; i++)
+			for (i = 0; i < res->dl_count && *nearest >= (Int4)deleted[i]; i++)
 			{
-				if (sta <= deleted[i])
+				if (sta <= (Int4)deleted[i])
 					(*nearest)++;
 			}
 			if (*nearest >= num_tuples)
@@ -1299,10 +1302,10 @@ inolog("RETURN_EOF\n"); \
 RETCODE		SQL_API
 PGAPI_ExtendedFetch(
 					HSTMT hstmt,
-					UWORD fFetchType,
-					SDWORD irow,
-					UDWORD FAR * pcrow,
-					UWORD FAR * rgfRowStatus,
+					SQLUSMALLINT fFetchType,
+					SQLLEN irow,
+					SQLULEN FAR * pcrow,
+					SQLUSMALLINT FAR * rgfRowStatus,
 					SQLINTEGER bookmark_offset,
 					SQLINTEGER rowsetSize)
 {
@@ -1910,7 +1913,7 @@ inolog("AddRollback %d(%d,%d) %s\n", index, keyset->blocknum, keyset->offset, dm
 	res->rb_count++;	
 }
 
-int ClearCachedRows(TupleField *tuple, Int4 num_fields, int num_rows)
+int ClearCachedRows(TupleField *tuple, int num_fields, int num_rows)
 {
 	int	i;
 
@@ -1926,7 +1929,7 @@ inolog("freeing tuple[%d][%d].value=%x\n", i / num_fields, i % num_fields, tuple
 	}
 	return i;
 }
-int ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, Int4 num_fields, int num_rows)
+int ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, int num_rows)
 {
 	int	i;
 
@@ -2216,8 +2219,9 @@ inolog("!!Commit Added=%d(%d)\n", QR_get_num_total_read(res) + i, i);
 int AddDeleted(QResultClass *res, UInt4 index, KeySet *keyset)
 {
 	int	i;
-	Int4	dl_count, *deleted;
+	Int4	dl_count;
 	UInt4	new_alloc;
+	UInt4	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
 	Int4	num_fields = res->num_fields;
@@ -2232,7 +2236,7 @@ inolog("AddDeleted %d\n", index);
 	{
 		dl_count = 0;
 		new_alloc = 10;
-		QR_MALLOC_return_with_error(res->deleted, Int4, sizeof(UInt4) * new_alloc, res, "Deleted index malloc error", FALSE);
+		QR_MALLOC_return_with_error(res->deleted, UInt4, sizeof(UInt4) * new_alloc, res, "Deleted index malloc error", FALSE);
 		QR_MALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Deleted keyset malloc error", FALSE);
 		deleted = res->deleted;
 		deleted_keyset = res->deleted_keyset;
@@ -2244,7 +2248,7 @@ inolog("AddDeleted %d\n", index);
 		{
 			new_alloc = res->dl_alloc * 2;
 			res->dl_alloc = 0;
-			QR_REALLOC_return_with_error(res->deleted, Int4, sizeof(UInt4) * new_alloc, res, "Dleted index realloc error", FALSE);
+			QR_REALLOC_return_with_error(res->deleted, UInt4, sizeof(UInt4) * new_alloc, res, "Dleted index realloc error", FALSE);
 			deleted = res->deleted;
 			QR_REALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Dleted KeySet realloc error", FALSE);
 			deleted_keyset = res->deleted_keyset;
@@ -2256,7 +2260,7 @@ inolog("AddDeleted %d\n", index);
 			if (index < *deleted)
 				break;
 		}
-		memmove(deleted + 1, deleted, sizeof(Int4) * (dl_count - i)); 
+		memmove(deleted + 1, deleted, sizeof(UInt4) * (dl_count - i)); 
 		memmove(deleted_keyset + 1, deleted_keyset, sizeof(KeySet) * (dl_count - i)); 
 	}
 	*deleted = index;
@@ -2283,8 +2287,8 @@ inolog("AddDeleted %d\n", index);
 static void RemoveDeleted(QResultClass *res, Int4 index)
 {
 	int	i, mv_count, rm_count = 0;
-	Int4	pidx, midx, *deleted;
-	UInt4	num_read = QR_get_num_total_read(res);
+	Int4	pidx, midx;
+	UInt4	*deleted, num_read = QR_get_num_total_read(res);
 	KeySet	*deleted_keyset;
 
 	mylog("RemoveDeleted index=%d\n", index);
@@ -2311,7 +2315,7 @@ static void RemoveDeleted(QResultClass *res, Int4 index)
 			{
 				deleted = res->deleted + i;
 				deleted_keyset = res->deleted_keyset + i;
-				memmove(deleted, deleted + 1, mv_count * sizeof(Int4));
+				memmove(deleted, deleted + 1, mv_count * sizeof(UInt4));
 				memmove(deleted_keyset, deleted_keyset + 1, mv_count * sizeof(KeySet));
 			}
 			res->dl_count--;
@@ -2324,7 +2328,7 @@ static void RemoveDeleted(QResultClass *res, Int4 index)
 static void CommitDeleted(QResultClass *res)
 {
 	int	i;
-	Int4	*deleted;
+	UInt4	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
 
@@ -2359,7 +2363,8 @@ inolog("!!Commit Deleted=%d(%d)\n", *deleted, i);
 
 static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
 {
-	Int4	alloc, *updated;
+	Int4	alloc;
+	UInt4	*updated;
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL;
 
@@ -2374,7 +2379,7 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	if (alloc <= res->up_alloc)
 		return TRUE;
  
-	if (updated = realloc(res->updated, sizeof(Int4) * alloc), !updated)
+	if (updated = realloc(res->updated, sizeof(UInt4) * alloc), !updated)
 	{
 		if (res->updated_keyset)
 		{
@@ -2409,10 +2414,10 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	return TRUE;
 }
 
-static void AddUpdated(StatementClass *stmt, Int4 index)
+static void AddUpdated(StatementClass *stmt, int index)
 {
 	QResultClass	*res;
-	Int4	*updated;
+	UInt4	*updated;
 	KeySet	*updated_keyset, *keyset;
 	TupleField	*updated_tuples = NULL, *tuple_updated,  *tuple;
 	UInt4	kres_ridx, up_count;
@@ -2520,10 +2525,10 @@ static void RemoveUpdated(QResultClass *res, Int4 index)
 
 static void RemoveUpdatedAfterTheKey(QResultClass *res, Int4 index, const KeySet *keyset)
 {
-	UInt4	num_read = QR_get_num_total_read(res);
+	UInt4	*updated, num_read = QR_get_num_total_read(res);
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL;
-	Int4	pidx, midx, mv_count, *updated;
+	Int4	pidx, midx, mv_count;
 	int	i, num_fields = res->num_fields, rm_count = 0;
 
 	mylog("RemoveUpdatedAfterTheKey %d,(%d,%d)\n", index, keyset ? keyset->blocknum : 0, keyset ? keyset->offset : 0);
@@ -2560,7 +2565,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, Int4 index, const KeySet
 			mv_count = res->up_count - i -1;
 			if (mv_count > 0)
 			{
-				memmove(updated, updated + 1, sizeof(Int4) * mv_count); 
+				memmove(updated, updated + 1, sizeof(UInt4) * mv_count); 
 				memmove(updated_keyset, updated_keyset + 1, sizeof(KeySet) * mv_count); 
 				if (updated_tuples)
 					memmove(updated_tuples, updated_tuples + num_fields, sizeof(TupleField) * num_fields * mv_count);
@@ -2672,7 +2677,7 @@ inolog("IndexExists index=%d(%d,%d)\n", rollback->index, rollback->blocknum, rol
 		KeySet	*updated_keyset = res->updated_keyset, *keyset;
 		Int4	num_read = QR_get_num_total_read(res), pidx, midx, marki;
 
-		updated = res->updated;
+		updated = (Int4 *) res->updated;
 		if (!updated || res->up_count < 1)
 			return FALSE;
 		if (index < 0)
@@ -2712,7 +2717,7 @@ inolog("IndexExists index=%d(%d,%d)\n", rollback->index, rollback->blocknum, rol
 	return ret;
 }
 
-static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oid, const char *tid);
+static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const Int4 *oid, const char *tid);
 static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 {
 	Int4	i, rollbp;
@@ -2921,7 +2926,7 @@ void	ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 #define	LATEST_TUPLE_LOAD	1L
 #define	USE_INSERTED_TID	(1L << 1)
 static QResultClass *
-positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oid, const char *tidval)
+positioned_load(StatementClass *stmt, UInt4 flag, const Int4 *oid, const char *tidval)
 {
 	CSTR	func = "positioned_load";
 	CSTR	andqual = " and ";
@@ -2989,7 +2994,7 @@ cleanup:
 }
 
 RETCODE
-SC_pos_reload(StatementClass *stmt, DWORD global_ridx, UWORD *count, Int4 logKind)
+SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logKind)
 {
 	CSTR		func = "SC_pos_reload";
 	int		res_cols;
@@ -3503,7 +3508,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 }
 
 static RETCODE SQL_API
-irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow, UDWORD global_ridx)
+irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow, SQLULEN global_ridx)
 {
 	CSTR	func = "irow_update";
 
@@ -3549,7 +3554,7 @@ typedef struct
 	StatementClass	*stmt, *qstmt;
 	IRDFields	*irdflds;
 	UWORD		irow;
-	UDWORD		global_ridx;
+	SQLULEN		global_ridx;
 }	pup_cdata;
 static RETCODE
 pos_update_callback(RETCODE retcode, void *para)
@@ -3606,7 +3611,7 @@ inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_ke
 }
 RETCODE
 SC_pos_update(StatementClass *stmt,
-			  UWORD irow, UDWORD global_ridx)
+			  UWORD irow, SQLULEN global_ridx)
 {
 	CSTR	func = "SC_pos_update";
 	int			i,
@@ -3770,7 +3775,7 @@ SC_pos_update(StatementClass *stmt,
 }
 RETCODE
 SC_pos_delete(StatementClass *stmt,
-			  UWORD irow, UDWORD global_ridx)
+			  UWORD irow, SQLULEN global_ridx)
 {
 	CSTR	func = "SC_pos_update";
 	UWORD		offset;
@@ -4177,7 +4182,7 @@ cleanup:
  */
 
 RETCODE
-SC_pos_refresh(StatementClass *stmt, UWORD irow , UDWORD global_ridx)
+SC_pos_refresh(StatementClass *stmt, UWORD irow , SQLULEN global_ridx)
 {
 	RETCODE	ret;
 #if (ODBCVER >= 0x0300)
@@ -4251,7 +4256,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	RETCODE	ret;
 	spos_cdata *s = (spos_cdata *) para;
 	ConnectionClass	*conn;
-	UDWORD	global_ridx;
+	SQLULEN	global_ridx;
 	Int4	kres_ridx, pos_ridx;
 
 	ret = retcode;
@@ -4280,13 +4285,13 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 				break;
 			if (s->res->keyset)
 			{
-			kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, s->res);
-			if (kres_ridx >= (Int4)s->res->num_cached_keys)
-				break;
+				kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, s->res);
+				if (kres_ridx >= (Int4)s->res->num_cached_keys)
+					break;
 				if (kres_ridx >= 0) /* the row may be deleted and not in the rowset */
-			{
-				if (0 == (s->res->keyset[kres_ridx].status & CURS_IN_ROWSET))
-					continue;
+				{
+					if (0 == (s->res->keyset[kres_ridx].status & CURS_IN_ROWSET))
+						continue;
 				}
 			}
 		}
@@ -4366,9 +4371,9 @@ inolog("\n");
 RETCODE		SQL_API
 PGAPI_SetPos(
 			 HSTMT hstmt,
-			 UWORD irow,
-			 UWORD fOption,
-			 UWORD fLock)
+			 SQLSETPOSIROW irow,
+			 SQLUSMALLINT fOption,
+			 SQLUSMALLINT fLock)
 {
 	CSTR func = "PGAPI_SetPos";
 	RETCODE	ret;
@@ -4533,9 +4538,9 @@ inolog("rowset=%d processed=%d ret=%d\n", opts->rowset_size, processed, ret);
 /*		Sets options that control the behavior of cursors. */
 RETCODE		SQL_API
 PGAPI_SetScrollOptions( HSTMT hstmt,
-				UWORD fConcurrency,
-				SDWORD crowKeyset,
-				UWORD crowRowset)
+				SQLUSMALLINT fConcurrency,
+				SQLLEN crowKeyset,
+				SQLUSMALLINT crowRowset)
 {
 	CSTR func = "PGAPI_SetScrollOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -4551,9 +4556,9 @@ PGAPI_SetScrollOptions( HSTMT hstmt,
 /*	Set the cursor name on a statement handle */
 RETCODE		SQL_API
 PGAPI_SetCursorName(
-					HSTMT hstmt,
-					UCHAR FAR * szCursor,
-					SWORD cbCursor)
+				HSTMT hstmt,
+				const SQLCHAR FAR * szCursor,
+				SQLSMALLINT cbCursor)
 {
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -4578,9 +4583,9 @@ PGAPI_SetCursorName(
 RETCODE		SQL_API
 PGAPI_GetCursorName(
 					HSTMT hstmt,
-					UCHAR FAR * szCursor,
-					SWORD cbCursorMax,
-					SWORD FAR * pcbCursor)
+					SQLCHAR FAR * szCursor,
+					SQLSMALLINT cbCursorMax,
+					SQLSMALLINT FAR * pcbCursor)
 {
 	CSTR func = "PGAPI_GetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;

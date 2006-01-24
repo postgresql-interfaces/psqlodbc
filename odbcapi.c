@@ -80,8 +80,8 @@ SQLAllocStmt(HDBC ConnectionHandle,
 RETCODE		SQL_API
 SQLBindCol(HSTMT StatementHandle,
 		   SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
-		   PTR TargetValue, SQLINTEGER BufferLength,
-		   SQLINTEGER *StrLen_or_Ind)
+		   PTR TargetValue, SQLLEN BufferLength,
+		   SQLLEN *StrLen_or_Ind)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -128,16 +128,14 @@ SQLColumns(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
-#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
-				clName, NameLength4, flag);
+				clName, NameLength4, flag, 0, 0);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -170,7 +168,7 @@ SQLColumns(HSTMT StatementHandle,
 		{
 			ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
-				clName, NameLength4, flag);
+				clName, NameLength4, flag, 0, 0);
 			if (newCt)
 				free(newCt);
 			if (newSc)
@@ -208,12 +206,12 @@ SQLConnect(HDBC ConnectionHandle,
 RETCODE		SQL_API
 SQLDriverConnect(HDBC hdbc,
 				 HWND hwnd,
-				 UCHAR FAR * szConnStrIn,
-				 SWORD cbConnStrIn,
-				 UCHAR FAR * szConnStrOut,
-				 SWORD cbConnStrOutMax,
-				 SWORD FAR * pcbConnStrOut,
-				 UWORD fDriverCompletion)
+				 SQLCHAR FAR * szConnStrIn,
+				 SQLSMALLINT cbConnStrIn,
+				 SQLCHAR FAR * szConnStrOut,
+				 SQLSMALLINT cbConnStrOutMax,
+				 SQLSMALLINT FAR * pcbConnStrOut,
+				 SQLUSMALLINT fDriverCompletion)
 {
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -568,10 +566,7 @@ SQLGetStmtOption(HSTMT StatementHandle,
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value);
-#ifdef WIN32
-	/* what ? */
 	ret = DiscardRollbackState(stmt, ret, FALSE);
-#endif
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
@@ -1012,10 +1007,8 @@ SQLColumnPrivileges(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
-#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1097,8 +1090,8 @@ RETCODE		SQL_API
 SQLExtendedFetch(
 				 HSTMT hstmt,
 				 SQLUSMALLINT fFetchType,
-				 SQLINTEGER irow,
-				 SQLUINTEGER *pcrow,
+				 SQLLEN irow,
+				 SQLULEN *pcrow,
 				 SQLUSMALLINT *rgfRowStatus)
 {
 	RETCODE	ret;
@@ -1375,10 +1368,8 @@ SQLProcedureColumns(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
-#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1501,7 +1492,7 @@ SQLProcedures(
 RETCODE		SQL_API
 SQLSetPos(
 		  HSTMT hstmt,
-		  SQLUSMALLINT irow,
+		  SQLSETPOSIROW irow,
 		  SQLUSMALLINT fOption,
 		  SQLUSMALLINT fLock)
 {
@@ -1539,10 +1530,8 @@ SQLTablePrivileges(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
-#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else

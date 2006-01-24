@@ -75,10 +75,11 @@ getNextToken(
 	char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
 	int			i = 0;
-	int			out = 0;
-	char		qc,
-				in_escape = FALSE;
+	int		out = 0, taglen;
+	char		qc, in_quote, in_dollar_quote, in_escape;
+	const	char	*tag, *tagend;
 	encoded_str	encstr;
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
 
 	if (smax <= 1)
 		return NULL;
@@ -118,21 +119,38 @@ getNextToken(
 		if (isspace((UCHAR) s[i]) || s[i] == ',')
 			break;
 		/* Handle quoted stuff */
-		if (out == 0 && (s[i] == IDENTIFIER_QUOTE || s[i] == LITERAL_QUOTE))
+		in_quote = in_dollar_quote = FALSE;
+		if (out == 0)
 		{
 			qc = s[i];
-			if (qc == IDENTIFIER_QUOTE)
+			if (qc == dollar_quote)
 			{
-				if (dquote)
-					*dquote = TRUE;
-			}
-			if (qc == LITERAL_QUOTE)
-			{
+				in_quote = in_dollar_quote = TRUE;
+				tag = s + i;
+				taglen = 1;
+				if (tagend = strchr(s + i + 1, dollar_quote))
+					taglen = tagend - s - i + 1;
+				i += (taglen - 1);
 				if (quote)
 					*quote = TRUE;
 			}
-
+			else if (qc == literal_quote)
+			{
+				in_quote = TRUE;
+				if (quote)
+					*quote = TRUE;
+			}
+			else if (qc == identifier_quote)
+			{
+				in_quote = TRUE;
+				if (dquote)
+					*dquote = TRUE;
+			}
+		}
+		if (in_quote)
+		{
 			i++;				/* dont return the quote */
+			in_escape = FALSE;
 			while (s[i] != '\0' && out != smax)
 			{
 				encoded_nextchar(&encstr);
@@ -141,13 +159,23 @@ getNextToken(
 					token[out++] = s[i++];
 					continue;
 				}
-				if (s[i] == qc && !in_escape)
-					break;
-				if (s[i] == ESCAPE_IN_LITERAL && !in_escape)
+				if (in_escape)
+					in_escape = FALSE;
+				else if (s[i] == qc)
+				{
+					if (!in_dollar_quote)
+						break;
+					if (strncmp(s + i, tag, taglen) == 0)
+					{
+						i += (taglen - 1);
+						break;
+					}
+					token[out++] = s[i];
+				}
+				else if (literal_quote == qc && s[i] == escape_in_literal)
 					in_escape = TRUE;
 				else
 				{
-					in_escape = FALSE;
 					token[out++] = s[i];
 				}
 				i++;
@@ -237,6 +265,7 @@ inolog("getColInfo non-manual result\n");
 		fi->decimal_digits = -1;
 	fi->nullable = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_NULLABLE));
 	fi->display_size = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_DISPLAY_SIZE));
+	fi->auto_increment = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_AUTO_INCREMENT));
 }
 
 
@@ -1062,7 +1091,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			col_stmt->internal = TRUE;
 
 			result = PGAPI_Columns(hcol_stmt, "", 0, SAFE_NAME(wti->schema_name),
-					 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN);
+					 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
 
 			mylog("        Past PG_Columns\n");
 			res = SC_get_Curres(col_stmt);

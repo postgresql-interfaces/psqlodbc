@@ -12,6 +12,10 @@
  *-------
  */
 
+#ifndef	_WIN32_WINNT
+#define	_WIN32_WINNT	0x0400
+#endif /* _WIN32_WINNT */
+
 #include "statement.h"
 
 #include "bind.h"
@@ -207,7 +211,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 RETCODE		SQL_API
 PGAPI_FreeStmt(HSTMT hstmt,
-			   UWORD fOption)
+			   SQLUSMALLINT fOption)
 {
 	CSTR func = "PGAPI_FreeStmt";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -379,6 +383,7 @@ SC_Constructor(ConnectionClass *conn)
 		SC_clear_parse_status(rv, conn);
 		rv->proc_return = -1;
 		SC_init_discard_output_params(rv);
+		rv->cancel_info = 0;
 
 		/* Clear Statement Options -- defaults will be set in AllocStmt */
 		memset(&rv->options, 0, sizeof(StatementOptions));
@@ -523,7 +528,7 @@ SC_set_planname(StatementClass *stmt, const char *plan_name)
 }
 
 void
-SC_set_rowset_start(StatementClass *stmt, int start, BOOL valid_base)
+SC_set_rowset_start(StatementClass *stmt, SQLLEN start, BOOL valid_base)
 {
 	QResultClass	*res = SC_get_Curres(stmt);
 	Int4	incr = start - stmt->rowset_start;
@@ -557,9 +562,9 @@ inolog(":QR result=%d(%s)", QR_get_rowstart_in_cache(res), QR_has_valid_base(res
 inolog(":stmt result=%d\n", stmt->rowset_start);
 }
 void
-SC_inc_rowset_start(StatementClass *stmt, int inc)
+SC_inc_rowset_start(StatementClass *stmt, SQLLEN inc)
 {
-	Int4	start = stmt->rowset_start + inc;
+	SQLLEN	start = stmt->rowset_start + inc;
 	
 	SC_set_rowset_start(stmt, start, TRUE);
 }
@@ -802,6 +807,7 @@ inolog("%s statement=%x ommitted=0\n", func, self);
 	SC_free_params(self, STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY);
 	SC_initialize_stmts(self, FALSE);
 	cancelNeedDataState(self);
+	self->cancel_info = 0;
 	/*
 	 *	reset the current attr setting to the original one.
 	 */
@@ -1261,12 +1267,12 @@ inolog("SC_full_error_copy %x->%x\n", from ,self);
 /*              Returns the next SQL error information. */
 RETCODE         SQL_API
 PGAPI_StmtError(	SQLHSTMT	hstmt,
-		SWORD	RecNumber,
-		UCHAR FAR * szSqlState,
-		SDWORD FAR * pfNativeError,
-		UCHAR FAR * szErrorMsg,
-		SWORD cbErrorMsgMax,
-		SWORD FAR * pcbErrorMsg,
+		SQLSMALLINT RecNumber,
+		SQLCHAR FAR * szSqlState,
+		SQLINTEGER FAR * pfNativeError,
+		SQLCHAR FAR * szErrorMsg,
+		SQLSMALLINT cbErrorMsgMax,
+		SQLSMALLINT FAR * pcbErrorMsg,
 		UWORD flag)
 {
 	/* CC: return an error of a hdesc  */
@@ -1292,7 +1298,7 @@ SC_get_time(StatementClass *stmt)
  *	just the current row number.  But it could be more sophisticated
  *	someday, such as mapping a key to a 32 bit value
  */
-UInt4
+SQLULEN
 SC_get_bookmark(StatementClass *self)
 {
 	return SC_make_bookmark(self->currTuple);
@@ -1566,8 +1572,13 @@ SC_execute(StatementClass *self)
 	}
 
 	oldstatus = conn->status;
+	/* self->status = STMT_EXECUTING; */
+	if (!SC_SetExecuting(self, TRUE))
+	{
+		SC_set_error(self, STMT_OPERATION_CANCELLED, "Cancel Reuest Accepted", func);
+		goto cleanup;
+	}
 	conn->status = CONN_EXECUTING;
-	self->status = STMT_EXECUTING;
 
 	/* If it's a SELECT statement, use a cursor. */
 
@@ -1849,10 +1860,11 @@ inolog("!!SC_fetch return =%d\n", ret);
 	}
 cleanup:
 #undef	return
+	SC_SetExecuting(self, FALSE);
 	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
-	self->status = STMT_FINISHED;
+	/* self->status = STMT_FINISHED; */
 	if (SC_get_errornumber(self) == STMT_OK)
 		return SQL_SUCCESS;
 	else if (SC_get_errornumber(self) == STMT_INFO_ONLY)
@@ -2335,4 +2347,76 @@ BOOL	SendSyncRequest(ConnectionClass *conn)
 	SOCK_flush_output(sock);
 
 	return TRUE;
+}
+
+enum {
+	CancelRequestSet	= 1L
+	,CancelRequestAccepted	= (1L << 1)
+	,CancelCompleted	= (1L << 2)
+};
+/*	commonly used for short term lock */
+#if defined(WIN_MULTITHREAD_SUPPORT)
+extern  CRITICAL_SECTION        common_cs;
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+extern  pthread_mutex_t         common_cs;
+#endif /* WIN_MULTITHREAD_SUPPORT */
+BOOL	SC_IsExecuting(const StatementClass *self)
+{
+	BOOL	ret;
+	ENTER_COMMON_CS; /* short time blocking */
+	ret = (STMT_EXECUTING == self->status);
+	LEAVE_COMMON_CS;
+	return ret;
+}
+BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
+{
+	BOOL	exeSet = FALSE;	
+	ENTER_COMMON_CS; /* short time blocking */
+	if (on)
+	{
+		if (0 == (self->cancel_info & CancelRequestSet))
+		{
+			self->status = STMT_EXECUTING;
+			exeSet = TRUE;
+		}
+	}
+	else
+	{
+		self->cancel_info = 0;
+		self->status = STMT_FINISHED;
+		exeSet = TRUE;
+	}	
+	LEAVE_COMMON_CS;
+	return exeSet;
+}
+BOOL	SC_SetCancelRequest(StatementClass *self)
+{
+	BOOL	enteredCS = FALSE;
+
+	ENTER_COMMON_CS;
+	if (0 != (self->cancel_info & CancelCompleted))
+		;
+	else if (STMT_EXECUTING == self->status)
+	{
+		self->cancel_info |= CancelRequestSet;
+	}
+	else
+	{
+		/* try to acquire */
+		if (TRY_ENTER_STMT_CS(self))
+			enteredCS = TRUE;
+		else
+			self->cancel_info |= CancelRequestSet;
+	}	
+	LEAVE_COMMON_CS;
+	return enteredCS;
+}
+BOOL	SC_AcceptedCancelRequest(const StatementClass *self)
+{
+	BOOL	shouldCancel = FALSE;
+	ENTER_COMMON_CS;
+	if (0 != (self->cancel_info & (CancelRequestSet | CancelRequestAccepted | CancelCompleted)))
+		shouldCancel = TRUE;
+	LEAVE_COMMON_CS;
+	return shouldCancel;
 }

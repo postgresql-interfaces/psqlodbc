@@ -19,20 +19,9 @@
 #ifndef WIN32
 #include <stdlib.h>
 #include <string.h>				/* for memset */
-#include <sys/time.h>
 #endif /* WIN32 */
 
 extern GLOBAL_VALUES globals;
-
-#ifndef BOOL
-#define BOOL	int
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
 
 #define	SOCK_set_error(s, _no, _msg)	(s->errornumber = _no, s->errormsg = _msg, mylog("socket error=%d %s\n", _no, _msg))
 
@@ -54,15 +43,9 @@ SOCK_Constructor(const ConnectionClass *conn)
 	if (rv != NULL)
 	{
 		rv->socket = (SOCKETFD) -1;
-#ifdef DYNAMIC_LINK
-		rv->libpq = NULL;
-#endif
+		rv->via_libpq = FALSE;
 		rv->ssl = NULL;
 		rv->pqconn = NULL;
-		rv->pqfinish = NULL;
-		rv->recv = NULL;
-		rv->send = NULL;
-		rv->get_error = NULL;
 		rv->pversion = 0;
 		rv->reslen = 0;
 		rv->buffer_filled_in = 0;
@@ -106,17 +89,19 @@ SOCK_Destructor(SocketClass *self)
 	{
 		if (self->pqconn)
 		{
-			if (self->pqfinish && self->pqconn)
-				(*self->pqfinish)(self->pqconn);
-			self->pqfinish = NULL;
+			if (self->via_libpq)
+			{
+				if (self->pqconn)
+					PQfinish(self->pqconn);
+#ifdef	WIN32
+				__FUnloadDelayLoadedDLL2("libpq.dll");
+				if (NULL != self->ssl)
+					__FUnloadDelayLoadedDLL2("ssleay32.dll");
+#endif	/* WIN32 */
+			}
+			self->via_libpq = FALSE;
 			self->pqconn = NULL;
 			self->ssl = NULL;
-#ifdef	WIN32
-#ifdef DYNAMIC_LINK
-			if (self->libpq)
-				FreeLibrary(self->libpq);
-#endif
-#endif	/* WIN32 */
 		}
 		else
 		{
@@ -317,8 +302,8 @@ static int SOCK_SSL_recv(SocketClass *sock, void *buffer, int len)
 	int n, err, retry_count = 0;
 
 retry:
-	n = (*sock->recv)(sock->ssl, buffer, len);
-	err = (*sock->get_error)(sock->ssl, len);
+	n = SSL_read(sock->ssl, buffer, len);
+	err = SSL_get_error(sock->ssl, len);
 inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, SOCK_ERRNO);
 	switch (err)
 	{
@@ -361,8 +346,8 @@ static int SOCK_SSL_send(SocketClass *sock, void *buffer, int len)
 	int n, err, retry_count = 0;
 
 retry:
-	n = (*sock->send)(sock->ssl, buffer, len);
-	err = (*sock->get_error)(sock->ssl, len);
+	n = SSL_write(sock->ssl, buffer, len);
+	err = SSL_get_error(sock->ssl, len);
 inolog("%s: %d get_error=%d Lasterror=%d\n", func,  n, err, SOCK_ERRNO);
 	switch (err)
 	{
@@ -552,11 +537,11 @@ SOCK_flush_output(SocketClass *self)
 		return;
 	do
 	{
-//#ifdef	WIN32
+#ifdef	WIN32
 		if (self->ssl)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 		else
-//#endif /* WIN32 */
+#endif /* WIN32 */
 			written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 		if (written < 0)
 		{
@@ -594,11 +579,11 @@ SOCK_get_next_byte(SocketClass *self)
 		 */
 		self->buffer_read_in = 0;
 retry:
-//#ifdef	WIN32
+#ifdef	WIN32
 		if (self->ssl)
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else
-//#endif /* WIN32 */
+#endif /* WIN32 */
 			self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
 
 		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
@@ -648,11 +633,11 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 		/* buffer is full, so write it out */
 		do
 		{
-//#ifdef	WIN32
+#ifdef	WIN32
 			if (self->ssl)
 				bytes_sent = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 			else
-//#endif	/* WIN32 */
+#endif	/* WIN32 */
 				bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 			if (bytes_sent < 0)
 			{

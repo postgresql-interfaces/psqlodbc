@@ -618,12 +618,12 @@ DC_log_error(const char *func, const char *desc, const DescriptorClass *self)
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
 PGAPI_DescError(	SQLHDESC hdesc,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
+			SQLSMALLINT	RecNumber,
+			SQLCHAR FAR * szSqlState,
+			SQLINTEGER FAR * pfNativeError,
+			SQLCHAR FAR * szErrorMsg,
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT FAR * pcbErrorMsg,
 			UWORD flag)
 {
 	CSTR func = "PGAPI_DescError";

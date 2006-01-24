@@ -10,15 +10,16 @@
 #define __BIND_H__
 
 #include "psqlodbc.h"
+#include "descriptor.h"
 
 /*
  * BindInfoClass -- stores information about a bound column
  */
 struct BindInfoClass_
 {
-	Int4	buflen;			/* size of buffer */
+	SQLLEN	buflen;			/* size of buffer */
 	char	*buffer;		/* pointer to the buffer */
-	Int4	*used;			/* used space in the buffer (for strings
+	SQLLEN	*used;			/* used space in the buffer (for strings
 					 * not counting the '\0') */
 	Int2	returntype;		/* kind of conversion to be applied when
 					 * returning (SQL_C_DEFAULT,
@@ -42,9 +43,9 @@ typedef struct
  */
 struct ParameterInfoClass_
 {
-	Int4	buflen;
+	SQLLEN	buflen;
 	char	*buffer;
-	Int4	*used;
+	SQLLEN	*used;
 	Int2	CType;
 	Int2	precision;	/* the precision for numeric or timestamp type */
 	Int2	scale;		/* the scale for numeric type */
@@ -64,10 +65,11 @@ typedef struct
  */
 struct ParameterImplClass_
 {
+	pgNAME		paramName;	/* this is unavailable even in 8.1 */
 	Int2		paramType;
 	Int2		SQLType;
 	Int4		PGType;
-	UInt4		column_size;
+	SQLULEN		column_size;
 	Int2		decimal_digits;
 	Int2		precision;	/* the precision for numeric or timestamp type */
 	Int2		scale;		/* the scale for numeric type */

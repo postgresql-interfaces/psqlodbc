@@ -10,7 +10,6 @@
 #define __COLUMNINFO_H__
 
 #include "psqlodbc.h"
-#include <libpq-fe.h>
 
 struct ColumnInfoClass_
 {

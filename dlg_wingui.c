@@ -27,16 +27,6 @@
 #include "multibyte.h"
 #include "pgapifunc.h"
 
-#ifndef BOOL
-#define BOOL	int
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-
 extern GLOBAL_VALUES globals;
 
 extern HINSTANCE NEAR s_hModule;
@@ -61,28 +51,27 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_USER, ci->username);
 	SetDlgItemText(hdlg, IDC_PASSWORD, ci->password);
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
-#ifdef DYNAMIC_LINK
-	libpq_exist = (NULL != LIBPQ_load(TRUE));
+
+	libpq_exist = LIBPQ_check();
+mylog("libpq_exist=%d\n", libpq_exist);
 	if (libpq_exist)
 		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
 	else
 	{
+mylog("SendMessage CTL_COLOR\n");
 		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
 	}
-#else
-		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
-#endif
 	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
 	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-
+	if (libpq_exist || (ci->sslmode[0] && stricmp(ci->sslmode, "disable")))
+	{
+		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	}
 	if (!stricmp(ci->sslmode, "allow"))
 		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
 	else if (!stricmp(ci->sslmode, "require"))

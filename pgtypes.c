@@ -16,8 +16,6 @@
  *--------
  */
 
-#include "psqlodbc.h"
-
 #include "pgtypes.h"
 
 #include "dlg_specific.h"
@@ -622,7 +620,7 @@ getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 }
 
 
-static Int4
+static SQLLEN
 getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 {
 	Int4	atttypmod = -1, max_column_size = PG_NUMERIC_MAX_PRECISION + PG_NUMERIC_MAX_SCALE, default_column_size = 28;
@@ -850,7 +848,7 @@ getTimestampColumnSize(StatementClass *stmt, Int4 type, int col)
  *	If col >= 0, then will attempt to get the info from the result set.
  *	This is used for functions SQLDescribeCol and SQLColAttributes.
  */
-Int4
+SQLLEN
 pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
@@ -1047,10 +1045,8 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 			{
 			int	coef = 1;
 			Int4	prec = pgtype_column_size(stmt, type, col, handle_unknown_size_as), maxvarc;
-#ifdef  UNICODE_SUPPORT
 			if (conn->unicode)
 				return prec * WCLEN;
-#endif
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
 				coef = conn->mb_maxbyte_per_char;
@@ -1125,10 +1121,8 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 	{
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
-#ifdef  UNICODE_SUPPORT
 			if (conn->unicode)
 				return prec * WCLEN;
-#endif
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
 				coef =conn->mb_maxbyte_per_char;

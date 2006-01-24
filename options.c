@@ -22,17 +22,13 @@
 #include "qresult.h"
 #include "pgapifunc.h"
 
-RETCODE set_statement_option(ConnectionClass *conn,
-					 StatementClass *stmt,
-					 UWORD fOption,
-					 UDWORD vParam);
 
 
 RETCODE
 set_statement_option(ConnectionClass *conn,
 					 StatementClass *stmt,
-					 UWORD fOption,
-					 UDWORD vParam)
+					 SQLUSMALLINT fOption,
+					 SQLULEN vParam)
 {
 	CSTR func = "set_statement_option";
 	char		changed = FALSE;
@@ -219,7 +215,7 @@ set_statement_option(ConnectionClass *conn,
 				CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.", func);
 			}
 			return SQL_ERROR;
-#if (ODBCVER >= 0x0300)
+
 		case SQL_USE_BOOKMARKS:
 			if (stmt)
 			{
@@ -237,7 +233,7 @@ set_statement_option(ConnectionClass *conn,
 			if (conn)
 				conn->stmtOptions.use_bookmarks = vParam;
 			break;
-#endif
+
 		case 1204: /* SQL_COPT_SS_PRESERVE_CURSORS ? */
 		case 1227: /* SQL_SOPT_SS_HIDDEN_COLUMNS ? */
 		case 1228: /* SQL_SOPT_SS_NOBROWSETABLE ? */
@@ -292,8 +288,8 @@ set_statement_option(ConnectionClass *conn,
 RETCODE		SQL_API
 PGAPI_SetConnectOption(
 					   HDBC hdbc,
-					   UWORD fOption,
-					   UDWORD vParam)
+					   SQLUSMALLINT fOption,
+					   SQLULEN vParam)
 {
 	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -328,14 +324,12 @@ PGAPI_SetConnectOption(
 		case SQL_USE_BOOKMARKS:
 
 #if (ODBCVER < 0x0300)
-			{
 			int	i;
 			/* Affect all current Statements */
 			for (i = 0; i < conn->num_stmts; i++)
 			{
 				if (conn->stmts[i])
 					set_statement_option(NULL, conn->stmts[i], fOption, vParam);
-			}
 			}
 #endif /* ODBCVER */
 
@@ -503,7 +497,7 @@ PGAPI_SetConnectOption(
 RETCODE		SQL_API
 PGAPI_GetConnectOption(
 					   HDBC hdbc,
-					   UWORD fOption,
+					   SQLUSMALLINT fOption,
 					   PTR pvParam)
 {
 	CSTR func = "PGAPI_GetConnectOption";
@@ -596,8 +590,8 @@ PGAPI_GetConnectOption(
 RETCODE		SQL_API
 PGAPI_SetStmtOption(
 					HSTMT hstmt,
-					UWORD fOption,
-					UDWORD vParam)
+					SQLUSMALLINT fOption,
+					SQLULEN vParam)
 {
 	CSTR func = "PGAPI_SetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -627,7 +621,7 @@ PGAPI_SetStmtOption(
 RETCODE		SQL_API
 PGAPI_GetStmtOption(
 					HSTMT hstmt,
-					UWORD fOption,
+					SQLUSMALLINT fOption,
 					PTR pvParam)
 {
 	CSTR func = "PGAPI_GetStmtOption";

@@ -16,25 +16,32 @@
 #include "columninfo.h"
 #include "tuple.h"
 
+#ifdef	DYNAMIC_LOAD /* NOT_USED */
 enum QueryResultCode_
 {
-//	PGRES_EMPTY_QUERY = 0,
-//	PGRES_COMMAND_OK ,			/* a query command that doesn't return */
+	PGRES_EMPTY_QUERY = 0,
+	PGRES_COMMAND_OK,			/* a query command that doesn't return */
 	/* anything was executed properly by the backend */
-//	PGRES_TUPLES_OK  ,	/* a query command that returns tuples */
+	PGRES_TUPLES_OK,			/* a query command that returns tuples */
 	/* was executed properly by the backend, PGresult */
 	/* contains the resulttuples */
-//	PGRES_COPY_OUT,
-//	PGRES_COPY_IN,
-//	PGRES_BAD_RESPONSE,			/* an unexpected response was recv'd from
-//								 * the backend */
-//	PGRES_NONFATAL_ERROR,
-//	PGRES_FATAL_ERROR,
-	PGRES_FIELDS_OK = PGRES_FATAL_ERROR	+1,	/* field information from a query was
+	PGRES_COPY_OUT,
+	PGRES_COPY_IN,
+	PGRES_BAD_RESPONSE,			/* an unexpected response was recv'd from
+								 * the backend */
+	PGRES_NONFATAL_ERROR,
+	PGRES_FATAL_ERROR,
+	PGRES_FIELDS_OK,			/* field information from a query was
 								 * successful */
 	PGRES_INTERNAL_ERROR
 };
 typedef enum QueryResultCode_ QueryResultCode;
+#else
+#include	<libpq-fe.h>
+typedef ExecStatusType QueryResultCode;
+#define	PGRES_FIELDS_OK		100
+#define	PGRES_INTERNAL_ERROR	(PGRES_FIELDS_OK + 1)
+#endif /* DYNAMIC_LOAD */
 
 enum
 {
@@ -65,11 +72,11 @@ struct QResultClass_
 	UInt4		rowset_size_include_ommitted;
 	Int4		recent_processed_row_count;
 
-	QueryResultCode rstatus;	/* result status */
+	QueryResultCode	rstatus;	/* result status */
 
 	char	sqlstate[8];
 	char	*message;
-	char	*cursor_name;	/* The name of the cursor for select
+	char *cursor_name;	/* The name of the cursor for select
 					 * statements */
 	char	*command;
 	char	*notice;
@@ -96,11 +103,11 @@ struct QResultClass_
 	TupleField	*added_tuples;	/* added data by myself */
 	UInt2		dl_alloc;	/* count of allocated deleted info */	
 	UInt2		dl_count;	/* count of deleted info */	
-	Int4		*deleted;	/* deleted index info */
+	UInt4		*deleted;	/* deleted index info */
 	KeySet		*deleted_keyset;	/* deleted keyset info */
 	UInt2		up_alloc;	/* count of allocated updated info */	
 	UInt2		up_count;	/* count of updated info */	
-	Int4		*updated;	/* updated index info */
+	UInt4		*updated;	/* updated index info */
 	KeySet		*updated_keyset;	/* uddated keyset info */
 	TupleField	*updated_tuples;	/* uddated data by myself */
 };

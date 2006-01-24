@@ -61,7 +61,7 @@ void		set_tuplefield_null(TupleField *tuple_field);
 void		set_tuplefield_string(TupleField *tuple_field, const char *string);
 void		set_tuplefield_int2(TupleField *tuple_field, Int2 value);
 void		set_tuplefield_int4(TupleField *tuple_field, Int4 value);
-int	ClearCachedRows(TupleField *tuple, Int4 num_fields, int num_rows);
-int	ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, Int4 num_fields, int num_rows);
+int	ClearCachedRows(TupleField *tuple, int num_fields, int num_rows);
+int	ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, int num_rows);
 
 #endif

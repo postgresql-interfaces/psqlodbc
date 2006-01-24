@@ -10,15 +10,17 @@
 #define __LOADLIB_H__
 
 #include "connection.h"
+#ifndef	DYNAMIC_LOAD
+#include <libpq-fe.h>
+#include <openssl/ssl.h>
+#endif /* DYNAMIC_LOAD */
 
 #include <stdlib.h>
 #ifdef  __cplusplus
 extern "C" {
 #endif
-#ifdef DYNAMIC_LINK
-HMODULE	LIBPQ_load(BOOL checkOnly);
-HMODULE GetOpenssl(PQFUNC funcs[], int *count);
-#endif
+BOOL	LIBPQ_check(void);
+
 #ifdef	__cplusplus
 }
 #endif

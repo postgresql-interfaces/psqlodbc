@@ -35,9 +35,9 @@
 
 #if (ODBCVER >= 0x0300)
 #ifdef  UNICODE_SUPPORT
-#define INI_DSN				"PostgreSQL35W"
+#define INI_DSN				"PostgreSQL30W"
 #else
-#define INI_DSN				"PostgreSQL35"
+#define INI_DSN				"PostgreSQL30"
 #endif /* UNICODE_SUPPORT */
 #else
 #define INI_DSN				DBMS_NAME

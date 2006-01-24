@@ -114,7 +114,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 	BOOL	val_alloced = FALSE;
 
 	mylog("[%s]", func);
-	if (BufferLength > 0)
+	if (BufferLength > 0 || SQL_NTS == BufferLength)
 	{
 		switch (FieldIdentifier)
 		{
@@ -129,7 +129,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 			case SQL_DESC_SCHEMA_NAME:
 			case SQL_DESC_TABLE_NAME:
 			case SQL_DESC_TYPE_NAME:
-				uval = ucs2_to_utf8(Value, BufferLength / WCLEN, &vallen, FALSE);
+				uval = ucs2_to_utf8(Value, BufferLength > 0 ? BufferLength / WCLEN : BufferLength, &vallen, FALSE);
 				val_alloced = TRUE;
 			break;
 		}
@@ -198,7 +198,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 	return ret;
 }
 
-RETCODE SQL_API	SQLGetDiagRecW(SWORD fHandleType,
+RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 		SQLHANDLE	handle,
 		SQLSMALLINT	iRecord,
 		SQLWCHAR	*szSqlState,

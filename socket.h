@@ -39,6 +39,8 @@ typedef unsigned int in_addr_t;
 #endif /* HAVE_SYS_UN_H */
 #else
 #include <winsock.h>
+#include <libpq-fe.h>
+#include <openssl/ssl.h>
 #define SOCKETFD SOCKET
 #define SOCK_ERRNO		(WSAGetLastError())
 #define SOCK_ERRNO_SET(e)	WSASetLastError(e)
@@ -63,9 +65,6 @@ typedef unsigned int in_addr_t;
 #define SOCKET_READ_TIMEOUT			11
 #define SOCKET_WRITE_TIMEOUT			12
 
-#ifdef WIN32
-typedef        int (*PQFUNC)();
-#endif
 
 struct SocketClass_
 {
@@ -89,13 +88,7 @@ struct SocketClass_
 	/* SSL stuff */
 	void		*ssl;		/* libpq ssl */
 	void		*pqconn;	/* libpq PGConn */
-#ifdef DYNAMIC_LINK
-	HMODULE		libpq;		/* libpq library */
-#endif
-	PQFUNC		pqfinish;	/* PQFinish */
-	PQFUNC		recv;		/* openssl SSL_read */
-	PQFUNC		send;		/* openssl SSL_write */
-	PQFUNC		get_error;	/* openssl SSL_get_error */
+	BOOL		via_libpq;	/* using libpq library ? */
 
 	char		reverse;		/* used to handle Postgres 6.2 protocol
 								 * (reverse byte order) */

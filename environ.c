@@ -28,8 +28,10 @@ extern GLOBAL_VALUES globals;
 ConnectionClass *conns[MAX_CONNECTIONS];
 #if defined(WIN_MULTITHREAD_SUPPORT)
 CRITICAL_SECTION	conns_cs;
+CRITICAL_SECTION	common_cs; /* commonly used for short term blocking */
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 pthread_mutex_t     conns_cs;
+pthread_mutex_t     common_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 
@@ -149,12 +151,12 @@ PG_ErrorInfo *ER_Dup(const PG_ErrorInfo *self)
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
 ER_ReturnError(PG_ErrorInfo **pgerror,
-		SWORD	RecNumber,
-		UCHAR FAR * szSqlState,
-		SDWORD FAR * pfNativeError,
-		UCHAR FAR * szErrorMsg,
-		SWORD cbErrorMsgMax,
-		SWORD FAR * pcbErrorMsg,
+		SQLSMALLINT	RecNumber,
+		SQLCHAR FAR * szSqlState,
+		SQLINTEGER FAR * pfNativeError,
+		SQLCHAR FAR * szErrorMsg,
+		SQLSMALLINT cbErrorMsgMax,
+		SQLSMALLINT FAR * pcbErrorMsg,
 		UWORD flag)
 {
 	CSTR func = "ER_ReturnError";
@@ -170,7 +172,7 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 	error = *pgerror;
 	msg = error->__error_message;
 	mylog("%s: status = %d, msg = #%s#\n", func, error->status, msg);
-	msglen = (SWORD) strlen(msg);
+	msglen = (SQLSMALLINT) strlen(msg);
 	/*
 	 *	Even though an application specifies a larger error message
 	 *	buffer, the driver manager changes it silently.
@@ -243,12 +245,12 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 
 RETCODE		SQL_API
 PGAPI_ConnectError(	HDBC hdbc,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
+			SQLSMALLINT	RecNumber,
+			SQLCHAR FAR * szSqlState,
+			SQLINTEGER FAR * pfNativeError,
+			SQLCHAR FAR * szErrorMsg,
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT FAR * pcbErrorMsg,
 			UWORD flag)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -374,12 +376,12 @@ PGAPI_ConnectError(	HDBC hdbc,
 
 RETCODE		SQL_API
 PGAPI_EnvError(		HENV henv,
-			SWORD	RecNumber,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg,
+			SQLSMALLINT	RecNumber,
+			SQLCHAR FAR * szSqlState,
+			SQLINTEGER FAR * pfNativeError,
+			SQLCHAR FAR * szErrorMsg,
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT FAR * pcbErrorMsg,
 			UWORD flag)
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
@@ -407,7 +409,7 @@ PGAPI_EnvError(		HENV henv,
 	mylog("EN_get_error: status = %d, msg = #%s#\n", status, msg);
 
 	if (NULL != pcbErrorMsg)
-		*pcbErrorMsg = (SWORD) strlen(msg);
+		*pcbErrorMsg = (SQLSMALLINT) strlen(msg);
 	if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
 		strncpy_null(szErrorMsg, msg, cbErrorMsgMax);
 	if (NULL != pfNativeError)
@@ -438,11 +440,11 @@ PGAPI_Error(
 			HENV henv,
 			HDBC hdbc,
 			HSTMT hstmt,
-			UCHAR FAR * szSqlState,
-			SDWORD FAR * pfNativeError,
-			UCHAR FAR * szErrorMsg,
-			SWORD cbErrorMsgMax,
-			SWORD FAR * pcbErrorMsg)
+			SQLCHAR FAR * szSqlState,
+			SQLINTEGER FAR * pfNativeError,
+			SQLCHAR FAR * szErrorMsg,
+			SQLSMALLINT cbErrorMsgMax,
+			SQLSMALLINT FAR * pcbErrorMsg)
 {
 	RETCODE	ret;
 	UWORD	flag = PODBC_ALLOW_PARTIAL_EXTRACT | PODBC_ERROR_CLEAR;

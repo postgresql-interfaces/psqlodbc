@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.3 2006/01/19 13:39:59 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.82.2.4 2006/01/24 12:03:42 h-saito Exp $
  *
  */
 
@@ -20,14 +20,26 @@
 #include <windows.h>
 #endif
 
-#include <libpq-fe.h>
-
 #include <stdio.h>				/* for FILE* pointers: see GLOBAL_VALUES */
 #ifdef POSIX_MULTITHREAD_SUPPORT
 #include <pthread.h>
 #endif
 #include "version.h"
 
+#ifdef	WIN32
+#include <delayimp.h>
+#ifdef	_MSC_VER
+#pragma comment(lib, "Delayimp")
+#pragma comment(lib, "libpqdll")
+#pragma comment(lib, "ssleay32")
+// The followings works under VC++6.0 but doesn't work under VC++7.0.
+// Please add the equivalent linker options using command line etc.
+#if (_MSC_VER == 1200) // VC6.0
+#pragma comment(linker, "/Delayload:libpq")
+#pragma comment(linker, "/Delayload:ssleay32")
+#endif /* _MSC_VER */
+#endif /* _MSC_VER */
+#endif /* WIN32 */
 /* Must come before sql.h */
 #ifndef ODBCVER
 #define ODBCVER						0x0250
@@ -62,6 +74,19 @@
 #include "gpps.h"
 #endif
 
+/*
+#undef SQLUINTEGER
+#undef SQLINTEGER
+#define	SQLLEN	SQLBIGINT
+#define SQLULEN SQLUBIGINT
+#define SQLSMALLINT SQLBIGINT
+#define SQLUSMALLINT SQLUBIGINT
+#define SQLINTEGER SQLBIGINT
+#define SQLUINTEGER SQLUBIGINT
+*/
+
+#include <libpq-fe.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -87,13 +112,15 @@ typedef double SDOUBLE;
 #define UInt2 unsigned short
 #endif
 
-#ifdef WIN32
-typedef UInt4 Oid;
-#endif
-
 #ifndef WIN32
 #define stricmp strcasecmp
 #define strnicmp strncasecmp
+#ifndef TRUE
+#define	TRUE	(BOOL)1
+#endif /* TRUE */
+#ifndef	FALSE
+#define	FALSE	(BOOL)0
+#endif /* FALSE */
 #else
 #define snprintf _snprintf
 #endif
@@ -121,7 +148,7 @@ typedef UInt4 Oid;
 #define DRIVER_ODBC_VER				"03.00"
 #endif /* ODBCVER 0x0351 */
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL Japanese"
+#define DBMS_NAME				"PostgreSQL Unicode-3_51"
 #else
 #define DBMS_NAME				"PostgreSQL"
 #endif /* UNICODE_SUPPORT */
@@ -247,7 +274,7 @@ typedef struct IRDFields_ IRDFields;
 typedef struct IPDFields_ IPDFields;
 
 typedef struct col_info COL_INFO;
-typedef struct odbc_lo_arg LO_ARG;
+typedef struct lo_arg LO_ARG;
 
 typedef struct GlobalValues_
 {
@@ -293,9 +320,9 @@ typedef struct StatementOptions_
 /*	Used to pass extra query info to send_query */
 typedef struct QueryInfo_
 {
-	int			row_size;
-	QResultClass *result_in;
-	const char	   *cursor;
+	int		row_size;
+	QResultClass	*result_in;
+	const char	*cursor;
 } QueryInfo;
 
 /*	Used to save the error information */
@@ -312,8 +339,8 @@ typedef struct
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
 PG_ErrorInfo	*ER_Dup(const PG_ErrorInfo *from);
 void ER_Destructor(PG_ErrorInfo *);
-RETCODE SQL_API ER_ReturnError(PG_ErrorInfo **, SWORD, UCHAR FAR *,
-			SDWORD FAR *, UCHAR FAR *, SWORD, SWORD FAR *, UWORD);
+RETCODE SQL_API ER_ReturnError(PG_ErrorInfo **, SQLSMALLINT, UCHAR FAR *,
+		SQLINTEGER FAR *, UCHAR FAR *, SQLSMALLINT, SQLSMALLINT FAR *, UWORD);
 
 void		logs_on_off(int cnopen, int, int);
 

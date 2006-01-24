@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.12.2.2 2006/01/18 09:52:14 dpage Exp $
+ * $Id: descriptor.h,v 1.12.2.3 2006/01/24 12:03:41 h-saito Exp $
  *
  */
 
@@ -105,6 +105,7 @@ typedef struct
 	pgNAME		column_name;
 	pgNAME		column_alias;
 	char		nullable;
+	char		auto_increment;
 	char		func;
 	int		column_size; /* precision in 2.x */
 	int		decimal_digits; /* scale in 2.x */
@@ -158,7 +159,7 @@ struct ARDFields_
  */
 struct APDFields_
 {
-	int		paramset_size;
+	SQLLEN		paramset_size;
 	int		param_bind_type; /* size of each structure if using
 					  * Row-wsie Parameter Binding */
 	UInt2		*param_operation_ptr;

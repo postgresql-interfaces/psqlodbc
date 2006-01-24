@@ -402,7 +402,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	int			mtemp_cnt = 0;
 	GetDataClass *pgdc;
 #ifdef	UNICODE_SUPPORT
-	BOOL	wconverted = FALSE;
+	BOOL	wconverted =   FALSE;
 #endif /* UNICODE_SUPPORT */
 #ifdef	WIN_UNICODE_SUPPORT
 	SQLWCHAR	*allocbuf = NULL;
@@ -488,7 +488,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 
 	if (stmt->hdbc->DataSourceToDriver != NULL)
 	{
-		int			length = strlen(value);
+		size_t			length = strlen(value);
 
 		stmt->hdbc->DataSourceToDriver(stmt->hdbc->translation_option,
 									   SQL_CHAR,
@@ -855,7 +855,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					len = pgdc->ttlbufused;
 				}
 
-				mylog("DEFAULT: len = %d, ptr = '%s'\n", len, ptr);
+				mylog("DEFAULT: len = %d, ptr = '%.*s'\n", len, len, ptr);
 
 				if (stmt->current_col >= 0)
 				{
@@ -946,7 +946,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 				}
 
 
-				mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
+				if (SQL_C_WCHAR == fCType)
+					mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%S'\n", len, cbValueMax, rgbValueBindRow);
+				else
+					mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 				break;
 		}
 #ifdef	UNICODE_SUPPORT
@@ -1199,26 +1202,26 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_SHORT:
 				len = 2;
 				if (bind_size > 0)
-					*((SWORD *) rgbValueBindRow) = atoi(neut_str);
+					*((SQLSMALLINT *) rgbValueBindRow) = atoi(neut_str);
 				else
-					*((SWORD *) rgbValue + bind_row) = atoi(neut_str);
+					*((SQLSMALLINT *) rgbValue + bind_row) = atoi(neut_str);
 				break;
 
 			case SQL_C_USHORT:
 				len = 2;
 				if (bind_size > 0)
-					*((UWORD *) rgbValueBindRow) = atoi(neut_str);
+					*((SQLUSMALLINT *) rgbValueBindRow) = atoi(neut_str);
 				else
-					*((UWORD *) rgbValue + bind_row) = atoi(neut_str);
+					*((SQLUSMALLINT *) rgbValue + bind_row) = atoi(neut_str);
 				break;
 
 			case SQL_C_SLONG:
 			case SQL_C_LONG:
 				len = 4;
 				if (bind_size > 0)
-					*((SDWORD *) rgbValueBindRow) = atol(neut_str);
+					*((SQLINTEGER *) rgbValueBindRow) = atol(neut_str);
 				else
-					*((SDWORD *) rgbValue + bind_row) = atol(neut_str);
+					*((SQLINTEGER *) rgbValue + bind_row) = atol(neut_str);
 				break;
 
 			case SQL_C_ULONG:
@@ -1407,7 +1410,9 @@ typedef struct _QueryParse {
 	int		from_pos;
 	int		where_pos;
 	UInt4		stmt_len;
-	BOOL		in_literal, in_identifier, in_escape;
+	char		in_literal, in_identifier, in_escape, in_dollar_quote;
+	const	char *dollar_tag;
+	int		taglen;
 	char		token_save[64];
 	int		token_len;
 	BOOL		prev_token_end;
@@ -1426,7 +1431,9 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->from_pos = -1;
 	q->where_pos = -1;
 	q->stmt_len = (q->statement) ? strlen(q->statement) : -1;
-	q->in_literal = q->in_identifier = q->in_escape = FALSE;
+	q->in_literal = q->in_identifier = q->in_escape = q->in_dollar_quote = FALSE;
+	q->dollar_tag = NULL;
+	q->taglen = -1;
 	q->token_save[0] = '\0';
 	q->token_len = 0;
 	q->prev_token_end = TRUE;
@@ -1891,7 +1898,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	if (NOT_YET_PREPARED == stmt->prepared) /*  not yet prepared */
 	{
 		int	i, oc, elen;
-		SWORD	marker_count;
+		SQLSMALLINT	marker_count;
 		const IPDFields *ipdopts = qb->ipdopts;
 		char	plan_name[32];
 
@@ -2317,6 +2324,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	RETCODE	retval;
 	char	   oldchar;
 	StatementClass	*stmt = qb->stmt;
+	char	literal_quote = LITERAL_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
 
 	if (stmt && stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
@@ -2362,21 +2370,44 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (qp->in_literal || qp->in_identifier) /* quote/double quote check */
+	else if (qp->in_dollar_quote) /* dollar quote check */
 	{
-		if (oldchar == ESCAPE_IN_LITERAL)
+		if (oldchar == dollar_quote)
+		{
+			if (strncmp(F_OldPtr(qp), qp->dollar_tag, qp->taglen) == 0)
+			{
+				CVT_APPEND_DATA(qb, F_OldPtr(qp), qp->taglen);
+				qp->opos += (qp->taglen - 1);
+				qp->in_dollar_quote = FALSE;
+				qp->in_literal = FALSE;
+				qp->dollar_tag = NULL;
+				qp->taglen = -1;
+				return SQL_SUCCESS;
+			}
+		}
+		CVT_APPEND_CHAR(qb, oldchar);
+		return SQL_SUCCESS;
+	}
+	else if (qp->in_literal) /* quote check */
+	{
+		if (oldchar == escape_in_literal)
 			qp->in_escape = TRUE;
-		else if (oldchar == LITERAL_QUOTE && qp->in_literal)
+		else if (oldchar == literal_quote)
 			qp->in_literal = FALSE;
-		else if (oldchar == IDENTIFIER_QUOTE && qp->in_identifier)
+		CVT_APPEND_CHAR(qb, oldchar);
+		return SQL_SUCCESS;
+	}
+	else if (qp->in_identifier) /* double quote check */
+	{
+		if (oldchar == IDENTIFIER_QUOTE)
 			qp->in_identifier = FALSE;
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
 
 	/*
-	 * From here we are guranteed to be in neither an escape, a quote
-	 * nor a double quote.
+	 * From here we are guranteed to be in neither a literal_escape,
+	 * a literal_quote nor an idetifier_quote.
 	 */
 	/* Squeeze carriage-return/linefeed pairs to linefeed only */
 	else if (lf_conv && oldchar == '\r' && qp->opos + 1 < qp->stmt_len &&
@@ -2423,13 +2454,27 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 */
 	else if (oldchar != '?')
 	{
-		if (oldchar == LITERAL_QUOTE)
+		if (oldchar == dollar_quote)
+		{
+			char	*next_dollar;
+
+			qp->in_literal = TRUE;
+			qp->in_dollar_quote = TRUE;
+			qp->dollar_tag = F_OldPtr(qp);
+			qp->taglen = 1;
+			if (next_dollar = (strchr(F_OldPtr(qp) + 1, dollar_quote)))
+			{
+				qp->taglen = next_dollar - F_OldPtr(qp) + 1;
+				CVT_APPEND_DATA(qb, F_OldPtr(qp), qp->taglen);
+				qp->opos += (qp->taglen - 1);
+				return SQL_SUCCESS;
+			}
+		}
+		else if (oldchar == literal_quote)
 		{
 			if (!qp->in_identifier)
 				qp->in_literal = TRUE;
 		}
-		else if (oldchar == ESCAPE_IN_LITERAL)
-			qp->in_escape = TRUE;
 		else if (oldchar == IDENTIFIER_QUOTE)
 		{
 			if (!qp->in_literal)
@@ -2478,7 +2523,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 
 						if (0 != (qp->flags & FLGP_CURSOR_CHECK_OK) &&
 							strnicmp(qp->token_save, "for", 3) == 0 &&
-							table_for_update(&qp->statement[qp->opos], &endpos))
+							table_for_update(F_OldPtr(qp), &endpos))
 						{
 							qp->flags |= FLGP_SELECT_FOR_UPDATE;
 							qp->flags &= ~FLGP_CURSOR_CHECK_OK;
@@ -2499,7 +2544,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 
 						if (STMT_TYPE_INSERT == qp->statement_type &&
 							strnicmp(qp->token_save, "()", 2) == 0 &&
-							insert_without_target(&qp->statement[qp->opos], &endpos))
+							insert_without_target(F_OldPtr(qp), &endpos))
 						{
 							qb->npos -= 2;
 							CVT_APPEND_STR(qb, "DEFAULT VALUES");
@@ -2540,7 +2585,7 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 	CSTR func = "BuildBindRequest";
 	QueryBuild	qb;
 	UDWORD		leng, plen, netleng;
-	SWORD		num_p, netnum_p;
+	SQLSMALLINT		num_p, netnum_p;
 	int		i, num_params;
 	char		*bindreq;
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -2921,6 +2966,15 @@ inolog("ipara=%x paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	{
 		char	pnum[16];
 
+#ifdef	NOT_USED /* !! named parameter is unavailable !! */
+		if (ipara && SAFE_NAME(ipara->paramName)[0])
+		{
+			CVT_APPEND_CHAR(qb, '"'); 
+			CVT_APPEND_STR(qb, SAFE_NAME(ipara->paramName)); 
+			CVT_APPEND_CHAR(qb, '"'); 
+			CVT_APPEND_STR(qb, " = "); 
+		}
+#endif /* NOT_USED */
 		qb->dollar_number++;
 		sprintf(pnum, "$%d", qb->dollar_number);
 		CVT_APPEND_STR(qb, pnum); 
@@ -3102,7 +3156,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 		case SQL_C_SSHORT:
 		case SQL_C_SHORT:
 			sprintf(param_string, "%d",
-					*((SWORD *) buffer));
+					*((SQLSMALLINT *) buffer));
 			break;
 
 		case SQL_C_STINYINT:
@@ -3118,7 +3172,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 
 		case SQL_C_USHORT:
 			sprintf(param_string, "%u",
-					*((UWORD *) buffer));
+					*((SQLUSMALLINT *) buffer));
 			break;
 
 		case SQL_C_UTINYINT:
@@ -3972,7 +4026,7 @@ convert_special_chars(const char *si, char *dst, int used, UInt4 flags, int ccsc
 	size_t		i = 0,
 				out = 0,
 				max;
-	char	   *p = NULL;
+	char	   *p = NULL, literal_quote = LITERAL_QUOTE;
 	encoded_str	encstr;
 	BOOL	convlf = (0 != (flags & FLGB_CONVERT_LF)),
 		escadd = (0 == (flags & FLGB_BUILDING_BIND_REQUEST));
@@ -4000,7 +4054,7 @@ convert_special_chars(const char *si, char *dst, int used, UInt4 flags, int ccsc
 		}
 		if (convlf && si[i] == '\r' && si[i + 1] == '\n')
 			continue;
-		else if (escadd && (si[i] == LITERAL_QUOTE || si[i] == ESCAPE_IN_LITERAL))
+		else if (escadd && (si[i] == literal_quote || si[i] == ESCAPE_IN_LITERAL))
 		{
 			if (p)
 				p[out++] = ESCAPE_IN_LITERAL;

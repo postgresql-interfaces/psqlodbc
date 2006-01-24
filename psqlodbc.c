@@ -26,9 +26,9 @@ GLOBAL_VALUES globals;
 RETCODE SQL_API SQLDummyOrdinal(void);
 
 #if defined(WIN_MULTITHREAD_SUPPORT)
-extern	CRITICAL_SECTION	qlog_cs, mylog_cs, conns_cs;
+extern	CRITICAL_SECTION	qlog_cs, mylog_cs, conns_cs, common_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
-extern	pthread_mutex_t 	qlog_cs, mylog_cs, conns_cs;
+extern	pthread_mutex_t 	qlog_cs, mylog_cs, conns_cs, common_cs;
 
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 #ifdef	PG_RECURSIVE_MUTEXATTR
@@ -70,12 +70,14 @@ int	initialize_global_cs(void)
 	INIT_QLOG_CS;
 	INIT_MYLOG_CS;
 	INIT_CONNS_CS;
+	INIT_COMMON_CS;
 
 	return 0;
 }
 
 static void finalize_global_cs(void)
 {
+	DELETE_COMMON_CS;
 	DELETE_CONNS_CS;
 	DELETE_QLOG_CS;
 	DELETE_MYLOG_CS;
@@ -118,7 +120,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			finalize_global_cs();
-forcelog("DETACH PROCESS\n");
+mylog("DETACH PROCESS MSC_VER=%d\n", _MSC_VER);
 			WSACleanup();
 			return TRUE;
 
@@ -135,13 +137,6 @@ forcelog("DETACH PROCESS\n");
 }
 
 #else							/* not WIN32 */
-
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
 
 #ifdef __GNUC__
 

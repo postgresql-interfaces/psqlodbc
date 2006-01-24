@@ -35,13 +35,6 @@
 #endif
 #include "pgapifunc.h"
 
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-
 #include "dlg_specific.h"
 
 #define	NULL_IF_NULL(a) (a ? a : "(NULL)")
@@ -65,8 +58,8 @@ static char * hide_password(const char *str)
 }
 
 /* prototypes */
-void		dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci);
-static void dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci);
+void		dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
+static void dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
 
 #ifdef WIN32
 BOOL FAR PASCAL dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -80,12 +73,12 @@ RETCODE		SQL_API
 PGAPI_DriverConnect(
 					HDBC hdbc,
 					HWND hwnd,
-					UCHAR FAR * szConnStrIn,
-					SWORD cbConnStrIn,
-					UCHAR FAR * szConnStrOut,
-					SWORD cbConnStrOutMax,
-					SWORD FAR * pcbConnStrOut,
-					UWORD fDriverCompletion)
+					const SQLCHAR FAR * szConnStrIn,
+					SQLSMALLINT cbConnStrIn,
+					SQLCHAR FAR * szConnStrOut,
+					SQLSMALLINT cbConnStrOutMax,
+					SQLSMALLINT FAR * pcbConnStrOut,
+					SQLUSMALLINT fDriverCompletion)
 {
 	CSTR func = "PGAPI_DriverConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -94,6 +87,7 @@ PGAPI_DriverConnect(
 #ifdef WIN32
 	RETCODE		dialog_result;
 #endif
+	BOOL		paramRequired;
 	RETCODE		result;
 	char		*connStrIn = NULL;
 	char		connStrOut[MAX_CONNECT_STRING];
@@ -176,7 +170,9 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 
 		case SQL_DRIVER_COMPLETE:
 
+			paramRequired = password_required;
 			/* Password is not a required parameter. */
+#ifdef	NOT_USED
 			if (ci->username[0] == '\0' ||
 #ifdef	WIN32
 				ci->server[0] == '\0' ||
@@ -184,6 +180,18 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 				ci->database[0] == '\0' ||
 				ci->port[0] == '\0' ||
 				password_required)
+#endif /* NOT_USED */
+			if (ci->database[0] == '\0')
+				paramRequired = TRUE;
+			else if (ci->port[0] == '\0')
+				paramRequired = TRUE;
+#ifdef	WIN32
+			else if (ci->server[0] == '\0')
+				paramRequired = TRUE;
+#endif /* WIN32 */
+			else if (ci->username[0] == '\0' && 'd' == ci->sslmode[0])
+				paramRequired = TRUE;
+			if (paramRequired)
 			{
 				dialog_result = dconn_DoDialog(hwnd, ci);
 				if (dialog_result != SQL_SUCCESS)
@@ -205,12 +213,26 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	 * over and over until a password is entered (the user can always hit
 	 * Cancel to get out)
 	 */
+#ifdef	NOT_USED
 	if (ci->username[0] == '\0' ||
 #ifdef	WIN32
 		ci->server[0] == '\0' ||
 #endif /* WIN32 */
 		ci->database[0] == '\0' ||
 		ci->port[0] == '\0')
+#endif /* NOT_USED */
+	paramRequired = FALSE;
+	if (ci->database[0] == '\0')
+		paramRequired = TRUE;
+	else if (ci->port[0] == '\0')
+		paramRequired = TRUE;
+#ifdef	WIN32
+	else if (ci->server[0] == '\0')
+		paramRequired = TRUE;
+#endif /* WIN32 */
+	else if (ci->username[0] == '\0' && 'd' == ci->sslmode[0])
+		paramRequired = TRUE;
+	if (paramRequired)
 	{
 		/* (password_required && ci->password[0] == '\0')) */
 
@@ -404,7 +426,7 @@ dconn_FDriverConnectProc(
 
 
 void
-dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
+dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {
 	char	   *our_connect_string;
 	char	   *pair,
@@ -473,7 +495,7 @@ dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 }
 
 static void
-dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
+dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {
 	char	   *our_connect_string;
 	char	   *pair,

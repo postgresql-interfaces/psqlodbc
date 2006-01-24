@@ -31,7 +31,7 @@ typedef enum
 				 * statement */
 } CONN_Status;
 
-typedef enum
+enum
 {
 	DISALLOW_UPDATABLE_CURSORS = 0,	/* No cursors are updatable */
 	ALLOW_STATIC_CURSORS = 1L, /* Static cursors are updatable */
@@ -39,7 +39,7 @@ typedef enum
 	ALLOW_DYNAMIC_CURSORS = (1L << 2), /* Dynamic cursors are updatable */
 	ALLOW_BULK_OPERATIONS = (1L << 3), /* Bulk operations available */
 	SENSE_SELF_OPERATIONS = (1L << 4), /* Sense self update/delete/add */
-} enum_def;
+};
 
 /*	These errors have general sql error state */
 #define CONNECTION_SERVER_NOT_REACHED				101

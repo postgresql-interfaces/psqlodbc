@@ -1,4 +1,4 @@
-/* File:			environ.h
+/*
  *
  * Description:		See "environ.c"
  *
@@ -58,6 +58,10 @@ void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
 #define ENTER_ENV_CS(x)	EnterCriticalSection(&((x)->cs))
 #define LEAVE_ENV_CS(x)		LeaveCriticalSection(&((x)->cs))
 #define DELETE_ENV_CS(x)	DeleteCriticalSection(&((x)->cs))
+#define INIT_COMMON_CS		InitializeCriticalSection(&common_cs)
+#define ENTER_COMMON_CS		EnterCriticalSection(&common_cs)
+#define LEAVE_COMMON_CS		LeaveCriticalSection(&common_cs)
+#define DELETE_COMMON_CS	DeleteCriticalSection(&common_cs)
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 #define	INIT_CONNS_CS	pthread_mutex_init(&conns_cs,0)
 #define	ENTER_CONNS_CS	pthread_mutex_lock(&conns_cs)
@@ -67,6 +71,10 @@ void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
 #define ENTER_ENV_CS(x)		pthread_mutex_lock(&((x)->cs))
 #define LEAVE_ENV_CS(x)		pthread_mutex_unlock(&((x)->cs))
 #define DELETE_ENV_CS(x)	pthread_mutex_destroy(&((x)->cs))
+#define INIT_COMMON_CS		pthread_mutex_init(&common_cs,0)
+#define ENTER_COMMON_CS		pthread_mutex_lock(&common_cs)
+#define LEAVE_COMMON_CS		pthread_mutex_unlock(&common_cs)
+#define DELETE_COMMON_CS	pthread_mutex_destroy(&common_cs)
 #else
 #define	INIT_CONNS_CS
 #define	ENTER_CONNS_CS
@@ -76,5 +84,9 @@ void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
 #define ENTER_ENV_CS(x)
 #define LEAVE_ENV_CS(x)
 #define DELETE_ENV_CS(x)
+#define INIT_COMMON_CS(x)
+#define ENTER_COMMON_CS(x)
+#define LEAVE_COMMON_CS(x)
+#define DELETE_COMMON_CS(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #endif

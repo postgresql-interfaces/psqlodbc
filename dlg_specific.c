@@ -24,16 +24,6 @@
 #include "multibyte.h"
 #include "pgapifunc.h"
 
-#ifndef BOOL
-#define BOOL	int
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-
 extern GLOBAL_VALUES globals;
 
 static void encode(const char *in, char *out);
@@ -50,13 +40,12 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 
 	/* fundamental info */
 	nlen = MAX_CONNECT_STRING;
-	olen = snprintf(connect_string, nlen, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;SSLMODE=%s;UID=%s;PWD=%s",
+	olen = snprintf(connect_string, nlen, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
 			got_dsn ? "DSN" : "DRIVER",
 			got_dsn ? ci->dsn : ci->drivername,
 			ci->database,
 			ci->server,
 			ci->port,
-			ci->sslmode,
 			ci->username,
 			ci->password);
 	if (olen < 0 || olen >= nlen)
@@ -80,6 +69,7 @@ inolog("hlen=%d", hlen);
 		else
 			strncpy(protocol_and, ci->protocol, sizeof(protocol_and));
 		olen = snprintf(&connect_string[hlen], nlen, ";"
+			INI_SSLMODE "=%s;"
 			INI_READONLY "=%s;"
 			INI_PROTOCOL "=%s;"
 			INI_FAKEOIDINDEX "=%s;"
@@ -114,6 +104,7 @@ inolog("hlen=%d", hlen);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			INI_XAOPT "=%d"	/* XAOPT */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+			,ci->sslmode
 			,ci->onlyread
 			,protocol_and
 			,ci->fake_oid_index
@@ -216,6 +207,9 @@ inolog("hlen=%d", hlen);
 		if (ci->lower_case_identifier)
 			flag |= BIT_LOWERCASEIDENTIFIER;
 
+		if (ci->sslmode[0])
+			olen = snprintf(&connect_string[hlen], nlen, ";"
+				ABBR_SSLMODE "=%c", ci->sslmode[0]);
 		hlen = strlen(connect_string);
 		nlen = MAX_CONNECT_STRING - hlen;
 		olen = snprintf(&connect_string[hlen], nlen, ";"
@@ -344,9 +338,6 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
 
-	else if (stricmp(attribute, INI_SSLMODE) == 0)
-		strcpy(ci->sslmode, value);
-
 	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, ABBR_READONLY) == 0)
 		strcpy(ci->onlyread, value);
 
@@ -402,6 +393,25 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->use_server_side_prepare = atoi(value);
 	else if (stricmp(attribute, INI_LOWERCASEIDENTIFIER) == 0 || stricmp(attribute, ABBR_LOWERCASEIDENTIFIER) == 0)
 		ci->lower_case_identifier = atoi(value);
+	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
+	{
+		switch (value[0])
+		{
+			case 'a':
+				strcpy(ci->sslmode, SSLMODE_ALLOW);
+				break;
+			case 'p':
+				strcpy(ci->sslmode, SSLMODE_PREFER);
+				break;
+			case 'r':
+				strcpy(ci->sslmode, SSLMODE_REQUIRE);
+				break;
+			case 'd':
+			default:
+				strcpy(ci->sslmode, SSLMODE_DISABLE);
+				break;
+		}
+	}
 	else if (stricmp(attribute, INI_ABBREVIATE) == 0)
 		unfoldCXAttribute(ci, value);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -409,7 +419,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->xa_opt = atoi(value);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
-	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',sslmode='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->sslmode, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
 }
 
 void
@@ -481,9 +491,6 @@ getDSNdefaults(ConnInfo *ci)
 	if (ci->port[0] == '\0')
 		strcpy(ci->port, DEFAULT_PORT);
 
-	if (ci->sslmode[0] == '\0')
-		strcpy(ci->sslmode, DEFAULT_SSLMODE);
-
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
 
@@ -518,6 +525,8 @@ getDSNdefaults(ConnInfo *ci)
 		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 	if (ci->lower_case_identifier < 0)
 		ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
+	if (ci->sslmode[0] == '\0')
+		strcpy(ci->sslmode, DEFAULT_SSLMODE);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0)
 		ci->xa_opt = DEFAULT_XAOPT;
@@ -579,9 +588,6 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->port[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
-
-	if (ci->sslmode[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
 
 	if (ci->onlyread[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_READONLY, "", ci->onlyread, sizeof(ci->onlyread), ODBC_INI);
@@ -677,6 +683,9 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 			ci->lower_case_identifier = atoi(temp);
 	}
 
+	if (ci->sslmode[0] == '\0' || overwrite)
+		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
+
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0 || overwrite)
 	{
@@ -689,11 +698,10 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	/* Allow override of odbcinst.ini parameters here */
 	getCommonDefaults(DSN, ODBC_INI, ci);
 
-	qlog("DSN info: DSN='%s',server='%s',port='%s',sslmode='%s',dbase='%s',user='%s',passwd='%s'\n",
+	qlog("DSN info: DSN='%s',server='%s',port='%s',dbase='%s',user='%s',passwd='%s'\n",
 		 DSN,
 		 ci->server,
 		 ci->port,
-		 ci->sslmode,
 		 ci->database,
 		 ci->username,
 		 ci->password ? "xxxxx" : "");
@@ -835,11 +843,6 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
-								 INI_SSLMODE,
-								 ci->sslmode,
-								 ODBC_INI);
-
-	SQLWritePrivateProfileString(DSN,
 								 INI_USER,
 								 ci->username,
 								 ODBC_INI);
@@ -924,6 +927,10 @@ writeDSNinfo(const ConnInfo *ci)
 	SQLWritePrivateProfileString(DSN,
 								 INI_LOWERCASEIDENTIFIER,
 								 temp,
+								 ODBC_INI);
+	SQLWritePrivateProfileString(DSN,
+								 INI_SSLMODE,
+								 ci->sslmode,
 								 ODBC_INI);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	sprintf(temp, "%d", ci->xa_opt);

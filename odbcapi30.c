@@ -512,7 +512,7 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 			|= (1 << ((uwAPI) & 0x000F)) \
 				)
 RETCODE		SQL_API
-PGAPI_GetFunctions30(HDBC hdbc, UWORD fFunction, UWORD FAR * pfExists)
+PGAPI_GetFunctions30(HDBC hdbc, SQLUSMALLINT fFunction, SQLUSMALLINT FAR * pfExists)
 {
 	ConnectionClass	*conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);

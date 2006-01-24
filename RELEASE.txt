@@ -8,6 +8,12 @@
 
 <Changes>
 
+[7.3.0260]
+
+1. Change delay load import library mechanism(libpq,openssl)
+2. Compile Optimization correspondence.
+3. SQLForeignKeys ResultSet accuracy correspondence.
+
 [7.3.0258]
 
 1. bug fix: SQLBulkOperations rollback option.

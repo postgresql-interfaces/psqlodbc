@@ -34,8 +34,8 @@
 /*		Perform a Prepare on the SQL statement */
 RETCODE		SQL_API
 PGAPI_Prepare(HSTMT hstmt,
-			  UCHAR FAR * szSqlStr,
-			  SDWORD cbSqlStr)
+			  const SQLCHAR FAR * szSqlStr,
+			  SQLINTEGER cbSqlStr)
 {
 	CSTR func = "PGAPI_Prepare";
 	StatementClass *self = (StatementClass *) hstmt;
@@ -139,8 +139,8 @@ inolog("SQLPrepare return=%d\n", retval);
 RETCODE		SQL_API
 PGAPI_ExecDirect(
 				 HSTMT hstmt,
-				 UCHAR FAR * szSqlStr,
-				 SDWORD cbSqlStr,
+				 const SQLCHAR FAR * szSqlStr,
+				 SQLINTEGER cbSqlStr,
 				 UWORD flag)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -218,7 +218,7 @@ decideHowToPrepare(StatementClass *stmt)
 	}
 	if (NOT_YET_PREPARED == stmt->prepared)
 	{
-		Int2	num_params;
+		SQLSMALLINT	num_params;
 
 		if (STMT_TYPE_DECLARE == stmt->statement_type &&
 		    PG_VERSION_LT(conn, 8.0))
@@ -636,7 +636,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	IPDFields	*ipdopts;
 	int			i, start_row, end_row;
 	BOOL	exec_end, recycled = FALSE, recycle = TRUE;
-	Int2	num_params;
+	SQLSMALLINT	num_params;
 
 	mylog("%s: entering...%x\n", func, flag);
 
@@ -752,7 +752,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		    ci->use_server_side_prepare &&
 		    ci->bytea_as_longvarbinary) /* both lo and bytea are LO */
 		{
-			Int2	num_params = stmt->num_params;
+			SQLSMALLINT	num_params = stmt->num_params;
 			if (num_params < 0)
 				PGAPI_NumParams(stmt, &num_params);
 			if (num_params > 0)
@@ -843,15 +843,15 @@ next_param_row:
 		stmt->data_at_exec = -1;
 		for (i = 0; i < num_p; i++)
 		{
-			Int4	   *pcVal = apdopts->parameters[i].used;
+			SQLLEN	   *pcVal = apdopts->parameters[i].used;
 
 			apdopts->parameters[i].data_at_exec = FALSE;
 			if (pcVal)
 			{
 				if (bind_size > 0)
-					pcVal = (Int4 *)((char *)pcVal + offset + bind_size * current_row);
+					pcVal = (SQLLEN *)((char *)pcVal + offset + bind_size * current_row);
 				else
-					pcVal = (Int4 *)((char *)pcVal + offset + sizeof(SDWORD) * current_row);
+					pcVal = (SQLLEN *)((char *)pcVal + offset + sizeof(SDWORD) * current_row);
 				if (*pcVal == SQL_DATA_AT_EXEC || *pcVal <= SQL_LEN_DATA_AT_EXEC_OFFSET)
 					apdopts->parameters[i].data_at_exec = TRUE;
 			}
@@ -898,7 +898,7 @@ RETCODE		SQL_API
 PGAPI_Transact(
 			   HENV henv,
 			   HDBC hdbc,
-			   UWORD fType)
+			   SQLUSMALLINT fType)
 {
 	CSTR func = "PGAPI_Transact";
 	extern ConnectionClass *conns[];
@@ -1080,11 +1080,11 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_NativeSql(
 				HDBC hdbc,
-				UCHAR FAR * szSqlStrIn,
-				SDWORD cbSqlStrIn,
-				UCHAR FAR * szSqlStr,
-				SDWORD cbSqlStrMax,
-				SDWORD FAR * pcbSqlStr)
+				const SQLCHAR FAR * szSqlStrIn,
+				SQLINTEGER cbSqlStrIn,
+				SQLCHAR FAR * szSqlStr,
+				SQLINTEGER cbSqlStrMax,
+				SQLINTEGER FAR * pcbSqlStr)
 {
 	CSTR func = "PGAPI_NativeSql";
 	int			len = 0;
@@ -1157,6 +1157,13 @@ PGAPI_ParamData(
 	apdopts = SC_get_APDF(estmt);
 	mylog("%s: data_at_exec=%d, params_alloc=%d\n", func, estmt->data_at_exec, apdopts->allocated);
 
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	if (SC_AcceptedCancelRequest(stmt))
+	{
+		SC_set_error(stmt, STMT_OPERATION_CANCELLED, "Cancel the statement, sorry", func);
+		retval = SQL_ERROR;
+		goto cleanup;
+	}
 	if (estmt->data_at_exec < 0)
 	{
 		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No execution-time parameters for this statement", func);
@@ -1255,6 +1262,7 @@ inolog("\n");
 	retval = SQL_NEED_DATA;
 inolog("return SQL_NEED_DATA\n");
 cleanup:
+#undef	return
 	if (stmt->internal)
 		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	mylog("%s: returning %d\n", func, retval);
@@ -1270,7 +1278,7 @@ RETCODE		SQL_API
 PGAPI_PutData(
 			  HSTMT hstmt,
 			  PTR rgbValue,
-			  SDWORD cbValue)
+			  SQLLEN cbValue)
 {
 	CSTR func = "PGAPI_PutData";
 	StatementClass *stmt = (StatementClass *) hstmt, *estmt;
@@ -1285,7 +1293,7 @@ PGAPI_PutData(
 	PutDataClass	*current_pdata;
 	char	   *buffer, *putbuf, *allocbuf = NULL;
 	Int2		ctype;
-	SDWORD          putlen;
+	SQLLEN		putlen;
 	BOOL		lenset = FALSE;
 
 	mylog("%s: entering...\n", func);
@@ -1295,6 +1303,12 @@ PGAPI_PutData(
 	{
 		SC_log_error(func, "", NULL);
 		retval = SQL_INVALID_HANDLE;
+		goto cleanup;
+	}
+	if (SC_AcceptedCancelRequest(stmt))
+	{
+		SC_set_error(stmt, STMT_OPERATION_CANCELLED, "Cancel the statement, sorry.", func);
+		retval = SQL_ERROR;
 		goto cleanup;
 	}
 

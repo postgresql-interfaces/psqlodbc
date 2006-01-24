@@ -807,17 +807,18 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_ROWS_PROCESSED_PTR:
 			ipdopts->param_processed_ptr = (UInt4 *) Value;
 			return ret;
+		case SQL_DESC_COUNT:
+			parameter_ibindings_set(ipdopts, (SQLUINTEGER) Value, FALSE);
+			return ret;
 		case SQL_DESC_UNNAMED: /* only SQL_UNNAMED is allowed */ 
 			if (SQL_UNNAMED !=  (SQLUINTEGER) Value)
 			{
 				ret = SQL_ERROR;
 				DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 					"invalid descriptor identifier");
+				return ret;
 			}
-			return ret;
-		case SQL_DESC_COUNT:
-			parameter_ibindings_set(ipdopts, (SQLUINTEGER) Value, FALSE);
-			return ret;
+		case SQL_DESC_NAME:
 		case SQL_DESC_TYPE:
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
 		case SQL_DESC_CONCISE_TYPE:
@@ -863,11 +864,27 @@ inolog("IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		case SQL_DESC_CONCISE_TYPE:
 			ipdopts->parameters[para_idx].SQLType = (Int4) Value;
 			break;
+		case SQL_DESC_NAME:
+			if (Value)
+				STR_TO_NAME(ipdopts->parameters[para_idx].paramName, Value);
+			else
+				NULL_THE_NAME(ipdopts->parameters[para_idx].paramName);
+			break;
 		case SQL_DESC_PARAMETER_TYPE:
 			ipdopts->parameters[para_idx].paramType = (Int2) ((Int4) Value);
 			break;
 		case SQL_DESC_SCALE:
 			ipdopts->parameters[para_idx].decimal_digits = (Int2) ((Int4) Value);
+			break;
+		case SQL_DESC_UNNAMED: /* only SQL_UNNAMED is allowed */ 
+			if (SQL_UNNAMED !=  (SQLUINTEGER) Value)
+			{
+				ret = SQL_ERROR;
+				DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
+					"invalid descriptor identifier");
+			}
+			else
+				NULL_THE_NAME(ipdopts->parameters[para_idx].paramName);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */ 
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
@@ -875,7 +892,6 @@ inolog("IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		case SQL_DESC_FIXED_PREC_SCALE: /* read-only */
 		case SQL_DESC_LENGTH:
 		case SQL_DESC_LOCAL_TYPE_NAME: /* read-only */
-		case SQL_DESC_NAME:
 		case SQL_DESC_NULLABLE: /* read-only */
 		case SQL_DESC_NUM_PREC_RADIX:
 		case SQL_DESC_OCTET_LENGTH:
@@ -1324,8 +1340,8 @@ inolog("IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 			rettype = SQL_IS_POINTER;
 			ptr = ipdopts->param_processed_ptr;
 			break;
-		case SQL_DESC_UNNAMED: /* only SQL_UNNAMED is allowed */
-			ival = SQL_UNNAMED;
+		case SQL_DESC_UNNAMED:
+			ival = NAME_IS_NULL(ipdopts->parameters[para_idx].paramName) ? SQL_UNNAMED : SQL_NAMED;
 			break;
 		case SQL_DESC_TYPE:
 			switch (ipdopts->parameters[para_idx].SQLType)
