@@ -2,5 +2,5 @@
 CPPFLAGS="-I/usr/local/include -I/usr/local/pgsql/include -I/usr/include/openssl"
 LDFLAGS="-L/usr/local/lib -L/usr/local/pgsql/lib"
 export CPPFLAGS LDFLAGS
-configure --disable-static --enable-shared --with-iodbc
-
+configure --enable-unicode --with-iodbc --with-odbcver=0x0300 --enable-pthreads 
+gmake 
