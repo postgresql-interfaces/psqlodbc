@@ -2255,7 +2255,7 @@ retry_public_schema:
 #endif /* ODBCVER */
 			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
-			set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], SQL_TRUE);
+			set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], TRUE);
 			ordinal++;
 		}
 	}
@@ -2421,7 +2421,7 @@ mylog(" and the data=%s\n", attdef);
 			case PG_TYPE_INT4:
 			case PG_TYPE_INT8:
 				if (attdef && strnicmp(attdef, "nextval(", 8) == 0) 
-					auto_unique = SQL_TRUE;
+					auto_unique = TRUE;
 		}
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], auto_unique);
 		ordinal++;
@@ -2473,7 +2473,7 @@ mylog(" and the data=%s\n", attdef);
 #endif /* ODBCVER */
 		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_STATIC));
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
-		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], SQL_FALSE);
+		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], FALSE);
 		ordinal++;
 	}
 	result = SQL_SUCCESS;

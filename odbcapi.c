@@ -128,8 +128,10 @@ SQLColumns(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1007,8 +1009,10 @@ SQLColumnPrivileges(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1368,8 +1372,10 @@ SQLProcedureColumns(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -1530,8 +1536,10 @@ SQLTablePrivileges(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else

@@ -219,9 +219,9 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_USE_BOOKMARKS:
 			if (stmt)
 			{
-				mylog("USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
 				setval = vParam;
 				/*
+				mylog("USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
 				if (vParam == SQL_UB_FIXED)
 				{
 					setval = SQL_UB_VARIABLE;
@@ -324,12 +324,14 @@ PGAPI_SetConnectOption(
 		case SQL_USE_BOOKMARKS:
 
 #if (ODBCVER < 0x0300)
-			int	i;
-			/* Affect all current Statements */
-			for (i = 0; i < conn->num_stmts; i++)
 			{
+			   int	i;
+			   /* Affect all current Statements */
+			   for (i = 0; i < conn->num_stmts; i++)
+			   {
 				if (conn->stmts[i])
 					set_statement_option(NULL, conn->stmts[i], fOption, vParam);
+			   }
 			}
 #endif /* ODBCVER */
 

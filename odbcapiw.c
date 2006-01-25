@@ -50,8 +50,10 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -535,8 +537,10 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -731,8 +735,10 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -821,8 +827,10 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
