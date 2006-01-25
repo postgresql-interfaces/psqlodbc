@@ -186,14 +186,13 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 				return 0;
 			}
 			memcpy(&(in->sin_addr), hp->h_addr, hp->h_length);
+#if defined (HAVE_GETIPNODEBYNAME)
+			freehostent(hp);
+#endif /* HAVE_GETIPNODEBYNAME */
 		}
 		else
 			memcpy(&(in->sin_addr), (struct in_addr *) & iaddr, sizeof(iaddr));
 		self->sadr = (struct sockaddr *) in;
-
-#if defined (HAVE_GETIPNODEBYNAME)
-		freehostent(hp);
-#endif /* HAVE_GETIPNODEBYNAME */
 	}
 	else
 #ifdef	HAVE_UNIX_SOCKETS
