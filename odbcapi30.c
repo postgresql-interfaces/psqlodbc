@@ -110,11 +110,24 @@ SQLCloseCursor(HSTMT StatementHandle)
 }
 
 /*	SQLColAttributes -> SQLColAttribute */
-RETCODE		SQL_API
-SQLColAttribute(HSTMT StatementHandle,
-				SQLUSMALLINT ColumnNumber, SQLUSMALLINT FieldIdentifier,
-				PTR CharacterAttribute, SQLSMALLINT BufferLength,
-				SQLSMALLINT *StringLength, PTR NumericAttribute)
+#if defined(WITH_UNIXODBC) || defined(_WIN64)
+SQLRETURN  SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
+                                SQLUSMALLINT ColumnNumber,
+                                SQLUSMALLINT FieldIdentifier,
+                                SQLPOINTER CharacterAttribute,
+                                SQLSMALLINT BufferLength,
+                                SQLSMALLINT *StringLength,
+                                SQLPOINTER NumericAttribute )
+
+#else /* WITH_IODBC || WIN32 */
+SQLRETURN SQL_API SQLColAttribute (SQLHSTMT StatementHandle,
+                                SQLUSMALLINT ColumnNumber,
+                                SQLUSMALLINT FieldIdentifier,
+                                SQLPOINTER CharacterAttribute,
+                                SQLSMALLINT BufferLength,
+                                SQLSMALLINT *StringLength,
+                                SQLLEN *NumericAttribute)
+#endif
 {
 	CSTR	func = "SQLColAttribute";
 	RETCODE	ret;

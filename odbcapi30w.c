@@ -243,14 +243,23 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
         return ret;
 }
 
-RETCODE SQL_API SQLColAttributeW(
-	SQLHSTMT		hstmt,
-	SQLUSMALLINT	iCol,
-	SQLUSMALLINT	iField,
-	SQLPOINTER		pCharAttr,
-	SQLSMALLINT		cbCharAttrMax,	
-	SQLSMALLINT  *pcbCharAttr,
-	SQLPOINTER		pNumAttr)
+#if defined(WITH_UNIXODBC) || defined(_WIN64)
+SQLRETURN SQL_API SQLColAttributeW(SQLHSTMT hstmt,
+                                 SQLUSMALLINT iCol,
+                                 SQLUSMALLINT iField,
+                                 SQLPOINTER pCharAttr,
+                                 SQLSMALLINT cbCharAttrMax,
+                                 SQLSMALLINT *pcbCharAttr,
+                                 SQLPOINTER pNumAttr)
+#else
+SQLRETURN SQL_API SQLColAttributeW(SQLHSTMT hstmt,
+                                 SQLUSMALLINT iCol,
+                                 SQLUSMALLINT iField,
+                                 SQLPOINTER pCharAttr,
+                                 SQLSMALLINT cbCharAttrMax,
+                                 SQLSMALLINT *pcbCharAttr,
+                                 SQLLEN *pNumAttr)
+#endif
 {
 	CSTR func = "SQLColAttributeW";
 	RETCODE	ret;
