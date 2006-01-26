@@ -3109,6 +3109,7 @@ PGAPI_SetPos(
 			return SQL_ERROR;
 		}
 		s.start_row = s.end_row = s.irow - 1;
+		s.stmt->currTuple = s.stmt->rowset_start + irow - 1;
 	}
 
 	num_cols = QR_NumResultCols(s.res);
