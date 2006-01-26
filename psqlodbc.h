@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.93 2005/10/20 13:06:10 petere Exp $
+ * $Id: psqlodbc.h,v 1.94 2006/01/26 18:44:28 luf Exp $
  *
  */
 
@@ -202,12 +202,6 @@ typedef double SDOUBLE;
 /* Now that's 0, lets use this instead. DJP 24-1-2001 */
 #define STD_STATEMENT_LEN			MAX_MESSAGE_LEN
 
-#define PG62						"6.2"		/* "Protocol" key setting
-									 * to force Postgres 6.2 */
-#define PG63						"6.3"		/* "Protocol" key setting
-									 * to force postgres 6.3 */
-#define PG64						"6.4"
-
 typedef struct ConnectionClass_ ConnectionClass;
 typedef struct StatementClass_ StatementClass;
 typedef struct QResultClass_ QResultClass;
@@ -252,7 +246,6 @@ typedef struct GlobalValues_
 	char		cancel_as_freestmt;
 	char		extra_systable_prefixes[MEDIUM_REGISTRY_LEN];
 	char		conn_settings[LARGE_REGISTRY_LEN];
-	char		protocol[SMALL_REGISTRY_LEN];
 } GLOBAL_VALUES;
 
 typedef struct StatementOptions_

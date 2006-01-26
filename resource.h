@@ -34,7 +34,6 @@
 #define DS_SHOWOIDCOLUMN                1012
 #define DS_FAKEOIDINDEX                 1013
 #define DRV_COMMLOG                     1014
-#define DS_PG62                         1016
 #define IDC_DATASOURCE                  1018
 #define DRV_OPTIMIZER                   1019
 #define DS_CONNSETTINGS                 1020
@@ -62,8 +61,6 @@
 #define DRV_CANCELASFREESTMT            1053
 #define IDC_OPTIONS                     1054
 #define DRV_KSQO                        1055
-#define DS_PG64                         1057
-#define DS_PG63                         1058
 #define DRV_OR_DSN                      1059
 #define DRV_DEBUG                       1060
 #define DS_DISALLOWPREMATURE            1061

@@ -112,8 +112,6 @@ PGAPI_Connect(
 	memcpy(&ci->drivers, &globals, sizeof(globals));
 	getDSNinfo(ci, CONN_OVERWRITE);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
-	/* initialize pg_version from connInfo.protocol    */
-	CC_initialize_pg_version(conn);
 
 	/*
 	 * override values from DSN info with UID and authStr(pwd) This only
@@ -737,36 +735,6 @@ CC_lookup_lo(ConnectionClass *self)
 	qlog("    [ Large Object oid = %d ]\n", self->lobj_type);
 
 	result = PGAPI_FreeStmt(hstmt, SQL_DROP);
-}
-
-
-/*
- *	This function initializes the version of PostgreSQL from
- *	connInfo.protocol that we're connected to.
- *	h-inoue 01-2-2001
- */
-void
-CC_initialize_pg_version(ConnectionClass *self)
-{
-	strcpy(self->pg_version, self->connInfo.protocol);
-	if (PROTOCOL_62(&self->connInfo))
-	{
-		self->pg_version_number = (float) 6.2;
-		self->pg_version_major = 6;
-		self->pg_version_minor = 2;
-	}
-	else if (PROTOCOL_63(&self->connInfo))
-	{
-		self->pg_version_number = (float) 6.3;
-		self->pg_version_major = 6;
-		self->pg_version_minor = 3;
-	}
-	else
-	{
-		self->pg_version_number = (float) 6.4;
-		self->pg_version_major = 6;
-		self->pg_version_minor = 4;
-	}
 }
 
 

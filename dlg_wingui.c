@@ -71,6 +71,7 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
 	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
 	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+
     
 	if (!strcmp(ci->sslmode, "allow"))
 		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
@@ -455,15 +456,6 @@ ds_options2Proc(HWND hdlg,
 			/* Readonly */
 			CheckDlgButton(hdlg, DS_READONLY, atoi(ci->onlyread));
 
-			/* Protocol */
-			if (strncmp(ci->protocol, PG62, strlen(PG62)) == 0)
-				CheckDlgButton(hdlg, DS_PG62, 1);
-			else if (strncmp(ci->protocol, PG63, strlen(PG63)) == 0)
-				CheckDlgButton(hdlg, DS_PG63, 1);
-			else
-				/* latest */
-				CheckDlgButton(hdlg, DS_PG64, 1);
-
 			/* Int8 As */
 			switch (ci->int8_as)
 			{
@@ -523,15 +515,6 @@ ds_options2Proc(HWND hdlg,
 
 					/* Readonly */
 					sprintf(ci->onlyread, "%d", IsDlgButtonChecked(hdlg, DS_READONLY));
-
-					/* Protocol */
-					if (IsDlgButtonChecked(hdlg, DS_PG62))
-						strcpy(ci->protocol, PG62);
-					else if (IsDlgButtonChecked(hdlg, DS_PG63))
-						strcpy(ci->protocol, PG63);
-					else
-						/* latest */
-						strcpy(ci->protocol, PG64);
 
 					/* Int8 As */
 					if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DEFAULT))

@@ -163,21 +163,14 @@ BEGIN
                     WS_TABSTOP,184,108,40,10
     CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,227,108,29,10
-    GROUPBOX        "プロトコルバ－ジョン",IDC_STATIC,5,128,296,25
-    CONTROL         ">= 6.4",DS_PG64,"Button",BS_AUTORADIOBUTTON | WS_GROUP,
-                    18,139,49,10
-    CONTROL         "6.3",DS_PG63,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    87,139,26,10
-    CONTROL         "6.2",DS_PG62,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    140,140,26,10
-    GROUPBOX        "OID オプション",IDC_STATIC,5,158,296,25
+    GROUPBOX        "OID オプション",IDC_STATIC,5,128,296,25
     CONTROL         "カラム列表示(&C)",DS_SHOWOIDCOLUMN,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP,16,169,72,10
+                    BS_AUTOCHECKBOX | WS_GROUP,16,139,72,10
     CONTROL         "インデックスを装う(&I)",DS_FAKEOIDINDEX,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,107,169,95,10
-    LTEXT           "接続時   設定:(&S)",IDC_STATIC,13,192,69,10,NOT 
+                    BS_AUTOCHECKBOX | WS_TABSTOP,107,139,95,10
+    LTEXT           "接続時   設定:(&S)",IDC_STATIC,13,159,69,10,NOT 
                     WS_GROUP
-    EDITTEXT        DS_CONNSETTINGS,90,191,211,27,ES_MULTILINE | 
+    EDITTEXT        DS_CONNSETTINGS,90,160,211,58,ES_MULTILINE | 
                     ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT 
                     WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,5,224,50,14,WS_GROUP
@@ -509,20 +502,13 @@ BEGIN
                     WS_TABSTOP,184,108,40,10
     CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,227,108,29,10
-    GROUPBOX        "Protocol",IDC_STATIC,5,126,277,25
-    CONTROL         ">= 6.4",DS_PG64,"Button",BS_AUTORADIOBUTTON | WS_GROUP,
-                    44,137,49,10
-    CONTROL         "6.3",DS_PG63,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    117,137,26,10
-    CONTROL         "6.2",DS_PG62,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,
-                    191,137,26,10
-    GROUPBOX        "OID Options",IDC_STATIC,5,155,277,25
+    GROUPBOX        "OID Options",IDC_STATIC,5,127,277,25
     CONTROL         "Show &Column",DS_SHOWOIDCOLUMN,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,53,167,59,10
+                    WS_GROUP | WS_TABSTOP,53,138,59,10
     CONTROL         "Fake &Index",DS_FAKEOIDINDEX,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,155,166,51,10
-    LTEXT           "Connect\n&Settings",IDC_STATIC,5,188,62,17
-    EDITTEXT        DS_CONNSETTINGS,47,188,235,27,ES_MULTILINE | 
+                    WS_GROUP | WS_TABSTOP,155,138,51,10
+    LTEXT           "Connect\n&Settings",IDC_STATIC,5,160,62,17
+    EDITTEXT        DS_CONNSETTINGS,47,160,235,55,ES_MULTILINE | 
                     ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN
     DEFPUSHBUTTON   "OK",IDOK,121,220,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,231,220,50,14

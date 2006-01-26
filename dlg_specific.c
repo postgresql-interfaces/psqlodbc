@@ -12,6 +12,10 @@
  *
  * API functions:	none
  *
+ * Removed params:  Don't reuse old parameter name if it's not for original
+ *                  purpose. Here is list of deleted params:
+ *                  Protocol              communication protocol (before libpq)
+ *
  * Comments:		See "notice.txt" for copyright and license information.
  *-------
  */
@@ -62,11 +66,9 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	hlen = strlen(connect_string);
 	if (!abbrev)
 		sprintf(&connect_string[hlen],
-				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
+				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
 				INI_READONLY,
 				ci->onlyread,
-				INI_PROTOCOL,
-				ci->protocol,
 				INI_FAKEOIDINDEX,
 				ci->fake_oid_index,
 				INI_SHOWOIDCOLUMN,
@@ -137,12 +139,6 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 			flag |= BIT_LFCONVERSION;
 		if (ci->drivers.unique_index)
 			flag |= BIT_UNIQUEINDEX;
-		if (strncmp(ci->protocol, PG64, strlen(PG64)) == 0)
-			flag |= BIT_PROTOCOL_64;
-		else if (strncmp(ci->protocol, PG63, strlen(PG63)) == 0)
-			flag |= BIT_PROTOCOL_63;
-		else if (strncmp(ci->protocol, "7.4", 3) == 0)
-			flag |= (BIT_PROTOCOL_63 | BIT_PROTOCOL_64);
 		switch (ci->drivers.unknown_sizes)
 		{
 			case UNKNOWNS_AS_DONTKNOW:
@@ -231,12 +227,6 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	if (count < 4)
 		return;
 	ci->drivers.unique_index = (char)((flag & BIT_UNIQUEINDEX) != 0);
-	if ((flag & BIT_PROTOCOL_64) != 0)
-		strcpy(ci->protocol, PG64);
-	else if ((flag & BIT_PROTOCOL_63) != 0)
-		strcpy(ci->protocol, PG63);
-	else
-		strcpy(ci->protocol, PG62);
 	if ((flag & BIT_UNKNOWN_DONTKNOW) != 0)
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_DONTKNOW;
 	else if ((flag & BIT_UNKNOWN_ASMAX) != 0)
@@ -293,9 +283,6 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, "A0") == 0)
 		strcpy(ci->onlyread, value);
 
-	else if (stricmp(attribute, INI_PROTOCOL) == 0 || stricmp(attribute, "A1") == 0)
-		strcpy(ci->protocol, value);
-
 	else if (stricmp(attribute, INI_SHOWOIDCOLUMN) == 0 || stricmp(attribute, "A3") == 0)
 		strcpy(ci->show_oid_column, value);
 
@@ -332,7 +319,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, "CX") == 0)
 		unfoldCXAttribute(ci, value);
 
-	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',sslmode='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->sslmode, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',sslmode='%s',onlyread='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->sslmode, ci->onlyread, ci->conn_settings, ci->disallow_premature);
 }
 
 void
@@ -409,9 +396,6 @@ getDSNdefaults(ConnInfo *ci)
 
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
-
-	if (ci->protocol[0] == '\0')
-		strcpy(ci->protocol, globals.protocol);
 
 	if (ci->fake_oid_index[0] == '\0')
 		sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
@@ -517,9 +501,6 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (ci->show_system_tables[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, "", ci->show_system_tables, sizeof(ci->show_system_tables), ODBC_INI);
 
-	if (ci->protocol[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, "", ci->protocol, sizeof(ci->protocol), ODBC_INI);
-
 	if (ci->conn_settings[0] == '\0' || overwrite)
 	{
 		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_conn_settings, sizeof(encoded_conn_settings), ODBC_INI);
@@ -598,9 +579,8 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->database,
 		 ci->username,
 		 ci->password ? "xxxxx" : "");
-	qlog("          onlyread='%s',protocol='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
+	qlog("          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
-		 ci->protocol,
 		 ci->show_oid_column,
 		 ci->fake_oid_index,
 		 ci->show_system_tables);
@@ -773,11 +753,6 @@ writeDSNinfo(const ConnInfo *ci)
 	SQLWritePrivateProfileString(DSN,
 								 INI_SHOWSYSTEMTABLES,
 								 ci->show_system_tables,
-								 ODBC_INI);
-
-	SQLWritePrivateProfileString(DSN,
-								 INI_PROTOCOL,
-								 ci->protocol,
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
@@ -1021,16 +996,5 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		else
 			comval->onlyread = DEFAULT_READONLY;
 
-		/*
-		 * Default state for future DSN's protocol attribute This isn't a
-		 * real driver option YET.	This is more intended for
-		 * customization from the install.
-		 */
-		SQLGetPrivateProfileString(section, INI_PROTOCOL, "@@@",
-								   temp, sizeof(temp), filename);
-		if (strcmp(temp, "@@@"))
-			strcpy(comval->protocol, temp);
-		else
-			strcpy(comval->protocol, DEFAULT_PROTOCOL);
 	}
 }

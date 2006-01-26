@@ -141,8 +141,6 @@ PGAPI_DriverConnect(
 
 	/* Fill in any default parameters if they are not there. */
 	getDSNdefaults(ci);
-	/* initialize pg_version */
-	CC_initialize_pg_version(conn);
 	salt[0] = '\0';
 
 #ifdef WIN32

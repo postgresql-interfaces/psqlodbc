@@ -55,7 +55,6 @@
 #define INI_SOCKET			"Socket"	/* Socket buffer size */
 #define INI_READONLY			"ReadOnly"	/* Database is read only */
 #define INI_COMMLOG			"CommLog"	/* Communication to backend logging */
-#define INI_PROTOCOL			"Protocol"	/* What protocol (6.2) */
 #define INI_OPTIMIZER			"Optimizer"	/* Use backend genetic optimizer */
 #define INI_KSQO			"Ksqo"		/* Keyset query optimization */
 #define INI_CONNSETTINGS		"ConnSettings"	/* Anything to send to backend on successful connection */
@@ -96,8 +95,6 @@
 #define BIT_UPDATABLECURSORS		(1L<<1)
 #define BIT_DISALLOWPREMATURE		(1L<<2)
 #define BIT_UNIQUEINDEX			(1L<<3)
-#define BIT_PROTOCOL_63			(1L<<4)
-#define BIT_PROTOCOL_64			(1L<<5)
 #define BIT_UNKNOWN_DONTKNOW		(1L<<6)
 #define BIT_UNKNOWN_ASMAX		(1L<<7)
 #define BIT_OPTIMIZER			(1L<<8)
@@ -127,7 +124,6 @@
 #define DEFAULT_PORT			"5432"
 #define DEFAULT_SSLMODE         "prefer"
 #define DEFAULT_READONLY		0
-#define DEFAULT_PROTOCOL		"6.4"	/* the latest protocol is the default */
 #define DEFAULT_USEDECLAREFETCH		0
 #define DEFAULT_TEXTASLONGVARCHAR	1
 #define DEFAULT_UNKNOWNSASLONGVARCHAR	0

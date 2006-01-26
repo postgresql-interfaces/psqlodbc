@@ -171,13 +171,6 @@
 #define ARGV_SIZE								64
 #define USRNAMEDATALEN							16
 
-typedef unsigned int ProtocolVersion;
-
-#define PG_PROTOCOL(major, minor)	(((major) << 16) | (minor))
-#define PG_PROTOCOL_LATEST							PG_PROTOCOL(2, 0)
-#define PG_PROTOCOL_63								PG_PROTOCOL(1, 0)
-#define PG_PROTOCOL_62								PG_PROTOCOL(0, 0)
-
 
 typedef enum
 {
@@ -188,11 +181,6 @@ typedef enum
 	CONN_EXECUTING				/* the connection is currently executing a
 								 * statement */
 } CONN_Status;
-
-/* Transferred from pqcomm.h:  */
-
-
-typedef ProtocolVersion MsgType;
 
 /*	Structure to hold all the connection attributes for a specific
 	connection (used for both registry and file, DSN and DRIVER) */
@@ -207,7 +195,6 @@ typedef struct
 	char		username[MEDIUM_REGISTRY_LEN];
 	char		password[MEDIUM_REGISTRY_LEN];
 	char		conn_settings[LARGE_REGISTRY_LEN];
-	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
 	char		sslmode[MEDIUM_REGISTRY_LEN];
 	char		onlyread[SMALL_REGISTRY_LEN];
@@ -230,12 +217,6 @@ typedef struct
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
 
-
-/*	Macro to determine is the connection using 6.2 protocol? */
-#define PROTOCOL_62(conninfo_)		(strncmp((conninfo_)->protocol, PG62, strlen(PG62)) == 0)
-
-/*	Macro to determine is the connection using 6.3 protocol? */
-#define PROTOCOL_63(conninfo_)		(strncmp((conninfo_)->protocol, PG63, strlen(PG63)) == 0)
 
 /*
  *	Macros to compare the server's version with a specified version
@@ -390,7 +371,6 @@ int		CC_send_function(ConnectionClass *conn, int fnid, void *result_buf, int *ac
 char		CC_send_settings(ConnectionClass *self);
 void		CC_lookup_lo(ConnectionClass *conn);
 void		CC_lookup_pg_version(ConnectionClass *conn);
-void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
 int		CC_get_max_query_len(const ConnectionClass *self);
 int		CC_send_cancel_request(const ConnectionClass *conn);
