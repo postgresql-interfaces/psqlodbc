@@ -1481,8 +1481,8 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 
 		rowsetSize = (7 == self->transition_status ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
 
-		qlog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
-		mylog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		qlog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, sqlstate=%s, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__sqlstate), nullcheck(self->__error_message));
+		mylog("STATEMENT ERROR: func=%s, desc='%s', errnum=%d, sqlstate=%s, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__sqlstate), nullcheck(self->__error_message));
 		qlog("                 ------------------------------------------------------------\n");
 		qlog("                 hdbc=%u, stmt=%u, result=%u\n", self->hdbc, self, res);
 		qlog("                 manual_result=%d, prepare=%d, internal=%d\n", self->manual_result, self->prepare, self->internal);

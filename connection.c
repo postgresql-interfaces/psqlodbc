@@ -1574,8 +1574,8 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 
 	if (self)
 	{
-		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
-		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, sqlstate=%s, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__sqlstate), nullcheck(self->__error_message));
+		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, sqlstate=%s, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__sqlstate), nullcheck(self->__error_message));
 		qlog("            ------------------------------------------------------------\n");
 		qlog("            henv=%u, conn=%u, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
 	}
