@@ -18,7 +18,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/Makefile.in,v 1.1.2.4 2006/01/26 06:15:18 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/Makefile.in,v 1.1.2.5 2006/01/26 14:41:37 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -46,6 +46,9 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@enable_unicode_TRUE@am__append_1 = \
+@enable_unicode_TRUE@odbcapiw.c odbcapi30w.c win_unicode.c
+
 DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure config.guess config.sub depcomp \
@@ -70,13 +73,24 @@ am__installdirs = "$(DESTDIR)$(libdir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 psqlodbc30w_la_DEPENDENCIES =
+am__psqlodbc30w_la_SOURCES_DIST = info.c bind.c columninfo.c \
+	connection.c convert.c drvconn.c environ.c execute.c lobj.c \
+	win_md5.c misc.c options.c pgtypes.c psqlodbc.c qresult.c \
+	results.c socket.c parse.c statement.c tuple.c dlg_specific.c \
+	multibyte.c odbcapi.c descriptor.c odbcapi30.c pgapi30.c \
+	info30.c mylog.c bind.h columninfo.h connection.h convert.h \
+	descriptor.h dlg_specific.h environ.h iodbc.h isql.h isqlext.h \
+	lobj.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
+	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
+	version.h odbcapiw.c odbcapi30w.c win_unicode.c
+@enable_unicode_TRUE@am__objects_1 = odbcapiw.lo odbcapi30w.lo \
+@enable_unicode_TRUE@	win_unicode.lo
 am_psqlodbc30w_la_OBJECTS = info.lo bind.lo columninfo.lo \
 	connection.lo convert.lo drvconn.lo environ.lo execute.lo \
 	lobj.lo win_md5.lo misc.lo options.lo pgtypes.lo psqlodbc.lo \
 	qresult.lo results.lo socket.lo parse.lo statement.lo tuple.lo \
-	dlg_specific.lo win_unicode.lo multibyte.lo odbcapi.lo \
-	odbcapiw.lo odbcapi30w.lo descriptor.lo odbcapi30.lo \
-	pgapi30.lo info30.lo mylog.lo
+	dlg_specific.lo multibyte.lo odbcapi.lo descriptor.lo \
+	odbcapi30.lo pgapi30.lo info30.lo mylog.lo $(am__objects_1)
 psqlodbc30w_la_OBJECTS = $(am_psqlodbc30w_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -90,7 +104,7 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(psqlodbc30w_la_SOURCES) $(EXTRA_psqlodbc30w_la_SOURCES)
-DIST_SOURCES = $(psqlodbc30w_la_SOURCES) \
+DIST_SOURCES = $(am__psqlodbc30w_la_SOURCES_DIST) \
 	$(EXTRA_psqlodbc30w_la_SOURCES)
 ETAGS = etags
 CTAGS = ctags
@@ -196,20 +210,16 @@ AUTOMAKE_OPTIONS = 1.6 foreign
 lib_LTLIBRARIES = psqlodbc30w.la
 psqlodbc30w_la_LDFLAGS = -module -no-undefined -avoid-version
 psqlodbc30w_la_LIBADD = -lpq
-psqlodbc30w_la_SOURCES = \
-	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
-	environ.c execute.c lobj.c win_md5.c misc.c options.c \
-	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
-	statement.c tuple.c dlg_specific.c win_unicode.c \
-	multibyte.c odbcapi.c odbcapiw.c odbcapi30w.c descriptor.c \
-	odbcapi30.c pgapi30.c info30.c mylog.c \
-\
-	bind.h columninfo.h connection.h convert.h descriptor.h \
-	dlg_specific.h environ.h iodbc.h isql.h isqlext.h \
+psqlodbc30w_la_SOURCES = info.c bind.c columninfo.c connection.c \
+	convert.c drvconn.c environ.c execute.c lobj.c win_md5.c \
+	misc.c options.c pgtypes.c psqlodbc.c qresult.c results.c \
+	socket.c parse.c statement.c tuple.c dlg_specific.c \
+	multibyte.c odbcapi.c descriptor.c odbcapi30.c pgapi30.c \
+	info30.c mylog.c bind.h columninfo.h connection.h convert.h \
+	descriptor.h dlg_specific.h environ.h iodbc.h isql.h isqlext.h \
 	lobj.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
-	version.h
-
+	version.h $(am__append_1)
 EXTRA_psqlodbc30w_la_SOURCES = md5.c
 EXTRA_DIST = license.txt readme.txt odbcinst.ini \
 	libtool.m4 psqlodbc_api30w.def win32_30w.mak \
@@ -339,7 +349,7 @@ mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
-	-rm -rf .libs _libs
+	-rm -rf .libs _libs .deps
 
 distclean-libtool:
 	-rm -f libtool

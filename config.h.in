@@ -109,7 +109,7 @@
 #undef WITH_UNIXODBC
 
 /* Force define to 1 to build with unicode support */
-#define UNICODE_SUPPORT 1
+#undef UNICODE_SUPPORT
 
 /* Define _REENTRANT for several plaforms */
 #undef _REENTRANT
