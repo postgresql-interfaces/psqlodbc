@@ -1924,7 +1924,7 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 	         *         (UNKNOWNS_AS_MAX), and UNKNOWNS_AS_LONGEST won't work because we don't
 	         *         have data at this point 
 	         */
-		if(typlen == -1)
+		if(typlen < 0)
 		{
 			switch (ci->drivers.unknown_sizes)
 			{
