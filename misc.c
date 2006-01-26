@@ -139,7 +139,10 @@ mylog(char *fmt,...)
 			filedes = open(filebuf, O_WRONLY | O_APPEND | O_CREAT, S_IWUSR | S_IRUSR);
 			LOGFP = fdopen(filedes, PG_BINARY_A);
 #endif
-			setbuf(LOGFP, NULL);
+			if (LOGFP)
+				setbuf(LOGFP, NULL);
+			else
+				mylog_on = 0;
 		}
 
 #ifdef	WIN_MULTITHREAD_SUPPORT
@@ -188,12 +191,15 @@ qlog(char *fmt,...)
 		{
 			generate_filename(QLOGDIR, QLOGFILE, filebuf);
 #ifdef WIN32
-                        LOGFP = fopen(filebuf, PG_BINARY_A);
+			LOGFP = fopen(filebuf, PG_BINARY_A);
 #else
-                        filedes = open(filebuf, O_WRONLY | O_APPEND | O_CREAT, S_IWUSR | S_IRUSR);
-                        LOGFP = fdopen(filedes, PG_BINARY_A);
+			filedes = open(filebuf, O_WRONLY | O_APPEND | O_CREAT, S_IWUSR | S_IRUSR);
+			LOGFP = fdopen(filedes, PG_BINARY_A);
 #endif
-			setbuf(LOGFP, NULL);
+			if (LOGFP)
+				setbuf(LOGFP, NULL);
+			else
+				qlog_on = 0;
 		}
 
 		if (LOGFP)
