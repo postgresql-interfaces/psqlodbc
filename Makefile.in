@@ -18,7 +18,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/Makefile.in,v 1.1.2.3 2006/01/26 05:38:22 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/Makefile.in,v 1.1.2.4 2006/01/26 06:15:18 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -223,6 +223,7 @@ MAINTAINERCLEANFILES = \
 	libtool.m4 depcomp
 
 all: config.h
+	@if test ! -r .deps;then mkdir .deps;fi
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
