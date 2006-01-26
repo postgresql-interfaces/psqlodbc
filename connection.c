@@ -1798,38 +1798,33 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 		return qres;
 	}
     
-	if (strnicmp(query, "BEGIN", 5) == 0)
-	{
-		CC_set_in_trans(self);
-	}
-	else if (strnicmp(query, "COMMIT", 6) == 0)
-		CC_on_commit(self);
-	else if (strnicmp(query, "ROLLBACK", 8) == 0)
-	{
-		/* 
-		   The method of ROLLBACK an original form ....
-		   ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] savepoint_name
-		 */
-		if (PG_VERSION_LT(self, 8.0) || !(contains_token(query, " TO ")))
-			CC_on_abort(self, NO_TRANS);
-	}
-	else if (strnicmp(query, "END", 3) == 0)
-		CC_on_commit(self);
-	else if (strnicmp(query, "ABORT", 5) == 0)
-		CC_on_abort(self, NO_TRANS);
-	else
-	{
-		if (PQcmdTuples(pgres)[0])
-			qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
-		else if (self->connInfo.drivers.use_declarefetch)
-			qres->recent_processed_row_count = -1;
-		else
-			qres->recent_processed_row_count = PQntuples(pgres);
-		mylog("LIBPQ_execute_query: recent_processed_row_count = %i\n",qres->recent_processed_row_count);
-	}
-
 	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
 	{
+		if ((strnicmp(query, "BEGIN", 5) == 0) ||
+		    (strnicmp(query, "START TRANSACTION", 17) == 0))
+			CC_set_in_trans(self);
+		else if ((strnicmp(query, "COMMIT", 6) == 0) ||
+		         (strnicmp(query, "END", 3) == 0))
+			CC_on_commit(self);
+		else if (strnicmp(query, "ROLLBACK", 8) == 0)
+		{
+			/* 
+			   The method of ROLLBACK an original form ....
+			   ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] savepoint_name
+			 */
+			if (PG_VERSION_LT(self, 8.0) || !(contains_token(query, " TO ")))
+				CC_on_abort(self, NO_TRANS);
+		}
+		else if (strnicmp(query, "ABORT", 5) == 0)
+			CC_on_abort(self, NO_TRANS);
+		else
+		{
+			if (PQcmdTuples(pgres)[0])
+				qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
+			else
+				qres->recent_processed_row_count = -1;
+			mylog("LIBPQ_execute_query: recent_processed_row_count = %i\n",qres->recent_processed_row_count);
+		}
 		mylog("The query was executed successfully and the query did not return any result \n");
 		PQclear(pgres);
 		return qres;
@@ -1853,6 +1848,14 @@ LIBPQ_execute_query(ConnectionClass *self,char *query)
 	}
 
 	mylog("LIBPQ_execute_query: rest types ...\n");
+
+	if (PQcmdTuples(pgres)[0])
+		qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
+	else if (self->connInfo.drivers.use_declarefetch)
+		qres->recent_processed_row_count = -1;
+	else
+		qres->recent_processed_row_count = PQntuples(pgres);
+	mylog("LIBPQ_execute_query: recent_processed_row_count = %i\n",qres->recent_processed_row_count);
 
 	qres=CC_mapping(self,pgres,qres);
 	QR_set_command(qres, query);
