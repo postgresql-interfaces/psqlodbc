@@ -163,14 +163,14 @@ echo "timestamp for $1" >`AS_DIRNAME([$1])`/stamp-h[]$_am_stamp_count])
 # ----------------------------
 # Automake X.Y traces this macro to ensure aclocal.m4 has been
 # generated from the m4 files accompanying Automake X.Y.
-AC_DEFUN([AM_AUTOMAKE_VERSION],[am__api_version="1.7"])
+AC_DEFUN([AM_AUTOMAKE_VERSION],[am__api_version="1.9"])
 
 # AM_SET_CURRENT_AUTOMAKE_VERSION
 # -------------------------------
 # Call AM_AUTOMAKE_VERSION so it can be traced.
 # This function is AC_REQUIREd by AC_INIT_AUTOMAKE.
 AC_DEFUN([AM_SET_CURRENT_AUTOMAKE_VERSION],
-	 [AM_AUTOMAKE_VERSION([1.7.3])])
+	 [AM_AUTOMAKE_VERSION([1.9.2])])
 
 # Helper functions for option handling.                    -*- Autoconf -*-
 
@@ -889,7 +889,7 @@ AC_DEFUN([AM_MAINTAINER_MODE],
 
 AU_DEFUN([jm_MAINTAINER_MODE], [AM_MAINTAINER_MODE])
 
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.2 2006/01/18 09:26:19 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.3 2006/01/26 05:38:22 h-saito Exp $
 
 # This file defines new macros to process configure command line
 # arguments, to replace the brain-dead AC_ARG_WITH and AC_ARG_ENABLE.
@@ -4647,7 +4647,7 @@ AC_MSG_RESULT([$SED])
 ])
 
 # Macros that test various C library quirks
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.2 2006/01/18 09:26:19 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Attic/aclocal.m4,v 1.1.2.3 2006/01/26 05:38:22 h-saito Exp $
 
 
 # PGAC_VAR_INT_TIMEZONE
