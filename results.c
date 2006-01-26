@@ -2717,7 +2717,7 @@ inolog("IndexExists index=%d(%d,%d)\n", rollback->index, rollback->blocknum, rol
 	return ret;
 }
 
-static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const Int4 *oid, const char *tid);
+static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const char *tid);
 static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 {
 	Int4	i, rollbp;
@@ -2926,7 +2926,7 @@ void	ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 #define	LATEST_TUPLE_LOAD	1L
 #define	USE_INSERTED_TID	(1L << 1)
 static QResultClass *
-positioned_load(StatementClass *stmt, UInt4 flag, const Int4 *oid, const char *tidval)
+positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const char *tidval)
 {
 	CSTR	func = "positioned_load";
 	CSTR	andqual = " and ";
@@ -2939,13 +2939,13 @@ positioned_load(StatementClass *stmt, UInt4 flag, const Int4 *oid, const char *t
 	const char *bestqual = GET_NAME(ti->bestqual);
 
 inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(ti->bestqual));
-	if (!bestitem || !oid)
+	if (!bestitem || !oidint)
 		*oideqstr = '\0';
 	else
 	{
 		/*snprintf(oideqstr, sizeof(oideqstr), " and \"%s\" = %u", bestitem, oid);*/
 		strcpy(oideqstr, andqual);
-		sprintf(oideqstr + strlen(andqual), bestqual, *oid);
+		sprintf(oideqstr + strlen(andqual), bestqual, *oidint);
 	}
 	len = strlen(stmt->load_statement);
 	len += strlen(oideqstr);
@@ -2972,13 +2972,13 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	}
 	else if ((flag & USE_INSERTED_TID) != 0)
 		snprintf(selstr, len, "%s where ctid = currtid(0, '(,)') %s", stmt->load_statement, oideqstr);
-	else if (bestitem && oid)
+	else if (bestitem && oidint)
 	{
 		Int4	slen;
 		/*snprintf(selstr, len, "%s where \"%s\" = %u", stmt->load_statement, bestitem, *oid);*/
 		snprintf(selstr, len, "%s where ", stmt->load_statement);
 		slen = strlen(selstr);
-		snprintf(selstr + slen, len - slen, bestqual, *oid);
+		snprintf(selstr + slen, len - slen, bestqual, *oidint);
 	}
 	else
 	{
@@ -3000,7 +3000,7 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logK
 	int		res_cols;
 	UWORD		rcnt, offset;
 	Int4		res_ridx, kres_ridx;
-	UInt4		oid, blocknum;
+	UInt4		oidint, blocknum;
 	QResultClass	*res, *qres;
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
@@ -3044,7 +3044,7 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logK
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
 		return SQL_ERROR;
 	}
-	if (!(oid = getOid(res, kres_ridx)))
+	if (!(oidint = getOid(res, kres_ridx)))
 	{
 		if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
 		{
@@ -3055,7 +3055,7 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logK
 	getTid(res, kres_ridx, &blocknum, &offset);
 	sprintf(tidval, "(%u, %u)", blocknum, offset);
 	res_cols = getNumResultCols(res);
-	qres = positioned_load(stmt, use_ctid ? LATEST_TUPLE_LOAD : 0, &oid, use_ctid ? tidval : NULL);
+	qres = positioned_load(stmt, use_ctid ? LATEST_TUPLE_LOAD : 0, &oidint, use_ctid ? tidval : NULL);
 	if (!QR_command_maybe_successful(qres))
 	{
 		ret = SQL_ERROR;
@@ -3382,7 +3382,7 @@ SC_pos_reload_needed(StatementClass *stmt, UInt4 req_size, UDWORD flag)
 }
 
 RETCODE		SQL_API
-SC_pos_newload(StatementClass *stmt, const UInt4 *oid, BOOL tidRef)
+SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef)
 {
 	CSTR	func = "SC_pos_newload";
 	int			i;
@@ -3403,7 +3403,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oid, BOOL tidRef)
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
 		return SQL_ERROR;
 	}
-	qres = positioned_load(stmt, tidRef ? USE_INSERTED_TID : 0, oid, NULL);
+	qres = positioned_load(stmt, tidRef ? USE_INSERTED_TID : 0, oidint, NULL);
 	if (!qres || !QR_command_maybe_successful(qres))
 	{
 		SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "positioned_load in pos_newload failed", func);
