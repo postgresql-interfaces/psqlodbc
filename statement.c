@@ -71,6 +71,9 @@ static struct
 		STMT_TYPE_LOCK, "LOCK"
 	},
 	{
+		STMT_TYPE_BEGIN, "BEGIN"
+	},
+	{
 		0, NULL
 	}
 };
@@ -423,6 +426,16 @@ statement_type(const char *statement)
 		if (!strnicmp(statement, Statement_Type[i].s, strlen(Statement_Type[i].s)))
 			return Statement_Type[i].type;
 
+	/* determine START TRANSACTION */
+	if (!strnicmp(statement, "START", 5))
+	{
+		statement += 5;
+		/* ignore whitespace in query string */
+		while (*statement && isspace((UCHAR) *statement))
+			statement++;
+		if (!strnicmp(statement, "TRANSACTION", 11))
+			return STMT_TYPE_BEGIN;
+	}
 	return STMT_TYPE_OTHER;
 }
 
@@ -590,7 +603,8 @@ SC_recycle_statement(StatementClass *self)
 			 * transaction.
 			 */
 			conn = SC_get_conn(self);
-			if (!CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
+			if (CC_is_in_trans(conn) && !CC_is_in_autocommit(conn) && 
+			    !CC_is_in_manual_trans(conn))
 			{
 				if (SC_is_pre_executable(self) && !conn->connInfo.disallow_premature)
 					CC_abort(conn);
@@ -1147,7 +1161,7 @@ SC_execute(StatementClass *self)
 	QueryInfo	qi;
 	ConnInfo   *ci;
 	UDWORD		qflag = 0;
-	BOOL		auto_begin = FALSE, is_in_trans;
+	BOOL		is_in_trans;
 	int		func_cs_count = 0;
 
 
@@ -1174,17 +1188,16 @@ SC_execute(StatementClass *self)
 	is_in_trans = CC_is_in_trans(conn);
 	if (!self->internal && !is_in_trans &&
 		(SC_is_fetchcursor(self) ||
-		 (!CC_is_in_autocommit(conn) && self->statement_type != STMT_TYPE_OTHER)))
+		 (!CC_is_in_autocommit(conn) && self->statement_type != STMT_TYPE_BEGIN)))
 	{
 		mylog("   about to begin a transaction on statement = %u\n", self);
-		auto_begin = TRUE;
 		if (PG_VERSION_GE(conn, 7.1))
 			qflag |= GO_INTO_TRANSACTION;
-                else if (!CC_begin(conn))
-                {
+		else if (!CC_begin(conn))
+		{
 			SC_set_error(self, STMT_EXEC_ERROR, "Could not begin a transaction");
 			goto cleanup;
-                }
+		}
 	}
 
 	oldstatus = conn->status;
@@ -1288,8 +1301,10 @@ SC_execute(StatementClass *self)
 		/* issue "ABORT" when query aborted */
 		if (QR_get_aborted(res))
 		{
-			if (!self->internal)
+			if (!self->internal && CC_is_in_trans(conn) && CC_is_in_autocommit(conn) && !CC_is_in_manual_trans(conn))
 				CC_abort(conn);
+			else
+				QR_set_aborted(res, FALSE);
 		}
 		else
 		{
@@ -1335,7 +1350,7 @@ SC_execute(StatementClass *self)
 			SC_set_error(self, STMT_EXEC_ERROR, CC_get_errormsg(conn));
 		}
 
-		if (!self->internal)
+		if (!self->internal && CC_is_in_trans(conn) && CC_is_in_autocommit(conn) && !CC_is_in_manual_trans(conn))
 			CC_abort(conn);
 	}
 	if (!SC_get_Result(self))
