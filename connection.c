@@ -1933,8 +1933,8 @@ CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
 					break;
                 
 				default:
-					typlen = ci->drivers.max_longvarchar_size;
-            		}
+					typlen = ( ci->drivers.text_as_longvarchar ? ci->drivers.max_longvarchar_size : ci->drivers.max_varchar_size );
+			}
 		}	
         
 		mylog("%s: set field info: name = %s, typ = %i, typlen = %i, attypmod = %i\n", func, PQfname(pgres,i), typid, (Int2)typlen, atttypmod);
