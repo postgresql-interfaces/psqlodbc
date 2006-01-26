@@ -318,12 +318,12 @@ BEGIN
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.01.0105"
+            VALUE "FileVersion", "08.01.0108"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft® is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.01.0105"
+            VALUE "ProductVersion", "08.01.0108"
         END
     END
     BLOCK "VarFileInfo"
@@ -625,12 +625,12 @@ BEGIN
 #endif
             VALUE "CompanyName", "PostgreSQL Global Development Group"
             VALUE "FileDescription", "PostgreSQL Driver"
-            VALUE "FileVersion", "08.01.0105"
+            VALUE "FileVersion", "08.01.0108"
             VALUE "InternalName", "psqlodbc"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft® is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "psqlodbc.dll"
             VALUE "ProductName", "Microsoft Open Database Connectivity"
-            VALUE "ProductVersion", "08.01.0105"
+            VALUE "ProductVersion", "08.01.0108"
         END
     END
     BLOCK "VarFileInfo"
