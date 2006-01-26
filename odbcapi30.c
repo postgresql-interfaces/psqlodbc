@@ -422,20 +422,21 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 	switch (Attribute)
 	{
 		case SQL_ATTR_CONNECTION_POOLING:
-			switch ((SQLUINTEGER) Value)
+			if (Value == (PTR) SQL_CP_OFF)
 			{
-			 	case SQL_CP_OFF:
-					EN_unset_pooling(env);
-					ret = SQL_SUCCESS;
-					break;
+				EN_unset_pooling(env);
+				ret = SQL_SUCCESS;
+			}
 #if defined(WIN_MULTITHREAD_SUPPORT) || defined(POSIX_MULTITHREAD_SUPPORT)
-				case SQL_CP_ONE_PER_DRIVER:
-					EN_set_pooling(env);
-					ret = SQL_SUCCESS;
-					break;
+			else if (Value == (PTR) SQL_CP_ONE_PER_DRIVER)
+			{
+				EN_set_pooling(env);
+				ret = SQL_SUCCESS;
+			}
 #endif /* WIN_MULTITHREAD_SUPPORT */
-				default:
-					ret = SQL_SUCCESS_WITH_INFO;
+			else
+			{
+				ret = SQL_SUCCESS_WITH_INFO;
 			}
 			break;
 		case SQL_ATTR_CP_MATCH:
@@ -443,14 +444,14 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 			ret = SQL_SUCCESS;
 			break;
 		case SQL_ATTR_ODBC_VERSION:
-			if ((SQLUINTEGER) Value == SQL_OV_ODBC2)
+			if (Value == (PTR) SQL_OV_ODBC2)
 				EN_set_odbc2(env);
 			else
 				EN_set_odbc3(env);
 			ret = SQL_SUCCESS;
 			break;
 		case SQL_ATTR_OUTPUT_NTS:
-			if ((SQLUINTEGER) Value == SQL_TRUE)
+			if (Value == (PTR) SQL_TRUE)
 				ret = SQL_SUCCESS;
 			else
 				ret = SQL_SUCCESS_WITH_INFO;

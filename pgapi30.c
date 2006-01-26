@@ -475,7 +475,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_ARRAY_SIZE:
-			opts->size_of_rowset = (SQLUINTEGER) Value;
+			opts->size_of_rowset = (SQLUINTEGER) ((unsigned long) Value);
 			return ret;
 		case SQL_DESC_ARRAY_STATUS_PTR:
 			opts->row_operation_ptr = Value;
@@ -484,10 +484,10 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->row_offset_ptr = Value;
 			return ret;
 		case SQL_DESC_BIND_TYPE:
-			opts->bind_size = (SQLUINTEGER) Value;
+			opts->bind_size = (SQLUINTEGER) ((unsigned long) Value);
 			return ret;
 		case SQL_DESC_COUNT:
-			column_bindings_set(opts, (SQLUINTEGER) Value, FALSE);
+			column_bindings_set(opts, (SQLUINTEGER) ((unsigned long) Value), FALSE);
 			return ret;
 
 		case SQL_DESC_TYPE:
@@ -532,7 +532,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	{
 		case SQL_DESC_TYPE:
 			reset_a_column_binding(opts, RecNumber);
-			opts->bindings[row_idx].returntype = (Int4) Value;
+			opts->bindings[row_idx].returntype = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
 			switch (opts->bindings[row_idx].returntype)
@@ -541,7 +541,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				case SQL_C_TYPE_DATE:
 				case SQL_C_TYPE_TIME:
 				case SQL_C_TYPE_TIMESTAMP:
-				switch ((Int4) Value)
+				switch ((Int4) ((long) Value))
 				{
 					case SQL_CODE_DATE:
 						opts->bindings[row_idx].returntype = SQL_C_TYPE_DATE;
@@ -557,7 +557,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_CONCISE_TYPE:
-			opts->bindings[row_idx].returntype = (Int4) Value;
+			opts->bindings[row_idx].returntype = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_DATA_PTR:
 			opts->bindings[row_idx].buffer = Value;
@@ -574,13 +574,13 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->bindings[row_idx].used = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
-			opts->bindings[row_idx].buflen = (Int4) Value;
+			opts->bindings[row_idx].buflen = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_PRECISION:
-			opts->bindings[row_idx].precision = (Int2)((Int4) Value);
+			opts->bindings[row_idx].precision = (Int2)((long) Value);
 			break;
 		case SQL_DESC_SCALE:
-			opts->bindings[row_idx].scale = (Int4) Value;
+			opts->bindings[row_idx].scale = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
@@ -650,7 +650,7 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_ARRAY_SIZE:
-			opts->paramset_size = (SQLUINTEGER) Value;
+			opts->paramset_size = (SQLUINTEGER) ((unsigned long) Value);
 			return ret;
 		case SQL_DESC_ARRAY_STATUS_PTR:
 			opts->param_operation_ptr = Value;
@@ -659,10 +659,10 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->param_offset_ptr = Value;
 			return ret;
 		case SQL_DESC_BIND_TYPE:
-			opts->param_bind_type = (SQLUINTEGER) Value;
+			opts->param_bind_type = (SQLUINTEGER) ((unsigned long) Value);
 			return ret;
 		case SQL_DESC_COUNT:
-			parameter_bindings_set(opts, (SQLUINTEGER) Value, FALSE);
+			parameter_bindings_set(opts, (SQLUINTEGER) ((unsigned long) Value), FALSE);
 			return ret;
 
 		case SQL_DESC_TYPE:
@@ -682,7 +682,7 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	{
 		case SQL_DESC_TYPE:
 			reset_a_parameter_binding(opts, RecNumber);
-			opts->parameters[para_idx].CType = (Int4) Value;
+			opts->parameters[para_idx].CType = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
 			switch (opts->parameters[para_idx].CType)
@@ -691,7 +691,7 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				case SQL_C_TYPE_DATE:
 				case SQL_C_TYPE_TIME:
 				case SQL_C_TYPE_TIMESTAMP:
-				switch ((Int4) Value)
+				switch ((Int4) ((long) Value))
 				{
 					case SQL_CODE_DATE:
 						opts->parameters[para_idx].CType = SQL_C_TYPE_DATE;
@@ -707,7 +707,7 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_CONCISE_TYPE:
-			opts->parameters[para_idx].CType = (Int4) Value;
+			opts->parameters[para_idx].CType = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_DATA_PTR:
 			opts->parameters[para_idx].buffer = Value;
@@ -720,16 +720,16 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_OCTET_LENGTH:
-			opts->parameters[para_idx].buflen = (Int4) Value;
+			opts->parameters[para_idx].buflen = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
 			opts->parameters[para_idx].used = Value;
 			break;
 		case SQL_DESC_PRECISION:
-			opts->parameters[para_idx].precision = (Int2) ((Int4) Value);
+			opts->parameters[para_idx].precision = (Int2) ((long) Value);
 			break;
 		case SQL_DESC_SCALE:
-			opts->parameters[para_idx].scale = (Int2) ((Int4) Value);
+			opts->parameters[para_idx].scale = (Int2) ((long) Value);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
@@ -815,7 +815,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ipdopts->param_processed_ptr = (UInt4 *) Value;
 			return ret;
 		case SQL_DESC_UNNAMED: /* only SQL_UNNAMED is allowed */
-			if (SQL_UNNAMED !=  (SQLUINTEGER) Value)
+			if (SQL_UNNAMED !=  (SQLUINTEGER) ((unsigned long) Value))
 			{
 				ret = SQL_ERROR;
 				DC_set_error(desc, STMT_INVALID_DESCRIPTOR_IDENTIFIER,
@@ -823,7 +823,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			}
 			return ret;
 		case SQL_DESC_COUNT:
-			parameter_ibindings_set(ipdopts, (SQLUINTEGER) Value, FALSE);
+			parameter_ibindings_set(ipdopts, (SQLUINTEGER) ((unsigned long) Value), FALSE);
 			return ret;
 		case SQL_DESC_TYPE:
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
@@ -842,7 +842,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	{
 		case SQL_DESC_TYPE:
 			reset_a_iparameter_binding(ipdopts, RecNumber);
-			ipdopts->parameters[para_idx].SQLType = (Int4) Value;
+			ipdopts->parameters[para_idx].SQLType = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
 			switch (ipdopts->parameters[para_idx].SQLType)
@@ -851,7 +851,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				case SQL_TYPE_DATE:
 				case SQL_TYPE_TIME:
 				case SQL_TYPE_TIMESTAMP:
-				switch ((Int4) Value)
+				switch ((Int4) ((long) Value))
 				{
 					case SQL_CODE_DATE:
 						ipdopts->parameters[para_idx].SQLType = SQL_TYPE_DATE;
@@ -867,13 +867,13 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_CONCISE_TYPE:
-			ipdopts->parameters[para_idx].SQLType = (Int4) Value;
+			ipdopts->parameters[para_idx].SQLType = (Int4) ((long) Value);
 			break;
 		case SQL_DESC_PARAMETER_TYPE:
-			ipdopts->parameters[para_idx].paramType = (Int2) ((Int4) Value);
+			ipdopts->parameters[para_idx].paramType = (Int2) ((long) Value);
 			break;
 		case SQL_DESC_SCALE:
-			ipdopts->parameters[para_idx].decimal_digits = (Int2) ((Int4) Value);
+			ipdopts->parameters[para_idx].decimal_digits = (Int2) ((long) Value);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
@@ -1541,12 +1541,12 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	{
 #if (ODBCVER >= 0x0351)
 		case SQL_ATTR_ANSI_APP:
-			if ((SQLUINTEGER)Value == SQL_AA_TRUE)
+			if (Value == (PTR) SQL_AA_TRUE)
 				conn->unicode = 0;
 			break;
 #endif
 		case SQL_ATTR_METADATA_ID:
-			conn->stmtOptions.metadata_id = (SQLUINTEGER) Value;
+			conn->stmtOptions.metadata_id = (SQLUINTEGER) ((unsigned long) Value);
 			break;
 		case SQL_ATTR_ASYNC_ENABLE:
 		case SQL_ATTR_AUTO_IPD:
@@ -1556,7 +1556,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			CC_set_error(conn, STMT_OPTION_NOT_FOR_THE_DRIVER, "Unsupported connect attribute (Set)");
 			return SQL_ERROR;
 		default:
-			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, (UDWORD) Value);
+			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, (UDWORD) ((unsigned long) Value));
 	}
 	return ret;
 }
@@ -1693,10 +1693,10 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			return SQL_ERROR;
 
 		case SQL_ATTR_METADATA_ID:		/* 10014 */
-			stmt->options.metadata_id = (SQLUINTEGER) Value;
+			stmt->options.metadata_id = (SQLUINTEGER) ((unsigned long) Value);
 			break;
 		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
-			if (SQL_NULL_HDESC == Value)
+			if ((PTR) SQL_NULL_HDESC == Value)
 			{
 				stmt->ard = &(stmt->ardi);
 			}
@@ -1706,7 +1706,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			}
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
-			if (SQL_NULL_HDESC == Value)
+			if ((PTR) SQL_NULL_HDESC == Value)
 			{
 				stmt->apd = &(stmt->apdi);
 			}
@@ -1722,7 +1722,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_APDF(stmt)->param_offset_ptr = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
-			SC_get_APDF(stmt)->param_bind_type = (SQLUINTEGER) Value;
+			SC_get_APDF(stmt)->param_bind_type = (SQLUINTEGER) ((unsigned long) Value);
 			break;
 		case SQL_ATTR_PARAM_OPERATION_PTR:		/* 19 */
 			SC_get_APDF(stmt)->param_operation_ptr = Value;
@@ -1734,7 +1734,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_IPDF(stmt)->param_processed_ptr = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
-			SC_get_APDF(stmt)->paramset_size = (SQLUINTEGER) Value;
+			SC_get_APDF(stmt)->paramset_size = (SQLUINTEGER) ((unsigned long) Value);
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
 			SC_get_ARDF(stmt)->row_offset_ptr = (UInt4 *) Value;
@@ -1749,10 +1749,10 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_IRDF(stmt)->rowsFetched = (UInt4 *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			SC_get_ARDF(stmt)->size_of_rowset = (SQLUINTEGER) Value;
+			SC_get_ARDF(stmt)->size_of_rowset = (SQLUINTEGER) ((unsigned long) Value);
 			break;
 		default:
-			return PGAPI_SetStmtOption(StatementHandle, (UWORD) Attribute, (UDWORD) Value);
+			return PGAPI_SetStmtOption(StatementHandle, (UWORD) Attribute, (UDWORD) ((unsigned long) Value));
 	}
 	return SQL_SUCCESS;
 }
