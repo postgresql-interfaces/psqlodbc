@@ -207,7 +207,7 @@ RETCODE  SQL_API SQLDataSourcesW(HENV EnvironmentHandle,
 RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
            SQLUSMALLINT ColumnNumber, SQLWCHAR *ColumnName,
            SQLSMALLINT BufferLength, SQLSMALLINT *NameLength,
-           SQLSMALLINT *DataType, SQLUINTEGER *ColumnSize,
+           SQLSMALLINT *DataType, SQLULEN *ColumnSize,
            SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable)
 {
 	CSTR func = "SQLDescribeColW";

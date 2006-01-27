@@ -72,9 +72,9 @@ inolog("OutputHandle=%x\n", *OutputHandle);
 RETCODE		SQL_API
 SQLBindParam(HSTMT StatementHandle,
 			 SQLUSMALLINT ParameterNumber, SQLSMALLINT ValueType,
-			 SQLSMALLINT ParameterType, SQLUINTEGER LengthPrecision,
+			 SQLSMALLINT ParameterType, SQLULEN LengthPrecision,
 			 SQLSMALLINT ParameterScale, PTR ParameterValue,
-			 SQLINTEGER *StrLen_or_Ind)
+			 SQLLEN *StrLen_or_Ind)
 {
 	CSTR	func = "SQLBindParam";
 	RETCODE			ret;
@@ -190,7 +190,7 @@ SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 /*	SQLExtendedFetch -> SQLFetchScroll */
 RETCODE		SQL_API
 SQLFetchScroll(HSTMT StatementHandle,
-			   SQLSMALLINT FetchOrientation, SQLINTEGER FetchOffset)
+			   SQLSMALLINT FetchOrientation, SQLLEN FetchOffset)
 {
 	CSTR func = "SQLFetchScroll";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -281,7 +281,7 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLCHAR *Name,
 			  SQLSMALLINT BufferLength, SQLSMALLINT *StringLength,
 			  SQLSMALLINT *Type, SQLSMALLINT *SubType,
-			  SQLINTEGER *Length, SQLSMALLINT *Precision,
+			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
 	mylog("[[SQLGetDescRec]]\n");
@@ -427,10 +427,10 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 RETCODE		SQL_API
 SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLSMALLINT Type,
-			  SQLSMALLINT SubType, SQLINTEGER Length,
+			  SQLSMALLINT SubType, SQLLEN Length,
 			  SQLSMALLINT Precision, SQLSMALLINT Scale,
-			  PTR Data, SQLINTEGER *StringLength,
-			  SQLINTEGER *Indicator)
+			  PTR Data, SQLLEN *StringLength,
+			  SQLLEN *Indicator)
 {
 	CSTR func = "SQLSetDescRec";
 

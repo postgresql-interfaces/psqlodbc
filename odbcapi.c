@@ -268,7 +268,7 @@ RETCODE		SQL_API
 SQLDescribeCol(HSTMT StatementHandle,
 			   SQLUSMALLINT ColumnNumber, SQLCHAR *ColumnName,
 			   SQLSMALLINT BufferLength, SQLSMALLINT *NameLength,
-			   SQLSMALLINT *DataType, SQLUINTEGER *ColumnSize,
+			   SQLSMALLINT *DataType, SQLULEN *ColumnSize,
 			   SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable)
 {
 	RETCODE	ret;
@@ -479,8 +479,8 @@ SQLGetCursorName(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLGetData(HSTMT StatementHandle,
 		   SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
-		   PTR TargetValue, SQLINTEGER BufferLength,
-		   SQLINTEGER *StrLen_or_Ind)
+		   PTR TargetValue, SQLLEN BufferLength,
+		   SQLLEN *StrLen_or_Ind)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -649,7 +649,7 @@ SQLPrepare(HSTMT StatementHandle,
 
 RETCODE		SQL_API
 SQLPutData(HSTMT StatementHandle,
-		   PTR Data, SQLINTEGER StrLen_or_Ind)
+		   PTR Data, SQLLEN StrLen_or_Ind)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -665,7 +665,7 @@ SQLPutData(HSTMT StatementHandle,
 
 RETCODE		SQL_API
 SQLRowCount(HSTMT StatementHandle,
-			SQLINTEGER *RowCount)
+			SQLLEN *RowCount)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -683,7 +683,7 @@ SQLRowCount(HSTMT StatementHandle,
 #if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLSetConnectOption(HDBC ConnectionHandle,
-					SQLUSMALLINT Option, SQLUINTEGER Value)
+					SQLUSMALLINT Option, SQLULEN Value)
 {
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
@@ -717,9 +717,9 @@ SQLSetCursorName(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLSetParam(HSTMT StatementHandle,
 			SQLUSMALLINT ParameterNumber, SQLSMALLINT ValueType,
-			SQLSMALLINT ParameterType, SQLUINTEGER LengthPrecision,
+			SQLSMALLINT ParameterType, SQLULEN LengthPrecision,
 			SQLSMALLINT ParameterScale, PTR ParameterValue,
-			SQLINTEGER *StrLen_or_Ind)
+			SQLLEN *StrLen_or_Ind)
 {
 	mylog("[SQLSetParam]");
 	SC_clear_error((StatementClass *) StatementHandle);
@@ -735,7 +735,7 @@ SQLSetParam(HSTMT StatementHandle,
 #if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLSetStmtOption(HSTMT StatementHandle,
-				 SQLUSMALLINT Option, SQLUINTEGER Value)
+				 SQLUSMALLINT Option, SQLULEN Value)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -969,7 +969,7 @@ SQLColAttributes(
 				 PTR rgbDesc,
 				 SQLSMALLINT cbDescMax,
 				 SQLSMALLINT *pcbDesc,
-				 SQLINTEGER *pfDesc)
+				 SQLLEN *pfDesc)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -1072,7 +1072,7 @@ SQLDescribeParam(
 				 HSTMT hstmt,
 				 SQLUSMALLINT ipar,
 				 SQLSMALLINT *pfSqlType,
-				 SQLUINTEGER *pcbParamDef,
+				 SQLULEN *pcbParamDef,
 				 SQLSMALLINT *pibScale,
 				 SQLSMALLINT *pfNullable)
 {
@@ -1268,8 +1268,8 @@ SQLNumParams(
 RETCODE		SQL_API
 SQLParamOptions(
 				HSTMT hstmt,
-				SQLUINTEGER crow,
-				SQLUINTEGER *pirow)
+				SQLULEN crow,
+				SQLULEN *pirow)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -1592,11 +1592,11 @@ SQLBindParameter(
 				 SQLSMALLINT fParamType,
 				 SQLSMALLINT fCType,
 				 SQLSMALLINT fSqlType,
-				 SQLUINTEGER cbColDef,
+				 SQLULEN cbColDef,
 				 SQLSMALLINT ibScale,
 				 PTR rgbValue,
-				 SQLINTEGER cbValueMax,
-				 SQLINTEGER *pcbValue)
+				 SQLLEN cbValueMax,
+				 SQLLEN *pcbValue)
 {
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) hstmt;
