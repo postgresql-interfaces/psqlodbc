@@ -10,6 +10,22 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>The next release preparation psqlODBC 08.01.02xx</h2>
+<br>
+<li>Notes:psqlODBC 08.01.0107</li><br>
+1) fix next problem with calling implicit rollback in bad time
+2) detecting transaction commands into if branch which mean backend
+   successfuly done the command. add support for "start transaction"
+3) fix bug when mylog output can't be created
+4) fix problem with SQLSetPos
+5) fix problem with column length in CC_mapping
+6) fix - typelen could be less then zero not only -1
+<br>
+<li>Notes:psqlODBC 08.01.0106</li><br>
+1) fix problem with getting long text in unicode driver
+2) fix sqlstate iin case of error in statement
+3) doesn't call rollback in autocommit off or in manual transaction
+4) remove obsolete parameter protocol
+<br>
 <li>Notes:psqlODBC 08.01.0105</li><br>
 Changes:<br>
 1) fix problem with rollback aborted queries
