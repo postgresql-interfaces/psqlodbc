@@ -11,6 +11,14 @@
 <hr>
 <h2>The next release preparation psqlODBC 08.01.02xx</h2>
 <br>
+<li>Notes:psqlODBC 08.01.0108</li><br>
+1) fix most warnings during build in x86_64 environment
+2) fixed point of failure on x86_64 boxes
+3) fixed autocommit = off behaviour with starting transactions when needed
+4) quick hack againist access violation with Disallow premature - 
+   the feature is still broken
+5) report correct SQLSTATE in SQLGetDiagField and SQLGetDiagRec
+<br>
 <li>Notes:psqlODBC 08.01.0107</li><br>
 1) fix next problem with calling implicit rollback in bad time
 2) detecting transaction commands into if branch which mean backend
