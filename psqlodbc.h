@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.5 2006/01/26 06:30:39 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.82.2.6 2006/01/30 12:10:12 h-saito Exp $
  *
  */
 
@@ -34,7 +34,7 @@
 #pragma comment(lib, "ssleay32")
 // The followings works under VC++6.0 but doesn't work under VC++7.0.
 // Please add the equivalent linker options using command line etc.
-#if (_MSC_VER == 1200) // VC6.0
+#if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
 #pragma comment(linker, "/Delayload:libpq")
 #pragma comment(linker, "/Delayload:ssleay32")
 #endif /* _MSC_VER */
@@ -58,6 +58,11 @@
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
+#if (_MSC_VER == 1200)
+#define SQLLEN SQLINTEGER
+#define SQLULEN SQLUINTEGER
+#define SQLSETPOSIROW SQLUSMALLINT
+#endif
 #else
 #include "iodbc.h"
 #include "isql.h"

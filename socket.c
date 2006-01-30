@@ -93,11 +93,11 @@ SOCK_Destructor(SocketClass *self)
 			{
 				if (self->pqconn)
 					PQfinish(self->pqconn);
-#ifdef	WIN32
+#ifdef	DYNAMIC_LOAD
 				__FUnloadDelayLoadedDLL2("libpq.dll");
 				if (NULL != self->ssl)
 					__FUnloadDelayLoadedDLL2("ssleay32.dll");
-#endif	/* WIN32 */
+#endif	/* DYNAMIC_LOAD */
 			}
 			self->via_libpq = FALSE;
 			self->pqconn = NULL;
