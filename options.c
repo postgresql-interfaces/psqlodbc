@@ -314,7 +314,7 @@ set_statement_option(ConnectionClass *conn,
 RETCODE		SQL_API
 PGAPI_SetConnectOption(HDBC hdbc,
 			SQLUSMALLINT fOption, 
-			SQLUINTEGER vParam)
+			SQLPOINTER vParam)
 {
 	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -322,7 +322,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 	RETCODE		retval;
 	int			i;
 
-	mylog("%s: entering fOption = %d vParam = %d\n", func, fOption, vParam);
+	mylog("%s: entering fOption = %d vParam = %d\n", func, fOption, (unsigned long) vParam);
 	if (!conn)
 	{
 		CC_log_error(func, "", NULL);
@@ -353,14 +353,14 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			for (i = 0; i < conn->num_stmts; i++)
 			{
 				if (conn->stmts[i])
-					set_statement_option(NULL, conn->stmts[i], fOption, vParam);
+					set_statement_option(NULL, conn->stmts[i], fOption, (UDWORD) ((unsigned long) vParam));
 			}
 
 			/*
 			 * Become the default for all future statements on this
 			 * connection
 			 */
-			retval = set_statement_option(conn, NULL, fOption, vParam);
+			retval = set_statement_option(conn, NULL, fOption, (UDWORD) ((unsigned long) vParam));
 
 			if (retval == SQL_SUCCESS_WITH_INFO)
 				changed = TRUE;
@@ -377,16 +377,16 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			break;
 
 		case SQL_AUTOCOMMIT:
-			if (vParam == SQL_AUTOCOMMIT_ON && CC_is_in_autocommit(conn))
+			if (vParam == (SQLPOINTER) SQL_AUTOCOMMIT_ON && CC_is_in_autocommit(conn))
 				break;
-			else if (vParam == SQL_AUTOCOMMIT_OFF && !CC_is_in_autocommit(conn))
+			else if (vParam == (SQLPOINTER) SQL_AUTOCOMMIT_OFF && !CC_is_in_autocommit(conn))
 				break;
 			if (CC_is_in_trans(conn))
 				CC_commit(conn);
 
 			mylog("PGAPI_SetConnectOption: AUTOCOMMIT: transact_status=%d, vparam=%d\n", conn->transact_status, vParam);
 
-			switch (vParam)
+			switch ((unsigned long) vParam)
 			{
 				case SQL_AUTOCOMMIT_OFF:
 					CC_set_autocommit_off(conn);
@@ -423,9 +423,9 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				CC_log_error(func, "", conn);
 				return SQL_ERROR;
 			}
-			if (conn->isolation == vParam)
+			if (conn->isolation == (unsigned long) vParam)
 				break; 
-			switch (vParam)
+			switch ((unsigned long) vParam)
 			{
 				case SQL_TXN_SERIALIZABLE:
 					if (PG_VERSION_GE(conn, 6.5) &&
@@ -450,7 +450,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				char *query;
 				QResultClass *res;
 
-				if (vParam == SQL_TXN_SERIALIZABLE)
+				if (vParam == (SQLPOINTER) SQL_TXN_SERIALIZABLE)
 					query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE";
 				else
 					query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
@@ -458,7 +458,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				if (!res || !QR_command_maybe_successful(res))
 					retval = SQL_ERROR;
 				else
-					conn->isolation = vParam;
+					conn->isolation = (SQLUINTEGER) ((unsigned long) vParam);
 				if (res)
 					QR_Destructor(res);
 				if (SQL_ERROR == retval)
@@ -483,7 +483,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				char		option[64];
 
 				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)");
-				sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
+				sprintf(option, "fOption=%d, vParam=%ld", fOption, (unsigned long) vParam);
 				if (fOption == 30002 && vParam)
 				{
 					int	cmp;

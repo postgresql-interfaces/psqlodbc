@@ -3020,7 +3020,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	if (SQL_ERROR == ret)
 		CC_abort(conn);
 	if (s->auto_commit_needed)
-		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
+		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_ON);
 	if (s->irow > 0)
 	{
 		if (SQL_ADD != s->fOption && s->ridx >= 0) /* for SQLGetData */
@@ -3126,7 +3126,7 @@ PGAPI_SetPos(
 		case SQL_DELETE:
 		case SQL_ADD:
 			if (s.auto_commit_needed = CC_is_in_autocommit(conn), s.auto_commit_needed)
-				PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF);
+				PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF);
 			break;
 	}
 #endif   /* DRIVER_CURSOR_IMPLEMENT */
@@ -3187,7 +3187,7 @@ PGAPI_SetPos(
 	if (SQL_ERROR == ret)
 		CC_abort(conn);
 	if (auto_commit_needed)
-		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
+		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_ON);
 	if (irow > 0)
 	{
 		if (SQL_ADD != fOption && ridx >= 0) /* for SQLGetData */

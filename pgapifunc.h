@@ -143,7 +143,7 @@ RETCODE SQL_API PGAPI_RowCount(HSTMT hstmt,
 				SQLINTEGER *pcrow);
 RETCODE SQL_API PGAPI_SetConnectOption(HDBC hdbc,
 					SQLUSMALLINT fOption, 
-					SQLUINTEGER vParam);
+					SQLPOINTER vParam);
 RETCODE SQL_API PGAPI_SetCursorName(HSTMT StatementHandle,
 					SQLCHAR *CursorName, SQLSMALLINT NameLength);
 RETCODE SQL_API PGAPI_SetParam(HSTMT StatementHandle,

@@ -1556,7 +1556,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			CC_set_error(conn, STMT_OPTION_NOT_FOR_THE_DRIVER, "Unsupported connect attribute (Set)");
 			return SQL_ERROR;
 		default:
-			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, (UDWORD) ((unsigned long) Value));
+			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, Value);
 	}
 	return ret;
 }
@@ -1833,7 +1833,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	}
 	conn = SC_get_conn(s->stmt);
 	if (s->auto_commit_needed)
-		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
+		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_ON);
 	irdflds = SC_get_IRDF(s->stmt);
 	if (irdflds->rowsFetched)
 		*(irdflds->rowsFetched) = s->processed;
@@ -1863,7 +1863,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	{
 		conn = SC_get_conn(s.stmt);
 		if (s.auto_commit_needed = (char) CC_is_in_autocommit(conn), s.auto_commit_needed)
-			PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF);
+			PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF);
 	}
 	if (SQL_ADD != s.operation)
 	{
