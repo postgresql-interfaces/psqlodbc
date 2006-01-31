@@ -3,7 +3,7 @@
 if NOT "%1"=="" SET VERSION="%1"
 if NOT "%1"=="" GOTO GOT_VERSION
 
-SET VERSION="08.02.0200"
+SET VERSION="08.01.0200"
 
 echo.
 echo Version not specified - defaulting to %VERSION%
