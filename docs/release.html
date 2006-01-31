@@ -9,39 +9,40 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>The next release preparation psqlODBC 08.01.02xx</h2>
+<h2>psqlODBC 08.01.0200 Release</h2>
 <br>
-<li>Notes:psqlODBC 08.01.0108</li><br>
-1) fix most warnings during build in x86_64 environment
-2) fixed point of failure on x86_64 boxes
-3) fixed autocommit = off behaviour with starting transactions when needed
+<li>Notes: psqlODBC 08.01.0108</li><br>
+1) fix most warnings during build in x86_64 environment<br>
+2) fixed point of failure on x86_64 boxes<br>
+3) fixed autocommit = off behaviour with starting transactions when needed<br>
 4) quick hack againist access violation with Disallow premature - 
-   the feature is still broken
-5) report correct SQLSTATE in SQLGetDiagField and SQLGetDiagRec
+   the feature is still broken for multiple query query strings 
+   (ie. "SELECT a FROM foo; SELECT b FROM bar")<br>
+5) report correct SQLSTATE in SQLGetDiagField and SQLGetDiagRec<br>
 <br>
-<li>Notes:psqlODBC 08.01.0107</li><br>
-1) fix next problem with calling implicit rollback in bad time
+<li>Notes: psqlODBC 08.01.0107</li><br>
+1) fix next problem with calling implicit rollback in bad time<br>
 2) detecting transaction commands into if branch which mean backend
-   successfuly done the command. add support for "start transaction"
-3) fix bug when mylog output can't be created
-4) fix problem with SQLSetPos
-5) fix problem with column length in CC_mapping
-6) fix - typelen could be less then zero not only -1
+   successfuly done the command. add support for "start transaction"<br>
+3) fix bug when mylog output can't be created<br>
+4) fix problem with SQLSetPos<br>
+5) fix problem with column length in CC_mapping<br>
+6) fix - typelen could be less then zero not only -1<br>
 <br>
-<li>Notes:psqlODBC 08.01.0106</li><br>
-1) fix problem with getting long text in unicode driver
-2) fix sqlstate iin case of error in statement
-3) doesn't call rollback in autocommit off or in manual transaction
-4) remove obsolete parameter protocol
+<li>Notes: psqlODBC 08.01.0106</li><br>
+1) fix problem with getting long text in unicode driver<br>
+2) fix sqlstate iin case of error in statement<br>
+3) doesn't call rollback in autocommit off or in manual transaction<br>
+4) remove obsolete parameter protocol<br>
 <br>
-<li>Notes:psqlODBC 08.01.0105</li><br>
+<li>Notes: psqlODBC 08.01.0105</li><br>
 Changes:<br>
-1) fix problem with rollback aborted queries
-2) SQLColumns or SQLColAttribute may return bad answer when Show system tables is turned off
-3) adds support for ; delimited options in ConfigDSN
-4) fixes problem with binding parameters and SQLCancel without SQLFreeStmt
+1) fix problem with rollback aborted queries<br>
+2) SQLColumns or SQLColAttribute may return bad answer when Show system tables is turned off<br>
+3) adds support for ; delimited options in ConfigDSN<br>
+4) fixes problem with binding parameters and SQLCancel without SQLFreeStmt<br>
 <br>
-<li>Notes:psqlODBC 08.01.0104</li><br>
+<li>Notes: psqlODBC 08.01.0104</li><br>
 Changes:<br>
 1) add commit after set basic options in SQLDriverConnect when autocommit is turned off<br>
 2) driver doesn't fail when there isn't bind enough parameters<br>
@@ -51,7 +52,7 @@ Changes:<br>
 5) grow MAXKEYLEN for SQLConfigDataSource<br>
 6) repair behaviour of more queries in one statement<br>
 <br>
-<li>Notes:psqlODBC 08.01.0103</li><br>
+<li>Notes: psqlODBC 08.01.0103</li><br>
 Changes:<br>
 1) RowCount problem in SELECT - but Dave announce it doesn't work in VB6<br>
 2) Server side prepare - but only first run in allocated statement<br>
@@ -60,7 +61,7 @@ Changes:<br>
 4) Binding parameters are now freed in SQLCancel<br>
 5) Skip fetching data for commands<br>
 <br>
-<li>Notes:psqlODBC 08.01.0102</li><br>
+<li>Notes: psqlODBC 08.01.0102</li><br>
 Changes:<br>
 1) Server side prepare now works correctly.<br>
 2) A bug in SQLTables that shows up in Borland SQL Explorer in<br>
@@ -83,7 +84,7 @@ So, starting with the next stable release, we will have:<br>
 08.01.0300 - Stable<br>
 Of course, we won't necessarily have 99 snaphosts between stable releases!<br>
 <br>
-<li>Notes:psqlODBC 08.01.0101</li><br>
+<li>Notes: psqlODBC 08.01.0101</li><br>
 Changes:<br>
 This release fixes a serious problem in non-declare/fetch mode where<br>
 recordsets over the configured declare/fetch cache size were returned<br>
@@ -114,7 +115,7 @@ I'd like to take this opportunity to thank all those involved with the<br>
 development, testing and bug fixing of the updated driver.<br>
 PostgreSQL Core Team<br>
 <br>
-<li>Notes:psqlODBC 08.00.0102</li><br>
+<li>Notes: psqlODBC 08.00.0102</li><br>
 This is a bug fix release<br>
 of the pre-libpq version of the driver, specifically to fix a bug<br>
 affecting Unix users<br>
@@ -126,18 +127,18 @@ and msi installer for Windows.<br>
 <br>
 Regards, Dave.<br>
 <br>
-<li>Notes:psqlODBC 08.00.0005</li><br>
+<li>Notes: psqlODBC 08.00.0005</li><br>
 This version<br>
 contains a some recent fixes, and is packaged in a new installer built<br>
 entirely using open source tools (specifically, the Wix toolkit).<br>
 <br>
-<li>Notes:psqlODBC 08.00.0002</li><br>
+<li>Notes: psqlODBC 08.00.0002</li><br>
 This version of the driver is a minor update<br>
 with a fix to the string sizing code in SQLGetInfo, and removal of the<br>
 need for tables to be in the search path or public schema for them to be<br>
 returned by SQLTables.<br>
 <br>
-<li>Notes:psqlODBC 08.00.0001</li><br>
+<li>Notes: psqlODBC 08.00.0001</li><br>
 The purpose of this version is to try to get something stable, with<br>
 proper schema/without OID support ready for the 8.0 release<br>
 (particularly the win32 release). To that end, this release is mainly a<br>
