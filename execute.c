@@ -256,7 +256,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 			return SQL_ERROR;
 		}
 		SC_set_Result(stmt, res);
-		for (curres = res; !curres->num_fields; curres = curres->next)
+		for (curres = res; curres && !curres->num_fields; curres = curres->next)
 			;
 		SC_set_Curres(stmt, curres);
 		if (CC_is_in_autocommit(conn))
