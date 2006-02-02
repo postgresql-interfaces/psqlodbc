@@ -45,6 +45,22 @@ PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.1\lib\ms
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
+!IF EXIST("$(PG_LIB)/libssl32.dll")
+SSL_DLL = "\"libssl32.dll\""
+!ELSE
+SSL_DLL = "\"ssleay32.dll\""
+!ENDIF
+ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=$(SSL_DLL)"
+
+!IF "$(_NMAKE_VER)" == "6.00.9782.0"
+MSVC_VERSION=vc60
+VC07_DELAY_LOAD=
+!ELSE
+MSVC_VERSION=vc70
+VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DELAY:UNLOAD"
+ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
+!ENDIF
+
 !IF "$(MEMORY_DEBUG)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D "_MEMORY_DEBUG_"
 !ENDIF
@@ -100,7 +116,7 @@ CLEAN :
 	-@erase "$(INTDIR)\odbcapi30.obj"
 	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\loadlib.obj"
-	-@erase "$(INTDIR)\vc70.idb"
+	-@erase "$(INTDIR)\$(MSVC_VERSION).idb"
 	-@erase "$(OUTDIR)\psqlodbc35w.dll"
 	-@erase "$(OUTDIR)\psqlodbc.exp"
 	-@erase "$(OUTDIR)\psqlodbc.lib"
@@ -113,7 +129,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I $(PG_INC) /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I $(PG_INC) /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -155,7 +171,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 DEF_FILE= "psqlodbc_api30w.def"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /DelayLoad:libpq.dll /DelayLoad:ssleay32.dll /DELAY:UNLOAD /libpath:"$(PG_LIB)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" $(VC07_DELAY_LOAD) /libpath:"$(PG_LIB)"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
 	"$(INTDIR)\columninfo.obj" \
@@ -203,6 +219,10 @@ LINK32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "Unicode30Debug"
 
+OUTDIR=.\Unicode30Debug
+OUTDIRBIN=.\Unicode30Debug
+INTDIR=.\Unicode30Debug
+
 ALL : "$(OUTDIR)\psqlodbc35w.dll"
 
 
@@ -242,11 +262,11 @@ CLEAN :
 	-@erase "$(INTDIR)\odbcapi30.obj"
 	-@erase "$(INTDIR)\descriptor.obj"
 	-@erase "$(INTDIR)\loadlib.obj"
-	-@erase "$(INTDIR)\vc70.idb"
-	-@erase "$(INTDIR)\vc70.pdb"
+	-@erase "$(INTDIR)\$(MSVC_VERSION).idb"
+	-@erase "$(INTDIR)\$(MSVC_VERSION).pdb"
 	-@erase "$(OUTDIR)\psqlodbc35w.dll"
+	-@erase "$(OUTDIR)\psqlodbc35w.ilk"
 	-@erase "$(OUTDIR)\psqlodbc.exp"
-	-@erase "$(OUTDIR)\psqlodbc.ilk"
 	-@erase "$(OUTDIR)\psqlodbc.lib"
 	-@erase "$(OUTDIR)\psqlodbc.pdb"
 	-@erase "$(OUTDIR)\psqlodbc.pch"
@@ -258,7 +278,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I $(PG_INC) /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I $(PG_INC) /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -300,7 +320,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 DEF_FILE= "psqlodbc_api30w.def"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept /DelayLoad:libpq.dll /DelayLoad:ssleay32.dll /DELAY:UNLOAD /libpath:"$(PG_LIB)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept $(VC07_DELAY_LOAD) /libpath:"$(PG_LIB)"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
 	"$(INTDIR)\columninfo.obj" \
@@ -314,7 +334,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\info.obj" \
 	"$(INTDIR)\info30.obj" \
 	"$(INTDIR)\lobj.obj" \
-	"$(INTDIR)\win_md5.obj"
+	"$(INTDIR)\win_md5.obj" \
 	"$(INTDIR)\misc.obj" \
 	"$(INTDIR)\mylog.obj" \
 	"$(INTDIR)\pgapi30.obj" \

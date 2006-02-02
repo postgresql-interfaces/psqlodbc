@@ -16,32 +16,10 @@
 #include "columninfo.h"
 #include "tuple.h"
 
-#ifdef	DYNAMIC_LOAD /* NOT_USED */
-enum QueryResultCode_
-{
-	PGRES_EMPTY_QUERY = 0,
-	PGRES_COMMAND_OK,			/* a query command that doesn't return */
-	/* anything was executed properly by the backend */
-	PGRES_TUPLES_OK,			/* a query command that returns tuples */
-	/* was executed properly by the backend, PGresult */
-	/* contains the resulttuples */
-	PGRES_COPY_OUT,
-	PGRES_COPY_IN,
-	PGRES_BAD_RESPONSE,			/* an unexpected response was recv'd from
-								 * the backend */
-	PGRES_NONFATAL_ERROR,
-	PGRES_FATAL_ERROR,
-	PGRES_FIELDS_OK,			/* field information from a query was
-								 * successful */
-	PGRES_INTERNAL_ERROR
-};
-typedef enum QueryResultCode_ QueryResultCode;
-#else
 #include	<libpq-fe.h>
 typedef ExecStatusType QueryResultCode;
 #define	PGRES_FIELDS_OK		100
 #define	PGRES_INTERNAL_ERROR	(PGRES_FIELDS_OK + 1)
-#endif /* DYNAMIC_LOAD */
 
 enum
 {

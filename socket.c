@@ -21,6 +21,14 @@
 #include <string.h>				/* for memset */
 #endif /* WIN32 */
 
+/*
+ * Openssl Library nmake defined
+ * ssleay32.dll is vc make, libssl32.dll is mingw make.
+ */
+#ifndef SSL_DLL
+#define SSL_DLL "ssleay32.dll"
+#endif
+
 extern GLOBAL_VALUES globals;
 
 #define	SOCK_set_error(s, _no, _msg)	(s->errornumber = _no, s->errormsg = _msg, mylog("socket error=%d %s\n", _no, _msg))
@@ -93,11 +101,11 @@ SOCK_Destructor(SocketClass *self)
 			{
 				if (self->pqconn)
 					PQfinish(self->pqconn);
-#ifdef	DYNAMIC_LOAD
+#if (_MSC_VER > 1200) && defined(DYNAMIC_LOAD) 
 				__FUnloadDelayLoadedDLL2("libpq.dll");
 				if (NULL != self->ssl)
-					__FUnloadDelayLoadedDLL2("ssleay32.dll");
-#endif	/* DYNAMIC_LOAD */
+					__FUnloadDelayLoadedDLL2(SSL_DLL);
+#endif	/* VC7 DYNAMIC_LOAD */
 			}
 			self->via_libpq = FALSE;
 			self->pqconn = NULL;
