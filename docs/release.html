@@ -10,14 +10,15 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>psqlODBC 08.01.0200 Release</h2>
+<p>psqlODBC 08.01.0200 contains only documentation changes over the 08.01.0108
+development build.</p>
 <br>
 <li>Notes: psqlODBC 08.01.0108</li><br>
 1) fix most warnings during build in x86_64 environment<br>
 2) fixed point of failure on x86_64 boxes<br>
 3) fixed autocommit = off behaviour with starting transactions when needed<br>
 4) quick hack againist access violation with Disallow premature - 
-   the feature is still broken for multiple query query strings 
-   (ie. "SELECT a FROM foo; SELECT b FROM bar")<br>
+   this rarely used feature is still broken, but should no longer crash<br>
 5) report correct SQLSTATE in SQLGetDiagField and SQLGetDiagRec<br>
 <br>
 <li>Notes: psqlODBC 08.01.0107</li><br>
@@ -54,7 +55,7 @@ Changes:<br>
 <br>
 <li>Notes: psqlODBC 08.01.0103</li><br>
 Changes:<br>
-1) RowCount problem in SELECT - but Dave announce it doesn't work in VB6<br>
+1) RowCount problem in SELECT<br>
 2) Server side prepare - but only first run in allocated statement<br>
    (http://pgfoundry.org/tracker/index.php?func=detail&aid=1000460&group_id=1000125&atid=538)<br>
 3) Table names repeated in BDE with usedeclarefetch=1<br>
