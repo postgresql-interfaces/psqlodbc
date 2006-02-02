@@ -1492,12 +1492,10 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	mylog("%s: entering...\n", func);
 
-#ifdef	WIN32
-inolog("sslmode=%s\n", self->connInfo.sslmode);
+	mylog("sslmode=%s\n", self->connInfo.sslmode);
 	if (self->connInfo.sslmode[0] != 'd')
 		ret = LIBPQ_CC_connect(self, password_req, salt_para);
 	else
-#endif /* WIN32 */
 		ret = original_CC_connect(self, password_req, salt_para);
 	if (ret <= 0)
 		return ret;
