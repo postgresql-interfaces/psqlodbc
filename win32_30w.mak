@@ -46,11 +46,11 @@ PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.1\lib\ms
 !ENDIF
 
 !IF EXIST("$(PG_LIB)/libssl32.dll")
-SSL_DLL = "\"libssl32.dll\""
+SSL_DLL = "libssl32.dll"
 !ELSE
-SSL_DLL = "\"ssleay32.dll\""
+SSL_DLL = "ssleay32.dll"
 !ENDIF
-ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=$(SSL_DLL)"
+ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\""
 
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
 MSVC_VERSION=vc60
@@ -171,7 +171,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 DEF_FILE= "psqlodbc_api30w.def"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" $(VC07_DELAY_LOAD) /libpath:"$(PG_LIB)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
 	"$(INTDIR)\columninfo.obj" \
@@ -320,7 +320,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 DEF_FILE= "psqlodbc_api30w.def"
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept $(VC07_DELAY_LOAD) /libpath:"$(PG_LIB)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
 	"$(INTDIR)\columninfo.obj" \

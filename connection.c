@@ -3041,13 +3041,6 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	return 1;
 }
 
-#ifdef	DYNAMIC_LOAD
-enum {
-	CONNECTION_OK =	0
-	,CONNECTION_BAD
-};
-#endif /* DYNAMIC_LOAD */
-
 #ifdef WIN32
 extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
 #endif /* WIN32 */
@@ -3074,15 +3067,15 @@ inolog("sock=%x\n", sock);
 			goto cleanup1;
 		}
 	}
-	sock->via_libpq = TRUE;
 
 	if (!(conninfo = protocol3_opts_build(self)))
 	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "Could'nt allcate conninfo", func);
+		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
 		goto cleanup1;
 	}
 	pqconn = PQconnectdb(conninfo);
 	free(conninfo);
+	sock->via_libpq = TRUE;
 	if (!pqconn)
 	{
 		CC_set_error(self, CONN_OPENDB_ERROR, "PQconnectdb error", func);
