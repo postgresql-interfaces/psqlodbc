@@ -9,20 +9,18 @@
 #ifndef __LOADLIB_H__
 #define __LOADLIB_H__
 
-#include "connection.h"
-#ifndef	DYNAMIC_LOAD
-#include <libpq-fe.h>
-#include <openssl/ssl.h>
-#endif /* DYNAMIC_LOAD */
+#include "psqlodbc.h"
 
 #include <stdlib.h>
 #ifdef  __cplusplus
 extern "C" {
 #endif
 BOOL	LIBPQ_check(void);
+void	*CALL_PQconnectdb(const char *conninfo, BOOL *);
+void	UnloadDelayLoadedDLLs(BOOL);
 
 #ifdef	__cplusplus
 }
 #endif
-#endif /* __CONNECTION_H__ */
+#endif /* __LOADLIB_H__ */
 

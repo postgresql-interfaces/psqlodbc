@@ -3053,7 +3053,7 @@ LIBPQ_connect(ConnectionClass *self)
 	void		*pqconn = NULL;
 	SocketClass	*sock;
 	int	socket = -1, pqret;
-	static const char * const libarray[] = {"ssleay32", "libssl32", "libeay32"};
+	BOOL	libpqLoaded;
 
 	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
 	sock = self->sock;
@@ -3073,8 +3073,13 @@ inolog("sock=%x\n", sock);
 		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
 		goto cleanup1;
 	}
-	pqconn = PQconnectdb(conninfo);
+	pqconn = CALL_PQconnectdb(conninfo, &libpqLoaded);
 	free(conninfo);
+	if (!libpqLoaded)
+	{
+		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't load libpq library", func);
+		goto cleanup1;
+	}
 	sock->via_libpq = TRUE;
 	if (!pqconn)
 	{

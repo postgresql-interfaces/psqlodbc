@@ -52,12 +52,8 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_PASSWORD, ci->password);
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
 
-#ifdef DYNAMIC_LOAD
 	libpq_exist = LIBPQ_check();
 mylog("libpq_exist=%d\n", libpq_exist);
-#else
-	libpq_exist = TRUE;
-#endif
 	if (libpq_exist)
 		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
 	else

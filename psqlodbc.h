@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.6 2006/01/30 12:10:12 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.82.2.7 2006/02/06 14:34:10 hinoue Exp $
  *
  */
 
@@ -28,17 +28,6 @@
 
 #ifdef	WIN32
 #include <delayimp.h>
-#ifdef	_MSC_VER
-#pragma comment(lib, "Delayimp")
-#pragma comment(lib, "libpqdll")
-#pragma comment(lib, "ssleay32")
-// The followings works under VC++6.0 but doesn't work under VC++7.0.
-// Please add the equivalent linker options using command line etc.
-#if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
-#pragma comment(linker, "/Delayload:libpq")
-#pragma comment(linker, "/Delayload:ssleay32")
-#endif /* _MSC_VER */
-#endif /* _MSC_VER */
 #endif /* WIN32 */
 /* Must come before sql.h */
 #ifndef ODBCVER
@@ -58,11 +47,6 @@
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
-#if (_MSC_VER == 1200)
-#define SQLLEN SQLINTEGER
-#define SQLULEN SQLUINTEGER
-#define SQLSETPOSIROW SQLUSMALLINT
-#endif
 #else
 #include "iodbc.h"
 #include "isql.h"
@@ -78,17 +62,6 @@
 #else
 #include "gpps.h"
 #endif
-
-/*
-#undef SQLUINTEGER
-#undef SQLINTEGER
-#define	SQLLEN	SQLBIGINT
-#define SQLULEN SQLUBIGINT
-#define SQLSMALLINT SQLBIGINT
-#define SQLUSMALLINT SQLUBIGINT
-#define SQLINTEGER SQLBIGINT
-#define SQLUINTEGER SQLUBIGINT
-*/
 
 #include <libpq-fe.h>
 
@@ -152,11 +125,14 @@ typedef double SDOUBLE;
 #else
 #define DRIVER_ODBC_VER				"03.00"
 #endif /* ODBCVER 0x0351 */
+#ifndef DBMS_NAME
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL Unicode-3_51"
+/* #define DBMS_NAME				"PostgreSQL Unicode-3_51" */
+#define DBMS_NAME				"PostgreSQL35W"
 #else
 #define DBMS_NAME				"PostgreSQL"
 #endif /* UNICODE_SUPPORT */
+#endif /* DBMS_NAME */
 #else
 #define DRIVER_ODBC_VER				"02.50"
 #define DBMS_NAME				"PostgreSQL Legacy"

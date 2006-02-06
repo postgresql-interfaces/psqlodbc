@@ -120,7 +120,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			finalize_global_cs();
-mylog("DETACH PROCESS MSC_VER=%d\n", _MSC_VER);
+			mylog("DETACH PROCESS\n");
 			WSACleanup();
 			return TRUE;
 

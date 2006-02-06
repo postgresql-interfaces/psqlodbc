@@ -48,7 +48,7 @@ PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.1\lib\ms
 !IF EXIST("$(PG_LIB)/libssl32.dll")
 SSL_DLL = "libssl32.dll"
 !ELSE
-SSL_DLL = "ssleay32.dll"
+SSL_DLL = "SSLEAY32.dll"
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\""
 
