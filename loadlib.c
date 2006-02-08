@@ -115,11 +115,11 @@ void UnloadDelayLoadedDLLs(BOOL ssllibLoaded)
 
 	/* The dll names are case sensitive for the unload helper*/
 	success = __FUnloadDelayLoadedDLL2("LIBPQ.dll");
-	forcelog("libpq unload success=%d\n", success);
+	mylog("libpq unload success=%d\n", success);
 	if (ssllibLoaded)
 	{
 		success = __FUnloadDelayLoadedDLL2(SSL_DLL);
-		forcelog("sslib unload success=%d\n", success);
+		mylog("sslib unload success=%d\n", success);
 	}
 #endif  /* VC7 DELAYLOAD IMPORT */
 	return;
