@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.7 2006/02/06 14:34:10 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.82.2.8 2006/02/08 00:42:03 h-saito Exp $
  *
  */
 
@@ -47,6 +47,11 @@
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
+#if (_MSC_VER < 1300) /* In the case of below VC6 */
+#define SQLLEN SQLINTEGER 
+#define SQLULEN SQLUINTEGER
+#define SQLSETPOSIROW SQLUSMALLINT
+#endif
 #else
 #include "iodbc.h"
 #include "isql.h"
@@ -127,7 +132,6 @@ typedef double SDOUBLE;
 #endif /* ODBCVER 0x0351 */
 #ifndef DBMS_NAME
 #ifdef	UNICODE_SUPPORT
-/* #define DBMS_NAME				"PostgreSQL Unicode-3_51" */
 #define DBMS_NAME				"PostgreSQL35W"
 #else
 #define DBMS_NAME				"PostgreSQL"
