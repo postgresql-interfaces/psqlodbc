@@ -3041,9 +3041,6 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	return 1;
 }
 
-#ifdef WIN32
-extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
-#endif /* WIN32 */
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
