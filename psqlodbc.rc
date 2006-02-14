@@ -110,7 +110,7 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,123,132,117,10
     CONTROL         "CharとしてBoolsを扱う",DRV_BOOLS_CHAR,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,243,132,96,10
-    LTEXT           "キャッシュサイズ:",IDC_STATIC,21,189,39,8
+    LTEXT           "ｷｬｯｼｭｻｲｽﾞ:",IDC_STATIC,21,189,39,8
     EDITTEXT        DRV_CACHE_SIZE,69,187,35,12,ES_AUTOHSCROLL
     LTEXT           "最大&Varchar:",IDC_STATIC,13,167,54,8
     EDITTEXT        DRV_VARCHAR_SIZE,70,166,35,12,ES_AUTOHSCROLL
