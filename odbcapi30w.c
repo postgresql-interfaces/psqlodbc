@@ -87,7 +87,7 @@ RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
 		PTR		rgbValue,
 		SQLINTEGER	cbValue)
 {
-	CSTR func = "SQLGetConnectAttrW";
+	CSTR func = "SQLSetConnectAttrW";
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
