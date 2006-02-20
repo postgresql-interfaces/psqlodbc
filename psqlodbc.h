@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.82.2.8 2006/02/08 00:42:03 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.82.2.9 2006/02/20 16:36:47 h-saito Exp $
  *
  */
 
@@ -47,7 +47,7 @@
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
-#if (_MSC_VER < 1300) /* In the case of below VC6 */
+#if defined(WIN32) && (_MSC_VER < 1300) /* In the case of below VC6 */
 #define SQLLEN SQLINTEGER 
 #define SQLULEN SQLUINTEGER
 #define SQLSETPOSIROW SQLUSMALLINT
