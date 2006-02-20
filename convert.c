@@ -175,12 +175,18 @@ static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
 #define	ATOI64U	_atoi64
 #define	FORMATI64	"%I64d"
 #define	FORMATI64U	"%I64u"
+#elif	(SIZEOF_LONG == 8)
+#define	ATOI64(val)	strtol(val, NULL, 10)
+#define	ATOI64U(val)	strtoul(val, NULL, 10)
+#define	FORMATI64	"%ld"
+#define	FORMATI64U	"%lu"
 #elif	defined(HAVE_STRTOLL)
 #define	ATOI64(val)	strtoll(val, NULL, 10)
 #define	ATOI64U(val)	strtoull(val, NULL, 10)
 #define	FORMATI64	"%lld"
 #define	FORMATI64U	"%llu"
 #else /* HAVE_STRTOLL */
+#error cant handle ODBCINT64
 #endif /* WIN32 */
 #endif /* ODBCINT64 */
 
