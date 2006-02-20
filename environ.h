@@ -84,9 +84,10 @@ void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
 #define ENTER_ENV_CS(x)
 #define LEAVE_ENV_CS(x)
 #define DELETE_ENV_CS(x)
-#define INIT_COMMON_CS(x)
-#define ENTER_COMMON_CS(x)
-#define LEAVE_COMMON_CS(x)
-#define DELETE_COMMON_CS(x)
+#define INIT_COMMON_CS
+#define ENTER_COMMON_CS
+#define LEAVE_COMMON_CS
+#define DELETE_COMMON_CS
 #endif /* WIN_MULTITHREAD_SUPPORT */
-#endif
+
+#endif /* __ENVIRON_H_ */
