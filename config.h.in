@@ -113,3 +113,10 @@
 
 /* Define _REENTRANT for several plaforms */
 #undef _REENTRANT
+
+/* Define SIZEOF_LONG */
+#undef SIZEOF_LONG
+
+/* Define HAVE_LONG_LONG */
+#undef HAVE_LONG_LONG
+
