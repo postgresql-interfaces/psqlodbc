@@ -57,7 +57,7 @@ pg_CS CS_Table[] =
 	{ "UHC",	UHC },
 	{ "WIN1250",	WIN1250 },
 	{ "GB18030",	GB18030 },
-	{ "UNICDOE",	UNICODE },
+	{ "UNICODE",	UNICODE },
 	{ "OTHER",	OTHER }
 };
 

@@ -1491,7 +1491,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-am__api_version="1.7"
+am__api_version="1.9"
 ac_aux_dir=
 for ac_dir in $srcdir $srcdir/.. $srcdir/../..; do
   if test -f $ac_dir/install-sh; then
@@ -3446,16 +3446,6 @@ cat >>confdefs.h <<\_ACEOF
 _ACEOF
 
 
-cat >>confdefs.h <<\_ACEOF
-#define UNICODE
-_ACEOF
-
-
-cat >>confdefs.h <<\_ACEOF
-#define SQL_NOUNICODEMAP
-_ACEOF
-
-
 for ac_func in iswascii
 do
 as_ac_var=`echo "ac_cv_func_$ac_func" | $as_tr_sh`
@@ -3573,16 +3563,6 @@ else
 
 cat >>confdefs.h <<\_ACEOF
 #define UNICODE_SUPPORT 1
-_ACEOF
-
-
-cat >>confdefs.h <<\_ACEOF
-#define UNICODE
-_ACEOF
-
-
-cat >>confdefs.h <<\_ACEOF
-#define SQL_NOUNICODEMAP
 _ACEOF
 
 
@@ -7043,7 +7023,7 @@ test "x$enable_libtool_lock" != xno && enable_libtool_lock=yes
 case $host in
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 7046 "configure"' > conftest.$ac_ext
+  echo '#line 7026 "configure"' > conftest.$ac_ext
   if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7601,7 +7581,7 @@ chmod -w .
 save_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -o out/conftest2.$ac_objext"
 compiler_c_o=no
-if { (eval echo configure:7604: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>out/conftest.err; } && test -s out/conftest2.$ac_objext; then
+if { (eval echo configure:7584: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>out/conftest.err; } && test -s out/conftest2.$ac_objext; then
   # The compiler can only warn and ignore the option if not recognized
   # So say no if there are warnings
   if test -s out/conftest.err; then
@@ -9527,7 +9507,7 @@ else
     lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9530 "configure"
+#line 9510 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -9625,7 +9605,7 @@ else
     lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<EOF
-#line 9628 "configure"
+#line 9608 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
