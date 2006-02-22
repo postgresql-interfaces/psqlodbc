@@ -414,6 +414,10 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	SQLWCHAR	*allocbuf = NULL;
 	Int4		wstrlen;	
 #endif /* WIN_UNICODE_SUPPORT */
+#ifdef HAVE_LOCALE_H
+	char *saved_locale;
+#endif
+
 
 	if (stmt->current_col >= 0)
 	{
@@ -1085,8 +1089,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 			case SQL_C_FLOAT:
 #ifdef HAVE_LOCALE_H
-				char *saved_locale;
-
 				saved_locale = strdup(setlocale(LC_ALL, NULL));
 				setlocale(LC_ALL, "C");
 #endif /* HAVE_LOCALE_H */
@@ -1103,8 +1105,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 			case SQL_C_DOUBLE:
 #ifdef HAVE_LOCALE_H
-				char *saved_locale;
-
 				saved_locale = strdup(setlocale(LC_ALL, NULL));
 				setlocale(LC_ALL, "C");
 #endif /* HAVE_LOCALE_H */
