@@ -20,7 +20,7 @@
 #ifdef  WIN32
 #ifdef  _MSC_VER
 #pragma comment(lib, "Delayimp")
-#pragma comment(lib, "libpqdll")
+#pragma comment(lib, "libpq")
 #pragma comment(lib, "ssleay32")
 // The followings works under VC++6.0 but doesn't work under VC++7.0.
 // Please add the equivalent linker options using command line etc.
