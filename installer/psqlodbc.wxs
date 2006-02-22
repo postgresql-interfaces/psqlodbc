@@ -5,17 +5,17 @@
 
   <Product 
     Manufacturer="PostgreSQL Global Development Group" 
-    Id="4633256F-8709-495f-B4D1-A022EFAE7C39" 
-    Name="psqlODBC" 
+    Id="F0D11DB7-BC1A-47e5-99D3-9F1216446AF9" 
+    Name="psqlODBC+" 
     Version="$(var.VERSION)" 
     Language="1033">
       
 <!-- Package details -->
 
-	<Package 
-      Id="97EF9C01-B395-4d6e-8A01-3338A1E9E742" 
+    <Package 
+      Id="6A9EBC37-AA01-4f0f-AB18-093B3CDE9158" 
       Keywords="PostgreSQL, ODBC" 
-      Comments="PostgreSQL ODBC Driver"
+      Comments="PostgreSQL ODBC Driver (enhanced build)"
       Manufacturer="PostgreSQL Global Development Group" 
       InstallerVersion="110" 
       Languages="1033" 
@@ -26,47 +26,20 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder" Name="PFiles">
-        <Directory Id="BASEDIR" Name="psqlODBC">
+        <Directory Id="BASEDIR" Name="psqlODBC" LongName="psqlODBC+">
           <Directory Id="BINDIR" Name="bin">
             <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
           </Directory>
-          <Directory Id="DOCSDIR" Name="docs">
-            <Component Id="docs" Guid="99F6DEB2-7FC4-497e-8358-C44724681BCA">
-              <File Id="docs.index.html" Name="index.htm" LongName="index.html" DiskId="1" src="../docs/index.html" />
-              <File Id="docs.config.html" Name="config.htm" LongName="config.html" DiskId="1" src="../docs/config.html" />
-              <File Id="docs.faq.html" Name="faq.htm" LongName="faq.html" DiskId="1" src="../docs/faq.html" />
-              <File Id="docs.howto_accesslo.html" Name="howto1.htm" LongName="howto-accesslo.html" DiskId="1" src="../docs/howto-accesslo.html" />
-              <File Id="docs.howto_accessvba.html" Name="howto2.htm" LongName="howto-accessvba.html" DiskId="1" src="../docs/howto-accessvba.html" />
-              <File Id="docs.howto_bo.html" Name="howto3.htm" LongName="howto-bo.html" DiskId="1" src="../docs/howto-bo.html" />
-              <File Id="docs.howto_ch.html" Name="howto4.htm" LongName="howto-ch.html" DiskId="1" src="../docs/howto-ch.html" />
-              <File Id="docs.howto_csharp.html" Name="howto5.htm" LongName="howto-csharp.html" DiskId="1" src="../docs/howto-csharp.html" />
-              <File Id="docs.howto_vb.html" Name="howto6.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
-              <File Id="docs.howto_vblo.html" Name="howto7.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
-              <File Id="docs.release.html" Name="release.htm" LongName="release.html" DiskId="1" src="../docs/release.html" />
-              <File Id="docs.unix_compilation.html" Name="unix.htm" LongName="unix-compilation.html" DiskId="1" src="../docs/unix-compilation.html" />
-              <File Id="docs.win32_compilation.html" Name="win32.htm" LongName="win32-compilation.html" DiskId="1" src="../docs/win32-compilation.html" />
-             
-              <Shortcut Id="docs.index.html" Directory="SMDIR" Name="docs" LongName="Documentation index" Target="[#docs.index.html]" Description="psqlODBC documentation, HOWTOs and FAQs" Show="normal" />
-            </Component>
-          </Directory>
         </Directory>
-      </Directory>
-      <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
-        <Directory Id="SMDIR" Name="psqlODBC" />
       </Directory>
     </Directory>
         
 <!-- Features -->
 
-	<Feature Id="psqlodbc" Title="psqlODBC" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
-      <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries." ConfigurableDirectory="BINDIR">
+    <Feature Id="psqlodbc" Title="psqlODBC+" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver (enhanced build)" ConfigurableDirectory="BASEDIR" Display="expand" Absent="disallow">
+      <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries." ConfigurableDirectory="BINDIR" Absent="disallow">
         <MergeRef Id="psqlodbcm" />
-      </Feature>
-      
-      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs." ConfigurableDirectory="DOCSDIR">
-        <ComponentRef Id="docs" />
-      </Feature>
-      
+      </Feature>     
     </Feature>
     <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab"/>
     
@@ -146,7 +119,7 @@
       
 <!-- Cancel dialog -->
 
-      <Dialog Id="Cancel" Width="233" Height="127" Title="psqlODBC $(var.VERSION)" NoMinimize="yes">
+      <Dialog Id="Cancel" Width="233" Height="127" Title="psqlODBC+ $(var.VERSION)" NoMinimize="yes">
         <Control Id="No" Type="PushButton" X="101" Y="101" Width="56" Height="17" Default="yes">
           <Text>&amp;Resume</Text>
           <Publish Event="EndDialog" Value="Return">1</Publish>
@@ -177,19 +150,19 @@
 
 <!-- User Exit dialog -->
 
-      <Dialog Id="User_Exit" Width="240" Height="81" Title="psqlODBC Setup Cancelled">
+      <Dialog Id="User_Exit" Width="240" Height="81" Title="psqlODBC+ Setup Cancelled">
         <Control Id="OK" Type="PushButton" X="172" Y="56" Width="56" Height="17" Default="yes">
           <Text>OK</Text>
           <Publish Event="EndDialog" Value="Exit">1</Publish>
         </Control>
         <Control Id="Text" Type="Text" X="10" Y="9" Width="220" Height="44">
-          <Text>psqlODBC Setup was interrupted before it was fully installed.</Text>
+          <Text>psqlODBC+ Setup was interrupted before it was fully installed.</Text>
         </Control>
       </Dialog>
 
 <!-- Exit dialog -->
 
-      <Dialog Id="Exit_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)">
+      <Dialog Id="Exit_Dialog" Width="375" Height="270" Title="psqlODBC+ $(var.VERSION)">
         
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -217,7 +190,7 @@
           <Text>{\Arial10Bold}Installation complete!</Text>
         </Control>
         <Control Id="ui2" Type="Text" X="10" Y="75" Width="365" Height="30" Transparent="yes">
-          <Text>Congratulations, psqlODBC $(var.VERSION) has been successfully installed on your system.</Text>
+          <Text>Congratulations, psqlODBC+ $(var.VERSION) has been successfully installed on your system.</Text>
         </Control>  
         <Control Id="wc_txt3" Type="Text" X="10" Y="200" Width="365" Height="30" Transparent="yes">
           <Text>Click the finish button to exit from the installer.</Text>
@@ -226,7 +199,7 @@
       
 <!-- Browse dialog --> 
 
-      <Dialog Id="Browse" Width="348" Height="193" Title="psqlODBC $(var.VERSION)">
+      <Dialog Id="Browse" Width="348" Height="193" Title="psqlODBC+ $(var.VERSION)">
         <Control Id="TailText" Type="Text" X="9" Y="151" Width="55" Height="14" TabSkip="no">
           <Text>&amp;Folder name:</Text>
         </Control>
@@ -262,7 +235,7 @@
       
 <!-- Welcome dialog -->
 
-      <Dialog Id="Welcome_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
+      <Dialog Id="Welcome_Dialog" Width="375" Height="270" Title="psqlODBC+ $(var.VERSION)" CustomPalette="yes">
       
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -284,7 +257,7 @@
       
         <!-- dialog specific controls -->
         <Control Id="wc_txt1" Type="Text" X="8" Y="16" Width="365" Height="15" Transparent="yes">
-          <Text>{\Arial10Bold}Welcome to the psqlODBC Installation Wizard</Text>
+          <Text>{\Arial10Bold}Welcome to the psqlODBC+ Installation Wizard</Text>
         </Control>
         <Control Id="wc_txt2" Type="Text" X="10" Y="75" Width="365" Height="30" Transparent="yes">
           <Text>It is strongly recommended that you exit all Windows programs before continuing with this installation.</Text>
@@ -296,7 +269,7 @@
       
 <!-- Licence Dialogue -->
 
-      <Dialog Id="Licence_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
+      <Dialog Id="Licence_Dialog" Width="375" Height="270" Title="psqlODBC+ $(var.VERSION)" CustomPalette="yes">
         
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -322,7 +295,7 @@
            <Text>{\Arial10Bold}Licence</Text>
         </Control>
         <Control Id="wt2" Type="Text" X="5" Y="55" Width="365" Height="15">
-          <Text>Please read the psqlODBC licence completely before you continue.</Text>
+          <Text>Please read the psqlODBC+ licence completely before you continue.</Text>
         </Control>
         <Control Id="lgpl_rtf" Type="ScrollableText" X="5" Y="73" Width="365" Height="155" Sunken="yes">
           <Text src="lgpl.rtf" />
@@ -331,7 +304,7 @@
       
 <!-- Feature selection dialog -->
 
-      <Dialog Id="Selection_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
+      <Dialog Id="Selection_Dialog" Width="375" Height="270" Title="psqlODBC+ $(var.VERSION)" CustomPalette="yes">
        
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -383,7 +356,7 @@
   
 <!-- Ready dialogue -->
 
-      <Dialog Id="Ready_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes">
+      <Dialog Id="Ready_Dialog" Width="375" Height="270" Title="psqlODBC+ $(var.VERSION)" CustomPalette="yes">
          
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />
@@ -410,13 +383,13 @@
           <Text>{\Arial10Bold}Ready to install</Text>
         </Control>
         <Control Id="re_txt2" Type="Text" X="5" Y="80" Width="365" Height="30">
-          <Text>psqlODBC is now ready to be installed. Click Next to complete the installation.</Text>
+          <Text>psqlODBC+ is now ready to be installed. Click Next to complete the installation.</Text>
         </Control>
       </Dialog>
   
 <!-- Progress Dialogue -->
 
-      <Dialog Id="Progress_Dialog" Width="375" Height="270" Title="psqlODBC $(var.VERSION)" CustomPalette="yes" Modeless="yes">
+      <Dialog Id="Progress_Dialog" Width="375" Height="270" Title="psqlODBC+ $(var.VERSION)" CustomPalette="yes" Modeless="yes">
     
         <!-- common dialog items -->
         <Control Id="wc_bmp" Type="Bitmap" X="0" Y="-15" Width="375" Height="70" Text="BannerBmp" FixedSize="yes" />

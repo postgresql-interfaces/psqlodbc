@@ -1,11 +1,11 @@
 @echo off
 cls
-echo This file will upgrade your psqlODBC installation.
+echo This file will upgrade your psqlODBC+ installation.
 echo.
-echo You must have psqlODBC 08.01.xxxx installed 
+echo You must have psqlODBC+ 07.03.0260 or above installed 
 echo from the official MSI installation to use this upgrade path.
 echo.
-echo If psqlODBC or any of it's components are in use
+echo If psqlODBC+ or any of it's components are in use
 echo a reboot will be required once the upgrade is completed.
 echo.
 echo.
