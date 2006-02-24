@@ -55,12 +55,13 @@ SSL_LIB=C:\OpenSSL\lib\VC
 !MESSAGE Using default OpenSSL Library directory: $(SSL_LIB)
 !ENDIF
 
-SSL_DLL = "ssleay32.dll"
+SSL_DLL = "SSLEAY32.dll"
 ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\""
 
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
 MSVC_VERSION=vc60
 VC07_DELAY_LOAD=
+ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 !ELSE
 MSVC_VERSION=vc70
 VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DELAY:UNLOAD"

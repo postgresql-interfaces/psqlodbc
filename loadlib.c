@@ -27,12 +27,13 @@
 #if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
 #pragma comment(linker, "/Delayload:libpq.dll")
 #pragma comment(linker, "/Delayload:ssleay32.dll")
+#pragma comment(linker, "/Delay:UNLOAD")
 #endif /* _MSC_VER */
 #endif /* _MSC_VER */
 #if defined(DYNAMIC_LOAD)
 #define	WIN_DYN_LOAD
 CSTR	libpq = "libpq";
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (_MSC_VER >= 1200)
 #define	_MSC_DELAY_LOAD_IMPORT
 #endif /* MSC_VER */
 #endif /* DYNAMIC_LOAD */
@@ -69,7 +70,11 @@ static HMODULE LIBPQ_load_from_psqlodbc_path()
  *	Try to load psqlodbc path based libpq.
  *	Load alternative ssl library SSLEAY32 or LIBSSL32. 
  */
+#if (_MSC_VER < 1300)
+extern PfnDliHook __pfnDliFailureHook;
+#else
 extern PfnDliHook __pfnDliFailureHook2;
+#endif /* _MSC_VER */
 
 static FARPROC WINAPI
 DliErrorHook(unsigned	dliNotify,
@@ -77,9 +82,9 @@ DliErrorHook(unsigned	dliNotify,
 {
 	HMODULE	hmodule = NULL;
 	int	i;
-        static const char * const libarray[] = {"ssleay32", "libssl32"};
+	static const char * const libarray[] = {"libssl32", "ssleay32"};
 
-        mylog("DliErrorHook Notify=%d %x\n", dliNotify, pdli);
+	mylog("DliErrorHook Notify=%d %x\n", dliNotify, pdli);
 	switch (dliNotify)
 	{
 		case dliFailLoadLib:
@@ -108,20 +113,24 @@ DliErrorHook(unsigned	dliNotify,
 #ifndef SSL_DLL
 #define SSL_DLL "SSLEAY32.dll"
 #endif /* SSL_DLL */
+
+typedef BOOL (WINAPI *UnloadFunc)(LPCSTR);
 void UnloadDelayLoadedDLLs(BOOL ssllibLoaded)
 {
-#if (_MSC_VER > 1200)
 	BOOL	success;
-
-	/* The dll names are case sensitive for the unload helper*/
-	success = __FUnloadDelayLoadedDLL2("LIBPQ.dll");
-	mylog("libpq unload success=%d\n", success);
+#if (_MSC_VER < 1300) /* VC6 DELAYLOAD IMPORT */
+	UnloadFunc	func = __FUnloadDelayLoadedDLL;
+#else
+	UnloadFunc	func = __FUnloadDelayLoadedDLL2;
+#endif
+	/* The dll names are case sensitive for the unload helper */
+	success = (*func)("LIBPQ.dll");
+	mylog("LIBPQ unload success=%d\n", success);
 	if (ssllibLoaded)
 	{
-		success = __FUnloadDelayLoadedDLL2(SSL_DLL);
-		mylog("sslib unload success=%d\n", success);
+		success = (*func)(SSL_DLL);
+		mylog("ssldll unload success=%d\n", success);
 	}
-#endif  /* VC7 DELAYLOAD IMPORT */
 	return;
 }
 #else
@@ -137,7 +146,11 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 	*libpqLoaded = TRUE;
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 	__try {
+#if (_MSC_VER < 1300)
+		__pfnDliFailureHook = DliErrorHook;
+#else
 		__pfnDliFailureHook2 = DliErrorHook;
+#endif /* _MSC_VER */
 		pqconn = PQconnectdb(conninfo);
 	}
 	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
