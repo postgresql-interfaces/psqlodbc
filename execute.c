@@ -571,14 +571,26 @@ inolog("%s:%x->accessed=%d\n", func, stmt, SC_accessed_db(stmt));
 RETCODE
 DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 {
-	CSTR	func = "DIscardStatementSvp";
+	CSTR	func = "DiscardStatementSvp";
 	char	esavepoint[32], cmd[64];
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	QResultClass *res;
-	BOOL	cmd_success;	
+	BOOL	cmd_success, start_stmt = FALSE;	
 
 inolog("%s:%x->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, stmt, SC_accessed_db(stmt),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
+	switch (ret)
+	{
+		case SQL_NEED_DATA:
+			break;
+		case SQL_ERROR:
+			start_stmt = TRUE;
+			break;
+		default:
+			if (!errorOnly)
+				start_stmt = TRUE;
+			break;
+	}
 	if (!SC_accessed_db(stmt) || !CC_is_in_trans(conn))
 		goto cleanup;
 	if (!SC_is_rb_stmt(stmt) && !SC_is_tc_stmt(stmt))
@@ -620,7 +632,8 @@ inolog("ret=%d\n", ret);
 		}
 	}
 cleanup:
-	SC_start_stmt(stmt);
+	if (start_stmt || SQL_ERROR == ret)
+		SC_start_stmt(stmt);
 	return ret;
 }
 
@@ -1224,9 +1237,9 @@ inolog("ipdopts=%x\n", ipdopts);
 	 */
 	i = estmt->current_exec_param >= 0 ? estmt->current_exec_param + 1 : 0;
 
-	num_p = stmt->num_params;
+	num_p = estmt->num_params;
 	if (num_p < 0)
-		PGAPI_NumParams(stmt, &num_p);
+		PGAPI_NumParams(estmt, &num_p);
 inolog("i=%d allocated=%d num_p=%d\n", i, apdopts->allocated, num_p);
 	if (num_p > apdopts->allocated)
 		num_p = apdopts->allocated;

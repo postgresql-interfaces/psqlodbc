@@ -44,7 +44,7 @@
 #define UHC				31	/* UHC */
 #define WIN1250				32	/* windows-1250 */
 #define GB18030				33	/* GB18030 */
-#define UNICODE				34	/* same as Unicode UTF-8 */
+#define UNICODE_PODBC			34	/* same as Unicode UTF-8 */
 #define OTHER				-1
 
 #define MAX_CHARACTERSET_NAME	24

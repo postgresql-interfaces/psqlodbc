@@ -57,7 +57,7 @@ pg_CS CS_Table[] =
 	{ "UHC",	UHC },
 	{ "WIN1250",	WIN1250 },
 	{ "GB18030",	GB18030 },
-	{ "UNICODE",	UNICODE },
+	{ "UNICODE",	UNICODE_PODBC },
 	{ "OTHER",	OTHER }
 };
 
@@ -115,7 +115,7 @@ pg_mb_maxlen(characterset_code)
 	switch (characterset_code)
 	{
 		case UTF8:
-		case UNICODE:
+		case UNICODE_PODBC:
 			return 6;
 		case EUC_TW:
 			return 4;
@@ -143,7 +143,7 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 	switch (characterset_code)
 	{
 		case UTF8:
-		case UNICODE:
+		case UNICODE_PODBC:
 			{
 				if (stat < 2 &&
 					character >= 0x80)
@@ -423,7 +423,9 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *o
 			wenc = "WIN1250";
 			break;
 		case 1252:
-			if (PG_VERSION_GE(conn, 7.2))
+			if (oldenc)
+				;
+			else if (PG_VERSION_GE(conn, 7.2))
 				wenc = "latin9";
 			else
 				wenc = "latin1";

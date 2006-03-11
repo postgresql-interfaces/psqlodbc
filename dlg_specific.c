@@ -36,8 +36,9 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	char		encoded_conn_settings[LARGE_REGISTRY_LEN];
 	Int4		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
-	BOOL		abbrev = (len < 1024);
+	BOOL		abbrev = (len < 1024) || ci->force_abbrev_connstr;
 
+inolog("force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	/* fundamental info */
 	nlen = MAX_CONNECT_STRING;
 	olen = snprintf(connect_string, nlen, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
@@ -345,10 +346,10 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	{
 		char	*ptr;
 
-		ptr = strchr(ci->protocol, '-');
+		ptr = strchr(value, '-');
 		if (ptr)
 		{
-			if ('-' != *ptr)
+			if ('-' != *value)
 			{
 				strcpy(ci->protocol, value);
 			}
@@ -465,6 +466,8 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->drivers.bools_as_char = atoi(value);
 	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, ABBR_EXTRASYSTABLEPREFIXES) == 0)
 		strcpy(ci->drivers.extra_systable_prefixes, value);
+	else if (stricmp(attribute, INI_FORCEABBREVCONNSTR) == 0)
+		ci->force_abbrev_connstr = atoi(value);
 	mylog("CopyCommonAttributes: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s",
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,
@@ -488,6 +491,8 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 void
 getDSNdefaults(ConnInfo *ci)
 {
+	mylog("calling getDSNdefaults\n");
+
 	if (ci->port[0] == '\0')
 		strcpy(ci->port, DEFAULT_PORT);
 
@@ -542,6 +547,7 @@ getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 void
 getDSNinfo(ConnInfo *ci, char overwrite)
 {
+	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
 	char		encoded_conn_settings[LARGE_REGISTRY_LEN],
 				temp[SMALL_REGISTRY_LEN];
@@ -550,12 +556,13 @@ getDSNinfo(ConnInfo *ci, char overwrite)
  *	If a driver keyword was present, then dont use a DSN and return.
  *	If DSN is null and no driver, then use the default datasource.
  */
+	mylog("%s: DSN=%s overwrite=%d\n", func, DSN, overwrite);
 	if (DSN[0] == '\0')
 	{
 		if (ci->drivername[0] != '\0')
 			return;
 		else
-			strcpy(DSN, INI_DSN);
+			strncpy_null(DSN, INI_DSN, sizeof(ci->dsn));
 	}
 
 	/* brute-force chop off trailing blanks... */
@@ -611,7 +618,11 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		if (ptr = strchr(ci->protocol, '-'))
 		{
 			*ptr = '\0';
-			ci->rollback_on_error = atoi(ptr + 1);
+			if (overwrite || ci->rollback_on_error < 0)
+			{
+				ci->rollback_on_error = atoi(ptr + 1);
+				mylog("rollback_on_error=%d\n", ci->rollback_on_error);
+			}
 		}
 	}
 

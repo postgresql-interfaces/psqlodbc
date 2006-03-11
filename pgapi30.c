@@ -89,6 +89,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	StatementClass	*stmt;
 	SDWORD		rc;
 	SWORD		pcbErrm;
+	int		rtnlen = -1, rtnctype = SQL_C_CHAR;
 	CSTR func = "PGAPI_GetDiagField";
 
 	mylog("%s entering rec=%d", func, RecNumber);
@@ -101,10 +102,14 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_SUBCLASS_ORIGIN:
 				case SQL_DIAG_CONNECTION_NAME:
 				case SQL_DIAG_SERVER_NAME:
-					strcpy((char *) DiagInfoPtr, "");
-					if (StringLengthPtr)
-						*StringLengthPtr = 0;
-					ret = SQL_SUCCESS;
+					rtnlen = 0;
+					if (DiagInfoPtr && BufferLength > rtnlen)
+					{
+						ret = SQL_SUCCESS;
+						*((char *) DiagInfoPtr) = '\0';
+					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 					ret = PGAPI_EnvError(Handle, RecNumber,
@@ -112,15 +117,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						BufferLength, StringLengthPtr, 0);  
 					break;
 				case SQL_DIAG_NATIVE:
+					rtnctype = SQL_C_LONG;
 					ret = PGAPI_EnvError(Handle, RecNumber,
-                        			NULL, DiagInfoPtr, NULL,
+                        			NULL, (SQLINTEGER *) DiagInfoPtr, NULL,
 						0, NULL, 0);  
-					if (StringLengthPtr)  
-						*StringLengthPtr = sizeof(SQLINTEGER);  
-					if (SQL_SUCCESS_WITH_INFO == ret)  
-						ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_NUMBER:
+					rtnctype = SQL_C_LONG;
 					ret = PGAPI_EnvError(Handle, RecNumber,
                         			NULL, NULL, NULL,
 						0, NULL, 0);
@@ -128,17 +131,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					    SQL_SUCCESS_WITH_INFO == ret)
 					{
 						*((SQLINTEGER *) DiagInfoPtr) = 1;
-						if (StringLengthPtr)
-							*StringLengthPtr = sizeof(SQLINTEGER);
-						ret = SQL_SUCCESS;
 					}
 					break;
 				case SQL_DIAG_SQLSTATE:
+					rtnlen = 5;
 					ret = PGAPI_EnvError(Handle, RecNumber,
                         			DiagInfoPtr, NULL, NULL,
 						0, NULL, 0);
-					if (StringLengthPtr)  
-						*StringLengthPtr = 5;  
 					if (SQL_SUCCESS_WITH_INFO == ret)  
 						ret = SQL_SUCCESS;
 					break;
@@ -159,16 +158,22 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_CLASS_ORIGIN:
 				case SQL_DIAG_SUBCLASS_ORIGIN:
 				case SQL_DIAG_CONNECTION_NAME:
-					strcpy((char *) DiagInfoPtr, "");
-					if (StringLengthPtr)
-						*StringLengthPtr = 0;
-					ret = SQL_SUCCESS;
+					rtnlen = 0;
+					if (DiagInfoPtr && BufferLength > rtnlen)
+					{
+						ret = SQL_SUCCESS;
+						*((char *) DiagInfoPtr) = '\0';
+					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_SERVER_NAME:
-					strcpy((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn));
-					if (StringLengthPtr)
-						*StringLengthPtr = strlen(CC_get_DSN(conn));
-					ret = SQL_SUCCESS;
+					rtnlen = strlen(CC_get_DSN(conn));
+					if (DiagInfoPtr)
+					{
+						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
+						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
+					}
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 					ret = PGAPI_ConnectError(Handle, RecNumber,
@@ -176,15 +181,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						BufferLength, StringLengthPtr, 0);  
 					break;
 				case SQL_DIAG_NATIVE:
+					rtnctype = SQL_C_LONG;
 					ret = PGAPI_ConnectError(Handle, RecNumber,
-                        			NULL, DiagInfoPtr, NULL,
+                        			NULL, (SQLINTEGER *) DiagInfoPtr, NULL,
 						0, NULL, 0);  
-					if (StringLengthPtr)  
-						*StringLengthPtr = sizeof(SQLINTEGER);  
-					if (SQL_SUCCESS_WITH_INFO == ret)  
-						ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_NUMBER:
+					rtnctype = SQL_C_LONG;
 					ret = PGAPI_ConnectError(Handle, RecNumber,
                         			NULL, NULL, NULL,
 						0, NULL, 0);
@@ -192,17 +195,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					    SQL_SUCCESS_WITH_INFO == ret)
 					{
 						*((SQLINTEGER *) DiagInfoPtr) = 1;
-						if (StringLengthPtr)
-							*StringLengthPtr = sizeof(SQLINTEGER);
-						ret = SQL_SUCCESS;
 					}
 					break;  
 				case SQL_DIAG_SQLSTATE:
+					rtnlen = 5;
 					ret = PGAPI_ConnectError(Handle, RecNumber,
                         			DiagInfoPtr, NULL, NULL,
 						0, NULL, 0);
-					if (StringLengthPtr)  
-						*StringLengthPtr = 5;  
 					if (SQL_SUCCESS_WITH_INFO == ret)  
 						ret = SQL_SUCCESS;
 					break;
@@ -223,16 +222,22 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_CLASS_ORIGIN:
 				case SQL_DIAG_SUBCLASS_ORIGIN:
 				case SQL_DIAG_CONNECTION_NAME:
-					strcpy((char *) DiagInfoPtr, "");
-					if (StringLengthPtr)
-						*StringLengthPtr = 0;
-					ret = SQL_SUCCESS;
+					rtnlen = 0;
+					if (DiagInfoPtr && BufferLength > rtnlen)
+					{
+						ret = SQL_SUCCESS;
+						*((char *) DiagInfoPtr) = '\0';
+					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_SERVER_NAME:
-					strcpy((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn));
-					if (StringLengthPtr)
-						*StringLengthPtr = strlen(CC_get_DSN(conn));
-					ret = SQL_SUCCESS;
+					rtnlen = strlen(CC_get_DSN(conn));
+					if (DiagInfoPtr)
+					{
+						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
+						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
+					}
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 					ret = PGAPI_StmtError(Handle, RecNumber,
@@ -240,15 +245,13 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						BufferLength, StringLengthPtr, 0);  
 					break;
 				case SQL_DIAG_NATIVE:
+					rtnctype = SQL_C_LONG;
 					ret = PGAPI_StmtError(Handle, RecNumber,
-                        			NULL, DiagInfoPtr, NULL,
+                        			NULL, (SQLINTEGER *) DiagInfoPtr, NULL,
 						0, NULL, 0);  
-					if (StringLengthPtr)  
-						*StringLengthPtr = sizeof(SQLINTEGER);  
-					if (SQL_SUCCESS_WITH_INFO == ret)  
-						ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_NUMBER:
+					rtnctype = SQL_C_LONG;
 					*((SQLINTEGER *) DiagInfoPtr) = 0;
 					ret = SQL_NO_DATA_FOUND;
 					stmt = (StatementClass *) Handle;
@@ -266,19 +269,17 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						default:
 							break;
 					}
-					if (StringLengthPtr)
-						*StringLengthPtr = sizeof(SQLINTEGER);
 					break;
 				case SQL_DIAG_SQLSTATE:
+					rtnlen = 5;
 					ret = PGAPI_StmtError(Handle, RecNumber,
                         			DiagInfoPtr, NULL, NULL,
 						0, NULL, 0);
-					if (StringLengthPtr)  
-						*StringLengthPtr = 5;
 					if (SQL_SUCCESS_WITH_INFO == ret)  
 						ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_CURSOR_ROW_COUNT:
+					rtnctype = SQL_C_LONG;
 					stmt = (StatementClass *) Handle;
 					rc = -1;
 					if (stmt->status == STMT_FINISHED)
@@ -294,27 +295,22 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					} 
 					*((SQLINTEGER *) DiagInfoPtr) = rc;
 inolog("rc=%d\n", rc);
-					if (StringLengthPtr)
-						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_ROW_COUNT:
+					rtnctype = SQL_C_LONG;
 					stmt = (StatementClass *) Handle;
 					*((SQLINTEGER *) DiagInfoPtr) = stmt->diag_row_count;
-					if (StringLengthPtr)
-						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
                                 case SQL_DIAG_ROW_NUMBER:
+					rtnctype = SQL_C_LONG;
 					*((SQLINTEGER *) DiagInfoPtr) = SQL_ROW_NUMBER_UNKNOWN;
-					if (StringLengthPtr)
-						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
                                 case SQL_DIAG_COLUMN_NUMBER:
+					rtnctype = SQL_C_LONG;
 					*((SQLINTEGER *) DiagInfoPtr) = SQL_COLUMN_NUMBER_UNKNOWN;
-					if (StringLengthPtr)
-						*StringLengthPtr = sizeof(SQLINTEGER);
 					ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_RETURNCODE: /* driver manager returns */
@@ -328,26 +324,32 @@ inolog("rc=%d\n", rc);
 				case SQL_DIAG_CLASS_ORIGIN:
 				case SQL_DIAG_SUBCLASS_ORIGIN:
 				case SQL_DIAG_CONNECTION_NAME:
-					strcpy((char *) DiagInfoPtr, "");
-					if (StringLengthPtr)
-						*StringLengthPtr = 0;
-					ret = SQL_SUCCESS;
+					rtnlen = 0;
+					if (DiagInfoPtr && BufferLength > rtnlen)
+					{
+						ret = SQL_SUCCESS;
+						*((char *) DiagInfoPtr) = '\0';
+					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_SERVER_NAME:
-					strcpy((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn));
-					if (StringLengthPtr)
-						*StringLengthPtr = strlen(CC_get_DSN(conn));
-					ret = SQL_SUCCESS;
+					rtnlen = strlen(CC_get_DSN(conn));
+					if (DiagInfoPtr)
+					{
+						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
+						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
+					}
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 				case SQL_DIAG_NATIVE:
 				case SQL_DIAG_NUMBER:
+					break;
 				case SQL_DIAG_SQLSTATE:
+					rtnlen = 5;
 					ret = PGAPI_DescError(Handle, RecNumber,
                         			DiagInfoPtr, NULL, NULL,
 						0, NULL, 0);
-					if (StringLengthPtr)  
-						*StringLengthPtr = 5;
 					if (SQL_SUCCESS_WITH_INFO == ret)  
 						ret = SQL_SUCCESS;
 					break;
@@ -357,12 +359,32 @@ inolog("rc=%d\n", rc);
 				case SQL_DIAG_ROW_COUNT:
 				case SQL_DIAG_DYNAMIC_FUNCTION:
 				case SQL_DIAG_DYNAMIC_FUNCTION_CODE:
+					rtnctype = SQL_C_LONG;
 					/* options for statement type only */
 					break;
 			}
 			break;
 		default:
 			ret = SQL_ERROR;
+	}
+	if (SQL_C_LONG == rtnctype)
+	{
+		if (SQL_SUCCESS_WITH_INFO == ret)
+			ret = SQL_SUCCESS;
+		if (StringLengthPtr)  
+			*StringLengthPtr = sizeof(SQLINTEGER);
+	}
+	else if (rtnlen >= 0)
+	{
+		if (rtnlen >= BufferLength)
+		{
+			if (SQL_SUCCESS == ret)
+				ret = SQL_SUCCESS_WITH_INFO;
+			if (BufferLength > 0)
+				((char *) DiagInfoPtr) [BufferLength - 1] = '\0';
+		}
+		if (StringLengthPtr)  
+			*StringLengthPtr = rtnlen;
 	}
 	mylog("%s exiting %d\n", func, ret);
 	return ret;

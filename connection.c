@@ -1039,13 +1039,14 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	char	*conninfo, *ppacket;
 	const	char	*opts[20][2];
 	int	cnt, i;
+	BOOL	blankExist;
 
 	cnt = protocol3_opts_array(self, opts, TRUE, sizeof(opts) / sizeof(opts[0]));
 
 	slen =  sizeof(ProtocolVersion);
 	for (i = 0, slen = 0; i < cnt; i++)
 	{
-		slen += (strlen(opts[i][0]) + 2);
+		slen += (strlen(opts[i][0]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
 		slen += strlen(opts[i][1]);
 	}
 	slen++;
@@ -1062,8 +1063,21 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	{ 
 		sprintf(ppacket, " %s=", opts[i][0]);
 		ppacket += (strlen(opts[i][0]) + 2);
+		blankExist = FALSE;
+		if (strchr(opts[i][1], ' '))
+			blankExist = TRUE;
+		if (blankExist)
+		{
+			*ppacket = '\'';
+			ppacket++;
+		}
 		strcpy(ppacket, opts[i][1]);
 		ppacket += strlen(opts[i][1]);
+		if (blankExist)
+		{
+			*ppacket = '\'';
+			ppacket++;
+		}
 	}
 	*ppacket = '\0';
 inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));

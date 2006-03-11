@@ -1045,10 +1045,10 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 			{
 			int	coef = 1;
 			Int4	prec = pgtype_column_size(stmt, type, col, handle_unknown_size_as), maxvarc;
-#ifdef  UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 			if (conn->unicode)
 				return prec * WCLEN;
-#endif
+#endif /* UNICODE_SUPPORT */
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
 				coef = conn->mb_maxbyte_per_char;
@@ -1123,10 +1123,10 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 	{
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
-#ifdef  UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 			if (conn->unicode)
 				return prec * WCLEN;
-#endif
+#endif /* UNICODE_SUPPORT */
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
 				coef =conn->mb_maxbyte_per_char;

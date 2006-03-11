@@ -137,6 +137,7 @@
 #define ABBR_LOWERCASEIDENTIFIER	"C9"
 #define INI_SSLMODE			"SSLmode"
 #define ABBR_SSLMODE			"CA"
+#define INI_FORCEABBREVCONNSTR		"AB"
 
 #define	SSLMODE_DISABLE		"disable"
 #define	SSLMODE_ALLOW		"allow"

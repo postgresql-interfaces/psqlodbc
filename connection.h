@@ -284,6 +284,7 @@ typedef struct
 	signed char	use_server_side_prepare;
 	signed char	lower_case_identifier;
 	signed char	rollback_on_error;
+	signed char	force_abbrev_connstr;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
 	signed char	autocommit_normal;

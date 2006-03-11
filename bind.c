@@ -1015,6 +1015,11 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 	 */
 	if (self->allocated < num_params)
 	{
+		if (self->allocated <= 0 && self->pdata)
+		{
+			mylog("??? pdata is not null while allocated == 0\n");
+			self->pdata = NULL; 
+		}
 		new_pdata = (PutDataClass *) realloc(self->pdata, sizeof(PutDataClass) * num_params);
 		if (!new_pdata)
 		{

@@ -152,7 +152,6 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 {
 	CSTR func = "SQLGetDescFieldW";
 	RETCODE	ret;
-	BOOL	alloced = FALSE;
 	SQLINTEGER	blen = 0, bMax, *pcbV;
         char    *rgbV = NULL;
 
@@ -170,29 +169,35 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 		case SQL_DESC_SCHEMA_NAME:
 		case SQL_DESC_TABLE_NAME:
 		case SQL_DESC_TYPE_NAME:
-			alloced = TRUE;
 			bMax = cbValueMax * 3 / WCLEN;
 			rgbV = malloc(bMax + 1);
 			pcbV = &blen;
-                	break;
+			for (;; bMax = blen + 1, rgbV = realloc(rgbV, bMax))
+			{
+				ret = PGAPI_GetDescField(hdesc, iRecord, iField, rgbV, bMax, pcbV);
+				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
+					break;
+			}
+			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+			{
+				blen = utf8_to_ucs2(rgbV, blen, (SQLWCHAR *) rgbValue, cbValueMax / WCLEN);
+				if (SQL_SUCCESS == ret && blen * WCLEN >= cbValueMax)
+				{
+					ret = SQL_SUCCESS_WITH_INFO;
+					DC_set_error(hdesc, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
+				}
+				if (pcbValue)
+					*pcbValue = blen * WCLEN;
+			}
+			if (rgbV)
+				free(rgbV);
+			break;
 		default:
 			rgbV = rgbValue;
 			bMax = cbValueMax;
 			pcbV = pcbValue;
+			ret = PGAPI_GetDescField(hdesc, iRecord, iField, rgbV, bMax, pcbV);
 			break;
-	}
-	ret = PGAPI_GetDescField(hdesc, iRecord, iField, rgbV, bMax, pcbV);
-	if (alloced)
-	{
-		blen = utf8_to_ucs2(rgbV, blen, (SQLWCHAR *) rgbValue, cbValueMax / WCLEN);
-		if (SQL_SUCCESS == ret && blen * 2 > cbValueMax)
-		{
-			ret = SQL_SUCCESS_WITH_INFO;
-			DC_set_error(hdesc, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
-		}
-		if (pcbValue)
-			*pcbValue = blen * 2;
-		free(rgbV);
 	}
 
 	return ret;
@@ -243,28 +248,23 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
         return ret;
 }
 
-#if defined(WITH_UNIXODBC) || defined(_WIN64)
-SQLRETURN SQL_API SQLColAttributeW(SQLHSTMT hstmt,
-                                 SQLUSMALLINT iCol,
-                                 SQLUSMALLINT iField,
-                                 SQLPOINTER pCharAttr,
-                                 SQLSMALLINT cbCharAttrMax,
-                                 SQLSMALLINT *pcbCharAttr,
-                                 SQLPOINTER pNumAttr)
+SQLRETURN SQL_API SQLColAttributeW(
+	SQLHSTMT	hstmt,
+	SQLUSMALLINT	iCol,
+	SQLUSMALLINT	iField,
+	SQLPOINTER	pCharAttr,
+	SQLSMALLINT	cbCharAttrMax,	
+	SQLSMALLINT	*pcbCharAttr,
+#if defined(WITH_UNIXODBC) || defined(WIN32)
+	SQLPOINTER	pNumAttr
 #else
-SQLRETURN SQL_API SQLColAttributeW(SQLHSTMT hstmt,
-                                 SQLUSMALLINT iCol,
-                                 SQLUSMALLINT iField,
-                                 SQLPOINTER pCharAttr,
-                                 SQLSMALLINT cbCharAttrMax,
-                                 SQLSMALLINT *pcbCharAttr,
-                                 SQLLEN *pNumAttr)
+	SQLLEN		*pNumAttr
 #endif
+	)
 {
 	CSTR func = "SQLColAttributeW";
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
-	BOOL	alloced = FALSE;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
         char    *rgbD = NULL;
 
@@ -286,31 +286,37 @@ SQLRETURN SQL_API SQLColAttributeW(SQLHSTMT hstmt,
 		case SQL_DESC_TABLE_NAME:
 		case SQL_DESC_TYPE_NAME:
 		case SQL_COLUMN_NAME:
-			alloced = TRUE;
 			bMax = cbCharAttrMax * 3 / WCLEN;
-			rgbD = malloc(bMax + 1);
+			rgbD = malloc(bMax);
 			rgbL = &blen;
-                	break;
+			for (;; bMax = blen + 1, rgbD = realloc(rgbD, bMax))
+			{
+				ret = PGAPI_ColAttributes(hstmt, iCol, iField, rgbD,
+					bMax, rgbL, pNumAttr);
+				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
+					break;
+			}
+			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+			{
+				blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
+				if (SQL_SUCCESS == ret && blen * WCLEN >= cbCharAttrMax)
+				{
+					ret = SQL_SUCCESS_WITH_INFO;
+					SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the pCharAttr.", func);
+				}
+				if (pcbCharAttr)
+					*pcbCharAttr = blen * WCLEN;
+			}
+			if (rgbD)
+				free(rgbD);
+			break;
 		default:
 			rgbD = pCharAttr;
 			bMax = cbCharAttrMax;
 			rgbL = pcbCharAttr;
+			ret = PGAPI_ColAttributes(hstmt, iCol, iField, rgbD,
+					bMax, rgbL, pNumAttr);
 			break;
-	}
-
-	ret = PGAPI_ColAttributes(hstmt, iCol, iField, rgbD,
-		bMax, rgbL, pNumAttr);
-	if (alloced)
-	{
-		blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
-		if (SQL_SUCCESS == ret && blen * WCLEN > cbCharAttrMax)
-		{
-			ret = SQL_SUCCESS_WITH_INFO;
-			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the pCharAttr.", func);
-		}
-		if (pcbCharAttr)
-			*pcbCharAttr = blen * WCLEN;
-		free(rgbD);
 	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
@@ -329,12 +335,12 @@ RETCODE SQL_API SQLGetDiagFieldW(
 {
 	CSTR func = "SQLGetDiagFieldW";
 	RETCODE	ret;
-	BOOL	alloced = FALSE;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
         char    *rgbD = NULL;
+	StatementClass	*stmt = (StatementClass *) handle;
 
-	mylog("[[%s]] Handle=(%u,%x) Rec=%d Id=%d\n", func, fHandleType,
-			handle, iRecord, fDiagField);
+	mylog("[[%s]] Handle=(%u,%x) Rec=%d Id=%d info=(%x,%d)\n", func, fHandleType,
+			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);
 	switch (fDiagField)
 	{ 
 		case SQL_DIAG_DYNAMIC_FUNCTION:
@@ -344,33 +350,41 @@ RETCODE SQL_API SQLGetDiagFieldW(
 		case SQL_DIAG_SERVER_NAME:
 		case SQL_DIAG_SQLSTATE:
 		case SQL_DIAG_SUBCLASS_ORIGIN:
-			alloced = TRUE;
 			bMax = cbDiagInfoMax * 3 / WCLEN;
-			rgbD = malloc(bMax + 1);
+			if (rgbD = malloc(bMax + 1), !rgbD)
+			{
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Can't allocate a rgbD buffer.", func);
+				return SQL_ERROR;
+			}
 			rgbL = &blen;
-                	break;
+			for (;; bMax = blen + 1, rgbD = realloc(rgbD, bMax))
+			{
+				ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
+					bMax, rgbL);
+				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
+					break;
+			}
+			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+			{
+				blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
+				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
+				{
+					ret = SQL_SUCCESS_WITH_INFO;
+				SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDiagInfo.", func);
+				}
+				if (pcbDiagInfo)
+					*pcbDiagInfo = blen * WCLEN;
+			}
+			if (rgbD)
+				free(rgbD);
+			break;
 		default:
 			rgbD = rgbDiagInfo;
 			bMax = cbDiagInfoMax;
 			rgbL = pcbDiagInfo;
+			ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
+				bMax, rgbL);
 			break;
-	}
-
-	ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
-		bMax, rgbL);
-	if (alloced)
-	{
-		blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
-		if (SQL_SUCCESS == ret && blen * 2 > cbDiagInfoMax)
-		{
-			StatementClass	*stmt = (StatementClass *) handle;
-
-			ret = SQL_SUCCESS_WITH_INFO;
-			SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDiagInfo.", func);
-		}
-		if (pcbDiagInfo)
-			*pcbDiagInfo = blen * 2;
-		free(rgbD);
 	}
 
 	return ret;
