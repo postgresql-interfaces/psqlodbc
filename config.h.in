@@ -108,6 +108,9 @@
 /* Define to 1 to build with unixODBC support (--with-unixodbc) */
 #undef WITH_UNIXODBC
 
+/* Define to 1 if your <sys/time.h> declares `struct tm'. */
+#undef TM_IN_SYS_TIME
+
 /* Force define to 1 to build with unicode support */
 #undef UNICODE_SUPPORT
 

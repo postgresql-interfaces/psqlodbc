@@ -1144,7 +1144,6 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 }
 
 static	char	CC_setenv(ConnectionClass *self);
-#ifdef	WIN32
 static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -1167,7 +1166,6 @@ LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	return 1;
 }
-#endif /* WIN32 */
 
 static char
 original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)

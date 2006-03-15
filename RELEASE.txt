@@ -8,6 +8,17 @@
 
 <Changes>
 
+[7.3.0261]
+
+1.Fix the handling of *too small buffer* in the Unicode version.
+2.Fix the behavior of DiscardStatementSvp which resets the status too early.
+3.Fix the bug in PGAPI_ParamData which fails to count the number
+  of parameters.
+4.Allow blanks in password.
+5.Add an option to force abbreviation of connection string.
+6.Fix the handling of "PROTOCOL=x.x-x" in the connction string.
+7.Fix the loadlib module of *nix.
+
 [7.3.0260]
 
 1. Change delay load import library mechanism(libpq,openssl)
