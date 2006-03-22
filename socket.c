@@ -20,6 +20,9 @@
 #ifndef WIN32
 #include <stdlib.h>
 #include <string.h>				/* for memset */
+#if defined(TM_IN_SYS_TIME)
+#include <sys/time.h>
+#endif /* defined(TM_IN_SYS_TIME) */
 #endif /* WIN32 */
 
 extern GLOBAL_VALUES globals;
