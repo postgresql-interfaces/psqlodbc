@@ -85,7 +85,7 @@ void * debug_realloc(void * ptr, size_t size)
 		altbl[tbsize].len = size;
 		tbsize++;
 	}
-	else if (alloced != ptr)
+	else /* if (alloced != ptr) */
 	{
 		int	i;
 		for (i = 0; i < tbsize; i++)
@@ -98,6 +98,7 @@ void * debug_realloc(void * ptr, size_t size)
 			}	
 		}
 	}
+		
 	inolog("debug_realloc %x->%x\n", ptr, alloced);
 	return alloced;
 }

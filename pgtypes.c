@@ -868,7 +868,7 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 		case PG_TYPE_NAME:
 			{
 				int	value = 0;
-				if (PG_VERSION_GE(conn, 7.4))
+				if (PG_VERSION_GT(conn, 7.4))
 					value = CC_get_max_idlen(conn);
 #ifdef	NAME_FIELD_SIZE
 				else
@@ -1045,6 +1045,8 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 			{
 			int	coef = 1;
 			Int4	prec = pgtype_column_size(stmt, type, col, handle_unknown_size_as), maxvarc;
+			if (SQL_NO_TOTAL == prec)
+				return prec;
 #ifdef	UNICODE_SUPPORT
 			if (conn->unicode)
 				return prec * WCLEN;
@@ -1123,6 +1125,9 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 	{
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
+		case PG_TYPE_TEXT:
+			if (SQL_NO_TOTAL == prec)
+				return prec;
 #ifdef	UNICODE_SUPPORT
 			if (conn->unicode)
 				return prec * WCLEN;
@@ -1141,6 +1146,9 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 			return coef * prec;
 		case PG_TYPE_BYTEA:
 			return prec;
+		default:
+			if (type == conn->lobj_type)
+				return prec;
 	}
 	return -1;
 }

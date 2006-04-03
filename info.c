@@ -141,26 +141,31 @@ PGAPI_GetInfo(
 			break;
 
 		case SQL_CONVERT_BIGINT:
-		case SQL_CONVERT_BINARY:
-		case SQL_CONVERT_BIT:
-		case SQL_CONVERT_CHAR:
-		case SQL_CONVERT_DATE:
+		case SQL_CONVERT_INTEGER:
+		case SQL_CONVERT_SMALLINT:
+		case SQL_CONVERT_TINYINT:
 		case SQL_CONVERT_DECIMAL:
 		case SQL_CONVERT_DOUBLE:
 		case SQL_CONVERT_FLOAT:
-		case SQL_CONVERT_INTEGER:
-		case SQL_CONVERT_LONGVARBINARY:
-		case SQL_CONVERT_LONGVARCHAR:
 		case SQL_CONVERT_NUMERIC:
 		case SQL_CONVERT_REAL:
-		case SQL_CONVERT_SMALLINT:
+		case SQL_CONVERT_BIT:
+		case SQL_CONVERT_DATE:
 		case SQL_CONVERT_TIME:
 		case SQL_CONVERT_TIMESTAMP:
-		case SQL_CONVERT_TINYINT:
-		case SQL_CONVERT_VARBINARY:
+		case SQL_CONVERT_BINARY:
+		case SQL_CONVERT_LONGVARBINARY:
+		case SQL_CONVERT_VARBINARY:		/* ODBC 1.0 */
+		case SQL_CONVERT_CHAR:
+		case SQL_CONVERT_LONGVARCHAR:
 		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
-			len = 4;
-			value = fInfoType;
+#ifdef	UNICODE_SUPPORT
+		case SQL_CONVERT_WCHAR:
+		case SQL_CONVERT_WLONGVARCHAR:
+		case SQL_CONVERT_WVARCHAR:
+#endif /* UNICODE_SUPPORT */
+			len = sizeof(SQLUINTEGER);
+			value = 0;	/* CONVERT is unavailable */
 			break;
 
 		case SQL_CONVERT_FUNCTIONS:		/* ODBC 1.0 */
@@ -213,7 +218,8 @@ PGAPI_GetInfo(
 			break;
 
 		case SQL_DBMS_NAME:		/* ODBC 1.0 */
-			p = DBMS_NAME;
+			/* p = DBMS_NAME; */
+			p = "PostgreSQL";
 			break;
 
 		case SQL_DBMS_VER:		/* ODBC 1.0 */
@@ -223,8 +229,10 @@ PGAPI_GetInfo(
 			 * the driver
 			 */
 			/* version number to the dbms version string */
+			/*
 			snprintf(tmp, sizeof(tmp) - 1, "%s %s", POSTGRESDRIVERVERSION, conn->pg_version);
-                        tmp[sizeof(tmp) - 1] = '\0';
+                        tmp[sizeof(tmp) - 1] = '\0'; */
+			strncpy_null(tmp, conn->pg_version, sizeof(tmp));
 			p = tmp;
 			break;
 
@@ -326,7 +334,7 @@ PGAPI_GetInfo(
 
 		case SQL_MAX_COLUMN_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
-			if (PG_VERSION_GE(conn, 7.4))
+			if (PG_VERSION_GT(conn, 7.4))
 				value = CC_get_max_idlen(conn);
 #ifdef	MAX_COLUMN_LEN
 			else
@@ -379,7 +387,7 @@ PGAPI_GetInfo(
 		case SQL_MAX_OWNER_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
 			value = 0;
-			if (PG_VERSION_GE(conn, 7.4))
+			if (PG_VERSION_GT(conn, 7.4))
 				value = CC_get_max_idlen(conn);
 #ifdef	MAX_SCHEMA_LEN
 			else if (conn->schema_support)
@@ -434,7 +442,7 @@ PGAPI_GetInfo(
 
 		case SQL_MAX_TABLE_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
-			if (PG_VERSION_GE(conn, 7.4))
+			if (PG_VERSION_GT(conn, 7.4))
 				value = CC_get_max_idlen(conn);
 #ifdef	MAX_TABLE_LEN
 			else
@@ -766,7 +774,7 @@ PGAPI_GetInfo(
 			if (len >= cbInfoValueMax)
 			{
 				result = SQL_SUCCESS_WITH_INFO;
-				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for tthe InfoValue.", func);
+				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the InfoValue.", func);
 			}
 		}
 #ifdef	UNICODE_SUPPORT
@@ -1693,76 +1701,6 @@ cleanup:
 	return ret;
 }
 
-
-/*
- *	PostgreSQL needs 2 '\\' to escape '_' and '%'. 
- */
-static int
-reallyEscapeCatalogEscapes(const char *src, int srclen, char *dest, int dst_len, int ccsc)
-{
-	int	i, outlen;
-	const char *in;
-	BOOL	escape_in = FALSE;
-	encoded_str	encstr;
-
-	if (srclen == SQL_NULL_DATA)
-	{
-		dest[0] = '\0';
-		return STRCPY_NULL;
-	}
-	else if (srclen == SQL_NTS)
-		srclen = strlen(src);
-	if (srclen <= 0 || !src)
-	{
-		dest[0] = '\0';
-		return STRCPY_FAIL;
-	}
-mylog("src=%s ", src);
-	encoded_str_constr(&encstr, ccsc, src);
-	for (i = 0, in = src, outlen = 0; i < srclen && outlen < dst_len; i++, in++)
-	{
-                encoded_nextchar(&encstr);
-                if (ENCODE_STATUS(encstr) != 0)
-                {
-                        dest[outlen++] = *in;
-                        continue;
-                }
-		if (escape_in)
-		{
-			switch (*in)
-			{
-				case '%':
-				case '_':
-					if (SEARCH_PATTERN_ESCAPE == ESCAPE_IN_LITERAL)
-						dest[outlen++] = ESCAPE_IN_LITERAL; /* and insert 1 more LEXER escape */
-					dest[outlen++] = SEARCH_PATTERN_ESCAPE; /* MOVE LIKE escape */
-					break;
-				default:
-					dest[outlen++] = ESCAPE_IN_LITERAL;
-					if (outlen < dst_len)
-						dest[outlen++] = ESCAPE_IN_LITERAL;
-					if (outlen < dst_len)
-						dest[outlen++] = ESCAPE_IN_LITERAL;
-					if (outlen < dst_len)
-						dest[outlen++] = ESCAPE_IN_LITERAL;
-					break;
-			}
-		}
-		if (*in == SEARCH_PATTERN_ESCAPE)
-			escape_in = TRUE;
-		else
-		{
-			escape_in = FALSE;
-			if (outlen < dst_len)
-				dest[outlen++] = *in;
-		}
-	}
-	if (outlen < dst_len)
-		dest[outlen] = '\0';
-mylog("dest=%s\n", dest);
-	return outlen;
-}
-
 static char	*
 simpleCatalogEscape(const char *src, int srclen, char escape_ch, int *result_len, int ccsc)
 {
@@ -1803,6 +1741,9 @@ mylog("simple output=%s(%d)\n", dest, outlen);
 	return dest;
 }
 
+/*
+ *	PostgreSQL needs 2 '\\' to escape '_' and '%'. 
+ */
 static char	*
 adjustLikePattern(const char *src, int srclen, char escape_ch, int *result_len, int ccsc)
 {
@@ -1856,6 +1797,8 @@ mylog("adjust in=%s(%d)\n", src, srclen);
 		else
 		{
 			escape_in = FALSE;
+			if (LITERAL_QUOTE == *in)
+				dest[outlen++] = *in;
 			dest[outlen++] = *in;
 		}
 	}
@@ -5216,29 +5159,6 @@ retry_public_schema:
 	}
 	if (escTableName)
 		snprintf(proc_query, sizeof(proc_query), "%s relname %s '%s' and", proc_query, like_or_eq, escTableName);
-#ifdef NOT_USED
-	if ((flag & PODBC_NOT_SEARCH_PATTERN) != 0)
-	{
-		if (conn->schema_support)
-		{
-			schema_strcat(proc_query, " nspname = '%.*s' and", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
-		}
-		my_strcat(proc_query, " relname = '%.*s' and", szTableName, cbTableName);
-	}
-	else
-	{
-		char	esc_table_name[TABLE_NAME_STORAGE_LEN * 2];
-		int	escTbnamelen;
-
-		if (conn->schema_support)
-		{
-			escTbnamelen = reallyEscapeCatalogEscapes(szSchemaName, cbSchemaName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
-			schema_strcat1(proc_query, " nspname %s '%.*s' and", like_or_eq, esc_table_name, escTbnamelen, szTableName, cbTableName, conn);
-		}
-		escTbnamelen = reallyEscapeCatalogEscapes(szTableName, cbTableName, esc_table_name, sizeof(esc_table_name), conn->ccsc);
-		my_strcat1(proc_query, " relname %s '%.*s' and", like_or_eq, esc_table_name, escTbnamelen);
-	}
-#endif /* NOT_USED */
 	if (conn->schema_support)
 	{
 		strcat(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");

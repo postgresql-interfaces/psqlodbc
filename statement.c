@@ -931,6 +931,7 @@ SC_clear_error(StatementClass *self)
 		QR_set_notice(res, NULL);
 		res->sqlstate[0] = '\0';
 	}
+	CC_clear_error(SC_get_conn(self));
 }
 
 

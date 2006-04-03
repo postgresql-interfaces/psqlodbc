@@ -198,7 +198,7 @@ PGAPI_DescribeCol(
 	QResultClass *res;
 	char	   *col_name = NULL;
 	Int4		fieldtype = 0;
-	SQLULEN		column_size = 0;
+	SQLLEN		column_size = 0;
 	SQLINTEGER	decimal_digits = 0;
 	ConnInfo   *ci;
 	char		parse_ok;
@@ -752,14 +752,14 @@ inolog("COLUMN_TYPE=%d\n", value);
 			break;
 		case SQL_DESC_LENGTH: /* different from SQL_COLUMN_LENGTH */
 			value = (fi && fi->length > 0) ? fi->length : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
-			if (value < 0)
+			if (-1 == value)
 				value = 0;
 
 			mylog("%s: col %d, length = %d\n", func, col_idx, value);
 			break;
 		case SQL_DESC_OCTET_LENGTH:
 			value = (fi && fi->length > 0) ? fi->length : pgtype_transfer_octet_length(stmt, field_type, col_idx, unknown_sizes);
-			if (value < 0)
+			if (-1 == value)
 				value = 0;
 			mylog("%s: col %d, octet_length = %d\n", func, col_idx, value);
 			break;

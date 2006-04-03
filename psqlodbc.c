@@ -119,8 +119,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			break;
 
 		case DLL_PROCESS_DETACH:
+			mylog("DETACHING PROCESS\n");
+			/* my(q)log is unavailable from here */
 			finalize_global_cs();
-			mylog("DETACH PROCESS\n");
 			WSACleanup();
 			return TRUE;
 

@@ -3151,7 +3151,7 @@ inolog("socket=%d\n", socket);
 		pversion = PQserverVersion(pqconn);
 		self->pg_version_major = pversion / 10000;
 		self->pg_version_minor = (pversion % 10000) / 100;
-		sprintf(self->pg_version, "%d.%d",  self->pg_version_major, self->pg_version_minor);
+		sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
 		self->pg_version_number = (float) atof(self->pg_version);
 		if (PG_VERSION_GE(self, 7.3))
 			self->schema_support = 1;

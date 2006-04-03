@@ -32,9 +32,9 @@ struct BindInfoClass_
 typedef struct
 {
 	char	*ttlbuf;		/* to save the large result */
-	Int4	ttlbuflen;		/* the buffer length */
-	Int4	ttlbufused;		/* used length of the buffer */
-	Int4	data_left;		/* amount of data left to read
+	SQLLEN	ttlbuflen;		/* the buffer length */
+	SQLLEN	ttlbufused;		/* used length of the buffer */
+	SQLLEN	data_left;		/* amount of data left to read
 					 * (SQLGetData) */
 }	GetDataClass;
 
@@ -55,7 +55,7 @@ struct ParameterInfoClass_
 
 typedef struct 
 {
-	Int4	*EXEC_used;	/* amount of data */
+	SQLLEN	*EXEC_used;	/* amount of data */
 	char	*EXEC_buffer; 	/* the data */
 	Oid	lobj_oid;
 }	PutDataClass;

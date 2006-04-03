@@ -386,8 +386,8 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	CSTR func = "copy_and_convert_field";
 	ARDFields	*opts = SC_get_ARDF(stmt);
 	GetDataInfo	*gdata = SC_get_GDTI(stmt);
-	Int4		len = 0,
-				copy_len = 0;
+	SQLLEN		len = 0,
+				copy_len = 0, needbuflen = 0;
 	SIMPLE_TIME std_time;
 	time_t		stmt_t = SC_get_time(stmt);
 	struct tm  *tim;
@@ -403,6 +403,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 	int			result = COPY_OK;
 	ConnectionClass		*conn = SC_get_conn(stmt);
 	BOOL		changed, true_is_minus1 = FALSE;
+	BOOL	text_handling, localize_needed;
 	const char *neut_str = value;
 	char		midtemp[2][32];
 	int			mtemp_cnt = 0;
@@ -416,8 +417,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 #endif /* WIN_UNICODE_SUPPORT */
 #ifdef HAVE_LOCALE_H
 	char *saved_locale;
-#endif
-
+#endif /* HAVE_LOCALE_H */
 
 	if (stmt->current_col >= 0)
 	{
@@ -697,12 +697,33 @@ inolog("2stime fr=%d\n", std_time.fr);
 		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
 
+	text_handling = localize_needed = FALSE;
+	if (fCType == INTERNAL_ASIS_TYPE
 #ifdef	UNICODE_SUPPORT
-	if (fCType == SQL_C_CHAR || fCType == SQL_C_WCHAR
-#else
-	if (fCType == SQL_C_CHAR
+	    || fCType == SQL_C_WCHAR
 #endif /* UNICODE_SUPPORT */
-	    || fCType == INTERNAL_ASIS_TYPE)
+	    || fCType == SQL_C_CHAR)
+		text_handling = TRUE;
+	else if (fCType == SQL_C_BINARY &&
+		 (field_type == PG_TYPE_UNKNOWN
+		  || field_type == PG_TYPE_BPCHAR
+		  || field_type == PG_TYPE_VARCHAR
+		  || field_type == PG_TYPE_TEXT
+		  || field_type == PG_TYPE_BPCHARARRAY
+		  || field_type == PG_TYPE_VARCHARARRAY
+		  || field_type == PG_TYPE_TEXTARRAY
+		 ))
+		text_handling = TRUE;
+	if (text_handling)
+	{
+#ifdef	WIN_UNICODE_SUPPORT
+		if (SQL_C_CHAR == fCType
+		    || SQL_C_BINARY == fCType)
+			localize_needed = TRUE;
+#endif /* WIN_UNICODE_SUPPORT */
+	}
+
+	if (text_handling)
 	{
 		/* Special character formatting as required */
 
@@ -791,7 +812,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					}
 					else
 #ifdef	WIN_UNICODE_SUPPORT
-					if (fCType == SQL_C_CHAR)
+					if (localize_needed)
 					{
 						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
 						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
@@ -815,12 +836,23 @@ inolog("2stime fr=%d\n", std_time.fr);
 					}
 					if (!pgdc->ttlbuf)
 						pgdc->ttlbuflen = 0;
-					if (changed || len >= cbValueMax)
+					needbuflen = len;
+					switch (fCType)
 					{
-						if (len >= (int) pgdc->ttlbuflen)
+						case SQL_C_WCHAR:
+							needbuflen += WCLEN;
+							break;
+						case SQL_C_BINARY:
+							break;
+						default:
+							needbuflen++;
+					}
+					if (changed || needbuflen > cbValueMax)
+					{
+						if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
 						{
-							pgdc->ttlbuf = realloc(pgdc->ttlbuf, len + 1);
-							pgdc->ttlbuflen = len + 1;
+							pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen);
+							pgdc->ttlbuflen = needbuflen;
 						}
 #ifdef	UNICODE_SUPPORT
 						if (fCType == SQL_C_WCHAR)
@@ -837,7 +869,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						}
 						else
 #ifdef	WIN_UNICODE_SUPPORT
-						if (fCType == SQL_C_CHAR)
+						if (localize_needed)
 						{
 							len = WideCharToMultiByte(CP_ACP, 0, allocbuf, wstrlen, pgdc->ttlbuf, pgdc->ttlbuflen, NULL, NULL);
 							free(allocbuf);
@@ -873,6 +905,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					{
 						ptr += len - pgdc->data_left;
 						len = pgdc->data_left;
+						needbuflen = len + (pgdc->ttlbuflen - pgdc->ttlbufused);
 					}
 					else
 						pgdc->data_left = len;
@@ -882,7 +915,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 				{
 					BOOL	already_copied = FALSE;
 
-					copy_len = (len >= cbValueMax) ? cbValueMax : len;
+					if (fCType == SQL_C_BINARY)
+						copy_len = (len > cbValueMax) ? cbValueMax : len;
+					else
+						copy_len = (len >= cbValueMax) ? (cbValueMax - 1) : len;
 #ifdef	UNICODE_SUPPORT
 					if (fCType == SQL_C_WCHAR)
 					{
@@ -944,7 +980,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				 * Finally, check for truncation so that proper status can
 				 * be returned
 				 */
-				if (cbValueMax > 0 && len >= cbValueMax)
+				if (cbValueMax > 0 && needbuflen > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				else
 				{
@@ -958,6 +994,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 				if (SQL_C_WCHAR == fCType)
 					mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%S'\n", len, cbValueMax, rgbValueBindRow);
+				else if (SQL_C_BINARY == fCType)
+					mylog("    SQL_C_BINARY, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
 				else
 					mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 				break;
@@ -1260,7 +1298,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 				if (PG_TYPE_UNKNOWN == field_type ||
 				    PG_TYPE_TEXT == field_type ||
 				    PG_TYPE_VARCHAR == field_type ||
-				    PG_TYPE_BPCHAR == field_type)
+				    PG_TYPE_BPCHAR == field_type ||
+				    PG_TYPE_TEXTARRAY == field_type ||
+				    PG_TYPE_VARCHARARRAY == field_type ||
+				    PG_TYPE_BPCHARARRAY == field_type)
 				{
 					int	len = SQL_NULL_DATA;
 

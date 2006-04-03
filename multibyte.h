@@ -28,11 +28,11 @@
 #define LATIN9				16	/* ISO-8859 Latin 9 */
 #define LATIN10				17	/* ISO-8859 Latin 10 */
 #define WIN1256				18	/* Arabic Windows */
-#define TCVN				19	/* Vietnamese Windows */
+#define WIN1258				19	/* Vietnamese Windows */
 #define WIN874				20	/* Thai Windows */
 #define KOI8R				21	/* KOI8-R/U */
 #define WIN1251				22	/* windows-1251 */
-#define ALT				23	/* Alternativny Variant (MS-DOS CP866) */
+#define WIN866				23	/* Alternativny Variant (MS-DOS CP866) */
 #define ISO_8859_5			24	/* ISO-8859-5 */
 #define ISO_8859_6			25	/* ISO-8859-6 */
 #define ISO_8859_7			26	/* ISO-8859-7 */
@@ -45,6 +45,9 @@
 #define WIN1250				32	/* windows-1250 */
 #define GB18030				33	/* GB18030 */
 #define UNICODE_PODBC			34	/* same as Unicode UTF-8 */
+#define	TCVN				35	/* TCVN ( < Ver8.1) */
+#define	ALT				36	/* ALT ( < Var8.1) */
+#define	WIN				37	/* WIN ( < Ver8.1) */
 #define OTHER				-1
 
 #define MAX_CHARACTERSET_NAME	24

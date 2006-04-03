@@ -41,10 +41,13 @@ pg_CS CS_Table[] =
 	{ "LATIN10",	LATIN10 },
 	{ "WIN1256",	WIN1256 },
 	{ "TCVN",	TCVN },
+	{ "WIN1258",	WIN1258 },	/* since 8.1 */
 	{ "WIN874",	WIN874 },
 	{ "KOI8",	KOI8R },
-	{ "WIN",	WIN1251 },
+	{ "WIN",	WIN },
+	{ "WIN1251",	WIN1251 },
 	{ "ALT",	ALT },
+	{ "WIN866",	WIN866 },	/* since 8.1 */
 	{ "ISO_8859_5", ISO_8859_5 },
 	{ "ISO_8859_6", ISO_8859_6 },
 	{ "ISO_8859_7", ISO_8859_7 },

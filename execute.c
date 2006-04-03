@@ -1490,12 +1490,12 @@ PGAPI_PutData(
 			old_pos = *current_pdata->EXEC_used;
 			if (putlen > 0)
 			{
-				*current_pdata->EXEC_used += putlen;
-
-				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", putlen, old_pos, *current_pdata->EXEC_used);
+				SQLLEN	used = *current_pdata->EXEC_used + putlen, allocsize;
+				for (allocsize = (1 << 4); allocsize <= used; allocsize <<= 1) ;
+				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", putlen, old_pos, used);
 
 				/* dont lose the old pointer in case out of memory */
-				buffer = realloc(current_pdata->EXEC_buffer, *current_pdata->EXEC_used + 1);
+				buffer = realloc(current_pdata->EXEC_buffer, allocsize);
 				if (!buffer)
 				{
 					SC_set_error(stmt, STMT_NO_MEMORY_ERROR,"Out of memory in PGAPI_PutData (3)", func);
@@ -1504,9 +1504,10 @@ PGAPI_PutData(
 				}
 
 				memcpy(&buffer[old_pos], putbuf, putlen);
-				buffer[*current_pdata->EXEC_used] = '\0';
+				buffer[used] = '\0';
 
 				/* reassign buffer incase realloc moved it */
+				*current_pdata->EXEC_used = used;
 				current_pdata->EXEC_buffer = buffer;
 			}
 			else
