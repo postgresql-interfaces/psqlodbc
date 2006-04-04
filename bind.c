@@ -13,6 +13,8 @@
  *-------
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include "bind.h"
 
 #include "environ.h"
@@ -20,8 +22,7 @@
 #include "descriptor.h"
 #include "qresult.h"
 #include "pgtypes.h"
-#include <stdlib.h>
-#include <string.h>
+#include "multibyte.h"
 
 #include "pgapifunc.h"
 
@@ -419,7 +420,7 @@ PGAPI_NumParams(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_NumParams";
-	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = '$';
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
 
 	mylog("%s: entering...\n", func);
 
@@ -449,21 +450,30 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	{
 		const	char *sptr, *tag = NULL;
 		int	taglen;
-		char	bchar;
+		char	tchar, bchar;
 		char	in_literal = FALSE, in_identifier = FALSE,
-			in_dollar_quote = FALSE, multi = FALSE, del_found = FALSE;
+			in_dollar_quote = FALSE, in_escape = FALSE,
+			multi = FALSE, del_found = FALSE;
+		encoded_str	encstr;
 
 		stmt->proc_return = 0;
+		make_encoded_str(&encstr, SC_get_conn(stmt), stmt->statement);
 		for (sptr = stmt->statement, bchar = '\0'; *sptr; sptr++)
 		{
+			tchar = encoded_nextchar(&encstr);
+			if (ENCODE_STATUS(encstr) != 0) /* multibyte char */
+			{
+				bchar = tchar;
+				continue;
+			}
 			if (!multi && del_found)
 			{
-				if (!isspace(*sptr))
+				if (!isspace(tchar))
 					multi = TRUE;
 			}
 			if (in_dollar_quote)
 			{
-				if (*sptr == dollar_quote)
+				if (tchar == dollar_quote)
 				{
 					if (strncmp(sptr, tag, taglen) == 0)
 					{
@@ -476,25 +486,29 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 			}
 			else if (in_literal)
 			{
-				if (*sptr == literal_quote)
+				if (in_escape)
+					in_escape = FALSE;
+				else if (tchar == escape_in_literal)
+					in_escape = TRUE;
+				else if (tchar == literal_quote)
 					in_literal = FALSE;
 			}
 			else if (in_identifier)
 			{
-				if (*sptr == identifier_quote)
+				if (tchar == identifier_quote)
 					in_identifier = FALSE;
 			}
 			else
 			{
-				if (*sptr == '?')
+				if (tchar == '?')
 				{
 					if (0 == *pcpar && bchar == '{')
 						stmt->proc_return = 1;
 					(*pcpar)++;
 				}
-				else if (*sptr == ';')
+				else if (tchar == ';')
 					del_found = TRUE;
-				else if (*sptr == dollar_quote)
+				else if (tchar == dollar_quote)
 				{
 					char	*dollar_next;
 
@@ -507,12 +521,12 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 						sptr = dollar_next;
 					}
 				}
-				else if (*sptr == literal_quote)
+				else if (tchar == literal_quote)
 					in_literal = TRUE;
-				else if (*sptr == identifier_quote)
+				else if (tchar == identifier_quote)
 					in_identifier = TRUE;
-				if (!isspace(*sptr))
-					bchar = *sptr;
+				if (!isspace(tchar))
+					bchar = tchar;
 			}
 		}
 		stmt->num_params = *pcpar;

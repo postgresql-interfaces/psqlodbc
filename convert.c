@@ -839,9 +839,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 					needbuflen = len;
 					switch (fCType)
 					{
+#ifdef	UNICODE_SUPPORT
 						case SQL_C_WCHAR:
 							needbuflen += WCLEN;
 							break;
+#endif /* UNICODE_SUPPORT */
 						case SQL_C_BINARY:
 							break;
 						default:

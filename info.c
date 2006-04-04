@@ -1729,7 +1729,7 @@ mylog("simple in=%s(%d)\n", src, srclen);
                         dest[outlen++] = *in;
                         continue;
                 }
-		if ('\'' == *in ||
+		if (LITERAL_QUOTE == *in ||
 		    escape_ch == *in)
 			dest[outlen++] = *in;
 		dest[outlen++] = *in;
