@@ -10,6 +10,21 @@
 
 [7.3.0261]
 
+1.Handle the converion from text-like field to SQL_C_BINARY more properly.
+2.Make buffer extension in SQLPutData more effective.
+3.Reply SQL_CONVERT_xxxx correctly for SQLGetInfo request.
+4.Reply DBMS_NAME, DBMS_VERSION correctly for SQLGetInfo request.
+5.Not call show max_identifier_length in PG 7.4.
+6.Change adjustLikePattern() to take literal quote(') into account.
+7.Fix a bug in memory debug routine.
+8.Change the multibyte encoding list to match that of the current
+  offical driver.
+9.Change SC_clear_error() to call CC_clear_error() also.
+10.Change the length values returned when they are unknown for
+   SQLDescribeCol or SQLColAttribute requests.
+
+[7.3.0261]
+
 1.Fix the handling of *too small buffer* in the Unicode version.
 2.Fix the behavior of DiscardStatementSvp which resets the status too early.
 3.Fix the bug in PGAPI_ParamData which fails to count the number
