@@ -9,6 +9,139 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0001</li><br>
+Changes:<br>
+1) updated CVS tip to the REL-07_03_ENHANCED branch<br>
+2) updated the installer for the single driver distribution<br>
+3) standardised various filenames that were previously based on build types<br>
+4) standardised the build on ODBC version 3.51<br>
+
+<hr>
+<h2>Note</h2>
+<p>Releases from this point onwards are based on the REL-07_03_ENHANCED code branch
+of psqlODBC - please see 
+<a href="http://archives.postgresql.org/pgsql-odbc/2006-02/msg00131.php">http://archives.postgresql.org/pgsql-odbc/2006-02/msg00131.php</a>
+for further details.</p>
+
+<p>The following changes are based on the 07.03 codebase</p>
+
+<pre>
+[7.3.0261]
+
+1.Handle the converion from text-like field to SQL_C_BINARY more properly.
+2.Make buffer extension in SQLPutData more effective.
+3.Reply SQL_CONVERT_xxxx correctly for SQLGetInfo request.
+4.Reply DBMS_NAME, DBMS_VERSION correctly for SQLGetInfo request.
+5.Not call show max_identifier_length in PG 7.4.
+6.Change adjustLikePattern() to take literal quote(') into account.
+7.Fix a bug in memory debug routine.
+8.Change the multibyte encoding list to match that of the current
+  offical driver.
+9.Change SC_clear_error() to call CC_clear_error() also.
+10.Change the length values returned when they are unknown for
+   SQLDescribeCol or SQLColAttribute requests.
+
+[7.3.0261]
+
+1.Fix the handling of *too small buffer* in the Unicode version.
+2.Fix the behavior of DiscardStatementSvp which resets the status too early.
+3.Fix the bug in PGAPI_ParamData which fails to count the number
+  of parameters.
+4.Allow blanks in password.
+5.Add an option to force abbreviation of connection string.
+6.Fix the handling of "PROTOCOL=x.x-x" in the connction string.
+7.Fix the loadlib module of *nix.
+
+[7.3.0260]
+
+1. Change delay load import library mechanism(libpq,openssl)
+2. Compile Optimization correspondence.
+3. SQLForeignKeys ResultSet accuracy correspondence.
+
+[7.3.0258]
+
+1. bug fix: SQLBulkOperations rollback option.
+   There was a case where a rollback was not published in SQLBulkOperations 
+   as option specification at the time of error generating.
+
+[7.3.0257]
+
+1. Fault correction of the division SQLGetData to SQL_C_WCHAR.
+
+[7.3.0256]
+
+1. SQLSetPos does not position to current-row to renewal of unblock cursor. 
+   (Data is unacquirable by SQLGetData etc.)
+
+[7.3.0255]
+
+1. bug fix: leak of a return value clearance
+2. Correspondence Windows English Dialog.
+3. Changes into the libpq link method.
+
+[7.3.0254]
+
+1. Setting menu of SSLMODE is added.
+2. Correspondence to domain type lo (an approvement is still required).
+3. bug fix: LIBPQ version cancellation request transmitting correspondence.
+4. Correction of the exclusive control between threads of SQLCancel
+
+[7.3.0253]
+
+1. Compilation of escape usage.
+   (preliminaries corresponding to a literal-escape abolition schedule)
+2. Correspondence of libpq and openssl.
+3. SQLProcedureColumns()RESULT_COLS row is outputted.
+4. bug fix: server-side prepare the number check of parameters.
+5. bug fix: parameter bind without a parameter marker is disregarded.
+6. bug fix: Retrying without carrying out a select operation to EWOULDBLOCK of socket/SSL-read.
+7. Abolition of abolition in manual_result mode, TupleList, and TupleNode employment
+
+[7.3.0252]
+
+1. Bug fix: Multi-byte employment by a table name etc.
+2. The text (varchar/char) type key assignation was enabled by MS-Access.
+
+[7.3.0251]
+
+1. Suppression of SQLColumnPrivilege support
+   It rejects using information_schema.column_privileges.
+2. Binary mode is used for a bytea type parameter value setup.
+   (Performs by the sequence of SQLPrepare->SQLExecute by server_side_prepare employment)
+3. Coexistence of LO type and bytea type.
+   When the parameter of LongVarBinary exists not by SQLPrepare->SQLExecute but by 
+   SQLExecDirect at the time of direct dispatching, the Parse/Describe function of 
+   a protocol 3 is used, the model in saver of LongVarBinary is acquired beforehand, 
+   and a bytea type and LO type are recognized.
+
+[Feature of Driver7.3.025x]
+
+1. Correspondence protocol 3
+   Options, such as client encoding, are set up by the start-up packet.
+   This makes the most of the mechanism of Parse/Bind/Execute.
+   .The outfit of SQLDescribeParam
+   .PREPARE/EXECUTE is changed from the command base to the protocol base.
+   .FETCH command is changed to an Execute request as it has come out.
+   .Moreover, bytea and lo type coexistence is possible.
+   .Others...
+
+2. Enhancement in declare/fetch mode (7.4 or later)
+   Even if a certain renewal occurs on the way by holdable cursor exploitation, 
+   a commitment is possible in comfort.
+   Moreover, the static update cursor was supported.
+   (Only for SQLSetPos correspondence, SQLBulkOperation are un-supporting)  
+   Bug fix of the cursor which can be updated.
+
+3. Rollback support of a syntactical unit at the time of an error.(8.0 or later)
+   Can choose from three Transaction module,Statement module,Nothing.
+   These can be specified by data source setup.
+
+4. Output parameter support (8.1 or later)
+   Corresponded to the output parameter of the function introduced by 8.1.
+   (Only the return value of a function was supported before.)
+</pre>
+<hr>
 <h2>psqlODBC 08.01.0200 Release</h2>
 <p>psqlODBC 08.01.0200 contains only documentation changes over the 08.01.0108
 development build.</p>
