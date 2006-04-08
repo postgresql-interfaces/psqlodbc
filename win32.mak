@@ -3,32 +3,32 @@
 #
 # Description:		psqlodbc35w Unicode version Makefile for Win32.
 #
-# Configurations:	Unicode30Debug, Unicode30
+# Configurations:	Release, Debug
 # Build Types:		ALL, CLEAN
-# Usage:		NMAKE /f win32_30.mak CFG=[Unicode30 | Unicode30Debug] [ALL | CLEAN]
+# Usage:		NMAKE /f win32_30.mak CFG=[Release | Debug] [ALL | CLEAN]
 #
 # Comments:		Created by Dave Page, 2001-02-12
 #
 
-!MESSAGE Building the PostgreSQL Unicode 3.0 Driver for Win32...
+!MESSAGE Building the PostgreSQL Unicode 3.51 Driver for Win32...
 !MESSAGE
 !IF "$(CFG)" == ""
-CFG=Unicode30
-!MESSAGE No configuration specified. Defaulting to Unicode30.
+CFG=Release
+!MESSAGE No configuration specified. Defaulting to Release.
 !MESSAGE
 !ENDIF 
 
-!IF "$(CFG)" != "Unicode30" && "$(CFG)" != "Unicode30Debug"
+!IF "$(CFG)" != "Release" && "$(CFG)" != "Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f win32_30.mak CFG=[Unicode30 | Unicode30Debug] [ALL | CLEAN]
+!MESSAGE NMAKE /f win32_30.mak CFG=[Release | Debug] [ALL | CLEAN]
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "Unicode30" (Win32 Release DLL)
-!MESSAGE "Unicode30Debug" (Win32 Debug DLL)
+!MESSAGE "Release" (Win32 Release DLL)
+!MESSAGE "Debug" (Win32 Debug DLL)
 !MESSAGE 
 !ERROR An invalid configuration was specified.
 !ENDIF 
@@ -78,11 +78,11 @@ NULL=
 NULL=nul
 !ENDIF 
 
-!IF  "$(CFG)" == "Unicode30"
+!IF  "$(CFG)" == "Release"
 
-OUTDIR=.\Unicode30
-OUTDIRBIN=.\Unicode30
-INTDIR=.\Unicode30
+OUTDIR=.\Release
+OUTDIRBIN=.\Release
+INTDIR=.\Release
 
 ALL : "$(OUTDIRBIN)\psqlodbc35w.dll"
 
@@ -177,7 +177,7 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-DEF_FILE= "psqlodbc_api30w.def"
+DEF_FILE= "psqlodbc.def"
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
@@ -224,11 +224,11 @@ LINK32_OBJS= \
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
 
-!ELSEIF  "$(CFG)" == "Unicode30Debug"
+!ELSEIF  "$(CFG)" == "Debug"
 
-OUTDIR=.\Unicode30Debug
-OUTDIRBIN=.\Unicode30Debug
-INTDIR=.\Unicode30Debug
+OUTDIR=.\Debug
+OUTDIRBIN=.\Debug
+INTDIR=.\Debug
 
 ALL : "$(OUTDIR)\psqlodbc35w.dll"
 
@@ -326,7 +326,7 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-DEF_FILE= "psqlodbc_api30w.def"
+DEF_FILE= "psqlodbc.def"
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /dll /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\psqlodbc35w.dll" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
@@ -375,7 +375,7 @@ LINK32_OBJS= \
 
 !ENDIF 
 
-!IF "$(CFG)" == "Unicode30" || "$(CFG)" == "Unicode30Debug"
+!IF "$(CFG)" == "Release" || "$(CFG)" == "Debug"
 
 SOURCE=bind.c
 
@@ -513,12 +513,12 @@ SOURCE=psqlodbc.c
 
 SOURCE=psqlodbc.rc
 
-!IF "$(CFG)" == "Unicode30"
+!IF "$(CFG)" == "Release"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" /d "MULTIBYTE" $(SOURCE)
 !ENDIF
 
-!IF "$(CFG)" == "Unicode30Debug"
+!IF "$(CFG)" == "Debug"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
 	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" $(SOURCE)
 !ENDIF

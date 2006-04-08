@@ -2,19 +2,19 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.32 2006/04/08 16:30:00 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.33 2006/04/08 18:06:42 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
 AUTOMAKE_OPTIONS = 1.6 foreign
 
-lib_LTLIBRARIES = psqlodbc30w.la
+lib_LTLIBRARIES = psqlodbc35w.la
 
-psqlodbc30w_la_LDFLAGS = -module -no-undefined -avoid-version
+psqlodbc35w_la_LDFLAGS = -module -no-undefined -avoid-version
 
-psqlodbc30w_la_LIBADD = -lpq
+psqlodbc35w_la_LIBADD = -lpq
 
-psqlodbc30w_la_SOURCES = \
+psqlodbc35w_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
 	environ.c execute.c lobj.c win_md5.c misc.c options.c \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
@@ -29,18 +29,31 @@ psqlodbc30w_la_SOURCES = \
 	version.h loadlib.h
 
 if enable_unicode
-psqlodbc30w_la_SOURCES += \
+psqlodbc35w_la_SOURCES += \
 odbcapiw.c odbcapi30w.c win_unicode.c
 endif
 
-EXTRA_psqlodbc30w_la_SOURCES = md5.c
+EXTRA_psqlodbc35w_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt odbcinst.ini \
-	libtool.m4 psqlodbc_api30w.def win32_30w.mak \
+	libtool.m4 psqlodbc.def win32.mak \
 	dlg_wingui.c win_setup.h setup.c \
 	win_unicode.c psqlodbc.rc psqlodbc.reg \
-	psqlodbc35w.dsp psqlodbc35w.dsw 
-	
+	psqlodbc.dsp \
+	docs/index.html docs/config.html \
+	docs/faq.html docs/howto-accesslo.html \
+	docs/howto-accessvba.html docs/howto-bo.html \
+	docs/howto-ch.html docs/howto-csharp.html \
+	docs/howto-vb.html docs/howto-vblo.html \
+	docs/unix-compilation.html docs/win32-compilation.html \
+	docs/release.html \
+	installer/banner.bmp installer/lgpl.rtf \
+	installer/new.bmp installer/up.bmp \
+	installer/Make.bat installer/upgrade.bat \
+	installer/psqlodbc.wxs installer/psqlodbcm.wxs \
+	installer/README.txt
+
+
 MAINTAINERCLEANFILES = \
 	Makefile.in config.guess config.h.in config.sub configure \
 	install-sh missing mkinstalldirs aclocal.m4 ltmain.sh \

@@ -3,25 +3,14 @@ REGEDIT4
 [HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI]
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers]
-"PostgreSQL Unicode"="Installed"
-"PostgreSQL ANSI"="Installed"
+"PostgreSQL"="Installed"
 
-[HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode]
+[HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL]
 "APILevel"="1"
 "ConnectFunctions"="YYN"
-"Driver"="PSQLODBCW.DLL"
-"DriverODBCVer"="03.00"
+"Driver"="PSQLODBC35W.DLL"
+"DriverODBCVer"="03.51"
 "FileUsage"="0"
-"Setup"="PSQLODBCW.DLL"
-"SQLLevel"="1"
-"UsageCount"=dword:00000001
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI]
-"APILevel"="1"
-"ConnectFunctions"="YYN"
-"Driver"="PSQLODBCA.DLL"
-"DriverODBCVer"="03.00"
-"FileUsage"="0"
-"Setup"="PSQLODBCA.DLL"
+"Setup"="PSQLODBC35W.DLL"
 "SQLLevel"="1"
 "UsageCount"=dword:00000001

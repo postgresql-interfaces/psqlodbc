@@ -331,14 +331,14 @@ BEGIN
         BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver Japanese\0"
             VALUE "CompanyName", "PostgreSQL Global Development Group\0"
-            VALUE "FileDescription", "PostgreSQL Driver Japanese\0"
+            VALUE "FileDescription", "PostgreSQL ODBC Driver (Japanese)\0"
             VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
             VALUE "InternalName", "psqlodbc35w\0"
             VALUE "LegalCopyright", "\0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftƒ‡ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
             VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
-            VALUE "ProductName", "Microsoft Open Database Connectivity\0"
+            VALUE "ProductName", "PostgreSQL\0"
             VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
             VALUE "SpecialBuild", "\0"
         END
@@ -654,15 +654,15 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver\0"
-            VALUE "CompanyName", "Insight Distribution Systems\0"
-            VALUE "FileDescription", "PostgreSQL Driver English\0"
+            VALUE "CompanyName", "PostgreSQL Global Development Group\0"
+            VALUE "FileDescription", "PostgreSQL ODBC Driver (English)\0"
             VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
             VALUE "InternalName", "psqlodbc35w\0"
-            VALUE "LegalCopyright", "\0"
+            VALUE "LegalCopyright", "Copyright \0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
-            VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
-            VALUE "ProductName", "Microsoft Open Database Connectivity\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "PostgreSQL\0"
             VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
             VALUE "SpecialBuild", "\0"
         END

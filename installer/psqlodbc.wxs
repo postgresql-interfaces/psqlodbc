@@ -5,49 +5,51 @@
 
   <Product 
     Manufacturer="PostgreSQL Global Development Group" 
-    Id="4633256F-8709-495f-B4D1-A022EFAE7C39" 
-    Name="psqlODBC" 
+    Id="838E187D-8B7A-473d-B93C-C8E970B15D2B"
+    Name="psqlODBC"
     Version="$(var.VERSION)" 
     Language="1033">
       
 <!-- Package details -->
 
 	<Package 
-      Id="97EF9C01-B395-4d6e-8A01-3338A1E9E742" 
-      Keywords="PostgreSQL, ODBC" 
+      Id="E545FBC2-C8B1-4a1b-B73F-62EF3909E470"
+      Keywords="PostgreSQL, ODBC"
       Comments="PostgreSQL ODBC Driver"
       Manufacturer="PostgreSQL Global Development Group" 
       InstallerVersion="110" 
       Languages="1033" 
       Compressed="yes" 
       SummaryCodepage="1252" />
-        
+
 <!-- Directories -->
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder" Name="PFiles">
         <Directory Id="BASEDIR" Name="psqlODBC">
-          <Directory Id="BINDIR" Name="bin">
-            <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
-          </Directory>
-          <Directory Id="DOCSDIR" Name="docs">
-            <Component Id="docs" Guid="99F6DEB2-7FC4-497e-8358-C44724681BCA">
-              <File Id="docs.index.html" Name="index.htm" LongName="index.html" DiskId="1" src="../docs/index.html" />
-              <File Id="docs.config.html" Name="config.htm" LongName="config.html" DiskId="1" src="../docs/config.html" />
-              <File Id="docs.faq.html" Name="faq.htm" LongName="faq.html" DiskId="1" src="../docs/faq.html" />
-              <File Id="docs.howto_accesslo.html" Name="howto1.htm" LongName="howto-accesslo.html" DiskId="1" src="../docs/howto-accesslo.html" />
-              <File Id="docs.howto_accessvba.html" Name="howto2.htm" LongName="howto-accessvba.html" DiskId="1" src="../docs/howto-accessvba.html" />
-              <File Id="docs.howto_bo.html" Name="howto3.htm" LongName="howto-bo.html" DiskId="1" src="../docs/howto-bo.html" />
-              <File Id="docs.howto_ch.html" Name="howto4.htm" LongName="howto-ch.html" DiskId="1" src="../docs/howto-ch.html" />
-              <File Id="docs.howto_csharp.html" Name="howto5.htm" LongName="howto-csharp.html" DiskId="1" src="../docs/howto-csharp.html" />
-              <File Id="docs.howto_vb.html" Name="howto6.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
-              <File Id="docs.howto_vblo.html" Name="howto7.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
-              <File Id="docs.release.html" Name="release.htm" LongName="release.html" DiskId="1" src="../docs/release.html" />
-              <File Id="docs.unix_compilation.html" Name="unix.htm" LongName="unix-compilation.html" DiskId="1" src="../docs/unix-compilation.html" />
-              <File Id="docs.win32_compilation.html" Name="win32.htm" LongName="win32-compilation.html" DiskId="1" src="../docs/win32-compilation.html" />
-             
-              <Shortcut Id="docs.index.html" Directory="SMDIR" Name="docs" LongName="Documentation index" Target="[#docs.index.html]" Description="psqlODBC documentation, HOWTOs and FAQs" Show="normal" />
-            </Component>
+          <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
+            <Directory Id="BINDIR" Name="bin">
+              <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
+            </Directory>
+            <Directory Id="DOCSDIR" Name="docs">
+              <Component Id="docs" Guid="89DDBC52-9F0D-4846-91DC-09EECC87E42E">
+                <File Id="docs.index.html" Name="index.htm" LongName="index.html" DiskId="1" src="../docs/index.html" />
+                <File Id="docs.config.html" Name="config.htm" LongName="config.html" DiskId="1" src="../docs/config.html" />
+                <File Id="docs.faq.html" Name="faq.htm" LongName="faq.html" DiskId="1" src="../docs/faq.html" />
+                <File Id="docs.howto_accesslo.html" Name="howto1.htm" LongName="howto-accesslo.html" DiskId="1" src="../docs/howto-accesslo.html" />
+                <File Id="docs.howto_accessvba.html" Name="howto2.htm" LongName="howto-accessvba.html" DiskId="1" src="../docs/howto-accessvba.html" />
+                <File Id="docs.howto_bo.html" Name="howto3.htm" LongName="howto-bo.html" DiskId="1" src="../docs/howto-bo.html" />
+                <File Id="docs.howto_ch.html" Name="howto4.htm" LongName="howto-ch.html" DiskId="1" src="../docs/howto-ch.html" />
+                <File Id="docs.howto_csharp.html" Name="howto5.htm" LongName="howto-csharp.html" DiskId="1" src="../docs/howto-csharp.html" />
+                <File Id="docs.howto_vb.html" Name="howto6.htm" LongName="howto-vb.html" DiskId="1" src="../docs/howto-vb.html" />
+                <File Id="docs.howto_vblo.html" Name="howto7.htm" LongName="howto-vblo.html" DiskId="1" src="../docs/howto-vblo.html" />
+                <File Id="docs.release.html" Name="release.htm" LongName="release.html" DiskId="1" src="../docs/release.html" />
+                <File Id="docs.unix_compilation.html" Name="unix.htm" LongName="unix-compilation.html" DiskId="1" src="../docs/unix-compilation.html" />
+                <File Id="docs.win32_compilation.html" Name="win32.htm" LongName="win32-compilation.html" DiskId="1" src="../docs/win32-compilation.html" />
+
+                <Shortcut Id="docs.index.html" Directory="SMDIR" Name="docs" LongName="Documentation index" Target="[#docs.index.html]" Description="psqlODBC documentation, HOWTOs and FAQs" Show="normal" />
+              </Component>
+            </Directory>
           </Directory>
         </Directory>
       </Directory>
@@ -58,12 +60,12 @@
         
 <!-- Features -->
 
-	<Feature Id="psqlodbc" Title="psqlODBC" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
-      <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries." ConfigurableDirectory="BINDIR">
+    <Feature Id="psqlodbc" Title="psqlODBC" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
+      <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
         <MergeRef Id="psqlodbcm" />
       </Feature>
       
-      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs." ConfigurableDirectory="DOCSDIR">
+      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs.">
         <ComponentRef Id="docs" />
       </Feature>
       
