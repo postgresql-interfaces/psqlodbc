@@ -13,6 +13,9 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*	Uncomment MY_LOG define to compile in the mylog() statements.
 	Then, debug logging will occur if 'Debug' is set to 1 in the ODBCINST.INI
 	portion of the registry.  You may have to manually add this key.
@@ -66,6 +69,7 @@
 #define MYLOGDIR			"c:"
 #endif /* WIN32 */
 extern void mylog(char *fmt,...);
+extern void forcelog(const char *fmt,...);
 
 #else /* MY_LOG */
 #ifndef WIN32
@@ -75,7 +79,7 @@ extern void MyLog(char *fmt,...);
 #define mylog	if (0) MyLog		/* mylog */
 #endif /* WIN32 */
 #endif /* MY_LOG */
-#define	inolog	mylog	/* for really temporary debug */
+#define	inolog	if (get_mylog() > 1) mylog /* for really temporary debug */
 
 #ifdef Q_LOG
 #define QLOGFILE			"psqlodbc_"
@@ -116,16 +120,16 @@ int	get_mylog(void);
 #endif
 
 
-void	remove_newlines(char *string);
-char	*strncpy_null(char *dst, const char *src, int len);
-char	*trim(char *string);
-char	*make_string(const char *s, int len, char *buf, size_t bufsize);
-char	*make_lstring_ifneeded(ConnectionClass *, const char *s, int len, BOOL);
-char	*my_strcat(char *buf, const char *fmt, const char *s, int len);
-char	*schema_strcat(char *buf, const char *fmt, const char *s, int len,
+void		remove_newlines(char *string);
+char	   *strncpy_null(char *dst, const char *src, int len);
+char	   *trim(char *string);
+char	   *make_string(const char *s, int len, char *buf, size_t bufsize);
+char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, int len, BOOL);
+char	   *my_strcat(char *buf, const char *fmt, const char *s, int len);
+char	   *schema_strcat(char *buf, const char *fmt, const char *s, int len,
 		const char *, int, ConnectionClass *conn);
-char	*my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len);
-char	*schema_strcat1(char *buf, const char *fmt, const char *s1,
+char	   *my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len);
+char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
 				const char *s, int len,
 				const char *, int, ConnectionClass *conn);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
@@ -137,10 +141,12 @@ char	*schema_strcat1(char *buf, const char *fmt, const char *s1,
 #define STRCPY_TRUNCATED	(-1)
 #define STRCPY_NULL			(-2)
 
-int	my_strcpy(char *dst, int dst_len, const char *src, int src_len);
-int	contains_token(char *data, char *token);
+int			my_strcpy(char *dst, int dst_len, const char *src, int src_len);
 
 /* Define a type for defining a constant string expression */
 #define CSTR static const char * const
 
+#ifdef __cplusplus
+}
 #endif
+#endif /* __MISC_H__ */

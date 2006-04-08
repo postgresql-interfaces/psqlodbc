@@ -22,19 +22,10 @@
 #include "win_setup.h"
 
 #include "convert.h"
+#include "loadlib.h"
 
 #include "multibyte.h"
 #include "pgapifunc.h"
-
-#ifndef BOOL
-#define BOOL	int
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
 
 extern GLOBAL_VALUES globals;
 
@@ -45,17 +36,15 @@ static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 void
 SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 {
-	char buff[MEDIUM_REGISTRY_LEN+1]; 
+	char	buff[MEDIUM_REGISTRY_LEN + 1];
+	BOOL	libpq_exist = FALSE;
 
 	/*
 	 * If driver attribute NOT present, then set the datasource name and
 	 * description
 	 */
-	/**if (ci->driver[0] == '\0')
-	{**/
-		SetDlgItemText(hdlg, IDC_DSNAME, ci->dsn);
-		SetDlgItemText(hdlg, IDC_DESC, ci->desc);
-	/**}**/
+	SetDlgItemText(hdlg, IDC_DSNAME, ci->dsn);
+	SetDlgItemText(hdlg, IDC_DESC, ci->desc);
 
 	SetDlgItemText(hdlg, IDC_DATABASE, ci->database);
 	SetDlgItemText(hdlg, IDC_SERVER, ci->server);
@@ -63,34 +52,43 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_PASSWORD, ci->password);
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
 
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	libpq_exist = LIBPQ_check();
+mylog("libpq_exist=%d\n", libpq_exist);
+	if (libpq_exist)
+		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
+	else
+	{
+mylog("SendMessage CTL_COLOR\n");
+		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
+	}
 	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
 	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-
-    
-	if (!strcmp(ci->sslmode, "allow"))
+	if (libpq_exist || (ci->sslmode[0] && stricmp(ci->sslmode, "disable")))
+	{
+		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	}
+	if (!stricmp(ci->sslmode, "allow"))
 		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
-	else if (!strcmp(ci->sslmode, "require"))
-        LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
-    else if (!strcmp(ci->sslmode, "disable"))
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
-    else
+	else if (!stricmp(ci->sslmode, "require"))
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
+	else if (!stricmp(ci->sslmode, "prefer"))
 		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
+	else
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
 
 	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_SELECTSTRING, -1, (WPARAM) ((LPSTR) buff));
-
 }
 
 
 void
 GetDlgStuff(HWND hdlg, ConnInfo *ci)
 {
-	int sslposition;
+	int	sslposition;
 
 	GetDlgItemText(hdlg, IDC_DESC, ci->desc, sizeof(ci->desc));
 
@@ -100,17 +98,17 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	GetDlgItemText(hdlg, IDC_PASSWORD, ci->password, sizeof(ci->password));
 	GetDlgItemText(hdlg, IDC_PORT, ci->port, sizeof(ci->port));
 	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
-	switch(sslposition)
+	switch (sslposition)
 	{
-		case 1:	strcpy(ci->sslmode, "allow");
-				break;
-		case 2:	strcpy(ci->sslmode, "require");
-				break;
-		case 3:	strcpy(ci->sslmode, "disable");
-				break;
-		default: strcpy(ci->sslmode, "prefer");
+		case 1:	strcpy(ci->sslmode, "prefer");
+			break;
+		case 2:	strcpy(ci->sslmode, "allow");
+			break;
+		case 3:	strcpy(ci->sslmode, "require");
+			break;
+		default:strcpy(ci->sslmode, "disable");
+			break;
 	}
-
 }
 
 
@@ -456,6 +454,31 @@ ds_options2Proc(HWND hdlg,
 			/* Readonly */
 			CheckDlgButton(hdlg, DS_READONLY, atoi(ci->onlyread));
 
+			/* Protocol */
+			if (PROTOCOL_62(ci))
+				CheckDlgButton(hdlg, DS_PG62, 1);
+			else if (PROTOCOL_63(ci))
+				CheckDlgButton(hdlg, DS_PG63, 1);
+			else if (PROTOCOL_64(ci))
+				CheckDlgButton(hdlg, DS_PG64, 1);
+			else
+				/* latest */
+				CheckDlgButton(hdlg, DS_PG74, 1);
+
+			/* How to issue Rollback */
+			switch (ci->rollback_on_error)
+			{
+				case 0:
+					CheckDlgButton(hdlg, DS_NO_ROLLBACK, 1);
+					break;
+				case 1:
+					CheckDlgButton(hdlg, DS_TRANSACTION_ROLLBACK, 1);
+					break;
+				case 2:
+					CheckDlgButton(hdlg, DS_STATEMENT_ROLLBACK, 1);
+					break;
+			}
+
 			/* Int8 As */
 			switch (ci->int8_as)
 			{
@@ -486,9 +509,6 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_LFCONVERSION, ci->lf_conversion);
 			CheckDlgButton(hdlg, DS_TRUEISMINUS1, ci->true_is_minus1);
 			CheckDlgButton(hdlg, DS_UPDATABLECURSORS, ci->allow_keyset);
-#ifndef DRIVER_CURSOR_IMPLEMENT
-			EnableWindow(GetDlgItem(hdlg, DS_UPDATABLECURSORS), FALSE);
-#endif /* DRIVER_CURSOR_IMPLEMENT */
 			CheckDlgButton(hdlg, DS_SERVERSIDEPREPARE, ci->use_server_side_prepare);
 			CheckDlgButton(hdlg, DS_BYTEAASLONGVARBINARY, ci->bytea_as_longvarbinary);
 			/*CheckDlgButton(hdlg, DS_LOWERCASEIDENTIFIER, ci->lower_case_identifier);*/
@@ -511,10 +531,32 @@ ds_options2Proc(HWND hdlg,
 				case IDAPPLY:
 				case IDPREVPAGE:
 					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
-					mylog("IDOK: got ci = %u\n", ci);
+					mylog("IDOK: got ci = %x\n", ci);
 
 					/* Readonly */
 					sprintf(ci->onlyread, "%d", IsDlgButtonChecked(hdlg, DS_READONLY));
+
+					/* Protocol */
+					if (IsDlgButtonChecked(hdlg, DS_PG62))
+						strcpy(ci->protocol, PG62);
+					else if (IsDlgButtonChecked(hdlg, DS_PG63))
+						strcpy(ci->protocol, PG63);
+					else if (IsDlgButtonChecked(hdlg, DS_PG64))
+						strcpy(ci->protocol, PG64);
+					else
+						/* latest */
+						strcpy(ci->protocol, PG74);
+
+					/* Issue rollback command on error */
+					if (IsDlgButtonChecked(hdlg, DS_NO_ROLLBACK))
+						ci->rollback_on_error = 0;
+					else if (IsDlgButtonChecked(hdlg, DS_TRANSACTION_ROLLBACK))
+						ci->rollback_on_error = 1;
+					else if (IsDlgButtonChecked(hdlg, DS_STATEMENT_ROLLBACK))
+						ci->rollback_on_error = 2;
+					else
+						/* legacy */
+						ci->rollback_on_error = 1;
 
 					/* Int8 As */
 					if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DEFAULT))
@@ -536,9 +578,7 @@ ds_options2Proc(HWND hdlg,
 					ci->disallow_premature = IsDlgButtonChecked(hdlg, DS_DISALLOWPREMATURE);
 					ci->lf_conversion = IsDlgButtonChecked(hdlg, DS_LFCONVERSION);
 					ci->true_is_minus1 = IsDlgButtonChecked(hdlg, DS_TRUEISMINUS1);
-#ifdef DRIVER_CURSOR_IMPLEMENT
 					ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
-#endif /* DRIVER_CURSOR_IMPLEMENT */
 					ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
 					ci->bytea_as_longvarbinary = IsDlgButtonChecked(hdlg, DS_BYTEAASLONGVARBINARY);
 					/*ci->lower_case_identifier = IsDlgButtonChecked(hdlg, DS_LOWERCASEIDENTIFIER);*/

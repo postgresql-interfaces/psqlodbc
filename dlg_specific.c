@@ -12,10 +12,6 @@
  *
  * API functions:	none
  *
- * Removed params:  Don't reuse old parameter name if it's not for original
- *                  purpose. Here is list of deleted params:
- *                  Protocol              communication protocol (before libpq)
- *
  * Comments:		See "notice.txt" for copyright and license information.
  *-------
  */
@@ -28,109 +24,128 @@
 #include "multibyte.h"
 #include "pgapifunc.h"
 
-#ifndef BOOL
-#define BOOL	int
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-
 extern GLOBAL_VALUES globals;
+
+static void encode(const char *in, char *out);
+static void decode(const char *in, char *out);
 
 void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_conn_settings[LARGE_REGISTRY_LEN];
-	UWORD		hlen;
+	Int4		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
-	BOOL		abbrev = (len < 1024);
+	BOOL		abbrev = (len < 1024) || ci->force_abbrev_connstr;
 
+inolog("force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	/* fundamental info */
-	sprintf(connect_string, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;SSLMODE=%s;UID=%s;PWD=%s",
+	nlen = MAX_CONNECT_STRING;
+	olen = snprintf(connect_string, nlen, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
 			got_dsn ? "DSN" : "DRIVER",
 			got_dsn ? ci->dsn : ci->drivername,
 			ci->database,
 			ci->server,
 			ci->port,
-            ci->sslmode,
 			ci->username,
 			ci->password);
+	if (olen < 0 || olen >= nlen)
+	{
+		connect_string[0] = '\0';
+		return;
+	}
 
 	encode(ci->conn_settings, encoded_conn_settings);
 
 	/* extra info */
 	hlen = strlen(connect_string);
+	nlen = MAX_CONNECT_STRING - hlen;
+inolog("hlen=%d", hlen);
 	if (!abbrev)
-		sprintf(&connect_string[hlen],
-				";%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%s;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d;%s=%d",
-				INI_READONLY,
-				ci->onlyread,
-				INI_FAKEOIDINDEX,
-				ci->fake_oid_index,
-				INI_SHOWOIDCOLUMN,
-				ci->show_oid_column,
-				INI_ROWVERSIONING,
-				ci->row_versioning,
-				INI_SHOWSYSTEMTABLES,
-				ci->show_system_tables,
-				INI_CONNSETTINGS,
-				encoded_conn_settings,
-				INI_FETCH,
-				ci->drivers.fetch_max,
-				INI_SOCKET,
-				ci->drivers.socket_buffersize,
-				INI_UNKNOWNSIZES,
-				ci->drivers.unknown_sizes,
-				INI_MAXVARCHARSIZE,
-				ci->drivers.max_varchar_size,
-				INI_MAXLONGVARCHARSIZE,
-				ci->drivers.max_longvarchar_size,
-				INI_DEBUG,
-				ci->drivers.debug,
-				INI_COMMLOG,
-				ci->drivers.commlog,
-				INI_OPTIMIZER,
-				ci->drivers.disable_optimizer,
-				INI_KSQO,
-				ci->drivers.ksqo,
-				INI_USEDECLAREFETCH,
-				ci->drivers.use_declarefetch,
-				INI_TEXTASLONGVARCHAR,
-				ci->drivers.text_as_longvarchar,
-				INI_UNKNOWNSASLONGVARCHAR,
-				ci->drivers.unknowns_as_longvarchar,
-				INI_BOOLSASCHAR,
-				ci->drivers.bools_as_char,
-				INI_PARSE,
-				ci->drivers.parse,
-				INI_CANCELASFREESTMT,
-				ci->drivers.cancel_as_freestmt,
-				INI_EXTRASYSTABLEPREFIXES,
-				ci->drivers.extra_systable_prefixes,
-				INI_LFCONVERSION,
-				ci->lf_conversion,
-				INI_UPDATABLECURSORS,
-				ci->allow_keyset,
-				INI_DISALLOWPREMATURE,
-				ci->disallow_premature,
-				INI_TRUEISMINUS1,
-				ci->true_is_minus1,
-				INI_INT8AS,
-				ci->int8_as,
-				INI_BYTEAASLONGVARBINARY,
-				ci->bytea_as_longvarbinary,
-				INI_USESERVERSIDEPREPARE,
-				ci->use_server_side_prepare,
-				INI_LOWERCASEIDENTIFIER,
-				ci->lower_case_identifier);
-	/* Abbrebiation is needed ? */
-	if (abbrev || strlen(connect_string) >= len)
 	{
-		UInt4 flag = 0;
+		char	protocol_and[16];
+		
+		if (ci->rollback_on_error >= 0)
+			snprintf(protocol_and, sizeof(protocol_and), "%s-%d", ci->protocol, ci->rollback_on_error);
+		else
+			strncpy(protocol_and, ci->protocol, sizeof(protocol_and));
+		olen = snprintf(&connect_string[hlen], nlen, ";"
+			INI_SSLMODE "=%s;"
+			INI_READONLY "=%s;"
+			INI_PROTOCOL "=%s;"
+			INI_FAKEOIDINDEX "=%s;"
+			INI_SHOWOIDCOLUMN "=%s;"
+			INI_ROWVERSIONING "=%s;"
+			INI_SHOWSYSTEMTABLES "=%s;"
+			INI_CONNSETTINGS "=%s;"
+			INI_FETCH "=%d;"
+			INI_SOCKET "=%d;"
+			INI_UNKNOWNSIZES "=%d;"
+			INI_MAXVARCHARSIZE "=%d;"
+			INI_MAXLONGVARCHARSIZE "=%d;"
+			INI_DEBUG "=%d;"
+			INI_COMMLOG "=%d;"
+			INI_OPTIMIZER "=%d;"
+			INI_KSQO "=%d;"
+			INI_USEDECLAREFETCH "=%d;"
+			INI_TEXTASLONGVARCHAR "=%d;"
+			INI_UNKNOWNSASLONGVARCHAR "=%d;"
+			INI_BOOLSASCHAR "=%d;"
+			INI_PARSE "=%d;"
+			INI_CANCELASFREESTMT "=%d;"
+			INI_EXTRASYSTABLEPREFIXES "=%s;"
+			INI_LFCONVERSION "=%d;"
+			INI_UPDATABLECURSORS "=%d;"
+			INI_DISALLOWPREMATURE "=%d;"
+			INI_TRUEISMINUS1 "=%d;"
+			INI_INT8AS "=%d;"
+			INI_BYTEAASLONGVARBINARY "=%d;"
+			INI_USESERVERSIDEPREPARE "=%d;"
+			INI_LOWERCASEIDENTIFIER "=%d;"
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+			INI_XAOPT "=%d"	/* XAOPT */
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+			,ci->sslmode
+			,ci->onlyread
+			,protocol_and
+			,ci->fake_oid_index
+			,ci->show_oid_column
+			,ci->row_versioning
+			,ci->show_system_tables
+			,encoded_conn_settings
+			,ci->drivers.fetch_max
+			,ci->drivers.socket_buffersize
+			,ci->drivers.unknown_sizes
+			,ci->drivers.max_varchar_size
+			,ci->drivers.max_longvarchar_size
+			,ci->drivers.debug
+			,ci->drivers.commlog
+			,ci->drivers.disable_optimizer
+			,ci->drivers.ksqo
+			,ci->drivers.use_declarefetch
+			,ci->drivers.text_as_longvarchar
+			,ci->drivers.unknowns_as_longvarchar
+			,ci->drivers.bools_as_char
+			,ci->drivers.parse
+			,ci->drivers.cancel_as_freestmt
+			,ci->drivers.extra_systable_prefixes
+			,ci->lf_conversion
+			,ci->allow_keyset
+			,ci->disallow_premature
+			,ci->true_is_minus1
+			,ci->int8_as
+			,ci->bytea_as_longvarbinary
+			,ci->use_server_side_prepare
+			,ci->lower_case_identifier
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+			,ci->xa_opt
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+				);
+	}
+	/* Abbrebiation is needed ? */
+	if (abbrev || olen >= nlen || olen < 0)
+	{
+		UInt4 long flag = 0;
 		if (ci->disallow_premature)
 			flag |= BIT_DISALLOWPREMATURE;
 		if (ci->allow_keyset)
@@ -139,6 +154,12 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 			flag |= BIT_LFCONVERSION;
 		if (ci->drivers.unique_index)
 			flag |= BIT_UNIQUEINDEX;
+		if (PROTOCOL_74(ci))
+			flag |= (BIT_PROTOCOL_64 | BIT_PROTOCOL_63);
+		else if (PROTOCOL_64(ci))
+			flag |= BIT_PROTOCOL_64;
+		else if (PROTOCOL_63(ci))
+			flag |= BIT_PROTOCOL_63;
 		switch (ci->drivers.unknown_sizes)
 		{
 			case UNKNOWNS_AS_DONTKNOW:
@@ -187,31 +208,61 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 		if (ci->lower_case_identifier)
 			flag |= BIT_LOWERCASEIDENTIFIER;
 
-		sprintf(&connect_string[hlen],
-				";A6=%s;A7=%d;A8=%d;B0=%d;B1=%d;%s=%d;C2=%s;CX=%02x%lx",
+		if (ci->sslmode[0])
+			olen = snprintf(&connect_string[hlen], nlen, ";"
+				ABBR_SSLMODE "=%c", ci->sslmode[0]);
+		hlen = strlen(connect_string);
+		nlen = MAX_CONNECT_STRING - hlen;
+		olen = snprintf(&connect_string[hlen], nlen, ";"
+				ABBR_CONNSETTINGS "=%s;"
+				ABBR_FETCH "=%d;"
+				ABBR_SOCKET "=%d;"
+				ABBR_MAXVARCHARSIZE "=%d;"
+				ABBR_MAXLONGVARCHARSIZE "=%d;"
+				INI_INT8AS "=%d;"
+				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
+				INI_ABBREVIATE "=%02x%lx",
 				encoded_conn_settings,
 				ci->drivers.fetch_max,
 				ci->drivers.socket_buffersize,
 				ci->drivers.max_varchar_size,
 				ci->drivers.max_longvarchar_size,
-				INI_INT8AS,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
 				EFFECTIVE_BIT_COUNT,
-				(long unsigned int) flag);
+				flag);
+		if (olen < nlen && (PROTOCOL_74(ci) || ci->rollback_on_error >= 0))
+		{
+			hlen = strlen(connect_string);
+			nlen = MAX_CONNECT_STRING - hlen;
+			/*
+			 * The PROTOCOL setting must be placed after CX flag
+			 * so that this option can override the CX setting.
+			 */
+			if (ci->rollback_on_error >= 0)
+				olen = snprintf(&connect_string[hlen], nlen, ";"
+				ABBR_PROTOCOL "=%s-%d",
+				ci->protocol, ci->rollback_on_error);
+			else
+				olen = snprintf(&connect_string[hlen], nlen, ";"
+				ABBR_PROTOCOL "=%s",
+				ci->protocol);
+		}
+		if (olen < 0 || olen >= nlen) /* failed */
+			connect_string[0] = '\0';
 	}
 }
 
 static void
 unfoldCXAttribute(ConnInfo *ci, const char *value)
 {
-	int		count;
-	UInt4		flag;
+	int	count;
+	UInt4	flag;
 
 	if (strlen(value) < 2)
 	{
 		count = 3;
-		sscanf(value, "%lx", (long unsigned int *) &flag);
+		sscanf(value, "%lx", &flag);
 	}
 	else
 	{
@@ -219,7 +270,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		memcpy(cnt, value, 2);
 		cnt[2] = '\0';
 		sscanf(cnt, "%x", &count);
-		sscanf(value + 2, "%lx", (long unsigned int *) &flag);
+		sscanf(value + 2, "%lx", &flag);
 	}
 	ci->disallow_premature = (char)((flag & BIT_DISALLOWPREMATURE) != 0);
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);
@@ -227,6 +278,17 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	if (count < 4)
 		return;
 	ci->drivers.unique_index = (char)((flag & BIT_UNIQUEINDEX) != 0);
+	if ((flag & BIT_PROTOCOL_64) != 0)
+	{
+		if ((flag & BIT_PROTOCOL_63) != 0)
+			strcpy(ci->protocol, PG74);
+		else
+			strcpy(ci->protocol, PG64);
+	}
+	else if ((flag & BIT_PROTOCOL_63) != 0)
+		strcpy(ci->protocol, PG63);
+	else
+		strcpy(ci->protocol, PG62);
 	if ((flag & BIT_UNKNOWN_DONTKNOW) != 0)
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_DONTKNOW;
 	else if ((flag & BIT_UNKNOWN_ASMAX) != 0)
@@ -265,7 +327,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_DATABASE) == 0)
 		strcpy(ci->database, value);
 
-	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, "server") == 0)
+	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, SPEC_SERVER) == 0)
 		strcpy(ci->server, value);
 
 	else if (stricmp(attribute, INI_USER) == 0 || stricmp(attribute, "uid") == 0)
@@ -276,66 +338,105 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
-    
-	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, "sslmode") == 0)
-		strcpy(ci->sslmode, value);
 
-	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, "A0") == 0)
+	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, ABBR_READONLY) == 0)
 		strcpy(ci->onlyread, value);
 
-	else if (stricmp(attribute, INI_SHOWOIDCOLUMN) == 0 || stricmp(attribute, "A3") == 0)
+	else if (stricmp(attribute, INI_PROTOCOL) == 0 || stricmp(attribute, ABBR_PROTOCOL) == 0)
+	{
+		char	*ptr;
+
+		ptr = strchr(value, '-');
+		if (ptr)
+		{
+			if ('-' != *value)
+			{
+				strcpy(ci->protocol, value);
+			}
+			*ptr = '\0';
+			ci->rollback_on_error = atoi(ptr + 1);
+			mylog("rollback_on_error=%d\n", ci->rollback_on_error);
+		}
+		else
+			strcpy(ci->protocol, value);
+	}
+
+	else if (stricmp(attribute, INI_SHOWOIDCOLUMN) == 0 || stricmp(attribute, ABBR_SHOWOIDCOLUMN) == 0)
 		strcpy(ci->show_oid_column, value);
 
-	else if (stricmp(attribute, INI_FAKEOIDINDEX) == 0 || stricmp(attribute, "A2") == 0)
+	else if (stricmp(attribute, INI_FAKEOIDINDEX) == 0 || stricmp(attribute, ABBR_FAKEOIDINDEX) == 0)
 		strcpy(ci->fake_oid_index, value);
 
-	else if (stricmp(attribute, INI_ROWVERSIONING) == 0 || stricmp(attribute, "A4") == 0)
+	else if (stricmp(attribute, INI_ROWVERSIONING) == 0 || stricmp(attribute, ABBR_ROWVERSIONING) == 0)
 		strcpy(ci->row_versioning, value);
 
-	else if (stricmp(attribute, INI_SHOWSYSTEMTABLES) == 0 || stricmp(attribute, "A5") == 0)
+	else if (stricmp(attribute, INI_SHOWSYSTEMTABLES) == 0 || stricmp(attribute, ABBR_SHOWSYSTEMTABLES) == 0)
 		strcpy(ci->show_system_tables, value);
 
-	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, "A6") == 0)
+	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
 		decode(value, ci->conn_settings);
 		/* strcpy(ci->conn_settings, value); */
 	}
-	else if (stricmp(attribute, INI_DISALLOWPREMATURE) == 0 || stricmp(attribute, "C3") == 0)
+	else if (stricmp(attribute, INI_DISALLOWPREMATURE) == 0 || stricmp(attribute, ABBR_DISALLOWPREMATURE) == 0)
 		ci->disallow_premature = atoi(value);
-	else if (stricmp(attribute, INI_UPDATABLECURSORS) == 0 || stricmp(attribute, "C4") == 0)
+	else if (stricmp(attribute, INI_UPDATABLECURSORS) == 0 || stricmp(attribute, ABBR_UPDATABLECURSORS) == 0)
 		ci->allow_keyset = atoi(value);
-	else if (stricmp(attribute, INI_LFCONVERSION) == 0)
+	else if (stricmp(attribute, INI_LFCONVERSION) == 0 || stricmp(attribute, ABBR_LFCONVERSION) == 0)
 		ci->lf_conversion = atoi(value);
-	else if (stricmp(attribute, INI_TRUEISMINUS1) == 0)
+	else if (stricmp(attribute, INI_TRUEISMINUS1) == 0 || stricmp(attribute, ABBR_TRUEISMINUS1) == 0)
 		ci->true_is_minus1 = atoi(value);
 	else if (stricmp(attribute, INI_INT8AS) == 0)
 		ci->int8_as = atoi(value);
-	else if (stricmp(attribute, INI_BYTEAASLONGVARBINARY) == 0)
+	else if (stricmp(attribute, INI_BYTEAASLONGVARBINARY) == 0 || stricmp(attribute, ABBR_BYTEAASLONGVARBINARY) == 0)
 		ci->bytea_as_longvarbinary = atoi(value);
-	else if (stricmp(attribute, INI_USESERVERSIDEPREPARE) == 0)
+	else if (stricmp(attribute, INI_USESERVERSIDEPREPARE) == 0 || stricmp(attribute, ABBR_USESERVERSIDEPREPARE) == 0)
 		ci->use_server_side_prepare = atoi(value);
-	else if (stricmp(attribute, INI_LOWERCASEIDENTIFIER) == 0)
+	else if (stricmp(attribute, INI_LOWERCASEIDENTIFIER) == 0 || stricmp(attribute, ABBR_LOWERCASEIDENTIFIER) == 0)
 		ci->lower_case_identifier = atoi(value);
-	else if (stricmp(attribute, "CX") == 0)
+	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
+	{
+		switch (value[0])
+		{
+			case 'a':
+				strcpy(ci->sslmode, SSLMODE_ALLOW);
+				break;
+			case 'p':
+				strcpy(ci->sslmode, SSLMODE_PREFER);
+				break;
+			case 'r':
+				strcpy(ci->sslmode, SSLMODE_REQUIRE);
+				break;
+			case 'd':
+			default:
+				strcpy(ci->sslmode, SSLMODE_DISABLE);
+				break;
+		}
+	}
+	else if (stricmp(attribute, INI_ABBREVIATE) == 0)
 		unfoldCXAttribute(ci, value);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	else if (stricmp(attribute, INI_XAOPT) == 0)
+		ci->xa_opt = atoi(value);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 
-	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',sslmode='%s',onlyread='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->sslmode, ci->onlyread, ci->conn_settings, ci->disallow_premature);
+	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
 }
 
 void
 copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 {
-	if (stricmp(attribute, INI_FETCH) == 0 || stricmp(attribute, "A7") == 0)
+	if (stricmp(attribute, INI_FETCH) == 0 || stricmp(attribute, ABBR_FETCH) == 0)
 		ci->drivers.fetch_max = atoi(value);
-	else if (stricmp(attribute, INI_SOCKET) == 0 || stricmp(attribute, "A8") == 0)
+	else if (stricmp(attribute, INI_SOCKET) == 0 || stricmp(attribute, ABBR_SOCKET) == 0)
 		ci->drivers.socket_buffersize = atoi(value);
-	else if (stricmp(attribute, INI_DEBUG) == 0 || stricmp(attribute, "B2") == 0)
+	else if (stricmp(attribute, INI_DEBUG) == 0 || stricmp(attribute, ABBR_DEBUG) == 0)
 		ci->drivers.debug = atoi(value);
-	else if (stricmp(attribute, INI_COMMLOG) == 0 || stricmp(attribute, "B3") == 0)
+	else if (stricmp(attribute, INI_COMMLOG) == 0 || stricmp(attribute, ABBR_COMMLOG) == 0)
 		ci->drivers.commlog = atoi(value);
-	else if (stricmp(attribute, INI_OPTIMIZER) == 0 || stricmp(attribute, "B4") == 0)
+	else if (stricmp(attribute, INI_OPTIMIZER) == 0 || stricmp(attribute, ABBR_OPTIMIZER) == 0)
 		ci->drivers.disable_optimizer = atoi(value);
-	else if (stricmp(attribute, INI_KSQO) == 0 || stricmp(attribute, "B5") == 0)
+	else if (stricmp(attribute, INI_KSQO) == 0 || stricmp(attribute, ABBR_KSQO) == 0)
 		ci->drivers.ksqo = atoi(value);
 
 	/*
@@ -343,28 +444,30 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	 * stricmp(attribute, "UIX") == 0) ci->drivers.unique_index =
 	 * atoi(value);
 	 */
-	else if (stricmp(attribute, INI_UNKNOWNSIZES) == 0 || stricmp(attribute, "A9") == 0)
+	else if (stricmp(attribute, INI_UNKNOWNSIZES) == 0 || stricmp(attribute, ABBR_UNKNOWNSIZES) == 0)
 		ci->drivers.unknown_sizes = atoi(value);
 	else if (stricmp(attribute, INI_LIE) == 0)
 		ci->drivers.lie = atoi(value);
-	else if (stricmp(attribute, INI_PARSE) == 0 || stricmp(attribute, "C0") == 0)
+	else if (stricmp(attribute, INI_PARSE) == 0 || stricmp(attribute, ABBR_PARSE) == 0)
 		ci->drivers.parse = atoi(value);
-	else if (stricmp(attribute, INI_CANCELASFREESTMT) == 0 || stricmp(attribute, "C1") == 0)
+	else if (stricmp(attribute, INI_CANCELASFREESTMT) == 0 || stricmp(attribute, ABBR_CANCELASFREESTMT) == 0)
 		ci->drivers.cancel_as_freestmt = atoi(value);
-	else if (stricmp(attribute, INI_USEDECLAREFETCH) == 0 || stricmp(attribute, "B6") == 0)
+	else if (stricmp(attribute, INI_USEDECLAREFETCH) == 0 || stricmp(attribute, ABBR_USEDECLAREFETCH) == 0)
 		ci->drivers.use_declarefetch = atoi(value);
-	else if (stricmp(attribute, INI_MAXVARCHARSIZE) == 0 || stricmp(attribute, "B0") == 0)
+	else if (stricmp(attribute, INI_MAXVARCHARSIZE) == 0 || stricmp(attribute, ABBR_MAXVARCHARSIZE) == 0)
 		ci->drivers.max_varchar_size = atoi(value);
-	else if (stricmp(attribute, INI_MAXLONGVARCHARSIZE) == 0 || stricmp(attribute, "B1") == 0)
+	else if (stricmp(attribute, INI_MAXLONGVARCHARSIZE) == 0 || stricmp(attribute, ABBR_MAXLONGVARCHARSIZE) == 0)
 		ci->drivers.max_longvarchar_size = atoi(value);
-	else if (stricmp(attribute, INI_TEXTASLONGVARCHAR) == 0 || stricmp(attribute, "B7") == 0)
+	else if (stricmp(attribute, INI_TEXTASLONGVARCHAR) == 0 || stricmp(attribute, ABBR_TEXTASLONGVARCHAR) == 0)
 		ci->drivers.text_as_longvarchar = atoi(value);
-	else if (stricmp(attribute, INI_UNKNOWNSASLONGVARCHAR) == 0 || stricmp(attribute, "B8") == 0)
+	else if (stricmp(attribute, INI_UNKNOWNSASLONGVARCHAR) == 0 || stricmp(attribute, ABBR_UNKNOWNSASLONGVARCHAR) == 0)
 		ci->drivers.unknowns_as_longvarchar = atoi(value);
-	else if (stricmp(attribute, INI_BOOLSASCHAR) == 0 || stricmp(attribute, "B9") == 0)
+	else if (stricmp(attribute, INI_BOOLSASCHAR) == 0 || stricmp(attribute, ABBR_BOOLSASCHAR) == 0)
 		ci->drivers.bools_as_char = atoi(value);
-	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, "C2") == 0)
+	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, ABBR_EXTRASYSTABLEPREFIXES) == 0)
 		strcpy(ci->drivers.extra_systable_prefixes, value);
+	else if (stricmp(attribute, INI_FORCEABBREVCONNSTR) == 0)
+		ci->force_abbrev_connstr = atoi(value);
 	mylog("CopyCommonAttributes: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s",
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,
@@ -388,14 +491,16 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 void
 getDSNdefaults(ConnInfo *ci)
 {
+	mylog("calling getDSNdefaults\n");
+
 	if (ci->port[0] == '\0')
 		strcpy(ci->port, DEFAULT_PORT);
-    
-	if (ci->sslmode[0] == '\0')
-		strcpy(ci->sslmode, DEFAULT_SSLMODE);
 
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
+
+	if (ci->protocol[0] == '\0')
+		strcpy(ci->protocol, globals.protocol);
 
 	if (ci->fake_oid_index[0] == '\0')
 		sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
@@ -425,6 +530,12 @@ getDSNdefaults(ConnInfo *ci)
 		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 	if (ci->lower_case_identifier < 0)
 		ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
+	if (ci->sslmode[0] == '\0')
+		strcpy(ci->sslmode, DEFAULT_SSLMODE);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	if (ci->xa_opt < 0)
+		ci->xa_opt = DEFAULT_XAOPT;
+#endif /* HANDLE_ENLIST_IN_DTC_ */
 }
 
 int
@@ -436,6 +547,7 @@ getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 void
 getDSNinfo(ConnInfo *ci, char overwrite)
 {
+	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
 	char		encoded_conn_settings[LARGE_REGISTRY_LEN],
 				temp[SMALL_REGISTRY_LEN];
@@ -444,12 +556,13 @@ getDSNinfo(ConnInfo *ci, char overwrite)
  *	If a driver keyword was present, then dont use a DSN and return.
  *	If DSN is null and no driver, then use the default datasource.
  */
+	mylog("%s: DSN=%s overwrite=%d\n", func, DSN, overwrite);
 	if (DSN[0] == '\0')
 	{
 		if (ci->drivername[0] != '\0')
 			return;
 		else
-			strcpy(DSN, INI_DSN);
+			strncpy_null(DSN, INI_DSN, sizeof(ci->dsn));
 	}
 
 	/* brute-force chop off trailing blanks... */
@@ -483,9 +596,6 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (ci->port[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
 
-	if (ci->sslmode[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
-    
 	if (ci->onlyread[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_READONLY, "", ci->onlyread, sizeof(ci->onlyread), ODBC_INI);
 
@@ -500,6 +610,21 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->show_system_tables[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, "", ci->show_system_tables, sizeof(ci->show_system_tables), ODBC_INI);
+
+	if (ci->protocol[0] == '\0' || overwrite)
+	{
+		char	*ptr;
+		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, "", ci->protocol, sizeof(ci->protocol), ODBC_INI);
+		if (ptr = strchr(ci->protocol, '-'))
+		{
+			*ptr = '\0';
+			if (overwrite || ci->rollback_on_error < 0)
+			{
+				ci->rollback_on_error = atoi(ptr + 1);
+				mylog("rollback_on_error=%d\n", ci->rollback_on_error);
+			}
+		}
+	}
 
 	if (ci->conn_settings[0] == '\0' || overwrite)
 	{
@@ -569,6 +694,18 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 			ci->lower_case_identifier = atoi(temp);
 	}
 
+	if (ci->sslmode[0] == '\0' || overwrite)
+		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
+
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	if (ci->xa_opt < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_XAOPT, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->xa_opt = atoi(temp);
+	}
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+
 	/* Allow override of odbcinst.ini parameters here */
 	getCommonDefaults(DSN, ODBC_INI, ci);
 
@@ -579,8 +716,9 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->database,
 		 ci->username,
 		 ci->password ? "xxxxx" : "");
-	qlog("          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
+	qlog("          onlyread='%s',protocol='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
+		 ci->protocol,
 		 ci->show_oid_column,
 		 ci->fake_oid_index,
 		 ci->show_system_tables);
@@ -714,11 +852,6 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_PORT,
 								 ci->port,
 								 ODBC_INI);
-                                 
-	SQLWritePrivateProfileString(DSN,
-								 INI_SSLMODE,
-								 ci->sslmode,
-								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
 								 INI_USER,
@@ -753,6 +886,12 @@ writeDSNinfo(const ConnInfo *ci)
 	SQLWritePrivateProfileString(DSN,
 								 INI_SHOWSYSTEMTABLES,
 								 ci->show_system_tables,
+								 ODBC_INI);
+
+	sprintf(temp, "%s-%d", ci->protocol, ci->rollback_on_error);
+	SQLWritePrivateProfileString(DSN,
+								 INI_PROTOCOL,
+								 temp,
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
@@ -800,6 +939,14 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_LOWERCASEIDENTIFIER,
 								 temp,
 								 ODBC_INI);
+	SQLWritePrivateProfileString(DSN,
+								 INI_SSLMODE,
+								 ci->sslmode,
+								 ODBC_INI);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	sprintf(temp, "%d", ci->xa_opt);
+	SQLWritePrivateProfileString(DSN, INI_XAOPT, temp, ODBC_INI);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 }
 
 
@@ -996,5 +1143,87 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		else
 			comval->onlyread = DEFAULT_READONLY;
 
+		/*
+		 * Default state for future DSN's protocol attribute This isn't a
+		 * real driver option YET.	This is more intended for
+		 * customization from the install.
+		 */
+		SQLGetPrivateProfileString(section, INI_PROTOCOL, "@@@",
+								   temp, sizeof(temp), filename);
+		if (strcmp(temp, "@@@"))
+			strcpy(comval->protocol, temp);
+		else
+			strcpy(comval->protocol, DEFAULT_PROTOCOL);
 	}
+}
+
+static void
+encode(const char *in, char *out)
+{
+	unsigned int i,
+				ilen = strlen(in),
+				o = 0;
+
+	for (i = 0; i < ilen; i++)
+	{
+		if (in[i] == '+')
+		{
+			sprintf(&out[o], "%%2B");
+			o += 3;
+		}
+		else if (isspace((UCHAR) in[i]))
+			out[o++] = '+';
+		else if (!isalnum((UCHAR) in[i]))
+		{
+			sprintf(&out[o], "%%%02x", (UCHAR) in[i]);
+			o += 3;
+		}
+		else
+			out[o++] = in[i];
+	}
+	out[o++] = '\0';
+}
+
+static unsigned int
+conv_from_hex(const UCHAR *s)
+{
+	int			i,
+				y = 0,
+				val;
+
+	for (i = 1; i <= 2; i++)
+	{
+		if (s[i] >= 'a' && s[i] <= 'f')
+			val = s[i] - 'a' + 10;
+		else if (s[i] >= 'A' && s[i] <= 'F')
+			val = s[i] - 'A' + 10;
+		else
+			val = s[i] - '0';
+
+		y += val << (4 * (2 - i));
+	}
+
+	return y;
+}
+
+static void
+decode(const char *in, char *out)
+{
+	unsigned int i,
+				ilen = strlen(in),
+				o = 0;
+
+	for (i = 0; i < ilen; i++)
+	{
+		if (in[i] == '+')
+			out[o++] = ' ';
+		else if (in[i] == '%')
+		{
+			sprintf(&out[o++], "%c", conv_from_hex(&in[i]));
+			i += 2;
+		}
+		else
+			out[o++] = in[i];
+	}
+	out[o++] = '\0';
 }

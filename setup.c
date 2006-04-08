@@ -14,6 +14,7 @@
  */
 
 #include  "psqlodbc.h"
+
 #include  "connection.h"
 #include  <windowsx.h>
 #include  <string.h>
@@ -31,7 +32,7 @@ extern GLOBAL_VALUES	globals;
 /* Constants */
 #define MIN(x,y)	  ((x) < (y) ? (x) : (y))
 
-#define MAXKEYLEN		(21+1)	/* Max keyword length */
+#define MAXKEYLEN		(32+1)	/* Max keyword length */
 #define MAXDESC			(255+1) /* Max description length */
 #define MAXDSNAME		(32+1)	/* Max data source name length */
 
@@ -305,6 +306,14 @@ ConfigDlgProc(HWND hdlg,
 					return TRUE;
 			}
 			break;
+		case WM_CTLCOLORSTATIC:
+			if (lParam == (LPARAM)GetDlgItem(hdlg, IDC_NOTICE_USER))
+			{
+				HBRUSH hBrush = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+				SetTextColor((HDC)wParam, RGB(255, 0, 0));
+				return (long)hBrush;
+			}
+			break;
 	}
 
 	/* Message not processed */
@@ -345,7 +354,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			else if (*lpsz == '=')
 				break;			/* Valid key found */
 		}
-		/* Determine the key */
+		/* Determine the key's index in the key table (-1 if not found) */
 		cbKey = lpsz - lpszStart;
 		if (cbKey < sizeof(aszKey))
 		{
@@ -353,15 +362,13 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			aszKey[cbKey] = '\0';
 		}
 
-		/* Locate end of key value - added support for delimiter ; */
+		/* Locate end of key value */
 		lpszStart = ++lpsz;
-		for (; *lpsz && *lpsz != ';'; lpsz++)
+		for (; *lpsz; lpsz++)
 			;
 
-		/* Determine the value */
-		cbKey = MIN(lpsz - lpszStart, MAXPGPATH);
-		_fmemcpy(value, lpszStart, cbKey);
-		value[cbKey] = '\0';
+		/* lpsetupdlg->aAttr[iElement].fSupplied = TRUE; */
+		_fmemcpy(value, lpszStart, MIN(lpsz - lpszStart + 1, MAXPGPATH));
 
 		mylog("aszKey='%s', value='%s'\n", aszKey, value);
 
@@ -400,8 +407,9 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 		DWORD	err = SQL_ERROR;
 		char    szMsg[SQL_MAX_MESSAGE_LENGTH];
 
+#if (ODBCVER >= 0x0300)
 		ret = SQLInstallerError(1, &err, szMsg, sizeof(szMsg), NULL);
-
+#endif /* ODBCVER */
 		if (hwndParent)
 		{
 			char		szBuf[MAXPGPATH];

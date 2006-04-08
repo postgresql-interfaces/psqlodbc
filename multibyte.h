@@ -16,7 +16,7 @@
 #define EUC_TW				4	/* EUC for Taiwan */
 #define JOHAB				5
 #define UTF8				6	/* Unicode UTF-8 */
-#define MULE_INTERNAL		7	/* Mule internal code */
+#define MULE_INTERNAL			7	/* Mule internal code */
 #define LATIN1				8	/* ISO-8859 Latin 1 */
 #define LATIN2				9	/* ISO-8859 Latin 2 */
 #define LATIN3				10	/* ISO-8859 Latin 3 */
@@ -40,17 +40,14 @@
 
 #define SJIS				28	/* Shift JIS */
 #define BIG5				29	/* Big5 */
-#define GBK					30	/* GBK */
-#define UHC					31  /* UHC */
+#define GBK				30	/* GBK */
+#define UHC				31	/* UHC */
 #define WIN1250				32	/* windows-1250 */
 #define GB18030				33	/* GB18030 */
-
-#define PG_UNICODE			34  /* UNICODE ( < Ver8.1) */
-					    /* Can't call it UNICODE as that's already used */
-#define TCVN				35  /* TCVN ( < Ver8.1) */
-#define ALT				36  /* ALT ( < Var8.1) */
-#define WIN				37  /* WIN ( < Ver8.1) */
-
+#define UNICODE_PODBC			34	/* same as Unicode UTF-8 */
+#define	TCVN				35	/* TCVN ( < Ver8.1) */
+#define	ALT				36	/* ALT ( < Var8.1) */
+#define	WIN				37	/* WIN ( < Ver8.1) */
 #define OTHER				-1
 
 #define MAX_CHARACTERSET_NAME	24
@@ -68,6 +65,7 @@
 /* New Type */
 
 extern void CC_lookup_characterset(ConnectionClass *self);
+extern const char *get_environment_encoding(const ConnectionClass *conn, const char *oldenc);
 
 extern int pg_CS_stat(int stat,unsigned int charcter,int characterset_code);
 extern int pg_CS_code(const UCHAR *stat_string);

@@ -16,11 +16,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "connection.h"
 
 #ifndef WIN32
 #include <sys/types.h>
+#include <sys/socket.h>
 #define NEAR
+#else
+#include <winsock.h>
 #endif
 
 #include <string.h>
@@ -30,13 +34,6 @@
 #include "resource.h"
 #endif
 #include "pgapifunc.h"
-
-#ifndef TRUE
-#define TRUE	(BOOL)1
-#endif
-#ifndef FALSE
-#define FALSE	(BOOL)0
-#endif
 
 #include "dlg_specific.h"
 
@@ -61,8 +58,8 @@ static char * hide_password(const char *str)
 }
 
 /* prototypes */
-void		dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci);
-static void dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci);
+void		dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
+static void dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
 
 #ifdef WIN32
 BOOL FAR PASCAL dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -76,12 +73,12 @@ RETCODE		SQL_API
 PGAPI_DriverConnect(
 					HDBC hdbc,
 					HWND hwnd,
-					UCHAR FAR * szConnStrIn,
-					SWORD cbConnStrIn,
-					UCHAR FAR * szConnStrOut,
-					SWORD cbConnStrOutMax,
-					SWORD FAR * pcbConnStrOut,
-					UWORD fDriverCompletion)
+					const SQLCHAR FAR * szConnStrIn,
+					SQLSMALLINT cbConnStrIn,
+					SQLCHAR FAR * szConnStrOut,
+					SQLSMALLINT cbConnStrOutMax,
+					SQLSMALLINT FAR * pcbConnStrOut,
+					SQLUSMALLINT fDriverCompletion)
 {
 	CSTR func = "PGAPI_DriverConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -90,8 +87,9 @@ PGAPI_DriverConnect(
 #ifdef WIN32
 	RETCODE		dialog_result;
 #endif
+	BOOL		paramRequired;
 	RETCODE		result;
-	char	   *connStrIn;
+	char		*connStrIn = NULL;
 	char		connStrOut[MAX_CONNECT_STRING];
 	int			retval;
 	char		salt[5];
@@ -112,14 +110,14 @@ PGAPI_DriverConnect(
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
-	qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
+	qlog("conn=%x, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
 #else
 	if (get_qlog() || get_mylog())
 	{
 		char	*hide_str = hide_password(connStrIn);
 
 		mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, NULL_IF_NULL(hide_str));
-		qlog("conn=%u, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
+		qlog("conn=%x, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
 		if (hide_str)
 			free(hide_str);
 	}
@@ -138,9 +136,16 @@ PGAPI_DriverConnect(
 	getDSNinfo(ci, CONN_DONT_OVERWRITE);
 	dconn_get_common_attributes(connStrIn, ci);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
+	if (connStrIn)
+	{
+		free(connStrIn);
+		connStrIn = NULL;
+	}
 
 	/* Fill in any default parameters if they are not there. */
 	getDSNdefaults(ci);
+	/* initialize pg_version */
+	CC_initialize_pg_version(conn);
 	salt[0] = '\0';
 
 #ifdef WIN32
@@ -148,6 +153,7 @@ dialog:
 #endif
 	ci->focus_password = password_required;
 
+inolog("DriverCompletion=%d\n", fDriverCompletion);
 	switch (fDriverCompletion)
 	{
 #ifdef WIN32
@@ -163,7 +169,9 @@ dialog:
 
 		case SQL_DRIVER_COMPLETE:
 
+			paramRequired = password_required;
 			/* Password is not a required parameter. */
+#ifdef	NOT_USED
 			if (ci->username[0] == '\0' ||
 #ifdef	WIN32
 				ci->server[0] == '\0' ||
@@ -171,6 +179,18 @@ dialog:
 				ci->database[0] == '\0' ||
 				ci->port[0] == '\0' ||
 				password_required)
+#endif /* NOT_USED */
+			if (ci->database[0] == '\0')
+				paramRequired = TRUE;
+			else if (ci->port[0] == '\0')
+				paramRequired = TRUE;
+#ifdef	WIN32
+			else if (ci->server[0] == '\0')
+				paramRequired = TRUE;
+#endif /* WIN32 */
+			else if (ci->username[0] == '\0' && 'd' == ci->sslmode[0])
+				paramRequired = TRUE;
+			if (paramRequired)
 			{
 				dialog_result = dconn_DoDialog(hwnd, ci);
 				if (dialog_result != SQL_SUCCESS)
@@ -192,18 +212,33 @@ dialog:
 	 * over and over until a password is entered (the user can always hit
 	 * Cancel to get out)
 	 */
+#ifdef	NOT_USED
 	if (ci->username[0] == '\0' ||
 #ifdef	WIN32
 		ci->server[0] == '\0' ||
 #endif /* WIN32 */
 		ci->database[0] == '\0' ||
 		ci->port[0] == '\0')
+#endif /* NOT_USED */
+	paramRequired = FALSE;
+	if (ci->database[0] == '\0')
+		paramRequired = TRUE;
+	else if (ci->port[0] == '\0')
+		paramRequired = TRUE;
+#ifdef	WIN32
+	else if (ci->server[0] == '\0')
+		paramRequired = TRUE;
+#endif /* WIN32 */
+	else if (ci->username[0] == '\0' && 'd' == ci->sslmode[0])
+		paramRequired = TRUE;
+	if (paramRequired)
 	{
 		/* (password_required && ci->password[0] == '\0')) */
 
 		return SQL_NO_DATA_FOUND;
 	}
 
+inolog("before CC_connect\n");
 	/* do the actual connect */
 	retval = CC_connect(conn, password_required, salt);
 	if (retval < 0)
@@ -253,21 +288,17 @@ dialog:
 		 * applications (Access) by implementing the correct behavior,
 		 * anyway.
 		 */
-		strncpy_null(szConnStrOut, connStrOut, cbConnStrOutMax);
+		/*strncpy_null(szConnStrOut, connStrOut, cbConnStrOutMax);*/
+		strncpy(szConnStrOut, connStrOut, cbConnStrOutMax);
 
-		if (cbConnStrOutMax == 0)
-			szConnStrOut = NULL;	
-		else
+		if (len >= cbConnStrOutMax)
 		{
-			if (len >= cbConnStrOutMax)
-			{
-				int			clen;
+			int			clen;
 
-				for (clen = strlen(szConnStrOut) - 1; clen >= 0 && szConnStrOut[clen] != ';'; clen--)
-					szConnStrOut[clen] = '\0';
-				result = SQL_SUCCESS_WITH_INFO;
-				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the ConnStrOut.");
-			}
+			for (clen = cbConnStrOutMax - 1; clen >= 0 && szConnStrOut[clen] != ';'; clen--)
+				szConnStrOut[clen] = '\0';
+			result = SQL_SUCCESS_WITH_INFO;
+			CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the ConnStrOut.", func);
 		}
 	}
 
@@ -275,24 +306,27 @@ dialog:
 		*pcbConnStrOut = len;
 
 #ifdef	FORCE_PASSWORD_DISPLAY
-	mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(szConnStrOut), len, cbConnStrOutMax);
-	qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
+	if (cbConnStrOutMax > 0)
+	{
+		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(szConnStrOut), len, cbConnStrOutMax);
+		qlog("conn=%x, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
+	}
 #else
 	if (get_qlog() || get_mylog())
 	{
-		char	*hide_str = hide_password(szConnStrOut);
+		char	*hide_str = NULL;
 
+		if (cbConnStrOutMax > 0)
+			hide_str = hide_password(szConnStrOut);
 		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(hide_str), len, cbConnStrOutMax);
-		qlog("conn=%u, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
+		qlog("conn=%x, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
 		if (hide_str)
 			free(hide_str);
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
-
 	if (connStrIn)
 		free(connStrIn);
-
 	mylog("PGAPI_DriverConnect: returning %d\n", result);
 	return result;
 }
@@ -304,7 +338,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 {
 	int			dialog_result;
 
-	mylog("dconn_DoDialog: ci = %u\n", ci);
+	mylog("dconn_DoDialog: ci = %x\n", ci);
 
 	if (hwnd)
 	{
@@ -395,20 +429,19 @@ dconn_FDriverConnectProc(
 #endif   /* WIN32 */
 
 
-void
-dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
+typedef	void (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
+static void
+dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {
 	char	   *our_connect_string;
-	char	   *pair,
+	const	char	   *pair,
 			   *attribute,
-			   *value,
-			   *equals;
+			   *value;
+	char	*equals;
 	char	   *strtok_arg;
 #ifdef	HAVE_STRTOK_R
 	char	   *last;
 #endif /* HAVE_STRTOK_R */
-
-	CC_conninfo_init(ci);
 
 	our_connect_string = strdup(connect_string);
 	strtok_arg = our_connect_string;
@@ -457,76 +490,23 @@ dconn_get_connect_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
 			continue;
 
 		/* Copy the appropriate value to the conninfo  */
-		copyAttributes(ci, attribute, value);
+		(*func)(ci, attribute, value);
 
 	}
 
 	free(our_connect_string);
 }
 
-static void
-dconn_get_common_attributes(const UCHAR FAR * connect_string, ConnInfo *ci)
+void
+dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {
-	char	   *our_connect_string;
-	char	   *pair,
-			   *attribute,
-			   *value,
-			   *equals;
-	char	   *strtok_arg;
-#ifdef	HAVE_STRTOK_R
-	char	   *last;
-#endif /* HAVE_STRTOK_R */
 
-	our_connect_string = strdup(connect_string);
-	strtok_arg = our_connect_string;
+	CC_conninfo_init(ci);
+	dconn_get_attributes(copyAttributes, connect_string, ci);
+}
 
-#ifdef	FORCE_PASSWORD_DISPLAY
-	mylog("our_connect_string = '%s'\n", our_connect_string);
-#else
-	if (get_mylog())
-	{
-		char	*hide_str = hide_password(our_connect_string);
-
-		mylog("our_connect_string = '%s'\n", hide_str);
-		free(hide_str);
-	}
-#endif /* FORCE_PASSWORD_DISPLAY */
-
-	while (1)
-	{
-#ifdef	HAVE_STRTOK_R
-		pair = strtok_r(strtok_arg, ";", &last);
-#else
-		pair = strtok(strtok_arg, ";");
-#endif /* HAVE_STRTOK_R */
-		if (strtok_arg)
-			strtok_arg = 0;
-		if (!pair)
-			break;
-
-		equals = strchr(pair, '=');
-		if (!equals)
-			continue;
-
-		*equals = '\0';
-		attribute = pair;		/* ex. DSN */
-		value = equals + 1;		/* ex. 'CEO co1' */
-
-#ifndef	FORCE_PASSWORD_DISPLAY
-		if (stricmp(attribute, INI_PASSWORD) == 0 ||
-		    stricmp(attribute, "pwd") == 0)
-			mylog("attribute = '%s', value = 'xxxxx'\n", attribute);
-		else
-#endif /* FORCE_PASSWORD_DISPLAY */
-			mylog("attribute = '%s', value = '%s'\n", attribute, value);
-
-		if (!attribute || !value)
-			continue;
-
-		/* Copy the appropriate value to the conninfo  */
-		copyCommonAttributes(ci, attribute, value);
-
-	}
-
-	free(our_connect_string);
+static void
+dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
+{
+	dconn_get_attributes(copyCommonAttributes, connect_string, ci);
 }

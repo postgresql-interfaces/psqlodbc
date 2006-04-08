@@ -14,7 +14,9 @@
 
 #include "pgtypes.h"
 #include "columninfo.h"
+
 #include "connection.h"
+#include "socket.h"
 #include <stdlib.h>
 #include <string.h>
 #include "pgapifunc.h"
@@ -34,6 +36,8 @@ CI_Constructor()
 		rv->adtsize = NULL;
 		rv->display_size = NULL;
 		rv->atttypmod = NULL;
+		rv->relid = NULL;
+		rv->attid = NULL;
 	}
 
 	return rv;
@@ -48,44 +52,142 @@ CI_Destructor(ColumnInfoClass *self)
 	free(self);
 }
 
+
+/*
+ *	Read in field descriptions.
+ *	If self is not null, then also store the information.
+ *	If self is null, then just read, don't store.
+ */
+char
+CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
+{
+	CSTR		func = "CI_read_fields";
+	Int2		lf;
+	int			new_num_fields;
+	Oid		new_adtid, new_relid = 0, new_attid = 0;
+	Int2		new_adtsize;
+	Int4		new_atttypmod = -1;
+
+	/* COLUMN_NAME_STORAGE_LEN may be sufficient but for safety */
+	char		new_field_name[2 * COLUMN_NAME_STORAGE_LEN + 1];
+	SocketClass *sock;
+	ConnInfo   *ci;
+
+	sock = CC_get_socket(conn);
+	ci = &conn->connInfo;
+
+	/* at first read in the number of fields that are in the query */
+	new_num_fields = (Int2) SOCK_get_int(sock, sizeof(Int2));
+
+	mylog("num_fields = %d\n", new_num_fields);
+
+	if (self)
+		/* according to that allocate memory */
+		CI_set_num_fields(self, new_num_fields, PROTOCOL_74(ci));
+
+	/* now read in the descriptions */
+	for (lf = 0; lf < new_num_fields; lf++)
+	{
+		SOCK_get_string(sock, new_field_name, 2 * COLUMN_NAME_STORAGE_LEN);
+		if (PROTOCOL_74(ci))	/* tableid & columnid */
+		{
+			new_relid = SOCK_get_int(sock, sizeof(Int4));
+			new_attid = SOCK_get_int(sock, sizeof(Int2));
+		}
+		new_adtid = (Oid) SOCK_get_int(sock, 4);
+		new_adtsize = (Int2) SOCK_get_int(sock, 2);
+
+		/* If 6.4 protocol, then read the atttypmod field */
+		if (PG_VERSION_GE(conn, 6.4))
+		{
+			mylog("READING ATTTYPMOD\n");
+			new_atttypmod = (Int4) SOCK_get_int(sock, 4);
+
+			/* Subtract the header length */
+			switch (new_adtid)
+			{
+				case PG_TYPE_DATETIME:
+				case PG_TYPE_TIMESTAMP_NO_TMZONE:
+				case PG_TYPE_TIME:
+				case PG_TYPE_TIME_WITH_TMZONE:
+					break;
+				default:
+					new_atttypmod -= 4;
+			}
+			if (new_atttypmod < 0)
+				new_atttypmod = -1;
+			if (PROTOCOL_74(ci))	/* format */
+				SOCK_get_int(sock, sizeof(Int2));
+
+		}
+
+		mylog("%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+
+		if (self)
+			CI_set_field_info(self, lf, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+	}
+
+	return (SOCK_get_errcode(sock) == 0);
+}
+
+
 void
 CI_free_memory(ColumnInfoClass *self)
 {
 	register Int2 lf;
 	int			num_fields = self->num_fields;
 
-	for (lf = 0; lf < num_fields; lf++)
+	if (self->name)
 	{
-		if (self->name[lf])
+		for (lf = 0; lf < num_fields; lf++)
 		{
-			free(self->name[lf]);
-			self->name[lf] = NULL;
+			if (self->name[lf])
+			{
+				free(self->name[lf]);
+				self->name[lf] = NULL;
+			}
 		}
+		free(self->name);
+		self->name = NULL;
 	}
-
 	/* Safe to call even if null */
 	self->num_fields = 0;
-	if (self->name)
-		free(self->name);
-	self->name = NULL;
-	if (self->adtid)
-		free(self->adtid);
-	self->adtid = NULL;
-	if (self->adtsize)
-		free(self->adtsize);
-	self->adtsize = NULL;
-	if (self->display_size)
-		free(self->display_size);
-	self->display_size = NULL;
 
+	if (self->adtid)
+	{
+		free(self->adtid);
+		self->adtid = NULL;
+	}
+	if (self->adtsize)
+	{
+		free(self->adtsize);
+		self->adtsize = NULL;
+	}
+	if (self->display_size)
+	{
+		free(self->display_size);
+		self->display_size = NULL;
+	}
 	if (self->atttypmod)
+	{
 		free(self->atttypmod);
-	self->atttypmod = NULL;
+		self->atttypmod = NULL;
+	}
+	if (self->relid)
+	{
+		free(self->relid);
+		self->relid = NULL;
+	}
+	if (self->attid)
+	{
+		free(self->attid);
+		self->attid = NULL;
+	}
 }
 
 
 void
-CI_set_num_fields(ColumnInfoClass *self, int new_num_fields)
+CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL allocrelatt)
 {
 	CI_free_memory(self);		/* always safe to call */
 
@@ -97,12 +199,18 @@ CI_set_num_fields(ColumnInfoClass *self, int new_num_fields)
 	self->adtsize = (Int2 *) malloc(sizeof(Int2) * self->num_fields);
 	self->display_size = (Int2 *) malloc(sizeof(Int2) * self->num_fields);
 	self->atttypmod = (Int4 *) malloc(sizeof(Int4) * self->num_fields);
+	if (allocrelatt)
+	{
+		self->relid = (Oid *) malloc(sizeof(Oid) * self->num_fields);
+		self->attid = (Oid *) malloc(sizeof(Oid) * self->num_fields);
+	}
 }
 
 
 void
 CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
-				  Oid new_adtid, Int2 new_adtsize, Int4 new_atttypmod)
+		Oid new_adtid, Int2 new_adtsize, Int4 new_atttypmod,
+		Oid new_relid, Oid new_attid)
 {
 	/* check bounds */
 	if ((field_num < 0) || (field_num >= self->num_fields))
@@ -115,4 +223,8 @@ CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
 	self->atttypmod[field_num] = new_atttypmod;
 
 	self->display_size[field_num] = 0;
+	if (self->relid)
+		self->relid[field_num] = new_relid;
+	if (self->attid)
+		self->attid[field_num] = new_attid;
 }

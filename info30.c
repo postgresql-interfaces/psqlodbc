@@ -7,12 +7,14 @@
  */
 
 #include "psqlodbc.h"
+
+#if (ODBCVER >= 0x0300)
 #include "connection.h"
 #include "pgapifunc.h"
 
 RETCODE		SQL_API
-PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
-				SWORD cbInfoValueMax, SWORD FAR * pcbInfoValue)
+PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
+			SQLSMALLINT cbInfoValueMax, SQLSMALLINT FAR * pcbInfoValue)
 {
 	CSTR func = "PGAPI_GetInfo30";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -40,6 +42,8 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		case SQL_FORWARD_ONLY_CURSOR_ATTRIBUTES2:
 			len = 4;
 			value = SQL_CA2_READ_ONLY_CONCURRENCY;
+			if (!ci->drivers.use_declarefetch || ci->drivers.lie)
+				value |= SQL_CA2_CRC_EXACT;
 			break;
 		case SQL_KEYSET_CURSOR_ATTRIBUTES1:
 			len = 4;
@@ -47,7 +51,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 				| SQL_CA1_RELATIVE | SQL_CA1_BOOKMARK
 				| SQL_CA1_LOCK_NO_CHANGE | SQL_CA1_POS_POSITION
 				| SQL_CA1_POS_REFRESH;
-			if (ci->updatable_cursors || ci->drivers.lie)
+			if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
 				value |= (SQL_CA1_POS_UPDATE | SQL_CA1_POS_DELETE
 				| SQL_CA1_BULK_ADD
 				| SQL_CA1_BULK_UPDATE_BY_BOOKMARK
@@ -65,14 +69,17 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		case SQL_KEYSET_CURSOR_ATTRIBUTES2:
 			len = 4;
 			value = SQL_CA2_READ_ONLY_CONCURRENCY;
-			if (ci->updatable_cursors || ci->drivers.lie)
+			if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
 				value |= (SQL_CA2_OPT_ROWVER_CONCURRENCY
 				/*| SQL_CA2_CRC_APPROXIMATE*/
-				| SQL_CA2_CRC_EXACT
-				| SQL_CA2_SENSITIVITY_DELETIONS
+				);
+			if (0 != (ci->updatable_cursors & SENSE_SELF_OPERATIONS))
+				value |= (SQL_CA2_SENSITIVITY_DELETIONS
 				| SQL_CA2_SENSITIVITY_UPDATES
 				| SQL_CA2_SENSITIVITY_ADDITIONS
 				);
+			if (!ci->drivers.use_declarefetch || ci->drivers.lie)
+				value |= SQL_CA2_CRC_EXACT;
 			if (ci->drivers.lie)
 				value |= (SQL_CA2_LOCK_CONCURRENCY
 				| SQL_CA2_OPT_VALUES_CONCURRENCY
@@ -94,10 +101,12 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 				| SQL_CA1_RELATIVE | SQL_CA1_BOOKMARK
 				| SQL_CA1_LOCK_NO_CHANGE | SQL_CA1_POS_POSITION
 				| SQL_CA1_POS_REFRESH;
-			if (ci->updatable_cursors)
+			if (0 != (ci->updatable_cursors & ALLOW_STATIC_CURSORS))
 				value |= (SQL_CA1_POS_UPDATE | SQL_CA1_POS_DELETE
 				| SQL_CA1_BULK_ADD
-				| SQL_CA1_BULK_UPDATE_BY_BOOKMARK
+				);
+			if (0 != (ci->updatable_cursors & ALLOW_BULK_OPERATIONS))
+				value |= (SQL_CA1_BULK_UPDATE_BY_BOOKMARK
 				| SQL_CA1_BULK_DELETE_BY_BOOKMARK
 				| SQL_CA1_BULK_FETCH_BY_BOOKMARK
 				);
@@ -105,12 +114,16 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 		case SQL_STATIC_CURSOR_ATTRIBUTES2:
 			len = 4;
 			value = SQL_CA2_READ_ONLY_CONCURRENCY;
-			if (ci->updatable_cursors)
+			if (0 != (ci->updatable_cursors & ALLOW_STATIC_CURSORS))
 				value |= (SQL_CA2_OPT_ROWVER_CONCURRENCY
-				| SQL_CA2_CRC_EXACT
-				| SQL_CA2_SENSITIVITY_ADDITIONS
-				| SQL_CA2_SENSITIVITY_DELETIONS
+				);
+			if (0 != (ci->updatable_cursors & SENSE_SELF_OPERATIONS))
+				value |= (SQL_CA2_SENSITIVITY_DELETIONS
 				| SQL_CA2_SENSITIVITY_UPDATES
+				| SQL_CA2_SENSITIVITY_ADDITIONS
+				);
+			if (!ci->drivers.use_declarefetch || ci->drivers.lie)
+				value |= (SQL_CA2_CRC_EXACT
 				);
 			break;
 
@@ -146,7 +159,10 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_CATALOG_NAME:
 			len = 0;
-			p = "N";
+			if (PG_VERSION_LE(conn, 7.2))
+				p = "N";
+			else
+				p = "N"; /* hopefully */
 			break;
 		case SQL_COLLATION_SEQ:
 			len = 0;
@@ -179,11 +195,11 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			len = 4;
 			value = SQL_CT_CREATE_TABLE | SQL_CT_COLUMN_CONSTRAINT
 				| SQL_CT_COLUMN_DEFAULT;
-			if (PG_VERSION_GE(conn, 6.5))
-				value |= SQL_CT_GLOBAL_TEMPORARY;
-			if (PG_VERSION_GE(conn, 7.0))
+			if (PG_VERSION_GE(conn, 6.5)) 
+				value |= SQL_CT_GLOBAL_TEMPORARY; 
+			if (PG_VERSION_GE(conn, 7.0)) 
 				value |= SQL_CT_TABLE_CONSTRAINT
-					| SQL_CT_CONSTRAINT_NAME_DEFINITION
+					| SQL_CT_CONSTRAINT_NAME_DEFINITION 
 					| SQL_CT_CONSTRAINT_INITIALLY_DEFERRED
 					| SQL_CT_CONSTRAINT_INITIALLY_IMMEDIATE
 					| SQL_CT_CONSTRAINT_DEFERRABLE;
@@ -256,10 +272,9 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_MAX_IDENTIFIER_LEN:
 			len = 2;
-            if (PG_VERSION_GT(conn, 7.2)) 
-			    value = 64;
-            else
-                value = 32;
+			value = 32;
+			if (PG_VERSION_GT(conn, 7.2))
+				value = 64;
 			break;
 		case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
 			len = 0;
@@ -295,7 +310,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_SQL92_NUMERIC_VALUE_FUNCTIONS:
 			len = 4;
-			value = SQL_SNVF_BIT_LENGTH | SQL_SNVF_CHAR_LENGTH
+			value = SQL_SNVF_BIT_LENGTH | SQL_SNVF_CHAR_LENGTH 
 				| SQL_SNVF_CHARACTER_LENGTH | SQL_SNVF_EXTRACT
 				| SQL_SNVF_OCTET_LENGTH | SQL_SNVF_POSITION;
 			break;
@@ -314,7 +329,7 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 					| SQL_SRJO_FULL_OUTER_JOIN | SQL_SRJO_INNER_JOIN
 					| SQL_SRJO_INTERSECT_JOIN | SQL_SRJO_LEFT_OUTER_JOIN
 					| SQL_SRJO_NATURAL_JOIN | SQL_SRJO_RIGHT_OUTER_JOIN
-					| SQL_SRJO_UNION_JOIN;
+					| SQL_SRJO_UNION_JOIN; 
 			break;
 		case SQL_SQL92_REVOKE:
 			len = 4;
@@ -335,6 +350,13 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			len = 4;
 			value = SQL_SVE_CASE | SQL_SVE_CAST | SQL_SVE_COALESCE | SQL_SVE_NULLIF;
 			break;
+#ifdef SQL_DTC_TRANSACTION_COST
+		case SQL_DTC_TRANSACTION_COST:
+#else
+		case 1750:
+#endif
+			len = 4;
+			break;
 		/* The followings aren't implemented yet */
 		case SQL_DATETIME_LITERALS:
 			len = 4;
@@ -350,40 +372,38 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 			len = 0;
 		default:
 			/* unrecognized key */
-			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unrecognized key passed to SQLGetInfo30.");
-			CC_log_error(func, "", conn);
+			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unrecognized key passed to SQLGetInfo30.", func);
 			return SQL_ERROR;
 	}
 	result = SQL_SUCCESS;
-
+	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
 	if (p)
 	{
 		/* char/binary data */
 		len = strlen(p);
-#ifdef  UNICODE_SUPPORT
-                /* Note that at this point we don't know if we've been called just
-                 * to get the length of the output. If it's unicode, then we better
-                 * adjust to bytes now, so we don't return a buffer size that's too
-                 * small.
-                 */
-                if (conn->unicode)
-                    len = len * WCLEN;
-#endif
+
 		if (rgbInfoValue)
 		{
-#ifdef  UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 			if (conn->unicode)
-				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / 2);
+			{
+				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / WCLEN);
+				len *= WCLEN;
+			}
 			else
-#endif
-				strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
+#endif /* UNICODE_SUPPORT */
+			strncpy_null((char *) rgbInfoValue, p, (size_t) cbInfoValueMax);
 
 			if (len >= cbInfoValueMax)
 			{
 				result = SQL_SUCCESS_WITH_INFO;
-				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the InfoValue.");
+				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for tthe InfoValue.", func);
 			}
 		}
+#ifdef	UNICODE_SUPPORT
+		else if (conn->unicode)
+			len *= WCLEN;
+#endif /* UNICODE_SUPPORT */
 	}
 	else
 	{
@@ -399,9 +419,6 @@ PGAPI_GetInfo30(HDBC hdbc, UWORD fInfoType, PTR rgbInfoValue,
 
 	if (pcbInfoValue)
 		*pcbInfoValue = len;
-
-	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
-
 	return result;
 }
-
+#endif /* ODBCVER >= 0x0300 */

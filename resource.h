@@ -13,18 +13,20 @@
 #define IDS_ADVANCE_OPTION_DSN2         7
 #define IDS_ADVANCE_OPTION_CON2         8
 #define IDS_ADVANCE_CONNECTION          9
-#define IDS_SSLREQUEST_PREFER           10
-#define IDS_SSLREQUEST_ALLOW            11
-#define IDS_SSLREQUEST_REQUIRE          12
-#define IDS_SSLREQUEST_DISABLE          13
 #define DLG_OPTIONS_DRV                 102
 #define DLG_OPTIONS_DS                  103
-#define DLG_OPTIONS_GLOBAL              104
-#define IDC_DSNAME                      400
-#define IDC_DSNAMETEXT                  401
-#define IDC_DESC                        404
-#define IDC_SERVER                      407
-#define IDC_DATABASE                    408
+#define DLG_OPTIONS_GLOBAL		104
+#define IDC_DSNAME			400
+#define IDC_DSNAMETEXT			401
+#define IDC_DESC			404
+#define IDC_SERVER			407
+#define IDC_DATABASE			408
+#define IDC_SSLMODE			409
+#define IDS_SSLREQUEST_PREFER		410
+#define IDS_SSLREQUEST_ALLOW		411
+#define IDS_SSLREQUEST_REQUIRE		412
+#define IDS_SSLREQUEST_DISABLE		413
+#define IDC_NOTICE_USER			414
 #define DLG_CONFIG                      1001
 #define IDC_PORT                        1002
 #define DLG_DRIVER_CHANGE               1002
@@ -34,6 +36,7 @@
 #define DS_SHOWOIDCOLUMN                1012
 #define DS_FAKEOIDINDEX                 1013
 #define DRV_COMMLOG                     1014
+#define DS_PG62                         1016
 #define IDC_DATASOURCE                  1018
 #define DRV_OPTIMIZER                   1019
 #define DS_CONNSETTINGS                 1020
@@ -61,6 +64,8 @@
 #define DRV_CANCELASFREESTMT            1053
 #define IDC_OPTIONS                     1054
 #define DRV_KSQO                        1055
+#define DS_PG64                         1057
+#define DS_PG63                         1058
 #define DRV_OR_DSN                      1059
 #define DRV_DEBUG                       1060
 #define DS_DISALLOWPREMATURE            1061
@@ -82,15 +87,18 @@
 #define IDC_DRIVERNAME                  1076
 #define IDC_MANAGEDSN                   1077
 #define IDC_DRIVER_LIST                 1078
-#define IDC_SSLMODE                     1079
+#define DS_PG74				1079
+#define DS_NO_ROLLBACK			1080
+#define DS_TRANSACTION_ROLLBACK		1081
+#define DS_STATEMENT_ROLLBACK		1082
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        109
+#define _APS_NEXT_RESOURCE_VALUE        105
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1082
+#define _APS_NEXT_CONTROL_VALUE         1083
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

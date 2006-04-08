@@ -54,6 +54,9 @@
 #define PG_TYPE_OIDINT2			810
 #define PG_TYPE_OIDINT4			910
 #define PG_TYPE_OIDNAME			911
+#define PG_TYPE_TEXTARRAY		1009
+#define PG_TYPE_BPCHARARRAY		1014
+#define PG_TYPE_VARCHARARRAY		1015
 #define PG_TYPE_BPCHAR			1042
 #define PG_TYPE_VARCHAR			1043
 #define PG_TYPE_DATE			1082
@@ -63,6 +66,8 @@
 #define PG_TYPE_TIME_WITH_TMZONE	1266		/* since 7.1 */
 #define PG_TYPE_TIMESTAMP		1296	/* deprecated since 7.0 */
 #define PG_TYPE_NUMERIC			1700
+#define PG_TYPE_RECORD			2249
+#define PG_TYPE_VOID			2278
 #define INTERNAL_ASIS_TYPE		(-9999)
 
 /* extern Int4 pgtypes_defined[]; */
@@ -80,7 +85,7 @@ Int2		pgtype_to_ctype(StatementClass *stmt, Int4 type);
 const char	*pgtype_to_name(StatementClass *stmt, Int4 type);
 
 /*	These functions can use static numbers or result sets(col parameter) */
-Int4		pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as); /* corresponds to "precision" in ODBC 2.x */
+SQLLEN		pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as); /* corresponds to "precision" in ODBC 2.x */
 Int4		pgtype_precision(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as); /* "precsion in ODBC 3.x */ 
 Int4		pgtype_display_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as);
 Int4		pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as);

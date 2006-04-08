@@ -33,6 +33,7 @@
 #include "qresult.h"
 #include "pgtypes.h"
 #include "pgapifunc.h"
+#include "catfunc.h"
 
 #include "multibyte.h"
 
@@ -40,9 +41,9 @@
 #define TAB_INCR	8
 #define COL_INCR	16
 
-char	   *getNextToken(int ccsc, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
-void		getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
-char		searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
+static	char	*getNextToken(int ccsc, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
+static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
+static	char	searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
 
 Int4 FI_precision(const FIELD_INFO *fi)
 {
@@ -74,10 +75,11 @@ getNextToken(
 	char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
 	int			i = 0;
-	int			out = 0;
-	char		qc,
-				in_escape = FALSE;
+	int		out = 0, taglen;
+	char		qc, in_quote, in_dollar_quote, in_escape;
+	const	char	*tag, *tagend;
 	encoded_str	encstr;
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
 
 	if (smax <= 1)
 		return NULL;
@@ -117,21 +119,38 @@ getNextToken(
 		if (isspace((UCHAR) s[i]) || s[i] == ',')
 			break;
 		/* Handle quoted stuff */
-		if (out == 0 && (s[i] == '\"' || s[i] == '\''))
+		in_quote = in_dollar_quote = FALSE;
+		if (out == 0)
 		{
 			qc = s[i];
-			if (qc == '\"')
+			if (qc == dollar_quote)
 			{
-				if (dquote)
-					*dquote = TRUE;
-			}
-			if (qc == '\'')
-			{
+				in_quote = in_dollar_quote = TRUE;
+				tag = s + i;
+				taglen = 1;
+				if (tagend = strchr(s + i + 1, dollar_quote))
+					taglen = tagend - s - i + 1;
+				i += (taglen - 1);
 				if (quote)
 					*quote = TRUE;
 			}
-
+			else if (qc == literal_quote)
+			{
+				in_quote = TRUE;
+				if (quote)
+					*quote = TRUE;
+			}
+			else if (qc == identifier_quote)
+			{
+				in_quote = TRUE;
+				if (dquote)
+					*dquote = TRUE;
+			}
+		}
+		if (in_quote)
+		{
 			i++;				/* dont return the quote */
+			in_escape = FALSE;
 			while (s[i] != '\0' && out != smax)
 			{
 				encoded_nextchar(&encstr);
@@ -140,13 +159,23 @@ getNextToken(
 					token[out++] = s[i++];
 					continue;
 				}
-				if (s[i] == qc && !in_escape)
-					break;
-				if (s[i] == '\\' && !in_escape)
+				if (in_escape)
+					in_escape = FALSE;
+				else if (s[i] == qc)
+				{
+					if (!in_dollar_quote)
+						break;
+					if (strncmp(s + i, tag, taglen) == 0)
+					{
+						i += (taglen - 1);
+						break;
+					}
+					token[out++] = s[i];
+				}
+				else if (literal_quote == qc && s[i] == escape_in_literal)
 					in_escape = TRUE;
 				else
 				{
-					in_escape = FALSE;
 					token[out++] = s[i];
 				}
 				i++;
@@ -219,46 +248,24 @@ getNextToken(
 	return &s[i];
 }
 
-
-#if 0
-QR_set_num_fields(SC_get_Curres(stmt), 14);
-QR_set_field_info(SC_get_Curres(stmt), 0, "TABLE_QUALIFIER", PG_TYPE_TEXT, MAX_INFO_STRING);
-QR_set_field_info(SC_get_Curres(stmt), 1, "TABLE_OWNER", PG_TYPE_TEXT, MAX_INFO_STRING);
-QR_set_field_info(SC_get_Curres(stmt), 2, "TABLE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-QR_set_field_info(SC_get_Curres(stmt), 3, "COLUMN_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-QR_set_field_info(SC_get_Curres(stmt), 4, "DATA_TYPE", PG_TYPE_INT2, 2);
-QR_set_field_info(SC_get_Curres(stmt), 5, "TYPE_NAME", PG_TYPE_TEXT, MAX_INFO_STRING);
-QR_set_field_info(SC_get_Curres(stmt), 6, "PRECISION", PG_TYPE_INT4, 4);
-QR_set_field_info(SC_get_Curres(stmt), 7, "LENGTH", PG_TYPE_INT4, 4);
-QR_set_field_info(SC_get_Curres(stmt), 8, "SCALE", PG_TYPE_INT2, 2);
-QR_set_field_info(SC_get_Curres(stmt), 9, "RADIX", PG_TYPE_INT2, 2);
-QR_set_field_info(SC_get_Curres(stmt), 10, "NULLABLE", PG_TYPE_INT2, 2);
-QR_set_field_info(SC_get_Curres(stmt), 11, "REMARKS", PG_TYPE_TEXT, 254);
-/*	User defined fields */
-QR_set_field_info(SC_get_Curres(stmt), 12, "DISPLAY_SIZE", PG_TYPE_INT4, 4);
-QR_set_field_info(SC_get_Curres(stmt), 13, "FIELD_TYPE", PG_TYPE_INT4, 4);
-#endif
-
 void
 getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k)
 {
 	char	   *str;
-	Int2	reserved_cols;
 
-	reserved_cols = 18;
+inolog("getColInfo non-manual result\n");
+	STR_TO_NAME(fi->column_name, QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME));
 
-	if (fi->name[0] == '\0')
-		strcpy(fi->name, QR_get_value_manual(col_info->result, k, 3));
-
-	fi->type = atoi(QR_get_value_manual(col_info->result, k, (Int2)(reserved_cols + 1)));
-	fi->column_size = atoi(QR_get_value_manual(col_info->result, k, 6));
-	fi->length = atoi(QR_get_value_manual(col_info->result, k, 7));
-	if (str = QR_get_value_manual(col_info->result, k, 8), str)
+	fi->type = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_FIELD_TYPE));
+	fi->column_size = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PRECISION));
+	fi->length = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_LENGTH));
+	if (str = QR_get_value_backend_row(col_info->result, k, COLUMNS_SCALE), str)
 		fi->decimal_digits = atoi(str);
 	else
 		fi->decimal_digits = -1;
-	fi->nullable = atoi(QR_get_value_manual(col_info->result, k, 10));
-	fi->display_size = atoi(QR_get_value_manual(col_info->result, k, reserved_cols));
+	fi->nullable = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_NULLABLE));
+	fi->display_size = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_DISPLAY_SIZE));
+	fi->auto_increment = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_AUTO_INCREMENT));
 }
 
 
@@ -269,21 +276,26 @@ searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 				cmp;
 	char	   *col;
 
-	for (k = 0; k < QR_get_num_backend_tuples(col_info->result); k++)
+inolog("searchColInfo %d\n", QR_get_num_cached_tuples(col_info->result));
+	for (k = 0; k < QR_get_num_cached_tuples(col_info->result); k++)
 	{
-		col = QR_get_value_manual(col_info->result, k, 3);
-		if (fi->dquote)
-			cmp = strcmp(col, fi->name);
-		else
-			cmp = stricmp(col, fi->name);
-		if (!cmp)
+		col = QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME);
+inolog("searchColInfo %d col=%s\n", k, col);
+		if (NAME_IS_VALID(fi->column_name))
 		{
-			if (!fi->dquote)
-				strcpy(fi->name, col);
-			getColInfo(col_info, fi, k);
+			if (fi->dquote)
+				cmp = strcmp(col, GET_NAME(fi->column_name));
+			else
+				cmp = stricmp(col, GET_NAME(fi->column_name));
+			if (!cmp)
+			{
+				if (!fi->dquote)
+					STR_TO_NAME(fi->column_name, col);
+				getColInfo(col_info, fi, k);
 
-			mylog("PARSE: searchColInfo: \n");
-			return TRUE;
+				mylog("PARSE: searchColInfo: \n");
+				return TRUE;
+			}
 		}
 	}
 
@@ -312,8 +324,76 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 	}
 }
 
+static BOOL CheckHasOids(StatementClass * stmt)
+{
+	QResultClass	*res;
+	BOOL		hasoids = TRUE, foundKey = FALSE;
+	char		query[512];
+	ConnectionClass	*conn = SC_get_conn(stmt);
+	TABLE_INFO	*ti;
+
+	if (0 != SC_checked_hasoids(stmt))
+		return TRUE;
+	if (!stmt->ti || !stmt->ti[0])
+		return FALSE;
+	ti = stmt->ti[0];
+	sprintf(query, "select relhasoids, c.oid from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid", SAFE_NAME(ti->table_name), SAFE_NAME(ti->schema_name));
+	res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+	if (QR_command_maybe_successful(res))
+	{
+		stmt->num_key_fields = PG_NUM_NORMAL_KEYS;
+		if (1 == QR_get_num_total_tuples(res))
+		{
+			char *value = QR_get_value_backend_row(res, 0, 0);
+			if (value && ('f' == *value || '0' == *value))
+			{
+				hasoids = FALSE;
+				TI_set_has_no_oids(ti);
+			}
+			else
+			{
+				TI_set_hasoids(ti);
+				foundKey = TRUE;
+				STR_TO_NAME(ti->bestitem, OID_NAME);
+				strcpy(query, "\"oid\" = %u");
+				/*strcpy(query, "\"oid\" = %%u");*/
+				STR_TO_NAME(ti->bestqual, query);
+			}
+			TI_set_hasoids_checked(ti);
+			ti->table_oid = strtoul(QR_get_value_backend_row(res, 0, 1), NULL, 10);
+		}
+		QR_Destructor(res);
+		res = NULL;
+		if (!hasoids)
+		{
+			sprintf(query, "select a.attname, a.atttypid from pg_index i, pg_attribute a where indrelid=%u and indnatts=1 and indisunique and indexprs is null and indpred is null and i.indrelid = a.attrelid and a.attnum=i.indkey[0] and attnotnull and atttypid in (%d, %d)", ti->table_oid, PG_TYPE_INT4, PG_TYPE_OID);
+			res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+			if (QR_command_maybe_successful(res) && QR_get_num_total_tuples(res) > 0)
+			{
+				foundKey = TRUE;
+				STR_TO_NAME(ti->bestitem, QR_get_value_backend_row(res, 0, 0));
+				sprintf(query, "\"%s\" = %%", SAFE_NAME(ti->bestitem));
+				if (PG_TYPE_INT4 == atoi(QR_get_value_backend_row(res, 0, 1)))
+					strcat(query, "d");
+				else
+					strcat(query, "u");
+				STR_TO_NAME(ti->bestqual, query);
+			}
+			else
+			{
+				/* stmt->updatable = FALSE; */
+				foundKey = TRUE;
+				stmt->num_key_fields--;
+			}
+		}
+	}
+	QR_Destructor(res);
+	SC_set_checked_hasoids(stmt, foundKey); 
+	return TRUE;
+}
+	
 char
-parse_statement(StatementClass *stmt)
+parse_statement(StatementClass *stmt, BOOL check_hasoids)
 {
 	CSTR		func = "parse_statement";
 	char		token[256], stoken[256];
@@ -334,16 +414,16 @@ parse_statement(StatementClass *stmt)
 	char		in_field = FALSE,
 				in_expr = FALSE,
 				in_func = FALSE,
-                out_func = FALSE,
 				in_dot = FALSE,
 				in_as = FALSE;
 	int			j,
 				i,
 				k = 0,
 				n,
-				blevel = 0, old_blevel, subqlevel = 0;
-	FIELD_INFO **fi;
-	TABLE_INFO **ti;
+				blevel = 0, old_blevel, subqlevel = 0,
+				nfields_old, allocated_size, new_size;
+	FIELD_INFO **fi, *wfi;
+	TABLE_INFO **ti, *wti;
 	char		parse;
 	ConnectionClass *conn = stmt->hdbc;
 	HSTMT		hcol_stmt;
@@ -352,15 +432,24 @@ parse_statement(StatementClass *stmt)
 	RETCODE		result;
 	BOOL		updatable = TRUE;
 
-	QResultClass*	resultClass;
-
 	mylog("%s: entering...\n", func);
 
+	if (SC_parsed_status(stmt) != STMT_PARSE_NONE)
+	{
+		if (check_hasoids)
+			CheckHasOids(stmt);
+		return TRUE;
+	}
+	stmt->updatable = FALSE;
 	ptr = stmt->statement;
 	fi = irdflds->fi;
 	ti = stmt->ti;
 
+	allocated_size = 0;
+	nfields_old = irdflds->nfields;
 	irdflds->nfields = 0;
+	if (nfields_old > 0)
+		allocated_size = ((nfields_old - 1) / FLD_INCR + 1) * FLD_INCR;
 	stmt->ntab = 0;
 	stmt->from_pos = -1;
 	stmt->where_pos = -1;
@@ -389,7 +478,7 @@ parse_statement(StatementClass *stmt)
 					in_select = FALSE;
 					mylog("INTO\n");
 					stmt->statement_type = STMT_TYPE_CREATE;
-					stmt->parse_status = STMT_PARSE_FATAL;
+					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					return FALSE;
 				}
 				else if (!stricmp(token, "from"))
@@ -528,58 +617,70 @@ parse_statement(StatementClass *stmt)
 
 			if (!in_field)
 			{
+				BOOL	fi_reuse = FALSE;
+
 				if (!token[0])
 					continue;
 
-				if (!(irdflds->nfields % FLD_INCR))
+				/* if (!(irdflds->nfields % FLD_INCR)) */
+				if (irdflds->nfields >= allocated_size)
 				{
 					mylog("reallocing at nfld=%d\n", irdflds->nfields);
-					fi = (FIELD_INFO **) realloc(fi, (irdflds->nfields + FLD_INCR) * sizeof(FIELD_INFO *));
+					new_size = (irdflds->nfields / FLD_INCR + 1) * FLD_INCR;
+					fi = (FIELD_INFO **) realloc(fi, new_size * sizeof(FIELD_INFO *));
 					if (!fi)
 					{
-						stmt->parse_status = STMT_PARSE_FATAL;
+						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 						return FALSE;
 					}
+					allocated_size = new_size;
 					irdflds->fi = fi;
 				}
 
-				fi[irdflds->nfields] = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
-				if (fi[irdflds->nfields] == NULL)
+				wfi = NULL;
+				if (irdflds->nfields < nfields_old)
+					wfi = fi[irdflds->nfields];
+				if (wfi)
+					fi_reuse = TRUE;
+				else
+					wfi = fi[irdflds->nfields] = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
+				if (wfi == NULL)
 				{
-					stmt->parse_status = STMT_PARSE_FATAL;
+					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					return FALSE;
 				}
 
 				/* Initialize the field info */
-				memset(fi[irdflds->nfields], 0, sizeof(FIELD_INFO));
+				FI_Constructor(wfi, fi_reuse);
+				wfi->flag = FIELD_PARSING;
 
 				/* double quotes are for qualifiers */
 				if (dquote)
-					fi[irdflds->nfields]->dquote = TRUE;
+					wfi->dquote = TRUE;
 
 				if (quote)
 				{
-					fi[irdflds->nfields]->quote = TRUE;
-					fi[irdflds->nfields]->column_size = strlen(token);
+					wfi->quote = TRUE;
+					wfi->column_size = strlen(token);
 				}
 				else if (numeric)
 				{
 					mylog("**** got numeric: nfld = %d\n", irdflds->nfields);
-					fi[irdflds->nfields]->numeric = TRUE;
+					wfi->numeric = TRUE;
 				}
 				else if (0 == old_blevel && blevel > 0)
 				{				/* expression */
 					mylog("got EXPRESSION\n");
-					fi[irdflds->nfields++]->expr = TRUE;
+					wfi->expr = TRUE;
 					in_expr = TRUE;
 					continue;
 				}
 				else
 				{
-					strcpy(fi[irdflds->nfields]->name, token);
-					fi[irdflds->nfields]->dot[0] = '\0';
+					STR_TO_NAME(wfi->column_name, token);
+					NULL_THE_NAME(wfi->before_dot);
 				}
-				mylog("got field='%s', dot='%s'\n", fi[irdflds->nfields]->name, fi[irdflds->nfields]->dot);
+				mylog("got field='%s', dot='%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->before_dot));
 
 				if (delim == ',')
 					mylog("comma (1)\n");
@@ -592,16 +693,15 @@ parse_statement(StatementClass *stmt)
 			/*
 			 * We are in a field now
 			 */
+			wfi = fi[irdflds->nfields - 1];
 			if (in_dot)
 			{
-				int	ifld = irdflds->nfields - 1;
-
-				if (fi[ifld]->dot[0])
+				if (NAME_IS_VALID(wfi->before_dot))
 				{
-					fi[ifld]->schema = strdup(fi[ifld]->dot);
+					MOVE_NAME(wfi->schema_name, wfi->before_dot);
 				}
-				strcpy(fi[ifld]->dot, fi[ifld]->name);
-				strcpy(fi[ifld]->name, token);
+				MOVE_NAME(wfi->before_dot, wfi->column_name);
+				STR_TO_NAME(wfi->column_name, token);
 
 				if (delim == ',')
 				{
@@ -614,13 +714,10 @@ parse_statement(StatementClass *stmt)
 
 			if (in_as)
 			{
-				irdflds->nfields--;
-				strcpy(fi[irdflds->nfields]->alias, token);
-				mylog("alias for field '%s' is '%s'\n", fi[irdflds->nfields]->name, fi[irdflds->nfields]->alias);
+				STR_TO_NAME(wfi->column_alias, token);
+				mylog("alias for field '%s' is '%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->column_alias));
 				in_as = FALSE;
 				in_field = FALSE;
-
-				irdflds->nfields++;
 
 				if (delim == ',')
 					mylog("comma(2)\n");
@@ -632,13 +729,13 @@ parse_statement(StatementClass *stmt)
 			{
 				in_dot = FALSE;
 				in_func = TRUE;
-				fi[irdflds->nfields - 1]->func = TRUE;
+				wfi->func = TRUE;
 
 				/*
 				 * name will have the function name -- maybe useful some
 				 * day
 				 */
-				mylog("**** got function = '%s'\n", fi[irdflds->nfields - 1]->name);
+				mylog("**** got function = '%s'\n", PRINT_NAME(wfi->column_name));
 				continue;
 			}
 
@@ -659,9 +756,9 @@ parse_statement(StatementClass *stmt)
 
 			/* otherwise, it's probably an expression */
 			in_expr = TRUE;
-			fi[irdflds->nfields - 1]->expr = TRUE;
-			fi[irdflds->nfields - 1]->name[0] = '\0';
-			fi[irdflds->nfields - 1]->column_size = 0;
+			wfi->expr = TRUE;
+			NULL_THE_NAME(wfi->column_name);
+			wfi->column_size = 0;
 			mylog("*** setting expression\n");
 		} /* in_select end */
 
@@ -680,57 +777,35 @@ parse_statement(StatementClass *stmt)
 					out_table = TRUE; 
 					continue;
 			}
-			if (out_table && !in_table && !in_func) /* new table */
+			if (out_table && !in_table) /* new table */
 			{
 				if (!dquote)
 				{
 					if (token[0] == '(' ||
 					    token[0] == ')')
 						continue;
-                    
-					/* 
-					 * Detect a function call that looks like a table, eg.
-					 *   SELECT * FROM version()
-					 * 
-					 * This needs work to properly handle functions found in the from
-					 * clause, but this at least prevents nasty errors for now.
-					 *
-					 * DJP, 2005-01-08
-					 */
-					if (ptr[0] == '(')
-					{
-                        in_func = TRUE;
-						mylog("**** got function = '%s'\n", token);
-						mylog("FIXME: functions in the FROM clause are currently ignored!!\n");
-						continue;
-					}
 				}
-                
-            
 				if (!(stmt->ntab % TAB_INCR))
 				{
 					ti = (TABLE_INFO **) realloc(ti, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *));
 					if (!ti)
 					{
-						stmt->parse_status = STMT_PARSE_FATAL;
+						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 						return FALSE;
 					}
 					stmt->ti = ti;
 				}
-				ti[stmt->ntab] = (TABLE_INFO *) malloc(sizeof(TABLE_INFO));
-				if (ti[stmt->ntab] == NULL)
+				wti = ti[stmt->ntab] = (TABLE_INFO *) malloc(sizeof(TABLE_INFO));
+				if (wti == NULL)
 				{
-					stmt->parse_status = STMT_PARSE_FATAL;
+					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					return FALSE;
 				}
 
-				ti[stmt->ntab]->schema[0] = '\0';
-				ti[stmt->ntab]->alias[0] = '\0';
-				ti[stmt->ntab]->updatable = 1;
-
-				strcpy(ti[stmt->ntab]->name, token);
-				lower_the_name(ti[stmt->ntab]->name, conn, dquote);
-				mylog("got table = '%s'\n", ti[stmt->ntab]->name);
+				TI_Constructor(wti, conn);
+				STR_TO_NAME(wti->table_name, token);
+				lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+				mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
 
 				if (delim == ',')
 				{
@@ -747,64 +822,6 @@ parse_statement(StatementClass *stmt)
 				continue;
 			}
 
-			if (out_table && !in_table && in_func) /* old function */
-			{
-                /* Just skipped a function alias */
-                if (out_func)
-                {
-                    in_func = FALSE;
-                    out_func = FALSE;
-                    mylog("leaving func (and ignoring alias)\n");
-                    continue;
-                }
-                
-                /* Normal function, no alias */
-                if (token[0] == ')' && (ptr[0] == ',' || strlen(ptr) == 0))
-                {
-                    in_func = FALSE;
-                    
-                    /* 
-                     * TODO: shouldn't we cache the metadata somewhere? 
-                     */
-                    SC_pre_execute(stmt);
-					resultClass = SC_get_Curres(stmt);
-
-					mylog("PGAPI_NumResultCols: result = %u, status = %d, numcols = %d\n", resultClass, stmt->status, resultClass!= NULL ? QR_NumResultCols(resultClass) : -1);
-					if ((!resultClass) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
-					{
-						/* no query has been executed on this statement */
-						SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been executed with that handle");
-						SC_log_error(func, "", stmt);
-						return SQL_ERROR;
-					}
-					else if (!QR_command_maybe_successful(resultClass))
-					{
-						SC_set_errornumber(stmt, STMT_EXEC_ERROR);
-						SC_log_error(func, "", stmt);
-						return SQL_ERROR;
-					}
-					/* 
-					 * If the parse_statement is called to get the number of 
-					 * result columns throught SQLColAttribute. 
-					 */
-					irdflds->nfields = QR_NumPublicResultCols(resultClass);                    
-                    
-                    mylog("leaving func.\n");
-                    
-                    stmt->parse_status = STMT_PARSE_FATAL;
-					return	FALSE;
-                }
-                
-                /* Function with following alias */
-                if (token[0] == ')')
-                {
-                    out_func = TRUE;
-                    continue;
-                }
-                    
-                
-            }
-            
 			if (!dquote && stricmp(token, "JOIN") == 0)
 			{
 				in_table = FALSE;
@@ -813,11 +830,12 @@ parse_statement(StatementClass *stmt)
 			}
 			if (in_table)
 			{
+				wti = ti[stmt->ntab - 1];
 				if (in_dot)
 				{
-					strcpy(ti[stmt->ntab - 1]->schema, ti[stmt->ntab - 1]->name);
-					strcpy(ti[stmt->ntab - 1]->name, token);
-					lower_the_name(ti[stmt->ntab - 1]->name, conn, dquote);
+					MOVE_NAME(wti->schema_name, wti->table_name);
+					STR_TO_NAME(wti->table_name, token);
+					lower_the_name(GET_NAME(wti->table_name), conn, dquote);
 					in_dot = FALSE;
 					continue;
 				}
@@ -840,8 +858,8 @@ parse_statement(StatementClass *stmt)
 							continue;
 						}
 					}
-					strcpy(ti[stmt->ntab - 1]->alias, token);
-					mylog("alias for table '%s' is '%s'\n", ti[stmt->ntab - 1]->name, ti[stmt->ntab - 1]->alias);
+					STR_TO_NAME(wti->table_alias, token);
+					mylog("alias for table '%s' is '%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->table_alias));
 					in_table = FALSE;
 					if (delim == ',')
 					{
@@ -862,52 +880,54 @@ parse_statement(StatementClass *stmt)
 	/* Resolve field names with tables */
 	for (i = 0; i < (int) irdflds->nfields; i++)
 	{
-		if (fi[i]->func || fi[i]->expr || fi[i]->numeric)
+		wfi = fi[i];
+		if (wfi->func || wfi->expr || wfi->numeric)
 		{
-			fi[i]->ti = NULL;
-			fi[i]->type = -1;
+			wfi->ti = NULL;
+			wfi->type = -1;
 			parse = FALSE;
 			continue;
 		}
-		else if (fi[i]->quote)
+		else if (wfi->quote)
 		{						/* handle as text */
-			fi[i]->ti = NULL;
+			wfi->ti = NULL;
 
 			/*
-			 * fi[i]->type = PG_TYPE_TEXT; fi[i]->column_size = 0; the
+			 * wfi->type = PG_TYPE_TEXT; wfi->column_size = 0; the
 			 * following may be better
 			 */
-			fi[i]->type = PG_TYPE_UNKNOWN;
-			if (fi[i]->column_size == 0)
+			wfi->type = PG_TYPE_UNKNOWN;
+			if (wfi->column_size == 0)
 			{
-				fi[i]->type = PG_TYPE_VARCHAR;
-				fi[i]->column_size = 254;
+				wfi->type = PG_TYPE_VARCHAR;
+				wfi->column_size = 254;
 			}
-			fi[i]->length = fi[i]->column_size;
+			wfi->length = wfi->column_size;
 			continue;
 		}
 		/* field name contains the schema name */
-		else if (fi[i]->schema)
+		else if (NAME_IS_VALID(wfi->schema_name))
 		{
 			int	matchidx = -1;
 
 			for (k = 0; k < stmt->ntab; k++)
 			{
-				if (!stricmp(ti[k]->name, fi[i]->dot))
+				wti = ti[k];
+				if (!NAMEICMP(wti->table_name, wfi->before_dot))
 				{
-					if (!stricmp(ti[k]->schema, fi[i]->schema))
+					if (!NAMEICMP(wti->schema_name, wfi->schema_name))
 					{
-						fi[i]->ti = ti[k];
+						wfi->ti = wti;
 						break;
 					}
-					else if (!ti[k]->schema[0])
+					else if (NAME_IS_NULL(wti->schema_name))
 					{
 						if (matchidx < 0)
 							matchidx = k;
 						else
 						{
-							stmt->parse_status = STMT_PARSE_FATAL;
-							SC_set_error(stmt, STMT_EXEC_ERROR, "duplicated Table name");
+							SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+							SC_set_error(stmt, STMT_EXEC_ERROR, "duplicated Table name", func);
 							stmt->updatable = FALSE;
 							return FALSE;
 						}
@@ -915,47 +935,51 @@ parse_statement(StatementClass *stmt)
 				}
 			}
 			if (matchidx >= 0)
-				fi[i]->ti = ti[matchidx];
+				wfi->ti = ti[matchidx];
 		}
 		/* it's a dot, resolve to table or alias */
-		else if (fi[i]->dot[0])
+		else if (NAME_IS_VALID(wfi->before_dot))
 		{
 			for (k = 0; k < stmt->ntab; k++)
 			{
-				if (!stricmp(ti[k]->alias, fi[i]->dot))
+				wti = ti[k];
+				if (!NAMEICMP(wti->table_alias, wfi->before_dot))
 				{
-					fi[i]->ti = ti[k];
+					wfi->ti = wti;
 					break;
 				}
-				else if (!stricmp(ti[k]->name, fi[i]->dot))
+				else if (!NAMEICMP(wti->table_name, wfi->before_dot))
 				{
-					fi[i]->ti = ti[k];
+					wfi->ti = wti;
 					break;
 				}
 			}
 		}
 		else if (stmt->ntab == 1)
-			fi[i]->ti = ti[0];
+			wfi->ti = ti[0];
 	}
 
 	mylog("--------------------------------------------\n");
 	mylog("nfld=%d, ntab=%d\n", irdflds->nfields, stmt->ntab);
 	if (0 == stmt->ntab)
 	{
-		stmt->parse_status = STMT_PARSE_FATAL;
+		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 		return	FALSE;
 	}
 
 	for (i = 0; i < (int) irdflds->nfields; i++)
 	{
-		mylog("Field %d:  expr=%d, func=%d, quote=%d, dquote=%d, numeric=%d, name='%s', alias='%s', dot='%s'\n", i, fi[i]->expr, fi[i]->func, fi[i]->quote, fi[i]->dquote, fi[i]->numeric, fi[i]->name, fi[i]->alias, fi[i]->dot);
-		if (fi[i]->ti)
-			mylog("     ----> table_name='%s', table_alias='%s'\n", fi[i]->ti->name, fi[i]->ti->alias);
+		wfi = fi[i];
+		mylog("Field %d:  expr=%d, func=%d, quote=%d, dquote=%d, numeric=%d, name='%s', alias='%s', dot='%s'\n", i, wfi->expr, wfi->func, wfi->quote, wfi->dquote, wfi->numeric, PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->column_alias), PRINT_NAME(wfi->before_dot));
+		if (wfi->ti)
+			mylog("     ----> table_name='%s', table_alias='%s'\n", PRINT_NAME(wfi->ti->table_name), PRINT_NAME(wfi->ti->table_alias));
 	}
 
 	for (i = 0; i < stmt->ntab; i++)
-		mylog("Table %d: name='%s', alias='%s'\n", i, ti[i]->name, ti[i]->alias);
-
+	{
+		wti = ti[i];
+		mylog("Table %d: name='%s', alias='%s'\n", i, PRINT_NAME(wti->table_name), PRINT_NAME(wti->table_alias));
+	}
 
 	/*
 	 * Now save the SQLColumns Info for the parse tables
@@ -971,9 +995,10 @@ parse_statement(StatementClass *stmt)
 		/* See if already got it */
 		char		found = FALSE;
 
+		wti = ti[i];
 		if (conn->schema_support)
 		{
-			if (!ti[i]->schema[0])
+			if (NAME_IS_NULL(wti->schema_name))
 			{
 				const char *curschema = CC_get_current_schema(conn);
 				/*
@@ -984,12 +1009,12 @@ parse_statement(StatementClass *stmt)
 			 	 */
 				for (k = 0; k < conn->ntables; k++)
 				{
-					if (!stricmp(conn->col_info[k]->name, ti[i]->name) &&
-					    !stricmp(conn->col_info[k]->schema, curschema))
+					if (!NAMEICMP(conn->col_info[k]->table_name, wti->table_name) &&
+					    !stricmp(SAFE_NAME(conn->col_info[k]->schema_name), curschema))
 					{
-						mylog("FOUND col_info table='%s' current schema='%s'\n", ti[i]->name, curschema);
+						mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(wti->table_name), curschema);
 						found = TRUE;
-						strcpy(ti[i]->schema, curschema);
+						STR_TO_NAME(wti->schema_name, curschema);
 						break;
 					}
 				}
@@ -1002,36 +1027,34 @@ parse_statement(StatementClass *stmt)
 			 	 	 * We also have to check as follows.
 			 	 	 */
 					sprintf(token, "select nspname from pg_namespace n, pg_class c"
-						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", ti[i]->name);
-					res = CC_send_query(conn, token, NULL, CLEAR_RESULT_ON_ABORT);
-					if (res)
+						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", SAFE_NAME(wti->table_name));
+					res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+					if (QR_command_maybe_successful(res))
 					{
 						if (QR_get_num_total_tuples(res) == 1)
 						{
 							tblFound = TRUE;
-							strcpy(ti[i]->schema, QR_get_value_backend_row(res, 0, 0));
+							STR_TO_NAME(wti->schema_name, QR_get_value_backend_row(res, 0, 0));
 						}
-						QR_Destructor(res);
 					}
-					else
-						CC_abort(conn);
+					QR_Destructor(res);
 					if (!tblFound)
 					{
-						stmt->parse_status = STMT_PARSE_FATAL;
-						SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found");
+						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+						SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
 						stmt->updatable = FALSE;
 						return FALSE;
 					}
 				}
 			}
-			if (!found && ti[i]->schema[0])
+			if (!found && NAME_IS_VALID(wti->schema_name))
 			{
 				for (k = 0; k < conn->ntables; k++)
 				{
-					if (!stricmp(conn->col_info[k]->name, ti[i]->name) &&
-					    !stricmp(conn->col_info[k]->schema, ti[i]->schema))
+					if (!NAMEICMP(conn->col_info[k]->table_name, wti->table_name) &&
+					    !NAMEICMP(conn->col_info[k]->schema_name, wti->schema_name))
 					{
-						mylog("FOUND col_info table='%s' schema='%s'\n", ti[i]->name, ti[i]->schema);
+						mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->schema_name));
 						found = TRUE;
 						break;
 					}
@@ -1042,9 +1065,9 @@ parse_statement(StatementClass *stmt)
 		{
 			for (k = 0; k < conn->ntables; k++)
 			{
-				if (!stricmp(conn->col_info[k]->name, ti[i]->name))
+				if (!NAMEICMP(conn->col_info[k]->table_name, wti->table_name))
 				{
-					mylog("FOUND col_info table='%s'\n", ti[i]->name);
+					mylog("FOUND col_info table='%s'\n", wti->table_name);
 					found = TRUE;
 					break;
 				}
@@ -1053,67 +1076,76 @@ parse_statement(StatementClass *stmt)
 
 		if (!found)
 		{
-			mylog("PARSE: Getting PG_Columns for table[%d]='%s'\n", i, ti[i]->name);
+			QResultClass	*res;
+			mylog("PARSE: Getting PG_Columns for table[%d]='%s'\n", i, wti->table_name);
 
 			result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
 			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 			{
-				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.");
-				stmt->parse_status = STMT_PARSE_FATAL;
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", func);
+				SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 				return FALSE;
 			}
 
 			col_stmt = (StatementClass *) hcol_stmt;
 			col_stmt->internal = TRUE;
 
-			result = PGAPI_Columns(hcol_stmt, "", 0, ti[i]->schema,
-					 SQL_NTS, ti[i]->name, SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN);
+			result = PGAPI_Columns(hcol_stmt, "", 0, SAFE_NAME(wti->schema_name),
+					 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
 
 			mylog("        Past PG_Columns\n");
+			res = SC_get_Curres(col_stmt);
 			if (result == SQL_SUCCESS)
 			{
+				COL_INFO	*coli;
+
 				mylog("      Success\n");
 				if (!(conn->ntables % COL_INCR))
 				{
-					mylog("PARSE: Allocing col_info at ntables=%d\n", conn->ntables);
+					mylog("PARSE: Allocating col_info at ntables=%d\n", conn->ntables);
 
 					conn->col_info = (COL_INFO **) realloc(conn->col_info, (conn->ntables + COL_INCR) * sizeof(COL_INFO *));
 					if (!conn->col_info)
 					{
-						stmt->parse_status = STMT_PARSE_FATAL;
+						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 						return FALSE;
 					}
 				}
 
 				mylog("PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
-				conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
-				if (!conn->col_info[conn->ntables])
+				coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
+				if (!coli)
 				{
-					stmt->parse_status = STMT_PARSE_FATAL;
+					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					return FALSE;
 				}
+				col_info_initialize(coli);
 
 				/*
 				 * Store the table name and the SQLColumns result
 				 * structure
 				 */
-				if (ti[i]->schema[0])
-					conn->col_info[conn->ntables]->schema = strdup(ti[i]->schema);
+				if (NAME_IS_VALID(wti->schema_name))
+				{
+					NAME_TO_NAME(coli->schema_name,  wti->schema_name);
+				}
 				else
-					conn->col_info[conn->ntables]->schema = NULL;
-				strcpy(conn->col_info[conn->ntables]->name, ti[i]->name);
-				conn->col_info[conn->ntables]->result = SC_get_Curres(col_stmt);
+					NULL_THE_NAME(coli->schema_name);
+				NAME_TO_NAME(coli->table_name, wti->table_name);
+				coli->result = res;
 
 				/*
 				 * The connection will now free the result structures, so
 				 * make sure that the statement doesn't free it
 				 */
-				SC_set_Result(col_stmt, NULL);
+				SC_init_Result(col_stmt);
 
 				conn->ntables++;
 
 				PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-				mylog("Created col_info table='%s', ntables=%d\n", ti[i]->name, conn->ntables);
+if (res && QR_get_num_cached_tuples(res) > 0)
+inolog("oid item == %s\n", QR_get_value_backend_row(res, 0, 3));
+				mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
 			}
 			else
 			{
@@ -1123,7 +1155,7 @@ parse_statement(StatementClass *stmt)
 		}
 
 		/* Associate a table from the statement with a SQLColumn info */
-		ti[i]->col_info = conn->col_info[k];
+		wti->col_info = conn->col_info[k];
 		mylog("associate col_info: i=%d, k=%d\n", i, k);
 	}
 
@@ -1133,25 +1165,24 @@ parse_statement(StatementClass *stmt)
 	 * Now resolve the fields to point to column info
 	 */
 	if (updatable && 1 == stmt->ntab)
-		updatable = stmt->ti[0]->updatable;
+		updatable = TI_is_updatable(stmt->ti[0]);
 	for (i = 0; i < (int) irdflds->nfields;)
 	{
-		fi[i]->updatable = updatable;
+		wfi = fi[i];
+		wfi->updatable = updatable;
 		/* Dont worry about functions or quotes */
-		if (fi[i]->func || fi[i]->quote || fi[i]->numeric)
+		if (wfi->func || wfi->quote || wfi->numeric)
 		{
-			fi[i]->updatable = FALSE;
+			wfi->updatable = FALSE;
 			i++;
 			continue;
 		}
 
 		/* Stars get expanded to all fields in the table */
-		else if (fi[i]->name[0] == '*')
+		else if (SAFE_NAME(wfi->column_name)[0] == '*')
 		{
 			char		do_all_tables;
 			int			total_cols,
-						old_alloc,
-						new_size,
 						cols;
 			int			increased_cols;
 
@@ -1159,26 +1190,25 @@ parse_statement(StatementClass *stmt)
 
 			total_cols = 0;
 
-			if (fi[i]->ti)		/* The star represents only the qualified
+			if (wfi->ti)		/* The star represents only the qualified
 								 * table */
-				total_cols = QR_get_num_backend_tuples(fi[i]->ti->col_info->result);
+				total_cols = QR_get_num_cached_tuples(wfi->ti->col_info->result);
 
 			else
-			{					/* The star represents all tables */
-
+			{	/* The star represents all tables */
 				/* Calculate the total number of columns after expansion */
 				for (k = 0; k < stmt->ntab; k++)
-					total_cols += QR_get_num_backend_tuples(ti[k]->col_info->result);
+					total_cols += QR_get_num_cached_tuples(ti[k]->col_info->result);
 			}
 			increased_cols = total_cols - 1;
 
 			/* Allocate some more field pointers if necessary */
-			old_alloc = ((irdflds->nfields - 1) / FLD_INCR + 1) * FLD_INCR;
+			/* allocated_size = ((irdflds->nfields - 1) / FLD_INCR + 1) * FLD_INCR; */
 			new_size = irdflds->nfields + increased_cols;
 
-			mylog("k=%d, increased_cols=%d, old_alloc=%d, new_size=%d\n", k, increased_cols, old_alloc, new_size);
+			mylog("k=%d, increased_cols=%d, allocated_size=%d, new_size=%d\n", k, increased_cols, allocated_size, new_size);
 
-			if (new_size > old_alloc)
+			if (new_size > allocated_size)
 			{
 				int			new_alloc = ((new_size / FLD_INCR) + 1) * FLD_INCR;
 
@@ -1186,9 +1216,10 @@ parse_statement(StatementClass *stmt)
 				fi = (FIELD_INFO **) realloc(fi, new_alloc * sizeof(FIELD_INFO *));
 				if (!fi)
 				{
-					stmt->parse_status = STMT_PARSE_FATAL;
+					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					return FALSE;
 				}
+				allocated_size = new_alloc;
 				irdflds->fi = fi;
 			}
 
@@ -1209,16 +1240,20 @@ parse_statement(StatementClass *stmt)
 
 
 			/* copy the new field info */
-			do_all_tables = (fi[i]->ti ? FALSE : TRUE);
+			do_all_tables = (wfi->ti ? FALSE : TRUE);
+			wfi = NULL;
 
 			for (k = 0; k < (do_all_tables ? stmt->ntab : 1); k++)
 			{
 				TABLE_INFO *the_ti = do_all_tables ? ti[k] : fi[i]->ti;
 
-				cols = QR_get_num_backend_tuples(the_ti->col_info->result);
+				cols = QR_get_num_cached_tuples(the_ti->col_info->result);
 
 				for (n = 0; n < cols; n++)
 				{
+					FIELD_INFO	*afi;
+					BOOL		reuse = TRUE;
+
 					mylog("creating field info: n=%d\n", n);
 					/* skip malloc (already did it for the Star) */
 					if (k > 0 || n > 0)
@@ -1227,18 +1262,20 @@ parse_statement(StatementClass *stmt)
 						fi[n + i] = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
 						if (fi[n + i] == NULL)
 						{
-							stmt->parse_status = STMT_PARSE_FATAL;
+							SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 							return FALSE;
 						}
+						reuse = FALSE;
 					}
+					afi = fi[n + i];
 					/* Initialize the new space (or the * field) */
-					memset(fi[n + i], 0, sizeof(FIELD_INFO));
-					fi[n + i]->ti = the_ti;
+					FI_Constructor(afi, reuse);
+					afi->ti = the_ti;
 
 					mylog("about to copy at %d\n", n + i);
 
-					getColInfo(the_ti->col_info, fi[n + i], n);
-					fi[n + i]->updatable = updatable;
+					getColInfo(the_ti->col_info, afi, n);
+					afi->updatable = updatable;
 
 					mylog("done copying\n");
 				}
@@ -1253,12 +1290,12 @@ parse_statement(StatementClass *stmt)
 		 * qualified with a table name or alias -OR- there was only 1
 		 * table.
 		 */
-		else if (fi[i]->ti)
+		else if (wfi->ti)
 		{
-			if (!searchColInfo(fi[i]->ti->col_info, fi[i]))
+			if (!searchColInfo(fi[i]->ti->col_info, wfi))
 			{
 				parse = FALSE;
-				fi[i]->updatable = FALSE;
+				wfi->updatable = FALSE;
 			}
 			i++;
 		}
@@ -1268,27 +1305,37 @@ parse_statement(StatementClass *stmt)
 		{
 			for (k = 0; k < stmt->ntab; k++)
 			{
-				if (searchColInfo(ti[k]->col_info, fi[i]))
+				if (searchColInfo(ti[k]->col_info, wfi))
 				{
-					fi[i]->ti = ti[k];	/* now know the table */
+					wfi->ti = ti[k];	/* now know the table */
 					break;
 				}
 			}
 			if (k >= stmt->ntab)
 			{
 				parse = FALSE;
-				fi[i]->updatable = FALSE;
+				wfi->updatable = FALSE;
 			}
 			i++;
 		}
 	}
 
+	if (check_hasoids && updatable)
+		CheckHasOids(stmt);
 	if (!parse)
-		stmt->parse_status = STMT_PARSE_INCOMPLETE;
+		SC_set_parse_status(stmt, STMT_PARSE_INCOMPLETE);
 	else
-		stmt->parse_status = STMT_PARSE_COMPLETE;
+	{
+		SC_set_parse_status(stmt,  STMT_PARSE_COMPLETE);
+		for (i = 0; i < (int) irdflds->nfields; i++)
+		{
+			wfi = fi[i];
+			wfi->flag &= ~FIELD_PARSING;
+			wfi->flag |= FIELD_PARSED_OK;
+		}
+	}
 
 	stmt->updatable = updatable;
-	mylog("done parse_statement: parse=%d, parse_status=%d\n", parse, stmt->parse_status);
+	mylog("done parse_statement: parse=%d, parse_status=%d\n", parse, SC_parsed_status(stmt));
 	return parse;
 }

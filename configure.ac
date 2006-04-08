@@ -1,10 +1,11 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 08.01.0200, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 07.03.0262, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
 AM_CONFIG_HEADER([config.h])
 AM_MAINTAINER_MODE
+
 
 AC_DEFINE(DRIVER_CURSOR_IMPLEMENT, 1,
           [Define to 1 to build with driver cursors option.])
@@ -34,12 +35,10 @@ if test "$with_unixodbc" != yes && test "$with_iodbc" != yes; then
                              [AC_MSG_ERROR([no suitable ODBC driver manager found])])])
 fi
 
-
 if test "$with_unixodbc" = yes; then
   AC_DEFINE(WITH_UNIXODBC, 1, [Define to 1 to build with unixODBC support])
   AC_DEFINE(SQL_WCHART_CONVERT, [], [Define to use wchar_t as SQLWCHAR in unixODBC])
 fi
-
 
 if test "$with_iodbc" = yes; then
   AC_DEFINE(WITH_IODBC, 1, [Define to 1 to build with iODBC support])
@@ -48,24 +47,18 @@ fi
 #
 # Default odbc version number (--with-odbcver), default 0x0300
 #
-
 AC_MSG_CHECKING([for ODBC version number])
 PGAC_ARG_REQ(with, odbcver, [  --with-odbcver=VERSION  change default ODBC version number [[0x0300]]],
              [],
              [with_odbcver=0x0300])
 AC_MSG_RESULT([$with_odbcver])
-
 AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver], [Define to ODBC version (--with-odbcver)])
 
 # to implement the Unicode driver 	 
 PGAC_ARG_BOOL(enable, unicode, yes, 	 
-	[  --disable-unicode       build non-Unicode driver], 	 
+	[  --enable-unicode        build ODBC driver for Unicode [[yes]]], 	 
 	[AC_DEFINE(UNICODE_SUPPORT, 1, 	 
 		[Define to 1 to build with Unicode support (--enable-unicode)]) 	 
-	 AC_DEFINE(UNICODE, [], 	 
-		[Define to use wide APIs]) 	 
-	 AC_DEFINE(SQL_NOUNICODEMAP, [], 	 
-		[Define to disable mapping SQL* to SQL*W]) 	 
 	 AC_CHECK_FUNCS(iswascii)]) 	 
   	 
 AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
@@ -90,7 +83,6 @@ PGAC_ARG_BOOL(enable, pthreads, no,
         [AC_DEFINE(PGS_REENTRANT_API_1, 1, [Define if you have 5 parameter gethostbyname_r])],
         [AC_DEFINE(PGS_REENTRANT_API_2, 1, [Define if you have 6 parameter gethostbyname_r])])
      fi
-
      AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
      if test x"$ac_cv_func_pthread_mutexattr_settype" = xyes; then
 	AC_TRY_COMPILE([#include <pthread.h>],
@@ -101,7 +93,6 @@ PGAC_ARG_BOOL(enable, pthreads, no,
         [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP, [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
      fi
     ])
-
 
 AC_PROG_CC
 
@@ -123,20 +114,19 @@ AC_C_CONST
 AC_TYPE_SIZE_T
 AC_STRUCT_TM
 
+
 #
 # Find libpq headers and libraries
 #
 AC_PATH_PROGS(PG_CONFIG, pg_config)
-AC_ARG_VAR(PG_CONFIG, [path to pg_config program])
 if test -z "$PG_CONFIG" ; then
   AC_MSG_ERROR([pg_config not found])
 fi
-
 pg_includedir=`$PG_CONFIG --includedir`
-
 pg_libdir=`$PG_CONFIG --libdir`
 CPPFLAGS="$CPPFLAGS -I$pg_includedir"
 LDFLAGS="$LDFLAGS -L$pg_libdir"
+
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

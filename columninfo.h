@@ -10,7 +10,6 @@
 #define __COLUMNINFO_H__
 
 #include "psqlodbc.h"
-#include <libpq-fe.h>
 
 struct ColumnInfoClass_
 {
@@ -20,6 +19,8 @@ struct ColumnInfoClass_
 	Int2	   *adtsize;		/* list type sizes */
 	Int2	   *display_size;	/* the display size (longest row) */
 	Int4	   *atttypmod;		/* the length of bpchar/varchar */
+	Oid	   *relid;		/* list of relation ids */
+	Oid	   *attid;		/* list of attribute ids */
 };
 
 #define CI_get_num_fields(self)			(self->num_fields)
@@ -32,11 +33,13 @@ struct ColumnInfoClass_
 ColumnInfoClass *CI_Constructor(void);
 void		CI_Destructor(ColumnInfoClass *self);
 void		CI_free_memory(ColumnInfoClass *self);
+char		CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn);
 
 /* functions for setting up the fields from within the program, */
 /* without reading from a socket */
-void		CI_set_num_fields(ColumnInfoClass *self, int new_num_fields);
+void		CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL);
 void CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
-				  Oid new_adtid, Int2 new_adtsize, Int4 atttypmod);
+		Oid new_adtid, Int2 new_adtsize, Int4 atttypmod,
+		Oid new_relid, Oid new_attid);
 
 #endif

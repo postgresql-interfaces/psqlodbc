@@ -14,6 +14,8 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
+#include "connection.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -22,9 +24,12 @@
 #endif /* WIN32 */
 
 #include "environ.h"
+#include "socket.h"
 #include "statement.h"
 #include "qresult.h"
+#include "lobj.h"
 #include "dlg_specific.h"
+#include "loadlib.h"
 
 #include "multibyte.h"
 
@@ -38,9 +43,6 @@
 
 extern GLOBAL_VALUES globals;
 
-#include "connection.h"
-#include "pgtypes.h"
-#include <libpq-fe.h>
 
 RETCODE		SQL_API
 PGAPI_AllocConnect(
@@ -54,7 +56,7 @@ PGAPI_AllocConnect(
 	mylog("%s: entering...\n", func);
 
 	conn = CC_Constructor();
-	mylog("**** %s: henv = %u, conn = %u\n", func, henv, conn);
+	mylog("**** %s: henv = %x, conn = %x\n", func, henv, conn);
 
 	if (!conn)
 	{
@@ -85,16 +87,17 @@ PGAPI_AllocConnect(
 RETCODE		SQL_API
 PGAPI_Connect(
 			  HDBC hdbc,
-			  UCHAR FAR * szDSN,
-			  SWORD cbDSN,
-			  UCHAR FAR * szUID,
-			  SWORD cbUID,
-			  UCHAR FAR * szAuthStr,
-			  SWORD cbAuthStr)
+			  const SQLCHAR FAR * szDSN,
+			  SQLSMALLINT cbDSN,
+			  const SQLCHAR FAR * szUID,
+			  SQLSMALLINT cbUID,
+			  const SQLCHAR FAR * szAuthStr,
+			  SQLSMALLINT cbAuthStr)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci;
 	CSTR func = "PGAPI_Connect";
+	RETCODE	ret = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
 
@@ -112,6 +115,8 @@ PGAPI_Connect(
 	memcpy(&ci->drivers, &globals, sizeof(globals));
 	getDSNinfo(ci, CONN_OVERWRITE);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
+	/* initialize pg_version from connInfo.protocol    */
+	CC_initialize_pg_version(conn);
 
 	/*
 	 * override values from DSN info with UID and authStr(pwd) This only
@@ -123,37 +128,36 @@ PGAPI_Connect(
 	/* fill in any defaults */
 	getDSNdefaults(ci);
 
-	qlog("conn = %u, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
+	qlog("conn = %x, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
 
 	if (CC_connect(conn, AUTH_REQ_OK, NULL) <= 0)
 	{
 		/* Error messages are filled in */
 		CC_log_error(func, "Error on CC_connect", conn);
-		return SQL_ERROR;
+		ret = SQL_ERROR;
 	}
 
-	mylog("%s: returning...\n", func);
+	mylog("%s: returning..%d.\n", func, ret);
 
-	return SQL_SUCCESS;
+	return ret;
 }
 
 
 RETCODE		SQL_API
 PGAPI_BrowseConnect(
-					HDBC hdbc,
-					UCHAR FAR * szConnStrIn,
-					SWORD cbConnStrIn,
-					UCHAR FAR * szConnStrOut,
-					SWORD cbConnStrOutMax,
-					SWORD FAR * pcbConnStrOut)
+				HDBC hdbc,
+				const SQLCHAR FAR * szConnStrIn,
+				SQLSMALLINT cbConnStrIn,
+				SQLCHAR FAR * szConnStrOut,
+				SQLSMALLINT cbConnStrOutMax,
+				SQLSMALLINT FAR * pcbConnStrOut)
 {
 	CSTR func = "PGAPI_BrowseConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("%s: entering...\n", func);
 
-	CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "not implemented");
-	CC_log_error(func, "Function not implemented", conn);
+	CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Function not implemented", func);
 	return SQL_ERROR;
 }
 
@@ -175,12 +179,11 @@ PGAPI_Disconnect(
 		return SQL_INVALID_HANDLE;
 	}
 
-	qlog("conn=%u, %s\n", conn, func);
+	qlog("conn=%x, %s\n", conn, func);
 
 	if (conn->status == CONN_EXECUTING)
 	{
-		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed");
-		CC_log_error(func, "", conn);
+		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed", func);
 		return SQL_ERROR;
 	}
 
@@ -205,7 +208,7 @@ PGAPI_FreeConnect(
 	CSTR func = "PGAPI_FreeConnect";
 
 	mylog("%s: entering...\n", func);
-	mylog("**** in %s: hdbc=%u\n", func, hdbc);
+	mylog("**** in %s: hdbc=%x\n", func, hdbc);
 
 	if (!conn)
 	{
@@ -216,8 +219,7 @@ PGAPI_FreeConnect(
 	/* Remove the connection from the environment */
 	if (!EN_remove_connection(conn->henv, conn))
 	{
-		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed");
-		CC_log_error(func, "", conn);
+		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed", func);
 		return SQL_ERROR;
 	}
 
@@ -240,7 +242,140 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->int8_as = -101;
 		conninfo->bytea_as_longvarbinary = -1;
 		conninfo->use_server_side_prepare = -1;
+		conninfo->lower_case_identifier = -1;
+		conninfo->rollback_on_error = -1;
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+		conninfo->xa_opt = -1;
+		conninfo->autocommit_normal = 0;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 		memcpy(&(conninfo->drivers), &globals, sizeof(globals));
+}
+/*
+ *		IMPLEMENTATION CONNECTION CLASS
+ */
+ConnectionClass *
+CC_Constructor()
+{
+	ConnectionClass *rv, *retrv = NULL;
+
+	rv = (ConnectionClass *) calloc(sizeof(ConnectionClass), 1);
+
+	if (rv != NULL)
+	{
+		// rv->henv = NULL;		/* not yet associated with an environment */
+
+		// rv->__error_message = NULL;
+		// rv->__error_number = 0;
+		// rv->sqlstate[0] = '\0';
+		// rv->errormsg_created = FALSE;
+
+		rv->status = CONN_NOT_CONNECTED;
+		rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
+
+		CC_conninfo_init(&(rv->connInfo));
+		rv->sock = SOCK_Constructor(rv);
+		if (!rv->sock)
+			goto cleanup;
+
+		rv->stmts = (StatementClass **) malloc(sizeof(StatementClass *) * STMT_INCREMENT);
+		if (!rv->stmts)
+			goto cleanup;
+		memset(rv->stmts, 0, sizeof(StatementClass *) * STMT_INCREMENT);
+
+		rv->num_stmts = STMT_INCREMENT;
+#if (ODBCVER >= 0x0300)
+		rv->descs = (DescriptorClass **) malloc(sizeof(DescriptorClass *) * STMT_INCREMENT);
+		if (!rv->descs)
+			goto cleanup;
+		memset(rv->descs, 0, sizeof(DescriptorClass *) * STMT_INCREMENT);
+
+		rv->num_descs = STMT_INCREMENT;
+#endif /* ODBCVER */
+
+		rv->lobj_type = PG_TYPE_LO_UNDEFINED;
+
+		// rv->ncursors = 0;
+		// rv->ntables = 0;
+		// rv->col_info = NULL;
+
+		// rv->translation_option = 0;
+		// rv->translation_handle = NULL;
+		// rv->DataSourceToDriver = NULL;
+		// rv->DriverToDataSource = NULL;
+		rv->driver_version = ODBCVER;
+		// memset(rv->pg_version, 0, sizeof(rv->pg_version));
+		// rv->pg_version_number = .0;
+		// rv->pg_version_major = 0;
+		// rv->pg_version_minor = 0;
+		// rv->ms_jet = 0;
+		// rv->unicode = 0;
+		// rv->result_uncommitted = 0;
+		// rv->schema_support = 0;
+		rv->isolation = SQL_TXN_READ_COMMITTED;
+		// rv->original_client_encoding = NULL;
+		// rv->current_client_encoding = NULL;
+		// rv->server_encoding = NULL;
+		// rv->current_schema = NULL;
+		// rv->num_discardp = 0;
+		// rv->discardp = NULL;
+		rv->mb_maxbyte_per_char = 1;
+		rv->max_identifier_length = -1;
+
+		/* Initialize statement options to defaults */
+		/* Statements under this conn will inherit these options */
+
+		InitializeStatementOptions(&rv->stmtOptions);
+		InitializeARDFields(&rv->ardOptions);
+		InitializeAPDFields(&rv->apdOptions);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+		// rv->asdum = NULL;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+		INIT_CONN_CS(rv);
+		retrv = rv;
+	}
+
+cleanup:
+	if (rv && !retrv)
+		CC_Destructor(rv);
+	return retrv;
+}
+
+
+char
+CC_Destructor(ConnectionClass *self)
+{
+	mylog("enter CC_Destructor, self=%x\n", self);
+
+	if (self->status == CONN_EXECUTING)
+		return 0;
+
+	CC_cleanup(self);			/* cleanup socket and statements */
+
+	mylog("after CC_Cleanup\n");
+
+	/* Free up statement holders */
+	if (self->stmts)
+	{
+		free(self->stmts);
+		self->stmts = NULL;
+	}
+#if (ODBCVER >= 0x0300)
+	if (self->descs)
+	{
+		free(self->descs);
+		self->descs = NULL;
+	}
+#endif /* ODBCVER */
+	mylog("after free statement holders\n");
+
+	if (self->__error_message)
+		free(self->__error_message);
+	DELETE_CONN_CS(self);
+	free(self);
+
+	mylog("exit CC_Destructor\n");
+
+	return 1;
 }
 
 
@@ -251,13 +386,14 @@ CC_cursor_count(ConnectionClass *self)
 	StatementClass *stmt;
 	int			i,
 				count = 0;
+	QResultClass		*res;
 
-	mylog("CC_cursor_count: self=%u, num_stmts=%d\n", self, self->num_stmts);
+	mylog("CC_cursor_count: self=%x, num_stmts=%d\n", self, self->num_stmts);
 
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		stmt = self->stmts[i];
-		if (stmt && SC_get_Result(stmt) && SC_get_Result(stmt)->cursor)
+		if (stmt && (res = SC_get_Result(stmt)) && QR_get_cursor(res))
 			count++;
 	}
 
@@ -272,10 +408,12 @@ CC_clear_error(ConnectionClass *self)
 {
 	self->__error_number = 0;
 	if (self->__error_message)
+	{
 		free(self->__error_message);
-	self->__error_message = NULL;
+		self->__error_message = NULL;
+	}
+	self->sqlstate[0] = '\0';
 	self->errormsg_created = FALSE;
-	self->__sqlstate[0] = '\0';
 }
 
 
@@ -288,16 +426,11 @@ CC_begin(ConnectionClass *self)
 	char	ret = TRUE;
 	if (!CC_is_in_trans(self))
 	{
-		QResultClass *res = CC_send_query(self, "BEGIN", NULL, CLEAR_RESULT_ON_ABORT);
+		QResultClass *res = CC_send_query(self, "BEGIN", NULL, 0, NULL);
 		mylog("CC_begin:  sending BEGIN!\n");
 
-		if (res != NULL)
-		{
-			ret = QR_command_maybe_successful(res);
-			QR_Destructor(res);
-		}
-		else
-			return FALSE;
+		ret = QR_command_maybe_successful(res);
+		QR_Destructor(res);
 	}
 
 	return ret;
@@ -310,18 +443,13 @@ CC_begin(ConnectionClass *self)
 char
 CC_commit(ConnectionClass *self)
 {
-	char	ret = FALSE;
+	char	ret = TRUE;
 	if (CC_is_in_trans(self))
 	{
-		QResultClass *res = CC_send_query(self, "COMMIT", NULL, CLEAR_RESULT_ON_ABORT);
+		QResultClass *res = CC_send_query(self, "COMMIT", NULL, 0, NULL);
 		mylog("CC_commit:  sending COMMIT!\n");
-		if (res != NULL)
-		{
-			ret = QR_command_maybe_successful(res);
-			QR_Destructor(res);
-		}
-		else
-			return FALSE;
+		ret = QR_command_maybe_successful(res);
+		QR_Destructor(res);
 	}
 
 	return ret;
@@ -334,19 +462,139 @@ CC_commit(ConnectionClass *self)
 char
 CC_abort(ConnectionClass *self)
 {
+	char	ret = TRUE;
 	if (CC_is_in_trans(self))
 	{
-		QResultClass *res = CC_send_query(self, "ROLLBACK", NULL, CLEAR_RESULT_ON_ABORT);
+		QResultClass *res = CC_send_query(self, "ROLLBACK", NULL, 0, NULL);
 		mylog("CC_abort:  sending ABORT!\n");
-		if (res != NULL)
-			QR_Destructor(res);
-		else
-			return FALSE;
+		ret = QR_command_maybe_successful(res);
+		QR_Destructor(res);
 	}
 
-	return TRUE;
+	return ret;
 }
 
+
+/* This is called by SQLDisconnect also */
+char
+CC_cleanup(ConnectionClass *self)
+{
+	int			i;
+	StatementClass *stmt;
+	DescriptorClass *desc;
+
+	if (self->status == CONN_EXECUTING)
+		return FALSE;
+
+	mylog("in CC_Cleanup, self=%x\n", self);
+
+	/* Cancel an ongoing transaction */
+	/* We are always in the middle of a transaction, */
+	/* even if we are in auto commit. */
+	if (self->sock)
+	{
+		CC_abort(self);
+
+		mylog("after CC_abort\n");
+
+		/* This actually closes the connection to the dbase */
+		SOCK_Destructor(self->sock);
+		self->sock = NULL;
+	}
+
+	mylog("after SOCK destructor\n");
+
+	/* Free all the stmts on this connection */
+	for (i = 0; i < self->num_stmts; i++)
+	{
+		stmt = self->stmts[i];
+		if (stmt)
+		{
+			stmt->hdbc = NULL;	/* prevent any more dbase interactions */
+
+			SC_Destructor(stmt);
+
+			self->stmts[i] = NULL;
+		}
+	}
+#if (ODBCVER >= 0x0300)
+	/* Free all the descs on this connection */
+	for (i = 0; i < self->num_descs; i++)
+	{
+		desc = self->descs[i];
+		if (desc)
+		{
+			DC_get_conn(desc) = NULL;	/* prevent any more dbase interactions */
+			DC_Destructor(desc);
+			free(desc);
+			self->descs[i] = NULL;
+		}
+	}
+#endif /* ODBCVER */
+
+	/* Check for translation dll */
+#ifdef WIN32
+	if (self->translation_handle)
+	{
+		FreeLibrary(self->translation_handle);
+		self->translation_handle = NULL;
+	}
+#endif
+
+	self->status = CONN_NOT_CONNECTED;
+	self->transact_status = CONN_IN_AUTOCOMMIT;
+	CC_conninfo_init(&(self->connInfo));
+	if (self->original_client_encoding)
+	{
+		free(self->original_client_encoding);
+		self->original_client_encoding = NULL;
+	}
+	if (self->current_client_encoding)
+	{
+		free(self->current_client_encoding);
+		self->current_client_encoding = NULL;
+	}
+	if (self->server_encoding)
+	{
+		free(self->server_encoding);
+		self->server_encoding = NULL;
+	}
+	if (self->current_schema)
+	{
+		free(self->current_schema);
+		self->current_schema = NULL;
+	}
+	/* Free cached table info */
+	if (self->col_info)
+	{
+		for (i = 0; i < self->ntables; i++)
+		{
+			if (self->col_info[i]->result)	/* Free the SQLColumns result structure */
+				QR_Destructor(self->col_info[i]->result);
+
+			NULL_THE_NAME(self->col_info[i]->schema_name);
+			NULL_THE_NAME(self->col_info[i]->table_name);
+			free(self->col_info[i]);
+		}
+		free(self->col_info);
+		self->col_info = NULL;
+	}
+	self->ntables = 0;
+	if (self->num_discardp > 0 && self->discardp)
+	{
+		for (i = 0; i < self->num_discardp; i++)
+			free(self->discardp[i]);
+		self->num_discardp = 0;
+	}
+	if (self->discardp)
+	{
+		free(self->discardp);
+		self->discardp = NULL;
+	}
+
+	mylog("exit CC_Cleanup\n");
+	return TRUE;
+}
 
 
 int
@@ -354,6 +602,7 @@ CC_set_translation(ConnectionClass *self)
 {
 
 #ifdef WIN32
+	CSTR	func = "CC_set_translation";
 
 	if (self->translation_handle != NULL)
 	{
@@ -369,7 +618,7 @@ CC_set_translation(ConnectionClass *self)
 
 	if (self->translation_handle == NULL)
 	{
-		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Could not load the translation DLL.");
+		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Could not load the translation DLL.", func);
 		return FALSE;
 	}
 
@@ -383,11 +632,968 @@ CC_set_translation(ConnectionClass *self)
 
 	if (self->DataSourceToDriver == NULL || self->DriverToDataSource == NULL)
 	{
-		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Could not find translation DLL functions.");
+		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Could not find translation DLL functions.", func);
 		return FALSE;
 	}
 #endif
 	return TRUE;
+}
+
+static	int
+md5_auth_send(ConnectionClass *self, const char *salt)
+{
+	char	*pwd1 = NULL, *pwd2 = NULL;
+	ConnInfo   *ci = &(self->connInfo);
+	SocketClass	*sock = self->sock;
+
+inolog("md5 pwd=%s user=%s\n", ci->password, ci->username);
+	if (!(pwd1 = malloc(MD5_PASSWD_LEN + 1)))
+		return 1;
+	if (!EncryptMD5(ci->password, ci->username, strlen(ci->username), pwd1))
+	{
+		free(pwd1);
+		return 1;
+	} 
+	if (!(pwd2 = malloc(MD5_PASSWD_LEN + 1)))
+	{
+		free(pwd1);
+		return 1;
+	} 
+	if (!EncryptMD5(pwd1 + strlen("md5"), salt, 4, pwd2))
+	{
+		free(pwd2);
+		free(pwd1);
+		return 1;
+	}
+	free(pwd1);
+	if (PROTOCOL_74(&(self->connInfo)))
+{
+inolog("putting p\n");
+		SOCK_put_char(sock, 'p');
+}
+	SOCK_put_int(sock, 4 + (int) strlen(pwd2) + 1, 4);
+	SOCK_put_n_char(sock, pwd2, (int) strlen(pwd2) + 1);
+	SOCK_flush_output(sock);
+	free(pwd2);
+	return 0; 
+}
+
+int
+EatReadyForQuery(ConnectionClass *conn)
+{
+	int	id;
+
+	if (PROTOCOL_74(&(conn->connInfo)))
+	{
+		BOOL	is_in_error_trans = CC_is_in_error_trans(conn);
+		switch (id = SOCK_get_char(conn->sock))
+		{
+			case 'I':
+				if (CC_is_in_trans(conn))
+				{
+					if (is_in_error_trans)
+						CC_on_abort(conn, NO_TRANS);
+					else
+						CC_on_commit(conn);
+				}
+				break;
+			case 'T':
+				CC_set_in_trans(conn);
+				CC_set_no_error_trans(conn);
+				if (is_in_error_trans)
+					CC_on_abort_partial(conn);
+				break;
+			case 'E':
+				CC_set_in_error_trans(conn);
+				break;	
+		}
+	}
+	return id;	
+}
+
+int
+handle_error_message(ConnectionClass *self, char *msgbuf, int buflen, char *sqlstate, const char *comment, QResultClass *res)
+{
+	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated;
+	SocketClass	*sock = self->sock;
+	char	msgbuffer[ERROR_MSG_LENGTH];
+	UDWORD	abort_opt;
+
+inolog("handle_error_message prptocol=%s\n", self->connInfo.protocol);
+	if (PROTOCOL_74(&(self->connInfo)))
+		new_format = TRUE;
+
+inolog("new_format=%d\n", new_format);
+	if (new_format)
+	{
+		msgbuf[0] = '\0';
+		for (;;)
+		{
+			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+			if (!msgbuffer[0])
+				break;
+
+			mylog("%s: 'E' - %s\n", comment, msgbuffer);
+			qlog("ERROR from backend during %s: '%s'\n", comment, msgbuffer);
+			switch (msgbuffer[0])
+			{
+				case 'S':
+					strncat(msgbuf, msgbuffer + 1, buflen);
+					strncat(msgbuf, ": ", buflen);
+					buflen -= (int) (strlen(msgbuffer) + 1);
+					break;
+				case 'M':
+					strncat(msgbuf, msgbuffer + 1, buflen);
+					msg_truncated = truncated;
+					break;
+				case 'C':
+					if (sqlstate)
+						strcpy(sqlstate, msgbuffer + 1);
+					break;
+			}
+			while (truncated)
+				truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+		}
+	}
+	else
+	{
+		msg_truncated = SOCK_get_string(sock, msgbuf, buflen);
+
+		/* Remove a newline */
+		if (msgbuf[0] != '\0' && msgbuf[(int)strlen(msgbuf) - 1] == '\n')
+			msgbuf[(int)strlen(msgbuf) - 1] = '\0';
+
+		mylog("%s: 'E' - %s\n", comment, msgbuf);
+		qlog("ERROR from backend during %s: '%s'\n", comment, msgbuf);
+		for (truncated = msg_truncated; truncated;)
+			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+	}
+	abort_opt = 0;
+	if (!strncmp(msgbuffer, "FATAL", 5))
+	{
+		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_ERROR);
+		abort_opt = CONN_DEAD;
+	}
+	else
+	{
+		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_WARNING);
+		if (CC_is_in_trans(self))
+			CC_set_in_error_trans(self);
+	}
+	if (0 != abort_opt
+#ifdef	_LEGACY_MODE_
+	    || TRUE
+#endif /* _LEGACY_NODE_ */
+	   )
+		CC_on_abort(self, abort_opt);
+	if (res)
+	{
+		QR_set_rstatus(res, PGRES_FATAL_ERROR);
+		QR_set_message(res, msgbuf);
+		QR_set_aborted(res, TRUE);
+	}
+
+	return msg_truncated;
+}
+
+int
+handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen, char *sqlstate, const char *comment, QResultClass *res)
+{
+	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated;
+	SocketClass	*sock = self->sock;
+	char	msgbuffer[ERROR_MSG_LENGTH];
+
+	if (PROTOCOL_74(&(self->connInfo)))
+		new_format = TRUE;
+
+	if (new_format)
+	{
+		msgbuf[0] = '\0';
+		for (;;)
+		{
+			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+			if (!msgbuffer[0])
+				break;
+
+			mylog("%s: 'N' - %s\n", comment, msgbuffer);
+			qlog("NOTICE from backend during %s: '%s'\n", comment, msgbuffer);
+			switch (msgbuffer[0])
+			{
+				case 'S':
+					strncat(msgbuf, msgbuffer + 1, buflen);
+					strncat(msgbuf, ": ", buflen);
+					buflen -= (strlen(msgbuffer) + 1);
+					break;
+				case 'M':
+					strncat(msgbuf, msgbuffer + 1, buflen);
+					msg_truncated = truncated;
+					break;
+				case 'C':
+					if (sqlstate && !sqlstate[0] && strcmp(msgbuffer + 1, "00000"))
+						strcpy(sqlstate, msgbuffer + 1);
+					break;
+			} 
+		}
+		while (truncated)
+			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+	}
+	else
+	{
+		msg_truncated = SOCK_get_string(sock, msgbuf, buflen);
+
+		/* Remove a newline */
+		if (msgbuf[0] != '\0' && msgbuf[strlen(msgbuf) - 1] == '\n')
+			msgbuf[strlen(msgbuf) - 1] = '\0';
+
+		mylog("%s: 'N' - %s\n", comment, msgbuf);
+		qlog("NOTICE from backend during %s: '%s'\n", comment, msgbuf);
+		for (truncated = msg_truncated; truncated;)
+			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+	}
+	if (res)
+	{
+		if (QR_command_successful(res))
+			QR_set_rstatus(res, PGRES_NONFATAL_ERROR);
+		QR_set_notice(res, msgbuf);  /* will dup this string */
+	}
+
+	return msg_truncated;
+}
+
+void	getParameterValues(ConnectionClass *conn)
+{
+	SocketClass	*sock = conn->sock;
+	/* ERROR_MSG_LENGTH is suffcient */
+	char msgbuffer[ERROR_MSG_LENGTH + 1];
+	
+	SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+inolog("parameter name=%s\n", msgbuffer);
+	if (stricmp(msgbuffer, "server_encoding") == 0)
+	{
+		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+		if (conn->server_encoding)
+			free(conn->server_encoding);
+		conn->server_encoding = strdup(msgbuffer);
+	}
+	else if (stricmp(msgbuffer, "client_encoding") == 0)
+	{
+		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+		if (conn->current_client_encoding)
+			free(conn->current_client_encoding);
+		conn->current_client_encoding = strdup(msgbuffer);
+	}
+	else if (stricmp(msgbuffer, "server_version") == 0)
+	{
+		char	szVersion[32];
+		int	major, minor;
+
+		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+		strncpy(conn->pg_version, msgbuffer, sizeof(conn->pg_version));
+		strcpy(szVersion, "0.0");
+		if (sscanf(conn->pg_version, "%d.%d", &major, &minor) >= 2)
+		{
+			snprintf(szVersion, sizeof(szVersion), "%d.%d", major, minor);
+			conn->pg_version_major = major;
+			conn->pg_version_minor = minor;
+		}
+		conn->pg_version_number = (float) atof(szVersion);
+		if (PG_VERSION_GE(conn, 7.3))
+			conn->schema_support = 1;
+
+		mylog("Got the PostgreSQL version string: '%s'\n", conn->pg_version);
+		mylog("Extracted PostgreSQL version number: '%1.1f'\n", conn->pg_version_number);
+		qlog("    [ PostgreSQL version string = '%s' ]\n", conn->pg_version);
+		qlog("    [ PostgreSQL version number = '%1.1f' ]\n", conn->pg_version_number);
+	}
+	else
+		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+
+inolog("parameter value=%s\n", msgbuffer);
+}
+
+static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BOOL libpqopt, int dim_opts)
+{
+	SocketClass	*sock = self->sock;
+	ConnInfo	*ci = &(self->connInfo);
+	const	char	*enc = NULL;
+	int	cnt;
+	BOOL	set_client_encode = FALSE;
+
+	cnt = 0;
+	if (libpqopt && ci->server[0])
+	{
+		opts[cnt][0] = "host";		opts[cnt++][1] = ci->server;
+	}
+	if (libpqopt && ci->port[0])
+	{
+		opts[cnt][0] = "port";		opts[cnt++][1] = ci->port;
+	}
+	if (ci->database[0])
+	{
+		if (libpqopt)
+		{
+			opts[cnt][0] = "dbname";	opts[cnt++][1] = ci->database;
+		}
+		else
+		{
+			opts[cnt][0] = "database";	opts[cnt++][1] = ci->database;
+		}
+	}
+	if (ci->username[0])
+	{
+		opts[cnt][0] = "user";		opts[cnt++][1] = ci->username;
+	}
+	if (libpqopt)
+	{
+		if (ci->sslmode[0])
+		{
+			opts[cnt][0] = "sslmode";	opts[cnt++][1] = ci->sslmode;
+		}
+		if (ci->password[0])
+		{
+			opts[cnt][0] = "password";	opts[cnt++][1] = ci->password;
+		}
+	}
+	else
+	{
+		/* DateStyle */
+		opts[cnt][0] = "DateStyle"; opts[cnt++][1] = "ISO";
+		/* extra_float_digits */
+		opts[cnt][0] = "extra_float_digits";	opts[cnt++][1] = "2";
+		/* geqo */
+		opts[cnt][0] = "geqo";
+		if (ci->drivers.disable_optimizer)
+			opts[cnt++][1] = "off";
+		else
+			opts[cnt++][1] = "on";
+		/* client_encoding */
+		enc = get_environment_encoding(self, NULL);
+		if (enc)
+		{
+			opts[cnt][0] = "client_encoding"; opts[cnt++][1] = enc;
+		}
+	}
+
+	return cnt;
+}
+
+static int	protocol3_packet_build(ConnectionClass *self)
+{
+	CSTR	func = "protocol3_packet_build";
+	SocketClass	*sock = self->sock;
+	ConnInfo	*ci = &(self->connInfo);
+	Int4	slen;
+	char	*packet, *ppacket;
+	ProtocolVersion	pversion;
+	const	char	*opts[20][2], *enc = NULL;
+	int	cnt, i;
+	BOOL	set_client_encode = FALSE;
+
+	cnt = protocol3_opts_array(self, opts, FALSE, sizeof(opts) / sizeof(opts[0]));
+
+	slen =  sizeof(ProtocolVersion);
+	for (i = 0; i < cnt; i++)
+	{
+		slen += (strlen(opts[i][0]) + 1);
+		slen += (strlen(opts[i][1]) + 1);
+	}
+	slen++;
+				
+	if (packet = malloc(slen), !packet)
+	{
+		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not allocate a startup packet", func);
+		return 0;
+	}
+
+	mylog("sizeof startup packet = %d\n", slen);
+
+	sock->pversion = PG_PROTOCOL_LATEST;
+	/* Send length of Authentication Block */
+	SOCK_put_int(sock, slen + 4, 4);
+
+	ppacket = packet;
+	pversion = (ProtocolVersion) htonl(sock->pversion);
+	memcpy(ppacket, &pversion, sizeof(pversion));
+	ppacket += sizeof(pversion);
+	for (i = 0; i < cnt; i++)
+	{ 
+		strcpy(ppacket, opts[i][0]);
+		ppacket += (strlen(opts[i][0]) + 1);
+		strcpy(ppacket, opts[i][1]);
+		ppacket += (strlen(opts[i][1]) + 1);
+	}
+	*ppacket = '\0';
+
+	SOCK_put_n_char(sock, packet, slen);
+	SOCK_flush_output(sock);
+	free(packet);
+
+	return 1;
+}
+
+static char	*protocol3_opts_build(ConnectionClass *self)
+{
+	CSTR	func = "protocol3_opts_build";
+	ConnInfo	*ci = &(self->connInfo);
+	Int4	slen;
+	char	*conninfo, *ppacket;
+	const	char	*opts[20][2];
+	int	cnt, i;
+	BOOL	blankExist;
+
+	cnt = protocol3_opts_array(self, opts, TRUE, sizeof(opts) / sizeof(opts[0]));
+
+	slen =  sizeof(ProtocolVersion);
+	for (i = 0, slen = 0; i < cnt; i++)
+	{
+		slen += (strlen(opts[i][0]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
+		slen += strlen(opts[i][1]);
+	}
+	slen++;
+				
+	if (conninfo = malloc(slen), !conninfo)
+	{
+		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not allocate a connectdb option", func);
+		return 0;
+	}
+
+	mylog("sizeof connectdb option = %d\n", slen);
+
+	for (i = 0, ppacket = conninfo; i < cnt; i++)
+	{ 
+		sprintf(ppacket, " %s=", opts[i][0]);
+		ppacket += (strlen(opts[i][0]) + 2);
+		blankExist = FALSE;
+		if (strchr(opts[i][1], ' '))
+			blankExist = TRUE;
+		if (blankExist)
+		{
+			*ppacket = '\'';
+			ppacket++;
+		}
+		strcpy(ppacket, opts[i][1]);
+		ppacket += strlen(opts[i][1]);
+		if (blankExist)
+		{
+			*ppacket = '\'';
+			ppacket++;
+		}
+	}
+	*ppacket = '\0';
+inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
+	return conninfo;
+}
+
+static char CC_initial_log(ConnectionClass *self, const char *func)
+{
+	const ConnInfo	*ci = &self->connInfo;
+	char	*encoding;
+
+	qlog("Global Options: Version='%s', fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
+		 POSTGRESDRIVERVERSION,
+		 ci->drivers.fetch_max,
+		 ci->drivers.socket_buffersize,
+		 ci->drivers.unknown_sizes,
+		 ci->drivers.max_varchar_size,
+		 ci->drivers.max_longvarchar_size);
+	qlog("                disable_optimizer=%d, ksqo=%d, unique_index=%d, use_declarefetch=%d\n",
+		 ci->drivers.disable_optimizer,
+		 ci->drivers.ksqo,
+		 ci->drivers.unique_index,
+		 ci->drivers.use_declarefetch);
+	qlog("                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
+		 ci->drivers.text_as_longvarchar,
+		 ci->drivers.unknowns_as_longvarchar,
+		 ci->drivers.bools_as_char,
+		 TABLE_NAME_STORAGE_LEN);
+
+	encoding = check_client_encoding(ci->conn_settings);
+	if (encoding && strcmp(encoding, "OTHER"))
+		self->original_client_encoding = strdup(encoding);
+	else
+	{
+		encoding = check_client_encoding(ci->drivers.conn_settings);
+		if (encoding && strcmp(encoding, "OTHER"))
+			self->original_client_encoding = strdup(encoding);
+	}
+	if (self->original_client_encoding)
+		self->ccsc = pg_CS_code(self->original_client_encoding);
+	qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
+		 ci->drivers.extra_systable_prefixes,
+		 ci->drivers.conn_settings,
+		 encoding ? encoding : "");
+	if (self->status != CONN_NOT_CONNECTED)
+	{
+		CC_set_error(self, CONN_OPENDB_ERROR, "Already connected.", func);
+		return 0;
+	}
+
+	if (ci->port[0] == '\0' ||
+#ifdef	WIN32
+	    ci->server[0] == '\0' ||
+#endif /* WIN32 */
+	    ci->database[0] == '\0')
+	{
+		CC_set_error(self, CONN_INIREAD_ERROR, "Missing server name, port, or database name in call to CC_connect.", func);
+		return 0;
+	}
+
+	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
+
+	return 1;
+}
+
+static	char	CC_setenv(ConnectionClass *self);
+static int LIBPQ_connect(ConnectionClass *self);
+static char
+LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
+{
+	ConnInfo   *ci = &(self->connInfo);
+	int		ret;
+	CSTR		func = "LIBPQ_CC_connect";
+
+	mylog("%s: entering...\n", func);
+
+	if (password_req == AUTH_REQ_OK) /* not yet connected */
+	{
+		if (0 == CC_initial_log(self, func))
+			return 0;
+	}
+
+	if (ret = LIBPQ_connect(self), ret <= 0)
+		return ret;
+	CC_setenv(self);
+
+	return 1;
+}
+
+static char
+original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
+{
+	StartupPacket sp;
+	StartupPacket6_2 sp62;
+	QResultClass *res;
+	SocketClass *sock;
+	ConnInfo   *ci = &(self->connInfo);
+	int			areq = -1;
+	int			beresp;
+	char		msgbuffer[ERROR_MSG_LENGTH];
+	char		salt[5], notice[512];
+	CSTR		func = "original_connect";
+	// char	   *encoding;
+	BOOL	startPacketReceived = FALSE;
+
+	mylog("%s: entering...\n", func);
+
+	if (password_req != AUTH_REQ_OK)
+
+		sock = self->sock;		/* already connected, just authenticate */
+
+	else
+	{
+		if (0 == CC_initial_log(self, func))
+			return 0;
+
+another_version_retry:
+
+		/*
+		 * If the socket was closed for some reason (like a SQLDisconnect,
+		 * but no SQLFreeConnect then create a socket now.
+		 */
+		if (!self->sock)
+		{
+			self->sock = SOCK_Constructor(self);
+			if (!self->sock)
+			{
+				CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not construct a socket to the server", func);
+				return 0;
+			}
+		}
+
+		sock = self->sock;
+
+		mylog("connecting to the server socket...\n");
+
+		SOCK_connect_to(sock, (short) atoi(ci->port), ci->server);
+		if (SOCK_get_errcode(sock) != 0)
+		{
+			CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not connect to the server", func);
+			return 0;
+		}
+		mylog("connection to the server socket succeeded.\n");
+
+inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self->pg_version_minor);
+		if (PROTOCOL_62(ci))
+		{
+			sock->reverse = TRUE;		/* make put_int and get_int work
+										 * for 6.2 */
+
+			memset(&sp62, 0, sizeof(StartupPacket6_2));
+			sock->pversion = PG_PROTOCOL_62;
+			SOCK_put_int(sock, htonl(4 + sizeof(StartupPacket6_2)), 4);
+			sp62.authtype = htonl(NO_AUTHENTICATION);
+			strncpy(sp62.database, ci->database, PATH_SIZE);
+			strncpy(sp62.user, ci->username, USRNAMEDATALEN);
+			SOCK_put_n_char(sock, (char *) &sp62, sizeof(StartupPacket6_2));
+			SOCK_flush_output(sock);
+		}
+		else if (PROTOCOL_74(ci))
+		{
+			if (!protocol3_packet_build(self))
+				return 0;
+		}
+		else
+		{
+			memset(&sp, 0, sizeof(StartupPacket));
+
+			mylog("sizeof startup packet = %d\n", sizeof(StartupPacket));
+
+			if (PROTOCOL_63(ci))
+				sock->pversion = PG_PROTOCOL_63;
+			else
+				sock->pversion = PG_PROTOCOL_64;
+			/* Send length of Authentication Block */
+			SOCK_put_int(sock, 4 + sizeof(StartupPacket), 4);
+
+			sp.protoVersion = (ProtocolVersion) htonl(sock->pversion);
+
+			strncpy(sp.database, ci->database, SM_DATABASE);
+			strncpy(sp.user, ci->username, SM_USER);
+
+			SOCK_put_n_char(sock, (char *) &sp, sizeof(StartupPacket));
+			SOCK_flush_output(sock);
+		}
+
+		mylog("sent the authentication block.\n");
+
+		if (sock->errornumber != 0)
+		{
+			CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Sending the authentication packet failed", func);
+			return 0;
+		}
+		mylog("sent the authentication block successfully.\n");
+	}
+
+
+	mylog("gonna do authentication\n");
+
+
+	/*
+	 * Now get the authentication request from backend
+	 */
+
+	if (!PROTOCOL_62(ci))
+	{
+		BOOL		before_64 = PG_VERSION_LT(self, 6.4),
+					ReadyForQuery = FALSE, retry = FALSE;
+		uint32	leng;
+
+		do
+		{
+			if (password_req != AUTH_REQ_OK)
+				beresp = 'R';
+			else
+			{
+				beresp = SOCK_get_char(sock);
+				mylog("auth got '%c'\n", beresp);
+				if (PROTOCOL_74(ci))
+				{
+					if (beresp != 'E' || startPacketReceived)
+					{
+						leng = SOCK_get_int(sock, 4);
+inolog("leng=%d\n", leng);
+					}
+					else
+						strcpy(ci->protocol, PG74REJECTED);
+				}
+				startPacketReceived = TRUE;
+			}
+
+			switch (beresp)
+			{
+				case 'E':
+inolog("Ekita\n");
+					handle_error_message(self, msgbuffer, sizeof(msgbuffer), self->sqlstate, func, NULL);
+					CC_set_error(self, CONN_INVALID_AUTHENTICATION, msgbuffer, func);
+					qlog("ERROR from backend during authentication: '%s'\n", msgbuffer);
+					if (strnicmp(msgbuffer, "Unsupported frontend protocol", 29) == 0)
+						retry = TRUE;
+					else if (strncmp(msgbuffer, "FATAL:", 6) == 0 &&
+						 strnicmp(msgbuffer + 8, "unsupported frontend protocol", 29) == 0)
+						retry = TRUE;
+					if (retry)
+					{			/* retry older version */
+						if (PROTOCOL_63(ci))
+							strcpy(ci->protocol, PG62);
+						else if (PROTOCOL_64(ci))
+							strcpy(ci->protocol, PG63);
+						else 
+							strcpy(ci->protocol, PG64);
+						SOCK_Destructor(sock);
+						self->sock = (SocketClass *) 0;
+						CC_initialize_pg_version(self);
+						goto another_version_retry;
+					}
+
+					return 0;
+				case 'R':
+
+					if (password_req != AUTH_REQ_OK)
+					{
+						mylog("in 'R' password_req=%s\n", ci->password);
+						areq = password_req;
+						if (salt_para)
+							memcpy(salt, salt_para, sizeof(salt));
+						password_req = AUTH_REQ_OK;
+					}
+					else
+					{
+
+						areq = SOCK_get_int(sock, 4);
+						if (areq == AUTH_REQ_MD5)
+							SOCK_get_n_char(sock, salt, 4);
+						else if (areq == AUTH_REQ_CRYPT)
+							SOCK_get_n_char(sock, salt, 2);
+
+						mylog("areq = %d\n", areq);
+					}
+					switch (areq)
+					{
+						case AUTH_REQ_OK:
+							break;
+
+						case AUTH_REQ_KRB4:
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Kerberos 4 authentication not supported", func);
+							return 0;
+
+						case AUTH_REQ_KRB5:
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Kerberos 5 authentication not supported", func);
+							return 0;
+
+						case AUTH_REQ_PASSWORD:
+							mylog("in AUTH_REQ_PASSWORD\n");
+
+							if (ci->password[0] == '\0')
+							{
+								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.", func);
+								return -areq;		/* need password */
+							}
+
+							mylog("past need password\n");
+
+							SOCK_put_int(sock, 4 + strlen(ci->password) + 1, 4);
+							SOCK_put_n_char(sock, ci->password, strlen(ci->password) + 1);
+							SOCK_flush_output(sock);
+
+							mylog("past flush\n");
+							break;
+
+						case AUTH_REQ_CRYPT:
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Password crypt authentication not supported", func);
+							return 0;
+						case AUTH_REQ_MD5:
+							mylog("in AUTH_REQ_MD5\n");
+							if (ci->password[0] == '\0')
+							{
+								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.", func);
+								if (salt_para)
+									memcpy(salt_para, salt, sizeof(salt));
+								return -areq; /* need password */
+							}
+							if (md5_auth_send(self, salt))
+							{
+								CC_set_error(self, CONN_INVALID_AUTHENTICATION, "md5 hashing failed", func);
+								return 0;
+							}
+							break;
+
+						case AUTH_REQ_SCM_CREDS:
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Unix socket credential authentication not supported", func);
+							return 0;
+
+						default:
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Unknown authentication type", func);
+							return 0;
+					}
+					break;
+				case 'S': /* parameter status */
+					getParameterValues(self);
+					break;
+				case 'K':		/* Secret key (6.4 protocol) */
+					self->be_pid = SOCK_get_int(sock, 4);		/* pid */
+					self->be_key = SOCK_get_int(sock, 4);		/* key */
+
+					break;
+				case 'Z':		/* Backend is ready for new query (6.4) */
+					EatReadyForQuery(self);
+					ReadyForQuery = TRUE;
+					break;
+				case 'N':	/* Notices may come */
+					handle_notice_message(self, notice, sizeof(notice), self->sqlstate, "CC_connect", NULL);
+					break;
+				default:
+					CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Unexpected protocol character during authentication", func);
+					return 0;
+			}
+
+			/*
+			 * There were no ReadyForQuery responce before 6.4.
+			 */
+			if (before_64 && areq == AUTH_REQ_OK)
+				ReadyForQuery = TRUE;
+		} while (!ReadyForQuery);
+	}
+
+
+	CC_clear_error(self);		/* clear any password error */
+
+	/*
+	 * send an empty query in order to find out whether the specified
+	 * database really exists on the server machine
+	 */
+	if (!PROTOCOL_74(ci))
+	{
+		mylog("sending an empty query...\n");
+
+		res = CC_send_query(self, " ", NULL, 0, NULL);
+		if (res == NULL ||
+		    (QR_get_rstatus(res) != PGRES_EMPTY_QUERY &&
+		     QR_command_nonfatal(res)))
+		{
+			CC_set_error(self, CONNECTION_NO_SUCH_DATABASE, "The database does not exist on the server\nor user authentication failed.", func);
+			QR_Destructor(res);
+		return 0;
+		}
+		QR_Destructor(res);
+
+		mylog("empty query seems to be OK.\n");
+	}
+
+	/* 
+	 * Get the version number first so we can check it before
+	 * sending options that are now obsolete. DJP 21/06/2002
+	 */
+inolog("CC_lookup_pg_version\n");
+	if (!PROTOCOL_74(ci))
+	{
+		CC_lookup_pg_version(self);	/* Get PostgreSQL version for
+						   SQLGetInfo use */
+		CC_setenv(self);
+	}
+
+	return 1;
+}	
+
+char
+CC_connect(ConnectionClass *self, char password_req, char *salt_para)
+{
+	// StartupPacket sp;
+	// StartupPacket6_2 sp62;
+	// QResultClass *res;
+	// SocketClass *sock;
+	ConnInfo   *ci = &(self->connInfo);
+	// int			areq = -1;
+	// int			beresp;
+	// char		msgbuffer[ERROR_MSG_LENGTH];
+	// char		salt[5], notice[512];
+	CSTR		func = "CC_connect";
+	char	   ret;
+	// char	   *encoding;
+	// BOOL	startPacketReceived = FALSE;
+	BOOL	usessl = TRUE;
+
+	mylog("%s: entering...\n", func);
+
+	mylog("sslmode=%s\n", self->connInfo.sslmode);
+	if (self->connInfo.sslmode[0] != 'd')
+		ret = LIBPQ_CC_connect(self, password_req, salt_para);
+	else
+		ret = original_CC_connect(self, password_req, salt_para);
+	if (ret <= 0)
+		return ret;
+
+	CC_set_translation(self);
+
+	/*
+	 * Send any initial settings
+	 */
+
+	/*
+	 * Since these functions allocate statements, and since the connection
+	 * is not established yet, it would violate odbc state transition
+	 * rules.  Therefore, these functions call the corresponding local
+	 * function instead.
+	 */
+inolog("CC_send_settings\n");
+	CC_send_settings(self);
+
+	CC_clear_error(self);			/* clear any error */
+	CC_lookup_lo(self);			/* a hack to get the oid of
+						   our large object oid type */
+
+	/*
+	 *	Multibyte handling is available ?
+	 */
+	if (PG_VERSION_GE(self, 6.4))
+	{
+		CC_lookup_characterset(self);
+		if (CC_get_errornumber(self) != 0)
+			return 0;
+#ifdef UNICODE_SUPPORT
+		if (self->unicode)
+		{
+			if (!self->original_client_encoding ||
+			    (stricmp(self->original_client_encoding, "UNICODE") &&
+			    stricmp(self->original_client_encoding, "UTF8")))
+			{
+				QResultClass	*res;
+				if (PG_VERSION_LT(self, 7.1))
+				{
+					CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "UTF-8 conversion isn't implemented before 7.1", func);
+					return 0;
+				}
+				if (self->original_client_encoding)
+					free(self->original_client_encoding);
+				self->original_client_encoding = NULL;
+				if (res = CC_send_query(self, "set client_encoding to 'UTF8'", NULL, 0, NULL), QR_command_maybe_successful(res))
+				{
+					self->original_client_encoding = strdup("UNICODE");
+					self->ccsc = pg_CS_code(self->original_client_encoding);
+				}
+				QR_Destructor(res);
+			}
+		}
+#else
+		{
+		}
+#endif /* UNICODE_SUPPORT */
+	}
+#ifdef UNICODE_SUPPORT
+	else if (self->unicode)
+	{
+		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "Unicode isn't supported before 6.4", func);
+		return 0;
+	}
+#endif /* UNICODE_SUPPORT */
+	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS; 
+	if (ci->allow_keyset &&
+		PG_VERSION_GE(self, 7.0)) /* Tid scan since 7.0 */
+	{
+		if (ci->drivers.lie || !ci->drivers.use_declarefetch)
+			ci->updatable_cursors |= (ALLOW_STATIC_CURSORS | ALLOW_KEYSET_DRIVEN_CURSORS | ALLOW_BULK_OPERATIONS | SENSE_SELF_OPERATIONS);
+		else
+		{
+			if (PG_VERSION_GE(self, 7.4)) /* HOLDABLE CURSORS since 7.4 */
+				ci->updatable_cursors |= (ALLOW_STATIC_CURSORS | SENSE_SELF_OPERATIONS);
+		}
+	}
+
+	CC_clear_error(self);		/* clear any initial command errors */
+	self->status = CONN_CONNECTED;
+
+	mylog("%s: returning...\n", func);
+
+	return 1;
 }
 
 
@@ -396,7 +1602,7 @@ CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 {
 	int			i;
 
-	mylog("CC_add_statement: self=%u, stmt=%u\n", self, stmt);
+	mylog("CC_add_statement: self=%x, stmt=%x\n", self, stmt);
 
 	for (i = 0; i < self->num_stmts; i++)
 	{
@@ -429,11 +1635,9 @@ CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
 {
 	int			i;
 
-	if (stmt->status == STMT_EXECUTING)
-		return FALSE;
 	for (i = 0; i < self->num_stmts; i++)
 	{
-		if (self->stmts[i] == stmt)
+		if (self->stmts[i] == stmt && stmt->status != STMT_EXECUTING)
 		{
 			self->stmts[i] = NULL;
 			return TRUE;
@@ -443,14 +1647,63 @@ CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
 	return FALSE;
 }
 
+int	CC_get_max_idlen(ConnectionClass *self)
+{
+	int	len = self->max_identifier_length;
+
+	if  (len < 0)
+	{
+		QResultClass	*res;
+
+		res = CC_send_query(self, "show max_identifier_length", NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+		if (QR_command_maybe_successful(res))
+			len = self->max_identifier_length = atoi(res->command);
+		QR_Destructor(res);
+	}
+mylog("max_identifier_length=%d\n", len);
+	return len < 0 ? 0 : len; 
+}
+
+/*
+ *	Create a more informative error message by concatenating the connection
+ *	error message with its socket error message.
+ */
+char *
+CC_create_errormsg(ConnectionClass *self)
+{
+	SocketClass *sock = self->sock;
+	int			pos;
+	char	 msg[4096];
+
+	mylog("enter CC_create_errormsg\n");
+
+	msg[0] = '\0';
+
+	if (CC_get_errormsg(self))
+		strncpy(msg, CC_get_errormsg(self), sizeof(msg));
+
+	mylog("msg = '%s'\n", msg);
+
+	if (sock && sock->errormsg && sock->errormsg[0] != '\0')
+	{
+		pos = strlen(msg);
+		snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", sock->errormsg);
+	}
+
+	mylog("exit CC_create_errormsg\n");
+	return msg ? strdup(msg) : NULL;
+}
+
 
 void
-CC_set_error(ConnectionClass *self, int number, const char *message)
+CC_set_error(ConnectionClass *self, int number, const char *message, const char *func)
 {
 	if (self->__error_message)
 		free(self->__error_message);
 	self->__error_number = number;
 	self->__error_message = message ? strdup(message) : NULL;
+	if (func && number != 0)
+		CC_log_error(func, "", self); 
 }
 
 
@@ -495,62 +1748,890 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 	return rv;
 }
 
-void CC_set_sqlstate(ConnectionClass *self, const char *sqlstate)
-{
-    if (sqlstate)
-        snprintf(self->__sqlstate, SQLSTATE_LENGTH, "%s", sqlstate);
-    else
-        self->__sqlstate[0] = '\0';
-}
 
-char *CC_get_sqlstate(ConnectionClass *self)
-{
-    return self->__sqlstate;
-}
-
-static void CC_clear_cursors(ConnectionClass *self, BOOL allcursors)
+static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 {
 	int	i;
 	StatementClass	*stmt;
 	QResultClass	*res;
 
+	if (!self->ncursors)
+		return;
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		stmt = self->stmts[i];
 		if (stmt && (res = SC_get_Result(stmt)) &&
-			res->cursor && res->cursor[0])
+			QR_get_cursor(res))
 		{
-		/*
-		 * non-holdable cursors are automatically closed
-		 * at commit time.
-		 * all cursors are automatically closed
-		 * at rollback time.
-		 */
-			if (res->cursor)
+			if ((on_abort && !QR_is_permanent(res)) ||
+				!QR_is_withhold(res))
+			/*
+			 * non-holdable cursors are automatically closed
+			 * at commit time.
+			 * all non-permanent cursors are automatically closed
+			 * at rollback time.
+			 */	
+				QR_set_cursor(res, NULL);
+			else if (!QR_is_permanent(res))
 			{
-				free(res->cursor);
-				res->cursor = NULL;
+				QResultClass	*wres;
+				char	cmd[64];
+
+				snprintf(cmd, sizeof(cmd), "MOVE 0 in \"%s\"", QR_get_cursor(res));
+				wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+				if (QR_command_maybe_successful(wres))
+					QR_set_permanent(res);
+				else
+					QR_set_cursor(res, NULL);
+				QR_Destructor(wres);
 			}
 		}
 	}
 }
-
+	
 void	CC_on_commit(ConnectionClass *conn)
 {
 	if (CC_is_in_trans(conn))
 	{
-#ifdef	DRIVER_CURSOR_IMPLEMENT
-		if (conn->result_uncommitted)
-			ProcessRollback(conn, FALSE);
-#endif /* DRIVER_CURSOR_IMPLEMENT */
 		CC_set_no_trans(conn);
 		CC_set_no_manual_trans(conn);
 	}
-	conn->result_uncommitted = 0;
+	CC_clear_cursors(conn, FALSE);
+	CC_discard_marked_objects(conn);
+	if (conn->result_uncommitted)
+	{
+		ProcessRollback(conn, FALSE, FALSE);
+		conn->result_uncommitted = 0;
+	}
+}
+void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
+{
+	BOOL	set_no_trans = FALSE;
+
+mylog("CC_on_abort in\n");
+	if (0 != (opt & CONN_DEAD)) /* CONN_DEAD implies NO_TRANS also */
+		opt |= NO_TRANS;
+	if (CC_is_in_trans(conn))
+	{
+		if (0 != (opt & NO_TRANS))
+		{
+			CC_set_no_trans(conn);
+			CC_set_no_manual_trans(conn);
+			set_no_trans = TRUE;
+		}
+	}
 	CC_clear_cursors(conn, TRUE);
-	CC_discard_marked_plans(conn);
+	if (0 != (opt & CONN_DEAD))
+	{
+		conn->status = CONN_DOWN;
+		if (conn->sock)
+		{
+			SOCK_Destructor(conn->sock);
+			conn->sock = NULL;
+		}
+	}
+	else if (set_no_trans)
+		CC_discard_marked_objects(conn);
+	if (conn->result_uncommitted)
+	{
+		ProcessRollback(conn, TRUE, FALSE);
+		conn->result_uncommitted = 0;
+	}
 }
 
+void	CC_on_abort_partial(ConnectionClass *conn)
+{
+mylog("CC_on_abort_partial in\n");
+	ProcessRollback(conn, TRUE, TRUE);
+	CC_discard_marked_objects(conn);
+}
+
+/*
+ *	The "result_in" is only used by QR_next_tuple() to fetch another group of rows into
+ *	the same existing QResultClass (this occurs when the tuple cache is depleted and
+ *	needs to be re-filled).
+ *
+ *	The "cursor" is used by SQLExecute to associate a statement handle as the cursor name
+ *	(i.e., C3326857) for SQL select statements.  This cursor is then used in future
+ *	'declare cursor C3326857 for ...' and 'fetch 100 in C3326857' statements.
+ */
+QResultClass *
+CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt)
+{
+	CSTR	func = "CC_send_query";
+	QResultClass *cmdres = NULL,
+			   *retres = NULL,
+			   *res = NULL;
+	BOOL	ignore_abort_on_conn = ((flag & IGNORE_ABORT_ON_CONN) != 0),
+		create_keyset = ((flag & CREATE_KEYSET) != 0),
+		issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self)),
+		rollback_on_error, query_rollback;
+
+	char		swallow, *wq, *ptr;
+	const char *per_query_svp = "_per_query_svp_";
+	int			id;
+	SocketClass *sock = self->sock;
+	int			maxlen,
+				empty_reqs;
+	BOOL		msg_truncated,
+				ReadyToReturn = FALSE,
+				query_completed = FALSE,
+				before_64 = PG_VERSION_LT(self, 6.4),
+				aborted = FALSE,
+				used_passed_result_object = FALSE,
+			discard_next_begin = FALSE,
+			discard_next_savepoint = FALSE,
+			consider_rollback;
+	Int4		response_length;
+	UInt4		leng;
+	ConnInfo	*ci = &(self->connInfo);
+	int		func_cs_count = 0;
+
+	/* ERROR_MSG_LENGTH is suffcient */
+	char msgbuffer[ERROR_MSG_LENGTH + 1];
+
+	/* QR_set_command() dups this string so doesn't need static */
+	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
+
+	mylog("send_query(): conn=%x, query='%s'\n", self, query);
+	qlog("conn=%x, query='%s'\n", self, query);
+
+	if (!self->sock)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query(connection dead)", func);
+		CC_on_abort(self, CONN_DEAD);
+		return NULL;
+	}
+
+	/* Indicate that we are sending a query to the backend */
+	maxlen = CC_get_max_query_len(self);
+	if (maxlen > 0 && maxlen < (int) strlen(query) + 1)
+	{
+		CC_set_error(self, CONNECTION_MSG_TOO_LONG, "Query string is too long", func);
+		return NULL;
+	}
+
+	if ((NULL == query) || (query[0] == '\0'))
+		return NULL;
+
+	if (SOCK_get_errcode(sock) != 0)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
+		CC_on_abort(self, CONN_DEAD);
+		return NULL;
+	}
+
+	rollback_on_error = (flag & ROLLBACK_ON_ERROR) != 0;
+#define	return DONT_CALL_RETURN_FROM_HERE???
+	ENTER_INNER_CONN_CS(self, func_cs_count);
+	consider_rollback = (issue_begin || (CC_is_in_trans(self) && !CC_is_in_error_trans(self)) || strnicmp(query, "begin", 5) == 0);
+	if (rollback_on_error)
+		rollback_on_error = consider_rollback;
+	query_rollback = (rollback_on_error && PG_VERSION_GE(self, 8.0));
+	if (!query_rollback && consider_rollback )
+	{
+		if (stmt)
+		{
+			StatementClass	*astmt = SC_get_ancestor(stmt);
+			if (!SC_accessed_db(astmt))
+			{
+				if (SQL_ERROR == SetStatementSvp(astmt))
+				{
+					SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
+					goto cleanup;
+				}
+			}
+		}
+	}
+
+	SOCK_put_char(sock, 'Q');
+	if (SOCK_get_errcode(sock) != 0)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
+		CC_on_abort(self, CONN_DEAD);
+		goto cleanup;
+	}
+
+	if (PROTOCOL_74(ci))
+	{
+		leng = strlen(query);
+		if (issue_begin)
+			leng += strlen("BEGIN;");
+		if (query_rollback)
+			leng += (10 + strlen(per_query_svp) + 1);
+		leng++;
+		SOCK_put_int(sock, leng + 4, 4);
+inolog("leng=%d\n", leng);
+	}
+	if (issue_begin)
+	{
+		SOCK_put_n_char(sock, "BEGIN;", 6);
+		discard_next_begin = TRUE;
+	}
+	if (query_rollback)
+	{
+		char cmd[64];
+
+		snprintf(cmd, sizeof(cmd), "SAVEPOINT %s;", per_query_svp);
+		SOCK_put_n_char(sock, cmd, strlen(cmd));
+		discard_next_savepoint = TRUE;
+	}
+	SOCK_put_string(sock, query);
+	SOCK_flush_output(sock);
+
+	if (SOCK_get_errcode(sock) != 0)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
+		CC_on_abort(self, CONN_DEAD);
+		goto cleanup;
+	}
+
+	mylog("send_query: done sending query\n");
+ 
+	empty_reqs = 0;
+	for (wq = query; isspace((UCHAR) *wq); wq++)
+		;
+	if (*wq == '\0')
+		empty_reqs = 1;
+	cmdres = qi ? qi->result_in : NULL;
+	if (cmdres)
+		used_passed_result_object = TRUE;
+	else
+	{
+		cmdres = QR_Constructor();
+		if (!cmdres)
+		{
+			CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
+			goto cleanup;
+		}
+	}
+	res = cmdres;
+	while (!ReadyToReturn)
+	{
+		/* what type of message is coming now ? */
+		id = SOCK_get_id(sock);
+
+		if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
+		{
+			CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from the backend", func);
+
+			mylog("send_query: 'id' - %s\n", CC_get_errormsg(self));
+			CC_on_abort(self, CONN_DEAD);
+			ReadyToReturn = TRUE;
+			retres = NULL;
+			break;
+		}
+
+		mylog("send_query: got id = '%c'\n", id);
+
+		response_length = SOCK_get_response_length(sock);
+inolog("send_query response_length=%d\n", response_length);
+		switch (id)
+		{
+			case 'A':			/* Asynchronous Messages are ignored */
+				(void) SOCK_get_int(sock, 4);	/* id of notification */
+				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
+				/* name of the relation the message comes from */
+				break;
+			case 'C':			/* portal query command, no tuples
+								 * returned */
+				/* read in the return message from the backend */
+				SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
+				if (SOCK_get_errcode(sock) != 0)
+				{
+					CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from backend while receiving a portal query command", func);
+					mylog("send_query: 'C' - %s\n", CC_get_errormsg(self));
+					CC_on_abort(self, CONN_DEAD);
+					ReadyToReturn = TRUE;
+					retres = NULL;
+				}
+				else
+				{
+					mylog("send_query: ok - 'C' - %s\n", cmdbuffer);
+
+					if (query_completed)	/* allow for "show" style notices */
+					{
+						res->next = QR_Constructor();
+						res = res->next;
+					} 
+
+					mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
+
+					trim(cmdbuffer); /* get rid of trailing space */ 
+					if (strnicmp(cmdbuffer, "BEGIN", 5) == 0)
+					{
+						CC_set_in_trans(self);
+						if (discard_next_begin) /* disicard the automatically issued BEGIN */
+						{
+							discard_next_begin = FALSE;
+							continue; /* discard the result */
+						}
+					}
+					else if (strnicmp(cmdbuffer, "SAVEPOINT", 9) == 0)
+					{
+						if (discard_next_savepoint)
+						{
+inolog("Discarded the first SAVEPOINT\n");
+							discard_next_savepoint = FALSE;
+							continue; /* discard the result */
+						}
+					}
+					else
+					{
+						if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
+						{
+							if (PROTOCOL_74(&(self->connInfo)))
+								CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
+							else
+								CC_on_abort(self, NO_TRANS);
+						}
+						else if (!PROTOCOL_74(&(self->connInfo)))
+						{
+							if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
+								CC_on_commit(self);
+							else if (strnicmp(cmdbuffer, "END", 3) == 0)
+								CC_on_commit(self);
+							else if (strnicmp(cmdbuffer, "ABORT", 5) == 0)
+								CC_on_abort(self, NO_TRANS);
+						}
+						else
+						{
+							ptr = strrchr(cmdbuffer, ' ');
+							if (ptr)
+								res->recent_processed_row_count = atoi(ptr + 1);
+							else
+								res->recent_processed_row_count = -1;
+						}
+					}
+
+					if (QR_command_successful(res))
+						QR_set_rstatus(res, PGRES_COMMAND_OK);
+					QR_set_command(res, cmdbuffer);
+					query_completed = TRUE;
+					mylog("send_query: returning res = %x\n", res);
+					if (!before_64)
+						break;
+
+					/*
+					 * (Quotation from the original comments) since
+					 * backend may produce more than one result for some
+					 * commands we need to poll until clear so we send an
+					 * empty query, and keep reading out of the pipe until
+					 * an 'I' is received
+					 */
+
+					if (empty_reqs == 0)
+					{
+						SOCK_put_string(sock, "Q ");
+						SOCK_flush_output(sock);
+						empty_reqs++;
+					}
+				}
+				break;
+			case 'Z':			/* Backend is ready for new query (6.4) */
+				if (empty_reqs == 0)
+				{
+					ReadyToReturn = TRUE;
+					if (aborted || query_completed)
+						retres = cmdres;
+					else
+						ReadyToReturn = FALSE;
+				}
+				EatReadyForQuery(self);
+				break;
+			case 'N':			/* NOTICE: */
+				msg_truncated = handle_notice_message(self, cmdbuffer, sizeof(cmdbuffer), res->sqlstate, "send_query", res);
+				break;		/* dont return a result -- continue
+								 * reading */
+
+			case 'I':			/* The server sends an empty query */
+				/* There is a closing '\0' following the 'I', so we eat it */
+				if (PROTOCOL_74(ci) && 0 == response_length)
+					swallow = '\0';
+				else
+					swallow = SOCK_get_char(sock);
+				if ((swallow != '\0') || SOCK_get_errcode(sock) != 0)
+				{
+					CC_set_errornumber(self, CONNECTION_BACKEND_CRAZY);
+					QR_set_message(res, "Unexpected protocol character from backend (send_query - I)");
+					QR_set_rstatus(res, PGRES_FATAL_ERROR);
+					ReadyToReturn = TRUE;
+					retres = cmdres;
+					break;
+				}
+				else
+				{
+					/* We return the empty query */
+					QR_set_rstatus(res, PGRES_EMPTY_QUERY);
+				}
+				if (empty_reqs > 0)
+				{
+					if (--empty_reqs == 0)
+						query_completed = TRUE;
+				}
+				break;
+			case 'E':
+				msg_truncated = handle_error_message(self, msgbuffer, sizeof(msgbuffer), res->sqlstate, "send_query", res);
+
+				/* We should report that an error occured. Zoltan */
+				aborted = TRUE;
+
+				query_completed = TRUE;
+				break;
+
+			case 'P':			/* get the Portal name */
+				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
+				break;
+			case 'T':			/* Tuple results start here */
+				if (query_completed)
+				{
+					res->next = QR_Constructor();
+					if (!res->next)
+					{
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
+						ReadyToReturn = TRUE;
+						retres = NULL;
+						break;
+					}
+					if (create_keyset)
+					{
+						QR_set_haskeyset(res->next);
+						if (stmt)
+							res->num_key_fields = stmt->num_key_fields;
+					}
+					mylog("send_query: 'T' no result_in: res = %x\n", res->next);
+					res = res->next;
+
+					if (qi)
+						QR_set_cache_size(res, qi->row_size);
+				}
+				if (!used_passed_result_object)
+				{
+					const char *cursor = qi ? qi->cursor : NULL;
+					if (create_keyset)
+					{
+						QR_set_haskeyset(res);
+						if (stmt)
+							res->num_key_fields = stmt->num_key_fields;
+						if (cursor && cursor[0])
+							QR_set_synchronize_keys(res);
+					}
+					if (!QR_fetch_tuples(res, self, cursor))
+					{
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res), func);
+						ReadyToReturn = TRUE;
+						if (PGRES_FATAL_ERROR == QR_get_rstatus(res))
+							retres = cmdres;
+						else
+							retres = NULL;
+						break;
+					}
+					query_completed = TRUE;
+				}
+				else
+				{				/* next fetch, so reuse an existing result */
+
+					/*
+					 * called from QR_next_tuple and must return
+					 * immediately.
+					 */
+					ReadyToReturn = TRUE;
+					if (!QR_fetch_tuples(res, NULL, NULL))
+					{
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res), func);
+						retres = NULL;
+						break;
+					}
+					retres = cmdres;
+				}
+				break;
+			case 'D':			/* Copy in command began successfully */
+				if (query_completed)
+				{
+					res->next = QR_Constructor();
+					res = res->next;
+				}
+				QR_set_rstatus(res, PGRES_COPY_IN);
+				ReadyToReturn = TRUE;
+				retres = cmdres;
+				break;
+			case 'B':			/* Copy out command began successfully */
+				if (query_completed)
+				{
+					res->next = QR_Constructor();
+					res = res->next;
+				}
+				QR_set_rstatus(res, PGRES_COPY_OUT);
+				ReadyToReturn = TRUE;
+				retres = cmdres;
+				break;
+			case 'S':		/* parameter status */
+				getParameterValues(self);
+				break;
+			case 's':		/* portal suspended */
+				QR_set_no_fetching_tuples(res);
+				break;
+			default:
+				/* skip the unexpecte response if possible */
+				if (response_length >= 0)
+					break;
+				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)", func);
+				CC_on_abort(self, CONN_DEAD);
+
+				mylog("send_query: error - %s\n", CC_get_errormsg(self));
+				ReadyToReturn = TRUE;
+				retres = NULL;
+				break;
+		}
+
+		if (CONN_DOWN == self->status)
+			break;
+		/*
+		 * There was no ReadyForQuery response before 6.4.
+		 */
+		if (before_64)
+		{
+			if (empty_reqs == 0 && query_completed)
+				break;
+		}
+	}
+
+cleanup:
+	if (rollback_on_error && CC_is_in_trans(self) && !discard_next_savepoint)
+	{
+		char	cmd[64];
+
+		cmd[0] = '\0'; 
+		if (query_rollback)
+		{
+			if (CC_is_in_error_trans(self))
+				snprintf(cmd, sizeof(cmd), "ROLLBACK TO %s;", per_query_svp);
+			snprintf(cmd, sizeof(cmd), "%sRELEASE %s", cmd, per_query_svp);
+		}
+		else if (CC_is_in_error_trans(self))
+			strcpy(cmd, "ROLLBACK");
+		if (cmd[0])
+			QR_Destructor(CC_send_query(self, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL));
+	}
+
+	CLEANUP_FUNC_CONN_CS(func_cs_count, self);
+#undef	return
+	/*
+	 * Break before being ready to return.
+	 */
+	if (!ReadyToReturn)
+		retres = cmdres;
+
+	/*
+	 * Cleanup garbage results before returning.
+	 */
+	if (cmdres && retres != cmdres && !used_passed_result_object)
+		QR_Destructor(cmdres);
+	/*
+	 * Cleanup the aborted result if specified
+	 */
+	if (retres)
+	{
+		if (aborted)
+		{
+			/** if (ignore_abort_on_conn)
+			{
+	   			if (!used_passed_result_object)
+				{
+					QR_Destructor(retres);
+					retres = NULL;
+				}
+			} **/
+			if (retres)
+			{
+				/*
+				 *	discard results other than errors.
+				 */
+				QResultClass	*qres;
+				for (qres = retres; qres->next; qres = retres)
+				{
+					if (QR_get_aborted(qres))
+						break;
+					retres = qres->next;
+					qres->next = NULL;
+					QR_Destructor(qres);
+				}
+				/*
+				 *	If error message isn't set
+				 */
+				if (ignore_abort_on_conn)
+					CC_set_errornumber(self, 0);
+				else if (retres)
+				{
+					if ((!CC_get_errormsg(self) || !CC_get_errormsg(self)[0]))
+						CC_set_errormsg(self, QR_get_message(retres));
+					if (!self->sqlstate[0])
+						strcpy(self->sqlstate, retres->sqlstate);
+				}
+			}
+		}
+	}
+	return retres;
+}
+
+
+int
+CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *args, int nargs)
+{
+	CSTR	func = "CC_send_function";
+	char		id,
+				c,
+				done;
+	SocketClass *sock = self->sock;
+
+	/* ERROR_MSG_LENGTH is sufficient */
+	char msgbuffer[ERROR_MSG_LENGTH + 1];
+	int			i;
+	int			ret = TRUE;
+	UInt4			leng;
+	Int4			response_length;
+	ConnInfo		*ci;
+	int			func_cs_count = 0; 
+
+	mylog("send_function(): conn=%x, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
+
+	if (!self->sock)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function(connection dead)", func);
+		CC_on_abort(self, CONN_DEAD);
+		return FALSE;
+	}
+
+	if (SOCK_get_errcode(sock) != 0)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function to backend", func);
+		CC_on_abort(self, CONN_DEAD);
+		return FALSE;
+	}
+
+#define	return DONT_CALL_RETURN_FROM_HERE???
+	ENTER_INNER_CONN_CS(self, func_cs_count);
+	ci = &(self->connInfo);
+	if (PROTOCOL_74(ci))
+	{
+		leng = 4 + sizeof(uint32) + 2 + 2
+			+ sizeof(uint16);
+ 
+		for (i = 0; i < nargs; i++)
+		{
+			leng += 4;
+			if (args[i].len >= 0)
+			{
+				if (args[i].isint)
+					leng += 4;
+				else
+					leng += args[i].len;
+			}
+		}
+		leng += 2;
+		SOCK_put_char(sock, 'F');
+		SOCK_put_int(sock, leng, 4);
+	}
+	else
+	SOCK_put_string(sock, "F ");
+	if (SOCK_get_errcode(sock) != 0)
+	{
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function to backend", func);
+		CC_on_abort(self, CONN_DEAD);
+		ret = FALSE;
+		goto cleanup;
+	}
+
+	SOCK_put_int(sock, fnid, 4);
+	if (PROTOCOL_74(ci))
+	{
+		SOCK_put_int(sock, 1, 2); /* # of formats */
+		SOCK_put_int(sock, 1, 2); /* the format is binary */
+		SOCK_put_int(sock, nargs, 2);
+	}
+	else
+	SOCK_put_int(sock, nargs, 4);
+
+	mylog("send_function: done sending function\n");
+
+	for (i = 0; i < nargs; ++i)
+	{
+		mylog("  arg[%d]: len = %d, isint = %d, integer = %d, ptr = %x\n", i, args[i].len, args[i].isint, args[i].u.integer, args[i].u.ptr);
+
+		SOCK_put_int(sock, args[i].len, 4);
+		if (args[i].isint)
+			SOCK_put_int(sock, args[i].u.integer, 4);
+		else
+			SOCK_put_n_char(sock, (char *) args[i].u.ptr, args[i].len);
+
+	}
+
+	if (PROTOCOL_74(ci))
+		SOCK_put_int(sock, 1, 2); /* result format is binary */
+	mylog("    done sending args\n");
+
+	SOCK_flush_output(sock);
+	mylog("  after flush output\n");
+
+	done = FALSE;
+	while (!done)
+	{
+		id = SOCK_get_id(sock);
+		mylog("   got id = %c\n", id);
+		response_length = SOCK_get_response_length(sock);
+inolog("send_func response_length=%d\n", response_length);
+
+		switch (id)
+		{
+			case 'G':
+				if (PROTOCOL_74(ci))
+				{
+					done = TRUE;
+					ret = FALSE;
+					break;
+				}
+			case 'V':
+				if ('V' == id)
+					if (!PROTOCOL_74(ci))
+						break;
+				*actual_result_len = SOCK_get_int(sock, 4);
+				if (-1 != *actual_result_len)
+				{
+					if (result_is_int)
+						*((int *) result_buf) = SOCK_get_int(sock, 4);
+					else
+						SOCK_get_n_char(sock, (char *) result_buf, *actual_result_len);
+
+					mylog("  after get result\n");
+				}
+				if (!PROTOCOL_74(ci))
+				{
+					c = SOCK_get_char(sock); /* get the last '0' */ 
+					mylog("   after get 0\n");
+				}
+				done = TRUE; 
+				break;			/* ok */
+
+			case 'N':
+				handle_notice_message(self, msgbuffer, sizeof(msgbuffer), NULL, "send_function", NULL);
+				/* continue reading */
+				break;
+
+			case 'E':
+				handle_error_message(self, msgbuffer, sizeof(msgbuffer), NULL, "send_function", NULL); 
+				CC_set_errormsg(self, msgbuffer);
+#ifdef	_LEGACY_MODE_
+				CC_on_abort(self, 0);
+#endif /* _LEGACY_MODE_ */
+
+				mylog("send_function(V): 'E' - %s\n", CC_get_errormsg(self));
+				qlog("ERROR from backend during send_function: '%s'\n", CC_get_errormsg(self));
+				done = TRUE;
+				ret = FALSE;
+				break;
+
+			case 'Z':
+				EatReadyForQuery(self);
+				break;
+
+			case '0':			/* empty result */
+				done = TRUE;
+				break;
+
+			default:
+				/* skip the unexpected response if possible */
+				if (response_length >= 0)
+					break;
+				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_function, args)", func);
+				CC_on_abort(self, CONN_DEAD);
+
+				mylog("send_function: error - %s\n", CC_get_errormsg(self));
+				done = TRUE;
+				ret = FALSE;
+				break;
+		}
+	}
+
+cleanup:
+#undef	return
+	CLEANUP_FUNC_CONN_CS(func_cs_count, self);
+	return ret;
+}
+
+
+static	char
+CC_setenv(ConnectionClass *self)
+{
+	ConnInfo   *ci = &(self->connInfo);
+
+/* QResultClass *res; */
+	HSTMT		hstmt;
+	StatementClass *stmt;
+	RETCODE		result;
+	char		status = TRUE;
+#ifdef	HAVE_STRTOK_R
+	char	*last;
+#endif /* HAVE_STRTOK_R */
+	CSTR func = "CC_setenv";
+
+
+	mylog("%s: entering...\n", func);
+
+/*
+ *	This function must use the local odbc API functions since the odbc state
+ *	has not transitioned to "connected" yet.
+ */
+
+	result = PGAPI_AllocStmt(self, &hstmt);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		return FALSE;
+	stmt = (StatementClass *) hstmt;
+
+	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
+
+	/* Set the Datestyle to the format the driver expects it to be in */
+	result = PGAPI_ExecDirect(hstmt, "set DateStyle to 'ISO'", SQL_NTS, 0);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		status = FALSE;
+
+	mylog("%s: result %d, status %d from set DateStyle\n", func, result, status);
+	/* Disable genetic optimizer based on global flag */
+	if (ci->drivers.disable_optimizer)
+	{
+		result = PGAPI_ExecDirect(hstmt, "set geqo to 'OFF'", SQL_NTS, 0);
+		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			status = FALSE;
+
+		mylog("%s: result %d, status %d from set geqo\n", func, result, status);
+
+	}
+
+	/* KSQO (not applicable to 7.1+ - DJP 21/06/2002) */
+	if (ci->drivers.ksqo && PG_VERSION_LT(self, 7.1))
+	{
+		result = PGAPI_ExecDirect(hstmt, "set ksqo to 'ON'", SQL_NTS, 0);
+		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			status = FALSE;
+
+		mylog("%s: result %d, status %d from set ksqo\n", func, result, status);
+
+	}
+
+	/* extra_float_digits (applicable since 7.4) */
+	if (PG_VERSION_GT(self, 7.3))
+	{
+		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS, 0);
+		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			status = FALSE;
+
+		mylog("%s: result %d, status %d from set extra_float_digits\n", func, result, status);
+
+	}
+
+	PGAPI_FreeStmt(hstmt, SQL_DROP);
+
+	return status;
+}
 
 char
 CC_send_settings(ConnectionClass *self)
@@ -584,46 +2665,6 @@ CC_send_settings(ConnectionClass *self)
 	stmt = (StatementClass *) hstmt;
 
 	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
-
-	/* Set the Datestyle to the format the driver expects it to be in */
-	result = PGAPI_ExecDirect(hstmt, "set DateStyle to 'ISO'", SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-		status = FALSE;
-
-	mylog("%s: result %d, status %d from set DateStyle\n", func, result, status);
-
-	/* Disable genetic optimizer based on global flag */
-	if (ci->drivers.disable_optimizer)
-	{
-		result = PGAPI_ExecDirect(hstmt, "set geqo to 'OFF'", SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-			status = FALSE;
-
-		mylog("%s: result %d, status %d from set geqo\n", func, result, status);
-
-	}
-
-	/* KSQO (not applicable to 7.1+ - DJP 21/06/2002) */
-	if (ci->drivers.ksqo && PG_VERSION_LT(self, 7.1))
-	{
-		result = PGAPI_ExecDirect(hstmt, "set ksqo to 'ON'", SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-			status = FALSE;
-
-		mylog("%s: result %d, status %d from set ksqo\n", func, result, status);
-
-	}
-
-	/* extra_float_digits (applicable since 7.4) */
-	if (PG_VERSION_GT(self, 7.3))
-	{
-		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-			status = FALSE;
-
-		mylog("%s: result %d, status %d from set extra_float_digits\n", func, result, status);
-
-	}
 
 	/* Global settings */
 	if (ci->drivers.conn_settings[0] != '\0')
@@ -694,47 +2735,68 @@ CC_send_settings(ConnectionClass *self)
 void
 CC_lookup_lo(ConnectionClass *self)
 {
-	HSTMT		hstmt;
-	StatementClass *stmt;
-	RETCODE		result;
+	QResultClass	*res;
 	CSTR func = "CC_lookup_lo";
 
 	mylog("%s: entering...\n", func);
 
-/*
- *	This function must use the local odbc API functions since the odbc state
- *	has not transitioned to "connected" yet.
- */
-	result = PGAPI_AllocStmt(self, &hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-		return;
-	stmt = (StatementClass *) hstmt;
-
-	result = PGAPI_ExecDirect(hstmt, "select oid from pg_type where typname='" PG_TYPE_LO_NAME "'", SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (PG_VERSION_GE(self, 7.4))
+		res = CC_send_query(self, "select oid, typbasetype from pg_type where oid = '"  PG_TYPE_LO_NAME "'::regtype::oid", 
+			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+	else
+		res = CC_send_query(self, "select oid from pg_type where typname='" PG_TYPE_LO_NAME "'",
+			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+	if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
 	{
-		PGAPI_FreeStmt(hstmt, SQL_DROP);
-		return;
-	}
+		UInt4	basetype;
 
-	result = PGAPI_Fetch(hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-	{
-		PGAPI_FreeStmt(hstmt, SQL_DROP);
-		return;
+		self->lobj_type = atoi(QR_get_value_backend_row(res, 0, 0));
+		basetype = atoi(QR_get_value_backend_row(res, 0, 1));
+		if (PG_TYPE_OID == basetype)
+			self->lo_is_domain = 1;
+		else if (0 != basetype)
+			self->lobj_type = 0;
 	}
-
-	result = PGAPI_GetData(hstmt, 1, SQL_C_SLONG, &self->lobj_type, sizeof(self->lobj_type), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-	{
-		PGAPI_FreeStmt(hstmt, SQL_DROP);
-		return;
-	}
-
+	QR_Destructor(res);
 	mylog("Got the large object oid: %d\n", self->lobj_type);
 	qlog("    [ Large Object oid = %d ]\n", self->lobj_type);
+	return;
+}
 
-	result = PGAPI_FreeStmt(hstmt, SQL_DROP);
+
+/*
+ *	This function initializes the version of PostgreSQL from
+ *	connInfo.protocol that we're connected to.
+ *	h-inoue 01-2-2001
+ */
+void
+CC_initialize_pg_version(ConnectionClass *self)
+{
+	strcpy(self->pg_version, self->connInfo.protocol);
+	if (PROTOCOL_62(&self->connInfo))
+	{
+		self->pg_version_number = (float) 6.2;
+		self->pg_version_major = 6;
+		self->pg_version_minor = 2;
+	}
+	else if (PROTOCOL_63(&self->connInfo))
+	{
+		self->pg_version_number = (float) 6.3;
+		self->pg_version_major = 6;
+		self->pg_version_minor = 3;
+	}
+	else if (PROTOCOL_64(&self->connInfo))
+	{
+		self->pg_version_number = (float) 6.4;
+		self->pg_version_major = 6;
+		self->pg_version_minor = 4;
+	}
+	else
+	{
+		self->pg_version_number = (float) 7.4;
+		self->pg_version_major = 7;
+		self->pg_version_minor = 4;
+	}
 }
 
 
@@ -794,7 +2856,7 @@ CC_lookup_pg_version(ConnectionClass *self)
 	strcpy(szVersion, "0.0");
 	if (sscanf(self->pg_version, "%*s %d.%d", &major, &minor) >= 2)
 	{
-		sprintf(szVersion, "%d.%d", major, minor);
+		snprintf(szVersion, sizeof(szVersion), "%d.%d", major, minor);
 		self->pg_version_major = major;
 		self->pg_version_minor = minor;
 	}
@@ -808,6 +2870,40 @@ CC_lookup_pg_version(ConnectionClass *self)
 	qlog("    [ PostgreSQL version number = '%1.1f' ]\n", self->pg_version_number);
 
 	result = PGAPI_FreeStmt(hstmt, SQL_DROP);
+}
+
+
+void
+CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
+{
+#ifdef PRN_NULLCHECK
+#define nullcheck(a) (a ? a : "(NULL)")
+#endif
+
+	if (self)
+	{
+		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		qlog("            ------------------------------------------------------------\n");
+		qlog("            henv=%x, conn=%x, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
+		qlog("            sock=%x, stmts=%x, lobj_type=%d\n", self->sock, self->stmts, self->lobj_type);
+
+		qlog("            ---------------- Socket Info -------------------------------\n");
+		if (self->sock)
+		{
+			SocketClass *sock = self->sock;
+
+			qlog("            socket=%d, reverse=%d, errornumber=%d, errormsg='%s'\n", sock->socket, sock->reverse, sock->errornumber, nullcheck(sock->errormsg));
+			qlog("            buffer_in=%u, buffer_out=%u\n", sock->buffer_in, sock->buffer_out);
+			qlog("            buffer_filled_in=%d, buffer_filled_out=%d, buffer_read_in=%d\n", sock->buffer_filled_in, sock->buffer_filled_out, sock->buffer_read_in);
+		}
+	}
+	else
+{
+		qlog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+		mylog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+}
+#undef PRN_NULLCHECK
 }
 
 int
@@ -838,1175 +2934,275 @@ CC_get_current_schema(ConnectionClass *conn)
 	{
 		QResultClass	*res;
 
-		if (res = CC_send_query(conn, "select current_schema()", NULL, CLEAR_RESULT_ON_ABORT), res)
+		if (res = CC_send_query(conn, "select current_schema()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL), QR_command_maybe_successful(res))
 		{
 			if (QR_get_num_total_tuples(res) == 1)
 				conn->current_schema = strdup(QR_get_value_backend_row(res, 0, 0));
-			QR_Destructor(res);
 		}
+		QR_Destructor(res);
 	}
 	return (const char *) conn->current_schema;
 }
 
-int	CC_mark_a_plan_to_discard(ConnectionClass *conn, const char *plan)
+static int LIBPQ_send_cancel_request(const ConnectionClass *conn);
+int
+CC_send_cancel_request(const ConnectionClass *conn)
+{
+	int			save_errno = SOCK_ERRNO;
+	SOCKETFD		tmpsock = -1;
+	struct
+	{
+		uint32		packetlen;
+		CancelRequestPacket cp;
+	}			crp;
+	BOOL	ret = TRUE;
+	SocketClass	*sock;
+
+	/* Check we have an open connection */
+	if (!conn)
+		return FALSE;
+	sock = CC_get_socket(conn);
+	if (!sock)
+		return FALSE;
+
+	if (sock->via_libpq)
+		return LIBPQ_send_cancel_request(conn);
+	/*
+	 * We need to open a temporary connection to the postmaster. Use the
+	 * information saved by connectDB to do this with only kernel calls.
+	*/
+	if ((tmpsock = socket(conn->sock->sadr->sa_family, SOCK_STREAM, 0)) < 0)
+	{
+		return FALSE;
+	}
+	if (connect(tmpsock, conn->sock->sadr, conn->sock->sadr_len) < 0)
+	{
+		closesocket(tmpsock);
+		return FALSE;
+	}
+
+	/*
+	 * We needn't set nonblocking I/O or NODELAY options here.
+	 */
+	crp.packetlen = htonl((uint32) sizeof(crp));
+	crp.cp.cancelRequestCode = (MsgType) htonl(CANCEL_REQUEST_CODE);
+	crp.cp.backendPID = htonl(conn->be_pid);
+	crp.cp.cancelAuthCode = htonl(conn->be_key);
+
+	while (send(tmpsock, (char *) &crp, sizeof(crp), 0) != (int) sizeof(crp))
+	{
+		if (SOCK_ERRNO != EINTR)
+		{
+			save_errno = SOCK_ERRNO;
+			ret = FALSE;
+			break;
+		}
+	}
+	if (ret)
+	{
+		while (recv(tmpsock, (char *) &crp, 1, 0) < 0)
+		{
+			if (EINTR != SOCK_ERRNO)
+				break;
+		}
+	}
+
+	/* Sent it, done */
+	closesocket(tmpsock);
+	SOCK_ERRNO_SET(save_errno);
+
+	return ret;
+}
+
+int	CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *plan)
 {
 	int	cnt = conn->num_discardp + 1;
 	char	*pname;
-
+	
 	CC_REALLOC_return_with_error(conn->discardp, char *,
-		(cnt * sizeof(char *)), conn, "Couldn't alloc discardp.", -1) 
-	CC_MALLOC_return_with_error(pname, char, (strlen(plan) + 1),
-		conn, "Couldn't alloc discardp mem.", -1)
-	strcpy(pname, plan);
-	conn->discardp[conn->num_discardp++] = pname; 
+		(cnt * sizeof(char *)), conn, "Couldn't alloc discardp.", -1);
+	CC_MALLOC_return_with_error(pname, char, (strlen(plan) + 2),
+		conn, "Couldn't alloc discardp mem.", -1);
+	pname[0] = (char) type;	/* 's':prepared statement 'p':cursor */
+	strcpy(pname + 1, plan);
+	conn->discardp[conn->num_discardp++] = pname;
+
 	return 1;
 }
-int	CC_discard_marked_plans(ConnectionClass *conn)
+int	CC_discard_marked_objects(ConnectionClass *conn)
 {
 	int	i, cnt;
 	QResultClass *res;
-	char	cmd[32];
+	char	*pname, cmd[64];
 
 	if ((cnt = conn->num_discardp) <= 0)
 		return 0;
 	for (i = cnt - 1; i >= 0; i--)
 	{
-		sprintf(cmd, "DEALLOCATE \"%s\"", conn->discardp[i]);
-		res = CC_send_query(conn, cmd, NULL, CLEAR_RESULT_ON_ABORT);
-		if (res)
-		{
-			QR_Destructor(res);
-			free(conn->discardp[i]);
-			conn->num_discardp--;
-		}
+		pname = conn->discardp[i];
+		if ('s' == pname[0])
+        		snprintf(cmd, sizeof(cmd), "DEALLOCATE \"%s\"", pname + 1);
 		else
-			return -1;
-	}
-	return 1;
-}
-
-
-static void
-CC_handle_notice(void *arg, const char *msg)
-{
-       QResultClass    *qres;
-
-       qres = (QResultClass*)(arg);
-
-       if (qres == NULL)
-       {
-           /* Log the notice to stderr and any logs 'cos */
-           /* there's not much else we can do with it.   */
-           fprintf(stderr, "NOTICE from backend outside of a query: '%s'\n", msg);
-           mylog("~~~ NOTICE: '%s'\n", msg);
-           qlog("NOTICE from backend outside of a query: '%s'\n", msg);
-           return;
-       }
-
-       if (QR_command_successful(qres))
-       {
-               QR_set_status(qres, PGRES_NONFATAL_ERROR);
-               QR_set_notice(qres, msg);       /* will dup this string */
-               mylog("~~~ NOTICE: '%s'\n", msg);
-               qlog("NOTICE from backend during send_query: '%s'\n", msg);
-       }
-}
-
-/*
- *	Connection class implementation using libpq.
- *	Memory Allocation for PGconn is handled by libpq.
- */
-ConnectionClass *
-CC_Constructor()
-{
-	ConnectionClass *rv;
-
-	rv = (ConnectionClass *) malloc(sizeof(ConnectionClass));
-
-	if (rv != NULL)
-	{
-		rv->henv = NULL;		/* not yet associated with an environment */
-
-		rv->__error_message = NULL;
-		rv->__error_number = 0;
-		rv->errormsg_created = FALSE;
-		rv->__sqlstate[0] = '\0';
-
-		rv->status = CONN_NOT_CONNECTED;
-		rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
-
-		CC_conninfo_init(&(rv->connInfo));
-		rv->stmts = (StatementClass **) malloc(sizeof(StatementClass *) * STMT_INCREMENT);
-		if (!rv->stmts)
-        {
-            free(rv);
-			return NULL;
-        }
-		memset(rv->stmts, 0, sizeof(StatementClass *) * STMT_INCREMENT);
-
-		rv->num_stmts = STMT_INCREMENT;
-		rv->descs = (DescriptorClass **) malloc(sizeof(DescriptorClass *) * STMT_INCREMENT);
-		if (!rv->descs)
-        {
-            free(rv->stmts);
-            free(rv);
-			return NULL;
-        }
-		memset(rv->descs, 0, sizeof(DescriptorClass *) * STMT_INCREMENT);
-
-		rv->num_descs = STMT_INCREMENT;
-
-		rv->lobj_type = PG_TYPE_LO_UNDEFINED;
-
-		rv->ntables = 0;
-		rv->col_info = NULL;
-
-		rv->translation_option = 0;
-		rv->translation_handle = NULL;
-		rv->DataSourceToDriver = NULL;
-		rv->DriverToDataSource = NULL;
-		rv->driver_version = ODBCVER;
-		memset(rv->pg_version, 0, sizeof(rv->pg_version));
-		rv->pg_version_number = .0;
-		rv->pg_version_major = 0;
-		rv->pg_version_minor = 0;
-		rv->ms_jet = 0;
-		rv->unicode = 0;
-		rv->result_uncommitted = 0;
-		rv->schema_support = 0;
-		rv->isolation = SQL_TXN_READ_COMMITTED;
-		rv->client_encoding = NULL;
-		rv->server_encoding = NULL;
-		rv->current_schema = NULL;
-		rv->num_discardp = 0;
-		rv->discardp = NULL;
-		rv->pgconn = NULL;
-
-		/* Initialize statement options to defaults */
-		/* Statements under this conn will inherit these options */
-
-		InitializeStatementOptions(&rv->stmtOptions);
-		InitializeARDFields(&rv->ardOptions);
-		InitializeAPDFields(&rv->apdOptions);
-		INIT_CONN_CS(rv);
-	}
-	return rv;
-}
-
-
-char
-CC_Destructor(ConnectionClass *self)
-{
-	mylog("enter CC_Destructor, self=%u\n", self);
-
-	if (self->status == CONN_EXECUTING)
-		return 0;
-
-	CC_cleanup(self);			/* cleanup libpq connection class and statements */
-
-	mylog("after CC_Cleanup\n");
-
-	/* Free up statement holders */
-	if (self->stmts)
-	{
-		free(self->stmts);
-		self->stmts = NULL;
-	}
-
-	if (self->descs)
-	{
-		free(self->descs);
-		self->descs = NULL;
-	}
-
-	mylog("after free statement holders\n");
-
-	if (self->__error_message)
-		free(self->__error_message);
-	DELETE_CONN_CS(self);
-	free(self);
-
-	mylog("exit CC_Destructor\n");
-
-	return 1;
-}
-
-/* This is called by SQLDisconnect also */
-char
-CC_cleanup(ConnectionClass *self)
-{
-	int			i;
-	StatementClass *stmt;
-	DescriptorClass *desc;
-
-	if (self->status == CONN_EXECUTING)
-		return FALSE;
-
-	mylog("in CC_Cleanup, self=%u\n", self);
-
-	/* Cancel an ongoing transaction */
-	/* We are always in the middle of a transaction, */
-	/* even if we are in auto commit. */
-	if (self->pgconn)
-	{
-		CC_abort(self);
-
-		mylog("after CC_abort\n");
-
-		/* This closes the connection to the database */
-		LIBPQ_Destructor(self->pgconn);
-		self->pgconn = NULL;
-	}
-
-	mylog("after LIBPQ destructor\n");
-
-	/* Free all the stmts on this connection */
-	for (i = 0; i < self->num_stmts; i++)
-	{
-		stmt = self->stmts[i];
-		if (stmt)
-		{
-			stmt->hdbc = NULL;	/* prevent any more dbase interactions */
-
-			SC_Destructor(stmt);
-
-			self->stmts[i] = NULL;
-		}
-	}
-
-	/* Free all the descs on this connection */
-	for (i = 0; i < self->num_descs; i++)
-	{
-		desc = self->descs[i];
-		if (desc)
-		{
-			DC_get_conn(desc) = NULL;	/* prevent any more dbase interactions */
-			DC_Destructor(desc);
-			free(desc);
-			self->descs[i] = NULL;
-		}
-	}
-
-	/* Check for translation dll */
-#ifdef WIN32
-	if (self->translation_handle)
-	{
-		FreeLibrary(self->translation_handle);
-		self->translation_handle = NULL;
-	}
-#endif
-
-	self->status = CONN_NOT_CONNECTED;
-	self->transact_status = CONN_IN_AUTOCOMMIT;
-	CC_conninfo_init(&(self->connInfo));
-	if (self->client_encoding)
-	{
-		free(self->client_encoding);
-		self->client_encoding = NULL;
-	}
-	if (self->server_encoding)
-	{
-		free(self->server_encoding);
-		self->server_encoding = NULL;
-	}
-	if (self->current_schema)
-	{
-		free(self->current_schema);
-		self->current_schema = NULL;
-	}
-	/* Free cached table info */
-	if (self->col_info)
-	{
-		for (i = 0; i < self->ntables; i++)
-		{
-			if (self->col_info[i]->result)	/* Free the SQLColumns result structure */
-				QR_Destructor(self->col_info[i]->result);
-
-			if (self->col_info[i]->schema)
-				free(self->col_info[i]->schema);
-			free(self->col_info[i]);
-		}
-		free(self->col_info);
-		self->col_info = NULL;
-	}
-	self->ntables = 0;
-	if (self->num_discardp > 0 && self->discardp)
-	{
-		for (i = 0; i < self->num_discardp; i++)
-			free(self->discardp[i]);
-		self->num_discardp = 0;
-	}
-	if (self->discardp)
-	{
-		free(self->discardp);
-		self->discardp = NULL;
-	}
-
-	mylog("exit CC_Cleanup\n");
-	return TRUE;
-}
-
-
-char
-CC_connect(ConnectionClass *self, char password_req, char *salt_para)
-{
-	/* ignore salt_para for now */
-	/* QResultClass *res; */
-	PGconn *pgconn;
-	ConnInfo   *ci = &(self->connInfo);
-	int			connect_return;
-	char	   *encoding;
-	/* char	   *conninfo; */
-	CSTR		func = "CC_connect";
-
-	mylog("%s: entering...\n", func);
-
-	if (password_req != AUTH_REQ_OK)
-
-		/* already connected, just authenticate */
-		pgconn = self->pgconn;
-
-	else
-	{
-		qlog("Global Options: Version='%s', fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
-			 POSTGRESDRIVERVERSION,
-			 ci->drivers.fetch_max,
-			 ci->drivers.unknown_sizes,
-			 ci->drivers.max_varchar_size,
-			 ci->drivers.max_longvarchar_size);
-		qlog("                disable_optimizer=%d, ksqo=%d, unique_index=%d, use_declarefetch=%d\n",
-			 ci->drivers.disable_optimizer,
-			 ci->drivers.ksqo,
-			 ci->drivers.unique_index,
-			 ci->drivers.use_declarefetch);
-		qlog("                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
-			 ci->drivers.text_as_longvarchar,
-			 ci->drivers.unknowns_as_longvarchar,
-			 ci->drivers.bools_as_char,
-			 TABLE_NAME_STORAGE_LEN);
-
-		encoding = check_client_encoding(ci->conn_settings);
-		if (encoding && strcmp(encoding, "OTHER"))
-			self->client_encoding = strdup(encoding);
-		else
-		{
-			encoding = check_client_encoding(ci->drivers.conn_settings);
-			if (encoding && strcmp(encoding, "OTHER"))
-				self->client_encoding = strdup(encoding);
-		}
-		if (self->client_encoding)
-			self->ccsc = pg_CS_code(self->client_encoding);
-		qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
-			 ci->drivers.extra_systable_prefixes,
-			 ci->drivers.conn_settings,
-			 encoding ? encoding : "");
-
-		if (self->status != CONN_NOT_CONNECTED)
-		{
-			CC_set_error(self, CONN_OPENDB_ERROR, "Already connected.");
-			return 0;
-		}
-
-		if (ci->port[0] == '\0' ||
-#ifdef	WIN32
-			ci->server[0] == '\0' ||
-#endif /* WIN32 */
-			ci->database[0] == '\0')
-		{
-			CC_set_error(self, CONN_INIREAD_ERROR, "Missing server name, port, or database name in call to CC_connect.");
-			return 0;
-		}
-
-		mylog("CC_connect(): DSN = '%s', server = '%s', port = '%s', sslmode = '%s',"
-		      " database = '%s', username = '%s',"
-		      " password='%s'\n", ci->dsn, ci->server, ci->port, ci->sslmode,
-		      ci->database, ci->username, ci->password ? "xxxxx" : "");
-
-
-		mylog("connecting to the server \n");
-
-		connect_return = LIBPQ_connect(self);
-		if(0 == connect_return)
-            return 0;
-
-		mylog("connection to the database succeeded.\n");
-
-	}
-
-	CC_clear_error(self);		/* clear any password error */
-
-	CC_set_translation(self);
-
-	/*
-	 * Send any initial settings
-	 */
-
-	/*
-	 * Get the version number first so we can check it before sending options
-	 * that are now obsolete. DJP 21/06/2002
-	 */
-
-	CC_lookup_pg_version(self);		/* Get PostgreSQL version for
-						   SQLGetInfo use */
-	/*
-	 * Since these functions allocate statements, and since the connection
-	 * is not established yet, it would violate odbc state transition
-	 * rules.  Therefore, these functions call the corresponding local
-	 * function instead.
-	 */
-	CC_send_settings(self);
-	CC_clear_error(self);			/* clear any error */
-	CC_lookup_lo(self);			/* a hack to get the oid of
-						   our large object oid type */
-
-	/*
-	 *	Multibyte handling is available ?
-	 */
-	if (PG_VERSION_GE(self, 6.4))
-	{
-		CC_lookup_characterset(self);
-		if (CC_get_errornumber(self) != 0)
-			return 0;
-#ifdef UNICODE_SUPPORT
-		if (self->unicode)
-		{
-			if (!self->client_encoding ||
-			    stricmp(self->client_encoding, "UNICODE"))
-			{
-				QResultClass	*res;
-				if (PG_VERSION_LT(self, 7.1))
-				{
-					CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "UTF-8 conversion isn't implemented before 7.1");
-					return 0;
-				}
-				if (self->client_encoding)
-					free(self->client_encoding);
-				self->client_encoding = NULL;
-				res = LIBPQ_execute_query(self,"set client_encoding to 'UTF8'");
-				if (res)
-				{
-					self->client_encoding = strdup("UNICODE");
-					self->ccsc = pg_CS_code(self->client_encoding);
-					QR_Destructor(res);
-
-				}
-			}
-		}
-#else 	 
-		{ 	 
-		} 	 
-#endif /* UNICODE_SUPPORT */ 	 
-	}
-#ifdef UNICODE_SUPPORT
-	else if (self->unicode)
-	{
-		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "Unicode isn't supported before 6.4");
-		return 0;
-	}
-#endif /* UNICODE_SUPPORT */
-	ci->updatable_cursors = 0;
-#ifdef	DRIVER_CURSOR_IMPLEMENT
-	if (!ci->drivers.use_declarefetch &&
-		PG_VERSION_GE(self, 7.0)) /* Tid scan since 7.0 */
-		ci->updatable_cursors = ci->allow_keyset;
-#endif /* DRIVER_CURSOR_IMPLEMENT */
-
-	if (!CC_is_in_autocommit(self))
-		CC_commit(self);
-
-	CC_clear_error(self);		/* clear any initial command errors */
-	self->status = CONN_CONNECTED;
-
-	mylog("%s: returning...\n", func);
-
-	return 1;
-
-}
-
-
-/*
- *	Create a more informative error message by concatenating the connection
- *	error message with its libpq error message.
- */
-char *
-CC_create_errormsg(ConnectionClass *self)
-{
-	char	 msg[4096];
-
-	mylog("enter CC_create_errormsg\n");
-
-	msg[0] = '\0';
-
-	if (CC_get_errormsg(self))
-		strncpy(msg, CC_get_errormsg(self), sizeof(msg));
-
-	mylog("msg = '%s'\n", msg);
-
-	mylog("exit CC_create_errormsg\n");
-	return msg ? strdup(msg) : NULL;
-}
-
-
-void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
-{
-	BOOL	set_no_trans = FALSE;
-
-	if (0 != (opt & CONN_DEAD))
-		opt |= NO_TRANS;
-	if (CC_is_in_trans(conn))
-	{
-#ifdef	DRIVER_CURSOR_IMPLEMENT
-		if (conn->result_uncommitted)
-			ProcessRollback(conn, TRUE);
-#endif /* DRIVER_CURSOR_IMPLEMENT */
-		if (0 != (opt & NO_TRANS))
-		{
-			CC_set_no_trans(conn);
-			CC_set_no_manual_trans(conn);
-			set_no_trans = TRUE;
-		}
-	}
-	CC_clear_cursors(conn, TRUE);
-	if (0 != (opt & CONN_DEAD))
-	{
-		conn->status = CONN_DOWN;
-		if (conn->pgconn)
-		{
-			LIBPQ_Destructor(conn->pgconn);
-			conn->pgconn = NULL;
-		}
-	}
-	else if (set_no_trans)
-		CC_discard_marked_plans(conn);
-	conn->result_uncommitted = 0;
-}
-
-/*
- *	The "result_in" is only used by QR_next_tuple() to fetch another group of rows into
- *	the same existing QResultClass (this occurs when the tuple cache is depleted and
- *	needs to be re-filled).
- *
- *	The "cursor" is used by SQLExecute to associate a statement handle as the cursor name
- *	(i.e., C3326857) for SQL select statements.  This cursor is then used in future
- *	'declare cursor C3326857 for ...' and 'fetch 100 in C3326857' statements.
- */
-QResultClass *
-CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag)
-{
-	QResultClass *cmdres = NULL,
-			     *retres = NULL,
-			     *res ;
-	BOOL	clear_result_on_abort = ((flag & CLEAR_RESULT_ON_ABORT) != 0),
-			create_keyset = ((flag & CREATE_KEYSET) != 0),
-			issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self));
-	PGconn *pgconn = self->pgconn;
-	int			maxlen;
-	BOOL		used_passed_result_object = FALSE;
-	int		func_cs_count = 0;
-
-
-	mylog("send_query(): conn=%u, query='%s'\n", self, query);
-	qlog("conn=%u, query='%s'\n", self, query);
-
-	if (!self->pgconn)
-	{
-		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query(connection dead)");
-		CC_on_abort(self, NO_TRANS);
-		return NULL;
-	}
-	/* Indicate that we are sending a query to the backend */
-	maxlen = CC_get_max_query_len(self);
-	if (maxlen > 0 && maxlen < (int) strlen(query) + 1)
-	{
-		CC_set_error(self, CONNECTION_MSG_TOO_LONG, "Query string is too long");
-		return NULL;
-	}
-
-	if ((NULL == query) || (query[0] == '\0'))
-		return NULL;
-
-#define	return DONT_CALL_RETURN_FROM_HERE???
-	ENTER_INNER_CONN_CS(self, func_cs_count);
-
-	if (issue_begin)
-    {
-		res = LIBPQ_execute_query(self,"BEGIN");
-		if ((!res) || (res->status != PGRES_COMMAND_OK))
-		{
-			CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend");
-			CC_on_abort(self, NO_TRANS | CONN_DEAD);
-			QR_Destructor(res);
-			res = NULL;
-			goto cleanup;
-		}
-    }
-    
-	res = LIBPQ_execute_query(self,query);
-
-	if(!res)
-	{
-		goto cleanup;
-	}
-#ifdef NOT_USED
-	else if ((res->status == PGRES_EMPTY_QUERY) || (res->status == PGRES_FATAL_ERROR) ||
-		     (res->status == PGRES_BAD_RESPONSE))
-	{
-		mylog("send_query: failed -> abort\n");
-		QR_set_aborted(res, TRUE);
+        		snprintf(cmd, sizeof(cmd), "CLOSE \"%s\"", pname + 1);
+		res = CC_send_query(conn, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 		QR_Destructor(res);
-        res = NULL;
-		goto cleanup;
+		free(conn->discardp[i]);
+		conn->num_discardp--;
 	}
-#endif /* NOT_USED */
-	else if  (res->status == PGRES_COMMAND_OK)
-	{
-		mylog("send_query: done sending command\n");
-		goto cleanup;
-	}
-	else
-	{
-		mylog("send_query: done sending query with status: %i\n",res->status);
 
-		cmdres = qi ? qi->result_in : NULL;
-		if (cmdres)
-			used_passed_result_object = TRUE;
-		if (!used_passed_result_object)
+	return 1;
+}
+
+static int
+LIBPQ_connect(ConnectionClass *self)
+{
+	CSTR	func = "LIBPQ_connect";
+	char	ret = 0;
+	char *conninfo = NULL;
+	void		*pqconn = NULL;
+	SocketClass	*sock;
+	int	socket = -1, pqret;
+	BOOL	libpqLoaded;
+
+	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
+	sock = self->sock;
+inolog("sock=%x\n", sock);
+	if (!sock)
+	{
+		sock = SOCK_Constructor(self);
+		if (!sock)
 		{
-			if ((res->status == PGRES_EMPTY_QUERY) || (res->status == PGRES_BAD_RESPONSE))
-			{
-				mylog("send_query: sending query failed -> abort\n");
-				QR_set_aborted(res, TRUE);
-				QR_Destructor(res);
-				res = NULL;
-				goto cleanup;
-			}
-			else if (res->status == PGRES_FATAL_ERROR)
-			{
-				mylog("send_query: sended query failed -> abort\n");
-				QR_set_aborted(res, TRUE);
-				goto cleanup;
-			}
-			if (create_keyset)
-				QR_set_haskeyset(res->next);
-			if (!QR_fetch_tuples(res, self, qi ? qi->cursor : NULL))
-			{
-				CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res));
-			}
-		}
-		else
-		{
-			/* next fetch, so reuse an existing result */
-			mylog("send_query: next fetch -> reuse result\n");
-			if (!QR_fetch_tuples(res, NULL, NULL))
-			{
-				CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res));
-				if (PGRES_FATAL_ERROR == QR_get_status(res))
-				{
-					QR_set_aborted(res, TRUE);
-					retres = cmdres;
-				}
-			}
+			CC_set_error(self, CONN_OPENDB_ERROR, "Could not construct a socket to the server", func);
+			goto cleanup1;
 		}
 	}
 
-cleanup:
-	CLEANUP_FUNC_CONN_CS(func_cs_count, self);
-#undef	return
-	/*
-	 * Cleanup the aborted result if specified
-	 */
-	if (retres)
+	if (!(conninfo = protocol3_opts_build(self)))
 	{
-		/*
-		 *	discard results other than errors.
-		 */
-		QResultClass	*qres;
-		for (qres = retres; qres->next; qres = retres)
+		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
+		goto cleanup1;
+	}
+	pqconn = CALL_PQconnectdb(conninfo, &libpqLoaded);
+	free(conninfo);
+	if (!libpqLoaded)
+	{
+		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't load libpq library", func);
+		goto cleanup1;
+	}
+	sock->via_libpq = TRUE;
+	if (!pqconn)
+	{
+		CC_set_error(self, CONN_OPENDB_ERROR, "PQconnectdb error", func);
+		goto cleanup1;
+	}
+	sock->pqconn = pqconn;
+	pqret = PQstatus(pqconn);
+	if (CONNECTION_OK != pqret)
+	{
+		const char	*errmsg;
+inolog("status=%d\n", pqret);
+		errmsg = PQerrorMessage(pqconn);
+		if (CONNECTION_BAD == pqret && strstr(errmsg, "no password"))
 		{
-			if (QR_get_aborted(qres))
+			mylog("password retry\n");
+			PQfinish(pqconn);
+			self->sock = sock;
+			return -1;
+		}
+		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
+		mylog("Could not establish connection to the database; LIBPQ returned -> %s\n", errmsg);
+		goto cleanup1;
+	}
+	ret = 1;
+ 
+cleanup1:
+	if (!ret)
+	{
+		if (sock)
+			SOCK_Destructor(sock);
+		self->sock = NULL;
+		return ret;
+	}
+	mylog("libpq connection to the database succeeded.\n");
+	ret = 0;
+	socket = PQsocket(pqconn);
+inolog("socket=%d\n", socket);
+	sock->socket = socket;
+	sock->ssl = PQgetssl(pqconn);
+	{
+		int	pversion;
+		ConnInfo	*ci = &self->connInfo;
+
+		sock->pversion = PG_PROTOCOL_74;
+		strcpy(ci->protocol, PG74);
+		pversion = PQprotocolVersion(pqconn);
+		switch (pversion)
+		{
+			case 2:
+				sock->pversion = PG_PROTOCOL_64;
+				strcpy(ci->protocol, PG64);
 				break;
-			retres = qres->next;
-			qres->next = NULL;
-			QR_Destructor(qres);
 		}
-		/*
-		 *	If error message isn't set
-		 */
-		if (retres && (!CC_get_errormsg(self) || !CC_get_errormsg(self)[0]))
-			CC_set_errormsg(self, QR_get_message(retres));
 	}
-	return res;
-}
-
-int
-CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *args, int nargs)
-{
-	char			done;
-
-	mylog("send_function(): conn=%u, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
-
-	if (!self->pgconn)
+	mylog("procotol=%s\n", self->connInfo.protocol);
 	{
-		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function(connection dead)");
-		CC_on_abort(self, NO_TRANS);
-		return FALSE;
+		int pversion, on;
+
+		pversion = PQserverVersion(pqconn);
+		self->pg_version_major = pversion / 10000;
+		self->pg_version_minor = (pversion % 10000) / 100;
+		sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
+		self->pg_version_number = (float) atof(self->pg_version);
+		if (PG_VERSION_GE(self, 7.3))
+			self->schema_support = 1;
+		/* blocking mode */
+		/* ioctlsocket(sock, FIONBIO , 0);
+		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof(on)); */
 	}
-
-	mylog("send_function: done sending function\n");
-
-	/* Need to implement this */
-
-	mylog("    done sending args\n");
-
-	mylog("  after flush output\n");
-
-	done = FALSE;
-	return TRUE;
-}
-
-
-void
-CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
-{
-#ifdef PRN_NULLCHECK
-#define nullcheck(a) (a ? a : "(NULL)")
-#endif
-
-	if (self)
+	if (sock->ssl)
 	{
-		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, sqlstate=%s, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__sqlstate), nullcheck(self->__error_message));
-		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, sqlstate=%s, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__sqlstate), nullcheck(self->__error_message));
-		qlog("            ------------------------------------------------------------\n");
-		qlog("            henv=%u, conn=%u, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
+		/* flags = fcntl(sock, F_GETFL);
+		fcntl(sock, F_SETFL, flags & (~O_NONBLOCKING));*/
+	}
+	mylog("Server version=%s\n", self->pg_version);
+	ret = 1;
+	if (ret)
+	{
+		self->sock = sock;
+		if (!CC_get_username(self)[0])
+		{
+			mylog("PQuser=%s\n", PQuser(pqconn));
+			strcpy(self->connInfo.username, PQuser(pqconn));
+		}
 	}
 	else
 	{
-		qlog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
-		mylog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+		SOCK_Destructor(sock);
+		self->sock = NULL;
 	}
-#undef PRN_NULLCHECK
-}
-
-
-int
-CC_send_cancel_request(const ConnectionClass *conn)
-{
-	int			ret = 0,errbufsize=256;
-	char		errbuf[256];
-	PGcancel	*cancel;
-
-
-	cancel = PQgetCancel(conn->pgconn);
-	if(!cancel)
-	{
-		PQfreeCancel(cancel);
-		return FALSE;
-	}
-	ret=PQcancel(cancel, errbuf,errbufsize);
-	if(1 == ret)
-		return TRUE;
-	else
-	{
-		PQfreeCancel(cancel);
-		return FALSE;
-	}
+	
+	mylog("%s: retuning %d\n", func, ret);
 	return ret;
 }
 
-
-void
-LIBPQ_Destructor(PGconn *pgconn)
+static int
+LIBPQ_send_cancel_request(const ConnectionClass *conn)
 {
-	mylog("entering PGCONN_Destructor \n");
-	PQfinish(pgconn);
-	mylog("exiting PGCONN_Destructor \n");
-}
+	int	ret = 0;
+	char	errbuf[256];
+	void	*cancel;
+	SocketClass	*sock = CC_get_socket(conn);
 
-
-int
-LIBPQ_connect(ConnectionClass *self)
-{
-	char *conninfo;
-	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
-	if(self->connInfo.server != '\0')
-	{
-		conninfo = (char *)malloc((sizeof(char) * strlen(" host=") + strlen(self->connInfo.server) + 1));
-		if(!conninfo)
-		{
-			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(server)");
-            CC_set_sqlstate(self, "08000");
-			mylog("could not allocate memory for server \n");
-            return 0;
-		}
-		conninfo = strcpy(conninfo," host=");
-		conninfo = strcat(conninfo,self->connInfo.server);
-
-	}
-	mylog("the size is %d \n",strlen(conninfo));
-	if(self->connInfo.port[0] != '\0')
-	{
-		size_t size=(sizeof(char) * (strlen(" port=") + strlen(self->connInfo.port) + 1));
-		conninfo = (char *)realloc(conninfo,size+strlen(conninfo));
-		if(!conninfo)
-		{
-			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(port)");
-            CC_set_sqlstate(self, "08000");
-			mylog("could not allocate memory for port \n");
-            return 0;
-		}
-		conninfo = strcat(conninfo," port=");
-		conninfo = strcat(conninfo,self->connInfo.port);
-	}
-
-
-	if(self->connInfo.database[0] != '\0')
-	{
-		size_t size= (sizeof(char) * (strlen(" dbname=") + strlen(self->connInfo.database) + 1));
-		conninfo = (char *)realloc(conninfo,size+strlen(conninfo));
-		if(!conninfo)
-		{
-			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(database)");
-            CC_set_sqlstate(self, "08000");
-			mylog("i could not allocate memory for dbname \n");
-            return 0;
-		}
-		conninfo = strcat(conninfo," dbname=");
-		conninfo = strcat(conninfo,self->connInfo.database);
-	}
-
-
-	if(self->connInfo.username[0] != '\0')
-	{
-		size_t size = (sizeof(char) * (strlen(" user=") + strlen(self->connInfo.username) + 1));
-		conninfo = (char *)realloc(conninfo,size+strlen(conninfo));
-		if(!conninfo)
-		{
-			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(username)");
-            CC_set_sqlstate(self, "08000");
-			mylog("i could not allocate memory for username \n");
-            return 0;
-		}
-		conninfo = strcat(conninfo," user=");
-		conninfo = strcat(conninfo,self->connInfo.username);
-	}
-
-
-	if(self->connInfo.sslmode[0] != '\0')
-	{
-		size_t size = (sizeof(char) * (strlen(" sslmode=") + strlen(self->connInfo.sslmode) + 1));
-		conninfo = (char *)realloc(conninfo,size+strlen(conninfo));
-		if(!conninfo)
-		{
-			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(sslmode)");
-            CC_set_sqlstate(self, "08000");
-			mylog("i could not allocate memory for sslmode \n");
-            return 0;
-		}
-		conninfo = strcat(conninfo," sslmode=");
-		conninfo = strcat(conninfo,self->connInfo.sslmode);
-	}
-    
-	if(self->connInfo.password[0] != '\0')
-	{
-		size_t size = (sizeof(char) * (strlen(" password=") + strlen(self->connInfo.password) + 1));
-		conninfo = (char *)realloc(conninfo,size+strlen(conninfo));
-		if(!conninfo)
-		{
-			CC_set_error(self, CONN_MEMORY_ALLOCATION_FAILED,"Could not allocate memory for connection string(password)");
-            CC_set_sqlstate(self, "08000");
-			mylog("i could not allocate memory for password \n");
-            return 0;
-		}
-		conninfo = strcat(conninfo," password=");
-		conninfo = strcat(conninfo,self->connInfo.password);
-	}
-
-	self->pgconn = PQconnectdb(conninfo);
-	if (PQstatus(self->pgconn) != CONNECTION_OK)
-	{
-		CC_set_error(self,CONNECTION_COULD_NOT_ESTABLISH, PQerrorMessage(self->pgconn));
-        CC_set_sqlstate(self, "08001");
-		mylog("Could not establish connection to the database; LIBPQ returned -> %s \n",PQerrorMessage(self->pgconn));
-		PQfinish(self->pgconn);
-        self->pgconn = NULL;
-		free(conninfo);
-		return 0;
-	}
-	/* free the conninfo structure */
-	free(conninfo);
- 
-    /* setup the notice handler */
-    PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
-
-    mylog("connection to the database succeeded.\n");
-	return 1;
-}
-
-
-QResultClass *
-LIBPQ_execute_query(ConnectionClass *self,char *query)
-{
-	QResultClass	*qres;
-	PGresult	*pgres = NULL, *pgresnew = NULL;
-	char		errbuffer[ERROR_MSG_LENGTH + 1];
-	int		pos=0;
-
-	mylog("LIBPQ_execute_query: entering ...\n");
-	qres=QR_Constructor();
-	if(!qres)
-	{
-		CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not allocate memory for result set");
-		CC_on_abort(self, CONN_DEAD);
-		QR_Destructor(qres);
-		return NULL;
-	}
-
-	PQsetNoticeProcessor(self->pgconn, CC_handle_notice, qres);
-	if (!PQsendQuery(self->pgconn,query))
-	{
-		CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not send query to backend");
-		CC_on_abort(self, CONN_DEAD);
-		QR_Destructor(qres);
-		return NULL;
-	}
-	while (pgresnew = PQgetResult(self->pgconn))
-	{
-		mylog("LIBPQ_execute_query: get next result with status = %i\n",PQresultStatus(pgresnew));
-		if (pgres)
-			PQclear(pgres);
-		pgres = pgresnew;
-	}
-	PQsetNoticeProcessor(self->pgconn, CC_handle_notice, NULL);
-
-	mylog("LIBPQ_execute_query: query = %s\n",query);
-
-	qres->status = PQresultStatus(pgres);
-	
-	/* Check the connection status */
-	if(PQstatus(self->pgconn) == CONNECTION_BAD)
-	{
-		snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
-		/* Remove the training CR that libpq adds to the message */
-		pos = strlen(errbuffer);
-		if (pos)
-			errbuffer[pos - 1] = '\0';
+	if (!sock)
+		return FALSE;
 		
-		mylog("The server could be dead: %s\n", errbuffer);
-		CC_set_error(self, CONNECTION_COULD_NOT_SEND, errbuffer);
-		CC_on_abort(self,CONN_DEAD);
-		PQclear(pgres);
-		return qres;
-	}
-    
-	if( (PQresultStatus(pgres) == PGRES_COMMAND_OK) )
-	{
-		if ((strnicmp(query, "BEGIN", 5) == 0) ||
-		    (strnicmp(query, "START TRANSACTION", 17) == 0))
-			CC_set_in_trans(self);
-		else if ((strnicmp(query, "COMMIT", 6) == 0) ||
-		         (strnicmp(query, "END", 3) == 0))
-			CC_on_commit(self);
-		else if (strnicmp(query, "ROLLBACK", 8) == 0)
-		{
-			/* 
-			   The method of ROLLBACK an original form ....
-			   ROLLBACK [ WORK | TRANSACTION ] TO [ SAVEPOINT ] savepoint_name
-			 */
-			if (PG_VERSION_LT(self, 8.0) || !(contains_token(query, " TO ")))
-				CC_on_abort(self, NO_TRANS);
-		}
-		else if (strnicmp(query, "ABORT", 5) == 0)
-			CC_on_abort(self, NO_TRANS);
-		else
-		{
-			if (PQcmdTuples(pgres)[0])
-				qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
-			else
-				qres->recent_processed_row_count = -1;
-			mylog("LIBPQ_execute_query: recent_processed_row_count = %i\n",qres->recent_processed_row_count);
-		}
-		mylog("The query was executed successfully and the query did not return any result \n");
-		PQclear(pgres);
-		return qres;
-	}
-
-	if ( (PQresultStatus(pgres) != PGRES_EMPTY_QUERY) && (PQresultStatus(pgres) != PGRES_TUPLES_OK) )
-	{
-		snprintf(errbuffer, ERROR_MSG_LENGTH, "%s", PQerrorMessage(self->pgconn));
-		
-		/* Remove the training CR that libpq adds to the message */
-		pos = strlen(errbuffer);
-		if (pos)
-			errbuffer[pos - 1] = '\0';
-
-		mylog("the server returned the error: %s\n", errbuffer);
-		CC_set_error(self, CONNECTION_SERVER_REPORTED_ERROR, errbuffer);
-		CC_set_sqlstate(self, PQresultErrorField(pgres, PG_DIAG_SQLSTATE));
-
-		PQclear(pgres);
-		return qres;
-	}
-
-	mylog("LIBPQ_execute_query: rest types ...\n");
-
-	if (PQcmdTuples(pgres)[0])
-		qres->recent_processed_row_count = atoi(PQcmdTuples(pgres));
-	else if (self->connInfo.drivers.use_declarefetch)
-		qres->recent_processed_row_count = -1;
+	cancel = PQgetCancel(sock->pqconn);
+	if(!cancel)
+		return FALSE;
+	ret = PQcancel(cancel, errbuf, sizeof(errbuf));
+	PQfreeCancel(cancel);
+	if(1 == ret)
+		return TRUE;
 	else
-		qres->recent_processed_row_count = PQntuples(pgres);
-	mylog("LIBPQ_execute_query: recent_processed_row_count = %i\n",qres->recent_processed_row_count);
-
-	qres=CC_mapping(self,pgres,qres);
-	QR_set_command(qres, query);
-	PQclear(pgres);
-	return qres;
+		return FALSE;
 }
-
-/*
- *	This function populates the manual_tuples of QResultClass using PGresult class.
- */
-
-QResultClass *
-CC_mapping(ConnectionClass *self, PGresult *pgres,QResultClass *qres)
-{
-	CSTR func = "CC_mapping";
-	int i=0,j=0;
-	TupleNode *node, *temp;
-	Oid typid;
-	int atttypmod,typlen;
-	int num_attributes = PQnfields(pgres);
-	int num_tuples = PQntuples(pgres);
-	ConnInfo   *ci = &(self->connInfo);
-
-	mylog("%s: entering ...\n",func);
-	CI_set_num_fields(qres->fields, num_attributes);
-	mylog("%s: rows = %i, columns = %i\n",func,num_tuples,num_attributes);
-	for(i = 0 ; i < num_attributes ; i++)
-	{
-		mylog("%s: column = %i\n",func,i);
-		typid = PQftype(pgres,i);
-		atttypmod = PQfmod(pgres,i);
-        
-		/* Setup the typmod */
-		switch (typid)
-		{
-			case PG_TYPE_DATETIME:
-			case PG_TYPE_TIMESTAMP_NO_TMZONE:
-			case PG_TYPE_TIME:
-			case PG_TYPE_TIME_WITH_TMZONE:
-				break;
-			default:
-				atttypmod -= 4;
-		}
-		if (atttypmod < 0)
-			atttypmod = -1;
-        
-		/* Setup the typlen */
-		switch (typid)
-		{
-			case PG_TYPE_NUMERIC:
-				typlen = (atttypmod >> 16) & 0xffff;
-				break;
-            
-			case PG_TYPE_BPCHAR:
-			case PG_TYPE_VARCHAR:
-				typlen = atttypmod;
-				break;
-        
-			default:
-		                typlen = PQfsize(pgres,i);
-        	}
-        
-	        /* 
-	         * FIXME - The following is somewhat borked with regard to driver.unknownsizes
-	         *         It works, but basically is not aware of different variable length types
-	         *         (UNKNOWNS_AS_MAX), and UNKNOWNS_AS_LONGEST won't work because we don't
-	         *         have data at this point 
-	         */
-		if(typlen < 0)
-		{
-			switch (ci->drivers.unknown_sizes)
-			{
-				case UNKNOWNS_AS_DONTKNOW:
-					typlen = SQL_NO_TOTAL;
-					break;
-                
-				default:
-					typlen = ( ci->drivers.text_as_longvarchar ? ci->drivers.max_longvarchar_size : ci->drivers.max_varchar_size );
-			}
-		}	
-        
-		mylog("%s: set field info: name = %s, typ = %i, typlen = %i, attypmod = %i\n", func, PQfname(pgres,i), typid, (Int2)typlen, atttypmod);
-		CI_set_field_info(qres->fields, i, PQfname(pgres,i),
-			  typid, (Int2)typlen, atttypmod);
-	}
-	if (qres->manual_tuples)
-	{
-		TL_Destructor(qres->manual_tuples);
-	}
-	qres->manual_tuples = TL_Constructor(num_attributes);
-	qres->manual_tuples->num_tuples = (Int4)num_tuples;
-	for(i=0;i < num_tuples;i++)
-	{
-			node = (TupleNode *)malloc(sizeof(TupleNode) + (num_attributes ) * sizeof(TupleField));
-			if(!node)
-			{
-				QR_set_status(qres, PGRES_FATAL_ERROR);
-				QR_set_message(qres, "Error could not allocate memory for row.");
-			}
-			if (i==0)
-			{
-				qres->manual_tuples->list_start = qres->manual_tuples->list_end = node;
-				qres->manual_tuples->lastref = node;
-				qres->manual_tuples->last_indexed = 0;
-				qres->manual_tuples->list_end->next = NULL;
-			}
-			else
-			{
-				temp = qres->manual_tuples->list_end;
-				qres->manual_tuples->list_end->next = node;
-				qres->manual_tuples->list_end = node;
-				qres->manual_tuples->list_end->prev = temp;
-				qres->manual_tuples->list_end->next = NULL;
-			}
-			for(j=0;j < num_attributes ;j++)
-			{
-				/* PQgetvalue returns an empty string even the data value is null. 
-				  * An additional checking is provided to set the null value */
-				if (PQgetisnull(pgres,i,j)) 
-				{
-					mylog("%s: fetch column = %s, value = NULL\n",func,PQfname(pgres,j));
-					set_tuplefield_null(&qres->manual_tuples->list_end->tuple[j]);
-				}
-				else
-				{
-					mylog("%s: fetch column = %s, value = %s\n",func,PQfname(pgres,j),PQgetvalue(pgres,i,j));
-					set_tuplefield_string(&qres->manual_tuples->list_end->tuple[j], PQgetvalue(pgres,i,j));
-				}
-			}
-
-	}
-		return qres;
-}
-
-void
-CC_is_server_alive(ConnectionClass *conn)
-{
-	PGresult *res;
-	if((PQstatus(conn->pgconn)) != CONNECTION_OK)
-		conn->status = CONN_NOT_CONNECTED;
-	res = PQexec(conn->pgconn,"SELECT 1");
-	if(PQresultStatus(res) != PGRES_TUPLES_OK)
-	{
-		PQclear(res);
-		conn->status = CONN_DOWN;
-	}
-	else
-	{
-		PQclear(res);
-		conn->status = CONN_CONNECTED;
-	}
-
-}
-

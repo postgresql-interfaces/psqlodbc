@@ -10,16 +10,16 @@
 #define __BIND_H__
 
 #include "psqlodbc.h"
-#include <libpq-fe.h>
+#include "descriptor.h"
 
 /*
  * BindInfoClass -- stores information about a bound column
  */
 struct BindInfoClass_
 {
-	Int4	buflen;			/* size of buffer */
+	SQLLEN	buflen;			/* size of buffer */
 	char	*buffer;		/* pointer to the buffer */
-	Int4	*used;			/* used space in the buffer (for strings
+	SQLLEN	*used;			/* used space in the buffer (for strings
 					 * not counting the '\0') */
 	Int2	returntype;		/* kind of conversion to be applied when
 					 * returning (SQL_C_DEFAULT,
@@ -32,9 +32,9 @@ struct BindInfoClass_
 typedef struct
 {
 	char	*ttlbuf;		/* to save the large result */
-	Int4	ttlbuflen;		/* the buffer length */
-	Int4	ttlbufused;		/* used length of the buffer */
-	Int4	data_left;		/* amount of data left to read
+	SQLLEN	ttlbuflen;		/* the buffer length */
+	SQLLEN	ttlbufused;		/* used length of the buffer */
+	SQLLEN	data_left;		/* amount of data left to read
 					 * (SQLGetData) */
 }	GetDataClass;
 
@@ -43,9 +43,9 @@ typedef struct
  */
 struct ParameterInfoClass_
 {
-	Int4	buflen;
+	SQLLEN	buflen;
 	char	*buffer;
-	Int4	*used;
+	SQLLEN	*used;
 	Int2	CType;
 	Int2	precision;	/* the precision for numeric or timestamp type */
 	Int2	scale;		/* the scale for numeric type */
@@ -55,7 +55,7 @@ struct ParameterInfoClass_
 
 typedef struct 
 {
-	Int4	*EXEC_used;	/* amount of data */
+	SQLLEN	*EXEC_used;	/* amount of data */
 	char	*EXEC_buffer; 	/* the data */
 	Oid	lobj_oid;
 }	PutDataClass;
@@ -65,10 +65,11 @@ typedef struct
  */
 struct ParameterImplClass_
 {
+	pgNAME		paramName;	/* this is unavailable even in 8.1 */
 	Int2		paramType;
 	Int2		SQLType;
 	Int4		PGType;
-	UInt4		column_size;
+	SQLULEN		column_size;
 	Int2		decimal_digits;
 	Int2		precision;	/* the precision for numeric or timestamp type */
 	Int2		scale;		/* the scale for numeric type */
@@ -92,6 +93,7 @@ void	extend_parameter_bindings(APDFields *opts, int num_params);
 void	extend_iparameter_bindings(IPDFields *opts, int num_params);
 void	reset_a_parameter_binding(APDFields *opts, int ipar);
 void	reset_a_iparameter_binding(IPDFields *opts, int ipar);
+int	CountParameters(const StatementClass *stmt, Int2 *inCount, Int2 *ioCount, Int2 *outputCount);
 void	GetDataInfoInitialize(GetDataInfo *gdata);
 void	extend_getdata_info(GetDataInfo *gdata, int num_columns, BOOL shrink);
 void	reset_a_getdata_info(GetDataInfo *gdata, int icol);
@@ -100,5 +102,9 @@ void	PutDataInfoInitialize(PutDataInfo *pdata);
 void	extend_putdata_info(PutDataInfo *pdata, int num_params, BOOL shrink);
 void	reset_a_putdata_info(PutDataInfo *pdata, int ipar);
 void	PDATA_free_params(PutDataInfo *pdata, char option);
+void	SC_param_next(const StatementClass*, int *param_number, ParameterInfoClass **, ParameterImplClass **);
+
+RETCODE       prepareParameters(StatementClass *stmt);
+void	decideHowToPrepare(StatementClass *stmt);
 
 #endif

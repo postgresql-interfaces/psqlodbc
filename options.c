@@ -24,17 +24,11 @@
 
 
 
-RETCODE set_statement_option(ConnectionClass *conn,
-					 StatementClass *stmt,
-					 UWORD fOption,
-					 UDWORD vParam);
-
-
 RETCODE
 set_statement_option(ConnectionClass *conn,
 					 StatementClass *stmt,
-					 UWORD fOption,
-					 UDWORD vParam)
+					 SQLUSMALLINT fOption,
+					 SQLULEN vParam)
 {
 	CSTR func = "set_statement_option";
 	char		changed = FALSE;
@@ -70,7 +64,7 @@ set_statement_option(ConnectionClass *conn,
 				;
 			else if (ci->drivers.lie)
 				setval = vParam;
-			else if (ci->updatable_cursors)
+			else if (0 != ci->updatable_cursors)
 				setval = SQL_CONCUR_ROWVER;
 			if (conn)
 				conn->stmtOptions.scroll_concurrency = setval;
@@ -78,8 +72,7 @@ set_statement_option(ConnectionClass *conn,
 			{
 				if (SC_get_Result(stmt))
 				{
-					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The attr can't be changed because the cursor is open.");
-					SC_log_error(func, "", stmt);
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The attr can't be changed because the cursor is open.", func);
 					return SQL_ERROR;
 				}
 				stmt->options.scroll_concurrency =
@@ -100,29 +93,15 @@ set_statement_option(ConnectionClass *conn,
 			setval = SQL_CURSOR_FORWARD_ONLY;
 			if (ci->drivers.lie)
 				setval = vParam;
-#ifdef	DECLAREFETCH_FORWARDONLY
-			else if (ci->drivers.use_declarefetch)
-				;
-#endif /* DECLAREFETCH_FORWARDONLY */
 			else if (SQL_CURSOR_STATIC == vParam)
 				setval = vParam;
-			else if (SQL_CURSOR_KEYSET_DRIVEN == vParam)
+			else if (SQL_CURSOR_KEYSET_DRIVEN == vParam ||
+				 SQL_CURSOR_DYNAMIC == vParam)
 			{
-				if (ci->updatable_cursors)
+				if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS)) 
 					setval = vParam;
 				else
-				{
-					changed = TRUE;
 					setval = SQL_CURSOR_STATIC; /* at least scrollable */
-				}
-			}
-			else if (SQL_CURSOR_DYNAMIC == vParam)
-			{
-				changed = TRUE;
-				if (ci->updatable_cursors)
-					setval = SQL_CURSOR_KEYSET_DRIVEN;
-				else
-					setval = SQL_CURSOR_STATIC;
 			}
 			if (conn)
 				conn->stmtOptions.cursor_type = setval;
@@ -130,8 +109,7 @@ set_statement_option(ConnectionClass *conn,
 			{
 				if (SC_get_Result(stmt))
 				{
-					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The attr can't be changed because the cursor is open.");
-					SC_log_error(func, "", stmt);
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The attr can't be changed because the cursor is open.", func);
 					return SQL_ERROR;
 				}
 				stmt->options_orig.cursor_type =
@@ -157,19 +135,6 @@ set_statement_option(ConnectionClass *conn,
 			}
 
 			break;
-
-			/*-------
-			 *	if (ci->drivers.lie)
-			 *		stmt->keyset_size = vParam;
-			 *	else
-			 *	{
-			 *		stmt->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
-			 *		stmt->errormsg = "Driver does not support keyset size option";
-			 *		SC_log_error(func, "", stmt);
-			 *		return SQL_ERROR;
-			 *	}
-			 *-------
-			 */
 
 		case SQL_MAX_LENGTH:	/* ignored, but saved */
 			mylog("SetStmtOption(): SQL_MAX_LENGTH, vParam = %d\n", vParam);
@@ -243,19 +208,23 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */
 			if (stmt)
 			{
-				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.");
-				SC_log_error(func, "", stmt);
+				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.", func);
 			}
 			if (conn)
 			{
-				CC_set_error(conn, STMT_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.");
-				CC_log_error(func, "", conn);
+				CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Simulated positioned update/delete not supported.  Use the cursor library.", func);
 			}
 			return SQL_ERROR;
 
 		case SQL_USE_BOOKMARKS:
 			if (stmt)
-				stmt->options.use_bookmarks = vParam;
+			{
+#if (ODBCVER >= 0x0300)
+				mylog("USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
+#endif /* ODBCVER */
+				setval = vParam;
+				stmt->options.use_bookmarks = setval;
+			}
 			if (conn)
 				conn->stmtOptions.use_bookmarks = vParam;
 			break;
@@ -265,11 +234,11 @@ set_statement_option(ConnectionClass *conn,
 		case 1228: /* SQL_SOPT_SS_NOBROWSETABLE ? */
 			if (stmt)
 			{
-				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)");
+				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)", func);
 			}
 			else if (conn)
 			{
-				CC_set_error(conn, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)");
+				CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)", func);
 			}
 			return SQL_ERROR;
 		default:
@@ -278,13 +247,13 @@ set_statement_option(ConnectionClass *conn,
 
 				if (stmt)
 				{
-					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)");
+					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", NULL);
 					sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
 					SC_log_error(func, option, stmt);
 				}
 				if (conn)
 				{
-					CC_set_error(conn, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)");
+					CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", func);
 					sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
 					CC_log_error(func, option, conn);
 				}
@@ -297,11 +266,11 @@ set_statement_option(ConnectionClass *conn,
 	{
 		if (stmt)
 		{
-			SC_set_error(stmt, STMT_OPTION_VALUE_CHANGED, "Requested value changed.");
+			SC_set_error(stmt, STMT_OPTION_VALUE_CHANGED, "Requested value changed.", func);
 		}
 		if (conn)
 		{
-			CC_set_error(conn, STMT_OPTION_VALUE_CHANGED, "Requested value changed.");
+			CC_set_error(conn, CONN_OPTION_VALUE_CHANGED, "Requested value changed.", func);
 		}
 		return SQL_SUCCESS_WITH_INFO;
 	}
@@ -312,17 +281,17 @@ set_statement_option(ConnectionClass *conn,
 
 /* Implements only SQL_AUTOCOMMIT */
 RETCODE		SQL_API
-PGAPI_SetConnectOption(HDBC hdbc,
-			SQLUSMALLINT fOption, 
-			SQLPOINTER vParam)
+PGAPI_SetConnectOption(
+					   HDBC hdbc,
+					   SQLUSMALLINT fOption,
+					   SQLULEN vParam)
 {
 	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	char		changed = FALSE;
 	RETCODE		retval;
-	int			i;
 
-	mylog("%s: entering fOption = %d vParam = %d\n", func, fOption, (unsigned long) vParam);
+	mylog("%s: entering fOption = %d vParam = %d\n", func, fOption, vParam);
 	if (!conn)
 	{
 		CC_log_error(func, "", NULL);
@@ -349,18 +318,23 @@ PGAPI_SetConnectOption(HDBC hdbc,
 		case SQL_SIMULATE_CURSOR:
 		case SQL_USE_BOOKMARKS:
 
-			/* Affect all current Statements */
-			for (i = 0; i < conn->num_stmts; i++)
+#if (ODBCVER < 0x0300)
 			{
-				if (conn->stmts[i])
-					set_statement_option(NULL, conn->stmts[i], fOption, (UDWORD) ((unsigned long) vParam));
+				int	i;
+				/* Affect all current Statements */
+				for (i = 0; i < conn->num_stmts; i++)
+				{
+					if (conn->stmts[i])
+						set_statement_option(NULL, conn->stmts[i], fOption, vParam);
+				}
 			}
+#endif /* ODBCVER */
 
 			/*
 			 * Become the default for all future statements on this
 			 * connection
 			 */
-			retval = set_statement_option(conn, NULL, fOption, (UDWORD) ((unsigned long) vParam));
+			retval = set_statement_option(conn, NULL, fOption, vParam);
 
 			if (retval == SQL_SUCCESS_WITH_INFO)
 				changed = TRUE;
@@ -377,16 +351,16 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			break;
 
 		case SQL_AUTOCOMMIT:
-			if (vParam == (SQLPOINTER) SQL_AUTOCOMMIT_ON && CC_is_in_autocommit(conn))
+			if (vParam == SQL_AUTOCOMMIT_ON && CC_is_in_autocommit(conn))
 				break;
-			else if (vParam == (SQLPOINTER) SQL_AUTOCOMMIT_OFF && !CC_is_in_autocommit(conn))
+			else if (vParam == SQL_AUTOCOMMIT_OFF && !CC_is_in_autocommit(conn))
 				break;
 			if (CC_is_in_trans(conn))
 				CC_commit(conn);
 
 			mylog("PGAPI_SetConnectOption: AUTOCOMMIT: transact_status=%d, vparam=%d\n", conn->transact_status, vParam);
 
-			switch ((unsigned long) vParam)
+			switch (vParam)
 			{
 				case SQL_AUTOCOMMIT_OFF:
 					CC_set_autocommit_off(conn);
@@ -397,8 +371,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 					break;
 
 				default:
-					CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_AUTOCOMMIT");
-					CC_log_error(func, "", conn);
+					CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_AUTOCOMMIT", func);
 					return SQL_ERROR;
 			}
 			break;
@@ -419,13 +392,12 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			retval = SQL_SUCCESS;
                         if (CC_is_in_trans(conn))
 			{
-				CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress");
-				CC_log_error(func, "", conn);
+				CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress", func);
 				return SQL_ERROR;
 			}
-			if (conn->isolation == (unsigned long) vParam)
+			if (conn->isolation == vParam)
 				break; 
-			switch ((unsigned long) vParam)
+			switch (vParam)
 			{
 				case SQL_TXN_SERIALIZABLE:
 					if (PG_VERSION_GE(conn, 6.5) &&
@@ -441,8 +413,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			}
 			if (SQL_ERROR == retval)
 			{
-				CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_TXN_ISOLATION");
-				CC_log_error(func, "", conn);
+				CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_TXN_ISOLATION", func);
 				return SQL_ERROR;
 			}
 			else
@@ -450,20 +421,19 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				char *query;
 				QResultClass *res;
 
-				if (vParam == (SQLPOINTER) SQL_TXN_SERIALIZABLE)
+				if (vParam == SQL_TXN_SERIALIZABLE)
 					query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE";
 				else
 					query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
-				res = CC_send_query(conn, query, NULL, 0);
-				if (!res || !QR_command_maybe_successful(res))
+				res = CC_send_query(conn, query, NULL, 0, NULL);
+				if (!QR_command_maybe_successful(res))
 					retval = SQL_ERROR;
 				else
-					conn->isolation = (SQLUINTEGER) ((unsigned long) vParam);
-				if (res)
-					QR_Destructor(res);
+					conn->isolation = vParam;
+				QR_Destructor(res);
 				if (SQL_ERROR == retval)
 				{
-					CC_set_error(conn, STMT_EXEC_ERROR, "ISOLATION change request to the server error");
+					CC_set_error(conn, CONN_EXEC_ERROR, "ISOLATION change request to the server error", func);
 					return SQL_ERROR;
 				}
 			}
@@ -482,23 +452,21 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			{
 				char		option[64];
 
-				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)");
-				sprintf(option, "fOption=%d, vParam=%ld", fOption, (unsigned long) vParam);
+				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)", func);
+				sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
 				if (fOption == 30002 && vParam)
 				{
 					int	cmp;
-#ifdef UNICODE_SUPPORT
-					char *asPara;
+#ifdef	UNICODE_SUPPORT
 					if (conn->unicode)
 					{
-						asPara = ucs2_to_utf8((SQLWCHAR *) vParam, -1, NULL, FALSE);
+						char *asPara = ucs2_to_utf8((SQLWCHAR *) vParam, SQL_NTS, NULL, FALSE);
 						cmp = strcmp(asPara, "Microsoft Jet");
 						free(asPara);
 					}
 					else
-#endif
-						cmp = strncmp((char *) vParam, "Microsoft Jet", 13);
-					
+#endif /* UNICODE_SUPPORT */
+					cmp = strncmp((char *) vParam, "Microsoft Jet", 13);
 					if (0 == cmp)
 					{
 						mylog("Microsoft Jet !!!!\n");
@@ -514,7 +482,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 
 	if (changed)
 	{
-		CC_set_error(conn, CONN_OPTION_VALUE_CHANGED, "Requested value changed.");
+		CC_set_error(conn, CONN_OPTION_VALUE_CHANGED, "Requested value changed.", func);
 		return SQL_SUCCESS_WITH_INFO;
 	}
 	else
@@ -526,7 +494,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 RETCODE		SQL_API
 PGAPI_GetConnectOption(
 					   HDBC hdbc,
-					   UWORD fOption,
+					   SQLUSMALLINT fOption,
 					   PTR pvParam)
 {
 	CSTR func = "PGAPI_GetConnectOption";
@@ -584,6 +552,13 @@ PGAPI_GetConnectOption(
 			mylog(" val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
 
+#if (ODBCVER >= 0x0351)
+		case SQL_ATTR_ANSI_APP:
+			*((SQLUINTEGER *) pvParam) = CC_is_in_ansi_app(conn);
+			mylog("ANSI_APP val=%d\n", *((SQLUINTEGER *) pvParam));
+                        break;
+#endif /* ODBCVER */
+
 			/* These options should be handled by driver manager */
 		case SQL_ODBC_CURSORS:
 		case SQL_OPT_TRACE:
@@ -597,7 +572,7 @@ PGAPI_GetConnectOption(
 			{
 				char		option[64];
 
-				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Get)");
+				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Get)", func);
 				sprintf(option, "fOption=%d", fOption);
 				CC_log_error(func, option, conn);
 				return SQL_ERROR;
@@ -610,12 +585,14 @@ PGAPI_GetConnectOption(
 
 
 RETCODE		SQL_API
-PGAPI_SetStmtOption(HSTMT hstmt,
-			SQLUSMALLINT fOption, 
-			SQLUINTEGER vParam)
+PGAPI_SetStmtOption(
+					HSTMT hstmt,
+					SQLUSMALLINT fOption,
+					SQLULEN vParam)
 {
 	CSTR func = "PGAPI_SetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
+	RETCODE	retval;
 
 	mylog("%s: entering...\n", func);
 
@@ -630,19 +607,24 @@ PGAPI_SetStmtOption(HSTMT hstmt,
 		return SQL_INVALID_HANDLE;
 	}
 
-	return set_statement_option(NULL, stmt, fOption, vParam);
+	/* StartRollbackState(stmt); */
+	retval = set_statement_option(NULL, stmt, fOption, vParam);
+	if (stmt->internal)
+		retval = DiscardStatementSvp(stmt, retval, FALSE);
+	return retval;
 }
 
 
 RETCODE		SQL_API
 PGAPI_GetStmtOption(
 					HSTMT hstmt,
-					UWORD fOption,
+					SQLUSMALLINT fOption,
 					PTR pvParam)
 {
 	CSTR func = "PGAPI_GetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
+	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);
 	int	ridx;
 
 	mylog("%s: entering...\n", func);
@@ -666,20 +648,18 @@ PGAPI_GetStmtOption(
 			res = SC_get_Curres(stmt);
 			if (!res)
 			{
-				SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor has no result.");
-				SC_log_error(func, "", stmt);
+				SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor has no result.", func);
 				return SQL_ERROR;
 			}
 
-			ridx = GIdx2ResultIdx(stmt->currTuple, stmt, res);
-			if (stmt->manual_result || !SC_is_fetchcursor(stmt))
+			ridx = GIdx2CacheIdx(stmt->currTuple, stmt, res);
+			if (!SC_is_fetchcursor(stmt))
 			{
 				/* make sure we're positioned on a valid row */
 				if ((ridx < 0) ||
-					(ridx >= QR_get_num_backend_tuples(res)))
+					(ridx >= QR_get_num_cached_tuples(res)))
 				{
-					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.");
-					SC_log_error(func, "", stmt);
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.", func);
 					return SQL_ERROR;
 				}
 			}
@@ -687,16 +667,14 @@ PGAPI_GetStmtOption(
 			{
 				if (stmt->currTuple < 0 || !res->tupleField)
 				{
-					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.");
-					SC_log_error(func, "", stmt);
+					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.", func);
 					return SQL_ERROR;
 				}
 			}
 
 			if (fOption == SQL_GET_BOOKMARK && stmt->options.use_bookmarks == SQL_UB_OFF)
 			{
-				SC_set_error(stmt, STMT_OPERATION_INVALID, "Operation invalid because use bookmarks not enabled.");
-				SC_log_error(func, "", stmt);
+				SC_set_error(stmt, STMT_OPERATION_INVALID, "Operation invalid because use bookmarks not enabled.", func);
 				return SQL_ERROR;
 			}
 
@@ -764,7 +742,7 @@ PGAPI_GetStmtOption(
 			{
 				char		option[64];
 
-				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Get)");
+				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Get)", NULL);
 				sprintf(option, "fOption=%d", fOption);
 				SC_log_error(func, option, stmt);
 				return SQL_ERROR;

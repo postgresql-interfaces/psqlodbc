@@ -31,14 +31,16 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
            SQLWCHAR *TableName, SQLSMALLINT NameLength3,
            SQLWCHAR *ColumnName, SQLSMALLINT NameLength4)
 {
+	CSTR func = "SQLColumnsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *clName;
-	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL	lower_id;
+	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA; 
 
-	mylog("[SQLColumnsW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
@@ -46,9 +48,19 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
 	clName = ucs2_to_utf8(ColumnName, NameLength4, &nmlen4, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_Columns(StatementHandle, ctName, (SWORD) nmlen1,
-           	scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
-           	clName, (SWORD) nmlen4, PODBC_SEARCH_PUBLIC_SCHEMA);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Columns(StatementHandle, ctName, (SQLSMALLINT) nmlen1,
+           		scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3,
+           		clName, (SQLSMALLINT) nmlen4, flag, 0, 0);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -67,19 +79,22 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
            SQLWCHAR *UserName, SQLSMALLINT NameLength2,
            SQLWCHAR *Authentication, SQLSMALLINT NameLength3)
 {
+	CSTR func = "SQLConnectW";
 	char	*svName, *usName, *auth;
-	UInt4	nmlen1, nmlen2, nmlen3;
+	Int4	nmlen1, nmlen2, nmlen3;
 	RETCODE	ret;
-
-	mylog("[SQLConnectW]");
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	((ConnectionClass *) ConnectionHandle)->unicode = 1;
+	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
+	
+	mylog("[%s]", func);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
+	CC_set_in_unicode_driver(conn);
 	svName = ucs2_to_utf8(ServerName, NameLength1, &nmlen1, FALSE);
 	usName = ucs2_to_utf8(UserName, NameLength2, &nmlen2, FALSE);
 	auth = ucs2_to_utf8(Authentication, NameLength3, &nmlen3, FALSE);
-	ret = PGAPI_Connect(ConnectionHandle, svName, (SWORD) nmlen1,
-           	usName, (SWORD) nmlen2, auth, (SWORD) nmlen3);
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+	ret = PGAPI_Connect(ConnectionHandle, svName, (SQLSMALLINT) nmlen1,
+           	usName, (SQLSMALLINT) nmlen2, auth, (SQLSMALLINT) nmlen3);
+	LEAVE_CONN_CS(conn);
 	if (svName)
 		free(svName);
 	if (usName)
@@ -92,33 +107,54 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
                                  HWND hwnd,
                                  SQLWCHAR *szConnStrIn,
-                                 SWORD cbConnStrIn,
+                                 SQLSMALLINT cbConnStrIn,
                                  SQLWCHAR *szConnStrOut,
-                                 SWORD cbConnStrOutMax,
-                                 SWORD FAR *pcbConnStrOut,
-                                 UWORD fDriverCompletion)
+                                 SQLSMALLINT cbConnStrOutMax,
+                                 SQLSMALLINT FAR *pcbConnStrOut,
+                                 SQLUSMALLINT fDriverCompletion)
 {
-	char	*szIn, *szOut;
-	UInt4	inlen, obuflen;
-	SWORD	olen;
+	CSTR func = "SQLDriverConnectW";
+	char	*szIn, *szOut = NULL;
+	Int4	maxlen, inlen, obuflen = 0;
+	SQLSMALLINT	olen;
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	mylog("[SQLDriverConnectW]");
-	ENTER_CONN_CS((ConnectionClass *) hdbc);
-	((ConnectionClass *) hdbc)->unicode = 1;
+	mylog("[%s]", func);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
+	CC_set_in_unicode_driver(conn);
 	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen, FALSE);
-	obuflen = cbConnStrOutMax + 1;
-	szOut = malloc(obuflen);
-	ret = PGAPI_DriverConnect(hdbc, hwnd, szIn, (SWORD) inlen,
-		szOut, cbConnStrOutMax, &olen, fDriverCompletion);
-	LEAVE_CONN_CS((ConnectionClass *) hdbc);
+	maxlen = cbConnStrOutMax;
+	if (maxlen > 0)
+	{
+		obuflen = maxlen + 1;
+		szOut = malloc(obuflen);
+	}
+	ret = PGAPI_DriverConnect(hdbc, hwnd, szIn, (SQLSMALLINT) inlen,
+		szOut, maxlen, &olen, fDriverCompletion);
 	if (ret != SQL_ERROR)
 	{
-		UInt4 outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
+		UInt4 outlen = olen;
+
+		if (olen < obuflen)
+			outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
+		else
+			utf8_to_ucs2(szOut, maxlen, szConnStrOut, cbConnStrOutMax);
+		if (outlen >= (UInt4) cbConnStrOutMax)
+		{
+			if (SQL_SUCCESS == ret)
+			{
+				CC_set_error(conn, CONN_TRUNCATED, "the ConnStrOut is too small", func);
+				ret = SQL_SUCCESS_WITH_INFO;
+			}
+		}
 		if (pcbConnStrOut)
 			*pcbConnStrOut = outlen;
 	}
-	free(szOut);
+	LEAVE_CONN_CS(conn);
+	if (szOut)
+		free(szOut);
 	if (szIn)
 		free(szIn);
 	return ret;
@@ -131,20 +167,24 @@ RETCODE SQL_API SQLBrowseConnectW(
     SQLSMALLINT        cbConnStrOutMax,
     SQLSMALLINT       *pcbConnStrOut)
 {
+	CSTR func = "SQLBrowseConnectW";
 	char	*szIn, *szOut;
-	UInt4	inlen, obuflen;
-	SWORD	olen;
+	Int4	inlen;
+	UInt4	obuflen;
+	SQLSMALLINT	olen;
 	RETCODE	ret;
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	mylog("[SQLBrowseConnectW]");
-	ENTER_CONN_CS((ConnectionClass *) hdbc);
-	((ConnectionClass *) hdbc)->unicode = 1;
+	mylog("[%s]", func);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
+	CC_set_in_unicode_driver(conn);
 	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen, FALSE);
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
-	ret = PGAPI_BrowseConnect(hdbc, szIn, (SWORD) inlen,
+	ret = PGAPI_BrowseConnect(hdbc, szIn, (SQLSMALLINT) inlen,
 		szOut, cbConnStrOutMax, &olen);
-	LEAVE_CONN_CS((ConnectionClass *) hdbc);
+	LEAVE_CONN_CS(conn);
 	if (ret != SQL_ERROR)
 	{
 		UInt4	outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
@@ -163,7 +203,8 @@ RETCODE  SQL_API SQLDataSourcesW(HENV EnvironmentHandle,
            SQLWCHAR *Description, SQLSMALLINT BufferLength2,
            SQLSMALLINT *NameLength2)
 {
-	mylog("[SQLDataSourcesW]");
+	CSTR func = "SQLDataSourcesW";
+	mylog("[%s]", func);
 	/*
 	return PGAPI_DataSources(EnvironmentHandle, Direction, ServerName,
 		 BufferLength1, NameLength1, Description, BufferLength2,
@@ -175,49 +216,72 @@ RETCODE  SQL_API SQLDataSourcesW(HENV EnvironmentHandle,
 RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
            SQLUSMALLINT ColumnNumber, SQLWCHAR *ColumnName,
            SQLSMALLINT BufferLength, SQLSMALLINT *NameLength,
-           SQLSMALLINT *DataType, SQLUINTEGER *ColumnSize,
+           SQLSMALLINT *DataType, SQLULEN *ColumnSize,
            SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable)
 {
+	CSTR func = "SQLDescribeColW";
 	RETCODE	ret;
-	SWORD	buflen, nmlen;
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
+	SQLSMALLINT	buflen, nmlen;
 	char	*clName;
 
-	mylog("[SQLDescribeColW]");
+	mylog("[%s]", func);
 	buflen = BufferLength * 3 + 1;
 	clName = malloc(buflen);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	ret = PGAPI_DescribeCol(StatementHandle, ColumnNumber,
-		clName, buflen, &nmlen, DataType, ColumnSize,
-		DecimalDigits, Nullable);
-	if (ret == SQL_SUCCESS)
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	for (;; buflen = nmlen + 1, clName = realloc(clName, buflen))
 	{
-		UInt4	nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
-		if (nmcount > (UInt4) BufferLength)
+		ret = PGAPI_DescribeCol(StatementHandle, ColumnNumber,
+			clName, buflen, &nmlen, DataType, ColumnSize,
+			DecimalDigits, Nullable);
+		if (SQL_SUCCESS_WITH_INFO != ret || nmlen < buflen)
+			break;
+	}
+	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+	{
+		UInt4	nmcount = nmlen;
+
+		if (nmlen < buflen)
+			nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
+		if (SQL_SUCCESS == ret && nmcount > (UInt4) BufferLength)
 		{
-			StatementClass	*stmt = (StatementClass *) StatementHandle;
 			ret = SQL_SUCCESS_WITH_INFO;
-			SC_set_error(stmt, STMT_TRUNCATED, "Column name too large");
+			SC_set_error(stmt, STMT_TRUNCATED, "Column name too large", func);
 		}
 		if (NameLength)
 			*NameLength = nmcount;
 	}
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
-	free(clName);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	LEAVE_STMT_CS(stmt);
+	free(clName); 
 	return ret;
 }
 
 RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
            SQLWCHAR *StatementText, SQLINTEGER TextLength)
 {
+	CSTR	func = "SQLExecDirectW";
 	RETCODE	ret;
 	char	*stxt;
-	UInt4	slen;
+	Int4	slen;
+	StatementClass	*stmt = (StatementClass *) StatementHandle;
+	UWORD	flag = 0;
 
-	mylog("[SQLExecDirectW]");
+	mylog("[%s]", func);
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	ret = PGAPI_ExecDirect(StatementHandle, stxt, slen, 0);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	if (PG_VERSION_GE(SC_get_conn(stmt), 7.4))
+		flag |= PODBC_WITH_HOLD;
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ExecDirect(StatementHandle, stxt, slen, flag);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	if (stxt)
 		free(stxt);
 	return ret;
@@ -227,28 +291,40 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
            SQLWCHAR *CursorName, SQLSMALLINT BufferLength,
            SQLSMALLINT *NameLength)
 {
+	CSTR func = "SQLGetCursorNameW";
 	RETCODE	ret;
+	StatementClass * stmt = (StatementClass *) StatementHandle;
 	char	*crName;
-	SWORD	clen, buflen;
+	SQLSMALLINT	clen, buflen;
 
-	mylog("[SQLGetCursorNameW]");
+	mylog("[%s]", func);
 	buflen = BufferLength * 3 + 1;
 	crName = malloc(buflen);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	ret = PGAPI_GetCursorName(StatementHandle, crName, buflen, &clen);
-	if (ret == SQL_SUCCESS)
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	for (;; buflen = clen + 1, crName = realloc(crName, buflen))
 	{
-		UInt4	nmcount = utf8_to_ucs2(crName, (Int4) clen, CursorName, BufferLength);
-		if (nmcount > (UInt4) BufferLength)
+		ret = PGAPI_GetCursorName(StatementHandle, crName, buflen, &clen);
+		if (SQL_SUCCESS_WITH_INFO != ret || clen < buflen)
+			break;
+	}
+	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)	
+	{
+		UInt4	nmcount = clen;
+
+		if (clen < buflen)
+			nmcount = utf8_to_ucs2(crName, (Int4) clen, CursorName, BufferLength);
+		if (SQL_SUCCESS == ret && nmcount > (UInt4) BufferLength)
 		{
-			StatementClass *stmt = (StatementClass *) StatementHandle;
 			ret = SQL_SUCCESS_WITH_INFO;
-			SC_set_error(stmt, STMT_TRUNCATED, "Cursor name too large");
+			SC_set_error(stmt, STMT_TRUNCATED, "Cursor name too large", func);
 		}
 		if (NameLength)
-			*NameLength = utf8_to_ucs2(crName, (Int4) clen, CursorName, BufferLength);
+			*NameLength = nmcount;
 	}
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	free(crName);
 	return ret;
 }
@@ -257,14 +333,15 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
            SQLUSMALLINT InfoType, PTR InfoValue,
            SQLSMALLINT BufferLength, SQLSMALLINT *StringLength)
 {
+	CSTR func = "SQLGetInfoW";
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret;
 
-	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
-	conn->unicode = 1;
+	ENTER_CONN_CS(conn);
+	CC_set_in_unicode_driver(conn);
 	CC_clear_error(conn);
-
-	mylog("[SQLGetInfoW(30)]");
+#if (ODBCVER >= 0x0300)
+	mylog("[%s(30)]", func);
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
            	BufferLength, StringLength)) == SQL_ERROR)
 	{
@@ -277,23 +354,34 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	}
 	if (SQL_ERROR == ret)
 		CC_log_error("SQLGetInfoW(30)", "", conn);
-
-	LEAVE_CONN_CS((ConnectionClass *) ConnectionHandle);
+#else
+	mylog("[%s]", func);
+	ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
+           	BufferLength, StringLength);
+	if (SQL_ERROR == ret)
+		CC_log_error("SQLGetInfoW", "", conn);
+#endif
+	LEAVE_CONN_CS(conn);
 	return ret;
 }
 
 RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
            SQLWCHAR *StatementText, SQLINTEGER TextLength)
 {
+	CSTR func = "SQLPrepareW";
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 	char	*stxt;
-	UInt4	slen;
+	Int4	slen;
 
-	mylog("[SQLPrepareW]");
+	mylog("[%s]", func);
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
 	ret = PGAPI_Prepare(StatementHandle, stxt, slen);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	if (stxt)
 		free(stxt);
 	return ret;
@@ -302,15 +390,20 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
            SQLWCHAR *CursorName, SQLSMALLINT NameLength)
 {
+	CSTR func = "SQLSetCursorNameW";
 	RETCODE	ret;
+	StatementClass *stmt = (StatementClass *) StatementHandle;
 	char	*crName;
-	UInt4	nlen;
+	Int4	nlen;
 
-	mylog("[SQLSetCursorNameW]");
+	mylog("[%s]", func);
 	crName = ucs2_to_utf8(CursorName, NameLength, &nlen, FALSE);
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	ret = PGAPI_SetCursorName(StatementHandle, crName, (SWORD) nlen);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	ret = PGAPI_SetCursorName(StatementHandle, crName, (SQLSMALLINT) nlen);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	if (crName)
 		free(crName);
 	return ret;
@@ -323,23 +416,30 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
            SQLSMALLINT NameLength3, SQLUSMALLINT Scope,
            SQLUSMALLINT Nullable)
 {
+	CSTR func = "SQLSpecialColumnsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	UInt4	nmlen1, nmlen2, nmlen3;
+	Int4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
-
-	mylog("[SQLSpecialColumnsW]");
+	
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
-           (SWORD) nmlen1, scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
+           	(SQLSMALLINT) nmlen1, scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3,
 		Scope, Nullable);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -356,23 +456,30 @@ RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
            SQLWCHAR *TableName, SQLSMALLINT NameLength3,
            SQLUSMALLINT Unique, SQLUSMALLINT Reserved)
 {
+	CSTR func = "SQLStatisticsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	UInt4	nmlen1, nmlen2, nmlen3;
+	Int4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
 
-	mylog("[SQLStatisticsW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_Statistics(StatementHandle, ctName, (SWORD) nmlen1,
-           scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, Unique,
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Statistics(StatementHandle, ctName, (SQLSMALLINT) nmlen1,
+           scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3, Unique,
 		Reserved);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -389,14 +496,15 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
            SQLWCHAR *TableName, SQLSMALLINT NameLength3,
            SQLWCHAR *TableType, SQLSMALLINT NameLength4)
 {
+	CSTR func = "SQLTablesW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *tbType;
-	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
 
-	mylog("[SQLTablesW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
@@ -404,9 +512,15 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
 	tbType = ucs2_to_utf8(TableType, NameLength4, &nmlen4, FALSE);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_Tables(StatementHandle, ctName, (SWORD) nmlen1,
-           scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
-           tbType, (SWORD) nmlen4);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Tables(StatementHandle, ctName, (SQLSMALLINT) nmlen1,
+           		scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3,
+           		tbType, (SQLSMALLINT) nmlen4);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -430,14 +544,16 @@ RETCODE SQL_API SQLColumnPrivilegesW(
     SQLWCHAR 		  *szColumnName,
     SQLSMALLINT        cbColumnName)
 {
+	CSTR func = "SQLColumnPrivilegesW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *clName;
-	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
+	UWORD	flag = 0; 
 
-	mylog("[SQLColumnPrivilegesW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -445,9 +561,19 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
 	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_ColumnPrivileges(hstmt, ctName, (SWORD) nmlen1,
-		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
-		clName, (SWORD) nmlen4);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ColumnPrivileges(hstmt, ctName, (SQLSMALLINT) nmlen1,
+			scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3,
+			clName, (SQLSMALLINT) nmlen4, flag);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -475,14 +601,15 @@ RETCODE SQL_API SQLForeignKeysW(
     SQLWCHAR 		  *szFkTableName,
     SQLSMALLINT        cbFkTableName)
 {
+	CSTR func = "SQLForeignKeysW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *fkctName, *fkscName, *fktbName;
-	UInt4	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
+	Int4	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id;
+	BOOL	lower_id; 
 
-	mylog("[SQLForeignKeysW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szPkCatalogName, cbPkCatalogName, &nmlen1, lower_id);
@@ -492,10 +619,16 @@ RETCODE SQL_API SQLForeignKeysW(
 	fkscName = ucs2_to_utf8(szFkSchemaName, cbFkSchemaName, &nmlen5, lower_id);
 	fktbName = ucs2_to_utf8(szFkTableName, cbFkTableName, &nmlen6, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_ForeignKeys(hstmt, ctName, (SWORD) nmlen1,
-		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3,
-		fkctName, (SWORD) nmlen4, fkscName, (SWORD) nmlen5,
-		fktbName, (SWORD) nmlen6);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ForeignKeys(hstmt, ctName, (SQLSMALLINT) nmlen1,
+			scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3,
+			fkctName, (SQLSMALLINT) nmlen4, fkscName, (SQLSMALLINT) nmlen5,
+			fktbName, (SQLSMALLINT) nmlen6);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -520,35 +653,46 @@ RETCODE SQL_API SQLNativeSqlW(
     SQLINTEGER         cbSqlStrMax,
     SQLINTEGER 		  *pcbSqlStr)
 {
+	CSTR func = "SQLNativeSqlW";
 	RETCODE		ret;
 	char		*szIn, *szOut;
-	UInt4		slen;
+	Int4		slen;
 	SQLINTEGER	buflen, olen;
+	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	mylog("[SQLNativeSqlW]");
-	ENTER_CONN_CS((ConnectionClass *) hdbc);
-	((ConnectionClass *) hdbc)->unicode = 1;
+	mylog("[%s}", func);
+	ENTER_CONN_CS(conn);
+	CC_clear_error(conn);
+	CC_set_in_unicode_driver(conn);
 	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen, FALSE);
 	buflen = 3 * cbSqlStrMax + 1;
 	szOut = malloc(buflen);
-	ret = PGAPI_NativeSql(hdbc, szIn, (SQLINTEGER) slen,
-		szOut, buflen, &olen);
+	for (;; buflen = olen + 1, szOut = realloc(szOut, buflen))
+	{
+		ret = PGAPI_NativeSql(hdbc, szIn, (SQLINTEGER) slen,
+			szOut, buflen, &olen);
+		if (SQL_SUCCESS_WITH_INFO == ret || olen < buflen)
+			break;
+	}
 	if (szIn)
 		free(szIn);
-	if (ret == SQL_SUCCESS)
+	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 	{
-		UInt4	szcount = utf8_to_ucs2(szOut, olen, szSqlStr, cbSqlStrMax);
-		if (szcount > (UInt4) cbSqlStrMax)
+		UInt4	szcount = olen;
+
+		if (olen < buflen)
+			szcount = utf8_to_ucs2(szOut, olen, szSqlStr, cbSqlStrMax);
+		if (SQL_SUCCESS == ret && szcount > (UInt4) cbSqlStrMax)
 		{
 			ConnectionClass	*conn = (ConnectionClass *) hdbc;
 
 			ret = SQL_SUCCESS_WITH_INFO;
-			CC_set_error(conn, CONN_TRUNCATED, "Sql string too large");
+			CC_set_error(conn, CONN_TRUNCATED, "Sql string too large", func);
 		}
 		if (pcbSqlStr)
 			*pcbSqlStr = szcount;
 	}
-	LEAVE_CONN_CS((ConnectionClass *) hdbc);
+	LEAVE_CONN_CS(conn);
 	free(szOut);
 	return ret;
 }
@@ -562,22 +706,29 @@ RETCODE SQL_API SQLPrimaryKeysW(
     SQLWCHAR 		  *szTableName,
     SQLSMALLINT        cbTableName)
 {
+	CSTR func = "SQLPrimaryKeysW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	UInt4	nmlen1, nmlen2, nmlen3;
+	Int4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id;
+	BOOL	lower_id; 
 
-	mylog("[SQLPrimaryKeysW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
 	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_PrimaryKeys(hstmt, ctName, (SWORD) nmlen1,
-		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_PrimaryKeys(hstmt, ctName, (SQLSMALLINT) nmlen1,
+			scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -599,14 +750,16 @@ RETCODE SQL_API SQLProcedureColumnsW(
     SQLWCHAR 		  *szColumnName,
     SQLSMALLINT        cbColumnName)
 {
+	CSTR func = "SQLProcedureColumnsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *prName, *clName;
-	UInt4	nmlen1, nmlen2, nmlen3, nmlen4;
+	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
+	UWORD	flag = 0; 
 
-	mylog("[SQLProcedureColumnsW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -614,9 +767,19 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, lower_id);
 	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_ProcedureColumns(hstmt, ctName, (SWORD) nmlen1,
-		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3,
-		clName, (SWORD) nmlen4);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_ProcedureColumns(hstmt, ctName, (SQLSMALLINT) nmlen1,
+			scName, (SQLSMALLINT) nmlen2, prName, (SQLSMALLINT) nmlen3,
+			clName, (SQLSMALLINT) nmlen4, flag);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -638,22 +801,29 @@ RETCODE SQL_API SQLProceduresW(
     SQLWCHAR 		  *szProcName,
     SQLSMALLINT        cbProcName)
 {
+	CSTR func = "SQLProceduresW";
 	RETCODE	ret;
 	char	*ctName, *scName, *prName;
-	UInt4	nmlen1, nmlen2, nmlen3;
+	Int4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id;
+	BOOL	lower_id; 
 
-	mylog("[SQLProceduresW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
 	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, lower_id);
 	ENTER_STMT_CS(stmt);
-	ret = PGAPI_Procedures(hstmt, ctName, (SWORD) nmlen1,
-		scName, (SWORD) nmlen2, prName, (SWORD) nmlen3);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Procedures(hstmt, ctName, (SQLSMALLINT) nmlen1,
+			scName, (SQLSMALLINT) nmlen2, prName, (SQLSMALLINT) nmlen3);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
 		free(ctName);
@@ -673,22 +843,34 @@ RETCODE SQL_API SQLTablePrivilegesW(
     SQLWCHAR 		  *szTableName,
     SQLSMALLINT        cbTableName)
 {
+	CSTR func = "SQLTablePrivilegesW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	UInt4	nmlen1, nmlen2, nmlen3;
+	Int4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id;
+	BOOL	lower_id; 
+	UWORD	flag = 0; 
 
-	mylog("[SQLTablePrivilegesW]");
+	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
 	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
 	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
 	ENTER_STMT_CS((StatementClass *) hstmt);
-	ret = PGAPI_TablePrivileges(hstmt, ctName, (SWORD) nmlen1,
-		scName, (SWORD) nmlen2, tbName, (SWORD) nmlen3, 0);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_TablePrivileges(hstmt, ctName, (SQLSMALLINT) nmlen1,
+			scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3, flag);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName)
 		free(ctName);
@@ -703,11 +885,19 @@ RETCODE SQL_API	SQLGetTypeInfoW(
 		SQLHSTMT	StatementHandle,
 		SQLSMALLINT	DataType)
 {
+	CSTR func = "SQLGetTypeInfoW";
 	RETCODE	ret;
+	StatementClass * stmt = (StatementClass *) StatementHandle;
 
-	mylog("[SQLGetInfoW]");
-	ENTER_STMT_CS((StatementClass *) StatementHandle);
-	ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
-	LEAVE_STMT_CS((StatementClass *) StatementHandle);
+	mylog("[%s]", func);
+	ENTER_STMT_CS(stmt);
+	SC_clear_error(stmt);
+	StartRollbackState(stmt);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_GetTypeInfo(StatementHandle, DataType);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	LEAVE_STMT_CS(stmt);
 	return ret;
 }

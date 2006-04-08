@@ -10,7 +10,6 @@
 #include "psqlodbc.h"
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 
 #define	byte3check	0xfffff800
 #define	byte2_base	0x80c0
@@ -41,14 +40,17 @@ UInt4	ucs2strlen(const SQLWCHAR *ucs2str)
 		;
 	return len;
 }
-char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL lower_identifier)
+char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, Int4 *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
 /*mylog("ucs2_to_utf8 %x ilen=%d ", ucs2str, ilen);*/
 
 	if (!ucs2str)
+	{
+		*olen = SQL_NULL_DATA;
 		return NULL;
-	if (ilen < 0)
+	}
+	if (SQL_NTS == ilen)
 		ilen = ucs2strlen(ucs2str);
 /*mylog(" newlen=%d", ilen);*/
 	utf8str = (char *) malloc(ilen * 3 + 1);
@@ -76,7 +78,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, UInt4 *olen, BOOL lower_i
 					    ((byte2_mask1 & *wstr) >> 6) |
 					    ((byte2_mask2 & *wstr) << 8);
 				memcpy(utf8str + len, (char *) &byte2code, sizeof(byte2code));
-				len += 2; 
+				len += sizeof(byte2code); 
 			}
 			else
 			{
