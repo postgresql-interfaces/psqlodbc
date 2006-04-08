@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.33 2006/04/08 18:06:42 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.34 2006/04/08 18:51:01 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -22,8 +22,8 @@ psqlodbc35w_la_SOURCES = \
 	multibyte.c odbcapi.c descriptor.c \
 	odbcapi30.c pgapi30.c info30.c mylog.c \
 \
-	bind.h columninfo.h connection.h convert.h descriptor.h \
-	dlg_specific.h environ.h iodbc.h isql.h isqlext.h \
+	bind.h catfunc.h columninfo.h connection.h convert.h \
+	descriptor.h dlg_specific.h environ.h \
 	lobj.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
 	version.h loadlib.h
@@ -35,7 +35,7 @@ endif
 
 EXTRA_psqlodbc35w_la_SOURCES = md5.c
 
-EXTRA_DIST = license.txt readme.txt odbcinst.ini \
+EXTRA_DIST = license.txt readme.txt \
 	libtool.m4 psqlodbc.def win32.mak \
 	dlg_wingui.c win_setup.h setup.c \
 	win_unicode.c psqlodbc.rc psqlodbc.reg \
