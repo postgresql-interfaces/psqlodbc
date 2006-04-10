@@ -686,7 +686,7 @@ BEGIN
     IDS_MSGTITLE            "Invalid DSN"
     IDS_ADVANCE_OPTION_DEF  "Advanced Options (Default)"
     IDS_ADVANCE_SAVE        "Save"
-    IDS_ADVANCE_OPTION_DSN1 "Advanced Options (%s) 1/2)"
+    IDS_ADVANCE_OPTION_DSN1 "Advanced Options (%s) 1/2"
     IDS_ADVANCE_OPTION_CON1 "Advanced Options (Connection 2/2)"
     IDS_ADVANCE_OPTION_DSN2 "Advanced Options (%s) 2/2"
     IDS_ADVANCE_OPTION_CON2 "Advanced Options (Connection 2/2)"
