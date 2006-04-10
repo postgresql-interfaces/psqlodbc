@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.96 2006/04/10 09:53:16 dpage Exp $
+ * $Id: psqlodbc.h,v 1.97 2006/04/10 09:59:05 dpage Exp $
  *
  */
 
@@ -132,9 +132,9 @@ typedef double SDOUBLE;
 #endif /* ODBCVER 0x0351 */
 #ifndef DBMS_NAME
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL35W"
+#define DBMS_NAME				"PostgreSQL Unicode"
 #else
-#define DBMS_NAME				"PostgreSQL"
+#define DBMS_NAME				"PostgreSQL ANSI"
 #endif /* UNICODE_SUPPORT */
 #endif /* DBMS_NAME */
 #else
