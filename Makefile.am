@@ -2,19 +2,19 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.34 2006/04/08 18:51:01 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.35 2006/04/12 12:09:24 petere Exp $
 #
 #-------------------------------------------------------------------------
 
 AUTOMAKE_OPTIONS = 1.6 foreign
 
-lib_LTLIBRARIES = psqlodbc35w.la
+lib_LTLIBRARIES = psqlodbc.la
 
-psqlodbc35w_la_LDFLAGS = -module -no-undefined -avoid-version
+psqlodbc_la_LDFLAGS = -module -no-undefined -avoid-version
 
-psqlodbc35w_la_LIBADD = -lpq
+psqlodbc_la_LIBADD = -lpq
 
-psqlodbc35w_la_SOURCES = \
+psqlodbc_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
 	environ.c execute.c lobj.c win_md5.c misc.c options.c \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
@@ -29,11 +29,11 @@ psqlodbc35w_la_SOURCES = \
 	version.h loadlib.h
 
 if enable_unicode
-psqlodbc35w_la_SOURCES += \
+psqlodbc_la_SOURCES += \
 odbcapiw.c odbcapi30w.c win_unicode.c
 endif
 
-EXTRA_psqlodbc35w_la_SOURCES = md5.c
+EXTRA_psqlodbc_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt \
 	libtool.m4 psqlodbc.def win32.mak \

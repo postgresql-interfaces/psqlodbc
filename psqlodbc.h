@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.97 2006/04/10 09:59:05 dpage Exp $
+ * $Id: psqlodbc.h,v 1.98 2006/04/12 12:09:24 petere Exp $
  *
  */
 
@@ -157,7 +157,7 @@ typedef double SDOUBLE;
 #define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
 #endif   /* ODBCVER 0x0300 */
 #else
-#define DRIVER_FILE_NAME			"psqlodbc35w.so"
+#define DRIVER_FILE_NAME			"psqlodbc.so"
 #endif   /* WIN32 */
 
 #define	NULL_CATALOG_NAME				""
