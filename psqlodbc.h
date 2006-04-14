@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.98 2006/04/12 12:09:24 petere Exp $
+ * $Id: psqlodbc.h,v 1.99 2006/04/14 03:30:01 h-saito Exp $
  *
  */
 
@@ -106,6 +106,10 @@ typedef double SDOUBLE;
 #endif /* FALSE */
 #else
 #define snprintf _snprintf
+#define strdup _strdup
+#define strnicmp _strnicmp
+#define stricmp _stricmp
+#define strdup _strdup
 #endif
 
 #ifndef	SQL_ATTR_APP_ROW_DESC
