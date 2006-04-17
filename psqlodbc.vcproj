@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
@@ -44,15 +44,16 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="C:\VSHOME\postgresql-8.1.3\src\include,C:\VSHOME\postgresql-8.1.3\src\interfaces\libpq,C:\VSHOME\openssl-0.9.8a\inc32"
+				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\8.1\include&quot;;C:\OpenSSL\include"
 				PreprocessorDefinitions="NDEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
-				PrecompiledHeaderFile="psqlodbc.pch"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
+				PrecompiledHeaderFile="$(IntDir)\psqlodbc.pch"
+				AssemblerListingLocation="$(IntDir)\"
+				ObjectFile="$(IntDir)\"
+				ProgramDataBaseFileName="$(IntDir)\"
+				BrowseInformationFile=""
 				WarningLevel="3"
 				SuppressStartupBanner="true"
 			/>
@@ -70,16 +71,16 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib libpq.lib C:\VSHOME\openssl-0.9.8a\out32\ssleay32.lib C:\VSHOME\openssl-0.9.8a\out32\libeay32.lib"
-				OutputFile="psqlodbc35w.dll"
+				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib libpq.lib ssleay32.lib libeay32.lib"
+				OutputFile="$(OutDir)\psqlodbc35w.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="C:\VSHOME\postgresql-8.1.3\src\interfaces\libpq\Release"
+				AdditionalLibraryDirectories="C:\OpenSSL\lib\VC;&quot;C:\Program Files\PostgreSQL\8.1\lib\ms&quot;"
 				GenerateManifest="true"
 				ModuleDefinitionFile=".\psqlodbc.def"
-				ProgramDatabaseFile="psqlodbc35w.pdb"
+				ProgramDatabaseFile="$(TargetDir)\psqlodbc35w.pdb"
 				SubSystem="2"
-				ImportLibrary="psqlodbc35w.lib"
+				ImportLibrary="$(OutDir)\psqlodbc35w.lib"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -139,15 +140,15 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="4"
-				AdditionalIncludeDirectories="C:\VSHOME\postgresql-8.1.3\src\include,C:\VSHOME\postgresql-8.1.3\src\interfaces\libpq,C:\VSHOME\openssl-0.9.8a\inc32"
+				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\8.1\include&quot;;C:\OpenSSL\include"
 				PreprocessorDefinitions="_DEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="2"
-				PrecompiledHeaderFile=".\Debug/psqlodbc.pch"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
+				PrecompiledHeaderFile="$(IntDir)\psqlodbc.pch"
+				AssemblerListingLocation="$(IntDir)\"
+				ObjectFile="$(IntDir)\"
+				ProgramDataBaseFileName="$(IntDir)\"
 				BrowseInformation="1"
 				WarningLevel="3"
 				SuppressStartupBanner="true"
@@ -167,16 +168,16 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib libpq.lib C:\VSHOME\openssl-0.9.8a\out32\ssleay32.lib C:\VSHOME\openssl-0.9.8a\out32\libeay32.lib"
-				OutputFile="psqlodbc35w.dll"
+				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib libpq.lib ssleay32.lib libeay32.lib"
+				OutputFile="$(OutDir)\psqlodbc35w.dll"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="C:\VSHOME\postgresql-8.1.3\src\interfaces\libpq\Debug"
+				AdditionalLibraryDirectories="C:\OpenSSL\lib\VC;&quot;C:\Program Files\PostgreSQL\8.1\lib\ms&quot;"
 				ModuleDefinitionFile=".\psqlodbc.def"
 				GenerateDebugInformation="true"
-				ProgramDatabaseFile="psqlodbc35w.pdb"
+				ProgramDatabaseFile="$(TargetDir)\psqlodbc35w.pdb"
 				SubSystem="2"
-				ImportLibrary="psqlodbc35w.lib"
+				ImportLibrary="$(OutDir)\psqlodbc35w.lib"
 				TargetMachine="1"
 			/>
 			<Tool
