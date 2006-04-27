@@ -231,12 +231,12 @@ schema_strcat(char *buf, const char *fmt, const char *s, int len, const char *tb
 void
 remove_newlines(char *string)
 {
-	unsigned int i;
+	unsigned int i, len = strlen(string);
 
-	for (i = 0; i < strlen(string); i++)
+	for (i = 0; i < len; i++)
 	{
-		if ((string[i] == '\n') ||
-			(string[i] == '\r'))
+		if ((PG_LINEFEED == string[i]) ||
+			(PG_CARRIAGE_RETURN == string[i]))
 			string[i] = ' ';
 	}
 }

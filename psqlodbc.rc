@@ -311,8 +311,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,2,0,1
- PRODUCTVERSION 8,2,0,1
+ FILEVERSION PG_DRVFILE_VERSION
+ PRODUCTVERSION PG_DRVFILE_VERSION
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x9L
@@ -330,14 +330,14 @@ BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver Japanese\0"
             VALUE "CompanyName", "PostgreSQL Global Development Group\0"
             VALUE "FileDescription", "PostgreSQL ODBC Driver (Japanese)\0"
-            VALUE "FileVersion", "08.02.0001\0"
+            VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
             VALUE "InternalName", "psqlodbc35w\0"
             VALUE "LegalCopyright", "\0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftƒ‡ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
             VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
             VALUE "ProductName", "PostgreSQL\0"
-            VALUE "ProductVersion", "08.02.0001\0"
+            VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
             VALUE "SpecialBuild", "\0"
         END
     END
@@ -636,8 +636,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 8,2,0,1
- PRODUCTVERSION 8,2,0,1
+ FILEVERSION PG_DRVFILE_VERSION
+ PRODUCTVERSION PG_DRVFILE_VERSION
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x9L
@@ -655,14 +655,14 @@ BEGIN
             VALUE "Comments", "PostgreSQL ODBC driver\0"
             VALUE "CompanyName", "PostgreSQL Global Development Group\0"
             VALUE "FileDescription", "PostgreSQL ODBC Driver (English)\0"
-            VALUE "FileVersion", "08.02.0001\0"
+            VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
             VALUE "InternalName", "psqlodbc35w\0"
             VALUE "LegalCopyright", "Copyright \0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
             VALUE "PrivateBuild", "\0"
             VALUE "ProductName", "PostgreSQL\0"
-            VALUE "ProductVersion", "08.02.0001\0"
+            VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
             VALUE "SpecialBuild", "\0"
         END
     END

@@ -420,7 +420,7 @@ PGAPI_NumParams(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_NumParams";
-	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE;
 
 	mylog("%s: entering...\n", func);
 
@@ -449,21 +449,23 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	else
 	{
 		const	char *sptr, *tag = NULL;
+		ConnectionClass	*conn = SC_get_conn(stmt);
 		int	taglen;
-		char	tchar, bchar;
+		char	tchar, bchar, escape_in_literal;
 		char	in_literal = FALSE, in_identifier = FALSE,
 			in_dollar_quote = FALSE, in_escape = FALSE,
 			multi = FALSE, del_found = FALSE;
 		encoded_str	encstr;
 
 		stmt->proc_return = 0;
-		make_encoded_str(&encstr, SC_get_conn(stmt), stmt->statement);
+		make_encoded_str(&encstr, conn, stmt->statement);
 		for (sptr = stmt->statement, bchar = '\0'; *sptr; sptr++)
 		{
 			tchar = encoded_nextchar(&encstr);
 			if (ENCODE_STATUS(encstr) != 0) /* multibyte char */
 			{
-				bchar = tchar;
+				if ((UCHAR) tchar >= 0x80)
+					bchar = tchar;
 				continue;
 			}
 			if (!multi && del_found)
@@ -481,6 +483,7 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 						tag = NULL;
 						sptr += taglen;
 						sptr--;
+						encoded_position_shift(&encstr, taglen - 1);
 					}
 				}
 			}
@@ -519,10 +522,19 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 					{
 						taglen = dollar_next - sptr + 1;
 						sptr = dollar_next;
+						encoded_position_shift(&encstr, taglen - 1);
 					}
 				}
 				else if (tchar == literal_quote)
+				{
 					in_literal = TRUE;
+					escape_in_literal = CC_get_escape(conn);
+					if (!escape_in_literal)
+					{
+						if (LITERAL_EXT == sptr[-1])
+							escape_in_literal = ESCAPE_IN_LITERAL;
+					}
+				}
 				else if (tchar == identifier_quote)
 					in_identifier = TRUE;
 				if (!isspace(tchar))

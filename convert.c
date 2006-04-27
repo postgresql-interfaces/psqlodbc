@@ -133,7 +133,6 @@ char	   *mapFuncs[][2] = {
 
 static const char *mapFunction(const char *func, int param_count);
 static unsigned int conv_from_octal(const UCHAR *s);
-static char *conv_to_octal(UCHAR val, char *octal);
 static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
 
 /*---------
@@ -698,22 +697,30 @@ inolog("2stime fr=%d\n", std_time.fr);
 	}
 
 	text_handling = localize_needed = FALSE;
-	if (fCType == INTERNAL_ASIS_TYPE
+	switch (fCType)
+	{
+		case INTERNAL_ASIS_TYPE:
 #ifdef	UNICODE_SUPPORT
-	    || fCType == SQL_C_WCHAR
+	    	case SQL_C_WCHAR:
 #endif /* UNICODE_SUPPORT */
-	    || fCType == SQL_C_CHAR)
-		text_handling = TRUE;
-	else if (fCType == SQL_C_BINARY &&
-		 (field_type == PG_TYPE_UNKNOWN
-		  || field_type == PG_TYPE_BPCHAR
-		  || field_type == PG_TYPE_VARCHAR
-		  || field_type == PG_TYPE_TEXT
-		  || field_type == PG_TYPE_BPCHARARRAY
-		  || field_type == PG_TYPE_VARCHARARRAY
-		  || field_type == PG_TYPE_TEXTARRAY
-		 ))
-		text_handling = TRUE;
+	    	case SQL_C_CHAR:
+			text_handling = TRUE;
+			break;
+		case SQL_C_BINARY:
+			switch (field_type)
+			{ 
+		 		case PG_TYPE_UNKNOWN:
+		  		case PG_TYPE_BPCHAR:
+		  		case PG_TYPE_VARCHAR:
+		  		case PG_TYPE_TEXT:
+		  		case PG_TYPE_BPCHARARRAY:
+		  		case PG_TYPE_VARCHARARRAY:
+		  		case PG_TYPE_TEXTARRAY:
+					text_handling = TRUE;
+					break;
+			}
+			break;
+	}
 	if (text_handling)
 	{
 #ifdef	WIN_UNICODE_SUPPORT
@@ -1505,6 +1512,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_CONVERT_LF		(1L << 7)
 #define	FLGB_DISCARD_OUTPUT	(1L << 8)
 #define	FLGB_BINARY_AS_POSSIBLE	(1L << 9)
+#define	FLGB_LITERAL_EXTENSION	(1L << 10)
 typedef struct _QueryBuild {
 	char	*query_statement;
 	UInt4	str_size_limit;
@@ -1575,6 +1583,9 @@ QB_initialize(QueryBuild *qb, UInt4 size, StatementClass *stmt, ConnectionClass 
 	if (qb->conn->connInfo.lf_conversion)
 		qb->flags |= FLGB_CONVERT_LF;
 	qb->ccsc = qb->conn->ccsc;
+	if (CC_get_escape(qb->conn) &&
+	    PG_VERSION_GE(qb->conn, 8.1))
+		qb->flags |= FLGB_LITERAL_EXTENSION;
 		
 	if (stmt)
 		qb->str_size_limit = stmt->stmt_size_limit;
@@ -1708,7 +1719,9 @@ static int
 ResolveOneParam(QueryBuild *qb);
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
-UInt4 *output_count, Int4 param_pos[][2]);
+	UInt4 *output_count, Int4 param_pos[][2]);
+static int
+convert_to_pgbinary(const UCHAR *in, char *out, int len, QueryBuild *qb);
 
 static int
 enlarge_query_statement(QueryBuild *qb, unsigned int newsize)
@@ -1815,7 +1828,7 @@ do { \
 do { \
 	unsigned int	newlimit = qb->npos + 5 * used; \
 	ENLARGE_NEWSTATEMENT(qb, newlimit); \
-	qb->npos += convert_to_pgbinary(buf, &qb->query_statement[qb->npos], used, qb->flags); \
+	qb->npos += convert_to_pgbinary(buf, &qb->query_statement[qb->npos], used, qb); \
 } while (0)
 
 /*----------
@@ -1824,13 +1837,31 @@ do { \
  */
 #define CVT_SPECIAL_CHARS(qb, buf, used) \
 do { \
-	int cnvlen = convert_special_chars(buf, NULL, used, qb->flags, qb->ccsc); \
+	int cnvlen = convert_special_chars(buf, NULL, used, qb->flags, qb->ccsc, CC_get_escape(qb->conn)); \
 	unsigned int	newlimit = qb->npos + cnvlen; \
 \
 	ENLARGE_NEWSTATEMENT(qb, newlimit); \
-	convert_special_chars(buf, &qb->query_statement[qb->npos], used, qb->flags, qb->ccsc); \
+	convert_special_chars(buf, &qb->query_statement[qb->npos], used, qb->flags, qb->ccsc, CC_get_escape(qb->conn)); \
 	qb->npos += cnvlen; \
 } while (0)
+
+#ifdef NOT_USED
+#define CVT_TEXT_FIELD(qb, buf, used) \
+do { \
+	char	escape_ch = CC_get_escape(qb->conn); \
+	int flags = ((0 != qb->flags & FLGB_CONVERT_LF) ? CONVERT_CRLF_TO_LF : 0) | ((0 != qb->flags & FLGB_BUILDING_BIND_REQUEST) ? 0 : DOUBLE_LITERAL_QUOTE | (escape_ch ? DOUBLE_LITERAL_IN_ESCAPE : 0)); \
+	int cnvlen = (flags & (DOUBLE_LITERAL_QUOTE | DOUBLE_LITERAL_IN_ESCAPE)) != 0 ? used * 2 : used; \
+	if (used > 0 && qb->npos + cnvlen >= qb->str_alsize) \
+	{ \
+		cnvlen = convert_text_field(buf, NULL, used, qb->ccsc, escape_ch, &flags); \
+		unsigned int	newlimit = qb->npos + cnvlen; \
+\
+		ENLARGE_NEWSTATEMENT(qb, newlimit); \
+	} \
+	cnvlen = convert_text_field(buf, &qb->query_statement[qb->npos], used, qb->ccsc, escape_ch, &flags); \
+	qb->npos += cnvlen; \
+} while (0)
+#endif /* NOT_USED */
 
 /*----------
  *	Check if the statement is
@@ -2373,7 +2404,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	RETCODE	retval;
 	char	   oldchar;
 	StatementClass	*stmt = qb->stmt;
-	char	literal_quote = LITERAL_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
+	char	literal_quote = LITERAL_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal = '\0';
 
 	if (stmt && stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
@@ -2459,8 +2490,10 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 * a literal_quote nor an idetifier_quote.
 	 */
 	/* Squeeze carriage-return/linefeed pairs to linefeed only */
-	else if (lf_conv && oldchar == '\r' && qp->opos + 1 < qp->stmt_len &&
-			qp->statement[qp->opos + 1] == '\n')
+	else if (lf_conv &&
+		 PG_CARRIAGE_RETURN == oldchar &&
+		 qp->opos + 1 < qp->stmt_len &&
+		 PG_LINEFEED == qp->statement[qp->opos + 1])
 		return SQL_SUCCESS;
 
 	/*
@@ -2522,7 +2555,15 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		else if (oldchar == literal_quote)
 		{
 			if (!qp->in_identifier)
+			{
 				qp->in_literal = TRUE;
+				escape_in_literal = CC_get_escape(qb->conn);
+				if (!escape_in_literal)
+				{
+					if (LITERAL_EXT == F_OldPtr(qp)[-1])
+						escape_in_literal = ESCAPE_IN_LITERAL;
+				}
+			}
 		}
 		else if (oldchar == IDENTIFIER_QUOTE)
 		{
@@ -2938,7 +2979,7 @@ ResolveOneParam(QueryBuild *qb)
 	 */
 	param_number = ++qb->param_number;
 
-inolog("resolveOnParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
+inolog("resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
 	apara = NULL;
 	ipara = NULL;
 	if (param_number < apdopts->allocated)
@@ -3169,7 +3210,7 @@ inolog("ipara=%x paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		case SQL_C_WCHAR:
 mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used > 0 ? used / WCLEN : used, &used, FALSE);
-			used *= WCLEN;
+			/* used *= WCLEN; */
 			break;
 #endif /* UNICODE_SUPPORT */
 
@@ -3303,18 +3344,30 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 	 * the desired output format (sqltype)
 	 */
 
-	switch (param_sqltype)
+	if (!req_bind)
 	{
-		case SQL_INTEGER:
-		case SQL_SMALLINT:
-			break;
-		default:
-			if (!req_bind)
-			{
+		switch (param_sqltype)
+		{
+			case SQL_INTEGER:
+			case SQL_SMALLINT:
+				break;
+			case SQL_CHAR:
+			case SQL_VARCHAR:
+			case SQL_LONGVARCHAR:
+#ifdef	UNICODE_SUPPORT
+			case SQL_WCHAR:
+			case SQL_WVARCHAR:
+			case SQL_WLONGVARCHAR:
+#endif /* UNICODE_SUPPORT */
+				if (buf && (qb->flags & FLGB_LITERAL_EXTENSION) != 0)
+				{
+					CVT_APPEND_CHAR(qb, LITERAL_EXT);
+				}
+			default:
 				CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
 				add_quote = TRUE;
-			}
 			break;
+		}
 	}
 	switch (param_sqltype)
 	{
@@ -3330,7 +3383,6 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			/* it was a SQL_C_CHAR */
 			if (buf)
 				CVT_SPECIAL_CHARS(qb, buf, used);
-
 			/* it was a numeric type */
 			else if (param_string[0] != '\0')
 				CVT_APPEND_STR(qb, param_string);
@@ -3338,7 +3390,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			/* it was date,time,timestamp -- use m,d,y,hh,mm,ss */
 			else
 			{
-				sprintf(tmp, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+				snprintf(tmp, sizeof(tmp), "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 						st.y, st.m, st.d, st.hh, st.mm, st.ss);
 
 				CVT_APPEND_STR(qb, tmp);
@@ -4033,7 +4085,7 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
 		if (convlf && si[i] == '\n')
 		{
 			/* Only add the carriage-return if needed */
-			if (i > 0 && si[i - 1] == '\r')
+			if (i > 0 && PG_CARRIAGE_RETURN == si[i - 1])
 			{
 				if (dst)
 					dst[out++] = si[i];
@@ -4045,7 +4097,7 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
 
 			if (dst)
 			{
-				dst[out++] = '\r';
+				dst[out++] = PG_CARRIAGE_RETURN;
 				dst[out++] = '\n';
 			}
 			else
@@ -4070,15 +4122,15 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
  *	Plus, escape any special characters.
  */
 int
-convert_special_chars(const char *si, char *dst, int used, UInt4 flags, int ccsc)
+convert_special_chars(const char *si, char *dst, int used, UInt4 flags, int ccsc, int escape_in_literal)
 {
 	size_t		i = 0,
 				out = 0,
 				max;
-	char	   *p = NULL, literal_quote = LITERAL_QUOTE;
+	char	   *p = NULL, literal_quote = LITERAL_QUOTE, tchar;
 	encoded_str	encstr;
 	BOOL	convlf = (0 != (flags & FLGB_CONVERT_LF)),
-		escadd = (0 == (flags & FLGB_BUILDING_BIND_REQUEST));
+		double_special = (0 == (flags & FLGB_BUILDING_BIND_REQUEST));
 
 	if (used == SQL_NTS)
 		max = strlen(si);
@@ -4093,25 +4145,29 @@ convert_special_chars(const char *si, char *dst, int used, UInt4 flags, int ccsc
 
 	for (i = 0; i < max && si[i]; i++)
 	{
-		encoded_nextchar(&encstr);
+		tchar = encoded_nextchar(&encstr);
 		if (ENCODE_STATUS(encstr) != 0)
 		{
 			if (p)
-				p[out] = si[i];
+				p[out] = tchar;
 			out++;
 			continue;
 		}
-		if (convlf && si[i] == '\r' && si[i + 1] == '\n')
+		if (convlf &&	/* CR/LF -> LF */
+		    PG_CARRIAGE_RETURN == tchar &&
+		    PG_LINEFEED == si[i + 1])
 			continue;
-		else if (escadd && (si[i] == literal_quote || si[i] == ESCAPE_IN_LITERAL))
+		else if (double_special && /* double special chars ? */
+			 (tchar == literal_quote ||
+			  tchar == escape_in_literal))
 		{
 			if (p)
-				p[out++] = ESCAPE_IN_LITERAL;
+				p[out++] = tchar;
 			else
 				out++;
 		}
 		if (p)
-			p[out++] = si[i];
+			p[out++] = tchar;
 		else
 			out++;
 	}
@@ -4119,6 +4175,83 @@ convert_special_chars(const char *si, char *dst, int used, UInt4 flags, int ccsc
 		p[out] = '\0';
 	return out;
 }
+
+#ifdef NOT_USED
+#define	CVT_CRLF_TO_LF			1L
+#define	DOUBLE_LITERAL_QUOTE		(1L << 1)
+#define	DOUBLE_ESCAPE_IN_LITERAL	(1L << 2)
+static int
+convert_text_field(const char *si, char *dst, int used, int ccsc, int escape_in_literal, UInt4 *flags)
+{
+	size_t		i = 0, out = 0, max;
+	UInt4	iflags = *flags;
+	char	*p = NULL, literal_quote = LITERAL_QUOTE, tchar;
+	encoded_str	encstr;
+	BOOL	convlf = (0 != (iflags & CVT_CRLF_TO_LF)),
+		double_literal_quote = (0 != (iflags & DOUBLE_LITERAL_QUOTE)),
+		double_escape_in_literal = (0 != (iflags & DOUBLE_ESCAPE_IN_LITERAL));
+
+	if (SQL_NTS == used)
+		max = strlen(si);
+	else
+		max = used;
+	if (0 == iflags)
+	{
+		if (dst)
+			strncpy_null(dst, si, max + 1);
+		else
+			return max;
+	}
+	if (dst)
+	{
+		p = dst;
+		p[0] = '\0';
+	}
+	encoded_str_constr(&encstr, ccsc, si);
+
+	*flags = 0;
+	for (i = 0; i < max && si[i]; i++)
+	{
+		tchar = encoded_nextchar(&encstr);
+		if (ENCODE_STATUS(encstr) != 0)
+		{
+			if (p)
+				p[out] = tchar;
+			out++;
+			continue;
+		}
+		if (convlf &&	/* CR/LF -> LF */
+		    PG_CARRIAGE_RETURN == tchar &&
+		    PG_LINEFEED == si[i + 1])
+		{
+			*flags |= CVT_CRLF_TO_LF;
+			continue;
+		}
+		else if (double_literal_quote && /* double literal quote ? */
+			 tchar == literal_quote)
+		{
+			if (p)
+				p[out] = tchar;
+			out++;
+			*flags |= DOUBLE_LITERAL_QUOTE;
+		}
+		else if (double_escape_in_literal && /* double escape ? */
+			 tchar == escape_in_literal)
+		{
+			if (p)
+				p[out] = tchar;
+			out++;
+			*flags |= DOUBLE_ESCAPE_IN_LITERAL;
+		}
+		if (p)
+			p[out] = tchar;
+		out++;
+	}
+	if (p)
+		p[out] = '\0';
+	return out;
+}
+#endif /* NOT_USED */
 
 
 /*	!!! Need to implement this function !!!  */
@@ -4157,7 +4290,7 @@ convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, int cbValueMax)
 
 	for (i = 0; i < ilen;)
 	{
-		if (value[i] == ESCAPE_IN_LITERAL)
+		if (value[i] == BYTEA_ESCAPE_CHAR)
 		{
 			if (value[i + 1] == BYTEA_ESCAPE_CHAR)
 			{
@@ -4192,22 +4325,24 @@ convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, int cbValueMax)
 }
 
 
-static char *
-conv_to_octal(UCHAR val, char *octal)
+static int
+conv_to_octal(UCHAR val, char *octal, char escape_ch)
 {
-	int			i;
+	int	i, pos = 0, len;
 
-	octal[0] = ESCAPE_IN_LITERAL;
-	octal[1] = BYTEA_ESCAPE_CHAR;
-	octal[5] = '\0';
+	if (escape_ch)
+		octal[pos++] = escape_ch;
+	octal[pos + 1] = BYTEA_ESCAPE_CHAR;
+	len = 4 + pos;
+	octal[len] = '\0';
 
-	for (i = 4; i > 1; i--)
+	for (i = len - 1; i > pos; i--)
 	{
 		octal[i] = (val & 7) + '0';
 		val >>= 3;
 	}
 
-	return octal;
+	return len;
 }
 
 
@@ -4230,24 +4365,25 @@ conv_to_octal2(UCHAR val, char *octal)
 
 
 /*	convert non-ascii bytes to octal escape sequences */
-int
-convert_to_pgbinary(const UCHAR *in, char *out, int len, UInt4 flags)
+static int
+convert_to_pgbinary(const UCHAR *in, char *out, int len, QueryBuild *qb)
 {
+	CSTR	func = "convert_to_pgbinary";
 	int			i,
 				o = 0;
-	BOOL	esc_double = (0 == (flags & FLGB_BUILDING_BIND_REQUEST));
+	char	escape_in_literal = CC_get_escape(qb->conn);
+	BOOL	esc_double = (0 == (qb->flags & FLGB_BUILDING_BIND_REQUEST) && 0 != escape_in_literal);
 
 	for (i = 0; i < len; i++)
 	{
-		mylog("convert_to_pgbinary: in[%d] = %d, %c\n", i, in[i], in[i]);
+		mylog("%s: in[%d] = %d, %c\n", func, i, in[i], in[i]);
 		if (isalnum(in[i]) || in[i] == ' ')
 			out[o++] = in[i];
 		else
 		{
 			if (esc_double)
 			{
-				conv_to_octal(in[i], &out[o]);
-				o += 5;
+				o += conv_to_octal(in[i], &out[o], escape_in_literal);
 			}
 			else
 			{
@@ -4257,7 +4393,7 @@ convert_to_pgbinary(const UCHAR *in, char *out, int len, UInt4 flags)
 		}
 	}
 
-	mylog("convert_to_pgbinary: returning %d, out='%.*s'\n", o, o, out);
+	mylog("%s: returning %d, out='%.*s'\n", func, o, o, out);
 
 	return o;
 }

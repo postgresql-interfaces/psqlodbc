@@ -385,7 +385,7 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 		if (rgbInfoValue)
 		{
 #ifdef	UNICODE_SUPPORT
-			if (conn->unicode)
+			if (CC_is_in_unicode_driver(conn))
 			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) rgbInfoValue, cbInfoValueMax / WCLEN);
 				len *= WCLEN;
@@ -401,7 +401,7 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			}
 		}
 #ifdef	UNICODE_SUPPORT
-		else if (conn->unicode)
+		else if (CC_is_in_unicode_driver(conn))
 			len *= WCLEN;
 #endif /* UNICODE_SUPPORT */
 	}

@@ -87,7 +87,7 @@ PGAPI_DriverConnect(
 #ifdef WIN32
 	RETCODE		dialog_result;
 #endif
-	BOOL		paramRequired;
+	BOOL		paramRequired, didUI = FALSE;
 	RETCODE		result;
 	char		*connStrIn = NULL;
 	char		connStrOut[MAX_CONNECT_STRING];
@@ -159,6 +159,7 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 #ifdef WIN32
 		case SQL_DRIVER_PROMPT:
 			dialog_result = dconn_DoDialog(hwnd, ci);
+			didUI = TRUE;
 			if (dialog_result != SQL_SUCCESS)
 				return dialog_result;
 			break;
@@ -171,15 +172,6 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 
 			paramRequired = password_required;
 			/* Password is not a required parameter. */
-#ifdef	NOT_USED
-			if (ci->username[0] == '\0' ||
-#ifdef	WIN32
-				ci->server[0] == '\0' ||
-#endif /* WIN32 */
-				ci->database[0] == '\0' ||
-				ci->port[0] == '\0' ||
-				password_required)
-#endif /* NOT_USED */
 			if (ci->database[0] == '\0')
 				paramRequired = TRUE;
 			else if (ci->port[0] == '\0')
@@ -188,11 +180,10 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 			else if (ci->server[0] == '\0')
 				paramRequired = TRUE;
 #endif /* WIN32 */
-			else if (ci->username[0] == '\0' && 'd' == ci->sslmode[0])
-				paramRequired = TRUE;
 			if (paramRequired)
 			{
 				dialog_result = dconn_DoDialog(hwnd, ci);
+				didUI = TRUE;
 				if (dialog_result != SQL_SUCCESS)
 					return dialog_result;
 			}
@@ -212,14 +203,6 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	 * over and over until a password is entered (the user can always hit
 	 * Cancel to get out)
 	 */
-#ifdef	NOT_USED
-	if (ci->username[0] == '\0' ||
-#ifdef	WIN32
-		ci->server[0] == '\0' ||
-#endif /* WIN32 */
-		ci->database[0] == '\0' ||
-		ci->port[0] == '\0')
-#endif /* NOT_USED */
 	paramRequired = FALSE;
 	if (ci->database[0] == '\0')
 		paramRequired = TRUE;
@@ -229,13 +212,12 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	else if (ci->server[0] == '\0')
 		paramRequired = TRUE;
 #endif /* WIN32 */
-	else if (ci->username[0] == '\0' && 'd' == ci->sslmode[0])
-		paramRequired = TRUE;
 	if (paramRequired)
 	{
-		/* (password_required && ci->password[0] == '\0')) */
-
-		return SQL_NO_DATA_FOUND;
+		if (didUI)
+			return SQL_NO_DATA_FOUND;
+		CC_set_error(conn, CONN_OPENDB_ERROR, "connction string lacks some options", func);
+		return SQL_ERROR;
 	}
 
 inolog("before CC_connect\n");

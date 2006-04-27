@@ -148,7 +148,8 @@ RETCODE SQL_API PGAPI_Tables(HSTMT StatementHandle,
 			 const SQLCHAR *CatalogName, SQLSMALLINT NameLength1,
 			 const SQLCHAR *SchemaName, SQLSMALLINT NameLength2,
 			 const SQLCHAR *TableName, SQLSMALLINT NameLength3,
-			 const SQLCHAR *TableType, SQLSMALLINT NameLength4);
+			 const SQLCHAR *TableType, SQLSMALLINT NameLength4,
+			UWORD flag);
 RETCODE SQL_API PGAPI_Transact(HENV EnvironmentHandle,
 			   HDBC ConnectionHandle, SQLUSMALLINT CompletionType);
 RETCODE SQL_API PGAPI_ColAttributes(
@@ -241,7 +242,8 @@ RETCODE SQL_API PGAPI_Procedures(
 				 const SQLCHAR *szSchemaName,
 				 SQLSMALLINT cbSchemaName,
 				 const SQLCHAR *szProcName,
-				 SQLSMALLINT cbProcName);
+				 SQLSMALLINT cbProcName,
+				UWORD flag);
 RETCODE SQL_API PGAPI_SetPos(
 			 HSTMT hstmt,
 			 SQLSETPOSIROW irow,

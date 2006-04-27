@@ -62,7 +62,7 @@ RETCODE  SQL_API SQLSetConnectOptionW(HDBC ConnectionHandle,
 {
 	mylog("[SQLSetConnectionOptionW]");
 if (!ConnectionHandle)	return SQL_ERROR;
-	((ConnectionClass *) ConnectionHandle)->unicode = 1;
+	CC_set_in_unicode_driver((ConnectionClass *) ConnectionHandle);
 	return PGAPI_SetConnectOption(ConnectionHandle, Option, Value);
 }
 

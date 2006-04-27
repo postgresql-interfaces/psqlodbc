@@ -123,11 +123,11 @@ UInt4	utf8_to_ucs2_lf(const char *utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs
 	{
 		if (iswascii(*str))
 		{
-			if (lfconv && *str == '\n' &&
-			    (i == 0 || str[-1] != '\r'))
+			if (lfconv && PG_LINEFEED == *str &&
+			    (i == 0 || PG_CARRIAGE_RETURN != str[-1]))
 			{
 				if (ocount < bufcount)
-					ucs2str[ocount] = '\r';
+					ucs2str[ocount] = PG_CARRIAGE_RETURN;
 				ocount++;
 			}
 			if (ocount < bufcount)

@@ -1546,9 +1546,11 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 		case SQL_ATTR_METADATA_ID:		/* 10014 */
 			*((SQLUINTEGER *) Value) = stmt->options.metadata_id;
 			break;
+		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
+			*((SQLUINTEGER *) Value) = SQL_FALSE;
+			break;
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
 			/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
-		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
 			SC_set_error(stmt, DESC_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Get)", func);
 			return SQL_ERROR;
 		default:
@@ -1598,8 +1600,10 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			return EnlistInDtc(conn, Value, conn->connInfo.xa_opt); /* telling a lie */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
-		case SQL_ATTR_ASYNC_ENABLE:
 		case SQL_ATTR_AUTO_IPD:
+			if (SQL_FALSE == Value)
+				break;
+		case SQL_ATTR_ASYNC_ENABLE:
 		case SQL_ATTR_CONNECTION_DEAD:
 		case SQL_ATTR_CONNECTION_TIMEOUT:
 			CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, "Unsupported connect attribute (Set)", func);
@@ -1724,11 +1728,11 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	mylog("%s Handle=%x %d,%u\n", func, StatementHandle, Attribute, Value);
 	switch (Attribute)
 	{
+		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
+			if (SQL_FALSE == Value)
+				break;
 		case SQL_ATTR_CURSOR_SCROLLABLE:		/* -1 */
 		case SQL_ATTR_CURSOR_SENSITIVITY:		/* -2 */
-
-		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
-
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
 			SC_set_error(stmt, DESC_OPTION_NOT_FOR_THE_DRIVER, "Unsupported statement option (Set)", func);
 			return SQL_ERROR;

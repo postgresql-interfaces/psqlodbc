@@ -136,6 +136,9 @@ PGAPI_Connect(
 		CC_log_error(func, "Error on CC_connect", conn);
 		ret = SQL_ERROR;
 	}
+	if (CC_is_in_unicode_driver(conn)
+	    && 0 != ci->bde_environment)
+		conn->unicode |= CONN_DISALLOW_WCHAR;
 
 	mylog("%s: returning..%d.\n", func, ret);
 
@@ -320,6 +323,7 @@ CC_Constructor()
 		// rv->discardp = NULL;
 		rv->mb_maxbyte_per_char = 1;
 		rv->max_identifier_length = -1;
+		rv->escape_in_literal = ESCAPE_IN_LITERAL;
 
 		/* Initialize statement options to defaults */
 		/* Statements under this conn will inherit these options */
@@ -1179,7 +1183,7 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	int			beresp;
 	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
-	CSTR		func = "original_connect";
+	CSTR		func = "original_CC_connect";
 	// char	   *encoding;
 	BOOL	startPacketReceived = FALSE;
 
@@ -1467,15 +1471,12 @@ inolog("Ekita\n");
 		QR_Destructor(res);
 
 		mylog("empty query seems to be OK.\n");
-	}
 
-	/* 
-	 * Get the version number first so we can check it before
-	 * sending options that are now obsolete. DJP 21/06/2002
-	 */
+		/* 
+		 * Get the version number first so we can check it before
+		 * sending options that are now obsolete. DJP 21/06/2002
+		 */
 inolog("CC_lookup_pg_version\n");
-	if (!PROTOCOL_74(ci))
-	{
 		CC_lookup_pg_version(self);	/* Get PostgreSQL version for
 						   SQLGetInfo use */
 		CC_setenv(self);
@@ -1505,13 +1506,24 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	mylog("%s: entering...\n", func);
 
 	mylog("sslmode=%s\n", self->connInfo.sslmode);
-	if (self->connInfo.sslmode[0] != 'd')
+	if (self->connInfo.sslmode[0] != 'd' ||
+	    self->connInfo.username[0] == '\0')
 		ret = LIBPQ_CC_connect(self, password_req, salt_para);
 	else
+	{
 		ret = original_CC_connect(self, password_req, salt_para);
+		if (0 == ret && CONN_AUTH_TYPE_UNSUPPORTED == CC_get_errornumber(self))
+		{
+			SOCK_Destructor(self->sock);
+			self->sock = (SocketClass *) 0;
+			ret = LIBPQ_CC_connect(self, password_req, salt_para);
+		}
+	}
 	if (ret <= 0)
 		return ret;
 
+	if (PG_VERSION_GE(self, 8.4)) /* maybe */
+		self->escape_in_literal = '\0';
 	CC_set_translation(self);
 
 	/*
@@ -1540,7 +1552,7 @@ inolog("CC_send_settings\n");
 		if (CC_get_errornumber(self) != 0)
 			return 0;
 #ifdef UNICODE_SUPPORT
-		if (self->unicode)
+		if (CC_is_in_unicode_driver(self))
 		{
 			if (!self->original_client_encoding ||
 			    (stricmp(self->original_client_encoding, "UNICODE") &&
@@ -1569,7 +1581,7 @@ inolog("CC_send_settings\n");
 #endif /* UNICODE_SUPPORT */
 	}
 #ifdef UNICODE_SUPPORT
-	else if (self->unicode)
+	else if (CC_is_in_unicode_driver(self))
 	{
 		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "Unicode isn't supported before 6.4", func);
 		return 0;
@@ -2741,10 +2753,10 @@ CC_lookup_lo(ConnectionClass *self)
 	mylog("%s: entering...\n", func);
 
 	if (PG_VERSION_GE(self, 7.4))
-		res = CC_send_query(self, "select oid, typbasetype from pg_type where oid = '"  PG_TYPE_LO_NAME "'::regtype::oid", 
+		res = CC_send_query(self, "select oid, typbasetype from pg_type where typname = '"  PG_TYPE_LO_NAME "'", 
 			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	else
-		res = CC_send_query(self, "select oid from pg_type where typname='" PG_TYPE_LO_NAME "'",
+		res = CC_send_query(self, "select oid, 0 from pg_type where typname='" PG_TYPE_LO_NAME "'",
 			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
 	{
@@ -3102,6 +3114,7 @@ inolog("sock=%x\n", sock);
 		const char	*errmsg;
 inolog("status=%d\n", pqret);
 		errmsg = PQerrorMessage(pqconn);
+		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
 		if (CONNECTION_BAD == pqret && strstr(errmsg, "no password"))
 		{
 			mylog("password retry\n");
@@ -3109,7 +3122,6 @@ inolog("status=%d\n", pqret);
 			self->sock = sock;
 			return -1;
 		}
-		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
 		mylog("Could not establish connection to the database; LIBPQ returned -> %s\n", errmsg);
 		goto cleanup1;
 	}

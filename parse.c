@@ -41,7 +41,7 @@
 #define TAB_INCR	8
 #define COL_INCR	16
 
-static	char	*getNextToken(int ccsc, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
+static	char	*getNextToken(int ccsc, char escape_in_literal, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
 static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
 static	char	searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
 
@@ -69,9 +69,10 @@ Int4 FI_scale(const FIELD_INFO *fi)
 	return 0;
 }
 
-char *
+static char *
 getNextToken(
 	int ccsc, /* client encoding */
+	char escape_ch,
 	char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
 	int			i = 0;
@@ -79,7 +80,7 @@ getNextToken(
 	char		qc, in_quote, in_dollar_quote, in_escape;
 	const	char	*tag, *tagend;
 	encoded_str	encstr;
-	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, escape_in_literal = ESCAPE_IN_LITERAL, dollar_quote = '$';
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal;
 
 	if (smax <= 1)
 		return NULL;
@@ -131,6 +132,7 @@ getNextToken(
 				if (tagend = strchr(s + i + 1, dollar_quote))
 					taglen = tagend - s - i + 1;
 				i += (taglen - 1);
+				encoded_position_shift(&encstr, taglen - 1);
 				if (quote)
 					*quote = TRUE;
 			}
@@ -139,6 +141,12 @@ getNextToken(
 				in_quote = TRUE;
 				if (quote)
 					*quote = TRUE;
+				escape_in_literal = escape_ch;
+				if (!escape_in_literal)
+				{
+					if (LITERAL_EXT == s[i - 1])
+						escape_in_literal = ESCAPE_IN_LITERAL;
+				}
 			}
 			else if (qc == identifier_quote)
 			{
@@ -168,12 +176,15 @@ getNextToken(
 					if (strncmp(s + i, tag, taglen) == 0)
 					{
 						i += (taglen - 1);
+						encoded_position_shift(&encstr, taglen - 1);
 						break;
 					}
 					token[out++] = s[i];
 				}
 				else if (literal_quote == qc && s[i] == escape_in_literal)
+				{
 					in_escape = TRUE;
+				}
 				else
 				{
 					token[out++] = s[i];
@@ -454,7 +465,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	stmt->from_pos = -1;
 	stmt->where_pos = -1;
 
-	while (pptr = ptr, (ptr = getNextToken(conn->ccsc, pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	while (pptr = ptr, (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 

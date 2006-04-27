@@ -258,27 +258,27 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 		case PG_TYPE_CHAR2:
 		case PG_TYPE_CHAR4:
 		case PG_TYPE_CHAR8:
-			return conn->unicode ? SQL_WCHAR : SQL_CHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
 		case PG_TYPE_NAME:
-			return conn->unicode ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 #ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
 			if (col >= 0 &&
 			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
-				return conn->unicode ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
-			return conn->unicode ? SQL_WCHAR : SQL_CHAR;
+				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
 
 		case PG_TYPE_VARCHAR:
 			if (col >= 0 &&
 			    getCharColumnSize(stmt, type, col, UNKNOWNS_AS_MAX) > ci->drivers.max_varchar_size)
-				return conn->unicode ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
-			return conn->unicode ? SQL_WVARCHAR : SQL_VARCHAR;
+				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		case PG_TYPE_TEXT:
 			return ci->drivers.text_as_longvarchar ? 
-				(conn->unicode ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR) :
-				(conn->unicode ? SQL_WVARCHAR : SQL_VARCHAR);
+				(ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR) :
+				(ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR);
 
 #else
 		case PG_TYPE_BPCHAR:
@@ -370,7 +370,7 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 				return SQL_LONGVARBINARY;
 
 #ifdef	EXPERIMENTAL_CURRENTLY
-			if (conn->unicode)
+			if (ALLOW_WCHAR(conn))
 				return ci->drivers.unknowns_as_longvarchar ? SQL_WLONGVARCHAR : SQL_WVARCHAR;
 #endif	/* EXPERIMENTAL_CURRENTLY */
 			return ci->drivers.unknowns_as_longvarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
@@ -491,7 +491,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 
 			/* Experimental, Does this work ? */
 #ifdef	EXPERIMENTAL_CURRENTLY
-			if (conn->unicode)
+			if (ALLOW_WCHAR(conn))
 				return SQL_C_WCHAR;
 #endif	/* EXPERIMENTAL_CURRENTLY */
 			return SQL_C_CHAR;
@@ -737,7 +737,7 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 		{
 			case PG_TYPE_VARCHAR:
 			case PG_TYPE_BPCHAR:
-				if (conn->unicode || conn->ms_jet)
+				if (CC_is_in_unicode_driver(conn) || conn->ms_jet)
 					return attlen;
 #if (ODBCVER >= 0x0300)
 				return attlen;
@@ -1048,7 +1048,7 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 			if (SQL_NO_TOTAL == prec)
 				return prec;
 #ifdef	UNICODE_SUPPORT
-			if (conn->unicode)
+			if (CC_is_in_unicode_driver(conn))
 				return prec * WCLEN;
 #endif /* UNICODE_SUPPORT */
 			/* after 7.2 */
@@ -1129,7 +1129,7 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
 			if (SQL_NO_TOTAL == prec)
 				return prec;
 #ifdef	UNICODE_SUPPORT
-			if (conn->unicode)
+			if (CC_is_in_unicode_driver(conn))
 				return prec * WCLEN;
 #endif /* UNICODE_SUPPORT */
 			/* after 7.2 */
@@ -1491,7 +1491,7 @@ sqltype_to_default_ctype(const ConnectionClass *conn, Int2 sqltype)
 		case SQL_WCHAR:
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
-			if (!conn->unicode)
+			if (!ALLOW_WCHAR(conn))
 				return SQL_C_CHAR;
 			return SQL_C_WCHAR;
 #endif /* UNICODE_SUPPORT */

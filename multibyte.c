@@ -40,13 +40,10 @@ pg_CS CS_Table[] =
 	{ "LATIN9",	LATIN9 },
 	{ "LATIN10",	LATIN10 },
 	{ "WIN1256",	WIN1256 },
-	{ "TCVN",	TCVN },
 	{ "WIN1258",	WIN1258 },	/* since 8.1 */
 	{ "WIN874",	WIN874 },
 	{ "KOI8",	KOI8R },
-	{ "WIN",	WIN },
 	{ "WIN1251",	WIN1251 },
-	{ "ALT",	ALT },
 	{ "WIN866",	WIN866 },	/* since 8.1 */
 	{ "ISO_8859_5", ISO_8859_5 },
 	{ "ISO_8859_6", ISO_8859_6 },
@@ -61,40 +58,39 @@ pg_CS CS_Table[] =
 	{ "WIN1250",	WIN1250 },
 	{ "GB18030",	GB18030 },
 	{ "UNICODE",	UNICODE_PODBC },
+	{ "TCVN",	TCVN },
+	{ "ALT",	ALT },
+	{ "WIN",	WIN },
 	{ "OTHER",	OTHER }
 };
 
-#ifdef NOT_USED
-static int
-pg_ismb(int characterset_code)
-{
-	int i=0,MB_CHARACTERSET[]={EUC_JP,EUC_CN,EUC_KR,EUC_TW,UTF8,MULE_INTERNAL,SJIS,BIG5,GBK,UHC,JOHAB};
-
-	while (MB_CHARACTERSET[i] != characterset_code || OTHER != MB_CHARACTERSET[i] )
-	{
-		i++;
-	}
-	return (MB_CHARACTERSET[i]);
-}
-#endif
 
 int
 pg_CS_code(const UCHAR *characterset_string)
 {
-	int i = 0, c = -1;
+	int i, c = -1;
   	unsigned len = 0;
+
 	for(i = 0; CS_Table[i].code != OTHER; i++)
 	{
-		if (strstr(characterset_string,CS_Table[i].name))
+		if (0 == stricmp(characterset_string, CS_Table[i].name))
 		{
-                  	if(strlen(CS_Table[i].name) >= len)
-                        {
-                         	len = strlen(CS_Table[i].name);
-                         	c = CS_Table[i].code;
-                        }
-
+                       	c = CS_Table[i].code;
+			break;
 		}
 	}
+	if (c < 0)
+		for(i = 0; CS_Table[i].code != OTHER; i++)
+		{
+			if (strstr(characterset_string, CS_Table[i].name))
+			{
+                  		if(strlen(CS_Table[i].name) >= len)
+				{
+                         		len = strlen(CS_Table[i].name);
+                         		c = CS_Table[i].code;
+                        	}
+			}
+		}
 	if (c < 0)
 		c = i;
 	return (c);
@@ -402,7 +398,7 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *o
 	const char *wenc = NULL;
 
 #ifdef	UNICODE_SUPPORT
-	if (conn->unicode)
+	if (CC_is_in_unicode_driver(conn))
 		return "UTF8";
 #endif /* UNICODE_SUPPORT */
 #ifdef	WIN32
@@ -512,6 +508,11 @@ int encoded_nextchar(encoded_str *encstr)
 	chr = encstr->encstr[++encstr->pos]; 
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
 	return chr; 
+}
+int encoded_position_shift(encoded_str *encstr, int shift)
+{
+	encstr->pos += shift; 
+	return encstr->pos; 
 }
 int encoded_byte_check(encoded_str *encstr, int abspos)
 {

@@ -503,6 +503,7 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -514,12 +515,16 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_Tables(StatementHandle, ctName, (SQLSMALLINT) nmlen1,
            		scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3,
-           		tbType, (SQLSMALLINT) nmlen4);
+           		tbType, (SQLSMALLINT) nmlen4, flag);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -807,7 +812,8 @@ RETCODE SQL_API SQLProceduresW(
 	Int4	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
+	UWORD	flag = 0; 
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -818,11 +824,16 @@ RETCODE SQL_API SQLProceduresW(
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_Procedures(hstmt, ctName, (SQLSMALLINT) nmlen1,
-			scName, (SQLSMALLINT) nmlen2, prName, (SQLSMALLINT) nmlen3);
+					scName, (SQLSMALLINT) nmlen2, prName,
+					 (SQLSMALLINT) nmlen3, flag);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)

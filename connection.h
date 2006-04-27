@@ -109,10 +109,12 @@ enum
 /* Unicode handling */
 #define	CONN_UNICODE_DRIVER	(1L)
 #define	CONN_ANSI_APP		(1L << 1)
+#define	CONN_DISALLOW_WCHAR	(1L << 2)
 #define	CC_set_in_unicode_driver(x)	(x->unicode |= CONN_UNICODE_DRIVER)
 #define	CC_set_in_ansi_app(x)	(x->unicode |= CONN_ANSI_APP)
 #define	CC_is_in_unicode_driver(x)	(0 != (x->unicode & CONN_UNICODE_DRIVER))
 #define	CC_is_in_ansi_app(x)	(0 != (x->unicode & CONN_ANSI_APP))
+#define	ALLOW_WCHAR(x)	(0 != (x->unicode & CONN_UNICODE_DRIVER) && 0 == (x->unicode & CONN_DISALLOW_WCHAR))
 
 #define CC_MALLOC_return_with_error(t, tp, s, x, m, ret) \
 do { \
@@ -285,6 +287,7 @@ typedef struct
 	signed char	lower_case_identifier;
 	signed char	rollback_on_error;
 	signed char	force_abbrev_connstr;
+	signed char	bde_environment;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
 	signed char	autocommit_normal;
@@ -407,6 +410,7 @@ struct ConnectionClass_
 	char		result_uncommitted;
 	char		schema_support;
 	char		lo_is_domain;
+	char		escape_in_literal;
 	char		*original_client_encoding;
 	char		*current_client_encoding;
 	char		*server_encoding;
@@ -441,6 +445,7 @@ struct ConnectionClass_
 #define CC_get_DSN(x)				(x->connInfo.dsn)
 #define CC_get_username(x)			(x->connInfo.username)
 #define CC_is_onlyread(x)			(x->connInfo.onlyread[0] == '1')
+#define CC_get_escape(x)			(x->escape_in_literal)
  
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0

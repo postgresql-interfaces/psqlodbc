@@ -467,7 +467,10 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, ABBR_EXTRASYSTABLEPREFIXES) == 0)
 		strcpy(ci->drivers.extra_systable_prefixes, value);
 	else if (stricmp(attribute, INI_FORCEABBREVCONNSTR) == 0)
-		ci->force_abbrev_connstr = atoi(value);
+	{
+		ci->force_abbrev_connstr = atoi(value) & 1;
+		ci->bde_environment = atoi(value) & 2;
+	}
 	mylog("CopyCommonAttributes: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s",
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,

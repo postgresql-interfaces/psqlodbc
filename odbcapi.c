@@ -889,17 +889,22 @@ SQLTables(HSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
-						TableType, NameLength4);
+					TableType, NameLength4, flag);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -927,7 +932,7 @@ SQLTables(HSTMT StatementHandle,
 		{
 			ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
-						TableType, NameLength4);
+						TableType, NameLength4, flag);
 			if (newCt)
 				free(newCt);
 			if (newSc)
@@ -1445,16 +1450,22 @@ SQLProcedures(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	SQLCHAR	*ctName = szCatalogName, *scName = szSchemaName,
 		*prName = szProcName;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
+#if (ODBCVER >= 0x0300)
+	if (stmt->options.metadata_id)
+		flag |= PODBC_NOT_SEARCH_PATTERN;
+#endif
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
-					 scName, cbSchemaName, prName, cbProcName);
+					 scName, cbSchemaName, prName,
+					 cbProcName, flag);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -1481,7 +1492,7 @@ SQLProcedures(
 		if (reexec)
 		{
 			ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
-					 scName, cbSchemaName, prName, cbProcName);
+					 scName, cbSchemaName, prName, cbProcName, flag);
 			if (newCt)
 				free(newCt);
 			if (newSc)

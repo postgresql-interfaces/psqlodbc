@@ -458,7 +458,7 @@ PGAPI_SetConnectOption(
 				{
 					int	cmp;
 #ifdef	UNICODE_SUPPORT
-					if (conn->unicode)
+					if (CC_is_in_unicode_driver(conn))
 					{
 						char *asPara = ucs2_to_utf8((SQLWCHAR *) vParam, SQL_NTS, NULL, FALSE);
 						cmp = strcmp(asPara, "Microsoft Jet");

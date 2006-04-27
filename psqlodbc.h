@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.99 2006/04/14 03:30:01 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.100 2006/04/27 14:49:04 hinoue Exp $
  *
  */
 
@@ -172,6 +172,10 @@ typedef double SDOUBLE;
 #define	SEARCH_PATTERN_ESCAPE				'\\'
 #define	LITERAL_QUOTE					'\''
 #define	IDENTIFIER_QUOTE				'\"'
+#define	DOLLAR_QUOTE					'$'
+#define	LITERAL_EXT					'E'
+#define	PG_CARRIAGE_RETURN				'\r'
+#define	PG_LINEFEED					'\n'
 
 /* Limits */
 #define BLCKSZ						4096
@@ -336,8 +340,8 @@ void		logs_on_off(int cnopen, int, int);
 #define PG_TYPE_LO_UNDEFINED			(-999)		/* hack until permanent
 												 * type available */
 #define PG_TYPE_LO_NAME				"lo"
-#define OID_ATTNUM					(-2)		/* the attnum in pg_index
-												 * of the oid */
+#define OID_ATTNUM				(-2)	/* the attnum of oid */
+#define XMIN_ATTNUM				(-3)	/* the attnum of xmin */
 
 /* sizes */
 #define TEXT_FIELD_SIZE				8190		/* size of text fields
