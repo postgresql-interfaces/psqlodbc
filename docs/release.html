@@ -10,13 +10,26 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0002</li><br>
+Changes:<br>
+1) SQL injections via ODBC catalog function calls.<br>
+2) Fix SQLNumParams problem related to literal or dollar quote.<br>
+3) Call libpq in case of Kerberos authentication.<br>
+4) Add E' before literal for after 8.1 severs.<br>
+5) Return the correct error message in case of no password.<br>
+6) Take E'...' literal expression into account.<br>
+7) Fix an SQL_C_WCHAR -> numeric type conversion problem.<br>
+8) Refine the handling of io or output parameters.<br>
+9) Refine the dollar quote handling.<br>
+10) Fix the client_encoding mismatch problem.<br>
+11) Fix for SQLStatistics returns UNKNOWN instead of real column names.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0001</li><br>
 Changes:<br>
 1) updated CVS tip to the REL-07_03_ENHANCED branch<br>
 2) updated the installer for the single driver distribution<br>
 3) standardised various filenames that were previously based on build types<br>
 4) standardised the build on ODBC version 3.51<br>
-
 <hr>
 <h2>Note</h2>
 <p>Releases from this point onwards are based on the REL-07_03_ENHANCED code branch

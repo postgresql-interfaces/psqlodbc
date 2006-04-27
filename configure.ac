@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 08.02.0001, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 08.02.0002, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
