@@ -9,7 +9,7 @@
   
 <h1>psqlODBC Configuration Options</h1>
   
-<h2>Advanced Options (Driver) Dialog Box</h2>
+<h2>Advanced Options 1/2 Dialog Box</h2>
 
 <ul>
 <li><b>DEFAULTS:</b> Press to this button restore the normal defaults for the 
@@ -32,10 +32,6 @@ c = 2)...</code><br><br>
 These types of queries will most likely crash the backend without the KSQO
 feature.<br />&nbsp;</li>
 
-<li><b>CommLog (C:\psqlodbc.log):</b>
-Log communications to/from the backend to that file. This is good
-for debugging problems.<br />&nbsp;</li>
-
 <li><b>Recognize Unique Indexes:</b>
 This controls what SQLStatistics() will return about unique indexes.
 By default it is set to false. This setting allows Access 95 and
@@ -43,10 +39,6 @@ By default it is set to false. This setting allows Access 95 and
 meant as a workaround until the backend canonifier can handle the Microsoft
 Access queries better. For some applications (i.e., Access 2.0), you must
 set this option to update any tables.<br />&nbsp;</li>
-
-<li><b>ReadOnly (default):</b> New
-datasources will inherit the state of this box for the datasource readonly
-attribute.<br />&nbsp;</li>
 
 <li><b>Use Declare/Fetch:</b> If
 true, the driver automatically uses declare cursor/fetch to handle
@@ -61,6 +53,10 @@ as they are when using cursors. This was the style of the old podbc32
 driver. However, the behavior of the memory allocation is much improved
 so even when not using cursors, performance should at least be better than
 the old podbc32.<br />&nbsp;</li>
+
+<li><b>CommLog (C:\psqlodbc_xxxx.log):</b>
+Log communications to/from the backend to that file. This is good
+for debugging problems.<br />&nbsp;</li>
 
 <li><b>Parse Statements:</b> If enabled,
 the driver will parse an SQL query statement to identify the columns and
@@ -78,6 +74,13 @@ quoted identifiers, literals, joins, cross-products, etc. It can
 correctly identify a function or expression column, regardless of the complexity,
 but it does not attempt to determine the data type or precision of these
 columns.<br />&nbsp;</li>
+
+<li><b>Cancel as FreeStmt:</b>
+<br />&nbsp;</li>
+
+<li><b>MyLog (C:\mylog_xxxx.log):</b>
+Log debug messages to that file. This is good
+for debugging problems with the driver.<br />&nbsp;</li>
 
 <li><b>Unknown Sizes: </b>This controls
 what SQLDescribeCol and SQLColAttributes will return as to precision for
@@ -120,16 +123,16 @@ PostgreSQL TEXT type is mapped to SQLLongVarchar, otherwise SQLVarchar.</li>
 
 </ul><br>
 
-<li><b>Cache Size:</b>When using
-cursors, this is the row size of the tuple cache. If not using cursors,
-this is how many tuples to allocate memory for at any given time.
-The default is 100 rows for either case.<br />&nbsp;</li>
-
 <li><b>Max Varchar</b> The maximum
 precision of the Varchar and BPChar(char[x]) types. The default is 254
 which actually means 255 because of the null terminator. Note, if
 you set this value higher than 254, Access will not let you index on varchar
 columns!<br />&nbsp;</li>
+
+<li><b>Cache Size:</b>When using
+cursors, this is the row size of the tuple cache. If not using cursors,
+this is how many tuples to allocate memory for at any given time.
+The default is 100 rows for either case.<br />&nbsp;</li>
 
 <li><b>Max LongVarChar:</b> The maximum
 precision of the LongVarChar type. The default is 4094 which actually
@@ -142,26 +145,27 @@ driver already treats names that begin with "pg_" as system tables.
 Here you can add additional ones, such as data dictionary tables (dd_).
 Separate each prefix with a semicolon (;)<br />&nbsp;</li>
 
-<li><b>Connect Settings: </b>These commands
-will be sent to the backend upon a successful connection. Use
-a semi-colon (;) to separate commands. This can now handle any query,
-even if it returns results. The results will be thrown away however!<br />&nbsp;</li>
 </ul>
 
-<h2>Advanced Options (DataSource or Connection) Dialog Box</h2>
+<h2>Advanced Options 2/2 Dialog Box</h2>
 
 <ul>
 
 <li><b>ReadOnly:</b> Whether the
-datasource will allow updates. For new datsources, the default value
-comes from the Advanced Options (Driver) dialog box.<br />&nbsp;</li>
+datasource will allow updates.<br />&nbsp;</li>
 
-<li><b>Connect Settings:</b> The
-driver sends these commands to the backend upon a successful connection.&nbsp;
-It sends these settings AFTER it sends the driver "Connect Settings".
-Use a semi-colon (;) to separate commands. This can now handle any
-query, even if it returns results. The results will be thrown away
-however!<br />&nbsp;</li>
+<li><b>Show System Tables:</b> The
+driver will treat system tables as regular tables in SQLTables. This
+is good for Access so you can see system tables.<br />&nbsp;</li>
+
+<li><b>LF <-> CR/LF conversion:</b> Convert Unix style line endings to
+DOS style.<br />&nbsp;</li>
+
+<li><b>Updateable Cursors:</b> Enable updateable cursor emulation in the
+driver.<br />&nbsp;</li>
+
+<li><b>Bytea as LO:</b> Allow the use of bytea columns for Large Objects.
+<br />&nbsp;</li>
 
 <li><b>Row Versioning:</b> Allows
 applications to detect whether data has been modified by other users while
@@ -202,40 +206,91 @@ backward command returns immediately but unfortunately it isn't always true.
 The 7.1 or later servers <b>do</b> seem to return from the fetch backward command 
 immediately.<br />&nbsp;</li>
 
-<li><b>Show System Tables:</b> The
-driver will treat system tables as regular tables in SQLTables. This
-is good for Access so you can see system tables.<br />&nbsp;</li>
+<li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
+<br />&nbsp;</li>
 
-<li><b>OID Options:</b><br />&nbsp;</li>
+<li><b>Server side prepare:</b> When using prepared statements, prepare them on the 
+server rather than in the driver. This can give a slight performance advantage as the
+server doesn't need to re-parse the statement each time it is used.
+<br />&nbsp;</li>
+
+<li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>
+
+<li><b>Protocol:</b> <br />&nbsp;
 
 <ul>
-<li><i>Show Column</i> - Includes the OID
+<li><i>6.2:</i> Forces driver to
+use PostgreSQL 6.2 protocol, which had different byte ordering, protocol,
+and other semantics.<br />&nbsp;
+
+<li><i>6.3</i>: Use the 6.3 protocol. This is compatible
+with both 6.3 and 6.4 backends.<br />&nbsp;</li>
+
+<li><i>6.4+</i>: Use the 6.4 protocol. This is only compatible
+with 6.4 and higher backends.<br />&nbsp;</li>
+
+<li><i>7.4+</i>: Use the 7.4 protocol. This is only compatible
+with 7.4 and higher backends.<br />&nbsp;</li>
+</ul></li>
+
+<li><b>Level of rollback on errors:</b> Specifies what to rollback should an
+error occur.<br />&nbsp;
+
+<ul>
+<li><i>Nop:</i> Don't rollback anything (let the application handle the
+error.<br />&nbsp;</li>
+
+<li><i>Transaction:</i> Rollback the entire transaction.<br />&nbsp;</li>
+
+<li><i>Statement:</i> Rollback the statement.<br />&nbsp;</li>
+
+</ul></li>
+
+
+<li><b>OID Options:</b><br />&nbsp;
+
+<ul>
+<li><i>Show Column: </i> Includes the OID
 in SQLColumns. This is good for using as a unique identifier to update
 records if no good key exists OR if the key has many parts, which
 blows up the backend.<br />&nbsp;</li>
 
-<li><i>Fake Index</i> - This option
+<li><i>Fake Index: </i> This option
 fakes a unique index on OID. This is useful when there is not a real
 unique index on OID and for apps which can't ask what the unique identifier
-should be (i.e, Access 2.0).</li><br>
+should be (i.e, Access 2.0).<br />&nbsp;</li>
+</ul></li>
 
-</ul></li><br>
+<li><b>Connect Settings:</b> The
+driver sends these commands to the backend upon a successful connection.&nbsp;
+It sends these settings AFTER it sends the driver "Connect Settings".
+Use a semi-colon (;) to separate commands. This can now handle any
+query, even if it returns results. The results will be thrown away
+however!<br />&nbsp;</li>
+</ul>
 
-<li><b>Protocol</b> (note that the protocol option has no effect from version 08.01.0001 onwards):<br />&nbsp;</li>
+<h2>Global settings Dialog Box</h2>
+
+<p>This dialog allows you to specify pre-connection/default logging
+options</p>
 
 <ul>
-<li><b>6.2:</b> Forces driver to
-use PostgreSQL 6.2 protocol, which had different byte ordering, protocol,
-and other semantics.<br />&nbsp;</li>
 
-<li><b>6.3</b>: Use the 6.3 protocol. This is compatible
-with both 6.3 and 6.4 backends.<br />&nbsp;</li>
+<li><b>CommLog (C:\psqlodbc_xxxx.log - Communications log):</b>
+Log communications to/from the backend to that file. This is good
+for debugging problems.<br />&nbsp;</li>
 
-<li><b>6.4</b>: Use the 6.4 protocol. This is only compatible
-with 6.4 backends.<br />&nbsp;</li>
+<li><b>MyLog (C:\mylog_xxxx.log - Detailed debug output):</b>
+Log debug messages to that file. This is good
+for debugging problems with the driver.<br />&nbsp;</li>
 
 </ul>
-</ul>
+
+<h2>Manage DSN Dialog Box</h2>
+
+<p>This dialog allows you to select which PostgreSQL ODBC driver
+to use for this connection. Note that this may not work with third
+party drivers.</p>
 
 </body>
 </html>
