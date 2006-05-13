@@ -11,6 +11,9 @@
 
 #include "psqlodbc.h"
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
 /* copy_and_convert results */
 #define COPY_OK							0
 #define COPY_UNSUPPORTED_TYPE					1
@@ -51,4 +54,7 @@ int		pg_hex2bin(const UCHAR *in, UCHAR *out, int len);
 int convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
 		   SDWORD cbValueMax, SDWORD *pcbValue);
 
+#ifdef	__cplusplus
+}
+#endif
 #endif

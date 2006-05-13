@@ -78,6 +78,9 @@ PGAPI_FreeEnv(HENV henv)
 
 	if (env && EN_Destructor(env))
 	{
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+		DtcOnRelease();
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 		mylog("   ok\n");
 		return SQL_SUCCESS;
 	}

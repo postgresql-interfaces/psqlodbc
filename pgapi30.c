@@ -27,11 +27,6 @@
 #include "qresult.h"
 #include "pgapifunc.h"
 
-#ifdef	WIN32
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-RETCODE EnlistInDtc();
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
-#endif /* WIN32 */
 
 /*	SQLError -> SQLDiagRec */
 RETCODE		SQL_API
@@ -1571,8 +1566,9 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	CSTR	func = "PGAPI_SetConnectAttr";
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
+	BOOL	unsupported = FALSE;
 
-	mylog("PGAPI_SetConnectAttr %d %x\n", Attribute, Value);
+	mylog("%s for %x: %d %x\n", func, ConnectionHandle, Attribute, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_METADATA_ID:
@@ -1600,16 +1596,26 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			return EnlistInDtc(conn, Value, conn->connInfo.xa_opt); /* telling a lie */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
+			unsupported = TRUE;
+			break;
 		case SQL_ATTR_AUTO_IPD:
-			if (SQL_FALSE == Value)
-				break;
+			if (SQL_FALSE != Value)
+				unsupported = TRUE;
+			break;
 		case SQL_ATTR_ASYNC_ENABLE:
 		case SQL_ATTR_CONNECTION_DEAD:
 		case SQL_ATTR_CONNECTION_TIMEOUT:
-			CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, "Unsupported connect attribute (Set)", func);
-			return SQL_ERROR;
+			unsupported = TRUE;
+			break;
 		default:
 			ret = PGAPI_SetConnectOption(ConnectionHandle, (UWORD) Attribute, (UDWORD) Value);
+	}
+	if (unsupported)
+	{
+		char	msg[64];
+		snprintf(msg, sizeof(msg), "Couldn't set unsupported connect attribute %d", Value);
+		CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, msg, func);
+		return SQL_ERROR;
 	}
 	return ret;
 }

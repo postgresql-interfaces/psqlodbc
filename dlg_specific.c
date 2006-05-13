@@ -229,8 +229,7 @@ inolog("hlen=%d", hlen);
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
-				EFFECTIVE_BIT_COUNT,
-				flag);
+				EFFECTIVE_BIT_COUNT, flag);
 		if (olen < nlen && (PROTOCOL_74(ci) || ci->rollback_on_error >= 0))
 		{
 			hlen = strlen(connect_string);
@@ -419,6 +418,12 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_XAOPT) == 0)
 		ci->xa_opt = atoi(value);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+	else if (stricmp(attribute, INI_FORCEABBREVCONNSTR) == 0)
+	{
+		ci->force_abbrev_connstr = atoi(value) & 1;
+		ci->bde_environment = atoi(value) & 2;
+		mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
+	}
 
 	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
 }
@@ -466,11 +471,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->drivers.bools_as_char = atoi(value);
 	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, ABBR_EXTRASYSTABLEPREFIXES) == 0)
 		strcpy(ci->drivers.extra_systable_prefixes, value);
-	else if (stricmp(attribute, INI_FORCEABBREVCONNSTR) == 0)
-	{
-		ci->force_abbrev_connstr = atoi(value) & 1;
-		ci->bde_environment = atoi(value) & 2;
-	}
 	mylog("CopyCommonAttributes: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s",
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,
@@ -538,7 +538,7 @@ getDSNdefaults(ConnInfo *ci)
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0)
 		ci->xa_opt = DEFAULT_XAOPT;
-#endif /* HANDLE_ENLIST_IN_DTC_ */
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 }
 
 int
@@ -709,6 +709,19 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	}
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
+	/* Force abbrev connstr or bde */
+	if (1 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_FORCEABBREVCONNSTR, "",
+					temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+		{
+			ci->force_abbrev_connstr = atoi(temp) & 1;
+			ci->bde_environment = atoi(temp) & 2;
+			mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
+		}
+	}
+
 	/* Allow override of odbcinst.ini parameters here */
 	getCommonDefaults(DSN, ODBC_INI, ci);
 
@@ -734,7 +747,6 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->translation_dll,
 		 ci->translation_option);
 }
-
 /*
  *	This function writes any global parameters (that can be manipulated)
  *	to the ODBCINST.INI portion of the registry

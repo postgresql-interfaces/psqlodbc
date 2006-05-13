@@ -289,12 +289,16 @@ SQLDescribeCol(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLDisconnect(HDBC ConnectionHandle)
 {
+	CSTR func = "SQLDisconnect";
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
-	mylog("[SQLDisconnect]");
+	mylog("[%s for %x]", func, ConnectionHandle);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	DtcOnDisconnect(conn, TRUE);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 	ret = PGAPI_Disconnect(ConnectionHandle);
 	LEAVE_CONN_CS(conn);
 	return ret;

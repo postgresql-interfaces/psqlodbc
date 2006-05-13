@@ -4451,6 +4451,8 @@ pg_hex2bin(const UCHAR *src, UCHAR *dst, int length)
 	for (i = 0, src_wk = src, dst_wk = dst; i < length; i++, src_wk++)
 	{
 		chr = *src_wk;
+		if (!chr)
+			break;
 		if (chr >= 'a' && chr <= 'f')
 			val = chr - 'a' + 10;
 		else if (chr >= 'A' && chr <= 'F')

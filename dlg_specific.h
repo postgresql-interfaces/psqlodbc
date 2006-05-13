@@ -214,7 +214,7 @@
 #define DEFAULT_SSLMODE			SSLMODE_DISABLE
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-#define DEFAULT_XAOPT			0
+#define DEFAULT_XAOPT			1
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 /*	prototypes */

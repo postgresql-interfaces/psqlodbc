@@ -17,6 +17,11 @@
 #include "tuple.h"
 
 #include	<libpq-fe.h>
+
+#ifdef	__cplusplus
+extern	"C" {
+#endif
+
 typedef ExecStatusType QueryResultCode;
 #define	PGRES_FIELDS_OK		100
 #define	PGRES_INTERNAL_ERROR	(PGRES_FIELDS_OK + 1)
@@ -36,7 +41,7 @@ struct QResultClass_
 	QResultClass	*next;		/* the following result class */
 
 	/* Stuff for declare/fetch tuples */
-	UInt4		num_total_read;	/* the highest absolute postion ever read in + 1 */
+	UInt4		num_total_read;	/* the highest absolute position ever read in + 1 */
 	UInt4		count_backend_allocated;/* m(re)alloced count */
 	UInt4		num_cached_rows;	/* count of tuples kept in backend_tuples member */
 	Int4		fetch_number;	/* 0-based index to the tuple to read next */
@@ -231,4 +236,8 @@ do { \
 		return r; \
 	} \
 } while (0)
+
+#ifdef	__cplusplus
+}
+#endif
 #endif /* __QRESULT_H__ */

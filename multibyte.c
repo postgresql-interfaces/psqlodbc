@@ -424,8 +424,8 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *o
 		case 1252:
 			if (oldenc)
 				;
-			else if (PG_VERSION_GE(conn, 7.2))
-				wenc = "latin9";
+			else if (PG_VERSION_GE(conn, 8.1))
+				wenc = "WIN1252";
 			else
 				wenc = "latin1";
 			break;

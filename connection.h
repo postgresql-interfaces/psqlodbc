@@ -137,6 +137,7 @@ do { \
 #if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
+#define TRY_ENTER_CONN_CS(x)	TryEnterCriticalSection(&((x)->cs))
 #define ENTER_INNER_CONN_CS(x, entered) \
 	{ EnterCriticalSection(&((x)->cs)); entered++; }
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
@@ -144,6 +145,7 @@ do { \
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
 #define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
 #define ENTER_CONN_CS(x)	pthread_mutex_lock(&((x)->cs))
+#define TRY_ENTER_CONN_CS(x)	(0 == pthread_mutex_trylock(&((x)->cs)))
 #define ENTER_INNER_CONN_CS(x, entered) \
 do { \
 	if (getMutexAttr()) \
@@ -160,6 +162,7 @@ do { \
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #else
 #define INIT_CONN_CS(x)	
+#define TRY_ENTER_CONN_CS(x)
 #define ENTER_CONN_CS(x)
 #define ENTER_INNER_CONN_CS(x, entered) (0)
 #define LEAVE_CONN_CS(x)
@@ -512,6 +515,13 @@ enum {
 /* CC_on_abort options */
 #define	NO_TRANS		1L
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
+
+#ifdef	WIN32
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+RETCODE	EnlistInDtc(ConnectionClass *conn, void *pTra, int method);
+RETCODE	DtcOnDisconnect(ConnectionClass *, BOOL);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+#endif /* WIN32 */
 
 #ifdef	__cplusplus
 }

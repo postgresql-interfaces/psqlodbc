@@ -136,9 +136,6 @@ PGAPI_Connect(
 		CC_log_error(func, "Error on CC_connect", conn);
 		ret = SQL_ERROR;
 	}
-	if (CC_is_in_unicode_driver(conn)
-	    && 0 != ci->bde_environment)
-		conn->unicode |= CONN_DISALLOW_WCHAR;
 
 	mylog("%s: returning..%d.\n", func, ret);
 
@@ -1602,6 +1599,10 @@ inolog("CC_send_settings\n");
 
 	CC_clear_error(self);		/* clear any initial command errors */
 	self->status = CONN_CONNECTED;
+	if (CC_is_in_unicode_driver(self)
+	    && 0 < ci->bde_environment)
+		self->unicode |= CONN_DISALLOW_WCHAR;
+mylog("conn->unicode=%d\n", self->unicode);
 
 	mylog("%s: returning...\n", func);
 
