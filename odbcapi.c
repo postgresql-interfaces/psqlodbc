@@ -294,11 +294,11 @@ SQLDisconnect(HDBC ConnectionHandle)
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[%s for %x]", func, ConnectionHandle);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	DtcOnDisconnect(conn); /* must be called without holding the connection lock */
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-	DtcOnDisconnect(conn, TRUE);
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
 	ret = PGAPI_Disconnect(ConnectionHandle);
 	LEAVE_CONN_CS(conn);
 	return ret;

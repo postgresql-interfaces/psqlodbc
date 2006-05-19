@@ -332,8 +332,9 @@ PGAPI_ConnectError(	HDBC hdbc,
 				/* general error */
 				break;
 			case CONN_UNSUPPORTED_OPTION:
-				pg_sqlstate_set(env, szSqlState, "IM001", "IM001");
+				pg_sqlstate_set(env, szSqlState, "HYC00", "IM001");
 				/* driver does not support this function */
+				break;
 			case CONN_INVALID_ARGUMENT_NO:
 				pg_sqlstate_set(env, szSqlState, "HY009", "S1009");
 				/* invalid argument value */

@@ -3110,19 +3110,20 @@ inolog("ipara=%x paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	}	
 
 	req_bind = (0 != (FLGB_BUILDING_BIND_REQUEST & qb->flags));
-	/* Handle DEFAULT_PARAM parameter data */
+	/* Handle DEFAULT_PARAM parameter data. Should be NULL ?
 	if (used == SQL_DEFAULT_PARAM)
 	{
 		return SQL_SUCCESS;
-	}
+	} */
 	if (req_bind)
 	{
 		npos = qb->npos;
 		qb->npos += 4;
 	}
 	/* Handle NULL parameter data */
-	if ((ipara && SQL_PARAM_OUTPUT == ipara->paramType) ||
-	    used == SQL_NULL_DATA)
+	if ((ipara && SQL_PARAM_OUTPUT == ipara->paramType)
+	    || used == SQL_NULL_DATA
+	    || used == SQL_DEFAULT_PARAM)
 	{
 		if (req_bind)
 		{

@@ -519,7 +519,7 @@ enum {
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	EnlistInDtc(ConnectionClass *conn, void *pTra, int method);
-RETCODE	DtcOnDisconnect(ConnectionClass *, BOOL);
+RETCODE	DtcOnDisconnect(ConnectionClass *);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
 

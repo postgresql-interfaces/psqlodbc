@@ -17,7 +17,7 @@ struct ColumnInfoClass_
 	char	  **name;			/* list of type names */
 	Oid		   *adtid;			/* list of type ids */
 	Int2	   *adtsize;		/* list type sizes */
-	Int2	   *display_size;	/* the display size (longest row) */
+	Int4	   *display_size;	/* the display size (longest row) */
 	Int4	   *atttypmod;		/* the length of bpchar/varchar */
 	Oid	   *relid;		/* list of relation ids */
 	Oid	   *attid;		/* list of attribute ids */

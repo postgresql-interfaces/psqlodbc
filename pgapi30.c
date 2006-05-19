@@ -1593,7 +1593,8 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			mylog("SQL_ATTR_ENLIST_IN_DTC %x request received\n", Value);
-			return EnlistInDtc(conn, Value, conn->connInfo.xa_opt); /* telling a lie */
+			if (conn->connInfo.xa_opt != 0)	
+				return EnlistInDtc(conn, Value, conn->connInfo.xa_opt);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
 			unsupported = TRUE;
