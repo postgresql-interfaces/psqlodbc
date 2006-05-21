@@ -197,7 +197,7 @@ CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL allocrelatt)
 	memset(self->name, 0, sizeof(char *) * self->num_fields);
 	self->adtid = (Oid *) malloc(sizeof(Oid) * self->num_fields);
 	self->adtsize = (Int2 *) malloc(sizeof(Int2) * self->num_fields);
-	self->display_size = (Int2 *) malloc(sizeof(Int2) * self->num_fields);
+	self->display_size = (Int4 *) malloc(sizeof(Int4) * self->num_fields);
 	self->atttypmod = (Int4 *) malloc(sizeof(Int4) * self->num_fields);
 	if (allocrelatt)
 	{
