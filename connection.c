@@ -407,6 +407,7 @@ CC_cursor_count(ConnectionClass *self)
 void
 CC_clear_error(ConnectionClass *self)
 {
+	if (!self)	return;
 	self->__error_number = 0;
 	if (self->__error_message)
 	{

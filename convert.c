@@ -2374,7 +2374,7 @@ inolog("type=%d concur=%d\n",
 	{
 		char		fetchstr[128];
 
-		sprintf(fetchstr, ";fetch backward in \"%s\";close %s;",
+		sprintf(fetchstr, ";fetch backward in \"%s\";close \"%s\";",
 				SC_cursor_name(stmt), SC_cursor_name(stmt));
 		if (begin_first && CC_is_in_autocommit(conn))
 			strcat(fetchstr, "COMMIT;");
