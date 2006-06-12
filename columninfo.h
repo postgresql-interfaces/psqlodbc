@@ -14,21 +14,26 @@
 struct ColumnInfoClass_
 {
 	Int2		num_fields;
-	char	  **name;			/* list of type names */
-	Oid		   *adtid;			/* list of type ids */
-	Int2	   *adtsize;		/* list type sizes */
-	Int4	   *display_size;	/* the display size (longest row) */
-	Int4	   *atttypmod;		/* the length of bpchar/varchar */
-	Oid	   *relid;		/* list of relation ids */
-	Oid	   *attid;		/* list of attribute ids */
+	struct srvr_info
+	{
+		char	*name;		/* type name */
+		Oid	adtid;		/* type oid */
+		Int2	adtsize;	/* type size */
+		Int4	display_size;	/* the display size (longest row) */
+		Int4	atttypmod;	/* the length of bpchar/varchar */
+		Oid	relid;		/* the relation id */
+		Int2	attid;		/* the attribute number */
+	}	*coli_array;
 };
 
 #define CI_get_num_fields(self)			(self->num_fields)
-#define CI_get_oid(self, col)			(self->adtid[col])
-#define CI_get_fieldname(self, col)		(self->name[col])
-#define CI_get_fieldsize(self, col)		(self->adtsize[col])
-#define CI_get_display_size(self, col)	(self->display_size[col])
-#define CI_get_atttypmod(self, col)		(self->atttypmod[col])
+#define CI_get_oid(self, col)			(self->coli_array[col].adtid)
+#define CI_get_fieldname(self, col)		(self->coli_array[col].name)
+#define CI_get_fieldsize(self, col)		(self->coli_array[col].adtsize)
+#define CI_get_display_size(self, col)		(self->coli_array[col].display_size)
+#define CI_get_atttypmod(self, col)		(self->coli_array[col].atttypmod)
+#define CI_get_relid(self, col)	(self->coli_array[col].relid)
+#define CI_get_attid(self, col)	(self->coli_array[col].attid)
 
 ColumnInfoClass *CI_Constructor(void);
 void		CI_Destructor(ColumnInfoClass *self);

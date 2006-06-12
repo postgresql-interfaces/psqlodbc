@@ -93,7 +93,8 @@ RETCODE SQL_API PGAPI_FreeEnv(HENV EnvironmentHandle);
 RETCODE SQL_API PGAPI_FreeStmt(HSTMT StatementHandle,
 			   SQLUSMALLINT Option);
 RETCODE SQL_API PGAPI_GetConnectOption(HDBC ConnectionHandle,
-					   SQLUSMALLINT Option, PTR Value);
+			SQLUSMALLINT Option, PTR Value,
+			SQLINTEGER *StringLength, SQLINTEGER BufferLength);
 RETCODE SQL_API PGAPI_GetCursorName(HSTMT StatementHandle,
 					SQLCHAR *CursorName, SQLSMALLINT BufferLength,
 					SQLSMALLINT *NameLength);
@@ -112,7 +113,8 @@ RETCODE SQL_API PGAPI_GetInfo30(HDBC ConnectionHandle,
 				SQLUSMALLINT InfoType, PTR InfoValue,
 				SQLSMALLINT BufferLength, SQLSMALLINT *StringLength);
 RETCODE SQL_API PGAPI_GetStmtOption(HSTMT StatementHandle,
-					SQLUSMALLINT Option, PTR Value);
+			SQLUSMALLINT Option, PTR Value,
+			SQLINTEGER *StringLength, SQLINTEGER BufferLength);
 RETCODE SQL_API PGAPI_GetTypeInfo(HSTMT StatementHandle,
 				  SQLSMALLINT DataType);
 RETCODE SQL_API PGAPI_NumResultCols(HSTMT StatementHandle,

@@ -55,7 +55,6 @@ CSTR	pubstr = "public";
 CSTR	likeop = "like";
 CSTR	eqop = "=";
 
-
 RETCODE		SQL_API
 PGAPI_GetInfo(
 			  HDBC hdbc,
@@ -67,8 +66,8 @@ PGAPI_GetInfo(
 	CSTR func = "PGAPI_GetInfo";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci;
-	char	   *p = NULL,
-				tmp[MAX_INFO_STRING];
+	const char   *p = NULL;
+	char		tmp[MAX_INFO_STRING];
 	int			len = 0,
 				value = 0;
 	RETCODE		result;
@@ -78,7 +77,7 @@ PGAPI_GetInfo(
 
 	if (!conn)
 	{
-		CC_log_error(func, "", NULL);
+		CC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
@@ -593,20 +592,32 @@ PGAPI_GetInfo(
 
 		case SQL_QUALIFIER_LOCATION:	/* ODBC 2.0 */
 			len = 2;
-			value = SQL_QL_START;
+			if (CurrCat(conn))
+				value = SQL_QL_START;
+			else
+				value = 0;
 			break;
 
 		case SQL_QUALIFIER_NAME_SEPARATOR:		/* ODBC 1.0 */
-			p = "";
+			if (CurrCat(conn))
+				p = ".";
+			else
+				p = NULL_STRING;
 			break;
 
 		case SQL_QUALIFIER_TERM:		/* ODBC 1.0 */
-			p = "";
+			if (CurrCat(conn))
+				p = "catalog";
+			else
+				p = NULL_STRING;
 			break;
 
 		case SQL_QUALIFIER_USAGE:		/* ODBC 2.0 */
 			len = 4;
-			value = 0;
+			if (CurrCat(conn))
+				value = SQL_CU_DML_STATEMENTS;
+			else
+				value = 0;
 			break;
 
 		case SQL_QUOTED_IDENTIFIER_CASE:		/* ODBC 2.0 */
@@ -646,7 +657,7 @@ PGAPI_GetInfo(
 			if (PG_VERSION_GE(conn, 6.5))
 				p = "\\";
 			else
-				p = "";
+				p = NULL_STRING;
 			break;
 
 		case SQL_SERVER_NAME:	/* ODBC 1.0 */
@@ -1033,7 +1044,7 @@ PGAPI_GetFunctions(
 				pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
 			pfExists[SQL_API_SQLDATASOURCES] = FALSE;	/* only implemented by
 														 * DM */
-			if (PROTOCOL_74(ci))
+			if (SUPPORT_DESCRIBE_PARAM(ci))
 				pfExists[SQL_API_SQLDESCRIBEPARAM] = TRUE;
 			else
 				pfExists[SQL_API_SQLDESCRIBEPARAM] = FALSE; /* not properly
@@ -1223,7 +1234,7 @@ PGAPI_GetFunctions(
 					*pfExists = FALSE;
 					break;		/* only implemented by DM */
 				case SQL_API_SQLDESCRIBEPARAM:
-					if (PROTOCOL_74(ci))
+					if (SUPPORT_DESCRIBE_PARAM(ci))
 						*pfExists = TRUE;
 					else
 						*pfExists = FALSE;
@@ -1774,7 +1785,7 @@ retry_public_schema:
 			tuple = QR_AddNew(res);
 
 			/* set_tuplefield_null(&tuple[0]); */
-			set_tuplefield_string(&tuple[0], "");
+			set_tuplefield_string(&tuple[0], CurrCat(conn));
 
 			/*
 			 * I have to hide the table owner from Access, otherwise it
@@ -1875,6 +1886,7 @@ PGAPI_Columns(
 	ConnInfo   *ci;
 	ConnectionClass *conn;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
+	SQLINTEGER	greloid;
 	const char	*like_or_eq;
 	const char	*szSchemaName;
 
@@ -1939,7 +1951,7 @@ retry_public_schema:
 		strncpy(columns_query,
 			"select n.nspname, c.relname, a.attname, a.atttypid"
 	   		", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
-			", c.relhasrules, c.relkind, d.adsrc from (((pg_catalog.pg_class c"
+			", c.relhasrules, c.relkind, c.oid, d.adsrc from (((pg_catalog.pg_class c"
 			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
 			sizeof(columns_query));
 		if (search_by_ids)
@@ -1951,9 +1963,14 @@ retry_public_schema:
 			schema_strcat1(columns_query, " and n.nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 		}
 		strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
-			" on (not a.attisdropped) and a.attnum > 0");
+			" on (not a.attisdropped)");
+		if (0 == attnum && NULL == escColumnName)
+			strcat(columns_query, " and a.attnum > 0");
 		if (search_by_ids)
-			snprintf(columns_query, sizeof(columns_query), "%s and a.attnum = %d", columns_query, attnum);
+		{
+			if (attnum != 0)
+				snprintf(columns_query, sizeof(columns_query), "%s and a.attnum = %d", columns_query, attnum);
+		}
 		else if (escColumnName)
 			snprintf(columns_query, sizeof(columns_query), "%s and a.attname %s '%s'", columns_query, like_or_eq, escColumnName);
 		strcat(columns_query,
@@ -1967,7 +1984,7 @@ retry_public_schema:
 		snprintf(columns_query, sizeof(columns_query),
 			"select u.usename, c.relname, a.attname, a.atttypid"
 	   		", t.typname, a.attnum, a.attlen, %s, a.attnotnull"
-			", c.relhasrules, c.relkind, NULL from pg_user u"
+			", c.relhasrules, c.relkind, c.oid, NULL from pg_user u"
 			", pg_class c, pg_attribute a, pg_type t where"
 			"  u.usesysid = c.relowner and c.oid= a.attrelid"
 			"  and a.atttypid = t.oid and (a.attnum > 0)",
@@ -2114,6 +2131,14 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(hcol_stmt, 12, SQL_C_LONG,
+					&greloid, sizeof(greloid), NULL);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	{
+		SC_error_copy(stmt, col_stmt, TRUE);
+		goto cleanup;
+	}
+
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.", func);
@@ -2159,6 +2184,7 @@ retry_public_schema:
 	QR_set_field_info_v(res, COLUMNS_FIELD_TYPE, "FIELD_TYPE", PG_TYPE_INT4, 4);
 	QR_set_field_info_v(res, COLUMNS_AUTO_INCREMENT, "AUTO_INCREMENT", PG_TYPE_INT4, 4);
 	QR_set_field_info_v(res, COLUMNS_PHYSICAL_NUMBER, "PHYSICAL NUMBER", PG_TYPE_INT2, 2);
+	QR_set_field_info_v(res, COLUMNS_TABLE_OID, "TABLE OID", PG_TYPE_INT4, 4);
 
 	ordinal = 1;
 	result = PGAPI_Fetch(hcol_stmt);
@@ -2182,7 +2208,7 @@ retry_public_schema:
 			/* For OID fields */
 			the_type = PG_TYPE_OID;
 			tuple = QR_AddNew(res);
-			set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], "");
+			set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
 			/* see note in SQLTables() */
 			if (conn->schema_support)
 				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
@@ -2205,7 +2231,7 @@ retry_public_schema:
 			set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
 			set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], sqltype);
 			set_tuplefield_null(&tuple[COLUMNS_SQL_DATETIME_SUB]);
-			set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
 			set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 			set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
 #endif /* ODBCVER */
@@ -2213,6 +2239,7 @@ retry_public_schema:
 			set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
 			set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], TRUE);
 			set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], OID_ATTNUM);
+			set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 			ordinal++;
 		}
 	}
@@ -2225,18 +2252,18 @@ retry_public_schema:
 
 		attdef = NULL;
 		PGAPI_SetPos(hcol_stmt, 1, SQL_POSITION, 0);
-		PGAPI_GetData(hcol_stmt, 12, internal_asis_type, NULL, 0, &len_needed);
+		PGAPI_GetData(hcol_stmt, 13, internal_asis_type, NULL, 0, &len_needed);
 		if (len_needed > 0)
 		{
 mylog("len_needed=%d\n", len_needed);
 			attdef = malloc(len_needed + 1);
-			PGAPI_GetData(hcol_stmt, 12, internal_asis_type, attdef, len_needed + 1, &len_needed);
+			PGAPI_GetData(hcol_stmt, 13, internal_asis_type, attdef, len_needed + 1, &len_needed);
 mylog(" and the data=%s\n", attdef);
 		} 
 		tuple = QR_AddNew(res);
 
 		sqltype = SQL_TYPE_NULL;	/* unspecified */
-		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], "");
+		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
 		/* see note in SQLTables() */
 		if (conn->schema_support)
 			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
@@ -2382,6 +2409,7 @@ mylog(" and the data=%s\n", attdef);
 		}
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], auto_unique);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], field_number);
+		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 		ordinal++;
 
 		result = PGAPI_Fetch(hcol_stmt);
@@ -2405,7 +2433,7 @@ mylog(" and the data=%s\n", attdef);
 
 		tuple = QR_AddNew(res);
 
-		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], "");
+		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
 		if (conn->schema_support)
 			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 		else
@@ -2425,7 +2453,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
 		set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], sqltype);
 		set_tuplefield_null(&tuple[COLUMNS_SQL_DATETIME_SUB]);
-		set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, the_type, PG_STATIC, PG_STATIC));
+		set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
 		set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 		set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
 #endif /* ODBCVER */
@@ -2433,6 +2461,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], FALSE);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], XMIN_ATTNUM);
+		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 		ordinal++;
 	}
 	result = SQL_SUCCESS;
@@ -2648,7 +2677,6 @@ retry_public_schema:
 		/* there's no oid for views */
 		if (fColType == SQL_BEST_ROWID)
 		{
-			result = SQL_NO_DATA_FOUND;
 			goto cleanup;
 		}
 		else if (fColType == SQL_ROWVER)
@@ -2673,27 +2701,28 @@ inolog("Add ctid\n");
 		/* use the oid value for the rowid */
 		if (fColType == SQL_BEST_ROWID)
 		{
+			Int2	the_type = PG_TYPE_OID;
+
 			if (relhasoids[0] != '1')
 			{
-				result = SQL_NO_DATA_FOUND;
 				goto cleanup;
 			}
 			tuple = QR_AddNew(res);
 
 			set_tuplefield_int2(&tuple[0], SQL_SCOPE_SESSION);
 			set_tuplefield_string(&tuple[1], "oid");
-			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, PG_TYPE_OID, PG_STATIC));
-			set_tuplefield_string(&tuple[3], "OID");
-			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, PG_TYPE_OID, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, PG_TYPE_OID, PG_STATIC, PG_STATIC));
-			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, PG_TYPE_OID, PG_STATIC));
+			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
 		}
 		else if (fColType == SQL_ROWVER)
 		{
-			Int2		the_type = PG_TYPE_INT4;
+			Int2		the_type = PG_TYPE_XID;
 
-			if (atoi(ci->row_versioning))
+			/* if (atoi(ci->row_versioning)) */
 			{
 				tuple = QR_AddNew(res);
 
@@ -2854,8 +2883,8 @@ PGAPI_Statistics(
 	/* 
 	 * table_name parameter cannot contain a string search pattern. 
 	 */
-	result = PGAPI_Columns(hcol_stmt, "", 0, table_schemaname, SQL_NTS,
-						   table_name, SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN | PODBC_SEARCH_PUBLIC_SCHEMA, 0, 0);
+	result = PGAPI_Columns(hcol_stmt, NULL, 0, table_schemaname, SQL_NTS,
+				table_name, SQL_NTS, NULL, 0, PODBC_NOT_SEARCH_PATTERN | PODBC_SEARCH_PUBLIC_SCHEMA, 0, 0);
 	col_stmt->internal = FALSE;
 
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
@@ -3043,7 +3072,7 @@ PGAPI_Statistics(
 		tuple = QR_AddNew(res);
 
 		/* no table qualifier */
-		set_tuplefield_string(&tuple[STATS_CATALOG_NAME], "");
+		set_tuplefield_string(&tuple[STATS_CATALOG_NAME], CurrCat(conn));
 		/* don't set the table owner, else Access tries to use it */
 		set_tuplefield_string(&tuple[STATS_SCHEMA_NAME], GET_SCHEMA_NAME(table_schemaname));
 		set_tuplefield_string(&tuple[STATS_TABLE_NAME], table_name);
@@ -3052,7 +3081,7 @@ PGAPI_Statistics(
 		set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], (Int2) (ci->drivers.unique_index ? FALSE : TRUE));
 
 		/* no index qualifier */
-		set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], "");
+		set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], CurrCat(conn));
 
 		snprintf(buf, sizeof(table_name), "%s_idx_fake_oid", table_name);
 		set_tuplefield_string(&tuple[STATS_INDEX_NAME], buf);
@@ -3083,7 +3112,7 @@ PGAPI_Statistics(
 				tuple = QR_AddNew(res);
 
 				/* no table qualifier */
-				set_tuplefield_string(&tuple[STATS_CATALOG_NAME], "");
+				set_tuplefield_string(&tuple[STATS_CATALOG_NAME], CurrCat(conn));
 				/* don't set the table owner, else Access tries to use it */
 				set_tuplefield_string(&tuple[STATS_SCHEMA_NAME], GET_SCHEMA_NAME(table_schemaname));
 				set_tuplefield_string(&tuple[STATS_TABLE_NAME], table_name);
@@ -3095,7 +3124,7 @@ PGAPI_Statistics(
 					set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], TRUE);
 
 				/* no index qualifier */
-				set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], "");
+				set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], CurrCat(conn));
 				set_tuplefield_string(&tuple[STATS_INDEX_NAME], index_name);
 
 				/*
@@ -3512,7 +3541,7 @@ retry_public_schema:
 	{
 		tuple = QR_AddNew(res);
 
-		set_tuplefield_null(&tuple[0]);
+		set_tuplefield_string(&tuple[0], CurrCat(conn));
 
 		/*
 		 * I have to hide the table owner from Access, otherwise it
@@ -4097,7 +4126,7 @@ PGAPI_ForeignKeys(
 				fkey_text = getClientColumnName(conn, relid1, fkey_ptr, &fkey_alloced);
 
 				mylog("%s: pk_table = '%s', pkey_ptr = '%s'\n", func, pk_table_fetched, pkey_text);
-				set_tuplefield_null(&tuple[FKS_PKTABLE_CAT]);
+				set_tuplefield_string(&tuple[FKS_PKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_SCHEM], GET_SCHEMA_NAME(schema_fetched));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_NAME], pk_table_fetched);
 				set_tuplefield_string(&tuple[FKS_PKCOLUMN_NAME], pkey_text);
@@ -4388,7 +4417,7 @@ PGAPI_ForeignKeys(
 				tuple = QR_AddNew(res);
 
 				mylog("pk_table_needed = '%s', pkey_ptr = '%s'\n", pk_table_needed, pkey_text);
-				set_tuplefield_null(&tuple[FKS_PKTABLE_CAT]);
+				set_tuplefield_string(&tuple[FKS_PKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_SCHEM], GET_SCHEMA_NAME(schema_needed));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_NAME], pk_table_needed);
 				set_tuplefield_string(&tuple[FKS_PKCOLUMN_NAME], pkey_text);
@@ -4677,7 +4706,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			if (pgtype != 0 && pgtype != PG_TYPE_VOID && !atttypid && !proargmodes)
 			{
 				tuple = QR_AddNew(res);
-				set_tuplefield_null(&tuple[0]);
+				set_tuplefield_string(&tuple[0], CurrCat(conn));
 				set_nullfield_string(&tuple[1], schema_name);
 				set_tuplefield_string(&tuple[2], procname);
 				set_tuplefield_string(&tuple[3], "");
@@ -4775,7 +4804,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				}
 
 				tuple = QR_AddNew(res);
-				set_tuplefield_null(&tuple[0]);
+				set_tuplefield_string(&tuple[0], CurrCat(conn));
 				set_nullfield_string(&tuple[1], schema_name);
 				set_tuplefield_string(&tuple[2], procname);
 				if (proargnames)
@@ -4832,7 +4861,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 
 			attname = QR_get_value_backend_row(tres, i, attname_pos);
 			tuple = QR_AddNew(res);
-			set_tuplefield_null(&tuple[0]);
+			set_tuplefield_string(&tuple[0], CurrCat(conn));
 			set_nullfield_string(&tuple[1], schema_name);
 			set_tuplefield_string(&tuple[2], procname);
 			set_tuplefield_string(&tuple[3], attname);
@@ -5038,7 +5067,7 @@ PGAPI_TablePrivileges(
 	int		tablecount, usercount, i, j, k;
 	BOOL		grpauth, sys, su;
 	char		(*useracl)[ACLMAX] = NULL, *acl, *user, *delim, *auth;
-	char		*reln, *owner, *priv, *schnm = NULL;
+	const char	*reln, *owner, *priv, *schnm = NULL;
 	RETCODE		result, ret = SQL_SUCCESS;
 	const char	*like_or_eq;
 	const char	*szSchemaName;
@@ -5258,7 +5287,7 @@ mylog("guid=%s\n", uid);
 						continue;
 				}
 				tuple = QR_AddNew(res);
-				set_tuplefield_string(&tuple[0], "");
+				set_tuplefield_string(&tuple[0], CurrCat(conn));
 				if (conn->schema_support)
 					set_tuplefield_string(&tuple[1], GET_SCHEMA_NAME(schnm));
 				else
@@ -5288,7 +5317,7 @@ mylog("guid=%s\n", uid);
 						priv = "REFERENCES";
 						break;
 					default:
-						priv = "";
+						priv = NULL_STRING;
 				}
 				set_tuplefield_string(&tuple[5], priv);
 				/* The owner and the super user are grantable */

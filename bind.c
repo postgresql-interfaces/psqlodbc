@@ -304,6 +304,7 @@ PGAPI_DescribeParam(
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 	RETCODE		ret = SQL_SUCCESS;
+	int		num_params;
 
 	mylog("%s: entering...%d\n", func, ipar);
 
@@ -317,7 +318,15 @@ PGAPI_DescribeParam(
 	apdopts = SC_get_APDF(stmt);
 	ipdopts = SC_get_IPDF(stmt);
 	/*if ((ipar < 1) || (ipar > ipdopts->allocated))*/
-	if ((ipar < 1) || (ipar > stmt->num_params))
+	num_params = stmt->num_params;
+	if (num_params < 0)
+	{
+		SQLSMALLINT	num_p;
+
+		PGAPI_NumParams(stmt, &num_p);
+		num_params = num_p;
+	}
+	if ((ipar < 1) || (ipar > num_params))
 	{
 inolog("num_params=%d\n", stmt->num_params);
 		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.", func);

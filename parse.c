@@ -39,7 +39,7 @@
 
 #define FLD_INCR	32
 #define TAB_INCR	8
-#define COL_INCR	16
+#define COLI_INCR	16
 
 static	char	*getNextToken(int ccsc, char escape_in_literal, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
 static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
@@ -259,12 +259,13 @@ getNextToken(
 	return &s[i];
 }
 
-void
+static void
 getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k)
 {
 	char	   *str;
 
 inolog("getColInfo non-manual result\n");
+	fi->dquote = TRUE;
 	STR_TO_NAME(fi->column_name, QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME));
 
 	fi->type = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_FIELD_TYPE));
@@ -280,19 +281,31 @@ inolog("getColInfo non-manual result\n");
 }
 
 
-char
+static char
 searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 {
 	int			k,
-				cmp;
+				cmp, attnum;
 	char	   *col;
 
 inolog("searchColInfo %d\n", QR_get_num_cached_tuples(col_info->result));
+	if (fi->attnum < 0)
+		return FALSE;
 	for (k = 0; k < QR_get_num_cached_tuples(col_info->result); k++)
 	{
+		attnum = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PHYSICAL_NUMBER));
 		col = QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME);
 inolog("searchColInfo %d col=%s\n", k, col);
-		if (NAME_IS_VALID(fi->column_name))
+		if (0 != attnum)
+		{
+			if (fi->attnum == attnum)
+			{
+				getColInfo(col_info, fi, k);
+				mylog("PARSE: searchColInfo by attnum\n");
+				return TRUE;
+			}
+		}
+		else if (NAME_IS_VALID(fi->column_name))
 		{
 			if (fi->dquote)
 				cmp = strcmp(col, GET_NAME(fi->column_name));
@@ -403,6 +416,433 @@ static BOOL CheckHasOids(StatementClass * stmt)
 	return TRUE;
 }
 	
+static BOOL increaseNtab(StatementClass *stmt, const char *func)
+{
+	TABLE_INFO	**ti = stmt->ti, *wti;
+
+	if (!(stmt->ntab % TAB_INCR))
+	{
+		ti = (TABLE_INFO **) realloc(ti, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *));
+		if (!ti)
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for TABLE_INFO.", func);
+			return FALSE;
+		}
+		stmt->ti = ti;
+	}
+	wti = ti[stmt->ntab] = (TABLE_INFO *) malloc(sizeof(TABLE_INFO));
+	if (wti == NULL)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for TABLE_INFO(2).", func);
+		return FALSE;
+	}
+
+	TI_Constructor(wti, SC_get_conn(stmt));
+	stmt->ntab++;
+	return TRUE;
+}
+
+static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
+{
+	STR_TO_NAME(fi->column_alias, QR_get_fieldname(res, i));
+	fi->type = QR_get_field_type(res, i);
+	if (fi->attnum < 0)
+	{
+		fi->nullable = FALSE;
+		fi->updatable = FALSE;
+	}
+	else if (fi->attnum > 0)
+		fi->nullable = TRUE;	/* probably ? */
+
+	if (NAME_IS_NULL(fi->column_name))
+	{
+		switch (fi->attnum)
+		{
+			case CTID_ATTNUM:
+				STR_TO_NAME(fi->column_name, "ctid");
+				break;
+			case OID_ATTNUM:
+				STR_TO_NAME(fi->column_name, OID_NAME);
+				break;
+			case XMIN_ATTNUM:
+				STR_TO_NAME(fi->column_name, "xmin");
+				break;
+		}
+	}
+}
+/*
+ *	SQLColAttribute tries to set the FIELD_INFO (using protocol 3).
+ */
+static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
+{
+	QResultClass	*res = SC_get_Curres(stmt);
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
+	COL_INFO	*col_info = NULL;
+	FIELD_INFO	**fi, *wfi;
+	Oid		reloid = 0;
+	Int2		attid;
+	int		i, num_fields;
+	BOOL		fi_reuse, updatable;
+
+	if (rti)
+	{
+		if (reloid = rti->table_oid, 0 == reloid)
+			return FALSE;
+		if (0 != (rti->flags & TI_COLATTRIBUTE))
+			return TRUE;
+		col_info = rti->col_info;
+	}
+	if (!QR_command_maybe_successful(res))
+		return FALSE;
+	if (num_fields = QR_NumPublicResultCols(res), num_fields <= 0)
+		return FALSE;
+	fi = irdflds->fi;
+	if (num_fields > (int) irdflds->allocated)
+	{
+		fi = (FIELD_INFO **) realloc(fi, num_fields * sizeof(FIELD_INFO *));
+		if (!fi)
+		{
+			irdflds->fi = NULL;
+			irdflds->allocated = irdflds->nfields = 0;
+			return FALSE;
+		}
+		irdflds->fi = fi;
+		irdflds->allocated = num_fields;
+		for (i = irdflds->nfields; i < num_fields; i++)
+			fi[i] = NULL;
+		irdflds->nfields = num_fields;
+	}
+	updatable = rti ? TI_is_updatable(rti) : FALSE;
+	if (updatable)
+	{
+		if (1 != stmt->ntab)
+			updatable = FALSE;
+		else
+		{
+			Oid	greloid;
+
+			for (i = 0; i < num_fields; i++)
+			{
+				greloid = QR_get_relid(res, i);
+				if (0 != greloid && reloid != greloid)
+				{
+					updatable = FALSE;
+					break;
+				}
+			}
+		}
+	}
+	for (i = 0; i < num_fields; i++)
+	{
+		if (reloid == (Oid) QR_get_relid(res, i))
+		{
+			if (wfi = fi[i], NULL == wfi)
+			{
+				wfi = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
+				fi_reuse = FALSE;
+				fi[i] = wfi;
+			}
+			else if (FI_is_applicable(wfi))
+				continue;
+			else
+				fi_reuse = TRUE;
+			FI_Constructor(wfi, fi_reuse);
+			attid = (Int2) QR_get_attid(res, i);
+			wfi->attnum = attid;
+			if (searchColInfo(col_info, wfi))
+				wfi->updatable = updatable;
+			else
+			{
+				xxxxx(wfi, res, i);
+			}
+			wfi->ti = rti;
+			wfi->flag |= FIELD_COL_ATTRIBUTE;
+		}
+	}
+	if (rti)
+		rti->flags |= TI_COLATTRIBUTE;
+	return TRUE;
+}
+
+BOOL getCOLIfromTI(const char *func, StatementClass *stmt, const Oid reloid, TABLE_INFO **pti)
+{
+	BOOL	colatt = FALSE, found = FALSE;
+	ConnectionClass	*conn = SC_get_conn(stmt);
+	Oid	greloid = reloid;
+	int	colidx;
+	char	token[256];
+	TABLE_INFO	*wti = *pti;
+	HSTMT		hcol_stmt = NULL;
+	QResultClass	*res;
+
+inolog("getCOLIfromTI reloid=%u ti=%x\n", reloid, wti);
+	if (!wti)	/* SQLColAttribute case */
+	{
+		int	i;
+		if (0 == greloid)
+			return FALSE;
+		colatt = TRUE;
+		for (i = 0; i < stmt->ntab; i++)
+		{
+			if (stmt->ti[i]->table_oid == greloid)
+			{
+				wti = stmt->ti[i]; 
+				break;
+			}
+		}
+		if (!wti)
+		{
+inolog("before increaseNtab\n");
+			if (!increaseNtab(stmt, func))
+				return FALSE;
+			wti = stmt->ti[stmt->ntab - 1];
+			wti->table_oid = greloid; 
+		}
+		*pti = wti;
+	}
+inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
+	if (0 == greloid)
+		greloid = wti->table_oid;
+	if (NULL != wti->col_info)
+	{
+		found = TRUE;
+		goto cleanup;
+	}
+	if (greloid != 0)
+	{
+		for (colidx = 0; colidx < conn->ntables; colidx++)
+		{
+			if (conn->col_info[colidx]->table_oid == greloid)
+			{
+				mylog("FOUND col_info table=%ul\n", greloid);
+				found = TRUE;
+				break;
+			}
+		}
+	}
+	else
+	{
+		if (conn->schema_support)
+		{
+			if (NAME_IS_NULL(wti->schema_name))
+			{
+				const char *curschema = CC_get_current_schema(conn);
+				/*
+			 	 * Though current_schema() doesn't have
+			 	 * much sense in PostgreSQL, we first
+			 	 * check the current_schema() when no
+				 * explicit schema name was specified.
+			 	 */
+				for (colidx = 0; colidx < conn->ntables; colidx++)
+				{
+					if (!NAMEICMP(conn->col_info[colidx]->table_name, wti->table_name) &&
+					    !stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
+					{
+						mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(wti->table_name), curschema);
+						found = TRUE;
+						STR_TO_NAME(wti->schema_name, curschema);
+						break;
+					}
+				}
+				if (!found)
+				{
+					QResultClass	*res;
+					BOOL		tblFound = FALSE;
+
+					/*
+			 	 	 * We also have to check as follows.
+			 	 	 */
+					sprintf(token, "select nspname from pg_namespace n, pg_class c"
+						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", SAFE_NAME(wti->table_name));
+					res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+					if (QR_command_maybe_successful(res))
+					{
+						if (QR_get_num_total_tuples(res) == 1)
+						{
+							tblFound = TRUE;
+							STR_TO_NAME(wti->schema_name, QR_get_value_backend_row(res, 0, 0));
+						}
+					}
+					QR_Destructor(res);
+					if (!tblFound)
+					{
+						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+						SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
+						stmt->updatable = FALSE;
+						return FALSE;
+					}
+				}
+			}
+			if (!found && NAME_IS_VALID(wti->schema_name))
+			{
+				for (colidx = 0; colidx < conn->ntables; colidx++)
+				{
+					if (!NAMEICMP(conn->col_info[colidx]->table_name, wti->table_name) &&
+					    !NAMEICMP(conn->col_info[colidx]->schema_name, wti->schema_name))
+					{
+						mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->schema_name));
+						found = TRUE;
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			for (colidx = 0; colidx < conn->ntables; colidx++)
+			{
+				if (!NAMEICMP(conn->col_info[colidx]->table_name, wti->table_name))
+				{
+					mylog("FOUND col_info table='%s'\n", wti->table_name);
+					found = TRUE;
+					break;
+				}
+			}
+		}
+	}
+	if (found)
+	{
+		wti->col_info = conn->col_info[colidx];
+		goto cleanup;
+	}
+	else
+	{
+		RETCODE		result;
+		StatementClass	*col_stmt;
+
+		mylog("PARSE: Getting PG_Columns for table='%s'\n", wti->table_name);
+
+		result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
+		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", func);
+			goto cleanup;
+		}
+
+		col_stmt = (StatementClass *) hcol_stmt;
+		col_stmt->internal = TRUE;
+
+		if (greloid)
+			result = PGAPI_Columns(hcol_stmt, NULL, 0,
+					NULL, 0, NULL, 0, NULL, 0,
+					PODBC_SEARCH_BY_IDS, greloid, 0);
+		else
+			result = PGAPI_Columns(hcol_stmt, NULL, 0, SAFE_NAME(wti->schema_name),
+				 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, NULL, 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
+
+		mylog("        Past PG_Columns\n");
+		res = SC_get_Curres(col_stmt);
+		if ((SQL_SUCCESS == result || SQL_SUCCESS_WITH_INFO == result)
+			&& res && QR_get_num_cached_tuples(res) > 0)
+		{
+			COL_INFO	*coli;
+
+			mylog("      Success\n");
+			if (conn->ntables >= conn->coli_allocated)
+			{
+				Int2	new_alloc;
+
+				new_alloc = conn->coli_allocated * 2;
+				if (new_alloc <= conn->ntables)
+					new_alloc = COLI_INCR;
+				mylog("PARSE: Allocating col_info at ntables=%d\n", conn->ntables);
+
+				conn->col_info = (COL_INFO **) realloc(conn->col_info, new_alloc * sizeof(COL_INFO *));
+				if (!conn->col_info)
+				{
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info.", func);
+					goto cleanup;
+				}
+				conn->coli_allocated = new_alloc;
+			}
+
+			mylog("PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
+			coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
+			if (!coli)
+			{
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info(2).", func);
+				goto cleanup;
+			}
+			col_info_initialize(coli);
+
+			coli->result = res;
+			if (res && QR_get_num_cached_tuples(res) > 0)
+			{
+				if (!greloid)
+					greloid = strtoul(QR_get_value_backend_row(res, 0, COLUMNS_TABLE_OID), NULL, 10);
+				if (!wti->table_oid)
+					wti->table_oid = greloid;
+				if (NAME_IS_NULL(wti->schema_name))
+					STR_TO_NAME(wti->schema_name, 
+						QR_get_value_backend_row(res, 0, COLUMNS_SCHEMA_NAME));
+				if (NAME_IS_NULL(wti->table_name))
+					STR_TO_NAME(wti->table_name, 
+						QR_get_value_backend_row(res, 0, COLUMNS_TABLE_NAME));
+			}
+inolog("#2 %x->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+			/*
+			 * Store the table name and the SQLColumns result
+			 * structure
+			 */
+			if (NAME_IS_VALID(wti->schema_name))
+			{
+				NAME_TO_NAME(coli->schema_name,  wti->schema_name);
+			}
+			else
+				NULL_THE_NAME(coli->schema_name);
+			NAME_TO_NAME(coli->table_name, wti->table_name);
+			coli->table_oid = wti->table_oid;
+
+			/*
+			 * The connection will now free the result structures, so
+			 * make sure that the statement doesn't free it
+			 */
+			SC_init_Result(col_stmt);
+
+			conn->ntables++;
+
+if (res && QR_get_num_cached_tuples(res) > 0)
+inolog("oid item == %s\n", QR_get_value_backend_row(res, 0, 3));
+
+			mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
+			/* Associate a table from the statement with a SQLColumn info */
+			found = TRUE;
+			wti->col_info = coli;
+		}
+	}
+cleanup:
+	if (hcol_stmt)
+		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+	if (found)
+	{
+		QResultClass	*res = wti->col_info->result;
+
+		if (res && QR_get_num_cached_tuples(res) > 0)
+		{
+			if (!greloid)
+				greloid = strtoul(QR_get_value_backend_row(res, 0, COLUMNS_TABLE_OID), NULL, 10);
+			if (!wti->table_oid)
+				wti->table_oid = greloid;
+			if (NAME_IS_NULL(wti->schema_name))
+				STR_TO_NAME(wti->schema_name, 
+					QR_get_value_backend_row(res, 0, COLUMNS_SCHEMA_NAME));
+			if (NAME_IS_NULL(wti->table_name))
+				STR_TO_NAME(wti->table_name, 
+					QR_get_value_backend_row(res, 0, COLUMNS_TABLE_NAME));
+		}
+inolog("#1 %x->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+		if (colatt /* SQLColAttribute case */
+		    && 0 == (wti->flags & TI_COLATTRIBUTE))
+		{
+			ColAttSet(stmt, wti);
+		}
+	}
+	else if (!colatt)
+		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+inolog("getCOLIfromTI returns %d\n", found);
+	return found;
+}
+
 char
 parse_statement(StatementClass *stmt, BOOL check_hasoids)
 {
@@ -436,11 +876,8 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	FIELD_INFO **fi, *wfi;
 	TABLE_INFO **ti, *wti;
 	char		parse;
-	ConnectionClass *conn = stmt->hdbc;
-	HSTMT		hcol_stmt;
-	StatementClass *col_stmt;
+	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	RETCODE		result;
 	BOOL		updatable = TRUE;
 
 	mylog("%s: entering...\n", func);
@@ -456,12 +893,16 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	fi = irdflds->fi;
 	ti = stmt->ti;
 
-	allocated_size = 0;
+	allocated_size = irdflds->allocated;
 	nfields_old = irdflds->nfields;
 	irdflds->nfields = 0;
-	if (nfields_old > 0)
-		allocated_size = ((nfields_old - 1) / FLD_INCR + 1) * FLD_INCR;
-	stmt->ntab = 0;
+	if (stmt->ntab > 0)
+	{
+		TI_Destructor(stmt->ti, stmt->ntab);
+		free(stmt->ti);
+		stmt->ti = NULL;
+		stmt->ntab = 0;
+	}
 	stmt->from_pos = -1;
 	stmt->where_pos = -1;
 
@@ -642,10 +1083,12 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 					if (!fi)
 					{
 						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO.", func);
 						return FALSE;
 					}
 					allocated_size = new_size;
 					irdflds->fi = fi;
+					irdflds->allocated = allocated_size;
 				}
 
 				wfi = NULL;
@@ -658,6 +1101,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				if (wfi == NULL)
 				{
 					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO(2).", func);
 					return FALSE;
 				}
 
@@ -684,7 +1128,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 					mylog("got EXPRESSION\n");
 					wfi->expr = TRUE;
 					in_expr = TRUE;
-					continue;
+					/* continue; */
 				}
 				else
 				{
@@ -796,24 +1240,15 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 					    token[0] == ')')
 						continue;
 				}
-				if (!(stmt->ntab % TAB_INCR))
-				{
-					ti = (TABLE_INFO **) realloc(ti, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *));
-					if (!ti)
-					{
-						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-						return FALSE;
-					}
-					stmt->ti = ti;
-				}
-				wti = ti[stmt->ntab] = (TABLE_INFO *) malloc(sizeof(TABLE_INFO));
-				if (wti == NULL)
+
+				if (!increaseNtab(stmt, func))
 				{
 					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					return FALSE;
 				}
 
-				TI_Constructor(wti, conn);
+				ti = stmt->ti;
+				wti = ti[stmt->ntab - 1];
 				STR_TO_NAME(wti->table_name, token);
 				lower_the_name(GET_NAME(wti->table_name), conn, dquote);
 				mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
@@ -828,7 +1263,6 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 					out_table = FALSE;
 					in_table = TRUE;
 				}
-				stmt->ntab++;
 				in_dot = FALSE;
 				continue;
 			}
@@ -895,7 +1329,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 		if (wfi->func || wfi->expr || wfi->numeric)
 		{
 			wfi->ti = NULL;
-			wfi->type = -1;
+			wfi->type = (Oid) 0;
 			parse = FALSE;
 			continue;
 		}
@@ -1007,168 +1441,12 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 		char		found = FALSE;
 
 		wti = ti[i];
-		if (conn->schema_support)
-		{
-			if (NAME_IS_NULL(wti->schema_name))
-			{
-				const char *curschema = CC_get_current_schema(conn);
-				/*
-			 	 * Though current_schema() doesn't have
-			 	 * much sense in PostgreSQL, we first
-			 	 * check the current_schema() when no
-				 * explicit schema name was specified.
-			 	 */
-				for (k = 0; k < conn->ntables; k++)
-				{
-					if (!NAMEICMP(conn->col_info[k]->table_name, wti->table_name) &&
-					    !stricmp(SAFE_NAME(conn->col_info[k]->schema_name), curschema))
-					{
-						mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(wti->table_name), curschema);
-						found = TRUE;
-						STR_TO_NAME(wti->schema_name, curschema);
-						break;
-					}
-				}
-				if (!found)
-				{
-					QResultClass	*res;
-					BOOL		tblFound = FALSE;
 
-					/*
-			 	 	 * We also have to check as follows.
-			 	 	 */
-					sprintf(token, "select nspname from pg_namespace n, pg_class c"
-						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", SAFE_NAME(wti->table_name));
-					res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
-					if (QR_command_maybe_successful(res))
-					{
-						if (QR_get_num_total_tuples(res) == 1)
-						{
-							tblFound = TRUE;
-							STR_TO_NAME(wti->schema_name, QR_get_value_backend_row(res, 0, 0));
-						}
-					}
-					QR_Destructor(res);
-					if (!tblFound)
-					{
-						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-						SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
-						stmt->updatable = FALSE;
-						return FALSE;
-					}
-				}
-			}
-			if (!found && NAME_IS_VALID(wti->schema_name))
-			{
-				for (k = 0; k < conn->ntables; k++)
-				{
-					if (!NAMEICMP(conn->col_info[k]->table_name, wti->table_name) &&
-					    !NAMEICMP(conn->col_info[k]->schema_name, wti->schema_name))
-					{
-						mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->schema_name));
-						found = TRUE;
-						break;
-					}
-				}
-			}
-		}
-		else
-		{
-			for (k = 0; k < conn->ntables; k++)
-			{
-				if (!NAMEICMP(conn->col_info[k]->table_name, wti->table_name))
-				{
-					mylog("FOUND col_info table='%s'\n", wti->table_name);
-					found = TRUE;
-					break;
-				}
-			}
-		}
-
-		if (!found)
-		{
-			QResultClass	*res;
-			mylog("PARSE: Getting PG_Columns for table[%d]='%s'\n", i, wti->table_name);
-
-			result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
-			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-			{
-				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", func);
-				SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-				return FALSE;
-			}
-
-			col_stmt = (StatementClass *) hcol_stmt;
-			col_stmt->internal = TRUE;
-
-			result = PGAPI_Columns(hcol_stmt, "", 0, SAFE_NAME(wti->schema_name),
-					 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, "", 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
-
-			mylog("        Past PG_Columns\n");
-			res = SC_get_Curres(col_stmt);
-			if (result == SQL_SUCCESS)
-			{
-				COL_INFO	*coli;
-
-				mylog("      Success\n");
-				if (!(conn->ntables % COL_INCR))
-				{
-					mylog("PARSE: Allocating col_info at ntables=%d\n", conn->ntables);
-
-					conn->col_info = (COL_INFO **) realloc(conn->col_info, (conn->ntables + COL_INCR) * sizeof(COL_INFO *));
-					if (!conn->col_info)
-					{
-						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-						return FALSE;
-					}
-				}
-
-				mylog("PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
-				coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
-				if (!coli)
-				{
-					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-					return FALSE;
-				}
-				col_info_initialize(coli);
-
-				/*
-				 * Store the table name and the SQLColumns result
-				 * structure
-				 */
-				if (NAME_IS_VALID(wti->schema_name))
-				{
-					NAME_TO_NAME(coli->schema_name,  wti->schema_name);
-				}
-				else
-					NULL_THE_NAME(coli->schema_name);
-				NAME_TO_NAME(coli->table_name, wti->table_name);
-				coli->result = res;
-
-				/*
-				 * The connection will now free the result structures, so
-				 * make sure that the statement doesn't free it
-				 */
-				SC_init_Result(col_stmt);
-
-				conn->ntables++;
-
-				PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-if (res && QR_get_num_cached_tuples(res) > 0)
-inolog("oid item == %s\n", QR_get_value_backend_row(res, 0, 3));
-				mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
-			}
-			else
-			{
-				PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-				break;
-			}
-		}
-
-		/* Associate a table from the statement with a SQLColumn info */
-		wti->col_info = conn->col_info[k];
-		mylog("associate col_info: i=%d, k=%d\n", i, k);
+		if (!getCOLIfromTI(func, stmt, 0, &wti))
+			break;
 	}
+	if (STMT_PARSE_FATAL == SC_parsed_status(stmt))
+		return FALSE;
 
 	mylog("Done PG_Columns\n");
 
@@ -1232,6 +1510,7 @@ inolog("oid item == %s\n", QR_get_value_backend_row(res, 0, 3));
 				}
 				allocated_size = new_alloc;
 				irdflds->fi = fi;
+				irdflds->allocated = allocated_size;
 			}
 
 			/*
@@ -1333,17 +1612,13 @@ inolog("oid item == %s\n", QR_get_value_backend_row(res, 0, 3));
 
 	if (check_hasoids && updatable)
 		CheckHasOids(stmt);
-	if (!parse)
-		SC_set_parse_status(stmt, STMT_PARSE_INCOMPLETE);
-	else
+	SC_set_parse_status(stmt, parse ? STMT_PARSE_COMPLETE : STMT_PARSE_INCOMPLETE);
+	for (i = 0; i < (int) irdflds->nfields; i++)
 	{
-		SC_set_parse_status(stmt,  STMT_PARSE_COMPLETE);
-		for (i = 0; i < (int) irdflds->nfields; i++)
-		{
-			wfi = fi[i];
-			wfi->flag &= ~FIELD_PARSING;
+		wfi = fi[i];
+		wfi->flag &= ~FIELD_PARSING;
+		if (0 != wfi->type)
 			wfi->flag |= FIELD_PARSED_OK;
-		}
 	}
 
 	stmt->updatable = updatable;

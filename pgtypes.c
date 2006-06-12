@@ -68,6 +68,7 @@ Int4 pgtypes_defined[]	= {
 				PG_TYPE_BOOL,
 				PG_TYPE_BYTEA,
 				PG_TYPE_NUMERIC,
+				PG_TYPE_XID,
 				PG_TYPE_LO_UNDEFINED,
 				0 };
 */
@@ -435,6 +436,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 			return SQL_C_SSHORT;
 		case PG_TYPE_OID:
 		case PG_TYPE_XID:
+			return SQL_C_ULONG;
 		case PG_TYPE_INT4:
 			return SQL_C_SLONG;
 		case PG_TYPE_FLOAT4:
@@ -529,6 +531,8 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 			return "int2";
 		case PG_TYPE_OID:
 			return "oid";
+		case PG_TYPE_XID:
+			return "xid";
 		case PG_TYPE_INT4:
 inolog("pgtype_to_name int4\n");
 			return "int4";
@@ -603,8 +607,9 @@ getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 		flds = result->fields;
 		if (flds)
 		{
-			if (flds->adtsize[col] > 0)
-				return flds->adtsize[col];
+			int	fsize = CI_get_fieldsize(flds, col);
+			if (fsize > 0)
+				return fsize;
 		}
 		return default_decimal_digits;
 	}
@@ -646,8 +651,9 @@ getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 		flds = result->fields;
 		if (flds)
 		{
-			if (flds->adtsize[col] > 0)
-				return 2 * flds->adtsize[col];
+			int	fsize = CI_get_fieldsize(flds, col);
+			if (fsize > 0)
+				return 2 * fsize;
 		}
 		return default_column_size;
 	}
@@ -1270,6 +1276,7 @@ pgtype_radix(StatementClass *stmt, Int4 type)
 	switch (type)
 	{
 		case PG_TYPE_INT2:
+		case PG_TYPE_XID:
 		case PG_TYPE_OID:
 		case PG_TYPE_INT4:
 		case PG_TYPE_INT8:
@@ -1375,6 +1382,8 @@ pgtype_searchable(StatementClass *stmt, Int4 type)
 			return SQL_SEARCHABLE;
 
 		default:
+			if (stmt && type == SC_get_conn(stmt)->lobj_type)
+				return SQL_UNSEARCHABLE;
 			return SQL_ALL_EXCEPT_LIKE;
 	}
 }

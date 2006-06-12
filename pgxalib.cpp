@@ -14,6 +14,7 @@
 #include <oleTx2xa.h>
 /*#define	_SLEEP_FOR_TEST_*/
 #include <sqlext.h>
+#include <odbcinst.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -24,6 +25,130 @@
 #include <map>
 #include <vector>
 
+
+EXTERN_C static void mylog(const char *fmt,...);
+
+using namespace std;
+
+class	XAConnection
+{
+private:
+	string	connstr;
+	HDBC	xaconn;
+	vector<string>	qvec;
+	int		pos;
+public:
+	XAConnection(LPCTSTR str) : connstr(str), xaconn(NULL), pos(-1) {}
+	~XAConnection();
+	HDBC	ActivateConnection(void);
+	void	SetPos(int spos) {pos = spos;}
+	HDBC	GetConnection(void) const {return xaconn;}
+	vector<string>	&GetResultVec(void) {return qvec;}
+	int	GetPos(void) {return pos;}
+	const string &GetConnstr(void) {return connstr;}
+};
+
+static class INIT_CRIT
+{
+private:
+public:
+	bool			cs_init;
+	CRITICAL_SECTION	map_cs;
+	CRITICAL_SECTION	mylog_cs;
+	map<int, XAConnection>	xatab;
+	FILE			*LOGFP;
+	HENV			env;
+
+	INIT_CRIT() : LOGFP(NULL), env(NULL)
+	{
+		InitializeCriticalSection(&map_cs);
+		InitializeCriticalSection(&mylog_cs);
+		cs_init = true;
+	}
+	~INIT_CRIT()
+	{
+// mylog("Leaving INIT_CRIT\n");
+		if (cs_init)
+		{
+			xatab.clear();
+			FreeEnv();
+			if (LOGFP)
+				fclose(LOGFP);
+			DeleteCriticalSection(&mylog_cs);
+			DeleteCriticalSection(&map_cs);
+		}
+	}
+	void finalize()
+	{
+		if (cs_init)
+		{
+			xatab.clear();
+			FreeEnv();
+			if (LOGFP)
+				fclose(LOGFP);
+			LOGFP = NULL;
+			DeleteCriticalSection(&mylog_cs);
+			DeleteCriticalSection(&map_cs);
+			cs_init = false;
+		}
+	}
+	void FreeEnv()
+	{
+		if (env)
+		{
+			SQLFreeHandle(SQL_HANDLE_ENV, env);
+			env = NULL;
+		}
+	}
+} init_crit;
+#define	MLOCK_ACQUIRE	EnterCriticalSection(&init_crit.map_cs)
+#define	MLOCK_RELEASE	LeaveCriticalSection(&init_crit.map_cs)
+
+static int dtclog = 0;
+
+XAConnection::~XAConnection()
+{
+	qvec.clear();
+	if (xaconn)
+		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
+}
+
+HDBC	XAConnection::ActivateConnection(void)
+{
+	RETCODE	ret;
+
+	MLOCK_ACQUIRE;
+	if (!init_crit.env)
+	{
+		ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &init_crit.env);
+		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+			return NULL;
+	}
+	MLOCK_RELEASE;
+	if (!xaconn)
+	{
+		ret = SQLSetEnvAttr(init_crit.env, SQL_ATTR_ODBC_VERSION, (PTR) SQL_OV_ODBC3, 0);
+		ret = SQLAllocHandle(SQL_HANDLE_DBC, init_crit.env, &xaconn);
+		if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO)
+		{
+			string	cstr = connstr;
+			if (dtclog)
+			{
+				cstr += ";B2=";
+				cstr += dtclog;
+			}
+			ret = SQLDriverConnect(xaconn, NULL,
+			 (SQLCHAR *) cstr.c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
+			if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+			{
+				mylog("SQLDriverConnect return=%d\n", ret);
+				SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
+				xaconn = NULL;
+			}
+		}
+	}
+	return xaconn;
+}
 
 #define _BUILD_DLL_
 #ifdef _BUILD_DLL_
@@ -52,17 +177,39 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 	return;
 }
 
-static	HENV	env = NULL;
 static void FreeEnv()
 {
-	if (env)
-	{
-		SQLFreeHandle(SQL_HANDLE_ENV, env);
-		env = NULL;
-	}
+	init_crit.FreeEnv();
 }
-static	FILE	*LOGFP = NULL;
-static	CRITICAL_SECTION	mylog_cs;
+
+#define	DTCLOGDIR	"c:\\pgdtclog"
+#include <direct.h>
+
+static const char * const DBMSNAME = "PostgreSQL";
+static const char * const KEY_NAME = "MsdtcLog";
+static const char * const ODBCINST_INI = "ODBCINST.INI";
+INT_PTR FAR WINAPI GetMsdtclog()
+{
+	char	temp[16];
+
+        SQLGetPrivateProfileString(DBMSNAME, KEY_NAME, "", temp, sizeof(temp), ODBCINST_INI);
+	dtclog = atoi(temp);
+	return dtclog;
+}
+INT_PTR FAR WINAPI SetMsdtclog(int dtclog)
+{
+	char	temp[16];
+
+        sprintf(temp, "%d", dtclog);
+        SQLWritePrivateProfileString(DBMSNAME, KEY_NAME, temp, ODBCINST_INI);
+	return dtclog;
+}
+
+static BOOL
+output_mylog()
+{
+	return (0 != dtclog);
+}
 
 static void
 mylog(const char *fmt,...)
@@ -70,27 +217,40 @@ mylog(const char *fmt,...)
 	va_list		args;
 	char		filebuf[80];
 	static	BOOL	init = TRUE;
+	FILE	*logfp = init_crit.LOGFP;
 
-	EnterCriticalSection(&mylog_cs);
+	if (!output_mylog())
+		return;
+	EnterCriticalSection(&init_crit.mylog_cs);
 	va_start(args, fmt);
 
 	if (init)
 	{
-		if (!LOGFP)
+		if (!logfp)
 		{
 			generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
+			logfp = fopen(filebuf, PG_BINARY_A);
 		}
-		if (!LOGFP)
+		if (!logfp)
 		{
-			generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
+			generate_filename(DTCLOGDIR, MYLOGFILE, filebuf);
+			logfp = fopen(filebuf, PG_BINARY_A);
+#ifdef	WIN32
+			if (NULL == logfp)
+			{
+				if (0 == _mkdir(DTCLOGDIR))
+					logfp = fopen(filebuf, PG_BINARY_A);
+			}
+#endif /* WIN32 */
 		}
-		if (LOGFP)
-			setbuf(LOGFP, NULL);
+		if (logfp)
+		{
+			setbuf(logfp, NULL);
+			init_crit.LOGFP = logfp;
+		}
 	}
 	init = FALSE;
-	if (LOGFP)
+	if (logfp)
 	{
 		time_t	ntime;
 		char	ctim[128];
@@ -98,20 +258,18 @@ mylog(const char *fmt,...)
 		time(&ntime);
 		strcpy(ctim, ctime(&ntime));
 		ctim[strlen(ctim) - 1] = '\0';
-		fprintf(LOGFP, "[%d.%d(%s)]", GetCurrentProcessId(), GetCurrentThreadId(), ctim);
-		vfprintf(LOGFP, fmt, args);
+		fprintf(logfp, "[%d.%d(%s)]", GetCurrentProcessId(), GetCurrentThreadId(), ctim);
+		vfprintf(logfp, fmt, args);
 	}
 	va_end(args);
-	LeaveCriticalSection(&mylog_cs);
+	LeaveCriticalSection(&init_crit.mylog_cs);
 }
 static int	initialize_globals(void)
 {
 	static	int	init = 1;
 
 	if (!init)
-		return 0;
-	init = 0;
-	InitializeCriticalSection(&mylog_cs);
+		init = 0;
 
 	return 0;
 }
@@ -119,13 +277,9 @@ static int	initialize_globals(void)
 static void XatabClear(void);
 static void finalize_globals(void)
 {
-	XatabClear();
-	FreeEnv();
 	/* my(q)log is unavailable from here */
 	mylog("DETACHING PROCESS\n");
-	DeleteCriticalSection(&mylog_cs);
-	fclose(LOGFP);
-	LOGFP = NULL;
+	init_crit.finalize();
 }
 
 HINSTANCE s_hModule;               /* Saved module handle. */
@@ -178,86 +332,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 #endif /* _BUILD_DLL_ */
 
-using namespace std;
-
-static CRITICAL_SECTION	map_cs;
-#define	MLOCK_ACQUIRE	EnterCriticalSection(&map_cs)
-#define	MLOCK_RELEASE	LeaveCriticalSection(&map_cs)
-
-class	XAConnection
-{
-private:
-	string	connstr;
-	HDBC	xaconn;
-	vector<string>	qvec;
-	int		pos;
-public:
-	XAConnection(LPCTSTR str) : connstr(str), xaconn(NULL), pos(-1) {}
-	~XAConnection();
-	HDBC	ActivateConnection(void);
-	void	SetPos(int spos) {pos = spos;}
-	HDBC	GetConnection(void) const {return xaconn;}
-	vector<string>	&GetResultVec(void) {return qvec;}
-	int	GetPos(void) {return pos;}
-	string GetConnstr(void) {return connstr;}
-};
-
-XAConnection::~XAConnection()
-{
-	qvec.clear();
-	if (xaconn)
-		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
-}
-
-HDBC	XAConnection::ActivateConnection(void)
-{
-	RETCODE	ret;
-
-	MLOCK_ACQUIRE;
-	if (!env)
-	{
-		ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
-		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
-			return NULL;
-	}
-	MLOCK_RELEASE;
-	if (!xaconn)
-	{
-		ret = SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (PTR) SQL_OV_ODBC3, 0);
-		ret = SQLAllocHandle(SQL_HANDLE_DBC, env, &xaconn);
-		if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO)
-		{
-			ret = SQLDriverConnect(xaconn, NULL, (SQLCHAR *) connstr.c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
-			if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
-			{
-				mylog("SQLDriverConnect return=%d\n", ret);
-				SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
-				xaconn = NULL;
-			}
-		}
-	}
-	return xaconn;
-}
-
-static map<int, XAConnection>	xatab;
-
-static class INIT_CRIT
-{
-private:
-public:
-	INIT_CRIT() {InitializeCriticalSection(&map_cs);}
-	~INIT_CRIT()
-	{
-mylog("Leaving INIT_CRIT\n");
-		FreeEnv();
-		xatab.clear();
-		DeleteCriticalSection(&map_cs);
-	}
-} init_crit;
-
 static void XatabClear(void)
 {
-	xatab.clear();
+	init_crit.xatab.clear();
 }
 
 static const char *XidToText(const XID &xid, char *rtext)
@@ -333,8 +410,9 @@ static int	TextToXid(XID &xid, const char *rtext)
 EXTERN_C static int __cdecl xa_open(char *xa_info, int rmid, long flags)
 {
 	mylog("xa_open %s rmid=%d flags=%ld\n", xa_info, rmid, flags);
+	GetMsdtclog();
 	MLOCK_ACQUIRE;
-	xatab.insert(pair<int, XAConnection>(rmid, XAConnection(xa_info)));
+	init_crit.xatab.insert(pair<int, XAConnection>(rmid, XAConnection(xa_info)));
 	MLOCK_RELEASE;
 	return	S_OK;
 }
@@ -342,15 +420,16 @@ EXTERN_C static int __cdecl xa_close(char *xa_info, int rmid, long flags)
 {
 	mylog("xa_close rmid=%d flags=%ld\n", rmid, flags);
 	MLOCK_ACQUIRE;
-	xatab.erase(rmid);
-	if (xatab.size() == 0)
+	init_crit.xatab.erase(rmid);
+	if (init_crit.xatab.size() == 0)
 		FreeEnv();
+	GetMsdtclog();
 	MLOCK_RELEASE;
 	return XA_OK;
 }
 
 //
-//	Dummy implmentation
+//	Dummy implementation (not called from MSDTC).
 //
 EXTERN_C static int __cdecl xa_start(XID *xid, int rmid, long flags)
 {
@@ -358,11 +437,11 @@ EXTERN_C static int __cdecl xa_start(XID *xid, int rmid, long flags)
 
 	XidToText(*xid, pgxid);
 	mylog("xa_start %s rmid=%d flags=%ld\n", pgxid, rmid, flags);
-	xatab.find(rmid)->second.ActivateConnection();
+	init_crit.xatab.find(rmid)->second.ActivateConnection();
 	return XA_OK;
 }
 //
-//	Dummy implementation
+//	Dummy implementation (not called from MSDTC).
 //
 EXTERN_C static int __cdecl xa_end(XID *xid, int rmid, long flags)
 {
@@ -381,8 +460,8 @@ EXTERN_C static int __cdecl xa_rollback(XID *xid, int rmid, long flags)
 	XidToText(*xid, pgxid);
 	mylog("xa_rollback %s rmid=%d flags=%ld\n", pgxid, rmid, flags);
 	map<int, XAConnection>::iterator p;
-	p = xatab.find(rmid);
-	if (p != xatab.end())
+	p = init_crit.xatab.find(rmid);
+	if (p != init_crit.xatab.end())
 	{
 		HDBC	conn = p->second.ActivateConnection();
 		if (conn)
@@ -420,8 +499,8 @@ EXTERN_C static int __cdecl xa_rollback(XID *xid, int rmid, long flags)
 	return rmcode;
 }
 //
-//	Dummy implementation
-//	It's almost impossible to implement this routine properly.
+//	Dummy implementation (not called from MSDTC).
+//	ANway it's almost impossible to implement this routine properly.
 //	
 EXTERN_C static int __cdecl xa_prepare(XID *xid, int rmid, long flags)
 {
@@ -433,8 +512,8 @@ EXTERN_C static int __cdecl xa_prepare(XID *xid, int rmid, long flags)
 	Sleep(2000);
 #endif	/* _SLEEP_FOR_TEST_ */
 	map<int, XAConnection>::iterator p;
-	p = xatab.find(rmid);
-	if (p != xatab.end())
+	p = init_crit.xatab.find(rmid);
+	if (p != init_crit.xatab.end())
 	{
 		HDBC	conn = p->second.GetConnection();
 		if (conn)
@@ -454,8 +533,8 @@ EXTERN_C static int __cdecl xa_commit(XID *xid, int rmid, long flags)
 	Sleep(2000);
 #endif	/* _SLEEP_FOR_TEST_ */
 	map<int, XAConnection>::iterator p;
-	p = xatab.find(rmid);
-	if (p != xatab.end())
+	p = init_crit.xatab.find(rmid);
+	if (p != init_crit.xatab.end())
 	{
 		HDBC	conn = p->second.ActivateConnection();
 		if (conn)
@@ -492,8 +571,8 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 
 	mylog("xa_recover rmid=%d count=%d flags=%ld\n", rmid, count, flags);
 	map<int, XAConnection>::iterator p;
-	p = xatab.find(rmid);
-	if (p == xatab.end())
+	p = init_crit.xatab.find(rmid);
+	if (p == init_crit.xatab.end())
 		return rmcode;
 	HDBC	conn = p->second.ActivateConnection();
 	if (!conn)
@@ -556,7 +635,7 @@ EXTERN_C static int __cdecl xa_forget(XID *xid, int rmid, long flags)
 	return XA_OK;
 }
 //
-//	I'm not sure if this invoked from MSDTC.
+//	I'm not sure if this can be invoked from MSDTC.
 //
 EXTERN_C static int __cdecl xa_complete(int *handle, int *retval, int rmid, long flags)
 {
@@ -574,6 +653,7 @@ EXTERN_C HRESULT __cdecl   GetXaSwitch (XA_SWITCH_FLAGS  XaSwitchFlags,
 {
 	mylog("GetXaSwitch called\n");
 
+	GetMsdtclog();
 	*ppXaSwitch = &xapsw;
 	return	S_OK;
 }

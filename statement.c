@@ -672,9 +672,9 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 		mylog("SC_opencheck: self->prepare && self->status == STMT_PREMATURE\n");
 		return FALSE;
 	}
-	if (res = SC_get_Result(self), NULL != res)
+	if (res = SC_get_Curres(self), NULL != res)
 	{
-		if (res->backend_tuples)
+		if (QR_command_maybe_successful(res) && res->backend_tuples)
 		{
         		SC_set_error(self, STMT_SEQUENCE_ERROR, "The cursor is open.", func);
 			return TRUE;
@@ -844,7 +844,7 @@ SC_pre_execute(StatementClass *self)
 			char		old_pre_executing = self->pre_executing;
 
 			decideHowToPrepare(self);
-			self->inaccurate_result = TRUE;
+			self->inaccurate_result = FALSE;
 			switch (SC_get_prepare_method(self))
 			{
 				case USING_PARSE_REQUEST:
@@ -855,10 +855,10 @@ SC_pre_execute(StatementClass *self)
 					if (SQL_SUCCESS != prepareParameters(self))
 						return num_fields;
 					self->status = STMT_PREMATURE;
+					self->inaccurate_result = TRUE;
 					break;
 				default:
 					self->pre_executing = TRUE;
-					self->inaccurate_result = FALSE;
 					PGAPI_Execute(self, 0);
 
 					self->pre_executing = old_pre_executing;
@@ -1761,6 +1761,8 @@ inolog("!!%x->SC_is_concat_pre=%x res=%x\n", self, self->miscinfo, res);
 				tres = res->next;
 inolog("res->next=%x\n", tres);
 				res->next = NULL;
+				if (res != SC_get_Result(self))
+					QR_Destructor(res);
 				SC_set_Result(self, tres);
 				res = tres;
 				SC_set_prepared(self, PREPARED_PERMANENTLY);
@@ -2167,8 +2169,8 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
  							if (SQL_PARAM_OUTPUT == paramType ||
 							    SQL_PARAM_INPUT_OUTPUT == paramType)
 							{
-inolog("!![%d].PGType %u->%u\n", i, ipdopts->parameters[i].PGType, res->fields->adtid[cidx]);
-								ipdopts->parameters[i].PGType = res->fields->adtid[cidx];
+inolog("!![%d].PGType %u->%u\n", i, ipdopts->parameters[i].PGType, CI_get_oid(res->fields, cidx));
+								ipdopts->parameters[i].PGType = CI_get_oid(res->fields, cidx);
 								cidx++;
 							}
 						}

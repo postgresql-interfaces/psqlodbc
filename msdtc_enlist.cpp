@@ -32,11 +32,11 @@
 
 #include "pgapifunc.h"
 
-static	CRITICAL_SECTION	life_cs;
-static	CRITICAL_SECTION	map_cs;
 static class INIT_CRIT
 {
 public:
+	CRITICAL_SECTION	life_cs;
+	CRITICAL_SECTION	map_cs;
 	INIT_CRIT() {
 		InitializeCriticalSection(&life_cs);
 		InitializeCriticalSection(&map_cs);
@@ -46,10 +46,10 @@ public:
 			DeleteCriticalSection(&map_cs);
 			}
 } init_crit;
-#define	LIFELOCK_ACQUIRE EnterCriticalSection(&life_cs)
-#define	LIFELOCK_RELEASE LeaveCriticalSection(&life_cs)
-#define	MLOCK_ACQUIRE	EnterCriticalSection(&map_cs)
-#define	MLOCK_RELEASE	LeaveCriticalSection(&map_cs)
+#define	LIFELOCK_ACQUIRE EnterCriticalSection(&init_crit.life_cs)
+#define	LIFELOCK_RELEASE LeaveCriticalSection(&init_crit.life_cs)
+#define	MLOCK_ACQUIRE	EnterCriticalSection(&init_crit.map_cs)
+#define	MLOCK_RELEASE	LeaveCriticalSection(&init_crit.map_cs)
 
 
 static const char *XidToText(const XID &xid, char *rtext)
@@ -180,7 +180,6 @@ public:
 	HRESULT STDMETHODCALLTYPE TMDown(void);
 
 	IAsyncPG();
-	~IAsyncPG();
 	void SetHelper(IDtcToXaHelperSinglePipe *pHelper, DWORD dwRMCookie) {helper = pHelper; RMCookie = dwRMCookie;} 
 	 
 	HRESULT RequestExec(DWORD type, HRESULT res);
@@ -188,6 +187,7 @@ public:
 	void SetConnection(ConnectionClass *sconn) {SLOCK_ACQUIRE(); conn = sconn; SLOCK_RELEASE();}
 	void SetXid(const XID *ixid) {SLOCK_ACQUIRE(); xid = *ixid; SLOCK_RELEASE();}
 private:
+	~IAsyncPG();
 #ifdef	_LOCK_DEBUG_
 	void SLOCK_ACQUIRE() {forcelog("SLOCK_ACQUIRE %d\n", spin_cnt); EnterCriticalSection(&as_spin); spin_cnt++;}
 	void SLOCK_RELEASE() {forcelog("SLOCK_RELEASE=%d\n", spin_cnt); LeaveCriticalSection(&as_spin); spin_cnt--;}
@@ -250,6 +250,11 @@ IAsyncPG::IAsyncPG(void) : helper(NULL), RMCookie(0), enlist(NULL), conn(NULL), 
 #endif /* _LOCK_DEBUG_ */
 }
 
+//
+//	invoked from *delete*.
+//	When entered ELOCK -> LIFELOCK -> SLOCK are acquired
+//	and they are released.
+//	
 IAsyncPG::~IAsyncPG(void)
 {
 	ConnectionClass *fconn = NULL;
@@ -286,6 +291,9 @@ forcelog("%x QueryInterface called\n", this);
 	*ppvObject = NULL;
 	return E_NOINTERFACE;
 }
+//
+//	acquire/releases SLOCK.
+//
 ULONG	STDMETHODCALLTYPE IAsyncPG::AddRef(void)
 {
 	mylog("%x->AddRef called\n", this);
@@ -294,6 +302,9 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::AddRef(void)
 	SLOCK_RELEASE();
 	return refcnt;
 }
+//
+//	acquire/releases [ELOCK -> LIFELOCK -> ] SLOCK.
+//
 ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 {
 	mylog("%x->Release called refcnt=%d\n", this, refcnt);
@@ -322,6 +333,9 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 	return refcnt;
 }
 
+//
+//	Acquire/release [MLOCK -> ] SLOCK.
+//
 void IAsyncPG::Wait_pThread(bool slock_hold)
 {
 	mylog("Wait_pThread %d in\n", slock_hold);
@@ -334,19 +348,6 @@ void IAsyncPG::Wait_pThread(bool slock_hold)
 	{
 		wThread = eThread[wait_idx];
 		SLOCK_RELEASE();
-		/*
-		if (WAIT_OBJECT_0 == WaitForSingleObject(wThread, 2000))
-		{
-			SLOCK_ACQUIRE();
-			if (eThread[wait_idx])
-			{
-				CloseHandle(wThread);
-				eThread[wait_idx] = NULL;
-			}
-		}
-		else
-			SLOCK_ACQUIRE();
-		*/
 		th_found = AsyncThreads::WaitThread(this, wait_idx, 2000);
 		SLOCK_ACQUIRE();
 		if (th_found)
@@ -357,6 +358,9 @@ void IAsyncPG::Wait_pThread(bool slock_hold)
 	mylog("Wait_pThread out\n");
 }
 
+//
+//	Acquire/releases [MLOCK -> ] SLOCK.
+//
 void IAsyncPG::Wait_cThread(bool slock_hold, bool once)
 {
 	HANDLE	wThread;
@@ -374,19 +378,6 @@ void IAsyncPG::Wait_cThread(bool slock_hold, bool once)
 	{
 		wThread = eThread[wait_idx];
 		SLOCK_RELEASE();
-		/*
-		if (WAIT_OBJECT_0 == WaitForSingleObject(wThread, 2000))
-		{
-			SLOCK_ACQUIRE();
-			if (cThread)
-			{
-				CloseHandle(wThread);
-				cThread = NULL;
-			}
-		}
-		else
-			SLOCK_ACQUIRE();
-		*/
 		th_found = AsyncThreads::WaitThread(this, wait_idx, 2000);
 		SLOCK_ACQUIRE();
 		if (once || th_found)
@@ -405,6 +396,10 @@ struct RequestPara {
 	HRESULT	res;
 } RequestPara;
 
+//
+//	Acquire/releases LIFELOCK -> SLOCK.
+//	may acquire/release ELOCK.
+//
 void	IAsyncPG::SetDone(HRESULT res)
 {
 	LIFELOCK_ACQUIRE;
@@ -435,9 +430,11 @@ void	IAsyncPG::SetDone(HRESULT res)
 		SLOCK_RELEASE();
 		LIFELOCK_RELEASE;
 	}
-	// Release(); /* unneccesary */
 }
 	
+//
+//	Acquire/releases [ELOCK -> LIFELOCK -> ] SLOCK.
+//
 ConnectionClass	*IAsyncPG::generateXAConn(bool spinAcquired)
 {
 	if (!spinAcquired)
@@ -471,12 +468,16 @@ ConnectionClass	*IAsyncPG::generateXAConn(bool spinAcquired)
 }
 
 //
-//	[in]
+//	[when entered]
 //	ELOCK is acquired.
 //
-//	[out]
+//	Acquire/releases SLOCK.
+//	Try to acquire CONNLOCK also.
+//
+//	[on exit]
+//	ELOCK is kept acquired.
 //	If the return connection != NULL
-//		the lock for the connection is acquired.
+//		the CONNLOCK for the connection is acquired.
 //	
 ConnectionClass	*IAsyncPG::getLockedXAConn()
 {
@@ -502,6 +503,9 @@ ConnectionClass	*IAsyncPG::getLockedXAConn()
 	return xaconn;
 }
 
+//
+//	Acquire/release ELOCK [ -> MLOCK] -> SLOCK.
+//
 HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 {
 	HRESULT		ret;
@@ -515,7 +519,6 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 #ifdef	_SLEEP_FOR_TEST_
 	/*Sleep(2000);*/
 #endif	/* _SLEEP_FOR_TEST_ */
-	/* AddRef(); unnecessary */
 	ELOCK_ACQUIRE();
 	switch (type)
 	{
@@ -584,11 +587,14 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 		enlist->Release();
 	}
 	ELOCK_RELEASE();
-	/* Release(); unnecessary */
 	mylog("%x->Done ret=%d\n", this, ret);
 	return ret;
 }
 
+//
+//	Acquire/releses [MLOCK -> ] SLOCK
+//	 	or 	[ELOCK -> LIFELOCK -> ] SLOCK.
+//
 HRESULT IAsyncPG::ReleaseConnection(void)
 {
 	mylog("%x->ReleaseConnection\n", this);
@@ -625,6 +631,9 @@ HRESULT IAsyncPG::ReleaseConnection(void)
 	return SQL_SUCCESS;
 }
 
+//
+//	Acquire/release [ELOCK -> ] [MLOCK -> ] SLOCK.
+//
 EXTERN_C static unsigned WINAPI DtcRequestExec(LPVOID para);
 HRESULT STDMETHODCALLTYPE IAsyncPG::PrepareRequest(BOOL fRetaining, DWORD grfRM,
 				BOOL fWantMoniker, BOOL fSinglePhase)
@@ -671,6 +680,9 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::PrepareRequest(BOOL fRetaining, DWORD grfRM,
 	Release();
 	return ret;
 }
+//
+//	Acquire/release [ELOCK -> ] [MLOCK -> ] SLOCK.
+//
 HRESULT STDMETHODCALLTYPE IAsyncPG::CommitRequest(DWORD grfRM, XACTUOW * pNewUOW)
 {
 	HRESULT		res = S_OK, ret = S_OK;
@@ -712,6 +724,9 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::CommitRequest(DWORD grfRM, XACTUOW * pNewUOW
 	Release();
 	return ret;
 }
+//
+//	Acquire/release [ELOCK -> ] [MLOCK -> ] SLOCK.
+//
 HRESULT STDMETHODCALLTYPE IAsyncPG::AbortRequest(BOID * pboidReason, BOOL fRetaining,
 				XACTUOW * pNewUOW)
 {
@@ -752,9 +767,8 @@ forcelog("%x TMDown called\n", this);
 }
 
 //
+//	Acquire/releases MLOCK -> SLOCK.
 //
-//
-
 std::map<HANDLE, AsyncWait>	AsyncThreads::th_list;
 void	AsyncThreads::insert(HANDLE th, IAsyncPG *obj, DWORD type)
 {
@@ -767,6 +781,9 @@ void	AsyncThreads::insert(HANDLE th, IAsyncPG *obj, DWORD type)
 	MLOCK_RELEASE;
 }
 
+//
+//	Acquire/releases MLOCK -> SLOCK.
+//
 bool	AsyncThreads::WaitThread(IAsyncPG *obj, DWORD type, DWORD millisecond)
 {
 	HANDLE	th = NULL;
@@ -938,7 +955,7 @@ mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;
 	errset = false;
 	ConnInfo *ci = &(conn->connInfo);
 	char	dtcname[1024];
-	snprintf(dtcname, sizeof(dtcname), "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s;" ABBR_DEBUG "=%d", 
+	snprintf(dtcname, sizeof(dtcname), "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s", 
 		ci->drivername, ci->server, ci->port, ci->database, ci->username, ci->password, ci->sslmode, ci->drivers.debug);
 	do { 
 		res = pHelper->XARMCreate(dtcname, (char *) GetXaLibName(), &dwRMCookie);

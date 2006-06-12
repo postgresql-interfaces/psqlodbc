@@ -31,13 +31,7 @@ CI_Constructor()
 	if (rv)
 	{
 		rv->num_fields = 0;
-		rv->name = NULL;
-		rv->adtid = NULL;
-		rv->adtsize = NULL;
-		rv->display_size = NULL;
-		rv->atttypmod = NULL;
-		rv->relid = NULL;
-		rv->attid = NULL;
+		rv->coli_array = NULL;
 	}
 
 	return rv;
@@ -137,51 +131,20 @@ CI_free_memory(ColumnInfoClass *self)
 	register Int2 lf;
 	int			num_fields = self->num_fields;
 
-	if (self->name)
+	/* Safe to call even if null */
+	self->num_fields = 0;
+	if (self->coli_array)
 	{
 		for (lf = 0; lf < num_fields; lf++)
 		{
-			if (self->name[lf])
+			if (self->coli_array[lf].name)
 			{
-				free(self->name[lf]);
-				self->name[lf] = NULL;
+				free(self->coli_array[lf].name);
+				self->coli_array[lf].name = NULL;
 			}
 		}
-		free(self->name);
-		self->name = NULL;
-	}
-	/* Safe to call even if null */
-	self->num_fields = 0;
-
-	if (self->adtid)
-	{
-		free(self->adtid);
-		self->adtid = NULL;
-	}
-	if (self->adtsize)
-	{
-		free(self->adtsize);
-		self->adtsize = NULL;
-	}
-	if (self->display_size)
-	{
-		free(self->display_size);
-		self->display_size = NULL;
-	}
-	if (self->atttypmod)
-	{
-		free(self->atttypmod);
-		self->atttypmod = NULL;
-	}
-	if (self->relid)
-	{
-		free(self->relid);
-		self->relid = NULL;
-	}
-	if (self->attid)
-	{
-		free(self->attid);
-		self->attid = NULL;
+		free(self->coli_array);
+		self->coli_array = NULL;
 	}
 }
 
@@ -193,17 +156,7 @@ CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL allocrelatt)
 
 	self->num_fields = new_num_fields;
 
-	self->name = (char **) malloc(sizeof(char *) * self->num_fields);
-	memset(self->name, 0, sizeof(char *) * self->num_fields);
-	self->adtid = (Oid *) malloc(sizeof(Oid) * self->num_fields);
-	self->adtsize = (Int2 *) malloc(sizeof(Int2) * self->num_fields);
-	self->display_size = (Int4 *) malloc(sizeof(Int4) * self->num_fields);
-	self->atttypmod = (Int4 *) malloc(sizeof(Int4) * self->num_fields);
-	if (allocrelatt)
-	{
-		self->relid = (Oid *) malloc(sizeof(Oid) * self->num_fields);
-		self->attid = (Oid *) malloc(sizeof(Oid) * self->num_fields);
-	}
+	self->coli_array = (struct srvr_info *) calloc(sizeof(struct srvr_info), self->num_fields);
 }
 
 
@@ -217,14 +170,12 @@ CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
 		return;
 
 	/* store the info */
-	self->name[field_num] = strdup(new_name);
-	self->adtid[field_num] = new_adtid;
-	self->adtsize[field_num] = new_adtsize;
-	self->atttypmod[field_num] = new_atttypmod;
+	self->coli_array[field_num].name = strdup(new_name);
+	self->coli_array[field_num].adtid= new_adtid;
+	self->coli_array[field_num].adtsize = new_adtsize;
+	self->coli_array[field_num].atttypmod = new_atttypmod;
 
-	self->display_size[field_num] = 0;
-	if (self->relid)
-		self->relid[field_num] = new_relid;
-	if (self->attid)
-		self->attid[field_num] = new_attid;
+	self->coli_array[field_num].display_size = 0;
+	self->coli_array[field_num].relid = new_relid;
+	self->coli_array[field_num].attid = new_attid;
 }

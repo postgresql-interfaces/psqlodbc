@@ -54,7 +54,7 @@ RETCODE  SQL_API SQLGetConnectOptionW(HDBC ConnectionHandle,
 {
 	mylog("[SQLGetConnectOptionW]");
 	CC_set_in_unicode_driver((ConnectionClass *) ConnectionHandle);
-	return PGAPI_GetConnectOption(ConnectionHandle, Option, Value);
+	return PGAPI_GetConnectOption(ConnectionHandle, Option, Value, NULL, 64);
 } 
 
 RETCODE  SQL_API SQLSetConnectOptionW(HDBC ConnectionHandle,

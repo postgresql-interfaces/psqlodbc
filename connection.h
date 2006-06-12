@@ -305,11 +305,12 @@ typedef struct
 #define PROTOCOL_63(conninfo_)		(strncmp((conninfo_)->protocol, PG63, strlen(PG63)) == 0)
 
 /*	Macro to determine is the connection using 6.4 protocol? */
-#define PROTOCOL_74(conninfo_)		(strncmp((conninfo_)->protocol, PG74, strlen(PG74)) == 0)
-
-/*	Macro to determine is the connection using 6.4 protocol? */
 #define PROTOCOL_64(conninfo_)		(strncmp((conninfo_)->protocol, PG64, strlen(PG64)) == 0)
 
+/*	Macro to determine is the connection using 7.4 protocol? */
+#define PROTOCOL_74(conninfo_)		(strncmp((conninfo_)->protocol, PG74, strlen(PG74)) == 0)
+
+#define SUPPORT_DESCRIBE_PARAM(conninfo_) (PROTOCOL_74(conninfo_) && conninfo_->use_server_side_prepare)
 /*
  *	Macros to compare the server's version with a specified version
  *		1st parameter: pointer to a ConnectionClass object
@@ -352,8 +353,8 @@ struct col_info
 	Int2		num_reserved_cols;
 	QResultClass	*result;
 	pgNAME		schema_name;
-	/**char		table_name[TABLE_NAME_STORAGE_LEN + 1];**/
 	pgNAME		table_name;
+	Oid		table_oid;
 };
 #define col_info_initialize(coli) (memset(coli, 0, sizeof(COL_INFO)))
 
@@ -387,11 +388,12 @@ struct ConnectionClass_
 	CONN_Status	status;
 	ConnInfo	connInfo;
 	StatementClass	**stmts;
-	int		num_stmts;
+	Int2		num_stmts;
+	Int2		ncursors;
 	SocketClass	*sock;
 	Int4		lobj_type;
+	Int2		coli_allocated;
 	Int2		ntables;
-	Int2		ncursors;
 	COL_INFO	**col_info;
 	long		translation_option;
 	HINSTANCE	translation_handle;
@@ -504,6 +506,9 @@ void		getParameterValues(ConnectionClass *self);
 int		CC_get_max_idlen(ConnectionClass *self);
 
 BOOL		SendSyncRequest(ConnectionClass *self);
+
+const		char *CurrCat(const ConnectionClass *self);
+const		char *CurrCatString(const ConnectionClass *self);
 
 /* CC_send_query options */
 enum {

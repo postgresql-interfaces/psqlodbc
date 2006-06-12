@@ -582,10 +582,10 @@ inolog("lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLES);		/* 54 */
 	if (ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT);	/* 55 */
-	/* if (PG_VERSION_GE(conn, 7.4) || ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES); */ /* 56 */ 
+	if (ci->drivers.lie)
+		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES);	/* 56 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDATASOURCES);	/* 57 */
-	if ((PROTOCOL_74(ci)  && ci->use_server_side_prepare) || ci->drivers.lie)
+	if (SUPPORT_DESCRIBE_PARAM(ci) || ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLDESCRIBEPARAM); /* 58 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLEXTENDEDFETCH); /* 59 deprecated ? */
 

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.14 2006/04/08 16:30:01 dpage Exp $
+ * $Id: descriptor.h,v 1.15 2006/06/12 15:21:45 hinoue Exp $
  *
  */
 
@@ -33,7 +33,7 @@ do { \
 do { \
 	if ((the_name).name) \
 		free((the_name).name); \
-	(the_name).name = strdup((str)); \
+	(the_name).name = (str ? strdup((str)) : NULL); \
 } while (0)
 #define	NAME_TO_STR(str, the_name) \
 do {\
@@ -65,6 +65,7 @@ enum {
 	TI_UPDATABLE	=	1L
 	,TI_HASOIDS_CHECKED	=	(1L << 1)
 	,TI_HASOIDS	=	(1L << 2)
+	,TI_COLATTRIBUTE	=	(1L << 3)
 };
 typedef struct
 {
@@ -94,6 +95,7 @@ enum {
 	,FIELD_TEMP_SET		= (1L << 1)
 	,FIELD_COL_ATTRIBUTE	= (1L << 2)
 	,FIELD_PARSED_OK	= (1L << 3)
+	,FIELD_PARSED_INCOMPLETE = (1L << 4)
 };
 typedef struct
 {
@@ -111,7 +113,7 @@ typedef struct
 	int		decimal_digits; /* scale in 2.x */
 	int		display_size;
 	int		length;
-	int		type;
+	Oid		type;
 	char		expr;
 	char		quote;
 	char		dquote;
@@ -122,6 +124,7 @@ Int4 FI_precision(const FIELD_INFO *);
 Int4 FI_scale(const FIELD_INFO *);
 void	FI_Constructor(FIELD_INFO *, BOOL reuse);
 void	FI_Destructor(FIELD_INFO **, int, BOOL freeFI);
+#define	FI_is_applicable(fi) (NULL != fi && (fi->flag & (FIELD_PARSED_OK | FIELD_COL_ATTRIBUTE)) != 0)
 
 typedef struct DescriptorHeader_
 {
@@ -161,7 +164,7 @@ struct APDFields_
 {
 	SQLLEN		paramset_size;
 	int		param_bind_type; /* size of each structure if using
-					  * Row-wsie Parameter Binding */
+					  * Row-wise Parameter Binding */
 	UInt2		*param_operation_ptr;
 	UInt4		*param_offset_ptr;
 	ParameterInfoClass	*bookmark; /* dummy item to fit APD to ARD */
@@ -176,6 +179,7 @@ struct IRDFields_
 	UInt4		*rowsFetched;
 	UInt2		*rowStatusArray;
 	UInt4		nfields;
+	UInt4		allocated;
 	FIELD_INFO	**fi;
 };
 
@@ -231,6 +235,7 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *self);
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall);
 void	APD_free_params(APDFields *self, char option);
 void	IPD_free_params(IPDFields *self, char option);
+BOOL	getCOLIfromTI(const char *, StatementClass *, const Oid, TABLE_INFO **);
 #if (ODBCVER >= 0x0300)
 RETCODE	DC_set_stmt(DescriptorClass *desc, StatementClass *stmt);
 void	DC_clear_error(DescriptorClass *desc);

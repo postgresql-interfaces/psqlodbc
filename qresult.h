@@ -121,6 +121,8 @@ enum {
 #define QR_get_display_size(self, fieldno_) (CI_get_display_size(self->fields, fieldno_))
 #define QR_get_atttypmod(self, fieldno_)	(CI_get_atttypmod(self->fields, fieldno_))
 #define QR_get_field_type(self, fieldno_)	(CI_get_oid(self->fields, fieldno_))
+#define QR_get_relid(self, fieldno_)	(CI_get_relid(self->fields, fieldno_))
+#define QR_get_attid(self, fieldno_)	(CI_get_attid(self->fields, fieldno_))
 
 /*	These functions are used only for manual result sets */
 #define QR_get_num_total_tuples(self)		(QR_once_reached_eof(self) ? (self->num_total_read + self->ad_count) : self->num_total_read)

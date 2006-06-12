@@ -1478,8 +1478,8 @@ inolog("QR_read_a_tuple_from_db len=%d\n", len);
 			 * row!
 			 */
 
-				if (flds && flds->display_size && flds->display_size[field_lf] < len)
-					flds->display_size[field_lf] = len;
+				if (flds && flds->coli_array && CI_get_display_size(flds, field_lf) < len)
+					CI_get_display_size(flds, field_lf) = len;
 			}
 		}
 

@@ -495,11 +495,16 @@ RETCODE		SQL_API
 PGAPI_GetConnectOption(
 					   HDBC hdbc,
 					   SQLUSMALLINT fOption,
-					   PTR pvParam)
+					   PTR pvParam,
+					SQLINTEGER *StringLength,
+					SQLINTEGER BufferLength)
 {
 	CSTR func = "PGAPI_GetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci = &(conn->connInfo);
+	const char	*p = NULL;
+	SQLINTEGER	len = sizeof(SQLINTEGER);
+	SQLRETURN	result = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
 
@@ -521,9 +526,8 @@ PGAPI_GetConnectOption(
 			break;
 
 		case SQL_CURRENT_QUALIFIER:		/* don't use qualifiers */
-			if (pvParam)
-				((char *) pvParam)[0] = ((char *) pvParam)[1] = '\0';
-
+			len = 0;
+			p = CurrCatString(conn);
 			break;
 
 		case SQL_LOGIN_TIMEOUT:	/* NOT SUPPORTED */
@@ -580,7 +584,33 @@ PGAPI_GetConnectOption(
 			}
 	}
 
-	return SQL_SUCCESS;
+	if (NULL != p && 0 == len)
+	{ 
+		/* char/binary data */
+		len = strlen(p);
+
+		if (pvParam)
+		{
+#ifdef  UNICODE_SUPPORT
+			if (CC_is_in_unicode_driver(conn))
+			{
+				len = utf8_to_ucs2(p, len, (SQLWCHAR *) pvParam , BufferLength / WCLEN);
+				len *= WCLEN;
+			}
+			else
+#endif /* UNICODE_SUPPORT */
+			strncpy_null((char *) pvParam, p, (size_t) BufferLength);
+
+			if (len >= BufferLength)
+			{
+				result = SQL_SUCCESS_WITH_INFO;
+				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the pvParam.", func);
+			}
+		}
+	}
+	if (StringLength)
+		*StringLength = len;
+	return result;
 }
 
 
@@ -619,13 +649,16 @@ RETCODE		SQL_API
 PGAPI_GetStmtOption(
 					HSTMT hstmt,
 					SQLUSMALLINT fOption,
-					PTR pvParam)
+					PTR pvParam,
+					SQLINTEGER *StringLength,
+					SQLINTEGER BufferLength)
 {
 	CSTR func = "PGAPI_GetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
 	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);
 	int	ridx;
+	SQLINTEGER	len = sizeof(SQLINTEGER);
 
 	mylog("%s: entering...\n", func);
 
@@ -748,6 +781,8 @@ PGAPI_GetStmtOption(
 				return SQL_ERROR;
 			}
 	}
+	if (StringLength)
+		*StringLength = len;
 
 	return SQL_SUCCESS;
 }

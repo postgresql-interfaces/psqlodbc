@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.100 2006/04/27 14:49:04 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.101 2006/06/12 15:21:45 hinoue Exp $
  *
  */
 
@@ -47,8 +47,8 @@
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
-#if defined(WIN32) && (_MSC_VER < 1300) /* In the case of below VC6 */
-#define SQLLEN SQLINTEGER 
+#if defined(WIN32) && (_MSC_VER < 1300) /* in case of VC6 or under */
+#define SQLLEN SQLINTEGER
 #define SQLULEN SQLUINTEGER
 #define SQLSETPOSIROW SQLUSMALLINT
 #endif
@@ -74,7 +74,7 @@
 extern "C" {
 #endif
 #ifndef WIN32
-#define Int4 long int
+#define Int4 int
 #define UInt4 unsigned int
 #define Int2 short
 #define UInt2 unsigned short
@@ -109,7 +109,6 @@ typedef double SDOUBLE;
 #define strdup _strdup
 #define strnicmp _strnicmp
 #define stricmp _stricmp
-#define strdup _strdup
 #endif
 
 #ifndef	SQL_ATTR_APP_ROW_DESC
@@ -340,6 +339,7 @@ void		logs_on_off(int cnopen, int, int);
 #define PG_TYPE_LO_UNDEFINED			(-999)		/* hack until permanent
 												 * type available */
 #define PG_TYPE_LO_NAME				"lo"
+#define CTID_ATTNUM				(-1)	/* the attnum of ctid */
 #define OID_ATTNUM				(-2)	/* the attnum of oid */
 #define XMIN_ATTNUM				(-3)	/* the attnum of xmin */
 
@@ -383,15 +383,24 @@ char		*debug_strdup(const char *);
 void		*debug_memcpy(void *, const void *, size_t);
 void		*debug_memset(void *, int c, size_t);
 char		*debug_strcpy(char *, const char *);
+char		*debug_strncpy(char *, const char *, size_t);
+char		*debug_strncpy_null(char *, const char *, size_t);
 void		debug_free(void *);
 void		debug_memory_check(void);
 
+#ifdef	WIN32
+#undef strdup
+#undef strnicmp
+#undef stricmp
+#endif /* WIN32 */
 #define malloc	debug_alloc
 #define realloc debug_realloc
 #define calloc	debug_calloc
 #define strdup	debug_strdup
 #define free	debug_free
 #define strcpy	debug_strcpy
+#define strncpy	debug_strncpy
+/* #define strncpy_null	debug_strncpy_null */
 #define memcpy	debug_memcpy
 #define memset	debug_memset
 #endif   /* _MEMORY_DEBUG_ */

@@ -136,6 +136,7 @@ static void IRDFields_free(IRDFields * self)
 		FI_Destructor(self->fi, self->nfields, TRUE);
 		self->fi = NULL;
 	}
+	self->allocated = 0;
 	self->nfields = 0;
 }
 

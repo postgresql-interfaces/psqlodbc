@@ -19,7 +19,7 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 	CSTR func = "PGAPI_GetInfo30";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);
-	char	   *p = NULL;
+	const char	*p = NULL;
 	int			len = 0,
 				value = 0;
 	RETCODE		result;
@@ -159,10 +159,10 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_CATALOG_NAME:
 			len = 0;
-			if (PG_VERSION_LE(conn, 7.2))
-				p = "N";
+			if (CurrCat(conn))
+				p = "Y";
 			else
-				p = "N"; /* hopefully */
+				p = "N";
 			break;
 		case SQL_COLLATION_SEQ:
 			len = 0;

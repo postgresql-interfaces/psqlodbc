@@ -48,7 +48,7 @@ PGAPI_RowCount(
 	mylog("%s: entering...\n", func);
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
@@ -89,6 +89,51 @@ inolog("returning RowCount=%d\n", *pcrow);
 	return SQL_SUCCESS;
 }
 
+static BOOL SC_pre_execute_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *func)
+{
+	Int4 num_fields = SC_pre_execute(stmt);
+	QResultClass	*result = SC_get_Curres(stmt);
+	BOOL	exec_ok = TRUE;
+
+	mylog("%s: result = %x, status = %d, numcols = %d\n", func, result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
+	/****if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
+	if (!QR_command_maybe_successful(result) || num_fields < 0)
+	{
+		/* no query has been executed on this statement */
+		SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been executed with that handle", func);
+		exec_ok = FALSE;
+	}
+	else if (col_idx >= 0 && col_idx < num_fields)
+	{
+		Oid	reloid = QR_get_relid(result, col_idx);
+		IRDFields	*irdflds = SC_get_IRDF(stmt);
+		FIELD_INFO	*fi;
+		TABLE_INFO	*ti = NULL;
+
+inolog("build_fi=%d reloid=%u\n", build_fi, reloid);
+		if (build_fi && 0 != QR_get_attid(result, col_idx))
+			getCOLIfromTI(func, stmt, reloid, &ti);
+inolog("nfields=%d\n", irdflds->nfields);
+		if (irdflds->fi && col_idx < (int) irdflds->nfields)
+		{
+			fi = irdflds->fi[col_idx];
+			if (fi)
+			{
+				if (ti)
+				{
+					if (NULL == fi->ti)
+						fi->ti = ti;
+					if (!FI_is_applicable(fi)
+					    && 0 != (ti->flags & TI_COLATTRIBUTE))
+						fi->flag |= FIELD_COL_ATTRIBUTE;
+				}
+				if (0 == fi->type)
+					fi->type = QR_get_field_type(result, col_idx);
+			}
+		}
+	}
+	return exec_ok;
+}
 
 /*
  *	This returns the number of columns associated with the database
@@ -109,7 +154,7 @@ PGAPI_NumResultCols(
 	mylog("%s: entering...\n", func);
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
@@ -142,26 +187,13 @@ PGAPI_NumResultCols(
 
 	if (!parse_ok)
 	{
-		Int4 num_fields = SC_pre_execute(stmt);
+		if (!SC_pre_execute_ok(stmt, FALSE, -1, func))
+		{
+			ret = SQL_ERROR;
+			goto cleanup;
+		}
+
 		result = SC_get_Curres(stmt);
-
-		mylog("PGAPI_NumResultCols: result = %x, status = %d, numcols = %d\n", result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
-		/****if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
-		if (!result || num_fields < 0)
-		{
-			/* no query has been executed on this statement */
-			SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been executed with that handle", func);
-			ret = SQL_ERROR;
-			goto cleanup;
-		}
-		else if (!QR_command_maybe_successful(result))
-		{
-			SC_set_errornumber(stmt, STMT_EXEC_ERROR);
-			SC_log_error(func, "", stmt);
-			ret = SQL_ERROR;
-			goto cleanup;
-		}
-
 		*pccol = QR_NumPublicResultCols(result);
 	}
 
@@ -201,7 +233,6 @@ PGAPI_DescribeCol(
 	SQLLEN		column_size = 0;
 	SQLINTEGER	decimal_digits = 0;
 	ConnInfo   *ci;
-	char		parse_ok;
 	FIELD_INFO	*fi;
 	char		buf[255];
 	int			len = 0;
@@ -211,7 +242,7 @@ PGAPI_DescribeCol(
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
@@ -221,7 +252,6 @@ PGAPI_DescribeCol(
 	SC_clear_error(stmt);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	/* StartRollbackState(stmt); */
 	irdflds = SC_get_IRDF(stmt);
 #if (ODBCVER >= 0x0300)
 	if (0 == icol) /* bookmark column */
@@ -252,19 +282,14 @@ inolog("answering bookmark info\n");
 
 	icol--;						/* use zero based column numbers */
 
-	parse_ok = FALSE;
 	fi = NULL;
 	if (icol < irdflds->nfields && irdflds->fi)
-	{
 		fi = irdflds->fi[icol];
-		if (fi && 0 == (fi->flag & (FIELD_PARSED_OK | FIELD_COL_ATTRIBUTE)))
-			fi = NULL;
-	}
-	if (!fi && !stmt->catalog_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!FI_is_applicable(fi) && !stmt->catalog_result && ci->drivers.parse && STMT_TYPE_SELECT == stmt->statement_type)
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			mylog("PGAPI_DescribeCol: calling parse_statement on stmt=%x\n", stmt);
+			mylog("%s: calling parse_statement on stmt=%x\n", func, stmt);
 			parse_statement(stmt, FALSE);
 		}
 
@@ -284,37 +309,22 @@ inolog("answering bookmark info\n");
 		}
 	}
 
-	if (fi && 0 == fi->type)
-		fi = NULL;
-
-	/*
-	 * If couldn't parse it OR the field being described was not parsed
-	 * (i.e., because it was a function or expression, etc, then do it the
-	 * old fashioned way.
-	 */
-	if (!fi)
+	if (!FI_is_applicable(fi))
 	{
-		Int4 num_fields = SC_pre_execute(stmt);
+		/*
+	 	 * If couldn't parse it OR the field being described was not parsed
+	 	 * (i.e., because it was a function or expression, etc, then do it the
+	 	 * old fashioned way.
+	 	 */
+		BOOL	build_fi = PROTOCOL_74(ci) && (NULL != pfNullable || NULL != pfSqlType);
+		fi = NULL;
+		if (!SC_pre_execute_ok(stmt, build_fi, icol, func))
+		{
+			result = SQL_ERROR;
+			goto cleanup;
+		}
 
 		res = SC_get_Curres(stmt);
-
-		mylog("**** PGAPI_DescribeCol: res = %x, stmt->status = %d, !finished=%d, !premature=%d\n", res, stmt->status, stmt->status != STMT_FINISHED, stmt->status != STMT_PREMATURE);
-		/**** if ((NULL == res) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
-		if ((NULL == res) || num_fields < 0)
-		{
-			/* no query has been executed on this statement */
-			SC_set_error(stmt, STMT_EXEC_ERROR, "No query has been assigned to this statement.", func);
-			result = SQL_ERROR;
-			goto cleanup;
-		}
-		else if (!QR_command_maybe_successful(res))
-		{
-			SC_set_errornumber(stmt, STMT_EXEC_ERROR);
-			SC_log_error(func, "", stmt);
-			result = SQL_ERROR;
-			goto cleanup;
-		}
-
 		if (icol >= QR_NumPublicResultCols(res))
 		{
 			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.", NULL);
@@ -323,8 +333,10 @@ inolog("answering bookmark info\n");
 			result = SQL_ERROR;
 			goto cleanup;
 		}
+		if (icol < irdflds->nfields && irdflds->fi)
+			fi = irdflds->fi[icol];
 	}
-	if (fi)
+	if (FI_is_applicable(fi))
 	{
 		fieldtype = fi->type;
 		if (NAME_IS_VALID(fi->column_alias))
@@ -411,7 +423,7 @@ inolog("answering bookmark info\n");
 	 */
 	if (pfNullable)
 	{
-		*pfNullable = (parse_ok) ? irdflds->fi[icol]->nullable : pgtype_nullable(stmt, fieldtype);
+		*pfNullable = fi ? fi->nullable : pgtype_nullable(stmt, fieldtype);
 
 		mylog("describeCol: col %d  *pfNullable = %d\n", icol, *pfNullable);
 	}
@@ -443,20 +455,20 @@ PGAPI_ColAttributes(
 	ConnInfo	*ci;
 	int			unknown_sizes;
 	int			cols = 0;
-	char		parse_ok;
 	RETCODE		result;
 	const char   *p = NULL;
 	int			len = 0,
 				value = 0;
 	const	FIELD_INFO	*fi = NULL;
 	const	TABLE_INFO	*ti = NULL;
+	QResultClass	*res;
 
 	mylog("%s: entering..col=%d %d len=%d.\n", func, icol, fDescType,
 				cbDescMax);
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
@@ -472,6 +484,7 @@ PGAPI_ColAttributes(
 	 * is ignored anyway, so it may be 0.
 	 */
 
+	res = SC_get_Curres(stmt);
 #if (ODBCVER >= 0x0300)
 	if (0 == icol && SQL_DESC_COUNT != fDescType) /* bookmark column */
 	{
@@ -499,7 +512,6 @@ inolog("answering bookmark info\n");
 	if (unknown_sizes == UNKNOWNS_AS_DONTKNOW)
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
-	parse_ok = FALSE;
 	if (!stmt->catalog_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
@@ -533,33 +545,44 @@ inolog("answering bookmark info\n");
 				SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.", func);
 				return SQL_ERROR;
 			}
-			if (irdflds->fi[col_idx])
-			{
-				field_type = irdflds->fi[col_idx]->type;
-				if (field_type > 0)
-					parse_ok = TRUE;
-			}
 		}
 	}
 
 	if (col_idx < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[col_idx];
-	if (fi && 0 != (fi->flag & (FIELD_COL_ATTRIBUTE | FIELD_PARSED_OK)))
-		;
+	if (FI_is_applicable(fi))
+		field_type = fi->type;
 	else
 	{
+		BOOL	build_fi = FALSE;
+
 		fi = NULL;
-		SC_pre_execute(stmt);
-
-		mylog("**** PGAPI_ColAtt: result = %x, status = %d, numcols = %d\n", SC_get_Curres(stmt), stmt->status, SC_get_Curres(stmt) != NULL ? QR_NumResultCols(SC_get_Curres(stmt)) : -1);
-
-		if ((NULL == SC_get_Curres(stmt)) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE)))
+		if (PROTOCOL_74(ci))
 		{
-			SC_set_error(stmt, STMT_EXEC_ERROR, "Can't get column attributes: no result found.", func);
-			return SQL_ERROR;
+			switch (fDescType)
+			{
+				case SQL_COLUMN_OWNER_NAME:
+				case SQL_COLUMN_TABLE_NAME:
+				case SQL_COLUMN_TYPE:
+				case SQL_COLUMN_TYPE_NAME:
+				case SQL_COLUMN_AUTO_INCREMENT:
+#if (ODBCVER >= 0x0300)
+				case SQL_DESC_NULLABLE:
+				case SQL_DESC_BASE_TABLE_NAME:
+				case SQL_DESC_BASE_COLUMN_NAME:
+#else
+				case SQL_COLUMN_NULLABLE:
+#endif /* ODBCVER */
+				case SQL_COLUMN_UPDATABLE:
+					build_fi = TRUE;
+					break;
+			}
 		}
+		if (!SC_pre_execute_ok(stmt, build_fi, col_idx, func))
+			return SQL_ERROR;
 
-		cols = QR_NumPublicResultCols(SC_get_Curres(stmt));
+		res = SC_get_Curres(stmt);
+		cols = QR_NumPublicResultCols(res);
 
 		/*
 		 * Column Count is a special case.	The Column number is ignored
@@ -583,17 +606,17 @@ inolog("answering bookmark info\n");
 			return SQL_ERROR;
 		}
 
-		field_type = QR_get_field_type(SC_get_Curres(stmt), col_idx);
-		if (SC_parsed_status(stmt) != STMT_PARSE_FATAL && irdflds->fi && col_idx < irdflds->nfields)
+		field_type = QR_get_field_type(res, col_idx);
+		if (col_idx < irdflds->nfields && irdflds->fi)
 			fi = irdflds->fi[col_idx];
 	}
-	if (fi)
+	if (FI_is_applicable(fi))
 	{
 		ti = fi->ti;
 		field_type = fi->type;
 	}
 
-	mylog("colAttr: col %d field_type = %d\n", col_idx, field_type);
+	mylog("colAttr: col %d field_type=%d fi,ti=%x,%x\n", col_idx, field_type, fi, ti);
 
 	switch (fDescType)
 	{
@@ -604,7 +627,7 @@ inolog("answering bookmark info\n");
 				value = pgtype_auto_increment(stmt, field_type);
 			if (value == -1)	/* non-numeric becomes FALSE (ODBC Doc) */
 				value = FALSE;
-inolog("AUTO_INCREMENT=%d\n", value);
+			mylog("AUTO_INCREMENT=%d\n", value);
 
 			break;
 
@@ -642,7 +665,7 @@ inolog("AUTO_INCREMENT=%d\n", value);
 inolog("fi=%x", fi);
 if (fi)
 inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
-			p = fi ? (NAME_IS_NULL(fi->column_alias) ? SAFE_NAME(fi->column_name) : GET_NAME(fi->column_alias)) : QR_get_fieldname(SC_get_Curres(stmt), col_idx);
+			p = fi ? (NAME_IS_NULL(fi->column_alias) ? SAFE_NAME(fi->column_name) : GET_NAME(fi->column_alias)) : QR_get_fieldname(res, col_idx);
 
 			mylog("%s: COLUMN_NAME = '%s'\n", func, p);
 			break;
@@ -671,6 +694,7 @@ inolog("COLUMN_NULLABLE=%d\n", value);
 
 		case SQL_COLUMN_OWNER_NAME: /* == SQL_DESC_SCHEMA_NAME */
 			p = ti ? SAFE_NAME(ti->schema_name) : NULL_STRING;
+			mylog("schema_name=%s\n", p);
 			break;
 
 		case SQL_COLUMN_PRECISION: /* in 2.x */
@@ -682,7 +706,7 @@ inolog("COLUMN_NULLABLE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_QUALIFIER_NAME: /* == SQL_DESC_CATALOG_NAME */
-			p = "";
+			p = ti ? CurrCatString(conn) : NULL_STRING;	/* empty string means *not supported* */
 			break;
 
 		case SQL_COLUMN_SCALE: /* in 2.x */
@@ -699,12 +723,12 @@ inolog("COLUMN_SCALE=%d\n", value);
 		case SQL_COLUMN_TABLE_NAME: /* == SQL_DESC_TABLE_NAME */
 			p = ti ? SAFE_NAME(ti->table_name) : NULL_STRING;
 
-			mylog("%sr: TABLE_NAME = '%s'\n", func, p);
+			mylog("%s: TABLE_NAME = '%s'\n", func, p);
 			break;
 
 		case SQL_COLUMN_TYPE: /* == SQL_DESC_CONCISE_TYPE */
 			value = pgtype_to_concise_type(stmt, field_type, col_idx);
-inolog("COLUMN_TYPE=%d\n", value);
+			mylog("COLUMN_TYPE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_TYPE_NAME: /* == SQL_DESC_TYPE_NAME */
@@ -714,7 +738,7 @@ inolog("COLUMN_TYPE=%d\n", value);
 		case SQL_COLUMN_UNSIGNED: /* == SQL_DESC_UNSINGED */
 			value = pgtype_unsigned(stmt, field_type);
 			if (value == -1)	/* non-numeric becomes TRUE (ODBC Doc) */
-				value = TRUE;
+				value = SQL_TRUE;
 
 			break;
 
@@ -726,10 +750,10 @@ inolog("COLUMN_TYPE=%d\n", value);
 			 * if (field_type == PG_TYPE_OID) pfDesc = SQL_ATTR_READONLY;
 			 * else
 			 */
-			value = fi ? (fi->updatable ? SQL_ATTR_WRITE : SQL_ATTR_READONLY) : SQL_ATTR_READWRITE_UNKNOWN;
+			value = fi ? (fi->updatable ? SQL_ATTR_WRITE : SQL_ATTR_READONLY) : (QR_get_attid(res, col_idx) > 0 ? SQL_ATTR_WRITE : (PROTOCOL_74(ci) ? SQL_ATTR_READONLY : SQL_ATTR_READWRITE_UNKNOWN));
 			if (SQL_ATTR_READONLY != value)
 			{
-				const char *name = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(SC_get_Curres(stmt), col_idx);
+				const char *name = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);
 				if (stricmp(name, OID_NAME) == 0 ||
 				    stricmp(name, "ctid") == 0 ||
 				    stricmp(name, "xmin") == 0)
@@ -741,7 +765,7 @@ inolog("COLUMN_TYPE=%d\n", value);
 #if (ODBCVER >= 0x0300)
 		case SQL_DESC_BASE_COLUMN_NAME:
 
-			p = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(SC_get_Curres(stmt), col_idx);
+			p = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);
 
 			mylog("%s: BASE_COLUMN_NAME = '%s'\n", func, p);
 			break;
@@ -854,12 +878,13 @@ PGAPI_GetData(
 	RETCODE		result = SQL_SUCCESS;
 	char		get_bookmark = FALSE;
 	ConnInfo   *ci;
+	SQLSMALLINT	target_type;
 
 	mylog("%s: enter, stmt=%x\n", func, stmt);
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
@@ -877,6 +902,29 @@ PGAPI_GetData(
 		return SQL_ERROR;
 	}
 
+	if (SQL_ARD_TYPE == fCType)
+	{
+		ARDFields	*opts;
+		BindInfoClass	*binfo = NULL;
+
+		opts = SC_get_ARDF(stmt);
+		if (0 == icol)
+			binfo = opts->bookmark;
+		else if (icol <= opts->allocated && opts->bindings)
+			binfo = &opts->bindings[icol - 1];
+		if (binfo)
+		{	
+			target_type = binfo->returntype;
+			mylog("SQL_ARD_TYPE=%d\n", target_type);
+		}
+		else
+		{
+			SC_set_error(stmt, STMT_STATUS_ERROR, "GetData can't determine the type via ARD", func);
+			return SQL_ERROR;
+		}
+	}
+	else
+		target_type = fCType;
 	if (icol == 0)
 	{
 		if (stmt->options.use_bookmarks == SQL_UB_OFF)
@@ -886,7 +934,7 @@ PGAPI_GetData(
 		}
 
 		/* Make sure it is the bookmark data type */
-		switch (fCType)
+		switch (target_type)
 		{
 			case SQL_C_BOOKMARK:
 #if (ODBCVER >= 0x0300)
@@ -894,7 +942,7 @@ PGAPI_GetData(
 #endif /* ODBCVER */
 				break;
 			default:
-inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
+inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", target_type);
 				SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Column 0 is not of type SQL_C_BOOKMARK", func);
 				return SQL_ERROR;
 		}
@@ -963,7 +1011,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 
 		if (rgbValue)
 		{
-			if (SQL_C_BOOKMARK == fCType || 4 <= cbValueMax)
+			if (SQL_C_BOOKMARK == target_type || 4 <= cbValueMax)
 			{
 				contents_get = TRUE; 
 				*((SQLULEN *) rgbValue) = SC_get_bookmark(stmt);
@@ -984,12 +1032,12 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 
 	field_type = QR_get_field_type(res, icol);
 
-	mylog("**** %s: icol = %d, fCType = %d, field_type = %d, value = '%s'\n", func, icol, fCType, field_type, value ? value : "(null)");
+	mylog("**** %s: icol = %d, target_type = %d, field_type = %d, value = '%s'\n", func, icol, target_type, field_type, value ? value : "(null)");
 
 	SC_set_current_col(stmt, icol);
 
 	result = copy_and_convert_field(stmt, field_type, value,
-								 fCType, rgbValue, cbValueMax, pcbValue);
+								 target_type, rgbValue, cbValueMax, pcbValue);
 
 	switch (result)
 	{
@@ -1054,7 +1102,7 @@ PGAPI_Fetch(
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
@@ -1331,7 +1379,7 @@ PGAPI_ExtendedFetch(
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 	ci = &(SC_get_conn(stmt)->connInfo);
@@ -4385,7 +4433,7 @@ PGAPI_SetPos(
 	s.stmt = (StatementClass *) hstmt;
 	if (!s.stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
@@ -4568,7 +4616,7 @@ PGAPI_SetCursorName(
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 
@@ -4596,7 +4644,7 @@ PGAPI_GetCursorName(
 
 	if (!stmt)
 	{
-		SC_log_error(func, "", NULL);
+		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
 	result = SQL_SUCCESS;

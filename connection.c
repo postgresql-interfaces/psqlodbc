@@ -582,6 +582,7 @@ CC_cleanup(ConnectionClass *self)
 		self->col_info = NULL;
 	}
 	self->ntables = 0;
+	self->coli_allocated = 0;
 	if (self->num_discardp > 0 && self->discardp)
 	{
 		for (i = 0; i < self->num_discardp; i++)
@@ -2090,16 +2091,21 @@ inolog("Discarded the first SAVEPOINT\n");
 							continue; /* discard the result */
 						}
 					}
+					else if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
+					{
+						if (PROTOCOL_74(&(self->connInfo)))
+							CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
+						else
+							CC_on_abort(self, NO_TRANS);
+					}
 					else
 					{
-						if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
-						{
-							if (PROTOCOL_74(&(self->connInfo)))
-								CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
-							else
-								CC_on_abort(self, NO_TRANS);
-						}
-						else if (!PROTOCOL_74(&(self->connInfo)))
+						ptr = strrchr(cmdbuffer, ' ');
+						if (ptr)
+							res->recent_processed_row_count = atoi(ptr + 1);
+						else
+							res->recent_processed_row_count = -1;
+						 if (!PROTOCOL_74(&(self->connInfo)))
 						{
 							if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
 								CC_on_commit(self);
@@ -2107,14 +2113,6 @@ inolog("Discarded the first SAVEPOINT\n");
 								CC_on_commit(self);
 							else if (strnicmp(cmdbuffer, "ABORT", 5) == 0)
 								CC_on_abort(self, NO_TRANS);
-						}
-						else
-						{
-							ptr = strrchr(cmdbuffer, ' ');
-							if (ptr)
-								res->recent_processed_row_count = atoi(ptr + 1);
-							else
-								res->recent_processed_row_count = -1;
 						}
 					}
 
@@ -3219,4 +3217,23 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 		return TRUE;
 	else
 		return FALSE;
+}
+
+const char *CurrCat(const ConnectionClass *conn)
+{
+	/*
+	if (conn->schema_support)
+		return conn->connInfo.database;
+	else
+	*/
+		return NULL;
+}
+
+const char *CurrCatString(const ConnectionClass *conn)
+{
+	const char *cat = CurrCat(conn);
+
+	if (!cat)
+		cat = NULL_STRING;
+	return cat;
 }

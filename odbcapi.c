@@ -455,7 +455,7 @@ SQLGetConnectOption(HDBC ConnectionHandle,
 	mylog("[SQLGetConnectOption]");
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
-	ret = PGAPI_GetConnectOption(ConnectionHandle, Option, Value);
+	ret = PGAPI_GetConnectOption(ConnectionHandle, Option, Value, NULL, 64);
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
@@ -571,7 +571,7 @@ SQLGetStmtOption(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value);
+	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value, NULL, 64);
 	ret = DiscardRollbackState(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;

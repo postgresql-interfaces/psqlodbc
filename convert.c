@@ -2175,6 +2175,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	ConnInfo   *ci = &(conn->connInfo);
 	int		current_row;
 
+inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 	if (!stmt->statement)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No statement string", func);
@@ -2689,8 +2690,6 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 		PGAPI_NumParams(stmt, &num_p);
 		num_params = num_p;
 	}
-	if (0 == num_params)  /* BindRequest Unnecessary */
-		return TRUE; 
 	if (ipdopts->allocated < num_params)
 	{
 		SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, "The # of binded parameters < the # of parameter markers", func);
@@ -2728,7 +2727,8 @@ inolog("num_p=%d\n", num_p);
 		net_one = htons(net_one);
         	memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p)); /* number of parameter format */
         	leng += sizeof(SWORD);
-        	memset(bindreq + leng, 0, sizeof(SWORD) * num_p);  /* initialize by text format */
+		if (num_p > 0)
+        		memset(bindreq + leng, 0, sizeof(SWORD) * num_p);  /* initialize by text format */
 		for (i = stmt->proc_return, j = 0; i < num_params; i++)
 		{
 inolog("%dth paramater type oid is %u\n", i, parameters[i].PGType);
@@ -4333,7 +4333,7 @@ conv_to_octal(UCHAR val, char *octal, char escape_ch)
 
 	if (escape_ch)
 		octal[pos++] = escape_ch;
-	octal[pos + 1] = BYTEA_ESCAPE_CHAR;
+	octal[pos] = BYTEA_ESCAPE_CHAR;
 	len = 4 + pos;
 	octal[len] = '\0';
 

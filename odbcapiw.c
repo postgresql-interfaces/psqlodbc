@@ -223,11 +223,16 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	SQLSMALLINT	buflen, nmlen;
-	char	*clName;
+	char	*clName = NULL;
 
 	mylog("[%s]", func);
-	buflen = BufferLength * 3 + 1;
-	clName = malloc(buflen);
+	buflen = 0;
+	if (BufferLength > 0)
+		buflen = BufferLength * 3;
+	else if (NameLength)
+		buflen = 32;
+	if (buflen > 0)
+		clName = malloc(buflen);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -245,7 +250,7 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 
 		if (nmlen < buflen)
 			nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
-		if (SQL_SUCCESS == ret && nmcount > (UInt4) BufferLength)
+		if (SQL_SUCCESS == ret && BufferLength > 0 && nmcount > (UInt4) BufferLength)
 		{
 			ret = SQL_SUCCESS_WITH_INFO;
 			SC_set_error(stmt, STMT_TRUNCATED, "Column name too large", func);
@@ -255,7 +260,8 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
-	free(clName); 
+	if (clName)
+		free(clName); 
 	return ret;
 }
 
@@ -298,7 +304,10 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 	SQLSMALLINT	clen, buflen;
 
 	mylog("[%s]", func);
-	buflen = BufferLength * 3 + 1;
+	if (BufferLength > 0)
+		buflen = BufferLength * 3;
+	else
+		buflen = 32;
 	crName = malloc(buflen);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);

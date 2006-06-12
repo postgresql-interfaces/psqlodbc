@@ -415,7 +415,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			*((SQLUINTEGER *) Value) = conn->stmtOptions.metadata_id;
 			break;
 		default:
-			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value);
+			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value, &len, BufferLength);
 	}
 	if (StringLength)
 		*StringLength = len;
@@ -1549,8 +1549,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			SC_set_error(stmt, DESC_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Get)", func);
 			return SQL_ERROR;
 		default:
-			len = 4;
-			ret = PGAPI_GetStmtOption(StatementHandle, (UWORD) Attribute, Value);
+			ret = PGAPI_GetStmtOption(StatementHandle, (UWORD) Attribute, Value, &len, BufferLength);
 	}
 	if (ret == SQL_SUCCESS && StringLength)
 		*StringLength = len;

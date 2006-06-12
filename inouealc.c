@@ -1,5 +1,7 @@
+#undef	_MEMORY_DEBUG_
 #include	"psqlodbc.h"
 
+/*
 #undef	malloc
 #undef	calloc
 #undef	realloc
@@ -7,7 +9,10 @@
 #undef	free
 #undef	memcpy
 #undef	strcpy
+#undef	strncpy
+#undef	strncpy_null
 #undef	memset
+*/
 #include	"misc.h"
 #include	<malloc.h>
 #include	<string.h>
@@ -190,6 +195,30 @@ char *debug_strcpy(char *out, const char *in)
 	}
 	out_check(out, strlen(in) + 1, "debug_strcpy");
 	return strcpy(out, in);
+}
+char *debug_strncpy(char *out, const char *in, size_t len)
+{
+	CSTR	func = "debug_strncpy";
+
+	if (!out || !in)
+	{
+		mylog("%s:%s null pointer out=%x,in=%x\n", ALCERR, func, out, in);
+		return NULL;
+	}
+	out_check(out, len, func);
+	return strncpy(out, in, len);
+}
+char *debug_strncpy_null(char *out, const char *in, size_t len)
+{
+	CSTR	func = "debug_strncpy_null";
+
+	if (!out || !in)
+	{
+		mylog("%s:%s null pointer out=%x,in=%x\n", ALCERR, func, out, in);
+		return NULL;
+	}
+	out_check(out, len, func);
+	return strncpy_null(out, in, len);
 }
 
 void *debug_memcpy(void *out, const void *in, size_t len)
