@@ -1886,7 +1886,10 @@ PGAPI_MoreResults(
 		stmt->currTuple = -1;
 	}
 	else
+	{
+		PGAPI_FreeStmt(hstmt, SQL_CLOSE);
 		ret = SQL_NO_DATA_FOUND;
+	}
 	mylog("%s: returning %d\n", func, ret);
 	return ret;
 }
