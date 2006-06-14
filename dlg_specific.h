@@ -17,6 +17,9 @@
 #include "resource.h"
 #endif
 
+#ifdef	__cplusplus
+extern "C" {
+#endif /* __cplusplus */
 /*	Unknown data type sizes */
 #define UNKNOWNS_AS_MAX				0
 #define UNKNOWNS_AS_DONTKNOW			1
@@ -146,6 +149,7 @@
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define INI_XAOPT			"XaOpt"
+const char *GetXaLibPath();
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 /* Bit representaion for abbreviated connection strings */
 #define BIT_LFCONVERSION			(1L)
@@ -266,4 +270,7 @@ void		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *valu
 int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);
 int     changeDriverNameOfaDSN(const char *dsn, const char *driver_name, DWORD *errcode);
 
-#endif
+#ifdef	__cplusplus
+}
+#endif /* __cplusplus */
+#endif /* __DLG_SPECIFIC_H__ */

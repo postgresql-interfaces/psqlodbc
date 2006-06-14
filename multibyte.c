@@ -393,7 +393,7 @@ CC_lookup_cs_old(ConnectionClass *self)
  *	This function works under Windows or Unicode case only.
  *	Simply returns NULL under other OSs.
  */
-const char * get_environment_encoding(const ConnectionClass *conn, const char *oldenc)
+const char * get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc)
 {
 	const char *wenc = NULL;
 
@@ -408,11 +408,11 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *o
 			wenc = "SJIS";
 			break;
 		case 936:
-			if (!oldenc && PG_VERSION_GT(conn, 7.2))
+			if (!setenc && PG_VERSION_GT(conn, 7.2))
 				wenc = "GBK";
 			break;
 		case 949:
-			if (!oldenc || (PG_VERSION_GT(conn, 7.2) && stricmp(oldenc, "EUC_KR")))  
+			if (!setenc || (PG_VERSION_GT(conn, 7.2) && stricmp(setenc, "EUC_KR")))  
 				wenc = "UHC";
 			break;
 		case 950:
@@ -422,12 +422,16 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *o
 			wenc = "WIN1250";
 			break;
 		case 1252:
-			if (oldenc)
+			if (setenc)
+				;
+			else if (stricmp(currenc, "LATIN1") == 0 ||
+				 stricmp(currenc, "LATIN9") == 0 ||
+				 stricmp(currenc, "SQL_ASCII") == 0)
 				;
 			else if (PG_VERSION_GE(conn, 8.1))
 				wenc = "WIN1252";
 			else
-				wenc = "latin1";
+				wenc = "LATIN1";
 			break;
 	}
 #endif /* WIN32 */
@@ -437,23 +441,24 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *o
 void
 CC_lookup_characterset(ConnectionClass *self)
 {
-	char		*encstr;
+	char	*encstr = NULL, *currenc = NULL, *tencstr;
 	CSTR func = "CC_lookup_characterset";
 
 	mylog("%s: entering...\n", func);
 	if (self->current_client_encoding)
 		encstr = strdup(self->current_client_encoding);
 	else if (PG_VERSION_LT(self, 7.2))
-		encstr = CC_lookup_cs_old(self);
+		currenc = CC_lookup_cs_old(self);
 	else
-		encstr = CC_lookup_cs_new(self);
+		currenc = CC_lookup_cs_new(self);
+	tencstr = encstr ? encstr : currenc;
 	if (self->original_client_encoding)
 		free(self->original_client_encoding);
 #ifndef	UNICODE_SUPPORT
 	else
 	{
-		const char *wenc = get_environment_encoding(self, encstr);
-		if (wenc && (!encstr || stricmp(encstr, wenc)))
+		const char *wenc = get_environment_encoding(self, encstr, currenc);
+		if (wenc && (!tencstr || stricmp(tencstr, wenc)))
 		{
 			QResultClass	*res;
 			char		query[64];
@@ -469,18 +474,21 @@ CC_lookup_characterset(ConnectionClass *self)
 			{
 				self->original_client_encoding = strdup(wenc);
 				self->ccsc = pg_CS_code(self->original_client_encoding);
-				free(encstr);
+				if (encstr)
+					free(encstr);
+				if (currenc)
+					free(currenc);
 				return;
 			}
 		}
 	}
 #endif /* UNICODE_SUPPORT */
-	if (encstr)
+	if (tencstr)
 	{
-		self->original_client_encoding = encstr;
-		self->ccsc = pg_CS_code(encstr);
+		self->original_client_encoding = tencstr;
+		self->ccsc = pg_CS_code(tencstr);
 		qlog("    [ Client encoding = '%s' (code = %d) ]\n", self->original_client_encoding, self->ccsc);
-		if (stricmp(pg_CS_name(self->ccsc), encstr))
+		if (stricmp(pg_CS_name(self->ccsc), tencstr))
 		{
 			qlog(" Client encoding = '%s' and %s\n", self->original_client_encoding, pg_CS_name(self->ccsc));
 			CC_set_error(self, CONN_VALUE_OUT_OF_RANGE, "client encoding mismatch", func); 

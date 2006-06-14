@@ -141,7 +141,9 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 			outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
 		else
 			utf8_to_ucs2(szOut, maxlen, szConnStrOut, cbConnStrOutMax);
-		if (outlen >= (UInt4) cbConnStrOutMax)
+		if (0 == cbConnStrOutMax && NULL == pcbConnStrOut)
+			;
+		else if (outlen >= (UInt4) cbConnStrOutMax)
 		{
 			if (SQL_SUCCESS == ret)
 			{

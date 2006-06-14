@@ -1,0 +1,6 @@
+LIBRARY pgxalib
+EXPORTS
+DllMain @201
+GetXaSwitch		@203
+GetMsdtclog		@204
+SetMsdtclog		@205

@@ -91,6 +91,7 @@
 #define DS_NO_ROLLBACK			1080
 #define DS_TRANSACTION_ROLLBACK		1081
 #define DS_STATEMENT_ROLLBACK		1082
+#define DRV_DTCLOG			1083
 
 // Next default values for new objects
 // 
@@ -98,7 +99,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        105
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1083
+#define _APS_NEXT_CONTROL_VALUE         1084
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

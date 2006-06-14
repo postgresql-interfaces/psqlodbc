@@ -67,7 +67,7 @@ enum {
 /* New Type */
 
 extern void CC_lookup_characterset(ConnectionClass *self);
-extern const char *get_environment_encoding(const ConnectionClass *conn, const char *oldenc);
+extern const char *get_environment_encoding(const ConnectionClass *conn, const char *oldenc, const char *svrenc);
 
 extern int pg_CS_stat(int stat,unsigned int charcter,int characterset_code);
 extern int pg_CS_code(const UCHAR *stat_string);

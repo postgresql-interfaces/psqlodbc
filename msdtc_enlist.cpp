@@ -73,7 +73,7 @@ static char	xalibname[_MAX_FNAME] = "";
 static LONG	g_cComponents = 0;
 static LONG	g_cServerLocks = 0;
 
-static char *GetXaLibName()
+static const char *GetXaLibName()
 {
 	char	dllpath[_MAX_PATH], drive[_MAX_DRIVE], dir[_MAX_DIR],
 		fname[_MAX_FNAME], ext[_MAX_EXT];
@@ -90,6 +90,12 @@ static char *GetXaLibName()
 		snprintf(xalibpath, sizeof(xalibpath), "%s%s%s", drive, dir, xalibname);
 	}
 	return xalibname;
+}
+
+EXTERN_C const char *GetXaLibPath()
+{
+	GetXaLibName();
+	return xalibpath;
 }
 
 //

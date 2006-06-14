@@ -305,12 +305,31 @@ driver_optionsProc(HWND hdlg,
 	return FALSE;
 }
 
+#ifdef _HANDLE_ENLIST_IN_DTC_
+static
+HMODULE DtcProc(const char *procname, FARPROC *proc)
+{
+	HMODULE	hmodule;
+
+	*proc = NULL;
+	if (hmodule = LoadLibrary(GetXaLibPath()), NULL != hmodule)
+	{
+mylog("GetProcAddres for %s\n", procname);
+		*proc = GetProcAddress(hmodule, procname);
+	}
+
+	return hmodule;
+}
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+
 int			CALLBACK
 global_optionsProc(HWND hdlg,
 				   UINT wMsg,
 				   WPARAM wParam,
 				   LPARAM lParam)
 {
+	HMODULE	hmodule;
+	FARPROC	proc;
 
 	switch (wMsg)
 	{
@@ -323,6 +342,20 @@ global_optionsProc(HWND hdlg,
 #ifndef MY_LOG
 			EnableWindow(GetDlgItem(hdlg, DRV_DEBUG), FALSE);
 #endif /* MY_LOG */
+#ifdef _HANDLE_ENLIST_IN_DTC_
+			hmodule = DtcProc("GetMsdtclog", &proc);
+			if (proc)
+			{
+				INT_PTR res = (*proc)();
+				CheckDlgButton(hdlg, DRV_DTCLOG, 0 != res);
+			}
+			else
+				EnableWindow(GetDlgItem(hdlg, DRV_DTCLOG), FALSE);
+			if (hmodule)
+				FreeLibrary(hmodule);
+#else
+			ShowWindow(GetDlgItem(hdlg, DRV_DTCLOG), SW_HIDE);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 			break;
 
 		case WM_COMMAND:
@@ -332,6 +365,13 @@ global_optionsProc(HWND hdlg,
 					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
 					writeDriverCommoninfo(ODBCINST_INI, NULL, &globals);
+#ifdef _HANDLE_ENLIST_IN_DTC_
+			hmodule = DtcProc("SetMsdtclog", &proc);
+			if (proc)
+				(*proc)(IsDlgButtonChecked(hdlg, DRV_DTCLOG));
+			if (hmodule)
+				FreeLibrary(hmodule);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
@@ -424,6 +464,7 @@ ds_options2Proc(HWND hdlg,
 	ConnInfo   *ci;
 	char		buf[128];
 	DWORD		cmd;
+	BOOL		enable;
 
 	switch (wMsg)
 	{
@@ -455,6 +496,11 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_READONLY, atoi(ci->onlyread));
 
 			/* Protocol */
+			enable = (ci->sslmode[0] == 'd' || ci->username[0] == '\0');
+			EnableWindow(GetDlgItem(hdlg, DS_PG62), enable);
+			EnableWindow(GetDlgItem(hdlg, DS_PG63), enable);
+			EnableWindow(GetDlgItem(hdlg, DS_PG64), enable);
+			EnableWindow(GetDlgItem(hdlg, DS_PG74), enable);
 			if (PROTOCOL_62(ci))
 				CheckDlgButton(hdlg, DS_PG62, 1);
 			else if (PROTOCOL_63(ci))

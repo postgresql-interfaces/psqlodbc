@@ -970,7 +970,7 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 		else
 			opts[cnt++][1] = "on";
 		/* client_encoding */
-		enc = get_environment_encoding(self, NULL);
+		enc = get_environment_encoding(self, "other", NULL);
 		if (enc)
 		{
 			opts[cnt][0] = "client_encoding"; opts[cnt++][1] = enc;
