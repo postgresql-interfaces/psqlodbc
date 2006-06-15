@@ -1955,11 +1955,11 @@ retry_public_schema:
 			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
 			sizeof(columns_query));
 		if (search_by_ids)
-			snprintf(columns_query, sizeof(columns_query), "%s and c.oid = %u", columns_query, reloid);
+			snprintf_add(columns_query, sizeof(columns_query), " and c.oid = %u", reloid);
 		else
 		{
 			if (escTableName)
-				snprintf(columns_query, sizeof(columns_query), "%s and c.relname %s '%s'", columns_query, like_or_eq, escTableName);
+				snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s '%s'", like_or_eq, escTableName);
 			schema_strcat1(columns_query, " and n.nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 		}
 		strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
@@ -1969,10 +1969,10 @@ retry_public_schema:
 		if (search_by_ids)
 		{
 			if (attnum != 0)
-				snprintf(columns_query, sizeof(columns_query), "%s and a.attnum = %d", columns_query, attnum);
+				snprintf_add(columns_query, sizeof(columns_query), " and a.attnum = %d", attnum);
 		}
 		else if (escColumnName)
-			snprintf(columns_query, sizeof(columns_query), "%s and a.attname %s '%s'", columns_query, like_or_eq, escColumnName);
+			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s '%s'", like_or_eq, escColumnName);
 		strcat(columns_query,
 			" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
 			" on t.oid = a.atttypid) left outer join pg_attrdef d"
@@ -1990,10 +1990,10 @@ retry_public_schema:
 			"  and a.atttypid = t.oid and (a.attnum > 0)",
 			PG_VERSION_LE(conn, 6.2) ? "a.attlen" : "a.atttypmod");
 		if (escTableName)
-			snprintf(columns_query, sizeof(columns_query), "%s and c.relname %s '%s'", columns_query, like_or_eq, escTableName);
+			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s '%s'", like_or_eq, escTableName);
 		my_strcat1(columns_query, " and u.usename %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
 		if (escColumnName)
-			snprintf(columns_query, sizeof(columns_query), "%s and a.attname %s '%s'", columns_query, like_or_eq, escColumnName);
+			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s '%s'", like_or_eq, escColumnName);
 		strcat(columns_query, " order by c.relname, attnum");
 	}
 
@@ -2566,7 +2566,7 @@ retry_public_schema:
 	/* TableName cannot contain a string search pattern */
 	/* my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName); */
 	if (escTableName)
-		snprintf(columns_query, sizeof(columns_query), "%s and c.relname = '%s'", columns_query, escTableName);
+		snprintf_add(columns_query, sizeof(columns_query), " and c.relname = '%s'", escTableName);
 	/* SchemaName cannot contain a string search pattern */
 	if (conn->schema_support)
 		schema_strcat(columns_query, " and u.nspname = '%.*s'", escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
@@ -3246,6 +3246,8 @@ PGAPI_ColumnPrivileges(
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
 	const char	*like_or_eq;
 	char	column_query[INFO_INQUIRY_LEN];
+	int		cq_len,cq_size;
+	char		*col_query;
 	BOOL	search_pattern;
 	QResultClass	*res;
 
@@ -3274,15 +3276,31 @@ PGAPI_ColumnPrivileges(
 			" table_name, column_name, grantor, grantee,"
 			" privilege_type as PRIVILEGE, is_grantable from"
 			" information_schema.column_privileges where true");
+	cq_len = strlen(column_query);
+	cq_size = sizeof(column_query);
+	col_query = column_query;
 	if (escSchemaName)
-		snprintf(column_query, sizeof(column_query),
-			"%s and table_schem = '%s'", column_query, escSchemaName);  
+	{
+		col_query += cq_len;
+		cq_size -= cq_len;
+		cq_len = snprintf_len(col_query, cq_size,
+			" and table_schem = '%s'", escSchemaName);  
+		
+	}
 	if (escTableName)
-		snprintf(column_query, sizeof(column_query),
-			"%s and table_name = '%s'", column_query, escTableName);  
+	{
+		col_query += cq_len;
+		cq_size -= cq_len;
+		cq_len += snprintf_len(col_query, cq_size,
+			" and table_name = '%s'", escTableName);  
+	}
 	if (escColumnName)
-		snprintf(column_query, sizeof(column_query),
-			"%s and column_name %s '%s'", column_query, like_or_eq, escColumnName);
+	{
+		col_query += cq_len;
+		cq_size -= cq_len;
+		cq_len += snprintf_len(col_query, cq_size,
+			" and column_name %s '%s'", like_or_eq, escColumnName);
+	}
 	if (res = CC_send_query(conn, column_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ColumnPrivileges query error", func);
@@ -4599,7 +4617,7 @@ PGAPI_ProcedureColumns(
 		strcat(proc_query, " has_function_privilege(p.oid, 'EXECUTE')");
 		my_strcat1(proc_query, " and nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
 		if (escProcName)
-			snprintf(proc_query, sizeof(proc_query), "%s and proname %s '%s'", proc_query, like_or_eq, escProcName);
+			snprintf_add(proc_query, sizeof(proc_query), " and proname %s '%s'", like_or_eq, escProcName);
 		strcat(proc_query, " order by nspname, proname, p.oid, attnum");
 	}
 	else
@@ -4609,7 +4627,7 @@ PGAPI_ProcedureColumns(
 				"(not proretset)");
 		ret_col = 5;
 		if (escProcName)
-			snprintf(proc_query, sizeof(proc_query), " and proname %s '%s'", proc_query, like_or_eq, escProcName);
+			snprintf_add(proc_query, sizeof(proc_query), " and proname %s '%s'", like_or_eq, escProcName);
 		strcat(proc_query, " order by proname, proretset");
 	}
 	if (tres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(tres))
@@ -5144,7 +5162,7 @@ retry_public_schema:
 			schema_strcat1(proc_query, " nspname %s '%.*s' and", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	}
 	if (escTableName)
-		snprintf(proc_query, sizeof(proc_query), "%s relname %s '%s' and", proc_query, like_or_eq, escTableName);
+		snprintf_add(proc_query, sizeof(proc_query), " relname %s '%s' and", like_or_eq, escTableName);
 	if (conn->schema_support)
 	{
 		strcat(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");

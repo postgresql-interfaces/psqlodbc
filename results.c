@@ -3025,11 +3025,9 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 		snprintf(selstr, len, "%s where ctid = currtid(0, '(,)') %s", stmt->load_statement, oideqstr);
 	else if (bestitem && oidint)
 	{
-		Int4	slen;
 		/*snprintf(selstr, len, "%s where \"%s\" = %u", stmt->load_statement, bestitem, *oid);*/
 		snprintf(selstr, len, "%s where ", stmt->load_statement);
-		slen = strlen(selstr);
-		snprintf(selstr + slen, len - slen, bestqual, *oidint);
+		snprintf_add(selstr, len, bestqual, *oidint);
 	}
 	else
 	{

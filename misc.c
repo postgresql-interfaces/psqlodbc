@@ -291,3 +291,39 @@ schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int le
 	}
 	return my_strcat1(buf, fmt, s1, s, len);
 }
+
+/*
+ * snprintf_add is a extension to snprintf
+ * It add format to buf at given pos
+ */
+
+int
+snprintf_add(char *buf, size_t size, const char *format, ...)
+{
+	int len;
+	size_t pos = strlen(buf);
+	va_list arglist;
+	
+	va_start(arglist, format);
+	len = vsnprintf(buf + pos, size - pos, format, arglist);
+	va_end(arglist);
+	return len;
+}
+
+/*
+ * snprintf_addlen is a extension to snprintf
+ * It returns strlen of buf every time (not -1 when truncated)
+ */
+
+int
+snprintf_len(char *buf, size_t size, const char *format, ...)
+{
+	int len;
+	va_list arglist;
+	
+	va_start(arglist, format);
+	if ((len = vsnprintf(buf, size, format, arglist)) < 0)
+		len = size;
+	va_end(arglist);
+	return len;
+}

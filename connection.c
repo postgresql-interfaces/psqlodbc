@@ -2318,7 +2318,7 @@ cleanup:
 		{
 			if (CC_is_in_error_trans(self))
 				snprintf(cmd, sizeof(cmd), "ROLLBACK TO %s;", per_query_svp);
-			snprintf(cmd, sizeof(cmd), "%sRELEASE %s", cmd, per_query_svp);
+			snprintf_add(cmd, sizeof(cmd), "RELEASE %s", per_query_svp);
 		}
 		else if (CC_is_in_error_trans(self))
 			strcpy(cmd, "ROLLBACK");

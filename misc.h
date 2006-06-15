@@ -132,6 +132,8 @@ char	   *my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, i
 char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
 				const char *s, int len,
 				const char *, int, ConnectionClass *conn);
+int			snprintf_add(char *buf, size_t size, const char *format, ...);
+int			snprintf_len(char *buf, size_t size, const char *format, ...);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
 #define	GET_SCHEMA_NAME(nspname) 	(nspname)
 
