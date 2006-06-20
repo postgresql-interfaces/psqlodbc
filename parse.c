@@ -288,25 +288,26 @@ searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 				cmp, attnum;
 	char	   *col;
 
-inolog("searchColInfo %d\n", QR_get_num_cached_tuples(col_info->result));
+inolog("searchColInfo num_cols=%d col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
 	if (fi->attnum < 0)
 		return FALSE;
 	for (k = 0; k < QR_get_num_cached_tuples(col_info->result); k++)
 	{
-		attnum = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PHYSICAL_NUMBER));
-		col = QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME);
-inolog("searchColInfo %d col=%s\n", k, col);
-		if (0 != attnum)
+		if (fi->attnum > 0)
 		{
-			if (fi->attnum == attnum)
+			attnum = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PHYSICAL_NUMBER));
+inolog("searchColInfo %d attnum=%d\n", k, attnum);
+			if (attnum == fi->attnum)
 			{
 				getColInfo(col_info, fi, k);
-				mylog("PARSE: searchColInfo by attnum\n");
+				mylog("PARSE: searchColInfo by attnum=%d\n", attnum);
 				return TRUE;
 			}
 		}
 		else if (NAME_IS_VALID(fi->column_name))
 		{
+			col = QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME);
+inolog("searchColInfo %d col=%s\n", k, col);
 			if (fi->dquote)
 				cmp = strcmp(col, GET_NAME(fi->column_name));
 			else
@@ -550,7 +551,10 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 			attid = (Int2) QR_get_attid(res, i);
 			wfi->attnum = attid;
 			if (searchColInfo(col_info, wfi))
+			{
+				STR_TO_NAME(wfi->column_alias, QR_get_fieldname(res, i));
 				wfi->updatable = updatable;
+			}
 			else
 			{
 				xxxxx(wfi, res, i);

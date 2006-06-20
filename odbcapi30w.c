@@ -370,7 +370,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
 				{
 					ret = SQL_SUCCESS_WITH_INFO;
-				SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDiagInfo.", func);
+					SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDiagInfo.", func);
 				}
 				if (pcbDiagInfo)
 					*pcbDiagInfo = blen * WCLEN;
