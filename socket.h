@@ -38,7 +38,8 @@ typedef unsigned int in_addr_t;
 #define HAVE_UNIX_SOCKETS
 #endif /* HAVE_SYS_UN_H */
 #else
-#include <winsock.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <libpq-fe.h>
 #include <openssl/ssl.h>
 #define SOCKETFD SOCKET
@@ -50,6 +51,9 @@ typedef unsigned int in_addr_t;
 #ifndef	ECONNRESET
 #define	ECONNRESET	WSAECONNRESET
 #endif /* ECONNRESET */
+#ifndef	EINPROGRESS
+#define	EINPROGRESS	WSAEINPROGRESS
+#endif /* EINPROGRESS */
 #endif /* WIN32 */
 
 #define SOCKET_ALREADY_CONNECTED		1
@@ -82,9 +86,8 @@ struct SocketClass_
 
 	char		*errormsg;
 	int		errornumber;
-	struct sockaddr	*sadr; /* Used for handling connections for cancel */
 	int		sadr_len;
-	struct sockaddr_in sadr_in; /* Used for INET connections */
+	struct sockaddr_storage sadr_area; /* Used for various connections */
 	/* SSL stuff */
 	void		*ssl;		/* libpq ssl */
 	void		*pqconn;	/* libpq PGConn */
@@ -137,7 +140,7 @@ struct SocketClass_
 /* Socket prototypes */
 SocketClass *SOCK_Constructor(const ConnectionClass *conn);
 void		SOCK_Destructor(SocketClass *self);
-char		SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname);
+char		SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout);
 int		SOCK_get_id(SocketClass *self);
 void		SOCK_get_n_char(SocketClass *self, char *buffer, int len);
 void		SOCK_put_n_char(SocketClass *self, char *buffer, int len);

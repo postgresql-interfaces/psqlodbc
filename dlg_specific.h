@@ -140,7 +140,7 @@ extern "C" {
 #define ABBR_LOWERCASEIDENTIFIER	"C9"
 #define INI_SSLMODE			"SSLmode"
 #define ABBR_SSLMODE			"CA"
-#define INI_FORCEABBREVCONNSTR		"AB"
+#define INI_EXTRAOPTIONS		"AB"
 
 #define	SSLMODE_DISABLE		"disable"
 #define	SSLMODE_ALLOW		"allow"
@@ -182,6 +182,10 @@ const char *GetXaLibPath();
 
 #define EFFECTIVE_BIT_COUNT			27
 
+/*	Mask for extra options	*/
+#define	BIT_FORCEABBREVCONNSTR			1L
+#define	BIT_FAKE_MSS				(1L << 1)
+#define	BIT_BDE_ENVIRONMENT			(1L << 2)
 
 /*	Connection Defaults */
 #define DEFAULT_PORT				"5432"
@@ -269,6 +273,8 @@ void		copyAttributes(ConnInfo *ci, const char *attribute, const char *value);
 void		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value);
 int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);
 int     changeDriverNameOfaDSN(const char *dsn, const char *driver_name, DWORD *errcode);
+UInt4	getExtraOptions(const ConnInfo *);
+BOOL	setExtraOptions(ConnInfo *, const char *str, const char *format);
 
 #ifdef	__cplusplus
 }

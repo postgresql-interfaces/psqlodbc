@@ -291,6 +291,7 @@ typedef struct
 	signed char	rollback_on_error;
 	signed char	force_abbrev_connstr;
 	signed char	bde_environment;
+	signed char	fake_mss;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
 	signed char	autocommit_normal;
@@ -379,6 +380,7 @@ struct ConnectionClass_
 {
 	HENV		henv;		/* environment this connection was
 					 * created on */
+	SQLINTEGER	login_timeout;
 	StatementOptions stmtOptions;
 	ARDFields	ardOptions;
 	APDFields	apdOptions;
@@ -432,6 +434,8 @@ struct ConnectionClass_
 	int		num_descs;
 	DescriptorClass	**descs;
 #endif /* ODBCVER */
+	pgNAME		schemaIns;
+	pgNAME		tableIns;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
@@ -451,6 +455,7 @@ struct ConnectionClass_
 #define CC_get_username(x)			(x->connInfo.username)
 #define CC_is_onlyread(x)			(x->connInfo.onlyread[0] == '1')
 #define CC_get_escape(x)			(x->escape_in_literal)
+#define CC_fake_mss(x)		(0 != (x)->ms_jet && 0 < (x)->connInfo.fake_mss)
  
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0

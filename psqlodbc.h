@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.102 2006/06/15 06:58:49 luf Exp $
+ * $Id: psqlodbc.h,v 1.103 2006/07/18 21:20:46 hinoue Exp $
  *
  */
 
@@ -17,6 +17,7 @@
 #ifndef WIN32
 #include "config.h"
 #else
+#define	WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
 
@@ -25,6 +26,13 @@
 #include <pthread.h>
 #endif
 #include "version.h"
+
+#ifdef	_DEBUG
+#ifdef	_MEMORY_DEBUG_
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif /* _MEMORY_DEBUG_ */
+#endif /* _DEBUG */
 
 #ifdef	WIN32
 #include <delayimp.h>

@@ -15,10 +15,11 @@
 /* in table pg_type */
 
 
-#if 0
+#ifdef NOT_USED
 #define PG_TYPE_LO				????	/* waiting for permanent type */
 #endif
 
+#define	MS_ACCESS_SERIAL		"int identity"
 #define PG_TYPE_BOOL			16
 #define PG_TYPE_BYTEA			17
 #define PG_TYPE_CHAR			18
@@ -82,7 +83,7 @@ Int2		pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col);
 Int2		pgtype_to_sqldesctype(StatementClass *stmt, Int4 type, int col);
 Int2		pgtype_to_datetime_sub(StatementClass *stmt, Int4 type);
 Int2		pgtype_to_ctype(StatementClass *stmt, Int4 type);
-const char	*pgtype_to_name(StatementClass *stmt, Int4 type);
+const char	*pgtype_to_name(StatementClass *stmt, Int4 type, BOOL auto_increment);
 
 /*	These functions can use static numbers or result sets(col parameter) */
 SQLLEN		pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as); /* corresponds to "precision" in ODBC 2.x */

@@ -74,7 +74,6 @@ SOCK_Constructor(const ConnectionClass *conn)
 			free(rv);
 			return NULL;
 		}
-		rv->sadr = NULL;
 		rv->errormsg = NULL;
 		rv->errornumber = 0;
 		rv->reverse = FALSE;
@@ -118,31 +117,17 @@ SOCK_Destructor(SocketClass *self)
 
 	if (self->buffer_out)
 		free(self->buffer_out);
-	if (self->sadr && self->sadr != (struct sockaddr *) &(self->sadr_in))
-		free(self->sadr);
 
 	free(self);
 }
 
 
 char
-SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
+SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
 {
-#if defined (POSIX_MULTITHREAD_SUPPORT)
-	const int bufsz = 8192; 
-	char buf[bufsz];
-	int error = 0;
-	struct hostent host;
-	struct hostent* hp = &host;
-#else
-	struct hostent* hp;
-#endif /* POSIX_MULTITHREAD_SUPPORT */
-	struct sockaddr_in *in;
-#ifdef	HAVE_UNIX_SOCKETS
-	struct sockaddr_un *un;
-#endif /* HAVE_UNIX_SOCKETS */
-	int	family, sLen; 
-	unsigned long iaddr;
+	struct addrinfo	rest, *addrs = NULL, *curadr = NULL;
+	int	family; 
+	char	retval = 0;
 
 	if (self->socket != -1)
 	{
@@ -156,58 +141,33 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	 */
 	if (hostname && hostname[0])
 	{
-		iaddr = inet_addr(hostname);
-		memset((char *) &(self->sadr_in), 0, sizeof(self->sadr_in));
-		in = &(self->sadr_in);
-		in->sin_family = family = AF_INET;
-		in->sin_port = htons(port);
-		sLen = sizeof(self->sadr_in);
-		if (iaddr == INADDR_NONE)
+		char	portstr[16];
+		int	ret;
+
+		memset(&rest, 0, sizeof(rest));
+		rest.ai_socktype = SOCK_STREAM;
+		rest.ai_family = AF_UNSPEC;
+		snprintf(portstr, sizeof(portstr), "%d", port);
+		if (inet_addr(hostname) != INADDR_NONE)
+			rest.ai_flags = AI_NUMERICHOST;	
+		ret = getaddrinfo(hostname, portstr, &rest, &addrs);
+		if (ret || !addrs)
 		{
-#if defined (POSIX_MULTITHREAD_SUPPORT) 
-  #if defined (HAVE_GETIPNODEBYNAME) /* Free-BSD ? */
-			hp = getipnodebyname(hostname, AF_INET, 0, &error); 
-  #elif defined (PGS_REENTRANT_API_1) /* solaris, irix */
-			hp = gethostbyname_r(hostname, hp, buf, bufsz, &error);
-  #elif defined (PGS_REENTRANT_API_2) /* linux */
-			int result = 0;
-			result = gethostbyname_r(hostname, hp, buf, bufsz, &hp, &error);
-			if (result)
-				hp = NULL;
-  #else
-			hp = gethostbyname(hostname);
-  #endif /* HAVE_GETIPNODEBYNAME */
-#else
-			hp = gethostbyname(hostname);
-#endif /* POSIX_MULTITHREAD_SUPPORT */
-			if (hp == NULL)
-			{
-				SOCK_set_error(self, SOCKET_HOST_NOT_FOUND, "Could not resolve hostname.");
-				return 0;
-			}
-			memcpy(&(in->sin_addr), hp->h_addr, hp->h_length);
-#if defined (HAVE_GETIPNODEBYNAME)
-			freehostent(hp);
-#endif /* HAVE_GETIPNODEBYNAME */
+			SOCK_set_error(self, SOCKET_HOST_NOT_FOUND, "Could not resolve hostname.");
+			if (addrs)
+				freeaddrinfo(addrs);
+			return 0;
 		}
-		else
-			memcpy(&(in->sin_addr), (struct in_addr *) & iaddr, sizeof(iaddr));
-		self->sadr = (struct sockaddr *) in;
+		curadr = addrs;
 	}
 	else
 #ifdef	HAVE_UNIX_SOCKETS
 	{
-		un = (struct sockaddr_un *) malloc(sizeof(struct sockaddr_un));
-		if (!un)
-		{
-			SOCK_set_error(self, SOCKET_COULD_NOT_CREATE_SOCKET, "coulnd't allocate memory for un.");
-			return 0;
-		}
-		un->sun_family = family = AF_UNIX;
-		/* passing NULL means that this only suports the pg default "/tmp" */
+		struct sockaddr_un *un = (struct sockaddr_un *) &(self->sadr_area);
+		family = un->sun_family = AF_UNIX;
+		/* passing NULL means that this only supports the pg default "/tmp" */
 		UNIXSOCK_PATH(un, port, ((char *) NULL));
-		sLen = UNIXSOCK_LEN(un);
-		self->sadr = (struct sockaddr *) un;
+		self->sadr_len = UNIXSOCK_LEN(un);
 	}
 #else
 	{
@@ -216,6 +176,9 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 	}
 #endif /* HAVE_UNIX_SOCKETS */
 
+retry:
+	if (curadr)
+		family = curadr->ai_family;
 	self->socket = socket(family, SOCK_STREAM, 0);
 	if (self->socket == -1)
 	{
@@ -223,9 +186,10 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		return 0;
 	}
 #ifdef	TCP_NODELAY
-	if (family == AF_INET)
+	if (family != AF_UNIX)
 	{
-		int i, len;
+		int i;
+		socklen_t	len;
 
 		i = 1;
 		len = sizeof(i);
@@ -238,17 +202,117 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname)
 		}
 	}
 #endif /* TCP_NODELAY */
-
-	self->sadr_len = sLen;
-	if (connect(self->socket, self->sadr, sLen) < 0)
+#ifdef	WIN32
 	{
-		SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket.");
-		closesocket(self->socket);
-		self->socket = (SOCKETFD) -1;
-		return 0;
-	}
+		long	ioctlsocket_ret = 1;
 
-	return 1;
+		/* Returns non-0 on failure, while fcntl() returns -1 on failure */
+		ioctlsocket(self->socket, FIONBIO, &ioctlsocket_ret);
+	}
+#else
+        fcntl(self->socket, F_SETFL, O_NONBLOCK);
+#endif
+
+	if (curadr)
+	{
+		struct sockaddr *in = (struct sockaddr *) &(self->sadr_area);
+		memset((char *) in, 0, sizeof(self->sadr_area));
+		memcpy(in, curadr->ai_addr, curadr->ai_addrlen);
+		self->sadr_len = curadr->ai_addrlen;
+	}
+	if (connect(self->socket, (struct sockaddr *) &(self->sadr_area), self->sadr_len) < 0)
+	{
+		int	ret, optval;
+		fd_set	fds;
+		struct	timeval	tm;
+		socklen_t	optlen = sizeof(optval);
+		time_t	t_now, t_finish;
+		BOOL	tm_exp = FALSE;
+
+		switch (SOCK_ERRNO)
+		{
+			case 0:
+			case EINPROGRESS:
+			case EINTR:
+			case EWOULDBLOCK:
+		    		break;
+			default:
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket ..");
+				mylog("connect immediate connect error %d\n", SOCK_ERRNO);
+				goto cleanup;
+		}
+		if (timeout > 0)
+		{
+			t_now = time(NULL);
+			t_finish = t_now + timeout;
+			tm.tv_sec = timeout;
+			tm.tv_usec = 0;
+		}
+		do {
+			FD_ZERO(&fds);
+			FD_SET(self->socket, &fds);
+			ret = select(1, NULL, &fds, NULL, timeout > 0 ? &tm : NULL);
+			if (0 < ret)
+				break;
+			else if (0 == ret)
+				tm_exp = TRUE;
+			else if (EINTR != SOCK_ERRNO)
+				break;
+			else if (timeout > 0)
+			{
+				if (t_now = time(NULL), t_now >= t_finish)
+					tm_exp = TRUE;
+				else
+				{
+					tm.tv_sec = t_finish - t_now;
+					tm.tv_usec = 0;
+				}
+			}
+		} while (!tm_exp);
+		if (tm_exp)
+		{
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect .. timeout occured.");
+			goto cleanup;
+		}
+		else if (0 > ret)
+		{
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect .. select error occured.");
+			mylog("select error ret=%d ERROR=%d\n", ret, SOCK_ERRNO);
+			goto cleanup;
+		}
+		if (getsockopt(self->socket, SOL_SOCKET, SO_ERROR,
+				(char *) &optval, &optlen) == -1)
+		{
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect .. getsockopt error.");
+		}
+		else if (optval != 0)
+		{
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote server.");
+			mylog("connect getsockopt val=%d\n", optval);
+		}
+		else
+			retval = 1;
+	}
+	else
+		retval = 1;
+
+cleanup:
+	if (0 == retval)
+	{
+		if (self->socket >= 0)
+		{
+			closesocket(self->socket);
+			self->socket = (SOCKETFD) -1;
+		}
+		if (curadr && curadr->ai_next)
+		{
+			curadr = curadr->ai_next;
+			goto retry;
+		}
+		if (addrs)
+			freeaddrinfo(addrs);
+	}
+	return retval;
 }
 
 

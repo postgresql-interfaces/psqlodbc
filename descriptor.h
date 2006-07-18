@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.15 2006/06/12 15:21:45 hinoue Exp $
+ * $Id: descriptor.h,v 1.16 2006/07/18 21:20:45 hinoue Exp $
  *
  */
 
@@ -18,16 +18,16 @@ typedef struct
 {
 	char	*name;
 } pgNAME;
-#define	GET_NAME(the_name)	(the_name.name)
-#define	SAFE_NAME(the_name)	(the_name.name ? the_name.name : NULL_STRING)
-#define	PRINT_NAME(the_name)	(the_name.name ? the_name.name : PRINT_NULL)
-#define	NAME_IS_NULL(the_name)	(NULL == the_name.name)
-#define	NAME_IS_VALID(the_name)	(NULL != the_name.name)
-#define	INIT_NAME(the_name) (the_name.name = NULL)
+#define	GET_NAME(the_name)	((the_name).name)
+#define	SAFE_NAME(the_name)	((the_name).name ? (the_name).name : NULL_STRING)
+#define	PRINT_NAME(the_name)	((the_name).name ? (the_name).name : PRINT_NULL)
+#define	NAME_IS_NULL(the_name)	(NULL == (the_name).name)
+#define	NAME_IS_VALID(the_name)	(NULL != (the_name).name)
+#define	INIT_NAME(the_name) ((the_name).name = NULL)
 #define	NULL_THE_NAME(the_name) \
 do { \
-	if (the_name.name) free(the_name.name); \
-	the_name.name = NULL; \
+	if ((the_name).name) free((the_name).name); \
+	(the_name).name = NULL; \
 } while (0)
 #define	STR_TO_NAME(the_name, str) \
 do { \
@@ -35,9 +35,22 @@ do { \
 		free((the_name).name); \
 	(the_name).name = (str ? strdup((str)) : NULL); \
 } while (0)
+#define	STRN_TO_NAME(the_name, str, n) \
+do { \
+	if ((the_name).name) \
+		free((the_name).name); \
+	if (str) \
+	{ \
+		(the_name).name = malloc(n + 1); \
+		memcpy((the_name).name, str, n); \
+		(the_name).name[n] = '\0'; \
+	} \
+	else \
+		(the_name).name = NULL; \
+} while (0)
 #define	NAME_TO_STR(str, the_name) \
 do {\
-	if (the_name.name) strcpy(str, the_name.name); \
+	if ((the_name).name) strcpy(str, (the_name).name); \
 	else *str = '\0'; \
 } while (0)
 #define	NAME_TO_NAME(to, from) \
@@ -235,7 +248,7 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *self);
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall);
 void	APD_free_params(APDFields *self, char option);
 void	IPD_free_params(IPDFields *self, char option);
-BOOL	getCOLIfromTI(const char *, StatementClass *, const Oid, TABLE_INFO **);
+BOOL	getCOLIfromTI(const char *, ConnectionClass *, StatementClass *, const Oid, TABLE_INFO **);
 #if (ODBCVER >= 0x0300)
 RETCODE	DC_set_stmt(DescriptorClass *desc, StatementClass *stmt);
 void	DC_clear_error(DescriptorClass *desc);

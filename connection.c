@@ -244,6 +244,9 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->use_server_side_prepare = -1;
 		conninfo->lower_case_identifier = -1;
 		conninfo->rollback_on_error = -1;
+		conninfo->force_abbrev_connstr = -1;
+		conninfo->fake_mss = -1;
+		conninfo->bde_environment = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		conninfo->xa_opt = -1;
 		conninfo->autocommit_normal = 0;
@@ -369,6 +372,8 @@ CC_Destructor(ConnectionClass *self)
 #endif /* ODBCVER */
 	mylog("after free statement holders\n");
 
+	NULL_THE_NAME(self->schemaIns);
+	NULL_THE_NAME(self->tableIns);
 	if (self->__error_message)
 		free(self->__error_message);
 	DELETE_CONN_CS(self);
@@ -1034,6 +1039,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	return 1;
 }
 
+CSTR	l_login_timeout = "connect_timeout";
 static char	*protocol3_opts_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_opts_build";
@@ -1051,6 +1057,14 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	{
 		slen += (strlen(opts[i][0]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
 		slen += strlen(opts[i][1]);
+	}
+	if (self->login_timeout > 0)
+	{
+		char	tmout[16];
+
+		slen += (strlen(l_login_timeout) + 2 + 2);
+		snprintf(tmout, sizeof(tmout), "%d", self->login_timeout);
+		slen += strlen(tmout);
 	}
 	slen++;
 				
@@ -1081,6 +1095,13 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 			*ppacket = '\'';
 			ppacket++;
 		}
+	}
+	if (self->login_timeout > 0)
+	{
+		sprintf(ppacket, " %s=", l_login_timeout);
+		ppacket += (strlen(l_login_timeout) + 2);
+		sprintf(ppacket, "%d", self->login_timeout);
+		ppacket = strchr(ppacket, '\0');
 	}
 	*ppacket = '\0';
 inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
@@ -1217,7 +1238,7 @@ another_version_retry:
 
 		mylog("connecting to the server socket...\n");
 
-		SOCK_connect_to(sock, (short) atoi(ci->port), ci->server);
+		SOCK_connect_to(sock, (short) atoi(ci->port), ci->server, self->login_timeout);
 		if (SOCK_get_errcode(sock) != 0)
 		{
 			CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not connect to the server", func);
@@ -1644,6 +1665,20 @@ CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 	return TRUE;
 }
 
+static void
+CC_set_error_statements(ConnectionClass *self)
+{
+	int	i;
+
+	mylog("CC_error_statements: self=%x\n", self);
+
+	for (i = 0; i < self->num_stmts; i++)
+	{
+		if (NULL != self->stmts[i])
+			SC_ref_CC_error(self->stmts[i]);
+	}
+}
+
 
 char
 CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
@@ -1717,6 +1752,8 @@ CC_set_error(ConnectionClass *self, int number, const char *message, const char 
 		free(self->__error_message);
 	self->__error_number = number;
 	self->__error_message = message ? strdup(message) : NULL;
+	if (0 != number)
+		CC_set_error_statements(self);
 	if (func && number != 0)
 		CC_log_error(func, "", self); 
 }
@@ -2969,6 +3006,7 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	}			crp;
 	BOOL	ret = TRUE;
 	SocketClass	*sock;
+	struct sockaddr *sadr;
 
 	/* Check we have an open connection */
 	if (!conn)
@@ -2983,11 +3021,12 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	 * We need to open a temporary connection to the postmaster. Use the
 	 * information saved by connectDB to do this with only kernel calls.
 	*/
-	if ((tmpsock = socket(conn->sock->sadr->sa_family, SOCK_STREAM, 0)) < 0)
+	sadr = (struct sockaddr *) &(sock->sadr_area);
+	if ((tmpsock = socket(sadr->sa_family, SOCK_STREAM, 0)) < 0)
 	{
 		return FALSE;
 	}
-	if (connect(tmpsock, conn->sock->sadr, conn->sock->sadr_len) < 0)
+	if (connect(tmpsock, sadr, sock->sadr_len) < 0)
 	{
 		closesocket(tmpsock);
 		return FALSE;

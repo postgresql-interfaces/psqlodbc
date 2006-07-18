@@ -112,7 +112,7 @@ static BOOL SC_pre_execute_ok(StatementClass *stmt, BOOL build_fi, int col_idx, 
 
 inolog("build_fi=%d reloid=%u\n", build_fi, reloid);
 		if (build_fi && 0 != QR_get_attid(result, col_idx))
-			getCOLIfromTI(func, stmt, reloid, &ti);
+			getCOLIfromTI(func, NULL, stmt, reloid, &ti);
 inolog("nfields=%d\n", irdflds->nfields);
 		if (irdflds->fi && col_idx < (int) irdflds->nfields)
 		{
@@ -732,7 +732,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_TYPE_NAME: /* == SQL_DESC_TYPE_NAME */
-			p = pgtype_to_name(stmt, field_type);
+			p = pgtype_to_name(stmt, field_type, fi && fi->auto_increment);
 			break;
 
 		case SQL_COLUMN_UNSIGNED: /* == SQL_DESC_UNSINGED */
@@ -757,6 +757,8 @@ inolog("COLUMN_SCALE=%d\n", value);
 				if (stricmp(name, OID_NAME) == 0 ||
 				    stricmp(name, "ctid") == 0 ||
 				    stricmp(name, "xmin") == 0)
+					value = SQL_ATTR_READONLY;
+				else if (conn->ms_jet && fi && fi->auto_increment)
 					value = SQL_ATTR_READONLY;
 			}
 
@@ -801,7 +803,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 				value = 0;
 			break;
 		case SQL_DESC_LOCAL_TYPE_NAME:
-			p = pgtype_to_name(stmt, field_type);
+			p = pgtype_to_name(stmt, field_type, fi && fi->auto_increment);
 			break;
 		case SQL_DESC_TYPE:
 			value = pgtype_to_sqldesctype(stmt, field_type, col_idx);

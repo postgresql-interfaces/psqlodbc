@@ -120,6 +120,9 @@ int	get_mylog(void);
 #endif
 
 
+void	InitializeLogging();
+void	FinalizeLogging();
+
 void		remove_newlines(char *string);
 char	   *strncpy_null(char *dst, const char *src, int len);
 char	   *trim(char *string);

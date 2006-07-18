@@ -37,6 +37,7 @@
 #include "pgtypes.h"
 #include "lobj.h"
 #include "connection.h"
+#include "catfunc.h"
 #include "pgapifunc.h"
 
 #if defined(UNICODE_SUPPORT) && defined(WIN32)
@@ -179,13 +180,26 @@ static int pg_bin2hex(UCHAR *src, UCHAR *dst, int length);
 #define	ATOI64U(val)	strtoul(val, NULL, 10)
 #define	FORMATI64	"%ld"
 #define	FORMATI64U	"%lu"
-#elif	defined(HAVE_STRTOLL)
-#define	ATOI64(val)	strtoll(val, NULL, 10)
-#define	ATOI64U(val)	strtoull(val, NULL, 10)
+#else
 #define	FORMATI64	"%lld"
 #define	FORMATI64U	"%llu"
-#else /* HAVE_STRTOLL */
-#error cant handle ODBCINT64
+#if	defined(HAVE_STRTOLL)
+#define	ATOI64(val)	strtoll(val, NULL, 10)
+#define	ATOI64U(val)	strtoull(val, NULL, 10)
+#else
+static ODBCINT64 ATOI64(const char *val)
+{
+	ODBCINT64 ll;
+	sscanf(val, "%lld", &ll);
+	return ll;
+}
+static unsigned ODBCINT64 ATOI64U(const char *val)
+{
+	unsigned ODBCINT64 ll;
+	sscanf(val, "%llu", &ll);
+	return ll;
+}
+#endif /* HAVE_STRTOLL */
 #endif /* WIN32 */
 #endif /* ODBCINT64 */
 
@@ -2012,7 +2026,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 				if (outpara)
 					CVT_APPEND_STR(qb, "void");
 				else
-					CVT_APPEND_STR(qb, pgtype_to_name(stmt, ipdopts->parameters[i].PGType));
+					CVT_APPEND_STR(qb, pgtype_to_name(stmt, ipdopts->parameters[i].PGType, FALSE));
 				oc++;
 			}
 			CVT_APPEND_CHAR(qb, ')');
@@ -2444,7 +2458,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * From here we are guaranteed to handle a 1-byte character.
 	 */
-
 	if (qp->in_escape)			/* escape check */
 	{
 		qp->in_escape = FALSE;
@@ -2527,6 +2540,45 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		else if (!isspace(F_OldPtr(qp)[1]))
 			CVT_APPEND_CHAR(qb, ' ');
+		return SQL_SUCCESS;
+	}
+	else if (oldchar == '@' &&
+		 strnicmp(F_OldPtr(qp), "@@identity", 10) == 0)
+	{
+		ConnectionClass	*conn = SC_get_conn(stmt);
+		BOOL		converted = FALSE;
+		COL_INFO	*coli;
+
+		if (NAME_IS_VALID(conn->tableIns))
+		{
+			TABLE_INFO	ti, *pti = &ti;
+
+			memset(&ti, 0, sizeof(ti));
+			NAME_TO_NAME(ti.schema_name, conn->schemaIns);
+			NAME_TO_NAME(ti.table_name, conn->tableIns);
+			getCOLIfromTI(func, conn, NULL, 0, &pti);
+			coli = ti.col_info;
+			NULL_THE_NAME(ti.schema_name);
+			NULL_THE_NAME(ti.table_name);
+			if (NULL != coli)
+			{
+				int	i, num_fields = QR_NumResultCols(coli->result);
+
+				for (i = 0; i < num_fields; i++)
+				{
+        				if (*((char *)QR_get_value_backend_row(coli->result, i, COLUMNS_AUTO_INCREMENT)) == '1')
+					{
+						CVT_APPEND_STR(qb, "curr");
+						CVT_APPEND_STR(qb, (char *)QR_get_value_backend_row(coli->result, i, COLUMNS_COLUMN_DEF) + 4);
+						converted = TRUE;
+						break;
+					}
+				}
+			}
+		}
+		if (!converted)
+			CVT_APPEND_STR(qb, "0");
+		qp->opos += 10;
 		return SQL_SUCCESS;
 	}
 
@@ -3850,16 +3902,17 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		QueryBuild	nqb;
 		const char *mapExpr;
-		int	i, param_count;
+		int	i, param_count, from, to;
 		UInt4	param_consumed;
 		Int4	param_pos[16][2];
+		BOOL	cvt_func = FALSE;
 
 		/* Separate off the func name, skipping leading and trailing whitespace */
 		i = 0;
 		while ((ucv = F_OldChar(qp)) != '\0' && ucv != '(' &&
 			   (!isspace(ucv)))
 		{
-			if (i < sizeof(key)-1)
+			if (i < sizeof(key) - 1)
 				key[i++] = ucv;
 			F_OldNext(qp);
 		}
@@ -3901,8 +3954,75 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		    param_pos[0][1] < param_pos[0][0])
 			param_count = 0;
 
-		mapExpr = mapFunction(key, param_count);
-		if (mapExpr == NULL)
+		mapExpr = NULL;
+		if (stricmp(key, "convert") == 0)
+			cvt_func = TRUE;
+		else
+			mapExpr = mapFunction(key, param_count);
+		if (cvt_func)
+		{
+			if (2 == param_count)
+			{
+				BOOL add_cast = FALSE, add_quote = FALSE;
+				const char *pptr;
+
+				from = param_pos[0][0];
+				to = param_pos[0][1];
+				for (pptr = nqb.query_statement + from; *pptr && isspace(*pptr); pptr++)
+					;
+				if (LITERAL_QUOTE == *pptr)
+					;
+				else if ('-' == *pptr)
+					add_quote = TRUE;
+				else if (isdigit(*pptr))
+					add_quote = TRUE;
+				else 
+					add_cast = TRUE;
+				if (add_quote)
+					CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
+				else if (add_cast)
+					CVT_APPEND_CHAR(qb, '(');
+				CVT_APPEND_DATA(qb, nqb.query_statement + from, to - from + 1);
+				if (add_quote)
+					CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
+				else if (add_cast)
+				{
+					const char *cast_form = NULL;
+
+					CVT_APPEND_CHAR(qb, ')');
+					from = param_pos[1][0];
+					to = param_pos[1][1];
+					if (to < from + 9)
+					{
+						char	num[10];
+						memcpy(num, nqb.query_statement + from, to - from + 1);
+						num[to - from + 1] = '\0';
+mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
+						switch (atoi(num))
+						{
+							case SQL_BIT:
+								cast_form = "boolean";
+								break;
+							case SQL_INTEGER:
+								cast_form = "int4";
+								break;
+						}
+					}
+					if (NULL != cast_form)
+					{
+						CVT_APPEND_STR(qb, "::");
+						CVT_APPEND_STR(qb, cast_form);
+					}
+				}
+			}
+			else
+			{
+				qb->errornumber = STMT_EXEC_ERROR;
+				qb->errormsg = "convert param count must be 2";
+				retval = SQL_ERROR;
+			}
+		}
+		else if (mapExpr == NULL)
 		{
 			CVT_APPEND_STR(qb, key);
 			CVT_APPEND_DATA(qb, nqb.query_statement, nqb.npos);
@@ -3910,7 +4030,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		else
 		{
 			const char *mapptr;
-			int	from, to, pidx, paramlen;
+			int	pidx, paramlen;
 
 			for (prtlen = 0, mapptr = mapExpr; *mapptr; mapptr++)
 			{
@@ -3950,7 +4070,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 				}
 				paramlen = to - from + 1;
 				if (paramlen > 0)
-					CVT_APPEND_DATA(qb, nqb.query_statement+ from, paramlen);
+					CVT_APPEND_DATA(qb, nqb.query_statement + from, paramlen);
 			}
 		}
 		if (0 == qb->errornumber)

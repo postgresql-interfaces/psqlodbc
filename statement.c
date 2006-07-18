@@ -33,7 +33,6 @@
 
 #define PRN_NULLCHECK
 
-
 /*	Map sql commands to statement types */
 static struct
 {
@@ -187,7 +186,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 	if (!CC_add_statement(conn, stmt))
 	{
-		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "Maximum number of connections exceeded.", func);
+		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "Maximum number of statements exceeded.", func);
 		SC_Destructor(stmt);
 		*phstmt = SQL_NULL_HSTMT;
 		return SQL_ERROR;
@@ -372,6 +371,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->exec_end_row = -1;
 		rv->exec_current_row = -1;
 		rv->put_data = FALSE;
+		rv->ref_CC_error = FALSE;
 
 		rv->lobj_fd = -1;
 		INIT_NAME(rv->cursor_name);
@@ -931,7 +931,8 @@ SC_clear_error(StatementClass *self)
 		QR_set_notice(res, NULL);
 		res->sqlstate[0] = '\0';
 	}
-	CC_clear_error(SC_get_conn(self));
+	self->stmt_time = 0;
+	SC_unref_CC_error(self);
 }
 
 
@@ -1053,6 +1054,8 @@ SC_create_errorinfo(const StatementClass *self)
 		ermsg = msg;
 		detailmsg = TRUE;
 	}
+	if (!self->ref_CC_error)
+		msgend = TRUE;
 
 	if (conn && !msgend)
 	{
@@ -1290,7 +1293,7 @@ SC_get_time(StatementClass *stmt)
 {
 	if (!stmt)
 		return time(NULL);
-	if (!stmt->stmt_time)
+	if (0 == stmt->stmt_time)
 		stmt->stmt_time = time(NULL);
 	return stmt->stmt_time;
 }
@@ -2327,7 +2330,7 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	SOCK_put_char(sock, 'E');
 	if (SOCK_get_errcode(sock) != 0)
 	{
-		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send D Request to backend", func);
+		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send E Request to backend", func);
 		CC_on_abort(conn, CONN_DEAD);
 		return FALSE;
 	}
@@ -2337,6 +2340,22 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 inolog("execute leng=%d\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_int(sock, count, 4);
+	if (0 == count) /* Close message */
+	{
+		SOCK_put_char(sock, 'C');
+		if (SOCK_get_errcode(sock) != 0)
+		{
+			CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send C Request to backend", func);
+			CC_on_abort(conn, CONN_DEAD);
+			return FALSE;
+		}
+
+		leng = 1 + strlen(plan_name) + 1;
+		SOCK_put_int(sock, leng + 4, 4); /* Close portal */
+inolog("Close leng=%d\n", leng);
+		SOCK_put_char(sock, 'P');
+		SOCK_put_string(sock, plan_name);
+	}
 
 	return TRUE;
 }

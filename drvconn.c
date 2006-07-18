@@ -24,7 +24,7 @@
 #include <sys/socket.h>
 #define NEAR
 #else
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 
 #include <string.h>

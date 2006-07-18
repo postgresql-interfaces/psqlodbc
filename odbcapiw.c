@@ -116,7 +116,7 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 	CSTR func = "SQLDriverConnectW";
 	char	*szIn, *szOut = NULL;
 	Int4	maxlen, inlen, obuflen = 0;
-	SQLSMALLINT	olen;
+	SQLSMALLINT	olen, *pCSO;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
@@ -126,14 +126,19 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 	CC_set_in_unicode_driver(conn);
 	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen, FALSE);
 	maxlen = cbConnStrOutMax;
+	pCSO = NULL;
+	olen = 0;
 	if (maxlen > 0)
 	{
 		obuflen = maxlen + 1;
 		szOut = malloc(obuflen);
+		pCSO = &olen;
 	}
+	else if (pcbConnStrOut)
+		pCSO = &olen;
 	ret = PGAPI_DriverConnect(hdbc, hwnd, szIn, (SQLSMALLINT) inlen,
-		szOut, maxlen, &olen, fDriverCompletion);
-	if (ret != SQL_ERROR)
+		szOut, maxlen, pCSO, fDriverCompletion);
+	if (ret != SQL_ERROR && NULL != pCSO)
 	{
 		UInt4 outlen = olen;
 
@@ -141,10 +146,9 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 			outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
 		else
 			utf8_to_ucs2(szOut, maxlen, szConnStrOut, cbConnStrOutMax);
-		if (0 == cbConnStrOutMax && NULL == pcbConnStrOut)
-			;
-		else if (outlen >= (UInt4) cbConnStrOutMax)
+		if (outlen >= (UInt4) cbConnStrOutMax)
 		{
+inolog("cbConnstrOutMax=%d pcb=%x\n", cbConnStrOutMax, pcbConnStrOut);
 			if (SQL_SUCCESS == ret)
 			{
 				CC_set_error(conn, CONN_TRUNCATED, "the ConnStrOut is too small", func);
@@ -671,7 +675,7 @@ RETCODE SQL_API SQLNativeSqlW(
 {
 	CSTR func = "SQLNativeSqlW";
 	RETCODE		ret;
-	char		*szIn, *szOut;
+	char		*szIn, *szOut = NULL;
 	Int4		slen;
 	SQLINTEGER	buflen, olen;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -681,13 +685,14 @@ RETCODE SQL_API SQLNativeSqlW(
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);
 	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen, FALSE);
-	buflen = 3 * cbSqlStrMax + 1;
-	szOut = malloc(buflen);
+	buflen = 3 * cbSqlStrMax;
+	if (buflen > 0)
+		szOut = malloc(buflen);
 	for (;; buflen = olen + 1, szOut = realloc(szOut, buflen))
 	{
 		ret = PGAPI_NativeSql(hdbc, szIn, (SQLINTEGER) slen,
 			szOut, buflen, &olen);
-		if (SQL_SUCCESS_WITH_INFO == ret || olen < buflen)
+		if (SQL_SUCCESS_WITH_INFO != ret || olen < buflen)
 			break;
 	}
 	if (szIn)

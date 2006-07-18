@@ -58,9 +58,9 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 }
 
 #if defined(WIN_MULTITHREAD_SUPPORT)
-CRITICAL_SECTION	qlog_cs, mylog_cs;
+static	CRITICAL_SECTION	qlog_cs, mylog_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
-pthread_mutex_t	qlog_cs, mylog_cs;
+static	pthread_mutex_t	qlog_cs, mylog_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 static int	mylog_on = 0, qlog_on = 0;
 
@@ -113,7 +113,7 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 }
 
 #ifdef MY_LOG
-static FILE *LOGFP = NULL;
+static FILE *MLOGFP = NULL;
 void
 mylog(char *fmt,...)
 {
@@ -125,26 +125,26 @@ mylog(char *fmt,...)
 	{
 		va_start(args, fmt);
 
-		if (!LOGFP)
+		if (!MLOGFP)
 		{
 			generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
-			if (LOGFP)
-				setbuf(LOGFP, NULL);
+			MLOGFP = fopen(filebuf, PG_BINARY_A);
+			if (MLOGFP)
+				setbuf(MLOGFP, NULL);
 		}
 
 #ifdef	WIN_MULTITHREAD_SUPPORT
 #ifdef	WIN32
-		if (LOGFP)
-			fprintf(LOGFP, "[%d]", GetCurrentThreadId());
+		if (MLOGFP)
+			fprintf(MLOGFP, "[%d]", GetCurrentThreadId());
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-		if (LOGFP)
-			fprintf(LOGFP, "[%d]", pthread_self());
+		if (MLOGFP)
+			fprintf(MLOGFP, "[%d]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
-		if (LOGFP)
-			vfprintf(LOGFP, fmt, args);
+		if (MLOGFP)
+			vfprintf(MLOGFP, fmt, args);
 
 		va_end(args);
 	}
@@ -159,21 +159,21 @@ forcelog(const char *fmt,...)
 	ENTER_MYLOG_CS;
 	va_start(args, fmt);
 
-	if (!LOGFP)
+	if (!MLOGFP)
 	{
 		generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
-		LOGFP = fopen(filebuf, PG_BINARY_A);
-		if (LOGFP)
-			setbuf(LOGFP, NULL);
+		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (MLOGFP)
+			setbuf(MLOGFP, NULL);
 	}
-	if (!LOGFP)
+	if (!MLOGFP)
 	{
 		generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
-		LOGFP = fopen(filebuf, PG_BINARY_A);
-		if (LOGFP)
-			setbuf(LOGFP, NULL);
+		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (MLOGFP)
+			setbuf(MLOGFP, NULL);
 	}
-	if (LOGFP)
+	if (MLOGFP)
 	{
 #ifdef	WIN_MULTITHREAD_SUPPORT
 #ifdef	WIN32
@@ -183,51 +183,94 @@ forcelog(const char *fmt,...)
 		time(&ntime);
 		strcpy(ctim, ctime(&ntime));
 		ctim[strlen(ctim) - 1] = '\0';
-		fprintf(LOGFP, "[%d.%d(%s)]", GetCurrentProcessId(), GetCurrentThreadId(), ctim);
+		fprintf(MLOGFP, "[%d.%d(%s)]", GetCurrentProcessId(), GetCurrentThreadId(), ctim);
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-		fprintf(LOGFP, "[%d]", pthread_self());
+		fprintf(MLOGFP, "[%d]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
-		vfprintf(LOGFP, fmt, args);
+		vfprintf(MLOGFP, fmt, args);
 	}
 	va_end(args);
 	LEAVE_MYLOG_CS;
+}
+static void mylog_initialize()
+{
+	INIT_MYLOG_CS;
+}
+static void mylog_finalize()
+{
+	if (MLOGFP)
+	{
+		fclose(MLOGFP);
+		MLOGFP = NULL;
+	}
+	DELETE_MYLOG_CS;
 }
 #else
 void
 MyLog(char *fmt,...)
 {
 }
-#endif
+static void mylog_initialize() {}
+static void mylog_finalize() {}
+#endif /* MY_LOG */
 
 
 #ifdef Q_LOG
+static FILE *QLOGFP = NULL;
 void
 qlog(char *fmt,...)
 {
 	va_list		args;
 	char		filebuf[80];
-	static FILE *LOGFP = NULL;
 
 	ENTER_QLOG_CS;
 	if (qlog_on)
 	{
 		va_start(args, fmt);
 
-		if (!LOGFP)
+		if (!QLOGFP)
 		{
 			generate_filename(QLOGDIR, QLOGFILE, filebuf);
-			LOGFP = fopen(filebuf, PG_BINARY_A);
-			if (LOGFP)
-				setbuf(LOGFP, NULL);
+			QLOGFP = fopen(filebuf, PG_BINARY_A);
+			if (QLOGFP)
+				setbuf(QLOGFP, NULL);
 		}
 
-		if (LOGFP)
-			vfprintf(LOGFP, fmt, args);
+		if (QLOGFP)
+			vfprintf(QLOGFP, fmt, args);
 
 		va_end(args);
 	}
 	LEAVE_QLOG_CS;
 }
-#endif
+static void qlog_initialize()
+{
+	INIT_QLOG_CS;
+}
+static void qlog_finalize()
+{
+	if (QLOGFP)
+	{
+		fclose(QLOGFP);
+		QLOGFP = NULL;
+	}
+	DELETE_QLOG_CS;
+}
+#else
+static void qlog_initialize() {}
+static void qlog_finalize() {}
+#endif /* Q_LOG */
+
+void InitializeLogging()
+{
+	mylog_initialize();
+	qlog_initialize();
+}
+
+void FinalizeLogging()
+{
+	mylog_finalize();
+	qlog_finalize();
+}

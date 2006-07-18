@@ -15,6 +15,11 @@
 */
 #include	"misc.h"
 #include	<malloc.h>
+#ifdef	_DEBUG
+#include	<stdlib.h>
+#define	_CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif /* _DEBUG */
 #include	<string.h>
 
 typedef struct {
@@ -250,6 +255,8 @@ void debug_memory_check(void)
 	if (0 == tbsize)
 	{
 		mylog("no memry leak found and max count allocated so far is %d\n", alsize);
+		free(altbl);
+		alsize = 0;
 	}
 	else
 	{

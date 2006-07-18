@@ -546,6 +546,8 @@ ds_options2Proc(HWND hdlg,
 				default:
 					CheckDlgButton(hdlg, DS_INT8_AS_DEFAULT, 1);
 			}
+			sprintf(buf, "0x%x", getExtraOptions(ci));
+			SetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf);
 
 			CheckDlgButton(hdlg, DS_SHOWOIDCOLUMN, atoi(ci->show_oid_column));
 			CheckDlgButton(hdlg, DS_FAKEOIDINDEX, atoi(ci->fake_oid_index));
@@ -618,6 +620,8 @@ ds_options2Proc(HWND hdlg,
 					else
 						ci->int8_as = SQL_VARCHAR;
 
+					GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
+					setExtraOptions(ci, buf, NULL);
 					sprintf(ci->show_system_tables, "%d", IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
 
 					sprintf(ci->row_versioning, "%d", IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));

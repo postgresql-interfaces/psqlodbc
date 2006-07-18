@@ -568,18 +568,105 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 	return TRUE;
 }
 
-BOOL getCOLIfromTI(const char *func, StatementClass *stmt, const Oid reloid, TABLE_INFO **pti)
+static BOOL
+getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name, 
+COL_INFO **coli)
+{
+	int	colidx;
+	BOOL	found = FALSE;
+
+	*coli = NULL;
+	if (NAME_IS_NULL(table_name))
+		return TRUE;
+	if (conn->schema_support)
+	{
+		if (NAME_IS_NULL(*schema_name))
+		{
+			const char *curschema = CC_get_current_schema(conn);
+			/*
+			 * Though current_schema() doesn't have
+			 * much sense in PostgreSQL, we first
+			 * check the current_schema() when no
+			 * explicit schema name was specified.
+			 */
+			for (colidx = 0; colidx < conn->ntables; colidx++)
+			{
+				if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
+				    !stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
+				{
+					mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(table_name), curschema);
+					found = TRUE;
+					STR_TO_NAME(*schema_name, curschema);
+					break;
+				}
+			}
+			if (!found)
+			{
+				QResultClass	*res;
+				char		token[256];
+				BOOL		tblFound = FALSE;
+
+				/*
+			  	 * We also have to check as follows.
+			  	 */
+				sprintf(token, "select nspname from pg_namespace n, pg_class c"
+						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", SAFE_NAME(table_name));
+				res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+				if (QR_command_maybe_successful(res))
+				{
+					if (QR_get_num_total_tuples(res) == 1)
+					{
+						tblFound = TRUE;
+						STR_TO_NAME(*schema_name, QR_get_value_backend_row(res, 0, 0));
+					}
+				}
+				QR_Destructor(res);
+				if (!tblFound)
+					return FALSE;
+			}
+		}
+		if (!found && NAME_IS_VALID(*schema_name))
+		{
+			for (colidx = 0; colidx < conn->ntables; colidx++)
+			{
+				if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
+				    !NAMEICMP(conn->col_info[colidx]->schema_name, *schema_name))
+				{
+					mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(table_name), PRINT_NAME(*schema_name));
+					found = TRUE;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (colidx = 0; colidx < conn->ntables; colidx++)
+		{
+			if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name))
+			{
+				mylog("FOUND col_info table='%s'\n", table_name);
+				found = TRUE;
+				break;
+			}
+		}
+	}
+	*coli = found ? conn->col_info[colidx] : NULL;
+	return TRUE; /* success */
+}
+
+BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt, const Oid reloid, TABLE_INFO **pti)
 {
 	BOOL	colatt = FALSE, found = FALSE;
-	ConnectionClass	*conn = SC_get_conn(stmt);
 	Oid	greloid = reloid;
-	int	colidx;
-	char	token[256];
 	TABLE_INFO	*wti = *pti;
+	COL_INFO	*coli;
 	HSTMT		hcol_stmt = NULL;
 	QResultClass	*res;
 
 inolog("getCOLIfromTI reloid=%u ti=%x\n", reloid, wti);
+	if (!conn)
+		conn = SC_get_conn(stmt);
 	if (!wti)	/* SQLColAttribute case */
 	{
 		int	i;
@@ -614,101 +701,39 @@ inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
 	}
 	if (greloid != 0)
 	{
+		int	colidx;
+
 		for (colidx = 0; colidx < conn->ntables; colidx++)
 		{
 			if (conn->col_info[colidx]->table_oid == greloid)
 			{
 				mylog("FOUND col_info table=%ul\n", greloid);
 				found = TRUE;
+				wti->col_info = conn->col_info[colidx];
 				break;
 			}
 		}
 	}
 	else
 	{
-		if (conn->schema_support)
+		if (!getCOLIfromTable(conn, &wti->schema_name, wti->table_name, &coli))
 		{
-			if (NAME_IS_NULL(wti->schema_name))
+			if (stmt)
 			{
-				const char *curschema = CC_get_current_schema(conn);
-				/*
-			 	 * Though current_schema() doesn't have
-			 	 * much sense in PostgreSQL, we first
-			 	 * check the current_schema() when no
-				 * explicit schema name was specified.
-			 	 */
-				for (colidx = 0; colidx < conn->ntables; colidx++)
-				{
-					if (!NAMEICMP(conn->col_info[colidx]->table_name, wti->table_name) &&
-					    !stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
-					{
-						mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(wti->table_name), curschema);
-						found = TRUE;
-						STR_TO_NAME(wti->schema_name, curschema);
-						break;
-					}
-				}
-				if (!found)
-				{
-					QResultClass	*res;
-					BOOL		tblFound = FALSE;
-
-					/*
-			 	 	 * We also have to check as follows.
-			 	 	 */
-					sprintf(token, "select nspname from pg_namespace n, pg_class c"
-						" where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass", SAFE_NAME(wti->table_name));
-					res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
-					if (QR_command_maybe_successful(res))
-					{
-						if (QR_get_num_total_tuples(res) == 1)
-						{
-							tblFound = TRUE;
-							STR_TO_NAME(wti->schema_name, QR_get_value_backend_row(res, 0, 0));
-						}
-					}
-					QR_Destructor(res);
-					if (!tblFound)
-					{
-						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-						SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
-						stmt->updatable = FALSE;
-						return FALSE;
-					}
-				}
+				SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
+				stmt->updatable = FALSE;
 			}
-			if (!found && NAME_IS_VALID(wti->schema_name))
-			{
-				for (colidx = 0; colidx < conn->ntables; colidx++)
-				{
-					if (!NAMEICMP(conn->col_info[colidx]->table_name, wti->table_name) &&
-					    !NAMEICMP(conn->col_info[colidx]->schema_name, wti->schema_name))
-					{
-						mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->schema_name));
-						found = TRUE;
-						break;
-					}
-				}
-			}
+			return FALSE;
 		}
-		else
+		else if (NULL != coli)
 		{
-			for (colidx = 0; colidx < conn->ntables; colidx++)
-			{
-				if (!NAMEICMP(conn->col_info[colidx]->table_name, wti->table_name))
-				{
-					mylog("FOUND col_info table='%s'\n", wti->table_name);
-					found = TRUE;
-					break;
-				}
-			}
+			found = TRUE;
+			wti->col_info = coli;
 		}
 	}
 	if (found)
-	{
-		wti->col_info = conn->col_info[colidx];
 		goto cleanup;
-	}
 	else
 	{
 		RETCODE		result;
@@ -716,10 +741,11 @@ inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
 
 		mylog("PARSE: Getting PG_Columns for table='%s'\n", wti->table_name);
 
-		result = PGAPI_AllocStmt(stmt->hdbc, &hcol_stmt);
+		result = PGAPI_AllocStmt(conn, &hcol_stmt);
 		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 		{
-			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", func);
+			if (stmt)
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", func);
 			goto cleanup;
 		}
 
@@ -754,7 +780,8 @@ inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
 				conn->col_info = (COL_INFO **) realloc(conn->col_info, new_alloc * sizeof(COL_INFO *));
 				if (!conn->col_info)
 				{
-					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info.", func);
+					if (stmt)
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info.", func);
 					goto cleanup;
 				}
 				conn->coli_allocated = new_alloc;
@@ -763,8 +790,9 @@ inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
 			mylog("PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
 			coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
 			if (!coli)
-			{
-				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info(2).", func);
+			{	
+				if (stmt)
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info(2).", func);
 				goto cleanup;
 			}
 			col_info_initialize(coli);
@@ -838,10 +866,11 @@ inolog("#1 %x->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->tabl
 		if (colatt /* SQLColAttribute case */
 		    && 0 == (wti->flags & TI_COLATTRIBUTE))
 		{
-			ColAttSet(stmt, wti);
+			if (stmt)
+				ColAttSet(stmt, wti);
 		}
 	}
-	else if (!colatt)
+	else if (!colatt && stmt)
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 inolog("getCOLIfromTI returns %d\n", found);
 	return found;
@@ -1446,7 +1475,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 
 		wti = ti[i];
 
-		if (!getCOLIfromTI(func, stmt, 0, &wti))
+		if (!getCOLIfromTI(func, NULL, stmt, 0, &wti))
 			break;
 	}
 	if (STMT_PARSE_FATAL == SC_parsed_status(stmt))

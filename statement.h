@@ -213,7 +213,6 @@ struct StatementClass_
 	char		parse_status;
 	char		proc_return;
 	Int2		statement_type; /* According to the defines above */
-	int		data_at_exec;	/* Number of params needing SQLPutData */
 	int		current_exec_param;		/* The current parameter for
 							 * SQLPutData */
 	PutDataInfo	pdata_info;
@@ -231,9 +230,11 @@ struct StatementClass_
 	char		rbonerr;	 /* rollback on error */
 	char		discard_output_params;	 /* discard output parameters on parse stage */
 	char		cancel_info;	 /* cancel information */
+	char		ref_CC_error;	/* refer to CC_error ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 	Int2		num_params;
+	Int2		data_at_exec; /* Number of params needing SQLPutData */
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
@@ -386,6 +387,8 @@ enum
 #define SC_accessed_db(a)	((a->rbonerr & (1L << 3)) != 0)
 #define SC_start_rbpoint(a)	(a->rbonerr |= (1L << 4))
 #define SC_started_rbpoint(a)	((a->rbonerr & (1L << 4)) != 0)
+#define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
+#define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
 
 
 /* For Multi-thread */

@@ -177,7 +177,6 @@ PGAPI_BindCol(
 
 #define	return	DONT_CALL_RETURN_FROM_HERE ???
 	SC_clear_error(stmt);
-	/* StartRollbackState(stmt); */
 	/* If the bookmark column is being bound, then just save it */
 	if (icol == 0)
 	{

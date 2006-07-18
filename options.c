@@ -379,7 +379,8 @@ PGAPI_SetConnectOption(
 		case SQL_CURRENT_QUALIFIER:		/* ignored */
 			break;
 
-		case SQL_LOGIN_TIMEOUT:	/* ignored */
+		case SQL_LOGIN_TIMEOUT:
+			conn->login_timeout = vParam;
 			break;
 
 		case SQL_PACKET_SIZE:	/* ignored */
@@ -530,8 +531,8 @@ PGAPI_GetConnectOption(
 			p = CurrCatString(conn);
 			break;
 
-		case SQL_LOGIN_TIMEOUT:	/* NOT SUPPORTED */
-			*((UDWORD *) pvParam) = 0;
+		case SQL_LOGIN_TIMEOUT:
+			*((UDWORD *) pvParam) = conn->login_timeout;
 			break;
 
 		case SQL_PACKET_SIZE:	/* NOT SUPPORTED */

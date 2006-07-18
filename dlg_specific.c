@@ -29,6 +29,84 @@ extern GLOBAL_VALUES globals;
 static void encode(const char *in, char *out);
 static void decode(const char *in, char *out);
 
+UInt4	getExtraOptions(const ConnInfo *ci)
+{
+	UInt4	flag = 0;
+
+	if (ci->force_abbrev_connstr)
+		flag |= BIT_FORCEABBREVCONNSTR;
+	if (ci->fake_mss)
+		flag |= BIT_FAKE_MSS;
+	if (ci->bde_environment)
+		flag |= BIT_BDE_ENVIRONMENT;
+		
+	return flag;
+}
+
+CSTR	hex_format = "%x";
+CSTR	dec_format = "%u";
+CSTR	octal_format = "%o";
+static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
+{
+	if (overwrite || ci->force_abbrev_connstr < 0)
+		ci->force_abbrev_connstr = (0 != (flag & BIT_FORCEABBREVCONNSTR));
+	if (overwrite || ci->fake_mss < 0)
+		ci->fake_mss = (0 != (flag & BIT_FAKE_MSS));
+	if (overwrite || ci->bde_environment)
+		ci->bde_environment = (0 != (flag & BIT_BDE_ENVIRONMENT));
+		
+	return getExtraOptions(ci);
+}
+BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
+{
+	UInt4	flag = 0;
+
+	if (!format)
+	{
+		if ('0' == *optstr)
+		{
+			switch (optstr[1])
+			{
+				case '\0':
+					format = dec_format;
+					break;
+				case 'x':
+				case 'X':
+					optstr += 2;
+					format = hex_format;
+					break;
+				default:
+					format = octal_format;
+					break;
+			}
+		}
+		else
+			format = dec_format;
+	}
+		
+	if (sscanf(optstr, format, &flag) < 1)
+		return FALSE;
+	replaceExtraOptions(ci, flag, TRUE);
+	return TRUE;
+}
+UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
+{
+	if (0 != (aflag & BIT_FORCEABBREVCONNSTR))
+		ci->force_abbrev_connstr = TRUE;
+	if (0 != (aflag & BIT_FAKE_MSS))
+		ci->fake_mss = TRUE;
+	if (0 != (aflag & BIT_BDE_ENVIRONMENT))
+		ci->bde_environment = TRUE;
+	if (0 != (dflag & BIT_FORCEABBREVCONNSTR))
+		ci->force_abbrev_connstr = FALSE;
+	if (0 != (dflag & BIT_FAKE_MSS))
+		ci->fake_mss =FALSE;
+	if (0 != (dflag & BIT_BDE_ENVIRONMENT))
+		ci->bde_environment = FALSE;
+
+	return getExtraOptions(ci);
+}
+
 void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
@@ -36,7 +114,8 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	char		encoded_conn_settings[LARGE_REGISTRY_LEN];
 	Int4		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
-	BOOL		abbrev = (len < 1024) || ci->force_abbrev_connstr;
+	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
+	UInt4		flag;
 
 inolog("force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	/* fundamental info */
@@ -145,7 +224,7 @@ inolog("hlen=%d", hlen);
 	/* Abbrebiation is needed ? */
 	if (abbrev || olen >= nlen || olen < 0)
 	{
-		UInt4 long flag = 0;
+		flag = 0;
 		if (ci->disallow_premature)
 			flag |= BIT_DISALLOWPREMATURE;
 		if (ci->allow_keyset)
@@ -247,9 +326,21 @@ inolog("hlen=%d", hlen);
 				ABBR_PROTOCOL "=%s",
 				ci->protocol);
 		}
-		if (olen < 0 || olen >= nlen) /* failed */
-			connect_string[0] = '\0';
 	}
+	if (olen < nlen)
+	{
+		flag = getExtraOptions(ci);
+		if (0 != flag)
+		{
+			hlen = strlen(connect_string);
+			nlen = MAX_CONNECT_STRING - hlen;
+			olen = snprintf(&connect_string[hlen], nlen, ";"
+				INI_EXTRAOPTIONS "=%lx;",
+				flag);
+		}
+	}
+	if (olen < 0 || olen >= nlen) /* failed */
+		connect_string[0] = '\0';
 }
 
 static void
@@ -418,10 +509,24 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_XAOPT) == 0)
 		ci->xa_opt = atoi(value);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
-	else if (stricmp(attribute, INI_FORCEABBREVCONNSTR) == 0)
+	else if (stricmp(attribute, INI_EXTRAOPTIONS) == 0)
 	{
-		ci->force_abbrev_connstr = atoi(value) & 1;
-		ci->bde_environment = atoi(value) & 2;
+		UInt4	val1 = 0, val2 = 0;
+	
+		if ('+' == value[0])
+		{
+			sscanf(value + 1, "%x-%x", &val1, &val2);
+			add_removeExtraOptions(ci, val1, val2);
+		}
+		else if ('-' == value[0])
+		{
+			sscanf(value + 1, "%x", &val2);
+			add_removeExtraOptions(ci, 0, val2);
+		}
+		else
+		{
+			setExtraOptions(ci, value, hex_format);
+		}
 		mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
 	}
 
@@ -535,6 +640,12 @@ getDSNdefaults(ConnInfo *ci)
 		ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
 	if (ci->sslmode[0] == '\0')
 		strcpy(ci->sslmode, DEFAULT_SSLMODE);
+	if (ci->force_abbrev_connstr < 0)
+		ci->force_abbrev_connstr = 0;
+	if (ci->fake_mss < 0)
+		ci->fake_mss = 0;
+	if (ci->bde_environment < 0)
+		ci->bde_environment = 0;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0)
 		ci->xa_opt = DEFAULT_XAOPT;
@@ -710,16 +821,15 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 	/* Force abbrev connstr or bde */
-	if (1 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_FORCEABBREVCONNSTR, "",
+	SQLGetPrivateProfileString(DSN, INI_EXTRAOPTIONS, "",
 					temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-		{
-			ci->force_abbrev_connstr = atoi(temp) & 1;
-			ci->bde_environment = atoi(temp) & 2;
-			mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
-		}
+	if (temp[0])
+	{
+		UInt4	val = 0;
+
+		sscanf(temp, "%x", &val);
+		replaceExtraOptions(ci, val, overwrite);
+		mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
 	}
 
 	/* Allow override of odbcinst.ini parameters here */
@@ -939,6 +1049,11 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_INT8AS,
 								 temp,
 								 ODBC_INI);
+	sprintf(temp, "%lx", getExtraOptions(ci));
+	SQLWritePrivateProfileString(DSN,
+							INI_EXTRAOPTIONS,
+							 temp,
+							 ODBC_INI);
 	sprintf(temp, "%d", ci->bytea_as_longvarbinary);
 	SQLWritePrivateProfileString(DSN,
 								 INI_BYTEAASLONGVARBINARY,

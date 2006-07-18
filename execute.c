@@ -637,6 +637,75 @@ cleanup:
 	return ret;
 }
 
+static void
+SetInsertTable(StatementClass *stmt)
+{
+	const char *cmd = stmt->statement, *ptr;
+	ConnectionClass	*conn;
+	size_t	len;
+
+	while (isspace((UCHAR) *cmd)) cmd++;
+	if (!*cmd)
+        	return;
+	len = 6;
+	if (strnicmp(cmd, "insert", len))
+        	return;
+	cmd += len;
+	while (isspace((UCHAR) *(++cmd)));
+	if (!*cmd)
+        	return;
+	len = 4;
+	if (strnicmp(cmd, "into", len))
+        	return;
+	cmd += len;
+	while (isspace((UCHAR) *(++cmd)));
+	if (!*cmd)
+        	return;
+	conn = SC_get_conn(stmt);
+	NULL_THE_NAME(conn->schemaIns);
+	NULL_THE_NAME(conn->tableIns);
+	ptr = NULL;
+	if (IDENTIFIER_QUOTE == *cmd)
+	{
+		if (ptr = strchr(cmd + 1, IDENTIFIER_QUOTE), NULL == ptr)
+			return;
+		if ('.' == ptr[1])
+		{
+			len = ptr - cmd - 1;
+			STRN_TO_NAME(conn->schemaIns, cmd + 1, len);
+			cmd = ptr + 2;
+			ptr = NULL;
+		}
+	}
+	else
+	{
+		if (ptr = strchr(cmd + 1, '.'), NULL != ptr)
+		{
+			len = ptr - cmd - 1;
+			STRN_TO_NAME(conn->schemaIns, cmd, len);
+			cmd = ptr + 1;
+			ptr = NULL; 
+		}
+	}
+	if (IDENTIFIER_QUOTE == *cmd && NULL == ptr)
+	{
+		if (ptr = strchr(cmd + 1, IDENTIFIER_QUOTE), NULL == ptr)
+			return;
+	}
+	if (IDENTIFIER_QUOTE == *cmd)
+	{
+		len = ptr - cmd - 1;
+		STRN_TO_NAME(conn->tableIns, cmd + 1, len);
+	}
+	else
+	{
+		ptr = cmd;
+		while (*ptr && !isspace((UCHAR) *ptr)) ptr++;
+		len = ptr - cmd;
+		STRN_TO_NAME(conn->tableIns, cmd, len);
+	}
+}
+
 /*	Execute a prepared SQL statement */
 RETCODE		SQL_API
 PGAPI_Execute(HSTMT hstmt, UWORD flag)
@@ -900,6 +969,15 @@ next_param_row:
 	if (!exec_end)
 		goto next_param_row;
 cleanup:
+mylog("retval=%d\n", retval);
+	if (STMT_TYPE_INSERT == stmt->statement_type &&
+	    CC_fake_mss(conn) &&
+	    (SQL_SUCCESS == retval ||
+	     SQL_SUCCESS_WITH_INFO == retval)
+	   )
+	{
+		SetInsertTable(stmt);
+	}
 #undef	return
 	if (stmt->internal)
 		retval = DiscardStatementSvp(stmt, retval, FALSE);

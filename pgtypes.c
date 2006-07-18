@@ -42,35 +42,35 @@ Int4		getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unk
  */
 
 /*
-Int4 pgtypes_defined[]	= {
-				PG_TYPE_CHAR,
-				PG_TYPE_CHAR2,
-				PG_TYPE_CHAR4,
-				PG_TYPE_CHAR8,
-				PG_TYPE_CHAR16,
-				PG_TYPE_NAME,
-				PG_TYPE_VARCHAR,
-				PG_TYPE_BPCHAR,
-				PG_TYPE_DATE,
-				PG_TYPE_TIME,
-				PG_TYPE_TIME_WITH_TMZONE,
-				PG_TYPE_DATETIME,
-				PG_TYPE_ABSTIME,
-				PG_TYPE_TIMESTAMP_NO_TMZONE,
-				PG_TYPE_TIMESTAMP,
-				PG_TYPE_TEXT,
-				PG_TYPE_INT2,
-				PG_TYPE_INT4,
-				PG_TYPE_FLOAT4,
-				PG_TYPE_FLOAT8,
-				PG_TYPE_OID,
-				PG_TYPE_MONEY,
-				PG_TYPE_BOOL,
-				PG_TYPE_BYTEA,
-				PG_TYPE_NUMERIC,
-				PG_TYPE_XID,
-				PG_TYPE_LO_UNDEFINED,
-				0 };
+Int4 pgtypes_defined[][2] = {
+			{PG_TYPE_CHAR, 0}
+			,{PG_TYPE_CHAR2, 0}
+			,{PG_TYPE_CHAR4, 0}
+			,{PG_TYPE_CHAR8, 0}
+			,{PG_TYPE_CHAR16, 0}
+			,{PG_TYPE_NAME, 0}
+			,{PG_TYPE_VARCHAR, 0}
+			,{PG_TYPE_BPCHAR, 0}
+			,{PG_TYPE_DATE, 0}
+			,{PG_TYPE_TIME, 0}
+			,{PG_TYPE_TIME_WITH_TMZONE, 0}
+			,{PG_TYPE_DATETIME, 0}
+			,{PG_TYPE_ABSTIME, 0}
+			,{PG_TYPE_TIMESTAMP_NO_TMZONE, 0}
+			,{PG_TYPE_TIMESTAMP, 0}
+			,{PG_TYPE_TEXT, 0}
+			,{PG_TYPE_INT2, 0}
+			,{PG_TYPE_INT4, 0}
+			,{PG_TYPE_FLOAT4, 0}
+			,{PG_TYPE_FLOAT8, 0}
+			,{PG_TYPE_OID, 0}
+			,{PG_TYPE_MONEY, 0}
+			,{PG_TYPE_BOOL, 0}
+			,{PG_TYPE_BYTEA, 0}
+			,{PG_TYPE_NUMERIC, 0}
+			,{PG_TYPE_XID, 0}
+			,{PG_TYPE_LO_UNDEFINED, 0}
+			,{0, 0} };
 */
 
 
@@ -502,7 +502,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 
 
 const char *
-pgtype_to_name(StatementClass *stmt, Int4 type)
+pgtype_to_name(StatementClass *stmt, Int4 type, BOOL auto_increment)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	switch (type)
@@ -516,7 +516,7 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 		case PG_TYPE_CHAR8:
 			return "char8";
 		case PG_TYPE_INT8:
-			return "int8";
+			return auto_increment ? "bigserial" : "int8";
 		case PG_TYPE_NUMERIC:
 			return "numeric";
 		case PG_TYPE_VARCHAR:
@@ -535,7 +535,7 @@ pgtype_to_name(StatementClass *stmt, Int4 type)
 			return "xid";
 		case PG_TYPE_INT4:
 inolog("pgtype_to_name int4\n");
-			return "int4";
+			return auto_increment ? "serial" : "int4";
 		case PG_TYPE_FLOAT4:
 			return "float4";
 		case PG_TYPE_FLOAT8:

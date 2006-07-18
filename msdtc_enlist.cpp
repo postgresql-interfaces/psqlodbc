@@ -12,6 +12,7 @@
 #define	_WIN32_WINNT	0x0400
 #endif	/* _WIN32_WINNT */
 
+#define	WIN32_LEAN_AND_MEAN
 #include <oleTx2xa.h>
 #include <XOLEHLP.h>
 /*#include <Txdtc.h>*/
@@ -962,7 +963,7 @@ mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;
 	ConnInfo *ci = &(conn->connInfo);
 	char	dtcname[1024];
 	snprintf(dtcname, sizeof(dtcname), "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s", 
-		ci->drivername, ci->server, ci->port, ci->database, ci->username, ci->password, ci->sslmode, ci->drivers.debug);
+		ci->drivername, ci->server, ci->port, ci->database, ci->username, ci->password, ci->sslmode);
 	do { 
 		res = pHelper->XARMCreate(dtcname, (char *) GetXaLibName(), &dwRMCookie);
 		if (S_OK == res)

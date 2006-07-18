@@ -128,7 +128,7 @@ RETCODE SQL_API PGAPI_PutData(HSTMT StatementHandle,
 RETCODE SQL_API PGAPI_RowCount(HSTMT StatementHandle,
 			   SQLLEN *RowCount);
 RETCODE SQL_API PGAPI_SetConnectOption(HDBC ConnectionHandle,
-					   SQLUSMALLINT Option, SQLUINTEGER Value);
+					   SQLUSMALLINT Option, SQLULEN Value);
 RETCODE SQL_API PGAPI_SetCursorName(HSTMT StatementHandle,
 					const SQLCHAR *CursorName, SQLSMALLINT NameLength);
 RETCODE SQL_API PGAPI_SetParam(HSTMT StatementHandle,

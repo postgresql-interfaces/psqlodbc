@@ -18,7 +18,7 @@
 #include "environ.h"
 
 #ifdef WIN32
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 
 GLOBAL_VALUES globals;
@@ -26,9 +26,9 @@ GLOBAL_VALUES globals;
 RETCODE SQL_API SQLDummyOrdinal(void);
 
 #if defined(WIN_MULTITHREAD_SUPPORT)
-extern	CRITICAL_SECTION	qlog_cs, mylog_cs, conns_cs, common_cs;
+extern	CRITICAL_SECTION	conns_cs, common_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
-extern	pthread_mutex_t 	qlog_cs, mylog_cs, conns_cs, common_cs;
+extern	pthread_mutex_t 	conns_cs, common_cs;
 
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 #ifdef	PG_RECURSIVE_MUTEXATTR
@@ -64,11 +64,15 @@ int	initialize_global_cs(void)
 	if (!init)
 		return 0;
 	init = 0;
+#ifdef	_DEBUG
+#ifdef	_MEMORY_DEBUG_
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF|_CRTDBG_LEAK_CHECK_DF);
+#endif /* _MEMORY_DEBUG_ */
+#endif /* _DEBUG */
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 	getMutexAttr();
 #endif /* POSIX_THREADMUTEX_SUPPORT */
-	INIT_QLOG_CS;
-	INIT_MYLOG_CS;
+	InitializeLogging();
 	INIT_CONNS_CS;
 	INIT_COMMON_CS;
 
@@ -79,8 +83,12 @@ static void finalize_global_cs(void)
 {
 	DELETE_COMMON_CS;
 	DELETE_CONNS_CS;
-	DELETE_QLOG_CS;
-	DELETE_MYLOG_CS;
+	FinalizeLogging();
+#ifdef	_DEBUG
+#ifdef	_MEMORY_DEBUG_
+	// _CrtDumpMemoryLeaks();
+#endif /* _MEMORY_DEBUG_ */
+#endif /* _DEBUG */
 }
 
 #ifdef WIN32

@@ -139,16 +139,21 @@ PGAPI_GetInfo(
 			value = SQL_CB_NON_NULL;
 			break;
 
-		case SQL_CONVERT_BIGINT:
 		case SQL_CONVERT_INTEGER:
 		case SQL_CONVERT_SMALLINT:
 		case SQL_CONVERT_TINYINT:
+		case SQL_CONVERT_BIT:
+		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
+			len = sizeof(SQLUINTEGER);
+			value = SQL_CVT_BIT | SQL_CVT_INTEGER;
+mylog("SQL_CONVERT_ mask=%x\n", value);
+			break;
+		case SQL_CONVERT_BIGINT:
 		case SQL_CONVERT_DECIMAL:
 		case SQL_CONVERT_DOUBLE:
 		case SQL_CONVERT_FLOAT:
 		case SQL_CONVERT_NUMERIC:
 		case SQL_CONVERT_REAL:
-		case SQL_CONVERT_BIT:
 		case SQL_CONVERT_DATE:
 		case SQL_CONVERT_TIME:
 		case SQL_CONVERT_TIMESTAMP:
@@ -157,7 +162,6 @@ PGAPI_GetInfo(
 		case SQL_CONVERT_VARBINARY:		/* ODBC 1.0 */
 		case SQL_CONVERT_CHAR:
 		case SQL_CONVERT_LONGVARCHAR:
-		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
 #ifdef	UNICODE_SUPPORT
 		case SQL_CONVERT_WCHAR:
 		case SQL_CONVERT_WLONGVARCHAR:
@@ -168,8 +172,9 @@ PGAPI_GetInfo(
 			break;
 
 		case SQL_CONVERT_FUNCTIONS:		/* ODBC 1.0 */
-			len = 4;
-			value = 0;
+			len = sizeof(SQLUINTEGER);
+			value = SQL_FN_CVT_CONVERT;
+mylog("CONVERT_FUNCTIONS=%x\n", value);
 			break;
 
 		case SQL_CORRELATION_NAME:		/* ODBC 1.0 */
@@ -217,8 +222,10 @@ PGAPI_GetInfo(
 			break;
 
 		case SQL_DBMS_NAME:		/* ODBC 1.0 */
-			/* p = DBMS_NAME; */
-			p = "PostgreSQL";
+			if (CC_fake_mss(conn))
+				p = "Microsoft SQL Server";
+			else
+				p = "PostgreSQL";
 			break;
 
 		case SQL_DBMS_VER:		/* ODBC 1.0 */
@@ -231,8 +238,13 @@ PGAPI_GetInfo(
 			/*
 			snprintf(tmp, sizeof(tmp) - 1, "%s %s", POSTGRESDRIVERVERSION, conn->pg_version);
                         tmp[sizeof(tmp) - 1] = '\0'; */
-			strncpy_null(tmp, conn->pg_version, sizeof(tmp));
-			p = tmp;
+			if (CC_fake_mss(conn))
+				p = "09.00.1399";
+			else
+			{
+				strncpy_null(tmp, conn->pg_version, sizeof(tmp));
+				p = tmp;
+			}
 			break;
 
 		case SQL_DEFAULT_TXN_ISOLATION: /* ODBC 1.0 */
@@ -820,6 +832,7 @@ PGAPI_GetTypeInfo(
 {
 	CSTR func = "PGAPI_GetTypeInfo";
 	StatementClass *stmt = (StatementClass *) hstmt;
+	ConnectionClass	*conn;
 	QResultClass	*res;
 	TupleField	*tuple;
 	int			i, result_cols;
@@ -834,6 +847,7 @@ PGAPI_GetTypeInfo(
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 
+	conn = SC_get_conn(stmt);
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "Error creating result.", func);
@@ -879,30 +893,39 @@ PGAPI_GetTypeInfo(
 
 if (sqlType == SQL_LONGVARBINARY)
 {
-ConnInfo	*ci = &(SC_get_conn(stmt)->connInfo);
+ConnInfo	*ci = &(conn->connInfo);
 inolog("%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgType);
 }
 
 		if (fSqlType == SQL_ALL_TYPES || fSqlType == sqlType)
 		{
-			int	pgtcount = 1, cnt;
+			int	pgtcount = 1, aunq_match = -1, cnt;
 
-			if (SQL_INTEGER == sqlType && PG_VERSION_GE(SC_get_conn(stmt), 6.4))
-				pgtcount = 2;
+			/*if (SQL_INTEGER == sqlType || SQL_TINYINT == sqlType)*/
+			if (SQL_INTEGER == sqlType)
+			{
+mylog("sqlType=%d ms_jet=%d\n", sqlType, conn->ms_jet);
+				if (conn->ms_jet && PG_VERSION_GE(conn, 6.4))
+				{
+					aunq_match = 0;
+					pgtcount = 2;
+				}
+mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
+			}
 			for (cnt = 0; cnt < pgtcount; cnt ++)
 			{
 				tuple = QR_AddNew(res);
 
 				/* These values can't be NULL */
-				if (1 == cnt)
+				if (aunq_match == cnt)
 				{
-					set_tuplefield_string(&tuple[0], "serial");
+					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType, TRUE));
 					set_tuplefield_int2(&tuple[6], SQL_NO_NULLS);
 inolog("serial in\n");
 				}
 				else
 				{
-					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType));
+					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType, FALSE));
 					set_tuplefield_int2(&tuple[6], pgtype_nullable(stmt, pgType));
 				}
 				set_tuplefield_int2(&tuple[1], (Int2) sqlType);
@@ -921,16 +944,14 @@ inolog("serial in\n");
 				set_nullfield_string(&tuple[3], pgtype_literal_prefix(stmt, pgType));
 				set_nullfield_string(&tuple[4], pgtype_literal_suffix(stmt, pgType));
 				set_nullfield_string(&tuple[5], pgtype_create_params(stmt, pgType));
-				if (1 == cnt)
-				{
-					set_nullfield_int2(&tuple[9], TRUE);
-					set_nullfield_int2(&tuple[11], TRUE);
-				}
+				if (1 < pgtcount)
+					set_tuplefield_int2(&tuple[9], SQL_TRUE);
 				else
-				{
 					set_nullfield_int2(&tuple[9], pgtype_unsigned(stmt, pgType));
+				if (aunq_match == cnt)
+					set_tuplefield_int2(&tuple[11], SQL_TRUE);
+				else
 					set_nullfield_int2(&tuple[11], pgtype_auto_increment(stmt, pgType));
-				}
 				set_nullfield_int2(&tuple[13], pgtype_min_decimal_digits(stmt, pgType));
 				set_nullfield_int2(&tuple[14], pgtype_max_decimal_digits(stmt, pgType));
 #if (ODBCVER >=0x0300)
@@ -2271,7 +2292,28 @@ mylog(" and the data=%s\n", attdef);
 			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], "");
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], field_name);
-		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], field_type_name);
+		auto_unique = SQL_FALSE;
+		switch (field_type)
+		{
+			case PG_TYPE_INT4:
+			case PG_TYPE_INT8:
+				if (attdef && strnicmp(attdef, "nextval(", 8) == 0 &&
+				    not_null[0] == '1')
+				{
+					auto_unique = SQL_TRUE;
+					if (CC_fake_mss(conn))
+					{
+						char	tmp[32];
+
+						snprintf(tmp, sizeof(tmp), "%s identity", field_type_name);
+						set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], tmp);
+						break;
+					}
+				}
+			default:
+				set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], field_type_name);
+				break;
+		}
 
 		/*----------
 		 * Some Notes about Postgres Data Types:
@@ -2399,14 +2441,6 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_null(&tuple[COLUMNS_IS_NULLABLE]);
 #endif /* ODBCVER */
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], field_type);
-		auto_unique = FALSE;
-		switch (field_type)
-		{
-			case PG_TYPE_INT4:
-			case PG_TYPE_INT8:
-				if (attdef && strnicmp(attdef, "nextval(", 8) == 0) 
-					auto_unique = TRUE;
-		}
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], auto_unique);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], field_number);
 		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
@@ -2442,7 +2476,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "xmin");
 		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
 		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
-		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], pgtype_to_name(stmt, the_type));
+		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], pgtype_to_name(stmt, the_type, FALSE));
 		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
 		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
 		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
@@ -2688,7 +2722,7 @@ retry_public_schema:
 			set_tuplefield_null(&tuple[0]);
 			set_tuplefield_string(&tuple[1], "ctid");
 			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, FALSE));
 			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
@@ -2712,7 +2746,7 @@ inolog("Add ctid\n");
 			set_tuplefield_int2(&tuple[0], SQL_SCOPE_SESSION);
 			set_tuplefield_string(&tuple[1], "oid");
 			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, TRUE));
 			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
@@ -2729,7 +2763,7 @@ inolog("Add ctid\n");
 				set_tuplefield_null(&tuple[0]);
 				set_tuplefield_string(&tuple[1], "xmin");
 				set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-				set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type));
+				set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, FALSE));
 				set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
 				set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
 				set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
@@ -4730,7 +4764,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_string(&tuple[3], "");
 				set_tuplefield_int2(&tuple[4], SQL_RETURN_VALUE);
 				set_tuplefield_int2(&tuple[5], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
-				set_tuplefield_string(&tuple[6], pgtype_to_name(stmt, pgtype));
+				set_tuplefield_string(&tuple[6], pgtype_to_name(stmt, pgtype, FALSE));
 				set_nullfield_int4(&tuple[7], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
 				set_tuplefield_int4(&tuple[8], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 				set_nullfield_int2(&tuple[9], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
@@ -4855,7 +4889,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				else
 					set_tuplefield_int2(&tuple[4], SQL_PARAM_INPUT);
 				set_tuplefield_int2(&tuple[5], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
-				set_tuplefield_string(&tuple[6], pgtype_to_name(stmt, pgtype));
+				set_tuplefield_string(&tuple[6], pgtype_to_name(stmt, pgtype, FALSE));
 				set_nullfield_int4(&tuple[7], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
 				set_tuplefield_int4(&tuple[8], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 				set_nullfield_int2(&tuple[9], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
@@ -4885,7 +4919,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_tuplefield_string(&tuple[3], attname);
 			set_tuplefield_int2(&tuple[4], SQL_RESULT_COL);
 			set_tuplefield_int2(&tuple[5], pgtype_to_concise_type(stmt, typid, PG_STATIC));
-			set_tuplefield_string(&tuple[6], pgtype_to_name(stmt, typid));
+			set_tuplefield_string(&tuple[6], pgtype_to_name(stmt, typid, FALSE));
 			set_nullfield_int4(&tuple[7], pgtype_column_size(stmt, typid, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&tuple[8], pgtype_buffer_length(stmt, typid, PG_STATIC, PG_STATIC));
 			set_nullfield_int2(&tuple[9], pgtype_decimal_digits(stmt, typid, PG_STATIC));
