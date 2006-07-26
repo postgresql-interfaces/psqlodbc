@@ -38,8 +38,54 @@ typedef unsigned int in_addr_t;
 #define HAVE_UNIX_SOCKETS
 #endif /* HAVE_SYS_UN_H */
 #else
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+/*
+ *      The order of the structure elements on Win32 doesn't match the
+ *      order specified in the standard, but we have to match it for
+ *      IPv6 to work.
+ */
+
+#define AI_PASSIVE     0x1  // Socket address will be used in bind() call.
+#define AI_CANONNAME   0x2  // Return canonical name in first ai_canonname.
+#define AI_NUMERICHOST 0x4  // Nodename must be a numeric address string.
+
+#define _SS_MAXSIZE 128
+#define _SS_ALIGNSIZE (sizeof(__int64))
+#define _SS_PAD1SIZE (_SS_ALIGNSIZE - sizeof (short))
+#define _SS_PAD2SIZE (_SS_MAXSIZE - (sizeof (short) + _SS_PAD1SIZE + _SS_ALIGNSIZE))
+
+typedef int socklen_t;
+
+struct sockaddr_storage {
+	short ss_family;
+	char __ss_pad1[_SS_PAD1SIZE];
+	__int64 __ss_align;
+	char __ss_pad2[_SS_PAD2SIZE];
+};
+struct addrinfo
+{
+	int		ai_flags;
+	int		ai_family;
+	int		ai_socktype;
+	int		ai_protocol;
+	size_t	ai_addrlen;
+	char	*ai_canonname;
+	struct sockaddr *ai_addr;
+	struct addrinfo *ai_next;
+};
+typedef void (WSAAPI *freeaddrinfo_func) (struct addrinfo*); 
+typedef int (WSAAPI *getaddrinfo_func) (const char*, const char*, 
+										const struct addrinfo*, 
+										struct addrinfo**); 
+typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr*,
+										socklen_t, char*, DWORD,
+										char*, DWORD, int);
+#endif
+
 #include <libpq-fe.h>
 #include <openssl/ssl.h>
 #define SOCKETFD SOCKET

@@ -121,6 +121,12 @@ SOCK_Destructor(SocketClass *self)
 	free(self);
 }
 
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+static freeaddrinfo_func freeaddrinfo_ptr = NULL;
+static getaddrinfo_func getaddrinfo_ptr = NULL;
+static getnameinfo_func getnameinfo_ptr = NULL;
+static	HMODULE ws2_hnd = NULL;
+#endif
 
 char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
@@ -129,13 +135,21 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 	int	family; 
 	char	retval = 0;
 
+
 	if (self->socket != -1)
 	{
 		SOCK_set_error(self, SOCKET_ALREADY_CONNECTED, "Socket is already connected");
 		return 0;
 	}
 
-
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+	if (ws2_hnd == NULL)
+		ws2_hnd = GetModuleHandle("ws2_32.dll");
+	if (freeaddrinfo_ptr == NULL)
+		freeaddrinfo_ptr = (freeaddrinfo_func)GetProcAddress(ws2_hnd, "freeaddrinfo"); 
+	if (getnameinfo_ptr == NULL)
+		getaddrinfo_ptr = (getaddrinfo_func)GetProcAddress(ws2_hnd, "getaddrinfo"); 
+#endif
 	/*
 	 * If it is a valid IP address, use it. Otherwise use hostname lookup.
 	 */
@@ -150,12 +164,20 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		snprintf(portstr, sizeof(portstr), "%d", port);
 		if (inet_addr(hostname) != INADDR_NONE)
 			rest.ai_flags = AI_NUMERICHOST;	
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+		ret = getaddrinfo_ptr(hostname, portstr, &rest, &addrs);
+#else
 		ret = getaddrinfo(hostname, portstr, &rest, &addrs);
+#endif
 		if (ret || !addrs)
 		{
 			SOCK_set_error(self, SOCKET_HOST_NOT_FOUND, "Could not resolve hostname.");
 			if (addrs)
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+				freeaddrinfo_ptr(addrs);
+#else
 				freeaddrinfo(addrs);
+#endif
 			return 0;
 		}
 		curadr = addrs;
@@ -310,7 +332,11 @@ cleanup:
 			goto retry;
 		}
 		if (addrs)
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+			freeaddrinfo_ptr(addrs);
+#else
 			freeaddrinfo(addrs);
+#endif
 	}
 	return retval;
 }
