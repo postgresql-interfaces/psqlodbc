@@ -2381,6 +2381,7 @@ inolog("type=%d concur=%d\n",
 				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, npos - qp->from_pos - 5);
 			}
 		}
+		npos -= qp->declare_pos;
 		stmt->load_statement = malloc(npos + 1);
 		memcpy(stmt->load_statement, qb->query_statement + qp->declare_pos, npos);
 		stmt->load_statement[npos] = '\0';
