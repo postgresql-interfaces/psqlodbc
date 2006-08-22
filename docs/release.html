@@ -10,6 +10,20 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0006</li><br>
+Changes:<br>
+1) Add an option to fake Microsoft SQL Server which would improve SERIAL type handling.<br>
+2) Add support for LOGIN_TIMEOUT.<br>
+3) Improve Statement error handling about the reference of Connection error.<br>
+4) Improve the handling BIGINT type in the OSs without having strtoll().<br>
+5) Support ODBC CONVERT scalar functions in some cases.<br>
+6) Close qlog, mylog files on detach dll.<br>
+7) Improve comunication performance in case of the driver's original socket.<br>
+8) Fix send a close <br>
+9) Support of IPV6.<br>
+<br>
+8.2.0003-8.2.0005 was skipped by the situation.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0002</li><br>
 Changes:<br>
 1) SQL injections via ODBC catalog function calls.<br>
