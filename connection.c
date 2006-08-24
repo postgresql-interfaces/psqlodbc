@@ -734,6 +734,8 @@ inolog("handle_error_message prptocol=%s\n", self->connInfo.protocol);
 inolog("new_format=%d\n", new_format);
 	if (new_format)
 	{
+		size_t	msgl;
+
 		msgbuf[0] = '\0';
 		for (;;)
 		{
@@ -743,22 +745,37 @@ inolog("new_format=%d\n", new_format);
 
 			mylog("%s: 'E' - %s\n", comment, msgbuffer);
 			qlog("ERROR from backend during %s: '%s'\n", comment, msgbuffer);
+			msgl = strlen(msgbuffer + 1);
 			switch (msgbuffer[0])
 			{
 				case 'S':
-					strncat(msgbuf, msgbuffer + 1, buflen);
-					strncat(msgbuf, ": ", buflen);
-					buflen -= (int) (strlen(msgbuffer) + 1);
+					if (buflen > 0)
+					{
+						strncat(msgbuf, msgbuffer + 1, buflen);
+						buflen -= msgl;
+					}
+					if (buflen > 0)
+					{
+						strncat(msgbuf, ": ", buflen);
+						buflen -= 2;
+					}
 					break;
 				case 'M':
-					strncat(msgbuf, msgbuffer + 1, buflen);
-					msg_truncated = truncated;
+					if (buflen > 0)
+					{
+						strncat(msgbuf, msgbuffer + 1, buflen);
+						buflen -= msgl;
+					}
+					if (truncated)
+						msg_truncated = truncated;
 					break;
 				case 'C':
 					if (sqlstate)
-						strcpy(sqlstate, msgbuffer + 1);
+						strncpy(sqlstate, msgbuffer + 1, 8);
 					break;
 			}
+			if (buflen < 0)
+				buflen = 0;
 			while (truncated)
 				truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 		}
@@ -816,6 +833,8 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen, char *sql
 
 	if (new_format)
 	{
+		size_t	msgl;
+
 		msgbuf[0] = '\0';
 		for (;;)
 		{
@@ -825,25 +844,42 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen, char *sql
 
 			mylog("%s: 'N' - %s\n", comment, msgbuffer);
 			qlog("NOTICE from backend during %s: '%s'\n", comment, msgbuffer);
+			msgl = strlen(msgbuffer + 1);
 			switch (msgbuffer[0])
 			{
 				case 'S':
-					strncat(msgbuf, msgbuffer + 1, buflen);
-					strncat(msgbuf, ": ", buflen);
-					buflen -= (strlen(msgbuffer) + 1);
+					if (buflen > 0)
+					{
+						strncat(msgbuf, msgbuffer + 1, buflen);
+						buflen -= msgl;
+					}
+					if (buflen > 0)
+					{
+						strncat(msgbuf, ": ", buflen);
+						buflen -= 2;
+					}
 					break;
 				case 'M':
-					strncat(msgbuf, msgbuffer + 1, buflen);
-					msg_truncated = truncated;
+					if (buflen > 0)
+					{
+						strncat(msgbuf, msgbuffer + 1, buflen);
+						buflen -= msgl;
+					}
+					else
+						msg_truncated = TRUE;
+					if (truncated)
+						msg_truncated = truncated;
 					break;
 				case 'C':
 					if (sqlstate && !sqlstate[0] && strcmp(msgbuffer + 1, "00000"))
-						strcpy(sqlstate, msgbuffer + 1);
+						strncpy(sqlstate, msgbuffer + 1, 8);
 					break;
-			} 
+			}
+			if (buflen < 0)
+				msg_truncated = TRUE;
+			while (truncated)
+				truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 		}
-		while (truncated)
-			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 	}
 	else
 	{

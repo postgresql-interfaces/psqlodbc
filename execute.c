@@ -536,6 +536,8 @@ SetStatementSvp(StatementClass *stmt)
 	}
 	if (!SC_accessed_db(stmt))
 	{
+		BOOL	need_savep = FALSE;
+
 		if (stmt->internal)
 		{
 			if (PG_VERSION_GE(conn, 8.0))
@@ -543,7 +545,18 @@ SetStatementSvp(StatementClass *stmt)
 			else
 				SC_start_tc_stmt(stmt);
 		}
-		if (SC_is_rb_stmt(stmt) && CC_is_in_trans(conn))
+		if (SC_is_rb_stmt(stmt))
+		{
+			ENTER_CONN_CS(conn);
+			if (CC_is_in_trans(conn))
+			{
+				stmt->lock_CC_for_rb++;
+				need_savep = TRUE;
+			}
+			else
+				LEAVE_CONN_CS(conn);
+		}
+		if (need_savep)
 		{
 			sprintf(esavepoint, "_EXEC_SVP_%08x", stmt);
 			snprintf(cmd, sizeof(cmd), "SAVEPOINT %s", esavepoint);
@@ -556,6 +569,8 @@ SetStatementSvp(StatementClass *stmt)
 			}
 			else
 			{
+				LEAVE_CONN_CS(conn);
+				stmt->lock_CC_for_rb--;
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal SAVEPOINT failed", func);
 				ret = SQL_ERROR;
 			}
@@ -607,6 +622,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 			if (!cmd_success)
 			{
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal ROLLBACK failed", func);
+				CC_abort(conn);
 				goto cleanup;
 			}
 		}
@@ -628,12 +644,20 @@ inolog("ret=%d\n", ret);
 		if (!cmd_success)
 		{
 			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal RELEASE failed", func);
+			CC_abort(conn);
 			ret = SQL_ERROR;
 		}
 	}
 cleanup:
 	if (start_stmt || SQL_ERROR == ret)
+	{
+		if (stmt->lock_CC_for_rb > 0)
+		{
+			LEAVE_CONN_CS(conn);
+			stmt->lock_CC_for_rb--;
+		}
 		SC_start_stmt(stmt);
+	}
 	return ret;
 }
 

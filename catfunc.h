@@ -11,6 +11,16 @@
 
 #include "psqlodbc.h"
 
+/*	SQLTables field position	*/
+enum {
+	TABLES_CATALOG_NAME	=	0
+	,TABLES_SCHEMA_NAME
+	,TABLES_TABLE_NAME
+	,TABLES_TABLE_TYPE
+	,TABLES_REMARKS
+	,NUM_OF_TABLES_FIELDS
+};
+
 /*	SQLColumns field position	*/
 enum {
 	COLUMNS_CATALOG_NAME	=	0
@@ -39,6 +49,16 @@ enum {
 	,COLUMNS_PHYSICAL_NUMBER
 	,COLUMNS_TABLE_OID
 	,NUM_OF_COLUMNS_FIELDS
+};
+/*	SQLPrimaryKeys field position	*/
+enum {
+	PKS_TABLE_CAT	=	0
+	,PKS_TABLE_SCHEM
+	,PKS_TABLE_NAME
+	,PKS_COLUMN_NAME
+	,PKS_KEY_SQ
+	,PKS_PK_NAME
+	,NUM_OF_PKS_FIELDS
 };
 /*	SQLForeignKeys field position	*/
 enum {
@@ -109,5 +129,31 @@ enum {
 	,STATS_PAGES
 	,STATS_FILTER_CONDITION
 	,NUM_OF_STATS_FIELDS
+};
+
+/*	SQLProcedureColumns field position	*/
+enum {
+        PROCOLS_PROCEDURE_CAT	= 0
+        ,PROCOLS_PROCEDURE_SCHEM
+        ,PROCOLS_PROCEDURE_NAME
+        ,PROCOLS_COLUMN_NAME
+        ,PROCOLS_COLUMN_TYPE
+        ,PROCOLS_DATA_TYPE
+        ,PROCOLS_TYPE_NAME
+        ,PROCOLS_COLUMN_SIZE
+        ,PROCOLS_BUFFER_LENGTH
+        ,PROCOLS_DECIMAL_DIGITS
+        ,PROCOLS_NUM_PREC_RADIX
+        ,PROCOLS_NULLABLE
+        ,PROCOLS_REMARKS
+#if (ODBCVER >= 0x0300)
+        ,PROCOLS_COLUMN_DEF
+        ,PROCOLS_SQL_DATA_TYPE
+        ,PROCOLS_SQL_DATETIME_SUB
+        ,PROCOLS_CHAR_OCTET_LENGTH
+        ,PROCOLS_ORDINAL_POSITION
+        ,PROCOLS_IS_NULLABLE
+#endif /* ODBCVER */
+	,NUM_OF_PROCOLS_FIELDS
 };
 #endif /* __CARFUNC_H__ */

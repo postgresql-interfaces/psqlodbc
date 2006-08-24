@@ -3678,7 +3678,8 @@ SC_pos_update(StatementClass *stmt,
 	RETCODE		ret;
 	UInt4	oid, offset, blocknum;
 	UInt2	pgoffset;
-	Int4	kres_ridx, *used, bind_size = opts->bind_size;
+	SQLLEN	*used;
+	Int4	kres_ridx, bind_size = opts->bind_size;
 
 	s.stmt = stmt;
 	s.irow = irow;
@@ -3726,11 +3727,11 @@ SC_pos_update(StatementClass *stmt,
 	{
 		if (used = bindings[i].used, used != NULL)
 		{
-			used += (offset >> 2);
+			used = LENADDR_SHIFT(used, offset);
 			if (bind_size > 0)
-				used += (bind_size * s.irow / 4);
+				used = LENADDR_SHIFT(used, bind_size * s.irow);
 			else	
-				used += s.irow; 
+				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN)); 
 			mylog("%d used=%d,%x\n", i, *used, used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
@@ -3780,11 +3781,11 @@ SC_pos_update(StatementClass *stmt,
 		{
 			if (used = bindings[i].used, used != NULL)
 			{
-				used += (offset >> 2);
+				used = LENADDR_SHIFT(used, offset);
 				if (bind_size > 0)
-					used += (bind_size * s.irow / 4);
+					used = LENADDR_SHIFT(used, bind_size * s.irow);
 				else
-					used += s.irow;
+					used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN));
 				mylog("%d used=%d\n", i, *used);
 				if (*used != SQL_IGNORE && fi[i]->updatable)
 				{
@@ -4010,8 +4011,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, Int4 addpo
                          		bookmark->returntype,
 					bookmark->buffer + offset,
 					bookmark->buflen,
-					bookmark->used ? bookmark->used
-					+ (offset >> 2) : NULL);
+					bookmark->used ? LENADDR_SHIFT(bookmark->used, offset) : NULL);
 			}
 		}
 		else
@@ -4112,7 +4112,8 @@ SC_pos_add(StatementClass *stmt,
 	char		addstr[4096];
 	RETCODE		ret;
 	UInt4		offset;
-	Int4		*used, bind_size = opts->bind_size;
+	SQLLEN		*used;
+	Int4		bind_size = opts->bind_size;
 	Int4		fieldtype;
 	int		func_cs_count = 0;
 
@@ -4158,11 +4159,11 @@ SC_pos_add(StatementClass *stmt,
 	{
 		if (used = bindings[i].used, used != NULL)
 		{
-			used += (offset >> 2);
+			used = LENADDR_SHIFT(used, offset);
 			if (bind_size > 0)
-				used += (bind_size * s.irow / 4);
+				used = LENADDR_SHIFT(used, bind_size * s.irow);
 			else
-				used += s.irow;
+				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN));
 			mylog("%d used=%d\n", i, *used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{

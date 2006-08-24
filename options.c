@@ -540,7 +540,7 @@ PGAPI_GetConnectOption(
 			break;
 
 		case SQL_QUIET_MODE:	/* NOT SUPPORTED */
-			*((UDWORD *) pvParam) = (UDWORD) NULL;
+			*((SQLULEN *) pvParam) = (SQLULEN) NULL;
 			break;
 
 		case SQL_TXN_ISOLATION:

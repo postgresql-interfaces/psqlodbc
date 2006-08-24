@@ -13,6 +13,7 @@
 #include <errno.h>
 
 #ifndef WIN32
+#define	WSAAPI
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -78,17 +79,8 @@ struct addrinfo
 	struct sockaddr *ai_addr;
 	struct addrinfo *ai_next;
 };
-typedef void (WSAAPI *freeaddrinfo_func) (struct addrinfo*); 
-typedef int (WSAAPI *getaddrinfo_func) (const char*, const char*, 
-										const struct addrinfo*, 
-										struct addrinfo**); 
-typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr*,
-										socklen_t, char*, DWORD,
-										char*, DWORD, int);
-#endif
+#endif /* _MSC_VER */
 
-#include <libpq-fe.h>
-#include <openssl/ssl.h>
 #define SOCKETFD SOCKET
 #define SOCK_ERRNO		(WSAGetLastError())
 #define SOCK_ERRNO_SET(e)	WSASetLastError(e)
@@ -102,6 +94,11 @@ typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr*,
 #define	EINPROGRESS	WSAEINPROGRESS
 #endif /* EINPROGRESS */
 #endif /* WIN32 */
+typedef void (WSAAPI *freeaddrinfo_func) (struct addrinfo *); 
+typedef int (WSAAPI *getaddrinfo_func) (const char *, const char *,
+	const struct addrinfo *, struct addrinfo **); 
+typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *,
+	socklen_t, char *, DWORD, char *, DWORD, int);
 
 #define SOCKET_ALREADY_CONNECTED		1
 #define SOCKET_HOST_NOT_FOUND			2

@@ -383,18 +383,18 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, Int4 field_type, void *val
 {
 	ARDFields *opts = SC_get_ARDF(stmt);
 	BindInfoClass *bic = &(opts->bindings[col]);
-	UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
+	SQLULEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
 	SC_set_current_col(stmt, -1);
 	return copy_and_convert_field(stmt, field_type, value, (Int2) bic->returntype, (PTR) (bic->buffer + offset),
-							 (SDWORD) bic->buflen, (SDWORD *) (bic->used + (offset >> 2)));
+				bic->buflen, LENADDR_SHIFT(bic->used, offset));
 }
 
 
 /*	This is called by SQLGetData() */
 int
 copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 fCType,
-					   PTR rgbValue, SDWORD cbValueMax, SDWORD *pcbValue)
+			PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue)
 {
 	CSTR func = "copy_and_convert_field";
 	ARDFields	*opts = SC_get_ARDF(stmt);
@@ -466,7 +466,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 		pcbValueOffset = rgbValueOffset = (bind_size * bind_row);
 	else
 	{
-		pcbValueOffset = bind_row * sizeof(SDWORD);
+		pcbValueOffset = bind_row * sizeof(SQLLEN);
 		rgbValueOffset = bind_row * cbValueMax;
 	}
 	/*
@@ -499,7 +499,7 @@ copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 
 		 */
 		if (pcbValue)
 		{
-			*((SDWORD *) pcbValueBindRow) = SQL_NULL_DATA;
+			*((SQLLEN *) pcbValueBindRow) = SQL_NULL_DATA;
 			return COPY_OK;
 		}
 		else
@@ -675,7 +675,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 				/* There is no corresponding fCType for this. */
 				if (pcbValue)
-					*((SDWORD *) pcbValueBindRow) = len;
+					*((SQLLEN *) pcbValueBindRow) = len;
 
 				return COPY_OK; /* dont go any further or the data will be
 								 * trashed */
@@ -687,14 +687,14 @@ inolog("2stime fr=%d\n", std_time.fr);
 			 */
 		case PG_TYPE_LO_UNDEFINED:
 
-			return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SDWORD *) pcbValueBindRow);
+			return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SQLLEN *) pcbValueBindRow);
 
 		default:
 
 			if (field_type == stmt->hdbc->lobj_type	/* hack until permanent type available */
 			   || (PG_TYPE_OID == field_type && SQL_C_BINARY == fCType && conn->lo_is_domain)
 			   )
-				return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SDWORD *) pcbValueBindRow);
+				return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SQLLEN *) pcbValueBindRow);
 	}
 
 	/* Change default into something useable */
@@ -1028,7 +1028,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		{
 			char *str = strdup(rgbValueBindRow);
 			UInt4	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
-			if (cbValueMax < (SDWORD) (WCLEN * ucount))
+			if (cbValueMax < (SQLLEN) (WCLEN * ucount))
 				result = COPY_RESULT_TRUNCATED;
 			len = ucount * WCLEN;
 			free(str); 
@@ -1294,9 +1294,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_ULONG:
 				len = 4;
 				if (bind_size > 0)
-					*((UDWORD *) rgbValueBindRow) = ATOI32U(neut_str);
+					*((SQLUINTEGER *) rgbValueBindRow) = ATOI32U(neut_str);
 				else
-					*((UDWORD *) rgbValue + bind_row) = ATOI32U(neut_str);
+					*((SQLUINTEGER *) rgbValue + bind_row) = ATOI32U(neut_str);
 				break;
 
 #if (ODBCVER >= 0x0300) && defined(ODBCINT64)
@@ -1331,7 +1331,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (neut_str)
 						len = strlen(neut_str);
 					if (pcbValue)
-						*((SDWORD *) pcbValueBindRow) = len;
+						*((SQLLEN *) pcbValueBindRow) = len;
 					if (len > 0 && cbValueMax > 0)
 					{
 						memcpy(rgbValueBindRow, neut_str, len < cbValueMax ? len : cbValueMax);
@@ -1350,7 +1350,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					if (pcbValue)
-						*((SDWORD *) pcbValueBindRow) = sizeof(ival);
+						*((SQLLEN *) pcbValueBindRow) = sizeof(ival);
 					if (cbValueMax >= sizeof(ival))
 					{
 						memcpy(rgbValueBindRow, &ival, sizeof(ival));
@@ -1449,7 +1449,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 
 	/* store the length of what was copied, if there's a place for it */
 	if (pcbValue)
-		*((SDWORD *) pcbValueBindRow) = len;
+		*((SQLLEN *) pcbValueBindRow) = len;
 
 	if (result == COPY_OK && stmt->current_col >= 0)
 		gdata->gdata[stmt->current_col].data_left = 0;
@@ -1730,7 +1730,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb);
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb);
 static int
-ResolveOneParam(QueryBuild *qb);
+ResolveOneParam(QueryBuild *qb, QueryParse *qp);
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
 	UInt4 *output_count, Int4 param_pos[][2]);
@@ -2714,7 +2714,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * Its a '?' parameter alright
 	 */
-	if (retval = ResolveOneParam(qb), retval < 0)
+	if (retval = ResolveOneParam(qb, qp), retval < 0)
 		return retval;
 
 	if (SQL_SUCCESS_WITH_INFO == retval) /* means discarding output parameter */
@@ -2808,7 +2808,7 @@ inolog("%dth paramater type oid is %u\n", i, parameters[i].PGType);
         qb.npos = leng;
         for (i = 0; i < stmt->num_params; i++)
 	{
-                retval = ResolveOneParam(&qb);
+                retval = ResolveOneParam(&qb, NULL);
 		if (SQL_ERROR == retval)
 		{
 			QB_replace_SC_error(stmt, &qb, func);
@@ -2990,7 +2990,7 @@ inolog(" convval(2) len=%d %s\n", newlen, chrform);
  *
  */
 static int
-ResolveOneParam(QueryBuild *qb)
+ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 {
 	CSTR func = "ResolveOneParam";
 
@@ -3011,7 +3011,7 @@ ResolveOneParam(QueryBuild *qb)
 #ifdef	HAVE_LOCALTIME_R
 	struct tm	tm;
 #endif /* HAVE_LOCALTIME_R */
-	SDWORD		used;
+	SQLLEN		used;
 	char		*buffer, *buf, *allocbuf, *lastadd = NULL;
 	Oid		lobj_oid;
 	int		lobj_fd, retval;
@@ -3087,10 +3087,22 @@ inolog("ipara=%x paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		if (outputDiscard)
 		{
 			for (npos = qb->npos - 1; npos >= 0 && isspace(qb->query_statement[npos]) ; npos--) ;
-			if (npos >= 0 && qb->query_statement[npos] == ',')
+			if (npos >= 0)
 			{
-				qb->npos = npos;
-				qb->query_statement[npos] = '\0';
+				switch (qb->query_statement[npos])
+				{
+					case ',':
+						qb->npos = npos;
+						qb->query_statement[npos] = '\0';
+						break;
+					case '(':
+						if (!qp)
+							break;
+						for (npos = qp->opos + 1; isspace(qp->statement[npos]); npos++) ;
+						if (qp->statement[npos] == ',')
+							qp->opos = npos;
+						break;
+				}
 			}
 			return SQL_SUCCESS_WITH_INFO;
 		}
@@ -3151,12 +3163,12 @@ inolog("ipara=%x paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		if (apara->used)
 		{
-			UInt4	p_offset = offset;
+			SQLULEN	p_offset = offset;
 			if (bind_size > 0)
 				p_offset = offset + bind_size * current_row;
 			else
-				p_offset = offset + sizeof(SDWORD) * current_row;
-			used = *(SDWORD *)((char *)apara->used + p_offset);
+				p_offset = offset + sizeof(SQLLEN) * current_row;
+			used = *(SQLLEN *)((char *)apara->used + p_offset);
 		}
 		else
 			used = SQL_NTS;
@@ -3281,7 +3293,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 		case SQL_C_SLONG:
 		case SQL_C_LONG:
 			sprintf(param_string, "%d",
-					*((SDWORD *) buffer));
+					*((SQLINTEGER *) buffer));
 			break;
 
 #if (ODBCVER >= 0x0300) && defined(ODBCINT64)
@@ -3847,7 +3859,9 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			return SQL_SUCCESS;
 		}
 		qp->opos += lit_call_len;
-		if (qb->num_io_params > 1)
+		if (qb->num_io_params > 1 ||
+		    (0 == qb->proc_return &&
+		     PG_VERSION_GE(qb->conn, 7.3)))
 			CVT_APPEND_STR(qb, "SELECT * FROM");
 		else
 			CVT_APPEND_STR(qb, "SELECT");
@@ -4612,7 +4626,7 @@ pg_hex2bin(const UCHAR *src, UCHAR *dst, int length)
  */
 int
 convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
-		   SDWORD cbValueMax, SDWORD *pcbValue)
+		   SQLLEN cbValueMax, SQLLEN *pcbValue)
 {
 	CSTR	func = "convert_lo";
 	Oid			oid;

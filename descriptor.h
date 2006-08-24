@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.16 2006/07/18 21:20:45 hinoue Exp $
+ * $Id: descriptor.h,v 1.17 2006/08/24 15:03:55 hinoue Exp $
  *
  */
 
@@ -163,7 +163,7 @@ struct ARDFields_
 	int		bind_size;	/* size of each structure if using
 					 * Row-wise Binding */
 	UInt2		*row_operation_ptr;
-	UInt4		*row_offset_ptr;
+	SQLULEN		*row_offset_ptr;
 	BindInfoClass	*bookmark;
 	BindInfoClass	*bindings;
 	int		allocated;
@@ -179,7 +179,7 @@ struct APDFields_
 	int		param_bind_type; /* size of each structure if using
 					  * Row-wise Parameter Binding */
 	UInt2		*param_operation_ptr;
-	UInt4		*param_offset_ptr;
+	SQLULEN		*param_offset_ptr;
 	ParameterInfoClass	*bookmark; /* dummy item to fit APD to ARD */
 	ParameterInfoClass	*parameters;
 	int		allocated;

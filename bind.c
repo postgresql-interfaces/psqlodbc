@@ -117,7 +117,7 @@ PGAPI_BindParameter(
 	}
 
 	if (pcbValue && apdopts->param_offset_ptr)
-		pcbValue += (*apdopts->param_offset_ptr >> 2);
+		pcbValue = LENADDR_SHIFT(pcbValue, *apdopts->param_offset_ptr);
 #ifdef	NOT_USED /* evaluation of pcbValue here is dangerous */
 	/* Data at exec macro only valid for C char/binary data */
 	if (pcbValue && (*pcbValue == SQL_DATA_AT_EXEC ||

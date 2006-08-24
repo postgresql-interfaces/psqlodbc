@@ -1473,7 +1473,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_APDF(stmt)->param_offset_ptr;
+			*((SQLULEN **) Value) = (SQLULEN *) SC_get_APDF(stmt)->param_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
@@ -1497,7 +1497,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_ARDF(stmt)->row_offset_ptr;
+			*((SQLULEN **) Value) = (SQLULEN *) SC_get_ARDF(stmt)->row_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
@@ -1509,11 +1509,11 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_IRDF(stmt)->rowsFetched;
+			*((SQLULEN **) Value) = (SQLULEN *) SC_get_IRDF(stmt)->rowsFetched;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			*((SQLUINTEGER *) Value) = SC_get_ARDF(stmt)->size_of_rowset;
+			*((SQLULEN *) Value) = SC_get_ARDF(stmt)->size_of_rowset;
 			len = 4;
 			break;
 		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
@@ -1781,7 +1781,7 @@ inolog("set ard=%x\n", stmt->ard);
 			stmt->options.bookmark_ptr = Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			SC_get_APDF(stmt)->param_offset_ptr = (UInt4 *) Value;
+			SC_get_APDF(stmt)->param_offset_ptr = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
 			SC_get_APDF(stmt)->param_bind_type = (SQLUINTEGER) Value;
@@ -1799,7 +1799,7 @@ inolog("set ard=%x\n", stmt->ard);
 			SC_get_APDF(stmt)->paramset_size = (SQLUINTEGER) Value;
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			SC_get_ARDF(stmt)->row_offset_ptr = (UInt4 *) Value;
+			SC_get_ARDF(stmt)->row_offset_ptr = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
 			SC_get_ARDF(stmt)->row_operation_ptr = Value;
@@ -1808,10 +1808,10 @@ inolog("set ard=%x\n", stmt->ard);
 			SC_get_IRDF(stmt)->rowStatusArray = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			SC_get_IRDF(stmt)->rowsFetched = (UInt4 *) Value;
+			SC_get_IRDF(stmt)->rowsFetched = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			SC_get_ARDF(stmt)->size_of_rowset = (SQLUINTEGER) Value;
+			SC_get_ARDF(stmt)->size_of_rowset = (SQLULEN) Value;
 			break;
 		default:
 			return PGAPI_SetStmtOption(StatementHandle, (UWORD) Attribute, (UDWORD) Value);

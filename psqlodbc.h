@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.103 2006/07/18 21:20:46 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.104 2006/08/24 15:03:56 hinoue Exp $
  *
  */
 
@@ -76,7 +76,7 @@
 #include "gpps.h"
 #endif
 
-#include <libpq-fe.h>
+/* #include <libpq-fe.h> */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -102,6 +102,7 @@ typedef double SDOUBLE;
 #define Int2 short
 #define UInt2 unsigned short
 #endif
+typedef	UInt4	Oid;
 
 #ifndef WIN32
 #define stricmp strcasecmp
@@ -365,6 +366,8 @@ void		logs_on_off(int cnopen, int, int);
 #define INFO_INQUIRY_LEN		8192	/* this seems sufficiently big for
 										 * queries used in info.c inoue
 										 * 2001/05/17 */
+
+#define	LENADDR_SHIFT(x, sft)	((SQLLEN *)((char *)(x) + (sft)))
 
 int	initialize_global_cs(void);
 #ifdef	POSIX_MULTITHREAD_SUPPORT

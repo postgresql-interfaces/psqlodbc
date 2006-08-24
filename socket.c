@@ -12,6 +12,8 @@
  *-------
  */
 
+#include <libpq-fe.h>
+#include <openssl/ssl.h>
 #include "socket.h"
 #include "loadlib.h"
 
@@ -22,7 +24,11 @@
 #include <string.h>				/* for memset */
 #if defined(TM_IN_SYS_TIME)
 #include <sys/time.h>
+#else
+#include <time.h>
 #endif /* defined(TM_IN_SYS_TIME) */
+#else
+#include <time.h>
 #endif /* WIN32 */
 
 extern GLOBAL_VALUES globals;
@@ -124,9 +130,11 @@ SOCK_Destructor(SocketClass *self)
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
 static freeaddrinfo_func freeaddrinfo_ptr = NULL;
 static getaddrinfo_func getaddrinfo_ptr = NULL;
-static getnameinfo_func getnameinfo_ptr = NULL;
 static	HMODULE ws2_hnd = NULL;
-#endif
+#else
+static freeaddrinfo_func freeaddrinfo_ptr = freeaddrinfo;
+static getaddrinfo_func getaddrinfo_ptr = getaddrinfo;
+#endif /* _MSC_VER */
 
 char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
@@ -147,8 +155,6 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		ws2_hnd = GetModuleHandle("ws2_32.dll");
 	if (freeaddrinfo_ptr == NULL)
 		freeaddrinfo_ptr = (freeaddrinfo_func)GetProcAddress(ws2_hnd, "freeaddrinfo"); 
-	if (getnameinfo_ptr == NULL)
-		getaddrinfo_ptr = (getaddrinfo_func)GetProcAddress(ws2_hnd, "getaddrinfo"); 
 #endif
 	/*
 	 * If it is a valid IP address, use it. Otherwise use hostname lookup.
@@ -164,20 +170,12 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		snprintf(portstr, sizeof(portstr), "%d", port);
 		if (inet_addr(hostname) != INADDR_NONE)
 			rest.ai_flags = AI_NUMERICHOST;	
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
 		ret = getaddrinfo_ptr(hostname, portstr, &rest, &addrs);
-#else
-		ret = getaddrinfo(hostname, portstr, &rest, &addrs);
-#endif
 		if (ret || !addrs)
 		{
 			SOCK_set_error(self, SOCKET_HOST_NOT_FOUND, "Could not resolve hostname.");
 			if (addrs)
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
 				freeaddrinfo_ptr(addrs);
-#else
-				freeaddrinfo(addrs);
-#endif
 			return 0;
 		}
 		curadr = addrs;
@@ -332,11 +330,7 @@ cleanup:
 			goto retry;
 		}
 		if (addrs)
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
 			freeaddrinfo_ptr(addrs);
-#else
-			freeaddrinfo(addrs);
-#endif
 	}
 	return retval;
 }
@@ -372,16 +366,18 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 /*
  *	The stuff for SSL.
  */
-/* #include <openssl/ssl.h>*/
+/* included in  <openssl/ssl.h>
 #define SSL_ERROR_NONE			0
 #define SSL_ERROR_SSL			1
 #define SSL_ERROR_WANT_READ		2
 #define SSL_ERROR_WANT_WRITE		3
 #define SSL_ERROR_WANT_X509_LOOKUP	4
-#define SSL_ERROR_SYSCALL		5 /* look at error stack/return value/errno */
+#define SSL_ERROR_SYSCALL		5 // look at error stack/return value/errno
 #define SSL_ERROR_ZERO_RETURN		6
 #define SSL_ERROR_WANT_CONNECT		7
 #define SSL_ERROR_WANT_ACCEPT		8
+*/
+
 /*
  *	recv more than 1 bytes using SSL.
  */

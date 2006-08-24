@@ -372,6 +372,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->exec_current_row = -1;
 		rv->put_data = FALSE;
 		rv->ref_CC_error = FALSE;
+		rv->lock_CC_for_rb = 0;
 
 		rv->lobj_fd = -1;
 		INIT_NAME(rv->cursor_name);
@@ -619,6 +620,16 @@ SC_set_prepared(StatementClass *stmt, BOOL prepared)
 RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
+	if (self->lock_CC_for_rb > 0)
+	{
+		ConnectionClass *conn = SC_get_conn(self);
+
+		while (self->lock_CC_for_rb > 0)
+		{
+			LEAVE_CONN_CS(conn);
+			self->lock_CC_for_rb--;
+		}
+	}
 	if (initializeOriginal)
 	{
 		if (self->statement)
@@ -1422,7 +1433,7 @@ inolog("%s: stmt=%x ommitted++\n", func, self);
 		SC_set_current_col(self, -1);
 		result = copy_and_convert_field(self, 0, buf,
 			 SQL_C_ULONG, bookmark->buffer + offset, 0,
-			bookmark->used ? bookmark->used + (offset >> 2) : NULL);
+			bookmark->used ? LENADDR_SHIFT(bookmark->used, offset) : NULL);
 	}
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
@@ -1848,7 +1859,7 @@ inolog("!!SC_fetch return =%d\n", ret);
 				    ipara->paramType == SQL_PARAM_INPUT_OUTPUT)
 				{
 					apara = apdopts->parameters + i;	
-					ret = PGAPI_GetData(hstmt, gidx + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? apara->used + (offset >> 2) : NULL);
+					ret = PGAPI_GetData(hstmt, gidx + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
 					if (ret != SQL_SUCCESS)
 					{
 						SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.", func);

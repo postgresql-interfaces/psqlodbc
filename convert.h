@@ -38,9 +38,9 @@ typedef struct
 	int			fr;
 } SIMPLE_TIME;
 
-int			copy_and_convert_field_bindinfo(StatementClass *stmt, Int4 field_type, void *value, int col);
+int		copy_and_convert_field_bindinfo(StatementClass *stmt, Int4 field_type, void *value, int col);
 int copy_and_convert_field(StatementClass *stmt, Int4 field_type, void *value, Int2 fCType,
-					   PTR rgbValue, SDWORD cbValueMax, SDWORD *pcbValue);
+			PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
 
 int		copy_statement_with_parameters(StatementClass *stmt, BOOL);
 BOOL		convert_money(const char *s, char *sout, size_t soutmax);
@@ -51,8 +51,8 @@ int		convert_special_chars(const char *si, char *dst, int used, UInt4 flags,int 
 int			convert_pgbinary_to_char(const char *value, char *rgbValue, int cbValueMax);
 int			convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, int cbValueMax);
 int		pg_hex2bin(const UCHAR *in, UCHAR *out, int len);
-int convert_lo(StatementClass *stmt, const void *value, Int2 fCType, PTR rgbValue,
-		   SDWORD cbValueMax, SDWORD *pcbValue);
+int convert_lo(StatementClass *stmt, const void *value, Int2 fCType,
+	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
 
 #ifdef	__cplusplus
 }

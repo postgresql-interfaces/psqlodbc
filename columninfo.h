@@ -16,7 +16,7 @@ struct ColumnInfoClass_
 	Int2		num_fields;
 	struct srvr_info
 	{
-		char	*name;		/* type name */
+		char	*name;		/* field name */
 		Oid	adtid;		/* type oid */
 		Int2	adtsize;	/* type size */
 		Int4	display_size;	/* the display size (longest row) */

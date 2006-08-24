@@ -216,21 +216,20 @@ struct StatementClass_
 	int		current_exec_param;		/* The current parameter for
 							 * SQLPutData */
 	PutDataInfo	pdata_info;
-	char		put_data;		/* Has SQLPutData been called yet? */
-						/* been created ? */
-	char		catalog_result;  /* Is this a result of catalog function ? */
-	char		prepare;	/* is this statement a prepared statement ? */
+	char		put_data;	/* Has SQLPutData been called ? */
+	char		catalog_result;	/* Is this a result of catalog function ? */
+	char		prepare;	/* is this a prepared statement ? */
 	char		prepared;	/* is this statement already
 					 * prepared at the server ? */
 	char		internal;	/* Is this statement being called
 							 * internally ? */
-
 	char		transition_status;	/* Transition status */
 	char		multi_statement; /* -1:unknown 0:single 1:multi */
-	char		rbonerr;	 /* rollback on error */
+	char		rbonerr;	/* rollback on error */
 	char		discard_output_params;	 /* discard output parameters on parse stage */
-	char		cancel_info;	 /* cancel information */
+	char		cancel_info;	/* cancel information */
 	char		ref_CC_error;	/* refer to CC_error ? */
+	char		lock_CC_for_rb;	/* lock CC for statement rollback ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 	Int2		num_params;
