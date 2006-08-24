@@ -17,6 +17,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
