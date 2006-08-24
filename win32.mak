@@ -93,7 +93,7 @@ NULL=nul
 !ENDIF
 
 !IF "$(ANSI_VERSION)" == "yes"
-MAINLIB = psqlodbc
+MAINLIB = psqlodbca
 !ELSE
 MAINLIB = psqlodbc35w
 !ENDIF
