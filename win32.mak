@@ -10,7 +10,11 @@
 # Comments:		Created by Dave Page, 2001-02-12
 #
 
-!MESSAGE Building the PostgreSQL Unicode 3.0 Driver for Win32...
+!IF "$(ANSI_VERSION)" == "yes"
+!MESSAGE Building the PostgreSQL ANSI 3.0 Driver for Win32...
+!ELSE
+!MESSAGE Building the PostgreSQL Unicode 3.5 Driver for Win32...
+!ENDIF
 !MESSAGE
 !IF "$(CFG)" == ""
 CFG=Release
