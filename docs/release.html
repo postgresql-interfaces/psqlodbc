@@ -10,6 +10,20 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0007</li><br>
+Changes:<br>
+1) Fix some SQLPrimaryKey, SQLForeignKey bugs.<br>
+   Fill PK_NAME or FK_NAME columns.<br>
+   Return right update_rule values.<br>
+   Remove duplicates.<br>
+2) Handle SQL_ALL_SCHEMAS parameter in SQLTables. <br>
+3) Handle unaligned indicator/length buffers more properly.<br>
+4) Fix a bug in ProcedureColumns in case of set returning functions.<br>
+5) Fix a buffer overrun in handle_notice_message (Bart Samuel)<br>
+6) Fix a output parameters problem (Bart Samuel)<br>
+7) Hold the connection lock while a rollbackable statement running.<br>
+8) Add Extra Opts option to the DSN option setupdialog.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0006</li><br>
 Changes:<br>
 1) Add an option to fake Microsoft SQL Server which would improve SERIAL type handling.<br>
