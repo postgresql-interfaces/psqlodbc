@@ -889,7 +889,7 @@ SC_pre_execute(StatementClass *self)
 		if (!SC_is_pre_executable(self))
 		{
 			SC_set_Result(self, QR_Constructor());
-			QR_set_rstatus(SC_get_Result(self), PGRES_TUPLES_OK);
+			QR_set_rstatus(SC_get_Result(self), PORES_TUPLES_OK);
 			self->inaccurate_result = TRUE;
 			self->status = STMT_PREMATURE;
 			num_fields = 0;
@@ -2165,7 +2165,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 					Int2	dummy1, dummy2;
 					int	cidx;
 
-					QR_set_rstatus(res, PGRES_FIELDS_OK);
+					QR_set_rstatus(res, PORES_FIELDS_OK);
 					res->num_fields = CI_get_num_fields(res->fields);
 					if (QR_haskeyset(res))
 						res->num_fields -= res->num_key_fields;
@@ -2192,7 +2192,7 @@ inolog("!![%d].PGType %u->%u\n", i, ipdopts->parameters[i].PGType, CI_get_oid(re
 				}
 				else
 				{
-					QR_set_rstatus(res, PGRES_BAD_RESPONSE);
+					QR_set_rstatus(res, PORES_BAD_RESPONSE);
 					QR_set_message(res, "Error reading field information");
 					rcvend = TRUE;
 				}

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.104 2006/08/24 15:03:56 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.105 2006/08/26 22:54:16 hinoue Exp $
  *
  */
 
@@ -64,7 +64,7 @@
 #include "iodbc.h"
 #include "isql.h"
 #include "isqlext.h"
-#endif
+#endif /* WIN32 */
 
 #if defined(WIN32)
 #include <odbcinst.h>
@@ -76,33 +76,29 @@
 #include "gpps.h"
 #endif
 
-/* #include <libpq-fe.h> */
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
-#ifndef WIN32
+
 #define Int4 int
 #define UInt4 unsigned int
 #define Int2 short
 #define UInt2 unsigned short
 
+#ifndef WIN32
 #if !defined(WITH_UNIXODBC) && !defined(WITH_IODBC)
 typedef float SFLOAT;
 typedef double SDOUBLE;
-#endif
+#endif /* WITH_UNIXODBC */
 
 #ifndef CALLBACK
 #define CALLBACK
-#endif
+#endif /* CALLBACK */
+#endif /* WIN32 */
 
-#else
-#define Int4 int
-#define UInt4 unsigned int
-#define Int2 short
-#define UInt2 unsigned short
-#endif
+#ifndef LIBPQ_FE_H
 typedef	UInt4	Oid;
+#endif /* LIBPQ_FE_H */
 
 #ifndef WIN32
 #define stricmp strcasecmp
@@ -119,7 +115,7 @@ typedef	UInt4	Oid;
 #define strnicmp _strnicmp
 #define stricmp _stricmp
 #define vsnprintf _vsnprintf
-#endif
+#endif /* WIN32 */
 
 #ifndef	SQL_ATTR_APP_ROW_DESC
 #define	SQL_ATTR_APP_ROW_DESC	10010

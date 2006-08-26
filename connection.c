@@ -23,6 +23,7 @@
 #include <errno.h>
 #endif /* WIN32 */
 
+#include <libpq-fe.h>
 #include "environ.h"
 #include "socket.h"
 #include "statement.h"
@@ -813,7 +814,7 @@ inolog("new_format=%d\n", new_format);
 		CC_on_abort(self, abort_opt);
 	if (res)
 	{
-		QR_set_rstatus(res, PGRES_FATAL_ERROR);
+		QR_set_rstatus(res, PORES_FATAL_ERROR);
 		QR_set_message(res, msgbuf);
 		QR_set_aborted(res, TRUE);
 	}
@@ -897,7 +898,7 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen, char *sql
 	if (res)
 	{
 		if (QR_command_successful(res))
-			QR_set_rstatus(res, PGRES_NONFATAL_ERROR);
+			QR_set_rstatus(res, PORES_NONFATAL_ERROR);
 		QR_set_notice(res, msgbuf);  /* will dup this string */
 	}
 
@@ -1517,7 +1518,7 @@ inolog("Ekita\n");
 
 		res = CC_send_query(self, " ", NULL, 0, NULL);
 		if (res == NULL ||
-		    (QR_get_rstatus(res) != PGRES_EMPTY_QUERY &&
+		    (QR_get_rstatus(res) != PORES_EMPTY_QUERY &&
 		     QR_command_nonfatal(res)))
 		{
 			CC_set_error(self, CONNECTION_NO_SUCH_DATABASE, "The database does not exist on the server\nor user authentication failed.", func);
@@ -2190,7 +2191,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					}
 
 					if (QR_command_successful(res))
-						QR_set_rstatus(res, PGRES_COMMAND_OK);
+						QR_set_rstatus(res, PORES_COMMAND_OK);
 					QR_set_command(res, cmdbuffer);
 					query_completed = TRUE;
 					mylog("send_query: returning res = %x\n", res);
@@ -2239,7 +2240,7 @@ inolog("Discarded the first SAVEPOINT\n");
 				{
 					CC_set_errornumber(self, CONNECTION_BACKEND_CRAZY);
 					QR_set_message(res, "Unexpected protocol character from backend (send_query - I)");
-					QR_set_rstatus(res, PGRES_FATAL_ERROR);
+					QR_set_rstatus(res, PORES_FATAL_ERROR);
 					ReadyToReturn = TRUE;
 					retres = cmdres;
 					break;
@@ -2247,7 +2248,7 @@ inolog("Discarded the first SAVEPOINT\n");
 				else
 				{
 					/* We return the empty query */
-					QR_set_rstatus(res, PGRES_EMPTY_QUERY);
+					QR_set_rstatus(res, PORES_EMPTY_QUERY);
 				}
 				if (empty_reqs > 0)
 				{
@@ -2305,7 +2306,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res), func);
 						ReadyToReturn = TRUE;
-						if (PGRES_FATAL_ERROR == QR_get_rstatus(res))
+						if (PORES_FATAL_ERROR == QR_get_rstatus(res))
 							retres = cmdres;
 						else
 							retres = NULL;
@@ -2336,7 +2337,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					res->next = QR_Constructor();
 					res = res->next;
 				}
-				QR_set_rstatus(res, PGRES_COPY_IN);
+				QR_set_rstatus(res, PORES_COPY_IN);
 				ReadyToReturn = TRUE;
 				retres = cmdres;
 				break;
@@ -2346,7 +2347,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					res->next = QR_Constructor();
 					res = res->next;
 				}
-				QR_set_rstatus(res, PGRES_COPY_OUT);
+				QR_set_rstatus(res, PORES_COPY_OUT);
 				ReadyToReturn = TRUE;
 				retres = cmdres;
 				break;

@@ -271,7 +271,7 @@ retry:
 		do {
 			FD_ZERO(&fds);
 			FD_SET(self->socket, &fds);
-			ret = select(1, NULL, &fds, NULL, timeout > 0 ? &tm : NULL);
+			ret = select(self->socket + 1, NULL, &fds, NULL, timeout > 0 ? &tm : NULL);
 			if (0 < ret)
 				break;
 			else if (0 == ret)
@@ -354,7 +354,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 			tm.tv_sec = retry_count;
 			tm.tv_usec = 0;
 		}
-		ret = select(1, output ? NULL : &fds, output ? &fds : NULL, NULL, sock->ssl ? &tm : NULL);
+		ret = select(sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, NULL, sock->ssl ? &tm : NULL);
 	} while (ret < 0 && EINTR == SOCK_ERRNO);
 	if (0 == ret && retry_count > MAX_RETRY_COUNT)
 	{

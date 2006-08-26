@@ -131,7 +131,7 @@ QR_Constructor()
 
 	if (rv != NULL)
 	{
-		rv->rstatus = PGRES_EMPTY_QUERY;
+		rv->rstatus = PORES_EMPTY_QUERY;
 		rv->pstatus = 0;
 
 		/* construct the column info */
@@ -521,7 +521,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		{
 			if (!cursor)
 			{
-				QR_set_rstatus(self, PGRES_INTERNAL_ERROR);
+				QR_set_rstatus(self, PORES_INTERNAL_ERROR);
 				QR_set_message(self, "Internal Error -- no cursor for fetch");
 				return FALSE;
 			}
@@ -535,14 +535,14 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		 */
 		if (CI_read_fields(self->fields, QR_get_conn(self)))
 		{
-			QR_set_rstatus(self, PGRES_FIELDS_OK);
+			QR_set_rstatus(self, PORES_FIELDS_OK);
 			self->num_fields = CI_get_num_fields(self->fields);
 			if (QR_haskeyset(self))
 				self->num_fields -= self->num_key_fields;
 		}
 		else
 		{
-			QR_set_rstatus(self, PGRES_BAD_RESPONSE);
+			QR_set_rstatus(self, PORES_BAD_RESPONSE);
 			QR_set_message(self, "Error reading field information");
 			return FALSE;
 		}
@@ -570,7 +570,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		{
 			if (self->keyset = (KeySet *) calloc(sizeof(KeySet), tuple_size), !self->keyset)
 			{
-				QR_set_rstatus(self, PGRES_FATAL_ERROR);
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
 				QR_set_message(self, "Could not get memory for tuple cache.");
 				return FALSE;
 			}
@@ -596,7 +596,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 
 		if (!CI_read_fields(NULL, QR_get_conn(self)))
 		{
-			QR_set_rstatus(self, PGRES_BAD_RESPONSE);
+			QR_set_rstatus(self, PORES_BAD_RESPONSE);
 			QR_set_message(self, "Error reading field information");
 			return FALSE;
 		}
@@ -649,7 +649,7 @@ QR_close(QResultClass *self)
 
 			if (!CC_commit(conn))
 			{
-				QR_set_rstatus(self, PGRES_FATAL_ERROR);
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
 				QR_set_message(self, "Error ending transaction.");
 				ret = FALSE;
 			}
@@ -699,7 +699,7 @@ inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
 
 	if (!QR_read_a_tuple_from_db(self, (char) binary))
 	{
-		QR_set_rstatus(self, PGRES_BAD_RESPONSE);
+		QR_set_rstatus(self, PORES_BAD_RESPONSE);
 		QR_set_message(self, "Error reading the tuple");
 		return FALSE;
 	}
@@ -1071,7 +1071,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 			res = CC_send_query(conn, fetch, &qi, 0, stmt);
 			if (!QR_command_maybe_successful(res))
 			{
-				QR_set_rstatus(self, PGRES_FATAL_ERROR);
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
 				QR_set_message(self, "Error fetching next group.");
 				return FALSE;
 			}
@@ -1231,7 +1231,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				mylog("%s: Unexpected result from backend: id = '%c' (%d)\n", func, id, id);
 				qlog("%s: Unexpected result from backend: id = '%c' (%d)\n", func, id, id);
 				QR_set_message(self, "Unexpected result from backend. It probably crashed");
-				QR_set_rstatus(self, PGRES_FATAL_ERROR);
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
 				CC_on_abort(conn, CONN_DEAD);
 				ret = FALSE;
 				rcvend = TRUE;

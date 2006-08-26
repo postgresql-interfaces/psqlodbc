@@ -10,7 +10,9 @@
 #include "psqlodbc.h"
 #include <stdio.h>
 #include <string.h>
+#ifdef	WIN32
 #include <malloc.h>
+#endif /* WIN32 */
 
 #define	byte3check	0xfffff800
 #define	byte2_base	0x80c0

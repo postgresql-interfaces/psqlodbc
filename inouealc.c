@@ -14,7 +14,9 @@
 #undef	memset
 */
 #include	"misc.h"
+#ifdef	WIN32
 #include	<malloc.h>
+#endif /* WIN32 */
 #ifdef	_DEBUG
 #include	<stdlib.h>
 #define	_CRTDBG_MAP_ALLOC

@@ -16,15 +16,30 @@
 #include "columninfo.h"
 #include "tuple.h"
 
-#include	<libpq-fe.h>
-
 #ifdef	__cplusplus
 extern	"C" {
 #endif
 
-typedef ExecStatusType QueryResultCode;
-#define	PGRES_FIELDS_OK		100
-#define	PGRES_INTERNAL_ERROR	(PGRES_FIELDS_OK + 1)
+typedef
+enum	QueryResultCode_
+{
+	PORES_EMPTY_QUERY = 0,
+	PORES_COMMAND_OK,	/* a query command that doesn't return
+				 * anything was executed properly by the backend */
+	PORES_TUPLES_OK,	/* a query command that returns tuples
+				 * was executed properly by the backend, PGresult
+				 * contains the resulttuples */
+	PORES_COPY_OUT,
+	PORES_COPY_IN,
+	PORES_BAD_RESPONSE,	/* an unexpected response was recv'd from
+				 * the backend */
+	PORES_NONFATAL_ERROR,
+	PORES_FATAL_ERROR,
+	PORES_FIELDS_OK = 100,	/* field information from a query was
+				 * successful */
+	/* PORES_END_TUPLES, */
+	PORES_INTERNAL_ERROR
+} QueryResultCode;
 
 enum
 {
@@ -132,9 +147,9 @@ enum {
 #define QR_set_field_info_v(self, field_num, name, adtid, adtsize)  (CI_set_field_info(self->fields, field_num, name, adtid, adtsize, -1, 0, 0))
 
 /* status macros */
-#define QR_command_successful(self)	(self && !(self->rstatus == PGRES_BAD_RESPONSE || self->rstatus == PGRES_NONFATAL_ERROR || self->rstatus == PGRES_FATAL_ERROR))
-#define QR_command_maybe_successful(self) (self && !(self->rstatus == PGRES_BAD_RESPONSE || self->rstatus == PGRES_FATAL_ERROR))
-#define QR_command_nonfatal(self)	( self->rstatus == PGRES_NONFATAL_ERROR)
+#define QR_command_successful(self)	(self && !(self->rstatus == PORES_BAD_RESPONSE || self->rstatus == PORES_NONFATAL_ERROR || self->rstatus == PORES_FATAL_ERROR))
+#define QR_command_maybe_successful(self) (self && !(self->rstatus == PORES_BAD_RESPONSE || self->rstatus == PORES_FATAL_ERROR))
+#define QR_command_nonfatal(self)	( self->rstatus == PORES_NONFATAL_ERROR)
 #define QR_set_conn(self, conn_)			( self->conn = conn_ )
 #define QR_set_rstatus(self, condition)		( self->rstatus = condition )
 #define QR_set_sqlstatus(self, status)		strcpy(self->sqlstatus, status)
@@ -224,7 +239,7 @@ Int4		getNthValid(const QResultClass *self, Int4 sta, UWORD orientation, UInt4 n
 do { \
  	if (t = (tp *) malloc(s), NULL == t) \
 	{ \
- 		QR_set_rstatus(a, PGRES_FATAL_ERROR); \
+ 		QR_set_rstatus(a, PORES_FATAL_ERROR); \
  		QR_set_message(a, m); \
  		return r; \
 	} \
@@ -233,7 +248,7 @@ do { \
 do { \
 	if (t = (tp *) realloc(t, s), NULL == t) \
 	{ \
- 		QR_set_rstatus(a, PGRES_FATAL_ERROR); \
+ 		QR_set_rstatus(a, PORES_FATAL_ERROR); \
  		QR_set_message(a, m); \
 		return r; \
 	} \

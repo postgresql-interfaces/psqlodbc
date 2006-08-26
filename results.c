@@ -3527,7 +3527,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 						res->num_fields * sizeof(TupleField) * tuple_size);
 					if (!res->backend_tuples)
 					{
-						SC_set_error(stmt, QR_set_rstatus(res, PGRES_FATAL_ERROR), "Out of memory while reading tuples.", func);
+						SC_set_error(stmt, QR_set_rstatus(res, PORES_FATAL_ERROR), "Out of memory while reading tuples.", func);
 						QR_Destructor(qres);
 						return SQL_ERROR;
 					}
