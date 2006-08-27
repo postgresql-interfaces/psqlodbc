@@ -14,6 +14,7 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
+#include <libpq-fe.h>
 #include "connection.h"
 
 #include <stdio.h>
@@ -23,7 +24,6 @@
 #include <errno.h>
 #endif /* WIN32 */
 
-#include <libpq-fe.h>
 #include "environ.h"
 #include "socket.h"
 #include "statement.h"

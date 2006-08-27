@@ -14,8 +14,8 @@
 #ifndef	WIN32
 #include <errno.h>
 #endif /* WIN32 */
-#include "loadlib.h"
 #include <libpq-fe.h>
+#include "loadlib.h"
 
 #ifdef  WIN32
 #ifdef  _MSC_VER
