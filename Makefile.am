@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.35 2006/04/12 12:09:24 petere Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.36 2006/08/29 13:12:58 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -30,16 +30,19 @@ psqlodbc_la_SOURCES = \
 
 if enable_unicode
 psqlodbc_la_SOURCES += \
-odbcapiw.c odbcapi30w.c win_unicode.c
+odbcapiw.c odbcapi25w.c odbcapi30w.c win_unicode.c
 endif
 
 EXTRA_psqlodbc_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt \
-	libtool.m4 psqlodbc.def win32.mak \
-	dlg_wingui.c win_setup.h setup.c \
-	win_unicode.c psqlodbc.rc psqlodbc.reg \
-	psqlodbc.dsp \
+	libtool.m4 psqlodbc.def psqlodbca.def \
+	dlg_wingui.c inouealc.c win_setup.h \
+        setup.c win_unicode.c psqlodbc.rc \
+        win32.mak psqlodbc.reg psqlodbc.dsp \
+        psqlodbc.sln msdtc_enlist.cpp pgxalib.cpp \
+        pgxalib.def odbc.sql odbc-drop.sql \
+ \
 	docs/index.html docs/config.html \
 	docs/faq.html docs/howto-accesslo.html \
 	docs/howto-accessvba.html docs/howto-bo.html \
@@ -47,6 +50,7 @@ EXTRA_DIST = license.txt readme.txt \
 	docs/howto-vb.html docs/howto-vblo.html \
 	docs/unix-compilation.html docs/win32-compilation.html \
 	docs/release.html \
+
 	installer/banner.bmp installer/lgpl.rtf \
 	installer/new.bmp installer/up.bmp \
 	installer/Make.bat installer/upgrade.bat \
