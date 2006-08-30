@@ -13,6 +13,11 @@
  *--------
  */
 
+#ifdef	WIN32
+#ifdef	_DEBUG
+#include <crtdbg.h>
+#endif /* _DEBUG */
+#endif /* WIN32 */
 #include "psqlodbc.h"
 #include "dlg_specific.h"
 #include "environ.h"
@@ -64,11 +69,13 @@ int	initialize_global_cs(void)
 	if (!init)
 		return 0;
 	init = 0;
+#ifdef	WIN32
 #ifdef	_DEBUG
 #ifdef	_MEMORY_DEBUG_
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF|_CRTDBG_LEAK_CHECK_DF);
 #endif /* _MEMORY_DEBUG_ */
 #endif /* _DEBUG */
+#endif /* WIN32 */
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 	getMutexAttr();
 #endif /* POSIX_THREADMUTEX_SUPPORT */

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.105 2006/08/26 22:54:16 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.106 2006/08/30 12:18:30 hinoue Exp $
  *
  */
 
@@ -27,12 +27,16 @@
 #endif
 #include "version.h"
 
+#ifdef	WIN32
 #ifdef	_DEBUG
-#ifdef	_MEMORY_DEBUG_
+#ifndef	_MEMORY_DEBUG_
+#include <stdlib.h>
+#include <malloc.h>
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif /* _MEMORY_DEBUG_ */
 #endif /* _DEBUG */
+#endif /* WIN32 */
 
 #ifdef	WIN32
 #include <delayimp.h>

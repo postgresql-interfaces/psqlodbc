@@ -82,6 +82,7 @@ ADD_DEFINES = $(ADD_DEFINES) /D "_MEMORY_DEBUG_" /GS
 ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL ANSI\"" /D "ODBCVER=0x0300"
 !ELSE
 ADD_DEFINES = $(ADD_DEFINES) /D "UNICODE_SUPPORT" /D "ODBCVER=0x0351"
+RSC_DEFINES = $(RSC_DEFINES) /D "UNICODE_SUPPORT"
 !ENDIF
 !IF "$(PORTCHECK_64BIT)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /Wp64
@@ -412,12 +413,12 @@ SOURCE=psqlodbc.rc
 
 !IF "$(CFG)" == "Release"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" /d "MULTIBYTE" $(SOURCE)
+	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "NDEBUG" /d "MULTIBYTE" $(RSC_DEFINES) $(SOURCE)
 !ENDIF
 
 !IF "$(CFG)" == "Debug"
 "$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" $(SOURCE)
+	$(RSC) /l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "_DEBUG" $(RSC_DEFINES) $(SOURCE)
 !ENDIF
 
 

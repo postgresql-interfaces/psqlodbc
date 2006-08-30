@@ -13,17 +13,18 @@
 #undef	strncpy_null
 #undef	memset
 */
-#include	"misc.h"
 #ifdef	WIN32
-#include	<malloc.h>
-#endif /* WIN32 */
 #ifdef	_DEBUG
-#include	<stdlib.h>
+/* #include	<stdlib.h> */
 #define	_CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
+#else
+#include	<malloc.h>
 #endif /* _DEBUG */
+#endif /* WIN32 */
 #include	<string.h>
 
+#include	"misc.h"
 typedef struct {
 	size_t	len;
 	void	*aladr;
