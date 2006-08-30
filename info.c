@@ -218,7 +218,7 @@ mylog("CONVERT_FUNCTIONS=%x\n", value);
 			 *
 			 * p = CC_get_database(conn);
 			 */
-			p = NULL_CATALOG_NAME;
+			p = CurrCatString(conn);
 			break;
 
 		case SQL_DBMS_NAME:		/* ODBC 1.0 */

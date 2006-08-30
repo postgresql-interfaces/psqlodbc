@@ -1355,13 +1355,13 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 				beresp = 'R';
 			else
 			{
-				beresp = SOCK_get_char(sock);
+				beresp = SOCK_get_id(sock);
 				mylog("auth got '%c'\n", beresp);
 				if (PROTOCOL_74(ci))
 				{
 					if (beresp != 'E' || startPacketReceived)
 					{
-						leng = SOCK_get_int(sock, 4);
+						leng = SOCK_get_response_length(sock);
 inolog("leng=%d\n", leng);
 					}
 					else
@@ -1493,7 +1493,8 @@ inolog("Ekita\n");
 					handle_notice_message(self, notice, sizeof(notice), self->sqlstate, "CC_connect", NULL);
 					break;
 				default:
-					CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Unexpected protocol character during authentication", func);
+					snprintf(notice, sizeof(notice), "Unexpected protocol character='%c' during authentication", beresp);
+					CC_set_error(self, CONN_INVALID_AUTHENTICATION, notice, func);
 					return 0;
 			}
 
