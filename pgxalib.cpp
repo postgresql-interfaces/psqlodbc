@@ -388,7 +388,7 @@ static int	TextToXid(XID &xid, const char *rtext)
 	char	*sptr;
 
 	slen = strlen(rtext);
-	sptr = strchr(rtext, '-');
+	sptr = (char *)strchr(rtext, '-');
 	if (sptr)
 	{
 	 	glen = (int) (sptr - rtext);
