@@ -347,14 +347,14 @@ BEGIN
 #ifdef UNICODE_SUPPORT
             VALUE "InternalName", "psqlodbc35w\0"
 #else
-            VALUE "InternalName", "psqlodbca\0"
+            VALUE "InternalName", "psqlodbc30a\0"
 #endif
             VALUE "LegalCopyright", "\0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftƒ‡ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
 #ifdef UNICODE_SUPPORT
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
 #else
-            VALUE "OriginalFilename", "psqlodbca.dll\0"
+            VALUE "OriginalFilename", "psqlodbc30a.dll\0"
 #endif
             VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
             VALUE "ProductName", "PostgreSQL\0"
@@ -693,14 +693,14 @@ BEGIN
 #ifdef UNICODE_SUPPORT
             VALUE "InternalName", "psqlodbc35w\0"
 #else
-            VALUE "InternalName", "psqlodbca\0"
+            VALUE "InternalName", "psqlodbc30a\0"
 #endif
             VALUE "LegalCopyright", "Copyright \0"
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
 #ifdef UNICODE_SUPPORT
             VALUE "OriginalFilename", "psqlodbc35w.dll\0"
 #else
-            VALUE "OriginalFilename", "psqlodbca.dll\0"
+            VALUE "OriginalFilename", "psqlodbc30a.dll\0"
 #endif
             VALUE "PrivateBuild", "\0"
             VALUE "ProductName", "PostgreSQL\0"
