@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.37 2006/08/31 08:54:08 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.38 2006/08/31 08:59:08 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ psqlodbc_la_SOURCES = \
 
 if enable_unicode
 psqlodbc_la_SOURCES += \
-odbcapiw.c odbcapi25w.c odbcapi30w.c win_unicode.c
+odbcapiw.c odbcapi30w.c win_unicode.c
 endif
 
 EXTRA_psqlodbc_la_SOURCES = md5.c
@@ -41,7 +41,8 @@ EXTRA_DIST = license.txt readme.txt \
         setup.c win_unicode.c psqlodbc.rc \
         win32.mak psqlodbc.reg psqlodbc.dsp \
         psqlodbc.sln msdtc_enlist.cpp pgxalib.cpp \
-        pgxalib.def odbc.sql odbc-drop.sql \
+        pgxalib.def odbc.sql odbc-drop.sql 
+	odbcapi25w.c \
  \
 	docs/index.html docs/config.html \
 	docs/faq.html docs/howto-accesslo.html \
