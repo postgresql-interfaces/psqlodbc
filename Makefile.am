@@ -2,19 +2,21 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.38 2006/08/31 08:59:08 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.39 2006/08/31 09:12:56 dpage Exp $
 #
 #-------------------------------------------------------------------------
 
 AUTOMAKE_OPTIONS = 1.6 foreign
 
-lib_LTLIBRARIES = psqlodbc.la
-
-psqlodbc_la_LDFLAGS = -module -no-undefined -avoid-version
-
-psqlodbc_la_LIBADD = -lpq
-
-psqlodbc_la_SOURCES = \
+if enable_unicode
+lib_LTLIBRARIES = psqlodbcw.la
+else
+lib_LTLIBRARIES = psqlodbca.la
+endif
+  	 
+AM_LDFLAGS = -module -no-undefined -avoid-version
+  	 
+psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
 	environ.c execute.c lobj.c win_md5.c misc.c options.c \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
@@ -28,12 +30,11 @@ psqlodbc_la_SOURCES = \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
 	version.h loadlib.h
 
-if enable_unicode
-psqlodbc_la_SOURCES += \
-odbcapiw.c odbcapi30w.c win_unicode.c
-endif
+psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
+	odbcapi30w.c odbcapiw.c win_unicode.c
 
-EXTRA_psqlodbc_la_SOURCES = md5.c
+EXTRA_psqlodbca_la_SOURCES = md5.c
+EXTRA_psqlodbcw_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt \
 	libtool.m4 psqlodbc.def psqlodbca.def \
