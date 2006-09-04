@@ -73,7 +73,11 @@ QR_set_cursor(QResultClass *self, const char *name)
 	{
 		free(self->cursor_name);
 		if (conn)
+		{
+			CONNLOCK_ACQUIRE(conn);
 			conn->ncursors--;
+			CONNLOCK_RELEASE(conn);
+		}
 		self->cursTuple = -1;
 		self->pstatus = 0;
 	}
@@ -81,7 +85,11 @@ QR_set_cursor(QResultClass *self, const char *name)
 	{
 		self->cursor_name = strdup(name);
 		if (conn)
+		{
+			CONNLOCK_ACQUIRE(conn);
 			conn->ncursors++;
+			CONNLOCK_RELEASE(conn);
+		}
 	}
 	else
 	{

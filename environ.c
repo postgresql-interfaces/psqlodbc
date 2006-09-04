@@ -359,6 +359,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 				break;
 			case CONNECTION_COULD_NOT_SEND:
 			case CONNECTION_COULD_NOT_RECEIVE:
+			case CONNECTION_COMMUNICATION_ERROR:
 				pg_sqlstate_set(env, szSqlState, "08S01", "08S01");
 				break;
 			default:

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.106 2006/08/30 12:18:30 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.107 2006/09/04 20:51:06 hinoue Exp $
  *
  */
 
@@ -253,7 +253,7 @@ typedef	UInt4	Oid;
 #define PG63						"6.3"		/* "Protocol" key setting
 												 * to force postgres 6.3 */
 #define PG64						"6.4"
-#define PG74REJECTED					"rejected7.4"
+#define PG74REJECTED					"reject7.4"
 #define PG74						"7.4"
 
 typedef int	(*PQFUNC)();

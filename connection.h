@@ -52,10 +52,11 @@ enum
 #define CONNECTION_COULD_NOT_RECEIVE				109
 #define CONNECTION_SERVER_REPORTED_WARNING			110
 #define CONNECTION_NEED_PASSWORD				112
+#define CONNECTION_COMMUNICATION_ERROR				113
 
 /*	These errors correspond to specific SQL states */
-#define CONN_INIREAD_ERROR							201
-#define CONN_OPENDB_ERROR							202
+#define CONN_INIREAD_ERROR						201
+#define CONN_OPENDB_ERROR						202 
 #define CONN_STMT_ALLOC_ERROR						203
 #define CONN_IN_USE							204 
 #define CONN_UNSUPPORTED_OPTION						205
@@ -136,15 +137,24 @@ do { \
 /* For Multi-thread */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 #define INIT_CONN_CS(x)		InitializeCriticalSection(&((x)->cs))
+#define INIT_CONNLOCK(x)	InitializeCriticalSection(&((x)->slock))
 #define ENTER_CONN_CS(x)	EnterCriticalSection(&((x)->cs))
+#define CONNLOCK_ACQUIRE(x)	EnterCriticalSection(&((x)->slock))
 #define TRY_ENTER_CONN_CS(x)	TryEnterCriticalSection(&((x)->cs))
 #define ENTER_INNER_CONN_CS(x, entered) \
-	{ EnterCriticalSection(&((x)->cs)); entered++; }
+do { \
+	EnterCriticalSection(&((x)->cs)); \
+	entered++; \
+} while (0)
 #define LEAVE_CONN_CS(x)	LeaveCriticalSection(&((x)->cs))
+#define CONNLOCK_RELEASE(x)	LeaveCriticalSection(&((x)->slock))
 #define DELETE_CONN_CS(x)	DeleteCriticalSection(&((x)->cs))
+#define DELETE_CONNLOCK(x)	DeleteCriticalSection(&((x)->slock))
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
 #define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
+#define INIT_CONNLOCK(x)	pthread_mutex_init(&((x)->slock), getMutexAttr())
 #define ENTER_CONN_CS(x)	pthread_mutex_lock(&((x)->cs))
+#define CONNLOCK_ACQUIRE(x) 	pthread_mutex_lock(&((x)->slock))
 #define TRY_ENTER_CONN_CS(x)	(0 == pthread_mutex_trylock(&((x)->cs)))
 #define ENTER_INNER_CONN_CS(x, entered) \
 do { \
@@ -159,14 +169,18 @@ do { \
 		0; \
 } while (0)
 #define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
+#define CONNLOCK_RELEASE(x) 	pthread_mutex_unlock(&((x)->slock))
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
+#define DELETE_CONNLOCK(x)	pthread_mutex_destroy(&((x)->slock))
 #else
 #define INIT_CONN_CS(x)	
+#define INIT_CONN_LOCK(x)	
 #define TRY_ENTER_CONN_CS(x)
 #define ENTER_CONN_CS(x)
 #define ENTER_INNER_CONN_CS(x, entered) (0)
 #define LEAVE_CONN_CS(x)
 #define DELETE_CONN_CS(x)
+#define DELETE_CONNLOCK(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 #define	LEAVE_INNER_CONN_CS(entered, conn) \
@@ -438,8 +452,10 @@ struct ConnectionClass_
 	pgNAME		tableIns;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
+	CRITICAL_SECTION	slock;
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
 	pthread_mutex_t		cs;
+	pthread_mutex_t		slock;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	void		*asdum;
@@ -485,11 +501,13 @@ void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);
 QResultClass *CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt);
 void		CC_clear_error(ConnectionClass *self);
-char		*CC_create_errormsg(ConnectionClass *self);
 int		CC_send_function(ConnectionClass *conn, int fnid, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
 char		CC_send_settings(ConnectionClass *self);
+/*
+char		*CC_create_errormsg(ConnectionClass *self);
 void		CC_lookup_lo(ConnectionClass *conn);
 void		CC_lookup_pg_version(ConnectionClass *conn);
+*/
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
 int		CC_get_max_query_len(const ConnectionClass *self);

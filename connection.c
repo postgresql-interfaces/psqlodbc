@@ -42,6 +42,10 @@
 
 #define PRN_NULLCHECK
 
+static void CC_lookup_pg_version(ConnectionClass *self);
+static void CC_lookup_lo(ConnectionClass *self);
+static char *CC_create_errormsg(ConnectionClass *self);
+
 extern GLOBAL_VALUES globals;
 
 
@@ -335,6 +339,7 @@ CC_Constructor()
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		// rv->asdum = NULL;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+		INIT_CONNLOCK(rv);
 		INIT_CONN_CS(rv);
 		retrv = rv;
 	}
@@ -378,6 +383,7 @@ CC_Destructor(ConnectionClass *self)
 	if (self->__error_message)
 		free(self->__error_message);
 	DELETE_CONN_CS(self);
+	DELETE_CONNLOCK(self);
 	free(self);
 
 	mylog("exit CC_Destructor\n");
@@ -397,12 +403,14 @@ CC_cursor_count(ConnectionClass *self)
 
 	mylog("CC_cursor_count: self=%x, num_stmts=%d\n", self, self->num_stmts);
 
+	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		stmt = self->stmts[i];
 		if (stmt && (res = SC_get_Result(stmt)) && QR_get_cursor(res))
 			count++;
 	}
+	CONNLOCK_RELEASE(self);
 
 	mylog("CC_cursor_count: returning %d\n", count);
 
@@ -414,6 +422,7 @@ void
 CC_clear_error(ConnectionClass *self)
 {
 	if (!self)	return;
+	CONNLOCK_ACQUIRE(self);
 	self->__error_number = 0;
 	if (self->__error_message)
 	{
@@ -422,6 +431,7 @@ CC_clear_error(ConnectionClass *self)
 	}
 	self->sqlstate[0] = '\0';
 	self->errormsg_created = FALSE;
+	CONNLOCK_RELEASE(self);
 }
 
 
@@ -1237,7 +1247,7 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	SocketClass *sock;
 	ConnInfo   *ci = &(self->connInfo);
 	int			areq = -1;
-	int			beresp;
+	int			beresp, sockerr;
 	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
 	CSTR		func = "original_CC_connect";
@@ -1325,11 +1335,9 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 			SOCK_flush_output(sock);
 		}
 
-		mylog("sent the authentication block.\n");
-
-		if (sock->errornumber != 0)
+		if (SOCK_get_errcode(sock) != 0)
 		{
-			CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Sending the authentication packet failed", func);
+			CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Failed to send the authentication packet", func);
 			return 0;
 		}
 		mylog("sent the authentication block successfully.\n");
@@ -1357,15 +1365,20 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 			{
 				beresp = SOCK_get_id(sock);
 				mylog("auth got '%c'\n", beresp);
+				if (0 != SOCK_get_errcode(sock))
+					goto sockerr_proc;
 				if (PROTOCOL_74(ci))
 				{
 					if (beresp != 'E' || startPacketReceived)
 					{
 						leng = SOCK_get_response_length(sock);
 inolog("leng=%d\n", leng);
+						if (0 != SOCK_get_errcode(sock))
+							goto sockerr_proc;
 					}
 					else
-						strcpy(ci->protocol, PG74REJECTED);
+						strncpy(ci->protocol, PG74REJECTED, sizeof(ci->protocol));
+/* retry = TRUE; */
 				}
 				startPacketReceived = TRUE;
 			}
@@ -1383,18 +1396,7 @@ inolog("Ekita\n");
 						 strnicmp(msgbuffer + 8, "unsupported frontend protocol", 29) == 0)
 						retry = TRUE;
 					if (retry)
-					{			/* retry older version */
-						if (PROTOCOL_63(ci))
-							strcpy(ci->protocol, PG62);
-						else if (PROTOCOL_64(ci))
-							strcpy(ci->protocol, PG63);
-						else 
-							strcpy(ci->protocol, PG64);
-						SOCK_Destructor(sock);
-						self->sock = (SocketClass *) 0;
-						CC_initialize_pg_version(self);
-						goto another_version_retry;
-					}
+						break;
 
 					return 0;
 				case 'R':
@@ -1442,11 +1444,13 @@ inolog("Ekita\n");
 
 							mylog("past need password\n");
 
+							if (PROTOCOL_74(&(self->connInfo)))
+								SOCK_put_char(sock, 'p');
 							SOCK_put_int(sock, 4 + strlen(ci->password) + 1, 4);
 							SOCK_put_n_char(sock, ci->password, strlen(ci->password) + 1);
-							SOCK_flush_output(sock);
+							sockerr = SOCK_flush_output(sock);
 
-							mylog("past flush\n");
+							mylog("past flush %dbytes\n", sockerr);
 							break;
 
 						case AUTH_REQ_CRYPT:
@@ -1497,6 +1501,19 @@ inolog("Ekita\n");
 					CC_set_error(self, CONN_INVALID_AUTHENTICATION, notice, func);
 					return 0;
 			}
+			if (retry)
+			{	/* retry older version */
+				if (PROTOCOL_63(ci))
+					strncpy(ci->protocol, PG62, sizeof(ci->protocol));
+				else if (PROTOCOL_64(ci))
+					strncpy(ci->protocol, PG63, sizeof(ci->protocol));
+				else 
+					strncpy(ci->protocol, PG64, sizeof(ci->protocol));
+				SOCK_Destructor(sock);
+				self->sock = (SocketClass *) 0;
+				CC_initialize_pg_version(self);
+				goto another_version_retry;
+			}
 
 			/*
 			 * There were no ReadyForQuery responce before 6.4.
@@ -1506,6 +1523,18 @@ inolog("Ekita\n");
 		} while (!ReadyForQuery);
 	}
 
+sockerr_proc:
+	if (0 != (sockerr = SOCK_get_errcode(sock)))
+	{
+		if (0 == CC_get_errornumber(self))
+		{
+			if (SOCKET_CLOSED == sockerr)
+				CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Communication closed during authentication", func);
+			else
+				CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Communication error during authentication", func);
+		}
+		return 0;
+	}
 
 	CC_clear_error(self);		/* clear any password error */
 
@@ -1674,31 +1703,38 @@ mylog("conn->unicode=%d\n", self->unicode);
 char
 CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 {
-	int			i;
+	int	i;
+	char	ret = TRUE;
 
 	mylog("CC_add_statement: self=%x, stmt=%x\n", self, stmt);
 
+	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		if (!self->stmts[i])
 		{
 			stmt->hdbc = self;
 			self->stmts[i] = stmt;
-			return TRUE;
+			break;
 		}
 	}
 
-	/* no more room -- allocate more memory */
-	self->stmts = (StatementClass **) realloc(self->stmts, sizeof(StatementClass *) * (STMT_INCREMENT + self->num_stmts));
-	if (!self->stmts)
-		return FALSE;
+	if (i >= self->num_stmts) /* no more room -- allocate more memory */
+	{
+		self->stmts = (StatementClass **) realloc(self->stmts, sizeof(StatementClass *) * (STMT_INCREMENT + self->num_stmts));
+		if (!self->stmts)
+			ret = FALSE;
+		else
+		{
+			memset(&self->stmts[self->num_stmts], 0, sizeof(StatementClass *) * STMT_INCREMENT);
 
-	memset(&self->stmts[self->num_stmts], 0, sizeof(StatementClass *) * STMT_INCREMENT);
+			stmt->hdbc = self;
+			self->stmts[self->num_stmts] = stmt;
 
-	stmt->hdbc = self;
-	self->stmts[self->num_stmts] = stmt;
-
-	self->num_stmts += STMT_INCREMENT;
+			self->num_stmts += STMT_INCREMENT;
+		}
+	}
+	CONNLOCK_RELEASE(self);
 
 	return TRUE;
 }
@@ -1721,18 +1757,22 @@ CC_set_error_statements(ConnectionClass *self)
 char
 CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
 {
-	int			i;
+	int	i;
+	char	ret = FALSE;
 
+	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		if (self->stmts[i] == stmt && stmt->status != STMT_EXECUTING)
 		{
 			self->stmts[i] = NULL;
-			return TRUE;
+			ret = TRUE;
+			break;
 		}
 	}
+	CONNLOCK_RELEASE(self);
 
-	return FALSE;
+	return ret;
 }
 
 int	CC_get_max_idlen(ConnectionClass *self)
@@ -1756,7 +1796,7 @@ mylog("max_identifier_length=%d\n", len);
  *	Create a more informative error message by concatenating the connection
  *	error message with its socket error message.
  */
-char *
+static char *
 CC_create_errormsg(ConnectionClass *self)
 {
 	SocketClass *sock = self->sock;
@@ -1786,6 +1826,7 @@ CC_create_errormsg(ConnectionClass *self)
 void
 CC_set_error(ConnectionClass *self, int number, const char *message, const char *func)
 {
+	CONNLOCK_ACQUIRE(self);
 	if (self->__error_message)
 		free(self->__error_message);
 	self->__error_number = number;
@@ -1794,15 +1835,18 @@ CC_set_error(ConnectionClass *self, int number, const char *message, const char 
 		CC_set_error_statements(self);
 	if (func && number != 0)
 		CC_log_error(func, "", self); 
+	CONNLOCK_RELEASE(self);
 }
 
 
 void
 CC_set_errormsg(ConnectionClass *self, const char *message)
 {
+	CONNLOCK_ACQUIRE(self);
 	if (self->__error_message)
 		free(self->__error_message);
 	self->__error_message = message ? strdup(message) : NULL;
+	CONNLOCK_RELEASE(self);
 }
 
 
@@ -1814,6 +1858,7 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 
 	mylog("enter CC_get_error\n");
 
+	CONNLOCK_ACQUIRE(self);
 	/* Create a very informative errormsg if it hasn't been done yet. */
 	if (!self->errormsg_created)
 	{
@@ -1832,6 +1877,7 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 	rv = (CC_get_errornumber(self) != 0);
 
 	self->__error_number = 0;		/* clear the error */
+	CONNLOCK_RELEASE(self);
 
 	mylog("exit CC_get_error\n");
 
@@ -1847,6 +1893,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 
 	if (!self->ncursors)
 		return;
+	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		stmt = self->stmts[i];
@@ -1868,37 +1915,47 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 				char	cmd[64];
 
 				snprintf(cmd, sizeof(cmd), "MOVE 0 in \"%s\"", QR_get_cursor(res));
+				CONNLOCK_RELEASE(self);
 				wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 				if (QR_command_maybe_successful(wres))
 					QR_set_permanent(res);
 				else
 					QR_set_cursor(res, NULL);
 				QR_Destructor(wres);
+				CONNLOCK_ACQUIRE(self);
 			}
 		}
 	}
+	CONNLOCK_RELEASE(self);
 }
 	
 void	CC_on_commit(ConnectionClass *conn)
 {
+	CONNLOCK_ACQUIRE(conn);
 	if (CC_is_in_trans(conn))
 	{
 		CC_set_no_trans(conn);
 		CC_set_no_manual_trans(conn);
 	}
 	CC_clear_cursors(conn, FALSE);
+	CONNLOCK_RELEASE(conn);
 	CC_discard_marked_objects(conn);
+	CONNLOCK_ACQUIRE(conn);
 	if (conn->result_uncommitted)
 	{
+		CONNLOCK_RELEASE(conn);
 		ProcessRollback(conn, FALSE, FALSE);
+		CONNLOCK_ACQUIRE(conn);
 		conn->result_uncommitted = 0;
 	}
+	CONNLOCK_RELEASE(conn);
 }
 void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 {
 	BOOL	set_no_trans = FALSE;
 
 mylog("CC_on_abort in\n");
+	CONNLOCK_ACQUIRE(conn);
 	if (0 != (opt & CONN_DEAD)) /* CONN_DEAD implies NO_TRANS also */
 		opt |= NO_TRANS;
 	if (CC_is_in_trans(conn))
@@ -1916,24 +1973,35 @@ mylog("CC_on_abort in\n");
 		conn->status = CONN_DOWN;
 		if (conn->sock)
 		{
+			CONNLOCK_RELEASE(conn);
 			SOCK_Destructor(conn->sock);
+			CONNLOCK_ACQUIRE(conn);
 			conn->sock = NULL;
 		}
 	}
 	else if (set_no_trans)
+	{
+		CONNLOCK_RELEASE(conn);
 		CC_discard_marked_objects(conn);
+		CONNLOCK_ACQUIRE(conn);
+	}
 	if (conn->result_uncommitted)
 	{
+		CONNLOCK_RELEASE(conn);
 		ProcessRollback(conn, TRUE, FALSE);
+		CONNLOCK_ACQUIRE(conn);
 		conn->result_uncommitted = 0;
 	}
+	CONNLOCK_RELEASE(conn);
 }
 
 void	CC_on_abort_partial(ConnectionClass *conn)
 {
 mylog("CC_on_abort_partial in\n");
 	ProcessRollback(conn, TRUE, TRUE);
+	CONNLOCK_ACQUIRE(conn);
 	CC_discard_marked_objects(conn);
+	CONNLOCK_RELEASE(conn);
 }
 
 /*
@@ -2067,7 +2135,7 @@ inolog("leng=%d\n", leng);
 		discard_next_savepoint = TRUE;
 	}
 	SOCK_put_string(sock, query);
-	SOCK_flush_output(sock);
+	leng = SOCK_flush_output(sock);
 
 	if (SOCK_get_errcode(sock) != 0)
 	{
@@ -2076,7 +2144,7 @@ inolog("leng=%d\n", leng);
 		goto cleanup;
 	}
 
-	mylog("send_query: done sending query\n");
+	mylog("send_query: done sending query %dbytes flushed\n", leng);
  
 	empty_reqs = 0;
 	for (wq = query; isspace((UCHAR) *wq); wq++)
@@ -2359,7 +2427,7 @@ inolog("Discarded the first SAVEPOINT\n");
 				QR_set_no_fetching_tuples(res);
 				break;
 			default:
-				/* skip the unexpecte response if possible */
+				/* skip the unexpected response if possible */
 				if (response_length >= 0)
 					break;
 				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)", func);
@@ -2371,6 +2439,8 @@ inolog("Discarded the first SAVEPOINT\n");
 				break;
 		}
 
+		if (SOCK_get_errcode(sock) != 0)
+			break;
 		if (CONN_DOWN == self->status)
 			break;
 		/*
@@ -2384,6 +2454,14 @@ inolog("Discarded the first SAVEPOINT\n");
 	}
 
 cleanup:
+	if (SOCK_get_errcode(sock) != 0)
+	{
+		if (0 == CC_get_errornumber(self))
+			CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, "Communication error while sending query", func);
+		CC_on_abort(self, CONN_DEAD);
+		ReadyToReturn = TRUE;
+		retres = NULL;
+	}
 	if (rollback_on_error && CC_is_in_trans(self) && !discard_next_savepoint)
 	{
 		char	cmd[64];
@@ -2520,7 +2598,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 		SOCK_put_int(sock, leng, 4);
 	}
 	else
-	SOCK_put_string(sock, "F ");
+		SOCK_put_string(sock, "F ");
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send function to backend", func);
@@ -2537,7 +2615,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 		SOCK_put_int(sock, nargs, 2);
 	}
 	else
-	SOCK_put_int(sock, nargs, 4);
+		SOCK_put_int(sock, nargs, 4);
 
 	mylog("send_function: done sending function\n");
 
@@ -2819,7 +2897,7 @@ CC_send_settings(ConnectionClass *self)
  *	If a real Large Object oid type is made part of Postgres, this function
  *	will go away and the define 'PG_TYPE_LO' will be updated.
  */
-void
+static void
 CC_lookup_lo(ConnectionClass *self)
 {
 	QResultClass	*res;
@@ -2892,7 +2970,7 @@ CC_initialize_pg_version(ConnectionClass *self)
  *	This is used to return the correct info in SQLGetInfo
  *	DJP - 25-1-2001
  */
-void
+static void
 CC_lookup_pg_version(ConnectionClass *self)
 {
 	HSTMT		hstmt;
@@ -3223,13 +3301,13 @@ inolog("socket=%d\n", socket);
 		ConnInfo	*ci = &self->connInfo;
 
 		sock->pversion = PG_PROTOCOL_74;
-		strcpy(ci->protocol, PG74);
+		strncpy(ci->protocol, PG74, sizeof(ci->protocol));
 		pversion = PQprotocolVersion(pqconn);
 		switch (pversion)
 		{
 			case 2:
 				sock->pversion = PG_PROTOCOL_64;
-				strcpy(ci->protocol, PG64);
+				strncpy(ci->protocol, PG64, sizeof(ci->protocol));
 				break;
 		}
 	}

@@ -192,7 +192,7 @@ BOOL		SOCK_get_string(SocketClass *self, char *buffer, int bufsize);
 void		SOCK_put_string(SocketClass *self, const char *string);
 int			SOCK_get_int(SocketClass *self, short len);
 void		SOCK_put_int(SocketClass *self, int value, short len);
-void		SOCK_flush_output(SocketClass *self);
+int		SOCK_flush_output(SocketClass *self);
 UCHAR		SOCK_get_next_byte(SocketClass *self);
 void		SOCK_put_next_byte(SocketClass *self, UCHAR next_byte);
 int		SOCK_get_response_length(SocketClass *self);

@@ -33,7 +33,13 @@
 
 extern GLOBAL_VALUES globals;
 
-#define	SOCK_set_error(s, _no, _msg)	(s->errornumber = _no, s->errormsg = _msg, mylog("socket error=%d %s\n", _no, _msg))
+static void SOCK_set_error(SocketClass *s, int _no, const char *_msg)
+{
+	int	gerrno = SOCK_ERRNO;
+	s->errornumber = _no;
+	s->errormsg = (char *) _msg;
+	mylog("(%d)%s ERRNO=%d\n", _no, _msg, gerrno);
+}
 
 void
 SOCK_clear_error(SocketClass *self)
@@ -94,7 +100,7 @@ SOCK_Destructor(SocketClass *self)
 	mylog("SOCK_Destructor\n");
 	if (!self)
 		return;
-	if (self->socket != -1)
+	if (self->socket != (SOCKETFD) -1)
 	{
 		if (self->pqconn)
 		{
@@ -144,7 +150,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 	char	retval = 0;
 
 
-	if (self->socket != -1)
+	if (self->socket != (SOCKETFD) -1)
 	{
 		SOCK_set_error(self, SOCKET_ALREADY_CONNECTED, "Socket is already connected");
 		return 0;
@@ -169,7 +175,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		rest.ai_family = AF_UNSPEC;
 		snprintf(portstr, sizeof(portstr), "%d", port);
 		if (inet_addr(hostname) != INADDR_NONE)
-			rest.ai_flags = AI_NUMERICHOST;	
+			rest.ai_flags |= AI_NUMERICHOST;	
 		ret = getaddrinfo_ptr(hostname, portstr, &rest, &addrs);
 		if (ret || !addrs)
 		{
@@ -200,7 +206,7 @@ retry:
 	if (curadr)
 		family = curadr->ai_family;
 	self->socket = socket(family, SOCK_STREAM, 0);
-	if (self->socket == -1)
+	if (self->socket == (SOCKETFD) -1)
 	{
 		SOCK_set_error(self, SOCKET_COULD_NOT_CREATE_SOCKET, "Could not create Socket.");
 		return 0;
@@ -243,7 +249,7 @@ retry:
 	if (connect(self->socket, (struct sockaddr *) &(self->sadr_area), self->sadr_len) < 0)
 	{
 		int	ret, optval;
-		fd_set	fds;
+		fd_set	fds, except_fds;
 		struct	timeval	tm;
 		socklen_t	optlen = sizeof(optval);
 		time_t	t_now, t_finish;
@@ -257,8 +263,7 @@ retry:
 			case EWOULDBLOCK:
 		    		break;
 			default:
-				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket ..");
-				mylog("connect immediate connect error %d\n", SOCK_ERRNO);
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket immedaitely");
 				goto cleanup;
 		}
 		if (timeout > 0)
@@ -270,8 +275,10 @@ retry:
 		}
 		do {
 			FD_ZERO(&fds);
+			FD_ZERO(&except_fds);
 			FD_SET(self->socket, &fds);
-			ret = select(self->socket + 1, NULL, &fds, NULL, timeout > 0 ? &tm : NULL);
+			FD_SET(self->socket, &except_fds);
+			ret = select(self->socket + 1, NULL, &fds, &except_fds, timeout > 0 ? &tm : NULL);
 			if (0 < ret)
 				break;
 			else if (0 == ret)
@@ -307,8 +314,15 @@ retry:
 		}
 		else if (optval != 0)
 		{
+			char	errmsg[256], host[64];
+
+			host[0] = '\0';
+			getnameinfo((struct sockaddr *) &(self->sadr_area),
+					self->sadr_len, host, sizeof(host),
+					NULL, 0, NI_NUMERICHOST);
+			snprintf(errmsg, sizeof(errmsg), "connect getsockopt val %d addr=%s\n", optval, host);
+			mylog(errmsg);
 			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote server.");
-			mylog("connect getsockopt val=%d\n", optval);
 		}
 		else
 			retval = 1;
@@ -329,9 +343,12 @@ cleanup:
 			curadr = curadr->ai_next;
 			goto retry;
 		}
-		if (addrs)
-			freeaddrinfo_ptr(addrs);
 	}
+	else
+		SOCK_set_error(self, 0, NULL);
+	
+	if (addrs)
+		freeaddrinfo_ptr(addrs);
 	return retval;
 }
 
@@ -339,23 +356,28 @@ cleanup:
 /*
  *	To handle EWOULDBLOCK etc (mainly for libpq non-blocking connection).
  */
-#define	MAX_RETRY_COUNT	8
+#define	MAX_RETRY_COUNT	30
 static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 {
 	int	ret;
-	fd_set	fds;
+	fd_set	fds, except_fds;
 	struct	timeval	tm;
+	BOOL	no_timeout = (0 != retry_count && (retry_count < 0 || (!sock->ssl)));
 
 	do {
 		FD_ZERO(&fds);
+		FD_ZERO(&except_fds);
 		FD_SET(sock->socket, &fds);
-		if (!output && sock->ssl)
+		FD_SET(sock->socket, &except_fds);
+		if (!no_timeout)
 		{
 			tm.tv_sec = retry_count;
 			tm.tv_usec = 0;
 		}
-		ret = select(sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, NULL, sock->ssl ? &tm : NULL);
+		ret = select(sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
 	} while (ret < 0 && EINTR == SOCK_ERRNO);
+	if (retry_count < 0)
+		retry_count *= -1;
 	if (0 == ret && retry_count > MAX_RETRY_COUNT)
 	{
 		ret = -1;
@@ -470,12 +492,16 @@ SOCK_get_id(SocketClass *self)
 {
 	int	id;
 
+	if (0 != self->errornumber)
+		return 0;
 	if (self->reslen > 0)
 	{
 		mylog("SOCK_get_id has to eat %d bytes\n", self->reslen);
 		do
 		{
 			SOCK_get_next_byte(self);
+			if (0 != self->errornumber)
+				return 0;
 		} while (self->reslen > 0);
 	}
 	id = SOCK_get_next_byte(self);
@@ -497,7 +523,11 @@ SOCK_get_n_char(SocketClass *self, char *buffer, int len)
 	}
 
 	for (lf = 0; lf < len; lf++)
+	{
+		if (0 != self->errornumber)
+			break;
 		buffer[lf] = SOCK_get_next_byte(self);
+	}
 }
 
 
@@ -515,7 +545,11 @@ SOCK_put_n_char(SocketClass *self, char *buffer, int len)
 	}
 
 	for (lf = 0; lf < len; lf++)
+	{
+		if (0 != self->errornumber)
+			break;
 		SOCK_put_next_byte(self, (UCHAR) buffer[lf]);
+	}
 }
 
 
@@ -547,7 +581,11 @@ SOCK_put_string(SocketClass *self, const char *string)
 	len = strlen(string) + 1;
 
 	for (lf = 0; lf < len; lf++)
+	{
+		if (0 != self->errornumber)
+			break;
 		SOCK_put_next_byte(self, (UCHAR) string[lf]);
+	}
 }
 
 
@@ -613,14 +651,16 @@ SOCK_put_int(SocketClass *self, int value, short len)
 }
 
 
-void
+int
 SOCK_flush_output(SocketClass *self)
 {
-	int	written, pos = 0, retry_count = 0;
+	int	written, pos = 0, retry_count = 0, ttlsnd = 0;
 
 	if (!self)
-		return;
-	do
+		return -1;
+	if (0 != self->errornumber)
+		return -1;
+	while (self->buffer_filled_out > 0)
 	{
 		if (self->ssl)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
@@ -640,11 +680,15 @@ SOCK_flush_output(SocketClass *self)
 					break;
 			}
 			SOCK_set_error(self, SOCKET_WRITE_ERROR, "Could not flush socket buffer.");
-			break;
+			return -1;
 		}
 		pos += written;
 		self->buffer_filled_out -= written;
-	} while (self->buffer_filled_out > 0);
+		ttlsnd += written;
+		retry_count = 0;
+	}
+	
+	return ttlsnd;
 }
 
 
@@ -652,6 +696,7 @@ UCHAR
 SOCK_get_next_byte(SocketClass *self)
 {
 	int	retry_count = 0;
+	BOOL	maybeEOF = FALSE;
 
 	if (!self)
 		return 0;
@@ -690,8 +735,21 @@ mylog("Lasterror=%d\n", SOCK_ERRNO);
 		}
 		if (self->buffer_filled_in == 0)
 		{
-			SOCK_set_error(self, SOCKET_CLOSED, "Socket has been closed.");
-			self->buffer_filled_in = 0;
+			if (!maybeEOF)
+			{
+				int	nbytes = SOCK_wait_for_ready(self, FALSE, 0);
+				if (nbytes > 0)
+				{
+					maybeEOF = TRUE;
+					goto retry;
+				}
+				else if (0 == nbytes)
+					maybeEOF = TRUE;
+			}
+			if (maybeEOF)
+				SOCK_set_error(self, SOCKET_CLOSED, "Socket has been closed.");
+			else
+				SOCK_set_error(self, SOCKET_READ_ERROR, "Error while reading from the socket.");
 			return 0;
 		}
 	}
@@ -706,6 +764,8 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 	int	bytes_sent, pos = 0, retry_count = 0;
 
 	if (!self)
+		return;
+	if (0 != self->errornumber)
 		return;
 	self->buffer_out[self->buffer_filled_out++] = next_byte;
 
@@ -735,6 +795,7 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 			}
 			pos += bytes_sent;
 			self->buffer_filled_out -= bytes_sent;
+			retry_count = 0;
 		} while (self->buffer_filled_out > 0);
 	}
 }
