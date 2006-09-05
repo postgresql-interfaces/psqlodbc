@@ -221,7 +221,7 @@ inolog("hlen=%d", hlen);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				);
 	}
-	/* Abbrebiation is needed ? */
+	/* Abbreviation is needed ? */
 	if (abbrev || olen >= nlen || olen < 0)
 	{
 		flag = 0;
