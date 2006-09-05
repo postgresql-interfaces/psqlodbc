@@ -9,8 +9,18 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-
-<h2>psqlODBC 08.02.0100 Release</h2>
+<h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0101</li><br>
+Changes:<br>
+1. Delayload import XOLEHLP.dll so that the driver can be loaded<br>
+   without the existence of the dll.<br>
+2. Fix a simple password authentication bug.<br>
+3. Fix a buffer overrun bug which prevented the connection phase<br>
+   from retrying another version appropriately.<br>
+4. Handle multi-addresses of a specified host properly.<br>
+5. Refine the socket handling(connect, recv, send).<br>
+6. Display more appropriate error messages in the connection phase.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0100</li><br>
 Changes:<br>
 1) Return to Unicode/ANSI driver distribution as some users still find one works better than the other for them.<br>
@@ -18,8 +28,6 @@ Changes:<br>
 3) Initial value has set MSDTC=no of VC6 (Support of MSDTC is only VC7 and VC8)<br>
 4) Addition which is a driver name in a resource (Unicode or ANSI)<br>
 <br>
-
-<h2>Development snapshots</h2>
 <li>Notes: psqlODBC 08.02.0007</li><br>
 Changes:<br>
 1) Fix some SQLPrimaryKey, SQLForeignKey bugs.<br>
