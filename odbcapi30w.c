@@ -109,7 +109,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 {
 	CSTR func = "SQLSetDescFieldW";
 	RETCODE	ret;
-	Int4	vallen;
+	SQLLEN	vallen;
         char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
@@ -140,7 +140,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 		vallen = BufferLength;
 	}
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
-				uval, vallen);
+				uval, (SQLINTEGER) vallen);
 	if (val_alloced)
 		free(uval);
 	return ret;
@@ -152,7 +152,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 {
 	CSTR func = "SQLGetDescFieldW";
 	RETCODE	ret;
-	SQLINTEGER	blen = 0, bMax, *pcbV;
+	SQLINTEGER		blen = 0, bMax,	*pcbV;
         char    *rgbV = NULL;
 
 	mylog("[%s]", func);
@@ -180,7 +180,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 			}
 			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 			{
-				blen = utf8_to_ucs2(rgbV, blen, (SQLWCHAR *) rgbValue, cbValueMax / WCLEN);
+				blen = (SQLINTEGER) utf8_to_ucs2(rgbV, blen, (SQLWCHAR *) rgbValue, cbValueMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbValueMax)
 				{
 					ret = SQL_SUCCESS_WITH_INFO;
@@ -214,7 +214,7 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 {
 	CSTR func = "SQLGetDiagRecW";
 	RETCODE	ret;
-        SWORD   buflen, tlen;
+        SQLSMALLINT	buflen, tlen;
         char    *qstr = NULL, *mtxt = NULL;
 
 	mylog("[%s]", func);
@@ -234,7 +234,7 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
                 	utf8_to_ucs2(qstr, strlen(qstr), szSqlState, 6);
 		if (mtxt && tlen <= cbErrorMsgMax)
 		{
-        		tlen = utf8_to_ucs2(mtxt, tlen, szErrorMsg, cbErrorMsgMax);
+        		tlen = (SQLSMALLINT) utf8_to_ucs2(mtxt, tlen, szErrorMsg, cbErrorMsgMax);
 			if (tlen >= cbErrorMsgMax)
 				ret = SQL_SUCCESS_WITH_INFO;
 		}
@@ -255,7 +255,7 @@ SQLRETURN SQL_API SQLColAttributeW(
 	SQLPOINTER	pCharAttr,
 	SQLSMALLINT	cbCharAttrMax,	
 	SQLSMALLINT	*pcbCharAttr,
-#if defined(WITH_UNIXODBC) || defined(WIN32)
+#if defined(WITH_UNIXODBC) || (defined(WIN32) && ! defined(_WIN64))
 	SQLPOINTER	pNumAttr
 #else
 	SQLLEN		*pNumAttr
@@ -298,7 +298,7 @@ SQLRETURN SQL_API SQLColAttributeW(
 			}
 			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 			{
-				blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
+				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbCharAttrMax)
 				{
 					ret = SQL_SUCCESS_WITH_INFO;
@@ -366,7 +366,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 			}
 			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 			{
-				blen = utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
+				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
 				{
 					ret = SQL_SUCCESS_WITH_INFO;

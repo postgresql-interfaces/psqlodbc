@@ -34,7 +34,7 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	CSTR func = "SQLColumnsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *clName;
-	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
+	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL	lower_id;
@@ -81,7 +81,7 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 {
 	CSTR func = "SQLConnectW";
 	char	*svName, *usName, *auth;
-	Int4	nmlen1, nmlen2, nmlen3;
+	SQLLEN	nmlen1, nmlen2, nmlen3;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	
@@ -115,7 +115,8 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 {
 	CSTR func = "SQLDriverConnectW";
 	char	*szIn, *szOut = NULL;
-	Int4	maxlen, inlen, obuflen = 0;
+	SQLSMALLINT	maxlen, obuflen = 0;
+	SQLLEN		inlen;
 	SQLSMALLINT	olen, *pCSO;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -140,13 +141,13 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 		szOut, maxlen, pCSO, fDriverCompletion);
 	if (ret != SQL_ERROR && NULL != pCSO)
 	{
-		UInt4 outlen = olen;
+		SQLLEN outlen = olen;
 
 		if (olen < obuflen)
 			outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
 		else
 			utf8_to_ucs2(szOut, maxlen, szConnStrOut, cbConnStrOutMax);
-		if (outlen >= (UInt4) cbConnStrOutMax)
+		if (outlen >= cbConnStrOutMax)
 		{
 inolog("cbConnstrOutMax=%d pcb=%x\n", cbConnStrOutMax, pcbConnStrOut);
 			if (SQL_SUCCESS == ret)
@@ -156,7 +157,7 @@ inolog("cbConnstrOutMax=%d pcb=%x\n", cbConnStrOutMax, pcbConnStrOut);
 			}
 		}
 		if (pcbConnStrOut)
-			*pcbConnStrOut = outlen;
+			*pcbConnStrOut = (SQLSMALLINT) outlen;
 	}
 	LEAVE_CONN_CS(conn);
 	if (szOut)
@@ -175,8 +176,8 @@ RETCODE SQL_API SQLBrowseConnectW(
 {
 	CSTR func = "SQLBrowseConnectW";
 	char	*szIn, *szOut;
-	Int4	inlen;
-	UInt4	obuflen;
+	SQLLEN		inlen;
+	SQLUSMALLINT	obuflen;
 	SQLSMALLINT	olen;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -193,9 +194,9 @@ RETCODE SQL_API SQLBrowseConnectW(
 	LEAVE_CONN_CS(conn);
 	if (ret != SQL_ERROR)
 	{
-		UInt4	outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
+		SQLLEN	outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
 		if (pcbConnStrOut)
-			*pcbConnStrOut = outlen;
+			*pcbConnStrOut = (SQLSMALLINT) outlen;
 	}
 	free(szOut);
 	if (szIn)
@@ -252,17 +253,17 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 	}
 	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 	{
-		UInt4	nmcount = nmlen;
+		SQLLEN	nmcount = nmlen;
 
 		if (nmlen < buflen)
 			nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
-		if (SQL_SUCCESS == ret && BufferLength > 0 && nmcount > (UInt4) BufferLength)
+		if (SQL_SUCCESS == ret && BufferLength > 0 && nmcount > BufferLength)
 		{
 			ret = SQL_SUCCESS_WITH_INFO;
 			SC_set_error(stmt, STMT_TRUNCATED, "Column name too large", func);
 		}
 		if (NameLength)
-			*NameLength = nmcount;
+			*NameLength = (SQLSMALLINT) nmcount;
 	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
@@ -277,7 +278,7 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 	CSTR	func = "SQLExecDirectW";
 	RETCODE	ret;
 	char	*stxt;
-	Int4	slen;
+	SQLLEN	slen;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	UWORD	flag = 0;
 
@@ -291,7 +292,7 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_ExecDirect(StatementHandle, stxt, slen, flag);
+		ret = PGAPI_ExecDirect(StatementHandle, stxt, (SQLINTEGER) slen, flag);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (stxt)
@@ -326,17 +327,17 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 	}
 	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)	
 	{
-		UInt4	nmcount = clen;
+		SQLLEN	nmcount = clen;
 
 		if (clen < buflen)
-			nmcount = utf8_to_ucs2(crName, (Int4) clen, CursorName, BufferLength);
-		if (SQL_SUCCESS == ret && nmcount > (UInt4) BufferLength)
+			nmcount = utf8_to_ucs2(crName, clen, CursorName, BufferLength);
+		if (SQL_SUCCESS == ret && nmcount > BufferLength)
 		{
 			ret = SQL_SUCCESS_WITH_INFO;
 			SC_set_error(stmt, STMT_TRUNCATED, "Cursor name too large", func);
 		}
 		if (NameLength)
-			*NameLength = nmcount;
+			*NameLength = (SQLSMALLINT) nmcount;
 	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
@@ -387,14 +388,14 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 	char	*stxt;
-	Int4	slen;
+	SQLLEN	slen;
 
 	mylog("[%s]", func);
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	ret = PGAPI_Prepare(StatementHandle, stxt, slen);
+	ret = PGAPI_Prepare(StatementHandle, stxt, (SQLINTEGER) slen);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (stxt)
@@ -409,7 +410,7 @@ RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	char	*crName;
-	Int4	nlen;
+	SQLLEN	nlen;
 
 	mylog("[%s]", func);
 	crName = ucs2_to_utf8(CursorName, NameLength, &nlen, FALSE);
@@ -434,7 +435,7 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
 	CSTR func = "SQLSpecialColumnsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	Int4	nmlen1, nmlen2, nmlen3;
+	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
@@ -474,7 +475,7 @@ RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
 	CSTR func = "SQLStatisticsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	Int4	nmlen1, nmlen2, nmlen3;
+	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
@@ -514,7 +515,7 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	CSTR func = "SQLTablesW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *tbType;
-	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
+	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
@@ -567,7 +568,7 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	CSTR func = "SQLColumnPrivilegesW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *clName;
-	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
+	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
@@ -624,7 +625,7 @@ RETCODE SQL_API SQLForeignKeysW(
 	CSTR func = "SQLForeignKeysW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName, *fkctName, *fkscName, *fktbName;
-	Int4	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
+	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id; 
@@ -676,7 +677,7 @@ RETCODE SQL_API SQLNativeSqlW(
 	CSTR func = "SQLNativeSqlW";
 	RETCODE		ret;
 	char		*szIn, *szOut = NULL;
-	Int4		slen;
+	SQLLEN		slen;
 	SQLINTEGER	buflen, olen;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
@@ -699,11 +700,11 @@ RETCODE SQL_API SQLNativeSqlW(
 		free(szIn);
 	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 	{
-		UInt4	szcount = olen;
+		SQLLEN	szcount = olen;
 
 		if (olen < buflen)
 			szcount = utf8_to_ucs2(szOut, olen, szSqlStr, cbSqlStrMax);
-		if (SQL_SUCCESS == ret && szcount > (UInt4) cbSqlStrMax)
+		if (SQL_SUCCESS == ret && szcount > cbSqlStrMax)
 		{
 			ConnectionClass	*conn = (ConnectionClass *) hdbc;
 
@@ -711,7 +712,7 @@ RETCODE SQL_API SQLNativeSqlW(
 			CC_set_error(conn, CONN_TRUNCATED, "Sql string too large", func);
 		}
 		if (pcbSqlStr)
-			*pcbSqlStr = szcount;
+			*pcbSqlStr = (SQLINTEGER) szcount;
 	}
 	LEAVE_CONN_CS(conn);
 	free(szOut);
@@ -730,7 +731,7 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	CSTR func = "SQLPrimaryKeysW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	Int4	nmlen1, nmlen2, nmlen3;
+	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id; 
@@ -774,7 +775,7 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	CSTR func = "SQLProcedureColumnsW";
 	RETCODE	ret;
 	char	*ctName, *scName, *prName, *clName;
-	Int4	nmlen1, nmlen2, nmlen3, nmlen4;
+	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
@@ -825,7 +826,7 @@ RETCODE SQL_API SQLProceduresW(
 	CSTR func = "SQLProceduresW";
 	RETCODE	ret;
 	char	*ctName, *scName, *prName;
-	Int4	nmlen1, nmlen2, nmlen3;
+	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
@@ -873,7 +874,7 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	CSTR func = "SQLTablePrivilegesW";
 	RETCODE	ret;
 	char	*ctName, *scName, *tbName;
-	Int4	nmlen1, nmlen2, nmlen3;
+	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id; 

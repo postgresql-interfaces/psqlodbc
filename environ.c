@@ -100,7 +100,7 @@ pg_sqlstate_set(const EnvironmentClass *env, UCHAR *szSqlState, const UCHAR *ver
 PG_ErrorInfo	*ER_Constructor(SDWORD errnumber, const char *msg)
 {
 	PG_ErrorInfo	*error;
-	Int4		aladd, errsize;
+	ssize_t		aladd, errsize;
 
 	if (DESC_OK == errnumber)
 		return NULL;
@@ -119,7 +119,7 @@ PG_ErrorInfo	*ER_Constructor(SDWORD errnumber, const char *msg)
 	{
 		memset(error, 0, sizeof(PG_ErrorInfo));
 		error->status = errnumber;
-		error->errorsize = errsize;
+		error->errorsize = (Int4) errsize;
 		if (errsize > 0)
 			memcpy(error->__error_message, msg, errsize);
 		error->__error_message[aladd] = '\0';
@@ -261,7 +261,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 	char		*msg;
 	int		status;
 	BOOL	once_again = FALSE;
-	SWORD		msglen;
+	ssize_t		msglen;
 
 	mylog("**** PGAPI_ConnectError: hdbc=%x <%d>\n", hdbc, cbErrorMsgMax);
 	if (RecNumber != 1 && RecNumber != -1)
@@ -285,7 +285,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 	msglen = strlen(msg);
 	if (NULL != pcbErrorMsg)
 	{
-		*pcbErrorMsg = msglen;
+		*pcbErrorMsg = (SQLSMALLINT) msglen;
 		if (cbErrorMsgMax == 0)
 			once_again = TRUE;
 		else if (msglen >= cbErrorMsgMax)

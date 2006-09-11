@@ -21,11 +21,11 @@ struct BindInfoClass_
 	char	*buffer;		/* pointer to the buffer */
 	SQLLEN	*used;			/* used space in the buffer (for strings
 					 * not counting the '\0') */
-	Int2	returntype;		/* kind of conversion to be applied when
+	SQLSMALLINT	returntype;	/* kind of conversion to be applied when
 					 * returning (SQL_C_DEFAULT,
 					 * SQL_C_CHAR... etc) */
-	Int2	precision;		/* the precision for numeric or timestamp type */
-	Int2	scale;			/* the scale for numeric type */
+	SQLSMALLINT	precision;	/* the precision for numeric or timestamp type */
+	SQLSMALLINT	scale;		/* the scale for numeric type */
 	/* area for work variables */
 	char	dummy_data;		/* currently not used */		
 };
@@ -46,9 +46,9 @@ struct ParameterInfoClass_
 	SQLLEN	buflen;
 	char	*buffer;
 	SQLLEN	*used;
-	Int2	CType;
-	Int2	precision;	/* the precision for numeric or timestamp type */
-	Int2	scale;		/* the scale for numeric type */
+	SQLSMALLINT	CType;
+	SQLSMALLINT	precision;	/* the precision for numeric or timestamp type */
+	SQLSMALLINT	scale;		/* the scale for numeric type */
 	/* area for work variables */
 	char	data_at_exec;
 };
@@ -57,7 +57,7 @@ typedef struct
 {
 	SQLLEN	*EXEC_used;	/* amount of data */
 	char	*EXEC_buffer; 	/* the data */
-	Oid	lobj_oid;
+	OID	lobj_oid;
 }	PutDataClass;
 
 /*
@@ -66,24 +66,24 @@ typedef struct
 struct ParameterImplClass_
 {
 	pgNAME		paramName;	/* this is unavailable even in 8.1 */
-	Int2		paramType;
-	Int2		SQLType;
-	Int4		PGType;
+	SQLSMALLINT	paramType;
+	SQLSMALLINT	SQLType;
+	OID		PGType;
 	SQLULEN		column_size;
-	Int2		decimal_digits;
-	Int2		precision;	/* the precision for numeric or timestamp type */
-	Int2		scale;		/* the scale for numeric type */
+	SQLSMALLINT	decimal_digits;
+	SQLSMALLINT	precision;	/* the precision for numeric or timestamp type */
+	SQLSMALLINT	scale;		/* the scale for numeric type */
 };
 
 typedef struct
 {
 	GetDataClass	fdata;
-	Int4		allocated;
+	SQLSMALLINT	allocated;
 	GetDataClass	*gdata;
 }	GetDataInfo;
 typedef struct
 {
-	Int4		allocated;
+	SQLSMALLINT	allocated;
 	PutDataClass	*pdata;
 }	PutDataInfo;
 
@@ -105,6 +105,6 @@ void	PDATA_free_params(PutDataInfo *pdata, char option);
 void	SC_param_next(const StatementClass*, int *param_number, ParameterInfoClass **, ParameterImplClass **);
 
 RETCODE       prepareParameters(StatementClass *stmt);
-void	decideHowToPrepare(StatementClass *stmt);
+int	decideHowToPrepare(StatementClass *stmt, BOOL force);
 
 #endif

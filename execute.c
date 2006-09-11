@@ -197,24 +197,20 @@ inolog("a2\n");
 	return result;
 }
 
-void
-decideHowToPrepare(StatementClass *stmt)
+static int
+inquireHowToPrepare(const StatementClass *stmt)
 {
 	ConnectionClass	*conn;
 	ConnInfo	*ci;
+	int		ret = 0;
 
-	if (PREPARE_STATEMENT != stmt->prepare) /* not a prepare statement or already decided */
-		return;
-	if (stmt->inaccurate_result)
-		return;
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
 	if (!ci->use_server_side_prepare ||
 		PG_VERSION_LT(conn, 7.3))
 	{
 		/* Do prepare operations by the driver itself */
-		stmt->prepare |= PREPARE_BY_THE_DRIVER;
-		goto cleanup;
+		return PREPARE_BY_THE_DRIVER;
 	}
 	if (NOT_YET_PREPARED == stmt->prepared)
 	{
@@ -223,43 +219,64 @@ decideHowToPrepare(StatementClass *stmt)
 		if (STMT_TYPE_DECLARE == stmt->statement_type &&
 		    PG_VERSION_LT(conn, 8.0))
 		{
-			stmt->prepare |= PREPARE_BY_THE_DRIVER;
-			goto cleanup;
+			return PREPARE_BY_THE_DRIVER;
 		}
 		if (stmt->multi_statement < 0)
-			PGAPI_NumParams(stmt, &num_params);
+			PGAPI_NumParams((StatementClass *) stmt, &num_params);
 		if (stmt->multi_statement > 0) /* server-side prepare mechanism coundn' handle multi statement */
-			stmt->prepare |= PREPARE_BY_THE_DRIVER;
+			return PREPARE_BY_THE_DRIVER;
 		else if (PROTOCOL_74(ci))
 		{
 			if (STMT_TYPE_SELECT == stmt->statement_type)
 			{
 				if (ci->drivers.use_declarefetch)
-					/* stmt->prepare |= PREPARE_BY_THE_DRIVER; */
-					stmt->prepare |= USING_UNNAMED_PARSE_REQUEST;
+					/* ret = PREPARE_BY_THE_DRIVER; */
+					return PARSE_REQ_FOR_INFO;
 				else if (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type)
-					stmt->prepare |= USING_UNNAMED_PARSE_REQUEST;
+					ret = PARSE_REQ_FOR_INFO;
 				else
-					stmt->prepare |= USING_PARSE_REQUEST;
+					ret = PARSE_TO_EXEC_ONCE;
 			}
 			else
-				stmt->prepare |= USING_PARSE_REQUEST;
+				ret = PARSE_TO_EXEC_ONCE;
 		}
 		else
 		{
 			if (STMT_TYPE_SELECT == stmt->statement_type &&
 			    (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type ||
 			    ci->drivers.use_declarefetch))
-				stmt->prepare |= PREPARE_BY_THE_DRIVER;
+				ret = PREPARE_BY_THE_DRIVER;
 			else
-				stmt->prepare |= USING_PREPARE_COMMAND;
+				ret = USING_PREPARE_COMMAND;
 		}
 	}
+	if (SC_is_prepare_statement(stmt) && (PARSE_TO_EXEC_ONCE == ret))
+		ret = NAMED_PARSE_REQUEST;
 
-cleanup:
-	if (PREPARE_BY_THE_DRIVER == stmt->prepare)
+	return ret;
+}
+
+int
+decideHowToPrepare(StatementClass *stmt, BOOL force)
+{
+	int	method = SC_get_prepare_method(stmt);
+
+	if (0 != method) /* a method was already determined */
+		return method;
+	if (stmt->inaccurate_result)
+		return method;
+	switch (stmt->prepare)
+	{
+		case NON_PREPARE_STATEMENT: /* not a prepare statement */
+			if (!force)
+				return method;
+			break;
+	}
+	method = inquireHowToPrepare(stmt);
+	stmt->prepare |= method;
+	if (PREPARE_BY_THE_DRIVER == method)
 		stmt->discard_output_params = 1;
-	return;
+	return method;
 }
 
 /*
@@ -270,7 +287,8 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 {
 	CSTR func = "Exec_with_parameters_resolved";
 	RETCODE		retval;
-	int		end_row, cursor_type, scroll_concurrency;
+	SQLLEN		end_row;
+	SQLINTEGER	cursor_type, scroll_concurrency;
 	ConnectionClass	*conn;
 	QResultClass	*res;
 	APDFields	*apdopts;
@@ -287,11 +305,13 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	/* Prepare the statement if possible at backend side */
 	if (!stmt->inaccurate_result)
 	{
-		decideHowToPrepare(stmt);
-		switch (SC_get_prepare_method(stmt))
+		switch (decideHowToPrepare(stmt, FALSE))
 		{
 			case USING_PREPARE_COMMAND:
-			case USING_PARSE_REQUEST:
+			case NAMED_PARSE_REQUEST:
+#ifdef	TRY_ONESHOT_PLAN
+			case PARSE_TO_EXEC_ONCE:
+#endif /* TRY_ONESHOT_PLAN */
 				prepare_before_exec = TRUE;
 		}
 	}
@@ -359,6 +379,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 	/*
 	 *	The real execution.
 	 */
+mylog("about to begin SC_execute\n");
 	retval = SC_execute(stmt);
 	if (retval == SQL_ERROR)
 	{
@@ -429,7 +450,7 @@ inolog("res->next=%x\n", kres);
 	if (end_row = stmt->exec_end_row, end_row < 0)
 	{
 		apdopts = SC_get_APDF(stmt);
-		end_row = apdopts->paramset_size - 1;
+		end_row = (SQLINTEGER) apdopts->paramset_size - 1;
 	}
 	if (stmt->inaccurate_result ||
 	    stmt->exec_current_row >= end_row)
@@ -528,6 +549,11 @@ SetStatementSvp(StatementClass *stmt)
 	if (CC_is_in_error_trans(conn))
 		return ret;
 
+	if (0 == stmt->lock_CC_for_rb)
+	{
+		ENTER_CONN_CS(conn);
+		stmt->lock_CC_for_rb++;
+	}
 	switch (stmt->statement_type)
 	{
 		case STMT_TYPE_SPECIAL:
@@ -547,14 +573,10 @@ SetStatementSvp(StatementClass *stmt)
 		}
 		if (SC_is_rb_stmt(stmt))
 		{
-			ENTER_CONN_CS(conn);
 			if (CC_is_in_trans(conn))
 			{
-				stmt->lock_CC_for_rb++;
 				need_savep = TRUE;
 			}
-			else
-				LEAVE_CONN_CS(conn);
 		}
 		if (need_savep)
 		{
@@ -569,8 +591,6 @@ SetStatementSvp(StatementClass *stmt)
 			}
 			else
 			{
-				LEAVE_CONN_CS(conn);
-				stmt->lock_CC_for_rb--;
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal SAVEPOINT failed", func);
 				ret = SQL_ERROR;
 			}
@@ -649,6 +669,9 @@ inolog("ret=%d\n", ret);
 		}
 	}
 cleanup:
+	SC_forget_unnamed(stmt); /* unnamed plan is no longer reliable */
+	if (!SC_is_prepare_statement(stmt) && ONCE_DESCRIBED == stmt->prepared)
+		SC_set_prepared(stmt, NOT_YET_PREPARED);
 	if (start_stmt || SQL_ERROR == ret)
 	{
 		if (stmt->lock_CC_for_rb > 0)
@@ -740,7 +763,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	ConnectionClass	*conn;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
-	int			i, start_row, end_row;
+	SQLLEN		i, start_row, end_row;
 	BOOL	exec_end, recycled = FALSE, recycle = TRUE;
 	SQLSMALLINT	num_params;
 
@@ -805,7 +828,8 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		 */
 		recycle = FALSE;
 	}
-	else if (PREPARED_PERMANENTLY == stmt->prepared)
+	else if (PREPARED_PERMANENTLY == stmt->prepared ||
+		 PREPARED_TEMPORARILY == stmt->prepared)
 	{
 		QResultClass	*res;
 
@@ -843,7 +867,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	if (start_row = stmt->exec_start_row, start_row < 0)
 		start_row = 0; 
 	if (end_row = stmt->exec_end_row, end_row < 0)
-		end_row = apdopts->paramset_size - 1; 
+		end_row = (SQLINTEGER) apdopts->paramset_size - 1; 
 	if (stmt->exec_current_row < 0)
 		stmt->exec_current_row = start_row;
 	ipdopts = SC_get_IPDF(stmt);
@@ -852,11 +876,18 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		PGAPI_NumParams(stmt, &num_params);
 	if (stmt->exec_current_row == start_row)
 	{
+		/*
+		   We sometimes need to know about the PG type of binding
+		   parameters even in case of non-prepared statements.
+		 */
+		BOOL	bCallPrepare = FALSE;
+
 		ConnInfo *ci = &(conn->connInfo);
 		if (NOT_YET_PREPARED == stmt->prepared &&
 		    PROTOCOL_74(ci) &&
 		    ci->use_server_side_prepare &&
-		    ci->bytea_as_longvarbinary) /* both lo and bytea are LO */
+		   (ci->bytea_as_longvarbinary || /* both lo and bytea are LO */
+		    ci->cvt_null_date_string))
 		{
 			SQLSMALLINT	num_params = stmt->num_params;
 			if (num_params < 0)
@@ -864,27 +895,48 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			if (num_params > 0)
 			{
 				int	param_number = -1;
+				ParameterInfoClass *apara;
 				ParameterImplClass *ipara;
-				BOOL	bCallPrepare = FALSE;
+				BOOL	reqOK = FALSE;
 
-				while (1)
+				switch (decideHowToPrepare(stmt, TRUE))
 				{
-					SC_param_next(stmt, &param_number, NULL, &ipara);
-					if (!ipara)
+					case NAMED_PARSE_REQUEST:
+					case PARSE_TO_EXEC_ONCE:
+					case PARSE_REQ_FOR_INFO:
+						reqOK = TRUE;
+				}
+				while (reqOK)
+				{
+					SC_param_next(stmt, &param_number, &apara, &ipara);
+					if (!ipara || !apara)
 						break;
 					if (SQL_LONGVARBINARY == ipara->SQLType)
 					{
-						bCallPrepare = TRUE;
-						break;
+						if (ci->bytea_as_longvarbinary)
+						{
+							bCallPrepare = TRUE;
+							break;
+						}
 					}
-				}
-				if (bCallPrepare)
-				{
-					if (retval = prepareParameters(stmt), SQL_ERROR == retval)
-						goto cleanup;
+					else if (SQL_CHAR == ipara->SQLType)
+					{
+						if (SQL_C_CHAR == apara->CType &&
+						    ci->cvt_null_date_string)
+						{
+							bCallPrepare = TRUE;
+							break;
+						}
+					}
 				}
 			}
 		}
+		if (bCallPrepare)
+		{
+			if (retval = prepareParameters(stmt), SQL_ERROR == retval)
+				goto cleanup;
+		}
+mylog("prepareParameters end\n");
 
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
@@ -902,8 +954,6 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			SC_recycle_statement(stmt);
 	}
 
-	/* StartRollbackState must be called after SC_recycle_statement */
-	/* StartRollbackState(stmt); */
 next_param_row:
 #if (ODBCVER >= 0x0300)
 	if (apdopts->param_operation_ptr)
@@ -936,9 +986,9 @@ next_param_row:
 		 * execute of this statement?  Therefore check for params and
 		 * re-copy.
 		 */
-		UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-		Int4	bind_size = apdopts->param_bind_type;
-		Int4	current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
+		SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
+		SQLINTEGER	bind_size = apdopts->param_bind_type;
+		SQLLEN		current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
 		Int4	num_p = num_params < apdopts->allocated ? num_params : apdopts->allocated;
 
 		/*
@@ -1202,7 +1252,7 @@ PGAPI_NativeSql(
 				SQLINTEGER FAR * pcbSqlStr)
 {
 	CSTR func = "PGAPI_NativeSql";
-	int			len = 0;
+	size_t		len = 0;
 	char	   *ptr;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	RETCODE		result;
@@ -1231,7 +1281,7 @@ PGAPI_NativeSql(
 	}
 
 	if (pcbSqlStr)
-		*pcbSqlStr = len;
+		*pcbSqlStr = (SQLINTEGER) len;
 
 	if (cbSqlStrIn)
 		free(ptr);
@@ -1360,8 +1410,8 @@ inolog(" at exec buffer=%x", apdopts->parameters[i].buffer);
 				/* returns token here */
 				if (stmt->execute_delegate)
 				{
-					UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-					UInt4	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen; 
+					SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
+					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen; 
 
 inolog(" offset=%d perrow=%d", offset, perrow);
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
@@ -1402,7 +1452,7 @@ PGAPI_PutData(
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 	PutDataInfo	*pdata;
-	int			old_pos;
+	SQLLEN		old_pos;
 	ParameterInfoClass *current_param;
 	ParameterImplClass *current_iparam;
 	PutDataClass	*current_pdata;
@@ -1448,9 +1498,7 @@ PGAPI_PutData(
 	{
 		ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
 		if (SQL_C_WCHAR == ctype &&
-		    (CC_is_in_ansi_app(conn)
-			|| conn->ms_jet	/* not only but for any other ? */
-		   ))
+		    CC_default_is_c(conn))
 			ctype = SQL_C_CHAR;
 	}
 	if (SQL_NTS == cbValue)
@@ -1501,7 +1549,7 @@ PGAPI_PutData(
 
 		estmt->put_data = TRUE;
 
-		current_pdata->EXEC_used = (SDWORD *) malloc(sizeof(SDWORD));
+		current_pdata->EXEC_used = (SQLLEN *) malloc(sizeof(SQLLEN));
 		if (!current_pdata->EXEC_used)
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (1)", func);
@@ -1556,7 +1604,7 @@ PGAPI_PutData(
 				goto cleanup;
 			}
 
-			retval = odbc_lo_write(conn, estmt->lobj_fd, putbuf, putlen);
+			retval = odbc_lo_write(conn, estmt->lobj_fd, putbuf, (Int4) putlen);
 			mylog("lo_write: cbValue=%d, wrote %d bytes\n", putlen, retval);
 		}
 		else
@@ -1581,7 +1629,7 @@ PGAPI_PutData(
 		if (current_iparam->PGType == conn->lobj_type)
 		{
 			/* the large object fd is in EXEC_buffer */
-			retval = odbc_lo_write(conn, estmt->lobj_fd, putbuf, putlen);
+			retval = odbc_lo_write(conn, estmt->lobj_fd, putbuf, (Int4) putlen);
 			mylog("lo_write(2): cbValue = %d, wrote %d bytes\n", putlen, retval);
 
 			*current_pdata->EXEC_used += putlen;

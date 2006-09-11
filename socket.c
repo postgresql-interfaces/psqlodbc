@@ -244,7 +244,7 @@ retry:
 		struct sockaddr *in = (struct sockaddr *) &(self->sadr_area);
 		memset((char *) in, 0, sizeof(self->sadr_area));
 		memcpy(in, curadr->ai_addr, curadr->ai_addrlen);
-		self->sadr_len = curadr->ai_addrlen;
+		self->sadr_len = (int) curadr->ai_addrlen;
 	}
 	if (connect(self->socket, (struct sockaddr *) &(self->sadr_area), self->sadr_len) < 0)
 	{
@@ -278,7 +278,7 @@ retry:
 			FD_ZERO(&except_fds);
 			FD_SET(self->socket, &fds);
 			FD_SET(self->socket, &except_fds);
-			ret = select(self->socket + 1, NULL, &fds, &except_fds, timeout > 0 ? &tm : NULL);
+			ret = select((int) self->socket + 1, NULL, &fds, &except_fds, timeout > 0 ? &tm : NULL);
 			if (0 < ret)
 				break;
 			else if (0 == ret)
@@ -291,7 +291,7 @@ retry:
 					tm_exp = TRUE;
 				else
 				{
-					tm.tv_sec = t_finish - t_now;
+					tm.tv_sec = (long) (t_finish - t_now);
 					tm.tv_usec = 0;
 				}
 			}
@@ -374,7 +374,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 			tm.tv_sec = retry_count;
 			tm.tv_usec = 0;
 		}
-		ret = select(sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
+		ret = select((int)sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
 	} while (ret < 0 && EINTR == SOCK_ERRNO);
 	if (retry_count < 0)
 		retry_count *= -1;
@@ -510,7 +510,7 @@ SOCK_get_id(SocketClass *self)
 }
 
 void
-SOCK_get_n_char(SocketClass *self, char *buffer, int len)
+SOCK_get_n_char(SocketClass *self, char *buffer, Int4 len)
 {
 	int			lf;
 
@@ -532,7 +532,7 @@ SOCK_get_n_char(SocketClass *self, char *buffer, int len)
 
 
 void
-SOCK_put_n_char(SocketClass *self, char *buffer, int len)
+SOCK_put_n_char(SocketClass *self, char *buffer, Int4 len)
 {
 	int			lf;
 
@@ -559,9 +559,9 @@ SOCK_put_n_char(SocketClass *self, char *buffer, int len)
  *	returns TRUE if truncation occurs.
  */
 BOOL
-SOCK_get_string(SocketClass *self, char *buffer, int bufsize)
+SOCK_get_string(SocketClass *self, char *buffer, Int4 bufsize)
 {
-	register int lf = 0;
+	int lf;
 
 	for (lf = 0; lf < bufsize - 1; lf++)
 		if (!(buffer[lf] = SOCK_get_next_byte(self)))
@@ -575,8 +575,7 @@ SOCK_get_string(SocketClass *self, char *buffer, int bufsize)
 void
 SOCK_put_string(SocketClass *self, const char *string)
 {
-	register int lf;
-	int			len;
+	size_t	lf, len;
 
 	len = strlen(string) + 1;
 
@@ -651,7 +650,7 @@ SOCK_put_int(SocketClass *self, int value, short len)
 }
 
 
-int
+Int4
 SOCK_flush_output(SocketClass *self)
 {
 	int	written, pos = 0, retry_count = 0, ttlsnd = 0;
@@ -800,7 +799,7 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 	}
 }
 
-int
+Int4
 SOCK_get_response_length(SocketClass *self)
 {
 	int     leng = -1;

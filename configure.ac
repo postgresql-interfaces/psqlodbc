@@ -1,14 +1,11 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 08.02.0100, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 08.02.0102, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
 AM_CONFIG_HEADER([config.h])
 AM_MAINTAINER_MODE
 
-
-AC_DEFINE(DRIVER_CURSOR_IMPLEMENT, 1,
-          [Define to 1 to build with driver cursors option.])
 
 #
 # Decide which ODBC driver manager to use
@@ -72,17 +69,8 @@ PGAC_ARG_BOOL(enable, pthreads, no,
 	[Define to 1 to build with pthreads support (--enable-pthreads)])
      AC_DEFINE(_REENTRANT, 1,
 	[Define _REENTRANT for several plaforms])
-     AC_CHECK_LIB(c_r, gethostbyname)
      AC_CHECK_LIB(pthreads, pthread_create, [],
        [AC_CHECK_LIB(pthread, pthread_create)])
-     AC_CHECK_LIB(nsl, gethostbyname_r, [AC_DEFINE(HAVE_GETHOSTBYNAME_R, 1, [])],
-	[AC_CHECK_FUNCS(getipnodebyname gethostbyname_r, break)])
-     if test x"$ac_cv_func_gethostbyname_r" = xyes || test x"$ac_cv_lib_nsl_gethostbyname_r" = xyes; then
-	AC_TRY_COMPILE([#include <netdb.h>],
-	[ gethostbyname_r((char *) 0, (struct hostent *) 0, (char *) 0, 0, (int *) 0);],
-        [AC_DEFINE(PGS_REENTRANT_API_1, 1, [Define if you have 5 parameter gethostbyname_r])],
-        [AC_DEFINE(PGS_REENTRANT_API_2, 1, [Define if you have 6 parameter gethostbyname_r])])
-     fi
      AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
      if test x"$ac_cv_func_pthread_mutexattr_settype" = xyes; then
 	AC_TRY_COMPILE([#include <pthread.h>],
@@ -103,11 +91,12 @@ AC_PROG_LIBTOOL
 
 AC_CHECK_HEADERS([locale.h])
 AC_CHECK_HEADERS([sys/un.h])
-AC_CHECK_TYPES(uint8)
+AC_CHECK_TYPES(ssize_t)
 PGAC_VAR_INT_TIMEZONE
 
 # unixODBC wants the following to get sane behavior for ODBCINT64
 AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(void *)
 AC_CHECK_TYPES(long long)
 
 AC_C_CONST

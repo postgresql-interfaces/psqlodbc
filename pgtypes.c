@@ -27,7 +27,7 @@
 #define	EXPERIMENTAL_CURRENTLY
 
 
-Int4		getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as);
+Int4		getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 
 /*
  * these are the types we support.	all of the pgtype_ functions should
@@ -42,7 +42,7 @@ Int4		getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unk
  */
 
 /*
-Int4 pgtypes_defined[][2] = {
+OID pgtypes_defined[][2] = {
 			{PG_TYPE_CHAR, 0}
 			,{PG_TYPE_CHAR2, 0}
 			,{PG_TYPE_CHAR4, 0}
@@ -75,7 +75,7 @@ Int4 pgtypes_defined[][2] = {
 
 
 /*	These are NOW the SQL Types reported in SQLGetTypeInfo.  */
-Int2		sqlTypes[] = {
+SQLSMALLINT	sqlTypes[] = {
 	SQL_BIGINT,
 	/* SQL_BINARY, -- Commented out because VarBinary is more correct. */
 	SQL_BIT,
@@ -117,10 +117,10 @@ Int2		sqlTypes[] = {
 #define	ALLOWED_C_BIGINT	SQL_C_CHAR
 #endif
 
-Int4
-sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
+OID
+sqltype_to_pgtype(StatementClass *stmt, SQLSMALLINT fSqlType)
 {
-	Int4		pgType;
+	OID		pgType;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 
@@ -244,8 +244,8 @@ sqltype_to_pgtype(StatementClass *stmt, SWORD fSqlType)
  *	know.	This allows for supporting
  *	types that are unknown.  All other pg routines in here return a suitable default.
  */
-Int2
-pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
+SQLSMALLINT
+pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
@@ -378,10 +378,10 @@ pgtype_to_concise_type(StatementClass *stmt, Int4 type, int col)
 	}
 }
 
-Int2
-pgtype_to_sqldesctype(StatementClass *stmt, Int4 type, int col)
+SQLSMALLINT
+pgtype_to_sqldesctype(StatementClass *stmt, OID type, int col)
 {
-	Int2	rettype;
+	SQLSMALLINT	rettype;
 
 	switch (rettype = pgtype_to_concise_type(stmt, type, col))
 	{
@@ -395,8 +395,8 @@ pgtype_to_sqldesctype(StatementClass *stmt, Int4 type, int col)
 	return rettype;
 }
 
-Int2
-pgtype_to_datetime_sub(StatementClass *stmt, Int4 type)
+SQLSMALLINT
+pgtype_to_datetime_sub(StatementClass *stmt, OID type)
 {
 	switch (pgtype_to_concise_type(stmt, type, PG_STATIC))
 	{
@@ -413,8 +413,8 @@ pgtype_to_datetime_sub(StatementClass *stmt, Int4 type)
 }
 
 
-Int2
-pgtype_to_ctype(StatementClass *stmt, Int4 type)
+SQLSMALLINT
+pgtype_to_ctype(StatementClass *stmt, OID type)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
@@ -502,7 +502,7 @@ pgtype_to_ctype(StatementClass *stmt, Int4 type)
 
 
 const char *
-pgtype_to_name(StatementClass *stmt, Int4 type, BOOL auto_increment)
+pgtype_to_name(StatementClass *stmt, OID type, BOOL auto_increment)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	switch (type)
@@ -581,8 +581,8 @@ inolog("pgtype_to_name int4\n");
 }
 
 
-static Int2
-getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
+static SQLSMALLINT
+getNumericDecimalDigits(StatementClass *stmt, OID type, int col)
 {
 	Int4		atttypmod = -1, default_decimal_digits = 6;
 	QResultClass	*result;
@@ -625,8 +625,8 @@ getNumericDecimalDigits(StatementClass *stmt, Int4 type, int col)
 }
 
 
-static SQLLEN
-getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
+static Int4	/* PostgreSQL restritiction */
+getNumericColumnSize(StatementClass *stmt, OID type, int col)
 {
 	Int4	atttypmod = -1, max_column_size = PG_NUMERIC_MAX_PRECISION + PG_NUMERIC_MAX_SCALE, default_column_size = 28;
 	QResultClass *result;
@@ -671,7 +671,7 @@ getNumericColumnSize(StatementClass *stmt, Int4 type, int col)
 
 
 Int4
-getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	int		p = -1, attlen = -1, adtsize = -1, maxsize;
 	QResultClass	*result;
@@ -783,8 +783,8 @@ getCharColumnSize(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
 		return -1;
 }
 
-static Int2
-getTimestampMaxDecimalDigits(StatementClass *stmt, Int4 type)
+static SQLSMALLINT
+getTimestampMaxDecimalDigits(StatementClass *stmt, OID type)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
 
@@ -793,8 +793,8 @@ getTimestampMaxDecimalDigits(StatementClass *stmt, Int4 type)
 	return 6;
 }
 
-static Int2
-getTimestampDecimalDigits(StatementClass *stmt, Int4 type, int col)
+static SQLSMALLINT
+getTimestampDecimalDigits(StatementClass *stmt, OID type, int col)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
 	Int4		atttypmod;
@@ -815,8 +815,8 @@ getTimestampDecimalDigits(StatementClass *stmt, Int4 type, int col)
 }
 
 
-static Int4
-getTimestampColumnSize(StatementClass *stmt, Int4 type, int col)
+static SQLSMALLINT
+getTimestampColumnSize(StatementClass *stmt, OID type, int col)
 {
 	Int4		fixed,
 				scale;
@@ -854,8 +854,8 @@ getTimestampColumnSize(StatementClass *stmt, Int4 type, int col)
  *	If col >= 0, then will attempt to get the info from the result set.
  *	This is used for functions SQLDescribeCol and SQLColAttributes.
  */
-SQLLEN
-pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+Int4	/* PostgreSQL restriction */
+pgtype_column_size(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
@@ -946,8 +946,8 @@ pgtype_column_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_
 /*
  *	precision in ODBC 3.x.
  */
-Int4
-pgtype_precision(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+SQLSMALLINT
+pgtype_precision(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	switch (type)
 	{
@@ -962,7 +962,7 @@ pgtype_precision(StatementClass *stmt, Int4 type, int col, int handle_unknown_si
 
 
 Int4
-pgtype_display_size(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+pgtype_display_size(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	int	dsize;
 
@@ -1006,7 +1006,7 @@ pgtype_display_size(StatementClass *stmt, Int4 type, int col, int handle_unknown
  *	or SQLFetchScroll operation if SQL_C_DEFAULT is specified.
  */
 Int4
-pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+pgtype_buffer_length(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 
@@ -1078,7 +1078,7 @@ pgtype_buffer_length(StatementClass *stmt, Int4 type, int col, int handle_unknow
 /*
  */
 Int4
-pgtype_desclength(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+pgtype_desclength(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	switch (type)
 	{
@@ -1121,7 +1121,7 @@ pgtype_desclength(StatementClass *stmt, Int4 type, int col, int handle_unknown_s
  *	Transfer octet length.
  */
 Int4
-pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handle_unknown_size_as)
+pgtype_transfer_octet_length(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 
@@ -1163,7 +1163,7 @@ pgtype_transfer_octet_length(StatementClass *stmt, Int4 type, int col, int handl
  *	corrsponds to "min_scale" in ODBC 2.x.
  */
 Int2
-pgtype_min_decimal_digits(StatementClass *stmt, Int4 type)
+pgtype_min_decimal_digits(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1191,7 +1191,7 @@ pgtype_min_decimal_digits(StatementClass *stmt, Int4 type)
  *	corrsponds to "max_scale" in ODBC 2.x.
  */
 Int2
-pgtype_max_decimal_digits(StatementClass *stmt, Int4 type)
+pgtype_max_decimal_digits(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1221,7 +1221,7 @@ pgtype_max_decimal_digits(StatementClass *stmt, Int4 type)
  *	corrsponds to "scale" in ODBC 2.x.
  */
 Int2
-pgtype_decimal_digits(StatementClass *stmt, Int4 type, int col)
+pgtype_decimal_digits(StatementClass *stmt, OID type, int col)
 {
 	switch (type)
 	{
@@ -1259,7 +1259,7 @@ pgtype_decimal_digits(StatementClass *stmt, Int4 type, int col)
  *	"scale" in ODBC 3.x.
  */
 Int2
-pgtype_scale(StatementClass *stmt, Int4 type, int col)
+pgtype_scale(StatementClass *stmt, OID type, int col)
 {
 	switch (type)
 	{
@@ -1271,7 +1271,7 @@ pgtype_scale(StatementClass *stmt, Int4 type, int col)
 
 
 Int2
-pgtype_radix(StatementClass *stmt, Int4 type)
+pgtype_radix(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1292,14 +1292,14 @@ pgtype_radix(StatementClass *stmt, Int4 type)
 
 
 Int2
-pgtype_nullable(StatementClass *stmt, Int4 type)
+pgtype_nullable(StatementClass *stmt, OID type)
 {
 	return SQL_NULLABLE;		/* everything should be nullable */
 }
 
 
 Int2
-pgtype_auto_increment(StatementClass *stmt, Int4 type)
+pgtype_auto_increment(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1330,7 +1330,7 @@ pgtype_auto_increment(StatementClass *stmt, Int4 type)
 
 
 Int2
-pgtype_case_sensitive(StatementClass *stmt, Int4 type)
+pgtype_case_sensitive(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1353,7 +1353,7 @@ pgtype_case_sensitive(StatementClass *stmt, Int4 type)
 
 
 Int2
-pgtype_money(StatementClass *stmt, Int4 type)
+pgtype_money(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1366,7 +1366,7 @@ pgtype_money(StatementClass *stmt, Int4 type)
 
 
 Int2
-pgtype_searchable(StatementClass *stmt, Int4 type)
+pgtype_searchable(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1390,7 +1390,7 @@ pgtype_searchable(StatementClass *stmt, Int4 type)
 
 
 Int2
-pgtype_unsigned(StatementClass *stmt, Int4 type)
+pgtype_unsigned(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1414,7 +1414,7 @@ pgtype_unsigned(StatementClass *stmt, Int4 type)
 
 
 char *
-pgtype_literal_prefix(StatementClass *stmt, Int4 type)
+pgtype_literal_prefix(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1436,7 +1436,7 @@ pgtype_literal_prefix(StatementClass *stmt, Int4 type)
 
 
 char *
-pgtype_literal_suffix(StatementClass *stmt, Int4 type)
+pgtype_literal_suffix(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1458,7 +1458,7 @@ pgtype_literal_suffix(StatementClass *stmt, Int4 type)
 
 
 char *
-pgtype_create_params(StatementClass *stmt, Int4 type)
+pgtype_create_params(StatementClass *stmt, OID type)
 {
 	switch (type)
 	{
@@ -1473,8 +1473,8 @@ pgtype_create_params(StatementClass *stmt, Int4 type)
 }
 
 
-Int2
-sqltype_to_default_ctype(const ConnectionClass *conn, Int2 sqltype)
+SQLSMALLINT
+sqltype_to_default_ctype(const ConnectionClass *conn, SQLSMALLINT sqltype)
 {
 	/*
 	 * from the table on page 623 of ODBC 2.0 Programmer's Reference
@@ -1556,7 +1556,7 @@ sqltype_to_default_ctype(const ConnectionClass *conn, Int2 sqltype)
 }
 
 Int4
-ctype_length(Int2 ctype)
+ctype_length(SQLSMALLINT ctype)
 {
 	switch (ctype)
 	{

@@ -20,8 +20,8 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);
 	const char	*p = NULL;
-	int			len = 0,
-				value = 0;
+	ssize_t		len = 0;
+	SQLLEN		value = 0;
 	RETCODE		result;
 
 	switch (fInfoType)
@@ -418,7 +418,7 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 	}
 
 	if (pcbInfoValue)
-		*pcbInfoValue = len;
+		*pcbInfoValue = (SQLSMALLINT) len;
 	return result;
 }
 #endif /* ODBCVER >= 0x0300 */

@@ -306,6 +306,7 @@ typedef struct
 	signed char	force_abbrev_connstr;
 	signed char	bde_environment;
 	signed char	fake_mss;
+	signed char	cvt_null_date_string;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
 	signed char	autocommit_normal;
@@ -369,7 +370,7 @@ struct col_info
 	QResultClass	*result;
 	pgNAME		schema_name;
 	pgNAME		table_name;
-	Oid		table_oid;
+	OID		table_oid;
 };
 #define col_info_initialize(coli) (memset(coli, 0, sizeof(COL_INFO)))
 
@@ -394,7 +395,7 @@ struct ConnectionClass_
 {
 	HENV		henv;		/* environment this connection was
 					 * created on */
-	SQLINTEGER	login_timeout;
+	SQLUINTEGER	login_timeout;
 	StatementOptions stmtOptions;
 	ARDFields	ardOptions;
 	APDFields	apdOptions;
@@ -472,7 +473,7 @@ struct ConnectionClass_
 #define CC_is_onlyread(x)			(x->connInfo.onlyread[0] == '1')
 #define CC_get_escape(x)			(x->escape_in_literal)
 #define CC_fake_mss(x)		(0 != (x)->ms_jet && 0 < (x)->connInfo.fake_mss)
- 
+#define CC_default_is_c(x)	(CC_is_in_ansi_app(x) || x->ms_jet /* not only */ || TRUE /* but for any other ? */)
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0
 #define CONN_OVERWRITE			1
@@ -520,9 +521,9 @@ const char	*CC_get_current_schema(ConnectionClass *conn);
 int             CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *plan);
 int             CC_discard_marked_objects(ConnectionClass *conn);
 
-int	handle_error_message(ConnectionClass *self, char *msgbuf, int buflen,
+int	handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen,
 		 char *sqlstate, const char *comment, QResultClass *res);
-int	handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen,
+int	handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen,
 		 char *sqlstate, const char *comment, QResultClass *res);
 int		EatReadyForQuery(ConnectionClass *self);
 void		getParameterValues(ConnectionClass *self);

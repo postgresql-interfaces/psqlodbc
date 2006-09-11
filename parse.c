@@ -480,11 +480,12 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	COL_INFO	*col_info = NULL;
 	FIELD_INFO	**fi, *wfi;
-	Oid		reloid = 0;
+	OID		reloid = 0;
 	Int2		attid;
 	int		i, num_fields;
 	BOOL		fi_reuse, updatable;
 
+mylog("ColAttSet in\n");
 	if (rti)
 	{
 		if (reloid = rti->table_oid, 0 == reloid)
@@ -514,13 +515,14 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 		irdflds->nfields = num_fields;
 	}
 	updatable = rti ? TI_is_updatable(rti) : FALSE;
+mylog("updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 	if (updatable)
 	{
 		if (1 != stmt->ntab)
 			updatable = FALSE;
 		else
 		{
-			Oid	greloid;
+			OID	greloid;
 
 			for (i = 0; i < num_fields; i++)
 			{
@@ -533,9 +535,10 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 			}
 		}
 	}
+mylog("->%d\n", updatable);
 	for (i = 0; i < num_fields; i++)
 	{
-		if (reloid == (Oid) QR_get_relid(res, i))
+		if (reloid == (OID) QR_get_relid(res, i))
 		{
 			if (wfi = fi[i], NULL == wfi)
 			{
@@ -655,10 +658,10 @@ COL_INFO **coli)
 	return TRUE; /* success */
 }
 
-BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt, const Oid reloid, TABLE_INFO **pti)
+BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt, const OID reloid, TABLE_INFO **pti)
 {
 	BOOL	colatt = FALSE, found = FALSE;
-	Oid	greloid = reloid;
+	OID	greloid = reloid;
 	TABLE_INFO	*wti = *pti;
 	COL_INFO	*coli;
 	HSTMT		hcol_stmt = NULL;
@@ -1149,7 +1152,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				if (quote)
 				{
 					wfi->quote = TRUE;
-					wfi->column_size = strlen(token);
+					wfi->column_size = (int) strlen(token);
 				}
 				else if (numeric)
 				{
@@ -1362,7 +1365,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 		if (wfi->func || wfi->expr || wfi->numeric)
 		{
 			wfi->ti = NULL;
-			wfi->type = (Oid) 0;
+			wfi->type = (OID) 0;
 			parse = FALSE;
 			continue;
 		}
@@ -1504,9 +1507,9 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 		else if (SAFE_NAME(wfi->column_name)[0] == '*')
 		{
 			char		do_all_tables;
-			int			total_cols,
-						cols;
-			int			increased_cols;
+			Int2			total_cols,
+						cols,
+						increased_cols;
 
 			mylog("expanding field %d\n", i);
 
@@ -1514,13 +1517,13 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 
 			if (wfi->ti)		/* The star represents only the qualified
 								 * table */
-				total_cols = QR_get_num_cached_tuples(wfi->ti->col_info->result);
+				total_cols = (Int2) QR_get_num_cached_tuples(wfi->ti->col_info->result);
 
 			else
 			{	/* The star represents all tables */
 				/* Calculate the total number of columns after expansion */
 				for (k = 0; k < stmt->ntab; k++)
-					total_cols += QR_get_num_cached_tuples(ti[k]->col_info->result);
+					total_cols += (Int2) QR_get_num_cached_tuples(ti[k]->col_info->result);
 			}
 			increased_cols = total_cols - 1;
 
@@ -1570,7 +1573,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			{
 				TABLE_INFO *the_ti = do_all_tables ? ti[k] : fi[i]->ti;
 
-				cols = QR_get_num_cached_tuples(the_ti->col_info->result);
+				cols = (Int2) QR_get_num_cached_tuples(the_ti->col_info->result);
 
 				for (n = 0; n < cols; n++)
 				{

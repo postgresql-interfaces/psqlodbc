@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.107 2006/09/04 20:51:06 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.108 2006/09/11 16:28:03 hinoue Exp $
  *
  */
 
@@ -88,6 +88,27 @@ extern "C" {
 #define UInt4 unsigned int
 #define Int2 short
 #define UInt2 unsigned short
+typedef	UInt4	OID;
+
+#ifdef	WIN32
+#define	ssize_t	SSIZE_T
+#else
+#if (SIZE_OF_VOID_P == SIZE_OF_LONG)
+typedef	long 	LONG_PTR;
+typedef	unsigned long 	ULONG_PTR;
+#else
+typedef	SQLLEN 	LONG_PTR;
+typedef	unsigned SQLLEN	ULONG_PTR;
+#endif /* SIZE_OF_VOID_P */
+#ifndef	HAVE_SSIZE_T
+typedef	long	ssize_t
+#endif /* HAVE_SSIZE_T */
+#endif /* WIN32 */
+#define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))
+#define	CAST_UPTR(type, ptr)	(type)((ULONG_PTR)(ptr))
+#ifndef	SQL_IS_LEN
+#define	SQL_IS_LEN	(-1000)
+#endif /* SQL_IS_LEN */
 
 #ifndef WIN32
 #if !defined(WITH_UNIXODBC) && !defined(WITH_IODBC)
@@ -99,10 +120,6 @@ typedef double SDOUBLE;
 #define CALLBACK
 #endif /* CALLBACK */
 #endif /* WIN32 */
-
-#ifndef LIBPQ_FE_H
-typedef	UInt4	Oid;
-#endif /* LIBPQ_FE_H */
 
 #ifndef WIN32
 #define stricmp strcasecmp
@@ -306,23 +323,23 @@ typedef struct GlobalValues_
 
 typedef struct StatementOptions_
 {
-	int			maxRows;
-	int			maxLength;
-	int			keyset_size;
-	int			cursor_type;
-	int			scroll_concurrency;
-	int			retrieve_data;
-	int			use_bookmarks;
+	SQLLEN			maxRows;
+	SQLLEN			maxLength;
+	SQLLEN			keyset_size;
+	SQLUINTEGER		cursor_type;
+	SQLUINTEGER		scroll_concurrency;
+	SQLUINTEGER		retrieve_data;
+	SQLUINTEGER		use_bookmarks;
 	void			*bookmark_ptr;
 #if (ODBCVER >= 0x0300)
-	int			metadata_id;
+	SQLUINTEGER		metadata_id;
 #endif /* ODBCVER */
 } StatementOptions;
 
 /*	Used to pass extra query info to send_query */
 typedef struct QueryInfo_
 {
-	int		row_size;
+	SQLLEN		row_size;
 	QResultClass	*result_in;
 	const char	*cursor;
 } QueryInfo;
@@ -330,12 +347,12 @@ typedef struct QueryInfo_
 /*	Used to save the error information */
 typedef struct
 {
-        SDWORD  status;
-        SDWORD  errorsize;
-        SWORD   recsize;
-        SWORD   errorpos;
+        UInt4	status;
+        Int4	errorsize;
+        Int2	recsize;
+        Int2	errorpos;
         char    sqlstate[8];
-        Int4    diag_row_count;
+        SQLLEN	diag_row_count;
         char    __error_message[1];
 }       PG_ErrorInfo;
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
@@ -381,9 +398,9 @@ const pthread_mutexattr_t *getMutexAttr(void);
 #endif /* POSIX_THREADMUTEX_SUPPORT */
 #ifdef	UNICODE_SUPPORT
 #define WCLEN sizeof(SQLWCHAR)
-UInt4	ucs2strlen(const SQLWCHAR *ucs2str);
-char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, Int4 *olen, BOOL tolower);
-UInt4	utf8_to_ucs2_lf(const char * utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 buflen);
+SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
+char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
+SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
 
@@ -426,4 +443,5 @@ void		debug_memory_check(void);
 CSTR	NULL_STRING = "";
 CSTR	PRINT_NULL = "(null)";
 CSTR	OID_NAME = "oid";
+#define	TRY_ONESHOT_PLAN
 #endif /* __PSQLODBC_H__ */

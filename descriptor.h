@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.17 2006/08/24 15:03:55 hinoue Exp $
+ * $Id: descriptor.h,v 1.18 2006/09/11 16:28:02 hinoue Exp $
  *
  */
 
@@ -82,7 +82,7 @@ enum {
 };
 typedef struct
 {
-	UInt4		table_oid;
+	OID		table_oid;
 	COL_INFO	*col_info; /* cached SQLColumns info for this table */
 	pgNAME		schema_name;
 	pgNAME		table_name;
@@ -125,8 +125,8 @@ typedef struct
 	int		column_size; /* precision in 2.x */
 	int		decimal_digits; /* scale in 2.x */
 	int		display_size;
-	int		length;
-	Oid		type;
+	SQLLEN		length;
+	OID		type;
 	char		expr;
 	char		quote;
 	char		dquote;
@@ -158,16 +158,16 @@ typedef struct DescriptorHeader_
 struct ARDFields_
 {
 #if (ODBCVER >= 0x0300)
-	int		size_of_rowset; /* for ODBC3 fetch operation */
+	SQLLEN		size_of_rowset; /* for ODBC3 fetch operation */
 #endif /* ODBCVER */
-	int		bind_size;	/* size of each structure if using
+	SQLUINTEGER	bind_size;	/* size of each structure if using
 					 * Row-wise Binding */
-	UInt2		*row_operation_ptr;
+	SQLUSMALLINT	*row_operation_ptr;
 	SQLULEN		*row_offset_ptr;
 	BindInfoClass	*bookmark;
 	BindInfoClass	*bindings;
-	int		allocated;
-	int		size_of_rowset_odbc2; /* for SQLExtendedFetch */
+	SQLSMALLINT	allocated;
+	SQLLEN		size_of_rowset_odbc2; /* for SQLExtendedFetch */
 };
 
 /*
@@ -175,33 +175,33 @@ struct ARDFields_
  */
 struct APDFields_
 {
-	SQLLEN		paramset_size;
-	int		param_bind_type; /* size of each structure if using
+	SQLLEN		paramset_size;	/* really an SQLINTEGER type */ 
+	SQLUINTEGER	param_bind_type; /* size of each structure if using
 					  * Row-wise Parameter Binding */
-	UInt2		*param_operation_ptr;
+	SQLUSMALLINT	*param_operation_ptr;
 	SQLULEN		*param_offset_ptr;
 	ParameterInfoClass	*bookmark; /* dummy item to fit APD to ARD */
 	ParameterInfoClass	*parameters;
-	int		allocated;
-	int		paramset_size_dummy; /* dummy item to fit APD to ARD */
+	SQLSMALLINT	allocated;
+	SQLLEN		paramset_size_dummy; /* dummy item to fit APD to ARD */
 };
 
 struct IRDFields_
 {
 	StatementClass	*stmt;
-	UInt4		*rowsFetched;
-	UInt2		*rowStatusArray;
+	SQLULEN		*rowsFetched;
+	SQLUSMALLINT	*rowStatusArray;
 	UInt4		nfields;
-	UInt4		allocated;
+	SQLSMALLINT	allocated;
 	FIELD_INFO	**fi;
 };
 
 struct IPDFields_
 {
-	UInt4		*param_processed_ptr;
-	UInt2		*param_status_ptr;
+	SQLUINTEGER		*param_processed_ptr;
+	SQLUSMALLINT	*param_status_ptr;
 	ParameterImplClass	*parameters;
-	int			allocated;
+	SQLSMALLINT		allocated;
 };
 
 typedef	struct
@@ -248,7 +248,7 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *self);
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall);
 void	APD_free_params(APDFields *self, char option);
 void	IPD_free_params(IPDFields *self, char option);
-BOOL	getCOLIfromTI(const char *, ConnectionClass *, StatementClass *, const Oid, TABLE_INFO **);
+BOOL	getCOLIfromTI(const char *, ConnectionClass *, StatementClass *, const OID, TABLE_INFO **);
 #if (ODBCVER >= 0x0300)
 RETCODE	DC_set_stmt(DescriptorClass *desc, StatementClass *stmt);
 void	DC_clear_error(DescriptorClass *desc);

@@ -192,15 +192,15 @@ struct StatementClass_
 	SQLLEN		currTuple;	/* current absolute row number (GetData,
 						 * SetPos, SQLFetch) */
 	GetDataInfo	gdata_info;
-	int		save_rowset_size;	/* saved rowset size in case of
+	SQLLEN		save_rowset_size;	/* saved rowset size in case of
 							 * change/FETCH_NEXT */
 	SQLLEN		rowset_start;	/* start of rowset (an absolute row
 								 * number) */
-	Int2		bind_row;	/* current offset for Multiple row/column
+	SQLSETPOSIROW	bind_row;	/* current offset for Multiple row/column
 						 * binding */
 	Int2		current_col;	/* current column for GetData -- used to
 						 * handle multiple calls */
-	int		last_fetch_count;	/* number of rows retrieved in
+	SQLLEN		last_fetch_count;	/* number of rows retrieved in
 						 * last fetch/extended fetch */
 	int		lobj_fd;		/* fd of the current large object */
 
@@ -237,10 +237,10 @@ struct StatementClass_
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
-	int		stmt_size_limit;
-	int		exec_start_row;
-	int		exec_end_row;
-	int		exec_current_row;
+	Int4		stmt_size_limit; /* PG restriction */
+	SQLLEN		exec_start_row;
+	SQLLEN		exec_end_row;
+	SQLLEN		exec_current_row;
 
 	char		pre_executing;	/* This statement is prematurely executing */
 	char		inaccurate_result;	/* Current status is PREMATURE but
@@ -301,6 +301,7 @@ do { \
 #define	SC_set_errornumber(a, n) (a->__error_number = n)
 #define	SC_get_errormsg(a) (a->__error_message)
 #define	SC_get_errormsg(a) (a->__error_message)
+#define	SC_is_prepare_statement(a) (0 != (a->prepare & PREPARE_STATEMENT))
 #define	SC_get_prepare_method(a) (a->prepare & (~PREPARE_STATEMENT))
 
 #define	SC_parsed_status(a)	(a->parse_status & STMT_PARSE_MASK)
@@ -350,16 +351,18 @@ enum {
 	, PREPARE_STATEMENT = 1
 	, PREPARE_BY_THE_DRIVER = (1L << 1)
 	, USING_PREPARE_COMMAND = (2L << 1)
-	, USING_PARSE_REQUEST = (3L << 1)
-	, USING_UNNAMED_PARSE_REQUEST = (4L << 1)
+	, NAMED_PARSE_REQUEST = (3L << 1)
+	, PARSE_TO_EXEC_ONCE = (4L << 1)
+	, PARSE_REQ_FOR_INFO = (5L << 1)
 };
 
 /*	prepared state */
 enum
 {
 	NOT_YET_PREPARED = 0
-	,PREPARED_PERMANENTLY = 1
-	,PREPARED_TEMPORARILY = 2
+	,PREPARED_PERMANENTLY 
+	,PREPARED_TEMPORARILY
+	,ONCE_DESCRIBED
 };
 
 /*	misc info */
@@ -388,6 +391,7 @@ enum
 #define SC_started_rbpoint(a)	((a->rbonerr & (1L << 4)) != 0)
 #define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
+#define SC_forget_unnamed(a)	(PREPARED_TEMPORARILY == (a)->prepared ? SC_set_prepared(a, ONCE_DESCRIBED) : (void) 0)
 
 
 /* For Multi-thread */
@@ -439,11 +443,11 @@ void		SC_free_params(StatementClass *self, char option);
 void		SC_log_error(const char *func, const char *desc, const StatementClass *self);
 time_t		SC_get_time(StatementClass *self);
 SQLULEN		SC_get_bookmark(StatementClass *self);
-RETCODE		SC_pos_reload(StatementClass *self, SQLULEN index, UWORD *, Int4);
-RETCODE		SC_pos_update(StatementClass *self, UWORD irow, SQLULEN index);
-RETCODE		SC_pos_delete(StatementClass *self, UWORD irow, SQLULEN index);
-RETCODE		SC_pos_refresh(StatementClass *self, UWORD irow, SQLULEN index);
-RETCODE		SC_pos_add(StatementClass *self, UWORD irow);
+RETCODE		SC_pos_reload(StatementClass *self, SQLULEN index, UInt2 *, Int4);
+RETCODE		SC_pos_update(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
+RETCODE		SC_pos_delete(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
+RETCODE		SC_pos_refresh(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
+RETCODE		SC_pos_add(StatementClass *self, SQLSETPOSIROW irow);
 int		SC_set_current_col(StatementClass *self, int col);
 
 BOOL	SC_IsExecuting(const StatementClass *self);

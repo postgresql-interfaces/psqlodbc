@@ -61,15 +61,15 @@ mylog("libpq_exist=%d\n", libpq_exist);
 mylog("SendMessage CTL_COLOR\n");
 		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
 	}
-	LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
+	LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
 	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
 	if (libpq_exist || (ci->sslmode[0] && stricmp(ci->sslmode, "disable")))
 	{
-		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
 		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
 		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-		LoadString(GetWindowInstance(hdlg),IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
+		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
 		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
 	}
 	if (!stricmp(ci->sslmode, "allow"))
@@ -100,13 +100,13 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
 	switch (sslposition)
 	{
-		case 1:	strcpy(ci->sslmode, "prefer");
+		case 1:	strncpy(ci->sslmode, "prefer", sizeof(ci->sslmode));
 			break;
-		case 2:	strcpy(ci->sslmode, "allow");
+		case 2:	strncpy(ci->sslmode, "allow", sizeof(ci->sslmode));
 			break;
-		case 3:	strcpy(ci->sslmode, "require");
+		case 3:	strncpy(ci->sslmode, "require", sizeof(ci->sslmode));
 			break;
-		default:strcpy(ci->sslmode, "disable");
+		default:strncpy(ci->sslmode, "disable", sizeof(ci->sslmode));
 			break;
 	}
 }
@@ -262,7 +262,7 @@ driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
 	return 0;
 }
 
-int			CALLBACK
+LRESULT		CALLBACK
 driver_optionsProc(HWND hdlg,
 				   UINT wMsg,
 				   WPARAM wParam,
@@ -274,7 +274,7 @@ driver_optionsProc(HWND hdlg,
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
-			SetWindowLong(hdlg, DWL_USER, lParam);		/* save for OK etc */
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* save for OK etc */
 			ci = (ConnInfo *) lParam;
 			LoadString(s_hModule, IDS_ADVANCE_OPTION_DEF, strbuf, sizeof(strbuf)); 
 			SetWindowText(hdlg, strbuf);
@@ -288,7 +288,7 @@ driver_optionsProc(HWND hdlg,
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
-					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
+					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 					driver_options_update(hdlg, NULL,
 						ci ? ci->drivername : NULL);
 
@@ -322,7 +322,7 @@ mylog("GetProcAddres for %s\n", procname);
 }
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
-int			CALLBACK
+LRESULT			CALLBACK
 global_optionsProc(HWND hdlg,
 				   UINT wMsg,
 				   WPARAM wParam,
@@ -382,7 +382,7 @@ global_optionsProc(HWND hdlg,
 	return FALSE;
 }
 
-int			CALLBACK
+LRESULT			CALLBACK
 ds_options1Proc(HWND hdlg,
 				   UINT wMsg,
 				   WPARAM wParam,
@@ -394,7 +394,7 @@ ds_options1Proc(HWND hdlg,
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
-			SetWindowLong(hdlg, DWL_USER, lParam);		/* save for OK etc */
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* save for OK etc */
 			ci = (ConnInfo *) lParam;
 			if (ci && ci->dsn && ci->dsn[0])
 			{
@@ -420,7 +420,7 @@ ds_options1Proc(HWND hdlg,
 			break;
 
 		case WM_COMMAND:
-			ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
+			ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
@@ -455,7 +455,7 @@ ci);
 }
 
 
-int			CALLBACK
+LRESULT			CALLBACK
 ds_options2Proc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,
@@ -470,7 +470,7 @@ ds_options2Proc(HWND hdlg,
 	{
 		case WM_INITDIALOG:
 			ci = (ConnInfo *) lParam;
-			SetWindowLong(hdlg, DWL_USER, lParam);		/* save for OK */
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* save for OK */
 
 			/* Change window caption */
 			if (ci && ci->dsn && ci->dsn[0])
@@ -578,7 +578,7 @@ ds_options2Proc(HWND hdlg,
 				case IDOK:
 				case IDAPPLY:
 				case IDPREVPAGE:
-					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
+					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 					mylog("IDOK: got ci = %x\n", ci);
 
 					/* Readonly */
@@ -662,21 +662,23 @@ ds_options2Proc(HWND hdlg,
 	return FALSE;
 }
 
+typedef	SQLRETURN (SQL_API *SQLAPIPROC)();
 static int
 makeDriversList(HWND lwnd, const ConnInfo *ci)
 {
 	HMODULE	hmodule;
 	SQLHENV	henv;
-	int	lcount = 0, iidx;
+	int	lcount = 0;
+	LRESULT iidx;
 	char	drvname[64], drvatt[128];
 	SQLUSMALLINT	direction = SQL_FETCH_FIRST;
 	SQLSMALLINT	drvncount, drvacount;
 	SQLRETURN	ret;
-	FARPROC		addr;
+	SQLAPIPROC	addr;
 
 	hmodule = GetModuleHandle("ODBC32");
 	if (!hmodule)	return lcount;
-	addr = GetProcAddress(hmodule, "SQLAllocEnv");
+	addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLAllocEnv");
 	if (!addr)	return lcount;
 	ret = (*addr)(&henv);
 	if (SQL_SUCCESS != ret)	return lcount;
@@ -698,27 +700,27 @@ makeDriversList(HWND lwnd, const ConnInfo *ci)
 		}
 		direction = SQL_FETCH_NEXT;
 	} while (1);
-	addr = GetProcAddress(hmodule, "SQLFreeEnv");
+	addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLFreeEnv");
 	if (addr)
 		(*addr)(henv);
 
 	return lcount;
 }
 
-int			CALLBACK
+LRESULT		CALLBACK
 manage_dsnProc(HWND hdlg, UINT wMsg,
 		WPARAM wParam, LPARAM lParam)
 {
 	LPSETUPDLG	lpsetupdlg;
 	ConnInfo	*ci;
 	HWND		lwnd;
-	int		sidx;
+	LRESULT		sidx;
 	char		drvname[64];
 
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
-			SetWindowLong(hdlg, DWL_USER, lParam);
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);
 			lpsetupdlg = (LPSETUPDLG) lParam;
 			ci = &lpsetupdlg->ci;
 			lwnd = GetDlgItem(hdlg, IDC_DRIVER_LIST);
@@ -729,7 +731,7 @@ manage_dsnProc(HWND hdlg, UINT wMsg,
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					lwnd = GetDlgItem(hdlg, IDC_DRIVER_LIST);
 					sidx = SendMessage(lwnd, LB_GETCURSEL,
 						(WPARAM) 0, (LPARAM) 0);

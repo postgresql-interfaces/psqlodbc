@@ -45,21 +45,21 @@ QR_set_num_fields(QResultClass *self, int new_num_fields)
 
 
 void
-QR_set_position(QResultClass *self, int pos)
+QR_set_position(QResultClass *self, SQLLEN pos)
 {
 	self->tupleField = self->backend_tuples + ((QR_get_rowstart_in_cache(self) + pos) * self->num_fields);
 }
 
 
 void
-QR_set_cache_size(QResultClass *self, int cache_size)
+QR_set_cache_size(QResultClass *self, SQLLEN cache_size)
 {
 	self->cache_size = cache_size;
 }
 
 
 void
-QR_set_rowset_size(QResultClass *self, int rowset_size)
+QR_set_rowset_size(QResultClass *self, Int4 rowset_size)
 {
 	self->rowset_size_include_ommitted = rowset_size;
 }
@@ -100,7 +100,7 @@ QR_set_cursor(QResultClass *self, const char *name)
 
 
 void
-QR_set_num_cached_rows(QResultClass *self, int num_rows)
+QR_set_num_cached_rows(QResultClass *self, SQLLEN num_rows)
 {
 	self->num_cached_rows = num_rows;
 	if (QR_synchronize_keys(self))
@@ -108,7 +108,7 @@ QR_set_num_cached_rows(QResultClass *self, int num_rows)
 }
 
 void
-QR_set_rowstart_in_cache(QResultClass *self, int start)
+QR_set_rowstart_in_cache(QResultClass *self, SQLLEN start)
 {
 	if (QR_synchronize_keys(self))
 		self->key_base = start;
@@ -116,7 +116,7 @@ QR_set_rowstart_in_cache(QResultClass *self, int start)
 }
 
 void
-QR_inc_rowstart_in_cache(QResultClass *self, int base_inc)
+QR_inc_rowstart_in_cache(QResultClass *self, SQLLEN base_inc)
 {
 	if (!QR_has_valid_base(self))
 		mylog("QR_inc_rowstart_in_cache called while the cache is not ready\n");
@@ -302,7 +302,7 @@ void
 QR_add_message(QResultClass *self, const char *msg)
 {
 	char	*message = self->message;
-	Int4	alsize, pos;
+	size_t	alsize, pos;
 
 	if (!msg || !msg[0])
 		return;
@@ -337,7 +337,7 @@ void
 QR_add_notice(QResultClass *self, const char *msg)
 {
 	char	*message = self->notice;
-	Int4	alsize, pos;
+	size_t	alsize, pos;
 
 	if (!msg || !msg[0])
 		return;
@@ -361,7 +361,8 @@ QR_add_notice(QResultClass *self, const char *msg)
 
 TupleField	*QR_AddNew(QResultClass *self)
 {
-	UInt4	alloc, num_fields;
+	size_t	alloc;
+	UInt4	num_fields;
 
 	if (!self)	return	NULL;
 inolog("QR_AddNew %dth row(%d fields) alloc=%d\n", self->num_cached_rows, QR_NumResultCols(self), self->count_backend_allocated);
@@ -398,7 +399,7 @@ void
 QR_free_memory(QResultClass *self)
 {
 	TupleField	*tuple = self->backend_tuples;
-	int		num_backend_rows = self->num_cached_rows;
+	SQLLEN		num_backend_rows = self->num_cached_rows;
 	int		num_fields = self->num_fields;
 
 	mylog("QResult: free memory in, fcount=%d\n", num_backend_rows);
@@ -506,7 +507,7 @@ char
 QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 {
 	CSTR		func = "QR_fetch_tuples";
-	int			tuple_size;
+	SQLLEN			tuple_size;
 
 	/*
 	 * If called from send_query the first time (conn != NULL), then set
@@ -672,7 +673,7 @@ BOOL
 QR_get_tupledata(QResultClass *self, BOOL binary)
 {
 	BOOL	haskeyset = QR_haskeyset(self);
-	UInt4	num_total_rows = QR_get_num_total_tuples(self);
+	SQLULEN num_total_rows = QR_get_num_total_tuples(self);
 
 inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
 	if (!QR_get_cursor(self))
@@ -681,7 +682,7 @@ inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
 		if (self->num_fields > 0 &&
 		    num_total_rows >= self->count_backend_allocated)
 		{
-			int	tuple_size = self->count_backend_allocated;
+			SQLLEN	tuple_size = self->count_backend_allocated;
 
 			mylog("REALLOC: old_count = %d, size = %d\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
 			if (tuple_size < 1)
@@ -694,7 +695,7 @@ inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
 		if (haskeyset &&
 		    self->num_cached_keys >= self->count_keyset_allocated)
 		{
-			int	tuple_size = self->count_keyset_allocated;
+			SQLLEN	tuple_size = self->count_keyset_allocated;
 
 			if (tuple_size < 1)
 				tuple_size = TUPLE_MALLOC_INC;
@@ -725,9 +726,10 @@ inolog("!!cursTup=%d total_read=%d\n", self->cursTuple, self->num_total_read);
 	return TRUE;
 }
 
-static int enlargeKeyCache(QResultClass *self, Int4 add_size, const char *message)
+static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *message)
 {
-	Int4	alloc, alloc_req, num_fields = self->num_fields;
+	size_t	alloc, alloc_req;
+	Int4	num_fields = self->num_fields;
 	BOOL	curs = (NULL != QR_get_cursor(self));
 
 	if (add_size <= 0)
@@ -786,11 +788,11 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	SocketClass *sock;
 
 	/* Speed up access */
-	int		fetch_number = self->fetch_number, cur_fetch;
-	Int4		num_total_rows;
-	Int4		num_backend_rows = self->num_cached_rows,
-			num_fields = self->num_fields, num_rows_in;
-	Int4		req_size, fetch_size, offset = 0,	end_tuple;
+	SQLLEN		fetch_number = self->fetch_number, cur_fetch;
+	SQLLEN		num_total_rows;
+	SQLLEN		num_backend_rows = self->num_cached_rows, num_rows_in;
+	Int4		num_fields = self->num_fields, fetch_size, req_size;
+	SQLLEN		offset = 0, end_tuple;
 	char		boundary_adjusted = FALSE;
 	TupleField *the_tuples = self->backend_tuples;
 
@@ -819,14 +821,14 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 	{
 		char		movecmd[256];
 		QResultClass	*mres;
-		UInt4		movement, moved;
+		SQLULEN		movement, moved;
 
 		movement = self->move_offset;
 		if (QR_is_moving_backward(self))
 		{
 			if (self->cache_size > req_size)
 			{
-				int	incr_move = self->cache_size - (req_size < 0 ? 1 : req_size);
+				SQLLEN	incr_move = self->cache_size - (req_size < 0 ? 1 : req_size);
 				
 				movement += incr_move;
 				if (movement > (UInt4)(self->cursTuple + 1))
@@ -877,8 +879,8 @@ inolog("moved=%d ? %d\n", moved, movement);
 				}
 				if (QR_is_moving_from_the_last(self))  /* in case of FETCH LAST */
 				{
-					UInt4	bmovement, mback;
-					Int4	rowset_start = self->cursTuple + 1, back_offset = self->move_offset, backpt;
+					SQLULEN	bmovement, mback;
+					SQLLEN	rowset_start = self->cursTuple + 1, back_offset = self->move_offset, backpt;
 inolog("FETCH LAST case\n");
 					if (getNthValid(self, QR_get_num_total_tuples(self) - 1, SQL_FETCH_PRIOR, self->move_offset, &backpt) < 0)
 					{
@@ -971,7 +973,7 @@ inolog("tupleField=%x\n", self->tupleField);
 	else if (QR_once_reached_eof(self))
 	{
 		BOOL	reached_eod = FALSE;
-		UInt4	num_total_read = self->num_total_read;
+		SQLULEN	num_total_read = self->num_total_read;
 
 		if (stmt)
 		{
@@ -1042,7 +1044,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 			 *	and fetch the rest of the rowset.
 			 */
 			/* The next fetch size is */
-			fetch_size = end_tuple - num_backend_rows;
+			fetch_size = (Int4) (end_tuple - num_backend_rows);
 			if (fetch_size <= 0)
 			{
 				mylog("corrupted fetch_size end_tuple=%d <= cached_rows=%d\n", end_tuple, num_backend_rows);
@@ -1244,11 +1246,24 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				ret = FALSE;
 				rcvend = TRUE;
 		}
+		if (0 != SOCK_get_errcode(sock))
+		{
+			if (QR_command_maybe_successful(self))
+			{
+				QR_set_message(self, "Communication error while getting a tuple");
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
+			}
+			CC_on_abort(conn, CONN_DEAD);
+			ret = FALSE;
+			break;
+		}
 	}
+	if (!ret)
+		return ret;
 
 	if (!QR_is_fetching_tuples(self))
 	{
-		Int4	start_idx = 0;
+		SQLLEN	start_idx = 0;
 
 		num_backend_rows = self->num_cached_rows;
 		if (reached_eof_now)
@@ -1261,7 +1276,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 			    cur_fetch < fetch_size)
 			{
 				/* We have to append the tuples(keys) info from the added tuples(keys) here */
-				Int4 add_size;
+				SQLLEN	add_size;
 				TupleField	*tuple, *added_tuple;
 
 				if (curr_eof)
@@ -1320,9 +1335,9 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 	*/
 	if (internally_invoked && self->keyset && (self->dl_count > 0 || self->up_count > 0))
 	{
-		int	i, lf;
-		Int4	lidx, hidx;
-		UInt4	*deleted = self->deleted, *updated = self->updated;
+		SQLLEN	i, lf;
+		SQLLEN	lidx, hidx;
+		SQLULEN	*deleted = self->deleted, *updated = self->updated;
  
 		num_backend_rows = QR_get_num_cached_tuples(self);
 		/* For simplicty, use CURS_NEEDS_REREAD bit to mark the row */

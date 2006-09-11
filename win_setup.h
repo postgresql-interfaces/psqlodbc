@@ -20,7 +20,7 @@ typedef struct tagSETUPDLG
 
 /* Prototypes */
 void INTFUNC CenterDialog(HWND hdlg);
-int CALLBACK ConfigDlgProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK ConfigDlgProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
 void INTFUNC ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg);
 BOOL INTFUNC SetDSNAttributes(HWND hwnd, LPSETUPDLG lpsetupdlg, DWORD *);
 BOOL INTFUNC ChangeDriverName(HWND hwnd, LPSETUPDLG lpsetupdlg, LPCSTR driver_name);

@@ -42,7 +42,7 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 
 	ptr = getpwuid(getuid());
 #endif
-	pid = getpid();
+	pid = _getpid();
 	if (dirname == 0 || filename == 0)
 		return;
 
@@ -120,34 +120,32 @@ mylog(char *fmt,...)
 	va_list		args;
 	char		filebuf[80];
 
+	if (!mylog_on)	return;
 	ENTER_MYLOG_CS;
-	if (mylog_on)
-	{
-		va_start(args, fmt);
+	va_start(args, fmt);
 
-		if (!MLOGFP)
-		{
-			generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
-			MLOGFP = fopen(filebuf, PG_BINARY_A);
-			if (MLOGFP)
-				setbuf(MLOGFP, NULL);
-		}
+	if (!MLOGFP)
+	{
+		generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
+		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (MLOGFP)
+			setbuf(MLOGFP, NULL);
+	}
 
 #ifdef	WIN_MULTITHREAD_SUPPORT
 #ifdef	WIN32
-		if (MLOGFP)
-			fprintf(MLOGFP, "[%d]", GetCurrentThreadId());
+	if (MLOGFP)
+		fprintf(MLOGFP, "[%d]", GetCurrentThreadId());
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-		if (MLOGFP)
-			fprintf(MLOGFP, "[%d]", pthread_self());
+	if (MLOGFP)
+		fprintf(MLOGFP, "[%d]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
-		if (MLOGFP)
-			vfprintf(MLOGFP, fmt, args);
+	if (MLOGFP)
+		vfprintf(MLOGFP, fmt, args);
 
-		va_end(args);
-	}
+	va_end(args);
 	LEAVE_MYLOG_CS;
 }
 void
@@ -200,6 +198,7 @@ static void mylog_initialize()
 }
 static void mylog_finalize()
 {
+	mylog_on = 0;
 	if (MLOGFP)
 	{
 		fclose(MLOGFP);
@@ -225,24 +224,23 @@ qlog(char *fmt,...)
 	va_list		args;
 	char		filebuf[80];
 
+	if (!qlog_on)	return;
+
 	ENTER_QLOG_CS;
-	if (qlog_on)
+	va_start(args, fmt);
+
+	if (!QLOGFP)
 	{
-		va_start(args, fmt);
-
-		if (!QLOGFP)
-		{
-			generate_filename(QLOGDIR, QLOGFILE, filebuf);
-			QLOGFP = fopen(filebuf, PG_BINARY_A);
-			if (QLOGFP)
-				setbuf(QLOGFP, NULL);
-		}
-
+		generate_filename(QLOGDIR, QLOGFILE, filebuf);
+		QLOGFP = fopen(filebuf, PG_BINARY_A);
 		if (QLOGFP)
-			vfprintf(QLOGFP, fmt, args);
-
-		va_end(args);
+			setbuf(QLOGFP, NULL);
 	}
+
+	if (QLOGFP)
+		vfprintf(QLOGFP, fmt, args);
+
+	va_end(args);
 	LEAVE_QLOG_CS;
 }
 static void qlog_initialize()
@@ -251,6 +249,7 @@ static void qlog_initialize()
 }
 static void qlog_finalize()
 {
+	qlog_on = 0;
 	if (QLOGFP)
 	{
 		fclose(QLOGFP);

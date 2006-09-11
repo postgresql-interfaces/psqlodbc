@@ -27,6 +27,7 @@
 #endif
 
 GLOBAL_VALUES globals;
+int	exepgm = 0;
 
 RETCODE SQL_API SQLDummyOrdinal(void);
 
@@ -125,8 +126,18 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				WSACleanup();
 				return FALSE;
 			}
-
-			initialize_global_cs();
+			if (initialize_global_cs() == 0)
+			{
+				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
+				
+				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
+				{
+					_splitpath(pathname, NULL, NULL, fname, NULL);
+					if (stricmp(fname, "msaccess") == 0)
+						exepgm = 1;
+					forcelog("exe name=%s\n", fname);
+				}
+			}
 			getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 			break;
 

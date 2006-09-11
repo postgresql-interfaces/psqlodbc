@@ -36,7 +36,7 @@ set_tuplefield_string(TupleField *tuple_field, const char *string)
 {
 	if (string)
 	{
-		tuple_field->len = strlen(string);
+		tuple_field->len = (Int4) strlen(string); /* PG restriction */
 		tuple_field->value = malloc(strlen(string) + 1);
 		strcpy(tuple_field->value, string);
 	}
@@ -52,7 +52,7 @@ set_tuplefield_int2(TupleField *tuple_field, Int2 value)
 
 	sprintf(buffer, "%d", value);
 
-	tuple_field->len = strlen(buffer) + 1;
+	tuple_field->len = (Int4) (strlen(buffer) + 1);
 	/* +1 ... is this correct (better be on the save side-...) */
 	tuple_field->value = strdup(buffer);
 }
@@ -65,7 +65,7 @@ set_tuplefield_int4(TupleField *tuple_field, Int4 value)
 
 	sprintf(buffer, "%ld", value);
 
-	tuple_field->len = strlen(buffer) + 1;
+	tuple_field->len = (Int4) (strlen(buffer) + 1);
 	/* +1 ... is this correct (better be on the save side-...) */
 	tuple_field->value = strdup(buffer);
 }

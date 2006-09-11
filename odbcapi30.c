@@ -192,7 +192,7 @@ SQLFetchScroll(HSTMT StatementHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	IRDFields	*irdopts = SC_get_IRDF(stmt);
 	SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
-	SQLINTEGER *pcRow = (SQLINTEGER *) irdopts->rowsFetched, bkmarkoff = 0;
+	SQLLEN *pcRow = irdopts->rowsFetched, bkmarkoff = 0;
 
 	mylog("[[%s]] %d,%d\n", func, FetchOrientation, FetchOffset);
 	ENTER_STMT_CS(stmt);
@@ -448,7 +448,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 	switch (Attribute)
 	{
 		case SQL_ATTR_CONNECTION_POOLING:
-			switch ((SQLUINTEGER) Value)
+			switch ((ULONG_PTR) Value)
 			{
 			 	case SQL_CP_OFF:
 					EN_unset_pooling(env);

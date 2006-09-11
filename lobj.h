@@ -35,13 +35,13 @@ struct lo_arg
 #define INV_WRITE					0x00020000
 #define INV_READ					0x00040000
 
-Oid		odbc_lo_creat(ConnectionClass *conn, int mode);
+OID		odbc_lo_creat(ConnectionClass *conn, int mode);
 int		odbc_lo_open(ConnectionClass *conn, int lobjId, int mode);
 int		odbc_lo_close(ConnectionClass *conn, int fd);
-int		odbc_lo_read(ConnectionClass *conn, int fd, char *buf, int len);
-int		odbc_lo_write(ConnectionClass *conn, int fd, char *buf, int len);
-int		odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, int len);
-int		odbc_lo_tell(ConnectionClass *conn, int fd);
-int		odbc_lo_unlink(ConnectionClass *conn, Oid lobjId);
+Int4		odbc_lo_read(ConnectionClass *conn, int fd, char *buf, Int4 len);
+Int4		odbc_lo_write(ConnectionClass *conn, int fd, char *buf, Int4 len);
+Int4		odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, Int4 len);
+Int4		odbc_lo_tell(ConnectionClass *conn, int fd);
+int		odbc_lo_unlink(ConnectionClass *conn, OID lobjId);
 
 #endif

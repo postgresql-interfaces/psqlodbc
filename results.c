@@ -91,7 +91,7 @@ inolog("returning RowCount=%d\n", *pcrow);
 
 static BOOL SC_pre_execute_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *func)
 {
-	Int4 num_fields = SC_pre_execute(stmt);
+	Int2 num_fields = SC_pre_execute(stmt);
 	QResultClass	*result = SC_get_Curres(stmt);
 	BOOL	exec_ok = TRUE;
 
@@ -105,7 +105,7 @@ static BOOL SC_pre_execute_ok(StatementClass *stmt, BOOL build_fi, int col_idx, 
 	}
 	else if (col_idx >= 0 && col_idx < num_fields)
 	{
-		Oid	reloid = QR_get_relid(result, col_idx);
+		OID	reloid = QR_get_relid(result, col_idx);
 		IRDFields	*irdflds = SC_get_IRDF(stmt);
 		FIELD_INFO	*fi;
 		TABLE_INFO	*ti = NULL;
@@ -229,7 +229,7 @@ PGAPI_DescribeCol(
 	IRDFields	*irdflds;
 	QResultClass *res;
 	char	   *col_name = NULL;
-	Int4		fieldtype = 0;
+	OID		fieldtype = 0;
 	SQLLEN		column_size = 0;
 	SQLINTEGER	decimal_digits = 0;
 	ConnInfo   *ci;
@@ -367,7 +367,7 @@ inolog("answering bookmark info\n");
 	/*
 	 * COLUMN NAME
 	 */
-	len = strlen(col_name);
+	len = (int) strlen(col_name);
 
 	if (pcbColName)
 		*pcbColName = len;
@@ -450,15 +450,15 @@ PGAPI_ColAttributes(
 	CSTR func = "PGAPI_ColAttributes";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	IRDFields	*irdflds;
-	Int4		col_idx, field_type = 0;
+	OID		field_type = 0;
+	Int2		col_idx;
 	ConnectionClass	*conn;
 	ConnInfo	*ci;
 	int			unknown_sizes;
 	int			cols = 0;
 	RETCODE		result;
 	const char   *p = NULL;
-	int			len = 0,
-				value = 0;
+	SQLLEN		value = 0;
 	const	FIELD_INFO	*fi = NULL;
 	const	TABLE_INFO	*ti = NULL;
 	QResultClass	*res;
@@ -833,7 +833,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 
 	if (p)
 	{							/* char/binary data */
-		len = strlen(p);
+		size_t len = strlen(p);
 
 		if (rgbDesc)
 		{
@@ -847,7 +847,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 		}
 
 		if (pcbDesc)
-			*pcbDesc = len;
+			*pcbDesc = (SQLSMALLINT) len;
 	}
 	else
 	{
@@ -873,9 +873,9 @@ PGAPI_GetData(
 	CSTR func = "PGAPI_GetData";
 	QResultClass *res;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	int			num_cols,
-				num_rows;
-	Int4		field_type;
+	UInt2		num_cols;
+	SQLLEN		num_rows;
+	OID		field_type;
 	void	   *value = NULL;
 	RETCODE		result = SQL_SUCCESS;
 	char		get_bookmark = FALSE;
@@ -982,7 +982,7 @@ inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", target_type);
 
 		if (!get_bookmark)
 		{
-			Int4	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
+			SQLLEN	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
 			value = QR_get_value_backend_row(res, curt, icol);
 inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt)); 
 			mylog("     value = '%s'\n", value ? value : "(null)");
@@ -1001,7 +1001,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 		if (!get_bookmark)
 		{
 			/** value = QR_get_value_backend(res, icol); maybe thiw doesn't work */
-			Int4	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
+			SQLLEN	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
 			value = QR_get_value_backend_row(res, curt, icol);
 		}
 		mylog("  socket: value = '%s'\n", value ? value : "(null)");
@@ -1162,12 +1162,12 @@ PGAPI_Fetch(
 }
 
 static RETCODE SQL_API
-SC_pos_reload_needed(StatementClass *stmt, UInt4 req_size, UDWORD flag);
-Int4
-getNthValid(const QResultClass *res, Int4 sta, UWORD orientation, UInt4 nth, Int4 *nearest)
+SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag);
+SQLLEN
+getNthValid(const QResultClass *res, SQLLEN sta, UWORD orientation, SQLULEN nth, SQLLEN *nearest)
 {
-	Int4	i, num_tuples = QR_get_num_total_tuples(res), nearp;
-	UInt4	count;
+	SQLLEN	i, num_tuples = QR_get_num_total_tuples(res), nearp;
+	SQLULEN count;
 	KeySet	*keyset;
 
 	if (!QR_once_reached_eof(res))
@@ -1178,13 +1178,13 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 	{
 		if (SQL_FETCH_PRIOR == orientation)
 		{	
-			if (sta + 1 >= (Int4) nth)
+			if (sta + 1 >= (SQLLEN) nth)
 			{
 				*nearest = sta + 1 - nth;
 				return nth;
 			}
 			*nearest = -1;
-			return -(Int4)(sta + 1);
+			return -(SQLLEN)(sta + 1);
 		}
 		else
 		{	
@@ -1195,21 +1195,21 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 				return nth;
 			}
 			*nearest = num_tuples;
-			return -(Int4)(num_tuples - sta);
+			return -(SQLLEN)(num_tuples - sta);
 		}
 	}
 	count = 0;
 	if (QR_get_cursor(res))
 	{
-		UInt4	*deleted = res->deleted;
+		SQLLEN	*deleted = res->deleted;
 
 		*nearest = sta - 1 + nth;
 		if (SQL_FETCH_PRIOR == orientation)
 		{
-			for (i = res->dl_count - 1; i >=0 && *nearest <= (Int4) deleted[i]; i--)
+			for (i = res->dl_count - 1; i >=0 && *nearest <= (SQLLEN) deleted[i]; i--)
 			{
 inolog("deleted[%d]=%d\n", i, deleted[i]);
-				if (sta >= (Int4)deleted[i])
+				if (sta >= (SQLLEN)deleted[i])
 					(*nearest)--;
 			}
 inolog("nearest=%d\n", *nearest);
@@ -1225,9 +1225,9 @@ inolog("nearest=%d\n", *nearest);
 		{
 			if (!QR_once_reached_eof(res))
 				num_tuples = INT_MAX;
-			for (i = 0; i < res->dl_count && *nearest >= (Int4)deleted[i]; i++)
+			for (i = 0; i < res->dl_count && *nearest >= (SQLLEN)deleted[i]; i++)
 			{
-				if (sta <= (Int4)deleted[i])
+				if (sta <= (SQLLEN)deleted[i])
 					(*nearest)++;
 			}
 			if (*nearest >= num_tuples)
@@ -1270,13 +1270,13 @@ inolog(" nearest=%d\n", *nearest);
 		*nearest = num_tuples; 
 	}
 inolog(" nearest not found\n");
-	return -(Int4)count;
+	return -(SQLLEN)count;
 }
 
 static void
 move_cursor_position_if_needed(StatementClass *self, QResultClass *res)
 {
-	int	move_offset;
+	SQLLEN	move_offset;
 	
 	/*
 	 * The move direction must be initialized to is_not_moving or
@@ -1309,7 +1309,7 @@ inolog("!!move_offset=%d calc=%d\n", res->move_offset, INT_MAX - self->rowset_st
 	res->move_offset = 0;
 	move_offset = self->currTuple - res->cursTuple;
 	if (QR_get_rowstart_in_cache(res) >= 0 &&
-	     QR_get_rowstart_in_cache(res) <= (Int4)res->num_cached_rows)
+	     QR_get_rowstart_in_cache(res) <= res->num_cached_rows)
 	{
 		QR_set_next_in_cache(res, (QR_get_rowstart_in_cache(res) < 0) ? 0 : QR_get_rowstart_in_cache(res));
 		return;
@@ -1356,24 +1356,22 @@ PGAPI_ExtendedFetch(
 					SQLLEN irow,
 					SQLULEN FAR * pcrow,
 					SQLUSMALLINT FAR * rgfRowStatus,
-					SQLINTEGER bookmark_offset,
-					SQLINTEGER rowsetSize)
+					SQLLEN bookmark_offset,
+					SQLLEN rowsetSize)
 {
 	CSTR func = "PGAPI_ExtendedFetch";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ARDFields	*opts;
 	QResultClass *res;
 	BindInfoClass	*bookmark;
-	int			num_tuples,
-				i, fc_io;
-	Int4			save_rowset_size,
-				save_rowset_start,
-				progress_size,
-				rowset_start;
+	SQLLEN		num_tuples, i, fc_io;
+	SQLLEN		save_rowset_size, progress_size;
+	SQLLEN		 save_rowset_start,
+			rowset_start;
 	RETCODE		result = SQL_SUCCESS;
 	char		truncated, error, should_set_rowset_start = FALSE; 
 	ConnInfo   *ci;
-	Int4		currp;
+	SQLLEN		currp;
 	UWORD		pstatus;
 	BOOL		currp_is_valid, reached_eof;
 
@@ -1624,7 +1622,7 @@ inolog("num_tuples=%d\n", num_tuples);
 
 		case SQL_FETCH_BOOKMARK:
 			{
-			Int4	bidx = SC_resolve_bookmark(irow);
+			SQLLEN	bidx = SC_resolve_bookmark(irow);
 
 			if (bidx < 0)
 			{
@@ -1704,7 +1702,7 @@ inolog("num_tuples=%d\n", num_tuples);
 
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	/* increment the base row in the tuple cache */
-	QR_set_rowset_size(res, rowsetSize);
+	QR_set_rowset_size(res, (Int4) rowsetSize);
 	/* set the rowset_start if needed */
 	if (should_set_rowset_start)
 		SC_set_rowset_start(stmt, rowset_start, TRUE);
@@ -1722,14 +1720,14 @@ inolog("num_tuples=%d\n", num_tuples);
 	if (res->keyset && !QR_get_cursor(res))
 	{
 		UDWORD	flag = 0;
-		Int4	rowset_end, req_size;
+		SQLLEN	rowset_end, req_size;
 
 		getNthValid(res, rowset_start, SQL_FETCH_NEXT, rowsetSize, &rowset_end);
 		req_size = rowset_end - rowset_start + 1;
 		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
 		{
 			if (fFetchType != SQL_FETCH_NEXT ||
-		    		QR_get_rowstart_in_cache(res) + req_size > (Int4)QR_get_num_cached_tuples(res))
+		    		QR_get_rowstart_in_cache(res) + req_size > QR_get_num_cached_tuples(res))
 				flag = 1;
 		}
 		if (SQL_RD_ON == stmt->options.retrieve_data ||
@@ -1765,7 +1763,7 @@ inolog("currp=%d\n", currp);
 		currp_is_valid = FALSE;
 		if (res->keyset)
 		{
-			if (currp < (Int4)res->num_cached_keys)
+			if (currp < res->num_cached_keys)
 			{
 				currp_is_valid = TRUE;
 				res->keyset[currp].status &= ~CURS_IN_ROWSET; /* Off the flag first */
@@ -1780,7 +1778,7 @@ inolog("ExtFetch result=%d\n", result);
 		if (currp_is_valid && SQL_SUCCESS_WITH_INFO == result && 0 == stmt->last_fetch_count)
 		{
 inolog("just skipping deleted row %d\n", currp);
-			QR_set_rowset_size(res, rowsetSize - i + fc_io);
+			QR_set_rowset_size(res, (Int4) (rowsetSize - i + fc_io));
 			result = SC_fetch(stmt);
 			continue;
 		}
@@ -1817,7 +1815,7 @@ inolog("just skipping deleted row %d\n", currp);
 		i++;
 		if (i >= rowsetSize)
 			break;
-		stmt->bind_row = i;		/* set the binding location */
+		stmt->bind_row = (SQLSETPOSIROW) i; /* set the binding location */
 		result = SC_fetch(stmt);
 	}
 
@@ -1905,11 +1903,11 @@ static Int2	getNumResultCols(const QResultClass *res)
 	Int2	res_cols = QR_NumPublicResultCols(res);
 	return res_cols;
 }
-static UInt4	getOid(const QResultClass *res, int index)
+static OID	getOid(const QResultClass *res, SQLLEN index)
 {
 	return res->keyset[index].oid;
 }
-static void getTid(const QResultClass *res, int index, UInt4 *blocknum, UInt2 *offset)
+static void getTid(const QResultClass *res, SQLLEN index, UInt4 *blocknum, UInt2 *offset)
 {
 	*blocknum = res->keyset[index].blocknum;
 	*offset = res->keyset[index].offset;
@@ -1924,7 +1922,7 @@ static void KeySetSet(const TupleField *tuple, int num_fields, int num_key_field
 		keyset->oid = 0;
 }
 
-static void AddRollback(StatementClass *stmt, QResultClass *res, int index, const KeySet *keyset, Int4 dmlcode)
+static void AddRollback(StatementClass *stmt, QResultClass *res, SQLLEN index, const KeySet *keyset, Int4 dmlcode)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	Rollback *rollback;
@@ -1966,9 +1964,9 @@ inolog("AddRollback %d(%d,%d) %s\n", index, keyset->blocknum, keyset->offset, dm
 	res->rb_count++;	
 }
 
-int ClearCachedRows(TupleField *tuple, int num_fields, int num_rows)
+SQLLEN ClearCachedRows(TupleField *tuple, int num_fields, SQLLEN num_rows)
 {
-	int	i;
+	SQLLEN	i;
 
 	for (i = 0; i < num_fields * num_rows; i++, tuple++)
 	{
@@ -1982,9 +1980,9 @@ inolog("freeing tuple[%d][%d].value=%x\n", i / num_fields, i % num_fields, tuple
 	}
 	return i;
 }
-int ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, int num_rows)
+SQLLEN ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, SQLLEN num_rows)
 {
-	int	i;
+	SQLLEN	i;
 
 inolog("ReplaceCachedRows %x num_fields=%d num_rows=%d\n", otuple, num_fields, num_rows);
 	for (i = 0; i < num_fields * num_rows; i++, ituple++, otuple++)
@@ -2004,7 +2002,8 @@ inolog("[%d,%d] %s copied\n", i / num_fields, i % num_fields, otuple->value);
 	return i;
 }
 
-int MoveCachedRows(TupleField *otuple, TupleField *ituple, Int4 num_fields, int num_rows)
+static
+int MoveCachedRows(TupleField *otuple, TupleField *ituple, Int2 num_fields, SQLLEN num_rows)
 {
 	int	i;
 
@@ -2047,15 +2046,15 @@ static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
 	QR_Destructor(res);
 	return ret;
 }
-static BOOL	tupleIsAdding(const StatementClass *stmt, const QResultClass *res, Int4 index)
+static BOOL	tupleIsAdding(const StatementClass *stmt, const QResultClass *res, SQLLEN index)
 {
-	int	i;
+	SQLLEN	i;
 	BOOL	ret = FALSE;
 	UWORD	status;
 
 	if (!res->added_keyset)
 		return ret;
-	if (index < (Int4)res->num_total_read || index >= (Int4)QR_get_num_total_read(res))
+	if (index < res->num_total_read || index >= QR_get_num_total_read(res))
 		return ret;
 	i = index - res->num_total_read; 
 	status = res->added_keyset[i].status;
@@ -2067,7 +2066,7 @@ static BOOL	tupleIsAdding(const StatementClass *stmt, const QResultClass *res, I
 	return ret;
 }
 
-static BOOL	tupleIsUpdating(const StatementClass *stmt, const QResultClass *res, Int4 index)
+static BOOL	tupleIsUpdating(const StatementClass *stmt, const QResultClass *res, SQLLEN index)
 {
 	int	i;
 	BOOL	ret = FALSE;
@@ -2091,7 +2090,7 @@ static BOOL	tupleIsUpdating(const StatementClass *stmt, const QResultClass *res,
 	}
 	return ret;
 }
-static BOOL	tupleIsDeleting(const StatementClass *stmt, const QResultClass *res, Int4 index)
+static BOOL	tupleIsDeleting(const StatementClass *stmt, const QResultClass *res, SQLLEN index)
 {
 	int	i;
 	BOOL	ret = FALSE;
@@ -2158,12 +2157,12 @@ static BOOL enlargeAdded(QResultClass *res, UInt4 number, const StatementClass *
 	res->ad_alloc = alloc;
 	return TRUE;
 }
-static void AddAdded(StatementClass *stmt, QResultClass *res, int index, const TupleField *tuple_added)
+static void AddAdded(StatementClass *stmt, QResultClass *res, SQLLEN index, const TupleField *tuple_added)
 {
 	KeySet	*added_keyset, *keyset, keys;
 	TupleField	*added_tuples = NULL, *tuple;
 	UInt4	ad_count;
-	int	num_fields;
+	Int2	num_fields;
 
 	if (!res)	return;
 	num_fields = res->num_fields;
@@ -2171,7 +2170,7 @@ inolog("AddAdded index=%d, tuple=%x, num_fields=%d\n", index, tuple_added, num_f
 	ad_count = res->ad_count;
 	res->ad_count++;
 	if (QR_get_cursor(res))
-		index = -(Int4)res->ad_count;
+		index = -(SQLLEN)res->ad_count;
 	if (!tuple_added)
 		return;
 	KeySetSet(tuple_added, num_fields + res->num_key_fields, res->num_key_fields, &keys);
@@ -2201,13 +2200,14 @@ inolog("AddAdded index=%d, tuple=%x, num_fields=%d\n", index, tuple_added, num_f
 	}
 }
 
-static	void RemoveAdded(QResultClass *, Int4);
-static	void RemoveUpdated(QResultClass *, Int4);
-static	void RemoveUpdatedAfterTheKey(QResultClass *, Int4, const KeySet*);
-static	void RemoveDeleted(QResultClass *, Int4);
-static	void RemoveAdded(QResultClass *res, Int4 index)
+static	void RemoveAdded(QResultClass *, SQLLEN);
+static	void RemoveUpdated(QResultClass *, SQLLEN);
+static	void RemoveUpdatedAfterTheKey(QResultClass *, SQLLEN, const KeySet*);
+static	void RemoveDeleted(QResultClass *, SQLLEN);
+static	void RemoveAdded(QResultClass *res, SQLLEN index)
 {
-	Int4	rmidx, num_fields = res->num_fields, mv_count;
+	SQLLEN	rmidx, mv_count;
+	Int2	num_fields = res->num_fields;
 	KeySet	*added_keyset;
 	TupleField	*added_tuples;
 
@@ -2216,7 +2216,7 @@ static	void RemoveAdded(QResultClass *res, Int4 index)
 		rmidx = -index - 1;
 	else
 		rmidx = index - res->num_total_read;
-	if (rmidx >= (Int4)res->ad_count)
+	if (rmidx >= res->ad_count)
 		return;
 	added_keyset = res->added_keyset + rmidx;
 	added_tuples = res->added_tuples + num_fields * rmidx;
@@ -2269,15 +2269,14 @@ inolog("!!Commit Added=%d(%d)\n", QR_get_num_total_read(res) + i, i);
 }
 
 
-int AddDeleted(QResultClass *res, UInt4 index, KeySet *keyset)
+int AddDeleted(QResultClass *res, SQLULEN index, KeySet *keyset)
 {
 	int	i;
-	Int4	dl_count;
-	UInt4	new_alloc;
-	UInt4	*deleted;
+	Int2	dl_count, new_alloc;
+	SQLULEN	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
-	Int4	num_fields = res->num_fields;
+	Int2	num_fields = res->num_fields;
 
 inolog("AddDeleted %d\n", index);
 	if (!res)	return FALSE;
@@ -2289,7 +2288,7 @@ inolog("AddDeleted %d\n", index);
 	{
 		dl_count = 0;
 		new_alloc = 10;
-		QR_MALLOC_return_with_error(res->deleted, UInt4, sizeof(UInt4) * new_alloc, res, "Deleted index malloc error", FALSE);
+		QR_MALLOC_return_with_error(res->deleted, SQLULEN, sizeof(SQLULEN) * new_alloc, res, "Deleted index malloc error", FALSE);
 		QR_MALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Deleted keyset malloc error", FALSE);
 		deleted = res->deleted;
 		deleted_keyset = res->deleted_keyset;
@@ -2301,7 +2300,7 @@ inolog("AddDeleted %d\n", index);
 		{
 			new_alloc = res->dl_alloc * 2;
 			res->dl_alloc = 0;
-			QR_REALLOC_return_with_error(res->deleted, UInt4, sizeof(UInt4) * new_alloc, res, "Dleted index realloc error", FALSE);
+			QR_REALLOC_return_with_error(res->deleted, SQLULEN, sizeof(SQLULEN) * new_alloc, res, "Dleted index realloc error", FALSE);
 			deleted = res->deleted;
 			QR_REALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Dleted KeySet realloc error", FALSE);
 			deleted_keyset = res->deleted_keyset;
@@ -2313,7 +2312,7 @@ inolog("AddDeleted %d\n", index);
 			if (index < *deleted)
 				break;
 		}
-		memmove(deleted + 1, deleted, sizeof(UInt4) * (dl_count - i)); 
+		memmove(deleted + 1, deleted, sizeof(SQLLEN) * (dl_count - i)); 
 		memmove(deleted_keyset + 1, deleted_keyset, sizeof(KeySet) * (dl_count - i)); 
 	}
 	*deleted = index;
@@ -2337,11 +2336,11 @@ inolog("AddDeleted %d\n", index);
 	return TRUE;
 }
 
-static void RemoveDeleted(QResultClass *res, Int4 index)
+static void RemoveDeleted(QResultClass *res, SQLLEN index)
 {
 	int	i, mv_count, rm_count = 0;
-	Int4	pidx, midx;
-	UInt4	*deleted, num_read = QR_get_num_total_read(res);
+	SQLLEN	pidx, midx;
+	SQLULEN	*deleted, num_read = QR_get_num_total_read(res);
 	KeySet	*deleted_keyset;
 
 	mylog("RemoveDeleted index=%d\n", index);
@@ -2353,7 +2352,7 @@ static void RemoveDeleted(QResultClass *res, Int4 index)
 	else
 	{
 		pidx = index;
-		if (index >= (Int4) num_read)
+		if (index >= num_read)
 			midx = num_read - index - 1;
 		else
 			midx = index;
@@ -2368,7 +2367,7 @@ static void RemoveDeleted(QResultClass *res, Int4 index)
 			{
 				deleted = res->deleted + i;
 				deleted_keyset = res->deleted_keyset + i;
-				memmove(deleted, deleted + 1, mv_count * sizeof(UInt4));
+				memmove(deleted, deleted + 1, mv_count * sizeof(SQLULEN));
 				memmove(deleted_keyset, deleted_keyset + 1, mv_count * sizeof(KeySet));
 			}
 			res->dl_count--;
@@ -2381,7 +2380,7 @@ static void RemoveDeleted(QResultClass *res, Int4 index)
 static void CommitDeleted(QResultClass *res)
 {
 	int	i;
-	UInt4	*deleted;
+	SQLULEN	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
 
@@ -2416,8 +2415,8 @@ inolog("!!Commit Deleted=%d(%d)\n", *deleted, i);
 
 static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
 {
-	Int4	alloc;
-	UInt4	*updated;
+	Int2	alloc;
+	SQLULEN	*updated;
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL;
 
@@ -2467,15 +2466,18 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	return TRUE;
 }
 
-static void AddUpdated(StatementClass *stmt, int index)
+static void AddUpdated(StatementClass *stmt, SQLLEN index)
 {
 	QResultClass	*res;
-	UInt4	*updated;
+	SQLULEN	*updated;
 	KeySet	*updated_keyset, *keyset;
 	TupleField	*updated_tuples = NULL, *tuple_updated,  *tuple;
-	UInt4	kres_ridx, up_count;
+	SQLULEN	kres_ridx;
+	UInt2	up_count;
 	BOOL	is_in_trans;
-	int	i, num_fields, upd_idx, upd_add_idx;
+	SQLLEN	upd_idx, upd_add_idx;
+	Int2	num_fields;
+	int	i;
 	UWORD	status;
 
 inolog("AddUpdated index=%d\n", index);
@@ -2516,7 +2518,7 @@ inolog("AddUpdated index=%d\n", index);
 			upd_idx = i;
 		else
 		{
-			Int4	num_totals = QR_get_num_total_tuples(res);
+			SQLLEN	num_totals = QR_get_num_total_tuples(res);
 			if (index >= num_totals)
 				upd_add_idx = num_totals - index;
 		}
@@ -2570,18 +2572,18 @@ inolog("AddUpdated index=%d\n", index);
 	mylog("up_count=%d\n", res->up_count);
 }
 
-static void RemoveUpdated(QResultClass *res, Int4 index)
+static void RemoveUpdated(QResultClass *res, SQLLEN index)
 {
 	mylog("RemoveUpdated index=%d\n", index);
 	RemoveUpdatedAfterTheKey(res, index, NULL);
 }
 
-static void RemoveUpdatedAfterTheKey(QResultClass *res, Int4 index, const KeySet *keyset)
+static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeySet *keyset)
 {
-	UInt4	*updated, num_read = QR_get_num_total_read(res);
+	SQLULEN	*updated, num_read = QR_get_num_total_read(res);
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL;
-	Int4	pidx, midx, mv_count;
+	SQLLEN	pidx, midx, mv_count;
 	int	i, num_fields = res->num_fields, rm_count = 0;
 
 	mylog("RemoveUpdatedAfterTheKey %d,(%d,%d)\n", index, keyset ? keyset->blocknum : 0, keyset ? keyset->offset : 0);
@@ -2593,7 +2595,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, Int4 index, const KeySet
 	else
 	{
 		pidx = index;
-		if (index >= (Int4)num_read)
+		if (index >= num_read)
 			midx = num_read - index - 1;
 		else
 			midx = index;
@@ -2618,7 +2620,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, Int4 index, const KeySet
 			mv_count = res->up_count - i -1;
 			if (mv_count > 0)
 			{
-				memmove(updated, updated + 1, sizeof(UInt4) * mv_count); 
+				memmove(updated, updated + 1, sizeof(SQLULEN) * mv_count); 
 				memmove(updated_keyset, updated_keyset + 1, sizeof(KeySet) * mv_count); 
 				if (updated_tuples)
 					memmove(updated_tuples, updated_tuples + num_fields, sizeof(TupleField) * num_fields * mv_count);
@@ -2675,7 +2677,7 @@ inolog("!!Commit Updated=%d(%d)\n", res->updated[i], i);
 static void DiscardRollback(StatementClass *stmt, QResultClass *res)
 {
 	int	i;
-	Int4	index, kres_ridx;
+	SQLLEN	index, kres_ridx;
 	UWORD	status;
 	Rollback *rollback;
 	KeySet	*keyset;
@@ -2702,7 +2704,7 @@ inolog("DiscardRollback");
 		if (index >= 0)
 		{
 			kres_ridx = GIdx2KResIdx(index, stmt, res);
-			if (kres_ridx >= 0 && kres_ridx < (Int4)res->num_cached_keys)
+			if (kres_ridx >= 0 && kres_ridx < res->num_cached_keys)
 			{
 				kres_is_valid = TRUE;
 				status = keyset[kres_ridx].status;
@@ -2721,16 +2723,16 @@ inolog("DiscardRollback");
 
 static BOOL IndexExists(const StatementClass *stmt, const QResultClass *res, const Rollback *rollback)
 {
-	Int4	index = rollback->index, i, *updated;
+	SQLLEN	index = rollback->index, i, *updated;
 	BOOL	ret = TRUE;
 
 inolog("IndexExists index=%d(%d,%d)\n", rollback->index, rollback->blocknum, rollback->offset);
 	if (QR_get_cursor(res))
 	{
 		KeySet	*updated_keyset = res->updated_keyset, *keyset;
-		Int4	num_read = QR_get_num_total_read(res), pidx, midx, marki;
+		SQLLEN	num_read = QR_get_num_total_read(res), pidx, midx, marki;
 
-		updated = (Int4 *) res->updated;
+		updated = res->updated;
 		if (!updated || res->up_count < 1)
 			return FALSE;
 		if (index < 0)
@@ -2741,7 +2743,7 @@ inolog("IndexExists index=%d(%d,%d)\n", rollback->index, rollback->blocknum, rol
 		else
 		{
 			pidx = index;
-			if (index >= (Int4) num_read)
+			if (index >= num_read)
 				midx = num_read - index - 1;
 			else
 				midx = index;
@@ -2774,7 +2776,7 @@ static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const UIn
 static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 {
 	Int4	i, rollbp;
-	Int4	index, ridx, kres_ridx;
+	SQLLEN	index, ridx, kres_ridx;
 	UWORD	status;
 	Rollback *rollback;
 	KeySet	*keyset, keys, *wkey;
@@ -2789,7 +2791,9 @@ static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 	rollbp = 0;
 	if (partial)
 	{
-		Int4	doubtp, rollbps, j, pidx, midx;
+		SQLLEN	pidx, midx;
+		Int2	doubtp, rollbps;
+		int	j;
 
 		rollbps = rollbp = res->rb_count;
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
@@ -2889,7 +2893,7 @@ inolog("UndoRollback %d(%d)\n", i, rollback[i].option);
 		if (index >= 0)
 		{
 			kres_ridx = GIdx2KResIdx(index, stmt, res);
-			if (kres_ridx >= 0 && kres_ridx < (Int4)res->num_cached_keys)
+			if (kres_ridx >= 0 && kres_ridx < res->num_cached_keys)
 			{
 				kres_is_valid = TRUE;
 				wkey = keyset + kres_ridx;
@@ -2900,12 +2904,12 @@ inolog(" index=%d status=%x", index, status);
 		if (kres_is_valid)
 		{
 			QResultClass	*qres;
-			Int4		num_fields = res->num_fields;
+			Int2		num_fields = res->num_fields;
 
 			ridx = GIdx2CacheIdx(index, stmt, res);
 			if (SQL_ADD == rollback[i].option)
 			{
-				if (ridx >=0 && ridx < (Int4)res->num_cached_rows)
+				if (ridx >=0 && ridx < res->num_cached_rows)
 				{
 					TupleField *tuple = res->backend_tuples + res->num_fields * ridx;
 					ClearCachedRows(tuple, res->num_fields, 1);
@@ -2929,7 +2933,7 @@ inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 				else if (SQL_UPDATE == rollback[i].option)
 					wkey->status &= ~CURS_SELF_UPDATING;
 				wkey->status |= CURS_NEEDS_REREAD;
-				if (ridx >=0 && ridx < (Int4)res->num_cached_rows)
+				if (ridx >=0 && ridx < res->num_cached_rows)
 				{
 					char	tidval[32];
 
@@ -2986,7 +2990,7 @@ positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const cha
 	QResultClass *qres = NULL;
 	char	*selstr, oideqstr[256];
 	BOOL	latest = ((flag & LATEST_TUPLE_LOAD) != 0);
-	UInt4	len;
+	size_t	len;
 	TABLE_INFO	*ti = stmt->ti[0];
 	const char *bestitem = GET_NAME(ti->bestitem);
 	const char *bestqual = GET_NAME(ti->bestqual);
@@ -3045,13 +3049,15 @@ cleanup:
 }
 
 RETCODE
-SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logKind)
+SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind)
 {
 	CSTR		func = "SC_pos_reload";
 	int		res_cols;
-	UWORD		rcnt, offset;
-	Int4		res_ridx, kres_ridx;
-	UInt4		oidint, blocknum;
+	UInt2		offset;
+	UInt2		rcnt;
+	SQLLEN		res_ridx, kres_ridx;
+	OID		oidint;
+	UInt4		blocknum;
 	QResultClass	*res, *qres;
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
@@ -3068,14 +3074,14 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logK
 		return SQL_ERROR;
 	}
 	res_ridx = GIdx2CacheIdx(global_ridx, stmt, res);
-	if (res_ridx < 0 || res_ridx >= (Int4)QR_get_num_cached_tuples(res))
+	if (res_ridx < 0 || res_ridx >= QR_get_num_cached_tuples(res))
 	{
 		data_in_cache = FALSE;
 		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
 		return SQL_ERROR;
 	}
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
-	if (kres_ridx < 0 || kres_ridx >= (Int4) res->num_cached_keys)
+	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
 		key_in_cache = FALSE;
 		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
@@ -3117,7 +3123,7 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logK
 		TupleField *tuple_old, *tuple_new;
 		ConnectionClass	*conn = SC_get_conn(stmt);
 
-		rcnt = QR_get_num_cached_tuples(qres);
+		rcnt = (UInt2) QR_get_num_cached_tuples(qres);
 		tuple_old = res->backend_tuples + res->num_fields * res_ridx;
 		if (0 != logKind && CC_is_in_trans(conn))
 			AddRollback(stmt, res, global_ridx, res->keyset + kres_ridx, logKind);
@@ -3155,20 +3161,23 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UWORD *count, Int4 logK
 }
 
 static	const int	pre_fetch_count = 32;
-static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per_fetch, int limitrow)
+static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per_fetch, SQLLEN limitrow)
 {
 	CSTR	func = "LoadFromKeyset";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	int	i, j, rowc, rcnt = 0;
+	SQLLEN	i;
+	int	j, rowc, rcnt = 0;
 	BOOL	prepare;
-	UInt4	oid, blocknum, lodlen;
-	Int4	kres_ridx;
-	UWORD	offset;
+	OID	oid;
+	UInt4	blocknum;
+	size_t	lodlen;
+	SQLLEN	kres_ridx;
+	UInt2	offset;
 	char	*qval = NULL, *sval;
 	int	keys_per_fetch = 10;
 
 	prepare = PG_VERSION_GE(conn, 7.3);
-	for (i =SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++)
+	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++)
 	{
 		if (i >= limitrow)
 		{
@@ -3195,10 +3204,11 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
-				int		j, k, l, m;
+				SQLLEN		j, k, l;
+				Int2		m;
 				TupleField	*tuple, *tuplew;
 
-				for (j = 0; j < (Int4) QR_get_num_total_read(qres); j++)
+				for (j = 0; j < QR_get_num_total_read(qres); j++)
 				{
 					oid = getOid(qres, j); 
 					getTid(qres, j, &blocknum, &offset);
@@ -3240,7 +3250,7 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 		{
 			if (!qval)
 			{
-				UInt4	allen;
+				size_t	allen;
 
 				if (prepare)
 				{
@@ -3344,16 +3354,18 @@ static int LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_per
 }
 
 static RETCODE	SQL_API
-SC_pos_reload_needed(StatementClass *stmt, UInt4 req_size, UDWORD flag)
+SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 {
 	CSTR	func = "SC_pos_reload_needed";
-	Int4		i, req_rows_size, limitrow;
-	UWORD		qcount;
+	Int4		req_rows_size;
+	SQLLEN		i, limitrow;
+	UInt2		qcount;
 	QResultClass	*res;
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	Int4		kres_ridx, rowc, rows_per_fetch;
+	SQLLEN		kres_ridx, rowc;
+	Int4		rows_per_fetch;
 	BOOL		create_from_scratch = (0 != flag);
 
 	mylog("%s\n", func);
@@ -3372,8 +3384,8 @@ SC_pos_reload_needed(StatementClass *stmt, UInt4 req_size, UDWORD flag)
 	}
 	rows_per_fetch = 0;
 	req_rows_size = QR_get_reqsize(res);
-	if ((Int4)req_size > req_rows_size)
-		req_rows_size = req_size;
+	if (req_size > req_rows_size)
+		req_rows_size = (UInt4) req_size;
 	if (create_from_scratch)
 	{
 		rows_per_fetch = ((pre_fetch_count - 1) / req_rows_size + 1) * req_rows_size;
@@ -3383,16 +3395,16 @@ SC_pos_reload_needed(StatementClass *stmt, UInt4 req_size, UDWORD flag)
 	{
 		limitrow = RowIdx2GIdx(req_rows_size, stmt);
 	}
-	if (limitrow > (Int4) res->num_cached_keys)
+	if (limitrow > res->num_cached_keys)
 		limitrow = res->num_cached_keys;
 	if (create_from_scratch)
 	{
-		int	flds_cnt = res->num_cached_rows * res->num_fields,
+		SQLLEN	flds_cnt = res->num_cached_rows * res->num_fields,
 			brows;
 
 		ClearCachedRows(res->backend_tuples, res->num_fields, res->num_cached_rows);
 		brows = GIdx2RowIdx(limitrow, stmt);
-		if (brows > (Int4) res->count_backend_allocated)
+		if (brows > res->count_backend_allocated)
 		{
 			res->backend_tuples = realloc(res->backend_tuples, sizeof(TupleField) * res->num_fields * brows);
 			res->count_backend_allocated = brows;
@@ -3461,14 +3473,14 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef)
 	}
 	else
 	{
-		int		count = QR_get_num_cached_tuples(qres);
+		SQLLEN	count = QR_get_num_cached_tuples(qres);
 
 		QR_set_position(qres, 0);
 		if (count == 1)
 		{
 			int	effective_fields = res->num_fields;
-			int	tuple_size;
-			Int4	num_total_rows, num_cached_rows, kres_ridx;
+			ssize_t	tuple_size;
+			SQLLEN	num_total_rows, num_cached_rows, kres_ridx;
 			BOOL	appendKey = FALSE, appendData = FALSE;
 			TupleField *tuple_old, *tuple_new;
 
@@ -3491,7 +3503,7 @@ num_total_rows, num_cached_rows,
 QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_type);
 					}
 				}
-				else if (kres_ridx >= 0 && kres_ridx < (Int4)res->cache_size)
+				else if (kres_ridx >= 0 && kres_ridx < res->cache_size)
 				{
 					appendKey = TRUE;
 					appendData = TRUE;
@@ -3499,7 +3511,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 			}
 			if (appendKey)
 			{
-			    	if (res->num_cached_keys >= (Int4) res->count_keyset_allocated)
+			    	if (res->num_cached_keys >= res->count_keyset_allocated)
 				{
 					if (!res->count_keyset_allocated)
 						tuple_size = TUPLE_MALLOC_INC;
@@ -3516,7 +3528,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 inolog("total %d == backend %d - base %d + start %d cursor_type=%d\n", 
 num_total_rows, num_cached_rows,
 QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_type);
-				if (num_cached_rows >= (Int4)res->count_backend_allocated)
+				if (num_cached_rows >= res->count_backend_allocated)
 				{
 					if (!res->count_backend_allocated)
 						tuple_size = TUPLE_MALLOC_INC;
@@ -3559,7 +3571,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 }
 
 static RETCODE SQL_API
-irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow, SQLULEN global_ridx)
+irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLSETPOSIROW irow, SQLULEN global_ridx)
 {
 	CSTR	func = "irow_update";
 
@@ -3573,7 +3585,7 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow
 		{
 			if (updcnt == 1)
 			{
-				ret = SC_pos_reload(stmt, global_ridx, (UWORD *) 0, SQL_UPDATE);
+				ret = SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE);
 				if (SQL_ERROR != ret)
 					AddUpdated(stmt, global_ridx);
 			}
@@ -3582,7 +3594,7 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, UWORD irow
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before updation", func);
 				ret = SQL_ERROR;
 				if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
-					SC_pos_reload(stmt, global_ridx, (UWORD *) 0, 0);
+					SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
 			}
 			else
 				ret = SQL_ERROR;
@@ -3604,7 +3616,7 @@ typedef struct
 	QResultClass	*res;
 	StatementClass	*stmt, *qstmt;
 	IRDFields	*irdflds;
-	UWORD		irow;
+	SQLSETPOSIROW		irow;
 	SQLULEN		global_ridx;
 }	pup_cdata;
 static RETCODE
@@ -3613,7 +3625,7 @@ pos_update_callback(RETCODE retcode, void *para)
 	CSTR	func = "pos_update_callback";
 	RETCODE	ret = retcode;
 	pup_cdata *s = (pup_cdata *) para;
-	Int4	kres_ridx;
+	SQLLEN	kres_ridx;
 
 	if (s->updyes)
 	{
@@ -3627,7 +3639,7 @@ inolog("irow_update ret=%d,%d\n", ret, SC_get_errornumber(s->qstmt));
 	}
 	s->updyes = FALSE;
 	kres_ridx = GIdx2KResIdx(s->global_ridx, s->stmt, s->res);
-	if (kres_ridx < 0 || kres_ridx >= (Int4)s->res->num_cached_keys)
+	if (kres_ridx < 0 || kres_ridx >= s->res->num_cached_keys)
 	{
 		SC_set_error(s->stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
 inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_keys, kres_ridx);
@@ -3662,7 +3674,7 @@ inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_ke
 }
 RETCODE
 SC_pos_update(StatementClass *stmt,
-			  UWORD irow, SQLULEN global_ridx)
+			  SQLSETPOSIROW irow, SQLULEN global_ridx)
 {
 	CSTR	func = "SC_pos_update";
 	int			i,
@@ -3676,10 +3688,12 @@ SC_pos_update(StatementClass *stmt,
 	FIELD_INFO	**fi;
 	char		updstr[4096];
 	RETCODE		ret;
-	UInt4	oid, offset, blocknum;
+	OID	oid;
+	UInt4	blocknum;
 	UInt2	pgoffset;
-	SQLLEN	*used;
-	Int4	kres_ridx, bind_size = opts->bind_size;
+	SQLLEN	offset;
+	SQLLEN	*used, kres_ridx;
+	Int4	bind_size = opts->bind_size;
 
 	s.stmt = stmt;
 	s.irow = irow;
@@ -3701,7 +3715,7 @@ SC_pos_update(StatementClass *stmt,
 		return SQL_ERROR;
 	}
 	kres_ridx = GIdx2KResIdx(s.global_ridx, s.stmt, s.res);
-	if (kres_ridx < 0 || kres_ridx >= (Int4)s.res->num_cached_keys)
+	if (kres_ridx < 0 || kres_ridx >= s.res->num_cached_keys)
 	{
 		SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
 		return SQL_ERROR;
@@ -3751,10 +3765,10 @@ SC_pos_update(StatementClass *stmt,
 	{
 		HSTMT		hstmt;
 		int			j;
-		int			res_cols = QR_NumResultCols(s.res);
+		Int2		res_cols = QR_NumResultCols(s.res);
 		ConnInfo	*ci = &(conn->connInfo);
 		APDFields	*apdopts;
-		Int4		fieldtype = 0;
+		OID		fieldtype = 0;
 		const char *bestitem = GET_NAME(ti->bestitem);
 		const char *bestqual = GET_NAME(ti->bestqual);
 
@@ -3827,7 +3841,7 @@ SC_pos_update(StatementClass *stmt,
 }
 RETCODE
 SC_pos_delete(StatementClass *stmt,
-			  UWORD irow, SQLULEN global_ridx)
+			  SQLSETPOSIROW irow, SQLULEN global_ridx)
 {
 	CSTR	func = "SC_pos_update";
 	UWORD		offset;
@@ -3838,8 +3852,9 @@ SC_pos_delete(StatementClass *stmt,
 	BindInfoClass *bindings = opts->bindings;
 	char		dltstr[4096];
 	RETCODE		ret;
-	Int4		kres_ridx;
-	UInt4		oid, blocknum, qflag;
+	SQLLEN		kres_ridx;
+	OID		oid;
+	UInt4		blocknum, qflag;
 	TABLE_INFO	*ti;
 	const char	*bestitem;
 	const char	*bestqual;
@@ -3859,7 +3874,7 @@ SC_pos_delete(StatementClass *stmt,
 		return SQL_ERROR;
 	}
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
-	if (kres_ridx < 0 || kres_ridx >= (Int4)res->num_cached_keys)
+	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
 		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
 		return SQL_ERROR;
@@ -3907,7 +3922,7 @@ SC_pos_delete(StatementClass *stmt,
 		{
 			if (dltcnt == 1)
 			{
-				RETCODE	tret = SC_pos_reload(stmt, global_ridx, (UWORD *) 0, SQL_DELETE);
+				RETCODE	tret = SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, SQL_DELETE);
 				if (SQL_SUCCESS != tret && SQL_SUCCESS_WITH_INFO != tret)
 					ret = tret;
 			}
@@ -3916,7 +3931,7 @@ SC_pos_delete(StatementClass *stmt,
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before deletion", func);
 				ret = SQL_ERROR;
 				if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
-					SC_pos_reload(stmt, global_ridx, (UWORD *) 0, 0);
+					SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
 			}
 			else
 				ret = SQL_ERROR;
@@ -3961,14 +3976,14 @@ inolog(".status[%d]=%x\n", global_ridx, res->keyset[kres_ridx].status);
 }
 
 static RETCODE SQL_API
-irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, Int4 addpos)
+irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN addpos)
 {
 	CSTR	func = "irow_insert";
 
 	if (ret != SQL_ERROR)
 	{
 		int		addcnt;
-		UInt4		oid, *poid = NULL;
+		OID		oid, *poid = NULL;
 		ARDFields	*opts = SC_get_ARDF(stmt);
 		QResultClass	*ires = SC_get_Curres(istmt);
 		const char *cmdstr;
@@ -4001,7 +4016,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, Int4 addpo
 			if (bookmark && bookmark->buffer)
 			{
 				char	buf[32];
-				UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
+				SQLULEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
 				snprintf(buf, sizeof(buf), "%ld", SC_make_bookmark(addpos));
 				SC_set_current_col(stmt, -1);
@@ -4029,7 +4044,7 @@ typedef struct
 	QResultClass	*res;
 	StatementClass	*stmt, *qstmt;
 	IRDFields	*irdflds;
-	UWORD		irow;
+	SQLSETPOSIROW		irow;
 }	padd_cdata;
 
 static RETCODE
@@ -4037,17 +4052,17 @@ pos_add_callback(RETCODE retcode, void *para)
 {
 	RETCODE	ret = retcode;
 	padd_cdata *s = (padd_cdata *) para;
-	Int4	addpos;
+	SQLLEN	addpos;
 
 	if (s->updyes)
 	{
-		int	brow_save;
+		SQLSETPOSIROW	brow_save;
 		
 		mylog("pos_add_callback in ret=%d\n", ret);
 		brow_save = s->stmt->bind_row; 
 		s->stmt->bind_row = s->irow;
 		if (QR_get_cursor(s->res))
-			addpos = -(Int4)(s->res->ad_count + 1);
+			addpos = -(SQLLEN)(s->res->ad_count + 1);
 		else
 			addpos = QR_get_num_total_tuples(s->res); 
 		ret = irow_insert(ret, s->stmt, s->qstmt, addpos);
@@ -4060,9 +4075,9 @@ pos_add_callback(RETCODE retcode, void *para)
 	s->qstmt = NULL;
 	if (SQL_SUCCESS == ret && s->res->keyset)
 	{
-		int	global_ridx = QR_get_num_total_tuples(s->res) - 1;
+		SQLLEN	global_ridx = QR_get_num_total_tuples(s->res) - 1;
 		ConnectionClass	*conn = SC_get_conn(s->stmt);
-		Int4	kres_ridx;
+		SQLLEN	kres_ridx;
 		UWORD	status = SQL_ROW_ADDED;
 
 		if (CC_is_in_trans(conn))
@@ -4070,7 +4085,7 @@ pos_add_callback(RETCODE retcode, void *para)
 		else
 			status |= CURS_SELF_ADDED;
 		kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, s->res);
-		if (kres_ridx >= 0 || kres_ridx < (Int4)s->res->num_cached_keys)
+		if (kres_ridx >= 0 || kres_ridx < s->res->num_cached_keys)
 		{
 			s->res->keyset[kres_ridx].status = status;
 		}
@@ -4094,7 +4109,7 @@ pos_add_callback(RETCODE retcode, void *para)
 
 RETCODE
 SC_pos_add(StatementClass *stmt,
-		   UWORD irow)
+		   SQLSETPOSIROW irow)
 {
 	CSTR	func = "SC_pos_add";
 	int			num_cols,
@@ -4111,10 +4126,10 @@ SC_pos_add(StatementClass *stmt,
 	FIELD_INFO	**fi = SC_get_IRDF(stmt)->fi;
 	char		addstr[4096];
 	RETCODE		ret;
-	UInt4		offset;
+	SQLULEN		offset;
 	SQLLEN		*used;
 	Int4		bind_size = opts->bind_size;
-	Int4		fieldtype;
+	OID		fieldtype;
 	int		func_cs_count = 0;
 
 	mylog("POS ADD fi=%x ti=%x\n", fi, stmt->ti);
@@ -4234,16 +4249,16 @@ cleanup:
  */
 
 RETCODE
-SC_pos_refresh(StatementClass *stmt, UWORD irow , SQLULEN global_ridx)
+SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 {
 	RETCODE	ret;
 #if (ODBCVER >= 0x0300)
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 #endif /* ODBCVER */
 	/* save the last_fetch_count */
-	int		last_fetch = stmt->last_fetch_count;
-	int		last_fetch2 = stmt->last_fetch_count_include_ommitted;
-	int		bind_save = stmt->bind_row;
+	SQLLEN		last_fetch = stmt->last_fetch_count;
+	SQLLEN		last_fetch2 = stmt->last_fetch_count_include_ommitted;
+	SQLSETPOSIROW	bind_save = stmt->bind_row;
 	BOOL		tuple_reload = FALSE;
 
 	if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
@@ -4253,8 +4268,8 @@ SC_pos_refresh(StatementClass *stmt, UWORD irow , SQLULEN global_ridx)
 		QResultClass	*res = SC_get_Curres(stmt);
 		if (res && res->keyset)
 		{
-			Int4 kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
-			if (kres_ridx >= 0 && kres_ridx < (Int4)QR_get_num_cached_tuples(res))
+			SQLLEN kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
+			if (kres_ridx >= 0 && kres_ridx < QR_get_num_cached_tuples(res))
 			{
 				if (0 != (CURS_NEEDS_REREAD & res->keyset[kres_ridx].status))
 					tuple_reload = TRUE;
@@ -4262,7 +4277,7 @@ SC_pos_refresh(StatementClass *stmt, UWORD irow , SQLULEN global_ridx)
 		}
 	}
 	if (tuple_reload)
-		SC_pos_reload(stmt, global_ridx, (UWORD *) 0, 0);
+		SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
 	stmt->bind_row = irow;
 	ret = SC_fetch(stmt);
 	/* restore the last_fetch_count */
@@ -4299,8 +4314,9 @@ typedef struct
 	StatementClass	*stmt;
 	ARDFields	*opts;
 	GetDataInfo	*gdata;
-	int	idx, start_row, end_row, processed, ridx;
-	UWORD	fOption, irow, nrow;
+	SQLLEN	idx, start_row, end_row, ridx;
+	UWORD	fOption;
+	SQLSETPOSIROW	irow, nrow, processed;
 }	spos_cdata;
 static 
 RETCODE spos_callback(RETCODE retcode, void *para)
@@ -4309,7 +4325,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	spos_cdata *s = (spos_cdata *) para;
 	ConnectionClass	*conn;
 	SQLULEN	global_ridx;
-	Int4	kres_ridx, pos_ridx;
+	SQLLEN	kres_ridx, pos_ridx;
 
 	ret = retcode;
 	if (s->need_data_callback)
@@ -4338,7 +4354,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			if (s->res->keyset)
 			{
 				kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, s->res);
-				if (kres_ridx >= (Int4)s->res->num_cached_keys)
+				if (kres_ridx >= s->res->num_cached_keys)
 					break;
 				if (kres_ridx >= 0) /* the row may be deleted and not in the rowset */
 				{
@@ -4430,7 +4446,9 @@ PGAPI_SetPos(
 	CSTR func = "PGAPI_SetPos";
 	RETCODE	ret;
 	ConnectionClass	*conn;
-	int		num_cols, i, rowsetSize;
+	SQLLEN		rowsetSize;
+	int		i;
+	UInt2		num_cols;
 	GetDataClass	*gdata = NULL;
 	spos_cdata	s;
 
@@ -4614,7 +4632,6 @@ PGAPI_SetCursorName(
 {
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
-	int			len;
 
 	mylog("PGAPI_SetCursorName: hstmt=%x, szCursor=%x, cbCursorMax=%d\n", hstmt, szCursor, cbCursor);
 
@@ -4623,8 +4640,6 @@ PGAPI_SetCursorName(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
-
-	len = (cbCursor == SQL_NTS) ? strlen(szCursor) : cbCursor;
 
 	SET_NAME(stmt->cursor_name, make_string(szCursor, cbCursor, NULL, 0));
 	return SQL_SUCCESS;
@@ -4641,7 +4656,7 @@ PGAPI_GetCursorName(
 {
 	CSTR func = "PGAPI_GetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
-	int			len = 0;
+	size_t		len = 0;
 	RETCODE		result;
 
 	mylog("PGAPI_GetCursorName: hstmt=%x, szCursor=%x, cbCursorMax=%d, pcbCursor=%x\n", hstmt, szCursor, cbCursorMax, pcbCursor);
@@ -4666,7 +4681,7 @@ PGAPI_GetCursorName(
 	}
 
 	if (pcbCursor)
-		*pcbCursor = len;
+		*pcbCursor = (SQLSMALLINT) len;
 
 	/*
 	 * Because this function causes no db-access, there's

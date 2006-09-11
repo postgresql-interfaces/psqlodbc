@@ -185,7 +185,7 @@ CenterDialog(HWND hdlg)
  *	Output	 :	TRUE if message processed, FALSE otherwise
  *-------
  */
-int			CALLBACK
+LRESULT			CALLBACK
 ConfigDlgProc(HWND hdlg,
 			  UINT wMsg,
 			  WPARAM wParam,
@@ -208,7 +208,7 @@ ConfigDlgProc(HWND hdlg,
 			LoadString(s_hModule, IDS_ADVANCE_SAVE, strbuf, sizeof(strbuf));
 			SetWindowText(GetDlgItem(hdlg, IDOK), strbuf);
 
-			SetWindowLong(hdlg, DWL_USER, lParam);
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);
 			CenterDialog(hdlg); /* Center dialog */
 
 			/*
@@ -266,7 +266,7 @@ ConfigDlgProc(HWND hdlg,
 					/* Accept results */
 				case IDOK:
 				case IDAPPLY:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
 					/* Retrieve dialog values */
 					if (!lpsetupdlg->fDefault)
 						GetDlgItemText(hdlg, IDC_DSNAME,
@@ -285,19 +285,19 @@ ConfigDlgProc(HWND hdlg,
 					return TRUE;
 
 				case IDC_DATASOURCE:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 					 hdlg, ds_options1Proc, (LPARAM) &lpsetupdlg->ci);
 					return TRUE;
 
 				case IDC_DRIVER:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_GLOBAL),
 						 hdlg, global_optionsProc, (LPARAM) &lpsetupdlg->ci);
 
 					return TRUE;
 				case IDC_MANAGEDSN:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWL_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
 					if (DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_DRIVER_CHANGE),
 						hdlg, manage_dsnProc,
 						(LPARAM) lpsetupdlg) > 0)

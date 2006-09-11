@@ -17,11 +17,11 @@ struct ColumnInfoClass_
 	struct srvr_info
 	{
 		char	*name;		/* field name */
-		Oid	adtid;		/* type oid */
+		OID	adtid;		/* type oid */
 		Int2	adtsize;	/* type size */
 		Int4	display_size;	/* the display size (longest row) */
 		Int4	atttypmod;	/* the length of bpchar/varchar */
-		Oid	relid;		/* the relation id */
+		OID	relid;		/* the relation id */
 		Int2	attid;		/* the attribute number */
 	}	*coli_array;
 };
@@ -44,7 +44,7 @@ char		CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn);
 /* without reading from a socket */
 void		CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL);
 void CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
-		Oid new_adtid, Int2 new_adtsize, Int4 atttypmod,
-		Oid new_relid, Oid new_attid);
+		OID new_adtid, Int2 new_adtsize, Int4 atttypmod,
+		OID new_relid, OID new_attid);
 
 #endif

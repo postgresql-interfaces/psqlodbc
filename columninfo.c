@@ -58,7 +58,7 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	CSTR		func = "CI_read_fields";
 	Int2		lf;
 	int			new_num_fields;
-	Oid		new_adtid, new_relid = 0, new_attid = 0;
+	OID		new_adtid, new_relid = 0, new_attid = 0;
 	Int2		new_adtsize;
 	Int4		new_atttypmod = -1;
 
@@ -88,7 +88,7 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 			new_relid = SOCK_get_int(sock, sizeof(Int4));
 			new_attid = SOCK_get_int(sock, sizeof(Int2));
 		}
-		new_adtid = (Oid) SOCK_get_int(sock, 4);
+		new_adtid = (OID) SOCK_get_int(sock, 4);
 		new_adtsize = (Int2) SOCK_get_int(sock, 2);
 
 		/* If 6.4 protocol, then read the atttypmod field */
@@ -162,8 +162,8 @@ CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL allocrelatt)
 
 void
 CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
-		Oid new_adtid, Int2 new_adtsize, Int4 new_atttypmod,
-		Oid new_relid, Oid new_attid)
+		OID new_adtid, Int2 new_adtsize, Int4 new_atttypmod,
+		OID new_relid, OID new_attid)
 {
 	/* check bounds */
 	if ((field_num < 0) || (field_num >= self->num_fields))

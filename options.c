@@ -33,7 +33,7 @@ set_statement_option(ConnectionClass *conn,
 	CSTR func = "set_statement_option";
 	char		changed = FALSE;
 	ConnInfo   *ci = NULL;
-	UDWORD		setval;
+	SQLULEN		setval;
 
 	if (conn)
 		ci = &(conn->connInfo);
@@ -47,9 +47,9 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_BIND_TYPE:
 			/* now support multi-column and multi-row binding */
 			if (conn)
-				conn->ardOptions.bind_size = vParam;
+				conn->ardOptions.bind_size = (SQLUINTEGER) vParam;
 			if (stmt)
-				SC_get_ARDF(stmt)->bind_size = vParam;
+				SC_get_ARDF(stmt)->bind_size = (SQLUINTEGER) vParam;
 			break;
 
 		case SQL_CONCURRENCY:
@@ -67,7 +67,7 @@ set_statement_option(ConnectionClass *conn,
 			else if (0 != ci->updatable_cursors)
 				setval = SQL_CONCUR_ROWVER;
 			if (conn)
-				conn->stmtOptions.scroll_concurrency = setval;
+				conn->stmtOptions.scroll_concurrency = (SQLUINTEGER) setval;
 			else if (stmt)
 			{
 				if (SC_get_Result(stmt))
@@ -76,7 +76,7 @@ set_statement_option(ConnectionClass *conn,
 					return SQL_ERROR;
 				}
 				stmt->options.scroll_concurrency =
-				stmt->options_orig.scroll_concurrency = setval;
+				stmt->options_orig.scroll_concurrency = (SQLUINTEGER) setval;
 			}
 			if (setval != vParam)
 				changed = TRUE;
@@ -104,7 +104,7 @@ set_statement_option(ConnectionClass *conn,
 					setval = SQL_CURSOR_STATIC; /* at least scrollable */
 			}
 			if (conn)
-				conn->stmtOptions.cursor_type = setval;
+				conn->stmtOptions.cursor_type = (SQLUINTEGER) setval;
 			else if (stmt)
 			{
 				if (SC_get_Result(stmt))
@@ -113,7 +113,7 @@ set_statement_option(ConnectionClass *conn,
 					return SQL_ERROR;
 				}
 				stmt->options_orig.cursor_type =
-				stmt->options.cursor_type = setval;
+				stmt->options.cursor_type = (SQLUINTEGER) setval;
 			}
 			if (setval != vParam)
 				changed = TRUE;
@@ -176,9 +176,9 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_RETRIEVE_DATA:
 			mylog("SetStmtOption(): SQL_RETRIEVE_DATA, vParam = %d\n", vParam);
 			if (conn)
-				conn->stmtOptions.retrieve_data = vParam;
+				conn->stmtOptions.retrieve_data = (SQLUINTEGER) vParam;
 			if (stmt)
-				stmt->options.retrieve_data = vParam;
+				stmt->options.retrieve_data = (SQLUINTEGER) vParam;
 			break;
 
 		case SQL_ROWSET_SIZE:
@@ -223,10 +223,10 @@ set_statement_option(ConnectionClass *conn,
 				mylog("USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
 #endif /* ODBCVER */
 				setval = vParam;
-				stmt->options.use_bookmarks = setval;
+				stmt->options.use_bookmarks = (SQLUINTEGER) setval;
 			}
 			if (conn)
-				conn->stmtOptions.use_bookmarks = vParam;
+				conn->stmtOptions.use_bookmarks = (SQLUINTEGER) vParam;
 			break;
 
 		case 1204: /* SQL_COPT_SS_PRESERVE_CURSORS ? */
@@ -380,7 +380,7 @@ PGAPI_SetConnectOption(
 			break;
 
 		case SQL_LOGIN_TIMEOUT:
-			conn->login_timeout = vParam;
+			conn->login_timeout = (SQLUINTEGER) vParam;
 			break;
 
 		case SQL_PACKET_SIZE:	/* ignored */
@@ -430,7 +430,7 @@ PGAPI_SetConnectOption(
 				if (!QR_command_maybe_successful(res))
 					retval = SQL_ERROR;
 				else
-					conn->isolation = vParam;
+					conn->isolation = (UInt4) vParam;
 				QR_Destructor(res);
 				if (SQL_ERROR == retval)
 				{
@@ -504,7 +504,7 @@ PGAPI_GetConnectOption(
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci = &(conn->connInfo);
 	const char	*p = NULL;
-	SQLINTEGER	len = sizeof(SQLINTEGER);
+	SQLLEN		len = sizeof(SQLINTEGER);
 	SQLRETURN	result = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
@@ -518,11 +518,11 @@ PGAPI_GetConnectOption(
 	switch (fOption)
 	{
 		case SQL_ACCESS_MODE:	/* NOT SUPPORTED */
-			*((UDWORD *) pvParam) = SQL_MODE_READ_WRITE;
+			*((SQLUINTEGER *) pvParam) = SQL_MODE_READ_WRITE;
 			break;
 
 		case SQL_AUTOCOMMIT:
-			*((UDWORD *) pvParam) = (UDWORD) (CC_is_in_autocommit(conn) ?
+			*((SQLUINTEGER *) pvParam) = (SQLUINTEGER) (CC_is_in_autocommit(conn) ?
 								 SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
 			break;
 
@@ -532,11 +532,11 @@ PGAPI_GetConnectOption(
 			break;
 
 		case SQL_LOGIN_TIMEOUT:
-			*((UDWORD *) pvParam) = conn->login_timeout;
+			*((SQLUINTEGER *) pvParam) = conn->login_timeout;
 			break;
 
 		case SQL_PACKET_SIZE:	/* NOT SUPPORTED */
-			*((UDWORD *) pvParam) = ci->drivers.socket_buffersize;
+			*((SQLUINTEGER *) pvParam) = ci->drivers.socket_buffersize;
 			break;
 
 		case SQL_QUIET_MODE:	/* NOT SUPPORTED */
@@ -544,7 +544,7 @@ PGAPI_GetConnectOption(
 			break;
 
 		case SQL_TXN_ISOLATION:
-			*((UDWORD *) pvParam) = conn->isolation;
+			*((SQLUINTEGER *) pvParam) = conn->isolation;
 			break;
 
 #ifdef	SQL_ATTR_CONNECTION_DEAD
@@ -610,7 +610,7 @@ PGAPI_GetConnectOption(
 		}
 	}
 	if (StringLength)
-		*StringLength = len;
+		*StringLength = (SQLINTEGER) len;
 	return result;
 }
 
@@ -658,7 +658,7 @@ PGAPI_GetStmtOption(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
 	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);
-	int	ridx;
+	SQLLEN		ridx;
 	SQLINTEGER	len = sizeof(SQLINTEGER);
 
 	mylog("%s: entering...\n", func);
@@ -712,64 +712,64 @@ PGAPI_GetStmtOption(
 				return SQL_ERROR;
 			}
 
-			*((UDWORD *) pvParam) = SC_get_bookmark(stmt);
+			*((SQLULEN *) pvParam) = SC_get_bookmark(stmt);
 
 			break;
 
 		case SQL_ASYNC_ENABLE:	/* NOT SUPPORTED */
-			*((SDWORD *) pvParam) = SQL_ASYNC_ENABLE_OFF;
+			*((SQLINTEGER *) pvParam) = SQL_ASYNC_ENABLE_OFF;
 			break;
 
 		case SQL_BIND_TYPE:
-			*((SDWORD *) pvParam) = SC_get_ARDF(stmt)->bind_size;
+			*((SQLINTEGER *) pvParam) = SC_get_ARDF(stmt)->bind_size;
 			break;
 
 		case SQL_CONCURRENCY:	/* NOT REALLY SUPPORTED */
 			mylog("GetStmtOption(): SQL_CONCURRENCY %d\n", stmt->options.scroll_concurrency);
-			*((SDWORD *) pvParam) = stmt->options.scroll_concurrency;
+			*((SQLINTEGER *) pvParam) = stmt->options.scroll_concurrency;
 			break;
 
 		case SQL_CURSOR_TYPE:	/* PARTIAL SUPPORT */
 			mylog("GetStmtOption(): SQL_CURSOR_TYPE %d\n", stmt->options.cursor_type);
-			*((SDWORD *) pvParam) = stmt->options.cursor_type;
+			*((SQLINTEGER *) pvParam) = stmt->options.cursor_type;
 			break;
 
 		case SQL_KEYSET_SIZE:	/* NOT SUPPORTED, but saved */
 			mylog("GetStmtOption(): SQL_KEYSET_SIZE\n");
-			*((SDWORD *) pvParam) = stmt->options.keyset_size;
+			*((SQLLEN *) pvParam) = stmt->options.keyset_size;
 			break;
 
 		case SQL_MAX_LENGTH:	/* NOT SUPPORTED, but saved */
-			*((SDWORD *) pvParam) = stmt->options.maxLength;
+			*((SQLLEN *) pvParam) = stmt->options.maxLength;
 			break;
 
 		case SQL_MAX_ROWS:		/* NOT SUPPORTED, but saved */
-			*((SDWORD *) pvParam) = stmt->options.maxRows;
+			*((SQLLEN *) pvParam) = stmt->options.maxRows;
 			mylog("GetSmtOption: MAX_ROWS, returning %d\n", stmt->options.maxRows);
 			break;
 
 		case SQL_NOSCAN:		/* NOT SUPPORTED */
-			*((SDWORD *) pvParam) = SQL_NOSCAN_ON;
+			*((SQLINTEGER *) pvParam) = SQL_NOSCAN_ON;
 			break;
 
 		case SQL_QUERY_TIMEOUT:	/* NOT SUPPORTED */
-			*((SDWORD *) pvParam) = 0;
+			*((SQLINTEGER *) pvParam) = 0;
 			break;
 
 		case SQL_RETRIEVE_DATA:
-			*((SDWORD *) pvParam) = stmt->options.retrieve_data;
+			*((SQLINTEGER *) pvParam) = stmt->options.retrieve_data;
 			break;
 
 		case SQL_ROWSET_SIZE:
-			*((SDWORD *) pvParam) = SC_get_ARDF(stmt)->size_of_rowset_odbc2;
+			*((SQLLEN *) pvParam) = SC_get_ARDF(stmt)->size_of_rowset_odbc2;
 			break;
 
 		case SQL_SIMULATE_CURSOR:		/* NOT SUPPORTED */
-			*((SDWORD *) pvParam) = SQL_SC_NON_UNIQUE;
+			*((SQLINTEGER *) pvParam) = SQL_SC_NON_UNIQUE;
 			break;
 
 		case SQL_USE_BOOKMARKS:
-			*((SDWORD *) pvParam) = stmt->options.use_bookmarks;
+			*((SQLINTEGER *) pvParam) = stmt->options.use_bookmarks;
 			break;
 
 		default:

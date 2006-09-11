@@ -39,6 +39,8 @@ UInt4	getExtraOptions(const ConnInfo *ci)
 		flag |= BIT_FAKE_MSS;
 	if (ci->bde_environment)
 		flag |= BIT_BDE_ENVIRONMENT;
+	if (ci->cvt_null_date_string)
+		flag |= BIT_CVT_NULL_DATE;
 		
 	return flag;
 }
@@ -52,8 +54,10 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 		ci->force_abbrev_connstr = (0 != (flag & BIT_FORCEABBREVCONNSTR));
 	if (overwrite || ci->fake_mss < 0)
 		ci->fake_mss = (0 != (flag & BIT_FAKE_MSS));
-	if (overwrite || ci->bde_environment)
+	if (overwrite || ci->bde_environment < 0)
 		ci->bde_environment = (0 != (flag & BIT_BDE_ENVIRONMENT));
+	if (overwrite || ci->cvt_null_date_string < 0)
+		ci->cvt_null_date_string = (0 != (flag & BIT_CVT_NULL_DATE));
 		
 	return getExtraOptions(ci);
 }
@@ -97,12 +101,14 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 		ci->fake_mss = TRUE;
 	if (0 != (aflag & BIT_BDE_ENVIRONMENT))
 		ci->bde_environment = TRUE;
+	if (0 != (aflag & BIT_CVT_NULL_DATE))
+		ci->cvt_null_date_string = TRUE;
 	if (0 != (dflag & BIT_FORCEABBREVCONNSTR))
 		ci->force_abbrev_connstr = FALSE;
 	if (0 != (dflag & BIT_FAKE_MSS))
 		ci->fake_mss =FALSE;
-	if (0 != (dflag & BIT_BDE_ENVIRONMENT))
-		ci->bde_environment = FALSE;
+	if (0 != (dflag & BIT_CVT_NULL_DATE))
+		ci->cvt_null_date_string = FALSE;
 
 	return getExtraOptions(ci);
 }
@@ -112,7 +118,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_conn_settings[LARGE_REGISTRY_LEN];
-	Int4		hlen, nlen, olen;
+	ssize_t		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
 	UInt4		flag;
@@ -420,7 +426,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, SPEC_SERVER) == 0)
 		strcpy(ci->server, value);
 
-	else if (stricmp(attribute, INI_USER) == 0 || stricmp(attribute, "uid") == 0)
+	else if (stricmp(attribute, INI_USER) == 0 || stricmp(attribute, INI_UID) == 0)
 		strcpy(ci->username, value);
 
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
@@ -439,11 +445,11 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ptr = strchr(value, '-');
 		if (ptr)
 		{
+			*ptr = '\0';
 			if ('-' != *value)
 			{
 				strcpy(ci->protocol, value);
 			}
-			*ptr = '\0';
 			ci->rollback_on_error = atoi(ptr + 1);
 			mylog("rollback_on_error=%d\n", ci->rollback_on_error);
 		}
@@ -527,7 +533,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		{
 			setExtraOptions(ci, value, hex_format);
 		}
-		mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
+		mylog("force_abbrev=%d bde=%d cvt_null_date=%x\n", ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
 	}
 
 	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
@@ -646,6 +652,8 @@ getDSNdefaults(ConnInfo *ci)
 		ci->fake_mss = 0;
 	if (ci->bde_environment < 0)
 		ci->bde_environment = 0;
+	if (ci->cvt_null_date_string < 0)
+		ci->cvt_null_date_string = 0;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0)
 		ci->xa_opt = DEFAULT_XAOPT;
@@ -829,7 +837,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 		sscanf(temp, "%x", &val);
 		replaceExtraOptions(ci, val, overwrite);
-		mylog("force_abbrev=%d bde=%d\n", ci->force_abbrev_connstr, ci->bde_environment);
+		mylog("force_abbrev=%d bde=%d cvt_null_date=%d\n", ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
 	}
 
 	/* Allow override of odbcinst.ini parameters here */
@@ -982,6 +990,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_USER,
 								 ci->username,
 								 ODBC_INI);
+	SQLWritePrivateProfileString(DSN, INI_UID, ci->username, ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
 								 INI_PASSWORD,
@@ -1290,8 +1299,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 static void
 encode(const char *in, char *out)
 {
-	unsigned int i,
-				ilen = strlen(in),
+	size_t i, ilen = strlen(in),
 				o = 0;
 
 	for (i = 0; i < ilen; i++)
@@ -1339,8 +1347,7 @@ conv_from_hex(const UCHAR *s)
 static void
 decode(const char *in, char *out)
 {
-	unsigned int i,
-				ilen = strlen(in),
+	size_t i, ilen = strlen(in),
 				o = 0;
 
 	for (i = 0; i < ilen; i++)

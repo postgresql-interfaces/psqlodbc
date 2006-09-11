@@ -17,12 +17,11 @@
 #include "connection.h"
 
 
-Oid
+OID
 odbc_lo_creat(ConnectionClass *conn, int mode)
 {
 	LO_ARG		argv[1];
-	int			retval,
-				result_len;
+	Int4		retval, result_len;
 
 	argv[0].isint = 1;
 	argv[0].len = 4;
@@ -31,7 +30,7 @@ odbc_lo_creat(ConnectionClass *conn, int mode)
 	if (!CC_send_function(conn, LO_CREAT, &retval, &result_len, 1, argv, 1))
 		return 0;				/* invalid oid */
 	else
-		return retval;
+		return (OID) retval;
 }
 
 
@@ -78,11 +77,11 @@ odbc_lo_close(ConnectionClass *conn, int fd)
 }
 
 
-int
-odbc_lo_read(ConnectionClass *conn, int fd, char *buf, int len)
+Int4
+odbc_lo_read(ConnectionClass *conn, int fd, char *buf, Int4 len)
 {
 	LO_ARG		argv[2];
-	int			result_len;
+	Int4		result_len;
 
 	argv[0].isint = 1;
 	argv[0].len = 4;
@@ -99,11 +98,11 @@ odbc_lo_read(ConnectionClass *conn, int fd, char *buf, int len)
 }
 
 
-int
-odbc_lo_write(ConnectionClass *conn, int fd, char *buf, int len)
+Int4
+odbc_lo_write(ConnectionClass *conn, int fd, char *buf, Int4 len)
 {
 	LO_ARG		argv[2];
-	int			retval,
+	Int4		retval,
 				result_len;
 
 	if (len <= 0)
@@ -124,11 +123,11 @@ odbc_lo_write(ConnectionClass *conn, int fd, char *buf, int len)
 }
 
 
-int
-odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, int whence)
+Int4
+odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, Int4 whence)
 {
 	LO_ARG		argv[3];
-	int			retval,
+	Int4		retval,
 				result_len;
 
 	argv[0].isint = 1;
@@ -150,12 +149,11 @@ odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, int whence)
 }
 
 
-int
+Int4
 odbc_lo_tell(ConnectionClass *conn, int fd)
 {
 	LO_ARG		argv[1];
-	int			retval,
-				result_len;
+	Int4		retval, result_len;
 
 	argv[0].isint = 1;
 	argv[0].len = 4;
@@ -168,12 +166,11 @@ odbc_lo_tell(ConnectionClass *conn, int fd)
 }
 
 
-int
-odbc_lo_unlink(ConnectionClass *conn, Oid lobjId)
+Int4
+odbc_lo_unlink(ConnectionClass *conn, OID lobjId)
 {
 	LO_ARG		argv[1];
-	int			retval,
-				result_len;
+	Int4		retval, result_len;
 
 	argv[0].isint = 1;
 	argv[0].len = 4;

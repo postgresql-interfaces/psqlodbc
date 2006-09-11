@@ -18,24 +18,24 @@
 /*	Used by backend data AND manual result sets */
 struct TupleField_
 {
-	Int4		len;			/* length of the current Tuple */
-	void	   *value;			/* an array representing the value */
+	Int4	len;		/* PG length of the current Tuple */
+	void	*value;		/* an array representing the value */
 };
 
 /*	keyset(TID + OID) info */
 struct KeySet_
 {
 	UWORD	status;
-	UWORD	offset;
-	UDWORD	blocknum;
-	UDWORD	oid;
+	UInt2	offset;
+	UInt4	blocknum;
+	OID	oid;
 };
 /*	Rollback(index + original TID) info */
 struct Rollback_
 {
-	DWORD	index;
-	UDWORD	blocknum;
-	UWORD	offset;
+	SQLLEN	index;
+	UInt4	blocknum;
+	UInt2	offset;
 	UWORD	option;
 };
 #define	KEYSET_INFO_PUBLIC	0x07
@@ -61,7 +61,7 @@ void		set_tuplefield_null(TupleField *tuple_field);
 void		set_tuplefield_string(TupleField *tuple_field, const char *string);
 void		set_tuplefield_int2(TupleField *tuple_field, Int2 value);
 void		set_tuplefield_int4(TupleField *tuple_field, Int4 value);
-int	ClearCachedRows(TupleField *tuple, int num_fields, int num_rows);
-int	ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, int num_rows);
+SQLLEN	ClearCachedRows(TupleField *tuple, int num_fields, SQLLEN num_rows);
+SQLLEN	ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, SQLLEN num_rows);
 
 #endif

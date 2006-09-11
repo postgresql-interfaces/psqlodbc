@@ -34,14 +34,14 @@ int	iswascii(wchar_t c)
 #endif  /* HAVE_ISWASCII */
 #endif  /* WIN32 */
 
-UInt4	ucs2strlen(const SQLWCHAR *ucs2str)
+SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str)
 {
-	UInt4	len;
+	SQLULEN	len;
 	for (len = 0; ucs2str[len]; len++)
 		;
 	return len;
 }
-char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, Int4 *olen, BOOL lower_identifier)
+char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
 /*mylog("ucs2_to_utf8 %x ilen=%d ", ucs2str, ilen);*/
@@ -104,10 +104,10 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, Int4 ilen, Int4 *olen, BOOL lower_id
 #define	byte3_m3	0x3f
 #define	byte2_m1	0x1f
 #define	byte2_m2	0x3f
-UInt4	utf8_to_ucs2_lf(const char *utf8str, Int4 ilen, BOOL lfconv, SQLWCHAR *ucs2str, UInt4 bufcount)
+SQLULEN	utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount)
 {
 	int	i;
-	UInt4	ocount, wcode;
+	SQLULEN	ocount, wcode;
 	const UCHAR *str;
 
 /*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/

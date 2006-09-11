@@ -250,8 +250,9 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->lower_case_identifier = -1;
 		conninfo->rollback_on_error = -1;
 		conninfo->force_abbrev_connstr = -1;
-		conninfo->fake_mss = -1;
 		conninfo->bde_environment = -1;
+		conninfo->fake_mss = -1;
+		conninfo->cvt_null_date_string = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		conninfo->xa_opt = -1;
 		conninfo->autocommit_normal = 0;
@@ -264,6 +265,7 @@ CC_conninfo_init(ConnInfo *conninfo)
 ConnectionClass *
 CC_Constructor()
 {
+	extern	int	exepgm;
 	ConnectionClass *rv, *retrv = NULL;
 
 	rv = (ConnectionClass *) calloc(sizeof(ConnectionClass), 1);
@@ -316,6 +318,8 @@ CC_Constructor()
 		// rv->pg_version_major = 0;
 		// rv->pg_version_minor = 0;
 		// rv->ms_jet = 0;
+		if (1 == exepgm)
+			rv->ms_jet = 1;
 		// rv->unicode = 0;
 		// rv->result_uncommitted = 0;
 		// rv->schema_support = 0;
@@ -690,8 +694,8 @@ inolog("md5 pwd=%s user=%s\n", ci->password, ci->username);
 inolog("putting p\n");
 		SOCK_put_char(sock, 'p');
 }
-	SOCK_put_int(sock, 4 + (int) strlen(pwd2) + 1, 4);
-	SOCK_put_n_char(sock, pwd2, (int) strlen(pwd2) + 1);
+	SOCK_put_int(sock, (Int4) (4 + strlen(pwd2) + 1), 4);
+	SOCK_put_n_char(sock, pwd2, (Int4) strlen(pwd2) + 1);
 	SOCK_flush_output(sock);
 	free(pwd2);
 	return 0; 
@@ -731,7 +735,7 @@ EatReadyForQuery(ConnectionClass *conn)
 }
 
 int
-handle_error_message(ConnectionClass *self, char *msgbuf, int buflen, char *sqlstate, const char *comment, QResultClass *res)
+handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *sqlstate, const char *comment, QResultClass *res)
 {
 	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated;
 	SocketClass	*sock = self->sock;
@@ -793,7 +797,7 @@ inolog("new_format=%d\n", new_format);
 	}
 	else
 	{
-		msg_truncated = SOCK_get_string(sock, msgbuf, buflen);
+		msg_truncated = SOCK_get_string(sock, msgbuf, (Int4) buflen);
 
 		/* Remove a newline */
 		if (msgbuf[0] != '\0' && msgbuf[(int)strlen(msgbuf) - 1] == '\n')
@@ -833,7 +837,7 @@ inolog("new_format=%d\n", new_format);
 }
 
 int
-handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen, char *sqlstate, const char *comment, QResultClass *res)
+handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *sqlstate, const char *comment, QResultClass *res)
 {
 	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated;
 	SocketClass	*sock = self->sock;
@@ -894,7 +898,7 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, int buflen, char *sql
 	}
 	else
 	{
-		msg_truncated = SOCK_get_string(sock, msgbuf, buflen);
+		msg_truncated = SOCK_get_string(sock, msgbuf, (Int4) buflen);
 
 		/* Remove a newline */
 		if (msgbuf[0] != '\0' && msgbuf[strlen(msgbuf) - 1] == '\n')
@@ -1037,7 +1041,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	CSTR	func = "protocol3_packet_build";
 	SocketClass	*sock = self->sock;
 	ConnInfo	*ci = &(self->connInfo);
-	Int4	slen;
+	size_t	slen;
 	char	*packet, *ppacket;
 	ProtocolVersion	pversion;
 	const	char	*opts[20][2], *enc = NULL;
@@ -1064,7 +1068,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 
 	sock->pversion = PG_PROTOCOL_LATEST;
 	/* Send length of Authentication Block */
-	SOCK_put_int(sock, slen + 4, 4);
+	SOCK_put_int(sock, (Int4) (slen + 4), 4);
 
 	ppacket = packet;
 	pversion = (ProtocolVersion) htonl(sock->pversion);
@@ -1079,7 +1083,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	}
 	*ppacket = '\0';
 
-	SOCK_put_n_char(sock, packet, slen);
+	SOCK_put_n_char(sock, packet, (Int4) slen);
 	SOCK_flush_output(sock);
 	free(packet);
 
@@ -1091,7 +1095,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_opts_build";
 	ConnInfo	*ci = &(self->connInfo);
-	Int4	slen;
+	size_t	slen;
 	char	*conninfo, *ppacket;
 	const	char	*opts[20][2];
 	int	cnt, i;
@@ -1446,8 +1450,8 @@ inolog("Ekita\n");
 
 							if (PROTOCOL_74(&(self->connInfo)))
 								SOCK_put_char(sock, 'p');
-							SOCK_put_int(sock, 4 + strlen(ci->password) + 1, 4);
-							SOCK_put_n_char(sock, ci->password, strlen(ci->password) + 1);
+							SOCK_put_int(sock, (Int4) (4 + strlen(ci->password) + 1), 4);
+							SOCK_put_n_char(sock, ci->password, (Int4) strlen(ci->password) + 1);
 							sockerr = SOCK_flush_output(sock);
 
 							mylog("past flush %dbytes\n", sockerr);
@@ -1800,8 +1804,8 @@ static char *
 CC_create_errormsg(ConnectionClass *self)
 {
 	SocketClass *sock = self->sock;
-	int			pos;
-	char	 msg[4096];
+	size_t	pos;
+	char	msg[4096];
 
 	mylog("enter CC_create_errormsg\n");
 
@@ -2112,11 +2116,11 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 
 	if (PROTOCOL_74(ci))
 	{
-		leng = strlen(query);
+		leng = (UInt4) strlen(query);
 		if (issue_begin)
-			leng += strlen("BEGIN;");
+			leng += (UInt4) strlen("BEGIN;");
 		if (query_rollback)
-			leng += (10 + strlen(per_query_svp) + 1);
+			leng += (UInt4) (10 + strlen(per_query_svp) + 1);
 		leng++;
 		SOCK_put_int(sock, leng + 4, 4);
 inolog("leng=%d\n", leng);
@@ -2131,7 +2135,7 @@ inolog("leng=%d\n", leng);
 		char cmd[64];
 
 		snprintf(cmd, sizeof(cmd), "SAVEPOINT %s;", per_query_svp);
-		SOCK_put_n_char(sock, cmd, strlen(cmd));
+		SOCK_put_n_char(sock, cmd, (Int4) strlen(cmd));
 		discard_next_savepoint = TRUE;
 	}
 	SOCK_put_string(sock, query);
@@ -3296,6 +3300,7 @@ cleanup1:
 inolog("socket=%d\n", socket);
 	sock->socket = socket;
 	sock->ssl = PQgetssl(pqconn);
+if (TRUE)
 	{
 		int	pversion;
 		ConnInfo	*ci = &self->connInfo;

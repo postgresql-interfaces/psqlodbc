@@ -55,6 +55,7 @@ extern "C" {
 #define INI_PORT			"Port"	/* Port on which the
 						 * Postmaster is listening */
 #define INI_DATABASE			"Database"	/* Database Name */
+#define INI_UID				"UID"		/* Default User Name */
 #define INI_USER			"Username"	/* Default User Name */
 #define INI_PASSWORD			"Password"	/* Default Password */
 
@@ -186,6 +187,7 @@ const char *GetXaLibPath();
 #define	BIT_FORCEABBREVCONNSTR			1L
 #define	BIT_FAKE_MSS				(1L << 1)
 #define	BIT_BDE_ENVIRONMENT			(1L << 2)
+#define	BIT_CVT_NULL_DATE			(1L << 3)
 
 /*	Connection Defaults */
 #define DEFAULT_PORT				"5432"
@@ -240,23 +242,23 @@ void		getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 void		SetDlgStuff(HWND hdlg, const ConnInfo *ci);
 void		GetDlgStuff(HWND hdlg, ConnInfo *ci);
 
-int CALLBACK driver_optionsProc(HWND hdlg,
+LRESULT CALLBACK driver_optionsProc(HWND hdlg,
 				   UINT wMsg,
 				   WPARAM wParam,
 				   LPARAM lParam);
-int CALLBACK global_optionsProc(HWND hdlg,
+LRESULT CALLBACK global_optionsProc(HWND hdlg,
 				   UINT wMsg,
 				   WPARAM wParam,
 				   LPARAM lParam);
-int CALLBACK ds_options1Proc(HWND hdlg,
+LRESULT CALLBACK ds_options1Proc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,
 			   LPARAM lParam);
-int CALLBACK ds_options2Proc(HWND hdlg,
+LRESULT CALLBACK ds_options2Proc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,
 			   LPARAM lParam);
-int CALLBACK manage_dsnProc(HWND hdlg,
+LRESULT CALLBACK manage_dsnProc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,
 			   LPARAM lParam);

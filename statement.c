@@ -532,7 +532,7 @@ void
 SC_set_rowset_start(StatementClass *stmt, SQLLEN start, BOOL valid_base)
 {
 	QResultClass	*res = SC_get_Curres(stmt);
-	Int4	incr = start - stmt->rowset_start;
+	SQLLEN		incr = start - stmt->rowset_start;
 
 inolog("%x->SC_set_rowstart %d->%d(%s) ", stmt, stmt->rowset_start, start, valid_base ? "valid" : "unknown");
 	if (res != NULL)
@@ -759,22 +759,25 @@ SC_recycle_statement(StatementClass *self)
 			return FALSE;
 	}
 
-	if (NOT_YET_PREPARED == self->prepared)
+	switch (self->prepared)
 	{
-        	/* Free the parsed table information */
-		if (self->ti)
-		{
-			TI_Destructor(self->ti, self->ntab);
-			free(self->ti);
-			self->ti = NULL;
-			self->ntab = 0;
-		}
-		/* Free the parsed field information */
-		DC_Destructor((DescriptorClass *) SC_get_IRD(self));
+		case NOT_YET_PREPARED:
+		case ONCE_DESCRIBED:
+        		/* Free the parsed table information */
+			if (self->ti)
+			{
+				TI_Destructor(self->ti, self->ntab);
+				free(self->ti);
+				self->ti = NULL;
+				self->ntab = 0;
+			}
+			/* Free the parsed field information */
+			DC_Destructor((DescriptorClass *) SC_get_IRD(self));
 
 inolog("SC_clear_parse_status\n");
-		SC_clear_parse_status(self, conn);
-		self->updatable = FALSE;
+			SC_clear_parse_status(self, conn);
+			self->updatable = FALSE;
+			break;
 	}
 
 	/* Free any cursors */
@@ -854,15 +857,16 @@ SC_pre_execute(StatementClass *self)
 		{
 			char		old_pre_executing = self->pre_executing;
 
-			decideHowToPrepare(self);
+			decideHowToPrepare(self, FALSE);
 			self->inaccurate_result = FALSE;
 			switch (SC_get_prepare_method(self))
 			{
-				case USING_PARSE_REQUEST:
+				case NAMED_PARSE_REQUEST:
+				case PARSE_TO_EXEC_ONCE:
 					if (SQL_SUCCESS != prepareParameters(self))
 						return num_fields;
 					break;
-				case USING_UNNAMED_PARSE_REQUEST:
+				case PARSE_REQ_FOR_INFO:
 					if (SQL_SUCCESS != prepareParameters(self))
 						return num_fields;
 					self->status = STMT_PREMATURE;
@@ -1011,7 +1015,7 @@ SC_create_errorinfo(const StatementClass *self)
 	QResultClass *res = SC_get_Curres(self);
 	ConnectionClass *conn = SC_get_conn(self);
 	Int4	errornum;
-	int		pos;
+	size_t		pos;
 	BOOL		resmsg = FALSE, detailmsg = FALSE, msgend = FALSE;
 	char		msg[4096], *wmsg;
 	char		*ermsg = NULL, *sqlstate = NULL;
@@ -1038,7 +1042,7 @@ SC_create_errorinfo(const StatementClass *self)
 		else if (QR_get_notice(res))
 		{
 			char *notice = QR_get_notice(res);
-			int len = strlen(notice);
+			size_t	len = strlen(notice);
 			if (len < sizeof(msg))
 			{
 				memcpy(msg, notice, len);
@@ -1332,7 +1336,7 @@ SC_fetch(StatementClass *self)
 
 	Int2		num_cols,
 				lf;
-	Oid			type;
+	OID			type;
 	char	   *value;
 	ColumnInfoClass *coli;
 	BindInfoClass	*bookmark;
@@ -1386,7 +1390,7 @@ inolog("%s statement=%x ommitted=0\n", func, self);
 	}
 	if (QR_haskeyset(res))
 	{
-		Int4	kres_ridx;
+		SQLLEN	kres_ridx;
 
 		kres_ridx = GIdx2KResIdx(self->currTuple, self, res);
 		if (kres_ridx >= 0 && kres_ridx < res->num_cached_keys)
@@ -1427,7 +1431,7 @@ inolog("%s: stmt=%x ommitted++\n", func, self);
 	if ((bookmark = opts->bookmark) && bookmark->buffer)
 	{
 		char		buf[32];
-		UInt4	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
+		SQLLEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
 		sprintf(buf, "%ld", SC_get_bookmark(self));
 		SC_set_current_col(self, -1);
@@ -1461,7 +1465,7 @@ inolog("%s: stmt=%x ommitted++\n", func, self);
 				value = QR_get_value_backend(res, lf);
 			else
 			{
-				int	curt = GIdx2CacheIdx(self->currTuple, self, res);
+				SQLLEN	curt = GIdx2CacheIdx(self->currTuple, self, res);
 inolog("base=%d curr=%d st=%d\n", QR_get_rowstart_in_cache(res), self->currTuple, SC_get_rowset_start(self));
 inolog("curt=%d\n", curt);
 				value = QR_get_value_backend_row(res, curt, lf);
@@ -1531,6 +1535,7 @@ SC_execute(StatementClass *self)
 	ConnInfo   *ci;
 	UDWORD		qflag = 0;
 	BOOL		is_in_trans, issue_begin, has_out_para;
+	BOOL		use_extended_protocol;
 	int		func_cs_count = 0, i;
 
 	conn = SC_get_conn(self);
@@ -1602,8 +1607,27 @@ SC_execute(StatementClass *self)
 	 * statement
 	 */
 	/* in copy_statement... */
+	use_extended_protocol = FALSE;
 	if (PREPARED_PERMANENTLY == self->prepared &&
 	    PROTOCOL_74(ci))
+		use_extended_protocol = TRUE;
+	else if (PREPARED_TEMPORARILY == self->prepared)
+	{
+		switch (SC_get_prepare_method(self))
+		{
+#ifdef	TRY_ONESHOT_PLAN
+		case PARSE_TO_EXEC_ONCE:
+#endif /* TRY_ONESHOT_PLAN */
+			case NAMED_PARSE_REQUEST:
+				use_extended_protocol = TRUE;
+		}
+		if (!use_extended_protocol)
+		{
+			SC_forget_unnamed(self);
+			SC_set_Result(self, NULL); /* discard the parsed information */
+		}
+	}
+	if (use_extended_protocol)
 	{
 		char	*plan_name = self->plan_name;
 
@@ -1694,6 +1718,7 @@ inolog("get_Result=%x\n", res);
 				CC_commit(conn);
 		}
 	}
+	SC_forget_unnamed(self);
 
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
@@ -1842,7 +1867,7 @@ inolog("!!SC_fetch return =%d\n", ret);
 		if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO)
 		{
 			APDFields	*apdopts = SC_get_APDF(self);
-			UInt4	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
+			SQLULEN		offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 			ARDFields	*ardopts = SC_get_ARDF(self);
 			const ParameterInfoClass	*apara;
 			const ParameterImplClass	*ipara;
@@ -1964,7 +1989,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		QResultClass *res = SC_get_Result(self);
 		const ARDFields	*opts = SC_get_ARDF(self);
 		const APDFields	*apdopts = SC_get_APDF(self);
-		int	rowsetSize;
+		SQLLEN	rowsetSize;
 
 #if (ODBCVER >= 0x0300)
 		rowsetSize = (7 == self->transition_status ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
@@ -2220,7 +2245,7 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
 	CSTR	func = "SendParseRequest";
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	SocketClass	*sock = conn->sock;
-	unsigned long	pileng, leng;
+	size_t		pileng, leng;
 
 	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);
 	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
@@ -2230,6 +2255,10 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
 			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error in SendParseRequest", func);
 			return FALSE;
 		}
+	}
+	else if (!CC_is_in_trans(conn) && !CC_is_in_autocommit(conn))
+	{
+		CC_begin(conn);
 	}
 	SOCK_put_char(sock, 'P');
 	if (SOCK_get_errcode(sock) != 0)
@@ -2243,7 +2272,7 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
 	if (!stmt->discard_output_params)
 		pileng += sizeof(UInt4) * (stmt->num_params - stmt->proc_return); 
 	leng = strlen(plan_name) + 1 + strlen(query) + 1 + pileng;
-	SOCK_put_int(sock, leng + 4, 4);
+	SOCK_put_int(sock, (Int4) (leng + 4), 4);
 inolog("parse leng=%d\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_string(sock, query);
@@ -2272,7 +2301,7 @@ SendDescribeRequest(StatementClass *stmt, const char *plan_name)
 	CSTR	func = "SendDescribeRequest";
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	SocketClass	*sock = conn->sock;
-	unsigned long	leng;
+	size_t		leng;
 	BOOL		sockerr = FALSE;
 
 	mylog("%s:plan_name=%s\n", func, plan_name);
@@ -2290,7 +2319,7 @@ SendDescribeRequest(StatementClass *stmt, const char *plan_name)
 	if (!sockerr)
 	{
 		leng = 1 + strlen(plan_name) + 1;
-		SOCK_put_int(sock, leng + 4, 4);
+		SOCK_put_int(sock, (Int4) (leng + 4), 4);
 		if (SOCK_get_errcode(sock) != 0)
 			sockerr = TRUE;
 	}
@@ -2323,7 +2352,7 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	CSTR	func = "SendExecuteRequest";
 	ConnectionClass	*conn;
 	SocketClass	*sock;
-	unsigned long	leng;
+	size_t		leng;
 
 	if (!stmt)	return FALSE;
 	if (conn = SC_get_conn(stmt), !conn)	return FALSE;
@@ -2339,6 +2368,7 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 		}
 	}
 	SOCK_put_char(sock, 'E');
+	SC_forget_unnamed(stmt); /* don't reuse the unnamed plan */
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send E Request to backend", func);
@@ -2347,7 +2377,7 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	}
 
 	leng = strlen(plan_name) + 1 + 4;
-	SOCK_put_int(sock, leng + 4, 4);
+	SOCK_put_int(sock, (Int4) (leng + 4), 4);
 inolog("execute leng=%d\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_int(sock, count, 4);
@@ -2362,7 +2392,7 @@ inolog("execute leng=%d\n", leng);
 		}
 
 		leng = 1 + strlen(plan_name) + 1;
-		SOCK_put_int(sock, leng + 4, 4); /* Close portal */
+		SOCK_put_int(sock, (Int4) (leng + 4), 4); /* Close portal */
 inolog("Close leng=%d\n", leng);
 		SOCK_put_char(sock, 'P');
 		SOCK_put_string(sock, plan_name);

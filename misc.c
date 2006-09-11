@@ -34,8 +34,8 @@
  *	returns STRCPY_FAIL, STRCPY_TRUNCATED, or #bytes copied
  *	(not including null term)
  */
-int
-my_strcpy(char *dst, int dst_len, const char *src, int src_len)
+ssize_t
+my_strcpy(char *dst, ssize_t dst_len, const char *src, ssize_t src_len)
 {
 	if (dst_len <= 0)
 		return STRCPY_FAIL;
@@ -76,7 +76,7 @@ my_strcpy(char *dst, int dst_len, const char *src, int src_len)
  * terminate the destination string.
  */
 char *
-strncpy_null(char *dst, const char *src, int len)
+strncpy_null(char *dst, const char *src, ssize_t len)
 {
 	int			i;
 
@@ -110,9 +110,9 @@ strncpy_null(char *dst, const char *src, int len)
  *------
  */
 char *
-make_string(const char *s, int len, char *buf, size_t bufsize)
+make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
 {
-	int			length;
+	size_t		length;
 	char	   *str;
 
 	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
@@ -146,9 +146,9 @@ inolog("str=%x\n", str);
  *------
  */
 char *
-make_lstring_ifneeded(ConnectionClass *conn, const char *s, int len, BOOL ifallupper)
+make_lstring_ifneeded(ConnectionClass *conn, const char *s, ssize_t len, BOOL ifallupper)
 {
-	int	length = len;
+	ssize_t	length = len;
 	char	   *str = NULL;
 
 	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(s)) > 0)))
@@ -196,13 +196,13 @@ make_lstring_ifneeded(ConnectionClass *conn, const char *s, int len, BOOL ifallu
  *	This routine could be modified to use vsprintf() to handle multiple arguments.
  */
 char *
-my_strcat(char *buf, const char *fmt, const char *s, int len)
+my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
 {
 	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
 	{
-		int			length = (len > 0) ? len : strlen(s);
+		size_t			length = (len > 0) ? len : strlen(s);
 
-		int			pos = strlen(buf);
+		size_t			pos = strlen(buf);
 
 		sprintf(&buf[pos], fmt, length, s);
 		return buf;
@@ -211,7 +211,7 @@ my_strcat(char *buf, const char *fmt, const char *s, int len)
 }
 
 char *
-schema_strcat(char *buf, const char *fmt, const char *s, int len, const char *tbname, int tbnmlen, ConnectionClass *conn)
+schema_strcat(char *buf, const char *fmt, const char *s, ssize_t len, const char *tbname, int tbnmlen, ConnectionClass *conn)
 {
 	if (!s || 0 == len)
 	{
@@ -231,7 +231,7 @@ schema_strcat(char *buf, const char *fmt, const char *s, int len, const char *tb
 void
 remove_newlines(char *string)
 {
-	unsigned int i, len = strlen(string);
+	size_t i, len = strlen(string);
 
 	for (i = 0; i < len; i++)
 	{
@@ -245,7 +245,7 @@ remove_newlines(char *string)
 char *
 trim(char *s)
 {
-	int			i;
+	size_t		i;
 
 	for (i = strlen(s) - 1; i >= 0; i--)
 	{
@@ -263,13 +263,13 @@ trim(char *s)
  *	It can have 1 more parameter than my_strcat.
  */
 char *
-my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len)
+my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len)
 {
-	int	length = len;
+	ssize_t	length = len;
 
 	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(s)) > 0)))
 	{
-		int	pos = strlen(buf);
+		size_t	pos = strlen(buf);
 
 		if (s1)
 			sprintf(&buf[pos], fmt, s1, length, s);
@@ -281,7 +281,7 @@ my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len)
 }
 
 char *
-schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len, const char *tbname, int tbnmlen, ConnectionClass *conn)
+schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len, const char *tbname, int tbnmlen, ConnectionClass *conn)
 {
 	if (!s || 0 == len)
 	{
@@ -315,10 +315,10 @@ snprintf_add(char *buf, size_t size, const char *format, ...)
  * It returns strlen of buf every time (not -1 when truncated)
  */
 
-int
+size_t
 snprintf_len(char *buf, size_t size, const char *format, ...)
 {
-	int len;
+	ssize_t len;
 	va_list arglist;
 	
 	va_start(arglist, format);

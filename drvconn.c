@@ -62,7 +62,7 @@ void		dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo 
 static void dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
 
 #ifdef WIN32
-BOOL FAR PASCAL dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
 RETCODE		dconn_DoDialog(HWND hwnd, ConnInfo *ci);
 
 extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
@@ -94,8 +94,8 @@ PGAPI_DriverConnect(
 	int			retval;
 	char		salt[5];
 	char		password_required = AUTH_REQ_OK;
-	int			len = 0;
-	SWORD		lenStrout;
+	ssize_t		len = 0;
+	SQLSMALLINT	lenStrout;
 
 
 	mylog("%s: entering...\n", func);
@@ -285,7 +285,7 @@ inolog("before CC_connect\n");
 	}
 
 	if (pcbConnStrOut)
-		*pcbConnStrOut = len;
+		*pcbConnStrOut = (SQLSMALLINT) len;
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	if (cbConnStrOutMax > 0)
@@ -318,14 +318,14 @@ inolog("before CC_connect\n");
 RETCODE
 dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 {
-	int			dialog_result;
+	LRESULT			dialog_result;
 
 	mylog("dconn_DoDialog: ci = %x\n", ci);
 
 	if (hwnd)
 	{
 		dialog_result = DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_CONFIG),
-							hwnd, dconn_FDriverConnectProc, (LPARAM) ci);
+				hwnd, dconn_FDriverConnectProc, (LPARAM) ci);
 		if (!dialog_result || (dialog_result == -1))
 			return SQL_NO_DATA_FOUND;
 		else
@@ -336,7 +336,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 }
 
 
-BOOL FAR	PASCAL
+LRESULT CALLBACK
 dconn_FDriverConnectProc(
 						 HWND hdlg,
 						 UINT wMsg,
@@ -364,7 +364,7 @@ dconn_FDriverConnectProc(
 			ShowWindow(GetDlgItem(hdlg, IDC_DESC), SW_HIDE);
 			ShowWindow(GetDlgItem(hdlg, IDC_DRIVER), SW_HIDE);
 
-			SetWindowLong(hdlg, DWL_USER, lParam);		/* Save the ConnInfo for
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* Save the ConnInfo for
 														 * the "OK" */
 			SetDlgStuff(hdlg, ci);
 
@@ -384,7 +384,7 @@ dconn_FDriverConnectProc(
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
-					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
+					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 
 					GetDlgStuff(hdlg, ci);
 
@@ -393,13 +393,13 @@ dconn_FDriverConnectProc(
 					return TRUE;
 
 				case IDC_DATASOURCE:
-					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
+					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 								   hdlg, ds_options1Proc, (LPARAM) ci);
 					break;
 
 				case IDC_DRIVER:
-					ci = (ConnInfo *) GetWindowLong(hdlg, DWL_USER);
+					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 								   hdlg, driver_optionsProc, (LPARAM) ci);
 					break;

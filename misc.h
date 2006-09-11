@@ -124,19 +124,19 @@ void	InitializeLogging();
 void	FinalizeLogging();
 
 void		remove_newlines(char *string);
-char	   *strncpy_null(char *dst, const char *src, int len);
+char	   *strncpy_null(char *dst, const char *src, ssize_t len);
 char	   *trim(char *string);
-char	   *make_string(const char *s, int len, char *buf, size_t bufsize);
-char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, int len, BOOL);
-char	   *my_strcat(char *buf, const char *fmt, const char *s, int len);
-char	   *schema_strcat(char *buf, const char *fmt, const char *s, int len,
+char	   *make_string(const char *s, ssize_t len, char *buf, size_t bufsize);
+char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, ssize_t len, BOOL);
+char	   *my_strcat(char *buf, const char *fmt, const char *s, ssize_t len);
+char	   *schema_strcat(char *buf, const char *fmt, const char *s, ssize_t len,
 		const char *, int, ConnectionClass *conn);
-char	   *my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, int len);
+char	   *my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len);
 char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
-				const char *s, int len,
+				const char *s, ssize_t len,
 				const char *, int, ConnectionClass *conn);
 int			snprintf_add(char *buf, size_t size, const char *format, ...);
-int			snprintf_len(char *buf, size_t size, const char *format, ...);
+size_t			snprintf_len(char *buf, size_t size, const char *format, ...);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
 #define	GET_SCHEMA_NAME(nspname) 	(nspname)
 
@@ -146,7 +146,7 @@ int			snprintf_len(char *buf, size_t size, const char *format, ...);
 #define STRCPY_TRUNCATED	(-1)
 #define STRCPY_NULL			(-2)
 
-int			my_strcpy(char *dst, int dst_len, const char *src, int src_len);
+ssize_t			my_strcpy(char *dst, ssize_t dst_len, const char *src, ssize_t src_len);
 
 /* Define a type for defining a constant string expression */
 #define CSTR static const char * const

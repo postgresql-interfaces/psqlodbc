@@ -337,12 +337,13 @@ inolog("num_params=%d\n", stmt->num_params);
 	/* StartRollbackState(stmt); */
 	if (NOT_YET_PREPARED == stmt->prepared)
 	{
-		decideHowToPrepare(stmt);
+		decideHowToPrepare(stmt, FALSE);
 inolog("howTo=%d\n", SC_get_prepare_method(stmt));
 		switch (SC_get_prepare_method(stmt))
 		{
-			case USING_PARSE_REQUEST:
-			case USING_UNNAMED_PARSE_REQUEST:
+			case NAMED_PARSE_REQUEST:
+			case PARSE_TO_EXEC_ONCE:
+			case PARSE_REQ_FOR_INFO:
 				if (ret = prepareParameters(stmt), SQL_ERROR == ret)
 					goto cleanup;
 		}
@@ -963,7 +964,6 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 {
 	CSTR func = "extend_getdata_info";
 	GetDataClass	*new_gdata;
-	int			i;
 
 	mylog("%s: entering ... self=%x, gdata_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
 
@@ -988,6 +988,8 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 		}
 		if (self->gdata)
 		{
+			size_t	i;
+
 			for (i = 0; i < self->allocated; i++)
 				new_gdata[i] = self->gdata[i];
 			free(self->gdata);
@@ -997,6 +999,8 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 	}
 	else if (shrink && self->allocated > num_columns)
 	{
+		int	i;
+
 		for (i = self->allocated; i > num_columns; i--)
 			reset_a_getdata_info(self, i);
 		self->allocated = num_columns;

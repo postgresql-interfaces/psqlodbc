@@ -40,7 +40,7 @@ RETCODE SQL_API PGAPI_Columns(HSTMT StatementHandle,
 			  const SQLCHAR *TableName, SQLSMALLINT NameLength3,
 			  const SQLCHAR *ColumnName, SQLSMALLINT NameLength4,
 			  UWORD flag,
-			  UInt4 reloid,
+			  OID	reloid,
 			  Int2 attnum);
 RETCODE SQL_API PGAPI_Connect(HDBC ConnectionHandle,
 		const SQLCHAR *ServerName, SQLSMALLINT NameLength1,
@@ -189,8 +189,8 @@ RETCODE SQL_API PGAPI_ExtendedFetch(
 					SQLLEN irow,
 					SQLULEN *pcrow,
 					SQLUSMALLINT *rgfRowStatus,
-					SQLINTEGER FetchOffset,
-					SQLINTEGER rowsetSize);
+					SQLLEN FetchOffset,
+					SQLLEN rowsetSize);
 RETCODE SQL_API PGAPI_ForeignKeys(
 				  HSTMT hstmt,
 				  const SQLCHAR *szPkCatalogName,

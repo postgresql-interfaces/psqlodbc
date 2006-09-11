@@ -68,7 +68,7 @@ PGAPI_GetInfo(
 	ConnInfo   *ci;
 	const char   *p = NULL;
 	char		tmp[MAX_INFO_STRING];
-	int			len = 0,
+	SQLULEN			len = 0,
 				value = 0;
 	RETCODE		result;
 	char		odbcver[16];
@@ -316,7 +316,7 @@ mylog("CONVERT_FUNCTIONS=%x\n", value);
 			break;
 
 		case SQL_KEYWORDS:		/* ODBC 2.0 */
-			p = "";
+			p = NULL_STRING;
 			break;
 
 		case SQL_LIKE_ESCAPE_CLAUSE:	/* ODBC 2.0 */
@@ -810,15 +810,15 @@ mylog("CONVERT_FUNCTIONS=%x\n", value);
 		/* numeric data */
 		if (rgbInfoValue)
 		{
-			if (len == 2)
-				*((WORD *) rgbInfoValue) = (WORD) value;
-			else if (len == 4)
-				*((DWORD *) rgbInfoValue) = (DWORD) value;
+			if (len == sizeof(SQLSMALLINT))
+				*((SQLUSMALLINT *) rgbInfoValue) = (SQLUSMALLINT) value;
+			else if (len == sizeof(SQLINTEGER))
+				*((SQLUINTEGER *) rgbInfoValue) = (SQLUINTEGER) value;
 		}
 	}
 
 	if (pcbInfoValue)
-		*pcbInfoValue = len;
+		*pcbInfoValue = (SQLSMALLINT) len;
 cleanup:
 
 	return result;
@@ -1000,7 +1000,7 @@ PGAPI_GetFunctions(
 		{
 			int			i;
 
-			memset(pfExists, 0, sizeof(UWORD) * 100);
+			memset(pfExists, 0, sizeof(pfExists[0]) * 100);
 
 			pfExists[SQL_API_SQLALLOCENV] = TRUE;
 			pfExists[SQL_API_SQLFREEENV] = TRUE;
@@ -1012,7 +1012,7 @@ PGAPI_GetFunctions(
 		else
 #endif
 		{
-			memset(pfExists, 0, sizeof(UWORD) * 100);
+			memset(pfExists, 0, sizeof(pfExists[0]) * 100);
 
 			/* ODBC core functions */
 			pfExists[SQL_API_SQLALLOCCONNECT] = TRUE;
@@ -1359,7 +1359,7 @@ simpleCatalogEscape(const char *src, int srclen, int *result_len, const Connecti
 	if (!src || srclen == SQL_NULL_DATA)
 		return dest;
 	else if (srclen == SQL_NTS)
-		srclen = strlen(src);
+		srclen = (int) strlen(src);
 	if (srclen <= 0)
 		return dest;
 mylog("simple in=%s(%d)\n", src, srclen);
@@ -1402,7 +1402,7 @@ adjustLikePattern(const char *src, int srclen, char escape_ch, int *result_len, 
 	if (!src || srclen == SQL_NULL_DATA)
 		return dest;
 	else if (srclen == SQL_NTS)
-		srclen = strlen(src);
+		srclen = (int) strlen(src);
 	/* if (srclen <= 0) */
 	if (srclen < 0)
 		return dest;
@@ -1861,7 +1861,7 @@ retry_public_schema:
 				set_tuplefield_null(&tuple[TABLES_TABLE_TYPE]);
 			else
 				set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], systable ? "SYSTEM TABLE" : (view ? "VIEW" : "TABLE"));
-			set_tuplefield_string(&tuple[TABLES_REMARKS], "");
+			set_tuplefield_string(&tuple[TABLES_REMARKS], NULL_STRING);
 			/*** set_tuplefield_string(&tuple[TABLES_REMARKS], "TABLE"); ***/
 		}
 		result = PGAPI_Fetch(htbl_stmt);
@@ -1911,7 +1911,7 @@ PGAPI_Columns(
 			  const SQLCHAR FAR * szColumnName, /* PV E*/
 			  SQLSMALLINT cbColumnName,
 			  UWORD	flag,
-			  UInt4	reloid,
+			  OID	reloid,
 			  Int2	attnum)
 {
 	CSTR func = "PGAPI_Columns";
@@ -2270,7 +2270,7 @@ retry_public_schema:
 			if (conn->schema_support)
 				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 			else
-				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], "");
+				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
 			set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "oid");
 			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
@@ -2282,7 +2282,7 @@ retry_public_schema:
 			set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(stmt, the_type));
 			set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
-			set_tuplefield_string(&tuple[COLUMNS_REMARKS], "");
+			set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
 
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
@@ -2325,7 +2325,7 @@ mylog(" and the data=%s\n", attdef);
 		if (conn->schema_support)
 			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 		else
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], "");
+			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], field_name);
 		auto_unique = SQL_FALSE;
@@ -2465,7 +2465,7 @@ mylog(" and the data=%s\n", attdef);
 
 		set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(stmt, field_type));
 		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], (Int2) (not_null[0] == '1' ? SQL_NO_NULLS : pgtype_nullable(stmt, field_type)));
-		set_tuplefield_string(&tuple[COLUMNS_REMARKS], "");
+		set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
 #if (ODBCVER >= 0x0300)
 		if (attdef && strlen(attdef) > 254)
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_DEF], "TRUNCATE");
@@ -2507,7 +2507,7 @@ mylog(" and the data=%s\n", attdef);
 		if (conn->schema_support)
 			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 		else
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], "");
+			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "xmin");
 		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
@@ -2518,7 +2518,7 @@ mylog(" and the data=%s\n", attdef);
 		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 		set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(stmt, the_type));
 		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
-		set_tuplefield_string(&tuple[COLUMNS_REMARKS], "");
+		set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
 #if (ODBCVER >= 0x0300)
 		set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
 		set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], sqltype);
@@ -2852,8 +2852,7 @@ PGAPI_Statistics(
 	char		isunique[10],
 				isclustered[10],
 				ishash[MAX_INFO_STRING];
-	SDWORD		index_name_len,
-				fields_vector_len;
+	SQLLEN		index_name_len, fields_vector_len;
 	TupleField	*tuple;
 	int			i;
 	StatementClass *col_stmt,
@@ -2866,7 +2865,7 @@ PGAPI_Statistics(
 		char	*col_name;
 	} *column_names = NULL;
 	/* char	  **column_names = NULL; */
-	SQLINTEGER	column_name_len;
+	SQLLEN		column_name_len;
 	int		total_columns = 0, alcount;
 	ConnInfo   *ci;
 	char		buf[256];
@@ -3316,7 +3315,7 @@ PGAPI_ColumnPrivileges(
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
 	const char	*like_or_eq;
 	char	column_query[INFO_INQUIRY_LEN];
-	int		cq_len,cq_size;
+	size_t		cq_len,cq_size;
 	char		*col_query;
 	BOOL	search_pattern;
 	QResultClass	*res;
@@ -3427,7 +3426,7 @@ PGAPI_PrimaryKeys(
 	StatementClass *tbl_stmt;
 	char		tables_query[INFO_INQUIRY_LEN];
 	char		attname[MAX_INFO_STRING];
-	SDWORD		attname_len;
+	SQLLEN		attname_len;
 	char		*pktab = NULL, pkscm[TABLE_NAME_STORAGE_LEN + 1];
 	char		pkname[TABLE_NAME_STORAGE_LEN + 1];
 	Int2		result_cols;
@@ -4684,7 +4683,9 @@ PGAPI_ProcedureColumns(
 	char		*params, *proargnames, *proargmodes, *delim;
 	char		*atttypid, *attname, *column_name;
 	QResultClass *res, *tres;
-	Int4		tcount, paramcount, i, j, pgtype;
+	SQLLEN		tcount;
+	OID		pgtype;
+	Int4		paramcount, i, j;
 	RETCODE		result;
 	BOOL		search_pattern, bRetset;
 	const char	*like_or_eq, *retset;
@@ -4859,7 +4860,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_CAT], CurrCat(conn));
 				set_nullfield_string(&tuple[PROCOLS_PROCEDURE_SCHEM], schema_name);
 				set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_NAME], procname);
-				set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], "");
+				set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], NULL_STRING);
 				set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_RETURN_VALUE);
 				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
 				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, FALSE));
@@ -4875,7 +4876,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype));
 				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
-				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], "");
+				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 #endif   /* ODBCVER >= 0x0300 */
 			}
 			if (proargmodes)
@@ -4964,7 +4965,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 					proargnames = delim + 1;
 				}
 				else
-					set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], "");
+					set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], NULL_STRING);
 				if (proargmodes)
 				{
 					int	ptype;
@@ -5000,7 +5001,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype));
 				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], j + 1);
-				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], "");
+				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 #endif   /* ODBCVER >= 0x0300 */
 			}
 		}
@@ -5039,7 +5040,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, typid));
 			set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, typid, PG_STATIC, PG_STATIC));
 			set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
-			set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], "");
+			set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 #endif   /* ODBCVER >= 0x0300 */
 		}
 	}
@@ -5185,7 +5186,7 @@ usracl_auth(char *usracl, const char *auth)
 static void
 useracl_upd(char (*useracl)[ACLMAX], QResultClass *allures, const char *user, const char *auth)
 {
-	int usercount = QR_get_num_cached_tuples(allures), i, addcnt = 0;
+	int usercount = (int) QR_get_num_cached_tuples(allures), i, addcnt = 0;
 
 mylog("user=%s auth=%s\n", user, auth);
 	if (user[0])
@@ -5223,7 +5224,7 @@ PGAPI_TablePrivileges(
 	char		proc_query[INFO_INQUIRY_LEN];
 	QResultClass	*res, *wres = NULL, *allures = NULL;
 	TupleField	*tuple;
-	int		tablecount, usercount, i, j, k;
+	Int4		tablecount, usercount, i, j, k;
 	BOOL		grpauth, sys, su;
 	char		(*useracl)[ACLMAX] = NULL, *acl, *user, *delim, *auth;
 	const char	*reln, *owner, *priv, *schnm = NULL;
@@ -5317,7 +5318,7 @@ retry_public_schema:
 		ret = SQL_ERROR;
 		goto cleanup;
 	}
-	tablecount = QR_get_num_cached_tuples(wres);
+	tablecount = (Int4) QR_get_num_cached_tuples(wres);
 	/* If not found */
 	if (conn->schema_support &&
 	    (flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
@@ -5351,7 +5352,7 @@ retry_public_schema:
 		ret = SQL_ERROR;
 		goto cleanup;
 	}
-	usercount = QR_get_num_cached_tuples(allures);
+	usercount = (Int4) QR_get_num_cached_tuples(allures);
 	useracl = (char (*)[ACLMAX]) malloc(usercount * sizeof(char [ACLMAX]));
 	for (i = 0; i < tablecount; i++)
 	{ 
@@ -5450,7 +5451,7 @@ mylog("guid=%s\n", uid);
 				if (conn->schema_support)
 					set_tuplefield_string(&tuple[1], GET_SCHEMA_NAME(schnm));
 				else
-					set_tuplefield_string(&tuple[1], "");
+					set_tuplefield_string(&tuple[1], NULL_STRING);
 				set_tuplefield_string(&tuple[2], reln);
 				if (su || sys)
 					set_tuplefield_string(&tuple[3], "_SYSTEM");

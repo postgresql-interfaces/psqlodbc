@@ -56,19 +56,19 @@ struct QResultClass_
 	QResultClass	*next;		/* the following result class */
 
 	/* Stuff for declare/fetch tuples */
-	UInt4		num_total_read;	/* the highest absolute position ever read in + 1 */
-	UInt4		count_backend_allocated;/* m(re)alloced count */
-	UInt4		num_cached_rows;	/* count of tuples kept in backend_tuples member */
-	Int4		fetch_number;	/* 0-based index to the tuple to read next */
-	Int4		cursTuple;	/* absolute current position in the servr's cursor used to retrieve tuples from the DB */
-	UInt4		move_offset;
-	Int4		base;		/* relative position of rowset start in the current data cache(backend_tuples) */
+	SQLULEN		num_total_read;	/* the highest absolute position ever read in + 1 */
+	SQLULEN		count_backend_allocated;/* m(re)alloced count */
+	SQLULEN		num_cached_rows;	/* count of tuples kept in backend_tuples member */
+	SQLLEN		fetch_number;	/* 0-based index to the tuple to read next */
+	SQLLEN		cursTuple;	/* absolute current position in the servr's cursor used to retrieve tuples from the DB */
+	SQLULEN		move_offset;
+	SQLLEN		base;		/* relative position of rowset start in the current data cache(backend_tuples) */
 
 	UInt2		num_fields;	/* number of fields in the result */
 	UInt2		num_key_fields;	/* number of key fields in the result */
-	UInt4		cache_size;
-	UInt4		rowset_size_include_ommitted;
-	Int4		recent_processed_row_count;
+	SQLULEN		cache_size;
+	UInt4		rowset_size_include_ommitted; /* PG restriction */
+	SQLLEN		recent_processed_row_count;
 
 	QueryResultCode	rstatus;	/* result status */
 
@@ -87,11 +87,11 @@ struct QResultClass_
 	char	flags;			/* this result contains keyset etc ? */
 	char	move_direction;		/* must move before fetching this
 						result set */
-	UInt4		count_keyset_allocated; /* m(re)alloced count */
-	UInt4		num_cached_keys;	/* count of keys kept in backend_keys member */
+	SQLULEN		count_keyset_allocated; /* m(re)alloced count */
+	SQLULEN		num_cached_keys;	/* count of keys kept in backend_keys member */
 	KeySet		*keyset;
-	Int4		key_base;	/* relative position of rowset start in the current keyset cache */
-	UInt4		reload_count;
+	SQLLEN		key_base;	/* relative position of rowset start in the current keyset cache */
+	UInt2		reload_count;
 	UInt2		rb_alloc;	/* count of allocated rollback info */	
 	UInt2		rb_count;	/* count of rollback info */	
 	Rollback	*rollback;	
@@ -101,11 +101,11 @@ struct QResultClass_
 	TupleField	*added_tuples;	/* added data by myself */
 	UInt2		dl_alloc;	/* count of allocated deleted info */	
 	UInt2		dl_count;	/* count of deleted info */	
-	UInt4		*deleted;	/* deleted index info */
+	SQLULEN		*deleted;	/* deleted index info */
 	KeySet		*deleted_keyset;	/* deleted keyset info */
 	UInt2		up_alloc;	/* count of allocated updated info */	
 	UInt2		up_count;	/* count of updated info */	
-	UInt4		*updated;	/* updated index info */
+	SQLULEN		*updated;	/* updated index info */
 	KeySet		*updated_keyset;	/* uddated keyset info */
 	TupleField	*updated_tuples;	/* uddated data by myself */
 };
@@ -226,14 +226,14 @@ void		QR_add_notice(QResultClass *self, const char *msg);
 
 void		QR_set_num_fields(QResultClass *self, int new_num_fields); /* catalog functions' result only */
 
-void		QR_set_num_cached_rows(QResultClass *, int);
-void		QR_set_rowstart_in_cache(QResultClass *, int);
-void		QR_inc_rowstart_in_cache(QResultClass *self, int base_inc);
-void		QR_set_cache_size(QResultClass *self, int cache_size);
-void		QR_set_rowset_size(QResultClass *self, int rowset_size);
-void		QR_set_position(QResultClass *self, int pos);
+void		QR_set_num_cached_rows(QResultClass *, SQLLEN);
+void		QR_set_rowstart_in_cache(QResultClass *, SQLLEN);
+void		QR_inc_rowstart_in_cache(QResultClass *self, SQLLEN base_inc);
+void		QR_set_cache_size(QResultClass *self, SQLLEN cache_size);
+void		QR_set_rowset_size(QResultClass *self, Int4 rowset_size);
+void		QR_set_position(QResultClass *self, SQLLEN pos);
 void		QR_set_cursor(QResultClass *self, const char *name);
-Int4		getNthValid(const QResultClass *self, Int4 sta, UWORD orientation, UInt4 nth, Int4 *nearest);
+SQLLEN		getNthValid(const QResultClass *self, SQLLEN sta, UWORD orientation, SQLULEN nth, SQLLEN *nearest);
 
 #define QR_MALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \
