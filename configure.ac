@@ -112,9 +112,11 @@ if test -z "$PG_CONFIG" ; then
   AC_MSG_ERROR([pg_config not found])
 fi
 pg_includedir=`$PG_CONFIG --includedir`
+pg_cflags=`$PG_CONFIG --cflags`
 pg_libdir=`$PG_CONFIG --libdir`
-CPPFLAGS="$CPPFLAGS -I$pg_includedir"
-LDFLAGS="$LDFLAGS -L$pg_libdir"
+pg_libs=`$PG_CONFIG --libs`
+CPPFLAGS="$CPPFLAGS $pg_cflags -I$pg_includedir"
+LDFLAGS="$LDFLAGS -L$pg_libdir $pg_libs -lpq"
 
 
 AC_CONFIG_FILES([Makefile])
