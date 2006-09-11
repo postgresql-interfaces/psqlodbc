@@ -8,9 +8,17 @@
  */
 
 #include "psqlodbc.h"
-#include <stdio.h>
-#include <string.h>
+#ifdef  WIN32
+#ifdef  _DEBUG
+#ifndef _MEMORY_DEBUG_
+#include <stdlib.h>
 #include <malloc.h>
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif /* _MEMORY_DEBUG_ */
+#endif /* _DEBUG */
+#endif /* WIN32 */
+#include <string.h>
 
 #define	byte3check	0xfffff800
 #define	byte2_base	0x80c0
