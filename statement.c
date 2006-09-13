@@ -1615,9 +1615,9 @@ SC_execute(StatementClass *self)
 	{
 		switch (SC_get_prepare_method(self))
 		{
-#ifdef	TRY_ONESHOT_PLAN
+#ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
 		case PARSE_TO_EXEC_ONCE:
-#endif /* TRY_ONESHOT_PLAN */
+#endif /* BYPASS_ONESHOT_PLAN_EXECUTION */
 			case NAMED_PARSE_REQUEST:
 				use_extended_protocol = TRUE;
 		}
@@ -2044,6 +2044,29 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
  *	Extended Query 
  */
 
+static BOOL
+RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
+{
+	BOOL	ret = TRUE;
+
+	if (SC_accessed_db(stmt))
+		return TRUE;
+	if (SQL_ERROR == SetStatementSvp(stmt))
+	{
+		char	emsg[128];
+
+		snprintf(emsg, sizeof(emsg), "internal savepoint error in %s", func);
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, emsg, func);
+		return FALSE;
+	}
+	if (!CC_is_in_trans(conn) && !CC_is_in_autocommit(conn))
+	{
+		if (ret = CC_begin(conn), !ret)
+			return ret;
+	}
+	return ret;
+}
+
 BOOL
 SendBindRequest(StatementClass *stmt, const char *plan_name)
 {
@@ -2052,6 +2075,8 @@ SendBindRequest(StatementClass *stmt, const char *plan_name)
 	SocketClass	*sock = conn->sock;
 
 	mylog("%s: plan_name=%s\n", func, plan_name);
+	if (!RequestStart(stmt, conn, func))
+		return FALSE;
 	if (!BuildBindRequest(stmt, plan_name))
 		return FALSE;
 
@@ -2074,17 +2099,11 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 	IPDFields	*ipdopts;
 	QResultClass	*newres = NULL;
 
-	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
-	{ 
-		if (SQL_ERROR == SetStatementSvp(stmt))
-		{
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error in SendSynAndReceive", func);
-			return FALSE;
-		}
-	}
+	if (!RequestStart(stmt, conn, func))
+		return NULL;
 
-	SOCK_put_char(sock, 'S');	/* Sync message */
-	SOCK_put_int(sock, 4, 4);
+	SOCK_put_char(sock, 'S');	/* Sync command */
+	SOCK_put_int(sock, 4, 4);	/* length */
 	SOCK_flush_output(sock);
 
 	if (!res)
@@ -2118,6 +2137,11 @@ inolog(" response_length=%d\n", response_length);
 					{
 						mylog("%s: reached eof now\n", func);
 						QR_set_reached_eof(res);
+					}
+					else
+					{
+						res->recent_processed_row_count = 0;
+						sscanf(msgbuffer, "%*s %d", &res->recent_processed_row_count);
 					}
 				}
 				break;
@@ -2248,19 +2272,10 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
 	size_t		pileng, leng;
 
 	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);
-	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
-	{ 
-		if (SQL_ERROR == SetStatementSvp(stmt))
-		{
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error in SendParseRequest", func);
-			return FALSE;
-		}
-	}
-	else if (!CC_is_in_trans(conn) && !CC_is_in_autocommit(conn))
-	{
-		CC_begin(conn);
-	}
-	SOCK_put_char(sock, 'P');
+	if (!RequestStart(stmt, conn, func))
+		return FALSE;
+
+	SOCK_put_char(sock, 'P'); /* Parse command */
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send P request to backend", func);
@@ -2272,7 +2287,7 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
 	if (!stmt->discard_output_params)
 		pileng += sizeof(UInt4) * (stmt->num_params - stmt->proc_return); 
 	leng = strlen(plan_name) + 1 + strlen(query) + 1 + pileng;
-	SOCK_put_int(sock, (Int4) (leng + 4), 4);
+	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
 inolog("parse leng=%d\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_string(sock, query);
@@ -2305,28 +2320,23 @@ SendDescribeRequest(StatementClass *stmt, const char *plan_name)
 	BOOL		sockerr = FALSE;
 
 	mylog("%s:plan_name=%s\n", func, plan_name);
-	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
-	{
-		if (SQL_ERROR == SetStatementSvp(stmt))
-		{
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
-			return FALSE;
-		}
-	}
-	SOCK_put_char(sock, 'D');
+	if (!RequestStart(stmt, conn, func))
+		return FALSE;
+
+	SOCK_put_char(sock, 'D'); /* Describe command */
 	if (SOCK_get_errcode(sock) != 0)
 		sockerr = TRUE;
 	if (!sockerr)
 	{
 		leng = 1 + strlen(plan_name) + 1;
-		SOCK_put_int(sock, (Int4) (leng + 4), 4);
+		SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
 		if (SOCK_get_errcode(sock) != 0)
 			sockerr = TRUE;
 	}
 	if (!sockerr)
 	{
 inolog("describe leng=%d\n", leng);
-		SOCK_put_char(sock, 'S');
+		SOCK_put_char(sock, 'S'); /* describe a prepared statement */
 		if (SOCK_get_errcode(sock) != 0)
 			sockerr = TRUE;
 	}
@@ -2359,16 +2369,18 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	if (sock = conn->sock, !sock)	return FALSE;
 
 	mylog("%s: plan_name=%s count=%d\n", func, plan_name, count);
-	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
+	switch (stmt->prepared)
 	{
-		if (SQL_ERROR == SetStatementSvp(stmt))
-		{
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
+		case NOT_YET_PREPARED:
+		case ONCE_DESCRIBED:
+			SC_set_error(stmt, STMT_EXEC_ERROR, "about to execute a non-prepared statement", func);
 			return FALSE;
-		}
 	}
-	SOCK_put_char(sock, 'E');
-	SC_forget_unnamed(stmt); /* don't reuse the unnamed plan */
+	if (!RequestStart(stmt, conn, func))
+		return FALSE;
+
+	SOCK_put_char(sock, 'E'); /* Execute command */
+	SC_forget_unnamed(stmt); /* unnamed plans are unavailable */
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send E Request to backend", func);
@@ -2377,13 +2389,13 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	}
 
 	leng = strlen(plan_name) + 1 + 4;
-	SOCK_put_int(sock, (Int4) (leng + 4), 4);
+	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
 inolog("execute leng=%d\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_int(sock, count, 4);
-	if (0 == count) /* Close message */
+	if (0 == count) /* will send a Close portal command */
 	{
-		SOCK_put_char(sock, 'C');
+		SOCK_put_char(sock, 'C');	/* Close command */
 		if (SOCK_get_errcode(sock) != 0)
 		{
 			CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send C Request to backend", func);
@@ -2392,9 +2404,9 @@ inolog("execute leng=%d\n", leng);
 		}
 
 		leng = 1 + strlen(plan_name) + 1;
-		SOCK_put_int(sock, (Int4) (leng + 4), 4); /* Close portal */
+		SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
 inolog("Close leng=%d\n", leng);
-		SOCK_put_char(sock, 'P');
+		SOCK_put_char(sock, 'P');	/* Portal */
 		SOCK_put_string(sock, plan_name);
 	}
 
@@ -2405,7 +2417,7 @@ BOOL	SendSyncRequest(ConnectionClass *conn)
 {
 	SocketClass	*sock = conn->sock;
 
-	SOCK_put_char(sock, 'S');	/* Sync message */
+	SOCK_put_char(sock, 'S');	/* Sync command */
 	SOCK_put_int(sock, 4, 4);
 	SOCK_flush_output(sock);
 

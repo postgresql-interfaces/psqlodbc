@@ -14,7 +14,7 @@
  *	Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.11 2006/04/08 16:30:01 dpage Exp $
+ *	  $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.12 2006/09/13 15:30:27 hinoue Exp $
  */
 
 
@@ -309,7 +309,7 @@ md5_hash(const void *buff, size_t len, char *hexsum)
 {
 	uint8		sum[16];
 
-	if (!calculateDigestFromBuffer((uint8 *) buff, len, sum))
+	if (!calculateDigestFromBuffer((uint8 *) buff, (uint32) len, sum))
 		return false;
 
 	bytesToHex(sum, hexsum);

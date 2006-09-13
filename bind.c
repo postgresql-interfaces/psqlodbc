@@ -408,7 +408,7 @@ PGAPI_ParamOptions(
 
 	apdopts = SC_get_APDF(stmt);
 	apdopts->paramset_size = crow;
-	SC_get_IPDF(stmt)->param_processed_ptr = (UInt4 *) pirow;
+	SC_get_IPDF(stmt)->param_processed_ptr = pirow;
 	return SQL_SUCCESS;
 }
 
@@ -459,7 +459,7 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	{
 		const	char *sptr, *tag = NULL;
 		ConnectionClass	*conn = SC_get_conn(stmt);
-		int	taglen;
+		size_t	taglen;
 		char	tchar, bchar, escape_in_literal;
 		char	in_literal = FALSE, in_identifier = FALSE,
 			in_dollar_quote = FALSE, in_escape = FALSE,

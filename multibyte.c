@@ -318,11 +318,12 @@ pg_mbschr(int csc, const UCHAR *string, unsigned int character)
 	return ((UCHAR *) rs);
 }
 
-int
+size_t
 pg_mbslen(int csc, const UCHAR *string)
 {
 	UCHAR *s;
-	int len, cs_stat;
+	size_t	len;
+	int	cs_stat;
 	for (len = 0, cs_stat = 0, s = (UCHAR *) string; *s != 0; s++)
 	{
 		cs_stat = pg_CS_stat(cs_stat,(unsigned int) *s, csc);
@@ -517,12 +518,12 @@ int encoded_nextchar(encoded_str *encstr)
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
 	return chr; 
 }
-int encoded_position_shift(encoded_str *encstr, int shift)
+ssize_t encoded_position_shift(encoded_str *encstr, size_t shift)
 {
 	encstr->pos += shift; 
 	return encstr->pos; 
 }
-int encoded_byte_check(encoded_str *encstr, int abspos)
+int encoded_byte_check(encoded_str *encstr, size_t abspos)
 {
 	int	chr;
 

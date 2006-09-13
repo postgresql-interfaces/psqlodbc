@@ -2090,7 +2090,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	if (rollback_on_error)
 		rollback_on_error = consider_rollback;
 	query_rollback = (rollback_on_error && PG_VERSION_GE(self, 8.0));
-	if (!query_rollback && consider_rollback )
+	if (!query_rollback && consider_rollback)
 	{
 		if (stmt)
 		{
@@ -2113,6 +2113,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 		CC_on_abort(self, CONN_DEAD);
 		goto cleanup;
 	}
+	if (stmt)
+		SC_forget_unnamed(stmt);
 
 	if (PROTOCOL_74(ci))
 	{

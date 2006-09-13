@@ -78,7 +78,7 @@ typedef struct pg_CS
 	UCHAR *name;
 	int code;
 }pg_CS;
-extern int pg_mbslen(int ccsc, const UCHAR *string);
+extern size_t	pg_mbslen(int ccsc, const UCHAR *string);
 extern UCHAR *pg_mbschr(int ccsc, const UCHAR *string, unsigned int character);
 extern UCHAR *pg_mbsinc(int ccsc, const UCHAR *current );
 
@@ -87,7 +87,7 @@ typedef struct
 {
 	int	ccsc;
 	const UCHAR *encstr;
-	int	pos;
+	ssize_t	pos;
 	int	ccst;
 } encoded_str;
 #define ENCODE_STATUS(enc)	((enc).ccst)
@@ -95,7 +95,7 @@ typedef struct
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str);
 #define make_encoded_str(encstr, conn, str) encoded_str_constr(encstr, conn->ccsc, str)
 extern int encoded_nextchar(encoded_str *encstr);
-extern int encoded_position_shift(encoded_str *encstr, int shift);
-extern int encoded_byte_check(encoded_str *encstr, int abspos);
+extern ssize_t encoded_position_shift(encoded_str *encstr, size_t shift);
+extern int encoded_byte_check(encoded_str *encstr, size_t abspos);
 #define check_client_encoding(X) pg_CS_name(pg_CS_code(X))
 #endif /* __MULTIBUYTE_H__ */

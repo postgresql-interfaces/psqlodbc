@@ -823,7 +823,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ipdopts->param_status_ptr = (SQLUSMALLINT *) Value;
 			return ret;
 		case SQL_DESC_ROWS_PROCESSED_PTR:
-			ipdopts->param_processed_ptr = (UInt4 *) Value;
+			ipdopts->param_processed_ptr = (SQLUINTEGER *) Value;
 			return ret;
 		case SQL_DESC_COUNT:
 			parameter_ibindings_set(ipdopts, CAST_PTR(SQLSMALLINT, Value), FALSE);
@@ -1513,7 +1513,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "PGAPI_GetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE		ret = SQL_SUCCESS;
-	int			len = 0;
+	SQLINTEGER	len = 0;
 
 	mylog("%s Handle=%x %d\n", func, StatementHandle, Attribute);
 	switch (Attribute)
@@ -1599,7 +1599,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			SC_set_error(stmt, DESC_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Get)", func);
 			return SQL_ERROR;
 		default:
-			ret = PGAPI_GetStmtOption(StatementHandle, (UWORD) Attribute, Value, &len, BufferLength);
+			ret = PGAPI_GetStmtOption(StatementHandle, (SQLSMALLINT) Attribute, Value, &len, BufferLength);
 	}
 	if (ret == SQL_SUCCESS && StringLength)
 		*StringLength = len;
@@ -1843,7 +1843,7 @@ inolog("set ard=%x\n", stmt->ard);
 			SC_get_IPDF(stmt)->param_status_ptr = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			SC_get_IPDF(stmt)->param_processed_ptr = (UInt4 *) Value;
+			SC_get_IPDF(stmt)->param_processed_ptr = (SQLUINTEGER *) Value;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
 			SC_get_APDF(stmt)->paramset_size = CAST_UPTR(SQLUINTEGER, Value);

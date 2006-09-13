@@ -309,9 +309,9 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 		{
 			case USING_PREPARE_COMMAND:
 			case NAMED_PARSE_REQUEST:
-#ifdef	TRY_ONESHOT_PLAN
+#ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
 			case PARSE_TO_EXEC_ONCE:
-#endif /* TRY_ONESHOT_PLAN */
+#endif/* BYPASS_ONESHOT_PLAN_EXECUTION */
 				prepare_before_exec = TRUE;
 		}
 	}
@@ -881,6 +881,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		   parameters even in case of non-prepared statements.
 		 */
 		BOOL	bCallPrepare = FALSE;
+		int	pre_decided = stmt->prepare;
 
 		ConnInfo *ci = &(conn->connInfo);
 		if (NOT_YET_PREPARED == stmt->prepared &&
@@ -936,7 +937,9 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			if (retval = prepareParameters(stmt), SQL_ERROR == retval)
 				goto cleanup;
 		}
-mylog("prepareParameters end\n");
+		else
+			/* stmt->prepare = pre_decided; */ /* put back */
+mylog("prepareParameters %d end\n", stmt->prepare);
 
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;

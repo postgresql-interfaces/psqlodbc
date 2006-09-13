@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.108 2006/09/11 16:28:03 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.109 2006/09/13 15:30:27 hinoue Exp $
  *
  */
 
@@ -443,5 +443,4 @@ void		debug_memory_check(void);
 CSTR	NULL_STRING = "";
 CSTR	PRINT_NULL = "(null)";
 CSTR	OID_NAME = "oid";
-#define	TRY_ONESHOT_PLAN
 #endif /* __PSQLODBC_H__ */
