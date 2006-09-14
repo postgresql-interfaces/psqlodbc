@@ -510,12 +510,24 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		/* a speicial handling for FOXPRO NULL -> NULL_STRING */
 		if (conn->connInfo.cvt_null_date_string > 0 &&
 		    PG_TYPE_DATE == field_type &&
-		    SQL_C_CHAR == fCType)
+		    (SQL_C_CHAR == fCType ||
+		     SQL_C_WCHAR == fCType))
 		{
-			if (rgbValueBindRow && cbValueMax > 0)
-				rgbValueBindRow = '\0';
-			else
-				result = COPY_RESULT_TRUNCATED;
+			switch (fCType)
+			{
+				case SQL_C_CHAR:
+					if (rgbValueBindRow && cbValueMax > 0)
+						rgbValueBindRow = '\0';
+					else
+						result = COPY_RESULT_TRUNCATED;
+					break;
+				case SQL_C_WCHAR:
+					if (rgbValueBindRow && cbValueMax >= WCLEN)
+						memcpy(rgbValueBindRow, 0, WCLEN);
+					else
+						result = COPY_RESULT_TRUNCATED;
+					break;
+			}
 			if (pcbValueBindRow)
 				*((SQLLEN *) pcbValueBindRow) = 0;
 			return result; 

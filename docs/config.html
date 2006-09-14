@@ -22,23 +22,13 @@ This feature was added when we noticed the backend seemed to have
 big problems optimizing some queries.<br />&nbsp;</li>
 
 <li><b>KSQO (Keyset Query Optimization):</b>
-This feature helps certain queries run in the backend without crashing.
-Some applications, specifically the MS Jet Database Engine, use "keyset"
-queries of the form:<br><br>
+<b><em>Deprecated for 7.1+ servers.</em></b> Check this option when connecting 7.0- servers and the application seems to be suffering from the following kind of queries:<br><br>
 
 <code>select...where (a = 1 AND b = 1 AND c = 1) OR (a=1 AND b=1 AND
-c = 2)...</code><br><br>
-
-These types of queries will most likely crash the backend without the KSQO
-feature.<br />&nbsp;</li>
+c = 2)...</code><br>&nbsp;</li>
 
 <li><b>Recognize Unique Indexes:</b>
-This controls what SQLStatistics() will return about unique indexes.
-By default it is set to false. This setting allows Access 95 and
-97 to ask the user at link time what the index should be. This is
-meant as a workaround until the backend canonifier can handle the Microsoft
-Access queries better. For some applications (i.e., Access 2.0), you must
-set this option to update any tables.<br />&nbsp;</li>
+Check this option.<br />&nbsp;</li>
 
 <li><b>Use Declare/Fetch:</b> If
 true, the driver automatically uses declare cursor/fetch to handle
@@ -178,8 +168,9 @@ for details on what you need to do to your database to allow for the row
 versioning feature to be used.<br />&nbsp;</li>
 
 <li><b>Disallow Premature:</b>
-Disallow Premature is an option to compensate for the lack of a server's functionality.
-For example (Middleware) applications issue the following ODBC API calls.<br><br>
+Mainly for 7.1 to 7.3 servers. <b><em>Server side prepare</em></b> is a more preferable option for 7.4+ servers.<br>
+This is an option to compensate for the lack of a server's <em>Prepare</em> functionality.
+For example, (Middleware) applications issue the following ODBC API calls.<br><br>
 
    SQLPreapare(hstmt, "select ...", ..)<br><br>
 
@@ -189,8 +180,8 @@ of fields they would return and so they would issue<br><br>
    SQLNumResultCols and/or <br>
    SQLDescribeCols/SQLColAttribute etc.<br><br>
 
-The problem is how the psqlODBC driver answers the inquiry. PostgreSQL hasn't 
-provided the Prepare functionality yet and we couldn't ask the backend about 
+The problem is how the psqlODBC driver answers the inquiry. PostgreSQL hadn't 
+provided the <em>Prepare</em> functionality until 7.4 and we couldn't ask the backend about 
 it directly.
 
 When using Disallow Premature, the driver will get the column info as follows:<br><br>
@@ -201,40 +192,39 @@ When using Disallow Premature, the driver will get the column info as follows:<b
 &nbsp;&nbsp;&nbsp;close ..<br><br>
 </i>
 The driver gets the field info using the fetch backward's result. The fetch backward 
-command returns no row but returns the field info. I also expected the the fetch
-backward command returns immediately but unfortunately it isn't always true. 
+command returns no row but returns the field info. Though the command is expected to be returned immediately it isn't true for 7.0- servers unfortunately. 
 The 7.1 or later servers <b>do</b> seem to return from the fetch backward command 
 immediately.<br />&nbsp;</li>
 
 <li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
 <br />&nbsp;</li>
 
-<li><b>Server side prepare:</b> When using prepared statements, prepare them on the 
-server rather than in the driver. This can give a slight performance advantage as the
-server doesn't need to re-parse the statement each time it is used.
-<br />&nbsp;</li>
+<li><b>Server side prepare:</b> Available for 7.3+ servers and <em>recommended for 7.4+.</em><br />&nbsp
+(7.4+) By using extended query protocol the driver replies to the inquiry for the information of columns or parameters correctly and effectively.<br>&nbsp 
+(7.3+) When using prepared statements, prepare them on the server rather than in the driver. This can give a slight performance advantage as the server<br>&nbsp
+doesn't need to re-parse the statement each time it is used.<br />&nbsp;</li>
 
 <li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>
 
-<li><b>Extra Opt:</b> extra options.<br />&nbsp;</li>
-0x1: Abbreviation option of connection.<br />&nbsp;</li>
-0x2: Fake MS SQL Server.<br />&nbsp;</li>
-0x4: BDE Environment.<br />&nbsp;</li>
+<li><b>Extra Opts:</b> combination of the following bits.<br /><br>&nbsp;
+0x1: Force the output of short-length formatted connection string. Check this bit when you use MFC CDatabase class.<br />&nbsp;
+0x2: Fake MS SQL Server so that MS Access recognizes PostgreSQL's serial type as AutoNumber type.<br />&nbsp;
+0x4: Reply ANSI (not Unicode) char types for the inquiries from applications. Try to check this bit when your applications don't seem to be good at handling Unicode data.<br />&nbsp;</li>
 
-<li><b>Protocol:</b> <br />&nbsp;
+<li><b>Protocol:</b> Note that when using SSL connections this setting is ignored.<br />&nbsp;
 
 <ul>
 <li><i>6.2:</i> Forces driver to
-use PostgreSQL 6.2 protocol, which had different byte ordering, protocol,
+use PostgreSQL 6.2(V0) protocol, which had different byte ordering, protocol,
 and other semantics.<br />&nbsp;
 
-<li><i>6.3</i>: Use the 6.3 protocol. This is compatible
-with both 6.3 and 6.4 backends.<br />&nbsp;</li>
+<li><i>6.3</i>: Use the 6.3(V1) protocol. This is compatible
+with both V1(6.3) and V2(6.4 to 7.3) backends.<br />&nbsp;</li>
 
-<li><i>6.4+</i>: Use the 6.4 protocol. This is only compatible
+<li><i>6.4+</i>: Use the 6.4(V2) protocol. This is only compatible
 with 6.4 and higher backends.<br />&nbsp;</li>
 
-<li><i>7.4+</i>: Use the 7.4 protocol. This is only compatible
+<li><i>7.4+</i>: Use the 7.4(V3) protocol. This is only compatible
 with 7.4 and higher backends.<br />&nbsp;</li>
 </ul></li>
 
@@ -242,7 +232,7 @@ with 7.4 and higher backends.<br />&nbsp;</li>
 error occur.<br />&nbsp;
 
 <ul>
-<li><i>Nop:</i> Don't rollback anything (let the application handle the
+<li><i>Nop:</i> Don't rollback anything and let the application handle the
 error.<br />&nbsp;</li>
 
 <li><i>Transaction:</i> Rollback the entire transaction.<br />&nbsp;</li>

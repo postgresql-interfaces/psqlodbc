@@ -80,7 +80,6 @@ strncpy_null(char *dst, const char *src, ssize_t len)
 {
 	int			i;
 
-
 	if (NULL != dst)
 	{
 		/* Just in case, check for special lengths */
@@ -115,28 +114,31 @@ make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
 	size_t		length;
 	char	   *str;
 
-	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
+	if (!s || SQL_NULL_DATA == len)
+		return NULL;
+	if (len >= 0)
+		length =len;
+	else if (SQL_NTS == len)
+		length = strlen(s);
+	else
 	{
-		length = (len > 0) ? len : strlen(s);
-		if (buf)
-		{
-			if (length >= bufsize)
-				length = bufsize - 1;
-			strncpy_null(buf, s, length + 1);
-			return buf;
-		}
-
-inolog("malloc size=%d\n", length);
-		str = malloc(length + 1);
-inolog("str=%x\n", str);
-		if (!str)
-			return NULL;
-
-		strncpy_null(str, s, length + 1);
-		return str;
+		mylog("make_string invalid length=%d\n", len);
+		return NULL;
+	}
+	if (buf)
+	{
+		strncpy_null(buf, s, bufsize);
+		return buf;
 	}
 
-	return NULL;
+inolog("malloc size=%d\n", length);
+	str = malloc(length + 1);
+inolog("str=%x\n", str);
+	if (!str)
+		return NULL;
+
+	strncpy_null(str, s, length + 1);
+	return str;
 }
 
 /*------
