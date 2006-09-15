@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
@@ -48,7 +48,11 @@ the old podbc32.<br />&nbsp;</li>
 Log communications to/from the backend to that file. This is good
 for debugging problems.<br />&nbsp;</li>
 
-<li><b>Parse Statements:</b> If enabled,
+<li><b>Parse Statements:</b> Tell the driver how to gather the information about result columns of queries. See also <em>Disallow Premature</em> and <em>ServerSide Prepare</em> options.<br>
+The driver checks this option first. If disabled then it checks the Server Side Prepare option. If disabled also it checks the Disallow Premature option.<br>
+If neither of them is specified the driver would execute the prepared statement prematurely when the application inquires the result columns' info.<br><br>
+
+If this option is enabled,
 the driver will parse an SQL query statement to identify the columns and
 tables and gather statistics about them such as precision, nullability,
 aliases, etc. It then reports this information in SQLDescribeCol,
@@ -169,6 +173,7 @@ versioning feature to be used.<br />&nbsp;</li>
 
 <li><b>Disallow Premature:</b>
 Mainly for 7.1 to 7.3 servers. <b><em>Server side prepare</em></b> is a more preferable option for 7.4+ servers.<br>
+Tell the driver how to gather the information about result columns. See also <em>Parse Staements</em> and <em>Server Side Prepare</em> options.<br>
 This is an option to compensate for the lack of a server's <em>Prepare</em> functionality.
 For example, (Middleware) applications issue the following ODBC API calls.<br><br>
 
@@ -199,10 +204,11 @@ immediately.<br />&nbsp;</li>
 <li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
 <br />&nbsp;</li>
 
-<li><b>Server side prepare:</b> Available for 7.3+ servers and <em>recommended for 7.4+.</em><br />&nbsp
-(7.4+) By using extended query protocol the driver replies to the inquiry for the information of columns or parameters correctly and effectively.<br>&nbsp 
-(7.3+) When using prepared statements, prepare them on the server rather than in the driver. This can give a slight performance advantage as the server<br>&nbsp
-doesn't need to re-parse the statement each time it is used.<br />&nbsp;</li>
+<li><b>Server side prepare:</b> Applicable for 7.3+ servers and <em>recommended for 7.4+.</em><br />&nbsp
+(7.4+) Tell the driver how to gather the information about result columns. See also <em>Parse Statement</em> and <em>Disallow Premature</em> options.<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp By using extended query protocol the driver replies to the inquiry correctly and effectively.<br>&nbsp 
+(7.4+) By using extended query protocol the driver replies to the inquiry for the information of parameters.<br>&nbsp 
+(7.3+) When using prepared statements, prepare them on the server rather than in the driver. This can give a slight performance advantage as the server<br>
+&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp doesn't need to re-parse the statement each time it is used.<br />&nbsp;</li>
 
 <li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>
 
