@@ -9,7 +9,7 @@
   
     <h1>psqlODBC FAQ</h1>
 
-    <p>Last updated: $Date: 2006/08/31 08:38:20 $</p>
+    <p>Last updated: $Date: 2006/09/15 07:52:38 $</p>
 
     <P>Current maintainer: Dave Page (<a href="mailto:dpage@postgresql.org">dpage@postgresql.org</a>)</p>
 
@@ -58,6 +58,7 @@
     <a href="#6.4">6.4</a>) Why do I get 'Write Conflict - This record has been changed by another user since you started editing it' in Access 2000 and above?<br>
     <a href="#6.5">6.5</a>) With MS Access, why can't I index on text fields -OR- why do I get "Invalid field definition 'field'" in definition of index or relationship?<br>
     <a href="#6.6">6.6</a>) With MS Access, why can't I GROUP BY,  ORDER BY, or even select WHERE, on columns which are of type "text"?<br>
+    <a href="#6.7">6.7</a>) With MS Access, why do I see #Deleted# in rows after some operations?<br>
 
 
     <h2>1) General</h2>
@@ -569,7 +570,18 @@
     You can change the mapping of Text fields to SQL_VARCHAR by unchecking the 
     Advanced driver option "Text as LongVarchar" under Data Type Options. This 
     should allow text fields to be used.
-    </p
+    </p>
     
+    <h3><a name="6.7">6.7</a>) With MS Access, why do I see #Deleted# in rows after some operations?</h3>
+    <p>
+    This commonly occurs if you have used numeric or int8 (bigint) columns as your 
+    primary key. In Access, an Int is a 16 bit value and a Long Int is a 32 bit value,
+    unlike PostgreSQL in which an int is a 32 bit value and a bigint is 64 bit. Access
+    sees the int8/numeric key as a floating point value, which it cannot use as a key.
+    To resolve the problem, stick to int4 if you need numerical primary keys. For more
+    intofmation, please see <a href="http://support.microsoft.com/default.aspx?scid=kb;en-us;128809">
+    Microsoft KB article #128809</a>.
+    </p>
+
 </body>
 </head>
