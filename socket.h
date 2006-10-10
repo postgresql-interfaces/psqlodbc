@@ -55,6 +55,8 @@ typedef unsigned int in_addr_t;
 #define AI_CANONNAME   0x2  // Return canonical name in first ai_canonname.
 #define AI_NUMERICHOST 0x4  // Nodename must be a numeric address string.
 
+#define NI_NUMERICHOST	1
+
 #define _SS_MAXSIZE 128
 #define _SS_ALIGNSIZE (sizeof(__int64))
 #define _SS_PAD1SIZE (_SS_ALIGNSIZE - sizeof (short))

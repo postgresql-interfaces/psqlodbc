@@ -136,10 +136,12 @@ SOCK_Destructor(SocketClass *self)
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
 static freeaddrinfo_func freeaddrinfo_ptr = NULL;
 static getaddrinfo_func getaddrinfo_ptr = NULL;
+static getnameinfo_func getnameinfo_ptr = NULL;
 static	HMODULE ws2_hnd = NULL;
 #else
 static freeaddrinfo_func freeaddrinfo_ptr = freeaddrinfo;
 static getaddrinfo_func getaddrinfo_ptr = getaddrinfo;
+static getnameinfo_func getnameinfo_ptr = getnameinfo;
 #endif /* _MSC_VER */
 
 char
@@ -161,6 +163,10 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		ws2_hnd = GetModuleHandle("ws2_32.dll");
 	if (freeaddrinfo_ptr == NULL)
 		freeaddrinfo_ptr = (freeaddrinfo_func)GetProcAddress(ws2_hnd, "freeaddrinfo"); 
+	if (getaddrinfo_ptr == NULL)
+		getaddrinfo_ptr = (getaddrinfo_func)GetProcAddress(ws2_hnd, "getaddrinfo"); 
+	if (getnameinfo_ptr == NULL)
+		getnameinfo_ptr = (getnameinfo_func)GetProcAddress(ws2_hnd, "getnameinfo"); 
 #endif
 	/*
 	 * If it is a valid IP address, use it. Otherwise use hostname lookup.
@@ -317,7 +323,7 @@ retry:
 			char	errmsg[256], host[64];
 
 			host[0] = '\0';
-			getnameinfo((struct sockaddr *) &(self->sadr_area),
+			getnameinfo_ptr((struct sockaddr *) &(self->sadr_area),
 					self->sadr_len, host, sizeof(host),
 					NULL, 0, NI_NUMERICHOST);
 			snprintf(errmsg, sizeof(errmsg), "connect getsockopt val %d addr=%s\n", optval, host);

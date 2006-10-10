@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.109 2006/09/13 15:30:27 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.110 2006/10/10 06:25:26 h-saito Exp $
  *
  */
 
@@ -63,6 +63,12 @@
 #define SQLLEN SQLINTEGER
 #define SQLULEN SQLUINTEGER
 #define SQLSETPOSIROW SQLUSMALLINT
+/* VC6 bypasses 64bit mode. */
+#define DWLP_USER DWL_USER
+#define ULONG_PTR ULONG
+#define LONG_PTR LONG
+#define SetWindowLongPtr(hdlg, DWLP_USER, lParam) SetWindowLong(hdlg, DWLP_USER, lParam)
+#define GetWindowLongPtr(hdlg, DWLP_USER) GetWindowLong(hdlg, DWLP_USER);
 #endif
 #else
 #include "iodbc.h"
