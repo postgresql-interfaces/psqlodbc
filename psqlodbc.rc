@@ -165,8 +165,8 @@ BEGIN
                     WS_TABSTOP,184,108,40,10
     CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
                     WS_TABSTOP,227,108,29,10
-    LTEXT	    "Extra Opts",IDC_STATIC,264,98,40,17
-    EDITTEXT	    DS_EXTRA_OPTIONS,264,105,40,12,ES_AUTOHSCROLL
+    LTEXT           "特別なオプション",IDC_STATIC,227,158,66,8
+    EDITTEXT        DS_EXTRA_OPTIONS,227,168,35,14,ES_AUTOHSCROLL
     GROUPBOX        "プロトコルバ－ジョン",IDC_STATIC,5,128,150,25
     CONTROL         "7.4+",DS_PG74,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,
                     139,30,10
@@ -183,7 +183,7 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_TABSTOP,195,140,50,10
     CONTROL         "文単位",DS_STATEMENT_ROLLBACK,"Button",
                     BS_AUTORADIOBUTTON | WS_TABSTOP,250,140,35,10
-    GROUPBOX        "OID オプション",IDC_STATIC,5,158,296,25
+    GROUPBOX        "OID オプション",IDC_STATIC,5,158,206,25
     CONTROL         "カラム列表示(&C)",DS_SHOWOIDCOLUMN,"Button",
                     BS_AUTOCHECKBOX | WS_GROUP,16,169,72,10
     CONTROL         "インデックスを装う(&I)",DS_FAKEOIDINDEX,"Button",
