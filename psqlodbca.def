@@ -5,7 +5,7 @@ EXPORTS
 ;SQLAllocStmt @3
 SQLBindCol @4
 SQLCancel @5
-; SQLColAttributes @6 */
+; SQLColAttributes @6
 SQLConnect @7
 SQLDescribeCol @8
 SQLDisconnect @9
@@ -45,7 +45,7 @@ SQLForeignKeys @60
 SQLMoreResults @61
 SQLNativeSql @62
 SQLNumParams @63
-SQLParamOptions @64
+;SQLParamOptions @64
 SQLPrimaryKeys @65
 SQLProcedureColumns @66
 SQLProcedures @67
