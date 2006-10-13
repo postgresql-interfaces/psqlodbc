@@ -511,8 +511,11 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		if (conn->connInfo.cvt_null_date_string > 0 &&
 		    PG_TYPE_DATE == field_type &&
 		    (SQL_C_CHAR == fCType ||
-		     SQL_C_WCHAR == fCType))
+		     SQL_C_TYPE_DATE == fCType ||
+		     SQL_C_DEFAULT == fCType))
 		{
+			if (pcbValueBindRow)
+				*((SQLLEN *) pcbValueBindRow) = 0;
 			switch (fCType)
 			{
 				case SQL_C_CHAR:
@@ -521,15 +524,26 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 					else
 						result = COPY_RESULT_TRUNCATED;
 					break;
-				case SQL_C_WCHAR:
-					if (rgbValueBindRow && cbValueMax >= WCLEN)
-						memcpy(rgbValueBindRow, 0, WCLEN);
+				case SQL_C_TYPE_DATE:
+				case SQL_C_DEFAULT:
+					if (rgbValueBindRow && cbValueMax >= sizeof(DATE_STRUCT))
+					{
+						memset(rgbValueBindRow, 0, cbValueMax);
+						if (pcbValueBindRow)
+							*((SQLLEN *) pcbValueBindRow) = sizeof(DATE_STRUCT);
+					}
 					else
 						result = COPY_RESULT_TRUNCATED;
 					break;
+#ifdef	UNICODE_SUPPORT
+				case SQL_C_WCHAR:
+					if (rgbValueBindRow && cbValueMax >= WCLEN)
+						memset(rgbValueBindRow, 0, WCLEN);
+					else
+						result = COPY_RESULT_TRUNCATED;
+					break;
+#endif /* UNICODE_SUPPORT */
 			}
-			if (pcbValueBindRow)
-				*((SQLLEN *) pcbValueBindRow) = 0;
 			return result; 
 		}
 		/*
@@ -855,7 +869,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 					if (fCType == SQL_C_WCHAR)
 					{
-						len = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
+						len = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0);
 						len *= WCLEN;
 						changed = TRUE;
 					}
@@ -871,9 +885,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	WIN_UNICODE_SUPPORT
 					if (localize_needed)
 					{
-						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, NULL, 0);
+						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0);
 						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
-						wstrlen = utf8_to_ucs2_lf(neut_str, -1, lf_conv, allocbuf, wstrlen + 1);
+						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1);
 						len = WideCharToMultiByte(CP_ACP, 0, (LPCWSTR) allocbuf, (int) wstrlen, NULL, 0, NULL, NULL);
 						changed = TRUE;
 					}
@@ -916,7 +930,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 						if (fCType == SQL_C_WCHAR)
 						{
-							utf8_to_ucs2_lf(neut_str, -1, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
+							utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
 						}
 						else
 #endif /* UNICODE_SUPPORT */
@@ -2044,7 +2058,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 
 		new_statement = qb->query_statement;
 		qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
-		sprintf(plan_name, "_PLAN%0x", stmt);
+		sprintf(plan_name, "_PLAN%p", stmt);
 		sprintf(new_statement, "PREPARE \"%s\"", plan_name);
 		qb->npos = strlen(new_statement);
 		marker_count = stmt->num_params - qb->num_discard_params;
@@ -2169,7 +2183,7 @@ inolog("prep_params\n");
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(conn, func_cs_count);
 	if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
-		sprintf(plan_name, "_PLAN%0x", stmt);
+		sprintf(plan_name, "_PLAN%p", stmt);
 	else
 		strcpy(plan_name, NULL_STRING);
 
@@ -2647,7 +2661,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qp->in_dollar_quote = TRUE;
 			qp->dollar_tag = F_OldPtr(qp);
 			qp->taglen = 1;
-			if (next_dollar = (strchr(F_OldPtr(qp) + 1, dollar_quote)))
+			if (next_dollar = strchr(F_OldPtr(qp) + 1, dollar_quote), NULL != next_dollar)
 			{
 				qp->taglen = next_dollar - F_OldPtr(qp) + 1;
 				CVT_APPEND_DATA(qb, F_OldPtr(qp), qp->taglen);
@@ -3065,7 +3079,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	OID		lobj_oid;
 	int		lobj_fd, retval;
 	SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-	size_t	current_row = qb->current_row, npos;
+	size_t	current_row = qb->current_row, npos = 0;
 	BOOL	handling_large_object = FALSE, req_bind, add_quote = FALSE;
 	ParameterInfoClass	*apara;
 	ParameterImplClass	*ipara;
@@ -3339,7 +3353,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 
 		case SQL_C_SLONG:
 		case SQL_C_LONG:
-			sprintf(param_string, "%d",
+			sprintf(param_string, "%ld",
 					*((SQLINTEGER *) buffer));
 			break;
 
@@ -3369,8 +3383,8 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			break;
 
 		case SQL_C_ULONG:
-			sprintf(param_string, "%u",
-					*((UDWORD *) buffer));
+			sprintf(param_string, "%lu",
+					*((SQLUINTEGER *) buffer));
 			break;
 
 		case SQL_C_USHORT:

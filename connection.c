@@ -236,6 +236,31 @@ PGAPI_FreeConnect(
 }
 
 
+static void
+CC_globals_init(GLOBAL_VALUES *globs)
+{
+	memset(globs, 0, sizeof(GLOBAL_VALUES));
+	globs->fetch_max = -1001;
+	globs->socket_buffersize = -1001;
+	globs->unknown_sizes = -1;
+	globs->max_varchar_size = -1001;
+	globs->max_longvarchar_size = -1001;
+
+	globs->debug = -1;
+	globs->commlog = -1;
+	globs->disable_optimizer = -1;
+	globs->ksqo = -1;
+	globs->unique_index = -1;
+	globs->onlyread = -1;
+	globs->use_declarefetch = -1;
+	globs->text_as_longvarchar = -1;
+	globs->unknowns_as_longvarchar = -1;
+	globs->bools_as_char = -1;
+	globs->lie = -1;
+	globs->parse = -1;
+	globs->cancel_as_freestmt = -1;
+}
+
 void
 CC_conninfo_init(ConnInfo *conninfo)
 {
@@ -259,6 +284,10 @@ CC_conninfo_init(ConnInfo *conninfo)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 		memcpy(&(conninfo->drivers), &globals, sizeof(globals));
 }
+
+#ifdef	WIN32
+extern	int	platformId;
+#endif /* WIN32 */
 /*
  *		IMPLEMENTATION CONNECTION CLASS
  */
@@ -313,6 +342,10 @@ CC_Constructor()
 		// rv->DataSourceToDriver = NULL;
 		// rv->DriverToDataSource = NULL;
 		rv->driver_version = ODBCVER;
+#ifdef	WIN32
+		if (VER_PLATFORM_WIN32_WINDOWS == platformId && rv->driver_version > 0x0300)
+			rv->driver_version = 0x0300;
+#endif /* WIN32 */
 		// memset(rv->pg_version, 0, sizeof(rv->pg_version));
 		// rv->pg_version_number = .0;
 		// rv->pg_version_major = 0;
@@ -668,8 +701,9 @@ md5_auth_send(ConnectionClass *self, const char *salt)
 	char	*pwd1 = NULL, *pwd2 = NULL;
 	ConnInfo   *ci = &(self->connInfo);
 	SocketClass	*sock = self->sock;
+	size_t		md5len;
 
-inolog("md5 pwd=%s user=%s\n", ci->password, ci->username);
+inolog("md5 pwd=%s user=%s salt=%02x%02x%02x%02x%02x\n", ci->password, ci->username, (UCHAR)salt[0], (UCHAR)salt[1], (UCHAR)salt[2], (UCHAR)salt[3], (UCHAR)salt[4]);
 	if (!(pwd1 = malloc(MD5_PASSWD_LEN + 1)))
 		return 1;
 	if (!EncryptMD5(ci->password, ci->username, strlen(ci->username), pwd1))
@@ -691,12 +725,14 @@ inolog("md5 pwd=%s user=%s\n", ci->password, ci->username);
 	free(pwd1);
 	if (PROTOCOL_74(&(self->connInfo)))
 {
-inolog("putting p\n");
+inolog("putting p and %s\n", pwd2);
 		SOCK_put_char(sock, 'p');
 }
-	SOCK_put_int(sock, (Int4) (4 + strlen(pwd2) + 1), 4);
-	SOCK_put_n_char(sock, pwd2, (Int4) strlen(pwd2) + 1);
+	md5len = strlen(pwd2);
+	SOCK_put_int(sock, (Int4) (4 + md5len + 1), 4);
+	SOCK_put_n_char(sock, pwd2, (Int4) (md5len + 1));
 	SOCK_flush_output(sock);
+inolog("sockerr=%d\n", SOCK_get_errcode(sock));
 	free(pwd2);
 	return 0; 
 }
@@ -704,7 +740,7 @@ inolog("putting p\n");
 int
 EatReadyForQuery(ConnectionClass *conn)
 {
-	int	id;
+	int	id = 0;
 
 	if (PROTOCOL_74(&(conn->connInfo)))
 	{
@@ -972,11 +1008,9 @@ inolog("parameter value=%s\n", msgbuffer);
 
 static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BOOL libpqopt, int dim_opts)
 {
-	SocketClass	*sock = self->sock;
 	ConnInfo	*ci = &(self->connInfo);
 	const	char	*enc = NULL;
 	int	cnt;
-	BOOL	set_client_encode = FALSE;
 
 	cnt = 0;
 	if (libpqopt && ci->server[0])
@@ -1040,13 +1074,11 @@ static int	protocol3_packet_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_packet_build";
 	SocketClass	*sock = self->sock;
-	ConnInfo	*ci = &(self->connInfo);
 	size_t	slen;
 	char	*packet, *ppacket;
 	ProtocolVersion	pversion;
-	const	char	*opts[20][2], *enc = NULL;
+	const	char	*opts[20][2];
 	int	cnt, i;
-	BOOL	set_client_encode = FALSE;
 
 	cnt = protocol3_opts_array(self, opts, FALSE, sizeof(opts) / sizeof(opts[0]));
 
@@ -1094,7 +1126,6 @@ CSTR	l_login_timeout = "connect_timeout";
 static char	*protocol3_opts_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_opts_build";
-	ConnInfo	*ci = &(self->connInfo);
 	size_t	slen;
 	char	*conninfo, *ppacket;
 	const	char	*opts[20][2];
@@ -1114,7 +1145,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 		char	tmout[16];
 
 		slen += (strlen(l_login_timeout) + 2 + 2);
-		snprintf(tmout, sizeof(tmout), "%d", self->login_timeout);
+		snprintf(tmout, sizeof(tmout), "%lu", self->login_timeout);
 		slen += strlen(tmout);
 	}
 	slen++;
@@ -1151,7 +1182,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	{
 		sprintf(ppacket, " %s=", l_login_timeout);
 		ppacket += (strlen(l_login_timeout) + 2);
-		sprintf(ppacket, "%d", self->login_timeout);
+		sprintf(ppacket, "%lu", self->login_timeout);
 		ppacket = strchr(ppacket, '\0');
 	}
 	*ppacket = '\0';
@@ -1223,7 +1254,6 @@ static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
-	ConnInfo   *ci = &(self->connInfo);
 	int		ret;
 	CSTR		func = "LIBPQ_CC_connect";
 
@@ -1261,9 +1291,10 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	mylog("%s: entering...\n", func);
 
 	if (password_req != AUTH_REQ_OK)
-
+	{
 		sock = self->sock;		/* already connected, just authenticate */
-
+		CC_clear_error(self);	
+	}
 	else
 	{
 		if (0 == CC_initial_log(self, func))
@@ -1364,7 +1395,10 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 		do
 		{
 			if (password_req != AUTH_REQ_OK)
+			{
 				beresp = 'R';
+				startPacketReceived = TRUE;
+			}
 			else
 			{
 				beresp = SOCK_get_id(sock);
@@ -1412,17 +1446,19 @@ inolog("Ekita\n");
 						if (salt_para)
 							memcpy(salt, salt_para, sizeof(salt));
 						password_req = AUTH_REQ_OK;
+						mylog("salt=%02x%02x%02x%02x%02x\n", (UCHAR)salt[0], (UCHAR)salt[1], (UCHAR)salt[2], (UCHAR)salt[3], (UCHAR)salt[4]);
 					}
 					else
 					{
 
 						areq = SOCK_get_int(sock, 4);
+						memset(salt, 0, sizeof(salt));
 						if (areq == AUTH_REQ_MD5)
 							SOCK_get_n_char(sock, salt, 4);
 						else if (areq == AUTH_REQ_CRYPT)
 							SOCK_get_n_char(sock, salt, 2);
 
-						mylog("areq = %d\n", areq);
+						mylog("areq = %d salt=%02x%02x%02x%02x%02x\n", areq, (UCHAR)salt[0], (UCHAR)salt[1], (UCHAR)salt[2], (UCHAR)salt[3], (UCHAR)salt[4]);
 					}
 					switch (areq)
 					{
@@ -1592,7 +1628,6 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	char	   ret;
 	// char	   *encoding;
 	// BOOL	startPacketReceived = FALSE;
-	BOOL	usessl = TRUE;
 
 	mylog("%s: entering...\n", func);
 
@@ -2735,14 +2770,10 @@ CC_setenv(ConnectionClass *self)
 {
 	ConnInfo   *ci = &(self->connInfo);
 
-/* QResultClass *res; */
 	HSTMT		hstmt;
 	StatementClass *stmt;
 	RETCODE		result;
 	char		status = TRUE;
-#ifdef	HAVE_STRTOK_R
-	char	*last;
-#endif /* HAVE_STRTOK_R */
 	CSTR func = "CC_setenv";
 
 

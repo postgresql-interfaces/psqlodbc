@@ -63,7 +63,7 @@ set_tuplefield_int4(TupleField *tuple_field, Int4 value)
 {
 	char		buffer[15];
 
-	sprintf(buffer, "%ld", value);
+	sprintf(buffer, "%d", value);
 
 	tuple_field->len = (Int4) (strlen(buffer) + 1);
 	/* +1 ... is this correct (better be on the save side-...) */

@@ -40,6 +40,7 @@ CSTR	libpq = "libpq";
 #endif /* WIN32 */
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
+static BOOL	loaded_libpq = FALSE, loaded_ssllib = FALSE;
 /*
  *	Load psqlodbc path based libpq dll.
  */
@@ -115,7 +116,7 @@ DliErrorHook(unsigned	dliNotify,
 #endif /* SSL_DLL */
 
 typedef BOOL (WINAPI *UnloadFunc)(LPCSTR);
-void UnloadDelayLoadedDLLs(BOOL ssllibLoaded)
+static void UnloadDelayLoadedDLLs(BOOL ssllibLoaded)
 {
 	BOOL	success;
 #if (_MSC_VER < 1300) /* VC6 DELAYLOAD IMPORT */
@@ -133,8 +134,17 @@ void UnloadDelayLoadedDLLs(BOOL ssllibLoaded)
 	}
 	return;
 }
+void CleanupDelayLoadedDLLs(void)
+{
+	if (loaded_libpq)
+		UnloadDelayLoadedDLLs(loaded_ssllib);
+}
 #else
-void UnloadDelayLoadedDLLs(BOOL SSLLoaded)
+static void UnloadDelayLoadedDLLs(BOOL SSLLoaded)
+{
+	return;
+}
+void CleanupDelayLoadedDLLs(void)
 {
 	return;
 }
@@ -142,7 +152,7 @@ void UnloadDelayLoadedDLLs(BOOL SSLLoaded)
 
 void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 {
-	void *pqconn;
+	void *pqconn = NULL;
 	*libpqLoaded = TRUE;
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 	__try {
@@ -155,6 +165,12 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 	}
 	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
 		*libpqLoaded = FALSE;
+	}
+	if (*libpqLoaded)
+	{
+		loaded_libpq = TRUE;
+		if (PQgetssl(pqconn))
+			loaded_ssllib = TRUE;
 	}
 #else
 	pqconn = PQconnectdb(conninfo);

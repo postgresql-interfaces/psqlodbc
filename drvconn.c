@@ -146,7 +146,7 @@ PGAPI_DriverConnect(
 	getDSNdefaults(ci);
 	/* initialize pg_version */
 	CC_initialize_pg_version(conn);
-	salt[0] = '\0';
+	memset(salt, 0, sizeof(salt));
 
 #ifdef WIN32
 dialog:

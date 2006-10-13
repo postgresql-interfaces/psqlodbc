@@ -337,7 +337,6 @@ RETCODE SQL_API SQLGetDiagFieldW(
 	RETCODE	ret;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
         char    *rgbD = NULL;
-	StatementClass	*stmt = (StatementClass *) handle;
 
 	mylog("[[%s]] Handle=(%u,%x) Rec=%d Id=%d info=(%x,%d)\n", func, fHandleType,
 			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);
@@ -350,12 +349,9 @@ RETCODE SQL_API SQLGetDiagFieldW(
 		case SQL_DIAG_SERVER_NAME:
 		case SQL_DIAG_SQLSTATE:
 		case SQL_DIAG_SUBCLASS_ORIGIN:
-			bMax = cbDiagInfoMax * 3 / WCLEN;
-			if (rgbD = malloc(bMax + 1), !rgbD)
-			{
-				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Can't allocate a rgbD buffer.", func);
+			bMax = cbDiagInfoMax * 3 / WCLEN + 1;
+			if (rgbD = malloc(bMax), !rgbD)
 				return SQL_ERROR;
-			}
 			rgbL = &blen;
 			for (;; bMax = blen + 1, rgbD = realloc(rgbD, bMax))
 			{
@@ -368,12 +364,17 @@ RETCODE SQL_API SQLGetDiagFieldW(
 			{
 				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
-				{
 					ret = SQL_SUCCESS_WITH_INFO;
-					SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the rgbDiagInfo.", func);
-				}
 				if (pcbDiagInfo)
+				{
+#ifdef	WIN32
+					extern int	platformId;
+
+					if (VER_PLATFORM_WIN32_WINDOWS == platformId && NULL == rgbDiagInfo && 0 == cbDiagInfoMax)
+						blen++;
+#endif /* WIN32 */
 					*pcbDiagInfo = blen * WCLEN;
+				}
 			}
 			if (rgbD)
 				free(rgbD);

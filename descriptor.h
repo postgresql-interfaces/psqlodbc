@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.18 2006/09/11 16:28:02 hinoue Exp $
+ * $Id: descriptor.h,v 1.19 2006/10/13 13:13:31 hinoue Exp $
  *
  */
 
@@ -126,7 +126,8 @@ typedef struct
 	int		decimal_digits; /* scale in 2.x */
 	int		display_size;
 	SQLLEN		length;
-	OID		type;
+	OID		columntype;
+	OID		basetype;
 	char		expr;
 	char		quote;
 	char		dquote;
@@ -138,6 +139,7 @@ Int4 FI_scale(const FIELD_INFO *);
 void	FI_Constructor(FIELD_INFO *, BOOL reuse);
 void	FI_Destructor(FIELD_INFO **, int, BOOL freeFI);
 #define	FI_is_applicable(fi) (NULL != fi && (fi->flag & (FIELD_PARSED_OK | FIELD_COL_ATTRIBUTE)) != 0)
+#define	FI_type(fi) (0 == (fi)->basetype ? (fi)->columntype : (fi)->basetype)
 
 typedef struct DescriptorHeader_
 {
@@ -198,10 +200,14 @@ struct IRDFields_
 
 struct IPDFields_
 {
+#if (ODBCVER >= 0x0300)
 	SQLUINTEGER		*param_processed_ptr;
-	SQLUSMALLINT	*param_status_ptr;
-	ParameterImplClass	*parameters;
+#else
+	SQLULEN			*param_processed_ptr; /* SQLParamOptions */
+#endif /* ODBCVER */
+	SQLUSMALLINT		*param_status_ptr;
 	SQLSMALLINT		allocated;
+	ParameterImplClass	*parameters;
 };
 
 typedef	struct

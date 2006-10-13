@@ -147,7 +147,6 @@ PGAPI_ExecDirect(
 	RETCODE		result;
 	CSTR func = "PGAPI_ExecDirect";
 	const ConnectionClass	*conn = SC_get_conn(stmt);
-	const ConnInfo	*ci = &(conn->connInfo);
 
 	mylog("%s: entering...%x\n", func, flag);
 
@@ -580,7 +579,7 @@ SetStatementSvp(StatementClass *stmt)
 		}
 		if (need_savep)
 		{
-			sprintf(esavepoint, "_EXEC_SVP_%08x", stmt);
+			sprintf(esavepoint, "_EXEC_SVP_%p", stmt);
 			snprintf(cmd, sizeof(cmd), "SAVEPOINT %s", esavepoint);
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
 			if (QR_command_maybe_successful(res))
@@ -630,7 +629,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 		goto cleanup;
 	if (!SC_is_rb_stmt(stmt) && !SC_is_tc_stmt(stmt))
 		goto cleanup;
-	sprintf(esavepoint, "_EXEC_SVP_%08x", stmt);
+	sprintf(esavepoint, "_EXEC_SVP_%p", stmt);
 	if (SQL_ERROR == ret)
 	{
 		if (SC_started_rbpoint(stmt))
@@ -881,7 +880,6 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		   parameters even in case of non-prepared statements.
 		 */
 		BOOL	bCallPrepare = FALSE;
-		int	pre_decided = stmt->prepare;
 
 		ConnInfo *ci = &(conn->connInfo);
 		if (NOT_YET_PREPARED == stmt->prepared &&
@@ -937,8 +935,6 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			if (retval = prepareParameters(stmt), SQL_ERROR == retval)
 				goto cleanup;
 		}
-		else
-			/* stmt->prepare = pre_decided; */ /* put back */
 mylog("prepareParameters %d end\n", stmt->prepare);
 
 		if (ipdopts->param_processed_ptr)
@@ -1188,7 +1184,8 @@ PGAPI_Cancel(
 		 * the application.
 		 */
 
-#if (ODBCVER < 0x0350)
+		if (conn->driver_version < 0x0350)
+		{
 #ifdef WIN32
 		if (ci->drivers.cancel_as_freestmt)
 		{
@@ -1209,7 +1206,7 @@ PGAPI_Cancel(
 		}
 
 		mylog("PGAPI_Cancel:  PGAPI_FreeStmt returned %d\n", ret);
-#endif /* ODBCVER */
+		}
 		goto cleanup;
 	}
 
@@ -1309,6 +1306,7 @@ PGAPI_ParamData(
 	RETCODE		retval;
 	int		i;
 	Int2		num_p;
+	ConnectionClass	*conn = NULL;
 	ConnInfo   *ci;
 
 	mylog("%s: entering...\n", func);
@@ -1319,7 +1317,8 @@ PGAPI_ParamData(
 		retval = SQL_INVALID_HANDLE;
 		goto cleanup;
 	}
-	ci = &(SC_get_conn(stmt)->connInfo);
+	conn = SC_get_conn(stmt);
+	ci = &(conn->connInfo);
 
 	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
 	apdopts = SC_get_APDF(estmt);
@@ -1349,8 +1348,6 @@ PGAPI_ParamData(
 	/* close the large object */
 	if (estmt->lobj_fd >= 0)
 	{
-		ConnectionClass	*conn = SC_get_conn(estmt);
-
 		odbc_lo_close(conn, estmt->lobj_fd);
 
 		/* commit transaction if needed */
@@ -1431,6 +1428,12 @@ inolog("\n");
 inolog("return SQL_NEED_DATA\n");
 cleanup:
 #undef	return
+	if (STMT_TYPE_INSERT == stmt->statement_type &&
+	    CC_fake_mss(conn) &&
+	    (SQL_SUCCESS == retval ||
+	     SQL_SUCCESS_WITH_INFO == retval)
+	   )
+		SetInsertTable(stmt);
 	if (stmt->internal)
 		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	mylog("%s: returning %d\n", func, retval);

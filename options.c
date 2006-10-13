@@ -657,7 +657,6 @@ PGAPI_GetStmtOption(
 	CSTR func = "PGAPI_GetStmtOption";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
-	ConnInfo   *ci = &(SC_get_conn(stmt)->connInfo);
 	SQLLEN		ridx;
 	SQLINTEGER	len = sizeof(SQLINTEGER);
 

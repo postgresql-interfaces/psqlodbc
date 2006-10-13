@@ -1342,7 +1342,6 @@ SC_fetch(StatementClass *self)
 	BindInfoClass	*bookmark;
 
 	/* TupleField *tupleField; */
-	ConnInfo   *ci = &(SC_get_conn(self)->connInfo);
 
 inolog("%s statement=%x ommitted=0\n", func, self);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
@@ -1553,6 +1552,7 @@ SC_execute(StatementClass *self)
 	 */
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(conn, func_cs_count);
+	oldstatus = conn->status;
 	if (CONN_EXECUTING == conn->status)
 	{
 		SC_set_error(self, STMT_SEQUENCE_ERROR, "Connection is already in use.", func);
@@ -1591,7 +1591,6 @@ SC_execute(StatementClass *self)
                 }
 	}
 
-	oldstatus = conn->status;
 	/* self->status = STMT_EXECUTING; */
 	if (!SC_SetExecuting(self, TRUE))
 	{
@@ -1687,7 +1686,7 @@ inolog("get_Result=%x\n", res);
 			 * will correct for any discrepancies in sizes and adjust the
 			 * cache accordingly.
 			 */
-			sprintf(fetch, "fetch %d in \"%s\"", qi.row_size, SC_cursor_name(self));
+			sprintf(fetch, "fetch %ld in \"%s\"", qi.row_size, SC_cursor_name(self));
 
 			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
 			if (SC_is_with_hold(self))
@@ -2072,7 +2071,6 @@ SendBindRequest(StatementClass *stmt, const char *plan_name)
 {
 	CSTR	func = "SendBindRequest";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	SocketClass	*sock = conn->sock;
 
 	mylog("%s: plan_name=%s\n", func, plan_name);
 	if (!RequestStart(stmt, conn, func))
@@ -2140,8 +2138,13 @@ inolog(" response_length=%d\n", response_length);
 					}
 					else
 					{
-						res->recent_processed_row_count = 0;
-						sscanf(msgbuffer, "%*s %d", &res->recent_processed_row_count);
+						int	ret1, ret2;
+
+						ret1 = ret2 = 0;
+						if (sscanf(msgbuffer, "%*s %d %d", &ret1, &ret2) > 1)
+							res->recent_processed_row_count = ret2;
+						else
+							res->recent_processed_row_count = ret1;
 					}
 				}
 				break;

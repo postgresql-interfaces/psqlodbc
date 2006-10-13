@@ -127,8 +127,9 @@ inolog("nfields=%d\n", irdflds->nfields);
 					    && 0 != (ti->flags & TI_COLATTRIBUTE))
 						fi->flag |= FIELD_COL_ATTRIBUTE;
 				}
-				if (0 == fi->type)
-					fi->type = QR_get_field_type(result, col_idx);
+				fi->basetype = QR_get_field_type(result, col_idx);
+				if (0 == fi->columntype)
+					fi->columntype = fi->basetype;
 			}
 		}
 	}
@@ -227,7 +228,7 @@ PGAPI_DescribeCol(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	IRDFields	*irdflds;
-	QResultClass *res;
+	QResultClass	*res = NULL;
 	char	   *col_name = NULL;
 	OID		fieldtype = 0;
 	SQLLEN		column_size = 0;
@@ -338,7 +339,7 @@ inolog("answering bookmark info\n");
 	}
 	if (FI_is_applicable(fi))
 	{
-		fieldtype = fi->type;
+		fieldtype = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
 		if (NAME_IS_VALID(fi->column_alias))
 			col_name = GET_NAME(fi->column_alias);
 		else
@@ -551,7 +552,7 @@ inolog("answering bookmark info\n");
 	if (col_idx < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[col_idx];
 	if (FI_is_applicable(fi))
-		field_type = fi->type;
+		field_type = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
 	else
 	{
 		BOOL	build_fi = FALSE;
@@ -613,7 +614,7 @@ inolog("answering bookmark info\n");
 	if (FI_is_applicable(fi))
 	{
 		ti = fi->ti;
-		field_type = fi->type;
+		field_type = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
 	}
 
 	mylog("colAttr: col %d field_type=%d fi,ti=%x,%x\n", col_idx, field_type, fi, ti);
@@ -2635,8 +2636,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeyS
 static void CommitUpdated(QResultClass *res)
 {
 	KeySet	*updated_keyset;
-	TupleField	*updated_tuples = NULL;
-	int	i, num_fields = res->num_fields;
+	int	i;
 	UWORD	status;
 
 	mylog("CommitUpdated res=%x\n", res);
@@ -2779,9 +2779,8 @@ static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 	SQLLEN	index, ridx, kres_ridx;
 	UWORD	status;
 	Rollback *rollback;
-	KeySet	*keyset, keys, *wkey;
-	BOOL	curs = (NULL != QR_get_cursor(res)),
-		reached_eof = QR_once_reached_eof(res), kres_is_valid, texist;
+	KeySet	*keyset, keys, *wkey = NULL;
+	BOOL	curs = (NULL != QR_get_cursor(res)), texist, kres_is_valid;
 
 	if (0 == res->rb_count || NULL == res->rollback)
 		return;
@@ -3170,10 +3169,9 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	BOOL	prepare;
 	OID	oid;
 	UInt4	blocknum;
-	size_t	lodlen;
 	SQLLEN	kres_ridx;
 	UInt2	offset;
-	char	*qval = NULL, *sval;
+	char	*qval = NULL, *sval = NULL;
 	int	keys_per_fetch = 10;
 
 	prepare = PG_VERSION_GE(conn, 7.3);
@@ -3248,6 +3246,8 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 		}
 		if (!rowc)
 		{
+			size_t lodlen = 0;
+
 			if (!qval)
 			{
 				size_t	allen;
@@ -3269,7 +3269,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 						if (!keys_per_fetch)
 							keys_per_fetch = 2;
 						lodlen = strlen(stmt->load_statement);
-						sprintf(planname, "_KEYSET_%0x", res);
+						sprintf(planname, "_KEYSET_%p", res);
 						allen = 8 + strlen(planname) +
 							3 + 4 * keys_per_fetch + 1
 							+ 1 + 2 + lodlen + 20 +
@@ -3324,7 +3324,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			}
 			if (res->reload_count > 0)
 			{
-				sprintf(qval, "EXECUTE \"_KEYSET_%x\"(", res);
+				sprintf(qval, "EXECUTE \"_KEYSET_%p\"(", res);
 				sval = qval;
 			}
 			else
@@ -3361,9 +3361,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	SQLLEN		i, limitrow;
 	UInt2		qcount;
 	QResultClass	*res;
-	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
-	ConnectionClass	*conn = SC_get_conn(stmt);
 	SQLLEN		kres_ridx, rowc;
 	Int4		rows_per_fetch;
 	BOOL		create_from_scratch = (0 != flag);
@@ -3399,8 +3397,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 		limitrow = res->num_cached_keys;
 	if (create_from_scratch)
 	{
-		SQLLEN	flds_cnt = res->num_cached_rows * res->num_fields,
-			brows;
+		SQLLEN	brows;
 
 		ClearCachedRows(res->backend_tuples, res->num_fields, res->num_cached_rows);
 		brows = GIdx2RowIdx(limitrow, stmt);
@@ -3765,7 +3762,6 @@ SC_pos_update(StatementClass *stmt,
 	{
 		HSTMT		hstmt;
 		int			j;
-		Int2		res_cols = QR_NumResultCols(s.res);
 		ConnInfo	*ci = &(conn->connInfo);
 		APDFields	*apdopts;
 		OID		fieldtype = 0;
@@ -3847,9 +3843,7 @@ SC_pos_delete(StatementClass *stmt,
 	UWORD		offset;
 	QResultClass *res, *qres;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	ARDFields	*opts = SC_get_ARDF(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	BindInfoClass *bindings = opts->bindings;
 	char		dltstr[4096];
 	RETCODE		ret;
 	SQLLEN		kres_ridx;
@@ -4325,7 +4319,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	spos_cdata *s = (spos_cdata *) para;
 	ConnectionClass	*conn;
 	SQLULEN	global_ridx;
-	SQLLEN	kres_ridx, pos_ridx;
+	SQLLEN	kres_ridx, pos_ridx = 0;
 
 	ret = retcode;
 	if (s->need_data_callback)

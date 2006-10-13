@@ -140,7 +140,7 @@ mylog(char *fmt,...)
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
 	if (MLOGFP)
-		fprintf(MLOGFP, "[%d]", pthread_self());
+		fprintf(MLOGFP, "[%u]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 	if (MLOGFP)
 		vfprintf(MLOGFP, fmt, args);
@@ -185,7 +185,7 @@ forcelog(const char *fmt,...)
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-		fprintf(MLOGFP, "[%d]", pthread_self());
+		fprintf(MLOGFP, "[%u]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 		vfprintf(MLOGFP, fmt, args);
 	}

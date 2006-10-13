@@ -47,8 +47,11 @@ static	char	searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
 
 Int4 FI_precision(const FIELD_INFO *fi)
 {
+	OID	ftype;
+
 	if (!fi)	return -1;
-	switch (fi->type)
+	ftype = FI_type(fi);
+	switch (ftype)
 	{
 		case PG_TYPE_NUMERIC:
 			return fi->column_size;
@@ -60,8 +63,11 @@ Int4 FI_precision(const FIELD_INFO *fi)
 }
 Int4 FI_scale(const FIELD_INFO *fi)
 {
+	OID	ftype;
+
 	if (!fi)	return -1;
-	switch (fi->type)
+	ftype = FI_type(fi);
+	switch (ftype)
 	{
 		case PG_TYPE_NUMERIC:
 			return fi->decimal_digits;
@@ -121,6 +127,9 @@ getNextToken(
 			break;
 		/* Handle quoted stuff */
 		in_quote = in_dollar_quote = FALSE;
+		taglen = 0;
+		tag = NULL;
+		escape_in_literal = '\0';
 		if (out == 0)
 		{
 			qc = s[i];
@@ -129,7 +138,7 @@ getNextToken(
 				in_quote = in_dollar_quote = TRUE;
 				tag = s + i;
 				taglen = 1;
-				if (tagend = strchr(s + i + 1, dollar_quote))
+				if (tagend = strchr(s + i + 1, dollar_quote), NULL != tagend)
 					taglen = tagend - s - i + 1;
 				i += (taglen - 1);
 				encoded_position_shift(&encstr, taglen - 1);
@@ -268,7 +277,7 @@ inolog("getColInfo non-manual result\n");
 	fi->dquote = TRUE;
 	STR_TO_NAME(fi->column_name, QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME));
 
-	fi->type = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_FIELD_TYPE));
+	fi->columntype = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_FIELD_TYPE));
 	fi->column_size = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PRECISION));
 	fi->length = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_LENGTH));
 	if (str = QR_get_value_backend_row(col_info->result, k, COLUMNS_SCALE), str)
@@ -446,7 +455,9 @@ static BOOL increaseNtab(StatementClass *stmt, const char *func)
 static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
 {
 	STR_TO_NAME(fi->column_alias, QR_get_fieldname(res, i));
-	fi->type = QR_get_field_type(res, i);
+	fi->basetype = QR_get_field_type(res, i);
+	if (0 == fi->columntype)
+		fi->columntype = fi->basetype;
 	if (fi->attnum < 0)
 	{
 		fi->nullable = FALSE;
@@ -556,6 +567,7 @@ mylog("->%d\n", updatable);
 			if (searchColInfo(col_info, wfi))
 			{
 				STR_TO_NAME(wfi->column_alias, QR_get_fieldname(res, i));
+				wfi->basetype = QR_get_field_type(res, i);
 				wfi->updatable = updatable;
 			}
 			else
@@ -1365,7 +1377,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 		if (wfi->func || wfi->expr || wfi->numeric)
 		{
 			wfi->ti = NULL;
-			wfi->type = (OID) 0;
+			wfi->columntype = wfi->basetype = (OID) 0;
 			parse = FALSE;
 			continue;
 		}
@@ -1377,10 +1389,10 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			 * wfi->type = PG_TYPE_TEXT; wfi->column_size = 0; the
 			 * following may be better
 			 */
-			wfi->type = PG_TYPE_UNKNOWN;
+			wfi->basetype = PG_TYPE_UNKNOWN;
 			if (wfi->column_size == 0)
 			{
-				wfi->type = PG_TYPE_VARCHAR;
+				wfi->basetype = PG_TYPE_VARCHAR;
 				wfi->column_size = 254;
 			}
 			wfi->length = wfi->column_size;
@@ -1474,8 +1486,6 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	for (i = 0; i < stmt->ntab; i++)
 	{
 		/* See if already got it */
-		char		found = FALSE;
-
 		wti = ti[i];
 
 		if (!getCOLIfromTI(func, NULL, stmt, 0, &wti))
@@ -1653,7 +1663,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	{
 		wfi = fi[i];
 		wfi->flag &= ~FIELD_PARSING;
-		if (0 != wfi->type)
+		if (0 != wfi->columntype || 0 != wfi->basetype)
 			wfi->flag |= FIELD_PARSED_OK;
 	}
 

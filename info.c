@@ -72,6 +72,7 @@ PGAPI_GetInfo(
 				value = 0;
 	RETCODE		result;
 	char		odbcver[16];
+	int		i_odbcver;
 
 	mylog("%s: entering...fInfoType=%d\n", func, fInfoType);
 
@@ -260,7 +261,8 @@ mylog("CONVERT_FUNCTIONS=%x\n", value);
 			break;
 
 		case SQL_DRIVER_ODBC_VER:
-			snprintf(odbcver, sizeof(odbcver), "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
+			i_odbcver = conn->driver_version;
+			snprintf(odbcver, sizeof(odbcver), "%02x.%02x", i_odbcver / 256, i_odbcver % 256);
 			/* p = DRIVER_ODBC_VER; */
 			p = odbcver;
 			break;
@@ -1351,7 +1353,6 @@ simpleCatalogEscape(const char *src, int srclen, int *result_len, const Connecti
 	int	i, outlen;
 	const char *in;
 	char	*dest = NULL, escape_ch = CC_get_escape(conn);
-	BOOL	escape_in = FALSE;
 	encoded_str	encstr;
 
 	if (result_len)
@@ -1939,12 +1940,12 @@ PGAPI_Columns(
 	char		not_null[MAX_INFO_STRING],
 				relhasrules[MAX_INFO_STRING], relkind[8];
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
-	BOOL	search_pattern,	search_by_ids, relisaview;
+	BOOL	search_pattern = TRUE, search_by_ids, relisaview;
 	ConnInfo   *ci;
 	ConnectionClass *conn;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	SQLINTEGER	greloid;
-	const char	*like_or_eq;
+	const char	*like_or_eq = likeop;
 	const char	*szSchemaName;
 
 	mylog("%s: entering...stmt=%x scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
@@ -2021,7 +2022,7 @@ retry_public_schema:
 		}
 		strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
 			" on (not a.attisdropped)");
-		if (0 == attnum && NULL == escColumnName)
+		if (0 == attnum && (NULL == escColumnName || like_or_eq != eqop))
 			strcat(columns_query, " and a.attnum > 0");
 		if (search_by_ids)
 		{
@@ -3717,7 +3718,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 			   *ret = serverColumnName;
 	BOOL		continueExec = TRUE,
 				bError = FALSE;
-	QResultClass *res;
+	QResultClass *res = NULL;
 	UWORD	flag = IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR;
 
 	*nameAlloced = FALSE;
@@ -3730,8 +3731,9 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 			if (QR_get_num_cached_tuples(res) > 0)
 				conn->server_encoding = strdup(QR_get_value_backend_row(res, 0, 0));
 		}
+		QR_Destructor(res);
+		res = NULL;
 	}
-	QR_Destructor(res);
 	if (!conn->server_encoding)
 		return ret;
 	snprintf(query, sizeof(query), "SET CLIENT_ENCODING TO '%s'", conn->server_encoding);
@@ -4680,7 +4682,7 @@ PGAPI_ProcedureColumns(
 	TupleField	*tuple;
 	char		*schema_name, *procname;
 	char		*escSchemaName = NULL, *escProcName = NULL;
-	char		*params, *proargnames, *proargmodes, *delim;
+	char		*params, *proargnames, *proargmodes, *delim = NULL;
 	char		*atttypid, *attname, *column_name;
 	QResultClass *res, *tres;
 	SQLLEN		tcount;

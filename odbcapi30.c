@@ -293,9 +293,10 @@ SQLGetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				PTR DiagInfo, SQLSMALLINT BufferLength,
 				SQLSMALLINT *StringLength)
 {
+	CSTR func = "SQLGetDiagField";
 	RETCODE	ret;
 
-	mylog("[[SQLGetDiagField]] Handle=(%u,%x) Rec=%d Id=%d\n", HandleType, Handle, RecNumber, DiagIdentifier);
+	mylog("[[%s]] Handle=(%u,%x) Rec=%d Id=%d info=(%x,%d)\n", func, HandleType, Handle, RecNumber, DiagIdentifier, DiagInfo, BufferLength);
 	ret = PGAPI_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier,
 				DiagInfo, BufferLength, StringLength);
 	return ret;

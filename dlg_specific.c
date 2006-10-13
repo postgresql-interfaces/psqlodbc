@@ -306,7 +306,7 @@ inolog("hlen=%d", hlen);
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
-				INI_ABBREVIATE "=%02x%lx",
+				INI_ABBREVIATE "=%02x%x",
 				encoded_conn_settings,
 				ci->drivers.fetch_max,
 				ci->drivers.socket_buffersize,
@@ -341,7 +341,7 @@ inolog("hlen=%d", hlen);
 			hlen = strlen(connect_string);
 			nlen = MAX_CONNECT_STRING - hlen;
 			olen = snprintf(&connect_string[hlen], nlen, ";"
-				INI_EXTRAOPTIONS "=%lx;",
+				INI_EXTRAOPTIONS "=%x;",
 				flag);
 		}
 	}
@@ -358,7 +358,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	if (strlen(value) < 2)
 	{
 		count = 3;
-		sscanf(value, "%lx", &flag);
+		sscanf(value, "%x", &flag);
 	}
 	else
 	{
@@ -366,7 +366,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		memcpy(cnt, value, 2);
 		cnt[2] = '\0';
 		sscanf(cnt, "%x", &count);
-		sscanf(value + 2, "%lx", &flag);
+		sscanf(value + 2, "%x", &flag);
 	}
 	ci->disallow_premature = (char)((flag & BIT_DISALLOWPREMATURE) != 0);
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);
@@ -737,7 +737,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	{
 		char	*ptr;
 		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, "", ci->protocol, sizeof(ci->protocol), ODBC_INI);
-		if (ptr = strchr(ci->protocol, '-'))
+		if (ptr = strchr(ci->protocol, '-'), NULL != ptr)
 		{
 			*ptr = '\0';
 			if (overwrite || ci->rollback_on_error < 0)
@@ -1058,7 +1058,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_INT8AS,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%lx", getExtraOptions(ci));
+	sprintf(temp, "%x", getExtraOptions(ci));
 	SQLWritePrivateProfileString(DSN,
 							INI_EXTRAOPTIONS,
 							 temp,

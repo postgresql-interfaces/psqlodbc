@@ -100,7 +100,7 @@ typedef void (WSAAPI *freeaddrinfo_func) (struct addrinfo *);
 typedef int (WSAAPI *getaddrinfo_func) (const char *, const char *,
 	const struct addrinfo *, struct addrinfo **); 
 typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *,
-	socklen_t, char *, DWORD, char *, DWORD, int);
+	socklen_t, char *, size_t, char *, size_t, int);
 
 #define SOCKET_ALREADY_CONNECTED		1
 #define SOCKET_HOST_NOT_FOUND			2

@@ -108,7 +108,7 @@ SOCK_Destructor(SocketClass *self)
 			{
 				if (self->pqconn)
 					PQfinish(self->pqconn);
-				UnloadDelayLoadedDLLs(NULL != self->ssl);
+				/* UnloadDelayLoadedDLLs(NULL != self->ssl); */
 			}
 			self->via_libpq = FALSE;
 			self->pqconn = NULL;
@@ -148,7 +148,7 @@ char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
 {
 	struct addrinfo	rest, *addrs = NULL, *curadr = NULL;
-	int	family; 
+	int	family = 0; 
 	char	retval = 0;
 
 
@@ -258,7 +258,7 @@ retry:
 		fd_set	fds, except_fds;
 		struct	timeval	tm;
 		socklen_t	optlen = sizeof(optval);
-		time_t	t_now, t_finish;
+		time_t	t_now, t_finish = 0;
 		BOOL	tm_exp = FALSE;
 
 		switch (SOCK_ERRNO)
@@ -731,6 +731,11 @@ mylog("Lasterror=%d\n", SOCK_ERRNO);
 					retry_count++;
 					if (SOCK_wait_for_ready(self, FALSE, retry_count) >= 0)
 						goto retry;
+					break;
+				case	ECONNRESET:
+inolog("ECONNRESET\n");
+					maybeEOF = TRUE;
+					SOCK_set_error(self, SOCKET_CLOSED, "Connection reset by peer.");
 					break;
 			}
 			if (0 == self->errornumber)

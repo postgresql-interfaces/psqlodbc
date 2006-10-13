@@ -319,7 +319,7 @@ void	SC_reset_delegate(RETCODE, StatementClass *);
 StatementClass *SC_get_ancestor(StatementClass *);
 
 #if (ODBCVER >= 0x0300)
-#define	SC_is_lower_case(a, b) (a->options.metadata_id, b->connInfo.lower_case_identifier)
+#define	SC_is_lower_case(a, b) (a->options.metadata_id || b->connInfo.lower_case_identifier)
 #else
 #define	SC_is_lower_case(a, b) (b->connInfo.lower_case_identifier)
 #endif /* ODBCVER */

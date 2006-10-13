@@ -128,9 +128,10 @@ SQLULEN	utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR 
 		bufcount = 0;
 	if (ilen < 0)
 		ilen = strlen(utf8str);
-	for (i = 0, ocount = 0, str = utf8str; i < ilen;)
+	for (i = 0, ocount = 0, str = utf8str; i < ilen && *str;)
 	{
-		if (iswascii(*str))
+		/* if (iswascii(*str)) */
+		if (isascii(*str))
 		{
 			if (lfconv && PG_LINEFEED == *str &&
 			    (i == 0 || PG_CARRIAGE_RETURN != str[-1]))

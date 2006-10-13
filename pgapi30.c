@@ -170,6 +170,8 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
 						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 					ret = PGAPI_ConnectError(Handle, RecNumber,
@@ -234,6 +236,8 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
 						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 					ret = PGAPI_StmtError(Handle, RecNumber,
@@ -336,6 +340,8 @@ inolog("rc=%d\n", rc);
 						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
 						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 					}
+					else
+						ret = SQL_SUCCESS_WITH_INFO;
 					break;
 				case SQL_DIAG_MESSAGE_TEXT:
 				case SQL_DIAG_NATIVE:
@@ -933,7 +939,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	SQLLEN		ival;
+	SQLLEN		ival = 0;
 	SQLINTEGER	len, rettype = 0;
 	PTR		ptr = NULL;
 	const ARDFields	*opts = (ARDFields *) (desc + 1);
@@ -1258,7 +1264,7 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLLEN		ival = 0;
-	SQLINTEGER	len, rettype = 0;
+	SQLINTEGER	len = 0, rettype = 0;
 	PTR		ptr = NULL;
 	BOOL		bCallColAtt = FALSE;
 	const IRDFields	*opts = (IRDFields *) (desc + 1);
@@ -1663,7 +1669,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	if (unsupported)
 	{
 		char	msg[64];
-		snprintf(msg, sizeof(msg), "Couldn't set unsupported connect attribute %d", Value);
+		snprintf(msg, sizeof(msg), "Couldn't set unsupported connect attribute %ld", (LONG_PTR) Value);
 		CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, msg, func);
 		return SQL_ERROR;
 	}
@@ -1866,7 +1872,7 @@ inolog("set ard=%x\n", stmt->ard);
 		default:
 			return PGAPI_SetStmtOption(StatementHandle, (SQLUSMALLINT) Attribute, (SQLULEN) Value);
 	}
-	return SQL_SUCCESS;
+	return ret;
 }
 
 #define	CALC_BOOKMARK_ADDR(book, offset, bind_size, index) \

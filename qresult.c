@@ -398,7 +398,6 @@ inolog("QR_AddNew %dth row(%d fields) alloc=%d\n", self->num_cached_rows, QR_Num
 void
 QR_free_memory(QResultClass *self)
 {
-	TupleField	*tuple = self->backend_tuples;
 	SQLLEN		num_backend_rows = self->num_cached_rows;
 	int		num_fields = self->num_fields;
 
@@ -422,7 +421,7 @@ QR_free_memory(QResultClass *self)
 		{
 			char	plannm[32];
 
-			sprintf(plannm, "_KEYSET_%x", self);
+			sprintf(plannm, "_KEYSET_%p", self);
 			if (CC_is_in_error_trans(conn))
 			{
 				CC_mark_a_object_to_discard(conn, 's',plannm);
@@ -788,7 +787,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	SocketClass *sock;
 
 	/* Speed up access */
-	SQLLEN		fetch_number = self->fetch_number, cur_fetch;
+	SQLLEN		fetch_number = self->fetch_number, cur_fetch = 0;
 	SQLLEN		num_total_rows;
 	SQLLEN		num_backend_rows = self->num_cached_rows, num_rows_in;
 	Int4		num_fields = self->num_fields, fetch_size, req_size;
@@ -814,6 +813,7 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 
 	num_total_rows = QR_get_num_total_tuples(self);
 	conn = QR_get_conn(self);
+	curr_eof = FALSE;
 	req_size = self->rowset_size_include_ommitted;
 	if (QR_once_reached_eof(self) && self->cursTuple >= (Int4) QR_get_num_total_read(self))
 		curr_eof = TRUE;
@@ -837,10 +837,10 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 			else
 				self->cache_size = req_size;
 inolog("cache=%d rowset=%d movement=%d\n", self->cache_size, req_size, movement);
-			sprintf(movecmd, "move backward %u in \"%s\"", movement, QR_get_cursor(self));
+			sprintf(movecmd, "move backward %lu in \"%s\"", movement, QR_get_cursor(self));
 		}
 		else if (QR_is_moving_forward(self))
-			sprintf(movecmd, "move %u in \"%s\"", movement, QR_get_cursor(self));
+			sprintf(movecmd, "move %lu in \"%s\"", movement, QR_get_cursor(self));
 		else
 		{
 			sprintf(movecmd, "move all in \"%s\"", QR_get_cursor(self));
@@ -855,7 +855,7 @@ inolog("cache=%d rowset=%d movement=%d\n", self->cache_size, req_size, movement)
 			return -1;
 		}
 		moved = movement;
-		if (sscanf(mres->command, "MOVE %u", &moved) > 0)
+		if (sscanf(mres->command, "MOVE %lu", &moved) > 0)
 		{
 inolog("moved=%d ? %d\n", moved, movement);
         		if (moved < movement)
@@ -895,7 +895,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 					if (back_offset + 1 > (Int4) self->ad_count)
 					{
 						bmovement = back_offset + 1 - self->ad_count;
-						sprintf(movecmd, "move backward %u in \"%s\"", bmovement, QR_get_cursor(self));
+						sprintf(movecmd, "move backward %lu in \"%s\"", bmovement, QR_get_cursor(self));
 						QR_Destructor(mres);
 						mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
 						if (!QR_command_maybe_successful(mres))
@@ -906,7 +906,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 							return -1;
 						}
 
-						if (sscanf(mres->command, "MOVE %u", &mback) > 0)
+						if (sscanf(mres->command, "MOVE %lu", &mback) > 0)
 						{
 							if (mback < bmovement)
 								mback++;
@@ -1002,6 +1002,7 @@ inolog("tupleField=%x\n", self->tupleField);
 	 */
 	self->tupleField = NULL;
 
+	fetch_size = 0;
 	if (!QR_is_fetching_tuples(self))
 	{
 		ci = &(conn->connInfo);
@@ -1426,9 +1427,9 @@ QR_read_a_tuple_from_db(QResultClass *self, char binary)
 	{
 		int	numf = SOCK_get_int(sock, sizeof(Int2));
 if (effective_cols > 0)
-inolog("%dth record in cache numf=%d\n", self->num_cached_rows, numf);
+{inolog("%dth record in cache numf=%d\n", self->num_cached_rows, numf);}
 else
-inolog("%dth record in key numf=%d\n", self->num_cached_keys, numf);
+{inolog("%dth record in key numf=%d\n", self->num_cached_keys, numf);}
 	}
 	else
 		SOCK_get_n_char(sock, bitmap, bitmaplen);
@@ -1482,7 +1483,7 @@ inolog("QR_read_a_tuple_from_db len=%d\n", len);
 			if (field_lf >= effective_cols)
 			{
 				if (field_lf == effective_cols)
-					sscanf(buffer, "(%lu,%hu)",
+					sscanf(buffer, "(%u,%hu)",
 						&this_keyset->blocknum, &this_keyset->offset);
 				else
 					this_keyset->oid = strtoul(buffer, NULL, 10);

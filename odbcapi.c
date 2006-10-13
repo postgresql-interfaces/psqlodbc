@@ -146,22 +146,22 @@ SQLColumns(HSTMT StatementHandle,
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}	
-		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;
 		}
-		if (newCl = make_lstring_ifneeded(conn, ColumnName, NameLength4, ifallupper))
+		if (newCl = make_lstring_ifneeded(conn, ColumnName, NameLength4, ifallupper), NULL != newCl)
 		{
 			clName = newCl;
 			reexec = TRUE;
@@ -786,17 +786,17 @@ SQLSpecialColumns(HSTMT StatementHandle,
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;
@@ -849,17 +849,17 @@ SQLStatistics(HSTMT StatementHandle,
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;
@@ -917,17 +917,17 @@ SQLTables(HSTMT StatementHandle,
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, SchemaName, NameLength2, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;
@@ -1036,22 +1036,22 @@ SQLColumnPrivileges(
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;
 		}
-		if (newCl = make_lstring_ifneeded(conn, szColumnName, cbColumnName, ifallupper))
+		if (newCl = make_lstring_ifneeded(conn, szColumnName, cbColumnName, ifallupper), NULL != newCl)
 		{
 			clName = newCl;
 			reexec = TRUE;
@@ -1164,32 +1164,32 @@ SQLForeignKeys(
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newPkct = make_lstring_ifneeded(conn, szPkCatalogName, cbPkCatalogName, ifallupper))
+		if (newPkct = make_lstring_ifneeded(conn, szPkCatalogName, cbPkCatalogName, ifallupper), NULL != newPkct)
 		{
 			pkctName = newPkct;
 			reexec = TRUE;
 		}
-		if (newPksc = make_lstring_ifneeded(conn, szPkSchemaName, cbPkSchemaName, ifallupper))
+		if (newPksc = make_lstring_ifneeded(conn, szPkSchemaName, cbPkSchemaName, ifallupper), NULL != newPksc)
 		{
 			pkscName = newPksc;
 			reexec = TRUE;
 		}
-		if (newPktb = make_lstring_ifneeded(conn, szPkTableName, cbPkTableName, ifallupper))
+		if (newPktb = make_lstring_ifneeded(conn, szPkTableName, cbPkTableName, ifallupper), NULL != newPktb)
 		{
 			pktbName = newPktb;
 			reexec = TRUE;
 		}
-		if (newFkct = make_lstring_ifneeded(conn, szFkCatalogName, cbFkCatalogName, ifallupper))
+		if (newFkct = make_lstring_ifneeded(conn, szFkCatalogName, cbFkCatalogName, ifallupper), NULL != newFkct)
 		{
 			fkctName = newFkct;
 			reexec = TRUE;
 		}
-		if (newFksc = make_lstring_ifneeded(conn, szFkSchemaName, cbFkSchemaName, ifallupper))
+		if (newFksc = make_lstring_ifneeded(conn, szFkSchemaName, cbFkSchemaName, ifallupper), NULL != newFksc)
 		{
 			fkscName = newFksc;
 			reexec = TRUE;
 		}
-		if (newFktb = make_lstring_ifneeded(conn, szFkTableName, cbFkTableName, ifallupper))
+		if (newFktb = make_lstring_ifneeded(conn, szFkTableName, cbFkTableName, ifallupper), NULL != newFktb)
 		{
 			fktbName = newFktb;
 			reexec = TRUE;
@@ -1274,6 +1274,7 @@ SQLNumParams(
 	return ret;
 }
 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLParamOptions(
 				HSTMT hstmt,
@@ -1292,6 +1293,7 @@ SQLParamOptions(
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLPrimaryKeys(
@@ -1326,17 +1328,17 @@ SQLPrimaryKeys(
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;
@@ -1399,22 +1401,22 @@ SQLProcedureColumns(
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newPr = make_lstring_ifneeded(conn, szProcName, cbProcName, ifallupper))
+		if (newPr = make_lstring_ifneeded(conn, szProcName, cbProcName, ifallupper), NULL != newPr)
 		{
 			prName = newPr;
 			reexec = TRUE;
 		}
-		if (newCl = make_lstring_ifneeded(conn, szColumnName, cbColumnName, ifallupper))
+		if (newCl = make_lstring_ifneeded(conn, szColumnName, cbColumnName, ifallupper), NULL != newCl)
 		{
 			clName = newCl;
 			reexec = TRUE;
@@ -1478,17 +1480,17 @@ SQLProcedures(
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newPr = make_lstring_ifneeded(conn, szProcName, cbProcName, ifallupper))
+		if (newPr = make_lstring_ifneeded(conn, szProcName, cbProcName, ifallupper), NULL != newPr)
 		{
 			prName = newPr;
 			reexec = TRUE;
@@ -1568,17 +1570,17 @@ SQLTablePrivileges(
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
 			ifallupper = FALSE;
-		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper))
+		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
 			reexec = TRUE;
 		}
-		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper))
+		if (newSc = make_lstring_ifneeded(conn, szSchemaName, cbSchemaName, ifallupper), NULL != newSc)
 		{
 			scName = newSc;
 			reexec = TRUE;
 		}
-		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper))
+		if (newTb = make_lstring_ifneeded(conn, szTableName, cbTableName, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
 			reexec = TRUE;

@@ -393,6 +393,7 @@ cleanup:
 }
 
 
+#if (ODBCVER < 0x0300)
 /*	Sets multiple values (arrays) for the set of parameter markers. */
 RETCODE		SQL_API
 PGAPI_ParamOptions(
@@ -403,14 +404,17 @@ PGAPI_ParamOptions(
 	CSTR func = "PGAPI_ParamOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	APDFields	*apdopts;
+	IPDFields	*ipdopts;
 
 	mylog("%s: entering... %d %x\n", func, crow, pirow);
 
 	apdopts = SC_get_APDF(stmt);
 	apdopts->paramset_size = crow;
-	SC_get_IPDF(stmt)->param_processed_ptr = pirow;
+	ipdopts = SC_get_IPDF(stmt);
+	ipdopts->param_processed_ptr = pirow;
 	return SQL_SUCCESS;
 }
+#endif /* ODBCVER */
 
 
 /*
@@ -459,8 +463,8 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	{
 		const	char *sptr, *tag = NULL;
 		ConnectionClass	*conn = SC_get_conn(stmt);
-		size_t	taglen;
-		char	tchar, bchar, escape_in_literal;
+		size_t	taglen = 0;
+		char	tchar, bchar, escape_in_literal = '\0';
 		char	in_literal = FALSE, in_identifier = FALSE,
 			in_dollar_quote = FALSE, in_escape = FALSE,
 			multi = FALSE, del_found = FALSE;
@@ -527,7 +531,7 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 					in_dollar_quote = TRUE;
 					tag = sptr;
 					taglen = 0; 
-					if (dollar_next = strchr(sptr + 1, dollar_quote))
+					if (dollar_next = strchr(sptr + 1, dollar_quote), NULL != dollar_next)
 					{
 						taglen = dollar_next - sptr + 1;
 						sptr = dollar_next;

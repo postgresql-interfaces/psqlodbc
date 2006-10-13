@@ -24,10 +24,12 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#include "loadlib.h"
+int	platformId = 0;
 #endif
 
-GLOBAL_VALUES globals;
 int	exepgm = 0;
+GLOBAL_VALUES globals;
 
 RETCODE SQL_API SQLDummyOrdinal(void);
 
@@ -129,16 +131,22 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			if (initialize_global_cs() == 0)
 			{
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
+				OSVERSIONINFO	osversion;
 				
+				getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
 				{
 					_splitpath(pathname, NULL, NULL, fname, NULL);
 					if (stricmp(fname, "msaccess") == 0)
 						exepgm = 1;
-					forcelog("exe name=%s\n", fname);
 				}
+				osversion.dwOSVersionInfoSize = sizeof(osversion);
+				if (GetVersionEx(&osversion))
+				{
+					platformId=osversion.dwPlatformId;
+				}
+				mylog("exe name=%s plaformId=%d\n", fname, platformId);
 			}
-			getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 			break;
 
 		case DLL_THREAD_ATTACH:
@@ -146,8 +154,10 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			mylog("DETACHING PROCESS\n");
+			CleanupDelayLoadedDLLs();
 			/* my(q)log is unavailable from here */
 			finalize_global_cs();
+			CleanupDelayLoadedDLLs();
 			WSACleanup();
 			return TRUE;
 
