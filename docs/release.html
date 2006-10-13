@@ -10,16 +10,35 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0103</li><br>
+Changes:<br>
+1) Improve the handling of connection error messages.<br>
+2) Add an option to convert empty strings to NULL.<br>
+3) Handle domain type as the basetype.<br>
+4) Fake MSS in case of not only SQLExecute but also SQLParamData.<br>
+5) Prevent SQLColumns from displaying system columns.<br>
+6) Unload delayLoaded libraries on dll detach (not on disconnect time).<br>
+7) Fix a SQLGetDiagField crash bug.<br>
+8) Fix a insertion count bug.<br>
+9) Take win98 cases into account a little.<br>
+<br>
+<li>Notes: psqlODBC 08.02.0102</li><br>
+Changes:<br>
+1) Compensate a loss of report of being Jet when using MS Access.<br>
+2) Add NULL <-> "" date converion function for FOXPRO and<br>
+   revise parse/describe/execute mechanism.<br>
+3) Miscellaneous type changes for 64 bit drivers.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0101</li><br>
 Changes:<br>
-1. Delayload import XOLEHLP.dll so that the driver can be loaded<br>
+1) Delayload import XOLEHLP.dll so that the driver can be loaded<br>
    without the existence of the dll.<br>
-2. Fix a simple password authentication bug.<br>
-3. Fix a buffer overrun bug which prevented the connection phase<br>
+2) Fix a simple password authentication bug.<br>
+3) Fix a buffer overrun bug which prevented the connection phase<br>
    from retrying another version appropriately.<br>
-4. Handle multi-addresses of a specified host properly.<br>
-5. Refine the socket handling(connect, recv, send).<br>
-6. Display more appropriate error messages in the connection phase.<br>
+4) Handle multi-addresses of a specified host properly.<br>
+5) Refine the socket handling(connect, recv, send).<br>
+6) Display more appropriate error messages in the connection phase.<br>
 <br>
 <li>Notes: psqlODBC 08.02.0100</li><br>
 Changes:<br>
