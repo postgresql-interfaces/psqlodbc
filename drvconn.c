@@ -110,14 +110,14 @@ PGAPI_DriverConnect(
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
-	qlog("conn=%x, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
+	qlog("conn=%p, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, connStrIn, fDriverCompletion);
 #else
 	if (get_qlog() || get_mylog())
 	{
 		char	*hide_str = hide_password(connStrIn);
 
 		mylog("**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, NULL_IF_NULL(hide_str));
-		qlog("conn=%x, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
+		qlog("conn=%p, PGAPI_DriverConnect( in)='%s', fDriverCompletion=%d\n", conn, NULL_IF_NULL(hide_str), fDriverCompletion);
 		if (hide_str)
 			free(hide_str);
 	}
@@ -291,7 +291,7 @@ inolog("before CC_connect\n");
 	if (cbConnStrOutMax > 0)
 	{
 		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(szConnStrOut), len, cbConnStrOutMax);
-		qlog("conn=%x, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
+		qlog("conn=%p, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
 	}
 #else
 	if (get_qlog() || get_mylog())
@@ -301,7 +301,7 @@ inolog("before CC_connect\n");
 		if (cbConnStrOutMax > 0)
 			hide_str = hide_password(szConnStrOut);
 		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(hide_str), len, cbConnStrOutMax);
-		qlog("conn=%x, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
+		qlog("conn=%p, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(hide_str));
 		if (hide_str)
 			free(hide_str);
 	}
@@ -320,7 +320,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 {
 	LRESULT			dialog_result;
 
-	mylog("dconn_DoDialog: ci = %x\n", ci);
+	mylog("dconn_DoDialog: ci = %p\n", ci);
 
 	if (hwnd)
 	{

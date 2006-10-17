@@ -39,7 +39,7 @@ void * debug_alloc(size_t size)
 {
 	void * alloced;
 	alloced = malloc(size);
-inolog(" alloced=%x(%d)\n", alloced, size);
+inolog(" alloced=%p(%d)\n", alloced, size);
 	if (alloced)
 	{
 		if (!alsize)
@@ -82,7 +82,7 @@ void * debug_calloc(size_t n, size_t size)
 	}
 	else
 		mylog("%s:calloc %dbyte\n", ALCERR, size);
-inolog("calloced = %x\n", alloced);
+inolog("calloced = %p\n", alloced);
 	return alloced;
 }
 void * debug_realloc(void * ptr, size_t size)
@@ -90,7 +90,7 @@ void * debug_realloc(void * ptr, size_t size)
 	void * alloced = realloc(ptr, size);
 	if (!alloced)
 	{
-		mylog("%s:debug_realloc %x error\n", ALCERR, ptr);
+		mylog("%s:debug_realloc %p error\n", ALCERR, ptr);
 	}
 	else if (!ptr)
 	{
@@ -112,7 +112,7 @@ void * debug_realloc(void * ptr, size_t size)
 		}
 	}
 		
-	inolog("debug_realloc %x->%x\n", ptr, alloced);
+	inolog("debug_realloc %p->%p\n", ptr, alloced);
 	return alloced;
 }
 char * debug_strdup(const char * ptr)
@@ -120,7 +120,7 @@ char * debug_strdup(const char * ptr)
 	char * alloced = strdup(ptr);
 	if (!alloced)
 	{
-		mylog("%s:debug_strdup %x error\n", ALCERR, ptr);
+		mylog("%s:debug_strdup %p error\n", ALCERR, ptr);
 	}
 	else
 	{
@@ -138,7 +138,7 @@ char * debug_strdup(const char * ptr)
 		altbl[tbsize].len = strlen(ptr) + 1;
 		tbsize++; 
 	}
-	inolog("debug_strdup %x->%x(%s)\n", ptr, alloced, alloced);
+	inolog("debug_strdup %p->%p(%s)\n", ptr, alloced, alloced);
 	return alloced;
 }
 
@@ -167,9 +167,9 @@ void debug_free(void * ptr)
 		}
 	}
 	if (! freed)
-		mylog("%s:debug_freeing not found ptr %x\n", ALCERR, ptr);
+		mylog("%s:debug_freeing not found ptr %p\n", ALCERR, ptr);
 	else
-		inolog("debug_freeing ptr=%x\n", ptr);
+		inolog("debug_freeing ptr=%p\n", ptr);
 	free(ptr);
 }
 
@@ -187,7 +187,7 @@ static BOOL out_check(void *out, size_t len, const char *name)
 			if ((UInt4)out + len > (UInt4)(altbl[i].aladr) + altbl[i].len)
 			{
 				ret = FALSE;
-				mylog("%s:%s:out_check found memory buffer overrun %x(%d)>=%x(%d)\n", ALCERR, name, out, len, altbl[i].aladr, altbl[i].len);
+				mylog("%s:%s:out_check found memory buffer overrun %p(%d)>=%p(%d)\n", ALCERR, name, out, len, altbl[i].aladr, altbl[i].len);
 			}
 			break;
 		}
@@ -198,7 +198,7 @@ char *debug_strcpy(char *out, const char *in)
 {
 	if (!out || !in)
 	{
-		mylog("%s:debug_strcpy null pointer out=%x,in=%x\n", ALCERR, out, in);
+		mylog("%s:debug_strcpy null pointer out=%p,in=%p\n", ALCERR, out, in);
 		return NULL;
 	}
 	out_check(out, strlen(in) + 1, "debug_strcpy");
@@ -210,7 +210,7 @@ char *debug_strncpy(char *out, const char *in, size_t len)
 
 	if (!out || !in)
 	{
-		mylog("%s:%s null pointer out=%x,in=%x\n", ALCERR, func, out, in);
+		mylog("%s:%s null pointer out=%p,in=%p\n", ALCERR, func, out, in);
 		return NULL;
 	}
 	out_check(out, len, func);
@@ -222,7 +222,7 @@ char *debug_strncpy_null(char *out, const char *in, size_t len)
 
 	if (!out || !in)
 	{
-		mylog("%s:%s null pointer out=%x,in=%x\n", ALCERR, func, out, in);
+		mylog("%s:%s null pointer out=%p,in=%p\n", ALCERR, func, out, in);
 		return NULL;
 	}
 	out_check(out, len, func);
@@ -233,7 +233,7 @@ void *debug_memcpy(void *out, const void *in, size_t len)
 {
 	if (!out || !in)
 	{
-		mylog("%s:debug_memcpy null pointer out=%x,in=%x\n", ALCERR, out, in);
+		mylog("%s:debug_memcpy null pointer out=%p,in=%p\n", ALCERR, out, in);
 		return NULL;
 	}
 	out_check(out, len, "debug_memcpy");
@@ -244,7 +244,7 @@ void *debug_memset(void *out, int c, size_t len)
 {
 	if (!out)
 	{
-		mylog("%s:debug_memcpy null pointer out=%xx\n", ALCERR, out);
+		mylog("%s:debug_memcpy null pointer out=%p\n", ALCERR, out);
 		return NULL;
 	}
 	out_check(out, len, "debug_memset");
@@ -266,7 +266,7 @@ void debug_memory_check(void)
 		mylog("%s:memory leak found check count=%d alloc=%d\n", ALCERR, tbsize, alsize);
 		for (i = 0; i < tbsize; i++)
 		{
-			mylog("%s:leak = %x(%d)\n", ALCERR, altbl[i].aladr, altbl[i].len);
+			mylog("%s:leak = %p(%d)\n", ALCERR, altbl[i].aladr, altbl[i].len);
 		}
 	}
 }

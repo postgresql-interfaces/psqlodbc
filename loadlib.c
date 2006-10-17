@@ -60,7 +60,7 @@ static HMODULE LIBPQ_load_from_psqlodbc_path()
 		if (strnicmp(szFileName, sysdir, strlen(sysdir)) != 0)
 		{
 			hmodule = LoadLibraryEx(szFileName, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-			mylog("psqlodbc path based libpq loaded module=%x\n", hmodule);
+			mylog("psqlodbc path based libpq loaded module=%p\n", hmodule);
 		}
 	}
 	return hmodule;
@@ -85,7 +85,7 @@ DliErrorHook(unsigned	dliNotify,
 	int	i;
 	static const char * const libarray[] = {"libssl32", "ssleay32"};
 
-	mylog("DliErrorHook Notify=%d %x\n", dliNotify, pdli);
+	mylog("DliErrorHook Notify=%d %p\n", dliNotify, pdli);
 	switch (dliNotify)
 	{
 		case dliFailLoadLib:
@@ -188,7 +188,7 @@ BOOL LIBPQ_check()
 	if (!(hmodule = LoadLibrary(libpq)))
 		/* Second try the driver's directory */
 		hmodule = LIBPQ_load_from_psqlodbc_path();
-	mylog("hmodule=%x\n", hmodule);
+	mylog("hmodule=%p\n", hmodule);
 	if (hmodule)
 		FreeLibrary(hmodule);
 	return (NULL != hmodule);

@@ -102,7 +102,7 @@ void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 
 static void ARDFields_free(ARDFields * self)
 {
-inolog("ARDFields_free %x bookmark=%x", self, self->bookmark);
+inolog("ARDFields_free %p bookmark=%p", self, self->bookmark);
 	if (self->bookmark)
 	{
 		free(self->bookmark);
@@ -249,7 +249,7 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 {
 	int	i;
 
-	mylog("CC_add_descriptor: self=%x, desc=%x\n", self, desc);
+	mylog("CC_add_descriptor: self=%p, desc=%p\n", self, desc);
 
 	for (i = 0; i < self->num_descs; i++)
 	{
@@ -451,19 +451,19 @@ inolog("source type=%d -> target type=%d\n", src->desc_type, target->desc_type);
 	switch (src->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-inolog("src=%x target=%x type=%d", src, target, src->desc_type);
+inolog("src=%p target=%p type=%d", src, target, src->desc_type);
 			if (!target->type_defined)
 			{
 				target->desc_type = src->desc_type;
 			}
 			ard_src = (ARDFields *) (src + 1);
-inolog(" rowset_size=%d bind_size=%d ope_ptr=%x off_ptr=%x\n",
+inolog(" rowset_size=%d bind_size=%d ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
 ard_src->row_operation_ptr, ard_src->row_offset_ptr);
 			ard_tgt = (ARDFields *) (target + 1);
-inolog(" target=%x", ard_tgt);
+inolog(" target=%p", ard_tgt);
 			ARDFields_copy(ard_src, ard_tgt);
-inolog(" offset_ptr=%x\n", ard_tgt->row_offset_ptr);
+inolog(" offset_ptr=%p\n", ard_tgt->row_offset_ptr);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
 			if (!target->type_defined)

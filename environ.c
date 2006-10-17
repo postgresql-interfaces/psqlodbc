@@ -63,7 +63,7 @@ PGAPI_AllocEnv(HENV FAR * phenv)
 		return SQL_ERROR;
 	}
 
-	mylog("** exit PGAPI_AllocEnv: phenv = %x **\n", *phenv);
+	mylog("** exit PGAPI_AllocEnv: phenv = %p **\n", *phenv);
 	return SQL_SUCCESS;
 }
 
@@ -74,7 +74,7 @@ PGAPI_FreeEnv(HENV henv)
 	CSTR func = "PGAPI_FreeEnv";
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 
-	mylog("**** in PGAPI_FreeEnv: env = %x ** \n", env);
+	mylog("**** in PGAPI_FreeEnv: env = %p ** \n", env);
 
 	if (env && EN_Destructor(env))
 	{
@@ -263,7 +263,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 	BOOL	once_again = FALSE;
 	ssize_t		msglen;
 
-	mylog("**** PGAPI_ConnectError: hdbc=%x <%d>\n", hdbc, cbErrorMsgMax);
+	mylog("**** PGAPI_ConnectError: hdbc=%p <%d>\n", hdbc, cbErrorMsgMax);
 	if (RecNumber != 1 && RecNumber != -1)
 		return SQL_NO_DATA_FOUND;
 	if (cbErrorMsgMax < 0)
@@ -393,7 +393,7 @@ PGAPI_EnvError(		HENV henv,
 	char		*msg;
 	int		status;
 
-	mylog("**** PGAPI_EnvError: henv=%x <%d>\n", henv, cbErrorMsgMax);
+	mylog("**** PGAPI_EnvError: henv=%p <%d>\n", henv, cbErrorMsgMax);
 	if (RecNumber != 1 && RecNumber != -1)
 		return SQL_NO_DATA_FOUND;
 	if (cbErrorMsgMax < 0)
@@ -454,7 +454,7 @@ PGAPI_Error(
 	RETCODE	ret;
 	UWORD	flag = PODBC_ALLOW_PARTIAL_EXTRACT | PODBC_ERROR_CLEAR;
 
-	mylog("**** PGAPI_Error: henv=%x, hdbc=%x hstmt=%d\n", henv, hdbc, hstmt);
+	mylog("**** PGAPI_Error: henv=%p, hdbc=%p hstmt=%d\n", henv, hdbc, hstmt);
 
 	if (cbErrorMsgMax < 0)
 		return SQL_ERROR;
@@ -509,7 +509,7 @@ EN_Destructor(EnvironmentClass *self)
 	int			lf;
 	char		rv = 1;
 
-	mylog("in EN_Destructor, self=%x\n", self);
+	mylog("in EN_Destructor, self=%p\n", self);
 
 	/*
 	 * the error messages are static strings distributed throughout the
@@ -559,7 +559,7 @@ EN_add_connection(EnvironmentClass *self, ConnectionClass *conn)
 {
 	int			i;
 
-	mylog("EN_add_connection: self = %x, conn = %x\n", self, conn);
+	mylog("EN_add_connection: self = %p, conn = %p\n", self, conn);
 
 	ENTER_CONNS_CS;
 	for (i = 0; i < MAX_CONNECTIONS; i++)
@@ -570,7 +570,7 @@ EN_add_connection(EnvironmentClass *self, ConnectionClass *conn)
 			conns[i] = conn;
 			LEAVE_CONNS_CS;
 
-			mylog("       added at i =%d, conn->henv = %x, conns[i]->henv = %x\n", i, conn->henv, conns[i]->henv);
+			mylog("       added at i =%d, conn->henv = %p, conns[i]->henv = %p\n", i, conn->henv, conns[i]->henv);
 
 			return TRUE;
 		}

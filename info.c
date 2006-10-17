@@ -147,7 +147,7 @@ PGAPI_GetInfo(
 		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
 			len = sizeof(SQLUINTEGER);
 			value = SQL_CVT_BIT | SQL_CVT_INTEGER;
-mylog("SQL_CONVERT_ mask=%x\n", value);
+mylog("SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
 			break;
 		case SQL_CONVERT_BIGINT:
 		case SQL_CONVERT_DECIMAL:
@@ -175,7 +175,7 @@ mylog("SQL_CONVERT_ mask=%x\n", value);
 		case SQL_CONVERT_FUNCTIONS:		/* ODBC 1.0 */
 			len = sizeof(SQLUINTEGER);
 			value = SQL_FN_CVT_CONVERT;
-mylog("CONVERT_FUNCTIONS=%x\n", value);
+mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_CORRELATION_NAME:		/* ODBC 1.0 */
@@ -1508,7 +1508,7 @@ PGAPI_Tables(
 	BOOL	search_pattern, list_schemas = FALSE;
 	SQLLEN		cbRelname, cbRelkind;
 
-	mylog("%s: entering...stmt=%x scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -1896,7 +1896,7 @@ cleanup:
 
 	if (stmt->internal)
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
-	mylog("%s: EXIT, stmt=%x, ret=%d\n", func, stmt, ret);
+	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
 
@@ -1948,7 +1948,7 @@ PGAPI_Columns(
 	const char	*like_or_eq = likeop;
 	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%x scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2064,7 +2064,7 @@ retry_public_schema:
 	}
 	col_stmt = (StatementClass *) hcol_stmt;
 
-	mylog("%s: hcol_stmt = %x, col_stmt = %x\n", func, hcol_stmt, col_stmt);
+	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
 	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
@@ -2560,7 +2560,7 @@ cleanup:
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	if (stmt->internal)
 		result = DiscardStatementSvp(stmt, result, FALSE);
-	mylog("%s: EXIT,  stmt=%x\n", func, stmt);
+	mylog("%s: EXIT,  stmt=%p\n", func, stmt);
 	return result;
 }
 
@@ -2594,7 +2594,7 @@ PGAPI_SpecialColumns(
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%x scnm=%x len=%d colType=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner, fColType);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner, fColType);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2654,7 +2654,7 @@ retry_public_schema:
 	}
 	col_stmt = (StatementClass *) hcol_stmt;
 
-	mylog("%s: hcol_stmt = %x, col_stmt = %x\n", func, hcol_stmt, col_stmt);
+	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
 	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
@@ -2823,7 +2823,7 @@ cleanup:
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	if (stmt->internal)
 		result = DiscardStatementSvp(stmt, result, FALSE);
-	mylog("%s: EXIT,  stmt=%x\n", func, stmt);
+	mylog("%s: EXIT,  stmt=%p\n", func, stmt);
 	return result;
 }
 
@@ -2874,7 +2874,7 @@ PGAPI_Statistics(
 	const char	*szSchemaName;
 	BOOL		unknownf;
 
-	mylog("%s: entering...stmt=%x scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3290,7 +3290,7 @@ cleanup:
 
 	if (stmt->internal)
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
-	mylog("%s: EXIT, stmt=%x, ret=%d\n", func, stmt, ret);
+	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 
 	return ret;
 }
@@ -3438,7 +3438,7 @@ PGAPI_PrimaryKeys(
 	const char	*szSchemaName;
 	char	*escSchemaName = NULL, *escTableName = NULL;
 
-	mylog("%s: entering...stmt=%x scnm=%x len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3691,7 +3691,7 @@ cleanup:
 
 	if (stmt->internal)
 		ret = DiscardStatementSvp(stmt, ret, FALSE); 
-	mylog("%s: EXIT, stmt=%x, ret=%d\n", func, stmt, ret);
+	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
 
@@ -3837,7 +3837,7 @@ PGAPI_ForeignKeys(
 	Int2		result_cols;
 	UInt4		relid1, relid2;
 
-	mylog("%s: entering...stmt=%x\n", func, stmt);
+	mylog("%s: entering...stmt=%p\n", func, stmt);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -4654,7 +4654,7 @@ cleanup:
 
 	if (stmt->internal)
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
-	mylog("%s(): EXIT, stmt=%x, ret=%d\n", func, stmt, ret);
+	mylog("%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
 
@@ -4921,7 +4921,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 						params = NULL;
 					else
 					{
-						sscanf(params, "%d", &pgtype);
+						sscanf(params, "%u", &pgtype);
 						while (isdigit(*params))
 							params++;
 					}
@@ -5086,7 +5086,7 @@ PGAPI_Procedures(
 	const char	*like_or_eq;
 	BOOL	search_pattern;
 
-	mylog("%s: entering... scnm=%x len=%d\n", func, szProcOwner, cbProcOwner);
+	mylog("%s: entering... scnm=%p len=%d\n", func, szProcOwner, cbProcOwner);
 
 	if (PG_VERSION_LT(conn, 6.5))
 	{
@@ -5237,7 +5237,7 @@ PGAPI_TablePrivileges(
 	char		*escSchemaName = NULL, *escTableName = NULL;
 	BOOL		search_pattern;
 
-	mylog("%s: entering... scnm=%x len-%d\n", func, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering... scnm=%p len-%d\n", func, NULL_IF_NULL(szTableOwner), cbTableOwner);
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 

@@ -679,7 +679,7 @@ BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt
 	HSTMT		hcol_stmt = NULL;
 	QResultClass	*res;
 
-inolog("getCOLIfromTI reloid=%u ti=%x\n", reloid, wti);
+inolog("getCOLIfromTI reloid=%u ti=%p\n", reloid, wti);
 	if (!conn)
 		conn = SC_get_conn(stmt);
 	if (!wti)	/* SQLColAttribute case */
@@ -706,7 +706,7 @@ inolog("before increaseNtab\n");
 		}
 		*pti = wti;
 	}
-inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
+inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 	if (0 == greloid)
 		greloid = wti->table_oid;
 	if (NULL != wti->col_info)
@@ -826,7 +826,7 @@ inolog("fi=%x greloid=%d col_info=%x\n", wti, greloid, wti->col_info);
 					STR_TO_NAME(wti->table_name, 
 						QR_get_value_backend_row(res, 0, COLUMNS_TABLE_NAME));
 			}
-inolog("#2 %x->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+inolog("#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 			/*
 			 * Store the table name and the SQLColumns result
 			 * structure
@@ -877,7 +877,7 @@ cleanup:
 				STR_TO_NAME(wti->table_name, 
 					QR_get_value_backend_row(res, 0, COLUMNS_TABLE_NAME));
 		}
-inolog("#1 %x->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+inolog("#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 		if (colatt /* SQLColAttribute case */
 		    && 0 == (wti->flags & TI_COLATTRIBUTE))
 		{

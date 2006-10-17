@@ -248,13 +248,13 @@ set_statement_option(ConnectionClass *conn,
 				if (stmt)
 				{
 					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", NULL);
-					sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
+					sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
 					SC_log_error(func, option, stmt);
 				}
 				if (conn)
 				{
 					CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", func);
-					sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
+					sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
 					CC_log_error(func, option, conn);
 				}
 
@@ -454,7 +454,7 @@ PGAPI_SetConnectOption(
 				char		option[64];
 
 				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)", func);
-				sprintf(option, "fOption=%d, vParam=%ld", fOption, vParam);
+				sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
 				if (fOption == 30002 && vParam)
 				{
 					int	cmp;

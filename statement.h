@@ -245,7 +245,7 @@ struct StatementClass_
 	char		pre_executing;	/* This statement is prematurely executing */
 	char		inaccurate_result;	/* Current status is PREMATURE but
 						 * result is inaccurate */
-	char		miscinfo;
+	unsigned char	miscinfo;
 	char		updatable;
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */

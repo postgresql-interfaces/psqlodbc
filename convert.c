@@ -3125,7 +3125,7 @@ inolog("resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts-
 		}
 	}
  
-inolog("ipara=%x paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
+inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
 	if (param_number < qb->proc_return)
 	{
 		if (ipara && SQL_PARAM_OUTPUT != ipara->paramType)
@@ -3353,7 +3353,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 
 		case SQL_C_SLONG:
 		case SQL_C_LONG:
-			sprintf(param_string, "%ld",
+			sprintf(param_string, FORMAT_INTEGER,
 					*((SQLINTEGER *) buffer));
 			break;
 
@@ -3383,7 +3383,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			break;
 
 		case SQL_C_ULONG:
-			sprintf(param_string, "%lu",
+			sprintf(param_string, FORMAT_UINTEGER,
 					*((SQLUINTEGER *) buffer));
 			break;
 
@@ -3472,7 +3472,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 	 */
 
 	/* Special handling NULL string For FOXPRO */
-mylog("cvt_null_date_string=%d pgtype=%d buf=%x\n", conn->connInfo.cvt_null_date_string, param_pgtype, buf);
+mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date_string, param_pgtype, buf);
 	if (conn->connInfo.cvt_null_date_string > 0 &&
 	    PG_TYPE_DATE == param_pgtype &&
 	    SQL_C_CHAR == param_ctype &&

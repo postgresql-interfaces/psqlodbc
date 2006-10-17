@@ -132,9 +132,9 @@ PGAPI_BindParameter(
 		SC_recycle_statement(stmt);
 
 	mylog("%s: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d,", func, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale);
-	/*** mylog("rgbValue=%x, pcbValue = %x(%d), data_at_exec = %d\n", rgbValue, pcbValue, pcbValue ? *pcbValue : -777, apdopts->parameters[ipar].data_at_exec); ***/
+	/*** mylog("rgbValue=%p, pcbValue = %p(%d), data_at_exec = %d\n", rgbValue, pcbValue, pcbValue ? *pcbValue : -777, apdopts->parameters[ipar].data_at_exec); ***/
 
-	mylog("rgbValue=%x, pcbValue = %x, data_at_exec = %d\n", rgbValue, pcbValue, apdopts->parameters[ipar].data_at_exec);
+	mylog("rgbValue=%p, pcbValue = %p, data_at_exec = %d\n", rgbValue, pcbValue, apdopts->parameters[ipar].data_at_exec);
 
 	return SQL_SUCCESS;
 }
@@ -159,8 +159,8 @@ PGAPI_BindCol(
 
 	mylog("%s: entering...\n", func);
 
-	mylog("**** PGAPI_BindCol: stmt = %x, icol = %d\n", stmt, icol);
-	mylog("**** : fCType=%d rgb=%x valusMax=%d pcb=%x\n", fCType, rgbValue, cbValueMax, pcbValue);
+	mylog("**** PGAPI_BindCol: stmt = %p, icol = %d\n", stmt, icol);
+	mylog("**** : fCType=%d rgb=%p valusMax=%d pcb=%p\n", fCType, rgbValue, cbValueMax, pcbValue);
 
 	if (!stmt)
 	{
@@ -270,7 +270,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 			opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
 
-		mylog("       bound buffer[%d] = %x\n", icol, opts->bindings[icol].buffer);
+		mylog("       bound buffer[%d] = %p\n", icol, opts->bindings[icol].buffer);
 	}
 
 cleanup:
@@ -406,7 +406,7 @@ PGAPI_ParamOptions(
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 
-	mylog("%s: entering... %d %x\n", func, crow, pirow);
+	mylog("%s: entering... %d %p\n", func, crow, pirow);
 
 	apdopts = SC_get_APDF(stmt);
 	apdopts->paramset_size = crow;
@@ -591,7 +591,7 @@ extend_parameter_bindings(APDFields *self, int num_params)
 	CSTR func = "extend_parameter_bindings";
 	ParameterInfoClass *new_bindings;
 
-	mylog("%s: entering ... self=%x, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%p, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -624,7 +624,7 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 	CSTR func = "extend_iparameter_bindings";
 	ParameterImplClass *new_bindings;
 
-	mylog("%s: entering ... self=%x, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%p, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -656,7 +656,7 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 {
 	CSTR func = "reset_a_parameter_binding";
 
-	mylog("%s: entering ... self=%x, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
+	mylog("%s: entering ... self=%p, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
 
 	if (ipar < 1 || ipar > self->allocated)
 		return;
@@ -676,7 +676,7 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 {
 	CSTR func = "reset_a_iparameter_binding";
 
-	mylog("%s: entering ... self=%x, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
+	mylog("%s: entering ... self=%p, parameters_allocated=%d, ipar=%d\n", func, self, self->allocated, ipar);
 
 	if (ipar < 1 || ipar > self->allocated)
 		return;
@@ -762,7 +762,7 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 {
 	int			i;
 
-	mylog("PDATA_free_params:  ENTER, self=%x\n", pdata);
+	mylog("PDATA_free_params:  ENTER, self=%p\n", pdata);
 
 	if (!pdata->pdata)
 		return;
@@ -797,7 +797,7 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 void
 IPD_free_params(IPDFields *ipdopts, char option)
 {
-	mylog("IPD_free_params:  ENTER, self=%x\n", ipdopts);
+	mylog("IPD_free_params:  ENTER, self=%p\n", ipdopts);
 
 	if (!ipdopts->parameters)
 		return;
@@ -818,7 +818,7 @@ extend_column_bindings(ARDFields *self, int num_columns)
 	BindInfoClass *new_bindings;
 	int			i;
 
-	mylog("%s: entering ... self=%x, bindings_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
+	mylog("%s: entering ... self=%p, bindings_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -871,7 +871,7 @@ reset_a_column_binding(ARDFields *self, int icol)
 	CSTR func = "reset_a_column_binding";
 	BindInfoClass	*bookmark;
 
-	mylog("%s: entering ... self=%x, bindings_allocated=%d, icol=%d\n", func, self, self->allocated, icol);
+	mylog("%s: entering ... self=%p, bindings_allocated=%d, icol=%d\n", func, self, self->allocated, icol);
 
 	if (icol > self->allocated)
 		return;
@@ -901,7 +901,7 @@ void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
 	Int2	lf;
 
-inolog("ARD_unbind_cols freeall=%d allocated=%d bindings=%x", freeall, self->allocated, self->bindings);
+inolog("ARD_unbind_cols freeall=%d allocated=%d bindings=%p", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_column_binding(self, lf);
 	if (freeall)
@@ -916,7 +916,7 @@ void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 {
 	Int2	lf;
 
-inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%x", freeall, self->allocated, self->gdata);
+inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%p", freeall, self->allocated, self->gdata);
 	if (self->fdata.ttlbuf)
 	{
 		free(self->fdata.ttlbuf);
@@ -969,7 +969,7 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 	CSTR func = "extend_getdata_info";
 	GetDataClass	*new_gdata;
 
-	mylog("%s: entering ... self=%x, gdata_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
+	mylog("%s: entering ... self=%p, gdata_allocated=%d, num_columns=%d\n", func, self, self->allocated, num_columns);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -1049,7 +1049,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 	CSTR func = "extend_putdata_info";
 	PutDataClass	*new_pdata;
 
-	mylog("%s: entering ... self=%x, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%p, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old

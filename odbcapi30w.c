@@ -338,7 +338,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
         char    *rgbD = NULL;
 
-	mylog("[[%s]] Handle=(%u,%x) Rec=%d Id=%d info=(%x,%d)\n", func, fHandleType,
+	mylog("[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, fHandleType,
 			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);
 	switch (fDiagField)
 	{ 

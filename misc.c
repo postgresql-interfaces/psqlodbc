@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 
 #ifndef WIN32
@@ -133,7 +134,7 @@ make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
 
 inolog("malloc size=%d\n", length);
 	str = malloc(length + 1);
-inolog("str=%x\n", str);
+inolog("str=%p\n", str);
 	if (!str)
 		return NULL;
 

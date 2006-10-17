@@ -61,7 +61,7 @@ PGAPI_AllocConnect(
 	mylog("%s: entering...\n", func);
 
 	conn = CC_Constructor();
-	mylog("**** %s: henv = %x, conn = %x\n", func, henv, conn);
+	mylog("**** %s: henv = %p, conn = %p\n", func, henv, conn);
 
 	if (!conn)
 	{
@@ -103,6 +103,7 @@ PGAPI_Connect(
 	ConnInfo   *ci;
 	CSTR func = "PGAPI_Connect";
 	RETCODE	ret = SQL_SUCCESS;
+	char	fchar;
 
 	mylog("%s: entering...\n", func);
 
@@ -127,13 +128,19 @@ PGAPI_Connect(
 	 * override values from DSN info with UID and authStr(pwd) This only
 	 * occurs if the values are actually there.
 	 */
+	fchar = ci->username[0]; /* save the first byte */ 
 	make_string(szUID, cbUID, ci->username, sizeof(ci->username));
+	if ('\0' == ci->username[0]) /* an empty string is specified */
+		ci->username[0] = fchar; /* restore the original username */
+	fchar = ci->password[0]; 
 	make_string(szAuthStr, cbAuthStr, ci->password, sizeof(ci->password));
+	if ('\0' == ci->password[0]) /* an empty string is specified */
+		ci->password[0] = fchar; /* restore the original password */
 
 	/* fill in any defaults */
 	getDSNdefaults(ci);
 
-	qlog("conn = %x, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
+	qlog("conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
 
 	if (CC_connect(conn, AUTH_REQ_OK, NULL) <= 0)
 	{
@@ -184,7 +191,7 @@ PGAPI_Disconnect(
 		return SQL_INVALID_HANDLE;
 	}
 
-	qlog("conn=%x, %s\n", conn, func);
+	qlog("conn=%p, %s\n", conn, func);
 
 	if (conn->status == CONN_EXECUTING)
 	{
@@ -213,7 +220,7 @@ PGAPI_FreeConnect(
 	CSTR func = "PGAPI_FreeConnect";
 
 	mylog("%s: entering...\n", func);
-	mylog("**** in %s: hdbc=%x\n", func, hdbc);
+	mylog("**** in %s: hdbc=%p\n", func, hdbc);
 
 	if (!conn)
 	{
@@ -391,7 +398,7 @@ cleanup:
 char
 CC_Destructor(ConnectionClass *self)
 {
-	mylog("enter CC_Destructor, self=%x\n", self);
+	mylog("enter CC_Destructor, self=%p\n", self);
 
 	if (self->status == CONN_EXECUTING)
 		return 0;
@@ -438,7 +445,7 @@ CC_cursor_count(ConnectionClass *self)
 				count = 0;
 	QResultClass		*res;
 
-	mylog("CC_cursor_count: self=%x, num_stmts=%d\n", self, self->num_stmts);
+	mylog("CC_cursor_count: self=%p, num_stmts=%d\n", self, self->num_stmts);
 
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
@@ -541,7 +548,7 @@ CC_cleanup(ConnectionClass *self)
 	if (self->status == CONN_EXECUTING)
 		return FALSE;
 
-	mylog("in CC_Cleanup, self=%x\n", self);
+	mylog("in CC_Cleanup, self=%p\n", self);
 
 	/* Cancel an ongoing transaction */
 	/* We are always in the middle of a transaction, */
@@ -1145,7 +1152,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 		char	tmout[16];
 
 		slen += (strlen(l_login_timeout) + 2 + 2);
-		snprintf(tmout, sizeof(tmout), "%lu", self->login_timeout);
+		snprintf(tmout, sizeof(tmout), FORMAT_UINTEGER, self->login_timeout);
 		slen += strlen(tmout);
 	}
 	slen++;
@@ -1182,7 +1189,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	{
 		sprintf(ppacket, " %s=", l_login_timeout);
 		ppacket += (strlen(l_login_timeout) + 2);
-		sprintf(ppacket, "%lu", self->login_timeout);
+		sprintf(ppacket, FORMAT_UINTEGER, self->login_timeout);
 		ppacket = strchr(ppacket, '\0');
 	}
 	*ppacket = '\0';
@@ -1745,7 +1752,7 @@ CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 	int	i;
 	char	ret = TRUE;
 
-	mylog("CC_add_statement: self=%x, stmt=%x\n", self, stmt);
+	mylog("CC_add_statement: self=%p, stmt=%p\n", self, stmt);
 
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
@@ -1783,7 +1790,7 @@ CC_set_error_statements(ConnectionClass *self)
 {
 	int	i;
 
-	mylog("CC_error_statements: self=%x\n", self);
+	mylog("CC_error_statements: self=%p\n", self);
 
 	for (i = 0; i < self->num_stmts; i++)
 	{
@@ -2090,8 +2097,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	/* QR_set_command() dups this string so doesn't need static */
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
 
-	mylog("send_query(): conn=%x, query='%s'\n", self, query);
-	qlog("conn=%x, query='%s'\n", self, query);
+	mylog("send_query(): conn=%p, query='%s'\n", self, query);
+	qlog("conn=%p, query='%s'\n", self, query);
 
 	if (!self->sock)
 	{
@@ -2304,7 +2311,7 @@ inolog("Discarded the first SAVEPOINT\n");
 						QR_set_rstatus(res, PORES_COMMAND_OK);
 					QR_set_command(res, cmdbuffer);
 					query_completed = TRUE;
-					mylog("send_query: returning res = %x\n", res);
+					mylog("send_query: returning res = %p\n", res);
 					if (!before_64)
 						break;
 
@@ -2395,7 +2402,7 @@ inolog("Discarded the first SAVEPOINT\n");
 						if (stmt)
 							res->num_key_fields = stmt->num_key_fields;
 					}
-					mylog("send_query: 'T' no result_in: res = %x\n", res->next);
+					mylog("send_query: 'T' no result_in: res = %p\n", res->next);
 					res = res->next;
 
 					if (qi)
@@ -2599,7 +2606,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	ConnInfo		*ci;
 	int			func_cs_count = 0; 
 
-	mylog("send_function(): conn=%x, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
+	mylog("send_function(): conn=%p, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
 
 	if (!self->sock)
 	{
@@ -2662,7 +2669,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 
 	for (i = 0; i < nargs; ++i)
 	{
-		mylog("  arg[%d]: len = %d, isint = %d, integer = %d, ptr = %x\n", i, args[i].len, args[i].isint, args[i].u.integer, args[i].u.ptr);
+		mylog("  arg[%d]: len = %d, isint = %d, integer = %d, ptr = %p\n", i, args[i].len, args[i].isint, args[i].u.integer, args[i].u.ptr);
 
 		SOCK_put_int(sock, args[i].len, 4);
 		if (args[i].isint)
@@ -3087,8 +3094,8 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
 		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
 		qlog("            ------------------------------------------------------------\n");
-		qlog("            henv=%x, conn=%x, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
-		qlog("            sock=%x, stmts=%x, lobj_type=%d\n", self->sock, self->stmts, self->lobj_type);
+		qlog("            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
+		qlog("            sock=%p, stmts=%p, lobj_type=%d\n", self->sock, self->stmts, self->lobj_type);
 
 		qlog("            ---------------- Socket Info -------------------------------\n");
 		if (self->sock)
@@ -3270,7 +3277,7 @@ LIBPQ_connect(ConnectionClass *self)
 
 	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
 	sock = self->sock;
-inolog("sock=%x\n", sock);
+inolog("sock=%p\n", sock);
 	if (!sock)
 	{
 		sock = SOCK_Constructor(self);

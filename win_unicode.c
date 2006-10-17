@@ -8,11 +8,11 @@
  */
 
 #include "psqlodbc.h"
+#include <malloc.h>
 #ifdef  WIN32
 #ifdef  _DEBUG
 #ifndef _MEMORY_DEBUG_
 #include <stdlib.h>
-#include <malloc.h>
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif /* _MEMORY_DEBUG_ */
@@ -29,12 +29,12 @@
 #define	byte3_mask2	0x0fc0
 #define	byte3_mask3	0x003f
 
+#include <ctype.h>
 #ifndef WIN32
 #ifdef HAVE_ISWASCII
 #include <wctype.h>
 #else
 #include <wchar.h>
-#include <ctype.h>
 int	iswascii(wchar_t c)
 {
 	return isascii(wctob(c));
@@ -52,7 +52,7 @@ SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str)
 char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
-/*mylog("ucs2_to_utf8 %x ilen=%d ", ucs2str, ilen);*/
+/*mylog("ucs2_to_utf8 %p ilen=%d ", ucs2str, ilen);*/
 
 	if (!ucs2str)
 	{

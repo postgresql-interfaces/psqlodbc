@@ -521,7 +521,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 
 		QR_set_conn(self, conn);
 
-		mylog("%s: cursor = '%s', self->cursor=%x\n", func, (cursor == NULL) ? "" : cursor, QR_get_cursor(self));
+		mylog("%s: cursor = '%s', self->cursor=%p\n", func, (cursor == NULL) ? "" : cursor, QR_get_cursor(self));
 
 		if (cursor && !cursor[0])
 			cursor = NULL;
@@ -653,7 +653,7 @@ QR_close(QResultClass *self)
 		/* End the transaction if there are no cursors left on this conn */
 		if (CC_is_in_autocommit(conn) && CC_cursor_count(conn) == 0)
 		{
-			mylog("QResult: END transaction on conn=%x\n", conn);
+			mylog("QResult: END transaction on conn=%p\n", conn);
 
 			if (!CC_commit(conn))
 			{
@@ -711,7 +711,7 @@ inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
 		QR_set_message(self, "Error reading the tuple");
 		return FALSE;
 	}
-inolog("!!%x->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
+inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
 	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
 		self->num_total_read = self->cursTuple + 1;
 inolog("!!cursTup=%d total_read=%d\n", self->cursTuple, self->num_total_read);
@@ -808,7 +808,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 	Int4		response_length;
 
-inolog("Oh %x->fetch_number=%d\n", self, self->fetch_number);
+inolog("Oh %p->fetch_number=%d\n", self, self->fetch_number);
 inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt ? stmt->currTuple : -1, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
 
 	num_total_rows = QR_get_num_total_tuples(self);
@@ -836,11 +836,11 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 			}
 			else
 				self->cache_size = req_size;
-inolog("cache=%d rowset=%d movement=%d\n", self->cache_size, req_size, movement);
-			sprintf(movecmd, "move backward %lu in \"%s\"", movement, QR_get_cursor(self));
+inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
+			sprintf(movecmd, "move backward " FORMAT_ULEN " in \"%s\"", movement, QR_get_cursor(self));
 		}
 		else if (QR_is_moving_forward(self))
-			sprintf(movecmd, "move %lu in \"%s\"", movement, QR_get_cursor(self));
+			sprintf(movecmd, "move " FORMAT_ULEN " in \"%s\"", movement, QR_get_cursor(self));
 		else
 		{
 			sprintf(movecmd, "move all in \"%s\"", QR_get_cursor(self));
@@ -857,7 +857,7 @@ inolog("cache=%d rowset=%d movement=%d\n", self->cache_size, req_size, movement)
 		moved = movement;
 		if (sscanf(mres->command, "MOVE %lu", &moved) > 0)
 		{
-inolog("moved=%d ? %d\n", moved, movement);
+inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
         		if (moved < movement)
 			{
 				if (0 <  moved)
@@ -895,7 +895,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 					if (back_offset + 1 > (Int4) self->ad_count)
 					{
 						bmovement = back_offset + 1 - self->ad_count;
-						sprintf(movecmd, "move backward %lu in \"%s\"", bmovement, QR_get_cursor(self));
+						sprintf(movecmd, "move backward " FORMAT_ULEN " in \"%s\"", bmovement, QR_get_cursor(self));
 						QR_Destructor(mres);
 						mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
 						if (!QR_command_maybe_successful(mres))
@@ -965,7 +965,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 		/* return a row from cache */
 		mylog("%s: fetch_number < fcount: returning tuple %d, fcount = %d\n", func, fetch_number, num_backend_rows);
 		self->tupleField = the_tuples + (fetch_number * num_fields);
-inolog("tupleField=%x\n", self->tupleField);
+inolog("tupleField=%p\n", self->tupleField);
 		/* move to next row */
 		QR_inc_next_in_cache(self);
 		return TRUE;
@@ -1175,7 +1175,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
 				QR_set_command(self, cmdbuffer);
 
-				mylog("end of tuple list -- setting inUse to false: this = %x %s\n", self, cmdbuffer);
+				mylog("end of tuple list -- setting inUse to false: this = %p %s\n", self, cmdbuffer);
 
 				qlog("    [ fetched %d rows ]\n", self->num_total_read);
 				mylog("_%s: 'C' fetch_total = %d & this_fetch = %d\n", func, self->num_total_read, self->num_cached_rows);

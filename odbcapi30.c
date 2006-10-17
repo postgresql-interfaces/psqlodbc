@@ -59,7 +59,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocDesc(InputHandle, OutputHandle);
 			LEAVE_CONN_CS(conn);
-inolog("OutputHandle=%x\n", *OutputHandle);
+inolog("OutputHandle=%p\n", *OutputHandle);
 			break;
 		default:
 			ret = SQL_ERROR;
@@ -296,7 +296,7 @@ SQLGetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	CSTR func = "SQLGetDiagField";
 	RETCODE	ret;
 
-	mylog("[[%s]] Handle=(%u,%x) Rec=%d Id=%d info=(%x,%d)\n", func, HandleType, Handle, RecNumber, DiagIdentifier, DiagInfo, BufferLength);
+	mylog("[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, HandleType, Handle, RecNumber, DiagIdentifier, DiagInfo, BufferLength);
 	ret = PGAPI_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier,
 				DiagInfo, BufferLength, StringLength);
 	return ret;
@@ -415,7 +415,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	mylog("[[SQLSetDescField]] h=%x rec=%d field=%d val=%x\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
+	mylog("[[SQLSetDescField]] h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
 	return ret;
@@ -508,7 +508,7 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	mylog("[[%s]] Handle=%x %d,%u\n", func, StatementHandle, Attribute, Value);
+	mylog("[[%s]] Handle=%p %d,%u\n", func, StatementHandle, Attribute, Value);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -649,7 +649,7 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
 	ENTER_STMT_CS(stmt);
-	mylog("[[%s]] Handle=%x %d\n", func, hstmt, operation);
+	mylog("[[%s]] Handle=%p %d\n", func, hstmt, operation);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	ret = PGAPI_BulkOperations(hstmt, operation);

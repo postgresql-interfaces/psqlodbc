@@ -162,11 +162,7 @@ do { \
 	{ \
 		if (pthread_mutex_lock(&((x)->cs)) == 0) \
 			entered++; \
-		else \
-			-1; \
 	} \
-	else \
-		0; \
 } while (0)
 #define LEAVE_CONN_CS(x)	pthread_mutex_unlock(&((x)->cs))
 #define CONNLOCK_RELEASE(x) 	pthread_mutex_unlock(&((x)->slock))

@@ -1521,7 +1521,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	len = 0;
 
-	mylog("%s Handle=%x %d\n", func, StatementHandle, Attribute);
+	mylog("%s Handle=%p %d\n", func, StatementHandle, Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:	/* 16 */
@@ -1623,7 +1623,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret = SQL_SUCCESS;
 	BOOL	unsupported = FALSE;
 
-	mylog("%s for %x: %d %x\n", func, ConnectionHandle, Attribute, Value);
+	mylog("%s for %p: %d %p\n", func, ConnectionHandle, Attribute, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_METADATA_ID:
@@ -1647,7 +1647,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_ENLIST_IN_DTC:
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-			mylog("SQL_ATTR_ENLIST_IN_DTC %x request received\n", Value);
+			mylog("SQL_ATTR_ENLIST_IN_DTC %p request received\n", Value);
 			if (conn->connInfo.xa_opt != 0)	
 				return EnlistInDtc(conn, Value, conn->connInfo.xa_opt);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -1669,7 +1669,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	if (unsupported)
 	{
 		char	msg[64];
-		snprintf(msg, sizeof(msg), "Couldn't set unsupported connect attribute %ld", (LONG_PTR) Value);
+		snprintf(msg, sizeof(msg), "Couldn't set unsupported connect attribute " FORMAT_LPTR, (LONG_PTR) Value);
 		CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, msg, func);
 		return SQL_ERROR;
 	}
@@ -1687,7 +1687,7 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	mylog("%s h=%x rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
+	mylog("%s h=%p rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
 	switch (desc->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1737,7 +1737,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	mylog("%s h=%x rec=%d field=%d val=%x,%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, Value, BufferLength);
+	mylog("%s h=%p rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, Value, BufferLength);
 	switch (desc->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1787,7 +1787,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("%s Handle=%x %d,%u\n", func, StatementHandle, Attribute, Value);
+	mylog("%s Handle=%p %d,%u\n", func, StatementHandle, Attribute, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
@@ -1820,7 +1820,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			else
 			{ 
 				stmt->ard = (ARDClass *) Value;
-inolog("set ard=%x\n", stmt->ard);
+inolog("set ard=%p\n", stmt->ard);
 			}
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */

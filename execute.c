@@ -18,6 +18,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef	WIN32
+#include <ctype.h>
+#endif /* WIN32 */
+
 #include "environ.h"
 #include "connection.h"
 #include "statement.h"
@@ -165,7 +169,7 @@ inolog("a2\n");
 		return SQL_ERROR;
 	}
 
-	mylog("**** %s: hstmt=%x, statement='%s'\n", func, hstmt, stmt->statement);
+	mylog("**** %s: hstmt=%p, statement='%s'\n", func, hstmt, stmt->statement);
 
 	if (0 != (flag & PODBC_WITH_HOLD))
 		SC_set_with_hold(stmt);
@@ -413,7 +417,7 @@ mylog("about to begin SC_execute\n");
 			QResultClass	*kres;
 		
 			kres = res->next;
-inolog("res->next=%x\n", kres);
+inolog("res->next=%p\n", kres);
 			res->next = NULL;
 			SC_set_Result(stmt, kres);
 			res = kres;
@@ -502,7 +506,7 @@ StartRollbackState(StatementClass *stmt)
 	ConnectionClass	*conn;
 	ConnInfo	*ci = NULL;
 	
-inolog("%s:%x->internal=%d\n", func, stmt, stmt->internal);
+inolog("%s:%p->internal=%d\n", func, stmt, stmt->internal);
 	conn = SC_get_conn(stmt);
 	if (conn)
 		ci = &conn->connInfo;
@@ -598,7 +602,7 @@ SetStatementSvp(StatementClass *stmt)
 		else
 			SC_set_accessed_db(stmt);
 	}
-inolog("%s:%x->accessed=%d\n", func, stmt, SC_accessed_db(stmt));
+inolog("%s:%p->accessed=%d\n", func, stmt, SC_accessed_db(stmt));
 	return ret;
 }
 
@@ -611,7 +615,7 @@ DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 	QResultClass *res;
 	BOOL	cmd_success, start_stmt = FALSE;	
 
-inolog("%s:%x->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, stmt, SC_accessed_db(stmt),
+inolog("%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, stmt, SC_accessed_db(stmt),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	switch (ret)
 	{
@@ -1072,7 +1076,7 @@ PGAPI_Transact(
 			   *stmt_string;
 	int			lf;
 
-	mylog("entering %s: hdbc=%x, henv=%x\n", func, hdbc, henv);
+	mylog("entering %s: hdbc=%p, henv=%p\n", func, hdbc, henv);
 
 	if (hdbc == SQL_NULL_HDBC && henv == SQL_NULL_HENV)
 	{
@@ -1365,7 +1369,7 @@ PGAPI_ParamData(
 
 	/* Done, now copy the params and then execute the statement */
 	ipdopts = SC_get_IPDF(estmt);
-inolog("ipdopts=%x\n", ipdopts);
+inolog("ipdopts=%p\n", ipdopts);
 	if (estmt->data_at_exec == 0)
 	{
 		BOOL	exec_end;
@@ -1401,7 +1405,7 @@ inolog("i=%d allocated=%d num_p=%d\n", i, apdopts->allocated, num_p);
 inolog("i=%d", i);
 		if (apdopts->parameters[i].data_at_exec)
 		{
-inolog(" at exec buffer=%x", apdopts->parameters[i].buffer);
+inolog(" at exec buffer=%p", apdopts->parameters[i].buffer);
 			estmt->data_at_exec--;
 			estmt->current_exec_param = i;
 			estmt->put_data = FALSE;

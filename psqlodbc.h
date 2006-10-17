@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.111 2006/10/12 01:55:33 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.112 2006/10/17 16:18:56 hinoue Exp $
  *
  */
 
@@ -98,17 +98,56 @@ typedef	UInt4	OID;
 
 #ifdef	WIN32
 #define	ssize_t	SSIZE_T
+#define	FORMAT_SIZE_T	"%Iu"	/* size_t */
+#define	FORMAT_SSIZE_T	"%Id"	/* ssize_t */
+#define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
+#define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
+#ifdef	_WIN64
+#define	FORMAT_LEN	"%I64d" /* SQLLEN */
+#define	FORMAT_ULEN	"%I64u" /* SQLULEN */
+#define	FORMAT_LPTR	"%I64d" /* LONG_PTR */
+#define	FORMAT_ULPTR	"%I64u" /* ULONG_PTR */
 #else
-#if (SIZE_OF_VOID_P == SIZE_OF_LONG)
-typedef	long 	LONG_PTR;
-typedef	unsigned long 	ULONG_PTR;
+#define	FORMAT_LEN	"%ld"	/* SQLLEN */
+#define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	FORMAT_LPTR	"%ld"	/* LONG_PTR */
+#define	FORMAT_ULPTR	"%lu"	/* ULONG_PTR */
+#endif /* _WIN64 */
 #else
-typedef	SQLLEN 	LONG_PTR;
-typedef	unsigned SQLLEN	ULONG_PTR;
-#endif /* SIZE_OF_VOID_P */
+#define	FORMAT_SIZE_T	"%xu"	/* size_t */	
+#define	FORMAT_SSIZE_T	"%xd"	/* ssize_t */
 #ifndef	HAVE_SSIZE_T
 typedef	long	ssize_t
 #endif /* HAVE_SSIZE_T */
+#if (SIZE_OF_VOID_P == SIZE_OF_LONG)
+typedef	long 	LONG_PTR;
+typedef	unsigned long 	ULONG_PTR;
+#define	FORMAT_LPTR	"%ld"	/* LONG_PTR */
+#define	FORMAT_ULPTR	"%lu"	/* ULONG_PTR */
+#elif defined (HAVE_LONG_LONG)
+typedef	long long LONG_PTR;
+typedef	unsigned long long ULONG_PTR;
+#define	FORMAT_LPTR	"%lld"	/* LONG_PTR */
+#define	FORMAT_ULPTR	"%llu"	/* ULONG_PTR */
+#else
+#error neither long nor long long is defined 
+#endif /* SIZE_OF_VOID_P */
+#if (SIZE_OF_VOID_P == 8)
+#define	FORMAT_INTEGER	"%d"	/* SQLINTEGER */
+#define	FORMAT_UINTEGER	"%u"	/* SQLUINTEGER */
+#if defined(WITH_UNIXODBC) && !defined(BUILD_REAL_64_BIT_MODE)
+#define FORMAT_LEN	"%d"	/* SQLLEN */
+#define FORMAT_ULEN	"%u"	/* SQLULEN */
+#else
+#define FORMAT_LEN	"%ld"	/* SQLLEN */
+#define FORMAT_ULEN	"%lu"	/* SQLULEN */
+#endif /* WITH_UNIXODBC */
+#else
+#define	FORMAT_LEN	"%ld"	/* SQLLEN */
+#define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
+#define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
+#endif /* SIZE_OF_VOID_P */
 #endif /* WIN32 */
 #define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))
 #define	CAST_UPTR(type, ptr)	(type)((ULONG_PTR)(ptr))

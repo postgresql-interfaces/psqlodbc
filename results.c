@@ -95,7 +95,7 @@ static BOOL SC_pre_execute_ok(StatementClass *stmt, BOOL build_fi, int col_idx, 
 	QResultClass	*result = SC_get_Curres(stmt);
 	BOOL	exec_ok = TRUE;
 
-	mylog("%s: result = %x, status = %d, numcols = %d\n", func, result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
+	mylog("%s: result = %p, status = %d, numcols = %d\n", func, result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
 	/****if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
 	if (!QR_command_maybe_successful(result) || num_fields < 0)
 	{
@@ -174,7 +174,7 @@ PGAPI_NumResultCols(
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			mylog("PGAPI_NumResultCols: calling parse_statement on stmt=%x\n", stmt);
+			mylog("PGAPI_NumResultCols: calling parse_statement on stmt=%p\n", stmt);
 			parse_statement(stmt, FALSE);
 		}
 
@@ -290,11 +290,11 @@ inolog("answering bookmark info\n");
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			mylog("%s: calling parse_statement on stmt=%x\n", func, stmt);
+			mylog("%s: calling parse_statement on stmt=%p\n", func, stmt);
 			parse_statement(stmt, FALSE);
 		}
 
-		mylog("PARSE: DescribeCol: icol=%d, stmt=%x, stmt->nfld=%d, stmt->fi=%x\n", icol, stmt, irdflds->nfields, irdflds->fi);
+		mylog("PARSE: DescribeCol: icol=%d, stmt=%p, stmt->nfld=%d, stmt->fi=%p\n", icol, stmt, irdflds->nfields, irdflds->fi);
 
 		if (SC_parsed_status(stmt) != STMT_PARSE_FATAL && irdflds->fi)
 		{
@@ -617,7 +617,7 @@ inolog("answering bookmark info\n");
 		field_type = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
 	}
 
-	mylog("colAttr: col %d field_type=%d fi,ti=%x,%x\n", col_idx, field_type, fi, ti);
+	mylog("colAttr: col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
 
 	switch (fDescType)
 	{
@@ -663,7 +663,7 @@ inolog("answering bookmark info\n");
 #else
 		case SQL_COLUMN_NAME:
 #endif /* ODBCVER */
-inolog("fi=%x", fi);
+inolog("fi=%p", fi);
 if (fi)
 inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
 			p = fi ? (NAME_IS_NULL(fi->column_alias) ? SAFE_NAME(fi->column_name) : GET_NAME(fi->column_alias)) : QR_get_fieldname(res, col_idx);
@@ -883,7 +883,7 @@ PGAPI_GetData(
 	ConnInfo   *ci;
 	SQLSMALLINT	target_type;
 
-	mylog("%s: enter, stmt=%x\n", func, stmt);
+	mylog("%s: enter, stmt=%p\n", func, stmt);
 
 	if (!stmt)
 	{
@@ -1101,7 +1101,7 @@ PGAPI_Fetch(
 	BindInfoClass	*bookmark;
 	RETCODE		retval = SQL_SUCCESS;
 
-	mylog("%s: stmt = %x, stmt->result= %x\n", func, stmt, stmt ? SC_get_Curres(stmt) : NULL);
+	mylog("%s: stmt = %p, stmt->result= %p\n", func, stmt, stmt ? SC_get_Curres(stmt) : NULL);
 
 	if (!stmt)
 	{
@@ -1376,7 +1376,7 @@ PGAPI_ExtendedFetch(
 	UWORD		pstatus;
 	BOOL		currp_is_valid, reached_eof;
 
-	mylog("%s: stmt=%x rowsetSize=%d\n", func, stmt, rowsetSize);
+	mylog("%s: stmt=%p rowsetSize=%d\n", func, stmt, rowsetSize);
 
 	if (!stmt)
 	{
@@ -1973,7 +1973,7 @@ SQLLEN ClearCachedRows(TupleField *tuple, int num_fields, SQLLEN num_rows)
 	{
 		if (tuple->value)
 		{
-inolog("freeing tuple[%d][%d].value=%x\n", i / num_fields, i % num_fields, tuple->value);
+inolog("freeing tuple[%d][%d].value=%p\n", i / num_fields, i % num_fields, tuple->value);
 			free(tuple->value);
 			tuple->value = NULL;
 		}
@@ -1985,7 +1985,7 @@ SQLLEN ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_f
 {
 	SQLLEN	i;
 
-inolog("ReplaceCachedRows %x num_fields=%d num_rows=%d\n", otuple, num_fields, num_rows);
+inolog("ReplaceCachedRows %p num_fields=%d num_rows=%d\n", otuple, num_fields, num_rows);
 	for (i = 0; i < num_fields * num_rows; i++, ituple++, otuple++)
 	{
 		if (otuple->value)
@@ -2008,7 +2008,7 @@ int MoveCachedRows(TupleField *otuple, TupleField *ituple, Int2 num_fields, SQLL
 {
 	int	i;
 
-inolog("MoveCachedRows %x num_fields=%d num_rows=%d\n", otuple, num_fields, num_rows);
+inolog("MoveCachedRows %p num_fields=%d num_rows=%d\n", otuple, num_fields, num_rows);
 	for (i = 0; i < num_fields * num_rows; i++, ituple++, otuple++)
 	{
 		if (otuple->value)
@@ -2167,7 +2167,7 @@ static void AddAdded(StatementClass *stmt, QResultClass *res, SQLLEN index, cons
 
 	if (!res)	return;
 	num_fields = res->num_fields;
-inolog("AddAdded index=%d, tuple=%x, num_fields=%d\n", index, tuple_added, num_fields);
+inolog("AddAdded index=%d, tuple=%p, num_fields=%d\n", index, tuple_added, num_fields);
 	ad_count = res->ad_count;
 	res->ad_count++;
 	if (QR_get_cursor(res))
@@ -2240,7 +2240,7 @@ static void CommitAdded(QResultClass *res)
 	int	i;
 	UWORD	status;
 
-	mylog("CommitAdded res=%x\n", res);
+	mylog("CommitAdded res=%p\n", res);
 	if (!res || !res->added_keyset)	return;
 	added_keyset = res->added_keyset;
 	for (i = res->ad_count - 1; i >= 0; i--)
@@ -2639,7 +2639,7 @@ static void CommitUpdated(QResultClass *res)
 	int	i;
 	UWORD	status;
 
-	mylog("CommitUpdated res=%x\n", res);
+	mylog("CommitUpdated res=%p\n", res);
 	if (!res)	return;
 	if (!QR_get_cursor(res))
 		return;
@@ -2899,7 +2899,7 @@ inolog("UndoRollback %d(%d)\n", i, rollback[i].option);
 				status = wkey->status;
 			}
 		}
-inolog(" index=%d status=%x", index, status);
+inolog(" index=%d status=%hx", index, status);
 		if (kres_is_valid)
 		{
 			QResultClass	*qres;
@@ -3063,7 +3063,7 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logK
 	char		tidval[32];
 	BOOL		use_ctid = TRUE, data_in_cache = TRUE, key_in_cache = TRUE;
 
-	mylog("positioned load fi=%x ti=%x\n", irdflds->fi, stmt->ti);
+	mylog("positioned load fi=%p ti=%p\n", irdflds->fi, stmt->ti);
 	rcnt = 0;
 	if (count)
 		*count = 0;
@@ -3449,7 +3449,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef)
 	QResultClass *res, *qres;
 	RETCODE		ret = SQL_ERROR;
 
-	mylog("positioned new ti=%x\n", stmt->ti);
+	mylog("positioned new ti=%p\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
 	{
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_newload.", func);
@@ -3702,7 +3702,7 @@ SC_pos_update(StatementClass *stmt,
 		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_update.", func);
 		return SQL_ERROR;
 	}
-	mylog("POS UPDATE %d+%d fi=%x ti=%x\n", s.irow, QR_get_rowstart_in_cache(s.res), fi, s.stmt->ti);
+	mylog("POS UPDATE %d+%d fi=%p ti=%p\n", s.irow, QR_get_rowstart_in_cache(s.res), fi, s.stmt->ti);
 	if (SC_update_not_ready(stmt))
 		parse_statement(s.stmt, TRUE);	/* not preferable */
 	if (!s.stmt->updatable)
@@ -3743,7 +3743,7 @@ SC_pos_update(StatementClass *stmt,
 				used = LENADDR_SHIFT(used, bind_size * s.irow);
 			else	
 				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN)); 
-			mylog("%d used=%d,%x\n", i, *used, used);
+			mylog("%d used=%d,%p\n", i, *used, used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
 				if (upd_cols)
@@ -3853,7 +3853,7 @@ SC_pos_delete(StatementClass *stmt,
 	const char	*bestitem;
 	const char	*bestqual;
 
-	mylog("POS DELETE ti=%x\n", stmt->ti);
+	mylog("POS DELETE ti=%p\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
 	{
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_delete.", func);
@@ -4012,7 +4012,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN add
 				char	buf[32];
 				SQLULEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
-				snprintf(buf, sizeof(buf), "%ld", SC_make_bookmark(addpos));
+				snprintf(buf, sizeof(buf), FORMAT_LEN, SC_make_bookmark(addpos));
 				SC_set_current_col(stmt, -1);
 				copy_and_convert_field(stmt,
 					PG_TYPE_INT4,
@@ -4126,7 +4126,7 @@ SC_pos_add(StatementClass *stmt,
 	OID		fieldtype;
 	int		func_cs_count = 0;
 
-	mylog("POS ADD fi=%x ti=%x\n", fi, stmt->ti);
+	mylog("POS ADD fi=%p ti=%p\n", fi, stmt->ti);
 	s.stmt = stmt;
 	s.irow = irow;
 	if (!(s.res = SC_get_Curres(s.stmt)))
@@ -4627,7 +4627,7 @@ PGAPI_SetCursorName(
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
-	mylog("PGAPI_SetCursorName: hstmt=%x, szCursor=%x, cbCursorMax=%d\n", hstmt, szCursor, cbCursor);
+	mylog("PGAPI_SetCursorName: hstmt=%p, szCursor=%p, cbCursorMax=%d\n", hstmt, szCursor, cbCursor);
 
 	if (!stmt)
 	{
@@ -4653,7 +4653,7 @@ PGAPI_GetCursorName(
 	size_t		len = 0;
 	RETCODE		result;
 
-	mylog("PGAPI_GetCursorName: hstmt=%x, szCursor=%x, cbCursorMax=%d, pcbCursor=%x\n", hstmt, szCursor, cbCursorMax, pcbCursor);
+	mylog("PGAPI_GetCursorName: hstmt=%p, szCursor=%p, cbCursorMax=%d, pcbCursor=%p\n", hstmt, szCursor, cbCursorMax, pcbCursor);
 
 	if (!stmt)
 	{

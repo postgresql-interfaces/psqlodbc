@@ -17,6 +17,7 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
+#include <ctype.h>
 #include "dlg_specific.h"
 
 #include "convert.h"

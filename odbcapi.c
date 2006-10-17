@@ -293,7 +293,7 @@ SQLDisconnect(HDBC ConnectionHandle)
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
-	mylog("[%s for %x]", func, ConnectionHandle);
+	mylog("[%s for %p]", func, ConnectionHandle);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	DtcOnDisconnect(conn); /* must be called without holding the connection lock */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
