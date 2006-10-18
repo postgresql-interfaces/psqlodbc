@@ -904,7 +904,7 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	/*
 	 * Never update the onlyread from this module.
 	 */
-	if (ODBCINST_INI == fileName)
+	if (stricmp(ODBCINST_INI, fileName) == 0)
 	{
 		sprintf(tmp, "%d", comval->onlyread);
 		SQLWritePrivateProfileString(sectionName, INI_READONLY, tmp,
@@ -1099,6 +1099,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 {
 	char		temp[256];
 	GLOBAL_VALUES *comval;
+	BOOL	inst_position = (stricmp(filename, ODBCINST_INI) == 0);
 
 	if (ci)
 		comval = &(ci->drivers);
@@ -1114,7 +1115,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		if (comval->fetch_max <= 0)
 			comval->fetch_max = FETCH_MAX;
 	}
-	else if (!ci)
+	else if (inst_position)
 		comval->fetch_max = FETCH_MAX;
 
 	/* Socket Buffersize is stored in driver section */
@@ -1122,7 +1123,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->socket_buffersize = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->socket_buffersize = SOCK_BUFFER_SIZE;
 
 	/* Debug is stored in the driver section */
@@ -1130,7 +1131,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->debug = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->debug = DEFAULT_DEBUG;
 
 	/* CommLog is stored in the driver section */
@@ -1138,7 +1139,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->commlog = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->commlog = DEFAULT_COMMLOG;
 
 	if (!ci)
@@ -1148,7 +1149,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->disable_optimizer = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->disable_optimizer = DEFAULT_OPTIMIZER;
 
 	/* KSQO is stored in the driver section only */
@@ -1156,7 +1157,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->ksqo = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->ksqo = DEFAULT_KSQO;
 
 	/* Recognize Unique Index is stored in the driver section only */
@@ -1164,7 +1165,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->unique_index = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->unique_index = DEFAULT_UNIQUEINDEX;
 
 
@@ -1173,7 +1174,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->unknown_sizes = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->unknown_sizes = DEFAULT_UNKNOWNSIZES;
 
 
@@ -1182,7 +1183,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->lie = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->lie = DEFAULT_LIE;
 
 	/* Parse statements */
@@ -1190,7 +1191,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->parse = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->parse = DEFAULT_PARSE;
 
 	/* SQLCancel calls SQLFreeStmt in Driver Manager */
@@ -1198,7 +1199,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->cancel_as_freestmt = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->cancel_as_freestmt = DEFAULT_CANCELASFREESTMT;
 
 	/* UseDeclareFetch is stored in the driver section only */
@@ -1206,7 +1207,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->use_declarefetch = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->use_declarefetch = DEFAULT_USEDECLAREFETCH;
 
 	/* Max Varchar Size */
@@ -1214,7 +1215,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->max_varchar_size = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->max_varchar_size = MAX_VARCHAR_SIZE;
 
 	/* Max TextField Size */
@@ -1222,7 +1223,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->max_longvarchar_size = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->max_longvarchar_size = TEXT_FIELD_SIZE;
 
 	/* Text As LongVarchar	*/
@@ -1230,7 +1231,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->text_as_longvarchar = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
 
 	/* Unknowns As LongVarchar	*/
@@ -1238,7 +1239,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->unknowns_as_longvarchar = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
 
 	/* Bools As Char */
@@ -1246,7 +1247,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->bools_as_char = atoi(temp);
-	else if (!ci)
+	else if (inst_position)
 		comval->bools_as_char = DEFAULT_BOOLSASCHAR;
 
 	/* Extra Systable prefixes */
@@ -1259,14 +1260,14 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (strcmp(temp, "@@@"))
 		strcpy(comval->extra_systable_prefixes, temp);
-	else if (!ci)
+	else if (inst_position)
 		strcpy(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
 
 	mylog("globals.extra_systable_prefixes = '%s'\n", comval->extra_systable_prefixes);
 
 
 	/* Dont allow override of an override! */
-	if (!ci)
+	if (inst_position)
 	{
 		/*
 		 * ConnSettings is stored in the driver section and per datasource

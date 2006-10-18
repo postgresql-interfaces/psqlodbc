@@ -9,7 +9,7 @@
  * API functions:	SQLGetInfo, SQLGetTypeInfo, SQLGetFunctions,
  *					SQLTables, SQLColumns, SQLStatistics, SQLSpecialColumns,
  *					SQLPrimaryKeys, SQLForeignKeys,
- *					SQLProcedureColumns(NI), SQLProcedures,
+ *					SQLProcedureColumns, SQLProcedures,
  *					SQLTablePrivileges, SQLColumnPrivileges(NI)
  *
  * Comments:		See "notice.txt" for copyright and license information.

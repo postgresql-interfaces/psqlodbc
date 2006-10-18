@@ -15,6 +15,7 @@
 
 /* #include <stdlib.h> */
 #include <string.h>
+#include <ctype.h>
 #include "bind.h"
 
 #include "environ.h"

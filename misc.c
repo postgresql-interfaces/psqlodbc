@@ -128,7 +128,7 @@ make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
 	}
 	if (buf)
 	{
-		strncpy_null(buf, s, bufsize);
+		strncpy_null(buf, s, bufsize > length ? length + 1 : bufsize);
 		return buf;
 	}
 

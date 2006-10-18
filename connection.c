@@ -105,7 +105,7 @@ PGAPI_Connect(
 	RETCODE	ret = SQL_SUCCESS;
 	char	fchar;
 
-	mylog("%s: entering...\n", func);
+	mylog("%s: entering..cbDSN=%hi.\n", func, cbDSN);
 
 	if (!conn)
 	{
@@ -1241,6 +1241,8 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		return 0;
 	}
 
+	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
+
 	if (ci->port[0] == '\0' ||
 #ifdef	WIN32
 	    ci->server[0] == '\0' ||
@@ -1250,8 +1252,6 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		CC_set_error(self, CONN_INIREAD_ERROR, "Missing server name, port, or database name in call to CC_connect.", func);
 		return 0;
 	}
-
-	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
 
 	return 1;
 }
