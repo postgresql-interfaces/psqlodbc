@@ -35,14 +35,14 @@ void		generate_filename(const char *, const char *, char *);
 void
 generate_filename(const char *dirname, const char *prefix, char *filename)
 {
-	int			pid = 0;
+	int	pid = 0;
 
 #ifndef WIN32
 	struct passwd *ptr = 0;
 
 	ptr = getpwuid(getuid());
 #endif
-	pid = _getpid();
+	pid = getpid();
 	if (dirname == 0 || filename == 0)
 		return;
 
@@ -112,6 +112,10 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 	LEAVE_MYLOG_CS;
 }
 
+#ifdef	LOGGING_PROCESS_TIME
+#include <mmsystem.h>
+	static	DWORD	start_time = 0;
+#endif /* LOGGING_PROCESS_TIME */
 #ifdef MY_LOG
 static FILE *MLOGFP = NULL;
 void
@@ -122,6 +126,10 @@ mylog(char *fmt,...)
 
 	if (!mylog_on)	return;
 	ENTER_MYLOG_CS;
+#ifdef	LOGGING_PROCESS_TIME
+	if (!start_time)
+		start_time = timeGetTime();
+#endif /* LOGGING_PROCESS_TIME */
 	va_start(args, fmt);
 
 	if (!MLOGFP)
@@ -135,12 +143,19 @@ mylog(char *fmt,...)
 #ifdef	WIN_MULTITHREAD_SUPPORT
 #ifdef	WIN32
 	if (MLOGFP)
-		fprintf(MLOGFP, "[%d]", GetCurrentThreadId());
+#ifdef	LOGGING_PROCESS_TIME
+	{
+		DWORD	proc_time = timeGetTime() - start_time;
+		fprintf(MLOGFP, "[%u-%d.%03d]", GetCurrentThreadId(), proc_time / 1000, proc_time % 1000);
+	}
+#else
+		fprintf(MLOGFP, "[%u]", GetCurrentThreadId());
+#endif /* LOGGING_PROCESS_TIME */
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
 	if (MLOGFP)
-		fprintf(MLOGFP, "[%u]", pthread_self());
+		fprintf(MLOGFP, "[%lu]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 	if (MLOGFP)
 		vfprintf(MLOGFP, fmt, args);

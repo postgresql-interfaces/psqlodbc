@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.112 2006/10/17 16:18:56 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.113 2006/10/20 12:00:32 hinoue Exp $
  *
  */
 
@@ -130,7 +130,7 @@ typedef	unsigned long long ULONG_PTR;
 #define	FORMAT_LPTR	"%lld"	/* LONG_PTR */
 #define	FORMAT_ULPTR	"%llu"	/* ULONG_PTR */
 #else
-#error neither long nor long long is defined 
+#error appropriate long pointer type not found 
 #endif /* SIZE_OF_VOID_P */
 #if (SIZE_OF_VOID_P == 8)
 #define	FORMAT_INTEGER	"%d"	/* SQLINTEGER */

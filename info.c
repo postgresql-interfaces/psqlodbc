@@ -506,7 +506,10 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		case SQL_NULL_COLLATION:		/* ODBC 2.0 */
 			/* where are nulls sorted? */
 			len = 2;
-			value = SQL_NC_END;
+			if (PG_VERSION_GE(conn, 7.2))
+				value = SQL_NC_HIGH;
+			else
+				value = SQL_NC_END;
 			break;
 
 		case SQL_NUMERIC_FUNCTIONS:		/* ODBC 1.0 */
