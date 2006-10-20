@@ -2372,12 +2372,15 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	if (sock = conn->sock, !sock)	return FALSE;
 
 	mylog("%s: plan_name=%s count=%d\n", func, plan_name, count);
-	switch (stmt->prepared)
+	if (!SC_is_fetchcursor(stmt))
 	{
-		case NOT_YET_PREPARED:
-		case ONCE_DESCRIBED:
-			SC_set_error(stmt, STMT_EXEC_ERROR, "about to execute a non-prepared statement", func);
-			return FALSE;
+		switch (stmt->prepared)
+		{
+			case NOT_YET_PREPARED:
+			case ONCE_DESCRIBED:
+				SC_set_error(stmt, STMT_EXEC_ERROR, "about to execute a non-prepared statement", func);
+				return FALSE;
+		}
 	}
 	if (!RequestStart(stmt, conn, func))
 		return FALSE;
