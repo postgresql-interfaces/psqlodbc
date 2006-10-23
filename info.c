@@ -2276,7 +2276,7 @@ retry_public_schema:
 			else
 				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
 			set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
-			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "oid");
+			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], OID_NAME);
 			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
 			set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 			set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID");
@@ -2784,7 +2784,7 @@ inolog("Add ctid\n");
 			tuple = QR_AddNew(res);
 
 			set_tuplefield_int2(&tuple[0], SQL_SCOPE_SESSION);
-			set_tuplefield_string(&tuple[1], "oid");
+			set_tuplefield_string(&tuple[1], OID_NAME);
 			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
 			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, TRUE));
 			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
@@ -2852,7 +2852,7 @@ PGAPI_Statistics(
 	RETCODE		ret = SQL_ERROR, result;
 	char		*escSchemaName = NULL, *table_name = NULL, *escTableName = NULL;
 	char		index_name[MAX_INFO_STRING];
-	short		fields_vector[INDEX_KEYS_STORAGE_COUNT];
+	short		fields_vector[INDEX_KEYS_STORAGE_COUNT + 1];
 	char		isunique[10],
 				isclustered[10],
 				ishash[MAX_INFO_STRING];
@@ -2875,7 +2875,7 @@ PGAPI_Statistics(
 	char		buf[256];
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName, field_number;
 	const char	*szSchemaName;
-	BOOL		unknownf;
+	OID		ioid;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
@@ -3039,6 +3039,7 @@ PGAPI_Statistics(
 		escSchemaName = simpleCatalogEscape(table_schemaname, SQL_NTS, NULL, conn); 
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
 			", i.indisclustered, a.amname, c.relhasrules, n.nspname"
+			", c.oid"
 			" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
 			" pg_catalog.pg_class d, pg_catalog.pg_am a,"
 			" pg_catalog.pg_namespace n"
@@ -3052,7 +3053,7 @@ PGAPI_Statistics(
 	}
 	else
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
-			", i.indisclustered, a.amname, c.relhasrules"
+			", i.indisclustered, a.amname, c.relhasrules, c.oid"
 			" from pg_index i, pg_class c, pg_class d, pg_am a"
 			" where d.relname = '%s'"
 			" and d.oid = i.indrelid"
@@ -3089,7 +3090,7 @@ PGAPI_Statistics(
 	}
 	/* bind the vector column */
 	result = PGAPI_BindCol(hindx_stmt, 2, SQL_C_DEFAULT,
-			fields_vector, INDEX_KEYS_STORAGE_COUNT * 2, &fields_vector_len);
+			fields_vector, sizeof(fields_vector), &fields_vector_len);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column 
@@ -3137,6 +3138,14 @@ PGAPI_Statistics(
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(hindx_stmt, 8, SQL_C_ULONG,
+					&ioid, sizeof(ioid), NULL);
+	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	{
+		SC_error_copy(stmt, indx_stmt, TRUE);
+		goto cleanup;
+	}
+
 	relhasrules[0] = '0';
 	result = PGAPI_Fetch(hindx_stmt);
 	/* fake index of OID */
@@ -3165,7 +3174,7 @@ PGAPI_Statistics(
 		set_tuplefield_int2(&tuple[STATS_TYPE], (Int2) SQL_INDEX_OTHER);
 		set_tuplefield_int2(&tuple[STATS_SEQ_IN_INDEX], (Int2) 1);
 
-		set_tuplefield_string(&tuple[STATS_COLUMN_NAME], "oid");
+		set_tuplefield_string(&tuple[STATS_COLUMN_NAME], OID_NAME);
 		set_tuplefield_string(&tuple[STATS_COLLATION], "A");
 		set_tuplefield_null(&tuple[STATS_CARDINALITY]);
 		set_tuplefield_null(&tuple[STATS_PAGES]);
@@ -3178,9 +3187,11 @@ PGAPI_Statistics(
 		if (fUnique == SQL_INDEX_ALL ||
 			(fUnique == SQL_INDEX_UNIQUE && atoi(isunique)))
 		{
-			i = 0;
+			int	colcnt, attnum;
+
 			/* add a row in this table for each field in the index */
-			while (i < INDEX_KEYS_STORAGE_COUNT && fields_vector[i] != 0)
+			colcnt = fields_vector[0];
+			for (i = 1; i <= colcnt; i++)
 			{
 				tuple = QR_AddNew(res);
 
@@ -3208,21 +3219,34 @@ PGAPI_Statistics(
 								(!strncmp(ishash, "hash", 4)) ? SQL_INDEX_HASHED : SQL_INDEX_OTHER));
 				set_tuplefield_int2(&tuple[STATS_SEQ_IN_INDEX], (Int2) (i + 1));
 
-				if (fields_vector[i] == OID_ATTNUM)
+				attnum = fields_vector[i];
+				if (OID_ATTNUM == attnum)
 				{
-					set_tuplefield_string(&tuple[STATS_COLUMN_NAME], "oid");
+					set_tuplefield_string(&tuple[STATS_COLUMN_NAME], OID_NAME);
 					mylog("%s: column name = oid\n", func);
+				}
+				else if (0 == attnum)
+				{
+					char	cmd[64];
+
+					QResultClass *res;
+
+					snprintf(cmd, sizeof(cmd), "select pg_get_indexdef(%u, %d, true)", ioid, i);
+					res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, stmt);
+					if (QR_command_maybe_successful(res))
+						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], QR_get_value_backend_row(res, 0, 0));
+					QR_Destructor(res);
 				}
 				else
 				{
 					int j, matchidx;
+					BOOL	unknownf = TRUE;
 
-					unknownf = TRUE;
-					if (fields_vector[i] >= 0)
+					if (attnum > 0)
 					{
 						for (j = 0; j < total_columns; j++)
 						{
-							if (fields_vector[i] == column_names[j].pnum)
+							if (attnum == column_names[j].pnum)
 							{
 								matchidx = j;
 								unknownf = FALSE;
@@ -3246,7 +3270,6 @@ PGAPI_Statistics(
 				set_tuplefield_null(&tuple[STATS_CARDINALITY]);
 				set_tuplefield_null(&tuple[STATS_PAGES]);
 				set_tuplefield_null(&tuple[STATS_FILTER_CONDITION]);
-				i++;
 			}
 		}
 

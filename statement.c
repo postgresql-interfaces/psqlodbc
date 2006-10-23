@@ -1075,6 +1075,7 @@ SC_create_errorinfo(const StatementClass *self)
 	if (conn && !msgend)
 	{
 		SocketClass *sock = conn->sock;
+		const char *sockerrmsg;
 
 		if (!resmsg && (wmsg = CC_get_errormsg(conn)) && wmsg[0] != '\0')
 		{
@@ -1082,10 +1083,10 @@ SC_create_errorinfo(const StatementClass *self)
 			snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", CC_get_errormsg(conn));
 		}
 
-		if (sock && sock->errormsg && sock->errormsg[0] != '\0')
+		if (sock && NULL != (sockerrmsg = SOCK_get_errmsg(sock)) && '\0' != sockerrmsg[0])
 		{
 			pos = strlen(msg);
-			snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", sock->errormsg);
+			snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", sockerrmsg);
 		}
 		ermsg = msg;
 	}

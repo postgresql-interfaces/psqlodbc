@@ -20,6 +20,7 @@
 #include  <string.h>
 #include  <stdlib.h>
 #include  "resource.h"
+#include  "pgapifunc.h"
 #include  "dlg_specific.h"
 #include  "win_setup.h"
 
@@ -284,6 +285,39 @@ ConfigDlgProc(HWND hdlg,
 					EndDialog(hdlg, wParam);
 					return TRUE;
 
+				case IDC_TEST:
+				{
+					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
+					if (NULL != lpsetupdlg)
+					{
+						ConnectionClass *conn=CC_Constructor();
+						char    szMsg[SQL_MAX_MESSAGE_LENGTH];
+
+						/* Get Dialog Values */
+						GetDlgStuff(hdlg, &lpsetupdlg->ci);
+						if (conn)
+						{
+							char *emsg;
+
+							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
+							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
+							{
+								strncpy(szMsg, "Connection successful", sizeof(szMsg));
+								emsg = szMsg;
+							}
+							else
+							{
+								int errnum;
+
+								CC_get_error(conn, &errnum, &emsg);
+							}
+							MessageBox(lpsetupdlg->hwndParent, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
+							CC_Destructor(conn);
+							return TRUE;
+						}
+					}
+					break;
+				}
 				case IDC_DATASOURCE:
 					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),

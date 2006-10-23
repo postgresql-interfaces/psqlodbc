@@ -363,6 +363,11 @@ dconn_FDriverConnectProc(
 			ShowWindow(GetDlgItem(hdlg, IDC_DESCTEXT), SW_HIDE);
 			ShowWindow(GetDlgItem(hdlg, IDC_DESC), SW_HIDE);
 			ShowWindow(GetDlgItem(hdlg, IDC_DRIVER), SW_HIDE);
+			ShowWindow(GetDlgItem(hdlg, IDC_TEST), SW_HIDE);
+			if ('\0' != ci->server[0])
+				EnableWindow(GetDlgItem(hdlg, IDC_SERVER), FALSE);
+			if ('\0' != ci->port[0])
+				EnableWindow(GetDlgItem(hdlg, IDC_PORT), FALSE);
 
 			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* Save the ConnInfo for
 														 * the "OK" */

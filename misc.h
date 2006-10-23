@@ -68,7 +68,7 @@ extern "C" {
 #else
 #define MYLOGDIR			"c:"
 #endif /* WIN32 */
-extern void mylog(char *fmt,...);
+extern void mylog(const char *fmt,...);
 extern void forcelog(const char *fmt,...);
 
 #else /* MY_LOG */

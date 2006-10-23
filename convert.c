@@ -679,25 +679,29 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 			/* This is for internal use by SQLStatistics() */
 		case PG_TYPE_INT2VECTOR:
+			if (SQL_C_DEFAULT == fCType)
 			{
-				int			nval,
-							i;
+				int	i, nval, maxc;
 				const char *vp;
-
 				/* this is an array of eight integers */
-				short	   *short_array = (short *) rgbValueBindRow;
+				short	   *short_array = (short *) rgbValueBindRow, shortv;
 
-				len = INDEX_KEYS_STORAGE_COUNT * 2;
+				maxc = 0;
+				if (NULL != short_array)
+					maxc = (int) cbValueMax / sizeof(short);
 				vp = value;
 				nval = 0;
 				mylog("index=(");
-				for (i = 0; i < INDEX_KEYS_STORAGE_COUNT; i++)
+				for (i = 0;; i++)
 				{
-					if (sscanf(vp, "%hd", &short_array[i]) != 1)
+					if (sscanf(vp, "%hi", &shortv) != 1)
 						break;
-
-					mylog(" %d", short_array[i]);
+					mylog(" %hi", shortv);
+					if (0 == shortv && PG_VERSION_LT(conn, 7.2))
+						break;
 					nval++;
+					if (nval < maxc)
+						short_array[i + 1] = shortv;
 
 					/* skip the current token */
 					while ((*vp != '\0') && (!isspace((UCHAR) *vp)))
@@ -708,30 +712,22 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (*vp == '\0')
 						break;
 				}
-				mylog(") nval = %d\n", nval);
-
-				for (i = nval; i < INDEX_KEYS_STORAGE_COUNT; i++)
-					short_array[i] = 0;
-
-#if 0
-				sscanf(value, "%hd %hd %hd %hd %hd %hd %hd %hd",
-					   &short_array[0],
-					   &short_array[1],
-					   &short_array[2],
-					   &short_array[3],
-					   &short_array[4],
-					   &short_array[5],
-					   &short_array[6],
-					   &short_array[7]);
-#endif
+				mylog(") nval = %i\n", nval);
+				if (maxc > 0)
+					short_array[0] = nval;
 
 				/* There is no corresponding fCType for this. */
+				len = (nval + 1) * sizeof(short);
 				if (pcbValue)
 					*((SQLLEN *) pcbValueBindRow) = len;
 
-				return COPY_OK; /* dont go any further or the data will be
+				if (len <= cbValueMax)
+					return COPY_OK; /* dont go any further or the data will be
 								 * trashed */
+				else
+					return COPY_RESULT_TRUNCATED;
 			}
+			break;
 
 			/*
 			 * This is a large object OID, which is used to store
@@ -3704,7 +3700,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 			 * parameter marker -- the data has already been sent to
 			 * the large object
 			 */
-			sprintf(param_string, "%d", lobj_oid);
+			sprintf(param_string, "%u", lobj_oid);
 			lastadd = "::lo";
 			CVT_APPEND_STR(qb, param_string);
 

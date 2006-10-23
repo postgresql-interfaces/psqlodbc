@@ -35,14 +35,17 @@ void		generate_filename(const char *, const char *, char *);
 void
 generate_filename(const char *dirname, const char *prefix, char *filename)
 {
+#ifdef	WIN32
 	int	pid = 0;
 
-#ifndef WIN32
+	pid = _getpid();
+#else
+	pid_t	pid = 0;
 	struct passwd *ptr = 0;
 
 	ptr = getpwuid(getuid());
-#endif
 	pid = getpid();
+#endif
 	if (dirname == 0 || filename == 0)
 		return;
 
@@ -112,6 +115,9 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 	LEAVE_MYLOG_CS;
 }
 
+#ifdef	WIN32
+#define	LOGGING_PROCESS_TIME
+#endif /* WIN32 */
 #ifdef	LOGGING_PROCESS_TIME
 #include <mmsystem.h>
 	static	DWORD	start_time = 0;
@@ -119,7 +125,7 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 #ifdef MY_LOG
 static FILE *MLOGFP = NULL;
 void
-mylog(char *fmt,...)
+mylog(const char *fmt,...)
 {
 	va_list		args;
 	char		filebuf[80];

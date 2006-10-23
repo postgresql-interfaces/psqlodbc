@@ -130,7 +130,7 @@ struct SocketClass_
 	unsigned int	pversion;
 	int		reslen;
 
-	char		*errormsg;
+	char		*_errormsg_;
 	int		errornumber;
 	int		sadr_len;
 	struct sockaddr_storage sadr_area; /* Used for various connections */
@@ -150,7 +150,7 @@ struct SocketClass_
 
 /* error functions */
 #define SOCK_get_errcode(self)	(self ? self->errornumber : SOCKET_CLOSED)
-#define SOCK_get_errmsg(self)	(self ? self->errormsg : "socket closed")
+#define SOCK_get_errmsg(self)	(self ? self->_errormsg_ : "socket closed")
 
 /*
  *	code taken from postgres libpq et al.

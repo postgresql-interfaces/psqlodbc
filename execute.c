@@ -1193,11 +1193,12 @@ PGAPI_Cancel(
 #ifdef WIN32
 		if (ci->drivers.cancel_as_freestmt)
 		{
+	typedef SQLRETURN (SQL_API *SQLAPIPROC)();
 			HMODULE		hmodule;
-			FARPROC		addr;
+			SQLAPIPROC	addr;
 
 			hmodule = GetModuleHandle("ODBC32");
-			addr = GetProcAddress(hmodule, "SQLFreeStmt");
+			addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLFreeStmt");
 			ret = addr((char *) (stmt->phstmt) - 96, SQL_CLOSE);
 		}
 		else

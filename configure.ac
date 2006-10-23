@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 08.02.0102, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 08.02.0105, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
@@ -61,6 +61,8 @@ PGAC_ARG_BOOL(enable, unicode, yes,
 AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
 
 AC_CHECK_FUNCS(strtoul strtoll)
+PGAC_STRUCT_ADDRINFO
+# If `struct addrinfo' exists, define HAVE_STRUCT_ADDRINFO.
 
 # to implement the thread-safe driver
 PGAC_ARG_BOOL(enable, pthreads, no,
@@ -71,7 +73,7 @@ PGAC_ARG_BOOL(enable, pthreads, no,
 	[Define _REENTRANT for several plaforms])
      AC_CHECK_LIB(pthreads, pthread_create, [],
        [AC_CHECK_LIB(pthread, pthread_create)])
-     AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
+     AC_CHECK_FUNCS(localtime_r strtok_r strerror_r pthread_mutexattr_settype)
      if test x"$ac_cv_func_pthread_mutexattr_settype" = xyes; then
 	AC_TRY_COMPILE([#include <pthread.h>],
 	[ int i = PTHREAD_MUTEX_RECURSIVE;],
@@ -80,6 +82,7 @@ PGAC_ARG_BOOL(enable, pthreads, no,
 	[ int i = PTHREAD_MUTEX_RECURSIVE_NP;],
         [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP, [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
      fi
+     PGAC_FUNC_STRERROR_R_INT
     ])
 
 AC_PROG_CC

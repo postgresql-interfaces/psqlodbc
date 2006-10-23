@@ -1848,6 +1848,7 @@ CC_create_errormsg(ConnectionClass *self)
 	SocketClass *sock = self->sock;
 	size_t	pos;
 	char	msg[4096];
+	const char *sockerrmsg;
 
 	mylog("enter CC_create_errormsg\n");
 
@@ -1858,10 +1859,10 @@ CC_create_errormsg(ConnectionClass *self)
 
 	mylog("msg = '%s'\n", msg);
 
-	if (sock && sock->errormsg && sock->errormsg[0] != '\0')
+	if (sock && NULL != (sockerrmsg = SOCK_get_errmsg(sock)) && '\0' != sockerrmsg[0])
 	{
 		pos = strlen(msg);
-		snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", sock->errormsg);
+		snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", sockerrmsg);
 	}
 
 	mylog("exit CC_create_errormsg\n");
@@ -3102,7 +3103,7 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 		{
 			SocketClass *sock = self->sock;
 
-			qlog("            socket=%d, reverse=%d, errornumber=%d, errormsg='%s'\n", sock->socket, sock->reverse, sock->errornumber, nullcheck(sock->errormsg));
+			qlog("            socket=%d, reverse=%d, errornumber=%d, errormsg='%s'\n", sock->socket, sock->reverse, sock->errornumber, nullcheck(SOCK_get_errmsg(sock)));
 			qlog("            buffer_in=%u, buffer_out=%u\n", sock->buffer_in, sock->buffer_out);
 			qlog("            buffer_filled_in=%d, buffer_filled_out=%d, buffer_read_in=%d\n", sock->buffer_filled_in, sock->buffer_filled_out, sock->buffer_read_in);
 		}

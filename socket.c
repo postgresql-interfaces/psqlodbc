@@ -37,7 +37,12 @@ static void SOCK_set_error(SocketClass *s, int _no, const char *_msg)
 {
 	int	gerrno = SOCK_ERRNO;
 	s->errornumber = _no;
-	s->errormsg = (char *) _msg;
+	if (NULL != s->_errormsg_)
+		free(s->_errormsg_);
+	if (NULL != _msg)
+		s->_errormsg_ = strdup(_msg);
+	else
+		s->_errormsg_ = NULL;
 	mylog("(%d)%s ERRNO=%d\n", _no, _msg, gerrno);
 }
 
@@ -45,7 +50,9 @@ void
 SOCK_clear_error(SocketClass *self)
 {
 	self->errornumber = 0;
-	self->errormsg = NULL;
+	if (NULL != self->_errormsg_)
+		free(self->_errormsg_);
+	self->_errormsg_ = NULL;
 }
 
 
@@ -86,7 +93,7 @@ SOCK_Constructor(const ConnectionClass *conn)
 			free(rv);
 			return NULL;
 		}
-		rv->errormsg = NULL;
+		rv->_errormsg_ = NULL;
 		rv->errornumber = 0;
 		rv->reverse = FALSE;
 	}
@@ -129,6 +136,8 @@ SOCK_Destructor(SocketClass *self)
 
 	if (self->buffer_out)
 		free(self->buffer_out);
+	if (self->_errormsg_)
+		free(self->_errormsg_);
 
 	free(self);
 }
@@ -144,6 +153,48 @@ static getaddrinfo_func getaddrinfo_ptr = getaddrinfo;
 static getnameinfo_func getnameinfo_ptr = getnameinfo;
 #endif /* _MSC_VER */
 
+static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *cmd, const char *host, int portno)
+{
+	BOOL ret = FALSE;
+
+#ifdef	WIN32
+	if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+		errnum, MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
+		errmsg, (DWORD)buflen, NULL))
+		ret = TRUE;
+#else
+#if defined(POSIX_MULTITHREAD_SUPPORT) && defined(HAVE_STRERROR_R)
+#ifdef	STRERROR_R_INT
+	if (0 == strerror_r(errnum, errmsg, buflen))
+		ret = TRUE;
+#else
+	const char *pchar;
+
+	pchar = (const char *) strerror_r(errnum, errmsg, buflen);
+	if (NULL != pchar)
+	{
+		if (pchar != errmsg)
+			strncpy(errmsg, pchar, buflen);
+		ret = TRUE;
+	}
+#endif /* STRERROR_R_INT */
+#else
+	strncpy(errmsg, strerror(errnum), buflen);
+	ret = TRUE;
+#endif /* POSIX_MULTITHREAD_SUPPORT */
+#endif /* WIN32 */
+	if (ret)
+	{
+		size_t	tlen = strlen(errmsg);
+		errmsg += tlen;
+		buflen -= tlen;
+		snprintf(errmsg, buflen, " [%s:%d]", host, portno);
+	}
+	else
+		snprintf(errmsg, buflen, "%s failed for [%s:%d] ", cmd, host, portno);
+	return ret;
+}
+ 
 char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
 {
@@ -326,9 +377,10 @@ retry:
 			getnameinfo_ptr((struct sockaddr *) &(self->sadr_area),
 					self->sadr_len, host, sizeof(host),
 					NULL, 0, NI_NUMERICHOST);
-			snprintf(errmsg, sizeof(errmsg), "connect getsockopt val %d addr=%s\n", optval, host);
+			/* snprintf(errmsg, sizeof(errmsg), "connect getsockopt val %d addr=%s\n", optval, host); */
+			format_sockerr(errmsg, sizeof(errmsg), optval, "connect", host, port);
 			mylog(errmsg);
-			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote server.");
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, errmsg);
 		}
 		else
 			retval = 1;
