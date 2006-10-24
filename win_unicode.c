@@ -8,8 +8,9 @@
  */
 
 #include "psqlodbc.h"
-#include <malloc.h>
 #ifdef  WIN32
+/* gcc <malloc.h> has been replaced by <stdlib.h> */
+#include <malloc.h>
 #ifdef  _DEBUG
 #ifndef _MEMORY_DEBUG_
 #include <stdlib.h>
