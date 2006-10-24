@@ -12,6 +12,9 @@
 #include "psqlodbc.h"
 
 #include <stdio.h>
+#ifndef  WIN32
+#include <unistd.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
