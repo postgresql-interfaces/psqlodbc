@@ -51,7 +51,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /subsystem:windows /machine:I386
-# ADD LINK32 ws2_32.lib shfolder.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib C:\HOME\openssl-0.9.8a\out32\ssleay32.lib C:\HOME\openssl-0.9.8a\out32\libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq\Release"
+# ADD LINK32 ws2_32.lib shfolder.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib winmm.lib odbccp32.lib libpq.lib C:\HOME\openssl-0.9.8a\out32\ssleay32.lib C:\HOME\openssl-0.9.8a\out32\libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq\Release"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "psqlODBC - Win32 Debug"
@@ -77,7 +77,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /subsystem:windows /debug /machine:I386
-# ADD LINK32 ws2_32.lib shfolder.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libpq.lib C:\HOME\openssl-0.9.8a\out32\ssleay32.lib C:\HOME\openssl-0.9.8a\out32\libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /debug /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq\Debug"
+# ADD LINK32 ws2_32.lib shfolder.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib libpq.lib C:\HOME\openssl-0.9.8a\out32\ssleay32.lib C:\HOME\openssl-0.9.8a\out32\libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /debug /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq\Debug"
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 

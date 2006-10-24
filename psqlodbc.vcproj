@@ -71,7 +71,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib libpq.lib ssleay32.lib libeay32.lib"
+				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib"
 				OutputFile="$(OutDir)\psqlodbc35w.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
@@ -168,7 +168,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib libpq.lib ssleay32.lib libeay32.lib"
+				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib"
 				OutputFile="$(OutDir)\psqlodbc35w.dll"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
