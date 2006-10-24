@@ -1746,6 +1746,8 @@ inolog("num_tuples=%d\n", num_tuples);
 	currp = -1;
 	stmt->bind_row = 0;		/* set the binding location */
 	result = SC_fetch(stmt);
+	if (SQL_ERROR == result)
+		goto cleanup;
 	if (SQL_NO_DATA_FOUND != result && res->keyset)
 	{
 		currp = GIdx2KResIdx(SC_get_rowset_start(stmt), stmt, res);
@@ -1758,7 +1760,7 @@ inolog("currp=%d\n", currp);
 			goto cleanup;
 		}
 	}
-	for (i = 0, fc_io = 0; SQL_NO_DATA_FOUND != result; currp++)
+	for (i = 0, fc_io = 0; SQL_NO_DATA_FOUND != result && SQL_ERROR != result; currp++)
 	{
 		fc_io++;
 		currp_is_valid = FALSE;
@@ -1781,6 +1783,8 @@ inolog("ExtFetch result=%d\n", result);
 inolog("just skipping deleted row %d\n", currp);
 			QR_set_rowset_size(res, (Int4) (rowsetSize - i + fc_io));
 			result = SC_fetch(stmt);
+			if (SQL_ERROR == result)
+				break;
 			continue;
 		}
 
@@ -1819,6 +1823,8 @@ inolog("just skipping deleted row %d\n", currp);
 		stmt->bind_row = (SQLSETPOSIROW) i; /* set the binding location */
 		result = SC_fetch(stmt);
 	}
+	if (SQL_ERROR == result)
+		goto cleanup;
 
 	/* Save the fetch count for SQLSetPos */
 	stmt->last_fetch_count = i;

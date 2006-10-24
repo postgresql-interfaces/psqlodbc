@@ -1363,7 +1363,7 @@ inolog("%s statement=%p ommitted=0\n", func, self);
 			return SQL_NO_DATA_FOUND;
 		}
 
-		mylog("**** SC_fetch: non-cursor_result\n");
+		mylog("**** %s: non-cursor_result\n", func);
 		(self->currTuple)++;
 	}
 	else
@@ -1372,7 +1372,7 @@ inolog("%s statement=%p ommitted=0\n", func, self);
 		retval = QR_next_tuple(res, self);
 		if (retval < 0)
 		{
-			mylog("**** SC_fetch: end_tuples\n");
+			mylog("**** %s: end_tuples\n", func);
 			if (QR_get_cursor(res) &&
 			    SQL_CURSOR_FORWARD_ONLY == self->options.cursor_type &&
 			    QR_once_reached_eof(res))
@@ -1383,8 +1383,18 @@ inolog("%s statement=%p ommitted=0\n", func, self);
 			(self->currTuple)++;	/* all is well */
 		else
 		{
-			mylog("SC_fetch: error\n");
-			SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row", func);
+			ConnectionClass *conn = SC_get_conn(self);
+
+			mylog("%s: error\n", func);
+			switch (conn->status)
+			{
+				case CONN_NOT_CONNECTED:
+				case CONN_DOWN:
+					SC_set_error(self, STMT_BAD_ERROR, "Error fetching next row", func);
+					break;
+				default:
+					SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row", func);
+			}
 			return SQL_ERROR;
 		}
 	}

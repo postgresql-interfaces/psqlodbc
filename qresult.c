@@ -806,6 +806,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	ConnInfo   *ci = NULL;
 	BOOL		msg_truncated, rcvend, internally_invoked = FALSE;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
+	BOOL		ExecuteRequest = FALSE;
 	Int4		response_length;
 
 inolog("Oh %p->fetch_number=%d\n", self, self->fetch_number);
@@ -1060,8 +1061,11 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 
 		if (enlargeKeyCache(self, self->cache_size - num_backend_rows, "Out of memory while reading tuples") < 0)
 			return FALSE;
-		if (PROTOCOL_74(ci))
+		if (PROTOCOL_74(ci)
+		    && !QR_is_permanent(self) /* Execute seems an invalid operation after COMMIT */ 
+			)
 		{
+			ExecuteRequest = TRUE;
 			if (!SendExecuteRequest(stmt, QR_get_cursor(self),
 				fetch_size))
 				return FALSE;
@@ -1119,6 +1123,8 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 	for (rcvend = FALSE; !rcvend;)
 	{
 		id = SOCK_get_id(sock);
+		if (0 != SOCK_get_errcode(sock))
+			break;
 		response_length = SOCK_get_response_length(sock);
 inolog("id='%c' response_length=%d\n", id, response_length);
 		switch (id)
@@ -1184,7 +1190,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 					QR_set_no_fetching_tuples(self);
 					if (internally_invoked)
 					{
-						if (PROTOCOL_74(ci)) /* Execute completed without accepting Portal Suspend */
+						if (ExecuteRequest) /* Execute completed without accepting Portal Suspend */
 							reached_eof_now = TRUE;
 						else if (cur_fetch < fetch_size)
 							reached_eof_now = TRUE;
@@ -1248,16 +1254,17 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				rcvend = TRUE;
 		}
 		if (0 != SOCK_get_errcode(sock))
-		{
-			if (QR_command_maybe_successful(self))
-			{
-				QR_set_message(self, "Communication error while getting a tuple");
-				QR_set_rstatus(self, PORES_FATAL_ERROR);
-			}
-			CC_on_abort(conn, CONN_DEAD);
-			ret = FALSE;
 			break;
+	}
+	if (0 != SOCK_get_errcode(sock))
+	{
+		if (QR_command_maybe_successful(self))
+		{
+			QR_set_message(self, "Communication error while getting a tuple");
+			QR_set_rstatus(self, PORES_FATAL_ERROR);
 		}
+		CC_on_abort(conn, CONN_DEAD);
+		ret = FALSE;
 	}
 	if (!ret)
 		return ret;
