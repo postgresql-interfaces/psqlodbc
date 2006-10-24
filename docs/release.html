@@ -10,6 +10,18 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0105</li><br>
+Changes:<br>
+1) SQLStatistics now returns indices based on expression also.<br>
+2) Add a TEST button on the setup dialog.<bt>
+<br>
+<li>Notes: psqlODBC 08.02.0104</li><br>
+Changes:<br>
+1) Take 64bit mode into account for the format parameter of (s(n))printf, sscanf etc.<br>
+2) getpid() instead of _getpid()<br>
+3) SQLGetInfo(SQL_NULL_COLLATION) now returns SQL_NC_HIGH instead of SQL_NC_END<br>
+4) Remove the function SQLParamOptions from ODBC3.0.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0103</li><br>
 Changes:<br>
 1) Improve the handling of connection error messages.<br>
