@@ -165,7 +165,7 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 {
 	int			pid = 0;
 
-	pid = getpid();
+	pid = _getpid();
 	if (dirname == 0 || filename == 0)
 		return;
 

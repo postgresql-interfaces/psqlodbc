@@ -1370,7 +1370,7 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	SQLINTEGER	ival = 0, len, rettype = 0;
+	SQLINTEGER	ival = 0, len = 0, rettype = 0;
 	PTR		ptr = NULL;
 	const IPDFields	*ipdopts = (const IPDFields *) (desc + 1);
 	SQLSMALLINT	para_idx;

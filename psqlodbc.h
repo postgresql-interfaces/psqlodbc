@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.113 2006/10/20 12:00:32 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.114 2006/10/28 05:14:35 hinoue Exp $
  *
  */
 
@@ -119,7 +119,7 @@ typedef	UInt4	OID;
 #ifndef	HAVE_SSIZE_T
 typedef	long	ssize_t
 #endif /* HAVE_SSIZE_T */
-#if (SIZE_OF_VOID_P == SIZE_OF_LONG)
+#if (SIZEOF_VOID_P == SIZEOF_LONG)
 typedef	long 	LONG_PTR;
 typedef	unsigned long 	ULONG_PTR;
 #define	FORMAT_LPTR	"%ld"	/* LONG_PTR */
@@ -131,8 +131,8 @@ typedef	unsigned long long ULONG_PTR;
 #define	FORMAT_ULPTR	"%llu"	/* ULONG_PTR */
 #else
 #error appropriate long pointer type not found 
-#endif /* SIZE_OF_VOID_P */
-#if (SIZE_OF_VOID_P == 8)
+#endif /* SIZEOF_VOID_P */
+#if (SIZEOF_VOID_P == 8)
 #define	FORMAT_INTEGER	"%d"	/* SQLINTEGER */
 #define	FORMAT_UINTEGER	"%u"	/* SQLUINTEGER */
 #if defined(WITH_UNIXODBC) && !defined(BUILD_REAL_64_BIT_MODE)
@@ -147,7 +147,7 @@ typedef	unsigned long long ULONG_PTR;
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
 #define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
-#endif /* SIZE_OF_VOID_P */
+#endif /* SIZEOF_VOID_P */
 #endif /* WIN32 */
 #define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))
 #define	CAST_UPTR(type, ptr)	(type)((ULONG_PTR)(ptr))

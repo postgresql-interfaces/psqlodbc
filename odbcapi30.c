@@ -472,14 +472,14 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 			ret = SQL_SUCCESS;
 			break;
 		case SQL_ATTR_ODBC_VERSION:
-			if ((SQLUINTEGER) Value == SQL_OV_ODBC2)
+			if (SQL_OV_ODBC2 == CAST_UPTR(SQLUINTEGER, Value))
 				EN_set_odbc2(env);
 			else
 				EN_set_odbc3(env);
 			ret = SQL_SUCCESS;
 			break;
 		case SQL_ATTR_OUTPUT_NTS:
-			if ((SQLUINTEGER) Value == SQL_TRUE)
+			if (SQL_TRUE == CAST_UPTR(SQLUINTEGER, Value))
 				ret = SQL_SUCCESS;
 			else
 				ret = SQL_SUCCESS_WITH_INFO;
