@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.40 2006/09/06 18:49:41 dpage Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.41 2006/10/30 20:05:13 petere Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -15,6 +15,9 @@ lib_LTLIBRARIES = psqlodbca.la
 endif
   	 
 AM_LDFLAGS = -module -no-undefined -avoid-version
+
+psqlodbca_la_LIBADD = -lpq
+psqlodbcw_la_LIBADD = -lpq
   	 
 psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
@@ -44,7 +47,7 @@ EXTRA_DIST = license.txt readme.txt \
         psqlodbc.sln msdtc_enlist.cpp pgxalib.cpp \
         pgxalib.def odbc.sql odbc-drop.sql \
 	odbcapi25w.c \
- \
+\
 	docs/index.html docs/config.html \
 	docs/faq.html docs/howto-accesslo.html \
 	docs/howto-accessvba.html docs/howto-bo.html \
@@ -64,4 +67,3 @@ MAINTAINERCLEANFILES = \
 	Makefile.in config.guess config.h.in config.sub configure \
 	install-sh missing mkinstalldirs aclocal.m4 ltmain.sh \
 	libtool.m4 depcomp
-
