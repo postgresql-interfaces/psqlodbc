@@ -170,7 +170,7 @@ do { \
 #define DELETE_CONNLOCK(x)	pthread_mutex_destroy(&((x)->slock))
 #else
 #define INIT_CONN_CS(x)	
-#define INIT_CONN_LOCK(x)	
+#define INIT_CONNLOCK(x)	
 #define TRY_ENTER_CONN_CS(x)
 #define ENTER_CONN_CS(x)
 #define ENTER_INNER_CONN_CS(x, entered) (0)
