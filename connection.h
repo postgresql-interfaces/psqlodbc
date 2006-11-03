@@ -173,8 +173,10 @@ do { \
 #define INIT_CONNLOCK(x)	
 #define TRY_ENTER_CONN_CS(x)
 #define ENTER_CONN_CS(x)
-#define ENTER_INNER_CONN_CS(x, entered) (0)
+#define CONNLOCK_ACQUIRE(x)
+#define ENTER_INNER_CONN_CS(x, entered)
 #define LEAVE_CONN_CS(x)
+#define CONNLOCK_RELEASE(x)
 #define DELETE_CONN_CS(x)
 #define DELETE_CONNLOCK(x)
 #endif /* WIN_MULTITHREAD_SUPPORT */
