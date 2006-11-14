@@ -230,6 +230,7 @@ struct StatementClass_
 	char		cancel_info;	/* cancel information */
 	char		ref_CC_error;	/* refer to CC_error ? */
 	char		lock_CC_for_rb;	/* lock CC for statement rollback ? */
+	char		outer_join_info; /* have outer join ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 	Int2		num_params;
@@ -379,6 +380,8 @@ enum
 #define SC_set_without_hold(a)	(a->miscinfo &= ~(1L << 3))
 #define SC_is_with_hold(a)	((a->miscinfo & (1L << 3)) != 0)
 #define SC_miscinfo_clear(a)	(a->miscinfo &= (1L << 3))
+#define SC_has_outer_join(a)	(0 != a->outer_join_info)
+#define SC_set_outer_join(a)	((a)->outer_join_info = 1)
 
 #define SC_start_stmt(a)	(a->rbonerr = 0)
 #define SC_start_tc_stmt(a)	(a->rbonerr = (1L << 1))
@@ -449,6 +452,7 @@ RETCODE		SC_pos_delete(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
 RETCODE		SC_pos_refresh(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
 RETCODE		SC_pos_add(StatementClass *self, SQLSETPOSIROW irow);
 int		SC_set_current_col(StatementClass *self, int col);
+void		SC_setInsertedTable(StatementClass *, RETCODE);
 
 BOOL	SC_IsExecuting(const StatementClass *self);
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on);

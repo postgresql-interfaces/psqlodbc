@@ -19,6 +19,7 @@
  */
 
 #include "psqlodbc.h"
+#include "misc.h"
 
 #if (ODBCVER >= 0x0300)
 #include <stdio.h>
@@ -635,7 +636,7 @@ inolog("lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETENVATTR);		/* 1019 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSTMTATTR);	/* 1020 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFETCHSCROLL);	/* 1021 */
-	if (0 != ci->updatable_cursors)
+	if (0 != (ALLOW_BULK_OPERATIONS & ci->updatable_cursors))
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLBULKOPERATIONS);	/* 24 */
 
 	return SQL_SUCCESS;

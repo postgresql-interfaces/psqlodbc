@@ -14,6 +14,7 @@
  */
 
 #include "psqlodbc.h"
+#include "misc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -687,13 +688,20 @@ cleanup:
 	return ret;
 }
 
-static void
-SetInsertTable(StatementClass *stmt)
+void
+SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 {
 	const char *cmd = stmt->statement, *ptr;
 	ConnectionClass	*conn;
 	size_t	len;
 
+	if (STMT_TYPE_INSERT != stmt->statement_type)
+		return;
+	if (SQL_NEED_DATA == retval)
+		return;
+	conn = SC_get_conn(stmt);
+	/*if (!CC_fake_mss(conn))
+		return;*/
 	while (isspace((UCHAR) *cmd)) cmd++;
 	if (!*cmd)
         	return;
@@ -711,9 +719,11 @@ SetInsertTable(StatementClass *stmt)
 	while (isspace((UCHAR) *(++cmd)));
 	if (!*cmd)
         	return;
-	conn = SC_get_conn(stmt);
 	NULL_THE_NAME(conn->schemaIns);
 	NULL_THE_NAME(conn->tableIns);
+	if (SQL_SUCCESS != retval &&
+	    SQL_SUCCESS_WITH_INFO != retval)
+		return;
 	ptr = NULL;
 	if (IDENTIFIER_QUOTE == *cmd)
 	{
@@ -731,7 +741,7 @@ SetInsertTable(StatementClass *stmt)
 	{
 		if (ptr = strchr(cmd + 1, '.'), NULL != ptr)
 		{
-			len = ptr - cmd - 1;
+			len = ptr - cmd;
 			STRN_TO_NAME(conn->schemaIns, cmd, len);
 			cmd = ptr + 1;
 			ptr = NULL; 
@@ -1047,14 +1057,7 @@ next_param_row:
 		goto next_param_row;
 cleanup:
 mylog("retval=%d\n", retval);
-	if (STMT_TYPE_INSERT == stmt->statement_type &&
-	    CC_fake_mss(conn) &&
-	    (SQL_SUCCESS == retval ||
-	     SQL_SUCCESS_WITH_INFO == retval)
-	   )
-	{
-		SetInsertTable(stmt);
-	}
+	SC_setInsertedTable(stmt, retval);
 #undef	return
 	if (stmt->internal)
 		retval = DiscardStatementSvp(stmt, retval, FALSE);
@@ -1433,12 +1436,7 @@ inolog("\n");
 inolog("return SQL_NEED_DATA\n");
 cleanup:
 #undef	return
-	if (STMT_TYPE_INSERT == stmt->statement_type &&
-	    CC_fake_mss(conn) &&
-	    (SQL_SUCCESS == retval ||
-	     SQL_SUCCESS_WITH_INFO == retval)
-	   )
-		SetInsertTable(stmt);
+	SC_setInsertedTable(stmt, retval);
 	if (stmt->internal)
 		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	mylog("%s: returning %d\n", func, retval);

@@ -1989,6 +1989,47 @@ table_for_update(const char *stmt, int *endpos)
 }
 
 /*----------
+ *	Check if the statement has OUTER JOIN
+ *	This isn't really a strict check but ...
+ *----------
+ */
+static BOOL
+check_outer_join(StatementClass *stmt, const char *curptr, int curpos)
+{
+	const char *wstmt;
+	int	stapos, endpos, tokenwd;
+	const int	backstep = 5;
+
+	for (endpos = curpos - backstep, wstmt = curptr - backstep; endpos >= 0 && isspace((UCHAR) *wstmt); endpos--, wstmt--)
+		;
+	if (endpos < 0)
+		return FALSE;
+	for (stapos = endpos; stapos >= 0 && !isspace((UCHAR) *wstmt); stapos--, wstmt--)
+		;
+	if (stapos < 0)
+		return FALSE;
+	wstmt++;
+	switch (tokenwd = endpos - stapos)
+	{
+		case 4:
+			if (strnicmp(wstmt, "FULL", tokenwd) == 0 ||
+			    strnicmp(wstmt, "LEFT", tokenwd) == 0)
+				break;
+			return FALSE;
+		case 5:
+			if (strnicmp(wstmt, "OUTER", tokenwd) == 0 ||
+			    strnicmp(wstmt, "RIGHT", tokenwd) == 0)
+				break;
+			return FALSE;
+		default:
+			return FALSE;
+	}
+	if (stmt)
+		SC_set_outer_join(stmt);
+	return TRUE;
+}
+
+/*----------
  *	Check if the statement is
  *	INSERT INTO ... () VALUES ()
  *	This isn't really a strict check but ...
@@ -2246,6 +2287,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
 	SQLLEN		current_row;
+	const		char *bestitem = NULL;
 
 inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 	if (!stmt->statement)
@@ -2436,7 +2478,14 @@ inolog("type=%d concur=%d\n",
 				 * 1st query is for field information
 				 * 2nd query is keyset gathering
 				 */
-				CVT_APPEND_STR(qb, " where ctid = '(,)';select ctid, oid from ");
+				CVT_APPEND_STR(qb, " where ctid = '(,)';select \"ctid");
+				if (stmt && stmt->ntab > 0)
+					bestitem = GET_NAME(stmt->ti[0]->bestitem);
+				if (!bestitem)
+					bestitem = OID_NAME;
+				CVT_APPEND_STR(qb, "\", \"");
+				CVT_APPEND_STR(qb, bestitem);
+				CVT_APPEND_STR(qb, "\" from ");
 				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, npos - qp->from_pos - 5);
 			}
 		}
@@ -2637,7 +2686,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			}
 		}
 		if (!converted)
-			CVT_APPEND_STR(qb, "0");
+			CVT_APPEND_STR(qb, "NULL");
 		qp->opos += 10;
 		return SQL_SUCCESS;
 	}
@@ -2718,6 +2767,11 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							qb->flags &= ~FLGB_KEYSET_DRIVEN;
 							qp->statement_type = STMT_TYPE_CREATE;
 							remove_declare_cursor(qb, qp);
+						}
+						else if (stricmp(qp->token_save, "join") == 0)
+						{
+							if (stmt)
+								check_outer_join(stmt, F_OldPtr(qp), F_OldPos(qp));
 						}
 					}
 					else if (qp->token_len == 3)
@@ -3209,6 +3263,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	{
 		UInt4	bind_size = apdopts->param_bind_type;
 		UInt4	ctypelen;
+		BOOL	bSetUsed = FALSE;
 
 		buffer = apara->buffer + offset;
 		if (current_row > 0)
@@ -3220,16 +3275,27 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			else 
 				buffer += current_row * apara->buflen;
 		}
-		if (apara->used)
+		if (apara->used && apara->indicator)
 		{
 			SQLULEN	p_offset = offset;
+
 			if (bind_size > 0)
 				p_offset = offset + bind_size * current_row;
 			else
 				p_offset = offset + sizeof(SQLLEN) * current_row;
-			used = *(SQLLEN *)((char *)apara->used + p_offset);
+			if (apara->indicator)
+			{
+				used = *LENADDR_SHIFT(apara->indicator, p_offset);
+				if (SQL_NULL_DATA == used)
+					bSetUsed = TRUE;
+			}
+			if (!bSetUsed && apara->used)
+			{
+				used = *LENADDR_SHIFT(apara->used, p_offset);
+				bSetUsed = TRUE;
+			}
 		}
-		else
+		if (!bSetUsed)
 			used = SQL_NTS;
 	}	
 
@@ -3987,6 +4053,8 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	}
 	else if (stricmp(key, "oj") == 0) /* {oj syntax support for 7.1 * servers */
 	{
+		if (qb->stmt)
+			SC_set_outer_join(qb->stmt);
 		F_OldPrior(qp);
 		return SQL_SUCCESS; /* Continue at inner_process_tokens loop */
 	}

@@ -7,6 +7,7 @@
  */
 
 #include "psqlodbc.h"
+#include "misc.h"
 
 #if (ODBCVER >= 0x0300)
 #include "connection.h"
@@ -103,10 +104,10 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 				| SQL_CA1_POS_REFRESH;
 			if (0 != (ci->updatable_cursors & ALLOW_STATIC_CURSORS))
 				value |= (SQL_CA1_POS_UPDATE | SQL_CA1_POS_DELETE
-				| SQL_CA1_BULK_ADD
 				);
 			if (0 != (ci->updatable_cursors & ALLOW_BULK_OPERATIONS))
-				value |= (SQL_CA1_BULK_UPDATE_BY_BOOKMARK
+				value |= (SQL_CA1_BULK_ADD 
+				| SQL_CA1_BULK_UPDATE_BY_BOOKMARK
 				| SQL_CA1_BULK_DELETE_BY_BOOKMARK
 				| SQL_CA1_BULK_FETCH_BY_BOOKMARK
 				);

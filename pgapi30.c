@@ -15,6 +15,7 @@
  */
 
 #include "psqlodbc.h"
+#include "misc.h"
 
 #if (ODBCVER >= 0x0300)
 #include <stdio.h>
@@ -476,7 +477,6 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	PTR		tptr;
 	ARDFields	*opts = (ARDFields *) (desc + 1);
 	SQLSMALLINT	row_idx;
 
@@ -519,12 +519,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				bookmark->buffer = Value;
 				break;
 			case SQL_DESC_INDICATOR_PTR:
-				tptr = bookmark->used;
-				if (Value != tptr)
-				{
-					DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
-					ret = SQL_ERROR;
-				}
+				bookmark->indicator = Value;
 				break;
 			case SQL_DESC_OCTET_LENGTH_PTR:
 				bookmark->used = Value;
@@ -571,12 +566,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->bindings[row_idx].buffer = Value;
 			break;
 		case SQL_DESC_INDICATOR_PTR:
-			tptr = opts->bindings[row_idx].used;
-			if (Value != tptr)
-			{
-				ret = SQL_ERROR;
-				DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
-			}
+			opts->bindings[row_idx].indicator = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
 			opts->bindings[row_idx].used = Value;
@@ -730,11 +720,7 @@ inolog("APDSetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 			opts->parameters[para_idx].buffer = Value;
 			break;
 		case SQL_DESC_INDICATOR_PTR:
-			if (Value != opts->parameters[para_idx].used)
-			{
-				ret = SQL_ERROR;
-				DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER, "INDICATOR != OCTET_LENGTH_PTR"); 
-			}
+			opts->parameters[para_idx].indicator = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
 			opts->parameters[para_idx].buflen = CAST_PTR(Int4, Value);
@@ -957,7 +943,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				break;
 			case SQL_DESC_INDICATOR_PTR:
 				rettype = SQL_IS_POINTER;
-				ptr = bookmark ? bookmark->used : NULL;
+				ptr = bookmark ? bookmark->indicator : NULL;
 				break;
 			case SQL_DESC_OCTET_LENGTH_PTR:
 				rettype = SQL_IS_POINTER;
@@ -1046,7 +1032,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		case SQL_DESC_INDICATOR_PTR:
 			rettype = SQL_IS_POINTER;
-			ptr = opts->bindings[row_idx].used;
+			ptr = opts->bindings[row_idx].indicator;
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
 			rettype = SQL_IS_POINTER;
@@ -1194,7 +1180,7 @@ inolog("APDGetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 			break;
 		case SQL_DESC_INDICATOR_PTR:
 			rettype = SQL_IS_POINTER;
-			ptr = opts->parameters[para_idx].used;
+			ptr = opts->parameters[para_idx].indicator;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
 			ival = opts->parameters[para_idx].buflen;
@@ -1737,7 +1723,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	mylog("%s h=%p rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, Value, BufferLength);
+	mylog("%s h=%p(%d) rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, desc->desc_type, RecNumber, FieldIdentifier, Value, BufferLength);
 	switch (desc->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1787,7 +1773,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("%s Handle=%p %d,%u\n", func, StatementHandle, Attribute, Value);
+	mylog("%s Handle=%p %d,%u(%p)\n", func, StatementHandle, Attribute, Value, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */

@@ -470,7 +470,7 @@ struct ConnectionClass_
 #define CC_get_username(x)			(x->connInfo.username)
 #define CC_is_onlyread(x)			(x->connInfo.onlyread[0] == '1')
 #define CC_get_escape(x)			(x->escape_in_literal)
-#define CC_fake_mss(x)		(0 != (x)->ms_jet && 0 < (x)->connInfo.fake_mss)
+#define CC_fake_mss(x)	(/* 0 != (x)->ms_jet && */ 0 < (x)->connInfo.fake_mss)
 #define CC_default_is_c(x)	(CC_is_in_ansi_app(x) || x->ms_jet /* not only */ || TRUE /* but for any other ? */)
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0

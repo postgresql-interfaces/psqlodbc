@@ -17,6 +17,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "bind.h"
+#include "misc.h"
 
 #include "environ.h"
 #include "statement.h"
@@ -73,7 +74,8 @@ PGAPI_BindParameter(
 	/* store the given info */
 	apdopts->parameters[ipar].buflen = cbValueMax;
 	apdopts->parameters[ipar].buffer = rgbValue;
-	apdopts->parameters[ipar].used = pcbValue;
+	apdopts->parameters[ipar].used =
+	apdopts->parameters[ipar].indicator = pcbValue;
 	apdopts->parameters[ipar].CType = fCType;
 	ipdopts->parameters[ipar].SQLType = fSqlType;
 	ipdopts->parameters[ipar].paramType = fParamType;
@@ -187,7 +189,8 @@ PGAPI_BindCol(
 			if (bookmark)
 			{
 				bookmark->buffer = NULL;
-				bookmark->used = NULL;
+				bookmark->used =
+				bookmark->indicator = NULL;
 			}
 		}
 		else
@@ -209,7 +212,8 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 
 			bookmark = ARD_AllocBookmark(opts);
 			bookmark->buffer = rgbValue;
-			bookmark->used = pcbValue;
+			bookmark->used =
+			bookmark->indicator = pcbValue;
 			bookmark->buflen = cbValueMax;
 			bookmark->returntype = fCType;
 		}
@@ -246,7 +250,8 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		/* we have to unbind the column */
 		opts->bindings[icol].buflen = 0;
 		opts->bindings[icol].buffer = NULL;
-		opts->bindings[icol].used = NULL;
+		opts->bindings[icol].used =
+		opts->bindings[icol].indicator = NULL;
 		opts->bindings[icol].returntype = SQL_C_CHAR;
 		opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
@@ -261,7 +266,8 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		/* ok, bind that column */
 		opts->bindings[icol].buflen = cbValueMax;
 		opts->bindings[icol].buffer = rgbValue;
-		opts->bindings[icol].used = pcbValue;
+		opts->bindings[icol].used =
+		opts->bindings[icol].indicator = pcbValue;
 		opts->bindings[icol].returntype = fCType;
 #if (ODBCVER >= 0x0300)
 		if (SQL_C_NUMERIC == fCType)
@@ -580,7 +586,8 @@ create_empty_bindings(int num_columns)
 	{
 		new_bindings[i].buflen = 0;
 		new_bindings[i].buffer = NULL;
-		new_bindings[i].used = NULL;
+		new_bindings[i].used =
+		new_bindings[i].indicator = NULL;
 	}
 
 	return new_bindings;
@@ -665,7 +672,8 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 	ipar--;
 	self->parameters[ipar].buflen = 0;
 	self->parameters[ipar].buffer = 0;
-	self->parameters[ipar].used = 0;
+	self->parameters[ipar].used =
+	self->parameters[ipar].indicator = NULL;
 	self->parameters[ipar].CType = 0;
 	self->parameters[ipar].data_at_exec = FALSE;
 	self->parameters[ipar].precision = 0;
@@ -883,7 +891,8 @@ reset_a_column_binding(ARDFields *self, int icol)
 		if (bookmark = self->bookmark, bookmark != NULL)
 		{
 			bookmark->buffer = NULL;
-			bookmark->used = NULL;
+			bookmark->used =
+			bookmark->indicator = NULL;
 		}
 	}
 	else
@@ -893,7 +902,8 @@ reset_a_column_binding(ARDFields *self, int icol)
 		/* we have to unbind the column */
 		self->bindings[icol].buflen = 0;
 		self->bindings[icol].buffer = NULL;
-		self->bindings[icol].used = NULL;
+		self->bindings[icol].used =
+		self->bindings[icol].indicator = NULL;
 		self->bindings[icol].returntype = SQL_C_CHAR;
 	}
 }

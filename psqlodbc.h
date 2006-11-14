@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.114 2006/10/28 05:14:35 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.115 2006/11/14 15:29:26 hinoue Exp $
  *
  */
 
@@ -433,7 +433,7 @@ void		logs_on_off(int cnopen, int, int);
 										 * queries used in info.c inoue
 										 * 2001/05/17 */
 
-#define	LENADDR_SHIFT(x, sft)	((SQLLEN *)((char *)(x) + (sft)))
+#define	LENADDR_SHIFT(x, sft)	((x) ? (SQLLEN *)((char *)(x) + (sft)) : NULL)
 
 int	initialize_global_cs(void);
 #ifdef	POSIX_MULTITHREAD_SUPPORT

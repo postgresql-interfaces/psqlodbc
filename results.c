@@ -424,7 +424,10 @@ inolog("answering bookmark info\n");
 	 */
 	if (pfNullable)
 	{
-		*pfNullable = fi ? fi->nullable : pgtype_nullable(stmt, fieldtype);
+		if (SC_has_outer_join(stmt))
+			*pfNullable = TRUE;
+		else
+			*pfNullable = fi ? fi->nullable : pgtype_nullable(stmt, fieldtype);
 
 		mylog("describeCol: col %d  *pfNullable = %d\n", icol, *pfNullable);
 	}
@@ -689,7 +692,10 @@ inolog("COLUMN_MONEY=%d\n", value);
 #else
 		case SQL_COLUMN_NULLABLE:
 #endif /* ODBCVER */
-			value = fi ? fi->nullable : pgtype_nullable(stmt, field_type);
+			if (SC_has_outer_join(stmt))
+				value = TRUE;
+			else
+				value = fi ? fi->nullable : pgtype_nullable(stmt, field_type);
 inolog("COLUMN_NULLABLE=%d\n", value);
 			break;
 
@@ -4069,6 +4075,7 @@ pos_add_callback(RETCODE retcode, void *para)
 		s->stmt->bind_row = brow_save;
 	}
 	s->updyes = FALSE;
+	SC_setInsertedTable(s->qstmt, ret);
 	if (ret != SQL_SUCCESS)
 		SC_error_copy(s->stmt, s->qstmt, TRUE);
 	PGAPI_FreeStmt((HSTMT) s->qstmt, SQL_DROP);

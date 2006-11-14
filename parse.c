@@ -926,7 +926,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	char		parse;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	BOOL		updatable = TRUE;
+	BOOL		updatable = TRUE, maybe_outerj = FALSE;
 
 	mylog("%s: entering...\n", func);
 
@@ -1315,11 +1315,27 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				continue;
 			}
 
-			if (!dquote && stricmp(token, "JOIN") == 0)
+			if (!dquote)
 			{
-				in_table = FALSE;
-				out_table = TRUE;
-				continue;
+				if (stricmp(token, "LEFT") == 0 ||
+			    	    stricmp(token, "RIGHT") == 0 ||
+			    	    stricmp(token, "OUTER") == 0 ||
+			    	    stricmp(token, "FULL") == 0)
+					maybe_outerj = TRUE;
+				else if (stricmp(token, "JOIN") == 0)
+				{
+					in_table = FALSE;
+					out_table = TRUE;
+					if (maybe_outerj)
+					{
+mylog("LEFT/RIGHT/FULL/OUTER found\n");
+						SC_set_outer_join(stmt);
+						maybe_outerj = FALSE;
+					}
+					continue;
+				}
+				else
+					maybe_outerj = FALSE;
 			}
 			if (in_table)
 			{
@@ -1339,13 +1355,14 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				}
 				if (dquote || stricmp(token, "as"))
 				{
-					if (stricmp(token, "LEFT") == 0 ||
-					    stricmp(token, "RIGHT") == 0 ||
-					    stricmp(token, "OUTER") == 0 ||
-					    stricmp(token, "FULL") == 0 ||
-					    stricmp(token, "ON") == 0)
+					if (!dquote)
 					{
-						if (!dquote)
+						if (stricmp(token, "LEFT") == 0 ||
+						    stricmp(token, "RIGHT") == 0 ||
+						    stricmp(token, "OUTER") == 0 ||
+						    stricmp(token, "FULL") == 0 ||
+						    stricmp(token, "INNER") == 0 ||
+						    stricmp(token, "ON") == 0)
 						{
 							in_table = FALSE;
 							continue;

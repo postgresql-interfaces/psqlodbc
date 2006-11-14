@@ -21,6 +21,7 @@ struct BindInfoClass_
 	char	*buffer;		/* pointer to the buffer */
 	SQLLEN	*used;			/* used space in the buffer (for strings
 					 * not counting the '\0') */
+	SQLLEN	*indicator;		/* indicator == used in many cases ? */
 	SQLSMALLINT	returntype;	/* kind of conversion to be applied when
 					 * returning (SQL_C_DEFAULT,
 					 * SQL_C_CHAR... etc) */
@@ -46,6 +47,7 @@ struct ParameterInfoClass_
 	SQLLEN	buflen;
 	char	*buffer;
 	SQLLEN	*used;
+	SQLLEN	*indicator;	/* indicator == used in many cases ? */
 	SQLSMALLINT	CType;
 	SQLSMALLINT	precision;	/* the precision for numeric or timestamp type */
 	SQLSMALLINT	scale;		/* the scale for numeric type */
