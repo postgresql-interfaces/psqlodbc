@@ -10,22 +10,27 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0202</li><br>
+Changes:<br>
+1) Change to use NULL indicator instead of the length buffer in SQLFetch.<br>
+2) Fix long -> serial conversion error in MS Access.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0201</li><br>
 Changes:<br>
-1) Ditinguish the indicaitor and the octet_length field of APD clcearly.<bt>
-2) Handle @@IDENTITY more generally.<bt>
-3) Take outer join into account so as to evaluate nullability.<bt>
-4) Fix a bug about Keyset-driven cursors.<bt>
+1) Ditinguish the indicaitor and the octet_length field of APD clcearly.<br>
+2) Handle @@IDENTITY more generally.<br>
+3) Take outer join into account so as to evaluate nullability.<br>
+4) Fix a bug about Keyset-driven cursors.<br>
 <br>
 <li>Notes: psqlODBC 08.02.0200</li><br>
 Changes:<br>
-1) Fix some bugs or warnings on 64 bit OS.<bt>
-2) Avoid backend crash caused by Execute Requests for committed holdable cursors.<bt>
+1) Fix some bugs or warnings on 64 bit OS.<br>
+2) Avoid backend crash caused by Execute Requests for committed holdable cursors.<br>
 <br>
 <li>Notes: psqlODBC 08.02.0105</li><br>
 Changes:<br>
 1) SQLStatistics now returns indices based on expression also.<br>
-2) Add a TEST button on the setup dialog.<bt>
+2) Add a TEST button on the setup dialog.<br>
 <br>
 <li>Notes: psqlODBC 08.02.0104</li><br>
 Changes:<br>
