@@ -230,7 +230,7 @@ struct StatementClass_
 	char		cancel_info;	/* cancel information */
 	char		ref_CC_error;	/* refer to CC_error ? */
 	char		lock_CC_for_rb;	/* lock CC for statement rollback ? */
-	char		outer_join_info; /* have outer join ? */
+	char		join_info;	/* have joins ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 	Int2		num_params;
@@ -380,8 +380,13 @@ enum
 #define SC_set_without_hold(a)	(a->miscinfo &= ~(1L << 3))
 #define SC_is_with_hold(a)	((a->miscinfo & (1L << 3)) != 0)
 #define SC_miscinfo_clear(a)	(a->miscinfo &= (1L << 3))
-#define SC_has_outer_join(a)	(0 != a->outer_join_info)
-#define SC_set_outer_join(a)	((a)->outer_join_info = 1)
+#define	STMT_HAS_OUTER_JOIN	1L
+#define	STMT_HAS_INNER_JOIN	(1L << 1)
+#define SC_has_join(a)		(0 != (a)->join_info)
+#define SC_has_outer_join(a)	(0 != (STMT_HAS_OUTER_JOIN & (a)->join_info))
+#define SC_has_inner_join(a)	(0 != (STMT_HAS_INNER_JOIN & (a)->join_info))
+#define SC_set_outer_join(a)	((a)->join_info |= STMT_HAS_OUTER_JOIN)
+#define SC_set_inner_join(a)	((a)->join_info |= STMT_HAS_INNER_JOIN)
 
 #define SC_start_stmt(a)	(a->rbonerr = 0)
 #define SC_start_tc_stmt(a)	(a->rbonerr = (1L << 1))

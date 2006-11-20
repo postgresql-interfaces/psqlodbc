@@ -39,8 +39,9 @@ typedef struct
 } SIMPLE_TIME;
 
 int		copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, void *value, int col);
-int copy_and_convert_field(StatementClass *stmt, OID field_type, void *value, SQLSMALLINT fCType,
-			PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
+int	copy_and_convert_field(StatementClass *stmt, OID field_type,
+			void *value, SQLSMALLINT fCType, PTR rgbValue,
+			SQLLEN cbValueMax, SQLLEN *pcbValue, SQLLEN *pIndicator);
 
 int		copy_statement_with_parameters(StatementClass *stmt, BOOL);
 BOOL		convert_money(const char *s, char *sout, size_t soutmax);

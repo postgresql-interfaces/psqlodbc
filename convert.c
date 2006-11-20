@@ -398,15 +398,17 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, void *valu
 	SQLULEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
 	SC_set_current_col(stmt, -1);
-	return copy_and_convert_field(stmt, field_type, value, bic->returntype, (PTR) (bic->buffer + offset),
-				bic->buflen, LENADDR_SHIFT(bic->used, offset));
+	return copy_and_convert_field(stmt, field_type, value, bic->returntype,
+			(PTR) (bic->buffer + offset), bic->buflen,
+			LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset));
 }
 
 
 /*	This is called by SQLGetData() */
 int
-copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei, SQLSMALLINT fCType,
-			PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue)
+copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei,
+			SQLSMALLINT fCType, PTR rgbValue, SQLLEN cbValueMax,
+			SQLLEN *pcbValue, SQLLEN *pIndicator)
 {
 	CSTR func = "copy_and_convert_field";
 	const char *value = valuei;
@@ -422,7 +424,8 @@ copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei, SQLSM
 #endif /* HAVE_LOCALTIME_R */
 	SQLLEN			pcbValueOffset,
 				rgbValueOffset;
-	char	   *rgbValueBindRow, *pcbValueBindRow = NULL;
+	char	   *rgbValueBindRow = NULL;
+	SQLLEN		*pcbValueBindRow = NULL, *pIndicatorBindRow = NULL;
 	const char *ptr;
 	SQLSETPOSIROW		bind_row = stmt->bind_row;
 	int			bind_size = opts->bind_size;
@@ -486,9 +489,15 @@ copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei, SQLSM
 	 *	The following is applicable in case bind_size > 0
 	 *	or the fCType is of variable length. 
 	 */
-	rgbValueBindRow = (char *) rgbValue + rgbValueOffset;
+	if (rgbValue)
+		rgbValueBindRow = (char *) rgbValue + rgbValueOffset;
 	if (pcbValue)
-		pcbValueBindRow = (char *) pcbValue + pcbValueOffset;
+		pcbValueBindRow = LENADDR_SHIFT(pcbValue, pcbValueOffset);
+	if (pIndicator)
+	{
+		pIndicatorBindRow = LENADDR_SHIFT(pIndicator, pcbValueOffset);
+		*pIndicatorBindRow = 0;
+	}
 
 	memset(&std_time, 0, sizeof(SIMPLE_TIME));
 
@@ -515,7 +524,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		     SQL_C_DEFAULT == fCType))
 		{
 			if (pcbValueBindRow)
-				*((SQLLEN *) pcbValueBindRow) = 0;
+				*pcbValueBindRow = 0;
 			switch (fCType)
 			{
 				case SQL_C_CHAR:
@@ -530,7 +539,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 					{
 						memset(rgbValueBindRow, 0, cbValueMax);
 						if (pcbValueBindRow)
-							*((SQLLEN *) pcbValueBindRow) = sizeof(DATE_STRUCT);
+							*pcbValueBindRow = sizeof(DATE_STRUCT);
 					}
 					else
 						result = COPY_RESULT_TRUNCATED;
@@ -550,9 +559,9 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		 * handle a null just by returning SQL_NULL_DATA in pcbValue, and
 		 * doing nothing to the buffer.
 		 */
-		else if (pcbValue)
+		else if (pIndicator)
 		{
-			*((SQLLEN *) pcbValueBindRow) = SQL_NULL_DATA;
+			*pIndicatorBindRow = SQL_NULL_DATA;
 			return COPY_OK;
 		}
 		else
@@ -719,7 +728,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				/* There is no corresponding fCType for this. */
 				len = (nval + 1) * sizeof(short);
 				if (pcbValue)
-					*((SQLLEN *) pcbValueBindRow) = len;
+					*pcbValueBindRow = len;
 
 				if (len <= cbValueMax)
 					return COPY_OK; /* dont go any further or the data will be
@@ -735,14 +744,14 @@ inolog("2stime fr=%d\n", std_time.fr);
 			 */
 		case PG_TYPE_LO_UNDEFINED:
 
-			return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SQLLEN *) pcbValueBindRow);
+			return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, pcbValueBindRow);
 
 		default:
 
 			if (field_type == stmt->hdbc->lobj_type	/* hack until permanent type available */
 			   || (PG_TYPE_OID == field_type && SQL_C_BINARY == fCType && conn->lo_is_domain)
 			   )
-				return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, (SQLLEN *) pcbValueBindRow);
+				return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, pcbValueBindRow);
 	}
 
 	/* Change default into something useable */
@@ -1377,7 +1386,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (neut_str)
 						len = strlen(neut_str);
 					if (pcbValue)
-						*((SQLLEN *) pcbValueBindRow) = len;
+						*pcbValueBindRow = len;
 					if (len > 0 && cbValueMax > 0)
 					{
 						memcpy(rgbValueBindRow, neut_str, len < cbValueMax ? len : cbValueMax);
@@ -1396,7 +1405,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					if (pcbValue)
-						*((SQLLEN *) pcbValueBindRow) = sizeof(ival);
+						*pcbValueBindRow = sizeof(ival);
 					if (cbValueMax >= sizeof(ival))
 					{
 						memcpy(rgbValueBindRow, &ival, sizeof(ival));
@@ -1495,7 +1504,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 
 	/* store the length of what was copied, if there's a place for it */
 	if (pcbValue)
-		*((SQLLEN *) pcbValueBindRow) = len;
+		*pcbValueBindRow = len;
 
 	if (result == COPY_OK && stmt->current_col >= 0)
 		gdata->gdata[stmt->current_col].data_left = 0;
@@ -1994,11 +2003,12 @@ table_for_update(const char *stmt, int *endpos)
  *----------
  */
 static BOOL
-check_outer_join(StatementClass *stmt, const char *curptr, int curpos)
+check_join(StatementClass *stmt, const char *curptr, int curpos)
 {
 	const char *wstmt;
 	int	stapos, endpos, tokenwd;
 	const int	backstep = 5;
+	BOOL	outerj = TRUE;
 
 	for (endpos = curpos - backstep, wstmt = curptr - backstep; endpos >= 0 && isspace((UCHAR) *wstmt); endpos--, wstmt--)
 		;
@@ -2020,12 +2030,23 @@ check_outer_join(StatementClass *stmt, const char *curptr, int curpos)
 			if (strnicmp(wstmt, "OUTER", tokenwd) == 0 ||
 			    strnicmp(wstmt, "RIGHT", tokenwd) == 0)
 				break;
+			if (strnicmp(wstmt, "INNER", tokenwd) == 0 ||
+			    strnicmp(wstmt, "CROSS", tokenwd) == 0)
+			{
+				outerj = FALSE;
+				break;
+			}
 			return FALSE;
 		default:
 			return FALSE;
 	}
 	if (stmt)
-		SC_set_outer_join(stmt);
+	{
+		if (outerj)
+			SC_set_outer_join(stmt);
+		else
+			SC_set_inner_join(stmt);
+	}
 	return TRUE;
 }
 
@@ -2771,7 +2792,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 						else if (stricmp(qp->token_save, "join") == 0)
 						{
 							if (stmt)
-								check_outer_join(stmt, F_OldPtr(qp), F_OldPos(qp));
+								check_join(stmt, F_OldPtr(qp), F_OldPos(qp));
 						}
 					}
 					else if (qp->token_len == 3)

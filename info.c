@@ -912,7 +912,7 @@ inolog("%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgTy
 mylog("sqlType=%d ms_jet=%d\n", sqlType, conn->ms_jet);
 				if (conn->ms_jet && PG_VERSION_GE(conn, 6.4))
 				{
-					aunq_match = 0;
+					aunq_match = 1;
 					pgtcount = 2;
 				}
 mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);

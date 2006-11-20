@@ -1282,6 +1282,8 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			}
 			if (out_table && !in_table) /* new table */
 			{
+				in_dot = FALSE;
+				maybe_outerj = FALSE;
 				if (!dquote)
 				{
 					if (token[0] == '(' ||
@@ -1301,7 +1303,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				lower_the_name(GET_NAME(wti->table_name), conn, dquote);
 				mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
 
-				if (delim == ',')
+				if (0 == blevel && delim == ',')
 				{
 					out_table = TRUE;
 					mylog("more than 1 tables\n");
@@ -1311,24 +1313,30 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 					out_table = FALSE;
 					in_table = TRUE;
 				}
-				in_dot = FALSE;
 				continue;
 			}
-
-			if (!dquote)
+			if (0 != blevel)
+				continue;
+			/* out_table is FALSE here */
+			if (!dquote && !in_dot)
 			{
+				if (')' == token[0])
+					continue;
 				if (stricmp(token, "LEFT") == 0 ||
 			    	    stricmp(token, "RIGHT") == 0 ||
 			    	    stricmp(token, "OUTER") == 0 ||
 			    	    stricmp(token, "FULL") == 0)
+				{
+					in_table = FALSE;
 					maybe_outerj = TRUE;
+					continue;
+				}
 				else if (stricmp(token, "JOIN") == 0)
 				{
 					in_table = FALSE;
 					out_table = TRUE;
 					if (maybe_outerj)
 					{
-mylog("LEFT/RIGHT/FULL/OUTER found\n");
 						SC_set_outer_join(stmt);
 						maybe_outerj = FALSE;
 					}
@@ -1357,11 +1365,7 @@ mylog("LEFT/RIGHT/FULL/OUTER found\n");
 				{
 					if (!dquote)
 					{
-						if (stricmp(token, "LEFT") == 0 ||
-						    stricmp(token, "RIGHT") == 0 ||
-						    stricmp(token, "OUTER") == 0 ||
-						    stricmp(token, "FULL") == 0 ||
-						    stricmp(token, "INNER") == 0 ||
+						if (stricmp(token, "INNER") == 0 ||
 						    stricmp(token, "ON") == 0)
 						{
 							in_table = FALSE;

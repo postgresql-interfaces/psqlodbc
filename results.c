@@ -1046,7 +1046,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 	SC_set_current_col(stmt, icol);
 
 	result = copy_and_convert_field(stmt, field_type, value,
-								 target_type, rgbValue, cbValueMax, pcbValue);
+				target_type, rgbValue, cbValueMax, pcbValue, pcbValue);
 
 	switch (result)
 	{
@@ -4032,7 +4032,8 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN add
                          		bookmark->returntype,
 					bookmark->buffer + offset,
 					bookmark->buflen,
-					bookmark->used ? LENADDR_SHIFT(bookmark->used, offset) : NULL);
+					LENADDR_SHIFT(bookmark->used, offset),
+					LENADDR_SHIFT(bookmark->used, offset));
 			}
 		}
 		else

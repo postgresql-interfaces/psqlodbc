@@ -373,7 +373,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->put_data = FALSE;
 		rv->ref_CC_error = FALSE;
 		rv->lock_CC_for_rb = 0;
-		rv->outer_join_info = 0;
+		rv->join_info = 0;
 
 		rv->lobj_fd = -1;
 		INIT_NAME(rv->cursor_name);
@@ -649,7 +649,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		self->multi_statement = -1; /* unknown */
 		self->num_params = -1; /* unknown */
 		self->proc_return = -1; /* unknown */
-		self->outer_join_info = 0;
+		self->join_info = 0;
 		SC_init_discard_output_params(self);
 	}
 	if (self->stmt_with_params)
@@ -1449,7 +1449,8 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 		SC_set_current_col(self, -1);
 		result = copy_and_convert_field(self, 0, buf,
 			 SQL_C_ULONG, bookmark->buffer + offset, 0,
-			bookmark->used ? LENADDR_SHIFT(bookmark->used, offset) : NULL);
+			LENADDR_SHIFT(bookmark->used, offset),
+			LENADDR_SHIFT(bookmark->used, offset));
 	}
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
