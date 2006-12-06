@@ -61,6 +61,7 @@ pg_CS CS_Table[] =
 	{ "TCVN",	TCVN },
 	{ "ALT",	ALT },
 	{ "WIN",	WIN },
+	{ "WIN1252",	WIN1252 },
 	{ "OTHER",	OTHER }
 };
 
