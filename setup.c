@@ -300,6 +300,7 @@ ConfigDlgProc(HWND hdlg,
 							char *emsg;
 
 							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
+							CC_initialize_pg_version(conn);
 							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
 							{
 								strncpy(szMsg, "Connection successful", sizeof(szMsg));

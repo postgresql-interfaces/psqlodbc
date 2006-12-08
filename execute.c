@@ -470,7 +470,7 @@ inolog("res->next=%p\n", kres);
 		EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
 		const char *cmd = QR_get_command(res);
 
-		if (retval == SQL_SUCCESS && cmd && EN_is_odbc3(env))
+		if (retval == SQL_SUCCESS && cmd && env && EN_is_odbc3(env))
 		{
 			int     count;
 
