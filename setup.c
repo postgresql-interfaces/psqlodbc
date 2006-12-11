@@ -15,6 +15,7 @@
 
 #include  "psqlodbc.h"
 
+#include  "environ.h"
 #include  "connection.h"
 #include  <windowsx.h>
 #include  <string.h>
@@ -290,15 +291,19 @@ ConfigDlgProc(HWND hdlg,
 					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
 					if (NULL != lpsetupdlg)
 					{
-						ConnectionClass *conn=CC_Constructor();
+						EnvironmentClass *env = EN_Constructor();
+						ConnectionClass *conn = NULL;
 						char    szMsg[SQL_MAX_MESSAGE_LENGTH];
 
 						/* Get Dialog Values */
 						GetDlgStuff(hdlg, &lpsetupdlg->ci);
+						if (env)
+							conn = CC_Constructor();
 						if (conn)
 						{
 							char *emsg;
 
+							EN_add_connection(env, conn);
 							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
 							CC_initialize_pg_version(conn);
 							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
@@ -313,9 +318,12 @@ ConfigDlgProc(HWND hdlg,
 								CC_get_error(conn, &errnum, &emsg);
 							}
 							MessageBox(lpsetupdlg->hwndParent, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
+							EN_remove_connection(env, conn);
 							CC_Destructor(conn);
-							return TRUE;
 						}
+						if (env)
+							EN_Destructor(env);
+						return TRUE;
 					}
 					break;
 				}

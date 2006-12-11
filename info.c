@@ -3217,7 +3217,7 @@ PGAPI_Statistics(
 				set_tuplefield_int2(&tuple[STATS_TYPE], (Int2)
 							   (atoi(isclustered) ? SQL_INDEX_CLUSTERED :
 								(!strncmp(ishash, "hash", 4)) ? SQL_INDEX_HASHED : SQL_INDEX_OTHER));
-				set_tuplefield_int2(&tuple[STATS_SEQ_IN_INDEX], (Int2) (i + 1));
+				set_tuplefield_int2(&tuple[STATS_SEQ_IN_INDEX], (Int2) i);
 
 				attnum = fields_vector[i];
 				if (OID_ATTNUM == attnum)
