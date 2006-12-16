@@ -10,6 +10,17 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0203</li><br>
+Changes:<br>
+1) Fix a bug which forgets unnamed plans too early especially when handling large objects.<br>
+2) Don't treat charcters whose value >= 128 as alphanumeric in case of conversion of binary data to bytea.<br>
+3) Change ConfigDSN() so that it takes the options in Setup Dialog page 1 into account.<br>
+4) Simplify the memory management of statements'columns info so as to prevent memory leaks or a crash in parse_statement etc.<br>
+5) SQLTables("", SQL_ALL_SCHEMAS. "", ..) now returns a list of valid schemas.<br>
+6) SQLTables("", "", "", SQL_ALL_TABLE_TYPES) now returns a list of valid table types.<br>
+7) SQLGetInfo SQL_DATABASE_NAME now returns the database name.<br>
+8) Improve the automatic setting mechanism of the client_encoding for Windows code page 125x (ANSI drivers only).<br>
+<br>
 <li>Notes: psqlODBC 08.02.0202</li><br>
 Changes:<br>
 1) Change to use NULL indicator instead of the length buffer in SQLFetch.<br>
