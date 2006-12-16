@@ -302,19 +302,24 @@ ConfigDlgProc(HWND hdlg,
 						if (conn)
 						{
 							char *emsg;
+							int errnum;
 
 							EN_add_connection(env, conn);
 							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
 							CC_initialize_pg_version(conn);
 							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
 							{
-								strncpy(szMsg, "Connection successful", sizeof(szMsg));
+								if (CC_get_errornumber(conn) != 0)
+								{
+									CC_get_error(conn, &errnum, &emsg);
+									snprintf(szMsg, sizeof(szMsg), "Warning: %s", emsg);
+								}
+								else
+									strncpy(szMsg, "Connection successful", sizeof(szMsg));
 								emsg = szMsg;
 							}
 							else
 							{
-								int errnum;
-
 								CC_get_error(conn, &errnum, &emsg);
 							}
 							MessageBox(lpsetupdlg->hwndParent, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
@@ -416,7 +421,8 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 		mylog("aszKey='%s', value='%s'\n", aszKey, value);
 
 		/* Copy the appropriate value to the conninfo  */
-		copyAttributes(&lpsetupdlg->ci, aszKey, value);
+		if (!copyAttributes(&lpsetupdlg->ci, aszKey, value))
+			copyCommonAttributes(&lpsetupdlg->ci, aszKey, value);
 	}
 	return;
 }

@@ -54,6 +54,8 @@ enum
 #define CONNECTION_NEED_PASSWORD				112
 #define CONNECTION_COMMUNICATION_ERROR				113
 
+#define CONN_TRUNCATED							(-2)
+#define CONN_OPTION_VALUE_CHANGED					(-1)
 /*	These errors correspond to specific SQL states */
 #define CONN_INIREAD_ERROR						201
 #define CONN_OPENDB_ERROR						202 
@@ -70,10 +72,8 @@ enum
 #define CONN_AUTH_TYPE_UNSUPPORTED					211
 #define CONN_UNABLE_TO_LOAD_DLL						212
 
-#define CONN_OPTION_VALUE_CHANGED					213
 #define CONN_VALUE_OUT_OF_RANGE						214
 
-#define CONN_TRUNCATED							215
 #define CONN_OPTION_NOT_FOR_THE_DRIVER					216
 #define CONN_EXEC_ERROR							217
 

@@ -412,9 +412,12 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	ci->use_server_side_prepare = (char)((flag & BIT_USESERVERSIDEPREPARE) != 0);
 	ci->lower_case_identifier = (char)((flag & BIT_LOWERCASEIDENTIFIER) != 0);
 }
-void
+BOOL
 copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 {
+	CSTR	func = "copyAttributes";
+	BOOL	found = TRUE;
+
 	if (stricmp(attribute, "DSN") == 0)
 		strcpy(ci->dsn, value);
 
@@ -536,13 +539,20 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		}
 		mylog("force_abbrev=%d bde=%d cvt_null_date=%x\n", ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
 	}
+	else
+		found = FALSE;
 
-	mylog("copyAttributes: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", func, ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+
+	return found;
 }
 
-void
+BOOL
 copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 {
+	CSTR	func = "copyCommonAttributes";
+	BOOL	found = TRUE;
+
 	if (stricmp(attribute, INI_FETCH) == 0 || stricmp(attribute, ABBR_FETCH) == 0)
 		ci->drivers.fetch_max = atoi(value);
 	else if (stricmp(attribute, INI_SOCKET) == 0 || stricmp(attribute, ABBR_SOCKET) == 0)
@@ -583,7 +593,10 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->drivers.bools_as_char = atoi(value);
 	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, ABBR_EXTRASYSTABLEPREFIXES) == 0)
 		strcpy(ci->drivers.extra_systable_prefixes, value);
-	mylog("CopyCommonAttributes: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s",
+	else
+		found = FALSE;
+
+	mylog("%s: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,
 		  ci->drivers.unknown_sizes,
@@ -600,6 +613,8 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		  ci->drivers.parse,
 		  ci->drivers.cancel_as_freestmt,
 		  ci->drivers.extra_systable_prefixes);
+
+	return found;
 }
 
 
@@ -858,13 +873,18 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->fake_oid_index,
 		 ci->show_system_tables);
 
-	check_client_encoding(ci->conn_settings);
-	qlog("          conn_settings='%s',conn_encoding='%s'\n",
-		 ci->conn_settings,
-		 check_client_encoding(ci->conn_settings));
-	qlog("          translation_dll='%s',translation_option='%s'\n",
-		 ci->translation_dll,
-		 ci->translation_option);
+	if (get_qlog())
+	{
+		UCHAR	*enc = check_client_encoding(ci->conn_settings);
+
+		qlog("          conn_settings='%s',conn_encoding='%s'\n",
+		 	ci->conn_settings, enc ? enc : "(null)");
+		if (enc)
+			free(enc);
+		qlog("          translation_dll='%s',translation_option='%s'\n",
+		 	ci->translation_dll,
+		 	ci->translation_option);
+	}
 }
 /*
  *	This function writes any global parameters (that can be manipulated)

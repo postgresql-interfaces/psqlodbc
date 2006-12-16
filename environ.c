@@ -510,6 +510,8 @@ EN_Destructor(EnvironmentClass *self)
 	char		rv = 1;
 
 	mylog("in EN_Destructor, self=%p\n", self);
+	if (!self)
+		return 0;
 
 	/*
 	 * the error messages are static strings distributed throughout the

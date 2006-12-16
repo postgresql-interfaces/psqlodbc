@@ -889,7 +889,7 @@ PGAPI_GetData(
 	ConnInfo   *ci;
 	SQLSMALLINT	target_type;
 
-	mylog("%s: enter, stmt=%p\n", func, stmt);
+	mylog("%s: enter, stmt=%p icol=%d\n", func, stmt, icol);
 
 	if (!stmt)
 	{

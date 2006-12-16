@@ -1067,9 +1067,10 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 		else
 			opts[cnt++][1] = "on";
 		/* client_encoding */
-		enc = get_environment_encoding(self, "other", NULL);
+		enc = get_environment_encoding(self, self->original_client_encoding, NULL, TRUE);
 		if (enc)
 		{
+			mylog("startup client_encoding=%s\n", enc);
 			opts[cnt][0] = "client_encoding"; opts[cnt++][1] = enc;
 		}
 	}
@@ -1221,13 +1222,13 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		 TABLE_NAME_STORAGE_LEN);
 
 	encoding = check_client_encoding(ci->conn_settings);
-	if (encoding && strcmp(encoding, "OTHER"))
-		self->original_client_encoding = strdup(encoding);
+	if (encoding)
+		self->original_client_encoding = encoding;
 	else
 	{
 		encoding = check_client_encoding(ci->drivers.conn_settings);
-		if (encoding && strcmp(encoding, "OTHER"))
-			self->original_client_encoding = strdup(encoding);
+		if (encoding)
+			self->original_client_encoding = encoding;
 	}
 	if (self->original_client_encoding)
 		self->ccsc = pg_CS_code(self->original_client_encoding);
@@ -1682,14 +1683,13 @@ inolog("CC_send_settings\n");
 	if (PG_VERSION_GE(self, 6.4))
 	{
 		CC_lookup_characterset(self);
-		if (CC_get_errornumber(self) != 0)
+		if (CC_get_errornumber(self) > 0)
 			return 0;
 #ifdef UNICODE_SUPPORT
 		if (CC_is_in_unicode_driver(self))
 		{
 			if (!self->original_client_encoding ||
-			    (stricmp(self->original_client_encoding, "UNICODE") &&
-			    stricmp(self->original_client_encoding, "UTF8")))
+			    UTF8 != self->ccsc)
 			{
 				QResultClass	*res;
 				if (PG_VERSION_LT(self, 7.1))
@@ -1733,7 +1733,8 @@ inolog("CC_send_settings\n");
 		}
 	}
 
-	CC_clear_error(self);		/* clear any initial command errors */
+	if (CC_get_errornumber(self) > 0)
+		CC_clear_error(self);		/* clear any initial command errors */
 	self->status = CONN_CONNECTED;
 	if (CC_is_in_unicode_driver(self)
 	    && 0 < ci->bde_environment)
@@ -3422,11 +3423,9 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 
 const char *CurrCat(const ConnectionClass *conn)
 {
-	/*
 	if (conn->schema_support)
 		return conn->connInfo.database;
 	else
-	*/
 		return NULL;
 }
 

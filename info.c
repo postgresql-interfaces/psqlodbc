@@ -1483,7 +1483,7 @@ PGAPI_Tables(
 	HSTMT		htbl_stmt = NULL;
 	RETCODE		ret = SQL_ERROR, result;
 	int		result_cols;
-	char	   *tableType;
+	char		*tableType = NULL;
 	char		tables_query[INFO_INQUIRY_LEN];
 	char		table_name[MAX_INFO_STRING],
 				table_owner[MAX_INFO_STRING],
@@ -1493,7 +1493,7 @@ PGAPI_Tables(
 #endif /* HAVE_STRTOK_R */
 	ConnectionClass *conn;
 	ConnInfo   *ci;
-	char	*escSchemaName = NULL, *escTableName = NULL;
+	char	*escCatName = NULL, *escSchemaName = NULL, *escTableName = NULL;
 	char	   *prefix[32],
 				prefixes[MEDIUM_REGISTRY_LEN];
 	char	   *table_type[32],
@@ -1508,8 +1508,9 @@ PGAPI_Tables(
 	SQLSMALLINT		internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const char	*like_or_eq;
 	const char	*szSchemaName;
-	BOOL	search_pattern, list_schemas = FALSE;
-	SQLLEN		cbRelname, cbRelkind;
+	BOOL		search_pattern;
+	BOOL		list_cat = FALSE, list_schemas = FALSE, list_table_types = FALSE, list_some = FALSE;
+	SQLLEN		cbRelname, cbRelkind, cbSchName;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
 
@@ -1534,11 +1535,13 @@ PGAPI_Tables(
 	if (search_pattern) 
 	{
 		like_or_eq = likeop;
+		escCatName = adjustLikePattern(szTableQualifier, cbTableQualifier, SEARCH_PATTERN_ESCAPE, NULL, conn);
 		escTableName = adjustLikePattern(szTableName, cbTableName, SEARCH_PATTERN_ESCAPE, NULL, conn);
 	}
 	else
 	{
 		like_or_eq = eqop;
+		escCatName = simpleCatalogEscape(szTableQualifier, cbTableQualifier, NULL, conn);
 		escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
 	}
 retry_public_schema:
@@ -1551,27 +1554,45 @@ retry_public_schema:
 	/*
 	 * Create the query to find out the tables
 	 */
-	if (conn->schema_support)
+	/* make_string mallocs memory */
+	tableType = make_string(szTableType, cbTableType, NULL, 0);
+	if (search_pattern &&
+	    escTableName && '\0' == escTableName[0] &&
+	    escCatName && escSchemaName)
 	{
-		if (search_pattern &&
-		    escSchemaName &&
-		    stricmp(escSchemaName, SQL_ALL_SCHEMAS) == 0 &&
-		    escTableName &&
-		    '\0' == escTableName[0]
-		   )
+		if ('\0' == escSchemaName[0])
+		{
+			if (stricmp(escCatName, SQL_ALL_CATALOGS) == 0)
+				list_cat = TRUE;
+			else if ('\0' == escCatName[0] &&
+				 stricmp(tableType, SQL_ALL_TABLE_TYPES) == 0)
+				list_table_types = TRUE;
+		}
+		else if ('\0' == escCatName[0] &&
+			 stricmp(escSchemaName, SQL_ALL_SCHEMAS) == 0)
 			list_schemas = TRUE;
-		if (list_schemas)
-		{
-			strcpy(tables_query, "select NULL, nspname, NULL"
-			" from pg_catalog.pg_namespace n");
-		}
+	}
+	list_some = (list_cat || list_schemas || list_table_types);
+
+	tables_query[0] = '\0';
+	if (list_cat)
+		strncpy(tables_query, "select NULL, NULL, NULL", sizeof(tables_query));
+	else if (list_table_types)
+		strncpy(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a", sizeof(tables_query));
+	else if (list_schemas)
+	{
+		if (conn->schema_support)
+			strncpy(tables_query, "select NULL, nspname, NULL"
+			" from pg_catalog.pg_namespace n where true", sizeof(tables_query));
 		else
-		{
-			/* view is represented by its relkind since 7.1 */
-			strcpy(tables_query, "select relname, nspname, relkind"
+			strncpy(tables_query, "select NULL, NULL as nspname, NULL", sizeof(tables_query));
+	}
+	else if (conn->schema_support)
+	{
+		/* view is represented by its relkind since 7.1 */
+		strcpy(tables_query, "select relname, nspname, relkind"
 			" from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
-			strcat(tables_query, " where relkind in ('r', 'v')");
-		}
+		strcat(tables_query, " where relkind in ('r', 'v')");
 	}
 	else if (PG_VERSION_GE(conn, 7.1))
 	{
@@ -1586,19 +1607,17 @@ retry_public_schema:
 		strcat(tables_query, " where relkind = 'r'");
 	}
 
-	if (list_schemas)
+	if (!list_some)
 	{
-		schema_strcat1(tables_query, " where nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
-	}
-	else if (conn->schema_support)
-	{
-		schema_strcat1(tables_query, " and nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
-		/* strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)"); */
-	}
-	else
-		my_strcat1(tables_query, " and usename %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
-	if (!list_schemas)
+		if (conn->schema_support)
+		{
+			schema_strcat1(tables_query, " and nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+			/* strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)"); */
+		}
+		else
+			my_strcat1(tables_query, " and usename %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
 		my_strcat1(tables_query, " and relname %s '%.*s'", like_or_eq, escTableName, SQL_NTS);
+	}
 
 	/* Parse the extra systable prefix	*/
 	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
@@ -1620,14 +1639,13 @@ retry_public_schema:
 	show_regular_tables = FALSE;
 	show_views = FALSE;
 
-	/* make_string mallocs memory */
-	tableType = make_string(szTableType, cbTableType, NULL, 0);
+	/* TABLE_TYPE */
 	if (!tableType)
 	{
 		show_regular_tables = TRUE;
 		show_views = TRUE;
 	}
-	else if (stricmp(tableType, SQL_ALL_TABLE_TYPES) == 0)
+	else if (list_some || stricmp(tableType, SQL_ALL_TABLE_TYPES) == 0)
 	{
 		show_regular_tables = TRUE;
 		show_views = TRUE;
@@ -1667,19 +1685,17 @@ retry_public_schema:
 			i++;
 		}
 	}
-	if (tableType)
-		free(tableType);
 
 	/*
 	 * If not interested in SYSTEM TABLES then filter them out to save
 	 * some time on the query.	If treating system tables as regular
 	 * tables, then dont filter either.
 	 */
-	if (!atoi(ci->show_system_tables) && !show_system_tables)
+	if ((list_schemas || !list_some) && !atoi(ci->show_system_tables) && !show_system_tables)
 	{
 		if (conn->schema_support)
 			strcat(tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
-		else
+		else if (!list_schemas)
 		{
 			strcat(tables_query, " and relname !~ '^" POSTGRES_SYS_PREFIX);
 
@@ -1693,17 +1709,20 @@ retry_public_schema:
 		}
 	}
 
-	/* match users */
-	if (PG_VERSION_LT(conn, 7.1))
-		/* filter out large objects in older versions */
-		strcat(tables_query, " and relname !~ '^xinv[0-9]+'");
-
 	if (list_schemas)
 		strcat(tables_query, " order by nspname");
+	else if (list_some)
+		;
 	else if (conn->schema_support)
 		strcat(tables_query, " and n.oid = relnamespace order by nspname, relname");
 	else
+	{
+		/* match users */
+		if (PG_VERSION_LT(conn, 7.1))
+			/* filter out large objects in older versions */
+			strcat(tables_query, " and relname !~ '^xinv[0-9]+'");
 		strcat(tables_query, " and usesysid = relowner order by relname");
+	}
 
 	result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
@@ -1748,7 +1767,7 @@ retry_public_schema:
 	}
 
 	result = PGAPI_BindCol(htbl_stmt, 2, internal_asis_type,
-						   table_owner, MAX_INFO_STRING, NULL);
+						   table_owner, MAX_INFO_STRING, &cbSchName);
 	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
@@ -1789,6 +1808,7 @@ retry_public_schema:
 
 	/* add the tuples */
 	table_name[0] = '\0';
+	table_owner[0] = '\0';
 	result = PGAPI_Fetch(htbl_stmt);
 	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
 	{
@@ -1842,8 +1862,10 @@ retry_public_schema:
 		{
 			tuple = QR_AddNew(res);
 
-			/* set_tuplefield_null(&tuple[TABLES_CATALOG_NAME]); */
-			set_tuplefield_string(&tuple[TABLES_CATALOG_NAME], CurrCat(conn));
+			if (list_cat || !list_some)
+				set_tuplefield_string(&tuple[TABLES_CATALOG_NAME], CurrCat(conn));
+			else
+				set_tuplefield_null(&tuple[TABLES_CATALOG_NAME]);
 
 			/*
 			 * I have to hide the table owner from Access, otherwise it
@@ -1856,15 +1878,18 @@ retry_public_schema:
 
 			mylog("%s: table_name = '%s'\n", func, table_name);
 
-			if (conn->schema_support)
+			if (list_schemas || (conn->schema_support && !list_some))
 				set_tuplefield_string(&tuple[TABLES_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 			else
 				set_tuplefield_null(&tuple[TABLES_SCHEMA_NAME]);
-			set_nullfield_string(&tuple[TABLES_TABLE_NAME], table_name);
-			if (list_schemas)
-				set_tuplefield_null(&tuple[TABLES_TABLE_TYPE]);
+			if (list_some)
+				set_tuplefield_null(&tuple[TABLES_TABLE_NAME]);
 			else
+				set_nullfield_string(&tuple[TABLES_TABLE_NAME], table_name);
+			if (list_table_types || !list_some)
 				set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], systable ? "SYSTEM TABLE" : (view ? "VIEW" : "TABLE"));
+			else
+				set_tuplefield_null(&tuple[TABLES_TABLE_TYPE]);
 			set_tuplefield_string(&tuple[TABLES_REMARKS], NULL_STRING);
 			/*** set_tuplefield_string(&tuple[TABLES_REMARKS], "TABLE"); ***/
 		}
@@ -1885,10 +1910,14 @@ cleanup:
 	 */
 	stmt->status = STMT_FINISHED;
 
+	if (escCatName)
+		free(escCatName);
 	if (escSchemaName)
 		free(escSchemaName);
 	if (escTableName)
 		free(escTableName);
+	if (tableType)
+		free(tableType);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	SC_set_rowset_start(stmt, -1, FALSE);

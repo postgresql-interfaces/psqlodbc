@@ -84,7 +84,7 @@ static struct
 		STMT_TYPE_EXECUTE, "EXECUTE"
 	}
 	,{
-		STMT_TYPE_EXECUTE, "DEALLOCATE"
+		STMT_TYPE_DEALLOCATE, "DEALLOCATE"
 	}
 	,{
 		STMT_TYPE_DROP, "DROP"
@@ -1629,7 +1629,7 @@ SC_execute(StatementClass *self)
 		switch (SC_get_prepare_method(self))
 		{
 #ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
-		case PARSE_TO_EXEC_ONCE:
+			case PARSE_TO_EXEC_ONCE:
 #endif /* BYPASS_ONESHOT_PLAN_EXECUTION */
 			case NAMED_PARSE_REQUEST:
 				use_extended_protocol = TRUE;

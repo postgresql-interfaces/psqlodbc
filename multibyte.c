@@ -9,6 +9,7 @@
  */
 
 #include "multibyte.h"
+#include "misc.h"
 #include "connection.h"
 #include "pgapifunc.h"
 #include <string.h>
@@ -19,15 +20,15 @@
 #define	TRUE	1
 #endif
 
-pg_CS CS_Table[] =
+static pg_CS CS_Table[] =
 {
 	{ "SQL_ASCII",	SQL_ASCII },
 	{ "EUC_JP",	EUC_JP },
 	{ "EUC_CN",	EUC_CN },
 	{ "EUC_KR",	EUC_KR },
 	{ "EUC_TW",	EUC_TW },
-	{ "JOHAB",	JOHAB },
-	{ "UTF8",	UTF8 },
+	{ "JOHAB",	JOHAB },	/* since 7.3 */
+	{ "UTF8",	UTF8 },		/* since 7.2 */
 	{ "MULE_INTERNAL",MULE_INTERNAL },
 	{ "LATIN1",	LATIN1 },
 	{ "LATIN2",	LATIN2 },
@@ -39,32 +40,41 @@ pg_CS CS_Table[] =
 	{ "LATIN8",	LATIN8 },
 	{ "LATIN9",	LATIN9 },
 	{ "LATIN10",	LATIN10 },
-	{ "WIN1256",	WIN1256 },
-	{ "WIN1258",	WIN1258 },	/* since 8.1 */
-	{ "WIN874",	WIN874 },
-	{ "KOI8",	KOI8R },
-	{ "WIN1251",	WIN1251 },
+	{ "WIN1256",	WIN1256 },	/* Arabic since 7.3 */
+	{ "WIN1258",	WIN1258 },	/* Vietnamese since 8.1 */
 	{ "WIN866",	WIN866 },	/* since 8.1 */
+	{ "WIN874",	WIN874 },	/* Thai since 7.3 */
+	{ "KOI8",	KOI8R },
+	{ "WIN1251",	WIN1251 },	/* Cyrillic */
+	{ "WIN1252",	WIN1252 },	/* Western Europe since 8.1 */
 	{ "ISO_8859_5", ISO_8859_5 },
 	{ "ISO_8859_6", ISO_8859_6 },
 	{ "ISO_8859_7", ISO_8859_7 },
 	{ "ISO_8859_8", ISO_8859_8 },
-
+	{ "WIN1250",	WIN1250 },	/* Central Europe */
+	{ "WIN1253",	WIN1253 },	/* Greek since 8.2 */
+	{ "WIN1254",	WIN1254 },	/* Turkish since 8.2 */
+	{ "WIN1255",	WIN1255 },	/* Hebrew since 8.2 */
+	{ "WIN1257",	WIN1257 },	/* Baltic(North Europe) since 8.2 */
 
 	{ "SJIS",	SJIS },
 	{ "BIG5",	BIG5 },
-	{ "GBK",	GBK },
-	{ "UHC",	UHC },
-	{ "WIN1250",	WIN1250 },
-	{ "GB18030",	GB18030 },
-	{ "UNICODE",	UNICODE_PODBC },
-	{ "TCVN",	TCVN },
-	{ "ALT",	ALT },
-	{ "WIN",	WIN },
-	{ "WIN1252",	WIN1252 },
+	{ "GBK",	GBK },		/* since 7.3 */
+	{ "UHC",	UHC },		/* since 7.3 */	
+	{ "GB18030",	GB18030 },	/* since 7.3 */
 	{ "OTHER",	OTHER }
 };
 
+static pg_CS CS_Alias[] =
+{
+	{ "UNICODE",	UTF8 },
+	{ "TCVN",	WIN1258 },
+	{ "ALT",	WIN866 },
+	{ "WIN",	WIN1251 },
+	{ "OTHER",	OTHER }
+};
+
+CSTR	OTHER_STRING = "OTHER";
 
 int
 pg_CS_code(const UCHAR *characterset_string)
@@ -81,23 +91,101 @@ pg_CS_code(const UCHAR *characterset_string)
 		}
 	}
 	if (c < 0)
-		for(i = 0; CS_Table[i].code != OTHER; i++)
+	{
+		for(i = 0; CS_Alias[i].code != OTHER; i++)
 		{
-			if (strstr(characterset_string, CS_Table[i].name))
+			if (0 == stricmp(characterset_string, CS_Alias[i].name))
 			{
-                  		if(strlen(CS_Table[i].name) >= len)
-				{
-                         		len = strlen(CS_Table[i].name);
-                         		c = CS_Table[i].code;
-                        	}
+                       		c = CS_Alias[i].code;
+				break;
 			}
 		}
+	}
 	if (c < 0)
-		c = i;
+		c = OTHER;
 	return (c);
 }
 
-UCHAR *
+UCHAR *check_client_encoding(const UCHAR *conn_settings)
+{
+	const UCHAR *cptr, *sptr = NULL;
+	UCHAR	*rptr;
+	BOOL	allowed_cmd = TRUE, in_quote = FALSE;
+	int	step = 0;
+	size_t	len = 0;
+
+        for (cptr = conn_settings; *cptr; cptr++)
+        {
+		if (in_quote)
+			if (LITERAL_QUOTE == *cptr)
+			{
+				in_quote = FALSE;
+				continue;
+			}
+		if (';' == *cptr)
+		{
+			allowed_cmd = TRUE;
+			step = 0;
+			continue;
+		}
+		if (!allowed_cmd)
+			continue;
+		if (isspace(*cptr))
+			continue;
+		switch (step)
+		{
+			case 0:
+				if (0 != strnicmp(cptr, "set", 3))
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				step++;
+				cptr += 3;
+				break;
+			case 1:
+				if (0 != strnicmp(cptr, "client_encoding", 15))
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				step++;
+				cptr += 15;
+				break;
+			case 2:
+				if (0 != strnicmp(cptr, "to", 2))
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				step++;
+				cptr += 2;
+				break;
+			case 3:
+				if (LITERAL_QUOTE == *cptr)
+				{
+					cptr++;
+					for (sptr = cptr; *cptr && *cptr != LITERAL_QUOTE; cptr++) ;
+				}
+				else
+				{
+					for (sptr = cptr; *cptr && !isspace(*cptr); cptr++) ;
+				}
+				len = cptr - sptr;
+				step++;
+				break;
+		}
+	}
+	if (!sptr)
+		return NULL;
+	rptr = malloc(len + 1);
+	memcpy(rptr, sptr, len);
+	rptr[len] = '\0';
+	mylog("extracted a client_encoding '%s' from conn_settings\n", rptr);
+	return rptr;
+}
+
+const UCHAR *
 pg_CS_name(int characterset_code)
 {
 	int i;
@@ -106,7 +194,7 @@ pg_CS_name(int characterset_code)
 		if (CS_Table[i].code == characterset_code)
 			return CS_Table[i].name;
 	}
-	return ("OTHER");
+	return (OTHER_STRING);
 }
 
 static int
@@ -115,7 +203,6 @@ pg_mb_maxlen(characterset_code)
 	switch (characterset_code)
 	{
 		case UTF8:
-		case UNICODE_PODBC:
 			return 6;
 		case EUC_TW:
 			return 4;
@@ -143,7 +230,6 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 	switch (characterset_code)
 	{
 		case UTF8:
-		case UNICODE_PODBC:
 			{
 				if (stat < 2 &&
 					character >= 0x80)
@@ -358,7 +444,7 @@ CC_lookup_cs_new(ConnectionClass *self)
 	res = CC_send_query(self, "select pg_client_encoding()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	if (QR_command_maybe_successful(res))
 	{
-		char 	*enc = QR_get_value_backend_row(res, 0, 0);
+		const char 	*enc = QR_get_value_backend_row(res, 0, 0);
 
 		if (enc)
 			encstr = strdup(enc);
@@ -395,26 +481,36 @@ CC_lookup_cs_old(ConnectionClass *self)
  *	This function works under Windows or Unicode case only.
  *	Simply returns NULL under other OSs.
  */
-const char * get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc)
+const char * get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc, BOOL bStartup)
 {
 	const char *wenc = NULL;
+	int	acp;
 
 #ifdef	UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(conn))
 		return "UTF8";
 #endif /* UNICODE_SUPPORT */
+	if (setenc && stricmp(setenc, OTHER_STRING))
+		return setenc;
 #ifdef	WIN32
-	switch (GetACP())
+	acp = GetACP();
+	if (acp >= 1251 && acp <= 1258)
+	{
+		if (bStartup ||
+		    stricmp(currenc, "SQL_ASCII") == 0)
+			return wenc;
+	}
+	switch (acp)
 	{
 		case 932:
 			wenc = "SJIS";
 			break;
 		case 936:
-			if (!setenc && PG_VERSION_GT(conn, 7.2))
+			if (!bStartup && PG_VERSION_GT(conn, 7.2))
 				wenc = "GBK";
 			break;
 		case 949:
-			if (!setenc || (PG_VERSION_GT(conn, 7.2) && stricmp(setenc, "EUC_KR")))  
+			if (!bStartup && PG_VERSION_GT(conn, 7.2))  
 				wenc = "UHC";
 			break;
 		case 950:
@@ -423,17 +519,40 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 		case 1250:
 			wenc = "WIN1250";
 			break;
+		case 1251:
+			wenc = "WIN1251";
+			break;
+		case 1256:
+			if (PG_VERSION_GE(conn, 7.3))
+				wenc = "WIN1256";
+			break;
 		case 1252:
-			if (setenc)
-				;
-			else if (stricmp(currenc, "LATIN1") == 0 ||
-				 stricmp(currenc, "LATIN9") == 0 ||
-				 stricmp(currenc, "SQL_ASCII") == 0)
-				;
-			else if (PG_VERSION_GE(conn, 8.1))
+			if (strnicmp(currenc, "LATIN", 5) == 0)
+				break;
+			if (PG_VERSION_GE(conn, 8.1))
 				wenc = "WIN1252";
 			else
 				wenc = "LATIN1";
+			break;
+		case 1258:
+			if (PG_VERSION_GE(conn, 8.1))
+				wenc = "WIN1258";
+			break;
+		case 1253:
+			if (PG_VERSION_GE(conn, 8.2))
+				wenc = "WIN1253";
+			break;
+		case 1254:
+			if (PG_VERSION_GE(conn, 8.2))
+				wenc = "WIN1254";
+			break;
+		case 1255:
+			if (PG_VERSION_GE(conn, 8.2))
+				wenc = "WIN1255";
+			break;
+		case 1257:
+			if (PG_VERSION_GE(conn, 8.2))
+				wenc = "WIN1257";
 			break;
 	}
 #endif /* WIN32 */
@@ -443,23 +562,34 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 void
 CC_lookup_characterset(ConnectionClass *self)
 {
-	char	*encstr = NULL, *currenc = NULL, *tencstr;
+	char	*encspec = NULL, *currenc = NULL, *tencstr;
 	CSTR func = "CC_lookup_characterset";
 
 	mylog("%s: entering...\n", func);
+	if (self->original_client_encoding)
+		encspec = strdup(self->original_client_encoding);
 	if (self->current_client_encoding)
-		encstr = strdup(self->current_client_encoding);
+		currenc = strdup(self->current_client_encoding);
 	else if (PG_VERSION_LT(self, 7.2))
 		currenc = CC_lookup_cs_old(self);
 	else
 		currenc = CC_lookup_cs_new(self);
-	tencstr = encstr ? encstr : currenc;
+	tencstr = encspec ? encspec : currenc;
 	if (self->original_client_encoding)
+	{
+		if (stricmp(self->original_client_encoding, tencstr))
+		{
+			char msg[256];
+
+			snprintf(msg, sizeof(msg), "The client_encoding '%s' was changed to '%s'", self->original_client_encoding, tencstr);
+			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
+		}
 		free(self->original_client_encoding);
+	}
 #ifndef	UNICODE_SUPPORT
 	else
 	{
-		const char *wenc = get_environment_encoding(self, encstr, currenc);
+		const char *wenc = get_environment_encoding(self, encspec, currenc, FALSE);
 		if (wenc && (!tencstr || stricmp(tencstr, wenc)))
 		{
 			QResultClass	*res;
@@ -476,8 +606,8 @@ CC_lookup_characterset(ConnectionClass *self)
 			{
 				self->original_client_encoding = strdup(wenc);
 				self->ccsc = pg_CS_code(self->original_client_encoding);
-				if (encstr)
-					free(encstr);
+				if (encspec)
+					free(encspec);
 				if (currenc)
 					free(currenc);
 				return;
@@ -488,12 +618,16 @@ CC_lookup_characterset(ConnectionClass *self)
 	if (tencstr)
 	{
 		self->original_client_encoding = tencstr;
+		if (encspec && currenc)
+			free(currenc);
 		self->ccsc = pg_CS_code(tencstr);
 		qlog("    [ Client encoding = '%s' (code = %d) ]\n", self->original_client_encoding, self->ccsc);
-		if (stricmp(pg_CS_name(self->ccsc), tencstr))
+		if (self->ccsc < 0)
 		{
-			qlog(" Client encoding = '%s' and %s\n", self->original_client_encoding, pg_CS_name(self->ccsc));
-			CC_set_error(self, CONN_VALUE_OUT_OF_RANGE, "client encoding mismatch", func); 
+			char msg[256];
+
+			snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", tencstr); 
+			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func); 
 		}
 	}
 	else

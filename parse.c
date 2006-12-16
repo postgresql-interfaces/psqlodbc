@@ -451,6 +451,50 @@ static BOOL increaseNtab(StatementClass *stmt, const char *func)
 	stmt->ntab++;
 	return TRUE;
 }
+	
+static void setNumFields(IRDFields *irdflds, size_t numFields)
+{
+	FIELD_INFO	**fi = irdflds->fi;
+	size_t		nfields = irdflds->nfields;
+
+	if (numFields < nfields)
+	{
+		int	i;
+
+		for (i = (int) numFields; i < (int) nfields; i++)
+		{
+			if (fi[i])
+				fi[i]->flag = 0;
+		}
+	}
+	irdflds->nfields = (UInt4) numFields;
+}
+
+static BOOL allocateFields(IRDFields *irdflds, size_t sizeRequested)
+{
+	FIELD_INFO	**fi = irdflds->fi;
+	size_t		alloc_size, incr_size;
+
+	if (sizeRequested <= irdflds->allocated)
+		return TRUE;
+	alloc_size = (0 != irdflds->allocated ? irdflds->allocated : FLD_INCR);
+	for (; alloc_size < sizeRequested; alloc_size *= 2)
+			;
+	incr_size = sizeof(FIELD_INFO *) * (alloc_size - irdflds->allocated);
+
+	fi = (FIELD_INFO **) realloc(fi, alloc_size * sizeof(FIELD_INFO *));
+	if (!fi)
+	{
+		irdflds->fi = NULL;
+		irdflds->allocated = irdflds->nfields = 0;
+		return FALSE;
+	}
+	memset(&fi[irdflds->allocated], 0, incr_size);
+	irdflds->fi = fi;
+	irdflds->allocated = (SQLSMALLINT) alloc_size;
+
+	return TRUE;
+}
 
 static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
 {
@@ -512,24 +556,18 @@ mylog("ColAttSet in\n");
 	fi = irdflds->fi;
 	if (num_fields > (int) irdflds->allocated)
 	{
-		fi = (FIELD_INFO **) realloc(fi, num_fields * sizeof(FIELD_INFO *));
-		if (!fi)
-		{
-			irdflds->fi = NULL;
-			irdflds->allocated = irdflds->nfields = 0;
+		if (!allocateFields(irdflds, num_fields))
 			return FALSE;
-		}
-		irdflds->fi = fi;
-		irdflds->allocated = num_fields;
-		for (i = irdflds->nfields; i < num_fields; i++)
-			fi[i] = NULL;
-		irdflds->nfields = num_fields;
+		fi = irdflds->fi;
 	}
+	setNumFields(irdflds, num_fields);
 	updatable = rti ? TI_is_updatable(rti) : FALSE;
 mylog("updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 	if (updatable)
 	{
 		if (1 != stmt->ntab)
+			updatable = FALSE;
+		else if (SC_has_join(stmt))
 			updatable = FALSE;
 		else
 		{
@@ -749,7 +787,7 @@ inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 	}
 	if (found)
 		goto cleanup;
-	else
+	else if (0 != greloid || NAME_IS_VALID(wti->table_name))
 	{
 		RETCODE		result;
 		StatementClass	*col_stmt;
@@ -920,13 +958,13 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				k = 0,
 				n,
 				blevel = 0, old_blevel, subqlevel = 0,
-				nfields_old, allocated_size, new_size;
+				allocated_size, new_size;
 	FIELD_INFO **fi, *wfi;
 	TABLE_INFO **ti, *wti;
-	char		parse;
+	char		parse, maybe_join = 0;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	BOOL		updatable = TRUE, maybe_outerj = FALSE;
+	BOOL		updatable = TRUE;
 
 	mylog("%s: entering...\n", func);
 
@@ -942,8 +980,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	ti = stmt->ti;
 
 	allocated_size = irdflds->allocated;
-	nfields_old = irdflds->nfields;
-	irdflds->nfields = 0;
+	setNumFields(irdflds, 0);
 	if (stmt->ntab > 0)
 	{
 		TI_Destructor(stmt->ti, stmt->ntab);
@@ -953,6 +990,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	}
 	stmt->from_pos = -1;
 	stmt->where_pos = -1;
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 
 	while (pptr = ptr, (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
@@ -979,7 +1017,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 					mylog("INTO\n");
 					stmt->statement_type = STMT_TYPE_CREATE;
 					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-					return FALSE;
+					goto cleanup;
 				}
 				else if (!stricmp(token, "from"))
 				{
@@ -1126,22 +1164,18 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				if (irdflds->nfields >= allocated_size)
 				{
 					mylog("reallocing at nfld=%d\n", irdflds->nfields);
-					new_size = (irdflds->nfields / FLD_INCR + 1) * FLD_INCR;
-					fi = (FIELD_INFO **) realloc(fi, new_size * sizeof(FIELD_INFO *));
-					if (!fi)
+					new_size = irdflds->nfields + 1;
+					if (!allocateFields(irdflds, new_size))
 					{
 						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO.", func);
-						return FALSE;
+						goto cleanup;
 					}
-					allocated_size = new_size;
-					irdflds->fi = fi;
-					irdflds->allocated = allocated_size;
+					fi = irdflds->fi;
+					allocated_size = irdflds->allocated;
 				}
 
-				wfi = NULL;
-				if (irdflds->nfields < nfields_old)
-					wfi = fi[irdflds->nfields];
+				wfi = fi[irdflds->nfields];
 				if (wfi)
 					fi_reuse = TRUE;
 				else
@@ -1150,7 +1184,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				{
 					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO(2).", func);
-					return FALSE;
+					goto cleanup;
 				}
 
 				/* Initialize the field info */
@@ -1283,7 +1317,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			if (out_table && !in_table) /* new table */
 			{
 				in_dot = FALSE;
-				maybe_outerj = FALSE;
+				maybe_join = 0;
 				if (!dquote)
 				{
 					if (token[0] == '(' ||
@@ -1294,13 +1328,21 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				if (!increaseNtab(stmt, func))
 				{
 					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-					return FALSE;
+					goto cleanup;
 				}
 
 				ti = stmt->ti;
 				wti = ti[stmt->ntab - 1];
-				STR_TO_NAME(wti->table_name, token);
-				lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+				if (dquote || stricmp(token, "select"))
+				{
+					STR_TO_NAME(wti->table_name, token);
+					lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+				}
+				else
+				{
+					NULL_THE_NAME(wti->table_name);
+					TI_no_updatable(wti);
+				}
 				mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
 
 				if (0 == blevel && delim == ',')
@@ -1327,24 +1369,35 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			    	    stricmp(token, "OUTER") == 0 ||
 			    	    stricmp(token, "FULL") == 0)
 				{
+					maybe_join = 1;
 					in_table = FALSE;
-					maybe_outerj = TRUE;
+					continue;
+				}
+				else if (stricmp(token, "INNER") == 0 ||
+					 stricmp(token, "CROSS") == 0)
+				{
+					maybe_join = 2;
+					in_table = FALSE;
 					continue;
 				}
 				else if (stricmp(token, "JOIN") == 0)
 				{
 					in_table = FALSE;
 					out_table = TRUE;
-					if (maybe_outerj)
+					switch (maybe_join)
 					{
-						SC_set_outer_join(stmt);
-						maybe_outerj = FALSE;
+						case 1:
+							SC_set_outer_join(stmt);
+							break;
+						case 2:
+							SC_set_inner_join(stmt);
+							break;
 					}
+					maybe_join = 0;
 					continue;
 				}
-				else
-					maybe_outerj = FALSE;
 			}
+			maybe_join = 0;
 			if (in_table)
 			{
 				wti = ti[stmt->ntab - 1];
@@ -1365,8 +1418,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				{
 					if (!dquote)
 					{
-						if (stricmp(token, "INNER") == 0 ||
-						    stricmp(token, "ON") == 0)
+						if (stricmp(token, "ON") == 0)
 						{
 							in_table = FALSE;
 							continue;
@@ -1443,7 +1495,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 							SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 							SC_set_error(stmt, STMT_EXEC_ERROR, "duplicated Table name", func);
 							stmt->updatable = FALSE;
-							return FALSE;
+							goto cleanup;
 						}
 					}
 				}
@@ -1478,7 +1530,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	if (0 == stmt->ntab)
 	{
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-		return	FALSE;
+		goto cleanup;
 	}
 
 	for (i = 0; i < (int) irdflds->nfields; i++)
@@ -1513,7 +1565,9 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			break;
 	}
 	if (STMT_PARSE_FATAL == SC_parsed_status(stmt))
-		return FALSE;
+	{
+		goto cleanup;
+	}
 
 	mylog("Done PG_Columns\n");
 
@@ -1559,25 +1613,22 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			increased_cols = total_cols - 1;
 
 			/* Allocate some more field pointers if necessary */
-			/* allocated_size = ((irdflds->nfields - 1) / FLD_INCR + 1) * FLD_INCR; */
 			new_size = irdflds->nfields + increased_cols;
 
 			mylog("k=%d, increased_cols=%d, allocated_size=%d, new_size=%d\n", k, increased_cols, allocated_size, new_size);
 
 			if (new_size > allocated_size)
 			{
-				int			new_alloc = ((new_size / FLD_INCR) + 1) * FLD_INCR;
+				int	new_alloc = new_size;
 
 				mylog("need more cols: new_alloc = %d\n", new_alloc);
-				fi = (FIELD_INFO **) realloc(fi, new_alloc * sizeof(FIELD_INFO *));
-				if (!fi)
+				if (!allocateFields(irdflds, new_alloc))
 				{
 					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-					return FALSE;
+					goto cleanup;
 				}
-				allocated_size = new_alloc;
-				irdflds->fi = fi;
-				irdflds->allocated = allocated_size;
+				fi = irdflds->fi;
+				allocated_size = irdflds->allocated;
 			}
 
 			/*
@@ -1620,7 +1671,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 						if (fi[n + i] == NULL)
 						{
 							SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-							return FALSE;
+							goto cleanup;
 						}
 						reuse = FALSE;
 					}
@@ -1689,6 +1740,18 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	}
 
 	stmt->updatable = updatable;
+cleanup:
+#undef	return
+	if (STMT_PARSE_FATAL == SC_parsed_status(stmt))
+	{
+		setNumFields(irdflds, 0);
+		TI_Destructor(stmt->ti, stmt->ntab);
+		free(stmt->ti);
+		stmt->ti = NULL;
+		stmt->ntab = 0;
+		parse = FALSE;
+	}
+
 	mylog("done parse_statement: parse=%d, parse_status=%d\n", parse, SC_parsed_status(stmt));
 	return parse;
 }

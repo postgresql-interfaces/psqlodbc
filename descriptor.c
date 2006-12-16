@@ -133,7 +133,7 @@ static void IRDFields_free(IRDFields * self)
 	/* Free the parsed field information */
 	if (self->fi)
 	{
-		FI_Destructor(self->fi, self->nfields, TRUE);
+		FI_Destructor(self->fi, self->allocated, TRUE);
 		self->fi = NULL;
 	}
 	self->allocated = 0;

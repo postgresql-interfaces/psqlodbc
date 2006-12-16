@@ -2003,10 +2003,10 @@ table_for_update(const char *stmt, int *endpos)
  *----------
  */
 static BOOL
-check_join(StatementClass *stmt, const char *curptr, int curpos)
+check_join(StatementClass *stmt, const char *curptr, size_t curpos)
 {
 	const char *wstmt;
-	int	stapos, endpos, tokenwd;
+	ssize_t	stapos, endpos, tokenwd;
 	const int	backstep = 5;
 	BOOL	outerj = TRUE;
 
@@ -4672,24 +4672,26 @@ static size_t
 convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
 {
 	CSTR	func = "convert_to_pgbinary";
+	UCHAR	inc;
 	size_t			i, o = 0;
 	char	escape_in_literal = CC_get_escape(qb->conn);
 	BOOL	esc_double = (0 == (qb->flags & FLGB_BUILDING_BIND_REQUEST) && 0 != escape_in_literal);
 
 	for (i = 0; i < len; i++)
 	{
-		mylog("%s: in[%d] = %d, %c\n", func, i, in[i], in[i]);
-		if (isalnum(in[i]) || in[i] == ' ')
-			out[o++] = in[i];
+		inc = in[i];
+		mylog("%s: in[%d] = %d, %c\n", func, i, inc, inc);
+		if (inc < 128 && (isalnum(inc) || inc == ' '))
+			out[o++] = inc;
 		else
 		{
 			if (esc_double)
 			{
-				o += conv_to_octal(in[i], &out[o], escape_in_literal);
+				o += conv_to_octal(inc, &out[o], escape_in_literal);
 			}
 			else
 			{
-				conv_to_octal2(in[i], &out[o]);
+				conv_to_octal2(inc, &out[o]);
 				o += 4;
 			}
 		}
