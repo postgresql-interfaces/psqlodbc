@@ -27,8 +27,8 @@
 
 extern GLOBAL_VALUES globals;
 
-static void encode(const char *in, char *out);
-static void decode(const char *in, char *out);
+static void encode(const UCHAR *in, UCHAR *out);
+static void decode(const UCHAR *in, UCHAR *out);
 
 UInt4	getExtraOptions(const ConnInfo *ci)
 {
@@ -1319,27 +1319,29 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 }
 
 static void
-encode(const char *in, char *out)
+encode(const UCHAR *in, UCHAR *out)
 {
 	size_t i, ilen = strlen(in),
 				o = 0;
+	UCHAR	inc;
 
 	for (i = 0; i < ilen; i++)
 	{
-		if (in[i] == '+')
+		inc = in[i];
+		if (inc == '+')
 		{
 			sprintf(&out[o], "%%2B");
 			o += 3;
 		}
-		else if (isspace((UCHAR) in[i]))
+		else if (isspace(inc))
 			out[o++] = '+';
-		else if (!isalnum((UCHAR) in[i]))
+		else if (!isalnum(inc))
 		{
-			sprintf(&out[o], "%%%02x", (UCHAR) in[i]);
+			sprintf(&out[o], "%%%02x", inc);
 			o += 3;
 		}
 		else
-			out[o++] = in[i];
+			out[o++] = inc;
 	}
 	out[o++] = '\0';
 }
@@ -1367,22 +1369,24 @@ conv_from_hex(const UCHAR *s)
 }
 
 static void
-decode(const char *in, char *out)
+decode(const UCHAR *in, UCHAR *out)
 {
 	size_t i, ilen = strlen(in),
 				o = 0;
+	UCHAR	inc;
 
 	for (i = 0; i < ilen; i++)
 	{
-		if (in[i] == '+')
+		inc = in[i];
+		if (inc == '+')
 			out[o++] = ' ';
-		else if (in[i] == '%')
+		else if (inc == '%')
 		{
 			sprintf(&out[o++], "%c", conv_from_hex(&in[i]));
 			i += 2;
 		}
 		else
-			out[o++] = in[i];
+			out[o++] = inc;
 	}
 	out[o++] = '\0';
 }

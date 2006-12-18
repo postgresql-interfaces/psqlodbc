@@ -18,6 +18,9 @@
 /* Multibyte support  Eiji Tokuya	2001-03-15	*/
 
 #include "convert.h"
+#ifdef	WIN32
+#include <float.h>
+#endif /* WIN32 */
 
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +46,10 @@
 #if defined(UNICODE_SUPPORT) && defined(WIN32)
 #define	WIN_UNICODE_SUPPORT
 #endif
+
+CSTR	NAN_STRING = "NaN";
+CSTR	INFINITY_STRING = "Infinity";
+CSTR	MINFINITY_STRING = "-Infinity";
 
 #ifdef	__CYGWIN__
 #define TIMEZONE_GLOBAL _timezone
@@ -336,12 +343,12 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, BOOL precision)
 	precstr[0] = '\0';
 	if (st->infinity > 0)
 	{
-		strcpy(str, "Infinity");
+		strcpy(str, INFINITY_STRING);
 		return TRUE;
 	}
 	else if (st->infinity < 0)
 	{
-		strcpy(str, "-Infinity");
+		strcpy(str, MINFINITY_STRING);
 		return TRUE;
 	}
 	if (precision && st->fr)
@@ -403,6 +410,31 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, void *valu
 			LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset));
 }
 
+static double get_double_value(const char *str)
+{
+	if (stricmp(str, NAN_STRING) == 0)
+#ifdef	NAN
+		return (double) NAN;
+#else
+	{
+		double	a = .0;
+		return .0 / a;
+	}
+#endif /* NAN */
+	else if (stricmp(str, INFINITY_STRING) == 0)
+#ifdef	INFINITY
+		return (double) INFINITY;
+#else
+		return (double) (HUGE_VAL * HUGE_VAL);
+#endif /* INFINITY */
+	else if (stricmp(str, MINFINITY_STRING) == 0)
+#ifdef	INFINITY
+		return (double) -INFINITY;
+#else
+		return (double) -(HUGE_VAL * HUGE_VAL);
+#endif /* INFINITY */
+	return atof(str);
+}
 
 /*	This is called by SQLGetData() */
 int
@@ -607,7 +639,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		case PG_TYPE_TIMESTAMP:
 			std_time.fr = 0;
 			std_time.infinity = 0;
-			if (strnicmp(value, "infinity", 8) == 0)
+			if (strnicmp(value, INFINITY_STRING, 8) == 0)
 			{
 				std_time.infinity = 1;
 				std_time.m = 12;
@@ -617,7 +649,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 				std_time.mm = 59;
 				std_time.ss = 59;
 			}
-			if (strnicmp(value, "-infinity", 9) == 0)
+			if (strnicmp(value, MINFINITY_STRING, 9) == 0)
 			{
 				std_time.infinity = -1;
 				std_time.m = 0;
@@ -1210,9 +1242,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* HAVE_LOCALE_H */
 				len = 4;
 				if (bind_size > 0)
-					*((SFLOAT *) rgbValueBindRow) = (float) atof(neut_str);
+					*((SFLOAT *) rgbValueBindRow) = (float) get_double_value(neut_str);
 				else
-					*((SFLOAT *) rgbValue + bind_row) = (float) atof(neut_str);
+					*((SFLOAT *) rgbValue + bind_row) = (float) get_double_value(neut_str);
 #ifdef HAVE_LOCALE_H
 				setlocale(LC_ALL, saved_locale);
 				free(saved_locale);
@@ -1226,9 +1258,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* HAVE_LOCALE_H */
 				len = 8;
 				if (bind_size > 0)
-					*((SDOUBLE *) rgbValueBindRow) = atof(neut_str);
+					*((SDOUBLE *) rgbValueBindRow) = get_double_value(neut_str);
 				else
-					*((SDOUBLE *) rgbValue + bind_row) = atof(neut_str);
+					*((SDOUBLE *) rgbValue + bind_row) = get_double_value(neut_str);
 #ifdef HAVE_LOCALE_H
 				setlocale(LC_ALL, saved_locale);
 				free(saved_locale);
@@ -2656,7 +2688,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			mylog("%s convert_escape error\n", func);
 			return SQL_ERROR;
 		}
-		if (isalnum(F_OldPtr(qp)[1]))
+		if (isalnum((UCHAR)F_OldPtr(qp)[1]))
 			CVT_APPEND_CHAR(qb, ' ');
 		return SQL_SUCCESS;
 	}
@@ -3155,6 +3187,8 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	ParameterInfoClass	*apara;
 	ParameterImplClass	*ipara;
 	BOOL outputDiscard, valueOutput;
+	SDOUBLE	dbv;
+	SFLOAT	flv;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
@@ -3425,13 +3459,35 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 #endif /* UNICODE_SUPPORT */
 
 		case SQL_C_DOUBLE:
-			sprintf(param_string, "%.15g",
-						*((SDOUBLE *) buffer));
+			dbv = *((SDOUBLE *) buffer);
+#ifdef	WIN32
+			if (_finite(dbv))
+#endif /* WIN32 */
+			sprintf(param_string, "%.15g", dbv);
+#ifdef	WIN32
+			else if (_isnan(dbv))
+				strcpy(param_string, NAN_STRING);
+			else if (dbv < .0)
+				strcpy(param_string, MINFINITY_STRING);
+			else 
+				strcpy(param_string, INFINITY_STRING);
+#endif /* WIN32 */
 			break;
 
 		case SQL_C_FLOAT:
-			sprintf(param_string, "%.6g",
-					*((SFLOAT *) buffer));
+			flv = *((SFLOAT *) buffer);
+#ifdef	WIN32
+			if (_finite(flv))
+#endif /* WIN32 */
+			sprintf(param_string, "%.6g", flv);
+#ifdef	WIN32
+			else if (_isnan(flv))
+				strcpy(param_string, NAN_STRING);
+			else if (flv < .0)
+				strcpy(param_string, MINFINITY_STRING);
+			else 
+				strcpy(param_string, INFINITY_STRING);
+#endif /* WIN32 */
 			break;
 
 		case SQL_C_SLONG:
@@ -4042,7 +4098,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
     
 	/* Avoid the concatenation of the function name with the previous word. Aceto */
 
-	if (F_NewPos(qb) > 0 && isalnum(F_NewPtr(qb)[-1]))
+	if (F_NewPos(qb) > 0 && isalnum((UCHAR)F_NewPtr(qb)[-1]))
 		CVT_APPEND_CHAR(qb, ' ');
 	
 	if (stricmp(key, "d") == 0)
@@ -4864,10 +4920,9 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 			odbc_lo_lseek(conn, stmt->lobj_fd, 0L, SEEK_SET);
 		}
 	}
-	mylog("lo data left = %d\n", left);
-
-	if (left == 0)
+	else if (left == 0)
 		return COPY_NO_DATA_FOUND;
+	mylog("lo data left = %d\n", left);
 
 	if (stmt->lobj_fd < 0)
 	{
@@ -4875,7 +4930,10 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		return COPY_GENERAL_ERROR;
 	}
 
-	retval = odbc_lo_read(conn, stmt->lobj_fd, (char *) rgbValue, (Int4) (factor > 1 ? (cbValueMax - 1) / factor : cbValueMax));
+	if (0 >= cbValueMax)
+		retval = 0;
+	else
+		retval = odbc_lo_read(conn, stmt->lobj_fd, (char *) rgbValue, (Int4) (factor > 1 ? (cbValueMax - 1) / factor : cbValueMax));
 	if (retval < 0)
 	{
 		odbc_lo_close(conn, stmt->lobj_fd);

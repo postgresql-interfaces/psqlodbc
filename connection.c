@@ -1396,7 +1396,7 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 
 	if (!PROTOCOL_62(ci))
 	{
-		BOOL		before_64 = PG_VERSION_LT(self, 6.4),
+		BOOL		beforeV2 = PG_VERSION_LT(self, 6.4),
 					ReadyForQuery = FALSE, retry = FALSE;
 		uint32	leng;
 
@@ -1566,7 +1566,7 @@ inolog("Ekita\n");
 			/*
 			 * There were no ReadyForQuery responce before 6.4.
 			 */
-			if (before_64 && areq == AUTH_REQ_OK)
+			if (beforeV2 && areq == AUTH_REQ_OK)
 				ReadyForQuery = TRUE;
 		} while (!ReadyForQuery);
 	}
@@ -2082,7 +2082,7 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	BOOL		msg_truncated,
 				ReadyToReturn = FALSE,
 				query_completed = FALSE,
-				before_64 = PG_VERSION_LT(self, 6.4),
+				beforeV2 = PG_VERSION_LT(self, 6.4),
 				aborted = FALSE,
 				used_passed_result_object = FALSE,
 			discard_next_begin = FALSE,
@@ -2314,7 +2314,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					QR_set_command(res, cmdbuffer);
 					query_completed = TRUE;
 					mylog("send_query: returning res = %p\n", res);
-					if (!before_64)
+					if (!beforeV2)
 						break;
 
 					/*
@@ -2496,7 +2496,7 @@ inolog("Discarded the first SAVEPOINT\n");
 		/*
 		 * There was no ReadyForQuery response before 6.4.
 		 */
-		if (before_64)
+		if (beforeV2)
 		{
 			if (empty_reqs == 0 && query_completed)
 				break;
@@ -2606,7 +2606,8 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	UInt4			leng;
 	Int4			response_length;
 	ConnInfo		*ci;
-	int			func_cs_count = 0; 
+	int			func_cs_count = 0;
+	BOOL			sinceV3, beforeV3, beforeV2, resultResponse;
 
 	mylog("send_function(): conn=%p, fnid=%d, result_is_int=%d, nargs=%d\n", self, fnid, result_is_int, nargs);
 
@@ -2627,7 +2628,10 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(self, func_cs_count);
 	ci = &(self->connInfo);
-	if (PROTOCOL_74(ci))
+	sinceV3 = PROTOCOL_74(ci);
+	beforeV3 = (!sinceV3);
+	beforeV2 = (beforeV3 && !PROTOCOL_64(ci));
+	if (sinceV3)
 	{
 		leng = 4 + sizeof(uint32) + 2 + 2
 			+ sizeof(uint16);
@@ -2658,7 +2662,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	}
 
 	SOCK_put_int(sock, fnid, 4);
-	if (PROTOCOL_74(ci))
+	if (sinceV3)
 	{
 		SOCK_put_int(sock, 1, 2); /* # of formats */
 		SOCK_put_int(sock, 1, 2); /* the format is binary */
@@ -2681,7 +2685,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 
 	}
 
-	if (PROTOCOL_74(ci))
+	if (sinceV3)
 		SOCK_put_int(sock, 1, 2); /* result format is binary */
 	mylog("    done sending args\n");
 
@@ -2689,6 +2693,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	mylog("  after flush output\n");
 
 	done = FALSE;
+	resultResponse = FALSE; /* for before V3 only */
 	while (!done)
 	{
 		id = SOCK_get_id(sock);
@@ -2699,16 +2704,21 @@ inolog("send_func response_length=%d\n", response_length);
 		switch (id)
 		{
 			case 'G':
-				if (PROTOCOL_74(ci))
+				if (!resultResponse)
 				{
 					done = TRUE;
 					ret = FALSE;
 					break;
-				}
+				} /* fall through */
 			case 'V':
 				if ('V' == id)
-					if (!PROTOCOL_74(ci))
+				{
+					if (beforeV3) /* FunctionResultResponse */
+					{
+						resultResponse = TRUE;
 						break;
+					}
+				}
 				*actual_result_len = SOCK_get_int(sock, 4);
 				if (-1 != *actual_result_len)
 				{
@@ -2719,12 +2729,14 @@ inolog("send_func response_length=%d\n", response_length);
 
 					mylog("  after get result\n");
 				}
-				if (!PROTOCOL_74(ci))
+				if (beforeV3)
 				{
-					c = SOCK_get_char(sock); /* get the last '0' */ 
+					c = SOCK_get_char(sock); /* get the last '0' */
+					if (beforeV2)
+						done = TRUE;
+					resultResponse = FALSE;
 					mylog("   after get 0\n");
 				}
-				done = TRUE; 
 				break;			/* ok */
 
 			case 'N':
@@ -2741,17 +2753,24 @@ inolog("send_func response_length=%d\n", response_length);
 
 				mylog("send_function(V): 'E' - %s\n", CC_get_errormsg(self));
 				qlog("ERROR from backend during send_function: '%s'\n", CC_get_errormsg(self));
-				done = TRUE;
+				if (beforeV2)
+					done = TRUE;
 				ret = FALSE;
 				break;
 
 			case 'Z':
 				EatReadyForQuery(self);
-				break;
-
-			case '0':			/* empty result */
 				done = TRUE;
 				break;
+
+			case '0':	/* empty result */
+				if (resultResponse)
+				{
+					if (beforeV2)
+						done = TRUE;
+					resultResponse = FALSE;
+					break;
+				} /* fall through */
 
 			default:
 				/* skip the unexpected response if possible */

@@ -1465,6 +1465,8 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 		/* reset for SQLGetData */
 		gdata->gdata[lf].data_left = -1;
 
+		if (NULL == opts->bindings)
+			continue;
 		if (opts->bindings[lf].buffer != NULL)
 		{
 			/* this column has a binding */
