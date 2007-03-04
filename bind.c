@@ -370,6 +370,12 @@ ipdopts->parameters[ipar].PGType);
 			*pfSqlType = ipdopts->parameters[ipar].SQLType;
 		else if (ipdopts->parameters[ipar].PGType)
 			*pfSqlType = pgtype_to_concise_type(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC);
+		else
+		{
+			ret = SQL_ERROR;
+			SC_set_error(stmt, STMT_EXEC_ERROR, "Unfortunatley couldn't get this paramater's info", func);
+			goto cleanup;
+		}
 	}
 
 	if (pcbParamDef)
@@ -468,101 +474,15 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	}
 	else
 	{
-		const	char *sptr, *tag = NULL;
-		ConnectionClass	*conn = SC_get_conn(stmt);
-		size_t	taglen = 0;
-		char	tchar, bchar, escape_in_literal = '\0';
-		char	in_literal = FALSE, in_identifier = FALSE,
-			in_dollar_quote = FALSE, in_escape = FALSE,
-			multi = FALSE, del_found = FALSE;
-		encoded_str	encstr;
+		char	multi = FALSE, proc_return = 0;
 
 		stmt->proc_return = 0;
-		make_encoded_str(&encstr, conn, stmt->statement);
-		for (sptr = stmt->statement, bchar = '\0'; *sptr; sptr++)
-		{
-			tchar = encoded_nextchar(&encstr);
-			if (ENCODE_STATUS(encstr) != 0) /* multibyte char */
-			{
-				if ((UCHAR) tchar >= 0x80)
-					bchar = tchar;
-				continue;
-			}
-			if (!multi && del_found)
-			{
-				if (!isspace(tchar))
-					multi = TRUE;
-			}
-			if (in_dollar_quote)
-			{
-				if (tchar == dollar_quote)
-				{
-					if (strncmp(sptr, tag, taglen) == 0)
-					{
-						in_dollar_quote = FALSE;
-						tag = NULL;
-						sptr += taglen;
-						sptr--;
-						encoded_position_shift(&encstr, taglen - 1);
-					}
-				}
-			}
-			else if (in_literal)
-			{
-				if (in_escape)
-					in_escape = FALSE;
-				else if (tchar == escape_in_literal)
-					in_escape = TRUE;
-				else if (tchar == literal_quote)
-					in_literal = FALSE;
-			}
-			else if (in_identifier)
-			{
-				if (tchar == identifier_quote)
-					in_identifier = FALSE;
-			}
-			else
-			{
-				if (tchar == '?')
-				{
-					if (0 == *pcpar && bchar == '{')
-						stmt->proc_return = 1;
-					(*pcpar)++;
-				}
-				else if (tchar == ';')
-					del_found = TRUE;
-				else if (tchar == dollar_quote)
-				{
-					char	*dollar_next;
-
-					in_dollar_quote = TRUE;
-					tag = sptr;
-					taglen = 0; 
-					if (dollar_next = strchr(sptr + 1, dollar_quote), NULL != dollar_next)
-					{
-						taglen = dollar_next - sptr + 1;
-						sptr = dollar_next;
-						encoded_position_shift(&encstr, taglen - 1);
-					}
-				}
-				else if (tchar == literal_quote)
-				{
-					in_literal = TRUE;
-					escape_in_literal = CC_get_escape(conn);
-					if (!escape_in_literal)
-					{
-						if (LITERAL_EXT == sptr[-1])
-							escape_in_literal = ESCAPE_IN_LITERAL;
-					}
-				}
-				else if (tchar == identifier_quote)
-					in_identifier = TRUE;
-				if (!isspace(tchar))
-					bchar = tchar;
-			}
-		}
+		SC_scanQueryAndCountParams(stmt->statement, SC_get_conn(stmt), NULL, pcpar, &multi, &proc_return);
 		stmt->num_params = *pcpar;
+		stmt->proc_return = proc_return;
 		stmt->multi_statement = multi;
+		if (multi)
+			SC_no_parse_tricky(stmt);
 	}
 inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	return SQL_SUCCESS;
@@ -1076,7 +996,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 		new_pdata = (PutDataClass *) realloc(self->pdata, sizeof(PutDataClass) * num_params);
 		if (!new_pdata)
 		{
-			mylog("%s: unable to create %d new pdata from %d old pdata\n", func, num_params, self->allocated);
+			mylog("%s: unable to create new pdata of %d params(%d old pdata)\n", func, num_params, self->allocated);
 
 			self->pdata = NULL;
 			self->allocated = 0;

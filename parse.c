@@ -275,18 +275,18 @@ getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k)
 
 inolog("getColInfo non-manual result\n");
 	fi->dquote = TRUE;
-	STR_TO_NAME(fi->column_name, QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME));
+	STR_TO_NAME(fi->column_name, QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME));
 
-	fi->columntype = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_FIELD_TYPE));
-	fi->column_size = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PRECISION));
-	fi->length = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_LENGTH));
-	if (str = QR_get_value_backend_row(col_info->result, k, COLUMNS_SCALE), str)
+	fi->columntype = (OID) QR_get_value_backend_int(col_info->result, k, COLUMNS_FIELD_TYPE, NULL);
+	fi->column_size = QR_get_value_backend_int(col_info->result, k, COLUMNS_PRECISION, NULL);
+	fi->length = QR_get_value_backend_int(col_info->result, k, COLUMNS_LENGTH, NULL);
+	if (str = QR_get_value_backend_text(col_info->result, k, COLUMNS_SCALE), str)
 		fi->decimal_digits = atoi(str);
 	else
 		fi->decimal_digits = -1;
-	fi->nullable = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_NULLABLE));
-	fi->display_size = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_DISPLAY_SIZE));
-	fi->auto_increment = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_AUTO_INCREMENT));
+	fi->nullable = QR_get_value_backend_int(col_info->result, k, COLUMNS_NULLABLE, NULL);
+	fi->display_size = QR_get_value_backend_int(col_info->result, k, COLUMNS_DISPLAY_SIZE, NULL);
+	fi->auto_increment = QR_get_value_backend_int(col_info->result, k, COLUMNS_AUTO_INCREMENT, NULL);
 }
 
 
@@ -295,7 +295,7 @@ searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 {
 	int			k,
 				cmp, attnum;
-	char	   *col;
+	const char	   *col;
 
 inolog("searchColInfo num_cols=%d col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
 	if (fi->attnum < 0)
@@ -304,7 +304,7 @@ inolog("searchColInfo num_cols=%d col=%s\n", QR_get_num_cached_tuples(col_info->
 	{
 		if (fi->attnum > 0)
 		{
-			attnum = atoi(QR_get_value_backend_row(col_info->result, k, COLUMNS_PHYSICAL_NUMBER));
+			attnum = QR_get_value_backend_int(col_info->result, k, COLUMNS_PHYSICAL_NUMBER, NULL);
 inolog("searchColInfo %d attnum=%d\n", k, attnum);
 			if (attnum == fi->attnum)
 			{
@@ -315,7 +315,7 @@ inolog("searchColInfo %d attnum=%d\n", k, attnum);
 		}
 		else if (NAME_IS_VALID(fi->column_name))
 		{
-			col = QR_get_value_backend_row(col_info->result, k, COLUMNS_COLUMN_NAME);
+			col = QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME);
 inolog("searchColInfo %d col=%s\n", k, col);
 			if (fi->dquote)
 				cmp = strcmp(col, GET_NAME(fi->column_name));
@@ -378,7 +378,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 		stmt->num_key_fields = PG_NUM_NORMAL_KEYS;
 		if (1 == QR_get_num_total_tuples(res))
 		{
-			char *value = QR_get_value_backend_row(res, 0, 0);
+			const char *value = QR_get_value_backend_text(res, 0, 0);
 			if (value && ('f' == *value || '0' == *value))
 			{
 				hasoids = FALSE;
@@ -394,7 +394,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				STR_TO_NAME(ti->bestqual, query);
 			}
 			TI_set_hasoids_checked(ti);
-			ti->table_oid = strtoul(QR_get_value_backend_row(res, 0, 1), NULL, 10);
+			ti->table_oid = (OID) strtoul(QR_get_value_backend_text(res, 0, 1), NULL, 10);
 		}
 		QR_Destructor(res);
 		res = NULL;
@@ -405,9 +405,9 @@ static BOOL CheckHasOids(StatementClass * stmt)
 			if (QR_command_maybe_successful(res) && QR_get_num_total_tuples(res) > 0)
 			{
 				foundKey = TRUE;
-				STR_TO_NAME(ti->bestitem, QR_get_value_backend_row(res, 0, 0));
+				STR_TO_NAME(ti->bestitem, QR_get_value_backend_text(res, 0, 0));
 				sprintf(query, "\"%s\" = %%", SAFE_NAME(ti->bestitem));
-				if (PG_TYPE_INT4 == atoi(QR_get_value_backend_row(res, 0, 1)))
+				if (PG_TYPE_INT4 == (OID) QR_get_value_backend_int(res, 0, 1, NULL))
 					strcat(query, "d");
 				else
 					strcat(query, "u");
@@ -468,6 +468,29 @@ static void setNumFields(IRDFields *irdflds, size_t numFields)
 		}
 	}
 	irdflds->nfields = (UInt4) numFields;
+}
+
+void SC_initialize_cols_info(StatementClass *stmt, BOOL DCdestroy, BOOL parseReset)
+{
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
+
+	/* Free the parsed table information */
+	if (stmt->ti)
+	{
+		TI_Destructor(stmt->ti, stmt->ntab);
+		free(stmt->ti);
+		stmt->ti = NULL;
+	}
+	stmt->ntab = 0;
+	if (DCdestroy) /* Free the parsed field information */
+		DC_Destructor((DescriptorClass *) SC_get_IRD(stmt));
+	else
+		setNumFields(irdflds, 0);
+	if (parseReset)
+	{
+		stmt->parse_status = STMT_PARSE_NONE;
+		stmt->updatable = FALSE;
+	}
 }
 
 static BOOL allocateFields(IRDFields *irdflds, size_t sizeRequested)
@@ -670,7 +693,7 @@ COL_INFO **coli)
 					if (QR_get_num_total_tuples(res) == 1)
 					{
 						tblFound = TRUE;
-						STR_TO_NAME(*schema_name, QR_get_value_backend_row(res, 0, 0));
+						STR_TO_NAME(*schema_name, QR_get_value_backend_text(res, 0, 0));
 					}
 				}
 				QR_Destructor(res);
@@ -854,15 +877,15 @@ inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 			if (res && QR_get_num_cached_tuples(res) > 0)
 			{
 				if (!greloid)
-					greloid = strtoul(QR_get_value_backend_row(res, 0, COLUMNS_TABLE_OID), NULL, 10);
+					greloid = (OID) strtoul(QR_get_value_backend_text(res, 0, COLUMNS_TABLE_OID), NULL, 10);
 				if (!wti->table_oid)
 					wti->table_oid = greloid;
 				if (NAME_IS_NULL(wti->schema_name))
 					STR_TO_NAME(wti->schema_name, 
-						QR_get_value_backend_row(res, 0, COLUMNS_SCHEMA_NAME));
+						QR_get_value_backend_text(res, 0, COLUMNS_SCHEMA_NAME));
 				if (NAME_IS_NULL(wti->table_name))
 					STR_TO_NAME(wti->table_name, 
-						QR_get_value_backend_row(res, 0, COLUMNS_TABLE_NAME));
+						QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
 			}
 inolog("#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 			/*
@@ -887,7 +910,7 @@ inolog("#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->tabl
 			conn->ntables++;
 
 if (res && QR_get_num_cached_tuples(res) > 0)
-inolog("oid item == %s\n", QR_get_value_backend_row(res, 0, 3));
+inolog("oid item == %s\n", QR_get_value_backend_text(res, 0, 3));
 
 			mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
 			/* Associate a table from the statement with a SQLColumn info */
@@ -905,15 +928,15 @@ cleanup:
 		if (res && QR_get_num_cached_tuples(res) > 0)
 		{
 			if (!greloid)
-				greloid = strtoul(QR_get_value_backend_row(res, 0, COLUMNS_TABLE_OID), NULL, 10);
+				greloid = (OID) strtoul(QR_get_value_backend_text(res, 0, COLUMNS_TABLE_OID), NULL, 10);
 			if (!wti->table_oid)
 				wti->table_oid = greloid;
 			if (NAME_IS_NULL(wti->schema_name))
 				STR_TO_NAME(wti->schema_name, 
-					QR_get_value_backend_row(res, 0, COLUMNS_SCHEMA_NAME));
+					QR_get_value_backend_text(res, 0, COLUMNS_SCHEMA_NAME));
 			if (NAME_IS_NULL(wti->table_name))
 				STR_TO_NAME(wti->table_name, 
-					QR_get_value_backend_row(res, 0, COLUMNS_TABLE_NAME));
+					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
 		}
 inolog("#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 		if (colatt /* SQLColAttribute case */
@@ -980,14 +1003,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	ti = stmt->ti;
 
 	allocated_size = irdflds->allocated;
-	setNumFields(irdflds, 0);
-	if (stmt->ntab > 0)
-	{
-		TI_Destructor(stmt->ti, stmt->ntab);
-		free(stmt->ti);
-		stmt->ti = NULL;
-		stmt->ntab = 0;
-	}
+	SC_initialize_cols_info(stmt, FALSE, TRUE);
 	stmt->from_pos = -1;
 	stmt->where_pos = -1;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
@@ -1299,13 +1315,16 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			mylog("*** setting expression\n");
 		} /* in_select end */
 
-		if (in_from)
+		if (in_from || in_where)
 		{
-			if (token[0] == ';')
+			if (token[0] == ';') /* end of the first command */
 			{
-				in_from = FALSE;
+				in_select = in_from = in_where = in_table = FALSE;
 				break;
 			}
+		}
+		if (in_from)
+		{
 			switch (token[0])
 			{
 				case '\0':
@@ -1744,11 +1763,7 @@ cleanup:
 #undef	return
 	if (STMT_PARSE_FATAL == SC_parsed_status(stmt))
 	{
-		setNumFields(irdflds, 0);
-		TI_Destructor(stmt->ti, stmt->ntab);
-		free(stmt->ti);
-		stmt->ti = NULL;
-		stmt->ntab = 0;
+		SC_initialize_cols_info(stmt, FALSE, FALSE);
 		parse = FALSE;
 	}
 

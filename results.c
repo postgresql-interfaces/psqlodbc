@@ -170,7 +170,7 @@ PGAPI_NumResultCols(
 		goto cleanup;
 	}
 	parse_ok = FALSE;
-	if (!stmt->catalog_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -286,7 +286,7 @@ inolog("answering bookmark info\n");
 	fi = NULL;
 	if (icol < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[icol];
-	if (!FI_is_applicable(fi) && !stmt->catalog_result && ci->drivers.parse && STMT_TYPE_SELECT == stmt->statement_type)
+	if (!FI_is_applicable(fi) && !stmt->catalog_result && SC_is_parse_forced(stmt) && STMT_TYPE_SELECT == stmt->statement_type)
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -516,7 +516,7 @@ inolog("answering bookmark info\n");
 	if (unknown_sizes == UNKNOWNS_AS_DONTKNOW)
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
-	if (!stmt->catalog_result && ci->drivers.parse && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && stmt->statement_type == STMT_TYPE_SELECT)
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -1894,6 +1894,21 @@ PGAPI_MoreResults(
 		SC_set_Curres(stmt, res->next);
 	if (res = SC_get_Curres(stmt), res)
 	{
+		SQLSMALLINT	num_p;
+
+		if (stmt->multi_statement < 0)
+			PGAPI_NumParams(stmt, &num_p);
+		if (stmt->multi_statement > 0)
+		{ 
+			const char *cmdstr;
+
+			SC_initialize_cols_info(stmt, FALSE, TRUE);
+			stmt->statement_type = STMT_TYPE_UNKNOWN;
+			if (cmdstr = QR_get_command(res), NULL != cmdstr)
+				stmt->statement_type = statement_type(cmdstr);
+			stmt->join_info = 0;
+			SC_clear_parse_method(stmt);
+		}
 		stmt->diag_row_count = res->recent_processed_row_count;
 		SC_set_rowset_start(stmt, -1, FALSE);
 		stmt->currTuple = -1;
@@ -3054,6 +3069,18 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 
 	mylog("selstr=%s\n", selstr);
 	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, stmt);
+#ifdef	NOT_USED
+if (qres)
+{
+int	i, j;
+TupleField	*tuple = qres->backend_tuples;
+mylog("%s qres=%p backend_tuples=%p\n", func, qres, tuple);
+for (i = 0; i < QR_get_num_cached_tuples(qres); i++)
+for (j = 0; j < qres->num_fields; j++, tuple++)
+mylog("tuple[%d,%d]=(%d,%p)\n", i, j, tuple->len, tuple->value);
+QR_free_memory(qres);
+}
+#endif /* NOT_USED */
 cleanup:
 	free(selstr);
 	return qres;
@@ -3575,6 +3602,9 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 		}
 		/* stmt->currTuple = SC_get_rowset_start(stmt) + ridx; */
 	}
+#ifdef	NOT_USED
+mylog("about to QR_Destructor %p\n", qres);
+#endif /* NOT_USED */
 	QR_Destructor(qres);
 	return ret;
 }

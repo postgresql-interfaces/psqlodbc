@@ -295,9 +295,21 @@ CC_conninfo_init(ConnInfo *conninfo)
 #ifdef	WIN32
 extern	int	platformId;
 #endif /* WIN32 */
+
 /*
  *		IMPLEMENTATION CONNECTION CLASS
  */
+
+static void
+reset_current_schema(ConnectionClass *self)
+{
+	if (self->current_schema)
+	{
+		free(self->current_schema);
+		self->current_schema = NULL;
+	}
+}
+
 ConnectionClass *
 CC_Constructor()
 {
@@ -621,11 +633,7 @@ CC_cleanup(ConnectionClass *self)
 		free(self->server_encoding);
 		self->server_encoding = NULL;
 	}
-	if (self->current_schema)
-	{
-		free(self->current_schema);
-		self->current_schema = NULL;
-	}
+	reset_current_schema(self);
 	/* Free cached table info */
 	if (self->col_info)
 	{
@@ -1201,10 +1209,34 @@ inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
 static char CC_initial_log(ConnectionClass *self, const char *func)
 {
 	const ConnInfo	*ci = &self->connInfo;
-	char	*encoding;
+	char	*encoding, vermsg[128];
 
-	qlog("Global Options: Version='%s', fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
-		 POSTGRESDRIVERVERSION,
+	snprintf(vermsg, sizeof(vermsg), "Driver Version='%s,%s'"
+#ifdef	WIN32
+		" linking"
+#ifdef	_MT
+#ifdef	_DLL
+		" dynamic"
+#else
+		" static"
+#endif /* _DLL */
+		" Multithread"
+#else
+		" Singlethread"
+#endif /* _MT */
+#ifdef	NOT_USED
+#ifdef	_DEBUG
+		" Debug"
+#else
+		" Release"
+#endif /* DEBUG */
+#endif /* NOT_USED */
+		" library"
+#endif /* WIN32 */
+		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION);
+	qlog(vermsg);
+	mylog(vermsg);
+	qlog("Global Options: fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.socket_buffersize,
 		 ci->drivers.unknown_sizes,
@@ -2052,6 +2084,23 @@ mylog("CC_on_abort_partial in\n");
 	CONNLOCK_RELEASE(conn);
 }
 
+static BOOL
+is_setting_search_path(const UCHAR* query)
+{
+	for (query += 4; *query; query++)
+	{
+		if (!isspace(*query))
+		{
+			if (strnicmp(query, "search_path", 11) == 0)
+				return TRUE;
+			query++;
+			while (*query && !isspace(*query))
+				query++;
+		}
+	}
+	return FALSE;
+}
+
 /*
  *	The "result_in" is only used by QR_next_tuple() to fetch another group of rows into
  *	the same existing QResultClass (this occurs when the tuple cache is depleted and
@@ -2298,7 +2347,16 @@ inolog("Discarded the first SAVEPOINT\n");
 							res->recent_processed_row_count = atoi(ptr + 1);
 						else
 							res->recent_processed_row_count = -1;
-						 if (!PROTOCOL_74(&(self->connInfo)))
+						if (PROTOCOL_74(&(self->connInfo)))
+						{
+							if (NULL != self->current_schema &&
+							    strnicmp(cmdbuffer, "SET", 3) == 0)
+							{
+								if (is_setting_search_path(query))
+									reset_current_schema(self);
+							}
+						}
+						else
 						{
 							if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
 								CC_on_commit(self);

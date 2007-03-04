@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.115 2006/11/14 15:29:26 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.116 2007/03/04 10:41:49 hinoue Exp $
  *
  */
 
@@ -423,7 +423,7 @@ void		logs_on_off(int cnopen, int, int);
 #define TEXT_FIELD_SIZE				8190		/* size of text fields
 												 * (not including null
 												 * term) */
-#define MAX_VARCHAR_SIZE			254 /* maximum size of a varchar (not
+#define MAX_VARCHAR_SIZE			255 /* maximum size of a varchar (not
 										 * including null term) */
 
 #define PG_NUMERIC_MAX_PRECISION	1000

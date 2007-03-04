@@ -210,12 +210,14 @@ struct StatementClass_
 	TABLE_INFO	**ti;
 	Int2		ntab;
 	Int2		num_key_fields;
+	Int2		statement_type; /* According to the defines above */
+	Int2		num_params;
+	Int2		data_at_exec; /* Number of params needing SQLPutData */
+	Int2		current_exec_param;	/* The current parameter for
+						 * SQLPutData */
+	PutDataInfo	pdata_info;
 	char		parse_status;
 	char		proc_return;
-	Int2		statement_type; /* According to the defines above */
-	int		current_exec_param;		/* The current parameter for
-							 * SQLPutData */
-	PutDataInfo	pdata_info;
 	char		put_data;	/* Has SQLPutData been called ? */
 	char		catalog_result;	/* Is this a result of catalog function ? */
 	char		prepare;	/* is this a prepared statement ? */
@@ -231,10 +233,9 @@ struct StatementClass_
 	char		ref_CC_error;	/* refer to CC_error ? */
 	char		lock_CC_for_rb;	/* lock CC for statement rollback ? */
 	char		join_info;	/* have joins ? */
+	char		parse_method;	/* parse_statement is forced or ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
-	Int2		num_params;
-	Int2		data_at_exec; /* Number of params needing SQLPutData */
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
@@ -312,6 +313,13 @@ do { \
 #define	SC_set_checked_hasoids(a, b)	(a->parse_status |= (STMT_PARSED_OIDS | (b ? STMT_FOUND_KEY : 0)))
 #define	SC_checked_hasoids(a)	(0 != (a->parse_status & STMT_PARSED_OIDS))
 #define	SC_set_delegate(p, c) (p->execute_delegate = c, c->execute_parent = p)
+
+#define	SC_clear_parse_method(s)	((s)->parse_method = 0)
+#define	SC_is_parse_forced(s)	(0 != ((s)->parse_method & 1L))
+#define	SC_set_parse_forced(s)	((s)->parse_method |= 1L)
+#define	SC_is_parse_tricky(s)	(0 != ((s)->parse_method & 2L))
+#define	SC_set_parse_tricky(s)	((s)->parse_method |= 2L)
+#define	SC_no_parse_tricky(s)	((s)->parse_method &= ~2L)
 
 #define	SC_cursor_is_valid(s)	(NAME_IS_VALID(s->cursor_name))
 #define	SC_cursor_name(s)	(SAFE_NAME(s->cursor_name))
@@ -428,6 +436,7 @@ void		InitializeStatementOptions(StatementOptions *opt);
 char		SC_Destructor(StatementClass *self);
 BOOL		SC_opencheck(StatementClass *self, const char *func);
 RETCODE		SC_initialize_and_recycle(StatementClass *self);
+void		SC_initialize_cols_info(StatementClass *self, BOOL DCdestroy, BOOL parseReset);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
 Int4		SC_pre_execute(StatementClass *self);
@@ -458,6 +467,9 @@ RETCODE		SC_pos_refresh(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index)
 RETCODE		SC_pos_add(StatementClass *self, SQLSETPOSIROW irow);
 int		SC_set_current_col(StatementClass *self, int col);
 void		SC_setInsertedTable(StatementClass *, RETCODE);
+void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,
+			Int4 *next_cmd, SQLSMALLINT *num_params,
+			char *multi, char *proc_return);
 
 BOOL	SC_IsExecuting(const StatementClass *self);
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on);
@@ -474,7 +486,7 @@ RETCODE		SetStatementSvp(StatementClass *self);
 RETCODE		DiscardStatementSvp(StatementClass *self, RETCODE, BOOL errorOnly);
 
 BOOL		SendParseRequest(StatementClass *self, const char *name,
-				const char *query);
+			const char *query, Int4 qlen, Int2 num_params);
 BOOL		SendDescribeRequest(StatementClass *self, const char *name);
 BOOL		SendBindRequest(StatementClass *self, const char *name);
 BOOL		BuildBindRequest(StatementClass *stmt, const char *name);

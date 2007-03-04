@@ -66,6 +66,7 @@ inolog("FI_Constructor reuse=%d\n", reuse);
 	if (reuse)
 		FI_Destructor(&self, 1, FALSE);
 	memset(self, 0, sizeof(FIELD_INFO));
+	self->nullable = TRUE;
 }
 void	FI_Destructor(FIELD_INFO **fi, int count, BOOL freeFI)
 {

@@ -20,6 +20,7 @@
 
 #include "bind.h"
 #include "connection.h"
+#include "multibyte.h"
 #include "qresult.h"
 #include "convert.h"
 #include "environ.h"
@@ -325,6 +326,20 @@ static void SC_init_discard_output_params(StatementClass *self)
 	if (!conn->connInfo.use_server_side_prepare)
 		self->discard_output_params = 1;
 }
+
+static void SC_init_parse_method(StatementClass *self)
+{
+	ConnectionClass	*conn = SC_get_conn(self);
+
+	self->parse_method = 0;
+	if (!conn)	return;
+	if (self->catalog_result) return;
+	if (conn->connInfo.drivers.parse)
+		SC_set_parse_forced(self);
+	if (self->multi_statement <= 0 && conn->connInfo.disallow_premature)
+		SC_set_parse_tricky(self);
+}
+
 StatementClass *
 SC_Constructor(ConnectionClass *conn)
 {
@@ -374,6 +389,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->ref_CC_error = FALSE;
 		rv->lock_CC_for_rb = 0;
 		rv->join_info = 0;
+		SC_init_parse_method(rv);
 
 		rv->lobj_fd = -1;
 		INIT_NAME(rv->cursor_name);
@@ -443,13 +459,7 @@ SC_Destructor(StatementClass *self)
 	SC_initialize_stmts(self, TRUE);
 
         /* Free the parsed table information */
-	if (self->ti)
-	{
-		TI_Destructor(self->ti, self->ntab);
-
-		free(self->ti);
-		self->ti = NULL;
-	}
+	SC_initialize_cols_info(self, FALSE, TRUE);
 
 	NULL_THE_NAME(self->cursor_name);
 	/* Free the parsed field information */
@@ -621,10 +631,10 @@ SC_set_prepared(StatementClass *stmt, BOOL prepared)
 RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
+	ConnectionClass *conn = SC_get_conn(self);
+
 	if (self->lock_CC_for_rb > 0)
 	{
-		ConnectionClass *conn = SC_get_conn(self);
-
 		while (self->lock_CC_for_rb > 0)
 		{
 			LEAVE_CONN_CS(conn);
@@ -650,6 +660,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		self->num_params = -1; /* unknown */
 		self->proc_return = -1; /* unknown */
 		self->join_info = 0;
+		SC_init_parse_method(self);
 		SC_init_discard_output_params(self);
 	}
 	if (self->stmt_with_params)
@@ -748,7 +759,7 @@ SC_recycle_statement(StatementClass *self)
 			 */
 			if (!CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
 			{
-				if (SC_is_pre_executable(self) && !conn->connInfo.disallow_premature)
+				if (SC_is_pre_executable(self) && !SC_is_parse_tricky(self))
 					CC_abort(conn);
 			}
 			break;
@@ -765,20 +776,11 @@ SC_recycle_statement(StatementClass *self)
 	{
 		case NOT_YET_PREPARED:
 		case ONCE_DESCRIBED:
-        		/* Free the parsed table information */
-			if (self->ti)
-			{
-				TI_Destructor(self->ti, self->ntab);
-				free(self->ti);
-				self->ti = NULL;
-				self->ntab = 0;
-			}
-			/* Free the parsed field information */
-			DC_Destructor((DescriptorClass *) SC_get_IRD(self));
+        		/* Free the parsed table/field information */
+			SC_initialize_cols_info(self, TRUE, TRUE);
 
 inolog("SC_clear_parse_status\n");
 			SC_clear_parse_status(self, conn);
-			self->updatable = FALSE;
 			break;
 	}
 
@@ -836,6 +838,131 @@ inolog("%s statement=%p ommitted=0\n", func, self);
 	return TRUE;
 }
 
+/*
+ *	Scan the query wholly or partially (if specifed next_cmd).
+ *	Also count the number of parameters respectviely.
+ */
+void
+SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
+		Int4 *next_cmd, SQLSMALLINT * pcpar,
+		char *multi_st, char *proc_return)
+{
+	CSTR func = "SC_scanQueryAndCountParams";
+	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE;
+	const	char *sptr, *tstr, *tag = NULL;
+	size_t	taglen = 0;
+	char	tchar, bchar, escape_in_literal = '\0';
+	char	in_literal = FALSE, in_identifier = FALSE,
+		in_dollar_quote = FALSE, in_escape = FALSE,
+		del_found = FALSE, multi = FALSE;
+	SQLSMALLINT	num_p;
+	encoded_str	encstr;
+
+	mylog("%s: entering...\n", func);
+	num_p = 0;
+	if (proc_return)
+		*proc_return = 0;
+	if (next_cmd)
+		*next_cmd = -1;
+	tstr = query;
+	make_encoded_str(&encstr, conn, tstr);
+	for (sptr = tstr, bchar = '\0'; *sptr; sptr++)
+	{
+		tchar = encoded_nextchar(&encstr);
+		if (ENCODE_STATUS(encstr) != 0) /* multibyte char */
+		{
+			if ((UCHAR) tchar >= 0x80)
+				bchar = tchar;
+			continue;
+		}
+		if (!multi && del_found)
+		{
+			if (!isspace(tchar))
+			{
+				multi = TRUE;
+				if (next_cmd)
+					break;
+			}
+		}
+		if (in_dollar_quote)
+		{
+			if (tchar == dollar_quote)
+			{
+				if (strncmp(sptr, tag, taglen) == 0)
+				{
+					in_dollar_quote = FALSE;
+					tag = NULL;
+					sptr += taglen;
+					sptr--;
+					encoded_position_shift(&encstr, taglen - 1);
+				}
+			}
+		}
+		else if (in_literal)
+		{
+			if (in_escape)
+				in_escape = FALSE;
+			else if (tchar == escape_in_literal)
+				in_escape = TRUE;
+			else if (tchar == literal_quote)
+				in_literal = FALSE;
+		}
+		else if (in_identifier)
+		{
+			if (tchar == identifier_quote)
+				in_identifier = FALSE;
+		}
+		else
+		{
+			if (tchar == '?')
+			{
+				if (0 == num_p && bchar == '{')
+				{
+					if (proc_return)
+						*proc_return = 1;
+				}
+				num_p++;
+			}
+			else if (tchar == ';')
+			{
+				del_found = TRUE;
+				if (next_cmd)
+					*next_cmd = sptr - query;
+			}
+			else if (tchar == dollar_quote)
+			{
+				taglen = findTag(sptr, dollar_quote, encstr.ccsc);
+				if (taglen > 0)
+				{
+					in_dollar_quote = TRUE;
+					tag = sptr;
+					sptr += (taglen - 1);
+					encoded_position_shift(&encstr, taglen - 1);
+				}
+				else
+					num_p++;
+			}
+			else if (tchar == literal_quote)
+			{
+				in_literal = TRUE;
+				escape_in_literal = CC_get_escape(conn);
+				if (!escape_in_literal)
+				{
+					if (LITERAL_EXT == sptr[-1])
+						escape_in_literal = ESCAPE_IN_LITERAL;
+				}
+			}
+			else if (tchar == identifier_quote)
+				in_identifier = TRUE;
+			if (!isspace(tchar))
+				bchar = tchar;
+		}
+	}
+	if (pcpar)
+		*pcpar = num_p;
+	if (multi_st)
+		*multi_st = multi;
+}
 
 /*
  * Pre-execute a statement (for SQLPrepare/SQLDescribeCol) 
@@ -972,7 +1099,7 @@ static struct
 	{ STMT_ROW_VERSION_CHANGED,  "01001", "01001" }, /* data changed */
 	{ STMT_POS_BEFORE_RECORDSET, "01S06", "01S06" },
 	{ STMT_TRUNCATED, "01004", "01004" }, /* data truncated */
-	{ STMT_INFO_ONLY, "00000", "00000" }, /* just information that is returned, no error */
+	{ STMT_INFO_ONLY, "00000", "00000" }, /* just an information that is returned, no error */
 
 	{ STMT_OK,  "00000", "00000" }, /* OK */
 	{ STMT_EXEC_ERROR, "HY000", "S1000" }, /* also a general error */
@@ -1900,7 +2027,7 @@ inolog("!!SC_fetch return =%d\n", ret);
 				{
 					apara = apdopts->parameters + i;	
 					ret = PGAPI_GetData(hstmt, gidx + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
-					if (ret != SQL_SUCCESS)
+					if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
 					{
 						SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.", func);
 						break;
@@ -1924,7 +2051,7 @@ cleanup:
 	/* self->status = STMT_FINISHED; */
 	if (SC_get_errornumber(self) == STMT_OK)
 		return SQL_SUCCESS;
-	else if (SC_get_errornumber(self) == STMT_INFO_ONLY)
+	else if (SC_get_errornumber(self) < STMT_OK)
 		return SQL_SUCCESS_WITH_INFO;
 	else
 	{
@@ -2106,7 +2233,7 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 	Int4		response_length;
 	UInt4		oid;
 	int		num_p, num_io_params;
-	int		i;
+	int		i, pidx;
 	Int2		num_discard_params, paramType;
 	BOOL		rcvend = FALSE, msg_truncated;
 	char		msgbuffer[ERROR_MSG_LENGTH + 1];
@@ -2198,32 +2325,54 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 					num_discard_params = stmt->proc_return;
 				if (num_p + num_discard_params != (int) stmt->num_params)
 				{
-					mylog("ParamInfo unmatch num_params=%d! info=%d+discard=%d\n", stmt->num_params, num_p, num_discard_params);
-					stmt->num_params = (Int2) num_p + num_discard_params;
+					mylog("ParamInfo unmatch num_params(=%d) != info(=%d)+discard(=%d)\n", stmt->num_params, num_p, num_discard_params);
+					/* stmt->num_params = (Int2) num_p + num_discard_params; it's possible in case of multi command queries */
 				}
 				ipdopts = SC_get_IPDF(stmt);
 				extend_iparameter_bindings(ipdopts, stmt->num_params);
+#ifdef	NOT_USED
 				if (stmt->discard_output_params)
 				{
-					for (i = stmt->proc_return; i < stmt->num_params; i++)
+					for (i = 0, pidx = stmt->proc_return; i < num_p && pidx < stmt->num_params; pidx++)
 					{
-						paramType = ipdopts->parameters[i].paramType;
+						paramType = ipdopts->parameters[pidx].paramType;
 						if (SQL_PARAM_OUTPUT == paramType)
+						{
+							i++;
 							continue;
+						}
 						oid = SOCK_get_int(sock, 4);
-						ipdopts->parameters[i].PGType = oid;
+						ipdopts->parameters[pidx].PGType = oid;
 					}
 				}
 				else
 				{
-					for (i = 0; i < num_p; i++)
+					for (i = 0, pidx = stmt->proc_return; i < num_p; i++, pidx++)
 					{
-						paramType = ipdopts->parameters[i].paramType;	
+						paramType = ipdopts->parameters[pidx].paramType;	
 						oid = SOCK_get_int(sock, 4);
 						if (SQL_PARAM_OUTPUT != paramType ||
 						    PG_TYPE_VOID != oid)
-							ipdopts->parameters[i + stmt->proc_return].PGType = oid;
+							ipdopts->parameters[pidx].PGType = oid;
 					}
+				}
+#endif /* NOT_USED */
+				pidx = stmt->current_exec_param;
+				if (pidx >= 0)
+					pidx--;
+				for (i = 0; i < num_p; i++)
+				{
+					SC_param_next(stmt, &pidx, NULL, NULL);
+					if (pidx >= stmt->num_params)
+					{
+						mylog("%dth parameter's position(%d) is out of bound[%d]\n", i, pidx, stmt->num_params);
+						break;
+					}
+					oid = SOCK_get_int(sock, 4);
+					paramType = ipdopts->parameters[pidx].paramType;	
+					if (SQL_PARAM_OUTPUT != paramType ||
+					    PG_TYPE_VOID != oid)
+						ipdopts->parameters[pidx].PGType = oid;
 				}
 				break;
 			case 'T': /* RowDesription */
@@ -2283,14 +2432,16 @@ inolog("!![%d].PGType %u->%u\n", i, ipdopts->parameters[i].PGType, CI_get_oid(re
 }
 
 BOOL
-SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
+SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query, Int4 qlen, Int2 num_params)
 {
 	CSTR	func = "SendParseRequest";
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	SocketClass	*sock = conn->sock;
+	Int4		sta_pidx, end_pidx;
 	size_t		pileng, leng;
 
 	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);
+	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query);
 	if (!RequestStart(stmt, conn, func))
 		return FALSE;
 
@@ -2303,20 +2454,53 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query)
 	}
 
 	pileng = sizeof(Int2);
-	if (!stmt->discard_output_params)
-		pileng += sizeof(UInt4) * (stmt->num_params - stmt->proc_return); 
-	leng = strlen(plan_name) + 1 + strlen(query) + 1 + pileng;
+	if (stmt->discard_output_params)
+		num_params = 0;
+	else if (num_params != 0)
+	{
+#ifdef	NOT_USED
+		sta_pidx += stmt->proc_return;
+#endif /* NOT_USED */
+		int	pidx;
+
+		sta_pidx = stmt->current_exec_param;
+		if (num_params < 0)
+			end_pidx = stmt->num_params - 1;
+		else
+			end_pidx = sta_pidx + num_params - 1;
+#ifdef	NOT_USED
+		num_params = end_pidx - sta_pidx + 1;
+#endif /* NOT_USED */
+		for (num_params = 0, pidx = sta_pidx - 1;;)
+		{
+			SC_param_next(stmt, &pidx, NULL, NULL);
+			if (pidx > end_pidx)
+				break;
+			else if (pidx < end_pidx)
+				num_params++;
+			else
+			{
+				num_params++;
+				break;
+			}
+		}
+mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
+		pileng += (sizeof(UInt4) * num_params);
+	}
+	qlen = (SQL_NTS == qlen) ? strlen(query) : qlen; 
+	leng = strlen(plan_name) + 1 + qlen + 1 + pileng;
 	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
 inolog("parse leng=%d\n", leng);
 	SOCK_put_string(sock, plan_name);
-	SOCK_put_string(sock, query);
-	SOCK_put_int(sock, stmt->num_params - stmt->proc_return, sizeof(Int2)); /* number of parameters unspecified */
-	if (!stmt->discard_output_params)
+	SOCK_put_n_char(sock, query, qlen);
+	SOCK_put_char(sock, '\0');
+	SOCK_put_int(sock, num_params, sizeof(Int2)); /* number of parameters specified */
+	if (num_params > 0)
 	{
 		int	i;
 		IPDFields	*ipdopts = SC_get_IPDF(stmt);
 
-		for (i = stmt->proc_return; i < stmt->num_params; i++)
+		for (i = sta_pidx; i <= end_pidx; i++)
 		{
 			if (i < ipdopts->allocated &&
 			    SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
@@ -2388,6 +2572,7 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	if (sock = conn->sock, !sock)	return FALSE;
 
 	mylog("%s: plan_name=%s count=%d\n", func, plan_name, count);
+	qlog("%s: plan_name=%s count=%d\n", func, plan_name, count);
 	if (!SC_is_fetchcursor(stmt))
 	{
 		switch (stmt->prepared)
@@ -2411,10 +2596,10 @@ SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
 	}
 
 	leng = strlen(plan_name) + 1 + 4;
-	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
+	SOCK_put_int(sock, (Int4) (leng + 4), sizeof(Int4)); /* length */
 inolog("execute leng=%d\n", leng);
-	SOCK_put_string(sock, plan_name);
-	SOCK_put_int(sock, count, 4);
+	SOCK_put_string(sock, plan_name);	/* portal name == plan name */
+	SOCK_put_int(sock, count, sizeof(Int4));
 	if (0 == count) /* will send a Close portal command */
 	{
 		SOCK_put_char(sock, 'C');	/* Close command */

@@ -899,10 +899,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	if (ODBCINST_INI == fileName && NULL == sectionName)
 		sectionName = DBMS_NAME;
  
-	sprintf(tmp, "%d", comval->fetch_max);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_FETCH, tmp, fileName);
-
 	sprintf(tmp, "%d", comval->commlog);
 	SQLWritePrivateProfileString(sectionName,
 								 INI_COMMLOG, tmp, fileName);
@@ -910,6 +906,17 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	sprintf(tmp, "%d", comval->debug);
 	SQLWritePrivateProfileString(sectionName,
 								 INI_DEBUG, tmp, fileName);
+
+	sprintf(tmp, "%d", comval->fetch_max);
+	SQLWritePrivateProfileString(sectionName,
+								 INI_FETCH, tmp, fileName);
+
+	if (stricmp(ODBCINST_INI, fileName) == 0)
+		return;
+
+	sprintf(tmp, "%d", comval->fetch_max);
+	SQLWritePrivateProfileString(sectionName,
+								 INI_FETCH, tmp, fileName);
 
 	sprintf(tmp, "%d", comval->disable_optimizer);
 	SQLWritePrivateProfileString(sectionName,

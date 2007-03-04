@@ -54,6 +54,7 @@ size_t		convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValu
 SQLLEN		pg_hex2bin(const UCHAR *in, UCHAR *out, SQLLEN len);
 int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
 	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
+Int4		findTag(const char *str, char dollar_quote, int ccsc);
 
 #ifdef	__cplusplus
 }

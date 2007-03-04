@@ -248,6 +248,10 @@ qlog(char *fmt,...)
 	if (!qlog_on)	return;
 
 	ENTER_QLOG_CS;
+#ifdef	LOGGING_PROCESS_TIME
+	if (!start_time)
+		start_time = timeGetTime();
+#endif /* LOGGING_PROCESS_TIME */
 	va_start(args, fmt);
 
 	if (!QLOGFP)
@@ -259,7 +263,13 @@ qlog(char *fmt,...)
 	}
 
 	if (QLOGFP)
+	{
+#ifdef	LOGGING_PROCESS_TIME
+		DWORD	proc_time = timeGetTime() - start_time;
+		fprintf(QLOGFP, "[%d.%03d]", proc_time / 1000, proc_time % 1000);
+#endif /* LOGGING_PROCESS_TIME */
 		vfprintf(QLOGFP, fmt, args);
+	}
 
 	va_end(args);
 	LEAVE_QLOG_CS;

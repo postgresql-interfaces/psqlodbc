@@ -1312,8 +1312,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				{
 					if (dot_exist)
 						ns->scale++;
-					else
-						ns->precision++;
+					ns->precision++;
 					calv[nlen++] = *wv;
 				}
 			}
@@ -2252,8 +2251,11 @@ RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	BOOL		ret;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	QResultClass	*res;
-	char		plan_name[32];
+	char		plan_name[32], multi;
 	int		func_cs_count = 0;
+	const char	*orgquery, *srvquery;
+	Int4		endp1, endp2;
+	SQLSMALLINT	num_pa = 0, num_p1, num_p2;
 
 inolog("prep_params\n");
 	qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
@@ -2277,8 +2279,19 @@ inolog("prep_params\n");
 	else
 		strcpy(plan_name, NULL_STRING);
 
-	ret = SendParseRequest(stmt, plan_name, qb->query_statement);
-	QB_Destructor(qb);
+	stmt->current_exec_param = 0;
+	multi = stmt->multi_statement;
+	if (multi > 0)
+	{
+		orgquery = stmt->statement;
+		SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, NULL, NULL);
+		srvquery = qb->query_statement;
+		SC_scanQueryAndCountParams(srvquery, conn, &endp2, NULL, NULL, NULL);
+		mylog("%s:SendParseRequest for the first command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
+		ret = SendParseRequest(stmt, plan_name, srvquery, endp2, num_p1);
+	}
+	else
+		ret = SendParseRequest(stmt, plan_name, qb->query_statement, SQL_NTS, -1);
 	if (!ret)
 		goto cleanup;
 	if (!SendDescribeRequest(stmt, plan_name))
@@ -2291,13 +2304,46 @@ inolog("prep_params\n");
 		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
-	if (QR_command_maybe_successful(res))
+	if (!QR_command_maybe_successful(res))
+	{
+		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while preparing parameters", func);
+		goto cleanup;
+	} 
+	if (stmt->multi_statement <= 0)
+	{
 		retval = SQL_SUCCESS;
-	else
-		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while preparing parameters", func); 
+		goto cleanup;
+	}
+	while (multi > 0)
+	{
+		orgquery += (endp1 + 1);
+		srvquery += (endp2 + 1);
+		num_pa += num_p1;
+		SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
+		SC_scanQueryAndCountParams(srvquery, conn, &endp2, &num_p2, NULL, NULL);
+		mylog("%s:SendParseRequest for the subsequent command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
+		if (num_p2 > 0)
+		{
+			stmt->current_exec_param = num_pa;
+			ret = SendParseRequest(stmt, plan_name, srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
+			if (!ret)	goto cleanup;
+			if (!SendDescribeRequest(stmt, plan_name))
+				goto cleanup;
+			if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
+			{
+				SC_set_error(stmt, STMT_EXEC_ERROR, "commnication error while preapreand_describe", func);
+				CC_on_abort(conn, CONN_DEAD);
+				goto cleanup;
+			}
+			QR_Destructor(res);
+		}
+	}
+	retval = SQL_SUCCESS;
 cleanup:
 #undef	return
 	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
+	stmt->current_exec_param = -1;
+	QB_Destructor(qb);
 	return retval;
 }
 
@@ -2571,6 +2617,30 @@ remove_declare_cursor(QueryBuild *qb, QueryParse *qp)
 	qp->declare_pos = 0;
 }
 
+Int4 findTag(const char *tag, char dollar_quote, int ccsc)
+{
+	Int4	taglen = 0;
+	encoded_str	encstr;
+	char		tchar;
+	const char	*sptr;
+
+	encoded_str_constr(&encstr, ccsc, tag + 1);
+	for (sptr = tag + 1; *sptr; sptr++)
+	{
+		tchar = encoded_nextchar(&encstr);
+		if (ENCODE_STATUS(encstr) != 0)
+			continue;
+		if (dollar_quote == tchar)
+		{
+			taglen = sptr - tag + 1;
+			break;
+		}
+		if (isspace(tchar))
+			break;
+	}
+	return taglen;
+}
+
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 {
@@ -2753,15 +2823,12 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	{
 		if (oldchar == dollar_quote)
 		{
-			char	*next_dollar;
-
-			qp->in_literal = TRUE;
-			qp->in_dollar_quote = TRUE;
-			qp->dollar_tag = F_OldPtr(qp);
-			qp->taglen = 1;
-			if (next_dollar = strchr(F_OldPtr(qp) + 1, dollar_quote), NULL != next_dollar)
+			qp->taglen = findTag(F_OldPtr(qp), dollar_quote, qp->encstr.ccsc);
+			if (qp->taglen > 0)
 			{
-				qp->taglen = next_dollar - F_OldPtr(qp) + 1;
+				qp->in_literal = TRUE;
+				qp->in_dollar_quote = TRUE;
+				qp->dollar_tag = F_OldPtr(qp);
 				CVT_APPEND_DATA(qb, F_OldPtr(qp), qp->taglen);
 				qp->opos += (qp->taglen - 1);
 				return SQL_SUCCESS;
@@ -2787,6 +2854,12 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		else if (oldchar == ';')
 		{
+			/*
+			 * can't parse multiple statement using protocol V3.
+			 * reset the dollar number here in case it is divided
+			 * to parse.
+			 */
+			qb->dollar_number = 0;
 			if (0 != (qp->flags & FLGP_CURSOR_CHECK_OK))
 			{
 				const char *vp = &(qp->statement[qp->opos + 1]);
@@ -3024,7 +3097,7 @@ cleanup:
 static BOOL
 ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 {
-	static const int prec[] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25, 29, 32, 34, 37, 39};
+	static const int prec[] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25, 27, 29, 32, 34, 37, 39};
 	Int4	i, j, k, ival, vlen, len, newlen;
 	UCHAR		calv[40];
 	const UCHAR	*val = (const UCHAR *) ns->val;

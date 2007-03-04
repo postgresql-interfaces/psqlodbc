@@ -227,14 +227,13 @@ inquireHowToPrepare(const StatementClass *stmt)
 		}
 		if (stmt->multi_statement < 0)
 			PGAPI_NumParams((StatementClass *) stmt, &num_params);
-		if (stmt->multi_statement > 0) /* server-side prepare mechanism coundn' handle multi statement */
-			return PREPARE_BY_THE_DRIVER;
+		if (stmt->multi_statement > 0) /* would divide the query into multiple commands and apply V3 parse requests for each of them */
+			ret = PARSE_REQ_FOR_INFO;
 		else if (PROTOCOL_74(ci))
 		{
 			if (STMT_TYPE_SELECT == stmt->statement_type)
 			{
 				if (ci->drivers.use_declarefetch)
-					/* ret = PREPARE_BY_THE_DRIVER; */
 					return PARSE_REQ_FOR_INFO;
 				else if (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type)
 					ret = PARSE_REQ_FOR_INFO;
@@ -335,7 +334,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 	/*
 	 *	Dummy exection to get the column info.
 	 */ 
-	if (stmt->inaccurate_result && conn->connInfo.disallow_premature)
+	if (stmt->inaccurate_result && SC_is_parse_tricky(stmt))
 	{
 		BOOL		in_trans = CC_is_in_trans(conn);
 		BOOL		issued_begin = FALSE,
@@ -1378,6 +1377,7 @@ inolog("ipdopts=%p\n", ipdopts);
 	if (estmt->data_at_exec == 0)
 	{
 		BOOL	exec_end;
+		UWORD	flag = SC_is_with_hold(stmt) ? PODBC_WITH_HOLD : 0;
 
 		retval = Exec_with_parameters_resolved(estmt, &exec_end);
 		if (exec_end)
@@ -1386,7 +1386,7 @@ inolog("ipdopts=%p\n", ipdopts);
 			retval = dequeueNeedDataCallback(retval, stmt);
 			goto cleanup;
 		}
-		if (retval = PGAPI_Execute(estmt, 0), SQL_NEED_DATA != retval)
+		if (retval = PGAPI_Execute(estmt, flag), SQL_NEED_DATA != retval)
 		{
 			goto cleanup;
 		}

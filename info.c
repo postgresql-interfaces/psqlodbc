@@ -1819,7 +1819,15 @@ retry_public_schema:
 		systable = FALSE;
 		if (!atoi(ci->show_system_tables))
 		{
-			if (strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0)
+			if (conn->schema_support)
+			{
+				if (stricmp(table_owner, "pg_catalog") == 0 ||
+				    stricmp(table_owner, "pg_toast") == 0 ||
+				    strnicmp(table_owner, "pg_temp_", 8) == 0 ||
+				    stricmp(table_owner, "information_schema") == 0)
+					systable = TRUE;
+			}
+			else if (strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0)
 				systable = TRUE;
 
 			else
@@ -3263,7 +3271,7 @@ PGAPI_Statistics(
 					snprintf(cmd, sizeof(cmd), "select pg_get_indexdef(%u, %d, true)", ioid, i);
 					res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, stmt);
 					if (QR_command_maybe_successful(res))
-						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], QR_get_value_backend_row(res, 0, 0));
+						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], QR_get_value_backend_text(res, 0, 0));
 					QR_Destructor(res);
 				}
 				else
@@ -3784,7 +3792,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 		if (res = CC_send_query(conn, "select getdatabaseencoding()", NULL, flag, NULL), QR_command_maybe_successful(res))
 		{
 			if (QR_get_num_cached_tuples(res) > 0)
-				conn->server_encoding = strdup(QR_get_value_backend_row(res, 0, 0));
+				conn->server_encoding = strdup(QR_get_value_backend_text(res, 0, 0));
 		}
 		QR_Destructor(res);
 		res = NULL;
@@ -3803,7 +3811,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 		{
 			if (QR_get_num_cached_tuples(res) > 0)
 			{
-				strcpy(saveattnum, QR_get_value_backend_row(res, 0, 0));
+				strcpy(saveattnum, QR_get_value_backend_text(res, 0, 0));
 			}
 			else
 				continueExec = FALSE;
@@ -3824,7 +3832,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	{
 		if (QR_get_num_cached_tuples(res) > 0)
 		{
-			ret = strdup(QR_get_value_backend_row(res, 0, 0));
+			ret = strdup(QR_get_value_backend_text(res, 0, 0));
 			*nameAlloced = TRUE;
 		}
 	}
@@ -4879,21 +4887,21 @@ PGAPI_ProcedureColumns(
 	for (i = 0, poid = 0; i < tcount; i++)
 	{
 		if (conn->schema_support)
-			schema_name = GET_SCHEMA_NAME(QR_get_value_backend_row(tres, i, 5));
+			schema_name = GET_SCHEMA_NAME(QR_get_value_backend_text(tres, i, 5));
 		else
 			schema_name = NULL;
-		procname = QR_get_value_backend_row(tres, i, 0);
-		retset = QR_get_value_backend_row(tres, i, 1);
-		pgtype = atoi(QR_get_value_backend_row(tres, i, 2));
+		procname = QR_get_value_backend_text(tres, i, 0);
+		retset = QR_get_value_backend_text(tres, i, 1);
+		pgtype = QR_get_value_backend_int(tres, i, 2, NULL);
 		bRetset = retset && (retset[0] == 't' || retset[0] == 'y');
 		newpoid = 0;
 		if (poid_pos >= 0)
-			newpoid = atoi(QR_get_value_backend_row(tres, i, poid_pos));
+			newpoid = QR_get_value_backend_int(tres, i, poid_pos, NULL);
 mylog("newpoid=%d\n", newpoid);
 		atttypid = NULL;
 		if (attid_pos >= 0)
 		{
-			atttypid = QR_get_value_backend_row(tres, i, attid_pos);
+			atttypid = QR_get_value_backend_text(tres, i, attid_pos);
 mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 		}
 		if (poid == 0 || newpoid != poid)
@@ -4905,10 +4913,10 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			{
 #ifdef	DISPLAY_ARGNAME /* !! named parameter is unavailable !! */
 				if (PG_VERSION_GE(conn, 8.0))
-					proargnames = QR_get_value_backend_row(tres, i, ext_pos);
+					proargnames = QR_get_value_backend_text(tres, i, ext_pos);
 #endif /* DISPLAY_ARGNAME */
 				if (PG_VERSION_GE(conn, 8.1))
-					proargmodes = QR_get_value_backend_row(tres, i, ext_pos + 1);
+					proargmodes = QR_get_value_backend_text(tres, i, ext_pos + 1);
 			}
 			/* RETURN_VALUE info */ 
 			if (0 != pgtype && PG_TYPE_VOID != pgtype && !bRetset && !atttypid && !proargmodes)
@@ -4947,7 +4955,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 						paramcount++;
 				}
 				paramcount++;
-				params = QR_get_value_backend_row(tres, i, ext_pos + 2);
+				params = QR_get_value_backend_text(tres, i, ext_pos + 2);
 				if ('{' == *proargmodes)
 					proargmodes++;
 				if ('{' == *params)
@@ -4955,8 +4963,8 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			}
 			else
 			{
-				paramcount = atoi(QR_get_value_backend_row(tres, i, 3));
-				params = QR_get_value_backend_row(tres, i, 4);
+				paramcount = QR_get_value_backend_int(tres, i, 3, NULL);
+				params = QR_get_value_backend_text(tres, i, 4);
 			}
 			if (proargnames)
 			{
@@ -5075,7 +5083,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			else
 			{
 				typid = atoi(atttypid);
-				attname = QR_get_value_backend_row(tres, i, attname_pos);
+				attname = QR_get_value_backend_text(tres, i, attname_pos);
 			}
 			tuple = QR_AddNew(res);
 			set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_CAT], CurrCat(conn));
@@ -5249,7 +5257,7 @@ mylog("user=%s auth=%s\n", user, auth);
 	if (user[0])
 		for (i = 0; i < usercount; i++)
 		{
-			if (strcmp(QR_get_value_backend_row(allures, i, 0), user) == 0)
+			if (strcmp(QR_get_value_backend_text(allures, i, 0), user) == 0)
 			{
 				addcnt += usracl_auth(useracl[i], auth);
 				break;
@@ -5414,7 +5422,7 @@ retry_public_schema:
 	for (i = 0; i < tablecount; i++)
 	{ 
 		memset(useracl, 0, usercount * sizeof(char[ACLMAX]));
-		acl = (char *) QR_get_value_backend_row(wres, i, 2);
+		acl = (char *) QR_get_value_backend_text(wres, i, 2);
 		if (acl && acl[0] == '{')
 			user = acl + 1;
 		else
@@ -5452,7 +5460,7 @@ retry_public_schema:
 				snprintf(proc_query, sizeof(proc_query) - 1, "select grolist from pg_group where groname = '%s'", user);
 				if (gres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(gres))
 				{
-					grolist = QR_get_value_backend_row(gres, 0, 0);
+					grolist = QR_get_value_backend_text(gres, 0, 0);
 					if (grolist && grolist[0] == '{')
 					{
 						for (uid = grolist + 1; *uid;)
@@ -5464,8 +5472,8 @@ retry_public_schema:
 mylog("guid=%s\n", uid);
 							for (i = 0; i < usercount; i++)
 							{
-								if (strcmp(QR_get_value_backend_row(allures, i, 1), uid) == 0)
-									useracl_upd(useracl, allures, QR_get_value_backend_row(allures, i, 0), auth);
+								if (strcmp(QR_get_value_backend_text(allures, i, 1), uid) == 0)
+									useracl_upd(useracl, allures, QR_get_value_backend_text(allures, i, 0), auth);
 							}
 							uid = delm + 1;
 						}
@@ -5479,16 +5487,16 @@ mylog("guid=%s\n", uid);
 				break;
 			user = delim + 1;
 		}
-		reln = QR_get_value_backend_row(wres, i, 0);
-		owner = QR_get_value_backend_row(wres, i, 1);
+		reln = QR_get_value_backend_text(wres, i, 0);
+		owner = QR_get_value_backend_text(wres, i, 1);
 		if (conn->schema_support)
-			schnm = QR_get_value_backend_row(wres, i, 3);
+			schnm = QR_get_value_backend_text(wres, i, 3);
 		/* The owner has all privileges */
 		useracl_upd(useracl, allures, owner, ALL_PRIVILIGES);
 		for (j = 0; j < usercount; j++)
 		{
-			user = QR_get_value_backend_row(allures, j, 0);
-			su = (strcmp(QR_get_value_backend_row(allures, j, 2), "t") == 0);
+			user = QR_get_value_backend_text(allures, j, 0);
+			su = (strcmp(QR_get_value_backend_text(allures, j, 2), "t") == 0);
 			sys = (strcmp(user, owner) == 0);
 			/* Super user has all privileges */
 			if (su)
