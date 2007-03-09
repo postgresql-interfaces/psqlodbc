@@ -10,6 +10,23 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0204</li><br>
+Changes:<br>
+1.) Configure the combination of time.h and sys/time.h.<br>
+2.) Treat the tables in information_schema as system tables.<br>
+3.) Correct the precision of SQL_NUMERIC_STRUCT.<br>
+4.) Change the default max varchar size from 254 to 255.<br>
+5.) Reset the fields information properly in case of SQLMoreResults.<br>
+6.) Implement SQLDescribeParam() also in case of multi-command queries.<br>
+7.) Handle dollar-quotes more properly.<br>
+8.) Provide a make option to link dynamic multithread library.<br>
+9.) Set the default nullablity to TRUE.<br>
+10.) Parse command delimiters(;) more correctly. <br>
+11.) Use QR_get_value_backend_text() or QR_get_value_backend_int()  <br>
+12.) instead of QR_get_value_backend_row().<br>
+13.) Apply Parse statement or disallow premature properly.<br>
+14.) Reset current_schema cache in case 'set search_path ..' command is issued.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0203</li><br>
 Changes:<br>
 1) Fix a bug which forgets unnamed plans too early especially when handling large objects.<br>
