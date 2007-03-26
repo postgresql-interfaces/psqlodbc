@@ -40,12 +40,12 @@ CFG=Release
 #
 #
 !IF "$(PG_INC)" == ""
-PG_INC=$(PROGRAMFILES)\PostgreSQL\8.1\include
+PG_INC=$(PROGRAMFILES)\PostgreSQL\8.2\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF
 
 !IF "$(PG_LIB)" == ""
-PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.1\lib\ms
+PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.2\lib\ms
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
@@ -75,9 +75,11 @@ ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\""
 MSVC_VERSION=vc60
 VC07_DELAY_LOAD=
 MSDTC=no
+VC_FLAGS=/GX /YX
 !ELSE
 MSVC_VERSION=vc70
 VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DelayLoad:XOLEHLP.dll /DELAY:UNLOAD"
+VC_FLAGS=/EHsc
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 
@@ -161,9 +163,9 @@ $(INTDIR)\connection.obj $(INTDIR)\psqlodbc.res: version.h
 
 CPP=cl.exe
 !IF  "$(CFG)" == "Release"
-CPP_PROJ=/nologo /$(LINKMT) /W3 /GX /O2 /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP_PROJ=/nologo /$(LINKMT) /W3 $(VC_FLAGS) /O2 /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 !ELSEIF  "$(CFG)" == "Debug"
-CPP_PROJ=/nologo /$(LINKMT)d /W3 /Gm /GX /ZI /Od /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c
+CPP_PROJ=/nologo /$(LINKMT)d /W3 /Gm $(VC_FLAGS) /ZI /Od /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c
 !ENDIF
 
 .c{$(INTDIR)}.obj::

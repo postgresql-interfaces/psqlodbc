@@ -29,6 +29,9 @@
         <Directory Id="BASEDIR" Name="psqlODBC">
           <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
             <Directory Id="BINDIR" Name="bin">
+              <Component Id="registration" Guid="4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8">
+                <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\psqlODBC\Version" Value="$(var.VERSION)" />
+              </Component>
               <Merge Id="psqlodbcm" DiskId="1" Language="1033" src="psqlodbc.msm" />
             </Directory>
             <Directory Id="DOCSDIR" Name="docs">
@@ -62,6 +65,7 @@
 
     <Feature Id="psqlodbc" Title="psqlODBC" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
       <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
+        <ComponentRef Id="registration" />
         <MergeRef Id="psqlodbcm" />
       </Feature>
       

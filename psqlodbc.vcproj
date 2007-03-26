@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
@@ -44,7 +44,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\8.1\include&quot;;C:\OpenSSL\include"
+				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\8.2\include&quot;;C:\OpenSSL\include"
 				PreprocessorDefinitions="NDEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"
@@ -71,11 +71,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib"
+				AdditionalDependencies="kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib"
 				OutputFile="$(OutDir)\psqlodbc35w.dll"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="C:\OpenSSL\lib\VC;&quot;C:\Program Files\PostgreSQL\8.1\lib\ms&quot;"
+				AdditionalLibraryDirectories="C:\OpenSSL\lib\VC;&quot;C:\Program Files\PostgreSQL\8.2\lib\ms&quot;"
 				GenerateManifest="true"
 				ModuleDefinitionFile=".\psqlodbc.def"
 				ProgramDatabaseFile="$(TargetDir)\psqlodbc35w.pdb"
@@ -140,7 +140,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="4"
-				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\8.1\include&quot;;C:\OpenSSL\include"
+				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\8.2\include&quot;;C:\OpenSSL\include"
 				PreprocessorDefinitions="_DEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -168,11 +168,11 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="user32.lib ADVAPI32.lib gdi32.lib wsock32.lib shfolder.lib odbc32.lib odbccp32.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib"
+				AdditionalDependencies="kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib"
 				OutputFile="$(OutDir)\psqlodbc35w.dll"
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="C:\OpenSSL\lib\VC;&quot;C:\Program Files\PostgreSQL\8.1\lib\ms&quot;"
+				AdditionalLibraryDirectories="C:\OpenSSL\lib\VC;&quot;C:\Program Files\PostgreSQL\8.2\lib\ms&quot;"
 				ModuleDefinitionFile=".\psqlodbc.def"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(TargetDir)\psqlodbc35w.pdb"
