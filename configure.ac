@@ -86,26 +86,25 @@ PGAC_ARG_BOOL(enable, pthreads, no,
     ])
 
 # Need OpenSSL 
+PGAC_ARG_BOOL(with, openssl, yes,
+	[--with-openssl=PATH       where openssl is installed(default)])
+
+if test "$with_openssl" = yes; then
 AC_PATH_PROG(PKG_CONFIG, pkg-config)
 if test "x$PKG_CONFIG" = x || test "x$PKG_CONFIG" = "xno" ; then
-	AC_ARG_WITH(openssl, 
-	AC_HELP_STRING([--with-openssl=PATH], [where openssl is installed]),
-	[if test x_$with_openssl != x_/usr; then
+	if test x_$with_openssl != x_/usr; then
 		SSLLIBS="-L${with_openssl}/lib"
 		SSLFLAGS="-I${with_openssl}/include"
-	fi])
+	fi
 	SSLLIBS="$SSLLIBS -lssl -lcrypto"
 else
 	SSLLIBS="`$PKG_CONFIG --libs openssl`"
 	SSLFLAGS="`$PKG_CONFIG --cflags openssl`"
 fi
-#AC_CHECKING(for OpenSSL libraries)
 AC_MSG_RESULT($SSLLIBS)
 LIBS="$LIBS $SSLLIBS"
-#AC_CHECKING(for OpenSSL cflags)
 AC_MSG_RESULT($SSLFLAGS)
 CPPFLAGS="$SSLFLAGS $CPPFLAGS"
-
 AC_CHECK_HEADER([openssl/ssl.h],,
 	AC_MSG_ERROR([unable to find openssl header files]))
 AC_MSG_CHECKING(for ERR_load_CRYPTO_string)
@@ -116,6 +115,9 @@ AC_MSG_CHECKING(for SSL_library_init)
 AC_TRY_LINK_FUNC([SSL_library_init],, 
 	AC_MSG_ERROR([unable to link with openssl libraries]))
 AC_MSG_RESULT(yes)
+
+fi
+
 #
 
 AC_PROG_CC
