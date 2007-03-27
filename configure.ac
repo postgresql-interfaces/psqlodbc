@@ -86,12 +86,10 @@ PGAC_ARG_BOOL(enable, pthreads, no,
     ])
 
 # Need OpenSSL 
-PGAC_ARG_BOOL(with, openssl, yes,
-	[--with-openssl=PATH       where openssl is installed(default)])
-
-if test "$with_openssl" = yes; then
 AC_PATH_PROG(PKG_CONFIG, pkg-config)
-if test "x$PKG_CONFIG" = x || test "x$PKG_CONFIG" = "xno" ; then
+PGAC_ARG_BOOL(with, openssl, yes,
+	[--with-openssl=PATH       where openssl is installed(default)],
+[if test "x$PKG_CONFIG" = x || test "x$PKG_CONFIG" = "xno" ; then
 	if test x_$with_openssl != x_/usr; then
 		SSLLIBS="-L${with_openssl}/lib"
 		SSLFLAGS="-I${with_openssl}/include"
@@ -115,8 +113,7 @@ AC_MSG_CHECKING(for SSL_library_init)
 AC_TRY_LINK_FUNC([SSL_library_init],, 
 	AC_MSG_ERROR([unable to link with openssl libraries]))
 AC_MSG_RESULT(yes)
-
-fi
+])
 
 #
 
