@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 08.02.0200, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 08.02.0204, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
@@ -84,6 +84,39 @@ PGAC_ARG_BOOL(enable, pthreads, no,
      fi
      PGAC_FUNC_STRERROR_R_INT
     ])
+
+# Need OpenSSL 
+AC_PATH_PROG(PKG_CONFIG, pkg-config)
+if test "x$PKG_CONFIG" = x || test "x$PKG_CONFIG" = "xno" ; then
+	AC_ARG_WITH(openssl, 
+	AC_HELP_STRING([--with-openssl=PATH], [where openssl is installed]),
+	[if test x_$with_openssl != x_/usr; then
+		SSLLIBS="-L${with_openssl}/lib"
+		SSLFLAGS="-I${with_openssl}/include"
+	fi])
+	SSLLIBS="$SSLLIBS -lssl -lcrypto"
+else
+	SSLLIBS="`$PKG_CONFIG --libs openssl`"
+	SSLFLAGS="`$PKG_CONFIG --cflags openssl`"
+fi
+#AC_CHECKING(for OpenSSL libraries)
+AC_MSG_RESULT($SSLLIBS)
+LIBS="$LIBS $SSLLIBS"
+#AC_CHECKING(for OpenSSL cflags)
+AC_MSG_RESULT($SSLFLAGS)
+CPPFLAGS="$SSLFLAGS $CPPFLAGS"
+
+AC_CHECK_HEADER([openssl/ssl.h],,
+	AC_MSG_ERROR([unable to find openssl header files]))
+AC_MSG_CHECKING(for ERR_load_CRYPTO_string)
+AC_TRY_LINK_FUNC([ERR_load_CRYPTO_strings],,
+	AC_MSG_ERROR([unable to link with openssl libraries]))
+AC_MSG_RESULT(yes)
+AC_MSG_CHECKING(for SSL_library_init)
+AC_TRY_LINK_FUNC([SSL_library_init],, 
+	AC_MSG_ERROR([unable to link with openssl libraries]))
+AC_MSG_RESULT(yes)
+#
 
 AC_PROG_CC
 
