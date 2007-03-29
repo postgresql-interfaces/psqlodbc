@@ -35,10 +35,12 @@ fi
 if test "$with_unixodbc" = yes; then
   AC_DEFINE(WITH_UNIXODBC, 1, [Define to 1 to build with unixODBC support])
   AC_DEFINE(SQL_WCHART_CONVERT, [], [Define to use wchar_t as SQLWCHAR in unixODBC])
+  LIBS="$LIBS -lodbc -lodbcinst"
 fi
 
 if test "$with_iodbc" = yes; then
   AC_DEFINE(WITH_IODBC, 1, [Define to 1 to build with iODBC support])
+  LIBS="$LIBS -liodbc -liodbcinst"
 fi
 
 #
@@ -87,8 +89,8 @@ PGAC_ARG_BOOL(enable, pthreads, no,
 
 # Need OpenSSL 
 AC_PATH_PROG(PKG_CONFIG, pkg-config)
-PGAC_ARG_BOOL(with, openssl, yes,
-	[--with-openssl=PATH       where openssl is installed(default)],
+PGAC_ARG_BOOL(with, openssl, no,
+	[--with-openssl=PATH       where openssl is installed],
 [if test "x$PKG_CONFIG" = x || test "x$PKG_CONFIG" = "xno" ; then
 	if test x_$with_openssl != x_/usr; then
 		SSLLIBS="-L${with_openssl}/lib"
