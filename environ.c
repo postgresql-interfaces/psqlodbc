@@ -500,6 +500,7 @@ EN_Constructor(void)
 {
 	CSTR	func = "EN_Constructor";
 	EnvironmentClass *rv = NULL;
+#ifdef WIN32
 #ifndef	_WSASTARTUP_IN_DLLMAIN_
 	WORD		wVersionRequested;
 	WSADATA		wsaData;
@@ -516,6 +517,7 @@ EN_Constructor(void)
 		goto cleanup;
 	}
 #endif /* _WSASTARTUP_IN_DLLMAIN_ */
+#endif
 
 	rv = (EnvironmentClass *) malloc(sizeof(EnvironmentClass));
 cleanup:
