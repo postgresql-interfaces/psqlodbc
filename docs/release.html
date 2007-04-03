@@ -10,6 +10,17 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2>Development snapshots</h2>
+<li>Notes: psqlODBC 08.02.0205</li><br>
+Changes:<br>
+1.) Append DETAIL messages to GetDiag...() messages.<br>
+2.) Use SQL_SUCCEEDED macros so as to simplify the code.<br>
+3.) Use lastval() function to replace IDENTITY on 8.1 or later servers.<br>
+4.) Remove WSAStartup() and WSACleanup() from DllMain.<br>
+5.) Load libpq from the driver's folder.<br>
+6.) Use QR_get_value_backend_int/_text() funcs instead of QR_get_value_backend_row().<br>
+7.) Improve the implemetation of SQLSetPos(.., SQL_ADD/SQL_UPDATE) using the 8.2 new feature INSERT/UPDATE .. returning.<br>
+8.) Seaparate DTC code as a Delayload DLL.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0204</li><br>
 Changes:<br>
 1.) Configure the combination of time.h and sys/time.h.<br>

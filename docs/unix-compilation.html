@@ -31,7 +31,7 @@ provide a build environment for us which is now included in psqlODBC tarballs.</
 <ul>
 <li>--with-iodbc</li>
 <li>--with-unixodbc</li>
-<li>--with-odbcinst=DIR</li>
+<li>--with-pgconf=pg_config specify pg_config with full path</li>
 <li>--enable-pthreads (thread-safe driver on some platforms)</li>
 <li>--disable-unicode (build non-Unicode driver)</li>
 <li>--help</li>
@@ -76,8 +76,8 @@ make install
 </blockquote>
 
 <p>configure has the same options that the PostgreSQL configure used to
-have for ODBC, namely --with-iodbc, --with-unixodbc, and
---with-odbcinst=DIR.</p>
+have for ODBC, namely --with-iodbc or --with-unixodbc, and
+--with-pgconf=/usr/local/pgsql/bin/pg_config.</p>
 
 <h3>Making a Source Distribution</h3>
 
