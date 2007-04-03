@@ -528,10 +528,12 @@ cleanup:
 		rv->flag = 0;
 		INIT_ENV_CS(rv);
 	}
+#ifdef WIN32
 #ifndef	_WSASTARTUP_IN_DLLMAIN_
 	else
 		WSACleanup();
 #endif /* _WSASTARTUP_IN_DLLMAIN_ */
+#endif
 
 	return rv;
 }
@@ -566,9 +568,11 @@ EN_Destructor(EnvironmentClass *self)
 	DELETE_ENV_CS(self);
 	free(self);
 
+#ifdef WIN32
 #ifndef	_WSASTARTUP_IN_DLLMAIN_
 	WSACleanup();
 #endif /* _WSASTARTUP_IN_DLLMAIN_ */
+#endif
 	mylog("exit EN_Destructor: rv = %d\n", rv);
 #ifdef	_MEMORY_DEBUG_
 	debug_memory_check();
