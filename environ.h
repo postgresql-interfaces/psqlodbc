@@ -94,10 +94,6 @@ void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
 #define DELETE_COMMON_CS
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-RETCODE	DtcOnRelease(void);
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
-
 #ifdef	__cplusplus
 }
 #endif

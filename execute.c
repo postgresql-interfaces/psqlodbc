@@ -700,6 +700,8 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	if (SQL_NEED_DATA == retval)
 		return;
 	conn = SC_get_conn(stmt);
+	if (PG_VERSION_GE(conn, 8.1)) /* lastval() is available */
+		return;
 	/*if (!CC_fake_mss(conn))
 		return;*/
 	while (isspace((UCHAR) *cmd)) cmd++;
@@ -721,8 +723,7 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
         	return;
 	NULL_THE_NAME(conn->schemaIns);
 	NULL_THE_NAME(conn->tableIns);
-	if (SQL_SUCCESS != retval &&
-	    SQL_SUCCESS_WITH_INFO != retval)
+	if (!SQL_SUCCEEDED(retval))
 		return;
 	ptr = NULL;
 	if (IDENTIFIER_QUOTE == *cmd)

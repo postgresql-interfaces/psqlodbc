@@ -2781,7 +2781,12 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		BOOL		converted = FALSE;
 		COL_INFO	*coli;
 
-		if (NAME_IS_VALID(conn->tableIns))
+		if (PG_VERSION_GE(conn, 8.1))
+		{
+			CVT_APPEND_STR(qb, "lastval()");
+			converted = TRUE;
+		}
+		else if (NAME_IS_VALID(conn->tableIns))
 		{
 			TABLE_INFO	ti, *pti = &ti;
 
@@ -2798,10 +2803,10 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 
 				for (i = 0; i < num_fields; i++)
 				{
-        				if (*((char *)QR_get_value_backend_row(coli->result, i, COLUMNS_AUTO_INCREMENT)) == '1')
+        				if (*((char *)QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT)) == '1')
 					{
 						CVT_APPEND_STR(qb, "curr");
-						CVT_APPEND_STR(qb, (char *)QR_get_value_backend_row(coli->result, i, COLUMNS_COLUMN_DEF) + 4);
+						CVT_APPEND_STR(qb, (char *)QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF) + 4);
 						converted = TRUE;
 						break;
 					}
@@ -3403,7 +3408,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			else 
 				buffer += current_row * apara->buflen;
 		}
-		if (apara->used && apara->indicator)
+		if (apara->used || apara->indicator)
 		{
 			SQLULEN	p_offset = offset;
 

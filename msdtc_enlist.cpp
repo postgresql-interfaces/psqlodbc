@@ -8,6 +8,8 @@
  *-------
  */
 
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+
 #ifndef	_WIN32_WINNT
 #define	_WIN32_WINNT	0x0400
 #endif	/* _WIN32_WINNT */
@@ -32,6 +34,24 @@
 #include "dlg_specific.h"
 
 #include "pgapifunc.h"
+#include "pgenlist.h"
+
+EXTERN_C {
+HINSTANCE s_hModule;               /* Saved module handle. */
+}
+/*      This is where the Driver Manager attaches to this Driver */
+BOOL    WINAPI
+DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
+{
+        switch (ul_reason_for_call)
+        {
+                case DLL_PROCESS_ATTACH:
+                        s_hModule = (HINSTANCE) hInst;  /* Save for dialog boxes
+ */
+			break;
+	}
+	return TRUE;
+}
 
 static class INIT_CRIT
 {
@@ -66,38 +86,8 @@ static const char *XidToText(const XID &xid, char *rtext)
 	return rtext;
 }
 
-
-EXTERN_C extern HMODULE	s_hModule;
-
-static char	xalibpath[_MAX_PATH] = "";
-static char	xalibname[_MAX_FNAME] = "";
 static LONG	g_cComponents = 0;
 static LONG	g_cServerLocks = 0;
-
-static const char *GetXaLibName()
-{
-	char	dllpath[_MAX_PATH], drive[_MAX_DRIVE], dir[_MAX_DIR],
-		fname[_MAX_FNAME], ext[_MAX_EXT];
-	if (!xalibpath[0])
-	{
-		GetModuleFileName(s_hModule, dllpath, sizeof(dllpath));
-		/* In Windows XP SP2, the dllname should be specified */
-		/* instead of the dll path name, because it looks up */
-		/* the HKLM\Microfost\MSDTC\XADLL\(dllname) registry */
-		/* entry for security reason. */
-		_splitpath(dllpath, drive, dir, fname, ext);
-		// snprintf(xalibname, sizeof(xalibname), "%s%s", fname, ext);
-		strcpy(xalibname, "pgxalib.dll");
-		snprintf(xalibpath, sizeof(xalibpath), "%s%s%s", drive, dir, xalibname);
-	}
-	return xalibname;
-}
-
-EXTERN_C const char *GetXaLibPath()
-{
-	GetXaLibName();
-	return xalibpath;
-}
 
 //
 //	以下のITransactionResourceAsyncオブジェクトは任意のスレッドから
@@ -957,7 +947,7 @@ RETCODE static EnlistInDtc_1pipe(ConnectionClass *conn, ITransaction *pTra, ITra
 		return SQL_ERROR;
 	}
 
-mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;
+mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
 	retry = false;
 	errset = false;
 	ConnInfo *ci = &(conn->connInfo);
@@ -989,8 +979,8 @@ mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;
 						if (rSize > 0)
 							break;
 					default:
-						ret = ::RegSetValueEx(sKey, xalibname, 0, REG_SZ,
-							(CONST BYTE *) xalibpath, strlen(xalibpath) + 1);
+						ret = ::RegSetValueEx(sKey, GetXaLibName(), 0, REG_SZ,
+							(CONST BYTE *) GetXaLibPath(), strlen(GetXaLibPath()) + 1);
 						if (ERROR_SUCCESS == ret)
 						{
 							retry = true;
@@ -1096,3 +1086,6 @@ EXTERN_C RETCODE DtcOnRelease(void)
 	AsyncThreads::CleanupThreads(2000);
 	return SQL_SUCCESS;
 }
+
+
+#endif /* _HANDLE_ENLIST_IN_DTC_ */

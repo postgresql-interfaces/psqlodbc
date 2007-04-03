@@ -35,6 +35,7 @@
 #include "connection.h"
 #include "statement.h"
 #include "qresult.h"
+#include "loadlib.h"
 
 #if (ODBCVER < 0x0300)
 RETCODE		SQL_API
@@ -295,7 +296,7 @@ SQLDisconnect(HDBC ConnectionHandle)
 
 	mylog("[%s for %p]", func, ConnectionHandle);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-	DtcOnDisconnect(conn); /* must be called without holding the connection lock */
+	CALL_DtcOnDisconnect(conn); /* must be called without holding the connection lock */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);

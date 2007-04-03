@@ -788,7 +788,7 @@ EatReadyForQuery(ConnectionClass *conn)
 int
 handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *sqlstate, const char *comment, QResultClass *res)
 {
-	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated;
+	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated, hasmsg = FALSE;
 	SocketClass	*sock = self->sock;
 	char	msgbuffer[ERROR_MSG_LENGTH];
 	UDWORD	abort_opt;
@@ -827,13 +827,23 @@ inolog("new_format=%d\n", new_format);
 					}
 					break;
 				case 'M':
+				case 'D':
 					if (buflen > 0)
 					{
-						strncat(msgbuf, msgbuffer + 1, buflen);
-						buflen -= msgl;
+						if (hasmsg)
+						{
+							strcat(msgbuf, "\n");
+							buflen--;
+						}
+						if (buflen > 0)
+						{
+							strncat(msgbuf, msgbuffer + 1, buflen);
+							buflen -= msgl;
+						}
 					}
 					if (truncated)
 						msg_truncated = truncated;
+					hasmsg = TRUE;
 					break;
 				case 'C':
 					if (sqlstate)
@@ -890,7 +900,7 @@ inolog("new_format=%d\n", new_format);
 int
 handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *sqlstate, const char *comment, QResultClass *res)
 {
-	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated;
+	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated, hasmsg = FALSE;
 	SocketClass	*sock = self->sock;
 	char	msgbuffer[ERROR_MSG_LENGTH];
 
@@ -926,15 +936,25 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *
 					}
 					break;
 				case 'M':
+				case 'D':
 					if (buflen > 0)
 					{
-						strncat(msgbuf, msgbuffer + 1, buflen);
-						buflen -= msgl;
+						if (hasmsg)
+						{
+							strcat(msgbuf, "\n");
+							buflen--;
+						}
+						if (buflen > 0)
+						{
+							strncat(msgbuf, msgbuffer + 1, buflen);
+							buflen -= msgl;
+						}
 					}
 					else
 						msg_truncated = TRUE;
 					if (truncated)
 						msg_truncated = truncated;
+					hasmsg = TRUE;
 					break;
 				case 'C':
 					if (sqlstate && !sqlstate[0] && strcmp(msgbuffer + 1, "00000"))
@@ -2871,7 +2891,7 @@ CC_setenv(ConnectionClass *self)
  */
 
 	result = PGAPI_AllocStmt(self, &hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 		return FALSE;
 	stmt = (StatementClass *) hstmt;
 
@@ -2879,7 +2899,7 @@ CC_setenv(ConnectionClass *self)
 
 	/* Set the Datestyle to the format the driver expects it to be in */
 	result = PGAPI_ExecDirect(hstmt, "set DateStyle to 'ISO'", SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 		status = FALSE;
 
 	mylog("%s: result %d, status %d from set DateStyle\n", func, result, status);
@@ -2887,7 +2907,7 @@ CC_setenv(ConnectionClass *self)
 	if (ci->drivers.disable_optimizer)
 	{
 		result = PGAPI_ExecDirect(hstmt, "set geqo to 'OFF'", SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
 		mylog("%s: result %d, status %d from set geqo\n", func, result, status);
@@ -2898,7 +2918,7 @@ CC_setenv(ConnectionClass *self)
 	if (ci->drivers.ksqo && PG_VERSION_LT(self, 7.1))
 	{
 		result = PGAPI_ExecDirect(hstmt, "set ksqo to 'ON'", SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
 		mylog("%s: result %d, status %d from set ksqo\n", func, result, status);
@@ -2909,7 +2929,7 @@ CC_setenv(ConnectionClass *self)
 	if (PG_VERSION_GT(self, 7.3))
 	{
 		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
 		mylog("%s: result %d, status %d from set extra_float_digits\n", func, result, status);
@@ -2948,7 +2968,7 @@ CC_send_settings(ConnectionClass *self)
  */
 
 	result = PGAPI_AllocStmt(self, &hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 		return FALSE;
 	stmt = (StatementClass *) hstmt;
 
@@ -2966,7 +2986,7 @@ CC_send_settings(ConnectionClass *self)
 		while (ptr)
 		{
 			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
-			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			if (!SQL_SUCCEEDED(result))
 				status = FALSE;
 
 			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
@@ -2993,7 +3013,7 @@ CC_send_settings(ConnectionClass *self)
 		while (ptr)
 		{
 			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
-			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			if (!SQL_SUCCEEDED(result))
 				status = FALSE;
 
 			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
@@ -3036,10 +3056,10 @@ CC_lookup_lo(ConnectionClass *self)
 			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
 	{
-		UInt4	basetype;
+		Oid	basetype;
 
-		self->lobj_type = atoi(QR_get_value_backend_row(res, 0, 0));
-		basetype = atoi(QR_get_value_backend_row(res, 0, 1));
+		self->lobj_type = QR_get_value_backend_int(res, 0, 0, NULL);
+		basetype = QR_get_value_backend_int(res, 0, 1, NULL);
 		if (PG_TYPE_OID == basetype)
 			self->lo_is_domain = 1;
 		else if (0 != basetype)
@@ -3111,27 +3131,27 @@ CC_lookup_pg_version(ConnectionClass *self)
  *	has not transitioned to "connected" yet.
  */
 	result = PGAPI_AllocStmt(self, &hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 		return;
 	stmt = (StatementClass *) hstmt;
 
 	/* get the server's version if possible	 */
 	result = PGAPI_ExecDirect(hstmt, "select version()", SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		PGAPI_FreeStmt(hstmt, SQL_DROP);
 		return;
 	}
 
 	result = PGAPI_Fetch(hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		PGAPI_FreeStmt(hstmt, SQL_DROP);
 		return;
 	}
 
 	result = PGAPI_GetData(hstmt, 1, SQL_C_CHAR, self->pg_version, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		PGAPI_FreeStmt(hstmt, SQL_DROP);
 		return;
@@ -3225,7 +3245,7 @@ CC_get_current_schema(ConnectionClass *conn)
 		if (res = CC_send_query(conn, "select current_schema()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL), QR_command_maybe_successful(res))
 		{
 			if (QR_get_num_total_tuples(res) == 1)
-				conn->current_schema = strdup(QR_get_value_backend_row(res, 0, 0));
+				conn->current_schema = strdup(QR_get_value_backend_text(res, 0, 0));
 		}
 		QR_Destructor(res);
 	}

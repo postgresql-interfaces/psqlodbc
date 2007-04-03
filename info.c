@@ -1521,7 +1521,7 @@ PGAPI_Tables(
 	ci = &(conn->connInfo);
 
 	result = PGAPI_AllocStmt(conn, &htbl_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Tables result.", func);
 		return SQL_ERROR;
@@ -1725,7 +1725,7 @@ retry_public_schema:
 	}
 
 	result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, htbl_stmt, FALSE);
 		goto cleanup;
@@ -1760,7 +1760,7 @@ retry_public_schema:
 #endif /* UNICODE_SUPPORT */
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 			table_name, MAX_INFO_STRING, &cbRelname);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
 		goto cleanup;
@@ -1768,14 +1768,14 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(htbl_stmt, 2, internal_asis_type,
 						   table_owner, MAX_INFO_STRING, &cbSchName);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
 		goto cleanup;
 	}
 	result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 			relkind_or_hasrules, MAX_INFO_STRING, &cbRelkind);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
 		goto cleanup;
@@ -1804,13 +1804,13 @@ retry_public_schema:
 	QR_set_field_info_v(res, TABLES_SCHEMA_NAME, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info_v(res, TABLES_TABLE_NAME, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info_v(res, TABLES_TABLE_TYPE, "TABLE_TYPE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, TABLES_REMARKS, "REMARKS", PG_TYPE_VARCHAR, 254);
+	QR_set_field_info_v(res, TABLES_REMARKS, "REMARKS", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
 
 	/* add the tuples */
 	table_name[0] = '\0';
 	table_owner[0] = '\0';
 	result = PGAPI_Fetch(htbl_stmt);
-	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
+	while (SQL_SUCCEEDED(result))
 	{
 		/*
 		 * Determine if this table name is a system table. If treating
@@ -2096,7 +2096,7 @@ retry_public_schema:
 	}
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Columns result.", func);
 		result = SQL_ERROR;
@@ -2107,7 +2107,7 @@ retry_public_schema:
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
 	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
 		goto cleanup;
@@ -2143,7 +2143,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 1, internal_asis_type,
 						   table_owner, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2151,7 +2151,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 2, internal_asis_type,
 						   table_name, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2159,7 +2159,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
 						   field_name, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2167,7 +2167,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 4, SQL_C_LONG,
 						   &field_type, 4, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2175,7 +2175,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 5, internal_asis_type,
 						   field_type_name, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2183,7 +2183,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 6, SQL_C_SHORT,
 						   &field_number, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2191,7 +2191,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 7, SQL_C_LONG,
 						   &field_length, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2199,7 +2199,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 8, SQL_C_LONG,
 						   &mod_length, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2207,7 +2207,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 9, internal_asis_type,
 						   not_null, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2215,7 +2215,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 10, internal_asis_type,
 						   relhasrules, MAX_INFO_STRING, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2223,7 +2223,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 11, internal_asis_type,
 						   relkind, sizeof(relkind), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2231,7 +2231,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 12, SQL_C_LONG,
 					&greloid, sizeof(greloid), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -2267,15 +2267,15 @@ retry_public_schema:
 	QR_set_field_info_v(res, COLUMNS_SCALE, "SCALE", PG_TYPE_INT2, 2); /* DECIMAL_DIGITS ***/
 	QR_set_field_info_v(res, COLUMNS_RADIX, "RADIX", PG_TYPE_INT2, 2);
 	QR_set_field_info_v(res, COLUMNS_NULLABLE, "NULLABLE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_REMARKS, "REMARKS", PG_TYPE_VARCHAR, 254);
+	QR_set_field_info_v(res, COLUMNS_REMARKS, "REMARKS", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
 
 #if (ODBCVER >= 0x0300)
-	QR_set_field_info_v(res, COLUMNS_COLUMN_DEF, "COLUMN_DEF", PG_TYPE_VARCHAR, 254);
+	QR_set_field_info_v(res, COLUMNS_COLUMN_DEF, "COLUMN_DEF", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
 	QR_set_field_info_v(res, COLUMNS_SQL_DATA_TYPE, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
 	QR_set_field_info_v(res, COLUMNS_SQL_DATETIME_SUB, "SQL_DATETIME_SUB", PG_TYPE_INT2, 2);
 	QR_set_field_info_v(res, COLUMNS_CHAR_OCTET_LENGTH, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
 	QR_set_field_info_v(res, COLUMNS_ORDINAL_POSITION, "ORDINAL_POSITION", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_IS_NULLABLE, "IS_NULLABLE", PG_TYPE_VARCHAR, 254);
+	QR_set_field_info_v(res, COLUMNS_IS_NULLABLE, "IS_NULLABLE", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
 #endif /* ODBCVER */
 	/* User defined fields */
 	QR_set_field_info_v(res, COLUMNS_DISPLAY_SIZE, "DISPLAY_SIZE", PG_TYPE_INT4, 4);
@@ -2342,7 +2342,7 @@ retry_public_schema:
 		}
 	}
 
-	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
+	while (SQL_SUCCEEDED(result))
 	{
 		int	auto_unique;
 		SQLLEN	len_needed;
@@ -2508,7 +2508,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], (Int2) (not_null[0] == '1' ? SQL_NO_NULLS : pgtype_nullable(stmt, field_type)));
 		set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
 #if (ODBCVER >= 0x0300)
-		if (attdef && strlen(attdef) > 254)
+		if (attdef && strlen(attdef) > INFO_VARCHAR_SIZE)
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_DEF], "TRUNCATE");
 		else
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_DEF], attdef);
@@ -2686,7 +2686,7 @@ retry_public_schema:
 
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for SQLSpecialColumns result.", func);
 		result = SQL_ERROR;
@@ -2697,7 +2697,7 @@ retry_public_schema:
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
 	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
 		result = SQL_ERROR;
@@ -2732,7 +2732,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 1, internal_asis_type,
 					relhasrules, sizeof(relhasrules), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		result = SQL_ERROR;
@@ -2741,7 +2741,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(hcol_stmt, 2, internal_asis_type,
 					relkind, sizeof(relkind), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		result = SQL_ERROR;
@@ -2752,7 +2752,7 @@ retry_public_schema:
 	{
 		result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
 					relhasoids, sizeof(relhasoids), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, col_stmt, TRUE);
 			result = SQL_ERROR;
@@ -2977,7 +2977,7 @@ PGAPI_Statistics(
 	 * them later.
 	 */
 	result = PGAPI_AllocStmt(conn, &hcol_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in PGAPI_Statistics for columns.", func);
 		goto cleanup;
@@ -2997,21 +2997,21 @@ PGAPI_Statistics(
 				table_name, SQL_NTS, NULL, 0, PODBC_NOT_SEARCH_PATTERN | PODBC_SEARCH_PUBLIC_SCHEMA, 0, 0);
 	col_stmt->internal = FALSE;
 
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
 	}
 	result = PGAPI_BindCol(hcol_stmt, COLUMNS_COLUMN_NAME + 1, internal_asis_type,
 						 column_name, sizeof(column_name), &column_name_len);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
 	}
 	result = PGAPI_BindCol(hcol_stmt, COLUMNS_PHYSICAL_NUMBER + 1, SQL_C_SHORT,
 			&field_number, sizeof(field_number), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
@@ -3019,7 +3019,7 @@ PGAPI_Statistics(
 
 	alcount = 0;
 	result = PGAPI_Fetch(hcol_stmt);
-	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
+	while (SQL_SUCCEEDED(result))
 	{
 		if (0 == total_columns)
 			PGAPI_GetData(hcol_stmt, 2, internal_asis_type, table_schemaname, sizeof(table_schemaname), NULL);
@@ -3061,7 +3061,7 @@ PGAPI_Statistics(
 
 	/* get a list of indexes on this table */
 	result = PGAPI_AllocStmt(conn, &hindx_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in SQLStatistics for indices.", func);
 		goto cleanup;
@@ -3105,7 +3105,7 @@ PGAPI_Statistics(
 		strcat(index_query, " i.indisunique, c.relname");
 
 	result = PGAPI_ExecDirect(hindx_stmt, index_query, SQL_NTS, 0);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		/*
 		 * "Couldn't execute index query (w/SQLExecDirect) in
@@ -3118,7 +3118,7 @@ PGAPI_Statistics(
 	/* bind the index name column */
 	result = PGAPI_BindCol(hindx_stmt, 1, internal_asis_type,
 						   index_name, MAX_INFO_STRING, &index_name_len);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column 
 						* in SQLStatistics."; */
@@ -3128,7 +3128,7 @@ PGAPI_Statistics(
 	/* bind the vector column */
 	result = PGAPI_BindCol(hindx_stmt, 2, SQL_C_DEFAULT,
 			fields_vector, sizeof(fields_vector), &fields_vector_len);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column 
 						 * in SQLStatistics."; */
@@ -3138,7 +3138,7 @@ PGAPI_Statistics(
 	/* bind the "is unique" column */
 	result = PGAPI_BindCol(hindx_stmt, 3, internal_asis_type,
 						   isunique, sizeof(isunique), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column 
 						 * in SQLStatistics."; */
@@ -3148,7 +3148,7 @@ PGAPI_Statistics(
 	/* bind the "is clustered" column */
 	result = PGAPI_BindCol(hindx_stmt, 4, internal_asis_type,
 						   isclustered, sizeof(isclustered), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column *
 						 * in SQLStatistics."; */
@@ -3159,7 +3159,7 @@ PGAPI_Statistics(
 	/* bind the "is hash" column */
 	result = PGAPI_BindCol(hindx_stmt, 5, internal_asis_type,
 						   ishash, sizeof(ishash), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column * 
 						 * in SQLStatistics."; */
@@ -3169,7 +3169,7 @@ PGAPI_Statistics(
 
 	result = PGAPI_BindCol(hindx_stmt, 6, internal_asis_type,
 					relhasrules, sizeof(relhasrules), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);
 		goto cleanup;
@@ -3177,7 +3177,7 @@ PGAPI_Statistics(
 
 	result = PGAPI_BindCol(hindx_stmt, 8, SQL_C_ULONG,
 					&ioid, sizeof(ioid), NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);
 		goto cleanup;
@@ -3218,7 +3218,7 @@ PGAPI_Statistics(
 		set_tuplefield_null(&tuple[STATS_FILTER_CONDITION]);
 	}
 
-	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
+	while (SQL_SUCCEEDED(result))
 	{
 		/* If only requesting unique indexs, then just return those. */
 		if (fUnique == SQL_INDEX_ALL ||
@@ -3533,7 +3533,7 @@ PGAPI_PrimaryKeys(
 
 	conn = SC_get_conn(stmt);
 	result = PGAPI_AllocStmt(conn, &htbl_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for Primary Key result.", func);
 		ret = SQL_ERROR;
@@ -3569,7 +3569,7 @@ retry_public_schema:
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   attname, MAX_INFO_STRING, &attname_len);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
 		ret = SQL_ERROR;
@@ -3577,7 +3577,7 @@ retry_public_schema:
 	}
 	result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 			pkname, TABLE_NAME_STORAGE_LEN, NULL);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
 		ret = SQL_ERROR;
@@ -3664,7 +3664,7 @@ retry_public_schema:
 		mylog("%s: tables_query='%s'\n", func, tables_query);
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
 			ret = SQL_ERROR;
@@ -3699,7 +3699,7 @@ retry_public_schema:
 		}
 	}
 
-	while ((result == SQL_SUCCESS) || (result == SQL_SUCCESS_WITH_INFO))
+	while (SQL_SUCCEEDED(result))
 	{
 		tuple = QR_AddNew(res);
 
@@ -3955,7 +3955,7 @@ PGAPI_ForeignKeys(
 
 	conn = SC_get_conn(stmt);
 	result = PGAPI_AllocStmt(conn, &htbl_stmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys result.", func);
 		return SQL_ERROR;
@@ -4072,7 +4072,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
 			goto cleanup;
@@ -4080,7 +4080,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 1, SQL_C_BINARY,
 							   trig_args, sizeof(trig_args), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4088,7 +4088,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 2, SQL_C_SHORT,
 							   &trig_nargs, 0, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4096,7 +4096,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 						 trig_deferrable, sizeof(trig_deferrable), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4104,7 +4104,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
 					 trig_initdeferred, sizeof(trig_initdeferred), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4112,7 +4112,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 5, internal_asis_type,
 							   upd_rule, sizeof(upd_rule), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4120,7 +4120,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 6, internal_asis_type,
 							   del_rule, sizeof(del_rule), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4128,28 +4128,28 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 7, SQL_C_ULONG,
 							   &relid1, sizeof(relid1), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 8, SQL_C_ULONG,
 							   &relid2, sizeof(relid2), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 9, internal_asis_type,
 					pk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 10, internal_asis_type,
 					constrname, NAMESTORAGELEN, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4159,7 +4159,7 @@ PGAPI_ForeignKeys(
 		{
 			result = PGAPI_BindCol(htbl_stmt, 11, internal_asis_type,
 					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
-			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			if (!SQL_SUCCEEDED(result))
 			{
 				SC_error_copy(stmt, tbl_stmt, TRUE);
 				goto cleanup;
@@ -4180,7 +4180,7 @@ PGAPI_ForeignKeys(
 		}
 
 		keyresult = PGAPI_AllocStmt(conn, &hpkey_stmt);
-		if ((keyresult != SQL_SUCCESS) && (keyresult != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(keyresult))
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys (pkeys) result.", func);
 			goto cleanup;
@@ -4441,7 +4441,7 @@ PGAPI_ForeignKeys(
 				escPkTableName);
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4449,7 +4449,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 1, SQL_C_BINARY,
 							   trig_args, sizeof(trig_args), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4457,7 +4457,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 2, SQL_C_SHORT,
 							   &trig_nargs, 0, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4465,7 +4465,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
 						 trig_deferrable, sizeof(trig_deferrable), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4473,7 +4473,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
 					 trig_initdeferred, sizeof(trig_initdeferred), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4481,7 +4481,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 5, internal_asis_type,
 							   upd_rule, sizeof(upd_rule), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4489,7 +4489,7 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 6, internal_asis_type,
 							   del_rule, sizeof(del_rule), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4497,28 +4497,28 @@ PGAPI_ForeignKeys(
 
 		result = PGAPI_BindCol(htbl_stmt, 7, SQL_C_ULONG,
 						&relid1, sizeof(relid1), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 8, SQL_C_ULONG,
 						&relid2, sizeof(relid2), NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 9, internal_asis_type,
 					fk_table_fetched, TABLE_NAME_STORAGE_LEN, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
 		}
 		result = PGAPI_BindCol(htbl_stmt, 10, internal_asis_type,
 					constrname, NAMESTORAGELEN, NULL);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
 			goto cleanup;
@@ -4528,7 +4528,7 @@ PGAPI_ForeignKeys(
 		{
 			result = PGAPI_BindCol(htbl_stmt, 11, internal_asis_type,
 					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
-			if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+			if (!SQL_SUCCEEDED(result))
 			{
 				SC_error_copy(stmt, tbl_stmt, TRUE);
 				goto cleanup;
@@ -4552,7 +4552,7 @@ PGAPI_ForeignKeys(
 		 *	get pk_name here
 		 */
 		keyresult = PGAPI_AllocStmt(conn, &hpkey_stmt);
-		if ((keyresult != SQL_SUCCESS) && (keyresult != SQL_SUCCESS_WITH_INFO))
+		if (!SQL_SUCCEEDED(keyresult))
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys (pkeys) result.", func);
 			goto cleanup;

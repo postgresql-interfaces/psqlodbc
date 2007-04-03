@@ -21,6 +21,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pgapifunc.h"
+#ifdef	WIN32
+#ifndef	_WSASTARTUP_IN_DLLMAIN_
+#include <winsock2.h>
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
+#endif /* WIN32 */
+#include "loadlib.h"
 
 extern GLOBAL_VALUES globals;
 
@@ -39,8 +45,9 @@ RETCODE		SQL_API
 PGAPI_AllocEnv(HENV FAR * phenv)
 {
 	CSTR func = "PGAPI_AllocEnv";
+	SQLRETURN	ret = SQL_SUCCESS;
 
-	mylog("**** in PGAPI_AllocEnv ** \n");
+	mylog("**** in %s ** \n", func);
 
 	/*
 	 * Hack for systems on which none of the constructor-making techniques
@@ -60,11 +67,11 @@ PGAPI_AllocEnv(HENV FAR * phenv)
 	{
 		*phenv = SQL_NULL_HENV;
 		EN_log_error(func, "Error allocating environment", NULL);
-		return SQL_ERROR;
+		ret = SQL_ERROR;
 	}
 
-	mylog("** exit PGAPI_AllocEnv: phenv = %p **\n", *phenv);
-	return SQL_SUCCESS;
+	mylog("** exit %s: phenv = %p **\n", func, *phenv);
+	return ret;
 }
 
 
@@ -72,6 +79,7 @@ RETCODE		SQL_API
 PGAPI_FreeEnv(HENV henv)
 {
 	CSTR func = "PGAPI_FreeEnv";
+	SQLRETURN	ret = SQL_SUCCESS;
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 
 	mylog("**** in PGAPI_FreeEnv: env = %p ** \n", env);
@@ -79,15 +87,17 @@ PGAPI_FreeEnv(HENV henv)
 	if (env && EN_Destructor(env))
 	{
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-		DtcOnRelease();
+		CALL_DtcOnRelease();
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 		mylog("   ok\n");
-		return SQL_SUCCESS;
+		goto cleanup;
 	}
 
 	mylog("    error\n");
+	ret = SQL_ERROR;
+cleanup:
 	EN_log_error(func, "Error freeing environment", env);
-	return SQL_ERROR;
+	return ret;
 }
 
 
@@ -488,9 +498,27 @@ PGAPI_Error(
 EnvironmentClass *
 EN_Constructor(void)
 {
-	EnvironmentClass *rv;
+	CSTR	func = "EN_Constructor";
+	EnvironmentClass *rv = NULL;
+#ifndef	_WSASTARTUP_IN_DLLMAIN_
+	WORD		wVersionRequested;
+	WSADATA		wsaData;
+
+	/* Load the WinSock Library */
+	wVersionRequested = MAKEWORD(1, 1);
+
+	if (WSAStartup(wVersionRequested, &wsaData))
+		return rv;
+	/* Verify that this is the minimum version of WinSock */
+	if (LOBYTE(wsaData.wVersion) != 1 ||
+	    HIBYTE(wsaData.wVersion) != 1)
+	{
+		goto cleanup;
+	}
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 
 	rv = (EnvironmentClass *) malloc(sizeof(EnvironmentClass));
+cleanup:
 	if (rv)
 	{
 		rv->errormsg = 0;
@@ -498,6 +526,10 @@ EN_Constructor(void)
 		rv->flag = 0;
 		INIT_ENV_CS(rv);
 	}
+#ifndef	_WSASTARTUP_IN_DLLMAIN_
+	else
+		WSACleanup();
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 
 	return rv;
 }
@@ -532,6 +564,9 @@ EN_Destructor(EnvironmentClass *self)
 	DELETE_ENV_CS(self);
 	free(self);
 
+#ifndef	_WSASTARTUP_IN_DLLMAIN_
+	WSACleanup();
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 	mylog("exit EN_Destructor: rv = %d\n", rv);
 #ifdef	_MEMORY_DEBUG_
 	debug_memory_check();

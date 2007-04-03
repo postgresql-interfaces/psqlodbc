@@ -71,6 +71,8 @@ LINKMT=MT
 SSL_DLL = "SSLEAY32.dll"
 ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\""
 
+DTCLIB = pgenlist
+DTCDLL = $(DTCLIB).dll 
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
 MSVC_VERSION=vc60
 VC07_DELAY_LOAD=
@@ -78,7 +80,7 @@ MSDTC=no
 VC_FLAGS=/GX /YX
 !ELSE
 MSVC_VERSION=vc70
-VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DelayLoad:XOLEHLP.dll /DELAY:UNLOAD"
+VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
 VC_FLAGS=/EHsc
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
@@ -88,6 +90,8 @@ ADD_DEFINES = $(ADD_DEFINES) /D "_HANDLE_ENLIST_IN_DTC_"
 !ENDIF
 !IF "$(MEMORY_DEBUG)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D "_MEMORY_DEBUG_" /GS
+!ELSE
+ADD_DEFINES = $(ADD_DEFINES) /GS
 !ENDIF
 !IF "$(ANSI_VERSION)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL ANSI\"" /D "ODBCVER=0x0300"
@@ -136,11 +140,16 @@ OUTDIRBIN=.\Debug
 INTDIR=.\Debug
 !ENDIF
 !ENDIF
+!IF "$(LINKMT)" != "MT"
+OUTDIR = $(OUTDIR)$(LINKMT)
+OUTDIRBIN = $(OUTDIRBIN)$(LINKMT)
+INTDIR = $(INTDIR)$(LINKMT)
+!ENDIF
 
-ALLDLL  = "$(OUTDIR)\$(MAINDLL)"
+ALLDLL  = "$(OUTDIRBIN)\$(MAINDLL)"
 
 !IF  "$(MSDTC)" != "no"
-ALLDLL = $(ALLDLL) "$(OUTDIR)\$(XADLL)"
+ALLDLL = $(ALLDLL) "$(OUTDIRBIN)\$(XADLL)" "$(OUTDIRBIN)\$(DTCDLL)"
 !ENDIF
 
 ALL : $(ALLDLL)
@@ -151,13 +160,18 @@ CLEAN :
 	-@erase "$(INTDIR)\*.lib"
 	-@erase "$(INTDIR)\*.exp"
 	-@erase "$(INTDIR)\*.pch"
-	-@erase "$(OUTDIR)\$(MAINDLL)"
+	-@erase "$(OUTDIRBIN)\$(MAINDLL)"
 !IF "$(MSDTC)" != "no"
-	-@erase "$(OUTDIR)\$(XADLL)"
+	-@erase "$(OUTDIRBIN)\$(DTCDLL)"
+	-@erase "$(OUTDIRBIN)\$(XADLL)"
 !ENDIF
 
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
+
+!IF  "$(MSDTC)" != "no"
+"$(OUTDIRBIN)\$(MAINDLL)" : "$(OUTDIR)\$(DTCLIB).lib"
+!ENDIF
 
 $(INTDIR)\connection.obj $(INTDIR)\psqlodbc.res: version.h
 
@@ -213,16 +227,17 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib /nologo /dll
+LIB32=lib.exe
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib $(OUTDIR)\$(DTCLIB).lib winmm.lib /nologo /dll
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
 DEF_FILE= "psqlodbc.def"
 !ENDIF
 !IF  "$(CFG)" == "Release"
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\$(MAINDLL)" /implib:"$(OUTDIR)\psqlodbc.lib"
+LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\$(MAINDLL)" /implib:"$(OUTDIR)\$(MAINLIB).lib"
 !ELSE
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\$(MAINDLL)" /implib:"$(OUTDIR)\psqlodbc.lib" /pdbtype:sept
+LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /pdb:"$(OUTDIR)\psqlodbc.pdb" /debug /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIRBIN)\$(MAINDLL)" /implib:"$(OUTDIR)\$(MAINLIB).lib" /pdbtype:sept
 !ENDIF
 LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
 
@@ -263,13 +278,20 @@ LINK32_OBJS= \
 	"$(INTDIR)\odbcapiw.obj" \
 	"$(INTDIR)\odbcapi30w.obj" \
 !ENDIF
-!IF "$(MSDTC)" != "no"
-	"$(INTDIR)\msdtc_enlist.obj" \
+!IF "$(MSDTC)" == "yes"
+	"$(INTDIR)\xalibname.obj" \
 !ENDIF
 !IF "$(MEMORY_DEBUG)" == "yes"
 	"$(INTDIR)\inouealc.obj" \
 !ENDIF
 	"$(INTDIR)\psqlodbc.res"
+
+DTCDEF_FILE= "$(DTCLIB).def"
+LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:"$(DTCDEF_FILE)" /out:"$(OUTDIR)\$(DTCLIB).lib"
+
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DTCLIB).pdb" /machine:I386 /out:"$(OUTDIRBIN)\$(DTCDLL)"
+LINK32_DTCOBJS= \
+	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
 LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(XALIB).pdb" /machine:I386 /def:"$(XADEF_FILE)" /out:"$(OUTDIRBIN)\$(XADLL)" /implib:"$(OUTDIR)\$(XALIB).lib"
@@ -279,6 +301,16 @@ LINK32_XAOBJS= \
 "$(OUTDIRBIN)\$(MAINDLL)" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
   $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
+
+"$(OUTDIRBIN)\$(DTCLIB).lib" : "$(OUTDIR)" $(DTCDEF_FILE) $(LINK32_DTCOBJS)
+    $(LIB32) @<<
+  $(LIB_DTCLIBFLAGS) $(LINK32_DTCOBJS)
+<<
+
+"$(OUTDIRBIN)\$(DTCDLL)" : "$(OUTDIR)" $(DTCDEF_FILE) $(LINK32_DTCOBJS)
+    $(LINK32) @<<
+  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) "$(OUTDIR)\$(DTCLIB).exp" 
 <<
 
 "$(OUTDIRBIN)\$(XADLL)" : "$(OUTDIR)" $(XADEF_FILE) $(LINK32_XAOBJS)
@@ -503,6 +535,11 @@ SOURCE=loadlib.c
 SOURCE=msdtc_enlist.cpp
 
 "$(INTDIR)\msdtc_enlist.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=xalibname.c
+
+"$(INTDIR)\xalibname.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 SOURCE=pgxalib.cpp

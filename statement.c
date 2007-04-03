@@ -1224,7 +1224,7 @@ SC_create_errorinfo(const StatementClass *self)
 		strcpy(pgerror->sqlstate, sqlstate);
 	else if (conn)
 	{
-		if (conn->sqlstate[0])
+		if (!msgend && conn->sqlstate[0])
 			strcpy(pgerror->sqlstate, conn->sqlstate);
 		else
 		{
@@ -2006,7 +2006,7 @@ inolog("res->next=%p\n", tres);
 		self->bind_row = 0;
 		ret = SC_fetch(hstmt);
 inolog("!!SC_fetch return =%d\n", ret);
-		if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO)
+		if (SQL_SUCCEEDED(ret))
 		{
 			APDFields	*apdopts = SC_get_APDF(self);
 			SQLULEN		offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
@@ -2027,7 +2027,7 @@ inolog("!!SC_fetch return =%d\n", ret);
 				{
 					apara = apdopts->parameters + i;	
 					ret = PGAPI_GetData(hstmt, gidx + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
-					if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+					if (!SQL_SUCCEEDED(ret))
 					{
 						SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.", func);
 						break;

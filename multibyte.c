@@ -444,7 +444,7 @@ CC_lookup_cs_new(ConnectionClass *self)
 	res = CC_send_query(self, "select pg_client_encoding()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	if (QR_command_maybe_successful(res))
 	{
-		const char 	*enc = QR_get_value_backend_row(res, 0, 0);
+		const char 	*enc = QR_get_value_backend_text(res, 0, 0);
 
 		if (enc)
 			encstr = strdup(enc);
@@ -460,7 +460,7 @@ CC_lookup_cs_old(ConnectionClass *self)
 	RETCODE		result;
 
 	result = PGAPI_AllocStmt(self, &hstmt);
-	if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
+	if (!SQL_SUCCEEDED(result))
 		return encstr;
 
 	result = PGAPI_ExecDirect(hstmt, "Show Client_Encoding", SQL_NTS, 0);

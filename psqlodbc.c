@@ -23,7 +23,9 @@
 #include "environ.h"
 
 #ifdef WIN32
+#ifdef _WSASTARTUP_IN_DLLMAIN_
 #include <winsock2.h>
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 #include "loadlib.h"
 int	platformId = 0;
 #endif
@@ -107,14 +109,17 @@ HINSTANCE NEAR s_hModule;		/* Saved module handle. */
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 {
+#ifdef _WSASTARTUP_IN_DLLMAIN_
 	WORD		wVersionRequested;
 	WSADATA		wsaData;
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 
 	switch (ul_reason_for_call)
 	{
 		case DLL_PROCESS_ATTACH:
 			s_hModule = hInst;	/* Save for dialog boxes */
 
+#ifdef	_WSASTARTUP_IN_DLLMAIN_
 			/* Load the WinSock Library */
 			wVersionRequested = MAKEWORD(1, 1);
 
@@ -128,6 +133,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				WSACleanup();
 				return FALSE;
 			}
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 			if (initialize_global_cs() == 0)
 			{
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
@@ -157,8 +163,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			CleanupDelayLoadedDLLs();
 			/* my(q)log is unavailable from here */
 			finalize_global_cs();
-			CleanupDelayLoadedDLLs();
+#ifdef	_WSASTARTUP_IN_DLLMAIN_
 			WSACleanup();
+#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 			return TRUE;
 
 		case DLL_THREAD_DETACH:

@@ -17,6 +17,11 @@ extern "C" {
 #endif
 BOOL	LIBPQ_check(void);
 void	*CALL_PQconnectdb(const char *conninfo, BOOL *);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void * pTra, int method);
+RETCODE	CALL_DtcOnDisconnect(ConnectionClass *);
+RETCODE	CALL_DtcOnRelease(void);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 /* void	UnloadDelayLoadedDLLs(BOOL); */
 void	CleanupDelayLoadedDLLs(void);
 
@@ -24,4 +29,3 @@ void	CleanupDelayLoadedDLLs(void);
 }
 #endif
 #endif /* __LOADLIB_H__ */
-

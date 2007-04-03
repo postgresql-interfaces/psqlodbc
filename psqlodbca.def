@@ -80,3 +80,14 @@ SQLDummyOrdinal @199
 dconn_FDriverConnectProc @200
 DllMain @201
 ConfigDSN @202
+
+forcelog
+mylog
+PGAPI_AllocConnect
+PGAPI_FreeConnect
+CC_connect
+CC_set_error
+CC_commit
+CC_abort
+CC_send_query
+QR_Destructor

@@ -500,7 +500,7 @@ create_empty_bindings(int num_columns)
 
 	new_bindings = (BindInfoClass *) malloc(num_columns * sizeof(BindInfoClass));
 	if (!new_bindings)
-		return 0;
+		return NULL;
 
 	for (i = 0; i < num_columns; i++)
 	{
@@ -519,7 +519,7 @@ extend_parameter_bindings(APDFields *self, int num_params)
 	CSTR func = "extend_parameter_bindings";
 	ParameterInfoClass *new_bindings;
 
-	mylog("%s: entering ... self=%p, parameters_allocated=%d, num_params=%d\n", func, self, self->allocated, num_params);
+	mylog("%s: entering ... self=%p, parameters_allocated=%d, num_params=%d,%p\n", func, self, self->allocated, num_params, self->parameters);
 
 	/*
 	 * if we have too few, allocate room for more, and copy the old
@@ -536,14 +536,13 @@ extend_parameter_bindings(APDFields *self, int num_params)
 			self->allocated = 0;
 			return;
 		}
-		memset(&new_bindings[self->allocated], 0,
-			sizeof(ParameterInfoClass) * (num_params - self->allocated));
+		memset(&new_bindings[self->allocated], 0, sizeof(ParameterInfoClass) * (num_params - self->allocated));
 
 		self->parameters = new_bindings;
 		self->allocated = num_params;
 	}
 
-	mylog("exit extend_parameter_bindings\n");
+	mylog("exit extend_parameter_bindings=%p\n", self->parameters);
 }
 
 void
@@ -576,7 +575,7 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 		self->allocated = num_params;
 	}
 
-	mylog("exit extend_iparameter_bindings\n");
+	mylog("exit extend_iparameter_bindings=%p\n", self->parameters);
 }
 
 void
@@ -591,7 +590,7 @@ reset_a_parameter_binding(APDFields *self, int ipar)
 
 	ipar--;
 	self->parameters[ipar].buflen = 0;
-	self->parameters[ipar].buffer = 0;
+	self->parameters[ipar].buffer = NULL;
 	self->parameters[ipar].used =
 	self->parameters[ipar].indicator = NULL;
 	self->parameters[ipar].CType = 0;
@@ -671,7 +670,8 @@ CountParameters(const StatementClass *self, Int2 *inputCount, Int2 *ioCount, Int
 void
 APD_free_params(APDFields *apdopts, char option)
 {
-	mylog("APD_free_params:  ENTER, self=%d\n", apdopts);
+	CSTR	func = "APD_free_params";
+	mylog("%s:  ENTER, self=%p\n", func, apdopts);
 
 	if (!apdopts->parameters)
 		return;
@@ -683,7 +683,7 @@ APD_free_params(APDFields *apdopts, char option)
 		apdopts->allocated = 0;
 	}
 
-	mylog("APD_free_params:  EXIT\n");
+	mylog("%s:  EXIT\n", func);
 }
 
 void
@@ -791,7 +791,7 @@ extend_column_bindings(ARDFields *self, int num_columns)
 	/* SQLExecDirect(...)  # returns 5 cols */
 	/* SQLExecDirect(...)  # returns 10 cols  (now OK) */
 
-	mylog("exit extend_column_bindings\n");
+	mylog("exit extend_column_bindings=%p\n", self->bindings);
 }
 
 void
@@ -952,7 +952,7 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 	 * about it by unbinding those columns.
 	 */
 
-	mylog("exit extend_gdata_info\n");
+	mylog("exit extend_gdata_info=%p\n", self->gdata);
 }
 void	reset_a_getdata_info(GetDataInfo *gdata_info, int icol)
 {
@@ -996,7 +996,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 		new_pdata = (PutDataClass *) realloc(self->pdata, sizeof(PutDataClass) * num_params);
 		if (!new_pdata)
 		{
-			mylog("%s: unable to create new pdata of %d params(%d old pdata)\n", func, num_params, self->allocated);
+			mylog("%s: unable to create %d new pdata from %d old pdata\n", func, num_params, self->allocated);
 
 			self->pdata = NULL;
 			self->allocated = 0;
@@ -1022,7 +1022,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 		}
 	}
 
-	mylog("exit extend_putdata_info\n");
+	mylog("exit extend_putdata_info=%p\n", self->pdata);
 }
 void	reset_a_putdata_info(PutDataInfo *pdata_info, int ipar)
 {

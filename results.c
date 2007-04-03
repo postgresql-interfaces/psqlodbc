@@ -73,7 +73,7 @@ inolog("returning RowCount=%d\n", *pcrow);
 		if (res->recent_processed_row_count >= 0)
 		{
 			*pcrow = res->recent_processed_row_count;
-			mylog("**** PGAPI_RowCount(): THE ROWS: *pcrow = %d\n", *pcrow);
+			mylog("**** %s: THE ROWS: *pcrow = %d\n", func, *pcrow);
 
 			return SQL_SUCCESS;
 		}
@@ -174,7 +174,7 @@ PGAPI_NumResultCols(
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			mylog("PGAPI_NumResultCols: calling parse_statement on stmt=%p\n", stmt);
+			mylog("%s: calling parse_statement on stmt=%p\n", func, stmt);
 			parse_statement(stmt, FALSE);
 		}
 
@@ -182,7 +182,7 @@ PGAPI_NumResultCols(
 		{
 			parse_ok = TRUE;
 			*pccol = SC_get_IRDF(stmt)->nfields;
-			mylog("PARSE: PGAPI_NumResultCols: *pccol = %d\n", *pccol);
+			mylog("PARSE: %s: *pccol = %d\n", func, *pccol);
 		}
 	}
 
@@ -676,10 +676,11 @@ inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
 
 		case SQL_COLUMN_LENGTH:
 			value = (fi && fi->length > 0) ? fi->length : pgtype_buffer_length(stmt, field_type, col_idx, unknown_sizes);
-			if (value < 0)
+			if (0 > value)
+			/* if (-1 == value)  I'm not sure which is right */
 				value = 0;
 
-			mylog("%s: col %d, length = %d\n", func, col_idx, value);
+			mylog("%s: col %d, column_length = %d\n", func, col_idx, value);
 			break;
 
 		case SQL_COLUMN_MONEY: /* == SQL_DESC_FIXED_PREC_SCALE */
@@ -723,7 +724,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 				value = 0;
 			break;
 
-		case SQL_COLUMN_SEARCHABLE: /* SQL_DESC_SEARCHABLE */
+		case SQL_COLUMN_SEARCHABLE: /* == SQL_DESC_SEARCHABLE */
 			value = pgtype_searchable(stmt, field_type);
 			break;
 
@@ -788,7 +789,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			if (-1 == value)
 				value = 0;
 
-			mylog("%s: col %d, length = %d\n", func, col_idx, value);
+			mylog("%s: col %d, desc_length = %d\n", func, col_idx, value);
 			break;
 		case SQL_DESC_OCTET_LENGTH:
 			value = (fi && fi->length > 0) ? fi->length : pgtype_transfer_octet_length(stmt, field_type, col_idx, unknown_sizes);
@@ -3069,25 +3070,13 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 
 	mylog("selstr=%s\n", selstr);
 	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, stmt);
-#ifdef	NOT_USED
-if (qres)
-{
-int	i, j;
-TupleField	*tuple = qres->backend_tuples;
-mylog("%s qres=%p backend_tuples=%p\n", func, qres, tuple);
-for (i = 0; i < QR_get_num_cached_tuples(qres); i++)
-for (j = 0; j < qres->num_fields; j++, tuple++)
-mylog("tuple[%d,%d]=(%d,%p)\n", i, j, tuple->len, tuple->value);
-QR_free_memory(qres);
-}
-#endif /* NOT_USED */
 cleanup:
 	free(selstr);
 	return qres;
 }
 
-RETCODE
-SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind)
+static RETCODE
+SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind, const char *tid)
 {
 	CSTR		func = "SC_pos_reload";
 	int		res_cols;
@@ -3127,8 +3116,11 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logK
 	}
 	else if (0 != (res->keyset[kres_ridx].status & CURS_SELF_ADDING))
 	{
-		use_ctid = FALSE;
-		mylog("The tuple is currently being added and can't use ctid\n");
+		if (NULL == tid)
+		{
+			use_ctid = FALSE;
+			mylog("The tuple is currently being added and can't use ctid\n");
+		}
 	}	
 
 	if (SC_update_not_ready(stmt))
@@ -3150,7 +3142,10 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logK
 	getTid(res, kres_ridx, &blocknum, &offset);
 	sprintf(tidval, "(%u, %u)", blocknum, offset);
 	res_cols = getNumResultCols(res);
-	qres = positioned_load(stmt, use_ctid ? LATEST_TUPLE_LOAD : 0, &oidint, use_ctid ? tidval : NULL);
+	if (tid)
+		qres = positioned_load(stmt, 0, &oidint, tid);
+	else
+		qres = positioned_load(stmt, use_ctid ? LATEST_TUPLE_LOAD : 0, &oidint, use_ctid ? tidval : NULL);
 	if (!QR_command_maybe_successful(qres))
 	{
 		ret = SQL_ERROR;
@@ -3196,6 +3191,12 @@ SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logK
 	if (count)
 		*count = rcnt;
 	return ret;
+}
+
+RETCODE
+SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind)
+{
+	return SC_pos_reload_with_tid(stmt, global_ridx, count, logKind, NULL);
 }
 
 static	const int	pre_fetch_count = 32;
@@ -3480,8 +3481,8 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	return ret;
 }
 
-RETCODE		SQL_API
-SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef)
+static RETCODE	SQL_API
+SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef, const char *tidval)
 {
 	CSTR	func = "SC_pos_newload";
 	int			i;
@@ -3502,7 +3503,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef)
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
 		return SQL_ERROR;
 	}
-	qres = positioned_load(stmt, tidRef ? USE_INSERTED_TID : 0, oidint, NULL);
+	qres = positioned_load(stmt, (tidRef && NULL == tidval) ? USE_INSERTED_TID : 0, oidint, tidRef ? tidval : NULL);
 	if (!qres || !QR_command_maybe_successful(qres))
 	{
 		SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "positioned_load in pos_newload failed", func);
@@ -3602,9 +3603,6 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 		}
 		/* stmt->currTuple = SC_get_rowset_start(stmt) + ridx; */
 	}
-#ifdef	NOT_USED
-mylog("about to QR_Destructor %p\n", qres);
-#endif /* NOT_USED */
 	QR_Destructor(qres);
 	return ret;
 }
@@ -3617,14 +3615,20 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLSETPOSI
 	if (ret != SQL_ERROR)
 	{
 		int			updcnt;
-		const char *cmdstr = QR_get_command(SC_get_Curres(ustmt));
+		QResultClass		*tres = SC_get_Curres(ustmt);
+		const char *cmdstr = QR_get_command(tres);
 
 		if (cmdstr &&
 			sscanf(cmdstr, "UPDATE %d", &updcnt) == 1)
 		{
 			if (updcnt == 1)
 			{
-				ret = SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE);
+				const char *tidval = NULL;
+
+				if (NULL != tres->backend_tuples &&
+				    1 == QR_get_num_cached_tuples(tres))
+					tidval = QR_get_value_backend_text(tres, 0, 0);
+				ret = SC_pos_reload_with_tid(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE, tidval);
 				if (SQL_ERROR != ret)
 					AddUpdated(stmt, global_ridx);
 			}
@@ -3818,6 +3822,8 @@ SC_pos_update(StatementClass *stmt,
 			strcat(updstr, " and ");
 			sprintf(updstr + strlen(updstr), bestqual, oid);
 		}
+		if (PG_VERSION_GE(conn, 8.2))
+			strcat(updstr, " returning ctid");
 		mylog("updstr=%s\n", updstr);
 		if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
 		{
@@ -3959,7 +3965,7 @@ SC_pos_delete(StatementClass *stmt,
 			if (dltcnt == 1)
 			{
 				RETCODE	tret = SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, SQL_DELETE);
-				if (SQL_SUCCESS != tret && SQL_SUCCESS_WITH_INFO != tret)
+				if (!SQL_SUCCEEDED(tret))
 					ret = tret;
 			}
 			else if (dltcnt == 0)
@@ -4021,11 +4027,12 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN add
 		int		addcnt;
 		OID		oid, *poid = NULL;
 		ARDFields	*opts = SC_get_ARDF(stmt);
-		QResultClass	*ires = SC_get_Curres(istmt);
+		QResultClass	*ires = SC_get_Curres(istmt), *tres;
 		const char *cmdstr;
 		BindInfoClass	*bookmark;
 
-		cmdstr = QR_get_command((ires->next ? ires->next : ires));
+		tres = (ires->next ? ires->next : ires);
+		cmdstr = QR_get_command(tres);
 		if (cmdstr &&
 			sscanf(cmdstr, "INSERT %u %d", &oid, &addcnt) == 2 &&
 			addcnt == 1)
@@ -4038,13 +4045,18 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN add
 			qret = SQL_NO_DATA_FOUND;
 			if (PG_VERSION_GE(conn, 7.2))
 			{
-				qret = SC_pos_newload(stmt, poid, TRUE);
+				const char * tidval = NULL;
+
+				if (NULL != tres->backend_tuples &&
+				    1 == QR_get_num_cached_tuples(tres))
+					tidval = QR_get_value_backend_text(tres, 0, 0);
+				qret = SC_pos_newload(stmt, poid, TRUE, tidval);
 				if (SQL_ERROR == qret)
 					return qret;
 			}
 			if (SQL_NO_DATA_FOUND == qret)
 			{
-				qret = SC_pos_newload(stmt, poid, FALSE);
+				qret = SC_pos_newload(stmt, poid, FALSE, NULL);
 				if (SQL_ERROR == qret)
 					return qret;
 			}
@@ -4254,6 +4266,8 @@ SC_pos_add(StatementClass *stmt,
 				strcat(addstr, "?");
 		}
 		strcat(addstr, ")");
+		if (PG_VERSION_GE(conn, 8.2))
+			strcat(addstr, " returning ctid");
 		mylog("addstr=%s\n", addstr);
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;
@@ -4359,16 +4373,19 @@ typedef struct
 static 
 RETCODE spos_callback(RETCODE retcode, void *para)
 {
+	CSTR	func = "spos_callback";
 	RETCODE	ret;
 	spos_cdata *s = (spos_cdata *) para;
+	QResultClass	*res;
+	ARDFields	*opts;
 	ConnectionClass	*conn;
 	SQLULEN	global_ridx;
 	SQLLEN	kres_ridx, pos_ridx = 0;
 
 	ret = retcode;
+	mylog("%s: %d in\n", func, s->need_data_callback);
 	if (s->need_data_callback)
 	{
-		mylog("spos_callback in\n");
 		s->processed++;
 		if (SQL_ERROR != retcode)
 		{
@@ -4381,22 +4398,29 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 		s->ridx = -1;
 		s->idx = s->nrow = s->processed = 0;
 	}
+	res = s->res;
+	opts = s->opts;
+	if (!res || !opts)
+	{
+		SC_set_error(s->stmt, STMT_SEQUENCE_ERROR, "Passed res or opts for spos_callback is NULL", func);
+		return SQL_ERROR;
+	}
 	s->need_data_callback = FALSE;
 	for (; SQL_ERROR != ret && s->nrow <= s->end_row; s->idx++)
 	{
 		global_ridx = RowIdx2GIdx(s->idx, s->stmt);
 		if (SQL_ADD != s->fOption)
 		{
-			if ((int) global_ridx >= QR_get_num_total_tuples(s->res))
+			if ((int) global_ridx >= QR_get_num_total_tuples(res))
 				break;
-			if (s->res->keyset)
+			if (res->keyset)
 			{
-				kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, s->res);
-				if (kres_ridx >= s->res->num_cached_keys)
+				kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, res);
+				if (kres_ridx >= res->num_cached_keys)
 					break;
 				if (kres_ridx >= 0) /* the row may be deleted and not in the rowset */
 				{
-					if (0 == (s->res->keyset[kres_ridx].status & CURS_IN_ROWSET))
+					if (0 == (res->keyset[kres_ridx].status & CURS_IN_ROWSET))
 						continue;
 				}
 			}
@@ -4409,7 +4433,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 		s->ridx = s->nrow;
 		pos_ridx = s->idx;
 #if (ODBCVER >= 0x0300)
-		if (0 != s->irow || !s->opts->row_operation_ptr || s->opts->row_operation_ptr[s->nrow] == SQL_ROW_PROCEED)
+		if (0 != s->irow || !opts->row_operation_ptr || opts->row_operation_ptr[s->nrow] == SQL_ROW_PROCEED)
 		{
 #endif /* ODBCVER */
 			switch (s->fOption)
@@ -4444,10 +4468,6 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			s->nrow++;
 	}
 	conn = SC_get_conn(s->stmt);
-#ifdef	_LEGACY_MODE_
-	if (SQL_ERROR == ret)
-		CC_abort(conn);
-#endif /* _LEGACY_MODE_ */
 	if (s->auto_commit_needed)
 		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
 	if (s->irow > 0)
@@ -4455,18 +4475,22 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 		if (SQL_ADD != s->fOption && s->ridx >= 0) /* for SQLGetData */
 		{
 			s->stmt->currTuple = RowIdx2GIdx(pos_ridx, s->stmt);
-			QR_set_position(s->res, pos_ridx);
+			QR_set_position(res, pos_ridx);
 		}
 	}
 	else if (SC_get_IRDF(s->stmt)->rowsFetched)
 		*(SC_get_IRDF(s->stmt)->rowsFetched) = s->processed;
-	s->res->recent_processed_row_count = s->stmt->diag_row_count = s->processed;
-inolog("processed=%d ret=%d rowset=%d", s->processed, ret, s->opts->size_of_rowset_odbc2);
+	res->recent_processed_row_count = s->stmt->diag_row_count = s->processed;
+if (opts)
+{
+inolog("processed=%d ret=%d rowset=%d", s->processed, ret, opts->size_of_rowset_odbc2);
 #if (ODBCVER >= 0x0300)
-inolog(",%d\n", s->opts->size_of_rowset);
+inolog(",%d\n", opts->size_of_rowset);
 #else
 inolog("\n");
 #endif /* ODBCVER */
+}
+
 	return ret;
 }
  
@@ -4543,6 +4567,7 @@ PGAPI_SetPos(
 	}
 
 	num_cols = QR_NumResultCols(s.res);
+mylog("num_cols=%d gdatainfo=%d\n", num_cols, SC_get_GDTI(s.stmt)->allocated);
 	/* Reset for SQLGetData */
 	if (gdata)
 		for (i = 0; i < num_cols; i++)
@@ -4568,78 +4593,8 @@ PGAPI_SetPos(
 #undef	return
 	if (s.stmt->internal)
 		ret = DiscardStatementSvp(s.stmt, ret, FALSE);
+	mylog("%s returning %d\n", func, ret);
 	return ret;
-
-#ifdef	NOT_USED
-	ridx = -1;
-	for (i = nrow = 0, processed = 0; nrow <= end_row; i++)
-	{
-		global_ridx = RowIdx2GIdx(i, stmt);
-		if (SQL_ADD != fOption)
-		{
-			if ((int) global_ridx >= res->num_total_rows)
-				break;
-			if (res->keyset) /* the row may be deleted and not in the rowset */
-			{
-				if (0 == (res->keyset[kres_ridx].status & CURS_IN_ROWSET))
-					continue;
-			}
-		}
-		if (nrow < start_row)
-		{
-			nrow++;
-			continue;
-		}
-		ridx = nrow;
-#if (ODBCVER >= 0x0300)
-		if (0 != irow || !opts->row_operation_ptr || opts->row_operation_ptr[nrow] == SQL_ROW_PROCEED)
-		{
-#endif /* ODBCVER */
-			switch (fOption)
-			{
-				case SQL_UPDATE:
-					ret = SC_pos_update(stmt, nrow, global_ridx);
-					break;
-				case SQL_DELETE:
-					ret = SC_pos_delete(stmt, nrow, global_ridx);
-					break;
-				case SQL_ADD:
-					ret = SC_pos_add(stmt, nrow);
-					break;
-				case SQL_REFRESH:
-					ret = SC_pos_refresh(stmt, nrow, global_ridx);
-					break;
-			}
-			if (SQL_NEED_DATA == ret)
-				return ret;
-			processed++;
-			if (SQL_ERROR == ret)
-				break;
-#if (ODBCVER >= 0x0300)
-		}
-#endif /* ODBCVER */
-		nrow++;
-	}
-#ifdef	_LEGACY_MODE_
-	if (SQL_ERROR == ret)
-		CC_abort(conn);
-#endif /* _LEGACY_MODE_ */
-	if (auto_commit_needed)
-		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
-	if (irow > 0)
-	{
-		if (SQL_ADD != fOption && ridx >= 0) /* for SQLGetData */
-		{ 
-			stmt->currTuple = RowIdx2GIdx(ridx, stmt);
-			QR_set_position(res, ridx);
-		}
-	}
-	else if (SC_get_IRDF(stmt)->rowsFetched)
-		*(SC_get_IRDF(stmt)->rowsFetched) = processed;
-	res->recent_processed_row_count = stmt->diag_row_count = processed;
-inolog("rowset=%d processed=%d ret=%d\n", opts->rowset_size, processed, ret);
-	return ret;
-#endif /* NOT_USED */ 
 }
 
 
@@ -4653,8 +4608,8 @@ PGAPI_SetScrollOptions( HSTMT hstmt,
 	CSTR func = "PGAPI_SetScrollOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
-	mylog("PGAPI_SetScrollOptions fConcurrency=%d crowKeyset=%d crowRowset=%d\n",
-		  fConcurrency, crowKeyset, crowRowset);
+	mylog("%s: fConcurrency=%d crowKeyset=%d crowRowset=%d\n",
+		  func, fConcurrency, crowKeyset, crowRowset);
 	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "SetScroll option not implemeted", func);
 
 	return SQL_ERROR;
@@ -4671,7 +4626,7 @@ PGAPI_SetCursorName(
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
-	mylog("PGAPI_SetCursorName: hstmt=%p, szCursor=%p, cbCursorMax=%d\n", hstmt, szCursor, cbCursor);
+	mylog("%s: hstmt=%p, szCursor=%p, cbCursorMax=%d\n", func, hstmt, szCursor, cbCursor);
 
 	if (!stmt)
 	{
@@ -4697,7 +4652,7 @@ PGAPI_GetCursorName(
 	size_t		len = 0;
 	RETCODE		result;
 
-	mylog("PGAPI_GetCursorName: hstmt=%p, szCursor=%p, cbCursorMax=%d, pcbCursor=%p\n", hstmt, szCursor, cbCursorMax, pcbCursor);
+	mylog("%s: hstmt=%p, szCursor=%p, cbCursorMax=%d, pcbCursor=%p\n", func, hstmt, szCursor, cbCursorMax, pcbCursor);
 
 	if (!stmt)
 	{

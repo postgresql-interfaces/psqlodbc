@@ -251,7 +251,7 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 		if (SQL_SUCCESS_WITH_INFO != ret || nmlen < buflen)
 			break;
 	}
-	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+	if (SQL_SUCCEEDED(ret))
 	{
 		SQLLEN	nmcount = nmlen;
 
@@ -325,7 +325,7 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 		if (SQL_SUCCESS_WITH_INFO != ret || clen < buflen)
 			break;
 	}
-	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)	
+	if (SQL_SUCCEEDED(ret))
 	{
 		SQLLEN	nmcount = clen;
 
@@ -698,7 +698,7 @@ RETCODE SQL_API SQLNativeSqlW(
 	}
 	if (szIn)
 		free(szIn);
-	if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+	if (SQL_SUCCEEDED(ret))
 	{
 		SQLLEN	szcount = olen;
 

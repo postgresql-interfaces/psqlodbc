@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.116 2007/03/04 10:41:49 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.117 2007/04/03 14:49:02 hinoue Exp $
  *
  */
 
@@ -420,11 +420,12 @@ void		logs_on_off(int cnopen, int, int);
 #define XMIN_ATTNUM				(-3)	/* the attnum of xmin */
 
 /* sizes */
-#define TEXT_FIELD_SIZE				8190		/* size of text fields
-												 * (not including null
-												 * term) */
-#define MAX_VARCHAR_SIZE			255 /* maximum size of a varchar (not
-										 * including null term) */
+#define TEXT_FIELD_SIZE			8190	/* size of default text fields
+						 * (not including null term) */
+#define MAX_VARCHAR_SIZE		255	/* default maximum size of
+						 * varchar fields (not including null term) */
+#define INFO_VARCHAR_SIZE		254	/* varchar field size
+						 * used in info.c */
 
 #define PG_NUMERIC_MAX_PRECISION	1000
 #define PG_NUMERIC_MAX_SCALE		1000

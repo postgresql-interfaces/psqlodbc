@@ -543,13 +543,6 @@ enum {
 #define	NO_TRANS		1L
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
 
-#ifdef	WIN32
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-RETCODE	EnlistInDtc(ConnectionClass *conn, void *pTra, int method);
-RETCODE	DtcOnDisconnect(ConnectionClass *);
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
-#endif /* WIN32 */
-
 #ifdef	__cplusplus
 }
 #endif

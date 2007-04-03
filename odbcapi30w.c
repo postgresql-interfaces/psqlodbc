@@ -178,7 +178,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
 					break;
 			}
-			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+			if (SQL_SUCCEEDED(ret))
 			{
 				blen = (SQLINTEGER) utf8_to_ucs2(rgbV, blen, (SQLWCHAR *) rgbValue, cbValueMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbValueMax)
@@ -228,7 +228,7 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 	}
         ret = PGAPI_GetDiagRec(fHandleType, handle, iRecord, qstr,
                 pfNativeError, mtxt, buflen, &tlen);
-	if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO)
+	if (SQL_SUCCEEDED(ret))
 	{
         	if (qstr)
                 	utf8_to_ucs2(qstr, strlen(qstr), szSqlState, 6);
@@ -296,7 +296,7 @@ SQLRETURN SQL_API SQLColAttributeW(
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
 					break;
 			}
-			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+			if (SQL_SUCCEEDED(ret))
 			{
 				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbCharAttrMax)
@@ -360,7 +360,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
 					break;
 			}
-			if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+			if (SQL_SUCCEEDED(ret))
 			{
 				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)

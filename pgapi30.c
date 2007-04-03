@@ -27,6 +27,7 @@
 #include "descriptor.h"
 #include "qresult.h"
 #include "pgapifunc.h"
+#include "loadlib.h"
 
 
 /*	SQLError -> SQLDiagRec */
@@ -124,8 +125,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					ret = PGAPI_EnvError(Handle, RecNumber,
                         			NULL, NULL, NULL,
 						0, NULL, 0);
-					if (SQL_SUCCESS == ret ||
-					    SQL_SUCCESS_WITH_INFO == ret)
+					if (SQL_SUCCEEDED(ret))
 					{
 						*((SQLINTEGER *) DiagInfoPtr) = 1;
 					}
@@ -190,8 +190,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					ret = PGAPI_ConnectError(Handle, RecNumber,
                         			NULL, NULL, NULL,
 						0, NULL, 0);
-					if (SQL_SUCCESS == ret ||
-					    SQL_SUCCESS_WITH_INFO == ret)
+					if (SQL_SUCCEEDED(ret))
 					{
 						*((SQLINTEGER *) DiagInfoPtr) = 1;
 					}
@@ -479,6 +478,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	RETCODE		ret = SQL_SUCCESS;
 	ARDFields	*opts = (ARDFields *) (desc + 1);
 	SQLSMALLINT	row_idx;
+	BOOL		unbind = TRUE;
 
 	switch (FieldIdentifier)
 	{
@@ -534,7 +534,6 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_TYPE:
-			reset_a_column_binding(opts, RecNumber);
 			opts->bindings[row_idx].returntype = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
@@ -563,12 +562,15 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->bindings[row_idx].returntype = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_DATA_PTR:
+			unbind = TRUE;
 			opts->bindings[row_idx].buffer = Value;
 			break;
 		case SQL_DESC_INDICATOR_PTR:
+			unbind = TRUE;
 			opts->bindings[row_idx].indicator = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
+			unbind = TRUE;
 			opts->bindings[row_idx].used = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
@@ -588,6 +590,8 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier"); 
 	}
+	if (unbind)
+		opts->bindings[row_idx].buffer = NULL;
 	return ret;
 }
 
@@ -641,9 +645,11 @@ static RETCODE SQL_API
 APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
+	CSTR		func = "APDSetField";
 	RETCODE		ret = SQL_SUCCESS;
 	APDFields	*opts = (APDFields *) (desc + 1);
 	SQLSMALLINT	para_idx;
+	BOOL		unbind = TRUE;
 
 	switch (FieldIdentifier)
 	{
@@ -671,14 +677,14 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <=0)
 	{
-inolog("APDSetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+inolog("%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
 	}
 	if (RecNumber > opts->allocated)
 	{
-inolog("APDSetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+inolog("%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
 		parameter_bindings_set(opts, RecNumber, TRUE);
 		/* DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
@@ -688,7 +694,6 @@ inolog("APDSetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_TYPE:
-			reset_a_parameter_binding(opts, RecNumber);
 			opts->parameters[para_idx].CType = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
@@ -717,15 +722,18 @@ inolog("APDSetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 			opts->parameters[para_idx].CType = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_DATA_PTR:
+			unbind = FALSE;
 			opts->parameters[para_idx].buffer = Value;
 			break;
 		case SQL_DESC_INDICATOR_PTR:
+			unbind = FALSE;
 			opts->parameters[para_idx].indicator = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
 			opts->parameters[para_idx].buflen = CAST_PTR(Int4, Value);
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
+			unbind = FALSE;
 			opts->parameters[para_idx].used = Value;
 			break;
 		case SQL_DESC_PRECISION:
@@ -742,6 +750,9 @@ inolog("APDSetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invaid descriptor identifier"); 
 	}
+	if (unbind)
+		opts->parameters[para_idx].buffer = NULL;
+
 	return ret;
 }
 
@@ -846,8 +857,11 @@ inolog("IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_TYPE:
-			reset_a_iparameter_binding(ipdopts, RecNumber);
-			ipdopts->parameters[para_idx].SQLType = CAST_PTR(SQLSMALLINT, Value);
+			if (ipdopts->parameters[para_idx].SQLType != CAST_PTR(SQLSMALLINT, Value))
+			{
+				reset_a_iparameter_binding(ipdopts, RecNumber);
+				ipdopts->parameters[para_idx].SQLType = CAST_PTR(SQLSMALLINT, Value);
+			}
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_CODE:
 			switch (ipdopts->parameters[para_idx].SQLType)
@@ -1635,7 +1649,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			mylog("SQL_ATTR_ENLIST_IN_DTC %p request received\n", Value);
 			if (conn->connInfo.xa_opt != 0)	
-				return EnlistInDtc(conn, Value, conn->connInfo.xa_opt);
+				return CALL_EnlistInDtc(conn, Value, conn->connInfo.xa_opt);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
 			unsupported = TRUE;
