@@ -4510,7 +4510,8 @@ PGAPI_SetPos(
 	ConnectionClass	*conn;
 	SQLLEN		rowsetSize;
 	int		i;
-	UInt2		num_cols;
+	UInt2		gdata_allocated;
+	GetDataInfo	*gdata_info;
 	GetDataClass	*gdata = NULL;
 	spos_cdata	s;
 
@@ -4525,7 +4526,8 @@ PGAPI_SetPos(
 	s.fOption = fOption;
 	s.auto_commit_needed = FALSE;
 	s.opts = SC_get_ARDF(s.stmt);
-	gdata = SC_get_GDTI(s.stmt)->gdata;
+	gdata_info = SC_get_GDTI(s.stmt);
+	gdata = gdata_info->gdata;
 	mylog("%s fOption=%d irow=%d lock=%d currt=%d\n", func, s.fOption, s.irow, fLock, s.stmt->currTuple);
 	if (s.stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY)
 		;
@@ -4566,12 +4568,14 @@ PGAPI_SetPos(
 		s.start_row = s.end_row = s.irow - 1;
 	}
 
-	num_cols = QR_NumResultCols(s.res);
-mylog("num_cols=%d gdatainfo=%d\n", num_cols, SC_get_GDTI(s.stmt)->allocated);
+	gdata_allocated = gdata_info->allocated;
+mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocated);
 	/* Reset for SQLGetData */
 	if (gdata)
-		for (i = 0; i < num_cols; i++)
+	{
+		for (i = 0; i < gdata_allocated; i++)
 			gdata[i].data_left = -1;
+	}
 	ret = SQL_SUCCESS;
 	conn = SC_get_conn(s.stmt);
 	switch (s.fOption)
