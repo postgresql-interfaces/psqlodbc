@@ -1,19 +1,26 @@
 #
-# File:			win32.mak
+# File:			win64.mak
 #
-# Description:		psqlodbc35w Unicode version Makefile for Win32.
+# Description:		psqlodbc35w Unicode 64bit version Makefile.
+#			(can be built using platform SDK's buildfarm) 
 #
 # Configurations:	Debug, Release
 # Build Types:		ALL, CLEAN
-# Usage:		NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN]
+# Usage:		NMAKE /f win32_64.mak CFG=[Release | Debug] [ALL | CLEAN]
 #
-# Comments:		Created by Dave Page, 2001-02-12
+# Comments:		Created by Hiroshi Inoue, 2006-10-31
 #
 
+!IF "$(CPU)" == ""
+!MESSAGE Making 64bit DLL...
+!MESSAGE You should set the CPU environemt variable
+!MESSAGE to distinguish your OS
+!ENDIF
+
 !IF "$(ANSI_VERSION)" == "yes"
-!MESSAGE Building the PostgreSQL ANSI 3.0 Driver for Win32...
+!MESSAGE Building the PostgreSQL ANSI 3.0 Driver for $(CPU)...
 !ELSE
-!MESSAGE Building the PostgreSQL Unicode 3.5 Driver for Win32...
+!MESSAGE Building the PostgreSQL Unicode 3.5 Driver for $(CPU)...
 !ENDIF
 !MESSAGE
 !IF "$(CFG)" == ""
@@ -27,16 +34,17 @@ CFG=Release
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN]
+!MESSAGE NMAKE /f win32_64.mak CFG=[Release | Debug] [ALL | CLEAN]
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "Release" (Win32 Release DLL)
-!MESSAGE "Debug" (Win32 Debug DLL)
+!MESSAGE "Release" ($(CPU) Release DLL)
+!MESSAGE "Debug" ($(CPU) Debug DLL)
 !MESSAGE 
 !ERROR An invalid configuration was specified.
 !ENDIF 
 
+ADD_DEFINES=/D _WIN64
 #
 #
 !IF "$(PG_INC)" == ""
@@ -45,7 +53,7 @@ PG_INC=$(PROGRAMFILES)\PostgreSQL\8.2\include
 !ENDIF
 
 !IF "$(PG_LIB)" == ""
-PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.2\lib\ms
+PG_LIB="C:\develop\lib\$(CPU)"
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
@@ -55,17 +63,8 @@ SSL_INC=C:\OpenSSL\include
 !ENDIF
 
 !IF "$(SSL_LIB)" == ""
-SSL_LIB=C:\OpenSSL\lib\VC
+SSL_LIB="C:\develop\lib\$(CPU)"
 !MESSAGE Using default OpenSSL Library directory: $(SSL_LIB)
-!ENDIF
-
-!IF "$(LINKMT)" == ""
-LINKMT=MT
-!ENDIF
-!IF "$(LINKMT)" == "MT"
-!MESSAGE Linking static Multithread library
-!ELSE
-!MESSAGE Linking dynamic Multithread library
 !ENDIF
 
 SSL_DLL = "SSLEAY32.dll"
@@ -76,16 +75,13 @@ DTCLIB = pgenlista
 !ELSE
 DTCLIB = pgenlist
 !ENDIF
-DTCDLL = $(DTCLIB).dll 
+DTCDLL = $(DTCLIB).dll
+ 
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
-MSVC_VERSION=vc60
 VC07_DELAY_LOAD=
 MSDTC=no
-VC_FLAGS=/GX /YX
 !ELSE
-MSVC_VERSION=vc70
 VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
-VC_FLAGS=/EHsc
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 
@@ -94,18 +90,16 @@ ADD_DEFINES = $(ADD_DEFINES) /D "_HANDLE_ENLIST_IN_DTC_"
 !ENDIF
 !IF "$(MEMORY_DEBUG)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D "_MEMORY_DEBUG_" /GS
-!ELSE
-ADD_DEFINES = $(ADD_DEFINES) /GS
 !ENDIF
 !IF "$(ANSI_VERSION)" == "yes"
-ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL ANSI\"" /D "ODBCVER=0x0300"
+ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL $(CPU)A\"" /D "ODBCVER=0x0300"
 !ELSE
-ADD_DEFINES = $(ADD_DEFINES) /D "UNICODE_SUPPORT" /D "ODBCVER=0x0351"
+ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL $(CPU)W\"" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT"
 RSC_DEFINES = $(RSC_DEFINES) /D "UNICODE_SUPPORT"
 !ENDIF
-!IF "$(PORTCHECK_64BIT)" == "yes"
-# ADD_DEFINES = $(ADD_DEFINES) /Wp64
-ADD_DEFINES = $(ADD_DEFINES) /D _WIN64
+
+!IF "$(PORT_CHECK)" == "yes"
+ADD_DEFINES = $(ADD_DEFINES) /Wp64
 !ENDIF
 
 !IF "$(OS)" == "Windows_NT"
@@ -125,35 +119,31 @@ XADLL = $(XALIB).dll
 
 !IF  "$(CFG)" == "Release"
 !IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=.\MultibyteRelease
-OUTDIRBIN=.\MultibyteRelease
-INTDIR=.\MultibyteRelease
+OUTDIR=.\$(CPU)ANSI
+OUTDIRBIN=.\$(CPU)ANSI
+INTDIR=.\$(CPU)ANSI
 !ELSE
-OUTDIR=.\Release
-OUTDIRBIN=.\Release
-INTDIR=.\Release
+OUTDIR=.\$(CPU)
+OUTDIRBIN=.\$(CPU)
+INTDIR=.\$(CPU)
 !ENDIF
 !ELSEIF  "$(CFG)" == "Debug"
 !IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=.\MultibyteDebug
-OUTDIRBIN=.\MultibyteDebug
-INTDIR=.\MultibyteDebug
+OUTDIR=.\$(CPU)ANSIDebug
+OUTDIRBIN=.\$(CPU)ANSIDebug
+INTDIR=.\$(CPU)ANSIDebug
 !ELSE
-OUTDIR=.\Debug
-OUTDIRBIN=.\Debug
-INTDIR=.\Debug
+OUTDIR=.\$(CPU)Debug
+OUTDIRBIN=.\$(CPU)Debug
+INTDIR=.\$(CPU)Debug
 !ENDIF
-!ENDIF
-!IF "$(LINKMT)" != "MT"
-OUTDIR = $(OUTDIR)$(LINKMT)
-OUTDIRBIN = $(OUTDIRBIN)$(LINKMT)
-INTDIR = $(INTDIR)$(LINKMT)
 !ENDIF
 
 ALLDLL  = "$(INTDIR)"
 !IF "$(OUTDIR)" != "$(INTDIR)"
-ALLDLL = $(ALLDLL) "$(OUTDIR)"
+ALLDLL  = $(ALLDLL) "$(INTDIR)"
 !ENDIF
+
 ALLDLL  = $(ALLDLL) "$(OUTDIR)\$(MAINDLL)"
 
 !IF  "$(MSDTC)" != "no"
@@ -174,26 +164,25 @@ CLEAN :
 	-@erase "$(OUTDIR)\$(XADLL)"
 !ENDIF
 
+!IF  "$(MSDTC)" != "no"
+"$(OUTDIR)\$(MAINDLL)": "$(OUTDIR)\$(DTCLIB).lib"
+!ENDIF
+
 "$(INTDIR)" :
     if not exist "$(INTDIR)/$(NULL)" mkdir "$(INTDIR)"
+
 !IF "$(OUTDIR)" != "$(INTDIR)"
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 !ENDIF
 
-!IF  "$(MSDTC)" != "no"
-"$(OUTDIR)\$(MAINDLL)" : "$(OUTDIR)\$(DTCLIB).lib"
-!ENDIF
-
-$(INTDIR)\connection.obj $(INTDIR)\psqlodbc.res: version.h
-
 CPP=cl.exe
+CPP_PROJ=/nologo /MD /W3 /EHsc /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD 
 !IF  "$(CFG)" == "Release"
-CPP_PROJ=/nologo /$(LINKMT) /O2 /D "NDEBUG"
+CPP_PROJ=$(CPP_PROJ) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
-CPP_PROJ=/nologo /$(LINKMT)d /Gm /ZI /Od /GZ /D "_DEBUG"
+CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /GZ
 !ENDIF
-CPP_PROJ=$(CPP_PROJ) /W3 $(VC_FLAGS) /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)"\ /Fd"$(INTDIR)"\ /FD
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -229,11 +218,11 @@ MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
 MTL_PROJ=/nologo /mktyplib203 /win32 
-RSC_PROJ=/l 0x809 /d "MULTIBYTE" 
+RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "MULTIBUTE" 
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc" 
 !IF  "$(CFG)" == "Release"
-MTL_PROJ=$(MTL_PROC) /D "NDEBUG" 
-RSC_PROJ=$(RSC_PROJ) /d "NDEBUG"
+MTL_PROJ=$(MTL_PROJ) /D "NDEBUG"
+RSC_PROJ=$(RSC_PROJ) /d "NDEBUG" 
 !ELSE
 MTL_PROJ=$(MTL_PROJ) /D "_DEBUG" 
 RSC_PROJ=$(RSC_PROJ) /d "_DEBUG" 
@@ -242,7 +231,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib $(OUTDIR)\$(DTCLIB).lib winmm.lib /nologo /dll /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\$(MAINDLL)" /implib:"$(OUTDIR)\$(MAINLIB).lib" 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib bufferoverflowu.lib /nologo /dll /machine:$(CPU) /def:"$(DEF_FILE)" /pdb:"$(OUTDIR)\psqlodbc.pdb" /out:"$(OUTDIR)\$(MAINDLL)" /implib:"$(OUTDIR)\$(MAINLIB).lib"
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
@@ -251,7 +240,7 @@ DEF_FILE= "psqlodbc.def"
 !IF  "$(CFG)" == "Release"
 LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no
 !ELSE
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug
+LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug /pdbtype:sept
 !ENDIF
 LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
 
@@ -301,14 +290,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\psqlodbc.res"
 
 DTCDEF_FILE= "$(DTCLIB).def"
-LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:"$(DTCDEF_FILE)" /out:"$(OUTDIR)\$(DTCLIB).lib"
+LIB32_DTCLIBFLAGS=/nologo /machine:$(CPU) /def:"$(DTCDEF_FILE)" /out:"$(OUTDIR)\$(DTCLIB).lib"
 
-LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DTCLIB).pdb" /machine:I386 /out:"$(OUTDIR)\$(DTCDLL)"
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib bufferoverflowu.lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DTCLIB).pdb" /machine:$(CPU) /out:"$(OUTDIR)\$(DTCDLL)"
 LINK32_DTCOBJS= \
-	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
+        "$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(XALIB).pdb" /machine:I386 /def:"$(XADEF_FILE)" /out:"$(OUTDIR)\$(XADLL)" /implib:"$(OUTDIR)\$(XALIB).lib"
+LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib bufferoverflowu.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(XALIB).pdb" /machine:$(CPU) /def:"$(XADEF_FILE)" /out:"$(OUTDIR)\$(XADLL)" /implib:"$(OUTDIR)\$(XALIB).lib"
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj" 
 
@@ -317,14 +306,14 @@ LINK32_XAOBJS= \
   $(LINK32_FLAGS) $(LINK32_OBJS)
 <<
 
-"$(OUTDIR)\$(DTCLIB).lib" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
+"$(OUTDIR)\$(DTCLIB).lib" : $(DEF_FILE) $(LINK32_DTCOBJS)
     $(LIB32) @<<
-  $(LIB_DTCLIBFLAGS) $(LINK32_DTCOBJS)
+  $(LIB32_DTCLIBFLAGS) $(LINK32_DTCOBJS)
 <<
 
-"$(OUTDIR)\$(DTCDLL)" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
+"$(OUTDIR)\$(DTCDLL)" : $(LINK32_DTCOBJS)
     $(LINK32) @<<
-  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) "$(OUTDIR)\$(DTCLIB).exp" 
+  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) $(OUTDIR)\$(DTCLIB).exp
 <<
 
 "$(OUTDIR)\$(XADLL)" : $(XADEF_FILE) $(LINK32_XAOBJS)
@@ -335,5 +324,5 @@ LINK32_XAOBJS= \
 
 SOURCE=psqlodbc.rc
 
-"$(INTDIR)\psqlodbc.res" : $(SOURCE)
-	$(RSC) $(RSC_PROJ) /fo$@ $(RSC_DEFINES) $(SOURCE)
+"$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
+	$(RSC) $(RSC_PROJ)  $(RSC_DEFINES) $(SOURCE)

@@ -23,20 +23,35 @@
 #pragma comment(lib, "Delayimp")
 #pragma comment(lib, "libpq")
 #pragma comment(lib, "ssleay32")
+#ifdef	UNICODE_SUPPORT
 #pragma comment(lib, "pgenlist")
+#else
+#pragma comment(lib, "pgenlista")
+#endif /* UNICODE_SUPPORT */
 // The followings works under VC++6.0 but doesn't work under VC++7.0.
 // Please add the equivalent linker options using command line etc.
 #if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
 #pragma comment(linker, "/Delayload:libpq.dll")
 #pragma comment(linker, "/Delayload:ssleay32.dll")
+#ifdef	UNICODE_SUPPORT
 #pragma comment(linker, "/Delayload:pgenlist.dll")
+#else
+#pragma comment(linker, "/Delayload:pgenlista.dll")
+#endif /* UNICODE_SUPPORT */
 #pragma comment(linker, "/Delay:UNLOAD")
 #endif /* _MSC_VER */
 #endif /* _MSC_VER */
 #if defined(DYNAMIC_LOAD)
 #define	WIN_DYN_LOAD
 CSTR	libpq = "libpq";
+CSTR	libpqdll = "LIBPQ.dll";
+#ifdef	UNICODE_SUPPORT
 CSTR	pgenlist = "pgenlist";
+CSTR	pgenlistdll = "PGENLIST.dll";
+#else
+CSTR	pgenlist = "pgenlista";
+CSTR	pgenlistdll = "PGENLISTA.dll";
+#endif /* UNICODE_SUPPORT */
 #if defined(_MSC_VER) && (_MSC_VER >= 1200)
 #define	_MSC_DELAY_LOAD_IMPORT
 #endif /* MSC_VER */
@@ -107,7 +122,7 @@ DliErrorHook(unsigned	dliNotify,
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpq), NULL == hmodule)
 					hmodule = LoadLibrary(libpq);
 			}
-			else if (strnicmp(pdli->szDll, pgenlist, 8) == 0)
+			else if (strnicmp(pdli->szDll, pgenlist, strlen(pgenlist)) == 0)
 			{
 				if (hmodule = MODULE_load_from_psqlodbc_path(pgenlist), NULL == hmodule)
 					hmodule = LoadLibrary(pgenlist);
@@ -148,8 +163,8 @@ void CleanupDelayLoadedDLLs(void)
 	/* The dll names are case sensitive for the unload helper */
 	if (loaded_libpq)
 	{
-		success = (*func)("LIBPQ.dll");
-		mylog("LIBPQ unload success=%d\n", success);
+		success = (*func)(libpqdll);
+		mylog("%s unload success=%d\n", libpqdll, success);
 	}
 	if (loaded_ssllib)
 	{
@@ -158,8 +173,8 @@ void CleanupDelayLoadedDLLs(void)
 	}
 	if (loaded_pgenlist)
 	{
-		success = (*func)("PGENLIST.dll");
-		mylog("PGENLIST unload success=%d\n", success);
+		success = (*func)(pgenlistdll);
+		mylog("%s unload success=%d\n", pgenlistdll, success);
 	}
 	return;
 }
