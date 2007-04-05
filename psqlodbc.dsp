@@ -1,21 +1,21 @@
 # Microsoft Developer Studio Project File - Name="psqlODBC" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
-# ** 編集しないでください **
+# ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Console Application" 0x0103
 
 CFG=psqlODBC - Win32 Release
-!MESSAGE これは有効なﾒｲｸﾌｧｲﾙではありません。 このﾌﾟﾛｼﾞｪｸﾄをﾋﾞﾙﾄﾞするためには NMAKE を使用してください。
-!MESSAGE [ﾒｲｸﾌｧｲﾙのｴｸｽﾎﾟｰﾄ] ｺﾏﾝﾄﾞを使用して実行してください
+!MESSAGE This is not a valid makefile. To build this project using NMAKE,
+!MESSAGE use the Export Makefile command and run
 !MESSAGE 
 !MESSAGE NMAKE /f "psqlodbc.mak".
 !MESSAGE 
-!MESSAGE NMAKE の実行時に構成を指定できます
-!MESSAGE ｺﾏﾝﾄﾞ ﾗｲﾝ上でﾏｸﾛの設定を定義します。例:
+!MESSAGE You can specify a configuration when running NMAKE
+!MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
 !MESSAGE NMAKE /f "psqlodbc.mak" CFG="psqlODBC - Win32 Release"
 !MESSAGE 
-!MESSAGE 選択可能なﾋﾞﾙﾄﾞ ﾓｰﾄﾞ:
+!MESSAGE Possible choices for configuration are:
 !MESSAGE 
 !MESSAGE "psqlODBC - Win32 Release" ("Win32 (x86) Console Application" 用)
 !MESSAGE "psqlODBC - Win32 Debug" ("Win32 (x86) Console Application" 用)
@@ -41,17 +41,17 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MD /W3 /GX /O2 /D "USE_LIBPQ" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /Fp"psqlodbc.pch" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "C:\HOME\postgresql-8.1.4_client\src\include" /I "C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq" /I "C:\HOME\openssl-0.9.8a\inc32" /D "NDEBUG" /D "USE_LIBPQ" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /D "USE_SSL" /Fp"psqlodbc.pch" /YX /FD /c
+# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "USE_LIBPQ" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /Fp"psqlodbc.pch" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /X /I "C:\Program Files\PostgreSQL\8.2\include" /I "C:\OpenSSL\include" /D "NDEBUG" /D "USE_LIBPQ" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D SSL_DLL="\"SSLEAY32.dll\"" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /D "USE_SSL" /Fp"psqlodbc.pch" /YX /FD /c
 # ADD BASE RSC /l 0x411 /d "NDEBUG"
-# ADD RSC /l 0x411 /i "." /i "japanese" /d "NDEBUG"
+# ADD RSC /l 0x411 /i "." /d "NDEBUG"
 # SUBTRACT RSC /x
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /subsystem:windows /machine:I386
-# ADD LINK32 ws2_32.lib shfolder.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib winmm.lib odbccp32.lib libpq.lib C:\HOME\openssl-0.9.8a\out32\ssleay32.lib C:\HOME\openssl-0.9.8a\out32\libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq\Release"
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib /nologo /subsystem:windows /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /machine:I386 /nodefaultlib /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\Program Files\PostgreSQL\8.2\lib\ms" /libpath:"C:\OpenSSL\lib\VC"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "psqlODBC - Win32 Debug"
@@ -67,18 +67,19 @@ LINK32=link.exe
 # PROP Intermediate_Dir "Debug"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MD /W3 /Gm /GX /ZI /Od /D "USE_LIBPQ" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /YX /FD /GZ /c
-# ADD CPP /nologo /MD /W3 /Gm /GX /ZI /I "C:\HOME\postgresql-8.1.4_client\src\include" /I "C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq" /I "C:\HOME\openssl-0.9.8a\inc32" /D "_DEBUG" /D "USE_LIBPQ" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /D "USE_SSL" /FR /YX /FD /GZ /c
+# ADD BASE CPP /nologo /MT /W3 /GX /Od /D "USE_LIBPQ" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /YX /FD /c
+# ADD CPP /nologo /MTd /W3 /GX /O2 /I "C:\Program Files\PostgreSQL\8.2\include" /I "C:\OpenSSL\include" /D "_DEBUG" /D "USE_LIBPQ" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D ODBCVER=0x0351 /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D SSL_DLL="\"SSLEAY32.dll\"" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /D "USE_SSL" /FR /YX /FD /c
+# SUBTRACT CPP /X
 # ADD BASE RSC /l 0x411 /d "_DEBUG"
-# ADD RSC /l 0x411 /i "." /i "japanese" /d "_DEBUG"
+# ADD RSC /l 0x411 /i "." /d "_DEBUG"
 # SUBTRACT RSC /x
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=link.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib /nologo /subsystem:windows /debug /machine:I386
-# ADD LINK32 ws2_32.lib shfolder.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib winmm.lib libpq.lib C:\HOME\openssl-0.9.8a\out32\ssleay32.lib C:\HOME\openssl-0.9.8a\out32\libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /debug /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\HOME\postgresql-8.1.4_client\src\interfaces\libpq\Debug"
-# SUBTRACT LINK32 /pdb:none
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib /nologo /subsystem:windows /debug /machine:I386
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /debug /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\Program Files\PostgreSQL\8.2\lib\ms" /libpath:"C:\OpenSSL\lib\VC"
+# SUBTRACT LINK32 /pdb:none /nodefaultlib
 
 !ENDIF 
 
