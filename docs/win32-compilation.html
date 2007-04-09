@@ -3,46 +3,134 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
     <title>Compiling psqlODBC on Windows</title>
-  </HEAD>
+  </head>
 
   <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
   
 <h1>Compiling psqlODBC on Windows</h1>
 
 <p>
-This page describes how to build the PostgreSQL ODBC Driver (psqlodbc.dll) on Win32 platforms.
-Microsoft Visual C++ version 6.0 or higher is required. Other compilers may work 
-but have not been formally tested. The psqlodbc.dll may be built either in the 
+This 
+page describes how to build the PostgreSQL ODBC Driver on Win32 platforms. Microsoft Visual
+C++ version 6.0 or Microsoft Visual C++ 2005 Edition. Other compilers may work 
+but have not been formally tested. psqlODBC may be built either in the 
 VC++ IDE or from the command line:
 </p>
 
 <h2>IDE Method</h2>
 
-<p>
-A Microsoft Visual C++ 6.0 project file (and workspace) is included in the source tree. Simply
-load the project, and build whichever configurations you prefer.
-
+<p>A Microsoft Visual Studio project file (and workspace) is included in the source tree.
 </p>
 
-<h2>Command Line Method</h2>
+<p><strong>psqlodbc.dsp</strong>
+ can be used with Microsoft Visual C++ 6.0.
+</p>
+
+<p><strong>psqlodbc.proj</strong> and 
+<strong>psqlodbc.sln</strong>
+can be used with Microsoft Visual C++ 2005 Edition (including the Express edition which can be downloaded free of charge from <a href="http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx">http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx</a>)
+</p>
 
 <p>
+     Preparation before the build:
+</p>
+<ol>
+  <li>The Windows distribution of PostgreSQL will install the required headers and libraries into C:\Program Files\PostgreSQL\8.2
+  <li>OpenSSL should be installed into C:\OpenSSL (OpenSSL binaries can be downloaded from <a href="http://www.slproweb.com/products/Win32OpenSSL.html">http://www.slproweb.com/products/Win32OpenSSL.html</a>)
+</li></ol>
+
+<p>
+       If you want to change the installation arrangement, it
+is necessary to edit the project settings.
+</p>
+
+<p>
+        Note:
+</p>
+
+<p>
+The default build settings will create the following driver:
+</p>
 
 <ol>
-<li>From a command prompt, run the vcvars32.bat file that comes with Visual C++. This will
-setup the environment for using the VC++ compiler.</li>
+<li>UNICODE support.
+<li>libpq.dll is used, therefore, SSL and Kerberos are supported.
+<li>ODBCVER is 0x0351. 
+<li>The driver filename is "psqlodbc35w.dll".</li></ol>
+               
+<h2>Command Line Method</h2>
+<p>
+        Build&nbsp;method:
+</p>
+<ol>        
+<li>Use NMAKE.exe to build the dll for the 32bit environment.<br><br>
 
-<li>CD to the directory containing the source code.</li>
-
-<li>Use NMAKE to build the dll eg:<br><br>
-
-    <code>C:\psqlodbc\> nmake /f win32.mak CFG=Release ALL</code><br><br>
+    <code>C:\psqlodbc\&gt; nmake /f win32.mak CFG=Release ALL</code><br><br>
 
     Possible configurations are Release and Debug.<br>
-    Possible build types are ALL or CLEAN.</li>
-</ol>
+    Possible build types are ALL or CLEAN. <br>&nbsp;</li>
+<li>Use NMAKE.exe to build the dll for the 64bit environment.<br><br>
 
-</p>
+    <code>C:\psqlodbc\&gt; nmake /f win64.mak CFG=Release ALL</code><br><br>
 
+    Possible configurations are Release and Debug.<br>
+    Possible build types are ALL or CLEAN.</li></ol>        
+  
+
+<p>Note:</p>
+
+<p>
+The following build options may be used:
+</p>        
+  
+
+<p>
+<table cellspacing="0" cellpadding="3" width="780" border=1>
+  
+  <tr>
+    <td>Valiable</td>
+    <td>Values</td>
+    </tr>
+  <tr>
+    <td>CFG</td>
+    <td>Release(default), or Debug</td>
+    </tr>
+  <tr>
+    <td>PG_INC</td>
+    <td>$(PROGRAMFILES)\PostgreSQL\8.2\include</td>
+    </tr>
+  <tr>
+    <td>PG_LIB</td>
+    <td>$(PROGRAMFILES)\PostgreSQL\8.2\lib\ms</td>
+    </tr>
+  <tr>
+    <td>SSL_INC</td>
+    <td>C:\OpenSSL\include</td>
+    </tr>
+  <tr>
+   <td>SSL_LIB</td>
+   <td>C:\OpenSSL\lib\VC</td>
+    </tr>
+  <tr>
+    <td>LINKMT</td>
+    <td>MT</td>
+  </tr>
+  <tr>
+    <td>ANSI_VERSION</td>
+    <td>No (at the Yes, output dll name to psqlodbc30a.dll)</td>
+  </tr>
+  <tr>
+    <td>MSDTC</td>
+    <td>Yes (but VC++ 6.0 default is no)</td>
+  </tr>
+  </table></p>        
+
+<ol>
+<li>UNICODE is default (psqlodbc35w.dll), unless ANSI_VERSION isselected (psqlodbc30a.dll)</li>
+<li>libpq.dll is used, therefore, SSL and Kerberos are supported.</li>
+<li>ODBCVER becomes 0x351 when UNICODE is selected, or becomes 0x0300 with ANSI_VERSION == Yes.</li>
+<li>If MSDTC == Yes, "pgxalib.dll" is created./li>
+<li>In the MSDTC mode, ANSI_VERSION also creates "pgenlista.dll". or UNICODE creates "pgenlist.dll".</li>
+</ol>.
 </body>
 </html>
