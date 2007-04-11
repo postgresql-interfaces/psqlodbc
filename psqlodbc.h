@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.117 2007/04/03 14:49:02 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.118 2007/04/11 16:36:47 h-saito Exp $
  *
  */
 
@@ -303,8 +303,14 @@ typedef double SDOUBLE;
 /*	Info limits */
 #define MAX_INFO_STRING				128
 #define MAX_KEYPARTS				20
-#define MAX_KEYLEN					512 /* max key of the form
+#define MAX_KEYLEN				512 	/* max key of the form
+
 										 * "date+outlet+invoice" */
+/* POSIX defines a PATH_MAX.( wondows is _MAX_PATH ..) */
+#ifndef PATH_MAX
+#define PATH_MAX       1024
+#endif
+
 #define MAX_ROW_SIZE				0	/* Unlimited rowsize with the
 										 * Tuple Toaster */
 #define MAX_STATEMENT_LEN			0	/* Unlimited statement size with

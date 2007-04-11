@@ -21,11 +21,12 @@
 #include <time.h>
 
 #ifndef WIN32
-#define	GENERAL_ERRNO		(errno)
-#define	GENERAL_ERRNO_SET(e)	(errno = e)
 #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
+#define	GENERAL_ERRNO		(errno)
+#define	GENERAL_ERRNO_SET(e)	(errno = e)
 #else
 #define	GENERAL_ERRNO		(GetLastError())
 #define	GENERAL_ERRNO_SET(e)	SetLastError(e)
@@ -67,7 +68,7 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 static void
 generate_homefile(const char *prefix, char *filename)
 {
-	char	dir[_MAX_PATH];
+	char	dir[PATH_MAX];
 #ifdef	WIN32
 	const char *ptr;
 
