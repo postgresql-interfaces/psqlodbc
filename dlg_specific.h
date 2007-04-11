@@ -265,7 +265,7 @@ LRESULT CALLBACK manage_dsnProc(HWND hdlg,
 #endif   /* WIN32 */
 
 void		updateGlobals(void);
-void		writeDriverCommoninfo(const char *fileName, const char *sectionName,
+int		writeDriverCommoninfo(const char *fileName, const char *sectionName,
 		const GLOBAL_VALUES *);
 void		writeDSNinfo(const ConnInfo *ci);
 void		getDSNdefaults(ConnInfo *ci);

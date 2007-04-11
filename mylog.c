@@ -15,22 +15,26 @@
 #include "psqlodbc.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
 #ifndef WIN32
+#define	GENERAL_ERRNO		(errno)
+#define	GENERAL_ERRNO_SET(e)	(errno = e)
 #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
 #else
+#define	GENERAL_ERRNO		(GetLastError())
+#define	GENERAL_ERRNO_SET(e)	SetLastError(e)
 #include <process.h>			/* Byron: is this where Windows keeps def.
 								 * of getpid ? */
 #endif
 
 extern GLOBAL_VALUES globals;
-void		generate_filename(const char *, const char *, char *);
-
+void	generate_filename(const char *, const char *, char *);
 
 void
 generate_filename(const char *dirname, const char *prefix, char *filename)
@@ -57,6 +61,26 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 	strcat(filename, ptr->pw_name);
 #endif
 	sprintf(filename, "%s%u%s", filename, pid, ".log");
+	return;
+}
+
+static void
+generate_homefile(const char *prefix, char *filename)
+{
+	char	dir[_MAX_PATH];
+#ifdef	WIN32
+	const char *ptr;
+
+	dir[0] = '\0';
+	if (ptr=getenv("HOMEDRIVE"), NULL != ptr)
+		strcat(dir, ptr);
+	if (ptr=getenv("HOMEPATH"), NULL != ptr)
+		strcat(dir, ptr);
+#else
+	strcpy(dir, "~");	
+#endif /* WIN32 */
+	generate_filename(dir, prefix, filename);
+
 	return;
 }
 
@@ -129,8 +153,11 @@ mylog(const char *fmt,...)
 {
 	va_list		args;
 	char		filebuf[80];
+	int		gerrno;
 
 	if (!mylog_on)	return;
+
+	gerrno = GENERAL_ERRNO;
 	ENTER_MYLOG_CS;
 #ifdef	LOGGING_PROCESS_TIME
 	if (!start_time)
@@ -142,38 +169,47 @@ mylog(const char *fmt,...)
 	{
 		generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (!MLOGFP)
+		{
+			generate_homefile(MYLOGFILE, filebuf);
+			MLOGFP = fopen(filebuf, PG_BINARY_A);
+		}
 		if (MLOGFP)
 			setbuf(MLOGFP, NULL);
+		else
+			mylog_on = 0;
 	}
 
-#ifdef	WIN_MULTITHREAD_SUPPORT
-#ifdef	WIN32
 	if (MLOGFP)
-#ifdef	LOGGING_PROCESS_TIME
 	{
+#ifdef	WIN_MULTITHREAD_SUPPORT
+#ifdef	LOGGING_PROCESS_TIME
 		DWORD	proc_time = timeGetTime() - start_time;
 		fprintf(MLOGFP, "[%u-%d.%03d]", GetCurrentThreadId(), proc_time / 1000, proc_time % 1000);
-	}
 #else
 		fprintf(MLOGFP, "[%u]", GetCurrentThreadId());
 #endif /* LOGGING_PROCESS_TIME */
-#endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-	if (MLOGFP)
 		fprintf(MLOGFP, "[%lu]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
-	if (MLOGFP)
 		vfprintf(MLOGFP, fmt, args);
+	}
 
 	va_end(args);
 	LEAVE_MYLOG_CS;
+	GENERAL_ERRNO_SET(gerrno);
 }
 void
 forcelog(const char *fmt,...)
 {
+	static BOOL	force_on = TRUE;
 	va_list		args;
 	char		filebuf[80];
+	int		gerrno = GENERAL_ERRNO;
+
+	if (!force_on)
+		return;
 
 	ENTER_MYLOG_CS;
 	va_start(args, fmt);
@@ -184,13 +220,20 @@ forcelog(const char *fmt,...)
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
 		if (MLOGFP)
 			setbuf(MLOGFP, NULL);
-	}
-	if (!MLOGFP)
-	{
-		generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
-		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (!MLOGFP)
+		{
+			generate_homefile(MYLOGFILE, filebuf);
+			MLOGFP = fopen(filebuf, PG_BINARY_A);
+		}
+		if (!MLOGFP)
+		{
+			generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
+			MLOGFP = fopen(filebuf, PG_BINARY_A);
+		}
 		if (MLOGFP)
 			setbuf(MLOGFP, NULL);
+		else
+			force_on = FALSE;
 	}
 	if (MLOGFP)
 	{
@@ -212,6 +255,7 @@ forcelog(const char *fmt,...)
 	}
 	va_end(args);
 	LEAVE_MYLOG_CS;
+	GENERAL_ERRNO_SET(gerrno);
 }
 static void mylog_initialize()
 {
@@ -244,9 +288,11 @@ qlog(char *fmt,...)
 {
 	va_list		args;
 	char		filebuf[80];
+	int		gerrno;
 
 	if (!qlog_on)	return;
 
+	gerrno = GENERAL_ERRNO;
 	ENTER_QLOG_CS;
 #ifdef	LOGGING_PROCESS_TIME
 	if (!start_time)
@@ -258,8 +304,15 @@ qlog(char *fmt,...)
 	{
 		generate_filename(QLOGDIR, QLOGFILE, filebuf);
 		QLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (!QLOGFP)
+		{
+			generate_homefile(QLOGFILE, filebuf);
+			QLOGFP = fopen(filebuf, PG_BINARY_A);
+		}
 		if (QLOGFP)
 			setbuf(QLOGFP, NULL);
+		else
+			qlog_on = 0;
 	}
 
 	if (QLOGFP)
@@ -273,6 +326,7 @@ qlog(char *fmt,...)
 
 	va_end(args);
 	LEAVE_QLOG_CS;
+	GENERAL_ERRNO_SET(gerrno);
 }
 static void qlog_initialize()
 {

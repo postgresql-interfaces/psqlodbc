@@ -242,7 +242,7 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib $(OUTDIR)\$(DTCLIB).lib winmm.lib /nologo /dll /pdb:"$(OUTDIR)\psqlodbc.pdb" /machine:I386 /def:"$(DEF_FILE)" /out:"$(OUTDIR)\$(MAINDLL)" /implib:"$(OUTDIR)\$(MAINLIB).lib" 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib $(OUTDIR)\$(DTCLIB).lib winmm.lib /nologo /dll /machine:I386 /def:"$(DEF_FILE)"
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
@@ -301,35 +301,35 @@ LINK32_OBJS= \
 	"$(INTDIR)\psqlodbc.res"
 
 DTCDEF_FILE= "$(DTCLIB).def"
-LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:"$(DTCDEF_FILE)" /out:"$(OUTDIR)\$(DTCLIB).lib"
+LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:"$(DTCDEF_FILE)"
 
-LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(DTCLIB).pdb" /machine:I386 /out:"$(OUTDIR)\$(DTCDLL)"
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:I386
 LINK32_DTCOBJS= \
 	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /pdb:"$(OUTDIR)\$(XALIB).pdb" /machine:I386 /def:"$(XADEF_FILE)" /out:"$(OUTDIR)\$(XADLL)" /implib:"$(OUTDIR)\$(XALIB).lib"
+LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /machine:I386 /def:"$(XADEF_FILE)"
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj" 
 
 "$(OUTDIR)\$(MAINDLL)" : $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
-  $(LINK32_FLAGS) $(LINK32_OBJS)
+  $(LINK32_FLAGS) $(LINK32_OBJS) /pdb:$*.pdb /implib:$*.lib /out:$@
 <<
 
 "$(OUTDIR)\$(DTCLIB).lib" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
     $(LIB32) @<<
-  $(LIB_DTCLIBFLAGS) $(LINK32_DTCOBJS)
+  $(LIB_DTCLIBFLAGS) $(LINK32_DTCOBJS) /out:$@
 <<
 
 "$(OUTDIR)\$(DTCDLL)" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
     $(LINK32) @<<
-  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) "$(OUTDIR)\$(DTCLIB).exp" 
+  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) $*.exp /pdb:$*.pdb /out:$@ 
 <<
 
 "$(OUTDIR)\$(XADLL)" : $(XADEF_FILE) $(LINK32_XAOBJS)
     $(LINK32) @<<
-  $(LINK32_XAFLAGS) $(LINK32_XAOBJS)
+  $(LINK32_XAFLAGS) $(LINK32_XAOBJS) /pdb:$*.pdb /implib:$*.lib /out:$@
 <<
 
 

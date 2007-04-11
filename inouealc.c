@@ -1,18 +1,6 @@
 #undef	_MEMORY_DEBUG_
 #include	"psqlodbc.h"
 
-/*
-#undef	malloc
-#undef	calloc
-#undef	realloc
-#undef	strdup
-#undef	free
-#undef	memcpy
-#undef	strcpy
-#undef	strncpy
-#undef	strncpy_null
-#undef	memset
-*/
 #ifdef	WIN32
 #ifdef	_DEBUG
 /* #include	<stdlib.h> */

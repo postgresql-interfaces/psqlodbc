@@ -204,7 +204,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 	struct addrinfo	rest, *addrs = NULL, *curadr = NULL;
 	int	family = 0; 
 	char	retval = 0;
-
+	int	gerrno;
 
 	if (self->socket != (SOCKETFD) -1)
 	{
@@ -315,7 +315,8 @@ retry:
 		time_t	t_now, t_finish = 0;
 		BOOL	tm_exp = FALSE;
 
-		switch (SOCK_ERRNO)
+		gerrno = SOCK_ERRNO;
+		switch (gerrno)
 		{
 			case 0:
 			case EINPROGRESS:
@@ -339,11 +340,12 @@ retry:
 			FD_SET(self->socket, &fds);
 			FD_SET(self->socket, &except_fds);
 			ret = select((int) self->socket + 1, NULL, &fds, &except_fds, timeout > 0 ? &tm : NULL);
+			gerrno = SOCK_ERRNO;
 			if (0 < ret)
 				break;
 			else if (0 == ret)
 				tm_exp = TRUE;
-			else if (EINTR != SOCK_ERRNO)
+			else if (EINTR != gerrno)
 				break;
 			else if (timeout > 0)
 			{
@@ -364,7 +366,7 @@ retry:
 		else if (0 > ret)
 		{
 			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect .. select error occured.");
-			mylog("select error ret=%d ERROR=%d\n", ret, SOCK_ERRNO);
+			mylog("select error ret=%d ERROR=%d\n", ret, gerrno);
 			goto cleanup;
 		}
 		if (getsockopt(self->socket, SOL_SOCKET, SO_ERROR,
@@ -420,7 +422,7 @@ cleanup:
 #define	MAX_RETRY_COUNT	30
 static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 {
-	int	ret;
+	int	ret, gerrno;
 	fd_set	fds, except_fds;
 	struct	timeval	tm;
 	BOOL	no_timeout = (0 != retry_count && (retry_count < 0 || (!sock->ssl)));
@@ -436,7 +438,8 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 			tm.tv_usec = 0;
 		}
 		ret = select((int)sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
-	} while (ret < 0 && EINTR == SOCK_ERRNO);
+		gerrno = SOCK_ERRNO;
+	} while (ret < 0 && EINTR == gerrno);
 	if (retry_count < 0)
 		retry_count *= -1;
 	if (0 == ret && retry_count > MAX_RETRY_COUNT)
@@ -467,12 +470,13 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 static int SOCK_SSL_recv(SocketClass *sock, void *buffer, int len)
 {
 	CSTR	func = "SOCK_SSL_recv";
-	int n, err, retry_count = 0;
+	int n, err, gerrno, retry_count = 0;
 
 retry:
 	n = SSL_read(sock->ssl, buffer, len);
 	err = SSL_get_error(sock->ssl, len);
-inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, SOCK_ERRNO);
+	gerrno = SOCK_ERRNO;
+inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, gerrno);
 	switch (err)
 	{
 		case	SSL_ERROR_NONE:
@@ -511,12 +515,13 @@ inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, SOCK_ERRNO);
 static int SOCK_SSL_send(SocketClass *sock, void *buffer, int len)
 {
 	CSTR	func = "SOCK_SSL_send";
-	int n, err, retry_count = 0;
+	int n, err, gerrno, retry_count = 0;
 
 retry:
 	n = SSL_write(sock->ssl, buffer, len);
 	err = SSL_get_error(sock->ssl, len);
-inolog("%s: %d get_error=%d Lasterror=%d\n", func,  n, err, SOCK_ERRNO);
+	gerrno = SOCK_ERRNO;
+inolog("%s: %d get_error=%d Lasterror=%d\n", func,  n, err, gerrno);
 	switch (err)
 	{
 		case	SSL_ERROR_NONE:
@@ -714,7 +719,7 @@ SOCK_put_int(SocketClass *self, int value, short len)
 Int4
 SOCK_flush_output(SocketClass *self)
 {
-	int	written, pos = 0, retry_count = 0, ttlsnd = 0;
+	int	written, pos = 0, retry_count = 0, ttlsnd = 0, gerrno;
 
 	if (!self)
 		return -1;
@@ -726,9 +731,10 @@ SOCK_flush_output(SocketClass *self)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 		else
 			written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+		gerrno = SOCK_ERRNO;
 		if (written < 0)
 		{
-			switch (SOCK_ERRNO)
+			switch (gerrno)
 			{
 				case EINTR:
 					continue;
@@ -755,7 +761,7 @@ SOCK_flush_output(SocketClass *self)
 UCHAR
 SOCK_get_next_byte(SocketClass *self)
 {
-	int	retry_count = 0;
+	int	retry_count = 0, gerrno;
 	BOOL	maybeEOF = FALSE;
 
 	if (!self)
@@ -771,13 +777,14 @@ retry:
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else
 			self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
+		gerrno = SOCK_ERRNO;
 
 		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
 
 		if (self->buffer_filled_in < 0)
 		{
-mylog("Lasterror=%d\n", SOCK_ERRNO);
-			switch (SOCK_ERRNO)
+mylog("Lasterror=%d\n", gerrno);
+			switch (gerrno)
 			{
 				case	EINTR:
 					goto retry;
@@ -826,7 +833,7 @@ inolog("ECONNRESET\n");
 void
 SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 {
-	int	bytes_sent, pos = 0, retry_count = 0;
+	int	bytes_sent, pos = 0, retry_count = 0, gerrno;
 
 	if (!self)
 		return;
@@ -843,9 +850,10 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 				bytes_sent = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 			else
 				bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+			gerrno = SOCK_ERRNO;
 			if (bytes_sent < 0)
 			{
-				switch (SOCK_ERRNO)
+				switch (gerrno)
 				{
 					case	EINTR:
 						continue;

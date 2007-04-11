@@ -890,44 +890,46 @@ getDSNinfo(ConnInfo *ci, char overwrite)
  *	This function writes any global parameters (that can be manipulated)
  *	to the ODBCINST.INI portion of the registry
  */
-void
+int
 writeDriverCommoninfo(const char *fileName, const char *sectionName,
 			 const GLOBAL_VALUES *comval)
 {
 	char		tmp[128];
+	int		errc = 0;
 
 	if (ODBCINST_INI == fileName && NULL == sectionName)
 		sectionName = DBMS_NAME;
  
 	sprintf(tmp, "%d", comval->commlog);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_COMMLOG, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_COMMLOG, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->debug);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_DEBUG, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_DEBUG, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->fetch_max);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_FETCH, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_FETCH, tmp, fileName))
+		errc--;
 
 	if (stricmp(ODBCINST_INI, fileName) == 0)
-		return;
+		return errc;
 
 	sprintf(tmp, "%d", comval->fetch_max);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_FETCH, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_FETCH, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->disable_optimizer);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_OPTIMIZER, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_OPTIMIZER, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->ksqo);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_KSQO, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_KSQO, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->unique_index);
-	SQLWritePrivateProfileString(sectionName, INI_UNIQUEINDEX, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_UNIQUEINDEX, tmp, fileName))
+		errc--;
 	/*
 	 * Never update the onlyread from this module.
 	 */
@@ -939,49 +941,51 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	}
 
 	sprintf(tmp, "%d", comval->use_declarefetch);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_USEDECLAREFETCH, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_USEDECLAREFETCH, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->unknown_sizes);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_UNKNOWNSIZES, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_UNKNOWNSIZES, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->text_as_longvarchar);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_TEXTASLONGVARCHAR, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_TEXTASLONGVARCHAR, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->unknowns_as_longvarchar);
-	SQLWritePrivateProfileString(sectionName,
-							   INI_UNKNOWNSASLONGVARCHAR, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_UNKNOWNSASLONGVARCHAR, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->bools_as_char);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_BOOLSASCHAR, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_BOOLSASCHAR, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->parse);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_PARSE, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_PARSE, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->cancel_as_freestmt);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_CANCELASFREESTMT, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_CANCELASFREESTMT, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->max_varchar_size);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_MAXVARCHARSIZE, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_MAXVARCHARSIZE, tmp, fileName))
+		errc--;
 
 	sprintf(tmp, "%d", comval->max_longvarchar_size);
-	SQLWritePrivateProfileString(sectionName,
-								 INI_MAXLONGVARCHARSIZE, tmp, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_MAXLONGVARCHARSIZE, tmp, fileName))
+		errc--;
 
-	SQLWritePrivateProfileString(sectionName,
-	INI_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes, fileName);
+	if (!SQLWritePrivateProfileString(sectionName, INI_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes, fileName))
+		errc--;
 
 	/*
 	 * Never update the conn_setting from this module
 	 * SQLWritePrivateProfileString(sectionName, INI_CONNSETTINGS,
 	 * comval->conn_settings, fileName);
 	 */
+
+	return errc;
 }
 
 /*	This is for datasource based options only */

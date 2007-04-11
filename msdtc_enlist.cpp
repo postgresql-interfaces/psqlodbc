@@ -10,6 +10,7 @@
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 
+#undef	_MEMORY_DEBUG_
 #ifndef	_WIN32_WINNT
 #define	_WIN32_WINNT	0x0400
 #endif	/* _WIN32_WINNT */

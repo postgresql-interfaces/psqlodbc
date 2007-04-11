@@ -256,7 +256,11 @@ driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
 		GetDlgItemText(hdlg, DRV_CONNSETTINGS, comval->conn_settings, sizeof(comval->conn_settings));
 
 	if (updateDriver)
-		writeDriverCommoninfo(ODBCINST_INI, updateDriver, comval);
+	{
+		if (writeDriverCommoninfo(ODBCINST_INI, updateDriver, comval) < 0)
+			MessageBox(hdlg, "impossible to update the values, sorry", "Update Error", MB_ICONEXCLAMATION | MB_OK);
+;
+	}
 
 	/* fall through */
 	return 0;
@@ -364,7 +368,8 @@ global_optionsProc(HWND hdlg,
 				case IDOK:
 					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
-					writeDriverCommoninfo(ODBCINST_INI, NULL, &globals);
+					if (writeDriverCommoninfo(ODBCINST_INI, NULL, &globals) < 0)
+						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
 #ifdef _HANDLE_ENLIST_IN_DTC_
 			hmodule = DtcProc("SetMsdtclog", &proc);
 			if (proc)

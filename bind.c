@@ -542,7 +542,7 @@ extend_parameter_bindings(APDFields *self, int num_params)
 		self->allocated = num_params;
 	}
 
-	mylog("exit extend_parameter_bindings=%p\n", self->parameters);
+	mylog("exit %s=%p\n", func, self->parameters);
 }
 
 void
@@ -575,7 +575,7 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 		self->allocated = num_params;
 	}
 
-	mylog("exit extend_iparameter_bindings=%p\n", self->parameters);
+	mylog("exit %s=%p\n", func, self->parameters);
 }
 
 void
@@ -689,9 +689,10 @@ APD_free_params(APDFields *apdopts, char option)
 void
 PDATA_free_params(PutDataInfo *pdata, char option)
 {
+	CSTR	func = "PDATA_free_params";
 	int			i;
 
-	mylog("PDATA_free_params:  ENTER, self=%p\n", pdata);
+	mylog("%s:  ENTER, self=%p\n", func, pdata);
 
 	if (!pdata->pdata)
 		return;
@@ -717,7 +718,7 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 		pdata->allocated = 0;
 	}
 
-	mylog("PDATA_free_params:  EXIT\n");
+	mylog("%s:  EXIT\n", func);
 }
 
 /*
@@ -726,7 +727,9 @@ PDATA_free_params(PutDataInfo *pdata, char option)
 void
 IPD_free_params(IPDFields *ipdopts, char option)
 {
-	mylog("IPD_free_params:  ENTER, self=%p\n", ipdopts);
+	CSTR	func = "IPD_free_params";
+
+	mylog("%s:  ENTER, self=%p\n", func, ipdopts);
 
 	if (!ipdopts->parameters)
 		return;
@@ -737,7 +740,7 @@ IPD_free_params(IPDFields *ipdopts, char option)
 		ipdopts->allocated = 0;
 	}
 
-	mylog("IPD_free_params:  EXIT\n");
+	mylog("%s:  EXIT\n", func);
 }
 
 void
@@ -791,7 +794,7 @@ extend_column_bindings(ARDFields *self, int num_columns)
 	/* SQLExecDirect(...)  # returns 5 cols */
 	/* SQLExecDirect(...)  # returns 10 cols  (now OK) */
 
-	mylog("exit extend_column_bindings=%p\n", self->bindings);
+	mylog("exit %s=%p\n", func, self->bindings);
 }
 
 void
@@ -1022,7 +1025,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 		}
 	}
 
-	mylog("exit extend_putdata_info=%p\n", self->pdata);
+	mylog("exit %s=%p\n", func, self->pdata);
 }
 void	reset_a_putdata_info(PutDataInfo *pdata_info, int ipar)
 {
