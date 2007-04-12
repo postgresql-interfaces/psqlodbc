@@ -3055,7 +3055,7 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 			snprintf(selstr, len, "%s where ctid = '%s' %s", stmt->load_statement, tidval, oideqstr); 
 	}
 	else if ((flag & USE_INSERTED_TID) != 0)
-		snprintf(selstr, len, "%s where ctid = currtid(0, '(,)') %s", stmt->load_statement, oideqstr);
+		snprintf(selstr, len, "%s where ctid = currtid(0, '(0,0)') %s", stmt->load_statement, oideqstr);
 	else if (bestitem && oidint)
 	{
 		/*snprintf(selstr, len, "%s where \"%s\" = %u", stmt->load_statement, bestitem, *oid);*/

@@ -2577,7 +2577,7 @@ inolog("type=%d concur=%d\n",
 				 * 1st query is for field information
 				 * 2nd query is keyset gathering
 				 */
-				CVT_APPEND_STR(qb, " where ctid = '(,)';select \"ctid");
+				CVT_APPEND_STR(qb, " where ctid = '(0,0)';select \"ctid");
 				if (stmt && stmt->ntab > 0)
 					bestitem = GET_NAME(stmt->ti[0]->bestitem);
 				if (!bestitem)
@@ -2670,7 +2670,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		qb->load_stmt_len = qb->npos;
 		if (0 != (qb->flags & FLGB_KEYSET_DRIVEN))
 		{
-			CVT_APPEND_STR(qb, "where ctid = '(,)';select \"ctid");
+			CVT_APPEND_STR(qb, "where ctid = '(0,0)';select \"ctid");
 			if (bestitem)
 			{
 				CVT_APPEND_STR(qb, "\", \"");
