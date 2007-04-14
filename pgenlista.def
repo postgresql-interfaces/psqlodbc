@@ -1,0 +1,5 @@
+LIBRARY pgenlista
+EXPORTS
+EnlistInDtc
+DtcOnDisconnect
+DtcOnRelease
