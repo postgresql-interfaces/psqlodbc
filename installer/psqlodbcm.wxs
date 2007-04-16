@@ -24,7 +24,7 @@
           <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../Release/psqlodbc35w.dll" />
           <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../Release/pgxalib.dll" />
           <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../Release/pgenlist.dll" />
-          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../Release/pgenlista.dll" />
+          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../MultibyteRelease/pgenlista.dll" />
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.2\bin\libpq.dll" KeyPath="yes" />
           
           <!-- Gettext -->
