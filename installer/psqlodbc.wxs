@@ -30,7 +30,7 @@
           <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
             <Directory Id="BINDIR" Name="bin">
               <Component Id="registration" Guid="4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\psqlODBC\Version" Value="$(var.VERSION)" />
+                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\psqlODBC" Name="Version" Value="$(var.VERSION)" />
               </Component>
               <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="psqlodbc.msm" />
             </Directory>
