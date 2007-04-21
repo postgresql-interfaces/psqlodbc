@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.41 2006/10/30 20:05:13 petere Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.42 2007/04/21 01:06:48 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -57,10 +57,9 @@ EXTRA_DIST = license.txt readme.txt \
 	docs/release.html \
 \
 	installer/banner.bmp installer/lgpl.rtf \
-	installer/new.bmp installer/up.bmp \
 	installer/Make.bat installer/upgrade.bat \
 	installer/psqlodbc.wxs installer/psqlodbcm.wxs \
-	installer/README.txt
+	installer/README.txt installer/background.bmp
 
 
 MAINTAINERCLEANFILES = \
