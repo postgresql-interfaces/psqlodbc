@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.42 2007/04/21 01:06:48 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.43 2007/04/24 19:54:11 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ psqlodbca_la_SOURCES = \
 	descriptor.h dlg_specific.h environ.h \
 	lobj.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
-	version.h loadlib.h
+	version.h loadlib.h pgenlist.h
 
 psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 	odbcapi30w.c odbcapiw.c win_unicode.c
