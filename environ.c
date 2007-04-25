@@ -95,8 +95,8 @@ PGAPI_FreeEnv(HENV henv)
 
 	mylog("    error\n");
 	ret = SQL_ERROR;
-cleanup:
 	EN_log_error(func, "Error freeing environment", env);
+cleanup:
 	return ret;
 }
 
