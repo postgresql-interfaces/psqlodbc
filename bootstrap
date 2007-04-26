@@ -1,0 +1,8 @@
+#!/bin/sh
+aclocal -I .  && \
+libtoolize --force --copy && \
+autoconf && \
+autoheader && \
+automake --add-missing --copy
+
+
