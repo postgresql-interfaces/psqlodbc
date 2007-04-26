@@ -261,8 +261,8 @@ AC_ARG_WITH(pgconf,
 	fi],[PG_CONFIG="pg_config"])
 
 # get the full path
-AC_PATH_PROGS(PG_CONFIG_PATH, ${PG_CONFIG})
-AC_MSG_CHECKING(${PG_CONFIG_PATH})
+AC_PATH_PROGS(PG_CONFIG_PATH, ${PG_CONFIG},${PG_CONFIG})
+#AC_MSG_CHECKING(${PG_CONFIG_PATH})
 
 if test ! -f "${PG_CONFIG_PATH}" ;then
 	AC_MSG_ERROR([you must specify a valid pg_config of PostgreSQL installation with --with-pgconf=pg_config])
