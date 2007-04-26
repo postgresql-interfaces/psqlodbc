@@ -2038,10 +2038,14 @@ check_join(StatementClass *stmt, const char *curptr, size_t curpos)
 {
 	const char *wstmt;
 	ssize_t	stapos, endpos, tokenwd;
-	const int	backstep = 5;
+	const int	backstep = 4;
 	BOOL	outerj = TRUE;
 
-	for (endpos = curpos - backstep, wstmt = curptr - backstep; endpos >= 0 && isspace((UCHAR) *wstmt); endpos--, wstmt--)
+	for (endpos = curpos, wstmt = curptr; endpos >= 0 && isspace((UCHAR) *wstmt); endpos--, wstmt--)
+		;
+	if (endpos < 0)
+		return FALSE;
+	for (endpos -= backstep, wstmt -= backstep; endpos >= 0 && isspace((UCHAR) *wstmt); endpos--, wstmt--)
 		;
 	if (endpos < 0)
 		return FALSE;
