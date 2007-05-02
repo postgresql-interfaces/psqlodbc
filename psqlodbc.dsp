@@ -17,8 +17,8 @@ CFG=psqlODBC - Win32 Release
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "psqlODBC - Win32 Release" ("Win32 (x86) Console Application" —p)
-!MESSAGE "psqlODBC - Win32 Debug" ("Win32 (x86) Console Application" —p)
+!MESSAGE "psqlODBC - Win32 Release" ("Win32 (x86) Console Application")
+!MESSAGE "psqlODBC - Win32 Debug" ("Win32 (x86) Console Application")
 !MESSAGE 
 
 # Begin Project
