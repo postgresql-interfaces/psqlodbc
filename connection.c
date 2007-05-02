@@ -287,7 +287,7 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->cvt_null_date_string = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		conninfo->xa_opt = -1;
-		conninfo->autocommit_normal = 0;
+		conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 		memcpy(&(conninfo->drivers), &globals, sizeof(globals));
 }
@@ -548,6 +548,26 @@ CC_abort(ConnectionClass *self)
 	return ret;
 }
 
+/* This is called by SQLSetConnectOption etc also */
+char
+CC_set_autocommit(ConnectionClass *self, BOOL on)
+{
+	CSTR func = "CC_set_autocommit";
+	BOOL currsts = CC_is_in_autocommit(self);
+
+	if ((on && currsts) ||
+	    (!on && !currsts))
+		return on;
+	mylog("%s: %d->%d\n", func, currsts, on);
+	if (CC_is_in_trans(self))
+		CC_commit(self);
+	if (on)
+		self->transact_status |= CONN_IN_AUTOCOMMIT;
+	else
+		self->transact_status &= ~CONN_IN_AUTOCOMMIT;
+
+	return on;
+}
 
 /* This is called by SQLDisconnect also */
 char
@@ -3056,7 +3076,7 @@ CC_lookup_lo(ConnectionClass *self)
 			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
 	{
-		Oid	basetype;
+		OID	basetype;
 
 		self->lobj_type = QR_get_value_backend_int(res, 0, 0, NULL);
 		basetype = QR_get_value_backend_int(res, 0, 1, NULL);

@@ -235,6 +235,8 @@ public:
 };
 
 
+#define	SYNC_AUTOCOMMIT(conn)	(SQL_AUTOCOMMIT_OFF != conn->connInfo.autocommit_public ? (conn->transact_status |= CONN_IN_AUTOCOMMIT) : (conn->transact_status &= ~CONN_IN_AUTOCOMMIT))
+
 IAsyncPG::IAsyncPG(void) : helper(NULL), RMCookie(0), enlist(NULL), conn(NULL), xaconn(NULL), refcnt(1), prepared(false), requestAccepted(false)
 {
 	InterlockedIncrement(&g_cComponents);
@@ -410,6 +412,7 @@ void	IAsyncPG::SetDone(HRESULT res)
 		if (conn)
 		{
 			conn->asdum = NULL;
+			SYNC_AUTOCOMMIT(conn);
 			conn = NULL;
 		}
 		SLOCK_RELEASE();
@@ -448,6 +451,7 @@ ConnectionClass	*IAsyncPG::generateXAConn(bool spinAcquired)
 			PGAPI_AllocConnect(conn->henv, (HDBC *) &xaconn);
 			memcpy(&xaconn->connInfo, &conn->connInfo, sizeof(ConnInfo));
 			conn->asdum = NULL;
+			SYNC_AUTOCOMMIT(conn);
 			conn = NULL;
 			SLOCK_RELEASE();
 			LIFELOCK_RELEASE;
@@ -972,6 +976,8 @@ mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
 			DWORD	rSize;
 
 			ret = ::RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &sKey);
+			if (ERROR_SUCCESS != ret)
+				ret = ::RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &sKey, NULL);
 			if (ERROR_SUCCESS == ret)
 			{
 				switch (ret = ::RegQueryValueEx(sKey, "XADLL", NULL, NULL, NULL, &rSize))
@@ -990,6 +996,7 @@ mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
 						CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "XARMCreate error:Please register HKLM\\SOFTWARE\\Microsoft\\MSDTC\\XADLL", func);
 						break;
 				}
+				::RegCloseKey(sKey);			
 			}
 		}
 		if (!errset)
@@ -1020,8 +1027,8 @@ mylog("ConvertTridToXID -> %s\n", pgxid);
 		return SQL_ERROR;
 	}
 
-	mylog("asdum=%x start transaction\n", asdum);
-	CC_set_autocommit_off(conn);
+	mylog("asdum=%p start transaction\n", asdum);
+	CC_set_autocommit(conn, FALSE);
 	asdum->SetConnection(conn);
 	conn->asdum = asdum;
 
@@ -1032,7 +1039,6 @@ mylog("ConvertTridToXID -> %s\n", pgxid);
 EXTERN_C RETCODE EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 {
 	static	ITransactionDispenser	*pDtc = NULL;
-	ConnInfo *ci = &(conn->connInfo);
 
 	if (!pTra)
 	{
@@ -1041,14 +1047,13 @@ EXTERN_C RETCODE EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 		{
 			/* asdum->Release(); */
 		}
-		if (ci->autocommit_normal)
-			CC_set_autocommit_on(conn);
+		else
+			SYNC_AUTOCOMMIT(conn);
 		return SQL_SUCCESS;
 	}
 	if (CC_is_in_trans(conn))
 	{ 
 		CC_abort(conn);
-		ci->autocommit_normal = (CC_is_in_autocommit(conn) ? 1 : 0);
 	}
 	if (!pDtc)
 	{

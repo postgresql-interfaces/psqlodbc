@@ -32,7 +32,7 @@ void	TI_Constructor(TABLE_INFO *self, const ConnectionClass *conn)
 		char	qual[32];
 
 		STR_TO_NAME(self->bestitem, OID_NAME);
-		sprintf(qual, "\"oid\" = %%u");
+		sprintf(qual, "\"%s\" = %%u", OID_NAME);
 		STR_TO_NAME(self->bestqual, qual);
 		TI_set_hasoids(self);
 		TI_set_hasoids_checked(self);

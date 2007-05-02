@@ -530,7 +530,7 @@ pgtype_to_name(StatementClass *stmt, OID type, BOOL auto_increment)
 		case PG_TYPE_INT2:
 			return "int2";
 		case PG_TYPE_OID:
-			return "oid";
+			return OID_NAME;
 		case PG_TYPE_XID:
 			return "xid";
 		case PG_TYPE_INT4:

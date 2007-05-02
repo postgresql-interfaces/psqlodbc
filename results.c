@@ -4469,7 +4469,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	}
 	conn = SC_get_conn(s->stmt);
 	if (s->auto_commit_needed)
-		PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_ON);
+		CC_set_autocommit(conn, TRUE);
 	if (s->irow > 0)
 	{
 		if (SQL_ADD != s->fOption && s->ridx >= 0) /* for SQLGetData */
@@ -4584,7 +4584,7 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 		case SQL_DELETE:
 		case SQL_ADD:
 			if (s.auto_commit_needed = CC_is_in_autocommit(conn), s.auto_commit_needed)
-				PGAPI_SetConnectOption(conn, SQL_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF);
+				CC_set_autocommit(conn, FALSE);
 			break;
 		case SQL_POSITION:
 			break;

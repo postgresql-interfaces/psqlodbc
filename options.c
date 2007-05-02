@@ -288,8 +288,10 @@ PGAPI_SetConnectOption(
 {
 	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
+	ConnInfo   *ci = &(conn->connInfo);
 	char		changed = FALSE;
 	RETCODE		retval;
+	BOOL		autocomm_on;
 
 	mylog("%s: entering fOption = %d vParam = %d\n", func, fOption, vParam);
 	if (!conn)
@@ -351,29 +353,33 @@ PGAPI_SetConnectOption(
 			break;
 
 		case SQL_AUTOCOMMIT:
-			if (vParam == SQL_AUTOCOMMIT_ON && CC_is_in_autocommit(conn))
-				break;
-			else if (vParam == SQL_AUTOCOMMIT_OFF && !CC_is_in_autocommit(conn))
-				break;
-			if (CC_is_in_trans(conn))
-				CC_commit(conn);
-
-			mylog("PGAPI_SetConnectOption: AUTOCOMMIT: transact_status=%d, vparam=%d\n", conn->transact_status, vParam);
-
 			switch (vParam)
 			{
-				case SQL_AUTOCOMMIT_OFF:
-					CC_set_autocommit_off(conn);
-					break;
-
 				case SQL_AUTOCOMMIT_ON:
-					CC_set_autocommit_on(conn);
+					autocomm_on = TRUE;
 					break;
-
+				case SQL_AUTOCOMMIT_OFF:
+					autocomm_on = FALSE;
+					break;
 				default:
 					CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_AUTOCOMMIT", func);
 					return SQL_ERROR;
 			}
+			if (autocomm_on && SQL_AUTOCOMMIT_OFF != ci->autocommit_public)
+				break;
+			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == ci->autocommit_public)
+				break;
+			ci->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
+			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=%d\n", func, conn->transact_status, vParam);
+
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+			if (NULL != conn->asdum)
+			{
+				mylog("%s: Ignored AUTOCOMMIT in a distributed transaction, OK ?");
+				break;
+			}
+#endif	/* _HANDLE_ENLIST_IN_DTC_ */
+			CC_set_autocommit(conn, autocomm_on);
 			break;
 
 		case SQL_CURRENT_QUALIFIER:		/* ignored */
@@ -522,8 +528,7 @@ PGAPI_GetConnectOption(
 			break;
 
 		case SQL_AUTOCOMMIT:
-			*((SQLUINTEGER *) pvParam) = (SQLUINTEGER) (CC_is_in_autocommit(conn) ?
-								 SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
+			*((SQLUINTEGER *) pvParam) = ci->autocommit_public;
 			break;
 
 		case SQL_CURRENT_QUALIFIER:		/* don't use qualifiers */

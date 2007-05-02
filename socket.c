@@ -223,9 +223,13 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		getnameinfo_ptr = (getnameinfo_func)GetProcAddress(ws2_hnd, "getnameinfo"); 
 #endif
 	/*
-	 * If it is a valid IP address, use it. Otherwise use hostname lookup.
+	 * Hostname lookup.
 	 */
-	if (hostname && hostname[0])
+	if (hostname && hostname[0]
+#ifndef	WIN32
+	    && '/' != hostname[0]
+#endif /* WIN32 */
+	   )
 	{
 		char	portstr[16];
 		int	ret;
@@ -251,8 +255,8 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 	{
 		struct sockaddr_un *un = (struct sockaddr_un *) &(self->sadr_area);
 		family = un->sun_family = AF_UNIX;
-		/* passing NULL means that this only supports the pg default "/tmp" */
-		UNIXSOCK_PATH(un, port, ((char *) NULL));
+		/* passing NULL or '' means pg default "/tmp" */
+		UNIXSOCK_PATH(un, port, hostname);
 		self->sadr_len = UNIXSOCK_LEN(un);
 	}
 #else

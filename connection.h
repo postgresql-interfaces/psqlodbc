@@ -84,8 +84,6 @@ enum
 #define CONN_IN_ERROR_BEFORE_IDLE	(1L<<3)
 
 /* AutoCommit functions */
-#define CC_set_autocommit_off(x)	(x->transact_status &= ~CONN_IN_AUTOCOMMIT)
-#define CC_set_autocommit_on(x)		(x->transact_status |= CONN_IN_AUTOCOMMIT)
 #define CC_is_in_autocommit(x)		(x->transact_status & CONN_IN_AUTOCOMMIT)
 
 /* Transaction in/not functions */
@@ -307,7 +305,7 @@ typedef struct
 	signed char	cvt_null_date_string;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
-	signed char	autocommit_normal;
+	signed char	autocommit_public;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
@@ -486,6 +484,7 @@ char		CC_cleanup(ConnectionClass *self);
 char		CC_begin(ConnectionClass *self);
 char		CC_commit(ConnectionClass *self);
 char		CC_abort(ConnectionClass *self);
+char		CC_set_autocommit(ConnectionClass *self, BOOL on);
 int		CC_set_translation(ConnectionClass *self);
 char		CC_connect(ConnectionClass *self, char password_req, char *salt);
 char		CC_add_statement(ConnectionClass *self, StatementClass *stmt);

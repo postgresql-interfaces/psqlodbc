@@ -389,8 +389,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				TI_set_hasoids(ti);
 				foundKey = TRUE;
 				STR_TO_NAME(ti->bestitem, OID_NAME);
-				strcpy(query, "\"oid\" = %u");
-				/*strcpy(query, "\"oid\" = %%u");*/
+				sprintf(query, "\"%s\" = %u", OID_NAME);
 				STR_TO_NAME(ti->bestqual, query);
 			}
 			TI_set_hasoids_checked(ti);

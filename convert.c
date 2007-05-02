@@ -2412,14 +2412,29 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	else if (stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY)
 	{
-		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
-			 0 == (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
-			stmt->options.cursor_type = SQL_CURSOR_STATIC;
-		if (SQL_CURSOR_STATIC == stmt->options.cursor_type &&
-			 0 == (ci->updatable_cursors & ALLOW_STATIC_CURSORS))
-			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
-		else if (SC_update_not_ready(stmt))
-			parse_statement(stmt, TRUE);
+		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
+		{
+			if (0 == (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
+				stmt->options.cursor_type = SQL_CURSOR_STATIC;
+			else
+			{
+				if (SC_update_not_ready(stmt))
+					parse_statement(stmt, TRUE);
+				if (stmt->updatable &&
+				    stmt->ntab > 0)
+				{
+					if (bestitem = GET_NAME(stmt->ti[0]->bestitem), NULL == bestitem)
+						stmt->options.cursor_type = SQL_CURSOR_STATIC;
+				}
+			}
+		}
+		if (SQL_CURSOR_STATIC == stmt->options.cursor_type)
+		{
+			if (0 == (ci->updatable_cursors & ALLOW_STATIC_CURSORS))
+				stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+			else if (SC_update_not_ready(stmt))
+				parse_statement(stmt, TRUE);
+		}
 		if (SC_parsed_status(stmt) == STMT_PARSE_FATAL)
 		{
 			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
@@ -2436,9 +2451,7 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 			qp->from_pos = stmt->from_pos;
 			qp->where_pos = stmt->where_pos;
 		}
-inolog("type=%d concur=%d\n", 
-			stmt->options.cursor_type,
-			stmt->options.scroll_concurrency);
+inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
 	}
 
 	SC_miscinfo_clear(stmt);
@@ -2582,12 +2595,11 @@ inolog("type=%d concur=%d\n",
 				 * 2nd query is keyset gathering
 				 */
 				CVT_APPEND_STR(qb, " where ctid = '(0,0)';select \"ctid");
-				if (stmt && stmt->ntab > 0)
-					bestitem = GET_NAME(stmt->ti[0]->bestitem);
-				if (!bestitem)
-					bestitem = OID_NAME;
-				CVT_APPEND_STR(qb, "\", \"");
-				CVT_APPEND_STR(qb, bestitem);
+				if (bestitem)
+				{
+					CVT_APPEND_STR(qb, "\", \"");
+					CVT_APPEND_STR(qb, bestitem);
+				}
 				CVT_APPEND_STR(qb, "\" from ");
 				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, npos - qp->from_pos - 5);
 			}

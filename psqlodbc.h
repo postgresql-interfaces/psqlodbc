@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.118 2007/04/11 16:36:47 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.119 2007/05/02 21:44:12 hinoue Exp $
  *
  */
 
@@ -308,8 +308,12 @@ typedef double SDOUBLE;
 										 * "date+outlet+invoice" */
 /* POSIX defines a PATH_MAX.( wondows is _MAX_PATH ..) */
 #ifndef PATH_MAX
+#ifdef _MAX_PATH
+#define PATH_MAX	_MAX_PATH
+#else
 #define PATH_MAX       1024
-#endif
+#endif /* _MAX_PATH */
+#endif /* PATH_MAX */
 
 #define MAX_ROW_SIZE				0	/* Unlimited rowsize with the
 										 * Tuple Toaster */
