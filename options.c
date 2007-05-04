@@ -365,6 +365,7 @@ PGAPI_SetConnectOption(
 					CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_AUTOCOMMIT", func);
 					return SQL_ERROR;
 			}
+#ifdef  _HANDLE_ENLIST_IN_DTC_
 			if (autocomm_on && SQL_AUTOCOMMIT_OFF != ci->autocommit_public)
 				break;
 			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == ci->autocommit_public)
@@ -372,7 +373,6 @@ PGAPI_SetConnectOption(
 			ci->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
 			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=%d\n", func, conn->transact_status, vParam);
 
-#ifdef	_HANDLE_ENLIST_IN_DTC_
 			if (NULL != conn->asdum)
 			{
 				mylog("%s: Ignored AUTOCOMMIT in a distributed transaction, OK ?");
@@ -527,10 +527,11 @@ PGAPI_GetConnectOption(
 			*((SQLUINTEGER *) pvParam) = SQL_MODE_READ_WRITE;
 			break;
 
+#ifdef  _HANDLE_ENLIST_IN_DTC_
 		case SQL_AUTOCOMMIT:
 			*((SQLUINTEGER *) pvParam) = ci->autocommit_public;
 			break;
-
+#endif
 		case SQL_CURRENT_QUALIFIER:		/* don't use qualifiers */
 			len = 0;
 			p = CurrCatString(conn);
