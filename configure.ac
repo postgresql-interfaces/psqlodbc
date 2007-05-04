@@ -1,6 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_INIT(psqlodbc, 08.02.0400, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.57)
+AC_CONFIG_AUX_DIR(config)
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([bind.c])
 AM_CONFIG_HEADER([config.h])

@@ -2,11 +2,13 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.43 2007/04/24 19:54:11 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.44 2007/05/04 10:39:01 petere Exp $
 #
 #-------------------------------------------------------------------------
 
-AUTOMAKE_OPTIONS = 1.6 foreign
+AUTOMAKE_OPTIONS = 1.8 foreign
+
+ACLOCAL_AMFLAGS = -I config
 
 if enable_unicode
 lib_LTLIBRARIES = psqlodbcw.la
@@ -63,6 +65,6 @@ EXTRA_DIST = license.txt readme.txt \
 
 
 MAINTAINERCLEANFILES = \
-	Makefile.in config.guess config.h.in config.sub configure \
-	install-sh missing mkinstalldirs aclocal.m4 ltmain.sh \
-	libtool.m4 depcomp
+	Makefile.in config/config.guess config.h.in config/config.sub configure \
+	config/install-sh config/missing aclocal.m4 config/ltmain.sh \
+	config/depcomp
