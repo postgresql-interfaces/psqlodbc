@@ -248,30 +248,18 @@ AC_TYPE_SIZE_T
 AC_STRUCT_TM
 
 #
-# PostgreSQL setting
+# Find libpq headers and libraries
 #
+AC_PATH_PROGS(PG_CONFIG, pg_config)
 
-AC_ARG_WITH(pgconf,
-        [AC_HELP_STRING([--with-pgconf=pg_config],
-        [specify pg_config with full path when it is not easy to find it.])],
-	[if test "$withval" = yes;then
-		PG_CONFIG="pg_config"
-	else
-		PG_CONFIG="$withval"
-	fi],[PG_CONFIG="pg_config"])
-
-# get the full path
-AC_PATH_PROGS(PG_CONFIG_PATH, ${PG_CONFIG},${PG_CONFIG})
-#AC_MSG_CHECKING(${PG_CONFIG_PATH})
-
-if test ! -f "${PG_CONFIG_PATH}" ;then
-	AC_MSG_ERROR([you must specify a valid pg_config of PostgreSQL installation with --with-pgconf=pg_config])
+if test -z "$PG_CONFIG"; then
+  AC_MSG_ERROR([pg_config not found (set PG_CONFIG environment variable)])
 fi
 
-pg_includedir=`${PG_CONFIG_PATH} --includedir`
-pg_libdir=`${PG_CONFIG_PATH} --libdir`
+pg_includedir=`$PG_CONFIG --includedir`
+pg_libdir=`$PG_CONFIG --libdir`
 CPPFLAGS="$CPPFLAGS -I$pg_includedir"
-LIBS="-L$pg_libdir $LIBS"
+LDFLAGS="$LDFLAGS -L$pg_libdir"
 
 
 AC_CONFIG_FILES([Makefile])
