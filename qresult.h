@@ -248,12 +248,14 @@ do { \
 } while (0)
 #define QR_REALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \
-	if (t = (tp *) realloc(t, s), NULL == t) \
+	tp *tmp; \
+	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
 	{ \
  		QR_set_rstatus(a, PORES_FATAL_ERROR); \
  		QR_set_message(a, m); \
 		return r; \
 	} \
+	t = tmp; \
 } while (0)
 
 #ifdef	__cplusplus

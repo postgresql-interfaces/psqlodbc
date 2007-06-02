@@ -431,12 +431,7 @@ static BOOL increaseNtab(StatementClass *stmt, const char *func)
 
 	if (!(stmt->ntab % TAB_INCR))
 	{
-		ti = (TABLE_INFO **) realloc(ti, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *));
-		if (!ti)
-		{
-			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for TABLE_INFO.", func);
-			return FALSE;
-		}
+		SC_REALLOC_return_with_error(ti, TABLE_INFO *, (stmt->ntab + TAB_INCR) * sizeof(TABLE_INFO *), stmt, "PGAPI_AllocStmt failed in parse_statement for TABLE_INFO", FALSE);
 		stmt->ti = ti;
 	}
 	wti = ti[stmt->ntab] = (TABLE_INFO *) malloc(sizeof(TABLE_INFO));

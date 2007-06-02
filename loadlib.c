@@ -23,11 +23,13 @@
 #pragma comment(lib, "Delayimp")
 #pragma comment(lib, "libpq")
 #pragma comment(lib, "ssleay32")
+#ifdef	_HANDLE_ENLIST_IN_DTC_
 #ifdef	UNICODE_SUPPORT
 #pragma comment(lib, "pgenlist")
 #else
 #pragma comment(lib, "pgenlista")
 #endif /* UNICODE_SUPPORT */
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 // The followings works under VC++6.0 but doesn't work under VC++7.0.
 // Please add the equivalent linker options using command line etc.
 #if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
@@ -77,7 +79,7 @@ static HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
 		_splitpath(szFileName, drive, dir, NULL, NULL);
 		GetSystemDirectory(sysdir, MAX_PATH);
 		snprintf(szFileName, sizeof(szFileName), "%s%s%s.dll", drive, dir, module_name);
-		if (strnicmp(szFileName, sysdir, strlen(sysdir)) != 0)
+		if (_strnicmp(szFileName, sysdir, strlen(sysdir)) != 0)
 		{
 			hmodule = LoadLibraryEx(szFileName, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
 			mylog("psqlodbc path based %s loaded module=%p\n", module_name, hmodule);
@@ -117,12 +119,12 @@ DliErrorHook(unsigned	dliNotify,
 #else
 			__pfnDliNotifyHook2 = NULL;
 #endif /* _MSC_VER */
-			if (strnicmp(pdli->szDll, libpq, 5) == 0)
+			if (_strnicmp(pdli->szDll, libpq, 5) == 0)
 			{
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpq), NULL == hmodule)
 					hmodule = LoadLibrary(libpq);
 			}
-			else if (strnicmp(pdli->szDll, pgenlist, strlen(pgenlist)) == 0)
+			else if (_strnicmp(pdli->szDll, pgenlist, strlen(pgenlist)) == 0)
 			{
 				if (hmodule = MODULE_load_from_psqlodbc_path(pgenlist), NULL == hmodule)
 					hmodule = LoadLibrary(pgenlist);

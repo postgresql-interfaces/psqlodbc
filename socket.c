@@ -78,7 +78,7 @@ SOCK_Constructor(const ConnectionClass *conn)
 		rv->buffer_filled_out = 0;
 		rv->buffer_read_in = 0;
 
-		if (rv)
+		if (conn)
 			rv->buffer_size = conn->connInfo.drivers.socket_buffersize;
 		else
 			rv->buffer_size = globals.socket_buffersize;

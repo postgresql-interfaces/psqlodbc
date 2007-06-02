@@ -700,8 +700,10 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	if (SQL_NEED_DATA == retval)
 		return;
 	conn = SC_get_conn(stmt);
+#ifdef	NOT_USED /* give up the use of lastval() */	
 	if (PG_VERSION_GE(conn, 8.1)) /* lastval() is available */
 		return;
+#endif /* NOT_USED */
 	/*if (!CC_fake_mss(conn))
 		return;*/
 	while (isspace((UCHAR) *cmd)) cmd++;
@@ -1073,7 +1075,6 @@ PGAPI_Transact(
 			   SQLUSMALLINT fType)
 {
 	CSTR func = "PGAPI_Transact";
-	extern ConnectionClass *conns[];
 	ConnectionClass *conn;
 	QResultClass *res;
 	char		ok,
@@ -1094,7 +1095,9 @@ PGAPI_Transact(
 	 */
 	if (hdbc == SQL_NULL_HDBC && henv != SQL_NULL_HENV)
 	{
-		for (lf = 0; lf < MAX_CONNECTIONS; lf++)
+		ConnectionClass * const *conns = getConnList();
+		const int	conn_count = getConnCount();
+		for (lf = 0; lf < conn_count; lf++)
 		{
 			conn = conns[lf];
 

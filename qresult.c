@@ -382,7 +382,7 @@ inolog("QR_AddNew %dth row(%d fields) alloc=%d\n", self->num_cached_rows, QR_Num
 	else if (self->num_cached_rows >= self->count_backend_allocated)
 	{
 		alloc = self->count_backend_allocated * 2;
-		self->backend_tuples = realloc(self->backend_tuples, alloc * sizeof(TupleField) * num_fields);
+		QR_REALLOC_return_with_error(self->backend_tuples, TupleField, alloc * sizeof(TupleField) * num_fields, self, "Out of memory in QR_AddNew.", NULL);
 	}
 	self->count_backend_allocated = alloc;
 

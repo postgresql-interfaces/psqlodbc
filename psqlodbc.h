@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.119 2007/05/02 21:44:12 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.121 2007/12/26 13:28:36 hinoue Exp $
  *
  */
 
@@ -31,7 +31,9 @@
 #ifdef	_DEBUG
 #ifndef	_MEMORY_DEBUG_
 #include <stdlib.h>
+#if (_MSC_VER < 1400) /* in case of VC7 or under */
 #include <malloc.h>
+#endif /* _MSC_VER */
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif /* _MEMORY_DEBUG_ */
@@ -177,7 +179,9 @@ typedef double SDOUBLE;
 #endif /* FALSE */
 #else
 #define snprintf _snprintf
+#ifndef strdup
 #define strdup _strdup
+#endif /* strdup */
 #define strnicmp _strnicmp
 #define stricmp _stricmp
 #define vsnprintf _vsnprintf
@@ -479,8 +483,6 @@ void		debug_memory_check(void);
 
 #ifdef	WIN32
 #undef strdup
-#undef strnicmp
-#undef stricmp
 #endif /* WIN32 */
 #define malloc	debug_alloc
 #define realloc debug_realloc

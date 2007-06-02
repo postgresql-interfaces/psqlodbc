@@ -1944,7 +1944,8 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 			bop_cdata *cbdata = (bop_cdata *) malloc(sizeof(bop_cdata));
 			memcpy(cbdata, s, sizeof(bop_cdata));
 			cbdata->need_data_callback = TRUE;
-			enqueueNeedDataCallback(s->stmt, bulk_ope_callback, cbdata);
+			if (0 == enqueueNeedDataCallback(s->stmt, bulk_ope_callback, cbdata))
+				ret = SQL_ERROR;
 			return ret;
 		}
 		s->processed++;

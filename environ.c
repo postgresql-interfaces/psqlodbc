@@ -31,7 +31,9 @@
 extern GLOBAL_VALUES globals;
 
 /* The one instance of the handles */
-ConnectionClass *conns[MAX_CONNECTIONS];
+static int conns_count = 0;
+static ConnectionClass **conns = NULL;
+
 #if defined(WIN_MULTITHREAD_SUPPORT)
 CRITICAL_SECTION	conns_cs;
 CRITICAL_SECTION	common_cs; /* commonly used for short term blocking */
@@ -40,6 +42,14 @@ pthread_mutex_t     conns_cs;
 pthread_mutex_t     common_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
+int	getConnCount()
+{
+	return conns_count;
+}
+ConnectionClass * const *getConnList()
+{
+	return conns;
+}
 
 RETCODE		SQL_API
 PGAPI_AllocEnv(HENV FAR * phenv)
@@ -555,7 +565,7 @@ EN_Destructor(EnvironmentClass *self)
 	 */
 
 	/* Free any connections belonging to this environment */
-	for (lf = 0; lf < MAX_CONNECTIONS; lf++)
+	for (lf = 0; lf < conns_count; lf++)
 	{
 		if (conns[lf] && conns[lf]->henv == self)
 		{
@@ -565,6 +575,8 @@ EN_Destructor(EnvironmentClass *self)
 				rv = 0;
 		}
 	}
+	if (conns)
+		free(conns);
 	DELETE_ENV_CS(self);
 	free(self);
 
@@ -596,31 +608,46 @@ EN_get_error(EnvironmentClass *self, int *number, char **message)
 		return 0;
 }
 
+#define	INIT_CONN_COUNT	128
 
 char
 EN_add_connection(EnvironmentClass *self, ConnectionClass *conn)
 {
-	int			i;
+	int	i, alloc;
+	ConnectionClass	**newa;
+	char	ret = FALSE;
 
 	mylog("EN_add_connection: self = %p, conn = %p\n", self, conn);
 
 	ENTER_CONNS_CS;
-	for (i = 0; i < MAX_CONNECTIONS; i++)
+	for (i = 0; i < conns_count; i++)
 	{
 		if (!conns[i])
 		{
 			conn->henv = self;
 			conns[i] = conn;
-			LEAVE_CONNS_CS;
-
-			mylog("       added at i =%d, conn->henv = %p, conns[i]->henv = %p\n", i, conn->henv, conns[i]->henv);
-
-			return TRUE;
+			ret = TRUE;
+			mylog("       added at i=%d, conn->henv = %p, conns[i]->henv = %p\n", i, conn->henv, conns[i]->henv);
+			goto cleanup;
 		}
 	}
+	if (conns_count > 0)
+		alloc = 2 * conns_count;
+	else
+		alloc = INIT_CONN_COUNT;
+	if (newa = (ConnectionClass **) realloc(conns, alloc * sizeof(ConnectionClass *)), NULL == newa)
+		goto cleanup;
+	conn->henv = self;
+	newa[conns_count] = conn;
+	conns = newa;
+	ret = TRUE;
+	mylog("       added at %d, conn->henv = %p, conns[%d]->henv = %p\n", conns_count, conn->henv, conns_count, conns[conns_count]->henv);
+	for (i = conns_count + 1; i < alloc; i++)
+		conns[i] = NULL; 
+	conns_count = alloc;
+cleanup:
 	LEAVE_CONNS_CS;
-
-	return FALSE;
+	return ret;
 }
 
 
@@ -629,7 +656,7 @@ EN_remove_connection(EnvironmentClass *self, ConnectionClass *conn)
 {
 	int			i;
 
-	for (i = 0; i < MAX_CONNECTIONS; i++)
+	for (i = 0; i < conns_count; i++)
 		if (conns[i] == conn && conns[i]->status != CONN_EXECUTING)
 		{
 			ENTER_CONNS_CS;

@@ -125,11 +125,13 @@ do { \
 } while (0)
 #define CC_REALLOC_return_with_error(t, tp, s, x, m, ret) \
 do { \
-	if (t = (tp *) realloc(t, s), NULL == t) \
+	tp *tmp; \
+	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
 	{ \
 		CC_set_error(x, CONN_NO_MEMORY_ERROR, m, ""); \
 		return ret; \
 	} \
+	t = tmp; \
 } while (0)
 
 /* For Multi-thread */
@@ -303,9 +305,9 @@ typedef struct
 	signed char	bde_environment;
 	signed char	fake_mss;
 	signed char	cvt_null_date_string;
+	signed char	autocommit_public;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
-	signed char	autocommit_public;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;

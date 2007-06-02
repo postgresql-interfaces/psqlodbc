@@ -343,11 +343,13 @@ do { \
 } while (0)
 #define	SC_REALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \
-	if (t = (tp *) realloc(t, s), NULL == t) \
+	tp *tmp; \
+	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
 	{ \
 		SC_set_error(a, STMT_NO_MEMORY_ERROR, m, "SC_REALLOC"); \
 		return r; \
 	} \
+	t = tmp; \
 } while (0)
 
 /*	options for SC_free_params() */

@@ -37,8 +37,11 @@ inolog(" alloced=%p(%d)\n", alloced, size);
 		} 
 		else if (tbsize >= alsize)
 		{
+			ALADR *al;
 			alsize *= 2;
-			altbl = (ALADR *) realloc(altbl, alsize * sizeof(ALADR));
+			if (al = (ALADR *) realloc(altbl, alsize * sizeof(ALADR)), NULL == al)
+				return alloced;
+			altbl = al;
 		}
 		altbl[tbsize].aladr = alloced;
 		altbl[tbsize].len = size;
@@ -61,8 +64,11 @@ void * debug_calloc(size_t n, size_t size)
 		} 
 		else if (tbsize >= alsize)
 		{
+			ALADR *al;
 			alsize *= 2;
-			altbl = (ALADR *) realloc(altbl, alsize * sizeof(ALADR));
+			if (al = (ALADR *) realloc(altbl, alsize * sizeof(ALADR)), NULL == al)
+				return alloced;
+			altbl = al;
 		}
 		altbl[tbsize].aladr = alloced;
 		altbl[tbsize].len = n * size;
@@ -119,8 +125,11 @@ char * debug_strdup(const char * ptr)
 		} 
 		else if (tbsize >= alsize)
 		{
+			ALADR *al;
 			alsize *= 2;
-			altbl = (ALADR *) realloc(altbl, alsize * sizeof(ALADR));
+			if (al = (ALADR *) realloc(altbl, alsize * sizeof(ALADR)), NULL == al)
+				return alloced;
+			altbl = al;
 		}
 		altbl[tbsize].aladr = alloced;
 		altbl[tbsize].len = strlen(ptr) + 1;

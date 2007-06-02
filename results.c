@@ -2148,8 +2148,6 @@ static BOOL	tupleIsDeleting(const StatementClass *stmt, const QResultClass *res,
 static BOOL enlargeAdded(QResultClass *res, UInt4 number, const StatementClass *stmt)
 {
 	UInt4	alloc;
-	KeySet	*added_keyset;
-	TupleField	*added_tuples;
 	int	num_fields = res->num_fields;
 
 	alloc = res->ad_alloc;
@@ -2163,26 +2161,9 @@ static BOOL enlargeAdded(QResultClass *res, UInt4 number, const StatementClass *
  
 	if (alloc <= res->ad_alloc)
 		return TRUE;
-	if (added_keyset = realloc(res->added_keyset, sizeof(KeySet) * alloc), !added_keyset)
-	{
-		res->ad_alloc = 0;
-		return FALSE;
-	}
-	added_tuples = res->added_tuples;
+	QR_REALLOC_return_with_error(res->added_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeAdded failed", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
-		if (added_tuples = realloc(res->added_tuples, sizeof(TupleField) * num_fields * alloc), !added_tuples)
-		{
-			if (added_keyset)
-				free(added_keyset);
-			added_keyset = NULL;
-		}
-	res->added_keyset = added_keyset; 
-	res->added_tuples = added_tuples;
-	if (!added_keyset)
-	{
-		res->ad_alloc = 0;
-		return FALSE;
-	}
+		QR_REALLOC_return_with_error(res->added_tuples, TupleField, sizeof(TupleField) * num_fields * alloc, res, "enlargeAdded failed 2", FALSE);
 	res->ad_alloc = alloc;
 	return TRUE;
 }
@@ -2445,9 +2426,6 @@ inolog("!!Commit Deleted=%d(%d)\n", *deleted, i);
 static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
 {
 	Int2	alloc;
-	SQLULEN	*updated;
-	KeySet	*updated_keyset;
-	TupleField	*updated_tuples = NULL;
 
 	alloc = res->up_alloc;
 	if (0 == alloc)
@@ -2460,36 +2438,10 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	if (alloc <= res->up_alloc)
 		return TRUE;
  
-	if (updated = realloc(res->updated, sizeof(UInt4) * alloc), !updated)
-	{
-		if (res->updated_keyset)
-		{
-			free(res->updated_keyset);
-			res->updated_keyset = NULL;
-		}
-		res->up_alloc = 0;
-		return FALSE;
-	}
-	if (updated_keyset = realloc(res->updated_keyset, sizeof(KeySet) * alloc), !updated_keyset)
-	{
-		free(res->updated);
-		res->updated = NULL;
-		res->up_alloc = 0;
-		return FALSE;
-	}
+	QR_REALLOC_return_with_error(res->updated, UInt4, sizeof(UInt4) * alloc, res, "enlargeUpdated failed", FALSE);
+	QR_REALLOC_return_with_error(res->updated_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeUpdated failed 2", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
-		if (updated_tuples = realloc(res->updated_tuples, sizeof(TupleField) * res->num_fields * alloc), !updated_tuples)
-		{
-			free(res->updated);
-			res->updated = NULL;
-			free(res->updated_keyset);
-			res->updated_keyset = NULL;
-			res->up_alloc = 0;
-			return FALSE;
-		}
-	res->updated = updated; 
-	res->updated_keyset = updated_keyset; 
-	res->updated_tuples = updated_tuples;
+		QR_REALLOC_return_with_error(res->updated_tuples, TupleField, sizeof(TupleField) * res->num_fields * alloc, res, "enlargeUpdated 3", FALSE);
 	res->up_alloc = alloc;
 
 	return TRUE;
@@ -3443,7 +3395,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 		brows = GIdx2RowIdx(limitrow, stmt);
 		if (brows > res->count_backend_allocated)
 		{
-			res->backend_tuples = realloc(res->backend_tuples, sizeof(TupleField) * res->num_fields * brows);
+			QR_REALLOC_return_with_error(res->backend_tuples, TupleField, sizeof(TupleField) * res->num_fields * brows, res, "pos_reload_needed failed", SQL_ERROR);
 			res->count_backend_allocated = brows;
 		}
 		if (brows > 0)
@@ -3554,7 +3506,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 						tuple_size = TUPLE_MALLOC_INC;
 					else
 						tuple_size = res->count_keyset_allocated * 2;
-					res->keyset = (KeySet *) realloc(res->keyset, sizeof(KeySet) * tuple_size);	
+					QR_REALLOC_return_with_error(res->keyset, KeySet, sizeof(KeySet) * tuple_size, res, "pos_newload failed", SQL_ERROR);	
 					res->count_keyset_allocated = tuple_size;
 				}
 				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
@@ -3868,7 +3820,8 @@ SC_pos_update(StatementClass *stmt,
 		{
 			pup_cdata *cbdata = (pup_cdata *) malloc(sizeof(pup_cdata));
 			memcpy(cbdata, &s, sizeof(pup_cdata));
-			enqueueNeedDataCallback(s.stmt, pos_update_callback, cbdata);
+			if (0 == enqueueNeedDataCallback(s.stmt, pos_update_callback, cbdata))
+				ret = SQL_ERROR;
 			return ret;
 		}
 		/* else if (ret != SQL_SUCCESS) this is unneccesary 
@@ -4276,7 +4229,8 @@ SC_pos_add(StatementClass *stmt,
 		{
 			padd_cdata *cbdata = (padd_cdata *) malloc(sizeof(padd_cdata));
 			memcpy(cbdata, &s, sizeof(padd_cdata));
-			enqueueNeedDataCallback(s.stmt, pos_add_callback, cbdata);
+			if (0 == enqueueNeedDataCallback(s.stmt, pos_add_callback, cbdata))
+				ret = SQL_ERROR;
 			goto cleanup;
 		}
 		/* else if (ret != SQL_SUCCESS) this is unneccesary
@@ -4457,7 +4411,8 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 
 				memcpy(cbdata, s, sizeof(spos_cdata));
 				cbdata->need_data_callback = TRUE;
-				enqueueNeedDataCallback(s->stmt, spos_callback, cbdata);
+				if (0 == enqueueNeedDataCallback(s->stmt, spos_callback, cbdata))
+					ret = SQL_ERROR;
 				return ret;
 			}
 			s->processed++;

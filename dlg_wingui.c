@@ -332,8 +332,10 @@ global_optionsProc(HWND hdlg,
 				   WPARAM wParam,
 				   LPARAM lParam)
 {
+#ifdef _HANDLE_ENLIST_IN_DTC_
 	HMODULE	hmodule;
 	FARPROC	proc;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 	switch (wMsg)
 	{
@@ -371,11 +373,11 @@ global_optionsProc(HWND hdlg,
 					if (writeDriverCommoninfo(ODBCINST_INI, NULL, &globals) < 0)
 						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
 #ifdef _HANDLE_ENLIST_IN_DTC_
-			hmodule = DtcProc("SetMsdtclog", &proc);
-			if (proc)
-				(*proc)(IsDlgButtonChecked(hdlg, DRV_DTCLOG));
-			if (hmodule)
-				FreeLibrary(hmodule);
+					hmodule = DtcProc("SetMsdtclog", &proc);
+					if (proc)
+						(*proc)(IsDlgButtonChecked(hdlg, DRV_DTCLOG));
+					if (hmodule)
+						FreeLibrary(hmodule);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 				case IDCANCEL:

@@ -2069,9 +2069,9 @@ int enqueueNeedDataCallback(StatementClass *stmt, NeedDataCallfunc func, void *d
 {
 	if (stmt->num_callbacks >= stmt->allocated_callbacks)
 	{
-		stmt->callbacks = (NeedDataCallback *) realloc(stmt->callbacks,
+		SC_REALLOC_return_with_error(stmt->callbacks, NeedDataCallback,
 			sizeof(NeedDataCallback) * (stmt->allocated_callbacks +
-				CALLBACK_ALLOC_ONCE));
+				CALLBACK_ALLOC_ONCE), stmt, "NeedDataCallback enqueue error", 0);
 		stmt->allocated_callbacks += CALLBACK_ALLOC_ONCE;
 	}
 	stmt->callbacks[stmt->num_callbacks].func = func;

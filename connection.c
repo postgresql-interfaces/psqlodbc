@@ -285,9 +285,9 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->bde_environment = -1;
 		conninfo->fake_mss = -1;
 		conninfo->cvt_null_date_string = -1;
+		conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		conninfo->xa_opt = -1;
-		conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 		memcpy(&(conninfo->drivers), &globals, sizeof(globals));
 }

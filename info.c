@@ -96,7 +96,7 @@ PGAPI_GetInfo(
 
 		case SQL_ACTIVE_CONNECTIONS:	/* ODBC 1.0 */
 			len = 2;
-			value = MAX_CONNECTIONS;
+			value = 0;
 			break;
 
 		case SQL_ACTIVE_STATEMENTS:		/* ODBC 1.0 */
@@ -2472,6 +2472,10 @@ mylog(" and the data=%s\n", attdef);
 			mylog("%s: field type is VARCHAR,BPCHAR: field_type = %d, mod_length = %d\n", func, field_type, mod_length);
 
 			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], mod_length);
+#ifdef	UNICODE_SUPPORT
+			if (0 < mod_length && ALLOW_WCHAR(conn))
+				mod_length *= WCLEN;
+#endif /* UNICODE_SUPPORT */
 			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], mod_length);
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, field_type, PG_STATIC, PG_STATIC));
@@ -4852,6 +4856,7 @@ PGAPI_ProcedureColumns(
 	result_cols = NUM_OF_PROCOLS_FIELDS;
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
+	stmt->catalog_result = TRUE;
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
 	QR_set_field_info_v(res, PROCOLS_PROCEDURE_CAT, "PROCEDURE_CAT", PG_TYPE_VARCHAR, MAX_INFO_STRING);

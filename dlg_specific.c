@@ -449,9 +449,9 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ptr = strchr(value, '-');
 		if (ptr)
 		{
-			*ptr = '\0';
 			if ('-' != *value)
 			{
+				*ptr = '\0';
 				strcpy(ci->protocol, value);
 			}
 			ci->rollback_on_error = atoi(ptr + 1);
@@ -1054,7 +1054,10 @@ writeDSNinfo(const ConnInfo *ci)
 								 ci->show_system_tables,
 								 ODBC_INI);
 
-	sprintf(temp, "%s-%d", ci->protocol, ci->rollback_on_error);
+	if (ci->rollback_on_error >= 0)
+		sprintf(temp, "%s-%d", ci->protocol, ci->rollback_on_error);
+	else
+		strncpy(temp, ci->protocol, sizeof(temp));
 	SQLWritePrivateProfileString(DSN,
 								 INI_PROTOCOL,
 								 temp,

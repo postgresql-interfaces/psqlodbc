@@ -191,7 +191,7 @@ CPP=cl.exe
 !IF  "$(CFG)" == "Release"
 CPP_PROJ=/nologo /$(LINKMT) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
-CPP_PROJ=/nologo /$(LINKMT)d /Gm /ZI /Od /GZ /D "_DEBUG"
+CPP_PROJ=/nologo /$(LINKMT)d /Gm /ZI /Od /RTC1 /D "_DEBUG"
 !ENDIF
 CPP_PROJ=$(CPP_PROJ) /W3 $(VC_FLAGS) /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)"\ /Fd"$(INTDIR)"\ /FD
 
@@ -242,7 +242,10 @@ BSC32_SBRS= \
 	
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib $(OUTDIR)\$(DTCLIB).lib winmm.lib /nologo /dll /machine:I386 /def:"$(DEF_FILE)"
+!IF "$(MSDTC)" != "no"
+LINK32_FLAGS=$(OUTDIR)\$(DTCLIB).lib
+!ENDIF
+LINK32_FLAGS=$(LINK32_FLAGS) kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib winmm.lib /nologo /dll /machine:I386 /def:"$(DEF_FILE)"
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE

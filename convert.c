@@ -2797,12 +2797,15 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		BOOL		converted = FALSE;
 		COL_INFO	*coli;
 
+#ifdef	NOT_USED  /* lastval() isn't always appropriate */ 
 		if (PG_VERSION_GE(conn, 8.1))
 		{
 			CVT_APPEND_STR(qb, "lastval()");
 			converted = TRUE;
 		}
-		else if (NAME_IS_VALID(conn->tableIns))
+		else
+#endif /* NOT_USED */
+		if (NAME_IS_VALID(conn->tableIns))
 		{
 			TABLE_INFO	ti, *pti = &ti;
 

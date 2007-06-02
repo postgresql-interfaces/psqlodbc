@@ -673,12 +673,13 @@ getNumericColumnSize(StatementClass *stmt, OID type, int col)
 Int4
 getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
+	CSTR	func = "getCharColumnSize";
 	int		p = -1, attlen = -1, adtsize = -1, maxsize;
 	QResultClass	*result;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 
-	mylog("getCharColumnSize: type=%d, col=%d, unknown = %d\n", type, col, handle_unknown_size_as);
+	mylog("%s: type=%d, col=%d, unknown = %d\n", func, type, col, handle_unknown_size_as);
 
 	/* Assign Maximum size based on parameters */
 	switch (type)
@@ -725,10 +726,10 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 	 * set_tuplefield_string)
 	 */
 	adtsize = QR_get_fieldsize(result, col);
-	if (adtsize > 0)
-		return adtsize;
 	if (stmt->catalog_result)
 	{
+		if (adtsize > 0)
+			return adtsize;
 		return maxsize;
 	}
 
@@ -743,12 +744,13 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 		{
 			case PG_TYPE_VARCHAR:
 			case PG_TYPE_BPCHAR:
-				if (CC_is_in_unicode_driver(conn) || conn->ms_jet)
-					return attlen;
 #if (ODBCVER >= 0x0300)
 				return attlen;
-#endif /* ODBCVER */
+#else
+				if (CC_is_in_unicode_driver(conn) || conn->ms_jet)
+					return attlen;
 				return p;
+#endif /* ODBCVER */
 		}
 	}
 
@@ -757,7 +759,7 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 	/* The type is really unknown */
 	if (type == PG_TYPE_BPCHAR)
 	{
-		mylog("getCharColumnSize: BP_CHAR LONGEST: p = %d\n", p);
+		mylog("%s: BP_CHAR LONGEST: p = %d\n", func, p);
 		if (p > 0)
 			return p;
 	}
@@ -770,7 +772,7 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 	}
 	if (handle_unknown_size_as == UNKNOWNS_AS_LONGEST)
 	{
-		mylog("getCharColumnSize: LONGEST: p = %d\n", p);
+		mylog("%s: LONGEST: p = %d\n", func, p);
 		if (p > 0)
 			return p;
 	}
