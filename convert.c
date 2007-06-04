@@ -3734,6 +3734,8 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 			case SQL_CHAR:
 			case SQL_VARCHAR:
 			case SQL_LONGVARCHAR:
+			case SQL_VARBINARY:
+			case SQL_LONGVARBINARY:
 #ifdef	UNICODE_SUPPORT
 			case SQL_WCHAR:
 			case SQL_WVARCHAR:

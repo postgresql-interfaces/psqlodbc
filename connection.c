@@ -1032,6 +1032,15 @@ inolog("parameter name=%s\n", msgbuffer);
 			free(conn->current_client_encoding);
 		conn->current_client_encoding = strdup(msgbuffer);
 	}
+	else if (stricmp(msgbuffer, "standard_conforming_strings") == 0)
+	{
+		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+		if (stricmp(msgbuffer, "on") == 0)
+		{
+			mylog("standard_conforming_strings=%s\n", msgbuffer); 
+			conn->escape_in_literal = '\0';
+		}
+	}
 	else if (stricmp(msgbuffer, "server_version") == 0)
 	{
 		char	szVersion[32];
