@@ -1010,6 +1010,8 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *
 	return msg_truncated;
 }
 
+CSTR std_cnf_strs = "standard_conforming_strings";
+
 void	getParameterValues(ConnectionClass *conn)
 {
 	SocketClass	*sock = conn->sock;
@@ -1032,12 +1034,12 @@ inolog("parameter name=%s\n", msgbuffer);
 			free(conn->current_client_encoding);
 		conn->current_client_encoding = strdup(msgbuffer);
 	}
-	else if (stricmp(msgbuffer, "standard_conforming_strings") == 0)
+	else if (stricmp(msgbuffer, std_cnf_strs) == 0)
 	{
 		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 		if (stricmp(msgbuffer, "on") == 0)
 		{
-			mylog("standard_conforming_strings=%s\n", msgbuffer); 
+			mylog("%s=%s\n", std_cnf_strs, msgbuffer); 
 			conn->escape_in_literal = '\0';
 		}
 	}
@@ -1737,8 +1739,6 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	if (ret <= 0)
 		return ret;
 
-	if (PG_VERSION_GE(self, 8.4)) /* maybe */
-		self->escape_in_literal = '\0';
 	CC_set_translation(self);
 
 	/*
@@ -3487,6 +3487,7 @@ if (TRUE)
 	mylog("procotol=%s\n", self->connInfo.protocol);
 	{
 		int pversion, on;
+		const char *conforming_strings;
 
 		pversion = PQserverVersion(pqconn);
 		self->pg_version_major = pversion / 10000;
@@ -3495,6 +3496,11 @@ if (TRUE)
 		self->pg_version_number = (float) atof(self->pg_version);
 		if (PG_VERSION_GE(self, 7.3))
 			self->schema_support = 1;
+		if (conforming_strings = PQparameterStatus(pqconn, std_cnf_strs), NULL != conforming_strings)
+		{
+			if (stricmp(conforming_strings, "on") == 0)
+				self->escape_in_literal = '\0';
+		}
 		/* blocking mode */
 		/* ioctlsocket(sock, FIONBIO , 0);
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof(on)); */
