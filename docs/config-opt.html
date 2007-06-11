@@ -1,0 +1,470 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html">
+	<TITLE>How to specify as a connection option</TITLE>
+</HEAD>
+<BODY>
+<P STYLE="margin-bottom: 0cm"><FONT FACE="Times New Roman, serif"><FONT SIZE=5>
+<B>How to specify as a connection option </B></FONT></FONT>
+</P>
+<TABLE WIDTH=100% BORDER=1 CELLPADDING=4 CELLSPACING=3 STYLE="page-break-inside: avoid">
+	<COL WIDTH=96*>
+	<COL WIDTH=80*>
+	<COL WIDTH=79*>
+	<TR>
+		<TD WIDTH=38%>
+			<B><FONT SIZE=4>Definition</FONT></B>
+		</TD>
+		<TD WIDTH=31%>
+			<B><FONT SIZE=4>Keyword</FONT></B>
+		</TD>
+		<TD WIDTH=31%>
+			<FONT SIZE=4><B>Abbreviation</FONT>
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Data source description 
+		</TD>
+		<TD WIDTH=31%>
+			Description
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Name of Server
+		</TD>
+		<TD WIDTH=31%>
+			Servername
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Postmaster listening port
+		</TD>
+		<TD WIDTH=31%>
+			Port
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			User Name 
+		</TD>
+		<TD WIDTH=31%>
+			Username
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Password
+		</TD>
+		<TD WIDTH=31%>
+			Password
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Debug flag 
+		</TD>
+		<TD WIDTH=31%>
+			Debug
+		</TD>
+		<TD WIDTH=31%>
+			B2
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Fetch Max Count 
+		</TD>
+		<TD WIDTH=31%>
+			Fetch
+		</TD>
+		<TD WIDTH=31%>
+			A7
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Socket buffer size 
+		</TD>
+		<TD WIDTH=31%>
+			Socket
+		</TD>
+		<TD WIDTH=31%>
+			A8
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Database is read only 
+		</TD>
+		<TD WIDTH=31%>
+			ReadOnly
+		</TD>
+		<TD WIDTH=31%>
+			A0
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Communication to backend logging 
+		</TD>
+		<TD WIDTH=31%>
+			CommLog
+		</TD>
+		<TD WIDTH=31%>
+			B3
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			PostgreSQL backend protocol
+		</TD>
+		<TD WIDTH=31%>
+			Protocol
+		</TD>
+		<TD WIDTH=31%>
+			A1
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Backend enetic optimizer 
+		</TD>
+		<TD WIDTH=31%>
+			Optimizer
+		</TD>
+		<TD WIDTH=31%>
+			B4
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Keyset query optimization 
+		</TD>
+		<TD WIDTH=31%>
+			Ksqo
+		</TD>
+		<TD WIDTH=31%>
+			B5
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Send tobackend on connection 
+		</TD>
+		<TD WIDTH=31%>
+			ConnSettings
+		</TD>
+		<TD WIDTH=31%>
+			A6
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Recognize unique indexes 
+		</TD>
+		<TD WIDTH=31%>
+			UniqueIndex
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Unknownresult set sizes 
+		</TD>
+		<TD WIDTH=31%>
+			UnknownSizes
+		</TD>
+		<TD WIDTH=31%>
+			A9
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Cancel as FreeStmt
+		</TD>
+		<TD WIDTH=31%>
+			CancelAsFreeStmt
+		</TD>
+		<TD WIDTH=31%>
+			C1
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Use Declare/Fetch cursors
+		</TD>
+		<TD WIDTH=31%>
+			UseDeclareFetch
+		</TD>
+		<TD WIDTH=31%>
+			B6
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Text as LongVarchar
+		</TD>
+		<TD WIDTH=31%>
+			TextAsLongVarchar
+		</TD>
+		<TD WIDTH=31%>
+			B7
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Unknowns as LongVarchar 
+		</TD>
+		<TD WIDTH=31%>
+			UnknownsAsLongVarchar
+		</TD>
+		<TD WIDTH=31%>
+			B8
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Bools as Char
+		</TD>
+		<TD WIDTH=31%>
+			BoolsAsChar
+		</TD>
+		<TD WIDTH=31%>
+			B9
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Max Varchar size
+		</TD>
+		<TD WIDTH=31%>
+			MaxVarcharSize
+		</TD>
+		<TD WIDTH=31%>
+			B0
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Max LongVarchar size
+		</TD>
+		<TD WIDTH=31%>
+			MaxLongVarcharSize
+		</TD>
+		<TD WIDTH=31%>
+			B1
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Fakes a unique index on OID 
+		</TD>
+		<TD WIDTH=31%>
+			FakeOidIndex
+		</TD>
+		<TD WIDTH=31%>
+			A2
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Includes the OID in SQLColumns 
+		</TD>
+		<TD WIDTH=31%>
+			ShowOidColumn
+		</TD>
+		<TD WIDTH=31%>
+			A3
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Row Versioning
+		</TD>
+		<TD WIDTH=31%>
+			RowVersioning
+		</TD>
+		<TD WIDTH=31%>
+			A4
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Show SystemTables
+		</TD>
+		<TD WIDTH=31%>
+			ShowSystemTables
+		</TD>
+		<TD WIDTH=31%>
+			A5
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Parse Statements
+		</TD>
+		<TD WIDTH=31%>
+			Parse
+		</TD>
+		<TD WIDTH=31%>
+			C0
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			SysTable Prefixes
+		</TD>
+		<TD WIDTH=31%>
+			ExtraSysTablePrefixes
+		</TD>
+		<TD WIDTH=31%>
+			C2
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Disallow Premature
+		</TD>
+		<TD WIDTH=31%>
+			DisallowPremature
+		</TD>
+		<TD WIDTH=31%>
+			C3
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Updateable Cursors
+		</TD>
+		<TD WIDTH=31%>
+			UpdatableCursors
+		</TD>
+		<TD WIDTH=31%>
+			C4
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			LF &lt;-&gt; CR/LF conversion
+		</TD>
+		<TD WIDTH=31%>
+			LFConversion
+		</TD>
+		<TD WIDTH=31%>
+			C5
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			True is -1
+		</TD>
+		<TD WIDTH=31%>
+			TrueIsMinus1
+		</TD>
+		<TD WIDTH=31%>
+			C6
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Datatype to report int8 columns as
+		</TD>
+		<TD WIDTH=31%>
+			BI
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Bytea as LongVarBinary
+		</TD>
+		<TD WIDTH=31%>
+			ByteaAsLongVarBinary
+		</TD>
+		<TD WIDTH=31%>
+			C7
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Use serverside prepare
+		</TD>
+		<TD WIDTH=31%>
+			UseServerSidePrepare
+		</TD>
+		<TD WIDTH=31%>
+			C8
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Lower case identifier
+		</TD>
+		<TD WIDTH=31%>
+			LowerCaseIdentifier
+		</TD>
+		<TD WIDTH=31%>
+			C9
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			SSL mode
+		</TD>
+		<TD WIDTH=31%>
+			SSLmode
+		</TD>
+		<TD WIDTH=31%>
+			CA
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Extra options
+		</TD>
+		<TD WIDTH=31%>
+			AB
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Abbreviate(simple setup of a recommendation value)
+		</TD>
+		<TD WIDTH=31%>
+			CX
+		</TD>
+		<TD WIDTH=31%>
+			Nothing
+		</TD>
+	</TR>
+</TABLE>
+<P><BR><BR>
+</P>
+</BODY>
+</HTML>
