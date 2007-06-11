@@ -18,8 +18,8 @@ provide a build environment for us which is now included in psqlODBC tarballs.</
 
 <blockquote>
 <pre>
-% tar -zxvf psqlodbc-08.01.0100.tar.gz
-% cd psqlodbc-08.01.0100
+% tar -zxvf psqlodbc-xx.xx.xxxx.tar.gz
+% cd psqlodbc-xx.xx.xxxx
 % ./configure
 % make
 % make install
@@ -29,9 +29,9 @@ provide a build environment for us which is now included in psqlODBC tarballs.</
 <p>The configure script will accept the following useful options:</p>
 
 <ul>
-<li>--with-iodbc=DIR  path or direct iodbc-config file</li>
 <li>--with-unixodbc=DIR path or direct odbc_config file (default:yes)</li>
-<li>--with-pgconf=pg_config specify pg_config with full path</li>
+<li>--with-iodbc=DIR  path or direct iodbc-config file</li>
+<li>--with-odbcver=VERSION  change default ODBC version number [0x0351]</li>
 <li>--enable-pthreads (thread-safe driver on some platforms)</li>
 <li>--disable-unicode (build non-Unicode driver)</li>
 <li>--help</li>
@@ -50,16 +50,9 @@ provide a build environment for us which is now included in psqlODBC tarballs.</
 
 <h3>Bootstrapping</h3>
 
-<p>First, copy libtool.m4 into source directory.  Be sure to pick the one
-from the right Libtool version.  Then run:</p>
-
 <blockquote>
 <pre>
-aclocal -I . 
-libtoolize --force --copy
-autoconf
-autoheader
-automake --add-missing --copy
+autoreconf -i
 </pre>
 </blockquote>
 
@@ -76,9 +69,7 @@ make install
 </blockquote>
 
 <p>configure has the same options that the PostgreSQL configure used to
-have for ODBC, namely --with-iodbc or --with-unixodbc, and
---with-pgconf=/usr/local/pgsql/bin/pg_config.</p>
-
+have for ODBC, namely --with-iodbc or --with-unixodbc
 <h3>Making a Source Distribution</h3>
 
 <p>'make dist' makes a file psqlodbc-xx.xx.xxxx.tar.gz.  It's even better to
