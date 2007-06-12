@@ -1264,7 +1264,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 
 	snprintf(vermsg, sizeof(vermsg), "Driver Version='%s,%s'"
 #ifdef	WIN32
-		" linking"
+		" linking %d"
 #ifdef	_MT
 #ifdef	_DLL
 		" dynamic"
@@ -1275,16 +1275,12 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #else
 		" Singlethread"
 #endif /* _MT */
-#ifdef	NOT_USED
 #ifdef	_DEBUG
 		" Debug"
-#else
-		" Release"
 #endif /* DEBUG */
-#endif /* NOT_USED */
 		" library"
 #endif /* WIN32 */
-		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION);
+		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION, _MSC_VER);
 	qlog(vermsg);
 	mylog(vermsg);
 	qlog("Global Options: fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
@@ -3468,6 +3464,7 @@ cleanup1:
 inolog("socket=%d\n", socket);
 	sock->socket = socket;
 	sock->ssl = PQgetssl(pqconn);
+inolog("ssl=%p\n", sock->ssl);
 if (TRUE)
 	{
 		int	pversion;

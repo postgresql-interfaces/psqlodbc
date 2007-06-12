@@ -514,20 +514,25 @@ EN_Constructor(void)
 #ifndef	_WSASTARTUP_IN_DLLMAIN_
 	WORD		wVersionRequested;
 	WSADATA		wsaData;
+	const int	major = 1, minor = 1;
 
 	/* Load the WinSock Library */
-	wVersionRequested = MAKEWORD(1, 1);
+	wVersionRequested = MAKEWORD(major, minor);
 
 	if (WSAStartup(wVersionRequested, &wsaData))
-		return rv;
-	/* Verify that this is the minimum version of WinSock */
-	if (LOBYTE(wsaData.wVersion) != 1 ||
-	    HIBYTE(wsaData.wVersion) != 1)
 	{
-		goto cleanup;
+		mylog("%s: WSAStartup error\n", func);
+		return rv;
+	}
+	/* Verify that this is the minimum version of WinSock */
+	if (LOBYTE(wsaData.wVersion) != major ||
+	    HIBYTE(wsaData.wVersion) != minor)
+	{
+		mylog("%s: WSAStartup version=(%d,%d)\n", func,
+			LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
 	}
 #endif /* _WSASTARTUP_IN_DLLMAIN_ */
-#endif
+#endif /* WIN32 */
 
 	rv = (EnvironmentClass *) malloc(sizeof(EnvironmentClass));
 cleanup:
@@ -541,9 +546,12 @@ cleanup:
 #ifdef WIN32
 #ifndef	_WSASTARTUP_IN_DLLMAIN_
 	else
+	{
+		mylog("%s: malloc error\n", func);
 		WSACleanup();
+	}
 #endif /* _WSASTARTUP_IN_DLLMAIN_ */
-#endif
+#endif /* WIN32 */
 
 	return rv;
 }
@@ -552,7 +560,7 @@ cleanup:
 char
 EN_Destructor(EnvironmentClass *self)
 {
-	int			lf;
+	int		lf, nullcnt;
 	char		rv = 1;
 
 	mylog("in EN_Destructor, self=%p\n", self);
@@ -565,18 +573,26 @@ EN_Destructor(EnvironmentClass *self)
 	 */
 
 	/* Free any connections belonging to this environment */
-	for (lf = 0; lf < conns_count; lf++)
+	for (lf = 0, nullcnt = 0; lf < conns_count; lf++)
 	{
-		if (conns[lf] && conns[lf]->henv == self)
+		if (NULL == conns[lf])
+			nullcnt++;
+		else if (conns[lf]->henv == self)
 		{
 			if (CC_Destructor(conns[lf]))
 				conns[lf] = NULL;
 			else
 				rv = 0;
+			nullcnt++;
 		}
 	}
-	if (conns)
+	if (conns && nullcnt >= conns_count)
+	{
+		mylog("clearing conns count=%d\n", conns_count);
 		free(conns);
+		conns = NULL;
+		conns_count = 0;
+	}
 	DELETE_ENV_CS(self);
 	free(self);
 
