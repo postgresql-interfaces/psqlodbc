@@ -1279,8 +1279,10 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		" Debug"
 #endif /* DEBUG */
 		" library"
-#endif /* WIN32 */
 		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION, _MSC_VER);
+#else
+		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION);
+#endif /* WIN32 */
 	qlog(vermsg);
 	mylog(vermsg);
 	qlog("Global Options: fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
