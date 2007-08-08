@@ -9,9 +9,31 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.02.0400 Release </h2>
+<h2>psqlODBC 08.02.0XXX Snapshot </h2>
 <br>
-<li>Notes: psqlODBC 08.02.0301</li><br>
+<li>Notes: psqlODBC 08.02.0402</li><br>
+Changes:<br>
+1.) Fix some bugs in case without MSDTC support.<br>
+2.) Refine the realloc handling.<br>
+3.) Put back the @@IDENTITY implementation so as not to use lastval().<br>
+4.) Change SQLColumns() to return correct column length in the Unicode driver.<br>
+5.) Remove the connection count limitation.<br>
+6.) Fix Protocol=7.4--1 notation (should be Protocol=7.4).<br>
+7.) Fix a typo in socket.c (bug report from Rainer bauer).<br>
+8.) Add CC_set_autocommit to psqlodbc(a).def files.<br>
+9.) Handle Standard_conforming_strings.<br>
+10.) Handle standard_conforming_strings also in case via libpq.<br>
+11.) Fix a bug which doesn't free connection list properly.<br>
+12.) Fix DelayLoadDLL was made explicit of psqlodbc.proj file.<br>
+<br>
+<li>Notes: psqlODBC 08.02.0401</li><br>
+Changes:<br>
+1.) Fix a bug which checking join is confused by CR+LF.<br>
+2.) Handle AUTOCOMMIT mode more carefully in a distributed transaction so as not to issue COMMIT unexpectedly.<br>
+3.) Allow the UNIX domain configuration (the same as libpq).<br>
+4.) Fixed the automake/autoconf scripts.(by Peter Eisentraut)<br>
+<br>
+<li>Notes: psqlODBC 08.02.0400</li><br>
 Changes:<br>
 1.) Fixed control binding of SetField problem.<br>
 2.) Fixed pgenlist.h losts to the release package.<br>
