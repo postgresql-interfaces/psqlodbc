@@ -44,13 +44,13 @@ enum {
 	,WIN1254		/* Turkish Windows */
 	,WIN1255		/* Hebrew Windows */
 	,WIN1257		/* Baltic(North Europe) Windows */
-	,PG_EUC_JIS_2004	/* EUC for SHIFT-JIS-2004 Japanese */
+	,EUC_JIS_2004		/* EUC for SHIFT-JIS-2004 Japanese */
 	,SJIS			/* Shift JIS */
 	,BIG5			/* Big5 */
 	,GBK			/* GBK */
 	,UHC			/* UHC */
 	,GB18030		/* GB18030 */
-	,PG_SHIFT_JIS_2004	/* SHIFT-JIS-2004 Japanese, JIS X 0213 */
+	,SHIFT_JIS_2004		/* SHIFT-JIS-2004 Japanese, JIS X 0213 */
 	,OTHER		=	-1
 };
 

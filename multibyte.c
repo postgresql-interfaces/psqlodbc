@@ -57,13 +57,13 @@ static pg_CS CS_Table[] =
 	{ "WIN1255",	WIN1255 },	/* Hebrew since 8.2 */
 	{ "WIN1257",	WIN1257 },	/* Baltic(North Europe) since 8.2 */
 
-	{ "EUC_JIS_2004", PG_EUC_JIS_2004},	/* EUC for SHIFT-JIS-2004 Japanese, since 8.3 */
+	{ "EUC_JIS_2004", EUC_JIS_2004},	/* EUC for SHIFT-JIS-2004 Japanese, since 8.3 */
 	{ "SJIS",	SJIS },
 	{ "BIG5",	BIG5 },
 	{ "GBK",	GBK },		/* since 7.3 */
 	{ "UHC",	UHC },		/* since 7.3 */	
 	{ "GB18030",	GB18030 },	/* since 7.3 */
-	{ "SHIFT_JIS_2004", PG_SHIFT_JIS_2004 },	/* SHIFT-JIS-2004 Japanese, standard JIS X 0213, since 8.3 */
+	{ "SHIFT_JIS_2004", SHIFT_JIS_2004 },	/* SHIFT-JIS-2004 Japanese, standard JIS X 0213, since 8.3 */
 	{ "OTHER",	OTHER }
 };
 
@@ -208,9 +208,11 @@ pg_mb_maxlen(characterset_code)
 			return 6;
 		case EUC_TW:
 			return 4;
+		case EUC_JIS_2004:
 		case EUC_JP:
 		case GB18030:
 			return 3;
+		case SHIFT_JIS_2004:
 		case SJIS:
 		case BIG5:
 		case GBK:
@@ -255,6 +257,7 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			}
 			break;
 /* Shift-JIS Support. */
+			case SHIFT_JIS_2004:
 			case SJIS:
 			{
 				if (stat < 2 &&
@@ -306,7 +309,10 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			}
 			break;
 
-/* EUC_JP Support */
+		case EUC_JIS_2004:
+			/* 0x8f is JIS X 0212 3 byte */
+			/* 0x8e is JIS X 0201 2 byte */
+			/* 0xa0-0xff is JIS X 0208 2 byte */
 		case EUC_JP:
 			{
 				if (stat < 3 && 
