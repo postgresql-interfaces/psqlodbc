@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.44 2007/05/04 10:39:01 petere Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.45 2007/08/21 05:19:17 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ EXTRA_DIST = license.txt readme.txt \
         pgxalib.def odbc.sql odbc-drop.sql \
 	odbcapi25w.c \
 \
-	docs/index.html docs/config.html \
+	docs/index.html docs/config.html docs/config-opt.html \
 	docs/faq.html docs/howto-accesslo.html \
 	docs/howto-accessvba.html docs/howto-bo.html \
 	docs/howto-ch.html docs/howto-csharp.html \
