@@ -57,11 +57,13 @@ static pg_CS CS_Table[] =
 	{ "WIN1255",	WIN1255 },	/* Hebrew since 8.2 */
 	{ "WIN1257",	WIN1257 },	/* Baltic(North Europe) since 8.2 */
 
+	{ "EUC_JIS_2004", PG_EUC_JIS_2004},	/* EUC for SHIFT-JIS-2004 Japanese, since 8.3 */
 	{ "SJIS",	SJIS },
 	{ "BIG5",	BIG5 },
 	{ "GBK",	GBK },		/* since 7.3 */
 	{ "UHC",	UHC },		/* since 7.3 */	
 	{ "GB18030",	GB18030 },	/* since 7.3 */
+	{ "SHIFT_JIS_2004", PG_SHIFT_JIS_2004 },	/* SHIFT-JIS-2004 Japanese, standard JIS X 0213, since 8.3 */
 	{ "OTHER",	OTHER }
 };
 
