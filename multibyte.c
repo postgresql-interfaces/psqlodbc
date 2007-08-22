@@ -258,6 +258,21 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			break;
 /* Shift-JIS Support. */
 			case SHIFT_JIS_2004:
+			{
+				if (stat < 2 &&
+					character >= 0x81 && character <= 0x9f)
+					stat = 2;
+				els if (stat < 2 &&
+					character >= 0xe0 && character <= 0xef)
+					stat = 2;
+				els if (stat < 2 &&
+					character >= 0xf0 && character <= 0xfc)
+					stat = 2;
+				else if (stat == 2)
+					stat = 1;
+				else
+					stat = 0;
+			}
 			case SJIS:
 			{
 				if (stat < 2 &&
@@ -310,10 +325,13 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			break;
 
 		case EUC_JIS_2004:
+			/* 0x8f is JIS X 0212 + JIS X 0213(2) 3 byte */
+			/* 0x8e is JIS X 0201 2 byte */
+			/* 0xa0-0xff is JIS X 0213(1) 2 byte */
+		case EUC_JP:
 			/* 0x8f is JIS X 0212 3 byte */
 			/* 0x8e is JIS X 0201 2 byte */
 			/* 0xa0-0xff is JIS X 0208 2 byte */
-		case EUC_JP:
 			{
 				if (stat < 3 && 
 					character == 0x8f)	/* JIS X 0212 */
