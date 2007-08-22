@@ -256,7 +256,7 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 					stat=0;
 			}
 			break;
-/* Shift-JIS Support. */
+/* SHIFT_JIS_2004 Support. */
 			case SHIFT_JIS_2004:
 			{
 				if (stat < 2 &&
@@ -273,6 +273,8 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 				else
 					stat = 0;
 			}
+			break;
+/* Shift-JIS Support. */
 			case SJIS:
 			{
 				if (stat < 2 &&
