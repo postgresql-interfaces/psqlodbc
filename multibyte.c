@@ -262,10 +262,10 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 				if (stat < 2 &&
 					character >= 0x81 && character <= 0x9f)
 					stat = 2;
-				els if (stat < 2 &&
+				else if (stat < 2 &&
 					character >= 0xe0 && character <= 0xef)
 					stat = 2;
-				els if (stat < 2 &&
+				else if (stat < 2 &&
 					character >= 0xf0 && character <= 0xfc)
 					stat = 2;
 				else if (stat == 2)
