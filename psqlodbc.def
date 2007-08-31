@@ -116,5 +116,5 @@ CC_set_error
 CC_commit
 CC_abort
 CC_set_autocommit
-CC_send_query
+CC_send_query_append
 QR_Destructor

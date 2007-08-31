@@ -147,7 +147,7 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 			outlen = utf8_to_ucs2(szOut, olen, szConnStrOut, cbConnStrOutMax);
 		else
 			utf8_to_ucs2(szOut, maxlen, szConnStrOut, cbConnStrOutMax);
-		if (outlen >= cbConnStrOutMax)
+		if (outlen >= cbConnStrOutMax && NULL != szConnStrOut && NULL != pcbConnStrOut)
 		{
 inolog("cbConnstrOutMax=%d pcb=%p\n", cbConnStrOutMax, pcbConnStrOut);
 			if (SQL_SUCCESS == ret)
@@ -749,7 +749,7 @@ RETCODE SQL_API SQLPrimaryKeysW(
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_PrimaryKeys(hstmt, ctName, (SQLSMALLINT) nmlen1,
-			scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3);
+			scName, (SQLSMALLINT) nmlen2, tbName, (SQLSMALLINT) nmlen3, 0);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)

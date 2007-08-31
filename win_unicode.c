@@ -30,6 +30,17 @@
 #define	byte3_mask2	0x0fc0
 #define	byte3_mask3	0x003f
 
+#define	surrog_check	0xfc00
+#define	surrog1_bits	0xd800
+#define	surrog2_bits	0xdc00
+#define	byte4_base	0x808080f0
+#define	byte4_sr1_mask1	0x0700
+#define	byte4_sr1_mask2	0x00fc
+#define	byte4_sr1_mask3	0x0003
+#define	byte4_sr2_mask1	0x03c0
+#define	byte4_sr2_mask2	0x003f
+#define	surrogate_adjust	0x10000
+
 #include <ctype.h>
 #ifndef WIN32
 #ifdef HAVE_ISWASCII
@@ -63,12 +74,12 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 	if (SQL_NTS == ilen)
 		ilen = ucs2strlen(ucs2str);
 /*mylog(" newlen=%d", ilen);*/
-	utf8str = (char *) malloc(ilen * 3 + 1);
+	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
 		int	i, len = 0;
 		UInt2	byte2code;
-		Int4	byte4code;
+		Int4	byte4code, surrd1, surrd2;
 		const SQLWCHAR	*wstr;
 
 		for (i = 0, wstr = ucs2str; i < ilen; i++, wstr++)
@@ -89,6 +100,22 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 					    ((byte2_mask2 & *wstr) << 8);
 				memcpy(utf8str + len, (char *) &byte2code, sizeof(byte2code));
 				len += sizeof(byte2code); 
+			}
+			/* surrogate pair check for non ucs-2 code */ 
+			else if (surrog1_bits == (*wstr & surrog_check))
+			{
+				surrd1 = (*wstr & ~surrog_check) + surrogate_adjust;
+				wstr++;
+				i++;
+				surrd2 = (*wstr & ~surrog_check);
+				byte4code = byte4_base |
+					   ((byte4_sr1_mask1 & surrd1) >> 8) |
+					   ((byte4_sr1_mask2 & surrd1) << 6) |
+					   ((byte4_sr1_mask3 & surrd1) << 20) |
+					   ((byte4_sr2_mask1 & surrd2) << 10) |
+					   ((byte4_sr2_mask2 & surrd2) << 24);
+				memcpy(utf8str + len, (char *) &byte4code, sizeof(byte4code));
+				len += sizeof(byte4code);
 			}
 			else
 			{
@@ -113,6 +140,11 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 #define	byte3_m3	0x3f
 #define	byte2_m1	0x1f
 #define	byte2_m2	0x3f
+#define	byte4_m1	0x07
+#define	byte4_m2	0x3f
+#define	byte4_m31	0x30
+#define	byte4_m32	0x0f
+#define	byte4_m4	0x3f
 SQLULEN	utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount)
 {
 	int	i;
@@ -147,7 +179,30 @@ SQLULEN	utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR 
 			i++;
 			str++;
 		}
-		else if (0xe0 == (*str & 0xe0)) /* 3 byte code */
+		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */
+		{
+			if (ocount < bufcount)
+			{
+				wcode = (surrog1_bits |
+					((((UInt4) *str) & byte4_m1) << 8) |
+					((((UInt4) str[1]) & byte4_m2) << 2) |
+					((((UInt4) str[2]) & byte4_m31) >> 4))
+					- surrogate_adjust;
+				ucs2str[ocount] = (SQLWCHAR) wcode;
+			}
+			ocount++;
+			if (ocount < bufcount)
+			{
+				wcode = surrog2_bits |
+					((((UInt4) str[2]) & byte4_m32) << 6) |
+					(((UInt4) str[3]) & byte4_m4);
+				ucs2str[ocount] = (SQLWCHAR) wcode;
+			}
+			ocount++;
+			i += 4;
+			str += 4;
+		}
+		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */
 		{
 			if (ocount < bufcount)
 			{

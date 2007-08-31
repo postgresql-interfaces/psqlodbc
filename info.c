@@ -91,7 +91,7 @@ PGAPI_GetInfo(
 			break;
 
 		case SQL_ACCESSIBLE_TABLES:		/* ODBC 1.0 */
-			p = "N";
+			p = CC_accessible_only(conn) ? "Y" : "N";
 			break;
 
 		case SQL_ACTIVE_CONNECTIONS:	/* ODBC 1.0 */
@@ -1410,7 +1410,7 @@ adjustLikePattern(const char *src, int srclen, char escape_ch, int *result_len, 
 	/* if (srclen <= 0) */
 	if (srclen < 0)
 		return dest;
-mylog("adjust in=%s(%d)\n", src, srclen);
+mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, src);
 	dest = malloc(2 * srclen + 1);
 	for (i = 0, in = src, outlen = 0; i < srclen; i++, in++)
@@ -1512,7 +1512,7 @@ PGAPI_Tables(
 	BOOL		list_cat = FALSE, list_schemas = FALSE, list_table_types = FALSE, list_some = FALSE;
 	SQLLEN		cbRelname, cbRelkind, cbSchName;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -1709,6 +1709,11 @@ retry_public_schema:
 		}
 	}
 
+	if (!list_some)
+	{
+		if (CC_accessible_only(conn))
+			strcat(tables_query, " and has_table_privilege(c.oid, 'select')");
+	}
 	if (list_schemas)
 		strcat(tables_query, " order by nspname");
 	else if (list_some)
@@ -1988,7 +1993,7 @@ PGAPI_Columns(
 	const char	*like_or_eq = likeop;
 	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2638,7 +2643,7 @@ PGAPI_SpecialColumns(
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const char	*szSchemaName;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner, fColType);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2918,7 +2923,7 @@ PGAPI_Statistics(
 	const char	*szSchemaName;
 	OID		ioid;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3481,7 +3486,8 @@ PGAPI_PrimaryKeys(
 			const SQLCHAR FAR * szTableOwner, /* OA E*/
 			SQLSMALLINT cbTableOwner,
 			const SQLCHAR FAR * szTableName, /* OA(R) E*/
-			SQLSMALLINT cbTableName)
+			SQLSMALLINT cbTableName,
+			OID	reloid)
 {
 	CSTR func = "PGAPI_PrimaryKeys";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -3495,7 +3501,11 @@ PGAPI_PrimaryKeys(
 	char		tables_query[INFO_INQUIRY_LEN];
 	char		attname[MAX_INFO_STRING];
 	SQLLEN		attname_len;
-	char		*pktab = NULL, pkscm[TABLE_NAME_STORAGE_LEN + 1];
+	char		*pktab = NULL, *pktbname;
+	char		pkscm[SCHEMA_NAME_STORAGE_LEN + 1];
+	SQLLEN		pkscm_len;
+	char		tabname[TABLE_NAME_STORAGE_LEN + 1];
+	SQLLEN		tabname_len;
 	char		pkname[TABLE_NAME_STORAGE_LEN + 1];
 	Int2		result_cols;
 	int			qno,
@@ -3505,7 +3515,7 @@ PGAPI_PrimaryKeys(
 	const char	*szSchemaName;
 	char	*escSchemaName = NULL, *escTableName = NULL;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3550,26 +3560,36 @@ PGAPI_PrimaryKeys(
 		internal_asis_type = INTERNAL_ASIS_TYPE;
 #endif /* UNICODE_SUPPORT */
 
-	pktab = make_string(szTableName, cbTableName, NULL, 0);
-	if (!pktab || pktab[0] == '\0')
-	{
-		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No Table specified to PGAPI_PrimaryKeys.", func);
-		ret = SQL_ERROR;
-		goto cleanup;
-	}
-	szSchemaName = szTableOwner;
-	cbSchemaName = cbTableOwner;
-
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+	if (0 != reloid)
+	{
+		szSchemaName = NULL;
+		cbSchemaName = SQL_NULL_DATA;
+	}
+	else
+	{
+		pktab = make_string(szTableName, cbTableName, NULL, 0);
+		if (!pktab || pktab[0] == '\0')
+		{
+			SC_set_error(stmt, STMT_INTERNAL_ERROR, "No Table specified to PGAPI_PrimaryKeys.", func);
+			ret = SQL_ERROR;
+			goto cleanup;
+		}
+		szSchemaName = szTableOwner;
+		cbSchemaName = cbTableOwner;
+		escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+	}
 
 retry_public_schema:
-	if (escSchemaName)
-		free(escSchemaName);
-	escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
 	pkscm[0] = '\0';
-	if (conn->schema_support)
-		schema_strcat(pkscm, "%.*s", escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+	if (0 == reloid)
+	{
+		if (escSchemaName)
+			free(escSchemaName);
+		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+		if (conn->schema_support)
+			schema_strcat(pkscm, "%.*s", escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+	}
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
 						   attname, MAX_INFO_STRING, &attname_len);
@@ -3587,14 +3607,36 @@ retry_public_schema:
 		ret = SQL_ERROR;
 		goto cleanup;
 	}
+	result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
+			pkscm, SCHEMA_NAME_STORAGE_LEN, &pkscm_len);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, tbl_stmt, TRUE);
+		ret = SQL_ERROR;
+		goto cleanup;
+	}
+	result = PGAPI_BindCol(htbl_stmt, 5, internal_asis_type,
+			tabname, TABLE_NAME_STORAGE_LEN, &tabname_len);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, tbl_stmt, TRUE);
+		ret = SQL_ERROR;
+		goto cleanup;
+	}
 
 	if (PG_VERSION_LE(conn, 6.4))
 		qstart = 2;
 	else
 		qstart = 1;
-	qend = 2;
+	if (0 == reloid)
+		qend = 2;
+	else
+		qend = 1;
 	for (qno = qstart; qno <= qend; qno++)
 	{
+		size_t	qsize, tsize;
+		char	*tbqry;
+
 		switch (qno)
 		{
 			case 1:
@@ -3605,13 +3647,28 @@ retry_public_schema:
 				 * 2000-03-21
 				 */
 				if (conn->schema_support)
-					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname"
+				{
+					strncpy(tables_query,
+						"select ta.attname, ia.attnum, ic.relname, n.nspname, tc.relname"
 						" from pg_catalog.pg_attribute ta,"
 						" pg_catalog.pg_attribute ia, pg_catalog.pg_class tc,"
 						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
 						", pg_catalog.pg_class ic"
+						, sizeof(tables_query));
+					qsize = strlen(tables_query);
+					tsize = sizeof(tables_query) - qsize;
+					tbqry = tables_query + qsize;
+					if (0 == reloid)
+						snprintf(tbqry, tsize,
 						" where tc.relname = '%s'"
 						" AND n.nspname = '%s'"
+						, escTableName, pkscm);
+					else
+						snprintf(tbqry, tsize,
+						" where tc.oid = " FORMAT_UINTEGER
+						, reloid);
+
+					strncat(tables_query,
 						" AND tc.oid = i.indrelid"
 						" AND n.oid = tc.relnamespace"
 						" AND i.indisprimary = 't'"
@@ -3621,18 +3678,36 @@ retry_public_schema:
 						" AND (NOT ta.attisdropped)"
 						" AND (NOT ia.attisdropped)"
 						" AND ic.oid = i.indexrelid"
-						" order by ia.attnum", escTableName, pkscm);
+						" order by ia.attnum"
+						, sizeof(tables_query));
+				}
 				else
-					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname"
+				{
+					strncpy(tables_query, 
+						"select ta.attname, ia.attnum, ic.relname, NULL, tc.relname"
 						" from pg_attribute ta, pg_attribute ia, pg_class tc, pg_index i, pg_class ic"
+						, sizeof(tables_query));
+					qsize = strlen(tables_query);
+					tsize = sizeof(tables_query) - qsize;
+					tbqry = tables_query + qsize;
+					if (0 == reloid)
+						snprintf(tbqry, tsize,
 						" where tc.relname = '%s'"
+						, escTableName);
+					else
+						snprintf(tbqry, tsize,
+						" where tc.oid = " FORMAT_UINTEGER, reloid);
+						
+					strncat(tables_query,
 						" AND tc.oid = i.indrelid"
 						" AND i.indisprimary = 't'"
 						" AND ia.attrelid = i.indexrelid"
 						" AND ta.attrelid = i.indrelid"
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
 						" AND ic.oid = i.indexrelid"
-						" order by ia.attnum", escTableName);
+						" order by ia.attnum"
+						, sizeof(tables_query));
+				}
 				break;
 			case 2:
 
@@ -3640,7 +3715,7 @@ retry_public_schema:
 				 * Simplified query to search old fashoned primary key
 				 */
 				if (conn->schema_support)
-					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname"
+					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
 						" from pg_catalog.pg_attribute ta,"
 						" pg_catalog.pg_attribute ia, pg_catalog.pg_class ic,"
 						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
@@ -3655,7 +3730,7 @@ retry_public_schema:
 						" AND (NOT ia.attisdropped)"
 						" order by ia.attnum", escTableName, pkscm);
 				else
-					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname"
+					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, NULL, NULL"
 						" from pg_attribute ta, pg_attribute ia, pg_class ic, pg_index i"
 						" where ic.relname = '%s_pkey'"
 						" AND ic.oid = i.indexrelid"
@@ -3691,7 +3766,7 @@ retry_public_schema:
 		 * the current schema is 'public',
 		 * retry the 'public' schema.
 		 */
-		if (szSchemaName &&
+		if (0 == reloid && szSchemaName &&
 		    (cbSchemaName == SQL_NTS ||
 		     cbSchemaName == (SQLSMALLINT) strlen(user)) &&
 		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
@@ -3715,13 +3790,18 @@ retry_public_schema:
 		 * valid according to the ODBC SQL grammar, but Postgres won't
 		 * support it.)
 		 */
+		if (SQL_NULL_DATA == pkscm_len)
+			pkscm[0] = '\0';
 		set_tuplefield_string(&tuple[PKS_TABLE_SCHEM], GET_SCHEMA_NAME(pkscm));
-		set_tuplefield_string(&tuple[PKS_TABLE_NAME], pktab);
+		if (SQL_NULL_DATA == tabname_len)
+			tabname[0] = '\0';
+		pktbname = pktab ? pktab : tabname;
+		set_tuplefield_string(&tuple[PKS_TABLE_NAME], pktbname);
 		set_tuplefield_string(&tuple[PKS_COLUMN_NAME], attname);
 		set_tuplefield_int2(&tuple[PKS_KEY_SQ], (Int2) (++seq));
 		set_tuplefield_string(&tuple[PKS_PK_NAME], pkname);
 
-		mylog(">> primaryKeys: pktab = '%s', attname = '%s', seq = %d\n", pktab, attname, seq);
+		mylog(">> primaryKeys: schema ='%s', pktab = '%s', attname = '%s', seq = %d\n", pkscm, pktbname, attname, seq);
 
 		result = PGAPI_Fetch(htbl_stmt);
 	}
@@ -4217,7 +4297,7 @@ PGAPI_ForeignKeys(
 			}
 
 			got_pkname = FALSE;
-			keyresult = PGAPI_PrimaryKeys(hpkey_stmt, NULL, 0, schema_fetched, SQL_NTS, pk_table_fetched, SQL_NTS);
+			keyresult = PGAPI_PrimaryKeys(hpkey_stmt, NULL, 0, schema_fetched, SQL_NTS, pk_table_fetched, SQL_NTS, 0);
 			if (keyresult != SQL_SUCCESS)
 			{
 				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't get primary keys for PGAPI_ForeignKeys result.", func);
@@ -4568,7 +4648,7 @@ PGAPI_ForeignKeys(
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't bindcol for primary keys for PGAPI_ForeignKeys result.", func);
 			goto cleanup;
 		}
-		keyresult = PGAPI_PrimaryKeys(hpkey_stmt, NULL, 0, schema_needed, SQL_NTS, pk_table_needed, SQL_NTS);
+		keyresult = PGAPI_PrimaryKeys(hpkey_stmt, NULL, 0, schema_needed, SQL_NTS, pk_table_needed, SQL_NTS, 0);
 		if (keyresult != SQL_SUCCESS)
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't get primary keys for PGAPI_ForeignKeys result.", func);
@@ -5305,7 +5385,7 @@ PGAPI_TablePrivileges(
 	char		*escSchemaName = NULL, *escTableName = NULL;
 	BOOL		search_pattern;
 
-	mylog("%s: entering... scnm=%p len-%d\n", func, NULL_IF_NULL(szTableOwner), cbTableOwner);
+	mylog("%s: entering... scnm=%p len-%d\n", func, szTableOwner, cbTableOwner);
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 

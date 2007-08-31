@@ -228,7 +228,8 @@ RETCODE SQL_API PGAPI_PrimaryKeys(
 				  const SQLCHAR *szSchemaName,
 				  SQLSMALLINT cbSchemaName,
 				  const SQLCHAR *szTableName,
-				  SQLSMALLINT cbTableName);
+				  SQLSMALLINT cbTableName,
+				  OID	reloid);
 RETCODE SQL_API PGAPI_ProcedureColumns(
 					   HSTMT hstmt,
 					   const SQLCHAR *szCatalogName,

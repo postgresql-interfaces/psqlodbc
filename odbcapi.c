@@ -1334,7 +1334,7 @@ SQLPrimaryKeys(
 		ret = SQL_ERROR;
 	else
 		ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
-			scName, cbSchemaName, tbName, cbTableName);
+			scName, cbSchemaName, tbName, cbTableName, 0);
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
@@ -1361,7 +1361,7 @@ SQLPrimaryKeys(
 		if (reexec)
 		{
 			ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
-			scName, cbSchemaName, tbName, cbTableName);
+			scName, cbSchemaName, tbName, cbTableName, 0);
 			if (newCt)
 				free(newCt);
 			if (newSc)

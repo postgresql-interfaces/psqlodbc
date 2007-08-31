@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.19 2006/10/13 13:13:31 hinoue Exp $
+ * $Id: descriptor.h,v 1.20 2007/08/31 23:40:10 hinoue Exp $
  *
  */
 
@@ -122,6 +122,7 @@ typedef struct
 	char		nullable;
 	char		auto_increment;
 	char		func;
+	char		columnkey;
 	int		column_size; /* precision in 2.x */
 	int		decimal_digits; /* scale in 2.x */
 	int		display_size;

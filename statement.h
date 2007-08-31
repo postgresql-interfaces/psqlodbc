@@ -441,6 +441,7 @@ RETCODE		SC_initialize_and_recycle(StatementClass *self);
 void		SC_initialize_cols_info(StatementClass *self, BOOL DCdestroy, BOOL parseReset);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
+SQLRETURN	SC_set_SS_columnkey(StatementClass *stmt);
 Int4		SC_pre_execute(StatementClass *self);
 char		SC_unbind_cols(StatementClass *self);
 char		SC_recycle_statement(StatementClass *self);

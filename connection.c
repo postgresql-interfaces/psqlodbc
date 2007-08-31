@@ -286,6 +286,7 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->fake_mss = -1;
 		conninfo->cvt_null_date_string = -1;
 		conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
+		conninfo->accessible_only = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -491,6 +492,9 @@ CC_clear_error(ConnectionClass *self)
 }
 
 
+CSTR	bgncmd = "BEGIN";
+CSTR	rbkcmd = "ROLLBACK";
+CSTR	semi_colon = ";";
 /*
  *	Used to begin a transaction.
  */
@@ -500,7 +504,7 @@ CC_begin(ConnectionClass *self)
 	char	ret = TRUE;
 	if (!CC_is_in_trans(self))
 	{
-		QResultClass *res = CC_send_query(self, "BEGIN", NULL, 0, NULL);
+		QResultClass *res = CC_send_query(self, bgncmd, NULL, 0, NULL);
 		mylog("CC_begin:  sending BEGIN!\n");
 
 		ret = QR_command_maybe_successful(res);
@@ -539,7 +543,7 @@ CC_abort(ConnectionClass *self)
 	char	ret = TRUE;
 	if (CC_is_in_trans(self))
 	{
-		QResultClass *res = CC_send_query(self, "ROLLBACK", NULL, 0, NULL);
+		QResultClass *res = CC_send_query(self, rbkcmd, NULL, 0, NULL);
 		mylog("CC_abort:  sending ABORT!\n");
 		ret = QR_command_maybe_successful(res);
 		QR_Destructor(res);
@@ -1279,10 +1283,12 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		" Debug"
 #endif /* DEBUG */
 		" library"
-		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION, _MSC_VER);
-#else
-		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION);
 #endif /* WIN32 */
+		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION
+#ifdef	_MSC_VER
+		, _MSC_VER
+#endif /* _MSC_VER */
+		);
 	qlog(vermsg);
 	mylog(vermsg);
 	qlog("Global Options: fetch=%d, socket=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
@@ -2158,7 +2164,7 @@ is_setting_search_path(const UCHAR* query)
  *	'declare cursor C3326857 for ...' and 'fetch 100 in C3326857' statements.
  */
 QResultClass *
-CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt)
+CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt, const char *appendq)
 {
 	CSTR	func = "CC_send_query";
 	QResultClass *cmdres = NULL,
@@ -2167,10 +2173,16 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	BOOL	ignore_abort_on_conn = ((flag & IGNORE_ABORT_ON_CONN) != 0),
 		create_keyset = ((flag & CREATE_KEYSET) != 0),
 		issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self)),
-		rollback_on_error, query_rollback;
+		rollback_on_error, query_rollback, end_with_commit;
 
-	char		swallow, *wq, *ptr;
-	const char *per_query_svp = "_per_query_svp_";
+	const char	*wq;
+	char		swallow, *ptr;
+	CSTR	svpcmd = "SAVEPOINT";
+	CSTR	per_query_svp = "_per_query_svp_";
+	CSTR	rlscmd = "RELEASE";
+	static size_t	lenbgncmd = 0, lenrbkcmd = 0, lensvpcmd = 0,
+			lenrlscmd = 0, lenperqsvp = 0;
+	size_t	qrylen;
 	int			id;
 	SocketClass *sock = self->sock;
 	int			maxlen,
@@ -2195,8 +2207,16 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	/* QR_set_command() dups this string so doesn't need static */
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
 
-	mylog("send_query(): conn=%p, query='%s'\n", self, query);
-	qlog("conn=%p, query='%s'\n", self, query);
+	if (appendq)
+	{
+		mylog("%s_append: conn=%p, query='%s'+'%s'\n", func, self, query, appendq);
+		qlog("conn=%p, query='%s'+'%s'\n", self, query, appendq);
+	}
+	else
+	{
+		mylog("%s: conn=%p, query='%s'\n", func, self, query);
+		qlog("conn=%p, query='%s'\n", self, query);
+	}
 
 	if (!self->sock)
 	{
@@ -2207,7 +2227,8 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 
 	/* Indicate that we are sending a query to the backend */
 	maxlen = CC_get_max_query_len(self);
-	if (maxlen > 0 && maxlen < (int) strlen(query) + 1)
+	qrylen = strlen(query);
+	if (maxlen > 0 && maxlen < (int) qrylen + 1)
 	{
 		CC_set_error(self, CONNECTION_MSG_TOO_LONG, "Query string is too long", func);
 		return NULL;
@@ -2224,13 +2245,14 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	}
 
 	rollback_on_error = (flag & ROLLBACK_ON_ERROR) != 0;
+	end_with_commit = (flag & END_WITH_COMMIT) != 0;
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(self, func_cs_count);
 	consider_rollback = (issue_begin || (CC_is_in_trans(self) && !CC_is_in_error_trans(self)) || strnicmp(query, "begin", 5) == 0);
 	if (rollback_on_error)
 		rollback_on_error = consider_rollback;
-	query_rollback = (rollback_on_error && PG_VERSION_GE(self, 8.0));
-	if (!query_rollback && consider_rollback)
+	query_rollback = (rollback_on_error && !end_with_commit && PG_VERSION_GE(self, 8.0));
+	if (!query_rollback && consider_rollback && !end_with_commit)
 	{
 		if (stmt)
 		{
@@ -2256,31 +2278,58 @@ CC_send_query(ConnectionClass *self, char *query, QueryInfo *qi, UDWORD flag, St
 	if (stmt)
 		SC_forget_unnamed(stmt);
 
+	if (!lenbgncmd)
+	{
+		lenbgncmd = strlen(bgncmd);
+		lensvpcmd = strlen(svpcmd);
+		lenrbkcmd = strlen(rbkcmd);
+		lenrlscmd = strlen(rlscmd);
+		lenperqsvp = strlen(per_query_svp);
+	}
 	if (PROTOCOL_74(ci))
 	{
-		leng = (UInt4) strlen(query);
+		leng = (UInt4) qrylen;
+		if (appendq)
+			leng += (UInt4) (strlen(appendq) + 1);
 		if (issue_begin)
-			leng += (UInt4) strlen("BEGIN;");
+			leng += (UInt4) (lenbgncmd + 1);
 		if (query_rollback)
-			leng += (UInt4) (10 + strlen(per_query_svp) + 1);
+		{
+			leng += (UInt4) (lensvpcmd + 1 + lenperqsvp + 1);
+			leng += (UInt4) (1 + lenrlscmd + 1 + lenperqsvp);
+		}
 		leng++;
 		SOCK_put_int(sock, leng + 4, 4);
 inolog("leng=%d\n", leng);
 	}
 	if (issue_begin)
 	{
-		SOCK_put_n_char(sock, "BEGIN;", 6);
+		SOCK_put_n_char(sock, bgncmd, lenbgncmd);
+		SOCK_put_n_char(sock, semi_colon, 1);
 		discard_next_begin = TRUE;
 	}
 	if (query_rollback)
 	{
 		char cmd[64];
 
-		snprintf(cmd, sizeof(cmd), "SAVEPOINT %s;", per_query_svp);
+		snprintf(cmd, sizeof(cmd), "%s %s;", svpcmd, per_query_svp);
 		SOCK_put_n_char(sock, cmd, (Int4) strlen(cmd));
 		discard_next_savepoint = TRUE;
 	}
-	SOCK_put_string(sock, query);
+	SOCK_put_n_char(sock, query, qrylen);
+	if (appendq)
+	{
+		SOCK_put_n_char(sock, semi_colon, 1);
+		SOCK_put_n_char(sock, appendq, strlen(appendq));
+	}
+	if (query_rollback)
+	{
+		char cmd[64];
+
+		snprintf(cmd, sizeof(cmd), ";%s %s", rlscmd, per_query_svp);
+		SOCK_put_n_char(sock, cmd, (Int4) strlen(cmd));
+	}
+	SOCK_put_n_char(sock, NULL_STRING, 1);
 	leng = SOCK_flush_output(sock);
 
 	if (SOCK_get_errcode(sock) != 0)
@@ -2362,7 +2411,7 @@ inolog("send_query response_length=%d\n", response_length);
 					mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 
 					trim(cmdbuffer); /* get rid of trailing space */ 
-					if (strnicmp(cmdbuffer, "BEGIN", 5) == 0)
+					if (strnicmp(cmdbuffer, bgncmd, lenbgncmd) == 0)
 					{
 						CC_set_in_trans(self);
 						if (discard_next_begin) /* disicard the automatically issued BEGIN */
@@ -2371,7 +2420,7 @@ inolog("send_query response_length=%d\n", response_length);
 							continue; /* discard the result */
 						}
 					}
-					else if (strnicmp(cmdbuffer, "SAVEPOINT", 9) == 0)
+					else if (strnicmp(cmdbuffer, svpcmd, lensvpcmd) == 0)
 					{
 						if (discard_next_savepoint)
 						{
@@ -2380,7 +2429,7 @@ inolog("Discarded the first SAVEPOINT\n");
 							continue; /* discard the result */
 						}
 					}
-					else if (strnicmp(cmdbuffer, "ROLLBACK", 8) == 0)
+					else if (strnicmp(cmdbuffer, rbkcmd, lenrbkcmd) == 0)
 					{
 						if (PROTOCOL_74(&(self->connInfo)))
 							CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
@@ -2625,11 +2674,13 @@ cleanup:
 		if (query_rollback)
 		{
 			if (CC_is_in_error_trans(self))
-				snprintf(cmd, sizeof(cmd), "ROLLBACK TO %s;", per_query_svp);
-			snprintf_add(cmd, sizeof(cmd), "RELEASE %s", per_query_svp);
+			{
+				snprintf(cmd, sizeof(cmd), "%s TO %s;", rbkcmd, per_query_svp);
+				snprintf_add(cmd, sizeof(cmd), "%s %s", rlscmd, per_query_svp);
+			}
 		}
 		else if (CC_is_in_error_trans(self))
-			strcpy(cmd, "ROLLBACK");
+			strcpy(cmd, rbkcmd);
 		if (cmd[0])
 			QR_Destructor(CC_send_query(self, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL));
 	}
@@ -3006,9 +3057,9 @@ CC_send_settings(ConnectionClass *self)
 	{
 		cs = strdup(ci->drivers.conn_settings);
 #ifdef	HAVE_STRTOK_R
-		ptr = strtok_r(cs, ";", &last);
+		ptr = strtok_r(cs, semi_colon, &last);
 #else
-		ptr = strtok(cs, ";");
+		ptr = strtok(cs, semi_colon);
 #endif /* HAVE_STRTOK_R */
 		while (ptr)
 		{
@@ -3019,9 +3070,9 @@ CC_send_settings(ConnectionClass *self)
 			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(NULL, ";", &last);
+			ptr = strtok_r(NULL, semi_colon, &last);
 #else
-			ptr = strtok(NULL, ";");
+			ptr = strtok(NULL, semi_colon);
 #endif /* HAVE_STRTOK_R */
 		}
 
@@ -3033,9 +3084,9 @@ CC_send_settings(ConnectionClass *self)
 	{
 		cs = strdup(ci->conn_settings);
 #ifdef	HAVE_STRTOK_R
-		ptr = strtok_r(cs, ";", &last);
+		ptr = strtok_r(cs, semi_colon, &last);
 #else
-		ptr = strtok(cs, ";");
+		ptr = strtok(cs, semi_colon);
 #endif /* HAVE_STRTOK_R */
 		while (ptr)
 		{
@@ -3046,9 +3097,9 @@ CC_send_settings(ConnectionClass *self)
 			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(NULL, ";", &last);
+			ptr = strtok_r(NULL, semi_colon, &last);
 #else
-			ptr = strtok(NULL, ";");
+			ptr = strtok(NULL, semi_colon);
 #endif /* HAVE_STRTOK_R */
 		}
 

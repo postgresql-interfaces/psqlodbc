@@ -543,6 +543,41 @@ static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
 		}
 	}
 }
+
+static has_multi_table(const StatementClass *stmt)
+{
+	BOOL multi_table = FALSE;
+	QResultClass	*res;
+
+inolog("has_multi_table ntab=%d", stmt->ntab);
+	if (1 < stmt->ntab)
+		multi_table = TRUE;
+	else if (SC_has_join(stmt))
+		multi_table = TRUE;
+	else if (res = SC_get_Curres(stmt), NULL != res)
+	{
+		int	i, num_fields = QR_NumPublicResultCols(res);
+		OID	reloid = 0, greloid;
+
+		for (i = 0; i < num_fields; i++)
+		{
+			greloid = QR_get_relid(res, i);
+			if (0 != greloid)
+			{
+				if (0 == reloid)
+					reloid = greloid;
+				else if (reloid != greloid)
+				{
+inolog(" dohhhhhh");
+					multi_table = TRUE;
+					break;
+				}
+			}
+		}
+	}
+inolog(" multi=%d\n", multi_table);
+	return multi_table;
+}
 /*
  *	SQLColAttribute tries to set the FIELD_INFO (using protocol 3).
  */
@@ -582,24 +617,10 @@ mylog("ColAttSet in\n");
 mylog("updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 	if (updatable)
 	{
-		if (1 != stmt->ntab)
+		if (1 > stmt->ntab)
 			updatable = FALSE;
-		else if (SC_has_join(stmt))
+		else if (has_multi_table(stmt))
 			updatable = FALSE;
-		else
-		{
-			OID	greloid;
-
-			for (i = 0; i < num_fields; i++)
-			{
-				greloid = QR_get_relid(res, i);
-				if (0 != greloid && reloid != greloid)
-				{
-					updatable = FALSE;
-					break;
-				}
-			}
-		}
 	}
 mylog("->%d\n", updatable);
 	for (i = 0; i < num_fields; i++)
@@ -944,6 +965,90 @@ inolog("#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->tabl
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 inolog("getCOLIfromTI returns %d\n", found);
 	return found;
+}
+
+SQLRETURN
+SC_set_SS_columnkey(StatementClass *stmt)
+{
+	CSTR		func = "SC_set_SS_columnkey";
+	IRDFields	*irdflds = SC_get_IRDF(stmt);
+	FIELD_INFO	**fi = irdflds->fi, *tfi;
+	size_t		nfields = irdflds->nfields;
+	StatementClass	*pstmt = NULL;
+	SQLRETURN	ret = SQL_SUCCESS;
+	BOOL		contains_key = FALSE;
+	int		i;
+
+inolog("%s:fields=%d ntab=%d\n", func, nfields, stmt->ntab);
+	if (!fi)		return ret;
+	if (0 >= nfields)	return ret;
+	if (!has_multi_table(stmt) && 1 == stmt->ntab)
+	{
+		TABLE_INFO	**ti = stmt->ti, *oneti;
+		ConnectionClass *conn = SC_get_conn(stmt);
+		OID	internal_asis_type = SQL_C_CHAR;
+		char		keycolnam[MAX_INFO_STRING];
+		SQLLEN		keycollen;
+
+		ret = PGAPI_AllocStmt(conn, &pstmt);
+		if (!SQL_SUCCEEDED(ret))
+			return ret;
+		oneti = ti[0];
+		ret = PGAPI_PrimaryKeys(pstmt, NULL, 0, NULL, 0, NULL, 0, oneti->table_oid);
+		if (!SQL_SUCCEEDED(ret))
+			goto cleanup;
+#ifdef	UNICODE_SUPPORT
+		if (CC_is_in_unicode_driver(conn))
+			internal_asis_type = INTERNAL_ASIS_TYPE;
+#endif /* UNICODE_SUPPORT */
+		ret = PGAPI_BindCol(pstmt, 4, internal_asis_type, keycolnam, MAX_INFO_STRING, &keycollen);
+		if (!SQL_SUCCEEDED(ret))
+			goto cleanup;
+		contains_key = TRUE;
+		ret = PGAPI_Fetch(pstmt);
+		while (SQL_SUCCEEDED(ret))
+		{
+			for (i = 0; i < nfields; i++)
+			{
+				if (tfi = fi[i], NULL == tfi)
+					continue;
+				if (!FI_is_applicable(tfi))
+					continue;
+				if (oneti == tfi->ti &&
+				    strcmp(keycolnam, SAFE_NAME(tfi->column_name)) == 0)
+				{
+inolog("%s:key %s found at %p\n", func, keycolnam, fi + i);
+					tfi->columnkey = TRUE;
+					break;
+				}
+			}
+			if (i >= nfields)
+			{
+				mylog("%s: %s not found\n", func, keycolnam);
+				break;
+			}
+			ret = PGAPI_Fetch(pstmt);
+		}
+		if (SQL_SUCCEEDED(ret))
+			contains_key = FALSE;
+		else if (SQL_NO_DATA_FOUND != ret)
+			goto cleanup;
+		ret = SQL_SUCCESS;
+	}
+inolog("%s: contains_key=%d\n", func, contains_key);
+	for (i = 0; i < nfields; i++)
+	{
+		if (tfi = fi[i], NULL == tfi)
+			continue;
+		if (!FI_is_applicable(tfi))
+			continue;
+		if (!contains_key || tfi->columnkey < 0)
+			tfi->columnkey = FALSE;
+	} 
+cleanup:
+	if (pstmt)
+		PGAPI_FreeStmt(pstmt, SQL_DROP);
+	return ret;
 }
 
 char

@@ -578,6 +578,7 @@ inolog("answering bookmark info\n");
 				case SQL_COLUMN_NULLABLE:
 #endif /* ODBCVER */
 				case SQL_COLUMN_UPDATABLE:
+				case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
 					build_fi = TRUE;
 					break;
 			}
@@ -702,7 +703,7 @@ inolog("COLUMN_NULLABLE=%d\n", value);
 
 		case SQL_COLUMN_OWNER_NAME: /* == SQL_DESC_SCHEMA_NAME */
 			p = ti ? SAFE_NAME(ti->schema_name) : NULL_STRING;
-			mylog("schema_name=%s\n", p);
+			mylog("%s: SCHEMA_NAME = '%s'\n", func, p);
 			break;
 
 		case SQL_COLUMN_PRECISION: /* in 2.x */
@@ -829,7 +830,20 @@ inolog("COLUMN_SCALE=%d\n", value);
 			value = (fi && NAME_IS_NULL(fi->column_name) && NAME_IS_NULL(fi->column_alias)) ? SQL_UNNAMED : SQL_NAMED;
 			break;
 #endif /* ODBCVER */
+		case 1211: /* SQL_CA_SS_COLUMN_HIDDEN ? */
+			value = 0;
+			break;
 		case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
+			if (fi)
+			{
+				if (fi->columnkey < 0)
+				{
+					SC_set_SS_columnkey(stmt);
+				}
+				value = fi->columnkey;
+				mylog("%s:SS_COLUMN_KEY=%d\n", func, value);
+				break;
+			}
 			SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "this request may be for MS SQL Server", func);
 			return SQL_ERROR;
 		default:

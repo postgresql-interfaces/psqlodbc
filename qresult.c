@@ -634,12 +634,19 @@ QR_close(QResultClass *self)
 		}
 		else
 		{
+			UDWORD		flag = ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN;
 			char		buf[64];
 
-			sprintf(buf, "close \"%s\"", QR_get_cursor(self));
-			mylog("QResult: closing cursor: '%s'\n", buf);
+			snprintf(buf, sizeof(buf), "close \"%s\"", QR_get_cursor(self));
+			/* End the transaction if there are no cursors left on this conn */
+			if (CC_is_in_autocommit(conn) && CC_cursor_count(conn) <= 1)
+			{
+				mylog("QResult: END transaction on conn=%p\n", conn);
+				strncat(buf, ";commit", sizeof(buf));
+				flag |= END_WITH_COMMIT;
+			}
 
-			res = CC_send_query(conn, buf, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+			res = CC_send_query(conn, buf, NULL, flag, NULL);
 			QR_Destructor(res);
 		}
 
@@ -650,6 +657,7 @@ QR_close(QResultClass *self)
 		if (!ret)
 			return ret;
 
+#ifdef	NOT_USED
 		/* End the transaction if there are no cursors left on this conn */
 		if (CC_is_in_autocommit(conn) && CC_cursor_count(conn) == 0)
 		{
@@ -662,6 +670,7 @@ QR_close(QResultClass *self)
 				ret = FALSE;
 			}
 		}
+#endif /* NOT_USED */
 	}
 
 	return ret;

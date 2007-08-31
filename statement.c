@@ -1667,6 +1667,7 @@ RETCODE
 SC_execute(StatementClass *self)
 {
 	CSTR func = "SC_execute";
+	CSTR fetch_cmd = "fetch";
 	ConnectionClass *conn;
 	IPDFields	*ipdopts;
 	char		was_ok, was_nonfatal;
@@ -1802,15 +1803,26 @@ inolog("get_Result=%p\n", res);
 	else if (self->statement_type == STMT_TYPE_SELECT)
 	{
 		char		fetch[128];
-		qflag |= (SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency ? CREATE_KEYSET : 0); 
-
+		const char *appendq = NULL;
+		QueryInfo	*qryi = NULL;
+ 
+		qflag |= (SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency ? CREATE_KEYSET : 0);
 		mylog("       Sending SELECT statement on stmt=%p, cursor_name='%s' qflag=%d,%d\n", self, SC_cursor_name(self), qflag, self->options.scroll_concurrency);
 
 		/* send the declare/select */
-		res = CC_send_query(conn, self->stmt_with_params, NULL, qflag, SC_get_ancestor(self));
-		if (SC_is_fetchcursor(self) && res != NULL &&
-			QR_command_maybe_successful(res))
+		if (SC_is_fetchcursor(self))
 		{
+			qi.result_in = NULL;
+			qi.cursor = SC_cursor_name(self);
+			qi.row_size = ci->drivers.fetch_max;
+			sprintf(fetch, "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
+			qryi = &qi;
+			appendq = fetch;
+		}
+		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
+		if (SC_is_fetchcursor(self) && QR_command_maybe_successful(res))
+		{
+#ifdef NOT_USED
 			QR_Destructor(res);
 			qflag &= (~ GO_INTO_TRANSACTION);
 
@@ -1829,9 +1841,27 @@ inolog("get_Result=%p\n", res);
 			 * will correct for any discrepancies in sizes and adjust the
 			 * cache accordingly.
 			 */
-			sprintf(fetch, "fetch " FORMAT_LEN " in \"%s\"", qi.row_size, SC_cursor_name(self));
+			sprintf(fetch, "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
 
 			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
+#endif /* NOT_USED */
+			if (appendq)
+			{
+				QResultClass	*qres, *nres;
+
+				for (qres = res; qres;)
+				{
+					if (qres->command && strnicmp(qres->command, fetch_cmd, 5) == 0)
+					{
+						res = qres;
+						break;
+					}
+					nres = qres->next;
+					qres->next = NULL;
+					QR_Destructor(qres);
+					qres = nres;
+				}
+			}	
 			if (SC_is_with_hold(self))
 				QR_set_withhold(res);
 		}

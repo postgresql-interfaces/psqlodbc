@@ -230,10 +230,24 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case 1204: /* SQL_COPT_SS_PRESERVE_CURSORS ? */
+			if (stmt)
+			{
+				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)", func);
+			}
+			else if (conn)
+			{
+				CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)", func);
+			}
+			return SQL_ERROR;
 		case 1227: /* SQL_SOPT_SS_HIDDEN_COLUMNS ? */
 		case 1228: /* SQL_SOPT_SS_NOBROWSETABLE ? */
 			if (stmt)
 			{
+#ifndef	NOT_USED
+				if (0 != vParam)
+					changed = TRUE;
+				break;
+#endif /* NOT_USED */
 				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)", func);
 			}
 			else if (conn)
@@ -774,6 +788,10 @@ PGAPI_GetStmtOption(
 
 		case SQL_USE_BOOKMARKS:
 			*((SQLINTEGER *) pvParam) = stmt->options.use_bookmarks;
+			break;
+		case 1227: /* SQL_SOPT_SS_HIDDEN_COLUMNS ? */
+		case 1228: /* SQL_SOPT_SS_NOBROWSETABLE ? */
+			*((SQLINTEGER *) pvParam) = 0;
 			break;
 
 		default:

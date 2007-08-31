@@ -1883,6 +1883,7 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
  */
 #define CVT_TERMINATE(qb) \
 do { \
+	if (NULL == qb->query_statement) return SQL_ERROR; \
 	qb->query_statement[qb->npos] = '\0'; \
 } while (0)
 
@@ -2149,11 +2150,16 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		const IPDFields *ipdopts = qb->ipdopts;
 		char	plan_name[32];
 
-		new_statement = qb->query_statement;
 		qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
 		sprintf(plan_name, "_PLAN%p", stmt);
+#ifdef NOT_USED
+		new_statement = qb->query_statement;
 		sprintf(new_statement, "PREPARE \"%s\"", plan_name);
 		qb->npos = strlen(new_statement);
+#endif /* NOT_USED */
+		CVT_APPEND_STR(qb, "PREPARE \"");
+		CVT_APPEND_STR(qb, plan_name);
+		CVT_APPEND_CHAR(qb, '"');
 		marker_count = stmt->num_params - qb->num_discard_params;
 		if (!ipdopts || ipdopts->allocated < marker_count)
 		{
@@ -3460,6 +3466,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	if (req_bind)
 	{
 		npos = qb->npos;
+		ENLARGE_NEWSTATEMENT(qb, npos + 4);
 		qb->npos += 4;
 	}
 	/* Handle NULL parameter data */
