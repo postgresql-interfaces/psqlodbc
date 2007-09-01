@@ -11,6 +11,15 @@
 <hr>
 <h2>psqlODBC 08.02.0XXX Snapshot </h2>
 <br>
+<li>Notes: psqlODBC 08.02.0403</li><br>
+Changes:<br>
+1.) Support SQLColAttribute for MS specific SQL_CA_SS_COLUMN_KEY. Some MS applications use this.<br>
+2.) Improve the check of updatability of queries by checking if they have multiple tables.<br>
+3.) Reduce the round trip overhead in FE/BE communications(especially in useDeclareFetch mode).<br>
+4.) Fix a bug in ResolveOneParam() pointed out by Rainer Bauer.<br>
+5.) Add a flag which lets SQLTables() show only accessible tables.<br>
+6.) The unicode driver now can handle utf-16 surrogate pairs.<br>
+<br>
 <li>Notes: psqlODBC 08.02.0402</li><br>
 Changes:<br>
 1.) Fix some bugs in case without MSDTC support.<br>
