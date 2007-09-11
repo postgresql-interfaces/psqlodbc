@@ -2997,8 +2997,10 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 {
 	CSTR func = "BuildBindRequest";
 	QueryBuild	qb;
-	size_t		leng, plen, netleng;
-	SQLSMALLINT		num_p, netnum_p;
+	size_t		leng, plen;
+	UInt4		netleng;
+	SQLSMALLINT	num_p;
+	Int2		netnum_p;
 	int		i, num_params;
 	char		*bindreq;
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -3020,8 +3022,8 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
         plen = strlen(plan_name);
 	netleng = sizeof(netleng)	/* length fields */
 		  + 2 * (plen + 1)	/* portal name/plan name */
-		  + sizeof(SWORD) * (num_params + 1) /* parameter types (max) */
-		  + sizeof(SWORD)	/* result format */
+		  + sizeof(Int2) * (num_params + 1) /* parameter types (max) */
+		  + sizeof(Int2)	/* result format */
 		  + 1;
         if (QB_initialize(&qb, netleng > MIN_ALC_SIZE ? netleng : MIN_ALC_SIZE, stmt, NULL) < 0)
 	{
@@ -3044,13 +3046,13 @@ inolog("num_p=%d\n", num_p);
 	{
 		int	j;
 		ParameterImplClass	*parameters = ipdopts->parameters;
-		SWORD	net_one = 1;
+		Int2	net_one = 1;
  
 		net_one = htons(net_one);
         	memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p)); /* number of parameter format */
-        	leng += sizeof(SWORD);
+        	leng += sizeof(Int2);
 		if (num_p > 0)
-        		memset(bindreq + leng, 0, sizeof(SWORD) * num_p);  /* initialize by text format */
+        		memset(bindreq + leng, 0, sizeof(Int2) * num_p);  /* initialize by text format */
 		for (i = stmt->proc_return, j = 0; i < num_params; i++)
 		{
 inolog("%dth paramater type oid is %u\n", i, parameters[i].PGType);
@@ -3060,20 +3062,20 @@ inolog("%dth paramater type oid is %u\n", i, parameters[i].PGType);
 			if (PG_TYPE_BYTEA == parameters[i].PGType)
 			{
 				mylog("%dth parameter is of binary format\n", j);
-				memcpy(bindreq + leng + sizeof(SWORD) * j,
+				memcpy(bindreq + leng + sizeof(Int2) * j,
         			&net_one, sizeof(net_one));  /* binary */
 			}
 			j++; 
 		}
-		leng += sizeof(SWORD) * num_p;
+		leng += sizeof(Int2) * num_p;
 	}
 	else
 	{
-        	memset(bindreq + leng, 0, sizeof(SWORD));  /* text format */
-        	leng += sizeof(SWORD);
+        	memset(bindreq + leng, 0, sizeof(Int2));  /* text format */
+        	leng += sizeof(Int2);
 	}
         memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p)); /* number of params */
-        leng += sizeof(SWORD); /* must be 2 */
+        leng += sizeof(Int2); /* must be 2 */
         qb.npos = leng;
         for (i = 0; i < stmt->num_params; i++)
 	{
@@ -3087,10 +3089,10 @@ inolog("%dth paramater type oid is %u\n", i, parameters[i].PGType);
 	}
 
         leng = qb.npos;
-        memset(qb.query_statement + leng, 0, sizeof(SWORD)); /* result format is text */
-        leng += sizeof(SWORD);
+        memset(qb.query_statement + leng, 0, sizeof(Int2)); /* result format is text */
+        leng += sizeof(Int2);
 inolog("bind leng=%d\n", leng);
-        netleng = htonl((u_long) leng);	/* Network byte order */
+        netleng = htonl((UInt4) leng);	/* Network byte order */
         memcpy(qb.query_statement, &netleng, sizeof(netleng));
 	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
 	{
@@ -4013,7 +4015,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 		free(allocbuf);
 	if (req_bind)
 	{
-		UInt4	slen = htonl((u_long) (qb->npos - npos - 4));
+		UInt4	slen = htonl((UInt4) (qb->npos - npos - 4));
 
 		memcpy(qb->query_statement + npos, &slen, sizeof(slen));
 	}
