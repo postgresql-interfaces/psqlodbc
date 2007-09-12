@@ -452,6 +452,8 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 	}
 	return ret;
 }
+
+#ifdef USE_SSL
 /*
  *	The stuff for SSL.
  */
@@ -555,6 +557,7 @@ inolog("%s: %d get_error=%d Lasterror=%d\n", func,  n, err, gerrno);
 	return n;
 }
 
+#endif /* USE_SSL */
 
 int
 SOCK_get_id(SocketClass *self)
@@ -730,9 +733,11 @@ SOCK_flush_output(SocketClass *self)
 		return -1;
 	while (self->buffer_filled_out > 0)
 	{
+#ifdef USE_SSL 
 		if (self->ssl)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 		else
+#endif /* USE_SSL */
 			written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 		gerrno = SOCK_ERRNO;
 		if (written < 0)
@@ -776,9 +781,11 @@ SOCK_get_next_byte(SocketClass *self)
 		 */
 		self->buffer_read_in = 0;
 retry:
+#ifdef USE_SSL 
 		if (self->ssl)
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else
+#endif /* USE_SSL */
 			self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
 		gerrno = SOCK_ERRNO;
 
@@ -849,9 +856,11 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 		/* buffer is full, so write it out */
 		do
 		{
+#ifdef USE_SSL
 			if (self->ssl)
 				bytes_sent = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 			else
+#endif /* USE_SSL */
 				bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
 			gerrno = SOCK_ERRNO;
 			if (bytes_sent < 0)

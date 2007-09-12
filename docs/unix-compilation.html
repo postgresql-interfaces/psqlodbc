@@ -34,6 +34,7 @@ provide a build environment for us which is now included in psqlODBC tarballs.</
 <li>--with-odbcver=VERSION  change default ODBC version number [0x0351]</li>
 <li>--enable-pthreads (thread-safe driver on some platforms)</li>
 <li>--disable-unicode (build non-Unicode driver)</li>
+<li>--disable-openssl (build non-OpenSSL driver)</li>
 <li>--help</li>
 </ul>
 
@@ -42,10 +43,10 @@ provide a build environment for us which is now included in psqlODBC tarballs.</
 <h3>Prerequisites</h3>
 
 <ul>
-<li>Autoconf 2.52 or higher</li>
-<li>Automake 1.6.* (Lower versions are rejected, version 1.7 untested.)</li>
-<li>Libtool 1.4.2a (CVS from stable branch, maybe 1.4.2 works as well)</li>
-<li>PostgreSQL source tree (7.3 branch)</li>
+<li>Autoconf 2.59 or higher</li>
+<li>Automake 1.9.2 (Lower versions are rejected, version 1.7 untested.)</li>
+<li>Libtool 1.5.10 or higher</li>
+<li>PostgreSQL source tree (8.2 branch)</li>
 </ul>
 
 <h3>Bootstrapping</h3>

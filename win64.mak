@@ -68,7 +68,7 @@ SSL_LIB="C:\develop\lib\$(CPU)"
 !ENDIF
 
 SSL_DLL = "SSLEAY32.dll"
-ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\""
+ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\"" /D USE_SSL
 
 !IF "$(ANSI_VERSION)" == "yes"
 DTCLIB = pgenlista
