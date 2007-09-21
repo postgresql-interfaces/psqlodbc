@@ -8,7 +8,7 @@ time writing. WiX may be downloaded from:
 In order to build the installer, first ensure that a suitable binary is in
 the $SRC\Release directory, then, from the $SRC\Installer directory run:
 
-C:\psqlODBC\Installer> make 08.00.0001
+C:\psqlODBC\Installer> make 08.02.0500
 
 The version number will default to a value set in the Make.bat batch file if
 not specified on the command line. 2 files will be built:

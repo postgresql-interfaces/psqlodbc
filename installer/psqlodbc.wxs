@@ -38,6 +38,7 @@
               <Component Id="docs" Guid="89DDBC52-9F0D-4846-91DC-09EECC87E42E">
                 <File Id="docs.index.html" Name="index.html" DiskId="1" Source="../docs/index.html" KeyPath="yes" />
                 <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
+                <File Id="docs.config_opt.html" Name="config-opt.html" DiskId="1" Source="../docs/config-opt.html" />
                 <File Id="docs.faq.html" Name="faq.html" DiskId="1" Source="../docs/faq.html" />
                 <File Id="docs.howto_accesslo.html" Name="howto-accesslo.html" DiskId="1" Source="../docs/howto-accesslo.html" />
                 <File Id="docs.howto_accessvba.html" Name="howto-accessvba.html" DiskId="1" Source="../docs/howto-accessvba.html" />
