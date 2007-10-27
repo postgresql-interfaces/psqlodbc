@@ -14,15 +14,19 @@
 #ifndef	WIN32
 #include <errno.h>
 #endif /* WIN32 */
+#ifndef NOT_USE_LIBPQ
 #include <libpq-fe.h>
+#endif /* NOT_USE_LIBPQ */
 #include "loadlib.h"
 #include "pgenlist.h"
 
 #ifdef  WIN32
 #ifdef  _MSC_VER
 #pragma comment(lib, "Delayimp")
+#ifndef	NOT_USE_LIBPQ
 #pragma comment(lib, "libpq")
 #pragma comment(lib, "ssleay32")
+#endif /* NOT_USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #ifdef	UNICODE_SUPPORT
 #pragma comment(lib, "pgenlist")
@@ -33,8 +37,10 @@
 // The followings works under VC++6.0 but doesn't work under VC++7.0.
 // Please add the equivalent linker options using command line etc.
 #if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
+#ifndef	NOT_USE_LIBPQ
 #pragma comment(linker, "/Delayload:libpq.dll")
 #pragma comment(linker, "/Delayload:ssleay32.dll")
+#endif /* NOT_USE_LIBPQ */
 #ifdef	UNICODE_SUPPORT
 #pragma comment(linker, "/Delayload:pgenlist.dll")
 #else
@@ -187,6 +193,7 @@ void CleanupDelayLoadedDLLs(void)
 }
 #endif	/* _MSC_DELAY_LOAD_IMPORT */
 
+#ifndef	NOT_USE_LIBPQ
 void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 {
 	void *pqconn = NULL;
@@ -223,6 +230,7 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 	return pqconn;
 }
+#endif /* NOT_USE_LIBPQ */
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void *pTra, int method)

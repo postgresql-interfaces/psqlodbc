@@ -228,6 +228,7 @@ typedef unsigned int ProtocolVersion;
 #define PG_PROTOCOL_64	PG_PROTOCOL(2, 0) 
 #define PG_PROTOCOL_63	PG_PROTOCOL(1, 0)
 #define PG_PROTOCOL_62	PG_PROTOCOL(0, 0)
+#define PG_NEGOTIATE_SSLMODE	PG_PROTOCOL(1234, 5679)
 
 /*	This startup packet is to support latest Postgres protocol (6.4, 6.3) */
 typedef struct _StartupPacket
@@ -307,6 +308,7 @@ typedef struct
 	signed char	cvt_null_date_string;
 	signed char	autocommit_public;
 	signed char	accessible_only;
+	UInt4		extra_opts;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -450,6 +452,9 @@ struct ConnectionClass_
 #endif /* ODBCVER */
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
+#ifdef	USE_SSPI
+	UInt4		svcs_allowed;
+#endif /* USE_SSPI */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 	CRITICAL_SECTION	slock;
@@ -543,6 +548,7 @@ enum {
 	,GO_INTO_TRANSACTION	= (1L << 2) /* issue begin in advance */
 	,ROLLBACK_ON_ERROR	= (1L << 3) /* rollback the query when an error occurs */
 	,END_WITH_COMMIT	= (1L << 4) /* the query ends with COMMMIT command */
+	,IGNORE_ROUND_TRIP	= (1L << 5) /* the commincation round trip time is considered ignorable */
 };
 /* CC_on_abort options */
 #define	NO_TRANS		1L

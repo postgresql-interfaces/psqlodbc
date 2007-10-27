@@ -1554,11 +1554,12 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
  */
 
 #define	FLGP_PREPARE_DUMMY_CURSOR	1L
-#define	FLGP_CURSOR_CHECK_OK	(1L << 1)
+#define	FLGP_USING_CURSOR	(1L << 1)
 #define	FLGP_SELECT_INTO		(1L << 2)
-#define	FLGP_SELECT_FOR_UPDATE	(1L << 3)
+#define	FLGP_SELECT_FOR_UPDATE_OR_SHARE	(1L << 3)
 #define	FLGP_BUILDING_PREPARE_STATEMENT	(1L << 4)
 #define	FLGP_MULTIPLE_STATEMENT	(1L << 5)
+#define	FLGP_SELECT_FOR_READONLY	(1L << 6)
 typedef struct _QueryParse {
 	const char	*statement;
 	int		statement_type;
@@ -2014,19 +2015,42 @@ into_table_from(const char *stmt)
  *	This isn't really a strict check but ...
  *----------
  */
-static BOOL
-table_for_update(const char *stmt, int *endpos)
+static UInt4
+table_for_update_or_share(const char *stmt, int *endpos)
 {
 	const char *wstmt = stmt;
+	int	advance;
+	UInt4	flag = 0;
 
 	while (isspace((UCHAR) *(++wstmt)));
 	if (!*wstmt)
-		return FALSE;
-	if (strnicmp(wstmt, "update", 6))
-		return FALSE;
-	wstmt += 6;
+		return 0;
+	if (0 == strnicmp(wstmt, "update", advance = 6))
+		flag |= FLGP_SELECT_FOR_UPDATE_OR_SHARE;
+	else if (0 == strnicmp(wstmt, "share", advance = 5))
+		flag |= FLGP_SELECT_FOR_UPDATE_OR_SHARE;
+	else if (0 == strnicmp(wstmt, "read", advance = 4))
+		flag |= FLGP_SELECT_FOR_READONLY;
+	else
+		return 0;
+	wstmt += advance;
+	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
+		return 0;
+	else if (0 != (FLGP_SELECT_FOR_READONLY))
+	{
+		if (!isspace((UCHAR) wstmt[0]))
+			return 0;
+		while (isspace((UCHAR) *(++wstmt)));
+		if (!*wstmt)
+			return 0;
+		if (0 != strnicmp(wstmt, "only", advance = 4))
+			return 0;
+		wstmt += advance;
+	}
+	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
+		return 0;
 	*endpos = wstmt - stmt;
-	return !wstmt[0] || isspace((UCHAR) wstmt[0]);
+	return flag;
 }
 
 /*----------
@@ -2120,7 +2144,7 @@ static	int
 Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
 	CSTR func = "Prepare_and_convert";
-	char	*new_statement, *exe_statement = NULL;
+	char	*exe_statement = NULL;
 	int	retval;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
@@ -2529,7 +2553,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 			sprintf(new_statement, "%sdeclare \"%s\"%s cursor%s for ",
 				new_statement, SC_cursor_name(stmt), opt_scroll, opt_hold);
 			qb->npos = strlen(new_statement);
-			qp->flags |= FLGP_CURSOR_CHECK_OK;
+			qp->flags |= FLGP_USING_CURSOR;
 			qp->declare_pos = qb->npos;
 		}
 		else if (SQL_CONCUR_READ_ONLY != stmt->options.scroll_concurrency)
@@ -2556,16 +2580,19 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	new_statement = qb->query_statement;
 	stmt->statement_type = qp->statement_type;
 	stmt->inaccurate_result = (0 != (qb->flags & FLGB_INACCURATE_RESULT));
+	if (0 == (qp->flags & FLGP_USING_CURSOR))
+		SC_no_fetchcursor(stmt);
+	else if (0 == (qp->flags & (FLGP_SELECT_FOR_UPDATE_OR_SHARE | FLGP_SELECT_FOR_READONLY)) &&
+		 PG_VERSION_GE(conn, 8.3))
+		CVT_APPEND_STR(qb, " for read only");  
 	if (0 != (qp->flags & FLGP_SELECT_INTO) ||
-		0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
+	    0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
 	{
 		SC_no_pre_executable(stmt);
-		SC_no_fetchcursor(stmt);
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	}
-	if (0 != (qp->flags & FLGP_SELECT_FOR_UPDATE))
+	if (0 != (qp->flags & FLGP_SELECT_FOR_UPDATE_OR_SHARE))
 	{
-		SC_no_fetchcursor(stmt);
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	}
 
@@ -2634,6 +2661,8 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 static void
 remove_declare_cursor(QueryBuild *qb, QueryParse *qp)
 {
+	qp->flags &= ~FLGP_USING_CURSOR;
+	if (qp->declare_pos <= 0)	return;
 	memmove(qb->query_statement, qb->query_statement + qp->declare_pos, qb->npos - qp->declare_pos);
 	qb->npos -= qp->declare_pos;
 	qp->declare_pos = 0;
@@ -2890,7 +2919,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			 * to parse.
 			 */
 			qb->dollar_number = 0;
-			if (0 != (qp->flags & FLGP_CURSOR_CHECK_OK))
+			if (0 != (qp->flags & FLGP_USING_CURSOR))
 			{
 				const char *vp = &(qp->statement[qp->opos + 1]);
 
@@ -2899,7 +2928,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				if (*vp)	/* multiple statement */
 				{
 					qp->flags |= FLGP_MULTIPLE_STATEMENT;
-					qp->flags &= ~FLGP_CURSOR_CHECK_OK;
 					qb->flags &= ~FLGB_KEYSET_DRIVEN;
 					remove_declare_cursor(qb, qp);
 				}
@@ -2915,11 +2943,10 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					qp->token_save[qp->token_len] = '\0';
 					if (qp->token_len == 4)
 					{
-						if (0 != (qp->flags & FLGP_CURSOR_CHECK_OK) &&
+						if (0 != (qp->flags & FLGP_USING_CURSOR) &&
 							into_table_from(&qp->statement[qp->opos - qp->token_len]))
 						{
 							qp->flags |= FLGP_SELECT_INTO;
-							qp->flags &= ~FLGP_CURSOR_CHECK_OK;
 							qb->flags &= ~FLGB_KEYSET_DRIVEN;
 							qp->statement_type = STMT_TYPE_CREATE;
 							remove_declare_cursor(qb, qp);
@@ -2932,23 +2959,29 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					}
 					else if (qp->token_len == 3)
 					{
-						int			endpos;
 
-						if (0 != (qp->flags & FLGP_CURSOR_CHECK_OK) &&
-							strnicmp(qp->token_save, "for", 3) == 0 &&
-							table_for_update(F_OldPtr(qp), &endpos))
+						if (0 != (qp->flags & FLGP_USING_CURSOR) &&
+							strnicmp(qp->token_save, "for", 3) == 0)
 						{
-							qp->flags |= FLGP_SELECT_FOR_UPDATE;
-							qp->flags &= ~FLGP_CURSOR_CHECK_OK;
-							if (qp->flags & FLGP_PREPARE_DUMMY_CURSOR)
+							UInt4	flg;
+							int	endpos;
+
+							flg = table_for_update_or_share(F_OldPtr(qp), &endpos);
+							if (0 != (FLGP_SELECT_FOR_UPDATE_OR_SHARE & flg))
 							{
-								qb->npos -= 4;
-								qp->opos += endpos;
+								if (qp->flags & FLGP_PREPARE_DUMMY_CURSOR)
+								{
+									qb->npos -= 4;
+									qp->opos += endpos;
+								}
+								else
+								{
+									qp->flags |= flg;
+									remove_declare_cursor(qb, qp);
+								}
 							}
 							else
-							{
-								remove_declare_cursor(qb, qp);
-							}
+								qp->flags |= flg;
 						}
 					}
 					else if (qp->token_len == 2)

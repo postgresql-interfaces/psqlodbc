@@ -2194,6 +2194,7 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+#ifdef	NOT_USED
 	result = PGAPI_BindCol(hcol_stmt, 7, SQL_C_LONG,
 						   &field_length, MAX_INFO_STRING, NULL);
 	if (!SQL_SUCCEEDED(result))
@@ -2201,6 +2202,7 @@ retry_public_schema:
 		SC_error_copy(stmt, col_stmt, TRUE);
 		goto cleanup;
 	}
+#endif /* NOT_USED */
 
 	result = PGAPI_BindCol(hcol_stmt, 8, SQL_C_LONG,
 						   &mod_length, MAX_INFO_STRING, NULL);
@@ -2477,11 +2479,12 @@ mylog(" and the data=%s\n", attdef);
 			mylog("%s: field type is VARCHAR,BPCHAR: field_type = %d, mod_length = %d\n", func, field_type, mod_length);
 
 			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], mod_length);
+			field_length = mod_length;
 #ifdef	UNICODE_SUPPORT
-			if (0 < mod_length && ALLOW_WCHAR(conn))
-				mod_length *= WCLEN;
+			if (0 < field_length && ALLOW_WCHAR(conn))
+				field_length *= WCLEN;
 #endif /* UNICODE_SUPPORT */
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], mod_length);
+			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], field_length);
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, field_type, PG_STATIC, PG_STATIC));
 #endif /* ODBCVER */

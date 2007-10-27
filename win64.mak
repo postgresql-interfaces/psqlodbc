@@ -57,6 +57,7 @@ PG_LIB="C:\develop\lib\$(CPU)"
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
+!IF "$(USE_LIBPQ)" != "no"
 !IF "$(SSL_INC)" == ""
 SSL_INC=C:\OpenSSL\include
 !MESSAGE Using default OpenSSL Include directory: $(SSL_INC)
@@ -69,6 +70,13 @@ SSL_LIB="C:\develop\lib\$(CPU)"
 
 SSL_DLL = "SSLEAY32.dll"
 ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\"" /D USE_SSL
+!ELSE
+ADD_DEFINES = $(ADD_DEFINES) /D NOT_USE_LIBPQ
+!ENDIF
+
+!IF "$(USE_SSPI)" == "yes"
+ADD_DEFINES = $(ADD_DEFINES) /D USE_SSPI
+!ENDIF
 
 !IF "$(ANSI_VERSION)" == "yes"
 DTCLIB = pgenlista
@@ -81,7 +89,13 @@ DTCDLL = $(DTCLIB).dll
 VC07_DELAY_LOAD=
 MSDTC=no
 !ELSE
-VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
+!IF "$(USE_LIBPQ)" != "no"
+VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL)
+!ENDIF
+!IF "$(USE_SSPI)" == "yes"
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /Delayload:crypt32.dll
+!ENDIF
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 
@@ -269,6 +283,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\qresult.obj" \
 	"$(INTDIR)\results.obj" \
 	"$(INTDIR)\setup.obj" \
+!IF "$(USE_SSPI)" == "yes"
+	"$(INTDIR)\sspisvcs.obj" \
+!ENDIF
 	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\statement.obj" \
 	"$(INTDIR)\tuple.obj" \

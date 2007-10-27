@@ -134,10 +134,16 @@ struct SocketClass_
 	int		errornumber;
 	int		sadr_len;
 	struct sockaddr_storage sadr_area; /* Used for various connections */
+#ifdef	USE_SSPI
+	UInt4		sspisvcs;
+	void		*ssd;
+#endif /* USE_SSPI */
+#ifdef	USE_SSL
 	/* SSL stuff */
 	void		*ssl;		/* libpq ssl */
 	void		*pqconn;	/* libpq PGConn */
 	BOOL		via_libpq;	/* using libpq library ? */
+#endif /* USE_SSL */
 
 	char		reverse;		/* used to handle Postgres 6.2 protocol
 								 * (reverse byte order) */

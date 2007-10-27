@@ -12,14 +12,21 @@
  *-------
  */
 
+#ifdef	USE_SSPI
+#include "sspisvcs.h"
+#endif /* USE_SSPI */
+#ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
 #include <openssl/ssl.h>
+#endif /* NOT_USE_LIBPQ */
 #include "socket.h"
 #include "loadlib.h"
 
 #include "connection.h"
 
-#ifndef WIN32
+#ifdef WIN32
+#include <time.h>
+#else
 #include <stdlib.h>
 #include <string.h>				/* for memset */
 #ifdef TIME_WITH_SYS_TIME
@@ -69,9 +76,15 @@ SOCK_Constructor(const ConnectionClass *conn)
 	if (rv != NULL)
 	{
 		rv->socket = (SOCKETFD) -1;
+#ifdef	USE_SSPI
+		rv->ssd = NULL;
+		rv->sspisvcs = 0;
+#endif /* USE_SSPI */
+#ifndef	NOT_USE_LIBPQ
 		rv->via_libpq = FALSE;
 		rv->ssl = NULL;
 		rv->pqconn = NULL;
+#endif /* NOT_USE_LIBPQ */
 		rv->pversion = 0;
 		rv->reslen = 0;
 		rv->buffer_filled_in = 0;
@@ -103,7 +116,6 @@ SOCK_Constructor(const ConnectionClass *conn)
 	return rv;
 }
 
-
 void
 SOCK_Destructor(SocketClass *self)
 {
@@ -112,6 +124,7 @@ SOCK_Destructor(SocketClass *self)
 		return;
 	if (self->socket != (SOCKETFD) -1)
 	{
+#ifndef	NOT_USE_LIBPQ
 		if (self->pqconn)
 		{
 			if (self->via_libpq)
@@ -124,7 +137,17 @@ SOCK_Destructor(SocketClass *self)
 			self->ssl = NULL;
 		}
 		else
+#endif /* NOT_USE_LIBPQ */
 		{
+#ifdef	USE_SSPI
+			if (self->ssd)
+			{
+				ReleaseSvcSpecData(self);
+				free(self->ssd);
+				self->ssd = NULL;
+			}
+			self->sspisvcs = 0;
+#endif /* USE_SSPI */
 			SOCK_put_char(self, 'X');
 			if (PG_PROTOCOL_74 == self->pversion)
 				SOCK_put_int(self, 4, 4);
@@ -423,13 +446,22 @@ cleanup:
  *	To handle EWOULDBLOCK etc (mainly for libpq non-blocking connection).
  */
 #define	MAX_RETRY_COUNT	30
+
 static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 {
 	int	ret, gerrno;
 	fd_set	fds, except_fds;
 	struct	timeval	tm;
-	BOOL	no_timeout = (0 != retry_count && (retry_count < 0 || (!sock->ssl)));
+	BOOL	no_timeout;
 
+	if (0 == retry_count)
+		no_timeout = FALSE;
+	else if (0  > retry_count)
+		no_timeout = TRUE;
+#ifndef	NOT_USE_LIBPQ
+	else if (sock && NULL == sock->ssl)
+		no_timeout = TRUE;
+#endif /* NOT_USE_LIBPQ */
 	do {
 		FD_ZERO(&fds);
 		FD_ZERO(&except_fds);
@@ -440,7 +472,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 			tm.tv_sec = retry_count;
 			tm.tv_usec = 0;
 		}
-		ret = select((int)sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
+		ret = select((int) socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
 		gerrno = SOCK_ERRNO;
 	} while (ret < 0 && EINTR == gerrno);
 	if (retry_count < 0)
@@ -448,9 +480,34 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 	if (0 == ret && retry_count > MAX_RETRY_COUNT)
 	{
 		ret = -1;
-		SOCK_set_error(sock, output ? SOCKET_WRITE_TIMEOUT : SOCKET_READ_TIMEOUT, "SOCK_wait_for_ready timeout");
+		if (sock)
+			SOCK_set_error(sock, output ? SOCKET_WRITE_TIMEOUT : SOCKET_READ_TIMEOUT, "SOCK_wait_for_ready timeout");
 	}
 	return ret;
+}
+
+static int SOCK_SSPI_recv(SocketClass *self, void *buffer, int len)
+{
+#ifdef	USE_SSPI
+	if (!self->sspisvcs || !self->ssd)
+		return recv(self->socket, (char *) buffer, len, 0);
+	else
+		return SSPI_recv(self, (char *) buffer, len);
+#endif /* USE_SSPI */
+	return recv(self->socket, (char *) buffer, len, 0);
+}
+
+static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
+{
+#ifdef	USE_SSPI
+	CSTR func = "SOCK_SSPI_send";
+
+	if (!self->sspisvcs || !self->ssd)
+		return send(self->socket, (char *) buffer, len, 0);
+	else
+		return SSPI_send(self, buffer, len);
+#endif /* USE_SSPI */
+	return send(self->socket, (char *) buffer, len, 0);
 }
 
 #ifdef USE_SSL
@@ -738,7 +795,9 @@ SOCK_flush_output(SocketClass *self)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 		else
 #endif /* USE_SSL */
-			written = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+		{
+			written = SOCK_SSPI_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
+		}
 		gerrno = SOCK_ERRNO;
 		if (written < 0)
 		{
@@ -786,7 +845,7 @@ retry:
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else
 #endif /* USE_SSL */
-			self->buffer_filled_in = recv(self->socket, (char *) self->buffer_in, self->buffer_size, 0);
+			self->buffer_filled_in = SOCK_SSPI_recv(self, (char *) self->buffer_in, self->buffer_size);
 		gerrno = SOCK_ERRNO;
 
 		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
@@ -861,7 +920,9 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 				bytes_sent = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 			else
 #endif /* USE_SSL */
-				bytes_sent = send(self->socket, (char *) self->buffer_out + pos, self->buffer_filled_out, 0);
+			{
+				bytes_sent = SOCK_SSPI_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
+			}
 			gerrno = SOCK_ERRNO;
 			if (bytes_sent < 0)
 			{

@@ -644,6 +644,7 @@ QR_close(QResultClass *self)
 				mylog("QResult: END transaction on conn=%p\n", conn);
 				strncat(buf, ";commit", sizeof(buf));
 				flag |= END_WITH_COMMIT;
+				QR_set_cursor(self, NULL);
 			}
 
 			res = CC_send_query(conn, buf, NULL, flag, NULL);
@@ -1490,7 +1491,13 @@ inolog("QR_read_a_tuple_from_db len=%d\n", len);
 			if (field_lf >= effective_cols)
 				buffer = tidoidbuf;
 			else
-				buffer = (char *) malloc(len + 1);
+			{
+				if (buffer = (char *) malloc(len + 1), NULL == buffer)
+				{
+					mylog("failed to allocate %d+1 bytes of buffer\n", len);
+					return FALSE;
+				}
+			}
 			SOCK_get_n_char(sock, buffer, len);
 			buffer[len] = '\0';
 

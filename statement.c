@@ -1818,6 +1818,10 @@ inolog("get_Result=%p\n", res);
 			sprintf(fetch, "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
 			qryi = &qi;
 			appendq = fetch;
+#ifdef	NOT_USED
+			if (0 != (ci->extra_opts & BIT_IGNORE_ROUND_TRIP_TIME))
+				qflag |= IGNORE_ROUND_TRIP;
+#endif /* NOT_USED */
 		}
 		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
 		if (SC_is_fetchcursor(self) && QR_command_maybe_successful(res))

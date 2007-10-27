@@ -22,9 +22,7 @@
 #include <string.h>
 #include "pgapifunc.h"
 #ifdef	WIN32
-#ifndef	_WSASTARTUP_IN_DLLMAIN_
 #include <winsock2.h>
-#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 #endif /* WIN32 */
 #include "loadlib.h"
 
@@ -511,7 +509,6 @@ EN_Constructor(void)
 	CSTR	func = "EN_Constructor";
 	EnvironmentClass *rv = NULL;
 #ifdef WIN32
-#ifndef	_WSASTARTUP_IN_DLLMAIN_
 	WORD		wVersionRequested;
 	WSADATA		wsaData;
 	const int	major = 1, minor = 1;
@@ -531,7 +528,6 @@ EN_Constructor(void)
 		mylog("%s: WSAStartup version=(%d,%d)\n", func,
 			LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
 	}
-#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 #endif /* WIN32 */
 
 	rv = (EnvironmentClass *) malloc(sizeof(EnvironmentClass));
@@ -544,13 +540,11 @@ cleanup:
 		INIT_ENV_CS(rv);
 	}
 #ifdef WIN32
-#ifndef	_WSASTARTUP_IN_DLLMAIN_
 	else
 	{
 		mylog("%s: malloc error\n", func);
 		WSACleanup();
 	}
-#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 #endif /* WIN32 */
 
 	return rv;
@@ -597,9 +591,7 @@ EN_Destructor(EnvironmentClass *self)
 	free(self);
 
 #ifdef WIN32
-#ifndef	_WSASTARTUP_IN_DLLMAIN_
 	WSACleanup();
-#endif /* _WSASTARTUP_IN_DLLMAIN_ */
 #endif
 	mylog("exit EN_Destructor: rv = %d\n", rv);
 #ifdef	_MEMORY_DEBUG_

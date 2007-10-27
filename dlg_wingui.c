@@ -586,7 +586,7 @@ ds_options2Proc(HWND hdlg,
 				case IDAPPLY:
 				case IDPREVPAGE:
 					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
-					mylog("IDOK: got ci = %x\n", ci);
+					mylog("IDOK: got ci = %p\n", ci);
 
 					/* Readonly */
 					sprintf(ci->onlyread, "%d", IsDlgButtonChecked(hdlg, DS_READONLY));

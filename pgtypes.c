@@ -1142,7 +1142,7 @@ pgtype_transfer_octet_length(StatementClass *stmt, OID type, int col, int handle
 #endif /* UNICODE_SUPPORT */
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
-				coef =conn->mb_maxbyte_per_char;
+				coef = conn->mb_maxbyte_per_char;
 			if (coef < 2 && (conn->connInfo).lf_conversion)
 				/* CR -> CR/LF */
 				coef = 2;

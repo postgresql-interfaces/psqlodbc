@@ -14,13 +14,19 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
+#ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
+#endif /* NOT_USE_LIBPQ */
 #include "connection.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#ifndef	WIN32
+#ifdef	WIN32
+#ifdef	USE_SSPI
+#include "sspisvcs.h"
+#endif /* USE_SSPI */
+#else
 #include <errno.h>
 #endif /* WIN32 */
 
@@ -311,23 +317,16 @@ reset_current_schema(ConnectionClass *self)
 	}
 }
 
+extern	int	exepgm;
 ConnectionClass *
 CC_Constructor()
 {
-	extern	int	exepgm;
 	ConnectionClass *rv, *retrv = NULL;
 
 	rv = (ConnectionClass *) calloc(sizeof(ConnectionClass), 1);
 
 	if (rv != NULL)
 	{
-		// rv->henv = NULL;		/* not yet associated with an environment */
-
-		// rv->__error_message = NULL;
-		// rv->__error_number = 0;
-		// rv->sqlstate[0] = '\0';
-		// rv->errormsg_created = FALSE;
-
 		rv->status = CONN_NOT_CONNECTED;
 		rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
 
@@ -352,37 +351,14 @@ CC_Constructor()
 #endif /* ODBCVER */
 
 		rv->lobj_type = PG_TYPE_LO_UNDEFINED;
-
-		// rv->ncursors = 0;
-		// rv->ntables = 0;
-		// rv->col_info = NULL;
-
-		// rv->translation_option = 0;
-		// rv->translation_handle = NULL;
-		// rv->DataSourceToDriver = NULL;
-		// rv->DriverToDataSource = NULL;
 		rv->driver_version = ODBCVER;
 #ifdef	WIN32
 		if (VER_PLATFORM_WIN32_WINDOWS == platformId && rv->driver_version > 0x0300)
 			rv->driver_version = 0x0300;
 #endif /* WIN32 */
-		// memset(rv->pg_version, 0, sizeof(rv->pg_version));
-		// rv->pg_version_number = .0;
-		// rv->pg_version_major = 0;
-		// rv->pg_version_minor = 0;
-		// rv->ms_jet = 0;
 		if (1 == exepgm)
 			rv->ms_jet = 1;
-		// rv->unicode = 0;
-		// rv->result_uncommitted = 0;
-		// rv->schema_support = 0;
 		rv->isolation = SQL_TXN_READ_COMMITTED;
-		// rv->original_client_encoding = NULL;
-		// rv->current_client_encoding = NULL;
-		// rv->server_encoding = NULL;
-		// rv->current_schema = NULL;
-		// rv->num_discardp = 0;
-		// rv->discardp = NULL;
 		rv->mb_maxbyte_per_char = 1;
 		rv->max_identifier_length = -1;
 		rv->escape_in_literal = ESCAPE_IN_LITERAL;
@@ -1345,6 +1321,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 }
 
 static	char	CC_setenv(ConnectionClass *self);
+#ifndef	NOT_USE_LIBPQ
 static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -1366,6 +1343,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	return 1;
 }
+#endif /* NOT_USE_LIBPQ */
 
 static char
 original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -1380,8 +1358,11 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
 	CSTR		func = "original_CC_connect";
-	// char	   *encoding;
-	BOOL	startPacketReceived = FALSE;
+	BOOL	startPacketReceived = FALSE, anotherVersionRetry;
+#ifdef	USE_SSPI
+	int	ssl_try_count, ssl_try_no;
+	char	ssl_call[2];
+#endif /* USE_SSPI */
 
 	mylog("%s: entering...\n", func);
 
@@ -1395,8 +1376,62 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 		if (0 == CC_initial_log(self, func))
 			return 0;
 
+#ifdef	USE_SSPI
+		switch (self->connInfo.sslmode[0])
+		{
+			case 'r':
+				ssl_try_count = 1;
+				ssl_call[0] = 'y';
+				break;
+			case 'p':
+				ssl_try_count = 2;
+				ssl_call[0] = 'y';
+				ssl_call[1] = 'n';
+				break;
+			case 'a':
+				ssl_try_count = 2;
+				ssl_call[0] = 'n';
+				ssl_call[1] = 'y';
+				break;
+			default:
+				ssl_try_count = 0;
+				break;
+		}
+		ssl_try_no = 0;
+#endif /* USE_SSPI */
+		anotherVersionRetry = FALSE;
+
 another_version_retry:
 
+		if (anotherVersionRetry)
+		{
+#ifdef	USE_SSPI
+			if (ssl_try_no < ssl_try_count)
+				ssl_try_no++;
+			if (ssl_try_no >= ssl_try_count)
+			{
+#endif /* USE_SSPI */
+				/* retry older version */
+				if (PROTOCOL_62(ci))
+				{
+					CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not construct a socket to the server", func);
+					return 0;
+				}
+				if (PROTOCOL_63(ci))
+					strncpy(ci->protocol, PG62, sizeof(ci->protocol));
+				else if (PROTOCOL_64(ci))
+					strncpy(ci->protocol, PG63, sizeof(ci->protocol));
+				else 
+					strncpy(ci->protocol, PG64, sizeof(ci->protocol));
+#ifdef	USE_SSPI
+				ssl_try_no = 0;
+			}
+#endif /* USE_SSPI */
+			SOCK_Destructor(sock);
+			self->sock = (SocketClass *) 0;
+			CC_initialize_pg_version(self);
+			anotherVersionRetry = FALSE;
+		}
 		/*
 		 * If the socket was closed for some reason (like a SQLDisconnect,
 		 * but no SQLFreeConnect then create a socket now.
@@ -1424,6 +1459,50 @@ another_version_retry:
 		mylog("connection to the server socket succeeded.\n");
 
 inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self->pg_version_minor);
+#ifdef	USE_SSPI
+		if ('y' == ssl_call[ssl_try_no])
+		{
+			struct {
+				Int4	slen;
+				ProtocolVersion	pv;
+			} nego_packet;
+			char	rnego;
+
+			nego_packet.slen = htonl(sizeof(nego_packet));
+			nego_packet.pv = htonl(PG_NEGOTIATE_SSLMODE);
+			SOCK_put_n_char(sock, (char *) &nego_packet, sizeof(nego_packet));
+			SOCK_flush_output(sock);
+			if (0 != SOCK_get_errcode(sock))
+			{
+				mylog("%s:failed to send a negotiation packet\n", func);
+				goto sockerr_proc;
+			}
+			SOCK_get_n_char(sock, &rnego, 1);
+			if (0 != SOCK_get_errcode(sock))
+				goto sockerr_proc;
+			mylog("nego got '%c'\n", rnego);
+			switch (rnego)
+			{
+				case 'S':
+					break;
+				case 'N':
+					ssl_try_no++;
+					if (ssl_try_no < ssl_try_count &&
+					    'y' != ssl_call[ssl_try_no])
+						break;
+					else
+						goto another_version_retry;
+				default:
+					CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
+					return 0;
+			}
+			if (!StartupSspiService(sock, SchannelService, NULL))
+			{
+				CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
+				return 0;
+			}
+		}
+#endif /* USE_SSPI */
 		if (PROTOCOL_62(ci))
 		{
 			sock->reverse = TRUE;		/* make put_int and get_int work
@@ -1637,16 +1716,7 @@ inolog("Ekita\n");
 					return 0;
 			}
 			if (retry)
-			{	/* retry older version */
-				if (PROTOCOL_63(ci))
-					strncpy(ci->protocol, PG62, sizeof(ci->protocol));
-				else if (PROTOCOL_64(ci))
-					strncpy(ci->protocol, PG63, sizeof(ci->protocol));
-				else 
-					strncpy(ci->protocol, PG64, sizeof(ci->protocol));
-				SOCK_Destructor(sock);
-				self->sock = (SocketClass *) 0;
-				CC_initialize_pg_version(self);
+			{
 				goto another_version_retry;
 			}
 
@@ -1688,7 +1758,7 @@ sockerr_proc:
 		{
 			CC_set_error(self, CONNECTION_NO_SUCH_DATABASE, "The database does not exist on the server\nor user authentication failed.", func);
 			QR_Destructor(res);
-		return 0;
+			return 0;
 		}
 		QR_Destructor(res);
 
@@ -1710,35 +1780,51 @@ inolog("CC_lookup_pg_version\n");
 char
 CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
-	// StartupPacket sp;
-	// StartupPacket6_2 sp62;
-	// QResultClass *res;
-	// SocketClass *sock;
-	ConnInfo   *ci = &(self->connInfo);
-	// int			areq = -1;
-	// int			beresp;
-	// char		msgbuffer[ERROR_MSG_LENGTH];
-	// char		salt[5], notice[512];
-	CSTR		func = "CC_connect";
-	char	   ret;
-	// char	   *encoding;
-	// BOOL	startPacketReceived = FALSE;
+	ConnInfo *ci = &(self->connInfo);
+	CSTR	func = "CC_connect";
+	char		ret;
+#ifndef	NOT_USE_LIBPQ
+	BOOL	call_libpq = FALSE;
+#endif /* NOT_USE_LIBPQ */
 
 	mylog("%s: entering...\n", func);
 
 	mylog("sslmode=%s\n", self->connInfo.sslmode);
-	if (self->connInfo.sslmode[0] != 'd' ||
-	    self->connInfo.username[0] == '\0')
+#ifndef	NOT_USE_LIBPQ
+	if (self->connInfo.username[0] == '\0')
+		call_libpq = TRUE;
+	else if (self->connInfo.sslmode[0] != 'd') 
+#ifdef	USE_SSPI
+	{
+		if (0 == (SchannelService & self->svcs_allowed))
+			call_libpq = TRUE;
+	}
+#else
+		call_libpq = TRUE;
+#endif /* USE_SSPI */
+	if (call_libpq)
+	{
 		ret = LIBPQ_CC_connect(self, password_req, salt_para);
+#ifdef USE_SSPI
+		if (CONN_UNABLE_TO_LOAD_DLL == ret)
+		{
+			self->svcs_allowed |= SchannelService;
+			ret = original_CC_connect(self, password_req, salt_para);
+		}
+#endif /* USE_SSPI */
+	}
 	else
+#endif /* NOT_USE_LIBPQ */
 	{
 		ret = original_CC_connect(self, password_req, salt_para);
+#ifndef	NOT_USE_LIBPQ
 		if (0 == ret && CONN_AUTH_TYPE_UNSUPPORTED == CC_get_errornumber(self))
 		{
 			SOCK_Destructor(self->sock);
 			self->sock = (SocketClass *) 0;
 			ret = LIBPQ_CC_connect(self, password_req, salt_para);
 		}
+#endif /* NOT_USE_LIBPQ */
 	}
 	if (ret <= 0)
 		return ret;
@@ -2031,7 +2117,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 	{
 		stmt = self->stmts[i];
 		if (stmt && (res = SC_get_Result(stmt)) &&
-			QR_get_cursor(res))
+			 (NULL != QR_get_cursor(res)))
 		{
 			if ((on_abort && !QR_is_permanent(res)) ||
 				!QR_is_withhold(res))
@@ -2206,6 +2292,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	/* QR_set_command() dups this string so doesn't need static */
 	char		cmdbuffer[ERROR_MSG_LENGTH + 1];
+	BOOL		reduce_round_trip_time = !(flag & IGNORE_ROUND_TRIP);
 
 	if (appendq)
 	{
@@ -2242,6 +2329,28 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
 		CC_on_abort(self, CONN_DEAD);
 		return NULL;
+	}
+
+	/*
+	 *	In case the round trip time can be ignored, the query
+	 *	and the appeneded query would be issued separately.
+	 *	Otherwise a multiple command query would be issued.
+	 */ 
+	if (appendq && !reduce_round_trip_time)
+	{
+		res = CC_send_query_append(self, query, qi, flag, stmt, NULL);
+		if (QR_command_maybe_successful(res))
+		{
+			cmdres = CC_send_query_append(self, appendq, qi, flag & (~(GO_INTO_TRANSACTION)), stmt, NULL);
+			if (QR_command_maybe_successful(cmdres))
+				res->next = cmdres;
+			else
+			{
+				QR_Destructor(res);
+				res = cmdres;
+			}
+		}
+		return res;
 	}
 
 	rollback_on_error = (flag & ROLLBACK_ON_ERROR) != 0;
@@ -3352,8 +3461,10 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	if (!sock)
 		return FALSE;
 
+#ifndef NOT_USE_LIBPQ
 	if (sock->via_libpq)
 		return LIBPQ_send_cancel_request(conn);
+#endif /* NOT_USE_LIBPQ */
 	/*
 	 * We need to open a temporary connection to the postmaster. Use the
 	 * information saved by connectDB to do this with only kernel calls.
@@ -3441,6 +3552,7 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	return 1;
 }
 
+#ifndef NOT_USE_LIBPQ
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
@@ -3474,7 +3586,7 @@ inolog("sock=%p\n", sock);
 	free(conninfo);
 	if (!libpqLoaded)
 	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't load libpq library", func);
+		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Couldn't load libpq library", func);
 		goto cleanup1;
 	}
 	sock->via_libpq = TRUE;
@@ -3602,10 +3714,18 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 	else
 		return FALSE;
 }
+#endif /* NOT_USE_LIBPQ */
 
 const char *CurrCat(const ConnectionClass *conn)
 {
-	if (conn->schema_support)
+	/*
+	 * Returning the database name causes problems in MS Query. It
+	 * generates query like: "SELECT DISTINCT a FROM byronnbad3
+	 * bad3"
+	 */
+	if (2 == exepgm)	/* MS Query */
+		return NULL;
+	else if (conn->schema_support)
 		return conn->connInfo.database;
 	else
 		return NULL;

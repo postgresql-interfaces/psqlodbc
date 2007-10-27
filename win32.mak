@@ -49,6 +49,15 @@ PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.2\lib\ms
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
+!IF "$(LINKMT)" == ""
+LINKMT=MT
+!ENDIF
+!IF "$(LINKMT)" == "MT"
+!MESSAGE Linking static Multithread library
+!ELSE
+!MESSAGE Linking dynamic Multithread library
+!ENDIF
+
 !IF "$(SSL_INC)" == ""
 SSL_INC=C:\OpenSSL\include
 !MESSAGE Using default OpenSSL Include directory: $(SSL_INC)
@@ -59,17 +68,16 @@ SSL_LIB=C:\OpenSSL\lib\VC
 !MESSAGE Using default OpenSSL Library directory: $(SSL_LIB)
 !ENDIF
 
-!IF "$(LINKMT)" == ""
-LINKMT=MT
-!ENDIF
-!IF "$(LINKMT)" == "MT"
-!MESSAGE Linking static Multithread library
-!ELSE
-!MESSAGE Linking dynamic Multithread library
-!ENDIF
-
+!IF "$(USE_LIBPQ)" != "no"
 SSL_DLL = "SSLEAY32.dll"
 ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\"" /D USE_SSL
+!ELSE
+ADD_DEFINES = $(ADD_DEFINES) /D NOT_USE_LIBPQ
+!ENDIF
+
+!IF "$(USE_SSPI)" == "yes"
+ADD_DEFINES = $(ADD_DEFINES) /D USE_SSPI
+!ENDIF
 
 !IF "$(ANSI_VERSION)" == "yes"
 DTCLIB = pgenlista
@@ -84,7 +92,13 @@ MSDTC=no
 VC_FLAGS=/GX /YX
 !ELSE
 MSVC_VERSION=vc70
-VC07_DELAY_LOAD="/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
+!IF "$(USE_LIBPQ)" != "no"
+VC07_DELAY_LOAD=/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL)
+!ENDIF
+!IF "$(USE_SSPI)" == "yes"
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /Delayload:secur32.dll /Delayload:crypt32.dll
+!ENDIF
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /delayLoad:$(DTCDLL) /DELAY:UNLOAD
 VC_FLAGS=/EHsc
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
@@ -194,7 +208,7 @@ CPP_PROJ=/nologo /$(LINKMT) /O2 /D "NDEBUG"
 CPP_PROJ=/nologo /$(LINKMT)d /Gm /ZI /Od /RTC1 /D "_DEBUG"
 !ENDIF
 CPP_PROJ=$(CPP_PROJ) /W3 $(VC_FLAGS) /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)"\ /Fd"$(INTDIR)"\ /FD
-
+!MESSAGE CPP_PROJ=$(CPP_PROJ)
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
    $(CPP_PROJ) /c $< 
@@ -245,7 +259,7 @@ LIB32=lib.exe
 !IF "$(MSDTC)" != "no"
 LINK32_FLAGS=$(OUTDIR)\$(DTCLIB).lib
 !ENDIF
-LINK32_FLAGS=$(LINK32_FLAGS) kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib winmm.lib /nologo /dll /machine:I386 /def:"$(DEF_FILE)"
+LINK32_FLAGS=$(LINK32_FLAGS) kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib winmm.lib /nologo /dll /machine:I386 /def:$(DEF_FILE)
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
@@ -256,7 +270,7 @@ LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no
 !ELSE
 LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug
 !ENDIF
-LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
+LINK32_FLAGS=$(LINK32_FLAGS) $(VC07_DELAY_LOAD) /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
 
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
@@ -283,6 +297,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\qresult.obj" \
 	"$(INTDIR)\results.obj" \
 	"$(INTDIR)\setup.obj" \
+!IF "$(USE_SSPI)" == "yes"
+	"$(INTDIR)\sspisvcs.obj" \
+!ENDIF
 	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\statement.obj" \
 	"$(INTDIR)\tuple.obj" \
@@ -304,14 +321,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\psqlodbc.res"
 
 DTCDEF_FILE= "$(DTCLIB).def"
-LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:"$(DTCDEF_FILE)"
+LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:$(DTCDEF_FILE)
 
 LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:I386
 LINK32_DTCOBJS= \
 	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /machine:I386 /def:"$(XADEF_FILE)"
+LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /machine:I386 /def:$(XADEF_FILE)
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj" 
 
