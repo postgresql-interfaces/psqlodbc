@@ -1194,7 +1194,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			else if (token[0] == '(')
 			{
 				blevel++;
-				mylog("blevel++ = %d\n", blevel);
+				mylog("blevel++ -> %d\n", blevel);
 				/* aggregate function ? */
 				if (stoken[0] && updatable && 0 == subqlevel)
 				{
@@ -1434,6 +1434,8 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			}
 			if (out_table && !in_table) /* new table */
 			{
+				BOOL	is_table_name;
+
 				in_dot = FALSE;
 				maybe_join = 0;
 				if (!dquote)
@@ -1451,17 +1453,30 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 
 				ti = stmt->ti;
 				wti = ti[stmt->ntab - 1];
-				if (dquote || stricmp(token, "select"))
+				is_table_name = TRUE;
+				if (dquote)
+					;
+				else if (0 == stricmp(token, "select"))
+				{
+					mylog("got subquery lvl=%d\n", blevel);
+					is_table_name = FALSE;
+				}
+				else if ('(' == ptr[0])
+				{
+					mylog("got srf? = '%s'\n", token);
+					is_table_name = FALSE;
+				}
+				if (is_table_name)
 				{
 					STR_TO_NAME(wti->table_name, token);
 					lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+					mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
 				}
 				else
 				{
 					NULL_THE_NAME(wti->table_name);
 					TI_no_updatable(wti);
 				}
-				mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
 
 				if (0 == blevel && delim == ',')
 				{

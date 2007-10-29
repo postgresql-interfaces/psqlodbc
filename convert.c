@@ -778,6 +778,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 			return convert_lo(stmt, value, fCType, rgbValueBindRow, cbValueMax, pcbValueBindRow);
 
+		case 0:
+			break;
+
 		default:
 
 			if (field_type == stmt->hdbc->lobj_type	/* hack until permanent type available */
