@@ -1491,7 +1491,10 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 					    'y' != ssl_call[ssl_try_no])
 						break;
 					else
+					{
+						anotherVersionRetry = TRUE;
 						goto another_version_retry;
+					}
 				default:
 					CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
 					return 0;
@@ -1717,6 +1720,7 @@ inolog("Ekita\n");
 			}
 			if (retry)
 			{
+				anotherVersionRetry = TRUE;
 				goto another_version_retry;
 			}
 
@@ -1806,7 +1810,10 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	{
 		ret = LIBPQ_CC_connect(self, password_req, salt_para);
 #ifdef USE_SSPI
-		if (CONN_UNABLE_TO_LOAD_DLL == ret)
+		/*
+		 *	If libpq is unavailable, try SSPI instead.
+		 */
+		if (0 == ret && CONN_UNABLE_TO_LOAD_DLL == CC_get_errornumber(self))
 		{
 			self->svcs_allowed |= SchannelService;
 			ret = original_CC_connect(self, password_req, salt_para);

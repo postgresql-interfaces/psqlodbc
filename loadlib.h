@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-BOOL	LIBPQ_check(void);
+BOOL	SSLLIB_check(void);
 #ifndef	NOT_USE_LIBPQ
 void	*CALL_PQconnectdb(const char *conninfo, BOOL *);
 #endif /* NOT_USE_LIBPQ */

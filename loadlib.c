@@ -135,7 +135,8 @@ DliErrorHook(unsigned	dliNotify,
 				if (hmodule = MODULE_load_from_psqlodbc_path(pgenlist), NULL == hmodule)
 					hmodule = LoadLibrary(pgenlist);
 			}
-			else
+			else if (0 == _stricmp(pdli->szDll, libarray[0]) ||
+				 0 == _stricmp(pdli->szDll, libarray[1]))
 			{
         			mylog("getting alternative ssl library instead of %s\n", pdli->szDll);
         			for (i = 0; i < sizeof(libarray) / sizeof(const char * const); i++)
@@ -280,23 +281,30 @@ RETCODE	CALL_DtcOnRelease(void)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 #if defined(WIN_DYN_LOAD)
-BOOL LIBPQ_check()
+BOOL SSLLIB_check()
 {
 	extern	HINSTANCE	s_hModule;
 	HMODULE	hmodule = NULL;
 
 	mylog("checking libpq library\n");
 	/* First search the driver's folder */
+#ifdef	NOT_USE_LIBPQ
 	if (NULL == (hmodule = MODULE_load_from_psqlodbc_path(libpq)))
 		/* Second try the PATH ordinarily */
 		hmodule = LoadLibrary(libpq);
-	mylog("hmodule=%p\n", hmodule);
+	mylog("libpq hmodule=%p\n", hmodule);
+#endif /* NOT_USE_LIBPQ */
+#ifdef	USE_SSPI
+	if (NULL == hmodule)
+		hmodule = LoadLibrary("secur32.dll");
+	mylog("secur32 hmodule=%p\n", hmodule);
+#endif /* USE_SSPI */
 	if (hmodule)
 		FreeLibrary(hmodule);
 	return (NULL != hmodule);
 }
 #else
-BOOL LIBPQ_check()
+BOOL SSLLIB_check()
 {
 	return TRUE;
 }
