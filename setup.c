@@ -307,6 +307,7 @@ ConfigDlgProc(HWND hdlg,
 							EN_add_connection(env, conn);
 							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
 							CC_initialize_pg_version(conn);
+							logs_on_off(1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
 							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
 							{
 								if (CC_get_errornumber(conn) != 0)
@@ -323,6 +324,7 @@ ConfigDlgProc(HWND hdlg,
 								CC_get_error(conn, &errnum, &emsg);
 							}
 							MessageBox(lpsetupdlg->hwndParent, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
+							logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
 							EN_remove_connection(env, conn);
 							CC_Destructor(conn);
 						}

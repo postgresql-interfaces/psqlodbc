@@ -790,25 +790,36 @@ handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *s
 {
 	BOOL	new_format = FALSE, msg_truncated = FALSE, truncated, hasmsg = FALSE;
 	SocketClass	*sock = self->sock;
+	ConnInfo	*ci = &(self->connInfo);
 	char	msgbuffer[ERROR_MSG_LENGTH];
 	UDWORD	abort_opt;
 
-inolog("handle_error_message prptocol=%s\n", self->connInfo.protocol);
-	if (PROTOCOL_74(&(self->connInfo)))
+	inolog("handle_error_message protocol=%s\n", ci->protocol);
+	if (PROTOCOL_74(ci))
 		new_format = TRUE;
+	else if (PROTOCOL_74REJECTED(ci))
+	{
+		if (!SOCK_get_next_byte(sock, TRUE)) /* peek the next byte */
+		{
+			uint32	leng;
+
+			mylog("peek the next byte = \\0\n");
+			new_format = TRUE;
+			strncpy(ci->protocol, PG74, sizeof(ci->protocol));
+			leng = SOCK_get_response_length(sock);
+			inolog("get the response length=%d\n", leng);
+		}
+	}
 
 inolog("new_format=%d\n", new_format);
+	truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 	if (new_format)
 	{
 		size_t	msgl;
 
 		msgbuf[0] = '\0';
-		for (;;)
+		for (;msgbuffer[0];)
 		{
-			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
-			if (!msgbuffer[0])
-				break;
-
 			mylog("%s: 'E' - %s\n", comment, msgbuffer);
 			qlog("ERROR from backend during %s: '%s'\n", comment, msgbuffer);
 			msgl = strlen(msgbuffer + 1);
@@ -854,12 +865,12 @@ inolog("new_format=%d\n", new_format);
 				buflen = 0;
 			while (truncated)
 				truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 		}
 	}
 	else
 	{
-		msg_truncated = SOCK_get_string(sock, msgbuf, (Int4) buflen);
-
+		strncpy(msgbuf, msgbuffer, buflen);
 		/* Remove a newline */
 		if (msgbuf[0] != '\0' && msgbuf[(int)strlen(msgbuf) - 1] == '\n')
 			msgbuf[(int)strlen(msgbuf) - 1] = '\0';
@@ -870,7 +881,7 @@ inolog("new_format=%d\n", new_format);
 			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 	}
 	abort_opt = 0;
-	if (!strncmp(msgbuffer, "FATAL", 5))
+	if (!strncmp(msgbuf, "FATAL", 5))
 	{
 		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_ERROR);
 		abort_opt = CONN_DEAD;
@@ -1377,24 +1388,22 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 			return 0;
 
 #ifdef	USE_SSPI
+		ssl_try_count = 0;
 		switch (self->connInfo.sslmode[0])
 		{
 			case 'r':
-				ssl_try_count = 1;
-				ssl_call[0] = 'y';
+				ssl_call[ssl_try_count++] = 'y';
 				break;
 			case 'p':
-				ssl_try_count = 2;
-				ssl_call[0] = 'y';
-				ssl_call[1] = 'n';
+				ssl_call[ssl_try_count++] = 'y';
+				ssl_call[ssl_try_count++] = 'n';
 				break;
 			case 'a':
-				ssl_try_count = 2;
-				ssl_call[0] = 'n';
-				ssl_call[1] = 'y';
+				ssl_call[ssl_try_count++] = 'n';
+				ssl_call[ssl_try_count++] = 'y';
 				break;
 			default:
-				ssl_try_count = 0;
+				ssl_call[ssl_try_count++] = 'n';
 				break;
 		}
 		ssl_try_no = 0;
@@ -1406,8 +1415,13 @@ another_version_retry:
 		if (anotherVersionRetry)
 		{
 #ifdef	USE_SSPI
-			if (ssl_try_no < ssl_try_count)
-				ssl_try_no++;
+			if (PROTOCOL_74(ci) || PROTOCOL_64(ci))
+			{
+				if (ssl_try_no < ssl_try_count)
+					ssl_try_no++;
+			}
+			else
+				ssl_try_no = ssl_try_count;
 			if (ssl_try_no >= ssl_try_count)
 			{
 #endif /* USE_SSPI */
@@ -1427,8 +1441,12 @@ another_version_retry:
 				ssl_try_no = 0;
 			}
 #endif /* USE_SSPI */
-			SOCK_Destructor(sock);
-			self->sock = (SocketClass *) 0;
+			if (self->sock)
+			{
+				SOCK_Destructor(self->sock);
+				self->sock = (SocketClass *) 0;
+			}
+			self->status = CONN_NOT_CONNECTED;
 			CC_initialize_pg_version(self);
 			anotherVersionRetry = FALSE;
 		}
@@ -1484,6 +1502,11 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 			switch (rnego)
 			{
 				case 'S':
+					if (!StartupSspiService(sock, SchannelService, NULL))
+					{
+						CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
+						return 0;
+					}
 					break;
 				case 'N':
 					ssl_try_no++;
@@ -1498,11 +1521,6 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 				default:
 					CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
 					return 0;
-			}
-			if (!StartupSspiService(sock, SchannelService, NULL))
-			{
-				CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
-				return 0;
 			}
 		}
 #endif /* USE_SSPI */
@@ -1587,13 +1605,12 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 					if (beresp != 'E' || startPacketReceived)
 					{
 						leng = SOCK_get_response_length(sock);
-inolog("leng=%d\n", leng);
+						inolog("leng=%d\n", leng);
 						if (0 != SOCK_get_errcode(sock))
 							goto sockerr_proc;
 					}
 					else
 						strncpy(ci->protocol, PG74REJECTED, sizeof(ci->protocol));
-/* retry = TRUE; */
 				}
 				startPacketReceived = TRUE;
 			}
@@ -1601,14 +1618,24 @@ inolog("leng=%d\n", leng);
 			switch (beresp)
 			{
 				case 'E':
-inolog("Ekita\n");
+inolog("Ekita retry=%d\n", retry);
 					handle_error_message(self, msgbuffer, sizeof(msgbuffer), self->sqlstate, func, NULL);
 					CC_set_error(self, CONN_INVALID_AUTHENTICATION, msgbuffer, func);
 					qlog("ERROR from backend during authentication: '%s'\n", msgbuffer);
-					if (strnicmp(msgbuffer, "Unsupported frontend protocol", 29) == 0)
+					if (PROTOCOL_74REJECTED(ci))
 						retry = TRUE;
-					else if (strncmp(msgbuffer, "FATAL:", 6) == 0 &&
-						 strnicmp(msgbuffer + 8, "unsupported frontend protocol", 29) == 0)
+					else if (0 == strncmp(msgbuffer, "FATAL:", 6))
+					{
+						const char *emsg = msgbuffer + 8;
+						if (0 == strnicmp(emsg, "unsupported frontend protocol", 29))
+							retry = TRUE;
+#ifdef	USE_SSPI
+						else if ('y' != ssl_call[ssl_try_no] &&
+							 ssl_try_no + 1 < ssl_try_count)
+							retry = TRUE;
+#endif /* USE_SSPI */
+					}
+					else if (strnicmp(msgbuffer, "Unsupported frontend protocol", 29) == 0)
 						retry = TRUE;
 					if (retry)
 						break;

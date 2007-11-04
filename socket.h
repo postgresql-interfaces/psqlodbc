@@ -150,7 +150,7 @@ struct SocketClass_
 
 };
 
-#define SOCK_get_char(self)		(SOCK_get_next_byte(self))
+#define SOCK_get_char(self)	(SOCK_get_next_byte(self, FALSE))
 #define SOCK_put_char(self, c)	(SOCK_put_next_byte(self, c))
 
 
@@ -201,7 +201,7 @@ void		SOCK_put_string(SocketClass *self, const char *string);
 int		SOCK_get_int(SocketClass *self, short len);
 void		SOCK_put_int(SocketClass *self, int value, short len);
 Int4		SOCK_flush_output(SocketClass *self);
-UCHAR		SOCK_get_next_byte(SocketClass *self);
+UCHAR		SOCK_get_next_byte(SocketClass *self, BOOL peek);
 void		SOCK_put_next_byte(SocketClass *self, UCHAR next_byte);
 Int4		SOCK_get_response_length(SocketClass *self);
 void		SOCK_clear_error(SocketClass *self);

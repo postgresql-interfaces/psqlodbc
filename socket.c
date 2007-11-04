@@ -628,12 +628,12 @@ SOCK_get_id(SocketClass *self)
 		mylog("SOCK_get_id has to eat %d bytes\n", self->reslen);
 		do
 		{
-			SOCK_get_next_byte(self);
+			SOCK_get_next_byte(self, FALSE);
 			if (0 != self->errornumber)
 				return 0;
 		} while (self->reslen > 0);
 	}
-	id = SOCK_get_next_byte(self);
+	id = SOCK_get_next_byte(self, FALSE);
 	self->reslen = 0;
 	return id;
 }
@@ -655,7 +655,7 @@ SOCK_get_n_char(SocketClass *self, char *buffer, Int4 len)
 	{
 		if (0 != self->errornumber)
 			break;
-		buffer[lf] = SOCK_get_next_byte(self);
+		buffer[lf] = SOCK_get_next_byte(self, FALSE);
 	}
 }
 
@@ -693,7 +693,7 @@ SOCK_get_string(SocketClass *self, char *buffer, Int4 bufsize)
 	int lf;
 
 	for (lf = 0; lf < bufsize - 1; lf++)
-		if (!(buffer[lf] = SOCK_get_next_byte(self)))
+		if (!(buffer[lf] = SOCK_get_next_byte(self, FALSE)))
 			return FALSE;
 
 	buffer[bufsize - 1] = '\0';
@@ -826,7 +826,7 @@ SOCK_flush_output(SocketClass *self)
 
 
 UCHAR
-SOCK_get_next_byte(SocketClass *self)
+SOCK_get_next_byte(SocketClass *self, BOOL peek)
 {
 	int	retry_count = 0, gerrno;
 	BOOL	maybeEOF = FALSE;
@@ -894,6 +894,8 @@ inolog("ECONNRESET\n");
 			return 0;
 		}
 	}
+	if (peek)
+		return self->buffer_in[self->buffer_read_in];
 	if (PG_PROTOCOL_74 == self->pversion)
 		self->reslen--;
 	return self->buffer_in[self->buffer_read_in++];

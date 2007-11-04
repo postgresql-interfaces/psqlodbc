@@ -327,6 +327,9 @@ typedef struct
 /*	Macro to determine is the connection using 7.4 protocol? */
 #define PROTOCOL_74(conninfo_)		(strncmp((conninfo_)->protocol, PG74, strlen(PG74)) == 0)
 
+/*	Macro to determine is the connection using 7.4 rejected? */
+#define PROTOCOL_74REJECTED(conninfo_)	(strncmp((conninfo_)->protocol, PG74REJECTED, strlen(PG74REJECTED)) == 0)
+
 #define SUPPORT_DESCRIBE_PARAM(conninfo_) (PROTOCOL_74(conninfo_) && conninfo_->use_server_side_prepare)
 /*
  *	Macros to compare the server's version with a specified version
