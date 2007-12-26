@@ -654,7 +654,7 @@ CC_lookup_characterset(ConnectionClass *self)
 		{
 			char msg[256];
 
-			snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", tencstr); 
+			snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", tencstr);
 			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func); 
 		}
 	}

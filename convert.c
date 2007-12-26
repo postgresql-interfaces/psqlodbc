@@ -652,9 +652,10 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 			if (strnicmp(value, MINFINITY_STRING, 9) == 0)
 			{
 				std_time.infinity = -1;
-				std_time.m = 0;
-				std_time.d = 0;
-				std_time.y = 0;
+				std_time.m = 1;
+				std_time.d = 1;
+				// std_time.y = -4713;
+				std_time.y = -9999;
 				std_time.hh = 0;
 				std_time.mm = 0;
 				std_time.ss = 0;
@@ -817,9 +818,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 		  		case PG_TYPE_BPCHAR:
 		  		case PG_TYPE_VARCHAR:
 		  		case PG_TYPE_TEXT:
+		  		case PG_TYPE_XML:
 		  		case PG_TYPE_BPCHARARRAY:
 		  		case PG_TYPE_VARCHARARRAY:
 		  		case PG_TYPE_TEXTARRAY:
+		  		case PG_TYPE_XMLARRAY:
 					text_handling = TRUE;
 					break;
 			}
@@ -3771,6 +3774,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 	}
 	if (!req_bind)
 	{
+mylog("!!param_type=%d\n", param_sqltype);
 		switch (param_sqltype)
 		{
 			case SQL_INTEGER:
@@ -3779,6 +3783,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 			case SQL_CHAR:
 			case SQL_VARCHAR:
 			case SQL_LONGVARCHAR:
+			case SQL_BINARY:
 			case SQL_VARBINARY:
 			case SQL_LONGVARBINARY:
 #ifdef	UNICODE_SUPPORT
@@ -3786,6 +3791,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 			case SQL_WVARCHAR:
 			case SQL_WLONGVARCHAR:
 #endif /* UNICODE_SUPPORT */
+mylog("buf=%p flag=%d\n", buf, qb->flags);
 				if (buf && (qb->flags & FLGB_LITERAL_EXTENSION) != 0)
 				{
 					CVT_APPEND_CHAR(qb, LITERAL_EXT);

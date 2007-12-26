@@ -188,6 +188,8 @@ const char *GetXaLibPath();
 #define	BIT_FAKE_MSS				(1L << 1)
 #define	BIT_BDE_ENVIRONMENT			(1L << 2)
 #define	BIT_CVT_NULL_DATE			(1L << 3)
+#define	BIT_ACCESSIBLE_ONLY			(1L << 4)
+#define	BIT_IGNORE_ROUND_TRIP_TIME		(1L << 5)
 
 /*	Connection Defaults */
 #define DEFAULT_PORT				"5432"

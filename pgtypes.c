@@ -358,7 +358,8 @@ pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 			return SQL_FLOAT;
 		case PG_TYPE_BOOL:
 			return ci->drivers.bools_as_char ? SQL_CHAR : SQL_BIT;
-
+		case PG_TYPE_XML:
+			return CC_is_in_unicode_driver(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 		default:
 
 			/*

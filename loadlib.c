@@ -288,7 +288,7 @@ BOOL SSLLIB_check()
 
 	mylog("checking libpq library\n");
 	/* First search the driver's folder */
-#ifdef	NOT_USE_LIBPQ
+#ifndef	NOT_USE_LIBPQ
 	if (NULL == (hmodule = MODULE_load_from_psqlodbc_path(libpq)))
 		/* Second try the PATH ordinarily */
 		hmodule = LoadLibrary(libpq);
@@ -296,8 +296,10 @@ BOOL SSLLIB_check()
 #endif /* NOT_USE_LIBPQ */
 #ifdef	USE_SSPI
 	if (NULL == hmodule)
+	{
 		hmodule = LoadLibrary("secur32.dll");
-	mylog("secur32 hmodule=%p\n", hmodule);
+		mylog("secur32 hmodule=%p\n", hmodule);
+	}
 #endif /* USE_SSPI */
 	if (hmodule)
 		FreeLibrary(hmodule);

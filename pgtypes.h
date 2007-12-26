@@ -36,6 +36,8 @@
 #define PG_TYPE_CID				29
 #define PG_TYPE_OIDVECTOR		30
 #define PG_TYPE_SET				32
+#define PG_TYPE_XML			142
+#define PG_TYPE_XMLARRAY		143
 #define PG_TYPE_CHAR2			409
 #define PG_TYPE_CHAR4			410
 #define PG_TYPE_CHAR8			411

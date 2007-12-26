@@ -30,18 +30,21 @@ extern GLOBAL_VALUES globals;
 static void encode(const UCHAR *in, UCHAR *out);
 static void decode(const UCHAR *in, UCHAR *out);
 
+#define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY)
 UInt4	getExtraOptions(const ConnInfo *ci)
 {
-	UInt4	flag = 0;
+	UInt4	flag = ci->extra_opts & (~OVR_EXTRA_BITS);
 
-	if (ci->force_abbrev_connstr)
+	if (ci->force_abbrev_connstr > 0)
 		flag |= BIT_FORCEABBREVCONNSTR;
-	if (ci->fake_mss)
+	if (ci->fake_mss > 0)
 		flag |= BIT_FAKE_MSS;
-	if (ci->bde_environment)
+	if (ci->bde_environment > 0)
 		flag |= BIT_BDE_ENVIRONMENT;
-	if (ci->cvt_null_date_string)
+	if (ci->cvt_null_date_string > 0)
 		flag |= BIT_CVT_NULL_DATE;
+	if (ci->accessible_only > 0)
+		flag |= BIT_ACCESSIBLE_ONLY;
 		
 	return flag;
 }
@@ -51,6 +54,10 @@ CSTR	dec_format = "%u";
 CSTR	octal_format = "%o";
 static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 {
+	if (overwrite)
+		ci->extra_opts = flag;
+	else
+		ci->extra_opts |= (flag & ~(OVR_EXTRA_BITS));  
 	if (overwrite || ci->force_abbrev_connstr < 0)
 		ci->force_abbrev_connstr = (0 != (flag & BIT_FORCEABBREVCONNSTR));
 	if (overwrite || ci->fake_mss < 0)
@@ -59,8 +66,10 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 		ci->bde_environment = (0 != (flag & BIT_BDE_ENVIRONMENT));
 	if (overwrite || ci->cvt_null_date_string < 0)
 		ci->cvt_null_date_string = (0 != (flag & BIT_CVT_NULL_DATE));
+	if (overwrite || ci->accessible_only < 0)
+		ci->accessible_only = (0 != (flag & BIT_ACCESSIBLE_ONLY));
 		
-	return getExtraOptions(ci);
+	return (ci->extra_opts = getExtraOptions(ci));
 }
 BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 {
@@ -96,6 +105,8 @@ BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 }
 UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 {
+	ci->extra_opts |= aflag;
+	ci->extra_opts &= (~dflag);
 	if (0 != (aflag & BIT_FORCEABBREVCONNSTR))
 		ci->force_abbrev_connstr = TRUE;
 	if (0 != (aflag & BIT_FAKE_MSS))
@@ -104,14 +115,18 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 		ci->bde_environment = TRUE;
 	if (0 != (aflag & BIT_CVT_NULL_DATE))
 		ci->cvt_null_date_string = TRUE;
+	if (0 != (aflag & BIT_ACCESSIBLE_ONLY))
+		ci->accessible_only = TRUE;
 	if (0 != (dflag & BIT_FORCEABBREVCONNSTR))
 		ci->force_abbrev_connstr = FALSE;
 	if (0 != (dflag & BIT_FAKE_MSS))
 		ci->fake_mss =FALSE;
 	if (0 != (dflag & BIT_CVT_NULL_DATE))
 		ci->cvt_null_date_string = FALSE;
+	if (0 != (dflag & BIT_ACCESSIBLE_ONLY))
+		ci->accessible_only = FALSE;
 
-	return getExtraOptions(ci);
+	return (ci->extra_opts = getExtraOptions(ci));
 }
 
 void

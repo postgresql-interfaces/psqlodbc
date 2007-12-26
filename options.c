@@ -425,8 +425,16 @@ PGAPI_SetConnectOption(
 					    PG_VERSION_LE(conn, 7.0))
 						retval = SQL_ERROR;
 					break;
+				case SQL_TXN_REPEATABLE_READ:
+					if (PG_VERSION_LT(conn, 8.0))
+						retval = SQL_ERROR;
+					break;
 				case SQL_TXN_READ_COMMITTED:
 					if (PG_VERSION_LT(conn, 6.5))
+						retval = SQL_ERROR;
+					break;
+				case SQL_TXN_READ_UNCOMMITTED:
+					if (PG_VERSION_LT(conn, 8.0))
 						retval = SQL_ERROR;
 					break;
 				default:
@@ -442,10 +450,21 @@ PGAPI_SetConnectOption(
 				char *query;
 				QResultClass *res;
 
-				if (vParam == SQL_TXN_SERIALIZABLE)
-					query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE";
-				else
-					query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
+				switch (vParam)
+				{
+					case SQL_TXN_SERIALIZABLE:
+						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE";
+						break;
+					case SQL_TXN_REPEATABLE_READ:
+						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ";
+						break;
+					case SQL_TXN_READ_UNCOMMITTED:
+						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ UNCOMMITTED";
+						break;
+					default:
+						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
+						break;
+				}
 				res = CC_send_query(conn, query, NULL, 0, NULL);
 				if (!QR_command_maybe_successful(res))
 					retval = SQL_ERROR;

@@ -812,7 +812,7 @@ handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *s
 	}
 
 inolog("new_format=%d\n", new_format);
-	truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+	truncated = SOCK_get_string(sock, new_format ? msgbuffer : msgbuf, new_format ? sizeof(msgbuffer) : buflen);
 	if (new_format)
 	{
 		size_t	msgl;
@@ -870,14 +870,14 @@ inolog("new_format=%d\n", new_format);
 	}
 	else
 	{
-		strncpy(msgbuf, msgbuffer, buflen);
+		msg_truncated = truncated;
 		/* Remove a newline */
 		if (msgbuf[0] != '\0' && msgbuf[(int)strlen(msgbuf) - 1] == '\n')
 			msgbuf[(int)strlen(msgbuf) - 1] = '\0';
 
 		mylog("%s: 'E' - %s\n", comment, msgbuf);
 		qlog("ERROR from backend during %s: '%s'\n", comment, msgbuf);
-		for (truncated = msg_truncated; truncated;)
+		while (truncated)
 			truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 	}
 	abort_opt = 0;
@@ -1813,7 +1813,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
 	ConnInfo *ci = &(self->connInfo);
 	CSTR	func = "CC_connect";
-	char		ret;
+	char		ret, *saverr = NULL;
 #ifndef	NOT_USE_LIBPQ
 	BOOL	call_libpq = FALSE;
 #endif /* NOT_USE_LIBPQ */
@@ -1878,6 +1878,8 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 inolog("CC_send_settings\n");
 	CC_send_settings(self);
 
+	if (CC_get_errornumber(self) > 0)
+		saverr = strdup(CC_get_errormsg(self));
 	CC_clear_error(self);			/* clear any error */
 	CC_lookup_lo(self);			/* a hack to get the oid of
 						   our large object oid type */
@@ -1889,7 +1891,10 @@ inolog("CC_send_settings\n");
 	{
 		CC_lookup_characterset(self);
 		if (CC_get_errornumber(self) > 0)
-			return 0;
+		{
+			ret = 0;
+			goto cleanup;
+		}
 #ifdef UNICODE_SUPPORT
 		if (CC_is_in_unicode_driver(self))
 		{
@@ -1900,7 +1905,8 @@ inolog("CC_send_settings\n");
 				if (PG_VERSION_LT(self, 7.1))
 				{
 					CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "UTF-8 conversion isn't implemented before 7.1", func);
-					return 0;
+					ret = 0;
+					goto cleanup;
 				}
 				if (self->original_client_encoding)
 					free(self->original_client_encoding);
@@ -1922,7 +1928,8 @@ inolog("CC_send_settings\n");
 	else if (CC_is_in_unicode_driver(self))
 	{
 		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "Unicode isn't supported before 6.4", func);
-		return 0;
+		ret = 0;
+		goto cleanup;
 	}
 #endif /* UNICODE_SUPPORT */
 	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS; 
@@ -1945,10 +1952,18 @@ inolog("CC_send_settings\n");
 	    && 0 < ci->bde_environment)
 		self->unicode |= CONN_DISALLOW_WCHAR;
 mylog("conn->unicode=%d\n", self->unicode);
+	ret = 1;
 
-	mylog("%s: returning...\n", func);
+cleanup:
+	mylog("%s: returning...%d\n", func, ret);
+	if (NULL != saverr)
+	{
+		if (ret > 0 && CC_get_errornumber(self) <= 0)
+			CC_set_error(self, -1, saverr, func);
+		free(saverr);
+	}
 
-	return 1;
+	return ret;
 }
 
 
@@ -2877,7 +2892,8 @@ cleanup:
 					CC_set_errornumber(self, 0);
 				else if (retres)
 				{
-					if ((!CC_get_errormsg(self) || !CC_get_errormsg(self)[0]))
+					if (NULL == CC_get_errormsg(self) ||
+					    !CC_get_errormsg(self)[0])
 						CC_set_errormsg(self, QR_get_message(retres));
 					if (!self->sqlstate[0])
 						strcpy(self->sqlstate, retres->sqlstate);
