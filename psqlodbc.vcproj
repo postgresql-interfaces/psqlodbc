@@ -47,7 +47,6 @@
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="C:\Program Files\PostgreSQL\8.2\include,C:\OpenSSL\include"
 				PreprocessorDefinitions="NDEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;DYNAMIC_LOAD;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE"
-				IgnoreStandardIncludePath="true"
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
