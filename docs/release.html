@@ -12,8 +12,7 @@
 <h2>psqlODBC 08.02.0X00 Release </h2>
 Changes:<br>
 1.) Correct the flow of trial of multi protocols and fix related bugs about handling of connection errors.<br>
-2.) I may have introduced a bug in the last change which may cause an infinite loop of trial to use the same
- (should be lower) version of protocols. Also try to use SSPI service for SSL support when libpq is unavailable.<br>
+2.) Use SSPI service for SSL support when libpq is unavailable.<br>
 3.) Fix a bug in copy_and_convert_field() when fetching bookmark columns. This bug could occur in case no suitable?
  lo type is found.<br>
 4.) Improve the parse statement operation so that it detect srf in (from clause).<br>
