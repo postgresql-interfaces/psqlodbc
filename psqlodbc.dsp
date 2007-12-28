@@ -216,6 +216,10 @@ SOURCE=socket.c
 # End Source File
 # Begin Source File
 
+SOURCE=sspisvcs.c
+# End Source File
+# Begin Source File
+
 SOURCE=statement.c
 # End Source File
 # Begin Source File
@@ -313,6 +317,10 @@ SOURCE=qresult.h
 # Begin Source File
 
 SOURCE=socket.h
+# End Source File
+# Begin Source File
+
+SOURCE=sspisvcs.h
 # End Source File
 # Begin Source File
 
