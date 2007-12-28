@@ -9,8 +9,21 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.02.0500 Release </h2>
+<h2>psqlODBC 08.02.0X00 Release </h2>
+Changes:<br>
+1.) Correct the flow of trial of multi protocols and fix related bugs about handling of connection errors.<br>
+2.) I may have introduced a bug in the last change which may cause an infinite loop of trial to use the same
+ (should be lower) version of protocols. Also try to use SSPI service for SSL support when libpq is unavailable.<br>
+3.) Fix a bug in copy_and_convert_field() when fetching bookmark columns. This bug could occur in case no suitable?
+ lo type is found.<br>
+4.) Improve the parse statement operation so that it detect srf in (from clause).<br>
+5.) Correct the COLUMN_LENGTH return value of SQLColumns() for varchar/bpchar type columns (Unicode driver).<br>
+6.) Change to not return database name if case of MS Query.<br>
+7.) The first cut to use Windows SSPI. The trial to use Schannel service for SSL support.<br>
+8.) Be more careful about <for locking clause> in UseDeclareFetch mode. "for read only" clause for read only queries
+ for 8.3 or later servers for safety.<br>
 <br>
+<li>Notes: psqlODBC 08.02.0500</li><br>
 Changes:<br>
 1.) Correct the format of Bind message under 64bit environment.<br>
 2.) Fixed build of without OpenSSL.<br>
