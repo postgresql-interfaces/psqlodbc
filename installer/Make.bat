@@ -3,13 +3,13 @@
 REM Values to change include VERSION and SUBLOC, both below.
 
 REM The subdirectory to install into
-SET SUBLOC="0802"
+SET SUBLOC="0803"
 
 if NOT "%1"=="" SET VERSION="%1"
 if NOT "%1"=="" GOTO GOT_VERSION
 
 REM The full version number of the build in XXXX.XX.XX format
-SET VERSION="08.02.0500"
+SET VERSION="08.03.0100"
 
 echo.
 echo Version not specified - defaulting to %VERSION%
