@@ -120,12 +120,12 @@ AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
 # SSL support
 #
 
-PGAC_ARG_BOOL(enable, usessl, yes,
+PGAC_ARG_BOOL(enable, openssl, yes,
               [  --disable-openssl       do not build OpenSSL support],
               [AC_DEFINE(USE_SSL, 1,
                          [Define to 1 to build with OpenSSL support (--enable-openssl)])])
 
-AM_CONDITIONAL(enable_usessl, [test x"$enable_ssl" = xyes])
+AM_CONDITIONAL(enable_openssl, [test x"$enable_openssl" = xyes])
 
 #
 # Pthreads
