@@ -17,7 +17,9 @@
 #endif /* USE_SSPI */
 #ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
+#ifdef USE_SSL
 #include <openssl/ssl.h>
+#endif /* USE_SSL */
 #endif /* NOT_USE_LIBPQ */
 #include "socket.h"
 #include "loadlib.h"
@@ -82,7 +84,9 @@ SOCK_Constructor(const ConnectionClass *conn)
 #endif /* USE_SSPI */
 #ifndef	NOT_USE_LIBPQ
 		rv->via_libpq = FALSE;
+#ifdef USE_SSL
 		rv->ssl = NULL;
+#endif
 		rv->pqconn = NULL;
 #endif /* NOT_USE_LIBPQ */
 		rv->pversion = 0;
@@ -134,7 +138,9 @@ SOCK_Destructor(SocketClass *self)
 			}
 			self->via_libpq = FALSE;
 			self->pqconn = NULL;
+#ifdef USE_SSL
 			self->ssl = NULL;
+#endif
 		}
 		else
 #endif /* NOT_USE_LIBPQ */
@@ -458,10 +464,10 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 		no_timeout = FALSE;
 	else if (0  > retry_count)
 		no_timeout = TRUE;
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_SSL
 	else if (sock && NULL == sock->ssl)
 		no_timeout = TRUE;
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_SSL */
 	do {
 		FD_ZERO(&fds);
 		FD_ZERO(&except_fds);
@@ -514,7 +520,7 @@ static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 /*
  *	The stuff for SSL.
  */
-/* included in  <openssl/ssl.h>
+/* included in  <openssl/ssl.h> */
 #define SSL_ERROR_NONE			0
 #define SSL_ERROR_SSL			1
 #define SSL_ERROR_WANT_READ		2
@@ -524,7 +530,7 @@ static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 #define SSL_ERROR_ZERO_RETURN		6
 #define SSL_ERROR_WANT_CONNECT		7
 #define SSL_ERROR_WANT_ACCEPT		8
-*/
+
 
 /*
  *	recv more than 1 bytes using SSL.

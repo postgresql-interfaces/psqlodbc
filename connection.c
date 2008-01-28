@@ -3678,8 +3678,10 @@ cleanup1:
 	socket = PQsocket(pqconn);
 inolog("socket=%d\n", socket);
 	sock->socket = socket;
+#ifdef USE_SSL
 	sock->ssl = PQgetssl(pqconn);
 inolog("ssl=%p\n", sock->ssl);
+#endif
 if (TRUE)
 	{
 		int	pversion;
@@ -3717,11 +3719,13 @@ if (TRUE)
 		/* ioctlsocket(sock, FIONBIO , 0);
 		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof(on)); */
 	}
+#ifdef USE_SSL
 	if (sock->ssl)
 	{
 		/* flags = fcntl(sock, F_GETFL);
 		fcntl(sock, F_SETFL, flags & (~O_NONBLOCKING));*/
 	}
+#endif
 	mylog("Server version=%s\n", self->pg_version);
 	ret = 1;
 	if (ret)
