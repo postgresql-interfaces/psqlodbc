@@ -12,6 +12,8 @@
  *-------
  */
 
+#include "psqlodbc.h"
+
 #ifdef	USE_SSPI
 #include "sspisvcs.h"
 #endif /* USE_SSPI */
