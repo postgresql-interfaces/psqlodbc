@@ -222,9 +222,9 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 	{
 		loaded_libpq = TRUE;
 		/* ssllibs are already loaded by libpq
-		if (PQgetssl(pqconn)) */
+		if (PQgetssl(pqconn))
 			loaded_ssllib = TRUE;
-		
+		*/
 	}
 #else
 	pqconn = PQconnectdb(conninfo);

@@ -389,6 +389,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->ref_CC_error = FALSE;
 		rv->lock_CC_for_rb = 0;
 		rv->join_info = 0;
+		rv->curr_param_result = 0;
 		SC_init_parse_method(rv);
 
 		rv->lobj_fd = -1;
@@ -1146,6 +1147,7 @@ SC_create_errorinfo(const StatementClass *self)
 	Int4	errornum;
 	size_t		pos;
 	BOOL		resmsg = FALSE, detailmsg = FALSE, msgend = FALSE;
+	BOOL		looponce, loopend;
 	char		msg[4096], *wmsg;
 	char		*ermsg = NULL, *sqlstate = NULL;
 	PG_ErrorInfo	*pgerror;
@@ -1156,12 +1158,23 @@ SC_create_errorinfo(const StatementClass *self)
 	if (errornum == 0)
 		return	NULL;
 
+	looponce = (SC_get_Result(self) != res);
+mylog("looponce=%d\n", looponce);
 	msg[0] = '\0';
-	if (res)
+	for (loopend = FALSE; (NULL != res) && !loopend; res = res->next)
 	{
-		if (res->sqlstate[0])
+		if (looponce)
+			loopend = TRUE;
+		if ('\0' != res->sqlstate[0])
+		{
+			if (NULL != sqlstate && strnicmp(res->sqlstate, "00", 2) == 0)
+				continue;
 			sqlstate = res->sqlstate;
-		if (res->message)
+			if ('0' != sqlstate[0] ||
+			    '1' < sqlstate[1])
+				loopend = TRUE;
+		}
+		if (NULL != res->message)
 		{
 			strncpy(msg, res->message, sizeof(msg));
 			detailmsg = resmsg = TRUE;
@@ -1228,7 +1241,7 @@ SC_create_errorinfo(const StatementClass *self)
 			strcpy(pgerror->sqlstate, conn->sqlstate);
 		else
 		{
-        		EnvironmentClass *env = (EnvironmentClass *) conn->henv;
+        		EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 
 			errornum -= LOWEST_STMT_ERROR;
         		if (errornum < 0 ||
@@ -1777,8 +1790,8 @@ SC_execute(StatementClass *self)
 
 		if (issue_begin)
 			CC_begin(conn);
-		res = SC_get_Result(self);
-inolog("get_Result=%p\n", res);
+		for (res = SC_get_Result(self); NULL != res->next; res = res->next) ;
+inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_result);
 		if (!plan_name)
 			plan_name = "";
 		if (!SendBindRequest(self, plan_name))
@@ -1793,10 +1806,10 @@ inolog("get_Result=%p\n", res);
 				SC_set_error(self, STMT_EXEC_ERROR, "Execute request error", func);
 			goto cleanup;
 		}
-		if (!(res = SendSyncAndReceive(self, res, "bind_and_execute")))
+		if (!(res = SendSyncAndReceive(self, self->curr_param_result ? res : NULL, "bind_and_execute")))
 		{
 			if (SC_get_errornumber(self) <= 0)
-				SC_set_error(self, STMT_EXEC_ERROR, "Could not receive he response, communication down ??", func);
+				SC_set_error(self, STMT_EXEC_ERROR, "Could not receive the response, communication down ??", func);
 			CC_on_abort(conn, CONN_DEAD);
 			goto cleanup;
 		}
@@ -2012,14 +2025,18 @@ inolog("res->next=%p\n", tres);
 	}
 	if (!SC_get_Result(self))
 		SC_set_Result(self, res);
-	else if (res == SC_get_Result(self))
-		;
 	else
 	{
 		QResultClass	*last;
-		for (last = SC_get_Result(self); last->next; last = last->next)
-			;
-		last->next = res;
+
+		for (last = SC_get_Result(self); NULL != last->next; last = last->next)
+		{
+			if (last == res)
+				break;
+		}
+		if (last != res)
+			last->next = res;
+		self->curr_param_result = 1;
 	}
 
 	ipdopts = SC_get_IPDF(self);

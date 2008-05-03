@@ -1,4 +1,4 @@
-/*-------- 
+/*--------
  * Module:			info.c
  *
  * Description:		This module contains routines related to
@@ -132,7 +132,7 @@ PGAPI_GetInfo(
 			break;
 
 		case SQL_COLUMN_ALIAS:	/* ODBC 2.0 */
-			p = "N";
+			p = "Y";
 			break;
 
 		case SQL_CONCAT_NULL_BEHAVIOR:	/* ODBC 1.0 */
@@ -272,7 +272,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_EXPRESSIONS_IN_ORDERBY:		/* ODBC 1.0 */
-			p = "N";
+			p = PG_VERSION_GE(conn, 6.5) ? "Y" : "N";
 			break;
 
 		case SQL_FETCH_DIRECTION:		/* ODBC 1.0 */
@@ -1427,14 +1427,8 @@ mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 			{
 				case '%':
 				case '_':
-					if (escape_ch == escape_in_literal)
-						dest[outlen++] = escape_in_literal; /* and insert 1 more LEXER escape */
-					dest[outlen++] = escape_ch;
 					break;
 				default:
-					if (escape_ch == escape_in_literal)
-						dest[outlen++] = escape_in_literal;
-					dest[outlen++] = escape_ch;
 					if (escape_ch == escape_in_literal)
 						dest[outlen++] = escape_in_literal;
 					dest[outlen++] = escape_ch;
@@ -1442,14 +1436,24 @@ mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 			}
 		}
 		if (*in == escape_ch)
+		{
 			escape_in = TRUE;
+			if (escape_ch == escape_in_literal)
+				dest[outlen++] = escape_in_literal; /* insert 1 more LEXER escape */
+		}
 		else
 		{
 			escape_in = FALSE;
 			if (LITERAL_QUOTE == *in)
 				dest[outlen++] = *in;
-			dest[outlen++] = *in;
 		}
+		dest[outlen++] = *in;
+	}
+	if (escape_in)
+	{
+		if (escape_ch == escape_in_literal)
+			dest[outlen++] = escape_in_literal;
+		dest[outlen++] = escape_ch;
 	}
 	dest[outlen] = '\0';
 	if (result_len)
@@ -1461,6 +1465,19 @@ mylog("adjust output=%s(%d)\n", dest, outlen);
 #define	CSTR_SYS_TABLE	"SYSTEM TABLE"
 #define	CSTR_TABLE	"TABLE"
 #define	CSTR_VIEW	"VIEW"
+
+CSTR	like_op_sp = 	"like ";
+CSTR	like_op_ext =	"like E";
+CSTR	eq_op_sp =	"= ";
+CSTR	eq_op_ext =	"= E";
+static const char *gen_opestr(const char *orig_opestr, const ConnectionClass * conn)
+{
+	BOOL	addE = (0 != CC_get_escape(conn) && PG_VERSION_GE(conn, 8.1));
+
+	if (0 == strcmp(orig_opestr, eqop))
+		return (addE ? eq_op_ext : eq_op_sp);
+	return (addE ? like_op_ext : like_op_sp);
+}
 
 RETCODE		SQL_API
 PGAPI_Tables(
@@ -1506,7 +1523,7 @@ PGAPI_Tables(
 				systable;
 	int			i;
 	SQLSMALLINT		internal_asis_type = SQL_C_CHAR, cbSchemaName;
-	const char	*like_or_eq;
+	const char	*like_or_eq, *op_string;
 	const char	*szSchemaName;
 	BOOL		search_pattern;
 	BOOL		list_cat = FALSE, list_schemas = FALSE, list_table_types = FALSE, list_some = FALSE;
@@ -1607,16 +1624,17 @@ retry_public_schema:
 		strcat(tables_query, " where relkind = 'r'");
 	}
 
+	op_string = gen_opestr(like_or_eq, conn);
 	if (!list_some)
 	{
 		if (conn->schema_support)
 		{
-			schema_strcat1(tables_query, " and nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+			schema_strcat1(tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 			/* strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)"); */
 		}
 		else
-			my_strcat1(tables_query, " and usename %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
-		my_strcat1(tables_query, " and relname %s '%.*s'", like_or_eq, escTableName, SQL_NTS);
+			my_strcat1(tables_query, " and usename %s'%.*s'", op_string, escSchemaName, SQL_NTS);
+		my_strcat1(tables_query, " and relname %s'%.*s'", op_string, escTableName, SQL_NTS);
 	}
 
 	/* Parse the extra systable prefix	*/
@@ -1990,7 +2008,7 @@ PGAPI_Columns(
 	ConnectionClass *conn;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	SQLINTEGER	greloid;
-	const char	*like_or_eq = likeop;
+	const char	*like_or_eq = likeop, *op_string;
 	const char	*szSchemaName;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
@@ -2049,6 +2067,7 @@ retry_public_schema:
 	 * Create the query to find out the columns (Note: pre 6.3 did not
 	 * have the atttypmod field)
 	 */
+	op_string = gen_opestr(like_or_eq, conn);
 	if (conn->schema_support)
 	{
 		strncpy(columns_query,
@@ -2062,8 +2081,8 @@ retry_public_schema:
 		else
 		{
 			if (escTableName)
-				snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s '%s'", like_or_eq, escTableName);
-			schema_strcat1(columns_query, " and n.nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+				snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
+			schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 		}
 		strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
 			" on (not a.attisdropped)");
@@ -2075,7 +2094,7 @@ retry_public_schema:
 				snprintf_add(columns_query, sizeof(columns_query), " and a.attnum = %d", attnum);
 		}
 		else if (escColumnName)
-			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s '%s'", like_or_eq, escColumnName);
+			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s'%s'", op_string, escColumnName);
 		strcat(columns_query,
 			" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
 			" on t.oid = a.atttypid) left outer join pg_attrdef d"
@@ -2093,10 +2112,10 @@ retry_public_schema:
 			"  and a.atttypid = t.oid and (a.attnum > 0)",
 			PG_VERSION_LE(conn, 6.2) ? "a.attlen" : "a.atttypmod");
 		if (escTableName)
-			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s '%s'", like_or_eq, escTableName);
-		my_strcat1(columns_query, " and u.usename %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
+			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
+		my_strcat1(columns_query, " and u.usename %s'%.*s'", op_string, escSchemaName, SQL_NTS);
 		if (escColumnName)
-			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s '%s'", like_or_eq, escColumnName);
+			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s'%s'", op_string, escColumnName);
 		strcat(columns_query, " order by c.relname, attnum");
 	}
 
@@ -2644,7 +2663,7 @@ PGAPI_SpecialColumns(
 	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8];
 	BOOL		relisaview;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
-	const char	*szSchemaName;
+	const char	*szSchemaName, *eq_string;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
 
@@ -2671,7 +2690,8 @@ PGAPI_SpecialColumns(
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
-	escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn); 
+	escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+	eq_string = gen_opestr(eqop, conn);
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
@@ -2689,12 +2709,12 @@ retry_public_schema:
 	/* TableName cannot contain a string search pattern */
 	/* my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName); */
 	if (escTableName)
-		snprintf_add(columns_query, sizeof(columns_query), " and c.relname = '%s'", escTableName);
+		snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", eq_string, escTableName);
 	/* SchemaName cannot contain a string search pattern */
 	if (conn->schema_support)
-		schema_strcat(columns_query, " and u.nspname = '%.*s'", escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	else
-		my_strcat(columns_query, " and u.usename = '%.*s'", escSchemaName, SQL_NTS);
+		my_strcat1(columns_query, " and u.usename %s'%.*s'", eq_string, escSchemaName, SQL_NTS);
 
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt);
@@ -2923,7 +2943,7 @@ PGAPI_Statistics(
 	ConnInfo   *ci;
 	char		buf[256];
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName, field_number;
-	const char	*szSchemaName;
+	const char	*szSchemaName, *eq_string;
 	OID		ioid;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
@@ -3082,7 +3102,8 @@ PGAPI_Statistics(
 	indx_stmt = (StatementClass *) hindx_stmt;
 
 	/* TableName cannot contain a string search pattern */
-	escTableName = simpleCatalogEscape(table_name, SQL_NTS, NULL, conn); 
+	escTableName = simpleCatalogEscape(table_name, SQL_NTS, NULL, conn);
+	eq_string = gen_opestr(eqop, conn); 
 	if (conn->schema_support)
 	{
 		escSchemaName = simpleCatalogEscape(table_schemaname, SQL_NTS, NULL, conn); 
@@ -3092,23 +3113,23 @@ PGAPI_Statistics(
 			" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
 			" pg_catalog.pg_class d, pg_catalog.pg_am a,"
 			" pg_catalog.pg_namespace n"
-			" where d.relname = '%s'"
-			" and n.nspname = '%s'"
+			" where d.relname %s'%s'"
+			" and n.nspname %s'%s'"
 			" and n.oid = d.relnamespace"
 			" and d.oid = i.indrelid"
 			" and i.indexrelid = c.oid"
 			" and c.relam = a.oid order by"
-			,escTableName, escSchemaName);
+			, eq_string, escTableName, eq_string, escSchemaName);
 	}
 	else
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
 			", i.indisclustered, a.amname, c.relhasrules, c.oid"
 			" from pg_index i, pg_class c, pg_class d, pg_am a"
-			" where d.relname = '%s'"
+			" where d.relname %s'%s'"
 			" and d.oid = i.indrelid"
 			" and i.indexrelid = c.oid"
 			" and c.relam = a.oid order by"
-			,escTableName);
+			, eq_string, escTableName);
 	if (PG_VERSION_GT(SC_get_conn(stmt), 6.4))
 		strcat(index_query, " i.indisprimary desc,");
 	if (conn->schema_support)
@@ -3389,7 +3410,7 @@ PGAPI_ColumnPrivileges(
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	RETCODE	result = SQL_ERROR;
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
-	const char	*like_or_eq;
+	const char	*like_or_eq, *op_string, *eq_string;
 	char	column_query[INFO_INQUIRY_LEN];
 	size_t		cq_len,cq_size;
 	char		*col_query;
@@ -3424,12 +3445,14 @@ PGAPI_ColumnPrivileges(
 	cq_len = strlen(column_query);
 	cq_size = sizeof(column_query);
 	col_query = column_query;
+	op_string = gen_opestr(like_or_eq, conn);
+	eq_string = gen_opestr(eqop, conn);
 	if (escSchemaName)
 	{
 		col_query += cq_len;
 		cq_size -= cq_len;
 		cq_len = snprintf_len(col_query, cq_size,
-			" and table_schem = '%s'", escSchemaName);  
+			" and table_schem %s'%s'", eq_string, escSchemaName);  
 		
 	}
 	if (escTableName)
@@ -3437,14 +3460,14 @@ PGAPI_ColumnPrivileges(
 		col_query += cq_len;
 		cq_size -= cq_len;
 		cq_len += snprintf_len(col_query, cq_size,
-			" and table_name = '%s'", escTableName);  
+			" and table_name %s'%s'", eq_string, escTableName);  
 	}
 	if (escColumnName)
 	{
 		col_query += cq_len;
 		cq_size -= cq_len;
 		cq_len += snprintf_len(col_query, cq_size,
-			" and column_name %s '%s'", like_or_eq, escColumnName);
+			" and column_name %s'%s'", op_string, escColumnName);
 	}
 	if (res = CC_send_query(conn, column_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
 	{
@@ -3515,7 +3538,7 @@ PGAPI_PrimaryKeys(
 				qstart,
 				qend;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
-	const char	*szSchemaName;
+	const char	*szSchemaName, *eq_string;
 	char	*escSchemaName = NULL, *escTableName = NULL;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
@@ -3582,6 +3605,7 @@ PGAPI_PrimaryKeys(
 		cbSchemaName = cbTableOwner;
 		escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
 	}
+	eq_string = gen_opestr(eqop, conn);
 
 retry_public_schema:
 	pkscm[0] = '\0';
@@ -3663,9 +3687,9 @@ retry_public_schema:
 					tbqry = tables_query + qsize;
 					if (0 == reloid)
 						snprintf(tbqry, tsize,
-						" where tc.relname = '%s'"
-						" AND n.nspname = '%s'"
-						, escTableName, pkscm);
+						" where tc.relname %s'%s'"
+						" AND n.nspname %s'%s'"
+						, eq_string, escTableName, eq_string, pkscm);
 					else
 						snprintf(tbqry, tsize,
 						" where tc.oid = " FORMAT_UINTEGER
@@ -3695,8 +3719,8 @@ retry_public_schema:
 					tbqry = tables_query + qsize;
 					if (0 == reloid)
 						snprintf(tbqry, tsize,
-						" where tc.relname = '%s'"
-						, escTableName);
+						" where tc.relname %s'%s'"
+						, eq_string, escTableName);
 					else
 						snprintf(tbqry, tsize,
 						" where tc.oid = " FORMAT_UINTEGER, reloid);
@@ -3722,8 +3746,8 @@ retry_public_schema:
 						" from pg_catalog.pg_attribute ta,"
 						" pg_catalog.pg_attribute ia, pg_catalog.pg_class ic,"
 						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
-						" where ic.relname = '%s_pkey'"
-						" AND n.nspname = '%s'"
+						" where ic.relname %s'%s_pkey'"
+						" AND n.nspname %s'%s'"
 						" AND ic.oid = i.indexrelid"
 						" AND n.oid = ic.relnamespace"
 						" AND ia.attrelid = i.indexrelid"
@@ -3731,16 +3755,16 @@ retry_public_schema:
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
 						" AND (NOT ta.attisdropped)"
 						" AND (NOT ia.attisdropped)"
-						" order by ia.attnum", escTableName, pkscm);
+						" order by ia.attnum", eq_string, escTableName, eq_string, pkscm);
 				else
 					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, NULL, NULL"
 						" from pg_attribute ta, pg_attribute ia, pg_class ic, pg_index i"
-						" where ic.relname = '%s_pkey'"
+						" where ic.relname %s'%s_pkey'"
 						" AND ic.oid = i.indexrelid"
 						" AND ia.attrelid = i.indexrelid"
 						" AND ta.attrelid = i.indrelid"
 						" AND ta.attnum = i.indkey[ia.attnum-1]"
-						" order by ia.attnum", escTableName);
+						" order by ia.attnum", eq_string, escTableName);
 				break;
 		}
 		mylog("%s: tables_query='%s'\n", func, tables_query);
@@ -3866,6 +3890,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 {
 	char		query[1024], saveattnum[16],
 			   *ret = serverColumnName;
+	const char *eq_string;
 	BOOL		continueExec = TRUE,
 				bError = FALSE;
 	QResultClass *res = NULL;
@@ -3889,11 +3914,12 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	snprintf(query, sizeof(query), "SET CLIENT_ENCODING TO '%s'", conn->server_encoding);
 	bError = (!QR_command_maybe_successful((res = CC_send_query(conn, query, NULL, flag, NULL))));
 	QR_Destructor(res);
+	eq_string = gen_opestr(eqop, conn);
 	if (!bError && continueExec)
 	{
 		snprintf(query, sizeof(query), "select attnum from pg_attribute "
-			"where attrelid = %u and attname = '%s'",
-			relid, serverColumnName);
+			"where attrelid = %u and attname %s'%s'",
+			relid, eq_string, serverColumnName);
 		if (res = CC_send_query(conn, query, NULL, flag, NULL), QR_command_maybe_successful(res))
 		{
 			if (QR_get_num_cached_tuples(res) > 0)
@@ -3986,6 +4012,7 @@ PGAPI_ForeignKeys(
 	char		pkey[MAX_INFO_STRING];
 	Int2		result_cols;
 	UInt4		relid1, relid2;
+	const char *eq_string;
 
 	mylog("%s: entering...stmt=%p\n", func, stmt);
 
@@ -4063,6 +4090,7 @@ PGAPI_ForeignKeys(
 #endif /* UNICODE_SUPPORT */
 	pkey_alloced = fkey_alloced = FALSE;
 
+	eq_string = gen_opestr(eqop, conn);
 	/*
 	 * Case #2 -- Get the foreign keys in the specified table (fktab) that
 	 * refer to the primary keys of other table(s).
@@ -4103,9 +4131,9 @@ PGAPI_ForeignKeys(
 				"AND pp1.oid = pt1.tgfoid "
 				"AND pt2.tgfoid = pp2.oid "
 				"AND pt2.tgconstrrelid = pc.oid "
-				"AND ((pc.relname='%s') "
+				"AND ((pc.relname %s'%s') "
 				"AND (pn1.oid = pc.relnamespace) "
-				"AND (pn1.nspname = '%s') "
+				"AND (pn1.nspname %s'%s') "
 				"AND (pp.proname LIKE '%%ins') "
 				"AND (pp1.proname LIKE '%%upd') "
 				"AND (pp1.proname not LIKE '%%check%%') "
@@ -4117,7 +4145,7 @@ PGAPI_ForeignKeys(
 				"AND (pt.tgconstrrelid=pc1.oid) "
 				"AND (pc1.relnamespace=pn.oid))"
 				" order by pt.tgconstrname",
-				escFkTableName, escSchemaName);
+				eq_string, escFkTableName, eq_string, escSchemaName);
 			free(escSchemaName);
 		}
 		else
@@ -4144,7 +4172,7 @@ PGAPI_ForeignKeys(
 				"AND pp1.oid = pt1.tgfoid "
 				"AND pt2.tgfoid = pp2.oid "
 				"AND pt2.tgconstrrelid = pc.oid "
-				"AND ((pc.relname='%s') "
+				"AND ((pc.relname %s'%s') "
 				"AND (pp.proname LIKE '%%ins') "
 				"AND (pp1.proname LIKE '%%upd') "
 				"AND (pp1.proname not LIKE '%%check%%') "
@@ -4155,7 +4183,7 @@ PGAPI_ForeignKeys(
 				"AND (pt2.tgconstrname=pt.tgconstrname) "
 				"AND (pt.tgconstrrelid=pc1.oid)) "
 				"order by pt.tgconstrname",
-				escFkTableName);
+				eq_string, escFkTableName);
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 
@@ -4467,8 +4495,8 @@ PGAPI_ForeignKeys(
 				"	pg_catalog.pg_trigger pt2, "
 				"	pg_catalog.pg_namespace pn, "
 				"	pg_catalog.pg_namespace pn1 "
-				"WHERE  pc.relname='%s' "
-				"	AND pn.nspname = '%s' "
+				"WHERE  pc.relname %s'%s' "
+				"	AND pn.nspname %s'%s' "
 				"	AND pc.relnamespace = pn.oid "
 				"	AND pt.tgconstrrelid = pc.oid "
 				"	AND pp.oid = pt.tgfoid "
@@ -4487,7 +4515,7 @@ PGAPI_ForeignKeys(
 				"	AND pp2.proname Like '%%del' "
 				"	AND pn1.oid = pc1.relnamespace "
 				" order by pt.tgconstrname",
-				escPkTableName, escSchemaName);
+				eq_string, escPkTableName, eq_string, escSchemaName);
 			free(escSchemaName);
 		}
 		else
@@ -4508,7 +4536,7 @@ PGAPI_ForeignKeys(
 				"	pg_trigger pt, "
 				"	pg_trigger pt1, "
 				"	pg_trigger pt2 "
-				"WHERE  pc.relname ='%s' "
+				"WHERE  pc.relname %s'%s' "
 				"	AND pt.tgconstrrelid = pc.oid "
 				"	AND pp.oid = pt.tgfoid "
 				"	AND pp.proname Like '%%ins' "
@@ -4525,7 +4553,7 @@ PGAPI_ForeignKeys(
 				"	AND pp2.oid = pt2.tgfoid "
 				"	AND pp2.proname Like '%%del'"
 				" order by pt.tgconstrname",
-				escPkTableName);
+				eq_string, escPkTableName);
 
 		result = PGAPI_ExecDirect(htbl_stmt, tables_query, SQL_NTS, 0);
 		if (!SQL_SUCCEEDED(result))
@@ -4840,7 +4868,7 @@ PGAPI_ProcedureColumns(
 	Int4		paramcount, i, j;
 	RETCODE		result;
 	BOOL		search_pattern, bRetset;
-	const char	*like_or_eq, *retset;
+	const char	*like_or_eq, *op_string, *retset;
 	int		ret_col = -1, ext_pos = -1, poid_pos = -1, attid_pos = -1, attname_pos = -1;
 	UInt4		poid = 0, newpoid;
 
@@ -4866,6 +4894,7 @@ PGAPI_ProcedureColumns(
 		escSchemaName = simpleCatalogEscape(szProcOwner, cbProcOwner, NULL, conn);
 		escProcName = simpleCatalogEscape(szProcName, cbProcName, NULL, conn);
 	}
+	op_string = gen_opestr(like_or_eq, conn);
 	if (conn->schema_support)
 	{
 		strcpy(proc_query, "select proname, proretset, prorettype, "
@@ -4902,9 +4931,9 @@ PGAPI_ProcedureColumns(
 				   " (not proretset) and");
 #endif /* PRORET_COUNT */
 		strcat(proc_query, " has_function_privilege(p.oid, 'EXECUTE')");
-		my_strcat1(proc_query, " and nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
+		my_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS);
 		if (escProcName)
-			snprintf_add(proc_query, sizeof(proc_query), " and proname %s '%s'", like_or_eq, escProcName);
+			snprintf_add(proc_query, sizeof(proc_query), " and proname %s'%s'", op_string, escProcName);
 		strcat(proc_query, " order by nspname, proname, p.oid, attnum");
 	}
 	else
@@ -4914,7 +4943,7 @@ PGAPI_ProcedureColumns(
 				"(not proretset)");
 		ret_col = 5;
 		if (escProcName)
-			snprintf_add(proc_query, sizeof(proc_query), " and proname %s '%s'", like_or_eq, escProcName);
+			snprintf_add(proc_query, sizeof(proc_query), " and proname %s'%s'", op_string, escProcName);
 		strcat(proc_query, " order by proname, proretset");
 	}
 	if (tres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(tres))
@@ -5234,7 +5263,7 @@ PGAPI_Procedures(
 	char	*escSchemaName = NULL, *escProcName = NULL;
 	QResultClass *res;
 	RETCODE		result;
-	const char	*like_or_eq;
+	const char	*like_or_eq, *op_string;
 	BOOL	search_pattern;
 
 	mylog("%s: entering... scnm=%p len=%d\n", func, szProcOwner, cbProcOwner);
@@ -5263,6 +5292,7 @@ PGAPI_Procedures(
 	/*
 	 * The following seems the simplest implementation
 	 */
+	op_string = gen_opestr(like_or_eq, conn);
 	if (conn->schema_support)
 	{
 		strcpy(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
@@ -5273,8 +5303,8 @@ PGAPI_Procedures(
 		   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
 		   " pg_catalog.pg_proc"
 		  " where pg_proc.pronamespace = pg_namespace.oid");
-		schema_strcat1(proc_query, " and nspname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS, szProcName, cbProcName, conn);
-		my_strcat1(proc_query, " and proname %s '%.*s'", like_or_eq, escProcName, SQL_NTS);
+		schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szProcName, cbProcName, conn);
+		my_strcat1(proc_query, " and proname %s'%.*s'", op_string, escProcName, SQL_NTS);
 	}
 	else
 	{
@@ -5283,7 +5313,7 @@ PGAPI_Procedures(
 		   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 		   " '' as " "REMARKS" ","
 		   " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_proc");
-		my_strcat1(proc_query, " where proname %s '%.*s'", like_or_eq, escSchemaName, SQL_NTS);
+		my_strcat1(proc_query, " where proname %s'%.*s'", op_string, escSchemaName, SQL_NTS);
 	}
 
 	if (res = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
@@ -5382,7 +5412,7 @@ PGAPI_TablePrivileges(
 	char		(*useracl)[ACLMAX] = NULL, *acl, *user, *delim, *auth;
 	const char	*reln, *owner, *priv, *schnm = NULL;
 	RETCODE		result, ret = SQL_SUCCESS;
-	const char	*like_or_eq;
+	const char	*like_or_eq, *op_string;
 	const char	*szSchemaName;
 	SQLSMALLINT	cbSchemaName;
 	char		*escSchemaName = NULL, *escTableName = NULL;
@@ -5444,6 +5474,8 @@ retry_public_schema:
 		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
 	else
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+
+	op_string = gen_opestr(like_or_eq, conn);
 	if (conn->schema_support)
 		strncpy_null(proc_query, "select relname, usename, relacl, nspname"
 		" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
@@ -5454,10 +5486,10 @@ retry_public_schema:
 	if (conn->schema_support)
 	{
 		if (escSchemaName)
-			schema_strcat1(proc_query, " nspname %s '%.*s' and", like_or_eq, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+			schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	}
 	if (escTableName)
-		snprintf_add(proc_query, sizeof(proc_query), " relname %s '%s' and", like_or_eq, escTableName);
+		snprintf_add(proc_query, sizeof(proc_query), " relname %s'%s' and", op_string, escTableName);
 	if (conn->schema_support)
 	{
 		strcat(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");

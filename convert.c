@@ -334,7 +334,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 }
 
 static BOOL
-stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, BOOL precision)
+stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, int precision)
 {
 	char		precstr[16],
 				zonestr[16];
@@ -351,10 +351,12 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, BOOL precision)
 		strcpy(str, MINFINITY_STRING);
 		return TRUE;
 	}
-	if (precision && st->fr)
+	if (precision > 0 && st->fr)
 	{
 		sprintf(precstr, ".%09d", st->fr);
-		for (i = 9; i > 0; i--)
+		if (precision < 9)
+			precstr[precision + 1] = '\0';
+		for (i = precision; i > 0; i--)
 		{
 			if (precstr[i] != '0')
 				break;
@@ -865,8 +867,12 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case PG_TYPE_TIMESTAMP:
 				len = 19;
 				if (cbValueMax > len)
-					sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
-							std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss);
+				{
+					/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+						std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
+					stime2timestamp(&std_time, rgbValueBindRow, FALSE, PG_VERSION_GE(conn, 7.2) ? cbValueMax - len - 2 : 0);
+					len = strlen(rgbValueBindRow);
+				}
 				break;
 
 			case PG_TYPE_BOOL:
@@ -2288,9 +2294,9 @@ RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
 	CSTR		func = "prep_params";
 	RETCODE		retval;
-	BOOL		ret;
+	BOOL		ret, once_descr;
 	ConnectionClass *conn = SC_get_conn(stmt);
-	QResultClass	*res;
+	QResultClass	*res, *dest_res = NULL;
 	char		plan_name[32], multi;
 	int		func_cs_count = 0;
 	const char	*orgquery, *srvquery;
@@ -2298,6 +2304,7 @@ RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	SQLSMALLINT	num_pa = 0, num_p1, num_p2;
 
 inolog("prep_params\n");
+	once_descr = (ONCE_DESCRIBED == stmt->prepared);
 	qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
 	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
 	{
@@ -2334,7 +2341,7 @@ inolog("prep_params\n");
 		ret = SendParseRequest(stmt, plan_name, qb->query_statement, SQL_NTS, -1);
 	if (!ret)
 		goto cleanup;
-	if (!SendDescribeRequest(stmt, plan_name))
+	if (!once_descr && (!SendDescribeRequest(stmt, plan_name)))
 		goto cleanup;
 	SC_set_planname(stmt, plan_name);
 	if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
@@ -2343,12 +2350,15 @@ inolog("prep_params\n");
 		CC_on_abort(conn, CONN_DEAD);
 		goto cleanup;
 	}
-	SC_set_Result(stmt, res);
+	if (once_descr)
+		dest_res = res;
+	else
+		SC_set_Result(stmt, res);
 	if (!QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while preparing parameters", func);
 		goto cleanup;
-	} 
+	}
 	if (stmt->multi_statement <= 0)
 	{
 		retval = SQL_SUCCESS;
@@ -2367,7 +2377,7 @@ inolog("prep_params\n");
 			stmt->current_exec_param = num_pa;
 			ret = SendParseRequest(stmt, plan_name, srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
 			if (!ret)	goto cleanup;
-			if (!SendDescribeRequest(stmt, plan_name))
+			if (!once_descr && !SendDescribeRequest(stmt, plan_name))
 				goto cleanup;
 			if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
 			{
@@ -2381,6 +2391,8 @@ inolog("prep_params\n");
 	retval = SQL_SUCCESS;
 cleanup:
 #undef	return
+	if (dest_res)
+		QR_Destructor(dest_res);
 	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
 	stmt->current_exec_param = -1;
 	QB_Destructor(qb);
@@ -2589,8 +2601,25 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	if (0 == (qp->flags & FLGP_USING_CURSOR))
 		SC_no_fetchcursor(stmt);
 	else if (0 == (qp->flags & (FLGP_SELECT_FOR_UPDATE_OR_SHARE | FLGP_SELECT_FOR_READONLY)) &&
+		 0 == stmt->multi_statement &&
 		 PG_VERSION_GE(conn, 8.3))
-		CVT_APPEND_STR(qb, " for read only");  
+	{
+		BOOL	semi_colon_found = FALSE;
+		const char *ptr = NULL, semi_colon = ';';
+		int	npos;
+
+		if (npos = F_NewPos(qb) - 1, npos >= 0)
+			ptr = F_NewPtr(qb) - 1;
+		for (; npos >= 0 && isspace(*ptr); npos--, ptr--) ;
+		if (npos >= 0 && semi_colon == *ptr)
+		{
+			qb->npos = npos;
+			semi_colon_found = TRUE;
+		}
+		CVT_APPEND_STR(qb, " for read only");
+		if (semi_colon_found)
+			CVT_APPEND_CHAR(qb, semi_colon);
+	}  
 	if (0 != (qp->flags & FLGP_SELECT_INTO) ||
 	    0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
 	{
@@ -3879,7 +3908,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			 * st.m, st.d, st.hh, st.mm, st.ss);
 			 */
 			/* Time zone stuff is unreliable */
-			stime2timestamp(&st, tmp, USE_ZONE, PG_VERSION_GE(conn, 7.2));
+			stime2timestamp(&st, tmp, USE_ZONE, PG_VERSION_GE(conn, 7.2) ? 6 : 0);
 			lastadd = "::timestamp";
 			CVT_APPEND_STR(qb, tmp);
 
@@ -4284,6 +4313,11 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			SC_set_outer_join(qb->stmt);
 		F_OldPrior(qp);
 		return SQL_SUCCESS; /* Continue at inner_process_tokens loop */
+	}
+	else if (stricmp(key, "escape") == 0) /* like escape support for 7.1+ servers */
+	{
+		CVT_APPEND_STR(qb, key);
+		return SQL_SUCCESS;
 	}
 	else if (stricmp(key, "fn") == 0)
 	{

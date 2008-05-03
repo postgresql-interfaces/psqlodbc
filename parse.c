@@ -1051,11 +1051,63 @@ cleanup:
 	return ret;
 }
 
-char
-parse_statement(StatementClass *stmt, BOOL check_hasoids)
+static BOOL include_alias_wo_as(const char *token, const char *btoken)
+{
+mylog("alias ? token=%s btoken=%s\n", token, btoken);
+	if ('\0' == btoken[0])
+		return FALSE;
+	else if (0 == stricmp(")", token))
+		return FALSE;
+	else if (0 == stricmp("as", btoken) ||
+		 0 == stricmp("and", btoken) ||
+		 0 == stricmp("or", btoken) ||
+		 0 == stricmp("not", btoken) ||
+		 0 == stricmp(",", btoken))
+		return FALSE;
+	else 
+	{
+		CSTR ops = "+-*/%^|!@&#~<>=.";
+		const char *cptr, *optr;
+
+		for (cptr = btoken; *cptr; cptr++)
+		{
+			for (optr = ops; *optr; optr++)
+			{
+				if (*optr != *cptr)
+					return TRUE;
+			}
+		}
+	}
+
+	return FALSE; 
+}
+
+static char *insert_as_to_the_statement(char *stmt, char **pptr, char **ptr)
+{
+	size_t	stsize = strlen(stmt), ppos = *pptr - stmt, remsize = stsize - ppos;
+	const int  ins_size = 3;
+	char	*newstmt = realloc(stmt, stsize + ins_size + 1);
+
+	if (newstmt)
+	{
+		char	*sptr = newstmt + ppos;
+		memmove(sptr + ins_size, sptr, remsize + 1);
+		sptr[0] = 'a';
+		sptr[1] = 's';
+		sptr[2] = ' ';
+		*ptr = sptr + (*ptr - *pptr) + ins_size;
+		*pptr = sptr + ins_size;
+	}
+	
+	return newstmt;
+}
+
+#define	TOKEN_SIZE	256
+static char
+parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 {
 	CSTR		func = "parse_statement";
-	char		token[256], stoken[256];
+	char		token[TOKEN_SIZE], stoken[TOKEN_SIZE], btoken[TOKEN_SIZE];
 	char		delim,
 				quote,
 				dquote,
@@ -1080,13 +1132,14 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				k = 0,
 				n,
 				blevel = 0, old_blevel, subqlevel = 0,
-				allocated_size, new_size;
+				tbl_blevel = 0, allocated_size, new_size,
+				nfields;
 	FIELD_INFO **fi, *wfi;
 	TABLE_INFO **ti, *wti;
 	char		parse, maybe_join = 0;
 	ConnectionClass *conn = SC_get_conn(stmt);
-	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	BOOL		updatable = TRUE;
+	IRDFields	*irdflds;
+	BOOL		updatable = TRUE, column_has_alias;
 
 	mylog("%s: entering...\n", func);
 
@@ -1096,18 +1149,33 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			CheckHasOids(stmt);
 		return TRUE;
 	}
-	stmt->updatable = FALSE;
+	nfields = 0;
+	wfi = NULL;
+	wti = NULL;
 	ptr = stmt->statement;
-	fi = irdflds->fi;
-	ti = stmt->ti;
+	if (sqlsvr_check)
+	{
+		irdflds = NULL;
+		fi = NULL;
+		ti = NULL;
+	}
+	else
+	{
+		stmt->updatable = FALSE;
+		irdflds = SC_get_IRDF(stmt);
+		fi = irdflds->fi;
+		ti = stmt->ti;
 
-	allocated_size = irdflds->allocated;
-	SC_initialize_cols_info(stmt, FALSE, TRUE);
-	stmt->from_pos = -1;
-	stmt->where_pos = -1;
+		allocated_size = irdflds->allocated;
+		SC_initialize_cols_info(stmt, FALSE, TRUE);
+		stmt->from_pos = -1;
+		stmt->where_pos = -1;
+	}
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 
-	while (pptr = ptr, (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	delim = '\0';
+	token[0] = '\0';
+	while (pptr = ptr, (delim != ',') ? strcpy(btoken, token) : (char *) (btoken[0] = '\0'), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 
@@ -1136,6 +1204,11 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				}
 				else if (!stricmp(token, "from"))
 				{
+					if (sqlsvr_check)
+					{
+						parse = TRUE;
+						goto cleanup;
+					}
 					in_select = FALSE;
 					in_from = TRUE;
 					if (stmt->from_pos < 0 &&
@@ -1222,6 +1295,30 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 		}
 		if (in_select)
 		{
+mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, in_dot, in_field, wfi ? SAFE_NAME(wfi->column_alias) : "<null>");
+			if (0 == blevel &&
+			    sqlsvr_check &&
+			    dquote &&
+			    '\0' != btoken[0] &&
+			    !in_dot &&
+			    in_field &&
+			    (!column_has_alias))
+			{
+				if (include_alias_wo_as(token, btoken))
+				{
+					char *news;
+
+					column_has_alias = TRUE;
+					if (NULL != wfi)
+						STR_TO_NAME(wfi->column_alias, token);
+					news = insert_as_to_the_statement(stmt->statement, &pptr, &ptr);
+					if (news != stmt->statement)
+					{
+						free(stmt->statement);
+						stmt->statement = news;
+					}
+				}
+			}
 			if (in_expr || in_func)
 			{
 				/* just eat the expression */
@@ -1275,85 +1372,101 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				if (!token[0])
 					continue;
 
-				/* if (!(irdflds->nfields % FLD_INCR)) */
-				if (irdflds->nfields >= allocated_size)
+				column_has_alias = FALSE;
+				if (!sqlsvr_check)
 				{
-					mylog("reallocing at nfld=%d\n", irdflds->nfields);
-					new_size = irdflds->nfields + 1;
-					if (!allocateFields(irdflds, new_size))
+					/* if (!(irdflds->nfields % FLD_INCR)) */
+					if (irdflds->nfields >= allocated_size)
+					{
+						mylog("reallocing at nfld=%d\n", irdflds->nfields);
+						new_size = irdflds->nfields + 1;
+						if (!allocateFields(irdflds, new_size))
+						{
+							SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+							SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO.", func);
+							goto cleanup;
+						}
+						fi = irdflds->fi;
+						allocated_size = irdflds->allocated;
+					}
+
+					wfi = fi[irdflds->nfields];
+					if (NULL != wfi)
+						fi_reuse = TRUE;
+					else
+						wfi = fi[irdflds->nfields] = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
+					if (NULL == wfi)
 					{
 						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO.", func);
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO(2).", func);
 						goto cleanup;
 					}
-					fi = irdflds->fi;
-					allocated_size = irdflds->allocated;
-				}
 
-				wfi = fi[irdflds->nfields];
-				if (wfi)
-					fi_reuse = TRUE;
-				else
-					wfi = fi[irdflds->nfields] = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
-				if (wfi == NULL)
-				{
-					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for FIELD_INFO(2).", func);
-					goto cleanup;
+					/* Initialize the field info */
+					FI_Constructor(wfi, fi_reuse);
+					wfi->flag = FIELD_PARSING;
 				}
-
-				/* Initialize the field info */
-				FI_Constructor(wfi, fi_reuse);
-				wfi->flag = FIELD_PARSING;
 
 				/* double quotes are for qualifiers */
-				if (dquote)
+				if (dquote && NULL != wfi)
 					wfi->dquote = TRUE;
 
 				if (quote)
 				{
-					wfi->quote = TRUE;
-					wfi->column_size = (int) strlen(token);
+					if (NULL != wfi)
+					{
+						wfi->quote = TRUE;
+						wfi->column_size = (int) strlen(token);
+					}
 				}
 				else if (numeric)
 				{
-					mylog("**** got numeric: nfld = %d\n", irdflds->nfields);
-					wfi->numeric = TRUE;
+					mylog("**** got numeric: nfld = %d\n", nfields);
+					if (NULL != wfi)
+						wfi->numeric = TRUE;
 				}
 				else if (0 == old_blevel && blevel > 0)
 				{				/* expression */
 					mylog("got EXPRESSION\n");
-					wfi->expr = TRUE;
+					if (NULL != wfi)
+						wfi->expr = TRUE;
 					in_expr = TRUE;
 					/* continue; */
 				}
-				else
+				else if (NULL != wfi)
 				{
 					STR_TO_NAME(wfi->column_name, token);
 					NULL_THE_NAME(wfi->before_dot);
 				}
-				mylog("got field='%s', dot='%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->before_dot));
+				if (NULL != wfi)
+					mylog("got field='%s', dot='%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->before_dot));
 
 				if (delim == ',')
 					mylog("comma (1)\n");
 				else
 					in_field = TRUE;
-				irdflds->nfields++;
+				nfields++;
+				if (NULL != irdflds)
+					irdflds->nfields++;
 				continue;
 			} /* !in_field */
 
 			/*
 			 * We are in a field now
 			 */
-			wfi = fi[irdflds->nfields - 1];
+			if (!sqlsvr_check)
+				wfi = fi[irdflds->nfields - 1];
 			if (in_dot)
 			{
-				if (NAME_IS_VALID(wfi->before_dot))
+				if (NULL != wfi)
 				{
-					MOVE_NAME(wfi->schema_name, wfi->before_dot);
+					if (NAME_IS_VALID(wfi->before_dot))
+					{
+						MOVE_NAME(wfi->schema_name, wfi->before_dot);
+					}
+					MOVE_NAME(wfi->before_dot, wfi->column_name);
+					STR_TO_NAME(wfi->column_name, token);
 				}
-				MOVE_NAME(wfi->before_dot, wfi->column_name);
-				STR_TO_NAME(wfi->column_name, token);
 
 				if (delim == ',')
 				{
@@ -1366,8 +1479,12 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 
 			if (in_as)
 			{
-				STR_TO_NAME(wfi->column_alias, token);
-				mylog("alias for field '%s' is '%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->column_alias));
+				column_has_alias = TRUE;
+				if (NULL != wfi)
+				{
+					STR_TO_NAME(wfi->column_alias, token);
+					mylog("alias for field '%s' is '%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->column_alias));
+				}
 				in_as = FALSE;
 				in_field = FALSE;
 
@@ -1381,7 +1498,8 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			{
 				in_dot = FALSE;
 				in_func = TRUE;
-				wfi->func = TRUE;
+				if (NULL != wfi)
+					wfi->func = TRUE;
 
 				/*
 				 * name will have the function name -- maybe useful some
@@ -1407,11 +1525,23 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			}
 
 			/* otherwise, it's probably an expression */
-			in_expr = TRUE;
-			wfi->expr = TRUE;
-			NULL_THE_NAME(wfi->column_name);
-			wfi->column_size = 0;
-			mylog("*** setting expression\n");
+			if (!column_has_alias)
+			{
+				in_expr = TRUE;
+				if (NULL != wfi)
+				{
+					wfi->expr = TRUE;
+					NULL_THE_NAME(wfi->column_name);
+					wfi->column_size = 0;
+				}
+				mylog("*** setting expression\n");
+			}
+			else
+				mylog("*** may be an alias for a field\n");
+			if (0 == blevel && ',' == delim)
+			{
+				in_expr = in_func = in_field = FALSE;
+			}
 		} /* in_select end */
 
 		if (in_from || in_where)
@@ -1434,7 +1564,7 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			}
 			if (out_table && !in_table) /* new table */
 			{
-				BOOL	is_table_name;
+				BOOL	is_table_name, is_subquery;
 
 				in_dot = FALSE;
 				maybe_join = 0;
@@ -1445,37 +1575,47 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 						continue;
 				}
 
-				if (!increaseNtab(stmt, func))
+				if (sqlsvr_check)
+					wti = NULL;
+				else
 				{
-					SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-					goto cleanup;
-				}
+					if (!increaseNtab(stmt, func))
+					{
+						SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+						goto cleanup;
+					}
 
-				ti = stmt->ti;
-				wti = ti[stmt->ntab - 1];
+					ti = stmt->ti;
+					wti = ti[stmt->ntab - 1];
+				}
 				is_table_name = TRUE;
+				is_subquery = FALSE;
 				if (dquote)
 					;
 				else if (0 == stricmp(token, "select"))
 				{
 					mylog("got subquery lvl=%d\n", blevel);
 					is_table_name = FALSE;
+					is_subquery = TRUE;
 				}
 				else if ('(' == ptr[0])
 				{
 					mylog("got srf? = '%s'\n", token);
 					is_table_name = FALSE;
 				}
-				if (is_table_name)
+				if (NULL != wti)
 				{
-					STR_TO_NAME(wti->table_name, token);
-					lower_the_name(GET_NAME(wti->table_name), conn, dquote);
-					mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
-				}
-				else
-				{
-					NULL_THE_NAME(wti->table_name);
-					TI_no_updatable(wti);
+					if (is_table_name)
+					{
+						STR_TO_NAME(wti->table_name, token);
+						lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+						mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
+					}
+					else
+					{
+						NULL_THE_NAME(wti->table_name);
+						TI_no_updatable(wti);
+					}
 				}
 
 				if (0 == blevel && delim == ',')
@@ -1487,10 +1627,14 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 				{
 					out_table = FALSE;
 					in_table = TRUE;
+					if (is_subquery)
+						tbl_blevel = blevel - 1;
+					else
+						tbl_blevel = blevel;
 				}
 				continue;
 			}
-			if (0 != blevel)
+			if (blevel > tbl_blevel)
 				continue;
 			/* out_table is FALSE here */
 			if (!dquote && !in_dot)
@@ -1533,12 +1677,16 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 			maybe_join = 0;
 			if (in_table)
 			{
-				wti = ti[stmt->ntab - 1];
+				if (!sqlsvr_check)
+					wti = ti[stmt->ntab - 1];
 				if (in_dot)
 				{
-					MOVE_NAME(wti->schema_name, wti->table_name);
-					STR_TO_NAME(wti->table_name, token);
-					lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+					if (NULL != wfi)
+					{
+						MOVE_NAME(wti->schema_name, wti->table_name);
+						STR_TO_NAME(wti->table_name, token);
+						lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+					}
 					in_dot = FALSE;
 					continue;
 				}
@@ -1557,8 +1705,11 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 							continue;
 						}
 					}
-					STR_TO_NAME(wti->table_alias, token);
-					mylog("alias for table '%s' is '%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->table_alias));
+					if (NULL != wti)
+					{
+						STR_TO_NAME(wti->table_alias, token);
+						mylog("alias for table '%s' is '%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->table_alias));
+					}
 					in_table = FALSE;
 					if (delim == ',')
 					{
@@ -1575,6 +1726,8 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	 */
 
 	parse = TRUE;
+	if (sqlsvr_check)
+		goto cleanup;
 
 	/* Resolve field names with tables */
 	for (i = 0; i < (int) irdflds->nfields; i++)
@@ -1875,12 +2028,24 @@ parse_statement(StatementClass *stmt, BOOL check_hasoids)
 	stmt->updatable = updatable;
 cleanup:
 #undef	return
-	if (STMT_PARSE_FATAL == SC_parsed_status(stmt))
+	if (!sqlsvr_check && STMT_PARSE_FATAL == SC_parsed_status(stmt))
 	{
 		SC_initialize_cols_info(stmt, FALSE, FALSE);
 		parse = FALSE;
 	}
 
-	mylog("done parse_statement: parse=%d, parse_status=%d\n", parse, SC_parsed_status(stmt));
+	mylog("done %s: parse=%d, parse_status=%d\n", func, parse, SC_parsed_status(stmt));
 	return parse;
+}
+
+char
+parse_statement(StatementClass *stmt, BOOL check_hasoids)
+{
+	return parse_the_statement(stmt, check_hasoids, FALSE);
+}
+
+char
+parse_sqlsvr(StatementClass *stmt)
+{
+	return parse_the_statement(stmt, FALSE, TRUE);
 }

@@ -353,7 +353,12 @@ retry:
 			case 0:
 			case EINPROGRESS:
 			case EINTR:
+#ifdef EAGAIN
+			case EAGAIN:
+#endif /* EAGAIN */
+#if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 			case EWOULDBLOCK:
+#endif /* EWOULDBLOCK */
 		    		break;
 			default:
 				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket immedaitely");
@@ -478,7 +483,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 			tm.tv_sec = retry_count;
 			tm.tv_usec = 0;
 		}
-		ret = select((int) socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
+		ret = select((int) sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
 		gerrno = SOCK_ERRNO;
 	} while (ret < 0 && EINTR == gerrno);
 	if (retry_count < 0)
@@ -520,7 +525,7 @@ static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 /*
  *	The stuff for SSL.
  */
-/* included in  <openssl/ssl.h> */
+/* included in  <openssl/ssl.h>
 #define SSL_ERROR_NONE			0
 #define SSL_ERROR_SSL			1
 #define SSL_ERROR_WANT_READ		2
@@ -530,7 +535,7 @@ static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 #define SSL_ERROR_ZERO_RETURN		6
 #define SSL_ERROR_WANT_CONNECT		7
 #define SSL_ERROR_WANT_ACCEPT		8
-
+*/
 
 /*
  *	recv more than 1 bytes using SSL.
@@ -812,7 +817,12 @@ SOCK_flush_output(SocketClass *self)
 				case EINTR:
 					continue;
 					break;
+#ifdef EAGAIN
+				case EAGAIN:
+#endif /* EAGAIN */
+#if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 				case EWOULDBLOCK:
+#endif /* EWOULDBLOCK */
 					retry_count++;
 					if (SOCK_wait_for_ready(self, TRUE, retry_count) >= 0)
 						continue;
@@ -864,7 +874,12 @@ mylog("Lasterror=%d\n", gerrno);
 				case	EINTR:
 					goto retry;
 					break;
+#ifdef EAGAIN
+				case	EAGAIN:
+#endif /* EAGAIN */
+#if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 				case	EWOULDBLOCK:
+#endif /* EWOULDBLOCK */
 					retry_count++;
 					if (SOCK_wait_for_ready(self, FALSE, retry_count) >= 0)
 						goto retry;
@@ -938,7 +953,12 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 				{
 					case	EINTR:
 						continue;
+#ifdef EAGAIN
+					case	EAGAIN:
+#endif /* EAGAIN */
+#if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 					case	EWOULDBLOCK:
+#endif /* EWOULDBLOCK */
 						retry_count++;
 						if (SOCK_wait_for_ready(self, TRUE, retry_count) >= 0)
 							continue;

@@ -224,6 +224,7 @@ PGAPI_FreeConnect(
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	CSTR func = "PGAPI_FreeConnect";
+	EnvironmentClass *env;
 
 	mylog("%s: entering...\n", func);
 	mylog("**** in %s: hdbc=%p\n", func, hdbc);
@@ -235,7 +236,8 @@ PGAPI_FreeConnect(
 	}
 
 	/* Remove the connection from the environment */
-	if (!EN_remove_connection(conn->henv, conn))
+	if (NULL != (env = CC_get_env(conn)) &&
+	    !EN_remove_connection(env, conn))
 	{
 		CC_set_error(conn, CONN_IN_USE, "A transaction is currently being executed", func);
 		return SQL_ERROR;
@@ -317,7 +319,6 @@ reset_current_schema(ConnectionClass *self)
 	}
 }
 
-extern	int	exepgm;
 ConnectionClass *
 CC_Constructor()
 {
@@ -356,7 +357,7 @@ CC_Constructor()
 		if (VER_PLATFORM_WIN32_WINDOWS == platformId && rv->driver_version > 0x0300)
 			rv->driver_version = 0x0300;
 #endif /* WIN32 */
-		if (1 == exepgm)
+		if (isMsAccess())
 			rv->ms_jet = 1;
 		rv->isolation = SQL_TXN_READ_COMMITTED;
 		rv->mb_maxbyte_per_char = 1;
@@ -3681,7 +3682,7 @@ inolog("socket=%d\n", socket);
 #ifdef USE_SSL
 	sock->ssl = PQgetssl(pqconn);
 inolog("ssl=%p\n", sock->ssl);
-#endif
+#endif /* USE_SSL */
 if (TRUE)
 	{
 		int	pversion;
@@ -3725,7 +3726,7 @@ if (TRUE)
 		/* flags = fcntl(sock, F_GETFL);
 		fcntl(sock, F_SETFL, flags & (~O_NONBLOCKING));*/
 	}
-#endif
+#endif /* USE_SSL */
 	mylog("Server version=%s\n", self->pg_version);
 	ret = 1;
 	if (ret)
@@ -3777,7 +3778,7 @@ const char *CurrCat(const ConnectionClass *conn)
 	 * generates query like: "SELECT DISTINCT a FROM byronnbad3
 	 * bad3"
 	 */
-	if (2 == exepgm)	/* MS Query */
+	if (isMsQuery())	/* MS Query */
 		return NULL;
 	else if (conn->schema_support)
 		return conn->connInfo.database;

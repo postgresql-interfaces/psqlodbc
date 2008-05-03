@@ -466,7 +466,7 @@ inolog("res->next=%p\n", kres);
 	if (res)
 	{
 #if (ODBCVER >= 0x0300)
-		EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
+		EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 		const char *cmd = QR_get_command(res);
 
 		if (retval == SQL_SUCCESS && cmd && env && EN_is_odbc3(env))
@@ -968,6 +968,10 @@ mylog("prepareParameters %d end\n", stmt->prepare);
 #endif /* ODBCVER */
 		if (recycle && !recycled)
 			SC_recycle_statement(stmt);
+		if (isSqlServr() &&
+		    0 != stmt->prepare &&
+		    STMT_TYPE_SELECT == stmt->statement_type)
+			parse_sqlsvr(stmt);
 	}
 
 next_param_row:
@@ -1057,7 +1061,10 @@ next_param_row:
 		SC_set_with_hold(stmt);
 	retval = Exec_with_parameters_resolved(stmt, &exec_end);
 	if (!exec_end)
+	{
+		stmt->curr_param_result = 0;
 		goto next_param_row;
+	}
 cleanup:
 mylog("retval=%d\n", retval);
 	SC_setInsertedTable(stmt, retval);
@@ -1101,7 +1108,7 @@ PGAPI_Transact(
 		{
 			conn = conns[lf];
 
-			if (conn && conn->henv == henv)
+			if (conn && CC_get_env(conn) == henv)
 				if (PGAPI_Transact(henv, (HDBC) conn, fType) != SQL_SUCCESS)
 					return SQL_ERROR;
 		}

@@ -360,6 +360,10 @@ pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 			return ci->drivers.bools_as_char ? SQL_CHAR : SQL_BIT;
 		case PG_TYPE_XML:
 			return CC_is_in_unicode_driver(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
+		case PG_TYPE_INET:
+		case PG_TYPE_CIDR:
+		case PG_TYPE_MACADDR:
+			return CC_is_in_unicode_driver(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 		default:
 
 			/*
@@ -480,7 +484,7 @@ pgtype_to_ctype(StatementClass *stmt, OID type)
 		case PG_TYPE_TEXT:
 			if (CC_is_in_unicode_driver(conn)
 #ifdef	NOT_USED
-			    && ! stmt->catalog_result)
+			    && ! stmt->catalog_result
 #endif /* NOT USED */
 				)
 				return SQL_C_WCHAR;
@@ -564,6 +568,14 @@ inolog("pgtype_to_name int4\n");
 			return "bool";
 		case PG_TYPE_BYTEA:
 			return "bytea";
+		case PG_TYPE_XML:
+			return "xml";
+		case PG_TYPE_MACADDR:
+			return "macaddr";
+		case PG_TYPE_INET:
+			return "inet";
+		case PG_TYPE_CIDR:
+			return "cidr";
 
 		case PG_TYPE_LO_UNDEFINED:
 			return PG_TYPE_LO_NAME;
@@ -704,6 +716,12 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 				maxsize = ci->drivers.max_varchar_size;
 			break;
 	}
+#ifdef	UNICODE_SUPPORT
+	if (CC_is_in_unicode_driver(conn) &&
+	    isSqlServr() &&
+	    maxsize > 4000)
+		maxsize = 4000;
+#endif /* UNICODE_SUPPORT */
 
 	if (maxsize == TEXT_FIELD_SIZE + 1) /* magic length for testing */
 	{
@@ -755,15 +773,23 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 		}
 	}
 
+	/* The type is really unknown */
+	switch (handle_unknown_size_as)
+	{
+		case UNKNOWNS_AS_DONTKNOW:
+			return -1;
+		case UNKNOWNS_AS_LONGEST:
+			mylog("%s: LONGEST: p = %d\n", func, p);
+			if (p > 0)
+				return p;
+			break;
+		case UNKNOWNS_AS_MAX:
+			break;
+		default:
+			return -1;
+	}
 	if (maxsize <= 0)
 		return maxsize;
-	/* The type is really unknown */
-	if (type == PG_TYPE_BPCHAR)
-	{
-		mylog("%s: BP_CHAR LONGEST: p = %d\n", func, p);
-		if (p > 0)
-			return p;
-	}
 	switch (type)
 	{
 		case PG_TYPE_BPCHAR:
@@ -771,19 +797,10 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 		case PG_TYPE_TEXT:
 			return maxsize;
 	}
-	if (handle_unknown_size_as == UNKNOWNS_AS_LONGEST)
-	{
-		mylog("%s: LONGEST: p = %d\n", func, p);
-		if (p > 0)
-			return p;
-	}
 
 	if (p > maxsize)
 		maxsize = p;
-	if (handle_unknown_size_as == UNKNOWNS_AS_MAX)
-		return maxsize;
-	else /* handle_unknown_size_as == DONT_KNOW */
-		return -1;
+	return maxsize;
 }
 
 static SQLSMALLINT
@@ -929,6 +946,13 @@ pgtype_column_size(StatementClass *stmt, OID type, int col, int handle_unknown_s
 
 		case PG_TYPE_BOOL:
 			return ci->true_is_minus1 ? 2 : 1;
+
+		case PG_TYPE_MACADDR:
+			return 17;
+
+		case PG_TYPE_INET:
+		case PG_TYPE_CIDR:
+			return sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255/128");
 
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_NO_TOTAL;
@@ -1416,7 +1440,7 @@ pgtype_unsigned(StatementClass *stmt, OID type)
 }
 
 
-char *
+const char *
 pgtype_literal_prefix(StatementClass *stmt, OID type)
 {
 	switch (type)
@@ -1438,7 +1462,7 @@ pgtype_literal_prefix(StatementClass *stmt, OID type)
 }
 
 
-char *
+const char *
 pgtype_literal_suffix(StatementClass *stmt, OID type)
 {
 	switch (type)
@@ -1460,7 +1484,7 @@ pgtype_literal_suffix(StatementClass *stmt, OID type)
 }
 
 
-char *
+const char *
 pgtype_create_params(StatementClass *stmt, OID type)
 {
 	switch (type)

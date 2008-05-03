@@ -234,6 +234,7 @@ struct StatementClass_
 	char		lock_CC_for_rb;	/* lock CC for statement rollback ? */
 	char		join_info;	/* have joins ? */
 	char		parse_method;	/* parse_statement is forced or ? */
+	char		curr_param_result; /* current param result is set ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 
@@ -271,7 +272,7 @@ struct StatementClass_
 };
 
 #define SC_get_conn(a)	  (a->hdbc)
-#define SC_init_Result(a)  (a->result = a->curres = NULL, mylog("SC_init_Result(%x)", a))
+#define SC_init_Result(a)  (a->result = a->curres = NULL, a->curr_param_result = 0, mylog("SC_init_Result(%x)", a))
 #define SC_set_Result(a, b) \
 do { \
 	if (b != a->result) \
@@ -279,6 +280,8 @@ do { \
 		mylog("SC_set_Result(%x, %x)", a, b); \
 		QR_Destructor(a->result); \
 		a->result = a->curres = b; \
+		if (NULL != b) \
+			a->curr_param_result = 1; \
 	} \
 } while (0)
 #define SC_get_Result(a)  (a->result)
@@ -441,6 +444,7 @@ RETCODE		SC_initialize_and_recycle(StatementClass *self);
 void		SC_initialize_cols_info(StatementClass *self, BOOL DCdestroy, BOOL parseReset);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
+char		parse_sqlsvr(StatementClass *stmt);
 SQLRETURN	SC_set_SS_columnkey(StatementClass *stmt);
 Int4		SC_pre_execute(StatementClass *self);
 char		SC_unbind_cols(StatementClass *self);

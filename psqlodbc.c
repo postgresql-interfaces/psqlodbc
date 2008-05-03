@@ -27,7 +27,11 @@
 int	platformId = 0;
 #endif
 
-int	exepgm = 0;
+static int	exepgm = 0;
+BOOL isMsAccess() {return 1 == exepgm;}
+BOOL isMsQuery() {return 2 == exepgm;}
+BOOL isSqlServr() {return 3 == exepgm;}
+
 GLOBAL_VALUES globals;
 
 RETCODE SQL_API SQLDummyOrdinal(void);
@@ -124,6 +128,8 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 						exepgm = 1;
 					else if (strnicmp(fname, "msqry", 5) == 0)
 						exepgm = 2;
+					else if (strnicmp(fname, "sqlservr", 8) == 0)
+						exepgm = 3;
 				}
 				osversion.dwOSVersionInfoSize = sizeof(osversion);
 				if (GetVersionEx(&osversion))

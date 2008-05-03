@@ -142,8 +142,10 @@ struct SocketClass_
 	/* SSL stuff */
 	void		*ssl;		/* libpq ssl */
 #endif /* USE_SSL */
+#ifndef	NOT_USE_LIBPQ
 	void		*pqconn;	/* libpq PGConn */
 	BOOL		via_libpq;	/* using libpq library ? */
+#endif /* NOT_USE_LIBPQ */
 
 	char		reverse;		/* used to handle Postgres 6.2 protocol
 								 * (reverse byte order) */

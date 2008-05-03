@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.121 2007/12/26 13:28:36 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.122 2008/05/03 05:57:42 hinoue Exp $
  *
  */
 
@@ -235,6 +235,9 @@ typedef double SDOUBLE;
 #else
 #define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
 #endif   /* ODBCVER 0x0300 */
+BOOL isMsAccess();
+BOOL isMsQuery();
+BOOL isSqlServr();
 #else
 #ifdef  UNICODE_SUPPORT
 #define DRIVER_FILE_NAME                        "psqlodbcw.so"
@@ -467,6 +470,7 @@ char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolo
 SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
+
 
 #ifdef	_MEMORY_DEBUG_
 void		*debug_alloc(size_t);

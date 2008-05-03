@@ -47,6 +47,7 @@
 #define PG_TYPE_BOX				603
 #define PG_TYPE_POLYGON			604
 #define PG_TYPE_FILENAME		605
+#define PG_TYPE_CIDR			650
 #define PG_TYPE_FLOAT4			700
 #define PG_TYPE_FLOAT8			701
 #define PG_TYPE_ABSTIME			702
@@ -55,6 +56,8 @@
 #define PG_TYPE_UNKNOWN			705
 #define PG_TYPE_MONEY			790
 #define PG_TYPE_OIDINT2			810
+#define PG_TYPE_MACADDR			829
+#define PG_TYPE_INET			869
 #define PG_TYPE_OIDINT4			910
 #define PG_TYPE_OIDNAME			911
 #define PG_TYPE_TEXTARRAY		1009
@@ -107,9 +110,9 @@ Int2		pgtype_case_sensitive(StatementClass *stmt, OID type);
 Int2		pgtype_money(StatementClass *stmt, OID type);
 Int2		pgtype_searchable(StatementClass *stmt, OID type);
 Int2		pgtype_unsigned(StatementClass *stmt, OID type);
-char	   *pgtype_literal_prefix(StatementClass *stmt, OID type);
-char	   *pgtype_literal_suffix(StatementClass *stmt, OID type);
-char	   *pgtype_create_params(StatementClass *stmt, OID type);
+const char	*pgtype_literal_prefix(StatementClass *stmt, OID type);
+const char	*pgtype_literal_suffix(StatementClass *stmt, OID type);
+const char	*pgtype_create_params(StatementClass *stmt, OID type);
 
 SQLSMALLINT	sqltype_to_default_ctype(const ConnectionClass *stmt, SQLSMALLINT sqltype);
 Int4		ctype_length(SQLSMALLINT ctype);

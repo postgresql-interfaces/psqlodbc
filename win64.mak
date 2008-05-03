@@ -6,7 +6,7 @@
 #
 # Configurations:	Debug, Release
 # Build Types:		ALL, CLEAN
-# Usage:		NMAKE /f win32_64.mak CFG=[Release | Debug] [ALL | CLEAN]
+# Usage:		NMAKE /f win64.mak CFG=[Release | Debug] [ALL | CLEAN]
 #
 # Comments:		Created by Hiroshi Inoue, 2006-10-31
 #
@@ -34,7 +34,7 @@ CFG=Release
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f win32_64.mak CFG=[Release | Debug] [ALL | CLEAN]
+!MESSAGE NMAKE /f win64.mak CFG=[Release | Debug] [ALL | CLEAN]
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 

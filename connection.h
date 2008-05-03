@@ -472,6 +472,7 @@ struct ConnectionClass_
 
 
 /* Accessor functions */
+#define CC_get_env(x)				((x)->henv)
 #define CC_get_socket(x)			(x->sock)
 #define CC_get_database(x)			(x->connInfo.database)
 #define CC_get_server(x)			(x->connInfo.server)
