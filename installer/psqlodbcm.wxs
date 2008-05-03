@@ -18,7 +18,6 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="BINDIR" Name=".">
         <Component Id="psqlodbc.files" Guid="00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E">
-
           <!-- PostgreSQL -->
           <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../MultibyteRelease/psqlodbc30a.dll" />
           <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../Release/psqlodbc35w.dll" />
@@ -40,6 +39,9 @@
           <File Id="krb5_32.dll" Name="krb5_32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\krb5_32.dll" />
           <File Id="k5sprt32.dll" Name="k5sprt32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\k5sprt32.dll" />
           <File Id="gssapi32.dll" Name="gssapi32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\gssapi32.dll" />
+
+          <!-- VC++ 7.1 runtime - required by Kerberos -->
+          <File Id="msvcr71.dll" Name="msvcr71.dll" Source="$(var.SYSTEM32DIR)\msvcr71.dll" />
 
           <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
           <!--       so we install the registry keys manually ourselves.                         -->

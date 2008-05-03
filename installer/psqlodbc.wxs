@@ -25,6 +25,11 @@
 <!-- Directories -->
 
     <Directory Id="TARGETDIR" Name="SourceDir">
+
+       <!-- Shared assembly runtime for VS 2005 -->
+       <Merge Id="msvcr80dll" Language="0" DiskId="1" SourceFile="$(var.PROGRAMCOM)/Microsoft_VC80_CRT_x86.msm"/>
+       <Merge Id="msvcr80policy" Language="0" DiskId="1" SourceFile="$(var.PROGRAMCOM)/policy_8_0_Microsoft_VC80_CRT_x86.msm"/>
+
       <Directory Id="ProgramFilesFolder" Name="PFiles">
         <Directory Id="BASEDIR" Name="psqlODBC">
           <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
@@ -73,6 +78,8 @@
       <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
         <ComponentRef Id="registration" />
         <MergeRef Id="psqlodbcm" />
+        <MergeRef Id="msvcr80dll" />
+        <MergeRef Id="msvcr80policy" />
       </Feature>
 
       <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs.">

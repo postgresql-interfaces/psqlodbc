@@ -20,7 +20,7 @@ echo.
 echo.
 echo Building psqlODBC merge module...
 
-candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPROGRAMFILES="%ProgramFiles%" psqlodbcm.wxs
+candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPROGRAMFILES="%ProgramFiles%" -dSYSTEM32DIR="%SystemRoot%/system32" psqlodbcm.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
 light -nologo -out psqlodbc.msm psqlodbcm.wixobj
@@ -29,7 +29,7 @@ IF ERRORLEVEL 1 GOTO ERR_HANDLER
 echo.
 echo Building psqlODBC installer database...
 
-candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPROGRAMFILES="%ProgramFiles%" psqlodbc.wxs
+candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPROGRAMFILES="%ProgramFiles%" -dPROGRAMCOM="%ProgramFiles%/Common Files/Merge Modules" psqlodbc.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
 light -nologo -ext WixUIExtension -cultures:en-us psqlodbc.wixobj
