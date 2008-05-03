@@ -9,7 +9,17 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.03.0100 Release </h2>
+<h2>psqlODBC 08.03.0200 Release </h2>
+Changes:<br>
+1.) Fix a bug in socket which uses a socket variable.<br>
+2.) Support column alias without "as" so that links from the SQLServer work.<br>
+3.) Take ';' into account when the driver adds "for read only" clause.<br>
+4.) Use the E'.. ' notation not only in '=' expressions but also in LIKE expressions.<br>
+5.) Change to return milliseconds parts for timestamp fields.<br>
+6.) Change to return a specific sqlstate in case of multiple parameters.<br>
+7.) Fix bug of the selection not using SSL.<br>
+<br>
+<li>Notes: psqlODBC 08.03.0100</li><br>
 Changes:<br>
 1.) Correct the flow of trial of multi protocols and fix related bugs about handling of connection errors.<br>
 2.) Use SSPI service for SSL support when libpq is unavailable.<br>
