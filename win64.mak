@@ -48,7 +48,7 @@ ADD_DEFINES=/D _WIN64
 #
 #
 !IF "$(PG_INC)" == ""
-PG_INC=$(PROGRAMFILES)\PostgreSQL\8.2\include
+PG_INC=$(PROGRAMFILES)\PostgreSQL\8.3\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF
 
