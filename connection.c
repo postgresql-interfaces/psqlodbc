@@ -1029,9 +1029,9 @@ inolog("parameter name=%s\n", msgbuffer);
 	else if (stricmp(msgbuffer, std_cnf_strs) == 0)
 	{
 		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+		mylog("%s=%s\n", std_cnf_strs, msgbuffer); 
 		if (stricmp(msgbuffer, "on") == 0)
 		{
-			mylog("%s=%s\n", std_cnf_strs, msgbuffer); 
 			conn->escape_in_literal = '\0';
 		}
 	}

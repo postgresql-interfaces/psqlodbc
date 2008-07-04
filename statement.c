@@ -234,17 +234,27 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		{
 			QResultClass	*res;
 
+			if (STMT_EXECUTING == stmt->status)
+			{
+				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
+				return SQL_ERROR;		/* stmt may be executing a
+										 * transaction */
+			}
+			/*
+			 * Free any cursors and discard any result info.
+			 * Don't detach the statement from the connection
+			 * before freeing the associated cursors. Otherwise
+			 * CC_cursor_count() would get wrong results.
+			 */
+			res = SC_get_Result(stmt);
+			QR_Destructor(res);
+			SC_init_Result(stmt);
 			if (!CC_remove_statement(conn, stmt))
 			{
 				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
 				return SQL_ERROR;		/* stmt may be executing a
 										 * transaction */
 			}
-
-			/* Free any cursors and discard any result info */
-			res = SC_get_Result(stmt);
-			QR_Destructor(res);
-			SC_init_Result(stmt);
 		}
 
 		if (stmt->execute_delegate)

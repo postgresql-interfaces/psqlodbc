@@ -468,8 +468,15 @@ inolog("res->next=%p\n", kres);
 #if (ODBCVER >= 0x0300)
 		EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 		const char *cmd = QR_get_command(res);
+		SQLLEN	start_row;
+		if (start_row = stmt->exec_start_row, start_row < 0)
+			start_row = 0;
 
-		if (retval == SQL_SUCCESS && cmd && env && EN_is_odbc3(env))
+		if (retval == SQL_SUCCESS &&
+		    NULL != cmd &&
+		    start_row >= end_row &&
+		    NULL != env &&
+		    EN_is_odbc3(env))
 		{
 			int     count;
 
@@ -1025,15 +1032,16 @@ next_param_row:
 			if (pcVal)
 			{
 				if (bind_size > 0)
-					pcVal = (SQLLEN *)((char *)pcVal + offset + bind_size * current_row);
+					pcVal = LENADDR_SHIFT(pcVal, offset + bind_size * current_row);
 				else
-					pcVal = (SQLLEN *)((char *)pcVal + offset + sizeof(SDWORD) * current_row);
+					pcVal = LENADDR_SHIFT(pcVal, offset) + current_row;
 				if (*pcVal == SQL_DATA_AT_EXEC || *pcVal <= SQL_LEN_DATA_AT_EXEC_OFFSET)
 					apdopts->parameters[i].data_at_exec = TRUE;
 			}
 			/* Check for data at execution parameters */
 			if (apdopts->parameters[i].data_at_exec)
 			{
+				mylog("The %dth parameter of %d-row is data at exec(%d)\n", i, current_row, *pcVal);
 				if (stmt->data_at_exec < 0)
 					stmt->data_at_exec = 1;
 				else

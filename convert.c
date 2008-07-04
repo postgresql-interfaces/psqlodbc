@@ -481,6 +481,9 @@ copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei,
 #ifdef HAVE_LOCALE_H
 	char *saved_locale;
 #endif /* HAVE_LOCALE_H */
+#if (ODBCVER >= 0x0350)
+	SQLGUID g;
+#endif
 
 	if (stmt->current_col >= 0)
 	{
@@ -1538,6 +1541,21 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				}
 				mylog("SQL_C_BINARY: len = %d, copy_len = %d\n", len, copy_len);
 				break;
+#if (ODBCVER >= 0x0350)
+			case SQL_C_GUID:
+
+				if (sscanf(neut_str,
+				"%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+				&g.Data1,
+				&g.Data2,& g.Data3,
+				&g.Data4[0], &g.Data4[1], &g.Data4[2], &g.Data4[3],
+				&g.Data4[4], &g.Data4[5], &g.Data4[6], &g.Data4[7]) < 11)
+				{
+					mylog("Could not convert to SQL_C_GUID");	
+					return	COPY_UNSUPPORTED_TYPE;
+				}
+				break;
+#endif /* ODBCVER */
 
 			default:
 				qlog("conversion to the type %d isn't supported\n", fCType);
@@ -2048,7 +2066,7 @@ table_for_update_or_share(const char *stmt, int *endpos)
 	wstmt += advance;
 	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
 		return 0;
-	else if (0 != (FLGP_SELECT_FOR_READONLY))
+	else if (0 != (flag & FLGP_SELECT_FOR_READONLY))
 	{
 		if (!isspace((UCHAR) wstmt[0]))
 			return 0;
@@ -2619,6 +2637,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		CVT_APPEND_STR(qb, " for read only");
 		if (semi_colon_found)
 			CVT_APPEND_CHAR(qb, semi_colon);
+		CVT_TERMINATE(qb);
 	}  
 	if (0 != (qp->flags & FLGP_SELECT_INTO) ||
 	    0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
@@ -3771,6 +3790,19 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			if (ResolveNumericParam((SQL_NUMERIC_STRUCT *) buffer, param_string))
 				break;
 #endif
+#if (ODBCVER >= 0x0350)
+		case SQL_C_GUID:
+		{
+			SQLGUID *g = (SQLGUID *) buffer;
+			snprintf (param_string, sizeof(param_string),
+				"%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+				(unsigned long) g->Data1,
+				g->Data2, g->Data3,
+				g->Data4[0], g->Data4[1], g->Data4[2], g->Data4[3],
+				g->Data4[4], g->Data4[5], g->Data4[6], g->Data4[7]);
+		}
+		break;
+#endif
 		default:
 			/* error */
 			qb->errormsg = "Unrecognized C_parameter type in copy_statement_with_parameters";
@@ -3803,7 +3835,6 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 	}
 	if (!req_bind)
 	{
-mylog("!!param_type=%d\n", param_sqltype);
 		switch (param_sqltype)
 		{
 			case SQL_INTEGER:

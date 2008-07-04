@@ -3953,8 +3953,10 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	return ret;
 }
 
-RETCODE		SQL_API
-PGAPI_ForeignKeys(
+static RETCODE	SQL_API PGAPI_ForeignKeys_new();
+
+static RETCODE		SQL_API
+PGAPI_ForeignKeys_old(
 			HSTMT hstmt,
 			const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
 			SQLSMALLINT cbPkTableQualifier,
@@ -4836,6 +4838,41 @@ cleanup:
 	return ret;
 }
 
+RETCODE		SQL_API
+PGAPI_ForeignKeys(
+			HSTMT hstmt,
+			const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+			SQLSMALLINT cbPkTableQualifier,
+			const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+			SQLSMALLINT cbPkTableOwner,
+			const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+			SQLSMALLINT cbPkTableName,
+			const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+			SQLSMALLINT cbFkTableQualifier,
+			const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+			SQLSMALLINT cbFkTableOwner,
+			const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+			SQLSMALLINT cbFkTableName)
+{
+	ConnectionClass	*conn = SC_get_conn(((StatementClass *) hstmt));
+	if (PG_VERSION_GE(conn, 8.3))
+		return PGAPI_ForeignKeys_new(hstmt,
+				szPkTableQualifier, cbPkTableQualifier,
+				szPkTableOwner, cbPkTableOwner,
+				szPkTableName, cbPkTableName,
+				szFkTableQualifier, cbFkTableQualifier,
+				szFkTableOwner, cbFkTableOwner,
+				szFkTableName, cbFkTableName);
+	else
+		return PGAPI_ForeignKeys_old(hstmt,
+				szPkTableQualifier, cbPkTableQualifier,
+				szPkTableOwner, cbPkTableOwner,
+				szPkTableName, cbPkTableName,
+				szFkTableQualifier, cbFkTableQualifier,
+				szFkTableOwner, cbFkTableOwner,
+				szFkTableName, cbFkTableName);
+}
+
 
 #define	PRORET_COUNT
 #define	DISPLAY_ARGNAME
@@ -5687,5 +5724,309 @@ cleanup:
 		QR_Destructor(allures);
 	if (stmt->internal) 
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	return ret;
+}
+
+
+static RETCODE		SQL_API
+PGAPI_ForeignKeys_new(
+		HSTMT hstmt,
+		const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+		SQLSMALLINT cbPkTableQualifier,
+		const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+		SQLSMALLINT cbPkTableOwner,
+		const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+		SQLSMALLINT cbPkTableName,
+		const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+		SQLSMALLINT cbFkTableQualifier,
+		const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+		SQLSMALLINT cbFkTableOwner,
+		const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+		SQLSMALLINT cbFkTableName)
+{
+	CSTR func = "PGAPI_ForeignKeys";
+	StatementClass	*stmt = (StatementClass *) hstmt;
+	QResultClass	*res = NULL;
+	RETCODE		ret = SQL_ERROR, result;
+	char		tables_query[INFO_INQUIRY_LEN];
+	char		*pk_table_needed = NULL, *escTableName = NULL;
+	char		*fk_table_needed = NULL;
+	char		schema_needed[SCHEMA_NAME_STORAGE_LEN + 1];
+	char		catName[SCHEMA_NAME_STORAGE_LEN],
+			scmName1[SCHEMA_NAME_STORAGE_LEN],
+			scmName2[SCHEMA_NAME_STORAGE_LEN];
+	const char	*relqual;
+	ConnectionClass *conn = SC_get_conn(stmt);
+
+	const char *eq_string;
+
+	mylog("%s: entering...stmt=%p\n", func, stmt);
+
+	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
+		return result;
+
+	schema_needed[0] = '\0';
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+
+	pk_table_needed = make_string(szPkTableName, cbPkTableName, NULL, 0);
+	fk_table_needed = make_string(szFkTableName, cbFkTableName, NULL, 0);
+
+	eq_string = gen_opestr(eqop, conn);
+
+	/*
+	 * Case #2 -- Get the foreign keys in the specified table (fktab) that
+	 * refer to the primary keys of other table(s).
+	 */
+	if (NULL != fk_table_needed)
+	{
+		mylog("%s: entering Foreign Key Case #2", func);
+		escTableName = simpleCatalogEscape(fk_table_needed, SQL_NTS, NULL, conn);
+		schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
+		relqual = "\n   and  conrelid = c.oid";
+	}
+	/*
+	 * Case #1 -- Get the foreign keys in other tables that refer to the
+	 * primary key in the specified table (pktab).	i.e., Who points to
+	 * me?
+	 */
+	else if (NULL != pk_table_needed)
+	{
+		escTableName = simpleCatalogEscape(pk_table_needed, SQL_NTS, NULL, conn);
+		schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
+		relqual = "\n   and  confrelid = c.oid";
+	}
+	else
+	{
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No tables specified to PGAPI_ForeignKeys.", func);
+		goto cleanup;
+	}
+
+	if (conn->schema_support)
+	{
+		char	*escSchemaName;
+
+		if (NULL != CurrCat(conn))
+			snprintf(catName, sizeof(catName), "'%s'::name", CurrCat(conn));
+		else
+			strcpy(catName, "NULL::name");
+		strcpy(scmName1, "n2.nspname");
+		strcpy(scmName2, "n1.nspname");
+		escSchemaName = simpleCatalogEscape(schema_needed, SQL_NTS, NULL, conn);
+
+		snprintf(tables_query, sizeof(tables_query),
+		"select"
+		"	%s as PKTABLE_CAT"
+		",\n	%s as PKTABLE_SCHEM"
+		",\n	c2.relname as PKTABLE_NAME"
+		",\n	a2.attname as PKCOLUMN_NAME"
+		",\n	%s as FKTABLE_CAT"
+		",\n	%s as FKTABLE_SCHEM"
+		",\n	c1.relname as FKTABLE_NAME"
+		",\n	a1.attname as FKCOLUMN_NAME"
+		",\n	i::int2 as KEY_SEQ"
+		",\n	case ref.confupdtype"
+		"\n		when 'c' then %d::int2"
+		"\n		when 'n' then %d::int2"
+		"\n		when 'd' then %d::int2"
+		"\n		else %d::int2"
+		"\n	end as UPDATE_RULE"
+		",\n	case ref.confdeltype"
+		"\n		when 'c' then %d::int2"
+		"\n		when 'n' then %d::int2"
+		"\n		when 'd' then %d::int2"
+		"\n		else %d::int2"
+		"\n	end as DELETE_RULE"
+		",\n	ref.conname as FK_NAME"
+		",\n	cn.conname as PK_NAME"
+#if (ODBCVER >= 0x0300)
+		",\n	case"
+		"\n		when ref.condeferrable then"
+		"\n			case"
+		"\n			when ref.condeferred then %d::int2"
+		"\n			else %d::int2"
+		"\n			end"
+		"\n		else %d::int2"
+		"\n	end as DEFERRABLITY"
+#endif /* ODBCVER */
+		"\n from"
+		"\n ((((((("
+		" (select cn.oid, conrelid, conkey, confrelid, confkey"
+		",\n	 generate_series(array_lower(conkey, 1), array_upper(conkey, 1)) as i"
+		",\n	 confupdtype, confdeltype, conname"
+		",\n	 condeferrable, condeferred"
+		"\n  from pg_catalog.pg_constraint cn"
+		",\n	pg_catalog.pg_class c"
+		",\n	pg_catalog.pg_namespace n"
+		"\n  where contype = 'f' %s"
+		"\n   and  relname %s'%s'"
+		"\n   and  n.oid = c.relnamespace"
+		"\n   and  n.nspname %s'%s'"
+		"\n ) ref"
+		"\n inner join pg_catalog.pg_class c1"
+		"\n  on c1.oid = ref.conrelid)"
+		"\n inner join pg_catalog.pg_namespace n1"
+		"\n  on  n1.oid = c1.relnamespace)"
+		"\n inner join pg_catalog.pg_attribute a1"
+		"\n  on  a1.attrelid = c1.oid"
+		"\n  and  a1.attnum = conkey[i])"
+		"\n inner join pg_catalog.pg_class c2"
+		"\n  on  c2.oid = ref.confrelid)"
+		"\n inner join pg_catalog.pg_namespace n2"
+		"\n  on  n2.oid = c2.relnamespace)"
+		"\n inner join pg_catalog.pg_attribute a2"
+		"\n  on  a2.attrelid = c2.oid"
+		"\n  and  a2.attnum = confkey[i])"
+		"\n left outer join pg_catalog.pg_constraint cn"
+		"\n  on cn.conrelid = ref.confrelid"
+		"\n  and cn.contype = 'p')"
+		, catName
+		, scmName1
+		, catName
+		, scmName2
+		, SQL_CASCADE
+		, SQL_SET_NULL
+		, SQL_SET_DEFAULT
+		, SQL_NO_ACTION
+		, SQL_CASCADE
+		, SQL_SET_NULL
+		, SQL_SET_DEFAULT
+		, SQL_NO_ACTION
+#if (ODBCVER >= 0x0300)
+		, SQL_INITIALLY_DEFERRED
+		, SQL_INITIALLY_IMMEDIATE
+		, SQL_NOT_DEFERRABLE
+#endif /* ODBCVER */
+		, relqual
+		, eq_string, escTableName
+		, eq_string, escSchemaName);
+
+		free(escSchemaName);
+		if (NULL != pk_table_needed &&
+		    NULL != fk_table_needed)
+		{
+			free(escTableName);
+			escTableName = simpleCatalogEscape(pk_table_needed, SQL_NTS, NULL, conn);
+			snprintf_add(tables_query, sizeof(tables_query),
+					"\n where c2.relname %s'%s'",
+					eq_string, escTableName);
+		}
+		strcat(tables_query, "\n  order by ref.oid, ref.i");
+	}
+	else
+	{
+		strcpy(catName, "NULL::name");
+		strcpy(scmName1, "NULL::name");
+		strcpy(scmName2, "NULL::name");
+
+		snprintf(tables_query, sizeof(tables_query),
+		"select %s as PKTABLE_CAT"
+		",\n	%s as PKTABLE_SCHEM"
+		",\n	c2.relname as PKTABLE_NAME"
+		",\n	a2.attname as PKCOLUMN_NAME"
+		",\n	%s as FKTABLE_CAT"
+		",\n	%s as FKTABLE_SCHEM"
+		",\n	c1.relname as FKTABLE_NAME"
+		",\n	a1.attname as FKCOLUMN_NAME"
+		",\n	i::int2 as KEY_SEQ"
+		",\n	case confupdtype"
+		"\n		when 'c' then %d::int2"
+		"\n		when 'n' then %d::int2"
+		"\n		when 'd' then %d::int2"
+		"\n		else %d::int2"
+		"\n	end as UPDATE_RULE"
+		",\n	case confdeltype"
+		"\n		when 'c' then %d::int2"
+		"\n		when 'n' then %d::int2"
+		"\n		when 'd' then %d::int2"
+		"\n		else %d::int2"
+		"\n	end as DELETE_RULE"
+		",\n	conname as FK_NAME"
+		",\n	NULL::name as PK_NAME"
+#if (ODBCVER >= 0x0300)
+		",\n	case"
+		"\n		when condeferrable then"
+		"\n			case"
+		"\n			when condeferred then %d::int2"
+		"\n			else %d::int2"
+		"\n			end"
+		"\n		else %d::int2"
+		"\n	end as DEFERRABLITY"
+#endif /* ODBCVER */
+		"\n from"
+		"\n (select conrelid, conkey, confrelid, confkey"
+		",\n	 generate_series(array_lower(conkey, 1), array_upper(conkey, 1)) as i"
+		",\n	 confupdtype, confdeltype, conname"
+		",\n	 condeferrable, condeferred"
+		"\n  from pg_catalog.pg_constraint cn"
+		",\n	pg_catalog.pg_class c"
+		"\n  where contype = 'f' %s"
+		"\n   and  relname %s'%s'"
+		"\n ) ref"
+		",\n pg_catalog.pg_class c1"
+		",\n pg_catalog.pg_attribute a1"
+		",\n pg_catalog.pg_class c2"
+		",\n pg_catalog.pg_attribute a2"
+		"\n where c1.oid = ref.conrelid"
+		"\n  and  c2.oid = ref.confrelid"
+		"\n  and  a1.attrelid = c1.oid"
+		"\n  and  a1.attnum = conkey[i]"
+		"\n  and  a2.attrelid = c2.oid"
+		"\n  and  a2.attnum = confkey[i]"
+		"\n  order by ref.oid, ref.i"
+		, catName
+		, scmName1
+		, catName
+		, scmName2
+		, SQL_CASCADE
+		, SQL_SET_NULL
+		, SQL_SET_DEFAULT
+		, SQL_NO_ACTION
+		, SQL_CASCADE
+		, SQL_SET_NULL
+		, SQL_SET_DEFAULT
+		, SQL_NO_ACTION
+#if (ODBCVER >= 0x0300)
+		, SQL_INITIALLY_DEFERRED
+		, SQL_INITIALLY_IMMEDIATE
+		, SQL_NOT_DEFERRABLE
+#endif /* ODBCVER */
+		, relqual, eq_string, escTableName);
+	}
+
+	if (res = CC_send_query(conn, tables_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
+	{
+		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ForeignKeys query error", func);
+		QR_Destructor(res);
+		goto cleanup;
+	}
+	SC_set_Result(stmt, res);
+	ret = SQL_SUCCESS;
+
+cleanup:
+#undef	return
+
+	/*
+	 * also, things need to think that this statement is finished so the
+	 * results can be retrieved.
+	 */
+	if (SQL_SUCCEEDED(ret))
+	{
+		stmt->status = STMT_FINISHED;
+		extend_column_bindings(SC_get_ARDF(stmt), QR_NumResultCols(res));
+	}
+	if (pk_table_needed)
+		free(pk_table_needed);
+	if (escTableName)
+		free(escTableName);
+	if (fk_table_needed)
+		free(fk_table_needed);
+	/* set up the current tuple pointer for SQLFetch */
+	stmt->currTuple = -1;
+	SC_set_rowset_start(stmt, -1, FALSE);
+	SC_set_current_col(stmt, -1);
+
+	if (stmt->internal)
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	mylog("%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }

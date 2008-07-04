@@ -639,15 +639,21 @@ RETCODE		SQL_API
 SQLPrepare(HSTMT StatementHandle,
 		   SQLCHAR *StatementText, SQLINTEGER TextLength)
 {
+	CSTR func = "SQLPrepare";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLPrepare]");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	StartRollbackState(stmt);
-	ret = PGAPI_Prepare(StatementHandle, StatementText, TextLength);
-	ret = DiscardStatementSvp(stmt, ret, FALSE);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+	{
+		StartRollbackState(stmt);
+		ret = PGAPI_Prepare(StatementHandle, StatementText, TextLength);
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
+	}
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }

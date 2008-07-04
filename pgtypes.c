@@ -107,6 +107,9 @@ SQLSMALLINT	sqlTypes[] = {
 	SQL_WVARCHAR,
 	SQL_WLONGVARCHAR,
 #endif /* UNICODE_SUPPORT */
+#if (ODBCVER >= 0x0350)
+	SQL_GUID,
+#endif /* ODBCVER */
 	0
 };
 
@@ -124,6 +127,7 @@ sqltype_to_pgtype(StatementClass *stmt, SQLSMALLINT fSqlType)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 
+	pgType = 0; /* ??? */
 	switch (fSqlType)
 	{
 		case SQL_BINARY:
@@ -223,9 +227,13 @@ sqltype_to_pgtype(StatementClass *stmt, SQLSMALLINT fSqlType)
 			break;
 #endif /* UNICODE_SUPPORT */
 
-		default:
-			pgType = 0;			/* ??? */
+#if (ODBCVER >= 0x0350)
+		case SQL_GUID:
+			if (PG_VERSION_GE(conn, 8.3))
+				pgType = PG_TYPE_UUID;
 			break;
+#endif /* ODBCVER */
+
 	}
 
 	return pgType;
@@ -364,6 +372,11 @@ pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 		case PG_TYPE_CIDR:
 		case PG_TYPE_MACADDR:
 			return CC_is_in_unicode_driver(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+		case PG_TYPE_UUID:
+#if (ODBCVER >= 0x0350)
+			return SQL_GUID;
+#endif /* ODBCVER */
+			return CC_is_in_unicode_driver(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 		default:
 
 			/*
@@ -490,6 +503,11 @@ pgtype_to_ctype(StatementClass *stmt, OID type)
 				return SQL_C_WCHAR;
 			return SQL_C_CHAR;
 #endif /* UNICODE_SUPPORT */
+		case PG_TYPE_UUID:
+#if (ODBCVER >= 0x0350)
+			return SQL_C_GUID;
+#endif /* ODBCVER */
+			return SQL_C_CHAR;
 
 		default:
 			/* hack until permanent type is available */
@@ -576,6 +594,8 @@ inolog("pgtype_to_name int4\n");
 			return "inet";
 		case PG_TYPE_CIDR:
 			return "cidr";
+		case PG_TYPE_UUID:
+			return "uuid";
 
 		case PG_TYPE_LO_UNDEFINED:
 			return PG_TYPE_LO_NAME;
@@ -953,6 +973,8 @@ pgtype_column_size(StatementClass *stmt, OID type, int col, int handle_unknown_s
 		case PG_TYPE_INET:
 		case PG_TYPE_CIDR:
 			return sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255/128");
+		case PG_TYPE_UUID:
+			return sizeof("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX");
 
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_NO_TOTAL;

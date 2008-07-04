@@ -395,7 +395,10 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	ret = PGAPI_Prepare(StatementHandle, stxt, (SQLINTEGER) slen);
+	if (SC_opencheck(stmt, func))
+		ret = SQL_ERROR;
+	else
+		ret = PGAPI_Prepare(StatementHandle, stxt, (SQLINTEGER) slen);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (stxt)

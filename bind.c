@@ -135,9 +135,7 @@ PGAPI_BindParameter(
 		SC_recycle_statement(stmt);
 
 	mylog("%s: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d,", func, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale);
-	/*** mylog("rgbValue=%p, pcbValue = %p(%d), data_at_exec = %d\n", rgbValue, pcbValue, pcbValue ? *pcbValue : -777, apdopts->parameters[ipar].data_at_exec); ***/
-
-	mylog("rgbValue=%p, pcbValue = %p, data_at_exec = %d\n", rgbValue, pcbValue, apdopts->parameters[ipar].data_at_exec);
+	mylog("rgbValue=%p, pcbValue=%p\n", rgbValue, pcbValue);
 
 	return SQL_SUCCESS;
 }
