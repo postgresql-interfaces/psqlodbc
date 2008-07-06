@@ -3953,7 +3953,21 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	return ret;
 }
 
-static RETCODE	SQL_API PGAPI_ForeignKeys_new();
+static RETCODE          SQL_API
+PGAPI_ForeignKeys_new(
+                HSTMT hstmt,
+                const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+                SQLSMALLINT cbPkTableQualifier,
+                const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+                SQLSMALLINT cbPkTableOwner,
+                const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+                SQLSMALLINT cbPkTableName,
+                const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+                SQLSMALLINT cbFkTableQualifier,
+                const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+                SQLSMALLINT cbFkTableOwner,
+                const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+                SQLSMALLINT cbFkTableName);
 
 static RETCODE		SQL_API
 PGAPI_ForeignKeys_old(
