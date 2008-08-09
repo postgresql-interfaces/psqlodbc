@@ -399,7 +399,7 @@ SQLFetch(HSTMT StatementHandle)
 		mylog("[[%s]]", func);
 		ret = PGAPI_ExtendedFetch(StatementHandle, SQL_FETCH_NEXT, 0,
 								   pcRow, rowStatusArray, 0, ardopts->size_of_rowset);
-		stmt->transition_status = 6;
+		stmt->transition_status = STMT_TRANSITION_FETCH_SCROLL;
 	}
 	else
 #endif
@@ -1136,7 +1136,7 @@ SQLExtendedFetch(
 #else
 	ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, pcrow, rgfRowStatus, 0, SC_get_ARDF(stmt)->size_of_rowset_odbc2);
 #endif /* WITH_UNIXODBC */
-	stmt->transition_status = 7;
+	stmt->transition_status = STMT_TRANSITION_EXTENDED_FETCH;
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;

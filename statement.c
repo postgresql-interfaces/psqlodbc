@@ -275,7 +275,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		 * this should discard all the results, but leave the statement
 		 * itself in place (it can be executed again)
 		 */
-		stmt->transition_status = 0;
+		stmt->transition_status = STMT_TRANSITION_ALLOCATED;
 		if (stmt->execute_delegate)
 		{
 			PGAPI_FreeStmt(stmt->execute_delegate, SQL_DROP);
@@ -368,7 +368,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->status = STMT_ALLOCATED;
 		rv->internal = FALSE;
 		rv->plan_name = NULL;
-		rv->transition_status = 0;
+		rv->transition_status = STMT_TRANSITION_UNALLOCATED;
 		rv->multi_statement = -1; /* unknown */
 		rv->num_params = -1; /* unknown */
 
@@ -1169,7 +1169,6 @@ SC_create_errorinfo(const StatementClass *self)
 		return	NULL;
 
 	looponce = (SC_get_Result(self) != res);
-mylog("looponce=%d\n", looponce);
 	msg[0] = '\0';
 	for (loopend = FALSE; (NULL != res) && !loopend; res = res->next)
 	{
@@ -1605,6 +1604,9 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
 		return SQL_SUCCESS;
+	/* The following adjustment would be needed after SQLMoreResults() */
+	if (opts->allocated < num_cols)
+		extend_column_bindings(opts, num_cols);
 	gdata = SC_get_GDTI(self);
 	if (gdata->allocated != opts->allocated)
 		extend_getdata_info(gdata, opts->allocated, TRUE);
@@ -1848,29 +1850,6 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
 		if (SC_is_fetchcursor(self) && QR_command_maybe_successful(res))
 		{
-#ifdef NOT_USED
-			QR_Destructor(res);
-			qflag &= (~ GO_INTO_TRANSACTION);
-
-			/*
-			 * That worked, so now send the fetch to start getting data
-			 * back
-			 */
-			qi.result_in = NULL;
-			qi.cursor = SC_cursor_name(self);
-			qi.row_size = ci->drivers.fetch_max;
-
-			/*
-			 * Most likely the rowset size will not be set by the
-			 * application until after the statement is executed, so might
-			 * as well use the cache size. The qr_next_tuple() function
-			 * will correct for any discrepancies in sizes and adjust the
-			 * cache accordingly.
-			 */
-			sprintf(fetch, "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
-
-			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
-#endif /* NOT_USED */
 			if (appendq)
 			{
 				QResultClass	*qres, *nres;
@@ -2194,7 +2173,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		SQLLEN	rowsetSize;
 
 #if (ODBCVER >= 0x0300)
-		rowsetSize = (7 == self->transition_status ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
+		rowsetSize = (STMT_TRANSITION_EXTENDED_FETCH == self->transition_status ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
 #else
 		rowsetSize = opts->size_of_rowset_odbc2;
 #endif /* ODBCVER */

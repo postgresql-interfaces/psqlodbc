@@ -403,9 +403,12 @@ int
 copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, void *value, int col)
 {
 	ARDFields *opts = SC_get_ARDF(stmt);
-	BindInfoClass *bic = &(opts->bindings[col]);
+	BindInfoClass *bic;
 	SQLULEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 
+	if (opts->allocated <= col)
+		extend_column_bindings(opts, col + 1);
+	bic = &(opts->bindings[col]);
 	SC_set_current_col(stmt, -1);
 	return copy_and_convert_field(stmt, field_type, value, bic->returntype,
 			(PTR) (bic->buffer + offset), bic->buflen,

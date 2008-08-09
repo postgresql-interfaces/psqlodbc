@@ -221,7 +221,7 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 
 		ret = PGAPI_ExtendedFetch(StatementHandle, FetchOrientation, FetchOffset,
 				pcRow, rowStatusArray, bkmarkoff, opts->size_of_rowset);
-		stmt->transition_status = 6;
+		stmt->transition_status = STMT_TRANSITION_FETCH_SCROLL;
 	}
 	ret = DiscardStatementSvp(stmt,ret, FALSE);
 	LEAVE_STMT_CS(stmt);

@@ -500,7 +500,7 @@ EXTERN_C static int __cdecl xa_rollback(XID *xid, int rmid, long flags)
 }
 //
 //	Dummy implementation (not called from MSDTC).
-//	ANway it's almost impossible to implement this routine properly.
+//	Anyway it's almost impossible to implement this routine properly.
 //	
 EXTERN_C static int __cdecl xa_prepare(XID *xid, int rmid, long flags)
 {

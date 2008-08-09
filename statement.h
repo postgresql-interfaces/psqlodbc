@@ -146,6 +146,15 @@ enum
 	,STMT_REFLECTED_ROW_DESCRIPTION = (1L << 5)
 };
 
+/*	transition status */
+enum
+{
+	STMT_TRANSITION_UNALLOCATED = 0
+	,STMT_TRANSITION_ALLOCATED = 1
+	,STMT_TRANSITION_FETCH_SCROLL = 6
+	,STMT_TRANSITION_EXTENDED_FETCH = 7
+};
+
 /*	Result style */
 enum
 {

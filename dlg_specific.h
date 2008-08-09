@@ -200,7 +200,7 @@ const char *GetXaLibPath();
 #define DEFAULT_TEXTASLONGVARCHAR		1
 #define DEFAULT_UNKNOWNSASLONGVARCHAR		0
 #define DEFAULT_BOOLSASCHAR			1
-#define DEFAULT_OPTIMIZER			1		/* disable */
+#define DEFAULT_OPTIMIZER			0		/* enable */
 #define DEFAULT_KSQO				1		/* on */
 #define DEFAULT_UNIQUEINDEX			1		/* dont recognize */
 #define DEFAULT_COMMLOG				0		/* dont log */

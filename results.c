@@ -1388,7 +1388,7 @@ PGAPI_ExtendedFetch(
 	BindInfoClass	*bookmark;
 	SQLLEN		num_tuples, i, fc_io;
 	SQLLEN		save_rowset_size, progress_size;
-	SQLLEN		 save_rowset_start,
+	SQLLEN		save_rowset_start,
 			rowset_start;
 	RETCODE		result = SQL_SUCCESS;
 	char		truncated, error, should_set_rowset_start = FALSE; 
@@ -1849,6 +1849,7 @@ inolog("just skipping deleted row %d\n", currp);
 
 	/* Save the fetch count for SQLSetPos */
 	stmt->last_fetch_count = i;
+	stmt->save_rowset_size = rowsetSize;
 	/*
 	currp = KResIdx2GIdx(currp, stmt, res);
 	stmt->last_fetch_count_include_ommitted = GIdx2RowIdx(currp, stmt);
@@ -1916,6 +1917,7 @@ PGAPI_MoreResults(
 		if (stmt->multi_statement > 0)
 		{ 
 			const char *cmdstr;
+			Int2	numcols;
 
 			SC_initialize_cols_info(stmt, FALSE, TRUE);
 			stmt->statement_type = STMT_TYPE_UNKNOWN;
@@ -4513,7 +4515,7 @@ PGAPI_SetPos(
 	}
 
 #if (ODBCVER >= 0x0300)
-	rowsetSize = (s.stmt->transition_status == 7 ? s.opts->size_of_rowset_odbc2 : s.opts->size_of_rowset);
+	rowsetSize = (s.stmt->transition_status == STMT_TRANSITION_EXTENDED_FETCH ? s.opts->size_of_rowset_odbc2 : s.opts->size_of_rowset);
 #else
 	rowsetSize = s.opts->size_of_rowset_odbc2;
 #endif /* ODBCVER */

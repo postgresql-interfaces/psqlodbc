@@ -184,15 +184,6 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_ROWSET_SIZE:
 			mylog("SetStmtOption(): SQL_ROWSET_SIZE, vParam = %d\n", vParam);
 
-			/*
-			 * Save old rowset size for SQLExtendedFetch purposes If the
-			 * rowset_size is being changed since the last call to fetch
-			 * rows.
-			 */
-
-			if (stmt && stmt->save_rowset_size <= 0 && stmt->last_fetch_count > 0)
-				stmt->save_rowset_size = SC_get_ARDF(stmt)->size_of_rowset_odbc2;
-
 			if (vParam < 1)
 			{
 				vParam = 1;
