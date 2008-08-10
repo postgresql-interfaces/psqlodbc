@@ -9,7 +9,18 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.03.0200 Release </h2>
+<h2>psqlODBC 08.03.xxxx Release </h2>
+Changes:<br>
+1.) SQLGUID type support thanks to Jan-Willem Goossens.<br>
+2.) Fix a bug about silently adding a *for read only* clause.<br>
+3.) Fix a 64bit mode bug about handling of arrays of parameters.<br>
+4.) Change the implemetatin of SQLForeignKeys() for 8.3+ servers.<br>
+5.) Not commit the transaction too early in useDeclareFetch mode.<br>
+6.) Add a cursor open check for SQLPrepare().<br>
+7.) Reset the column binding information after SQLMoreResults().<br>
+8.) Save the rowset size properly for the FETCH_NEXT operation in case of >= 3.0 drivers.<br>
+<br>
+<li>Notes: psqlODBC 08.03.0200</li><br>
 Changes:<br>
 1.) Fix a bug in socket which uses a socket variable.<br>
 2.) Support column alias without "as" so that links from the SQLServer work.<br>
