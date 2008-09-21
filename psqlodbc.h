@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.122 2008/05/03 05:57:42 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.123 2008/09/21 15:35:44 hinoue Exp $
  *
  */
 
@@ -97,6 +97,9 @@ extern "C" {
 #define Int2 short
 #define UInt2 unsigned short
 typedef	UInt4	OID;
+
+#define	FORMAT_INT4	"%d"	/* Int4 */
+#define	FORMAT_UINT4	"%u"	/* UInt4 */
 
 #ifdef	WIN32
 #define	ssize_t	SSIZE_T
@@ -235,9 +238,6 @@ typedef double SDOUBLE;
 #else
 #define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
 #endif   /* ODBCVER 0x0300 */
-BOOL isMsAccess();
-BOOL isMsQuery();
-BOOL isSqlServr();
 #else
 #ifdef  UNICODE_SUPPORT
 #define DRIVER_FILE_NAME                        "psqlodbcw.so"
@@ -245,6 +245,9 @@ BOOL isSqlServr();
 #define DRIVER_FILE_NAME                        "psqlodbca.so"
 #endif
 #endif   /* WIN32 */
+BOOL isMsAccess();
+BOOL isMsQuery();
+BOOL isSqlServr();
 
 #define	NULL_CATALOG_NAME				""
 

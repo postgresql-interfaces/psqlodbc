@@ -2476,7 +2476,7 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query,
 	CSTR	func = "SendParseRequest";
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	SocketClass	*sock = conn->sock;
-	Int4		sta_pidx, end_pidx;
+	Int4		sta_pidx = -1, end_pidx = -1;
 	size_t		pileng, leng;
 
 	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);

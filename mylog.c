@@ -250,7 +250,7 @@ forcelog(const char *fmt,...)
 #endif /* WIN32 */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-		fprintf(MLOGFP, "[%u]", pthread_self());
+		fprintf(MLOGFP, "[%lu]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 		vfprintf(MLOGFP, fmt, args);
 	}

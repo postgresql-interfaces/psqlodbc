@@ -2932,7 +2932,7 @@ PGAPI_Statistics(
 			   *indx_stmt;
 	char		column_name[MAX_INFO_STRING],
 			table_schemaname[MAX_INFO_STRING],
-				relhasrules[10], relkind[8];
+				relhasrules[10];
 	struct columns_idx {
 		int	pnum;
 		char	*col_name;
@@ -3692,7 +3692,7 @@ retry_public_schema:
 						, eq_string, escTableName, eq_string, pkscm);
 					else
 						snprintf(tbqry, tsize,
-						" where tc.oid = " FORMAT_UINTEGER
+						" where tc.oid = " FORMAT_UINT4
 						, reloid);
 
 					strncat(tables_query,
@@ -3723,7 +3723,7 @@ retry_public_schema:
 						, eq_string, escTableName);
 					else
 						snprintf(tbqry, tsize,
-						" where tc.oid = " FORMAT_UINTEGER, reloid);
+						" where tc.oid = " FORMAT_UINT4, reloid);
 						
 					strncat(tables_query,
 						" AND tc.oid = i.indrelid"

@@ -214,7 +214,7 @@ AC_C_CONST
 
 # 7. Functions, global variables
 
-AC_CHECK_FUNCS(strerror_r)
+AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS(strtoul strtoll)
 
 if test x"$enable_unicode" = xyes; then

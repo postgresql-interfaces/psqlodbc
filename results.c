@@ -1917,7 +1917,6 @@ PGAPI_MoreResults(
 		if (stmt->multi_statement > 0)
 		{ 
 			const char *cmdstr;
-			Int2	numcols;
 
 			SC_initialize_cols_info(stmt, FALSE, TRUE);
 			stmt->statement_type = STMT_TYPE_UNKNOWN;
@@ -2091,75 +2090,6 @@ static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
 	QR_Destructor(res);
 	return ret;
 }
-static BOOL	tupleIsAdding(const StatementClass *stmt, const QResultClass *res, SQLLEN index)
-{
-	SQLLEN	i;
-	BOOL	ret = FALSE;
-	UWORD	status;
-
-	if (!res->added_keyset)
-		return ret;
-	if (index < res->num_total_read || index >= QR_get_num_total_read(res))
-		return ret;
-	i = index - res->num_total_read; 
-	status = res->added_keyset[i].status;
-	if (0 == (status & CURS_SELF_ADDING))
-		return ret;
-	if (tupleExists(stmt, res->added_keyset + i))
-		ret = TRUE;
-
-	return ret;
-}
-
-static BOOL	tupleIsUpdating(const StatementClass *stmt, const QResultClass *res, SQLLEN index)
-{
-	int	i;
-	BOOL	ret = FALSE;
-	UWORD	status;
-
-	if (!res->updated || !res->updated_keyset)
-		return ret;
-	for (i = res->up_count - 1; i >= 0; i--)
-	{
-		if (index == res->updated[i])
-		{
-			status = res->updated_keyset[i].status;
-			if (0 == (status & CURS_SELF_UPDATING))
-				continue;
-			if (tupleExists(stmt, res->updated_keyset + i))
-			{
-				ret = TRUE;
-				break;
-			}
-		} 
-	}
-	return ret;
-}
-static BOOL	tupleIsDeleting(const StatementClass *stmt, const QResultClass *res, SQLLEN index)
-{
-	int	i;
-	BOOL	ret = FALSE;
-	UWORD	status;
-
-	if (!res->deleted || !res->deleted_keyset)
-		return ret;
-	for (i = 0; i < res->dl_count; i++)
-	{
-		if (index == res->deleted[i])
-		{
-			status = res->deleted_keyset[i].status;
-			if (0 == (status & CURS_SELF_DELETING))
-				;
-			else if (tupleExists(stmt, res->deleted_keyset + i))
-				;
-			else
-				ret = TRUE;
-			break;
-		} 
-	}
-	return ret;
-}
-
 
 static BOOL enlargeAdded(QResultClass *res, UInt4 number, const StatementClass *stmt)
 {
@@ -2454,7 +2384,7 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	if (alloc <= res->up_alloc)
 		return TRUE;
  
-	QR_REALLOC_return_with_error(res->updated, UInt4, sizeof(UInt4) * alloc, res, "enlargeUpdated failed", FALSE);
+	QR_REALLOC_return_with_error(res->updated, SQLULEN, sizeof(SQLULEN) * alloc, res, "enlargeUpdated failed", FALSE);
 	QR_REALLOC_return_with_error(res->updated_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeUpdated failed 2", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
 		QR_REALLOC_return_with_error(res->updated_tuples, TupleField, sizeof(TupleField) * res->num_fields * alloc, res, "enlargeUpdated 3", FALSE);
@@ -2715,57 +2645,6 @@ inolog("DiscardRollback");
 	free(rollback);
 	res->rollback = NULL;
 	res->rb_count = res->rb_alloc = 0;
-}
-
-static BOOL IndexExists(const StatementClass *stmt, const QResultClass *res, const Rollback *rollback)
-{
-	SQLLEN	index = rollback->index, i, *updated;
-	BOOL	ret = TRUE;
-
-inolog("IndexExists index=%d(%d,%d)\n", rollback->index, rollback->blocknum, rollback->offset);
-	if (QR_get_cursor(res))
-	{
-		KeySet	*updated_keyset = res->updated_keyset, *keyset;
-		SQLLEN	num_read = QR_get_num_total_read(res), pidx, midx, marki;
-
-		updated = res->updated;
-		if (!updated || res->up_count < 1)
-			return FALSE;
-		if (index < 0)
-		{
-			midx = index;
-			pidx = num_read - index - 1;
-		}
-		else
-		{
-			pidx = index;
-			if (index >= num_read)
-				midx = num_read - index - 1;
-			else
-				midx = index;
-		}
-		for (i = res->up_count - 1, marki = -1; i >= 0; i--)
-		{
-			if (updated[i] == pidx ||
-			    updated[i] == midx)
-			{
-				keyset = updated_keyset + i;
-				if (keyset->blocknum == rollback->blocknum &&
-				    keyset->offset == rollback->offset)
-					break;
-				else
-					marki = i;
-			}
-		}
-		if (marki < 0)
-			ret = FALSE;
-		if (marki >= 0)
-		{
-			if (!tupleExists(stmt, updated_keyset + marki))
-				ret = FALSE;
-		}
-	}
-	return ret;
 }
 
 static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const char *tid);
@@ -3951,7 +3830,12 @@ SC_pos_delete(StatementClass *stmt,
 			ret = SQL_ERROR;
 	}
 	else
+	{
 		ret = SQL_ERROR;
+		strcpy(res->sqlstate, qres->sqlstate);
+		res->message = qres->message;
+		qres->message = NULL;
+	}
 	if (ret == SQL_ERROR && SC_get_errornumber(stmt) == 0)
 	{
 		SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "SetPos delete return error", func);

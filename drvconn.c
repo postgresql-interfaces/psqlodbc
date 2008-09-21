@@ -416,7 +416,7 @@ dconn_FDriverConnectProc(
 #endif   /* WIN32 */
 
 
-typedef	void (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
+typedef	BOOL (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
 static void
 dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {

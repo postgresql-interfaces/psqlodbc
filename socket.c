@@ -197,10 +197,7 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 		ret = TRUE;
 #else
 #if defined(POSIX_MULTITHREAD_SUPPORT) && defined(HAVE_STRERROR_R)
-#ifdef	STRERROR_R_INT
-	if (0 == strerror_r(errnum, errmsg, buflen))
-		ret = TRUE;
-#else
+#ifdef	STRERROR_R_CHAR_P
 	const char *pchar;
 
 	pchar = (const char *) strerror_r(errnum, errmsg, buflen);
@@ -210,6 +207,9 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 			strncpy(errmsg, pchar, buflen);
 		ret = TRUE;
 	}
+#else
+	if (0 == strerror_r(errnum, errmsg, buflen))
+		ret = TRUE;
 #endif /* STRERROR_R_INT */
 #else
 	strncpy(errmsg, strerror(errnum), buflen);
@@ -465,7 +465,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 	int	ret, gerrno;
 	fd_set	fds, except_fds;
 	struct	timeval	tm;
-	BOOL	no_timeout;
+	BOOL	no_timeout = FALSE;
 
 	if (0 == retry_count)
 		no_timeout = FALSE;
@@ -729,6 +729,8 @@ SOCK_put_string(SocketClass *self, const char *string)
 	}
 }
 
+#define	REVERSE_SHORT(val)	((val & 0xff) << 8) | (val >> 8)
+#define	REVERSE_INT(val) ((val & 0xff) << 24) | ((val & 0xff00) << 8) | ((val & 0xff0000) >> 8) | (val >> 24)
 
 int
 SOCK_get_int(SocketClass *self, short len)
@@ -743,7 +745,7 @@ SOCK_get_int(SocketClass *self, short len)
 
 				SOCK_get_n_char(self, (char *) &buf, len);
 				if (self->reverse)
-					return buf;
+					return REVERSE_SHORT(ntohs(buf));
 				else
 					return ntohs(buf);
 			}
@@ -754,7 +756,7 @@ SOCK_get_int(SocketClass *self, short len)
 
 				SOCK_get_n_char(self, (char *) &buf, len);
 				if (self->reverse)
-					return buf;
+					return REVERSE_INT(htonl(buf));
 				else
 					return ntohl(buf);
 			}
@@ -770,18 +772,23 @@ void
 SOCK_put_int(SocketClass *self, int value, short len)
 {
 	unsigned int rv;
+	unsigned short rsv;
 
 	if (!self)
 		return;
 	switch (len)
 	{
 		case 2:
-			rv = self->reverse ? value : htons((unsigned short) value);
-			SOCK_put_n_char(self, (char *) &rv, 2);
+			rsv = htons((unsigned short) value);
+			if (self->reverse)
+				rsv = REVERSE_SHORT(rsv);
+			SOCK_put_n_char(self, (char *) &rsv, 2);
 			return;
 
 		case 4:
-			rv = self->reverse ? value : htonl((unsigned int) value);
+			rv = htonl((unsigned int) value);
+			if (self->reverse)
+				rv = REVERSE_INT(rv);
 			SOCK_put_n_char(self, (char *) &rv, 4);
 			return;
 

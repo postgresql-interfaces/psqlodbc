@@ -389,7 +389,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				TI_set_hasoids(ti);
 				foundKey = TRUE;
 				STR_TO_NAME(ti->bestitem, OID_NAME);
-				sprintf(query, "\"%s\" = %u", OID_NAME);
+				sprintf(query, "\"%s\" = %%u", OID_NAME);
 				STR_TO_NAME(ti->bestqual, query);
 			}
 			TI_set_hasoids_checked(ti);
@@ -544,7 +544,7 @@ static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
 	}
 }
 
-static has_multi_table(const StatementClass *stmt)
+static BOOL has_multi_table(const StatementClass *stmt)
 {
 	BOOL multi_table = FALSE;
 	QResultClass	*res;
@@ -974,7 +974,7 @@ SC_set_SS_columnkey(StatementClass *stmt)
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	FIELD_INFO	**fi = irdflds->fi, *tfi;
 	size_t		nfields = irdflds->nfields;
-	StatementClass	*pstmt = NULL;
+	HSTMT		pstmt = NULL;
 	SQLRETURN	ret = SQL_SUCCESS;
 	BOOL		contains_key = FALSE;
 	int		i;
@@ -1132,14 +1132,14 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 				k = 0,
 				n,
 				blevel = 0, old_blevel, subqlevel = 0,
-				tbl_blevel = 0, allocated_size, new_size,
+				tbl_blevel = 0, allocated_size = -1, new_size,
 				nfields;
 	FIELD_INFO **fi, *wfi;
 	TABLE_INFO **ti, *wti;
-	char		parse, maybe_join = 0;
+	char		parse = FALSE, maybe_join = 0;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds;
-	BOOL		updatable = TRUE, column_has_alias;
+	BOOL		updatable = TRUE, column_has_alias = FALSE;
 
 	mylog("%s: entering...\n", func);
 

@@ -2320,7 +2320,7 @@ RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	QResultClass	*res, *dest_res = NULL;
 	char		plan_name[32], multi;
 	int		func_cs_count = 0;
-	const char	*orgquery, *srvquery;
+	const char	*orgquery = NULL, *srvquery = NULL;
 	Int4		endp1, endp2;
 	SQLSMALLINT	num_pa = 0, num_p1, num_p2;
 
@@ -3255,7 +3255,7 @@ inolog(" ival=%d,%d", ival, (val[3] << 24) | (val[2] << 16) | (val[1] << 8) | va
 			o2val = ival % div;
 			if (0 == ns->sign)
 				o1val *= -1;
-			sprintf(chrform, "%d.%0.*d", o1val, ns->scale, o2val);
+			sprintf(chrform, "%d.%0*d", o1val, ns->scale, o2val);
 		}
 inolog(" convval=%s\n", chrform);
 		return TRUE;

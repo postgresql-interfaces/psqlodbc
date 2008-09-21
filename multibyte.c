@@ -82,7 +82,6 @@ int
 pg_CS_code(const UCHAR *characterset_string)
 {
 	int i, c = -1;
-  	size_t len = 0;
 
 	for(i = 0; CS_Table[i].code != OTHER; i++)
 	{
@@ -512,7 +511,9 @@ CC_lookup_cs_old(ConnectionClass *self)
 const char * get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc, BOOL bStartup)
 {
 	const char *wenc = NULL;
+#ifdef	WIN32
 	int	acp;
+#endif /* WIN32 */
 
 #ifdef	UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(conn))

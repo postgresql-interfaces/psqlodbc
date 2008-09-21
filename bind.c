@@ -444,7 +444,6 @@ PGAPI_NumParams(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_NumParams";
-	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE;
 
 	mylog("%s: entering...\n", func);
 

@@ -250,32 +250,6 @@ PGAPI_FreeConnect(
 	return SQL_SUCCESS;
 }
 
-
-static void
-CC_globals_init(GLOBAL_VALUES *globs)
-{
-	memset(globs, 0, sizeof(GLOBAL_VALUES));
-	globs->fetch_max = -1001;
-	globs->socket_buffersize = -1001;
-	globs->unknown_sizes = -1;
-	globs->max_varchar_size = -1001;
-	globs->max_longvarchar_size = -1001;
-
-	globs->debug = -1;
-	globs->commlog = -1;
-	globs->disable_optimizer = -1;
-	globs->ksqo = -1;
-	globs->unique_index = -1;
-	globs->onlyread = -1;
-	globs->use_declarefetch = -1;
-	globs->text_as_longvarchar = -1;
-	globs->unknowns_as_longvarchar = -1;
-	globs->bools_as_char = -1;
-	globs->lie = -1;
-	globs->parse = -1;
-	globs->cancel_as_freestmt = -1;
-}
-
 void
 CC_conninfo_init(ConnInfo *conninfo)
 {
@@ -3701,7 +3675,7 @@ if (TRUE)
 	}
 	mylog("procotol=%s\n", self->connInfo.protocol);
 	{
-		int pversion, on;
+		int pversion;
 		const char *conforming_strings;
 
 		pversion = PQserverVersion(pqconn);

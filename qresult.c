@@ -868,7 +868,7 @@ inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_si
 			return -1;
 		}
 		moved = movement;
-		if (sscanf(mres->command, "MOVE %lu", &moved) > 0)
+		if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &moved) > 0)
 		{
 inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
         		if (moved < movement)
@@ -919,7 +919,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 							return -1;
 						}
 
-						if (sscanf(mres->command, "MOVE %lu", &mback) > 0)
+						if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &mback) > 0)
 						{
 							if (mback < bmovement)
 								mback++;
