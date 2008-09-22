@@ -1916,7 +1916,7 @@ retry_public_schema:
 			if (list_some)
 				set_tuplefield_null(&tuple[TABLES_TABLE_NAME]);
 			else
-				set_nullfield_string(&tuple[TABLES_TABLE_NAME], table_name);
+				set_tuplefield_string(&tuple[TABLES_TABLE_NAME], table_name);
 			if (list_table_types || !list_some)
 				set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], systable ? "SYSTEM TABLE" : (view ? "VIEW" : "TABLE"));
 			else

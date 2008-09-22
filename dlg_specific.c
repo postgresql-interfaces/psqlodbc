@@ -890,11 +890,11 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (get_qlog())
 	{
-		UCHAR	*enc = check_client_encoding(ci->conn_settings);
+		char	*enc = (char *) check_client_encoding(ci->conn_settings);
 
-		qlog("          conn_settings='%s',conn_encoding='%s'\n",
-		 	ci->conn_settings, enc ? enc : (UCHAR *)"(null)");
-		if (enc)
+		qlog("          conn_settings='%s', conn_encoding='%s'\n", ci->conn_settings,
+			NULL != enc ? enc : "(null)");
+		if (NULL != enc)
 			free(enc);
 		qlog("          translation_dll='%s',translation_option='%s'\n",
 		 	ci->translation_dll,
@@ -912,7 +912,7 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	char		tmp[128];
 	int		errc = 0;
 
-	if (ODBCINST_INI == fileName && NULL == sectionName)
+	if (stricmp(ODBCINST_INI, fileName) == 0 && NULL == sectionName)
 		sectionName = DBMS_NAME;
  
 	sprintf(tmp, "%d", comval->commlog);

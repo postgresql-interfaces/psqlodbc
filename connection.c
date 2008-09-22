@@ -2062,7 +2062,7 @@ CC_create_errormsg(ConnectionClass *self)
 	}
 
 	mylog("exit CC_create_errormsg\n");
-	return msg ? strdup(msg) : NULL;
+	return strdup(msg);
 }
 
 
