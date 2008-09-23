@@ -183,7 +183,6 @@ static	HMODULE ws2_hnd = NULL;
 #else
 static freeaddrinfo_func freeaddrinfo_ptr = freeaddrinfo;
 static getaddrinfo_func getaddrinfo_ptr = getaddrinfo;
-static getnameinfo_func getnameinfo_ptr = getnameinfo;
 #endif /* _MSC_VER */
 
 static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *cmd, const char *host, int portno)
@@ -418,7 +417,12 @@ retry:
 			char	errmsg[256], host[64];
 
 			host[0] = '\0';
-			getnameinfo_ptr((struct sockaddr *) &(self->sadr_area),
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+			getnameinfo_ptr
+#else
+			getnameinfo
+#endif
+				((struct sockaddr *) &(self->sadr_area),
 					self->sadr_len, host, sizeof(host),
 					NULL, 0, NI_NUMERICHOST);
 			/* snprintf(errmsg, sizeof(errmsg), "connect getsockopt val %d addr=%s\n", optval, host); */
