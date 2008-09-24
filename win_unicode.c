@@ -54,6 +54,8 @@ int	iswascii(wchar_t c)
 #endif  /* HAVE_ISWASCII */
 #endif  /* WIN32 */
 
+static int little_endian = -1;
+
 SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str)
 {
 	SQLULEN	len;
@@ -70,6 +72,11 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 	{
 		*olen = SQL_NULL_DATA;
 		return NULL;
+	}
+	if (little_endian < 0)
+	{
+		int	crt = 1;
+		little_endian = (0 != ((char *) &crt)[0]);
 	}
 	if (SQL_NTS == ilen)
 		ilen = ucs2strlen(ucs2str);
@@ -98,7 +105,13 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 				byte2code = byte2_base |
 					    ((byte2_mask1 & *wstr) >> 6) |
 					    ((byte2_mask2 & *wstr) << 8);
-				memcpy(utf8str + len, (char *) &byte2code, sizeof(byte2code));
+				if (little_endian)
+					memcpy(utf8str + len, (char *) &byte2code, sizeof(byte2code));
+				else
+				{
+					utf8str[len] = ((char *) &byte2code)[1];
+					utf8str[len + 1] = ((char *) &byte2code)[0];
+				}
 				len += sizeof(byte2code); 
 			}
 			/* surrogate pair check for non ucs-2 code */ 
@@ -114,7 +127,15 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 					   ((byte4_sr1_mask3 & surrd1) << 20) |
 					   ((byte4_sr2_mask1 & surrd2) << 10) |
 					   ((byte4_sr2_mask2 & surrd2) << 24);
-				memcpy(utf8str + len, (char *) &byte4code, sizeof(byte4code));
+				if (little_endian)
+					memcpy(utf8str + len, (char *) &byte4code, sizeof(byte4code));
+				else
+				{
+					utf8str[len] = ((char *) &byte4code)[3];
+					utf8str[len + 1] = ((char *) &byte4code)[2];
+					utf8str[len + 2] = ((char *) &byte4code)[1];
+					utf8str[len + 3] = ((char *) &byte4code)[0];
+				}
 				len += sizeof(byte4code);
 			}
 			else
@@ -123,7 +144,14 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 					    ((byte3_mask1 & *wstr) >> 12) | 
 					    ((byte3_mask2 & *wstr) << 2) | 
 					    ((byte3_mask3 & *wstr) << 16);
-				memcpy(utf8str + len, (char *) &byte4code, 3);
+				if (little_endian)
+					memcpy(utf8str + len, (char *) &byte4code, 3);
+				else
+				{
+					utf8str[len] = ((char *) &byte4code)[3];
+					utf8str[len + 1] = ((char *) &byte4code)[2];
+					utf8str[len + 2] = ((char *) &byte4code)[1];
+				}
 				len += 3;
 			}
 		} 
@@ -155,6 +183,11 @@ SQLULEN	utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR 
 	if (!utf8str)
 		return 0;
 /*mylog(" string=%s\n", utf8str);*/
+	if (little_endian < 0)
+	{
+		int	crt = 1;
+		little_endian = (0 != ((char *) &crt)[0]);
+	}
 	if (!bufcount)
 		ucs2str = NULL;
 	else if (!ucs2str)
