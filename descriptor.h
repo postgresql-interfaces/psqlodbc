@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.20 2007/08/31 23:40:10 hinoue Exp $
+ * $Id: descriptor.h,v 1.21 2008/09/24 13:14:32 hinoue Exp $
  *
  */
 
@@ -35,6 +35,17 @@ do { \
 		free((the_name).name); \
 	(the_name).name = (str ? strdup((str)) : NULL); \
 } while (0)
+/*
+ * a modified version of macro STR_TO_NAME to suppress compiler warnings
+ * when the compiler may confirm str != NULL.
+ */ 
+#define	STRX_TO_NAME(the_name, str) \
+do { \
+	if ((the_name).name) \
+		free((the_name).name); \
+	(the_name).name = strdup((str)); \
+} while (0)
+
 #define	STRN_TO_NAME(the_name, str, n) \
 do { \
 	if ((the_name).name) \

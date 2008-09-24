@@ -2530,7 +2530,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		char	curname[32];
 
 		sprintf(curname, "SQL_CUR%p", stmt);
-		STR_TO_NAME(stmt->cursor_name, curname);
+		STRX_TO_NAME(stmt->cursor_name, curname);
 	}
 	if (stmt->stmt_with_params)
 	{

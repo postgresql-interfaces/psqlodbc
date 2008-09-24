@@ -58,7 +58,7 @@ set_statement_option(ConnectionClass *conn,
 			 * positioned update isn't supported so cursor concurrency is
 			 * read-only
 			 */
-			mylog("SetStmtOption(): SQL_CONCURRENCY = %d ", vParam);
+			mylog("SetStmtOption(): SQL_CONCURRENCY = " FORMAT_LEN " ", vParam);
 			setval = SQL_CONCUR_READ_ONLY;
 			if (SQL_CONCUR_READ_ONLY == vParam)
 				;
@@ -80,7 +80,7 @@ set_statement_option(ConnectionClass *conn,
 			}
 			if (setval != vParam)
 				changed = TRUE;
-			mylog("-> %d\n", setval);
+			mylog("-> " FORMAT_LEN "\n", setval);
 			break;
 
 		case SQL_CURSOR_TYPE:
@@ -89,7 +89,7 @@ set_statement_option(ConnectionClass *conn,
 			 * if declare/fetch, then type can only be forward. otherwise,
 			 * it can only be forward or static.
 			 */
-			mylog("SetStmtOption(): SQL_CURSOR_TYPE = %d ", vParam);
+			mylog("SetStmtOption(): SQL_CURSOR_TYPE = " FORMAT_LEN " ", vParam);
 			setval = SQL_CURSOR_FORWARD_ONLY;
 			if (ci->drivers.lie)
 				setval = vParam;
@@ -117,11 +117,11 @@ set_statement_option(ConnectionClass *conn,
 			}
 			if (setval != vParam)
 				changed = TRUE;
-			mylog("-> %d\n", setval);
+			mylog("-> " FORMAT_LEN "\n", setval);
 			break;
 
 		case SQL_KEYSET_SIZE:	/* ignored, but saved and returned	*/
-			mylog("SetStmtOption(): SQL_KEYSET_SIZE, vParam = %d\n", vParam);
+			mylog("SetStmtOption(): SQL_KEYSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
 
 			if (conn)
 				conn->stmtOptions.keyset_size = vParam;
@@ -137,7 +137,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_MAX_LENGTH:	/* ignored, but saved */
-			mylog("SetStmtOption(): SQL_MAX_LENGTH, vParam = %d\n", vParam);
+			mylog("SetStmtOption(): SQL_MAX_LENGTH, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.maxLength = vParam;
 			if (stmt)
@@ -151,7 +151,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_MAX_ROWS:		/* ignored, but saved */
-			mylog("SetStmtOption(): SQL_MAX_ROWS, vParam = %d\n", vParam);
+			mylog("SetStmtOption(): SQL_MAX_ROWS, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.maxRows = vParam;
 			if (stmt)
@@ -165,16 +165,16 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_NOSCAN:		/* ignored */
-			mylog("SetStmtOption: SQL_NOSCAN, vParam = %d\n", vParam);
+			mylog("SetStmtOption: SQL_NOSCAN, vParam = " FORMAT_LEN "\n", vParam);
 			break;
 
 		case SQL_QUERY_TIMEOUT:	/* ignored */
-			mylog("SetStmtOption: SQL_QUERY_TIMEOUT, vParam = %d\n", vParam);
+			mylog("SetStmtOption: SQL_QUERY_TIMEOUT, vParam = " FORMAT_LEN "\n", vParam);
 			/* "0" returned in SQLGetStmtOption */
 			break;
 
 		case SQL_RETRIEVE_DATA:
-			mylog("SetStmtOption(): SQL_RETRIEVE_DATA, vParam = %d\n", vParam);
+			mylog("SetStmtOption(): SQL_RETRIEVE_DATA, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.retrieve_data = (SQLUINTEGER) vParam;
 			if (stmt)
@@ -182,7 +182,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_ROWSET_SIZE:
-			mylog("SetStmtOption(): SQL_ROWSET_SIZE, vParam = %d\n", vParam);
+			mylog("SetStmtOption(): SQL_ROWSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
 
 			if (vParam < 1)
 			{
@@ -298,7 +298,7 @@ PGAPI_SetConnectOption(
 	RETCODE		retval;
 	BOOL		autocomm_on;
 
-	mylog("%s: entering fOption = %d vParam = %d\n", func, fOption, vParam);
+	mylog("%s: entering fOption = %d vParam = " FORMAT_LEN "\n", func, fOption, vParam);
 	if (!conn)
 	{
 		CC_log_error(func, "", NULL);
@@ -375,7 +375,7 @@ PGAPI_SetConnectOption(
 			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == ci->autocommit_public)
 				break;
 			ci->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
-			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=%d\n", func, conn->transact_status, vParam);
+			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=" FORMAT_LEN "\n", func, conn->transact_status, vParam);
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			if (NULL != conn->asdum)
@@ -485,6 +485,7 @@ PGAPI_SetConnectOption(
 
 				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)", func);
 				sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
+#ifdef	WIN32
 				if (fOption == 30002 && vParam)
 				{
 					int	cmp;
@@ -506,6 +507,7 @@ PGAPI_SetConnectOption(
 						return SQL_SUCCESS;
 					}
 				}
+#endif /* WIN32 */
 				CC_log_error(func, option, conn);
 				return SQL_ERROR;
 			}
@@ -569,7 +571,7 @@ PGAPI_GetConnectOption(
 			break;
 
 		case SQL_QUIET_MODE:	/* NOT SUPPORTED */
-			*((SQLULEN *) pvParam) = (SQLULEN) NULL;
+			*((SQLULEN *) pvParam) = 0;
 			break;
 
 		case SQL_TXN_ISOLATION:

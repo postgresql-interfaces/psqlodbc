@@ -390,7 +390,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				foundKey = TRUE;
 				STR_TO_NAME(ti->bestitem, OID_NAME);
 				sprintf(query, "\"%s\" = %%u", OID_NAME);
-				STR_TO_NAME(ti->bestqual, query);
+				STRX_TO_NAME(ti->bestqual, query);
 			}
 			TI_set_hasoids_checked(ti);
 			ti->table_oid = (OID) strtoul(QR_get_value_backend_text(res, 0, 1), NULL, 10);
@@ -410,7 +410,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 					strcat(query, "d");
 				else
 					strcat(query, "u");
-				STR_TO_NAME(ti->bestqual, query);
+				STRX_TO_NAME(ti->bestqual, query);
 			}
 			else
 			{
@@ -1310,7 +1310,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 
 					column_has_alias = TRUE;
 					if (NULL != wfi)
-						STR_TO_NAME(wfi->column_alias, token);
+						STRX_TO_NAME(wfi->column_alias, token);
 					news = insert_as_to_the_statement(stmt->statement, &pptr, &ptr);
 					if (news != stmt->statement)
 					{
@@ -1435,7 +1435,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 				}
 				else if (NULL != wfi)
 				{
-					STR_TO_NAME(wfi->column_name, token);
+					STRX_TO_NAME(wfi->column_name, token);
 					NULL_THE_NAME(wfi->before_dot);
 				}
 				if (NULL != wfi)
@@ -1465,7 +1465,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 						MOVE_NAME(wfi->schema_name, wfi->before_dot);
 					}
 					MOVE_NAME(wfi->before_dot, wfi->column_name);
-					STR_TO_NAME(wfi->column_name, token);
+					STRX_TO_NAME(wfi->column_name, token);
 				}
 
 				if (delim == ',')
@@ -1482,7 +1482,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 				column_has_alias = TRUE;
 				if (NULL != wfi)
 				{
-					STR_TO_NAME(wfi->column_alias, token);
+					STRX_TO_NAME(wfi->column_alias, token);
 					mylog("alias for field '%s' is '%s'\n", PRINT_NAME(wfi->column_name), PRINT_NAME(wfi->column_alias));
 				}
 				in_as = FALSE;
@@ -1607,7 +1607,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 				{
 					if (is_table_name)
 					{
-						STR_TO_NAME(wti->table_name, token);
+						STRX_TO_NAME(wti->table_name, token);
 						lower_the_name(GET_NAME(wti->table_name), conn, dquote);
 						mylog("got table = '%s'\n", PRINT_NAME(wti->table_name));
 					}
@@ -1684,7 +1684,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 					if (NULL != wfi)
 					{
 						MOVE_NAME(wti->schema_name, wti->table_name);
-						STR_TO_NAME(wti->table_name, token);
+						STRX_TO_NAME(wti->table_name, token);
 						lower_the_name(GET_NAME(wti->table_name), conn, dquote);
 					}
 					in_dot = FALSE;
@@ -1707,7 +1707,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 					}
 					if (NULL != wti)
 					{
-						STR_TO_NAME(wti->table_alias, token);
+						STRX_TO_NAME(wti->table_alias, token);
 						mylog("alias for table '%s' is '%s'\n", PRINT_NAME(wti->table_name), PRINT_NAME(wti->table_alias));
 					}
 					in_table = FALSE;

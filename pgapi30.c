@@ -1867,7 +1867,7 @@ inolog("set ard=%p\n", stmt->ard);
 			SC_get_IRDF(stmt)->rowsFetched = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			SC_get_ARDF(stmt)->size_of_rowset = (SQLULEN) Value;
+			SC_get_ARDF(stmt)->size_of_rowset = CAST_UPTR(SQLULEN, Value);
 			break;
 		default:
 			return PGAPI_SetStmtOption(StatementHandle, (SQLUSMALLINT) Attribute, (SQLULEN) Value);

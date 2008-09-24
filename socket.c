@@ -209,7 +209,7 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 #else
 	if (0 == strerror_r(errnum, errmsg, buflen))
 		ret = TRUE;
-#endif /* STRERROR_R_INT */
+#endif /* STRERROR_R_CHAR_P */
 #else
 	strncpy(errmsg, strerror(errnum), buflen);
 	ret = TRUE;
