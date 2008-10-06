@@ -430,7 +430,8 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 	char	   *last;
 #endif /* HAVE_STRTOK_R */
 
-	our_connect_string = strdup(connect_string);
+	if (our_connect_string = strdup(connect_string), NULL == our_connect_string)
+		return;
 	strtok_arg = our_connect_string;
 
 #ifdef	FORCE_PASSWORD_DISPLAY

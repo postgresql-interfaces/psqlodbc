@@ -620,7 +620,6 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 int
 CountParameters(const StatementClass *self, Int2 *inputCount, Int2 *ioCount, Int2 *outputCount)
 {
-	CSTR func = "CountParameters";
 	IPDFields	*ipdopts = SC_get_IPDF(self);
 	int	i, num_params, valid_count;
 

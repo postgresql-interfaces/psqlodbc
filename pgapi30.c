@@ -398,7 +398,6 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 			SQLINTEGER Attribute, PTR Value,
 			SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
-	CSTR func = "PGAPI_GetConnectAttr";
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
 	SQLINTEGER	len = 4;

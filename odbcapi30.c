@@ -433,7 +433,7 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 {
 	CSTR func = "SQLSetDescRec";
 
-	mylog("[[SQLSetDescRec]]\n");
+	mylog("[[%s]]\n", func);
 	mylog("Error not implemented\n");
 	return SQL_ERROR;
 }

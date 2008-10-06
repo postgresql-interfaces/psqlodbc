@@ -33,7 +33,7 @@ void	TI_Constructor(TABLE_INFO *self, const ConnectionClass *conn)
 
 		STR_TO_NAME(self->bestitem, OID_NAME);
 		sprintf(qual, "\"%s\" = %%u", OID_NAME);
-		STR_TO_NAME(self->bestqual, qual);
+		STRX_TO_NAME(self->bestqual, qual);
 		TI_set_hasoids(self);
 		TI_set_hasoids_checked(self);
 	}
@@ -303,7 +303,7 @@ RETCODE SQL_API PGAPI_AllocDesc(HDBC ConnectionHandle,
 	}
 	else
 	{
-		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "No more memory ti allocate a further descriptor",func);
+		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "No more memory ti allocate a further descriptor", func);
 		ret = SQL_ERROR;
 	}
 	return ret;
@@ -584,7 +584,6 @@ static struct
 
 static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *desc)
 {
-	CSTR func = "DC_create_erroinfo";
 	PG_ErrorInfo	*error;
 	ConnectionClass	*conn;
 	EnvironmentClass	*env;

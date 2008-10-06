@@ -4163,6 +4163,8 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 	/* begin with outer '(' */
 	innerParenthesis = 0;
 	param_count = 0;
+	if (NULL != output_count)
+		*output_count = 0;
 	stop = FALSE;
 	for (; F_OldPos(qp) < qp->stmt_len; F_OldNext(qp))
 	{
