@@ -534,7 +534,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 #if (ODBCVER >= 0x0300)
-	mylog("[SQLGetInfo(30)]");
+	mylog("[%s(30)]", func);
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
 				BufferLength, StringLength)) == SQL_ERROR)
 	{

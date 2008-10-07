@@ -506,7 +506,6 @@ PGAPI_Error(
 EnvironmentClass *
 EN_Constructor(void)
 {
-	CSTR	func = "EN_Constructor";
 	EnvironmentClass *rv = NULL;
 #ifdef WIN32
 	WORD		wVersionRequested;
@@ -518,31 +517,33 @@ EN_Constructor(void)
 
 	if (WSAStartup(wVersionRequested, &wsaData))
 	{
-		mylog("%s: WSAStartup error\n", func);
+		mylog("%s: WSAStartup error\n", __FUNCTION__);
 		return rv;
 	}
 	/* Verify that this is the minimum version of WinSock */
 	if (LOBYTE(wsaData.wVersion) != major ||
 	    HIBYTE(wsaData.wVersion) != minor)
 	{
-		mylog("%s: WSAStartup version=(%d,%d)\n", func,
+		mylog("%s: WSAStartup version=(%d,%d)\n", __FUNCTION__,
 			LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
+		goto cleanup;
 	}
 #endif /* WIN32 */
 
 	rv = (EnvironmentClass *) malloc(sizeof(EnvironmentClass));
-cleanup:
-	if (rv)
+	if (NULL == rv)
 	{
-		rv->errormsg = 0;
-		rv->errornumber = 0;
-		rv->flag = 0;
-		INIT_ENV_CS(rv);
+		mylog("%s: malloc error\n", __FUNCTION__);
+		goto cleanup;
 	}
+	rv->errormsg = 0;
+	rv->errornumber = 0;
+	rv->flag = 0;
+	INIT_ENV_CS(rv);
+cleanup:
 #ifdef WIN32
-	else
+	if (NULL == rv)
 	{
-		mylog("%s: malloc error\n", func);
 		WSACleanup();
 	}
 #endif /* WIN32 */

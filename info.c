@@ -70,7 +70,7 @@ PGAPI_GetInfo(
 	char		tmp[MAX_INFO_STRING];
 	SQLULEN			len = 0,
 				value = 0;
-	RETCODE		result;
+	RETCODE		result = SQL_ERROR;
 	char		odbcver[16];
 	int		i_odbcver;
 
@@ -770,7 +770,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		default:
 			/* unrecognized key */
 			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unrecognized key passed to PGAPI_GetInfo.", NULL);
-			return SQL_ERROR;
+			goto cleanup;
 	}
 
 	result = SQL_SUCCESS;
@@ -838,7 +838,7 @@ PGAPI_GetTypeInfo(
 	CSTR func = "PGAPI_GetTypeInfo";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass	*conn;
-	QResultClass	*res;
+	QResultClass	*res = NULL;
 	TupleField	*tuple;
 	int			i, result_cols;
 
@@ -919,7 +919,12 @@ mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 			}
 			for (cnt = 0; cnt < pgtcount; cnt ++)
 			{
-				tuple = QR_AddNew(res);
+				if (tuple = QR_AddNew(res), NULL == tuple)
+				{
+					result = SQL_ERROR;
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't QR_AddNew.", func);
+					goto cleanup;
+				}
 
 				/* These values can't be NULL */
 				if (aunq_match == cnt)
@@ -977,7 +982,10 @@ cleanup:
 	 */
 	stmt->status = STMT_FINISHED;
 	stmt->currTuple = -1;
-	SC_set_rowset_start(stmt, -1, FALSE);
+	if (SQL_SUCCEEDED(result))
+		SC_set_rowset_start(stmt, -1, FALSE);
+	else
+		SC_set_Result(stmt, NULL);
 	SC_set_current_col(stmt, -1);
 
 	if (stmt->internal)
@@ -3415,7 +3423,7 @@ PGAPI_ColumnPrivileges(
 	size_t		cq_len,cq_size;
 	char		*col_query;
 	BOOL	search_pattern;
-	QResultClass	*res;
+	QResultClass	*res = NULL;
 
 	mylog("%s: entering...\n", func);
 
@@ -3472,8 +3480,7 @@ PGAPI_ColumnPrivileges(
 	if (res = CC_send_query(conn, column_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ColumnPrivileges query error", func);
-		QR_Destructor(res);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
 
@@ -3485,6 +3492,8 @@ PGAPI_ColumnPrivileges(
 	/* set up the current tuple pointer for SQLFetch */
 	result = SQL_SUCCESS;
 cleanup:
+	if (!SQL_SUCCEEDED(result))
+		QR_Destructor(res);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->status = STMT_FINISHED;
 	stmt->currTuple = -1;
