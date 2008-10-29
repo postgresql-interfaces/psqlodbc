@@ -1557,6 +1557,11 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					mylog("Could not convert to SQL_C_GUID");	
 					return	COPY_UNSUPPORTED_TYPE;
 				}
+				len = sizeof(g);
+				if (bind_size > 0)
+					*((SQLGUID *) rgbValueBindRow) = g;
+				else
+					*((SQLGUID *) rgbValue + bind_row) = g;
 				break;
 #endif /* ODBCVER */
 
