@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.48 2008/09/16 14:49:40 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.49 2008/11/04 15:48:48 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -15,8 +15,10 @@ lib_LTLIBRARIES = psqlodbcw.la
 else
 lib_LTLIBRARIES = psqlodbca.la
 endif
-  	 
-AM_CFLAGS = -Wall
+
+if GCC
+AM_CFLAGS = -Wall  	 
+endif
 
 AM_LDFLAGS = -module -no-undefined -avoid-version
 

@@ -159,6 +159,7 @@ LDFLAGS="$LDFLAGS -L$pg_libdir"
 
 AC_PROG_CC
 
+AM_CONDITIONAL([GCC], [test -n "$GCC"])
 
 # 2. Libraries
 
