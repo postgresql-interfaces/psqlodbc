@@ -9,7 +9,7 @@ if NOT "%1"=="" SET VERSION="%1"
 if NOT "%1"=="" GOTO GOT_VERSION
 
 REM The full version number of the build in XXXX.XX.XX format
-SET VERSION="08.03.0300"
+SET VERSION="08.03.0400"
 
 echo.
 echo Version not specified - defaulting to %VERSION%
