@@ -3673,7 +3673,7 @@ if (TRUE)
 				break;
 		}
 	}
-	mylog("procotol=%s\n", self->connInfo.protocol);
+	mylog("protocol=%s\n", self->connInfo.protocol);
 	{
 		int pversion;
 		const char *conforming_strings;
