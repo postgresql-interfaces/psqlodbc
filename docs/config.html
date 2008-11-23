@@ -238,12 +238,17 @@ with 7.4 and higher backends.<br />&nbsp;</li>
 error occur.<br />&nbsp;
 
 <ul>
-<li><i>Nop:</i> Don't rollback anything and let the application handle the
+<li><i>Nop(0):</i> Don't rollback anything and let the application handle the
 error.<br />&nbsp;</li>
 
-<li><i>Transaction:</i> Rollback the entire transaction.<br />&nbsp;</li>
+<li><i>Transaction(1):</i> Rollback the entire transaction.<br />&nbsp;</li>
 
-<li><i>Statement:</i> Rollback the statement.<br />&nbsp;</li>
+<li><i>Statement(2):</i> Rollback the statement.<br />&nbsp;</li>
+<br>
+<b>Notes in a setup: This specification is set up with a PROTOCOL option parameter.</b><br><br>
+PROTOCOL=[6.2|6.3|6.4|7.4][-(0|1|2)]<br>
+default value is a sentence unit (it is a transaction unit before 8.0).<br>
+<br>
 
 </ul></li>
 
