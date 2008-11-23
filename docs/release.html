@@ -9,7 +9,13 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.03.0400 Release </h2>
+<h2>psqlODBC 08.xx.xxxx Release </h2>
+Changes:<br>
+1) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br>
+2) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.
+3) Correct the value of INDEX_QUALIFIER column which returned by SLQSTATISTICS();
+<br>
+<li>Notes: psqlODBC 08.03.0400</li><br>
 Changes:<br>
 1.) GUID forgot to set the value to the buffer.<br>
 2.) -Wall was taken as gcc limitation.<br>
