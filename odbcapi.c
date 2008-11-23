@@ -573,7 +573,7 @@ SQLGetStmtOption(HSTMT StatementHandle,
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	ret = PGAPI_GetStmtOption(StatementHandle, Option, Value, NULL, 64);
-	ret = DiscardRollbackState(stmt, ret, FALSE);
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }

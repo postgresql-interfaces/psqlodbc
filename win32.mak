@@ -70,6 +70,7 @@ SSL_LIB=C:\OpenSSL\lib\VC
 
 !IF "$(USE_LIBPQ)" != "no"
 SSL_DLL = "SSLEAY32.dll"
+RESET_CRYPTO = yes
 ADD_DEFINES = $(ADD_DEFINES) /D "SSL_DLL=\"$(SSL_DLL)\"" /D USE_SSL
 !ELSE
 ADD_DEFINES = $(ADD_DEFINES) /D NOT_USE_LIBPQ
@@ -94,6 +95,10 @@ VC_FLAGS=/GX /YX
 MSVC_VERSION=vc70
 !IF "$(USE_LIBPQ)" != "no"
 VC07_DELAY_LOAD=/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL)
+!IF "$(RESET_CRYPTO)" == "yes"
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:libeay32.dll
+ADD_DEFINES=$(ADD_DEFINES) /D RESET_CRYPTO_CALLBACKS
+!ENDIF
 !ENDIF
 !IF "$(USE_SSPI)" == "yes"
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /Delayload:secur32.dll /Delayload:crypt32.dll

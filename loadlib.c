@@ -15,6 +15,9 @@
 #include <errno.h>
 #endif /* WIN32 */
 #ifndef NOT_USE_LIBPQ
+#ifdef	RESET_CRYPTO_CALLBACKS
+#include <openssl/ssl.h>
+#endif /* RESET_CRYPTO_CALLBACKS */
 #include <libpq-fe.h>
 #endif /* NOT_USE_LIBPQ */
 #include "loadlib.h"
@@ -26,6 +29,9 @@
 #ifndef	NOT_USE_LIBPQ
 #pragma comment(lib, "libpq")
 #pragma comment(lib, "ssleay32")
+#ifdef	RESET_CRYPTO_CALLBACKS
+#pragma comment(lib, "libeay32")
+#endif /* RESET_CRYPTO_CALLBACKS */
 #endif /* NOT_USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #ifdef	UNICODE_SUPPORT
@@ -40,6 +46,9 @@
 #ifndef	NOT_USE_LIBPQ
 #pragma comment(linker, "/Delayload:libpq.dll")
 #pragma comment(linker, "/Delayload:ssleay32.dll")
+#ifdef	RESET_CRYPTO_CALLBACKS
+#pragma comment(linker, "/Delayload:libeay32.dll")
+#endif /* RESET_CRYPTO_CALLBACKS */
 #endif /* NOT_USE_LIBPQ */
 #ifdef	UNICODE_SUPPORT
 #pragma comment(linker, "/Delayload:pgenlist.dll")
@@ -115,7 +124,7 @@ DliErrorHook(unsigned	dliNotify,
 	int	i;
 	static const char * const libarray[] = {"libssl32", "ssleay32"};
 
-	mylog("Dli%sHook Notify=%d %p\n", (dliFailLoadLib == dliNotify || dliFailGetProc == dliNotify) ? "Error" : "Notify", dliNotify, pdli);
+	mylog("Dli%sHook %s Notify=%d\n", (dliFailLoadLib == dliNotify || dliFailGetProc == dliNotify) ? "Error" : "Notify", NULL != pdli->szDll ? pdli->szDll : pdli->dlp.szProcName, dliNotify);
 	switch (dliNotify)
 	{
 		case dliNotePreLoadLibrary:
@@ -172,6 +181,17 @@ void CleanupDelayLoadedDLLs(void)
 	/* The dll names are case sensitive for the unload helper */
 	if (loaded_libpq)
 	{
+#ifdef	RESET_CRYPTO_CALLBACKS
+		/*
+		 *	May be needed to avoid crash on exit
+		 *	when libpq doesn't reset the callbacks.
+		 */
+		CRYPTO_set_locking_callback(NULL);
+		CRYPTO_set_id_callback(NULL);
+		mylog("passed RESET_CRYPTO_CALLBACKS\n");
+#else
+		mylog("not passed RESET_CRYPTO_CALLBACKS\n");
+#endif /* RESET_CRYPTO_CALLBACKS */
 		success = (*func)(libpqdll);
 		mylog("%s unload success=%d\n", libpqdll, success);
 	}

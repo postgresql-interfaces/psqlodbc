@@ -3241,7 +3241,7 @@ PGAPI_Statistics(
 		set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], (Int2) (ci->drivers.unique_index ? FALSE : TRUE));
 
 		/* no index qualifier */
-		set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], CurrCat(conn));
+		set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], GET_SCHEMA_NAME(table_schemaname));
 
 		snprintf(buf, sizeof(table_name), "%s_idx_fake_oid", table_name);
 		set_tuplefield_string(&tuple[STATS_INDEX_NAME], buf);
@@ -3286,7 +3286,7 @@ PGAPI_Statistics(
 					set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], TRUE);
 
 				/* no index qualifier */
-				set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], CurrCat(conn));
+				set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], GET_SCHEMA_NAME(table_schemaname));
 				set_tuplefield_string(&tuple[STATS_INDEX_NAME], index_name);
 
 				/*

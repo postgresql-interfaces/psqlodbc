@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.123 2008/09/21 15:35:44 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.124 2008/11/23 01:00:53 hinoue Exp $
  *
  */
 
@@ -119,8 +119,8 @@ typedef	UInt4	OID;
 #define	FORMAT_ULPTR	"%lu"	/* ULONG_PTR */
 #endif /* _WIN64 */
 #else
-#define	FORMAT_SIZE_T	"%xu"	/* size_t */	
-#define	FORMAT_SSIZE_T	"%xd"	/* ssize_t */
+#define	FORMAT_SIZE_T	"%zu"	/* size_t */	
+#define	FORMAT_SSIZE_T	"%zd"	/* ssize_t */
 #ifndef	HAVE_SSIZE_T
 typedef	long	ssize_t
 #endif /* HAVE_SSIZE_T */
