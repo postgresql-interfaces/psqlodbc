@@ -105,7 +105,7 @@ typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *,
 #ifdef	MSG_NOSIGNAL
 #define	SEND_FLAG MSG_NOSIGNAL
 #define	RECV_FLAG MSG_NOSIGNAL
-#elseifdef	MSG_NOSIGPIPE
+#elif	defined(MSG_NOSIGPIPE)
 #define	SEND_FLAG MSG_NOSIGPIPE
 #define	RECV_FLAG MSG_NOSIGPIPE
 #else
