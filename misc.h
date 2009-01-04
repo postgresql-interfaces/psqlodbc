@@ -128,7 +128,7 @@ void	FinalizeLogging();
 
 void		remove_newlines(char *string);
 char	   *strncpy_null(char *dst, const char *src, ssize_t len);
-char	   *trim(char *string);
+char	   *my_trim(char *string);
 char	   *make_string(const char *s, ssize_t len, char *buf, size_t bufsize);
 char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, ssize_t len, BOOL);
 char	   *my_strcat(char *buf, const char *fmt, const char *s, ssize_t len);

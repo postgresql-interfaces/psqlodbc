@@ -98,7 +98,7 @@ SQLSMALLINT	pgtype_precision(StatementClass *stmt, OID type, int col, int handle
 Int4		pgtype_display_size(StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 Int4		pgtype_buffer_length(StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 Int4		pgtype_desclength(StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
-Int4		pgtype_transfer_octet_length(StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
+Int4		pgtype_transfer_octet_length(StatementClass *stmt, OID type, int column_size);
 
 SQLSMALLINT	pgtype_decimal_digits(StatementClass *stmt, OID type, int col); /* corresponds to "scale" in ODBC 2.x */
 SQLSMALLINT	pgtype_min_decimal_digits(StatementClass *stmt, OID type); /* corresponds to "min_scale" in ODBC 2.x */

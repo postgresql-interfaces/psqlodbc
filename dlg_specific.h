@@ -21,6 +21,7 @@
 extern "C" {
 #endif /* __cplusplus */
 /*	Unknown data type sizes */
+#define UNKNOWNS_AS_DEFAULT			-1
 #define UNKNOWNS_AS_MAX				0
 #define UNKNOWNS_AS_DONTKNOW			1
 #define UNKNOWNS_AS_LONGEST			2

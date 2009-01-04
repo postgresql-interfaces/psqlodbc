@@ -890,6 +890,8 @@ pgtype_column_size(StatementClass *stmt, OID type, int col, int handle_unknown_s
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 
+	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
+		handle_unknown_size_as = ci->drivers.unknown_sizes; 
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
@@ -1160,22 +1162,22 @@ pgtype_desclength(StatementClass *stmt, OID type, int col, int handle_unknown_si
  *	Transfer octet length.
  */
 Int4
-pgtype_transfer_octet_length(StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
+pgtype_transfer_octet_length(StatementClass *stmt, OID type, int column_size)
 {
 	ConnectionClass	*conn = SC_get_conn(stmt);
 
 	int	coef = 1;
-	Int4	prec = pgtype_column_size(stmt, type, col, handle_unknown_size_as), maxvarc;
+	Int4	maxvarc;
 	switch (type)
 	{
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_TEXT:
-			if (SQL_NO_TOTAL == prec)
-				return prec;
+			if (SQL_NO_TOTAL == column_size)
+				return column_size;
 #ifdef	UNICODE_SUPPORT
 			if (CC_is_in_unicode_driver(conn))
-				return prec * WCLEN;
+				return column_size * WCLEN;
 #endif /* UNICODE_SUPPORT */
 			/* after 7.2 */
 			if (PG_VERSION_GE(conn, 7.2))
@@ -1184,16 +1186,16 @@ pgtype_transfer_octet_length(StatementClass *stmt, OID type, int col, int handle
 				/* CR -> CR/LF */
 				coef = 2;
 			if (coef == 1)
-				return prec;
+				return column_size;
 			maxvarc = conn->connInfo.drivers.max_varchar_size;
-			if (prec <= maxvarc && prec * coef > maxvarc)
+			if (column_size <= maxvarc && column_size * coef > maxvarc)
 				return maxvarc;
-			return coef * prec;
+			return coef * column_size;
 		case PG_TYPE_BYTEA:
-			return prec;
+			return column_size;
 		default:
 			if (type == conn->lobj_type)
-				return prec;
+				return column_size;
 	}
 	return -1;
 }

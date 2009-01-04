@@ -64,7 +64,7 @@ static int sendall(SOCKET sock, const void *buf, int len)
 	retry_count = 0;
 	for (ttllen = 0, reqlen = len; reqlen > 0;)
 	{
-		if (0 > (wrtlen = send(sock, (const char *) buf + ttllen, reqlen, 0)))
+		if (0 > (wrtlen = send(sock, (const char *) buf + ttllen, reqlen, SEND_FLAG)))
 		{
 			int	gerrno = SOCK_ERRNO;
 
@@ -97,7 +97,7 @@ static int recvall(SOCKET sock, void *buf, int len)
 
 	for (ttllen = 0, reqlen = len; reqlen > 0;)
 	{
-		if (0 > (rcvlen = recv(sock, (char *) buf + ttllen, reqlen, 0)))
+		if (0 > (rcvlen = recv(sock, (char *) buf + ttllen, reqlen, RECV_FLAG)))
 		{
 			int	gerrno = SOCK_ERRNO;
 
@@ -478,7 +478,7 @@ SchannelClientHandshakeLoop(
 				cbData = recv(Socket, 
 						IoBuffer + cbIoBuffer, 
 						IO_BUFFER_SIZE - cbIoBuffer, 
-						0);
+						RECV_FLAG);
 				if (cbData == SOCKET_ERROR)
 				{
 					int	gerrno = SOCK_ERRNO;
@@ -904,7 +904,7 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 				cbData = recv(self->socket, 
 						pbIoBuffer + cbIoBuffer, 
 						reqlen, 
-						0);
+						RECV_FLAG);
 				if (cbData == SOCKET_ERROR)
 				{
 					int	gerrno = SOCK_ERRNO;
@@ -1075,7 +1075,7 @@ cleanup:
 		return rtnlen;
 	}
 	else
-		return recv(self->socket, (char *) buffer, len, 0);
+		return recv(self->socket, (char *) buffer, len, RECV_FLAG);
 }
 
 int SSPI_send(SocketClass *self, const void *buffer, int len)
@@ -1139,7 +1139,7 @@ mylog("EMPTY=%p %d %d\n", sb[3].pvBuffer, sb[3].cbBuffer, sb[3].BufferType);
 		return slen;
 	}
 	else
-		return send(self->socket, (char *) buffer, len, 0);
+		return send(self->socket, (char *) buffer, len, SEND_FLAG);
 }
 
 void ReleaseSvcSpecData(SocketClass *self)

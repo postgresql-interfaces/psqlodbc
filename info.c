@@ -950,7 +950,7 @@ inolog("serial in\n");
 				set_tuplefield_null(&tuple[12]);
 
 				/* These values can be NULL */
-				set_nullfield_int4(&tuple[2], pgtype_column_size(stmt, pgType, PG_STATIC, PG_STATIC));
+				set_nullfield_int4(&tuple[2], pgtype_column_size(stmt, pgType, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 				set_nullfield_string(&tuple[3], pgtype_literal_prefix(stmt, pgType));
 				set_nullfield_string(&tuple[4], pgtype_literal_suffix(stmt, pgType));
 				set_nullfield_string(&tuple[5], pgtype_create_params(stmt, pgType));
@@ -1487,6 +1487,25 @@ static const char *gen_opestr(const char *orig_opestr, const ConnectionClass * c
 	return (addE ? like_op_ext : like_op_sp);
 }
 
+/*
+ *	If specified schema name == user_name and the current schema is
+ *	'public', allowed to use the 'public' schema.
+ */
+static BOOL
+allow_public_schema(ConnectionClass *conn, const char *szSchemaName, SQLSMALLINT cbSchemaName)
+{
+	const char *user = CC_get_username(conn);
+	size_t	userlen = strlen(user);
+
+	if (SQL_NTS == cbSchemaName)
+		cbSchemaName = strlen(szSchemaName);
+
+	return (NULL != szSchemaName &&
+		cbSchemaName == (SQLSMALLINT) userlen &&
+		strnicmp(szSchemaName, user, userlen) == 0 &&
+		stricmp(CC_get_current_schema(conn), pubstr) == 0);
+}
+
 RETCODE		SQL_API
 PGAPI_Tables(
 			 HSTMT hstmt,
@@ -1767,18 +1786,7 @@ retry_public_schema:
 	    (res = SC_get_Result(tbl_stmt)) &&
 	    0 == QR_get_num_total_tuples(res))
 	{
-		const char *user = CC_get_username(conn);
-
-		/*
-		 * If specified schema name == user_name and
-		 * the current schema is 'public',
-		 * retry the 'public' schema.
-		 */
-		if (szSchemaName &&
-		    (cbSchemaName == SQL_NTS ||
-		     cbSchemaName == (SQLSMALLINT) strlen(user)) &&
-		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
-		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		if (allow_public_schema(conn, szSchemaName, cbSchemaName))
 		{
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
@@ -2001,12 +2009,12 @@ PGAPI_Columns(
 	Int2		field_number, sqltype, concise_type,
 				result_cols,
 				decimal_digits;
-	Int4		field_type,
-				the_type,
-				field_length,
+	Int4		field_length,
 				mod_length,
 				column_size,
-				ordinal;
+				ordinal,
+				typmod;
+	OID		field_type, the_type, greloid, basetype;
 	char		useStaticPrecision, useStaticScale;
 	char		not_null[MAX_INFO_STRING],
 				relhasrules[MAX_INFO_STRING], relkind[8];
@@ -2015,7 +2023,6 @@ PGAPI_Columns(
 	ConnInfo   *ci;
 	ConnectionClass *conn;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
-	SQLINTEGER	greloid;
 	const char	*like_or_eq = likeop, *op_string;
 	const char	*szSchemaName;
 
@@ -2078,12 +2085,14 @@ retry_public_schema:
 	op_string = gen_opestr(like_or_eq, conn);
 	if (conn->schema_support)
 	{
-		strncpy(columns_query,
+		snprintf(columns_query, sizeof(columns_query),
 			"select n.nspname, c.relname, a.attname, a.atttypid"
 	   		", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
-			", c.relhasrules, c.relkind, c.oid, d.adsrc from (((pg_catalog.pg_class c"
+			", c.relhasrules, c.relkind, c.oid, d.adsrc, %s from (((pg_catalog.pg_class c"
 			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
-			sizeof(columns_query));
+			PG_VERSION_GE(conn, 7.4) ?
+			"case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod"
+					: "0, -1");
 		if (search_by_ids)
 			snprintf_add(columns_query, sizeof(columns_query), " and c.oid = %u", reloid);
 		else
@@ -2114,8 +2123,8 @@ retry_public_schema:
 		snprintf(columns_query, sizeof(columns_query),
 			"select u.usename, c.relname, a.attname, a.atttypid"
 	   		", t.typname, a.attnum, a.attlen, %s, a.attnotnull"
-			", c.relhasrules, c.relkind, c.oid, NULL from pg_user u"
-			", pg_class c, pg_attribute a, pg_type t where"
+			", c.relhasrules, c.relkind, c.oid, NULL, 0, -1 from"
+			"  pg_user u, pg_class c, pg_attribute a, pg_type t where"
 			"  u.usesysid = c.relowner and c.oid= a.attrelid"
 			"  and a.atttypid = t.oid and (a.attnum > 0)",
 			PG_VERSION_LE(conn, 6.2) ? "a.attlen" : "a.atttypmod");
@@ -2151,19 +2160,8 @@ retry_public_schema:
 	    (res = SC_get_Result(col_stmt)) &&
 	    0 == QR_get_num_total_tuples(res))
 	{
-		const char *user = CC_get_username(conn);
-
-		/*
-		 * If specified schema name == user_name and
-		 * the current schema is 'public',
-		 * retry the 'public' schema.
-		 */
 		if (!search_by_ids &&
-		    szSchemaName &&
-		    (cbSchemaName == SQL_NTS ||
-		     cbSchemaName == (SQLSMALLINT) strlen(user)) &&
-		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
-		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		    allow_public_schema(conn, szSchemaName, cbSchemaName))
 		{
 			PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 			hcol_stmt = NULL;
@@ -2197,7 +2195,7 @@ retry_public_schema:
 		goto cleanup;
 	}
 
-	result = PGAPI_BindCol(hcol_stmt, 4, SQL_C_LONG,
+	result = PGAPI_BindCol(hcol_stmt, 4, SQL_C_ULONG,
 						   &field_type, 4, NULL);
 	if (!SQL_SUCCEEDED(result))
 	{
@@ -2271,6 +2269,22 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(hcol_stmt, 14, SQL_C_ULONG,
+					&basetype, sizeof(basetype), NULL);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, col_stmt, TRUE);
+		goto cleanup;
+	}
+
+	result = PGAPI_BindCol(hcol_stmt, 15, SQL_C_LONG,
+					&typmod, sizeof(typmod), NULL);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, col_stmt, TRUE);
+		goto cleanup;
+	}
+
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.", func);
@@ -2316,7 +2330,8 @@ retry_public_schema:
 	QR_set_field_info_v(res, COLUMNS_FIELD_TYPE, "FIELD_TYPE", PG_TYPE_INT4, 4);
 	QR_set_field_info_v(res, COLUMNS_AUTO_INCREMENT, "AUTO_INCREMENT", PG_TYPE_INT4, 4);
 	QR_set_field_info_v(res, COLUMNS_PHYSICAL_NUMBER, "PHYSICAL NUMBER", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_TABLE_OID, "TABLE OID", PG_TYPE_INT4, 4);
+	QR_set_field_info_v(res, COLUMNS_TABLE_OID, "TABLE OID", PG_TYPE_OID, 4);
+	QR_set_field_info_v(res, COLUMNS_BASE_TYPEID, "BASE TYPEID", PG_TYPE_OID, 4);
 
 	ordinal = 1;
 	result = PGAPI_Fetch(hcol_stmt);
@@ -2352,8 +2367,8 @@ retry_public_schema:
 			set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 			set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID");
 
-			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 			set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(stmt, the_type));
 			set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
@@ -2367,11 +2382,12 @@ retry_public_schema:
 			set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 			set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
 #endif /* ODBCVER */
-			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 			set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
 			set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], TRUE);
 			set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], OID_ATTNUM);
 			set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
+			set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
 			ordinal++;
 		}
 	}
@@ -2404,6 +2420,12 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], field_name);
 		auto_unique = SQL_FALSE;
+		if (basetype != 0 &&
+		    field_type != conn->lobj_type)
+		{
+			field_type = basetype;
+			mod_length = typmod;
+		}
 		switch (field_type)
 		{
 			case PG_TYPE_INT4:
@@ -2513,21 +2535,21 @@ mylog(" and the data=%s\n", attdef);
 #endif /* UNICODE_SUPPORT */
 			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], field_length);
 #if (ODBCVER >= 0x0300)
-			set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, field_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, field_type, mod_length));
 #endif /* ODBCVER */
 			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], mod_length);
 		}
 
 		if (useStaticPrecision)
 		{
-			mylog("%s: field type is OTHER: field_type = %d, pgtype_length = %d\n", func, field_type, pgtype_buffer_length(stmt, field_type, PG_STATIC, PG_STATIC));
+			mylog("%s: field type is OTHER: field_type = %d, pgtype_length = %d\n", func, field_type, pgtype_buffer_length(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 
-			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, field_type, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, field_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 #if (ODBCVER >= 0x0300)
 			set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
 #endif /* ODBCVER */
-			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, field_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 		}
 		if (useStaticScale)
 		{
@@ -2560,6 +2582,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], auto_unique);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], field_number);
 		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
+		set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], basetype);
 		ordinal++;
 
 		result = PGAPI_Fetch(hcol_stmt);
@@ -2593,8 +2616,8 @@ mylog(" and the data=%s\n", attdef);
 		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
 		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], pgtype_to_name(stmt, the_type, FALSE));
-		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
-		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 		set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(stmt, the_type));
 		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
@@ -2607,11 +2630,12 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 		set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
 #endif /* ODBCVER */
-		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_STATIC));
+		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], FALSE);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], XMIN_ATTNUM);
 		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
+		set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
 		ordinal++;
 	}
 	result = SQL_SUCCESS;
@@ -2749,18 +2773,7 @@ retry_public_schema:
 	    (res = SC_get_Result(col_stmt)) &&
 	    0 == QR_get_num_total_tuples(res))
 	{
-		const char *user = CC_get_username(conn);
-
-		/*
-		 * If specified schema name == user_name and
-		 * the current schema is 'public',
-		 * retry the 'public' schema.
-		 */
-		if (szSchemaName &&
-		    (cbSchemaName == SQL_NTS ||
-		     cbSchemaName == (SQLSMALLINT) strlen(user)) &&
-		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
-		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		if (allow_public_schema(conn, szSchemaName, cbSchemaName))
 		{
 			PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 			hcol_stmt = NULL;
@@ -2840,8 +2853,8 @@ retry_public_schema:
 			set_tuplefield_string(&tuple[1], "ctid");
 			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
 			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, FALSE));
-			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_tuplefield_int2(&tuple[7], SQL_PC_NOT_PSEUDO);
 inolog("Add ctid\n");
@@ -2864,8 +2877,8 @@ inolog("Add ctid\n");
 			set_tuplefield_string(&tuple[1], OID_NAME);
 			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
 			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, TRUE));
-			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
 		}
@@ -2881,8 +2894,8 @@ inolog("Add ctid\n");
 				set_tuplefield_string(&tuple[1], "xmin");
 				set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
 				set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, FALSE));
-				set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_STATIC));
-				set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_STATIC));
+				set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+				set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 				set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 				set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
 			}
@@ -3795,18 +3808,8 @@ retry_public_schema:
 	if (conn->schema_support &&
 	    SQL_NO_DATA_FOUND == result)
 	{
-		const char *user = CC_get_username(conn);
-
-		/*
-		 * If specified schema name == user_name and
-		 * the current schema is 'public',
-		 * retry the 'public' schema.
-		 */
-		if (0 == reloid && szSchemaName &&
-		    (cbSchemaName == SQL_NTS ||
-		     cbSchemaName == (SQLSMALLINT) strlen(user)) &&
-		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
-		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		if (0 == reloid &&
+		    allow_public_schema(conn, szSchemaName, cbSchemaName))
 		{
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
@@ -4925,7 +4928,7 @@ PGAPI_ProcedureColumns(
 	QResultClass *res, *tres;
 	SQLLEN		tcount;
 	OID		pgtype;
-	Int4		paramcount, i, j;
+	Int4		paramcount, column_size, i, j;
 	RETCODE		result;
 	BOOL		search_pattern, bRetset;
 	const char	*like_or_eq, *op_string, *retset;
@@ -5106,8 +5109,9 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_RETURN_VALUE);
 				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
 				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, FALSE));
-				set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
-				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+				column_size = pgtype_column_size(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT);
+				set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], column_size);
+				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 				set_nullfield_int2(&tuple[PROCOLS_DECIMAL_DIGITS], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
 				set_nullfield_int2(&tuple[PROCOLS_NUM_PREC_RADIX], pgtype_radix(stmt, pgtype));
 				set_tuplefield_int2(&tuple[PROCOLS_NULLABLE], SQL_NULLABLE_UNKNOWN);
@@ -5116,7 +5120,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_null(&tuple[PROCOLS_COLUMN_DEF]);
 				set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
 				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype));
-				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, pgtype, column_size));
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
 				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 #endif   /* ODBCVER >= 0x0300 */
@@ -5231,8 +5235,9 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 					set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_PARAM_INPUT);
 				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
 				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, FALSE));
-				set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC));
-				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+				column_size = pgtype_column_size(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT);
+				set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], column_size);
+				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 				set_nullfield_int2(&tuple[PROCOLS_DECIMAL_DIGITS], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
 				set_nullfield_int2(&tuple[PROCOLS_NUM_PREC_RADIX], pgtype_radix(stmt, pgtype));
 				set_tuplefield_int2(&tuple[PROCOLS_NULLABLE], SQL_NULLABLE_UNKNOWN);
@@ -5241,7 +5246,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_null(&tuple[PROCOLS_COLUMN_DEF]);
 				set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
 				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype));
-				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, pgtype, PG_STATIC, PG_STATIC));
+				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, pgtype, column_size));
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], j + 1);
 				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 #endif   /* ODBCVER >= 0x0300 */
@@ -5270,8 +5275,9 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_RESULT_COL);
 			set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, typid, PG_STATIC));
 			set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, typid, FALSE));
-			set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], pgtype_column_size(stmt, typid, PG_STATIC, PG_STATIC));
-			set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, typid, PG_STATIC, PG_STATIC));
+			column_size = pgtype_column_size(stmt, typid, PG_STATIC, UNKNOWNS_AS_DEFAULT);
+			set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], column_size);
+			set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, typid, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 			set_nullfield_int2(&tuple[PROCOLS_DECIMAL_DIGITS], pgtype_decimal_digits(stmt, typid, PG_STATIC));
 			set_nullfield_int2(&tuple[PROCOLS_NUM_PREC_RADIX], pgtype_radix(stmt, typid));
 			set_tuplefield_int2(&tuple[PROCOLS_NULLABLE], SQL_NULLABLE_UNKNOWN);
@@ -5280,7 +5286,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_tuplefield_null(&tuple[PROCOLS_COLUMN_DEF]);
 			set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, typid, PG_STATIC));
 			set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, typid));
-			set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, typid, PG_STATIC, PG_STATIC));
+			set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(stmt, typid, column_size));
 			set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
 			set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 #endif   /* ODBCVER >= 0x0300 */
@@ -5569,18 +5575,7 @@ retry_public_schema:
 	    (flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
 	    0 == tablecount)
 	{
-		const char *user = CC_get_username(conn);
-
-		/*
-		 * If specified schema name == user_name and
-		 * the current schema is 'public',
-		 * retry the 'public' schema.
-		 */
-		if (szSchemaName &&
-		    (cbSchemaName == SQL_NTS ||
-		     cbSchemaName == (SQLSMALLINT) strlen(user)) &&
-		    strnicmp(szSchemaName, user, strlen(user)) == 0 &&
-		    stricmp(CC_get_current_schema(conn), pubstr) == 0)
+		if (allow_public_schema(conn, szSchemaName, cbSchemaName))
 		{
 			QR_Destructor(wres);
 			wres = NULL;
@@ -5851,12 +5846,14 @@ PGAPI_ForeignKeys_new(
 		"\n		when 'c' then %d::int2"
 		"\n		when 'n' then %d::int2"
 		"\n		when 'd' then %d::int2"
+		"\n		when 'r' then %d::int2"
 		"\n		else %d::int2"
 		"\n	end as UPDATE_RULE"
 		",\n	case ref.confdeltype"
 		"\n		when 'c' then %d::int2"
 		"\n		when 'n' then %d::int2"
 		"\n		when 'd' then %d::int2"
+		"\n		when 'r' then %d::int2"
 		"\n		else %d::int2"
 		"\n	end as DELETE_RULE"
 		",\n	ref.conname as FK_NAME"
@@ -5909,10 +5906,12 @@ PGAPI_ForeignKeys_new(
 		, SQL_CASCADE
 		, SQL_SET_NULL
 		, SQL_SET_DEFAULT
+		, SQL_RESTRICT
 		, SQL_NO_ACTION
 		, SQL_CASCADE
 		, SQL_SET_NULL
 		, SQL_SET_DEFAULT
+		, SQL_RESTRICT
 		, SQL_NO_ACTION
 #if (ODBCVER >= 0x0300)
 		, SQL_INITIALLY_DEFERRED
@@ -5955,12 +5954,14 @@ PGAPI_ForeignKeys_new(
 		"\n		when 'c' then %d::int2"
 		"\n		when 'n' then %d::int2"
 		"\n		when 'd' then %d::int2"
+		"\n		when 'r' then %d::int2"
 		"\n		else %d::int2"
 		"\n	end as UPDATE_RULE"
 		",\n	case confdeltype"
 		"\n		when 'c' then %d::int2"
 		"\n		when 'n' then %d::int2"
 		"\n		when 'd' then %d::int2"
+		"\n		when 'r' then %d::int2"
 		"\n		else %d::int2"
 		"\n	end as DELETE_RULE"
 		",\n	conname as FK_NAME"
@@ -6003,10 +6004,12 @@ PGAPI_ForeignKeys_new(
 		, SQL_CASCADE
 		, SQL_SET_NULL
 		, SQL_SET_DEFAULT
+		, SQL_RESTRICT
 		, SQL_NO_ACTION
 		, SQL_CASCADE
 		, SQL_SET_NULL
 		, SQL_SET_DEFAULT
+		, SQL_RESTRICT
 		, SQL_NO_ACTION
 #if (ODBCVER >= 0x0300)
 		, SQL_INITIALLY_DEFERRED

@@ -362,6 +362,8 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, int precision)
 				break;
 			precstr[i] = '\0';
 		}
+		if (i == 0)
+			precstr[i] = '\0';
 	}
 	zonestr[0] = '\0';
 #ifdef	TIMEZONE_GLOBAL
@@ -2626,6 +2628,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	stmt->inaccurate_result = (0 != (qb->flags & FLGB_INACCURATE_RESULT));
 	if (0 == (qp->flags & FLGP_USING_CURSOR))
 		SC_no_fetchcursor(stmt);
+#ifdef NOT_USED	/* this seems problematic */
 	else if (0 == (qp->flags & (FLGP_SELECT_FOR_UPDATE_OR_SHARE | FLGP_SELECT_FOR_READONLY)) &&
 		 0 == stmt->multi_statement &&
 		 PG_VERSION_GE(conn, 8.3))
@@ -2646,7 +2649,8 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		if (semi_colon_found)
 			CVT_APPEND_CHAR(qb, semi_colon);
 		CVT_TERMINATE(qb);
-	}  
+	}
+#endif /* NOT_USED */  
 	if (0 != (qp->flags & FLGP_SELECT_INTO) ||
 	    0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
 	{
@@ -3259,8 +3263,9 @@ inolog(" ival=%d,%d", ival, (val[3] << 24) | (val[2] << 16) | (val[1] << 8) | va
 			o1val = ival / div;
 			o2val = ival % div;
 			if (0 == ns->sign)
-				o1val *= -1;
-			sprintf(chrform, "%d.%0*d", o1val, ns->scale, o2val);
+				sprintf(chrform, "-%d.%0*d", o1val, ns->scale, o2val);
+			else
+				sprintf(chrform, "%d.%0*d", o1val, ns->scale, o2val);
 		}
 inolog(" convval=%s\n", chrform);
 		return TRUE;

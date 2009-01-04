@@ -102,6 +102,17 @@ typedef int (WSAAPI *getaddrinfo_func) (const char *, const char *,
 typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *,
 	socklen_t, char *, size_t, char *, size_t, int);
 
+#ifdef	MSG_NOSIGNAL
+#define	SEND_FLAG MSG_NOSIGNAL
+#define	RECV_FLAG MSG_NOSIGNAL
+#elseifdef	MSG_NOSIGPIPE
+#define	SEND_FLAG MSG_NOSIGPIPE
+#define	RECV_FLAG MSG_NOSIGPIPE
+#else
+#define	SEND_FLAG 0
+#define	RECV_FLAG 0
+#endif /* MSG_NOSIGNAL */
+
 #define SOCKET_ALREADY_CONNECTED		1
 #define SOCKET_HOST_NOT_FOUND			2
 #define SOCKET_COULD_NOT_CREATE_SOCKET		3

@@ -507,11 +507,11 @@ static int SOCK_SSPI_recv(SocketClass *self, void *buffer, int len)
 {
 #ifdef	USE_SSPI
 	if (!self->sspisvcs || !self->ssd)
-		return recv(self->socket, (char *) buffer, len, 0);
+		return recv(self->socket, (char *) buffer, len, RECV_FLAG);
 	else
 		return SSPI_recv(self, (char *) buffer, len);
 #endif /* USE_SSPI */
-	return recv(self->socket, (char *) buffer, len, 0);
+	return recv(self->socket, (char *) buffer, len, RECV_FLAG);
 }
 
 static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
@@ -520,11 +520,11 @@ static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 	CSTR func = "SOCK_SSPI_send";
 
 	if (!self->sspisvcs || !self->ssd)
-		return send(self->socket, (char *) buffer, len, 0);
+		return send(self->socket, (char *) buffer, len, SEND_FLAG);
 	else
 		return SSPI_send(self, buffer, len);
 #endif /* USE_SSPI */
-	return send(self->socket, (char *) buffer, len, 0);
+	return send(self->socket, (char *) buffer, len, SEND_FLAG);
 }
 
 #ifdef USE_SSL

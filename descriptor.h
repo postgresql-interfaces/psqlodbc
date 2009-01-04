@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: descriptor.h,v 1.21 2008/09/24 13:14:32 hinoue Exp $
+ * $Id: descriptor.h,v 1.22 2009/01/04 02:40:02 hinoue Exp $
  *
  */
 
@@ -139,7 +139,7 @@ typedef struct
 	int		display_size;
 	SQLLEN		length;
 	OID		columntype;
-	OID		basetype;
+	OID		basetype; /* may be the basetype when the column type is a domain */ 
 	char		expr;
 	char		quote;
 	char		dquote;

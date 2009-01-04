@@ -246,7 +246,7 @@ remove_newlines(char *string)
 
 
 char *
-trim(char *s)
+my_trim(char *s)
 {
 	size_t		i;
 

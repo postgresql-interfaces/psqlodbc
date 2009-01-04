@@ -458,7 +458,7 @@ PGAPI_ColAttributes(
 	Int2		col_idx;
 	ConnectionClass	*conn;
 	ConnInfo	*ci;
-	int			unknown_sizes;
+	int		column_size, unknown_sizes;
 	int			cols = 0;
 	RETCODE		result;
 	const char   *p = NULL;
@@ -623,6 +623,7 @@ inolog("answering bookmark info\n");
 
 	mylog("colAttr: col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
 
+	column_size = (fi != NULL && fi->column_size > 0) ? fi->column_size : pgtype_column_size(stmt, field_type, col_idx, unknown_sizes);
 	switch (fDescType)
 	{
 		case SQL_COLUMN_AUTO_INCREMENT: /* == SQL_DESC_AUTO_UNIQUE_VALUE */
@@ -707,7 +708,7 @@ inolog("COLUMN_NULLABLE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_PRECISION: /* in 2.x */
-			value = (fi && fi->column_size > 0) ? fi->column_size : pgtype_column_size(stmt, field_type, col_idx, unknown_sizes);
+			value = column_size;
 			if (value < 0)
 				value = 0;
 
@@ -793,7 +794,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			mylog("%s: col %d, desc_length = %d\n", func, col_idx, value);
 			break;
 		case SQL_DESC_OCTET_LENGTH:
-			value = (fi && fi->length > 0) ? fi->length : pgtype_transfer_octet_length(stmt, field_type, col_idx, unknown_sizes);
+			value = (fi && fi->length > 0) ? fi->length : pgtype_transfer_octet_length(stmt, field_type, column_size);
 			if (-1 == value)
 				value = 0;
 			mylog("%s: col %d, octet_length = %d\n", func, col_idx, value);

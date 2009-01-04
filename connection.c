@@ -2543,7 +2543,7 @@ inolog("send_query response_length=%d\n", response_length);
 
 					mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 
-					trim(cmdbuffer); /* get rid of trailing space */ 
+					my_trim(cmdbuffer); /* get rid of trailing space */ 
 					if (strnicmp(cmdbuffer, bgncmd, lenbgncmd) == 0)
 					{
 						CC_set_in_trans(self);
@@ -3513,7 +3513,7 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	crp.cp.backendPID = htonl(conn->be_pid);
 	crp.cp.cancelAuthCode = htonl(conn->be_key);
 
-	while (send(tmpsock, (char *) &crp, sizeof(crp), 0) != (int) sizeof(crp))
+	while (send(tmpsock, (char *) &crp, sizeof(crp), SEND_FLAG) != (int) sizeof(crp))
 	{
 		if (SOCK_ERRNO != EINTR)
 		{
@@ -3524,7 +3524,7 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	}
 	if (ret)
 	{
-		while (recv(tmpsock, (char *) &crp, 1, 0) < 0)
+		while (recv(tmpsock, (char *) &crp, 1, RECV_FLAG) < 0)
 		{
 			if (EINTR != SOCK_ERRNO)
 				break;
@@ -3553,6 +3553,7 @@ int	CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *pla
 
 	return 1;
 }
+
 int	CC_discard_marked_objects(ConnectionClass *conn)
 {
 	int	i, cnt;

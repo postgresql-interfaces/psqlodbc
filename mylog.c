@@ -174,6 +174,11 @@ mylog(const char *fmt,...)
 		{
 			generate_homefile(MYLOGFILE, filebuf);
 			MLOGFP = fopen(filebuf, PG_BINARY_A);
+			if (!MLOGFP)
+			{
+				generate_filename("c:\\podbclog", MYLOGFILE, filebuf);
+				MLOGFP = fopen(filebuf, PG_BINARY_A);
+			}
 		}
 		if (MLOGFP)
 			setbuf(MLOGFP, NULL);
