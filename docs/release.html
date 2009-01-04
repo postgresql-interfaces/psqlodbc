@@ -11,9 +11,17 @@
 <hr>
 <h2>psqlODBC 08.xx.xxxx Release </h2>
 Changes:<br>
-1) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br>
-2) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.
-3) Correct the value of INDEX_QUALIFIER column which returned by SLQSTATISTICS();
+1.) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br>
+2.) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.<br>
+3.) Correct the value of INDEX_QUALIFIER column which returned by SLQSTATISTICS();<br>
+4.) Take domain types into account in SQLColumns() (Thanks to Luiz K. Matsumura).<br>
+5.) Take RESTRICT actions into account in SQLForeignKeys() (report from Farid Zidan).<br>
+6.) Fix a bug that small negative decimal values are mistaken for non-negative (bug report from Dominic Smith).<br>
+7.) Use MSG_NOSIGNAL/MSG_NOSIGPIPE option on send()/recv() to avoid crash on SIGPIPE (bug report from Brian Feldman).<br>
+8.) Remove a spurious "." with no trailing digits in timestamp representation (bug report from Brian Feldman).<br>
+9.) Rename trim() funtion in order to avoid conflict of function name(report from Dominic Smith).<br>
+10.) Put back the change to add *read only* clause for read only cursors.<br>
+11.) Improve pgtype_transfer_octet_length().<br>
 <br>
 <li>Notes: psqlODBC 08.03.0400</li><br>
 Changes:<br>
