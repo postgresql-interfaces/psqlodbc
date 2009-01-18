@@ -22,6 +22,8 @@ Changes:<br>
 9.) Rename trim() funtion in order to avoid conflict of function name(report from Dominic Smith).<br>
 10.) Put back the change to add *read only* clause for read only cursors.<br>
 11.) Improve pgtype_transfer_octet_length().<br>
+12.) Fix a bug reported by Milen Manev that SQLExec *select for a table* -> SQLDescribeCol() -> add a column to the table -> SQLExec *select for the table* -> SQLDescribeCol() for the added column causes a bad result.<br>
+13.) Use strncpy_null() instead of strncpy().<br>
 <br>
 <li>Notes: psqlODBC 08.03.0400</li><br>
 Changes:<br>
