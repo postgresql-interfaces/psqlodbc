@@ -376,6 +376,13 @@ struct col_info
 	pgNAME		table_name;
 	OID		table_oid;
 };
+#define free_col_info_contents(coli) \
+{ \
+	if (NULL != coli->result) \
+		QR_Destructor(coli->result); \
+	NULL_THE_NAME(coli->schema_name); \
+	NULL_THE_NAME(coli->table_name); \
+}
 #define col_info_initialize(coli) (memset(coli, 0, sizeof(COL_INFO)))
 
  /* Translation DLL entry points */

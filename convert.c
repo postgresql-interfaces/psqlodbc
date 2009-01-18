@@ -1072,7 +1072,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							for (i = 0, j = 0; ptr[i]; i++)
 								if (ptr[i] == '.')
 								{
-									strncpy(&new_string[j], lc->decimal_point, strlen(lc->decimal_point));
+									strncpy_null(&new_string[j], lc->decimal_point, strlen(lc->decimal_point));
 									j += strlen(lc->decimal_point);
 								}
 								else

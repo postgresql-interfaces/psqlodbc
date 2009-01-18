@@ -100,13 +100,13 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
 	switch (sslposition)
 	{
-		case 1:	strncpy(ci->sslmode, "prefer", sizeof(ci->sslmode));
+		case 1:	strncpy_null(ci->sslmode, "prefer", sizeof(ci->sslmode));
 			break;
-		case 2:	strncpy(ci->sslmode, "allow", sizeof(ci->sslmode));
+		case 2:	strncpy_null(ci->sslmode, "allow", sizeof(ci->sslmode));
 			break;
-		case 3:	strncpy(ci->sslmode, "require", sizeof(ci->sslmode));
+		case 3:	strncpy_null(ci->sslmode, "require", sizeof(ci->sslmode));
 			break;
-		default:strncpy(ci->sslmode, "disable", sizeof(ci->sslmode));
+		default:strncpy_null(ci->sslmode, "disable", sizeof(ci->sslmode));
 			break;
 	}
 }

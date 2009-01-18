@@ -316,7 +316,7 @@ ConfigDlgProc(HWND hdlg,
 									snprintf(szMsg, sizeof(szMsg), "Warning: %s", emsg);
 								}
 								else
-									strncpy(szMsg, "Connection successful", sizeof(szMsg));
+									strncpy_null(szMsg, "Connection successful", sizeof(szMsg));
 								emsg = szMsg;
 							}
 							else

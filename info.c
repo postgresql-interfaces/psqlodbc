@@ -1620,16 +1620,16 @@ retry_public_schema:
 
 	tables_query[0] = '\0';
 	if (list_cat)
-		strncpy(tables_query, "select NULL, NULL, NULL", sizeof(tables_query));
+		strncpy_null(tables_query, "select NULL, NULL, NULL", sizeof(tables_query));
 	else if (list_table_types)
-		strncpy(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a", sizeof(tables_query));
+		strncpy_null(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a", sizeof(tables_query));
 	else if (list_schemas)
 	{
 		if (conn->schema_support)
-			strncpy(tables_query, "select NULL, nspname, NULL"
+			strncpy_null(tables_query, "select NULL, nspname, NULL"
 			" from pg_catalog.pg_namespace n where true", sizeof(tables_query));
 		else
-			strncpy(tables_query, "select NULL, NULL as nspname, NULL", sizeof(tables_query));
+			strncpy_null(tables_query, "select NULL, NULL as nspname, NULL", sizeof(tables_query));
 	}
 	else if (conn->schema_support)
 	{
@@ -2420,12 +2420,8 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], field_name);
 		auto_unique = SQL_FALSE;
-		if (basetype != 0 &&
-		    field_type != conn->lobj_type)
-		{
-			field_type = basetype;
+		if (field_type = pg_true_type(conn, field_type, basetype), field_type == basetype)
 			mod_length = typmod;
-		}
 		switch (field_type)
 		{
 			case PG_TYPE_INT4:
@@ -3697,7 +3693,7 @@ retry_public_schema:
 				 */
 				if (conn->schema_support)
 				{
-					strncpy(tables_query,
+					strncpy_null(tables_query,
 						"select ta.attname, ia.attnum, ic.relname, n.nspname, tc.relname"
 						" from pg_catalog.pg_attribute ta,"
 						" pg_catalog.pg_attribute ia, pg_catalog.pg_class tc,"
@@ -3732,7 +3728,7 @@ retry_public_schema:
 				}
 				else
 				{
-					strncpy(tables_query, 
+					strncpy_null(tables_query, 
 						"select ta.attname, ia.attnum, ic.relname, NULL, tc.relname"
 						" from pg_attribute ta, pg_attribute ia, pg_class tc, pg_index i, pg_class ic"
 						, sizeof(tables_query));
@@ -4455,7 +4451,7 @@ PGAPI_ForeignKeys_old(
 				set_tuplefield_string(&tuple[FKS_PKCOLUMN_NAME], pkey_text);
 
 				mylog("%s: fk_table_needed = '%s', fkey_ptr = '%s'\n", func, fk_table_needed, fkey_text);
-				set_tuplefield_null(&tuple[FKS_FKTABLE_CAT]);
+				set_tuplefield_string(&tuple[FKS_FKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_SCHEM], GET_SCHEMA_NAME(schema_needed));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_NAME], fk_table_needed);
 				set_tuplefield_string(&tuple[FKS_FKCOLUMN_NAME], fkey_text);
@@ -4782,7 +4778,7 @@ PGAPI_ForeignKeys_old(
 				set_tuplefield_string(&tuple[FKS_PKCOLUMN_NAME], pkey_text);
 
 				mylog("fk_table = '%s', fkey_ptr = '%s'\n", fk_table_fetched, fkey_text);
-				set_tuplefield_null(&tuple[FKS_FKTABLE_CAT]);
+				set_tuplefield_string(&tuple[FKS_FKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_SCHEM], GET_SCHEMA_NAME(schema_fetched));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_NAME], fk_table_fetched);
 				set_tuplefield_string(&tuple[FKS_FKCOLUMN_NAME], fkey_text);
@@ -4881,7 +4877,7 @@ PGAPI_ForeignKeys(
 			SQLSMALLINT cbFkTableName)
 {
 	ConnectionClass	*conn = SC_get_conn(((StatementClass *) hstmt));
-	if (PG_VERSION_GE(conn, 8.3))
+	if (PG_VERSION_GE(conn, 8.1))
 		return PGAPI_ForeignKeys_new(hstmt,
 				szPkTableQualifier, cbPkTableQualifier,
 				szPkTableOwner, cbPkTableOwner,

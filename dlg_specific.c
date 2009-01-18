@@ -169,7 +169,7 @@ inolog("hlen=%d", hlen);
 		if (ci->rollback_on_error >= 0)
 			snprintf(protocol_and, sizeof(protocol_and), "%s-%d", ci->protocol, ci->rollback_on_error);
 		else
-			strncpy(protocol_and, ci->protocol, sizeof(protocol_and));
+			strncpy_null(protocol_and, ci->protocol, sizeof(protocol_and));
 		olen = snprintf(&connect_string[hlen], nlen, ";"
 			INI_SSLMODE "=%s;"
 			INI_READONLY "=%s;"
@@ -1072,7 +1072,7 @@ writeDSNinfo(const ConnInfo *ci)
 	if (ci->rollback_on_error >= 0)
 		sprintf(temp, "%s-%d", ci->protocol, ci->rollback_on_error);
 	else
-		strncpy(temp, ci->protocol, sizeof(temp));
+		strncpy_null(temp, ci->protocol, sizeof(temp));
 	SQLWritePrivateProfileString(DSN,
 								 INI_PROTOCOL,
 								 temp,

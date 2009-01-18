@@ -44,6 +44,7 @@
 static	char	*getNextToken(int ccsc, char escape_in_literal, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
 static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
 static	char	searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
+static	BOOL	getColumnsInfo(ConnectionClass *, TABLE_INFO *, OID, StatementClass *);
 
 Int4 FI_precision(const FIELD_INFO *fi)
 {
@@ -513,7 +514,10 @@ static BOOL allocateFields(IRDFields *irdflds, size_t sizeRequested)
 	return TRUE;
 }
 
-static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
+/*
+ *	This function may not be called but when it is called ...
+ */
+static void xxxxx(StatementClass *stmt, FIELD_INFO *fi, QResultClass *res, int i)
 {
 	STR_TO_NAME(fi->column_alias, QR_get_fieldname(res, i));
 	fi->basetype = QR_get_field_type(res, i);
@@ -525,7 +529,16 @@ static void xxxxx(FIELD_INFO *fi, QResultClass *res, int i)
 		fi->updatable = FALSE;
 	}
 	else if (fi->attnum > 0)
+	{
+		int	unknowns_as = 0;
+		int	type = pg_true_type(SC_get_conn(stmt), fi->columntype, fi->basetype);
+
 		fi->nullable = TRUE;	/* probably ? */
+		fi->column_size = pgtype_column_size(stmt, type, i, unknowns_as);
+		fi->length = pgtype_buffer_length(stmt, type, i, unknowns_as);
+		fi->decimal_digits = pgtype_decimal_digits(stmt, type, i);
+		fi->display_size = pgtype_display_size(stmt, type, i, unknowns_as);
+	}
 
 	if (NAME_IS_NULL(fi->column_name))
 	{
@@ -590,7 +603,7 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 	OID		reloid = 0;
 	Int2		attid;
 	int		i, num_fields;
-	BOOL		fi_reuse, updatable;
+	BOOL		fi_reuse, updatable, call_xxxxx;
 
 mylog("ColAttSet in\n");
 	if (rti)
@@ -640,16 +653,30 @@ mylog("->%d\n", updatable);
 			FI_Constructor(wfi, fi_reuse);
 			attid = (Int2) QR_get_attid(res, i);
 			wfi->attnum = attid;
+			call_xxxxx = TRUE;
 			if (searchColInfo(col_info, wfi))
 			{
 				STR_TO_NAME(wfi->column_alias, QR_get_fieldname(res, i));
 				wfi->basetype = QR_get_field_type(res, i);
 				wfi->updatable = updatable;
+				call_xxxxx = FALSE;
 			}
 			else
 			{
-				xxxxx(wfi, res, i);
+				if (attid > 0)
+				{
+					if (getColumnsInfo(NULL, rti, reloid, stmt) && 
+					    searchColInfo(col_info, wfi))
+					{
+						STR_TO_NAME(wfi->column_alias, QR_get_fieldname(res, i));
+						wfi->basetype = QR_get_field_type(res, i);
+						wfi->updatable = updatable;
+						call_xxxxx= FALSE;
+					}
+				}
 			}
+			if (call_xxxxx)
+				xxxxx(stmt, wfi, res, i);
 			wfi->ti = rti;
 			wfi->flag |= FIELD_COL_ATTRIBUTE;
 		}
@@ -746,14 +773,154 @@ COL_INFO **coli)
 	return TRUE; /* success */
 }
 
+static BOOL
+getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementClass *stmt)
+{
+	BOOL		found = FALSE;
+	RETCODE		result;
+	HSTMT		hcol_stmt = NULL;
+	StatementClass	*col_stmt;
+	QResultClass	*res;
+
+	mylog("PARSE: Getting PG_Columns for table %u(%s)\n", greloid, PRINT_NAME(wti->table_name));
+
+	if (NULL == conn)
+		conn = SC_get_conn(stmt);
+	result = PGAPI_AllocStmt(conn, &hcol_stmt);
+	if (!SQL_SUCCEEDED(result))
+	{
+		if (stmt)
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", __FUNCTION__);
+		goto cleanup;
+	}
+
+	col_stmt = (StatementClass *) hcol_stmt;
+	col_stmt->internal = TRUE;
+
+	if (greloid)
+		result = PGAPI_Columns(hcol_stmt, NULL, 0,
+				NULL, 0, NULL, 0, NULL, 0,
+				PODBC_SEARCH_BY_IDS, greloid, 0);
+	else
+		result = PGAPI_Columns(hcol_stmt, NULL, 0, SAFE_NAME(wti->schema_name),
+			 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, NULL, 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
+
+	mylog("        Past PG_Columns\n");
+	res = SC_get_Curres(col_stmt);
+	if (SQL_SUCCEEDED(result)
+		&& res != NULL && QR_get_num_cached_tuples(res) > 0)
+	{
+		BOOL		coli_exist = FALSE;
+		COL_INFO	*coli = NULL;
+
+		mylog("      Success\n");
+		if (greloid != 0)
+		{
+			int	k;
+
+			for (k = 0; k < conn->ntables; k++)
+			{
+				if (conn->col_info[k]->table_oid == greloid)
+				{
+					coli = conn->col_info[k];
+					coli_exist = TRUE;
+					break;
+				}
+			}
+		}
+		if (coli_exist)
+		{
+			free_col_info_contents(coli);
+		}
+		else
+		{
+			if (conn->ntables >= conn->coli_allocated)
+			{
+				Int2	new_alloc;
+
+				new_alloc = conn->coli_allocated * 2;
+				if (new_alloc <= conn->ntables)
+					new_alloc = COLI_INCR;
+				mylog("PARSE: Allocating col_info at ntables=%d\n", conn->ntables);
+
+				conn->col_info = (COL_INFO **) realloc(conn->col_info, new_alloc * sizeof(COL_INFO *));
+				if (!conn->col_info)
+				{
+					if (stmt)
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info.", __FUNCTION__);
+					goto cleanup;
+				}
+				conn->coli_allocated = new_alloc;
+			}
+
+			mylog("PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
+			coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
+		}
+		if (!coli)
+		{	
+			if (stmt)
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info(2).", __FUNCTION__);
+			goto cleanup;
+		}
+		col_info_initialize(coli);
+
+		coli->result = res;
+		if (res && QR_get_num_cached_tuples(res) > 0)
+		{
+			if (!greloid)
+				greloid = (OID) strtoul(QR_get_value_backend_text(res, 0, COLUMNS_TABLE_OID), NULL, 10);
+			if (!wti->table_oid)
+				wti->table_oid = greloid;
+			if (NAME_IS_NULL(wti->schema_name))
+				STR_TO_NAME(wti->schema_name, 
+					QR_get_value_backend_text(res, 0, COLUMNS_SCHEMA_NAME));
+			if (NAME_IS_NULL(wti->table_name))
+				STR_TO_NAME(wti->table_name, 
+					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
+		}
+inolog("#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+		/*
+		 * Store the table name and the SQLColumns result
+		 * structure
+		 */
+		if (NAME_IS_VALID(wti->schema_name))
+		{
+			NAME_TO_NAME(coli->schema_name,  wti->schema_name);
+		}
+		else
+			NULL_THE_NAME(coli->schema_name);
+		NAME_TO_NAME(coli->table_name, wti->table_name);
+		coli->table_oid = wti->table_oid;
+
+		/*
+		 * The connection will now free the result structures, so
+		 * make sure that the statement doesn't free it
+		 */
+		SC_init_Result(col_stmt);
+
+		if (!coli_exist)
+			conn->ntables++;
+
+if (res && QR_get_num_cached_tuples(res) > 0)
+inolog("oid item == %s\n", QR_get_value_backend_text(res, 0, 3));
+
+		mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
+		/* Associate a table from the statement with a SQLColumn info */
+		found = TRUE;
+		wti->col_info = coli;
+	}
+cleanup:
+	if (hcol_stmt)
+		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
+	return found;
+}
+
 BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt, const OID reloid, TABLE_INFO **pti)
 {
 	BOOL	colatt = FALSE, found = FALSE;
 	OID	greloid = reloid;
 	TABLE_INFO	*wti = *pti;
 	COL_INFO	*coli;
-	HSTMT		hcol_stmt = NULL;
-	QResultClass	*res;
 
 inolog("getCOLIfromTI reloid=%u ti=%p\n", reloid, wti);
 	if (!conn)
@@ -826,116 +993,8 @@ inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 	if (found)
 		goto cleanup;
 	else if (0 != greloid || NAME_IS_VALID(wti->table_name))
-	{
-		RETCODE		result;
-		StatementClass	*col_stmt;
-
-		mylog("PARSE: Getting PG_Columns for table='%s'\n", wti->table_name);
-
-		result = PGAPI_AllocStmt(conn, &hcol_stmt);
-		if ((result != SQL_SUCCESS) && (result != SQL_SUCCESS_WITH_INFO))
-		{
-			if (stmt)
-				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for columns.", func);
-			goto cleanup;
-		}
-
-		col_stmt = (StatementClass *) hcol_stmt;
-		col_stmt->internal = TRUE;
-
-		if (greloid)
-			result = PGAPI_Columns(hcol_stmt, NULL, 0,
-					NULL, 0, NULL, 0, NULL, 0,
-					PODBC_SEARCH_BY_IDS, greloid, 0);
-		else
-			result = PGAPI_Columns(hcol_stmt, NULL, 0, SAFE_NAME(wti->schema_name),
-				 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, NULL, 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
-
-		mylog("        Past PG_Columns\n");
-		res = SC_get_Curres(col_stmt);
-		if ((SQL_SUCCESS == result || SQL_SUCCESS_WITH_INFO == result)
-			&& res && QR_get_num_cached_tuples(res) > 0)
-		{
-			COL_INFO	*coli;
-
-			mylog("      Success\n");
-			if (conn->ntables >= conn->coli_allocated)
-			{
-				Int2	new_alloc;
-
-				new_alloc = conn->coli_allocated * 2;
-				if (new_alloc <= conn->ntables)
-					new_alloc = COLI_INCR;
-				mylog("PARSE: Allocating col_info at ntables=%d\n", conn->ntables);
-
-				conn->col_info = (COL_INFO **) realloc(conn->col_info, new_alloc * sizeof(COL_INFO *));
-				if (!conn->col_info)
-				{
-					if (stmt)
-						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info.", func);
-					goto cleanup;
-				}
-				conn->coli_allocated = new_alloc;
-			}
-
-			mylog("PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
-			coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
-			if (!coli)
-			{	
-				if (stmt)
-					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info(2).", func);
-				goto cleanup;
-			}
-			col_info_initialize(coli);
-
-			coli->result = res;
-			if (res && QR_get_num_cached_tuples(res) > 0)
-			{
-				if (!greloid)
-					greloid = (OID) strtoul(QR_get_value_backend_text(res, 0, COLUMNS_TABLE_OID), NULL, 10);
-				if (!wti->table_oid)
-					wti->table_oid = greloid;
-				if (NAME_IS_NULL(wti->schema_name))
-					STR_TO_NAME(wti->schema_name, 
-						QR_get_value_backend_text(res, 0, COLUMNS_SCHEMA_NAME));
-				if (NAME_IS_NULL(wti->table_name))
-					STR_TO_NAME(wti->table_name, 
-						QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
-			}
-inolog("#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
-			/*
-			 * Store the table name and the SQLColumns result
-			 * structure
-			 */
-			if (NAME_IS_VALID(wti->schema_name))
-			{
-				NAME_TO_NAME(coli->schema_name,  wti->schema_name);
-			}
-			else
-				NULL_THE_NAME(coli->schema_name);
-			NAME_TO_NAME(coli->table_name, wti->table_name);
-			coli->table_oid = wti->table_oid;
-
-			/*
-			 * The connection will now free the result structures, so
-			 * make sure that the statement doesn't free it
-			 */
-			SC_init_Result(col_stmt);
-
-			conn->ntables++;
-
-if (res && QR_get_num_cached_tuples(res) > 0)
-inolog("oid item == %s\n", QR_get_value_backend_text(res, 0, 3));
-
-			mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
-			/* Associate a table from the statement with a SQLColumn info */
-			found = TRUE;
-			wti->col_info = coli;
-		}
-	}
+		found = getColumnsInfo(conn, wti, greloid, stmt);
 cleanup:
-	if (hcol_stmt)
-		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	if (found)
 	{
 		QResultClass	*res = wti->col_info->result;

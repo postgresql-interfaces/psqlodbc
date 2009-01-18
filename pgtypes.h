@@ -83,6 +83,7 @@ extern SQLSMALLINT sqlTypes[];
 /*	Defines for pgtype_precision */
 #define PG_STATIC				(-1)
 
+OID		pg_true_type(const ConnectionClass *, OID, OID);
 OID		sqltype_to_pgtype(StatementClass *stmt, SQLSMALLINT fSqlType);
 
 SQLSMALLINT	pgtype_to_concise_type(StatementClass *stmt, OID type, int col);

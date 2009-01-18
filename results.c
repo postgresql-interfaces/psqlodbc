@@ -339,7 +339,7 @@ inolog("answering bookmark info\n");
 	}
 	if (FI_is_applicable(fi))
 	{
-		fieldtype = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
+		fieldtype = pg_true_type(conn, fi->columntype, FI_type(fi));
 		if (NAME_IS_VALID(fi->column_alias))
 			col_name = GET_NAME(fi->column_alias);
 		else
@@ -466,6 +466,7 @@ PGAPI_ColAttributes(
 	const	FIELD_INFO	*fi = NULL;
 	const	TABLE_INFO	*ti = NULL;
 	QResultClass	*res;
+	BOOL		stmt_updatable;
 
 	mylog("%s: entering..col=%d %d len=%d.\n", func, icol, fDescType,
 				cbDescMax);
@@ -475,6 +476,7 @@ PGAPI_ColAttributes(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
+	stmt_updatable = stmt->updatable && stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY;
 
 	if (pcbDesc)
 		*pcbDesc = 0;
@@ -555,7 +557,7 @@ inolog("answering bookmark info\n");
 	if (col_idx < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[col_idx];
 	if (FI_is_applicable(fi))
-		field_type = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
+		field_type = pg_true_type(conn, fi->columntype, FI_type(fi));
 	else
 	{
 		BOOL	build_fi = FALSE;
@@ -618,7 +620,7 @@ inolog("answering bookmark info\n");
 	if (FI_is_applicable(fi))
 	{
 		ti = fi->ti;
-		field_type = (conn->lobj_type == fi->columntype) ? fi->columntype : FI_type(fi);
+		field_type = pg_true_type(conn, fi->columntype, FI_type(fi));
 	}
 
 	mylog("colAttr: col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
@@ -760,7 +762,10 @@ inolog("COLUMN_SCALE=%d\n", value);
 			 * if (field_type == PG_TYPE_OID) pfDesc = SQL_ATTR_READONLY;
 			 * else
 			 */
-			value = fi ? (fi->updatable ? SQL_ATTR_WRITE : SQL_ATTR_READONLY) : (QR_get_attid(res, col_idx) > 0 ? SQL_ATTR_WRITE : (PROTOCOL_74(ci) ? SQL_ATTR_READONLY : SQL_ATTR_READWRITE_UNKNOWN));
+			if (!stmt_updatable)
+				value = SQL_ATTR_READONLY;
+			else
+				value = fi ? (fi->updatable ? SQL_ATTR_WRITE : SQL_ATTR_READONLY) : (QR_get_attid(res, col_idx) > 0 ? SQL_ATTR_WRITE : (PROTOCOL_74(ci) ? SQL_ATTR_READONLY : SQL_ATTR_READWRITE_UNKNOWN));
 			if (SQL_ATTR_READONLY != value)
 			{
 				const char *name = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);

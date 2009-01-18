@@ -121,6 +121,18 @@ SQLSMALLINT	sqlTypes[] = {
 #endif
 
 OID
+pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
+{
+	if (0 == basetype)
+		return type;
+	else if (0 == type)
+		return basetype;
+	else if (type == conn->lobj_type)
+		return type;
+	return basetype;
+}
+
+OID
 sqltype_to_pgtype(StatementClass *stmt, SQLSMALLINT fSqlType)
 {
 	OID		pgType;
@@ -258,7 +270,7 @@ pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 #if (ODBCVER >= 0x0300)
-	EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
+	EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 #endif /* ODBCVER */
 
 	switch (type)
@@ -437,7 +449,7 @@ pgtype_to_ctype(StatementClass *stmt, OID type)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 #if (ODBCVER >= 0x0300)
-	EnvironmentClass *env = (EnvironmentClass *) (conn->henv);
+	EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 #endif /* ODBCVER */
 
 	switch (type)

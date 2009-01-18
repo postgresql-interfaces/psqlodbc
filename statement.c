@@ -1185,7 +1185,7 @@ SC_create_errorinfo(const StatementClass *self)
 		}
 		if (NULL != res->message)
 		{
-			strncpy(msg, res->message, sizeof(msg));
+			strncpy_null(msg, res->message, sizeof(msg));
 			detailmsg = resmsg = TRUE;
 		}
 		if (msg[0])
@@ -1216,7 +1216,7 @@ SC_create_errorinfo(const StatementClass *self)
 			msg[pos++] = ';';
 			msg[pos++] = '\n';
 		}
-		strncpy(msg + pos, wmsg, sizeof(msg) - pos);
+		strncpy_null(msg + pos, wmsg, sizeof(msg) - pos);
 		ermsg = msg;
 		detailmsg = TRUE;
 	}
@@ -2529,7 +2529,8 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 	qlen = (SQL_NTS == qlen) ? strlen(query) : qlen; 
 	leng = strlen(plan_name) + 1 + qlen + 1 + pileng;
 	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
-inolog("parse leng=%d\n", leng);
+/* inolog("parse leng=%d\n", leng); */
+inolog("parse leng=" FORMAT_SIZE_T "\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_n_char(sock, query, qlen);
 	SOCK_put_char(sock, '\0');

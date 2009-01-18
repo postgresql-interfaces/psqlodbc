@@ -780,7 +780,7 @@ handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *s
 
 			mylog("peek the next byte = \\0\n");
 			new_format = TRUE;
-			strncpy(ci->protocol, PG74, sizeof(ci->protocol));
+			strncpy_null(ci->protocol, PG74, sizeof(ci->protocol));
 			leng = SOCK_get_response_length(sock);
 			inolog("get the response length=%d\n", leng);
 		}
@@ -833,7 +833,7 @@ inolog("new_format=%d\n", new_format);
 					break;
 				case 'C':
 					if (sqlstate)
-						strncpy(sqlstate, msgbuffer + 1, 8);
+						strncpy_null(sqlstate, msgbuffer + 1, 8);
 					break;
 			}
 			if (buflen < 0)
@@ -944,7 +944,7 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *
 					break;
 				case 'C':
 					if (sqlstate && !sqlstate[0] && strcmp(msgbuffer + 1, "00000"))
-						strncpy(sqlstate, msgbuffer + 1, 8);
+						strncpy_null(sqlstate, msgbuffer + 1, 8);
 					break;
 			}
 			if (buflen < 0)
@@ -1015,7 +1015,7 @@ inolog("parameter name=%s\n", msgbuffer);
 		int	major, minor;
 
 		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
-		strncpy(conn->pg_version, msgbuffer, sizeof(conn->pg_version));
+		strncpy_null(conn->pg_version, msgbuffer, sizeof(conn->pg_version));
 		strcpy(szVersion, "0.0");
 		if (sscanf(conn->pg_version, "%d.%d", &major, &minor) >= 2)
 		{
@@ -1407,11 +1407,11 @@ another_version_retry:
 					return 0;
 				}
 				if (PROTOCOL_63(ci))
-					strncpy(ci->protocol, PG62, sizeof(ci->protocol));
+					strncpy_null(ci->protocol, PG62, sizeof(ci->protocol));
 				else if (PROTOCOL_64(ci))
-					strncpy(ci->protocol, PG63, sizeof(ci->protocol));
+					strncpy_null(ci->protocol, PG63, sizeof(ci->protocol));
 				else 
-					strncpy(ci->protocol, PG64, sizeof(ci->protocol));
+					strncpy_null(ci->protocol, PG64, sizeof(ci->protocol));
 #ifdef	USE_SSPI
 				ssl_try_no = 0;
 			}
@@ -1508,8 +1508,8 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 			sock->pversion = PG_PROTOCOL_62;
 			SOCK_put_int(sock, htonl(4 + sizeof(StartupPacket6_2)), 4);
 			sp62.authtype = htonl(NO_AUTHENTICATION);
-			strncpy(sp62.database, ci->database, PATH_SIZE);
-			strncpy(sp62.user, ci->username, USRNAMEDATALEN);
+			strncpy_null(sp62.database, ci->database, PATH_SIZE);
+			strncpy_null(sp62.user, ci->username, USRNAMEDATALEN);
 			SOCK_put_n_char(sock, (char *) &sp62, sizeof(StartupPacket6_2));
 			SOCK_flush_output(sock);
 		}
@@ -1533,8 +1533,8 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 
 			sp.protoVersion = (ProtocolVersion) htonl(sock->pversion);
 
-			strncpy(sp.database, ci->database, SM_DATABASE);
-			strncpy(sp.user, ci->username, SM_USER);
+			strncpy_null(sp.database, ci->database, SM_DATABASE);
+			strncpy_null(sp.user, ci->username, SM_USER);
 
 			SOCK_put_n_char(sock, (char *) &sp, sizeof(StartupPacket));
 			SOCK_flush_output(sock);
@@ -1585,7 +1585,7 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 							goto sockerr_proc;
 					}
 					else
-						strncpy(ci->protocol, PG74REJECTED, sizeof(ci->protocol));
+						strncpy_null(ci->protocol, PG74REJECTED, sizeof(ci->protocol));
 				}
 				startPacketReceived = TRUE;
 			}
@@ -2051,7 +2051,7 @@ CC_create_errormsg(ConnectionClass *self)
 	msg[0] = '\0';
 
 	if (CC_get_errormsg(self))
-		strncpy(msg, CC_get_errormsg(self), sizeof(msg));
+		strncpy_null(msg, CC_get_errormsg(self), sizeof(msg));
 
 	mylog("msg = '%s'\n", msg);
 
@@ -3664,13 +3664,13 @@ if (TRUE)
 		ConnInfo	*ci = &self->connInfo;
 
 		sock->pversion = PG_PROTOCOL_74;
-		strncpy(ci->protocol, PG74, sizeof(ci->protocol));
+		strncpy_null(ci->protocol, PG74, sizeof(ci->protocol));
 		pversion = PQprotocolVersion(pqconn);
 		switch (pversion)
 		{
 			case 2:
 				sock->pversion = PG_PROTOCOL_64;
-				strncpy(ci->protocol, PG64, sizeof(ci->protocol));
+				strncpy_null(ci->protocol, PG64, sizeof(ci->protocol));
 				break;
 		}
 	}

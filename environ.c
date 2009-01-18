@@ -245,7 +245,7 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 		*pfNativeError = error->status;
 
 	if (NULL != szSqlState)
-		strncpy(szSqlState, error->sqlstate, 6);
+		strncpy_null(szSqlState, error->sqlstate, 6);
 
 	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, pcblen, szErrorMsg);
 	if (clear_str)

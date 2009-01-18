@@ -203,7 +203,7 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 	if (NULL != pchar)
 	{
 		if (pchar != errmsg)
-			strncpy(errmsg, pchar, buflen);
+			strncpy_null(errmsg, pchar, buflen);
 		ret = TRUE;
 	}
 #else
@@ -211,7 +211,7 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 		ret = TRUE;
 #endif /* STRERROR_R_CHAR_P */
 #else
-	strncpy(errmsg, strerror(errnum), buflen);
+	strncpy_null(errmsg, strerror(errnum), buflen);
 	ret = TRUE;
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 #endif /* WIN32 */
