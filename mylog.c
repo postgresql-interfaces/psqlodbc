@@ -13,6 +13,7 @@
  */
 
 #include "psqlodbc.h"
+#include "dlg_specific.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +36,8 @@
 #endif
 
 extern GLOBAL_VALUES globals;
-void	generate_filename(const char *, const char *, char *);
+
+static char *logdir = NULL;
 
 void
 generate_filename(const char *dirname, const char *prefix, char *filename)
@@ -168,7 +170,7 @@ mylog(const char *fmt,...)
 
 	if (!MLOGFP)
 	{
-		generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
+		generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf);
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
 		if (!MLOGFP)
 		{
@@ -176,7 +178,7 @@ mylog(const char *fmt,...)
 			MLOGFP = fopen(filebuf, PG_BINARY_A);
 			if (!MLOGFP)
 			{
-				generate_filename("c:\\podbclog", MYLOGFILE, filebuf);
+				generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
 				MLOGFP = fopen(filebuf, PG_BINARY_A);
 			}
 		}
@@ -222,7 +224,7 @@ forcelog(const char *fmt,...)
 
 	if (!MLOGFP)
 	{
-		generate_filename(MYLOGDIR, MYLOGFILE, filebuf);
+		generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf);
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
 		if (MLOGFP)
 			setbuf(MLOGFP, NULL);
@@ -308,7 +310,7 @@ qlog(char *fmt,...)
 
 	if (!QLOGFP)
 	{
-		generate_filename(QLOGDIR, QLOGFILE, filebuf);
+		generate_filename(logdir ? logdir : QLOGDIR, QLOGFILE, filebuf);
 		QLOGFP = fopen(filebuf, PG_BINARY_A);
 		if (!QLOGFP)
 		{
@@ -355,6 +357,11 @@ static void qlog_finalize() {}
 
 void InitializeLogging()
 {
+	char dir[PATH_MAX];
+
+	SQLGetPrivateProfileString(DBMS_NAME, INI_LOGDIR, "", dir, sizeof(dir), ODBCINST_INI);
+	if (dir[0])
+		logdir = strdup(dir);
 	mylog_initialize();
 	qlog_initialize();
 }
@@ -363,4 +370,9 @@ void FinalizeLogging()
 {
 	mylog_finalize();
 	qlog_finalize();
+	if (logdir)
+	{
+		free(logdir);
+		logdir = NULL;
+	}
 }

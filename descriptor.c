@@ -49,6 +49,12 @@ inolog("TI_Destructor count=%d\n", count);
 		{
 			if (ti[i])
 			{
+				COL_INFO *coli = ti[i]->col_info;
+				if (coli)
+				{
+mylog("!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
+					coli->refcnt--;
+				}
 				NULL_THE_NAME(ti[i]->schema_name);
 				NULL_THE_NAME(ti[i]->table_name);
 				NULL_THE_NAME(ti[i]->table_alias);

@@ -10,6 +10,7 @@
 #define __CONNECTION_H__
 
 #include "psqlodbc.h"
+#include <time.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -371,17 +372,23 @@ typedef struct
 struct col_info
 {
 	Int2		num_reserved_cols;
+	Int2		refcnt;
 	QResultClass	*result;
 	pgNAME		schema_name;
 	pgNAME		table_name;
 	OID		table_oid;
+	time_t		acc_time;
 };
 #define free_col_info_contents(coli) \
 { \
 	if (NULL != coli->result) \
 		QR_Destructor(coli->result); \
+	coli->result = NULL; \
 	NULL_THE_NAME(coli->schema_name); \
 	NULL_THE_NAME(coli->table_name); \
+	coli->table_oid = 0; \
+	coli->refcnt = 0; \
+	coli->acc_time = 0; \
 }
 #define col_info_initialize(coli) (memset(coli, 0, sizeof(COL_INFO)))
 

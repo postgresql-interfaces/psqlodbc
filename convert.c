@@ -2374,7 +2374,7 @@ inolog("prep_params\n");
 	SC_set_planname(stmt, plan_name);
 	if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
 	{
-		SC_set_error(stmt, STMT_EXEC_ERROR, "commnication error while preapreand_describe", func);
+		SC_set_error(stmt, STMT_NO_RESPONSE, "commnication error while preapreand_describe", func);
 		CC_on_abort(conn, CONN_DEAD);
 		goto cleanup;
 	}
@@ -2409,7 +2409,7 @@ inolog("prep_params\n");
 				goto cleanup;
 			if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
 			{
-				SC_set_error(stmt, STMT_EXEC_ERROR, "commnication error while preapreand_describe", func);
+				SC_set_error(stmt, STMT_NO_RESPONSE, "commnication error while preapreand_describe", func);
 				CC_on_abort(conn, CONN_DEAD);
 				goto cleanup;
 			}

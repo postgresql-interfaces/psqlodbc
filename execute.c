@@ -1091,9 +1091,7 @@ PGAPI_Transact(
 {
 	CSTR func = "PGAPI_Transact";
 	ConnectionClass *conn;
-	QResultClass *res;
-	char		ok,
-			   *stmt_string;
+	char		ok;
 	int			lf;
 
 	mylog("entering %s: hdbc=%p, henv=%p\n", func, hdbc, henv);
@@ -1125,11 +1123,8 @@ PGAPI_Transact(
 
 	conn = (ConnectionClass *) hdbc;
 
-	if (fType == SQL_COMMIT)
-		stmt_string = "COMMIT";
-	else if (fType == SQL_ROLLBACK)
-		stmt_string = "ROLLBACK";
-	else
+	if (fType != SQL_COMMIT &&
+	    fType != SQL_ROLLBACK)
 	{
 		CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "PGAPI_Transact can only be called with SQL_COMMIT or SQL_ROLLBACK as parameter", func);
 		return SQL_ERROR;
@@ -1138,11 +1133,9 @@ PGAPI_Transact(
 	/* If manual commit and in transaction, then proceed. */
 	if (!CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
 	{
-		mylog("PGAPI_Transact: sending on conn %d '%s'\n", conn, stmt_string);
+		mylog("PGAPI_Transact: sending on conn %p '%d'\n", conn, fType);
 
-		res = CC_send_query(conn, stmt_string, NULL, 0, NULL);
-		ok = QR_command_maybe_successful(res);
-		QR_Destructor(res);
+		ok = (SQL_COMMIT == fType) ? CC_commit(conn) : CC_abort(conn);
 		if (!ok)
 		{
 			/* error msg will be in the connection */

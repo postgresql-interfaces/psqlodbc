@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.124 2008/11/23 01:00:53 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.125 2009/03/20 15:39:22 hinoue Exp $
  *
  */
 
@@ -181,7 +181,12 @@ typedef double SDOUBLE;
 #define	FALSE	(BOOL)0
 #endif /* FALSE */
 #else
+#if (_MSC_VER >= 1400)
+#define snprintf sprintf_s
+#define strncat(d, s, l) strcat_s(d, l, s)
+#else
 #define snprintf _snprintf
+#endif
 #ifndef strdup
 #define strdup _strdup
 #endif /* strdup */
@@ -470,7 +475,7 @@ const pthread_mutexattr_t *getMutexAttr(void);
 #define WCLEN sizeof(SQLWCHAR)
 SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
-SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
+SQLLEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
 

@@ -143,6 +143,7 @@ extern "C" {
 #define INI_SSLMODE			"SSLmode"
 #define ABBR_SSLMODE			"CA"
 #define INI_EXTRAOPTIONS		"AB"
+#define INI_LOGDIR			"Logdir"
 
 #define	SSLMODE_DISABLE		"disable"
 #define	SSLMODE_ALLOW		"allow"

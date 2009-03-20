@@ -58,9 +58,9 @@
 #pragma comment(linker, "/Delay:UNLOAD")
 #endif /* _MSC_VER */
 #endif /* _MSC_VER */
+
 #if defined(DYNAMIC_LOAD)
 #define	WIN_DYN_LOAD
-CSTR	libpq = "libpq";
 CSTR	libpqdll = "LIBPQ.dll";
 #ifdef	UNICODE_SUPPORT
 CSTR	pgenlist = "pgenlist";
@@ -74,6 +74,12 @@ CSTR	pgenlistdll = "PGENLISTA.dll";
 #endif /* MSC_VER */
 #endif /* DYNAMIC_LOAD */
 #endif /* WIN32 */
+
+#ifndef	NOT_USE_LIBPQ
+CSTR	libpq = "libpq";
+CSTR	checkproc = "PQconninfoParse";
+static int	sslverify_available = -1;
+#endif /* NOT_USE_LIBPQ */
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 static BOOL	loaded_libpq = FALSE, loaded_ssllib = FALSE;
@@ -138,6 +144,15 @@ DliErrorHook(unsigned	dliNotify,
 			{
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpq), NULL == hmodule)
 					hmodule = LoadLibrary(libpq);
+#ifndef	NOT_USE_LIBPQ
+				if (sslverify_available < 0 && NULL != hmodule)
+				{
+					if (NULL == GetProcAddress(hmodule, checkproc))
+						sslverify_available = FALSE;
+					else
+						sslverify_available = TRUE;
+				}
+#endif /* NOT_USE_LIBPQ */
 			}
 			else if (_strnicmp(pdli->szDll, pgenlist, strlen(pgenlist)) == 0)
 			{
@@ -215,6 +230,61 @@ void CleanupDelayLoadedDLLs(void)
 #endif	/* _MSC_DELAY_LOAD_IMPORT */
 
 #ifndef	NOT_USE_LIBPQ
+#if defined(_MSC_DELAY_LOAD_IMPORT)
+static int filter_conninfoParse(int level)
+{
+	switch (level & 0xffff)
+	{
+		case ERROR_MOD_NOT_FOUND:
+		case ERROR_PROC_NOT_FOUND:
+			return EXCEPTION_EXECUTE_HANDLER;
+	}
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif /* _MSC_DELAY_LOAD_IMPORT */
+
+BOOL	sslverify_needed(void)
+{
+	if (sslverify_available < 0)
+	{
+#if defined(_MSC_DELAY_LOAD_IMPORT)
+		__try {
+			PQconninfoOption *conninfo;
+#if (_MSC_VER < 1300)
+			__pfnDliFailureHook = DliErrorHook;
+			__pfnDliNotifyHook = DliErrorHook;
+#else
+			__pfnDliFailureHook2 = DliErrorHook;
+			__pfnDliNotifyHook2 = DliErrorHook;
+#endif /* _MSC_VER */
+			if (conninfo = PQconninfoParse("sslverify=none", NULL), NULL == conninfo)
+				sslverify_available = 0;
+			{
+				sslverify_available = 1;
+				PQconninfoFree(conninfo);
+			}
+		}
+		__except (filter_conninfoParse(GetExceptionCode())) {
+			sslverify_available = 0;
+		}
+#else
+#ifdef HAVE_LIBLTDL
+		lt_dlhandle dlhandle = lt_dlopenext(libpq);
+
+		sslverify_available = 1;
+		if (NULL != dlhandle)
+		{
+			if (NULL == lt_dlsym(dlhandle, checkproc))
+				sslverify_available = 0;
+			lt_dlclose(dlhandle);
+		}
+#endif /* HAVE_LIBLTDL */
+#endif /* _MSC_DELAY_LOAD_IMPORT */
+	}
+
+	return (0 != sslverify_available);
+}
+
 void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 {
 	void *pqconn = NULL;

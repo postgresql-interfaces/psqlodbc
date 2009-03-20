@@ -10,6 +10,13 @@
 #define __LOADLIB_H__
 
 #include "psqlodbc.h"
+#ifdef	HAVE_LIBLTDL
+#include <ltdl.h>
+#else
+#ifdef	HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif /* HAVE_DLFCN_H */
+#endif /* HAVE_LIBLTDL */
 
 #include <stdlib.h>
 #ifdef  __cplusplus
@@ -19,6 +26,7 @@ extern "C" {
 BOOL	SSLLIB_check(void);
 #ifndef	NOT_USE_LIBPQ
 void	*CALL_PQconnectdb(const char *conninfo, BOOL *);
+BOOL	sslverify_needed(void);
 #endif /* NOT_USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void * pTra, int method);

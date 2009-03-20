@@ -148,8 +148,8 @@ if test -z "$PG_CONFIG"; then
   AC_MSG_ERROR([pg_config not found (set PG_CONFIG environment variable)])
 fi
 
-pg_includedir=`$PG_CONFIG --includedir`
-pg_libdir=`$PG_CONFIG --libdir`
+pg_includedir=`"$PG_CONFIG" --includedir`
+pg_libdir=`"$PG_CONFIG" --libdir`
 CPPFLAGS="$CPPFLAGS -I$pg_includedir"
 LDFLAGS="$LDFLAGS -L$pg_libdir"
 
@@ -237,6 +237,8 @@ if test "$enable_pthreads" = yes; then
   fi
 fi
 
+# 8. Libltdl
+AC_CHECK_LIB(ltdl, lt_dloepn)
 
 
 AC_CONFIG_FILES([Makefile])

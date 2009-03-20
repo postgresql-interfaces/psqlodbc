@@ -378,6 +378,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 			case CONNECTION_COULD_NOT_SEND:
 			case CONNECTION_COULD_NOT_RECEIVE:
 			case CONNECTION_COMMUNICATION_ERROR:
+			case CONNECTION_NO_RESPONSE:
 				pg_sqlstate_set(env, szSqlState, "08S01", "08S01");
 				break;
 			default:
@@ -510,7 +511,7 @@ EN_Constructor(void)
 #ifdef WIN32
 	WORD		wVersionRequested;
 	WSADATA		wsaData;
-	const int	major = 1, minor = 1;
+	const int	major = 2, minor = 2;
 
 	/* Load the WinSock Library */
 	wVersionRequested = MAKEWORD(major, minor);
@@ -521,8 +522,11 @@ EN_Constructor(void)
 		return rv;
 	}
 	/* Verify that this is the minimum version of WinSock */
-	if (LOBYTE(wsaData.wVersion) != major ||
-	    HIBYTE(wsaData.wVersion) != minor)
+	if (LOBYTE(wsaData.wVersion) >= 1 &&
+	    (LOBYTE(wsaData.wVersion) >= 2 ||
+	     HIBYTE(wsaData.wVersion) >= 1))
+		;
+	else
 	{
 		mylog("%s: WSAStartup version=(%d,%d)\n", __FUNCTION__,
 			LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));

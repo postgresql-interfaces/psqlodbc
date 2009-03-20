@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.51 2008/11/07 14:37:25 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.52 2009/03/20 15:39:22 hinoue Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -22,8 +22,8 @@ endif
 
 AM_LDFLAGS = -module -no-undefined -avoid-version
 
-psqlodbca_la_LIBADD = -lpq
-psqlodbcw_la_LIBADD = -lpq
+psqlodbca_la_LIBADD = -lpq -lssl
+psqlodbcw_la_LIBADD = -lpq -lssl
   	 
 psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \

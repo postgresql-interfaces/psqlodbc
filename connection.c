@@ -51,6 +51,7 @@
 static void CC_lookup_pg_version(ConnectionClass *self);
 static void CC_lookup_lo(ConnectionClass *self);
 static char *CC_create_errormsg(ConnectionClass *self);
+static int  CC_close_eof_cursors(ConnectionClass *self);
 
 extern GLOBAL_VALUES globals;
 
@@ -444,6 +445,7 @@ CC_clear_error(ConnectionClass *self)
 
 
 CSTR	bgncmd = "BEGIN";
+CSTR	cmtcmd = "COMMIT";
 CSTR	rbkcmd = "ROLLBACK";
 CSTR	semi_colon = ";";
 /*
@@ -475,10 +477,14 @@ CC_commit(ConnectionClass *self)
 	char	ret = TRUE;
 	if (CC_is_in_trans(self))
 	{
-		QResultClass *res = CC_send_query(self, "COMMIT", NULL, 0, NULL);
-		mylog("CC_commit:  sending COMMIT!\n");
-		ret = QR_command_maybe_successful(res);
-		QR_Destructor(res);
+		CC_close_eof_cursors(self);
+		if (CC_is_in_trans(self))
+		{
+			QResultClass *res = CC_send_query(self, cmtcmd, NULL, 0, NULL);
+			mylog("CC_commit:  sending COMMIT!\n");
+			ret = QR_command_maybe_successful(res);
+			QR_Destructor(res);
+		}
 	}
 
 	return ret;
@@ -1070,9 +1076,22 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 	}
 	if (libpqopt)
 	{
-		if (ci->sslmode[0])
+		switch (ci->sslmode[0])
 		{
-			opts[cnt][0] = "sslmode";	opts[cnt++][1] = ci->sslmode;
+			case '\0':
+				break;
+			case 'd':
+				opts[cnt][0] = "sslmode";
+				opts[cnt++][1] = ci->sslmode;
+				break;
+			default:
+				opts[cnt][0] = "sslmode";
+				opts[cnt++][1] = ci->sslmode;
+				if (sslverify_needed())
+				{
+					opts[cnt][0] = "sslverify";
+					opts[cnt++][1] = "none";
+				}
 		}
 		if (ci->password[0])
 		{
@@ -2128,6 +2147,37 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 }
 
 
+static int CC_close_eof_cursors(ConnectionClass *self)
+{
+	int	i, ccount = 0;
+	StatementClass	*stmt;
+	QResultClass	*res;
+
+	if (!self->ncursors)
+		return ccount;
+	CONNLOCK_ACQUIRE(self);
+	for (i = 0; i < self->num_stmts; i++)
+	{
+		if (stmt = self->stmts[i], NULL == stmt)
+			continue;
+		if (res = SC_get_Result(stmt), NULL == res)
+			continue;
+		if (NULL != QR_get_cursor(res) &&
+		    QR_is_withhold(res) &&
+		    QR_once_reached_eof(res))
+		{
+			if (QR_get_num_cached_tuples(res) >= QR_get_num_total_tuples(res) ||
+	    		    SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
+			{
+				QR_close(res);
+				ccount++;
+			}
+		}
+	}
+	CONNLOCK_RELEASE(self);
+	return ccount;
+}
+
 static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 {
 	int	i;
@@ -2587,7 +2637,7 @@ inolog("Discarded the first SAVEPOINT\n");
 						}
 						else
 						{
-							if (strnicmp(cmdbuffer, "COMMIT", 6) == 0)
+							if (strnicmp(cmdbuffer, cmtcmd, 6) == 0)
 								CC_on_commit(self);
 							else if (strnicmp(cmdbuffer, "END", 3) == 0)
 								CC_on_commit(self);

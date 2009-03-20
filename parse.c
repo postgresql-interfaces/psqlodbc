@@ -40,6 +40,7 @@
 #define FLD_INCR	32
 #define TAB_INCR	8
 #define COLI_INCR	16
+#define COLI_RECYCLE	128
 
 static	char	*getNextToken(int ccsc, char escape_in_literal, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
 static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
@@ -705,7 +706,7 @@ COL_INFO **coli)
 			 * Though current_schema() doesn't have
 			 * much sense in PostgreSQL, we first
 			 * check the current_schema() when no
-			 * explicit schema name was specified.
+			 * explicit schema name is specified.
 			 */
 			for (colidx = 0; colidx < conn->ntables; colidx++)
 			{
@@ -811,21 +812,52 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		&& res != NULL && QR_get_num_cached_tuples(res) > 0)
 	{
 		BOOL		coli_exist = FALSE;
-		COL_INFO	*coli = NULL;
+		COL_INFO	*coli = NULL, *ccoli = NULL, *tcoli;
+		int		k;
+		time_t		acctime = 0;
 
 		mylog("      Success\n");
 		if (greloid != 0)
 		{
-			int	k;
-
 			for (k = 0; k < conn->ntables; k++)
 			{
-				if (conn->col_info[k]->table_oid == greloid)
+				tcoli = conn->col_info[k];
+				if (tcoli->table_oid == greloid)
 				{
-					coli = conn->col_info[k];
+					coli = tcoli;
 					coli_exist = TRUE;
 					break;
 				}
+			}
+		}
+		if (!coli_exist)
+		{
+			for (k = 0; k < conn->ntables; k++)
+			{
+				tcoli = conn->col_info[k];
+				if (0 < tcoli->refcnt)
+					continue;
+				if ((0 == tcoli->table_oid &&
+				    NAME_IS_NULL(tcoli->table_name)) ||
+				    strnicmp(SAFE_NAME(tcoli->schema_name), "pg_temp_", 8) == 0)
+				{
+					coli = tcoli;
+					coli_exist = TRUE;
+					break;
+				}
+				if (NULL == ccoli ||
+				    tcoli->acc_time < acctime)
+				{
+					ccoli = tcoli;
+					acctime = tcoli->acc_time;
+				}
+			}
+			if (!coli_exist &&
+			    NULL != ccoli &&
+			    conn->ntables >= COLI_RECYCLE)
+			{
+				coli_exist = TRUE;
+				coli = ccoli;
 			}
 		}
 		if (coli_exist)
@@ -837,19 +869,21 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			if (conn->ntables >= conn->coli_allocated)
 			{
 				Int2	new_alloc;
+				COL_INFO **col_info;
 
 				new_alloc = conn->coli_allocated * 2;
 				if (new_alloc <= conn->ntables)
 					new_alloc = COLI_INCR;
 				mylog("PARSE: Allocating col_info at ntables=%d\n", conn->ntables);
 
-				conn->col_info = (COL_INFO **) realloc(conn->col_info, new_alloc * sizeof(COL_INFO *));
-				if (!conn->col_info)
+				col_info = (COL_INFO **) realloc(conn->col_info, new_alloc * sizeof(COL_INFO *));
+				if (!col_info)
 				{
 					if (stmt)
 						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info.", __FUNCTION__);
 					goto cleanup;
 				}
+				conn->col_info = col_info;
 				conn->coli_allocated = new_alloc;
 			}
 
@@ -907,6 +941,7 @@ inolog("oid item == %s\n", QR_get_value_backend_text(res, 0, 3));
 		mylog("Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
 		/* Associate a table from the statement with a SQLColumn info */
 		found = TRUE;
+		coli->refcnt++;
 		wti->col_info = coli;
 	}
 cleanup:
@@ -928,7 +963,10 @@ inolog("getCOLIfromTI reloid=%u ti=%p\n", reloid, wti);
 	if (!wti)	/* SQLColAttribute case */
 	{
 		int	i;
+
 		if (0 == greloid)
+			return FALSE;
+		if (!stmt)
 			return FALSE;
 		colatt = TRUE;
 		for (i = 0; i < stmt->ntab; i++)
@@ -987,6 +1025,7 @@ inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 		else if (NULL != coli)
 		{
 			found = TRUE;
+			coli->refcnt++;
 			wti->col_info = coli;
 		}
 	}
@@ -1019,6 +1058,7 @@ inolog("#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->tabl
 			if (stmt)
 				ColAttSet(stmt, wti);
 		}
+		wti->col_info->acc_time = SC_get_time(stmt);
 	}
 	else if (!colatt && stmt)
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);

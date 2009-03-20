@@ -771,7 +771,7 @@ SC_recycle_statement(StatementClass *self)
 			if (!CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
 			{
 				if (SC_is_pre_executable(self) && !SC_is_parse_tricky(self))
-					CC_abort(conn);
+					/* CC_abort(conn) */;
 			}
 			break;
 
@@ -1146,7 +1146,8 @@ static struct
 	{ STMT_OPTION_NOT_FOR_THE_DRIVER, "HYC00", "HYC00" },
 	{ STMT_FETCH_OUT_OF_RANGE, "HY106", "S1106" },
 	{ STMT_COUNT_FIELD_INCORRECT, "07002", "07002" },
-	{ STMT_INVALID_NULL_ARG, "HY009", "S1009" }
+	{ STMT_INVALID_NULL_ARG, "HY009", "S1009" },
+	{ STMT_NO_RESPONSE, "08S01", "08S01" }
 };
 
 static PG_ErrorInfo *
@@ -1821,7 +1822,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		if (!(res = SendSyncAndReceive(self, self->curr_param_result ? res : NULL, "bind_and_execute")))
 		{
 			if (SC_get_errornumber(self) <= 0)
-				SC_set_error(self, STMT_EXEC_ERROR, "Could not receive the response, communication down ??", func);
+				SC_set_error(self, STMT_NO_RESPONSE, "Could not receive the response, communication down ??", func);
 			CC_on_abort(conn, CONN_DEAD);
 			goto cleanup;
 		}
@@ -2293,7 +2294,7 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 		id = SOCK_get_id(sock);
 		if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
 		{
-			SC_set_error(stmt, CONNECTION_NO_RESPONSE, "No response rom the backend", func);
+			SC_set_error(stmt, STMT_NO_RESPONSE, "No response rom the backend", func);
 
 			mylog("%s: 'id' - %s\n", func, SC_get_errormsg(stmt));
 			CC_on_abort(conn, CONN_DEAD);
