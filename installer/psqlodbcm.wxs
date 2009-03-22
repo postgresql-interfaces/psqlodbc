@@ -27,8 +27,8 @@
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\libpq.dll" KeyPath="yes" />
           
           <!-- Gettext -->
-          <File Id="libintl3.dll" Name="libintl3.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\libintl3.dll" />
-          <File Id="libiconv2.dll" Name="libiconv2.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\libiconv2.dll" />
+          <File Id="libintl8dll" Name="libintl-8.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\libintl-8.dll" />
+          <File Id="libiconv2.dll" Name="libiconv-2.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\libiconv-2.dll" />
           
           <!-- SSL -->
           <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.3\bin\libeay32.dll" />
