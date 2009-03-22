@@ -8,17 +8,7 @@
  */
 
 #include "psqlodbc.h"
-#ifdef  WIN32
-/* gcc <malloc.h> has been replaced by <stdlib.h> */
-#include <malloc.h>
-#ifdef  _DEBUG
-#ifndef _MEMORY_DEBUG_
 #include <stdlib.h>
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#endif /* _MEMORY_DEBUG_ */
-#endif /* _DEBUG */
-#endif /* WIN32 */
 #include <string.h>
 
 #define	byte3check	0xfffff800
@@ -39,7 +29,7 @@
 #define	byte4_sr1_mask3	0x0003
 #define	byte4_sr2_mask1	0x03c0
 #define	byte4_sr2_mask2	0x003f
-#define	surrogate_adjust	0x10000
+#define	surrogate_adjust	(0x10000 >> 10)
 
 #include <ctype.h>
 #ifndef WIN32
@@ -173,97 +163,151 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 #define	byte4_m31	0x30
 #define	byte4_m32	0x0f
 #define	byte4_m4	0x3f
-SQLULEN	utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount)
-{
-	int	i;
-	SQLULEN	ocount, wcode;
-	const UCHAR *str;
 
-/*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/
-	if (!utf8str)
-		return 0;
-/*mylog(" string=%s\n", utf8str);*/
-	if (little_endian < 0)
-	{
-		int	crt = 1;
-		little_endian = (0 != ((char *) &crt)[0]);
-	}
-	if (!bufcount)
-		ucs2str = NULL;
-	else if (!ucs2str)
-		bufcount = 0;
-	if (ilen < 0)
-		ilen = strlen(utf8str);
-	for (i = 0, ocount = 0, str = utf8str; i < ilen && *str;)
-	{
-		/* if (iswascii(*str)) */
-		if (isascii(*str))
-		{
-			if (lfconv && PG_LINEFEED == *str &&
-			    (i == 0 || PG_CARRIAGE_RETURN != str[-1]))
-			{
-				if (ocount < bufcount)
-					ucs2str[ocount] = PG_CARRIAGE_RETURN;
-				ocount++;
-			}
-			if (ocount < bufcount)
-				ucs2str[ocount] = *str;
-			ocount++;
-			i++;
-			str++;
-		}
-		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */
-		{
-			if (ocount < bufcount)
-			{
-				wcode = (surrog1_bits |
-					((((UInt4) *str) & byte4_m1) << 8) |
-					((((UInt4) str[1]) & byte4_m2) << 2) |
-					((((UInt4) str[2]) & byte4_m31) >> 4))
-					- surrogate_adjust;
-				ucs2str[ocount] = (SQLWCHAR) wcode;
-			}
-			ocount++;
-			if (ocount < bufcount)
-			{
-				wcode = surrog2_bits |
-					((((UInt4) str[2]) & byte4_m32) << 6) |
-					(((UInt4) str[3]) & byte4_m4);
-				ucs2str[ocount] = (SQLWCHAR) wcode;
-			}
-			ocount++;
-			i += 4;
-			str += 4;
-		}
-		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */
-		{
-			if (ocount < bufcount)
-			{
-				wcode = ((((UInt4) *str) & byte3_m1) << 12) |
-					((((UInt4) str[1]) & byte3_m2) << 6) |
-				 	(((UInt4) str[2]) & byte3_m3);
-				ucs2str[ocount] = (SQLWCHAR) wcode;
-			}
-			ocount++;
-			i += 3;
-			str += 3;
-		}
-		else
-		{
-			if (ocount < bufcount)
-			{
-				wcode = ((((UInt4) *str) & byte2_m1) << 6) |
-				 	(((UInt4) str[1]) & byte2_m2);
-				ucs2str[ocount] = (SQLWCHAR) wcode;
-			}
-			ocount++;
-			i += 2;
-			str += 2;
-		}
-	}
-	if (ocount < bufcount && ucs2str)
-		ucs2str[ocount] = 0;
-/*mylog(" ocount=%d\n", ocount);*/
-	return ocount;
+#define def_utf2ucs(errcheck) \
+SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount) \
+{ \
+	int	i; \
+	SQLULEN	ocount, wcode; \
+	const UCHAR *str; \
+\
+/*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/ \
+	if (!utf8str) \
+		return 0; \
+/*mylog(" string=%s\n", utf8str);*/ \
+	if (little_endian < 0) \
+	{ \
+		int	crt = 1; \
+		little_endian = (0 != ((char *) &crt)[0]); \
+	} \
+	if (!bufcount) \
+		ucs2str = NULL; \
+	else if (!ucs2str) \
+		bufcount = 0; \
+	if (ilen < 0) \
+		ilen = strlen(utf8str); \
+	for (i = 0, ocount = 0, str = utf8str; i < ilen && *str;) \
+	{ \
+		/* if (iswascii(*str)) */ \
+		if (isascii(*str)) \
+		{ \
+			if (lfconv && PG_LINEFEED == *str && \
+			    (i == 0 || PG_CARRIAGE_RETURN != str[-1])) \
+			{ \
+				if (ocount < bufcount) \
+					ucs2str[ocount] = PG_CARRIAGE_RETURN; \
+				ocount++; \
+			} \
+			if (ocount < bufcount) \
+				ucs2str[ocount] = *str; \
+			ocount++; \
+			i++; \
+			str++; \
+		} \
+		else if (0xf8 == (*str & 0xf8)) /* more than 5 byte code */ \
+			return (SQLULEN) -1; \
+		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */ \
+		{ \
+			if (01 == 0##errcheck) \
+			{ \
+				if (i + 4 > ilen || \
+				    0 == (str[1] & 0x80) || \
+				    0 == (str[2] & 0x80) || \
+				    0 == (str[3] & 0x80)) \
+					return (SQLULEN) -1; \
+			} \
+			if (ocount < bufcount) \
+			{ \
+				wcode = (surrog1_bits | \
+					((((UInt4) *str) & byte4_m1) << 8) | \
+					((((UInt4) str[1]) & byte4_m2) << 2) | \
+					((((UInt4) str[2]) & byte4_m31) >> 4)) \
+					- surrogate_adjust; \
+				ucs2str[ocount] = (SQLWCHAR) wcode; \
+			} \
+			ocount++; \
+			if (ocount < bufcount) \
+			{ \
+				wcode = surrog2_bits | \
+					((((UInt4) str[2]) & byte4_m32) << 6) | \
+					(((UInt4) str[3]) & byte4_m4); \
+				ucs2str[ocount] = (SQLWCHAR) wcode; \
+			} \
+			ocount++; \
+			i += 4; \
+			str += 4; \
+		} \
+		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */ \
+		{ \
+			if (01 == 0##errcheck) \
+			{ \
+				if (i + 3 > ilen || \
+				    0 == (str[1] & 0x80) || \
+				    0 == (str[2] & 0x80)) \
+					return (SQLULEN) -1; \
+			} \
+			if (ocount < bufcount) \
+			{ \
+				wcode = ((((UInt4) *str) & byte3_m1) << 12) | \
+					((((UInt4) str[1]) & byte3_m2) << 6) | \
+				 	(((UInt4) str[2]) & byte3_m3); \
+				ucs2str[ocount] = (SQLWCHAR) wcode; \
+			} \
+			ocount++; \
+			i += 3; \
+			str += 3; \
+		} \
+		else if (0xc0 == (*str & 0xe0)) /* 2 byte code */ \
+		{ \
+			if (01 == 0##errcheck) \
+			{ \
+				if (i + 2 > ilen || \
+				    0 == (str[1] & 0x80)) \
+					return (SQLULEN) -1; \
+			} \
+			if (ocount < bufcount) \
+			{ \
+				wcode = ((((UInt4) *str) & byte2_m1) << 6) | \
+				 	(((UInt4) str[1]) & byte2_m2); \
+				ucs2str[ocount] = (SQLWCHAR) wcode; \
+			} \
+			ocount++; \
+			i += 2; \
+			str += 2; \
+		} \
+		else \
+			return (SQLULEN) -1; \
+	} \
+	if (ocount < bufcount && ucs2str) \
+		ucs2str[ocount] = 0; \
+/*mylog(" ocount=%d\n", ocount);*/ \
+	return ocount; \
 }
 
+def_utf2ucs(0)
+def_utf2ucs(1)
+
+int msgtowstr(const char *enc, const char *inmsg, int inlen, LPWSTR outmsg, int buflen)
+{
+	int	outlen;
+#ifdef	WIN32
+	int	wlen, cp = CP_ACP;
+
+	if (NULL != enc && 0 != atoi(enc))
+		cp = atoi(enc);	
+	wlen = MultiByteToWideChar(cp, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
+			inmsg, inlen, outmsg, buflen);
+mylog(" out=%dchars\n", wlen);
+	outlen = (SQLSMALLINT) wlen;
+#else
+#ifdef	HAVE_MBSTOWCS_L
+	outlen = 0;
+#else
+	outlen = 0;
+#endif /* HAVE_MBSTOWCS_L */
+#endif /* WIN32 */
+	if (outlen < buflen)
+		outmsg[outlen] = 0;
+
+	return outlen;
+}

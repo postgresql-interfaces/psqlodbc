@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.126 2009/03/21 03:29:12 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.127 2009/03/22 14:17:10 hinoue Exp $
  *
  */
 
@@ -475,8 +475,11 @@ const pthread_mutexattr_t *getMutexAttr(void);
 #define WCLEN sizeof(SQLWCHAR)
 SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
-SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
-#define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen)
+SQLULEN	utf8_to_ucs2_lf0(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
+SQLULEN	utf8_to_ucs2_lf1(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
+int	msgtowstr(const char *, const char *, int, LPWSTR, int);
+#define	utf8_to_ucs2_lf(utf8str, ilen, lfconv, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, lfconv, ucs2str, buflen)
+#define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
 
 

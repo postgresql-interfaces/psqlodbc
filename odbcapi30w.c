@@ -234,7 +234,14 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
                 	utf8_to_ucs2(qstr, strlen(qstr), szSqlState, 6);
 		if (mtxt && tlen <= cbErrorMsgMax)
 		{
-        		tlen = (SQLSMALLINT) utf8_to_ucs2(mtxt, tlen, szErrorMsg, cbErrorMsgMax);
+			SQLULEN ulen = utf8_to_ucs2_lf1(mtxt, tlen, FALSE, szErrorMsg, cbErrorMsgMax);
+			if (ulen == (SQLULEN) -1)
+			{
+				tlen = (SQLSMALLINT) msgtowstr(NULL, mtxt,
+					(int) tlen, (LPWSTR) szErrorMsg, (int) cbErrorMsgMax);
+			}
+			else
+				tlen = (SQLSMALLINT) ulen;
 			if (tlen >= cbErrorMsgMax)
 				ret = SQL_SUCCESS_WITH_INFO;
 		}
@@ -362,7 +369,14 @@ RETCODE SQL_API SQLGetDiagFieldW(
 			}
 			if (SQL_SUCCEEDED(ret))
 			{
-				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
+				SQLULEN ulen = (SQLSMALLINT) utf8_to_ucs2_lf1(rgbD, blen, FALSE, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN);
+				if (ulen == (SQLULEN) -1)
+				{
+					blen = (SQLSMALLINT) msgtowstr(NULL, rgbD,
+						(int) blen, (LPWSTR) rgbDiagInfo, (int) cbDiagInfoMax / WCLEN);
+				}
+				else
+					blen = (SQLSMALLINT) ulen;
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
 					ret = SQL_SUCCESS_WITH_INFO;
 				if (pcbDiagInfo)
