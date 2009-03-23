@@ -168,7 +168,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount) \
 { \
 	int	i; \
-	SQLULEN	ocount, wcode; \
+	SQLULEN	rtn, ocount, wcode; \
 	const UCHAR *str; \
 \
 /*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/ \
@@ -205,7 +205,10 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 			str++; \
 		} \
 		else if (0xf8 == (*str & 0xf8)) /* more than 5 byte code */ \
-			return (SQLULEN) -1; \
+		{ \
+			ocount = (SQLULEN) -1; \
+			goto cleanup; \
+		} \
 		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */ \
 		{ \
 			if (01 == 0##errcheck) \
@@ -214,7 +217,10 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				    0 == (str[1] & 0x80) || \
 				    0 == (str[2] & 0x80) || \
 				    0 == (str[3] & 0x80)) \
-					return (SQLULEN) -1; \
+				{ \
+					ocount = (SQLULEN) -1; \
+					goto cleanup; \
+				} \
 			} \
 			if (ocount < bufcount) \
 			{ \
@@ -244,7 +250,10 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				if (i + 3 > ilen || \
 				    0 == (str[1] & 0x80) || \
 				    0 == (str[2] & 0x80)) \
-					return (SQLULEN) -1; \
+				{ \
+					ocount = (SQLULEN) -1; \
+					goto cleanup; \
+				} \
 			} \
 			if (ocount < bufcount) \
 			{ \
@@ -263,7 +272,10 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 			{ \
 				if (i + 2 > ilen || \
 				    0 == (str[1] & 0x80)) \
-					return (SQLULEN) -1; \
+				{ \
+					ocount = (SQLULEN) -1; \
+					goto cleanup; \
+				} \
 			} \
 			if (ocount < bufcount) \
 			{ \
@@ -276,12 +288,20 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 			str += 2; \
 		} \
 		else \
-			return (SQLULEN) -1; \
+			ocount = (SQLULEN) -1; \
+	} \
+cleanup: \
+	rtn = ocount; \
+	if (ocount == (SQLULEN) -1) \
+	{ \
+		if (00 == 0##errcheck) \
+			rtn = 0; \
+		ocount = 0; \
 	} \
 	if (ocount < bufcount && ucs2str) \
 		ucs2str[ocount] = 0; \
 /*mylog(" ocount=%d\n", ocount);*/ \
-	return ocount; \
+	return rtn; \
 }
 
 def_utf2ucs(0)

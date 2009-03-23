@@ -145,9 +145,11 @@ DliErrorHook(unsigned	dliNotify,
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpq), NULL == hmodule)
 					hmodule = LoadLibrary(libpq);
 #ifndef	NOT_USE_LIBPQ
-				if (sslverify_available < 0 && NULL != hmodule)
+				if (sslverify_available < 0)
 				{
-					if (NULL == GetProcAddress(hmodule, checkproc))
+					if (NULL == hmodule)
+						sslverify_available = FALSE;
+					else if (NULL == GetProcAddress(hmodule, checkproc))
 						sslverify_available = FALSE;
 					else
 						sslverify_available = TRUE;
@@ -231,7 +233,7 @@ void CleanupDelayLoadedDLLs(void)
 
 #ifndef	NOT_USE_LIBPQ
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-static int filter_conninfoParse(int level)
+static int filter_env2encoding(int level)
 {
 	switch (level & 0xffff)
 	{
@@ -249,7 +251,6 @@ BOOL	sslverify_needed(void)
 	{
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 		__try {
-			PQconninfoOption *conninfo;
 #if (_MSC_VER < 1300)
 			__pfnDliFailureHook = DliErrorHook;
 			__pfnDliNotifyHook = DliErrorHook;
@@ -257,16 +258,12 @@ BOOL	sslverify_needed(void)
 			__pfnDliFailureHook2 = DliErrorHook;
 			__pfnDliNotifyHook2 = DliErrorHook;
 #endif /* _MSC_VER */
-			if (conninfo = PQconninfoParse("sslverify=none", NULL), NULL == conninfo)
-				sslverify_available = 0;
-			{
-				sslverify_available = 1;
-				PQconninfoFree(conninfo);
-			}
+			PQenv2encoding();
 		}
-		__except (filter_conninfoParse(GetExceptionCode())) {
+		__except (filter_env2encoding(GetExceptionCode())) {
+		}
+		if (sslverify_available < 0)
 			sslverify_available = 0;
-		}
 #else
 #ifdef HAVE_LIBLTDL
 		lt_dlhandle dlhandle = lt_dlopenext(libpq);
