@@ -336,6 +336,7 @@ global_optionsProc(HWND hdlg,
 	HMODULE	hmodule;
 	FARPROC	proc;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+	char logdir[PATH_MAX];
 
 	switch (wMsg)
 	{
@@ -348,6 +349,8 @@ global_optionsProc(HWND hdlg,
 #ifndef MY_LOG
 			EnableWindow(GetDlgItem(hdlg, DRV_DEBUG), FALSE);
 #endif /* MY_LOG */
+			getLogDir(logdir, sizeof(logdir));
+			SetDlgItemText(hdlg, DS_LOGDIR, logdir);
 #ifdef _HANDLE_ENLIST_IN_DTC_
 			hmodule = DtcProc("GetMsdtclog", &proc);
 			if (proc)
@@ -372,6 +375,8 @@ global_optionsProc(HWND hdlg,
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
 					if (writeDriverCommoninfo(ODBCINST_INI, NULL, &globals) < 0)
 						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
+					GetDlgItemText(hdlg, DS_LOGDIR, logdir, sizeof(logdir));
+					setLogDir(logdir[0] ? logdir : NULL);
 #ifdef _HANDLE_ENLIST_IN_DTC_
 					hmodule = DtcProc("SetMsdtclog", &proc);
 					if (proc)

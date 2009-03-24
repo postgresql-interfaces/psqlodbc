@@ -697,6 +697,18 @@ getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 	return SQLGetPrivateProfileString(ODBC_DATASOURCES, dsn, "", driver_name, namelen, ODBC_INI);
 }
 
+int
+getLogDir(char *dir, int dirmax)
+{
+	return SQLGetPrivateProfileString(DBMS_NAME, INI_LOGDIR, "", dir, dirmax, ODBCINST_INI);
+}
+
+int
+setLogDir(const char *dir)
+{
+	return SQLWritePrivateProfileString(DBMS_NAME, INI_LOGDIR, dir, ODBCINST_INI);
+}
+
 void
 getDSNinfo(ConnInfo *ci, char overwrite)
 {

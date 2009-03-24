@@ -359,7 +359,7 @@ void InitializeLogging()
 {
 	char dir[PATH_MAX];
 
-	SQLGetPrivateProfileString(DBMS_NAME, INI_LOGDIR, "", dir, sizeof(dir), ODBCINST_INI);
+	getLogDir(dir, sizeof(dir));
 	if (dir[0])
 		logdir = strdup(dir);
 	mylog_initialize();
