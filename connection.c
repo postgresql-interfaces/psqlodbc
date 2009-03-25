@@ -2711,6 +2711,8 @@ inolog("Discarded the first SAVEPOINT\n");
 					if (--empty_reqs == 0)
 						query_completed = TRUE;
 				}
+				else if (!beforeV2)
+					query_completed = TRUE;
 				break;
 			case 'E':
 				msg_truncated = handle_error_message(self, msgbuffer, sizeof(msgbuffer), res->sqlstate, "send_query", res);
