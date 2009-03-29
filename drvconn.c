@@ -420,14 +420,16 @@ typedef	BOOL (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
 static void
 dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {
-	char	   *our_connect_string;
-	const	char	   *pair,
-			   *attribute,
-			   *value;
-	char	*equals;
-	char	   *strtok_arg;
+	char	*our_connect_string;
+	const	char	*pair,
+			*attribute,
+			*value,
+			*termp;
+	BOOL	eoftok;
+	char	*equals, *delp;
+	char	*strtok_arg;
 #ifdef	HAVE_STRTOK_R
-	char	   *last;
+	char	*last;
 #endif /* HAVE_STRTOK_R */
 
 	if (our_connect_string = strdup(connect_string), NULL == our_connect_string)
@@ -446,7 +448,9 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
-	while (1)
+	termp = strchr(our_connect_string, '\0');
+	eoftok = FALSE;
+	while (!eoftok)
 	{
 #ifdef	HAVE_STRTOK_R
 		pair = strtok_r(strtok_arg, ";", &last);
@@ -454,7 +458,7 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 		pair = strtok(strtok_arg, ";");
 #endif /* HAVE_STRTOK_R */
 		if (strtok_arg)
-			strtok_arg = 0;
+			strtok_arg = NULL;
 		if (!pair)
 			break;
 
@@ -465,6 +469,23 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 		*equals = '\0';
 		attribute = pair;		/* ex. DSN */
 		value = equals + 1;		/* ex. 'CEO co1' */
+		/* values enclosed with braces({}) can contain ; etc */
+		if ('{' == *value)
+		{
+			if (delp = strchr(value, '\0'), NULL != delp && delp != termp)
+			{
+				*delp = ';';
+				if (delp = strchr(value, '}'), NULL != delp)
+				{
+					if (delp = strchr(delp + 1, ';'), NULL != delp)
+						*delp = '\0';
+				}
+				if (delp = strchr(value, '\0'), delp == termp)
+					eoftok = TRUE;
+				else
+					strtok_arg = delp + 1;
+			}
+		}
 
 #ifndef	FORCE_PASSWORD_DISPLAY
 		if (stricmp(attribute, INI_PASSWORD) == 0 ||

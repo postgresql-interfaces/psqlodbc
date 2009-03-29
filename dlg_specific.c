@@ -490,8 +490,17 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
-		decode(value, ci->conn_settings);
-		/* strcpy(ci->conn_settings, value); */
+		if ('{' == *value)
+		{
+			size_t	len;
+
+			strncpy_null(ci->conn_settings, value + 1, sizeof(ci->conn_settings));
+			len = strlen(ci->conn_settings);
+			if (len > 0 && '}' == ci->conn_settings[len - 1])
+				ci->conn_settings[len - 1] = '\0';
+		}
+		else
+			decode(value, ci->conn_settings);
 	}
 	else if (stricmp(attribute, INI_DISALLOWPREMATURE) == 0 || stricmp(attribute, ABBR_DISALLOWPREMATURE) == 0)
 		ci->disallow_premature = atoi(value);
