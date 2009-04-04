@@ -477,7 +477,8 @@ CC_commit(ConnectionClass *self)
 	char	ret = TRUE;
 	if (CC_is_in_trans(self))
 	{
-		CC_close_eof_cursors(self);
+		if (!CC_is_in_error_trans(self))
+			CC_close_eof_cursors(self);
 		if (CC_is_in_trans(self))
 		{
 			QResultClass *res = CC_send_query(self, cmtcmd, NULL, 0, NULL);

@@ -3804,7 +3804,7 @@ SC_pos_delete(StatementClass *stmt,
 	mylog("dltstr=%s\n", dltstr);
 	qflag = 0;
         if (!stmt->internal && !CC_is_in_trans(conn) &&
-                 (!CC_is_in_autocommit(conn)))
+                 (!CC_does_autocommit(conn)))
 		qflag |= GO_INTO_TRANSACTION;
 	qres = CC_send_query(conn, dltstr, NULL, qflag, stmt);
 	ret = SQL_SUCCESS;
@@ -4444,7 +4444,7 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 		case SQL_UPDATE:
 		case SQL_DELETE:
 		case SQL_ADD:
-			if (s.auto_commit_needed = CC_is_in_autocommit(conn), s.auto_commit_needed)
+			if (s.auto_commit_needed = CC_does_autocommit(conn), s.auto_commit_needed)
 				CC_set_autocommit(conn, FALSE);
 			break;
 		case SQL_POSITION:

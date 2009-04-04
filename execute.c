@@ -371,7 +371,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 		for (curres = res; !curres->num_fields; curres = curres->next)
 			;
 		SC_set_Curres(stmt, curres);
-		if (CC_is_in_autocommit(conn))
+		if (CC_does_autocommit(conn))
 		{
 			if (issued_begin)
 				CC_commit(conn);
@@ -1131,7 +1131,7 @@ PGAPI_Transact(
 	}
 
 	/* If manual commit and in transaction, then proceed. */
-	if (!CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
+	if (CC_loves_visible_trans(conn) && CC_is_in_trans(conn))
 	{
 		mylog("PGAPI_Transact: sending on conn %p '%d'\n", conn, fType);
 
@@ -1371,7 +1371,7 @@ PGAPI_ParamData(
 		odbc_lo_close(conn, estmt->lobj_fd);
 
 		/* commit transaction if needed */
-		if (!CC_cursor_count(conn) && CC_is_in_autocommit(conn))
+		if (!CC_cursor_count(conn) && CC_does_autocommit(conn))
 		{
 			if (!CC_commit(conn))
 			{

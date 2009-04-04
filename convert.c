@@ -2913,7 +2913,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			memset(&ti, 0, sizeof(ti));
 			NAME_TO_NAME(ti.schema_name, conn->schemaIns);
 			NAME_TO_NAME(ti.table_name, conn->tableIns);
-			getCOLIfromTI(func, conn, NULL, 0, &pti);
+			getCOLIfromTI(func, conn, qb->stmt, 0, &pti);
 			coli = ti.col_info;
 			NULL_THE_NAME(ti.schema_name);
 			NULL_THE_NAME(ti.table_name);
@@ -4050,7 +4050,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				odbc_lo_close(conn, lobj_fd);
 
 				/* commit transaction if needed */
-				if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(conn))
+				if (!ci->drivers.use_declarefetch && CC_does_autocommit(conn))
 				{
 					if (!CC_commit(conn))
 					{
@@ -5169,7 +5169,7 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		odbc_lo_close(conn, stmt->lobj_fd);
 
 		/* commit transaction if needed */
-		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(conn))
+		if (!ci->drivers.use_declarefetch && CC_does_autocommit(conn))
 		{
 			if (!CC_commit(conn))
 			{
@@ -5202,7 +5202,7 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		odbc_lo_close(conn, stmt->lobj_fd);
 
 		/* commit transaction if needed */
-		if (!ci->drivers.use_declarefetch && CC_is_in_autocommit(conn))
+		if (!ci->drivers.use_declarefetch && CC_does_autocommit(conn))
 		{
 			if (!CC_commit(conn))
 			{

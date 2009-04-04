@@ -400,13 +400,8 @@ PGAPI_SetConnectOption(
 		case SQL_QUIET_MODE:	/* ignored */
 			break;
 
-		case SQL_TXN_ISOLATION:	/* ignored */
+		case SQL_TXN_ISOLATION:
 			retval = SQL_SUCCESS;
-                        if (CC_is_in_trans(conn))
-			{
-				CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress", func);
-				return SQL_ERROR;
-			}
 			if (conn->isolation == vParam)
 				break; 
 			switch (vParam)
@@ -441,6 +436,16 @@ PGAPI_SetConnectOption(
 				char *query;
 				QResultClass *res;
 
+                        	if (CC_is_in_trans(conn))
+				{
+					if (CC_does_autocommit(conn) && !CC_is_in_error_trans(conn))
+						CC_commit(conn);
+					else
+					{
+						CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress", func);
+						return SQL_ERROR;
+					}
+				}
 				switch (vParam)
 				{
 					case SQL_TXN_SERIALIZABLE:

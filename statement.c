@@ -768,7 +768,7 @@ SC_recycle_statement(StatementClass *self)
 			 * start of a transaction. If so, we have to rollback that
 			 * transaction.
 			 */
-			if (!CC_is_in_autocommit(conn) && CC_is_in_trans(conn))
+			if (CC_loves_visible_trans(conn) && CC_is_in_trans(conn))
 			{
 				if (SC_is_pre_executable(self) && !SC_is_parse_tricky(self))
 					/* CC_abort(conn) */;
@@ -1733,14 +1733,24 @@ SC_execute(StatementClass *self)
 	is_in_trans = CC_is_in_trans(conn);
 	/* issue BEGIN ? */
 	issue_begin = TRUE;
-	if (self->internal || is_in_trans)
+	if (self->internal)
 		issue_begin = FALSE;
-	else if (CC_is_in_autocommit(conn) &&
+	else if (is_in_trans)
+	{
+		issue_begin = FALSE;
+		if (STMT_TYPE_START == self->statement_type &&
+		    CC_does_autocommit(conn))
+		{
+			CC_commit(conn);
+			is_in_trans = CC_is_in_trans(conn);
+		}
+	}
+	else if (CC_does_autocommit(conn) &&
 		 (!SC_is_fetchcursor(self)
 	    /* || SC_is_with_hold(self) thiw would lose the performance */
 		 ))
 		issue_begin = FALSE;
-	else
+	if (issue_begin)
 	{
 		switch (self->statement_type)
 		{
@@ -1892,7 +1902,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		{
 			if (!is_in_trans)
 				CC_set_in_manual_trans(conn);
-			if (!self->internal && CC_is_in_autocommit(conn) && !CC_is_in_manual_trans(conn))
+			if (!self->internal && CC_does_autocommit(conn))
 				CC_commit(conn);
 		}
 	}
@@ -2241,7 +2251,7 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, emsg, func);
 		return FALSE;
 	}
-	if (!CC_is_in_trans(conn) && !CC_is_in_autocommit(conn))
+	if (!CC_is_in_trans(conn) && CC_loves_visible_trans(conn))
 	{
 		if (ret = CC_begin(conn), !ret)
 			return ret;

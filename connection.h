@@ -86,6 +86,8 @@ enum
 
 /* AutoCommit functions */
 #define CC_is_in_autocommit(x)		(x->transact_status & CONN_IN_AUTOCOMMIT)
+#define CC_does_autocommit(x) (CONN_IN_AUTOCOMMIT == ((x)->transact_status & (CONN_IN_AUTOCOMMIT | CONN_IN_MANUAL_TRANSACTION)))
+#define CC_loves_visible_trans(x) ((0 == ((x)->transact_status & CONN_IN_AUTOCOMMIT)) || (0 != ((x)->transact_status & CONN_IN_MANUAL_TRANSACTION)))
 
 /* Transaction in/not functions */
 #define CC_set_in_trans(x)	(x->transact_status |= CONN_IN_TRANSACTION)

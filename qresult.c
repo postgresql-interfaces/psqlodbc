@@ -640,7 +640,7 @@ QR_close(QResultClass *self)
 			snprintf(buf, sizeof(buf), "close \"%s\"", QR_get_cursor(self));
 			/* End the transaction if there are no cursors left on this conn */
 			if (CC_is_in_trans(conn) &&
-			    CC_is_in_autocommit(conn) &&
+			    CC_does_autocommit(conn) &&
 			    CC_cursor_count(conn) <= 1)
 			{
 				mylog("QResult: END transaction on conn=%p\n", conn);
@@ -662,7 +662,7 @@ QR_close(QResultClass *self)
 
 #ifdef	NOT_USED
 		/* End the transaction if there are no cursors left on this conn */
-		if (CC_is_in_autocommit(conn) && CC_cursor_count(conn) == 0)
+		if (CC_does_autocommit(conn) && CC_cursor_count(conn) == 0)
 		{
 			mylog("QResult: END transaction on conn=%p\n", conn);
 

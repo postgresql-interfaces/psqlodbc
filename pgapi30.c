@@ -1980,7 +1980,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	if (SQL_FETCH_BY_BOOKMARK != s.operation)
 	{
 		conn = SC_get_conn(s.stmt);
-		if (s.auto_commit_needed = (char) CC_is_in_autocommit(conn), s.auto_commit_needed)
+		if (s.auto_commit_needed = (char) CC_does_autocommit(conn), s.auto_commit_needed)
 			CC_set_autocommit(conn, FALSE);
 	}
 	if (SQL_ADD != s.operation)
