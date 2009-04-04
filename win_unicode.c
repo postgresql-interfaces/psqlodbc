@@ -288,7 +288,10 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 			str += 2; \
 		} \
 		else \
+		{ \
 			ocount = (SQLULEN) -1; \
+			goto cleanup; \
+		} \
 	} \
 cleanup: \
 	rtn = ocount; \
