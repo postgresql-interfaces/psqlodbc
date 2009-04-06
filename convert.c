@@ -945,7 +945,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0);
 						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
 						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1);
-						len = WideCharToMultiByte(CP_ACP, 0, (LPCWSTR) allocbuf, (int) wstrlen, NULL, 0, NULL, NULL);
+						len = wstrtomsg(NULL, (LPCWSTR) allocbuf, (int) wstrlen, NULL, 0);
 						changed = TRUE;
 					}
 					else
@@ -1001,7 +1001,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	WIN_UNICODE_SUPPORT
 						if (localize_needed)
 						{
-							len = WideCharToMultiByte(CP_ACP, 0, allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen, NULL, NULL);
+							len = wstrtomsg(NULL, allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
 							free(allocbuf);
 							allocbuf = NULL;
 						}
@@ -3646,8 +3646,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			if (SQL_NTS == used)
 				used = strlen(buffer);
 			allocbuf = malloc(WCLEN * (used + 1));
-			used = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buffer,
-				(int) used, (LPWSTR) allocbuf, (int) (used + 1));
+			used = msgtowstr(NULL, buffer, (int) used, (LPWSTR) allocbuf, (int) (used + 1));
 			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
 			free(allocbuf);
 			allocbuf = buf;
