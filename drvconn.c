@@ -251,7 +251,7 @@ inolog("before CC_connect\n");
 	/*
 	 * Create the Output Connection String
 	 */
-	result = SQL_SUCCESS;
+	result = (1 == retval ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 
 	lenStrout = cbConnStrOutMax;
 	if (conn->ms_jet && lenStrout > 255)

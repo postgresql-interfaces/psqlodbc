@@ -301,13 +301,21 @@ ConfigDlgProc(HWND hdlg,
 							conn = CC_Constructor();
 						if (conn)
 						{
-							char *emsg;
+							char *emsg, *allocstr = NULL;
+#ifdef	UNICODE_SUPPORT
+							int	tlen;
+							SQLWCHAR *wermsg = NULL;
+							SQLULEN	ulen;
+#endif /* UNICODE_SUPPORT */
 							int errnum;
 
 							EN_add_connection(env, conn);
 							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
 							CC_initialize_pg_version(conn);
 							logs_on_off(1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
+#ifdef	UNICODE_SUPPORT
+							CC_set_in_unicode_driver(conn);
+#endif /* UNICODE_SUPPORT */
 							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
 							{
 								if (CC_get_errornumber(conn) != 0)
@@ -323,10 +331,26 @@ ConfigDlgProc(HWND hdlg,
 							{
 								CC_get_error(conn, &errnum, &emsg);
 							}
+#ifdef	UNICODE_SUPPORT
+							tlen = strlen(emsg);
+							wermsg = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (tlen + 1));
+							ulen = utf8_to_ucs2_lf1(emsg, SQL_NTS, FALSE, wermsg, tlen + 1);
+							if (ulen != (SQLULEN) -1)
+							{
+								allocstr = malloc(4 * tlen + 1);
+								tlen = (SQLSMALLINT) wstrtomsg(NULL, wermsg,
+					(int) tlen, allocstr, (int) 4 * tlen + 1);
+								emsg = allocstr;
+							}
+							if (NULL != wermsg)
+								free(wermsg);
+#endif /* UNICODE_SUPPORT */
 							MessageBox(lpsetupdlg->hwndParent, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
 							logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
 							EN_remove_connection(env, conn);
 							CC_Destructor(conn);
+							if (NULL != allocstr)
+								free(allocstr);
 						}
 						if (env)
 							EN_Destructor(env);

@@ -334,3 +334,26 @@ mylog(" out=%dchars\n", wlen);
 
 	return outlen;
 }
+
+int wstrtomsg(const char *enc, LPCWSTR wstr, int wstrlen, char * outmsg, int buflen)
+{
+	int	outlen;
+#ifdef	WIN32
+	int	len, cp = CP_ACP;
+
+	if (NULL != enc && 0 != atoi(enc))
+		cp = atoi(enc);	
+	len = WideCharToMultiByte(cp, 0, wstr, (int) wstrlen, outmsg, buflen, NULL, NULL);
+	outlen = (SQLSMALLINT) len;
+#else
+#ifdef	HAVE_MBSTOWCS_L
+	outlen = 0;
+#else
+	outlen = 0;
+#endif /* HAVE_MBSTOWCS_L */
+#endif /* WIN32 */
+	if (outlen < buflen)
+		outmsg[outlen] = 0;
+
+	return outlen;
+}

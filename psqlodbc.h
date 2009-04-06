@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.127 2009/03/22 14:17:10 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.128 2009/04/06 21:32:57 hinoue Exp $
  *
  */
 
@@ -181,7 +181,7 @@ typedef double SDOUBLE;
 #define	FALSE	(BOOL)0
 #endif /* FALSE */
 #else
-#if (_MSC_VER >= 1400)
+#if (_MSC_VER >= 1400) && !defined(_WIN64)
 #define snprintf sprintf_s
 #define strncat(d, s, l) strcat_s(d, l, s)
 #else
@@ -478,6 +478,7 @@ char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolo
 SQLULEN	utf8_to_ucs2_lf0(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
 SQLULEN	utf8_to_ucs2_lf1(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
 int	msgtowstr(const char *, const char *, int, LPWSTR, int);
+int	wstrtomsg(const char *, LPCWSTR, int, char *, int);
 #define	utf8_to_ucs2_lf(utf8str, ilen, lfconv, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, lfconv, ucs2str, buflen)
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */

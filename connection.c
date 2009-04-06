@@ -149,12 +149,14 @@ PGAPI_Connect(
 
 	qlog("conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
 
-	if (CC_connect(conn, AUTH_REQ_OK, NULL) <= 0)
+	if ((fchar = CC_connect(conn, AUTH_REQ_OK, NULL)) <= 0)
 	{
 		/* Error messages are filled in */
 		CC_log_error(func, "Error on CC_connect", conn);
 		ret = SQL_ERROR;
 	}
+	if (SQL_SUCCESS == ret && 2 == fchar)
+		ret = SQL_SUCCESS_WITH_INFO;
 
 	mylog("%s: returning..%d.\n", func, ret);
 
@@ -1808,7 +1810,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
 	ConnInfo *ci = &(self->connInfo);
 	CSTR	func = "CC_connect";
-	char		ret, *saverr = NULL;
+	char		ret, *saverr = NULL, retsend;
 #ifndef	NOT_USE_LIBPQ
 	BOOL	call_libpq = FALSE;
 #endif /* NOT_USE_LIBPQ */
@@ -1871,7 +1873,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	 * function instead.
 	 */
 inolog("CC_send_settings\n");
-	CC_send_settings(self);
+	retsend = CC_send_settings(self);
 
 	if (CC_get_errornumber(self) > 0)
 		saverr = strdup(CC_get_errormsg(self));
@@ -1957,6 +1959,8 @@ cleanup:
 			CC_set_error(self, -1, saverr, func);
 		free(saverr);
 	}
+	if (1 == ret && 0 == retsend)
+		ret = 2;
 
 	return ret;
 }
