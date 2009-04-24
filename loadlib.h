@@ -26,7 +26,7 @@ extern "C" {
 BOOL	SSLLIB_check(void);
 #ifndef	NOT_USE_LIBPQ
 void	*CALL_PQconnectdb(const char *conninfo, BOOL *);
-BOOL	sslverify_needed(void);
+BOOL	ssl_verify_available(void);
 #endif /* NOT_USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void * pTra, int method);

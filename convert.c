@@ -2325,7 +2325,8 @@ RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	BOOL		ret, once_descr;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	QResultClass	*res, *dest_res = NULL;
-	char		plan_name[32], multi;
+	char		plan_name[32];
+	po_ind_t	multi;
 	int		func_cs_count = 0;
 	const char	*orgquery = NULL, *srvquery = NULL;
 	Int4		endp1, endp2;

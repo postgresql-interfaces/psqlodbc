@@ -33,11 +33,25 @@ extern HINSTANCE NEAR s_hModule;
 static int	driver_optionsDraw(HWND, const ConnInfo *, int src, BOOL enable);
 static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 
+static struct {
+	int	ids;
+	const char * const	modestr;
+} modetab[] = {
+		  {IDS_SSLREQUEST_DISABLE, SSLMODE_DISABLE}
+		, {IDS_SSLREQUEST_ALLOW, SSLMODE_ALLOW}
+		, {IDS_SSLREQUEST_PREFER, SSLMODE_PREFER}
+		, {IDS_SSLREQUEST_REQUIRE, SSLMODE_REQUIRE}
+		, {IDS_SSLREQUEST_VERIFY_CA, SSLMODE_VERIFY_CA}
+		, {IDS_SSLREQUEST_VERIFY_FULL, SSLMODE_VERIFY_FULL}
+	};
+static int	dspcount_bylevel[] = {1, 4, 6};
+
 void
 SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 {
 	char	buff[MEDIUM_REGISTRY_LEN + 1];
 	BOOL	libpq_exist = FALSE;
+	int	i, dsplevel, selidx, dspcount;
 
 	/*
 	 * If driver attribute NOT present, then set the datasource name and
@@ -52,6 +66,7 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_PASSWORD, ci->password);
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
 
+	dsplevel = 0;
 	libpq_exist = SSLLIB_check();
 mylog("libpq_exist=%d\n", libpq_exist);
 	if (libpq_exist)
@@ -60,28 +75,36 @@ mylog("libpq_exist=%d\n", libpq_exist);
 	{
 mylog("SendMessage CTL_COLOR\n");
 		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
+		if (ssl_verify_available())
+			dsplevel = 2;
+		else
+			dsplevel = 1;
 	}
-	LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	if (libpq_exist || (ci->sslmode[0] && stricmp(ci->sslmode, "disable")))
-	{
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
-		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
-		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
-		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
-	}
-	if (!stricmp(ci->sslmode, "allow"))
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_ALLOW, buff, MEDIUM_REGISTRY_LEN);
-	else if (!stricmp(ci->sslmode, "require"))
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_REQUIRE, buff, MEDIUM_REGISTRY_LEN);
-	else if (!stricmp(ci->sslmode, "prefer"))
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_PREFER, buff, MEDIUM_REGISTRY_LEN);
-	else
-		LoadString(GetWindowInstance(hdlg), IDS_SSLREQUEST_DISABLE, buff, MEDIUM_REGISTRY_LEN);
 
-	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_SELECTSTRING, -1, (WPARAM) ((LPSTR) buff));
+	selidx = -1;
+	for (i = 0; i < sizeof(modetab) / sizeof(modetab[0]); i++)
+	{
+		if (!stricmp(ci->sslmode, modetab[i].modestr))
+		{
+			selidx = i;
+			break;
+		}
+	}
+	for (i = dsplevel; i < sizeof(dspcount_bylevel) / sizeof(int); i++)
+	{
+		if (selidx < dspcount_bylevel[i])
+			break;
+		dsplevel++;
+	}
+	
+	dspcount = dspcount_bylevel[dsplevel];
+	for (i = 0; i < dspcount; i++)
+	{
+		LoadString(GetWindowInstance(hdlg), modetab[i].ids, buff, MEDIUM_REGISTRY_LEN);
+		SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_ADDSTRING, 0, (WPARAM) buff);
+	}
+
+	SendDlgItemMessage(hdlg, IDC_SSLMODE, CB_SETCURSEL, selidx, (WPARAM) 0);
 }
 
 
@@ -98,17 +121,7 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	GetDlgItemText(hdlg, IDC_PASSWORD, ci->password, sizeof(ci->password));
 	GetDlgItemText(hdlg, IDC_PORT, ci->port, sizeof(ci->port));
 	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
-	switch (sslposition)
-	{
-		case 1:	strncpy_null(ci->sslmode, "prefer", sizeof(ci->sslmode));
-			break;
-		case 2:	strncpy_null(ci->sslmode, "allow", sizeof(ci->sslmode));
-			break;
-		case 3:	strncpy_null(ci->sslmode, "require", sizeof(ci->sslmode));
-			break;
-		default:strncpy_null(ci->sslmode, "disable", sizeof(ci->sslmode));
-			break;
-	}
+	strncpy_null(ci->sslmode, modetab[sslposition].modestr, sizeof(ci->sslmode));
 }
 
 
@@ -508,7 +521,7 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_READONLY, atoi(ci->onlyread));
 
 			/* Protocol */
-			enable = (ci->sslmode[0] == 'd' || ci->username[0] == '\0');
+			enable = (ci->sslmode[0] == SSLLBYTE_DISABLE || ci->username[0] == '\0');
 			EnableWindow(GetDlgItem(hdlg, DS_PG62), enable);
 			EnableWindow(GetDlgItem(hdlg, DS_PG63), enable);
 			EnableWindow(GetDlgItem(hdlg, DS_PG64), enable);

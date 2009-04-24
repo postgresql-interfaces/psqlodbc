@@ -1083,18 +1083,34 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 		{
 			case '\0':
 				break;
-			case 'd':
+			case SSLLBYTE_VERIFY:
 				opts[cnt][0] = "sslmode";
-				opts[cnt++][1] = ci->sslmode;
+				if (ssl_verify_available())
+				{
+					switch (ci->sslmode[1])
+					{
+						case 'f':
+							opts[cnt++][1] = SSLMODE_VERIFY_FULL;
+								break;
+						case 'c':
+							opts[cnt++][1] = SSLMODE_VERIFY_CA;
+								break;
+						default:
+							opts[cnt++][1] = ci->sslmode;
+					}
+				}
+				else
+				{
+					char msg[128];
+
+					snprintf(msg, sizeof(msg), "sslmode=%s can't be specified for 8.3 or older version of libpq", ci->sslmode);
+					CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, msg, __FUNCTION__); 
+					return -1;
+				}
 				break;
 			default:
 				opts[cnt][0] = "sslmode";
 				opts[cnt++][1] = ci->sslmode;
-				if (sslverify_needed())
-				{
-					opts[cnt][0] = "sslverify";
-					opts[cnt++][1] = "none";
-				}
 		}
 		if (ci->password[0])
 		{
@@ -1136,6 +1152,8 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	int	cnt, i;
 
 	cnt = protocol3_opts_array(self, opts, FALSE, sizeof(opts) / sizeof(opts[0]));
+	if (cnt < 0)
+		return 0;
 
 	slen =  sizeof(ProtocolVersion);
 	for (i = 0; i < cnt; i++)
@@ -1188,6 +1206,8 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	BOOL	blankExist;
 
 	cnt = protocol3_opts_array(self, opts, TRUE, sizeof(opts) / sizeof(opts[0]));
+	if (cnt < 0)
+		return NULL;
 
 	slen =  sizeof(ProtocolVersion);
 	for (i = 0, slen = 0; i < cnt; i++)
@@ -1388,14 +1408,15 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 		ssl_try_count = 0;
 		switch (self->connInfo.sslmode[0])
 		{
-			case 'r':
+			case SSLLBYTE_REQUIRE:
+			case SSLLBYTE_VERIFY:
 				ssl_call[ssl_try_count++] = 'y';
 				break;
-			case 'p':
+			case SSLLBYTE_PREFER:
 				ssl_call[ssl_try_count++] = 'y';
 				ssl_call[ssl_try_count++] = 'n';
 				break;
-			case 'a':
+			case SSLLBYTE_ALLOW:
 				ssl_call[ssl_try_count++] = 'n';
 				ssl_call[ssl_try_count++] = 'y';
 				break;
@@ -1821,7 +1842,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 #ifndef	NOT_USE_LIBPQ
 	if (self->connInfo.username[0] == '\0')
 		call_libpq = TRUE;
-	else if (self->connInfo.sslmode[0] != 'd') 
+	else if (self->connInfo.sslmode[0] != SSLLBYTE_DISABLE) 
 #ifdef	USE_SSPI
 	{
 		if (0 == (SchannelService & self->svcs_allowed))
@@ -3662,7 +3683,8 @@ inolog("sock=%p\n", sock);
 
 	if (!(conninfo = protocol3_opts_build(self)))
 	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
+		if (CC_get_errornumber(self) <= 0)
+			CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
 		goto cleanup1;
 	}
 	pqconn = CALL_PQconnectdb(conninfo, &libpqLoaded);

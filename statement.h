@@ -226,25 +226,25 @@ struct StatementClass_
 	Int2		current_exec_param;	/* The current parameter for
 						 * SQLPutData */
 	PutDataInfo	pdata_info;
-	char		parse_status;
-	char		proc_return;
-	char		put_data;	/* Has SQLPutData been called ? */
-	char		catalog_result;	/* Is this a result of catalog function ? */
-	char		prepare;	/* is this a prepared statement ? */
-	char		prepared;	/* is this statement already
+	po_ind_t	parse_status;
+	po_ind_t	proc_return;
+	po_ind_t	put_data;	/* Has SQLPutData been called ? */
+	po_ind_t	catalog_result;	/* Is this a result of catalog function ? */
+	po_ind_t	prepare;	/* is this a prepared statement ? */
+	po_ind_t	prepared;	/* is this statement already
 					 * prepared at the server ? */
-	char		internal;	/* Is this statement being called
+	po_ind_t	internal;	/* Is this statement being called
 							 * internally ? */
-	char		transition_status;	/* Transition status */
-	char		multi_statement; /* -1:unknown 0:single 1:multi */
-	char		rbonerr;	/* rollback on error */
-	char		discard_output_params;	 /* discard output parameters on parse stage */
-	char		cancel_info;	/* cancel information */
-	char		ref_CC_error;	/* refer to CC_error ? */
-	char		lock_CC_for_rb;	/* lock CC for statement rollback ? */
-	char		join_info;	/* have joins ? */
-	char		parse_method;	/* parse_statement is forced or ? */
-	char		curr_param_result; /* current param result is set ? */
+	po_ind_t	transition_status;	/* Transition status */
+	po_ind_t	multi_statement; /* -1:unknown 0:single 1:multi */
+	po_ind_t	rbonerr;	/* rollback on error */
+	po_ind_t	discard_output_params;	 /* discard output parameters on parse stage */
+	po_ind_t	cancel_info;	/* cancel information */
+	po_ind_t	ref_CC_error;	/* refer to CC_error ? */
+	po_ind_t	lock_CC_for_rb;	/* lock CC for statement rollback ? */
+	po_ind_t	join_info;	/* have joins ? */
+	po_ind_t	parse_method;	/* parse_statement is forced or ? */
+	po_ind_t	curr_param_result; /* current param result is set ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 
@@ -486,7 +486,7 @@ int		SC_set_current_col(StatementClass *self, int col);
 void		SC_setInsertedTable(StatementClass *, RETCODE);
 void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,
 			Int4 *next_cmd, SQLSMALLINT *num_params,
-			char *multi, char *proc_return);
+			po_ind_t *multi, po_ind_t *proc_return);
 
 BOOL	SC_IsExecuting(const StatementClass *self);
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on);

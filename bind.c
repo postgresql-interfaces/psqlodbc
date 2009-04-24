@@ -471,7 +471,7 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	}
 	else
 	{
-		char	multi = FALSE, proc_return = 0;
+		po_ind_t multi = FALSE, proc_return = 0;
 
 		stmt->proc_return = 0;
 		SC_scanQueryAndCountParams(stmt->statement, SC_get_conn(stmt), NULL, pcpar, &multi, &proc_return);

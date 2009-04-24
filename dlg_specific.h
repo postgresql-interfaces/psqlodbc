@@ -149,6 +149,13 @@ extern "C" {
 #define	SSLMODE_ALLOW		"allow"
 #define	SSLMODE_PREFER		"prefer"
 #define	SSLMODE_REQUIRE		"require"
+#define	SSLMODE_VERIFY_CA	"verify-ca"
+#define	SSLMODE_VERIFY_FULL	"verify-full"
+#define	SSLLBYTE_DISABLE	'd'
+#define	SSLLBYTE_ALLOW		'a'
+#define	SSLLBYTE_PREFER		'p'
+#define	SSLLBYTE_REQUIRE	'r'
+#define	SSLLBYTE_VERIFY		'v'
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define INI_XAOPT			"XaOpt"

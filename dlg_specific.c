@@ -129,6 +129,40 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 	return (ci->extra_opts = getExtraOptions(ci));
 }
 
+static const char *
+abbrev_sslmode(const char *sslmode, char *abbrevmode)
+{
+	switch (sslmode[0])
+	{
+		case SSLLBYTE_DISABLE:
+		case SSLLBYTE_ALLOW:
+		case SSLLBYTE_PREFER:
+		case SSLLBYTE_REQUIRE:
+			abbrevmode[0] = sslmode[0];
+			abbrevmode[1] = '\0';
+			break;
+		case SSLLBYTE_VERIFY:
+			abbrevmode[0] = sslmode[0];
+			abbrevmode[2] = '\0';
+			switch (sslmode[1])
+			{
+				case 'f':
+				case 'c':
+					abbrevmode[1] = sslmode[1];
+					break;
+				default:
+					if (strnicmp(sslmode, "verify_", 7) == 0)
+					{
+						abbrevmode[1] = sslmode[7];
+					}
+					else
+						strcpy(abbrevmode, sslmode);	
+			}
+			break;
+	} 
+	return abbrevmode;
+}
+
 void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
@@ -310,8 +344,12 @@ inolog("hlen=%d", hlen);
 			flag |= BIT_LOWERCASEIDENTIFIER;
 
 		if (ci->sslmode[0])
+		{
+			char	abbrevmode[sizeof(ci->sslmode)];
+
 			olen = snprintf(&connect_string[hlen], nlen, ";"
-				ABBR_SSLMODE "=%c", ci->sslmode[0]);
+				ABBR_SSLMODE "=%s", abbrev_sslmode(ci->sslmode, abbrevmode));
+		}
 		hlen = strlen(connect_string);
 		nlen = MAX_CONNECT_STRING - hlen;
 		olen = snprintf(&connect_string[hlen], nlen, ";"
@@ -522,16 +560,29 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	{
 		switch (value[0])
 		{
-			case 'a':
+			case SSLLBYTE_ALLOW:
 				strcpy(ci->sslmode, SSLMODE_ALLOW);
 				break;
-			case 'p':
+			case SSLLBYTE_PREFER:
 				strcpy(ci->sslmode, SSLMODE_PREFER);
 				break;
-			case 'r':
+			case SSLLBYTE_REQUIRE:
 				strcpy(ci->sslmode, SSLMODE_REQUIRE);
 				break;
-			case 'd':
+			case SSLLBYTE_VERIFY:
+				switch (value[1])
+				{
+					case 'f':
+						strcpy(ci->sslmode, SSLMODE_VERIFY_FULL);
+						break;
+					case 'c':
+						strcpy(ci->sslmode, SSLMODE_VERIFY_CA);
+						break;
+					default:
+						strcpy(ci->sslmode, value);
+				}
+				break;
+			case SSLLBYTE_DISABLE:
 			default:
 				strcpy(ci->sslmode, SSLMODE_DISABLE);
 				break;

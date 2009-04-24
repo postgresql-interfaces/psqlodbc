@@ -197,6 +197,7 @@ AC_HEADER_TIME
 AC_CHECK_SIZEOF(long)
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_TYPES(long long)
+AC_CHECK_TYPES(signed char)
 
 AC_CHECK_TYPES(ssize_t)
 AC_TYPE_SIZE_T
@@ -238,7 +239,7 @@ if test "$enable_pthreads" = yes; then
 fi
 
 # 8. Libltdl
-AC_CHECK_LIB(ltdl, lt_dloepn)
+AC_CHECK_LIB(ltdl, lt_dlopen)
 
 
 AC_CONFIG_FILES([Makefile])

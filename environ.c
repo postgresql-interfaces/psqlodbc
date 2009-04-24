@@ -388,7 +388,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 		}
 	}
 
-	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, msglen, szErrorMsg);
+	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState ? (char *) szSqlState : PRINT_NULL, msglen, szErrorMsg ? (char *) szErrorMsg : PRINT_NULL);
 	if (once_again)
 	{
 		CC_set_errornumber(conn, status);

@@ -237,8 +237,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 			if (STMT_EXECUTING == stmt->status)
 			{
 				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
-				return SQL_ERROR;		/* stmt may be executing a
-										 * transaction */
+				return SQL_ERROR; /* stmt may be executing a transaction */
 			}
 			/*
 			 * Free any cursors and discard any result info.
@@ -856,7 +855,7 @@ inolog("%s statement=%p ommitted=0\n", func, self);
 void
 SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		Int4 *next_cmd, SQLSMALLINT * pcpar,
-		char *multi_st, char *proc_return)
+		po_ind_t *multi_st, po_ind_t *proc_return)
 {
 	CSTR func = "SC_scanQueryAndCountParams";
 	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE;
@@ -865,7 +864,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 	char	tchar, bchar, escape_in_literal = '\0';
 	char	in_literal = FALSE, in_identifier = FALSE,
 		in_dollar_quote = FALSE, in_escape = FALSE,
-		del_found = FALSE, multi = FALSE;
+		del_found = FALSE;
+	po_ind_t multi = FALSE;
 	SQLSMALLINT	num_p;
 	encoded_str	encstr;
 
@@ -1750,7 +1750,7 @@ SC_execute(StatementClass *self)
 	    /* || SC_is_with_hold(self) thiw would lose the performance */
 		 ))
 		issue_begin = FALSE;
-	if (issue_begin)
+	else
 	{
 		switch (self->statement_type)
 		{

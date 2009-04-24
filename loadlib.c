@@ -245,7 +245,7 @@ static int filter_env2encoding(int level)
 }
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 
-BOOL	sslverify_needed(void)
+BOOL	ssl_verify_available(void)
 {
 	if (sslverify_available < 0)
 	{

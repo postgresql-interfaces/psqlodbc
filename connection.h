@@ -286,7 +286,7 @@ typedef struct
 	char		conn_settings[LARGE_REGISTRY_LEN];
 	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
-	char		sslmode[SMALL_REGISTRY_LEN];
+	char		sslmode[16];
 	char		onlyread[SMALL_REGISTRY_LEN];
 	char		fake_oid_index[SMALL_REGISTRY_LEN];
 	char		show_oid_column[SMALL_REGISTRY_LEN];

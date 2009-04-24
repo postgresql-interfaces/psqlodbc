@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.128 2009/04/06 21:32:57 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.129 2009/04/24 22:30:48 hinoue Exp $
  *
  */
 
@@ -124,6 +124,7 @@ typedef	UInt4	OID;
 #ifndef	HAVE_SSIZE_T
 typedef	long	ssize_t
 #endif /* HAVE_SSIZE_T */
+
 #if (SIZEOF_VOID_P == SIZEOF_LONG)
 typedef	long 	LONG_PTR;
 typedef	unsigned long 	ULONG_PTR;
@@ -159,6 +160,11 @@ typedef	unsigned long long ULONG_PTR;
 #ifndef	SQL_IS_LEN
 #define	SQL_IS_LEN	(-1000)
 #endif /* SQL_IS_LEN */
+#ifdef	HAVE_SIGNED_CHAR
+typedef	signed char	po_ind_t;
+#else
+typedef char	po_ind_t;
+#endif /* HAVE_SIGNED_CHAR */
 
 #ifndef WIN32
 #if !defined(WITH_UNIXODBC) && !defined(WITH_IODBC)

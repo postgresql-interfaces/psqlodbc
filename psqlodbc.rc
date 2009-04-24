@@ -397,8 +397,10 @@ STRINGTABLE DISCARDABLE
 BEGIN
     IDS_SSLREQUEST_PREFER   "優先"
     IDS_SSLREQUEST_ALLOW    "考慮"
-    IDS_SSLREQUEST_REQUIRE  "必要"
+    IDS_SSLREQUEST_REQUIRE  "必須"
     IDS_SSLREQUEST_DISABLE  "無効"
+    IDS_SSLREQUEST_VERIFY_CA	"必須:証明書認証"
+    IDS_SSLREQUEST_VERIFY_FULL	"必須:証明書完全認証"
 END
 
 #endif    // Japanese resources
@@ -757,6 +759,8 @@ BEGIN
     IDS_SSLREQUEST_ALLOW    "allow"
     IDS_SSLREQUEST_REQUIRE  "require"
     IDS_SSLREQUEST_DISABLE  "disable"
+    IDS_SSLREQUEST_VERIFY_CA	    "verify-ca"
+    IDS_SSLREQUEST_VERIFY_FULL	    "verify-full"
 END
 
 #endif    // English (U.S.) resources
