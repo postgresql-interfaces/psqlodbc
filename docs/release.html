@@ -26,7 +26,7 @@ Changes:<br>
 13.) Use strncpy_null() instead of strncpy().<br>
 14.) Close (holdable) cursors on commit if possible.<br>
 15.) Recycle columns cache info if the size becomes pretty large.<br>
-16.) Add sslverify=none to conninfo in case of SSL connections via libpq of version 8.4.<br>
+16.) Add a 'verify-ca' and 'verify-full' to the sslmode option via libpq of version 8.4.<br>
 17.) Add a functionality to change the directory for logging.<br>
 18.) Correct the error code for communication errors.<br>
 19.) Correct the conversion between UTF-16 and UTF-8 for non UCS2 characters.<br>
@@ -34,6 +34,7 @@ Changes:<br>
 21.) Add a textbox to setup dialog to change the directory for logging.<br>
 22.) Allow multiple Connsettings statements in connection string by enclosing them by braces({}).<br>
 23.) Improve the transactional control under useDeclareFetch mode.<br>
+24.) Take the platforms where char is unsigned into account per report from Alex Goncharov.
 <br>
 <li>Notes: psqlODBC 08.03.0400</li><br>
 Changes:<br>
