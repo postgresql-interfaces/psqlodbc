@@ -443,6 +443,20 @@ static double get_double_value(const char *str)
 	return atof(str);
 }
 
+#if (ODBCVER >= 0x0350)
+static int char2guid(const char *str, SQLGUID *g)
+{
+	if (sscanf(str,
+		"%08X-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX",
+		&g->Data1,
+		&g->Data2, &g->Data3,
+		&g->Data4[0], &g->Data4[1], &g->Data4[2], &g->Data4[3],
+		&g->Data4[4], &g->Data4[5], &g->Data4[6], &g->Data4[7]) < 11)
+		return COPY_GENERAL_ERROR;
+	return COPY_OK;
+}
+#endif /* ODBCVER */
+
 /*	This is called by SQLGetData() */
 int
 copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei,
@@ -889,6 +903,19 @@ inolog("2stime fr=%d\n", std_time.fr);
 				{
 					strcpy(rgbValueBindRow, neut_str);
 					mylog("PG_TYPE_BOOL: rgbValueBindRow = '%s'\n", rgbValueBindRow);
+				}
+				break;
+
+			case PG_TYPE_UUID:
+				len = strlen(neut_str);
+				if (cbValueMax > len)
+				{
+					int i;
+
+					for (i = 0; i < len; i++)
+						rgbValueBindRow[i] = toupper(neut_str[i]);
+					rgbValueBindRow[i] = '\0';
+					mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				}
 				break;
 
@@ -1465,6 +1492,24 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					else	
 						return COPY_RESULT_TRUNCATED;
 				}
+#if (ODBCVER >= 0x0350)
+				else if (PG_TYPE_UUID == field_type)
+				{
+					int rtn = char2guid(neut_str, &g);
+
+					if (COPY_OK != rtn)
+						return rtn;
+					if (pcbValue)
+						*pcbValueBindRow = sizeof(g);
+					if (cbValueMax >= sizeof(g))
+					{
+						memcpy(rgbValueBindRow, &g, sizeof(g));
+						return COPY_OK;
+					}
+					else	
+						return COPY_RESULT_TRUNCATED;
+				}
+#endif /* ODBCVER */
 				else if (PG_TYPE_BYTEA != field_type)
 				{
 					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
@@ -1549,12 +1594,8 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 #if (ODBCVER >= 0x0350)
 			case SQL_C_GUID:
 
-				if (sscanf(neut_str,
-				"%08X-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX",
-				&g.Data1,
-				&g.Data2, &g.Data3,
-				&g.Data4[0], &g.Data4[1], &g.Data4[2], &g.Data4[3],
-				&g.Data4[4], &g.Data4[5], &g.Data4[6], &g.Data4[7]) < 11)
+				result = char2guid(neut_str, &g);
+				if (COPY_OK != result)
 				{
 					mylog("Could not convert to SQL_C_GUID");	
 					return	COPY_UNSUPPORTED_TYPE;

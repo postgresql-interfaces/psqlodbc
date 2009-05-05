@@ -517,7 +517,8 @@ pgtype_to_ctype(StatementClass *stmt, OID type)
 #endif /* UNICODE_SUPPORT */
 		case PG_TYPE_UUID:
 #if (ODBCVER >= 0x0350)
-			return SQL_C_GUID;
+			if (!conn->ms_jet)
+				return SQL_C_GUID;
 #endif /* ODBCVER */
 			return SQL_C_CHAR;
 
@@ -1047,6 +1048,11 @@ pgtype_display_size(StatementClass *stmt, OID type, int col, int handle_unknown_
 		case PG_TYPE_FLOAT8:
 			return 22;
 
+#if (ODBCVER >= 0x0350)
+		case PG_TYPE_UUID:
+			return 36;
+#endif /* ODBCVER */
+
 			/* Character types use regular precision */
 		default:
 			return pgtype_column_size(stmt, type, col, handle_unknown_size_as);
@@ -1097,6 +1103,9 @@ pgtype_buffer_length(StatementClass *stmt, OID type, int col, int handle_unknown
 		case PG_TYPE_TIMESTAMP:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			return 16;		/* sizeof(TIMESTAMP_STRUCT) */
+
+		case PG_TYPE_UUID:
+			return 16;		/* sizeof(SQLGUID) */
 
 			/* Character types use the default precision */
 		case PG_TYPE_VARCHAR:
@@ -1602,6 +1611,14 @@ sqltype_to_default_ctype(const ConnectionClass *conn, SQLSMALLINT sqltype)
 			return SQL_C_TYPE_TIMESTAMP;
 #endif /* ODBCVER */
 
+#if (ODBCVER >= 0x0350)
+		case SQL_GUID:
+			if (conn->ms_jet)
+				return SQL_C_CHAR;
+			else
+				return SQL_C_GUID;
+#endif /* ODBCVER */
+
 		default:
 			/* should never happen */
 			return SQL_C_CHAR;
@@ -1660,6 +1677,11 @@ ctype_length(SQLSMALLINT ctype)
 		case SQL_C_TYPE_TIMESTAMP:
 #endif /* ODBCVER */
 			return sizeof(TIMESTAMP_STRUCT);
+
+#if (ODBCVER >= 0x0350)
+		case SQL_C_GUID:
+			return sizeof(SQLGUID);
+#endif /* ODBCVER */
 
 		case SQL_C_BINARY:
 		case SQL_C_CHAR:
