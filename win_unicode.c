@@ -335,7 +335,7 @@ mylog(" out=%dchars\n", wlen);
 	return outlen;
 }
 
-int wstrtomsg(const char *enc, LPCWSTR wstr, int wstrlen, char * outmsg, int buflen)
+int wstrtomsg(const char *enc, const LPWSTR wstr, int wstrlen, char * outmsg, int buflen)
 {
 	int	outlen;
 #ifdef	WIN32
