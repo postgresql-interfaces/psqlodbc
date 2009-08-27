@@ -7,7 +7,7 @@
  *
  * Classes:			n/a
  *
- * API functions:	ConfigDSN
+ * API functions:	ConfigDSN, ConfigDriver
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *-------
@@ -119,6 +119,44 @@ ConfigDSN(HWND hwnd,
 
 	GlobalUnlock(hglbAttr);
 	GlobalFree(hglbAttr);
+
+	return fSuccess;
+}
+
+/*--------
+ *	ConfigDriver
+ *
+ *	Description:	ODBC Setup entry point
+ *			This entry point is called by the ODBC Installer
+ *			(see file header for more details)
+ *	Arguments :	hwnd ----------- Parent window handle
+ *			fRequest ------- Request type (i.e., add, config, or remove)
+ *			lpszDriver ----- Driver name
+ *			lpszArgs ------- A null-terminated string containing
+				arguments for a driver specific fRequest
+ *			lpszMsg -------- A null-terimated string containing
+			  	an output message from the driver setup
+ *			cnMsgMax ------- Length of lpszMSg
+ *			pcbMsgOut ------ Total number of bytes available to
+				return in lpszMsg 
+ *	Returns :	TRUE success, FALSE otherwise
+ *--------
+ */
+static BOOL SetDriverAttributes(LPCSTR lpszDriver);
+BOOL		CALLBACK
+ConfigDriver(HWND hwnd,
+		WORD fRequest,
+		LPCSTR lpszDriver,
+		LPCSTR lpszArgs,
+		LPSTR lpszMsg,
+		WORD cbMsgMax,
+		WORD *pcbMsgOut)
+{
+	BOOL	fSuccess = TRUE;	/* Success/fail flag */
+
+	/* Add the driver */
+	if (ODBC_INSTALL_DRIVER == fRequest)
+		fSuccess = SetDriverAttributes(lpszDriver);
 
 	return fSuccess;
 }
@@ -510,6 +548,46 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 	if (lstrcmpi(lpsetupdlg->szDSN, lpsetupdlg->ci.dsn))
 		SQLRemoveDSNFromIni(lpsetupdlg->szDSN);
 	return TRUE;
+}
+
+/*--------
+ * SetDriverAttributes
+ *
+ *	Description:	Write driver information attributes to ODBCINST.INI
+ *	Input	 :	lpszDriver - The driver name
+ *	Output	 :	TRUE if successful, FALSE otherwise
+ *--------
+ */
+static BOOL
+SetDriverAttributes(LPCSTR lpszDriver)
+{
+	BOOL	ret = FALSE;
+
+	/* Validate arguments */
+	if (!lpszDriver || !lpszDriver[0])
+		return FALSE;
+
+	if (!SQLWritePrivateProfileString(lpszDriver, "APILevel", "1", ODBCINST_INI))
+		goto cleanup;
+	if (!SQLWritePrivateProfileString(lpszDriver, "ConnectFunctions", "YYN", ODBCINST_INI))
+		goto cleanup;
+	if (!SQLWritePrivateProfileString(lpszDriver, "DriverODBCVer",
+#ifdef UNICODE_SUPPORT
+		 "03.51",
+#else
+		 "03.00",
+#endif
+		ODBCINST_INI))
+		goto cleanup;
+	if (!SQLWritePrivateProfileString(lpszDriver, "FileUsage", "0", ODBCINST_INI))
+		goto cleanup;
+	if (!SQLWritePrivateProfileString(lpszDriver, "SQLLevel", "1", ODBCINST_INI))
+		goto cleanup;
+
+	ret = TRUE;
+cleanup:
+
+	return ret;
 }
 
 

@@ -2004,7 +2004,7 @@ do { \
 
 /*----------
  *	Append a binary data.
- *	Newly reqeuired size may be overestimated currently.
+ *	Newly required size may be overestimated currently.
  *----------
  */
 #define CVT_APPEND_BINARY(qb, buf, used) \
@@ -2538,7 +2538,7 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 			{
 				if (SC_update_not_ready(stmt))
 					parse_statement(stmt, TRUE);
-				if (stmt->updatable &&
+				if (SC_is_updatable(stmt) &&
 				    stmt->ntab > 0)
 				{
 					if (bestitem = GET_NAME(stmt->ti[0]->bestitem), NULL == bestitem)
@@ -4916,7 +4916,7 @@ convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValueMax)
 	size_t		i,
 				ilen = strlen(value);
 	size_t			o = 0;
-
+	BOOL		hexmode = FALSE;
 
 	for (i = 0; i < ilen;)
 	{
@@ -4928,12 +4928,24 @@ convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValueMax)
 					rgbValue[o] = value[i];
 				i += 2;
 			}
+			else if (value[i + 1] == 'x')
+			{
+				hexmode = TRUE;
+				i += 2;
+			}
 			else
 			{
 				if (rgbValue)
 					rgbValue[o] = conv_from_octal(&value[i]);
 				i += 4;
 			}
+		}
+		else if (hexmode)
+		{
+			if (rgbValue)
+				pg_hex2bin(value + i, rgbValue, ilen - 2);
+			o = (ilen - 2) / 2;
+			break;
 		}
 		else
 		{
@@ -5007,7 +5019,7 @@ convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
 	for (i = 0; i < len; i++)
 	{
 		inc = in[i];
-		mylog("%s: in[%d] = %d, %c\n", func, i, inc, inc);
+		inolog("%s: in[%d] = %d, %c\n", func, i, inc, inc);
 		if (inc < 128 && (isalnum(inc) || inc == ' '))
 			out[o++] = inc;
 		else

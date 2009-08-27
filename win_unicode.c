@@ -321,7 +321,7 @@ int msgtowstr(const char *enc, const char *inmsg, int inlen, LPWSTR outmsg, int 
 	wlen = MultiByteToWideChar(cp, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
 			inmsg, inlen, outmsg, buflen);
 mylog(" out=%dchars\n", wlen);
-	outlen = (SQLSMALLINT) wlen;
+	outlen = wlen;
 #else
 #ifdef	HAVE_MBSTOWCS_L
 	outlen = 0;
@@ -344,7 +344,7 @@ int wstrtomsg(const char *enc, const LPWSTR wstr, int wstrlen, char * outmsg, in
 	if (NULL != enc && 0 != atoi(enc))
 		cp = atoi(enc);	
 	len = WideCharToMultiByte(cp, 0, wstr, (int) wstrlen, outmsg, buflen, NULL, NULL);
-	outlen = (SQLSMALLINT) len;
+	outlen = len;
 #else
 #ifdef	HAVE_MBSTOWCS_L
 	outlen = 0;

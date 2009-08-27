@@ -70,15 +70,20 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	libpq_exist = SSLLIB_check();
 mylog("libpq_exist=%d\n", libpq_exist);
 	if (libpq_exist)
-		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
-	else
 	{
-mylog("SendMessage CTL_COLOR\n");
-		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
+		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
 		if (ssl_verify_available())
 			dsplevel = 2;
 		else
 			dsplevel = 1;
+	}
+	else
+	{
+mylog("SendMessage CTL_COLOR\n");
+		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
+#ifdef	USE_SSPI
+		dsplevel = 1;
+#endif /* USE_SSPI */
 	}
 
 	selidx = -1;

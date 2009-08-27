@@ -476,7 +476,11 @@ PGAPI_ColAttributes(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
-	stmt_updatable = stmt->updatable && stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY;
+	stmt_updatable = SC_is_updatable(stmt)
+		/* The folllowing doesn't seem appropriate for client side cursors
+		  && stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY
+		 */
+		;
 
 	if (pcbDesc)
 		*pcbDesc = 0;
@@ -1109,6 +1113,7 @@ cleanup:
 #undef	return
 	if (stmt->internal)
 		result = DiscardStatementSvp(stmt, result, FALSE);
+inolog("%s returning %d\n", __FUNCTION__, result);
 	return result;
 }
 
@@ -2978,7 +2983,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 
 	if (SC_update_not_ready(stmt))
 		parse_statement(stmt, TRUE);	/* not preferable */
-	if (!stmt->updatable)
+	if (!SC_is_updatable(stmt))
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
@@ -3267,7 +3272,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	}
 	if (SC_update_not_ready(stmt))
 		parse_statement(stmt, TRUE);	/* not preferable */
-	if (!stmt->updatable)
+	if (!SC_is_updatable(stmt))
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
@@ -3350,7 +3355,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef, const cha
 	}
 	if (SC_update_not_ready(stmt))
 		parse_statement(stmt, TRUE);	/* not preferable */
-	if (!stmt->updatable)
+	if (!SC_is_updatable(stmt))
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
@@ -3604,7 +3609,7 @@ SC_pos_update(StatementClass *stmt,
 	mylog("POS UPDATE %d+%d fi=%p ti=%p\n", s.irow, QR_get_rowstart_in_cache(s.res), fi, s.stmt->ti);
 	if (SC_update_not_ready(stmt))
 		parse_statement(s.stmt, TRUE);	/* not preferable */
-	if (!s.stmt->updatable)
+	if (!SC_is_updatable(s.stmt))
 	{
 		s.stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(s.stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
@@ -3763,7 +3768,7 @@ SC_pos_delete(StatementClass *stmt,
 	}
 	if (SC_update_not_ready(stmt))
 		parse_statement(stmt, TRUE);	/* not preferable */
-	if (!stmt->updatable)
+	if (!SC_is_updatable(stmt))
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
@@ -4051,7 +4056,7 @@ SC_pos_add(StatementClass *stmt,
 	}
 	if (SC_update_not_ready(stmt))
 		parse_statement(s.stmt, TRUE);	/* not preferable */
-	if (!s.stmt->updatable)
+	if (!SC_is_updatable(s.stmt))
 	{
 		s.stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(s.stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);

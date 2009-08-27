@@ -255,11 +255,11 @@ struct StatementClass_
 	SQLLEN		exec_end_row;
 	SQLLEN		exec_current_row;
 
-	char		pre_executing;	/* This statement is prematurely executing */
-	char		inaccurate_result;	/* Current status is PREMATURE but
+	po_ind_t	pre_executing;	/* This statement is prematurely executing */
+	po_ind_t	inaccurate_result;	/* Current status is PREMATURE but
 						 * result is inaccurate */
 	unsigned char	miscinfo;
-	char		updatable;
+	po_ind_t	updatable;
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
 	char		*execute_statement; /* to execute the prepared plans */
@@ -327,6 +327,9 @@ do { \
 #define	SC_checked_hasoids(a)	(0 != (a->parse_status & STMT_PARSED_OIDS))
 #define	SC_set_delegate(p, c) (p->execute_delegate = c, c->execute_parent = p)
 
+#define	SC_is_updatable(s)	(0 < ((s)->updatable))
+#define	SC_reset_updatable(s)	((s)->updatable = -1)
+#define	SC_set_updatable(s, b)	((s)->updatable = (b))
 #define	SC_clear_parse_method(s)	((s)->parse_method = 0)
 #define	SC_is_parse_forced(s)	(0 != ((s)->parse_method & 1L))
 #define	SC_set_parse_forced(s)	((s)->parse_method |= 1L)

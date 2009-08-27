@@ -428,7 +428,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->inaccurate_result = FALSE;
 		rv->miscinfo = 0;
 		rv->rbonerr = 0;
-		rv->updatable = FALSE;
+		SC_reset_updatable(rv);
 		rv->diag_row_count = 0;
 		rv->stmt_time = 0;
 		rv->execute_delegate = NULL;

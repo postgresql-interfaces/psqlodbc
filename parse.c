@@ -485,7 +485,7 @@ void SC_initialize_cols_info(StatementClass *stmt, BOOL DCdestroy, BOOL parseRes
 	if (parseReset)
 	{
 		stmt->parse_status = STMT_PARSE_NONE;
-		stmt->updatable = FALSE;
+		SC_reset_updatable(stmt);
 	}
 }
 
@@ -637,6 +637,8 @@ mylog("updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 			updatable = FALSE;
 	}
 mylog("->%d\n", updatable);
+	if (stmt->updatable < 0)
+		SC_set_updatable(stmt, updatable);
 	for (i = 0; i < num_fields; i++)
 	{
 		if (reloid == (OID) QR_get_relid(res, i))
@@ -1018,7 +1020,7 @@ inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 			{
 				SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
-				stmt->updatable = FALSE;
+				SC_reset_updatable(stmt);
 			}
 			return FALSE;
 		}
@@ -1260,7 +1262,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 	}
 	else
 	{
-		stmt->updatable = FALSE;
+		SC_set_updatable(stmt, FALSE);
 		irdflds = SC_get_IRDF(stmt);
 		fi = irdflds->fi;
 		ti = stmt->ti;
@@ -1879,7 +1881,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 						{
 							SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 							SC_set_error(stmt, STMT_EXEC_ERROR, "duplicated Table name", func);
-							stmt->updatable = FALSE;
+							SC_reset_updatable(stmt);
 							goto cleanup;
 						}
 					}
@@ -2124,7 +2126,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 			wfi->flag |= FIELD_PARSED_OK;
 	}
 
-	stmt->updatable = updatable;
+	SC_set_updatable(stmt, updatable);
 cleanup:
 #undef	return
 	if (!sqlsvr_check && STMT_PARSE_FATAL == SC_parsed_status(stmt))
