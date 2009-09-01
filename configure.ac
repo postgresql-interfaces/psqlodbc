@@ -71,6 +71,18 @@ if test "$with_unixodbc" = yes; then
             [Define to use wchar_t as SQLWCHAR in unixODBC])
 fi
 
+#
+# SQLCOLATTRIBUTE_SQLLEN check
+#
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+	[[#include <sql.h>>
+	SQLRETURN  SQL_API SQLColAttribute
+	(SQLHSTMT StatementHandle,SQLUSMALLINT ColumnNumber,
+	SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttribute,
+	SQLSMALLINT BufferLength, SQLSMALLINT *StringLength, 
+	SQLLEN *NumercAttribute);]],[[]])],[],
+	AC_DEFINE(SQLCOLATTRIBUTE_SQLLEN, 1,
+	[Define to 1 if SQLColAttribute use SQLLEN]))
 
 #
 # ODBC include and library

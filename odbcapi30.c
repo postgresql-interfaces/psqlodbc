@@ -118,12 +118,10 @@ SQLColAttribute(SQLHSTMT StatementHandle,
 			SQLPOINTER CharacterAttribute,
 			SQLSMALLINT BufferLength,
 			SQLSMALLINT *StringLength,
-#if defined(_WIN64)
+#if defined(_WIN64) || defined(SQLCOLATTRIBUTE_SQLLEN)
 			SQLLEN *NumericAttribute
-#elif defined(WITH_UNIXODBC) || defined(WIN32)
-			SQLPOINTER NumericAttribute
 #else
-			SQLLEN *NumericAttribute
+			SQLPOINTER NumericAttribute
 #endif
 			)
 {

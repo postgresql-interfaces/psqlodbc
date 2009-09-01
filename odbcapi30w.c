@@ -262,10 +262,10 @@ SQLRETURN SQL_API SQLColAttributeW(
 	SQLPOINTER	pCharAttr,
 	SQLSMALLINT	cbCharAttrMax,	
 	SQLSMALLINT	*pcbCharAttr,
-#if defined(WITH_UNIXODBC) || (defined(WIN32) && ! defined(_WIN64))
-	SQLPOINTER	pNumAttr
-#else
+#if defined(_WIN64) || defined(SQLCOLATTRIBUTE_SQLLEN)
 	SQLLEN		*pNumAttr
+#else
+	SQLPOINTER	pNumAttr
 #endif
 	)
 {
