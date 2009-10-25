@@ -1006,11 +1006,11 @@ SC_pre_execute(StatementClass *self)
 			{
 				case NAMED_PARSE_REQUEST:
 				case PARSE_TO_EXEC_ONCE:
-					if (SQL_SUCCESS != prepareParameters(self))
+					if (SQL_SUCCESS != prepareParameters(self, TRUE))
 						return num_fields;
 					break;
 				case PARSE_REQ_FOR_INFO:
-					if (SQL_SUCCESS != prepareParameters(self))
+					if (SQL_SUCCESS != prepareParameters(self, TRUE))
 						return num_fields;
 					self->status = STMT_PREMATURE;
 					self->inaccurate_result = TRUE;
@@ -1791,24 +1791,31 @@ SC_execute(StatementClass *self)
 	 */
 	/* in copy_statement... */
 	use_extended_protocol = FALSE;
-	if (PREPARED_PERMANENTLY == self->prepared &&
-	    PROTOCOL_74(ci))
-		use_extended_protocol = TRUE;
-	else if (PREPARED_TEMPORARILY == self->prepared)
+	switch (self->prepared)
 	{
-		switch (SC_get_prepare_method(self))
-		{
-#ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
-			case PARSE_TO_EXEC_ONCE:
-#endif /* BYPASS_ONESHOT_PLAN_EXECUTION */
-			case NAMED_PARSE_REQUEST:
+		case PREPARING_PERMANENTLY:
+		case PREPARED_PERMANENTLY:
+	    		if (PROTOCOL_74(ci))
 				use_extended_protocol = TRUE;
-		}
-		if (!use_extended_protocol)
-		{
-			SC_forget_unnamed(self);
-			SC_set_Result(self, NULL); /* discard the parsed information */
-		}
+			break;
+		case PREPARING_TEMPORARILY:
+		case PREPARED_TEMPORARILY:
+			if (!issue_begin)
+			{
+				switch (SC_get_prepare_method(self))
+				{
+#ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
+					case PARSE_TO_EXEC_ONCE:
+#endif /* BYPASS_ONESHOT_PLAN_EXECUTION */
+					case NAMED_PARSE_REQUEST:
+						use_extended_protocol = TRUE;
+				}
+			}
+			if (!use_extended_protocol)
+			{
+				SC_forget_unnamed(self);
+				SC_set_Result(self, NULL); /* discard the parsed information */
+			}
 	}
 	if (use_extended_protocol)
 	{
@@ -1816,8 +1823,6 @@ SC_execute(StatementClass *self)
 
 		if (issue_begin)
 			CC_begin(conn);
-		for (res = SC_get_Result(self); NULL != res->next; res = res->next) ;
-inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_result);
 		if (!plan_name)
 			plan_name = "";
 		if (!SendBindRequest(self, plan_name))
@@ -1832,6 +1837,8 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 				SC_set_error(self, STMT_EXEC_ERROR, "Execute request error", func);
 			goto cleanup;
 		}
+		for (res = SC_get_Result(self); NULL != res && NULL != res->next; res = res->next) ;
+inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_result);
 		if (!(res = SendSyncAndReceive(self, self->curr_param_result ? res : NULL, "bind_and_execute")))
 		{
 			if (SC_get_errornumber(self) <= 0)
@@ -2273,6 +2280,7 @@ SendBindRequest(StatementClass *stmt, const char *plan_name)
 		return FALSE;
 	if (!BuildBindRequest(stmt, plan_name))
 		return FALSE;
+	conn->stmt_in_extquery = stmt;
 
 	return TRUE;
 }
@@ -2347,7 +2355,6 @@ inolog(" response_length=%d\n", response_length);
 			case 'E': /* ErrorMessage */
 				msg_truncated = handle_error_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
 
-				rcvend = TRUE;
 				break;
 			case 'N': /* Notice */
 				msg_truncated = handle_notice_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
@@ -2395,7 +2402,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 							continue;
 						}
 						oid = SOCK_get_int(sock, 4);
-						ipdopts->parameters[pidx].PGType = oid;
+						PIC_set_pgtype(ipdopts->parameters[pidx], oid);
 					}
 				}
 				else
@@ -2406,7 +2413,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 						oid = SOCK_get_int(sock, 4);
 						if (SQL_PARAM_OUTPUT != paramType ||
 						    PG_TYPE_VOID != oid)
-							ipdopts->parameters[pidx].PGType = oid;
+							PIC_set_pgtype(ipdopts->parameters[pidx], oid);
 					}
 				}
 #endif /* NOT_USED */
@@ -2425,7 +2432,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 					paramType = ipdopts->parameters[pidx].paramType;	
 					if (SQL_PARAM_OUTPUT != paramType ||
 					    PG_TYPE_VOID != oid)
-						ipdopts->parameters[pidx].PGType = oid;
+						PIC_set_pgtype(ipdopts->parameters[pidx], oid);
 				}
 				break;
 			case 'T': /* RowDesription */
@@ -2453,8 +2460,8 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
  							if (SQL_PARAM_OUTPUT == paramType ||
 							    SQL_PARAM_INPUT_OUTPUT == paramType)
 							{
-inolog("!![%d].PGType %u->%u\n", i, ipdopts->parameters[i].PGType, CI_get_oid(res->fields, cidx));
-								ipdopts->parameters[i].PGType = CI_get_oid(res->fields, cidx);
+inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(res->fields, cidx));
+								PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(res->fields, cidx));
 								cidx++;
 							}
 						}
@@ -2481,6 +2488,7 @@ inolog("!![%d].PGType %u->%u\n", i, ipdopts->parameters[i].PGType, CI_get_oid(re
 				break;
 		}
 	}
+	conn->stmt_in_extquery = NULL;
 	return res;
 }
 
@@ -2543,7 +2551,6 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 	qlen = (SQL_NTS == qlen) ? strlen(query) : qlen; 
 	leng = strlen(plan_name) + 1 + qlen + 1 + pileng;
 	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
-/* inolog("parse leng=%d\n", leng); */
 inolog("parse leng=" FORMAT_SIZE_T "\n", leng);
 	SOCK_put_string(sock, plan_name);
 	SOCK_put_n_char(sock, query, qlen);
@@ -2563,12 +2570,51 @@ inolog("parse leng=" FORMAT_SIZE_T "\n", leng);
 				SOCK_put_int(sock, 0, sizeof(UInt4));
 		}
 	}
+	conn->stmt_in_extquery = stmt;
 
 	return TRUE;
 }
 
+BOOL	SyncParseRequest(ConnectionClass *conn)
+{
+	StatementClass *stmt = conn->stmt_in_extquery;
+	QResultClass	*res, *last;
+	BOOL	ret = FALSE;
+
+	if (!stmt)
+		return TRUE;
+
+	res = SC_get_Result(stmt);
+	for (last = res; last && last->next; last = last->next)
+		;
+	if (!(res = SendSyncAndReceive(stmt, stmt->curr_param_result ? last : NULL, __FUNCTION__)))
+	{
+		if (SC_get_errornumber(stmt) <= 0)
+			SC_set_error(stmt, STMT_NO_RESPONSE, "Could not receive the response, communication down ??", __FUNCTION__);
+		CC_on_abort(conn, CONN_DEAD);
+		goto cleanup;
+	}
+
+	if (!last)
+		SC_set_Result(stmt, res);
+	else
+	{
+		if (res != last)
+			last->next = res;
+		stmt->curr_param_result = 1;
+	}
+	if (!QR_command_maybe_successful(res))
+	{
+		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while syncing parse reuest", __FUNCTION__);
+		goto cleanup;
+	}
+	ret = TRUE;
+cleanup:
+	return ret;
+}
+
 BOOL
-SendDescribeRequest(StatementClass *stmt, const char *plan_name)
+SendDescribeRequest(StatementClass *stmt, const char *plan_name, BOOL paramAlso)
 {
 	CSTR	func = "SendDescribeRequest";
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -2593,7 +2639,7 @@ SendDescribeRequest(StatementClass *stmt, const char *plan_name)
 	if (!sockerr)
 	{
 inolog("describe leng=%d\n", leng);
-		SOCK_put_char(sock, 'S'); /* describe a prepared statement */
+		SOCK_put_char(sock, paramAlso ? 'S' : 'P'); /* describe a prepared statement */
 		if (SOCK_get_errcode(sock) != 0)
 			sockerr = TRUE;
 	}
@@ -2609,6 +2655,7 @@ inolog("describe leng=%d\n", leng);
 		CC_on_abort(conn, CONN_DEAD);
 		return FALSE;
 	}
+	conn->stmt_in_extquery = stmt;
 
 	return TRUE;
 }
@@ -2670,6 +2717,7 @@ inolog("Close leng=%d\n", leng);
 		SOCK_put_char(sock, 'P');	/* Portal */
 		SOCK_put_string(sock, plan_name);
 	}
+	conn->stmt_in_extquery = stmt;
 
 	return TRUE;
 }
@@ -2681,6 +2729,7 @@ BOOL	SendSyncRequest(ConnectionClass *conn)
 	SOCK_put_char(sock, 'S');	/* Sync command */
 	SOCK_put_int(sock, 4, 4);
 	SOCK_flush_output(sock);
+	conn->stmt_in_extquery = NULL;
 
 	return TRUE;
 }
@@ -2725,6 +2774,8 @@ BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
 	LEAVE_COMMON_CS;
 	return exeSet;
 }
+
+#ifdef	NOT_USED
 BOOL	SC_SetCancelRequest(StatementClass *self)
 {
 	BOOL	enteredCS = FALSE;
@@ -2747,6 +2798,8 @@ BOOL	SC_SetCancelRequest(StatementClass *self)
 	LEAVE_COMMON_CS;
 	return enteredCS;
 }
+#endif /* NOT_USED */
+
 BOOL	SC_AcceptedCancelRequest(const StatementClass *self)
 {
 	BOOL	shouldCancel = FALSE;

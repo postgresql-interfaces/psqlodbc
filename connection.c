@@ -307,6 +307,7 @@ CC_Constructor()
 	{
 		rv->status = CONN_NOT_CONNECTED;
 		rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
+		rv->stmt_in_extquery = NULL;
 
 		CC_conninfo_init(&(rv->connInfo));
 		rv->sock = SOCK_Constructor(rv);
@@ -601,6 +602,7 @@ CC_cleanup(ConnectionClass *self)
 
 	self->status = CONN_NOT_CONNECTED;
 	self->transact_status = CONN_IN_AUTOCOMMIT;
+	self->stmt_in_extquery = NULL;
 	CC_conninfo_init(&(self->connInfo));
 	if (self->original_client_encoding)
 	{
@@ -765,6 +767,7 @@ EatReadyForQuery(ConnectionClass *conn)
 				CC_set_in_error_trans(conn);
 				break;	
 		}
+		conn->stmt_in_extquery = NULL;
 	}
 	return id;	
 }
@@ -2412,6 +2415,15 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		return NULL;
 	}
 
+	/* Finish the pending extended query first */
+	if (!SyncParseRequest(self))
+	{
+		if (CC_get_errornumber(self) <= 0)
+		{
+			CC_set_error(self, CONN_EXEC_ERROR, "error occured while calling SyncParseRequest() in CC_send_query_append()", func);
+			return NULL;
+		}
+	}	
 	/* Indicate that we are sending a query to the backend */
 	maxlen = CC_get_max_query_len(self);
 	qrylen = strlen(query);
@@ -2992,6 +3004,15 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 		return FALSE;
 	}
 
+	/* Finish the pending extended query first */
+	if (!SyncParseRequest(self))
+	{
+		if (CC_get_errornumber(self) <= 0)
+		{
+			CC_set_error(self, CONN_EXEC_ERROR, "error occured while calling SyncParseRequest() in CC_send_function()", func);
+			return FALSE;
+		}
+	}	
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(self, func_cs_count);
 	ci = &(self->connInfo);

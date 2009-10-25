@@ -462,6 +462,7 @@ struct ConnectionClass_
 	int		be_key; /* auth code needed to send cancel */
 	UInt4		isolation;
 	char		*current_schema;
+	StatementClass	*stmt_in_extquery;
 	Int2		max_identifier_length;
 	Int2		num_discardp;
 	char		**discardp;

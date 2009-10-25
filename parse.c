@@ -1207,7 +1207,7 @@ static char *insert_as_to_the_statement(char *stmt, char **pptr, char **ptr)
 static char
 parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 {
-	CSTR		func = "parse_statement";
+	CSTR		func = "parse_the_statement";
 	char		token[TOKEN_SIZE], stoken[TOKEN_SIZE], btoken[TOKEN_SIZE];
 	char		delim,
 				quote,

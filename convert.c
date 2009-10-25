@@ -1654,7 +1654,6 @@ typedef struct _QueryParse {
 	char		token_save[64];
 	int		token_len;
 	BOOL		prev_token_end;
-	BOOL		proc_no_param;
 	size_t		declare_pos;
 	UInt4		flags;
 	encoded_str	encstr;
@@ -1675,7 +1674,6 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->token_save[0] = '\0';
 	q->token_len = 0;
 	q->prev_token_end = TRUE;
-	q->proc_no_param = TRUE;
 	q->declare_pos = 0;
 	q->flags = 0;
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
@@ -1707,6 +1705,8 @@ typedef struct _QueryBuild {
 	Int2	num_output_params;
 	Int2	num_discard_params;
 	Int2	proc_return;
+	Int2	brace_level;
+	char	parenthesize_the_first;
 	APDFields *apdopts;
 	IPDFields *ipdopts;
 	PutDataInfo *pdata;
@@ -1736,6 +1736,8 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 	qb->num_io_params = 0;
 	qb->num_output_params = 0;
 	qb->num_discard_params = 0;
+	qb->brace_level = 0;
+	qb->parenthesize_the_first = FALSE;
 	if (conn)
 		qb->conn = conn;
 	else if (stmt)
@@ -2046,6 +2048,73 @@ do { \
 } while (0)
 #endif /* NOT_USED */
 
+static RETCODE
+QB_start_brace(QueryBuild *qb)
+{
+	BOOL	replace_by_parenthesis = TRUE;
+
+	if (0 == qb->brace_level)
+	{
+		if (0 == F_NewPos(qb))
+		{
+			qb->parenthesize_the_first = FALSE;
+			replace_by_parenthesis = FALSE;
+		}
+		else
+			qb->parenthesize_the_first = TRUE;
+	}
+	if (replace_by_parenthesis)
+		CVT_APPEND_CHAR(qb, '(');
+	qb->brace_level++;
+	return SQL_SUCCESS;
+}
+
+static RETCODE
+QB_end_brace(QueryBuild *qb)
+{
+	BOOL	replace_by_parenthesis = TRUE;
+
+	if (qb->brace_level <= 1 &&
+	    !qb->parenthesize_the_first)
+		replace_by_parenthesis = FALSE;
+	if (replace_by_parenthesis)
+		CVT_APPEND_CHAR(qb, ')');
+	qb->brace_level--;
+	return SQL_SUCCESS;
+}
+
+static RETCODE QB_append_space_to_separate_identifiers(QueryBuild *qb, const QueryParse *qp)
+{
+	unsigned char	tchar = F_OldChar(qp);
+	encoded_str	encstr;
+	BOOL		add_space = FALSE;
+
+	if (ODBC_ESCAPE_END != tchar)
+		return SQL_SUCCESS;
+	encoded_str_constr(&encstr, qb->ccsc, F_OldPtr(qp) + 1);
+	tchar = encoded_nextchar(&encstr);
+	if (ENCODE_STATUS(encstr) != 0)
+		add_space = TRUE;
+	else
+	{
+		if (isalnum(tchar))
+			add_space = TRUE;
+		else
+		{
+			switch (tchar)
+			{
+				case '_':
+				case '$':
+					add_space = TRUE;
+			}
+		}
+	}
+	if (add_space)
+		CVT_APPEND_CHAR(qb, ' ');
+
+	return SQL_SUCCESS;
+}
+
 /*----------
  *	Check if the statement is
  *	SELECT ... INTO table FROM .....
@@ -2220,7 +2289,7 @@ insert_without_target(const char *stmt, int *endpos)
 }
 
 static
-RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb);
+RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb, BOOL sync);
 static	int
 Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
@@ -2230,6 +2299,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 	BOOL	discardOutput, outpara;
+	BOOL	sync = FALSE;
 
 	if (PROTOCOL_74(ci))
 	{
@@ -2245,7 +2315,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
 		return SQL_ERROR;
 	if (PROTOCOL_74(ci))
-		return prep_params(stmt, qp, qb);
+		return prep_params(stmt, qp, qb, sync);
 	discardOutput = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	if (NOT_YET_PREPARED == stmt->prepared) /*  not yet prepared */
 	{
@@ -2264,7 +2334,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 #endif /* NOT_USED */
 		CVT_APPEND_STR(qb, "PREPARE \"");
 		CVT_APPEND_STR(qb, plan_name);
-		CVT_APPEND_CHAR(qb, '"');
+		CVT_APPEND_CHAR(qb, IDENTIFIER_QUOTE);
 		marker_count = stmt->num_params - qb->num_discard_params;
 		if (!ipdopts || ipdopts->allocated < marker_count)
 		{
@@ -2290,7 +2360,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 				if (outpara)
 					CVT_APPEND_STR(qb, "void");
 				else
-					CVT_APPEND_STR(qb, pgtype_to_name(stmt, ipdopts->parameters[i].PGType, FALSE));
+					CVT_APPEND_STR(qb, pgtype_to_name(stmt, PIC_dsp_pgtype(stmt, ipdopts->parameters[i]), FALSE));
 				oc++;
 			}
 			CVT_APPEND_CHAR(qb, ')');
@@ -2359,7 +2429,7 @@ inolog("exe_statement=%s\n", exe_statement);
 #define		my_strchr(conn, s1,c1) pg_mbschr(conn->ccsc, s1,c1)
 
 static
-RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
+RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb, BOOL sync)
 {
 	CSTR		func = "prep_params";
 	RETCODE		retval;
@@ -2411,9 +2481,15 @@ inolog("prep_params\n");
 		ret = SendParseRequest(stmt, plan_name, qb->query_statement, SQL_NTS, -1);
 	if (!ret)
 		goto cleanup;
-	if (!once_descr && (!SendDescribeRequest(stmt, plan_name)))
+	if (!once_descr && (!SendDescribeRequest(stmt, plan_name, TRUE)))
 		goto cleanup;
 	SC_set_planname(stmt, plan_name);
+	SC_set_prepared(stmt, plan_name[0] ? PREPARING_PERMANENTLY : PREPARING_TEMPORARILY);
+	if (!sync)
+	{
+		retval = SQL_SUCCESS;
+		goto cleanup;
+	}
 	if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
 	{
 		SC_set_error(stmt, STMT_NO_RESPONSE, "commnication error while preapreand_describe", func);
@@ -2447,7 +2523,7 @@ inolog("prep_params\n");
 			stmt->current_exec_param = num_pa;
 			ret = SendParseRequest(stmt, plan_name, srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
 			if (!ret)	goto cleanup;
-			if (!once_descr && !SendDescribeRequest(stmt, plan_name))
+			if (!once_descr && !SendDescribeRequest(stmt, plan_name, TRUE))
 				goto cleanup;
 			if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
 			{
@@ -2469,7 +2545,7 @@ cleanup:
 	return retval;
 }
 
-RETCODE	prepareParameters(StatementClass *stmt)
+RETCODE	prepareParameters(StatementClass *stmt, BOOL sync)
 {
 	switch (stmt->prepared)
 	{
@@ -2484,7 +2560,7 @@ inolog("prepareParameters\n");
 			qb = &query_crt;
 			if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
 				return SQL_ERROR;
-			return prep_params(stmt, qp, qb);
+			return prep_params(stmt, qp, qb, sync);
 	}
 	return SQL_SUCCESS;
 }
@@ -2504,7 +2580,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 
 	char	   *new_statement;
 
-	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE;
+	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE, bPrepConv;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
 	SQLLEN		current_row;
@@ -2593,11 +2669,19 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		SC_set_pre_executable(stmt);
 	qb = &query_crt;
 	qb->query_statement = NULL;
-	if (PREPARED_PERMANENTLY == stmt->prepared || (buildPrepareStatement && stmt->options.scroll_concurrency == SQL_CONCUR_READ_ONLY))
+	bPrepConv = FALSE;
+	if (PREPARED_PERMANENTLY == stmt->prepared)
+		bPrepConv = TRUE;
+	else if (buildPrepareStatement &&
+		 SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency)
+		bPrepConv = TRUE;
+	if (bPrepConv)
 	{
 		retval = Prepare_and_convert(stmt, qp, qb);
 		return retval;
 	}
+	SC_forget_unnamed(stmt);
+	buildPrepareStatement = FALSE;
 
 	if (ci->disallow_premature)
 		prepare_dummy_cursor = stmt->pre_executing;
@@ -2780,7 +2864,7 @@ Int4 findTag(const char *tag, char dollar_quote, int ccsc)
 {
 	Int4	taglen = 0;
 	encoded_str	encstr;
-	char		tchar;
+	unsigned char	tchar;
 	const char	*sptr;
 
 	encoded_str_constr(&encstr, ccsc, tag + 1);
@@ -2798,6 +2882,83 @@ Int4 findTag(const char *tag, char dollar_quote, int ccsc)
 			break;
 	}
 	return taglen;
+}
+
+static
+Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
+{
+	Int4	strlen = 0;
+	encoded_str	encstr;
+	unsigned char	tchar;
+	const char	*sptr;
+	BOOL	dquote = FALSE;
+
+	*nextdel = NULL;
+	encoded_str_constr(&encstr, ccsc, str);
+	for (sptr = str; *sptr; sptr++)
+	{
+		tchar = encoded_nextchar(&encstr);
+		if (ENCODE_STATUS(encstr) != 0)
+			continue;
+		if (sptr == str) /* the first character */
+		{
+			if (dquote = (IDENTIFIER_QUOTE == tchar))
+				continue;
+			if (!isalpha(tchar))
+			{
+				strlen = 0;
+				if (!isspace(tchar))
+					*nextdel = sptr;
+				break;
+			}
+		}
+		if (dquote)
+		{
+			if (IDENTIFIER_QUOTE == tchar)
+			{
+				if (IDENTIFIER_QUOTE == sptr[1])
+				{
+					encoded_nextchar(&encstr);
+					sptr++;
+					continue;
+				}
+				strlen = sptr - str + 1;
+				sptr++;
+				break;
+			}
+		}
+		else
+		{
+			if (isalnum(tchar))
+				continue;
+			if (isspace(tchar))
+			{
+				strlen = sptr - str;
+				break;
+			}
+			switch (tchar)
+			{
+				case '_':
+				case '$':
+					continue;
+			}
+			strlen = sptr - str;
+			*nextdel = sptr;
+			break;
+		}
+	}
+	if (NULL == *nextdel)
+	{
+		for (; *sptr; sptr++)
+		{
+			if (!isspace(*sptr))
+			{
+				*nextdel = sptr;
+				break;
+			}
+		}
+	}
+	return strlen;
 }
 
 static int
@@ -2905,8 +3066,12 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 * Handle literals (date, time, timestamp) and ODBC scalar
 	 * functions
 	 */
-	else if (oldchar == '{')
+	else if (oldchar == ODBC_ESCAPE_START)
 	{
+		int npos = F_NewPos(qb);
+		BOOL	addsp = TRUE;
+		unsigned char	tchar;
+
 		if (SQL_ERROR == convert_escape(qp, qb))
 		{
 			if (0 == qb->errornumber)
@@ -2917,21 +3082,12 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			mylog("%s convert_escape error\n", func);
 			return SQL_ERROR;
 		}
-		if (isalnum((UCHAR)F_OldPtr(qp)[1]))
-			CVT_APPEND_CHAR(qb, ' ');
 		return SQL_SUCCESS;
 	}
 	/* End of an escape sequence */
-	else if (oldchar == '}')
+	else if (oldchar == ODBC_ESCAPE_END)
 	{
-		if (qp->statement_type == STMT_TYPE_PROCCALL)
-		{
-			if (qp->proc_no_param)
-				CVT_APPEND_STR(qb, "()");
-		}
-		else if (!isspace(F_OldPtr(qp)[1]))
-			CVT_APPEND_CHAR(qb, ' ');
-		return SQL_SUCCESS;
+		return QB_end_brace(qb);
 	}
 	else if (oldchar == '@' &&
 		 strnicmp(F_OldPtr(qp), "@@identity", 10) == 0)
@@ -3196,11 +3352,11 @@ inolog("num_p=%d\n", num_p);
         		memset(bindreq + leng, 0, sizeof(Int2) * num_p);  /* initialize by text format */
 		for (i = stmt->proc_return, j = 0; i < num_params; i++)
 		{
-inolog("%dth paramater type oid is %u\n", i, parameters[i].PGType);
+inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(stmt, parameters[i]));
 			if (discard_output &&
 			    SQL_PARAM_OUTPUT == parameters[i].paramType)
 				continue;
-			if (PG_TYPE_BYTEA == parameters[i].PGType)
+			if (PG_TYPE_BYTEA == PIC_dsp_pgtype(stmt, parameters[i]))
 			{
 				mylog("%dth parameter is of binary format\n", j);
 				memcpy(bindreq + leng + sizeof(Int2) * j,
@@ -3649,10 +3805,10 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 
 	param_ctype = apara->CType;
 	param_sqltype = ipara->SQLType;
-	param_pgtype = ipara->PGType;
+	param_pgtype = PIC_dsp_pgtype(qb->stmt, *ipara);
 
-	mylog("%s: from(fcType)=%d, to(fSqlType)=%d\n", func,
-				param_ctype, param_sqltype);
+	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u)\n", func,
+				param_ctype, param_sqltype, param_pgtype);
 
 	/* replace DEFAULT with something we can use */
 	if (param_ctype == SQL_C_DEFAULT)
@@ -4057,8 +4213,10 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				lobj_oid = pdata->pdata[param_number].lobj_oid;
 			else
 			{
+				BOOL	is_in_trans_at_entry = CC_is_in_trans(conn);
+
 				/* begin transaction if needed */
-				if (!CC_is_in_trans(conn))
+				if (!is_in_trans_at_entry)
 				{
 					if (!CC_begin(conn))
 					{
@@ -4091,7 +4249,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				odbc_lo_close(conn, lobj_fd);
 
 				/* commit transaction if needed */
-				if (!ci->drivers.use_declarefetch && CC_does_autocommit(conn))
+				if (!is_in_trans_at_entry)
 				{
 					if (!CC_commit(conn))
 					{
@@ -4260,7 +4418,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 					*output_count = F_NewPos(qb);
 				break;
 
-			case '}':
+			case ODBC_ESCAPE_END:
 				stop = (0 == innerParenthesis);
 				break;
 
@@ -4305,12 +4463,13 @@ static int
 convert_escape(QueryParse *qp, QueryBuild *qb)
 {
 	CSTR func = "convert_escape";
+	ConnectionClass *conn = qb->conn;
 	RETCODE	retval = SQL_SUCCESS;
 	char		buf[1024], buf_small[128], key[65];
 	UCHAR	ucv;
 	UInt4		prtlen;
  
-	if (F_OldChar(qp) == '{') /* skip the first { */
+	if (F_OldChar(qp) == ODBC_ESCAPE_START) /* skip the first { */
 		F_OldNext(qp);
 	/* Separate off the key, skipping leading and trailing whitespace */
 	while ((ucv = F_OldChar(qp)) != '\0' && isspace(ucv))
@@ -4318,6 +4477,59 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * procedure calls
 	 */
+	/* '?=' to accept return values exists ? */
+	if (F_OldChar(qp) == '?')
+	{
+		qb->param_number++;
+		qb->proc_return = 1;
+		if (qb->stmt)
+			qb->stmt->proc_return = 1;
+		while (isspace((UCHAR) qp->statement[++qp->opos]));
+		if (F_OldChar(qp) != '=')
+		{
+			F_OldPrior(qp);
+			return SQL_SUCCESS;
+		}
+		while (isspace((UCHAR) qp->statement[++qp->opos]));
+	}
+	/**
+	if (qp->statement_type == STMT_TYPE_PROCCALL)
+	{
+		int	lit_call_len = 4;
+
+		// '?=' to accept return values exists ?
+		if (F_OldChar(qp) == '?')
+		{
+			qb->param_number++;
+			qb->proc_return = 1;
+			if (qb->stmt)
+				qb->stmt->proc_return = 1;
+			while (isspace((UCHAR) qp->statement[++qp->opos]));
+			if (F_OldChar(qp) != '=')
+			{
+				F_OldPrior(qp);
+				return SQL_SUCCESS;
+			}
+			while (isspace((UCHAR) qp->statement[++qp->opos]));
+		}
+		if (strnicmp(F_OldPtr(qp), "call", lit_call_len) ||
+			!isspace((UCHAR) F_OldPtr(qp)[lit_call_len]))
+		{
+			F_OldPrior(qp);
+			return SQL_SUCCESS;
+		}
+		qp->opos += lit_call_len;
+		if (qb->num_io_params > 1 ||
+		    (0 == qb->proc_return &&
+		     PG_VERSION_GE(conn, 7.3)))
+			CVT_APPEND_STR(qb, "SELECT * FROM");
+		else
+			CVT_APPEND_STR(qb, "SELECT");
+		if (my_strchr(conn, F_OldPtr(qp), '('))
+			qp->proc_no_param = FALSE;
+		return SQL_SUCCESS;
+	}
+	**/
 
 	sscanf(F_OldPtr(qp), "%32s", key);
 	while ((ucv = F_OldChar(qp)) != '\0' && (!isspace(ucv)))
@@ -4327,62 +4539,83 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
     
 	/* Avoid the concatenation of the function name with the previous word. Aceto */
 
-	if (F_NewPos(qb) > 0 && isalnum((UCHAR)F_NewPtr(qb)[-1]))
-		CVT_APPEND_CHAR(qb, ' ');
 	
 	if (stricmp(key, "call") == 0)
 	{
 		Int4 funclen;
 		const char *nextdel;
 
+		if (SQL_ERROR == QB_start_brace(qb))
+			return SQL_ERROR;
 		if (qb->num_io_params > 1 ||
 		    (0 == qb->proc_return &&
 		     PG_VERSION_GE(conn, 7.3)))
 			CVT_APPEND_STR(qb, "SELECT * FROM ");
 		else
 			CVT_APPEND_STR(qb, "SELECT ");
-		/* Continue at inner_process_tokens loop */
-		F_OldPrior(qp);
-		return SQL_SUCCESS;
+		funclen = findIdentifier(F_OldPtr(qp), qb->ccsc, &nextdel);
+		if (nextdel && ODBC_ESCAPE_END == *nextdel)
+		{
+			CVT_APPEND_DATA(qb, F_OldPtr(qp), funclen);
+			CVT_APPEND_STR(qb, "()");
+			if (SQL_ERROR == QB_end_brace(qb))
+				return SQL_ERROR;
+			/* positioned at } */
+			qp->opos += (nextdel - F_OldPtr(qp));
+		}
+		else
+		{
+			/* Continue at inner_process_tokens loop */
+			F_OldPrior(qp);
+			return SQL_SUCCESS;
+		}
 	}
 	else if (stricmp(key, "d") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
-		if (PG_VERSION_LT(qb->conn, 7.3))
-			prtlen = snprintf(buf, sizeof(buf), "%s ", buf_small);
+		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		if (PG_VERSION_LT(conn, 7.3))
+			prtlen = snprintf(buf, sizeof(buf), "%s", buf_small);
 		else
-			prtlen = snprintf(buf, sizeof(buf), "%s::date ", buf_small);
+			prtlen = snprintf(buf, sizeof(buf), "%s::date", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
+		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
 	else if (stricmp(key, "t") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
+		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
 		prtlen = snprintf(buf, sizeof(buf), "%s::time", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
+		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
 	else if (stricmp(key, "ts") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
-		if (PG_VERSION_LT(qb->conn, 7.1))
+		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		if (PG_VERSION_LT(conn, 7.1))
 			prtlen = snprintf(buf, sizeof(buf), "%s::datetime", buf_small);
 		else
 			prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
+		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
 	else if (stricmp(key, "oj") == 0) /* {oj syntax support for 7.1 * servers */
 	{
 		if (qb->stmt)
 			SC_set_outer_join(qb->stmt);
+		retval = QB_start_brace(qb);
+		/* Continue at inner_process_tokens loop */
 		F_OldPrior(qp);
-		return SQL_SUCCESS; /* Continue at inner_process_tokens loop */
+		return retval;
 	}
-	else if (stricmp(key, "escape") == 0) /* like escape support for 7.1+ servers */
+	else if (stricmp(key, "escape") == 0) /* like escape syntax support for 7.1+ servers */
 	{
-		CVT_APPEND_STR(qb, key);
-		return SQL_SUCCESS;
+		/* Literal; return the escape part adding type cast */
+		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		prtlen = snprintf(buf, sizeof(buf), "%s %s", key, buf_small);
+		CVT_APPEND_DATA(qb, buf, prtlen);
+		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
 	else if (stricmp(key, "fn") == 0)
 	{
@@ -4627,7 +4860,7 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 	st->infinity = 0;
 
 	/* escape sequence ? */
-	if (buf[0] == '{')
+	if (buf[0] == ODBC_ESCAPE_START)
 	{
 		while (*(++buf) && *buf != LITERAL_QUOTE);
 		if (!(*buf))
@@ -5125,6 +5358,13 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 	GetDataInfo	*gdata_info = SC_get_GDTI(stmt);
 	int			factor;
 
+	oid = ATOI32U(value);
+	if (0 == oid)
+	{
+		if (pcbValue)
+			*pcbValue = SQL_NULL_DATA;
+		return COPY_OK;
+	}
 	switch (fCType)
 	{
 		case SQL_C_CHAR:
@@ -5161,7 +5401,6 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 			}
 		}
 
-		oid = ATOI32U(value);
 		stmt->lobj_fd = odbc_lo_open(conn, oid, INV_READ);
 		if (stmt->lobj_fd < 0)
 		{

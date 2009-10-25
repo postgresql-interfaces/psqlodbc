@@ -282,6 +282,130 @@ decideHowToPrepare(StatementClass *stmt, BOOL force)
 	return method;
 }
 
+/* dont/should/can send Parse request ? */
+enum {
+	 doNothing = 0
+	,allowParse
+	,preferParse
+	,shouldParse
+	,usingCommand
+};
+
+#define	ONESHOT_CALL_PARSE		allowParse
+#define	NOPARAM_ONESHOT_CALL_PARSE	doNothing
+
+static
+int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
+{
+	SQLSMALLINT	num_params = stmt->num_params;
+	ConnectionClass	*conn = SC_get_conn(stmt);
+	ConnInfo *ci = &(conn->connInfo);
+	int		nCallParse = doNothing, how_to_prepare = 0;
+	BOOL		bNeedsTrans = FALSE;
+
+	if (num_params < 0)
+		PGAPI_NumParams(stmt, &num_params);
+	how_to_prepare = decideHowToPrepare(stmt, checkOnly);
+	if (checkOnly)
+	{
+		if (num_params <= 0)
+			return doNothing;
+	}
+	else
+	{
+		switch (how_to_prepare)
+		{
+			case USING_PREPARE_COMMAND:
+				return usingCommand;
+			case NAMED_PARSE_REQUEST:
+				return shouldParse;
+			case PARSE_TO_EXEC_ONCE:
+				switch (stmt->prepared)
+				{
+					case PREPARED_TEMPORARILY:
+						nCallParse = preferParse;
+						break;
+					default:
+						if (num_params <= 0)
+							nCallParse = NOPARAM_ONESHOT_CALL_PARSE;
+						else
+							nCallParse = ONESHOT_CALL_PARSE;
+				}
+				break;
+			default:
+				return doNothing;
+		}
+	}
+	if (PG_VERSION_LE(conn, 7.3))
+		return nCallParse;
+
+	if (num_params > 0)
+	{
+		int	param_number = -1;
+		ParameterInfoClass *apara;
+		ParameterImplClass *ipara;
+		OID	pgtype;
+
+		while (TRUE)
+		{
+			SC_param_next(stmt, &param_number, &apara, &ipara);
+			if (!ipara || !apara)
+				break;
+			pgtype = PIC_get_pgtype(*ipara);
+			if (checkOnly)
+			{
+				switch (ipara->SQLType)
+				{
+					case SQL_LONGVARBINARY:
+						if (0 == pgtype)
+						{
+							if (ci->bytea_as_longvarbinary &&
+							    0 != conn->lobj_type)
+								nCallParse = shouldParse;
+						}
+						break;
+					case SQL_CHAR:
+						if (ci->cvt_null_date_string)
+							nCallParse = shouldParse;
+						break;
+				}
+			}
+			else
+			{
+				BOOL	bBytea = FALSE;
+
+				switch (ipara->SQLType)
+				{
+					case SQL_LONGVARBINARY:
+						if (conn->lobj_type == pgtype ||
+					    	    PG_TYPE_OID == pgtype)
+							bNeedsTrans = TRUE;
+						else if (PG_TYPE_BYTEA == pgtype)
+							bBytea = TRUE;
+						else if (0 == pgtype)
+						{
+							if (ci->bytea_as_longvarbinary)
+								bBytea = TRUE;
+							else
+								bNeedsTrans = TRUE;
+						}
+						if (bBytea)
+							if (nCallParse < preferParse)
+								nCallParse = preferParse;
+						break;
+				}
+			}
+		}
+	}
+	if (bNeedsTrans &&
+	    PARSE_TO_EXEC_ONCE == how_to_prepare)
+	{
+		if (!CC_is_in_trans(conn) && CC_does_autocommit(conn))
+			nCallParse = doNothing;
+	}
+	return nCallParse;
+}
+
 /*
  *	The execution after all parameters were resolved.
  */
@@ -308,15 +432,19 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	/* Prepare the statement if possible at backend side */
 	if (!stmt->inaccurate_result)
 	{
+		/**
 		switch (decideHowToPrepare(stmt, FALSE))
 		{
 			case USING_PREPARE_COMMAND:
 			case NAMED_PARSE_REQUEST:
 #ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
 			case PARSE_TO_EXEC_ONCE:
-#endif/* BYPASS_ONESHOT_PLAN_EXECUTION */
+#endif
 				prepare_before_exec = TRUE;
 		}
+		**/
+		if (HowToPrepareBeforeExec(stmt, FALSE) >= allowParse)
+			prepare_before_exec = TRUE;
 	}
 inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.use_server_side_prepare);
 	/* Create the statement with parameters substituted. */
@@ -903,63 +1031,19 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		   We sometimes need to know about the PG type of binding
 		   parameters even in case of non-prepared statements.
 		 */
-		BOOL	bCallPrepare = FALSE;
+		int	nCallParse = doNothing;
 
-		ConnInfo *ci = &(conn->connInfo);
-		if (NOT_YET_PREPARED == stmt->prepared &&
-		    PROTOCOL_74(ci) &&
-		    ci->use_server_side_prepare &&
-		   (ci->bytea_as_longvarbinary || /* both lo and bytea are LO */
-		    ci->cvt_null_date_string))
+		if (NOT_YET_PREPARED == stmt->prepared)
 		{
-			SQLSMALLINT	num_params = stmt->num_params;
-			if (num_params < 0)
-				PGAPI_NumParams(stmt, &num_params);
-			if (num_params > 0)
+			switch (nCallParse = HowToPrepareBeforeExec(stmt, TRUE))
 			{
-				int	param_number = -1;
-				ParameterInfoClass *apara;
-				ParameterImplClass *ipara;
-				BOOL	reqOK = FALSE;
-
-				switch (decideHowToPrepare(stmt, TRUE))
-				{
-					case NAMED_PARSE_REQUEST:
-					case PARSE_TO_EXEC_ONCE:
-					case PARSE_REQ_FOR_INFO:
-						reqOK = TRUE;
-				}
-				while (reqOK)
-				{
-					SC_param_next(stmt, &param_number, &apara, &ipara);
-					if (!ipara || !apara)
-						break;
-					if (SQL_LONGVARBINARY == ipara->SQLType)
-					{
-						if (ci->bytea_as_longvarbinary)
-						{
-							bCallPrepare = TRUE;
-							break;
-						}
-					}
-					else if (SQL_CHAR == ipara->SQLType)
-					{
-						if (SQL_C_CHAR == apara->CType &&
-						    ci->cvt_null_date_string)
-						{
-							bCallPrepare = TRUE;
-							break;
-						}
-					}
-				}
+				case shouldParse:
+					if (retval = prepareParameters(stmt, TRUE), SQL_ERROR == retval)
+						goto cleanup;
+					break;
 			}
 		}
-		if (bCallPrepare)
-		{
-			if (retval = prepareParameters(stmt), SQL_ERROR == retval)
-				goto cleanup;
-		}
-mylog("prepareParameters %d end\n", stmt->prepare);
+mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCallParse ? "" : "not", stmt->prepare);
 
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
@@ -1481,7 +1565,7 @@ PGAPI_PutData(
 	char	   *buffer, *putbuf, *allocbuf = NULL;
 	Int2		ctype;
 	SQLLEN		putlen;
-	BOOL		lenset = FALSE;
+	BOOL		lenset = FALSE, handling_lo = FALSE;
 
 	mylog("%s: entering...\n", func);
 
@@ -1554,7 +1638,8 @@ PGAPI_PutData(
 			putlen = ctype_length(ctype);
 	}
 	putbuf = rgbValue;
-	if (current_iparam->PGType == conn->lobj_type && SQL_C_CHAR == ctype)
+	handling_lo = (PIC_dsp_pgtype(stmt, *current_iparam) == conn->lobj_type);
+	if (handling_lo && SQL_C_CHAR == ctype)
 	{
 		allocbuf = malloc(putlen / 2 + 1);
 		if (allocbuf)
@@ -1589,7 +1674,7 @@ PGAPI_PutData(
 
 		/* Handle Long Var Binary with Large Objects */
 		/* if (current_iparam->SQLType == SQL_LONGVARBINARY) */
-		if (current_iparam->PGType == conn->lobj_type)
+		if (handling_lo)
 		{
 			/* begin transaction if needed */
 			if (!CC_is_in_trans(conn))
@@ -1648,7 +1733,7 @@ PGAPI_PutData(
 		mylog("PGAPI_PutData: (>1) cbValue = %d\n", cbValue);
 
 		/* if (current_iparam->SQLType == SQL_LONGVARBINARY) */
-		if (current_iparam->PGType == conn->lobj_type)
+		if (handling_lo)
 		{
 			/* the large object fd is in EXEC_buffer */
 			retval = odbc_lo_write(conn, estmt->lobj_fd, putbuf, (Int4) putlen);

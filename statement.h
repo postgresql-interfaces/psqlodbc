@@ -388,6 +388,8 @@ enum {
 enum
 {
 	NOT_YET_PREPARED = 0
+	,PREPARING_PERMANENTLY 
+	,PREPARING_TEMPORARILY
 	,PREPARED_PERMANENTLY 
 	,PREPARED_TEMPORARILY
 	,ONCE_DESCRIBED
@@ -428,6 +430,7 @@ enum
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
 #define SC_forget_unnamed(a)	(PREPARED_TEMPORARILY == (a)->prepared ? SC_set_prepared(a, ONCE_DESCRIBED) : (void) 0)
 #define SC_returns_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
+#define SC_determine_statement_type(a) (STMT_TYPE_SELECT != (a)->statement_type ? (a)->statement_type : ((a)->statement_type = || statement_type((a)->statement)))
 
 
 /* For Multi-thread */
@@ -509,7 +512,8 @@ RETCODE		DiscardStatementSvp(StatementClass *self, RETCODE, BOOL errorOnly);
 
 BOOL		SendParseRequest(StatementClass *self, const char *name,
 			const char *query, Int4 qlen, Int2 num_params);
-BOOL		SendDescribeRequest(StatementClass *self, const char *name);
+BOOL		SyncParseRequest(ConnectionClass *conn);
+BOOL		SendDescribeRequest(StatementClass *self, const char *name, BOOL paramAlso);
 BOOL		SendBindRequest(StatementClass *self, const char *name);
 BOOL		BuildBindRequest(StatementClass *stmt, const char *name);
 BOOL		SendExecuteRequest(StatementClass *stmt, const char *portal, UInt4 count);

@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.131 2009/07/06 15:23:02 h-saito Exp $
+ * $Id: psqlodbc.h,v 1.132 2009/10/25 13:36:31 hinoue Exp $
  *
  */
 
@@ -268,6 +268,8 @@ BOOL isSqlServr();
 #define	SEARCH_PATTERN_ESCAPE				'\\'
 #define	LITERAL_QUOTE					'\''
 #define	IDENTIFIER_QUOTE				'\"'
+#define	ODBC_ESCAPE_START				'{'
+#define	ODBC_ESCAPE_END					'}'
 #define	DOLLAR_QUOTE					'$'
 #define	LITERAL_EXT					'E'
 #define	PG_CARRIAGE_RETURN				'\r'

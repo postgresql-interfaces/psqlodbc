@@ -2693,7 +2693,7 @@ PGAPI_SpecialColumns(
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const char	*szSchemaName, *eq_string;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType);
+	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d scope=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType, fScope);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
