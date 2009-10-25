@@ -83,8 +83,6 @@ PGAPI_BindParameter(
 	ipdopts->parameters[ipar].decimal_digits = ibScale;
 	ipdopts->parameters[ipar].precision = 0;
 	ipdopts->parameters[ipar].scale = 0;
-	if (0 == ipdopts->parameters[ipar].PGType)
-		ipdopts->parameters[ipar].PGType = sqltype_to_pgtype(stmt, fSqlType);
 #if (ODBCVER >= 0x0300)
 	switch (fCType)
 	{
@@ -135,7 +133,7 @@ PGAPI_BindParameter(
 		SC_recycle_statement(stmt);
 
 	mylog("%s: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d,", func, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale);
-	mylog("rgbValue=%p, pcbValue=%p\n", rgbValue, pcbValue);
+	mylog("rgbValue=%p(%d), pcbValue=%p\n", rgbValue, cbValueMax, pcbValue);
 
 	return SQL_SUCCESS;
 }
@@ -309,6 +307,7 @@ PGAPI_DescribeParam(
 	IPDFields	*ipdopts;
 	RETCODE		ret = SQL_SUCCESS;
 	int		num_params;
+	OID		pgtype;
 
 	mylog("%s: entering...%d\n", func, ipar);
 
@@ -355,6 +354,7 @@ inolog("howTo=%d\n", SC_get_prepare_method(stmt));
 	}
 
 	ipar--;
+	pgtype = PIC_get_pgtype(ipdopts->parameters[ipar]);
 	/*
 	 * This implementation is not very good, since it is supposed to
 	 * describe
@@ -362,12 +362,11 @@ inolog("howTo=%d\n", SC_get_prepare_method(stmt));
 	/* parameter markers, not bound parameters.  */
 	if (pfSqlType)
 	{
-inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType,
-ipdopts->parameters[ipar].PGType);
+inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, pgtype);
 		if (ipdopts->parameters[ipar].SQLType)
 			*pfSqlType = ipdopts->parameters[ipar].SQLType;
-		else if (ipdopts->parameters[ipar].PGType)
-			*pfSqlType = pgtype_to_concise_type(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC);
+		else if (pgtype)
+			*pfSqlType = pgtype_to_concise_type(stmt, pgtype, PG_STATIC);
 		else
 		{
 			ret = SQL_ERROR;
@@ -381,8 +380,8 @@ ipdopts->parameters[ipar].PGType);
 		*pcbParamDef = 0;
 		if (ipdopts->parameters[ipar].SQLType)
 			*pcbParamDef = ipdopts->parameters[ipar].column_size;
-		if (0 == *pcbParamDef && ipdopts->parameters[ipar].PGType)
-			*pcbParamDef = pgtype_column_size(stmt, ipdopts->parameters[ipar].PGType, PG_STATIC, PG_STATIC);
+		if (0 == *pcbParamDef && pgtype)
+			*pcbParamDef = pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC);
 	}
 
 	if (pibScale)
@@ -390,8 +389,8 @@ ipdopts->parameters[ipar].PGType);
 		*pibScale = 0;
 		if (ipdopts->parameters[ipar].SQLType)
 			*pibScale = ipdopts->parameters[ipar].decimal_digits;
-		else if (ipdopts->parameters[ipar].PGType)
-			*pibScale = pgtype_scale(stmt, ipdopts->parameters[ipar].PGType, -1);
+		else if (pgtype)
+			*pibScale = pgtype_scale(stmt, pgtype, -1);
 	}
 
 	if (pfNullable)
@@ -614,7 +613,7 @@ reset_a_iparameter_binding(IPDFields *self, int ipar)
 	self->parameters[ipar].decimal_digits = 0;
 	self->parameters[ipar].precision = 0;
 	self->parameters[ipar].scale = 0;
-	self->parameters[ipar].PGType = 0;
+	PIC_set_pgtype(self->parameters[ipar], 0);
 }
 
 int

@@ -89,6 +89,11 @@ typedef struct
 	PutDataClass	*pdata;
 }	PutDataInfo;
 
+/* Macros to handle pgtype of parameters */
+#define	PIC_get_pgtype(pari) ((pari).PGType)
+#define	PIC_set_pgtype(pari, type) ((pari).PGType = (type))
+#define	PIC_dsp_pgtype(stmt, pari) ((pari).PGType ? (pari).PGType : sqltype_to_pgtype(stmt, (pari).SQLType))
+
 void	extend_column_bindings(ARDFields *opts, int num_columns);
 void	reset_a_column_binding(ARDFields *opts, int icol);
 void	extend_parameter_bindings(APDFields *opts, int num_params);

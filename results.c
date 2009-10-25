@@ -33,6 +33,8 @@
 
 #include "pgapifunc.h"
 
+/*	Helper macro */
+#define getEffectiveOid(conn, fi) pg_true_type((conn), (fi)->columntype, FI_type(fi))
 
 
 RETCODE		SQL_API
@@ -339,7 +341,7 @@ inolog("answering bookmark info\n");
 	}
 	if (FI_is_applicable(fi))
 	{
-		fieldtype = pg_true_type(conn, fi->columntype, FI_type(fi));
+		fieldtype = getEffectiveOid(conn, fi);
 		if (NAME_IS_VALID(fi->column_alias))
 			col_name = GET_NAME(fi->column_alias);
 		else
@@ -477,7 +479,7 @@ PGAPI_ColAttributes(
 		return SQL_INVALID_HANDLE;
 	}
 	stmt_updatable = SC_is_updatable(stmt)
-		/* The folllowing doesn't seem appropriate for client side cursors
+		/* The following doesn't seem appropriate for client side cursors
 		  && stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY
 		 */
 		;
@@ -561,7 +563,7 @@ inolog("answering bookmark info\n");
 	if (col_idx < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[col_idx];
 	if (FI_is_applicable(fi))
-		field_type = pg_true_type(conn, fi->columntype, FI_type(fi));
+		field_type = getEffectiveOid(conn, fi);
 	else
 	{
 		BOOL	build_fi = FALSE;
@@ -624,7 +626,7 @@ inolog("answering bookmark info\n");
 	if (FI_is_applicable(fi))
 	{
 		ti = fi->ti;
-		field_type = pg_true_type(conn, fi->columntype, FI_type(fi));
+		field_type = getEffectiveOid(conn, fi);
 	}
 
 	mylog("colAttr: col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
@@ -3668,6 +3670,7 @@ SC_pos_update(StatementClass *stmt,
 		int			j;
 		ConnInfo	*ci = &(conn->connInfo);
 		APDFields	*apdopts;
+		IPDFields	*ipdopts;
 		OID		fieldtype = 0;
 		const char *bestitem = GET_NAME(ti->bestitem);
 		const char *bestqual = GET_NAME(ti->bestqual);
@@ -3692,7 +3695,9 @@ SC_pos_update(StatementClass *stmt,
 		apdopts = SC_get_APDF(s.qstmt);
 		apdopts->param_bind_type = opts->bind_size;
 		apdopts->param_offset_ptr = opts->row_offset_ptr;
+		ipdopts = SC_get_IPDF(s.qstmt);
 		SC_set_delegate(s.stmt, s.qstmt);
+		extend_iparameter_bindings(ipdopts, num_cols);
 		for (i = j = 0; i < num_cols; i++)
 		{
 			if (used = bindings[i].used, used != NULL)
@@ -3705,7 +3710,9 @@ SC_pos_update(StatementClass *stmt,
 				mylog("%d used=%d\n", i, *used);
 				if (*used != SQL_IGNORE && fi[i]->updatable)
 				{
-					fieldtype = QR_get_field_type(s.res, i);
+					/* fieldtype = QR_get_field_type(s.res, i); */
+					fieldtype = getEffectiveOid(conn, fi[i]);
+					PIC_set_pgtype(ipdopts->parameters[j], fieldtype);
 					PGAPI_BindParameter(hstmt,
 						(SQLUSMALLINT) ++j,
 						SQL_PARAM_INPUT,
@@ -4036,6 +4043,7 @@ SC_pos_add(StatementClass *stmt,
 	ConnInfo	*ci;
 	ARDFields	*opts = SC_get_ARDF(stmt);
 	APDFields	*apdopts;
+	IPDFields	*ipdopts;
 	BindInfoClass *bindings = opts->bindings;
 	FIELD_INFO	**fi = SC_get_IRDF(stmt)->fi;
 	char		addstr[4096];
@@ -4082,8 +4090,10 @@ SC_pos_add(StatementClass *stmt,
 	apdopts = SC_get_APDF(s.qstmt);
 	apdopts->param_bind_type = opts->bind_size;
 	apdopts->param_offset_ptr = opts->row_offset_ptr;
+	ipdopts = SC_get_IPDF(s.qstmt);
 	SC_set_delegate(s.stmt, s.qstmt);
 	ci = &(conn->connInfo);
+	extend_iparameter_bindings(ipdopts, num_cols);
 	for (i = add_cols = 0; i < num_cols; i++)
 	{
 		if (used = bindings[i].used, used != NULL)
@@ -4096,11 +4106,13 @@ SC_pos_add(StatementClass *stmt,
 			mylog("%d used=%d\n", i, *used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
-				fieldtype = QR_get_field_type(s.res, i);
+				/* fieldtype = QR_get_field_type(s.res, i); */
+				fieldtype = getEffectiveOid(conn, fi[i]);
 				if (add_cols)
 					sprintf(addstr, "%s, \"%s\"", addstr, GET_NAME(fi[i]->column_name));
 				else
 					sprintf(addstr, "%s\"%s\"", addstr, GET_NAME(fi[i]->column_name));
+				PIC_set_pgtype(ipdopts->parameters[add_cols], fieldtype);
 				PGAPI_BindParameter(hstmt,
 					(SQLUSMALLINT) ++add_cols,
 					SQL_PARAM_INPUT,
