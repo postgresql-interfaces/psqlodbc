@@ -9,7 +9,18 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.04.0100 Release </h2>
+<h2>psqlODBC 08.xx.xxxx Release </h2>
+Changes:<br>
+1.) Fix a column uodatability problem reported by Tom Goodman.<br>
+2.) Display SSL mode list properly on setup dialog.<br>
+3.) Don't truncate the result of msgtowstr()/wstrtomsg().<br>
+4.) Implement ConfigDriver() function.<br>
+5.) check of the SQLLEN definition by the unixODBC version by SQLColAttribute.<br>
+6.) Take WITH cte staments into account.<br>
+7.) Fix a bug about UTF8 handling.<br>
+8.) Wait a ReadyForQuery Message after errors correctly.<br>
+<br>
+<li>Notes: psqlODBC 08.04.0100</li><br>
 Changes:<br>
 1.) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br>
 2.) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.<br>
