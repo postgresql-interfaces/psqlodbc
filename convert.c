@@ -4318,43 +4318,6 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * procedure calls
 	 */
-	if (qp->statement_type == STMT_TYPE_PROCCALL)
-	{
-		int	lit_call_len = 4;
-		ConnectionClass *conn = qb->conn;
-
-		/* '?=' to accept return values exists ? */
-		if (F_OldChar(qp) == '?')
-		{
-			qb->param_number++;
-			qb->proc_return = 1;
-			if (qb->stmt)
-				qb->stmt->proc_return = 1;
-			while (isspace((UCHAR) qp->statement[++qp->opos]));
-			if (F_OldChar(qp) != '=')
-			{
-				F_OldPrior(qp);
-				return SQL_SUCCESS;
-			}
-			while (isspace((UCHAR) qp->statement[++qp->opos]));
-		}
-		if (strnicmp(F_OldPtr(qp), "call", lit_call_len) ||
-			!isspace((UCHAR) F_OldPtr(qp)[lit_call_len]))
-		{
-			F_OldPrior(qp);
-			return SQL_SUCCESS;
-		}
-		qp->opos += lit_call_len;
-		if (qb->num_io_params > 1 ||
-		    (0 == qb->proc_return &&
-		     PG_VERSION_GE(qb->conn, 7.3)))
-			CVT_APPEND_STR(qb, "SELECT * FROM");
-		else
-			CVT_APPEND_STR(qb, "SELECT");
-		if (my_strchr(conn, F_OldPtr(qp), '('))
-			qp->proc_no_param = FALSE;
-		return SQL_SUCCESS;
-	}
 
 	sscanf(F_OldPtr(qp), "%32s", key);
 	while ((ucv = F_OldChar(qp)) != '\0' && (!isspace(ucv)))
@@ -4367,7 +4330,22 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	if (F_NewPos(qb) > 0 && isalnum((UCHAR)F_NewPtr(qb)[-1]))
 		CVT_APPEND_CHAR(qb, ' ');
 	
-	if (stricmp(key, "d") == 0)
+	if (stricmp(key, "call") == 0)
+	{
+		Int4 funclen;
+		const char *nextdel;
+
+		if (qb->num_io_params > 1 ||
+		    (0 == qb->proc_return &&
+		     PG_VERSION_GE(conn, 7.3)))
+			CVT_APPEND_STR(qb, "SELECT * FROM ");
+		else
+			CVT_APPEND_STR(qb, "SELECT ");
+		/* Continue at inner_process_tokens loop */
+		F_OldPrior(qp);
+		return SQL_SUCCESS;
+	}
+	else if (stricmp(key, "d") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, '}', sizeof(buf_small));
