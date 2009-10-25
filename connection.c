@@ -2789,12 +2789,11 @@ inolog("Discarded the first SAVEPOINT\n");
 					if (!QR_fetch_tuples(res, self, cursor))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res), func);
-						ReadyToReturn = TRUE;
 						if (PORES_FATAL_ERROR == QR_get_rstatus(res))
 							retres = cmdres;
 						else
 							retres = NULL;
-						break;
+						aborted = TRUE;
 					}
 					query_completed = TRUE;
 				}

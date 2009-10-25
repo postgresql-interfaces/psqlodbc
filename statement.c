@@ -151,6 +151,9 @@ static struct
 		STMT_TYPE_SPECIAL, "CHECKPOINT"
 	}
 	,{
+		STMT_TYPE_WITH, "WITH"
+	}
+	,{
 		0, NULL
 	}
 };
@@ -993,7 +996,7 @@ SC_pre_execute(StatementClass *self)
 		mylog("              preprocess: status = READY\n");
 
 		self->miscinfo = 0;
-		if (self->statement_type == STMT_TYPE_SELECT)
+		if (SC_returns_rows(self))
 		{
 			char		old_pre_executing = self->pre_executing;
 

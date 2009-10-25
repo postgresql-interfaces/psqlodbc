@@ -286,7 +286,7 @@ inolog("answering bookmark info\n");
 	fi = NULL;
 	if (icol < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[icol];
-	if (!FI_is_applicable(fi) && !stmt->catalog_result && SC_is_parse_forced(stmt) && STMT_TYPE_SELECT == stmt->statement_type)
+	if (!FI_is_applicable(fi) && !stmt->catalog_result && SC_is_parse_forced(stmt) && SC_returns_rows(stmt))
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -1171,7 +1171,7 @@ PGAPI_Fetch(
 
 	if (opts->bindings == NULL)
 	{
-		if (stmt->statement_type != STMT_TYPE_SELECT)
+		if (!SC_returns_rows(stmt))
 			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
@@ -1460,7 +1460,7 @@ PGAPI_ExtendedFetch(
 
 	if (opts->bindings == NULL)
 	{
-		if (stmt->statement_type != STMT_TYPE_SELECT)
+		if (!SC_returns_rows(stmt))
 			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */

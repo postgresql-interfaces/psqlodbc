@@ -686,7 +686,7 @@ QR_get_tupledata(QResultClass *self, BOOL binary)
 	BOOL	haskeyset = QR_haskeyset(self);
 	SQLULEN num_total_rows = QR_get_num_total_tuples(self);
 
-inolog("QR_get_tupledata num_fields=%d\n", self->num_fields);
+inolog("QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
 	if (!QR_get_cursor(self))
 	{
  
@@ -1229,7 +1229,9 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				mylog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
 				qlog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
 
-				rcvend = TRUE;
+				if (!internally_invoked ||
+				    PG_VERSION_LE(conn, 6.3))
+					rcvend = TRUE;
 				ret = FALSE;
 				break;
 

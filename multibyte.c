@@ -248,7 +248,7 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 					else if (character >= 0xc0)
 						stat = 2;
 				}
-				else if (stat > 2 &&
+				else if (stat >= 2 &&
 					character > 0x7f)
 					stat--;
 				else

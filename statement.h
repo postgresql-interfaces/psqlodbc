@@ -105,6 +105,7 @@ enum
 	,STMT_TYPE_INSERT
 	,STMT_TYPE_UPDATE
 	,STMT_TYPE_DELETE
+	,STMT_TYPE_WITH
 	,STMT_TYPE_CREATE
 	,STMT_TYPE_ALTER
 	,STMT_TYPE_DROP
@@ -426,6 +427,7 @@ enum
 #define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
 #define SC_forget_unnamed(a)	(PREPARED_TEMPORARILY == (a)->prepared ? SC_set_prepared(a, ONCE_DESCRIBED) : (void) 0)
+#define SC_returns_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
 
 
 /* For Multi-thread */

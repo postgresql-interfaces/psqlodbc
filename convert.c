@@ -2589,7 +2589,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 
 	SC_no_fetchcursor(stmt);
 	SC_no_pre_executable(stmt);
-	if (stmt->statement_type == STMT_TYPE_SELECT)
+	if (SC_returns_rows(stmt))
 		SC_set_pre_executable(stmt);
 	qb = &query_crt;
 	qb->query_statement = NULL;
@@ -2608,7 +2608,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	new_statement = qb->query_statement;
 
 	/* For selects, prepend a declare cursor to the statement */
-	if (stmt->statement_type == STMT_TYPE_SELECT && !stmt->internal)
+	if (SC_returns_rows(stmt) && !stmt->internal)
 	{
 		const char *opt_scroll = NULL_STRING, *opt_hold = NULL_STRING;
 

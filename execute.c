@@ -231,7 +231,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 			ret = PARSE_REQ_FOR_INFO;
 		else if (PROTOCOL_74(ci))
 		{
-			if (STMT_TYPE_SELECT == stmt->statement_type)
+			if (SC_returns_rows(stmt))
 			{
 				if (ci->drivers.use_declarefetch)
 					return PARSE_REQ_FOR_INFO;
@@ -245,7 +245,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 		}
 		else
 		{
-			if (STMT_TYPE_SELECT == stmt->statement_type &&
+			if (SC_returns_rows(stmt) &&
 			    (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type ||
 			    ci->drivers.use_declarefetch))
 				ret = PREPARE_BY_THE_DRIVER;
