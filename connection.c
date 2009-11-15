@@ -14,10 +14,11 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
+#include "loadlib.h"
+#include "connection.h"
 #ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
 #endif /* NOT_USE_LIBPQ */
-#include "connection.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -1198,6 +1199,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	return 1;
 }
 
+#ifndef	NOT_USE_LIBPQ
 CSTR	l_login_timeout = "connect_timeout";
 static char	*protocol3_opts_build(ConnectionClass *self)
 {
@@ -1267,6 +1269,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
 	return conninfo;
 }
+#endif /* NOT_USE_LIBPQ */
 
 static char CC_initial_log(ConnectionClass *self, const char *func)
 {

@@ -12,7 +12,7 @@ AM_MAINTAINER_MODE
 
 
 #
-# Decide which unixODBC driver manager to use
+# Whether unixODBC driver manager is used
 #
 AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of unixODBC (default)],
 [
@@ -36,7 +36,7 @@ AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of uni
 
 
 #
-# Decide which iODBC driver manager to use
+# Whether iODBC driver manager is used
 #
 AC_ARG_WITH(iodbc, [  --with-iodbc=DIR	  iodbc_config installation of iODBC],
 [
@@ -72,19 +72,6 @@ if test "$with_unixodbc" = yes; then
 fi
 
 #
-# SQLCOLATTRIBUTE_SQLLEN check
-#
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-	[[#include <sql.h>>
-	SQLRETURN  SQL_API SQLColAttribute
-	(SQLHSTMT StatementHandle,SQLUSMALLINT ColumnNumber,
-	SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttribute,
-	SQLSMALLINT BufferLength, SQLSMALLINT *StringLength, 
-	SQLLEN *NumercAttribute);]],[[]])],[],
-	AC_DEFINE(SQLCOLATTRIBUTE_SQLLEN, 1,
-	[Define to 1 if SQLColAttribute use SQLLEN]))
-
-#
 # ODBC include and library
 #
 
@@ -102,6 +89,50 @@ if test "$ODBC_CONFIG" != ""; then
 	fi
 	AC_MSG_NOTICE([using $ODBC_INCLUDE $ODBC_LIBS])
 fi
+
+#
+# SQLCOLATTRIBUTE_SQLLEN check
+#
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+	[[#include <sql.h>>
+	SQLRETURN  SQL_API SQLColAttribute
+	(SQLHSTMT StatementHandle,SQLUSMALLINT ColumnNumber,
+	SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttribute,
+	SQLSMALLINT BufferLength, SQLSMALLINT *StringLength, 
+	SQLLEN *NumercAttribute);]],[[]])],
+	AC_DEFINE(SQLCOLATTRIBUTE_SQLLEN, 1,
+	[Define to 1 if SQLColAttribute use SQLLEN]))
+
+
+#
+# Whether libpq functionalities are used
+#
+AC_ARG_WITH(libpq, [  --with-libpq[[=DIR]]	  [[default=yes]] DIR is the PostgreSQL base install
+			  directory or the path to pg_config
+  --without-libpq	  specify when PostgreSQL package isn't installed],
+[
+	if test "$withval" = no; then
+  		AC_DEFINE(NOT_USE_LIBPQ, 1, 
+			 [Define to 1 to build without libpq])
+		enable_openssl=no
+	else
+		if test "$withval" != yes; then
+			if test -d "$withval"; then
+    				PATH="$PATH:$withval/bin"
+				CPPFLAGS="$CPPFLAGS -I$withval/include"
+    				LDFLAGS="$LDFLAGS -L$withval/lib"
+			else
+				if test -x "$withval"; then
+					PG_CONFIG=$withval
+				else
+					AC_MSG_ERROR([specified pg_config not found])
+				fi
+			fi
+		fi
+		with_libpq=yes
+	fi
+	],
+[with_libpq=yes]) 
 
 
 #
@@ -154,16 +185,18 @@ PGAC_ARG_BOOL(enable, pthreads, yes,
 # Find libpq headers and libraries
 #
 
-AC_PATH_PROGS(PG_CONFIG, pg_config)
+if test "$with_libpq" = yes; then
+  if test -z "$PG_CONFIG"; then
+  	AC_PATH_PROGS(PG_CONFIG, pg_config)
+  fi
 
-if test -z "$PG_CONFIG"; then
-  AC_MSG_ERROR([pg_config not found (set PG_CONFIG environment variable)])
+  if test -n "$PG_CONFIG"; then
+    pg_includedir=`"$PG_CONFIG" --includedir`
+    pg_libdir=`"$PG_CONFIG" --libdir`
+    CPPFLAGS="$CPPFLAGS -I$pg_includedir"
+    LDFLAGS="$LDFLAGS -L$pg_libdir"
+  fi
 fi
-
-pg_includedir=`"$PG_CONFIG" --includedir`
-pg_libdir=`"$PG_CONFIG" --libdir`
-CPPFLAGS="$CPPFLAGS -I$pg_includedir"
-LDFLAGS="$LDFLAGS -L$pg_libdir"
 
 
 
@@ -196,10 +229,25 @@ if test "$enable_pthreads" = yes; then
 	       [AC_CHECK_LIB(pthread, pthread_create)])
 fi
 
+if test "$with_libpq" = yes; then
+  AC_CHECK_LIB(pq, PQconnectdb, [],
+	      [AC_MSG_ERROR([libpq library not found])])
+fi
+
+if test "$enable_openssl" = yes; then
+  AC_CHECK_LIB(ssl, SSL_read, [], [AC_MSG_ERROR([ssl library not found])])
+fi
+
 
 # 3. Header files
 
 AC_CHECK_HEADERS(locale.h sys/un.h sys/time.h)
+if test "$with_libpq" = yes; then
+  AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
+fi
+if test "$enable_openssl" = yes; then
+  AC_CHECK_HEADER([openssl/ssl.h],,[AC_MSG_ERROR([ssl header not found])])
+fi
 AC_HEADER_TIME
 
 
@@ -213,7 +261,6 @@ AC_CHECK_TYPES(signed char)
 
 AC_CHECK_TYPES(ssize_t)
 AC_TYPE_SIZE_T
-
 
 # 5. Structures
 
@@ -239,12 +286,12 @@ if test "$enable_pthreads" = yes; then
   AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
 
   if test x"$ac_cv_func_pthread_mutexattr_settype" = xyes; then
-    AC_TRY_COMPILE([#include <pthread.h>],
-                 [int i = PTHREAD_MUTEX_RECURSIVE;],
+    AC_COMPILE_IFELSE(AC_LANG_PROGRAM([[#include <pthread.h>]],
+                 [[int i = PTHREAD_MUTEX_RECURSIVE;]]),
                  [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE,
                             [Define if you have PTHREAD_MUTEX_RECURSIVE])],
-                 [AC_TRY_COMPILE([#include <pthread.h>],
-		                 [int i = PTHREAD_MUTEX_RECURSIVE_NP;],
+                 [AC_COMPILE_IFELSE(AC_LANG_PROGRAM([[#include <pthread.h>]],
+		                 [[int i = PTHREAD_MUTEX_RECURSIVE_NP;]]),
 		                 [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP,
                                             [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
   fi

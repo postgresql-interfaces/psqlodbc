@@ -14,31 +14,18 @@
  *	Portions Copyright (c) 1994, Regents of the University of California
  *
  * IDENTIFICATION
- *	  $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.12 2006/09/13 15:30:27 hinoue Exp $
+ *	  $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.13 2009/11/15 05:29:03 hinoue Exp $
  */
 
 
 /*
  *	NOTE:
  *
- *	There are two copies of this file, one in backend/libpq and another
- *	in interfaces/odbc.  They should be identical.  This is done so ODBC
- *	can be compiled stand-alone.
+ *	This file was copied from backend/libpq once.
  */
  
-#ifndef MD5_ODBC
-#include "postgres.h"
-#include "libpq/crypt.h"
-#else
 #include "md5.h"
-#endif
 
-#ifdef FRONTEND
-#undef palloc
-#define palloc malloc
-#undef pfree
-#define pfree free
-#endif
 
 
 /*
@@ -262,7 +249,7 @@ calculateDigestFromBuffer(uint8 *b, uint32 len, uint8 sum[16])
 static void
 bytesToHex(uint8 b[16], char *s)
 {
-	static char *hex = "0123456789abcdef";
+	static const char *hex = "0123456789abcdef";
 	int			q,
 				w;
 
@@ -296,8 +283,8 @@ bytesToHex(uint8 b[16], char *s)
  *						  characters.  you thus need to provide an array
  *						  of 33 characters, including the trailing '\0'.
  *
- *	RETURNS		  0 on failure (out of memory for internal buffers) or
- *				  non-zero on success.
+ *	RETURNS		  false on failure (out of memory for internal buffers) or
+ *				  true on success.
  *
  *	STANDARDS	  MD5 is described in RFC 1321.
  *
@@ -332,20 +319,23 @@ EncryptMD5(const char *passwd, const char *salt, size_t salt_len,
 		   char *buf)
 {
 	size_t		passwd_len = strlen(passwd);
-	char	   *crypt_buf = palloc(passwd_len + salt_len);
+	char	   *crypt_buf = malloc(passwd_len + salt_len + 1);
 	bool		ret;
+
+	if (!crypt_buf)
+		return false;
 
 	/*
 	 * Place salt at the end because it may be known by users trying to
 	 * crack the MD5 output.
 	 */
-	strcpy(crypt_buf, passwd);
+	memcpy(crypt_buf, passwd, passwd_len);
 	memcpy(crypt_buf + passwd_len, salt, salt_len);
 
 	strcpy(buf, "md5");
 	ret = md5_hash(crypt_buf, passwd_len + salt_len, buf + 3);
 
-	pfree(crypt_buf);
+	free(crypt_buf);
 
 	return ret;
 }

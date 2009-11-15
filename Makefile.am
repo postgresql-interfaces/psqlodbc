@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.52 2009/03/20 15:39:22 hinoue Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.53 2009/11/15 05:29:03 hinoue Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -22,12 +22,9 @@ endif
 
 AM_LDFLAGS = -module -no-undefined -avoid-version
 
-psqlodbca_la_LIBADD = -lpq -lssl
-psqlodbcw_la_LIBADD = -lpq -lssl
-  	 
 psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
-	environ.c execute.c lobj.c win_md5.c misc.c options.c \
+	environ.c execute.c lobj.c md5.c misc.c options.c \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
 	statement.c tuple.c dlg_specific.c loadlib.c \
 	multibyte.c odbcapi.c descriptor.c \
@@ -42,8 +39,6 @@ psqlodbca_la_SOURCES = \
 psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 	odbcapi30w.c odbcapiw.c win_unicode.c
 
-EXTRA_psqlodbca_la_SOURCES = md5.c
-EXTRA_psqlodbcw_la_SOURCES = md5.c
 
 EXTRA_DIST = license.txt readme.txt \
 	libtool.m4 psqlodbc.def psqlodbca.def \

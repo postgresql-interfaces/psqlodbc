@@ -290,7 +290,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\info.obj" \
 	"$(INTDIR)\info30.obj" \
 	"$(INTDIR)\lobj.obj" \
-	"$(INTDIR)\win_md5.obj" \
+	"$(INTDIR)\md5.obj" \
 	"$(INTDIR)\misc.obj" \
 	"$(INTDIR)\mylog.obj" \
 	"$(INTDIR)\pgapi30.obj" \

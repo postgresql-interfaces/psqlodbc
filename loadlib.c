@@ -14,13 +14,14 @@
 #ifndef	WIN32
 #include <errno.h>
 #endif /* WIN32 */
+
+#include "loadlib.h"
 #ifndef NOT_USE_LIBPQ
 #ifdef	RESET_CRYPTO_CALLBACKS
 #include <openssl/ssl.h>
 #endif /* RESET_CRYPTO_CALLBACKS */
 #include <libpq-fe.h>
 #endif /* NOT_USE_LIBPQ */
-#include "loadlib.h"
 #include "pgenlist.h"
 
 #ifdef  WIN32

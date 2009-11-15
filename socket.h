@@ -98,7 +98,10 @@ struct addrinfo
 #endif /* WIN32 */
 typedef void (WSAAPI *freeaddrinfo_func) (struct addrinfo *); 
 typedef int (WSAAPI *getaddrinfo_func) (const char *, const char *,
-	const struct addrinfo *, struct addrinfo **); 
+#ifndef	__CYGWIN__
+	const
+#endif
+	struct addrinfo *, struct addrinfo **); 
 typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *,
 	socklen_t, char *, size_t, char *, size_t, int);
 
