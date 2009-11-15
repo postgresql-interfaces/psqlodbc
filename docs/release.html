@@ -22,6 +22,10 @@ Changes:<br>
 9.) Fix a problem with {call procedure reported by Wolfgang Pasche.<br>
 10.) Cleanups about the handing of unnamed parsed statements and the handling of ODBC escape { .<br>
 11.)Link ws2_32.lib in case the compilation environment #defines _WIN32_WINNT and the value >= 0x0501.<br>
+12) Added --with(out)-libpq[=DIR} option to configure.<br>
+13) Revise autoconf/automake so that libpq/ssl header/libs are resolved at configure phase.<br>
+14) Use md5.c directly instead of win_md5.c.<br>
+15) Suppress some compiler warnings.<br>
 <br>
 <li>Notes: psqlODBC 08.04.0100</li><br>
 Changes:<br>
