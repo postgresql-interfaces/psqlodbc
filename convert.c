@@ -1099,7 +1099,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							for (i = 0, j = 0; ptr[i]; i++)
 								if (ptr[i] == '.')
 								{
-									strncpy_null(&new_string[j], lc->decimal_point, strlen(lc->decimal_point));
+									strncpy_null(&new_string[j], lc->decimal_point, cbValueMax - j);
 									j += strlen(lc->decimal_point);
 								}
 								else
@@ -2902,7 +2902,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 			continue;
 		if (sptr == str) /* the first character */
 		{
-			if (dquote = (IDENTIFIER_QUOTE == tchar))
+			if (dquote = (IDENTIFIER_QUOTE == tchar), dquote)
 				continue;
 			if (!isalpha(tchar))
 			{
@@ -3068,10 +3068,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 */
 	else if (oldchar == ODBC_ESCAPE_START)
 	{
-		int npos = F_NewPos(qb);
-		BOOL	addsp = TRUE;
-		unsigned char	tchar;
-
 		if (SQL_ERROR == convert_escape(qp, qb))
 		{
 			if (0 == qb->errornumber)
