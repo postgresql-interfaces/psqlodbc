@@ -76,8 +76,8 @@ CSTR	pgenlistdll = "PGENLISTA.dll";
 #endif /* DYNAMIC_LOAD */
 #endif /* WIN32 */
 
-#ifndef	NOT_USE_LIBPQ
 CSTR	libpq = "libpq";
+#ifndef	NOT_USE_LIBPQ
 CSTR	checkproc = "PQconninfoParse";
 static int	sslverify_available = -1;
 #endif /* NOT_USE_LIBPQ */
@@ -318,6 +318,11 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 	pqconn = PQconnectdb(conninfo);
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 	return pqconn;
+}
+#else
+BOOL	ssl_verify_available(void)
+{
+	return	FALSE;
 }
 #endif /* NOT_USE_LIBPQ */
 

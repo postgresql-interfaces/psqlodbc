@@ -3735,6 +3735,7 @@ inolog("status=%d\n", pqret);
 		{
 			mylog("password retry\n");
 			PQfinish(pqconn);
+			sock->pqconn = NULL;
 			self->sock = sock;
 			return -1;
 		}

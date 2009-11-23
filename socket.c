@@ -128,40 +128,40 @@ SOCK_Destructor(SocketClass *self)
 	mylog("SOCK_Destructor\n");
 	if (!self)
 		return;
-	if (self->socket != (SOCKETFD) -1)
-	{
 #ifndef	NOT_USE_LIBPQ
-		if (self->pqconn)
+	if (self->pqconn)
+	{
+		if (self->via_libpq)
 		{
-			if (self->via_libpq)
-			{
-				PQfinish(self->pqconn);
-				/* UnloadDelayLoadedDLLs(NULL != self->ssl); */
-			}
-			self->via_libpq = FALSE;
-			self->pqconn = NULL;
-#ifdef USE_SSL
-			self->ssl = NULL;
-#endif
+			PQfinish(self->pqconn);
+			/* UnloadDelayLoadedDLLs(NULL != self->ssl); */
 		}
-		else
+		self->via_libpq = FALSE;
+		self->pqconn = NULL;
+#ifdef USE_SSL
+		self->ssl = NULL;
+#endif
+	}
+	else
 #endif /* NOT_USE_LIBPQ */
+	{
+		if (self->socket != (SOCKETFD) -1)
 		{
-#ifdef	USE_SSPI
-			if (self->ssd)
-			{
-				ReleaseSvcSpecData(self);
-				free(self->ssd);
-				self->ssd = NULL;
-			}
-			self->sspisvcs = 0;
-#endif /* USE_SSPI */
 			SOCK_put_char(self, 'X');
 			if (PG_PROTOCOL_74 == self->pversion)
 				SOCK_put_int(self, 4, 4);
 			SOCK_flush_output(self);
 			closesocket(self->socket);
 		}
+#ifdef	USE_SSPI
+		if (self->ssd)
+		{
+			ReleaseSvcSpecData(self);
+			free(self->ssd);
+			self->ssd = NULL;
+		}
+		self->sspisvcs = 0;
+#endif /* USE_SSPI */
 	}
 
 	if (self->buffer_in)
@@ -302,7 +302,7 @@ retry:
 	if (self->socket == (SOCKETFD) -1)
 	{
 		SOCK_set_error(self, SOCKET_COULD_NOT_CREATE_SOCKET, "Could not create Socket.");
-		return 0;
+		goto cleanup;
 	}
 #ifdef	TCP_NODELAY
 	if (family != AF_UNIX)
@@ -315,9 +315,7 @@ retry:
 		if (setsockopt(self->socket, IPPROTO_TCP, TCP_NODELAY, (char *) &i, len) < 0)
 		{
 			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to NODELAY.");
-			closesocket(self->socket);
-			self->socket = (SOCKETFD) -1;
-			return 0;
+			goto cleanup;
 		}
 	}
 #endif /* TCP_NODELAY */
@@ -506,10 +504,9 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 static int SOCK_SSPI_recv(SocketClass *self, void *buffer, int len)
 {
 #ifdef	USE_SSPI
-	if (!self->sspisvcs || !self->ssd)
-		return recv(self->socket, (char *) buffer, len, RECV_FLAG);
-	else
+	if (self->sspisvcs && self->ssd)
 		return SSPI_recv(self, (char *) buffer, len);
+	else
 #endif /* USE_SSPI */
 	return recv(self->socket, (char *) buffer, len, RECV_FLAG);
 }
@@ -517,12 +514,9 @@ static int SOCK_SSPI_recv(SocketClass *self, void *buffer, int len)
 static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 {
 #ifdef	USE_SSPI
-	CSTR func = "SOCK_SSPI_send";
-
-	if (!self->sspisvcs || !self->ssd)
-		return send(self->socket, (char *) buffer, len, SEND_FLAG);
-	else
+	if (self->sspisvcs && self->ssd)
 		return SSPI_send(self, buffer, len);
+	else
 #endif /* USE_SSPI */
 	return send(self->socket, (char *) buffer, len, SEND_FLAG);
 }
