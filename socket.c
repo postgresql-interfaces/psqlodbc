@@ -467,7 +467,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 	int	ret, gerrno;
 	fd_set	fds, except_fds;
 	struct	timeval	tm;
-	BOOL	no_timeout = FALSE;
+	BOOL	no_timeout = TRUE;
 
 	if (0 == retry_count)
 		no_timeout = FALSE;
