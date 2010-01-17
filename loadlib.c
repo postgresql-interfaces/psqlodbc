@@ -63,6 +63,11 @@
 #if defined(DYNAMIC_LOAD)
 #define	WIN_DYN_LOAD
 CSTR	libpqdll = "LIBPQ.dll";
+#ifdef	_WIN64
+CSTR	gssapidll = "GSSAPI64.dll";
+#else
+CSTR	gssapidll = "GSSAPI32.dll";
+#endif /* _WIN64 */
 #ifdef	UNICODE_SUPPORT
 CSTR	pgenlist = "pgenlist";
 CSTR	pgenlistdll = "PGENLIST.dll";
@@ -76,7 +81,12 @@ CSTR	pgenlistdll = "PGENLISTA.dll";
 #endif /* DYNAMIC_LOAD */
 #endif /* WIN32 */
 
-CSTR	libpq = "libpq";
+CSTR	libpqlib = "libpq";
+#ifdef	_WIN64
+CSTR	gssapilib = "gssapi64";
+#else
+CSTR	gssapilib = "gssapi32";
+#endif /* _WIN64 */
 #ifndef	NOT_USE_LIBPQ
 CSTR	checkproc = "PQconninfoParse";
 static int	sslverify_available = -1;
@@ -84,7 +94,7 @@ static int	sslverify_available = -1;
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 static BOOL	loaded_libpq = FALSE, loaded_ssllib = FALSE;
-static BOOL	loaded_pgenlist = FALSE;
+static BOOL	loaded_pgenlist = FALSE, loaded_gssapi = FALSE;
 /*
  *	Load psqlodbc path based libpq dll.
  */
@@ -141,10 +151,10 @@ DliErrorHook(unsigned	dliNotify,
 #else
 			__pfnDliNotifyHook2 = NULL;
 #endif /* _MSC_VER */
-			if (_strnicmp(pdli->szDll, libpq, 5) == 0)
+			if (_strnicmp(pdli->szDll, libpqlib, strlen(libpqlib)) == 0)
 			{
-				if (hmodule = MODULE_load_from_psqlodbc_path(libpq), NULL == hmodule)
-					hmodule = LoadLibrary(libpq);
+				if (hmodule = MODULE_load_from_psqlodbc_path(libpqlib), NULL == hmodule)
+					hmodule = LoadLibrary(libpqlib);
 #ifndef	NOT_USE_LIBPQ
 				if (sslverify_available < 0)
 				{
@@ -162,6 +172,23 @@ DliErrorHook(unsigned	dliNotify,
 				if (hmodule = MODULE_load_from_psqlodbc_path(pgenlist), NULL == hmodule)
 					hmodule = LoadLibrary(pgenlist);
 			}
+#ifdef	USE_GSS
+			else if (_strnicmp(pdli->szDll, gssapilib, strlen(gssapilib)) == 0)
+			{
+#ifndef	NOT_USE_LIBPQ
+                		if (hmodule = GetModuleHandle(gssapilib), NULL == hmodule)
+#endif
+				{
+					if (hmodule = MODULE_load_from_psqlodbc_path(gssapilib), NULL == hmodule)
+					{
+						if (hmodule = LoadLibrary(gssapilib), NULL != hmodule)
+							loaded_gssapi = TRUE;
+					}
+					else
+						loaded_gssapi = TRUE;
+				}
+			}
+#endif /* USE_GSS */
 			else if (0 == _stricmp(pdli->szDll, libarray[0]) ||
 				 0 == _stricmp(pdli->szDll, libarray[1]))
 			{
@@ -223,6 +250,11 @@ void CleanupDelayLoadedDLLs(void)
 		success = (*func)(pgenlistdll);
 		mylog("%s unload success=%d\n", pgenlistdll, success);
 	}
+	if (loaded_gssapi)
+	{
+		success = (*func)(gssapidll);
+		mylog("%s unload success=%d\n", gssapidll, success);
+	}
 	return;
 }
 #else
@@ -267,7 +299,7 @@ BOOL	ssl_verify_available(void)
 			sslverify_available = 0;
 #else
 #ifdef HAVE_LIBLTDL
-		lt_dlhandle dlhandle = lt_dlopenext(libpq);
+		lt_dlhandle dlhandle = lt_dlopenext(libpqlib);
 
 		sslverify_available = 1;
 		if (NULL != dlhandle)
@@ -382,9 +414,9 @@ BOOL SSLLIB_check()
 	mylog("checking libpq library\n");
 	/* First search the driver's folder */
 #ifndef	NOT_USE_LIBPQ
-	if (NULL == (hmodule = MODULE_load_from_psqlodbc_path(libpq)))
+	if (NULL == (hmodule = MODULE_load_from_psqlodbc_path(libpqlib)))
 		/* Second try the PATH ordinarily */
-		hmodule = LoadLibrary(libpq);
+		hmodule = LoadLibrary(libpqlib);
 	mylog("libpq hmodule=%p\n", hmodule);
 #endif /* NOT_USE_LIBPQ */
 #ifdef	USE_SSPI

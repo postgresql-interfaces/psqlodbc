@@ -1097,6 +1097,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							new_string = malloc(cbValueMax);
 							lc = localeconv();
 							for (i = 0, j = 0; ptr[i]; i++)
+							{
 								if (ptr[i] == '.')
 								{
 									strncpy_null(&new_string[j], lc->decimal_point, cbValueMax - j);
@@ -1104,6 +1105,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 								}
 								else
 									new_string[j++] = ptr[i];
+							}
 							new_string[j] = '\0';
  							strncpy_null(rgbValueBindRow, new_string, copy_len + 1);
 							free(new_string);

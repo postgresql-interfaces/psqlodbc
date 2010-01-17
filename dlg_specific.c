@@ -27,8 +27,8 @@
 
 extern GLOBAL_VALUES globals;
 
-static void encode(const UCHAR *in, UCHAR *out);
-static void decode(const UCHAR *in, UCHAR *out);
+static void encode(const UCHAR *in, UCHAR *out, int outlen);
+static void decode(const UCHAR *in, UCHAR *out, int outlen);
 
 #define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY)
 UInt4	getExtraOptions(const ConnInfo *ci)
@@ -167,13 +167,14 @@ void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
-	char		encoded_conn_settings[LARGE_REGISTRY_LEN];
+	char		encoded_item[LARGE_REGISTRY_LEN];
 	ssize_t		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
 	UInt4		flag;
 
 inolog("force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
+	encode(ci->password, encoded_item, sizeof(encoded_item));
 	/* fundamental info */
 	nlen = MAX_CONNECT_STRING;
 	olen = snprintf(connect_string, nlen, "%s=%s;DATABASE=%s;SERVER=%s;PORT=%s;UID=%s;PWD=%s",
@@ -183,14 +184,14 @@ inolog("force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 			ci->server,
 			ci->port,
 			ci->username,
-			ci->password);
+			encoded_item);
 	if (olen < 0 || olen >= nlen)
 	{
 		connect_string[0] = '\0';
 		return;
 	}
 
-	encode(ci->conn_settings, encoded_conn_settings);
+	encode(ci->conn_settings, encoded_item, sizeof(encoded_item));
 
 	/* extra info */
 	hlen = strlen(connect_string);
@@ -237,6 +238,9 @@ inolog("hlen=%d", hlen);
 			INI_BYTEAASLONGVARBINARY "=%d;"
 			INI_USESERVERSIDEPREPARE "=%d;"
 			INI_LOWERCASEIDENTIFIER "=%d;"
+#ifdef	WIN32
+			INI_GSSAUTHUSEGSSAPI "=%d"
+#endif /* WIN32 */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			INI_XAOPT "=%d"	/* XAOPT */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -247,7 +251,7 @@ inolog("hlen=%d", hlen);
 			,ci->show_oid_column
 			,ci->row_versioning
 			,ci->show_system_tables
-			,encoded_conn_settings
+			,encoded_item
 			,ci->drivers.fetch_max
 			,ci->drivers.socket_buffersize
 			,ci->drivers.unknown_sizes
@@ -272,6 +276,9 @@ inolog("hlen=%d", hlen);
 			,ci->bytea_as_longvarbinary
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
+#ifdef	WIN32
+			,ci->gssauth_use_gssapi
+#endif /* WIN32 */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			,ci->xa_opt
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -342,6 +349,8 @@ inolog("hlen=%d", hlen);
 			flag |= BIT_USESERVERSIDEPREPARE;
 		if (ci->lower_case_identifier)
 			flag |= BIT_LOWERCASEIDENTIFIER;
+		if (ci->gssauth_use_gssapi)
+			flag |= BIT_GSSAUTHUSEGSSAPI;
 
 		if (ci->sslmode[0])
 		{
@@ -361,7 +370,7 @@ inolog("hlen=%d", hlen);
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
 				INI_ABBREVIATE "=%02x%x",
-				encoded_conn_settings,
+				encoded_item,
 				ci->drivers.fetch_max,
 				ci->drivers.socket_buffersize,
 				ci->drivers.max_varchar_size,
@@ -464,6 +473,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	ci->bytea_as_longvarbinary = (char)((flag & BIT_BYTEAASLONGVARBINARY) != 0);
 	ci->use_server_side_prepare = (char)((flag & BIT_USESERVERSIDEPREPARE) != 0);
 	ci->lower_case_identifier = (char)((flag & BIT_LOWERCASEIDENTIFIER) != 0);
+	ci->gssauth_use_gssapi = (char)((flag & BIT_GSSAUTHUSEGSSAPI) != 0);
 }
 BOOL
 copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
@@ -483,11 +493,11 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, SPEC_SERVER) == 0)
 		strcpy(ci->server, value);
 
-	else if (stricmp(attribute, INI_USER) == 0 || stricmp(attribute, INI_UID) == 0)
+	else if (stricmp(attribute, INI_USERNAME) == 0 || stricmp(attribute, INI_UID) == 0)
 		strcpy(ci->username, value);
 
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
-		strcpy(ci->password, value);
+		decode(value, ci->password, sizeof(ci->password));
 
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
@@ -538,7 +548,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				ci->conn_settings[len - 1] = '\0';
 		}
 		else
-			decode(value, ci->conn_settings);
+			decode(value, ci->conn_settings, sizeof(ci->conn_settings));
 	}
 	else if (stricmp(attribute, INI_DISALLOWPREMATURE) == 0 || stricmp(attribute, ABBR_DISALLOWPREMATURE) == 0)
 		ci->disallow_premature = atoi(value);
@@ -556,6 +566,8 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->use_server_side_prepare = atoi(value);
 	else if (stricmp(attribute, INI_LOWERCASEIDENTIFIER) == 0 || stricmp(attribute, ABBR_LOWERCASEIDENTIFIER) == 0)
 		ci->lower_case_identifier = atoi(value);
+	else if (stricmp(attribute, INI_GSSAUTHUSEGSSAPI) == 0 || stricmp(attribute, ABBR_GSSAUTHUSEGSSAPI) == 0)
+		ci->gssauth_use_gssapi = atoi(value);
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
 	{
 		switch (value[0])
@@ -735,6 +747,8 @@ getDSNdefaults(ConnInfo *ci)
 		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 	if (ci->lower_case_identifier < 0)
 		ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
+	if (ci->gssauth_use_gssapi < 0)
+		ci->gssauth_use_gssapi = DEFAULT_GSSAUTHUSEGSSAPI;
 	if (ci->sslmode[0] == '\0')
 		strcpy(ci->sslmode, DEFAULT_SSLMODE);
 	if (ci->force_abbrev_connstr < 0)
@@ -774,7 +788,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 {
 	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
-	char		encoded_conn_settings[LARGE_REGISTRY_LEN],
+	char		encoded_item[LARGE_REGISTRY_LEN],
 				temp[SMALL_REGISTRY_LEN];
 
 /*
@@ -813,10 +827,13 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		SQLGetPrivateProfileString(DSN, INI_DATABASE, "", ci->database, sizeof(ci->database), ODBC_INI);
 
 	if (ci->username[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_USER, "", ci->username, sizeof(ci->username), ODBC_INI);
+		SQLGetPrivateProfileString(DSN, INI_USERNAME, "", ci->username, sizeof(ci->username), ODBC_INI);
 
 	if (ci->password[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_PASSWORD, "", ci->password, sizeof(ci->password), ODBC_INI);
+	{
+		SQLGetPrivateProfileString(DSN, INI_PASSWORD, "", encoded_item, sizeof(encoded_item), ODBC_INI);
+		decode(encoded_item, ci->password, sizeof(ci->password));
+	}
 
 	if (ci->port[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
@@ -853,8 +870,8 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->conn_settings[0] == '\0' || overwrite)
 	{
-		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_conn_settings, sizeof(encoded_conn_settings), ODBC_INI);
-		decode(encoded_conn_settings, ci->conn_settings);
+		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_item, sizeof(encoded_item), ODBC_INI);
+		decode(encoded_item, ci->conn_settings, sizeof(ci->conn_settings));
 	}
 
 	if (ci->translation_dll[0] == '\0' || overwrite)
@@ -917,6 +934,13 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		SQLGetPrivateProfileString(DSN, INI_LOWERCASEIDENTIFIER, "", temp, sizeof(temp), ODBC_INI);
 		if (temp[0])
 			ci->lower_case_identifier = atoi(temp);
+	}
+
+	if (ci->gssauth_use_gssapi < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_GSSAUTHUSEGSSAPI, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->gssauth_use_gssapi = atoi(temp);
 	}
 
 	if (ci->sslmode[0] == '\0' || overwrite)
@@ -1080,10 +1104,9 @@ void
 writeDSNinfo(const ConnInfo *ci)
 {
 	const char *DSN = ci->dsn;
-	char		encoded_conn_settings[LARGE_REGISTRY_LEN],
+	char		encoded_item[LARGE_REGISTRY_LEN],
 				temp[SMALL_REGISTRY_LEN];
 
-	encode(ci->conn_settings, encoded_conn_settings);
 
 	SQLWritePrivateProfileString(DSN,
 								 INI_KDESC,
@@ -1106,14 +1129,15 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
-								 INI_USER,
+								 INI_USERNAME,
 								 ci->username,
 								 ODBC_INI);
 	SQLWritePrivateProfileString(DSN, INI_UID, ci->username, ODBC_INI);
 
+	encode(ci->password, encoded_item, sizeof(encoded_item));
 	SQLWritePrivateProfileString(DSN,
 								 INI_PASSWORD,
-								 ci->password,
+								 encoded_item,
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
@@ -1150,9 +1174,10 @@ writeDSNinfo(const ConnInfo *ci)
 								 temp,
 								 ODBC_INI);
 
+	encode(ci->conn_settings, encoded_item, sizeof(encoded_item));
 	SQLWritePrivateProfileString(DSN,
 								 INI_CONNSETTINGS,
-								 encoded_conn_settings,
+								 encoded_item,
 								 ODBC_INI);
 
 	sprintf(temp, "%d", ci->disallow_premature);
@@ -1198,6 +1223,11 @@ writeDSNinfo(const ConnInfo *ci)
 	sprintf(temp, "%d", ci->lower_case_identifier);
 	SQLWritePrivateProfileString(DSN,
 								 INI_LOWERCASEIDENTIFIER,
+								 temp,
+								 ODBC_INI);
+	sprintf(temp, "%d", ci->gssauth_use_gssapi);
+	SQLWritePrivateProfileString(DSN,
+								 INI_GSSAUTHUSEGSSAPI,
 								 temp,
 								 ODBC_INI);
 	SQLWritePrivateProfileString(DSN,
@@ -1420,17 +1450,19 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 }
 
 static void
-encode(const UCHAR *in, UCHAR *out)
+encode(const UCHAR *in, UCHAR *out, int outlen)
 {
 	size_t i, ilen = strlen(in),
 				o = 0;
 	UCHAR	inc;
 
-	for (i = 0; i < ilen; i++)
+	for (i = 0; i < ilen && o < outlen - 1; i++)
 	{
 		inc = in[i];
 		if (inc == '+')
 		{
+			if (o + 2 >= outlen)
+				break;
 			sprintf(&out[o], "%%2B");
 			o += 3;
 		}
@@ -1438,6 +1470,8 @@ encode(const UCHAR *in, UCHAR *out)
 			out[o++] = '+';
 		else if (!isalnum(inc))
 		{
+			if (o + 2 >= outlen)
+				break;
 			sprintf(&out[o], "%%%02x", inc);
 			o += 3;
 		}
@@ -1470,13 +1504,13 @@ conv_from_hex(const UCHAR *s)
 }
 
 static void
-decode(const UCHAR *in, UCHAR *out)
+decode(const UCHAR *in, UCHAR *out, int outlen)
 {
 	size_t i, ilen = strlen(in),
 				o = 0;
 	UCHAR	inc;
 
-	for (i = 0; i < ilen; i++)
+	for (i = 0; i < ilen && o < outlen - 1; i++)
 	{
 		inc = in[i];
 		if (inc == '+')
@@ -1490,4 +1524,234 @@ decode(const UCHAR *in, UCHAR *out)
 			out[o++] = inc;
 	}
 	out[o++] = '\0';
+}
+
+char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comment)
+{
+	const UCHAR *cptr, *sptr = NULL;
+	UCHAR	*rptr;
+	BOOL	allowed_cmd = TRUE, in_quote = FALSE, in_comment = FALSE;
+	int	step = 0, skiplen;
+	size_t	len = 0, attrlen = strlen(attr);
+
+        for (cptr = (UCHAR *) str; *cptr; cptr++)
+        {
+		if (in_quote)
+		{
+			if (LITERAL_QUOTE == *cptr)
+			{
+				if (4 == step)
+				{
+					len = cptr - sptr;
+					step++;
+				}
+				in_quote = FALSE;
+			}
+			continue;
+		}
+		else if (in_comment)
+		{
+			if ('*' == *cptr &&
+			    '/' == cptr[1])
+			{
+				if (4 == step)
+				{
+					len = cptr - sptr;
+					step++;
+				}
+				in_comment = FALSE;
+				cptr++;
+				continue;
+			}
+			if (!ref_comment)
+				continue;
+		}
+		else if ('/' == *cptr &&
+			 '*' == cptr[1])
+		{
+			in_comment = TRUE;
+			cptr++;
+			continue;
+		}
+		if (';' == *cptr)
+		{
+			if (4 == step)
+			{
+				len = cptr - sptr;
+			}
+			allowed_cmd = TRUE;
+			step = 0;
+			continue;
+		}
+		if (!allowed_cmd)
+			continue;
+		if (isspace(*cptr))
+		{
+			if (4 == step)
+			{
+				len =  cptr - sptr;
+				step++;
+			}
+			continue;
+		}
+		switch (step)
+		{
+			case 0:
+				if (0 != strnicmp(cptr, "set", 3))
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				step++;
+				cptr += 3;
+				break;
+			case 1:
+				if (0 != strnicmp(cptr, attr, attrlen))
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				step++;
+				cptr += (attrlen - 1);
+				break;
+			case 2:
+				skiplen = 0;
+				if (0 != strnicmp(cptr, "=", 1))
+				{
+					skiplen = strlen("to");
+					if (0 != strnicmp(cptr, "to", 2))
+					{
+						allowed_cmd = FALSE;
+						continue;
+					}
+				}
+				step++;
+				cptr += skiplen;
+				break;
+			case 3:
+				if (LITERAL_QUOTE == *cptr)
+				{
+					cptr++;
+					sptr = cptr;
+				}
+				else
+					sptr = cptr;
+				step++;
+				break;
+		}
+	}
+	if (!sptr)
+		return NULL;
+	rptr = malloc(len + 1);
+	memcpy(rptr, sptr, len);
+	rptr[len] = '\0';
+	mylog("extracted a %s '%s' from %s\n", attr, rptr, str);
+	return rptr;
+}
+
+/*
+ *	extract the specified attribute from the comment part.
+ *		attribute=[']value[']
+ */
+char *extract_extra_attribute_setting(const char *str, const char *attr)
+{
+	const UCHAR *cptr, *sptr = NULL;
+	UCHAR	*rptr;
+	BOOL	allowed_cmd = FALSE, in_quote = FALSE, in_comment = FALSE;
+	int	step = 0, step_last = 2;
+	size_t	len = 0, attrlen = strlen(attr);
+
+        for (cptr = (UCHAR *) str; *cptr; cptr++)
+        {
+		if (in_quote)
+		{
+			if (LITERAL_QUOTE == *cptr)
+			{
+				if (step_last == step)
+				{
+					len = cptr - sptr;
+					step = 0;
+				}
+				in_quote = FALSE;
+			}
+			continue;
+		}
+		else if (in_comment)
+		{
+			if ('*' == *cptr &&
+			    '/' == cptr[1])
+			{
+				if (step_last == step)
+				{
+					len = cptr - sptr;
+					step = 0;
+				}
+				in_comment = FALSE;
+				allowed_cmd = FALSE;
+				cptr++;
+				continue;
+			}
+		}
+		else if ('/' == *cptr &&
+			 '*' == cptr[1])
+		{
+			in_comment = TRUE;
+			allowed_cmd = TRUE;
+			cptr++;
+			continue;
+		}
+		else
+		{
+			if (LITERAL_QUOTE == *cptr)
+				in_quote = TRUE;
+			continue;
+		}
+		/* now in comment */
+		if (';' == *cptr ||
+		    isspace(*cptr))
+		{
+			if (step_last == step)
+				len = cptr - sptr;
+			allowed_cmd = TRUE;
+			step = 0;
+			continue;
+		}
+		if (!allowed_cmd)
+			continue;
+		switch (step)
+		{
+			case 0:
+				if (0 != strnicmp(cptr, attr, attrlen))
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				if (cptr[attrlen] != '=')
+				{
+					allowed_cmd = FALSE;
+					continue;
+				}
+				step++;
+				cptr += attrlen;
+				break;
+			case 1:
+				if (LITERAL_QUOTE == *cptr)
+				{
+					in_quote = TRUE;
+					cptr++;
+					sptr = cptr;
+				}
+				else
+					sptr = cptr;
+				step++;
+				break;
+		}
+	}
+	if (!sptr)
+		return NULL;
+	rptr = malloc(len + 1);
+	memcpy(rptr, sptr, len);
+	rptr[len] = '\0';
+	mylog("extracted a %s '%s' from %s\n", attr, rptr, str);
+	return rptr;
 }

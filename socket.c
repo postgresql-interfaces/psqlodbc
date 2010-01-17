@@ -17,6 +17,9 @@
 #ifdef	USE_SSPI
 #include "sspisvcs.h"
 #endif /* USE_SSPI */
+#ifdef	USE_GSS
+#include "gsssvcs.h"
+#endif /* USE_GSS */
 #ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
 #ifdef USE_SSL
@@ -84,6 +87,10 @@ SOCK_Constructor(const ConnectionClass *conn)
 		rv->ssd = NULL;
 		rv->sspisvcs = 0;
 #endif /* USE_SSPI */
+#ifdef	USE_GSS
+		rv->gctx = NULL;
+		rv->gtarg_nam = NULL;
+#endif /* USE_GSS */
 #ifndef	NOT_USE_LIBPQ
 		rv->via_libpq = FALSE;
 #ifdef USE_SSL
@@ -156,12 +163,15 @@ SOCK_Destructor(SocketClass *self)
 #ifdef	USE_SSPI
 		if (self->ssd)
 		{
-			ReleaseSvcSpecData(self);
+			ReleaseSvcSpecData(self, (UInt4) -1);
 			free(self->ssd);
 			self->ssd = NULL;
 		}
 		self->sspisvcs = 0;
 #endif /* USE_SSPI */
+#ifdef	USE_GSS
+		pg_GSS_cleanup(self);
+#endif /* USE_GSS */
 	}
 
 	if (self->buffer_in)

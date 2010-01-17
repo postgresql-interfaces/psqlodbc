@@ -209,6 +209,9 @@ do { \
 #define AUTH_REQ_CRYPT		4
 #define AUTH_REQ_MD5		5
 #define AUTH_REQ_SCM_CREDS	6
+#define AUTH_REQ_GSS		7
+#define AUTH_REQ_GSS_CONT	8
+#define AUTH_REQ_SSPI		9
 
 /*	Startup Packet sizes */
 #define SM_DATABASE		64
@@ -311,6 +314,7 @@ typedef struct
 	signed char	cvt_null_date_string;
 	signed char	autocommit_public;
 	signed char	accessible_only;
+	signed char	gssauth_use_gssapi;
 	UInt4		extra_opts;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
@@ -474,6 +478,7 @@ struct ConnectionClass_
 	pgNAME		tableIns;
 #ifdef	USE_SSPI
 	UInt4		svcs_allowed;
+	UInt4		auth_svcs;
 #endif /* USE_SSPI */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;

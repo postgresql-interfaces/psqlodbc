@@ -57,7 +57,7 @@ extern "C" {
 						 * Postmaster is listening */
 #define INI_DATABASE			"Database"	/* Database Name */
 #define INI_UID				"UID"		/* Default User Name */
-#define INI_USER			"Username"	/* Default User Name */
+#define INI_USERNAME			"Username"	/* Default User Name */
 #define INI_PASSWORD			"Password"	/* Default Password */
 
 #define	INI_ABBREVIATE			"CX"
@@ -144,6 +144,8 @@ extern "C" {
 #define ABBR_SSLMODE			"CA"
 #define INI_EXTRAOPTIONS		"AB"
 #define INI_LOGDIR			"Logdir"
+#define INI_GSSAUTHUSEGSSAPI		"GssAuthUseGSS"
+#define ABBR_GSSAUTHUSEGSSAPI		"D0"
 
 #define	SSLMODE_DISABLE		"disable"
 #define	SSLMODE_ALLOW		"allow"
@@ -189,8 +191,9 @@ const char *GetXaLibPath();
 #define BIT_BYTEAASLONGVARBINARY		(1L<<24)
 #define BIT_USESERVERSIDEPREPARE		(1L<<25)
 #define BIT_LOWERCASEIDENTIFIER			(1L<<26)
+#define BIT_GSSAUTHUSEGSSAPI			(1L<<27)
 
-#define EFFECTIVE_BIT_COUNT			27
+#define EFFECTIVE_BIT_COUNT			28
 
 /*	Mask for extra options	*/
 #define	BIT_FORCEABBREVCONNSTR			1L
@@ -241,6 +244,7 @@ const char *GetXaLibPath();
 #define DEFAULT_USESERVERSIDEPREPARE	0
 #define DEFAULT_LOWERCASEIDENTIFIER	0
 #define DEFAULT_SSLMODE			SSLMODE_DISABLE
+#define DEFAULT_GSSAUTHUSEGSSAPI	0
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define DEFAULT_XAOPT			1
@@ -290,6 +294,8 @@ int	setLogDir(const char *dir);
 int     changeDriverNameOfaDSN(const char *dsn, const char *driver_name, DWORD *errcode);
 UInt4	getExtraOptions(const ConnInfo *);
 BOOL	setExtraOptions(ConnInfo *, const char *str, const char *format);
+char	*extract_attribute_setting(const char *str, const char *attr, BOOL ref_comment);
+char	*extract_extra_attribute_setting(const char *str, const char *attr);
 
 #ifdef	__cplusplus
 }

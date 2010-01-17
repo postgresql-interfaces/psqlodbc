@@ -852,7 +852,7 @@ inolog("%s statement=%p ommitted=0\n", func, self);
 }
 
 /*
- *	Scan the query wholly or partially (if specifed next_cmd).
+ *	Scan the query wholly or partially (if the next_cmd param specified).
  *	Also count the number of parameters respectviely.
  */
 void
@@ -867,6 +867,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 	char	tchar, bchar, escape_in_literal = '\0';
 	char	in_literal = FALSE, in_identifier = FALSE,
 		in_dollar_quote = FALSE, in_escape = FALSE,
+		in_line_comment = FALSE, in_comment = FALSE,
 		del_found = FALSE;
 	po_ind_t multi = FALSE;
 	SQLSMALLINT	num_p;
@@ -926,6 +927,20 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 			if (tchar == identifier_quote)
 				in_identifier = FALSE;
 		}
+		else if (in_line_comment)
+		{
+			if (PG_LINEFEED == tchar)
+				in_line_comment = FALSE;
+		}
+		else if (in_comment)
+		{
+			if ('*' == tchar && '/' == sptr[1])
+			{
+				encoded_nextchar(&encstr);
+				sptr++;
+				in_comment = FALSE;
+			}
+		}
 		else
 		{
 			if (tchar == '?')
@@ -968,6 +983,24 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 			}
 			else if (tchar == identifier_quote)
 				in_identifier = TRUE;
+			else if ('-' == tchar)
+			{
+				if ('-' == sptr[1])
+				{
+					encoded_nextchar(&encstr);
+					sptr++;
+					in_line_comment = TRUE;
+				}
+			}
+			else if ('/' == tchar)
+			{
+				if ('*' == sptr[1])
+				{
+					encoded_nextchar(&encstr);
+					sptr++;
+					in_comment = TRUE;
+				}
+			}
 			if (!isspace(tchar))
 				bchar = tchar;
 		}
@@ -2476,7 +2509,11 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 				break;
 			case 'B': /* Binary data */
 			case 'D': /* ASCII data */
-				QR_get_tupledata(res, id == 'B');
+				if (!QR_get_tupledata(res, id == 'B'))
+				{
+					rcvend = TRUE;
+					res = NULL;
+				}
 				break;
 			case 'S': /* parameter status */
 				getParameterValues(conn);

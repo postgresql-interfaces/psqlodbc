@@ -14,7 +14,6 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
-#include "loadlib.h"
 #include "connection.h"
 #ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
@@ -30,6 +29,12 @@
 #else
 #include <errno.h>
 #endif /* WIN32 */
+#ifdef	USE_KRB5
+#include "krb5svcs.h"
+#endif /* USE_KRB5 */
+#ifdef	USE_GSS
+#include "gsssvcs.h"
+#endif /* USE_GSS */
 
 #include "environ.h"
 #include "socket.h"
@@ -273,6 +278,7 @@ CC_conninfo_init(ConnInfo *conninfo)
 		conninfo->cvt_null_date_string = -1;
 		conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
 		conninfo->accessible_only = -1;
+		conninfo->gssauth_use_gssapi = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 		conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -447,6 +453,21 @@ CC_clear_error(ConnectionClass *self)
 	CONNLOCK_RELEASE(self);
 }
 
+static void
+CC_endup_authentication(ConnectionClass *self)
+{
+	SocketClass	*sock = CC_get_socket(self);
+#ifdef	USE_SSPI
+	if (0 != self->auth_svcs)
+	{
+		ReleaseSvcSpecData(sock, self->auth_svcs);
+		self->auth_svcs = 0;
+	}
+#endif /* USE_SSPI */
+#ifdef	USE_GSS
+	pg_GSS_cleanup(sock);
+#endif /* USE_GSS */
+}
 
 CSTR	bgncmd = "BEGIN";
 CSTR	cmtcmd = "COMMIT";
@@ -1077,9 +1098,23 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 			opts[cnt][0] = "database";	opts[cnt++][1] = ci->database;
 		}
 	}
-	if (ci->username[0])
+	if (ci->username[0] || !libpqopt)
 	{
-		opts[cnt][0] = "user";		opts[cnt++][1] = ci->username;
+		char	*usrname = ci->username;
+#ifdef	WIN32
+		DWORD namesize = sizeof(ci->username) - 2;
+#endif /* WIN32 */
+
+		opts[cnt][0] = "user";
+		if (!usrname[0])
+		{
+#ifdef	WIN32
+			if (GetUserName(ci->username + 1, &namesize))
+				usrname = ci->username + 1;
+#endif /* WIN32 */
+		}
+mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
+		opts[cnt++][1] = usrname;
 	}
 	if (libpqopt)
 	{
@@ -1119,6 +1154,10 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 		if (ci->password[0])
 		{
 			opts[cnt][0] = "password";	opts[cnt++][1] = ci->password;
+		}
+		if (ci->gssauth_use_gssapi)
+		{
+			opts[cnt][0] = "gsslib";	opts[cnt++][1] = "gssapi";
 		}
 	}
 	else
@@ -1379,6 +1418,38 @@ LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 }
 #endif /* NOT_USE_LIBPQ */
 
+#if	defined(USE_SSPI) || defined(USE_GSS)
+/*
+ *	Callee should free hte returned pointer.
+ */
+static char *MakePrincHint(ConnInfo *ci, BOOL sspi)
+{
+	size_t len;
+	char	*svcprinc;
+	char	*svcname;
+	BOOL	attrFound = FALSE;
+
+	svcname = extract_extra_attribute_setting(ci->conn_settings, "krbsrvname");
+
+mylog("!!! %s settings=%s svcname=%p\n", __FUNCTION__, ci->conn_settings, svcname);
+	if (svcname)
+		attrFound = TRUE;
+	else
+		svcname = "postgres";
+	len = strlen(svcname) + 1 + strlen(ci->server) + 1;
+	if (NULL != (svcprinc = malloc(len)))
+	{
+		if (sspi)
+			snprintf(svcprinc, len, "%s/%s", svcname, ci->server);
+		else
+			snprintf(svcprinc, len, "%s@%s", svcname, ci->server);
+	}
+	if (attrFound)
+		free(svcname);
+	return svcprinc;
+}
+#endif /* USE_SSPI */
+
 static char
 original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
@@ -1387,8 +1458,8 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	QResultClass *res;
 	SocketClass *sock;
 	ConnInfo   *ci = &(self->connInfo);
-	int			areq = -1;
-	int			beresp, sockerr;
+	int		areq = -1;
+	int		ret = 0, beresp, sockerr;
 	char		msgbuffer[ERROR_MSG_LENGTH];
 	char		salt[5], notice[512];
 	CSTR		func = "original_CC_connect";
@@ -1400,6 +1471,10 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	mylog("%s: entering...\n", func);
 
+	/* lock the connetion during authentication */
+	ENTER_CONN_CS(self);
+#define	return	DONT_CALL_RETURN_FROM_HERE????
+
 	if (password_req != AUTH_REQ_OK)
 	{
 		sock = self->sock;		/* already connected, just authenticate */
@@ -1408,7 +1483,7 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	else
 	{
 		if (0 == CC_initial_log(self, func))
-			return 0;
+			goto error_proc;
 
 #ifdef	USE_SSPI
 		ssl_try_count = 0;
@@ -1453,7 +1528,7 @@ another_version_retry:
 				if (PROTOCOL_62(ci))
 				{
 					CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not construct a socket to the server", func);
-					return 0;
+					goto error_proc;
 				}
 				if (PROTOCOL_63(ci))
 					strncpy_null(ci->protocol, PG62, sizeof(ci->protocol));
@@ -1484,7 +1559,7 @@ another_version_retry:
 			if (!self->sock)
 			{
 				CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not construct a socket to the server", func);
-				return 0;
+				goto error_proc;
 			}
 		}
 
@@ -1496,7 +1571,7 @@ another_version_retry:
 		if (SOCK_get_errcode(sock) != 0)
 		{
 			CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not connect to the server", func);
-			return 0;
+			goto error_proc;
 		}
 		mylog("connection to the server socket succeeded.\n");
 
@@ -1528,8 +1603,8 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 				case 'S':
 					if (!StartupSspiService(sock, SchannelService, NULL))
 					{
-						CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
-						return 0;
+						CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
+						goto error_proc;
 					}
 					break;
 				case 'N':
@@ -1543,8 +1618,8 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 						goto another_version_retry;
 					}
 				default:
-					CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Service negotation failed", func);
-					return 0;
+					CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
+					goto error_proc;
 			}
 		}
 #endif /* USE_SSPI */
@@ -1565,7 +1640,7 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 		else if (PROTOCOL_74(ci))
 		{
 			if (!protocol3_packet_build(self))
-				return 0;
+				goto error_proc;
 		}
 		else
 		{
@@ -1592,7 +1667,7 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 		if (SOCK_get_errcode(sock) != 0)
 		{
 			CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Failed to send the authentication packet", func);
-			return 0;
+			goto error_proc;
 		}
 		mylog("sent the authentication block successfully.\n");
 	}
@@ -1609,7 +1684,8 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 	{
 		BOOL		beforeV2 = PG_VERSION_LT(self, 6.4),
 					ReadyForQuery = FALSE, retry = FALSE;
-		uint32	leng;
+		uint32	leng = 0;
+		int	authRet;
 
 		do
 		{
@@ -1664,7 +1740,7 @@ inolog("Ekita retry=%d\n", retry);
 					if (retry)
 						break;
 
-					return 0;
+					goto error_proc;
 				case 'R':
 
 					if (password_req != AUTH_REQ_OK)
@@ -1695,11 +1771,22 @@ inolog("Ekita retry=%d\n", retry);
 
 						case AUTH_REQ_KRB4:
 							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Kerberos 4 authentication not supported", func);
-							return 0;
+							goto error_proc;
 
 						case AUTH_REQ_KRB5:
+#ifdef USE_KRB5
+							// pglock_thread();
+							authRet = pg_krb5_sendauth(self);
+							// pgunlock_thread();
+							if (authRet != 0)
+							{
+								/* Error message already filled in */
+								goto error_proc;
+							}
+							break;
+#endif /* USE_KRB5 */
 							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Kerberos 5 authentication not supported", func);
-							return 0;
+							goto error_proc;
 
 						case AUTH_REQ_PASSWORD:
 							mylog("in AUTH_REQ_PASSWORD\n");
@@ -1707,7 +1794,8 @@ inolog("Ekita retry=%d\n", retry);
 							if (ci->password[0] == '\0')
 							{
 								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.", func);
-								return -areq;		/* need password */
+								ret = -areq; /* need password */
+								goto error_proc;
 							}
 
 							mylog("past need password\n");
@@ -1723,7 +1811,7 @@ inolog("Ekita retry=%d\n", retry);
 
 						case AUTH_REQ_CRYPT:
 							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Password crypt authentication not supported", func);
-							return 0;
+							goto error_proc;
 						case AUTH_REQ_MD5:
 							mylog("in AUTH_REQ_MD5\n");
 							if (ci->password[0] == '\0')
@@ -1731,22 +1819,101 @@ inolog("Ekita retry=%d\n", retry);
 								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.", func);
 								if (salt_para)
 									memcpy(salt_para, salt, sizeof(salt));
-								return -areq; /* need password */
+								ret = -areq; /* need password */
+								goto error_proc;
 							}
 							if (md5_auth_send(self, salt))
 							{
 								CC_set_error(self, CONN_INVALID_AUTHENTICATION, "md5 hashing failed", func);
-								return 0;
+								goto error_proc;
 							}
 							break;
 
 						case AUTH_REQ_SCM_CREDS:
 							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Unix socket credential authentication not supported", func);
-							return 0;
+							goto error_proc;
+
+						case AUTH_REQ_GSS:
+							mylog("in AUTH_REQ_GSS\n");
+#if	defined(USE_SSPI)
+							if (!ci->gssauth_use_gssapi)
+							{
+								self->auth_svcs = KerberosService;
+								authRet = StartupSspiService(sock, self->auth_svcs, MakePrincHint(ci, TRUE));
+								if (!authRet)
+								{
+									CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
+									goto error_proc;
+								}
+								break;
+							}
+#endif	/* USE_SSPI */
+#ifdef	USE_GSS
+#ifdef	USE_SSPI
+							if (ci->gssauth_use_gssapi)
+#endif /* USE_SSPI */
+							{
+                                				// pglock_thread();
+                                				authRet = pg_GSS_startup(self, MakePrincHint(ci, FALSE));
+                                				// pgunlock_thread();
+                                				if (authRet != 0)
+								{
+									CC_set_errornumber(self, CONN_INVALID_AUTHENTICATION);
+									goto error_proc;
+								}
+								break;
+							}
+#endif /* USE_GSS */
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "GSS authentication not supported", func);
+							goto error_proc;
+
+						case AUTH_REQ_GSS_CONT:
+							mylog("in AUTH_REQ_GSS_CONT\n");
+#if	defined(USE_SSPI)
+							if (0 != self->auth_svcs)
+							{
+								authRet = ContinueSspiService(sock, self->auth_svcs, (void *) (leng - 4));
+								if (!authRet)
+								{
+									CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service continuation failed", func);
+									goto error_proc;
+								}
+								break;
+							}
+#endif /* USE_SSPI */
+#ifdef	USE_GSS
+                                			// pglock_thread();
+                                			authRet = pg_GSS_continue(self, leng - 4);
+                                			// pgunlock_thread();
+                                			if (authRet != 0)
+							{
+								CC_set_errornumber(self, CONN_INVALID_AUTHENTICATION);
+								goto error_proc;
+							}
+							break;
+#else
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "GSS authentication not supported", func);
+							goto error_proc;
+#endif
+
+						case AUTH_REQ_SSPI:
+							mylog("in AUTH_REQ_SSPI\n");
+#if	defined(USE_SSPI)
+							self->auth_svcs = ci->gssauth_use_gssapi ? KerberosService : NegotiateService;
+							if (!StartupSspiService(sock, self->auth_svcs, MakePrincHint(ci, TRUE)))
+							{
+								CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
+								goto error_proc;
+							}
+							break;
+#else
+							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "SSPI authentication not supported", func);
+							goto error_proc;
+#endif
 
 						default:
 							CC_set_error(self, CONN_AUTH_TYPE_UNSUPPORTED, "Unknown authentication type", func);
-							return 0;
+							goto error_proc;
 					}
 					break;
 				case 'S': /* parameter status */
@@ -1767,7 +1934,7 @@ inolog("Ekita retry=%d\n", retry);
 				default:
 					snprintf(notice, sizeof(notice), "Unexpected protocol character='%c' during authentication", beresp);
 					CC_set_error(self, CONN_INVALID_AUTHENTICATION, notice, func);
-					return 0;
+					goto error_proc;
 			}
 			if (retry)
 			{
@@ -1784,6 +1951,13 @@ inolog("Ekita retry=%d\n", retry);
 	}
 
 sockerr_proc:
+	ret = 1;
+error_proc:
+#undef	return
+	CC_endup_authentication(self);
+	LEAVE_CONN_CS(self);
+	if (0 >= ret)
+		return ret;
 	if (0 != (sockerr = SOCK_get_errcode(sock)))
 	{
 		if (0 == CC_get_errornumber(self))
@@ -1846,17 +2020,15 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	mylog("sslmode=%s\n", self->connInfo.sslmode);
 #ifndef	NOT_USE_LIBPQ
+#ifdef	USE_SSPI
+	if (0 != self->svcs_allowed)
+		;
+	else
+#endif /* USE_SSPI */
 	if (self->connInfo.username[0] == '\0')
 		call_libpq = TRUE;
 	else if (self->connInfo.sslmode[0] != SSLLBYTE_DISABLE) 
-#ifdef	USE_SSPI
-	{
-		if (0 == (SchannelService & self->svcs_allowed))
-			call_libpq = TRUE;
-	}
-#else
 		call_libpq = TRUE;
-#endif /* USE_SSPI */
 	if (call_libpq)
 	{
 		ret = LIBPQ_CC_connect(self, password_req, salt_para);
@@ -1866,7 +2038,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 		 */
 		if (0 == ret && CONN_UNABLE_TO_LOAD_DLL == CC_get_errornumber(self))
 		{
-			self->svcs_allowed |= SchannelService;
+			self->svcs_allowed |= (SchannelService | KerberosService | NegotiateService);
 			ret = original_CC_connect(self, password_req, salt_para);
 		}
 #endif /* USE_SSPI */

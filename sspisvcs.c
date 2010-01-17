@@ -122,29 +122,11 @@ static int recvall(SOCKET sock, void *buf, int len)
 	return ttllen;
 }
  
-CSTR	SCHANNEL = "sChannel";
-static int DoSchannelNegotiation(SocketClass *, const char *opt);
-int StartupSspiService(SocketClass *self, SSPI_Service svc, const char *opt)
-{
-	CSTR func = "DoServicelNegotiation";
-
-	switch (svc)
-	{
-		case SchannelService:
-			return DoSchannelNegotiation(self, opt);
-	}
-
-	return -1;
-}
-
-/*
- *	Stuff for Schannel service
+/*	
+ *	service specific data
  */
-#include	<schannel.h>
-#pragma comment(lib, "crypt32")
-#define	UNI_SCHANNEL TEXT("sChannel")
-#define	IO_BUFFER_SIZE	0x10000
 
+/*	Schannel specific data */
 typedef	struct {
 	CredHandle	hCred;
 	CtxtHandle	hCtxt;
@@ -155,6 +137,114 @@ typedef	struct {
 	size_t		ioread;
 } SchannelSpec;
 
+/*	Kerberos/Negotiate common specific data */
+typedef	struct {
+	LPTSTR		svcprinc;
+	CredHandle	hKerbEtcCred;
+	BOOL		ValidCtxt;
+	CtxtHandle	hKerbEtcCtxt;
+} KerberosEtcSpec;
+
+typedef struct {
+	SchannelSpec	sdata;
+	KerberosEtcSpec	kdata;
+} SspiData;
+
+static int DoSchannelNegotiation(SocketClass *, SspiData *, const void *opt);
+static int DoKerberosNegotiation(SocketClass *, SspiData *, const void *opt);
+static int DoNegotiateNegotiation(SocketClass *, SspiData *, const void *opt);
+static int DoKerberosEtcProcessAuthentication(SocketClass *, const void *opt);
+
+static SspiData *SspiDataAlloc(SocketClass *self)
+{
+	SspiData	*sspidata;
+
+	if (sspidata = self->ssd, !sspidata)
+		sspidata = calloc(sizeof(SspiData), 1);
+	return sspidata;
+}
+
+int StartupSspiService(SocketClass *self, SSPI_Service svc, const void *opt)
+{
+	CSTR func = "DoServicelNegotiation";
+	SspiData	*sspidata;
+
+	if (NULL == (sspidata = SspiDataAlloc(self)))
+		return -1;
+	switch (svc)
+	{
+		case SchannelService:
+			return DoSchannelNegotiation(self, sspidata, opt);
+		case KerberosService:
+			return DoKerberosNegotiation(self, sspidata, opt);
+		case NegotiateService:
+			return DoNegotiateNegotiation(self, sspidata, opt);
+	}
+
+	free(sspidata);
+	return -1;
+}
+
+int ContinueSspiService(SocketClass *self, SSPI_Service svc, const void *opt)
+{
+	CSTR func = "ContinueSspiService";
+
+	switch (svc)
+	{
+		case KerberosService:
+		case NegotiateService:
+			return DoKerberosEtcProcessAuthentication(self, opt);
+	}
+
+	return -1;
+}
+
+static BOOL format_sspierr(char *errmsg, size_t buflen, SECURITY_STATUS r, const char *cmd, const char *cmd2)
+{
+	BOOL ret = FALSE;
+
+	if (!cmd2)
+		cmd2 = ""; 
+	if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+		r, MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
+		errmsg, (DWORD)buflen, NULL))
+		ret = TRUE;
+	if (ret)
+	{
+		size_t	tlen = strlen(errmsg);
+		errmsg += tlen;
+		buflen -= tlen;
+		snprintf(errmsg, buflen, " in %s:%s", cmd, cmd2);
+	}
+	else
+		snprintf(errmsg, buflen, "%s:%s failed ", cmd, cmd2);
+	return ret;
+}
+
+static void SSPI_set_error(SocketClass *s, SECURITY_STATUS r, const char *cmd, const char *cmd2)
+{
+	int	gerrno = SOCK_ERRNO;
+	char	emsg[256];
+
+	format_sspierr(emsg, sizeof(emsg), r, cmd, cmd2);
+	s->errornumber = r;
+	if (NULL != s->_errormsg_)
+		free(s->_errormsg_);
+	if (NULL != emsg)
+		s->_errormsg_ = strdup(emsg);
+	else
+		s->_errormsg_ = NULL;
+	mylog("(%d)%s ERRNO=%d\n", r, emsg, gerrno);
+}
+
+/*
+ *	Stuff for Schannel service
+ */
+#include	<schannel.h>
+#pragma comment(lib, "crypt32")
+#define	UNI_SCHANNEL TEXT("sChannel")
+#define	IO_BUFFER_SIZE	0x10000
+
 static SECURITY_STATUS CreateSchannelCredentials(LPCTSTR, LPSTR, PCredHandle);
 static SECURITY_STATUS PerformSchannelClientHandshake(SOCKET, PCredHandle, LPSTR, CtxtHandle *, SecBuffer *);
 static SECURITY_STATUS SchannelClientHandshakeLoop(SOCKET, PCredHandle, CtxtHandle *, BOOL, SecBuffer *);
@@ -162,26 +252,26 @@ static void GetNewSchannelClientCredentials(PCredHandle, CtxtHandle *);
 
 static HCERTSTORE	hMyCertStore = NULL;
 
-static int DoSchannelNegotiation(SocketClass *self, const char *opt)
+static int DoSchannelNegotiation(SocketClass *self, SspiData *sspidata, const void *opt)
 {
 	CSTR func = "DoSchannelNegotiation";
+	SECURITY_STATUS	r = SEC_E_OK;
+	const char	*cmd = NULL;
 	SecBuffer	ExtraData;
 	BOOL		ret = 0, cCreds = FALSE, cCtxt = FALSE;
-	SchannelSpec	*ssd = NULL;
+	SchannelSpec	*ssd = &(sspidata->sdata);
 
-	if (NULL == (ssd = calloc(sizeof(SchannelSpec), 1)))
+	if (SEC_E_OK != (r = CreateSchannelCredentials(NULL, NULL, &ssd->hCred)))
 	{
-		return 0;
-	}
-	if (SEC_E_OK != CreateSchannelCredentials(NULL, NULL, &ssd->hCred))
-	{
-		mylog("%s:CreateSchannel failed\n", func);
+		cmd = "CreateSchannelCredentials";
+		mylog("%s:%s failed\n", func, cmd);
 		goto cleanup;
 	}
 	cCreds = TRUE;
-	if (SEC_E_OK != PerformSchannelClientHandshake(self->socket, &ssd->hCred, NULL, &ssd->hCtxt, &ExtraData))
+	if (SEC_E_OK != (r = PerformSchannelClientHandshake(self->socket, &ssd->hCred, NULL, &ssd->hCtxt, &ExtraData)))
 	{
-		mylog("%s:PerformSchannelClientHandshake failed\n", func);
+		cmd = "PerformSchannelClientHandshake";
+		mylog("%s:%s failed\n", func, cmd);
 		goto cleanup;
 	}
 	cCtxt = TRUE;
@@ -198,17 +288,19 @@ cleanup:
 	if (ret)
 	{
 		self->sspisvcs |= SchannelService;
-		self->ssd = ssd;
+		self->ssd = sspidata;
 	}
 	else
 	{
+		SSPI_set_error(self, r, __FUNCTION__, cmd); 
 		if (cCreds)
 			FreeCredentialHandle(&ssd->hCred);
 		if (cCtxt)
 			DeleteSecurityContext(&ssd->hCtxt);
 		if (ssd->iobuf)
 			free(ssd->iobuf);
-		free(ssd);
+		if (!self->ssd)
+			free(sspidata);
 	}
 	return ret;
 }
@@ -303,15 +395,15 @@ CreateSchannelCredentials(
 	 */
 
 	Status = AcquireCredentialsHandle(
-			NULL,                   /* Name of principal */    
-			UNI_SCHANNEL,           /* Name of package */
-			SECPKG_CRED_OUTBOUND,   /* Flags indicating use */
-			NULL,                   /* Pointer to logon ID */
-			&SchannelCred,          /* Package specific data */
-			NULL,                   /* Pointer to GetKey() func */
-			NULL,                   /* Value to pass to GetKey() */
-			phCreds,                /* (out) Cred Handle */
-			&tsExpiry);             /* (out) Lifetime (optional) */
+			NULL,			/* Name of principal */    
+			UNI_SCHANNEL,		/* Name of package */
+			SECPKG_CRED_OUTBOUND,	/* Flags indicating use */
+			NULL,			/* Pointer to logon ID */
+			&SchannelCred,		/* Package specific data */
+			NULL,			/* Pointer to GetKey() func */
+			NULL,			/* Value to pass to GetKey() */
+			phCreds,		/* (out) Cred Handle */
+			&tsExpiry);		/* (out) Lifetime (optional) */
 	if (Status != SEC_E_OK)
 	{
 		mylog("**** Error 0x%p returned by AcquireCredentialsHandle\n", Status);
@@ -385,7 +477,7 @@ PerformSchannelClientHandshake(
 
 	if (scRet != SEC_I_CONTINUE_NEEDED)
 	{
-		mylog("**** Error %d returned by InitializeSecurityContext (1)\n", scRet);
+		mylog("**** Error %x returned by InitializeSecurityContext (1)\n", scRet);
 		return scRet;
 	}
 
@@ -397,7 +489,7 @@ PerformSchannelClientHandshake(
 				OutBuffers[0].cbBuffer);
 		if (cbData <= 0)
 		{
-			mylog("**** Error %d sending data to server (1)\n", SOCK_ERRNO);
+			mylog("**** Error %x sending data to server\n", SOCK_ERRNO);
 			FreeContextBuffer(OutBuffers[0].pvBuffer);
 			DeleteSecurityContext(phContext);
 			return SEC_E_INTERNAL_ERROR;
@@ -496,6 +588,7 @@ SchannelClientHandshakeLoop(
 								continue;
 						default:
 							scRet = SEC_E_INTERNAL_ERROR;
+							SOCK_ERRNO_SET(gerrno);
 							break;
 					}
 					break;
@@ -830,6 +923,252 @@ GetNewSchannelClientCredentials(
 	}
 }
 
+/*
+ *	Stuff for Kerberos etc service
+ */
+#define	UNI_KERBEROS TEXT("Kerberos")
+#define	UNI_NEGOTIATE TEXT("Negotiate")
+#define	IO_BUFFER_SIZE	0x10000
+
+
+static SECURITY_STATUS CreateKerberosEtcCredentials(LPCTSTR, SEC_CHAR *, LPCTSTR, PCredHandle);
+static SECURITY_STATUS PerformKerberosEtcClientHandshake(SocketClass *, KerberosEtcSpec *ssd, size_t);
+
+static int DoKerberosNegotiation(SocketClass *self, SspiData *sspidata, const void *opt)
+{
+	CSTR func = "DoKerberosNegotiation";
+	SECURITY_STATUS	r = SEC_E_OK;
+	const char *	cmd = NULL;
+	BOOL		ret = 0;
+	KerberosEtcSpec	*ssd = &(sspidata->kdata);
+
+mylog("!!! %s in\n", __FUNCTION__);
+	if (SEC_E_OK != (r = CreateKerberosEtcCredentials(NULL, UNI_KERBEROS, (LPCTSTR) opt, &ssd->hKerbEtcCred)))
+	{
+		cmd = "CreateKerberosCredentials";
+		mylog("%s:%s failed\n", func, cmd);
+		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		return 0;
+	}
+mylog("!!! CreateKerberosCredentials passed\n");
+
+	ssd->svcprinc = (LPTSTR) opt;
+	self->sspisvcs |= KerberosService;
+	self->ssd = sspidata;
+	return DoKerberosEtcProcessAuthentication(self, NULL);
+}
+
+static int DoNegotiateNegotiation(SocketClass *self, SspiData *sspidata, const void *opt)
+{
+	CSTR func = "DoNegotiateNegotiation";
+	SECURITY_STATUS	r = SEC_E_OK;
+	const char *	cmd = NULL;
+	BOOL		ret = 0;
+	KerberosEtcSpec	*ssd = &(sspidata->kdata);
+
+mylog("!!! %s in\n", __FUNCTION__);
+	if (SEC_E_OK != (r = CreateKerberosEtcCredentials(NULL, UNI_NEGOTIATE, (LPCTSTR) opt, &ssd->hKerbEtcCred)))
+	{
+		cmd = "CreateNegotiateCredentials";
+		mylog("%s:%s failed\n", func, cmd);
+		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		return 0;
+	}
+mylog("!!! CreateNegotiateCredentials passed\n");
+
+	ssd->svcprinc = (LPTSTR) opt;
+	self->sspisvcs |= NegotiateService;
+	self->ssd = sspidata;
+	return DoKerberosEtcProcessAuthentication(self, NULL);
+}
+
+static int DoKerberosEtcProcessAuthentication(SocketClass *self, const void *opt)
+{
+	CSTR func = "DoKerberosEtcProcessAuthentication";
+	SECURITY_STATUS	r = SEC_E_OK;
+	const char *	cmd = NULL;
+	BOOL		ret = 0, cCtxt = FALSE;
+	KerberosEtcSpec	*ssd;
+
+mylog("!!! %s in\n", __FUNCTION__);
+	ssd = &(((SspiData *)(self->ssd))->kdata);
+	if (SEC_E_OK != (r = PerformKerberosEtcClientHandshake(self, ssd, (size_t) opt)))
+	{
+		cmd = "PerformKerberosEtcClientHandshake";
+		mylog("%s:%s failed\n", func, cmd);
+		goto cleanup;
+	}
+mylog("!!! PerformKerberosEtcClientHandshake passed\n");
+	cCtxt = TRUE;
+	ret = TRUE;
+cleanup:
+	if (!ret)
+	{
+		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		FreeCredentialHandle(&ssd->hKerbEtcCred);
+		if (cCtxt)
+		{
+			DeleteSecurityContext(&ssd->hKerbEtcCtxt);
+		}
+		self->sspisvcs &= (~(KerberosService | NegotiateService));
+	}
+	return ret;
+}
+
+static
+SECURITY_STATUS
+CreateKerberosEtcCredentials(
+	LPCTSTR	opt,		/* in */
+	SEC_CHAR *packname,	/* in */
+	LPCTSTR pszUserName,	/* in */
+	PCredHandle phCreds)	/* out */
+{
+	TimeStamp	tsExpiry;
+	SECURITY_STATUS	Status;
+
+	/*
+	 * Create an SSPI credential.
+	 */
+
+	Status = AcquireCredentialsHandle(
+			NULL,			/* Name of principal */    
+			packname,		/* Name of package */
+			SECPKG_CRED_OUTBOUND,   /* Flags indicating use */
+			NULL,			/* Pointer to logon ID */
+			NULL,			/* Package specific data */
+			NULL,			/* Pointer to GetKey() func */
+			NULL,			/* Value to pass to GetKey() */
+			phCreds,		/* (out) Cred Handle */
+			&tsExpiry);		/* (out) Lifetime (optional) */
+	if (Status != SEC_E_OK)
+	{
+		mylog("**** Error 0x%p returned by AcquireCredentialsHandle\n", Status);
+		goto cleanup;
+	}
+
+cleanup:
+
+    return Status;
+}
+
+static
+SECURITY_STATUS
+PerformKerberosEtcClientHandshake(
+	SocketClass	*sock,		/* in */
+	KerberosEtcSpec	*ssd,		/* i-o */
+	size_t		inlen)
+{
+	SecBufferDesc	InBuffer;
+	SecBuffer	InBuffers[1];
+	SecBufferDesc	OutBuffer;
+	SecBuffer	OutBuffers[1];
+	DWORD		dwSSPIFlags;
+	DWORD		dwSSPIOutFlags;
+	TimeStamp	tsExpiry;
+	SECURITY_STATUS	scRet;
+	CtxtHandle	hContext;
+	PBYTE		inbuf = NULL;
+
+mylog("!!! inlen=%u svcprinc=%s\n", inlen, ssd->svcprinc); 
+	if (ssd->ValidCtxt && inlen > 0)
+	{
+		if (NULL == (inbuf = malloc(inlen + 1)))
+		{
+			return SEC_E_INTERNAL_ERROR;
+		}
+		SOCK_get_n_char(sock, inbuf, inlen);
+		if (SOCK_get_errcode(sock) != 0)
+		{
+			mylog("**** Error %d receiving data from server (1)\n", SOCK_ERRNO);
+			free(inbuf);
+			return SEC_E_INTERNAL_ERROR;
+		}
+
+		InBuffer.ulVersion = SECBUFFER_VERSION;
+		InBuffer.cBuffers = 1;
+		InBuffer.pBuffers = InBuffers;
+		InBuffers[0].pvBuffer = inbuf; 
+		InBuffers[0].cbBuffer = inlen; 
+		InBuffers[0].BufferType = SECBUFFER_TOKEN; 
+	}
+
+	dwSSPIFlags = ISC_REQ_SEQUENCE_DETECT	|
+			ISC_REQ_REPLAY_DETECT	|
+			ISC_REQ_CONFIDENTIALITY	|
+			ISC_RET_EXTENDED_ERROR	|
+			ISC_REQ_ALLOCATE_MEMORY	|
+			ISC_REQ_STREAM;
+
+	/*
+	 *  Initiate a ClientHello message and generate a token.
+	 */
+
+	OutBuffers[0].pvBuffer	= NULL;
+	OutBuffers[0].BufferType = SECBUFFER_TOKEN;
+	OutBuffers[0].cbBuffer	= 0;
+
+	OutBuffer.cBuffers = 1;
+	OutBuffer.pBuffers = OutBuffers;
+	OutBuffer.ulVersion = SECBUFFER_VERSION;
+
+mylog("!!! before InitializeSecurityContext\n"); 
+	scRet = InitializeSecurityContext(
+					&ssd->hKerbEtcCred,
+					ssd->ValidCtxt ? &ssd->hKerbEtcCtxt : NULL,
+					ssd->svcprinc,
+					dwSSPIFlags,
+					0,
+					SECURITY_NATIVE_DREP,
+					ssd->ValidCtxt ? &InBuffer : NULL,
+					0,
+					&hContext,
+					&OutBuffer,
+					&dwSSPIOutFlags,
+					&tsExpiry);
+mylog("!!! %s:InitializeSecurityContext ret=%x\n", __FUNCTION__, scRet); 
+
+	if (inbuf)
+		free(inbuf);
+	if (SEC_E_OK != scRet && SEC_I_CONTINUE_NEEDED != scRet)
+	{
+		mylog("**** Error %x returned by InitializeSecurityContext\n", scRet);
+		return scRet;
+	}
+	if (!ssd->ValidCtxt)
+	{
+		memcpy(&ssd->hKerbEtcCtxt, &hContext, sizeof(CtxtHandle));
+		ssd->ValidCtxt = TRUE;
+	}
+
+mylog("!!! cbBuffer=%d pvBuffer=%p\n", OutBuffers[0].cbBuffer, OutBuffers[0].pvBuffer); 
+	/* Send response to server if there is one. */
+	if (OutBuffers[0].cbBuffer != 0 && OutBuffers[0].pvBuffer != NULL)
+	{
+		int	reslen = OutBuffers[0].cbBuffer;
+mylog("!!! responding 'p' + int(%d) + %dbytes of data\n", reslen + 4, reslen); 
+		SOCK_put_char(sock, 'p');
+		SOCK_put_int(sock, reslen + 4, 4);
+		SOCK_put_n_char(sock, OutBuffers[0].pvBuffer, reslen);
+		SOCK_flush_output(sock);
+		if (SOCK_get_errcode(sock) != 0)
+		{
+			mylog("**** Error %d sending data to server (1)\n", SOCK_ERRNO);
+			FreeContextBuffer(OutBuffers[0].pvBuffer);
+			return SEC_E_INTERNAL_ERROR;
+		}
+
+		mylog("%d bytes of handshake data sent\n", OutBuffers[0].cbBuffer);
+
+		/* Free output buffer. */
+		FreeContextBuffer(OutBuffers[0].pvBuffer);
+		OutBuffers[0].pvBuffer = NULL;
+	}
+
+	return SEC_E_OK;
+	// return KerberosEtcClientHandshakeLoop(Socket, ssd, TRUE, pExtraData);
+}
+
+
 int SSPI_recv(SocketClass *self, void *buffer, int len)
 {
 	CSTR func = "SSPI_recv";
@@ -847,7 +1186,7 @@ int SSPI_recv(SocketClass *self, void *buffer, int len)
 		DWORD	cbIoBuffer, cbIoBufferLength;
 
 		DWORD	cbData;
-		SchannelSpec *ssd = (SchannelSpec *) self->ssd;
+		SchannelSpec *ssd = &(((SspiData *)(self->ssd))->sdata);
 
 mylog("buflen=%d,%d ovrlen=%d\n", ssd->iobuflen, ssd->ioread, ssd->ioovrlen);
 		if (ssd->ioovrlen > 0)
@@ -914,13 +1253,12 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 					{
 						case EINTR:
 							continue;
-						case ECONNRESET:
-							break;
 						case EWOULDBLOCK:
 							retry_count++;
 							if (Socket_wait_for_ready(self->socket, FALSE, retry_count) >= 0)
 								continue;
 						default:
+							SOCK_ERRNO_SET(gerrno);
 							scRet = SEC_E_INTERNAL_ERROR;
 							break;
 					}
@@ -1091,7 +1429,7 @@ int SSPI_send(SocketClass *self, const void *buffer, int len)
 		LPVOID	lpTrail;
 		SecBuffer	sb[4];
 		SecBufferDesc	sbd;
-		SchannelSpec *ssd = (SchannelSpec *) self->ssd;
+		SchannelSpec *ssd = &(((SspiData *)(self->ssd))->sdata);
 
 		QueryContextAttributes(&ssd->hCtxt, SECPKG_ATTR_STREAM_SIZES, &sizes);
 		slen = len;
@@ -1142,13 +1480,13 @@ mylog("EMPTY=%p %d %d\n", sb[3].pvBuffer, sb[3].cbBuffer, sb[3].BufferType);
 		return send(self->socket, (char *) buffer, len, SEND_FLAG);
 }
 
-void ReleaseSvcSpecData(SocketClass *self)
+void ReleaseSvcSpecData(SocketClass *self, UInt4 svc)
 {
 	if (!self->ssd)
 		return;
-	if (0 != (self->sspisvcs & SchannelService))
+	if (0 != (self->sspisvcs & (svc & SchannelService)))
 	{
-		SchannelSpec *ssd = (SchannelSpec *) self->ssd;
+		SchannelSpec *ssd = &(((SspiData *)(self->ssd))->sdata);
 
 		if (ssd->iobuf)
 		{
@@ -1163,6 +1501,23 @@ void ReleaseSvcSpecData(SocketClass *self)
 		FreeCredentialHandle(&ssd->hCred);
 		DeleteSecurityContext(&ssd->hCtxt);
 		self->sspisvcs &= (~SchannelService);
+	}
+	if (0 != (self->sspisvcs & (svc & (KerberosService | NegotiateService))))
+	{
+		KerberosEtcSpec *ssd = &(((SspiData *)(self->ssd))->kdata);
+
+		if (ssd->svcprinc)
+		{
+			free(ssd->svcprinc);
+			ssd->svcprinc = NULL;
+		}
+		FreeCredentialHandle(&ssd->hKerbEtcCred);
+		if (ssd->ValidCtxt)
+		{
+			DeleteSecurityContext(&ssd->hKerbEtcCtxt);
+			ssd->ValidCtxt = FALSE;
+		}
+		self->sspisvcs &= (~(KerberosService | NegotiateService));
 	}
 }
 #endif /* USE_SSPI */

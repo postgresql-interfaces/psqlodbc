@@ -10,6 +10,13 @@
 #define __SOCKET_H__
 
 #include "psqlodbc.h"
+#if defined (USE_GSS)
+#ifdef	HAVE_GSSAPI_H
+#include <gssapi.h>
+#else
+#include <gssapi/gssapi.h>
+#endif
+#endif
 #include <errno.h>
 
 #ifndef WIN32
@@ -160,10 +167,13 @@ struct SocketClass_
 	void		*pqconn;	/* libpq PGConn */
 	BOOL		via_libpq;	/* using libpq library ? */
 #endif /* NOT_USE_LIBPQ */
+#ifdef	USE_GSS
+	gss_ctx_id_t	gctx;		/* GSS context */
+	gss_name_t	gtarg_nam;	/* GSS target name */
+#endif /* USE_GSS */
 
-	char		reverse;		/* used to handle Postgres 6.2 protocol
-								 * (reverse byte order) */
-
+	char		reverse;	/* used to handle Postgres 6.2 protocol
+						* (reverse byte order) */
 };
 
 #define SOCK_get_char(self)	(SOCK_get_next_byte(self, FALSE))

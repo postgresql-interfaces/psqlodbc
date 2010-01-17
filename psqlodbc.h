@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.132 2009/10/25 13:36:31 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.133 2010/01/17 13:10:41 hinoue Exp $
  *
  */
 
@@ -102,7 +102,10 @@ typedef	UInt4	OID;
 #define	FORMAT_UINT4	"%u"	/* UInt4 */
 
 #ifdef	WIN32
+#ifndef	SSIZE_T_DEFINED
 #define	ssize_t	SSIZE_T
+#define	SSIZE_T_DEFINED
+#endif
 #define	FORMAT_SIZE_T	"%Iu"	/* size_t */
 #define	FORMAT_SSIZE_T	"%Id"	/* ssize_t */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */

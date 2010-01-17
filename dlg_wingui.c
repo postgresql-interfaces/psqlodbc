@@ -590,7 +590,11 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_SERVERSIDEPREPARE, ci->use_server_side_prepare);
 			CheckDlgButton(hdlg, DS_BYTEAASLONGVARBINARY, ci->bytea_as_longvarbinary);
 			/*CheckDlgButton(hdlg, DS_LOWERCASEIDENTIFIER, ci->lower_case_identifier);*/
+			CheckDlgButton(hdlg, DS_GSSAUTHUSEGSSAPI, ci->gssauth_use_gssapi);
 
+#if	defined(NOT_USE_LIBPQ) && !defined(USE_SSPI) && !defined(USE_GSS)
+			EnableWindow(GetDlgItem(hdlg, DS_GSSAUTHUSEGSSAPI), FALSE);
+#endif
 			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), atoi(ci->show_oid_column));
 
 			/* Datasource Connection Settings */
@@ -662,6 +666,7 @@ ds_options2Proc(HWND hdlg,
 					ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
 					ci->bytea_as_longvarbinary = IsDlgButtonChecked(hdlg, DS_BYTEAASLONGVARBINARY);
 					/*ci->lower_case_identifier = IsDlgButtonChecked(hdlg, DS_LOWERCASEIDENTIFIER);*/
+					ci->gssauth_use_gssapi = IsDlgButtonChecked(hdlg, DS_GSSAUTHUSEGSSAPI);
 
 					/* OID Options */
 					sprintf(ci->fake_oid_index, "%d", IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));

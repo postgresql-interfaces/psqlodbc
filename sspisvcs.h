@@ -15,10 +15,12 @@
 typedef enum {
 	SchannelService = 1L
 	,KerberosService = (1L << 1)
+	,NegotiateService = (1L << 2)
 } SSPI_Service;
 
-void	ReleaseSvcSpecData(SocketClass *self);
-int	StartupSspiService(SocketClass *self, SSPI_Service svc, const char *opt);
+void	ReleaseSvcSpecData(SocketClass *self, UInt4);
+int	StartupSspiService(SocketClass *self, SSPI_Service svc, const void *opt);
+int	ContinueSspiService(SocketClass *self, SSPI_Service svc, const void *opt);
 int	SSPI_recv(SocketClass *self, void *buf, int len);
 int	SSPI_send(SocketClass *self, const void *buf, int len);
 
