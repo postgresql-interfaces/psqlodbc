@@ -67,8 +67,6 @@ fi
 if test "$with_unixodbc" = yes; then
   AC_DEFINE(WITH_UNIXODBC, 1,
             [Define to 1 to build with unixODBC support])
-  AC_DEFINE(SQL_WCHART_CONVERT, [],
-            [Define to use wchar_t as SQLWCHAR in unixODBC])
 fi
 
 #
