@@ -3713,7 +3713,7 @@ retry_public_schema:
 						" where tc.oid = " FORMAT_UINT4
 						, reloid);
 
-					strncat(tables_query,
+					strlcat(tables_query,
 						" AND tc.oid = i.indrelid"
 						" AND n.oid = tc.relnamespace"
 						" AND i.indisprimary = 't'"
@@ -3743,7 +3743,7 @@ retry_public_schema:
 						snprintf(tbqry, tsize,
 						" where tc.oid = " FORMAT_UINT4, reloid);
 						
-					strncat(tables_query,
+					strlcat(tables_query,
 						" AND tc.oid = i.indrelid"
 						" AND i.indisprimary = 't'"
 						" AND ia.attrelid = i.indexrelid"

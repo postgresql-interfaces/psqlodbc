@@ -330,3 +330,30 @@ snprintf_len(char *buf, size_t size, const char *format, ...)
 	va_end(arglist);
 	return len;
 }
+
+#ifndef	HAVE_STRLCAT
+size_t
+strlcat(char *dst, const char *src, size_t size)
+{
+	size_t ttllen;
+	char	*pd = dst;
+	const char *ps= src;
+	
+	for (ttllen = 0; ttllen < size; ttllen++, pd++)
+	{
+		if (0 == *pd)
+			break; 
+	}
+	if (ttllen >= size - 1)
+		return ttllen + strlen(src);
+	for (; ttllen < size - 1; ttllen++, pd++, ps++)
+	{
+		if (0 == (*pd = *ps))
+			return ttllen;
+	}
+	*pd = 0;
+	for (; *ps; ttllen++, ps++)
+		;
+	return ttllen;
+}
+#endif /* HAVE_STRLCAT */

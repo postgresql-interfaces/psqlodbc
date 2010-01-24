@@ -644,7 +644,7 @@ QR_close(QResultClass *self)
 			    CC_cursor_count(conn) <= 1)
 			{
 				mylog("QResult: END transaction on conn=%p\n", conn);
-				strncat(buf, ";commit", sizeof(buf));
+				strlcat(buf, ";commit", sizeof(buf));
 				flag |= END_WITH_COMMIT;
 				QR_set_cursor(self, NULL);
 			}

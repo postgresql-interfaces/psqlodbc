@@ -5,7 +5,7 @@
  *
  * Comments:		See "notice.txt" for copyright and license information.
  *
- * $Id: psqlodbc.h,v 1.133 2010/01/17 13:10:41 hinoue Exp $
+ * $Id: psqlodbc.h,v 1.134 2010/01/24 07:56:13 hinoue Exp $
  *
  */
 
@@ -190,12 +190,7 @@ typedef double SDOUBLE;
 #define	FALSE	(BOOL)0
 #endif /* FALSE */
 #else
-#if (_MSC_VER >= 1400) && !defined(_WIN64)
-#define snprintf sprintf_s
-#define strncat(d, s, l) strcat_s(d, l, s)
-#else
 #define snprintf _snprintf
-#endif
 #ifndef strdup
 #define strdup _strdup
 #endif /* strdup */
