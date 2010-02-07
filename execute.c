@@ -228,7 +228,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 		if (stmt->multi_statement < 0)
 			PGAPI_NumParams((StatementClass *) stmt, &num_params);
 		if (stmt->multi_statement > 0) /* would divide the query into multiple commands and apply V3 parse requests for each of them */
-			ret = PARSE_REQ_FOR_INFO;
+			ret = PROTOCOL_74(ci) ? PARSE_REQ_FOR_INFO : PREPARE_BY_THE_DRIVER;
 		else if (PROTOCOL_74(ci))
 		{
 			if (SC_returns_rows(stmt))
@@ -249,8 +249,10 @@ inquireHowToPrepare(const StatementClass *stmt)
 			    (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type ||
 			    ci->drivers.use_declarefetch))
 				ret = PREPARE_BY_THE_DRIVER;
-			else
+			else if (SC_is_prepare_statement(stmt))
 				ret = USING_PREPARE_COMMAND;
+			else
+				ret = PREPARE_BY_THE_DRIVER;
 		}
 	}
 	if (SC_is_prepare_statement(stmt) && (PARSE_TO_EXEC_ONCE == ret))
@@ -316,7 +318,7 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 		switch (how_to_prepare)
 		{
 			case USING_PREPARE_COMMAND:
-				return usingCommand;
+				return checkOnly ? doNothing : usingCommand;
 			case NAMED_PARSE_REQUEST:
 				return shouldParse;
 			case PARSE_TO_EXEC_ONCE:
@@ -336,7 +338,8 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 				return doNothing;
 		}
 	}
-	if (PG_VERSION_LE(conn, 7.3))
+	if (PG_VERSION_LE(conn, 7.3) ||
+	    !PROTOCOL_74(ci))
 		return nCallParse;
 
 	if (num_params > 0)
