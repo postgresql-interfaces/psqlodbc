@@ -9,7 +9,7 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 08.XX.XXXX Release </h2>
+<h2>psqlODBC 09.00.0100 Prep Release</h2>
 Changes:<br>
 1.) Allow password which contains special characters like {,},=,;.<br>
 2.) Add a new data source option which makes it possible to use Kerberos for Windows library to reply to GSSAPI authentication request.<br>
@@ -18,6 +18,9 @@ Changes:<br>
 5.) Removed "#define SQL_WCHART_CONVERT" which  causes a trouble on some platforms.<br>
 6.) Removed the use of misused strcat_s together with snprintf_s (bug report from Jap-Peter Seifert) and use strlcat instead of strncat.<br>
 7.) Fix a bug about pre-execute behavior in case of protocol v2 or earlier.<br>
+8.) Use poll() instead of select() when it's available.<br>
+9.) Take comments or line comments in a query into account.<br>
+10.) Fix a crash bug on authentication failures.<br>
 <br>
 <li>Notes: psqlODBC 08.04.0200</li><br>
 Changes:<br>
