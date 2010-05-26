@@ -1655,9 +1655,9 @@ typedef struct _QueryParse {
 	ssize_t		taglen;
 	char		token_save[64];
 	int		token_len;
-	BOOL		prev_token_end;
+	char		prev_token_end, in_line_comment;
 	size_t		declare_pos;
-	UInt4		flags;
+	UInt4		flags, comment_level;
 	encoded_str	encstr;
 }	QueryParse;
 
@@ -1676,8 +1676,10 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->token_save[0] = '\0';
 	q->token_len = 0;
 	q->prev_token_end = TRUE;
+	q->in_line_comment = FALSE;
 	q->declare_pos = 0;
 	q->flags = 0;
+	q->comment_level = 0;
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
 
 	return q->stmt_len;
@@ -3052,6 +3054,34 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
+	else if (qp->comment_level > 0) /* comment_level check */
+	{
+		if ('/' == oldchar &&
+		    '*' == F_OldPtr(qp)[1])
+		{
+			qp->comment_level++;
+			CVT_APPEND_CHAR(qb, oldchar);
+			F_OldNext(qp);
+			oldchar = F_OldChar(qp);
+		}
+		else if ('*' == oldchar &&
+			 '/' == F_OldPtr(qp)[1])
+		{
+			qp->comment_level--;
+			CVT_APPEND_CHAR(qb, oldchar);
+			F_OldNext(qp);
+			oldchar = F_OldChar(qp);
+		}
+		CVT_APPEND_CHAR(qb, oldchar);
+		return SQL_SUCCESS;
+	}
+	else if (qp->in_line_comment) /* line comment check */
+	{
+		if (PG_LINEFEED == oldchar)
+			qp->in_line_comment = FALSE;
+		CVT_APPEND_CHAR(qb, oldchar);
+		return SQL_SUCCESS;
+	}
 
 	/*
 	 * From here we are guranteed to be in neither a literal_escape,
@@ -3172,6 +3202,16 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		{
 			if (!qp->in_literal)
 				qp->in_identifier = TRUE;
+		}
+		else if ('/' == oldchar &&
+			 '*' == F_OldPtr(qp)[1])
+		{
+			qp->comment_level++;
+		}
+		else if ('-' == oldchar &&
+			 '-' == F_OldPtr(qp)[1])
+		{
+			qp->in_line_comment = TRUE;
 		}
 		else if (oldchar == ';')
 		{

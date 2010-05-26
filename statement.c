@@ -867,8 +867,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 	char	tchar, bchar, escape_in_literal = '\0';
 	char	in_literal = FALSE, in_identifier = FALSE,
 		in_dollar_quote = FALSE, in_escape = FALSE,
-		in_line_comment = FALSE, in_comment = FALSE,
-		del_found = FALSE;
+		in_line_comment = FALSE, del_found = FALSE;
+	int	comment_level = 0;
 	po_ind_t multi = FALSE;
 	SQLSMALLINT	num_p;
 	encoded_str	encstr;
@@ -932,13 +932,19 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 			if (PG_LINEFEED == tchar)
 				in_line_comment = FALSE;
 		}
-		else if (in_comment)
+		else if (comment_level > 0)
 		{
-			if ('*' == tchar && '/' == sptr[1])
+			if ('/' == tchar && '*' == sptr[1])
 			{
 				encoded_nextchar(&encstr);
 				sptr++;
-				in_comment = FALSE;
+				comment_level++;
+			}
+			else if ('*' == tchar && '/' == sptr[1])
+			{
+				encoded_nextchar(&encstr);
+				sptr++;
+				comment_level--;
 			}
 		}
 		else
@@ -998,7 +1004,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				{
 					encoded_nextchar(&encstr);
 					sptr++;
-					in_comment = TRUE;
+					comment_level++;
 				}
 			}
 			if (!isspace(tchar))

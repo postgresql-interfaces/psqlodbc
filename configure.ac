@@ -274,7 +274,7 @@ AC_C_CONST
 # 7. Functions, global variables
 
 AC_FUNC_STRERROR_R
-AC_CHECK_FUNCS(strtoul strtoll strlcpy)
+AC_CHECK_FUNCS(strtoul strtoll strlcat strlcpy poll)
 
 if test x"$enable_unicode" = xyes; then
   AC_CHECK_FUNCS(iswascii)

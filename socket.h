@@ -21,6 +21,9 @@
 
 #ifndef WIN32
 #define	WSAAPI
+#ifdef	HAVE_POLL
+#include <poll.h>
+#endif /* HAVE_POLL */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>

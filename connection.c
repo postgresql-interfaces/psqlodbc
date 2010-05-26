@@ -457,6 +457,9 @@ static void
 CC_endup_authentication(ConnectionClass *self)
 {
 	SocketClass	*sock = CC_get_socket(self);
+
+	if (!sock)
+		return;
 #ifdef	USE_SSPI
 	if (0 != self->auth_svcs)
 	{

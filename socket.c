@@ -350,8 +350,13 @@ retry:
 	if (connect(self->socket, (struct sockaddr *) &(self->sadr_area), self->sadr_len) < 0)
 	{
 		int	ret, optval;
+		int	wait_sec = 0;
+#ifdef	HAVE_POLL
+		struct pollfd	fds;
+#else
 		fd_set	fds, except_fds;
 		struct	timeval	tm;
+#endif /* HAVE_POLL */
 		socklen_t	optlen = sizeof(optval);
 		time_t	t_now, t_finish = 0;
 		BOOL	tm_exp = FALSE;
@@ -377,15 +382,23 @@ retry:
 		{
 			t_now = time(NULL);
 			t_finish = t_now + timeout;
-			tm.tv_sec = timeout;
-			tm.tv_usec = 0;
+			wait_sec = timeout;
 		}
 		do {
+#ifdef	HAVE_POLL
+			fds.fd = self->socket;
+			fds.events = POLLOUT;
+			fds.revents = 0;
+			ret = poll(&fds, 1, timeout > 0 ? wait_sec * 1000 : -1);
+#else
+			tm.tv_sec = wait_sec;
+			tm.tv_usec = 0;
 			FD_ZERO(&fds);
 			FD_ZERO(&except_fds);
 			FD_SET(self->socket, &fds);
 			FD_SET(self->socket, &except_fds);
 			ret = select((int) self->socket + 1, NULL, &fds, &except_fds, timeout > 0 ? &tm : NULL);
+#endif /* HAVE_POLL */
 			gerrno = SOCK_ERRNO;
 			if (0 < ret)
 				break;
@@ -398,10 +411,7 @@ retry:
 				if (t_now = time(NULL), t_now >= t_finish)
 					tm_exp = TRUE;
 				else
-				{
-					tm.tv_sec = (long) (t_finish - t_now);
-					tm.tv_usec = 0;
-				}
+					wait_sec = t_finish - t_now;
 			}
 		} while (!tm_exp);
 		if (tm_exp)
@@ -475,8 +485,12 @@ cleanup:
 static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 {
 	int	ret, gerrno;
+#ifdef	HAVE_POLL
+	struct pollfd	fds;
+#else
 	fd_set	fds, except_fds;
 	struct	timeval	tm;
+#endif /* HAVE_POLL */
 	BOOL	no_timeout = TRUE;
 
 	if (0 == retry_count)
@@ -488,6 +502,13 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 		no_timeout = TRUE;
 #endif /* USE_SSL */
 	do {
+#ifdef	HAVE_POLL
+		fds.fd = sock->socket;
+		fds.events = output ? POLLOUT : POLLIN;
+		fds.revents = 0;
+		ret = poll(&fds, 1, no_timeout ? -1 : retry_count * 1000);
+mylog("!!!  poll ret=%d revents=%x\n", ret, fds.revents);
+#else
 		FD_ZERO(&fds);
 		FD_ZERO(&except_fds);
 		FD_SET(sock->socket, &fds);
@@ -498,6 +519,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 			tm.tv_usec = 0;
 		}
 		ret = select((int) sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
+#endif /* HAVE_POLL */
 		gerrno = SOCK_ERRNO;
 	} while (ret < 0 && EINTR == gerrno);
 	if (retry_count < 0)
@@ -916,13 +938,13 @@ inolog("ECONNRESET\n");
 		{
 			if (!maybeEOF)
 			{
-				int	nbytes = SOCK_wait_for_ready(self, FALSE, 0);
-				if (nbytes > 0)
+				int	nready = SOCK_wait_for_ready(self, FALSE, 0);
+				if (nready > 0)
 				{
 					maybeEOF = TRUE;
 					goto retry;
 				}
-				else if (0 == nbytes)
+				else if (0 == nready)
 					maybeEOF = TRUE;
 			}
 			if (maybeEOF)
