@@ -1497,11 +1497,13 @@ allow_public_schema(ConnectionClass *conn, const char *szSchemaName, SQLSMALLINT
 	const char *user = CC_get_username(conn);
 	size_t	userlen = strlen(user);
 
+	if (NULL == szSchemaName)
+		return FALSE;
+
 	if (SQL_NTS == cbSchemaName)
 		cbSchemaName = strlen(szSchemaName);
 
-	return (NULL != szSchemaName &&
-		cbSchemaName == (SQLSMALLINT) userlen &&
+	return (cbSchemaName == (SQLSMALLINT) userlen &&
 		strnicmp(szSchemaName, user, userlen) == 0 &&
 		stricmp(CC_get_current_schema(conn), pubstr) == 0);
 }

@@ -29,9 +29,9 @@ AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of uni
 		else
 			ODBC_CONFIG=${ODBC_CONFIG}/bin/odbc_config
 		fi
+		with_unixodbc=yes
 	fi
-
-	with_unixodbc=yes],
+	],
 [with_unixodbc=yes])
 
 
@@ -53,9 +53,9 @@ AC_ARG_WITH(iodbc, [  --with-iodbc=DIR	  iodbc_config installation of iODBC],
 		else
 			ODBC_CONFIG=${ODBC_CONFIG}/bin/iodbc-config
 		fi
+		with_iodbc=yes
 	fi
-
-	with_iodbc=yes],
+	],
 [with_iodbc=no])
 
 
