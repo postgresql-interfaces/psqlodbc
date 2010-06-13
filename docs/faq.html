@@ -1,3 +1,4 @@
+<!-- saved from url=(0022)http://internet.e-mail -->
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
@@ -9,7 +10,7 @@
   
     <h1>psqlODBC FAQ</h1>
 
-    <p>Last updated: $Date: 2008/07/15 14:21:43 $</p>
+    <p>Last updated: $Date: 2010/06/13 12:53:27 $</p>
 
     <P>Current maintainer: Dave Page (<a href="mailto:dpage@postgresql.org">dpage@postgresql.org</a>)</p>
 
@@ -59,6 +60,7 @@
     <a href="#6.5">6.5</a>) With MS Access, why can't I index on text fields -OR- why do I get "Invalid field definition 'field'" in definition of index or relationship?<br>
     <a href="#6.6">6.6</a>) With MS Access, why can't I GROUP BY,  ORDER BY, or even select WHERE, on columns which are of type "text"?<br>
     <a href="#6.7">6.7</a>) With MS Access, why do I see #Deleted# in rows after some operations?<br>
+    <a href="#6.8">6.8</a>) Why can't we set up DSN on WIN x64.<br>
 
 
     <h2>1) General</h2>
@@ -267,8 +269,7 @@
     int4. You must do this for each database you want to use this feature on. This will 
     probably not be necessary in PostgreSQL 6.4 since it will be added. Here are the details:
     </p>
-    <pre>
-    create function int4eq(xid,int4)
+    <pre>    create function int4eq(xid,int4)
         returns bool
         as ''
         language 'internal';
@@ -295,8 +296,7 @@
     part of PostgreSQL, it must be added into the desired database and looked up for each connection. 
     The type used in the driver is simply called "lo" and here is the command used to create it:
     </p>
-    <pre>
-    create type lo (
+    <pre>    create type lo (
         internallength=4,
         externallength=10,
         input=int4in,
@@ -338,8 +338,7 @@
     on how many parts are in the key, performance can range from slow to crashing of the backend. Here 
     is a keyset query using 10 rows (the typical keyset amount):
     </p>
-    <pre>
-    -- This is a 3 part key
+    <pre>    -- This is a 3 part key
 
     select ... from foo where
         (v1 = "?" AND v2 = "?" AND v3 ="?") OR -- line 1
@@ -362,8 +361,7 @@
     SQLPrimaryKeys() is implemented in the driver. The driver queries the system tables in search 
     of a unique index named with the using "{table}_pkey". For Example:
     </p>
-    <pre>
-    create table foo (
+    <pre>    create table foo (
         id integer primary key,
         data varchar(20)
     );
@@ -468,8 +466,7 @@
     <p>
     You have inserted the following row into table a:
     </p>
-    <pre>
-        id  | name----+-------------------------  1 | <- contains the empty string. Not NULL.
+    <pre>        id  | name----+-------------------------  1 | <- contains the empty string. Not NULL.
     </pre>
     <p>
     And then you retrieve the row using Access 2000, subsequently inserting the value "Smartypants" 
@@ -583,6 +580,131 @@
     intofmation, please see <a href="http://support.microsoft.com/default.aspx?scid=kb;en-us;128809">
     Microsoft KB article #128809</a>.
     </p>
+
+    <h3><a name="6.8">6.8</a>) Why can't we setup DSN on WIN x64?</h3>
+    <p>
+    <b>Contributed by Mark Wood (mw@mcwood.co.uk)</b><br>
+    <p>
+    Though you can install 32 bit ODBC drivers on Win X64 as usual, you can't 
+    configure 32-bit DSNs via oridinary control panel or ODBC datasource
+    administrator.
+    <p>
+    <b>How to configure 32 bit ODBC drivers on Win x64</b><br>
+    <p>
+    Configure ODBC DSN from <b>%SystemRoot%\syswow64\odbcad32.exe.</b><br>
+    <p>
+    &nbsp&nbsp Start|Run<br>
+    &nbsp&nbsp Paste <b>%SystemRoot%\syswow64\odbcad32.exe</b><br>
+    &nbsp&nbsp Hit return<br>
+    <br>
+    <br>
+    <b>What's and why WOW64</b><br>
+    <br>
+    <a href="http://forums.techarena.in/operating-systems/1160164.htm">http://forums.techarena.in/operating-systems/1160164.htm</a><br>
+    <br>
+    WoW64 stands for &quot;Windows on 64-bit Windows&quot;, and it contains all the 32-bit 
+    binary files required for compatibility, which run on top of the<br>
+    64 bit Windows. So, yeah&quot; it looks like a double copy of everything in 
+    System32 (which despite the directory name, are actually 64-bit binaries).<br>
+    <br>
+    If you are running 32 bit Windows then finding this SysWoW64 directory is a 
+    bit weird ...<br>
+    <br>
+    WOW64 knows that the Setup wizard is a 32-bit application running within an 
+    emulator. It also knows that 64- and 32-bit code cannot be mixed. As such, 
+    the WOW64 emulator aliases an alias to the \Windows\SysWOW64 folder. This 
+    means that any time a 32-bit application needs to read or write anything to 
+    or from the \Windows\System32 folder, the WOW64 emulator transparently 
+    redirects the request to the \Windows\SysWOW64 folder.<br>
+    <br>
+    Microsoft offers a set of 32 bit executables in the WoW(Windows on Windows) 
+    directory of the system, for a Windows Vista 64 bit Operating System,<br>
+    <br>
+    To setup DSN for 32-bit application you must use: <b>%WINDIR%\SysWOW64\odbcad32.exe</b><br>
+    <br>
+    and for 64-bit application you must use: <b>%WINDIR%\System32\odbcad32.exe</b><br>
+    <br>
+    So, to run a 32 bit application, we would need to modify the env PATH 
+    variable and put SysWOW64 before system32.<br>
+    <br>
+    Roughly the steps would be<br>
+    1. Start <b>%windir%\SysWoW64\cmd.exe</b><br>
+    2. set <b>PATH=%systemroot%\SysWOW64;%PATH%</b><br>
+    3. Run the application.<br>
+    4. After application has completed, reset PATH variable if required.<br>
+    <br>
+    Hope this was helpful.<br>
+    Or, if the application can't be run from a shell then you could modify
+    the PATH variable directly from System Properties &gt; Advanced Tab &gt;
+    Environmental Variable &gt; System variable.<br>
+    Edit the PATH variable accordingly and reboot the system for the changes
+    to take effect.<br>
+    <br>
+    And also check the related threads :<br>
+    <br>
+    * Adminpak SP2 , Windows Server x64 SP2<br>
+    &lt;<a href="http://forums.techarena.in/windows-x64-edition/810091.htm">http://forums.techarena.in/windows-x64-edition/810091.htm</a>&gt;<br>
+    * Need Help Registering DLLs<br>
+    &lt;<a href="http://forums.techarena.in/windows-x64-edition/804399.htm">http://forums.techarena.in/windows-x64-edition/804399.htm</a>&gt;<br>
+    * Certificate Services Web interface and Win2k3 x64/AMD64 edition<br>
+    &lt;<a href="http://forums.techarena.in/server-security/598973.htm">http://forums.techarena.in/server-security/598973.htm</a>&gt;<br>
+    <br>
+    Documentation on what you can expect you registry to show after
+    installation using postgresql dbc msi<br>
+    <br>
+    <a href="http://archives.postgresql.org/pgsql-interfaces/2001-01/msg00177.php">
+    http://archives.postgresql.org/pgsql-interfaces/2001-01/msg00177.php</a><br>
+    <br>
+    There are two versions of the ODBC driver at ftp.postgresql.org: one is
+    the full package including installer, the other is just the driver itself.<br>
+    Once you have installed with installer once, you can upgrade by just copying 
+    new versions of the driver to windows\system.<br>
+    If for some reason you cannot get the installer to work, you can do the 
+    install by hand with regedit.<br>
+    <br>
+    Find the key <b>HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI </b>and add the 
+    following:<br>
+    <br>
+    REGEDIT4<br>
+    <br>
+    <b>[HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL]<br>
+    </b>
+    &quot;Setup&quot;=&quot;C:\\WINDOWS\\SYSTEM\\PSQLODBC.DLL&quot;<br>
+    &quot;Driver&quot;=&quot;C:\\WINDOWS\\SYSTEM\\PSQLODBC.DLL&quot;<br>
+    &quot;APILevel&quot;=&quot;1&quot;<br>
+    &quot;ConnectFunctions&quot;=&quot;YYN&quot;<br>
+    &quot;CommLog&quot;=&quot;0&quot;<br>
+    &quot;Optimizer&quot;=&quot;0&quot;<br>
+    &quot;DriverODBCVer&quot;=&quot;02.00&quot;<br>
+    &quot;FileUsage&quot;=&quot;0&quot;<br>
+    &quot;SQLLevel&quot;=&quot;1&quot;<br>
+    &quot;UsageCount&quot;=dword:00000001<br>
+    &quot;Fetch&quot;=&quot;100&quot;<br>
+    &quot;UniqueIndex&quot;=&quot;1&quot;<br>
+    &quot;ReadOnly&quot;=&quot;0&quot;<br>
+    &quot;UseCursors&quot;=&quot;0&quot;<br>
+    &quot;UnknownSizes&quot;=&quot;0&quot;<br>
+    &quot;TextAsLongVarchar&quot;=&quot;0&quot;<br>
+    &quot;UnknownsAsLongVarchar&quot;=&quot;0&quot;<br>
+    &quot;MaxVarcharSize&quot;=&quot;254&quot;<br>
+    &quot;MaxLongVarcharSize&quot;=&quot;4094&quot;<br>
+    &quot;ConnSettings&quot;=&quot;&quot;<br>
+    &quot;UseDeclareFetch&quot;=&quot;0&quot;<br>
+    &quot;BoolsAsChar&quot;=&quot;0&quot;<br>
+    &quot;ExtraSysTablePrefixes&quot;=&quot;dd_;&quot;<br>
+    &quot;Parse&quot;=&quot;1&quot;<br>
+    &quot;Ksqo&quot;=&quot;1&quot;<br>
+    &quot;CancelAsFreeStmt&quot;=&quot;0&quot;<b><br>
+    </b>
+    <br>
+    (Note: check the above paths for your system)<br>
+    <br>
+    Find the key <b>HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC</b> Drivers and 
+    add an entry &quot;<b>PostgreSQL= Installed</b>&quot;.<br>
+    <br>
+    From the Desk of Mark Wood (mw@mcwood.co.uk ) 
+    20100524<br>
+&nbsp;</p>
 
 </body>
 </head>
