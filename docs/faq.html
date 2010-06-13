@@ -10,7 +10,7 @@
   
     <h1>psqlODBC FAQ</h1>
 
-    <p>Last updated: $Date: 2010/06/13 12:53:27 $</p>
+    <p>Last updated: $Date: 2010/06/13 14:51:13 $</p>
 
     <P>Current maintainer: Dave Page (<a href="mailto:dpage@postgresql.org">dpage@postgresql.org</a>)</p>
 
@@ -60,7 +60,7 @@
     <a href="#6.5">6.5</a>) With MS Access, why can't I index on text fields -OR- why do I get "Invalid field definition 'field'" in definition of index or relationship?<br>
     <a href="#6.6">6.6</a>) With MS Access, why can't I GROUP BY,  ORDER BY, or even select WHERE, on columns which are of type "text"?<br>
     <a href="#6.7">6.7</a>) With MS Access, why do I see #Deleted# in rows after some operations?<br>
-    <a href="#6.8">6.8</a>) Why can't we set up DSN on WIN x64.<br>
+    <a href="#6.8">6.8</a>) Installing psqlODBC on 64bit Windows.<br>
 
 
     <h2>1) General</h2>
@@ -581,7 +581,7 @@
     Microsoft KB article #128809</a>.
     </p>
 
-    <h3><a name="6.8">6.8</a>) Why can't we setup DSN on WIN x64?</h3>
+    <h3><a name="6.8">6.8</a>) Installing psqlODBC on 64bit Windows</h3>
     <p>
     <b>Contributed by Mark Wood (mw@mcwood.co.uk)</b><br>
     <p>
@@ -591,15 +591,25 @@
     <p>
     <b>How to configure 32 bit ODBC drivers on Win x64</b><br>
     <p>
-    Configure ODBC DSN from <b>%SystemRoot%\syswow64\odbcad32.exe.</b><br>
+    Configure ODBC DSN from <b>%SystemRoot%\syswow64\odbcad32.exe.&nbsp; </b>
+    Click<br>
     <p>
-    &nbsp&nbsp Start|Run<br>
-    &nbsp&nbsp Paste <b>%SystemRoot%\syswow64\odbcad32.exe</b><br>
+    &nbsp&nbsp Start-&gt;Run<br>
+    &nbsp;&nbsp; Enter:<b> %SystemRoot%\syswow64\odbcad32.exe</b><br>
     &nbsp&nbsp Hit return<br>
     <br>
+    This looks the same as the driver manager you might run from the control 
+    panel, but is for managing 32bit drivers. If you run odbcad32.exe from the 
+    System32 directory, you are actually running the 64bit driver manager.<br>
+    <br>
+    <b>What is WOW64?</b><br>
+    I would probably remove the rest of the info if possible, and just include a 
+    link to more information on WOW64 - maybe<br>
+    <a href="http://msdn.microsoft.com/en-us/library/aa384274(v=VS.85).aspx">
+    http://msdn.microsoft.com/en-us/library/aa384274(v=VS.85).aspx</a> for 
+    example.<br>
     <br>
     <b>What's and why WOW64</b><br>
-    <br>
     <a href="http://forums.techarena.in/operating-systems/1160164.htm">http://forums.techarena.in/operating-systems/1160164.htm</a><br>
     <br>
     WoW64 stands for &quot;Windows on 64-bit Windows&quot;, and it contains all the 32-bit 
@@ -618,7 +628,7 @@
     redirects the request to the \Windows\SysWOW64 folder.<br>
     <br>
     Microsoft offers a set of 32 bit executables in the WoW(Windows on Windows) 
-    directory of the system, for a Windows Vista 64 bit Operating System,<br>
+    directory of the system, for a Windows Vista 64 bit Operating System.<br>
     <br>
     To setup DSN for 32-bit application you must use: <b>%WINDIR%\SysWOW64\odbcad32.exe</b><br>
     <br>
