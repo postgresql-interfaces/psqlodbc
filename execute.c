@@ -371,6 +371,11 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 						if (ci->cvt_null_date_string)
 							nCallParse = shouldParse;
 						break;
+					case SQL_VARCHAR:
+						if (ci->drivers.bools_as_char &&
+						    PG_WIDTH_OF_BOOLS_AS_CHAR == ipara->column_size)
+							nCallParse = shouldParse;
+						break;
 				}
 			}
 			else

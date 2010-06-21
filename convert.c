@@ -4121,6 +4121,21 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 		case SQL_WLONGVARCHAR:
 #endif /* UNICODE_SUPPORT */
 
+			switch (param_pgtype)
+			{
+				case PG_TYPE_BOOL:
+					/* consider True is -1 case */
+					if (NULL != buf)
+					{
+						if ('-' == buf[0] &&
+						    '1' == buf[1])
+							strcpy(buf, "1");
+					}
+					else if ('-' == param_string[0] &&
+						 '1' == param_string[1])
+						strcpy(buf, "1");
+					break;
+			}
 			/* it was a SQL_C_CHAR */
 			if (buf)
 				CVT_SPECIAL_CHARS(qb, buf, used);

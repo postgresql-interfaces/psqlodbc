@@ -72,6 +72,7 @@
 #define PG_TYPE_TIME_WITH_TMZONE	1266		/* since 7.1 */
 #define PG_TYPE_TIMESTAMP		1296	/* deprecated since 7.0 */
 #define PG_TYPE_NUMERIC			1700
+#define PG_TYPE_REFCURSOR		1790
 #define PG_TYPE_RECORD			2249
 #define PG_TYPE_VOID			2278
 #define PG_TYPE_UUID			2950
@@ -82,6 +83,7 @@ extern SQLSMALLINT sqlTypes[];
 
 /*	Defines for pgtype_precision */
 #define PG_STATIC				(-1)
+#define PG_WIDTH_OF_BOOLS_AS_CHAR		5
 
 OID		pg_true_type(const ConnectionClass *, OID, OID);
 OID		sqltype_to_pgtype(StatementClass *stmt, SQLSMALLINT fSqlType);

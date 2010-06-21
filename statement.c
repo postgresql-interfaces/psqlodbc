@@ -1540,6 +1540,8 @@ SC_fetch(StatementClass *self)
 
 inolog("%s statement=%p ommitted=0\n", func, self);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
+	if (!res)
+		return SQL_ERROR;
 	coli = QR_get_fields(res);	/* the column info */
 
 	mylog("fetch_cursor=%d, %p->total_read=%d\n", SC_is_fetchcursor(self), res, res->num_total_read);
@@ -1886,7 +1888,8 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 			goto cleanup;
 		}
 	}
-	else if (self->statement_type == STMT_TYPE_SELECT)
+	else if (self->statement_type == STMT_TYPE_SELECT ||
+		 self->statement_type == STMT_TYPE_PROCCALL)
 	{
 		char		fetch[128];
 		const char *appendq = NULL;

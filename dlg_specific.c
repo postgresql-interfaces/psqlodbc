@@ -239,7 +239,7 @@ inolog("hlen=%d", hlen);
 			INI_USESERVERSIDEPREPARE "=%d;"
 			INI_LOWERCASEIDENTIFIER "=%d;"
 #ifdef	WIN32
-			INI_GSSAUTHUSEGSSAPI "=%d"
+			INI_GSSAUTHUSEGSSAPI "=%d;"
 #endif /* WIN32 */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			INI_XAOPT "=%d"	/* XAOPT */

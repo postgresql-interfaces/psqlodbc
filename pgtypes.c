@@ -377,7 +377,7 @@ pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 		case PG_TYPE_MONEY:
 			return SQL_FLOAT;
 		case PG_TYPE_BOOL:
-			return ci->drivers.bools_as_char ? SQL_CHAR : SQL_BIT;
+			return ci->drivers.bools_as_char ? SQL_VARCHAR : SQL_BIT;
 		case PG_TYPE_XML:
 			return CC_is_in_unicode_driver(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 		case PG_TYPE_INET:
@@ -397,7 +397,7 @@ pgtype_to_concise_type(StatementClass *stmt, OID type, int col)
 			 * list, just return.
 			 */
 			/* hack until permanent type is available */
-			if (type == stmt->hdbc->lobj_type)
+			if (type == conn->lobj_type)
 				return SQL_LONGVARBINARY;
 
 #ifdef	EXPERIMENTAL_CURRENTLY
@@ -524,7 +524,7 @@ pgtype_to_ctype(StatementClass *stmt, OID type)
 
 		default:
 			/* hack until permanent type is available */
-			if (type == stmt->hdbc->lobj_type)
+			if (type == conn->lobj_type)
 				return SQL_C_BINARY;
 
 			/* Experimental, Does this work ? */
@@ -615,7 +615,7 @@ inolog("pgtype_to_name int4\n");
 
 		default:
 			/* hack until permanent type is available */
-			if (type == stmt->hdbc->lobj_type)
+			if (type == conn->lobj_type)
 				return PG_TYPE_LO_NAME;
 
 			/*
@@ -758,7 +758,7 @@ getCharColumnSize(StatementClass *stmt, OID type, int col, int handle_unknown_si
 
 	if (maxsize == TEXT_FIELD_SIZE + 1) /* magic length for testing */
 	{
-		if (PG_VERSION_GE(SC_get_conn(stmt), 7.1))
+		if (PG_VERSION_GE(conn, 7.1))
 			maxsize = 0;
 		else
 			maxsize = TEXT_FIELD_SIZE;
@@ -970,7 +970,7 @@ pgtype_column_size(StatementClass *stmt, OID type, int col, int handle_unknown_s
 			return getTimestampColumnSize(stmt, type, col);
 
 		case PG_TYPE_BOOL:
-			return ci->true_is_minus1 ? 2 : 1;
+			return ci->drivers.bools_as_char ? PG_WIDTH_OF_BOOLS_AS_CHAR : 1;
 
 		case PG_TYPE_MACADDR:
 			return 17;
@@ -986,7 +986,7 @@ pgtype_column_size(StatementClass *stmt, OID type, int col, int handle_unknown_s
 
 		default:
 
-			if (type == stmt->hdbc->lobj_type)	/* hack until permanent
+			if (type == conn->lobj_type)	/* hack until permanent
 												 * type is available */
 				return SQL_NO_TOTAL;
 			if (PG_TYPE_BYTEA == type && ci->bytea_as_longvarbinary)
