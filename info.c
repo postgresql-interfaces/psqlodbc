@@ -2090,8 +2090,10 @@ retry_public_schema:
 		snprintf(columns_query, sizeof(columns_query),
 			"select n.nspname, c.relname, a.attname, a.atttypid"
 	   		", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
-			", c.relhasrules, c.relkind, c.oid, d.adsrc, %s from (((pg_catalog.pg_class c"
+			", c.relhasrules, c.relkind, c.oid, %s, %s from (((pg_catalog.pg_class c"
 			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
+			PG_VERSION_GE(conn, 7.4) ?
+			"pg_get_expr(d.adbin, d.adrelid)" : "d.adsrc",
 			PG_VERSION_GE(conn, 7.4) ?
 			"case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod"
 					: "0, -1");
