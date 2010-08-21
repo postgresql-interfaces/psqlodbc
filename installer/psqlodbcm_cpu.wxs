@@ -1,0 +1,91 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<?ifdef var.Platform ?>
+<?define ModuleName = "psqlODBC_$(var.Platform)" ?>
+<?if $(var.Platform) = x64 ?>
+<?define BIT64 = "yes" ?>
+<?define ANSIFOLDER = "AMD64ANSI" ?>
+<?define UNICODEFOLDER = "AMD64" ?>
+<?define Module_PackageId = "970B6E07-7105-4d66-80FA-9E208952FB96" ?>
+<?define CIDPFILES = "5C9A19B5-D7C6-4bb4-BBBC-88C2A67A59B0" ?>
+<?else?>
+<?define BIT64 = "no" ?>
+<?define ANSIFOLDER = "MultibyteRelease" ?>
+<?define UNICODEFOLDER = "Release" ?>
+<?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA4A" ?>
+<?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA50" ?>
+<?endif?>
+<?else?>
+<?define BIT64 = "no" ?>
+<?define Platform = "x86" ?>
+<?define ModuleName = "psqlODBC" ?>
+<?define ANSIFOLDER = "MultibyteRelease" ?>
+<?define UNICODEFOLDER = "Release" ?>
+<?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA48" ?>
+<?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E" ?>
+<?endif?>
+
+  <Module
+    Id="$(var.ModuleName)"
+    Version="$(var.VERSION)"
+    Language="1033">
+    
+    <Package 
+      Id="$(var.Module_PackageId)"
+      Description="PostgreSQL ODBC Driver"
+      Keywords="PostgreSQL, ODBC"
+      Manufacturer="PostgreSQL Global Development Group" 
+      InstallerVersion="300"
+      Platform="$(var.Platform)" 
+      Languages="1033"
+      SummaryCodepage="1252" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="BINDIR" Name=".">
+        <Component Id="psqlodbc.files" Guid="$(var.CIDPFILES)" Win64="$(var.BIT64)">
+
+          <!-- PostgreSQL -->
+          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../$(var.ANSIFOLDER)/psqlodbc30a.dll">
+	    <ODBCDriver Id="Psqlodbc_8.4_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))" />
+	  </File>
+          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.dll">
+	    <ODBCDriver Id="Psqlodbc_8.4_Driver" Name="PostgreSQL Unicode($(var.Platform))" />
+	  </File>
+          <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../$(var.UNICODEFOLDER)/pgxalib.dll" />
+          <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../$(var.UNICODEFOLDER)/pgenlist.dll" />
+          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
+<?ifdef var.PROGRAMFILES ?>
+          <File Id="libpq.dll" Name="libpq.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\libpq.dll" KeyPath="yes" />
+          
+          <!-- Gettext -->
+          <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\libintl-8.dll" />
+          <File Id="libiconv_2.dll" Name="libiconv-2.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\libiconv-2.dll" />
+          
+          <!-- SSL -->
+          <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\libeay32.dll" />
+          <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\ssleay32.dll" />
+
+	  <!-- GSSAPI -->
+          <File Id="gssapi32.dll" Name="gssapi32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\gssapi32.dll" />
+
+          <!-- MIT Kerberos -->
+           <File Id="comerr32.dll" Name="comerr32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\comerr32.dll" />
+          <File Id="krb5_32.dll" Name="krb5_32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\krb5_32.dll" />
+          <File Id="k5sprt32.dll" Name="k5sprt32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\8.4\bin\k5sprt32.dll" />
+<?else ?>
+	  <!-- GSSAPI -->
+          <File Id="gssapi64.dll" Name="gssapi64.dll" Source="c:\cygwin\develop\bin\AMD64\gssapi64.dll" />
+
+          <!-- MIT Kerberos -->
+           <File Id="comerr64.dll" Name="comerr64.dll" Source="c:\cygwin\develop\bin\AMD64\comerr64.dll" />
+          <File Id="krb5_64.dll" Name="krb5_64.dll" Source="c:\cygwin\develop\bin\AMD64\krb5_64.dll" />
+          <File Id="k5sprt64.dll" Name="k5sprt64.dll" Source="c:\cygwin\develop\bin\AMD64\k5sprt64.dll" />
+<?endif ?>
+          <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
+          <!--       so we install the registry keys manually ourselves.                         -->
+        </Component>
+      </Directory>
+    </Directory>
+
+  </Module>
+</Wix>

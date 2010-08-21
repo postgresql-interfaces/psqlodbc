@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<?ifdef var.Platform ?>
+<?define PKGNAME = "psqlODBC_$(var.Platform)" ?>
+<?define MERGEM = "$(var.Platform)\psqlodbc_$(var.Platform).msm" ?>
+<?if $(var.Platform) = x64 ?>
+<?define BIT64 = "yes" ?>
+<?define PGFOLDER = "ProgramFiles64Folder" ?>
+<?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
+<?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
+<?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
+<?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
+<?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
+<?else?>
+<?define BIT64 = "no" ?>
+<?define PGFOLDER = "ProgramFilesFolder" ?>
+<?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2D" ?>
+<?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693FA" ?>
+<?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E430" ?>
+<?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20127}" ?>
+<?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145E0" ?>
+<?endif?>
+<?else?>
+<?define Platform = "x86" ?>
+<?define PKGNAME = "psqlODBC" ?>
+<?define MERGEM = "psqlodbc.msm" ?>
+<?define BIT64 = "no" ?>
+<?define PGFOLDER = "ProgramFilesFolder" ?>
+<?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
+<?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
+<?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E42E" ?>
+<?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
+<?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
+<?endif?>
+
+<!-- Product details -->
+
+  <Product 
+    Manufacturer="PostgreSQL Global Development Group" 
+    Id="$(var.PRODID)"
+    UpgradeCode="$(var.UPGCOD)"
+    Name="$(var.PKGNAME)"
+    Version="$(var.VERSION)" 
+    Language="1033">
+
+<!-- Package details -->
+
+    <Package
+      Keywords="PostgreSQL, ODBC"
+      Comments="PostgreSQL ODBC Driver"
+      Manufacturer="PostgreSQL Global Development Group" 
+      InstallerVersion="300"
+      Platform="$(var.Platform)" 
+      Languages="1033" 
+      Compressed="yes" 
+      SummaryCodepage="1252" />
+
+<!-- Directories -->
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.PGFOLDER)" Name="PFiles">
+        <Directory Id="BASEDIR" Name="psqlODBC">
+          <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
+            <Directory Id="BINDIR" Name="bin">
+              <Component Id="registration" Guid="$(var.CIDREG)" Win64="$(var.BIT64)">
+                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(var.PKGNAME)" Name="Version" Value="$(var.VERSION)" />
+              </Component>
+              <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(var.MERGEM)" />
+            </Directory>
+            <Directory Id="DOCSDIR" Name="docs">
+              <Component Id="docs" Guid="$(var.CIDDOC)" Win64="$(var.BIT64)">
+                <File Id="docs.index.html" Name="index.html" DiskId="1" Source="../docs/index.html" KeyPath="yes" />
+                <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
+                <File Id="docs.faq.html" Name="faq.html" DiskId="1" Source="../docs/faq.html" />
+                <File Id="docs.howto_accesslo.html" Name="howto-accesslo.html" DiskId="1" Source="../docs/howto-accesslo.html" />
+                <File Id="docs.howto_accessvba.html" Name="howto-accessvba.html" DiskId="1" Source="../docs/howto-accessvba.html" />
+                <File Id="docs.howto_bo.html" Name="howto-bo.html" DiskId="1" Source="../docs/howto-bo.html" />
+                <File Id="docs.howto_ch.html" Name="howto-ch.html" DiskId="1" Source="../docs/howto-ch.html" />
+                <File Id="docs.howto_csharp.html" Name="howto-csharp.html" DiskId="1" Source="../docs/howto-csharp.html" />
+                <File Id="docs.howto_vb.html" Name="howto-vb.html" DiskId="1" Source="../docs/howto-vb.html" />
+                <File Id="docs.howto_vblo.html" Name="howto-vblo.html" DiskId="1" Source="../docs/howto-vblo.html" />
+                <File Id="docs.release.html" Name="release.html" DiskId="1" Source="../docs/release.html" />
+                <File Id="docs.unix_compilation.html" Name="unix-compilation.html" DiskId="1" Source="../docs/unix-compilation.html" />
+                <File Id="docs.win32_compilation.html" Name="win32-compilation.html" DiskId="1" Source="../docs/win32-compilation.html" />
+
+                <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" />
+              </Component>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
+        <Directory Id="SMDir" Name="$(var.PKGNAME)">
+            <Component Id="smdir" Guid="$(var.CIDSMD)" Win64="$(var.BIT64)">
+                <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(var.PKGNAME)\SMDir Created" Value="y" />
+                <RemoveFolder Id="SMDir" On="uninstall" />
+            </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+<!-- Features -->
+
+    <Feature Id="psqlodbc" Title="$(var.PKGNAME)" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
+      <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
+        <ComponentRef Id="registration" />
+        <MergeRef Id="psqlodbcm" />
+      </Feature>
+
+      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs.">
+        <ComponentRef Id="smdir" />
+        <ComponentRef Id="docs" />
+      </Feature>
+
+    </Feature>
+    <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab"/>
+
+<!-- Properties -->
+
+    <Property Id="ALLUSERS">2</Property>
+    <Property Id="WIXUI_INSTALLDIR" Value="BASEDIR" />
+
+<!-- UI -->
+
+     <UIRef Id="WixUI_FeatureTree" />
+     <WixVariable Id="WixUILicenseRtf" Value="lgpl.rtf" />
+     <WixVariable Id="WixUIDialogBmp" Value="background.bmp" />
+     <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+
+  </Product>
+</Wix>
