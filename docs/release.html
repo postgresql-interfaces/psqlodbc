@@ -25,6 +25,12 @@ Changes:<br>
 12.) Apply the patch by Peter Crabtree which fixes a crash bug.<br>
 13.) Improve the handling of bools_as_char case.<br>
 14.) Fix a bug when creating a connection string.<br>
+15.) Use pg_get_expr(adbin, ..) instead of unreliable adsrc in pg_attrdef so as to know the sequence name associated with serial items.<br>
+16.) Added 64-bit version of installer files.<br>
+17.) Introduce pgtype_attr_xxxx functions which take a typmod parameter as well as a type oid parameter as an extension of pgtype_xxxx functions so that SQLColumns and SQLDescribeCol(SQLColAttrinute) could use common functions.<br>
+18.) Call PQconnectdbParams instead of PQconnectdb when it's available.<br>
+19.) Make cursor open check at transaction end a little more effective.<br>
+20.) Added code for SQL_INTERVAL support and refcursor support though they are disabled.<br>
 <br>
 <li>Notes: psqlODBC 08.04.0200</li><br>
 Changes:<br>
