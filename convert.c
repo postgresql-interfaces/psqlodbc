@@ -400,9 +400,211 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, int precision)
 	return TRUE;
 }
 
+#if (ODBCVER >= 0x0300)
+static
+SQLINTERVAL	interval2itype(SQLSMALLINT ctype)
+{
+	SQLINTERVAL	sqlitv = 0;
+
+	switch (ctype)
+	{
+		case SQL_C_INTERVAL_YEAR:
+			sqlitv = SQL_IS_YEAR;
+			break;
+		case SQL_C_INTERVAL_MONTH:
+			sqlitv = SQL_IS_MONTH;
+			break;
+		case SQL_C_INTERVAL_YEAR_TO_MONTH:
+			sqlitv = SQL_IS_YEAR_TO_MONTH;
+			break;
+		case SQL_C_INTERVAL_DAY:
+			break;
+			sqlitv = SQL_IS_DAY;
+			break;
+		case SQL_C_INTERVAL_HOUR:
+			sqlitv = SQL_IS_HOUR;
+			break;
+		case SQL_C_INTERVAL_DAY_TO_HOUR:
+			sqlitv = SQL_IS_DAY_TO_HOUR;
+			break;
+		case SQL_C_INTERVAL_MINUTE:
+			sqlitv = SQL_IS_MINUTE;
+			break;
+		case SQL_C_INTERVAL_DAY_TO_MINUTE:
+			sqlitv = SQL_IS_DAY_TO_MINUTE;
+			break;
+		case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+			sqlitv = SQL_IS_HOUR_TO_MINUTE;
+			break;
+		case SQL_C_INTERVAL_SECOND:
+			sqlitv = SQL_IS_SECOND;
+			break;
+		case SQL_C_INTERVAL_DAY_TO_SECOND:
+			sqlitv = SQL_IS_DAY_TO_SECOND;
+			break;
+		case SQL_C_INTERVAL_HOUR_TO_SECOND:
+			sqlitv = SQL_IS_HOUR_TO_SECOND;
+			break;
+		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+			sqlitv = SQL_IS_MINUTE_TO_SECOND;
+			break;
+	}
+	return sqlitv;
+}
+
+/*
+ *	Interval data <-----> SQL_INTERVAL_STRUCT
+ */
+
+static int getPrecisionPart(int precision, const char * precPart)
+{
+	char	fraction[] = "000000000";
+	int	fracs = sizeof(fraction) - 1, cpys;
+
+	if (precision < 0)
+		precision = 6; /* default */
+	if (precision == 0)
+		return 0;
+	if ((cpys = strlen(precPart)) > fracs)
+		cpys = fracs;
+	memcpy(fraction, precPart, cpys);
+	fraction[precision] = '\0';
+
+	return atoi(fraction);
+}
+
+static BOOL
+interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL_STRUCT *st)
+{
+	char	lit1[64], lit2[64];
+	int	scnt, years, mons, days, hours, minutes, seconds;
+	BOOL	sign;
+	SQLINTERVAL	itype = interval2itype(ctype);
+
+	memset(st, sizeof(SQL_INTERVAL_STRUCT), 0);
+	if ((scnt = sscanf(str, "%d-%d", &years, &mons)) >=2)
+	{
+		if (SQL_IS_YEAR_TO_MONTH == itype)
+		{
+			sign = years < 0 ? SQL_TRUE : SQL_FALSE;
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.year_month.year = sign ? (-years) : years; 
+			st->intval.year_month.month = mons;
+			return TRUE; 
+		}
+		return FALSE;
+	}
+	else if (scnt = sscanf(str, "%d %02d:%02d:%02d.%09s", &days, &hours, &minutes, &seconds, lit2), 5 == scnt || 4 == scnt)
+	{
+		sign = days < 0 ? SQL_TRUE : SQL_FALSE;
+		st->interval_type = itype;
+		st->interval_sign = sign;
+		st->intval.day_second.day = sign ? (-days) : days;
+		st->intval.day_second.hour = hours;
+		st->intval.day_second.minute = minutes;
+		st->intval.day_second.second = seconds;
+		if (scnt > 4)
+			st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
+		return TRUE;
+	}
+	else if ((scnt = sscanf(str, "%d %s %d %s", &years, lit1, &mons, lit2)) >=4)
+	{
+		if (strnicmp(lit1, "year", 4) == 0 &&
+		    strnicmp(lit2, "mon", 2) == 0 &&
+		    (SQL_IS_MONTH == itype ||
+		     SQL_IS_YEAR_TO_MONTH == itype))
+		{
+			sign = years < 0 ? SQL_TRUE : SQL_FALSE;
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.year_month.year = sign ? (-years) : years; 
+			st->intval.year_month.month = sign ? (-mons) : mons;
+			return TRUE; 
+		}
+		return FALSE;
+	}
+	if ((scnt = sscanf(str, "%d %s %d", &years, lit1, &days)) == 2)
+	{
+		sign = years < 0 ? SQL_TRUE : SQL_FALSE;
+		if (SQL_IS_YEAR == itype &&
+		    (stricmp(lit1, "year") == 0 ||
+		     stricmp(lit1, "years") == 0))
+		{
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.year_month.year = sign ? (-years) : years; 
+			return TRUE; 
+		}
+		if (SQL_IS_MONTH == itype &&
+		    (stricmp(lit1, "mon") == 0 ||
+		     stricmp(lit1, "mons") == 0))
+		{
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.year_month.month = sign ? (-years) : years; 
+			return TRUE; 
+		}
+		if (SQL_IS_DAY == itype &&
+		    (stricmp(lit1, "day") == 0 ||
+		     stricmp(lit1, "days") == 0))
+		{
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.day_second.day = sign ? (-years) : years; 
+			return TRUE; 
+		}
+		return FALSE;
+	}
+	switch (itype)
+	{
+		case SQL_IS_YEAR:
+		case SQL_IS_MONTH:
+		case SQL_IS_YEAR_TO_MONTH:
+			return FALSE;
+	}
+	scnt = sscanf(str, "%d %s %02d:%02d:%02d.%09s", &days, lit1, &hours, &minutes, &seconds, lit2);
+	if (strnicmp(lit1, "day", 3) != 0)
+		return FALSE;
+	sign = days < 0 ? SQL_TRUE : SQL_FALSE;
+	switch (scnt)
+	{
+		case 5:
+		case 6:
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.day_second.day = sign ? (-days) : days;
+			st->intval.day_second.hour = sign ? (-hours) : hours;
+			st->intval.day_second.minute = minutes;
+			st->intval.day_second.second = seconds;
+			if (scnt > 5)
+				st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
+			return TRUE;
+	}
+	scnt = sscanf(str, "%02d:%02d:%02d.%09s", &hours, &minutes, &seconds, lit2);
+	sign = hours < 0 ? SQL_TRUE : SQL_FALSE;
+	switch (scnt)
+	{
+		case 3:
+		case 4:
+			st->interval_type = itype;
+			st->interval_sign = sign;
+			st->intval.day_second.hour = sign ? (-hours) : hours;
+			st->intval.day_second.minute = minutes;
+			st->intval.day_second.second = seconds;
+			if (scnt > 3)
+				st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
+			return TRUE;
+	}
+
+	return FALSE;
+}
+#endif /* ODBCVER */
+
+
 /*	This is called by SQLFetch() */
 int
-copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, void *value, int col)
+copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, int atttypmod, void *value, int col)
 {
 	ARDFields *opts = SC_get_ARDF(stmt);
 	BindInfoClass *bic;
@@ -412,9 +614,10 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, void *valu
 		extend_column_bindings(opts, col + 1);
 	bic = &(opts->bindings[col]);
 	SC_set_current_col(stmt, -1);
-	return copy_and_convert_field(stmt, field_type, value, bic->returntype,
-			(PTR) (bic->buffer + offset), bic->buflen,
-			LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset));
+	return copy_and_convert_field(stmt, field_type, atttypmod, value,
+		bic->returntype, bic->precision,
+		(PTR) (bic->buffer + offset), bic->buflen,
+		LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset));
 }
 
 static double get_double_value(const char *str)
@@ -459,9 +662,12 @@ static int char2guid(const char *str, SQLGUID *g)
 
 /*	This is called by SQLGetData() */
 int
-copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei,
-			SQLSMALLINT fCType, PTR rgbValue, SQLLEN cbValueMax,
-			SQLLEN *pcbValue, SQLLEN *pIndicator)
+copy_and_convert_field(StatementClass *stmt,
+		OID field_type, int atttypmod,
+		void *valuei,
+		SQLSMALLINT fCType, int precision,
+		PTR rgbValue, SQLLEN cbValueMax,
+		SQLLEN *pcbValue, SQLLEN *pIndicator)
 {
 	CSTR func = "copy_and_convert_field";
 	const char *value = valuei;
@@ -483,8 +689,8 @@ copy_and_convert_field(StatementClass *stmt, OID field_type, void *valuei,
 	SQLSETPOSIROW		bind_row = stmt->bind_row;
 	int			bind_size = opts->bind_size;
 	int			result = COPY_OK;
-	ConnectionClass		*conn = SC_get_conn(stmt);
-	BOOL		changed, true_is_minus1 = FALSE;
+	const ConnectionClass	*conn = SC_get_conn(stmt);
+	BOOL		changed;
 	BOOL	text_handling, localize_needed;
 	const char *neut_str = value;
 	char		midtemp[2][32];
@@ -721,6 +927,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		case PG_TYPE_BOOL:
 			{					/* change T/F to 1/0 */
 				char	   *s;
+				ConnInfo *ci = &(conn->connInfo);
 
 				s = midtemp[mtemp_cnt];
 				switch (((char *)value)[0])
@@ -733,7 +940,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						strcpy(s, "0");
 						break;
 					default:
-						if (true_is_minus1)
+						if (ci->true_is_minus1)
 							strcpy(s, "-1");
 						else
 							strcpy(s, "1");
@@ -817,7 +1024,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 	/* Change default into something useable */
 	if (fCType == SQL_C_DEFAULT)
 	{
-		fCType = pgtype_to_ctype(stmt, field_type);
+		fCType = pgtype_attr_to_ctype(conn, field_type, atttypmod);
 		if (fCType == SQL_C_WCHAR
 		    && CC_default_is_c(conn))
 			fCType = SQL_C_CHAR;
@@ -1609,6 +1816,22 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					*((SQLGUID *) rgbValue + bind_row) = g;
 				break;
 #endif /* ODBCVER */
+#if (ODBCVER >= 0x0300)
+			case SQL_C_INTERVAL_YEAR:
+			case SQL_C_INTERVAL_MONTH:
+			case SQL_C_INTERVAL_YEAR_TO_MONTH:
+			case SQL_C_INTERVAL_DAY:
+			case SQL_C_INTERVAL_HOUR:
+			case SQL_C_INTERVAL_DAY_TO_HOUR:
+			case SQL_C_INTERVAL_MINUTE:
+			case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+			case SQL_C_INTERVAL_SECOND:
+			case SQL_C_INTERVAL_DAY_TO_SECOND:
+			case SQL_C_INTERVAL_HOUR_TO_SECOND:
+			case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+				interval2istruct(fCType, precision, neut_str, bind_size > 0 ? (SQL_INTERVAL_STRUCT *) rgbValueBindRow : (SQL_INTERVAL_STRUCT *) rgbValue + bind_row); 
+				break;
+#endif /* ODBCVER */
 
 			default:
 				qlog("conversion to the type %d isn't supported\n", fCType);
@@ -2364,7 +2587,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 				if (outpara)
 					CVT_APPEND_STR(qb, "void");
 				else
-					CVT_APPEND_STR(qb, pgtype_to_name(stmt, PIC_dsp_pgtype(stmt, ipdopts->parameters[i]), FALSE));
+					CVT_APPEND_STR(qb, pgtype_to_name(stmt, PIC_dsp_pgtype(conn, ipdopts->parameters[i]), -1, FALSE));
 				oc++;
 			}
 			CVT_APPEND_CHAR(qb, ')');
@@ -3390,11 +3613,11 @@ inolog("num_p=%d\n", num_p);
         		memset(bindreq + leng, 0, sizeof(Int2) * num_p);  /* initialize by text format */
 		for (i = stmt->proc_return, j = 0; i < num_params; i++)
 		{
-inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(stmt, parameters[i]));
+inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
 			if (discard_output &&
 			    SQL_PARAM_OUTPUT == parameters[i].paramType)
 				continue;
-			if (PG_TYPE_BYTEA == PIC_dsp_pgtype(stmt, parameters[i]))
+			if (PG_TYPE_BYTEA == PIC_dsp_pgtype(conn, parameters[i]))
 			{
 				mylog("%dth parameter is of binary format\n", j);
 				memcpy(bindreq + leng + sizeof(Int2) * j,
@@ -3630,6 +3853,10 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	BOOL outputDiscard, valueOutput;
 	SDOUBLE	dbv;
 	SFLOAT	flv;
+#if (ODBCVER >= 0x0300)
+	SQL_INTERVAL_STRUCT	*ivstruct;
+	const char		*ivsign;
+#endif /* ODBCVER */
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
@@ -3650,6 +3877,7 @@ inolog("resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts-
 		ipara = ipdopts->parameters + param_number;
 	if ((!apara || !ipara) && valueOutput)
 	{
+mylog("!!! The # of binded parameters (%d, %d) < the # of parameter markers %d\n", apdopts->allocated, ipdopts->allocated, param_number);
 		qb->errormsg = "The # of binded parameters < the # of parameter markers";
 		qb->errornumber = STMT_COUNT_FIELD_INCORRECT;
 		CVT_TERMINATE(qb);	/* just in case */
@@ -3843,7 +4071,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 
 	param_ctype = apara->CType;
 	param_sqltype = ipara->SQLType;
-	param_pgtype = PIC_dsp_pgtype(qb->stmt, *ipara);
+	param_pgtype = PIC_dsp_pgtype(qb->conn, *ipara);
 
 	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u)\n", func,
 				param_ctype, param_sqltype, param_pgtype);
@@ -3871,6 +4099,9 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	st.d = tim->tm_mday;
 	st.y = tim->tm_year + 1900;
 
+#if (ODBCVER >= 0x0300)
+	ivstruct = (SQL_INTERVAL_STRUCT *) buffer;
+#endif /* ODBCVER */
 	/* Convert input C type to a neutral format */
 	switch (param_ctype)
 	{
@@ -4037,6 +4268,49 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 		case SQL_C_NUMERIC:
 			if (ResolveNumericParam((SQL_NUMERIC_STRUCT *) buffer, param_string))
 				break;
+		case SQL_C_INTERVAL_YEAR:
+			ivsign = ivstruct->interval_sign ? "-" : "";
+			sprintf(param_string, "%s%d years", ivsign, ivstruct->intval.year_month.year);
+			break;
+		case SQL_C_INTERVAL_MONTH:
+		case SQL_C_INTERVAL_YEAR_TO_MONTH:
+			ivsign = ivstruct->interval_sign ? "-" : "";
+			sprintf(param_string, "%s%d years %s%d mons", ivsign, ivstruct->intval.year_month.year, ivsign, ivstruct->intval.year_month.month);
+			break;
+		case SQL_C_INTERVAL_DAY:
+			ivsign = ivstruct->interval_sign ? "-" : "";
+			sprintf(param_string, "%s%d days", ivsign, ivstruct->intval.day_second.day);
+			break;
+		case SQL_C_INTERVAL_HOUR:
+		case SQL_C_INTERVAL_DAY_TO_HOUR:
+			ivsign = ivstruct->interval_sign ? "-" : "";
+			sprintf(param_string, "%s%d days %s%02d:00:00", ivsign, ivstruct->intval.day_second.day, ivsign, ivstruct->intval.day_second.hour);
+			break;
+		case SQL_C_INTERVAL_MINUTE:
+		case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+		case SQL_C_INTERVAL_DAY_TO_MINUTE:
+			ivsign = ivstruct->interval_sign ? "-" : "";
+			sprintf(param_string, "%s%d days %s%02d:%02d:00", ivsign, ivstruct->intval.day_second.day, ivsign, ivstruct->intval.day_second.hour, ivstruct->intval.day_second.minute);
+			break;
+
+		case SQL_C_INTERVAL_SECOND:
+		case SQL_C_INTERVAL_DAY_TO_SECOND:
+		case SQL_C_INTERVAL_HOUR_TO_SECOND:
+		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+			ivsign = ivstruct->interval_sign ? "-" : "";
+			sprintf(param_string, "%s%d days %s%02d:%02d:%02%d", ivsign, ivstruct->intval.day_second.day, ivsign, ivstruct->intval.day_second.hour, ivstruct->intval.day_second.minute, ivstruct->intval.day_second.second);
+			if (ivstruct->intval.day_second.fraction > 0)
+			{
+				int fraction = ivstruct->intval.day_second.fraction, prec = apara->precision;
+				
+				while (fraction % 10 == 0)
+				{
+					fraction /= 10;
+					prec--;
+				}
+				sprintf(&param_string[strlen(param_string)], ".%0*d", prec, fraction);
+			}
+			break;
 #endif
 #if (ODBCVER >= 0x0350)
 		case SQL_C_GUID:

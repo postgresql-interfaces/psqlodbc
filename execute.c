@@ -1646,7 +1646,7 @@ PGAPI_PutData(
 			putlen = ctype_length(ctype);
 	}
 	putbuf = rgbValue;
-	handling_lo = (PIC_dsp_pgtype(stmt, *current_iparam) == conn->lobj_type);
+	handling_lo = (PIC_dsp_pgtype(conn, *current_iparam) == conn->lobj_type);
 	if (handling_lo && SQL_C_CHAR == ctype)
 	{
 		allocbuf = malloc(putlen / 2 + 1);

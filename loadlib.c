@@ -88,7 +88,9 @@ CSTR	gssapilib = "gssapi64";
 CSTR	gssapilib = "gssapi32";
 #endif /* _WIN64 */
 #ifndef	NOT_USE_LIBPQ
-CSTR	checkproc = "PQconninfoParse";
+CSTR	checkproc1 = "PQconnectdbParams";
+static int	connect_withparam_available = -1;
+CSTR	checkproc2 = "PQconninfoParse";
 static int	sslverify_available = -1;
 #endif /* NOT_USE_LIBPQ */
 
@@ -156,11 +158,19 @@ DliErrorHook(unsigned	dliNotify,
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpqlib), NULL == hmodule)
 					hmodule = LoadLibrary(libpqlib);
 #ifndef	NOT_USE_LIBPQ
+				if (NULL == hmodule)
+					connect_withparam_available = sslverify_available = FALSE;
+				if (connect_withparam_available < 0)
+				{
+					if (NULL == GetProcAddress(hmodule, checkproc1))
+						connect_withparam_available = FALSE;
+					else
+						connect_withparam_available = TRUE;
+inolog("connect_withparam_available=%d\n", connect_withparam_available); 
+				}
 				if (sslverify_available < 0)
 				{
-					if (NULL == hmodule)
-						sslverify_available = FALSE;
-					else if (NULL == GetProcAddress(hmodule, checkproc))
+					if (NULL == GetProcAddress(hmodule, checkproc2))
 						sslverify_available = FALSE;
 					else
 						sslverify_available = TRUE;
@@ -304,7 +314,7 @@ BOOL	ssl_verify_available(void)
 		sslverify_available = 1;
 		if (NULL != dlhandle)
 		{
-			if (NULL == lt_dlsym(dlhandle, checkproc))
+			if (NULL == lt_dlsym(dlhandle, checkproc2))
 				sslverify_available = 0;
 			lt_dlclose(dlhandle);
 		}
@@ -313,6 +323,46 @@ BOOL	ssl_verify_available(void)
 	}
 
 	return (0 != sslverify_available);
+}
+
+BOOL	connect_with_param_available(void)
+{
+	if (connect_withparam_available < 0)
+	{
+#if defined(_MSC_DELAY_LOAD_IMPORT)
+		__try {
+#if (_MSC_VER < 1300)
+			__pfnDliFailureHook = DliErrorHook;
+			__pfnDliNotifyHook = DliErrorHook;
+#else
+			__pfnDliFailureHook2 = DliErrorHook;
+			__pfnDliNotifyHook2 = DliErrorHook;
+#endif /* _MSC_VER */
+			PQescapeLiteral(NULL, NULL, 0);
+		}
+		__except (filter_env2encoding(GetExceptionCode())) {
+		}
+		if (connect_withparam_available < 0)
+{
+inolog("connect_withparam_available is set to false\n"); 
+			connect_withparam_available = 0;
+}
+#else
+#ifdef HAVE_LIBLTDL
+		lt_dlhandle dlhandle = lt_dlopenext(libpqlib);
+
+		connect_withparam_available = 1;
+		if (NULL != dlhandle)
+		{
+			if (NULL == lt_dlsym(dlhandle, checkproc1))
+				connect_withparam_available = 0;
+			lt_dlclose(dlhandle);
+		}
+#endif /* HAVE_LIBLTDL */
+#endif /* _MSC_DELAY_LOAD_IMPORT */
+	}
+
+	return (0 != connect_withparam_available);
 }
 
 void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
@@ -328,6 +378,7 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 		__pfnDliFailureHook2 = DliErrorHook;
 		__pfnDliNotifyHook2 = DliErrorHook;
 #endif /* _MSC_VER */
+inolog("calling PQconnectdb\n");
 		pqconn = PQconnectdb(conninfo);
 	}
 	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
@@ -351,8 +402,50 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 	return pqconn;
 }
+
+void *CALL_PQconnectdbParams(const char *opts[], const char *vals[], BOOL *libpqLoaded)
+{
+	void *pqconn = NULL;
+	*libpqLoaded = TRUE;
+#if defined(_MSC_DELAY_LOAD_IMPORT)
+	__try {
+#if (_MSC_VER < 1300)
+		__pfnDliFailureHook = DliErrorHook;
+		__pfnDliNotifyHook = DliErrorHook;
+#else
+		__pfnDliFailureHook2 = DliErrorHook;
+		__pfnDliNotifyHook2 = DliErrorHook;
+#endif /* _MSC_VER */
+inolog("calling PQconnectdbParams\n");
+		pqconn = PQconnectdbParams(opts, vals, 0);
+	}
+	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
+		*libpqLoaded = FALSE;
+	}
+#if (_MSC_VER < 1300)
+	__pfnDliNotifyHook = NULL;
+#else
+	__pfnDliNotifyHook2 = NULL;
+#endif /* _MSC_VER */
+	if (*libpqLoaded)
+	{
+		loaded_libpq = TRUE;
+		/* ssllibs are already loaded by libpq
+		if (PQgetssl(pqconn))
+			loaded_ssllib = TRUE;
+		*/
+	}
+#else
+	pqconn = PQconnectdbParams(opts, vals, 0);
+#endif /* _MSC_DELAY_LOAD_IMPORT */
+	return pqconn;
+}
 #else
 BOOL	ssl_verify_available(void)
+{
+	return	FALSE;
+}
+BOOL	connect_with_param_available(void)
 {
 	return	FALSE;
 }

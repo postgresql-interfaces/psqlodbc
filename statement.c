@@ -1532,13 +1532,14 @@ SC_fetch(StatementClass *self)
 	Int2		num_cols,
 				lf;
 	OID			type;
+	int		atttypmod;
 	char	   *value;
 	ColumnInfoClass *coli;
 	BindInfoClass	*bookmark;
 
 	/* TupleField *tupleField; */
 
-inolog("%s statement=%p ommitted=0\n", func, self);
+inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 	if (!res)
 		return SQL_ERROR;
@@ -1641,8 +1642,8 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 
 		sprintf(buf, FORMAT_ULEN, SC_get_bookmark(self));
 		SC_set_current_col(self, -1);
-		result = copy_and_convert_field(self, 0, buf,
-			 SQL_C_ULONG, bookmark->buffer + offset, 0,
+		result = copy_and_convert_field(self, 0, PG_UNSPECIFIED, buf,
+			 SQL_C_ULONG, 0, bookmark->buffer + offset, 0,
 			LENADDR_SHIFT(bookmark->used, offset),
 			LENADDR_SHIFT(bookmark->used, offset));
 	}
@@ -1670,8 +1671,9 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 
 			/* type = QR_get_field_type(res, lf); */
 			type = CI_get_oid(coli, lf);		/* speed things up */
+			atttypmod = CI_get_atttypmod(coli, lf);	/* speed things up */
 
-			mylog("type = %d\n", type);
+			mylog("type = %d, atttypmod = %d\n", type, atttypmod);
 
 			if (SC_is_fetchcursor(self))
 				value = QR_get_value_backend(res, lf);
@@ -1685,7 +1687,7 @@ inolog("curt=%d\n", curt);
 
 			mylog("value = '%s'\n", (value == NULL) ? "<NULL>" : value);
 
-			retval = copy_and_convert_field_bindinfo(self, type, value, lf);
+			retval = copy_and_convert_field_bindinfo(self, type, atttypmod, value, lf);
 
 			mylog("copy_and_convert: retval = %d\n", retval);
 
@@ -2099,6 +2101,34 @@ inolog("res->next=%p\n", tres);
 	{
 		Int2	io, out;
 		has_out_para = (CountParameters(self, NULL, &io, &out) > 0);
+/*
+ *	I'm not sure if the following REFCIR_SUPPORT stuff is valuable
+ *	or not.
+ */
+#ifdef	REFCUR_SUPPORT
+
+inolog("!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_type(res, 0));
+		if (!has_out_para &&
+		    0 < QR_NumResultCols(res) &&
+		    PG_TYPE_REFCURSOR == QR_get_field_type(res, 0))
+		{
+			char	fetch[128];
+			int	stmt_type = self->statement_type;
+
+			STR_TO_NAME(self->cursor_name, QR_get_value_backend_text(res, 0, 0));
+			QR_Destructor(res);
+			SC_init_Result(self);
+			SC_set_fetchcursor(self); 
+			qi.result_in = NULL;
+			qi.cursor = SC_cursor_name(self);
+			qi.row_size = ci->drivers.fetch_max;
+			snprintf(fetch, sizeof(fetch), "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
+			if (0 != (ci->extra_opts & BIT_IGNORE_ROUND_TRIP_TIME))
+				qflag |= IGNORE_ROUND_TRIP;
+			if (res = CC_send_query_append(conn, fetch, &qi, qflag, SC_get_ancestor(self), NULL), NULL != res)
+				SC_set_Result(self, res);
+		}
+#endif	/* REFCUR_SUPPORT */
 	}
 	if (has_out_para)
 	{	/* get the return value of the procedure call */

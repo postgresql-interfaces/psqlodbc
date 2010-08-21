@@ -92,7 +92,7 @@ typedef struct
 /* Macros to handle pgtype of parameters */
 #define	PIC_get_pgtype(pari) ((pari).PGType)
 #define	PIC_set_pgtype(pari, type) ((pari).PGType = (type))
-#define	PIC_dsp_pgtype(stmt, pari) ((pari).PGType ? (pari).PGType : sqltype_to_pgtype(stmt, (pari).SQLType))
+#define	PIC_dsp_pgtype(conn, pari) ((pari).PGType ? (pari).PGType : sqltype_to_pgtype(conn, (pari).SQLType))
 
 void	extend_column_bindings(ARDFields *opts, int num_columns);
 void	reset_a_column_binding(ARDFields *opts, int icol);

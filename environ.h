@@ -96,6 +96,8 @@ ConnectionClass * const *getConnList();
 #define DELETE_COMMON_CS
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
+void shortterm_common_lock();
+void shortterm_common_unlock();
 #ifdef	__cplusplus
 }
 #endif

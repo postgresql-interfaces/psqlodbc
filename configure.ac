@@ -169,6 +169,28 @@ PGAC_ARG_BOOL(enable, openssl, yes,
 AM_CONDITIONAL(enable_openssl, [test x"$enable_openssl" = xyes])
 
 #
+# GSSAPI support
+#
+
+PGAC_ARG_BOOL(enable, gss, no,
+              [  --disable-gss       do not build GSSAPI support],
+              [AC_DEFINE(USE_GSS, 1,
+                         [Define to 1 to build with GSSAPI support (--enable-gss)])])
+
+AM_CONDITIONAL(enable_gss, [test x"$enable_gss" = xyes])
+
+#
+# GKerberos 5 support
+#
+
+PGAC_ARG_BOOL(enable, krb5, no,
+              [  --disable-krb5       do not build Kerberos5 support],
+              [AC_DEFINE(USE_KRB5, 1,
+                         [Define to 1 to build with Kerberos 5 support (--enable-krb5)])])
+
+AM_CONDITIONAL(enable_krb5, [test x"$enable_krb5" = xyes])
+
+#
 # Pthreads
 #
 
@@ -236,6 +258,14 @@ if test "$enable_openssl" = yes; then
   AC_CHECK_LIB(ssl, SSL_read, [], [AC_MSG_ERROR([ssl library not found])])
 fi
 
+if test "$enable_gss" = yes; then
+  AC_SEARCH_LIBS(gss_init_sec_context, [gssapi_krb5 gss 'gssapi -lkrb5 -lcrypto'], [],  [AC_MSG_ERROR([gssapi library not found])])
+fi
+
+if test "$enable_krb5" = yes; then
+  AC_SEARCH_LIBS(krb5_sendauth, [krb5 'krb5 -lcrypto -ldes -lasn1 -lroken'], [], [AC_MSG_ERROR([krb5 library not found])])
+  AC_SEARCH_LIBS(com_err, [krb5 'krb5 -lcrypto -ldes -lasn1 -lroken' comerr 'comerr -lssl -lcrypto'], [], [AC_MSG_ERROR([comerr library not found])])
+fi
 
 # 3. Header files
 
@@ -245,6 +275,13 @@ if test "$with_libpq" = yes; then
 fi
 if test "$enable_openssl" = yes; then
   AC_CHECK_HEADER([openssl/ssl.h],,[AC_MSG_ERROR([ssl header not found])])
+fi
+if test "$enable_gss" = yes; then
+  AC_CHECK_HEADERS([gssapi/gssapi.h], [],
+	[AC_CHECK_HEADERS([gssapi.h], [], [AC_MSG_ERROR([gssapi header not found])])])
+fi
+if test "$enable_krb5" = yes; then
+  AC_CHECK_HEADER([krb5.h],,[AC_MSG_ERROR([krb5 header not found])])
 fi
 AC_HEADER_TIME
 
@@ -293,6 +330,19 @@ if test "$enable_pthreads" = yes; then
 		                 [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP,
                                             [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
   fi
+fi
+if test "$enable_krb5" = yes; then
+  AC_CHECK_MEMBERS(krb5_error.text.data, [],
+                   [AC_CHECK_MEMBERS(krb5_error.e_data, [],
+                                     [AC_MSG_ERROR([could not determine how to extract Kerberos 5 error messages])],
+                                     [#include <krb5.h>])],
+                   [#include <krb5.h>])
+  AC_MSG_CHECKING(for krb5_free_unparsed_name)
+  AC_TRY_LINK([#include <krb5.h>],
+              [krb5_free_unparsed_name(NULL,NULL);],
+              [AC_DEFINE(HAVE_KRB5_FREE_UNPARSED_NAME, 1, [Define to 1 if you have krb5_free_unparsed_name]) 
+AC_MSG_RESULT(yes)],
+              [AC_MSG_RESULT(no)])
 fi
 
 # 8. Libltdl

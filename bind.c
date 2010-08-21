@@ -96,6 +96,12 @@ PGAPI_BindParameter(
 			if (ibScale > 0)
 				ipdopts->parameters[ipar].precision = ibScale;
 			break;
+		case SQL_C_INTERVAL_DAY_TO_SECOND:
+		case SQL_C_INTERVAL_HOUR_TO_SECOND:
+		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+		case SQL_C_INTERVAL_SECOND:
+				ipdopts->parameters[ipar].precision = 6;
+			break;
 	}
 	apdopts->parameters[ipar].precision = ipdopts->parameters[ipar].precision;
 	apdopts->parameters[ipar].scale = ipdopts->parameters[ipar].scale;
@@ -265,12 +271,22 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		opts->bindings[icol].used =
 		opts->bindings[icol].indicator = pcbValue;
 		opts->bindings[icol].returntype = fCType;
+		opts->bindings[icol].precision = 0;
 #if (ODBCVER >= 0x0300)
-		if (SQL_C_NUMERIC == fCType)
-			opts->bindings[icol].precision = 32;
-		else
+		switch (fCType)
+		{
+			case SQL_C_NUMERIC:
+				opts->bindings[icol].precision = 32;
+				break;
+			case SQL_C_TIMESTAMP:
+			case SQL_C_INTERVAL_DAY_TO_SECOND:
+			case SQL_C_INTERVAL_HOUR_TO_SECOND:
+			case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+			case SQL_C_INTERVAL_SECOND:
+				opts->bindings[icol].precision = 6;
+				break;	
+		}
 #endif /* ODBCVER */
-			opts->bindings[icol].precision = 0;
 		opts->bindings[icol].scale = 0;
 
 		mylog("       bound buffer[%d] = %p\n", icol, opts->bindings[icol].buffer);
@@ -394,7 +410,7 @@ inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, 
 	}
 
 	if (pfNullable)
-		*pfNullable = pgtype_nullable(stmt, ipdopts->parameters[ipar].paramType);
+		*pfNullable = pgtype_nullable(SC_get_conn(stmt), ipdopts->parameters[ipar].paramType);
 cleanup:
 #undef	return
 	if (stmt->internal)

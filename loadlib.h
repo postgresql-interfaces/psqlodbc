@@ -26,8 +26,10 @@ extern "C" {
 BOOL	SSLLIB_check(void);
 #ifndef	NOT_USE_LIBPQ
 void	*CALL_PQconnectdb(const char *conninfo, BOOL *);
+void	*CALL_PQconnectdbParams(const char *opts[], const char *vals[], BOOL *);
 #endif /* NOT_USE_LIBPQ */
 BOOL	ssl_verify_available(void);
+BOOL	connect_with_param_available(void);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void * pTra, int method);
 RETCODE	CALL_DtcOnDisconnect(ConnectionClass *);

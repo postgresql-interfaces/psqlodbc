@@ -429,7 +429,7 @@ inolog("answering bookmark info\n");
 		if (SC_has_outer_join(stmt))
 			*pfNullable = TRUE;
 		else
-			*pfNullable = fi ? fi->nullable : pgtype_nullable(stmt, fieldtype);
+			*pfNullable = fi ? fi->nullable : pgtype_nullable(conn, fieldtype);
 
 		mylog("describeCol: col %d  *pfNullable = %d\n", icol, *pfNullable);
 	}
@@ -521,7 +521,9 @@ inolog("answering bookmark info\n");
 	unknown_sizes = ci->drivers.unknown_sizes;
 
 	/* not appropriate for SQLColAttributes() */
-	if (unknown_sizes == UNKNOWNS_AS_DONTKNOW)
+	if (stmt->catalog_result)
+		unknown_sizes = UNKNOWNS_AS_CATALOG;
+	else if (unknown_sizes == UNKNOWNS_AS_DONTKNOW)
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
 	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && stmt->statement_type == STMT_TYPE_SELECT)
@@ -638,7 +640,7 @@ inolog("answering bookmark info\n");
 			if (fi && fi->auto_increment)
 				value = TRUE;
 			else
-				value = pgtype_auto_increment(stmt, field_type);
+				value = pgtype_auto_increment(conn, field_type);
 			if (value == -1)	/* non-numeric becomes FALSE (ODBC Doc) */
 				value = FALSE;
 			mylog("AUTO_INCREMENT=%d\n", value);
@@ -646,7 +648,7 @@ inolog("answering bookmark info\n");
 			break;
 
 		case SQL_COLUMN_CASE_SENSITIVE: /* == SQL_DESC_CASE_SENSITIVE */
-			value = pgtype_case_sensitive(stmt, field_type);
+			value = pgtype_case_sensitive(conn, field_type);
 			break;
 
 			/*
@@ -694,7 +696,7 @@ inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
 			break;
 
 		case SQL_COLUMN_MONEY: /* == SQL_DESC_FIXED_PREC_SCALE */
-			value = pgtype_money(stmt, field_type);
+			value = pgtype_money(conn, field_type);
 inolog("COLUMN_MONEY=%d\n", value);
 			break;
 
@@ -706,7 +708,7 @@ inolog("COLUMN_MONEY=%d\n", value);
 			if (SC_has_outer_join(stmt))
 				value = TRUE;
 			else
-				value = fi ? fi->nullable : pgtype_nullable(stmt, field_type);
+				value = fi ? fi->nullable : pgtype_nullable(conn, field_type);
 inolog("COLUMN_NULLABLE=%d\n", value);
 			break;
 
@@ -735,7 +737,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_SEARCHABLE: /* == SQL_DESC_SEARCHABLE */
-			value = pgtype_searchable(stmt, field_type);
+			value = pgtype_searchable(conn, field_type);
 			break;
 
 		case SQL_COLUMN_TABLE_NAME: /* == SQL_DESC_TABLE_NAME */
@@ -750,11 +752,11 @@ inolog("COLUMN_SCALE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_TYPE_NAME: /* == SQL_DESC_TYPE_NAME */
-			p = pgtype_to_name(stmt, field_type, fi && fi->auto_increment);
+			p = pgtype_to_name(stmt, field_type, col_idx, fi && fi->auto_increment);
 			break;
 
 		case SQL_COLUMN_UNSIGNED: /* == SQL_DESC_UNSINGED */
-			value = pgtype_unsigned(stmt, field_type);
+			value = pgtype_unsigned(conn, field_type);
 			if (value == -1)	/* non-numeric becomes TRUE (ODBC Doc) */
 				value = SQL_TRUE;
 
@@ -798,14 +800,15 @@ inolog("COLUMN_SCALE=%d\n", value);
 			mylog("%s: BASE_TABLE_NAME = '%s'\n", func, p);
 			break;
 		case SQL_DESC_LENGTH: /* different from SQL_COLUMN_LENGTH */
-			value = (fi && fi->length > 0) ? fi->length : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
+			// value = (fi && fi->length > 0) ? fi->length : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
+			value = (fi && column_size > 0) ? column_size : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
 			if (-1 == value)
 				value = 0;
 
 			mylog("%s: col %d, desc_length = %d\n", func, col_idx, value);
 			break;
 		case SQL_DESC_OCTET_LENGTH:
-			value = (fi && fi->length > 0) ? fi->length : pgtype_transfer_octet_length(stmt, field_type, column_size);
+			value = (fi && fi->length > 0) ? fi->length : pgtype_attr_transfer_octet_length(conn, field_type, column_size, unknown_sizes);
 			if (-1 == value)
 				value = 0;
 			mylog("%s: col %d, octet_length = %d\n", func, col_idx, value);
@@ -824,19 +827,19 @@ inolog("COLUMN_SCALE=%d\n", value);
 				value = 0;
 			break;
 		case SQL_DESC_LOCAL_TYPE_NAME:
-			p = pgtype_to_name(stmt, field_type, fi && fi->auto_increment);
+			p = pgtype_to_name(stmt, field_type, col_idx, fi && fi->auto_increment);
 			break;
 		case SQL_DESC_TYPE:
 			value = pgtype_to_sqldesctype(stmt, field_type, col_idx);
 			break;
 		case SQL_DESC_NUM_PREC_RADIX:
-			value = pgtype_radix(stmt, field_type);
+			value = pgtype_radix(conn, field_type);
 			break;
 		case SQL_DESC_LITERAL_PREFIX:
-			p = pgtype_literal_prefix(stmt, field_type);
+			p = pgtype_literal_prefix(conn, field_type);
 			break;
 		case SQL_DESC_LITERAL_SUFFIX:
-			p = pgtype_literal_suffix(stmt, field_type);
+			p = pgtype_literal_suffix(conn, field_type);
 			break;
 		case SQL_DESC_UNNAMED:
 			value = (fi && NAME_IS_NULL(fi->column_name) && NAME_IS_NULL(fi->column_alias)) ? SQL_UNNAMED : SQL_NAMED;
@@ -910,11 +913,13 @@ PGAPI_GetData(
 	UInt2		num_cols;
 	SQLLEN		num_rows;
 	OID		field_type;
+	int		atttypmod;
 	void	   *value = NULL;
 	RETCODE		result = SQL_SUCCESS;
 	char		get_bookmark = FALSE;
 	ConnInfo   *ci;
 	SQLSMALLINT	target_type;
+	int		precision = -1;
 
 	mylog("%s: enter, stmt=%p icol=%d\n", func, stmt, icol);
 
@@ -952,6 +957,7 @@ PGAPI_GetData(
 		{	
 			target_type = binfo->returntype;
 			mylog("SQL_ARD_TYPE=%d\n", target_type);
+			precision = binfo->precision;
 		}
 		else
 		{
@@ -1067,13 +1073,14 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 	}
 
 	field_type = QR_get_field_type(res, icol);
+	atttypmod = QR_get_atttypmod(res, icol);
 
 	mylog("**** %s: icol = %d, target_type = %d, field_type = %d, value = '%s'\n", func, icol, target_type, field_type, value ? value : "(null)");
 
 	SC_set_current_col(stmt, icol);
 
-	result = copy_and_convert_field(stmt, field_type, value,
-				target_type, rgbValue, cbValueMax, pcbValue, pcbValue);
+	result = copy_and_convert_field(stmt, field_type, atttypmod, value,
+			target_type, precision, rgbValue, cbValueMax, pcbValue, pcbValue);
 
 	switch (result)
 	{
@@ -3941,8 +3948,10 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN add
 				SC_set_current_col(stmt, -1);
 				copy_and_convert_field(stmt,
 					PG_TYPE_INT4,
+					PG_UNSPECIFIED,
 					buf,
                          		bookmark->returntype,
+					0,
 					bookmark->buffer + offset,
 					bookmark->buflen,
 					LENADDR_SHIFT(bookmark->used, offset),

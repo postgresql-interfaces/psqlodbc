@@ -35,10 +35,21 @@ static ConnectionClass **conns = NULL;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 CRITICAL_SECTION	conns_cs;
 CRITICAL_SECTION	common_cs; /* commonly used for short term blocking */
+CRITICAL_SECTION	common_lcs; /* commonly used for not necessarily short term blocking */
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 pthread_mutex_t     conns_cs;
 pthread_mutex_t     common_cs;
+pthread_mutex_t     common_lcs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
+
+void	shortterm_common_lock()
+{
+	ENTER_COMMON_CS;
+}
+void	shortterm_common_unlock()
+{
+	LEAVE_COMMON_CS;
+}
 
 int	getConnCount()
 {

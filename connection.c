@@ -947,6 +947,7 @@ handle_notice_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *
 			while (truncated)
 				truncated = SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 		}
+mylog("notice message len=%d\n", strlen(msgbuf));
 	}
 	else
 	{
@@ -1033,7 +1034,7 @@ inolog("parameter name=%s\n", msgbuffer);
 inolog("parameter value=%s\n", msgbuffer);
 }
 
-static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BOOL libpqopt, int dim_opts)
+static int	protocol3_opts_array(ConnectionClass *self, const char *opts[], const char *vals[], BOOL libpqopt, int dim_opts)
 {
 	ConnInfo	*ci = &(self->connInfo);
 	const	char	*enc = NULL;
@@ -1042,21 +1043,21 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 	cnt = 0;
 	if (libpqopt && ci->server[0])
 	{
-		opts[cnt][0] = "host";		opts[cnt++][1] = ci->server;
+		opts[cnt] = "host";		vals[cnt++] = ci->server;
 	}
 	if (libpqopt && ci->port[0])
 	{
-		opts[cnt][0] = "port";		opts[cnt++][1] = ci->port;
+		opts[cnt] = "port";		vals[cnt++] = ci->port;
 	}
 	if (ci->database[0])
 	{
 		if (libpqopt)
 		{
-			opts[cnt][0] = "dbname";	opts[cnt++][1] = ci->database;
+			opts[cnt] = "dbname";	vals[cnt++] = ci->database;
 		}
 		else
 		{
-			opts[cnt][0] = "database";	opts[cnt++][1] = ci->database;
+			opts[cnt] = "database";	vals[cnt++] = ci->database;
 		}
 	}
 	if (ci->username[0] || !libpqopt)
@@ -1066,7 +1067,7 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 		DWORD namesize = sizeof(ci->username) - 2;
 #endif /* WIN32 */
 
-		opts[cnt][0] = "user";
+		opts[cnt] = "user";
 		if (!usrname[0])
 		{
 #ifdef	WIN32
@@ -1075,7 +1076,7 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[][2], BO
 #endif /* WIN32 */
 		}
 mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
-		opts[cnt++][1] = usrname;
+		vals[cnt++] = usrname;
 	}
 	if (libpqopt)
 	{
@@ -1084,19 +1085,19 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 			case '\0':
 				break;
 			case SSLLBYTE_VERIFY:
-				opts[cnt][0] = "sslmode";
+				opts[cnt] = "sslmode";
 				if (ssl_verify_available())
 				{
 					switch (ci->sslmode[1])
 					{
 						case 'f':
-							opts[cnt++][1] = SSLMODE_VERIFY_FULL;
+							vals[cnt++] = SSLMODE_VERIFY_FULL;
 								break;
 						case 'c':
-							opts[cnt++][1] = SSLMODE_VERIFY_CA;
+							vals[cnt++] = SSLMODE_VERIFY_CA;
 								break;
 						default:
-							opts[cnt++][1] = ci->sslmode;
+							vals[cnt++] = ci->sslmode;
 					}
 				}
 				else
@@ -1109,42 +1110,45 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 				}
 				break;
 			default:
-				opts[cnt][0] = "sslmode";
-				opts[cnt++][1] = ci->sslmode;
+				opts[cnt] = "sslmode";
+				vals[cnt++] = ci->sslmode;
 		}
 		if (ci->password[0])
 		{
-			opts[cnt][0] = "password";	opts[cnt++][1] = ci->password;
+			opts[cnt] = "password";	vals[cnt++] = ci->password;
 		}
 		if (ci->gssauth_use_gssapi)
 		{
-			opts[cnt][0] = "gsslib";	opts[cnt++][1] = "gssapi";
+			opts[cnt] = "gsslib";	vals[cnt++] = "gssapi";
 		}
 	}
 	else
+	if (connect_with_param_available())
 	{
 		/* DateStyle */
-		opts[cnt][0] = "DateStyle"; opts[cnt++][1] = "ISO";
+		opts[cnt] = "DateStyle"; vals[cnt++] = "ISO";
 		/* extra_float_digits */
-		opts[cnt][0] = "extra_float_digits";	opts[cnt++][1] = "2";
+		opts[cnt] = "extra_float_digits";	vals[cnt++] = "2";
 		/* geqo */
-		opts[cnt][0] = "geqo";
+		opts[cnt] = "geqo";
 		if (ci->drivers.disable_optimizer)
-			opts[cnt++][1] = "off";
+			vals[cnt++] = "off";
 		else
-			opts[cnt++][1] = "on";
+			vals[cnt++] = "on";
 		/* client_encoding */
 		enc = get_environment_encoding(self, self->original_client_encoding, NULL, TRUE);
 		if (enc)
 		{
 			mylog("startup client_encoding=%s\n", enc);
-			opts[cnt][0] = "client_encoding"; opts[cnt++][1] = enc;
+			opts[cnt] = "client_encoding"; vals[cnt++] = enc;
 		}
 	}
+	opts[cnt] = vals[cnt] = NULL;
 
 	return cnt;
 }
 
+#define	PROTOCOL3_OPTS_MAX	20
 static int	protocol3_packet_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_packet_build";
@@ -1152,18 +1156,18 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	size_t	slen;
 	char	*packet, *ppacket;
 	ProtocolVersion	pversion;
-	const	char	*opts[20][2];
+	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
 	int	cnt, i;
 
-	cnt = protocol3_opts_array(self, opts, FALSE, sizeof(opts) / sizeof(opts[0]));
+	cnt = protocol3_opts_array(self, opts, vals, FALSE, sizeof(opts) / sizeof(opts[0]));
 	if (cnt < 0)
 		return 0;
 
 	slen =  sizeof(ProtocolVersion);
 	for (i = 0; i < cnt; i++)
 	{
-		slen += (strlen(opts[i][0]) + 1);
-		slen += (strlen(opts[i][1]) + 1);
+		slen += (strlen(opts[i]) + 1);
+		slen += (strlen(vals[i]) + 1);
 	}
 	slen++;
 				
@@ -1185,10 +1189,10 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	ppacket += sizeof(pversion);
 	for (i = 0; i < cnt; i++)
 	{ 
-		strcpy(ppacket, opts[i][0]);
-		ppacket += (strlen(opts[i][0]) + 1);
-		strcpy(ppacket, opts[i][1]);
-		ppacket += (strlen(opts[i][1]) + 1);
+		strcpy(ppacket, opts[i]);
+		ppacket += (strlen(opts[i]) + 1);
+		strcpy(ppacket, vals[i]);
+		ppacket += (strlen(vals[i]) + 1);
 	}
 	*ppacket = '\0';
 
@@ -1206,19 +1210,19 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	CSTR	func = "protocol3_opts_build";
 	size_t	slen;
 	char	*conninfo, *ppacket;
-	const	char	*opts[20][2];
+	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
 	int	cnt, i;
 	BOOL	blankExist;
 
-	cnt = protocol3_opts_array(self, opts, TRUE, sizeof(opts) / sizeof(opts[0]));
+	cnt = protocol3_opts_array(self, opts, vals, TRUE, sizeof(opts) / sizeof(opts[0]));
 	if (cnt < 0)
 		return NULL;
 
 	slen =  sizeof(ProtocolVersion);
 	for (i = 0, slen = 0; i < cnt; i++)
 	{
-		slen += (strlen(opts[i][0]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
-		slen += strlen(opts[i][1]);
+		slen += (strlen(opts[i]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
+		slen += strlen(vals[i]);
 	}
 	if (self->login_timeout > 0)
 	{
@@ -1240,18 +1244,18 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 
 	for (i = 0, ppacket = conninfo; i < cnt; i++)
 	{ 
-		sprintf(ppacket, " %s=", opts[i][0]);
-		ppacket += (strlen(opts[i][0]) + 2);
+		sprintf(ppacket, " %s=", opts[i]);
+		ppacket += (strlen(opts[i]) + 2);
 		blankExist = FALSE;
-		if (strchr(opts[i][1], ' '))
+		if (strchr(vals[i], ' '))
 			blankExist = TRUE;
 		if (blankExist)
 		{
 			*ppacket = '\'';
 			ppacket++;
 		}
-		strcpy(ppacket, opts[i][1]);
-		ppacket += strlen(opts[i][1]);
+		strcpy(ppacket, vals[i]);
+		ppacket += strlen(vals[i]);
 		if (blankExist)
 		{
 			*ppacket = '\'';
@@ -2372,17 +2376,42 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 				QResultClass	*wres;
 				char	cmd[64];
 
-				snprintf(cmd, sizeof(cmd), "MOVE 0 in \"%s\"", QR_get_cursor(res));
-				CONNLOCK_RELEASE(self);
-				wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
-				if (QR_command_maybe_successful(wres))
-					QR_set_permanent(res);
-				else
-					QR_set_cursor(res, NULL);
-				QR_Destructor(wres);
-				CONNLOCK_ACQUIRE(self);
+				if (QR_needs_survival_check(res))
+				{
+					snprintf(cmd, sizeof(cmd), "MOVE 0 in \"%s\"", QR_get_cursor(res));
+					CONNLOCK_RELEASE(self);
+					wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+					QR_set_no_survival_check(res);
+					if (QR_command_maybe_successful(wres))
+						QR_set_permanent(res);
+					else
+						QR_set_cursor(res, NULL);
+					QR_Destructor(wres);
+					CONNLOCK_ACQUIRE(self);
+				}
 			}
 		}
+	}
+	CONNLOCK_RELEASE(self);
+}
+
+static void CC_mark_cursors_doubtful(ConnectionClass *self)
+{
+	int	i;
+	StatementClass	*stmt;
+	QResultClass	*res;
+
+	if (!self->ncursors)
+		return;
+	CONNLOCK_ACQUIRE(self);
+	for (i = 0; i < self->num_stmts; i++)
+	{
+		stmt = self->stmts[i];
+		if (NULL != stmt &&
+		    NULL != (res = SC_get_Result(stmt)) &&
+		    NULL != QR_get_cursor(res) &&
+		    !QR_is_permanent(res))
+			QR_set_survival_check(res);
 	}
 	CONNLOCK_RELEASE(self);
 }
@@ -2788,6 +2817,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					}
 					else if (strnicmp(cmdbuffer, rbkcmd, lenrbkcmd) == 0)
 					{
+						CC_mark_cursors_doubtful(self);
 						if (PROTOCOL_74(&(self->connInfo)))
 							CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
 						else
@@ -3837,14 +3867,24 @@ inolog("sock=%p\n", sock);
 		}
 	}
 
-	if (!(conninfo = protocol3_opts_build(self)))
+	if (FALSE && connect_with_param_available())
 	{
-		if (CC_get_errornumber(self) <= 0)
-			CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
-		goto cleanup1;
+		const char *opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
+
+		protocol3_opts_array(self, opts, vals, TRUE, sizeof(opts) / sizeof(opts[0]));
+		pqconn = CALL_PQconnectdbParams(opts, vals, &libpqLoaded);
 	}
-	pqconn = CALL_PQconnectdb(conninfo, &libpqLoaded);
-	free(conninfo);
+	else
+	{
+		if (!(conninfo = protocol3_opts_build(self)))
+		{
+			if (CC_get_errornumber(self) <= 0)
+				CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
+			goto cleanup1;
+		}
+		pqconn = CALL_PQconnectdb(conninfo, &libpqLoaded);
+		free(conninfo);
+	}
 	if (!libpqLoaded)
 	{
 		CC_set_error(self, CONN_UNABLE_TO_LOAD_DLL, "Couldn't load libpq library", func);

@@ -25,6 +25,7 @@ extern "C" {
 #define UNKNOWNS_AS_MAX				0
 #define UNKNOWNS_AS_DONTKNOW			1
 #define UNKNOWNS_AS_LONGEST			2
+#define UNKNOWNS_AS_CATALOG			100
 
 /* ODBC initialization files */
 #ifndef WIN32
