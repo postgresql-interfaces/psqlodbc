@@ -40,12 +40,12 @@ CFG=Release
 #
 #
 !IF "$(PG_INC)" == ""
-PG_INC=$(PROGRAMFILES)\PostgreSQL\8.4\include
+PG_INC=$(PROGRAMFILES)\PostgreSQL\9.0\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF
 
 !IF "$(PG_LIB)" == ""
-PG_LIB=$(PROGRAMFILES)\PostgreSQL\8.4\lib
+PG_LIB=$(PROGRAMFILES)\PostgreSQL\9.0\lib
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 

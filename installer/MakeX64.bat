@@ -4,7 +4,7 @@ echo wix_dir=%wix_dir%
 REM Values to change include VERSION and SUBLOC, both below.
 
 REM The subdirectory to install into
-SET SUBLOC="0804"
+SET SUBLOC="0900"
 SET CPUTYPE="x64"
 
 if "%1" == "clean" GOTO CLEAN
@@ -22,7 +22,7 @@ GOTO EXIT
 
 :NORMAL_EXEC
 REM The full version number of the build in XXXX.XX.XX format
-SET VERSION="08.04.0201"
+SET VERSION="09.00.0100"
 
 echo.
 echo Version not specified - defaulting to %VERSION%
