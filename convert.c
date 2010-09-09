@@ -927,7 +927,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		case PG_TYPE_BOOL:
 			{					/* change T/F to 1/0 */
 				char	   *s;
-				ConnInfo *ci = &(conn->connInfo);
+				const ConnInfo *ci = &(conn->connInfo);
 
 				s = midtemp[mtemp_cnt];
 				switch (((char *)value)[0])
@@ -2833,21 +2833,25 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	else if (stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY)
 	{
-		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
+		if (SQL_CURSOR_DYNAMIC == stmt->options.cursor_type &&
+		    0 == (ci->updatable_cursors & ALLOW_DYNAMIC_CURSORS))
+			stmt->options.cursor_type = SQL_CURSOR_KEYSET_DRIVEN;
+		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
+		    0 == (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
+			stmt->options.cursor_type = SQL_CURSOR_STATIC;
+		switch (stmt->options.cursor_type)
 		{
-			if (0 == (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
-				stmt->options.cursor_type = SQL_CURSOR_STATIC;
-			else
-			{
+			case SQL_CURSOR_DYNAMIC:
+			case SQL_CURSOR_KEYSET_DRIVEN:
 				if (SC_update_not_ready(stmt))
 					parse_statement(stmt, TRUE);
 				if (SC_is_updatable(stmt) &&
-				    stmt->ntab > 0)
+			    	    stmt->ntab > 0)
 				{
 					if (bestitem = GET_NAME(stmt->ti[0]->bestitem), NULL == bestitem)
 						stmt->options.cursor_type = SQL_CURSOR_STATIC;
 				}
-			}
+				break;
 		}
 		if (SQL_CURSOR_STATIC == stmt->options.cursor_type)
 		{
@@ -3196,14 +3200,28 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	const char *bestitem = NULL;
 
 	RETCODE	retval;
+	Int4	opos;
 	char	   oldchar;
 	StatementClass	*stmt = qb->stmt;
 	char	literal_quote = LITERAL_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal = '\0';
 
 	if (stmt && stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
-	if (qp->from_pos == (Int4) qp->opos)
+	opos = (Int4) qp->opos;
+	if (opos < 0)
 	{
+		qb->errornumber = STMT_SEQUENCE_ERROR;
+		qb->errormsg = "Function call for inner_process_tokens sequence error";
+		return SQL_ERROR;
+	}
+	if (qp->from_pos == opos)
+	{
+		if (0 == (qb->flags & FLGB_CREATE_KEYSET))
+		{
+			qb->errornumber = STMT_SEQUENCE_ERROR;
+			qb->errormsg = "Should come here only when hamdling updatable cursors";
+			return SQL_ERROR;
+		}
 		CVT_APPEND_STR(qb, ", \"ctid");
 		if (bestitem)
 		{
@@ -3212,7 +3230,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		CVT_APPEND_STR(qb, "\" ");
 	}
-	else if (qp->where_pos == (Int4) qp->opos)
+	else if (qp->where_pos == opos)
 	{
 		qb->load_stmt_len = qb->npos;
 		if (0 != (qb->flags & FLGB_KEYSET_DRIVEN))

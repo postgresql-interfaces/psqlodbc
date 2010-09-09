@@ -95,11 +95,19 @@ set_statement_option(ConnectionClass *conn,
 				setval = vParam;
 			else if (SQL_CURSOR_STATIC == vParam)
 				setval = vParam;
-			else if (SQL_CURSOR_KEYSET_DRIVEN == vParam ||
-				 SQL_CURSOR_DYNAMIC == vParam)
+			else if (SQL_CURSOR_KEYSET_DRIVEN == vParam)
 			{
 				if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS)) 
 					setval = vParam;
+				else
+					setval = SQL_CURSOR_STATIC; /* at least scrollable */
+			}
+			else if (SQL_CURSOR_DYNAMIC == vParam)
+			{
+				if (0 != (ci->updatable_cursors & ALLOW_DYNAMIC_CURSORS)) 
+					setval = vParam;
+				else if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS)) 
+					setval = SQL_CURSOR_KEYSET_DRIVEN;
 				else
 					setval = SQL_CURSOR_STATIC; /* at least scrollable */
 			}
