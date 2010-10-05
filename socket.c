@@ -33,6 +33,7 @@
 
 #ifdef WIN32
 #include <time.h>
+#include <Wspiapi.h>
 #else
 #include <stdlib.h>
 #include <string.h>				/* for memset */
