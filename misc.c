@@ -148,20 +148,21 @@ inolog("str=%p\n", str);
  *	The SQL_NTS length is considered.
  *------
  */
-char *
-make_lstring_ifneeded(ConnectionClass *conn, const char *s, ssize_t len, BOOL ifallupper)
+SQLCHAR *
+make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL ifallupper)
 {
 	ssize_t	length = len;
 	char	   *str = NULL;
+	const char *ccs = (const char *) s;
 
-	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(s)) > 0)))
+	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(ccs)) > 0)))
 	{
 		int	i;
 		const char *ptr;
 		encoded_str encstr;
 
-		make_encoded_str(&encstr, conn, s);
-		for (i = 0, ptr = s; i < length; i++, ptr++)
+		make_encoded_str(&encstr, conn, ccs);
+		for (i = 0, ptr = ccs; i < length; i++, ptr++)
 		{
 			encoded_nextchar(&encstr);
 			if (ENCODE_STATUS(encstr) != 0)
@@ -188,7 +189,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const char *s, ssize_t len, BOOL if
 		}
 	}
 
-	return str;
+	return (SQLCHAR *) str;
 }
 
 

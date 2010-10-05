@@ -193,7 +193,8 @@ SQLFetchScroll(HSTMT StatementHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	IRDFields	*irdopts = SC_get_IRDF(stmt);
 	SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
-	SQLLEN *pcRow = irdopts->rowsFetched, bkmarkoff = 0;
+	SQLULEN *pcRow = irdopts->rowsFetched;
+	SQLLEN	bkmarkoff = 0;
 
 	mylog("[[%s]] %d,%d\n", func, FetchOrientation, FetchOffset);
 	ENTER_STMT_CS(stmt);
@@ -350,6 +351,7 @@ SQLGetEnvAttr(HENV EnvironmentHandle,
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 /*	SQLGetConnectOption -> SQLGetconnectAttr */
 RETCODE		SQL_API
 SQLGetConnectAttr(HDBC ConnectionHandle,
@@ -405,6 +407,7 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 /*	new function */
 RETCODE		SQL_API
@@ -497,6 +500,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 /*	SQLSet(Param/Scroll/Stmt)Option -> SQLSetStmtAttr */
 RETCODE		SQL_API
 SQLSetStmtAttr(HSTMT StatementHandle,
@@ -516,6 +520,7 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 #define SQL_FUNC_ESET(pfExists, uwAPI) \
 		(*(((UWORD*) (pfExists)) + ((uwAPI) >> 4)) \

@@ -142,7 +142,7 @@ SQLColumns(HSTMT StatementHandle,
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
+		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -188,6 +188,7 @@ SQLColumns(HSTMT StatementHandle,
 }
 
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLConnect(HDBC ConnectionHandle,
 		   SQLCHAR *ServerName, SQLSMALLINT NameLength1,
@@ -286,6 +287,7 @@ SQLDescribeCol(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLDisconnect(HDBC ConnectionHandle)
@@ -394,7 +396,7 @@ SQLFetch(HSTMT StatementHandle)
 		IRDFields	*irdopts = SC_get_IRDF(stmt);
 		ARDFields	*ardopts = SC_get_ARDF(stmt);
 		SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
-		SQLLEN *pcRow = irdopts->rowsFetched;
+		SQLULEN *pcRow = irdopts->rowsFetched;
 
 		mylog("[[%s]]", func);
 		ret = PGAPI_ExtendedFetch(StatementHandle, SQL_FETCH_NEXT, 0,
@@ -788,7 +790,7 @@ SQLSpecialColumns(HSTMT StatementHandle,
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
+		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -851,7 +853,7 @@ SQLStatistics(HSTMT StatementHandle,
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
+		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -919,7 +921,7 @@ SQLTables(HSTMT StatementHandle,
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt =NULL, *newSc = NULL, *newTb = NULL;
+		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -1038,7 +1040,7 @@ SQLColumnPrivileges(
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
+		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -1111,7 +1113,7 @@ SQLExtendedFetch(
 				 HSTMT hstmt,
 				 SQLUSMALLINT fFetchType,
 				 SQLLEN irow,
-#ifdef WITH_UNIXODBC
+#if defined(WITH_UNIXODBC) && (SIZEOF_VOID_P < 8) 
 				 SQLROWSETSIZE *pcrow,
 #else
 				 SQLULEN *pcrow,
@@ -1179,7 +1181,7 @@ SQLForeignKeys(
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newPkct = NULL, *newPksc = NULL, *newPktb = NULL,
+		SQLCHAR *newPkct = NULL, *newPksc = NULL, *newPktb = NULL,
 			*newFkct = NULL, *newFksc = NULL, *newFktb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
@@ -1344,7 +1346,7 @@ SQLPrimaryKeys(
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt = NULL, *newSc = NULL, *newTb = NULL;
+		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -1417,7 +1419,7 @@ SQLProcedureColumns(
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt = NULL, *newSc = NULL, *newPr = NULL, *newCl = NULL;
+		SQLCHAR *newCt = NULL, *newSc = NULL, *newPr = NULL, *newCl = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -1496,7 +1498,7 @@ SQLProcedures(
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt = NULL, *newSc = NULL, *newPr = NULL;
+		SQLCHAR *newCt = NULL, *newSc = NULL, *newPr = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
@@ -1586,7 +1588,7 @@ SQLTablePrivileges(
 	if (SQL_SUCCESS == ret && 0 == QR_get_num_total_tuples(SC_get_Result(stmt))) 
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
-		char *newCt = NULL, *newSc = NULL, *newTb = NULL;
+		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
 		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */

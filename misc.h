@@ -133,7 +133,7 @@ size_t		strlcat(char *, const char *, size_t);
 #endif /* HAVE_STRLCPY */
 char	   *my_trim(char *string);
 char	   *make_string(const char *s, ssize_t len, char *buf, size_t bufsize);
-char	   *make_lstring_ifneeded(ConnectionClass *, const char *s, ssize_t len, BOOL);
+SQLCHAR	   *make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
 char	   *my_strcat(char *buf, const char *fmt, const char *s, ssize_t len);
 char	   *schema_strcat(char *buf, const char *fmt, const char *s, ssize_t len,
 		const char *, int, ConnectionClass *conn);
