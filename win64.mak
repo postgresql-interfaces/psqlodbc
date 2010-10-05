@@ -46,6 +46,10 @@ CFG=Release
 
 ADD_DEFINES=/D _WIN64
 #
+#	Include libraries as well as import libraries
+#	may be different from those of 32bit ones.
+#	Please set PG_INC, PG_LIB, SSL_INC or PG_LIB
+#	variables to appropriate ones. 
 #
 !IF "$(PG_INC)" == ""
 PG_INC=$(PROGRAMFILES)\PostgreSQL\9.0\include
@@ -78,6 +82,9 @@ ADD_DEFINES = $(ADD_DEFINES) /D NOT_USE_LIBPQ
 !IF "$(USE_SSPI)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D USE_SSPI
 !ENDIF
+!IF "$(USE_GSS)" == "yes"
+ADD_DEFINES = $(ADD_DEFINES) /D USE_GSS
+!ENDIF
 
 !IF "$(ANSI_VERSION)" == "yes"
 DTCLIB = pgenlista
@@ -100,6 +107,9 @@ ADD_DEFINES=$(ADD_DEFINES) /D RESET_CRYPTO_CALLBACKS
 !IF "$(USE_SSPI)" == "yes"
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /Delayload:crypt32.dll
 !ENDIF
+!IF "$(USE_GSS)" == "yes"
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /Delayload:gssapi64.dll
+!ENDIF
 VC07_DELAY_LOAD="$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
@@ -110,15 +120,30 @@ ADD_DEFINES = $(ADD_DEFINES) /D "_HANDLE_ENLIST_IN_DTC_"
 !IF "$(MEMORY_DEBUG)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D "_MEMORY_DEBUG_" /GS
 !ENDIF
-!IF "$(ANSI_VERSION)" == "yes"
-ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL $(CPU)A\"" /D "ODBCVER=0x0300"
+!IF "$(CPU)" == "AMD64"
+CPUTYPE = x64
 !ELSE
-ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL $(CPU)W\"" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT"
+CPUTYPE = $(CPU)
+!ENDIF
+!IF "$(ANSI_VERSION)" == "yes"
+ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL ANSI($(CPUTYPE))\"" /D "ODBCVER=0x0300"
+!ELSE
+ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL Unicode($(CPUTYPE))\"" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT"
 RSC_DEFINES = $(RSC_DEFINES) /D "UNICODE_SUPPORT"
 !ENDIF
 
 !IF "$(PORT_CHECK)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /Wp64
+!ENDIF
+
+!IF "$(PG_INC)" != ""
+INC_OPT = $(INC_OPT) /I "$(PG_INC)"
+!ENDIF
+!IF "$(SSL_INC)" != ""
+INC_OPT = $(INC_OPT) /I "$(SSL_INC)"
+!ENDIF
+!IF "$(ADDL_INC)" != ""
+INC_OPT = $(INC_OPT) /I "$(ADD_INC)"
 !ENDIF
 
 !IF "$(OS)" == "Windows_NT"
@@ -196,7 +221,7 @@ CLEAN :
 !ENDIF
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /EHsc /I "$(PG_INC)" /I "$(SSL_INC)" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD 
+CPP_PROJ=/nologo /MD /W3 /EHsc $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD 
 !IF  "$(CFG)" == "Release"
 CPP_PROJ=$(CPP_PROJ) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
@@ -261,7 +286,13 @@ LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no
 !ELSE
 LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug /pdbtype:sept
 !ENDIF
-LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)" /libpath:"$(PG_LIB)" /libpath:"$(SSL_LIB)"
+LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)"
+!IF "$(PG_LIB)" != ""
+LINK32_FLAGS=$(LINK32_FLAGS) /libpath:"$(PG_LIB)"
+!ENDIF
+!IF "$(SSL_LIB)" != ""
+LINK32_FLAGS=$(LINK32_FLAGS) /libpath:"$(SSL_LIB)"
+!ENDIF
 
 LINK32_OBJS= \
 	"$(INTDIR)\bind.obj" \
@@ -290,6 +321,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\setup.obj" \
 !IF "$(USE_SSPI)" == "yes"
 	"$(INTDIR)\sspisvcs.obj" \
+!ENDIF
+!IF "$(USE_GSS)" == "yes"
+	"$(INTDIR)\gsssvcs.obj" \
 !ENDIF
 	"$(INTDIR)\socket.obj" \
 	"$(INTDIR)\statement.obj" \
