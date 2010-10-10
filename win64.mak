@@ -57,7 +57,7 @@ PG_INC=$(PROGRAMFILES)\PostgreSQL\9.0\include
 !ENDIF
 
 !IF "$(PG_LIB)" == ""
-PG_LIB="C:\develop\lib\$(CPU)"
+PG_LIB=C:\develop\lib\$(CPU)
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
@@ -68,7 +68,7 @@ SSL_INC=C:\OpenSSL\include
 !ENDIF
 
 !IF "$(SSL_LIB)" == ""
-SSL_LIB="C:\develop\lib\$(CPU)"
+SSL_LIB=C:\develop\lib\$(CPU)
 !MESSAGE Using default OpenSSL Library directory: $(SSL_LIB)
 !ENDIF
 
