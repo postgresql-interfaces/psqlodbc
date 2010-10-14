@@ -125,13 +125,22 @@ The following build options may be used:
   </tr>
   <tr>
     <td>USE_LIBPQ</td>
-    <td>Yes (libpq is required) </td>
+    <td>No (libpq is required) </td>
+  </tr>
+  <tr>
+    <td>USE_SSPI</td>
+    <td>Yes (secur32 and crypt32 is required) </td>
+  </tr>
+  <tr>
+    <td>USE_GSS</td>
+    <td>Yes (use gssapi required, this option is effective at 64bit now) </td>
   </tr>
   </table></p>        
 
 <ol>
 <li>UNICODE is default (psqlodbc35w.dll), unless ANSI_VERSION isselected (psqlodbc30a.dll)</li>
-<li>libpq.dll is used, therefore, SSL and Kerberos are supported.</li>
+<li>libpq.dll is used supported.</li>
+<li>SSL and Kerberos are original equipment.</li>
 <li>ODBCVER becomes 0x351 when UNICODE is selected, or becomes 0x0300 with ANSI_VERSION == Yes.</li>
 <li>If MSDTC == Yes, "pgxalib.dll" is created.</li>
 <li>In the MSDTC mode, ANSI_VERSION also creates "pgenlista.dll". or UNICODE creates "pgenlist.dll".</li>
