@@ -3284,7 +3284,7 @@ PGAPI_Statistics(
 		/* no index qualifier */
 		set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], GET_SCHEMA_NAME(table_schemaname));
 
-		snprintf(buf, sizeof(table_name), "%s_idx_fake_oid", table_name);
+		snprintf(buf, sizeof(buf), "%s_idx_fake_oid", table_name);
 		set_tuplefield_string(&tuple[STATS_INDEX_NAME], buf);
 
 		/*
