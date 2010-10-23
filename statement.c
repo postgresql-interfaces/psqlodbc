@@ -2103,7 +2103,7 @@ inolog("res->next=%p\n", tres);
 		Int2	io, out;
 		has_out_para = (CountParameters(self, NULL, &io, &out) > 0);
 /*
- *	I'm not sure if the following REFCIR_SUPPORT stuff is valuable
+ *	I'm not sure if the following REFCUR_SUPPORT stuff is valuable
  *	or not.
  */
 #ifdef	REFCUR_SUPPORT
@@ -2406,6 +2406,7 @@ inolog(" response_length=%d\n", response_length);
 				QR_set_command(res, msgbuffer);
 				if (QR_is_fetching_tuples(res))
 				{
+					res->dataFilled = TRUE;
 					QR_set_no_fetching_tuples(res);
 					/* in case of FETCH, Portal Suspend never arrives */
 					if (strnicmp(msgbuffer, "SELECT", 6) == 0)
@@ -2560,6 +2561,7 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 				break;
 			case 's':	/* portal suspend */
 				QR_set_no_fetching_tuples(res);
+				res->dataFilled = TRUE;
 				break;
 			default:
 				break;

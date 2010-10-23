@@ -181,6 +181,7 @@ QR_Constructor()
 		rv->reload_count = 0;
 		rv->rb_alloc = 0;
 		rv->rb_count = 0;
+		rv->dataFilled = FALSE;
 		rv->rollback = NULL;
 		rv->ad_alloc = 0;
 		rv->ad_count = 0;
@@ -409,6 +410,7 @@ QR_free_memory(QResultClass *self)
 		free(self->backend_tuples);
 		self->count_backend_allocated = 0;
 		self->backend_tuples = NULL;
+		self->dataFilled = FALSE;
 	}
 	if (self->keyset)
 	{
@@ -991,7 +993,8 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 		self->move_offset = 0;
 		num_backend_rows = self->num_cached_rows;
 	}
-	else if (fetch_number < num_backend_rows)
+	else if (fetch_number < num_backend_rows &&
+		 self->dataFilled)
 	{
 		/* return a row from cache */
 		mylog("%s: fetch_number < fcount: returning tuple %d, fcount = %d\n", func, fetch_number, num_backend_rows);
@@ -1064,6 +1067,7 @@ inolog("tupleField=%p\n", self->tupleField);
 			/* clear obsolete tuples */
 inolog("clear obsolete %d tuples\n", num_backend_rows);
 			ClearCachedRows(tuple, num_fields, num_backend_rows);
+			self->dataFilled = FALSE;
 			QR_stop_movement(self);
 			self->move_offset = 0;
 			QR_set_next_in_cache(self, offset + 1);
@@ -1217,6 +1221,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				mylog("_%s: 'C' fetch_total = %d & this_fetch = %d\n", func, self->num_total_read, self->num_cached_rows);
 				if (QR_is_fetching_tuples(self))
 				{
+					self->dataFilled = TRUE;
 					QR_set_no_fetching_tuples(self);
 					if (internally_invoked)
 					{

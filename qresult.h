@@ -94,7 +94,8 @@ struct QResultClass_
 	SQLLEN		key_base;	/* relative position of rowset start in the current keyset cache */
 	UInt2		reload_count;
 	UInt2		rb_alloc;	/* count of allocated rollback info */	
-	UInt2		rb_count;	/* count of rollback info */	
+	UInt2		rb_count;	/* count of rollback info */
+	char		dataFilled;	/* Cache is filled with data ? */	
 	Rollback	*rollback;	
 	UInt4		ad_alloc;	/* count of allocated added info */
 	UInt4		ad_count;	/* count of newly added rows */

@@ -3302,12 +3302,15 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	}
 	if (limitrow > res->num_cached_keys)
 		limitrow = res->num_cached_keys;
-	if (create_from_scratch)
+	if (create_from_scratch ||
+	    !res->dataFilled)
 	{
-		SQLLEN	brows;
-
 		ClearCachedRows(res->backend_tuples, res->num_fields, res->num_cached_rows);
-		brows = GIdx2RowIdx(limitrow, stmt);
+		res->dataFilled = FALSE;
+	}
+	if (!res->dataFilled)
+	{
+		SQLLEN	brows = GIdx2RowIdx(limitrow, stmt);
 		if (brows > res->count_backend_allocated)
 		{
 			QR_REALLOC_return_with_error(res->backend_tuples, TupleField, sizeof(TupleField) * res->num_fields * brows, res, "pos_reload_needed failed", SQL_ERROR);
@@ -3345,6 +3348,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 			res->keyset[kres_ridx].status &= ~CURS_NEEDS_REREAD;
 		}
 	}
+	res->dataFilled = TRUE;
 	return ret;
 }
 
