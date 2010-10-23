@@ -251,7 +251,6 @@ static Int4
 getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
 	int		p = -1, maxsize;
-	QResultClass	*result;
 	const ConnInfo	*ci = &(conn->connInfo);
 
 	mylog("%s: type=%d, atttypmod=%d, adtsize_or=%d, unknown = %d\n", __FUNCTION__, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
@@ -299,12 +298,6 @@ getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adt
 inolog("!!! atttypmod  < 0 ?\n");
 	if (atttypmod < 0 && adtsize_or_longestlen < 0)
 		return maxsize;
-
-/*
-inolog("!!! Curres == NULL?\n");
-	if (result = SC_get_Curres(stmt), NULL == result)
-		return maxsize;
-*/
 
 	/*
 	 * Catalog Result Sets -- use assigned column width (i.e., from
@@ -385,8 +378,9 @@ getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, i
 		return default_decimal_digits;
 	if (UNKNOWNS_AS_CATALOG != handle_unknown_size_as)
 	{
-		if (adtsize_or_longest < 5)
-			adtsize_or_longest = 5;
+		/* if (adtsize_or_longest < 5)
+			adtsize_or_longest = 5; */
+		adtsize_or_longest >>= 16; /* extract the scale part */
 	}
 	return adtsize_or_longest;
 }
@@ -394,7 +388,7 @@ getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, i
 static Int4	/* PostgreSQL restritiction */
 getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as)
 {
-	Int4	default_column_size = 28;
+	Int4	default_column_size = 0; /* 28; */
 
 	mylog("%s: type=%d, typmod=%d\n", __FUNCTION__, type, atttypmod);
 
@@ -405,7 +399,14 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 		return (atttypmod >> 16) & 0xffff;
 	if (adtsize_or_longest <= 0)
 		return default_column_size;
-	adtsize_or_longest *= 2;
+	switch (handle_unknown_size_as)
+	{
+		case UNKNOWNS_AS_DONTKNOW:
+			return 0;
+		case UNKNOWNS_AS_MAX:
+			return default_column_size;
+	}
+	adtsize_or_longest %= (1 << 16); /* extract the precision part */
 	if (UNKNOWNS_AS_CATALOG != handle_unknown_size_as)
 	{
 		if (adtsize_or_longest < 10)
@@ -1040,7 +1041,7 @@ pgtype_attr_display_size(const ConnectionClass *conn, OID type, int atttypmod, i
 
 		case PG_TYPE_NUMERIC:
 			dsize = getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
-			return dsize < 0 ? dsize : dsize + 2;
+			return dsize <= 0 ? dsize : dsize + 2;
 
 		case PG_TYPE_MONEY:
 			return 15;			/* ($9,999,999.99) */
@@ -1068,6 +1069,8 @@ pgtype_attr_display_size(const ConnectionClass *conn, OID type, int atttypmod, i
 Int4
 pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
+	int	dsize;
+
 	switch (type)
 	{
 		case PG_TYPE_INT2:
@@ -1084,7 +1087,8 @@ pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, 
 			return 8; /* sizeof(SQLSBININT) */
 
 		case PG_TYPE_NUMERIC:
-			return getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) + 2;
+			dsize = getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+			return dsize <= 0 ? dsize : dsize + 2;
 
 		case PG_TYPE_FLOAT4:
 		case PG_TYPE_MONEY:
@@ -1146,6 +1150,8 @@ pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, 
 Int4
 pgtype_attr_desclength(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
+	int	dsize;
+
 	switch (type)
 	{
 		case PG_TYPE_INT2:
@@ -1160,7 +1166,8 @@ pgtype_attr_desclength(const ConnectionClass *conn, OID type, int atttypmod, int
 			return 20;			/* signed: 19 digits + sign */
 
 		case PG_TYPE_NUMERIC:
-			return getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) + 2;
+			dsize = getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+			return dsize <= 0 ? dsize : dsize + 2;
 
 		case PG_TYPE_FLOAT4:
 		case PG_TYPE_MONEY:
@@ -1425,7 +1432,28 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 				if (stmt->catalog_result)
 					*adtsize_or_longestlen = QR_get_fieldsize(res, col);
 				else
+				{
 					*adtsize_or_longestlen = QR_get_display_size(res, col);
+					if (PG_TYPE_NUMERIC == QR_get_field_type(res, col) && 
+					   atttypmod < 0 &&
+					   *adtsize_or_longestlen > 0)
+					{
+						int i, sval, maxscale = 0;
+						const char	*tval, *sptr;
+
+						for (i = 0; i < res->num_cached_rows; i++)
+						{
+							if (tval = QR_get_value_backend_text(res, col, i), NULL != tval)
+							{
+								if (sptr = strchr(tval, '.'), NULL != sptr)
+									if (sval = strlen(tval) - (sptr + 1 - tval), sval > maxscale)
+										maxscale = sval;
+									
+							}
+						}
+						*adtsize_or_longestlen += (maxscale << 16);
+					}
+				}
 			} 
 		}
 	}
@@ -1910,7 +1938,7 @@ pgtype_max_decimal_digits(const ConnectionClass *conn, OID type)
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			return 38;
 		case PG_TYPE_NUMERIC:
-			return getNumericDecimalDigitsX(conn, type, -1, -1, UNKNOWNS_AS_DEFAULT); 
+			return getNumericDecimalDigitsX(conn, type, -1, -1, UNKNOWNS_AS_DEFAULT);
 		default:
 			return -1;
 	}
