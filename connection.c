@@ -2389,6 +2389,8 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 					QR_Destructor(wres);
 					CONNLOCK_ACQUIRE(self);
 				}
+				else
+					QR_set_permanent(res);
 			}
 		}
 	}
@@ -2945,7 +2947,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					{
 						QR_set_haskeyset(res->next);
 						if (stmt)
-							res->num_key_fields = stmt->num_key_fields;
+							res->next->num_key_fields = stmt->num_key_fields;
 					}
 					mylog("send_query: 'T' no result_in: res = %p\n", res->next);
 					res = res->next;
