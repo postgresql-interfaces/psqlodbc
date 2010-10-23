@@ -2959,7 +2959,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 			qp->flags |= FLGP_USING_CURSOR;
 			qp->declare_pos = qb->npos;
 		}
-		else if (SQL_CONCUR_READ_ONLY != stmt->options.scroll_concurrency)
+		if (SQL_CONCUR_READ_ONLY != stmt->options.scroll_concurrency)
 		{
 			qb->flags |= FLGB_CREATE_KEYSET;
 			if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
