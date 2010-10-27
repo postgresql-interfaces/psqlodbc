@@ -3017,8 +3017,10 @@ inolog("Discarded the first SAVEPOINT\n");
 			case 'S':		/* parameter status */
 				getParameterValues(self);
 				break;
-			case 's':		/* portal suspended */
+			case 's':		/* portal suspended
+						 * may not occur */
 				QR_set_no_fetching_tuples(res);
+				res->dataFilled = TRUE;
 				break;
 			default:
 				/* skip the unexpected response if possible */

@@ -993,9 +993,14 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 		self->move_offset = 0;
 		num_backend_rows = self->num_cached_rows;
 	}
-	else if (fetch_number < num_backend_rows &&
-		 self->dataFilled)
+	else if (fetch_number < num_backend_rows)
 	{
+		if (!self->dataFilled) /* should never occur */
+		{
+			if (stmt)
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Hmm where are fetched data?", func);
+			return -1;
+		}
 		/* return a row from cache */
 		mylog("%s: fetch_number < fcount: returning tuple %d, fcount = %d\n", func, fetch_number, num_backend_rows);
 		self->tupleField = the_tuples + (fetch_number * num_fields);
@@ -1275,6 +1280,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 			case 's':	/* portal suspend */
 				mylog("portal suspend");
 				QR_set_no_fetching_tuples(self);
+				self->dataFilled = TRUE;
 				break;
 			default:
 				/* skip the unexpected response if possible */
