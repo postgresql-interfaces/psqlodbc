@@ -699,7 +699,7 @@ pgtype_attr_to_datetime_sub(const ConnectionClass *conn, OID type, int atttypmod
 			return rettype - 100;
 #endif /* ODBCVER */
 	}
-	return rettype;
+	return -1;
 }
 
 SQLSMALLINT
