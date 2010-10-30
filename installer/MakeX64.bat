@@ -86,7 +86,7 @@ GOTO EXIT
 
 :NORMAL_EXEC
 REM The full version number of the build in XXXX.XX.XX format
-SET VERSION="09.00.0102"
+SET VERSION="09.00.0200"
 
 echo.
 echo Version not specified - defaulting to %VERSION%
