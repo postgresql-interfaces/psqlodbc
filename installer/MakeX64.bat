@@ -16,11 +16,13 @@ rem
 set DLLBUILD=no
 
 :getparam
-if /i "%1:~0,8%" == "Drivers=" (
-	set DLLBUILD=%1:~8%
+set para=%1
+echo para="%para%"
+if /i "%para:~1%" == "Drivers" (
+	if "%para:~0,1%" == "+" set DLLBUILD=yes
 	shift
 	goto getparam
-) else if /i "%1" == "clean" (
+) else if /i "%para%" == "clean" (
 	set CLEANUP=yes
 	shift
 	goto getparam
