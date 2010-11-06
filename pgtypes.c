@@ -1443,12 +1443,11 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 
 						for (i = 0; i < res->num_cached_rows; i++)
 						{
-							if (tval = QR_get_value_backend_text(res, col, i), NULL != tval)
+							if (tval = QR_get_value_backend_text(res, i, col), NULL != tval)
 							{
 								if (sptr = strchr(tval, '.'), NULL != sptr)
 									if (sval = strlen(tval) - (sptr + 1 - tval), sval > maxscale)
 										maxscale = sval;
-									
 							}
 						}
 						*adtsize_or_longestlen += (maxscale << 16);
