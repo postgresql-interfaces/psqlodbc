@@ -52,7 +52,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			break;
 		case SQL_HANDLE_STMT:
 			ENTER_CONN_CS((ConnectionClass *) InputHandle);
-			ret = PGAPI_AllocStmt(InputHandle, OutputHandle);
+			ret = PGAPI_AllocStmt(InputHandle, OutputHandle, PODBC_EXTERNAL_STATEMENT | PODBC_INHERIT_CONNECT_OPTIONS);
 			LEAVE_CONN_CS((ConnectionClass *) InputHandle);
 			break;
 		case SQL_HANDLE_DESC:

@@ -789,7 +789,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 
 	if (NULL == conn)
 		conn = SC_get_conn(stmt);
-	result = PGAPI_AllocStmt(conn, &hcol_stmt);
+	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		if (stmt)
@@ -1091,7 +1091,7 @@ inolog("%s:fields=%d ntab=%d\n", func, nfields, stmt->ntab);
 		char		keycolnam[MAX_INFO_STRING];
 		SQLLEN		keycollen;
 
-		ret = PGAPI_AllocStmt(conn, &pstmt);
+		ret = PGAPI_AllocStmt(conn, &pstmt, 0);
 		if (!SQL_SUCCEEDED(ret))
 			return ret;
 		oneti = ti[0];

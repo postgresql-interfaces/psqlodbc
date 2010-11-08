@@ -72,7 +72,7 @@ SQLAllocStmt(HDBC ConnectionHandle,
 	mylog("[SQLAllocStmt]");
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
-	ret = PGAPI_AllocStmt(ConnectionHandle, StatementHandle);
+	ret = PGAPI_AllocStmt(ConnectionHandle, StatementHandle, PODBC_EXTERNAL_STATEMENT | PODBC_INHERIT_CONNECT_OPTIONS);
 	LEAVE_CONN_CS(conn);
 	return ret;
 }

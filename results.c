@@ -3697,7 +3697,7 @@ SC_pos_update(StatementClass *stmt,
 		if (PG_VERSION_GE(conn, 8.2))
 			strcat(updstr, " returning ctid");
 		mylog("updstr=%s\n", updstr);
-		if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
+		if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 		{
 			SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
 			return SQL_ERROR;
@@ -4090,7 +4090,7 @@ SC_pos_add(StatementClass *stmt,
 		sprintf(addstr, "insert into \"%s\".\"%s\" (", SAFE_NAME(s.stmt->ti[0]->schema_name), SAFE_NAME(s.stmt->ti[0]->table_name));
 	else
 		sprintf(addstr, "insert into \"%s\" (", SAFE_NAME(s.stmt->ti[0]->table_name));
-	if (PGAPI_AllocStmt(conn, &hstmt) != SQL_SUCCESS)
+	if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 	{
 		SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
 		return SQL_ERROR;

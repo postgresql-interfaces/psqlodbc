@@ -226,6 +226,7 @@ struct StatementClass_
 	Int2		data_at_exec; /* Number of params needing SQLPutData */
 	Int2		current_exec_param;	/* The current parameter for
 						 * SQLPutData */
+	UDWORD		iflag;		/* PGAPI_AllocStmt parameter */
 	PutDataInfo	pdata_info;
 	po_ind_t	parse_status;
 	po_ind_t	proc_return;

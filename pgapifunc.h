@@ -17,6 +17,9 @@ extern "C" {
 #define	PODBC_NOT_SEARCH_PATTERN	1L
 #define	PODBC_SEARCH_PUBLIC_SCHEMA	(1L << 1)
 #define	PODBC_SEARCH_BY_IDS		(1L << 2)
+/*	Internal flags for PGAPI_AllocStmt functions */
+#define	PODBC_EXTERNAL_STATEMENT	1L	/* visible to the driver manager */
+#define	PODBC_INHERIT_CONNECT_OPTIONS	(1L << 1)
 /*	Internal flags for PGAPI_Exec... functions */
 #define	PODBC_WITH_HOLD			1L
 #define	PODBC_PER_STATEMENT_ROLLBACK	(1L << 1)
@@ -28,7 +31,7 @@ RETCODE SQL_API PGAPI_AllocConnect(HENV EnvironmentHandle,
 				   HDBC FAR * ConnectionHandle);
 RETCODE SQL_API PGAPI_AllocEnv(HENV FAR * EnvironmentHandle);
 RETCODE SQL_API PGAPI_AllocStmt(HDBC ConnectionHandle,
-				HSTMT *StatementHandle);
+				HSTMT *StatementHandle, UDWORD flag);
 RETCODE SQL_API PGAPI_BindCol(HSTMT StatementHandle,
 			  SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
 			  PTR TargetValue, SQLLEN BufferLength,

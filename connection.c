@@ -3370,7 +3370,7 @@ CC_setenv(ConnectionClass *self)
  *	has not transitioned to "connected" yet.
  */
 
-	result = PGAPI_AllocStmt(self, &hstmt);
+	result = PGAPI_AllocStmt(self, &hstmt, 0);
 	if (!SQL_SUCCEEDED(result))
 		return FALSE;
 	stmt = (StatementClass *) hstmt;
@@ -3447,7 +3447,7 @@ CC_send_settings(ConnectionClass *self)
  *	has not transitioned to "connected" yet.
  */
 
-	result = PGAPI_AllocStmt(self, &hstmt);
+	result = PGAPI_AllocStmt(self, &hstmt, 0);
 	if (!SQL_SUCCEEDED(result))
 		return FALSE;
 	stmt = (StatementClass *) hstmt;
@@ -3610,7 +3610,7 @@ CC_lookup_pg_version(ConnectionClass *self)
  *	This function must use the local odbc API functions since the odbc state
  *	has not transitioned to "connected" yet.
  */
-	result = PGAPI_AllocStmt(self, &hstmt);
+	result = PGAPI_AllocStmt(self, &hstmt, 0);
 	if (!SQL_SUCCEEDED(result))
 		return;
 	stmt = (StatementClass *) hstmt;

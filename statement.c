@@ -161,7 +161,7 @@ static struct
 
 RETCODE		SQL_API
 PGAPI_AllocStmt(HDBC hdbc,
-				HSTMT FAR * phstmt)
+				HSTMT FAR * phstmt, UDWORD flag)
 {
 	CSTR func = "PGAPI_AllocStmt";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -198,9 +198,18 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 	*phstmt = (HSTMT) stmt;
 
+	stmt->iflag = flag;
 	/* Copy default statement options based from Connection options */
-	stmt->options = stmt->options_orig = conn->stmtOptions;
-	stmt->ardi.ardopts = conn->ardOptions;
+	if (0 != (PODBC_INHERIT_CONNECT_OPTIONS & flag))
+	{
+		stmt->options = stmt->options_orig = conn->stmtOptions;
+		stmt->ardi.ardopts = conn->ardOptions;
+	}
+	else
+	{
+		stmt->options_orig = stmt->options;
+		InitializeARDFields(&stmt->ardi.ardopts);
+	}
 	ardopts = SC_get_ARDF(stmt);
 	bookmark = ARD_AllocBookmark(ardopts);
 
@@ -345,6 +354,7 @@ static void SC_init_parse_method(StatementClass *self)
 
 	self->parse_method = 0;
 	if (!conn)	return;
+	if (0 == (PODBC_EXTERNAL_STATEMENT & self->iflag))	return;
 	if (self->catalog_result) return;
 	if (conn->connInfo.drivers.parse)
 		SC_set_parse_forced(self);
@@ -369,6 +379,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->prepared = NOT_YET_PREPARED;
 		rv->status = STMT_ALLOCATED;
 		rv->internal = FALSE;
+		rv->iflag = 0;
 		rv->plan_name = NULL;
 		rv->transition_status = STMT_TRANSITION_UNALLOCATED;
 		rv->multi_statement = -1; /* unknown */

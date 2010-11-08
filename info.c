@@ -1565,7 +1565,7 @@ PGAPI_Tables(
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
 
-	result = PGAPI_AllocStmt(conn, &htbl_stmt);
+	result = PGAPI_AllocStmt(conn, &htbl_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Tables result.", func);
@@ -2140,7 +2140,7 @@ retry_public_schema:
 		strcat(columns_query, " order by c.relname, attnum");
 	}
 
-	result = PGAPI_AllocStmt(conn, &hcol_stmt);
+	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Columns result.", func);
@@ -2777,7 +2777,7 @@ retry_public_schema:
 		my_strcat1(columns_query, " and u.usename %s'%.*s'", eq_string, escSchemaName, SQL_NTS);
 
 
-	result = PGAPI_AllocStmt(conn, &hcol_stmt);
+	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for SQLSpecialColumns result.", func);
@@ -3057,7 +3057,7 @@ PGAPI_Statistics(
 	 * we need to get a list of the field names first, so we can return
 	 * them later.
 	 */
-	result = PGAPI_AllocStmt(conn, &hcol_stmt);
+	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in PGAPI_Statistics for columns.", func);
@@ -3141,7 +3141,7 @@ PGAPI_Statistics(
 	}
 
 	/* get a list of indexes on this table */
-	result = PGAPI_AllocStmt(conn, &hindx_stmt);
+	result = PGAPI_AllocStmt(conn, &hindx_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in SQLStatistics for indices.", func);
@@ -3622,7 +3622,7 @@ PGAPI_PrimaryKeys(
 	QR_set_field_info_v(res, PKS_PK_NAME, "PK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 
 	conn = SC_get_conn(stmt);
-	result = PGAPI_AllocStmt(conn, &htbl_stmt);
+	result = PGAPI_AllocStmt(conn, &htbl_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for Primary Key result.", func);
@@ -4124,7 +4124,7 @@ PGAPI_ForeignKeys_old(
 	SC_set_current_col(stmt, -1);
 
 	conn = SC_get_conn(stmt);
-	result = PGAPI_AllocStmt(conn, &htbl_stmt);
+	result = PGAPI_AllocStmt(conn, &htbl_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys result.", func);
@@ -4350,7 +4350,7 @@ PGAPI_ForeignKeys_old(
 			goto cleanup;
 		}
 
-		keyresult = PGAPI_AllocStmt(conn, &hpkey_stmt);
+		keyresult = PGAPI_AllocStmt(conn, &hpkey_stmt, 0);
 		if (!SQL_SUCCEEDED(keyresult))
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys (pkeys) result.", func);
@@ -4722,7 +4722,7 @@ PGAPI_ForeignKeys_old(
 		/*
 		 *	get pk_name here
 		 */
-		keyresult = PGAPI_AllocStmt(conn, &hpkey_stmt);
+		keyresult = PGAPI_AllocStmt(conn, &hpkey_stmt, 0);
 		if (!SQL_SUCCEEDED(keyresult))
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_ForeignKeys (pkeys) result.", func);

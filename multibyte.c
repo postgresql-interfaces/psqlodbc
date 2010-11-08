@@ -486,7 +486,7 @@ CC_lookup_cs_old(ConnectionClass *self)
 	HSTMT		hstmt;
 	RETCODE		result;
 
-	result = PGAPI_AllocStmt(self, &hstmt);
+	result = PGAPI_AllocStmt(self, &hstmt, 0);
 	if (!SQL_SUCCEEDED(result))
 		return encstr;
 
