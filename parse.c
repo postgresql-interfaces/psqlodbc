@@ -1208,7 +1208,7 @@ static char
 parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 {
 	CSTR		func = "parse_the_statement";
-	char		token[TOKEN_SIZE], stoken[TOKEN_SIZE], btoken[TOKEN_SIZE];
+	char		delimdsp[2], token[TOKEN_SIZE], stoken[TOKEN_SIZE], btoken[TOKEN_SIZE];
 	char		delim,
 				quote,
 				dquote,
@@ -1280,7 +1280,14 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 	{
 		unquoted = !(quote || dquote);
 
-		mylog("unquoted=%d, quote=%d, dquote=%d, numeric=%d, delim='%c', token='%s', ptr='%s'\n", unquoted, quote, dquote, numeric, delim, token, ptr);
+		if (delim)
+		{
+			delimdsp[0] = delim;
+			delimdsp[1] = '\0';
+		}
+		else
+			delimdsp[0] = '\0';
+		mylog("unquoted=%d, quote=%d, dquote=%d, numeric=%d, delim='%s', token='%s', ptr='%s'\n", unquoted, quote, dquote, numeric, delimdsp, token, ptr);
 
 		old_blevel = blevel;
 		if (unquoted && blevel == 0)
