@@ -207,7 +207,8 @@ PGAPI_AllocStmt(HDBC hdbc,
 	}
 	else
 	{
-		stmt->options_orig = stmt->options;
+		InitializeStatementOptions(&stmt->options_orig);
+		stmt->options = stmt->options_orig;
 		InitializeARDFields(&stmt->ardi.ardopts);
 	}
 	ardopts = SC_get_ARDF(stmt);
