@@ -1041,14 +1041,19 @@ SC_pre_execute(StatementClass *self)
 	mylog("SC_pre_execute: status = %d\n", self->status);
 
 	res = SC_get_Curres(self);
-	if (res && (num_fields = QR_NumResultCols(res)) > 0)
-		return num_fields;
+	if (NULL != res)
+	{
+		num_fields = QR_NumResultCols(res);
+		if (num_fields > 0 ||
+		    NULL != QR_get_command(res))
+			return num_fields;
+	}
 	if (self->status == STMT_READY)
 	{
 		mylog("              preprocess: status = READY\n");
 
 		self->miscinfo = 0;
-		if (SC_returns_rows(self))
+		if (SC_can_req_colinfo(self))
 		{
 			char		old_pre_executing = self->pre_executing;
 

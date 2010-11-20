@@ -172,7 +172,7 @@ PGAPI_NumResultCols(
 		goto cleanup;
 	}
 	parse_ok = FALSE;
-	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && SC_can_parse_statement(stmt))
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -288,7 +288,7 @@ inolog("answering bookmark info\n");
 	fi = NULL;
 	if (icol < irdflds->nfields && irdflds->fi)
 		fi = irdflds->fi[icol];
-	if (!FI_is_applicable(fi) && !stmt->catalog_result && SC_is_parse_forced(stmt) && SC_returns_rows(stmt))
+	if (!FI_is_applicable(fi) && !stmt->catalog_result && SC_is_parse_forced(stmt) && SC_can_parse_statement(stmt))
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -526,7 +526,7 @@ inolog("answering bookmark info\n");
 	else if (unknown_sizes == UNKNOWNS_AS_DONTKNOW)
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
-	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && stmt->statement_type == STMT_TYPE_SELECT)
+	if (!stmt->catalog_result && SC_is_parse_forced(stmt) && SC_can_parse_statement(stmt))
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
@@ -1180,7 +1180,7 @@ PGAPI_Fetch(
 
 	if (opts->bindings == NULL)
 	{
-		if (!SC_returns_rows(stmt))
+		if (!SC_may_fetch_rows(stmt))
 			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */
@@ -1469,7 +1469,7 @@ PGAPI_ExtendedFetch(
 
 	if (opts->bindings == NULL)
 	{
-		if (!SC_returns_rows(stmt))
+		if (!SC_may_fetch_rows(stmt))
 			return SQL_NO_DATA_FOUND;
 		/* just to avoid a crash if the user insists on calling this */
 		/* function even if SQL_ExecDirect has reported an Error */

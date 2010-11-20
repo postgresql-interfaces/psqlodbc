@@ -231,7 +231,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 			ret = PROTOCOL_74(ci) ? PARSE_REQ_FOR_INFO : PREPARE_BY_THE_DRIVER;
 		else if (PROTOCOL_74(ci))
 		{
-			if (SC_returns_rows(stmt))
+			if (SC_may_use_cursor(stmt))
 			{
 				if (ci->drivers.use_declarefetch)
 					return PARSE_REQ_FOR_INFO;
@@ -245,7 +245,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 		}
 		else
 		{
-			if (SC_returns_rows(stmt) &&
+			if (SC_may_use_cursor(stmt) &&
 			    (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type ||
 			    ci->drivers.use_declarefetch))
 				ret = PREPARE_BY_THE_DRIVER;
@@ -1068,8 +1068,9 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 		if (recycle && !recycled)
 			SC_recycle_statement(stmt);
 		if (isSqlServr() &&
+		    !stmt->internal &&
 		    0 != stmt->prepare &&
-		    STMT_TYPE_SELECT == stmt->statement_type)
+		    SC_can_parse_statement(stmt))
 			parse_sqlsvr(stmt);
 	}
 

@@ -284,7 +284,12 @@ struct StatementClass_
 };
 
 #define SC_get_conn(a)	  (a->hdbc)
-#define SC_init_Result(a)  (a->result = a->curres = NULL, a->curr_param_result = 0, mylog("SC_init_Result(%x)", a))
+#define SC_init_Result(a) \
+do { \
+	a->result = a->curres = NULL; \
+	a->curr_param_result = 0; \
+	mylog("SC_init_Result(%x)", a); \
+} while (0)
 #define SC_set_Result(a, b) \
 do { \
 	if (b != a->result) \
@@ -430,7 +435,15 @@ enum
 #define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
 #define SC_forget_unnamed(a)	(PREPARED_TEMPORARILY == (a)->prepared ? SC_set_prepared(a, ONCE_DESCRIBED) : (void) 0)
-#define SC_returns_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
+#define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)
+#define SC_may_use_cursor(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
+#define SC_may_fetch_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
+#define SC_can_req_colinfo(a) (STMT_TYPE_SELECT == (a)->statement_type || \
+		 STMT_TYPE_WITH == (a)->statement_type || \
+		((a)->prepare && \
+		 STMT_TYPE_INSERT <= (a)->statement_type && \
+		 STMT_TYPE_DELETE >= (a)->statement_type && \
+		 SC_get_conn((a))->connInfo.use_server_side_prepare))
 #define SC_determine_statement_type(a) (STMT_TYPE_SELECT != (a)->statement_type ? (a)->statement_type : ((a)->statement_type = || statement_type((a)->statement)))
 
 
