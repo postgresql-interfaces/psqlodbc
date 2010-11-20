@@ -9,7 +9,16 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 09.00.0200 Release</h2>
+<h2>psqlODBC 09.XX.XXXX Release</h2>
+Changes:<br>
+1.) Don't propgate the connection level statment options to the internal statements. This fixes an infinite loop reported by Nelson Andre.<br>
+2.) Improved a mylog output.<br>
+3.) Fix the bug introduced by the previous change reprted by Adrien de Croy.<br>
+4.) Divide SC_returns_rows() macro into several categories and make SQLResultNumCols(), SQLDescribeCol() or SQLColAttribute() available <br>
+for insert/update/delete .. returning statements.<br>
+5.) Initialize flags member in QResultClass before calling QR_set_rowstart_in_cache() per report from Arno Moore.<br>
+<br>
+<li>Notes: psqlODBC 09.00.0200</li><br>
 Changes:<br>
 1.) Fix a bug about sizeof() at idx_fake_oid of info.<br>
 2.) Return 0 for the column size when the size of numeric items are unknown.<br>
