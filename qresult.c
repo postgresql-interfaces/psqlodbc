@@ -162,6 +162,7 @@ QR_Constructor()
 		rv->num_cached_rows = 0;
 		rv->num_cached_keys = 0;
 		rv->fetch_number = 0;
+		rv->flags = 0; /* must be cleared before calling QR_set_rowstart_in_cache() */
 		QR_set_rowstart_in_cache(rv, -1);
 		rv->key_base = -1;
 		rv->recent_processed_row_count = -1;
@@ -175,7 +176,6 @@ QR_Constructor()
 
 		rv->cache_size = 0;
 		rv->rowset_size_include_ommitted = 1;
-		rv->flags = 0;
 		rv->move_direction = 0;
 		rv->keyset = NULL;
 		rv->reload_count = 0;
