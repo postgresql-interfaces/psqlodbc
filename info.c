@@ -2576,6 +2576,7 @@ mylog(" and the data=%s\n", attdef);
 			case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			case PG_TYPE_TIME:
 			case PG_TYPE_TIME_WITH_TMZONE:
+			case PG_TYPE_BIT:
 				break;
 			default:
 				mod_length -= 4;

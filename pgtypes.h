@@ -72,6 +72,7 @@
 #define PG_TYPE_INTERVAL		1186
 #define PG_TYPE_TIME_WITH_TMZONE	1266		/* since 7.1 */
 #define PG_TYPE_TIMESTAMP		1296	/* deprecated since 7.0 */
+#define PG_TYPE_BIT			1560
 #define PG_TYPE_NUMERIC			1700
 #define PG_TYPE_REFCURSOR		1790
 #define PG_TYPE_RECORD			2249
