@@ -1207,7 +1207,8 @@ static struct
 	{ STMT_FETCH_OUT_OF_RANGE, "HY106", "S1106" },
 	{ STMT_COUNT_FIELD_INCORRECT, "07002", "07002" },
 	{ STMT_INVALID_NULL_ARG, "HY009", "S1009" },
-	{ STMT_NO_RESPONSE, "08S01", "08S01" }
+	{ STMT_NO_RESPONSE, "08S01", "08S01" },
+	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" }
 };
 
 static PG_ErrorInfo *
@@ -1247,6 +1248,11 @@ SC_create_errorinfo(const StatementClass *self)
 		if (NULL != res->message)
 		{
 			strncpy_null(msg, res->message, sizeof(msg));
+			detailmsg = resmsg = TRUE;
+		}
+		else if (NULL != res->messageref)
+		{
+			strncpy_null(msg, res->messageref, sizeof(msg));
 			detailmsg = resmsg = TRUE;
 		}
 		if (msg[0])
@@ -1583,8 +1589,10 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 	}
 	else
 	{
+		int	lastMessageType;
+
 		/* read from the cache or the physical next tuple */
-		retval = QR_next_tuple(res, self);
+		retval = QR_next_tuple(res, self, &lastMessageType);
 		if (retval < 0)
 		{
 			mylog("**** %s: end_tuples\n", func);
@@ -1608,7 +1616,18 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 					SC_set_error(self, STMT_BAD_ERROR, "Error fetching next row", func);
 					break;
 				default:
-					SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row", func);
+					switch (QR_get_rstatus(res))
+					{
+						case PORES_NO_MEMORY_ERROR:
+							SC_set_error(self, STMT_NO_MEMORY_ERROR, NULL, __FUNCTION__);
+							break;
+						case PORES_BAD_RESPONSE:
+							SC_set_error(self, STMT_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);
+							break;
+						default:
+							SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row", __FUNCTION__);
+							break;
+					}
 			}
 			return SQL_ERROR;
 		}
@@ -1993,9 +2012,27 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 
 		if (was_ok)
 			SC_set_errornumber(self, STMT_OK);
-		else
-			SC_set_errornumber(self, was_nonfatal ? STMT_INFO_ONLY : STMT_ERROR_TAKEN_FROM_BACKEND);
-
+		else if (0 < SC_get_errornumber(self))
+			;
+		else if (was_nonfatal)
+			SC_set_errornumber(self, STMT_INFO_ONLY);
+		else 
+		{
+			switch (QR_get_rstatus(res))
+			{
+				case PORES_NO_MEMORY_ERROR:
+					SC_set_errornumber(self, STMT_NO_MEMORY_ERROR);
+					break;
+				case PORES_BAD_RESPONSE:
+					SC_set_errornumber(self, STMT_COMMUNICATION_ERROR);
+					break;
+				case PORES_INTERNAL_ERROR:
+					SC_set_errornumber(self, STMT_INTERNAL_ERROR);
+					break;
+				default:
+					SC_set_errornumber(self, STMT_ERROR_TAKEN_FROM_BACKEND);
+			}
+		}
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
 		SC_set_current_col(self, -1);
@@ -2207,7 +2244,8 @@ cleanup:
 	{
 		if (!SC_get_errormsg(self) || !SC_get_errormsg(self)[0])
 		{
-			SC_set_errormsg(self, "Error while executing the query");
+			if (STMT_NO_MEMORY_ERROR != SC_get_errornumber(self))
+				SC_set_errormsg(self, "Error while executing the query");
 			SC_log_error(func, NULL, self);
 		}
 		return SQL_ERROR;
@@ -2316,7 +2354,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 			{
 				qlog("                 fields=%p, backend_tuples=%p, tupleField=%d, conn=%p\n", res->fields, res->backend_tuples, res->tupleField, res->conn);
 				qlog("                 fetch_count=%d, num_total_rows=%d, num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, nullcheck(QR_get_cursor(res)));
-				qlog("                 message='%s', command='%s', notice='%s'\n", nullcheck(res->message), nullcheck(res->command), nullcheck(res->notice));
+				qlog("                 message='%s', command='%s', notice='%s'\n", nullcheck(QR_get_message(res)), nullcheck(res->command), nullcheck(res->notice));
 				qlog("                 status=%d, inTuples=%d\n", QR_get_rstatus(res), QR_is_fetching_tuples(res));
 			}
 
@@ -2386,7 +2424,7 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 	int		num_p, num_io_params;
 	int		i, pidx;
 	Int2		num_discard_params, paramType;
-	BOOL		rcvend = FALSE, msg_truncated;
+	BOOL		rcvend = FALSE, loopend = FALSE, msg_truncated;
 	char		msgbuffer[ERROR_MSG_LENGTH + 1];
 	IPDFields	*ipdopts;
 	QResultClass	*newres = NULL;
@@ -2400,20 +2438,15 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 
 	if (!res)
 		newres = res = QR_Constructor();
-	for (;!rcvend;)
+	for (;!loopend;)
 	{
 		id = SOCK_get_id(sock);
 		if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
-		{
-			SC_set_error(stmt, STMT_NO_RESPONSE, "No response rom the backend", func);
-
-			mylog("%s: 'id' - %s\n", func, SC_get_errormsg(stmt));
-			CC_on_abort(conn, CONN_DEAD);
-			QR_Destructor(newres);
-			return NULL;
-		}
+			break;
 inolog("desc id=%c", id);
 		response_length = SOCK_get_response_length(sock);
+		if (0 != SOCK_get_errcode(sock))
+			break;
 inolog(" response_length=%d\n", response_length);
 		switch (id)
 		{
@@ -2463,7 +2496,7 @@ inolog(" response_length=%d\n", response_length);
 				QR_set_no_fetching_tuples(res);
 				break;
 			case 'Z': /* ReadyForQuery */
-				rcvend = TRUE;
+				loopend = rcvend = TRUE;
 				EatReadyForQuery(conn);
 				break;
 			case 't': /* ParameterDesription */
@@ -2528,7 +2561,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 				break;
 			case 'T': /* RowDesription */
 				QR_set_conn(res, conn);
-				if (CI_read_fields(res->fields, conn))
+				if (CI_read_fields(QR_get_fields(res), conn))
 				{
 					Int2	dummy1, dummy2;
 					int	cidx;
@@ -2560,17 +2593,24 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 				}
 				else
 				{
-					QR_set_rstatus(res, PORES_BAD_RESPONSE);
-					QR_set_message(res, "Error reading field information");
-					rcvend = TRUE;
+					if (NULL == QR_get_fields(res)->coli_array)
+					{
+						QR_set_rstatus(res, PORES_NO_MEMORY_ERROR);
+						QR_set_messageref(res, "Out of memory while reading field information");
+					}
+					else
+					{
+						QR_set_rstatus(res, PORES_BAD_RESPONSE);
+						QR_set_message(res, "Error reading field information");
+					}
+					loopend = rcvend = TRUE;
 				}
 				break;
 			case 'B': /* Binary data */
 			case 'D': /* ASCII data */
 				if (!QR_get_tupledata(res, id == 'B'))
 				{
-					rcvend = TRUE;
-					res = NULL;
+					loopend = TRUE;
 				}
 				break;
 			case 'S': /* parameter status */
@@ -2584,6 +2624,35 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 				break;
 		}
 	}
+	if (!rcvend && 0 == SOCK_get_errcode(sock) && EOF != id)
+	{
+		for (;;)
+		{
+			id = SOCK_get_id(sock);
+			if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
+				break;
+			response_length = SOCK_get_response_length(sock);
+			if (0 != SOCK_get_errcode(sock))
+				break;
+			if ('Z' == id)
+			{
+				EatReadyForQuery(conn);
+				qlog("%s Discarded data until ReadyForQuery comes\n", __FUNCTION__);
+				break;
+			}
+		}
+	}
+	if (0 != SOCK_get_errcode(sock) || EOF == id)
+	{
+		SC_set_error(stmt, STMT_NO_RESPONSE, "No response rom the backend", func);
+
+		mylog("%s: 'id' - %s\n", func, SC_get_errormsg(stmt));
+		CC_on_abort(conn, CONN_DEAD);
+		res = NULL;
+	}
+	if (res != newres &&
+	    NULL != newres)
+		QR_Destructor(newres);
 	conn->stmt_in_extquery = NULL;
 	return res;
 }

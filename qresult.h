@@ -35,6 +35,7 @@ enum	QueryResultCode_
 				 * the backend */
 	PORES_NONFATAL_ERROR,
 	PORES_FATAL_ERROR,
+	PORES_NO_MEMORY_ERROR,
 	PORES_FIELDS_OK = 100,	/* field information from a query was
 				 * successful */
 	/* PORES_END_TUPLES, */
@@ -75,6 +76,7 @@ struct QResultClass_
 
 	char	sqlstate[8];
 	char	*message;
+	char	*messageref;
 	char *cursor_name;	/* The name of the cursor for select
 					 * statements */
 	char	*command;
@@ -151,12 +153,13 @@ enum {
 #define QR_set_field_info_v(self, field_num, name, adtid, adtsize)  (CI_set_field_info(self->fields, field_num, name, adtid, adtsize, -1, 0, 0))
 
 /* status macros */
-#define QR_command_successful(self)	(self && !(self->rstatus == PORES_BAD_RESPONSE || self->rstatus == PORES_NONFATAL_ERROR || self->rstatus == PORES_FATAL_ERROR))
-#define QR_command_maybe_successful(self) (self && !(self->rstatus == PORES_BAD_RESPONSE || self->rstatus == PORES_FATAL_ERROR))
+#define QR_command_successful(self)	(self && !(self->rstatus == PORES_BAD_RESPONSE || self->rstatus == PORES_NONFATAL_ERROR || self->rstatus == PORES_FATAL_ERROR || self->rstatus == PORES_NO_MEMORY_ERROR))
+#define QR_command_maybe_successful(self) (self && !(self->rstatus == PORES_BAD_RESPONSE || self->rstatus == PORES_FATAL_ERROR || self->rstatus == PORES_NO_MEMORY_ERROR))
 #define QR_command_nonfatal(self)	( self->rstatus == PORES_NONFATAL_ERROR)
 #define QR_set_conn(self, conn_)			( self->conn = conn_ )
 #define QR_set_rstatus(self, condition)		( self->rstatus = condition )
 #define QR_set_sqlstatus(self, status)		strcpy(self->sqlstatus, status)
+#define QR_set_messageref(self, m)	((self)->messageref = m)
 #define QR_set_aborted(self, aborted_)		( self->aborted = aborted_)
 #define QR_set_haskeyset(self)		(self->flags |= FQR_HASKEYSET)
 #define QR_set_synchronize_keys(self)	(self->flags |= FQR_SYNCHRONIZEKEYS)
@@ -188,7 +191,7 @@ do { \
 	inolog("to %d to next read\n", self->fetch_number); \
 } while (0)
 
-#define QR_get_message(self)				(self->message)
+#define QR_get_message(self)		((self)->message ? (self)->message : (self)->messageref)
 #define QR_get_command(self)				(self->command)
 #define QR_get_notice(self)				(self->notice)
 #define QR_get_rstatus(self)				(self->rstatus)
@@ -220,10 +223,10 @@ QResultClass	*QR_Constructor(void);
 void		QR_Destructor(QResultClass *self);
 TupleField	*QR_AddNew(QResultClass *self);
 BOOL		QR_get_tupledata(QResultClass *self, BOOL binary);
-int			QR_next_tuple(QResultClass *self, StatementClass *);
+int		QR_next_tuple(QResultClass *self, StatementClass *, int *LastMessageType);
 int			QR_close(QResultClass *self);
 void		QR_close_result(QResultClass *self, BOOL destroy);
-char		QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor);
+char		QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, int *LastMessageType);
 void		QR_free_memory(QResultClass *self);
 void		QR_set_command(QResultClass *self, const char *msg);
 void		QR_set_message(QResultClass *self, const char *msg);
@@ -246,8 +249,10 @@ SQLLEN		getNthValid(const QResultClass *self, SQLLEN sta, UWORD orientation, SQL
 do { \
  	if (t = (tp *) malloc(s), NULL == t) \
 	{ \
- 		QR_set_rstatus(a, PORES_FATAL_ERROR); \
- 		QR_set_message(a, m); \
+ 		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
+qlog("QR_MALLOC_error\n"); \
+ 		QR_free_memory(a); \
+ 		QR_set_messageref(a, m); \
  		return r; \
 	} \
 } while (0)
@@ -256,8 +261,10 @@ do { \
 	tp *tmp; \
 	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
 	{ \
- 		QR_set_rstatus(a, PORES_FATAL_ERROR); \
- 		QR_set_message(a, m); \
+ 		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
+qlog("QR_REALLOC_error\n"); \
+ 		QR_free_memory(a); \
+ 		QR_set_messageref(a, m); \
 		return r; \
 	} \
 	t = tmp; \

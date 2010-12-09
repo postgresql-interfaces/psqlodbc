@@ -76,8 +76,12 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	mylog("num_fields = %d\n", new_num_fields);
 
 	if (self)
+	{
 		/* according to that allocate memory */
 		CI_set_num_fields(self, new_num_fields, PROTOCOL_74(ci));
+		if (NULL == self->coli_array)
+			return FALSE;
+	}
 
 	/* now read in the descriptions */
 	for (lf = 0; lf < new_num_fields; lf++)

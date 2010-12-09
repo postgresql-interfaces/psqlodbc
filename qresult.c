@@ -151,6 +151,7 @@ QR_Constructor()
 		rv->backend_tuples = NULL;
 		rv->sqlstate[0] = '\0';
 		rv->message = NULL;
+		rv->messageref = NULL;
 		rv->command = NULL;
 		rv->notice = NULL;
 		rv->conn = NULL;
@@ -295,6 +296,7 @@ QR_set_message(QResultClass *self, const char *msg)
 {
 	if (self->message)
 		free(self->message);
+	self->messageref = NULL;
 
 	self->message = msg ? strdup(msg) : NULL;
 }
@@ -317,7 +319,8 @@ QR_add_message(QResultClass *self, const char *msg)
 		pos = 0;
 		alsize = strlen(msg) + 1;
 	}
-	message = realloc(message, alsize);
+	if (message = realloc(message, alsize), NULL == message)
+		return;
 	if (pos > 0)
 		message[pos - 1] = ';';
 	strcpy(message + pos, msg);
@@ -352,7 +355,8 @@ QR_add_notice(QResultClass *self, const char *msg)
 		pos = 0;
 		alsize = strlen(msg) + 1;
 	}
-	message = realloc(message, alsize);
+	if (message = realloc(message, alsize), NULL == message)
+		return;
 	if (pos > 0)
 		message[pos - 1] = ';';
 	strcpy(message + pos, msg);
@@ -378,7 +382,7 @@ inolog("QR_AddNew %dth row(%d fields) alloc=%d\n", self->num_cached_rows, QR_Num
 	{
 		self->num_cached_rows = 0;
 		alloc = TUPLE_MALLOC_INC;
-		self->backend_tuples = malloc(alloc * sizeof(TupleField) * num_fields);
+		QR_MALLOC_return_with_error(self->backend_tuples, TupleField, alloc * sizeof(TupleField) * num_fields, self, "Out of memory in QR_AddNew.", NULL);
 	}
 	else if (self->num_cached_rows >= self->count_backend_allocated)
 	{
@@ -505,7 +509,7 @@ QR_free_memory(QResultClass *self)
 
 /*	This function is called by send_query() */
 char
-QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
+QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, int *LastMessageType)
 {
 	CSTR		func = "QR_fetch_tuples";
 	SQLLEN			tuple_size;
@@ -521,6 +525,8 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		ConnInfo   *ci = &(conn->connInfo);
 		BOOL		fetch_cursor = (cursor && cursor[0]);
 
+		if (NULL != LastMessageType)
+			*LastMessageType = 0;
 		QR_set_conn(self, conn);
 
 		mylog("%s: cursor = '%s', self->cursor=%p\n", func, (cursor == NULL) ? "" : cursor, QR_get_cursor(self));
@@ -543,7 +549,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		 *
 		 * $$$$ Should do some error control HERE! $$$$
 		 */
-		if (CI_read_fields(self->fields, QR_get_conn(self)))
+		if (CI_read_fields(QR_get_fields(self), QR_get_conn(self)))
 		{
 			QR_set_rstatus(self, PORES_FIELDS_OK);
 			self->num_fields = CI_get_num_fields(self->fields);
@@ -552,8 +558,16 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		}
 		else
 		{
-			QR_set_rstatus(self, PORES_BAD_RESPONSE);
-			QR_set_message(self, "Error reading field information");
+			if (NULL == QR_get_fields(self)->coli_array)
+			{
+				QR_set_rstatus(self, PORES_NO_MEMORY_ERROR);
+				QR_set_messageref(self, "Out of memory while reading field information");
+			}
+			else
+			{
+				QR_set_rstatus(self, PORES_BAD_RESPONSE);
+				QR_set_message(self, "Error reading field information");
+			}
 			return FALSE;
 		}
 
@@ -578,12 +592,8 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		}
 		if (QR_haskeyset(self))
 		{
-			if (self->keyset = (KeySet *) calloc(sizeof(KeySet), tuple_size), !self->keyset)
-			{
-				QR_set_rstatus(self, PORES_FATAL_ERROR);
-				QR_set_message(self, "Could not get memory for tuple cache.");
-				return FALSE;
-			}
+			QR_MALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * tuple_size, self, "Could not get memory for key cache.", FALSE);
+			memset(self->keyset, 0, sizeof(KeySet) * tuple_size);
 			self->count_keyset_allocated = tuple_size;
 		}
 
@@ -595,7 +605,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor)
 		QR_set_rowstart_in_cache(self, 0);
 		self->key_base = 0;
 
-		return QR_next_tuple(self, NULL);
+		return QR_next_tuple(self, NULL, LastMessageType);
 	}
 	else
 	{
@@ -739,8 +749,11 @@ inolog("QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
 
 	if (!QR_read_a_tuple_from_db(self, (char) binary))
 	{
-		QR_set_rstatus(self, PORES_BAD_RESPONSE);
-		QR_set_message(self, "Error reading the tuple");
+		if (0 == QR_get_rstatus(self))
+		{
+			QR_set_rstatus(self, PORES_BAD_RESPONSE);
+			QR_set_message(self, "Error reading the tuple");
+		}
 		return FALSE;
 	}
 inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
@@ -812,7 +825,7 @@ static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *m
 
 /*	This function is called by fetch_tuples() AND SQLFetch() */
 int
-QR_next_tuple(QResultClass *self, StatementClass *stmt)
+QR_next_tuple(QResultClass *self, StatementClass *stmt, int *LastMessageType)
 {
 	CSTR	func = "QR_next_tuple";
 	int			id, ret = TRUE;
@@ -836,7 +849,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	QueryInfo	qi;
 	ConnectionClass	*conn;
 	ConnInfo   *ci = NULL;
-	BOOL		msg_truncated, rcvend, internally_invoked = FALSE;
+	BOOL		msg_truncated, rcvend, loopend, kill_conn, internally_invoked = FALSE;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 	BOOL		ExecuteRequest = FALSE;
 	Int4		response_length;
@@ -844,6 +857,8 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 inolog("Oh %p->fetch_number=%d\n", self, self->fetch_number);
 inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt ? stmt->currTuple : -1, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
 
+	if (NULL != LastMessageType)
+		*LastMessageType = 0;
 	num_total_rows = QR_get_num_total_tuples(self);
 	conn = QR_get_conn(self);
 	curr_eof = FALSE;
@@ -1125,8 +1140,8 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 			res = CC_send_query(conn, fetch, &qi, 0, stmt);
 			if (!QR_command_maybe_successful(res))
 			{
-				QR_set_rstatus(self, PORES_FATAL_ERROR);
-				QR_set_message(self, "Error fetching next group.");
+				if (!QR_get_message(self))
+					QR_set_message(self, "Error fetching next group.");
 				return FALSE;
 			}
 		}
@@ -1159,12 +1174,16 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 
 	curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
 inolog("reached_eof_now=%d\n", reached_eof_now);
-	for (rcvend = FALSE; !rcvend;)
+	for (kill_conn = loopend = rcvend = FALSE; !loopend;)
 	{
 		id = SOCK_get_id(sock);
 		if (0 != SOCK_get_errcode(sock))
 			break;
+		if (NULL != LastMessageType)
+			*LastMessageType = id;
 		response_length = SOCK_get_response_length(sock);
+		if (0 != SOCK_get_errcode(sock))
+			break;
 inolog("id='%c' response_length=%d\n", id, response_length);
 		switch (id)
 		{
@@ -1196,13 +1215,13 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				}
 				QR_set_cache_size(self->next, self->cache_size);
 				self = self->next;
-				if (!QR_fetch_tuples(self, conn, NULL))
+				if (!QR_fetch_tuples(self, conn, NULL, LastMessageType))
 				{
 					CC_set_error(conn, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(self), func);
 					return FALSE;
 				}
 
-				rcvend = TRUE;
+				loopend = rcvend = TRUE;
 				break;
 
 			case 'B':			/* Tuples in binary format */
@@ -1211,7 +1230,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				if (!QR_get_tupledata(self, id == 'B'))
 				{
 					ret = FALSE;
-					rcvend = TRUE;
+					loopend = TRUE;
 				}
 				cur_fetch++;
 				break;			/* continue reading */
@@ -1248,7 +1267,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				}
 				if (!internally_invoked ||
 				    PG_VERSION_LE(conn, 6.3))
-					rcvend = TRUE;
+					loopend = rcvend = TRUE;
 				break;
 
 			case 'E':			/* Error */
@@ -1259,7 +1278,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 
 				if (!internally_invoked ||
 				    PG_VERSION_LE(conn, 6.3))
-					rcvend = TRUE;
+					loopend = rcvend = TRUE;
 				ret = FALSE;
 				break;
 
@@ -1275,7 +1294,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 					reached_eof_now = TRUE;
 					QR_set_no_fetching_tuples(self);
 				}
-				rcvend = TRUE;
+				loopend = rcvend = TRUE;
 				break;
 			case 's':	/* portal suspend */
 				mylog("portal suspend");
@@ -1291,21 +1310,51 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				mylog("%s: Unexpected result from backend: id = '%c' (%d)\n", func, id, id);
 				qlog("%s: Unexpected result from backend: id = '%c' (%d)\n", func, id, id);
 				QR_set_message(self, "Unexpected result from backend. It probably crashed");
-				QR_set_rstatus(self, PORES_FATAL_ERROR);
-				CC_on_abort(conn, CONN_DEAD);
-				ret = FALSE;
-				rcvend = TRUE;
+				loopend = kill_conn = TRUE;
 		}
 		if (0 != SOCK_get_errcode(sock))
 			break;
 	}
+	if (!kill_conn && !rcvend && 0 == SOCK_get_errcode(sock))
+	{
+		if (PROTOCOL_74(ci))
+		{
+			for (;;) /* discard the result until ReadyForQuery comes */
+			{
+				id = SOCK_get_id(sock);
+				if (0 != SOCK_get_errcode(sock))
+					break;
+				if (NULL != LastMessageType)
+					*LastMessageType = id;
+				response_length = SOCK_get_response_length(sock);
+				if (0 != SOCK_get_errcode(sock))
+					break;
+				if ('Z' == id) /* ready for query */
+				{
+					EatReadyForQuery(conn);
+					qlog("%s discarded data until ReadyForQuery comes\n", __FUNCTION__);
+					if (QR_is_fetching_tuples(self))
+					{
+						reached_eof_now = TRUE;
+						QR_set_no_fetching_tuples(self);
+					}
+					break;
+				}
+			}
+		}
+		else
+			kill_conn = TRUE;
+	}
 	if (0 != SOCK_get_errcode(sock))
 	{
 		if (QR_command_maybe_successful(self))
-		{
 			QR_set_message(self, "Communication error while getting a tuple");
-			QR_set_rstatus(self, PORES_FATAL_ERROR);
-		}
+		kill_conn = TRUE;
+	}
+	if (kill_conn)
+	{
+		if (0 == QR_get_rstatus(self))
+			QR_set_rstatus(self, PORES_BAD_RESPONSE);
 		CC_on_abort(conn, CONN_DEAD);
 		ret = FALSE;
 	}
@@ -1525,11 +1574,7 @@ inolog("QR_read_a_tuple_from_db len=%d\n", len);
 				buffer = tidoidbuf;
 			else
 			{
-				if (buffer = (char *) malloc(len + 1), NULL == buffer)
-				{
-					mylog("failed to allocate %d+1 bytes of buffer\n", len);
-					return FALSE;
-				}
+				QR_MALLOC_return_with_error(buffer, char, len + 1, self, "Out of memory in allocating item buffer.", FALSE);
 			}
 			SOCK_get_n_char(sock, buffer, len);
 			buffer[len] = '\0';

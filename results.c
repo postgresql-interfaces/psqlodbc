@@ -2276,9 +2276,9 @@ inolog("AddDeleted %d\n", index);
 		{
 			new_alloc = res->dl_alloc * 2;
 			res->dl_alloc = 0;
-			QR_REALLOC_return_with_error(res->deleted, SQLULEN, sizeof(SQLULEN) * new_alloc, res, "Dleted index realloc error", FALSE);
+			QR_REALLOC_return_with_error(res->deleted, SQLULEN, sizeof(SQLULEN) * new_alloc, res, "Deleted index realloc error", FALSE);
 			deleted = res->deleted;
-			QR_REALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Dleted KeySet realloc error", FALSE);
+			QR_REALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Deleted KeySet realloc error", FALSE);
 			deleted_keyset = res->deleted_keyset;
 			res->dl_alloc = new_alloc; 
 		}
@@ -2407,7 +2407,7 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	QR_REALLOC_return_with_error(res->updated, SQLULEN, sizeof(SQLULEN) * alloc, res, "enlargeUpdated failed", FALSE);
 	QR_REALLOC_return_with_error(res->updated_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeUpdated failed 2", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
-		QR_REALLOC_return_with_error(res->updated_tuples, TupleField, sizeof(TupleField) * res->num_fields * alloc, res, "enlargeUpdated 3", FALSE);
+		QR_REALLOC_return_with_error(res->updated_tuples, TupleField, sizeof(TupleField) * res->num_fields * alloc, res, "enlargeUpdated failed 3", FALSE);
 	res->up_alloc = alloc;
 
 	return TRUE;
@@ -3442,6 +3442,8 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 						tuple_size = TUPLE_MALLOC_INC;
 					else
 						tuple_size = res->count_backend_allocated * 2;
+					QR_REALLOC_return_with_error(res->backend_tuples, TupleField, res->num_fields * sizeof(TupleField) * tuple_size, res, "SC_pos_newload failed", SQL_ERROR);
+					/*
 					res->backend_tuples = (TupleField *) realloc(
 						res->backend_tuples,
 						res->num_fields * sizeof(TupleField) * tuple_size);
@@ -3451,6 +3453,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 						QR_Destructor(qres);
 						return SQL_ERROR;
 					}
+					*/
 					res->count_backend_allocated = tuple_size;
 				}
 				tuple_old = res->backend_tuples + res->num_fields * num_cached_rows;

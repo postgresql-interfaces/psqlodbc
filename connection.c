@@ -2417,7 +2417,7 @@ static void CC_mark_cursors_doubtful(ConnectionClass *self)
 	}
 	CONNLOCK_RELEASE(self);
 }
-	
+
 void	CC_on_commit(ConnectionClass *conn)
 {
 	CONNLOCK_ACQUIRE(conn);
@@ -2510,6 +2510,51 @@ is_setting_search_path(const UCHAR* query)
 	return FALSE;
 }
 
+BOOL static
+CC_fetch_tuples(QResultClass *res, ConnectionClass *conn, const char *cursor, BOOL *ReadyToReturn, BOOL *kill_conn)
+{
+	BOOL	success = TRUE;
+	int	lastMessageType;
+
+	if (!QR_fetch_tuples(res, conn, cursor, &lastMessageType))
+	{
+		qlog("fetch_tuples failed lastMessageType=%02x\n", lastMessageType);
+		success = FALSE;
+		if (0 >= CC_get_errornumber(conn))
+		{
+			switch (QR_get_rstatus(res))
+			{
+				case PORES_NO_MEMORY_ERROR:
+					CC_set_error(conn, CONN_NO_MEMORY_ERROR, NULL, __FUNCTION__);
+					break;
+				case PORES_BAD_RESPONSE:
+					CC_set_error(conn, CONNECTION_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);
+					break;
+				default:
+					CC_set_error(conn, CONN_EXEC_ERROR, QR_get_message(res), __FUNCTION__);
+					break;
+			}
+		}
+		switch (lastMessageType)
+		{
+			case 'Z':
+				if (ReadyToReturn)
+					*ReadyToReturn = TRUE;
+				break;
+			case 'C':
+			case 'E':
+				break;
+			default:
+				if (ReadyToReturn)
+					*ReadyToReturn = TRUE;
+				if (kill_conn)
+					*kill_conn = TRUE;
+				break;
+		}
+	}
+	return success;
+}
+
 /*
  *	The "result_in" is only used by QR_next_tuple() to fetch another group of rows into
  *	the same existing QResultClass (this occurs when the tuple cache is depleted and
@@ -2550,6 +2595,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				aborted = FALSE,
 				used_passed_result_object = FALSE,
 			discard_next_begin = FALSE,
+			kill_conn = FALSE,
 			discard_next_savepoint = FALSE,
 			consider_rollback;
 	Int4		response_length;
@@ -2660,7 +2706,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
-		CC_on_abort(self, CONN_DEAD);
 		goto cleanup;
 	}
 	if (stmt)
@@ -2723,7 +2768,6 @@ inolog("leng=%d\n", leng);
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
-		CC_on_abort(self, CONN_DEAD);
 		goto cleanup;
 	}
 
@@ -2757,9 +2801,8 @@ inolog("leng=%d\n", leng);
 			CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from the backend", func);
 
 			mylog("send_query: 'id' - %s\n", CC_get_errormsg(self));
-			CC_on_abort(self, CONN_DEAD);
+			kill_conn = TRUE;
 			ReadyToReturn = TRUE;
-			retres = NULL;
 			break;
 		}
 
@@ -2782,9 +2825,7 @@ inolog("send_query response_length=%d\n", response_length);
 				{
 					CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from backend while receiving a portal query command", func);
 					mylog("send_query: 'C' - %s\n", CC_get_errormsg(self));
-					CC_on_abort(self, CONN_DEAD);
 					ReadyToReturn = TRUE;
-					retres = NULL;
 				}
 				else
 				{
@@ -2903,8 +2944,8 @@ inolog("Discarded the first SAVEPOINT\n");
 					CC_set_errornumber(self, CONNECTION_BACKEND_CRAZY);
 					QR_set_message(res, "Unexpected protocol character from backend (send_query - I)");
 					QR_set_rstatus(res, PORES_FATAL_ERROR);
+					kill_conn = TRUE;
 					ReadyToReturn = TRUE;
-					retres = cmdres;
 					break;
 				}
 				else
@@ -2966,13 +3007,12 @@ inolog("Discarded the first SAVEPOINT\n");
 						if (cursor && cursor[0])
 							QR_set_synchronize_keys(res);
 					}
-					if (!QR_fetch_tuples(res, self, cursor))
+					if (!CC_fetch_tuples(res, self, cursor, &ReadyToReturn, &kill_conn))
 					{
-						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res), func);
-						if (PORES_FATAL_ERROR == QR_get_rstatus(res))
-							retres = cmdres;
-						else
+						if (QR_command_maybe_successful(res))
 							retres = NULL;
+						else
+							retres = cmdres;
 						aborted = TRUE;
 					}
 					query_completed = TRUE;
@@ -2985,14 +3025,80 @@ inolog("Discarded the first SAVEPOINT\n");
 					 * immediately.
 					 */
 					ReadyToReturn = TRUE;
-					if (!QR_fetch_tuples(res, NULL, NULL))
+					if (!CC_fetch_tuples(res, NULL, NULL, &ReadyToReturn, &kill_conn))
 					{
-						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, QR_get_message(res), func);
 						retres = NULL;
 						break;
 					}
 					retres = cmdres;
 				}
+				break;
+			case 'G':			/* Copy in command began successfully */
+				{
+				size_t	alsize = 256, pos, len;
+				char *buf = malloc(alsize), *tmpbuf, tchar;
+
+				for (pos = 0; NULL != fgets(buf + pos, alsize - pos, stdin);)
+				{
+					len = strlen(buf);
+
+mylog("get copydata len=%d %02x%02x\n", len, ((UCHAR *) buf)[0], ((UCHAR *) buf)[1]);
+					tchar = buf[len - 1];
+					if ('\n' == tchar)
+					{
+						buf[len - 1] = '\0';
+						len--;
+					} 
+					else
+					{ 
+						if (len >= alsize - 1)
+						{
+							if (tmpbuf = realloc(buf, alsize * 2), NULL == tmpbuf)
+							{
+								aborted = TRUE;
+								break;
+							}
+							else
+							{
+								buf = tmpbuf;
+								alsize *= 2;
+								pos = len;
+								continue;
+							}
+						}
+					}
+					SOCK_put_char(sock, 'd'); /* CopyData */
+					SOCK_put_int(sock, 4 + len, 4);
+					SOCK_put_n_char(sock, buf, len);
+					pos = 0;
+				}
+				if (aborted)
+				{
+mylog("copy fail\n");
+					SOCK_put_char(sock, 'f'); /* CopyFail */
+					SOCK_put_int(sock, 18, 4);
+					SOCK_put_string(sock, "Out of memory");
+				}
+				else
+				{
+mylog("copy done\n");
+					SOCK_put_char(sock, 'c'); /* CopyDone */
+					SOCK_put_int(sock, 4, 4);
+				}
+				SOCK_flush_output(sock);
+				free(buf);
+				}
+				break;
+			case 'H':			/* Copy out command began successfully */
+				break;
+			case 'c':			/* Copy out command donesuccessfully */
+				fclose(stdout);
+				break;
+			case 'd':			/* CopyData comes */
+mylog("!!! copydata len=%d\n", response_length);
+				break;
+			case 'f':			/* CopyFail */
+				aborted = TRUE;
 				break;
 			case 'D':			/* Copy in command began successfully */
 				if (query_completed)
@@ -3054,8 +3160,12 @@ cleanup:
 	{
 		if (0 == CC_get_errornumber(self))
 			CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, "Communication error while sending query", func);
-		CC_on_abort(self, CONN_DEAD);
+		kill_conn = TRUE;
 		ReadyToReturn = TRUE;
+	}
+	if (kill_conn)
+	{
+		CC_on_abort(self, CONN_DEAD);
 		retres = NULL;
 	}
 	if (rollback_on_error && CC_is_in_trans(self) && !discard_next_savepoint)
