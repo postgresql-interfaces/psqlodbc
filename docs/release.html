@@ -17,6 +17,8 @@ Changes:<br>
 4.) Divide SC_returns_rows() macro into several categories and make SQLResultNumCols(), SQLDescribeCol() or SQLColAttribute() available <br>
 for insert/update/delete .. returning statements.<br>
 5.) Initialize flags member in QResultClass before calling QR_set_rowstart_in_cache() per report from Arno Moore.<br>
+6.) Applied a patch by Taizo Ito and correct the length of BIT type in Postgres.<br>
+7.) Change to read and skip the rest of result data when out of memory occurs while reading tuples so that we can continue to use the connection.<br>
 <br>
 <li>Notes: psqlODBC 09.00.0200</li><br>
 Changes:<br>
