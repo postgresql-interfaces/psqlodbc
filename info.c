@@ -2435,7 +2435,7 @@ mylog(" and the data=%s\n", attdef);
 			case PG_TYPE_INT4:
 			case PG_TYPE_INT8:
 				if (attdef && strnicmp(attdef, "nextval(", 8) == 0 &&
-				    not_null[0] == '1')
+				    not_null[0] != '0')
 				{
 					auto_unique = SQL_TRUE;
 					if (CC_fake_mss(conn))
@@ -2593,7 +2593,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 
 		set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(conn, field_type));
-		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], (Int2) (not_null[0] == '1' ? SQL_NO_NULLS : pgtype_nullable(conn, field_type)));
+		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], (Int2) (not_null[0] != '0' ? SQL_NO_NULLS : pgtype_nullable(conn, field_type)));
 		set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
 #if (ODBCVER >= 0x0300)
 		if (attdef && strlen(attdef) > INFO_VARCHAR_SIZE)
