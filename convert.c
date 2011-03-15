@@ -166,7 +166,7 @@ static SQLLEN pg_bin2hex(UCHAR *src, UCHAR *dst, SQLLEN length);
  *	Macros for unsigned long handling.
  */
 #ifdef	WIN32
-#define	ATOI32U	atol
+#define	ATOI32U(val)	strtoul(val, NULL, 10)
 #elif	defined(HAVE_STRTOUL)
 #define	ATOI32U(val)	strtoul(val, NULL, 10)
 #else /* HAVE_STRTOUL */
@@ -178,8 +178,8 @@ static SQLLEN pg_bin2hex(UCHAR *src, UCHAR *dst, SQLLEN length);
  */
 #ifdef	ODBCINT64
 #ifdef	WIN32
-#define	ATOI64	_atoi64
-#define	ATOI64U	_atoi64
+#define	ATOI64(val)	_strtoi64(val, NULL, 10)
+#define	ATOI64U(val)	_strtoui64(val, NULL, 10)
 #define	FORMATI64	"%I64d"
 #define	FORMATI64U	"%I64u"
 #elif	(SIZEOF_LONG == 8)
