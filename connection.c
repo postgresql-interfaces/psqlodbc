@@ -1123,7 +1123,6 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 		}
 	}
 	else
-	if (connect_with_param_available())
 	{
 		/* DateStyle */
 		opts[cnt] = "DateStyle"; vals[cnt++] = "ISO";
