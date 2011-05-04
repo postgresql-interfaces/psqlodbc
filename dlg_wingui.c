@@ -72,10 +72,7 @@ mylog("libpq_exist=%d\n", libpq_exist);
 	if (libpq_exist)
 	{
 		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
-		if (ssl_verify_available())
-			dsplevel = 2;
-		else
-			dsplevel = 1;
+		dsplevel = 2;
 	}
 	else
 	{

@@ -1086,27 +1086,16 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 				break;
 			case SSLLBYTE_VERIFY:
 				opts[cnt] = "sslmode";
-				if (ssl_verify_available())
+				switch (ci->sslmode[1])
 				{
-					switch (ci->sslmode[1])
-					{
-						case 'f':
-							vals[cnt++] = SSLMODE_VERIFY_FULL;
-								break;
-						case 'c':
-							vals[cnt++] = SSLMODE_VERIFY_CA;
-								break;
-						default:
-							vals[cnt++] = ci->sslmode;
-					}
-				}
-				else
-				{
-					char msg[128];
-
-					snprintf(msg, sizeof(msg), "sslmode=%s can't be specified for 8.3 or older version of libpq", ci->sslmode);
-					CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, msg, __FUNCTION__); 
-					return -1;
+					case 'f':
+						vals[cnt++] = SSLMODE_VERIFY_FULL;
+							break;
+					case 'c':
+						vals[cnt++] = SSLMODE_VERIFY_CA;
+							break;
+					default:
+						vals[cnt++] = ci->sslmode;
 				}
 				break;
 			default:
