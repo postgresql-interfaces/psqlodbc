@@ -4425,7 +4425,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 					}
 					else if ('-' == param_string[0] &&
 						 '1' == param_string[1])
-						strcpy(buf, "1");
+						strcpy(param_string, "1");
 					break;
 			}
 			/* it was a SQL_C_CHAR */
