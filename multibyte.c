@@ -115,8 +115,8 @@ UCHAR *check_client_encoding(const UCHAR *conn_settings)
 	int	step = 0;
 	size_t	len = 0;
 
-        for (cptr = conn_settings; *cptr; cptr++)
-        {
+	for (cptr = conn_settings; *cptr; cptr++)
+	{
 		if (in_quote)
 			if (LITERAL_QUOTE == *cptr)
 			{

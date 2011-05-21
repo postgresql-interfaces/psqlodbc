@@ -403,7 +403,7 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 			return adtsize_or_longest > default_column_size ? adtsize_or_longest : default_column_size;
 		case UNKNOWNS_AS_CATALOG:
 			break;
-		default: 
+		default:
 			if (adtsize_or_longest < 10)
 				adtsize_or_longest = 10;
 	}
