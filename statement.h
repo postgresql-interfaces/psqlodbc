@@ -435,7 +435,19 @@ enum
 #define SC_started_rbpoint(a)	((a->rbonerr & (1L << 4)) != 0)
 #define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
-#define SC_forget_unnamed(a)	(PREPARED_TEMPORARILY == (a)->prepared ? SC_set_prepared(a, ONCE_DESCRIBED) : (void) 0)
+#define SC_forget_unnamed(a) \
+do { \
+	if (PREPARED_TEMPORARILY == (a)->prepared) \
+	{ \
+		SC_set_prepared(a, ONCE_DESCRIBED); \
+		if (!SC_IsExecuting((a))) \
+		{ \
+			QResultClass	*res = SC_get_Curres((a)); \
+			if (NULL != res && !res->dataFilled && !QR_is_fetching_tuples(res)) \
+				SC_set_Result((a), NULL); \
+		} \
+	} \
+} while (0)
 #define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)
 #define SC_may_use_cursor(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
 #define SC_may_fetch_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
