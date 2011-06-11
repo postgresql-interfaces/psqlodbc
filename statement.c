@@ -813,12 +813,16 @@ inolog("SC_clear_parse_status\n");
 	/* Free any cursors */
 	if (res = SC_get_Result(self), res)
 	{
-		if (PREPARED_PERMANENTLY == self->prepared)
-			QR_close_result(res, FALSE);
-		else
+		switch (self->prepared)
 		{
-			QR_Destructor(res);
-			SC_init_Result(self);
+			case PREPARED_PERMANENTLY:
+			case PREPARED_TEMPORARILY:
+				QR_close_result(res, FALSE);
+				break;
+			default:
+				QR_Destructor(res);
+				SC_init_Result(self);
+				break;
 		}
 	}
 	self->inaccurate_result = FALSE;
