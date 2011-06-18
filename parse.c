@@ -296,7 +296,8 @@ static char
 searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 {
 	int			k,
-				cmp, attnum;
+				cmp, attnum, atttypmod;
+	OID			basetype;
 	const char	   *col;
 
 inolog("searchColInfo num_cols=%d col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
@@ -307,8 +308,13 @@ inolog("searchColInfo num_cols=%d col=%s\n", QR_get_num_cached_tuples(col_info->
 		if (fi->attnum > 0)
 		{
 			attnum = QR_get_value_backend_int(col_info->result, k, COLUMNS_PHYSICAL_NUMBER, NULL);
+			if (basetype = (OID) strtoul(QR_get_value_backend_text(col_info->result, k, COLUMNS_BASE_TYPEID), NULL, 10), 0 == basetype)
+				basetype = (OID) strtoul(QR_get_value_backend_text(col_info->result, k, COLUMNS_FIELD_TYPE), NULL, 10);
+			atttypmod = QR_get_value_backend_int(col_info->result, k, COLUMNS_ATTTYPMOD, NULL);
 inolog("searchColInfo %d attnum=%d\n", k, attnum);
-			if (attnum == fi->attnum)
+			if (attnum == fi->attnum &&
+			    basetype == fi->basetype &&
+			    atttypmod == fi->typmod)
 			{
 				getColInfo(col_info, fi, k);
 				mylog("PARSE: searchColInfo by attnum=%d\n", attnum);
@@ -656,6 +662,8 @@ mylog("->%d\n", updatable);
 			FI_Constructor(wfi, fi_reuse);
 			attid = (Int2) QR_get_attid(res, i);
 			wfi->attnum = attid;
+			wfi->basetype = QR_get_field_type(res, i);
+			wfi->typmod = QR_get_atttypmod(res, i);
 			call_xxxxx = TRUE;
 			if (searchColInfo(col_info, wfi))
 			{

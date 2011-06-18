@@ -2340,6 +2340,7 @@ retry_public_schema:
 	QR_set_field_info_v(res, COLUMNS_PHYSICAL_NUMBER, "PHYSICAL NUMBER", PG_TYPE_INT2, 2);
 	QR_set_field_info_v(res, COLUMNS_TABLE_OID, "TABLE OID", PG_TYPE_OID, 4);
 	QR_set_field_info_v(res, COLUMNS_BASE_TYPEID, "BASE TYPEID", PG_TYPE_OID, 4);
+	QR_set_field_info_v(res, COLUMNS_ATTTYPMOD, "TYPMOD", PG_TYPE_INT4, 4);
 
 	ordinal = 1;
 	result = PGAPI_Fetch(hcol_stmt);
@@ -2396,6 +2397,7 @@ retry_public_schema:
 			set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], OID_ATTNUM);
 			set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 			set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
+			set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], -1);
 			ordinal++;
 		}
 	}
@@ -2579,7 +2581,8 @@ mylog(" and the data=%s\n", attdef);
 			case PG_TYPE_BIT:
 				break;
 			default:
-				mod_length -= 4;
+				if (mod_length >= 4)
+					mod_length -= 4;
 		}
 		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_attr_column_size(conn, field_type, mod_length, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
 		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_attr_buffer_length(conn, field_type, mod_length, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
@@ -2611,6 +2614,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], field_number);
 		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 		set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], basetype);
+		set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], mod_length);
 		ordinal++;
 
 		result = PGAPI_Fetch(hcol_stmt);
@@ -2664,6 +2668,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], XMIN_ATTNUM);
 		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 		set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
+		set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], -1);
 		ordinal++;
 	}
 	result = SQL_SUCCESS;
