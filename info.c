@@ -2011,7 +2011,7 @@ PGAPI_Columns(
 				result_cols;
 	Int4		mod_length,
 				ordinal,
-				typmod;
+				typmod, relhasoids;
 	OID		field_type, the_type, greloid, basetype;
 #ifdef	USE_OLD_IMPL
 	Int2		decimal_digits;
@@ -2027,6 +2027,7 @@ PGAPI_Columns(
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const char	*like_or_eq = likeop, *op_string;
 	const char	*szSchemaName;
+	BOOL	setIdentity = FALSE;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -2090,13 +2091,16 @@ retry_public_schema:
 		snprintf(columns_query, sizeof(columns_query),
 			"select n.nspname, c.relname, a.attname, a.atttypid"
 	   		", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
-			", c.relhasrules, c.relkind, c.oid, %s, %s from (((pg_catalog.pg_class c"
+			", c.relhasrules, c.relkind, c.oid, %s, %s, %s"
+			" from (((pg_catalog.pg_class c"
 			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
 			PG_VERSION_GE(conn, 7.4) ?
 			"pg_get_expr(d.adbin, d.adrelid)" : "d.adsrc",
 			PG_VERSION_GE(conn, 7.4) ?
 			"case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod"
-					: "0, -1");
+					: "0, -1",
+			PG_VERSION_GE(conn, 7.2) ? "c.relhasoids" : "1"
+					);
 		if (search_by_ids)
 			snprintf_add(columns_query, sizeof(columns_query), " and c.oid = %u", reloid);
 		else
@@ -2151,6 +2155,7 @@ retry_public_schema:
 
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
+	col_stmt->internal = TRUE;
 	result = PGAPI_ExecDirect(hcol_stmt, columns_query, SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
@@ -2289,6 +2294,14 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(hcol_stmt, 16, SQL_C_LONG,
+					&relhasoids, sizeof(relhasoids), NULL);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, col_stmt, TRUE);
+		goto cleanup;
+	}
+
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.", func);
@@ -2358,6 +2371,7 @@ retry_public_schema:
 	if (result != SQL_ERROR && !stmt->internal)
 	{
 		if (!relisaview &&
+			relhasoids &&
 			(atoi(ci->show_oid_column) ||
 			 strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0))
 		{
@@ -2374,7 +2388,13 @@ retry_public_schema:
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], OID_NAME);
 			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
 			set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
-			set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID");
+			if (CC_fake_mss(conn))
+			{
+				set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID identity");
+				setIdentity = TRUE;
+			}
+			else
+				set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID");
 
 			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
 			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
@@ -2434,13 +2454,21 @@ mylog(" and the data=%s\n", attdef);
 			mod_length = typmod;
 		switch (field_type)
 		{
+			case PG_TYPE_OID:
+				if (0 != atoi(ci->fake_oid_index))
+				{
+					auto_unique = SQL_TRUE;
+					set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "identity");
+					break;
+				}
 			case PG_TYPE_INT4:
 			case PG_TYPE_INT8:
 				if (attdef && strnicmp(attdef, "nextval(", 8) == 0 &&
 				    not_null[0] != '0')
 				{
 					auto_unique = SQL_TRUE;
-					if (CC_fake_mss(conn))
+					if (!setIdentity &&
+					    CC_fake_mss(conn))
 					{
 						char	tmp[32];
 
@@ -3000,6 +3028,7 @@ PGAPI_Statistics(
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName, field_number;
 	const char	*szSchemaName, *eq_string;
 	OID		ioid;
+	Int4		relhasoids;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -3164,7 +3193,7 @@ PGAPI_Statistics(
 		escSchemaName = simpleCatalogEscape(table_schemaname, SQL_NTS, NULL, conn); 
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
 			", i.indisclustered, a.amname, c.relhasrules, n.nspname"
-			", c.oid"
+			", c.oid, %s"
 			" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
 			" pg_catalog.pg_class d, pg_catalog.pg_am a,"
 			" pg_catalog.pg_namespace n"
@@ -3174,16 +3203,18 @@ PGAPI_Statistics(
 			" and d.oid = i.indrelid"
 			" and i.indexrelid = c.oid"
 			" and c.relam = a.oid order by"
+			, PG_VERSION_GE(conn, 7.2) ? "d.relhasoids" : "1"
 			, eq_string, escTableName, eq_string, escSchemaName);
 	}
 	else
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
-			", i.indisclustered, a.amname, c.relhasrules, c.oid"
+			", i.indisclustered, a.amname, c.relhasrules, c.oid, %s"
 			" from pg_index i, pg_class c, pg_class d, pg_am a"
 			" where d.relname %s'%s'"
 			" and d.oid = i.indrelid"
 			" and i.indexrelid = c.oid"
 			" and c.relam = a.oid order by"
+			, PG_VERSION_GE(conn, 7.2) ? "d.relhasoids" : "1"
 			, eq_string, escTableName);
 	if (PG_VERSION_GT(SC_get_conn(stmt), 6.4))
 		strcat(index_query, " i.indisprimary desc,");
@@ -3271,10 +3302,18 @@ PGAPI_Statistics(
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(hindx_stmt, 9, SQL_C_ULONG,
+					&relhasoids, sizeof(relhasoids), NULL);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, indx_stmt, TRUE);
+		goto cleanup;
+	}
+
 	relhasrules[0] = '0';
 	result = PGAPI_Fetch(hindx_stmt);
 	/* fake index of OID */
-	if (relhasrules[0] != '1' && atoi(ci->show_oid_column) && atoi(ci->fake_oid_index))
+	if (relhasoids && relhasrules[0] != '1' && atoi(ci->show_oid_column) && atoi(ci->fake_oid_index))
 	{
 		tuple = QR_AddNew(res);
 
