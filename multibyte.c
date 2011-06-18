@@ -521,6 +521,8 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 #endif /* UNICODE_SUPPORT */
 	if (setenc && stricmp(setenc, OTHER_STRING))
 		return setenc;
+	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc)
+		return wenc;
 #ifdef	WIN32
 	acp = GetACP();
 	if (acp >= 1251 && acp <= 1258)
