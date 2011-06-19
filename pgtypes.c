@@ -148,7 +148,6 @@ pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
 	return basetype;
 }
 
-#if	(ODBCVER >= 0x0300)
 #define MONTH_BIT 	(1 << 17)
 #define YEAR_BIT	(1 << 18)
 #define DAY_BIT		(1 << 19)
@@ -156,6 +155,7 @@ pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
 #define MINUTE_BIT	(1 << 27)
 #define SECOND_BIT	(1 << 28)
 
+#if	(ODBCVER >= 0x0300)
 static SQLSMALLINT
 get_interval_type(Int4 atttypmod, const char **name)
 {
@@ -471,6 +471,7 @@ getIntervalColumnSize(OID type, int atttypmod)
 	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	ttl = leading_precision;
+#if (ODBCVER >= 0x0300)
 	switch (get_interval_type(atttypmod, NULL))
 	{
 		case SQL_INTERVAL_DAY_TO_SECOND:
@@ -487,6 +488,9 @@ getIntervalColumnSize(OID type, int atttypmod)
 			ttl += 3;
 			break;
 	}
+#else
+	ttl += 9;
+#endif /* ODBCVER */
 	scale = getIntervalDecimalDigits(type, atttypmod);
 	return (scale > 0) ? ttl + 1 + scale : ttl;
 }

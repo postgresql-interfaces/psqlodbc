@@ -162,7 +162,7 @@ mylog("SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
 		case SQL_CONVERT_VARBINARY:		/* ODBC 1.0 */
 		case SQL_CONVERT_CHAR:
 		case SQL_CONVERT_LONGVARCHAR:
-#ifdef	UNICODE_SUPPORT
+#if defined(UNICODE_SUPPORT) && (ODBCVER >= 0x0300)
 		case SQL_CONVERT_WCHAR:
 		case SQL_CONVERT_WLONGVARCHAR:
 		case SQL_CONVERT_WVARCHAR:
@@ -630,9 +630,11 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_QUALIFIER_USAGE:		/* ODBC 2.0 */
 			len = 4;
+#if (ODBCVER >= 0x0300)
 			if (CurrCat(conn))
 				value = SQL_CU_DML_STATEMENTS;
 			else
+#endif /* ODBCVER */
 				value = 0;
 			break;
 
@@ -1601,6 +1603,7 @@ retry_public_schema:
 	 */
 	/* make_string mallocs memory */
 	tableType = make_string(szTableType, cbTableType, NULL, 0);
+#if (ODBCVER >= 0x0300)
 	if (search_pattern &&
 	    escTableName && '\0' == escTableName[0] &&
 	    escCatName && escSchemaName)
@@ -1617,6 +1620,7 @@ retry_public_schema:
 			 stricmp(escSchemaName, SQL_ALL_SCHEMAS) == 0)
 			list_schemas = TRUE;
 	}
+#endif /* ODBCVER */
 	list_some = (list_cat || list_schemas || list_table_types);
 
 	tables_query[0] = '\0';
@@ -1691,11 +1695,13 @@ retry_public_schema:
 		show_regular_tables = TRUE;
 		show_views = TRUE;
 	}
+#if (ODBCVER >= 0x0300)
 	else if (list_some || stricmp(tableType, SQL_ALL_TABLE_TYPES) == 0)
 	{
 		show_regular_tables = TRUE;
 		show_views = TRUE;
 	}
+#endif /* ODBCVER */
 	else
 	{
 		strcpy(table_types, tableType);

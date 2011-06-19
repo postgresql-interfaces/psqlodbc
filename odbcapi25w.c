@@ -41,11 +41,15 @@ RETCODE  SQL_API SQLErrorW(HENV EnvironmentHandle,
            	qst, NativeError, mtxt, buflen, &tlen);
 	if (qst)
 		utf8_to_ucs2(qst, strlen(qst), Sqlstate, 5);
-	if (TextLength)
-		*TextLength = utf8_to_ucs2(mtxt, tlen, MessageText, BufferLength);
-	free(qst);
-	if (mtxt)
+	if (NULL != mtxt)
+	{
+		SQLULEN	tulen = utf8_to_ucs2(mtxt, tlen, MessageText, BufferLength);
+		if (NULL != TextLength)
+			*TextLength = tulen;
 		free(mtxt);
+	}
+	if (qst)
+		free(qst);
 	return ret;
 }
 

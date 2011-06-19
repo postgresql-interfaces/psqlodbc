@@ -943,6 +943,7 @@ PGAPI_GetData(
 		return SQL_ERROR;
 	}
 
+#if (ODBCVER >= 0x0300)
 	if (SQL_ARD_TYPE == fCType)
 	{
 		ARDFields	*opts;
@@ -966,6 +967,7 @@ PGAPI_GetData(
 		}
 	}
 	else
+#endif /* ODBCVER */
 		target_type = fCType;
 	if (icol == 0)
 	{
