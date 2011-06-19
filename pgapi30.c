@@ -1621,6 +1621,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
 	BOOL	unsupported = FALSE;
+	int	newValue;
 
 	mylog("%s for %p: %d %p\n", func, ConnectionHandle, Attribute, Value);
 	switch (Attribute)
@@ -1661,6 +1662,51 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_CONNECTION_DEAD:
 		case SQL_ATTR_CONNECTION_TIMEOUT:
 			unsupported = TRUE;
+			break;
+		case SQL_ATTR_PGOPT_DEBUG:
+			newValue = CAST_UPTR(SQLCHAR, Value);
+			if (newValue > 0 && conn->connInfo.drivers.debug <= 0)
+			{
+				conn->connInfo.drivers.debug = CAST_UPTR(SQLCHAR, Value);
+				logs_on_off(1, conn->connInfo.drivers.debug, 0);
+			}
+			else if (newValue == 0 && conn->connInfo.drivers.debug > 0)
+			{
+				logs_on_off(-1, conn->connInfo.drivers.debug, 0);
+				conn->connInfo.drivers.debug = CAST_UPTR(SQLCHAR, Value);
+			}
+			qlog("debug => %d\n", conn->connInfo.drivers.debug);
+			mylog("debug => %d\n", conn->connInfo.drivers.debug);
+			break;
+		case SQL_ATTR_PGOPT_COMMLOG:
+			newValue = CAST_UPTR(SQLCHAR, Value);
+			if (newValue > 0 && conn->connInfo.drivers.commlog <= 0)
+			{
+				conn->connInfo.drivers.commlog = CAST_UPTR(SQLCHAR, Value);
+				logs_on_off(1, 0, conn->connInfo.drivers.commlog);
+			}
+			else if (newValue == 0 && conn->connInfo.drivers.commlog > 0)
+			{
+				logs_on_off(-1, 0, conn->connInfo.drivers.commlog);
+				conn->connInfo.drivers.debug = CAST_UPTR(SQLCHAR, Value);
+			}
+			qlog("commlog => %d\n", conn->connInfo.drivers.commlog);
+			mylog("commlog => %d\n", conn->connInfo.drivers.commlog);
+			break;
+		case SQL_ATTR_PGOPT_PARSE:
+			conn->connInfo.drivers.parse = CAST_UPTR(SQLCHAR, Value);
+			qlog("parse => %d\n", conn->connInfo.drivers.parse);
+			mylog("parse => %d\n", conn->connInfo.drivers.parse);
+			break;
+		case SQL_ATTR_PGOPT_USE_DECLAREFETCH:
+			conn->connInfo.drivers.use_declarefetch = CAST_UPTR(SQLCHAR, Value);
+			qlog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
+			mylog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
+			break;
+		case SQL_ATTR_PGOPT_SERVER_SIDE_PREPARE:
+			conn->connInfo.use_server_side_prepare = CAST_UPTR(SQLCHAR, Value);
+			qlog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
+			mylog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			break;
 		default:
 			ret = PGAPI_SetConnectOption(ConnectionHandle, (SQLUSMALLINT) Attribute, (SQLLEN) Value);
