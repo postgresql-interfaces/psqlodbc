@@ -782,7 +782,10 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		if (conn->connInfo.cvt_null_date_string > 0 &&
 		    PG_TYPE_DATE == field_type &&
 		    (SQL_C_CHAR == fCType ||
+		     SQL_C_DATE == fCType ||
+#if (ODBCVER >= 0x0300)
 		     SQL_C_TYPE_DATE == fCType ||
+#endif /* ODBCVER */
 		     SQL_C_DEFAULT == fCType))
 		{
 			if (pcbValueBindRow)
@@ -795,7 +798,10 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 					else
 						result = COPY_RESULT_TRUNCATED;
 					break;
+				case SQL_C_DATE:
+#if (ODBCVER >= 0x0300)
 				case SQL_C_TYPE_DATE:
+#endif /* ODBCVER */
 				case SQL_C_DEFAULT:
 					if (rgbValueBindRow && cbValueMax >= sizeof(DATE_STRUCT))
 					{
