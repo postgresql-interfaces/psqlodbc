@@ -51,6 +51,8 @@
 
 extern GLOBAL_VALUES globals;
 
+static int SOCK_get_next_n_bytes(SocketClass *s, int n, char *buf);
+
 static void SOCK_set_error(SocketClass *s, int _no, const char *_msg)
 {
 	int	gerrno = SOCK_ERRNO;
@@ -670,12 +672,15 @@ SOCK_get_id(SocketClass *self)
 	if (self->reslen > 0)
 	{
 		mylog("SOCK_get_id has to eat %d bytes\n", self->reslen);
+		/*
 		do
 		{
 			SOCK_get_next_byte(self, FALSE);
 			if (0 != self->errornumber)
 				return 0;
 		} while (self->reslen > 0);
+		*/
+		SOCK_get_next_n_bytes(self, self->reslen, NULL);
 	}
 	id = SOCK_get_next_byte(self, FALSE);
 	self->reslen = 0;
@@ -685,8 +690,6 @@ SOCK_get_id(SocketClass *self)
 void
 SOCK_get_n_char(SocketClass *self, char *buffer, Int4 len)
 {
-	int			lf;
-
 	if (!self)
 		return;
 	if (!buffer)
@@ -695,12 +698,15 @@ SOCK_get_n_char(SocketClass *self, char *buffer, Int4 len)
 		return;
 	}
 
+	/*
 	for (lf = 0; lf < len; lf++)
 	{
 		if (0 != self->errornumber)
 			break;
 		buffer[lf] = SOCK_get_next_byte(self, FALSE);
 	}
+	*/
+	SOCK_get_next_n_bytes(self, len, buffer);
 }
 
 
@@ -960,6 +966,101 @@ inolog("ECONNRESET\n");
 	if (PG_PROTOCOL_74 == self->pversion)
 		self->reslen--;
 	return self->buffer_in[self->buffer_read_in++];
+}
+
+static int
+SOCK_get_next_n_bytes(SocketClass *self, int n, char *buf)
+{
+	int	retry_count = 0, gerrno, rest, rlen;
+	BOOL	maybeEOF = FALSE;
+
+	if (!self || !n)
+		return 0;
+	for (rest = n; 0 < rest;)
+	{
+	if (self->buffer_read_in >= self->buffer_filled_in)
+	{
+		/*
+		 * there are no more bytes left in the buffer so reload the buffer
+		 */
+		self->buffer_read_in = 0;
+retry:
+#ifdef USE_SSL 
+		if (self->ssl)
+			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
+		else
+#endif /* USE_SSL */
+			self->buffer_filled_in = SOCK_SSPI_recv(self, (char *) self->buffer_in, self->buffer_size);
+		gerrno = SOCK_ERRNO;
+
+		mylog("read %d, global_socket_buffersize=%d\n", self->buffer_filled_in, self->buffer_size);
+
+		if (self->buffer_filled_in < 0)
+		{
+mylog("Lasterror=%d\n", gerrno);
+			switch (gerrno)
+			{
+				case	EINTR:
+					goto retry;
+					break;
+#ifdef EAGAIN
+				case	EAGAIN:
+#endif /* EAGAIN */
+#if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
+				case	EWOULDBLOCK:
+#endif /* EWOULDBLOCK */
+					retry_count++;
+					if (SOCK_wait_for_ready(self, FALSE, retry_count) >= 0)
+						goto retry;
+					break;
+				case	ECONNRESET:
+inolog("ECONNRESET\n");
+					maybeEOF = TRUE;
+					SOCK_set_error(self, SOCKET_CLOSED, "Connection reset by peer.");
+					break;
+			}
+			if (0 == self->errornumber)
+				SOCK_set_error(self, SOCKET_READ_ERROR, "Error while reading from the socket.");
+			self->buffer_filled_in = 0;
+			return -1;
+		}
+		if (self->buffer_filled_in == 0)
+		{
+			if (!maybeEOF)
+			{
+				int	nready = SOCK_wait_for_ready(self, FALSE, 0);
+				if (nready > 0)
+				{
+					maybeEOF = TRUE;
+					goto retry;
+				}
+				else if (0 == nready)
+					maybeEOF = TRUE;
+			}
+			if (maybeEOF)
+			{
+				SOCK_set_error(self, SOCKET_CLOSED, "Socket has been closed.");
+				break;
+			}
+			else
+			{
+				SOCK_set_error(self, SOCKET_READ_ERROR, "Error while reading from the socket.");
+				return -1;
+			}
+		}
+	}
+	rlen = self->buffer_filled_in - self->buffer_read_in;
+	if (rlen > rest)
+		rlen = rest;
+	if (buf)
+		memcpy(buf + n - rest, self->buffer_in + self->buffer_read_in, rlen);
+	rest -= rlen;
+	if (PG_PROTOCOL_74 == self->pversion)
+		self->reslen -= rlen;
+	self->buffer_read_in += rlen;
+	}
+
+	return n - rest;
 }
 
 void
