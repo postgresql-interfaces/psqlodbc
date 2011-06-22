@@ -1667,30 +1667,36 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			newValue = CAST_UPTR(SQLCHAR, Value);
 			if (newValue > 0 && conn->connInfo.drivers.debug <= 0)
 			{
-				conn->connInfo.drivers.debug = CAST_UPTR(SQLCHAR, Value);
+				logs_on_off(-1, 0, 0);
+				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, conn->connInfo.drivers.debug, 0);
+				mylog("debug => %d\n", conn->connInfo.drivers.debug);
 			}
 			else if (newValue == 0 && conn->connInfo.drivers.debug > 0)
 			{
+				mylog("debug => %d\n", newValue);
 				logs_on_off(-1, conn->connInfo.drivers.debug, 0);
-				conn->connInfo.drivers.debug = CAST_UPTR(SQLCHAR, Value);
+				conn->connInfo.drivers.debug = newValue;
+				logs_on_off(1, 0, 0);
 			}
 			qlog("debug => %d\n", conn->connInfo.drivers.debug);
-			mylog("debug => %d\n", conn->connInfo.drivers.debug);
 			break;
 		case SQL_ATTR_PGOPT_COMMLOG:
 			newValue = CAST_UPTR(SQLCHAR, Value);
 			if (newValue > 0 && conn->connInfo.drivers.commlog <= 0)
 			{
-				conn->connInfo.drivers.commlog = CAST_UPTR(SQLCHAR, Value);
+				logs_on_off(-1, 0, 0);
+				conn->connInfo.drivers.commlog = newValue;
 				logs_on_off(1, 0, conn->connInfo.drivers.commlog);
+				qlog("commlog => %d\n", conn->connInfo.drivers.commlog);
 			}
 			else if (newValue == 0 && conn->connInfo.drivers.commlog > 0)
 			{
+				qlog("commlog => %d\n", newValue);
 				logs_on_off(-1, 0, conn->connInfo.drivers.commlog);
-				conn->connInfo.drivers.debug = CAST_UPTR(SQLCHAR, Value);
+				conn->connInfo.drivers.debug = newValue;
+				logs_on_off(1, 0, 0);
 			}
-			qlog("commlog => %d\n", conn->connInfo.drivers.commlog);
 			mylog("commlog => %d\n", conn->connInfo.drivers.commlog);
 			break;
 		case SQL_ATTR_PGOPT_PARSE:
