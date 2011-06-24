@@ -9,7 +9,21 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 09.00.0300 Release</h2>
+<h2>psqlODBC 09.00.03XX Release</h2>
+Changes:<br>
+1.) Let SC_forget_unnamed() clear the result in case the statement is not executed yet. It would fix the bug reported by Silvio Brandani.<br>
+2.) Fix the bug that strings are copied to a null pointer.<br>
+3.) Don't clear the parsed plan in SC_recycle_statement().<br>
+4.) Now SQLDescribeCol() can detect the changes of column type or size.<br>
+5.) Handle *with or without oids* correctly.<br>
+6.) Take the environment variable into account.<br>
+7.) Use SOCK_get_next_n_bytes() instead of SOCK_get_next_byte().<br>
+8.) Add some driver specific options for SQLSetConnectAttr().<br>
+9.) Fix compilation errors in case ODBC 2.5.<br>
+10.) Fix compilation error on different ODBCVER.<br>
+11.) Correct the behavior of SQLSetConnectAttr() for the driver specific options.<br>
+<br>
+<li>Notes: psqlODBC 09.00.0300</li><br>
 Changes:<br>
 1.) Don't propgate the connection level statment options to the internal statements. This fixes an infinite loop reported by Nelson Andre.<br>
 2.) Improved a mylog output.<br>
