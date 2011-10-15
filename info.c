@@ -2989,6 +2989,7 @@ cleanup:
 }
 
 
+#define INDOPTION_DESC		0x0001	/* values are in reverse order */
 RETCODE		SQL_API
 PGAPI_Statistics(
 			HSTMT hstmt,
@@ -3011,6 +3012,7 @@ PGAPI_Statistics(
 	char		*escSchemaName = NULL, *table_name = NULL, *escTableName = NULL;
 	char		index_name[MAX_INFO_STRING];
 	short		fields_vector[INDEX_KEYS_STORAGE_COUNT + 1];
+	short		indopt_vector[INDEX_KEYS_STORAGE_COUNT + 1];
 	char		isunique[10],
 				isclustered[10],
 				ishash[MAX_INFO_STRING];
@@ -3199,7 +3201,7 @@ PGAPI_Statistics(
 		escSchemaName = simpleCatalogEscape(table_schemaname, SQL_NTS, NULL, conn); 
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
 			", i.indisclustered, a.amname, c.relhasrules, n.nspname"
-			", c.oid, %s"
+			", c.oid, %s, %s"
 			" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
 			" pg_catalog.pg_class d, pg_catalog.pg_am a,"
 			" pg_catalog.pg_namespace n"
@@ -3210,11 +3212,12 @@ PGAPI_Statistics(
 			" and i.indexrelid = c.oid"
 			" and c.relam = a.oid order by"
 			, PG_VERSION_GE(conn, 7.2) ? "d.relhasoids" : "1"
+			, PG_VERSION_GE(conn, 8.3) ? "i.indoption" : "0"
 			, eq_string, escTableName, eq_string, escSchemaName);
 	}
 	else
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
-			", i.indisclustered, a.amname, c.relhasrules, c.oid, %s"
+			", i.indisclustered, a.amname, c.relhasrules, c.oid, %s, 0"
 			" from pg_index i, pg_class c, pg_class d, pg_am a"
 			" where d.relname %s'%s'"
 			" and d.oid = i.indrelid"
@@ -3314,6 +3317,17 @@ PGAPI_Statistics(
 	{
 		SC_error_copy(stmt, indx_stmt, TRUE);
 		goto cleanup;
+	}
+
+	/* bind the vector column */
+	result = PGAPI_BindCol(hindx_stmt, 10, SQL_C_DEFAULT,
+			indopt_vector, sizeof(fields_vector), &fields_vector_len);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column 
+						 * in SQLStatistics."; */
+		goto cleanup;
+
 	}
 
 	relhasrules[0] = '0';
@@ -3436,7 +3450,11 @@ PGAPI_Statistics(
 					}
 				}
 
-				set_tuplefield_string(&tuple[STATS_COLLATION], "A");
+				if (i <= indopt_vector[0] &&
+				    (indopt_vector[i] & INDOPTION_DESC) != 0)
+					set_tuplefield_string(&tuple[STATS_COLLATION], "D");
+				else
+					set_tuplefield_string(&tuple[STATS_COLLATION], "A");
 				set_tuplefield_null(&tuple[STATS_CARDINALITY]);
 				set_tuplefield_null(&tuple[STATS_PAGES]);
 				set_tuplefield_null(&tuple[STATS_FILTER_CONDITION]);
