@@ -440,17 +440,6 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	/* Prepare the statement if possible at backend side */
 	if (!stmt->inaccurate_result)
 	{
-		/**
-		switch (decideHowToPrepare(stmt, FALSE))
-		{
-			case USING_PREPARE_COMMAND:
-			case NAMED_PARSE_REQUEST:
-#ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
-			case PARSE_TO_EXEC_ONCE:
-#endif
-				prepare_before_exec = TRUE;
-		}
-		**/
 		if (HowToPrepareBeforeExec(stmt, FALSE) >= allowParse)
 			prepare_before_exec = TRUE;
 	}
@@ -1070,6 +1059,7 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 		if (isSqlServr() &&
 		    !stmt->internal &&
 		    0 != stmt->prepare &&
+		    PG_VERSION_LT(conn, 8.4) &&
 		    SC_can_parse_statement(stmt))
 			parse_sqlsvr(stmt);
 	}

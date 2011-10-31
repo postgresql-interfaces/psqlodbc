@@ -1615,13 +1615,15 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 				in_dot = FALSE;
 				in_func = TRUE;
 				if (NULL != wfi)
+				{
 					wfi->func = TRUE;
 
-				/*
-				 * name will have the function name -- maybe useful some
-				 * day
-				 */
-				mylog("**** got function = '%s'\n", PRINT_NAME(wfi->column_name));
+					/*
+					 * name will have the function name -- maybe useful some
+					 * day
+					 */
+					mylog("**** got function = '%s'\n", PRINT_NAME(wfi->column_name));
+				}
 				continue;
 			}
 

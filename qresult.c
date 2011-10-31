@@ -93,7 +93,15 @@ QR_set_cursor(QResultClass *self, const char *name)
 	}
 	else
 	{
+		QResultClass *res;
+
 		self->cursor_name = NULL;
+		for (res = self->next; NULL != res; res = res->next)
+		{
+			if (NULL != res->cursor_name)
+				free(res->cursor_name);
+			res->cursor_name = NULL;
+		}
 		QR_set_no_cursor(self);
 	}
 }
