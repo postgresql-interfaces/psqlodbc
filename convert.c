@@ -20,6 +20,7 @@
 #include "convert.h"
 #ifdef	WIN32
 #include <float.h>
+#define	HAVE_LOCALE_H
 #endif /* WIN32 */
 
 #include <stdio.h>
@@ -602,6 +603,63 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 #endif /* ODBCVER */
 
 
+#ifdef	HAVE_LOCALE_H
+static char *current_locale = NULL;
+static char *current_decimal_point = NULL;
+static void current_numeric_locale()
+{
+	char *loc = setlocale(LC_NUMERIC, NULL);
+	if (NULL == current_locale || 0 != stricmp(loc, current_locale))
+	{
+		struct lconv	*lc = localeconv();
+
+		if (NULL != current_locale)
+			free(current_locale);
+		current_locale = strdup(loc);
+		if (NULL != current_decimal_point)
+			free(current_decimal_point);
+		current_decimal_point = strdup(lc->decimal_point);
+	}
+}
+
+static void set_server_decimal_point(char *num)
+{
+	char *str;
+
+	current_numeric_locale();
+	if ('.' == *current_decimal_point)
+		return; 
+	for (str = num; '\0' != *str; str++)
+	{
+		if (*str == *current_decimal_point)
+		{
+			*str = '.';
+			break;
+		}
+	}
+}
+
+static void set_client_decimal_point(char *num)
+{
+	char *str;
+
+	current_numeric_locale();
+	if ('.' == *current_decimal_point)
+		return;
+	for (str = num; '\0' != *str; str++)
+	{
+		if (*str == '.')
+		{
+			*str = *current_decimal_point;
+			break;
+		}
+	}
+}
+#else
+static void set_server_decimal_point(char *num) {}
+static void set_client_decimal_point(char *num, BOOL) {}
+#endif /* HAVE_LOCALE_H */
+
 /*	This is called by SQLFetch() */
 int
 copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, int atttypmod, void *value, int col)
@@ -703,9 +761,6 @@ copy_and_convert_field(StatementClass *stmt,
 	SQLWCHAR	*allocbuf = NULL;
 	ssize_t		wstrlen;	
 #endif /* WIN_UNICODE_SUPPORT */
-#ifdef HAVE_LOCALE_H
-	char *saved_locale;
-#endif /* HAVE_LOCALE_H */
 #if (ODBCVER >= 0x0350)
 	SQLGUID g;
 #endif
@@ -1149,6 +1204,15 @@ inolog("2stime fr=%d\n", std_time.fr);
 								 * (i.e, 255 = "FF") */
 
 			default:
+				switch (field_type)
+				{
+					case PG_TYPE_FLOAT4:
+					case PG_TYPE_FLOAT8:
+					case PG_TYPE_NUMERIC:
+						set_client_decimal_point(neut_str);
+						break;
+				}
+
 				if (stmt->current_col < 0)
 				{
 					pgdc = &(gdata->fdata);
@@ -1296,37 +1360,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 						copy_len *= WCLEN;
 					}
 #endif /* UNICODE_SUPPORT */
-#ifdef HAVE_LOCALE_H
-					switch (field_type)
-					{
-						case PG_TYPE_FLOAT4:
-						case PG_TYPE_FLOAT8:
-						case PG_TYPE_NUMERIC:
-						{
-							struct lconv	*lc;
-							char		*new_string;
-							int		i, j;
-
-							new_string = malloc(cbValueMax);
-							lc = localeconv();
-							for (i = 0, j = 0; ptr[i]; i++)
-							{
-								if (ptr[i] == '.')
-								{
-									strncpy_null(&new_string[j], lc->decimal_point, cbValueMax - j);
-									j += strlen(lc->decimal_point);
-								}
-								else
-									new_string[j++] = ptr[i];
-							}
-							new_string[j] = '\0';
- 							strncpy_null(rgbValueBindRow, new_string, copy_len + 1);
-							free(new_string);
-							already_copied = TRUE;
- 							break;
-						}
-					}
-#endif /* HAVE_LOCALE_H */
 					if (!already_copied)
 					{
 						/* Copy the data */
@@ -1498,43 +1531,25 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_FLOAT:
-#ifdef HAVE_LOCALE_H
-				saved_locale = strdup(setlocale(LC_ALL, NULL));
-				setlocale(LC_ALL, "C");
-#endif /* HAVE_LOCALE_H */
+				set_client_decimal_point(neut_str);
 				len = 4;
 				if (bind_size > 0)
 					*((SFLOAT *) rgbValueBindRow) = (float) get_double_value(neut_str);
 				else
 					*((SFLOAT *) rgbValue + bind_row) = (float) get_double_value(neut_str);
-#ifdef HAVE_LOCALE_H
-				setlocale(LC_ALL, saved_locale);
-				free(saved_locale);
-#endif /* HAVE_LOCALE_H */
 				break;
 
 			case SQL_C_DOUBLE:
-#ifdef HAVE_LOCALE_H
-				saved_locale = strdup(setlocale(LC_ALL, NULL));
-				setlocale(LC_ALL, "C");
-#endif /* HAVE_LOCALE_H */
+				set_client_decimal_point(neut_str);
 				len = 8;
 				if (bind_size > 0)
 					*((SDOUBLE *) rgbValueBindRow) = get_double_value(neut_str);
 				else
 					*((SDOUBLE *) rgbValue + bind_row) = get_double_value(neut_str);
-#ifdef HAVE_LOCALE_H
-				setlocale(LC_ALL, saved_locale);
-				free(saved_locale);
-#endif /* HAVE_LOCALE_H */
 				break;
 
 #if (ODBCVER >= 0x0300)
                         case SQL_C_NUMERIC:
-#ifdef HAVE_LOCALE_H
-			/* strcpy(saved_locale, setlocale(LC_ALL, NULL));
-			setlocale(LC_ALL, "C"); not needed currently */ 
-#endif /* HAVE_LOCALE_H */
 			{
 			SQL_NUMERIC_STRUCT      *ns;
 			int	i, nlen, bit, hval, tv, dig, sta, olen;
@@ -1607,9 +1622,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 			if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
 				ns->val[olen++] = hval;
 			}
-#ifdef HAVE_LOCALE_H
-			/* setlocale(LC_ALL, saved_locale); */
-#endif /* HAVE_LOCALE_H */
 			break;
 #endif /* ODBCVER */
 
@@ -4159,7 +4171,10 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 #ifdef	WIN32
 			if (_finite(dbv))
 #endif /* WIN32 */
-			sprintf(param_string, "%.15g", dbv);
+			{
+				sprintf(param_string, "%.15g", dbv);
+				set_server_decimal_point(param_string);
+			}
 #ifdef	WIN32
 			else if (_isnan(dbv))
 				strcpy(param_string, NAN_STRING);
@@ -4175,7 +4190,10 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 #ifdef	WIN32
 			if (_finite(flv))
 #endif /* WIN32 */
-			sprintf(param_string, "%.6g", flv);
+			{
+				sprintf(param_string, "%.6g", flv);
+				set_server_decimal_point(param_string);
+			}
 #ifdef	WIN32
 			else if (_isnan(flv))
 				strcpy(param_string, NAN_STRING);
@@ -4433,6 +4451,14 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 						 '1' == param_string[1])
 						strcpy(param_string, "1");
 					break;
+				case PG_TYPE_FLOAT4:
+				case PG_TYPE_FLOAT8:
+				case PG_TYPE_NUMERIC:
+					if (NULL != buf)
+						set_server_decimal_point(buf);
+					else
+						set_server_decimal_point(param_string);
+					break;
 			}
 			/* it was a SQL_C_CHAR */
 			if (buf)
@@ -4631,6 +4657,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 		case SQL_REAL:
 			if (buf)
 				my_strcpy(param_string, sizeof(param_string), buf, used);
+			set_server_decimal_point(param_string);
 			lastadd = "::float4";
 			CVT_APPEND_STR(qb, param_string);
 			break;
@@ -4638,6 +4665,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 		case SQL_DOUBLE:
 			if (buf)
 				my_strcpy(param_string, sizeof(param_string), buf, used);
+			set_server_decimal_point(param_string);
 			lastadd = "::float8";
 			CVT_APPEND_STR(qb, param_string);
 			break;
