@@ -590,7 +590,7 @@ inolog(":QR is %s", QR_has_valid_base(res) ? "valid" : "unknown");
 			if (start < 0)
 				QR_set_rowstart_in_cache(res, -1);
 			else
-				QR_set_rowstart_in_cache(res, 0);
+				QR_set_rowstart_in_cache(res, start);
 		}
 		if (!QR_get_cursor(res))
 			res->key_base = start;
