@@ -253,6 +253,14 @@ PGAPI_FreeStmt(HSTMT hstmt,
 				return SQL_ERROR; /* stmt may be executing a transaction */
 			}
 			/*
+			 *	Before dropping the statement, sync and discard
+			 *	the response from the server for the pending
+			 *	extended query.
+			 */
+			if (NULL != conn->sock && stmt == conn->stmt_in_extquery)
+				QR_Destructor(SendSyncAndReceive(stmt, NULL, "finish the pending query"));
+			conn->stmt_in_extquery = NULL; /* for safety */
+			/*
 			 * Free any cursors and discard any result info.
 			 * Don't detach the statement from the connection
 			 * before freeing the associated cursors. Otherwise
