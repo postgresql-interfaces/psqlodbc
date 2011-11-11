@@ -9,7 +9,16 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 09.00.0310 Release</h2>
+<h2>psqlODBC 09.XX.XXXX Release</h2>
+Changes:<br>
+1.) SQLStatistics() sets 'D' for the collation column when an reverse index is used.<br>
+2.) Fix the bug that PostgreSQL's function calls in queries cause a crash on SQL Server linked servers.<br>
+3.) Fix the bug that the first fetch operation doesn't work properly when the operation is SQL_FETCH_ABSOLUTE or SQL_FETCH_LAST.<br>
+4.) Revise the handling of decimal point.<br>
+5.) Adjust the operations after closing eof-detected cursors.<br>
+6.) Before dropping the statement, sync and discard the response from the server for the pending extended query.<br>
+<br>
+<li>Notes: psqlODBC 09.00.0310</li><br>
 Changes:<br>
 1.) Let SC_forget_unnamed() clear the result in case the statement is not executed yet. It would fix the bug reported by Silvio Brandani.<br>
 2.) Fix the bug that strings are copied to a null pointer.<br>
