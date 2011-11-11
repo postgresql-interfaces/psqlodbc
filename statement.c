@@ -1564,6 +1564,7 @@ SC_fetch(StatementClass *self)
 	char	   *value;
 	ColumnInfoClass *coli;
 	BindInfoClass	*bookmark;
+	BOOL		useCursor;
 
 	/* TupleField *tupleField; */
 
@@ -1575,7 +1576,8 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 
 	mylog("fetch_cursor=%d, %p->total_read=%d\n", SC_is_fetchcursor(self), res, res->num_total_read);
 
-	if (!SC_is_fetchcursor(self))
+	useCursor = (SC_is_fetchcursor(self) && (NULL != QR_get_cursor(res)));
+	if (!useCursor)
 	{
 		if (self->currTuple >= (Int4) QR_get_num_total_tuples(res) - 1 ||
 			(self->options.maxRows > 0 && self->currTuple == self->options.maxRows - 1))
@@ -1716,7 +1718,7 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 
 			mylog("type = %d, atttypmod = %d\n", type, atttypmod);
 
-			if (SC_is_fetchcursor(self))
+			if (useCursor)
 				value = QR_get_value_backend(res, lf);
 			else
 			{
@@ -1794,6 +1796,7 @@ SC_execute(StatementClass *self)
 	BOOL		is_in_trans, issue_begin, has_out_para;
 	BOOL		use_extended_protocol;
 	int		func_cs_count = 0, i;
+	BOOL		useCursor;
 
 	conn = SC_get_conn(self);
 	ci = &(conn->connInfo);
@@ -1818,6 +1821,13 @@ SC_execute(StatementClass *self)
 		goto cleanup;
 	}
 	is_in_trans = CC_is_in_trans(conn);
+	if (useCursor = SC_is_fetchcursor(self))
+	{
+		QResultClass *curres = SC_get_Curres(self);
+
+		if (NULL != curres)
+			useCursor = (NULL != QR_get_cursor(curres));
+	} 
 	/* issue BEGIN ? */
 	issue_begin = TRUE;
 	if (self->internal)
@@ -1833,7 +1843,7 @@ SC_execute(StatementClass *self)
 		}
 	}
 	else if (CC_does_autocommit(conn) &&
-		 (!SC_is_fetchcursor(self)
+		 (!useCursor
 	    /* || SC_is_with_hold(self) thiw would lose the performance */
 		 ))
 		issue_begin = FALSE;
@@ -1942,7 +1952,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		mylog("       Sending SELECT statement on stmt=%p, cursor_name='%s' qflag=%d,%d\n", self, SC_cursor_name(self), qflag, self->options.scroll_concurrency);
 
 		/* send the declare/select */
-		if (SC_is_fetchcursor(self))
+		if (useCursor)
 		{
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
@@ -1954,7 +1964,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 				qflag |= IGNORE_ROUND_TRIP;
 		}
 		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
-		if (SC_is_fetchcursor(self) && QR_command_maybe_successful(res))
+		if (useCursor && QR_command_maybe_successful(res))
 		{
 			if (appendq)
 			{
@@ -2079,7 +2089,7 @@ inolog("!!%p->SC_is_concat_pre=%x res=%p\n", self, self->miscinfo, res);
 			 */
 			if (SQL_CURSOR_KEYSET_DRIVEN == self->options.cursor_type &&
 			    SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency &&
-			    !SC_is_fetchcursor(self))
+			    !useCursor)
 			{
 				if (tres = res->next, tres)
 				{

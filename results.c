@@ -81,7 +81,7 @@ inolog("returning RowCount=%d\n", *pcrow);
 		}
 		else if (QR_NumResultCols(res) > 0)
 		{
-			*pcrow = SC_is_fetchcursor(stmt) ? -1 : QR_get_num_total_tuples(res) - res->dl_count;
+			*pcrow = QR_get_cursor(res) ? -1 : QR_get_num_total_tuples(res) - res->dl_count;
 			mylog("RowCount=%d\n", *pcrow);
 			return SQL_SUCCESS;
 		}
@@ -1417,7 +1417,7 @@ PGAPI_ExtendedFetch(
 	ConnInfo   *ci;
 	SQLLEN		currp;
 	UWORD		pstatus;
-	BOOL		currp_is_valid, reached_eof;
+	BOOL		currp_is_valid, reached_eof, useCursor;
 
 	mylog("%s: stmt=%p rowsetSize=%d\n", func, stmt, rowsetSize);
 
@@ -1487,9 +1487,10 @@ PGAPI_ExtendedFetch(
 	if (pcrow)
 		*pcrow = 0;
 
+	useCursor = (SC_is_fetchcursor(stmt) && NULL != QR_get_cursor(res));
 	num_tuples = QR_get_num_total_tuples(res);
 	reached_eof = QR_once_reached_eof(res) && QR_get_cursor(res);
-	if (SC_is_fetchcursor(stmt) && !reached_eof)
+	if (useCursor && !reached_eof)
 		num_tuples = INT_MAX;
 
 inolog("num_tuples=%d\n", num_tuples);
@@ -1713,7 +1714,7 @@ inolog("num_tuples=%d\n", num_tuples);
 	 */
 	if (!should_set_rowset_start)
 		rowset_start = SC_get_rowset_start(stmt);
-	if (SC_is_fetchcursor(stmt))
+	if (useCursor)
 	{
 		if (reached_eof &&
 		    rowset_start >= num_tuples)
@@ -1753,7 +1754,7 @@ inolog("num_tuples=%d\n", num_tuples);
 	/* currTuple is always 1 row prior to the rowset start */
 	stmt->currTuple = RowIdx2GIdx(-1, stmt);
 
-	if (SC_is_fetchcursor(stmt) ||
+	if (useCursor ||
 	    SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
 	{
 		move_cursor_position_if_needed(stmt, res);
@@ -1885,7 +1886,7 @@ inolog("just skipping deleted row %d\n", currp);
 	stmt->currTuple = RowIdx2GIdx(0, stmt);
 
 	/* For declare/fetch, need to reset cursor to beginning of rowset */
-	if (SC_is_fetchcursor(stmt))
+	if (useCursor)
 		QR_set_position(res, 0);
 
 	/* Set the number of rows retrieved */
