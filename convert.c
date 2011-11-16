@@ -2123,7 +2123,7 @@ do { \
 		buf[c++] = qp->statement[qp->opos++]; \
 	} \
 	if (qp->statement[qp->opos] == '\0') \
-		return SQL_ERROR; \
+		{retval = SQL_ERROR; goto cleanup;} \
 	buf[c] = '\0'; \
 } while (0)
 
@@ -2203,7 +2203,7 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
 	if (newpos >= qb->str_alsize) \
 	{ \
 		if (enlarge_query_statement(qb, newpos) <= 0) \
-			return SQL_ERROR; \
+			{retval = SQL_ERROR; goto cleanup;} \
 	}
 
 /*----------
@@ -2212,7 +2212,7 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
  */
 #define CVT_TERMINATE(qb) \
 do { \
-	if (NULL == qb->query_statement) return SQL_ERROR; \
+	if (NULL == qb->query_statement) {retval = SQL_ERROR; goto cleanup;} \
 	qb->query_statement[qb->npos] = '\0'; \
 } while (0)
 
@@ -2297,6 +2297,7 @@ static RETCODE
 QB_start_brace(QueryBuild *qb)
 {
 	BOOL	replace_by_parenthesis = TRUE;
+	RETCODE	retval = SQL_ERROR;
 
 	if (0 == qb->brace_level)
 	{
@@ -2311,13 +2312,16 @@ QB_start_brace(QueryBuild *qb)
 	if (replace_by_parenthesis)
 		CVT_APPEND_CHAR(qb, '(');
 	qb->brace_level++;
-	return SQL_SUCCESS;
+	retval = SQL_SUCCESS;
+cleanup:
+	return retval;
 }
 
 static RETCODE
 QB_end_brace(QueryBuild *qb)
 {
 	BOOL	replace_by_parenthesis = TRUE;
+	RETCODE	retval = SQL_ERROR;
 
 	if (qb->brace_level <= 1 &&
 	    !qb->parenthesize_the_first)
@@ -2325,7 +2329,9 @@ QB_end_brace(QueryBuild *qb)
 	if (replace_by_parenthesis)
 		CVT_APPEND_CHAR(qb, ')');
 	qb->brace_level--;
-	return SQL_SUCCESS;
+	retval = SQL_SUCCESS;
+cleanup:
+	return retval;
 }
 
 static RETCODE QB_append_space_to_separate_identifiers(QueryBuild *qb, const QueryParse *qp)
@@ -2333,6 +2339,7 @@ static RETCODE QB_append_space_to_separate_identifiers(QueryBuild *qb, const Que
 	unsigned char	tchar = F_OldChar(qp);
 	encoded_str	encstr;
 	BOOL		add_space = FALSE;
+	RETCODE		retval = SQL_ERROR;
 
 	if (ODBC_ESCAPE_END != tchar)
 		return SQL_SUCCESS;
@@ -2356,8 +2363,10 @@ static RETCODE QB_append_space_to_separate_identifiers(QueryBuild *qb, const Que
 	}
 	if (add_space)
 		CVT_APPEND_CHAR(qb, ' ');
+	retval = SQL_SUCCESS;
+cleanup:
 
-	return SQL_SUCCESS;
+	return retval;
 }
 
 /*----------
@@ -2540,7 +2549,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
 	CSTR func = "Prepare_and_convert";
 	char	*exe_statement = NULL;
-	int	retval;
+	RETCODE	retval;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	ConnInfo	*ci = &(conn->connInfo);
 	BOOL	discardOutput, outpara;
@@ -2585,7 +2594,8 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		{
 			SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT,
 				"The # of binded parameters < the # of parameter markers", func);
-			return SQL_ERROR;
+			retval = SQL_ERROR;
+			goto cleanup;
 		}
 		if (marker_count > 0)
 		{
@@ -2615,11 +2625,7 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 		{
 			retval = inner_process_tokens(qp, qb);
 			if (SQL_ERROR == retval)
-			{
-				QB_replace_SC_error(stmt, qb, func);
-				QB_Destructor(qb);
-				return retval;
-			}
+				goto cleanup;
 		}
 		CVT_APPEND_CHAR(qb, ';');
 		/* build the execute statement */
@@ -2650,25 +2656,31 @@ inolog("exe_statement=%s\n", exe_statement);
 	{
 		retval = inner_process_tokens(qp, qb);
 		if (SQL_ERROR == retval)
-		{
-			QB_replace_SC_error(stmt, qb, func);
-			if (exe_statement)
-			{
-				free(exe_statement);
-				stmt->execute_statement = NULL;
-			}
-			QB_Destructor(qb);
-			return retval;
-		}
+			goto cleanup;
 	}
 	/* make sure new_statement is always null-terminated */
 	CVT_TERMINATE(qb);
+	retval = SQL_SUCCESS;
 
-	if (exe_statement)
-		SC_set_concat_prepare_exec(stmt);
-	stmt->stmt_with_params = qb->query_statement;
-	qb->query_statement = NULL;
-	return SQL_SUCCESS;
+cleanup:
+	if (SQL_SUCCEEDED(retval))
+	{
+		if (exe_statement)
+			SC_set_concat_prepare_exec(stmt);
+		stmt->stmt_with_params = qb->query_statement;
+		qb->query_statement = NULL;
+	}
+	else
+	{
+		QB_replace_SC_error(stmt, qb, func);
+		if (exe_statement)
+		{
+			free(exe_statement);
+			stmt->execute_statement = NULL;
+		}
+		QB_Destructor(qb);
+	}
+	return retval;
 }
 
 #define		my_strchr(conn, s1,c1) pg_mbschr(conn->ccsc, s1,c1)
@@ -2927,7 +2939,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	if (bPrepConv)
 	{
 		retval = Prepare_and_convert(stmt, qp, qb);
-		return retval;
+		goto cleanup;
 	}
 	SC_forget_unnamed(stmt);
 	buildPrepareStatement = FALSE;
@@ -2937,7 +2949,10 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	if (prepare_dummy_cursor)
 		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
 	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
-		return SQL_ERROR;
+	{
+		retval = SQL_ERROR;
+		goto cleanup;
+	}
 	new_statement = qb->query_statement;
 
 	/* For selects, prepend a declare cursor to the statement */
@@ -3096,7 +3111,9 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	}
 
 	stmt->stmt_with_params = qb->query_statement;
-	return SQL_SUCCESS;
+	retval = SQL_SUCCESS;
+cleanup:
+	return retval;
 }
 
 static void
@@ -3583,7 +3600,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	if (SQL_SUCCESS_WITH_INFO == retval) /* means discarding output parameter */
 	{
 	}
-	return SQL_SUCCESS;
+	retval = SQL_SUCCESS;
+cleanup:
+	return retval;
 }
 
 #define	MIN_ALC_SIZE	128
@@ -3880,7 +3899,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	SQLLEN		used;
 	char		*buffer, *buf, *allocbuf, *lastadd = NULL;
 	OID		lobj_oid;
-	int		lobj_fd, retval;
+	int		lobj_fd;
 	SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 	size_t	current_row = qb->current_row, npos = 0;
 	BOOL	handling_large_object = FALSE, req_bind, add_quote = FALSE;
@@ -3893,6 +3912,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	SQL_INTERVAL_STRUCT	*ivstruct;
 	const char		*ivsign;
 #endif /* ODBCVER */
+	RETCODE	retval = SQL_ERROR;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
@@ -4372,7 +4392,8 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			qb->errormsg = "Unrecognized C_parameter type in copy_statement_with_parameters";
 			qb->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
 			CVT_TERMINATE(qb);	/* just in case */
-			return SQL_ERROR;
+			retval = SQL_ERROR;
+			goto cleanup;
 	}
 
 	/*
@@ -4395,7 +4416,8 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 		}
 		else
 			CVT_APPEND_STR(qb, "NULL");
-		return SQL_SUCCESS;
+		retval = SQL_SUCCESS;
+		goto cleanup;
 	}
 	if (!req_bind)
 	{
@@ -4557,7 +4579,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				default:
 					qb->errormsg = "Could not convert the ctype to binary type";
 					qb->errornumber = STMT_EXEC_ERROR;
-					return SQL_ERROR;
+					retval = SQL_ERROR;
+					goto cleanup;
 			}
 			if (param_pgtype == PG_TYPE_BYTEA)
 			{
@@ -4583,7 +4606,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			{
 				qb->errormsg = "Could not convert binary other than LO type";
 				qb->errornumber = STMT_EXEC_ERROR;
-				return SQL_ERROR;
+				retval = SQL_ERROR;
+				goto cleanup;
 			}
 
 			if (apara->data_at_exec)
@@ -4599,7 +4623,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 					{
 						qb->errormsg = "Could not begin (in-line) a transaction";
 						qb->errornumber = STMT_EXEC_ERROR;
-						return SQL_ERROR;
+						retval = SQL_ERROR;
+						goto cleanup;
 					}
 				}
 
@@ -4609,7 +4634,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldnt create (in-line) large object.";
-					return SQL_ERROR;
+					retval = SQL_ERROR;
+					goto cleanup;
 				}
 
 				/* store the fd */
@@ -4618,7 +4644,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldnt open (in-line) large object for writing.";
-					return SQL_ERROR;
+					retval = SQL_ERROR;
+					goto cleanup;
 				}
 
 				retval = odbc_lo_write(conn, lobj_fd, buffer, (Int4) used);
@@ -4632,7 +4659,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 					{
 						qb->errormsg = "Could not commit (in-line) a transaction";
 						qb->errornumber = STMT_EXEC_ERROR;
-						return SQL_ERROR;
+						retval = SQL_ERROR;
+						goto cleanup;
 					}
 				}
 			}
@@ -4704,15 +4732,17 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 		if (lastadd)
 			CVT_APPEND_STR(qb, lastadd);
 	}
-	if (allocbuf)
-		free(allocbuf);
 	if (req_bind)
 	{
 		UInt4	slen = htonl((UInt4) (qb->npos - npos - 4));
 
 		memcpy(qb->query_statement + npos, &slen, sizeof(slen));
 	}
-	return SQL_SUCCESS;
+	retval = SQL_SUCCESS;
+cleanup:
+	if (allocbuf)
+		free(allocbuf);
+	return retval;
 }
 
 
@@ -4847,6 +4877,9 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	char		buf[1024], buf_small[128], key[65];
 	UCHAR	ucv;
 	UInt4		prtlen;
+
+	QueryBuild	nqb;
+	BOOL	nqb_is_valid = FALSE;
  
 	if (F_OldChar(qp) == ODBC_ESCAPE_START) /* skip the first { */
 		F_OldNext(qp);
@@ -4925,7 +4958,10 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		const char *nextdel;
 
 		if (SQL_ERROR == QB_start_brace(qb))
-			return SQL_ERROR;
+		{
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		if (qb->num_io_params > 1 ||
 		    (0 == qb->proc_return &&
 		     PG_VERSION_GE(conn, 7.3)))
@@ -4938,7 +4974,10 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			CVT_APPEND_DATA(qb, F_OldPtr(qp), funclen);
 			CVT_APPEND_STR(qb, "()");
 			if (SQL_ERROR == QB_end_brace(qb))
-				return SQL_ERROR;
+			{
+				retval = SQL_ERROR;
+				goto cleanup;
+			}
 			/* positioned at } */
 			qp->opos += (nextdel - F_OldPtr(qp));
 		}
@@ -4986,7 +5025,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		retval = QB_start_brace(qb);
 		/* Continue at inner_process_tokens loop */
 		F_OldPrior(qp);
-		return retval;
+		goto cleanup;
 	}
 	else if (stricmp(key, "escape") == 0) /* like escape syntax support for 7.1+ servers */
 	{
@@ -4998,7 +5037,6 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	}
 	else if (stricmp(key, "fn") == 0)
 	{
-		QueryBuild	nqb;
 		const char *mapExpr;
 		int	i, param_count;
 		SQLLEN	from, to;
@@ -5026,7 +5064,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		if (F_OldChar(qp) != '(')
 		{
 			CVT_APPEND_STR(qb, key);
-			return SQL_SUCCESS;
+			goto cleanup;
 		}
 
 		/*
@@ -5036,12 +5074,12 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		 */
 
 		QB_initialize_copy(&nqb, qb, 1024);
+		nqb_is_valid = TRUE;
 		if (retval = processParameters(qp, &nqb, &param_consumed, param_pos), retval == SQL_ERROR)
 		{
 			qb->errornumber = nqb.errornumber;
 			qb->errormsg = nqb.errormsg;
-			QB_Destructor(&nqb);
-			return retval;
+			goto cleanup;
 		}
 
 		for (param_count = 0;; param_count++)
@@ -5183,14 +5221,16 @@ mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 			qb->param_number = nqb.param_number;
 			qb->flags = nqb.flags;
 		}
-		QB_Destructor(&nqb);
 	}
 	else
 	{
 		/* Bogus key, leave untranslated */
-		return SQL_ERROR;
+		retval = SQL_ERROR;
 	}
  
+cleanup:
+	if (nqb_is_valid)
+		QB_Destructor(&nqb);
 	return retval;
 }
 
