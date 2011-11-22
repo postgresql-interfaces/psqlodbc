@@ -559,6 +559,30 @@ CC_set_autocommit(ConnectionClass *self, BOOL on)
 	return on;
 }
 
+/* Clear cached table info */
+static void
+CC_clear_col_info(ConnectionClass *self, BOOL destroy)
+{
+	if (self->col_info)
+	{
+		int	i;
+
+		for (i = 0; i < self->ntables; i++)
+		{
+			free_col_info_contents(self->col_info[i]);
+			free(self->col_info[i]);
+			self->col_info[i] = NULL;
+		}
+		self->ntables = 0;
+		if (destroy)
+		{
+			free(self->col_info);
+			self->col_info = NULL;
+			self->coli_allocated = 0;
+		}
+	}
+}
+
 /* This is called by SQLDisconnect also */
 char
 CC_cleanup(ConnectionClass *self)
@@ -646,22 +670,7 @@ CC_cleanup(ConnectionClass *self)
 	}
 	reset_current_schema(self);
 	/* Free cached table info */
-	if (self->col_info)
-	{
-		for (i = 0; i < self->ntables; i++)
-		{
-			if (self->col_info[i]->result)	/* Free the SQLColumns result structure */
-				QR_Destructor(self->col_info[i]->result);
-
-			NULL_THE_NAME(self->col_info[i]->schema_name);
-			NULL_THE_NAME(self->col_info[i]->table_name);
-			free(self->col_info[i]);
-		}
-		free(self->col_info);
-		self->col_info = NULL;
-	}
-	self->ntables = 0;
-	self->coli_allocated = 0;
+	CC_clear_col_info(self, TRUE);
 	if (self->num_discardp > 0 && self->discardp)
 	{
 		for (i = 0; i < self->num_discardp; i++)
@@ -736,12 +745,12 @@ inolog("md5 pwd=%s user=%s salt=%02x%02x%02x%02x%02x\n", ci->password, ci->usern
 	{
 		free(pwd1);
 		return 1;
-	} 
+	}
 	if (!(pwd2 = malloc(MD5_PASSWD_LEN + 1)))
 	{
 		free(pwd1);
 		return 1;
-	} 
+	}
 	if (!EncryptMD5(pwd1 + strlen("md5"), salt, 4, pwd2))
 	{
 		free(pwd2);
@@ -1176,7 +1185,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	memcpy(ppacket, &pversion, sizeof(pversion));
 	ppacket += sizeof(pversion);
 	for (i = 0; i < cnt; i++)
-	{ 
+	{
 		strcpy(ppacket, opts[i]);
 		ppacket += (strlen(opts[i]) + 1);
 		strcpy(ppacket, vals[i]);
@@ -1231,7 +1240,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	mylog("sizeof connectdb option = %d\n", slen);
 
 	for (i = 0, ppacket = conninfo; i < cnt; i++)
-	{ 
+	{
 		sprintf(ppacket, " %s=", opts[i]);
 		ppacket += (strlen(opts[i]) + 2);
 		blankExist = FALSE;
@@ -2624,7 +2633,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			CC_set_error(self, CONN_EXEC_ERROR, "error occured while calling SyncParseRequest() in CC_send_query_append()", func);
 			return NULL;
 		}
-	}	
+	}
 	/* Indicate that we are sending a query to the backend */
 	maxlen = CC_get_max_query_len(self);
 	qrylen = strlen(query);
@@ -2823,7 +2832,7 @@ inolog("send_query response_length=%d\n", response_length);
 					{
 						res->next = QR_Constructor();
 						res = res->next;
-					} 
+					}
 
 					mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 
@@ -2854,6 +2863,14 @@ inolog("Discarded the first SAVEPOINT\n");
 						else
 							CC_on_abort(self, NO_TRANS);
 					}
+					/*
+					 *	DROP TABLE or ALTER TABLE may change
+					 *	the table definition. So clear the
+					 *	col_info cache though it may be too simple.
+					 */
+					else if (strnicmp(cmdbuffer, "DROP TABLE", 10) == 0 ||
+						 strnicmp(cmdbuffer, "ALTER TABLE", 11) == 0)
+						CC_clear_col_info(self, FALSE);
 					else
 					{
 						ptr = strrchr(cmdbuffer, ' ');
@@ -3036,9 +3053,9 @@ mylog("get copydata len=%d %02x%02x\n", len, ((UCHAR *) buf)[0], ((UCHAR *) buf)
 					{
 						buf[len - 1] = '\0';
 						len--;
-					} 
+					}
 					else
-					{ 
+					{
 						if (len >= alsize - 1)
 						{
 							if (tmpbuf = realloc(buf, alsize * 2), NULL == tmpbuf)
@@ -3280,7 +3297,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 			CC_set_error(self, CONN_EXEC_ERROR, "error occured while calling SyncParseRequest() in CC_send_function()", func);
 			return FALSE;
 		}
-	}	
+	}
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(self, func_cs_count);
 	ci = &(self->connInfo);
