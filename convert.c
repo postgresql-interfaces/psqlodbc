@@ -142,7 +142,10 @@ char	   *mapFuncs[][2] = {
 
 static const char *mapFunction(const char *func, int param_count);
 static int conv_from_octal(const UCHAR *s);
-static SQLLEN pg_bin2hex(UCHAR *src, UCHAR *dst, SQLLEN length);
+static SQLLEN pg_bin2hex(const UCHAR *src, UCHAR *dst, SQLLEN length);
+#ifdef	UNICODE_SUPPORT
+static SQLLEN pg_bin2whex(const UCHAR *src, SQLWCHAR *dst, SQLLEN length);
+#endif /* UNICODE_SUPPORT */
 
 /*---------
  *			A Guide for date/time/timestamp conversions
@@ -1133,6 +1136,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 	{
 		/* Special character formatting as required */
 
+		BOOL	hex_bin_format = FALSE;
 		/*
 		 * These really should return error if cbValueMax is not big
 		 * enough.
@@ -1209,7 +1213,14 @@ inolog("2stime fr=%d\n", std_time.fr);
 					case PG_TYPE_FLOAT4:
 					case PG_TYPE_FLOAT8:
 					case PG_TYPE_NUMERIC:
-						set_client_decimal_point(neut_str);
+						set_client_decimal_point((char *) neut_str);
+						break;
+					case PG_TYPE_BYTEA:
+						if (0 == strnicmp(neut_str, "\\x", 2))
+						{
+							hex_bin_format = TRUE;
+							neut_str += 2;
+						}
 						break;
 				}
 
@@ -1227,6 +1238,22 @@ inolog("2stime fr=%d\n", std_time.fr);
 				if (pgdc->data_left < 0)
 				{
 					BOOL lf_conv = conn->connInfo.lf_conversion;
+					if (PG_TYPE_BYTEA == field_type)
+					{
+						if (hex_bin_format)
+							len = strlen(neut_str);
+						else
+						{
+							len = convert_from_pgbinary(neut_str, NULL, 0);
+							len *= 2;
+						}
+						changed = TRUE;
+#ifdef	UNICODE_SUPPORT
+						if (fCType == SQL_C_WCHAR)
+							len *= WCLEN;
+#endif /* UNICODE_SUPPORT */
+					}
+					else
 #ifdef	UNICODE_SUPPORT
 					if (fCType == SQL_C_WCHAR)
 					{
@@ -1236,13 +1263,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 					}
 					else
 #endif /* UNICODE_SUPPORT */
-					if (PG_TYPE_BYTEA == field_type)
-					{
-						len = convert_from_pgbinary(neut_str, NULL, 0);
-						len *= 2;
-						changed = TRUE;
-					}
-					else
 #ifdef	WIN_UNICODE_SUPPORT
 					if (localize_needed)
 					{
@@ -1291,15 +1311,28 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 						if (fCType == SQL_C_WCHAR)
 						{
-							utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
+							if (PG_TYPE_BYTEA == field_type && !hex_bin_format)
+							{
+								len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+								len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
+							}
+							else
+								utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
 						}
 						else
 #endif /* UNICODE_SUPPORT */
 						if (PG_TYPE_BYTEA == field_type)
 						{
-							len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
-							pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
-							len *= 2; 
+							if (hex_bin_format)
+							{
+								len = strlen(neut_str);
+								strncpy_null(pgdc->ttlbuf, neut_str, pgdc->ttlbuflen);
+							}
+							else
+							{
+								len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+								len = pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
+							} 
 						}
 						else
 #ifdef	WIN_UNICODE_SUPPORT
@@ -1531,7 +1564,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_FLOAT:
-				set_client_decimal_point(neut_str);
+				set_client_decimal_point((char *) neut_str);
 				len = 4;
 				if (bind_size > 0)
 					*((SFLOAT *) rgbValueBindRow) = (float) get_double_value(neut_str);
@@ -1540,7 +1573,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_DOUBLE:
-				set_client_decimal_point(neut_str);
+				set_client_decimal_point((char *) neut_str);
 				len = 8;
 				if (bind_size > 0)
 					*((SDOUBLE *) rgbValueBindRow) = get_double_value(neut_str);
@@ -1938,6 +1971,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_DISCARD_OUTPUT	(1L << 8)
 #define	FLGB_BINARY_AS_POSSIBLE	(1L << 9)
 #define	FLGB_LITERAL_EXTENSION	(1L << 10)
+#define	FLGB_HEX_BIN_FORMAT	(1L << 11)
 typedef struct _QueryBuild {
 	char	*query_statement;
 	size_t	str_size_limit;
@@ -2015,6 +2049,8 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 	if (CC_get_escape(qb->conn) &&
 	    PG_VERSION_GE(qb->conn, 8.1))
 		qb->flags |= FLGB_LITERAL_EXTENSION;
+	if (PG_VERSION_GE(qb->conn, 9.0))
+		qb->flags |= FLGB_HEX_BIN_FORMAT;
 		
 	if (stmt)
 		qb->str_size_limit = stmt->stmt_size_limit;
@@ -2256,7 +2292,7 @@ do { \
  */
 #define CVT_APPEND_BINARY(qb, buf, used) \
 do { \
-	size_t	newlimit = qb->npos + 5 * used; \
+	size_t	newlimit = qb->npos + ((qb->flags & FLGB_HEX_BIN_FORMAT) ? 2 * used + 4 : 5 * used); \
 	ENLARGE_NEWSTATEMENT(qb, newlimit); \
 	qb->npos += convert_to_pgbinary(buf, &qb->query_statement[qb->npos], used, qb); \
 } while (0)
@@ -4562,6 +4598,9 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				case SQL_C_BINARY:
 					break;
 				case SQL_C_CHAR:
+#ifdef	UNICODE_SUPPORT
+				case SQL_C_WCHAR:
+#endif /* UNICODE_SUPPORT */
 					switch (used)
 					{
 						case SQL_NTS:
@@ -5646,6 +5685,16 @@ convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
 	char	escape_in_literal = CC_get_escape(qb->conn);
 	BOOL	esc_double = (0 == (qb->flags & FLGB_BUILDING_BIND_REQUEST) && 0 != escape_in_literal);
 
+	/* use hex format for 9.0 or later servers */
+	if (0 != (qb->flags & FLGB_HEX_BIN_FORMAT))
+	{
+		if (esc_double)
+			out[o++] = escape_in_literal;
+		out[o++] = '\\';
+		out[o++] = 'x';
+		o += pg_bin2hex(in, (UCHAR *) out + o, len);
+		return o;
+	}
 	for (i = 0; i < len; i++)
 	{
 		inc = in[i];
@@ -5673,44 +5722,52 @@ convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
 
 
 static const char *hextbl = "0123456789ABCDEF";
-static SQLLEN
-pg_bin2hex(UCHAR *src, UCHAR *dst, SQLLEN length)
-{
-	UCHAR		chr,
-			   *src_wk,
-			   *dst_wk;
-	BOOL		backwards;
-	int			i;
 
-	backwards = FALSE;
-	if (dst < src)
-	{
-		if (dst + length > src + 1)
-			return -1;
-	}
-	else if (dst < src + length)
-		backwards = TRUE;
-	if (backwards)
-	{
-		for (i = 0, src_wk = src + length - 1, dst_wk = dst + 2 * length - 1; i < length; i++, src_wk--)
-		{
-			chr = *src_wk;
-			*dst_wk-- = hextbl[chr % 16];
-			*dst_wk-- = hextbl[chr >> 4];
-		}
-	}
-	else
-	{
-		for (i = 0, src_wk = src, dst_wk = dst; i < length; i++, src_wk++)
-		{
-			chr = *src_wk;
-			*dst_wk++ = hextbl[chr >> 4];
-			*dst_wk++ = hextbl[chr % 16];
-		}
-	}
-	dst[2 * length] = '\0';
-	return length;
+#define	def_bin2hex(type) \
+	(const UCHAR *src, type *dst, SQLLEN length) \
+{ \
+	const UCHAR	*src_wk; \
+	UCHAR		chr; \
+	type		*dst_wk; \
+	BOOL		backwards; \
+	int		i; \
+ \
+	backwards = FALSE; \
+	if ((UCHAR *)dst < src) \
+	{ \
+		if ((UCHAR *) (dst + 2 * (length - 1)) > src + length - 1) \
+			return -1; \
+	} \
+	else if ((UCHAR *) dst < src + length) \
+		backwards = TRUE; \
+	if (backwards) \
+	{ \
+		for (i = 0, src_wk = src + length - 1, dst_wk = dst + 2 * length - 1; i < length; i++, src_wk--) \
+		{ \
+			chr = *src_wk; \
+			*dst_wk-- = hextbl[chr % 16]; \
+			*dst_wk-- = hextbl[chr >> 4]; \
+		} \
+	} \
+	else \
+	{ \
+		for (i = 0, src_wk = src, dst_wk = dst; i < length; i++, src_wk++) \
+		{ \
+			chr = *src_wk; \
+			*dst_wk++ = hextbl[chr >> 4]; \
+			*dst_wk++ = hextbl[chr % 16]; \
+		} \
+	} \
+	dst[2 * length] = '\0'; \
+	return 2 * length * sizeof(type); \
 }
+#ifdef	UNICODE_SUPPORT
+static SQLLEN
+pg_bin2whex def_bin2hex(SQLWCHAR)
+#endif /* UNICODE_SUPPORT */
+
+static SQLLEN
+pg_bin2hex def_bin2hex(UCHAR)
 
 SQLLEN
 pg_hex2bin(const UCHAR *src, UCHAR *dst, SQLLEN length)
