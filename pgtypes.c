@@ -474,18 +474,34 @@ getIntervalColumnSize(OID type, int atttypmod)
 #if (ODBCVER >= 0x0300)
 	switch (get_interval_type(atttypmod, NULL))
 	{
+		case 0:
+			ttl = 25;
+			break;
+		case SQL_INTERVAL_YEAR:
+			ttl = 16;
+			break;
+		case SQL_INTERVAL_MONTH:
+			ttl = 16;
+			break;
+		case SQL_INTERVAL_DAY:
+			ttl = 16;
+			break;
 		case SQL_INTERVAL_DAY_TO_SECOND:
-			ttl += 9;
+		case SQL_INTERVAL_DAY_TO_MINUTE:
+		case SQL_INTERVAL_DAY_TO_HOUR:
+			ttl = 25;
 			break;
 		case SQL_INTERVAL_HOUR_TO_SECOND:
-		case SQL_INTERVAL_DAY_TO_MINUTE:
-			ttl += 6;
+		case SQL_INTERVAL_HOUR_TO_MINUTE:
+		case SQL_INTERVAL_HOUR:
+			ttl = 17;
 			break;
 		case SQL_INTERVAL_MINUTE_TO_SECOND:
-		case SQL_INTERVAL_HOUR_TO_MINUTE:
-		case SQL_INTERVAL_DAY_TO_HOUR:
+		case SQL_INTERVAL_MINUTE:
+			ttl = 15;
+			break;
 		case SQL_INTERVAL_YEAR_TO_MONTH:
-			ttl += 3;
+			ttl = 24;
 			break;
 	}
 #else

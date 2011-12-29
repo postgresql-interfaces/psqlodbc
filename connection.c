@@ -566,12 +566,21 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 	if (self->col_info)
 	{
 		int	i;
+		COL_INFO	*coli;
 
 		for (i = 0; i < self->ntables; i++)
 		{
-			free_col_info_contents(self->col_info[i]);
-			free(self->col_info[i]);
-			self->col_info[i] = NULL;
+			if (coli = self->col_info[i], NULL != coli)
+			{
+				if (destroy || coli->refcnt == 0) 
+				{
+					free_col_info_contents(coli);
+					free(coli);
+					self->col_info[i] = NULL;
+				}
+				else
+					coli->acc_time = 0;
+			}
 		}
 		self->ntables = 0;
 		if (destroy)
@@ -1647,7 +1656,9 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 		BOOL		beforeV2 = PG_VERSION_LT(self, 6.4),
 					ReadyForQuery = FALSE, retry = FALSE;
 		uint32	leng = 0;
+#if defined(USE_GSS) || defined(USE_SSPI) || defined(USE_KRB5)
 		int	authRet;
+#endif
 
 		do
 		{
