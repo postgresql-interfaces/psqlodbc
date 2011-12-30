@@ -19,6 +19,8 @@ Changes:<br>
 6.) Before dropping the statement, sync and discard the response from the server for the pending extended query.<br>
 7.) Clear col_info(columns info) cache ehen DROP/ALTER TABLE is called so that later SQLDescribeCol() etc work properly.<br>
 8.) Improve the handling of BYTEA type.<br>
+9.) Don't clear the columns cache info when they are referenced.<br>
+10.) Correct the column size of interval types.<br>
 <br>
 <li>Notes: psqlODBC 09.00.0310</li><br>
 Changes:<br>
