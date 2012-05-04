@@ -3937,7 +3937,8 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	OID		lobj_oid;
 	int		lobj_fd;
 	SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-	size_t	current_row = qb->current_row, npos = 0;
+	size_t	current_row = qb->current_row;
+	int	npos = 0;
 	BOOL	handling_large_object = FALSE, req_bind, add_quote = FALSE;
 	ParameterInfoClass	*apara;
 	ParameterImplClass	*ipara;
