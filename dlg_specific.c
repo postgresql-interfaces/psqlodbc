@@ -1443,7 +1443,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		SQLGetPrivateProfileString(section, INI_PROTOCOL, "@@@",
 								   temp, sizeof(temp), filename);
 		if (strcmp(temp, "@@@"))
-			strcpy(comval->protocol, temp);
+			strncpy_null(comval->protocol, temp, sizeof(comval->protocol));
 		else
 			strcpy(comval->protocol, DEFAULT_PROTOCOL);
 	}

@@ -1422,6 +1422,7 @@ inolog("IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 			{
 				case SQL_TYPE_DATE:
 					ival = SQL_CODE_DATE;
+					break;
 				case SQL_TYPE_TIME:
 					ival = SQL_CODE_TIME;
 					break;
@@ -1713,6 +1714,11 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			conn->connInfo.use_server_side_prepare = CAST_UPTR(SQLCHAR, Value);
 			qlog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			mylog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
+			break;
+		case SQL_ATTR_PGOPT_FETCH:
+			conn->connInfo.drivers.fetch_max = CAST_UPTR(SQLINTEGER, Value);
+			qlog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
+			mylog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			break;
 		default:
 			ret = PGAPI_SetConnectOption(ConnectionHandle, (SQLUSMALLINT) Attribute, (SQLLEN) Value);
