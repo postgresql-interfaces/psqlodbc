@@ -80,6 +80,7 @@
 #define PG_TYPE_UUID			2950
 #define INTERNAL_ASIS_TYPE		(-9999)
 
+#define TYPE_MAY_BE_ARRAY(type) ((type) == PG_TYPE_XMLARRAY || ((type) >= 1000 && (type) <= 1041)) 
 /* extern Int4 pgtypes_defined[]; */
 extern SQLSMALLINT sqlTypes[];
 

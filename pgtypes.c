@@ -310,6 +310,12 @@ inolog("!!! catalog_result=%d\n", handle_unknown_size_as);
 			return adtsize_or_longestlen;
 		return maxsize;
 	}
+	if (TYPE_MAY_BE_ARRAY(type))
+	{
+		if (adtsize_or_longestlen > 0)
+			return adtsize_or_longestlen;
+		return maxsize;
+	}
 
 inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 	p = adtsize_or_longestlen; /* longest */
@@ -1618,6 +1624,7 @@ getNumericColumnSize(const StatementClass *stmt, OID type, int col)
 	}
 }
 
+#ifdef NOT_USED
 Int4
 getCharColumnSize(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
@@ -1737,6 +1744,7 @@ getCharColumnSize(const StatementClass *stmt, OID type, int col, int handle_unkn
 		maxsize = p;
 	return maxsize;
 }
+#endif /* NOT_USED */
 
 static SQLSMALLINT
 getTimestampDecimalDigits(const StatementClass *stmt, OID type, int col)
