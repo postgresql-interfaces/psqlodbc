@@ -12,9 +12,11 @@
  *-------
  */
 
+#ifdef	WIN_MULTITHREAD_SUPPORT
 #ifndef	_WIN32_WINNT
 #define	_WIN32_WINNT	0x0400
 #endif /* _WIN32_WINNT */
+#endif /* WIN_MULTITHREAD_SUPPORT */
 
 #include "statement.h"
 
@@ -583,7 +585,7 @@ inolog("%p->SC_set_rowstart " FORMAT_LEN "->" FORMAT_LEN "(%s) ", stmt, stmt->ro
 	if (res != NULL)
 	{
 		BOOL	valid = QR_has_valid_base(res);
-inolog(":QR is %s", QR_has_valid_base(res) ? "valid" : "unknown");
+inolog(":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
 
 		if (valid)
 		{
@@ -602,7 +604,7 @@ inolog(":QR is %s", QR_has_valid_base(res) ? "valid" : "unknown");
 		}
 		if (!QR_get_cursor(res))
 			res->key_base = start;
-inolog(":QR result=" FORMAT_LEN "(%s)", QR_get_rowstart_in_cache(res), QR_has_valid_base(res) ? "valid" : "unknown");
+inolog(":(%p)QR result=" FORMAT_LEN "(%s)", res, QR_get_rowstart_in_cache(res), QR_has_valid_base(res) ? "valid" : "unknown");
 	}
 	stmt->rowset_start = start;
 inolog(":stmt result=" FORMAT_LEN "\n", stmt->rowset_start);
@@ -1731,7 +1733,7 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 			else
 			{
 				SQLLEN	curt = GIdx2CacheIdx(self->currTuple, self, res);
-inolog("base=%d curr=%d st=%d\n", QR_get_rowstart_in_cache(res), self->currTuple, SC_get_rowset_start(self));
+inolog("%p->base=%d curr=%d st=%d valid=%d\n", res, QR_get_rowstart_in_cache(res), self->currTuple, SC_get_rowset_start(self), QR_has_valid_base(res));
 inolog("curt=%d\n", curt);
 				value = QR_get_value_backend_row(res, curt, lf);
 			}

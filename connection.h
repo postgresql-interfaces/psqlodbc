@@ -174,7 +174,7 @@ do { \
 #else
 #define INIT_CONN_CS(x)	
 #define INIT_CONNLOCK(x)	
-#define TRY_ENTER_CONN_CS(x)
+#define TRY_ENTER_CONN_CS(x)	(1)
 #define ENTER_CONN_CS(x)
 #define CONNLOCK_ACQUIRE(x)
 #define ENTER_INNER_CONN_CS(x, entered)
