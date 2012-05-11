@@ -1016,6 +1016,7 @@ inolog("fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 				mylog("FOUND col_info table=%ul\n", greloid);
 				found = TRUE;
 				wti->col_info = conn->col_info[colidx];
+				wti->col_info->refcnt++;
 				break;
 			}
 		}
