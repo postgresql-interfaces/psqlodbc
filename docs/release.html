@@ -9,7 +9,19 @@
   
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 09.01.0100 Release</h2>
+<h2>psqlODBC 09.xx.xxxx Release</h2>
+Changes:<br>
+1.) Use int instead of size_t when condition >=0 is used.<br>
+2.) Add a necessary break in a switch statement etc.<br>
+3.) Fix missing constant(SQL_ATTR_PGOPT_FETCH).<br>
+4.) Fix a bug about reference count handling for columns info (Bug report by B.Goebel).<br>
+5.) Improve the handling of ARRAY type.<br>
+6.) Fix a compilation error etc when MULTITHREAD support is disabled.<br>
+7.) Don't discard the result of unnamed statements for later SQLDescribeCol or SQLColAttribute calls.(Bug report by Alexandre).<br>
+8.) Set rowstart_in_cache properly when closing eof cursors.(Bug report by Alexandre).<br>
+9.) Remove columns info of dropped tables ASAP.<br>
+<br>
+<li>Notes: psqlODBC 09.01.0100</li><br>
 Changes:<br>
 1.) SQLStatistics() sets 'D' for the collation column when an reverse index is used.<br>
 2.) Fix the bug that PostgreSQL's function calls in queries cause a crash on SQL Server linked servers.<br>
