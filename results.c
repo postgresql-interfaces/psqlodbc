@@ -1754,7 +1754,7 @@ inolog("num_tuples=%d\n", num_tuples);
 	/* currTuple is always 1 row prior to the rowset start */
 	stmt->currTuple = RowIdx2GIdx(-1, stmt);
 
-	if (useCursor ||
+	if (SC_is_fetchcursor(stmt) ||
 	    SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
 	{
 		move_cursor_position_if_needed(stmt, res);

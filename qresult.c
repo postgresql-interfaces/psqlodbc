@@ -695,6 +695,7 @@ QR_close(QResultClass *self)
 		self->cursTuple = -1;
 
 		QR_set_cursor(self, NULL);
+		QR_set_has_valid_base(self);
 		if (!ret)
 			return ret;
 
@@ -1217,7 +1218,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				self->next = QR_Constructor();
 				if (!self->next)
 				{
-					CC_set_error(conn, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
+					CC_set_error(conn, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in QR_next_tuple.", func);
 					CC_on_abort(conn, CONN_DEAD);
 					return FALSE;
 				}

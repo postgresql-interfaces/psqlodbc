@@ -440,7 +440,7 @@ do { \
 	if (PREPARED_TEMPORARILY == (a)->prepared) \
 	{ \
 		SC_set_prepared(a, ONCE_DESCRIBED); \
-		if (!SC_IsExecuting((a))) \
+		if (FALSE && !SC_IsExecuting((a))) \
 		{ \
 			QResultClass	*res = SC_get_Curres((a)); \
 			if (NULL != res && !res->dataFilled && !QR_is_fetching_tuples(res)) \
