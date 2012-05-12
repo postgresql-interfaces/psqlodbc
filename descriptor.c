@@ -15,6 +15,7 @@
 #include "connection.h"
 #include "descriptor.h"
 #include "statement.h"
+#include "qresult.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -54,6 +55,8 @@ inolog("TI_Destructor count=%d\n", count);
 				{
 mylog("!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 					coli->refcnt--;
+					if (coli->refcnt <= 0 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
+						free_col_info_contents(coli);
 				}
 				NULL_THE_NAME(ti[i]->schema_name);
 				NULL_THE_NAME(ti[i]->table_name);
