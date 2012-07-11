@@ -2783,7 +2783,7 @@ PGAPI_SpecialColumns(
 	if (!escTableName)
 	{
 		SC_set_error(stmt, STMT_INVALID_NULL_ARG, "The table name is required", func);
-		return result;
+		return SQL_ERROR;
 	}
 #define	return	DONT_CALL_RETURN_FROM_HERE???
  
