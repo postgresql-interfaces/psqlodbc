@@ -20,6 +20,7 @@ Changes:<br>
 7.) Don't discard the result of unnamed statements for later SQLDescribeCol or SQLColAttribute calls.(Bug report by Alexandre).<br>
 8.) Set rowstart_in_cache properly when closing eof cursors.(Bug report by Alexandre).<br>
 9.) Remove columns info of dropped tables ASAP.<br>
+10.) Fix the bug which causes a segfault in SQLSpecialColumns when table name is null string (bug report by Terrence Enger).<br>
 <br>
 <li>Notes: psqlODBC 09.01.0100</li><br>
 Changes:<br>
