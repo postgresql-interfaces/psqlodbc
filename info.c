@@ -2379,7 +2379,9 @@ retry_public_schema:
 		if (!relisaview &&
 			relhasoids &&
 			(atoi(ci->show_oid_column) ||
-			 strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0))
+			 strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0) &&
+			(NULL == escColumnName ||
+			 0 == strcmp(escColumnName, OID_NAME)))
 		{
 			/* For OID fields */
 			the_type = PG_TYPE_OID;
