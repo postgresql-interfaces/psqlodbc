@@ -1405,7 +1405,7 @@ static char *MakePrincHint(ConnInfo *ci, BOOL sspi)
 mylog("!!! %s settings=%s svcname=%p\n", __FUNCTION__, ci->conn_settings, svcname);
 	if (svcname)
 		attrFound = TRUE;
-	else
+	else if (svcname = getenv("PGKRBSRVNAME"), NULL == svcname)
 		svcname = "postgres";
 	len = strlen(svcname) + 1 + strlen(ci->server) + 1;
 	if (NULL != (svcprinc = malloc(len)))
