@@ -2,7 +2,7 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.57 2010/10/15 16:59:41 h-saito Exp $
+# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.58 2012/08/16 12:58:15 h-saito Exp $
 #
 #-------------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 
 
 EXTRA_DIST = license.txt readme.txt \
-	libtool.m4 psqlodbc.def psqlodbca.def \
+	psqlodbc.def psqlodbca.def \
 	pgenlist.def  pgenlista.def \
 	dlg_wingui.c inouealc.c win_setup.h \
         setup.c win_unicode.c psqlodbc.rc win64.mak \
