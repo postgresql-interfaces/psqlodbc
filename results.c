@@ -35,6 +35,7 @@
 
 /*	Helper macro */
 #define getEffectiveOid(conn, fi) pg_true_type((conn), (fi)->columntype, FI_type(fi))
+#define	NULL_IF_NULL(a) ((a) ? ((const char *)(a)) : "(null)")
 
 
 RETCODE		SQL_API
@@ -227,7 +228,7 @@ PGAPI_DescribeCol(
 	ConnectionClass *conn;
 	IRDFields	*irdflds;
 	QResultClass	*res = NULL;
-	char	   *col_name = NULL;
+	char	   	*col_name = NULL;
 	OID		fieldtype = 0;
 	SQLLEN		column_size = 0;
 	SQLINTEGER	decimal_digits = 0;
@@ -345,7 +346,7 @@ inolog("answering bookmark info\n");
 		column_size = fi->column_size;
 		decimal_digits = fi->decimal_digits;
 
-		mylog("PARSE: fieldtype=%d, col_name='%s', column_size=%d\n", fieldtype, col_name, column_size);
+		mylog("PARSE: fieldtype=%d, col_name='%s', column_size=%d\n", fieldtype, NULL_IF_NULL(col_name), column_size);
 	}		
 	else
 	{
@@ -357,7 +358,7 @@ inolog("answering bookmark info\n");
 		decimal_digits = pgtype_decimal_digits(stmt, fieldtype, icol);
 	}
 
-	mylog("describeCol: col %d fieldname = '%s'\n", icol, col_name);
+	mylog("describeCol: col %d fieldname = '%s'\n", icol, NULL_IF_NULL(col_name));
 	mylog("describeCol: col %d fieldtype = %d\n", icol, fieldtype);
 	mylog("describeCol: col %d column_size = %d\n", icol, column_size);
 
@@ -366,14 +367,17 @@ inolog("answering bookmark info\n");
 	/*
 	 * COLUMN NAME
 	 */
-	len = (int) strlen(col_name);
+	len = col_name ? (int) strlen(col_name) : 0;
 
 	if (pcbColName)
 		*pcbColName = len;
 
 	if (szColName && cbColNameMax > 0)
 	{
-		strncpy_null(szColName, col_name, cbColNameMax);
+		if (NULL != col_name)
+			strncpy_null(szColName, col_name, cbColNameMax);
+		else
+			szColName[0] = '\0';
 
 		if (len >= cbColNameMax)
 		{
@@ -1021,7 +1025,7 @@ inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", target_type);
 			SQLLEN	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
 			value = QR_get_value_backend_row(res, curt, icol);
 inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt)); 
-			mylog("     value = '%s'\n", value ? value : "(null)");
+			mylog("     value = '%s'\n", NULL_IF_NULL(value));
 		}
 	}
 	else
@@ -1040,7 +1044,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 			SQLLEN	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
 			value = QR_get_value_backend_row(res, curt, icol);
 		}
-		mylog("  socket: value = '%s'\n", value ? value : "(null)");
+		mylog("  socket: value = '%s'\n", NULL_IF_NULL(value));
 	}
 
 	if (get_bookmark)
@@ -1071,7 +1075,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 	field_type = QR_get_field_type(res, icol);
 	atttypmod = QR_get_atttypmod(res, icol);
 
-	mylog("**** %s: icol = %d, target_type = %d, field_type = %d, value = '%s'\n", func, icol, target_type, field_type, value ? value : "(null)");
+	mylog("**** %s: icol = %d, target_type = %d, field_type = %d, value = '%s'\n", func, icol, target_type, field_type, NULL_IF_NULL(value));
 
 	SC_set_current_col(stmt, icol);
 
