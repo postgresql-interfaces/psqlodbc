@@ -5591,7 +5591,6 @@ convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValueMax)
 	size_t		i,
 				ilen = strlen(value);
 	size_t			o = 0;
-	BOOL		hexmode = FALSE;
 
 	for (i = 0; i < ilen;)
 	{
@@ -5601,36 +5600,38 @@ convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValueMax)
 			{
 				if (rgbValue)
 					rgbValue[o] = value[i];
+				o++;
 				i += 2;
 			}
 			else if (value[i + 1] == 'x')
 			{
-				hexmode = TRUE;
 				i += 2;
+				if (i < ilen)
+				{
+					ilen -= i;
+					if (rgbValue)
+						pg_hex2bin(value + i, rgbValue + o, ilen);
+					o += ilen / 2;
+				}
+				break;
 			}
 			else
 			{
 				if (rgbValue)
 					rgbValue[o] = conv_from_octal(&value[i]);
+				o++;
 				i += 4;
 			}
-		}
-		else if (hexmode)
-		{
-			if (rgbValue)
-				pg_hex2bin(value + i, rgbValue, ilen - 2);
-			o = (ilen - 2) / 2;
-			break;
 		}
 		else
 		{
 			if (rgbValue)
 				rgbValue[o] = value[i];
+			o++;
 			i++;
 		}
 		/** if (rgbValue)
 			mylog("convert_from_pgbinary: i=%d, rgbValue[%d] = %d, %c\n", i, o, rgbValue[o], rgbValue[o]); ***/
-		o++;
 	}
 
 	if (rgbValue)
