@@ -1392,7 +1392,14 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 			mylog("%s: reached eof now\n", func);
 			QR_set_reached_eof(self);
 			if (!curr_eof)
+			{
+				if (self->cursTuple >= (Int4) self->num_total_read)
+{
+					self->num_total_read = self->cursTuple + 1;
+inolog("mayumi setting total_read to %d\n", self->num_total_read); 
+}
 				self->cursTuple++;
+			}
 			if (self->ad_count > 0 &&
 			    cur_fetch < fetch_size)
 			{
