@@ -583,6 +583,7 @@ EN_Destructor(EnvironmentClass *self)
 	 */
 
 	/* Free any connections belonging to this environment */
+	ENTER_CONNS_CS;
 	for (lf = 0, nullcnt = 0; lf < conns_count; lf++)
 	{
 		if (NULL == conns[lf])
@@ -603,6 +604,7 @@ EN_Destructor(EnvironmentClass *self)
 		conns = NULL;
 		conns_count = 0;
 	}
+	LEAVE_CONNS_CS;
 	DELETE_ENV_CS(self);
 	free(self);
 
