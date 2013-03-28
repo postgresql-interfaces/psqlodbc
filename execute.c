@@ -45,6 +45,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	CSTR func = "PGAPI_Prepare";
 	StatementClass *self = (StatementClass *) hstmt;
 	RETCODE	retval = SQL_SUCCESS;
+	BOOL	prepared;
 
 	mylog("%s: entering...\n", func);
 
@@ -63,6 +64,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	 * one
 	 */
 
+	prepared = self->prepared;
 	SC_set_prepared(self, NOT_YET_PREPARED);
 	switch (self->status)
 	{
@@ -85,6 +87,8 @@ PGAPI_Prepare(HSTMT hstmt,
 
 		case STMT_READY:
 			mylog("**** PGAPI_Prepare: STMT_READY, change SQL\n");
+			if (NOT_YET_PREPARED != prepared) 
+				SC_recycle_statement(self); /* recycle the statement */
 			break;
 
 		case STMT_EXECUTING:
