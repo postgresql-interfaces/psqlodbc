@@ -632,16 +632,16 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 		case PG_TYPE_BOOL:
 			return ci->drivers.bools_as_char ? SQL_VARCHAR : SQL_BIT;
 		case PG_TYPE_XML:
-			return CC_is_in_unicode_driver(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 		case PG_TYPE_INET:
 		case PG_TYPE_CIDR:
 		case PG_TYPE_MACADDR:
-			return CC_is_in_unicode_driver(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 		case PG_TYPE_UUID:
 #if (ODBCVER >= 0x0350)
 			return SQL_GUID;
 #endif /* ODBCVER */
-			return CC_is_in_unicode_driver(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		case PG_TYPE_INTERVAL:
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
@@ -789,16 +789,14 @@ pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_TEXT:
-			if (CC_is_in_unicode_driver(conn))
-				return SQL_C_WCHAR;
-			return SQL_C_CHAR;
+			return ALLOW_WCHAR(conn) ? SQL_C_WCHAR : SQL_C_CHAR;
 #endif /* UNICODE_SUPPORT */
 		case PG_TYPE_UUID:
 #if (ODBCVER >= 0x0350)
 			if (!conn->ms_jet)
 				return SQL_C_GUID;
 #endif /* ODBCVER */
-			return SQL_C_CHAR;
+			return ALLOW_WCHAR(conn) ? SQL_C_WCHAR : SQL_C_CHAR;
 
 		case PG_TYPE_INTERVAL:
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
@@ -1085,6 +1083,11 @@ pgtype_attr_display_size(const ConnectionClass *conn, OID type, int atttypmod, i
 		case PG_TYPE_FLOAT8:
 			return 22;
 
+		case PG_TYPE_MACADDR:
+			return 17;
+		case PG_TYPE_INET:
+		case PG_TYPE_CIDR:
+			return sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255/128");
 #if (ODBCVER >= 0x0350)
 		case PG_TYPE_UUID:
 			return 36;
@@ -1140,8 +1143,16 @@ pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, 
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			return 16;		/* sizeof(TIMESTAMP_STRUCT) */
 
+		case PG_TYPE_MACADDR:
+			return 17;
+		case PG_TYPE_INET:
+		case PG_TYPE_CIDR:
+			return sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255/128");
 		case PG_TYPE_UUID:
+#if (ODBCVER >= 0x0350)
 			return 16;		/* sizeof(SQLGUID) */
+#endif /* ODBCVER */
+			return 36;
 
 			/* Character types use the default precision */
 		case PG_TYPE_VARCHAR:
