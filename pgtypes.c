@@ -942,7 +942,19 @@ pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, in
 			{
 				int	value = 0;
 				if (PG_VERSION_GT(conn, 7.4))
-					value = CC_get_max_idlen(conn);
+				{
+					/*
+					 * 'conn' argument is marked as const,
+					 * because this function just reads
+					 * stuff from the already-filled in
+					 * fields in the struct. But this is
+					 * an exception: CC_get_max_idlen() can
+					 * send a SHOW query to the backend to
+					 * get the identifier length. Thus cast
+					 * away the const here.
+					 */
+					value = CC_get_max_idlen((ConnectionClass *) conn);
+				}
 #ifdef	NAME_FIELD_SIZE
 				else
 					value = NAME_FIELD_SIZE;
