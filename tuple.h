@@ -6,7 +6,7 @@
 			data and manual result set data. The "set_" functions
 			are only used for manual result sets by info routines.
  *
- * Comments:		See "notice.txt" for copyright and license information.
+ * Comments:		See "readme.txt" for copyright and license information.
  *
  */
 

@@ -2,7 +2,7 @@
  *
  * Description:		This file defines the driver version.
  *
- * Comments:		See "notice.txt" for copyright and license information.
+ * Comments:		See "readme.txt" for copyright and license information.
  *
  */
 

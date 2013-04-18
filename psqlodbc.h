@@ -3,7 +3,7 @@
  * Description:		This file contains defines and declarations that are related to
  *					the entire driver.
  *
- * Comments:		See "notice.txt" for copyright and license information.
+ * Comments:		See "readme.txt" for copyright and license information.
  */
 
 #ifndef __PSQLODBC_H__

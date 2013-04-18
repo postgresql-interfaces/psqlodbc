@@ -9,7 +9,7 @@
  *
  * API functions:	SQLAllocEnv, SQLFreeEnv, SQLError
  *
- * Comments:		See "notice.txt" for copyright and license information.
+ * Comments:		See "readme.txt" for copyright and license information.
  *-------
  */
 
