@@ -166,23 +166,26 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 #ifdef __GNUC__
 
-/* This function is called at library initialization time.	*/
+/* Shared library initializer and destructor, using gcc's attributes */
 
-static BOOL
+static void
 __attribute__((constructor))
-init(void)
+psqlodbc_init(void)
 {
 	initialize_global_cs();
 	getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
-	return TRUE;
+}
+
+static void
+__attribute__((destructor))
+psqlodbc_fini(void)
+{
+	finalize_global_cs();
 }
 
 #else							/* not __GNUC__ */
 
-/*
- * These two functions do shared library initialziation on UNIX, well at least
- * on Linux. I don't know about other systems.
- */
+/* Shared library initialization on non-gcc systems. */
 BOOL
 _init(void)
 {
