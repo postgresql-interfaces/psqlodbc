@@ -2756,7 +2756,6 @@ PGAPI_SpecialColumns(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	QResultClass	*res;
-	ConnInfo   *ci;
 	HSTMT		hcol_stmt = NULL;
 	StatementClass *col_stmt;
 	char		columns_query[INFO_INQUIRY_LEN];
@@ -2772,7 +2771,6 @@ PGAPI_SpecialColumns(
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 	conn = SC_get_conn(stmt);
-	ci = &(conn->connInfo);
 #ifdef	UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(conn))
 		internal_asis_type = INTERNAL_ASIS_TYPE;
@@ -2956,19 +2954,16 @@ inolog("Add ctid\n");
 		{
 			Int2		the_type = PG_TYPE_XID;
 
-			/* if (atoi(ci->row_versioning)) */
-			{
-				tuple = QR_AddNew(res);
+			tuple = QR_AddNew(res);
 
-				set_tuplefield_null(&tuple[0]);
-				set_tuplefield_string(&tuple[1], "xmin");
-				set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-				set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_UNSPECIFIED, FALSE));
-				set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-				set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-				set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
-				set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
-			}
+			set_tuplefield_null(&tuple[0]);
+			set_tuplefield_string(&tuple[1], "xmin");
+			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_UNSPECIFIED, FALSE));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
+			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
 		}
 	}
 
