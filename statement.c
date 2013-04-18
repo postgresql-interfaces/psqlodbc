@@ -37,7 +37,7 @@
 #define PRN_NULLCHECK
 
 /*	Map sql commands to statement types */
-static struct
+static const struct
 {
 	int			type;
 	char	   *s;
@@ -1171,7 +1171,7 @@ SC_clear_error(StatementClass *self)
  */
 
 /*	Map sql commands to statement types */
-static struct
+static const struct
 {
 	int	number;
 	const	char	* ver3str;
