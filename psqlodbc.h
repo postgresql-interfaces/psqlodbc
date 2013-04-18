@@ -145,7 +145,7 @@ typedef	unsigned long long ULONG_PTR;
 #else
 #error appropriate long pointer type not found 
 #endif /* SIZEOF_VOID_P */
-#if (SIZEOF_VOID_P == 8)
+#if (SIZEOF_LONG_INT == 8)
 #define	FORMAT_INTEGER	"%d"	/* SQLINTEGER */
 #define	FORMAT_UINTEGER	"%u"	/* SQLUINTEGER */
 #if defined(WITH_UNIXODBC) && !defined(BUILD_REAL_64_BIT_MODE)
