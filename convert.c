@@ -2876,7 +2876,6 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE, bPrepConv;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
-	SQLLEN		current_row;
 	const		char *bestitem = NULL;
 
 inolog("%s: enter prepared=%d\n", func, stmt->prepared);
@@ -2886,7 +2885,6 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 		return SQL_ERROR;
 	}
 
-	current_row = stmt->exec_current_row < 0 ? 0 : stmt->exec_current_row;
 	qp = &query_org;
 	QP_initialize(qp, stmt);
 
@@ -3916,7 +3914,6 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	CSTR func = "ResolveOneParam";
 
 	ConnectionClass *conn = qb->conn;
-	ConnInfo   *ci = &(conn->connInfo);
 	const APDFields *apdopts = qb->apdopts;
 	const IPDFields *ipdopts = qb->ipdopts;
 	PutDataInfo *pdata = qb->pdata;

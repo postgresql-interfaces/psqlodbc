@@ -3279,7 +3279,6 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 {
 	CSTR	func = "CC_send_function";
 	char		id,
-				c,
 				done;
 	SocketClass *sock = self->sock;
 
@@ -3424,7 +3423,7 @@ inolog("send_func response_length=%d\n", response_length);
 				}
 				if (beforeV3)
 				{
-					c = SOCK_get_char(sock); /* get the last '0' */
+					SOCK_get_char(sock); /* get the last '0' */
 					if (beforeV2)
 						done = TRUE;
 					resultResponse = FALSE;
@@ -3732,7 +3731,6 @@ static void
 CC_lookup_pg_version(ConnectionClass *self)
 {
 	HSTMT		hstmt;
-	StatementClass *stmt;
 	RETCODE		result;
 	char		szVersion[32];
 	int			major,
@@ -3748,7 +3746,6 @@ CC_lookup_pg_version(ConnectionClass *self)
 	result = PGAPI_AllocStmt(self, &hstmt, 0);
 	if (!SQL_SUCCEEDED(result))
 		return;
-	stmt = (StatementClass *) hstmt;
 
 	/* get the server's version if possible	 */
 	result = PGAPI_ExecDirect(hstmt, "select version()", SQL_NTS, 0);

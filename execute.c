@@ -462,8 +462,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 	if (stmt->inaccurate_result && SC_is_parse_tricky(stmt))
 	{
 		BOOL		in_trans = CC_is_in_trans(conn);
-		BOOL		issued_begin = FALSE,
-					begin_included = FALSE;
+		BOOL		issued_begin = FALSE;
 		QResultClass *curres;
 
 		stmt->exec_current_row = -1;
@@ -471,7 +470,9 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 		if (!SC_is_pre_executable(stmt))
 			return SQL_SUCCESS;
 		if (strnicmp(stmt->stmt_with_params, "BEGIN;", 6) == 0)
-			begin_included = TRUE;
+		{
+			/* do nothing */
+		}
 		else if (!in_trans)
 		{
 			if (issued_begin = CC_begin(conn), !issued_begin)
@@ -1240,7 +1241,6 @@ PGAPI_Cancel(
 	ConnectionClass *conn;
 	RETCODE		ret = SQL_SUCCESS;
 	BOOL	entered_cs = FALSE;
-	ConnInfo   *ci;
 
 	mylog("%s: entering...\n", func);
 
@@ -1251,7 +1251,6 @@ PGAPI_Cancel(
 		return SQL_INVALID_HANDLE;
 	}
 	conn = SC_get_conn(stmt);
-	ci = &(conn->connInfo);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	/* StartRollbackState(stmt); */
@@ -1289,6 +1288,8 @@ PGAPI_Cancel(
 		if (conn->driver_version < 0x0350)
 		{
 #ifdef WIN32
+		ConnInfo   *ci = &(conn->connInfo);
+
 		if (ci->drivers.cancel_as_freestmt)
 		{
 	typedef SQLRETURN (SQL_API *SQLAPIPROC)();
@@ -1410,7 +1411,6 @@ PGAPI_ParamData(
 	int		i;
 	Int2		num_p;
 	ConnectionClass	*conn = NULL;
-	ConnInfo   *ci;
 
 	mylog("%s: entering...\n", func);
 
@@ -1421,7 +1421,6 @@ PGAPI_ParamData(
 		goto cleanup;
 	}
 	conn = SC_get_conn(stmt);
-	ci = &(conn->connInfo);
 
 	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
 	apdopts = SC_get_APDF(estmt);

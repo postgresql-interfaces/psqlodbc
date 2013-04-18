@@ -45,7 +45,6 @@ PGAPI_RowCount(
 	CSTR func = "PGAPI_RowCount";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
-	ConnInfo   *ci;
 
 	mylog("%s: entering...\n", func);
 	if (!stmt)
@@ -53,7 +52,6 @@ PGAPI_RowCount(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
-	ci = &(SC_get_conn(stmt)->connInfo);
 	if (stmt->proc_return > 0)
 	{
 		if (pcrow)
@@ -151,7 +149,6 @@ PGAPI_NumResultCols(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *result;
 	char		parse_ok;
-	ConnInfo   *ci;
 	RETCODE		ret = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
@@ -160,7 +157,6 @@ PGAPI_NumResultCols(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
-	ci = &(SC_get_conn(stmt)->connInfo);
 
 	SC_clear_error(stmt);
 #define	return	DONT_CALL_RETURN_FROM_HERE???
@@ -917,7 +913,6 @@ PGAPI_GetData(
 	void	   *value = NULL;
 	RETCODE		result = SQL_SUCCESS;
 	char		get_bookmark = FALSE;
-	ConnInfo   *ci;
 	SQLSMALLINT	target_type;
 	int		precision = -1;
 
@@ -928,7 +923,6 @@ PGAPI_GetData(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
-	ci = &(SC_get_conn(stmt)->connInfo);
 	res = SC_get_Curres(stmt);
 
 	if (STMT_EXECUTING == stmt->status)
@@ -1410,11 +1404,9 @@ PGAPI_ExtendedFetch(
 	BindInfoClass	*bookmark;
 	SQLLEN		num_tuples, i, fc_io;
 	SQLLEN		save_rowset_size, progress_size;
-	SQLLEN		save_rowset_start,
-			rowset_start;
+	SQLLEN		rowset_start;
 	RETCODE		result = SQL_SUCCESS;
 	char		truncated, error, should_set_rowset_start = FALSE; 
-	ConnInfo   *ci;
 	SQLLEN		currp;
 	UWORD		pstatus;
 	BOOL		currp_is_valid, reached_eof, useCursor;
@@ -1426,7 +1418,6 @@ PGAPI_ExtendedFetch(
 		SC_log_error(func, NULL_STRING, NULL);
 		return SQL_INVALID_HANDLE;
 	}
-	ci = &(SC_get_conn(stmt)->connInfo);
 
 	/* if (SC_is_fetchcursor(stmt) && !stmt->manual_result) */
 	if (SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
@@ -1495,7 +1486,6 @@ PGAPI_ExtendedFetch(
 
 inolog("num_tuples=%d\n", num_tuples);
 	/* Save and discard the saved rowset size */
-	save_rowset_start = SC_get_rowset_start(stmt);
 	save_rowset_size = stmt->save_rowset_size;
 	stmt->save_rowset_size = -1;
 	rowset_start = SC_get_rowset_start(stmt);

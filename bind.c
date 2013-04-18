@@ -319,7 +319,6 @@ PGAPI_DescribeParam(
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_DescribeParam";
-	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 	RETCODE		ret = SQL_SUCCESS;
 	int		num_params;
@@ -334,7 +333,6 @@ PGAPI_DescribeParam(
 	}
 	SC_clear_error(stmt);
 
-	apdopts = SC_get_APDF(stmt);
 	ipdopts = SC_get_IPDF(stmt);
 	/*if ((ipar < 1) || (ipar > ipdopts->allocated))*/
 	num_params = stmt->num_params;

@@ -169,7 +169,6 @@ PGAPI_AllocStmt(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	StatementClass *stmt;
 	ARDFields	*ardopts;
-	BindInfoClass	*bookmark;
 
 	mylog("%s: entering...\n", func);
 
@@ -214,7 +213,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 		InitializeARDFields(&stmt->ardi.ardopts);
 	}
 	ardopts = SC_get_ARDF(stmt);
-	bookmark = ARD_AllocBookmark(ardopts);
+	ARD_AllocBookmark(ardopts);
 
 	stmt->stmt_size_limit = CC_get_max_query_len(conn);
 	/* Save the handle for later */
