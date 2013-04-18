@@ -407,6 +407,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->statement_type = STMT_TYPE_UNKNOWN;
 
 		rv->currTuple = -1;
+		rv->rowset_start = 0;
 		SC_set_rowset_start(rv, -1, FALSE);
 		rv->current_col = -1;
 		rv->bind_row = 0;
