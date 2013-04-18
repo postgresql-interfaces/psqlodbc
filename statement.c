@@ -796,7 +796,9 @@ SC_recycle_statement(StatementClass *self)
 			if (CC_loves_visible_trans(conn) && CC_is_in_trans(conn))
 			{
 				if (SC_is_pre_executable(self) && !SC_is_parse_tricky(self))
-					/* CC_abort(conn) */;
+				{
+					/* CC_abort(conn); */
+				}
 			}
 			break;
 
