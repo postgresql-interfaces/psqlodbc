@@ -501,7 +501,7 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 	else if (0  > retry_count)
 		no_timeout = TRUE;
 #ifdef	USE_SSL
-	else if (sock && NULL == sock->ssl)
+	else if (sock->ssl == NULL)
 		no_timeout = TRUE;
 #endif /* USE_SSL */
 	do {
@@ -530,8 +530,7 @@ mylog("!!!  poll ret=%d revents=%x\n", ret, fds.revents);
 	if (0 == ret && retry_count > MAX_RETRY_COUNT)
 	{
 		ret = -1;
-		if (sock)
-			SOCK_set_error(sock, output ? SOCKET_WRITE_TIMEOUT : SOCKET_READ_TIMEOUT, "SOCK_wait_for_ready timeout");
+		SOCK_set_error(sock, output ? SOCKET_WRITE_TIMEOUT : SOCKET_READ_TIMEOUT, "SOCK_wait_for_ready timeout");
 	}
 	return ret;
 }
