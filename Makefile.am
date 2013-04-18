@@ -2,8 +2,6 @@
 #
 # Makefile.am for psqlodbc30w (PostgreSQL ODBC driver)
 #
-# $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/Makefile.am,v 1.58 2012/08/16 12:58:15 h-saito Exp $
-#
 #-------------------------------------------------------------------------
 
 AUTOMAKE_OPTIONS = 1.8 foreign

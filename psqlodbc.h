@@ -4,9 +4,6 @@
  *					the entire driver.
  *
  * Comments:		See "notice.txt" for copyright and license information.
- *
- * $Id: psqlodbc.h,v 1.135 2011/06/19 12:27:30 hinoue Exp $
- *
  */
 
 #ifndef __PSQLODBC_H__

@@ -1,5 +1,4 @@
--- PostgreSQL catalog extensions for ODBC compatibility
--- $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/odbc.sql,v 1.9 2006/04/08 16:30:02 dpage Exp $
+-- PostgreSQL catalog extensions for ODBC compatibility (odbc.sql)
 
 -- ODBC functions are described here:
 -- <http://msdn.microsoft.com/library/en-us/odbc/htm/odbcscalar_functions.asp>

@@ -12,9 +12,6 @@
  *
  *	Portions Copyright (c) 1996-2002, PostgreSQL Global Development Group
  *	Portions Copyright (c) 1994, Regents of the University of California
- *
- * IDENTIFICATION
- *	  $Header: /home/heikki/psqlodbc-cvs-copy/psqlodbc/md5.c,v 1.13 2009/11/15 05:29:03 hinoue Exp $
  */
 
 

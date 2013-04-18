@@ -4,9 +4,6 @@
  *					the entire driver.
  *
  * Comments:		See "notice.txt" for copyright and license information.
- *
- * $Id: descriptor.h,v 1.23 2011/06/18 11:26:42 hinoue Exp $
- *
  */
 
 #ifndef __DESCRIPTOR_H__
