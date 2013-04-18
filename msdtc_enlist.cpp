@@ -318,8 +318,9 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 		SLOCK_ACQUIRE();
 		if (refcnt <=0)
 		{
-	mylog("delete %x\n", this);
+			mylog("delete %x\n", this);
 			delete this;
+			return 0;
 		}
 		else
 		{
