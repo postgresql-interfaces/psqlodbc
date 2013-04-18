@@ -261,13 +261,13 @@ set_statement_option(ConnectionClass *conn,
 				if (stmt)
 				{
 					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", NULL);
-					sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
+					sprintf(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
 					SC_log_error(func, option, stmt);
 				}
 				if (conn)
 				{
 					CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", func);
-					sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
+					sprintf(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
 					CC_log_error(func, option, conn);
 				}
 
