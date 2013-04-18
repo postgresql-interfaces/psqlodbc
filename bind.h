@@ -63,7 +63,7 @@ typedef struct
 }	PutDataClass;
 
 /*
- * ParameterImplClass -- stores implemntation information about a parameter
+ * ParameterImplClass -- stores implementation information about a parameter
  */
 struct ParameterImplClass_
 {
