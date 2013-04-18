@@ -560,12 +560,10 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		}
 		return FALSE;
 	}
-	switch (itype)
+	if (itype == SQL_IS_YEAR || itype == SQL_IS_MONTH || itype == SQL_IS_YEAR_TO_MONTH)
 	{
-		case SQL_IS_YEAR:
-		case SQL_IS_MONTH:
-		case SQL_IS_YEAR_TO_MONTH:
-			return FALSE;
+		/* these formats should've been handled above already */
+		return FALSE;
 	}
 	scnt = sscanf(str, "%d %s %02d:%02d:%02d.%09s", &days, lit1, &hours, &minutes, &seconds, lit2);
 	if (strnicmp(lit1, "day", 3) != 0)
