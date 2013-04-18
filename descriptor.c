@@ -416,7 +416,7 @@ static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 	{
 		int	i;
 
-		target->parameters = (ParameterImplClass *) malloc(target->allocated * sizeof(ParameterInfoClass));
+		target->parameters = (ParameterImplClass *) malloc(target->allocated * sizeof(ParameterImplClass));
 		for (i = 0; i < target->allocated; i++)
 			ParameterImplClass_copy(&src->parameters[i], &target->parameters[i]);
 	}
