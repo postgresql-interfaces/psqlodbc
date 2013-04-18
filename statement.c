@@ -1830,7 +1830,7 @@ SC_execute(StatementClass *self)
 		goto cleanup;
 	}
 	is_in_trans = CC_is_in_trans(conn);
-	if (useCursor = SC_is_fetchcursor(self))
+	if ((useCursor = SC_is_fetchcursor(self)))
 	{
 		QResultClass *curres = SC_get_Curres(self);
 
