@@ -1523,10 +1523,6 @@ QR_read_a_tuple_from_db(QResultClass *self, char binary)
 		this_keyset->status = 0;
 	}
 
-	bitmaplen = (Int2) ci_num_fields / BYTELEN;
-	if ((ci_num_fields % BYTELEN) > 0)
-		bitmaplen++;
-
 	/*
 	 * At first the server sends a bitmap that indicates which database
 	 * fields are null
@@ -1540,45 +1536,72 @@ else
 {inolog("%dth record in key numf=%d\n", self->num_cached_keys, numf);}
 	}
 	else
+	{
+		bitmaplen = (Int2) ci_num_fields / BYTELEN;
+		if ((ci_num_fields % BYTELEN) > 0)
+			bitmaplen++;
+
 		SOCK_get_n_char(sock, bitmap, bitmaplen);
 
+		bitmap_pos = 0;
+		bitcnt = 0;
+		bmp = bitmap[bitmap_pos];
+	}
 
-	bitmap_pos = 0;
-	bitcnt = 0;
-	bmp = bitmap[bitmap_pos];
 	flds = self->fields;
 
 	for (field_lf = 0; field_lf < ci_num_fields; field_lf++)
 	{
-		/* Check if the current field is NULL */
-		if (!PROTOCOL_74(ci) && (!(bmp & 0200)))
+		BOOL isnull = FALSE;
+
+		if (!PROTOCOL_74(ci))
 		{
-			/* YES, it is NULL ! */
-			this_tuplefield[field_lf].len = 0;
-			this_tuplefield[field_lf].value = 0;
+			isnull = ((bmp & 0200) == 0);
+			/* move to next bit in the bitmap */
+			bitcnt++;
+			if (BYTELEN == bitcnt)
+			{
+				bitmap_pos++;
+				bmp = bitmap[bitmap_pos];
+				bitcnt = 0;
+			}
+			else
+				bmp <<= 1;
+
+			if (!isnull)
+			{
+				/* get the length of the field (four bytes) */
+				len = SOCK_get_int(sock, sizeof(Int4));
+
+				/*
+				 * In the old protocol version, the length
+				 * field of an AsciiRow message includes the
+				 * 4-byte length field itself, while the
+				 * length field in the BinaryRow does not.
+				 */
+				if (!binary)
+					len -= sizeof(Int4);
+			}
 		}
 		else
 		{
-			/*
-			 * NO, the field is not null. so get at first the length of
-			 * the field (four bytes)
-			 */
-			len = SOCK_get_int(sock, VARHDRSZ);
-inolog("QR_read_a_tuple_from_db len=%d\n", len);
-			if (PROTOCOL_74(ci))
-			{
-				if (len < 0)
-				{
-					/* YES, it is NULL ! */
-					this_tuplefield[field_lf].len = 0;
-					this_tuplefield[field_lf].value = 0;
-					continue;
-				}
-			}
-			else
-			if (!binary)
-				len -= VARHDRSZ;
+			/* get the length of the field (four bytes) */
+			len = SOCK_get_int(sock, sizeof(Int4));
 
+			/* -1 means NULL */
+			if (len < 0)
+				isnull = TRUE;
+
+		}
+
+		if (isnull)
+		{
+			this_tuplefield[field_lf].len = 0;
+			this_tuplefield[field_lf].value = 0;
+			continue;
+		}
+		else
+		{
 			if (field_lf >= effective_cols)
 				buffer = tidoidbuf;
 			else
@@ -1616,19 +1639,6 @@ inolog("QR_read_a_tuple_from_db len=%d\n", len);
 					CI_get_display_size(flds, field_lf) = len;
 			}
 		}
-
-		/*
-		 * Now adjust for the next bit to be scanned in the next loop.
-		 */
-		bitcnt++;
-		if (BYTELEN == bitcnt)
-		{
-			bitmap_pos++;
-			bmp = bitmap[bitmap_pos];
-			bitcnt = 0;
-		}
-		else
-			bmp <<= 1;
 	}
 	self->cursTuple++;
 	return TRUE;
