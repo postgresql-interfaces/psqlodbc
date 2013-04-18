@@ -285,23 +285,8 @@ struct StatementClass_
 };
 
 #define SC_get_conn(a)	  (a->hdbc)
-#define SC_init_Result(a) \
-do { \
-	a->result = a->curres = NULL; \
-	a->curr_param_result = 0; \
-	mylog("SC_init_Result(%x)", a); \
-} while (0)
-#define SC_set_Result(a, b) \
-do { \
-	if (b != a->result) \
-	{ \
-		mylog("SC_set_Result(%x, %x)", a, b); \
-		QR_Destructor(a->result); \
-		a->result = a->curres = b; \
-		if (NULL != b) \
-			a->curr_param_result = 1; \
-	} \
-} while (0)
+void SC_init_Result(StatementClass *self);
+void SC_set_Result(StatementClass *self, QResultClass *res);
 #define SC_get_Result(a)  (a->result)
 #define SC_set_Curres(a, b)  (a->curres = b)
 #define SC_get_Curres(a)  (a->curres)
@@ -435,19 +420,7 @@ enum
 #define SC_started_rbpoint(a)	((a->rbonerr & (1L << 4)) != 0)
 #define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
-#define SC_forget_unnamed(a) \
-do { \
-	if (PREPARED_TEMPORARILY == (a)->prepared) \
-	{ \
-		SC_set_prepared(a, ONCE_DESCRIBED); \
-		if (FALSE && !SC_IsExecuting((a))) \
-		{ \
-			QResultClass	*res = SC_get_Curres((a)); \
-			if (NULL != res && !res->dataFilled && !QR_is_fetching_tuples(res)) \
-				SC_set_Result((a), NULL); \
-		} \
-	} \
-} while (0)
+void SC_forget_unnamed(StatementClass *self);
 #define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)
 #define SC_may_use_cursor(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
 #define SC_may_fetch_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)

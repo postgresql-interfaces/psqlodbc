@@ -522,6 +522,41 @@ SC_Destructor(StatementClass *self)
 	return TRUE;
 }
 
+void
+SC_init_Result(StatementClass *self)
+{
+	self->result = self->curres = NULL;
+	self->curr_param_result = 0;
+	mylog("SC_init_Result(%x)", self);
+}
+
+void
+SC_set_Result(StatementClass *self, QResultClass *res)
+{
+	if (res != self->result)
+	{
+		mylog("SC_set_Result(%x, %x)", self, res);
+		QR_Destructor(self->result);
+		self->result = self->curres = res;
+		if (NULL != res)
+			self->curr_param_result = 1;
+	}
+}
+
+void
+SC_forget_unnamed(StatementClass *self)
+{
+	if (PREPARED_TEMPORARILY == self->prepared)
+	{
+		SC_set_prepared(self, ONCE_DESCRIBED);
+		if (FALSE && !SC_IsExecuting(self))
+		{
+			QResultClass	*res = SC_get_Curres(self);
+			if (NULL != res && !res->dataFilled && !QR_is_fetching_tuples(res))
+				SC_set_Result(self, NULL);
+		}
+	}
+}
 
 /*
  *	Free parameters and free the memory from the
