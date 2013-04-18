@@ -4392,7 +4392,11 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 		case SQL_C_INTERVAL_HOUR_TO_SECOND:
 		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%d days %s%02d:%02d:%02%d", ivsign, ivstruct->intval.day_second.day, ivsign, ivstruct->intval.day_second.hour, ivstruct->intval.day_second.minute, ivstruct->intval.day_second.second);
+			sprintf(param_string, "%s%d days %s%02d:%02d:%02d",
+				ivsign, ivstruct->intval.day_second.day,
+				ivsign, ivstruct->intval.day_second.hour,
+				ivstruct->intval.day_second.minute,
+				ivstruct->intval.day_second.second);
 			if (ivstruct->intval.day_second.fraction > 0)
 			{
 				int fraction = ivstruct->intval.day_second.fraction, prec = apara->precision;
