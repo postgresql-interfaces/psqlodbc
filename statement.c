@@ -1992,7 +1992,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 					qres = nres;
 				}
 			}	
-			if (SC_is_with_hold(self))
+			if (res && SC_is_with_hold(self))
 				QR_set_withhold(res);
 		}
 		mylog("     done sending the query:\n");
