@@ -216,66 +216,78 @@ void
 QR_close_result(QResultClass *self, BOOL destroy)
 {
 	ConnectionClass	*conn;
+	QResultClass *next;
+	BOOL	top = TRUE;
 
 	if (!self)	return;
 	mylog("QResult: in QR_close_result\n");
 
-	/*
-	 * If conn is defined, then we may have used "backend_tuples", so in
-	 * case we need to, free it up.  Also, close the cursor.
-	 */
-	if ((conn = QR_get_conn(self)) && conn->sock)
+	while(self)
 	{
-		if (CC_is_in_trans(conn) ||
-		    QR_is_withhold(self))
+		/*
+		 * If conn is defined, then we may have used "backend_tuples", so in
+		 * case we need to, free it up.  Also, close the cursor.
+		 */
+		if ((conn = QR_get_conn(self)) && conn->sock)
 		{
-			if (!QR_close(self))	/* close the cursor if there is one */
+			if (CC_is_in_trans(conn) || QR_is_withhold(self))
 			{
+				if (!QR_close(self))	/* close the cursor if there is one */
+				{
+				}
 			}
 		}
+
+		QR_free_memory(self);		/* safe to call anyway */
+
+		/*
+		 * Should have been freed in the close() but just in case...
+		 * QR_set_cursor clears the cursor name of all the chained results too,
+		 * so we only need to do this for the first result in the chain.
+		 */
+		if (top)
+			QR_set_cursor(self, NULL);
+
+		/* Free up column info */
+		if (destroy && self->fields)
+		{
+			CI_Destructor(self->fields);
+			self->fields = NULL;
+		}
+
+		/* Free command info (this is from strdup()) */
+		if (self->command)
+		{
+			free(self->command);
+			self->command = NULL;
+		}
+
+		/* Free message info (this is from strdup()) */
+		if (self->message)
+		{
+			free(self->message);
+			self->message = NULL;
+		}
+
+		/* Free notice info (this is from strdup()) */
+		if (self->notice)
+		{
+			free(self->notice);
+			self->notice = NULL;
+		}
+		/* Destruct the result object in the chain */
+		next = self->next;
+		self->next = NULL;
+		if (destroy)
+			free(self);
+
+		/* Repeat for the next result in the chain */
+		self = next;
+		destroy = TRUE; /* always destroy chained results */
+		top = FALSE;
 	}
-
-	QR_free_memory(self);		/* safe to call anyway */
-
-	/* Should have been freed in the close() but just in case... */
-	QR_set_cursor(self, NULL);
-
-	/* Free up column info */
-	if (destroy && self->fields)
-	{
-		CI_Destructor(self->fields);
-		self->fields = NULL;
-	}
-
-	/* Free command info (this is from strdup()) */
-	if (self->command)
-	{
-		free(self->command);
-		self->command = NULL;
-	}
-
-	/* Free message info (this is from strdup()) */
-	if (self->message)
-	{
-		free(self->message);
-		self->message = NULL;
-	}
-
-	/* Free notice info (this is from strdup()) */
-	if (self->notice)
-	{
-		free(self->notice);
-		self->notice = NULL;
-	}
-	/* Destruct the result object in the chain */
-	QR_Destructor(self->next);
-	self->next = NULL;
 
 	mylog("QResult: exit close_result\n");
-	if (destroy)
-	{
-		free(self);
-	}
 }
 
 void
