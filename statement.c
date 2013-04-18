@@ -2447,7 +2447,7 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 	int		num_p, num_io_params;
 	int		i, pidx;
 	Int2		num_discard_params, paramType;
-	BOOL		rcvend = FALSE, loopend = FALSE, msg_truncated;
+	BOOL		rcvend = FALSE, loopend = FALSE;
 	char		msgbuffer[ERROR_MSG_LENGTH + 1];
 	IPDFields	*ipdopts;
 	QResultClass	*newres = NULL;
@@ -2500,11 +2500,11 @@ inolog(" response_length=%d\n", response_length);
 				}
 				break;
 			case 'E': /* ErrorMessage */
-				msg_truncated = handle_error_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
+				handle_error_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
 
 				break;
 			case 'N': /* Notice */
-				msg_truncated = handle_notice_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
+				handle_notice_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
 				break;
 			case '1': /* ParseComplete */
 				if (stmt->plan_name)

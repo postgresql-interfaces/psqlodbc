@@ -858,7 +858,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt, int *LastMessageType)
 	QueryInfo	qi;
 	ConnectionClass	*conn;
 	ConnInfo   *ci = NULL;
-	BOOL		msg_truncated, rcvend, loopend, kill_conn, internally_invoked = FALSE;
+	BOOL		rcvend, loopend, kill_conn, internally_invoked = FALSE;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 	BOOL		ExecuteRequest = FALSE;
 	Int4		response_length;
@@ -1280,7 +1280,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				break;
 
 			case 'E':			/* Error */
-				msg_truncated = handle_error_message(conn, msgbuffer, sizeof(msgbuffer), self->sqlstate, "next_tuple", self);
+				handle_error_message(conn, msgbuffer, sizeof(msgbuffer), self->sqlstate, "next_tuple", self);
 
 				mylog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
 				qlog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
@@ -1292,7 +1292,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				break;
 
 			case 'N':			/* Notice */
-				msg_truncated = handle_notice_message(conn, cmdbuffer, sizeof(cmdbuffer), self->sqlstate, "next_tuple", self);
+				handle_notice_message(conn, cmdbuffer, sizeof(cmdbuffer), self->sqlstate, "next_tuple", self);
 				qlog("NOTICE from backend in next_tuple: '%s'\n", msgbuffer);
 				continue;
 

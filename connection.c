@@ -2605,8 +2605,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	SocketClass *sock = self->sock;
 	int			maxlen,
 				empty_reqs;
-	BOOL		msg_truncated,
-				ReadyToReturn = FALSE,
+	BOOL		ReadyToReturn = FALSE,
 				query_completed = FALSE,
 				beforeV2 = PG_VERSION_LT(self, 6.4),
 				aborted = FALSE,
@@ -2954,7 +2953,7 @@ inolog("Discarded the first SAVEPOINT\n");
 				EatReadyForQuery(self);
 				break;
 			case 'N':			/* NOTICE: */
-				msg_truncated = handle_notice_message(self, cmdbuffer, sizeof(cmdbuffer), res->sqlstate, "send_query", res);
+				handle_notice_message(self, cmdbuffer, sizeof(cmdbuffer), res->sqlstate, "send_query", res);
 				break;		/* dont return a result -- continue
 								 * reading */
 
@@ -2987,7 +2986,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					query_completed = TRUE;
 				break;
 			case 'E':
-				msg_truncated = handle_error_message(self, msgbuffer, sizeof(msgbuffer), res->sqlstate, "send_query", res);
+				handle_error_message(self, msgbuffer, sizeof(msgbuffer), res->sqlstate, "send_query", res);
 
 				/* We should report that an error occured. Zoltan */
 				aborted = TRUE;
