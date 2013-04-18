@@ -43,12 +43,12 @@ void
 generate_filename(const char *dirname, const char *prefix, char *filename)
 {
 #ifdef	WIN32
-	int	pid = 0;
+	int	pid;
 
 	pid = _getpid();
 #else
-	pid_t	pid = 0;
-	struct passwd *ptr = 0;
+	pid_t	pid;
+	struct passwd *ptr;
 
 	ptr = getpwuid(getuid());
 	pid = getpid();
@@ -61,7 +61,8 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 	if (prefix != 0)
 		strcat(filename, prefix);
 #ifndef WIN32
-	strcat(filename, ptr->pw_name);
+	if (ptr)
+		strcat(filename, ptr->pw_name);
 #endif
 	sprintf(filename, "%s%u%s", filename, pid, ".log");
 	return;
