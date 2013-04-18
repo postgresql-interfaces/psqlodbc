@@ -485,7 +485,7 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 	BOOL	sign;
 	SQLINTERVAL	itype = interval2itype(ctype);
 
-	memset(st, sizeof(SQL_INTERVAL_STRUCT), 0);
+	memset(st, 0, sizeof(SQL_INTERVAL_STRUCT));
 	if ((scnt = sscanf(str, "%d-%d", &years, &mons)) >=2)
 	{
 		if (SQL_IS_YEAR_TO_MONTH == itype)
