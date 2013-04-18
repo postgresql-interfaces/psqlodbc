@@ -76,7 +76,7 @@ struct QResultClass_
 
 	char	sqlstate[8];
 	char	*message;
-	char	*messageref;
+	const char *messageref;
 	char *cursor_name;	/* The name of the cursor for select
 					 * statements */
 	char	*command;
