@@ -1498,7 +1498,7 @@ QR_read_a_tuple_from_db(QResultClass *self, char binary)
 	Int2		field_lf;
 	TupleField *this_tuplefield;
 	KeySet	*this_keyset = NULL;
-	char		bmp,
+	char		bmp = 0,
 				bitmap[MAX_FIELDS];		/* Max. len of the bitmap */
 	Int2		bitmaplen;		/* len of the bitmap in bytes */
 	Int2		bitmap_pos;
