@@ -845,8 +845,6 @@ inolog("new_format=%d\n", new_format);
 	truncated = SOCK_get_string(sock, new_format ? msgbuffer : msgbuf, new_format ? sizeof(msgbuffer) : buflen);
 	if (new_format)
 	{
-		size_t	dstlen = 0;
-
 		msgbuf[0] = '\0';
 		for (;msgbuffer[0];)
 		{
@@ -856,13 +854,13 @@ inolog("new_format=%d\n", new_format);
 			{
 				case 'S':
 					strlcat(msgbuf, msgbuffer + 1, buflen);
-					dstlen = strlcat(msgbuf, ": ", buflen);
+					strlcat(msgbuf, ": ", buflen);
 					break;
 				case 'M':
 				case 'D':
 					if (hasmsg)
 						strlcat(msgbuf, "\n", buflen);
-					dstlen = strlcat(msgbuf, msgbuffer + 1, buflen);
+					strlcat(msgbuf, msgbuffer + 1, buflen);
 					if (truncated)
 						msg_truncated = truncated;
 					hasmsg = TRUE;
