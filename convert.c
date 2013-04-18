@@ -422,7 +422,6 @@ SQLINTERVAL	interval2itype(SQLSMALLINT ctype)
 			sqlitv = SQL_IS_YEAR_TO_MONTH;
 			break;
 		case SQL_C_INTERVAL_DAY:
-			break;
 			sqlitv = SQL_IS_DAY;
 			break;
 		case SQL_C_INTERVAL_HOUR:
