@@ -2166,22 +2166,32 @@ CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 
 	if (i >= self->num_stmts) /* no more room -- allocate more memory */
 	{
-		self->stmts = (StatementClass **) realloc(self->stmts, sizeof(StatementClass *) * (STMT_INCREMENT + self->num_stmts));
-		if (!self->stmts)
+		StatementClass **newstmts;
+		Int2 new_num_stmts;
+
+		new_num_stmts = STMT_INCREMENT + self->num_stmts;
+
+		if (new_num_stmts > 0)
+			newstmts = (StatementClass **)
+				realloc(self->stmts, sizeof(StatementClass *) * new_num_stmts);
+		else
+			newstmts = NULL; /* num_stmts overflowed */
+		if (!newstmts)
 			ret = FALSE;
 		else
 		{
+			self->stmts = newstmts;
 			memset(&self->stmts[self->num_stmts], 0, sizeof(StatementClass *) * STMT_INCREMENT);
 
 			stmt->hdbc = self;
 			self->stmts[self->num_stmts] = stmt;
 
-			self->num_stmts += STMT_INCREMENT;
+			self->num_stmts = new_num_stmts;
 		}
 	}
 	CONNLOCK_RELEASE(self);
 
-	return TRUE;
+	return ret;
 }
 
 static void

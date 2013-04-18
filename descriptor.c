@@ -260,6 +260,8 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *ardopts)
 char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 {
 	int	i;
+	int	new_num_descs;
+	DescriptorClass **descs;
 
 	mylog("CC_add_descriptor: self=%p, desc=%p\n", self, desc);
 
@@ -273,15 +275,17 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 		}
 	}
         /* no more room -- allocate more memory */
-	self->descs = (DescriptorClass **) realloc(self->descs, sizeof(DescriptorClass *) * (DESC_INCREMENT + self->num_descs));
-	if (!self->descs)
+	new_num_descs = DESC_INCREMENT + self->num_descs;
+	descs = (DescriptorClass **) realloc(self->descs, sizeof(DescriptorClass *) * new_num_descs);
+	if (!descs)
 		return FALSE;
+	self->descs = descs;
 
 	memset(&self->descs[self->num_descs], 0, sizeof(DescriptorClass *) *
 				DESC_INCREMENT);
         DC_get_conn(desc) = self;
 	self->descs[self->num_descs] = desc;
-	self->num_descs += DESC_INCREMENT;
+	self->num_descs = new_num_descs;
 
 	return TRUE;
 }
