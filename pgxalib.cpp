@@ -129,7 +129,7 @@ HDBC	XAConnection::ActivateConnection(void)
 	{
 		ret = SQLSetEnvAttr(init_crit.env, SQL_ATTR_ODBC_VERSION, (PTR) SQL_OV_ODBC3, 0);
 		ret = SQLAllocHandle(SQL_HANDLE_DBC, init_crit.env, &xaconn);
-		if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO)
+		if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
 		{
 			string	cstr = connstr;
 			if (dtclog)
