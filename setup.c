@@ -142,7 +142,7 @@ ConfigDSN(HWND hwnd,
  *	Returns :	TRUE success, FALSE otherwise
  *--------
  */
-static BOOL SetDriverAttributes(LPCSTR lpszDriver);
+static BOOL SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR pErrorMessage, WORD cbMessage);
 BOOL		CALLBACK
 ConfigDriver(HWND hwnd,
 		WORD fRequest,
@@ -152,12 +152,31 @@ ConfigDriver(HWND hwnd,
 		WORD cbMsgMax,
 		WORD *pcbMsgOut)
 {
+	DWORD	errorCode = 0;
 	BOOL	fSuccess = TRUE;	/* Success/fail flag */
 
-	/* Add the driver */
-	if (ODBC_INSTALL_DRIVER == fRequest)
-		fSuccess = SetDriverAttributes(lpszDriver);
+	if (cbMsgMax > 0 && NULL != lpszMsg)
+		*lpszMsg = '\0';
+	if (NULL != pcbMsgOut)
+		*pcbMsgOut = 0;
 
+	/* Add the driver */
+	switch (fRequest)
+	{
+		case ODBC_INSTALL_DRIVER:
+			fSuccess = SetDriverAttributes(lpszDriver, &errorCode, lpszMsg, cbMsgMax);
+			if (cbMsgMax > 0 && NULL != lpszMsg)
+				*pcbMsgOut = (WORD) strlen(lpszMsg);
+			break;
+		case ODBC_REMOVE_DRIVER:
+			break;
+		default:
+			errorCode = ODBC_ERROR_INVALID_REQUEST_TYPE;
+			fSuccess = FALSE;
+	}
+
+	if (!fSuccess)
+		SQLPostInstallerError(errorCode, lpszMsg);
 	return fSuccess;
 }
 
@@ -559,13 +578,18 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
  *--------
  */
 static BOOL
-SetDriverAttributes(LPCSTR lpszDriver)
+SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR message, WORD cbMessage)
 {
 	BOOL	ret = FALSE;
 
 	/* Validate arguments */
 	if (!lpszDriver || !lpszDriver[0])
+	{
+		if (pErrorCode)
+			*pErrorCode = ODBC_ERROR_INVALID_NAME;
+		strncpy_null(message, "Driver name not specified", cbMessage);
 		return FALSE;
+	}
 
 	if (!SQLWritePrivateProfileString(lpszDriver, "APILevel", "1", ODBCINST_INI))
 		goto cleanup;
@@ -586,7 +610,12 @@ SetDriverAttributes(LPCSTR lpszDriver)
 
 	ret = TRUE;
 cleanup:
-
+	if (!ret)
+	{
+		if (pErrorCode)
+			*pErrorCode = ODBC_ERROR_REQUEST_FAILED;
+		strncpy_null(message, "Failed to WritePrivateProfileString", cbMessage);
+	} 
 	return ret;
 }
 
