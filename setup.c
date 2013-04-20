@@ -105,11 +105,11 @@ ConfigDSN(HWND hwnd,
 		if (hwnd)
 		{
 			/* Display dialog(s) */
-			fSuccess = (IDOK == DialogBoxParam(s_hModule,
-											 MAKEINTRESOURCE(DLG_CONFIG),
-											   hwnd,
-											   ConfigDlgProc,
-											 (LONG) (LPSTR) lpsetupdlg));
+			fSuccess = (IDOK == DialogBoxParam(s_hModule, 
+				MAKEINTRESOURCE(DLG_CONFIG), 
+				hwnd, 
+				ConfigDlgProc, 
+				(LPARAM) lpsetupdlg));
 		}
 		else if (lpsetupdlg->ci.dsn[0])
 			fSuccess = SetDSNAttributes(hwnd, lpsetupdlg, NULL);
@@ -306,7 +306,7 @@ ConfigDlgProc(HWND hdlg,
 					/* Accept results */
 				case IDOK:
 				case IDAPPLY:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					/* Retrieve dialog values */
 					if (!lpsetupdlg->fDefault)
 						GetDlgItemText(hdlg, IDC_DSNAME,
@@ -326,7 +326,7 @@ ConfigDlgProc(HWND hdlg,
 
 				case IDC_TEST:
 				{
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					if (NULL != lpsetupdlg)
 					{
 						EnvironmentClass *env = EN_Constructor();
@@ -397,19 +397,19 @@ ConfigDlgProc(HWND hdlg,
 					break;
 				}
 				case IDC_DATASOURCE:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 					 hdlg, ds_options1Proc, (LPARAM) &lpsetupdlg->ci);
 					return TRUE;
 
 				case IDC_DRIVER:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_GLOBAL),
 						 hdlg, global_optionsProc, (LPARAM) &lpsetupdlg->ci);
 
 					return TRUE;
 				case IDC_MANAGEDSN:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLong(hdlg, DWLP_USER);
+					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					if (DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_DRIVER_CHANGE),
 						hdlg, manage_dsnProc,
 						(LPARAM) lpsetupdlg) > 0)
