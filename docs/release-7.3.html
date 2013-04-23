@@ -1,0 +1,670 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+    <title>psqlODBC release notes - 7.3 and below</title>
+  </HEAD>
+
+  <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
+  
+<h1>psqlODBC release notes - 7.3 and below</h1>
+<h2>Note</h2>
+<p>Releases from this point onwards are based on the REL-07_03_ENHANCED code branch
+of psqlODBC - please see 
+<a href="http://archives.postgresql.org/pgsql-odbc/2006-02/msg00131.php">http://archives.postgresql.org/pgsql-odbc/2006-02/msg00131.php</a>
+for further details.</p>
+
+<p>The following changes are based on the 07.03 codebase</p>
+
+<pre>
+[7.3.0261]
+
+1.Handle the converion from text-like field to SQL_C_BINARY more properly.
+2.Make buffer extension in SQLPutData more effective.
+3.Reply SQL_CONVERT_xxxx correctly for SQLGetInfo request.
+4.Reply DBMS_NAME, DBMS_VERSION correctly for SQLGetInfo request.
+5.Not call show max_identifier_length in PG 7.4.
+6.Change adjustLikePattern() to take literal quote(') into account.
+7.Fix a bug in memory debug routine.
+8.Change the multibyte encoding list to match that of the current
+  offical driver.
+9.Change SC_clear_error() to call CC_clear_error() also.
+10.Change the length values returned when they are unknown for
+   SQLDescribeCol or SQLColAttribute requests.
+
+[7.3.0261]
+
+1.Fix the handling of *too small buffer* in the Unicode version.
+2.Fix the behavior of DiscardStatementSvp which resets the status too early.
+3.Fix the bug in PGAPI_ParamData which fails to count the number
+  of parameters.
+4.Allow blanks in password.
+5.Add an option to force abbreviation of connection string.
+6.Fix the handling of "PROTOCOL=x.x-x" in the connction string.
+7.Fix the loadlib module of *nix.
+
+[7.3.0260]
+
+1. Change delay load import library mechanism(libpq,openssl)
+2. Compile Optimization correspondence.
+3. SQLForeignKeys ResultSet accuracy correspondence.
+
+[7.3.0258]
+
+1. bug fix: SQLBulkOperations rollback option.
+   There was a case where a rollback was not published in SQLBulkOperations 
+   as option specification at the time of error generating.
+
+[7.3.0257]
+
+1. Fault correction of the division SQLGetData to SQL_C_WCHAR.
+
+[7.3.0256]
+
+1. SQLSetPos does not position to current-row to renewal of unblock cursor. 
+   (Data is unacquirable by SQLGetData etc.)
+
+[7.3.0255]
+
+1. bug fix: leak of a return value clearance
+2. Correspondence Windows English Dialog.
+3. Changes into the libpq link method.
+
+[7.3.0254]
+
+1. Setting menu of SSLMODE is added.
+2. Correspondence to domain type lo (an approvement is still required).
+3. bug fix: LIBPQ version cancellation request transmitting correspondence.
+4. Correction of the exclusive control between threads of SQLCancel
+
+[7.3.0253]
+
+1. Compilation of escape usage.
+   (preliminaries corresponding to a literal-escape abolition schedule)
+2. Correspondence of libpq and openssl.
+3. SQLProcedureColumns()RESULT_COLS row is outputted.
+4. bug fix: server-side prepare the number check of parameters.
+5. bug fix: parameter bind without a parameter marker is disregarded.
+6. bug fix: Retrying without carrying out a select operation to EWOULDBLOCK of socket/SSL-read.
+7. Abolition of abolition in manual_result mode, TupleList, and TupleNode employment
+
+[7.3.0252]
+
+1. Bug fix: Multi-byte employment by a table name etc.
+2. The text (varchar/char) type key assignation was enabled by MS-Access.
+
+[7.3.0251]
+
+1. Suppression of SQLColumnPrivilege support
+   It rejects using information_schema.column_privileges.
+2. Binary mode is used for a bytea type parameter value setup.
+   (Performs by the sequence of SQLPrepare->SQLExecute by server_side_prepare employment)
+3. Coexistence of LO type and bytea type.
+   When the parameter of LongVarBinary exists not by SQLPrepare->SQLExecute but by 
+   SQLExecDirect at the time of direct dispatching, the Parse/Describe function of 
+   a protocol 3 is used, the model in saver of LongVarBinary is acquired beforehand, 
+   and a bytea type and LO type are recognized.
+
+[Feature of Driver7.3.025x]
+
+1. Correspondence protocol 3
+   Options, such as client encoding, are set up by the start-up packet.
+   This makes the most of the mechanism of Parse/Bind/Execute.
+   .The outfit of SQLDescribeParam
+   .PREPARE/EXECUTE is changed from the command base to the protocol base.
+   .FETCH command is changed to an Execute request as it has come out.
+   .Moreover, bytea and lo type coexistence is possible.
+   .Others...
+
+2. Enhancement in declare/fetch mode (7.4 or later)
+   Even if a certain renewal occurs on the way by holdable cursor exploitation, 
+   a commitment is possible in comfort.
+   Moreover, the static update cursor was supported.
+   (Only for SQLSetPos correspondence, SQLBulkOperation are un-supporting)  
+   Bug fix of the cursor which can be updated.
+
+3. Rollback support of a syntactical unit at the time of an error.(8.0 or later)
+   Can choose from three Transaction module,Statement module,Nothing.
+   These can be specified by data source setup.
+
+4. Output parameter support (8.1 or later)
+   Corresponded to the output parameter of the function introduced by 8.1.
+   (Only the return value of a function was supported before.)
+</pre>
+<hr>
+<h2>psqlODBC 08.01.0200 Release</h2>
+<p>psqlODBC 08.01.0200 contains only documentation changes over the 08.01.0108
+development build.</p>
+<br>
+<li>Notes: psqlODBC 08.01.0108</li><br>
+1) fix most warnings during build in x86_64 environment<br>
+2) fixed point of failure on x86_64 boxes<br>
+3) fixed autocommit = off behaviour with starting transactions when needed<br>
+4) quick hack againist access violation with Disallow premature - 
+   this rarely used feature is still broken, but should no longer crash<br>
+5) report correct SQLSTATE in SQLGetDiagField and SQLGetDiagRec<br>
+<br>
+<li>Notes: psqlODBC 08.01.0107</li><br>
+1) fix next problem with calling implicit rollback in bad time<br>
+2) detecting transaction commands into if branch which mean backend
+   successfuly done the command. add support for "start transaction"<br>
+3) fix bug when mylog output can't be created<br>
+4) fix problem with SQLSetPos<br>
+5) fix problem with column length in CC_mapping<br>
+6) fix - typelen could be less then zero not only -1<br>
+<br>
+<li>Notes: psqlODBC 08.01.0106</li><br>
+1) fix problem with getting long text in unicode driver<br>
+2) fix sqlstate iin case of error in statement<br>
+3) doesn't call rollback in autocommit off or in manual transaction<br>
+4) remove obsolete parameter protocol<br>
+<br>
+<li>Notes: psqlODBC 08.01.0105</li><br>
+Changes:<br>
+1) fix problem with rollback aborted queries<br>
+2) SQLColumns or SQLColAttribute may return bad answer when Show system tables is turned off<br>
+3) adds support for ; delimited options in ConfigDSN<br>
+4) fixes problem with binding parameters and SQLCancel without SQLFreeStmt<br>
+<br>
+<li>Notes: psqlODBC 08.01.0104</li><br>
+Changes:<br>
+1) add commit after set basic options in SQLDriverConnect when autocommit is turned off<br>
+2) driver doesn't fail when there isn't bind enough parameters<br>
+3) collattributes doesn't work since switch to libpq.<br>
+   There is still problem with select '' as xx from table<br>
+4) SQLTables after SQLExecDirect has problem with GetData for all rows<br>
+5) grow MAXKEYLEN for SQLConfigDataSource<br>
+6) repair behaviour of more queries in one statement<br>
+<br>
+<li>Notes: psqlODBC 08.01.0103</li><br>
+Changes:<br>
+1) RowCount problem in SELECT<br>
+2) Server side prepare - but only first run in allocated statement<br>
+   (http://pgfoundry.org/tracker/index.php?func=detail&aid=1000460&group_id=1000125&atid=538)<br>
+3) Table names repeated in BDE with usedeclarefetch=1<br>
+4) Binding parameters are now freed in SQLCancel<br>
+5) Skip fetching data for commands<br>
+<br>
+<li>Notes: psqlODBC 08.01.0102</li><br>
+Changes:<br>
+1) Server side prepare now works correctly.<br>
+2) A bug in SQLTables that shows up in Borland SQL Explorer in<br>
+3) Declare/Fetch mode has been fixed.<br>
+4) A number of inconsistent internal APIs have been cleaned up. These<br>
+issues only showed up on some OS's.<br>
+5) Correct value returned by SQLGetInfo for<br>
+SQL_CATALOG_LOCATION/SQL_QUALIFIER_LOCATION. This prevented use of the<br>
+driver in Visual Studio 2005.<br>
+<br>
+The last four numbers will represent the build. If the last 2 digits are<br>
+both zero, a stable version is indicated. If the last two digits are<br>
+non-zero, it is a development snapshot. <br>
+So, starting with the next stable release, we will have:<br>
+08.01.0200 - Stable<br>
+08.01.0201 - Development<br>
+...<br>
+...<br>
+08.01.0299 - Development<br>
+08.01.0300 - Stable<br>
+Of course, we won't necessarily have 99 snaphosts between stable releases!<br>
+<br>
+<li>Notes: psqlODBC 08.01.0101</li><br>
+Changes:<br>
+This release fixes a serious problem in non-declare/fetch mode where<br>
+recordsets over the configured declare/fetch cache size were returned<br>
+incorrectly. It is advised that all users of v08.01.0100 upgrade as soon<br>
+as possible.<br>
+<br>
+<h2>psqlODBC 08.01.0100 Release</h2>
+This release represents a major change to the driver over previous versions;<br>
+in particular, the network code has been replaced with the PostgreSQL libpq<br>
+library. This allows us to more easily take advantage of updates and new<br>
+features that might be introduced to the PostgreSQL wire protocol, and also<br>
+allowed us to upgrade straight away to the version 3 protocol which was<br>
+previously unsupported. We were also able to add SSL support, as well as<br>
+Kerberos authentication support.<br>
+<br>
+>From this release, two versions of the driver are provided for Windows,<br>
+'PostgreSQL ANSI' which supports single and multibyte applications through<br>
+the ANSI ODBC API, and 'PostgreSQL Unicode' which provides Unicode support<br>
+through the Unicode ODBC API. On Unix systems, the driver type may be<br>
+selected via a configure option.<br>
+<br>
+psqlODBC may be downloaded from http://www.postgresql.org/ftp/odbc/versions/<br>
+in source, Windows Installer, merge module, and basic zip file formats.<br>
+<br>
+Please post any bug reports to the pgsql-odbc@postgresql.org mailing list.<br>
+<br>
+I'd like to take this opportunity to thank all those involved with the<br>
+development, testing and bug fixing of the updated driver.<br>
+PostgreSQL Core Team<br>
+<br>
+<li>Notes: psqlODBC 08.00.0102</li><br>
+This is a bug fix release<br>
+of the pre-libpq version of the driver, specifically to fix a bug<br>
+affecting Unix users<br>
+(http://gborg.postgresql.org/project/psqlodbc/bugs/bugupdate.php?1176)<br>
+<br>
+<h2>psqlODBC 08.00.0100 Release</h2>
+The driver is available in source form, as well as a dll, merge module<br>
+and msi installer for Windows.<br>
+<br>
+Regards, Dave.<br>
+<br>
+<li>Notes: psqlODBC 08.00.0005</li><br>
+This version<br>
+contains a some recent fixes, and is packaged in a new installer built<br>
+entirely using open source tools (specifically, the Wix toolkit).<br>
+<br>
+<li>Notes: psqlODBC 08.00.0002</li><br>
+This version of the driver is a minor update<br>
+with a fix to the string sizing code in SQLGetInfo, and removal of the<br>
+need for tables to be in the search path or public schema for them to be<br>
+returned by SQLTables.<br>
+<br>
+<li>Notes: psqlODBC 08.00.0001</li><br>
+The purpose of this version is to try to get something stable, with<br>
+proper schema/without OID support ready for the 8.0 release<br>
+(particularly the win32 release). To that end, this release is mainly a<br>
+quick cleanup of the following:<br>
+<br>
+- GUI cleanup. Dialogues should behave better now and not have unlabeled<br>
+buttons or move around the screen in strange ways.<br>
+<br>
+- Updateable Cursor support. This is largely experimental and is (I<br>
+believe) the cause of a least a couple of stability issues in the recent<br>
+snapshots. In this release it is marked 'experimental' on the setup<br>
+dialogue (only in English, if anyone can do the Japanese version, please<br>
+send a patch) and turned off by default.<br>
+<br>
+I'd appreciate it if ppl could test it a little with Updateable Cursors<br>
+*turned off* and report any bugs.<br>
+<br>
+<h2>psqlODBC 07.05.0001</h2>
+This is version 07.05.0001. For those that don't know or don't recall<br>
+how the versioning works, the major and minor number track the latest<br>
+release of PostgreSQL that the driver is expected to work with. The<br>
+revision number is a bit more complex. The first two digits are the<br>
+version number, where even numbers are development versions, and odd are<br>
+release. The last two digits are the build number.<br>
+<br>
+In other words, this driver is build 01 of development version 00, and<br>
+is expected to work with PostgreSQL 7.5dev. :-) The leading zeros are an<br>
+ODBC thing...<br>
+<br>
+<h2>psqlODBC 07.03.0100 Release</h2>
+I'm pleased to announce the long awaited new version of psqlODBC. This<br>
+release represents a major change in the packaging and distribution of<br>
+psqlODBC. In particular the following points should be noted:<br>
+<br>
+1) The build number will now be used to indicate both the release number<br>
+(first 2 digits), and snapshot build number (last 2 digits). this<br>
+release is 0100, or release 1, snapshot 0. The first development<br>
+snapshot will become 0101, the second 0102 and so on. The next official<br>
+release should be 07.03.0200.<br>
+<br>
+2) With this release, the ODBC 3 driver is now the default. The<br>
+filenames, driver names and their capabilities are as follows:<br>
+<br>
+psqlodbc.dll PostgreSQL ODBC3.0 Level<br>
+driver<br>
+psqlodbc25.dll PostgreSQL Legacy ODBC2.5 Level<br>
+driver<br>
+psqlodbc30w.dll PostgreSQL Unicode (Beta) Beta quality ODBC3.0<br>
+level driver with Unicode support<br>
+<br>
+3) The 3 drivers are no longer self contained. psqlodbc.dll is used as<br>
+the setup dll for all three drivers, hence no matter how you<br>
+redistribute or install the drivers, you should always include this<br>
+file.<br>
+<br>
+In addition, this driver fixes an annoying problem with recent builds of<br>
+PostgreSQL on Redhat systems that have a particularly long compiler<br>
+version string that caused a buffer overflow resulting in a GPF on<br>
+Windows upon connection to the database.<br>
+The driver is released under the LGPL, and can be downloaded from the<br>
+Downloads page on the website at<br>
+http://gborg.postgresql.org/project/psqlodbc/projdisplay.php<br>
+<br>
+<h2>=== gborg.postgresql.org(This is the past history.) ===</h2>
+1.33 by hinoue Annotate  <br>
+Thu Feb 5 09:11:44 2004 (2 weeks, 3 days ago)<br>
+Changed since 1.32: +3 -3 [Select for Diff] <br>
+Diffs to version 1.32 (long / unified) <br>
+Diffs ignoring whitespace to version 1.32 (long / unified) <br>
+ [7.3.0208]<br>
+1) Change catalog functions to search 'public' schema if a user<br>
+tries to search the user named schema and finds no record to<br>
+return.<br>
+2) Set the statement status to STMT_FINISHED(not STMT_PREPARED)<br>
+if the pre execution causes an error.<br>
+3) Adjust null terminator for SQL_C_WCHAR type.<br>
+4) Change getCharColumnSize to return max size when the<br>
+statement has no result.<br>
+5) Cache the number of parameters for statements. <br>
+<br>
+1.32 by hinoue Annotate   <br>
+Tue Jan 6 09:58:22 2004 (46 hours, 12 minutes ago)<br>
+Changed since 1.31: +3 -3 [Select for Diff] <br>
+Diffs to version 1.31 (long / unified) <br>
+Diffs ignoring whitespace to version 1.31 (long / unified) <br>
+ 1) Correct the handling of SQL_C_ULONG (for *nix).<br>
+2) Prevent plan deallocation errors when the transaction<br>
+is in abort status.<br>
+3) Avoid a connection failure when notice message arrives.<br>
+4) Improve the handling of mutex(critical section).<br>
+5) Correct the cursor open check.<br>
+6) Change the Unicode driver to set the NULL terminator<br>
+of SQL_C_WCHAR type data properly.<br>
+7) Add some m(re)alloc error check.<br>
+8) Add proper cleanup steps for some functions.<br>
+9) Return proper min & max scale for timestamp data type.<br>
+10) Return proper scale for timestamp data fields.<br>
+11) Fix the bug that .009 numeric generates .9 output. (George A.J) <br>
+<br>
+1.31 by hinoue Annotate  <br>
+Tue Dec 9 05:01:38 2003 (44 hours, 22 minutes ago)<br>
+Changed since 1.30: +3 -3 [Select for Diff] <br>
+Diffs to version 1.30 (long / unified) <br>
+Diffs ignoring whitespace to version 1.30 (long / unified) <br>
+ [7.3.0205]<br>
+(for *nix)<br>
+1. Detect -lsocket for some platforms.<br>
+2. Handle unix domain sockets.<br>
+3. EINTR safety for send/recv.<br>
+4. Set TCP_NDEALY option for inet connections.<br>
+<1-4: thanks to Hartmut Raschick><br>
+5. Use recursive mutex if possible.<br>
+6. Add descriptor.c to Makefile.<br>
+(for Windows)<br>
+7. Automatic setting of client encoding for latin1(9).<br>
+(common)<br>
+8. Avoid those notorious core dumps when logging on hitting<br>
+"null" data...<br>
+<8: thanls to Hartmut Raschick><br>
+9. Removed a static varible for thread-safety.<br>
+10. Improve the performance of keyset-driven fetch operation.<br>
+11. Map (var)char type to SQL type more properly.<br>
+12. Change create_params for NUMERIC type to (precison, scale).<br>
+13. Add type cast to remove some compiler warnings. <br>
+<br>
+1.30 by hinoue <br>
+Wed Nov 12 05:15:21 2003 (8 days, 1 hour ago)<br>
+Changed since 1.29: +3 -3 [Select for Diff] <br>
+Diffs to version 1.29 (long / unified) <br>
+Diffs ignoring whitespace to version 1.29 (long / unified) <br>
+ [7.03.0204]<br>
+1) Clear statements' cursors on commit/rollback.<br>
+2) Change SQLColumns, SQLTablePrivileges to take show_system_tables<br>
+option into account.<br>
+3) When an ODBC 2.x application working with an ODBC 3.x driver<br>
+1.calls SQLExecDirect, SQLExecute, or SQLParamData, and a searched<br>
+2.update or delete statement was executed but did not affect any<br>
+3.rows at the data source, the ODBC 3.x driver should return<br>
+4.SQL_SUCCESS. When an ODBC 3.x application working with an ODBC<br>
+5.3.x driver calls SQLExecDirect, SQLExecute, or SQLParamData<br>
+6.with the same result, the ODBC 3.x driver should return SQL_NO_DATA.<br>
+<br>
+1.29 by hinoue   <br>
+Mon Nov 10 02:10:07 2003 (10 hours, 1 minute ago)<br>
+Changed since 1.28: +3 -3 [Select for Diff] <br>
+Diffs to version 1.28 (long / unified) <br>
+Diffs ignoring whitespace to version 1.28 (long / unified) <br>
+ [7.03.0203]<br>
+1) Add conversion from text to SQL_C_BINARY(bug report from Brad Wilson).<br>
+2) Change SQLColumns, SQLTables etc to initialize the statement handle<br>
+properly(bug report from Yutaka Tanida).<br>
+3) Improve the handling of mutex under *nix(bug report from Steve Wampler). <br>
+ <br>
+1.28 by hinoue   <br>
+Wed Nov 5 20:35:02 2003 (4 days, 15 hours ago)<br>
+Changed since 1.27: +3 -3 [Select for Diff] <br>
+Diffs to version 1.27 (long / unified) <br>
+Diffs ignoring whitespace to version 1.27 (long / unified) <br>
+ [7.03.0202]<br>
+1) Improve SQLColAttributes(SQL_COLUMN_DISPLAY_SIZE) (bug report from Benjamin Riefenstahl).<br>
+2) Correct EN_set_odbc3 macro (bug report from tomas@nocrew.org(Tomas Skûñe)). <br>
+ <br>
+1.27 by hinoue   <br>
+Sat Oct 25 00:19:23 2003 (2 weeks, 2 days ago)<br>
+Changed since 1.26: +3 -3 [Select for Diff] <br>
+Diffs to version 1.26 (long / unified) <br>
+Diffs ignoring whitespace to version 1.26 (long / unified) <br>
+ [7.03.0201]<br>
+1) Revise the handling of descriptors and implement SQLCopyDesc.<br>
+2) Handle data_at_execution columns for SQLSetPos or SQLBulkOperations. <br>
+ <br>
+1.26 by dpage   <br>
+Wed Oct 22 09:07:25 2003 (2 weeks, 5 days ago)<br>
+CVS Tags: REL-07_03_0200 <br>
+Changed since 1.25: +3 -3 [Select for Diff] <br>
+Diffs to version 1.25 (long / unified) <br>
+Diffs ignoring whitespace to version 1.25 (long / unified) <br>
+ Version number bump. <br>
+ <br>
+1.25 by hinoue   <br>
+Sun Oct 19 22:37:42 2003 (3 weeks ago)<br>
+Changed since 1.24: +3 -3 [Select for Diff] <br>
+Diffs to version 1.24 (long / unified) <br>
+Diffs ignoring whitespace to version 1.24 (long / unified) <br>
+ [7.03.0116]<br>
+1. Fix a memory leak in case of updatable KEYSET_DRIVEN cursors.<br>
+2. Change SQLMoreResults to initialize the cursor position.<br>
+3. Hopefully, SQLDescribeCol() returns a more appropriate<br>
+error code(SQLSTATE). <br>
+ <br>
+1.24 by hinoue   <br>
+Fri Sep 19 05:25:17 2003 (7 weeks, 3 days ago)<br>
+Changed since 1.23: +3 -3 [Select for Diff] <br>
+Diffs to version 1.23 (long / unified) <br>
+Diffs ignoring whitespace to version 1.23 (long / unified) <br>
+ 1) Correct the return info for SQLGetInfo(.., SQL_CURSOR_COMMIT<br>
+(ROLLBACK)_BEHAVIOR) call.<br>
+2) Explictly reject the SQLBrowseConnect call. <br>
+ <br>
+1.23 by hinoue   <br>
+Mon Sep 15 04:25:03 2003 (8 weeks ago)<br>
+Changed since 1.22: +3 -3 [Select for Diff] <br>
+Diffs to version 1.22 (long / unified) <br>
+Diffs ignoring whitespace to version 1.22 (long / unified) <br>
+ 1. Serialize the connection use for communication(multi-thread).<br>
+2. Let escape strings case-insensitive. <br>
+ <br>
+1.22 by hinoue   <br>
+Tue Sep 2 07:25:53 2003 (2 months, 1 week ago)<br>
+Changed since 1.21: +1 -1 [Select for Diff] <br>
+Diffs to version 1.21 (long / unified) <br>
+Diffs ignoring whitespace to version 1.21 (long / unified) <br>
+ Fix a bug when handling data_at_execution parameter array<br>
+reported by Jol Valentine <jolv@genaware.com>. <br>
+ <br>
+1.21 by hinoue   <br>
+Wed Aug 27 06:17:53 2003 (2 months, 2 weeks ago)<br>
+Changed since 1.20: +3 -3 [Select for Diff] <br>
+Diffs to version 1.20 (long / unified) <br>
+Diffs ignoring whitespace to version 1.20 (long / unified) <br>
+ 1) Fix a bug on SQLSetStmtAttr(.., SQL_CONCURRENCY) reported by Shachar Shemesh.<br>
+2) Apply a patch to changes the storage type of the debug "func" variables<br>
+to be stored in the constant area of the program(Shachar Shemesh).<br>
+3) Correct the column size in case of bytea as LO. <br>
+ <br>
+1.20 by hinoue   <br>
+Wed Jul 30 21:57:50 2003 (3 months, 1 week ago)<br>
+Changed since 1.19: +3 -3 [Select for Diff] <br>
+Diffs to version 1.19 (long / unified) <br>
+Diffs ignoring whitespace to version 1.19 (long / unified) <br>
+ 1) Distinguish the rowset size for SQLFetch(Scroll) from that for<br>
+SQLExtendedFetch.<br>
+2) Implement SQLGetDiagFieldW() for the Unicode driver. <br>
+ <br>
+1.19 by hinoue   <br>
+Fri Jul 11 06:47:17 2003 (4 months ago)<br>
+Changed since 1.18: +3 -3 [Select for Diff] <br>
+Diffs to version 1.18 (long / unified) <br>
+Diffs ignoring whitespace to version 1.18 (long / unified) <br>
+ Improve SQLGetDiagField so that an MFC appliaction reports<br>
+error messages properly(bug report from Silvio Scarpati). <br>
+ <br>
+1.18 by hinoue   <br>
+Wed Jul 9 04:09:11 2003 (4 months ago)<br>
+Changed since 1.17: +3 -3 [Select for Diff] <br>
+Diffs to version 1.17 (long / unified) <br>
+Diffs ignoring whitespace to version 1.17 (long / unified) <br>
+ Add quotes around table names to use ::regclass in parse.c . <br>
+ <br>
+1.17 by hinoue   <br>
+Sun Jun 29 23:51:24 2003 (4 months, 1 week ago)<br>
+Changed since 1.16: +3 -3 [Select for Diff] <br>
+Diffs to version 1.16 (long / unified) <br>
+Diffs ignoring whitespace to version 1.16 (long / unified) <br>
+ Change SQLGetFunctions to contain ODBC3 APIs. <br>
+ <br>
+1.16 by hinoue   <br>
+Thu May 29 22:30:33 2003 (5 months, 1 week ago)<br>
+Changed since 1.15: +3 -3 [Select for Diff] <br>
+Diffs to version 1.15 (long / unified) <br>
+Diffs ignoring whitespace to version 1.15 (long / unified) <br>
+ 1) Improve the SQL_C_VARBOOKMARK type handling.<br>
+2) Cleanup copy_and_convert_field() a little.<br>
+3) Set an error number and an error message for SQLAllocHandle(<br>
+SQL_HANDLE_DESC). <br>
+ <br>
+1.15 by hinoue   <br>
+Tue May 27 22:26:37 2003 (5 months, 2 weeks ago)<br>
+Changed since 1.14: +3 -3 [Select for Diff] <br>
+Diffs to version 1.14 (long / unified) <br>
+Diffs ignoring whitespace to version 1.14 (long / unified) <br>
+ Fix a bug about a bookmark handling in SQLBulkOperaitons(SQL_ADD,..) <br>
+ <br>
+1.14 by hinoue   <br>
+Tue May 27 19:23:41 2003 (5 months, 2 weeks ago)<br>
+Changed since 1.13: +3 -3 [Select for Diff] <br>
+Diffs to version 1.13 (long / unified) <br>
+Diffs ignoring whitespace to version 1.13 (long / unified) <br>
+ Remove date cast(::date) from the conversion of {d escape before<br>
+7.3 servers. 7.2 servers are poor in implicit cast from date -><br>
+timestamp without time zone. <br>
+ <br>
+1.13 by hinoue   <br>
+Tue May 27 01:20:09 2003 (5 months, 2 weeks ago)<br>
+Changed since 1.12: +3 -3 [Select for Diff] <br>
+Diffs to version 1.12 (long / unified) <br>
+Diffs ignoring whitespace to version 1.12 (long / unified) <br>
+ 1) Corrent the handling of bookmark in SQLBulkOperations.<br>
+2) Correct the calculation of a global index in SC_pos_add.<br>
+3) Cleanup global/rowset/resultset index handling a little. <br>
+ <br>
+1.12 by hinoue   <br>
+Sun May 25 20:47:50 2003 (5 months, 2 weeks ago)<br>
+Changed since 1.11: +3 -3 [Select for Diff] <br>
+Diffs to version 1.11 (long / unified) <br>
+Diffs ignoring whitespace to version 1.11 (long / unified) <br>
+ Correct a handling of offset in SQLBulkOperations. <br>
+ <br>
+1.11 by hinoue   <br>
+Tue May 20 10:11:22 2003 (5 months, 3 weeks ago)<br>
+Changed since 1.10: +4 -4 [Select for Diff] <br>
+Diffs to version 1.10 (long / unified) <br>
+Diffs ignoring whitespace to version 1.10 (long / unified) <br>
+ Fix a crash bug in SQLDriverConnect(). <br>
+ <br>
+1.10 by hinoue   <br>
+Tue May 20 06:39:28 2003 (5 months, 3 weeks ago)<br>
+Changed since 1.9: +3 -3 [Select for Diff] <br>
+Diffs to version 1.9 (long / unified) <br>
+Diffs ignoring whitespace to version 1.9 (long / unified) <br>
+ The previous change wasn't in time of 7.3.0100.<br>
+It belongs to 7.03.0101. <br>
+ <br>
+1.9 by hinoue   <br>
+Mon May 19 06:12:09 2003 (5 months, 3 weeks ago)<br>
+Changed since 1.8: +1 -1 [Select for Diff] <br>
+Diffs to version 1.8 (long / unified) <br>
+Diffs ignoring whitespace to version 1.8 (long / unified) <br>
+ 1) Revert a *int8 as* DSN option to *numeric* for MS Jet.<br>
+2) Add a SQL_CA2_SENSITIVITY_ADDTIONS mask to the reply for<br>
+SQLGetInfo(.., SQL_ATTR_KEYSET_DRIVEN_CURSOR_ATTRIBUTES2)<br>
+which would make a little OpenOffice happy.<br>
+3) Fix a bug in SQLGetInfo(.., SQL_ATTR_ROW_NUMBER) for keyset_driven<br>
+cursors. <br>
+ <br>
+1.8 by dpage   <br>
+Thu May 15 04:24:40 2003 (5 months, 3 weeks ago)<br>
+CVS Tags: REL-07_03_0100 <br>
+Changed since 1.7: +3 -3 [Select for Diff] <br>
+Diffs to version 1.7 (long / unified) <br>
+Diffs ignoring whitespace to version 1.7 (long / unified) <br>
+ Updates for 07.03.0100 <br>
+ <br>
+1.7 by dpage   <br>
+Thu May 15 03:38:16 2003 (5 months, 3 weeks ago)<br>
+Changed since 1.6: +3 -3 [Select for Diff] <br>
+Diffs to version 1.6 (long / unified) <br>
+Diffs ignoring whitespace to version 1.6 (long / unified) <br>
+ Updates for 07.03.0001 <br>
+ <br>
+1.6 by hinoue   <br>
+Mon May 12 11:44:08 2003 (5 months, 4 weeks ago)<br>
+Changed since 1.5: +3 -3 [Select for Diff] <br>
+Diffs to version 1.5 (long / unified) <br>
+Diffs ignoring whitespace to version 1.5 (long / unified) <br>
+ 1) Add a *bytea as LO* DSN option button.<br>
+2) Add japanese resources to psqlodbc.rc.<br>
+3) Add a dialog for the driver change. <br>
+ <br>
+1.5 by hinoue   <br>
+Wed Apr 23 05:49:47 2003 (6 months, 2 weeks ago)<br>
+Changed since 1.4: +3 -3 [Select for Diff] <br>
+Diffs to version 1.4 (long / unified) <br>
+Diffs ignoring whitespace to version 1.4 (long / unified) <br>
+ 1) Avoid password leak in the log.<br>
+2) Reduce time() calls for the performance.<br>
+3) Improve the handling of per Driver resource.<br>
+4) #define HAVE_STRTOLL<br>
+etc. <br>
+ <br>
+1.4 by hinoue   <br>
+Wed Nov 27 04:30:53 2002 (11 months, 1 week ago)<br>
+CVS Tags: REL-07_02_0005 <br>
+Changed since 1.3: +3 -3 [Select for Diff] <br>
+Diffs to version 1.3 (long / unified) <br>
+Diffs ignoring whitespace to version 1.3 (long / unified) <br>
+ Upgrade to 7.2.0005. <br>
+ <br>
+1.3 by hinoue   <br>
+Thu Oct 10 02:37:54 2002 (13 months ago)<br>
+CVS Tags: REL-07_02_0004 <br>
+Changed since 1.2: +3 -3 [Select for Diff] <br>
+Diffs to version 1.2 (long / unified) <br>
+Diffs ignoring whitespace to version 1.2 (long / unified) <br>
+ 1) Change SQLDescribeCol or SQLColAttribute to return right ResultNumCols for<br>
+keyset/static cursors.<br>
+2) Change PG_TYPE_TEXT -> PG_TYPE_VARCHAR for character columns of the<br>
+result of catalog functions (bug report from Mike Mascari). <br>
+ <br>
+1.2 by hinoue   <br>
+Mon Sep 23 04:08:22 2002 (13 months, 2 weeks ago)<br>
+CVS Tags: REL-07_02_0003 <br>
+Changed since 1.1: +3 -3 [Select for Diff] <br>
+Diffs to version 1.1 (long / unified) <br>
+Diffs ignoring whitespace to version 1.1 (long / unified) <br>
+ 1) Removed most static variables for thread safety.<br>
+2) Trial implementation of the thread safe driver under<br>
+Windows.<br>
+3) Fix a bug about DSN options setting.<br>
+4) Fix a bug about Driver options setting.<br>
+5) Implement SQLProcedureColumns().<br>
+6) Changed default numeric precision/scale.<br>
+7) Fix some memory leaks in Unicode driver.<br>
+8) datetime -> timestamp with time zone since 7.0.<br>
+9) Change manually started(using begin) transactions never<br>
+be implicitly committed. <br>
+ <br>
+1.1 by inoue   <br>
+Thu May 9 00:10:22 2002 (18 months ago)<br>
+[Select for Diff] <br>
+ Add a file for version control. <br>
+ <br>
+
+</body>
+</html>
