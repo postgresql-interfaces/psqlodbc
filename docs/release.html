@@ -6,15 +6,15 @@
   </HEAD>
 
   <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
-  
+
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2>psqlODBC 09.xx.xxxx Release</h2>
+<h2><a id="09.xx.xxxx">psqlODBC 09.xx.xxxx Release</a></h2>
 Changes:<br>
 1.) Protect shared connection list when making cleanup tasks in EN_Destructor
 using the patch provided by Michael Kocherov.<br>
 <br>
-<li>Notes: psqlODBC 09.01.0200</li><br>
+<h2><a id="09.01.0200">psqlODBC 09.01.0200</a></h2>
 Changes:<br>
 1.) Use int instead of size_t when condition >=0 is used.<br>
 2.) Add a necessary break in a switch statement etc.<br>
@@ -29,7 +29,7 @@ Changes:<br>
 11.) Fix the bug that when the show OID column option is enabled, SQLColumns() returns "oid" column info even when the column name parameter which is different from "oid" is specified (bug report from Seifert, Jan-Peter).<br>
 12.) Take care of an environment variable PGKRBSRVNAME.<br>
 <br>
-<li>Notes: psqlODBC 09.01.0100</li><br>
+<h2><a id="09.01.0100">psqlODBC 09.01.0100</a></h2>
 Changes:<br>
 1.) SQLStatistics() sets 'D' for the collation column when an reverse index is used.<br>
 2.) Fix the bug that PostgreSQL's function calls in queries cause a crash on SQL Server linked servers.<br>
@@ -42,7 +42,7 @@ Changes:<br>
 9.) Don't clear the columns cache info when they are referenced.<br>
 10.) Correct the column size of interval types.<br>
 <br>
-<li>Notes: psqlODBC 09.00.0310</li><br>
+<h2><a id="09.00.0310">psqlODBC 09.00.0310</a></h2>
 Changes:<br>
 1.) Let SC_forget_unnamed() clear the result in case the statement is not executed yet. It would fix the bug reported by Silvio Brandani.<br>
 2.) Fix the bug that strings are copied to a null pointer.<br>
@@ -56,7 +56,7 @@ Changes:<br>
 10.) Fix compilation error on different ODBCVER.<br>
 11.) Correct the behavior of SQLSetConnectAttr() for the driver specific options.<br>
 <br>
-<li>Notes: psqlODBC 09.00.0300</li><br>
+<h2><a id="09.00.0300">psqlODBC 09.00.0300</a></h2>
 Changes:<br>
 1.) Don't propgate the connection level statment options to the internal statements. This fixes an infinite loop reported by Nelson Andre.<br>
 2.) Improved a mylog output.<br>
@@ -71,7 +71,7 @@ for insert/update/delete .. returning statements.<br>
 10.) Fix the trouble introduced by the change *Return 0 for the column size when the size of numeric items are unknown* per report from Marco Gaiarin.<br>
 11.) Remove a meaningless if clause. This had a problem with ltdl function.<br>
 <br>
-<li>Notes: psqlODBC 09.00.0200</li><br>
+<h2><a id="09.00.0200">psqlODBC 09.00.0200</a></h2>
 Changes:<br>
 1.) Fix a bug about sizeof() at idx_fake_oid of info.<br>
 2.) Return 0 for the column size when the size of numeric items are unknown.<br>
@@ -86,11 +86,11 @@ Changes:<br>
 7.) Move the setting of folder name of libpq or gssapi related dlls from .wxs file to .bat file.<br>
 8.) Fix a bug which returns incorrect values for SQL_DATETIME_SUB.<br>
 <br>
-<li>Notes: psqlODBC 09.00.0101</li><br>
+<h2><a id="09.00.0101">psqlODBC 09.00.0101</a></h2>
 Changes:<br>
 1.) Fix build source of Windows 64bit environment.<br>
 <br>
-<li>Notes: psqlODBC 09.00.0100</li><br>
+<h2><a id="09.00.0100">psqlODBC 09.00.0100</a></h2>
 Changes:<br>
 1.) Allow password which contains special characters like {,},=,;.<br>
 2.) Add a new data source option which makes it possible to use Kerberos for Windows library to reply to GSSAPI authentication request.<br>
@@ -117,7 +117,7 @@ Changes:<br>
 23.) Make sure the support of the backward-compatibility version of getaddrinfo() family even when _WIN32_WINNT is supplied.<br>
 24.) Update win64.mak so that gssapi support is available without libpq.<br>
 <br>
-<li>Notes: psqlODBC 08.04.0200</li><br>
+<h2><a id="08.04.0200">psqlODBC 08.04.0200</a></h2>
 Changes:<br>
 1.) Fix a column uodatability problem reported by Tom Goodman.<br>
 2.) Display SSL mode list properly on setup dialog.<br>
@@ -138,7 +138,7 @@ Changes:<br>
 17) Suppress some compilation errors and warnings.<br>
 18) Fix SSL connection timeout.<br>
 <br>
-<li>Notes: psqlODBC 08.04.0100</li><br>
+<h2><a id="08.04.0100">psqlODBC 08.04.0100</a></h2>
 Changes:<br>
 1.) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br>
 2.) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.<br>
@@ -166,12 +166,12 @@ Changes:<br>
 24.) Take the platforms where char is unsigned into account per report from Alex Goncharov.<br>
 25.) Improve the handling of UUID type especially to support IMPORT or LINK in MS Access.<br>
 <br>
-<li>Notes: psqlODBC 08.03.0400</li><br>
+<h2><a id="08.03.0400">psqlODBC 08.03.0400</a></h2>
 Changes:<br>
 1.) GUID forgot to set the value to the buffer.<br>
 2.) -Wall was taken as gcc limitation.<br>
 <br>
-<li>Notes: psqlODBC 08.03.0300</li><br>
+<h2><a id="08.03.0300">psqlODBC 08.03.0300</a></h2>
 Changes:<br>
 1.) SQLGUID type support thanks to Jan-Willem Goossens.<br>
 2.) Fix a bug about silently adding a *for read only* clause.<br>
@@ -185,7 +185,7 @@ Changes:<br>
 10.) Check strerror_r function's return type.<br>
 11.) Suppress some compiler warnings.<br>
 <br>
-<li>Notes: psqlODBC 08.03.0200</li><br>
+<h2><a id="08.03.0200">psqlODBC 08.03.0200</a></h2>
 Changes:<br>
 1.) Fix a bug in socket which uses a socket variable.<br>
 2.) Support column alias without "as" so that links from the SQLServer work.<br>
@@ -195,7 +195,7 @@ Changes:<br>
 6.) Change to return a specific sqlstate in case of multiple parameters.<br>
 7.) Fix bug of the selection not using SSL.<br>
 <br>
-<li>Notes: psqlODBC 08.03.0100</li><br>
+<h2><a id="08.03.0100">psqlODBC 08.03.0100</a></h2>
 Changes:<br>
 1.) Correct the flow of trial of multi protocols and fix related bugs about handling of connection errors.<br>
 2.) Use SSPI service for SSL support when libpq is unavailable.<br>
@@ -208,12 +208,12 @@ Changes:<br>
 8.) Be more careful about <for locking clause> in UseDeclareFetch mode. "for read only" clause for read only queries
  for 8.3 or later servers for safety.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0500</li><br>
+<h2><a id="08.02.0500">psqlODBC 08.02.0500</a></h2>
 Changes:<br>
 1.) Correct the format of Bind message under 64bit environment.<br>
 2.) Fixed build of without OpenSSL.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0403</li><br>
+<h2><a id="08.02.0403">psqlODBC 08.02.0403</a></h2>
 Changes:<br>
 1.) Support SQLColAttribute for MS specific SQL_CA_SS_COLUMN_KEY. Some MS applications use this.<br>
 2.) Improve the check of updatability of queries by checking if they have multiple tables.<br>
@@ -222,7 +222,7 @@ Changes:<br>
 5.) Add a flag which lets SQLTables() show only accessible tables.<br>
 6.) The unicode driver now can handle utf-16 surrogate pairs.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0402</li><br>
+<h2><a id="08.02.0402">psqlODBC 08.02.0402</a></h2>
 Changes:<br>
 1.) Fix some bugs in case without MSDTC support.<br>
 2.) Refine the realloc handling.<br>
@@ -237,25 +237,25 @@ Changes:<br>
 11.) Fix a bug which doesn't free connection list properly.<br>
 12.) Fix DelayLoadDLL was made explicit of psqlodbc.proj file.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0401</li><br>
+<h2><a id="08.02.0401">psqlODBC 08.02.0401</a></h2>
 Changes:<br>
 1.) Fix a bug which checking join is confused by CR+LF.<br>
 2.) Handle AUTOCOMMIT mode more carefully in a distributed transaction so as not to issue COMMIT unexpectedly.<br>
 3.) Allow the UNIX domain configuration (the same as libpq).<br>
 4.) Fixed the automake/autoconf scripts.(by Peter Eisentraut)<br>
 <br>
-<li>Notes: psqlODBC 08.02.0400</li><br>
+<h2><a id="08.02.0400">psqlODBC 08.02.0400</a></h2>
 Changes:<br>
 1.) Fixed control binding of SetField problem.<br>
 2.) Fixed pgenlist.h losts to the release package.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0300</li><br>
+<h2><a id="08.02.0300">psqlODBC 08.02.0300</a></h2>
 Changes:<br>
 1.) Allow non-admin or Vista users to create log fils in the home
 directory.<br>
 2.) Fix an index over bug which causes a crash or an unexpected result.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0205</li><br>
+<h2><a id="08.02.0205">psqlODBC 08.02.0205</a></h2>
 Changes:<br>
 1.) Append DETAIL messages to GetDiag...() messages.<br>
 2.) Use SQL_SUCCEEDED macros so as to simplify the code.<br>
@@ -266,7 +266,7 @@ Changes:<br>
 7.) Improve the implemetation of SQLSetPos(.., SQL_ADD/SQL_UPDATE) using the 8.2 new feature INSERT/UPDATE .. returning.<br>
 8.) Seaparate DTC code as a Delayload DLL.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0204</li><br>
+<h2><a id="08.02.0204">psqlODBC 08.02.0204</a></h2>
 Changes:<br>
 1.) Configure the combination of time.h and sys/time.h.<br>
 2.) Treat the tables in information_schema as system tables.<br>
@@ -283,7 +283,7 @@ Changes:<br>
 13.) Apply Parse statement or disallow premature properly.<br>
 14.) Reset current_schema cache in case 'set search_path ..' command is issued.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0203</li><br>
+<h2><a id="08.02.0203">psqlODBC 08.02.0203</a></h2>
 Changes:<br>
 1) Fix a bug which forgets unnamed plans too early especially when handling large objects.<br>
 2) Don't treat charcters whose value >= 128 as alphanumeric in case of conversion of binary data to bytea.<br>
@@ -294,36 +294,36 @@ Changes:<br>
 7) SQLGetInfo SQL_DATABASE_NAME now returns the database name.<br>
 8) Improve the automatic setting mechanism of the client_encoding for Windows code page 125x (ANSI drivers only).<br>
 <br>
-<li>Notes: psqlODBC 08.02.0202</li><br>
+<h2><a id="08.02.0202">psqlODBC 08.02.0202</a></h2>
 Changes:<br>
 1) Change to use NULL indicator instead of the length buffer in SQLFetch.<br>
 2) Fix long -> serial conversion error in MS Access.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0201</li><br>
+<h2><a id="08.02.0201">psqlODBC 08.02.0201</a></h2>
 Changes:<br>
 1) Ditinguish the indicaitor and the octet_length field of APD clcearly.<br>
 2) Handle @@IDENTITY more generally.<br>
 3) Take outer join into account so as to evaluate nullability.<br>
 4) Fix a bug about Keyset-driven cursors.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0200</li><br>
+<h2><a id="08.02.0200">psqlODBC 08.02.0200</a></h2>
 Changes:<br>
 1) Fix some bugs or warnings on 64 bit OS.<br>
 2) Avoid backend crash caused by Execute Requests for committed holdable cursors.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0105</li><br>
+<h2><a id="08.02.0105">psqlODBC 08.02.0105</a></h2>
 Changes:<br>
 1) SQLStatistics now returns indices based on expression also.<br>
 2) Add a TEST button on the setup dialog.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0104</li><br>
+<h2><a id="08.02.0104">psqlODBC 08.02.0104</a></h2>
 Changes:<br>
 1) Take 64bit mode into account for the format parameter of (s(n))printf, sscanf etc.<br>
 2) getpid() instead of _getpid()<br>
 3) SQLGetInfo(SQL_NULL_COLLATION) now returns SQL_NC_HIGH instead of SQL_NC_END<br>
 4) Remove the function SQLParamOptions from ODBC3.0.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0103</li><br>
+<h2><a id="08.02.0103">psqlODBC 08.02.0103</a></h2>
 Changes:<br>
 1) Improve the handling of connection error messages.<br>
 2) Add an option to convert empty strings to NULL.<br>
@@ -335,14 +335,14 @@ Changes:<br>
 8) Fix a insertion count bug.<br>
 9) Take win98 cases into account a little.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0102</li><br>
+<h2><a id="08.02.0102">psqlODBC 08.02.0102</a></h2>
 Changes:<br>
 1) Compensate a loss of report of being Jet when using MS Access.<br>
 2) Add NULL <-> "" date converion function for FOXPRO and<br>
    revise parse/describe/execute mechanism.<br>
 3) Miscellaneous type changes for 64 bit drivers.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0101</li><br>
+<h2><a id="08.02.0101">psqlODBC 08.02.0101</a></h2>
 Changes:<br>
 1) Delayload import XOLEHLP.dll so that the driver can be loaded<br>
    without the existence of the dll.<br>
@@ -353,14 +353,14 @@ Changes:<br>
 5) Refine the socket handling(connect, recv, send).<br>
 6) Display more appropriate error messages in the connection phase.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0100</li><br>
+<h2><a id="08.02.0100">psqlODBC 08.02.0100</a></h2>
 Changes:<br>
 1) Return to Unicode/ANSI driver distribution as some users still find one works better than the other for them.<br>
 2) Improve connection error message in case of invalid protocol characters.<br>
 3) Initial value has set MSDTC=no of VC6 (Support of MSDTC is only VC7 and VC8)<br>
 4) Addition which is a driver name in a resource (Unicode or ANSI)<br>
 <br>
-<li>Notes: psqlODBC 08.02.0007</li><br>
+<h2><a id="08.02.0007">psqlODBC 08.02.0007</a></h2>
 Changes:<br>
 1) Fix some SQLPrimaryKey, SQLForeignKey bugs.<br>
    Fill PK_NAME or FK_NAME columns.<br>
@@ -374,7 +374,7 @@ Changes:<br>
 7) Hold the connection lock while a rollbackable statement running.<br>
 8) Add Extra Opts option to the DSN option setupdialog.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0006</li><br>
+<h2><a id="08.02.0006">psqlODBC 08.02.0006</a></h2>
 Changes:<br>
 1) Add an option to fake Microsoft SQL Server which would improve SERIAL type handling.<br>
 2) Add support for LOGIN_TIMEOUT.<br>
@@ -388,7 +388,7 @@ Changes:<br>
 <br>
 8.2.0003-8.2.0005 was skipped by the situation.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0002</li><br>
+<h2><a id="08.02.0002">psqlODBC 08.02.0002</a></h2>
 Changes:<br>
 1) SQL injections via ODBC catalog function calls.<br>
 2) Fix SQLNumParams problem related to literal or dollar quote.<br>
@@ -402,7 +402,7 @@ Changes:<br>
 10) Fix the client_encoding mismatch problem.<br>
 11) Fix for SQLStatistics returns UNKNOWN instead of real column names.<br>
 <br>
-<li>Notes: psqlODBC 08.02.0001</li><br>
+<h2><a id="08.02.0001">psqlODBC 08.02.0001</a></h2>
 Changes:<br>
 1) updated CVS tip to the REL-07_03_ENHANCED branch<br>
 2) updated the installer for the single driver distribution<br>
