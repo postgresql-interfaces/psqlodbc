@@ -48,11 +48,7 @@ EXTRA_DIST = license.txt readme.txt \
         pgxalib.def odbc.sql odbc-drop.sql odbcapi25w.c \
 	sspisvcs.c sspisvcs.h gsssvcs.c gsssvcs.h \
 \
-	docs/index.html docs/config.html docs/config-opt.html \
-	docs/faq.html docs/howto-accesslo.html \
-	docs/howto-accessvba.html docs/howto-bo.html \
-	docs/howto-ch.html docs/howto-csharp.html \
-	docs/howto-vb.html docs/howto-vblo.html \
+	docs/config.html docs/config-opt.html \
 	docs/unix-compilation.html docs/win32-compilation.html \
 	docs/release.html \
 \
