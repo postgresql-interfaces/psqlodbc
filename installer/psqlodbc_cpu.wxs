@@ -69,21 +69,13 @@
             </Directory>
             <Directory Id="DOCSDIR" Name="docs">
               <Component Id="docs" Guid="$(var.CIDDOC)" Win64="$(var.BIT64)">
-                <File Id="docs.index.html" Name="index.html" DiskId="1" Source="../docs/index.html" KeyPath="yes" />
+                <File Id="docs.README.txt" Name="README.txt" DiskId="1" Source="../docs/README.txt" KeyPath="yes" />
                 <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
-                <File Id="docs.faq.html" Name="faq.html" DiskId="1" Source="../docs/faq.html" />
-                <File Id="docs.howto_accesslo.html" Name="howto-accesslo.html" DiskId="1" Source="../docs/howto-accesslo.html" />
-                <File Id="docs.howto_accessvba.html" Name="howto-accessvba.html" DiskId="1" Source="../docs/howto-accessvba.html" />
-                <File Id="docs.howto_bo.html" Name="howto-bo.html" DiskId="1" Source="../docs/howto-bo.html" />
-                <File Id="docs.howto_ch.html" Name="howto-ch.html" DiskId="1" Source="../docs/howto-ch.html" />
-                <File Id="docs.howto_csharp.html" Name="howto-csharp.html" DiskId="1" Source="../docs/howto-csharp.html" />
-                <File Id="docs.howto_vb.html" Name="howto-vb.html" DiskId="1" Source="../docs/howto-vb.html" />
-                <File Id="docs.howto_vblo.html" Name="howto-vblo.html" DiskId="1" Source="../docs/howto-vblo.html" />
                 <File Id="docs.release.html" Name="release.html" DiskId="1" Source="../docs/release.html" />
                 <File Id="docs.unix_compilation.html" Name="unix-compilation.html" DiskId="1" Source="../docs/unix-compilation.html" />
                 <File Id="docs.win32_compilation.html" Name="win32-compilation.html" DiskId="1" Source="../docs/win32-compilation.html" />
 
-                <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" />
+                <!-- <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" /> -->
               </Component>
             </Directory>
           </Directory>
@@ -107,7 +99,7 @@
         <MergeRef Id="psqlodbcm" />
       </Feature>
 
-      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation, FAQs and HOWTOs.">
+      <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation and release notes.">
         <ComponentRef Id="smdir" />
         <ComponentRef Id="docs" />
       </Feature>
