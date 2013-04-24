@@ -13,6 +13,8 @@
 
 struct ColumnInfoClass_
 {
+	UInt4		refcount;	/* reference count. A ColumnInfo can be shared by
+							 * several qresults. */
 	Int2		num_fields;
 	struct srvr_info
 	{

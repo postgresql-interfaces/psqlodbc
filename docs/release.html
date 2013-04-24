@@ -28,6 +28,9 @@ using the patch provided by Michael Kocherov.<br>
     This was caused by unintentional multiple evaluation of macro arguments.<br>
 8.) Move psqlodbc website's main page, FAQ, and howto pages to a separate git
     repository. They are no longer included in psqldbc release tarballs.<br>
+9.) Fix bug with binding a 5-bytes long string as VARCHAR parameter, with
+    UseServerSidePrepare=0 and BoolsAsChar=1. That combination produced an
+    extra empty result set on execution.<br>
 
 <br>
 <h2><a id="09.01.0200">psqlODBC 09.01.0200</a></h2>

@@ -1872,7 +1872,8 @@ SC_execute(StatementClass *self)
 	{
 		QResultClass *curres = SC_get_Curres(self);
 
-		if (NULL != curres)
+		if (NULL != curres &&
+		    curres->dataFilled)
 			useCursor = (NULL != QR_get_cursor(curres));
 	} 
 	/* issue BEGIN ? */
@@ -1950,13 +1951,20 @@ SC_execute(StatementClass *self)
 #endif /* BYPASS_ONESHOT_PLAN_EXECUTION */
 					case NAMED_PARSE_REQUEST:
 						use_extended_protocol = TRUE;
+						break;
 				}
 			}
-			if (!use_extended_protocol)
+			if (use_extended_protocol)
+				break;
+			/* fall through */
+		case ONCE_DESCRIBED:
+			SC_forget_unnamed(self);
 			{
-				SC_forget_unnamed(self);
-				SC_set_Result(self, NULL); /* discard the parsed information */
+				QResultClass	*pres = SC_get_Result(self);
+				if (NULL != pres && NULL == QR_get_command(pres))
+					SC_set_Result(self, NULL); /* discard the parsed information */
 			}
+			break;
 	}
 	if (use_extended_protocol)
 	{
@@ -2140,10 +2148,8 @@ inolog("!!%p->SC_is_concat_pre=%x res=%p\n", self, self->miscinfo, res);
 			{
 				if (tres = res->next, tres)
 				{
-					if (tres->fields)
-						CI_Destructor(tres->fields);
-					tres->fields = res->fields;
-					res->fields = NULL;
+					QR_set_fields(tres, QR_get_fields(res));
+					QR_set_fields(res,  NULL);
 					tres->num_fields = res->num_fields;
 					res->next = NULL;
 					QR_Destructor(res);
@@ -2413,7 +2419,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 
 			if (res)
 			{
-				qlog("                 fields=%p, backend_tuples=%p, tupleField=%d, conn=%p\n", res->fields, res->backend_tuples, res->tupleField, res->conn);
+				qlog("                 fields=%p, backend_tuples=%p, tupleField=%d, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
 				qlog("                 fetch_count=%d, num_total_rows=%d, num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, nullcheck(QR_get_cursor(res)));
 				qlog("                 message='%s', command='%s', notice='%s'\n", nullcheck(QR_get_message(res)), nullcheck(res->command), nullcheck(res->notice));
 				qlog("                 status=%d, inTuples=%d\n", QR_get_rstatus(res), QR_is_fetching_tuples(res));
@@ -2456,6 +2462,35 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 			return ret;
 	}
 	return ret;
+}
+
+/*
+ * Copies the column information from the first result set of 'self' to 'res'.
+ */
+static BOOL
+ReflectColumnsInfo(StatementClass *self, QResultClass *res)
+{
+	QResultClass	*pres;
+
+	if (NOT_YET_PREPARED == self->prepared)
+		return FALSE;
+	if (res->num_fields > 0)
+		return FALSE;
+	pres = SC_get_Result(self);
+	if (pres != res &&
+	    pres->num_fields > 0)
+	{
+		QR_set_fields(res, QR_get_fields(pres));
+		QR_set_conn(res, SC_get_conn(self));
+		if (QR_haskeyset(pres))
+			QR_set_haskeyset(res);
+		if (QR_is_withhold(pres))
+			QR_set_withhold(res);
+		res->num_fields = pres->num_fields;
+
+		return TRUE;
+	}
+	return FALSE;
 }
 
 BOOL
@@ -2628,7 +2663,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 					int	cidx;
 
 					QR_set_rstatus(res, PORES_FIELDS_OK);
-					res->num_fields = CI_get_num_fields(res->fields);
+					res->num_fields = CI_get_num_fields(QR_get_fields(res));
 					if (QR_haskeyset(res))
 						res->num_fields -= res->num_key_fields;
 					num_io_params = CountParameters(stmt, NULL, &dummy1, &dummy2);
@@ -2645,8 +2680,8 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
  							if (SQL_PARAM_OUTPUT == paramType ||
 							    SQL_PARAM_INPUT_OUTPUT == paramType)
 							{
-inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(res->fields, cidx));
-								PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(res->fields, cidx));
+inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
+								PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(res), cidx));
 								cidx++;
 							}
 						}
@@ -2669,6 +2704,7 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 				break;
 			case 'B': /* Binary data */
 			case 'D': /* ASCII data */
+				ReflectColumnsInfo(stmt, res);
 				if (!QR_get_tupledata(res, id == 'B'))
 				{
 					loopend = TRUE;

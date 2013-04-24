@@ -529,10 +529,8 @@ mylog("about to begin SC_execute\n");
 
 		if (kres = res->next, kres)
 		{
-			if (kres->fields)
-				CI_Destructor(kres->fields);
-			kres->fields = res->fields;
-			res->fields = NULL;
+			QR_set_fields(kres, QR_get_fields(res));
+			QR_set_fields(res,  NULL);
 			kres->num_fields = res->num_fields;
 			res->next = NULL;
 			SC_set_Result(stmt, kres);

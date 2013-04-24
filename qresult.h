@@ -235,6 +235,7 @@ void		QR_set_notice(QResultClass *self, const char *msg);
 void		QR_add_notice(QResultClass *self, const char *msg);
 
 void		QR_set_num_fields(QResultClass *self, int new_num_fields); /* catalog functions' result only */
+void		QR_set_fields(QResultClass *self, ColumnInfoClass *);
 
 void		QR_set_num_cached_rows(QResultClass *, SQLLEN);
 void		QR_set_rowstart_in_cache(QResultClass *, SQLLEN);

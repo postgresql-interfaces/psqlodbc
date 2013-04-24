@@ -30,6 +30,7 @@ CI_Constructor()
 
 	if (rv)
 	{
+		rv->refcount = 0;
 		rv->num_fields = 0;
 		rv->coli_array = NULL;
 	}

@@ -1582,7 +1582,7 @@ getNumericDecimalDigits(const StatementClass *stmt, OID type, int col)
 		return (atttypmod & 0xffff);
 	if (stmt->catalog_result)
 	{
-		flds = result->fields;
+		flds = QR_get_fields(result);
 		if (flds)
 		{
 			int	fsize = CI_get_fieldsize(flds, col);
@@ -1626,7 +1626,7 @@ getNumericColumnSize(const StatementClass *stmt, OID type, int col)
 		return (atttypmod >> 16) & 0xffff;
 	if (stmt->catalog_result)
 	{
-		flds = result->fields;
+		flds = QR_get_fields(result);
 		if (flds)
 		{
 			int	fsize = CI_get_fieldsize(flds, col);

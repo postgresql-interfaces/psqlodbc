@@ -38,7 +38,7 @@ QR_set_num_fields(QResultClass *self, int new_num_fields)
 	if (!self)	return;
 	mylog("in QR_set_num_fields\n");
 
-	CI_set_num_fields(self->fields, new_num_fields, allocrelatt);
+	CI_set_num_fields(QR_get_fields(self), new_num_fields, allocrelatt);
 
 	mylog("exit QR_set_num_fields\n");
 }
@@ -133,6 +133,29 @@ QR_inc_rowstart_in_cache(QResultClass *self, SQLLEN base_inc)
 		self->key_base = self->base;
 }
 
+void
+QR_set_fields(QResultClass *self, ColumnInfoClass *fields)
+{
+	ColumnInfoClass	*curfields = QR_get_fields(self);
+
+	if (curfields == fields)
+		return;
+
+	/*
+	 * Unlink the old columninfo from this result set, freeing it if this
+	 * was the last reference.
+	 */
+	if (NULL != curfields)
+	{
+		if (curfields->refcount > 1)
+			curfields->refcount--;
+		else
+			CI_Destructor(curfields);
+	}
+	self->fields = fields;
+	if (NULL != fields)
+		fields->refcount++;
+}
 
 /*
  * CLASS QResult
@@ -147,15 +170,19 @@ QR_Constructor()
 
 	if (rv != NULL)
 	{
+		ColumnInfoClass	*fields;
+
 		rv->rstatus = PORES_EMPTY_QUERY;
 		rv->pstatus = 0;
 
 		/* construct the column info */
-		if (!(rv->fields = CI_Constructor()))
+		rv->fields = NULL;
+		if (fields = CI_Constructor(), NULL == fields)
 		{
 			free(rv);
 			return NULL;
 		}
+		QR_set_fields(rv, fields);
 		rv->backend_tuples = NULL;
 		rv->sqlstate[0] = '\0';
 		rv->message = NULL;
@@ -249,11 +276,8 @@ QR_close_result(QResultClass *self, BOOL destroy)
 			QR_set_cursor(self, NULL);
 
 		/* Free up column info */
-		if (destroy && self->fields)
-		{
-			CI_Destructor(self->fields);
-			self->fields = NULL;
-		}
+		if (destroy)
+			QR_set_fields(self, NULL);
 
 		/* Free command info (this is from strdup()) */
 		if (self->command)
@@ -572,7 +596,7 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, i
 		if (CI_read_fields(QR_get_fields(self), QR_get_conn(self)))
 		{
 			QR_set_rstatus(self, PORES_FIELDS_OK);
-			self->num_fields = CI_get_num_fields(self->fields);
+			self->num_fields = CI_get_num_fields(QR_get_fields(self));
 			if (QR_haskeyset(self))
 				self->num_fields -= self->num_key_fields;
 		}
@@ -1567,7 +1591,7 @@ else
 		bmp = bitmap[bitmap_pos];
 	}
 
-	flds = self->fields;
+	flds = QR_get_fields(self);
 
 	for (field_lf = 0; field_lf < ci_num_fields; field_lf++)
 	{
