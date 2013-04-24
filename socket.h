@@ -224,7 +224,7 @@ void		SOCK_Destructor(SocketClass *self);
 char		SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout);
 int		SOCK_get_id(SocketClass *self);
 void		SOCK_get_n_char(SocketClass *self, char *buffer, Int4 len);
-void		SOCK_put_n_char(SocketClass *self, const char *buffer, Int4 len);
+void		SOCK_put_n_char(SocketClass *self, const char *buffer, size_t len);
 BOOL		SOCK_get_string(SocketClass *self, char *buffer, Int4 bufsize);
 void		SOCK_put_string(SocketClass *self, const char *string);
 int		SOCK_get_int(SocketClass *self, short len);

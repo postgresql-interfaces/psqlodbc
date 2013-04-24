@@ -249,7 +249,7 @@ remove_newlines(char *string)
 char *
 my_trim(char *s)
 {
-	int		i;
+	size_t	i;
 
 	for (i = strlen(s) - 1; i >= 0; i--)
 	{

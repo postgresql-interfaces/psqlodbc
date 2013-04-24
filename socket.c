@@ -414,7 +414,7 @@ retry:
 				if (t_now = time(NULL), t_now >= t_finish)
 					tm_exp = TRUE;
 				else
-					wait_sec = t_finish - t_now;
+					wait_sec = (int) (t_finish - t_now);
 			}
 		} while (!tm_exp);
 		if (tm_exp)
@@ -710,9 +710,9 @@ SOCK_get_n_char(SocketClass *self, char *buffer, Int4 len)
 
 
 void
-SOCK_put_n_char(SocketClass *self, const char *buffer, Int4 len)
+SOCK_put_n_char(SocketClass *self, const char *buffer, size_t len)
 {
-	int			lf;
+	size_t			lf;
 
 	if (!self)
 		return;

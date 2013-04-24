@@ -1618,7 +1618,7 @@ char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comm
 				skiplen = 0;
 				if (0 != strnicmp(cptr, "=", 1))
 				{
-					skiplen = strlen("to");
+					skiplen = (int) strlen("to");
 					if (0 != strnicmp(cptr, "to", 2))
 					{
 						allowed_cmd = FALSE;

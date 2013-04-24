@@ -774,7 +774,7 @@ inolog("putting p and %s\n", pwd2);
 }
 	md5len = strlen(pwd2);
 	SOCK_put_int(sock, (Int4) (4 + md5len + 1), 4);
-	SOCK_put_n_char(sock, pwd2, (Int4) (md5len + 1));
+	SOCK_put_n_char(sock, pwd2, (md5len + 1));
 	SOCK_flush_output(sock);
 inolog("sockerr=%d\n", SOCK_get_errcode(sock));
 	free(pwd2);
@@ -842,7 +842,9 @@ handle_error_message(ConnectionClass *self, char *msgbuf, size_t buflen, char *s
 	}
 
 inolog("new_format=%d\n", new_format);
-	truncated = SOCK_get_string(sock, new_format ? msgbuffer : msgbuf, new_format ? sizeof(msgbuffer) : buflen);
+	truncated = SOCK_get_string(sock,
+								new_format ? msgbuffer : msgbuf,
+								new_format ? sizeof(msgbuffer) : (Int4) buflen);
 	if (new_format)
 	{
 		msgbuf[0] = '\0';
@@ -1200,7 +1202,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	}
 	*ppacket = '\0';
 
-	SOCK_put_n_char(sock, packet, (Int4) slen);
+	SOCK_put_n_char(sock, packet, slen);
 	SOCK_flush_output(sock);
 	free(packet);
 
@@ -1783,7 +1785,7 @@ inolog("Ekita retry=%d\n", retry);
 							if (PROTOCOL_74(&(self->connInfo)))
 								SOCK_put_char(sock, 'p');
 							SOCK_put_int(sock, (Int4) (4 + strlen(ci->password) + 1), 4);
-							SOCK_put_n_char(sock, ci->password, (Int4) strlen(ci->password) + 1);
+							SOCK_put_n_char(sock, ci->password, strlen(ci->password) + 1);
 							sockerr = SOCK_flush_output(sock);
 
 							mylog("past flush %dbytes\n", sockerr);
@@ -2770,7 +2772,7 @@ inolog("leng=%d\n", leng);
 		char cmd[64];
 
 		snprintf(cmd, sizeof(cmd), "%s %s;", svpcmd, per_query_svp);
-		SOCK_put_n_char(sock, cmd, (Int4) strlen(cmd));
+		SOCK_put_n_char(sock, cmd, strlen(cmd));
 		discard_next_savepoint = TRUE;
 	}
 	SOCK_put_n_char(sock, query, qrylen);
@@ -2784,7 +2786,7 @@ inolog("leng=%d\n", leng);
 		char cmd[64];
 
 		snprintf(cmd, sizeof(cmd), ";%s %s", rlscmd, per_query_svp);
-		SOCK_put_n_char(sock, cmd, (Int4) strlen(cmd));
+		SOCK_put_n_char(sock, cmd, strlen(cmd));
 	}
 	SOCK_put_n_char(sock, NULL_STRING, 1);
 	leng = SOCK_flush_output(sock);

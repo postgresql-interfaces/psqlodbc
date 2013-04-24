@@ -734,7 +734,7 @@ PGAPI_GetStmtOption(
 			{
 				/* make sure we're positioned on a valid row */
 				if ((ridx < 0) ||
-					(ridx >= QR_get_num_cached_tuples(res)))
+					(((SQLULEN) ridx) >= QR_get_num_cached_tuples(res)))
 				{
 					SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Not positioned on a valid row.", func);
 					return SQL_ERROR;

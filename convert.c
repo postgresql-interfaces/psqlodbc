@@ -462,13 +462,15 @@ SQLINTERVAL	interval2itype(SQLSMALLINT ctype)
 static int getPrecisionPart(int precision, const char * precPart)
 {
 	char	fraction[] = "000000000";
-	int	fracs = sizeof(fraction) - 1, cpys;
+	int		fracs = sizeof(fraction) - 1;
+	size_t	cpys;
 
 	if (precision < 0)
 		precision = 6; /* default */
 	if (precision == 0)
 		return 0;
-	if ((cpys = strlen(precPart)) > fracs)
+	cpys = strlen(precPart);
+	if (cpys > fracs)
 		cpys = fracs;
 	memcpy(fraction, precPart, cpys);
 	fraction[precision] = '\0';
@@ -1168,7 +1170,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 				{
 					/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 						std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
-					stime2timestamp(&std_time, rgbValueBindRow, FALSE, PG_VERSION_GE(conn, 7.2) ? cbValueMax - len - 2 : 0);
+					stime2timestamp(&std_time, rgbValueBindRow, FALSE,
+									PG_VERSION_GE(conn, 7.2) ? (int) cbValueMax - len - 2 : 0);
 					len = strlen(rgbValueBindRow);
 				}
 				break;
@@ -1939,7 +1942,7 @@ typedef struct _QueryParse {
 	encoded_str	encstr;
 }	QueryParse;
 
-static ssize_t
+static void
 QP_initialize(QueryParse *q, const StatementClass *stmt)
 {
 	q->statement = stmt->execute_statement ? stmt->execute_statement : stmt->statement;
@@ -1959,8 +1962,6 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->flags = 0;
 	q->comment_level = 0;
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
-
-	return q->stmt_len;
 }
 
 #define	FLGB_PRE_EXECUTING	1L
@@ -2460,7 +2461,7 @@ into_table_from(const char *stmt)
  *----------
  */
 static UInt4
-table_for_update_or_share(const char *stmt, int *endpos)
+table_for_update_or_share(const char *stmt, size_t *endpos)
 {
 	const char *wstmt = stmt;
 	int	advance;
@@ -2561,7 +2562,7 @@ check_join(StatementClass *stmt, const char *curptr, size_t curpos)
  *----------
  */
 static BOOL
-insert_without_target(const char *stmt, int *endpos)
+insert_without_target(const char *stmt, size_t *endpos)
 {
 	const char *wstmt = stmt;
 
@@ -3580,7 +3581,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							strnicmp(qp->token_save, "for", 3) == 0)
 						{
 							UInt4	flg;
-							int	endpos;
+							size_t	endpos;
 
 							flg = table_for_update_or_share(F_OldPtr(qp), &endpos);
 							if (0 != (FLGP_SELECT_FOR_UPDATE_OR_SHARE & flg))
@@ -3602,7 +3603,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					}
 					else if (qp->token_len == 2)
 					{
-						int	endpos;
+						size_t	endpos;
 
 						if (STMT_TYPE_INSERT == qp->statement_type &&
 							strnicmp(qp->token_save, "()", 2) == 0 &&
@@ -3761,7 +3762,7 @@ inolog("bind leng=%d\n", leng);
 		sockerr = TRUE;
 		goto cleanup;
 	}
-        SOCK_put_n_char(conn->sock, qb.query_statement, (Int4) leng);
+        SOCK_put_n_char(conn->sock, qb.query_statement, leng);
 	if (SOCK_get_errcode(conn->sock) != 0)
 		sockerr = TRUE;
 cleanup:

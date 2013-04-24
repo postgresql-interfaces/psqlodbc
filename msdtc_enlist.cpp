@@ -844,7 +844,7 @@ bool	AsyncThreads::WaitThread(IAsyncPG *obj, DWORD type, DWORD millisecond)
 
 void	AsyncThreads::CleanupThreads(DWORD millisecond)
 {
-	int	msize;
+	size_t	msize;
 	DWORD	nCount;
 
 	MLOCK_ACQUIRE;
@@ -988,7 +988,7 @@ mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
 							break;
 					default:
 						ret = ::RegSetValueEx(sKey, GetXaLibName(), 0, REG_SZ,
-							(CONST BYTE *) GetXaLibPath(), strlen(GetXaLibPath()) + 1);
+											  (CONST BYTE *) GetXaLibPath(), (DWORD) strlen(GetXaLibPath()) + 1);
 						if (ERROR_SUCCESS == ret)
 						{
 							retry = true;
