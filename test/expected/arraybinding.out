@@ -1,0 +1,30 @@
+\! ./src/arraybinding-test
+connected
+Parameter	Status
+Result set:
+10000
+Result set:
+0	columnwise 0
+1	columnwise 1
+100	columnwise 100
+9999	columnwise 9999
+Parameter	Status
+Fetching result sets for array bound (5 results expected)
+1: Result set:
+columnwise 100
+2: Result set:
+columnwise 101
+3: Result set:
+columnwise 102
+4: Result set:
+columnwise 103
+5: Result set:
+columnwise 104
+Number of rows in table:
+Result set:
+9995
+Result set:
+0	columnwise 0
+1	columnwise 1
+9999	columnwise 9999
+disconnecting

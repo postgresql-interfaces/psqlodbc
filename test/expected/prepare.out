@@ -1,0 +1,14 @@
+\! ./src/prepare-test
+connected
+# of result cols: 2
+Result set:
+2	bar
+Result set:
+3	foobar
+Result set:
+1	@ 1 day	one day
+2	@ 10 secs	ten secs
+# of result cols: 2
+Result set:
+2	bar
+disconnecting

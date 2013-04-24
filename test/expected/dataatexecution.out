@@ -1,0 +1,12 @@
+\! ./src/dataatexecution-test
+connected
+Result set:
+2
+3
+Parameter	Status
+Fetching result sets for array bound (2 results expected)
+1: Result set:
+4
+2: Result set:
+5
+disconnecting

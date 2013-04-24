@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Pass ODBCSYSINI env variable to psql, so that it finds the odbc.ini and
+# odbcinst.ini files from the current dir.
+ODBCSYSINI=. $*

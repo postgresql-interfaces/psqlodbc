@@ -1,0 +1,7 @@
+\! ./src/alter-test
+connected
+Result set metadata:
+t: VARCHAR(40) digits: 0, nullable
+Result set metadata:
+t: VARCHAR(80) digits: 0, nullable
+disconnecting

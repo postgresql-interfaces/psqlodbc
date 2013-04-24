@@ -1,0 +1,7 @@
+\! ./src/notice-test
+connected
+got SUCCESS_WITH_INFO
+00000=NOTICE: test notice: foo
+got SUCCESS_WITH_INFO
+00000=
+disconnecting

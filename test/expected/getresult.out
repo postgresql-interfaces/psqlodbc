@@ -1,0 +1,9 @@
+\! ./src/getresult-test
+connected
+Result set:
+varcharcol: foo
+integercol: 123
+intervalyears: 10
+intervalmonths: 11
+intervaldays: 12
+disconnecting
