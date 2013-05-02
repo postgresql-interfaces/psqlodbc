@@ -2397,7 +2397,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 			 * all non-permanent cursors are automatically closed
 			 * at rollback time.
 			 */	
-				QR_set_cursor(res, NULL);
+				QR_on_close_cursor(res);
 			else if (!QR_is_permanent(res))
 			{
 				QResultClass	*wres;

@@ -163,7 +163,7 @@ enum {
 #define QR_set_aborted(self, aborted_)		( self->aborted = aborted_)
 #define QR_set_haskeyset(self)		(self->flags |= FQR_HASKEYSET)
 #define QR_set_synchronize_keys(self)	(self->flags |= FQR_SYNCHRONIZEKEYS)
-#define QR_set_no_cursor(self)		(self->flags &= ~(FQR_WITHHOLD | FQR_HOLDPERMANENT | FQR_NEEDS_SURVIVAL_CHECK))
+#define QR_set_no_cursor(self)		((self)->flags &= ~(FQR_WITHHOLD | FQR_HOLDPERMANENT), (self)->pstatus &= ~FQR_NEEDS_SURVIVAL_CHECK)
 #define QR_set_withhold(self)		(self->flags |= FQR_WITHHOLD)
 #define QR_set_permanent(self)		(self->flags |= FQR_HOLDPERMANENT)
 #define	QR_set_reached_eof(self)	(self->pstatus |= FQR_REACHED_EOF)
@@ -225,6 +225,7 @@ TupleField	*QR_AddNew(QResultClass *self);
 BOOL		QR_get_tupledata(QResultClass *self, BOOL binary);
 int		QR_next_tuple(QResultClass *self, StatementClass *, int *LastMessageType);
 int			QR_close(QResultClass *self);
+void		QR_on_close_cursor(QResultClass *self);
 void		QR_close_result(QResultClass *self, BOOL destroy);
 char		QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, int *LastMessageType);
 void		QR_free_memory(QResultClass *self);

@@ -71,6 +71,9 @@ QR_set_cursor(QResultClass *self, const char *name)
 
 	if (self->cursor_name)
 	{
+		if (name &&
+		    0 == strcmp(name, self->cursor_name))
+			return;
 		free(self->cursor_name);
 		if (conn)
 		{
@@ -79,8 +82,11 @@ QR_set_cursor(QResultClass *self, const char *name)
 			CONNLOCK_RELEASE(conn);
 		}
 		self->cursTuple = -1;
-		self->pstatus = 0;
+		QR_set_no_cursor(self);
+		QR_set_no_fetching_tuples(self);
 	}
+	else if (NULL == name)
+		return;
 	if (name)
 	{
 		self->cursor_name = strdup(name);
@@ -102,7 +108,6 @@ QR_set_cursor(QResultClass *self, const char *name)
 				free(res->cursor_name);
 			res->cursor_name = NULL;
 		}
-		QR_set_no_cursor(self);
 	}
 }
 
@@ -670,6 +675,16 @@ QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, i
 
 
 /*
+ *	Procedure needed when closing cursors.
+ */
+void
+QR_on_close_cursor(QResultClass *self)
+{
+	QR_set_cursor(self, NULL);
+	QR_set_has_valid_base(self);
+}
+
+/*
  *	Close the cursor and end the transaction (if no cursors left)
  *	We only close the cursor if other cursors are used.
  */
@@ -727,11 +742,7 @@ QR_close(QResultClass *self)
 			}
 		}
 
-		QR_set_no_fetching_tuples(self);
-		self->cursTuple = -1;
-
-		QR_set_cursor(self, NULL);
-		QR_set_has_valid_base(self);
+		QR_on_close_cursor(self);
 		if (!ret)
 			return ret;
 
