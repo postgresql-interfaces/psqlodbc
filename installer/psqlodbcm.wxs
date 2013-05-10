@@ -11,7 +11,7 @@
       Keywords="PostgreSQL, ODBC"
       Manufacturer="PostgreSQL Global Development Group" 
       InstallerVersion="150"
-      Platforms="Intel" 
+      Platform="x86" 
       Languages="1033"
       SummaryCodepage="1252" />
 
@@ -24,15 +24,15 @@
           <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../Release/pgxalib.dll" />
           <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../Release/pgenlist.dll" />
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../MultibyteRelease/pgenlista.dll" />
-          <File Id="libpq.dll" Name="libpq.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\9.1\bin\libpq.dll" KeyPath="yes" />
+          <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LINKFILES)\libpq.dll" KeyPath="yes" />
           
           <!-- Gettext -->
-          <File Id="libintl8.dll" Name="libintl-8.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\9.1\bin\libintl-8.dll" />
-          <File Id="libiconv2.dll" Name="libiconv-2.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\9.1\bin\libiconv-2.dll" />
+          <File Id="libintl8.dll" Name="libintl-8.dll" Source="$(var.LINKFILES)\libintl-8.dll" />
+          <File Id="libiconv2.dll" Name="libiconv-2.dll" Source="$(var.LINKFILES)\libiconv-2.dll" />
           
           <!-- SSL -->
-          <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\9.1\bin\libeay32.dll" />
-          <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.PROGRAMFILES)\PostgreSQL\9.1\bin\ssleay32.dll" />
+          <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.LINKFILES)\libeay32.dll" />
+          <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.LINKFILES)\ssleay32.dll" />
 
           <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
           <!--       so we install the registry keys manually ourselves.                         -->
