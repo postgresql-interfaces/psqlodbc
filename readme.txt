@@ -5,7 +5,7 @@
 
 
   Copyright (C) 1998          Insight Distribution Systems
-  Copyright (C) 1998 - 2010   The PostgreSQL Global Development Group
+  Copyright (C) 1998 - 2013   The PostgreSQL Global Development Group
 
   Multibyte support was added by Sankyo Unyu Service, (C) 2001.
 
