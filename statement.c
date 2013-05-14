@@ -1843,7 +1843,7 @@ SC_execute(StatementClass *self)
 	BOOL		is_in_trans, issue_begin, has_out_para;
 	BOOL		use_extended_protocol;
 	int		func_cs_count = 0, i;
-	BOOL		useCursor;
+	BOOL		useCursor, isSelectType;
 
 	conn = SC_get_conn(self);
 	ci = &(conn->connInfo);
@@ -1966,6 +1966,7 @@ SC_execute(StatementClass *self)
 			}
 			break;
 	}
+	isSelectType = (self->statement_type == STMT_TYPE_SELECT || self->statement_type == STMT_TYPE_PROCCALL);
 	if (use_extended_protocol)
 	{
 		char	*plan_name = self->plan_name;
@@ -1996,8 +1997,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 			goto cleanup;
 		}
 	}
-	else if (self->statement_type == STMT_TYPE_SELECT ||
-		 self->statement_type == STMT_TYPE_PROCCALL)
+	else if (isSelectType)
 	{
 		char		fetch[128];
 		const char *appendq = NULL;
@@ -2048,7 +2048,10 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		/* not a SELECT statement so don't use a cursor */
 		mylog("      it's NOT a select statement: stmt=%p\n", self);
 		res = CC_send_query(conn, self->stmt_with_params, NULL, qflag, SC_get_ancestor(self));
+	}
 
+	if (!isSelectType)
+	{
 		/*
 		 * We shouldn't send COMMIT. Postgres backend does the autocommit
 		 * if neccessary. (Zoltan, 04/26/2000)
