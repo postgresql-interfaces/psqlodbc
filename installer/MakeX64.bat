@@ -66,7 +66,7 @@ echo wix_dir=%wix_dir%
 rem Values to change include VERSION and SUBLOC, both below.
 
 rem The subdirectory to install into
-SET SUBLOC="0901"
+SET SUBLOC="0902"
 
 if NOT "%1"=="" SET VERSION="%1"
 if NOT "%1"=="" GOTO GOT_VERSION
@@ -86,7 +86,7 @@ GOTO EXIT
 
 :NORMAL_EXEC
 REM The full version number of the build in XXXX.XX.XX format
-SET VERSION="09.01.0200"
+SET VERSION="09.02.0100"
 
 echo.
 echo Version not specified - defaulting to %VERSION%

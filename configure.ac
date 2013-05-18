@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(psqlodbc, 09.01.0200, [pgsql-odbc@postgresql.org])
+AC_INIT(psqlodbc, 09.02.0100, [pgsql-odbc@postgresql.org])
 AC_PREREQ(2.57)
 AC_CONFIG_AUX_DIR(config)
 AM_INIT_AUTOMAKE

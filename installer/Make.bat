@@ -36,7 +36,7 @@ if NOT "%1"=="" (
 )
 
 :: The full version number of the build in XXXX.XX.XX format
-SET VERSION="09.01.0200"
+SET VERSION="09.02.0100"
 echo.
 echo Version not specified - defaulting to %VERSION%
 echo.
