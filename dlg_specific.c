@@ -29,6 +29,7 @@ extern GLOBAL_VALUES globals;
 
 static void encode(const UCHAR *in, UCHAR *out, int outlen);
 static void decode(const UCHAR *in, UCHAR *out, int outlen);
+static void decode_or_remove_braces(const UCHAR *in, UCHAR *out, int outlen);
 
 #define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY)
 UInt4	getExtraOptions(const ConnInfo *ci)
@@ -497,7 +498,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		strcpy(ci->username, value);
 
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
-		decode(value, ci->password, sizeof(ci->password));
+		decode_or_remove_braces(value, ci->password, sizeof(ci->password));
 
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
@@ -1524,6 +1525,29 @@ decode(const UCHAR *in, UCHAR *out, int outlen)
 			out[o++] = inc;
 	}
 	out[o++] = '\0';
+}
+
+/*
+ *	Remove braces if the input value is enclosed by braces({}).
+ *	Othewise decode the input value. 
+ */
+static void
+decode_or_remove_braces(const UCHAR *in, UCHAR *out, int outlen)
+{
+	if ('{' == in[0])
+	{
+		size_t inlen = strlen(in);
+		if ('}' == in[inlen - 1]) /* enclosed by braces */
+		{
+			size_t	limitlen = outlen;
+
+			if (inlen - 1 < limitlen)
+				limitlen = inlen - 1;
+			strncpy_null(out, in + 1, limitlen);
+			return;
+		}
+	}
+	decode(in, out, outlen);
 }
 
 char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comment)

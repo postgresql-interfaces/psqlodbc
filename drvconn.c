@@ -37,6 +37,7 @@
 
 #include "dlg_specific.h"
 
+#define	FORCE_PASSWORD_DISPLAY
 #define	NULL_IF_NULL(a) (a ? a : "(NULL)")
 
 static char * hide_password(const char *str)
@@ -415,6 +416,9 @@ dconn_FDriverConnectProc(
 }
 #endif   /* WIN32 */
 
+#define	ATTRIBUTE_DELIMITER	';'
+#define	OPENING_BRACKET		'{'
+#define	CLOSING_BRACKET		'}'
 
 typedef	BOOL (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
 static void
@@ -468,22 +472,46 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 
 		*equals = '\0';
 		attribute = pair;		/* ex. DSN */
-		value = equals + 1;		/* ex. 'CEO co1' */
-		/* values enclosed with braces({}) can contain ; etc */
-		if ('{' == *value)
+		value = equals + 1;		/* ex. 'CEO co1' *
+		/*
+		 * Values enclosed with braces({}) can contain ; etc
+		 * We don't remove the braces here because 
+		 * decode_or_remove_braces() in dlg_specifi.c
+		 * would remove them later.
+		 * Just correct the misdetected delimter(;).  
+		 */
+		if (OPENING_BRACKET == *value)
 		{
-			if (delp = strchr(value, '\0'), NULL != delp && delp != termp)
+			delp = strchr(value, '\0');
+			if (NULL == delp) continue; /* shouldn't occur */
+			if (delp == termp)
 			{
-				*delp = ';';
-				if (delp = strchr(value, '}'), NULL != delp)
-				{
-					if (delp = strchr(delp + 1, ';'), NULL != delp)
-						*delp = '\0';
-				}
-				if (delp = strchr(value, '\0'), delp == termp)
+				/* there's a corresponding closing bracket? */
+				if (CLOSING_BRACKET == delp[-1])
 					eoftok = TRUE;
-				else
-					strtok_arg = delp + 1;
+			}
+			else
+			{
+				char	*closep;
+
+				/* Where's a corresponding closing bracket? */
+				closep = strchr(value, CLOSING_BRACKET);
+				if (NULL == closep)
+				{
+					closep = strchr(delp + 1, CLOSING_BRACKET);
+					if (NULL != closep) /* the delimiter is misdetected */
+					{
+						*delp = ATTRIBUTE_DELIMITER;
+						strtok_arg = closep + 1;
+						if (delp = strchr(closep + 1, ATTRIBUTE_DELIMITER), NULL != delp)
+						{
+							*delp = '\0'; 
+							strtok_arg = delp + 1;
+						}
+						if (strtok_arg + 1 >= termp)
+							eoftok = TRUE;
+					}
+				}
 			}
 		}
 
