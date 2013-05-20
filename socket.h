@@ -17,9 +17,9 @@
 #include <gssapi/gssapi.h>
 #endif
 #endif
-#include <errno.h>
 
 #ifndef WIN32
+#include <errno.h>
 #define	WSAAPI
 #ifdef	HAVE_POLL
 #include <poll.h>
@@ -96,6 +96,9 @@ struct addrinfo
 #define SOCKETFD SOCKET
 #define SOCK_ERRNO		(WSAGetLastError())
 #define SOCK_ERRNO_SET(e)	WSASetLastError(e)
+#ifndef	EINTR
+#define	EINTR	WSAEINTR
+#endif /* EINTR */
 #ifndef	EWOULDBLOCK
 #define	EWOULDBLOCK	WSAEWOULDBLOCK
 #endif /* EWOULDBLOCK */
