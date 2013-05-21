@@ -33,6 +33,10 @@ using the patch provided by Michael Kocherov.<br>
     extra empty result set on execution.<br>
 10.) Make the MSI build process of 32bit drivers available in 64bit.<br>
 11.) Fix bug with DeUseDeclareFetch=1 and UseServerSidePrepare=1, issue COMMIT commands properly in case of AUTOCOMMIT on mode. per reported by Jack Wilson(ljwilson@digitalav.com).<br>
+12.) Don't #include errno.h on Windows. VC10 or later intentionally changed the values of error numbers like EINTR, EWOULDBLOCK.<br>
+13.) Allow special characters in the password value of a connection string by enclosing the value by braces({}).<br>
+14.) Fixed conflict between winsock2.h and winsock.h in socket.c.<br>
+15.)Apply blank date <-> null conversion functionality to timestamp type as well.<br>
 <br>
 <h2><a id="09.01.0200">psqlODBC 09.01.0200</a></h2>
 Changes:<br>
