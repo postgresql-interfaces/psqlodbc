@@ -12,7 +12,7 @@
  *-------
  */
 
-#include "psqlodbc.h"
+#include "socket.h"
 
 #ifdef	USE_SSPI
 #include "sspisvcs.h"
@@ -26,7 +26,6 @@
 #include <openssl/ssl.h>
 #endif /* USE_SSL */
 #endif /* NOT_USE_LIBPQ */
-#include "socket.h"
 #include "loadlib.h"
 
 #include "connection.h"
