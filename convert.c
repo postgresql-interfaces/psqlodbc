@@ -844,8 +844,13 @@ copy_and_convert_field(StatementClass *stmt,
 mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		/* a speicial handling for FOXPRO NULL -> NULL_STRING */
 		if (conn->connInfo.cvt_null_date_string > 0 &&
-		    PG_TYPE_DATE == field_type &&
+		    (PG_TYPE_DATE == field_type ||
+		     PG_TYPE_DATETIME == field_type ||
+		     PG_TYPE_TIMESTAMP_NO_TMZONE == field_type) &&
 		    (SQL_C_CHAR == fCType ||
+#ifdef	UNICODE_SUPPORT
+		     SQL_C_WCHAR == fCType ||
+#endif	/* UNICODE_SUPPORT */
 		     SQL_C_DATE == fCType ||
 #if (ODBCVER >= 0x0300)
 		     SQL_C_TYPE_DATE == fCType ||
@@ -4447,10 +4452,16 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 	/* Special handling NULL string For FOXPRO */
 mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date_string, param_pgtype, buf);
 	if (conn->connInfo.cvt_null_date_string > 0 &&
-	    PG_TYPE_DATE == param_pgtype &&
-	    SQL_C_CHAR == param_ctype &&
+	    (PG_TYPE_DATE == param_pgtype ||
+	     PG_TYPE_DATETIME == param_pgtype ||
+	     PG_TYPE_TIMESTAMP_NO_TMZONE == param_pgtype) &&
 	    NULL != buf &&
-	    '\0' == buf[0])
+	    (
+		(SQL_C_CHAR == param_ctype && '\0' == buf[0])
+#ifdef	UNICODE_SUPPORT
+		|| (SQL_C_WCHAR ==param_ctype && '\0' == buf[0] && '\0' == buf[1])
+#endif /* UNICODE_SUPPORT */
+	    ))
 	{
 		if (req_bind)
 		{
