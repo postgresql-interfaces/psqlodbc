@@ -1966,7 +1966,7 @@ SC_execute(StatementClass *self)
 			}
 			break;
 	}
-	isSelectType = (self->statement_type == STMT_TYPE_SELECT || self->statement_type == STMT_TYPE_PROCCALL);
+	isSelectType = (SC_may_use_cursor(self) || self->statement_type == STMT_TYPE_PROCCALL);
 	if (use_extended_protocol)
 	{
 		char	*plan_name = self->plan_name;
