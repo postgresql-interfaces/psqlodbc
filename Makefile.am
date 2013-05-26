@@ -58,8 +58,43 @@ EXTRA_DIST = license.txt readme.txt \
 	installer/modify_msi.vbs \
 	installer/psqlodbc.wxs installer/psqlodbcm.wxs \
 	installer/psqlodbc_cpu.wxs installer/psqlodbcm_cpu.wxs \
-	installer/README.txt installer/background.bmp
-
+	installer/README.txt installer/background.bmp \
+\
+	test/expected/alter.out \
+	test/expected/arraybinding.out \
+	test/expected/boolsaschar.out \
+	test/expected/connect.out \
+	test/expected/cvtnulldate.out \
+	test/expected/dataatexecution.out \
+	test/expected/getresult.out \
+	test/expected/insertreturning.out \
+	test/expected/notice.out \
+	test/expected/params.out \
+	test/expected/prepare.out \
+	test/expected/sampletables.out \
+	test/expected/select.out \
+	test/expected/stmthandles.out \
+	test/launcher \
+	test/Makefile \
+	test/odbc.ini \
+	test/odbcinst.ini \
+	test/README.txt \
+	test/sql/sampletables.sql \
+	test/src/alter-test.c \
+	test/src/arraybinding-test.c \
+	test/src/boolsaschar-test.c \
+	test/src/common.c \
+	test/src/common.h \
+	test/src/connect-test.c \
+	test/src/cvtnulldate-test.c \
+	test/src/dataatexecution-test.c \
+	test/src/getresult-test.c \
+	test/src/insertreturning-test.c \
+	test/src/notice-test.c \
+	test/src/params-test.c \
+	test/src/prepare-test.c \
+	test/src/select-test.c \
+	test/src/stmthandles-test.c
 
 MAINTAINERCLEANFILES = \
 	Makefile.in config/config.guess config.h.in config/config.sub configure \
