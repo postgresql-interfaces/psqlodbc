@@ -58,6 +58,8 @@
 <!-- Directories -->
 
     <Directory Id="TARGETDIR" Name="SourceDir">
+    <!-- Shared assembly runtime for VS 2010 -->
+     <Merge Id="msvcr100dll" Language="0" DiskId="1" SourceFile="$(var.PROGRAMCOM)/Microsoft_VC100_CRT_x64.msm"/>
       <Directory Id="$(var.PGFOLDER)" Name="PFiles">
         <Directory Id="BASEDIR" Name="psqlODBC">
           <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
@@ -97,6 +99,7 @@
       <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
         <ComponentRef Id="registration" />
         <MergeRef Id="psqlodbcm" />
+	<MergeRef Id="msvcr100dll" />
       </Feature>
 
       <Feature Id="docs" Title="Documentation" Level="4" Description="Documentation and release notes.">
