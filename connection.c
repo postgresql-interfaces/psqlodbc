@@ -2654,12 +2654,14 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		return NULL;
 	}
 
+	ENTER_INNER_CONN_CS(self, func_cs_count);
 	/* Finish the pending extended query first */
 	if (!SyncParseRequest(self))
 	{
 		if (CC_get_errornumber(self) <= 0)
 		{
 			CC_set_error(self, CONN_EXEC_ERROR, "error occured while calling SyncParseRequest() in CC_send_query_append()", func);
+			CLEANUP_FUNC_CONN_CS(func_cs_count, self);
 			return NULL;
 		}
 	}
@@ -2669,16 +2671,21 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	if (maxlen > 0 && maxlen < (int) qrylen + 1)
 	{
 		CC_set_error(self, CONNECTION_MSG_TOO_LONG, "Query string is too long", func);
+		CLEANUP_FUNC_CONN_CS(func_cs_count, self);
 		return NULL;
 	}
 
 	if ((NULL == query) || (query[0] == '\0'))
+	{
+		CLEANUP_FUNC_CONN_CS(func_cs_count, self);
 		return NULL;
+	}
 
 	if (SOCK_get_errcode(sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
 		CC_on_abort(self, CONN_DEAD);
+		CLEANUP_FUNC_CONN_CS(func_cs_count, self);
 		return NULL;
 	}
 
@@ -2701,13 +2708,13 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				res = cmdres;
 			}
 		}
+		CLEANUP_FUNC_CONN_CS(func_cs_count, self);
 		return res;
 	}
 
 	rollback_on_error = (flag & ROLLBACK_ON_ERROR) != 0;
 	end_with_commit = (flag & END_WITH_COMMIT) != 0;
 #define	return DONT_CALL_RETURN_FROM_HERE???
-	ENTER_INNER_CONN_CS(self, func_cs_count);
 	consider_rollback = (issue_begin || (CC_is_in_trans(self) && !CC_is_in_error_trans(self)) || strnicmp(query, "begin", 5) == 0);
 	if (rollback_on_error)
 		rollback_on_error = consider_rollback;

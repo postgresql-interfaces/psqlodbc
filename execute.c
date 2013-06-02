@@ -438,6 +438,9 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	conn = SC_get_conn(stmt);
 	mylog("%s: copying statement params: trans_status=%d, len=%d, stmt='%s'\n", func, conn->transact_status, strlen(stmt->statement), stmt->statement);
 
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+#define	RETURN(code)	{ retval = code; goto cleanup; }
+	ENTER_CONN_CS(conn);
 	/* save the cursor's info before the execution */
 	cursor_type = stmt->options.cursor_type;
 	scroll_concurrency = stmt->options.scroll_concurrency;
@@ -455,7 +458,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 	{
 		stmt->exec_current_row = -1;
 		*exec_end = TRUE;
-		return retval; /* error msg is passed from the above */
+		RETURN(retval) /* error msg is passed from the above */
 	}
 
 	mylog("   stmt_with_params = '%s'\n", stmt->stmt_with_params);
@@ -472,7 +475,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 		stmt->exec_current_row = -1;
 		*exec_end = TRUE;
 		if (!SC_is_pre_executable(stmt))
-			return SQL_SUCCESS;
+			RETURN(SQL_SUCCESS)
 		if (strnicmp(stmt->stmt_with_params, "BEGIN;", 6) == 0)
 		{
 			/* do nothing */
@@ -482,7 +485,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 			if (issued_begin = CC_begin(conn), !issued_begin)
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR,  "Handle prepare error", func);
-				return SQL_ERROR;
+				RETURN(SQL_ERROR)
 			}
 		}
 		/* we are now in a transaction */
@@ -495,7 +498,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 #endif /* LEGACY_MODE_ */
 			SC_set_error(stmt, STMT_EXEC_ERROR, "Handle prepare error", func);
 			QR_Destructor(res);
-			return SQL_ERROR;
+			RETURN(SQL_ERROR)
 		}
 		SC_set_Result(stmt, res);
 		for (curres = res; !curres->num_fields; curres = curres->next)
@@ -507,7 +510,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 				CC_commit(conn);
 		}
 		stmt->status = STMT_FINISHED;
-		return SQL_SUCCESS;
+		RETURN(SQL_SUCCESS)
 	}
 	/*
 	 *	The real execution.
@@ -518,7 +521,7 @@ mylog("about to begin SC_execute\n");
 	{
 		stmt->exec_current_row = -1;
 		*exec_end = TRUE;
-		return retval;
+		RETURN(retval)
 	}
 	res = SC_get_Result(stmt);
 	/* special handling of result for keyset driven cursors */
@@ -630,6 +633,11 @@ inolog("res->next=%p\n", kres);
 		SC_set_error(stmt, STMT_OPTION_VALUE_CHANGED, "cursor updatability changed", func);
 		retval = SQL_SUCCESS_WITH_INFO;
 	}
+
+cleanup:
+#undef	RETURN
+#undef	return
+	LEAVE_CONN_CS(conn);
 	return retval;
 }
 
