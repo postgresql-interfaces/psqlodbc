@@ -3940,7 +3940,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	struct tm	tm;
 #endif /* HAVE_LOCALTIME_R */
 	SQLLEN		used;
-	char		*buffer, *buf, *allocbuf, *lastadd = NULL;
+	char		*buffer, *buf, *allocbuf = NULL, *lastadd = NULL;
 	OID		lobj_oid;
 	int		lobj_fd;
 	SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
