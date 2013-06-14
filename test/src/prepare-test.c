@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 	HSTMT hstmt = SQL_NULL_HSTMT;
 	char *param1;
 	SQLLEN cbParam1;
-	long longparam;
+	SQLINTEGER longparam;
 	SQL_INTERVAL_STRUCT intervalparam;
 	SQLSMALLINT colcount;
 
