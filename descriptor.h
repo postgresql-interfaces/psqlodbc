@@ -210,11 +210,7 @@ struct IRDFields_
 
 struct IPDFields_
 {
-#if (ODBCVER >= 0x0300)
-	SQLUINTEGER		*param_processed_ptr;
-#else
-	SQLULEN			*param_processed_ptr; /* SQLParamOptions */
-#endif /* ODBCVER */
+	SQLULEN			*param_processed_ptr;
 	SQLUSMALLINT		*param_status_ptr;
 	SQLSMALLINT		allocated;
 	ParameterImplClass	*parameters;

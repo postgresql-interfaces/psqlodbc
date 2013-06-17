@@ -825,7 +825,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ipdopts->param_status_ptr = (SQLUSMALLINT *) Value;
 			return ret;
 		case SQL_DESC_ROWS_PROCESSED_PTR:
-			ipdopts->param_processed_ptr = (SQLUINTEGER *) Value;
+			ipdopts->param_processed_ptr = (SQLULEN *) Value;
 			return ret;
 		case SQL_DESC_COUNT:
 			parameter_ibindings_set(ipdopts, CAST_PTR(SQLSMALLINT, Value), FALSE);
@@ -1529,7 +1529,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
-			*((SQLULEN **) Value) = (SQLULEN *) SC_get_APDF(stmt)->param_offset_ptr;
+			*((SQLULEN **) Value) = SC_get_APDF(stmt)->param_offset_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
@@ -1545,15 +1545,15 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			*((SQLUINTEGER **) Value) = (SQLUINTEGER *) SC_get_IPDF(stmt)->param_processed_ptr;
+			*((SQLULEN **) Value) = SC_get_IPDF(stmt)->param_processed_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
-			*((SQLUINTEGER *) Value) = (SQLUINTEGER) SC_get_APDF(stmt)->paramset_size;
+			*((SQLULEN *) Value) = SC_get_APDF(stmt)->paramset_size;
 			len = sizeof(SQLUINTEGER);
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
-			*((SQLULEN **) Value) = (SQLULEN *) SC_get_ARDF(stmt)->row_offset_ptr;
+			*((SQLULEN **) Value) = SC_get_ARDF(stmt)->row_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
@@ -1565,7 +1565,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 			len = 4;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
-			*((SQLULEN **) Value) = (SQLULEN *) SC_get_IRDF(stmt)->rowsFetched;
+			*((SQLULEN **) Value) = SC_get_IRDF(stmt)->rowsFetched;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
@@ -1716,7 +1716,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			mylog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			break;
 		case SQL_ATTR_PGOPT_FETCH:
-			conn->connInfo.drivers.fetch_max = CAST_UPTR(SQLINTEGER, Value);
+			conn->connInfo.drivers.fetch_max = CAST_PTR(int, Value);
 			qlog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			mylog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			break;
@@ -1906,10 +1906,10 @@ inolog("set ard=%p\n", stmt->ard);
 			SC_get_IPDF(stmt)->param_status_ptr = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
-			SC_get_IPDF(stmt)->param_processed_ptr = (SQLUINTEGER *) Value;
+			SC_get_IPDF(stmt)->param_processed_ptr = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
-			SC_get_APDF(stmt)->paramset_size = CAST_UPTR(SQLUINTEGER, Value);
+			SC_get_APDF(stmt)->paramset_size = CAST_UPTR(SQLULEN, Value);
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
 			SC_get_ARDF(stmt)->row_offset_ptr = (SQLULEN *) Value;

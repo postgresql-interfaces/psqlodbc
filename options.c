@@ -138,7 +138,7 @@ set_statement_option(ConnectionClass *conn,
 				stmt->options_orig.keyset_size = vParam;
 				if (!SC_get_Result(stmt)) 
 					stmt->options.keyset_size = vParam;
-				if (stmt->options.keyset_size != (int)vParam)
+				if (stmt->options.keyset_size != (SQLLEN) vParam)
 					changed = TRUE;
 			}
 
@@ -153,7 +153,7 @@ set_statement_option(ConnectionClass *conn,
 				stmt->options_orig.maxLength = vParam;
 				if (!SC_get_Result(stmt)) 
 					stmt->options.maxLength = vParam;
-				if (stmt->options.maxLength != (int)vParam)
+				if (stmt->options.maxLength != (SQLLEN) vParam)
 					changed = TRUE;
 			}
 			break;
@@ -167,7 +167,7 @@ set_statement_option(ConnectionClass *conn,
 				stmt->options_orig.maxRows = vParam;
 				if (!SC_get_Result(stmt)) 
 					stmt->options.maxRows = vParam;
-				if (stmt->options.maxRows != (int)vParam)
+				if (stmt->options.maxRows != (SQLLEN)vParam)
 					changed = TRUE;
 			}
 			break;
