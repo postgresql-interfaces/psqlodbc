@@ -99,6 +99,7 @@ void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str);
 extern int encoded_nextchar(encoded_str *encstr);
 extern ssize_t encoded_position_shift(encoded_str *encstr, size_t shift);
 extern int encoded_byte_check(encoded_str *encstr, size_t abspos);
-/* #define check_client_encoding(X) pg_CS_name(pg_CS_code(X)) */
-UCHAR *check_client_encoding(const UCHAR *sql_string);
+/* #define check_client_encoding(X) pg_CS_name(pg_CS_code(X))
+UCHAR *check_client_encoding(const UCHAR *sql_string); */
+UCHAR *check_client_encoding(const pgNAME sql_string);
 #endif /* __MULTIBUYTE_H__ */

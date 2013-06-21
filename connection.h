@@ -285,8 +285,7 @@ typedef struct
 	char		server[MEDIUM_REGISTRY_LEN];
 	char		database[MEDIUM_REGISTRY_LEN];
 	char		username[MEDIUM_REGISTRY_LEN];
-	char		password[MEDIUM_REGISTRY_LEN];
-	char		conn_settings[LARGE_REGISTRY_LEN];
+	pgNAME		password;
 	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
 	char		sslmode[16];
@@ -298,6 +297,7 @@ typedef struct
 	char		translation_dll[MEDIUM_REGISTRY_LEN];
 	char		translation_option[SMALL_REGISTRY_LEN];
 	char		focus_password;
+	pgNAME		conn_settings;
 	signed char	disallow_premature;
 	signed char	allow_keyset;
 	signed char	updatable_cursors;
@@ -512,7 +512,12 @@ struct ConnectionClass_
 
 /*	prototypes */
 ConnectionClass *CC_Constructor(void);
-void		CC_conninfo_init(ConnInfo *conninfo);
+enum { /* CC_conninfo_init option */
+	CLEANUP_FOR_REUSE	= 1L		/* reuse the info */
+	,COPY_GLOBALS		= (1L << 1) /* copy globals to drivers */
+};
+void		CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
+void		CC_copy_conninfo(ConnInfo *to, const ConnInfo *from);
 char		CC_Destructor(ConnectionClass *self);
 int		CC_cursor_count(ConnectionClass *self);
 char		CC_cleanup(ConnectionClass *self);

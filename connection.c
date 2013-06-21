@@ -14,6 +14,11 @@
  */
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
+/*	TryEnterCritiaclSection needs the following #define */
+#ifndef	_WIN32_WINNT
+#define	_WIN32_WINNT	0x0400
+#endif /* _WIN32_WINNT */
+
 #include "connection.h"
 #ifndef	NOT_USE_LIBPQ
 #include <libpq-fe.h>
@@ -116,7 +121,7 @@ PGAPI_Connect(
 	ConnInfo   *ci;
 	CSTR func = "PGAPI_Connect";
 	RETCODE	ret = SQL_SUCCESS;
-	char	fchar;
+	char	fchar, *tmpstr;
 
 	mylog("%s: entering..cbDSN=%hi.\n", func, cbDSN);
 
@@ -127,11 +132,11 @@ PGAPI_Connect(
 	}
 
 	ci = &conn->connInfo;
+	CC_conninfo_init(ci, COPY_GLOBALS);
 
 	make_string(szDSN, cbDSN, ci->dsn, sizeof(ci->dsn));
 
 	/* get the values for the DSN from the registry */
-	memcpy(&ci->drivers, &globals, sizeof(globals));
 	getDSNinfo(ci, CONN_OVERWRITE);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
 	/* initialize pg_version from connInfo.protocol    */
@@ -145,15 +150,18 @@ PGAPI_Connect(
 	make_string(szUID, cbUID, ci->username, sizeof(ci->username));
 	if ('\0' == ci->username[0]) /* an empty string is specified */
 		ci->username[0] = fchar; /* restore the original username */
-	fchar = ci->password[0]; 
-	make_string(szAuthStr, cbAuthStr, ci->password, sizeof(ci->password));
-	if ('\0' == ci->password[0]) /* an empty string is specified */
-		ci->password[0] = fchar; /* restore the original password */
+	tmpstr = make_string(szAuthStr, cbAuthStr, NULL, 0);
+	if (tmpstr)
+	{
+		if (tmpstr[0]) /* non-empty string is specified */
+			STR_TO_NAME(ci->password, tmpstr);
+		free(tmpstr);
+	}
 
 	/* fill in any defaults */
 	getDSNdefaults(ci);
 
-	qlog("conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, ci->password ? "xxxxx" : "");
+	qlog("conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 
 	if ((fchar = CC_connect(conn, AUTH_REQ_OK, NULL)) <= 0)
 	{
@@ -259,30 +267,56 @@ PGAPI_FreeConnect(
 	return SQL_SUCCESS;
 }
 
-void
-CC_conninfo_init(ConnInfo *conninfo)
+static void
+CC_conninfo_release(ConnInfo *conninfo)
 {
-		memset(conninfo, 0, sizeof(ConnInfo));
-		conninfo->disallow_premature = -1;
-		conninfo->allow_keyset = -1;
-		conninfo->lf_conversion = -1;
-		conninfo->true_is_minus1 = -1;
-		conninfo->int8_as = -101;
-		conninfo->bytea_as_longvarbinary = -1;
-		conninfo->use_server_side_prepare = -1;
-		conninfo->lower_case_identifier = -1;
-		conninfo->rollback_on_error = -1;
-		conninfo->force_abbrev_connstr = -1;
-		conninfo->bde_environment = -1;
-		conninfo->fake_mss = -1;
-		conninfo->cvt_null_date_string = -1;
-		conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
-		conninfo->accessible_only = -1;
-		conninfo->gssauth_use_gssapi = -1;
+	NULL_THE_NAME(conninfo->password);
+	NULL_THE_NAME(conninfo->conn_settings);
+	finalize_globals(&conninfo->drivers);
+}
+
+void
+CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
+{
+	CSTR	func = "CC_conninfo_init";
+	mylog("%s opt=%d\n", func, option);
+
+	if (0 != (CLEANUP_FOR_REUSE & option))
+		CC_conninfo_release(conninfo);
+	memset(conninfo, 0, sizeof(ConnInfo));
+	conninfo->disallow_premature = -1;
+	conninfo->allow_keyset = -1;
+	conninfo->lf_conversion = -1;
+	conninfo->true_is_minus1 = -1;
+	conninfo->int8_as = -101;
+	conninfo->bytea_as_longvarbinary = -1;
+	conninfo->use_server_side_prepare = -1;
+	conninfo->lower_case_identifier = -1;
+	conninfo->rollback_on_error = -1;
+	conninfo->force_abbrev_connstr = -1;
+	conninfo->bde_environment = -1;
+	conninfo->fake_mss = -1;
+	conninfo->cvt_null_date_string = -1;
+	conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
+	conninfo->accessible_only = -1;
+	conninfo->gssauth_use_gssapi = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-		conninfo->xa_opt = -1;
+	conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
-		memcpy(&(conninfo->drivers), &globals, sizeof(globals));
+	if (0 != (COPY_GLOBALS & option))
+		copy_globals(&(conninfo->drivers), &globals);
+}
+
+void
+CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
+{
+	memcpy(ci, sci, sizeof(ConnInfo));
+	SET_NAME_DIRECTLY(ci->conn_settings, NULL);
+	SET_NAME_DIRECTLY(ci->drivers.drivername, NULL);
+	SET_NAME_DIRECTLY(ci->drivers.conn_settings, NULL);
+	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
+	NAME_TO_NAME(ci->drivers.drivername, sci->drivers.drivername);
+	NAME_TO_NAME(ci->drivers.conn_settings, sci->drivers.conn_settings);
 }
 
 #ifdef	WIN32
@@ -316,7 +350,7 @@ CC_Constructor()
 		rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
 		rv->stmt_in_extquery = NULL;
 
-		CC_conninfo_init(&(rv->connInfo));
+		CC_conninfo_init(&(rv->connInfo), COPY_GLOBALS);
 		rv->sock = SOCK_Constructor(rv);
 		if (!rv->sock)
 			goto cleanup;
@@ -399,6 +433,7 @@ CC_Destructor(ConnectionClass *self)
 
 	NULL_THE_NAME(self->schemaIns);
 	NULL_THE_NAME(self->tableIns);
+	CC_conninfo_release(&self->connInfo);
 	if (self->__error_message)
 		free(self->__error_message);
 	DELETE_CONN_CS(self);
@@ -661,7 +696,7 @@ CC_cleanup(ConnectionClass *self)
 	self->status = CONN_NOT_CONNECTED;
 	self->transact_status = CONN_IN_AUTOCOMMIT;
 	self->stmt_in_extquery = NULL;
-	CC_conninfo_init(&(self->connInfo));
+	CC_conninfo_init(&(self->connInfo), CLEANUP_FOR_REUSE);
 	if (self->original_client_encoding)
 	{
 		free(self->original_client_encoding);
@@ -747,10 +782,10 @@ md5_auth_send(ConnectionClass *self, const char *salt)
 	SocketClass	*sock = self->sock;
 	size_t		md5len;
 
-inolog("md5 pwd=%s user=%s salt=%02x%02x%02x%02x%02x\n", ci->password, ci->username, (UCHAR)salt[0], (UCHAR)salt[1], (UCHAR)salt[2], (UCHAR)salt[3], (UCHAR)salt[4]);
+inolog("md5 pwd=%s user=%s salt=%02x%02x%02x%02x%02x\n", PRINT_NAME(ci->password), ci->username, (UCHAR)salt[0], (UCHAR)salt[1], (UCHAR)salt[2], (UCHAR)salt[3], (UCHAR)salt[4]);
 	if (!(pwd1 = malloc(MD5_PASSWD_LEN + 1)))
 		return 1;
-	if (!EncryptMD5(ci->password, ci->username, strlen(ci->username), pwd1))
+	if (!EncryptMD5(SAFE_NAME(ci->password), ci->username, strlen(ci->username), pwd1))
 	{
 		free(pwd1);
 		return 1;
@@ -1120,9 +1155,9 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 				opts[cnt] = "sslmode";
 				vals[cnt++] = ci->sslmode;
 		}
-		if (ci->password[0])
+		if (NAME_IS_VALID(ci->password))
 		{
-			opts[cnt] = "password";	vals[cnt++] = ci->password;
+			opts[cnt] = "password";	vals[cnt++] = SAFE_NAME(ci->password);
 		}
 		if (ci->gssauth_use_gssapi)
 		{
@@ -1341,7 +1376,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		self->ccsc = pg_CS_code(self->original_client_encoding);
 	qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
 		 ci->drivers.extra_systable_prefixes,
-		 ci->drivers.conn_settings,
+		 PRINT_NAME(ci->drivers.conn_settings),
 		 encoding ? encoding : "");
 	if (self->status != CONN_NOT_CONNECTED)
 	{
@@ -1349,13 +1384,12 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		return 0;
 	}
 
-	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, ci->password ? "xxxxx" : "");
+	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 
 	if (ci->port[0] == '\0')
 	{
-		CC_set_error(self, CONN_INIREAD_ERROR, "Missing port in call to CC_connect.", func);
+		CC_set_error(self, CONN_INIREAD_ERROR, "Missing port name in call to CC_connect.", func);
 		return 0;
-
 	}
 #ifdef	WIN32
 	if (ci->server[0] == '\0')
@@ -1773,7 +1807,7 @@ inolog("Ekita retry=%d\n", retry);
 						case AUTH_REQ_PASSWORD:
 							mylog("in AUTH_REQ_PASSWORD\n");
 
-							if (ci->password[0] == '\0')
+							if (NAME_IS_NULL(ci->password))
 							{
 								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.", func);
 								ret = -areq; /* need password */
@@ -1784,8 +1818,8 @@ inolog("Ekita retry=%d\n", retry);
 
 							if (PROTOCOL_74(&(self->connInfo)))
 								SOCK_put_char(sock, 'p');
-							SOCK_put_int(sock, (Int4) (4 + strlen(ci->password) + 1), 4);
-							SOCK_put_n_char(sock, ci->password, strlen(ci->password) + 1);
+							SOCK_put_int(sock, (Int4) (4 + strlen(SAFE_NAME(ci->password)) + 1), 4);
+							SOCK_put_n_char(sock, SAFE_NAME(ci->password), strlen(SAFE_NAME(ci->password)) + 1);
 							sockerr = SOCK_flush_output(sock);
 
 							mylog("past flush %dbytes\n", sockerr);
@@ -1796,7 +1830,7 @@ inolog("Ekita retry=%d\n", retry);
 							goto error_proc;
 						case AUTH_REQ_MD5:
 							mylog("in AUTH_REQ_MD5\n");
-							if (ci->password[0] == '\0')
+							if (NAME_IS_NULL(ci->password))
 							{
 								CC_set_error(self, CONNECTION_NEED_PASSWORD, "A password is required for this connection.", func);
 								if (salt_para)
@@ -3605,9 +3639,9 @@ CC_send_settings(ConnectionClass *self)
 	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
 
 	/* Global settings */
-	if (ci->drivers.conn_settings[0] != '\0')
+	if (NAME_IS_VALID(ci->drivers.conn_settings))
 	{
-		cs = strdup(ci->drivers.conn_settings);
+		cs = strdup(GET_NAME(ci->drivers.conn_settings));
 #ifdef	HAVE_STRTOK_R
 		ptr = strtok_r(cs, semi_colon, &last);
 #else
@@ -3632,9 +3666,9 @@ CC_send_settings(ConnectionClass *self)
 	}
 
 	/* Per Datasource settings */
-	if (ci->conn_settings[0] != '\0')
+	if (NAME_IS_VALID(ci->conn_settings))
 	{
-		cs = strdup(ci->conn_settings);
+		cs = strdup(GET_NAME(ci->conn_settings));
 #ifdef	HAVE_STRTOK_R
 		ptr = strtok_r(cs, semi_colon, &last);
 #else

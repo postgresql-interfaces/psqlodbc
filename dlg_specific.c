@@ -27,9 +27,9 @@
 
 extern GLOBAL_VALUES globals;
 
-static void encode(const UCHAR *in, UCHAR *out, int outlen);
-static void decode(const UCHAR *in, UCHAR *out, int outlen);
-static void decode_or_remove_braces(const UCHAR *in, UCHAR *out, int outlen);
+static void encode(const pgNAME, UCHAR *out, int outlen);
+static pgNAME decode(const UCHAR *in);
+static pgNAME decode_or_remove_braces(const UCHAR *in);
 
 #define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY)
 UInt4	getExtraOptions(const ConnInfo *ci)
@@ -498,7 +498,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		strcpy(ci->username, value);
 
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
-		decode_or_remove_braces(value, ci->password, sizeof(ci->password));
+		ci->password = decode_or_remove_braces(value);
 
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
@@ -539,17 +539,18 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
+		/* We can use the conn_settings directly when they are enclosed with braces */
 		if ('{' == *value)
 		{
 			size_t	len;
 
-			strncpy_null(ci->conn_settings, value + 1, sizeof(ci->conn_settings));
-			len = strlen(ci->conn_settings);
-			if (len > 0 && '}' == ci->conn_settings[len - 1])
-				ci->conn_settings[len - 1] = '\0';
+			len = strlen(value + 1);
+			if (len > 0 && '}' == value[len])
+				len--;
+			STRN_TO_NAME(ci->conn_settings, value + 1, len);
 		}
 		else
-			decode(value, ci->conn_settings, sizeof(ci->conn_settings));
+			ci->conn_settings = decode(value);
 	}
 	else if (stricmp(attribute, INI_DISALLOWPREMATURE) == 0 || stricmp(attribute, ABBR_DISALLOWPREMATURE) == 0)
 		ci->disallow_premature = atoi(value);
@@ -630,7 +631,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", func, ci->dsn, ci->server, ci->database, ci->username, ci->password ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", func, ci->dsn, ci->server, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
 
 	return found;
 }
@@ -812,7 +813,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (ci->drivername[0] == '\0' || overwrite)
 	{
 		getDriverNameFromDSN(DSN, ci->drivername, sizeof(ci->drivername));
-		if (ci->drivername[0] && stricmp(ci->drivername, DBMS_NAME))
+		if (ci->drivername[0] && stricmp(ci->drivername, SAFE_NAME(ci->drivers.drivername)))
 			getCommonDefaults(ci->drivername, ODBCINST_INI, ci);
 	}
 
@@ -830,10 +831,10 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (ci->username[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_USERNAME, "", ci->username, sizeof(ci->username), ODBC_INI);
 
-	if (ci->password[0] == '\0' || overwrite)
+	if (NAME_IS_NULL(ci->password) || overwrite)
 	{
 		SQLGetPrivateProfileString(DSN, INI_PASSWORD, "", encoded_item, sizeof(encoded_item), ODBC_INI);
-		decode(encoded_item, ci->password, sizeof(ci->password));
+		ci->password = decode(encoded_item);
 	}
 
 	if (ci->port[0] == '\0' || overwrite)
@@ -869,10 +870,10 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		}
 	}
 
-	if (ci->conn_settings[0] == '\0' || overwrite)
+	if (NAME_IS_NULL(ci->conn_settings) || overwrite)
 	{
 		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_item, sizeof(encoded_item), ODBC_INI);
-		decode(encoded_item, ci->conn_settings, sizeof(ci->conn_settings));
+		ci->conn_settings = decode(encoded_item);
 	}
 
 	if (ci->translation_dll[0] == '\0' || overwrite)
@@ -977,7 +978,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->port,
 		 ci->database,
 		 ci->username,
-		 ci->password ? "xxxxx" : "");
+		 NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 	qlog("          onlyread='%s',protocol='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
 		 ci->protocol,
@@ -1249,10 +1250,13 @@ writeDSNinfo(const ConnInfo *ci)
 void
 getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 {
+	CSTR	func = "getCommonDefaults";
 	char		temp[256];
 	GLOBAL_VALUES *comval;
 	BOOL	inst_position = (stricmp(filename, ODBCINST_INI) == 0);
+	const char *drivername = (inst_position ? section : ci->drivername);
 
+	mylog("%s:setting %s position of %p\n", func, filename, ci);
 	if (ci)
 		comval = &(ci->drivers);
 	else
@@ -1415,18 +1419,22 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 	else if (inst_position)
 		strcpy(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
 
-	mylog("globals.extra_systable_prefixes = '%s'\n", comval->extra_systable_prefixes);
+	mylog("ci=%p globals.extra_systable_prefixes = '%s'\n", ci, comval->extra_systable_prefixes);
 
 
 	/* Dont allow override of an override! */
 	if (inst_position)
 	{
+		char conn_settings[LARGE_REGISTRY_LEN];
+
 		/*
 		 * ConnSettings is stored in the driver section and per datasource
 		 * for override
 		 */
 		SQLGetPrivateProfileString(section, INI_CONNSETTINGS, "",
-		 comval->conn_settings, sizeof(comval->conn_settings), filename);
+			conn_settings, sizeof(conn_settings), filename);
+		if ('\0' != conn_settings[0])
+		 	STR_TO_NAME(comval->conn_settings, conn_settings);
 
 		/* Default state for future DSN's Readonly attribute */
 		SQLGetPrivateProfileString(section, INI_READONLY, "",
@@ -1448,18 +1456,25 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		else
 			strcpy(comval->protocol, DEFAULT_PROTOCOL);
 	}
+	STR_TO_NAME(comval->drivername, drivername);
 }
 
 static void
-encode(const UCHAR *in, UCHAR *out, int outlen)
+encode(const pgNAME in, UCHAR *out, int outlen)
 {
-	size_t i, ilen = strlen(in),
-				o = 0;
-	UCHAR	inc;
+	size_t i, ilen, o = 0;
+	UCHAR	inc, *ins;
 
+	if (NAME_IS_NULL(in))
+	{
+		out[0] = '\0';
+		return;
+	}
+	ins = GET_NAME(in);
+	ilen = strlen(ins);
 	for (i = 0; i < ilen && o < outlen - 1; i++)
 	{
-		inc = in[i];
+		inc = ins[i];
 		if (inc == '+')
 		{
 			if (o + 2 >= outlen)
@@ -1504,50 +1519,58 @@ conv_from_hex(const UCHAR *s)
 	return y;
 }
 
-static void
-decode(const UCHAR *in, UCHAR *out, int outlen)
+static pgNAME
+decode(const UCHAR *in)
 {
-	size_t i, ilen = strlen(in),
-				o = 0;
-	UCHAR	inc;
+	size_t i, ilen = strlen(in), o = 0;
+	UCHAR	inc, *outs;
+	pgNAME	out;
 
-	for (i = 0; i < ilen && o < outlen - 1; i++)
+	INIT_NAME(out);
+	if (0 == ilen)
+	{
+		return out;
+	}
+	outs = (char *) malloc(ilen + 1);
+	for (i = 0; i < ilen; i++)
 	{
 		inc = in[i];
 		if (inc == '+')
-			out[o++] = ' ';
+			outs[o++] = ' ';
 		else if (inc == '%')
 		{
-			sprintf(&out[o++], "%c", conv_from_hex(&in[i]));
+			sprintf(&outs[o++], "%c", conv_from_hex(&in[i]));
 			i += 2;
 		}
 		else
-			out[o++] = inc;
+			outs[o++] = inc;
 	}
-	out[o++] = '\0';
+	outs[o++] = '\0';
+	STR_TO_NAME(out, outs);
+	free(outs);
+	return out;
 }
 
 /*
  *	Remove braces if the input value is enclosed by braces({}).
  *	Othewise decode the input value. 
  */
-static void
-decode_or_remove_braces(const UCHAR *in, UCHAR *out, int outlen)
+static pgNAME
+decode_or_remove_braces(const UCHAR *in)
 {
 	if ('{' == in[0])
 	{
 		size_t inlen = strlen(in);
 		if ('}' == in[inlen - 1]) /* enclosed by braces */
 		{
-			size_t	limitlen = outlen;
+			pgNAME	out;
 
-			if (inlen - 1 < limitlen)
-				limitlen = inlen - 1;
-			strncpy_null(out, in + 1, limitlen);
-			return;
+			INIT_NAME(out);	
+			STRN_TO_NAME(out, in + 1, inlen - 2);	
+			return out;
 		}
 	}
-	decode(in, out, outlen);
+	return decode(in);
 }
 
 char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comment)
@@ -1677,9 +1700,9 @@ char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comm
  *	extract the specified attribute from the comment part.
  *		attribute=[']value[']
  */
-char *extract_extra_attribute_setting(const char *str, const char *attr)
+char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 {
-	const UCHAR *cptr, *sptr = NULL;
+	const UCHAR *cptr, *sptr = NULL, *str = GET_NAME(setting);
 	UCHAR	*rptr;
 	BOOL	allowed_cmd = FALSE, in_quote = FALSE, in_comment = FALSE;
 	int	step = 0, step_last = 2;

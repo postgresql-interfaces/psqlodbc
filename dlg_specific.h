@@ -296,7 +296,7 @@ int     changeDriverNameOfaDSN(const char *dsn, const char *driver_name, DWORD *
 UInt4	getExtraOptions(const ConnInfo *);
 BOOL	setExtraOptions(ConnInfo *, const char *str, const char *format);
 char	*extract_attribute_setting(const char *str, const char *attr, BOOL ref_comment);
-char	*extract_extra_attribute_setting(const char *str, const char *attr);
+char	*extract_extra_attribute_setting(const pgNAME setting, const char *attr);
 
 #ifdef	__cplusplus
 }

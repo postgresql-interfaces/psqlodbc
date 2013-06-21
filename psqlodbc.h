@@ -159,7 +159,7 @@ typedef	unsigned long long ULONG_PTR;
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
-#define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
+#define	FORMAT_UINTEGER	"%u"	/* SQLUINTEGER */
 #endif /* SIZEOF_VOID_P */
 #endif /* WIN32 */
 #define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))
@@ -234,7 +234,9 @@ typedef double SDOUBLE;
 #endif /* DBMS_NAME */
 #else
 #define DRIVER_ODBC_VER				"02.50"
+#ifndef DBMS_NAME
 #define DBMS_NAME				"PostgreSQL Legacy"
+#endif   /* DBMS_NAME */
 #endif   /* ODBCVER */
 
 #ifdef WIN32
@@ -379,8 +381,78 @@ typedef struct IPDFields_ IPDFields;
 typedef struct col_info COL_INFO;
 typedef struct lo_arg LO_ARG;
 
+
+/*	pgNAME type define */
+typedef struct
+{
+	char	*name;
+} pgNAME;
+#define	GET_NAME(the_name)	((the_name).name)
+#define	SAFE_NAME(the_name)	((the_name).name ? (the_name).name : NULL_STRING)
+#define	PRINT_NAME(the_name)	((the_name).name ? (the_name).name : PRINT_NULL)
+#define	NAME_IS_NULL(the_name)	(NULL == (the_name).name)
+#define	NAME_IS_VALID(the_name)	(NULL != (the_name).name)
+#define	INIT_NAME(the_name) ((the_name).name = NULL)
+#define	NULL_THE_NAME(the_name) \
+do { \
+	if ((the_name).name) free((the_name).name); \
+	(the_name).name = NULL; \
+} while (0)
+#define	STR_TO_NAME(the_name, str) \
+do { \
+	if ((the_name).name) \
+		free((the_name).name); \
+	(the_name).name = (str ? strdup((str)) : NULL); \
+} while (0)
+#define	STRX_TO_NAME(the_name, str) \
+do { \
+	if ((the_name).name) \
+		free((the_name).name); \
+	(the_name).name = strdup((str)); \
+} while (0)
+#define	STRN_TO_NAME(the_name, str, n) \
+do { \
+	if ((the_name).name) \
+		free((the_name).name); \
+	if (str) \
+	{ \
+		(the_name).name = malloc((n) + 1); \
+		memcpy((the_name).name, str, (n)); \
+		(the_name).name[(n)] = '\0'; \
+	} \
+	else \
+		(the_name).name = NULL; \
+} while (0)
+#define	NAME_TO_STR(str, the_name) \
+do {\
+	if ((the_name).name) strcpy(str, (the_name).name); \
+	else *str = '\0'; \
+} while (0)
+#define	NAME_TO_NAME(to, from) \
+do { \
+	if ((to).name) \
+		free((to).name); \
+	if ((from).name) \
+		(to).name = strdup(from.name); \
+	else \
+		(to).name = NULL; \
+} while (0)
+#define	MOVE_NAME(to, from) \
+do { \
+	if ((to).name) \
+		free((to).name); \
+	(to).name = (from).name; \
+	(from).name = NULL; \
+} while (0)
+#define	SET_NAME_DIRECTLY(the_name, str) ((the_name).name = (str))
+
+#define	NAMECMP(name1, name2) (strcmp(SAFE_NAME(name1), SAFE_NAME(name2)))
+#define	NAMEICMP(name1, name2) (stricmp(SAFE_NAME(name1), SAFE_NAME(name2)))
+/*	pgNAME define end */
+
 typedef struct GlobalValues_
 {
+	pgNAME		drivername;
 	int			fetch_max;
 	int			socket_buffersize;
 	int			unknown_sizes;
@@ -401,9 +473,12 @@ typedef struct GlobalValues_
 	char		parse;
 	char		cancel_as_freestmt;
 	char		extra_systable_prefixes[MEDIUM_REGISTRY_LEN];
-	char		conn_settings[LARGE_REGISTRY_LEN];
 	char		protocol[SMALL_REGISTRY_LEN];
+	pgNAME		conn_settings;
 } GLOBAL_VALUES;
+
+void copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from);
+void finalize_globals(GLOBAL_VALUES *glbv);
 
 typedef struct StatementOptions_
 {

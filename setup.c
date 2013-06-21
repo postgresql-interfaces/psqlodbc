@@ -275,7 +275,7 @@ ConfigDlgProc(HWND hdlg,
 			 */
 			/* override settings in ODBC.INI */
 
-			memcpy(&ci->drivers, &globals, sizeof(globals));
+			copy_globals(&ci->drivers, &globals);
 			/* Get the rest of the common attributes */
 			getDSNinfo(ci, CONN_DONT_OVERWRITE);
 
@@ -367,7 +367,7 @@ ConfigDlgProc(HWND hdlg,
 							int errnum;
 
 							EN_add_connection(env, conn);
-							memcpy(&conn->connInfo, &lpsetupdlg->ci, sizeof(ConnInfo));
+							CC_copy_conninfo(&conn->connInfo, &lpsetupdlg->ci);
 							CC_initialize_pg_version(conn);
 							logs_on_off(1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
 #ifdef	UNICODE_SUPPORT
@@ -469,7 +469,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 	int			cbKey;
 	char		value[MAXPGPATH];
 
-	CC_conninfo_init(&(lpsetupdlg->ci));
+	CC_conninfo_init(&(lpsetupdlg->ci), COPY_GLOBALS);
 
 	for (lpsz = lpszAttributes; *lpsz; lpsz++)
 	{

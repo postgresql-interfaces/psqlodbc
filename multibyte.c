@@ -107,7 +107,7 @@ pg_CS_code(const UCHAR *characterset_string)
 	return (c);
 }
 
-UCHAR *check_client_encoding(const UCHAR *conn_settings)
+UCHAR *check_client_encoding(const pgNAME conn_settings)
 {
 	const UCHAR *cptr, *sptr = NULL;
 	UCHAR	*rptr;
@@ -115,8 +115,10 @@ UCHAR *check_client_encoding(const UCHAR *conn_settings)
 	int	step = 0;
 	size_t	len = 0;
 
-	for (cptr = conn_settings; *cptr; cptr++)
-	{
+	if (NAME_IS_NULL(conn_settings))
+		return NULL;
+ 	for (cptr = SAFE_NAME(conn_settings); *cptr; cptr++)
+ 	{
 		if (in_quote)
 			if (LITERAL_QUOTE == *cptr)
 			{

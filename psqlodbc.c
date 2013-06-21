@@ -86,16 +86,33 @@ int	initialize_global_cs(void)
 	getMutexAttr();
 #endif /* POSIX_THREADMUTEX_SUPPORT */
 	InitializeLogging();
+	memset(&globals, 0, sizeof(globals));
 	INIT_CONNS_CS;
 	INIT_COMMON_CS;
 
 	return 0;
 }
 
+void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
+{
+	memcpy(to, from, sizeof(GLOBAL_VALUES));
+	SET_NAME_DIRECTLY(to->drivername, NULL);
+	SET_NAME_DIRECTLY(to->conn_settings, NULL);
+	NAME_TO_NAME(to->drivername, from->drivername);
+	NAME_TO_NAME(to->conn_settings, from->conn_settings);
+mylog("copy_globals driver=%s socket_buffersize=%d\n", SAFE_NAME(to->drivername), to->socket_buffersize);
+}
+void	finalize_globals(GLOBAL_VALUES *glbv)
+{
+	NULL_THE_NAME(glbv->drivername);
+	NULL_THE_NAME(glbv->conn_settings);
+}
+
 static void finalize_global_cs(void)
 {
 	DELETE_COMMON_CS;
 	DELETE_CONNS_CS;
+	finalize_globals(&globals);
 	FinalizeLogging();
 #ifdef	_DEBUG
 #ifdef	_MEMORY_DEBUG_

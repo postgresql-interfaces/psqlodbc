@@ -4529,7 +4529,7 @@ PGAPI_SetCursorName(
 		return SQL_INVALID_HANDLE;
 	}
 
-	SET_NAME(stmt->cursor_name, make_string(szCursor, cbCursor, NULL, 0));
+	SET_NAME_DIRECTLY(stmt->cursor_name, make_string(szCursor, cbCursor, NULL, 0));
 	return SQL_SUCCESS;
 }
 

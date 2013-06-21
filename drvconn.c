@@ -538,7 +538,7 @@ void
 dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
 {
 
-	CC_conninfo_init(ci);
+	CC_conninfo_init(ci, COPY_GLOBALS);
 	dconn_get_attributes(copyAttributes, connect_string, ci);
 }
 
