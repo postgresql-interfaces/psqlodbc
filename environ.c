@@ -14,6 +14,7 @@
  */
 
 #include "environ.h"
+#include "misc.h"
 
 #include "connection.h"
 #include "dlg_specific.h"
@@ -105,9 +106,6 @@ PGAPI_FreeEnv(HENV henv)
 
 	if (env && EN_Destructor(env))
 	{
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-		CALL_DtcOnRelease();
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
 		mylog("   ok\n");
 		goto cleanup;
 	}

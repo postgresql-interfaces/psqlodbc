@@ -19,6 +19,7 @@
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
 #include "statement.h"
+#include "misc.h" // strncpy_null
 
 #include "bind.h"
 #include "connection.h"
@@ -26,6 +27,7 @@
 #include "qresult.h"
 #include "convert.h"
 #include "environ.h"
+#include "loadlib.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -2449,6 +2451,10 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 {
 	BOOL	ret = TRUE;
 
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	if (conn->asdum)
+		CALL_IsolateDtcConn(conn, TRUE);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 	if (SC_accessed_db(stmt))
 		return TRUE;
 	if (SQL_ERROR == SetStatementSvp(stmt))

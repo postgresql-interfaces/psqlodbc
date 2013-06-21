@@ -51,12 +51,15 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			LEAVE_ENV_CS((EnvironmentClass *) InputHandle);
 			break;
 		case SQL_HANDLE_STMT:
-			ENTER_CONN_CS((ConnectionClass *) InputHandle);
+			conn = (ConnectionClass *) InputHandle;
+			CC_examine_global_transaction(conn);
+			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocStmt(InputHandle, OutputHandle, PODBC_EXTERNAL_STATEMENT | PODBC_INHERIT_CONNECT_OPTIONS);
-			LEAVE_CONN_CS((ConnectionClass *) InputHandle);
+			LEAVE_CONN_CS(conn);
 			break;
 		case SQL_HANDLE_DESC:
 			conn = (ConnectionClass *) InputHandle;
+			CC_examine_global_transaction(conn);
 			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocDesc(InputHandle, OutputHandle);
 			LEAVE_CONN_CS(conn);
@@ -171,6 +174,7 @@ SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 			LEAVE_ENV_CS((EnvironmentClass *) Handle);
 			break;
 		case SQL_HANDLE_DBC:
+			CC_examine_global_transaction((ConnectionClass *) Handle);
 			ENTER_CONN_CS((ConnectionClass *) Handle);
 			CC_clear_error((ConnectionClass *) Handle);
 			ret = PGAPI_Transact(SQL_NULL_HENV, Handle, CompletionType);
@@ -361,6 +365,7 @@ SQLGetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret;
 
 	mylog("[[SQLGetConnectAttr]] %d\n", Attribute);
+	CC_examine_global_transaction((ConnectionClass*) ConnectionHandle);
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	CC_clear_error((ConnectionClass *) ConnectionHandle);
 	ret = PGAPI_GetConnectAttr(ConnectionHandle, Attribute,Value,
@@ -400,6 +405,7 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[[SQLSetConnectAttr]] %d\n", Attribute);
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_SetConnectAttr(ConnectionHandle, Attribute, Value,
@@ -533,6 +539,7 @@ PGAPI_GetFunctions30(HDBC hdbc, SQLUSMALLINT fFunction, SQLUSMALLINT FAR * pfExi
 	ConnInfo	*ci = &(conn->connInfo);
 
 inolog("lie=%d\n", ci->drivers.lie);
+	CC_examine_global_transaction(conn);
 	CC_clear_error(conn);
 	if (fFunction != SQL_API_ODBC3_ALL_FUNCTIONS)
 		return SQL_ERROR;

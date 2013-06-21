@@ -74,6 +74,7 @@ RETCODE SQL_API	SQLGetConnectAttrW(HDBC hdbc,
 	RETCODE	ret;
 
 	mylog("[%s]", func);
+	CC_examine_global_transaction((ConnectionClass *) hdbc);
 	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	CC_clear_error((ConnectionClass *) hdbc);
 	ret = PGAPI_GetConnectAttr(hdbc, fAttribute, rgbValue,
@@ -92,6 +93,7 @@ RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[%s]", func);
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);

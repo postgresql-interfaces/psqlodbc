@@ -26,13 +26,15 @@
 #include <openssl/ssl.h>
 #endif /* USE_SSL */
 #endif /* NOT_USE_LIBPQ */
+#include "misc.h"
 #include "loadlib.h"
 
 #include "connection.h"
 
 #ifdef WIN32
 #include <time.h>
-#include <Wspiapi.h>
+#include <Wspiapi.h>	/* Ensure to support the backward-compatibility version
+			   of getaddrinfo() etc */
 #else
 #include <stdlib.h>
 #include <string.h>				/* for memset */

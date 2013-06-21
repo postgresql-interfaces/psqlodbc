@@ -14,6 +14,7 @@
  */
 
 #include  "psqlodbc.h"
+#include  "misc.h" // strncpy_null
 
 #include  "environ.h"
 #include  "connection.h"

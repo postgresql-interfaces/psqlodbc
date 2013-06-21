@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include "connection.h"
+#include "misc.h"
 
 #ifndef WIN32
 #include <sys/types.h>

@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "misc.h"
 #include "pgapifunc.h"
 #include "environ.h"
 #include "connection.h"
@@ -70,6 +71,7 @@ SQLAllocStmt(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLAllocStmt]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_AllocStmt(ConnectionHandle, StatementHandle, PODBC_EXTERNAL_STATEMENT | PODBC_INHERIT_CONNECT_OPTIONS);
@@ -207,6 +209,7 @@ SQLConnect(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLConnect]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_Connect(ConnectionHandle, ServerName, NameLength1,
@@ -229,6 +232,7 @@ SQLDriverConnect(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[SQLDriverConnect]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_DriverConnect(hdbc, hwnd, szConnStrIn, cbConnStrIn,
@@ -249,6 +253,7 @@ SQLBrowseConnect(
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[SQLBrowseConnect]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_BrowseConnect(hdbc, szConnStrIn, cbConnStrIn,
@@ -306,7 +311,8 @@ SQLDisconnect(HDBC ConnectionHandle)
 
 	mylog("[%s for %p]", func, ConnectionHandle);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-	CALL_DtcOnDisconnect(conn); /* must be called without holding the connection lock */
+	if (CC_is_in_global_trans(conn))
+		CALL_DtcOnDisconnect(conn);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -464,6 +470,7 @@ SQLGetConnectOption(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLGetConnectOption]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_GetConnectOption(ConnectionHandle, Option, Value, NULL, 64);
@@ -519,6 +526,7 @@ SQLGetFunctions(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLGetFunctions]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 #if (ODBCVER >= 0x0300)
@@ -541,6 +549,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 	RETCODE		ret;
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 #if (ODBCVER >= 0x0300)
@@ -710,6 +719,7 @@ SQLSetConnectOption(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
 	mylog("[SQLSetConnectionOption]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_SetConnectOption(ConnectionHandle, Option, Value);
@@ -1279,6 +1289,7 @@ SQLNativeSql(
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[SQLNativeSql]");
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	ret = PGAPI_NativeSql(hdbc, szSqlStrIn, cbSqlStrIn, szSqlStr,

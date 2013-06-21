@@ -18,7 +18,7 @@
 #include "psqlodbc.h"
 
 #include <string.h>
-#include "psqlodbc.h"
+#include "misc.h"
 #include "dlg_specific.h"
 #include "environ.h"
 #include "connection.h"
@@ -800,7 +800,6 @@ inolog("COLUMN_SCALE=%d\n", value);
 			mylog("%s: BASE_TABLE_NAME = '%s'\n", func, p);
 			break;
 		case SQL_DESC_LENGTH: /* different from SQL_COLUMN_LENGTH */
-			// value = (fi && fi->length > 0) ? fi->length : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
 			value = (fi && column_size > 0) ? column_size : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
 			if (-1 == value)
 				value = 0;

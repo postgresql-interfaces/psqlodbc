@@ -81,15 +81,3 @@ dconn_FDriverConnectProc @200
 DllMain @201
 ConfigDSN @202
 ConfigDriver @203
-
-forcelog
-mylog
-PGAPI_AllocConnect
-PGAPI_FreeConnect
-CC_connect
-CC_set_error
-CC_commit
-CC_abort
-CC_set_autocommit
-CC_send_query_append
-QR_Destructor

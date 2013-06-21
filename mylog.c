@@ -12,6 +12,7 @@
  *-------
  */
 
+#define	_MYLOG_FUNCS_IMPLEMENT_
 #include "psqlodbc.h"
 #include "dlg_specific.h"
 
@@ -34,6 +35,20 @@
 #include <process.h>			/* Byron: is this where Windows keeps def.
 								 * of getpid ? */
 #endif
+
+#ifdef WIN32
+#define DIRSEPARATOR		"\\"
+#define PG_BINARY			O_BINARY
+#define PG_BINARY_R			"rb"
+#define PG_BINARY_W			"wb"
+#define PG_BINARY_A			"ab"
+#else
+#define DIRSEPARATOR		"/"
+#define PG_BINARY			0
+#define PG_BINARY_R			"r"
+#define PG_BINARY_W			"w"
+#define PG_BINARY_A			"a"
+#endif /* WIN32 */
 
 extern GLOBAL_VALUES globals;
 
@@ -93,7 +108,56 @@ static	CRITICAL_SECTION	qlog_cs, mylog_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 static	pthread_mutex_t	qlog_cs, mylog_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
+static int	force_log = 0;
 static int	mylog_on = 0, qlog_on = 0;
+
+#if defined(WIN_MULTITHREAD_SUPPORT)
+#define	INIT_QLOG_CS	InitializeCriticalSection(&qlog_cs)
+#define	ENTER_QLOG_CS	EnterCriticalSection(&qlog_cs)
+#define	LEAVE_QLOG_CS	LeaveCriticalSection(&qlog_cs)
+#define	DELETE_QLOG_CS	DeleteCriticalSection(&qlog_cs)
+#define	INIT_MYLOG_CS	InitializeCriticalSection(&mylog_cs)
+#define	ENTER_MYLOG_CS	EnterCriticalSection(&mylog_cs)
+#define	LEAVE_MYLOG_CS	LeaveCriticalSection(&mylog_cs)
+#define	DELETE_MYLOG_CS	DeleteCriticalSection(&mylog_cs)
+#elif defined(POSIX_MULTITHREAD_SUPPORT)
+#define	INIT_QLOG_CS	pthread_mutex_init(&qlog_cs,0)
+#define	ENTER_QLOG_CS	pthread_mutex_lock(&qlog_cs)
+#define	LEAVE_QLOG_CS	pthread_mutex_unlock(&qlog_cs)
+#define	DELETE_QLOG_CS	pthread_mutex_destroy(&qlog_cs)
+#define	INIT_MYLOG_CS	pthread_mutex_init(&mylog_cs,0)
+#define	ENTER_MYLOG_CS	pthread_mutex_lock(&mylog_cs)
+#define	LEAVE_MYLOG_CS	pthread_mutex_unlock(&mylog_cs)
+#define	DELETE_MYLOG_CS	pthread_mutex_destroy(&mylog_cs)
+#else
+#define	INIT_QLOG_CS
+#define	ENTER_QLOG_CS
+#define	LEAVE_QLOG_CS
+#define	DELETE_QLOG_CS
+#define	INIT_MYLOG_CS
+#define	ENTER_MYLOG_CS
+#define	LEAVE_MYLOG_CS
+#define	DELETE_MYLOG_CS
+#endif /* WIN_MULTITHREAD_SUPPORT */
+
+#ifdef MY_LOG
+#define MYLOGFILE			"mylog_"
+#ifndef WIN32
+#define MYLOGDIR			"/tmp"
+#else
+#define MYLOGDIR			"c:"
+#endif /* WIN32 */
+#endif /* MY_LOG */
+
+#ifdef Q_LOG
+#define QLOGFILE			"psqlodbc_"
+#ifndef WIN32
+#define QLOGDIR				"/tmp"
+#else
+#define QLOGDIR				"c:"
+#endif /* WIN32 */
+#endif /* QLOG */
+
 
 int	get_mylog(void)
 {
@@ -108,9 +172,9 @@ void
 logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 {
 	static int	mylog_on_count = 0,
-				mylog_off_count = 0,
-				qlog_on_count = 0,
-				qlog_off_count = 0;
+			mylog_off_count = 0,
+			qlog_on_count = 0,
+			qlog_off_count = 0;
 
 	ENTER_MYLOG_CS;
 	ENTER_QLOG_CS;
@@ -127,8 +191,10 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 	}
 	else if (mylog_off_count > 0)
 		mylog_on = 0;
-	else
+	else if (globals.debug > 0)
 		mylog_on = globals.debug;
+	else
+		mylog_on = force_log;
 	if (qlog_onoff)
 		qlog_on_count += cnopen;
 	else
@@ -137,8 +203,10 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 		qlog_on = 1;
 	else if (qlog_off_count > 0)
 		qlog_on = 0;
-	else
+	else if (globals.commlog > 0)
 		qlog_on = globals.commlog;
+	else
+		qlog_on = force_log;
 	LEAVE_QLOG_CS;
 	LEAVE_MYLOG_CS;
 }
@@ -152,7 +220,7 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 #endif /* LOGGING_PROCESS_TIME */
 #ifdef MY_LOG
 static FILE *MLOGFP = NULL;
-void
+DLL_DECLARE void
 mylog(const char *fmt,...)
 {
 	va_list		args;
@@ -209,7 +277,7 @@ mylog(const char *fmt,...)
 	LEAVE_MYLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
 }
-void
+DLL_DECLARE void
 forcelog(const char *fmt,...)
 {
 	static BOOL	force_on = TRUE;
@@ -269,6 +337,7 @@ forcelog(const char *fmt,...)
 static void mylog_initialize()
 {
 	INIT_MYLOG_CS;
+	mylog_on = force_log;
 }
 static void mylog_finalize()
 {
@@ -281,10 +350,6 @@ static void mylog_finalize()
 	DELETE_MYLOG_CS;
 }
 #else
-void
-MyLog(char *fmt,...)
-{
-}
 static void mylog_initialize() {}
 static void mylog_finalize() {}
 #endif /* MY_LOG */
@@ -340,6 +405,7 @@ qlog(char *fmt,...)
 static void qlog_initialize()
 {
 	INIT_QLOG_CS;
+	qlog_on = force_log;
 }
 static void qlog_finalize()
 {

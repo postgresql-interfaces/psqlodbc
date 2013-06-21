@@ -13,6 +13,7 @@
  */
 
 #include "psqlodbc.h"
+#include "misc.h"
 
 #include <stdio.h>
 #include <stdarg.h>

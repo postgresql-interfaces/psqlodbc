@@ -19,6 +19,7 @@
 
 #include <ctype.h>
 #include "dlg_specific.h"
+#include "misc.h"
 
 #include "convert.h"
 

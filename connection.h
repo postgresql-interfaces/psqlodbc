@@ -116,6 +116,7 @@ enum
 #define	CC_set_in_ansi_app(x)	(x->unicode |= CONN_ANSI_APP)
 #define	CC_is_in_unicode_driver(x)	(0 != (x->unicode & CONN_UNICODE_DRIVER))
 #define	CC_is_in_ansi_app(x)	(0 != (x->unicode & CONN_ANSI_APP))
+#define	CC_is_in_global_trans(x)	(NULL != (x)->asdum)
 #define	ALLOW_WCHAR(x)	(0 != (x->unicode & CONN_UNICODE_DRIVER) && 0 == (x->unicode & CONN_DISALLOW_WCHAR))
 
 #define CC_MALLOC_return_with_error(t, tp, s, x, m, ret) \
@@ -488,6 +489,7 @@ struct ConnectionClass_
 	pthread_mutex_t		slock;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
+	UInt4		gTranInfo;
 	void		*asdum;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 };
@@ -509,6 +511,29 @@ struct ConnectionClass_
 #define CONN_DONT_OVERWRITE		0
 #define CONN_OVERWRITE			1
 
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+enum {
+	DTC_IN_PROGRESS	= 1L
+	,DTC_ENLISTED	= (1L << 1)
+	,DTC_REQUEST_EXECUTING	= (1L << 2)
+	,DTC_ISOLATED	= (1L << 3)
+	,DTC_PREPARE_REQUESTED	= (1L << 4)
+};
+#define	CC_set_dtc_clear(x)	((x)->gTranInfo = 0)
+#define	CC_set_dtc_enlisted(x)	((x)->gTranInfo |= (DTC_IN_PROGRESS | DTC_ENLISTED))
+#define	CC_no_dtc_enlisted(x)	((x)->gTranInfo &= (~DTC_ENLISTED))
+#define	CC_is_dtc_enlisted(x)	(0 != ((x)->gTranInfo & DTC_ENLISTED))
+#define	CC_set_dtc_executing(x)	((x)->gTranInfo |= DTC_REQUEST_EXECUTING)
+#define	CC_no_dtc_executing(x)	((x)->gTranInfo &= (~DTC_REQUEST_EXECUTING))
+#define	CC_is_dtc_executing(x)	(0 != ((x)->gTranInfo & DTC_REQUEST_EXECUTING))
+#define	CC_set_dtc_prepareRequested(x)	((x)->gTranInfo |= (DTC_PREPARE_REQUESTED))
+#define	CC_no_dtc_prepareRequested(x)	((x)->gTranInfo &= (~DTC_PREPARE_REQUESTED))
+#define	CC_is_dtc_prepareRequested(x)	(0 != ((x)->gTranInfo & DTC_PREPARE_REQUESTED))
+#define	CC_is_dtc_executing(x)	(0 != ((x)->gTranInfo & DTC_REQUEST_EXECUTING))
+#define	CC_set_dtc_isolated(x)	((x)->gTranInfo |= DTC_ISOLATED)
+#define	CC_is_idle_in_global_transaction(x)	(0 != ((x)->gTranInfo & DTC_PREPARE_REQUESTED) || (x)->gTranInfo == DTC_IN_PROGRESS)
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+
 
 /*	prototypes */
 ConnectionClass *CC_Constructor(void);
@@ -520,7 +545,7 @@ void		CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
 void		CC_copy_conninfo(ConnInfo *to, const ConnInfo *from);
 char		CC_Destructor(ConnectionClass *self);
 int		CC_cursor_count(ConnectionClass *self);
-char		CC_cleanup(ConnectionClass *self);
+char		CC_cleanup(ConnectionClass *self, BOOL keepCommunication);
 char		CC_begin(ConnectionClass *self);
 char		CC_commit(ConnectionClass *self);
 char		CC_abort(ConnectionClass *self);
@@ -571,6 +596,8 @@ BOOL		SendSyncRequest(ConnectionClass *self);
 
 const		char *CurrCat(const ConnectionClass *self);
 const		char *CurrCatString(const ConnectionClass *self);
+
+void	CC_examine_global_transaction(ConnectionClass *self);
 
 /* CC_send_query options */
 enum {

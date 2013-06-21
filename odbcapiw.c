@@ -86,6 +86,7 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	
 	mylog("[%s]", func);
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);
@@ -122,6 +123,7 @@ RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[%s]", func);
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);
@@ -183,6 +185,7 @@ RETCODE SQL_API SQLBrowseConnectW(
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[%s]", func);
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);
@@ -353,6 +356,7 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret;
 
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_set_in_unicode_driver(conn);
 	CC_clear_error(conn);
@@ -685,6 +689,7 @@ RETCODE SQL_API SQLNativeSqlW(
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
 	mylog("[%s}", func);
+	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);

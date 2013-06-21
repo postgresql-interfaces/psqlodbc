@@ -18,6 +18,7 @@
 /* Multibyte support  Eiji Tokuya	2001-03-15	*/
 
 #include "convert.h"
+#include "misc.h"
 #ifdef	WIN32
 #include <float.h>
 #define	HAVE_LOCALE_H

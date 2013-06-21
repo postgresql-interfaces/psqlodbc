@@ -16,6 +16,7 @@
 #include "psqlodbc.h"
 #include <string.h>
 
+#include "misc.h"
 #include "environ.h"
 #include "connection.h"
 #include "statement.h"
@@ -386,10 +387,10 @@ PGAPI_SetConnectOption(
 			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=" FORMAT_LEN "\n", func, conn->transact_status, vParam);
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-			if (NULL != conn->asdum)
+			if (CC_is_in_global_trans(conn))
 			{
-				mylog("%s: Ignored AUTOCOMMIT in a distributed transaction, OK ?");
-				break;
+				CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Don't change AUTOCOMMIT mode in a distributed transaction", func);
+				return SQL_ERROR;
 			}
 #endif	/* _HANDLE_ENLIST_IN_DTC_ */
 			CC_set_autocommit(conn, autocomm_on);

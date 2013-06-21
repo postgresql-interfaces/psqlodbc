@@ -490,10 +490,10 @@ RETCODE	CALL_DtcOnDisconnect(ConnectionClass *conn)
 		return DtcOnDisconnect(conn);
 	return FALSE;
 }
-RETCODE	CALL_DtcOnRelease(void)
+RETCODE	CALL_IsolateDtcConn(ConnectionClass *conn, BOOL continueConnection)
 {
 	if (loaded_pgenlist)
-		return DtcOnRelease();
+		return IsolateDtcConn(conn, continueConnection);
 	return FALSE;
 }
 #endif /* _HANDLE_ENLIST_IN_DTC_ */

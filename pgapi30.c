@@ -1649,8 +1649,17 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			mylog("SQL_ATTR_ENLIST_IN_DTC %p request received\n", Value);
-			if (conn->connInfo.xa_opt != 0)	
+			if (conn->connInfo.xa_opt != 0)
+			{
+				/*
+				 *	When a new global transaction is about 
+				 *	to begin, isolate the existent global
+				 *	transaction. 
+				 */ 
+				if (NULL != Value && CC_is_in_global_trans(conn)) 
+					CALL_IsolateDtcConn(conn, TRUE);	
 				return CALL_EnlistInDtc(conn, Value, conn->connInfo.xa_opt);
+			}
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
 			unsupported = TRUE;

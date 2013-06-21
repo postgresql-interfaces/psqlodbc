@@ -33,7 +33,7 @@ BOOL	connect_with_param_available(void);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void * pTra, int method);
 RETCODE	CALL_DtcOnDisconnect(ConnectionClass *);
-RETCODE	CALL_DtcOnRelease(void);
+RETCODE	CALL_IsolateDtcConn(ConnectionClass *, BOOL);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 /* void	UnloadDelayLoadedDLLs(BOOL); */
 void	CleanupDelayLoadedDLLs(void);

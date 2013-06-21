@@ -1,5 +1,4 @@
-/*------
- * Module:			msdtc_enlist.cpp
+/* Module:			msdtc_enlist.cpp
  *
  * Description:
  *		This module contains routines related to
@@ -19,7 +18,8 @@
 #include <oleTx2xa.h>
 #include <XOLEHLP.h>
 /*#include <Txdtc.h>*/
-#include "connection.h"
+#define	_PGDTC_FUNCS_IMPORT_
+#include "connexp.h"
 
 /*#define	_SLEEP_FOR_TEST_*/
 #include <stdio.h>
@@ -31,11 +31,21 @@
 #include <errno.h>
 #endif /* WIN32 */
 
-#include "qresult.h"
-#include "dlg_specific.h"
-
-#include "pgapifunc.h"
+#include <sql.h>
+#define	_MYLOG_FUNCS_IMPORT_
+#include "mylog.h"
 #include "pgenlist.h"
+
+#ifdef WIN32
+#ifndef snprintf
+#define snprintf _snprintf
+#endif /* snprintf */
+#endif /* WIN32 */
+
+/* Define a type for defining a constant string expression */
+#ifndef CSTR
+#define CSTR static const char * const
+#endif /* CSTR */
 
 EXTERN_C {
 HINSTANCE s_hModule;               /* Saved module handle. */
@@ -54,24 +64,60 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 	return TRUE;
 }
 
+/*
+ *	A comment About locks used in this module
+ *
+ *	  the locks should be acquired with stronger to weaker order.
+ *
+ *	1:ELOCK -- the strongest per IAsyncPG object lock
+ *	  When the *isolated* or *dtcconn* member of an IAsyncPG object
+ *	  is changed, this lock should be held.
+ *	  While an IAsyncPG object accesses a psqlodbc connection, 
+ *	  this lock should be held.
+ *  
+ *	2:[CONN_CS] -- per psqlodbc connection lock
+ *	  This lock would be held for a pretty long time while accessing
+ *	  the psqlodbc connection assigned to an IAsyncPG object. You
+ *	  can use the connecion safely by holding a ELOCK for the
+ *	  IAsyncPG object because the assignment is ensured to be
+ *	  fixed while the ELOCK is held.
+ *	 
+ *	3:LIFELOCK -- a global lock to ensure the lives of IAsyncPG objects
+ *	  While this lock is held, IAsyncPG objects would never die.
+ *
+ *	4:SLOCK -- the short term per IAsyncPG object lock 
+ *	  When any member of an IAsyncPG object is changed, this lock
+ *	  should be held.
+ */
+
+// #define	_LOCK_DEBUG_
 static class INIT_CRIT
 {
 public:
-	CRITICAL_SECTION	life_cs;
-	CRITICAL_SECTION	map_cs;
+	CRITICAL_SECTION	life_cs; /* for asdum member of ConnectionClass */
 	INIT_CRIT() {
 		InitializeCriticalSection(&life_cs);
-		InitializeCriticalSection(&map_cs);
 		}
 	~INIT_CRIT() {
 			DeleteCriticalSection(&life_cs);
-			DeleteCriticalSection(&map_cs);
 			}
 } init_crit;
+#ifdef	_LOCK_DEBUG_
+#define	LIFELOCK_ACQUIRE (forcelog("LIFELOCK_ACQUIRE\n"), EnterCriticalSection(&init_crit.life_cs), forcelog("LIFELOCK ACQUIRED\n"))
+#define	LIFELOCK_RELEASE (forcelog("LIFELOCK_RELEASE\n"), LeaveCriticalSection(&init_crit.life_cs))
+#else
 #define	LIFELOCK_ACQUIRE EnterCriticalSection(&init_crit.life_cs)
 #define	LIFELOCK_RELEASE LeaveCriticalSection(&init_crit.life_cs)
-#define	MLOCK_ACQUIRE	EnterCriticalSection(&init_crit.map_cs)
-#define	MLOCK_RELEASE	LeaveCriticalSection(&init_crit.map_cs)
+#endif
+
+/*
+ *	Some helper macros about connection handling.
+ */
+#define	CONN_CS_ACQUIRE(conn)	PgDtc_lock_cntrl((conn), TRUE, FALSE)
+#define	TRY_CONN_CS_ACQUIRE(conn) PgDtc_lock_cntrl((conn), TRUE, TRUE)
+#define	CONN_CS_RELEASE(conn)	PgDtc_lock_cntrl((conn), FALSE, FALSE)
+
+#define	CONN_IS_IN_TRANS(conn)	PgDtc_get_property((conn), inTrans)
 
 
 static const char *XidToText(const XID &xid, char *rtext)
@@ -131,23 +177,24 @@ static LONG	g_cServerLocks = 0;
 // interface on a single-threaded apartment and expect the callback to occur
 // only on the same single-threaded apartment. 
 
-/*#define	_LOCK_DEBUG_ */
 class	IAsyncPG : public ITransactionResourceAsync
 {
-	friend class	AsyncThreads;
 private:
 	IDtcToXaHelperSinglePipe	*helper;
 	DWORD				RMCookie;
-	ConnectionClass			*conn;
-	ConnectionClass			*xaconn;
+	void				*dtcconn;
 	LONG				refcnt;
 	CRITICAL_SECTION		as_spin; // to make this object Both
 	CRITICAL_SECTION		as_exec; // to make this object Both
 	XID				xid;
+	bool				isolated;
 	bool				prepared;
+	bool				done;
+	bool				abort;
 	HANDLE				eThread[3];
-	HRESULT				prepare_result;
+	bool				eFin[3];
 	bool				requestAccepted;
+	HRESULT				prepare_result;
 	HRESULT				commit_result;
 #ifdef	_LOCK_DEBUG_
 	int				spin_cnt;
@@ -182,67 +229,40 @@ public:
 	 
 	HRESULT RequestExec(DWORD type, HRESULT res);
 	HRESULT ReleaseConnection(void);
-	void SetConnection(ConnectionClass *sconn) {SLOCK_ACQUIRE(); conn = sconn; SLOCK_RELEASE();}
+	void SetConnection(void *sconn) {SLOCK_ACQUIRE(); dtcconn = sconn; SLOCK_RELEASE();}
 	void SetXid(const XID *ixid) {SLOCK_ACQUIRE(); xid = *ixid; SLOCK_RELEASE();}
+	void	*separateXAConn(bool spinAcquired, bool continueConnection);
+	bool CloseThread(DWORD type);
 private:
 	~IAsyncPG();
 #ifdef	_LOCK_DEBUG_
 	void SLOCK_ACQUIRE() {forcelog("SLOCK_ACQUIRE %d\n", spin_cnt); EnterCriticalSection(&as_spin); spin_cnt++;}
 	void SLOCK_RELEASE() {forcelog("SLOCK_RELEASE=%d\n", spin_cnt); LeaveCriticalSection(&as_spin); spin_cnt--;}
+	void ELOCK_ACQUIRE() {forcelog("%p->ELOCK_ACQUIRE\n", this); EnterCriticalSection(&as_exec); forcelog("ELOCK ACQUIRED\n");}
+	void ELOCK_RELEASE() {forcelog("ELOCK_RELEASE\n"); LeaveCriticalSection(&as_exec);}
 #else
 	void SLOCK_ACQUIRE() {EnterCriticalSection(&as_spin);}
 	void SLOCK_RELEASE() {LeaveCriticalSection(&as_spin);}
-#endif /* _LOCK_DEBUG_ */
 	void ELOCK_ACQUIRE() {EnterCriticalSection(&as_exec);}
 	void ELOCK_RELEASE() {LeaveCriticalSection(&as_exec);}
-	ConnectionClass	*getLockedXAConn(void);
-	ConnectionClass	*generateXAConn(bool spinAcquired);
+#endif /* _LOCK_DEBUG_ */
+	void	*getLockedXAConn(void);
+	void	*generateXAConn(bool spinAcquired);
+	void	*isolateXAConn(bool spinAcquired, bool continueConnection);
 	void SetPrepareResult(HRESULT res) {SLOCK_ACQUIRE(); prepared = true; prepare_result = res; SLOCK_RELEASE();} 
 	void SetDone(HRESULT);
-	void Reset_eThread(int idx) {SLOCK_ACQUIRE(); eThread[idx] = NULL; SLOCK_RELEASE();}
 	void Wait_pThread(bool slock_hold);
 	void Wait_cThread(bool slock_hold, bool once);
 };
 
-//
-//	For thread control.
-//
-class	AsyncWait {
-private:
-	IAsyncPG	*obj;
-	DWORD		type;
-	int		waiting_count;
-public:
-	AsyncWait(IAsyncPG *async, DWORD itype) : obj(async), type(itype), waiting_count(0) {}
-	AsyncWait(const AsyncWait &a_th) : obj(a_th.obj), type(a_th.type), waiting_count(a_th.waiting_count) {}
-	~AsyncWait()	{}
-	IAsyncPG *GetObj()  const {return obj;}
-	DWORD	GetType()  const {return type;}
-	int	WaitCount()  const {return waiting_count;}
-	int	StartWaiting() {return ++waiting_count;}
-	int	StopWaiting() {return --waiting_count;}
-};
-//
-//	List of threads invoked from IAsyncPG objects.
-//
-class	AsyncThreads {
-private:
-	static std::map <HANDLE, AsyncWait>	th_list;
-public:
-	static void insert(HANDLE, IAsyncPG *, DWORD);
-	static void CleanupThreads(DWORD millisecond);
-	static bool WaitThread(IAsyncPG *, DWORD type, DWORD millisecond);
-};
 
-
-#define	SYNC_AUTOCOMMIT(conn)	(SQL_AUTOCOMMIT_OFF != conn->connInfo.autocommit_public ? (conn->transact_status |= CONN_IN_AUTOCOMMIT) : (conn->transact_status &= ~CONN_IN_AUTOCOMMIT))
-
-IAsyncPG::IAsyncPG(void) : helper(NULL), RMCookie(0), enlist(NULL), conn(NULL), xaconn(NULL), refcnt(1), prepared(false), requestAccepted(false)
+IAsyncPG::IAsyncPG(void) : helper(NULL), RMCookie(0), enlist(NULL), dtcconn(NULL), refcnt(1), isolated(false), done(false), abort(false), prepared(false), requestAccepted(false)
 {
 	InterlockedIncrement(&g_cComponents);
 	InitializeCriticalSection(&as_spin);
 	InitializeCriticalSection(&as_exec);
 	eThread[0] = eThread[1] = eThread[2] = NULL;
+	eFin[0] = eFin[1] = eFin[2] = false;
 	memset(&xid, 0, sizeof(xid));
 #ifdef	_LOCK_DEBUG_
 	spin_cnt = 0;
@@ -252,28 +272,27 @@ IAsyncPG::IAsyncPG(void) : helper(NULL), RMCookie(0), enlist(NULL), conn(NULL), 
 
 //
 //	invoked from *delete*.
-//	When entered ELOCK -> LIFELOCK -> SLOCK are acquired
+//	When entered ELOCK -> LIFELOCK -> SLOCK are held
 //	and they are released.
 //	
 IAsyncPG::~IAsyncPG(void)
 {
-	ConnectionClass *fconn = NULL;
+	void *fconn = NULL;
 
-	if (conn)
+	if (dtcconn)
 	{
-		conn->asdum = NULL;
-		conn = NULL;
-	}
-	if (xaconn)
-	{
-		fconn = xaconn;
-		xaconn->asdum = NULL;
-		xaconn = NULL;
+		if (isolated)
+			fconn = dtcconn;
+		PgDtc_set_async(dtcconn, NULL);
+		dtcconn = NULL;
 	}
 	SLOCK_RELEASE();
 	LIFELOCK_RELEASE;
 	if (fconn)
-		PGAPI_FreeConnect((HDBC) fconn);
+	{
+		mylog("IAsyncPG Destructor is freeing the connection\n"); 
+		PgDtc_free_connect(fconn);
+	}
 	DeleteCriticalSection(&as_spin);
 	ELOCK_RELEASE();
 	DeleteCriticalSection(&as_exec);
@@ -281,7 +300,7 @@ IAsyncPG::~IAsyncPG(void)
 }
 HRESULT STDMETHODCALLTYPE IAsyncPG::QueryInterface(REFIID riid, void ** ppvObject)
 {
-forcelog("%x QueryInterface called\n", this);
+forcelog("%p QueryInterface called\n", this);
 	if (riid == IID_IUnknown || riid == IID_ITransactionResourceAsync)
 	{
 		*ppvObject = this;
@@ -296,7 +315,7 @@ forcelog("%x QueryInterface called\n", this);
 //
 ULONG	STDMETHODCALLTYPE IAsyncPG::AddRef(void)
 {
-	mylog("%x->AddRef called\n", this);
+	mylog("%p->AddRef called\n", this);
 	SLOCK_ACQUIRE();
 	refcnt++;
 	SLOCK_RELEASE();
@@ -307,7 +326,7 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::AddRef(void)
 //
 ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 {
-	mylog("%x->Release called refcnt=%d\n", this, refcnt);
+	mylog("%p->Release called refcnt=%d\n", this, refcnt);
 	SLOCK_ACQUIRE();
 	refcnt--;
 	if (refcnt <= 0)
@@ -318,9 +337,8 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 		SLOCK_ACQUIRE();
 		if (refcnt <=0)
 		{
-			mylog("delete %x\n", this);
+			mylog("delete %p\n", this);
 			delete this;
-			return 0;
 		}
 		else
 		{
@@ -335,24 +353,24 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 }
 
 //
-//	Acquire/release [MLOCK -> ] SLOCK.
+//	Acquire/release SLOCK.
 //
 void IAsyncPG::Wait_pThread(bool slock_hold)
 {
 	mylog("Wait_pThread %d in\n", slock_hold);
 	HANDLE	wThread;
 	int	wait_idx = PrepareExec;
-	bool	th_found;
+	DWORD	ret;
+
 	if (!slock_hold)
 		SLOCK_ACQUIRE();
-	while (NULL != eThread[wait_idx])
+	while (NULL != (wThread = eThread[wait_idx]) && !eFin[wait_idx])
 	{
-		wThread = eThread[wait_idx];
 		SLOCK_RELEASE();
-		th_found = AsyncThreads::WaitThread(this, wait_idx, 2000);
+		ret = WaitForSingleObject(wThread, 2000);
 		SLOCK_ACQUIRE();
-		if (th_found)
-			break;
+		if (WAIT_TIMEOUT != ret)
+			eFin[wait_idx] = true;
 	}
 	if (!slock_hold)
 		SLOCK_RELEASE();
@@ -360,13 +378,13 @@ void IAsyncPG::Wait_pThread(bool slock_hold)
 }
 
 //
-//	Acquire/releases [MLOCK -> ] SLOCK.
+//	Acquire/releases SLOCK.
 //
 void IAsyncPG::Wait_cThread(bool slock_hold, bool once)
 {
 	HANDLE	wThread;
 	int	wait_idx;
-	bool	th_found;
+	DWORD	ret;
 
 	mylog("Wait_cThread %d,%d in\n", slock_hold, once);
 	if (!slock_hold)
@@ -375,13 +393,14 @@ void IAsyncPG::Wait_cThread(bool slock_hold, bool once)
 		wait_idx = CommitExec;
 	else
 		wait_idx = AbortExec;
-	while (NULL != eThread[wait_idx])
+	while (NULL != (wThread = eThread[wait_idx]) && !eFin[wait_idx])
 	{
-		wThread = eThread[wait_idx];
 		SLOCK_RELEASE();
-		th_found = AsyncThreads::WaitThread(this, wait_idx, 2000);
+		ret = WaitForSingleObject(wThread, 2000);
 		SLOCK_ACQUIRE();
-		if (once || th_found)
+		if (WAIT_TIMEOUT != ret)
+			eFin[wait_idx] = true;
+		else if (once)
 			break;
 	}
 	if (!slock_hold)
@@ -405,27 +424,34 @@ void	IAsyncPG::SetDone(HRESULT res)
 {
 	LIFELOCK_ACQUIRE;
 	SLOCK_ACQUIRE();
-	prepared = false;
+	done = true;
+	if (E_FAIL == res ||
+	    E_UNEXPECTED == res)
+		abort = true;
 	requestAccepted = true;
 	commit_result = res;
-	if (conn || xaconn)
+	if (dtcconn)
 	{
-		if (conn)
+		PgDtc_set_async(dtcconn, NULL);
+		if (isolated)
 		{
-			conn->asdum = NULL;
-			SYNC_AUTOCOMMIT(conn);
-			conn = NULL;
+			SLOCK_RELEASE();
+			LIFELOCK_RELEASE;
+			ELOCK_ACQUIRE();
+			if (dtcconn)
+			{
+				mylog("Freeing isolated connection=%p\n", dtcconn);
+				PgDtc_free_connect(dtcconn);
+				SetConnection(NULL);
+			}
+			ELOCK_RELEASE();
 		}
-		SLOCK_RELEASE();
-		LIFELOCK_RELEASE;
-		ELOCK_ACQUIRE();
-		if (xaconn)
+		else
 		{
-			xaconn->asdum = NULL;
-			PGAPI_FreeConnect(xaconn);
-			xaconn = NULL;
+			dtcconn = NULL;
+			SLOCK_RELEASE();
+			LIFELOCK_RELEASE;
 		}
-		ELOCK_RELEASE();
 	}
 	else
 	{
@@ -437,87 +463,151 @@ void	IAsyncPG::SetDone(HRESULT res)
 //
 //	Acquire/releases [ELOCK -> LIFELOCK -> ] SLOCK.
 //
-ConnectionClass	*IAsyncPG::generateXAConn(bool spinAcquired)
+void	*IAsyncPG::generateXAConn(bool spinAcquired)
 {
+mylog("generateXAConn isolated=%d dtcconn=%p\n", isolated, dtcconn);
 	if (!spinAcquired)
 		SLOCK_ACQUIRE();
-	if (prepared && !xaconn)
+	if (isolated || done)
 	{
 		SLOCK_RELEASE();
-		ELOCK_ACQUIRE();
-		LIFELOCK_ACQUIRE;
-		SLOCK_ACQUIRE();
-		if (prepared && !xaconn)
-		{
-			PGAPI_AllocConnect(conn->henv, (HDBC *) &xaconn);
-			memcpy(&xaconn->connInfo, &conn->connInfo, sizeof(ConnInfo));
-			conn->asdum = NULL;
-			SYNC_AUTOCOMMIT(conn);
-			conn = NULL;
-			SLOCK_RELEASE();
-			LIFELOCK_RELEASE;
-			CC_connect(xaconn, AUTH_REQ_OK, NULL);
-		}
-		else
-		{
-			SLOCK_RELEASE();
-			LIFELOCK_RELEASE;
-		}
-		ELOCK_RELEASE();
+		return dtcconn;
+	}
+	SLOCK_RELEASE();
+	ELOCK_ACQUIRE();
+	LIFELOCK_ACQUIRE;
+	SLOCK_ACQUIRE();
+	if (dtcconn && !isolated && !done && prepared)
+	{
+		void	*sconn = dtcconn;
+
+		dtcconn = PgDtc_isolate(sconn, useAnotherRoom);
+		isolated = true;
+		SLOCK_RELEASE();
+		LIFELOCK_RELEASE;
+		// PgDtc_connect(dtcconn); may be called in getLockedXAConn
 	}
 	else
+	{
 		SLOCK_RELEASE();
-	return xaconn;
+		LIFELOCK_RELEASE;
+	}
+	ELOCK_RELEASE();
+	return dtcconn;
+}
+
+//
+//	Acquire/releases [ELOCK -> LIFELOCK -> ] SLOCK.
+//
+void	*IAsyncPG::isolateXAConn(bool spinAcquired, bool continueConnection)
+{
+	void *sconn;
+
+mylog("isolateXAConn isolated=%d dtcconn=%p\n", isolated, dtcconn);
+	if (!spinAcquired)
+		SLOCK_ACQUIRE();
+	if (isolated || done || NULL == dtcconn)
+	{
+		SLOCK_RELEASE();
+		return dtcconn;
+	}
+	SLOCK_RELEASE();
+	ELOCK_ACQUIRE();
+	LIFELOCK_ACQUIRE;
+	SLOCK_ACQUIRE();
+	if (isolated || done || NULL == dtcconn)
+	{
+		SLOCK_RELEASE();
+		LIFELOCK_RELEASE;
+		ELOCK_RELEASE();
+		return dtcconn;
+	}
+	sconn = dtcconn;
+
+	dtcconn = PgDtc_isolate(sconn, continueConnection ? 0 : disposingConnection);
+
+	isolated = true;
+	SLOCK_RELEASE();
+	LIFELOCK_RELEASE;
+	if (continueConnection)
+	{
+		PgDtc_connect(sconn);
+	}
+	ELOCK_RELEASE();
+	return dtcconn;
+}
+
+//
+//	Acquire/releases [ELOCK -> LIFELOCK -> ] SLOCK.
+//
+void	*IAsyncPG::separateXAConn(bool spinAcquired, bool continueConnection)
+{
+	mylog("%s isolated=%d dtcconn=%p\n", __FUNCTION__, isolated, dtcconn);
+	if (!spinAcquired)
+		SLOCK_ACQUIRE();
+	if (prepared)
+		return generateXAConn(true);
+	else
+		return isolateXAConn(true, continueConnection);
 }
 
 //
 //	[when entered]
-//	ELOCK is acquired.
+//	ELOCK is held.
 //
 //	Acquire/releases SLOCK.
-//	Try to acquire CONNLOCK also.
+//	Try to acquire CONN_CS also.
 //
 //	[on exit]
-//	ELOCK is kept acquired.
+//	ELOCK is kept held.
 //	If the return connection != NULL
-//		the CONNLOCK for the connection is acquired.
+//		the CONN_CS lock for the connection is held.
 //	
-ConnectionClass	*IAsyncPG::getLockedXAConn()
+void	*IAsyncPG::getLockedXAConn()
 {
 	SLOCK_ACQUIRE();
-	if (!xaconn && conn && !CC_is_in_trans(conn))
+	while (!done && !isolated && NULL != dtcconn)
 	{
-		if (TRY_ENTER_CONN_CS(conn))
+		/* 
+		 * Note that COMMIT/ROLLBACK PREPARED command should be
+		 * issued outside the transaction.
+		 */
+		if (!prepared || !CONN_IS_IN_TRANS(dtcconn))
 		{
-			if (CC_is_in_trans(conn))
+			if (TRY_CONN_CS_ACQUIRE(dtcconn))
 			{
-				LEAVE_CONN_CS(conn);
-			}
-			else
-			{
-				SLOCK_RELEASE();
-				return conn;
+				if (prepared && CONN_IS_IN_TRANS(dtcconn))
+				{
+					CONN_CS_RELEASE(dtcconn);
+				}
+				else
+					break;
 			}
 		}
+		separateXAConn(true, true);
+		SLOCK_ACQUIRE(); // SLOCK was released by separateXAConn()
 	}
-	generateXAConn(true);
-	if (xaconn)
-		ENTER_CONN_CS(xaconn);
-	return xaconn;
+	SLOCK_RELEASE();
+	if (isolated && NULL != dtcconn)
+	{
+		CONN_CS_ACQUIRE(dtcconn);
+		if (!PgDtc_get_property(dtcconn, connected))
+			PgDtc_connect(dtcconn);
+	}
+	return dtcconn;
 }
 
 //
-//	Acquire/release ELOCK [ -> MLOCK] -> SLOCK.
+//	Acquire/release ELOCK -> SLOCK.
 //
 HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 {
 	HRESULT		ret;
 	bool		bReleaseEnlist = false;
-	ConnectionClass	*econn;
-	QResultClass	*qres;
-	char		pgxid[258], cmd[512];
+	void	*econn;
+	char		pgxid[258];
 
-	mylog("%x->RequestExec type=%d\n", this, type);
+	mylog("%p->RequestExec type=%d conn=%p\n", this, type, dtcconn);
 	XidToText(xid, pgxid);
 #ifdef	_SLEEP_FOR_TEST_
 	/*Sleep(2000);*/
@@ -526,20 +616,35 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 	switch (type)
 	{
 		case PrepareExec:
-			if (XACT_S_SINGLEPHASE == res)
+			if (done || NULL == dtcconn)
 			{
-				if (!CC_commit(conn))
-					res = E_FAIL;	
+				res = E_UNEXPECTED;
+				break;
+			}
+			if (econn = getLockedXAConn(), NULL != econn)
+			{
+				PgDtc_set_property(econn, inprogress, (void *) 1);
+				if (E_FAIL == res)
+					PgDtc_one_phase_operation(econn, ABORT_GLOBAL_TRANSACTION);
+				else if (XACT_S_SINGLEPHASE == res)
+				{
+					if (!PgDtc_one_phase_operation(econn, ONE_PHASE_COMMIT))
+						res = E_FAIL;	
+				}
+				else
+				{
+					if (!PgDtc_two_phase_operation(econn, PREPARE_TRANSACTION, pgxid))
+						res = E_FAIL;
+				}
+				PgDtc_set_property(econn, inprogress, (void *) 0);
+				CONN_CS_RELEASE(econn);
+			}
+			if (S_OK != res)
+			{
+				SetDone(res);
 				bReleaseEnlist = true;
 			}
-			else if (E_FAIL != res)
-			{
-				snprintf(cmd, sizeof(cmd), "PREPARE TRANSACTION '%s'", pgxid);
-				qres = CC_send_query(conn, cmd, NULL, 0, NULL);
-				if (!QR_command_maybe_successful(qres))
-					res = E_FAIL;
-				QR_Destructor(qres);
-			}
+			PgDtc_set_property(dtcconn, prepareRequested, (void *) 0);
 			ret = enlist->PrepareRequestDone(res, NULL, NULL);
 			SetPrepareResult(res);
 			break;
@@ -550,12 +655,11 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 				econn = getLockedXAConn();
 				if (econn)
 				{
-					snprintf(cmd, sizeof(cmd), "COMMIT PREPARED '%s'", pgxid);
-					qres = CC_send_query(econn, cmd, NULL, 0, NULL);
-					if (!QR_command_maybe_successful(qres))
+					PgDtc_set_property(econn, inprogress, (void *) 1);
+					if (!PgDtc_two_phase_operation(econn, COMMIT_PREPARED, pgxid))
 						res = E_FAIL;
-					QR_Destructor(qres);
-					LEAVE_CONN_CS(econn);
+					PgDtc_set_property(econn, inprogress, (void *) 0);
+					CONN_CS_RELEASE(econn);
 				}
 			}
 			SetDone(res);
@@ -564,17 +668,16 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 			break;
 		case AbortExec:
 			Wait_pThread(false);
-			if (prepared)
+			if (prepared && !done)
 			{
 				econn = getLockedXAConn();
 				if (econn)
 				{
-					snprintf(cmd, sizeof(cmd), "ROLLBACK PREPARED '%s'", pgxid);
-					qres = CC_send_query(econn, cmd, NULL, 0, NULL);
-					if (!QR_command_maybe_successful(qres))
+					PgDtc_set_property(econn, inprogress, (void *) 1);
+					if (!PgDtc_two_phase_operation(econn, ROLLBACK_PREPARED, pgxid))
 						res = E_FAIL;
-					QR_Destructor(qres);
-					LEAVE_CONN_CS(econn);
+					PgDtc_set_property(econn, inprogress, (void *) 0);
+					CONN_CS_RELEASE(econn);
 				}
 			}
 			SetDone(res);
@@ -590,63 +693,58 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 		enlist->Release();
 	}
 	ELOCK_RELEASE();
-	mylog("%x->Done ret=%d\n", this, ret);
+	mylog("%p->Done ret=%d\n", this, ret);
 	return ret;
 }
 
 //
-//	Acquire/releses [MLOCK -> ] SLOCK
+//	Acquire/releses SLOCK
 //	 	or 	[ELOCK -> LIFELOCK -> ] SLOCK.
 //
 HRESULT IAsyncPG::ReleaseConnection(void)
 {
-	mylog("%x->ReleaseConnection\n", this);
-	ConnectionClass	*iconn;
-	bool	done = false;
+	mylog("%p->ReleaseConnection\n", this);
 
 	SLOCK_ACQUIRE();
-	if (iconn = conn)
+	if (isolated || NULL == dtcconn)
 	{
-		Wait_pThread(true);
-		if (NULL != eThread[CommitExec] || NULL != eThread[AbortExec] || requestAccepted)
-		{
-			if (prepared)
-			{
-				Wait_cThread(true, true);
-				if (!prepared)
-					done = true;
-			}
-			else
-				done = true;
-			if (done)
-				Wait_cThread(true, false);
-		}
-		if (conn && CONN_CONNECTED == conn->status && !done)
-		{
-			generateXAConn(true);
-		}
-		else
-			SLOCK_RELEASE();
+		SLOCK_RELEASE();
+		return SQL_SUCCESS;
+	}
+	Wait_pThread(true);
+	if (NULL != eThread[CommitExec] || NULL != eThread[AbortExec] || requestAccepted)
+	{
+		if (!done)
+			Wait_cThread(true, true);
+	}
+	if (!isolated && !done && dtcconn && PgDtc_get_property(dtcconn, connected))
+	{
+		isolateXAConn(true, false);
 	}
 	else
 		SLOCK_RELEASE();
-	mylog("%x->ReleaseConnection exit\n", this);
+	mylog("%p->ReleaseConnection exit\n", this);
 	return SQL_SUCCESS;
 }
 
-//
-//	Acquire/release [ELOCK -> ] [MLOCK -> ] SLOCK.
-//
 EXTERN_C static unsigned WINAPI DtcRequestExec(LPVOID para);
+EXTERN_C static void __cdecl ClosePrepareThread(LPVOID para);
+EXTERN_C static void __cdecl CloseCommitThread(LPVOID para);
+EXTERN_C static void __cdecl CloseAbortThread(LPVOID para);
+
+//
+//	Acquire/release [ELOCK -> ] SLOCK.
+//
 HRESULT STDMETHODCALLTYPE IAsyncPG::PrepareRequest(BOOL fRetaining, DWORD grfRM,
 				BOOL fWantMoniker, BOOL fSinglePhase)
 {
 	HRESULT	ret, res;
 	RequestPara	*reqp;
+	const DWORD	reqtype = PrepareExec;
 
-	mylog("%x PrepareRequest called grhRM=%d enl=%x\n", this, grfRM, enlist);
+	mylog("%p PrepareRequest called grhRM=%d enl=%p\n", this, grfRM, enlist);
 	SLOCK_ACQUIRE();
-	if (0 != CC_get_errornumber(conn))
+	if (dtcconn && 0 != PgDtc_get_property(dtcconn, errorNumber))
 		res = ret = E_FAIL;
 	else
 	{
@@ -665,9 +763,10 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::PrepareRequest(BOOL fRetaining, DWORD grfRM,
 	Sleep(2000);
 #endif	/* _SLEEP_FOR_TEST_ */
 	reqp = new RequestPara;
-	reqp->type = PrepareExec;
+	reqp->type = reqtype;
 	reqp->lpr = (LPVOID) this;
 	reqp->res = res;
+#define	DONT_CALL_RETURN_FROM_HERE ???
 	AddRef();
 	HANDLE hThread = (HANDLE) _beginthreadex(NULL, 0, DtcRequestExec, reqp, 0, NULL);
 	if (NULL == hThread)
@@ -677,36 +776,48 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::PrepareRequest(BOOL fRetaining, DWORD grfRM,
 	}
 	else
 	{
-		AsyncThreads::insert(hThread, this, reqp->type);
+		SLOCK_ACQUIRE();
+		eThread[reqtype] = hThread;
+		SLOCK_RELEASE();
+		/*
+		 * We call here _beginthread not _beginthreadex
+		 * so as not to call CloseHandle() to clean up
+		 * the thread.
+		 */
+		_beginthread(ClosePrepareThread, 0, (void *) this);
 	}
 	ELOCK_RELEASE();
 	Release();
+#undef	return
 	return ret;
 }
 //
-//	Acquire/release [ELOCK -> ] [MLOCK -> ] SLOCK.
+//	Acquire/release [ELOCK -> ] SLOCK.
 //
 HRESULT STDMETHODCALLTYPE IAsyncPG::CommitRequest(DWORD grfRM, XACTUOW * pNewUOW)
 {
 	HRESULT		res = S_OK, ret = S_OK;
 	RequestPara	*reqp;
-	mylog("%x CommitRequest called grfRM=%d enl=%x\n", this, grfRM, enlist);
+	const DWORD	reqtype = CommitExec;
+
+	mylog("%p CommitRequest called grfRM=%d enl=%p\n", this, grfRM, enlist);
 
 	SLOCK_ACQUIRE();
-	if (!prepared)
+	if (!prepared || done)
 		ret = E_UNEXPECTED;
 	else if (S_OK != prepare_result)
 		ret = E_UNEXPECTED;
 	SLOCK_RELEASE();
 	if (S_OK != ret)
 		return ret;
+#define	DONT_CALL_RETURN_FROM_HERE ???
 	AddRef();
 	ELOCK_ACQUIRE();
 #ifdef	_SLEEP_FOR_TEST_
 	Sleep(1000);
 #endif	/* _SLEEP_FOR_TEST_ */
 	reqp = new RequestPara;
-	reqp->type = CommitExec;
+	reqp->type = reqtype;
 	reqp->lpr = (LPVOID) this;
 	reqp->res = res;
 	enlist->AddRef();
@@ -719,30 +830,53 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::CommitRequest(DWORD grfRM, XACTUOW * pNewUOW
 	}
 	else
 	{
-		AsyncThreads::insert(hThread, this, reqp->type);
+		SLOCK_ACQUIRE();
+		eThread[reqtype] = hThread;
+		SLOCK_RELEASE();
+		/*
+		 * We call here _beginthread not _beginthreadex
+		 * so as not to call CloseHandle() to clean up
+		 * the thread.
+		 */
+		_beginthread(CloseCommitThread, 0, (void *) this);
 	}
 	mylog("CommitRequest ret=%d\n", ret);
 	requestAccepted = true;
 	ELOCK_RELEASE();
 	Release();
+#undef	return
 	return ret;
 }
 //
-//	Acquire/release [ELOCK -> ] [MLOCK -> ] SLOCK.
+//	Acquire/release [ELOCK -> ] SLOCK.
 //
 HRESULT STDMETHODCALLTYPE IAsyncPG::AbortRequest(BOID * pboidReason, BOOL fRetaining,
 				XACTUOW * pNewUOW)
 {
 	HRESULT		res = S_OK, ret = S_OK;
 	RequestPara	*reqp;
+	const DWORD	reqtype = AbortExec;	
 
-	mylog("%x AbortRequest called\n", this);
+	mylog("%p AbortRequest called\n", this);
+	SLOCK_ACQUIRE();
+	if (done)
+		ret = E_UNEXPECTED;
+	else if (prepared && S_OK != prepare_result)
+		ret = E_UNEXPECTED;
+	SLOCK_RELEASE();
+	if (S_OK != ret)
+		return ret;
+#define	return	DONT_CALL_RETURN_FROM_HERE ???
 	AddRef();
 	ELOCK_ACQUIRE();
-	if (!prepared && conn)
-		CC_abort(conn);
+	if (!prepared && dtcconn)
+	{
+		PgDtc_set_property(dtcconn, inprogress, (void *) 1);
+		PgDtc_one_phase_operation(dtcconn, ONE_PHASE_ROLLBACK);
+		PgDtc_set_property(dtcconn, inprogress, (void *) 0);
+	}
 	reqp = new RequestPara;
-	reqp->type = AbortExec;
+	reqp->type = reqtype;
 	reqp->lpr = (LPVOID) this;
 	reqp->res = res;
 	enlist->AddRef();
@@ -755,159 +889,98 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::AbortRequest(BOID * pboidReason, BOOL fRetai
 	}
 	else
 	{
-		AsyncThreads::insert(hThread, this, reqp->type);
+		SLOCK_ACQUIRE();
+		eThread[reqtype] = hThread;
+		SLOCK_RELEASE();
+		/*
+		 * We call here _beginthread not _beginthreadex
+		 * so as not to call CloseHandle() to clean up
+		 * the thread.
+		 */
+		_beginthread(CloseAbortThread, 0, (void *) this);
 	}
 	mylog("AbortRequest ret=%d\n", ret);
 	requestAccepted = true;
 	ELOCK_RELEASE();
 	Release();
+#undef	return
 	return	ret;
 }
 HRESULT STDMETHODCALLTYPE IAsyncPG::TMDown(void)
 {
-forcelog("%x TMDown called\n", this);
+forcelog("%p TMDown called\n", this);
 	return	S_OK;
 }
 
-//
-//	Acquire/releases MLOCK -> SLOCK.
-//
-std::map<HANDLE, AsyncWait>	AsyncThreads::th_list;
-void	AsyncThreads::insert(HANDLE th, IAsyncPG *obj, DWORD type)
+bool IAsyncPG::CloseThread(DWORD type)
 {
-	if (!obj)	return;
-	MLOCK_ACQUIRE;
-	th_list.insert(std::pair<HANDLE, AsyncWait>(th, AsyncWait(obj, type)));
-	obj->SLOCK_ACQUIRE();
-	obj->eThread[type] = th;
-	obj->SLOCK_RELEASE();
-	MLOCK_RELEASE;
-}
+	CSTR		func = "CloseThread";
+	HANDLE		th;
+	DWORD		ret, excode = S_OK;
+	bool		rls_async = false;
 
-//
-//	Acquire/releases MLOCK -> SLOCK.
-//
-bool	AsyncThreads::WaitThread(IAsyncPG *obj, DWORD type, DWORD millisecond)
-{
-	HANDLE	th = NULL;
-	DWORD	gtype;
-	bool	typematch;
-	int	wait_count;
-
-	MLOCK_ACQUIRE;
-	std::map<HANDLE, AsyncWait>::iterator p;
-	for (p = th_list.begin(); p != th_list.end(); p++)
-	{
-		gtype = p->second.GetType();
-		typematch = (gtype == type);
-		if (p->second.GetObj() == obj && typematch)
-		{
-			th = p->first;
-			break;
-		}
-	}
-	if (NULL == th)
-	{
-		MLOCK_RELEASE;
-		forcelog("WaitThread thread(%x, %d) not found\n", obj, type);
+	mylog("%s for %p thread=%d\n", func, this, eThread[type]);
+	if (th = eThread[type], NULL == th || eFin[type])
 		return false;
-	}
-	p->second.StartWaiting();
-	MLOCK_RELEASE;
-	
-	DWORD ret = WaitForSingleObject(th, millisecond);
-	MLOCK_ACQUIRE;
-	wait_count = p->second.StopWaiting();
+	ret = WaitForSingleObject(th, INFINITE);
 	if (WAIT_OBJECT_0 == ret)
 	{
-		IAsyncPG *async = p->second.GetObj();
-
-		if (type >= 0 && type <= IAsyncPG::AbortExec)
-			async->Reset_eThread(type);
-		if (wait_count <= 0)
+		switch (type)
 		{
-			th_list.erase(th);
-			MLOCK_RELEASE;
-			CloseHandle(th);
-			if (type >= IAsyncPG::CommitExec)
-			{
-				async->Release();
-			}
+			case IAsyncPG::AbortExec:
+			case IAsyncPG::CommitExec:
+				rls_async = true;
+				break;
+			default:
+				GetExitCodeThread(th, &excode);
+				if (S_OK != excode)
+					rls_async = true;
 		}
-		else
-			MLOCK_RELEASE;
+		SLOCK_ACQUIRE();
+		eThread[type] = NULL;
+		eFin[type] = true;
+		SLOCK_RELEASE();
+		CloseHandle(th);
 	}
-	else
-		MLOCK_RELEASE;
-	return true;
+	mylog("%s ret=%d\n", func, ret);
+	return rls_async;
 }
 
-void	AsyncThreads::CleanupThreads(DWORD millisecond)
+EXTERN_C static void __cdecl ClosePrepareThread(LPVOID para)
 {
-	size_t	msize;
-	DWORD	nCount;
+	CSTR		func = "ClosePrepareThread";
+	IAsyncPG	*async = (IAsyncPG *) para;
+	bool		release;
 
-	MLOCK_ACQUIRE;
-	if (msize = th_list.size(), msize <= 0)
-	{
-		MLOCK_RELEASE;
-		return;
-	}
-
-	mylog("CleanupThreads size=%d\n", msize);
-	HANDLE	*hds = new HANDLE[msize];
-	std::map<HANDLE, AsyncWait>::iterator p;
-	for (p = th_list.begin(), nCount = 0; p != th_list.end(); p++)
-	{
-		hds[nCount++] = p->first;
-		p->second.StartWaiting();
-	}
-	MLOCK_RELEASE;
-	int	i;
-	while (nCount > 0)
-	{
-		DWORD ret = WaitForMultipleObjects(nCount, hds, 0, millisecond);
-		if (ret >= nCount)
-			break;
-		HANDLE	th = hds[ret];
-		MLOCK_ACQUIRE;
-		p = th_list.find(th);
-		if (p != th_list.end())
-		{
-			int wait_count = p->second.StopWaiting();
-			DWORD	type = p->second.GetType();
-			IAsyncPG * async = p->second.GetObj();
-
-			if (type >= IAsyncPG::PrepareExec && type <= IAsyncPG::AbortExec)
-				async->Reset_eThread(type);
-			if (wait_count <= 0)
-			{
-				th_list.erase(th);
-				MLOCK_RELEASE;
-				CloseHandle(th);
-				if (type >= IAsyncPG::CommitExec)
-				{
-					async->Release();
-				}
-			}
-			else
-				MLOCK_RELEASE;
-		}
-		else
-			MLOCK_RELEASE;
-		for (i = ret; i < (int) nCount - 1; i++)
-			hds[i] = hds[i + 1];
-		nCount--;
-	}
-	for (i = 0; i < (int) nCount; i++)
-	{
-		p = th_list.find(hds[i]);
-		if (p != th_list.end())
-			p->second.StopWaiting();
-	}
-	delete [] hds;
+	mylog("%s for %p", func, async);
+	if (release = async->CloseThread(IAsyncPG::PrepareExec), release)
+		async->Release();
+	mylog("%s release=%d\n", func, release);
 }
 
+EXTERN_C static void __cdecl CloseCommitThread(LPVOID para)
+{
+	CSTR		func = "CloseCommitThread";
+	IAsyncPG	*async = (IAsyncPG *) para;
+	bool		release;
+
+	mylog("%s for %p", func, async);
+	if (release = async->CloseThread(IAsyncPG::CommitExec), release)
+		async->Release();
+	mylog("%s release=%d\n", func, release);
+}
+
+EXTERN_C static void __cdecl CloseAbortThread(LPVOID para)
+{
+	CSTR		func = "CloseAbortThread";
+	IAsyncPG	*async = (IAsyncPG *) para;
+	bool		release;
+
+	mylog("%s for %p", func, async);
+	if (release = async->CloseThread(IAsyncPG::AbortExec), release)
+		async->Release();
+	mylog("%s release=%d\n", func, release);
+}
 
 EXTERN_C static unsigned WINAPI DtcRequestExec(LPVOID para)
 {
@@ -925,7 +998,7 @@ EXTERN_C static unsigned WINAPI DtcRequestExec(LPVOID para)
 
 CSTR	regKey = "SOFTWARE\\Microsoft\\MSDTC\\XADLL";
 
-RETCODE static EnlistInDtc_1pipe(ConnectionClass *conn, ITransaction *pTra, ITransactionDispenser *pDtc)
+RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDispenser *pDtc)
 {
 	CSTR	func = "EnlistInDtc_1pipe";
 	static	IDtcToXaHelperSinglePipe	*pHelper = NULL;
@@ -953,13 +1026,11 @@ RETCODE static EnlistInDtc_1pipe(ConnectionClass *conn, ITransaction *pTra, ITra
 		return SQL_ERROR;
 	}
 
-mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
+/*mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;*/
 	retry = false;
 	errset = false;
-	ConnInfo *ci = &(conn->connInfo);
 	char	dtcname[1024];
-	snprintf(dtcname, sizeof(dtcname), "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s", 
-		ci->drivername, ci->server, ci->port, ci->database, ci->username, ci->password, ci->sslmode);
+	PgDtc_create_connect_string(conn, dtcname, sizeof(dtcname));
 	do { 
 		res = pHelper->XARMCreate(dtcname, (char *) GetXaLibName(), &dwRMCookie);
 		if (S_OK == res)
@@ -967,7 +1038,7 @@ mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
 		mylog("XARMCreate error code=%x\n", res);
 		if (XACT_E_XA_TX_DISABLED == res)
 		{
-			CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "XARMcreate error:Please enable XA transaction in MSDTC security configuration", func);
+			PgDtc_set_error(conn, "XARMcreate error:Please enable XA transaction in MSDTC security configuration", func);
 			errset = true;
 		}
 		else if (!retry)
@@ -994,14 +1065,14 @@ mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;
 							retry = true;
 							continue; // retry
 						}
-						CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "XARMCreate error:Please register HKLM\\SOFTWARE\\Microsoft\\MSDTC\\XADLL", func);
+						PgDtc_set_error(conn, "XARMCreate error:Please register HKLM\\SOFTWARE\\Microsoft\\MSDTC\\XADLL", func);
 						break;
 				}
 				::RegCloseKey(sKey);			
 			}
 		}
 		if (!errset)
-			CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "MSDTC XARMCreate error", func);
+			PgDtc_set_error(conn, "MSDTC XARMCreate error", func);
 		return SQL_ERROR;
 	} while (1);
 	res = pHelper->ConvertTridToXID((DWORD *) pTra, dwRMCookie, &xid);
@@ -1029,32 +1100,53 @@ mylog("ConvertTridToXID -> %s\n", pgxid);
 	}
 
 	mylog("asdum=%p start transaction\n", asdum);
-	CC_set_autocommit(conn, FALSE);
 	asdum->SetConnection(conn);
-	conn->asdum = asdum;
+	LIFELOCK_ACQUIRE;
+	PgDtc_set_async(conn, asdum);
+	LIFELOCK_RELEASE;
 
 	return 	SQL_SUCCESS;
 }
 
 
-EXTERN_C RETCODE EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
+EXTERN_C RETCODE
+IsolateDtcConn(void *conn, BOOL continueConnection)
+{
+	IAsyncPG *async;
+
+	LIFELOCK_ACQUIRE;
+	if (async = (IAsyncPG *) PgDtc_get_async(conn), NULL != async)
+	{
+		if (PgDtc_get_property(conn, idleInGlobalTransaction))
+		{
+			async->AddRef();
+			LIFELOCK_RELEASE;
+			async->separateXAConn(false, continueConnection ? true : false);
+			async->Release();
+		}
+		else
+			LIFELOCK_RELEASE;
+	}
+	else
+		LIFELOCK_RELEASE;
+	return SQL_SUCCESS;
+}
+
+
+EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
 {
 	static	ITransactionDispenser	*pDtc = NULL;
+	RETCODE	ret;
 
 	if (!pTra)
 	{
-		IAsyncPG *asdum = (IAsyncPG *) conn->asdum;
-		if (asdum)
-		{
-			/* asdum->Release(); */
-		}
-		else
-			SYNC_AUTOCOMMIT(conn);
+		IAsyncPG *asdum = (IAsyncPG *) PgDtc_get_async(conn);
+		PgDtc_set_property(conn, enlisted, (void *) 0);
 		return SQL_SUCCESS;
 	}
-	if (CC_is_in_trans(conn))
+	if (CONN_IS_IN_TRANS(conn))
 	{ 
-		CC_abort(conn);
+		PgDtc_one_phase_operation(conn, SHUTDOWN_LOCAL_TRANSACTION);
 	}
 	if (!pDtc)
 	{
@@ -1068,14 +1160,17 @@ EXTERN_C RETCODE EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 			pDtc = NULL;
 		}
 	}
-	return EnlistInDtc_1pipe(conn, (ITransaction *) pTra, pDtc);
+	ret = EnlistInDtc_1pipe(conn, (ITransaction *) pTra, pDtc);
+	if (SQL_SUCCEEDED(ret))
+		PgDtc_set_property(conn, enlisted, (void *) 1);
+	return ret;
 }
 
-EXTERN_C RETCODE DtcOnDisconnect(ConnectionClass *conn)
+EXTERN_C RETCODE DtcOnDisconnect(void *conn)
 {
 	mylog("DtcOnDisconnect\n");
 	LIFELOCK_ACQUIRE;
-	IAsyncPG *asdum = (IAsyncPG *) conn->asdum;
+	IAsyncPG *asdum = (IAsyncPG *) PgDtc_get_async(conn);
 	if (asdum)
 	{
 		asdum->AddRef();
@@ -1087,12 +1182,5 @@ EXTERN_C RETCODE DtcOnDisconnect(ConnectionClass *conn)
 		LIFELOCK_RELEASE;
 	return SQL_SUCCESS;
 }
-
-EXTERN_C RETCODE DtcOnRelease(void)
-{
-	AsyncThreads::CleanupThreads(2000);
-	return SQL_SUCCESS;
-}
-
 
 #endif /* _HANDLE_ENLIST_IN_DTC_ */

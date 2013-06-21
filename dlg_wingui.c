@@ -19,6 +19,7 @@
 /* Multibyte support	Eiji Tokuya 2001-03-15 */
 
 #include "dlg_specific.h"
+#include "misc.h" // strncpy_null
 #include "win_setup.h"
 
 #include "convert.h"

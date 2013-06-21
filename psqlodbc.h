@@ -34,8 +34,38 @@
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #endif /* _MEMORY_DEBUG_ */
+#else  /* _DEBUG */
+#include <stdlib.h>
 #endif /* _DEBUG */
 #endif /* WIN32 */
+
+#ifdef	_MEMORY_DEBUG_
+void		*pgdebug_alloc(size_t);
+void		*pgdebug_calloc(size_t, size_t);
+void		*pgdebug_realloc(void *, size_t);
+char		*pgdebug_strdup(const char *);
+void		*pgdebug_memcpy(void *, const void *, size_t);
+void		*pgdebug_memset(void *, int c, size_t);
+char		*pgdebug_strcpy(char *, const char *);
+char		*pgdebug_strncpy(char *, const char *, size_t);
+char		*pgdebug_strncpy_null(char *, const char *, size_t);
+void		pgdebug_free(void *);
+void		debug_memory_check(void);
+
+#ifdef	WIN32
+#undef strdup
+#endif /* WIN32 */
+#define malloc	pgdebug_alloc
+#define realloc pgdebug_realloc
+#define calloc	pgdebug_calloc
+#define strdup	pgdebug_strdup
+#define free	pgdebug_free
+#define strcpy	pgdebug_strcpy
+#define strncpy	pgdebug_strncpy
+/* #define strncpy_null	pgdebug_strncpy_null */
+#define memcpy	pgdebug_memcpy
+#define memset	pgdebug_memset
+#endif   /* _MEMORY_DEBUG_ */
 
 #ifdef	WIN32
 #include <delayimp.h>
@@ -568,42 +598,19 @@ int	wstrtomsg(const char *, const LPWSTR, int, char *, int);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
 
+/* Define a type for defining a constant string expression */
+#ifndef	CSTR
+#define	CSTR static const char * const
+#endif	/* CSTR */
 
-#ifdef	_MEMORY_DEBUG_
-void		*debug_alloc(size_t);
-void		*debug_calloc(size_t, size_t);
-void		*debug_realloc(void *, size_t);
-char		*debug_strdup(const char *);
-void		*debug_memcpy(void *, const void *, size_t);
-void		*debug_memset(void *, int c, size_t);
-char		*debug_strcpy(char *, const char *);
-char		*debug_strncpy(char *, const char *, size_t);
-char		*debug_strncpy_null(char *, const char *, size_t);
-void		debug_free(void *);
-void		debug_memory_check(void);
-
-#ifdef	WIN32
-#undef strdup
-#endif /* WIN32 */
-#define malloc	debug_alloc
-#define realloc debug_realloc
-#define calloc	debug_calloc
-#define strdup	debug_strdup
-#define free	debug_free
-#define strcpy	debug_strcpy
-#define strncpy	debug_strncpy
-/* #define strncpy_null	debug_strncpy_null */
-#define memcpy	debug_memcpy
-#define memset	debug_memset
-#endif   /* _MEMORY_DEBUG_ */
+CSTR	NULL_STRING = "";
+CSTR	PRINT_NULL = "(null)";
+CSTR	OID_NAME = "oid";
 
 #ifdef	__cplusplus
 }
 #endif
 
-#include "misc.h"
+#include "mylog.h"
 
-CSTR	NULL_STRING = "";
-CSTR	PRINT_NULL = "(null)";
-CSTR	OID_NAME = "oid";
 #endif /* __PSQLODBC_H__ */
