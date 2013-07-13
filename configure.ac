@@ -16,19 +16,9 @@ AM_MAINTAINER_MODE
 #
 AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of unixODBC (default)],
 [
-	if test "$withval" != no; then
-		if test "$withval" = yes; then
-			AC_PATH_PROGS(ODBC_CONFIG, odbc_config)
-		else
-			ODBC_CONFIG=$withval
-		fi
-		if test ! -f "${ODBC_CONFIG}/bin/odbc_config"; then
-			if test ! -f "${ODBC_CONFIG}"; then
-				AC_MSG_ERROR([odbc_config not found (required for unixODBC build)])
-			fi
-		else
-			ODBC_CONFIG=${ODBC_CONFIG}/bin/odbc_config
-		fi
+	if test "$withval" = no; then
+		with_unixodbc=no
+	else
 		with_unixodbc=yes
 	fi
 	],
@@ -40,19 +30,9 @@ AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of uni
 #
 AC_ARG_WITH(iodbc, [  --with-iodbc=DIR	  iodbc_config installation of iODBC],
 [
-	if test "$withval" != no; then
-		if test "$withval" = yes; then
-			AC_PATH_PROGS(ODBC_CONFIG, iodbc-config)
-		else
-			ODBC_CONFIG=$withval
-		fi
-		if test ! -f "${ODBC_CONFIG}/bin/iodbc-config"; then
-			if test ! -f "${ODBC_CONFIG}"; then
-				AC_MSG_ERROR([iodbc-config not found (required for iODBC build)])
-			fi
-		else
-			ODBC_CONFIG=${ODBC_CONFIG}/bin/iodbc-config
-		fi
+	if test "$withval" = no; then
+		with_iodbc=no
+	else
 		with_iodbc=yes
 	fi
 	],
@@ -60,13 +40,37 @@ AC_ARG_WITH(iodbc, [  --with-iodbc=DIR	  iodbc_config installation of iODBC],
 
 
 if test "$with_iodbc" = yes; then
-  with_unixodbc=no
-  AC_DEFINE(WITH_IODBC, 1, [Define to 1 to build with iODBC support])
+	with_unixodbc=no
+	AC_DEFINE(WITH_IODBC, 1, [Define to 1 to build with iODBC support])
+	if test "$withval" = yes; then
+		AC_PATH_PROGS(ODBC_CONFIG, iodbc-config)
+	else
+		ODBC_CONFIG=$withval
+	fi
+	if test ! -f "${ODBC_CONFIG}/bin/iodbc-config"; then
+		if test ! -f "${ODBC_CONFIG}"; then
+			AC_MSG_ERROR([iodbc-config not found (required for iODBC build)])
+		fi
+	else
+		ODBC_CONFIG=${ODBC_CONFIG}/bin/iodbc-config
+	fi
 fi
 
 if test "$with_unixodbc" = yes; then
-  AC_DEFINE(WITH_UNIXODBC, 1,
+  	AC_DEFINE(WITH_UNIXODBC, 1,
             [Define to 1 to build with unixODBC support])
+	if test "$withval" = yes; then
+		AC_PATH_PROGS(ODBC_CONFIG, odbc_config)
+	else
+		ODBC_CONFIG=$withval
+	fi
+	if test ! -f "${ODBC_CONFIG}/bin/odbc_config"; then
+		if test ! -f "${ODBC_CONFIG}"; then
+			AC_MSG_ERROR([odbc_config not found (required for unixODBC build)])
+		fi
+	else
+		ODBC_CONFIG=${ODBC_CONFIG}/bin/odbc_config
+	fi
 fi
 
 #
@@ -321,12 +325,12 @@ if test "$enable_pthreads" = yes; then
   AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
 
   if test x"$ac_cv_func_pthread_mutexattr_settype" = xyes; then
-    AC_COMPILE_IFELSE(AC_LANG_PROGRAM([[#include <pthread.h>]],
-                 [[int i = PTHREAD_MUTEX_RECURSIVE;]]),
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]],
+                 [[int i = PTHREAD_MUTEX_RECURSIVE;]])],
                  [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE,
                             [Define if you have PTHREAD_MUTEX_RECURSIVE])],
-                 [AC_COMPILE_IFELSE(AC_LANG_PROGRAM([[#include <pthread.h>]],
-		                 [[int i = PTHREAD_MUTEX_RECURSIVE_NP;]]),
+                 [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]],
+		                 [[int i = PTHREAD_MUTEX_RECURSIVE_NP;]])],
 		                 [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP,
                                             [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
   fi
