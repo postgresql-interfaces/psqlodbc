@@ -49,5 +49,6 @@ lib*.pc
 
 # WIX tools (candle, light) generate
 *.wix*
+!*.wixproj
 *.msm
 *.msi

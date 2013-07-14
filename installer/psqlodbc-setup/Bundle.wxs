@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Bundle Name="psqlodbc" Version="09.02.01.00" Manufacturer="PostgreSQL Global Development Group" UpgradeCode="7f9f14ee-2f3a-4120-a300-ee3fbd585627">
+		<BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.RtfLicense" />
+
+    <WixVariable Id="WixStdbaLicenseRtf" Value="..\lgpl.rtf" />
+    <Chain>
+			<!-- TODO: Define the list of chained packages. -->
+      <PackageGroupRef Id="vcredist"/>
+      <MsiPackage SourceFile="..\psqlodbc.msi" DisplayInternalUI="yes" />
+      <MsiPackage SourceFile="..\x64\psqlodbc_x64.msi" DisplayInternalUI="yes" InstallCondition="VersionNT64" />
+    </Chain>
+	</Bundle>
+</Wix>
