@@ -1131,7 +1131,7 @@ SQLExtendedFetch(
 				 HSTMT hstmt,
 				 SQLUSMALLINT fFetchType,
 				 SQLLEN irow,
-#if defined(WITH_UNIXODBC) && (SIZEOF_LONG_INT != 8)
+#if defined(WITH_UNIXODBC) && (SIZEOF_LONG != 8)
 				 SQLROWSETSIZE *pcrow,
 #else
 				 SQLULEN *pcrow,
