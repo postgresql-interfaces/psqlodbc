@@ -2415,7 +2415,7 @@ static void AddUpdated(StatementClass *stmt, SQLLEN index)
 	SQLULEN	*updated;
 	KeySet	*updated_keyset, *keyset;
 	TupleField	*updated_tuples = NULL, *tuple_updated,  *tuple;
-	SQLULEN	kres_ridx;
+	SQLLEN	kres_ridx;
 	UInt2	up_count;
 	BOOL	is_in_trans;
 	SQLLEN	upd_idx, upd_add_idx;

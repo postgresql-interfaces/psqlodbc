@@ -414,6 +414,7 @@ cleanup:
 	return retrv;
 }
 
+#ifdef CLEANUP_CONN_BEFORE_ISOLATION
 static ConnectionClass *
 CC_Copy(const ConnectionClass *conn)
 {
@@ -426,6 +427,7 @@ CC_Copy(const ConnectionClass *conn)
 	}
 	return newconn;
 }
+#endif
 
 ConnectionClass *
 CC_Constructor()
@@ -2964,7 +2966,7 @@ inolog("send_query response_length=%d\n", response_length);
 					if (strnicmp(cmdbuffer, bgncmd, lenbgncmd) == 0)
 					{
 						CC_set_in_trans(self);
-						if (discard_next_begin) /* disicard the automatically issued BEGIN */
+						if (discard_next_begin) /* discard the automatically issued BEGIN */
 						{
 							discard_next_begin = FALSE;
 							continue; /* discard the result */

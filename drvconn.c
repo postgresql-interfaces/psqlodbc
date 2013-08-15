@@ -41,6 +41,7 @@
 #define	FORCE_PASSWORD_DISPLAY
 #define	NULL_IF_NULL(a) (a ? a : "(NULL)")
 
+#ifndef FORCE_PASSWORD_DISPLAY
 static char * hide_password(const char *str)
 {
 	char *outstr, *pwdp;
@@ -58,6 +59,7 @@ static char * hide_password(const char *str)
 	}
 	return outstr;
 }
+#endif
 
 /* prototypes */
 void		dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
@@ -292,8 +294,8 @@ inolog("before CC_connect\n");
 #ifdef	FORCE_PASSWORD_DISPLAY
 	if (cbConnStrOutMax > 0)
 	{
-		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(szConnStrOut), len, cbConnStrOutMax);
-		qlog("conn=%p, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL(szConnStrOut));
+		mylog("szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL((char *) szConnStrOut), len, cbConnStrOutMax);
+		qlog("conn=%p, PGAPI_DriverConnect(out)='%s'\n", conn, NULL_IF_NULL((char *) szConnStrOut));
 	}
 #else
 	if (get_qlog() || get_mylog())
@@ -473,7 +475,7 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 
 		*equals = '\0';
 		attribute = pair;		/* ex. DSN */
-		value = equals + 1;		/* ex. 'CEO co1' *
+		value = equals + 1;		/* ex. 'CEO co1' */
 		/*
 		 * Values enclosed with braces({}) can contain ; etc
 		 * We don't remove the braces here because 

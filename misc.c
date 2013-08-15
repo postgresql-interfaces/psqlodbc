@@ -250,12 +250,12 @@ remove_newlines(char *string)
 char *
 my_trim(char *s)
 {
-	size_t	i;
+	char *last;
 
-	for (i = strlen(s) - 1; i >= 0; i--)
+	for (last = s + strlen(s) - 1; last >= s; last--)
 	{
-		if (s[i] == ' ')
-			s[i] = '\0';
+		if (*last == ' ')
+			*last = '\0';
 		else
 			break;
 	}
