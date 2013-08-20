@@ -1,4 +1,4 @@
-TESTS = connect stmthandles select getresult prepare params notice \
+TESTS = connect stmthandles select multistmt getresult prepare params notice \
 	arraybinding insertreturning dataatexecution boolsaschar cvtnulldate \
 	alter quotes
 

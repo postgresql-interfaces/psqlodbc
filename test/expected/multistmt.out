@@ -1,0 +1,24 @@
+\! ./src/multistmt-test
+connected
+--1 Result set:
+1
+--2 Result set:
+2
+--1 Result set:
+1
+--2 Result set:
+foo	bar
+--3 Result set:
+3
+--4 Result set:
+4
+--1 Result set:
+foo	bar
+--2 Result set:
+foobar
+# of result cols: 3
+--1 Result set:
+first result set	1	foo
+--2 Result set:
+second result set	bar
+disconnecting
