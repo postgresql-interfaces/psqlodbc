@@ -21,7 +21,7 @@ src/%-test sql/%.sql: src/%-test.c src/common.o
 	$(CC) $(CFLAGS) src/$*-test.c src/common.o -o src/$*-test -lodbc
 	echo "\! ./src/$*-test" > sql/$*.sql
 
-EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS)
+EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o
 
 REGRESS_OPTS = --launcher=./launcher
 
