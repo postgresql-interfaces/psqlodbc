@@ -1098,6 +1098,10 @@ inolog("parameter name=%s\n", msgbuffer);
 		{
 			conn->escape_in_literal = '\0';
 		}
+		if (stricmp(msgbuffer, "off") == 0)
+		{
+			conn->escape_in_literal = ESCAPE_IN_LITERAL;
+		}
 	}
 	else if (stricmp(msgbuffer, "server_version") == 0)
 	{

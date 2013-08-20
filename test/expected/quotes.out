@@ -1,0 +1,23 @@
+\! ./src/quotes-test
+connected
+Result set:
+Result set:
+foo
+param'quote
+Result set:
+foo
+param\backslash
+Result set:
+foo
+ends with backslash\
+Result set:
+Result set:
+foo
+param'quote
+Result set:
+foo
+param\backslash
+Result set:
+foo
+ends with backslash\
+disconnecting
