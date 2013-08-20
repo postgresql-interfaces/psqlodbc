@@ -414,21 +414,6 @@ cleanup:
 	return retrv;
 }
 
-#ifdef CLEANUP_CONN_BEFORE_ISOLATION
-static ConnectionClass *
-CC_Copy(const ConnectionClass *conn)
-{
-	ConnectionClass	*newconn = CC_alloc();
-
-	if (newconn)
-	{
-		memcpy(newconn, conn, sizeof(ConnectionClass));
-		CC_lockinit(newconn);
-	}
-	return newconn;
-}
-#endif
-
 ConnectionClass *
 CC_Constructor()
 {
@@ -4488,6 +4473,19 @@ PgDtc_lock_cntrl(void *self, BOOL acquire, BOOL bTrial)
 		LEAVE_CONN_CS(conn);
 
 	return ret;
+}
+
+static ConnectionClass *
+CC_Copy(const ConnectionClass *conn)
+{
+	ConnectionClass	*newconn = CC_alloc();
+
+	if (newconn)
+	{
+		memcpy(newconn, conn, sizeof(ConnectionClass));
+		CC_lockinit(newconn);
+	}
+	return newconn;
 }
 
 #define	CLEANUP_CONN_BEFORE_ISOLATION
