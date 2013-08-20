@@ -67,16 +67,6 @@ static void SOCK_set_error(SocketClass *s, int _no, const char *_msg)
 	mylog("(%d)%s ERRNO=%d\n", _no, _msg, gerrno);
 }
 
-void
-SOCK_clear_error(SocketClass *self)
-{
-	self->errornumber = 0;
-	if (NULL != self->_errormsg_)
-		free(self->_errormsg_);
-	self->_errormsg_ = NULL;
-}
-
-
 SocketClass *
 SOCK_Constructor(const ConnectionClass *conn)
 {

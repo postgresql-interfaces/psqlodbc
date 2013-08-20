@@ -236,7 +236,5 @@ Int4		SOCK_flush_output(SocketClass *self);
 UCHAR		SOCK_get_next_byte(SocketClass *self, BOOL peek);
 void		SOCK_put_next_byte(SocketClass *self, UCHAR next_byte);
 Int4		SOCK_get_response_length(SocketClass *self);
-void		SOCK_clear_error(SocketClass *self);
-UInt4		SOCK_skip_n_bytes(SocketClass *self, UInt4 skip_length);
 
 #endif /* __SOCKET_H__ */
