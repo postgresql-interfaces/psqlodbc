@@ -55,6 +55,28 @@ int main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/*** Test SQLBindParameter with SQLExecDirect ***/
+
+	/* bind param  */
+	strcpy(param1, "bar");
+	cbParam1 = SQL_NTS;
+	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
+						  SQL_C_CHAR,	/* value type */
+						  SQL_CHAR,		/* param type */
+						  20,			/* column size */
+						  0,			/* dec digits */
+						  param1,		/* param value ptr */
+						  0,			/* buffer len */
+						  &cbParam1		/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT 'foo' UNION ALL SELECT ?", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
 	/* Clean up */
 	test_disconnect();
 

@@ -3,4 +3,7 @@ connected
 # of result cols: 2
 Result set:
 1	0102030405060708
+Result set:
+foo
+bar
 disconnecting
