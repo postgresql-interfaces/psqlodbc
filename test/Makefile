@@ -1,6 +1,6 @@
 TESTS = connect stmthandles select multistmt getresult prepare params notice \
 	arraybinding insertreturning dataatexecution boolsaschar cvtnulldate \
-	alter quotes
+	alter quotes cursors
 
 TESTBINS = $(patsubst %,src/%-test, $(TESTS))
 TESTSQLS = $(patsubst %,sql/%.sql, $(TESTS))

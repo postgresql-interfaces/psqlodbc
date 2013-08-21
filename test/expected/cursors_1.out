@@ -1,0 +1,19 @@
+\! ./src/cursors-test
+connected
+SQL_CURSOR_COMMIT_BEHAVIOR: SQL_CB_PRESERVE
+SQL_CURSOR_ROLLBACK_BEHAVIOR: SQL_CB_CLOSE
+
+foo1 foo2 foo3 foo4 foo5 foo6 foo7 foo8 foo9 foo10 foo11 foo12 foo13 foo14 foo15 foo16 foo17 foo18 foo19 foo20 ... foo3207 foo3208 foo3209 foo3210 
+Fetched 3210 rows altogether
+
+foo1 foo2 foo3 foo4 foo5 foo6 foo7 foo8 foo9 foo10 
+Commit
+foo11 foo12 foo13 foo14 foo15 foo16 foo17 foo18 foo19 foo20 ... foo3207 foo3208 foo3209 foo3210 
+Fetched 3210 rows altogether
+
+foo1 foo2 foo3 foo4 foo5 foo6 foo7 foo8 foo9 foo10 
+Rollback
+SQLFetch failed with HY010 (which probably means that the cursor was closed at commit/rollback)
+Fetched 10 rows altogether
+
+disconnecting
