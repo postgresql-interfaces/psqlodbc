@@ -167,7 +167,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 #define def_utf2ucs(errcheck) \
 SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount) \
 { \
-	int	i; \
+	int	i, lfcount = 0; \
 	SQLULEN	rtn, ocount, wcode; \
 	const UCHAR *str; \
 \
@@ -197,6 +197,7 @@ SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				if (ocount < bufcount) \
 					ucs2str[ocount] = PG_CARRIAGE_RETURN; \
 				ocount++; \
+				lfcount++; \
 			} \
 			if (ocount < bufcount) \
 				ucs2str[ocount] = *str; \
@@ -301,6 +302,8 @@ cleanup: \
 			rtn = 0; \
 		ocount = 0; \
 	} \
+	if (ocount >= bufcount && ocount < bufcount + lfcount) \
+		return utf8_to_ucs2_lf##errcheck(utf8str, ilen, FALSE, ucs2str, bufcount); \
 	if (ocount < bufcount && ucs2str) \
 		ucs2str[ocount] = 0; \
 /*mylog(" ocount=%d\n", ocount);*/ \
