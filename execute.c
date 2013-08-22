@@ -1490,6 +1490,11 @@ inolog("ipdopts=%p\n", ipdopts);
 			retval = dequeueNeedDataCallback(retval, stmt);
 			goto cleanup;
 		}
+		else
+		{
+			stmt->curr_param_result = 0;
+		}
+
 		if (retval = PGAPI_Execute(estmt, flag), SQL_NEED_DATA != retval)
 		{
 			goto cleanup;
