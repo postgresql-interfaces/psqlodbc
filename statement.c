@@ -1116,11 +1116,11 @@ SC_pre_execute(StatementClass *self)
 			{
 				case NAMED_PARSE_REQUEST:
 				case PARSE_TO_EXEC_ONCE:
-					if (SQL_SUCCESS != prepareParameters(self, TRUE))
+					if (SQL_SUCCESS != prepareParameters(self))
 						return num_fields;
 					break;
 				case PARSE_REQ_FOR_INFO:
-					if (SQL_SUCCESS != prepareParameters(self, TRUE))
+					if (SQL_SUCCESS != prepareParameters(self))
 						return num_fields;
 					self->status = STMT_PREMATURE;
 					self->inaccurate_result = TRUE;

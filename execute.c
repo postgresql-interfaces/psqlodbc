@@ -1046,7 +1046,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			switch (nCallParse = HowToPrepareBeforeExec(stmt, TRUE))
 			{
 				case shouldParse:
-					if (retval = prepareParameters(stmt, TRUE), SQL_ERROR == retval)
+					if (retval = prepareParameters(stmt), SQL_ERROR == retval)
 						goto cleanup;
 					break;
 			}

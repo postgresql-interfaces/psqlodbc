@@ -362,7 +362,7 @@ inolog("howTo=%d\n", SC_get_prepare_method(stmt));
 			case NAMED_PARSE_REQUEST:
 			case PARSE_TO_EXEC_ONCE:
 			case PARSE_REQ_FOR_INFO:
-				if (ret = prepareParameters(stmt, TRUE), SQL_ERROR == ret)
+				if (ret = prepareParameters(stmt), SQL_ERROR == ret)
 					goto cleanup;
 		}
 	}
