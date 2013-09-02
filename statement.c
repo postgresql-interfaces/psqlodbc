@@ -142,6 +142,14 @@ static const struct
 	,{
 		STMT_TYPE_EXPLAIN, "EXPLAIN"
 	}
+
+	/*
+	 * Special-commands that cannot be run in a transaction block. This isn't
+	 * as granular as it could be. VACUUM can never be run in a transaction
+	 * block, but some variants of REINDEX and CLUSTER can be. CHECKPOINT
+	 * doesn't throw an error if you do, but it cannot be rolled back so
+	 * there's no point in beginning a new transaction for it.
+	 */
 	,{
 		STMT_TYPE_SPECIAL, "VACUUM"
 	}
@@ -154,6 +162,7 @@ static const struct
 	,{
 		STMT_TYPE_SPECIAL, "CHECKPOINT"
 	}
+
 	,{
 		STMT_TYPE_WITH, "WITH"
 	}
@@ -1897,15 +1906,22 @@ SC_execute(StatementClass *self)
 	    /* || SC_is_with_hold(self) thiw would lose the performance */
 		 ))
 		issue_begin = FALSE;
-	else
+	else if (self->statement_type == STMT_TYPE_SPECIAL)
 	{
-		switch (self->statement_type)
-		{
-			case STMT_TYPE_START:
-			case STMT_TYPE_SPECIAL:
-				issue_begin = FALSE;
-				break;
-		}
+		/*
+		 * Some utility commands like VACUUM cannot be run in a transaction
+		 * block, so don't begin one even if auto-commit mode is disabled.
+		 *
+		 * An application should never issue an explicit BEGIN when
+		 * auto-commit mode is disabled (probably not even when it's enabled,
+		 * actually). We used to also suppress the implicit BEGIN when the
+		 * statement was of STMT_TYPE_START type, ie. if the application
+		 * issued an explicit BEGIN, but that actually seems like a bad idea.
+		 * First of all, if you issue a BEGIN twice the backend will give a
+		 * warning which can be helpful to spot mistakes in the application
+		 * (because it shouldn't be doing that).
+		 */
+		issue_begin = FALSE;
 	}
 	if (issue_begin)
 	{
@@ -2465,10 +2481,16 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, emsg, func);
 		return FALSE;
 	}
-	if (!CC_is_in_trans(conn) && CC_loves_visible_trans(conn))
+
+	/*
+	 * In auto-commit mode, begin a new transaction implicitly if no
+	 * transaction is in progress yet. However, some special statements like
+	 * VACUUM and CLUSTER cannot be run in a transaction block.
+	 */
+	if (!CC_is_in_trans(conn) && CC_loves_visible_trans(conn) &&
+		stmt->statement_type != STMT_TYPE_SPECIAL)
 	{
-		if (ret = CC_begin(conn), !ret)
-			return ret;
+		ret = CC_begin(conn);
 	}
 	return ret;
 }
