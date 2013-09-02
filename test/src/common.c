@@ -85,7 +85,7 @@ test_disconnect(void)
 	env = NULL;
 }
 
-static const char *
+const char *
 datatype_str(SQLSMALLINT datatype)
 {
 	static char buf[100];
@@ -144,7 +144,7 @@ datatype_str(SQLSMALLINT datatype)
 	}
 }
 
-static const char *nullable_str(SQLSMALLINT nullable)
+const char *nullable_str(SQLSMALLINT nullable)
 {
 	static char buf[100];
 

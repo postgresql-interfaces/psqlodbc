@@ -3,7 +3,15 @@ connected
 # of result cols: 2
 Result set:
 1	0102030405060708
+
+Testing SQLBindParameter with SQLExecDirect...
 Result set:
 foo
 bar
+
+Testing SQLDescribeParam...
+Param 1: type INTEGER; size 10; dec digits -1; nullable
+# of result cols: 2
+Result set:
+3	foobar
 disconnecting
