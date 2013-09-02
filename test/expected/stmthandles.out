@@ -40,4 +40,31 @@ Result set:
 stmt no 81
 Result set:
 stmt no 91
+
+Testing interleaving operations on multiple prepared statements
+# of result cols: 1
+# of result cols: 2
+# of result cols: 3
+# of result cols: 4
+# of result cols: 5
+Result set:
+stmt no 0
+stmt no 0
+stmt no 0
+Result set:
+stmt no 1	col 0
+stmt no 1	col 0
+stmt no 1	col 0
+Result set:
+stmt no 2	col 0	col 1
+stmt no 2	col 0	col 1
+stmt no 2	col 0	col 1
+Result set:
+stmt no 3	col 0	col 1	col 2
+stmt no 3	col 0	col 1	col 2
+stmt no 3	col 0	col 1	col 2
+Result set:
+stmt no 4	col 0	col 1	col 2	col 3
+stmt no 4	col 0	col 1	col 2	col 3
+stmt no 4	col 0	col 1	col 2	col 3
 disconnecting
