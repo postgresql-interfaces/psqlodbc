@@ -35,8 +35,15 @@ if NOT "%1"=="" (
        GOTO GOT_VERSION
 )
 
+::
+::	The ProductCode History
+::	    ProductCode must be changed in case of major upgrade
+::
+SET PRODUCTID["09.02.0100"]="838E187D-8B7A-473d-B93C-C8E970B15D2B"
+SET PRODUCTID["09.03.0100"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
+
 :: The full version number of the build in XXXX.XX.XX format
-SET VERSION="09.02.0100"
+SET VERSION="09.03.0100"
 echo.
 echo Version not specified - defaulting to %VERSION%
 echo.
@@ -45,6 +52,9 @@ echo.
 
 :: The subdirectory to install into
 SET SUBLOC=%VERSION:~1,2%%VERSION:~4,2%
+
+CALL SET PRODUCTCODE=%%PRODUCTID[%VERSION%]%%
+echo PRODUCTCODE=%PRODUCTCODE%
 
 echo.
 echo Building psqlODBC/%SUBLOC% merge module...
@@ -58,7 +68,8 @@ IF ERRORLEVEL 1 GOTO ERR_HANDLER
 echo.
 echo Building psqlODBC installer database...
 
-candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPROGRAMFILES="%X86PROGRAMFILES%" -dPROGRAMCOM="%X86COMMONFILES%\Merge Modules" psqlodbc.wxs
+::SET PROGRAMCOM="%X86COMMONFILES%/Merge Modules"
+candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPRODUCTCODE="%PRODUCTCODE%" psqlodbc.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
 light -nologo -ext WixUIExtension -cultures:en-us psqlodbc.wixobj

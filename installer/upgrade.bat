@@ -1,8 +1,14 @@
 @echo off
 cls
+
+echo 09.03.0100 is a Major upgrade.
+echo Can't upgrade your psqlODBC installation unfortunately.
+pause
+exit
+
 echo This file will upgrade your psqlODBC installation.
 echo.
-echo You must have psqlODBC 09.02.xxxx installed 
+echo You must have psqlODBC 09.03.xxxx installed 
 echo from the official MSI installation to use this upgrade path.
 echo.
 echo If psqlODBC or any of it's components are in use
@@ -20,4 +26,4 @@ REM                              This makes sure documentation and other
 REM                              non-versioned files are updated.
 REM  REINSTALL=ALL             - Reinstall all features that were previously
 REM                              installed with the new version.
-msiexec /i psqlodbc.msi REINSTALLMODE=vamus REINSTALL=ALL /qr
+msiexec /i psqlodbc.msi REINSTALLMODE=vomus REINSTALL=ALL /qr
