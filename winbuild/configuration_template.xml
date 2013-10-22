@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration version="09.03.0100">
+  <x86 disabled="no" use_libpq="yes" use_sspi="no" use_gss="no">
+    <libpq>
+      <include>default</include>
+      <lib>default</lib>
+      <bin>default</bin>
+    </libpq>
+    <ssl>
+      <include></include>
+      <lib></lib>
+    </ssl>
+    <gss>
+      <include></include>
+      <lib></lib>
+      <bin></bin>
+    </gss>
+    <setenv></setenv>
+  </x86>
+  <x64 use_libpq="yes" use_sspi="no" use_gss="yes">
+    <libpq>
+      <include>default</include>
+      <lib>default</lib>
+      <bin>default</bin>
+    </libpq>
+    <ssl>
+      <include></include>
+      <lib></lib>
+    </ssl>
+    <gss>
+      <include></include>
+      <lib></lib>
+      <bin></bin>
+    </gss>
+    <setenv></setenv>
+  </x64>
+</Configuration>

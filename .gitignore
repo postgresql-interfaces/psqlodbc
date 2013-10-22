@@ -25,6 +25,9 @@ win32ver.rc
 lib*dll.def
 lib*.pc
 
+#
+winbuild/configuration.xml
+
 # Files generated during compilation
 /Makefile
 /Makefile.in

@@ -142,6 +142,9 @@ INC_OPT = $(INC_OPT) /I "$(PG_INC)"
 !IF "$(SSL_INC)" != ""
 INC_OPT = $(INC_OPT) /I "$(SSL_INC)"
 !ENDIF
+!IF "$(GSS_INC)" != ""
+INC_OPT = $(INC_OPT) /I "$(GSS_INC)"
+!ENDIF
 !IF "$(ADDL_INC)" != ""
 INC_OPT = $(INC_OPT) /I "$(ADD_INC)"
 !ENDIF
@@ -289,6 +292,9 @@ LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug /pdbtype:sept
 LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)"
 !IF "$(PG_LIB)" != ""
 LINK32_FLAGS=$(LINK32_FLAGS) /libpath:"$(PG_LIB)"
+!ENDIF
+!IF "$(GSS_LIB)" != ""
+LINK32_FLAGS=$(LINK32_FLAGS) /libpath:"$(GSS_LIB)"
 !ENDIF
 !IF "$(SSL_LIB)" != ""
 LINK32_FLAGS=$(LINK32_FLAGS) /libpath:"$(SSL_LIB)"
