@@ -21,6 +21,9 @@
 #include "psqlodbc.h"
 #include "dlg_specific.h"
 #include "environ.h"
+#ifdef	USE_SSPI
+#include "sspisvcs.h"
+#endif /* USE_SSPI */
 
 #ifdef WIN32
 #include "loadlib.h"
@@ -162,6 +165,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 		case DLL_PROCESS_DETACH:
 			mylog("DETACHING PROCESS\n");
+#ifdef	USE_SSPI
+			LeaveSSPIService();
+#endif /* USE_SSPI */
 			CleanupDelayLoadedDLLs();
 			/* my(q)log is unavailable from here */
 			finalize_global_cs();

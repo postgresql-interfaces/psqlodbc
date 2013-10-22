@@ -250,7 +250,77 @@ static SECURITY_STATUS PerformSchannelClientHandshake(SOCKET, PCredHandle, LPSTR
 static SECURITY_STATUS SchannelClientHandshakeLoop(SOCKET, PCredHandle, CtxtHandle *, BOOL, SecBuffer *);
 static void GetNewSchannelClientCredentials(PCredHandle, CtxtHandle *);
 
-static HCERTSTORE	hMyCertStore = NULL;
+static BOOL		bMyCert = FALSE;
+static HCERTSTORE	hMyCertStore  = NULL;
+static const DWORD propId = CERT_KEY_PROV_INFO_PROP_ID;
+
+static void FreeCertStores()
+{
+	if (hMyCertStore)
+	{
+		CertCloseStore(hMyCertStore, CERT_CLOSE_STORE_FORCE_FLAG);
+		hMyCertStore = NULL;
+	}
+}
+
+void LeaveSSPIService()
+{
+	FreeCertStores();
+	bMyCert = FALSE;
+}
+
+static void CertStoreInit()
+{
+	LPCTSTR pgsslpfx = NULL;
+	LPCTSTR appdata = NULL;
+	TCHAR	sslpfx[256];
+	HANDLE	fd;
+	DWORD	flen, rlen;
+	CRYPT_DATA_BLOB	crypt_data;
+
+
+	if (bMyCert)			return;
+	if (hMyCertStore != NULL)	return;
+
+	bMyCert = TRUE; 
+	pgsslpfx = getenv("PGSSLPFX");
+	if (!pgsslpfx)
+	{
+		if (!appdata)
+			appdata = getenv("APPDATA");
+		if (!appdata)			return;
+		snprintf(sslpfx, sizeof(sslpfx), "%s\\postgresql\\postgresql.pfx", appdata);
+		pgsslpfx = sslpfx;
+	}
+
+	fd = CreateFile(pgsslpfx, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (INVALID_HANDLE_VALUE == fd)
+	{
+		mylog("!!! pfxfile=%s not found\n", pgsslpfx);
+		FreeCertStores();
+		return;
+	}
+	flen = GetFileSize(fd, NULL);
+	if (flen <= 0)
+	{
+		FreeCertStores();
+		CloseHandle(fd);
+		return;
+	}
+	crypt_data.cbData = flen;
+	crypt_data.pbData = (LPBYTE) CryptMemAlloc(flen);
+	ReadFile(fd, crypt_data.pbData, flen, &rlen, NULL);
+	CloseHandle(fd);  
+	hMyCertStore = PFXImportCertStore(&crypt_data, L"", 0);
+	CryptMemFree(crypt_data.pbData);
+	if (!hMyCertStore)
+	{
+		mylog("!!! hMyCertStore=%p %d\n", hMyCertStore, GetLastError());
+		FreeCertStores();
+		return;
+	}
+
+}
 
 static int DoSchannelNegotiation(SocketClass *self, SspiData *sspidata, const void *opt)
 {
@@ -777,6 +847,7 @@ SchannelClientHandshakeLoop(
 			 * credentials).
 			 */
             
+			mylog("Server returned SEC_I_INCOMPLETE_CREDENTIALS\n");
 			GetNewSchannelClientCredentials(phCreds, phContext);
 
 			/* Go around again. */
@@ -822,12 +893,14 @@ GetNewSchannelClientCredentials(
 	SCHANNEL_CRED	SchannelCred;
 	CredHandle	hCreds;
 	SecPkgContext_IssuerListInfoEx	IssuerListInfo;
-	PCCERT_CHAIN_CONTEXT		pChainContext;
 	CERT_CHAIN_FIND_BY_ISSUER_PARA	FindByIssuerPara;
 	PCCERT_CONTEXT	pCertContext;
 	TimeStamp	tsExpiry;
 	SECURITY_STATUS	Status;
 
+	CertStoreInit();
+	if (hMyCertStore == NULL)
+		return;
 	/*
 	 * Read list of trusted issuers from schannel.
 	 */
@@ -853,26 +926,18 @@ GetNewSchannelClientCredentials(
 	FindByIssuerPara.cIssuer	= IssuerListInfo.cIssuers;
 	FindByIssuerPara.rgIssuer	= IssuerListInfo.aIssuers;
 
-	pChainContext = NULL;
+	pCertContext = NULL;
 
 	while (TRUE)
 	{
-		/* Find a certificate chain. */
-		pChainContext = CertFindChainInStore(hMyCertStore,
-						X509_ASN_ENCODING,
-						0,
-						CERT_CHAIN_FIND_BY_ISSUER,
-						&FindByIssuerPara,
-						pChainContext);
-		if (pChainContext == NULL)
+		pCertContext = CertEnumCertificatesInStore(hMyCertStore,
+						pCertContext);
+		if (pCertContext == NULL)
 		{
-			mylog("Error 0x%p finding cert chain\n", GetLastError());
+			mylog("Error 0x%p enum cert chain\n", GetLastError());
 			break;
 		}
-		mylog("\ncertificate chain found\n");
-
-		/* Get pointer to leaf certificate context. */
-		pCertContext = pChainContext->rgpChain[0]->rgpElement[0]->pCertContext;
+		mylog("certificate context found\n");
 
 		ZeroMemory(&SchannelCred, sizeof(SchannelCred));
         	/* Create schannel credential. */
@@ -895,7 +960,7 @@ GetNewSchannelClientCredentials(
 			 mylog("**** Error 0x%p returned by AcquireCredentialsHandle\n", Status);
 			continue;
 		}
-		mylog("\nnew schannel credential created\n");
+		mylog("new schannel credential created\n");
 
 		/* Destroy the old credentials. */
 		FreeCredentialsHandle(phCreds);
