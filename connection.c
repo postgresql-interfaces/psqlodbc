@@ -308,17 +308,58 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 		copy_globals(&(conninfo->drivers), &globals);
 }
 
+#define	CORR_STRCPY(item)	strncpy_null(ci->##item, sci->##item, sizeof(ci->##item))
+#define	CORR_VALCPY(item)	(ci->##item = sci->##item)
+
 void
 CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 {
-	memcpy(ci, sci, sizeof(ConnInfo));
-	SET_NAME_DIRECTLY(ci->conn_settings, NULL);
-	SET_NAME_DIRECTLY(ci->drivers.drivername, NULL);
-	SET_NAME_DIRECTLY(ci->drivers.conn_settings, NULL);
+	memset(ci, 0,sizeof(ConnInfo));
+
+	CORR_STRCPY(dsn);
+	CORR_STRCPY(desc);
+	CORR_STRCPY(drivername);
+	CORR_STRCPY(server);
+	CORR_STRCPY(database);
+	CORR_STRCPY(username);
+	NAME_TO_NAME(ci->password, sci->password);
+	CORR_STRCPY(protocol);
+	CORR_STRCPY(port);
+	CORR_STRCPY(sslmode);
+	CORR_STRCPY(onlyread);
+	CORR_STRCPY(fake_oid_index);
+	CORR_STRCPY(show_oid_column);
+	CORR_STRCPY(row_versioning);
+	CORR_STRCPY(show_system_tables);
+	CORR_STRCPY(translation_dll);
+	CORR_STRCPY(translation_option);
+	CORR_VALCPY(focus_password);
 	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
-	NAME_TO_NAME(ci->drivers.drivername, sci->drivers.drivername);
-	NAME_TO_NAME(ci->drivers.conn_settings, sci->drivers.conn_settings);
+	CORR_VALCPY(disallow_premature);
+	CORR_VALCPY(allow_keyset);
+	CORR_VALCPY(updatable_cursors);
+	CORR_VALCPY(lf_conversion);
+	CORR_VALCPY(true_is_minus1);
+	CORR_VALCPY(int8_as);
+	CORR_VALCPY(bytea_as_longvarbinary);
+	CORR_VALCPY(use_server_side_prepare);
+	CORR_VALCPY(lower_case_identifier);
+	CORR_VALCPY(rollback_on_error);
+	CORR_VALCPY(force_abbrev_connstr);
+	CORR_VALCPY(bde_environment);
+	CORR_VALCPY(fake_mss);
+	CORR_VALCPY(cvt_null_date_string);
+	CORR_VALCPY(autocommit_public);
+	CORR_VALCPY(accessible_only);
+	CORR_VALCPY(gssauth_use_gssapi);
+	CORR_VALCPY(extra_opts);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	CORR_VALCPY(xa_opt);
+#endif 
+	copy_globals(&(ci->drivers), &(sci->drivers));	/* moved from driver's option */
 }
+#undef	CORR_STRCPY
+#undef	CORR_VALCPY
 
 #ifdef	WIN32
 extern	int	platformId;

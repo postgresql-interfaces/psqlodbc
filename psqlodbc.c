@@ -24,6 +24,7 @@
 #ifdef	USE_SSPI
 #include "sspisvcs.h"
 #endif /* USE_SSPI */
+#include "misc.h"
 
 #ifdef WIN32
 #include "loadlib.h"
@@ -96,15 +97,46 @@ int	initialize_global_cs(void)
 	return 0;
 }
 
+#define	CORR_STRCPY(item)	strncpy_null(to->##item, from->##item, sizeof(to->##item))
+#define	CORR_VALCPY(item)	(to->##item = from->##item)
+
 void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 {
+	memset(to, 0, sizeof(to));
+	/***
 	memcpy(to, from, sizeof(GLOBAL_VALUES));
 	SET_NAME_DIRECTLY(to->drivername, NULL);
 	SET_NAME_DIRECTLY(to->conn_settings, NULL);
+	***/
 	NAME_TO_NAME(to->drivername, from->drivername);
+	CORR_VALCPY(fetch_max);
+	CORR_VALCPY(socket_buffersize);
+	CORR_VALCPY(unknown_sizes);
+	CORR_VALCPY(max_varchar_size);
+	CORR_VALCPY(max_longvarchar_size);
+	CORR_VALCPY(debug);
+	CORR_VALCPY(commlog);
+	CORR_VALCPY(disable_optimizer);
+	CORR_VALCPY(ksqo);
+	CORR_VALCPY(unique_index);
+	CORR_VALCPY(onlyread);		/* readonly is reserved on Digital C++
+								 * compiler */
+	CORR_VALCPY(use_declarefetch);
+	CORR_VALCPY(text_as_longvarchar);
+	CORR_VALCPY(unknowns_as_longvarchar);
+	CORR_VALCPY(bools_as_char);
+	CORR_VALCPY(lie);
+	CORR_VALCPY(parse);
+	CORR_VALCPY(cancel_as_freestmt);
+	CORR_STRCPY(extra_systable_prefixes);
+	CORR_STRCPY(protocol);
 	NAME_TO_NAME(to->conn_settings, from->conn_settings);
-mylog("copy_globals driver=%s socket_buffersize=%d\n", SAFE_NAME(to->drivername), to->socket_buffersize);
+
+	mylog("copy_globals driver=%s socket_buffersize=%d\n", SAFE_NAME(to->drivername), to->socket_buffersize);
 }
+#undef	CORR_STRCPY
+#undef	CORR_VALCPY
+
 void	finalize_globals(GLOBAL_VALUES *glbv)
 {
 	NULL_THE_NAME(glbv->drivername);

@@ -164,7 +164,10 @@ void pgdebug_free(void * ptr)
 		}
 	}
 	if (! freed)
+	{
 		mylog("%s:%sing not found ptr %p\n", ALCERR, __FUNCTION__, ptr);
+		return;
+	}
 	else
 		inolog("%sing ptr=%p\n", __FUNCTION__, ptr);
 	free(ptr);
