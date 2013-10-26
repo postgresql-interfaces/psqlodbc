@@ -1567,6 +1567,7 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 #ifdef	USE_SSPI
 	int	ssl_try_count, ssl_try_no;
 	char	ssl_call[2];
+	int	bReconnect = 0;
 #endif /* USE_SSPI */
 
 	mylog("%s: entering...\n", func);
@@ -1701,8 +1702,13 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 			switch (rnego)
 			{
 				case 'S':
-					if (!StartupSspiService(sock, SchannelService, NULL))
+					if (!StartupSspiService(sock, SchannelService, ci, &bReconnect))
 					{
+						if (bReconnect != 0)
+						{
+							anotherVersionRetry = TRUE;
+							goto another_version_retry;
+						}
 						CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
 						goto error_proc;
 					}
@@ -1941,7 +1947,7 @@ inolog("Ekita retry=%d\n", retry);
 							if (!ci->gssauth_use_gssapi)
 							{
 								self->auth_svcs = KerberosService;
-								authRet = StartupSspiService(sock, self->auth_svcs, MakePrincHint(ci, TRUE));
+								authRet = StartupSspiService(sock, self->auth_svcs, MakePrincHint(ci, TRUE), &bReconnect);
 								if (!authRet)
 								{
 									CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
@@ -2002,7 +2008,7 @@ inolog("Ekita retry=%d\n", retry);
 							mylog("in AUTH_REQ_SSPI\n");
 #if	defined(USE_SSPI)
 							self->auth_svcs = ci->gssauth_use_gssapi ? KerberosService : NegotiateService;
-							if (!StartupSspiService(sock, self->auth_svcs, MakePrincHint(ci, TRUE)))
+							if (!StartupSspiService(sock, self->auth_svcs, MakePrincHint(ci, TRUE), &bReconnect))
 							{
 								CC_set_error(self, CONN_INVALID_AUTHENTICATION, "Service negotation failed", func);
 								goto error_proc;

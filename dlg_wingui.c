@@ -83,7 +83,7 @@ mylog("SendMessage CTL_COLOR\n");
 		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
 #ifdef	USE_SSPI
 		ShowWindow(GetDlgItem(hdlg, IDC_NOTICE_USER), SW_HIDE);
-		dsplevel = 1;
+		dsplevel = 2;
 #endif /* USE_SSPI */
 	}
 

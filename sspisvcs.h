@@ -20,7 +20,7 @@ typedef enum {
 
 void	LeaveSSPIService();
 void	ReleaseSvcSpecData(SocketClass *self, UInt4);
-int	StartupSspiService(SocketClass *self, SSPI_Service svc, const void *opt);
+int	StartupSspiService(SocketClass *self, SSPI_Service svc, const void *opt, int *bReconnect);
 int	ContinueSspiService(SocketClass *self, SSPI_Service svc, const void *opt);
 int	SSPI_recv(SocketClass *self, void *buf, int len);
 int	SSPI_send(SocketClass *self, const void *buf, int len);
