@@ -308,8 +308,8 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 		copy_globals(&(conninfo->drivers), &globals);
 }
 
-#define	CORR_STRCPY(item)	strncpy_null(ci->##item, sci->##item, sizeof(ci->##item))
-#define	CORR_VALCPY(item)	(ci->##item = sci->##item)
+#define	CORR_STRCPY(item)	strncpy_null(ci->item, sci->item, sizeof(ci->item))
+#define	CORR_VALCPY(item)	(ci->item = sci->item)
 
 void
 CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)

@@ -97,8 +97,8 @@ int	initialize_global_cs(void)
 	return 0;
 }
 
-#define	CORR_STRCPY(item)	strncpy_null(to->##item, from->##item, sizeof(to->##item))
-#define	CORR_VALCPY(item)	(to->##item = from->##item)
+#define	CORR_STRCPY(item)	strncpy_null(to->item, from->item, sizeof(to->item))
+#define	CORR_VALCPY(item)	(to->item = from->item)
 
 void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 {
