@@ -21,6 +21,7 @@ function global:SaveConfiguration
 	$configInfo.save("$configPath")
 }
 
+$LIBPQ_VERSION="9.3"
 $scriptPath = [System.IO.Path]::GetDirectoryName($myInvocation.MyCommand.Definition)
 $configPath = "$scriptPath\configuration.xml"
 if (!(Test-Path -path $configPath))

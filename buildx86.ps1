@@ -13,6 +13,9 @@ if ($x86info.setenv -ne "") {
 $USE_LIBPQ=$x86info.use_libpq
 $USE_SSPI=$x86info.use_sspi
 $LIBPQVER=$x86info.libpq.version
+if ($LIBPQVER -eq "") {
+	$LIBPQVER=$LIBPQ_VERSION
+}
 $PG_INC=$x86info.libpq.include
 $PG_LIB=$x86info.libpq.lib
 $SSL_INC=$x86info.ssl.include

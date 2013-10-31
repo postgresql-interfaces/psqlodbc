@@ -14,6 +14,9 @@ if ($x64info.setenv -ne "") {
 
 $USE_LIBPQ=$x64info.use_libpq
 $LIBPQVER=$x64info.libpq.version
+if ($LIBPQVER -eq "") {
+	$LIBPQVER = $LIBPQ_VERSION
+}
 $USE_SSPI=$x64info.use_sspi
 $USE_GSS=$x64info.use_gss
 $PG_INC=$x64info.libpq.include

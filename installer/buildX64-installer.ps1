@@ -7,6 +7,9 @@ $USE_LIBPQ=$x64info.use_libpq
 $USE_GSS=$x64info.use_gss
 $USE_SSPI=$x64info.use_sspi
 $LIBPQVER=$x64info.libpq.version
+if ($LIBPQVER -eq "") {
+	$LIBPQVER=$LIBPQ_VERSION
+}
 if ($USE_LIBPQ -eq "yes")
 {
 	$LIBPQBINDIR=$x64info.libpq.bin

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration version="09.03.0100">
   <x86 disabled="no" use_libpq="yes" use_sspi="no" use_gss="no">
-    <libpq>
+    <libpq version="">
       <include>default</include>
       <lib>default</lib>
       <bin>default</bin>
@@ -17,8 +17,8 @@
     </gss>
     <setenv></setenv>
   </x86>
-  <x64 use_libpq="yes" use_sspi="no" use_gss="yes">
-    <libpq>
+  <x64 use_libpq="yes" use_sspi="yes" use_gss="no">
+    <libpq version="">
       <include>default</include>
       <lib>default</lib>
       <bin>default</bin>
