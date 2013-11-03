@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 						  SQL_VARBINARY, /* param type */
 						  param1bytes,	/* column size */
 						  0,			/* dec digits */
-						  (VOID *) 1,	/* param value ptr. For a data-at-exec
+						  (void *) 1,	/* param value ptr. For a data-at-exec
 										 * param, this is a "parameter id" */
 						  0,			/* buffer len */
 						  &cbParam1		/* StrLen_or_IndPtr */);
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 						  SQL_VARBINARY, /* param type */
 						  param2bytes,	/* column size */
 						  0,			/* dec digits */
-						  (VOID *) 2,	/* param value ptr. For a data-at-exec
+						  (void *) 2,	/* param value ptr. For a data-at-exec
 										 * param, this is a "parameter id" */
 						  0,			/* buffer len */
 						  &cbParam2		/* StrLen_or_IndPtr */);
@@ -78,12 +78,12 @@ int main(int argc, char **argv)
 	paramid = 0;
 	while ((rc = SQLParamData(hstmt, &paramid)) == SQL_NEED_DATA)
 	{
-	  if (paramid == (VOID *) 1)
+	  if (paramid == (void *) 1)
 	  {
 		  rc = SQLPutData(hstmt, param1, param1bytes);
 		  CHECK_STMT_RESULT(rc, "SQLPutData failed", hstmt);
 	  }
-	  else if (paramid == (VOID *) 2)
+	  else if (paramid == (void *) 2)
 	  {
 		  rc = SQLPutData(hstmt, param2, param2bytes);
 		  CHECK_STMT_RESULT(rc, "SQLPutData failed", hstmt);
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 						  SQL_VARBINARY, /* param type */
 						  5,			/* column size */
 						  0,			/* dec digits */
-						  (VOID *) 1,	/* param value ptr. For a data-at-exec
+						  (void *) 1,	/* param value ptr. For a data-at-exec
 										 * param, this is "parameter id" */
 						  0,			/* buffer len */
 						  str_ind_array	/* StrLen_or_IndPtr */);
