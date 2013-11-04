@@ -2,8 +2,8 @@
 . ".\winbuild\configuration.ps1"
 $configInfo = GetConfiguration
 $x86info = $configInfo.Configuration.x86
-if ($x86info.setenv -ne "") {
-	$envcmd = [String] $x86info.setenv
+if ($x86info.setvcvars -ne "") {
+	$envcmd = [String] $x86info.setvcvars
 	if ($envcmd.StartsWith(". ")) {
 		. $envcmd.substring(2)
 	} else {

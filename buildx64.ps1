@@ -2,9 +2,9 @@
 . ".\winbuild\configuration.ps1"
 $configInfo = GetConfiguration
 $x64info = $configInfo.Configuration.x64
-Write-Host "setenv :" $x64info.setenv
-if ($x64info.setenv -ne "") {
-	$envcmd = [String] $x64info.setenv
+Write-Host "setvcvars :" $x64info.setvcvars
+if ($x64info.setvcvars -ne "") {
+	$envcmd = [String] $x64info.setvcvars
 	if ($envcmd.StartsWith(". ")) {
 		. $envcmd.substring(2)
 	} else {
@@ -42,7 +42,7 @@ if ($USE_LIBPQ -eq "yes")
 
 Write-Host "USE LIBPQ  : $USE_LIBPQ ($PG_INC $PG_LIB)"
 Write-Host "USE GSS    : $USE_GSS ($GSS_INC $GSS_LIB)"
-Write-Host "USE_SSPI   : $USE_SSPI"
+Write-Host "USE SSPI   : $USE_SSPI"
 Write-Host "SSL DIR    : ($SSL_INC $SSL_LIB)"
 
 $MACROS = "USE_LIBPQ=$USE_LIBPQ USE_SSPI=$USE_SSPI USE_GSS=$USE_GSS PG_LIB=`"$PG_LIB`" PG_INC=`"$PG_INC`" SSL_LIB=`"$SSL_LIB`" SSL_INC=`"$SSL_INC`"GSS_LIB=`"$GSS_LIB`" GSS_INC=`"$GSS_INC`" $args"

@@ -15,7 +15,7 @@
       <lib></lib>
       <bin></bin>
     </gss>
-    <setenv></setenv>
+    <setvcvars></setvcvars>
   </x86>
   <x64 use_libpq="yes" use_sspi="yes" use_gss="no">
     <libpq version="">
@@ -32,6 +32,6 @@
       <lib></lib>
       <bin></bin>
     </gss>
-    <setenv></setenv>
+    <setvcvars></setvcvars>
   </x64>
 </Configuration>
