@@ -51,23 +51,23 @@ ADD_DEFINES=/D _WIN64
 #	Please set PG_INC, PG_LIB, SSL_INC or PG_LIB
 #	variables to appropriate ones. 
 #
-!IF "$(PG_INC)" == ""
+!IFNDEF PG_INC
 PG_INC=$(PROGRAMFILES)\PostgreSQL\9.2\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF
 
-!IF "$(PG_LIB)" == ""
+!IFNDEF PG_LIB
 PG_LIB=C:\develop\lib\$(CPU)
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
 !IF "$(USE_LIBPQ)" != "no"
-!IF "$(SSL_INC)" == ""
+!IFNDEF SSL_INC
 SSL_INC=C:\OpenSSL\include
 !MESSAGE Using default OpenSSL Include directory: $(SSL_INC)
 !ENDIF
 
-!IF "$(SSL_LIB)" == ""
+!IFNDEF SSL_LIB
 SSL_LIB=C:\develop\lib\$(CPU)
 !MESSAGE Using default OpenSSL Library directory: $(SSL_LIB)
 !ENDIF
