@@ -15,37 +15,23 @@ AM_MAINTAINER_MODE
 # Whether unixODBC driver manager is used
 #
 AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of unixODBC (default)],
-[
-	if test "$withval" = no; then
-		with_unixodbc=no
-	else
-		with_unixodbc=yes
-	fi
-	],
-[with_unixodbc=yes])
+[], [with_unixodbc=yes])
 
 
 #
 # Whether iODBC driver manager is used
 #
 AC_ARG_WITH(iodbc, [  --with-iodbc=DIR	  iodbc_config installation of iODBC],
-[
-	if test "$withval" = no; then
-		with_iodbc=no
-	else
-		with_iodbc=yes
-	fi
-	],
-[with_iodbc=no])
+[], [with_iodbc=no])
 
 
-if test "$with_iodbc" = yes; then
+if test "$with_iodbc" != no; then
 	with_unixodbc=no
 	AC_DEFINE(WITH_IODBC, 1, [Define to 1 to build with iODBC support])
-	if test "$withval" = yes; then
+	if test "$with_iodbc" = yes; then
 		AC_PATH_PROGS(ODBC_CONFIG, iodbc-config)
 	else
-		ODBC_CONFIG=$withval
+		ODBC_CONFIG=$with_iodbc
 	fi
 	if test ! -f "${ODBC_CONFIG}/bin/iodbc-config"; then
 		if test ! -f "${ODBC_CONFIG}"; then
@@ -56,13 +42,13 @@ if test "$with_iodbc" = yes; then
 	fi
 fi
 
-if test "$with_unixodbc" = yes; then
+if test "$with_unixodbc" != no; then
   	AC_DEFINE(WITH_UNIXODBC, 1,
             [Define to 1 to build with unixODBC support])
-	if test "$withval" = yes; then
+	if test "$with_unixodbc" = yes; then
 		AC_PATH_PROGS(ODBC_CONFIG, odbc_config)
 	else
-		ODBC_CONFIG=$withval
+		ODBC_CONFIG=$with_unixodbc
 	fi
 	if test ! -f "${ODBC_CONFIG}/bin/odbc_config"; then
 		if test ! -f "${ODBC_CONFIG}"; then
@@ -78,7 +64,7 @@ fi
 #
 
 if test "$ODBC_CONFIG" != ""; then
-	if test "$with_iodbc" = yes; then
+	if test "$with_iodbc" != no; then
 		ODBC_INCLUDE=`${ODBC_CONFIG} --cflags`
 		CPPFLAGS="$CPPFLAGS ${ODBC_INCLUDE}"
 		ODBC_LIBS=`${ODBC_CONFIG} --libs`
@@ -113,28 +99,27 @@ AC_ARG_WITH(libpq, [  --with-libpq[[=DIR]]	  [[default=yes]] DIR is the PostgreS
 			  directory or the path to pg_config
   --without-libpq	  specify when PostgreSQL package isn't installed],
 [
-	if test "$withval" = no; then
+	if test "$with_libpq" = no; then
   		AC_DEFINE(NOT_USE_LIBPQ, 1, 
 			 [Define to 1 to build without libpq])
 		enable_openssl=no
 	else
-		if test "$withval" != yes; then
-			if test -d "$withval"; then
-    				PATH="$PATH:$withval/bin"
-				CPPFLAGS="$CPPFLAGS -I$withval/include"
-    				LDFLAGS="$LDFLAGS -L$withval/lib"
+		if test "$with_libpq" != yes; then
+			if test -d "$with_libpq"; then
+    				PATH="$PATH:$with_libpq/bin"
+				CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
+    				LDFLAGS="$LDFLAGS -L$with_libpq/lib"
 			else
-				if test -x "$withval"; then
-					PG_CONFIG=$withval
+				if test -x "$with_libpq"; then
+					PG_CONFIG=$with_libpq
 				else
 					AC_MSG_ERROR([specified pg_config not found])
 				fi
 			fi
 		fi
-		with_libpq=yes
 	fi
 	],
-[with_libpq=yes]) 
+[with_libpq=yes])
 
 
 #
@@ -209,7 +194,7 @@ PGAC_ARG_BOOL(enable, pthreads, yes,
 # Find libpq headers and libraries
 #
 
-if test "$with_libpq" = yes; then
+if test "$with_libpq" != no; then
   if test -z "$PG_CONFIG"; then
   	AC_PATH_PROGS(PG_CONFIG, pg_config)
   fi
@@ -237,12 +222,12 @@ AC_DISABLE_STATIC
 AC_LIBTOOL_DLOPEN
 AC_PROG_LIBTOOL
 
-if test "$with_unixodbc" = yes; then
+if test "$with_unixodbc" != no; then
   AC_SEARCH_LIBS(SQLGetPrivateProfileString, odbcinst, [],
                  [AC_MSG_ERROR([unixODBC library "odbcinst" not found])])
 fi
 
-if test "$with_iodbc" = yes; then
+if test "$with_iodbc" != no; then
   AC_SEARCH_LIBS(SQLGetPrivateProfileString, iodbcinst, [],
                  [AC_MSG_ERROR([iODBC library "iodbcinst" not found])])
 fi
@@ -253,7 +238,7 @@ if test "$enable_pthreads" = yes; then
 	       [AC_CHECK_LIB(pthread, pthread_create)])
 fi
 
-if test "$with_libpq" = yes; then
+if test "$with_libpq" != no; then
   AC_CHECK_LIB(pq, PQconnectdb, [],
 	      [AC_MSG_ERROR([libpq library not found])])
 fi
@@ -274,7 +259,7 @@ fi
 # 3. Header files
 
 AC_CHECK_HEADERS(locale.h sys/un.h sys/time.h)
-if test "$with_libpq" = yes; then
+if test "$with_libpq" != no; then
   AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
 fi
 if test "$enable_openssl" = yes; then
