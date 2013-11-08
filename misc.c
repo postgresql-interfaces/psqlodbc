@@ -159,7 +159,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(ccs)) > 0)))
 	{
 		int	i;
-		const char *ptr;
+		const UCHAR *ptr;
 		encoded_str encstr;
 
 		make_encoded_str(&encstr, conn, ccs);

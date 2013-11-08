@@ -189,7 +189,7 @@ typedef	unsigned long long ULONG_PTR;
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
-#define	FORMAT_UINTEGER	"%u"	/* SQLUINTEGER */
+#define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
 #endif /* SIZEOF_VOID_P */
 #endif /* WIN32 */
 #define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))

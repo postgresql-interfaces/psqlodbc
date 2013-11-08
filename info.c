@@ -1722,7 +1722,7 @@ retry_public_schema:
 		i = 0;
 		while (table_type[i])
 		{
-			char *typestr = table_type[i];
+			UCHAR *typestr = (UCHAR *) table_type[i];
 
 			while (isspace(*typestr))
 				typestr++;
@@ -5017,7 +5017,7 @@ PGAPI_ProcedureColumns(
 	TupleField	*tuple;
 	char		*schema_name, *procname;
 	char		*escSchemaName = NULL, *escProcName = NULL;
-	char		*params, *proargnames, *proargmodes, *delim = NULL;
+	UCHAR		*params, *proargnames, *proargmodes, *delim = NULL;
 	char		*atttypid, *attname, *column_name;
 	QResultClass *res, *tres;
 	SQLLEN		tcount;

@@ -1198,7 +1198,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					int i;
 
 					for (i = 0; i < len; i++)
-						rgbValueBindRow[i] = toupper(neut_str[i]);
+						rgbValueBindRow[i] = toupper((UCHAR) neut_str[i]);
 					rgbValueBindRow[i] = '\0';
 					mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				}
@@ -1282,7 +1282,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0);
 						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
 						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1);
-						len = wstrtomsg(NULL, (LPCWSTR) allocbuf, (int) wstrlen, NULL, 0);
+						len = wstrtomsg(NULL, (const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
 						changed = TRUE;
 					}
 					else
@@ -1600,7 +1600,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			SQL_NUMERIC_STRUCT      *ns;
 			int	i, nlen, bit, hval, tv, dig, sta, olen;
 			char	calv[SQL_MAX_NUMERIC_LEN * 3];
-			const char *wv;
+			const UCHAR *wv;
 			BOOL	dot_exist;
 
 			len = sizeof(SQL_NUMERIC_STRUCT);
@@ -1931,7 +1931,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 #define	FLGP_MULTIPLE_STATEMENT	(1L << 5)
 #define	FLGP_SELECT_FOR_READONLY	(1L << 6)
 typedef struct _QueryParse {
-	const char	*statement;
+	const UCHAR	*statement;
 	int		statement_type;
 	size_t		opos;
 	Int4		from_pos;	/* PG comm length restriction */
@@ -1984,7 +1984,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_LITERAL_EXTENSION	(1L << 10)
 #define	FLGB_HEX_BIN_FORMAT	(1L << 11)
 typedef struct _QueryBuild {
-	char	*query_statement;
+	UCHAR	*query_statement;
 	size_t	str_size_limit;
 	size_t	str_alsize;
 	size_t	npos;
@@ -2881,7 +2881,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	QueryParse	query_org, *qp;
 	QueryBuild	query_crt, *qb;
 
-	char	   *new_statement;
+	UCHAR		*new_statement;
 
 	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE, bPrepConv;
 	ConnectionClass *conn = SC_get_conn(stmt);
@@ -3068,7 +3068,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		 PG_VERSION_GE(conn, 8.3))
 	{
 		BOOL	semi_colon_found = FALSE;
-		const char *ptr = NULL, semi_colon = ';';
+		const UCHAR *ptr = NULL, semi_colon = ';';
 		int	npos;
 
 		if (npos = F_NewPos(qb) - 1, npos >= 0)
@@ -3195,12 +3195,12 @@ Int4 findTag(const char *tag, char dollar_quote, int ccsc)
 }
 
 static
-Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
+Int4 findIdentifier(const UCHAR *str, int ccsc, const UCHAR **nextdel)
 {
 	Int4	strlen = 0;
 	encoded_str	encstr;
 	unsigned char	tchar;
-	const char	*sptr;
+	const UCHAR	*sptr;
 	BOOL	dquote = FALSE;
 
 	*nextdel = NULL;
@@ -3261,7 +3261,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 	{
 		for (; *sptr; sptr++)
 		{
-			if (!isspace(*sptr))
+			if (!isspace((UCHAR) *sptr))
 			{
 				*nextdel = sptr;
 				break;
@@ -3543,7 +3543,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qb->dollar_number = 0;
 			if (0 != (qp->flags & FLGP_USING_CURSOR))
 			{
-				const char *vp = &(qp->statement[qp->opos + 1]);
+				const UCHAR *vp = &(qp->statement[qp->opos + 1]);
 
 				while (*vp && isspace(*vp))
 					vp++;
@@ -4427,7 +4427,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 		{
 			SQLGUID *g = (SQLGUID *) buffer;
 			snprintf (param_string, sizeof(param_string),
-				"%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+				"%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 				g->Data1,
 				g->Data2, g->Data3,
 				g->Data4[0], g->Data4[1], g->Data4[2], g->Data4[3],
@@ -5012,7 +5012,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	if (stricmp(key, "call") == 0)
 	{
 		Int4 funclen;
-		const char *nextdel;
+		const UCHAR *nextdel;
 
 		if (SQL_ERROR == QB_start_brace(qb))
 		{
@@ -5158,7 +5158,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			if (2 == param_count)
 			{
 				BOOL add_cast = FALSE, add_quote = FALSE;
-				const char *pptr;
+				const UCHAR *pptr;
 
 				from = param_pos[0][0];
 				to = param_pos[0][1];
@@ -5223,7 +5223,7 @@ mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 		}
 		else
 		{
-			const char *mapptr;
+			const UCHAR *mapptr;
 			SQLLEN	paramlen;
 			int	pidx;
 

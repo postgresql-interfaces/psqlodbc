@@ -967,7 +967,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		}
 		if (!multi && del_found)
 		{
-			if (!isspace(tchar))
+			if (!isspace((UCHAR) tchar))
 			{
 				multi = TRUE;
 				if (next_cmd)
@@ -1082,7 +1082,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 					comment_level++;
 				}
 			}
-			if (!isspace(tchar))
+			if (!isspace((UCHAR) tchar))
 				bchar = tchar;
 		}
 	}
