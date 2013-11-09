@@ -14,14 +14,16 @@ AM_MAINTAINER_MODE
 #
 # Whether unixODBC driver manager is used
 #
-AC_ARG_WITH(unixodbc, [  --with-unixodbc=DIR     odbc_config installation of unixODBC (default)],
+AC_ARG_WITH(unixodbc, [  --with-unixodbc[[=DIR]]	  [[default=yes]] DIR is the unixODBC base install
+			  directory or the path to odbc_config],
 [], [with_unixodbc=yes])
 
 
 #
 # Whether iODBC driver manager is used
 #
-AC_ARG_WITH(iodbc, [  --with-iodbc=DIR	  iodbc_config installation of iODBC],
+AC_ARG_WITH(iodbc, [  --with-iodbc[[=DIR]]	  [[default=no]] DIR is the iODBC base install
+			  directory or the path to iodbc-config],
 [], [with_iodbc=no])
 
 
