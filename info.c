@@ -4485,6 +4485,7 @@ PGAPI_ForeignKeys_old(
 				}
 				if (pkey_alloced)
 					free(pkey_text);
+				pkey_alloced = FALSE;
 				/* Get to next primary key */
 				for (k = 0; k < 2; k++)
 					pkey_ptr += strlen(pkey_ptr) + 1;
