@@ -43,7 +43,8 @@ int main(int argc, char **argv)
 		"123::integer as integercol,\n"
 		"'10 years'::interval AS intervalyears,\n"
 		"'11 months'::interval AS intervalmonths,\n"
-		"'12 days'::interval AS intervaldays\n";
+		"'12 days'::interval AS intervaldays,\n"
+		"'1 ' || repeat('evil_long_string',100) || ' 2 still_evil'::text AS evil_interval\n";
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 
@@ -71,6 +72,10 @@ int main(int argc, char **argv)
 	rc = SQLGetData(hstmt, 5, SQL_C_INTERVAL_DAY, &intervalval, sizeof(intervalval), NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
 	printf("intervaldays: %ld\n", intervalval.intval.day_second.day);
+
+	rc = SQLGetData(hstmt, 6, SQL_C_INTERVAL_DAY, &intervalval, sizeof(intervalval), NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
+	printf("bogus long string as interval: %ld\n", intervalval.intval.day_second.day);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);

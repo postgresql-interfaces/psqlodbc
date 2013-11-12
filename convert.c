@@ -238,7 +238,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	st->infinity = 0;
 	rest[0] = '\0';
 	bc[0] = '\0';
-	if ((scnt = sscanf(str, "%4d-%2d-%2d %2d:%2d:%2d%32s %16s", &st->y, &st->m, &st->d, &st->hh, &st->mm, &st->ss, rest, bc)) < 6)
+	if ((scnt = sscanf(str, "%4d-%2d-%2d %2d:%2d:%2d%31s %15s", &st->y, &st->m, &st->d, &st->hh, &st->mm, &st->ss, rest, bc)) < 6)
 		return FALSE;
 	else if (scnt == 6)
 		return TRUE;
@@ -514,7 +514,7 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 			st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
 		return TRUE;
 	}
-	else if ((scnt = sscanf(str, "%d %s %d %s", &years, lit1, &mons, lit2)) >=4)
+	else if ((scnt = sscanf(str, "%d %10s %d %10s", &years, lit1, &mons, lit2)) >=4)
 	{
 		if (strnicmp(lit1, "year", 4) == 0 &&
 		    strnicmp(lit2, "mon", 2) == 0 &&
@@ -530,7 +530,7 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		}
 		return FALSE;
 	}
-	if ((scnt = sscanf(str, "%d %s %d", &years, lit1, &days)) == 2)
+	if ((scnt = sscanf(str, "%d %10s %d", &years, lit1, &days)) == 2)
 	{
 		sign = years < 0 ? SQL_TRUE : SQL_FALSE;
 		if (SQL_IS_YEAR == itype &&
@@ -567,7 +567,7 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		/* these formats should've been handled above already */
 		return FALSE;
 	}
-	scnt = sscanf(str, "%d %s %02d:%02d:%02d.%09s", &days, lit1, &hours, &minutes, &seconds, lit2);
+	scnt = sscanf(str, "%d %10s %02d:%02d:%02d.%09s", &days, lit1, &hours, &minutes, &seconds, lit2);
 	if (strnicmp(lit1, "day", 3) != 0)
 		return FALSE;
 	sign = days < 0 ? SQL_TRUE : SQL_FALSE;
