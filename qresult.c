@@ -476,7 +476,7 @@ QR_free_memory(QResultClass *self)
 		{
 			char	plannm[32];
 
-			sprintf(plannm, "_KEYSET_%p", self);
+			snprintf(plannm, sizeof(plannm), "_KEYSET_%p", self);
 			if (CC_is_in_error_trans(conn))
 			{
 				CC_mark_a_object_to_discard(conn, 's',plannm);
@@ -486,7 +486,7 @@ QR_free_memory(QResultClass *self)
 				QResultClass	*res;
 				char		cmd[64];
 
-				sprintf(cmd, "DEALLOCATE \"%s\"", plannm);
+				snprintf(cmd, sizeof(cmd), "DEALLOCATE \"%s\"", plannm);
 				res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 				QR_Destructor(res);
 			}
@@ -944,13 +944,19 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 			else
 				self->cache_size = req_size;
 inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
-			sprintf(movecmd, "move backward " FORMAT_ULEN " in \"%s\"", movement, QR_get_cursor(self));
+			snprintf(movecmd, sizeof(movecmd),
+					 "move backward " FORMAT_ULEN " in \"%s\"",
+					 movement, QR_get_cursor(self));
 		}
 		else if (QR_is_moving_forward(self))
-			sprintf(movecmd, "move " FORMAT_ULEN " in \"%s\"", movement, QR_get_cursor(self));
+			snprintf(movecmd, sizeof(movecmd),
+					 "move " FORMAT_ULEN " in \"%s\"",
+					 movement, QR_get_cursor(self));
 		else
 		{
-			sprintf(movecmd, "move all in \"%s\"", QR_get_cursor(self));
+			snprintf(movecmd, sizeof(movecmd),
+					 "move all in \"%s\"",
+					 QR_get_cursor(self));
 			movement = INT_MAX;
 		}
 		mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
@@ -1002,7 +1008,9 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 					if (back_offset + 1 > (Int4) self->ad_count)
 					{
 						bmovement = back_offset + 1 - self->ad_count;
-						sprintf(movecmd, "move backward " FORMAT_ULEN " in \"%s\"", bmovement, QR_get_cursor(self));
+						snprintf(movecmd, sizeof(movecmd),
+								 "move backward " FORMAT_ULEN " in \"%s\"",
+								 bmovement, QR_get_cursor(self));
 						QR_Destructor(mres);
 						mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
 						if (!QR_command_maybe_successful(mres))
@@ -1188,7 +1196,9 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 		else
 		{
 			QResultClass	*res;
-			sprintf(fetch, "fetch %d in \"%s\"", fetch_size, QR_get_cursor(self));
+			snprintf(fetch, sizeof(fetch),
+					 "fetch %d in \"%s\"",
+					 fetch_size, QR_get_cursor(self));
 
 			mylog("%s: sending actual fetch (%d) query '%s'\n", func, fetch_size, fetch);
 
