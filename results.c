@@ -2094,12 +2094,10 @@ static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
 	QResultClass	*res;
 	RETCODE		ret = FALSE;
 
-	if (NAME_IS_VALID(ti->schema_name))
-		snprintf(selstr, sizeof(selstr), "select 1 from \"%s\".\"%s\" where ctid = '(%d,%d)'",
-			SAFE_NAME(ti->schema_name), SAFE_NAME(ti->table_name), keyset->blocknum, keyset->offset);
-	else
-		snprintf(selstr, sizeof(selstr), "select 1 from \"%s\" where ctid = '(%d,%d)'",
-			SAFE_NAME(ti->table_name), keyset->blocknum, keyset->offset);
+	snprintf(selstr, sizeof(selstr),
+			 "select 1 from %s where ctid = '(%d,%d)'",
+			 quote_table(ti->schema_name, ti->table_name),
+			 keyset->blocknum, keyset->offset);
 	res = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, NULL);
 	if (QR_command_maybe_successful(res) && 1 == res->num_cached_rows)
 		ret = TRUE;
@@ -2827,7 +2825,8 @@ inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 				{
 					char	tidval[32];
 
-					sprintf(tidval, "(%d,%d)", wkey->blocknum, wkey->offset);
+					snprintf(tidval, sizeof(tidval),
+							 "(%d,%d)", wkey->blocknum, wkey->offset);
 					qres = positioned_load(stmt, 0, NULL, tidval);
 					if (QR_command_maybe_successful(qres) &&
 					    QR_get_num_cached_tuples(qres) == 1)
@@ -2892,7 +2891,7 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	{
 		/*snprintf(oideqstr, sizeof(oideqstr), " and \"%s\" = %u", bestitem, oid);*/
 		strcpy(oideqstr, andqual);
-		sprintf(oideqstr + strlen(andqual), bestqual, *oidint);
+		snprintf_add(oideqstr, sizeof(oideqstr), bestqual, *oidint);
 	}
 	len = strlen(stmt->load_statement);
 	len += strlen(oideqstr);
@@ -2907,12 +2906,11 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	{
 		if (latest)
 		{
-			if (NAME_IS_VALID(ti->schema_name))
-				snprintf(selstr, len, "%s where ctid = currtid2('\"%s\".\"%s\"', '%s') %s",
-				stmt->load_statement, SAFE_NAME(ti->schema_name),
-				SAFE_NAME(ti->table_name), tidval, oideqstr);
-			else
-				snprintf(selstr, len, "%s where ctid = currtid2('%s', '%s') %s", stmt->load_statement, SAFE_NAME(ti->table_name), tidval, oideqstr);
+			snprintf(selstr, len,
+					 "%s where ctid = currtid2('%s', '%s') %s",
+					 stmt->load_statement,
+					 quote_table(ti->schema_name, ti->table_name),
+					 tidval, oideqstr);
 		}
 		else 
 			snprintf(selstr, len, "%s where ctid = '%s' %s", stmt->load_statement, tidval, oideqstr); 
@@ -3003,7 +3001,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 		}
 	}
 	getTid(res, kres_ridx, &blocknum, &offset);
-	sprintf(tidval, "(%u, %u)", blocknum, offset);
+	snprintf(tidval, sizeof(tidval), "(%u, %u)", blocknum, offset);
 	res_cols = getNumResultCols(res);
 	if (tid)
 		qres = positioned_load(stmt, 0, &oidint, tid);
@@ -3644,10 +3642,10 @@ SC_pos_update(StatementClass *stmt,
 	getTid(s.res, kres_ridx, &blocknum, &pgoffset);
 
 	ti = s.stmt->ti[0];
-	if (NAME_IS_VALID(ti->schema_name))
-		sprintf(updstr, "update \"%s\".\"%s\" set", SAFE_NAME(ti->schema_name), SAFE_NAME(ti->table_name));
-	else
-		sprintf(updstr, "update \"%s\" set", SAFE_NAME(ti->table_name));
+
+	snprintf(updstr, sizeof(updstr),
+			 "update %s set", quote_table(ti->schema_name, ti->table_name));
+
 	num_cols = s.irdflds->nfields;
 	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 	for (i = upd_cols = 0; i < num_cols; i++)
@@ -3663,9 +3661,11 @@ SC_pos_update(StatementClass *stmt,
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
 				if (upd_cols)
-					sprintf(updstr, "%s, \"%s\" = ?", updstr, GET_NAME(fi[i]->column_name));
+					snprintf_add(updstr, sizeof(updstr),
+								 ", \"%s\" = ?", GET_NAME(fi[i]->column_name));
 				else
-					sprintf(updstr, "%s \"%s\" = ?", updstr, GET_NAME(fi[i]->column_name));
+					snprintf_add(updstr, sizeof(updstr),
+								 " \"%s\" = ?", GET_NAME(fi[i]->column_name));
 				upd_cols++;
 			}
 		}
@@ -3685,16 +3685,17 @@ SC_pos_update(StatementClass *stmt,
 		const char *bestitem = GET_NAME(ti->bestitem);
 		const char *bestqual = GET_NAME(ti->bestqual);
 
-		sprintf(updstr, "%s where ctid = '(%u, %u)'", updstr,
-				blocknum, pgoffset);
+		snprintf_add(updstr, sizeof(updstr),
+					 " where ctid = '(%u, %u)'",
+					 blocknum, pgoffset);
 		if (bestitem)
 		{
 			/*sprintf(updstr, "%s and \"%s\" = %u", updstr, bestitem, oid);*/
-			strcat(updstr, " and ");
-			sprintf(updstr + strlen(updstr), bestqual, oid);
+			snprintf_add(updstr, sizeof(updstr), " and ");
+			snprintf_add(updstr, sizeof(updstr), bestqual, oid);
 		}
 		if (PG_VERSION_GE(conn, 8.2))
-			strcat(updstr, " returning ctid");
+			snprintf_add(updstr, sizeof(updstr), " returning ctid");
 		mylog("updstr=%s\n", updstr);
 		if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 		{
@@ -3810,17 +3811,14 @@ SC_pos_delete(StatementClass *stmt,
 	bestqual = GET_NAME(ti->bestqual);
 	getTid(res, kres_ridx, &blocknum, &offset);
 	/*sprintf(dltstr, "delete from \"%s\" where ctid = '%s' and oid = %s",*/
-	if (NAME_IS_VALID(ti->schema_name))
-		sprintf(dltstr, "delete from \"%s\".\"%s\" where ctid = '(%u, %u)'",
-		SAFE_NAME(ti->schema_name), SAFE_NAME(ti->table_name), blocknum, offset);
-	else
-		sprintf(dltstr, "delete from \"%s\" where ctid = '(%u, %u)'",
-			SAFE_NAME(ti->table_name), blocknum, offset);
+	snprintf(dltstr, sizeof(dltstr),
+			 "delete from %s where ctid = '(%u, %u)'",
+			 quote_table(ti->schema_name, ti->table_name), blocknum, offset);
 	if (bestitem)
 	{
 		/*sprintf(dltstr, "%s and \"%s\" = %u", dltstr, bestitem, oid);*/
-		strcat(dltstr, " and ");
-		sprintf(dltstr + strlen(dltstr), bestqual, oid);
+		snprintf_add(dltstr, sizeof(dltstr), " and ");
+		snprintf_add(dltstr, sizeof(dltstr), bestqual, oid);
 	}
 
 	mylog("dltstr=%s\n", dltstr);
@@ -4085,10 +4083,10 @@ SC_pos_add(StatementClass *stmt,
 	s.irdflds = SC_get_IRDF(s.stmt);
 	num_cols = s.irdflds->nfields;
 	conn = SC_get_conn(s.stmt);
-	if (NAME_IS_VALID(s.stmt->ti[0]->schema_name))
-		sprintf(addstr, "insert into \"%s\".\"%s\" (", SAFE_NAME(s.stmt->ti[0]->schema_name), SAFE_NAME(s.stmt->ti[0]->table_name));
-	else
-		sprintf(addstr, "insert into \"%s\" (", SAFE_NAME(s.stmt->ti[0]->table_name));
+
+	snprintf(addstr, sizeof(addstr),
+			 "insert into %s (",
+			 quote_table(s.stmt->ti[0]->schema_name, s.stmt->ti[0]->table_name));
 	if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 	{
 		SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
@@ -4121,9 +4119,11 @@ SC_pos_add(StatementClass *stmt,
 				/* fieldtype = QR_get_field_type(s.res, i); */
 				fieldtype = getEffectiveOid(conn, fi[i]);
 				if (add_cols)
-					sprintf(addstr, "%s, \"%s\"", addstr, GET_NAME(fi[i]->column_name));
+					snprintf_add(addstr, sizeof(addstr),
+								 ", \"%s\"", GET_NAME(fi[i]->column_name));
 				else
-					sprintf(addstr, "%s\"%s\"", addstr, GET_NAME(fi[i]->column_name));
+					snprintf_add(addstr, sizeof(addstr),
+								 "\"%s\"", GET_NAME(fi[i]->column_name));
 				PIC_set_pgtype(ipdopts->parameters[add_cols], fieldtype);
 				PGAPI_BindParameter(hstmt,
 					(SQLUSMALLINT) ++add_cols,
@@ -4145,17 +4145,17 @@ SC_pos_add(StatementClass *stmt,
 	ENTER_INNER_CONN_CS(conn, func_cs_count); 
 	if (add_cols > 0)
 	{
-		sprintf(addstr, "%s) values (", addstr);
+		snprintf_add(addstr, sizeof(addstr), ") values (");
 		for (i = 0; i < add_cols; i++)
 		{
 			if (i)
-				strcat(addstr, ", ?");
+				snprintf_add(addstr, sizeof(addstr), ", ?");
 			else
-				strcat(addstr, "?");
+				snprintf_add(addstr, sizeof(addstr), "?");
 		}
-		strcat(addstr, ")");
+		snprintf_add(addstr, sizeof(addstr), ")");
 		if (PG_VERSION_GE(conn, 8.2))
-			strcat(addstr, " returning ctid");
+			snprintf_add(addstr, sizeof(addstr), " returning ctid");
 		mylog("addstr=%s\n", addstr);
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;

@@ -36,6 +36,8 @@ char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
 int	   snprintf_add(char *buf, size_t size, const char *format, ...);
 size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
+char *quote_table(const pgNAME schema, pgNAME table);
+
 #define	GET_SCHEMA_NAME(nspname) 	(nspname)
 
 /* defines for return value of my_strcpy */
