@@ -3734,56 +3734,63 @@ CC_send_settings(ConnectionClass *self)
 	if (NAME_IS_VALID(ci->drivers.conn_settings))
 	{
 		cs = strdup(GET_NAME(ci->drivers.conn_settings));
-#ifdef	HAVE_STRTOK_R
-		ptr = strtok_r(cs, semi_colon, &last);
-#else
-		ptr = strtok(cs, semi_colon);
-#endif /* HAVE_STRTOK_R */
-		while (ptr)
+		if (cs)
 		{
-			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
-			if (!SQL_SUCCEEDED(result))
-				status = FALSE;
+#ifdef	HAVE_STRTOK_R
+			ptr = strtok_r(cs, semi_colon, &last);
+#else
+			ptr = strtok(cs, semi_colon);
+#endif /* HAVE_STRTOK_R */
+			while (ptr)
+			{
+				result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
+				if (!SQL_SUCCEEDED(result))
+					status = FALSE;
 
-			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
+				mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(NULL, semi_colon, &last);
+				ptr = strtok_r(NULL, semi_colon, &last);
 #else
-			ptr = strtok(NULL, semi_colon);
+				ptr = strtok(NULL, semi_colon);
 #endif /* HAVE_STRTOK_R */
+			}
+			free(cs);
 		}
-
-		free(cs);
+		else
+			status = FALSE;
 	}
 
 	/* Per Datasource settings */
 	if (NAME_IS_VALID(ci->conn_settings))
 	{
 		cs = strdup(GET_NAME(ci->conn_settings));
-#ifdef	HAVE_STRTOK_R
-		ptr = strtok_r(cs, semi_colon, &last);
-#else
-		ptr = strtok(cs, semi_colon);
-#endif /* HAVE_STRTOK_R */
-		while (ptr)
+		if (cs)
 		{
-			result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
-			if (!SQL_SUCCEEDED(result))
-				status = FALSE;
+#ifdef	HAVE_STRTOK_R
+			ptr = strtok_r(cs, semi_colon, &last);
+#else
+			ptr = strtok(cs, semi_colon);
+#endif /* HAVE_STRTOK_R */
+			while (ptr)
+			{
+				result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
+				if (!SQL_SUCCEEDED(result))
+					status = FALSE;
 
-			mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
+				mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(NULL, semi_colon, &last);
+				ptr = strtok_r(NULL, semi_colon, &last);
 #else
-			ptr = strtok(NULL, semi_colon);
+				ptr = strtok(NULL, semi_colon);
 #endif /* HAVE_STRTOK_R */
+			}
+			free(cs);
 		}
-
-		free(cs);
+		else
+			status = FALSE;
 	}
-
 
 	PGAPI_FreeStmt(hstmt, SQL_DROP);
 
