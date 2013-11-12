@@ -1,0 +1,21 @@
+\! ./src/positioned-update-test
+connected
+Creating test table pos_update_test
+Opening a cursor for update, and fetching 10 rows
+1	1
+2	2
+3	3
+4	4
+5	5
+Updating result set
+Result set:
+1	1
+2	2
+3	3
+4	4
+105	5
+7	7
+8	8
+9	9
+10	10
+disconnecting
