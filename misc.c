@@ -200,7 +200,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
  *	This is heavily used in creating queries for info routines (SQLTables, SQLColumns).
  *	This routine could be modified to use vsprintf() to handle multiple arguments.
  */
-char *
+static char *
 my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
 {
 	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
@@ -267,7 +267,7 @@ my_trim(char *s)
  *	my_strcat1 is a extension of my_strcat.
  *	It can have 1 more parameter than my_strcat.
  */
-char *
+static char *
 my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len)
 {
 	ssize_t	length = len;

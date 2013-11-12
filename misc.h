@@ -26,10 +26,8 @@ size_t		strlcat(char *, const char *, size_t);
 char	   *my_trim(char *string);
 char	   *make_string(const char *s, ssize_t len, char *buf, size_t bufsize);
 SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
-char	   *my_strcat(char *buf, const char *fmt, const char *s, ssize_t len);
 char	   *schema_strcat(char *buf, const char *fmt, const char *s, ssize_t len,
 		const char *, int, ConnectionClass *conn);
-char	   *my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len);
 char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
 				const char *s, ssize_t len,
 				const char *, int, ConnectionClass *conn);
