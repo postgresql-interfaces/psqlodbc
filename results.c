@@ -1989,7 +1989,7 @@ static void AddRollback(StatementClass *stmt, QResultClass *res, SQLLEN index, c
 
 	if (!CC_is_in_trans(conn))
 		return;
-inolog("AddRollback %d(%d,%d) %s\n", index, keyset->blocknum, keyset->offset, dmlcode == SQL_ADD ? "ADD" : (dmlcode == SQL_UPDATE ? "UPDATE" : (dmlcode == SQL_DELETE ? "DELETE" : "REFRESH")));
+inolog("AddRollback %d(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dmlcode == SQL_ADD ? "ADD" : (dmlcode == SQL_UPDATE ? "UPDATE" : (dmlcode == SQL_DELETE ? "DELETE" : "REFRESH")));
 	if (!res->rollback)
 	{
 		res->rb_count = 0;
@@ -2095,7 +2095,7 @@ static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
 	RETCODE		ret = FALSE;
 
 	snprintf(selstr, sizeof(selstr),
-			 "select 1 from %s where ctid = '(%d,%d)'",
+			 "select 1 from %s where ctid = '(%u,%u)'",
 			 quote_table(ti->schema_name, ti->table_name),
 			 keyset->blocknum, keyset->offset);
 	res = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, NULL);
@@ -2527,7 +2527,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeyS
 	SQLLEN	pidx, midx, mv_count;
 	int	i, num_fields = res->num_fields, rm_count = 0;
 
-	mylog("RemoveUpdatedAfterTheKey %d,(%d,%d)\n", index, keyset ? keyset->blocknum : 0, keyset ? keyset->offset : 0);
+	mylog("RemoveUpdatedAfterTheKey %d,(%u,%u)\n", index, keyset ? keyset->blocknum : 0, keyset ? keyset->offset : 0);
 	if (index < 0)
 	{
 		midx = index;
@@ -2826,7 +2826,7 @@ inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 					char	tidval[32];
 
 					snprintf(tidval, sizeof(tidval),
-							 "(%d,%d)", wkey->blocknum, wkey->offset);
+							 "(%u,%u)", wkey->blocknum, wkey->offset);
 					qres = positioned_load(stmt, 0, NULL, tidval);
 					if (QR_command_maybe_successful(qres) &&
 					    QR_get_num_cached_tuples(qres) == 1)
