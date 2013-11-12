@@ -1679,7 +1679,7 @@ retry_public_schema:
 #else
 	prefix[i] = strtok(prefixes, ";");
 #endif /* HAVE_STRTOK_R */
-	while (i < sizeof(prefix) && prefix[i])
+	while (i < sizeof(prefix) / sizeof(char *) && prefix[i])
 #ifdef	HAVE_STRTOK_R
 		prefix[++i] = strtok_r(NULL, ";", &last);
 #else
@@ -1713,7 +1713,7 @@ retry_public_schema:
 #else
 		table_type[i] = strtok(table_types, ",");
 #endif /* HAVE_STRTOK_R */
-		while (i < sizeof(table_type) && table_type[i])
+		while (i < sizeof(table_type) / sizeof(char *) && table_type[i])
 #ifdef	HAVE_STRTOK_R
 			table_type[++i] = strtok_r(NULL, ",", &last);
 #else
