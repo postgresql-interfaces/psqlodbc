@@ -69,15 +69,17 @@ if test "$ODBC_CONFIG" != ""; then
 	if test "$with_iodbc" != no; then
 		ODBC_INCLUDE=`${ODBC_CONFIG} --cflags`
 		CPPFLAGS="$CPPFLAGS ${ODBC_INCLUDE}"
-		ODBC_LIBS=`${ODBC_CONFIG} --libs`
-		LIBS="$LIBS ${ODBC_LIBS}"
+		# Linking libiodoc is rather problematic
+		[ODBC_LIBDIR=`${ODBC_CONFIG} --libs | sed -e "s/^\(-L\|.*[ \t]-L\)\([^ \n\r\f\t]*\).*$/-L\2/"`]
+		LDFLAGS="$LDFLAGS ${ODBC_LIBDIR}"
 	else
 		ODBC_INCLUDE=`${ODBC_CONFIG} --include-prefix`
 		CPPFLAGS="$CPPFLAGS -I${ODBC_INCLUDE}"
-		ODBC_LIBS=`${ODBC_CONFIG} --libs`
-		LIBS="$LIBS ${ODBC_LIBS}"
+		# Linking libodoc is rather problematic
+		ODBC_LIBDIR=`${ODBC_CONFIG} --lib-prefix`
+		LDFLAGS="$LDFLAGS -L${ODBC_LIBDIR}"
 	fi
-	AC_MSG_NOTICE([using $ODBC_INCLUDE $ODBC_LIBS])
+	AC_MSG_NOTICE([using $ODBC_INCLUDE $ODBC_LIBDIR])
 fi
 
 #
