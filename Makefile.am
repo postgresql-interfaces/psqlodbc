@@ -14,10 +14,6 @@ else
 lib_LTLIBRARIES = psqlodbca.la
 endif
 
-if GCC
-AM_CFLAGS = -Wall -Wno-pointer-sign
-endif
-
 AM_LDFLAGS = -module -no-undefined -avoid-version
 
 psqlodbca_la_SOURCES = \

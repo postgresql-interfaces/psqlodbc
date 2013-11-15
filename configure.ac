@@ -10,6 +10,34 @@ AM_MAINTAINER_MODE
 
 # 0. Options processing
 
+AC_PROG_CC
+
+AM_CONDITIONAL([GCC], [test -n "$GCC"])
+
+if test -n "$GCC" && test "$ac_test_CFLAGS" != set; then
+	CFLAGS_ADD=
+	CFLAGS_save="${CFLAGS}"
+
+	AC_MSG_CHECKING(-Wall is a valid compile option)
+	CFLAGS="${CFLAGS_save} -Wall"
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+		[[#include <stdio.h>]],
+		[])],
+		[AC_MSG_RESULT(yes)
+		 CFLAGS_ADD="${CFLAGS_ADD} -Wall"],
+		[AC_MSG_RESULT(no)])
+	CFLAGS=${CFLAGS_save}
+
+	AC_MSG_CHECKING(-Wno-pointer-sign is a valid compile option)
+	CFLAGS="${CFLAGS_save} -Wno-pointer-sign"
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+		[[#include <stdio.h>]],
+		[])],
+		[AC_MSG_RESULT(yes)
+		 CFLAGS_ADD="${CFLAGS_ADD} -Wno-pointer-sign"],
+		[AC_MSG_RESULT(no)])
+	CFLAGS="${CFLAGS_save} ${CFLAGS_ADD}"
+fi
 
 #
 # Whether unixODBC driver manager is used
@@ -215,9 +243,6 @@ fi
 
 # 1. Programs
 
-AC_PROG_CC
-
-AM_CONDITIONAL([GCC], [test -n "$GCC"])
 
 # 2. Libraries
 
