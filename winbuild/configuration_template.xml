@@ -16,6 +16,7 @@
       <bin></bin>
     </gss>
     <setvcvars></setvcvars>
+    <build_macros></build_macros>
   </x86>
   <x64 use_libpq="yes" use_sspi="yes" use_gss="no">
     <libpq version="">
@@ -33,5 +34,6 @@
       <bin></bin>
     </gss>
     <setvcvars></setvcvars>
+    <build_macros></build_macros>
   </x64>
 </Configuration>

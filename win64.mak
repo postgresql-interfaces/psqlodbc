@@ -44,6 +44,15 @@ CFG=Release
 !ERROR An invalid configuration was specified.
 !ENDIF 
 
+#
+#	Please replace the default options from the commandline if necessary 
+#
+!IFNDEF	CUSTOMCLOPT
+CUSTOMCLOPT=/nologo /MD /W3 /EHsc
+!ELSE
+!MESSAGE CL option $(CUSTOMCLOPT) specified
+!ENDIF 
+
 ADD_DEFINES=/D _WIN64
 #
 #	Include libraries as well as import libraries
@@ -52,7 +61,7 @@ ADD_DEFINES=/D _WIN64
 #	variables to appropriate ones. 
 #
 !IFNDEF PG_INC
-PG_INC=$(PROGRAMFILES)\PostgreSQL\9.2\include
+PG_INC=$(PROGRAMFILES)\PostgreSQL\9.3\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF
 
@@ -224,7 +233,7 @@ CLEAN :
 !ENDIF
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /EHsc $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD 
+CPP_PROJ=$(CUSTOMCLOPT) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD 
 !IF  "$(CFG)" == "Release"
 CPP_PROJ=$(CPP_PROJ) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
@@ -276,9 +285,11 @@ RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 !ENDIF
 BSC32_SBRS= \
 	
+#BUFOVFLIB=bufferoverflowu.lib
+BUFOVFLIB=
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib bufferoverflowu.lib /nologo /dll /machine:$(CPU) /def:"$(DEF_FILE)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib $(BUFOVFLIB) /nologo /dll /machine:$(CPU) /def:"$(DEF_FILE)"
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
@@ -354,12 +365,12 @@ LINK32_OBJS= \
 DTCDEF_FILE= "$(DTCLIB).def"
 LIB32_DTCLIBFLAGS=/nologo /machine:$(CPU) /def:"$(DTCDEF_FILE)"
 
-LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib bufferoverflowu.lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:$(CPU)
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib $(BUFOVFLIB) Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:$(CPU)
 LINK32_DTCOBJS= \
         "$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib bufferoverflowu.lib /nologo /dll /incremental:no /machine:$(CPU) /def:"$(XADEF_FILE)"
+LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib $(BUFOVFLIB) /nologo /dll /incremental:no /machine:$(CPU) /def:"$(XADEF_FILE)"
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj" 
 

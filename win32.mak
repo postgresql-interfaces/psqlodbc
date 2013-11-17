@@ -38,14 +38,22 @@ CFG=Release
 !ENDIF 
 
 #
+#	Please replace the default options from the commandline if necessary 
+#
+!IFNDEF	CUSTOMCLOPT
+CUSTOMCLOPT=/nologo /W3
+!ELSE
+!MESSAGE CL option $(CUSTOMCLOPT) specified
+!ENDIF
+
 #
 !IFNDEF PG_INC
-PG_INC=$(PROGRAMFILES)\PostgreSQL\9.2\include
+PG_INC=$(PROGRAMFILES)\PostgreSQL\9.3\include
 !MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
 !ENDIF
 
 !IFNDEF PG_LIB
-PG_LIB=$(PROGRAMFILES)\PostgreSQL\9.2\lib
+PG_LIB=$(PROGRAMFILES)\PostgreSQL\9.3\lib
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
@@ -215,11 +223,11 @@ $(INTDIR)\connection.obj $(INTDIR)\psqlodbc.res: version.h
 
 CPP=cl.exe
 !IF  "$(CFG)" == "Release"
-CPP_PROJ=/nologo /$(LINKMT) /O2 /D "NDEBUG"
+CPP_PROJ=/$(LINKMT) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
-CPP_PROJ=/nologo /$(LINKMT)d /Gm /ZI /Od /RTC1 /D "_DEBUG"
+CPP_PROJ=/$(LINKMT)d /Gm /ZI /Od /RTC1 /D "_DEBUG"
 !ENDIF
-CPP_PROJ=$(CPP_PROJ) /W3 $(VC_FLAGS) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)"\ /Fd"$(INTDIR)"\ /FD
+CPP_PROJ=$(CPP_PROJ) $(CUSTOMCLOPT) $(VC_FLAGS) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)"\ /Fd"$(INTDIR)"\ /FD
 !MESSAGE CPP_PROJ=$(CPP_PROJ)
 .c{$(INTDIR)}.obj::
    $(CPP) @<<

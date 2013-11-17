@@ -2,9 +2,9 @@
 . ".\winbuild\configuration.ps1"
 $configInfo = GetConfiguration
 $x64info = $configInfo.Configuration.x64
-Write-Host "setvcvars :" $x64info.setvcvars
 if ($x64info.setvcvars -ne "") {
 	$envcmd = [String] $x64info.setvcvars
+	Write-Host "setvcvars :" $envcmd
 	if ($envcmd.StartsWith(". ")) {
 		. $envcmd.substring(2)
 	} else {
@@ -25,6 +25,7 @@ $SSL_INC=$x64info.ssl.include
 $SSL_LIB=$x64info.ssl.lib
 $GSS_INC=$x64info.gss.include
 $GSS_LIB=$x64info.gss.lib
+$BUILD_MACROS=$x64info.build_macros
 if ($USE_LIBPQ -eq "yes")
 {
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
@@ -45,6 +46,6 @@ Write-Host "USE GSS    : $USE_GSS ($GSS_INC $GSS_LIB)"
 Write-Host "USE SSPI   : $USE_SSPI"
 Write-Host "SSL DIR    : ($SSL_INC $SSL_LIB)"
 
-$MACROS = "USE_LIBPQ=$USE_LIBPQ USE_SSPI=$USE_SSPI USE_GSS=$USE_GSS PG_LIB=`"$PG_LIB`" PG_INC=`"$PG_INC`" SSL_LIB=`"$SSL_LIB`" SSL_INC=`"$SSL_INC`"GSS_LIB=`"$GSS_LIB`" GSS_INC=`"$GSS_INC`" $args"
-invoke-expression "nmake.exe /f win64.mak $MACROS"
-invoke-expression "nmake.exe /f win64.mak ANSI_VERSION=yes $MACROS"
+$MACROS = "USE_LIBPQ=$USE_LIBPQ USE_SSPI=$USE_SSPI USE_GSS=$USE_GSS PG_LIB=`"$PG_LIB`" PG_INC=`"$PG_INC`" SSL_LIB=`"$SSL_LIB`" SSL_INC=`"$SSL_INC`" GSS_LIB=`"$GSS_LIB`" GSS_INC=`"$GSS_INC`" $BUILD_MACROS"
+invoke-expression "nmake.exe /f win64.mak $MACROS $args"
+invoke-expression "nmake.exe /f win64.mak ANSI_VERSION=yes $MACROS $args"
