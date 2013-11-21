@@ -1,4 +1,7 @@
 # Powershell needs to run in STA mode to display WPF windows
+Param(
+[string]$configPath
+)
 if ([Threading.Thread]::CurrentThread.GetApartmentState() -eq "MTA"){
 	PowerShell -Sta -File $MyInvocation.MyCommand.Path
 	return
