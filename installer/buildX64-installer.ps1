@@ -1,6 +1,8 @@
 #	build 64bit installer
-. "..\winbuild\configuration.ps1"
-$configInfo = GetConfiguration
+Param(
+[string]$configPath
+)
+$configInfo = & "..\winbuild\configuration.ps1" "$configPath"
 $VERSION = $configInfo.Configuration.version
 $x64info = $configInfo.Configuration.x64
 $USE_LIBPQ=$x64info.use_libpq
@@ -32,6 +34,11 @@ Write-Host "USE SSPI   : $USE_SSPI"
 
 $CPUTYPE="x64"
 
+if ($env:WIX -ne "")
+{
+	$wix = "$env:WIX"
+	$env:Path += ";$WIX/bin"
+}
 # The subdirectory to install into
 $SUBLOC=$VERSION.substring(0, 2) + $VERSION.substring(3, 2)
 

@@ -1,15 +1,14 @@
 #	build 32bit dll
-. ".\winbuild\configuration.ps1"
-$configInfo = GetConfiguration
+Param(
+[string]$target="ALL",
+[string]$configPath
+)
+$configInfo = & ".\winbuild\configuration.ps1" "$configPath"
 $x86info = $configInfo.Configuration.x86
 if ($x86info.setvcvars -ne "") {
 	$envcmd = [String] $x86info.setvcvars
 	Write-Host "setvcvars :" $envcmd
-	if ($envcmd.StartsWith(". ")) {
-		. $envcmd.substring(2)
-	} else {
-		Invoke-Expression $envcmd
-	}
+	Invoke-Expression $envcmd
 }
 $USE_LIBPQ=$x86info.use_libpq
 $USE_SSPI=$x86info.use_sspi
@@ -41,5 +40,5 @@ Write-Host "USE LIBPQ  : $USE_LIBPQ ($PG_INC $PG_LIB)"
 Write-Host "USE SSPI   : $USE_SSPI"
 Write-Host "SSL	   : ($SSL_INC $SSL_LIB)"
 $MACROS = "USE_LIBPQ=$USE_LIBPQ USE_SSPI=$USE_SSPI PG_LIB=`"$PG_LIB`" PG_INC=`"$PG_INC`" SSL_LIB=`"$SSL_LIB`" SSL_INC=`"$SSL_INC`" $BUILD_MACROS"
-invoke-expression "nmake.exe /f win32.mak $MACROS $args"
-invoke-expression "nmake.exe /f win32.mak ANSI_VERSION=yes $MACROS $args"
+invoke-expression "nmake.exe /f win32.mak $MACROS $target"
+invoke-expression "nmake.exe /f win32.mak ANSI_VERSION=yes $MACROS $target"

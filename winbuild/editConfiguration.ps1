@@ -185,8 +185,7 @@ for ($i = 1; $i -lt 17; $i++)
     $button.add_Click($button_click)
 }
 
-. ".\configuration.ps1"
-$configInfo = GetConfiguration
+$configInfo = & ".\configuration.ps1" "$configPath"
 
 $window.findName("versionBox").Text = $configInfo.Configuration.version
 
@@ -248,7 +247,7 @@ $buttonSave_clicked.Invoke({
 	$x64info.ssl.include = $window.findName("textBox15").Text
 	$x64info.ssl.lib = $window.findName("textBox16").Text
 
-	SaveConfiguration
+	SaveConfiguration $configInfo
 })
 
 $window.ShowDialog() | out-null

@@ -1,6 +1,8 @@
 #	build 32bit installer
-. "..\winbuild\configuration.ps1"
-$configInfo = GetConfiguration
+Param(
+[string]$configPath
+)
+$configInfo = & "..\winbuild\configuration.ps1" "$configPath"
 $VERSION = $configInfo.Configuration.version
 $x86info = $configInfo.Configuration.x86
 $USE_LIBPQ=$x86info.use_libpq
@@ -27,6 +29,12 @@ Write-Host "VERSION    : $VERSION"
 Write-Host "USE LIBPQ  : $USE_LIBPQ ($LIBPQBINDIR)"
 Write-Host "USE GSS    : $USE_GSS ($GSSBINDIR)"
 Write-Host "USE SSPI   : $USE_SSPI"
+
+if ($env:WIX -ne "")
+{
+	$wix = "$env:WIX"
+	$env:Path += ";$WIX/bin"
+}
 
 <#
 	The ProductCode History
