@@ -185,7 +185,8 @@ for ($i = 1; $i -lt 17; $i++)
     $button.add_Click($button_click)
 }
 
-$configInfo = & ".\configuration.ps1" "$configPath"
+$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
+$configInfo = & "$scriptPath\configuration.ps1" "$configPath"
 
 $window.findName("versionBox").Text = $configInfo.Configuration.version
 

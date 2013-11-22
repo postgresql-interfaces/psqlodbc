@@ -3,8 +3,10 @@ Param(
 [string]$target="ALL",
 [string]$configPath
 )
-$configInfo = & ".\winbuild\configuration.ps1" "$configPath"
+$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
+$configInfo = & "$scriptPath\winbuild\configuration.ps1" "$configPath"
 $x64info = $configInfo.Configuration.x64
+pushd $scriptPath
 if ($x64info.setvcvars -ne "") {
 	$envcmd = [String] $x64info.setvcvars
 	Write-Host "setvcvars :" $envcmd
@@ -48,3 +50,4 @@ Write-Host "SSL DIR    : ($SSL_INC $SSL_LIB)"
 $MACROS = "USE_LIBPQ=$USE_LIBPQ USE_SSPI=$USE_SSPI USE_GSS=$USE_GSS PG_LIB=`"$PG_LIB`" PG_INC=`"$PG_INC`" SSL_LIB=`"$SSL_LIB`" SSL_INC=`"$SSL_INC`" GSS_LIB=`"$GSS_LIB`" GSS_INC=`"$GSS_INC`" $BUILD_MACROS"
 invoke-expression "nmake.exe /f win64.mak $MACROS $target"
 invoke-expression "nmake.exe /f win64.mak ANSI_VERSION=yes $MACROS $target"
+popd

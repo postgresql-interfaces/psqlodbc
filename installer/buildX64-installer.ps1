@@ -2,7 +2,8 @@
 Param(
 [string]$configPath
 )
-$configInfo = & "..\winbuild\configuration.ps1" "$configPath"
+$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
+$configInfo = & "$scriptPath\..\winbuild\configuration.ps1" "$configPath"
 $VERSION = $configInfo.Configuration.version
 $x64info = $configInfo.Configuration.x64
 $USE_LIBPQ=$x64info.use_libpq
@@ -62,6 +63,8 @@ if ("$PRODUCTCODE" -eq "") {
 Write-Host "PRODUCTCODE: $PRODUCTCODE"
 
 try {
+	pushd $scriptPath
+
 	Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
 	invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dGSSBINDIR=$GSSBINDIR`" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
@@ -82,7 +85,9 @@ try {
 	Write-Host ".`nDone!"
 }
 catch {
-
 	Write-Host ".`Aborting build!"
 	throw $error[0]
+}
+finally {
+	popd
 }
