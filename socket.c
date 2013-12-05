@@ -230,7 +230,15 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 		snprintf(errmsg, buflen, "%s failed for [%s:%d] ", cmd, host, portno);
 	return ret;
 }
- 
+
+static int
+is_numeric_address(const char *hostname)
+{
+	char unused[16];
+	return (inet_pton(AF_INET, hostname, &unused) ||
+		inet_pton(AF_INET6, hostname, &unused));
+}
+
 char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
 {
@@ -271,8 +279,9 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		rest.ai_socktype = SOCK_STREAM;
 		rest.ai_family = AF_UNSPEC;
 		snprintf(portstr, sizeof(portstr), "%d", port);
-		if (inet_addr(hostname) != INADDR_NONE)
-			rest.ai_flags |= AI_NUMERICHOST;	
+		if (is_numeric_address(hostname))
+			/* don't resolve address in getaddrinfo() if not necessary */
+			rest.ai_flags |= AI_NUMERICHOST;
 		ret = getaddrinfo_ptr(hostname, portstr, &rest, &addrs);
 		if (ret || !addrs)
 		{
