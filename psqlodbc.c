@@ -102,7 +102,7 @@ int	initialize_global_cs(void)
 
 void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 {
-	memset(to, 0, sizeof(to));
+	memset(to, 0, sizeof(*to));
 	/***
 	memcpy(to, from, sizeof(GLOBAL_VALUES));
 	SET_NAME_DIRECTLY(to->drivername, NULL);
