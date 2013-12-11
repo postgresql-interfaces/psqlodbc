@@ -279,6 +279,7 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		rest.ai_socktype = SOCK_STREAM;
 		rest.ai_family = AF_UNSPEC;
 		snprintf(portstr, sizeof(portstr), "%d", port);
+		rest.ai_flags |= AI_NUMERICSERV;
 		if (is_numeric_address(hostname))
 			/* don't resolve address in getaddrinfo() if not necessary */
 			rest.ai_flags |= AI_NUMERICHOST;
