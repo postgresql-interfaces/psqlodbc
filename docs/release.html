@@ -10,437 +10,572 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <h2><a id="09.03.XXXX">psqlODBC 09.03.XXXX Release (NOT YET RELEASED)</a></h2>
-Changes:<br>
-1.) UseServerSidePrepare=1 is now the default.<br>
-2.) Fix a bug with data-at-execution array-bound parameters, in
-    UseServerSidePrepare=1 mode. Only the first result set was returned
-<br>
+Changes:<br />
+
+<ol type="1">
+<li><b> Fix uninitialized use of 'allocbuf' variable, in case of out-of-memory.</b><br /></li>
+Compiler warned about this. If ENLARGE_NEWSTATEMENT macro ran out of memory, it would jump to cleanup routine. <br />
+The cleanup would check if allocbuf isNULL, and try to free() it if not. <br />
+allocbuf needs to be initialized to NULL before the first ENLARGE_NEWSTATEMENT macro invocation.<br />
+<li><b> SQL_C_SLONG stands for SQLINTEGER not long.</b><br /></li>
+<li><b> Change SQL_ATTR_PARAMS_PROCESSED_PTR attribute which is set by SQLSetStmtAttr() from (SQLUINTEGER *) to (SQLULEN *).</b><br /></li> 
+This fixes the bug reported by Christopf Berg. <br />
+Also verify similar attributes which were changed from SQL(U)INTEGER (*) to SQL(U)LEN (*) when 64bit ODBC was introduced.<br />
+<li><b> Reduce the memory usage of ConnectinClass objects by changing their large fixed length text fields to variable ones.</b><br /></li>
+Because changes are applied to percent-encoded fields this time, password field is also a target of this.<br />
+<li><b> Revise MSDTC support.</b><br /></li>
+  Remove pointlessly complicated AsyncThreads stuff. Instead use _beginthread() to clean up threads.<br />
+  Make pgenlist.dll from the structure change of ConnectionClass.<br />
+    The driver dlls exports the functions described in connexp.h which are used by pgenlist.dll.<br />
+  Isolate the current communication path if necessary.<br />
+    While an IAsyncPG object is alive, a ConnectionClass object (hereinafter refered to as conn-obj) is assigned to it. <br />
+    The assignment has to be changed in the following cases.<br />
+<ol  type="a">
+<li> SQLDisconnect() is called for the current connection handle which is assigned to an IAsyncPG object.</li>
+	Allocate another conn-obj and move the current communication path (*sock* member of the current conn-obj) to the new conn-obj.
+	The communicaation path is lost from the current conn-obj and the new conn-obj is assigned to the IAsyncPG object.<br />
+<li> Another (global) transaction is about to begin but the current global transaction is not PREPARED yet.</li>
+	Same as case a) but will open a new communication path for the current conn-obj for the subsequent ODBC API calls.<br />
+<li> Another (global) transaction is about to begin and the current global transaction is already PREPARED.</li>
+	Allocate another conn-obj and open a new communication path for the conn-obj.
+        The new conn-obj is assigned to the IAsyncPG object only to issue COMMIT/ROLLBACK PREPARED command.
+   communication pass (*sock* member of the current ConnectionClass object) to the new object and change the state of the current object NOT CONNECTED.
+   The IAsyncPG object uses new object instead of the current object. In case b) the current object will open a new communication path.<br />
+</ol>
+</li>
+<li><b> Ignore automatically-generated files in source code with .gitignore.</b><br/ ></li>
+ This is useful to prevent accidental commit of files that are not wanted in the remote repository.<br />
+ The original patch was provided by MichaelPaquier. I also added files genearated by VC build tools or WIX tools to .gitignore.<br />
+<li><b> Change configure.ac so that ODBC_CONFIG is set when neither unixODBC nor iODBC is explicitly specified.</b><br /></li>
+<li><b> The first cut of psqlodbc setup project. It builds a setup program which can't be done by a single MSI. </b><br /></li>
+ It would install VC++ redistributable, 32 bit psqlodbc driver and 64 bit psqlodbc driver (on 64 bit windows).</b><br /></li>
+<li><b> Configure is checking SIZEOF_LONG not SIZEOF_LONG_INT.</b><br /></li>
+<li><b> Silence misc compiler warnings. Also a few comment typo and whitespace fixes.</b><br /></li>
+<li><b> CC_Copy is needed if _HANDLE_ENLIST_IN_DTC_ is used, regardless of CLEANUP_CONN_BEFORE_ISOLATION.</b><br /></li>
+ That caused compilation on Windows to fail.<br />
+<li><b> Remove some dead code.(SOCK_clear_error, SOCK_skip_n_bytes)</b><br /></li>
+<li><b> Handle turning standard_conforming_strings to off in mid-session.</b><br /></li>
+ We already watched for a ParameterStatus response indicating that standard_conforming_strings was turned on, and acted accordingly, but if it was turned off, we did nothing.<br />
+<li><b> Remove common.o on "make clean"</b><br /></li>
+<li><b> Fix bug when a statement is executed twice with data-at-execution params.</b><br /></li>
+ When a statement with array-bound data-at-execution parameters is executed twice, the second result set was not returned when UseServerSidePrepare=1.<br />
+ This was demonstrated by the data-at-execution regression test case.<br />
+<li><b> Change the default for UseServerSidePrepare to 1.</b><br /></li>
+ The docs have recommended UseServerSidePrepare=1 for server versions 7.4 onwards, so it seems prudent to change the default so that people don't needto remember to specify it manually.<br />
+ With UseServerSidePrepare=1, the "insertreturning" regression test case behaves better, ie.<br />
+ SQLNumResultCols() correctly returns the number of columns for an INSERT RETURNING statement, even when called before SQLExecute(). <br />
+<li><b> Remove useless 'sync' parameter from prepareParameters() function. It was always passed as TRUE.</b><br /></li>
+<li><b> Don't issue a BEGIN when running VACUUM in auto-commit mode.</b><br /></li>
+Normally in auto-commit mode the driver begins a new transaction implicitly at the first statement, by sending a BEGIN statement. However,
+some commands, like VACUUM, cannot be run in a transaction block, and you will get an error like "VACUUM cannot run inside a transaction block" from
+the server. In UseServerSidePrepare=0 mode, the code looks at the first word of the query to determine if the statement is one of the special ones, and
+if so, didn't begin a new transaction even when auto-commit mode is disabled. However, in UseServerSidePrepare=1 mode, when using SQLPrepare/
+SQLExecute to run the VACUUM, that check was not made. Fix that.
+There was one more related inconsistency between UseServerSidePrepare modes. Without server-side-prepares, if you issued an explicit BEGIN in auto-commit
+mode, the implicit BEGIN was ont sent. But without server-side prepares, it was. It seems best to send the implicit BEGIN in both cases, because then
+you get a warning from the backend about the second BEGIN. That's a good thing, because a sane ODBC application should be using the ODBC function
+SQLEndTran() for transaction control, not explicit BEGIN/COMMIT.<br />
+<li><b> When LF->CR+LF conversion causes an buffer truncation, supress the conversion (in case of unicode).</b><br /></li>
+<li><b> Handle SSL client certificate authentication in Windows Schannel security support provider.</b><br /></li>
+You have to place the certificate file postgresql.pfx (PFX or PKCS12 format)
+ in %APPDATA%\postgresql folder instead of postgresql.crt and postgresql.key
+(I wasn't able to find the way to handle PEM format using Cryptography API unfortunately).<br />
+You can create the file using the following command.<br />
+<em>openssl pkcs12 -export -in postgresql.crt -inkey postgresql.key -out postgresql.pfx (with empty password).</em><br />
+<li><b> Change Windows installer build system for the next release.</b><br /></li>
+Change to specify ProductCode for each version so as not to forget to change ProductCode in case of major version up.
+Remove VC runtime merge modules from the installer(runtime dlls will be installed via psqlodbc setup program).<br />
+[64bit version only] Use libpq by default Remove GSSAPI support by default<br />
+<li><b>Concentrate the settings of Windows build system to an xml file and build binaries or installers with reference to it.</b><br /></li>
+(configuration.xml) xml file to specify the setting of the build environment.
+It is automatically generated in winbuild folder as a copy of winbuild/configuration_template.xml
+ when you invoke editConfiguration script firstly.<br />
+<em>.winbuild/configuration.ps1</em>	modules to handle the configuration file<br />
+<em>.winbuild/editConfiguration.ps1</em>	edit configuration file (GUI)<br />
+<em>.winbuild/editConfiguration.bat</em>	same as above with a minimized console window<br />
+<em>.buildx86.ps1</em>			build 32bit binary<br />
+<em>.buildx64.ps1</em>			build 64bit binary<br />
+<em>.installer/buildx86-installer.ps1</em>	build 32bit installer<br />
+<em>.installer/buildx64-installer.ps1</em>	build 64bit installer<br />
+<li><b> handle private keys of PEM form using CryptoAPI.</b><br /></li>
+Certificates of PFX form are no longer needed for SSL client certificate authntication.<br />
+<li><b>Fix a bug in CC_copy_conninfo() that free()s password item of input source unexpectedly.</b><br /></li>
+Change CC_copy_conninfo() and copy_globals() so that they copy each item one by one.<br />
+<li><b>Fix the newly-introduced CORR_STRCPY and CORR_VALCPY macros.</b><br /></li>
+They were broken, did not compile. This fixed by Michael Paquier.<br />
+<li><b>Add support for verify-ca/full sslmode using Windows Schannel Security Service Provider.</b><br /></li>
+Root CAs must be installed into Windows Root certificate store beforehand.<br />
+<li><b>Change conifuration_template.xml so that its 64bit default is use_sspi=yes, use_gss=no.</b><br /></li> 
+add the treatment of libpq default version.<br />
+<li><b> VOID is not defined on all systems. Use void insted.</b><br /></li>
+This fixed by Christoph Berg.<br />
+<li><b> nmake macros are given as command line parameters.</b><br /></li>
+<li><b> Rename the name of elements in configuration(_template).xml from setenv to setvcvars.</b><br /></li>
+<li><b> winres.h instead of afxres.h.</b><br /></li>
+There are some cases (VS 2012 express etc) when afxres.h doesn't exist.<br />
+<li><b> configure.ac variables, help mesage change and linking lib(i)odbc change.</b><br /></li>
+.with_xxxxx (xxxxx is the package name) variables directly instead of the withval variable.<br />
+.Improve the help message of configure script.<br />
+.Stop linking lib(i)odbc library because the library is unnecessary and rather harmful. <br />
+Per report from Pavel Raiskup(postgresql.org/message-id/1769926.65KUyECjFr@nb.usersys.redhat.com).<br />
+.Move -Wall -Wno-pointer-sign CFLAGS option specified in Makefile.am to configure.ac. Users can disable those options by giving CFLAGS option explicitly. Also verify the availability of those options.
+<li><b> Avoid double-free() bug.</b><br /></li>
+Spotted by Fortify static analysis tool.<br />
+<li><b> Escape double-quotes in table name correctly.</b><br /></li>
+When constructing the select/update/delete for current row in a rowset,
+and the schema or table name contained double-quotes, they were not correctly escaped in the constructed SQL statement.
+ That lead to errors when doing positioned updates. Also, use snprintf and snprintf_add instead of sprintf and strcat in more
+ places. Makes these things look less like buffer overflows to static analysis tools, and make for more readable code anyway.<br />
+<li><b> Construct ctid string correctly for block no > 2^31.</b><br /></li>
+Block number is unsigned. Other places where we construct ctid strings we got this right, but not this one.
+ I'm not sure how to trigger this codepath,
+but I'm sure something funny would happen if you tried to use these functions on large enough tables (> 16 TB).<br />
+<li><b> Fix buffer overflow in interval parsing.</b><br /></li>
+Flagged by Fortify static analysis tool.<br />
+<li><b> Check return value of stdup() for out-of-memory.</b><br /></li>
+There are a lot of little bugs like this throughout the code, but it's start...<br />
+<li><b> Replace calls to my_strcat and my_strcat with snprintf_add.</b><br /></li>
+my_strcat didn't check for buffer overflow, which Fortify static analysis tool flagged as an issue. <br />
+<li><b> Fix buffer overflow in handling of SQLTables params.</b><br /></li>
+<li><b> Use snprintf() instead of sprintf() for safety.</b><br /></li>
+I believe these instances were in fact safe, because a cursor name has a maximum length.<br />
+<li><b> bufferoverflowu.lib seems no longer needed in recent versions of VC environment.</b><br /></li>
+removed it from win64.mak. Speocify CUSTOMLINKLIBS=bufferoverflowu.lib from the command line when it is neccessary in old VC environment.<br />
+<li><b> Fix memset() call, meant to clear the whole struct.</b><br /></li>
+Per compiler warning.(psqlodbc.c)<br />
+<li><b> socket: speedup also ipv6 connection</b><br /></li>
+Call getaddrinfo() with AI_NUMERICHOST if it is ipv4/ipv6 address.
+For that reason the inet_pton() is better than inet_addr().<br />
+This fixed by Pavel Raiskup<br />
+<li><b>Call getaddrinfo() with AI_NUMERICSERV because the service is a port number.</b><br /></li>
+</ol>
+<br />
 <h2><a id="09.02.0100">psqlODBC 09.02.0100 Release</a></h2>
-Changes:<br>
+Changes:<br />
 1.) Protect shared connection list when making cleanup tasks in EN_Destructor
-using the patch provided by Michael Kocherov.<br>
+using the patch provided by Michael Kocherov.<br />
 2.) Fix a lot of compiler warnings. Most of them were harmless, but some pointed
-    to real, but rare, bugs.<br>
+    to real, but rare, bugs.<br />
 3.) Check SIZEOF_LONG_INT, rather than SIZEOF_VOID_P, when deciding whether
-    SQLROWSETSIZE exists. That's consistent with unixodbc's sqltypes.h.<br>
+    SQLROWSETSIZE exists. That's consistent with unixodbc's sqltypes.h.<br />
 4.) Check BUILD_LEGACY_64_BIT_MODE instead of BUILD_REAL_64_BIT_MODE. This
     makes us choose correctly whether we're building a 32-bit or 64-bit version,
-    when building with unixODBC version 2.2.13 or higher.<br>
-5.) Fix handling of some out-of-memory situations.<br>
+    when building with unixODBC version 2.2.13 or higher.<br />
+5.) Fix handling of some out-of-memory situations.<br />
 6.) Eliminate recursion when freeing result sets of queries with
     array-bound parameters. This avoids running out of stack space on
-    SQLFreeHandle, and speeds it up considerably.<br>
+    SQLFreeHandle, and speeds it up considerably.<br />
 7.) Fix memory leak, e.g when SQLNumResultCols is called on a non-SELECT query.
-    This was caused by unintentional multiple evaluation of macro arguments.<br>
+    This was caused by unintentional multiple evaluation of macro arguments.<br />
 8.) Move psqlodbc website's main page, FAQ, and howto pages to a separate git
-    repository. They are no longer included in psqldbc release tarballs.<br>
+    repository. They are no longer included in psqldbc release tarballs.<br />
 9.) Fix bug with binding a 5-bytes long string as VARCHAR parameter, with
     UseServerSidePrepare=0 and BoolsAsChar=1. That combination produced an
-    extra empty result set on execution.<br>
-10.) Make the MSI build process of 32bit drivers available in 64bit.<br>
-11.) Fix bug with DeUseDeclareFetch=1 and UseServerSidePrepare=1, issue COMMIT commands properly in case of AUTOCOMMIT on mode. per reported by Jack Wilson(ljwilson@digitalav.com).<br>
-12.) Don't #include errno.h on Windows. VC10 or later intentionally changed the values of error numbers like EINTR, EWOULDBLOCK.<br>
-13.) Allow special characters in the password value of a connection string by enclosing the value by braces({}).<br>
-14.) Fixed conflict between winsock2.h and winsock.h in socket.c.<br>
-15.)Apply blank date <-> null conversion functionality to timestamp type as well.<br>
-16.) Fix the *cursor XXXXXXXX already exists* error when handling *with cte* statements reported by Joe Conway.<br>
-17.) Fixed the problem *Segmentation Fault in Postgres server when using psqlODBC* reported by Joshua Berry.<br>
-18.) Fixed the problem *UseDeclareFetch=1, Fetch=100, UseServerSidePrepare=1 causes Windows client to intermittently hang* reported by Jack Wilson.<br>
-<br>
+    extra empty result set on execution.<br />
+10.) Make the MSI build process of 32bit drivers available in 64bit.<br />
+11.) Fix bug with DeUseDeclareFetch=1 and UseServerSidePrepare=1, issue COMMIT commands properly in case of AUTOCOMMIT on mode. per reported by Jack Wilson(ljwilson@digitalav.com).<br />
+12.) Don't #include errno.h on Windows. VC10 or later intentionally changed the values of error numbers like EINTR, EWOULDBLOCK.<br />
+13.) Allow special characters in the password value of a connection string by enclosing the value by braces({}).<br />
+14.) Fixed conflict between winsock2.h and winsock.h in socket.c.<br />
+15.)Apply blank date <-> null conversion functionality to timestamp type as well.<br />
+16.) Fix the *cursor XXXXXXXX already exists* error when handling *with cte* statements reported by Joe Conway.<br />
+17.) Fixed the problem *Segmentation Fault in Postgres server when using psqlODBC* reported by Joshua Berry.<br />
+18.) Fixed the problem *UseDeclareFetch=1, Fetch=100, UseServerSidePrepare=1 causes Windows client to intermittently hang* reported by Jack Wilson.<br />
+<br />
 <h2><a id="09.01.0200">psqlODBC 09.01.0200</a></h2>
-Changes:<br>
-1.) Use int instead of size_t when condition >=0 is used.<br>
-2.) Add a necessary break in a switch statement etc.<br>
-3.) Fix missing constant(SQL_ATTR_PGOPT_FETCH).<br>
-4.) Fix a bug about reference count handling for columns info (Bug report by B.Goebel).<br>
-5.) Improve the handling of ARRAY type.<br>
-6.) Fix a compilation error etc when MULTITHREAD support is disabled.<br>
-7.) Don't discard the result of unnamed statements for later SQLDescribeCol or SQLColAttribute calls.(Bug report by Alexandre).<br>
-8.) Set rowstart_in_cache properly when closing eof cursors.(Bug report by Alexandre).<br>
-9.) Remove columns info of dropped tables ASAP.<br>
-10.) Fix the bug which causes a segfault in SQLSpecialColumns when table name is null string (bug report by Terrence Enger).<br>
-11.) Fix the bug that when the show OID column option is enabled, SQLColumns() returns "oid" column info even when the column name parameter which is different from "oid" is specified (bug report from Seifert, Jan-Peter).<br>
-12.) Take care of an environment variable PGKRBSRVNAME.<br>
-<br>
+Changes:<br />
+1.) Use int instead of size_t when condition >=0 is used.<br />
+2.) Add a necessary break in a switch statement etc.<br />
+3.) Fix missing constant(SQL_ATTR_PGOPT_FETCH).<br />
+4.) Fix a bug about reference count handling for columns info (Bug report by B.Goebel).<br />
+5.) Improve the handling of ARRAY type.<br />
+6.) Fix a compilation error etc when MULTITHREAD support is disabled.<br />
+7.) Don't discard the result of unnamed statements for later SQLDescribeCol or SQLColAttribute calls.(Bug report by Alexandre).<br />
+8.) Set rowstart_in_cache properly when closing eof cursors.(Bug report by Alexandre).<br />
+9.) Remove columns info of dropped tables ASAP.<br />
+10.) Fix the bug which causes a segfault in SQLSpecialColumns when table name is null string (bug report by Terrence Enger).<br />
+11.) Fix the bug that when the show OID column option is enabled, SQLColumns() returns "oid" column info even when the column name parameter which is different from "oid" is specified (bug report from Seifert, Jan-Peter).<br />
+12.) Take care of an environment variable PGKRBSRVNAME.<br />
+<br />
 <h2><a id="09.01.0100">psqlODBC 09.01.0100</a></h2>
-Changes:<br>
-1.) SQLStatistics() sets 'D' for the collation column when an reverse index is used.<br>
-2.) Fix the bug that PostgreSQL's function calls in queries cause a crash on SQL Server linked servers.<br>
-3.) Fix the bug that the first fetch operation doesn't work properly when the operation is SQL_FETCH_ABSOLUTE or SQL_FETCH_LAST.<br>
-4.) Revise the handling of decimal point.<br>
-5.) Adjust the operations after closing eof-detected cursors.<br>
-6.) Before dropping the statement, sync and discard the response from the server for the pending extended query.<br>
-7.) Clear col_info(columns info) cache ehen DROP/ALTER TABLE is called so that later SQLDescribeCol() etc work properly.<br>
-8.) Improve the handling of BYTEA type.<br>
-9.) Don't clear the columns cache info when they are referenced.<br>
-10.) Correct the column size of interval types.<br>
-<br>
+Changes:<br />
+1.) SQLStatistics() sets 'D' for the collation column when an reverse index is used.<br />
+2.) Fix the bug that PostgreSQL's function calls in queries cause a crash on SQL Server linked servers.<br />
+3.) Fix the bug that the first fetch operation doesn't work properly when the operation is SQL_FETCH_ABSOLUTE or SQL_FETCH_LAST.<br />
+4.) Revise the handling of decimal point.<br />
+5.) Adjust the operations after closing eof-detected cursors.<br />
+6.) Before dropping the statement, sync and discard the response from the server for the pending extended query.<br />
+7.) Clear col_info(columns info) cache ehen DROP/ALTER TABLE is called so that later SQLDescribeCol() etc work properly.<br />
+8.) Improve the handling of BYTEA type.<br />
+9.) Don't clear the columns cache info when they are referenced.<br />
+10.) Correct the column size of interval types.<br />
+<br />
 <h2><a id="09.00.0310">psqlODBC 09.00.0310</a></h2>
-Changes:<br>
-1.) Let SC_forget_unnamed() clear the result in case the statement is not executed yet. It would fix the bug reported by Silvio Brandani.<br>
-2.) Fix the bug that strings are copied to a null pointer.<br>
-3.) Don't clear the parsed plan in SC_recycle_statement().<br>
-4.) Now SQLDescribeCol() can detect the changes of column type or size.<br>
-5.) Handle *with or without oids* correctly.<br>
-6.) Take the environment variable into account.<br>
-7.) Use SOCK_get_next_n_bytes() instead of SOCK_get_next_byte().<br>
-8.) Add some driver specific options for SQLSetConnectAttr().<br>
-9.) Fix compilation errors in case ODBC 2.5.<br>
-10.) Fix compilation error on different ODBCVER.<br>
-11.) Correct the behavior of SQLSetConnectAttr() for the driver specific options.<br>
-<br>
+Changes:<br />
+1.) Let SC_forget_unnamed() clear the result in case the statement is not executed yet. It would fix the bug reported by Silvio Brandani.<br />
+2.) Fix the bug that strings are copied to a null pointer.<br />
+3.) Don't clear the parsed plan in SC_recycle_statement().<br />
+4.) Now SQLDescribeCol() can detect the changes of column type or size.<br />
+5.) Handle *with or without oids* correctly.<br />
+6.) Take the environment variable into account.<br />
+7.) Use SOCK_get_next_n_bytes() instead of SOCK_get_next_byte().<br />
+8.) Add some driver specific options for SQLSetConnectAttr().<br />
+9.) Fix compilation errors in case ODBC 2.5.<br />
+10.) Fix compilation error on different ODBCVER.<br />
+11.) Correct the behavior of SQLSetConnectAttr() for the driver specific options.<br />
+<br />
 <h2><a id="09.00.0300">psqlODBC 09.00.0300</a></h2>
-Changes:<br>
-1.) Don't propgate the connection level statment options to the internal statements. This fixes an infinite loop reported by Nelson Andre.<br>
-2.) Improved a mylog output.<br>
-3.) Fix the bug introduced by the previous change reprted by Adrien de Croy.<br>
-4.) Divide SC_returns_rows() macro into several categories and make SQLResultNumCols(), SQLDescribeCol() or SQLColAttribute() available <br>
-for insert/update/delete .. returning statements.<br>
-5.) Initialize flags member in QResultClass before calling QR_set_rowstart_in_cache() per report from Arno Moore.<br>
-6.) Applied a patch by Taizo Ito and correct the length of BIT type in Postgres.<br>
-7.) Change to read and skip the rest of result data when out of memory occurs while reading tuples so that we can continue to use the connection.<br>
-8.) Fix the bug that Access autonumber fields are not detected in 9.0.0200 reported by Arnaud Lesauvage.<br>
-9.) Convert large integer strings properly.<br>
-10.) Fix the trouble introduced by the change *Return 0 for the column size when the size of numeric items are unknown* per report from Marco Gaiarin.<br>
-11.) Remove a meaningless if clause. This had a problem with ltdl function.<br>
-<br>
+Changes:<br />
+1.) Don't propgate the connection level statment options to the internal statements. This fixes an infinite loop reported by Nelson Andre.<br />
+2.) Improved a mylog output.<br />
+3.) Fix the bug introduced by the previous change reprted by Adrien de Croy.<br />
+4.) Divide SC_returns_rows() macro into several categories and make SQLResultNumCols(), SQLDescribeCol() or SQLColAttribute() available <br />
+for insert/update/delete .. returning statements.<br />
+5.) Initialize flags member in QResultClass before calling QR_set_rowstart_in_cache() per report from Arno Moore.<br />
+6.) Applied a patch by Taizo Ito and correct the length of BIT type in Postgres.<br />
+7.) Change to read and skip the rest of result data when out of memory occurs while reading tuples so that we can continue to use the connection.<br />
+8.) Fix the bug that Access autonumber fields are not detected in 9.0.0200 reported by Arnaud Lesauvage.<br />
+9.) Convert large integer strings properly.<br />
+10.) Fix the trouble introduced by the change *Return 0 for the column size when the size of numeric items are unknown* per report from Marco Gaiarin.<br />
+11.) Remove a meaningless if clause. This had a problem with ltdl function.<br />
+<br />
 <h2><a id="09.00.0200">psqlODBC 09.00.0200</a></h2>
-Changes:<br>
-1.) Fix a bug about sizeof() at idx_fake_oid of info.<br>
-2.) Return 0 for the column size when the size of numeric items are unknown.<br>
- Also improve the calculation of scale of numeric items when it is not explicitly specified.<br>
-3.) Change to  use 'if' instead of an inappropriate 'else if' at cursor of convert.<br>
-4.) Remember to set permanent flag to holdable cursors on commit with no precedent rollback (to savepoint) operations.<br>
- This fixes a crash bug in case of cursor operations across transaction.<br>
-5.) Fix a bug about the handling of the SQL_RETRIEVE_DATA option.<br>
- Per report by Andreas.<br>
-6.) Fix cursor bug introduced by the previous change.<br>
- Per report by Andreas.<br>
-7.) Move the setting of folder name of libpq or gssapi related dlls from .wxs file to .bat file.<br>
-8.) Fix a bug which returns incorrect values for SQL_DATETIME_SUB.<br>
-<br>
+Changes:<br />
+1.) Fix a bug about sizeof() at idx_fake_oid of info.<br />
+2.) Return 0 for the column size when the size of numeric items are unknown.<br />
+ Also improve the calculation of scale of numeric items when it is not explicitly specified.<br />
+3.) Change to  use 'if' instead of an inappropriate 'else if' at cursor of convert.<br />
+4.) Remember to set permanent flag to holdable cursors on commit with no precedent rollback (to savepoint) operations.<br />
+ This fixes a crash bug in case of cursor operations across transaction.<br />
+5.) Fix a bug about the handling of the SQL_RETRIEVE_DATA option.<br />
+ Per report by Andreas.<br />
+6.) Fix cursor bug introduced by the previous change.<br />
+ Per report by Andreas.<br />
+7.) Move the setting of folder name of libpq or gssapi related dlls from .wxs file to .bat file.<br />
+8.) Fix a bug which returns incorrect values for SQL_DATETIME_SUB.<br />
+<br />
 <h2><a id="09.00.0101">psqlODBC 09.00.0101</a></h2>
-Changes:<br>
-1.) Fix build source of Windows 64bit environment.<br>
-<br>
+Changes:<br />
+1.) Fix build source of Windows 64bit environment.<br />
+<br />
 <h2><a id="09.00.0100">psqlODBC 09.00.0100</a></h2>
-Changes:<br>
-1.) Allow password which contains special characters like {,},=,;.<br>
-2.) Add a new data source option which makes it possible to use Kerberos for Windows library to reply to GSSAPI authentication request.<br>
-3.) Native support for SSPI Kerberos or Negaotiate service. It may be useful for the 64-bit drivers.<br>
-4.) Fix an oversight of Memory overflow handling.<br>
-5.) Removed "#define SQL_WCHART_CONVERT" which  causes a trouble on some platforms.<br>
-6.) Removed the use of misused strcat_s together with snprintf_s (bug report from Jap-Peter Seifert) and use strlcat instead of strncat.<br>
-7.) Fix a bug about pre-execute behavior in case of protocol v2 or earlier.<br>
-8.) Use poll() instead of select() when it's available.<br>
-9.) Take comments or line comments in a query into account.<br>
-10.) Fix a crash bug on authentication failures.<br>
-11.) Take --without-iodbc(unixODBC) configure option into account.<br>
-12.) Apply the patch by Peter Crabtree which fixes a crash bug.<br>
-13.) Improve the handling of bools_as_char case.<br>
-14.) Fix a bug when creating a connection string.<br>
-15.) Use pg_get_expr(adbin, ..) instead of unreliable adsrc in pg_attrdef so as to know the sequence name associated with serial items.<br>
-16.) Added 64-bit version of installer files.<br>
-17.) Introduce pgtype_attr_xxxx functions which take a typmod parameter as well as a type oid parameter as an extension of pgtype_xxxx functions so that SQLColumns and SQLDescribeCol(SQLColAttrinute) could use common functions.<br>
-18.) Call PQconnectdbParams instead of PQconnectdb when it's available.<br>
-19.) Make cursor open check at transaction end a little more effective.<br>
-20.) Added code for SQL_INTERVAL support and refcursor support though they are disabled.<br>
-21.) Correct the handling of dynamic cursors so that they are substituted by keyset-driven ones.<br>
-22.) Remove a compilation error and some compiler warnings under unixdODBC 2.3 environment.<br>
-23.) Make sure the support of the backward-compatibility version of getaddrinfo() family even when _WIN32_WINNT is supplied.<br>
-24.) Update win64.mak so that gssapi support is available without libpq.<br>
-<br>
+Changes:<br />
+1.) Allow password which contains special characters like {,},=,;.<br />
+2.) Add a new data source option which makes it possible to use Kerberos for Windows library to reply to GSSAPI authentication request.<br />
+3.) Native support for SSPI Kerberos or Negaotiate service. It may be useful for the 64-bit drivers.<br />
+4.) Fix an oversight of Memory overflow handling.<br />
+5.) Removed "#define SQL_WCHART_CONVERT" which  causes a trouble on some platforms.<br />
+6.) Removed the use of misused strcat_s together with snprintf_s (bug report from Jap-Peter Seifert) and use strlcat instead of strncat.<br />
+7.) Fix a bug about pre-execute behavior in case of protocol v2 or earlier.<br />
+8.) Use poll() instead of select() when it's available.<br />
+9.) Take comments or line comments in a query into account.<br />
+10.) Fix a crash bug on authentication failures.<br />
+11.) Take --without-iodbc(unixODBC) configure option into account.<br />
+12.) Apply the patch by Peter Crabtree which fixes a crash bug.<br />
+13.) Improve the handling of bools_as_char case.<br />
+14.) Fix a bug when creating a connection string.<br />
+15.) Use pg_get_expr(adbin, ..) instead of unreliable adsrc in pg_attrdef so as to know the sequence name associated with serial items.<br />
+16.) Added 64-bit version of installer files.<br />
+17.) Introduce pgtype_attr_xxxx functions which take a typmod parameter as well as a type oid parameter as an extension of pgtype_xxxx functions so that SQLColumns and SQLDescribeCol(SQLColAttrinute) could use common functions.<br />
+18.) Call PQconnectdbParams instead of PQconnectdb when it's available.<br />
+19.) Make cursor open check at transaction end a little more effective.<br />
+20.) Added code for SQL_INTERVAL support and refcursor support though they are disabled.<br />
+21.) Correct the handling of dynamic cursors so that they are substituted by keyset-driven ones.<br />
+22.) Remove a compilation error and some compiler warnings under unixdODBC 2.3 environment.<br />
+23.) Make sure the support of the backward-compatibility version of getaddrinfo() family even when _WIN32_WINNT is supplied.<br />
+24.) Update win64.mak so that gssapi support is available without libpq.<br />
+<br />
 <h2><a id="08.04.0200">psqlODBC 08.04.0200</a></h2>
-Changes:<br>
-1.) Fix a column uodatability problem reported by Tom Goodman.<br>
-2.) Display SSL mode list properly on setup dialog.<br>
-3.) Don't truncate the result of msgtowstr()/wstrtomsg().<br>
-4.) Implement ConfigDriver() function.<br>
-5.) check of the SQLLEN definition by the unixODBC version by SQLColAttribute.<br>
-6.) Take WITH cte staments into account.<br>
-7.) Fix a bug about UTF8 handling.<br>
-8.) Wait a ReadyForQuery Message after errors correctly.<br>
-9.) Fix a problem with {call procedure reported by Wolfgang Pasche.<br>
-10.) Cleanups about the handing of unnamed parsed statements and the handling of ODBC escape { .<br>
-11.)Link ws2_32.lib in case the compilation environment #defines _WIN32_WINNT and the value >= 0x0501.<br>
-12) Added --with(out)-libpq[=DIR} option to configure.<br>
-13) Revise autoconf/automake so that libpq/ssl header/libs are resolved at configure phase.<br>
-14) Use md5.c directly instead of win_md5.c.<br>
-15) Suppress some compiler warnings.<br>
-16) Fix memory leaks on connection failure (Shouji morimoto).<br>
-17) Suppress some compilation errors and warnings.<br>
-18) Fix SSL connection timeout.<br>
-<br>
+Changes:<br />
+1.) Fix a column uodatability problem reported by Tom Goodman.<br />
+2.) Display SSL mode list properly on setup dialog.<br />
+3.) Don't truncate the result of msgtowstr()/wstrtomsg().<br />
+4.) Implement ConfigDriver() function.<br />
+5.) check of the SQLLEN definition by the unixODBC version by SQLColAttribute.<br />
+6.) Take WITH cte staments into account.<br />
+7.) Fix a bug about UTF8 handling.<br />
+8.) Wait a ReadyForQuery Message after errors correctly.<br />
+9.) Fix a problem with {call procedure reported by Wolfgang Pasche.<br />
+10.) Cleanups about the handing of unnamed parsed statements and the handling of ODBC escape { .<br />
+11.)Link ws2_32.lib in case the compilation environment #defines _WIN32_WINNT and the value >= 0x0501.<br />
+12) Added --with(out)-libpq[=DIR} option to configure.<br />
+13) Revise autoconf/automake so that libpq/ssl header/libs are resolved at configure phase.<br />
+14) Use md5.c directly instead of win_md5.c.<br />
+15) Suppress some compiler warnings.<br />
+16) Fix memory leaks on connection failure (Shouji morimoto).<br />
+17) Suppress some compilation errors and warnings.<br />
+18) Fix SSL connection timeout.<br />
+<br />
 <h2><a id="08.04.0100">psqlODBC 08.04.0100</a></h2>
-Changes:<br>
-1.) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br>
-2.) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.<br>
-3.) Correct the value of INDEX_QUALIFIER column which returned by SLQSTATISTICS();<br>
-4.) Take domain types into account in SQLColumns() (Thanks to Luiz K. Matsumura).<br>
-5.) Take RESTRICT actions into account in SQLForeignKeys() (report from Farid Zidan).<br>
-6.) Fix a bug that small negative decimal values are mistaken for non-negative (bug report from Dominic Smith).<br>
-7.) Use MSG_NOSIGNAL/MSG_NOSIGPIPE option on send()/recv() to avoid crash on SIGPIPE (bug report from Brian Feldman).<br>
-8.) Remove a spurious "." with no trailing digits in timestamp representation (bug report from Brian Feldman).<br>
-9.) Rename trim() funtion in order to avoid conflict of function name(report from Dominic Smith).<br>
-10.) Put back the change to add *read only* clause for read only cursors.<br>
-11.) Improve pgtype_transfer_octet_length().<br>
-12.) Fix a bug reported by Milen Manev that SQLExec *select for a table* -> SQLDescribeCol() -> add a column to the table -> SQLExec *select for the table* -> SQLDescribeCol() for the added column causes a bad result.<br>
-13.) Use strncpy_null() instead of strncpy().<br>
-14.) Close (holdable) cursors on commit if possible.<br>
-15.) Recycle columns cache info if the size becomes pretty large.<br>
-16.) Add a 'verify-ca' and 'verify-full' to the sslmode option via libpq of version 8.4.<br>
-17.) Add a functionality to change the directory for logging.<br>
-18.) Correct the error code for communication errors.<br>
-19.) Correct the conversion between UTF-16 and UTF-8 for non UCS2 characters.<br>
-20.) Try to convert (especially connection error) messages using local conversions when they are not valid unicode characters.<br>
-21.) Add a textbox to setup dialog to change the directory for logging.<br>
-22.) Allow multiple Connsettings statements in connection string by enclosing them by braces({}).<br>
-23.) Improve the transactional control under useDeclareFetch mode.<br>
-24.) Take the platforms where char is unsigned into account per report from Alex Goncharov.<br>
-25.) Improve the handling of UUID type especially to support IMPORT or LINK in MS Access.<br>
-<br>
+Changes:<br />
+1.) Avoid a crash on exit when using SSL connections by resetting CRTPTO_xx_callbacks before unloding libpq.<br />
+2.) Correct the funtion name DiscardRollbackState pointed out by Zoltan Boszormenyi.<br />
+3.) Correct the value of INDEX_QUALIFIER column which returned by SLQSTATISTICS();<br />
+4.) Take domain types into account in SQLColumns() (Thanks to Luiz K. Matsumura).<br />
+5.) Take RESTRICT actions into account in SQLForeignKeys() (report from Farid Zidan).<br />
+6.) Fix a bug that small negative decimal values are mistaken for non-negative (bug report from Dominic Smith).<br />
+7.) Use MSG_NOSIGNAL/MSG_NOSIGPIPE option on send()/recv() to avoid crash on SIGPIPE (bug report from Brian Feldman).<br />
+8.) Remove a spurious "." with no trailing digits in timestamp representation (bug report from Brian Feldman).<br />
+9.) Rename trim() funtion in order to avoid conflict of function name(report from Dominic Smith).<br />
+10.) Put back the change to add *read only* clause for read only cursors.<br />
+11.) Improve pgtype_transfer_octet_length().<br />
+12.) Fix a bug reported by Milen Manev that SQLExec *select for a table* -> SQLDescribeCol() -> add a column to the table -> SQLExec *select for the table* -> SQLDescribeCol() for the added column causes a bad result.<br />
+13.) Use strncpy_null() instead of strncpy().<br />
+14.) Close (holdable) cursors on commit if possible.<br />
+15.) Recycle columns cache info if the size becomes pretty large.<br />
+16.) Add a 'verify-ca' and 'verify-full' to the sslmode option via libpq of version 8.4.<br />
+17.) Add a functionality to change the directory for logging.<br />
+18.) Correct the error code for communication errors.<br />
+19.) Correct the conversion between UTF-16 and UTF-8 for non UCS2 characters.<br />
+20.) Try to convert (especially connection error) messages using local conversions when they are not valid unicode characters.<br />
+21.) Add a textbox to setup dialog to change the directory for logging.<br />
+22.) Allow multiple Connsettings statements in connection string by enclosing them by braces({}).<br />
+23.) Improve the transactional control under useDeclareFetch mode.<br />
+24.) Take the platforms where char is unsigned into account per report from Alex Goncharov.<br />
+25.) Improve the handling of UUID type especially to support IMPORT or LINK in MS Access.<br />
+<br />
 <h2><a id="08.03.0400">psqlODBC 08.03.0400</a></h2>
-Changes:<br>
-1.) GUID forgot to set the value to the buffer.<br>
-2.) -Wall was taken as gcc limitation.<br>
-<br>
+Changes:<br />
+1.) GUID forgot to set the value to the buffer.<br />
+2.) -Wall was taken as gcc limitation.<br />
+<br />
 <h2><a id="08.03.0300">psqlODBC 08.03.0300</a></h2>
-Changes:<br>
-1.) SQLGUID type support thanks to Jan-Willem Goossens.<br>
-2.) Fix a bug about silently adding a *for read only* clause.<br>
-3.) Fix a 64bit mode bug about handling of arrays of parameters.<br>
-4.) Change the implemetatin of SQLForeignKeys() for 8.3+ servers.<br>
-5.) Not commit the transaction too early in useDeclareFetch mode.<br>
-6.) Add a cursor open check for SQLPrepare().<br>
-7.) Reset the column binding information after SQLMoreResults().<br>
-8.) Save the rowset size properly for the FETCH_NEXT operation in case of >= 3.0 drivers.<br>
-9.) Support FE/BE communications on Big Endian platform.<br>
-10.) Check strerror_r function's return type.<br>
-11.) Suppress some compiler warnings.<br>
-<br>
+Changes:<br />
+1.) SQLGUID type support thanks to Jan-Willem Goossens.<br />
+2.) Fix a bug about silently adding a *for read only* clause.<br />
+3.) Fix a 64bit mode bug about handling of arrays of parameters.<br />
+4.) Change the implemetatin of SQLForeignKeys() for 8.3+ servers.<br />
+5.) Not commit the transaction too early in useDeclareFetch mode.<br />
+6.) Add a cursor open check for SQLPrepare().<br />
+7.) Reset the column binding information after SQLMoreResults().<br />
+8.) Save the rowset size properly for the FETCH_NEXT operation in case of >= 3.0 drivers.<br />
+9.) Support FE/BE communications on Big Endian platform.<br />
+10.) Check strerror_r function's return type.<br />
+11.) Suppress some compiler warnings.<br />
+<br />
 <h2><a id="08.03.0200">psqlODBC 08.03.0200</a></h2>
-Changes:<br>
-1.) Fix a bug in socket which uses a socket variable.<br>
-2.) Support column alias without "as" so that links from the SQLServer work.<br>
-3.) Take ';' into account when the driver adds "for read only" clause.<br>
-4.) Use the E'.. ' notation not only in '=' expressions but also in LIKE expressions.<br>
-5.) Change to return milliseconds parts for timestamp fields.<br>
-6.) Change to return a specific sqlstate in case of multiple parameters.<br>
-7.) Fix bug of the selection not using SSL.<br>
-<br>
+Changes:<br />
+1.) Fix a bug in socket which uses a socket variable.<br />
+2.) Support column alias without "as" so that links from the SQLServer work.<br />
+3.) Take ';' into account when the driver adds "for read only" clause.<br />
+4.) Use the E'.. ' notation not only in '=' expressions but also in LIKE expressions.<br />
+5.) Change to return milliseconds parts for timestamp fields.<br />
+6.) Change to return a specific sqlstate in case of multiple parameters.<br />
+7.) Fix bug of the selection not using SSL.<br />
+<br />
 <h2><a id="08.03.0100">psqlODBC 08.03.0100</a></h2>
-Changes:<br>
-1.) Correct the flow of trial of multi protocols and fix related bugs about handling of connection errors.<br>
-2.) Use SSPI service for SSL support when libpq is unavailable.<br>
+Changes:<br />
+1.) Correct the flow of trial of multi protocols and fix related bugs about handling of connection errors.<br />
+2.) Use SSPI service for SSL support when libpq is unavailable.<br />
 3.) Fix a bug in copy_and_convert_field() when fetching bookmark columns. This bug could occur in case no suitable?
- lo type is found.<br>
-4.) Improve the parse statement operation so that it detect srf in (from clause).<br>
-5.) Correct the COLUMN_LENGTH return value of SQLColumns() for varchar/bpchar type columns (Unicode driver).<br>
-6.) Change to not return database name if case of MS Query.<br>
-7.) The first cut to use Windows SSPI. The trial to use Schannel service for SSL support.<br>
+ lo type is found.<br />
+4.) Improve the parse statement operation so that it detect srf in (from clause).<br />
+5.) Correct the COLUMN_LENGTH return value of SQLColumns() for varchar/bpchar type columns (Unicode driver).<br />
+6.) Change to not return database name if case of MS Query.<br />
+7.) The first cut to use Windows SSPI. The trial to use Schannel service for SSL support.<br />
 8.) Be more careful about <for locking clause> in UseDeclareFetch mode. "for read only" clause for read only queries
- for 8.3 or later servers for safety.<br>
-<br>
+ for 8.3 or later servers for safety.<br />
+<br />
 <h2><a id="08.02.0500">psqlODBC 08.02.0500</a></h2>
-Changes:<br>
-1.) Correct the format of Bind message under 64bit environment.<br>
-2.) Fixed build of without OpenSSL.<br>
-<br>
+Changes:<br />
+1.) Correct the format of Bind message under 64bit environment.<br />
+2.) Fixed build of without OpenSSL.<br />
+<br />
 <h2><a id="08.02.0403">psqlODBC 08.02.0403</a></h2>
-Changes:<br>
-1.) Support SQLColAttribute for MS specific SQL_CA_SS_COLUMN_KEY. Some MS applications use this.<br>
-2.) Improve the check of updatability of queries by checking if they have multiple tables.<br>
-3.) Reduce the round trip overhead in FE/BE communications(especially in useDeclareFetch mode).<br>
-4.) Fix a bug in ResolveOneParam() pointed out by Rainer Bauer.<br>
-5.) Add a flag which lets SQLTables() show only accessible tables.<br>
-6.) The unicode driver now can handle utf-16 surrogate pairs.<br>
-<br>
+Changes:<br />
+1.) Support SQLColAttribute for MS specific SQL_CA_SS_COLUMN_KEY. Some MS applications use this.<br />
+2.) Improve the check of updatability of queries by checking if they have multiple tables.<br />
+3.) Reduce the round trip overhead in FE/BE communications(especially in useDeclareFetch mode).<br />
+4.) Fix a bug in ResolveOneParam() pointed out by Rainer Bauer.<br />
+5.) Add a flag which lets SQLTables() show only accessible tables.<br />
+6.) The unicode driver now can handle utf-16 surrogate pairs.<br />
+<br />
 <h2><a id="08.02.0402">psqlODBC 08.02.0402</a></h2>
-Changes:<br>
-1.) Fix some bugs in case without MSDTC support.<br>
-2.) Refine the realloc handling.<br>
-3.) Put back the @@IDENTITY implementation so as not to use lastval().<br>
-4.) Change SQLColumns() to return correct column length in the Unicode driver.<br>
-5.) Remove the connection count limitation.<br>
-6.) Fix Protocol=7.4--1 notation (should be Protocol=7.4).<br>
-7.) Fix a typo in socket.c (bug report from Rainer bauer).<br>
-8.) Add CC_set_autocommit to psqlodbc(a).def files.<br>
-9.) Handle Standard_conforming_strings.<br>
-10.) Handle standard_conforming_strings also in case via libpq.<br>
-11.) Fix a bug which doesn't free connection list properly.<br>
-12.) Fix DelayLoadDLL was made explicit of psqlodbc.proj file.<br>
-<br>
+Changes:<br />
+1.) Fix some bugs in case without MSDTC support.<br />
+2.) Refine the realloc handling.<br />
+3.) Put back the @@IDENTITY implementation so as not to use lastval().<br />
+4.) Change SQLColumns() to return correct column length in the Unicode driver.<br />
+5.) Remove the connection count limitation.<br />
+6.) Fix Protocol=7.4--1 notation (should be Protocol=7.4).<br />
+7.) Fix a typo in socket.c (bug report from Rainer bauer).<br />
+8.) Add CC_set_autocommit to psqlodbc(a).def files.<br />
+9.) Handle Standard_conforming_strings.<br />
+10.) Handle standard_conforming_strings also in case via libpq.<br />
+11.) Fix a bug which doesn't free connection list properly.<br />
+12.) Fix DelayLoadDLL was made explicit of psqlodbc.proj file.<br />
+<br />
 <h2><a id="08.02.0401">psqlODBC 08.02.0401</a></h2>
-Changes:<br>
-1.) Fix a bug which checking join is confused by CR+LF.<br>
-2.) Handle AUTOCOMMIT mode more carefully in a distributed transaction so as not to issue COMMIT unexpectedly.<br>
-3.) Allow the UNIX domain configuration (the same as libpq).<br>
-4.) Fixed the automake/autoconf scripts.(by Peter Eisentraut)<br>
-<br>
+Changes:<br />
+1.) Fix a bug which checking join is confused by CR+LF.<br />
+2.) Handle AUTOCOMMIT mode more carefully in a distributed transaction so as not to issue COMMIT unexpectedly.<br />
+3.) Allow the UNIX domain configuration (the same as libpq).<br />
+4.) Fixed the automake/autoconf scripts.(by Peter Eisentraut)<br />
+<br />
 <h2><a id="08.02.0400">psqlODBC 08.02.0400</a></h2>
-Changes:<br>
-1.) Fixed control binding of SetField problem.<br>
-2.) Fixed pgenlist.h losts to the release package.<br>
-<br>
+Changes:<br />
+1.) Fixed control binding of SetField problem.<br />
+2.) Fixed pgenlist.h losts to the release package.<br />
+<br />
 <h2><a id="08.02.0300">psqlODBC 08.02.0300</a></h2>
-Changes:<br>
+Changes:<br />
 1.) Allow non-admin or Vista users to create log fils in the home
-directory.<br>
-2.) Fix an index over bug which causes a crash or an unexpected result.<br>
-<br>
+directory.<br />
+2.) Fix an index over bug which causes a crash or an unexpected result.<br />
+<br />
 <h2><a id="08.02.0205">psqlODBC 08.02.0205</a></h2>
-Changes:<br>
-1.) Append DETAIL messages to GetDiag...() messages.<br>
-2.) Use SQL_SUCCEEDED macros so as to simplify the code.<br>
-3.) Use lastval() function to replace IDENTITY on 8.1 or later servers.<br>
-4.) Remove WSAStartup() and WSACleanup() from DllMain.<br>
-5.) Load libpq from the driver's folder.<br>
-6.) Use QR_get_value_backend_int/_text() funcs instead of QR_get_value_backend_row().<br>
-7.) Improve the implemetation of SQLSetPos(.., SQL_ADD/SQL_UPDATE) using the 8.2 new feature INSERT/UPDATE .. returning.<br>
-8.) Seaparate DTC code as a Delayload DLL.<br>
-<br>
+Changes:<br />
+1.) Append DETAIL messages to GetDiag...() messages.<br />
+2.) Use SQL_SUCCEEDED macros so as to simplify the code.<br />
+3.) Use lastval() function to replace IDENTITY on 8.1 or later servers.<br />
+4.) Remove WSAStartup() and WSACleanup() from DllMain.<br />
+5.) Load libpq from the driver's folder.<br />
+6.) Use QR_get_value_backend_int/_text() funcs instead of QR_get_value_backend_row().<br />
+7.) Improve the implemetation of SQLSetPos(.., SQL_ADD/SQL_UPDATE) using the 8.2 new feature INSERT/UPDATE .. returning.<br />
+8.) Seaparate DTC code as a Delayload DLL.<br />
+<br />
 <h2><a id="08.02.0204">psqlODBC 08.02.0204</a></h2>
-Changes:<br>
-1.) Configure the combination of time.h and sys/time.h.<br>
-2.) Treat the tables in information_schema as system tables.<br>
-3.) Correct the precision of SQL_NUMERIC_STRUCT.<br>
-4.) Change the default max varchar size from 254 to 255.<br>
-5.) Reset the fields information properly in case of SQLMoreResults.<br>
-6.) Implement SQLDescribeParam() also in case of multi-command queries.<br>
-7.) Handle dollar-quotes more properly.<br>
-8.) Provide a make option to link dynamic multithread library.<br>
-9.) Set the default nullablity to TRUE.<br>
-10.) Parse command delimiters(;) more correctly. <br>
-11.) Use QR_get_value_backend_text() or QR_get_value_backend_int()  <br>
-12.) instead of QR_get_value_backend_row().<br>
-13.) Apply Parse statement or disallow premature properly.<br>
-14.) Reset current_schema cache in case 'set search_path ..' command is issued.<br>
-<br>
+Changes:<br />
+1.) Configure the combination of time.h and sys/time.h.<br />
+2.) Treat the tables in information_schema as system tables.<br />
+3.) Correct the precision of SQL_NUMERIC_STRUCT.<br />
+4.) Change the default max varchar size from 254 to 255.<br />
+5.) Reset the fields information properly in case of SQLMoreResults.<br />
+6.) Implement SQLDescribeParam() also in case of multi-command queries.<br />
+7.) Handle dollar-quotes more properly.<br />
+8.) Provide a make option to link dynamic multithread library.<br />
+9.) Set the default nullablity to TRUE.<br />
+10.) Parse command delimiters(;) more correctly. <br />
+11.) Use QR_get_value_backend_text() or QR_get_value_backend_int()  <br />
+12.) instead of QR_get_value_backend_row().<br />
+13.) Apply Parse statement or disallow premature properly.<br />
+14.) Reset current_schema cache in case 'set search_path ..' command is issued.<br />
+<br />
 <h2><a id="08.02.0203">psqlODBC 08.02.0203</a></h2>
-Changes:<br>
-1) Fix a bug which forgets unnamed plans too early especially when handling large objects.<br>
-2) Don't treat charcters whose value >= 128 as alphanumeric in case of conversion of binary data to bytea.<br>
-3) Change ConfigDSN() so that it takes the options in Setup Dialog page 1 into account.<br>
-4) Simplify the memory management of statements'columns info so as to prevent memory leaks or a crash in parse_statement etc.<br>
-5) SQLTables("", SQL_ALL_SCHEMAS. "", ..) now returns a list of valid schemas.<br>
-6) SQLTables("", "", "", SQL_ALL_TABLE_TYPES) now returns a list of valid table types.<br>
-7) SQLGetInfo SQL_DATABASE_NAME now returns the database name.<br>
-8) Improve the automatic setting mechanism of the client_encoding for Windows code page 125x (ANSI drivers only).<br>
-<br>
+Changes:<br />
+1) Fix a bug which forgets unnamed plans too early especially when handling large objects.<br />
+2) Don't treat charcters whose value >= 128 as alphanumeric in case of conversion of binary data to bytea.<br />
+3) Change ConfigDSN() so that it takes the options in Setup Dialog page 1 into account.<br />
+4) Simplify the memory management of statements'columns info so as to prevent memory leaks or a crash in parse_statement etc.<br />
+5) SQLTables("", SQL_ALL_SCHEMAS. "", ..) now returns a list of valid schemas.<br />
+6) SQLTables("", "", "", SQL_ALL_TABLE_TYPES) now returns a list of valid table types.<br />
+7) SQLGetInfo SQL_DATABASE_NAME now returns the database name.<br />
+8) Improve the automatic setting mechanism of the client_encoding for Windows code page 125x (ANSI drivers only).<br />
+<br />
 <h2><a id="08.02.0202">psqlODBC 08.02.0202</a></h2>
-Changes:<br>
-1) Change to use NULL indicator instead of the length buffer in SQLFetch.<br>
-2) Fix long -> serial conversion error in MS Access.<br>
-<br>
+Changes:<br />
+1) Change to use NULL indicator instead of the length buffer in SQLFetch.<br />
+2) Fix long -> serial conversion error in MS Access.<br />
+<br />
 <h2><a id="08.02.0201">psqlODBC 08.02.0201</a></h2>
-Changes:<br>
-1) Ditinguish the indicaitor and the octet_length field of APD clcearly.<br>
-2) Handle @@IDENTITY more generally.<br>
-3) Take outer join into account so as to evaluate nullability.<br>
-4) Fix a bug about Keyset-driven cursors.<br>
-<br>
+Changes:<br />
+1) Ditinguish the indicaitor and the octet_length field of APD clcearly.<br />
+2) Handle @@IDENTITY more generally.<br />
+3) Take outer join into account so as to evaluate nullability.<br />
+4) Fix a bug about Keyset-driven cursors.<br />
+<br />
 <h2><a id="08.02.0200">psqlODBC 08.02.0200</a></h2>
-Changes:<br>
-1) Fix some bugs or warnings on 64 bit OS.<br>
-2) Avoid backend crash caused by Execute Requests for committed holdable cursors.<br>
-<br>
+Changes:<br />
+1) Fix some bugs or warnings on 64 bit OS.<br />
+2) Avoid backend crash caused by Execute Requests for committed holdable cursors.<br />
+<br />
 <h2><a id="08.02.0105">psqlODBC 08.02.0105</a></h2>
-Changes:<br>
-1) SQLStatistics now returns indices based on expression also.<br>
-2) Add a TEST button on the setup dialog.<br>
-<br>
+Changes:<br />
+1) SQLStatistics now returns indices based on expression also.<br />
+2) Add a TEST button on the setup dialog.<br />
+<br />
 <h2><a id="08.02.0104">psqlODBC 08.02.0104</a></h2>
-Changes:<br>
-1) Take 64bit mode into account for the format parameter of (s(n))printf, sscanf etc.<br>
-2) getpid() instead of _getpid()<br>
-3) SQLGetInfo(SQL_NULL_COLLATION) now returns SQL_NC_HIGH instead of SQL_NC_END<br>
-4) Remove the function SQLParamOptions from ODBC3.0.<br>
-<br>
+Changes:<br />
+1) Take 64bit mode into account for the format parameter of (s(n))printf, sscanf etc.<br />
+2) getpid() instead of _getpid()<br />
+3) SQLGetInfo(SQL_NULL_COLLATION) now returns SQL_NC_HIGH instead of SQL_NC_END<br />
+4) Remove the function SQLParamOptions from ODBC3.0.<br />
+<br />
 <h2><a id="08.02.0103">psqlODBC 08.02.0103</a></h2>
-Changes:<br>
-1) Improve the handling of connection error messages.<br>
-2) Add an option to convert empty strings to NULL.<br>
-3) Handle domain type as the basetype.<br>
-4) Fake MSS in case of not only SQLExecute but also SQLParamData.<br>
-5) Prevent SQLColumns from displaying system columns.<br>
-6) Unload delayLoaded libraries on dll detach (not on disconnect time).<br>
-7) Fix a SQLGetDiagField crash bug.<br>
-8) Fix a insertion count bug.<br>
-9) Take win98 cases into account a little.<br>
-<br>
+Changes:<br />
+1) Improve the handling of connection error messages.<br />
+2) Add an option to convert empty strings to NULL.<br />
+3) Handle domain type as the basetype.<br />
+4) Fake MSS in case of not only SQLExecute but also SQLParamData.<br />
+5) Prevent SQLColumns from displaying system columns.<br />
+6) Unload delayLoaded libraries on dll detach (not on disconnect time).<br />
+7) Fix a SQLGetDiagField crash bug.<br />
+8) Fix a insertion count bug.<br />
+9) Take win98 cases into account a little.<br />
+<br />
 <h2><a id="08.02.0102">psqlODBC 08.02.0102</a></h2>
-Changes:<br>
-1) Compensate a loss of report of being Jet when using MS Access.<br>
-2) Add NULL <-> "" date converion function for FOXPRO and<br>
-   revise parse/describe/execute mechanism.<br>
-3) Miscellaneous type changes for 64 bit drivers.<br>
-<br>
+Changes:<br />
+1) Compensate a loss of report of being Jet when using MS Access.<br />
+2) Add NULL <-> "" date converion function for FOXPRO and<br />
+   revise parse/describe/execute mechanism.<br />
+3) Miscellaneous type changes for 64 bit drivers.<br />
+<br />
 <h2><a id="08.02.0101">psqlODBC 08.02.0101</a></h2>
-Changes:<br>
-1) Delayload import XOLEHLP.dll so that the driver can be loaded<br>
-   without the existence of the dll.<br>
-2) Fix a simple password authentication bug.<br>
-3) Fix a buffer overrun bug which prevented the connection phase<br>
-   from retrying another version appropriately.<br>
-4) Handle multi-addresses of a specified host properly.<br>
-5) Refine the socket handling(connect, recv, send).<br>
-6) Display more appropriate error messages in the connection phase.<br>
-<br>
+Changes:<br />
+1) Delayload import XOLEHLP.dll so that the driver can be loaded<br />
+   without the existence of the dll.<br />
+2) Fix a simple password authentication bug.<br />
+3) Fix a buffer overrun bug which prevented the connection phase<br />
+   from retrying another version appropriately.<br />
+4) Handle multi-addresses of a specified host properly.<br />
+5) Refine the socket handling(connect, recv, send).<br />
+6) Display more appropriate error messages in the connection phase.<br />
+<br />
 <h2><a id="08.02.0100">psqlODBC 08.02.0100</a></h2>
-Changes:<br>
-1) Return to Unicode/ANSI driver distribution as some users still find one works better than the other for them.<br>
-2) Improve connection error message in case of invalid protocol characters.<br>
-3) Initial value has set MSDTC=no of VC6 (Support of MSDTC is only VC7 and VC8)<br>
-4) Addition which is a driver name in a resource (Unicode or ANSI)<br>
-<br>
+Changes:<br />
+1) Return to Unicode/ANSI driver distribution as some users still find one works better than the other for them.<br />
+2) Improve connection error message in case of invalid protocol characters.<br />
+3) Initial value has set MSDTC=no of VC6 (Support of MSDTC is only VC7 and VC8)<br />
+4) Addition which is a driver name in a resource (Unicode or ANSI)<br />
+<br />
 <h2><a id="08.02.0007">psqlODBC 08.02.0007</a></h2>
-Changes:<br>
-1) Fix some SQLPrimaryKey, SQLForeignKey bugs.<br>
-   Fill PK_NAME or FK_NAME columns.<br>
-   Return right update_rule values.<br>
-   Remove duplicates.<br>
-2) Handle SQL_ALL_SCHEMAS parameter in SQLTables. <br>
-3) Handle unaligned indicator/length buffers more properly.<br>
-4) Fix a bug in ProcedureColumns in case of set returning functions.<br>
-5) Fix a buffer overrun in handle_notice_message (Bart Samuel)<br>
-6) Fix a output parameters problem (Bart Samuel)<br>
-7) Hold the connection lock while a rollbackable statement running.<br>
-8) Add Extra Opts option to the DSN option setupdialog.<br>
-<br>
+Changes:<br />
+1) Fix some SQLPrimaryKey, SQLForeignKey bugs.<br />
+   Fill PK_NAME or FK_NAME columns.<br />
+   Return right update_rule values.<br />
+   Remove duplicates.<br />
+2) Handle SQL_ALL_SCHEMAS parameter in SQLTables. <br />
+3) Handle unaligned indicator/length buffers more properly.<br />
+4) Fix a bug in ProcedureColumns in case of set returning functions.<br />
+5) Fix a buffer overrun in handle_notice_message (Bart Samuel)<br />
+6) Fix a output parameters problem (Bart Samuel)<br />
+7) Hold the connection lock while a rollbackable statement running.<br />
+8) Add Extra Opts option to the DSN option setupdialog.<br />
+<br />
 <h2><a id="08.02.0006">psqlODBC 08.02.0006</a></h2>
-Changes:<br>
-1) Add an option to fake Microsoft SQL Server which would improve SERIAL type handling.<br>
-2) Add support for LOGIN_TIMEOUT.<br>
-3) Improve Statement error handling about the reference of Connection error.<br>
-4) Improve the handling BIGINT type in the OSs without having strtoll().<br>
-5) Support ODBC CONVERT scalar functions in some cases.<br>
-6) Close qlog, mylog files on detach dll.<br>
-7) Improve comunication performance in case of the driver's original socket.<br>
-8) Fix send a close <br>
-9) Support of IPV6.<br>
-<br>
-8.2.0003-8.2.0005 was skipped by the situation.<br>
-<br>
+Changes:<br />
+1) Add an option to fake Microsoft SQL Server which would improve SERIAL type handling.<br />
+2) Add support for LOGIN_TIMEOUT.<br />
+3) Improve Statement error handling about the reference of Connection error.<br />
+4) Improve the handling BIGINT type in the OSs without having strtoll().<br />
+5) Support ODBC CONVERT scalar functions in some cases.<br />
+6) Close qlog, mylog files on detach dll.<br />
+7) Improve comunication performance in case of the driver's original socket.<br />
+8) Fix send a close <br />
+9) Support of IPV6.<br />
+<br />
+8.2.0003-8.2.0005 was skipped by the situation.<br />
+<br />
 <h2><a id="08.02.0002">psqlODBC 08.02.0002</a></h2>
-Changes:<br>
-1) SQL injections via ODBC catalog function calls.<br>
-2) Fix SQLNumParams problem related to literal or dollar quote.<br>
-3) Call libpq in case of Kerberos authentication.<br>
-4) Add E' before literal for after 8.1 severs.<br>
-5) Return the correct error message in case of no password.<br>
-6) Take E'...' literal expression into account.<br>
-7) Fix an SQL_C_WCHAR -> numeric type conversion problem.<br>
-8) Refine the handling of io or output parameters.<br>
-9) Refine the dollar quote handling.<br>
-10) Fix the client_encoding mismatch problem.<br>
-11) Fix for SQLStatistics returns UNKNOWN instead of real column names.<br>
-<br>
+Changes:<br />
+1) SQL injections via ODBC catalog function calls.<br />
+2) Fix SQLNumParams problem related to literal or dollar quote.<br />
+3) Call libpq in case of Kerberos authentication.<br />
+4) Add E' before literal for after 8.1 severs.<br />
+5) Return the correct error message in case of no password.<br />
+6) Take E'...' literal expression into account.<br />
+7) Fix an SQL_C_WCHAR -> numeric type conversion problem.<br />
+8) Refine the handling of io or output parameters.<br />
+9) Refine the dollar quote handling.<br />
+10) Fix the client_encoding mismatch problem.<br />
+11) Fix for SQLStatistics returns UNKNOWN instead of real column names.<br />
+<br />
 <h2><a id="08.02.0001">psqlODBC 08.02.0001</a></h2>
-Changes:<br>
-1) updated CVS tip to the REL-07_03_ENHANCED branch<br>
-2) updated the installer for the single driver distribution<br>
-3) standardised various filenames that were previously based on build types<br>
-4) standardised the build on ODBC version 3.51<br>
+Changes:<br />
+1) updated CVS tip to the REL-07_03_ENHANCED branch<br />
+2) updated the installer for the single driver distribution<br />
+3) standardised various filenames that were previously based on build types<br />
+4) standardised the build on ODBC version 3.51<br />
 <hr>
 
 Release notes for older versions are <a href="release-7.3.html">here</a>
