@@ -46,10 +46,19 @@ Because changes are applied to percent-encoded fields this time, password field 
 <li><b> Ignore automatically-generated files in source code with .gitignore.</b><br/ ></li>
  This is useful to prevent accidental commit of files that are not wanted in the remote repository.<br />
  The original patch was provided by MichaelPaquier. I also added files genearated by VC build tools or WIX tools to .gitignore.<br />
-<li><b> Change configure.ac so that ODBC_CONFIG is set when neither unixODBC nor iODBC is explicitly specified.</b><br /></li>
 <li><b> The first cut of psqlodbc setup project. It builds a setup program which can't be done by a single MSI. </b><br /></li>
  It would install VC++ redistributable, 32 bit psqlodbc driver and 64 bit psqlodbc driver (on 64 bit windows).</b><br /></li>
-<li><b> Configure is checking SIZEOF_LONG not SIZEOF_LONG_INT.</b><br /></li>
+<li><b>Change the configure.ac </b><br /></li>
+<ol type="a">
+<li>Change checking SIZEOF_LONG not SIZEOF_LONG_INT.</li>
+<li>with_xxxxx (xxxxx is the package name) variables directly instead of the withval variable.</li>
+<li>Improve the help message of configure script.</li>
+<li>Stop linking lib(i)odbc library because the library is unnecessary and rather harmful. </li>
+Per report from Pavel Raiskup(postgresql.org/message-id/1769926.65KUyECjFr@nb.usersys.redhat.com).<br />
+<li>Move -Wall -Wno-pointer-sign CFLAGS option specified in Makefile.am to configure.ac. </li>
+<li>ODBC_CONFIG is set when neither unixODBC nor iODBC is explicitly specified.</li>
+</ol>
+
 <li><b> Silence misc compiler warnings. Also a few comment typo and whitespace fixes.</b><br /></li>
 <li><b> CC_Copy is needed if _HANDLE_ENLIST_IN_DTC_ is used, regardless of CLEANUP_CONN_BEFORE_ISOLATION.</b><br /></li>
  That caused compilation on Windows to fail.<br />
@@ -57,9 +66,6 @@ Because changes are applied to percent-encoded fields this time, password field 
 <li><b> Handle turning standard_conforming_strings to off in mid-session.</b><br /></li>
  We already watched for a ParameterStatus response indicating that standard_conforming_strings was turned on, and acted accordingly, but if it was turned off, we did nothing.<br />
 <li><b> Remove common.o on "make clean"</b><br /></li>
-<li><b> Fix bug when a statement is executed twice with data-at-execution params.</b><br /></li>
- When a statement with array-bound data-at-execution parameters is executed twice, the second result set was not returned when UseServerSidePrepare=1.<br />
- This was demonstrated by the data-at-execution regression test case.<br />
 <li><b> Change the default for UseServerSidePrepare to 1.</b><br /></li>
  The docs have recommended UseServerSidePrepare=1 for server versions 7.4 onwards, so it seems prudent to change the default so that people don't needto remember to specify it manually.<br />
  With UseServerSidePrepare=1, the "insertreturning" regression test case behaves better, ie.<br />
@@ -105,20 +111,10 @@ Change CC_copy_conninfo() and copy_globals() so that they copy each item one by 
 They were broken, did not compile. This fixed by Michael Paquier.<br />
 <li><b>Add support for verify-ca/full sslmode using Windows Schannel Security Service Provider.</b><br /></li>
 Root CAs must be installed into Windows Root certificate store beforehand.<br />
-<li><b>Change conifuration_template.xml so that its 64bit default is use_sspi=yes, use_gss=no.</b><br /></li> 
-add the treatment of libpq default version.<br />
 <li><b> VOID is not defined on all systems. Use void insted.</b><br /></li>
 This fixed by Christoph Berg.<br />
-<li><b> nmake macros are given as command line parameters.</b><br /></li>
-<li><b> Rename the name of elements in configuration(_template).xml from setenv to setvcvars.</b><br /></li>
 <li><b> winres.h instead of afxres.h.</b><br /></li>
 There are some cases (VS 2012 express etc) when afxres.h doesn't exist.<br />
-<li><b> configure.ac variables, help mesage change and linking lib(i)odbc change.</b><br /></li>
-.with_xxxxx (xxxxx is the package name) variables directly instead of the withval variable.<br />
-.Improve the help message of configure script.<br />
-.Stop linking lib(i)odbc library because the library is unnecessary and rather harmful. <br />
-Per report from Pavel Raiskup(postgresql.org/message-id/1769926.65KUyECjFr@nb.usersys.redhat.com).<br />
-.Move -Wall -Wno-pointer-sign CFLAGS option specified in Makefile.am to configure.ac. Users can disable those options by giving CFLAGS option explicitly. Also verify the availability of those options.
 <li><b> Avoid double-free() bug.</b><br /></li>
 Spotted by Fortify static analysis tool.<br />
 <li><b> Escape double-quotes in table name correctly.</b><br /></li>
@@ -148,6 +144,8 @@ Call getaddrinfo() with AI_NUMERICHOST if it is ipv4/ipv6 address.
 For that reason the inet_pton() is better than inet_addr().<br />
 This fixed by Pavel Raiskup<br />
 <li><b>Call getaddrinfo() with AI_NUMERICSERV because the service is a port number.</b><br /></li>
+<li><b>Fixed lost mylog.h in Makefile.am.</b><br /></li>
+This fixed by Pavel Raiskup<br />
 </ol>
 <br />
 <h2><a id="09.02.0100">psqlODBC 09.02.0100 Release</a></h2>
