@@ -45,6 +45,7 @@
                 <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
                 <File Id="docs.config_opt.html" Name="config-opt.html" DiskId="1" Source="../docs/config-opt.html" />
                 <File Id="docs.release.html" Name="release.html" DiskId="1" Source="../docs/release.html" />
+                <File Id="docs.release-7.3.html" Name="release-7.3.html" DiskId="1" Source="../docs/release-7.3.html" />
                 <File Id="docs.unix_compilation.html" Name="unix-compilation.html" DiskId="1" Source="../docs/unix-compilation.html" />
                 <File Id="docs.win32_compilation.html" Name="win32-compilation.html" DiskId="1" Source="../docs/win32-compilation.html" />
 
