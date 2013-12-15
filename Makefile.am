@@ -8,6 +8,8 @@ AUTOMAKE_OPTIONS = 1.8 foreign
 
 ACLOCAL_AMFLAGS = -I config
 
+SUBDIRS = test
+
 if enable_unicode
 lib_LTLIBRARIES = psqlodbcw.la
 else
