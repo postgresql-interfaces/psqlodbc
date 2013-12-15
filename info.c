@@ -1479,6 +1479,9 @@ CSTR	like_op_sp = 	"like ";
 CSTR	like_op_ext =	"like E";
 CSTR	eq_op_sp =	"= ";
 CSTR	eq_op_ext =	"= E";
+
+#define	 IS_VALID_NAME(str) ((str) && (str)[0])
+
 static const char *gen_opestr(const char *orig_opestr, const ConnectionClass * conn)
 {
 	BOOL	addE = (0 != CC_get_escape(conn) && PG_VERSION_GE(conn, 8.1));
@@ -1665,9 +1668,13 @@ retry_public_schema:
 			/* strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)"); */
 		}
 		else
-			snprintf_add(tables_query, sizeof(tables_query),
+		{
+			if (IS_VALID_NAME(escSchemaName))
+				snprintf_add(tables_query, sizeof(tables_query),
 						 " and usename %s'%s'", op_string, escSchemaName);
-		snprintf_add(tables_query, sizeof(tables_query),
+		}
+		if (IS_VALID_NAME(escTableName))
+			snprintf_add(tables_query, sizeof(tables_query),
 					 " and relname %s'%s'", op_string, escTableName);
 	}
 
@@ -2147,7 +2154,8 @@ retry_public_schema:
 		if (escTableName)
 			snprintf_add(columns_query, sizeof(columns_query),
 						 " and c.relname %s'%s'", op_string, escTableName);
-		snprintf_add(columns_query, sizeof(columns_query),
+		if (IS_VALID_NAME(escSchemaName))
+			snprintf_add(columns_query, sizeof(columns_query),
 					 " and u.usename %s'%s'", op_string, escSchemaName);
 		if (escColumnName)
 			snprintf_add(columns_query, sizeof(columns_query),
@@ -2820,8 +2828,11 @@ retry_public_schema:
 	if (conn->schema_support)
 		schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	else
-		snprintf_add(columns_query, sizeof(columns_query),
+	{
+		if (IS_VALID_NAME(escSchemaName))
+			snprintf_add(columns_query, sizeof(columns_query),
 					 " and u.usename %s'%s'", eq_string, escSchemaName);
+	}
 
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
@@ -5096,7 +5107,9 @@ PGAPI_ProcedureColumns(
 				   " (not proretset) and");
 #endif /* PRORET_COUNT */
 		snprintf_add(proc_query, sizeof(proc_query),
-					 " has_function_privilege(p.oid, 'EXECUTE')"
+					 " has_function_privilege(p.oid, 'EXECUTE')");
+		if (IS_VALID_NAME(escSchemaName))
+			snprintf_add(proc_query, sizeof(proc_query),
 					 " and nspname %s'%s'",
 					 op_string, escSchemaName);
 		if (escProcName)
@@ -5477,7 +5490,8 @@ PGAPI_Procedures(
 		   " pg_catalog.pg_proc"
 		  " where pg_proc.pronamespace = pg_namespace.oid");
 		schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szProcName, cbProcName, conn);
-		snprintf_add(proc_query, sizeof(proc_query),
+		if (IS_VALID_NAME(escProcName))
+			snprintf_add(proc_query, sizeof(proc_query),
 					 " and proname %s'%s'", op_string, escProcName);
 	}
 	else
@@ -5487,7 +5501,9 @@ PGAPI_Procedures(
 				 " proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
 				 " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 				 " '' as " "REMARKS" ","
-				 " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_proc"
+				 " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_proc");
+		if (IS_VALID_NAME(escSchemaName))
+			snprintf_add(proc_query, sizeof(proc_query),
 				 " where proname %s'%s'",
 				 op_string, escSchemaName);
 	}
