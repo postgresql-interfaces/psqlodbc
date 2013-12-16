@@ -36,7 +36,7 @@ psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 
 EXTRA_DIST = license.txt readme.txt \
 	psqlodbc.def psqlodbca.def \
-	pgenlist.def  pgenlista.def \
+	pgenlist.def pgenlista.def connexp.h \
 	dlg_wingui.c inouealc.c win_setup.h \
         setup.c win_unicode.c psqlodbc.rc win64.mak \
         win32.mak psqlodbc.reg psqlodbc.dsp psqlodbc.vcproj \
