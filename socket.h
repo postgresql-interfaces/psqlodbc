@@ -114,6 +114,7 @@ typedef int (WSAAPI *getaddrinfo_func) (const char *, const char *,
 	const struct addrinfo *, struct addrinfo **); 
 typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *,
 	socklen_t, char *, size_t, char *, size_t, int);
+typedef int (WSAAPI *inet_pton_func) (int, const char *, void *);
 
 #ifdef	MSG_NOSIGNAL
 #define	SEND_FLAG MSG_NOSIGNAL

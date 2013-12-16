@@ -179,11 +179,17 @@ SOCK_Destructor(SocketClass *self)
 	free(self);
 }
 
+#ifdef	WIN32
+static inet_pton_func inet_pton_ptr = NULL;
+static HMODULE ws2_hnd = NULL;
+#else
+static inet_pton_func inet_pton_ptr = inet_pton;
+#endif /* WIN32 */
+
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
 static freeaddrinfo_func freeaddrinfo_ptr = NULL;
 static getaddrinfo_func getaddrinfo_ptr = NULL;
 static getnameinfo_func getnameinfo_ptr = NULL;
-static	HMODULE ws2_hnd = NULL;
 #else
 static freeaddrinfo_func freeaddrinfo_ptr = freeaddrinfo;
 static getaddrinfo_func getaddrinfo_ptr = getaddrinfo;
@@ -234,9 +240,13 @@ static BOOL format_sockerr(char *errmsg, size_t buflen, int errnum, const char *
 static int
 is_numeric_address(const char *hostname)
 {
-	char unused[16];
-	return (inet_pton(AF_INET, hostname, &unused) ||
-		inet_pton(AF_INET6, hostname, &unused));
+	if (inet_pton_ptr != NULL)
+	{
+		char unused[16];
+		return (inet_pton_ptr(AF_INET, hostname, &unused) ||
+			inet_pton_ptr(AF_INET6, hostname, &unused));
+	}
+	return (inet_addr(hostname) != INADDR_NONE);
 }
 
 char
@@ -253,9 +263,15 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		return 0;
 	}
 
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
+#ifdef	WIN32
 	if (ws2_hnd == NULL)
+	{
 		ws2_hnd = GetModuleHandle("ws2_32.dll");
+		if (inet_pton_ptr == NULL)
+			inet_pton_ptr = (inet_pton_func)GetProcAddress(ws2_hnd, "inet_pton");
+	} 
+#endif /* WIN32 */
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
 	if (freeaddrinfo_ptr == NULL)
 		freeaddrinfo_ptr = (freeaddrinfo_func)GetProcAddress(ws2_hnd, "freeaddrinfo"); 
 	if (getaddrinfo_ptr == NULL)
