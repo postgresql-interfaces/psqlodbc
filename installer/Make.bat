@@ -25,9 +25,9 @@ if "%PGVERSION%" == "" SET PGVERSION=9.3
 :: and call this batch file.
 ::
 if "%LIBPQBINDIR%" == "" (
-	SET LINKFILES=%X86PROGRAMFILES%\PostgreSQL\%PGVERSION%\bin
+	SET LINKFILES="%X86PROGRAMFILES%\PostgreSQL\%PGVERSION%\bin"
  ) else (
-	SET LINKFILES=%LIBPQBINDIR%
+	SET LINKFILES="%LIBPQBINDIR%"
  )
 
 if NOT "%1"=="" (
@@ -59,7 +59,7 @@ echo PRODUCTCODE=%PRODUCTCODE%
 echo.
 echo Building psqlODBC/%SUBLOC% merge module...
 
-candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dLINKFILES="%LINKFILES%" psqlodbcm.wxs
+candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dLINKFILES=%LINKFILES% psqlodbcm.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
 light -nologo -out psqlodbc.msm psqlodbcm.wixobj
