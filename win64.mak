@@ -48,7 +48,7 @@ CFG=Release
 #	Please replace the default options from the commandline if necessary 
 #
 !IFNDEF	CUSTOMCLOPT
-CUSTOMCLOPT=/nologo /MD /W3 /EHsc
+CUSTOMCLOPT=/nologo /MD /W3 /wd4018 /EHsc
 !ELSE
 !MESSAGE CL option $(CUSTOMCLOPT) specified
 !ENDIF 
