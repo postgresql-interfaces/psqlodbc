@@ -47,13 +47,13 @@ if "%USE_SSPI%" == "" (
 ::	Please specify the foler name where you placed libpq related dlls.
 ::	Currently not used.
 ::
-if "%PGVERSION%" == "" SET PGVESRION=9.3
+if "%PGVERSION%" == "" SET PGVERSION=9.3
 if "%USE_LIBPQ%" == "yes" (
 	if "%LIBPQBINDIR%" == "" (
-		if "%PROCESSOR_ARCHITECTURE%" == "x64" (
-			SET LIBPQBINDIR=%ProgramFiles%\PostgreSQL\%PGVERSION%\bin
+		if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
+			SET LIBPQBINDIR="%ProgramFiles%\PostgreSQL\%PGVERSION%\bin"
 		) else (
-			echo You are setting USE_LIBPQ=%USE_GSS%
+			echo You are setting USE_LIBPQ=%USE_LIBPQ%
 			echo Please specify LIBPQBINDIR variable
 			echo Press any key to exit ...
 			pause > nul
