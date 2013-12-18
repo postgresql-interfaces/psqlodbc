@@ -16,7 +16,7 @@ Add-Type -AssemblyName presentationframework
 [xml]$XAML = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" Height="640" Width="539" BorderBrush="Black" Margin="30,0,0,0">
+        Title="MainWindow" Height="670" Width="539" BorderBrush="Black" Margin="30,0,0,0">
     <Grid>
         <StackPanel Height="600" HorizontalAlignment="Left" Margin="42,29,0,0" Name="stackPanel1" VerticalAlignment="Top" Width="431" Opacity="1">
             <StackPanel Orientation="Horizontal" Height="50">
@@ -90,6 +90,15 @@ Add-Type -AssemblyName presentationframework
                     </StackPanel>
                  </StackPanel>
             </StackPanel>
+	    <!-- x86.setvcvars -->	
+            <StackPanel Height="26" Name="stackPanel86vcvars" Orientation="Horizontal" Width="Auto">
+                <Label BorderBrush="Black" Content="setvcvars" Height="Auto" HorizontalContentAlignment="Center" Name="label86vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
+                <StackPanel Height="Auto" Name="stackPanel86vcvars_1" Orientation="Horizontal" Width="Auto">
+			<TextBox Height="24" Name="textBox86vcvars" Width="304" />
+                        <Button Content="..." Height="23" Name="button86vcvars" Width="20" />
+                 </StackPanel>
+            </StackPanel>
+	    <!-- x64 --> 
             <StackPanel Orientation="Horizontal">
                 <Label Content="x64" Height="26" HorizontalAlignment="Left" HorizontalContentAlignment="Center" Name="label13" VerticalAlignment="Top" Width="43" />
                 <CheckBox BorderBrush="Black" Content="libpq" Height="Auto" HorizontalContentAlignment="Center" Name="checkBox4" VerticalContentAlignment="Center" Width="51" />
@@ -152,6 +161,15 @@ Add-Type -AssemblyName presentationframework
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
+	    <!-- x64.setvcvars -->
+            <StackPanel Height="26" Name="stackPanel64vcvars" Orientation="Horizontal" Width="Auto">
+                <Label BorderBrush="Black" Content="setvcvars" Height="Auto" HorizontalContentAlignment="Center" Name="label64vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
+                <StackPanel Height="Auto" Name="stackPanel64vcvars_1" Orientation="Horizontal" Width="Auto">
+			<TextBox Height="24" Name="textBox64vcvars" Width="304" />
+                        <Button Content="..." Height="23" Name="button64vcvars" Width="20" />
+                 </StackPanel>
+            </StackPanel>
+
         </StackPanel>
     </Grid>
 </Window>
@@ -185,6 +203,26 @@ for ($i = 1; $i -lt 17; $i++)
     $button.add_Click($button_click)
 }
 
+$button_click2 =
+{
+    ($sender, $e) = $this, $_
+    # senderÅi$thisÅj
+	[void] [Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')
+	$d = New-Object Windows.Forms.OpenFileDialog
+	$d.InitialDirectory = $scriptPath
+	if ($d.ShowDialog() -eq "OK") {
+        	$lname = $sender.Name.substring(6)
+		$text = $window.FindName("textBox" + $lname)
+		$text.Text = $d.FileName
+    	}
+}
+
+foreach ($btnname in ("button86vcvars", "button64vcvars"))
+{
+	$button = $window.FindName($btnname)
+	$button.add_Click($button_click2)
+}
+
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $configInfo = & "$scriptPath\configuration.ps1" "$configPath"
 
@@ -203,6 +241,7 @@ $window.findName("textBox5").Text = $x86info.gss.lib
 $window.findName("textBox6").Text = $x86info.gss.bin
 $window.findName("textBox7").Text = $x86info.ssl.include
 $window.findName("textBox8").Text = $x86info.ssl.lib
+$window.findName("textBox86vcvars").Text = $x86info.setvcvars
 
 $x64info = $configInfo.Configuration.x64
 
@@ -218,6 +257,7 @@ $window.findName("textBox13").Text = $x64info.gss.lib
 $window.findName("textBox14").Text = $x64info.gss.bin
 $window.findName("textBox15").Text = $x64info.ssl.include
 $window.findName("textBox16").Text = $x64info.ssl.lib
+$window.findName("textBox64vcvars").Text = $x64info.setvcvars
 
 $buttonSave = $window.FindName("buttonSave")
 $buttonSave_clicked = $buttonSave.add_Click
@@ -234,6 +274,7 @@ $buttonSave_clicked.Invoke({
 	$x86info.gss.bin = $window.findName("textBox6").Text
 	$x86info.ssl.include = $window.findName("textBox7").Text
 	$x86info.ssl.lib = $window.findName("textBox8").Text
+	$x86info.setvcvars = $window.findName("textBox86vcvars").Text
 	
 
 	$x64info.use_libpq = $(if ($window.findName("checkBox4").isChecked) {"yes"} else {"no"})
@@ -247,6 +288,7 @@ $buttonSave_clicked.Invoke({
 	$x64info.gss.bin = $window.findName("textBox14").Text
 	$x64info.ssl.include = $window.findName("textBox15").Text
 	$x64info.ssl.lib = $window.findName("textBox16").Text
+	$x64info.setvcvars = $window.findName("textBox64vcvars").Text
 
 	SaveConfiguration $configInfo
 })
