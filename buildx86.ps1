@@ -28,7 +28,7 @@ if ($USE_LIBPQ -eq "yes")
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
 		$pgmfs = "$env:ProgramFiles"
 	} else {
-		$pgmfs = "$env:ProgramFiles(X86)"
+		$pgmfs = "${env:ProgramFiles(x86)}"
 	}
 	if ($PG_INC -eq "default") {
 		$PG_INC = "$pgmfs\PostgreSQL\$LIBPQVER\include"
