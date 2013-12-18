@@ -17,7 +17,7 @@ if ($USE_LIBPQ -eq "yes")
 {
 	$LIBPQBINDIR=$x64info.libpq.bin
 	if ($LIBPQBINDIR -eq "default") {
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x64") {
+		if ($env:PROCESSOR_ARCHITECTURE -ne "x86") {
 			$pgmfs = "$env:ProgramFiles"
 			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 		}
