@@ -1,7 +1,8 @@
 -- PostgreSQL catalog extensions for ODBC compatibility (odbc.sql)
 
--- ODBC functions are described here:
--- <http://msdn.microsoft.com/library/en-us/odbc/htm/odbcscalar_functions.asp>
+-- ODBC scalar functions are described here:
+-- Microsoft ODBC Programmer's Reference, Appendix E: Scalar Functions
+-- http://msdn.microsoft.com/library/ms711813.aspx
 
 -- Note:  If we format this file consistently we can automatically
 -- generate a corresponding "drop script".  Start "CREATE" in the first
