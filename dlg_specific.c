@@ -489,6 +489,9 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, "driver") == 0)
 		strcpy(ci->drivername, value);
 
+	else if (stricmp(attribute, INI_KDESC) == 0)
+		strcpy(ci->desc, value);
+
 	else if (stricmp(attribute, INI_DATABASE) == 0)
 		strcpy(ci->database, value);
 
