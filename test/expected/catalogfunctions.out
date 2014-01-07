@@ -5,4 +5,6 @@ contrib_regression	public	booltab	TABLE
 contrib_regression	public	byteatab	TABLE	
 contrib_regression	public	intervaltable	TABLE	
 contrib_regression	public	testtab1	TABLE	
+Result set:
+contrib_regression	public	testtab1	TABLE	
 disconnecting

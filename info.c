@@ -1544,10 +1544,11 @@ PGAPI_Tables(
 	ConnectionClass *conn;
 	ConnInfo   *ci;
 	char	*escCatName = NULL, *escSchemaName = NULL, *escTableName = NULL;
-	char	   *prefix[32],
+	/* Support up to 32 system table prefixes. Should be more than enough. */
+#define MAX_PREFIXES 32
+	char	   *prefix[MAX_PREFIXES],
 				prefixes[MEDIUM_REGISTRY_LEN];
-	char	   *table_type[32],
-				table_types[MAX_INFO_STRING];
+	int			nprefixes;
 	char		show_system_tables,
 				show_regular_tables,
 				show_views;
@@ -1678,20 +1679,25 @@ retry_public_schema:
 					 " and relname %s'%s'", op_string, escTableName);
 	}
 
-	/* Parse the extra systable prefix	*/
+	/*
+	 * Parse the extra systable prefix configuration variable into an array
+	 * of prefixes.
+	 */
 	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
-	i = 0;
+	for (i = 0; i < MAX_PREFIXES; i++)
+	{
+		char	*str = (i == 0) ? prefixes : NULL;
+
 #ifdef	HAVE_STRTOK_R
-	prefix[i] = strtok_r(prefixes, ";", &last);
+		prefix[i] = strtok_r(str, ";", &last);
 #else
-	prefix[i] = strtok(prefixes, ";");
+		prefix[i] = strtok(str, ";");
 #endif /* HAVE_STRTOK_R */
-	while (i < sizeof(prefix) / sizeof(char *) && prefix[i])
-#ifdef	HAVE_STRTOK_R
-		prefix[++i] = strtok_r(NULL, ";", &last);
-#else
-		prefix[++i] = strtok(NULL, ";");
-#endif /* HAVE_STRTOK_R */
+
+		if (prefix[i] == NULL)
+			break;
+	}
+	nprefixes = i;
 
 	/* Parse the desired table types to return */
 	show_system_tables = FALSE;
@@ -1713,27 +1719,22 @@ retry_public_schema:
 #endif /* ODBCVER */
 	else
 	{
-		strcpy(table_types, tableType);
-		i = 0;
-#ifdef	HAVE_STRTOK_R
-		table_type[i] = strtok_r(table_types, ",", &last);
-#else
-		table_type[i] = strtok(table_types, ",");
-#endif /* HAVE_STRTOK_R */
-		while (i < sizeof(table_type) / sizeof(char *) && table_type[i])
-#ifdef	HAVE_STRTOK_R
-			table_type[++i] = strtok_r(NULL, ",", &last);
-#else
-			table_type[++i] = strtok(NULL, ",");
-#endif /* HAVE_STRTOK_R */
-
 		/* Check for desired table types to return */
-		i = 0;
-		while (table_type[i])
+		char *srcstr;
+		for (srcstr = tableType;; srcstr = NULL)
 		{
-			UCHAR *typestr = (UCHAR *) table_type[i];
+			char *typestr;
 
-			while (isspace(*typestr))
+#ifdef	HAVE_STRTOK_R
+			typestr = strtok_r(srcstr, ",", &last);
+#else
+			typestr = strtok(srcstr, ",");
+#endif /* HAVE_STRTOK_R */
+
+			if (typestr == NULL)
+				break;
+
+			while (isspace((unsigned char) *typestr))
 				typestr++;
 			if (*typestr == '\'')
 				typestr++;
@@ -1743,7 +1744,6 @@ retry_public_schema:
 				show_regular_tables = TRUE;
 			else if (strnicmp(typestr, CSTR_VIEW, strlen(CSTR_VIEW)) == 0)
 				show_views = TRUE;
-			i++;
 		}
 	}
 
@@ -1761,7 +1761,7 @@ retry_public_schema:
 			strcat(tables_query, " and relname !~ '^" POSTGRES_SYS_PREFIX);
 
 			/* Also filter out user-defined system table types */
-			for (i = 0; prefix[i]; i++)
+			for (i = 0; i < nprefixes; i++)
 			{
 				strcat(tables_query, "|^");
 				strcat(tables_query, prefix[i]);
@@ -1888,8 +1888,7 @@ retry_public_schema:
 			else
 			{
 				/* Check extra system table prefixes */
-				i = 0;
-				while (prefix[i])
+				for (i = 0; i < nprefixes; i++)
 				{
 					mylog("table_name='%s', prefix[%d]='%s'\n", table_name, i, prefix[i]);
 					if (strncmp(table_name, prefix[i], strlen(prefix[i])) == 0)
@@ -1897,7 +1896,6 @@ retry_public_schema:
 						systable = TRUE;
 						break;
 					}
-					i++;
 				}
 			}
 		}
