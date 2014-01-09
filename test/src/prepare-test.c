@@ -12,6 +12,9 @@ int main(int argc, char **argv)
 	SQLINTEGER longparam;
 	SQL_INTERVAL_STRUCT intervalparam;
 	SQLSMALLINT colcount;
+	char		byteaParam[5000];
+	int			i;
+	char		errstr[100];
 
 	test_connect();
 
@@ -80,6 +83,77 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLExecute failed", hstmt);
 
 	/* Fetch result */
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/**** Test a query with a bytea param of various sizes.  ****/
+
+	/*
+	 * The driver has some special handling for byteas, as it sends them in
+	 * binary mode. This particular test case exercises an old bug where
+	 * the bind packet size was calculated incorrectly, and there was an
+	 * out-of-bounds write of two bytes when the total packet size was exactly
+	 * 4097 bytes. So, exercise packet sizes near that boundary.
+	 */
+
+	rc = SQLExecDirect(hstmt,
+					   (SQLCHAR *) "CREATE TEMPORARY TABLE btest (len int4, b bytea)",
+					   SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	/* Prepare a statement */
+	rc = SQLPrepare(hstmt, (SQLCHAR *) "INSERT INTO btest VALUES(?, ?)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
+
+	/* fill in test data */
+	for (i = 0; i < sizeof(byteaParam); i++)
+		byteaParam[i] = (char) i;
+
+	printf ("inserting bytea values...");
+	for (i = 4000; i < 4100; i++)
+	{
+		printf(" %d", i); fflush(stdout);
+		/* bind int param  */
+		longparam = i;
+		cbParam1 = sizeof(longparam);
+		rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
+							  SQL_C_SLONG,	/* value type */
+							  SQL_INTEGER,	/* param type */
+							  0,			/* column size (ignored for SQL_INTEGER) */
+							  0,			/* dec digits */
+							  &longparam,	/* param value ptr */
+							  sizeof(longparam), /* buffer len (ignored for SQL_INTEGER) */
+							  &cbParam1		/* StrLen_or_IndPtr (ignored for SQL_INTEGER) */);
+		CHECK_STMT_RESULT(rc, "\nSQLBindParameter failed", hstmt);
+
+		cbParam1 = i;
+		rc = SQLBindParameter(hstmt, 2, SQL_PARAM_INPUT,
+							  SQL_C_BINARY,	/* value type */
+							  SQL_VARBINARY,	/* param type */
+							  sizeof(byteaParam), /* column size */
+							  0,			/* dec digits */
+							  byteaParam,	/* param value ptr */
+							  sizeof(byteaParam), /* buffer len */
+							  &cbParam1		/* StrLen_or_IndPtr */);
+		CHECK_STMT_RESULT(rc, "\nSQLBindParameter failed", hstmt);
+
+		/* Execute */
+		rc = SQLExecute(hstmt);
+		CHECK_STMT_RESULT(rc, "\nSQLExecute failed", hstmt);
+	}
+	printf(" done!\n");
+	printf("Now reading them back...\n");
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/* Check the inserted data */
+	rc = SQLExecDirect(hstmt,
+					   (SQLCHAR *) "SELECT len, length(b) FROM btest",
+					   SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 	print_result(hstmt);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);

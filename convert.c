@@ -3676,10 +3676,18 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 		SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, "The # of binded parameters < the # of parameter markers", func);
 		return FALSE;
 	}
+
+	/*
+	 * Calculate minimum length of the packet. This doesn't take any of
+	 * the actual parameter values into account, but it's enough to make
+	 * sure there's enough space for all the fields before the parameter
+	 * values, without enlarging.
+	 */
         plen = strlen(plan_name);
 	netleng = sizeof(netleng)	/* length fields */
-		  + 2 * (plen + 1)	/* portal name/plan name */
-		  + sizeof(Int2) * (num_params + 1) /* parameter types (max) */
+		  + 2 * (plen + 1)	/* portal and plan name */
+		  + sizeof(Int2)	/* number of param format codes */
+		  + sizeof(Int2) * num_params /* parameter types (max) */
 		  + sizeof(Int2)	/* result format */
 		  + 1;
         if (QB_initialize(&qb, netleng > MIN_ALC_SIZE ? netleng : MIN_ALC_SIZE, stmt, NULL) < 0)
@@ -3699,17 +3707,18 @@ inolog("num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
 inolog("num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
         netnum_p = htons(num_p);	/* Network byte order */
-	if (0 != (qb.flags & FLGB_BINARY_AS_POSSIBLE))
+	if (0 != (qb.flags & FLGB_BINARY_AS_POSSIBLE) && num_p > 0)
 	{
 		int	j;
 		ParameterImplClass	*parameters = ipdopts->parameters;
-		Int2	net_one = 1;
+		Int2	net_one = htons(1);
  
-		net_one = htons(net_one);
-        	memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p)); /* number of parameter format */
-        	leng += sizeof(Int2);
-		if (num_p > 0)
-        		memset(bindreq + leng, 0, sizeof(Int2) * num_p);  /* initialize by text format */
+		/* number of parameter formats */
+		memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p));
+		leng += sizeof(Int2);
+
+		/* initialize to text format */
+		memset(bindreq + leng, 0, sizeof(Int2) * num_p);
 		for (i = stmt->proc_return, j = 0; i < num_params; i++)
 		{
 inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
@@ -3719,8 +3728,9 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 			if (PG_TYPE_BYTEA == PIC_dsp_pgtype(conn, parameters[i]))
 			{
 				mylog("%dth parameter is of binary format\n", j);
+				/* use binary format for this param */
 				memcpy(bindreq + leng + sizeof(Int2) * j,
-        			&net_one, sizeof(net_one));  /* binary */
+				       &net_one, sizeof(net_one));
 			}
 			j++; 
 		}
@@ -3731,8 +3741,17 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
         	memset(bindreq + leng, 0, sizeof(Int2));  /* text format */
         	leng += sizeof(Int2);
 	}
-        memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p)); /* number of params */
-        leng += sizeof(Int2); /* must be 2 */
+
+	/* number of params */
+	memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p));
+	leng += sizeof(Int2);
+
+	/*
+	 * Now add the parameter values.
+	 *
+	 * Note: when you append more data to the packet after this, you must
+	 * check that there's enough space left!
+	 */
         qb.npos = leng;
         for (i = 0; i < stmt->num_params; i++)
 	{
@@ -3744,13 +3763,25 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 			goto cleanup;
 		}
 	}
-
         leng = qb.npos;
-        memset(qb.query_statement + leng, 0, sizeof(Int2)); /* result format is text */
-        leng += sizeof(Int2);
+
+	/* result format is text */
+	if (leng + sizeof(Int2) >= qb.str_alsize)
+	{
+		if (enlarge_query_statement(&qb, leng + sizeof(Int2)) <= 0)
+		{
+			ret = FALSE;
+			goto cleanup;
+		}
+	}
+	memset(qb.query_statement + leng, 0, sizeof(Int2));
+	leng += sizeof(Int2);
+
+        /* now that we know the final length of the packet, fill that in */
 inolog("bind leng=%d\n", leng);
         netleng = htonl((UInt4) leng);	/* Network byte order */
         memcpy(qb.query_statement, &netleng, sizeof(netleng));
+
 	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
 	{
 		if (SQL_ERROR == SetStatementSvp(stmt))
