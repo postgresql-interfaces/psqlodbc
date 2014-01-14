@@ -178,6 +178,7 @@ struct SocketClass_
 
 	char		reverse;	/* used to handle Postgres 6.2 protocol
 						* (reverse byte order) */
+	char		keepalive;	/* TCP keepalive */
 };
 
 #define SOCK_get_char(self)	(SOCK_get_next_byte(self, FALSE))

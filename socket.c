@@ -99,9 +99,15 @@ SOCK_Constructor(const ConnectionClass *conn)
 		rv->buffer_read_in = 0;
 
 		if (conn)
+		{
 			rv->buffer_size = conn->connInfo.drivers.socket_buffersize;
+			rv->keepalive = !conn->connInfo.disable_keepalive;
+		}
 		else
+		{
 			rv->buffer_size = globals.socket_buffersize;
+			rv->keepalive = TRUE;
+		}
 		rv->buffer_in = (UCHAR *) malloc(rv->buffer_size);
 		if (!rv->buffer_in)
 		{
@@ -295,7 +301,9 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		rest.ai_socktype = SOCK_STREAM;
 		rest.ai_family = AF_UNSPEC;
 		snprintf(portstr, sizeof(portstr), "%d", port);
+#ifdef	AI_NUMERICSERV
 		rest.ai_flags |= AI_NUMERICSERV;
+#endif /* AI_NUMERICSERV */
 		if (is_numeric_address(hostname))
 			/* don't resolve address in getaddrinfo() if not necessary */
 			rest.ai_flags |= AI_NUMERICHOST;
@@ -349,6 +357,21 @@ retry:
 		}
 	}
 #endif /* TCP_NODELAY */
+#ifdef	SO_KEEPALIVE
+	if (family != AF_UNIX && self->keepalive)
+	{
+		int i;
+		socklen_t	len;
+
+		i = 1;
+		len = sizeof(i);
+		if (setsockopt(self->socket, SOL_SOCKET, SO_KEEPALIVE, (char *) &i, len) < 0)
+		{
+			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to SO_KEEPALIVE.");
+			goto cleanup;
+		}
+	}
+#endif /* SO_KEEPALIVE */
 #ifdef	WIN32
 	{
 		long	ioctlsocket_ret = 1;

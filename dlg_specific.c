@@ -32,21 +32,39 @@ static void encode(const pgNAME, UCHAR *out, int outlen);
 static pgNAME decode(const UCHAR *in);
 static pgNAME decode_or_remove_braces(const UCHAR *in);
 
-#define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY)
+#define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY | BIT_IGNORE_ROUND_TRIP_TIME | BIT_DISABLE_KEEPALIVE)
 UInt4	getExtraOptions(const ConnInfo *ci)
 {
 	UInt4	flag = ci->extra_opts & (~OVR_EXTRA_BITS);
 
 	if (ci->force_abbrev_connstr > 0)
 		flag |= BIT_FORCEABBREVCONNSTR;
+	else if (ci->force_abbrev_connstr == 0)
+		flag &= (~BIT_FORCEABBREVCONNSTR);
 	if (ci->fake_mss > 0)
 		flag |= BIT_FAKE_MSS;
+	else if (ci->fake_mss == 0)
+		flag &= (~BIT_FAKE_MSS);
 	if (ci->bde_environment > 0)
 		flag |= BIT_BDE_ENVIRONMENT;
+	else if (ci->bde_environment == 0)
+		flag &= (~BIT_BDE_ENVIRONMENT);
 	if (ci->cvt_null_date_string > 0)
 		flag |= BIT_CVT_NULL_DATE;
+	else if (ci->cvt_null_date_string == 0)
+		flag &= (~BIT_CVT_NULL_DATE);
 	if (ci->accessible_only > 0)
 		flag |= BIT_ACCESSIBLE_ONLY;
+	else if (ci->accessible_only == 0)
+		flag &= (~BIT_ACCESSIBLE_ONLY);
+	if (ci->ignore_round_trip_time > 0)
+		flag |= BIT_IGNORE_ROUND_TRIP_TIME;
+	else if (ci->ignore_round_trip_time == 0)
+		flag &= (~BIT_IGNORE_ROUND_TRIP_TIME);
+	if (ci->disable_keepalive > 0)
+		flag |= BIT_DISABLE_KEEPALIVE;
+	else if (ci->disable_keepalive == 0)
+		flag &= (~BIT_DISABLE_KEEPALIVE);
 		
 	return flag;
 }
@@ -70,6 +88,10 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 		ci->cvt_null_date_string = (0 != (flag & BIT_CVT_NULL_DATE));
 	if (overwrite || ci->accessible_only < 0)
 		ci->accessible_only = (0 != (flag & BIT_ACCESSIBLE_ONLY));
+	if (overwrite || ci->ignore_round_trip_time < 0)
+		ci->ignore_round_trip_time = (0 != (flag & BIT_IGNORE_ROUND_TRIP_TIME));
+	if (overwrite || ci->disable_keepalive < 0)
+		ci->disable_keepalive = (0 != (flag & BIT_DISABLE_KEEPALIVE));
 		
 	return (ci->extra_opts = getExtraOptions(ci));
 }
@@ -119,6 +141,10 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 		ci->cvt_null_date_string = TRUE;
 	if (0 != (aflag & BIT_ACCESSIBLE_ONLY))
 		ci->accessible_only = TRUE;
+	if (0 != (aflag & BIT_IGNORE_ROUND_TRIP_TIME))
+		ci->ignore_round_trip_time = TRUE;
+	if (0 != (aflag & BIT_DISABLE_KEEPALIVE))
+		ci->disable_keepalive = TRUE;
 	if (0 != (dflag & BIT_FORCEABBREVCONNSTR))
 		ci->force_abbrev_connstr = FALSE;
 	if (0 != (dflag & BIT_FAKE_MSS))
@@ -127,6 +153,10 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 		ci->cvt_null_date_string = FALSE;
 	if (0 != (dflag & BIT_ACCESSIBLE_ONLY))
 		ci->accessible_only = FALSE;
+	if (0 != (dflag & BIT_IGNORE_ROUND_TRIP_TIME))
+		ci->ignore_round_trip_time = FALSE;
+	if (0 != (dflag & BIT_DISABLE_KEEPALIVE))
+		ci->disable_keepalive = FALSE;
 
 	return (ci->extra_opts = getExtraOptions(ci));
 }
@@ -765,6 +795,12 @@ getDSNdefaults(ConnInfo *ci)
 		ci->bde_environment = 0;
 	if (ci->cvt_null_date_string < 0)
 		ci->cvt_null_date_string = 0;
+	if (ci->accessible_only < 0)
+		ci->accessible_only = 0;
+	if (ci->ignore_round_trip_time < 0)
+		ci->ignore_round_trip_time = 0;
+	if (ci->disable_keepalive < 0)
+		ci->disable_keepalive = 0;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0)
 		ci->xa_opt = DEFAULT_XAOPT;

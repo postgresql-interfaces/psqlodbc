@@ -300,6 +300,8 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->cvt_null_date_string = -1;
 	conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
 	conninfo->accessible_only = -1;
+	conninfo->ignore_round_trip_time = -1;
+	conninfo->disable_keepalive = -1;
 	conninfo->gssauth_use_gssapi = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
@@ -351,6 +353,8 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(cvt_null_date_string);
 	CORR_VALCPY(autocommit_public);
 	CORR_VALCPY(accessible_only);
+	CORR_VALCPY(ignore_round_trip_time);
+	CORR_VALCPY(disable_keepalive);
 	CORR_VALCPY(gssauth_use_gssapi);
 	CORR_VALCPY(extra_opts);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -1248,6 +1252,10 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 		if (ci->gssauth_use_gssapi)
 		{
 			opts[cnt] = "gsslib";	vals[cnt++] = "gssapi";
+		}
+		if (ci->disable_keepalive)
+		{
+			opts[cnt] = "keepalives";	vals[cnt++] = "0";
 		}
 	}
 	else

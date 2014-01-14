@@ -203,6 +203,7 @@ const char *GetXaLibPath();
 #define	BIT_CVT_NULL_DATE			(1L << 3)
 #define	BIT_ACCESSIBLE_ONLY			(1L << 4)
 #define	BIT_IGNORE_ROUND_TRIP_TIME		(1L << 5)
+#define	BIT_DISABLE_KEEPALIVE			(1L << 6)
 
 /*	Connection Defaults */
 #define DEFAULT_PORT				"5432"

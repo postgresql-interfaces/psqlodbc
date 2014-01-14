@@ -315,6 +315,8 @@ typedef struct
 	signed char	cvt_null_date_string;
 	signed char	autocommit_public;
 	signed char	accessible_only;
+	signed char	ignore_round_trip_time;
+	signed char	disable_keepalive;
 	signed char	gssauth_use_gssapi;
 	UInt4		extra_opts;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
