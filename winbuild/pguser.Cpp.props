@@ -1,0 +1,27 @@
+<!--
+***********************************************************************************************
+pguser.Cpp.props
+
+	This project property sheet is to avoid a crash in the following case.
+ 
+	1. Windows SDK 7.1 is installed
+	2. Visual C++ (Express) 10 not installed
+	3. Platformtoolset is Windows7.1SDK or v100
+	4. Normal (non-C++ or SDK) Command prompt
+
+	Unfortunately the property VSInstallDir wasn't determined because 
+	of the above #2. Here we derive it from $(VCInstallDir) by removing
+	the last 3 characters 'VC\'. Then we prepend
+		$(VSInstallDir)Common7\ide and $(VSInstallDir)Common7\tools
+	to the ExecutablePath property unless $(ExecutablePath) contains them.
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- PropertyGroup -->
+  <PropertyGroup Condition="'$(VSInstallDir)'=='' And '$(VCInstallDir)'!='' And  ('$(PlatformToolset)'=='v100' Or '$(PlatformToolset)'=='Windows7.1SDK')">
+    <VSInstallDir>$(VCInstallDir.Substring(0, $([MSBuild]::Subtract($(VCInstallDir.length),3))))</VSInstallDir>
+    <VSIdePath>$(VSInstallDir)Common7\ide</VSIdePath>
+    <ExecutablePath Condition="!$(ExecutablePath.ToLower().Contains($(VSIdePath.ToLower())))">$(VSIdePath);$(VSInstallDir)Common7\Tools;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+</Project>

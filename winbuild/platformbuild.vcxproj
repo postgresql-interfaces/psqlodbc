@@ -1,0 +1,87 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+	<Configuration>Release</Configuration>
+	<srcPath>..\</srcPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectToBuild Include="psqlodbc.vcxproj">
+        </ProjectToBuild>
+        <ProjectToBuild Include="pgenlist.vcxproj">
+        </ProjectToBuild>
+        <ProjectToBuild Include="psqlodbc.vcxproj">
+	  <AdditionalProperties>ANSI_VERSION=yes
+	  </AdditionalProperties>
+        </ProjectToBuild>
+        <ProjectToBuild Include="pgenlist.vcxproj">
+	  <AdditionalProperties>ANSI_VERSION=yes
+	  </AdditionalProperties>
+        </ProjectToBuild>
+        <ProjectToBuild Include="pgxalib.vcxproj">
+        </ProjectToBuild>
+    </ItemGroup>
+    <Target Name="Build">
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="BuildCompile"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Lib"/>
+        <MSBuild Projects="psqlodbc.vcxproj" 
+	  Targets="Build"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="Build"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Link"/>
+
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="BuildCompile"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Lib"/>
+        <MSBuild Projects="psqlodbc.vcxproj" 
+	  Targets="Build"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="Build"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Link"/>
+        <MSBuild Projects="pgxalib.vcxproj" 
+	  Targets="Build"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <!-- MSBuild Projects="@(ProjectToBuild)" 
+	  Targets="Build"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/ -->
+    </Target>
+    <Target Name="Rebuild">
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="Clean;BuildCompile"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath);ImpLibForward=true"/>
+        <MSBuild Projects="psqlodbc.vcxproj" 
+	  Targets="ReBuild"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="Build"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="Clean;BuildCompile"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath);ImpLibForward=true"/>
+        <MSBuild Projects="psqlodbc.vcxproj" 
+	  Targets="ReBuild"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="pgenlist.vcxproj" 
+	  Targets="Build"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="pgxalib.vcxproj" 
+	  Targets="ReBuild"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+
+        <!-- MSBuild Projects="@(ProjectToBuild)"
+	  Targets="Rebuild" 
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/ -->
+    </Target>
+    <Target Name="Clean">
+        <MSBuild Projects="@(ProjectToBuild)"
+	  Targets="Clean" 
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+    </Target>
+    <Target Name="Info">
+        <MSBuild Projects="@(ProjectToBuild)"
+	  Targets="Info" 
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+    </Target>
+</Project>

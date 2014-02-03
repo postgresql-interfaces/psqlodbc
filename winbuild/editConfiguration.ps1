@@ -27,6 +27,10 @@ Add-Type -AssemblyName presentationframework
             <StackPanel Orientation="Horizontal" Height="30" Width="Auto">
                 <Label Content="version" Height="28" Name="labelVersion" HorizontalAlignment="Left" />
 		<TextBox Height="24" Name="versionBox" HorizontalAlignment="Left" Width="100" />
+                <Label Content="vcversion" Height="28" Name="labelVcversion" HorizontalAlignment="Left" />
+		<TextBox Height="24" Name="vcversionBox" HorizontalAlignment="Left" Width="50" />
+                <Label Content="toolset" Height="28" Name="labelToolset" HorizontalAlignment="Left" />
+		<TextBox Height="24" Name="toolsetBox" HorizontalAlignment="Left" Width="50" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Label Content="x86" Height="26" Name="label1" Width="43" HorizontalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" />
@@ -227,6 +231,8 @@ $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $configInfo = & "$scriptPath\configuration.ps1" "$configPath"
 
 $window.findName("versionBox").Text = $configInfo.Configuration.version
+$window.findName("vcversionBox").Text = $configInfo.Configuration.vcversion
+$window.findName("toolsetBox").Text = $configInfo.Configuration.toolset
 
 $x86info = $configInfo.Configuration.x86
 $window.findName("checkBox1").isChecked = ($x86info.use_libpq -eq "yes")
@@ -263,7 +269,10 @@ $buttonSave = $window.FindName("buttonSave")
 $buttonSave_clicked = $buttonSave.add_Click
 $buttonSave_clicked.Invoke({
 	$configInfo.Configuration.version = $window.findName("versionBox").Text  
+	$configInfo.Configuration.vcversion = $window.findName("vcversionBox").Text  
+	$configInfo.Configuration.toolset = $window.findName("toolsetBox").Text  
 	$x86info.use_libpq = $(if ($window.findName("checkBox1").isChecked) {"yes"} else {"no"})
+	$x86info.libpq.version = $window.findName("versionBox1").Text  
 	$x86info.use_gss = $(if ($window.findName("checkBox2").isChecked) {"yes"} else {"no"})
 	$x86info.use_sspi = $(if ($window.findName("checkBox3").isChecked) {"yes"} else {"no"})
 	$x86info.libpq.include = $window.findName("textBox1").Text  
@@ -278,6 +287,7 @@ $buttonSave_clicked.Invoke({
 	
 
 	$x64info.use_libpq = $(if ($window.findName("checkBox4").isChecked) {"yes"} else {"no"})
+	$x64info.libpq.version = $window.findName("versionBox2").Text  
 	$x64info.use_gss = $(if ($window.findName("checkBox5").isChecked) {"yes"} else {"no"})
 	$x64info.use_sspi = $(if ($window.findName("checkBox6").isChecked) {"yes"} else {"no"})
 	$x64info.libpq.include = $window.findName("textBox9").Text

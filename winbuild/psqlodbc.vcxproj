@@ -1,0 +1,330 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{79F872B5-9FAF-43DF-B441-9C860EAE52CF}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>psqlodbc</RootNamespace>
+    <ProjectName>psqlodbc</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <!--			-->
+  <PropertyGroup Label="UserMacros" >
+    <ANSI_VERSION>no</ANSI_VERSION>
+    <!-- 		-->
+    <PG_INC></PG_INC>
+    <SSL_INC></SSL_INC>
+    <GSS_INC></GSS_INC>
+    <PG_LIB></PG_LIB>
+    <SSL_LIB></SSL_LIB>
+    <GSS_LIB></GSS_LIB>
+    <!-- 		-->
+    <MSDTC>yes</MSDTC>
+    <USE_LIBPQ>yes</USE_LIBPQ>
+    <USE_GSS>no</USE_GSS>
+    <USE_SSPI>yes</USE_SSPI>
+    <MEMORY_DEBUG>no</MEMORY_DEBUG>
+    <!-- work properties -->
+    <ADD_DEFINES></ADD_DEFINES>
+    <ADD_INC></ADD_INC>
+    <ADD_LIBPATH></ADD_LIBPATH>
+    <RSC_DEFINES></RSC_DEFINES>
+    <DELAY_LOAD_DLLS></DELAY_LOAD_DLLS>
+  </PropertyGroup>
+  <!-- USE_LIBPQ -->
+  <PropertyGroup Condition="'$(USE_LIBPQ)'!='no'" >
+    <ADD_INC>$(ADD_INC);$(PG_INC);$(SSL_INC)</ADD_INC>
+    <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB);$(SSL_LIB)</ADD_LIBPATH>
+    <ADD_DEFINES>$(ADD_DEFINES);USE_SSL;RESET_CRYPTO_CALLBACKS</ADD_DEFINES>
+    <DELAY_LOAD_DLLS>libpq.dll;ssleay32.dll;libeay32.dll</DELAY_LOAD_DLLS>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(USE_LIBPQ)'=='no'" >
+    <ADD_DEFINES>$(ADD_DEFINES);NOT_USE_LIBPQ</ADD_DEFINES>
+  </PropertyGroup>
+  <!-- USE_GSS -->
+  <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|Win32'" >
+    <ADD_INC>$(ADD_INC);$(GSS_INC)</ADD_INC>
+    <ADD_LIBPATH>$(ADD_LIBPATH);$(GSS_LIB)</ADD_LIBPATH>
+    <ADD_DEFINES>$(ADD_DEFINES);USE_GSS</ADD_DEFINES>
+    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);gssapi32.dll</DELAY_LOAD_DLLS>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|x64'" >
+    <ADD_INC>$(ADD_INC);$(GSS_INC)</ADD_INC>
+    <ADD_LIBPATH>$(ADD_LIBPATH);$(GSS_LIB)</ADD_LIBPATH>
+    <ADD_DEFINES>$(ADD_DEFINES);USE_GSS</ADD_DEFINES>
+    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);gssapi64.dll</DELAY_LOAD_DLLS>
+  </PropertyGroup>
+  <!-- USE_SSPI -->
+  <PropertyGroup Condition="'$(USE_SSPI)'=='yes'" >
+    <ADD_DEFINES>$(ADD_DEFINES);USE_SSPI</ADD_DEFINES>
+    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);secur32.dll;crypt32.dll</DELAY_LOAD_DLLS>
+  </PropertyGroup>
+  <!-- ANSI_VERSION -->
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'" >
+    <TargetName>psqlodbc30a</TargetName>
+    <MAINDEF>$(srcPath)psqlodbca.def</MAINDEF>
+    <DTCDLL>pgenlista</DTCDLL>
+    <ADD_DEFINES>$(ADD_DEFINES);ODBCVER=0x0350;DBMS_NAME="PostgreSQL ANSI"</ADD_DEFINES>
+    <!-- IntDir>$(IntDir)ANSI\</IntDir>
+    <OutDir>$(OutDir)ANSI\</OutDir -->
+    <IntDir>$(srcPath)Multibyte$(Configuration)\</IntDir>
+    <OutDir>$(srcPath)Multibyte$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|x64'" >
+    <TargetName>psqlodbc30a</TargetName>
+    <MAINDEF>$(srcPath)psqlodbca.def</MAINDEF>
+    <DTCDLL>pgenlista</DTCDLL>
+    <ADD_DEFINES>$(ADD_DEFINES);ODBCVER=0x0350;DBMS_NAME="PostgreSQL ANSI(x64)"</ADD_DEFINES>
+    <!-- IntDir>$(IntDir)ANSI\</IntDir>
+    <OutDir>$(OutDir)ANSI\</OutDir -->
+    <IntDir>$(srcPath)AMD64ANSI\</IntDir>
+    <OutDir>$(srcPath)AMD64ANSI\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)|$(Configuration)'=='yes|x64|Debug'" >
+    <IntDir>$(srcPath)AMD64ANSI$(Configuration)\</IntDir>
+    <OutDir>$(srcPath)AMD64ANSI$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'" >
+    <TargetName>psqlodbc35w</TargetName>
+    <MAINDEF>$(srcPath)psqlodbc.def</MAINDEF>
+    <DTCDLL>pgenlist</DTCDLL>
+    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;ODBCVER=0x0351</ADD_DEFINES>
+    <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
+    <IntDir>$(srcPath)$(Configuration)\</IntDir>
+    <OutDir>$(srcPath)$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'" >
+    <TargetName>psqlodbc35w</TargetName>
+    <MAINDEF>$(srcPath)psqlodbc.def</MAINDEF>
+    <DTCDLL>pgenlist</DTCDLL>
+    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;ODBCVER=0x0351;DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
+    <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
+    <IntDir>$(srcPath)AMD64\</IntDir>
+    <OutDir>$(srcPath)AMD64\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)|$(Configuration)'=='no|x64|Debug'" >
+    <IntDir>$(srcPath)AMD64$(Configuration)\</IntDir>
+    <OutDir>$(srcPath)AMD64$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSDTC)'=='yes'">
+    <ADD_DEFINES>$(ADD_DEFINES);_HANDLE_ENLIST_IN_DTC_</ADD_DEFINES>
+    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);$(DTCDLL).dll</DELAY_LOAD_DLLS>
+  </PropertyGroup>
+  <!-- PropertyGroup Condition="'$(MSDTC)'!='yes'" -->
+  <PropertyGroup>
+    <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
+  </PropertyGroup>
+  <!-- MEMORY_DEBUG -->
+  <PropertyGroup Condition="'$(MEMORY_DEBUG)'=='yes'" >
+    <ADD_DEFINES>$(ADD_DEFINES);_MEMORY_DEBUG_</ADD_DEFINES>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(DRIVERVERSION)'!=''" >
+    <ADD_DEFINES>$(ADD_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)"</ADD_DEFINES>
+    <RSC_DEFINES>$(RSC_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)";PG_DRVFILE_VERSION=$(DRIVERVERSION.substring(0, 2)),$(DRIVERVERSION.substring(3,2)),$(DRIVERVERSION.substring(6, 2)),$(DRIVERVERSION.substring(8, 2))</RSC_DEFINES>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+
+  <Import Project="psqlodbc.Cpp.props" />
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;$(ADD_DEFINES);DYNAMIC_LOAD;WIN_MULTITHREAD_SUPPORT;WIN32;_DEBUG;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ADD_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <PreBuildEvent>
+      <Command>lib /def:$(srcPath)$(DTCDLL).def /machine:x86 /out:"$(outDir)\$(DTCLDLL).lib"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;$(ADD_DEFINES);DYNAMIC_LOAD;WIN_MULTITHREAD_SUPPORT;WIN32;_DEBUG;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ADD_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <PreBuildEvent>
+      <Command>lib /def:$(srcPath)$(DTCDLL).def /machine:x64 /out:"$(outDir)\$(DTCLDLL).lib"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;$(ADD_DEFINES);DYNAMIC_LOAD;WIN_MULTITHREAD_SUPPORT;WIN32;NDEBUG;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ADD_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <PreBuildEvent>
+      <Command>lib /def:$(srcPath)$(DTCDLL).def /machine:x86 /out:"$(outDir)\$(DTCDLL).lib"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;$(ADD_DEFINES);DYNAMIC_LOAD;WIN_MULTITHREAD_SUPPORT;WIN32;NDEBUG;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ADD_INC);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <PreBuildEvent>
+      <Command>lib /def:$(srcPath)$(DTCDLL).def /machine:x64 /out:"$(outDir)\$(DTCDLL).lib"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="catfunc.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(srcPath)bind.c" />
+    <ClCompile Include="$(srcPath)columninfo.c" />
+    <ClCompile Include="$(srcPath)connection.c" />
+    <ClCompile Include="$(srcPath)convert.c" />
+    <ClCompile Include="$(srcPath)descriptor.c" />
+    <ClCompile Include="$(srcPath)dlg_specific.c" />
+    <ClCompile Include="$(srcPath)dlg_wingui.c" />
+    <ClCompile Include="$(srcPath)drvconn.c" />
+    <ClCompile Include="$(srcPath)environ.c" />
+    <ClCompile Include="$(srcPath)execute.c" />
+    <ClCompile Include="$(srcPath)info.c" />
+    <ClCompile Include="$(srcPath)info30.c" />
+    <ClCompile Condition="'$(MEMORY_DEBUG)'=='yes'" Include="$(srcPath)inouealc.c" />
+    <ClCompile Include="$(srcPath)loadlib.c" />
+    <ClCompile Include="$(srcPath)lobj.c" />
+    <ClCompile Include="$(srcPath)misc.c" />
+    <ClCompile Include="$(srcPath)multibyte.c" />
+    <ClCompile Include="$(srcPath)mylog.c" />
+    <ClCompile Include="$(srcPath)odbcapi.c" />
+    <ClCompile Include="$(srcPath)odbcapi30.c" />
+    <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)odbcapi30w.c" />
+    <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)odbcapiw.c" />
+    <ClCompile Include="$(srcPath)options.c" />
+    <ClCompile Include="$(srcPath)parse.c" />
+    <ClCompile Include="$(srcPath)pgapi30.c" />
+    <ClCompile Include="$(srcPath)pgtypes.c" />
+    <ClCompile Include="$(srcPath)psqlodbc.c" />
+    <ClCompile Include="$(srcPath)qresult.c" />
+    <ClCompile Include="$(srcPath)results.c" />
+    <ClCompile Include="$(srcPath)setup.c" />
+    <ClCompile Include="$(srcPath)socket.c" />
+    <ClCompile Condition="'$(USE_GSS)'=='yes'" Include="$(srcPath)gsssvcs.c" />
+    <ClCompile Condition="'$(USE_SSPI)'=='yes'" Include="$(srcPath)sspisvcs.c" />
+    <ClCompile Include="$(srcPath)statement.c" />
+    <ClCompile Include="$(srcPath)tuple.c" />
+    <ClCompile Include="$(srcPath)win_md5.c" />
+    <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)win_unicode.c" />
+    <ClCompile Condition="'$(MSDTC)'=='yes'" Include="$(srcPath)xalibname.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="$(srcPath)psqlodbc.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+  <Target Name="Info">
+    <Message Text="VCInstallDir=$(VCInstallDir) VSInstallDir=$(VSInstallDir) ExecutablePath=$(ExecutablePath)" />
+  </Target>
+</Project>

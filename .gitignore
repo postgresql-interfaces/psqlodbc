@@ -20,6 +20,7 @@
 lcov.info
 *.vcproj
 *.vcxproj
+!winbuild/*.vcxproj
 win32ver.rc
 *.exe
 lib*dll.def
@@ -49,6 +50,10 @@ winbuild/configuration.xml
 *.exp
 *.idb
 *.res
+*.pdb
+*.tlog
+*.manifest
+*.lastbuildstate
 
 # WIX tools (candle, light) generate
 *.wix*
