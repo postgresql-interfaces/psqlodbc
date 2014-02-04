@@ -128,11 +128,11 @@
       <UpgradeVersion OnlyDetect='yes' Property='NEWERFOUND'
       		    Minimum="$(var.VERSION)" IncludeMinimum='no' />
       <UpgradeVersion OnlyDetect='yes' Property='PREVIOUSFOUND'
-      		    Minimum='9.2.1' IncludeMinimum='yes'
+      		    Minimum='9.3.1' IncludeMinimum='yes'
       		    Maximum="$(var.VERSION)" IncludeMaximum='no' />
       <UpgradeVersion OnlyDetect='no' Property='UPGRADEFOUND'
                     Minimum='8.3.0' IncludeMinimum='yes'
-      		    Maximum='9.2.1' IncludeMaximum='no' />
+      		    Maximum='9.3.0' IncludeMaximum='no' />
     </Upgrade>
 
     <CustomAction Id='AlreadyUpdated'
