@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	char *sqlend;
 	int i;
 	int len;
-	SQLUINTEGER info;
+	SQLUSMALLINT info;
 
 	test_connect();
 
