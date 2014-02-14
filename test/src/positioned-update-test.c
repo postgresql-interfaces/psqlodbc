@@ -11,7 +11,7 @@ int main(int argc, char **argv)
 	char sql[100000];
 	char *sqlend;
 	int			i;
-	long	colvalue;
+	SQLINTEGER	colvalue;
 	SQLLEN		indColvalue;
 
 	test_connect();
