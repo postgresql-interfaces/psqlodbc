@@ -1,0 +1,7 @@
+\! ./src/bindcol-test
+connected
+Result set:
+1 foo
+2 bar
+3 foobar
+disconnecting
