@@ -239,7 +239,11 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 {
 	CSTR	func = "SQLFreeHandle";
 	RETCODE		ret;
+	StatementClass *stmt;
+	ConnectionClass *conn = NULL;
+
 	mylog("[[%s]]", func);
+
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -249,7 +253,20 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 			ret = PGAPI_FreeConnect(Handle);
 			break;
 		case SQL_HANDLE_STMT:
+			stmt = (StatementClass *) Handle;
+
+			if (stmt)
+			{
+				conn = stmt->hdbc;
+				if (conn)
+					ENTER_CONN_CS(conn);
+			}
+
 			ret = PGAPI_FreeStmt(Handle, SQL_DROP);
+
+			if (conn)
+				LEAVE_CONN_CS(conn);
+
 			break;
 		case SQL_HANDLE_DESC:
 			ret = PGAPI_FreeDesc(Handle);
