@@ -675,7 +675,7 @@ SC_set_current_col(StatementClass *stmt, int col)
 }
 
 void
-SC_set_prepared(StatementClass *stmt, BOOL prepared)
+SC_set_prepared(StatementClass *stmt, int prepared)
 {
 	if (prepared == stmt->prepared)
 		;

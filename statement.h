@@ -474,7 +474,7 @@ void		SC_set_errormsg(StatementClass *self, const char *msg);
 void		SC_error_copy(StatementClass *self, const StatementClass *from, BOOL);
 void		SC_full_error_copy(StatementClass *self, const StatementClass *from, BOOL);
 void		SC_replace_error_with_res(StatementClass *self, int errnum, const char *msg, const QResultClass*, BOOL);
-void		SC_set_prepared(StatementClass *self, BOOL);
+void		SC_set_prepared(StatementClass *self, int);
 void		SC_set_planname(StatementClass *self, const char *plan_name);
 void		SC_set_rowset_start(StatementClass *self, SQLLEN, BOOL);
 void		SC_inc_rowset_start(StatementClass *self, SQLLEN);
