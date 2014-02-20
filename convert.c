@@ -1279,9 +1279,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	WIN_UNICODE_SUPPORT
 					if (localize_needed)
 					{
-						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0);
+						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
 						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
-						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1);
+						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1, FALSE);
 						len = wstrtomsg(NULL, (const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
 						changed = TRUE;
 					}

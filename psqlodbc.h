@@ -593,7 +593,7 @@ char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolo
 SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen, BOOL errcheck);
 int	msgtowstr(const char *, const char *, int, LPWSTR, int);
 int	wstrtomsg(const char *, const LPWSTR, int, char *, int);
-#define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, FALSE, ucs2str, buflen)
+#define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen, FALSE)
 #endif /* UNICODE_SUPPORT */
 
 /* Define a type for defining a constant string expression */
