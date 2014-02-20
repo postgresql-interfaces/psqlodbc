@@ -1,7 +1,7 @@
 TESTS = connect stmthandles select commands multistmt getresult prepare \
 	params notice arraybinding insertreturning dataatexecution \
 	boolsaschar cvtnulldate alter quotes cursors positioned-update \
-	catalogfunctions bindcol
+	catalogfunctions bindcol lfconversion
 
 TESTBINS = $(patsubst %,src/%-test, $(TESTS))
 TESTSQLS = $(patsubst %,sql/%.sql, $(TESTS))

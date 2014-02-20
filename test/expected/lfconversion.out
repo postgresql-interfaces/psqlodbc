@@ -1,0 +1,18 @@
+\! ./src/lfconversion-test
+connected
+reading to char buffer...
+strlen 22, SQLGetData claims 22
+
+reading to char buffer, with truncation...
+strlen 9, SQLGetData claims 22
+
+reading to SQLWCHAR buffer...
+len 22 chars, SQLGetData claims 44 bytes
+
+reading to SQLWCHAR buffer, with truncation...
+len 4 chars, SQLGetData claims 44 bytes
+
+reading to SQLWCHAR buffer, with LF->CR+LF conversion causing truncation...
+len 20 chars, SQLGetData claims 44 bytes
+
+disconnecting

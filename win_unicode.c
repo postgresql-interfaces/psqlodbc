@@ -164,151 +164,159 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 #define	byte4_m32	0x0f
 #define	byte4_m4	0x3f
 
-#define def_utf2ucs(errcheck) \
-SQLULEN	utf8_to_ucs2_lf##errcheck(const char *utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN bufcount) \
-{ \
-	int	i; \
-	SQLULEN	rtn, ocount, wcode; \
-	const UCHAR *str; \
-\
-/*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/ \
-	if (!utf8str) \
-		return 0; \
-/*mylog(" string=%s\n", utf8str);*/ \
-	if (little_endian < 0) \
-	{ \
-		int	crt = 1; \
-		little_endian = (0 != ((char *) &crt)[0]); \
-	} \
-	if (!bufcount) \
-		ucs2str = NULL; \
-	else if (!ucs2str) \
-		bufcount = 0; \
-	if (ilen < 0) \
-		ilen = strlen(utf8str); \
-	for (i = 0, ocount = 0, str = utf8str; i < ilen && *str;) \
-	{ \
-		/* if (iswascii(*str)) */ \
-		if (isascii(*str)) \
-		{ \
-			if (lfconv && PG_LINEFEED == *str && \
-			    (i == 0 || PG_CARRIAGE_RETURN != str[-1])) \
-			{ \
-				if (ocount < bufcount) \
-					ucs2str[ocount] = PG_CARRIAGE_RETURN; \
-				ocount++; \
-			} \
-			if (ocount < bufcount) \
-				ucs2str[ocount] = *str; \
-			ocount++; \
-			i++; \
-			str++; \
-		} \
-		else if (0xf8 == (*str & 0xf8)) /* more than 5 byte code */ \
-		{ \
-			ocount = (SQLULEN) -1; \
-			goto cleanup; \
-		} \
-		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */ \
-		{ \
-			if (01 == 0##errcheck) \
-			{ \
-				if (i + 4 > ilen || \
-				    0 == (str[1] & 0x80) || \
-				    0 == (str[2] & 0x80) || \
-				    0 == (str[3] & 0x80)) \
-				{ \
-					ocount = (SQLULEN) -1; \
-					goto cleanup; \
-				} \
-			} \
-			if (ocount < bufcount) \
-			{ \
-				wcode = (surrog1_bits | \
-					((((UInt4) *str) & byte4_m1) << 8) | \
-					((((UInt4) str[1]) & byte4_m2) << 2) | \
-					((((UInt4) str[2]) & byte4_m31) >> 4)) \
-					- surrogate_adjust; \
-				ucs2str[ocount] = (SQLWCHAR) wcode; \
-			} \
-			ocount++; \
-			if (ocount < bufcount) \
-			{ \
-				wcode = surrog2_bits | \
-					((((UInt4) str[2]) & byte4_m32) << 6) | \
-					(((UInt4) str[3]) & byte4_m4); \
-				ucs2str[ocount] = (SQLWCHAR) wcode; \
-			} \
-			ocount++; \
-			i += 4; \
-			str += 4; \
-		} \
-		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */ \
-		{ \
-			if (01 == 0##errcheck) \
-			{ \
-				if (i + 3 > ilen || \
-				    0 == (str[1] & 0x80) || \
-				    0 == (str[2] & 0x80)) \
-				{ \
-					ocount = (SQLULEN) -1; \
-					goto cleanup; \
-				} \
-			} \
-			if (ocount < bufcount) \
-			{ \
-				wcode = ((((UInt4) *str) & byte3_m1) << 12) | \
-					((((UInt4) str[1]) & byte3_m2) << 6) | \
-				 	(((UInt4) str[2]) & byte3_m3); \
-				ucs2str[ocount] = (SQLWCHAR) wcode; \
-			} \
-			ocount++; \
-			i += 3; \
-			str += 3; \
-		} \
-		else if (0xc0 == (*str & 0xe0)) /* 2 byte code */ \
-		{ \
-			if (01 == 0##errcheck) \
-			{ \
-				if (i + 2 > ilen || \
-				    0 == (str[1] & 0x80)) \
-				{ \
-					ocount = (SQLULEN) -1; \
-					goto cleanup; \
-				} \
-			} \
-			if (ocount < bufcount) \
-			{ \
-				wcode = ((((UInt4) *str) & byte2_m1) << 6) | \
-				 	(((UInt4) str[1]) & byte2_m2); \
-				ucs2str[ocount] = (SQLWCHAR) wcode; \
-			} \
-			ocount++; \
-			i += 2; \
-			str += 2; \
-		} \
-		else \
-		{ \
-			ocount = (SQLULEN) -1; \
-			goto cleanup; \
-		} \
-	} \
-cleanup: \
-	rtn = ocount; \
-	if (ocount == (SQLULEN) -1) \
-	{ \
-		if (00 == 0##errcheck) \
-			rtn = 0; \
-		ocount = 0; \
-	} \
-	if (ocount < bufcount && ucs2str) \
-		ucs2str[ocount] = 0; \
-/*mylog(" ocount=%d\n", ocount);*/ \
-	return rtn; \
-}
+/*
+ * Convert a string from UTF-8 encoding to UCS-2.
+ *
+ * utf8str		- input string in UTF-8
+ * ilen			- length of input string in bytes  (or SQL_NTS)
+ * lfconv		- TRUE if line feeds (LF) should be converted to CR + LF
+ * ucs2str		- output buffer
+ * bufcount		- size of output buffer
+ * errcheck		- if TRUE, check for invalidly encoded input characters
+ *
+ * Returns the number of SQLWCHARs copied to output buffer. If the output
+ * buffer is too small, the output is truncated. The output string is
+ * NULL-terminated, except when the output is truncated.
+ */
+SQLULEN
+utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
+				SQLWCHAR *ucs2str, SQLULEN bufcount, BOOL errcheck)
+{
+	int			i;
+	SQLULEN		rtn, ocount, wcode;
+	const UCHAR *str;
 
-def_utf2ucs(0)
-def_utf2ucs(1)
+/*mylog("utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/
+	if (!utf8str)
+		return 0;
+/*mylog(" string=%s\n", utf8str);*/
+
+	if (!bufcount)
+		ucs2str = NULL;
+	else if (!ucs2str)
+		bufcount = 0;
+	if (ilen < 0)
+		ilen = strlen(utf8str);
+	for (i = 0, ocount = 0, str = utf8str; i < ilen && *str;)
+	{
+		/* if (iswascii(*str)) */
+		if (isascii(*str))
+		{
+			if (lfconv && PG_LINEFEED == *str &&
+			    (i == 0 || PG_CARRIAGE_RETURN != str[-1]))
+			{
+				if (ocount < bufcount)
+					ucs2str[ocount] = PG_CARRIAGE_RETURN;
+				ocount++;
+			}
+			if (ocount < bufcount)
+				ucs2str[ocount] = *str;
+			ocount++;
+			i++;
+			str++;
+		}
+		else if (0xf8 == (*str & 0xf8)) /* more than 5 byte code */
+		{
+			ocount = (SQLULEN) -1;
+			goto cleanup;
+		}
+		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */
+		{
+			if (errcheck)
+			{
+				if (i + 4 > ilen ||
+				    0 == (str[1] & 0x80) ||
+				    0 == (str[2] & 0x80) ||
+				    0 == (str[3] & 0x80))
+				{
+					ocount = (SQLULEN) -1;
+					goto cleanup;
+				}
+			}
+			if (ocount < bufcount)
+			{
+				wcode = (surrog1_bits |
+					((((UInt4) *str) & byte4_m1) << 8) |
+					((((UInt4) str[1]) & byte4_m2) << 2) |
+					((((UInt4) str[2]) & byte4_m31) >> 4))
+					- surrogate_adjust;
+				ucs2str[ocount] = (SQLWCHAR) wcode;
+			}
+			ocount++;
+			if (ocount < bufcount)
+			{
+				wcode = surrog2_bits |
+					((((UInt4) str[2]) & byte4_m32) << 6) |
+					(((UInt4) str[3]) & byte4_m4);
+				ucs2str[ocount] = (SQLWCHAR) wcode;
+			}
+			ocount++;
+			i += 4;
+			str += 4;
+		}
+		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */
+		{
+			if (errcheck)
+			{
+				if (i + 3 > ilen ||
+				    0 == (str[1] & 0x80) ||
+				    0 == (str[2] & 0x80))
+				{
+					ocount = (SQLULEN) -1;
+					goto cleanup;
+				}
+			}
+			if (ocount < bufcount)
+			{
+				wcode = ((((UInt4) *str) & byte3_m1) << 12) |
+					((((UInt4) str[1]) & byte3_m2) << 6) |
+					(((UInt4) str[2]) & byte3_m3);
+				ucs2str[ocount] = (SQLWCHAR) wcode;
+			}
+			ocount++;
+			i += 3;
+			str += 3;
+		}
+		else if (0xc0 == (*str & 0xe0)) /* 2 byte code */
+		{
+			if (errcheck)
+			{
+				if (i + 2 > ilen ||
+				    0 == (str[1] & 0x80))
+				{
+					ocount = (SQLULEN) -1;
+					goto cleanup;
+				}
+			}
+			if (ocount < bufcount)
+			{
+				wcode = ((((UInt4) *str) & byte2_m1) << 6) |
+					(((UInt4) str[1]) & byte2_m2);
+				ucs2str[ocount] = (SQLWCHAR) wcode;
+			}
+			ocount++;
+			i += 2;
+			str += 2;
+		}
+		else
+		{
+			ocount = (SQLULEN) -1;
+			goto cleanup;
+		}
+	}
+cleanup:
+	rtn = ocount;
+	if (ocount == (SQLULEN) -1)
+	{
+		if (!errcheck)
+			rtn = 0;
+		ocount = 0;
+	}
+	if (ocount < bufcount && ucs2str)
+		ucs2str[ocount] = 0;
+/*mylog(" ocount=%d\n", ocount);*/
+	return rtn;
+}
 
 int msgtowstr(const char *enc, const char *inmsg, int inlen, LPWSTR outmsg, int buflen)
 {

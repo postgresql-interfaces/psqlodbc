@@ -590,11 +590,9 @@ const pthread_mutexattr_t *getMutexAttr(void);
 #define WCLEN sizeof(SQLWCHAR)
 SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
-SQLULEN	utf8_to_ucs2_lf0(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
-SQLULEN	utf8_to_ucs2_lf1(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen);
+SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen, BOOL errcheck);
 int	msgtowstr(const char *, const char *, int, LPWSTR, int);
 int	wstrtomsg(const char *, const LPWSTR, int, char *, int);
-#define	utf8_to_ucs2_lf(utf8str, ilen, lfconv, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, lfconv, ucs2str, buflen)
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf0(utf8str, ilen, FALSE, ucs2str, buflen)
 #endif /* UNICODE_SUPPORT */
 

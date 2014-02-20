@@ -1270,7 +1270,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 					if (fCType == SQL_C_WCHAR)
 					{
-						len = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0);
+						len = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
 						len *= WCLEN;
 						changed = TRUE;
 					}
@@ -1330,7 +1330,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 								len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
 							}
 							else
-								utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN);
+								utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN, FALSE);
 						}
 						else
 #endif /* UNICODE_SUPPORT */
