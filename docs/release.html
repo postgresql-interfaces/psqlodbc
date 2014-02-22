@@ -9,9 +9,31 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2><a id="09.03.0100">psqlODBC 09.03.0100 Release</a></h2>
+<h2><a id="09.03.0200">psqlODBC 09.03.0200 Release</a></h2>
 Changes:<br />
-
+<ol type="1">
+<li><b>Set TCP keepalive by default.</b><br /></li>
+<li><b>Fix cursors test case on big-endian systems.</b><br /></li>
+The SQL_CURSOR_COMMIT_BEHAVIOR property is a SQLUSMALLINT, not SQLUINTEGER.
+On a little-endian system, you wouldn't notice, provided that the target variable was initialized to 0 before the SQLGetInfo call. <br />
+Per report from Christoph Berg that the cursors test was failing on mipsel and other big-endian architectures.</b><br />
+<li><b>Add regression test for SQLBindCol.</b><br /></li>
+We were already doing SQLBindCol as part of the positioned-update test, but seems good to have one explicitly for it.<br />
+<li><b>The driver takes SQL_C_LONG to mean SQLINTEGER rather than "long".</b><br /></li>
+The regression test was failing on the s390x architecture because of that.<br />
+It's big-endian, with sizeof(long) == 8.<br />
+<li><b>Revert "When LF->CR+LF conversion causes an buffer truncation, supress the conversion (in case of unicode)."</b><br /></li>
+<li><b>Refactor utf8_to_ucs_lf.</b><br /></li>
+A macro is difficult to debug, so turn it into a regular function.<br />
+Also, add a new test case for LF->CR+LF conversion, to test the bug that Nils Go"sche reported (which was already fixed).<br />
+<li><b>Add locking to SQLFreeStmt and SQLFreeHandle.</b><br /></li>
+This fixes a race condition, where SQLFreeStmt is called while the connection is busy executing another statement. <br />
+SC_set_prepared would see that the connection is busy (CONN_EXECUTING), and not issue a DEALLOCATE statement to free the prepared statement in the backend, leaking it.<br />
+<li><b>The 2dn argument of SC_set_prepared() is int(enum) not BOOL.</b><br /></li>
+<li><b>Change to supply non-NULL parameters for SC_set_error().</b><br /></li>
+</ol><br />
+<h2><a id="09.03.0100">psqlODBC 09.03.0100</a></h2>
+Changes:<br />
 <ol type="1">
 <li><b> Fix uninitialized use of 'allocbuf' variable, in case of out-of-memory.</b><br /></li>
 Compiler warned about this. If ENLARGE_NEWSTATEMENT macro ran out of memory, it would jump to cleanup routine. <br />
@@ -148,7 +170,7 @@ This fixed by Pavel Raiskup<br />
 This fixed by Pavel Raiskup<br />
 </ol>
 <br />
-<h2><a id="09.02.0100">psqlODBC 09.02.0100 Release</a></h2>
+<h2><a id="09.02.0100">psqlODBC 09.02.0100</a></h2>
 Changes:<br />
 1.) Protect shared connection list when making cleanup tasks in EN_Destructor
 using the patch provided by Michael Kocherov.<br />
