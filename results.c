@@ -327,7 +327,7 @@ inolog("answering bookmark info\n");
 		res = SC_get_Curres(stmt);
 		if (icol >= QR_NumPublicResultCols(res))
 		{
-			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.", NULL);
+			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.", func);
 			snprintf(buf, sizeof(buf), "Col#=%d, #Cols=%d,%d keys=%d", icol, QR_NumResultCols(res), QR_NumPublicResultCols(res), res->num_key_fields);
 			SC_log_error(func, buf, stmt);
 			result = SQL_ERROR;

@@ -1685,7 +1685,7 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 					switch (QR_get_rstatus(res))
 					{
 						case PORES_NO_MEMORY_ERROR:
-							SC_set_error(self, STMT_NO_MEMORY_ERROR, NULL, __FUNCTION__);
+							SC_set_error(self, STMT_NO_MEMORY_ERROR, "memory allocation error???", __FUNCTION__);
 							break;
 						case PORES_BAD_RESPONSE:
 							SC_set_error(self, STMT_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);

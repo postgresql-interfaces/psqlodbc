@@ -261,7 +261,7 @@ set_statement_option(ConnectionClass *conn,
 
 				if (stmt)
 				{
-					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", NULL);
+					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", func);
 					sprintf(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
 					SC_log_error(func, option, stmt);
 				}
@@ -824,7 +824,7 @@ PGAPI_GetStmtOption(
 			{
 				char		option[64];
 
-				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Get)", NULL);
+				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Get)", func);
 				sprintf(option, "fOption=%d", fOption);
 				SC_log_error(func, option, stmt);
 				return SQL_ERROR;
