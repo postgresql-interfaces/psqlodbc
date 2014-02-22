@@ -34,8 +34,8 @@ psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 	odbcapi30w.c odbcapiw.c win_unicode.c
 
 
-EXTRA_DIST = license.txt readme.txt \
-	psqlodbc.def psqlodbca.def \
+EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
+	psqlodbc.def psqlodbca.def editConfiguration.bat BuildAll.bat \
 	pgenlist.def pgenlista.def connexp.h \
 	dlg_wingui.c inouealc.c win_setup.h \
         setup.c win_unicode.c psqlodbc.rc win64.mak \
@@ -74,10 +74,17 @@ EXTRA_DIST = license.txt readme.txt \
 	installer/upgrade.bat \
 	installer/upgrade_x64.bat \
 \
+	winbuild/BuildAll.ps1 \
 	winbuild/configuration.ps1 \
 	winbuild/configuration_template.xml \
-	winbuild/editConfiguration.bat \
 	winbuild/editConfiguration.ps1 \
+	winbuild/pgenlist.vcxproj \
+	winbuild/pguser.Cpp.props \
+	winbuild/pgxalib.vcxproj \
+	winbuild/platformbuild.vcxproj \
+	winbuild/psqlodbc.Cpp.props \
+	winbuild/psqlodbc.vcxproj \
+	winbuild/readme.txt \
 \
 	test/expected/alter.out \
 	test/expected/arraybinding.out \
@@ -100,6 +107,7 @@ EXTRA_DIST = license.txt readme.txt \
 	test/expected/sampletables.out \
 	test/expected/select.out \
 	test/expected/stmthandles.out \
+	test/expected/bindcol.out \
 	test/launcher \
 	test/Makefile \
 	test/odbc.ini \
@@ -126,7 +134,8 @@ EXTRA_DIST = license.txt readme.txt \
 	test/src/prepare-test.c \
 	test/src/quotes-test.c \
 	test/src/select-test.c \
-	test/src/stmthandles-test.c 
+	test/src/stmthandles-test.c \
+	test/src/bindcol-test.c
 
 MAINTAINERCLEANFILES = \
 	Makefile.in config/config.guess config.h.in config/config.sub configure \
