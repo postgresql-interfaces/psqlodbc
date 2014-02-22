@@ -1,11 +1,6 @@
 @echo off
 cls
 
-echo 09.03.0100 is a Major upgrade.
-echo Can't upgrade your psqlODBC installation unfortunately.
-pause
-exit
-
 echo This file will upgrade your psqlODBC installation.
 echo.
 echo You must have psqlODBC 09.03.xxxx installed 
