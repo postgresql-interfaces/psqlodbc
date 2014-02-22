@@ -683,6 +683,7 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 	{
 		ConnectionClass *conn = SC_get_conn(stmt);
 
+		ENTER_CONN_CS(conn);
 		if (conn && CONN_CONNECTED == conn->status)
 		{
 			if (CC_is_in_error_trans(conn))
@@ -699,6 +700,7 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 				QR_Destructor(res);
 			} 
 		}
+		LEAVE_CONN_CS(conn);
 	}
 	if (NOT_YET_PREPARED == prepared)
 		SC_set_planname(stmt, NULL);
