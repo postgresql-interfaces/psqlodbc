@@ -22,7 +22,7 @@ psqlodbca_la_SOURCES = \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
 	statement.c tuple.c dlg_specific.c loadlib.c \
 	multibyte.c odbcapi.c descriptor.c \
-	odbcapi30.c pgapi30.c info30.c mylog.c win_md5.c \
+	odbcapi30.c pgapi30.c info30.c mylog.c \
 \
 	bind.h catfunc.h columninfo.h connection.h convert.h \
 	descriptor.h dlg_specific.h environ.h \
@@ -38,7 +38,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	psqlodbc.def psqlodbca.def editConfiguration.bat BuildAll.bat \
 	pgenlist.def pgenlista.def connexp.h \
 	dlg_wingui.c inouealc.c win_setup.h \
-        setup.c win_unicode.c psqlodbc.rc win64.mak \
+        setup.c win_unicode.c win_md5.c psqlodbc.rc win64.mak \
         win32.mak psqlodbc.reg psqlodbc.dsp psqlodbc.vcproj \
         psqlodbc.sln msdtc_enlist.cpp pgxalib.cpp xalibname.c \
         pgxalib.def odbc.sql odbc-drop.sql odbcapi25w.c \
