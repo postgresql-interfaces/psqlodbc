@@ -308,17 +308,7 @@ BOOL	ssl_verify_available(void)
 		if (sslverify_available < 0)
 			sslverify_available = 0;
 #else
-#ifdef HAVE_LIBLTDL
-		lt_dlhandle dlhandle = lt_dlopenext(libpqlib);
-
 		sslverify_available = 1;
-		if (NULL != dlhandle)
-		{
-			if (NULL == lt_dlsym(dlhandle, checkproc2))
-				sslverify_available = 0;
-			lt_dlclose(dlhandle);
-		}
-#endif /* HAVE_LIBLTDL */
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 	}
 

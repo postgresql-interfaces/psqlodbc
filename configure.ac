@@ -363,8 +363,8 @@ AC_MSG_RESULT(yes)],
               [AC_MSG_RESULT(no)])
 fi
 
-# 8. Libltdl
-AC_CHECK_LIB(ltdl, lt_dlopen)
+# 8. Libltdl	This release doesn't need libltdl
+# AC_CHECK_LIB(ltdl, lt_dlopen)
 
 
 AC_CONFIG_FILES([Makefile])
