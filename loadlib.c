@@ -348,6 +348,7 @@ inolog("connect_withparam_available is set to false\n");
 			connect_withparam_available = 0;
 }
 #else
+#ifdef	NOT_USED /* currently not yet used */
 #ifdef HAVE_LIBLTDL
 		lt_dlhandle dlhandle = lt_dlopenext(libpqlib);
 
@@ -359,6 +360,7 @@ inolog("connect_withparam_available is set to false\n");
 			lt_dlclose(dlhandle);
 		}
 #endif /* HAVE_LIBLTDL */
+#endif /* NOT_USED */
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 	}
 

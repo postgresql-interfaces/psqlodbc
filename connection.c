@@ -4160,6 +4160,7 @@ inolog("sock=%p\n", sock);
 		}
 	}
 
+#ifdef	NOT_USED	/* currently not yet used */  
 	if (FALSE && connect_with_param_available())
 	{
 		const char *opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
@@ -4168,6 +4169,7 @@ inolog("sock=%p\n", sock);
 		pqconn = CALL_PQconnectdbParams(opts, vals, &libpqLoaded);
 	}
 	else
+#endif /* NOT_USED */
 	{
 		if (!(conninfo = protocol3_opts_build(self)))
 		{
