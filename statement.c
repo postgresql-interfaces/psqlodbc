@@ -683,24 +683,27 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 	{
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		ENTER_CONN_CS(conn);
-		if (conn && CONN_CONNECTED == conn->status)
+		if (conn)
 		{
-			if (CC_is_in_error_trans(conn))
+			ENTER_CONN_CS(conn);
+			if (CONN_CONNECTED == conn->status)
 			{
-				CC_mark_a_object_to_discard(conn, 's',  stmt->plan_name);
-			}
-			else
-			{
-				QResultClass	*res;
-				char dealloc_stmt[128];
+				if (CC_is_in_error_trans(conn))
+				{
+					CC_mark_a_object_to_discard(conn, 's',  stmt->plan_name);
+				}
+				else
+				{
+					QResultClass	*res;
+					char dealloc_stmt[128];
 
-				sprintf(dealloc_stmt, "DEALLOCATE \"%s\"", stmt->plan_name);
-				res = CC_send_query(conn, dealloc_stmt, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
-				QR_Destructor(res);
-			} 
+					sprintf(dealloc_stmt, "DEALLOCATE \"%s\"", stmt->plan_name);
+					res = CC_send_query(conn, dealloc_stmt, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+					QR_Destructor(res);
+				}
+			}
+			LEAVE_CONN_CS(conn);
 		}
-		LEAVE_CONN_CS(conn);
 	}
 	if (NOT_YET_PREPARED == prepared)
 		SC_set_planname(stmt, NULL);
