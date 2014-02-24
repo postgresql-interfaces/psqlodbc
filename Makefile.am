@@ -88,6 +88,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 \
 	test/expected/alter.out \
 	test/expected/arraybinding.out \
+	test/expected/bindcol.out \
 	test/expected/boolsaschar.out \
 	test/expected/catalogfunctions.out \
 	test/expected/commands.out \
@@ -98,6 +99,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/dataatexecution.out \
 	test/expected/getresult.out \
 	test/expected/insertreturning.out \
+	test/expected/lfconversion.out \
 	test/expected/multistmt.out \
 	test/expected/notice.out \
 	test/expected/params.out \
@@ -107,7 +109,6 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/sampletables.out \
 	test/expected/select.out \
 	test/expected/stmthandles.out \
-	test/expected/bindcol.out \
 	test/launcher \
 	test/Makefile \
 	test/odbc.ini \
@@ -116,6 +117,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/sql/sampletables.sql \
 	test/src/alter-test.c \
 	test/src/arraybinding-test.c \
+	test/src/bindcol-test.c \
 	test/src/boolsaschar-test.c \
 	test/src/catalogfunctions-test.c \
 	test/src/commands-test.c \
@@ -127,6 +129,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/dataatexecution-test.c \
 	test/src/getresult-test.c \
 	test/src/insertreturning-test.c \
+	test/src/lfconversion-test.c \
 	test/src/multistmt-test.c \
 	test/src/notice-test.c \
 	test/src/params-test.c \
@@ -134,8 +137,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/prepare-test.c \
 	test/src/quotes-test.c \
 	test/src/select-test.c \
-	test/src/stmthandles-test.c \
-	test/src/bindcol-test.c
+	test/src/stmthandles-test.c
 
 MAINTAINERCLEANFILES = \
 	Makefile.in config/config.guess config.h.in config/config.sub configure \
