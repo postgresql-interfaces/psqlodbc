@@ -21,6 +21,10 @@ if ($USE_LIBPQ -eq "yes")
 			$pgmfs = "$env:ProgramFiles"
 			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 		}
+		else if ("${env:ProgramW6432}" -ne "") {
+			$pgmfs = "$env:ProgramW6432"
+			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
+		}
 	} 
 }
 if ($USE_GSS -eq "yes")
@@ -49,10 +53,11 @@ if (!(Test-Path -Path $CPUTYPE)) {
 
 <#
 	ProductCode History
-
+		ProductCode must be changed in case of major upgrade
 #>
 $PRODUCTID = @{}
 $PRODUCTID["09.02.0100"]="3E42F836-9204-4c42-B3C3-8680A0434875"
+$PRODUCTID["09.03.0100"]="1F896F2F-5756-4d22-B5A3-040796C9B485"
 $PRODUCTID["09.03.0200"]="1F896F2F-5756-4d22-B5A3-040796C9B485"
 
 $PRODUCTCODE=$PRODUCTID[$VERSION]

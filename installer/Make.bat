@@ -40,6 +40,7 @@ if NOT "%1"=="" (
 ::	    ProductCode must be changed in case of major upgrade
 ::
 SET PRODUCTID["09.02.0100"]="838E187D-8B7A-473d-B93C-C8E970B15D2B"
+SET PRODUCTID["09.03.0100"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
 SET PRODUCTID["09.03.0200"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
 
 :: The full version number of the build in XXXX.XX.XX format
