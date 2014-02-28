@@ -1,0 +1,33 @@
+\! ./src/cte-test
+connected
+Result set:
+1	foo1
+2	foo2
+3	foo3
+4	foo4
+5	foo5
+6	foo6
+7	foo7
+8	foo8
+9	foo9
+10	foo10
+Result set:
+1	foo1
+2	foo2
+disconnecting
+connected
+Result set:
+1	foo1
+2	foo2
+3	foo3
+4	foo4
+5	foo5
+6	foo6
+7	foo7
+8	foo8
+9	foo9
+10	foo10
+Result set:
+1	foo1
+2	foo2
+disconnecting

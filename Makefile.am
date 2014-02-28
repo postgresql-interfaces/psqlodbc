@@ -93,6 +93,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/catalogfunctions.out \
 	test/expected/commands.out \
 	test/expected/connect.out \
+	test/expected/cte.out \
 	test/expected/cursors.out \
 	test/expected/cursors_1.out \
 	test/expected/cvtnulldate.out \
@@ -124,6 +125,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/common.c \
 	test/src/common.h \
 	test/src/connect-test.c \
+	test/src/cte-test.c \
 	test/src/cursors-test.c \
 	test/src/cvtnulldate-test.c \
 	test/src/dataatexecution-test.c \
