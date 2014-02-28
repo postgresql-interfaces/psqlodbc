@@ -19,7 +19,7 @@ function InitConfiguration($savePath = $configurationXmlPath)
 function global:GetConfiguration($loadPath = $configurationXmlPath)
 {
 	$configInfo =  [xml] (Get-Content "$loadPath")
-	set-variable -name xmlFormatVersion -value "0.2" -option constant
+	set-variable -name xmlFormatVersion -value "0.3" -option constant
 	if ($configInfo.Configuration.formatVersion -ne $xmlFormatVersion)
 	{
         	$xmlDoc2 = [xml](Get-Content "$configurationTemplatePath")

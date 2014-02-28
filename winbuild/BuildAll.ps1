@@ -260,18 +260,39 @@ if ($Toolset -eq $WSDK71Set) {
 	$env:TARGET_CPU=""
 }
 
+$recordResult = $true
+try {
 #
 #	build 32bit dlls
 #
-if ($Platform -ieq "Win32" -or $Platform -ieq "both") {
-	buildPlatform $configInfo.Configuration.x86 "Win32"
-}
-
+	if ($Platform -ieq "Win32" -or $Platform -ieq "both") {
+		buildPlatform $configInfo.Configuration.x86 "Win32"
+		if ($LastExitCode -ne 0) {
+			$recordResult = $false
+		}
+	}
 #
 #	build 64bit dlls
 #
-if ($Platform -ieq "x64" -or $Platform -ieq "both") {
-	buildPlatform $configInfo.Configuration.x64 "x64"
+	if ($Platform -ieq "x64" -or $Platform -ieq "both") {
+		buildPlatform $configInfo.Configuration.x64 "x64"
+		if ($LastExitCode -ne 0) {
+			$recordResult = $false
+		}
+	}
+#
+#	Write the result to configuration xml
+#
+	if ($recordResult) {	
+		$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
+		$configInfo.Configuration.BuildResult.VisualStudioVersion=$VisualStudioVersion
+		$configInfo.Configuration.BuildResult.PlatformToolset=$Toolset
+		$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
+		$configInfo.Configuration.BuildResult.Platform=$Platform
+		SaveConfiguration $configInfo
+	}
+} catch {
+	$error[0] | Format-List -Force 
 }
 
 Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VisualStudioVersion PlatformToolset=$Toolset"
