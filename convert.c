@@ -4456,10 +4456,14 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 #if (ODBCVER >= 0x0350)
 		case SQL_C_GUID:
 		{
+			/*
+			 * SQLGUID.Data1 is an "unsigned long" on some platforms, and
+			 * "unsigned int" on others.
+			 */
 			SQLGUID *g = (SQLGUID *) buffer;
 			snprintf (param_string, sizeof(param_string),
-				"%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
-				g->Data1,
+				"%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
+				(unsigned int) g->Data1,
 				g->Data2, g->Data3,
 				g->Data4[0], g->Data4[1], g->Data4[2], g->Data4[3],
 				g->Data4[4], g->Data4[5], g->Data4[6], g->Data4[7]);
