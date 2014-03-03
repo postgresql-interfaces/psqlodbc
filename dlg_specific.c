@@ -1474,7 +1474,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		SQLGetPrivateProfileString(section, INI_CONNSETTINGS, "",
 			conn_settings, sizeof(conn_settings), filename);
 		if ('\0' != conn_settings[0])
-			STR_TO_NAME(comval->conn_settings, conn_settings);
+			STRX_TO_NAME(comval->conn_settings, conn_settings);
 
 		/* Default state for future DSN's Readonly attribute */
 		SQLGetPrivateProfileString(section, INI_READONLY, "",
