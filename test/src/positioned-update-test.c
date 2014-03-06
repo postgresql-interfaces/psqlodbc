@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 				if (!SQL_SUCCEEDED(rc))
 				{
 					print_diag("SQLGetData failed", SQL_HANDLE_STMT, hstmt);
-					return;
+					exit(1);
 				}
 				if (ind == SQL_NULL_DATA)
 					strcpy(buf, "NULL");
