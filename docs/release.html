@@ -9,7 +9,30 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
-<h2><a id="09.03.0200">psqlODBC 09.03.0200 Release</a></h2>
+<h2><a id="09.03.0210">psqlODBC 09.03.0210 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>SSL verify[-(ca|full)] is avaiable since 8.4.</b><br /></li>
+There seems no need to check it. Also there's no need to call lt_dlopen currentl
+y.<br />
+<li><b>Update EXTRA_DIST in Makefile.am</b><br /></li>
+Files for the new lfconversion test case were missing.<br />
+<li><b>Fix locking in SC_set_prepared</b><br /></li>
+added ENTER/LEAVE_CRIT_CS calls in SC_set_prepared.<br />
+<li><b>Add test case for CTE queries (WITH ...)</b><br /></li>
+None of the existing test cases covered that. This test case gives a different e
+rror message than the original one, but it'sthe same underlying issue.<br />
+<li><b>Silence compiler warning.</b><br /></li>
+SQLGUID format and conn_settings cannot be NULL.<br />
+This fixed by Michael Paquier.<br />
+<li><b>Fixed POSTGRES_RESOURCE_VERSION variable.</b><br /></li>
+Pass the content of POSTGRES_RESOURCE_VERSION variable to the resource compiler
+correctly so that FileVersion and ProductVersion are properly set.<br />
+<li><b>Change regression test positioned-update</b><br /></li>
+Use "exit(1);" instead of "return;" to exit from main().<br />
+This fixed by Michael Paquier, at least some compiler on OS X didn't like it.<br />
+</ol><br />
+<h2><a id="09.03.0200">psqlODBC 09.03.0200</a></h2>
 Changes:<br />
 <ol type="1">
 <li><b>Set TCP keepalive by default.</b><br /></li>
