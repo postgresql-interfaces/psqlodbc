@@ -426,8 +426,8 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			len = 4;
 			if (PG_VERSION_GE(conn, 7.1))
 			{
-				/* Large Rowa in 7.1+ */
-				value = MAX_ROW_SIZE;
+				/* No limit with tuptoaster in 7.1+ */
+				value = 0;
 			}
 			else
 			{

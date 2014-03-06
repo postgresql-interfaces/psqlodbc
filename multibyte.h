@@ -54,26 +54,10 @@ enum {
 	,OTHER		=	-1
 };
 
-#define MAX_CHARACTERSET_NAME	24
-#define MAX_CHARACTER_LEN	6
-
-/* OLD Type */
-// extern int	multibyte_client_encoding;	/* Multibyte client encoding. */
-// extern int	multibyte_status;	/* Multibyte charcter status. */
-//
-// void		multibyte_init(void);
-// unsigned char *check_client_encoding(unsigned char *sql_string);
-// int			multibyte_char_check(unsigned char s);
-// unsigned char *multibyte_strchr(const unsigned char *string, unsigned int c);
-
-/* New Type */
-
 extern void CC_lookup_characterset(ConnectionClass *self);
 extern const char *get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *svrenc, BOOL bStartup);
 
-extern int pg_CS_stat(int stat,unsigned int charcter,int characterset_code);
 extern int pg_CS_code(const UCHAR *stat_string);
-extern const UCHAR *pg_CS_name(int code);
 
 typedef struct pg_CS
 {
@@ -82,7 +66,6 @@ typedef struct pg_CS
 }pg_CS;
 extern size_t	pg_mbslen(int ccsc, const UCHAR *string);
 extern UCHAR *pg_mbschr(int ccsc, const UCHAR *string, unsigned int character);
-extern UCHAR *pg_mbsinc(int ccsc, const UCHAR *current );
 
 /* Old Type Compatible */
 typedef struct

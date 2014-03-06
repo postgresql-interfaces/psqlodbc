@@ -188,18 +188,6 @@ UCHAR *check_client_encoding(const pgNAME conn_settings)
 	return rptr;
 }
 
-const UCHAR *
-pg_CS_name(int characterset_code)
-{
-	int i;
-	for (i = 0; CS_Table[i].code != OTHER; i++)
-	{
-		if (CS_Table[i].code == characterset_code)
-			return CS_Table[i].name;
-	}
-	return (OTHER_STRING);
-}
-
 static int
 pg_mb_maxlen(characterset_code)
 {
@@ -227,7 +215,7 @@ pg_mb_maxlen(characterset_code)
 	}
 }
 
-int
+static int
 pg_CS_stat(int stat,unsigned int character,int characterset_code)
 {
 	if (character == 0)
@@ -447,21 +435,6 @@ pg_mbslen(int csc, const UCHAR *string)
 			len++;
 	}
 	return len;
-}
-
-UCHAR *
-pg_mbsinc(int csc, const UCHAR *current )
-{
-	int mb_stat = 0;
-	if (*current != 0)
-	{
-		mb_stat = (int) pg_CS_stat(mb_stat, *current, csc);
-		if (mb_stat == 0)
-			mb_stat = 1;
-		return ((UCHAR *) current + mb_stat);
-	}
-	else
-		return NULL;
 }
 
 static char *
