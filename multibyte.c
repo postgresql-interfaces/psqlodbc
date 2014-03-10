@@ -134,7 +134,7 @@ check_client_encoding(const pgNAME conn_settings)
 		}
 		if (!allowed_cmd)
 			continue;
-		if (isspace(*cptr))
+		if (isspace((unsigned char) *cptr))
 			continue;
 		switch (step)
 		{
@@ -173,7 +173,7 @@ check_client_encoding(const pgNAME conn_settings)
 				}
 				else
 				{
-					for (sptr = cptr; *cptr && !isspace(*cptr); cptr++) ;
+					for (sptr = cptr; *cptr && !isspace((unsigned char) *cptr); cptr++) ;
 				}
 				len = cptr - sptr;
 				step++;

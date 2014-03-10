@@ -5305,7 +5305,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				/* input/output type of parameters */
 				if (proargmodes)
 				{
-					while (isspace(*proargmodes) || ',' == *proargmodes)
+					while (isspace((unsigned char) *proargmodes) || ',' == *proargmodes)
 						proargmodes++;
 					if ('\0' == *proargmodes || '}' == *proargmodes)
 						proargmodes = NULL;
@@ -5313,7 +5313,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				/* name of parameters */
 				if (proargnames)
 				{
-					while (isspace(*proargnames) || ',' == *proargnames)
+					while (isspace((unsigned char) *proargnames) || ',' == *proargnames)
 						proargnames++;
 					if ('\0' == *proargnames || '}' == *proargnames)
 						proargnames = NULL;

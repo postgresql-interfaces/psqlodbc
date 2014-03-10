@@ -1608,7 +1608,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				ns = (SQL_NUMERIC_STRUCT *) rgbValueBindRow;
 			else
 				ns = (SQL_NUMERIC_STRUCT *) rgbValue + bind_row;
-			for (wv = neut_str; *wv && isspace(*wv); wv++)
+			for (wv = neut_str; *wv && isspace((unsigned char) *wv); wv++)
 				;
 			ns->sign = 1;
 			if (*wv == '-')
@@ -1629,7 +1629,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						break;
 					dot_exist = TRUE;
 				}
-				else if (!isdigit(*wv))
+				else if (!isdigit((unsigned char) *wv))
 						break;
 				else
 				{
@@ -3115,7 +3115,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 			npos = qb->npos;
 			for (; npos > 0; npos--)
 			{
-				if (isspace(new_statement[npos - 1]))
+				if (isspace((unsigned char) new_statement[npos - 1]))
 					continue;
 				if (';' != new_statement[npos - 1])
 					break;
@@ -3545,7 +3545,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			{
 				const char *vp = &(qp->statement[qp->opos + 1]);
 
-				while (*vp && isspace(*vp))
+				while (*vp && isspace((unsigned char) *vp))
 					vp++;
 				if (*vp)	/* multiple statement */
 				{
@@ -4054,7 +4054,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		if (outputDiscard)
 		{
-			for (npos = qb->npos - 1; npos >= 0 && isspace(qb->query_statement[npos]) ; npos--) ;
+			for (npos = qb->npos - 1; npos >= 0 && isspace((unsigned char) qb->query_statement[npos]) ; npos--) ;
 			if (npos >= 0)
 			{
 				switch (qb->query_statement[npos])
@@ -4066,7 +4066,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 					case '(':
 						if (!qp)
 							break;
-						for (npos = qp->opos + 1; isspace(qp->statement[npos]); npos++) ;
+						for (npos = qp->opos + 1; isspace((unsigned char) qp->statement[npos]); npos++) ;
 						if (qp->statement[npos] == ',')
 							qp->opos = npos;
 						break;
@@ -4941,7 +4941,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 
 		for (i = param_pos[0][0]; i <= param_pos[0][1]; i++)
 		{
-			if (!isspace(qb->query_statement[i]))
+			if (!isspace((unsigned char) qb->query_statement[i]))
 			{
 				param_exist = TRUE;
 				break;
@@ -5197,13 +5197,13 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 
 				from = param_pos[0][0];
 				to = param_pos[0][1];
-				for (pptr = nqb.query_statement + from; *pptr && isspace(*pptr); pptr++)
+				for (pptr = nqb.query_statement + from; *pptr && isspace((unsigned char) *pptr); pptr++)
 					;
 				if (LITERAL_QUOTE == *pptr)
 					;
 				else if ('-' == *pptr)
 					add_quote = TRUE;
-				else if (isdigit(*pptr))
+				else if (isdigit((unsigned char) *pptr))
 					add_quote = TRUE;
 				else 
 					add_cast = TRUE;
@@ -5275,7 +5275,7 @@ mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 					from = 1;
 					to = param_consumed - 2;
 				}
-				else if (isdigit(*mapptr))
+				else if (isdigit((unsigned char) *mapptr))
 				{
 					pidx = *mapptr - '0' - 1;
 					if (pidx < 0 ||

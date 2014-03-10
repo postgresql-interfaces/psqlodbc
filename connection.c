@@ -2659,12 +2659,12 @@ is_setting_search_path(const char *query)
 {
 	for (query += 4; *query; query++)
 	{
-		if (!isspace(*query))
+		if (!isspace((unsigned char) *query))
 		{
 			if (strnicmp(query, "search_path", 11) == 0)
 				return TRUE;
 			query++;
-			while (*query && !isspace(*query))
+			while (*query && !isspace((unsigned char) *query))
 				query++;
 		}
 	}

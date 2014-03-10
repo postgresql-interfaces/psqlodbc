@@ -1522,9 +1522,9 @@ encode(const pgNAME in, char *out, int outlen)
 			sprintf(&out[o], "%%2B");
 			o += 3;
 		}
-		else if (isspace(inc))
+		else if (isspace((unsigned char) inc))
 			out[o++] = '+';
-		else if (!isalnum(inc))
+		else if (!isalnum((unsigned char) inc))
 		{
 			if (o + 2 >= outlen)
 				break;

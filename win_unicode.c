@@ -31,19 +31,6 @@
 #define	byte4_sr2_mask2	0x003f
 #define	surrogate_adjust	(0x10000 >> 10)
 
-#include <ctype.h>
-#ifndef WIN32
-#ifdef HAVE_ISWASCII
-#include <wctype.h>
-#else
-#include <wchar.h>
-int	iswascii(wchar_t c)
-{
-	return isascii(wctob(c));
-}
-#endif  /* HAVE_ISWASCII */
-#endif  /* WIN32 */
-
 static int little_endian = -1;
 
 SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str)
@@ -199,8 +186,7 @@ utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 		ilen = strlen(utf8str);
 	for (i = 0, ocount = 0, str = (SQLCHAR *) utf8str; i < ilen && *str;)
 	{
-		/* if (iswascii(*str)) */
-		if (isascii(*str))
+		if ((*str & 0x80) == 0)
 		{
 			if (lfconv && PG_LINEFEED == *str &&
 			    (i == 0 || PG_CARRIAGE_RETURN != str[-1]))
