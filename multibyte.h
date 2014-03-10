@@ -57,11 +57,11 @@ enum {
 extern void CC_lookup_characterset(ConnectionClass *self);
 extern const char *get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *svrenc, BOOL bStartup);
 
-extern int pg_CS_code(const UCHAR *stat_string);
+extern int pg_CS_code(const char *stat_string);
 
 typedef struct pg_CS
 {
-	UCHAR *name;
+	char *name;
 	int code;
 }pg_CS;
 extern size_t	pg_mbslen(int ccsc, const UCHAR *string);
@@ -71,7 +71,7 @@ extern UCHAR *pg_mbschr(int ccsc, const UCHAR *string, unsigned int character);
 typedef struct
 {
 	int	ccsc;
-	const UCHAR *encstr;
+	const char *encstr;
 	ssize_t	pos;
 	int	ccst;
 } encoded_str;
@@ -82,7 +82,6 @@ void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str);
 extern int encoded_nextchar(encoded_str *encstr);
 extern ssize_t encoded_position_shift(encoded_str *encstr, size_t shift);
 extern int encoded_byte_check(encoded_str *encstr, size_t abspos);
-/* #define check_client_encoding(X) pg_CS_name(pg_CS_code(X))
-UCHAR *check_client_encoding(const UCHAR *sql_string); */
-UCHAR *check_client_encoding(const pgNAME sql_string);
+/* #define check_client_encoding(X) pg_CS_name(pg_CS_code(X)) */
+char *check_client_encoding(const pgNAME sql_string);
 #endif /* __MULTIBUYTE_H__ */

@@ -2655,7 +2655,7 @@ mylog("CC_on_abort_partial in\n");
 }
 
 static BOOL
-is_setting_search_path(const UCHAR* query)
+is_setting_search_path(const char *query)
 {
 	for (query += 4; *query; query++)
 	{
@@ -3662,7 +3662,7 @@ CC_setenv(ConnectionClass *self)
 	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
 
 	/* Set the Datestyle to the format the driver expects it to be in */
-	result = PGAPI_ExecDirect(hstmt, "set DateStyle to 'ISO'", SQL_NTS, 0);
+	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set DateStyle to 'ISO'", SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
 		status = FALSE;
 
@@ -3670,7 +3670,7 @@ CC_setenv(ConnectionClass *self)
 	/* Disable genetic optimizer based on global flag */
 	if (ci->drivers.disable_optimizer)
 	{
-		result = PGAPI_ExecDirect(hstmt, "set geqo to 'OFF'", SQL_NTS, 0);
+		result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set geqo to 'OFF'", SQL_NTS, 0);
 		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
@@ -3681,7 +3681,7 @@ CC_setenv(ConnectionClass *self)
 	/* KSQO (not applicable to 7.1+ - DJP 21/06/2002) */
 	if (ci->drivers.ksqo && PG_VERSION_LT(self, 7.1))
 	{
-		result = PGAPI_ExecDirect(hstmt, "set ksqo to 'ON'", SQL_NTS, 0);
+		result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set ksqo to 'ON'", SQL_NTS, 0);
 		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
@@ -3692,7 +3692,7 @@ CC_setenv(ConnectionClass *self)
 	/* extra_float_digits (applicable since 7.4) */
 	if (PG_VERSION_GT(self, 7.3))
 	{
-		result = PGAPI_ExecDirect(hstmt, "set extra_float_digits to 2", SQL_NTS, 0);
+		result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set extra_float_digits to 2", SQL_NTS, 0);
 		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
@@ -3751,7 +3751,7 @@ CC_send_settings(ConnectionClass *self)
 #endif /* HAVE_STRTOK_R */
 			while (ptr)
 			{
-				result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
+				result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) ptr, SQL_NTS, 0);
 				if (!SQL_SUCCEEDED(result))
 					status = FALSE;
 
@@ -3782,7 +3782,7 @@ CC_send_settings(ConnectionClass *self)
 #endif /* HAVE_STRTOK_R */
 			while (ptr)
 			{
-				result = PGAPI_ExecDirect(hstmt, ptr, SQL_NTS, 0);
+				result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) ptr, SQL_NTS, 0);
 				if (!SQL_SUCCEEDED(result))
 					status = FALSE;
 
@@ -3905,7 +3905,7 @@ CC_lookup_pg_version(ConnectionClass *self)
 		return;
 
 	/* get the server's version if possible	 */
-	result = PGAPI_ExecDirect(hstmt, "select version()", SQL_NTS, 0);
+	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "select version()", SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		PGAPI_FreeStmt(hstmt, SQL_DROP);

@@ -52,8 +52,8 @@ size_t		convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOO
 size_t		convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags,int ccsc, int escape_ch);
 
 int		convert_pgbinary_to_char(const char *value, char *rgbValue, ssize_t cbValueMax);
-size_t		convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValueMax);
-SQLLEN		pg_hex2bin(const UCHAR *in, UCHAR *out, SQLLEN len);
+size_t		convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax);
+SQLLEN		pg_hex2bin(const char *in, char *out, SQLLEN len);
 int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
 	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
 Int4		findTag(const char *str, char dollar_quote, int ccsc);

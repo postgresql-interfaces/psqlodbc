@@ -79,7 +79,7 @@ static pg_CS CS_Alias[] =
 CSTR	OTHER_STRING = "OTHER";
 
 int
-pg_CS_code(const UCHAR *characterset_string)
+pg_CS_code(const char *characterset_string)
 {
 	int i, c = -1;
 
@@ -107,10 +107,11 @@ pg_CS_code(const UCHAR *characterset_string)
 	return (c);
 }
 
-UCHAR *check_client_encoding(const pgNAME conn_settings)
+char *
+check_client_encoding(const pgNAME conn_settings)
 {
-	const UCHAR *cptr, *sptr = NULL;
-	UCHAR	*rptr;
+	const char *cptr, *sptr = NULL;
+	char   *rptr;
 	BOOL	allowed_cmd = TRUE, in_quote = FALSE;
 	int	step = 0;
 	size_t	len = 0;
@@ -465,12 +466,13 @@ CC_lookup_cs_old(ConnectionClass *self)
 	if (!SQL_SUCCEEDED(result))
 		return encstr;
 
-	result = PGAPI_ExecDirect(hstmt, "Show Client_Encoding", SQL_NTS, 0);
+	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "Show Client_Encoding", SQL_NTS, 0);
 	if (result == SQL_SUCCESS_WITH_INFO)
 	{
-		char sqlState[8], errormsg[128], enc[32];
+		SQLCHAR		sqlState[8];
+		char		errormsg[128], enc[32];
 
-		if (PGAPI_Error(NULL, NULL, hstmt, sqlState, NULL, errormsg,
+		if (PGAPI_Error(NULL, NULL, hstmt, sqlState, NULL, (SQLCHAR *) errormsg,
 			sizeof(errormsg), NULL) == SQL_SUCCESS &&
 		    sscanf(errormsg, "%*s %*s %*s %*s %*s %s", enc) > 0)
 			encstr = strdup(enc);

@@ -197,7 +197,7 @@ utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 		bufcount = 0;
 	if (ilen < 0)
 		ilen = strlen(utf8str);
-	for (i = 0, ocount = 0, str = utf8str; i < ilen && *str;)
+	for (i = 0, ocount = 0, str = (SQLCHAR *) utf8str; i < ilen && *str;)
 	{
 		/* if (iswascii(*str)) */
 		if (isascii(*str))

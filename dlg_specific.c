@@ -28,9 +28,9 @@
 
 extern GLOBAL_VALUES globals;
 
-static void encode(const pgNAME, UCHAR *out, int outlen);
-static pgNAME decode(const UCHAR *in);
-static pgNAME decode_or_remove_braces(const UCHAR *in);
+static void encode(const pgNAME, char *out, int outlen);
+static pgNAME decode(const char *in);
+static pgNAME decode_or_remove_braces(const char *in);
 
 #define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY | BIT_IGNORE_ROUND_TRIP_TIME | BIT_DISABLE_KEEPALIVE)
 UInt4	getExtraOptions(const ConnInfo *ci)
@@ -1500,10 +1500,10 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 }
 
 static void
-encode(const pgNAME in, UCHAR *out, int outlen)
+encode(const pgNAME in, char *out, int outlen)
 {
 	size_t i, ilen, o = 0;
-	UCHAR	inc, *ins;
+	char	inc, *ins;
 
 	if (NAME_IS_NULL(in))
 	{
@@ -1538,7 +1538,7 @@ encode(const pgNAME in, UCHAR *out, int outlen)
 }
 
 static unsigned int
-conv_from_hex(const UCHAR *s)
+conv_from_hex(const char *s)
 {
 	int			i,
 				y = 0,
@@ -1560,10 +1560,10 @@ conv_from_hex(const UCHAR *s)
 }
 
 static pgNAME
-decode(const UCHAR *in)
+decode(const char *in)
 {
 	size_t i, ilen = strlen(in), o = 0;
-	UCHAR	inc, *outs;
+	char	inc, *outs;
 	pgNAME	out;
 
 	INIT_NAME(out);
@@ -1596,7 +1596,7 @@ decode(const UCHAR *in)
  *	Othewise decode the input value. 
  */
 static pgNAME
-decode_or_remove_braces(const UCHAR *in)
+decode_or_remove_braces(const char *in)
 {
 	if ('{' == in[0])
 	{
@@ -1615,14 +1615,14 @@ decode_or_remove_braces(const UCHAR *in)
 
 char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comment)
 {
-	const UCHAR *cptr, *sptr = NULL;
-	UCHAR	*rptr;
+	const char *cptr, *sptr = NULL;
+	char	   *rptr;
 	BOOL	allowed_cmd = TRUE, in_quote = FALSE, in_comment = FALSE;
 	int	step = 0, skiplen;
 	size_t	len = 0, attrlen = strlen(attr);
 
-        for (cptr = (UCHAR *) str; *cptr; cptr++)
-        {
+	for (cptr = str; *cptr; cptr++)
+	{
 		if (in_quote)
 		{
 			if (LITERAL_QUOTE == *cptr)
@@ -1672,7 +1672,7 @@ char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comm
 		}
 		if (!allowed_cmd)
 			continue;
-		if (isspace(*cptr))
+		if (isspace((unsigned char) *cptr))
 		{
 			if (4 == step)
 			{
@@ -1742,14 +1742,15 @@ char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comm
  */
 char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 {
-	const UCHAR *cptr, *sptr = NULL, *str = GET_NAME(setting);
-	UCHAR	*rptr;
+	const char *str = GET_NAME(setting);
+	const char *cptr, *sptr = NULL;
+	char	   *rptr;
 	BOOL	allowed_cmd = FALSE, in_quote = FALSE, in_comment = FALSE;
 	int	step = 0, step_last = 2;
 	size_t	len = 0, attrlen = strlen(attr);
 
-        for (cptr = (UCHAR *) str; *cptr; cptr++)
-        {
+	for (cptr = str; *cptr; cptr++)
+	{
 		if (in_quote)
 		{
 			if (LITERAL_QUOTE == *cptr)
@@ -1795,7 +1796,7 @@ char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 		}
 		/* now in comment */
 		if (';' == *cptr ||
-		    isspace(*cptr))
+		    isspace((unsigned char) *cptr))
 		{
 			if (step_last == step)
 				len = cptr - sptr;

@@ -119,9 +119,9 @@ cleanup:
 
 
 static void
-pg_sqlstate_set(const EnvironmentClass *env, UCHAR *szSqlState, const UCHAR *ver3str, const UCHAR *ver2str)
+pg_sqlstate_set(const EnvironmentClass *env, UCHAR *szSqlState, const char *ver3str, const char *ver2str)
 {
-	strcpy(szSqlState, EN_is_odbc3(env) ? ver3str : ver2str);
+	strcpy((char *) szSqlState, EN_is_odbc3(env) ? ver3str : ver2str);
 }
 
 PG_ErrorInfo	*ER_Constructor(SDWORD errnumber, const char *msg)
@@ -254,7 +254,7 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 		*pfNativeError = error->status;
 
 	if (NULL != szSqlState)
-		strncpy_null(szSqlState, error->sqlstate, 6);
+		strncpy_null((char *) szSqlState, error->sqlstate, 6);
 
 	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, pcblen, szErrorMsg);
 	if (clear_str)
@@ -299,7 +299,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 	{
 		mylog("CC_Get_error returned nothing.\n");
 		if (NULL != szSqlState)
-			strcpy(szSqlState, "00000");
+			strcpy((char *) szSqlState, "00000");
 		if (NULL != pcbErrorMsg)
 			*pcbErrorMsg = 0;
 		if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
@@ -319,14 +319,14 @@ PGAPI_ConnectError(	HDBC hdbc,
 			*pcbErrorMsg = cbErrorMsgMax - 1;
 	}
 	if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
-		strncpy_null(szErrorMsg, msg, cbErrorMsgMax);
+		strncpy_null((char *) szErrorMsg, msg, cbErrorMsgMax);
 	if (NULL != pfNativeError)
 		*pfNativeError = status;
 
 	if (NULL != szSqlState)
 	{
 		if (conn->sqlstate[0])
-			strcpy(szSqlState, conn->sqlstate);
+			strcpy((char *) szSqlState, conn->sqlstate);
 		else	
 		switch (status)
 		{
@@ -444,7 +444,7 @@ PGAPI_EnvError(		HENV henv,
 	if (NULL != pcbErrorMsg)
 		*pcbErrorMsg = (SQLSMALLINT) strlen(msg);
 	if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
-		strncpy_null(szErrorMsg, msg, cbErrorMsgMax);
+		strncpy_null((char *) szErrorMsg, msg, cbErrorMsgMax);
 	if (NULL != pfNativeError)
 		*pfNativeError = status;
 
@@ -498,7 +498,7 @@ PGAPI_Error(
 	else
 	{
 		if (NULL != szSqlState)
-			strcpy(szSqlState, "00000");
+			strcpy((char *) szSqlState, "00000");
 		if (NULL != pcbErrorMsg)
 			*pcbErrorMsg = 0;
 		if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))

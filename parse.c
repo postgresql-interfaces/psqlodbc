@@ -817,8 +817,11 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 				NULL, 0, NULL, 0, NULL, 0,
 				PODBC_SEARCH_BY_IDS, greloid, 0);
 	else
-		result = PGAPI_Columns(hcol_stmt, NULL, 0, SAFE_NAME(wti->schema_name),
-			 SQL_NTS, SAFE_NAME(wti->table_name), SQL_NTS, NULL, 0, PODBC_NOT_SEARCH_PATTERN, 0, 0);
+		result = PGAPI_Columns(hcol_stmt, NULL, 0,
+							   (SQLCHAR *) SAFE_NAME(wti->schema_name), SQL_NTS,
+							   (SQLCHAR *) SAFE_NAME(wti->table_name), SQL_NTS,
+							   NULL, 0,
+							   PODBC_NOT_SEARCH_PATTERN, 0, 0);
 
 	mylog("        Past PG_Columns\n");
 	res = SC_get_Curres(col_stmt);

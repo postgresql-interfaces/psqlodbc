@@ -142,10 +142,10 @@ char	   *mapFuncs[][2] = {
 };
 
 static const char *mapFunction(const char *func, int param_count);
-static int conv_from_octal(const UCHAR *s);
-static SQLLEN pg_bin2hex(const UCHAR *src, UCHAR *dst, SQLLEN length);
+static int conv_from_octal(const char *s);
+static SQLLEN pg_bin2hex(const char *src, char *dst, SQLLEN length);
 #ifdef	UNICODE_SUPPORT
-static SQLLEN pg_bin2whex(const UCHAR *src, SQLWCHAR *dst, SQLLEN length);
+static SQLLEN pg_bin2whex(const char *src, SQLWCHAR *dst, SQLLEN length);
 #endif /* UNICODE_SUPPORT */
 
 /*---------
@@ -1600,7 +1600,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			SQL_NUMERIC_STRUCT      *ns;
 			int	i, nlen, bit, hval, tv, dig, sta, olen;
 			char	calv[SQL_MAX_NUMERIC_LEN * 3];
-			const UCHAR *wv;
+			const char *wv;
 			BOOL	dot_exist;
 
 			len = sizeof(SQL_NUMERIC_STRUCT);
@@ -1931,7 +1931,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 #define	FLGP_MULTIPLE_STATEMENT	(1L << 5)
 #define	FLGP_SELECT_FOR_READONLY	(1L << 6)
 typedef struct _QueryParse {
-	const UCHAR	*statement;
+	const char	*statement;
 	int		statement_type;
 	size_t		opos;
 	Int4		from_pos;	/* PG comm length restriction */
@@ -1984,7 +1984,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_LITERAL_EXTENSION	(1L << 10)
 #define	FLGB_HEX_BIN_FORMAT	(1L << 11)
 typedef struct _QueryBuild {
-	UCHAR	*query_statement;
+	char   *query_statement;
 	size_t	str_size_limit;
 	size_t	str_alsize;
 	size_t	npos;
@@ -2197,7 +2197,7 @@ static int
 processParameters(QueryParse *qp, QueryBuild *qb,
 	size_t *output_count, SQLLEN param_pos[][2]);
 static size_t
-convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb);
+convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb);
 
 static ssize_t
 enlarge_query_statement(QueryBuild *qb, size_t newsize)
@@ -2881,7 +2881,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	QueryParse	query_org, *qp;
 	QueryBuild	query_crt, *qb;
 
-	UCHAR		*new_statement;
+	char	   *new_statement;
 
 	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE, bPrepConv;
 	ConnectionClass *conn = SC_get_conn(stmt);
@@ -3195,12 +3195,12 @@ Int4 findTag(const char *tag, char dollar_quote, int ccsc)
 }
 
 static
-Int4 findIdentifier(const UCHAR *str, int ccsc, const UCHAR **nextdel)
+Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 {
 	Int4	strlen = 0;
 	encoded_str	encstr;
 	unsigned char	tchar;
-	const UCHAR	*sptr;
+	const char	*sptr;
 	BOOL	dquote = FALSE;
 
 	*nextdel = NULL;
@@ -3543,7 +3543,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qb->dollar_number = 0;
 			if (0 != (qp->flags & FLGP_USING_CURSOR))
 			{
-				const UCHAR *vp = &(qp->statement[qp->opos + 1]);
+				const char *vp = &(qp->statement[qp->opos + 1]);
 
 				while (*vp && isspace(*vp))
 					vp++;
@@ -5047,7 +5047,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	if (stricmp(key, "call") == 0)
 	{
 		Int4 funclen;
-		const UCHAR *nextdel;
+		const char *nextdel;
 
 		if (SQL_ERROR == QB_start_brace(qb))
 		{
@@ -5193,7 +5193,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			if (2 == param_count)
 			{
 				BOOL add_cast = FALSE, add_quote = FALSE;
-				const UCHAR *pptr;
+				const char *pptr;
 
 				from = param_pos[0][0];
 				to = param_pos[0][1];
@@ -5258,7 +5258,7 @@ mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 		}
 		else
 		{
-			const UCHAR *mapptr;
+			const char *mapptr;
 			SQLLEN	paramlen;
 			int	pidx;
 
@@ -5619,7 +5619,7 @@ convert_pgbinary_to_char(const char *value, char *rgbValue, ssize_t cbValueMax)
 
 
 static int
-conv_from_octal(const UCHAR *s)
+conv_from_octal(const char *s)
 {
 	ssize_t			i;
 	int			y = 0;
@@ -5633,7 +5633,7 @@ conv_from_octal(const UCHAR *s)
 
 /*	convert octal escapes to bytes */
 size_t
-convert_from_pgbinary(const UCHAR *value, UCHAR *rgbValue, SQLLEN cbValueMax)
+convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax)
 {
 	size_t		i,
 				ilen = strlen(value);
@@ -5731,7 +5731,7 @@ conv_to_octal2(UCHAR val, char *octal)
 
 /*	convert non-ascii bytes to octal escape sequences */
 static size_t
-convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
+convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 {
 	CSTR	func = "convert_to_pgbinary";
 	UCHAR	inc;
@@ -5746,7 +5746,7 @@ convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
 			out[o++] = escape_in_literal;
 		out[o++] = '\\';
 		out[o++] = 'x';
-		o += pg_bin2hex(in, (UCHAR *) out + o, len);
+		o += pg_bin2hex(in, out + o, len);
 		return o;
 	}
 	for (i = 0; i < len; i++)
@@ -5778,21 +5778,21 @@ convert_to_pgbinary(const UCHAR *in, char *out, size_t len, QueryBuild *qb)
 static const char *hextbl = "0123456789ABCDEF";
 
 #define	def_bin2hex(type) \
-	(const UCHAR *src, type *dst, SQLLEN length) \
+	(const char *src, type *dst, SQLLEN length) \
 { \
-	const UCHAR	*src_wk; \
+	const char	*src_wk; \
 	UCHAR		chr; \
 	type		*dst_wk; \
 	BOOL		backwards; \
 	int		i; \
  \
 	backwards = FALSE; \
-	if ((UCHAR *)dst < src) \
+	if ((char *) dst < src) \
 	{ \
-		if ((UCHAR *) (dst + 2 * (length - 1)) > src + length - 1) \
+		if ((char *) (dst + 2 * (length - 1)) > src + length - 1) \
 			return -1; \
 	} \
-	else if ((UCHAR *) dst < src + length) \
+	else if ((char *) dst < src + length) \
 		backwards = TRUE; \
 	if (backwards) \
 	{ \
@@ -5821,14 +5821,14 @@ pg_bin2whex def_bin2hex(SQLWCHAR)
 #endif /* UNICODE_SUPPORT */
 
 static SQLLEN
-pg_bin2hex def_bin2hex(UCHAR)
+pg_bin2hex def_bin2hex(char)
 
 SQLLEN
-pg_hex2bin(const UCHAR *src, UCHAR *dst, SQLLEN length)
+pg_hex2bin(const char *src, char *dst, SQLLEN length)
 {
 	UCHAR		chr;
-	const UCHAR	*src_wk;
-	UCHAR		*dst_wk;
+	const char *src_wk;
+	char	   *dst_wk;
 	SQLLEN		i;
 	int		val;
 	BOOL		HByte = TRUE;

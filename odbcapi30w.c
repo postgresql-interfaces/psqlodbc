@@ -228,8 +228,8 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 		buflen = cbErrorMsgMax;
                 mtxt = malloc(buflen);
 	}
-        ret = PGAPI_GetDiagRec(fHandleType, handle, iRecord, qstr,
-                pfNativeError, mtxt, buflen, &tlen);
+	ret = PGAPI_GetDiagRec(fHandleType, handle, iRecord, (SQLCHAR *) qstr,
+						   pfNativeError, (SQLCHAR *) mtxt, buflen, &tlen);
 	if (SQL_SUCCEEDED(ret))
 	{
         	if (qstr)

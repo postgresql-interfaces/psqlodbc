@@ -1385,7 +1385,7 @@ PGAPI_NativeSql(
 
 	if (szSqlStr)
 	{
-		strncpy_null(szSqlStr, ptr, cbSqlStrMax);
+		strncpy_null((char *) szSqlStr, ptr, cbSqlStrMax);
 
 		if (len >= cbSqlStrMax)
 		{

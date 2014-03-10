@@ -168,7 +168,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					rtnlen = strlen(CC_get_DSN(conn));
 					if (DiagInfoPtr)
 					{
-						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
+						strncpy_null(DiagInfoPtr, CC_get_DSN(conn), BufferLength);
 						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 					}
 					else
@@ -233,7 +233,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 					rtnlen = strlen(CC_get_DSN(conn));
 					if (DiagInfoPtr)
 					{
-						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
+						strncpy_null(DiagInfoPtr, CC_get_DSN(conn), BufferLength);
 						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 					}
 					else
@@ -337,7 +337,7 @@ inolog("rc=%d\n", rc);
 					rtnlen = strlen(CC_get_DSN(conn));
 					if (DiagInfoPtr)
 					{
-						strncpy_null((SQLCHAR *) DiagInfoPtr, CC_get_DSN(conn), BufferLength);
+						strncpy_null(DiagInfoPtr, CC_get_DSN(conn), BufferLength);
 						ret = (BufferLength > rtnlen ? SQL_SUCCESS : SQL_SUCCESS_WITH_INFO);
 					}
 					else

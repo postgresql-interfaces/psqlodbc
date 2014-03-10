@@ -111,7 +111,7 @@ strncpy_null(char *dst, const char *src, ssize_t len)
  *------
  */
 char *
-make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
+make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize)
 {
 	size_t		length;
 	char	   *str;
@@ -121,7 +121,7 @@ make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
 	if (len >= 0)
 		length =len;
 	else if (SQL_NTS == len)
-		length = strlen(s);
+		length = strlen((char *) s);
 	else
 	{
 		mylog("make_string invalid length=%d\n", len);
@@ -129,7 +129,7 @@ make_string(const char *s, ssize_t len, char *buf, size_t bufsize)
 	}
 	if (buf)
 	{
-		strncpy_null(buf, s, bufsize > length ? length + 1 : bufsize);
+		strncpy_null(buf, (char *) s, bufsize > length ? length + 1 : bufsize);
 		return buf;
 	}
 
@@ -139,7 +139,7 @@ inolog("str=%p\n", str);
 	if (!str)
 		return NULL;
 
-	strncpy_null(str, s, length + 1);
+	strncpy_null(str, (char *) s, length + 1);
 	return str;
 }
 
@@ -163,7 +163,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 		encoded_str encstr;
 
 		make_encoded_str(&encstr, conn, ccs);
-		for (i = 0, ptr = ccs; i < length; i++, ptr++)
+		for (i = 0, ptr = (const UCHAR *) ccs; i < length; i++, ptr++)
 		{
 			encoded_nextchar(&encstr);
 			if (ENCODE_STATUS(encstr) != 0)
@@ -206,7 +206,6 @@ my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
 	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
 	{
 		size_t			length = (len > 0) ? len : strlen(s);
-
 		size_t			pos = strlen(buf);
 
 		sprintf(&buf[pos], fmt, length, s);
@@ -216,7 +215,7 @@ my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
 }
 
 char *
-schema_strcat(char *buf, const char *fmt, const char *s, ssize_t len, const char *tbname, int tbnmlen, ConnectionClass *conn)
+schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQLCHAR *tbname, SQLLEN tbnmlen, ConnectionClass *conn)
 {
 	if (!s || 0 == len)
 	{
@@ -229,7 +228,7 @@ schema_strcat(char *buf, const char *fmt, const char *s, ssize_t len, const char
 			return my_strcat(buf, fmt, CC_get_current_schema(conn), SQL_NTS);
 		return NULL;
 	}
-	return my_strcat(buf, fmt, s, len);
+	return my_strcat(buf, fmt, (char *) s, len);
 }
 
 
@@ -286,7 +285,7 @@ my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t le
 }
 
 char *
-schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len, const char *tbname, int tbnmlen, ConnectionClass *conn)
+schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
 {
 	if (!s || 0 == len)
 	{

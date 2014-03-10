@@ -375,7 +375,7 @@ inolog("answering bookmark info\n");
 	if (szColName && cbColNameMax > 0)
 	{
 		if (NULL != col_name)
-			strncpy_null(szColName, col_name, cbColNameMax);
+			strncpy_null((char *) szColName, col_name, cbColNameMax);
 		else
 			szColName[0] = '\0';
 
@@ -1247,10 +1247,10 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 		*nearest = sta - 1 + nth;
 		if (SQL_FETCH_PRIOR == orientation)
 		{
-			for (i = res->dl_count - 1; i >=0 && *nearest <= (SQLLEN) deleted[i]; i--)
+			for (i = res->dl_count - 1; i >=0 && *nearest <= deleted[i]; i--)
 			{
 inolog("deleted[%d]=%d\n", i, deleted[i]);
-				if (sta >= (SQLLEN)deleted[i])
+				if (sta >= deleted[i])
 					(*nearest)--;
 			}
 inolog("nearest=%d\n", *nearest);
@@ -1266,9 +1266,9 @@ inolog("nearest=%d\n", *nearest);
 		{
 			if (!QR_once_reached_eof(res))
 				num_tuples = INT_MAX;
-			for (i = 0; i < res->dl_count && *nearest >= (SQLLEN)deleted[i]; i++)
+			for (i = 0; i < res->dl_count && *nearest >= deleted[i]; i++)
 			{
-				if (sta <= (SQLLEN)deleted[i])
+				if (sta <= deleted[i])
 					(*nearest)++;
 			}
 			if (*nearest >= num_tuples)
@@ -2243,7 +2243,7 @@ int AddDeleted(QResultClass *res, SQLULEN index, KeySet *keyset)
 {
 	int	i;
 	Int2	dl_count, new_alloc;
-	SQLULEN	*deleted;
+	SQLLEN	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
 	Int2	num_fields = res->num_fields;
@@ -2258,7 +2258,7 @@ inolog("AddDeleted %d\n", index);
 	{
 		dl_count = 0;
 		new_alloc = 10;
-		QR_MALLOC_return_with_error(res->deleted, SQLULEN, sizeof(SQLULEN) * new_alloc, res, "Deleted index malloc error", FALSE);
+		QR_MALLOC_return_with_error(res->deleted, SQLLEN, sizeof(SQLLEN) * new_alloc, res, "Deleted index malloc error", FALSE);
 		QR_MALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Deleted keyset malloc error", FALSE);
 		deleted = res->deleted;
 		deleted_keyset = res->deleted_keyset;
@@ -2270,7 +2270,7 @@ inolog("AddDeleted %d\n", index);
 		{
 			new_alloc = res->dl_alloc * 2;
 			res->dl_alloc = 0;
-			QR_REALLOC_return_with_error(res->deleted, SQLULEN, sizeof(SQLULEN) * new_alloc, res, "Deleted index realloc error", FALSE);
+			QR_REALLOC_return_with_error(res->deleted, SQLLEN, sizeof(SQLLEN) * new_alloc, res, "Deleted index realloc error", FALSE);
 			deleted = res->deleted;
 			QR_REALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Deleted KeySet realloc error", FALSE);
 			deleted_keyset = res->deleted_keyset;
@@ -2282,7 +2282,7 @@ inolog("AddDeleted %d\n", index);
 			if (index < *deleted)
 				break;
 		}
-		memmove(deleted + 1, deleted, sizeof(SQLLEN) * (dl_count - i)); 
+		memmove(deleted + 1, deleted, sizeof(SQLLEN) * (dl_count - i));
 		memmove(deleted_keyset + 1, deleted_keyset, sizeof(KeySet) * (dl_count - i)); 
 	}
 	*deleted = index;
@@ -2310,7 +2310,7 @@ static void RemoveDeleted(QResultClass *res, SQLLEN index)
 {
 	int	i, mv_count, rm_count = 0;
 	SQLLEN	pidx, midx;
-	SQLULEN	*deleted, num_read = QR_get_num_total_read(res);
+	SQLLEN	*deleted, num_read = QR_get_num_total_read(res);
 	KeySet	*deleted_keyset;
 
 	mylog("RemoveDeleted index=%d\n", index);
@@ -2337,7 +2337,7 @@ static void RemoveDeleted(QResultClass *res, SQLLEN index)
 			{
 				deleted = res->deleted + i;
 				deleted_keyset = res->deleted_keyset + i;
-				memmove(deleted, deleted + 1, mv_count * sizeof(SQLULEN));
+				memmove(deleted, deleted + 1, mv_count * sizeof(SQLLEN));
 				memmove(deleted_keyset, deleted_keyset + 1, mv_count * sizeof(KeySet));
 			}
 			res->dl_count--;
@@ -2350,7 +2350,7 @@ static void RemoveDeleted(QResultClass *res, SQLLEN index)
 static void CommitDeleted(QResultClass *res)
 {
 	int	i;
-	SQLULEN	*deleted;
+	SQLLEN	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
 
@@ -2398,7 +2398,7 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	if (alloc <= res->up_alloc)
 		return TRUE;
  
-	QR_REALLOC_return_with_error(res->updated, SQLULEN, sizeof(SQLULEN) * alloc, res, "enlargeUpdated failed", FALSE);
+	QR_REALLOC_return_with_error(res->updated, SQLLEN, sizeof(SQLLEN) * alloc, res, "enlargeUpdated failed", FALSE);
 	QR_REALLOC_return_with_error(res->updated_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeUpdated failed 2", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
 		QR_REALLOC_return_with_error(res->updated_tuples, TupleField, sizeof(TupleField) * res->num_fields * alloc, res, "enlargeUpdated failed 3", FALSE);
@@ -2410,7 +2410,7 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 static void AddUpdated(StatementClass *stmt, SQLLEN index)
 {
 	QResultClass	*res;
-	SQLULEN	*updated;
+	SQLLEN	*updated;
 	KeySet	*updated_keyset, *keyset;
 	TupleField	*updated_tuples = NULL, *tuple_updated,  *tuple;
 	SQLLEN	kres_ridx;
@@ -2521,7 +2521,7 @@ static void RemoveUpdated(QResultClass *res, SQLLEN index)
 
 static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeySet *keyset)
 {
-	SQLULEN	*updated, num_read = QR_get_num_total_read(res);
+	SQLLEN	*updated, num_read = QR_get_num_total_read(res);
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL;
 	SQLLEN	pidx, midx, mv_count;
@@ -2561,7 +2561,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeyS
 			mv_count = res->up_count - i -1;
 			if (mv_count > 0)
 			{
-				memmove(updated, updated + 1, sizeof(SQLULEN) * mv_count); 
+				memmove(updated, updated + 1, sizeof(SQLLEN) * mv_count);
 				memmove(updated_keyset, updated_keyset + 1, sizeof(KeySet) * mv_count); 
 				if (updated_tuples)
 					memmove(updated_tuples, updated_tuples + num_fields, sizeof(TupleField) * num_fields * mv_count);
@@ -3739,7 +3739,7 @@ SC_pos_update(StatementClass *stmt,
 		}
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE; 
-		ret = PGAPI_ExecDirect(hstmt, updstr, SQL_NTS, 0);
+		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) updstr, SQL_NTS, 0);
 		if (ret == SQL_NEED_DATA)
 		{
 			pup_cdata *cbdata = (pup_cdata *) malloc(sizeof(pup_cdata));
@@ -4159,7 +4159,7 @@ SC_pos_add(StatementClass *stmt,
 		mylog("addstr=%s\n", addstr);
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;
-		ret = PGAPI_ExecDirect(hstmt, addstr, SQL_NTS, 0);
+		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) addstr, SQL_NTS, 0);
 		if (ret == SQL_NEED_DATA)
 		{
 			padd_cdata *cbdata = (padd_cdata *) malloc(sizeof(padd_cdata));
@@ -4558,7 +4558,7 @@ PGAPI_GetCursorName(
 
 	if (szCursor)
 	{
-		strncpy_null(szCursor, SC_cursor_name(stmt), cbCursorMax);
+		strncpy_null((char *) szCursor, SC_cursor_name(stmt), cbCursorMax);
 
 		if (len >= cbCursorMax)
 		{

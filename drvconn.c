@@ -62,8 +62,8 @@ static char * hide_password(const char *str)
 #endif
 
 /* prototypes */
-void		dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
-static void dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci);
+static void dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);
+static void dconn_get_common_attributes(const char *connect_string, ConnInfo *ci);
 
 #ifdef WIN32
 LRESULT CALLBACK dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -275,7 +275,7 @@ inolog("before CC_connect\n");
 		 * anyway.
 		 */
 		/*strncpy_null(szConnStrOut, connStrOut, cbConnStrOutMax);*/
-		strncpy(szConnStrOut, connStrOut, cbConnStrOutMax);
+		strncpy((char *) szConnStrOut, connStrOut, cbConnStrOutMax);
 
 		if (len >= cbConnStrOutMax)
 		{
@@ -425,7 +425,7 @@ dconn_FDriverConnectProc(
 
 typedef	BOOL (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
 static void
-dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo *ci)
+dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 {
 	char	*our_connect_string;
 	const	char	*pair,
@@ -537,8 +537,8 @@ dconn_get_attributes(copyfunc func, const SQLCHAR FAR * connect_string, ConnInfo
 	free(our_connect_string);
 }
 
-void
-dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
+static void
+dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
 {
 
 	CC_conninfo_init(ci, COPY_GLOBALS);
@@ -546,7 +546,7 @@ dconn_get_connect_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
 }
 
 static void
-dconn_get_common_attributes(const SQLCHAR FAR * connect_string, ConnInfo *ci)
+dconn_get_common_attributes(const char *connect_string, ConnInfo *ci)
 {
 	dconn_get_attributes(copyCommonAttributes, connect_string, ci);
 }
