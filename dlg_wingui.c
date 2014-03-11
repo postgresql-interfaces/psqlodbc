@@ -733,17 +733,17 @@ makeDriversList(HWND lwnd, const ConnInfo *ci)
 	do
 	{
 		ret = SQLDrivers(henv, direction,
-			drvname, sizeof(drvname), &drvncount,
-			drvatt, sizeof(drvatt), &drvacount);
+						 drvname, sizeof(drvname), &drvncount,
+						 drvatt, sizeof(drvatt), &drvacount);
 		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
 			break;
 		if (strnicmp(drvname, "postgresql", 10) == 0)
 		{
 			iidx = SendMessage(lwnd, LB_ADDSTRING, 0, (LPARAM) drvname);
 			if (LB_ERR != iidx && stricmp(drvname, ci->drivername) == 0)
-{
+			{
 				SendMessage(lwnd, LB_SETCURSEL, (WPARAM) iidx, (LPARAM) 0);
-}
+			}
 			lcount++;
 		}
 		direction = SQL_FETCH_NEXT;
@@ -757,7 +757,7 @@ makeDriversList(HWND lwnd, const ConnInfo *ci)
 
 LRESULT		CALLBACK
 manage_dsnProc(HWND hdlg, UINT wMsg,
-		WPARAM wParam, LPARAM lParam)
+			   WPARAM wParam, LPARAM lParam)
 {
 	LPSETUPDLG	lpsetupdlg;
 	ConnInfo	*ci;
@@ -782,11 +782,11 @@ manage_dsnProc(HWND hdlg, UINT wMsg,
 					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					lwnd = GetDlgItem(hdlg, IDC_DRIVER_LIST);
 					sidx = SendMessage(lwnd, LB_GETCURSEL,
-						(WPARAM) 0, (LPARAM) 0);
+									   (WPARAM) 0, (LPARAM) 0);
 					if (LB_ERR == sidx)
 						return FALSE;
 					sidx = SendMessage(lwnd, LB_GETTEXT,
-						(WPARAM) sidx, (LPARAM) drvname);
+									   (WPARAM) sidx, (LPARAM) drvname);
 					if (LB_ERR == sidx)
 						return FALSE;
 					ChangeDriverName(hdlg, lpsetupdlg, drvname);

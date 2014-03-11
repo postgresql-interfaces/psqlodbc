@@ -241,8 +241,7 @@ SQLDriverConnect(HDBC hdbc,
 	return ret;
 }
 RETCODE		SQL_API
-SQLBrowseConnect(
-				 HDBC hdbc,
+SQLBrowseConnect(HDBC hdbc,
 				 SQLCHAR *szConnStrIn,
 				 SQLSMALLINT cbConnStrIn,
 				 SQLCHAR *szConnStrOut,
@@ -1025,8 +1024,7 @@ SQLTransact(HENV EnvironmentHandle,
 }
 
 RETCODE		SQL_API
-SQLColAttributes(
-				 HSTMT hstmt,
+SQLColAttributes(HSTMT hstmt,
 				 SQLUSMALLINT icol,
 				 SQLUSMALLINT fDescType,
 				 PTR rgbDesc,
@@ -1050,8 +1048,7 @@ SQLColAttributes(
 #endif /* ODBCVER */
 
 RETCODE		SQL_API
-SQLColumnPrivileges(
-					HSTMT hstmt,
+SQLColumnPrivileges(HSTMT hstmt,
 					SQLCHAR *szCatalogName,
 					SQLSMALLINT cbCatalogName,
 					SQLCHAR *szSchemaName,
@@ -1131,8 +1128,7 @@ SQLColumnPrivileges(
 }
 
 RETCODE		SQL_API
-SQLDescribeParam(
-				 HSTMT hstmt,
+SQLDescribeParam(HSTMT hstmt,
 				 SQLUSMALLINT ipar,
 				 SQLSMALLINT *pfSqlType,
 				 SQLULEN *pcbParamDef,
@@ -1154,8 +1150,7 @@ SQLDescribeParam(
 }
 
 RETCODE		SQL_API
-SQLExtendedFetch(
-				 HSTMT hstmt,
+SQLExtendedFetch(HSTMT hstmt,
 				 SQLUSMALLINT fFetchType,
 				 SQLLEN irow,
 #if defined(WITH_UNIXODBC) && (SIZEOF_LONG != 8)
@@ -1190,8 +1185,7 @@ SQLExtendedFetch(
 }
 
 RETCODE		SQL_API
-SQLForeignKeys(
-			   HSTMT hstmt,
+SQLForeignKeys(HSTMT hstmt,
 			   SQLCHAR *szPkCatalogName,
 			   SQLSMALLINT cbPkCatalogName,
 			   SQLCHAR *szPkSchemaName,
@@ -1304,8 +1298,7 @@ SQLMoreResults(HSTMT hstmt)
 }
 
 RETCODE		SQL_API
-SQLNativeSql(
-			 HDBC hdbc,
+SQLNativeSql(HDBC hdbc,
 			 SQLCHAR *szSqlStrIn,
 			 SQLINTEGER cbSqlStrIn,
 			 SQLCHAR *szSqlStr,
@@ -1326,8 +1319,7 @@ SQLNativeSql(
 }
 
 RETCODE		SQL_API
-SQLNumParams(
-			 HSTMT hstmt,
+SQLNumParams(HSTMT hstmt,
 			 SQLSMALLINT *pcpar)
 {
 	RETCODE	ret;
@@ -1345,8 +1337,7 @@ SQLNumParams(
 
 #if (ODBCVER < 0x0300)
 RETCODE		SQL_API
-SQLParamOptions(
-				HSTMT hstmt,
+SQLParamOptions(HSTMT hstmt,
 				SQLULEN crow,
 				SQLULEN *pirow)
 {
@@ -1365,8 +1356,7 @@ SQLParamOptions(
 #endif /* ODBCVER */
 
 RETCODE		SQL_API
-SQLPrimaryKeys(
-			   HSTMT hstmt,
+SQLPrimaryKeys(HSTMT hstmt,
 			   SQLCHAR *szCatalogName,
 			   SQLSMALLINT cbCatalogName,
 			   SQLCHAR *szSchemaName,
@@ -1430,8 +1420,7 @@ SQLPrimaryKeys(
 }
 
 RETCODE		SQL_API
-SQLProcedureColumns(
-					HSTMT hstmt,
+SQLProcedureColumns(HSTMT hstmt,
 					SQLCHAR *szCatalogName,
 					SQLSMALLINT cbCatalogName,
 					SQLCHAR *szSchemaName,
@@ -1511,8 +1500,7 @@ SQLProcedureColumns(
 }
 
 RETCODE		SQL_API
-SQLProcedures(
-			  HSTMT hstmt,
+SQLProcedures(HSTMT hstmt,
 			  SQLCHAR *szCatalogName,
 			  SQLSMALLINT cbCatalogName,
 			  SQLCHAR *szSchemaName,
@@ -1582,8 +1570,7 @@ SQLProcedures(
 }
 
 RETCODE		SQL_API
-SQLSetPos(
-		  HSTMT hstmt,
+SQLSetPos(HSTMT hstmt,
 		  SQLSETPOSIROW irow,
 		  SQLUSMALLINT fOption,
 		  SQLUSMALLINT fLock)
@@ -1602,8 +1589,7 @@ SQLSetPos(
 }
 
 RETCODE		SQL_API
-SQLTablePrivileges(
-				   HSTMT hstmt,
+SQLTablePrivileges(HSTMT hstmt,
 				   SQLCHAR *szCatalogName,
 				   SQLSMALLINT cbCatalogName,
 				   SQLCHAR *szSchemaName,
@@ -1672,8 +1658,7 @@ SQLTablePrivileges(
 }
 
 RETCODE		SQL_API
-SQLBindParameter(
-				 HSTMT hstmt,
+SQLBindParameter(HSTMT hstmt,
 				 SQLUSMALLINT ipar,
 				 SQLSMALLINT fParamType,
 				 SQLSMALLINT fCType,

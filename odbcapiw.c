@@ -25,11 +25,12 @@
 #include "connection.h"
 #include "statement.h"
 
-RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
-           SQLWCHAR *CatalogName, SQLSMALLINT NameLength1,
-           SQLWCHAR *SchemaName, SQLSMALLINT NameLength2,
-           SQLWCHAR *TableName, SQLSMALLINT NameLength3,
-           SQLWCHAR *ColumnName, SQLSMALLINT NameLength4)
+RETCODE  SQL_API
+SQLColumnsW(HSTMT StatementHandle,
+			SQLWCHAR *CatalogName, SQLSMALLINT NameLength1,
+			SQLWCHAR *SchemaName, SQLSMALLINT NameLength2,
+			SQLWCHAR *TableName, SQLSMALLINT NameLength3,
+			SQLWCHAR *ColumnName, SQLSMALLINT NameLength4)
 {
 	CSTR func = "SQLColumnsW";
 	RETCODE	ret;
@@ -77,10 +78,11 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 }
 
 
-RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
-           SQLWCHAR *ServerName, SQLSMALLINT NameLength1,
-           SQLWCHAR *UserName, SQLSMALLINT NameLength2,
-           SQLWCHAR *Authentication, SQLSMALLINT NameLength3)
+RETCODE  SQL_API
+SQLConnectW(HDBC ConnectionHandle,
+			SQLWCHAR *ServerName, SQLSMALLINT NameLength1,
+			SQLWCHAR *UserName, SQLSMALLINT NameLength2,
+			SQLWCHAR *Authentication, SQLSMALLINT NameLength3)
 {
 	CSTR func = "SQLConnectW";
 	char	*svName, *usName, *auth;
@@ -110,14 +112,15 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	return ret;
 }
 
-RETCODE SQL_API SQLDriverConnectW(HDBC hdbc,
-                                 HWND hwnd,
-                                 SQLWCHAR *szConnStrIn,
-                                 SQLSMALLINT cbConnStrIn,
-                                 SQLWCHAR *szConnStrOut,
-                                 SQLSMALLINT cbConnStrOutMax,
-                                 SQLSMALLINT FAR *pcbConnStrOut,
-                                 SQLUSMALLINT fDriverCompletion)
+RETCODE SQL_API
+SQLDriverConnectW(HDBC hdbc,
+				  HWND hwnd,
+				  SQLWCHAR *szConnStrIn,
+				  SQLSMALLINT cbConnStrIn,
+				  SQLWCHAR *szConnStrOut,
+				  SQLSMALLINT cbConnStrOutMax,
+				  SQLSMALLINT FAR *pcbConnStrOut,
+				  SQLUSMALLINT fDriverCompletion)
 {
 	CSTR func = "SQLDriverConnectW";
 	char	*szIn, *szOut = NULL;
@@ -175,13 +178,13 @@ inolog("cbConnstrOutMax=%d pcb=%p\n", cbConnStrOutMax, pcbConnStrOut);
 		free(szIn);
 	return ret;
 }
-RETCODE SQL_API SQLBrowseConnectW(
-    HDBC            hdbc,
-    SQLWCHAR 		  *szConnStrIn,
-    SQLSMALLINT        cbConnStrIn,
-    SQLWCHAR 		  *szConnStrOut,
-    SQLSMALLINT        cbConnStrOutMax,
-    SQLSMALLINT       *pcbConnStrOut)
+RETCODE SQL_API
+SQLBrowseConnectW(HDBC			hdbc,
+				  SQLWCHAR	   *szConnStrIn,
+				  SQLSMALLINT	cbConnStrIn,
+				  SQLWCHAR	   *szConnStrOut,
+				  SQLSMALLINT	cbConnStrOutMax,
+				  SQLSMALLINT  *pcbConnStrOut)
 {
 	CSTR func = "SQLBrowseConnectW";
 	char	*szIn, *szOut;
@@ -214,11 +217,12 @@ RETCODE SQL_API SQLBrowseConnectW(
 	return ret;
 }
 
-RETCODE  SQL_API SQLDataSourcesW(HENV EnvironmentHandle,
-           SQLUSMALLINT Direction, SQLWCHAR *ServerName,
-           SQLSMALLINT BufferLength1, SQLSMALLINT *NameLength1,
-           SQLWCHAR *Description, SQLSMALLINT BufferLength2,
-           SQLSMALLINT *NameLength2)
+RETCODE  SQL_API
+SQLDataSourcesW(HENV EnvironmentHandle,
+				SQLUSMALLINT Direction, SQLWCHAR *ServerName,
+				SQLSMALLINT BufferLength1, SQLSMALLINT *NameLength1,
+				SQLWCHAR *Description, SQLSMALLINT BufferLength2,
+				SQLSMALLINT *NameLength2)
 {
 	CSTR func = "SQLDataSourcesW";
 	mylog("[%s]", func);
@@ -230,11 +234,12 @@ RETCODE  SQL_API SQLDataSourcesW(HENV EnvironmentHandle,
 	return SQL_ERROR;
 }
 
-RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
-           SQLUSMALLINT ColumnNumber, SQLWCHAR *ColumnName,
-           SQLSMALLINT BufferLength, SQLSMALLINT *NameLength,
-           SQLSMALLINT *DataType, SQLULEN *ColumnSize,
-           SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable)
+RETCODE  SQL_API
+SQLDescribeColW(HSTMT StatementHandle,
+				SQLUSMALLINT ColumnNumber, SQLWCHAR *ColumnName,
+				SQLSMALLINT BufferLength, SQLSMALLINT *NameLength,
+				SQLSMALLINT *DataType, SQLULEN *ColumnSize,
+				SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable)
 {
 	CSTR func = "SQLDescribeColW";
 	RETCODE	ret;
@@ -283,8 +288,9 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
-           SQLWCHAR *StatementText, SQLINTEGER TextLength)
+RETCODE  SQL_API
+SQLExecDirectW(HSTMT StatementHandle,
+			   SQLWCHAR *StatementText, SQLINTEGER TextLength)
 {
 	CSTR	func = "SQLExecDirectW";
 	RETCODE	ret;
@@ -312,9 +318,10 @@ RETCODE  SQL_API SQLExecDirectW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
-           SQLWCHAR *CursorName, SQLSMALLINT BufferLength,
-           SQLSMALLINT *NameLength)
+RETCODE  SQL_API
+SQLGetCursorNameW(HSTMT StatementHandle,
+				  SQLWCHAR *CursorName, SQLSMALLINT BufferLength,
+				  SQLSMALLINT *NameLength)
 {
 	CSTR func = "SQLGetCursorNameW";
 	RETCODE	ret;
@@ -357,9 +364,10 @@ RETCODE  SQL_API SQLGetCursorNameW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
-           SQLUSMALLINT InfoType, PTR InfoValue,
-           SQLSMALLINT BufferLength, SQLSMALLINT *StringLength)
+RETCODE  SQL_API
+SQLGetInfoW(HDBC ConnectionHandle,
+			SQLUSMALLINT InfoType, PTR InfoValue,
+			SQLSMALLINT BufferLength, SQLSMALLINT *StringLength)
 {
 	CSTR func = "SQLGetInfoW";
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
@@ -394,8 +402,9 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
-           SQLWCHAR *StatementText, SQLINTEGER TextLength)
+RETCODE  SQL_API
+SQLPrepareW(HSTMT StatementHandle,
+			SQLWCHAR *StatementText, SQLINTEGER TextLength)
 {
 	CSTR func = "SQLPrepareW";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -419,8 +428,9 @@ RETCODE  SQL_API SQLPrepareW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
-           SQLWCHAR *CursorName, SQLSMALLINT NameLength)
+RETCODE  SQL_API
+SQLSetCursorNameW(HSTMT StatementHandle,
+				  SQLWCHAR *CursorName, SQLSMALLINT NameLength)
 {
 	CSTR func = "SQLSetCursorNameW";
 	RETCODE	ret;
@@ -441,12 +451,13 @@ RETCODE  SQL_API SQLSetCursorNameW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
-           SQLUSMALLINT IdentifierType, SQLWCHAR *CatalogName,
-           SQLSMALLINT NameLength1, SQLWCHAR *SchemaName,
-           SQLSMALLINT NameLength2, SQLWCHAR *TableName,
-           SQLSMALLINT NameLength3, SQLUSMALLINT Scope,
-           SQLUSMALLINT Nullable)
+RETCODE  SQL_API
+SQLSpecialColumnsW(HSTMT StatementHandle,
+				   SQLUSMALLINT IdentifierType, SQLWCHAR *CatalogName,
+				   SQLSMALLINT NameLength1, SQLWCHAR *SchemaName,
+				   SQLSMALLINT NameLength2, SQLWCHAR *TableName,
+				   SQLSMALLINT NameLength3, SQLUSMALLINT Scope,
+				   SQLUSMALLINT Nullable)
 {
 	CSTR func = "SQLSpecialColumnsW";
 	RETCODE	ret;
@@ -484,11 +495,12 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
-           SQLWCHAR *CatalogName, SQLSMALLINT NameLength1,
-           SQLWCHAR *SchemaName, SQLSMALLINT NameLength2,
-           SQLWCHAR *TableName, SQLSMALLINT NameLength3,
-           SQLUSMALLINT Unique, SQLUSMALLINT Reserved)
+RETCODE  SQL_API
+SQLStatisticsW(HSTMT StatementHandle,
+			   SQLWCHAR *CatalogName, SQLSMALLINT NameLength1,
+			   SQLWCHAR *SchemaName, SQLSMALLINT NameLength2,
+			   SQLWCHAR *TableName, SQLSMALLINT NameLength3,
+			   SQLUSMALLINT Unique, SQLUSMALLINT Reserved)
 {
 	CSTR func = "SQLStatisticsW";
 	RETCODE	ret;
@@ -526,7 +538,8 @@ RETCODE  SQL_API SQLStatisticsW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
+RETCODE  SQL_API
+SQLTablesW(HSTMT StatementHandle,
            SQLWCHAR *CatalogName, SQLSMALLINT NameLength1,
            SQLWCHAR *SchemaName, SQLSMALLINT NameLength2,
            SQLWCHAR *TableName, SQLSMALLINT NameLength3,
@@ -576,16 +589,16 @@ RETCODE  SQL_API SQLTablesW(HSTMT StatementHandle,
 	return ret;
 }
 
-RETCODE SQL_API SQLColumnPrivilegesW(
-    HSTMT           hstmt,
-    SQLWCHAR 		  *szCatalogName,
-    SQLSMALLINT        cbCatalogName,
-    SQLWCHAR 		  *szSchemaName,
-    SQLSMALLINT        cbSchemaName,
-    SQLWCHAR 		  *szTableName,
-    SQLSMALLINT        cbTableName,
-    SQLWCHAR 		  *szColumnName,
-    SQLSMALLINT        cbColumnName)
+RETCODE SQL_API
+SQLColumnPrivilegesW(HSTMT			hstmt,
+					 SQLWCHAR	   *szCatalogName,
+					 SQLSMALLINT	cbCatalogName,
+					 SQLWCHAR	   *szSchemaName,
+					 SQLSMALLINT	cbSchemaName,
+					 SQLWCHAR	   *szTableName,
+					 SQLSMALLINT	cbTableName,
+					 SQLWCHAR	   *szColumnName,
+					 SQLSMALLINT	cbColumnName)
 {
 	CSTR func = "SQLColumnPrivilegesW";
 	RETCODE	ret;
@@ -632,20 +645,20 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	return ret;
 }
 
-RETCODE SQL_API SQLForeignKeysW(
-    HSTMT           hstmt,
-    SQLWCHAR 		  *szPkCatalogName,
-    SQLSMALLINT        cbPkCatalogName,
-    SQLWCHAR 		  *szPkSchemaName,
-    SQLSMALLINT        cbPkSchemaName,
-    SQLWCHAR 		  *szPkTableName,
-    SQLSMALLINT        cbPkTableName,
-    SQLWCHAR 		  *szFkCatalogName,
-    SQLSMALLINT        cbFkCatalogName,
-    SQLWCHAR 		  *szFkSchemaName,
-    SQLSMALLINT        cbFkSchemaName,
-    SQLWCHAR 		  *szFkTableName,
-    SQLSMALLINT        cbFkTableName)
+RETCODE SQL_API
+SQLForeignKeysW(HSTMT			hstmt,
+				SQLWCHAR	   *szPkCatalogName,
+				SQLSMALLINT		cbPkCatalogName,
+				SQLWCHAR	   *szPkSchemaName,
+				SQLSMALLINT		cbPkSchemaName,
+				SQLWCHAR	   *szPkTableName,
+				SQLSMALLINT		cbPkTableName,
+				SQLWCHAR	   *szFkCatalogName,
+				SQLSMALLINT		cbFkCatalogName,
+				SQLWCHAR	   *szFkSchemaName,
+				SQLSMALLINT		cbFkSchemaName,
+				SQLWCHAR	   *szFkTableName,
+				SQLSMALLINT		cbFkTableName)
 {
 	CSTR func = "SQLForeignKeysW";
 	RETCODE	ret;
@@ -694,13 +707,13 @@ RETCODE SQL_API SQLForeignKeysW(
 	return ret;
 }
 
-RETCODE SQL_API SQLNativeSqlW(
-    HDBC            hdbc,
-    SQLWCHAR 		  *szSqlStrIn,
-    SQLINTEGER         cbSqlStrIn,
-    SQLWCHAR 		  *szSqlStr,
-    SQLINTEGER         cbSqlStrMax,
-    SQLINTEGER 		  *pcbSqlStr)
+RETCODE SQL_API
+SQLNativeSqlW(HDBC			hdbc,
+			  SQLWCHAR	   *szSqlStrIn,
+			  SQLINTEGER	cbSqlStrIn,
+			  SQLWCHAR	   *szSqlStr,
+			  SQLINTEGER	cbSqlStrMax,
+			  SQLINTEGER   *pcbSqlStr)
 {
 	CSTR func = "SQLNativeSqlW";
 	RETCODE		ret;
@@ -748,14 +761,14 @@ RETCODE SQL_API SQLNativeSqlW(
 	return ret;
 }
 
-RETCODE SQL_API SQLPrimaryKeysW(
-    HSTMT           hstmt,
-    SQLWCHAR 		  *szCatalogName,
-    SQLSMALLINT        cbCatalogName,
-    SQLWCHAR 		  *szSchemaName,
-    SQLSMALLINT        cbSchemaName,
-    SQLWCHAR 		  *szTableName,
-    SQLSMALLINT        cbTableName)
+RETCODE SQL_API
+SQLPrimaryKeysW(HSTMT			hstmt,
+				SQLWCHAR	   *szCatalogName,
+				SQLSMALLINT		cbCatalogName,
+				SQLWCHAR	   *szSchemaName,
+				SQLSMALLINT		cbSchemaName,
+				SQLWCHAR	   *szTableName,
+				SQLSMALLINT		cbTableName)
 {
 	CSTR func = "SQLPrimaryKeysW";
 	RETCODE	ret;
@@ -792,16 +805,16 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	return ret;
 }
 
-RETCODE SQL_API SQLProcedureColumnsW(
-    HSTMT           hstmt,
-    SQLWCHAR 		  *szCatalogName,
-    SQLSMALLINT        cbCatalogName,
-    SQLWCHAR 		  *szSchemaName,
-    SQLSMALLINT        cbSchemaName,
-    SQLWCHAR 		  *szProcName,
-    SQLSMALLINT        cbProcName,
-    SQLWCHAR 		  *szColumnName,
-    SQLSMALLINT        cbColumnName)
+RETCODE SQL_API
+SQLProcedureColumnsW(HSTMT			hstmt,
+					 SQLWCHAR	   *szCatalogName,
+					 SQLSMALLINT	cbCatalogName,
+					 SQLWCHAR	   *szSchemaName,
+					 SQLSMALLINT	cbSchemaName,
+					 SQLWCHAR	   *szProcName,
+					 SQLSMALLINT	cbProcName,
+					 SQLWCHAR	   *szColumnName,
+					 SQLSMALLINT	cbColumnName)
 {
 	CSTR func = "SQLProcedureColumnsW";
 	RETCODE	ret;
@@ -848,14 +861,14 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	return ret;
 }
 
-RETCODE SQL_API SQLProceduresW(
-    HSTMT           hstmt,
-    SQLWCHAR 		  *szCatalogName,
-    SQLSMALLINT        cbCatalogName,
-    SQLWCHAR 		  *szSchemaName,
-    SQLSMALLINT        cbSchemaName,
-    SQLWCHAR 		  *szProcName,
-    SQLSMALLINT        cbProcName)
+RETCODE SQL_API
+SQLProceduresW(HSTMT		hstmt,
+			   SQLWCHAR	   *szCatalogName,
+			   SQLSMALLINT	cbCatalogName,
+			   SQLWCHAR	   *szSchemaName,
+			   SQLSMALLINT	cbSchemaName,
+			   SQLWCHAR	   *szProcName,
+			   SQLSMALLINT	cbProcName)
 {
 	CSTR func = "SQLProceduresW";
 	RETCODE	ret;
@@ -898,14 +911,14 @@ RETCODE SQL_API SQLProceduresW(
 	return ret;
 }
 
-RETCODE SQL_API SQLTablePrivilegesW(
-    HSTMT           hstmt,
-    SQLWCHAR 		  *szCatalogName,
-    SQLSMALLINT        cbCatalogName,
-    SQLWCHAR 		  *szSchemaName,
-    SQLSMALLINT        cbSchemaName,
-    SQLWCHAR 		  *szTableName,
-    SQLSMALLINT        cbTableName)
+RETCODE SQL_API
+SQLTablePrivilegesW(HSTMT			hstmt,
+					SQLWCHAR	   *szCatalogName,
+					SQLSMALLINT		cbCatalogName,
+					SQLWCHAR	   *szSchemaName,
+					SQLSMALLINT		cbSchemaName,
+					SQLWCHAR	   *szTableName,
+					SQLSMALLINT		cbTableName)
 {
 	CSTR func = "SQLTablePrivilegesW";
 	RETCODE	ret;
@@ -948,9 +961,9 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	return ret;
 }
 
-RETCODE SQL_API	SQLGetTypeInfoW(
-		SQLHSTMT	StatementHandle,
-		SQLSMALLINT	DataType)
+RETCODE SQL_API
+SQLGetTypeInfoW(SQLHSTMT	StatementHandle,
+				SQLSMALLINT	DataType)
 {
 	CSTR func = "SQLGetTypeInfoW";
 	RETCODE	ret;

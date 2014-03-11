@@ -39,8 +39,7 @@
 
 
 RETCODE		SQL_API
-PGAPI_RowCount(
-			   HSTMT hstmt,
+PGAPI_RowCount(HSTMT hstmt,
 			   SQLLEN FAR * pcrow)
 {
 	CSTR func = "PGAPI_RowCount";
@@ -142,8 +141,7 @@ inolog("nfields=%d\n", irdflds->nfields);
  *	attached to "hstmt".
  */
 RETCODE		SQL_API
-PGAPI_NumResultCols(
-					HSTMT hstmt,
+PGAPI_NumResultCols(HSTMT hstmt,
 					SQLSMALLINT FAR * pccol)
 {
 	CSTR func = "PGAPI_NumResultCols";
@@ -210,8 +208,7 @@ cleanup:
  *	information about.
  */
 RETCODE		SQL_API
-PGAPI_DescribeCol(
-				  HSTMT hstmt,
+PGAPI_DescribeCol(HSTMT hstmt,
 				  SQLUSMALLINT icol,
 				  SQLCHAR FAR * szColName,
 				  SQLSMALLINT cbColNameMax,
@@ -444,8 +441,7 @@ cleanup:
 
 /*		Returns result column descriptor information for a result set. */
 RETCODE		SQL_API
-PGAPI_ColAttributes(
-					HSTMT hstmt,
+PGAPI_ColAttributes(HSTMT hstmt,
 					SQLUSMALLINT icol,
 					SQLUSMALLINT fDescType,
 					PTR rgbDesc,
@@ -898,8 +894,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 
 /*	Returns result data for a single column in the current row. */
 RETCODE		SQL_API
-PGAPI_GetData(
-			  HSTMT hstmt,
+PGAPI_GetData(HSTMT hstmt,
 			  SQLUSMALLINT icol,
 			  SQLSMALLINT fCType,
 			  PTR rgbValue,
@@ -1131,8 +1126,7 @@ inolog("%s returning %d\n", __FUNCTION__, result);
  *		advances the cursor.
  */
 RETCODE		SQL_API
-PGAPI_Fetch(
-			HSTMT hstmt)
+PGAPI_Fetch(HSTMT hstmt)
 {
 	CSTR func = "PGAPI_Fetch";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -1204,8 +1198,10 @@ PGAPI_Fetch(
 
 static RETCODE SQL_API
 SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag);
+
 SQLLEN
-getNthValid(const QResultClass *res, SQLLEN sta, UWORD orientation, SQLULEN nth, SQLLEN *nearest)
+getNthValid(const QResultClass *res, SQLLEN sta, UWORD orientation,
+			SQLULEN nth, SQLLEN *nearest)
 {
 	SQLLEN	i, num_tuples = QR_get_num_total_tuples(res), nearp;
 	SQLULEN count;
@@ -1391,8 +1387,7 @@ inolog("RETURN_EOF\n"); \
 
 /*	This fetchs a block of data (rowset). */
 RETCODE		SQL_API
-PGAPI_ExtendedFetch(
-					HSTMT hstmt,
+PGAPI_ExtendedFetch(HSTMT hstmt,
 					SQLUSMALLINT fFetchType,
 					SQLLEN irow,
 					SQLULEN FAR * pcrow,
@@ -1915,8 +1910,7 @@ cleanup:
  */
 /* CC: return SQL_NO_DATA_FOUND since we do not support multiple result sets */
 RETCODE		SQL_API
-PGAPI_MoreResults(
-				  HSTMT hstmt)
+PGAPI_MoreResults(HSTMT hstmt)
 {
 	CSTR func = "PGAPI_MoreResults";
 	StatementClass	*stmt = (StatementClass *) hstmt;
@@ -3349,7 +3343,8 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 }
 
 static RETCODE	SQL_API
-SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef, const char *tidval)
+SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef,
+			   const char *tidval)
 {
 	CSTR	func = "SC_pos_newload";
 	int			i;
@@ -3478,7 +3473,8 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 }
 
 static RETCODE SQL_API
-irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLSETPOSIROW irow, SQLULEN global_ridx)
+irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt,
+			SQLSETPOSIROW irow, SQLULEN global_ridx)
 {
 	CSTR	func = "irow_update";
 
@@ -3899,7 +3895,8 @@ inolog(".status[%d]=%x\n", global_ridx, res->keyset[kres_ridx].status);
 }
 
 static RETCODE SQL_API
-irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN addpos)
+irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
+			SQLLEN addpos)
 {
 	CSTR	func = "irow_insert";
 
@@ -4391,8 +4388,7 @@ inolog("\n");
  *	This will be useful (so far) only when using SQLGetData after SQLExtendedFetch.
  */
 RETCODE		SQL_API
-PGAPI_SetPos(
-			 HSTMT hstmt,
+PGAPI_SetPos(HSTMT hstmt,
 			 SQLSETPOSIROW irow,
 			 SQLUSMALLINT fOption,
 			 SQLUSMALLINT fLock)
@@ -4496,10 +4492,10 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 
 /*		Sets options that control the behavior of cursors. */
 RETCODE		SQL_API
-PGAPI_SetScrollOptions( HSTMT hstmt,
-				SQLUSMALLINT fConcurrency,
-				SQLLEN crowKeyset,
-				SQLUSMALLINT crowRowset)
+PGAPI_SetScrollOptions(HSTMT hstmt,
+					   SQLUSMALLINT fConcurrency,
+					   SQLLEN crowKeyset,
+					   SQLUSMALLINT crowRowset)
 {
 	CSTR func = "PGAPI_SetScrollOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -4514,10 +4510,9 @@ PGAPI_SetScrollOptions( HSTMT hstmt,
 
 /*	Set the cursor name on a statement handle */
 RETCODE		SQL_API
-PGAPI_SetCursorName(
-				HSTMT hstmt,
-				const SQLCHAR FAR * szCursor,
-				SQLSMALLINT cbCursor)
+PGAPI_SetCursorName(HSTMT hstmt,
+					const SQLCHAR FAR * szCursor,
+					SQLSMALLINT cbCursor)
 {
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -4537,8 +4532,7 @@ PGAPI_SetCursorName(
 
 /*	Return the cursor name for a statement handle */
 RETCODE		SQL_API
-PGAPI_GetCursorName(
-					HSTMT hstmt,
+PGAPI_GetCursorName(HSTMT hstmt,
 					SQLCHAR FAR * szCursor,
 					SQLSMALLINT cbCursorMax,
 					SQLSMALLINT FAR * pcbCursor)

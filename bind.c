@@ -31,8 +31,7 @@
 
 /*		Bind parameters on a statement handle */
 RETCODE		SQL_API
-PGAPI_BindParameter(
-					HSTMT hstmt,
+PGAPI_BindParameter(HSTMT hstmt,
 					SQLUSMALLINT ipar,
 					SQLSMALLINT fParamType,
 					SQLSMALLINT fCType,
@@ -147,8 +146,7 @@ PGAPI_BindParameter(
 
 /*	Associate a user-supplied buffer with a database column. */
 RETCODE		SQL_API
-PGAPI_BindCol(
-			  HSTMT hstmt,
+PGAPI_BindCol(HSTMT hstmt,
 			  SQLUSMALLINT icol,
 			  SQLSMALLINT fCType,
 			  PTR rgbValue,
@@ -309,8 +307,7 @@ cleanup:
  *	data type (most likely varchar).
  */
 RETCODE		SQL_API
-PGAPI_DescribeParam(
-					HSTMT hstmt,
+PGAPI_DescribeParam(HSTMT hstmt,
 					SQLUSMALLINT ipar,
 					SQLSMALLINT FAR * pfSqlType,
 					SQLULEN FAR * pcbParamDef,
@@ -420,8 +417,7 @@ cleanup:
 #if (ODBCVER < 0x0300)
 /*	Sets multiple values (arrays) for the set of parameter markers. */
 RETCODE		SQL_API
-PGAPI_ParamOptions(
-				   HSTMT hstmt,
+PGAPI_ParamOptions(HSTMT hstmt,
 				   SQLULEN crow,
 				   SQLULEN FAR * pirow)
 {
@@ -451,8 +447,7 @@ PGAPI_ParamOptions(
  *	If the statement does not have parameters, it should just return 0.
  */
 RETCODE		SQL_API
-PGAPI_NumParams(
-				HSTMT hstmt,
+PGAPI_NumParams(HSTMT hstmt,
 				SQLSMALLINT FAR * pcpar)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;

@@ -69,8 +69,7 @@ extern GLOBAL_VALUES globals;
 
 
 RETCODE		SQL_API
-PGAPI_AllocConnect(
-				   HENV henv,
+PGAPI_AllocConnect(HENV henv,
 				   HDBC FAR * phdbc)
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
@@ -109,8 +108,7 @@ PGAPI_AllocConnect(
 
 
 RETCODE		SQL_API
-PGAPI_Connect(
-			  HDBC hdbc,
+PGAPI_Connect(HDBC hdbc,
 			  const SQLCHAR FAR * szDSN,
 			  SQLSMALLINT cbDSN,
 			  const SQLCHAR FAR * szUID,
@@ -180,13 +178,12 @@ PGAPI_Connect(
 
 
 RETCODE		SQL_API
-PGAPI_BrowseConnect(
-				HDBC hdbc,
-				const SQLCHAR FAR * szConnStrIn,
-				SQLSMALLINT cbConnStrIn,
-				SQLCHAR FAR * szConnStrOut,
-				SQLSMALLINT cbConnStrOutMax,
-				SQLSMALLINT FAR * pcbConnStrOut)
+PGAPI_BrowseConnect(HDBC hdbc,
+					const SQLCHAR FAR * szConnStrIn,
+					SQLSMALLINT cbConnStrIn,
+					SQLCHAR FAR * szConnStrOut,
+					SQLSMALLINT cbConnStrOutMax,
+					SQLSMALLINT FAR * pcbConnStrOut)
 {
 	CSTR func = "PGAPI_BrowseConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -200,8 +197,7 @@ PGAPI_BrowseConnect(
 
 /* Drop any hstmts open on hdbc and disconnect from database */
 RETCODE		SQL_API
-PGAPI_Disconnect(
-				 HDBC hdbc)
+PGAPI_Disconnect(HDBC hdbc)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	CSTR func = "PGAPI_Disconnect";
@@ -237,8 +233,7 @@ PGAPI_Disconnect(
 
 
 RETCODE		SQL_API
-PGAPI_FreeConnect(
-				  HDBC hdbc)
+PGAPI_FreeConnect(HDBC hdbc)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	CSTR func = "PGAPI_FreeConnect";
@@ -889,10 +884,10 @@ inolog("md5 pwd=%s user=%s salt=%02x%02x%02x%02x%02x\n", PRINT_NAME(ci->password
 	}
 	free(pwd1);
 	if (PROTOCOL_74(&(self->connInfo)))
-{
+	{
 inolog("putting p and %s\n", pwd2);
 		SOCK_put_char(sock, 'p');
-}
+	}
 	md5len = strlen(pwd2);
 	SOCK_put_int(sock, (Int4) (4 + md5len + 1), 4);
 	SOCK_put_n_char(sock, pwd2, (md5len + 1));
@@ -4231,7 +4226,7 @@ inolog("socket=%d\n", socket);
 	sock->ssl = PQgetssl(pqconn);
 inolog("ssl=%p\n", sock->ssl);
 #endif /* USE_SSL */
-if (TRUE)
+	if (TRUE)
 	{
 		int	pversion;
 		ConnInfo	*ci = &self->connInfo;
@@ -4308,11 +4303,11 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 		return FALSE;
 
 	cancel = PQgetCancel(sock->pqconn);
-	if(!cancel)
+	if (!cancel)
 		return FALSE;
 	ret = PQcancel(cancel, errbuf, sizeof(errbuf));
 	PQfreeCancel(cancel);
-	if(1 == ret)
+	if (1 == ret)
 		return TRUE;
 	else
 		return FALSE;

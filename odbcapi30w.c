@@ -23,11 +23,12 @@
 #include "statement.h"
 
 
-RETCODE	SQL_API	SQLGetStmtAttrW(SQLHSTMT hstmt,
-		SQLINTEGER	fAttribute,
-		PTR		rgbValue,
-		SQLINTEGER	cbValueMax,
-		SQLINTEGER	*pcbValue)
+RETCODE	SQL_API
+SQLGetStmtAttrW(SQLHSTMT hstmt,
+				SQLINTEGER	fAttribute,
+				PTR		rgbValue,
+				SQLINTEGER	cbValueMax,
+				SQLINTEGER	*pcbValue)
 {
 	CSTR func = "SQLGetStmtAttrW";
 	RETCODE	ret;
@@ -44,10 +45,11 @@ RETCODE	SQL_API	SQLGetStmtAttrW(SQLHSTMT hstmt,
 	return ret;
 }
 
-RETCODE SQL_API	SQLSetStmtAttrW(SQLHSTMT hstmt,
-		SQLINTEGER	fAttribute,
-		PTR		rgbValue,
-		SQLINTEGER	cbValueMax)
+RETCODE SQL_API
+SQLSetStmtAttrW(SQLHSTMT hstmt,
+				SQLINTEGER	fAttribute,
+				PTR		rgbValue,
+				SQLINTEGER	cbValueMax)
 {
 	CSTR func = "SQLSetStmtAttrW";
 	RETCODE	ret;
@@ -64,11 +66,12 @@ RETCODE SQL_API	SQLSetStmtAttrW(SQLHSTMT hstmt,
 	return ret;
 }
 
-RETCODE SQL_API	SQLGetConnectAttrW(HDBC hdbc,
-		SQLINTEGER	fAttribute,
-		PTR		rgbValue,
-		SQLINTEGER	cbValueMax,
-		SQLINTEGER	*pcbValue)
+RETCODE SQL_API
+SQLGetConnectAttrW(HDBC hdbc,
+				   SQLINTEGER	fAttribute,
+				   PTR		rgbValue,
+				   SQLINTEGER	cbValueMax,
+				   SQLINTEGER	*pcbValue)
 {
 	CSTR func = "SQLGetConnectAttrW";
 	RETCODE	ret;
@@ -83,10 +86,11 @@ RETCODE SQL_API	SQLGetConnectAttrW(HDBC hdbc,
 	return ret;
 }
 
-RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
-		SQLINTEGER	fAttribute,
-		PTR		rgbValue,
-		SQLINTEGER	cbValue)
+RETCODE SQL_API
+SQLSetConnectAttrW(HDBC hdbc,
+				   SQLINTEGER	fAttribute,
+				   PTR		rgbValue,
+				   SQLINTEGER	cbValue)
 {
 	CSTR func = "SQLSetConnectAttrW";
 	RETCODE	ret;
@@ -106,8 +110,8 @@ RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
 /*      new function */
 RETCODE  SQL_API
 SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
-				SQLSMALLINT FieldIdentifier, PTR Value,
-				SQLINTEGER BufferLength)
+				 SQLSMALLINT FieldIdentifier, PTR Value,
+				 SQLINTEGER BufferLength)
 {
 	CSTR func = "SQLSetDescFieldW";
 	RETCODE	ret;
@@ -147,6 +151,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 		free(uval);
 	return ret;
 }
+
 RETCODE SQL_API
 SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 				 PTR rgbValue, SQLINTEGER cbValueMax,
@@ -205,14 +210,15 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 	return ret;
 }
 
-RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
-		SQLHANDLE	handle,
-		SQLSMALLINT	iRecord,
-		SQLWCHAR	*szSqlState,
-		SQLINTEGER	*pfNativeError,
-		SQLWCHAR	*szErrorMsg,
-		SQLSMALLINT	cbErrorMsgMax,
-		SQLSMALLINT	*pcbErrorMsg)
+RETCODE SQL_API
+SQLGetDiagRecW(SQLSMALLINT fHandleType,
+			   SQLHANDLE	handle,
+			   SQLSMALLINT	iRecord,
+			   SQLWCHAR	*szSqlState,
+			   SQLINTEGER	*pfNativeError,
+			   SQLWCHAR	*szErrorMsg,
+			   SQLSMALLINT	cbErrorMsgMax,
+			   SQLSMALLINT	*pcbErrorMsg)
 {
 	CSTR func = "SQLGetDiagRecW";
 	RETCODE	ret;
@@ -257,17 +263,17 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 	return ret;
 }
 
-SQLRETURN SQL_API SQLColAttributeW(
-	SQLHSTMT	hstmt,
-	SQLUSMALLINT	iCol,
-	SQLUSMALLINT	iField,
-	SQLPOINTER	pCharAttr,
-	SQLSMALLINT	cbCharAttrMax,
-	SQLSMALLINT	*pcbCharAttr,
+SQLRETURN SQL_API
+SQLColAttributeW(SQLHSTMT	hstmt,
+				 SQLUSMALLINT	iCol,
+				 SQLUSMALLINT	iField,
+				 SQLPOINTER	pCharAttr,
+				 SQLSMALLINT	cbCharAttrMax,
+				 SQLSMALLINT	*pcbCharAttr,
 #if defined(_WIN64) || defined(SQLCOLATTRIBUTE_SQLLEN)
-	SQLLEN		*pNumAttr
+				 SQLLEN		*pNumAttr
 #else
-	SQLPOINTER	pNumAttr
+				 SQLPOINTER	pNumAttr
 #endif
 	)
 {
@@ -333,19 +339,19 @@ SQLRETURN SQL_API SQLColAttributeW(
 	return ret;
 }
 
-RETCODE SQL_API SQLGetDiagFieldW(
-    SQLSMALLINT        fHandleType,
-    SQLHANDLE          handle,
-    SQLSMALLINT        iRecord,
-    SQLSMALLINT        fDiagField,
-    SQLPOINTER         rgbDiagInfo,
-    SQLSMALLINT        cbDiagInfoMax,
-    SQLSMALLINT    *pcbDiagInfo)
+RETCODE SQL_API
+SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
+				 SQLHANDLE		handle,
+				 SQLSMALLINT	iRecord,
+				 SQLSMALLINT	fDiagField,
+				 SQLPOINTER		rgbDiagInfo,
+				 SQLSMALLINT	cbDiagInfoMax,
+				 SQLSMALLINT   *pcbDiagInfo)
 {
-	CSTR func = "SQLGetDiagFieldW";
-	RETCODE	ret;
+	CSTR		func = "SQLGetDiagFieldW";
+	RETCODE		ret;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
-        char    *rgbD = NULL;
+	char	   *rgbD = NULL;
 
 	mylog("[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, fHandleType,
 			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);

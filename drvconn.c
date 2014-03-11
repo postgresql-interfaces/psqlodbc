@@ -74,8 +74,7 @@ extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
 
 
 RETCODE		SQL_API
-PGAPI_DriverConnect(
-					HDBC hdbc,
+PGAPI_DriverConnect(HDBC hdbc,
 					HWND hwnd,
 					const SQLCHAR FAR * szConnStrIn,
 					SQLSMALLINT cbConnStrIn,

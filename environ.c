@@ -181,13 +181,13 @@ PG_ErrorInfo *ER_Dup(const PG_ErrorInfo *self)
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
 ER_ReturnError(PG_ErrorInfo **pgerror,
-		SQLSMALLINT	RecNumber,
-		SQLCHAR FAR * szSqlState,
-		SQLINTEGER FAR * pfNativeError,
-		SQLCHAR FAR * szErrorMsg,
-		SQLSMALLINT cbErrorMsgMax,
-		SQLSMALLINT FAR * pcbErrorMsg,
-		UWORD flag)
+			   SQLSMALLINT	RecNumber,
+			   SQLCHAR FAR * szSqlState,
+			   SQLINTEGER FAR * pfNativeError,
+			   SQLCHAR FAR * szErrorMsg,
+			   SQLSMALLINT cbErrorMsgMax,
+			   SQLSMALLINT FAR * pcbErrorMsg,
+			   UWORD flag)
 {
 	CSTR func = "ER_ReturnError";
 	/* CC: return an error of a hstmt  */
@@ -274,14 +274,14 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 
 
 RETCODE		SQL_API
-PGAPI_ConnectError(	HDBC hdbc,
-			SQLSMALLINT	RecNumber,
-			SQLCHAR FAR * szSqlState,
-			SQLINTEGER FAR * pfNativeError,
-			SQLCHAR FAR * szErrorMsg,
-			SQLSMALLINT cbErrorMsgMax,
-			SQLSMALLINT FAR * pcbErrorMsg,
-			UWORD flag)
+PGAPI_ConnectError(HDBC hdbc,
+				   SQLSMALLINT	RecNumber,
+				   SQLCHAR FAR * szSqlState,
+				   SQLINTEGER FAR * pfNativeError,
+				   SQLCHAR FAR * szErrorMsg,
+				   SQLSMALLINT cbErrorMsgMax,
+				   SQLSMALLINT FAR * pcbErrorMsg,
+				   UWORD flag)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	EnvironmentClass *env = (EnvironmentClass *) conn->henv;
@@ -408,14 +408,14 @@ PGAPI_ConnectError(	HDBC hdbc,
 }
 
 RETCODE		SQL_API
-PGAPI_EnvError(		HENV henv,
-			SQLSMALLINT	RecNumber,
-			SQLCHAR FAR * szSqlState,
-			SQLINTEGER FAR * pfNativeError,
-			SQLCHAR FAR * szErrorMsg,
-			SQLSMALLINT cbErrorMsgMax,
-			SQLSMALLINT FAR * pcbErrorMsg,
-			UWORD flag)
+PGAPI_EnvError(HENV henv,
+			   SQLSMALLINT	RecNumber,
+			   SQLCHAR FAR * szSqlState,
+			   SQLINTEGER FAR * pfNativeError,
+			   SQLCHAR FAR * szErrorMsg,
+			   SQLSMALLINT cbErrorMsgMax,
+			   SQLSMALLINT FAR * pcbErrorMsg,
+			   UWORD flag)
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 	char		*msg;
@@ -469,8 +469,7 @@ PGAPI_EnvError(		HENV henv,
 
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
-PGAPI_Error(
-			HENV henv,
+PGAPI_Error(HENV henv,
 			HDBC hdbc,
 			HSTMT hstmt,
 			SQLCHAR FAR * szSqlState,

@@ -1571,24 +1571,24 @@ inolog("SC_full_error_copy %p->%p\n", from ,self);
 	self->pgerror = pgerror;
 }
 
-/*              Returns the next SQL error information. */
-RETCODE         SQL_API
-PGAPI_StmtError(	SQLHSTMT	hstmt,
-		SQLSMALLINT RecNumber,
-		SQLCHAR FAR * szSqlState,
-		SQLINTEGER FAR * pfNativeError,
-		SQLCHAR FAR * szErrorMsg,
-		SQLSMALLINT cbErrorMsgMax,
-		SQLSMALLINT FAR * pcbErrorMsg,
-		UWORD flag)
+/* Returns the next SQL error information. */
+RETCODE		SQL_API
+PGAPI_StmtError(SQLHSTMT	hstmt,
+				SQLSMALLINT RecNumber,
+				SQLCHAR FAR * szSqlState,
+				SQLINTEGER FAR * pfNativeError,
+				SQLCHAR FAR * szErrorMsg,
+				SQLSMALLINT cbErrorMsgMax,
+				SQLSMALLINT FAR * pcbErrorMsg,
+				UWORD flag)
 {
 	/* CC: return an error of a hdesc  */
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	stmt->pgerror = SC_create_errorinfo(stmt);
 	return ER_ReturnError(&(stmt->pgerror), RecNumber, szSqlState,
-		pfNativeError, szErrorMsg, cbErrorMsgMax,
-		pcbErrorMsg, flag);
+						  pfNativeError, szErrorMsg, cbErrorMsgMax,
+						  pcbErrorMsg, flag);
 }
 
 time_t

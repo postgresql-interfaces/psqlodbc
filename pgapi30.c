@@ -33,9 +33,9 @@
 /*	SQLError -> SQLDiagRec */
 RETCODE		SQL_API
 PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
-		SQLSMALLINT RecNumber, SQLCHAR *Sqlstate,
-		SQLINTEGER *NativeError, SQLCHAR *MessageText,
-		SQLSMALLINT BufferLength, SQLSMALLINT *TextLength)
+				 SQLSMALLINT RecNumber, SQLCHAR *Sqlstate,
+				 SQLINTEGER *NativeError, SQLCHAR *MessageText,
+				 SQLSMALLINT BufferLength, SQLSMALLINT *TextLength)
 {
 	RETCODE		ret;
 	CSTR func = "PGAPI_GetDiagRec";
@@ -77,9 +77,9 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
  */
 RETCODE		SQL_API
 PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
-		SQLSMALLINT RecNumber, SQLSMALLINT DiagIdentifier,
-		PTR DiagInfoPtr, SQLSMALLINT BufferLength,
-		SQLSMALLINT *StringLengthPtr)
+				   SQLSMALLINT RecNumber, SQLSMALLINT DiagIdentifier,
+				   PTR DiagInfoPtr, SQLSMALLINT BufferLength,
+				   SQLSMALLINT *StringLengthPtr)
 {
 	RETCODE		ret = SQL_ERROR, rtn;
 	ConnectionClass	*conn;
@@ -395,8 +395,8 @@ inolog("rc=%d\n", rc);
 /*	SQLGetConnectOption -> SQLGetconnectAttr */
 RETCODE		SQL_API
 PGAPI_GetConnectAttr(HDBC ConnectionHandle,
-			SQLINTEGER Attribute, PTR Value,
-			SQLINTEGER BufferLength, SQLINTEGER *StringLength)
+					 SQLINTEGER Attribute, PTR Value,
+					 SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
@@ -472,7 +472,7 @@ static  void column_bindings_set(ARDFields *opts, int cols, BOOL maxset)
 
 static RETCODE SQL_API
 ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	ARDFields	*opts = (ARDFields *) (desc + 1);
@@ -642,7 +642,7 @@ static  void parameter_ibindings_set(IPDFields *opts, int params, BOOL maxset)
 
 static RETCODE SQL_API
 APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	CSTR		func = "APDSetField";
 	RETCODE		ret = SQL_SUCCESS;
@@ -757,7 +757,7 @@ inolog("%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
 
 static RETCODE SQL_API
 IRDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	IRDFields	*opts = (IRDFields *) (desc + 1);
@@ -813,7 +813,7 @@ IRDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 
 static RETCODE SQL_API
 IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	IPDFields	*ipdopts = (IPDFields *) (desc + 1);
@@ -934,8 +934,8 @@ inolog("IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 
 static RETCODE SQL_API
 ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
-		SQLINTEGER *StringLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
+			SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLLEN		ival = 0;
@@ -1078,7 +1078,8 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
 		case SQL_DESC_LENGTH:
-		default:ret = SQL_ERROR;
+		default:
+			ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
 	}
@@ -1106,8 +1107,8 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 
 static RETCODE SQL_API
 APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
-		SQLINTEGER *StringLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
+			SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLLEN		ival = 0;
@@ -1258,8 +1259,8 @@ inolog("APDGetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 
 static RETCODE SQL_API
 IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
-		SQLINTEGER *StringLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
+			SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLLEN		ival = 0;
@@ -1365,8 +1366,8 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 
 static RETCODE SQL_API
 IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
-		SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
-		SQLINTEGER *StringLength)
+			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength,
+			SQLINTEGER *StringLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	ival = 0, len = 0, rettype = 0;
@@ -1513,8 +1514,8 @@ inolog("IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 /*	SQLGetStmtOption -> SQLGetStmtAttr */
 RETCODE		SQL_API
 PGAPI_GetStmtAttr(HSTMT StatementHandle,
-		SQLINTEGER Attribute, PTR Value,
-		SQLINTEGER BufferLength, SQLINTEGER *StringLength)
+				  SQLINTEGER Attribute, PTR Value,
+				  SQLINTEGER BufferLength, SQLINTEGER *StringLength)
 {
 	CSTR func = "PGAPI_GetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
@@ -1615,8 +1616,8 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 /*	SQLSetConnectOption -> SQLSetConnectAttr */
 RETCODE		SQL_API
 PGAPI_SetConnectAttr(HDBC ConnectionHandle,
-			SQLINTEGER Attribute, PTR Value,
-			SQLINTEGER StringLength)
+					 SQLINTEGER Attribute, PTR Value,
+					 SQLINTEGER StringLength)
 {
 	CSTR	func = "PGAPI_SetConnectAttr";
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
@@ -1745,9 +1746,9 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 /*	new function */
 RETCODE		SQL_API
 PGAPI_GetDescField(SQLHDESC DescriptorHandle,
-			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
-			PTR Value, SQLINTEGER BufferLength,
-			SQLINTEGER *StringLength)
+				   SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
+				   PTR Value, SQLINTEGER BufferLength,
+				   SQLINTEGER *StringLength)
 {
 	CSTR func = "PGAPI_GetDescField";
 	RETCODE		ret = SQL_SUCCESS;
@@ -1796,8 +1797,8 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 /*	new function */
 RETCODE		SQL_API
 PGAPI_SetDescField(SQLHDESC DescriptorHandle,
-			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
-			PTR Value, SQLINTEGER BufferLength)
+				   SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
+				   PTR Value, SQLINTEGER BufferLength)
 {
 	CSTR func = "PGAPI_SetDescField";
 	RETCODE		ret = SQL_SUCCESS;
@@ -1846,8 +1847,8 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 /*	SQLSet(Param/Scroll/Stmt)Option -> SQLSetStmtAttr */
 RETCODE		SQL_API
 PGAPI_SetStmtAttr(HSTMT StatementHandle,
-		SQLINTEGER Attribute, PTR Value,
-		SQLINTEGER StringLength)
+				  SQLINTEGER Attribute, PTR Value,
+				  SQLINTEGER StringLength)
 {
 	RETCODE	ret = SQL_SUCCESS;
 	CSTR func = "PGAPI_SetStmtAttr";

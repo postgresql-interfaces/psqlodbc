@@ -55,8 +55,7 @@ static const char	*likeop = "like";
 static const char	*eqop = "=";
 
 RETCODE		SQL_API
-PGAPI_GetInfo(
-			  HDBC hdbc,
+PGAPI_GetInfo(HDBC hdbc,
 			  SQLUSMALLINT fInfoType,
 			  PTR rgbInfoValue,
 			  SQLSMALLINT cbInfoValueMax,
@@ -831,8 +830,7 @@ cleanup:
 
 
 RETCODE		SQL_API
-PGAPI_GetTypeInfo(
-				  HSTMT hstmt,
+PGAPI_GetTypeInfo(HSTMT hstmt,
 				  SQLSMALLINT fSqlType)
 {
 	CSTR func = "PGAPI_GetTypeInfo";
@@ -995,8 +993,7 @@ cleanup:
 
 
 RETCODE		SQL_API
-PGAPI_GetFunctions(
-				   HDBC hdbc,
+PGAPI_GetFunctions(HDBC hdbc,
 				   SQLUSMALLINT fFunction,
 				   SQLUSMALLINT FAR * pfExists)
 {
@@ -1512,8 +1509,7 @@ allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALL
 }
 
 RETCODE		SQL_API
-PGAPI_Tables(
-			 HSTMT hstmt,
+PGAPI_Tables(HSTMT hstmt,
 			 const SQLCHAR FAR * szTableQualifier, /* PV X*/
 			 SQLSMALLINT cbTableQualifier,
 			 const SQLCHAR FAR * szTableOwner, /* PV E*/
@@ -1993,8 +1989,7 @@ cleanup:
 }
 
 RETCODE		SQL_API
-PGAPI_Columns(
-			  HSTMT hstmt,
+PGAPI_Columns(HSTMT hstmt,
 			  const SQLCHAR FAR * szTableQualifier, /* OA X*/
 			  SQLSMALLINT cbTableQualifier,
 			  const SQLCHAR FAR * szTableOwner, /* PV E*/
@@ -2749,17 +2744,16 @@ cleanup:
 
 
 RETCODE		SQL_API
-PGAPI_SpecialColumns(
-				HSTMT hstmt,
-				SQLUSMALLINT fColType,
-				const SQLCHAR FAR * szTableQualifier,
-				SQLSMALLINT cbTableQualifier,
-				const SQLCHAR FAR * szTableOwner, /* OA E*/
-				SQLSMALLINT cbTableOwner,
-				const SQLCHAR FAR * szTableName, /* OA(R) E*/
-				SQLSMALLINT cbTableName,
-				SQLUSMALLINT fScope,
-				SQLUSMALLINT fNullable)
+PGAPI_SpecialColumns(HSTMT hstmt,
+					 SQLUSMALLINT fColType,
+					 const SQLCHAR FAR * szTableQualifier,
+					 SQLSMALLINT cbTableQualifier,
+					 const SQLCHAR FAR * szTableOwner, /* OA E*/
+					 SQLSMALLINT cbTableOwner,
+					 const SQLCHAR FAR * szTableName, /* OA(R) E*/
+					 SQLSMALLINT cbTableName,
+					 SQLUSMALLINT fScope,
+					 SQLUSMALLINT fNullable)
 {
 	CSTR func = "PGAPI_SpecialColumns";
 	TupleField	*tuple;
@@ -3004,16 +2998,15 @@ cleanup:
 
 #define INDOPTION_DESC		0x0001	/* values are in reverse order */
 RETCODE		SQL_API
-PGAPI_Statistics(
-			HSTMT hstmt,
-			const SQLCHAR FAR * szTableQualifier, /* OA X*/
-			SQLSMALLINT cbTableQualifier,
-			const SQLCHAR FAR * szTableOwner, /* OA E*/
-			SQLSMALLINT cbTableOwner,
-			const SQLCHAR FAR * szTableName, /* OA(R) E*/
-			SQLSMALLINT cbTableName,
-			SQLUSMALLINT fUnique,
-			SQLUSMALLINT fAccuracy)
+PGAPI_Statistics(HSTMT hstmt,
+				 const SQLCHAR FAR * szTableQualifier, /* OA X*/
+				 SQLSMALLINT cbTableQualifier,
+				 const SQLCHAR FAR * szTableOwner, /* OA E*/
+				 SQLSMALLINT cbTableOwner,
+				 const SQLCHAR FAR * szTableName, /* OA(R) E*/
+				 SQLSMALLINT cbTableName,
+				 SQLUSMALLINT fUnique,
+				 SQLUSMALLINT fAccuracy)
 {
 	CSTR func = "PGAPI_Statistics";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -3529,17 +3522,16 @@ cleanup:
 
 
 RETCODE		SQL_API
-PGAPI_ColumnPrivileges(
-			HSTMT hstmt,
-			const SQLCHAR FAR * szTableQualifier, /* OA X*/
-			SQLSMALLINT cbTableQualifier,
-			const SQLCHAR FAR * szTableOwner, /* OA E*/
-			SQLSMALLINT cbTableOwner,
-			const SQLCHAR FAR * szTableName, /* OA(R) E*/
-			SQLSMALLINT cbTableName,
-			const SQLCHAR FAR * szColumnName, /* PV E*/
-			SQLSMALLINT cbColumnName,
-			UWORD flag)
+PGAPI_ColumnPrivileges(HSTMT hstmt,
+					   const SQLCHAR FAR * szTableQualifier, /* OA X*/
+					   SQLSMALLINT cbTableQualifier,
+					   const SQLCHAR FAR * szTableOwner, /* OA E*/
+					   SQLSMALLINT cbTableOwner,
+					   const SQLCHAR FAR * szTableName, /* OA(R) E*/
+					   SQLSMALLINT cbTableName,
+					   const SQLCHAR FAR * szColumnName, /* PV E*/
+					   SQLSMALLINT cbColumnName,
+					   UWORD flag)
 {
 	CSTR func = "PGAPI_ColumnPrivileges";
 	StatementClass	*stmt = (StatementClass *) hstmt;
@@ -3641,15 +3633,14 @@ cleanup:
  *	Retrieve the primary key columns for the specified table.
  */
 RETCODE		SQL_API
-PGAPI_PrimaryKeys(
-			HSTMT hstmt,
-			const SQLCHAR FAR * szTableQualifier, /* OA X*/
-			SQLSMALLINT cbTableQualifier,
-			const SQLCHAR FAR * szTableOwner, /* OA E*/
-			SQLSMALLINT cbTableOwner,
-			const SQLCHAR FAR * szTableName, /* OA(R) E*/
-			SQLSMALLINT cbTableName,
-			OID	reloid)
+PGAPI_PrimaryKeys(HSTMT hstmt,
+				  const SQLCHAR FAR * szTableQualifier, /* OA X*/
+				  SQLSMALLINT cbTableQualifier,
+				  const SQLCHAR FAR * szTableOwner, /* OA E*/
+				  SQLSMALLINT cbTableOwner,
+				  const SQLCHAR FAR * szTableName, /* OA(R) E*/
+				  SQLSMALLINT cbTableName,
+				  OID	reloid)
 {
 	CSTR func = "PGAPI_PrimaryKeys";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -4081,36 +4072,34 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 }
 
 static RETCODE          SQL_API
-PGAPI_ForeignKeys_new(
-                HSTMT hstmt,
-                const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
-                SQLSMALLINT cbPkTableQualifier,
-                const SQLCHAR FAR * szPkTableOwner, /* OA E*/
-                SQLSMALLINT cbPkTableOwner,
-                const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
-                SQLSMALLINT cbPkTableName,
-                const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
-                SQLSMALLINT cbFkTableQualifier,
-                const SQLCHAR FAR * szFkTableOwner, /* OA E*/
-                SQLSMALLINT cbFkTableOwner,
-                const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
-                SQLSMALLINT cbFkTableName);
+PGAPI_ForeignKeys_new(HSTMT hstmt,
+					  const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+					  SQLSMALLINT cbPkTableQualifier,
+					  const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+					  SQLSMALLINT cbPkTableOwner,
+					  const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+					  SQLSMALLINT cbPkTableName,
+					  const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+					  SQLSMALLINT cbFkTableQualifier,
+					  const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+					  SQLSMALLINT cbFkTableOwner,
+					  const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+					  SQLSMALLINT cbFkTableName);
 
 static RETCODE		SQL_API
-PGAPI_ForeignKeys_old(
-			HSTMT hstmt,
-			const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
-			SQLSMALLINT cbPkTableQualifier,
-			const SQLCHAR FAR * szPkTableOwner, /* OA E*/
-			SQLSMALLINT cbPkTableOwner,
-			const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
-			SQLSMALLINT cbPkTableName,
-			const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
-			SQLSMALLINT cbFkTableQualifier,
-			const SQLCHAR FAR * szFkTableOwner, /* OA E*/
-			SQLSMALLINT cbFkTableOwner,
-			const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
-			SQLSMALLINT cbFkTableName)
+PGAPI_ForeignKeys_old(HSTMT hstmt,
+					  const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+					  SQLSMALLINT cbPkTableQualifier,
+					  const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+					  SQLSMALLINT cbPkTableOwner,
+					  const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+					  SQLSMALLINT cbPkTableName,
+					  const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+					  SQLSMALLINT cbFkTableQualifier,
+					  const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+					  SQLSMALLINT cbFkTableOwner,
+					  const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+					  SQLSMALLINT cbFkTableName)
 {
 	CSTR func = "PGAPI_ForeignKeys";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -4986,20 +4975,19 @@ cleanup:
 }
 
 RETCODE		SQL_API
-PGAPI_ForeignKeys(
-			HSTMT hstmt,
-			const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
-			SQLSMALLINT cbPkTableQualifier,
-			const SQLCHAR FAR * szPkTableOwner, /* OA E*/
-			SQLSMALLINT cbPkTableOwner,
-			const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
-			SQLSMALLINT cbPkTableName,
-			const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
-			SQLSMALLINT cbFkTableQualifier,
-			const SQLCHAR FAR * szFkTableOwner, /* OA E*/
-			SQLSMALLINT cbFkTableOwner,
-			const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
-			SQLSMALLINT cbFkTableName)
+PGAPI_ForeignKeys(HSTMT hstmt,
+				  const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+				  SQLSMALLINT cbPkTableQualifier,
+				  const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+				  SQLSMALLINT cbPkTableOwner,
+				  const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+				  SQLSMALLINT cbPkTableName,
+				  const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+				  SQLSMALLINT cbFkTableQualifier,
+				  const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+				  SQLSMALLINT cbFkTableOwner,
+				  const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+				  SQLSMALLINT cbFkTableName)
 {
 	ConnectionClass	*conn = SC_get_conn(((StatementClass *) hstmt));
 	if (PG_VERSION_GE(conn, 8.1))
@@ -5024,17 +5012,16 @@ PGAPI_ForeignKeys(
 #define	PRORET_COUNT
 #define	DISPLAY_ARGNAME
 RETCODE		SQL_API
-PGAPI_ProcedureColumns(
-				HSTMT hstmt,
-				const SQLCHAR FAR * szProcQualifier, /* OA X*/
-				SQLSMALLINT cbProcQualifier,
-				const SQLCHAR FAR * szProcOwner, /* PV E*/
-				SQLSMALLINT cbProcOwner,
-				const SQLCHAR FAR * szProcName, /* PV E*/
-				SQLSMALLINT cbProcName,
-				const SQLCHAR FAR * szColumnName, /* PV X*/
-				SQLSMALLINT cbColumnName,
-				UWORD flag)
+PGAPI_ProcedureColumns(HSTMT hstmt,
+					   const SQLCHAR FAR * szProcQualifier, /* OA X*/
+					   SQLSMALLINT cbProcQualifier,
+					   const SQLCHAR FAR * szProcOwner, /* PV E*/
+					   SQLSMALLINT cbProcOwner,
+					   const SQLCHAR FAR * szProcName, /* PV E*/
+					   SQLSMALLINT cbProcName,
+					   const SQLCHAR FAR * szColumnName, /* PV X*/
+					   SQLSMALLINT cbColumnName,
+					   UWORD flag)
 {
 	CSTR func = "PGAPI_ProcedureColumns";
 	StatementClass	*stmt = (StatementClass *) hstmt;
@@ -5442,8 +5429,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 
 
 RETCODE		SQL_API
-PGAPI_Procedures(
-				 HSTMT hstmt,
+PGAPI_Procedures(HSTMT hstmt,
 				 const SQLCHAR FAR * szProcQualifier, /* OA X*/
 				 SQLSMALLINT cbProcQualifier,
 				 const SQLCHAR FAR * szProcOwner, /* PV E*/
@@ -5592,15 +5578,14 @@ mylog("user=%s auth=%s\n", user, auth);
 }
 
 RETCODE		SQL_API
-PGAPI_TablePrivileges(
-				HSTMT hstmt,
-				const SQLCHAR FAR * szTableQualifier, /* OA X*/
-				SQLSMALLINT cbTableQualifier,
-				const SQLCHAR FAR * szTableOwner, /* PV E*/
-				SQLSMALLINT cbTableOwner,
-				const SQLCHAR FAR * szTableName, /* PV E*/
-				SQLSMALLINT cbTableName,
-				UWORD flag)
+PGAPI_TablePrivileges(HSTMT hstmt,
+					  const SQLCHAR FAR * szTableQualifier, /* OA X*/
+					  SQLSMALLINT cbTableQualifier,
+					  const SQLCHAR FAR * szTableOwner, /* PV E*/
+					  SQLSMALLINT cbTableOwner,
+					  const SQLCHAR FAR * szTableName, /* PV E*/
+					  SQLSMALLINT cbTableName,
+					  UWORD flag)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_TablePrivileges";
@@ -5883,20 +5868,19 @@ cleanup:
 
 
 static RETCODE		SQL_API
-PGAPI_ForeignKeys_new(
-		HSTMT hstmt,
-		const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
-		SQLSMALLINT cbPkTableQualifier,
-		const SQLCHAR FAR * szPkTableOwner, /* OA E*/
-		SQLSMALLINT cbPkTableOwner,
-		const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
-		SQLSMALLINT cbPkTableName,
-		const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
-		SQLSMALLINT cbFkTableQualifier,
-		const SQLCHAR FAR * szFkTableOwner, /* OA E*/
-		SQLSMALLINT cbFkTableOwner,
-		const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
-		SQLSMALLINT cbFkTableName)
+PGAPI_ForeignKeys_new(HSTMT hstmt,
+					  const SQLCHAR FAR * szPkTableQualifier, /* OA X*/
+					  SQLSMALLINT cbPkTableQualifier,
+					  const SQLCHAR FAR * szPkTableOwner, /* OA E*/
+					  SQLSMALLINT cbPkTableOwner,
+					  const SQLCHAR FAR * szPkTableName, /* OA(R) E*/
+					  SQLSMALLINT cbPkTableName,
+					  const SQLCHAR FAR * szFkTableQualifier, /* OA X*/
+					  SQLSMALLINT cbFkTableQualifier,
+					  const SQLCHAR FAR * szFkTableOwner, /* OA E*/
+					  SQLSMALLINT cbFkTableOwner,
+					  const SQLCHAR FAR * szFkTableName, /* OA(R) E*/
+					  SQLSMALLINT cbFkTableName)
 {
 	CSTR func = "PGAPI_ForeignKeys";
 	StatementClass	*stmt = (StatementClass *) hstmt;

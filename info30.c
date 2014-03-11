@@ -15,7 +15,7 @@
 
 RETCODE		SQL_API
 PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
-			SQLSMALLINT cbInfoValueMax, SQLSMALLINT FAR * pcbInfoValue)
+				SQLSMALLINT cbInfoValueMax, SQLSMALLINT FAR * pcbInfoValue)
 {
 	CSTR func = "PGAPI_GetInfo30";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;

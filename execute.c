@@ -146,8 +146,7 @@ inolog("SQLPrepare return=%d\n", retval);
 
 /*		Performs the equivalent of SQLPrepare, followed by SQLExecute. */
 RETCODE		SQL_API
-PGAPI_ExecDirect(
-				 HSTMT hstmt,
+PGAPI_ExecDirect(HSTMT hstmt,
 				 const SQLCHAR FAR * szSqlStr,
 				 SQLINTEGER cbSqlStr,
 				 UWORD flag)
@@ -1177,8 +1176,7 @@ mylog("retval=%d\n", retval);
 
 
 RETCODE		SQL_API
-PGAPI_Transact(
-			   HENV henv,
+PGAPI_Transact(HENV henv,
 			   HDBC hdbc,
 			   SQLUSMALLINT fType)
 {
@@ -1242,8 +1240,7 @@ PGAPI_Transact(
 
 
 RETCODE		SQL_API
-PGAPI_Cancel(
-			 HSTMT hstmt)		/* Statement to cancel. */
+PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 {
 	CSTR func = "PGAPI_Cancel";
 	StatementClass *stmt = (StatementClass *) hstmt, *estmt;
@@ -1356,8 +1353,7 @@ cleanup:
  *	observing buffer limits and truncation.
  */
 RETCODE		SQL_API
-PGAPI_NativeSql(
-				HDBC hdbc,
+PGAPI_NativeSql(HDBC hdbc,
 				const SQLCHAR FAR * szSqlStrIn,
 				SQLINTEGER cbSqlStrIn,
 				SQLCHAR FAR * szSqlStr,
@@ -1408,8 +1404,7 @@ PGAPI_NativeSql(
  *	Used in conjuction with SQLPutData.
  */
 RETCODE		SQL_API
-PGAPI_ParamData(
-				HSTMT hstmt,
+PGAPI_ParamData(HSTMT hstmt,
 				PTR FAR * prgbValue)
 {
 	CSTR func = "PGAPI_ParamData";
@@ -1558,8 +1553,7 @@ cleanup:
  *	Used in conjunction with SQLParamData.
  */
 RETCODE		SQL_API
-PGAPI_PutData(
-			  HSTMT hstmt,
+PGAPI_PutData(HSTMT hstmt,
 			  PTR rgbValue,
 			  SQLLEN cbValue)
 {

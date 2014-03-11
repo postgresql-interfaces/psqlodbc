@@ -293,8 +293,9 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 /*
  *	This API allocates a Application descriptor.
  */
-RETCODE SQL_API PGAPI_AllocDesc(HDBC ConnectionHandle,
-					SQLHDESC *DescriptorHandle)
+RETCODE SQL_API
+PGAPI_AllocDesc(HDBC ConnectionHandle,
+				SQLHDESC *DescriptorHandle)
 {
 	CSTR func = "PGAPI_AllocDesc";
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
@@ -323,7 +324,8 @@ RETCODE SQL_API PGAPI_AllocDesc(HDBC ConnectionHandle,
 	return ret;
 }
 
-RETCODE SQL_API PGAPI_FreeDesc(SQLHDESC DescriptorHandle)
+RETCODE SQL_API
+PGAPI_FreeDesc(SQLHDESC DescriptorHandle)
 {
 	CSTR func = "PGAPI_FreeDesc";
 	DescriptorClass	*desc = (DescriptorClass *) DescriptorHandle;
@@ -428,7 +430,7 @@ static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 
 RETCODE	SQL_API
 PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
-			SQLHDESC TargetDescHandle)
+			   SQLHDESC TargetDescHandle)
 {
 	CSTR func = "PGAPI_CopyDesc";
 	RETCODE ret = SQL_ERROR;
@@ -633,14 +635,14 @@ DC_log_error(const char *func, const char *desc, const DescriptorClass *self)
 
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
-PGAPI_DescError(	SQLHDESC hdesc,
-			SQLSMALLINT	RecNumber,
-			SQLCHAR FAR * szSqlState,
-			SQLINTEGER FAR * pfNativeError,
-			SQLCHAR FAR * szErrorMsg,
-			SQLSMALLINT cbErrorMsgMax,
-			SQLSMALLINT FAR * pcbErrorMsg,
-			UWORD flag)
+PGAPI_DescError(SQLHDESC hdesc,
+				SQLSMALLINT	RecNumber,
+				SQLCHAR FAR * szSqlState,
+				SQLINTEGER FAR * pfNativeError,
+				SQLCHAR FAR * szErrorMsg,
+				SQLSMALLINT cbErrorMsgMax,
+				SQLSMALLINT FAR * pcbErrorMsg,
+				UWORD flag)
 {
 	CSTR func = "PGAPI_DescError";
 	/* CC: return an error of a hdesc  */

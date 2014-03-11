@@ -18,11 +18,12 @@
 #include "connection.h"
 #include "statement.h"
 
-RETCODE  SQL_API SQLErrorW(HENV EnvironmentHandle,
-           HDBC ConnectionHandle, HSTMT StatementHandle,
-           SQLWCHAR *Sqlstate, SQLINTEGER *NativeError,
-           SQLWCHAR *MessageText, SQLSMALLINT BufferLength,
-           SQLSMALLINT *TextLength)
+RETCODE  SQL_API
+SQLErrorW(HENV EnvironmentHandle,
+		  HDBC ConnectionHandle, HSTMT StatementHandle,
+		  SQLWCHAR *Sqlstate, SQLINTEGER *NativeError,
+		  SQLWCHAR *MessageText, SQLSMALLINT BufferLength,
+		  SQLSMALLINT *TextLength)
 {
 	RETCODE	ret;
 	SWORD	tlen, buflen;
@@ -53,16 +54,18 @@ RETCODE  SQL_API SQLErrorW(HENV EnvironmentHandle,
 	return ret;
 }
 
-RETCODE  SQL_API SQLGetConnectOptionW(HDBC ConnectionHandle,
-           SQLUSMALLINT Option, PTR Value)
+RETCODE  SQL_API
+SQLGetConnectOptionW(HDBC ConnectionHandle,
+					 SQLUSMALLINT Option, PTR Value)
 {
 	mylog("[SQLGetConnectOptionW]");
 	CC_set_in_unicode_driver((ConnectionClass *) ConnectionHandle);
 	return PGAPI_GetConnectOption(ConnectionHandle, Option, Value, NULL, 64);
 }
 
-RETCODE  SQL_API SQLSetConnectOptionW(HDBC ConnectionHandle,
-           SQLUSMALLINT Option, SQLUINTEGER Value)
+RETCODE  SQL_API
+SQLSetConnectOptionW(HDBC ConnectionHandle,
+					 SQLUSMALLINT Option, SQLUINTEGER Value)
 {
 	mylog("[SQLSetConnectionOptionW]");
 if (!ConnectionHandle)	return SQL_ERROR;
@@ -70,16 +73,16 @@ if (!ConnectionHandle)	return SQL_ERROR;
 	return PGAPI_SetConnectOption(ConnectionHandle, Option, Value);
 }
 
-RETCODE SQL_API SQLColAttributesW(
-    HSTMT           hstmt,
-    SQLUSMALLINT       icol,
-    SQLUSMALLINT       fDescType,
-    PTR         rgbDesc,
-    SQLSMALLINT        cbDescMax,
-    SQLSMALLINT 	  *pcbDesc,
-    SQLINTEGER 		  *pfDesc)
+RETCODE SQL_API
+SQLColAttributesW(HSTMT			hstmt,
+				  SQLUSMALLINT	icol,
+				  SQLUSMALLINT	fDescType,
+				  PTR			rgbDesc,
+				  SQLSMALLINT	cbDescMax,
+				  SQLSMALLINT  *pcbDesc,
+				  SQLINTEGER   *pfDesc)
 {
 	mylog("[SQLColAttributesW]");
 	return PGAPI_ColAttributes(hstmt, icol, fDescType, rgbDesc,
-		cbDescMax, pcbDesc, pfDesc);
+							   cbDescMax, pcbDesc, pfDesc);
 }

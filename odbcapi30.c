@@ -116,15 +116,15 @@ SQLCloseCursor(HSTMT StatementHandle)
 /*	SQLColAttributes -> SQLColAttribute */
 SQLRETURN	SQL_API
 SQLColAttribute(SQLHSTMT StatementHandle,
-			SQLUSMALLINT ColumnNumber,
-			SQLUSMALLINT FieldIdentifier,
-			SQLPOINTER CharacterAttribute,
-			SQLSMALLINT BufferLength,
-			SQLSMALLINT *StringLength,
+				SQLUSMALLINT ColumnNumber,
+				SQLUSMALLINT FieldIdentifier,
+				SQLPOINTER CharacterAttribute,
+				SQLSMALLINT BufferLength,
+				SQLSMALLINT *StringLength,
 #if defined(_WIN64) || defined(SQLCOLATTRIBUTE_SQLLEN)
-			SQLLEN *NumericAttribute
+				SQLLEN *NumericAttribute
 #else
-			SQLPOINTER NumericAttribute
+				SQLPOINTER NumericAttribute
 #endif
 			)
 {
