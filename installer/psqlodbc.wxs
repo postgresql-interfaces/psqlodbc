@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  
+
   <!-- Don't change the UpgradeCode and ProductName -->
   <?define UpgradeCode = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
   <?define ProductName = "psqlODBC" ?>
 
-<!-- Product details --> 
+<!-- Product details -->
 
-  <Product 
-    Manufacturer="PostgreSQL Global Development Group" 
+  <Product
+    Manufacturer="PostgreSQL Global Development Group"
     Id="$(var.PRODUCTCODE)"
     UpgradeCode="$(var.UpgradeCode)"
     Name="$(var.ProductName)"
-    Version="$(var.VERSION)" 
+    Version="$(var.VERSION)"
     Language="1033">
 
 <!-- Package details -->
@@ -20,10 +20,10 @@
     <Package
       Keywords="PostgreSQL, ODBC"
       Comments="PostgreSQL ODBC Driver"
-      Manufacturer="PostgreSQL Global Development Group" 
+      Manufacturer="PostgreSQL Global Development Group"
       InstallerVersion="300"
-      Languages="1033" 
-      Compressed="yes" 
+      Languages="1033"
+      Compressed="yes"
       SummaryCodepage="1252" />
 
 <!-- Directories -->

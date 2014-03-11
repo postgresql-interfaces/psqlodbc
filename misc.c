@@ -176,7 +176,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 					str = NULL;
 				}
 				break;
-			} 
+			}
 			if (tolower(*ptr) != *ptr)
 			{
 				if (!str)
@@ -307,7 +307,7 @@ snprintf_add(char *buf, size_t size, const char *format, ...)
 	int len;
 	size_t pos = strlen(buf);
 	va_list arglist;
-	
+
 	va_start(arglist, format);
 	len = vsnprintf(buf + pos, size - pos, format, arglist);
 	va_end(arglist);
@@ -324,7 +324,7 @@ snprintf_len(char *buf, size_t size, const char *format, ...)
 {
 	ssize_t len;
 	va_list arglist;
-	
+
 	va_start(arglist, format);
 	if ((len = vsnprintf(buf, size, format, arglist)) < 0)
 		len = size;
@@ -339,11 +339,11 @@ strlcat(char *dst, const char *src, size_t size)
 	size_t ttllen;
 	char	*pd = dst;
 	const char *ps= src;
-	
+
 	for (ttllen = 0; ttllen < size; ttllen++, pd++)
 	{
 		if (0 == *pd)
-			break; 
+			break;
 	}
 	if (ttllen >= size - 1)
 		return ttllen + strlen(src);
@@ -380,7 +380,7 @@ quote_table(const pgNAME schema, pgNAME table)
 		{
 			buf[i++] = *ptr;
 			if (*ptr == '"')
-				buf[i++] = '"'; 		/* escape quotes by doubling them */
+				buf[i++] = '"';		/* escape quotes by doubling them */
 		}
 		buf[i++] = '"';
 		buf[i++] = '.';

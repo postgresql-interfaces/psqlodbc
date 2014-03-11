@@ -2,20 +2,20 @@
 .SYNOPSIS
     Build all dlls of psqlodbc project using MSbuild.
 .DESCRIPTION
-    Build psqlodbc35w.dll, psqlodbc30a.dll, pgenlist.dll, pgenlista.dll 
+    Build psqlodbc35w.dll, psqlodbc30a.dll, pgenlist.dll, pgenlista.dll
     and pgxalib.dll for both x86 and x64 platforms.
 .PARAMETER Target
-    Specify the target of MSBuild. "Build"(default), "Rebuild" or 
+    Specify the target of MSBuild. "Build"(default), "Rebuild" or
     "Clean" is available.
 .PARAMETER VCVersion
     Visual Studio version is determined automatically unless this
-    option is specified.  
+    option is specified.
 .PARAMETER Platform
     Specify build platforms, "both"(default), "Wind32" or "x64" is
-    available.  
+    available.
 .PARAMETER Toolset
-    MSBuild PlatformToolset is determined automatically unless this 
-    option is specified. Currently "v100", "Windows7.1SDK", "v110", 
+    MSBuild PlatformToolset is determined automatically unless this
+    option is specified. Currently "v100", "Windows7.1SDK", "v110",
     "v110_xp", "v120" or "v120_xp" is available.
 .PARAMETER MSToolsVersion
     MSBuild ToolsVersion is detemrined automatically unless this
@@ -32,15 +32,15 @@
 .EXAMPLE
     > .\BuildAll Clean
 	Clean all generated files.
-.EXAMPLE 
+.EXAMPLE
     > .\BuildAll -V(CVersion) 11.0
-	Build using Visual Studio 11.0 environment.	
-.EXAMPLE 
+	Build using Visual Studio 11.0 environment.
+.EXAMPLE
     > .\BuildAll -P(latform) x64
-	Build only 64bit dlls. 
+	Build only 64bit dlls.
 .NOTES
     Author: Hiroshi Inoue
-    Date:   Febrary 1, 2014    
+    Date:   Febrary 1, 2014
 #>
 
 #
@@ -97,7 +97,7 @@ function buildPlatform($platinfo, $Platform)
 			} else {
 				$PG_INC = "$pgmfs\PostgreSQL\$LIBPQVER\include"
 			}
-		} 
+		}
 		if ($PG_LIB -eq "default") {
 			if ($pgmfs -eq "") {
 				PG_LIB=""
@@ -111,7 +111,7 @@ function buildPlatform($platinfo, $Platform)
 	Write-Host "USE GSS    : $USE_GSS ($GSS_INC $GSS_LIB)"
 	Write-Host "USE SSPI   : $USE_SSPI"
 	Write-Host "SSL DIR    : ($SSL_INC $SSL_LIB)"
-	
+
 	$MACROS=@"
 /p:USE_LIBPQ=$USE_LIBPQ``;USE_SSPI=$USE_SSPI``;USE_GSS=$USE_GSS``;PG_LIB="$PG_LIB"``;PG_INC="$PG_INC"``;SSL_LIB="$SSL_LIB"``;SSL_INC="$SSL_INC"``;GSS_LIB="$GSS_LIB"``;GSS_INC="$GSS_INC"
 "@
@@ -244,7 +244,7 @@ if ("$Toolset" -eq "") {
 }
 if ("$Toolset" -eq "") {
 	switch ($VisualStudioVersion) {
-	 "10.0"	{ 
+	 "10.0"	{
 			if (Test-path "HKLM:\Software\Microsoft\Microsoft SDKs\Windows\v7.1") {
 				$Toolset=$WSDK71Set
 			} else {
@@ -283,7 +283,7 @@ try {
 #
 #	Write the result to configuration xml
 #
-	if ($recordResult) {	
+	if ($recordResult) {
 		$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
 		$configInfo.Configuration.BuildResult.VisualStudioVersion=$VisualStudioVersion
 		$configInfo.Configuration.BuildResult.PlatformToolset=$Toolset
@@ -292,7 +292,7 @@ try {
 		SaveConfiguration $configInfo
 	}
 } catch {
-	$error[0] | Format-List -Force 
+	$error[0] | Format-List -Force
 }
 
 Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VisualStudioVersion PlatformToolset=$Toolset"

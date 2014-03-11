@@ -6,15 +6,14 @@
   </head>
 
   <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
-  
+
 <h1>Compiling psqlODBC on Windows</h1>
 
 <p>
-This 
-page describes how to build the PostgreSQL ODBC Driver on Win32 platforms. Microsoft Visual
-C++ version 6.0 or Microsoft Visual C++ 2005 Edition. Other compilers may work 
-but have not been formally tested. psqlODBC may be built either in the 
-VC++ IDE or from the command line:
+This page describes how to build the PostgreSQL ODBC Driver on Win32 platforms.
+Microsoft Visual C++ version 6.0 or Microsoft Visual C++ 2005 Edition. Other
+compilers may work  but have not been formally tested. psqlODBC may be built
+either in the VC++ IDE or from the command line:
 </p>
 
 <h2>IDE Method</h2>
@@ -26,7 +25,7 @@ VC++ IDE or from the command line:
  can be used with Microsoft Visual C++ 6.0.
 </p>
 
-<p><strong>psqlodbc.proj</strong> and 
+<p><strong>psqlodbc.proj</strong> and
 <strong>psqlodbc.sln</strong>
 can be used with Microsoft Visual C++ 2005 Edition (including the Express edition which can be downloaded free of charge from <a href="http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx">http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx</a>)
 </p>
@@ -56,14 +55,14 @@ The default build settings will create the following driver:
 <li>UNICODE support.
 <li>libpq and SSL equipped are supported.
 <li>Kerberos are supported peculiar by psqlODBC.
-<li>ODBCVER is 0x0351. 
+<li>ODBCVER is 0x0351.
 <li>The driver filename is "psqlodbc35w.dll".</li></ol>
-               
+
 <h2>Command Line Method</h2>
 <p>
         Build&nbsp;method:
 </p>
-<ol>        
+<ol>
 <li>Use NMAKE.exe to build the dll for the 32bit environment.<br><br>
 
     <code>C:\psqlodbc\&gt; nmake /f win32.mak CFG=Release ALL</code><br><br>
@@ -75,19 +74,19 @@ The default build settings will create the following driver:
     <code>C:\psqlodbc\&gt; nmake /f win64.mak CFG=Release ALL</code><br><br>
 
     Possible configurations are Release and Debug.<br>
-    Possible build types are ALL or CLEAN.</li></ol>        
-  
+    Possible build types are ALL or CLEAN.</li></ol>
+
 
 <p>Note:</p>
 
 <p>
 The following build options may be used:
-</p>        
-  
+</p>
+
 
 <p>
 <table cellspacing="0" cellpadding="3" width="780" border=1>
-  
+
   <tr>
     <td>Valiable</td>
     <td>Values</td>
@@ -136,7 +135,7 @@ The following build options may be used:
     <td>USE_GSS</td>
     <td>Yes (use gssapi required, this option is effective at 64bit now) </td>
   </tr>
-  </table></p>        
+  </table></p>
 
 <ol>
 <li>UNICODE is default (psqlodbc35w.dll), unless ANSI_VERSION isselected (psqlodbc30a.dll)</li>

@@ -32,10 +32,10 @@ if ($USE_LIBPQ -eq "yes")
 	}
 	if ($PG_INC -eq "default") {
 		$PG_INC = "$pgmfs\PostgreSQL\$LIBPQVER\include"
-	} 
+	}
 	if ($PG_LIB -eq "default") {
 		$PG_LIB = "$pgmfs\PostgreSQL\$LIBPQVER\lib"
-	} 
+	}
 }
 Write-Host "USE LIBPQ  : $USE_LIBPQ ($PG_INC $PG_LIB)"
 # Write-Host "USE GSS    : $USE_GSS"

@@ -87,7 +87,7 @@ PGAPI_Prepare(HSTMT hstmt,
 
 		case STMT_READY:
 			mylog("**** PGAPI_Prepare: STMT_READY, change SQL\n");
-			if (NOT_YET_PREPARED != prepared) 
+			if (NOT_YET_PREPARED != prepared)
 				SC_recycle_statement(self); /* recycle the statement */
 			break;
 
@@ -389,8 +389,7 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 				switch (ipara->SQLType)
 				{
 					case SQL_LONGVARBINARY:
-						if (conn->lobj_type == pgtype ||
-					    	    PG_TYPE_OID == pgtype)
+						if (conn->lobj_type == pgtype || PG_TYPE_OID == pgtype)
 							bNeedsTrans = TRUE;
 						else if (PG_TYPE_BYTEA == pgtype)
 							bBytea = TRUE;
@@ -465,7 +464,7 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 
 	/*
 	 *	Dummy exection to get the column info.
-	 */ 
+	 */
 	if (stmt->inaccurate_result && SC_is_parse_tricky(stmt))
 	{
 		BOOL		in_trans = CC_is_in_trans(conn);
@@ -546,7 +545,7 @@ mylog("about to begin SC_execute\n");
 		if (res && QR_command_maybe_successful(res))
 		{
 			QResultClass	*kres;
-		
+
 			kres = res->next;
 inolog("res->next=%p\n", kres);
 			res->next = NULL;
@@ -569,13 +568,13 @@ inolog("res->next=%p\n", kres);
 	{
 		switch (retval)
 		{
-			case SQL_SUCCESS: 
+			case SQL_SUCCESS:
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS;
 				break;
-			case SQL_SUCCESS_WITH_INFO: 
+			case SQL_SUCCESS_WITH_INFO:
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS_WITH_INFO;
 				break;
-			default: 
+			default:
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
 				break;
 		}
@@ -648,7 +647,7 @@ StartRollbackState(StatementClass *stmt)
 	int	ret;
 	ConnectionClass	*conn;
 	ConnInfo	*ci = NULL;
-	
+
 inolog("%s:%p->internal=%d\n", func, stmt, stmt->internal);
 	conn = SC_get_conn(stmt);
 	if (conn)
@@ -756,7 +755,7 @@ DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 	char	esavepoint[32], cmd[64];
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	QResultClass *res;
-	BOOL	cmd_success, start_stmt = FALSE;	
+	BOOL	cmd_success, start_stmt = FALSE;
 
 inolog("%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, stmt, SC_accessed_db(stmt),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
@@ -843,7 +842,7 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	if (SQL_NEED_DATA == retval)
 		return;
 	conn = SC_get_conn(stmt);
-#ifdef	NOT_USED /* give up the use of lastval() */	
+#ifdef	NOT_USED /* give up the use of lastval() */
 	if (PG_VERSION_GE(conn, 8.1)) /* lastval() is available */
 		return;
 #endif /* NOT_USED */
@@ -851,21 +850,21 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 		return;*/
 	while (isspace((UCHAR) *cmd)) cmd++;
 	if (!*cmd)
-        	return;
+		return;
 	len = 6;
 	if (strnicmp(cmd, "insert", len))
-        	return;
+		return;
 	cmd += len;
 	while (isspace((UCHAR) *(++cmd)));
 	if (!*cmd)
-        	return;
+		return;
 	len = 4;
 	if (strnicmp(cmd, "into", len))
-        	return;
+		return;
 	cmd += len;
 	while (isspace((UCHAR) *(++cmd)));
 	if (!*cmd)
-        	return;
+		return;
 	NULL_THE_NAME(conn->schemaIns);
 	NULL_THE_NAME(conn->tableIns);
 	if (!SQL_SUCCEEDED(retval))
@@ -890,7 +889,7 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 			len = ptr - cmd;
 			STRN_TO_NAME(conn->schemaIns, cmd, len);
 			cmd = ptr + 1;
-			ptr = NULL; 
+			ptr = NULL;
 		}
 	}
 	if (IDENTIFIER_QUOTE == *cmd && NULL == ptr)
@@ -999,7 +998,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		 */
 		recycle = FALSE;
 		if (res = SC_get_Result(stmt), res)
-        		QR_close_result(res, FALSE);
+			QR_close_result(res, FALSE);
 	}
 	/*
 	 * If SQLExecute is being called again, recycle the statement. Note
@@ -1024,9 +1023,9 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	}
 
 	if (start_row = stmt->exec_start_row, start_row < 0)
-		start_row = 0; 
+		start_row = 0;
 	if (end_row = stmt->exec_end_row, end_row < 0)
-		end_row = (SQLINTEGER) apdopts->paramset_size - 1; 
+		end_row = (SQLINTEGER) apdopts->paramset_size - 1;
 	if (stmt->exec_current_row < 0)
 		stmt->exec_current_row = start_row;
 	ipdopts = SC_get_IPDF(stmt);
@@ -1057,8 +1056,8 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 			*ipdopts->param_processed_ptr = 0;
 #if (ODBCVER >= 0x0300)
 		/*
-	 	 *	Initialize the param_status_ptr 
-	 	 */
+		 * Initialize param_status_ptr
+		 */
 		if (ipdopts->param_status_ptr)
 		{
 			for (i = 0; i <= end_row; i++)
@@ -1091,7 +1090,7 @@ next_param_row:
 		}
 	}
 	/*
-	 *	Initialize the current row status 
+	 *	Initialize the current row status
 	 */
 	if (ipdopts->param_status_ptr)
 		ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
@@ -1113,7 +1112,7 @@ next_param_row:
 		Int4	num_p = num_params < apdopts->allocated ? num_params : apdopts->allocated;
 
 		/*
-		 *	Increment the  number of currently processed rows 
+		 *	Increment the  number of currently processed rows
 		 */
 		if (ipdopts->param_processed_ptr)
 			(*ipdopts->param_processed_ptr)++;
@@ -1529,7 +1528,7 @@ inolog(" at exec buffer=%p", apdopts->parameters[i].buffer);
 				if (stmt->execute_delegate)
 				{
 					SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen; 
+					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen;
 
 inolog(" offset=%d perrow=%d", offset, perrow);
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;

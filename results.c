@@ -226,14 +226,14 @@ PGAPI_DescribeCol(
 	/* gets all the information about a specific column */
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	IRDFields	*irdflds;
-	QResultClass	*res = NULL;
-	char	   	*col_name = NULL;
-	OID		fieldtype = 0;
+	IRDFields  *irdflds;
+	QResultClass *res = NULL;
+	char	   *col_name = NULL;
+	OID			fieldtype = 0;
 	SQLLEN		column_size = 0;
 	SQLINTEGER	decimal_digits = 0;
 	ConnInfo   *ci;
-	FIELD_INFO	*fi;
+	FIELD_INFO *fi;
 	char		buf[255];
 	int			len = 0;
 	RETCODE		result = SQL_SUCCESS;
@@ -312,10 +312,10 @@ inolog("answering bookmark info\n");
 	if (!FI_is_applicable(fi))
 	{
 		/*
-	 	 * If couldn't parse it OR the field being described was not parsed
-	 	 * (i.e., because it was a function or expression, etc, then do it the
-	 	 * old fashioned way.
-	 	 */
+		 * If couldn't parse it OR the field being described was not parsed
+		 * (i.e., because it was a function or expression, etc, then do it the
+		 * old fashioned way.
+		 */
 		BOOL	build_fi = PROTOCOL_74(ci) && (NULL != pfNullable || NULL != pfSqlType);
 		fi = NULL;
 		if (!SC_pre_execute_ok(stmt, build_fi, icol, func))
@@ -347,7 +347,7 @@ inolog("answering bookmark info\n");
 		decimal_digits = fi->decimal_digits;
 
 		mylog("PARSE: fieldtype=%d, col_name='%s', column_size=%d\n", fieldtype, NULL_IF_NULL(col_name), column_size);
-	}		
+	}
 	else
 	{
 		col_name = QR_get_fieldname(res, icol);
@@ -952,7 +952,7 @@ PGAPI_GetData(
 		else if (icol <= opts->allocated && opts->bindings)
 			binfo = &opts->bindings[icol - 1];
 		if (binfo)
-		{	
+		{
 			target_type = binfo->returntype;
 			mylog("SQL_ARD_TYPE=%d\n", target_type);
 			precision = binfo->precision;
@@ -1023,7 +1023,7 @@ inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", target_type);
 		{
 			SQLLEN	curt = GIdx2CacheIdx(stmt->currTuple, stmt, res);
 			value = QR_get_value_backend_row(res, curt, icol);
-inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt)); 
+inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt));
 			mylog("     value = '%s'\n", NULL_IF_NULL(value));
 		}
 	}
@@ -1054,7 +1054,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 		{
 			if (SQL_C_BOOKMARK == target_type || 4 <= cbValueMax)
 			{
-				contents_get = TRUE; 
+				contents_get = TRUE;
 				*((SQLULEN *) rgbValue) = SC_get_bookmark(stmt);
 			}
 		}
@@ -1218,7 +1218,7 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 	if (0 == res->dl_count)
 	{
 		if (SQL_FETCH_PRIOR == orientation)
-		{	
+		{
 			if (sta + 1 >= (SQLLEN) nth)
 			{
 				*nearest = sta + 1 - nth;
@@ -1228,7 +1228,7 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 			return -(SQLLEN)(sta + 1);
 		}
 		else
-		{	
+		{
 			nearp = sta - 1 + nth;
 			if (nearp < num_tuples)
 			{
@@ -1293,7 +1293,7 @@ inolog(" nearest=%d\n", *nearest);
 					return count;
 			}
 		}
-		*nearest = -1; 
+		*nearest = -1;
 	}
 	else
 	{
@@ -1308,7 +1308,7 @@ inolog(" nearest=%d\n", *nearest);
 					return count;
 			}
 		}
-		*nearest = num_tuples; 
+		*nearest = num_tuples;
 	}
 inolog(" nearest not found\n");
 	return -(SQLLEN)count;
@@ -1318,7 +1318,7 @@ static void
 move_cursor_position_if_needed(StatementClass *self, QResultClass *res)
 {
 	SQLLEN	move_offset;
-	
+
 	/*
 	 * The move direction must be initialized to is_not_moving or
 	 * is_moving_from_the_last in advance.
@@ -1355,7 +1355,7 @@ inolog("!!move_offset=%d calc=%d\n", res->move_offset, INT_MAX - self->rowset_st
 		QR_set_next_in_cache(res, (QR_get_rowstart_in_cache(res) < 0) ? 0 : QR_get_rowstart_in_cache(res));
 		return;
 	}
-	if (0 == move_offset) 
+	if (0 == move_offset)
 		return;
 	if (move_offset > 0)
 	{
@@ -1370,7 +1370,7 @@ inolog("!!move_offset=%d calc=%d\n", res->move_offset, INT_MAX - self->rowset_st
 }
 /*
  *	return NO_DATA_FOUND macros
- *	  save_rowset_start or num_tuples must be defined 
+ *	  save_rowset_start or num_tuples must be defined
  */
 #define	EXTFETCH_RETURN_BOF(stmt, res) \
 { \
@@ -1388,7 +1388,7 @@ inolog("RETURN_EOF\n"); \
 	/* move_cursor_position_if_needed(stmt, res); */ \
 	return SQL_NO_DATA_FOUND; \
 }
-	
+
 /*	This fetchs a block of data (rowset). */
 RETCODE		SQL_API
 PGAPI_ExtendedFetch(
@@ -1409,7 +1409,7 @@ PGAPI_ExtendedFetch(
 	SQLLEN		save_rowset_size, progress_size;
 	SQLLEN		rowset_start;
 	RETCODE		result = SQL_SUCCESS;
-	char		truncated, error, should_set_rowset_start = FALSE; 
+	char		truncated, error, should_set_rowset_start = FALSE;
 	SQLLEN		currp;
 	UWORD		pstatus;
 	BOOL		currp_is_valid, reached_eof, useCursor;
@@ -1670,7 +1670,7 @@ inolog("num_tuples=%d\n", num_tuples);
 					res->move_offset = 1 + res->ad_count + bidx;
 				}
 				bidx = num_tuples - 1 - res->ad_count - bidx;
-			} 
+			}
 
 			rowset_start = bidx;
 			if (bookmark_offset >= 0)
@@ -1765,8 +1765,10 @@ inolog("num_tuples=%d\n", num_tuples);
 		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
 		{
 			if (fFetchType != SQL_FETCH_NEXT ||
-		    		QR_get_rowstart_in_cache(res) + req_size > QR_get_num_cached_tuples(res))
+				QR_get_rowstart_in_cache(res) + req_size > QR_get_num_cached_tuples(res))
+			{
 				flag = 1;
+			}
 		}
 		if (SQL_RD_ON == stmt->options.retrieve_data ||
 		    flag != 0)
@@ -1931,7 +1933,7 @@ PGAPI_MoreResults(
 		if (stmt->multi_statement < 0)
 			PGAPI_NumParams(stmt, &num_p);
 		if (stmt->multi_statement > 0)
-		{ 
+		{
 			const char *cmdstr;
 
 			SC_initialize_cols_info(stmt, FALSE, TRUE);
@@ -2000,13 +2002,13 @@ inolog("AddRollback %d(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dm
 	{
 		if (res->rb_count >= res->rb_alloc)
 		{
-			res->rb_alloc *= 2; 
+			res->rb_alloc *= 2;
 			if (rollback = realloc(res->rollback, sizeof(Rollback) * res->rb_alloc), !rollback)
 			{
 				res->rb_alloc = res->rb_count = 0;
 				return;
 			}
-			res->rollback = rollback; 
+			res->rollback = rollback;
 		}
 		rollback = res->rollback + res->rb_count;
 	}
@@ -2021,7 +2023,7 @@ inolog("AddRollback %d(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dm
 	}
 
 	conn->result_uncommitted = 1;
-	res->rb_count++;	
+	res->rb_count++;
 }
 
 SQLLEN ClearCachedRows(TupleField *tuple, int num_fields, SQLLEN num_rows)
@@ -2118,7 +2120,7 @@ static BOOL enlargeAdded(QResultClass *res, UInt4 number, const StatementClass *
 		{
 			alloc *= 2;
 		}
- 
+
 	if (alloc <= res->ad_alloc)
 		return TRUE;
 	QR_REALLOC_return_with_error(res->added_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeAdded failed", FALSE);
@@ -2157,11 +2159,11 @@ inolog("AddAdded index=%d, tuple=%p, num_fields=%d\n", index, tuple_added, num_f
 		return;
 	if (!enlargeAdded(res, ad_count + 1, stmt))
 		return;
-	added_keyset = res->added_keyset; 
+	added_keyset = res->added_keyset;
 	added_tuples = res->added_tuples;
 
 	keyset = added_keyset + ad_count;
-	*keyset = keys; 
+	*keyset = keys;
 	if (added_tuples)
 	{
 		tuple = added_tuples + num_fields * ad_count;
@@ -2274,7 +2276,7 @@ inolog("AddDeleted %d\n", index);
 			deleted = res->deleted;
 			QR_REALLOC_return_with_error(res->deleted_keyset, KeySet, sizeof(KeySet) * new_alloc, res, "Deleted KeySet realloc error", FALSE);
 			deleted_keyset = res->deleted_keyset;
-			res->dl_alloc = new_alloc; 
+			res->dl_alloc = new_alloc;
 		}
 		/* sort deleted indexes in ascending order */
 		for (i = 0, deleted = res->deleted, deleted_keyset = res->deleted_keyset; i < dl_count; i++, deleted++, deleted_keyset += num_fields)
@@ -2283,7 +2285,7 @@ inolog("AddDeleted %d\n", index);
 				break;
 		}
 		memmove(deleted + 1, deleted, sizeof(SQLLEN) * (dl_count - i));
-		memmove(deleted_keyset + 1, deleted_keyset, sizeof(KeySet) * (dl_count - i)); 
+		memmove(deleted_keyset + 1, deleted_keyset, sizeof(KeySet) * (dl_count - i));
 	}
 	*deleted = index;
 	*deleted_keyset = *keyset;
@@ -2341,7 +2343,7 @@ static void RemoveDeleted(QResultClass *res, SQLLEN index)
 				memmove(deleted_keyset, deleted_keyset + 1, mv_count * sizeof(KeySet));
 			}
 			res->dl_count--;
-			rm_count++;		
+			rm_count++;
 		}
 	}
 	mylog("RemoveDeleted removed count=%d,%d\n", rm_count, res->dl_count);
@@ -2380,7 +2382,7 @@ static void CommitDeleted(QResultClass *res)
 inolog("!!Commit Deleted=%d(%d)\n", *deleted, i);
 			deleted_keyset->status = status;
 		}
-	} 
+	}
 }
 
 static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
@@ -2397,7 +2399,7 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 		}
 	if (alloc <= res->up_alloc)
 		return TRUE;
- 
+
 	QR_REALLOC_return_with_error(res->updated, SQLLEN, sizeof(SQLLEN) * alloc, res, "enlargeUpdated failed", FALSE);
 	QR_REALLOC_return_with_error(res->updated_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeUpdated failed 2", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
@@ -2442,7 +2444,7 @@ inolog("AddUpdated index=%d\n", index);
 	upd_add_idx = -1;
 	updated = res->updated;
 	is_in_trans = CC_is_in_trans(SC_get_conn(stmt));
-	updated_keyset = res->updated_keyset;	
+	updated_keyset = res->updated_keyset;
 	status = keyset->status;
 	status &= (~KEYSET_INFO_PUBLIC);
 	status |= SQL_ROW_UPDATED;
@@ -2491,8 +2493,8 @@ inolog("AddUpdated index=%d\n", index);
 	{
 		if (!enlargeUpdated(res, res->up_count + 1, stmt))
 			return;
-		updated = res->updated; 
-		updated_keyset = res->updated_keyset; 
+		updated = res->updated;
+		updated_keyset = res->updated_keyset;
 		updated_tuples = res->updated_tuples;
 		upd_idx = up_count;
 		updated[up_count] = index;
@@ -2562,7 +2564,7 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeyS
 			if (mv_count > 0)
 			{
 				memmove(updated, updated + 1, sizeof(SQLLEN) * mv_count);
-				memmove(updated_keyset, updated_keyset + 1, sizeof(KeySet) * mv_count); 
+				memmove(updated_keyset, updated_keyset + 1, sizeof(KeySet) * mv_count);
 				if (updated_tuples)
 					memmove(updated_tuples, updated_tuples + num_fields, sizeof(TupleField) * num_fields * mv_count);
 			}
@@ -2733,7 +2735,7 @@ inolog("index[%d]=%d\n", i, index);
 						pidx = index;
 						midx = res->num_total_read - index - 1;
 					}
-inolog("pidx=%d,midx=%d\n", pidx, midx); 
+inolog("pidx=%d,midx=%d\n", pidx, midx);
 					for (j = rollbp - 1; j > i; j--)
 					{
 						if (rollback[j].index == midx ||
@@ -2848,7 +2850,7 @@ inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 	}
 }
 
-void	ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial) 
+void	ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 {
 	int	i;
 	StatementClass	*stmt;
@@ -2912,8 +2914,8 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 					 quote_table(ti->schema_name, ti->table_name),
 					 tidval, oideqstr);
 		}
-		else 
-			snprintf(selstr, len, "%s where ctid = '%s' %s", stmt->load_statement, tidval, oideqstr); 
+		else
+			snprintf(selstr, len, "%s where ctid = '%s' %s", stmt->load_statement, tidval, oideqstr);
 	}
 	else if ((flag & USE_INSERTED_TID) != 0)
 		snprintf(selstr, len, "%s where ctid = currtid(0, '(0,0)') %s", stmt->load_statement, oideqstr);
@@ -2927,7 +2929,7 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	{
 		SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
 		goto cleanup;
-	} 
+	}
 
 	mylog("selstr=%s\n", selstr);
 	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, stmt);
@@ -2982,7 +2984,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 			use_ctid = FALSE;
 			mylog("The tuple is currently being added and can't use ctid\n");
 		}
-	}	
+	}
 
 	if (SC_update_not_ready(stmt))
 		parse_statement(stmt, TRUE);	/* not preferable */
@@ -3035,7 +3037,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
 			}
 			if (data_in_cache)
-				MoveCachedRows(tuple_old, tuple_new, effective_fields, 1); 
+				MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
 			ret = SQL_SUCCESS;
 		}
 		else
@@ -3109,7 +3111,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 
 				for (j = 0; j < QR_get_num_total_read(qres); j++)
 				{
-					oid = getOid(qres, j); 
+					oid = getOid(qres, j);
 					getTid(qres, j, &blocknum, &offset);
 					for (k = SC_get_rowset_start(stmt); k < limitrow; k++)
 					{
@@ -3183,17 +3185,17 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 						{
 							if (j == 0)
 								strcpy(sval, "(tid");
-							else 
+							else
 								strcpy(sval, ",tid");
 							sval = strchr(sval, '\0');
 						}
 						sprintf(sval, ") as %s where ctid in ", stmt->load_statement);
-						sval = strchr(sval, '\0'); 
+						sval = strchr(sval, '\0');
 						for (j = 0; j < keys_per_fetch; j++)
 						{
 							if (j == 0)
 								strcpy(sval, "($1");
-							else 
+							else
 								sprintf(sval, ",$%d", j + 1);
 							sval = strchr(sval, '\0');
 						}
@@ -3400,7 +3402,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef, const cha
 						appendData = TRUE;
 					else
 					{
-inolog("total %d <> backend %d - base %d + start %d cursor_type=%d\n", 
+inolog("total %d <> backend %d - base %d + start %d cursor_type=%d\n",
 num_total_rows, num_cached_rows,
 QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_type);
 					}
@@ -3413,13 +3415,13 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 			}
 			if (appendKey)
 			{
-			    	if (res->num_cached_keys >= res->count_keyset_allocated)
+				if (res->num_cached_keys >= res->count_keyset_allocated)
 				{
 					if (!res->count_keyset_allocated)
 						tuple_size = TUPLE_MALLOC_INC;
 					else
 						tuple_size = res->count_keyset_allocated * 2;
-					QR_REALLOC_return_with_error(res->keyset, KeySet, sizeof(KeySet) * tuple_size, res, "pos_newload failed", SQL_ERROR);	
+					QR_REALLOC_return_with_error(res->keyset, KeySet, sizeof(KeySet) * tuple_size, res, "pos_newload failed", SQL_ERROR);
 					res->count_keyset_allocated = tuple_size;
 				}
 				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
@@ -3427,7 +3429,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 			}
 			if (appendData)
 			{
-inolog("total %d == backend %d - base %d + start %d cursor_type=%d\n", 
+inolog("total %d == backend %d - base %d + start %d cursor_type=%d\n",
 num_total_rows, num_cached_rows,
 QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_type);
 				if (num_cached_rows >= res->count_backend_allocated)
@@ -3655,8 +3657,8 @@ SC_pos_update(StatementClass *stmt,
 			used = LENADDR_SHIFT(used, offset);
 			if (bind_size > 0)
 				used = LENADDR_SHIFT(used, bind_size * s.irow);
-			else	
-				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN)); 
+			else
+				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN));
 			mylog("%d used=%d,%p\n", i, *used, used);
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
@@ -3738,7 +3740,7 @@ SC_pos_update(StatementClass *stmt,
 			}
 		}
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
-		s.updyes = TRUE; 
+		s.updyes = TRUE;
 		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) updstr, SQL_NTS, 0);
 		if (ret == SQL_NEED_DATA)
 		{
@@ -3748,7 +3750,7 @@ SC_pos_update(StatementClass *stmt,
 				ret = SQL_ERROR;
 			return ret;
 		}
-		/* else if (ret != SQL_SUCCESS) this is unneccesary 
+		/* else if (ret != SQL_SUCCESS) this is unneccesary
 			SC_error_copy(s.stmt, s.qstmt, TRUE); */
 	}
 	else
@@ -3948,15 +3950,15 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt, SQLLEN add
 				snprintf(buf, sizeof(buf), FORMAT_LEN, SC_make_bookmark(addpos));
 				SC_set_current_col(stmt, -1);
 				copy_and_convert_field(stmt,
-					PG_TYPE_INT4,
-					PG_UNSPECIFIED,
-					buf,
-                         		bookmark->returntype,
-					0,
-					bookmark->buffer + offset,
-					bookmark->buflen,
-					LENADDR_SHIFT(bookmark->used, offset),
-					LENADDR_SHIFT(bookmark->used, offset));
+									   PG_TYPE_INT4,
+									   PG_UNSPECIFIED,
+									   buf,
+									   bookmark->returntype,
+									   0,
+									   bookmark->buffer + offset,
+									   bookmark->buflen,
+									   LENADDR_SHIFT(bookmark->used, offset),
+									   LENADDR_SHIFT(bookmark->used, offset));
 			}
 		}
 		else
@@ -3987,14 +3989,14 @@ pos_add_callback(RETCODE retcode, void *para)
 	if (s->updyes)
 	{
 		SQLSETPOSIROW	brow_save;
-		
+
 		mylog("pos_add_callback in ret=%d\n", ret);
-		brow_save = s->stmt->bind_row; 
+		brow_save = s->stmt->bind_row;
 		s->stmt->bind_row = s->irow;
 		if (QR_get_cursor(s->res))
 			addpos = -(SQLLEN)(s->res->ad_count + 1);
 		else
-			addpos = QR_get_num_total_tuples(s->res); 
+			addpos = QR_get_num_total_tuples(s->res);
 		ret = irow_insert(ret, s->stmt, s->qstmt, addpos);
 		s->stmt->bind_row = brow_save;
 	}
@@ -4142,7 +4144,7 @@ SC_pos_add(StatementClass *stmt,
 	}
 	s.updyes = FALSE;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	ENTER_INNER_CONN_CS(conn, func_cs_count); 
+	ENTER_INNER_CONN_CS(conn, func_cs_count);
 	if (add_cols > 0)
 	{
 		snprintf_add(addstr, sizeof(addstr), ") values (");
@@ -4204,7 +4206,7 @@ SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 
 	if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 		tuple_reload = TRUE;
-	else 
+	else
 	{
 		QResultClass	*res = SC_get_Curres(stmt);
 		if (res && res->keyset)
@@ -4259,7 +4261,7 @@ typedef struct
 	UWORD	fOption;
 	SQLSETPOSIROW	irow, nrow, processed;
 }	spos_cdata;
-static 
+static
 RETCODE spos_callback(RETCODE retcode, void *para)
 {
 	CSTR	func = "spos_callback";
@@ -4318,7 +4320,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 		{
 			s->nrow++;
 			continue;
-		}	
+		}
 		s->ridx = s->nrow;
 		pos_ridx = s->idx;
 #if (ODBCVER >= 0x0300)
@@ -4383,7 +4385,7 @@ inolog("\n");
 
 	return ret;
 }
- 
+
 /*
  *	This positions the cursor within a rowset, that was positioned using SQLExtendedFetch.
  *	This will be useful (so far) only when using SQLGetData after SQLExtendedFetch.

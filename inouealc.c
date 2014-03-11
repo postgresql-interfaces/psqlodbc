@@ -34,7 +34,7 @@ inolog(" alloced=%p(%d)\n", alloced, size);
 		{
 			alsize = 100;
 			altbl = (ALADR *) malloc(alsize * sizeof(ALADR));
-		} 
+		}
 		else if (tbsize >= alsize)
 		{
 			ALADR *al;
@@ -45,7 +45,7 @@ inolog(" alloced=%p(%d)\n", alloced, size);
 		}
 		altbl[tbsize].aladr = alloced;
 		altbl[tbsize].len = size;
-		tbsize++; 
+		tbsize++;
 	}
 	else
 		mylog("%s:alloc %dbyte\n", ALCERR, size);
@@ -61,7 +61,7 @@ void * pgdebug_calloc(size_t n, size_t size)
 		{
 			alsize = 100;
 			altbl = (ALADR *) malloc(alsize * sizeof(ALADR));
-		} 
+		}
 		else if (tbsize >= alsize)
 		{
 			ALADR *al;
@@ -72,7 +72,7 @@ void * pgdebug_calloc(size_t n, size_t size)
 		}
 		altbl[tbsize].aladr = alloced;
 		altbl[tbsize].len = n * size;
-		tbsize++; 
+		tbsize++;
 	}
 	else
 		mylog("%s:calloc %dbyte\n", ALCERR, size);
@@ -102,10 +102,10 @@ void * pgdebug_realloc(void * ptr, size_t size)
 				altbl[i].aladr = alloced;
 				altbl[i].len = size;
 				break;
-			}	
+			}
 		}
 	}
-		
+
 	inolog("%s %p->%p\n", __FUNCTION__, ptr, alloced);
 	return alloced;
 }
@@ -122,7 +122,7 @@ char * pgdebug_strdup(const char * ptr)
 		{
 			alsize = 100;
 			altbl = (ALADR *) malloc(alsize * sizeof(ALADR));
-		} 
+		}
 		else if (tbsize >= alsize)
 		{
 			ALADR *al;
@@ -133,7 +133,7 @@ char * pgdebug_strdup(const char * ptr)
 		}
 		altbl[tbsize].aladr = alloced;
 		altbl[tbsize].len = strlen(ptr) + 1;
-		tbsize++; 
+		tbsize++;
 	}
 	inolog("%s %p->%p(%s)\n", __FUNCTION__, ptr, alloced, alloced);
 	return alloced;
@@ -159,8 +159,8 @@ void pgdebug_free(void * ptr)
 				altbl[j].len = altbl[j + 1].len;
 			}
 			tbsize--;
-			freed =  1;
-			break;	
+			freed = 1;
+			break;
 		}
 	}
 	if (! freed)

@@ -63,7 +63,7 @@ if test "$with_iodbc" != no; then
 fi
 
 if test "$with_unixodbc" != no; then
-  	AC_DEFINE(WITH_UNIXODBC, 1,
+	AC_DEFINE(WITH_UNIXODBC, 1,
             [Define to 1 to build with unixODBC support])
 	if test "$with_unixodbc" = yes; then
 		AC_PATH_PROGS(ODBC_CONFIG, odbc_config)
@@ -108,7 +108,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 	SQLRETURN  SQL_API SQLColAttribute
 	(SQLHSTMT StatementHandle,SQLUSMALLINT ColumnNumber,
 	SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttribute,
-	SQLSMALLINT BufferLength, SQLSMALLINT *StringLength, 
+	SQLSMALLINT BufferLength, SQLSMALLINT *StringLength,
 	SQLLEN *NumercAttribute);]],[[]])],
 	AC_DEFINE(SQLCOLATTRIBUTE_SQLLEN, 1,
 	[Define to 1 if SQLColAttribute use SQLLEN]))
@@ -122,15 +122,15 @@ AC_ARG_WITH(libpq, [  --with-libpq[[=DIR]]	  [[default=yes]] DIR is the PostgreS
   --without-libpq	  specify when PostgreSQL package isn't installed],
 [
 	if test "$with_libpq" = no; then
-  		AC_DEFINE(NOT_USE_LIBPQ, 1, 
+		AC_DEFINE(NOT_USE_LIBPQ, 1,
 			 [Define to 1 to build without libpq])
 		enable_openssl=no
 	else
 		if test "$with_libpq" != yes; then
 			if test -d "$with_libpq"; then
-    				PATH="$PATH:$with_libpq/bin"
+				PATH="$PATH:$with_libpq/bin"
 				CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
-    				LDFLAGS="$LDFLAGS -L$with_libpq/lib"
+				LDFLAGS="$LDFLAGS -L$with_libpq/lib"
 			else
 				if test -x "$with_libpq"; then
 					PG_CONFIG=$with_libpq
@@ -152,7 +152,7 @@ PGAC_ARG_REQ(with, odbcver,
              [  --with-odbcver=VERSION  change default ODBC version number [[0x0351]]],
              [],
              [with_odbcver=0x0351])
-AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver], 
+AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver],
                    [Define to ODBC version (--with-odbcver)])
 
 
@@ -218,7 +218,7 @@ PGAC_ARG_BOOL(enable, pthreads, yes,
 
 if test "$with_libpq" != no; then
   if test -z "$PG_CONFIG"; then
-  	AC_PATH_PROGS(PG_CONFIG, pg_config)
+    AC_PATH_PROGS(PG_CONFIG, pg_config)
   fi
 
   if test -n "$PG_CONFIG"; then
@@ -348,7 +348,7 @@ if test "$enable_krb5" = yes; then
   AC_MSG_CHECKING(for krb5_free_unparsed_name)
   AC_TRY_LINK([#include <krb5.h>],
               [krb5_free_unparsed_name(NULL,NULL);],
-              [AC_DEFINE(HAVE_KRB5_FREE_UNPARSED_NAME, 1, [Define to 1 if you have krb5_free_unparsed_name]) 
+              [AC_DEFINE(HAVE_KRB5_FREE_UNPARSED_NAME, 1, [Define to 1 if you have krb5_free_unparsed_name])
 AC_MSG_RESULT(yes)],
               [AC_MSG_RESULT(no)])
 fi

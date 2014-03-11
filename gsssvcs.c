@@ -121,10 +121,10 @@ mylog("!!! %s -2\n", __FUNCTION__);
 			if (0 != SOCK_get_errcode(conn->sock))
 			{
 				CC_set_error(conn, CONN_INVALID_AUTHENTICATION,
-					"communication error during autehntication", __FUNCTION__); 
+					"communication error during autehntication", __FUNCTION__);
 				free(ginbuf.value);
 				return STATUS_ERROR;
-			} 
+			}
 		}
 	}
 
@@ -173,7 +173,7 @@ mylog("!!! %s 2\n", __FUNCTION__);
 		{
 mylog("!!! %s 3\n", __FUNCTION__);
 			CC_set_error(conn, CONN_INVALID_AUTHENTICATION,
-				"communication error during autehntication", __FUNCTION__); 
+				"communication error during autehntication", __FUNCTION__);
 		}
 	}
 
@@ -240,7 +240,7 @@ mylog("!!! %s in\n", __FUNCTION__);
 
 mylog("!!! %s 0\n", __FUNCTION__);
 		snprintf(mesg, sizeof(mesg), "duplicate GSS authentication request");
-		CC_set_error(conn, CONN_INVALID_AUTHENTICATION, 
+		CC_set_error(conn, CONN_INVALID_AUTHENTICATION,
 				mesg, __FUNCTION__);
 		free(opt);
 		return STATUS_ERROR;

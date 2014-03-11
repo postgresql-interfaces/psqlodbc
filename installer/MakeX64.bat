@@ -43,7 +43,7 @@ if "%USE_SSPI%" == "" (
 	SET USE_SSPI=yes
 )
 
-::	
+::
 ::	Please specify the foler name where you placed libpq related dlls.
 ::	Currently not used.
 ::
@@ -63,7 +63,7 @@ if "%USE_LIBPQ%" == "yes" (
 	echo LIBPQBINDIR=%LIBPQBINDIR%
 )
 
-rem	
+rem
 rem	Please specify the foler name where you placed GSSAPI related dlls.
 rem
 if "%USE_GSS%" == "yes" (

@@ -25,7 +25,7 @@ if ($USE_LIBPQ -eq "yes")
 			$pgmfs = "$env:ProgramW6432"
 			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 		}
-	} 
+	}
 }
 if ($USE_GSS -eq "yes")
 {
@@ -87,7 +87,7 @@ try {
 
 	Write-Host ".`nModifying psqlODBC installer database..."
 	invoke-expression "cscript modify_msi.vbs $CPUTYPE\psqlodbc_$CPUTYPE.msi"
-	
+
 	Write-Host ".`nDone!"
 }
 catch {

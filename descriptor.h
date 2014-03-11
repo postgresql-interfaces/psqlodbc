@@ -116,7 +116,7 @@ struct ARDFields_
  */
 struct APDFields_
 {
-	SQLLEN		paramset_size;	/* really an SQLINTEGER type */ 
+	SQLLEN		paramset_size;	/* really an SQLINTEGER type */
 	SQLUINTEGER	param_bind_type; /* size of each structure if using
 					  * Row-wise Parameter Binding */
 	SQLUSMALLINT	*param_operation_ptr;
@@ -231,7 +231,7 @@ enum {
 	,DESC_OPERATION_CANCELLED
 	,DESC_INVALID_CURSOR_POSITION
 	,DESC_VALUE_OUT_OF_RANGE
-	,DESC_OPERATION_INVALID	
+	,DESC_OPERATION_INVALID
 	,DESC_PROGRAM_TYPE_OUT_OF_RANGE
 	,DESC_BAD_ERROR
 	,DESC_INVALID_OPTION_IDENTIFIER

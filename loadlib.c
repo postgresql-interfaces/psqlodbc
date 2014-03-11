@@ -3,7 +3,7 @@
  *
  * Description:		This module contains routines related to
  *			delay load import libraries.
- *			
+ *
  * Comments:		See "readme.txt" for copyright and license information.
  *-------
  */
@@ -125,7 +125,7 @@ static HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
 /*
  *	Error hook function for delay load import.
  *	Try to load psqlodbc path based libpq.
- *	Load alternative ssl library SSLEAY32 or LIBSSL32. 
+ *	Load alternative ssl library SSLEAY32 or LIBSSL32.
  */
 #if (_MSC_VER < 1300)
 extern PfnDliHook __pfnDliFailureHook;
@@ -166,7 +166,7 @@ DliErrorHook(unsigned	dliNotify,
 						connect_withparam_available = FALSE;
 					else
 						connect_withparam_available = TRUE;
-inolog("connect_withparam_available=%d\n", connect_withparam_available); 
+inolog("connect_withparam_available=%d\n", connect_withparam_available);
 				}
 				if (sslverify_available < 0)
 				{
@@ -186,7 +186,7 @@ inolog("connect_withparam_available=%d\n", connect_withparam_available);
 			else if (_strnicmp(pdli->szDll, gssapilib, strlen(gssapilib)) == 0)
 			{
 #ifndef	NOT_USE_LIBPQ
-                		if (hmodule = GetModuleHandle(gssapilib), NULL == hmodule)
+				if (hmodule = GetModuleHandle(gssapilib), NULL == hmodule)
 #endif
 				{
 					if (hmodule = MODULE_load_from_psqlodbc_path(gssapilib), NULL == hmodule)
@@ -202,13 +202,13 @@ inolog("connect_withparam_available=%d\n", connect_withparam_available);
 			else if (0 == _stricmp(pdli->szDll, libarray[0]) ||
 				 0 == _stricmp(pdli->szDll, libarray[1]))
 			{
-        			mylog("getting alternative ssl library instead of %s\n", pdli->szDll);
-        			for (i = 0; i < sizeof(libarray) / sizeof(const char * const); i++)
-        			{
-                			if (hmodule = GetModuleHandle(libarray[i]), NULL != hmodule)
+				mylog("getting alternative ssl library instead of %s\n", pdli->szDll);
+				for (i = 0; i < sizeof(libarray) / sizeof(const char * const); i++)
+				{
+					if (hmodule = GetModuleHandle(libarray[i]), NULL != hmodule)
 						break;
 				}
-        		}
+			}
 			break;
 	}
 	return (FARPROC) hmodule;
@@ -334,7 +334,7 @@ BOOL	connect_with_param_available(void)
 		}
 		if (connect_withparam_available < 0)
 {
-inolog("connect_withparam_available is set to false\n"); 
+inolog("connect_withparam_available is set to false\n");
 			connect_withparam_available = 0;
 }
 #else
@@ -448,7 +448,7 @@ RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 {
 	RETCODE	ret;
 	BOOL	loaded = TRUE;
-	
+
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 	__try {
 #if (_MSC_VER < 1300)

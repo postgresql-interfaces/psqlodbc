@@ -149,7 +149,7 @@ SQLColumns(HSTMT StatementHandle,
 		ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 				clName, NameLength4, flag, 0, 0);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
@@ -166,7 +166,7 @@ SQLColumns(HSTMT StatementHandle,
 		{
 			scName = newSc;
 			reexec = TRUE;
-		}	
+		}
 		if (newTb = make_lstring_ifneeded(conn, TableName, NameLength3, ifallupper), NULL != newTb)
 		{
 			tbName = newTb;
@@ -428,7 +428,7 @@ SQLFetch(HSTMT StatementHandle)
 	return ret;
 }
 
-#if (ODBCVER < 0x0300) 
+#if (ODBCVER < 0x0300)
 RETCODE		SQL_API
 SQLFreeConnect(HDBC ConnectionHandle)
 {
@@ -448,7 +448,7 @@ SQLFreeEnv(HENV EnvironmentHandle)
 	ret = PGAPI_FreeEnv(EnvironmentHandle);
 	return ret;
 }
-#endif /* ODBCVER */ 
+#endif /* ODBCVER */
 
 RETCODE		SQL_API
 SQLFreeStmt(HSTMT StatementHandle,
@@ -832,7 +832,7 @@ SQLSpecialColumns(HSTMT StatementHandle,
 		ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
 			NameLength1, scName, NameLength2, tbName, NameLength3,
 							Scope, Nullable);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
@@ -895,7 +895,7 @@ SQLStatistics(HSTMT StatementHandle,
 		ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
 				 scName, NameLength2, tbName, NameLength3,
 				 Unique, Reserved);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
@@ -929,7 +929,7 @@ SQLStatistics(HSTMT StatementHandle,
 				free(newSc);
 			if (newTb)
 				free(newTb);
-		}	
+		}
 	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
@@ -963,7 +963,7 @@ SQLTables(HSTMT StatementHandle,
 		ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 					TableType, NameLength4, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
@@ -1082,7 +1082,7 @@ SQLColumnPrivileges(
 		ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, tbName, cbTableName,
 						clName, cbColumnName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
@@ -1223,7 +1223,7 @@ SQLForeignKeys(
 			pkscName, cbPkSchemaName, pktbName, cbPkTableName,
 			fkctName, cbFkCatalogName, fkscName, cbFkSchemaName,
 			fktbName, cbFkTableName);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newPkct = NULL, *newPksc = NULL, *newPktb = NULL,
@@ -1389,7 +1389,7 @@ SQLPrimaryKeys(
 	else
 		ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName, 0);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL;
@@ -1462,7 +1462,7 @@ SQLProcedureColumns(
 		ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, prName, cbProcName,
 					clName, cbColumnName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newPr = NULL, *newCl = NULL;
@@ -1541,7 +1541,7 @@ SQLProcedures(
 		ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
 					 scName, cbSchemaName, prName,
 					 cbProcName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newPr = NULL;
@@ -1631,7 +1631,7 @@ SQLTablePrivileges(
 	else
 		ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt)) 
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL;

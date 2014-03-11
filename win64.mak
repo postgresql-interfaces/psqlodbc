@@ -2,7 +2,7 @@
 # File:			win64.mak
 #
 # Description:		psqlodbc35w Unicode 64bit version Makefile.
-#			(can be built using platform SDK's buildfarm) 
+#			(can be built using platform SDK's buildfarm)
 #
 # Configurations:	Debug, Release
 # Build Types:		ALL, CLEAN
@@ -27,37 +27,37 @@
 CFG=Release
 !MESSAGE No configuration specified. Defaulting to Release.
 !MESSAGE
-!ENDIF 
+!ENDIF
 
 !IF "$(CFG)" != "Release" && "$(CFG)" != "Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f win64.mak CFG=[Release | Debug] [ALL | CLEAN]
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "Release" ($(CPU) Release DLL)
 !MESSAGE "Debug" ($(CPU) Debug DLL)
-!MESSAGE 
+!MESSAGE
 !ERROR An invalid configuration was specified.
-!ENDIF 
+!ENDIF
 
 #
-#	Please replace the default options from the commandline if necessary 
+#	Please replace the default options from the commandline if necessary
 #
 !IFNDEF	CUSTOMCLOPT
 CUSTOMCLOPT=/nologo /MD /W3 /wd4018 /EHsc
 !ELSE
 !MESSAGE CL option $(CUSTOMCLOPT) specified
-!ENDIF 
+!ENDIF
 
 #
 #	Please specify additional libraries to link from the command line.
 #	For example specify
 #		CUSTOMLINKLIBS=bufferoverflowu.lib
-#	  when bufferoverflowu.lib is needed in old VC environment. 	
+#	  when bufferoverflowu.lib is needed in old VC environment.
 #
 CUSTOMLINKLIBS=
 
@@ -66,7 +66,7 @@ ADD_DEFINES=/D _WIN64
 #	Include libraries as well as import libraries
 #	may be different from those of 32bit ones.
 #	Please set PG_INC, PG_LIB, SSL_INC or PG_LIB
-#	variables to appropriate ones. 
+#	variables to appropriate ones.
 #
 !IFNDEF PG_INC
 PG_INC=$(PROGRAMFILES)\PostgreSQL\9.3\include
@@ -109,7 +109,7 @@ DTCLIB = pgenlista
 DTCLIB = pgenlist
 !ENDIF
 DTCDLL = $(DTCLIB).dll
- 
+
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
 VC07_DELAY_LOAD=
 MSDTC=no
@@ -168,7 +168,7 @@ INC_OPT = $(INC_OPT) /I "$(ADD_INC)"
 
 !IF "$(OS)" == "Windows_NT"
 NULL=
-!ELSE 
+!ELSE
 NULL=nul
 !ENDIF
 
@@ -177,9 +177,9 @@ MAINLIB = psqlodbc30a
 !ELSE
 MAINLIB = psqlodbc35w
 !ENDIF
-MAINDLL = $(MAINLIB).dll 
-XALIB = pgxalib 
-XADLL = $(XALIB).dll 
+MAINDLL = $(MAINLIB).dll
+XALIB = pgxalib
+XADLL = $(XALIB).dll
 
 !IF  "$(CFG)" == "Release"
 !IF  "$(ANSI_VERSION)" == "yes"
@@ -241,7 +241,7 @@ CLEAN :
 !ENDIF
 
 CPP=cl.exe
-CPP_PROJ=$(CUSTOMCLOPT) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD 
+CPP_PROJ=$(CUSTOMCLOPT) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD
 !IF  "$(CFG)" == "Release"
 CPP_PROJ=$(CPP_PROJ) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
@@ -250,49 +250,49 @@ CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /GZ
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
-MTL_PROJ=/nologo /mktyplib203 /win32 
-RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "MULTIBUTE" 
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc" 
+MTL_PROJ=/nologo /mktyplib203 /win32
+RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "MULTIBUTE"
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 !IF  "$(CFG)" == "Release"
 MTL_PROJ=$(MTL_PROJ) /D "NDEBUG"
-RSC_PROJ=$(RSC_PROJ) /d "NDEBUG" 
+RSC_PROJ=$(RSC_PROJ) /d "NDEBUG"
 !ELSE
-MTL_PROJ=$(MTL_PROJ) /D "_DEBUG" 
-RSC_PROJ=$(RSC_PROJ) /d "_DEBUG" 
+MTL_PROJ=$(MTL_PROJ) /D "_DEBUG"
+RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 !ENDIF
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
 LIB32=lib.exe
 LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /machine:$(CPU) /def:"$(DEF_FILE)"
@@ -378,7 +378,7 @@ LINK32_DTCOBJS= \
 XADEF_FILE= "$(XALIB).def"
 LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /incremental:no /machine:$(CPU) /def:"$(XADEF_FILE)"
 LINK32_XAOBJS= \
-	"$(INTDIR)\pgxalib.obj" 
+	"$(INTDIR)\pgxalib.obj"
 
 "$(OUTDIR)\$(MAINDLL)" : $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<

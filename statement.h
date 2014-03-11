@@ -44,7 +44,7 @@ typedef enum
  *		the least code number.
  *		The code for STMT_OK is 0 and error
  *		codes follow after it.
- */ 	
+ */
 enum {
 	LOWEST_STMT_ERROR		=		(-6)
 	/* minus values mean warning returns */
@@ -71,7 +71,7 @@ enum {
 	,STMT_STILL_EXECUTING
 	,STMT_NOT_IMPLEMENTED_ERROR
 	,STMT_BAD_PARAMETER_NUMBER_ERROR
-	,STMT_OPTION_OUT_OF_RANGE_ERROR	
+	,STMT_OPTION_OUT_OF_RANGE_ERROR
 	,STMT_INVALID_COLUMN_NUMBER_ERROR
 	,STMT_RESTRICTED_DATA_TYPE_ERROR
 	,STMT_INVALID_CURSOR_STATE_ERROR
@@ -266,7 +266,7 @@ struct StatementClass_
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
 	char		*execute_statement; /* to execute the prepared plans */
-	Int4		from_pos;	
+	Int4		from_pos;
 	Int4		where_pos;
 	SQLLEN		last_fetch_count_include_ommitted;
 	time_t		stmt_time;
@@ -380,9 +380,9 @@ enum {
 enum
 {
 	NOT_YET_PREPARED = 0
-	,PREPARING_PERMANENTLY 
+	,PREPARING_PERMANENTLY
 	,PREPARING_TEMPORARILY
-	,PREPARED_PERMANENTLY 
+	,PREPARED_PERMANENTLY
 	,PREPARED_TEMPORARILY
 	,ONCE_DESCRIBED
 };

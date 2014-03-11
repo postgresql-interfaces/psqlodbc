@@ -102,7 +102,7 @@ mylog("SendMessage CTL_COLOR\n");
 			break;
 		dsplevel++;
 	}
-	
+
 	dspcount = dspcount_bylevel[dsplevel];
 	for (i = 0; i < dspcount; i++)
 	{
@@ -307,9 +307,9 @@ driver_optionsProc(HWND hdlg,
 		case WM_INITDIALOG:
 			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* save for OK etc */
 			ci = (ConnInfo *) lParam;
-			LoadString(s_hModule, IDS_ADVANCE_OPTION_DEF, strbuf, sizeof(strbuf)); 
+			LoadString(s_hModule, IDS_ADVANCE_OPTION_DEF, strbuf, sizeof(strbuf));
 			SetWindowText(hdlg, strbuf);
-			LoadString(s_hModule, IDS_ADVANCE_SAVE, strbuf, sizeof(strbuf)); 
+			LoadString(s_hModule, IDS_ADVANCE_SAVE, strbuf, sizeof(strbuf));
 			SetWindowText(GetDlgItem(hdlg, IDOK), strbuf);
 			ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);
 			driver_optionsDraw(hdlg, ci, 0, TRUE);
@@ -451,7 +451,7 @@ ds_options1Proc(HWND hdlg,
 			}
 			else
 			{
-				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON1, strbuf, sizeof(strbuf)); 
+				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON1, strbuf, sizeof(strbuf));
 				SetWindowText(hdlg, strbuf);
 				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);
 			}
@@ -483,9 +483,8 @@ ds_options1Proc(HWND hdlg,
 
 					EndDialog(hdlg, FALSE);
 					DialogBoxParam(s_hModule,
-						MAKEINTRESOURCE(DLG_OPTIONS_DS),
-                                                 	hdlg, ds_options2Proc, (LPARAM)
-ci);
+								   MAKEINTRESOURCE(DLG_OPTIONS_DS),
+								   hdlg, ds_options2Proc, (LPARAM) ci);
 					break;
 			}
 	}
@@ -527,7 +526,7 @@ ds_options2Proc(HWND hdlg,
 			}
 			else
 			{
-				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON2, buf, sizeof(buf)); 
+				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON2, buf, sizeof(buf));
 				SetWindowText(hdlg, buf);
 				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);				}
 
@@ -695,11 +694,11 @@ ds_options2Proc(HWND hdlg,
 					}
 
 					EndDialog(hdlg, cmd == IDOK);
-					if (IDOK == cmd) 
+					if (IDOK == cmd)
 						return TRUE;
 					DialogBoxParam(s_hModule,
-						MAKEINTRESOURCE(DLG_OPTIONS_DRV),
-                                         	hdlg, ds_options1Proc, (LPARAM) ci);
+								   MAKEINTRESOURCE(DLG_OPTIONS_DRV),
+								   hdlg, ds_options1Proc, (LPARAM) ci);
 					break;
 
 				case IDCANCEL:
@@ -734,8 +733,8 @@ makeDriversList(HWND lwnd, const ConnInfo *ci)
 	do
 	{
 		ret = SQLDrivers(henv, direction,
-			drvname, sizeof(drvname), &drvncount, 
-			drvatt, sizeof(drvatt), &drvacount); 
+			drvname, sizeof(drvname), &drvncount,
+			drvatt, sizeof(drvatt), &drvacount);
 		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
 			break;
 		if (strnicmp(drvname, "postgresql", 10) == 0)

@@ -284,7 +284,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 			case SQL_C_INTERVAL_MINUTE_TO_SECOND:
 			case SQL_C_INTERVAL_SECOND:
 				opts->bindings[icol].precision = 6;
-				break;	
+				break;
 		}
 #endif /* ODBCVER */
 		opts->bindings[icol].scale = 0;
@@ -956,7 +956,7 @@ extend_getdata_info(GetDataInfo *self, int num_columns, BOOL shrink)
 			free(self->gdata);
 			self->gdata = NULL;
 		}
-	} 
+	}
 
 	/*
 	 * There is no reason to zero out extra gdata if there are more
@@ -1003,7 +1003,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 		if (self->allocated <= 0 && self->pdata)
 		{
 			mylog("??? pdata is not null while allocated == 0\n");
-			self->pdata = NULL; 
+			self->pdata = NULL;
 		}
 		new_pdata = (PutDataClass *) realloc(self->pdata, sizeof(PutDataClass) * num_params);
 		if (!new_pdata)

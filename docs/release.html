@@ -63,7 +63,7 @@ Compiler warned about this. If ENLARGE_NEWSTATEMENT macro ran out of memory, it 
 The cleanup would check if allocbuf isNULL, and try to free() it if not. <br />
 allocbuf needs to be initialized to NULL before the first ENLARGE_NEWSTATEMENT macro invocation.<br />
 <li><b> SQL_C_SLONG stands for SQLINTEGER not long.</b><br /></li>
-<li><b> Change SQL_ATTR_PARAMS_PROCESSED_PTR attribute which is set by SQLSetStmtAttr() from (SQLUINTEGER *) to (SQLULEN *).</b><br /></li> 
+<li><b> Change SQL_ATTR_PARAMS_PROCESSED_PTR attribute which is set by SQLSetStmtAttr() from (SQLUINTEGER *) to (SQLULEN *).</b><br /></li>
 This fixes the bug reported by Christopf Berg. <br />
 Also verify similar attributes which were changed from SQL(U)INTEGER (*) to SQL(U)LEN (*) when 64bit ODBC was introduced.<br />
 <li><b> Reduce the memory usage of ConnectinClass objects by changing their large fixed length text fields to variable ones.</b><br /></li>

@@ -80,7 +80,7 @@
 #define PG_TYPE_UUID			2950
 #define INTERNAL_ASIS_TYPE		(-9999)
 
-#define TYPE_MAY_BE_ARRAY(type) ((type) == PG_TYPE_XMLARRAY || ((type) >= 1000 && (type) <= 1041)) 
+#define TYPE_MAY_BE_ARRAY(type) ((type) == PG_TYPE_XMLARRAY || ((type) >= 1000 && (type) <= 1041))
 /* extern Int4 pgtypes_defined[]; */
 extern SQLSMALLINT sqlTypes[];
 
@@ -90,7 +90,7 @@ extern SQLSMALLINT sqlTypes[];
 #define PG_WIDTH_OF_BOOLS_AS_CHAR		5
 
 #if (ODBCVER >= 0x0300)
-/* 
+/*
  *	SQL_INTERVAL support is disabled because I found
  *	some applications which are unhappy with it.
  *
@@ -121,7 +121,7 @@ Int4		pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, i
 /*	These functions can use static numbers or result sets(col parameter) */
 Int4		pgtype_column_size(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as); /* corresponds to "precision" in ODBC 2.x */
 SQLSMALLINT	pgtype_precision(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as); /* "precsion in ODBC 3.x */
-/* the following size/length are of Int4 due to PG restriction */ 
+/* the following size/length are of Int4 due to PG restriction */
 Int4		pgtype_display_size(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 Int4		pgtype_buffer_length(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 Int4		pgtype_desclength(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);

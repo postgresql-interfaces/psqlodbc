@@ -259,7 +259,7 @@ char
 SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long timeout)
 {
 	struct addrinfo	rest, *addrs = NULL, *curadr = NULL;
-	int	family = 0; 
+	int	family = 0;
 	char	retval = 0;
 	int	gerrno;
 
@@ -275,15 +275,15 @@ SOCK_connect_to(SocketClass *self, unsigned short port, char *hostname, long tim
 		ws2_hnd = GetModuleHandle("ws2_32.dll");
 		if (inet_pton_ptr == NULL)
 			inet_pton_ptr = (inet_pton_func)GetProcAddress(ws2_hnd, "inet_pton");
-	} 
+	}
 #endif /* WIN32 */
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
 	if (freeaddrinfo_ptr == NULL)
-		freeaddrinfo_ptr = (freeaddrinfo_func)GetProcAddress(ws2_hnd, "freeaddrinfo"); 
+		freeaddrinfo_ptr = (freeaddrinfo_func)GetProcAddress(ws2_hnd, "freeaddrinfo");
 	if (getaddrinfo_ptr == NULL)
-		getaddrinfo_ptr = (getaddrinfo_func)GetProcAddress(ws2_hnd, "getaddrinfo"); 
+		getaddrinfo_ptr = (getaddrinfo_func)GetProcAddress(ws2_hnd, "getaddrinfo");
 	if (getnameinfo_ptr == NULL)
-		getnameinfo_ptr = (getnameinfo_func)GetProcAddress(ws2_hnd, "getnameinfo"); 
+		getnameinfo_ptr = (getnameinfo_func)GetProcAddress(ws2_hnd, "getnameinfo");
 #endif
 	/*
 	 * Hostname lookup.
@@ -416,7 +416,7 @@ retry:
 #if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 			case EWOULDBLOCK:
 #endif /* EWOULDBLOCK */
-		    		break;
+				break;
 			default:
 				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not connect to remote socket immedaitely");
 				goto cleanup;
@@ -513,7 +513,7 @@ cleanup:
 	}
 	else
 		SOCK_set_error(self, 0, NULL);
-	
+
 	if (addrs)
 		freeaddrinfo_ptr(addrs);
 	return retval;
@@ -886,7 +886,7 @@ SOCK_flush_output(SocketClass *self)
 		return -1;
 	while (self->buffer_filled_out > 0)
 	{
-#ifdef USE_SSL 
+#ifdef USE_SSL
 		if (self->ssl)
 			written = SOCK_SSL_send(self, (char *) self->buffer_out + pos, self->buffer_filled_out);
 		else
@@ -921,7 +921,7 @@ SOCK_flush_output(SocketClass *self)
 		ttlsnd += written;
 		retry_count = 0;
 	}
-	
+
 	return ttlsnd;
 }
 
@@ -941,7 +941,7 @@ SOCK_get_next_byte(SocketClass *self, BOOL peek)
 		 */
 		self->buffer_read_in = 0;
 retry:
-#ifdef USE_SSL 
+#ifdef USE_SSL
 		if (self->ssl)
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else
@@ -1024,7 +1024,7 @@ SOCK_get_next_n_bytes(SocketClass *self, int n, char *buf)
 		 */
 		self->buffer_read_in = 0;
 retry:
-#ifdef USE_SSL 
+#ifdef USE_SSL
 		if (self->ssl)
 			self->buffer_filled_in = SOCK_SSL_recv(self, (char *) self->buffer_in, self->buffer_size);
 		else

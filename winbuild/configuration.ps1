@@ -7,9 +7,9 @@ function InitConfiguration($savePath = $configurationXmlPath)
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86")
 	{
 		$x64info = $configInfo.Configuration.x64
-		$x64info.libpq.include = ""	
-		$x64info.libpq.lib = ""	
-		$x64info.libpq.bin = ""	
+		$x64info.libpq.include = ""
+		$x64info.libpq.lib = ""
+		$x64info.libpq.bin = ""
 	}
 	$configInfo.save("$savePath")
 
@@ -23,8 +23,8 @@ function global:GetConfiguration($loadPath = $configurationXmlPath)
 	if ($configInfo.Configuration.formatVersion -ne $xmlFormatVersion)
 	{
         	$xmlDoc2 = [xml](Get-Content "$configurationTemplatePath")
-        	$root2 = $XmlDoc2.get_DocumentElement() 
-        	$root1 = $configInfo.get_DocumentElement() 
+        	$root2 = $XmlDoc2.get_DocumentElement()
+        	$root1 = $configInfo.get_DocumentElement()
         	unifyNodes $root1 $root2
 
 		$root1.formatVersion = $xmlFormatVersion

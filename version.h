@@ -10,8 +10,8 @@
 #define __VERSION_H__
 
 /*
- *	BuildAll may pass POSTGRESDRIVERVERSION, POSTGRES_RESOURCE_VERSION 
- *	and PG_DRVFILE_VERSION via winbuild/psqlodbc.vcxproj.	
+ *	BuildAll may pass POSTGRESDRIVERVERSION, POSTGRES_RESOURCE_VERSION
+ *	and PG_DRVFILE_VERSION via winbuild/psqlodbc.vcxproj.
  */
 #ifndef POSTGRESDRIVERVERSION
 #define POSTGRESDRIVERVERSION		"09.03.0210"

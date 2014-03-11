@@ -12,7 +12,7 @@ if ([Threading.Thread]::CurrentThread.GetApartmentState() -eq "MTA"){
 #>
 
 Add-Type -AssemblyName presentationframework
- 
+
 [xml]$XAML = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -94,7 +94,7 @@ Add-Type -AssemblyName presentationframework
                     </StackPanel>
                  </StackPanel>
             </StackPanel>
-	    <!-- x86.setvcvars -->	
+	    <!-- x86.setvcvars -->
             <StackPanel Height="26" Name="stackPanel86vcvars" Orientation="Horizontal" Width="Auto">
                 <Label BorderBrush="Black" Content="setvcvars" Height="Auto" HorizontalContentAlignment="Center" Name="label86vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
                 <StackPanel Height="Auto" Name="stackPanel86vcvars_1" Orientation="Horizontal" Width="Auto">
@@ -102,7 +102,7 @@ Add-Type -AssemblyName presentationframework
                         <Button Content="..." Height="23" Name="button86vcvars" Width="20" />
                  </StackPanel>
             </StackPanel>
-	    <!-- x64 --> 
+	    <!-- x64 -->
             <StackPanel Orientation="Horizontal">
                 <Label Content="x64" Height="26" HorizontalAlignment="Left" HorizontalContentAlignment="Center" Name="label13" VerticalAlignment="Top" Width="43" />
                 <CheckBox BorderBrush="Black" Content="libpq" Height="Auto" HorizontalContentAlignment="Center" Name="checkBox4" VerticalContentAlignment="Center" Width="51" />
@@ -178,10 +178,10 @@ Add-Type -AssemblyName presentationframework
     </Grid>
 </Window>
 '@
- 
+
 $reader=(New-Object System.Xml.XmlNodeReader $xaml)
 $window=[Windows.Markup.XamlReader]::Load( $reader )
- 
+
 $buttonEnd = $window.FindName("buttonEnd")
 $buttonEnd_clicked = $buttonEnd.add_Click
 $buttonEnd_clicked.Invoke({
@@ -268,15 +268,15 @@ $window.findName("textBox64vcvars").Text = $x64info.setvcvars
 $buttonSave = $window.FindName("buttonSave")
 $buttonSave_clicked = $buttonSave.add_Click
 $buttonSave_clicked.Invoke({
-	$configInfo.Configuration.version = $window.findName("versionBox").Text  
-	$configInfo.Configuration.vcversion = $window.findName("vcversionBox").Text  
-	$configInfo.Configuration.toolset = $window.findName("toolsetBox").Text  
+	$configInfo.Configuration.version = $window.findName("versionBox").Text
+	$configInfo.Configuration.vcversion = $window.findName("vcversionBox").Text
+	$configInfo.Configuration.toolset = $window.findName("toolsetBox").Text
 	$x86info.use_libpq = $(if ($window.findName("checkBox1").isChecked) {"yes"} else {"no"})
-	$x86info.libpq.version = $window.findName("versionBox1").Text  
+	$x86info.libpq.version = $window.findName("versionBox1").Text
 	$x86info.use_gss = $(if ($window.findName("checkBox2").isChecked) {"yes"} else {"no"})
 	$x86info.use_sspi = $(if ($window.findName("checkBox3").isChecked) {"yes"} else {"no"})
-	$x86info.libpq.include = $window.findName("textBox1").Text  
-	$x86info.libpq.lib = $window.findName("textBox2").Text 
+	$x86info.libpq.include = $window.findName("textBox1").Text
+	$x86info.libpq.lib = $window.findName("textBox2").Text
 	$x86info.libpq.bin = $window.findName("textBox3").Text
 	$x86info.gss.include = $window.findName("textBox4").Text
 	$x86info.gss.lib = $window.findName("textBox5").Text
@@ -284,10 +284,10 @@ $buttonSave_clicked.Invoke({
 	$x86info.ssl.include = $window.findName("textBox7").Text
 	$x86info.ssl.lib = $window.findName("textBox8").Text
 	$x86info.setvcvars = $window.findName("textBox86vcvars").Text
-	
+
 
 	$x64info.use_libpq = $(if ($window.findName("checkBox4").isChecked) {"yes"} else {"no"})
-	$x64info.libpq.version = $window.findName("versionBox2").Text  
+	$x64info.libpq.version = $window.findName("versionBox2").Text
 	$x64info.use_gss = $(if ($window.findName("checkBox5").isChecked) {"yes"} else {"no"})
 	$x64info.use_sspi = $(if ($window.findName("checkBox6").isChecked) {"yes"} else {"no"})
 	$x64info.libpq.include = $window.findName("textBox9").Text

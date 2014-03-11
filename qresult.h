@@ -77,8 +77,7 @@ struct QResultClass_
 	char	sqlstate[8];
 	char	*message;
 	const char *messageref;
-	char *cursor_name;	/* The name of the cursor for select
-					 * statements */
+	char *cursor_name;		/* The name of the cursor for select statements */
 	char	*command;
 	char	*notice;
 
@@ -95,20 +94,20 @@ struct QResultClass_
 	KeySet		*keyset;
 	SQLLEN		key_base;	/* relative position of rowset start in the current keyset cache */
 	UInt2		reload_count;
-	UInt2		rb_alloc;	/* count of allocated rollback info */	
+	UInt2		rb_alloc;	/* count of allocated rollback info */
 	UInt2		rb_count;	/* count of rollback info */
-	char		dataFilled;	/* Cache is filled with data ? */	
-	Rollback	*rollback;	
+	char		dataFilled;	/* Cache is filled with data ? */
+	Rollback	*rollback;
 	UInt4		ad_alloc;	/* count of allocated added info */
 	UInt4		ad_count;	/* count of newly added rows */
 	KeySet		*added_keyset;	/* added keyset info */
 	TupleField	*added_tuples;	/* added data by myself */
-	UInt2		dl_alloc;	/* count of allocated deleted info */	
-	UInt2		dl_count;	/* count of deleted info */	
+	UInt2		dl_alloc;	/* count of allocated deleted info */
+	UInt2		dl_count;	/* count of deleted info */
 	SQLLEN		*deleted;	/* deleted index info */
 	KeySet		*deleted_keyset;	/* deleted keyset info */
-	UInt2		up_alloc;	/* count of allocated updated info */	
-	UInt2		up_count;	/* count of updated info */	
+	UInt2		up_alloc;	/* count of allocated updated info */
+	UInt2		up_count;	/* count of updated info */
 	SQLLEN		*updated;	/* updated index info */
 	KeySet		*updated_keyset;	/* uddated keyset info */
 	TupleField	*updated_tuples;	/* uddated data by myself */
@@ -117,9 +116,9 @@ struct QResultClass_
 enum {
 	 FQR_HASKEYSET	= 1L
 	,FQR_WITHHOLD	= (1L << 1)
-	,FQR_HOLDPERMANENT = (1L << 2) /* the cursor is alive across transactions */ 
+	,FQR_HOLDPERMANENT = (1L << 2) /* the cursor is alive across transactions */
 	,FQR_SYNCHRONIZEKEYS = (1L<<3) /* synchronize the keyset range with that of cthe tuples cache */
-}; 
+};
 
 #define	QR_haskeyset(self)		(0 != (self->flags & FQR_HASKEYSET))
 #define	QR_is_withhold(self)		(0 != (self->flags & FQR_WITHHOLD))
@@ -249,13 +248,13 @@ SQLLEN		getNthValid(const QResultClass *self, SQLLEN sta, UWORD orientation, SQL
 
 #define QR_MALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \
- 	if (t = (tp *) malloc(s), NULL == t) \
+	if (t = (tp *) malloc(s), NULL == t) \
 	{ \
- 		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
+		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
 qlog("QR_MALLOC_error\n"); \
- 		QR_free_memory(a); \
- 		QR_set_messageref(a, m); \
- 		return r; \
+		QR_free_memory(a); \
+		QR_set_messageref(a, m); \
+		return r; \
 	} \
 } while (0)
 #define QR_REALLOC_return_with_error(t, tp, s, a, m, r) \
@@ -263,10 +262,10 @@ do { \
 	tp *tmp; \
 	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
 	{ \
- 		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
+		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
 qlog("QR_REALLOC_error\n"); \
- 		QR_free_memory(a); \
- 		QR_set_messageref(a, m); \
+		QR_free_memory(a); \
+		QR_set_messageref(a, m); \
 		return r; \
 	} \
 	t = tmp; \

@@ -1,17 +1,17 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Module
     Id="psqlODBC"
     Version="$(var.VERSION)"
     Language="1033">
-    
-    <Package 
+
+    <Package
       Id="ACF10866-5C01-46f0-90F0-D5618638CA48"
       Description="PostgreSQL ODBC Driver"
       Keywords="PostgreSQL, ODBC"
-      Manufacturer="PostgreSQL Global Development Group" 
+      Manufacturer="PostgreSQL Global Development Group"
       InstallerVersion="150"
-      Platform="x86" 
+      Platform="x86"
       Languages="1033"
       SummaryCodepage="1252" />
 
@@ -26,10 +26,10 @@
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../MultibyteRelease/pgenlista.dll" />
 <?if "$(var.LINKFILES)" != ""?>
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LINKFILES)\libpq.dll" KeyPath="yes" />
-          
+
           <!-- Gettext -->
           <File Id="libintl.dll" Name="libintl.dll" Source="$(var.LINKFILES)\libintl.dll" />
-          
+
           <!-- SSL -->
           <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.LINKFILES)\libeay32.dll" />
           <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.LINKFILES)\ssleay32.dll" />

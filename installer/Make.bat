@@ -15,7 +15,7 @@ SET X86COMMONFILES=%CommonProgramFiles(x86)%
 :: echo X86COMMONFILES=%X86COMMONFILES%
 ::
 :: When you reference PG server's libpq related dlls, set the
-:: version to the variable PGVERSION (default 9.3) and call 
+:: version to the variable PGVERSION (default 9.3) and call
 :: this batch file.
 ::
 if "%PGVERSION%" == "" SET PGVERSION=9.3

@@ -191,7 +191,7 @@ void	DC_Destructor(DescriptorClass *self)
 }
 
 void InitializeEmbeddedDescriptor(DescriptorClass *desc, StatementClass *stmt,
-		 UInt4 desc_type) 
+		 UInt4 desc_type)
 {
 	DC_Constructor(desc, TRUE, stmt);
 	DC_get_conn(desc) = SC_get_conn(stmt);
@@ -202,20 +202,20 @@ void InitializeEmbeddedDescriptor(DescriptorClass *desc, StatementClass *stmt,
 		case SQL_ATTR_APP_ROW_DESC:
 			memset(desc + 1, 0, sizeof(ARDFields));
 			stmt->ard = (ARDClass *) desc;
-			break; 
+			break;
 		case SQL_ATTR_APP_PARAM_DESC:
 			memset(desc + 1, 0, sizeof(APDFields));
 			stmt->apd = (APDClass *) desc;
-			break; 
+			break;
 		case SQL_ATTR_IMP_ROW_DESC:
 			memset(desc + 1, 0, sizeof(IRDFields));
 			stmt->ird = (IRDClass *) desc;
 			stmt->ird->irdopts.stmt = stmt;
-			break; 
+			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
 			memset(desc + 1, 0, sizeof(IPDFields));
 			stmt->ipd = (IPDClass *) desc;
-			break; 
+			break;
 	}
 }
 
@@ -313,7 +313,7 @@ RETCODE SQL_API PGAPI_AllocDesc(HDBC ConnectionHandle,
 			free(desc);
 			CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "Maximum number of descriptors exceeded", func);
 			ret = SQL_ERROR;
-		} 
+		}
 	}
 	else
 	{
@@ -570,7 +570,7 @@ static struct
 	{ DESC_ERROR_TAKEN_FROM_BACKEND, "HY000", "S1000" }, /* general error */
 	{ DESC_INTERNAL_ERROR, "HY000", "S1000" }, /* general error */
 	{ DESC_STILL_EXECUTING, "HY010", "S1010" },
-	{ DESC_NOT_IMPLEMENTED_ERROR, "HYC00", "S1C00" }, /* == 'driver not 
+	{ DESC_NOT_IMPLEMENTED_ERROR, "HYC00", "S1C00" }, /* == 'driver not
 							  * capable' */
 	{ DESC_BAD_PARAMETER_NUMBER_ERROR, "07009", "S1093" },
 	{ DESC_OPTION_OUT_OF_RANGE_ERROR, "HY092", "S1092" },
@@ -586,7 +586,7 @@ static struct
 	{ DESC_INVALID_CURSOR_POSITION, "HY109", "S1109" },
 	{ DESC_VALUE_OUT_OF_RANGE, "HY019", "22003" },
 	{ DESC_OPERATION_INVALID, "HY011", "S1011" },
-	{ DESC_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" }, 
+	{ DESC_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" },
 	{ DESC_BAD_ERROR, "08S01", "08S01" }, /* communication link failure */
 	{ DESC_INVALID_OPTION_IDENTIFIER, "HY092", "HY092" },
 	{ DESC_RETURN_NULL_WITHOUT_INDICATOR, "22002", "22002" },
@@ -617,7 +617,7 @@ static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *desc)
 	if (errornum < 0 ||
 	    errornum >= sizeof(Descriptor_sqlstate) / sizeof(Descriptor_sqlstate[0]))
 		errornum = 1 - LOWEST_DESC_ERROR;
-	strcpy(error->sqlstate, env_is_odbc3 ? Descriptor_sqlstate[errornum].ver3str : Descriptor_sqlstate[errornum].ver2str); 
+	strcpy(error->sqlstate, env_is_odbc3 ? Descriptor_sqlstate[errornum].ver3str : Descriptor_sqlstate[errornum].ver2str);
         return error;
 }
 void

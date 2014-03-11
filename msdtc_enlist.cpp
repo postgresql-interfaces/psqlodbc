@@ -72,20 +72,20 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
  *	1:ELOCK -- the strongest per IAsyncPG object lock
  *	  When the *isolated* or *dtcconn* member of an IAsyncPG object
  *	  is changed, this lock should be held.
- *	  While an IAsyncPG object accesses a psqlodbc connection, 
+ *	  While an IAsyncPG object accesses a psqlodbc connection,
  *	  this lock should be held.
- *  
+ *
  *	2:[CONN_CS] -- per psqlodbc connection lock
  *	  This lock would be held for a pretty long time while accessing
  *	  the psqlodbc connection assigned to an IAsyncPG object. You
  *	  can use the connecion safely by holding a ELOCK for the
  *	  IAsyncPG object because the assignment is ensured to be
  *	  fixed while the ELOCK is held.
- *	 
+ *
  *	3:LIFELOCK -- a global lock to ensure the lives of IAsyncPG objects
  *	  While this lock is held, IAsyncPG objects would never die.
  *
- *	4:SLOCK -- the short term per IAsyncPG object lock 
+ *	4:SLOCK -- the short term per IAsyncPG object lock
  *	  When any member of an IAsyncPG object is changed, this lock
  *	  should be held.
  */
@@ -129,7 +129,7 @@ static const char *XidToText(const XID &xid, char *rtext)
 		sprintf(rtext + j, "%02x", (unsigned char) xid.data[i]);
 	strcat(rtext, "-"); j++;
 	for (; i < glen + blen; i++, j += 2)
-		sprintf(rtext + j, "%02x", (unsigned char) xid.data[i]); 
+		sprintf(rtext + j, "%02x", (unsigned char) xid.data[i]);
 	return rtext;
 }
 
@@ -164,18 +164,18 @@ static LONG	g_cServerLocks = 0;
 // interfaces, and methods.
 //
 // The OLE Transactions specification is based on COM but it differs in the
-// following respects: 
+// following respects:
 //
-// OLE Transactions objects cannot be created using the COM CoCreate APIs. 
+// OLE Transactions objects cannot be created using the COM CoCreate APIs.
 // References to OLE Transactions objects are always direct. Therefore,
 // no proxies or stubs are created for inter-apartment, inter-process,
 // or inter-node calls and OLE Transactions references cannot be marshaled
-// using standard COM marshaling. 
+// using standard COM marshaling.
 // All references to OLE Transactions objects and their sinks are completely
 // free threaded and cannot rely upon COM concurrency control models.
 // For example, you cannot pass a reference to an IResourceManagerSink
 // interface on a single-threaded apartment and expect the callback to occur
-// only on the same single-threaded apartment. 
+// only on the same single-threaded apartment.
 
 class	IAsyncPG : public ITransactionResourceAsync
 {
@@ -211,8 +211,8 @@ public:
 	ITransactionEnlistmentAsync	*enlist;
 
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void ** ppvObject);
-	ULONG	STDMETHODCALLTYPE AddRef(void); 
-	ULONG	STDMETHODCALLTYPE Release(void); 
+	ULONG	STDMETHODCALLTYPE AddRef(void);
+	ULONG	STDMETHODCALLTYPE Release(void);
 
 	HRESULT STDMETHODCALLTYPE PrepareRequest(BOOL fRetaining,
 				DWORD grfRM,
@@ -225,8 +225,8 @@ public:
 	HRESULT STDMETHODCALLTYPE TMDown(void);
 
 	IAsyncPG();
-	void SetHelper(IDtcToXaHelperSinglePipe *pHelper, DWORD dwRMCookie) {helper = pHelper; RMCookie = dwRMCookie;} 
-	 
+	void SetHelper(IDtcToXaHelperSinglePipe *pHelper, DWORD dwRMCookie) {helper = pHelper; RMCookie = dwRMCookie;}
+
 	HRESULT RequestExec(DWORD type, HRESULT res);
 	HRESULT ReleaseConnection(void);
 	void SetConnection(void *sconn) {SLOCK_ACQUIRE(); dtcconn = sconn; SLOCK_RELEASE();}
@@ -249,7 +249,7 @@ private:
 	void	*getLockedXAConn(void);
 	void	*generateXAConn(bool spinAcquired);
 	void	*isolateXAConn(bool spinAcquired, bool continueConnection);
-	void SetPrepareResult(HRESULT res) {SLOCK_ACQUIRE(); prepared = true; prepare_result = res; SLOCK_RELEASE();} 
+	void SetPrepareResult(HRESULT res) {SLOCK_ACQUIRE(); prepared = true; prepare_result = res; SLOCK_RELEASE();}
 	void SetDone(HRESULT);
 	void Wait_pThread(bool slock_hold);
 	void Wait_cThread(bool slock_hold, bool once);
@@ -274,7 +274,7 @@ IAsyncPG::IAsyncPG(void) : helper(NULL), RMCookie(0), enlist(NULL), dtcconn(NULL
 //	invoked from *delete*.
 //	When entered ELOCK -> LIFELOCK -> SLOCK are held
 //	and they are released.
-//	
+//
 IAsyncPG::~IAsyncPG(void)
 {
 	void *fconn = NULL;
@@ -290,7 +290,7 @@ IAsyncPG::~IAsyncPG(void)
 	LIFELOCK_RELEASE;
 	if (fconn)
 	{
-		mylog("IAsyncPG Destructor is freeing the connection\n"); 
+		mylog("IAsyncPG Destructor is freeing the connection\n");
 		PgDtc_free_connect(fconn);
 	}
 	DeleteCriticalSection(&as_spin);
@@ -459,7 +459,7 @@ void	IAsyncPG::SetDone(HRESULT res)
 		LIFELOCK_RELEASE;
 	}
 }
-	
+
 //
 //	Acquire/releases [ELOCK -> LIFELOCK -> ] SLOCK.
 //
@@ -562,13 +562,13 @@ void	*IAsyncPG::separateXAConn(bool spinAcquired, bool continueConnection)
 //	ELOCK is kept held.
 //	If the return connection != NULL
 //		the CONN_CS lock for the connection is held.
-//	
+//
 void	*IAsyncPG::getLockedXAConn()
 {
 	SLOCK_ACQUIRE();
 	while (!done && !isolated && NULL != dtcconn)
 	{
-		/* 
+		/*
 		 * Note that COMMIT/ROLLBACK PREPARED command should be
 		 * issued outside the transaction.
 		 */
@@ -629,7 +629,7 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 				else if (XACT_S_SINGLEPHASE == res)
 				{
 					if (!PgDtc_one_phase_operation(econn, ONE_PHASE_COMMIT))
-						res = E_FAIL;	
+						res = E_FAIL;
 				}
 				else
 				{
@@ -755,7 +755,7 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::PrepareRequest(BOOL fRetaining, DWORD grfRM,
 			mylog("XACT is singlePhase\n");
 		}
 		else
-			res = S_OK; 
+			res = S_OK;
 	}
 	SLOCK_RELEASE();
 	ELOCK_ACQUIRE();
@@ -855,7 +855,7 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::AbortRequest(BOID * pboidReason, BOOL fRetai
 {
 	HRESULT		res = S_OK, ret = S_OK;
 	RequestPara	*reqp;
-	const DWORD	reqtype = AbortExec;	
+	const DWORD	reqtype = AbortExec;
 
 	mylog("%p AbortRequest called\n", this);
 	SLOCK_ACQUIRE();
@@ -1031,7 +1031,7 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 	errset = false;
 	char	dtcname[1024];
 	PgDtc_create_connect_string(conn, dtcname, sizeof(dtcname));
-	do { 
+	do {
 		res = pHelper->XARMCreate(dtcname, (char *) GetXaLibName(), &dwRMCookie);
 		if (S_OK == res)
 			break;
@@ -1068,7 +1068,7 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 						PgDtc_set_error(conn, "XARMCreate error:Please register HKLM\\SOFTWARE\\Microsoft\\MSDTC\\XADLL", func);
 						break;
 				}
-				::RegCloseKey(sKey);			
+				::RegCloseKey(sKey);
 			}
 		}
 		if (!errset)
@@ -1145,7 +1145,7 @@ EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
 		return SQL_SUCCESS;
 	}
 	if (CONN_IS_IN_TRANS(conn))
-	{ 
+	{
 		PgDtc_one_phase_operation(conn, SHUTDOWN_LOCAL_TRANSACTION);
 	}
 	if (!pDtc)
@@ -1178,7 +1178,7 @@ EXTERN_C RETCODE DtcOnDisconnect(void *conn)
 		asdum->ReleaseConnection();
 		asdum->Release();
 	}
-	else	
+	else
 		LIFELOCK_RELEASE;
 	return SQL_SUCCESS;
 }

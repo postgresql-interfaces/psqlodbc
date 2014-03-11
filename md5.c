@@ -20,7 +20,7 @@
  *
  *	This file was copied from backend/libpq once.
  */
- 
+
 #include "md5.h"
 
 

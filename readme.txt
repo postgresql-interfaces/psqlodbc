@@ -1,6 +1,6 @@
- 
+
 /********************************************************************
- 
+
   PSQLODBC.DLL - A library to talk to the PostgreSQL DBMS using ODBC.
 
 
@@ -9,13 +9,13 @@
 
   Multibyte support was added by Sankyo Unyu Service, (C) 2001.
 
-  The code contained in this library is based on code written by 
+  The code contained in this library is based on code written by
   Christian Czezatke and Dan McGuirk, (C) 1996.
 
 
   This library is free software; you can redistribute it and/or modify
-  it under the terms of the GNU Library General Public License as 
-  published by the Free Software Foundation; either version 2 of the 
+  it under the terms of the GNU Library General Public License as
+  published by the Free Software Foundation; either version 2 of the
   License, or (at your option) any later version.
 
   This library is distributed in the hope that it will be useful, but
@@ -36,4 +36,3 @@
 
 
 ***********************************************************************/
-

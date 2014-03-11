@@ -124,7 +124,7 @@ char	   *mapFuncs[][2] = {
 	{"DAYNAME",	 "to_char($1, 'Day')" },
 	{"DAYOFMONTH",  "cast(extract(day from $1) as integer)" },
 	{"DAYOFWEEK",	 "(cast(extract(dow from $1) as integer) + 1)" },
-	{"DAYOFYEAR",	 "cast(extract(doy from $1) as integer)" }, 
+	{"DAYOFYEAR",	 "cast(extract(doy from $1) as integer)" },
 	{"HOUR",	 "cast(extract(hour from $1) as integer)" },
 	{"MINUTE",	"cast(extract(minute from $1) as integer)" },
 	{"MONTH",	"cast(extract(month from $1) as integer)" },
@@ -495,9 +495,9 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 			sign = years < 0 ? SQL_TRUE : SQL_FALSE;
 			st->interval_type = itype;
 			st->interval_sign = sign;
-			st->intval.year_month.year = sign ? (-years) : years; 
+			st->intval.year_month.year = sign ? (-years) : years;
 			st->intval.year_month.month = mons;
-			return TRUE; 
+			return TRUE;
 		}
 		return FALSE;
 	}
@@ -524,9 +524,9 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 			sign = years < 0 ? SQL_TRUE : SQL_FALSE;
 			st->interval_type = itype;
 			st->interval_sign = sign;
-			st->intval.year_month.year = sign ? (-years) : years; 
+			st->intval.year_month.year = sign ? (-years) : years;
 			st->intval.year_month.month = sign ? (-mons) : mons;
-			return TRUE; 
+			return TRUE;
 		}
 		return FALSE;
 	}
@@ -539,8 +539,8 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		{
 			st->interval_type = itype;
 			st->interval_sign = sign;
-			st->intval.year_month.year = sign ? (-years) : years; 
-			return TRUE; 
+			st->intval.year_month.year = sign ? (-years) : years;
+			return TRUE;
 		}
 		if (SQL_IS_MONTH == itype &&
 		    (stricmp(lit1, "mon") == 0 ||
@@ -548,8 +548,8 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		{
 			st->interval_type = itype;
 			st->interval_sign = sign;
-			st->intval.year_month.month = sign ? (-years) : years; 
-			return TRUE; 
+			st->intval.year_month.month = sign ? (-years) : years;
+			return TRUE;
 		}
 		if (SQL_IS_DAY == itype &&
 		    (stricmp(lit1, "day") == 0 ||
@@ -557,8 +557,8 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		{
 			st->interval_type = itype;
 			st->interval_sign = sign;
-			st->intval.day_second.day = sign ? (-years) : years; 
-			return TRUE; 
+			st->intval.day_second.day = sign ? (-years) : years;
+			return TRUE;
 		}
 		return FALSE;
 	}
@@ -631,7 +631,7 @@ static void set_server_decimal_point(char *num)
 
 	current_numeric_locale();
 	if ('.' == *current_decimal_point)
-		return; 
+		return;
 	for (str = num; '\0' != *str; str++)
 	{
 		if (*str == *current_decimal_point)
@@ -769,7 +769,7 @@ copy_and_convert_field(StatementClass *stmt,
 #endif /* UNICODE_SUPPORT */
 #ifdef	WIN_UNICODE_SUPPORT
 	SQLWCHAR	*allocbuf = NULL;
-	ssize_t		wstrlen;	
+	ssize_t		wstrlen;
 #endif /* WIN_UNICODE_SUPPORT */
 #if (ODBCVER >= 0x0350)
 	SQLGUID g;
@@ -814,7 +814,7 @@ copy_and_convert_field(StatementClass *stmt,
 	}
 	/*
 	 *	The following is applicable in case bind_size > 0
-	 *	or the fCType is of variable length. 
+	 *	or the fCType is of variable length.
 	 */
 	if (rgbValue)
 		rgbValueBindRow = (char *) rgbValue + rgbValueOffset;
@@ -891,7 +891,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 					break;
 #endif /* UNICODE_SUPPORT */
 			}
-			return result; 
+			return result;
 		}
 		/*
 		 * handle a null just by returning SQL_NULL_DATA in pcbValue, and
@@ -904,7 +904,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		}
 		else
 		{
-			SC_set_error(stmt, STMT_RETURN_NULL_WITHOUT_INDICATOR, "StrLen_or_IndPtr was a null pointer and NULL data was retrieved", func);	
+			SC_set_error(stmt, STMT_RETURN_NULL_WITHOUT_INDICATOR, "StrLen_or_IndPtr was a null pointer and NULL data was retrieved", func);
 			return	SQL_ERROR;
 		}
 	}
@@ -1113,23 +1113,23 @@ inolog("2stime fr=%d\n", std_time.fr);
 	{
 		case INTERNAL_ASIS_TYPE:
 #ifdef	UNICODE_SUPPORT
-	    	case SQL_C_WCHAR:
+		case SQL_C_WCHAR:
 #endif /* UNICODE_SUPPORT */
-	    	case SQL_C_CHAR:
+		case SQL_C_CHAR:
 			text_handling = TRUE;
 			break;
 		case SQL_C_BINARY:
 			switch (field_type)
-			{ 
-		 		case PG_TYPE_UNKNOWN:
-		  		case PG_TYPE_BPCHAR:
-		  		case PG_TYPE_VARCHAR:
-		  		case PG_TYPE_TEXT:
-		  		case PG_TYPE_XML:
-		  		case PG_TYPE_BPCHARARRAY:
-		  		case PG_TYPE_VARCHARARRAY:
-		  		case PG_TYPE_TEXTARRAY:
-		  		case PG_TYPE_XMLARRAY:
+			{
+				case PG_TYPE_UNKNOWN:
+				case PG_TYPE_BPCHAR:
+				case PG_TYPE_VARCHAR:
+				case PG_TYPE_TEXT:
+				case PG_TYPE_XML:
+				case PG_TYPE_BPCHARARRAY:
+				case PG_TYPE_VARCHARARRAY:
+				case PG_TYPE_TEXTARRAY:
+				case PG_TYPE_XMLARRAY:
 					text_handling = TRUE;
 					break;
 			}
@@ -1345,7 +1345,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 							{
 								len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
 								len = pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
-							} 
+							}
 						}
 						else
 #ifdef	WIN_UNICODE_SUPPORT
@@ -1459,7 +1459,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			if (cbValueMax < WCLEN * ucount)
 				result = COPY_RESULT_TRUNCATED;
 			len = ucount * WCLEN;
-			free(str); 
+			free(str);
 		}
 #endif /* UNICODE_SUPPORT */
 
@@ -1621,7 +1621,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			while (*wv == '0') wv++;
 			ns->precision = 0;
 			ns->scale = 0;
-			for (nlen = 0, dot_exist = FALSE;; wv++) 
+			for (nlen = 0, dot_exist = FALSE;; wv++)
 			{
 				if (*wv == '.')
 				{
@@ -1663,7 +1663,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						ns->scale = sta - ns->precision;
 						break;
 					}
-				} 
+				}
 			}
 			if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
 				ns->val[olen++] = hval;
@@ -1762,7 +1762,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 						memcpy(rgbValueBindRow, &ival, sizeof(ival));
 						return COPY_OK;
 					}
-					else	
+					else
 						return COPY_RESULT_TRUNCATED;
 				}
 #if (ODBCVER >= 0x0350)
@@ -1779,7 +1779,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 						memcpy(rgbValueBindRow, &g, sizeof(g));
 						return COPY_OK;
 					}
-					else	
+					else
 						return COPY_RESULT_TRUNCATED;
 				}
 #endif /* ODBCVER */
@@ -1870,7 +1870,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				result = char2guid(neut_str, &g);
 				if (COPY_OK != result)
 				{
-					mylog("Could not convert to SQL_C_GUID");	
+					mylog("Could not convert to SQL_C_GUID");
 					return	COPY_UNSUPPORTED_TYPE;
 				}
 				len = sizeof(g);
@@ -1893,7 +1893,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 			case SQL_C_INTERVAL_DAY_TO_SECOND:
 			case SQL_C_INTERVAL_HOUR_TO_SECOND:
 			case SQL_C_INTERVAL_MINUTE_TO_SECOND:
-				interval2istruct(fCType, precision, neut_str, bind_size > 0 ? (SQL_INTERVAL_STRUCT *) rgbValueBindRow : (SQL_INTERVAL_STRUCT *) rgbValue + bind_row); 
+				interval2istruct(fCType, precision, neut_str, bind_size > 0 ? (SQL_INTERVAL_STRUCT *) rgbValueBindRow : (SQL_INTERVAL_STRUCT *) rgbValue + bind_row);
 				break;
 #endif /* ODBCVER */
 
@@ -2007,7 +2007,7 @@ typedef struct _QueryBuild {
 	const char *errormsg;
 
 	ConnectionClass	*conn; /* mainly needed for LO handling */
-	StatementClass	*stmt; /* needed to set error info in ENLARGE_.. */ 
+	StatementClass	*stmt; /* needed to set error info in ENLARGE_.. */
 }	QueryBuild;
 
 #define INIT_MIN_ALLOC	4096
@@ -2062,7 +2062,7 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 		qb->flags |= FLGB_LITERAL_EXTENSION;
 	if (PG_VERSION_GE(qb->conn, 9.0))
 		qb->flags |= FLGB_HEX_BIN_FORMAT;
-		
+
 	if (stmt)
 		qb->str_size_limit = stmt->stmt_size_limit;
 	else
@@ -2073,7 +2073,7 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 			return -1;
 		newsize = qb->str_size_limit;
 	}
-	else 
+	else
 	{
 		newsize = INIT_MIN_ALLOC;
 		while (newsize <= size)
@@ -2083,7 +2083,7 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 	{
 		qb->str_alsize = 0;
 		return -1;
-	}	
+	}
 	qb->query_statement[0] = '\0';
 	qb->str_alsize = newsize;
 	qb->npos = 0;
@@ -2110,7 +2110,7 @@ QB_initialize_copy(QueryBuild *qb_to, const QueryBuild *qb_from, UInt4 size)
 	{
 		qb_to->str_alsize = 0;
 		return -1;
-	}	
+	}
 	qb_to->query_statement[0] = '\0';
 	qb_to->str_alsize = size;
 	qb_to->npos = 0;
@@ -2212,7 +2212,6 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
 		qb->str_alsize = 0;
 		if (qb->stmt)
 		{
-			
 			SC_set_error(qb->stmt, STMT_EXEC_ERROR, "Query buffer overflow in copy_statement_with_parameters", func);
 		}
 		else
@@ -2919,8 +2918,7 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 			case SQL_CURSOR_KEYSET_DRIVEN:
 				if (SC_update_not_ready(stmt))
 					parse_statement(stmt, TRUE);
-				if (SC_is_updatable(stmt) &&
-			    	    stmt->ntab > 0)
+				if (SC_is_updatable(stmt) && stmt->ntab > 0)
 				{
 					if (bestitem = GET_NAME(stmt->ti[0]->bestitem), NULL == bestitem)
 						stmt->options.cursor_type = SQL_CURSOR_STATIC;
@@ -3084,7 +3082,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 			CVT_APPEND_CHAR(qb, semi_colon);
 		CVT_TERMINATE(qb);
 	}
-#endif /* NOT_USED */  
+#endif /* NOT_USED */
 	if (0 != (qp->flags & FLGP_SELECT_INTO) ||
 	    0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
 	{
@@ -3444,7 +3442,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		BOOL		converted = FALSE;
 		COL_INFO	*coli;
 
-#ifdef	NOT_USED  /* lastval() isn't always appropriate */ 
+#ifdef	NOT_USED  /* lastval() isn't always appropriate */
 		if (PG_VERSION_GE(conn, 8.1))
 		{
 			CVT_APPEND_STR(qb, "lastval()");
@@ -3469,7 +3467,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 
 				for (i = 0; i < num_fields; i++)
 				{
-        				if (*((char *)QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT)) == '1')
+					if (*((char *)QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT)) == '1')
 					{
 						CVT_APPEND_STR(qb, "curr");
 						CVT_APPEND_STR(qb, (char *)QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF) + 4);
@@ -3712,7 +3710,7 @@ inolog("num_p=%d\n", num_p);
 		int	j;
 		ParameterImplClass	*parameters = ipdopts->parameters;
 		Int2	net_one = htons(1);
- 
+
 		/* number of parameter formats */
 		memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p));
 		leng += sizeof(Int2);
@@ -3732,14 +3730,14 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 				memcpy(bindreq + leng + sizeof(Int2) * j,
 				       &net_one, sizeof(net_one));
 			}
-			j++; 
+			j++;
 		}
 		leng += sizeof(Int2) * num_p;
 	}
 	else
 	{
-        	memset(bindreq + leng, 0, sizeof(Int2));  /* text format */
-        	leng += sizeof(Int2);
+		memset(bindreq + leng, 0, sizeof(Int2));  /* text format */
+		leng += sizeof(Int2);
 	}
 
 	/* number of params */
@@ -4029,7 +4027,7 @@ mylog("!!! The # of binded parameters (%d, %d) < the # of parameter markers %d\n
 				ipara = ipdopts->parameters + param_number;
 		}
 	}
- 
+
 inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
 	if (param_number < qb->proc_return)
 	{
@@ -4092,18 +4090,18 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 #ifdef	NOT_USED /* !! named parameter is unavailable !! */
 		if (ipara && SAFE_NAME(ipara->paramName)[0])
 		{
-			CVT_APPEND_CHAR(qb, '"'); 
-			CVT_APPEND_STR(qb, SAFE_NAME(ipara->paramName)); 
-			CVT_APPEND_CHAR(qb, '"'); 
-			CVT_APPEND_STR(qb, " = "); 
+			CVT_APPEND_CHAR(qb, '"');
+			CVT_APPEND_STR(qb, SAFE_NAME(ipara->paramName));
+			CVT_APPEND_CHAR(qb, '"');
+			CVT_APPEND_STR(qb, " = ");
 		}
 #endif /* NOT_USED */
 		qb->dollar_number++;
 		sprintf(pnum, "$%d", qb->dollar_number);
-		CVT_APPEND_STR(qb, pnum); 
+		CVT_APPEND_STR(qb, pnum);
 		return SQL_SUCCESS;
 	}
- 
+
 	/* Assign correct buffers based on data at exec param or not */
 	if (apara->data_at_exec)
 	{
@@ -4127,7 +4125,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 				buffer += (bind_size * current_row);
 			else if (ctypelen = ctype_length(apara->CType), ctypelen > 0)
 				buffer += current_row * ctypelen;
-			else 
+			else
 				buffer += current_row * apara->buflen;
 		}
 		if (apara->used || apara->indicator)
@@ -4152,7 +4150,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		if (!bSetUsed)
 			used = SQL_NTS;
-	}	
+	}
 
 	req_bind = (0 != (FLGB_BUILDING_BIND_REQUEST & qb->flags));
 	/* Handle DEFAULT_PARAM parameter data. Should be NULL ?
@@ -4275,7 +4273,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 				strcpy(param_string, NAN_STRING);
 			else if (dbv < .0)
 				strcpy(param_string, MINFINITY_STRING);
-			else 
+			else
 				strcpy(param_string, INFINITY_STRING);
 #endif /* WIN32 */
 			break;
@@ -4294,7 +4292,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 				strcpy(param_string, NAN_STRING);
 			else if (flv < .0)
 				strcpy(param_string, MINFINITY_STRING);
-			else 
+			else
 				strcpy(param_string, INFINITY_STRING);
 #endif /* WIN32 */
 			break;
@@ -4443,7 +4441,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			if (ivstruct->intval.day_second.fraction > 0)
 			{
 				int fraction = ivstruct->intval.day_second.fraction, prec = apara->precision;
-				
+
 				while (fraction % 10 == 0)
 				{
 					fraction /= 10;
@@ -4684,8 +4682,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				else
 				{
 					/* non-ascii characters should be
-				 	 * converted to octal
-				 	 */
+					 * converted to octal
+					 */
 					mylog("SQL_VARBINARY: about to call convert_to_pgbinary, used = %d\n", used);
 
 					CVT_APPEND_BINARY(qb, buf, used);
@@ -4905,7 +4903,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 				}
 				innerParenthesis++;
 				break;
-     
+
 			case ')':
 				innerParenthesis--;
 				if (0 == innerParenthesis)
@@ -4972,7 +4970,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 
 	QueryBuild	nqb;
 	BOOL	nqb_is_valid = FALSE;
- 
+
 	if (F_OldChar(qp) == ODBC_ESCAPE_START) /* skip the first { */
 		F_OldNext(qp);
 	/* Separate off the key, skipping leading and trailing whitespace */
@@ -5040,10 +5038,9 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		F_OldNext(qp);
 	while ((ucv = F_OldChar(qp)) != '\0' && isspace(ucv))
 		F_OldNext(qp);
-    
+
 	/* Avoid the concatenation of the function name with the previous word. Aceto */
 
-	
 	if (stricmp(key, "call") == 0)
 	{
 		Int4 funclen;
@@ -5150,7 +5147,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			F_OldNext(qp);
 
 		/*
- 		 * We expect left parenthesis here, else return fn body as-is
+		 * We expect left parenthesis here, else return fn body as-is
 		 * since it is one of those "function constants".
 		 */
 		if (F_OldChar(qp) != '(')
@@ -5205,7 +5202,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 					add_quote = TRUE;
 				else if (isdigit((unsigned char) *pptr))
 					add_quote = TRUE;
-				else 
+				else
 					add_cast = TRUE;
 				if (add_quote)
 					CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
@@ -5319,7 +5316,7 @@ mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 		/* Bogus key, leave untranslated */
 		retval = SQL_ERROR;
 	}
- 
+
 cleanup:
 	if (nqb_is_valid)
 		QB_Destructor(&nqb);
@@ -5848,7 +5845,7 @@ pg_hex2bin(const char *src, char *dst, SQLLEN length)
 			*dst_wk = (val << 4);
 		else
 		{
-			*dst_wk += val; 
+			*dst_wk += val;
 			dst_wk++;
 		}
 		HByte = !HByte;

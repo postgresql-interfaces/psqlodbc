@@ -6,13 +6,13 @@
   </HEAD>
 
   <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
-  
+
 <h1>psqlODBC Configuration Options</h1>
-  
+
 <h2>Advanced Options 1/2 Dialog Box</h2>
 
 <ul>
-<li><b>DEFAULTS:</b> Press to this button restore the normal defaults for the 
+<li><b>DEFAULTS:</b> Press to this button restore the normal defaults for the
 settings described below.<br />&nbsp;</li>
 
 <li><b>Disable Genetic Optimizer:</b> Automatically
@@ -185,9 +185,9 @@ of fields they would return and so they would issue<br><br>
    SQLNumResultCols and/or <br>
    SQLDescribeCols/SQLColAttribute etc.<br><br>
 
-The problem is how the psqlODBC driver answers the inquiry. PostgreSQL hadn't 
-provided the <em>Prepare</em> functionality until 7.4 and we couldn't ask the backend about 
-it directly.
+The problem is how the psqlODBC driver answers the inquiry. PostgreSQL hadn't
+provided the <em>Prepare</em> functionality until 7.4 and we couldn't ask the
+backend about it directly.
 
 When using Disallow Premature, the driver will get the column info as follows:<br><br>
 <i>
@@ -196,21 +196,23 @@ When using Disallow Premature, the driver will get the column info as follows:<b
 &nbsp;&nbsp;&nbsp;fetch backward in ..<br>
 &nbsp;&nbsp;&nbsp;close ..<br><br>
 </i>
-The driver gets the field info using the fetch backward's result. The fetch backward 
-command returns no row but returns the field info. Though the command is expected to be returned immediately it isn't true for 7.0- servers unfortunately. 
-The 7.1 or later servers <b>do</b> seem to return from the fetch backward command 
-immediately.<br />&nbsp;</li>
+The driver gets the field info using the fetch backward's result. The fetch
+backward command returns no row but returns the field info. Though the command
+is expected to be returned immediately it isn't true for 7.0- servers
+unfortunately.
+The 7.1 or later servers <b>do</b> seem to return from the fetch backward
+command immediately.<br />&nbsp;</li>
 
 <li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
 <br />&nbsp;</li>
 
 <li><b>Server side prepare:</b> Applicable for 7.3+ servers and <em>recommended for 7.4+.</em><br />&nbsp
-(7.4+) Tell the driver how to gather the information about result columns. See also <em>Parse Statement</em> and <em>Disallow Premature</em> options.<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp By using extended query protocol the driver replies to the inquiry correctly and effectively.<br>&nbsp 
-(7.4+) By using extended query protocol the driver replies to the inquiry for the information of parameters.<br>&nbsp 
+(7.4+) Tell the driver how to gather the information about result columns. See also <em>Parse Statement</em> and <em>Disallow Premature</em> options.<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp By using extended query protocol the driver replies to the inquiry correctly and effectively.<br>&nbsp
+(7.4+) By using extended query protocol the driver replies to the inquiry for the information of parameters.<br>&nbsp
 (7.3+) When using prepared statements, prepare them on the server rather than in the driver. This can give a slight performance advantage as the server<br>
 &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp doesn't need to re-parse the statement each time it is used.<br />&nbsp;</li>
 
-<li><b>use gssapi for GSS request:</b> GSSAPI use to AUTH_REQ_GSS request from a server.(only Windows)<br />&nbsp;</li> 
+<li><b>use gssapi for GSS request:</b> GSSAPI use to AUTH_REQ_GSS request from a server.(only Windows)<br />&nbsp;</li>
 
 <li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>
 

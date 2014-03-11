@@ -277,13 +277,12 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		case SQL_FETCH_DIRECTION:		/* ODBC 1.0 */
 			len = 4;
 			value = (SQL_FD_FETCH_NEXT |
-			 	SQL_FD_FETCH_NEXT | 
-			 	SQL_FD_FETCH_FIRST |
-			 	SQL_FD_FETCH_LAST |
-			 	SQL_FD_FETCH_PRIOR |
-			 	SQL_FD_FETCH_ABSOLUTE |
-			 	SQL_FD_FETCH_RELATIVE |
-			 	SQL_FD_FETCH_BOOKMARK);
+					 SQL_FD_FETCH_FIRST |
+					 SQL_FD_FETCH_LAST |
+					 SQL_FD_FETCH_PRIOR |
+					 SQL_FD_FETCH_ABSOLUTE |
+					 SQL_FD_FETCH_RELATIVE |
+					 SQL_FD_FETCH_BOOKMARK);
 			break;
 
 		case SQL_FILE_USAGE:	/* ODBC 2.0 */
@@ -1399,7 +1398,7 @@ mylog("simple output=%s(%d)\n", dest, outlen);
 }
 
 /*
- *	PostgreSQL needs 2 '\\' to escape '_' and '%'. 
+ *	PostgreSQL needs 2 '\\' to escape '_' and '%'.
  */
 static char	*
 adjustLikePattern(const SQLCHAR *src, int srclen, char escape_ch, int *result_len, const ConnectionClass *conn)
@@ -1475,8 +1474,8 @@ mylog("adjust output=%s(%d)\n", dest, outlen);
 #define	CSTR_TABLE	"TABLE"
 #define	CSTR_VIEW	"VIEW"
 
-CSTR	like_op_sp = 	"like ";
-CSTR	like_op_ext =	"like E";
+CSTR	like_op_sp = "like ";
+CSTR	like_op_ext = "like E";
 CSTR	eq_op_sp =	"= ";
 CSTR	eq_op_ext =	"= E";
 
@@ -1583,7 +1582,7 @@ PGAPI_Tables(
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
-	if (search_pattern) 
+	if (search_pattern)
 	{
 		like_or_eq = likeop;
 		escCatName = adjustLikePattern(szTableQualifier, cbTableQualifier, SEARCH_PATTERN_ESCAPE, NULL, conn);
@@ -1598,7 +1597,7 @@ PGAPI_Tables(
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
-	if (search_pattern) 
+	if (search_pattern)
 		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
 	else
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
@@ -2068,10 +2067,10 @@ PGAPI_Columns(
 		reloid = 0;
 		attnum = 0;
 		/*
-	 	 *	TableName or ColumnName is ordinarily an pattern value,
-	 	 */
-		search_pattern = ((flag & PODBC_NOT_SEARCH_PATTERN) == 0); 
-		if (search_pattern) 
+		 *	TableName or ColumnName is ordinarily an pattern value,
+		 */
+		search_pattern = ((flag & PODBC_NOT_SEARCH_PATTERN) == 0);
+		if (search_pattern)
 		{
 			like_or_eq = likeop;
 			escTableName = adjustLikePattern(szTableName, cbTableName, SEARCH_PATTERN_ESCAPE, NULL, conn);
@@ -2089,7 +2088,7 @@ retry_public_schema:
 	{
 		if (escSchemaName)
 			free(escSchemaName);
-		if (search_pattern) 
+		if (search_pattern)
 			escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
 		else
 			escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
@@ -2103,7 +2102,7 @@ retry_public_schema:
 	{
 		snprintf(columns_query, sizeof(columns_query),
 			"select n.nspname, c.relname, a.attname, a.atttypid"
-	   		", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
+			", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
 			", c.relhasrules, c.relkind, c.oid, %s, %s, %s"
 			" from (((pg_catalog.pg_class c"
 			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
@@ -2143,7 +2142,7 @@ retry_public_schema:
 	{
 		snprintf(columns_query, sizeof(columns_query),
 			"select u.usename, c.relname, a.attname, a.atttypid"
-	   		", t.typname, a.attnum, a.attlen, %s, a.attnotnull"
+			", t.typname, a.attnum, a.attlen, %s, a.attnotnull"
 			", c.relhasrules, c.relkind, c.oid, NULL, 0, -1 from"
 			"  pg_user u, pg_class c, pg_attribute a, pg_type t where"
 			"  u.usesysid = c.relowner and c.oid= a.attrelid"
@@ -2456,7 +2455,7 @@ mylog("len_needed=%d\n", len_needed);
 			attdef = malloc(len_needed + 1);
 			PGAPI_GetData(hcol_stmt, 13, internal_asis_type, attdef, len_needed + 1, &len_needed);
 mylog(" and the data=%s\n", attdef);
-		} 
+		}
 		tuple = QR_AddNew(res);
 
 		sqltype = SQL_TYPE_NULL;	/* unspecified */
@@ -2798,7 +2797,7 @@ PGAPI_SpecialColumns(
 		return SQL_ERROR;
 	}
 #define	return	DONT_CALL_RETURN_FROM_HERE???
- 
+
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
@@ -3129,8 +3128,8 @@ PGAPI_Statistics(
 	 * being shown. This would throw everything off.
 	 */
 	col_stmt->internal = TRUE;
-	/* 
-	 * table_name parameter cannot contain a string search pattern. 
+	/*
+	 * table_name parameter cannot contain a string search pattern.
 	 */
 	result = PGAPI_Columns(hcol_stmt,
 						   NULL, 0,
@@ -3214,10 +3213,10 @@ PGAPI_Statistics(
 
 	/* TableName cannot contain a string search pattern */
 	escTableName = simpleCatalogEscape((SQLCHAR *) table_name, SQL_NTS, NULL, conn);
-	eq_string = gen_opestr(eqop, conn); 
+	eq_string = gen_opestr(eqop, conn);
 	if (conn->schema_support)
 	{
-		escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, NULL, conn); 
+		escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, NULL, conn);
 		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
 			", i.indisclustered, a.amname, c.relhasrules, n.nspname"
 			", c.oid, %s, %s"
@@ -3267,7 +3266,7 @@ PGAPI_Statistics(
 						   index_name, MAX_INFO_STRING, &index_name_len);
 	if (!SQL_SUCCEEDED(result))
 	{
-		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column 
+		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column
 						* in SQLStatistics."; */
 		goto cleanup;
 
@@ -3277,7 +3276,7 @@ PGAPI_Statistics(
 			fields_vector, sizeof(fields_vector), &fields_vector_len);
 	if (!SQL_SUCCEEDED(result))
 	{
-		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column 
+		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column
 						 * in SQLStatistics."; */
 		goto cleanup;
 
@@ -3287,7 +3286,7 @@ PGAPI_Statistics(
 						   isunique, sizeof(isunique), NULL);
 	if (!SQL_SUCCEEDED(result))
 	{
-		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column 
+		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column
 						 * in SQLStatistics."; */
 		goto cleanup;
 	}
@@ -3308,7 +3307,7 @@ PGAPI_Statistics(
 						   ishash, sizeof(ishash), NULL);
 	if (!SQL_SUCCEEDED(result))
 	{
-		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column * 
+		SC_error_copy(stmt, indx_stmt, TRUE);	/* "Couldn't bind column *
 						 * in SQLStatistics."; */
 		goto cleanup;
 
@@ -3343,7 +3342,7 @@ PGAPI_Statistics(
 			indopt_vector, sizeof(fields_vector), &fields_vector_len);
 	if (!SQL_SUCCEEDED(result))
 	{
-		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column 
+		SC_error_copy(stmt, indx_stmt, TRUE); /* "Couldn't bind column
 						 * in SQLStatistics."; */
 		goto cleanup;
 
@@ -3565,7 +3564,7 @@ PGAPI_ColumnPrivileges(
 	escSchemaName = simpleCatalogEscape(szTableOwner, cbTableOwner, NULL, conn);
 	escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
-	if (search_pattern) 
+	if (search_pattern)
 	{
 		like_or_eq = likeop;
 		escColumnName = adjustLikePattern(szColumnName, cbColumnName, SEARCH_PATTERN_ESCAPE, NULL, conn);
@@ -3589,15 +3588,14 @@ PGAPI_ColumnPrivileges(
 		col_query += cq_len;
 		cq_size -= cq_len;
 		cq_len = snprintf_len(col_query, cq_size,
-			" and table_schem %s'%s'", eq_string, escSchemaName);  
-		
+			" and table_schem %s'%s'", eq_string, escSchemaName);
 	}
 	if (escTableName)
 	{
 		col_query += cq_len;
 		cq_size -= cq_len;
 		cq_len += snprintf_len(col_query, cq_size,
-			" and table_name %s'%s'", eq_string, escTableName);  
+			" and table_name %s'%s'", eq_string, escTableName);
 	}
 	if (escColumnName)
 	{
@@ -3692,7 +3690,7 @@ PGAPI_PrimaryKeys(
 	}
 	SC_set_Result(stmt, res);
 
-	/* the binding structure for a statement is not set up until 
+	/* the binding structure for a statement is not set up until
 	 *
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
@@ -3849,7 +3847,7 @@ retry_public_schema:
 				}
 				else
 				{
-					strncpy_null(tables_query, 
+					strncpy_null(tables_query,
 						"select ta.attname, ia.attnum, ic.relname, NULL, tc.relname"
 						" from pg_attribute ta, pg_attribute ia, pg_class tc, pg_index i, pg_class ic"
 						, sizeof(tables_query));
@@ -3863,7 +3861,7 @@ retry_public_schema:
 					else
 						snprintf(tbqry, tsize,
 						" where tc.oid = " FORMAT_UINT4, reloid);
-						
+
 					strlcat(tables_query,
 						" AND tc.oid = i.indrelid"
 						" AND i.indisprimary = 't'"
@@ -3993,7 +3991,7 @@ cleanup:
 	SC_set_current_col(stmt, -1);
 
 	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE); 
+		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
@@ -5070,7 +5068,7 @@ PGAPI_ProcedureColumns(
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
-	if (search_pattern) 
+	if (search_pattern)
 	{
 		like_or_eq = likeop;
 		escSchemaName = adjustLikePattern(szProcOwner, cbProcOwner, SEARCH_PATTERN_ESCAPE, NULL, conn);
@@ -5230,7 +5228,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				if (PG_VERSION_GE(conn, 8.1))
 					proargmodes = QR_get_value_backend_text(tres, i, ext_pos + 1);
 			}
-			/* RETURN_VALUE info */ 
+			/* RETURN_VALUE info */
 			if (0 != pgtype && PG_TYPE_VOID != pgtype && !bRetset && !atttypid && !proargmodes)
 			{
 				tuple = QR_AddNew(res);
@@ -5475,7 +5473,7 @@ PGAPI_Procedures(
 		return result;
 
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
-	if (search_pattern) 
+	if (search_pattern)
 	{
 		like_or_eq = likeop;
 		escSchemaName = adjustLikePattern(szProcOwner, cbProcOwner, SEARCH_PATTERN_ESCAPE, NULL, conn);
@@ -5660,7 +5658,7 @@ PGAPI_TablePrivileges(
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
-	if (search_pattern) 
+	if (search_pattern)
 	{
 		like_or_eq = likeop;
 		escTableName = adjustLikePattern(szTableName, cbTableName, SEARCH_PATTERN_ESCAPE, NULL, conn);
@@ -5674,7 +5672,7 @@ PGAPI_TablePrivileges(
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
-	if (search_pattern) 
+	if (search_pattern)
 		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
 	else
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
@@ -5733,7 +5731,7 @@ retry_public_schema:
 	usercount = (Int4) QR_get_num_cached_tuples(allures);
 	useracl = (char (*)[ACLMAX]) malloc(usercount * sizeof(char [ACLMAX]));
 	for (i = 0; i < tablecount; i++)
-	{ 
+	{
 		memset(useracl, 0, usercount * sizeof(char[ACLMAX]));
 		acl = (char *) QR_get_value_backend_text(wres, i, 2);
 		if (acl && acl[0] == '{')
@@ -5878,7 +5876,7 @@ cleanup:
 		QR_Destructor(wres);
 	if (allures)
 		QR_Destructor(allures);
-	if (stmt->internal) 
+	if (stmt->internal)
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	return ret;
 }

@@ -6,7 +6,7 @@
  * Classes:			n/a
  *
  * API functions:	SQLColAttributeW, SQLGetStmtAttrW, SQLSetStmtAttrW,
- 			SQLSetConnectAttrW, SQLGetConnectAttrW,
+			SQLSetConnectAttrW, SQLGetConnectAttrW,
 			SQLGetDescFieldW, SQLGetDescRecW, SQLGetDiagFieldW,
 			SQLGetDiagRecW,
  *-------
@@ -106,7 +106,7 @@ RETCODE SQL_API	SQLSetConnectAttrW(HDBC hdbc,
 /*      new function */
 RETCODE  SQL_API
 SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
-				SQLSMALLINT FieldIdentifier, PTR Value, 
+				SQLSMALLINT FieldIdentifier, PTR Value,
 				SQLINTEGER BufferLength)
 {
 	CSTR func = "SQLSetDescFieldW";
@@ -149,8 +149,8 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 }
 RETCODE SQL_API
 SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
-				PTR rgbValue, SQLINTEGER cbValueMax,
-    				SQLINTEGER *pcbValue)
+				 PTR rgbValue, SQLINTEGER cbValueMax,
+				 SQLINTEGER *pcbValue)
 {
 	CSTR func = "SQLGetDescFieldW";
 	RETCODE	ret;
@@ -232,8 +232,8 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 						   pfNativeError, (SQLCHAR *) mtxt, buflen, &tlen);
 	if (SQL_SUCCEEDED(ret))
 	{
-        	if (qstr)
-                	utf8_to_ucs2(qstr, strlen(qstr), szSqlState, 6);
+		if (qstr)
+			utf8_to_ucs2(qstr, strlen(qstr), szSqlState, 6);
 		if (mtxt && tlen <= cbErrorMsgMax)
 		{
 			SQLULEN ulen = utf8_to_ucs2_lf(mtxt, tlen, FALSE, szErrorMsg, cbErrorMsgMax, TRUE);
@@ -248,13 +248,13 @@ RETCODE SQL_API	SQLGetDiagRecW(SQLSMALLINT fHandleType,
 				ret = SQL_SUCCESS_WITH_INFO;
 		}
 		if (pcbErrorMsg)
-        		*pcbErrorMsg = tlen;
+			*pcbErrorMsg = tlen;
 	}
-        if (qstr)
-        	free(qstr);
+	if (qstr)
+		free(qstr);
 	if (mtxt)
-        	free(mtxt);
-        return ret;
+		free(mtxt);
+	return ret;
 }
 
 SQLRETURN SQL_API SQLColAttributeW(
@@ -262,7 +262,7 @@ SQLRETURN SQL_API SQLColAttributeW(
 	SQLUSMALLINT	iCol,
 	SQLUSMALLINT	iField,
 	SQLPOINTER	pCharAttr,
-	SQLSMALLINT	cbCharAttrMax,	
+	SQLSMALLINT	cbCharAttrMax,
 	SQLSMALLINT	*pcbCharAttr,
 #if defined(_WIN64) || defined(SQLCOLATTRIBUTE_SQLLEN)
 	SQLLEN		*pNumAttr
@@ -282,7 +282,7 @@ SQLRETURN SQL_API SQLColAttributeW(
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	switch (iField)
-	{ 
+	{
 		case SQL_DESC_BASE_COLUMN_NAME:
 		case SQL_DESC_BASE_TABLE_NAME:
 		case SQL_DESC_CATALOG_NAME:
@@ -350,7 +350,7 @@ RETCODE SQL_API SQLGetDiagFieldW(
 	mylog("[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, fHandleType,
 			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);
 	switch (fDiagField)
-	{ 
+	{
 		case SQL_DIAG_DYNAMIC_FUNCTION:
 		case SQL_DIAG_CLASS_ORIGIN:
 		case SQL_DIAG_CONNECTION_NAME:

@@ -478,7 +478,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 		case SQL_ATTR_CONNECTION_POOLING:
 			switch ((ULONG_PTR) Value)
 			{
-			 	case SQL_CP_OFF:
+				case SQL_CP_OFF:
 					EN_unset_pooling(env);
 					ret = SQL_SUCCESS;
 					break;
@@ -508,7 +508,6 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 				ret = SQL_SUCCESS;
 			else
 				ret = SQL_SUCCESS_WITH_INFO;
-	
 			break;
 		default:
 			env->errornumber = CONN_INVALID_ARGUMENT_NO;
@@ -630,7 +629,7 @@ inolog("lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLNUMPARAMS);		/* 63 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLPARAMOPTIONS); 64 deprecated */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPRIMARYKEYS);	/* 65 */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURECOLUMNS);	/* 66 */ 
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURECOLUMNS);	/* 66 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLPROCEDURES);		/* 67 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETPOS);		/* 68 */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSCROLLOPTIONS); 69 deprecated */
@@ -645,7 +644,7 @@ inolog("lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLENDTRAN);		/* 1005 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFREEHANDLE);		/* 1006 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETCONNECTATTR);	/* 1007 */
-	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDESCFIELD); 	/* 1008 */
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDESCFIELD);	/* 1008 */
 	if (ci->drivers.lie)
 	{
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDESCREC); /* 1009 not implemented yet */
@@ -684,5 +683,5 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	ret = DiscardStatementSvp(stmt,ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	return ret;
-}	
+}
 #endif /* ODBCVER >= 0x0300 */

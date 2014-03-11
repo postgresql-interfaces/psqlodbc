@@ -35,12 +35,12 @@
 
 <!-- Product details -->
 
-  <Product 
-    Manufacturer="PostgreSQL Global Development Group" 
+  <Product
+    Manufacturer="PostgreSQL Global Development Group"
     Id="$(var.PRODUCTCODE)"
     UpgradeCode="$(var.UPGCOD)"
     Name="$(var.PKGNAME)"
-    Version="$(var.VERSION)" 
+    Version="$(var.VERSION)"
     Language="1033">
 
 <!-- Package details -->
@@ -48,11 +48,11 @@
     <Package
       Keywords="PostgreSQL, ODBC"
       Comments="PostgreSQL ODBC Driver"
-      Manufacturer="PostgreSQL Global Development Group" 
+      Manufacturer="PostgreSQL Global Development Group"
       InstallerVersion="300"
-      Platform="$(var.Platform)" 
-      Languages="1033" 
-      Compressed="yes" 
+      Platform="$(var.Platform)"
+      Languages="1033"
+      Compressed="yes"
       SummaryCodepage="1252" />
 
 <!-- Directories -->

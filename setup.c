@@ -106,10 +106,10 @@ ConfigDSN(HWND hwnd,
 		if (hwnd)
 		{
 			/* Display dialog(s) */
-			fSuccess = (IDOK == DialogBoxParam(s_hModule, 
-				MAKEINTRESOURCE(DLG_CONFIG), 
-				hwnd, 
-				ConfigDlgProc, 
+			fSuccess = (IDOK == DialogBoxParam(s_hModule,
+				MAKEINTRESOURCE(DLG_CONFIG),
+				hwnd,
+				ConfigDlgProc,
 				(LPARAM) lpsetupdlg));
 		}
 		else if (lpsetupdlg->ci.dsn[0])
@@ -136,10 +136,10 @@ ConfigDSN(HWND hwnd,
  *			lpszArgs ------- A null-terminated string containing
 				arguments for a driver specific fRequest
  *			lpszMsg -------- A null-terimated string containing
-			  	an output message from the driver setup
+				an output message from the driver setup
  *			cnMsgMax ------- Length of lpszMSg
  *			pcbMsgOut ------ Total number of bytes available to
-				return in lpszMsg 
+				return in lpszMsg
  *	Returns :	TRUE success, FALSE otherwise
  *--------
  */
@@ -616,7 +616,7 @@ cleanup:
 		if (pErrorCode)
 			*pErrorCode = ODBC_ERROR_REQUEST_FAILED;
 		strncpy_null(message, "Failed to WritePrivateProfileString", cbMessage);
-	} 
+	}
 	return ret;
 }
 

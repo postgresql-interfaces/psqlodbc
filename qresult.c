@@ -775,7 +775,7 @@ QR_get_tupledata(QResultClass *self, BOOL binary)
 inolog("QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
 	if (!QR_get_cursor(self))
 	{
- 
+
 		if (self->num_fields > 0 &&
 		    num_total_rows >= self->count_backend_allocated)
 		{
@@ -847,7 +847,7 @@ static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *m
 		else
 		{
 			do
-			{ 
+			{
 				alloc *= 2;
 			} while (alloc < alloc_req);
 		}
@@ -868,12 +868,12 @@ static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *m
 		else
 		{
 			do
-			{ 
+			{
 				alloc *= 2;
 			} while (alloc < alloc_req);
 		}
 		self->count_keyset_allocated = 0;
-		QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * alloc, self, message, -1); 
+		QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * alloc, self, message, -1);
 		self->count_keyset_allocated = alloc;
 	}
 	return alloc;
@@ -936,7 +936,7 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 			if (self->cache_size > req_size)
 			{
 				SQLLEN	incr_move = self->cache_size - (req_size < 0 ? 1 : req_size);
-				
+
 				movement += incr_move;
 				if (movement > (UInt4)(self->cursTuple + 1))
 					movement = self->cursTuple + 1;
@@ -971,7 +971,7 @@ inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_si
 		if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &moved) > 0)
 		{
 inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
-        		if (moved < movement)
+			if (moved < movement)
 			{
 				if (0 <  moved)
 					moved++;
@@ -1058,7 +1058,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 				}
 			}
 		}
-		/* ... by the following call */ 
+		/* ... by the following call */
 		QR_set_rowstart_in_cache(self, -1);
 		if (QR_is_moving_backward(self))
 		{
@@ -1161,7 +1161,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 		}
 		else
 		{
-			/* 
+			/*
 			 *	The rowset boundary doesn't match that of
 			 *	the inner resultset. Enlarge the resultset
 			 *	and fetch the rest of the rowset.
@@ -1183,7 +1183,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 		if (enlargeKeyCache(self, self->cache_size - num_backend_rows, "Out of memory while reading tuples") < 0)
 			RETURN(FALSE)
 		if (PROTOCOL_74(ci)
-		    && !QR_is_permanent(self) /* Execute seems an invalid operation after COMMIT */ 
+		    && !QR_is_permanent(self) /* Execute seems an invalid operation after COMMIT */
 			)
 		{
 			ExecuteRequest = TRUE;
@@ -1444,7 +1444,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				if (self->cursTuple >= (Int4) self->num_total_read)
 {
 					self->num_total_read = self->cursTuple + 1;
-inolog("mayumi setting total_read to %d\n", self->num_total_read); 
+inolog("mayumi setting total_read to %d\n", self->num_total_read);
 }
 				self->cursTuple++;
 			}
@@ -1514,7 +1514,7 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 		SQLLEN	i, lf;
 		SQLLEN	lidx, hidx;
 		SQLLEN	*deleted = self->deleted, *updated = self->updated;
- 
+
 		num_backend_rows = QR_get_num_cached_tuples(self);
 		/* For simplicty, use CURS_NEEDS_REREAD bit to mark the row */
 		for (i = num_rows_in; i < num_backend_rows; i++)
@@ -1531,7 +1531,7 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 				/* mark the row off */
 				self->keyset[lf].status &= (~CURS_NEEDS_REREAD);
 			}
-		} 
+		}
 		for (i = self->up_count - 1; i >= 0; i--)
 		{
 			if (hidx > updated[i] &&
@@ -1543,9 +1543,9 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 					continue;
 				self->keyset[lf] = self->updated_keyset[i];
 				ReplaceCachedRows(self->backend_tuples + lf * num_fields, self->updated_tuples + i * num_fields, num_fields, 1);
-				self->keyset[lf].status &= (~CURS_NEEDS_REREAD); 
+				self->keyset[lf].status &= (~CURS_NEEDS_REREAD);
 			}
-		} 
+		}
 		/* reset CURS_NEEDS_REREAD bit */
 		for (i = 0; i < num_backend_rows; i++)
 		{

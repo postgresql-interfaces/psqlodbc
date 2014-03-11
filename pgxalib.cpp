@@ -346,7 +346,7 @@ static const char *XidToText(const XID &xid, char *rtext)
 		sprintf(rtext + j, "%02x", (unsigned char) xid.data[i]);
 	strcat(rtext, "-"); j++;
 	for (; i < glen + blen; i++, j += 2)
-		sprintf(rtext + j, "%02x", (unsigned char) xid.data[i]); 
+		sprintf(rtext + j, "%02x", (unsigned char) xid.data[i]);
 	return rtext;
 }
 
@@ -374,7 +374,7 @@ pg_hex2bin(const UCHAR *src, UCHAR *dst, int length)
 			*dst_wk = (val << 4);
 		else
 		{
-			*dst_wk += val; 
+			*dst_wk += val;
 			dst_wk++;
 		}
 		HByte = !HByte;
@@ -391,7 +391,7 @@ static int	TextToXid(XID &xid, const char *rtext)
 	sptr = (char *)strchr(rtext, '-');
 	if (sptr)
 	{
-	 	glen = (int) (sptr - rtext);
+		glen = (int) (sptr - rtext);
 		blen = slen - glen - 1;
 	}
 	else
@@ -486,8 +486,8 @@ EXTERN_C static int __cdecl xa_rollback(XID *xid, int rmid, long flags)
 					break;
 				case SQL_ERROR:
 					SQLGetDiagRec(SQL_HANDLE_STMT, stmt,
-						1, sqlstate, NULL, cmdmsg,
-                          			sizeof(cmdmsg), NULL);
+								  1, sqlstate, NULL, cmdmsg,
+								  sizeof(cmdmsg), NULL);
 					mylog("xa_commit error %s '%s'\n", sqlstate, cmdmsg);
 					if (_stricmp((char *) sqlstate, "42704") == 0)
 						rmcode = XA_HEURHAZ;
@@ -501,7 +501,7 @@ EXTERN_C static int __cdecl xa_rollback(XID *xid, int rmid, long flags)
 //
 //	Dummy implementation (not called from MSDTC).
 //	Anyway it's almost impossible to implement this routine properly.
-//	
+//
 EXTERN_C static int __cdecl xa_prepare(XID *xid, int rmid, long flags)
 {
 	char	pgxid[258];
@@ -554,8 +554,8 @@ EXTERN_C static int __cdecl xa_commit(XID *xid, int rmid, long flags)
 					break;
 				case SQL_ERROR:
 					SQLGetDiagRec(SQL_HANDLE_STMT, stmt,
-						1, sqlstate, NULL, cmdmsg,
-                          			sizeof(cmdmsg), NULL);
+								  1, sqlstate, NULL, cmdmsg,
+								  sizeof(cmdmsg), NULL);
 					if (_stricmp((char *) sqlstate, "42704") == 0)
 						rmcode = XA_HEURHAZ;
 					break;
@@ -610,7 +610,7 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 		rmcode = count;
 	for (int i = 0; i < rmcode; i++, pos++)
 		TextToXid(xids[i], vec[pos].c_str());
-	
+
 	if ((flags & TMENDRSCAN) != 0)
 	{
 		vec.clear();
@@ -646,7 +646,7 @@ EXTERN_C static int __cdecl xa_complete(int *handle, int *retval, int rmid, long
 EXTERN_C static xa_switch_t	xapsw = { "psotgres_xa", TMNOMIGRATE,
 		0, xa_open, xa_close, xa_start, xa_end, xa_rollback,
 		xa_prepare, xa_commit, xa_recover, xa_forget,
-		xa_complete}; 
+		xa_complete};
 
 EXTERN_C HRESULT __cdecl   GetXaSwitch (XA_SWITCH_FLAGS  XaSwitchFlags,
 		xa_switch_t **  ppXaSwitch)

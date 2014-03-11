@@ -28,7 +28,7 @@ struct BindInfoClass_
 	SQLSMALLINT	precision;	/* the precision for numeric or timestamp type */
 	SQLSMALLINT	scale;		/* the scale for numeric type */
 	/* area for work variables */
-	char	dummy_data;		/* currently not used */		
+	char	dummy_data;		/* currently not used */
 };
 typedef struct
 {
@@ -55,7 +55,7 @@ struct ParameterInfoClass_
 	char	data_at_exec;
 };
 
-typedef struct 
+typedef struct
 {
 	SQLLEN	*EXEC_used;	/* amount of data */
 	char	*EXEC_buffer; 	/* the data */

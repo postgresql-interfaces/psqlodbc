@@ -478,10 +478,10 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 		value = equals + 1;		/* ex. 'CEO co1' */
 		/*
 		 * Values enclosed with braces({}) can contain ; etc
-		 * We don't remove the braces here because 
+		 * We don't remove the braces here because
 		 * decode_or_remove_braces() in dlg_specifi.c
 		 * would remove them later.
-		 * Just correct the misdetected delimter(;).  
+		 * Just correct the misdetected delimter(;).
 		 */
 		if (OPENING_BRACKET == *value)
 		{
@@ -508,7 +508,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 						strtok_arg = closep + 1;
 						if (delp = strchr(closep + 1, ATTRIBUTE_DELIMITER), NULL != delp)
 						{
-							*delp = '\0'; 
+							*delp = '\0';
 							strtok_arg = delp + 1;
 						}
 						if (strtok_arg + 1 >= termp)

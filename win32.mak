@@ -20,25 +20,25 @@
 CFG=Release
 !MESSAGE No configuration specified. Defaulting to Release.
 !MESSAGE
-!ENDIF 
+!ENDIF
 
 !IF "$(CFG)" != "Release" && "$(CFG)" != "Debug"
 !MESSAGE Invalid configuration "$(CFG)" specified.
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
-!MESSAGE 
+!MESSAGE
 !MESSAGE NMAKE /f win32.mak CFG=[Release | Debug] [ALL | CLEAN]
-!MESSAGE 
+!MESSAGE
 !MESSAGE Possible choices for configuration are:
-!MESSAGE 
+!MESSAGE
 !MESSAGE "Release" (Win32 Release DLL)
 !MESSAGE "Debug" (Win32 Debug DLL)
-!MESSAGE 
+!MESSAGE
 !ERROR An invalid configuration was specified.
-!ENDIF 
+!ENDIF
 
 #
-#	Please replace the default options from the commandline if necessary 
+#	Please replace the default options from the commandline if necessary
 #
 !IFNDEF	CUSTOMCLOPT
 CUSTOMCLOPT=/nologo /W3 /wd4018
@@ -93,7 +93,7 @@ DTCLIB = pgenlista
 !ELSE
 DTCLIB = pgenlist
 !ENDIF
-DTCDLL = $(DTCLIB).dll 
+DTCDLL = $(DTCLIB).dll
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
 MSVC_VERSION=vc60
 VC07_DELAY_LOAD=
@@ -144,7 +144,7 @@ INC_OPT=$(INC_OPT) /I "$(SSL_INC)"
 
 !IF "$(OS)" == "Windows_NT"
 NULL=
-!ELSE 
+!ELSE
 NULL=nul
 !ENDIF
 
@@ -153,9 +153,9 @@ MAINLIB = psqlodbc30a
 !ELSE
 MAINLIB = psqlodbc35w
 !ENDIF
-MAINDLL = $(MAINLIB).dll 
-XALIB = pgxalib 
-XADLL = $(XALIB).dll 
+MAINDLL = $(MAINLIB).dll
+XALIB = pgxalib
+XADLL = $(XALIB).dll
 
 !IF  "$(CFG)" == "Release"
 !IF  "$(ANSI_VERSION)" == "yes"
@@ -231,49 +231,49 @@ CPP_PROJ=$(CPP_PROJ) $(CUSTOMCLOPT) $(VC_FLAGS) $(INC_OPT) /D "WIN32" /D "_WINDO
 !MESSAGE CPP_PROJ=$(CPP_PROJ)
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cpp{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cxx{$(INTDIR)}.obj::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .c{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cpp{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 .cxx{$(INTDIR)}.sbr::
    $(CPP) @<<
-   $(CPP_PROJ) /c $< 
+   $(CPP_PROJ) /c $<
 <<
 
 MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
-MTL_PROJ=/nologo /mktyplib203 /win32 
-RSC_PROJ=/l 0x809 /d "MULTIBYTE" 
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc" 
+MTL_PROJ=/nologo /mktyplib203 /win32
+RSC_PROJ=/l 0x809 /d "MULTIBYTE"
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 !IF  "$(CFG)" == "Release"
-MTL_PROJ=$(MTL_PROC) /D "NDEBUG" 
+MTL_PROJ=$(MTL_PROC) /D "NDEBUG"
 RSC_PROJ=$(RSC_PROJ) /d "NDEBUG"
 !ELSE
-MTL_PROJ=$(MTL_PROJ) /D "_DEBUG" 
-RSC_PROJ=$(RSC_PROJ) /d "_DEBUG" 
+MTL_PROJ=$(MTL_PROJ) /D "_DEBUG"
+RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 !ENDIF
 BSC32_SBRS= \
-	
+
 LINK32=link.exe
 LIB32=lib.exe
 !IF "$(MSDTC)" != "no"
@@ -356,7 +356,7 @@ LINK32_DTCOBJS= \
 XADEF_FILE= "$(XALIB).def"
 LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /machine:I386 /def:$(XADEF_FILE)
 LINK32_XAOBJS= \
-	"$(INTDIR)\pgxalib.obj" 
+	"$(INTDIR)\pgxalib.obj"
 
 "$(OUTDIR)\$(MAINDLL)" : $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -370,7 +370,7 @@ LINK32_XAOBJS= \
 
 "$(OUTDIR)\$(DTCDLL)" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
     $(LINK32) @<<
-  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) $*.exp /pdb:$*.pdb /out:$@ 
+  $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) $*.exp /pdb:$*.pdb /out:$@
 <<
 
 "$(OUTDIR)\$(XADLL)" : $(XADEF_FILE) $(LINK32_XAOBJS)

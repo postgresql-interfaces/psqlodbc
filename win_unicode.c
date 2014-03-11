@@ -89,9 +89,9 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 					utf8str[len] = ((char *) &byte2code)[1];
 					utf8str[len + 1] = ((char *) &byte2code)[0];
 				}
-				len += sizeof(byte2code); 
+				len += sizeof(byte2code);
 			}
-			/* surrogate pair check for non ucs-2 code */ 
+			/* surrogate pair check for non ucs-2 code */
 			else if (surrog1_bits == (*wstr & surrog_check))
 			{
 				surrd1 = (*wstr & ~surrog_check) + surrogate_adjust;
@@ -118,8 +118,8 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 			else
 			{
 				byte4code = byte3_base |
-					    ((byte3_mask1 & *wstr) >> 12) | 
-					    ((byte3_mask2 & *wstr) << 2) | 
+					    ((byte3_mask1 & *wstr) >> 12) |
+					    ((byte3_mask2 & *wstr) << 2) |
 					    ((byte3_mask3 & *wstr) << 16);
 				if (little_endian)
 					memcpy(utf8str + len, (char *) &byte4code, 3);
@@ -131,7 +131,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 				}
 				len += 3;
 			}
-		} 
+		}
 		utf8str[len] = '\0';
 		if (olen)
 			*olen = len;
@@ -311,9 +311,9 @@ int msgtowstr(const char *enc, const char *inmsg, int inlen, LPWSTR outmsg, int 
 	int	wlen, cp = CP_ACP;
 
 	if (NULL != enc && 0 != atoi(enc))
-		cp = atoi(enc);	
+		cp = atoi(enc);
 	wlen = MultiByteToWideChar(cp, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-			inmsg, inlen, outmsg, buflen);
+							   inmsg, inlen, outmsg, buflen);
 mylog(" out=%dchars\n", wlen);
 	outlen = wlen;
 #else
@@ -336,7 +336,7 @@ int wstrtomsg(const char *enc, const LPWSTR wstr, int wstrlen, char * outmsg, in
 	int	len, cp = CP_ACP;
 
 	if (NULL != enc && 0 != atoi(enc))
-		cp = atoi(enc);	
+		cp = atoi(enc);
 	len = WideCharToMultiByte(cp, 0, wstr, (int) wstrlen, outmsg, buflen, NULL, NULL);
 	outlen = len;
 #else

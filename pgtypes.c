@@ -110,7 +110,7 @@ SQLSMALLINT	sqlTypes[] = {
 #if (ODBCVER >= 0x0350)
 	SQL_GUID,
 #endif /* ODBCVER */
-/* AFAIK SQL_INTERVAL types cause troubles in some spplications */ 
+/* AFAIK SQL_INTERVAL types cause troubles in some spplications */
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 	SQL_INTERVAL_MONTH,
 	SQL_INTERVAL_YEAR,
@@ -552,7 +552,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		case PG_TYPE_TEXT:
-			return ci->drivers.text_as_longvarchar ? 
+			return ci->drivers.text_as_longvarchar ?
 				(ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR) :
 				(ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR);
 
@@ -589,9 +589,9 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 
 			/* Change this to SQL_BIGINT for ODBC v3 bjm 2001-01-23 */
 		case PG_TYPE_INT8:
-			if (ci->int8_as != 0) 
+			if (ci->int8_as != 0)
 				return ci->int8_as;
-			if (conn->ms_jet) 
+			if (conn->ms_jet)
 				return SQL_NUMERIC; /* maybe a little better than SQL_VARCHAR */
 #if (ODBCVER >= 0x0300)
 			return SQL_BIGINT;
@@ -923,7 +923,7 @@ pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, in
 	const ConnInfo	*ci = &(conn->connInfo);
 
 	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
-		handle_unknown_size_as = ci->drivers.unknown_sizes; 
+		handle_unknown_size_as = ci->drivers.unknown_sizes;
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
@@ -979,7 +979,7 @@ pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, in
 			return 19;			/* signed */
 
 		case PG_TYPE_NUMERIC:
-			return getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longest, handle_unknown_size_as); 
+			return getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longest, handle_unknown_size_as);
 
 		case PG_TYPE_FLOAT4:
 		case PG_TYPE_MONEY:
@@ -1179,10 +1179,10 @@ pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, 
 				return maxvarc;
 			return coef * prec;
 			}
-#ifdef	PG_INTERVAL_AS_SQL_INTERVAL 
+#ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 		case PG_TYPE_INTERVAL:
 			return sizeof(SQL_INTERVAL_STRUCT);
-#endif /* PG_INTERVAL_AS_SQL_INTERVAL */ 
+#endif /* PG_INTERVAL_AS_SQL_INTERVAL */
 
 		default:
 			return pgtype_attr_column_size(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
@@ -1280,7 +1280,7 @@ pgtype_attr_scale(const ConnectionClass *conn, OID type, int atttypmod, int adts
 	switch (type)
 	{
 		case PG_TYPE_NUMERIC:
-			return getNumericDecimalDigitsX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as); 
+			return getNumericDecimalDigitsX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
 	}
 	return -1;
 }
@@ -1478,7 +1478,7 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 				else
 				{
 					*adtsize_or_longestlen = QR_get_display_size(res, col);
-					if (PG_TYPE_NUMERIC == QR_get_field_type(res, col) && 
+					if (PG_TYPE_NUMERIC == QR_get_field_type(res, col) &&
 					   atttypmod < 0 &&
 					   *adtsize_or_longestlen > 0)
 					{
@@ -1497,7 +1497,7 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 						*adtsize_or_longestlen += (maxscale << 16);
 					}
 				}
-			} 
+			}
 		}
 	}
 	return atttypmod;
@@ -1521,7 +1521,7 @@ pgtype_to_concise_type(const StatementClass *stmt, OID type, int col)
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_to_concise_type(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen); 
+	return pgtype_attr_to_concise_type(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen);
 }
 
 SQLSMALLINT
@@ -1529,7 +1529,7 @@ pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col)
 {
 	int	atttypmod = getAtttypmodEtc(stmt, col, NULL);
 
-	return pgtype_attr_to_sqldesctype(SC_get_conn(stmt), type, atttypmod); 
+	return pgtype_attr_to_sqldesctype(SC_get_conn(stmt), type, atttypmod);
 }
 
 SQLSMALLINT
@@ -1537,7 +1537,7 @@ pgtype_to_datetime_sub(const StatementClass *stmt, OID type, int col)
 {
 	int	atttypmod = getAtttypmodEtc(stmt, col, NULL);
 
-	return pgtype_attr_to_datetime_sub(SC_get_conn(stmt), type, atttypmod); 
+	return pgtype_attr_to_datetime_sub(SC_get_conn(stmt), type, atttypmod);
 }
 
 
@@ -1546,7 +1546,7 @@ pgtype_to_ctype(const StatementClass *stmt, OID type, int col)
 {
 	int	atttypmod = getAtttypmodEtc(stmt, col, NULL);
 
-	return pgtype_attr_to_ctype(SC_get_conn(stmt), type, atttypmod); 
+	return pgtype_attr_to_ctype(SC_get_conn(stmt), type, atttypmod);
 }
 
 const char *
@@ -1554,7 +1554,7 @@ pgtype_to_name(const StatementClass *stmt, OID type, int col, BOOL auto_incremen
 {
 	int	atttypmod = getAtttypmodEtc(stmt, col, NULL);
 
-	return pgtype_attr_to_name(SC_get_conn(stmt), type, atttypmod, auto_increment); 
+	return pgtype_attr_to_name(SC_get_conn(stmt), type, atttypmod, auto_increment);
 }
 
 
@@ -1837,7 +1837,7 @@ pgtype_column_size(const StatementClass *stmt, OID type, int col, int handle_unk
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_column_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as); 
+	return pgtype_attr_column_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
 }
 
 /*
@@ -1849,7 +1849,7 @@ pgtype_precision(const StatementClass *stmt, OID type, int col, int handle_unkno
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_precision(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as); 
+	return pgtype_attr_precision(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
 }
 
 
@@ -1859,7 +1859,7 @@ pgtype_display_size(const StatementClass *stmt, OID type, int col, int handle_un
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_display_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as); 
+	return pgtype_attr_display_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
 }
 
 
@@ -1873,7 +1873,7 @@ pgtype_buffer_length(const StatementClass *stmt, OID type, int col, int handle_u
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_buffer_length(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as); 
+	return pgtype_attr_buffer_length(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
 }
 
 /*
@@ -1884,7 +1884,7 @@ pgtype_desclength(const StatementClass *stmt, OID type, int col, int handle_unkn
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_desclength(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as); 
+	return pgtype_attr_desclength(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
 }
 
 #ifdef	NOT_USED
@@ -1998,7 +1998,7 @@ pgtype_decimal_digits(const StatementClass *stmt, OID type, int col)
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_decimal_digits(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : UNKNOWNS_AS_DEFAULT); 
+	return pgtype_attr_decimal_digits(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : UNKNOWNS_AS_DEFAULT);
 }
 
 /*
@@ -2010,7 +2010,7 @@ pgtype_scale(const StatementClass *stmt, OID type, int col)
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_scale(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : UNKNOWNS_AS_DEFAULT); 
+	return pgtype_attr_scale(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : UNKNOWNS_AS_DEFAULT);
 }
 
 

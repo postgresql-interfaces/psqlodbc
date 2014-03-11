@@ -65,7 +65,7 @@ UInt4	getExtraOptions(const ConnInfo *ci)
 		flag |= BIT_DISABLE_KEEPALIVE;
 	else if (ci->disable_keepalive == 0)
 		flag &= (~BIT_DISABLE_KEEPALIVE);
-		
+
 	return flag;
 }
 
@@ -77,7 +77,7 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 	if (overwrite)
 		ci->extra_opts = flag;
 	else
-		ci->extra_opts |= (flag & ~(OVR_EXTRA_BITS));  
+		ci->extra_opts |= (flag & ~(OVR_EXTRA_BITS));
 	if (overwrite || ci->force_abbrev_connstr < 0)
 		ci->force_abbrev_connstr = (0 != (flag & BIT_FORCEABBREVCONNSTR));
 	if (overwrite || ci->fake_mss < 0)
@@ -92,7 +92,7 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 		ci->ignore_round_trip_time = (0 != (flag & BIT_IGNORE_ROUND_TRIP_TIME));
 	if (overwrite || ci->disable_keepalive < 0)
 		ci->disable_keepalive = (0 != (flag & BIT_DISABLE_KEEPALIVE));
-		
+
 	return (ci->extra_opts = getExtraOptions(ci));
 }
 BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
@@ -121,7 +121,7 @@ BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 		else
 			format = dec_format;
 	}
-		
+
 	if (sscanf(optstr, format, &flag) < 1)
 		return FALSE;
 	replaceExtraOptions(ci, flag, TRUE);
@@ -184,14 +184,12 @@ abbrev_sslmode(const char *sslmode, char *abbrevmode)
 					break;
 				default:
 					if (strnicmp(sslmode, "verify_", 7) == 0)
-					{
 						abbrevmode[1] = sslmode[7];
-					}
 					else
-						strcpy(abbrevmode, sslmode);	
+						strcpy(abbrevmode, sslmode);
 			}
 			break;
-	} 
+	}
 	return abbrevmode;
 }
 
@@ -232,7 +230,7 @@ inolog("hlen=%d", hlen);
 	if (!abbrev)
 	{
 		char	protocol_and[16];
-		
+
 		if (ci->rollback_on_error >= 0)
 			snprintf(protocol_and, sizeof(protocol_and), "%s-%d", ci->protocol, ci->rollback_on_error);
 		else
@@ -484,7 +482,7 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_DONTKNOW;
 	else if ((flag & BIT_UNKNOWN_ASMAX) != 0)
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_MAX;
-	else 
+	else
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_LONGEST;
 	ci->drivers.disable_optimizer = (char)((flag & BIT_OPTIMIZER) != 0);
 	ci->drivers.ksqo = (char)((flag & BIT_KSQO) != 0);
@@ -645,7 +643,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_EXTRAOPTIONS) == 0)
 	{
 		UInt4	val1 = 0, val2 = 0;
-	
+
 		if ('+' == value[0])
 		{
 			sscanf(value + 1, "%x-%x", &val1, &val2);
@@ -1035,8 +1033,8 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		if (NULL != enc)
 			free(enc);
 		qlog("          translation_dll='%s',translation_option='%s'\n",
-		 	ci->translation_dll,
-		 	ci->translation_option);
+			ci->translation_dll,
+			ci->translation_option);
 	}
 }
 /*
@@ -1052,7 +1050,7 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 
 	if (stricmp(ODBCINST_INI, fileName) == 0 && NULL == sectionName)
 		sectionName = DBMS_NAME;
- 
+
 	sprintf(tmp, "%d", comval->commlog);
 	if (!SQLWritePrivateProfileString(sectionName, INI_COMMLOG, tmp, fileName))
 		errc--;
@@ -1593,7 +1591,7 @@ decode(const char *in)
 
 /*
  *	Remove braces if the input value is enclosed by braces({}).
- *	Othewise decode the input value. 
+ *	Othewise decode the input value.
  */
 static pgNAME
 decode_or_remove_braces(const char *in)
@@ -1605,8 +1603,8 @@ decode_or_remove_braces(const char *in)
 		{
 			pgNAME	out;
 
-			INIT_NAME(out);	
-			STRN_TO_NAME(out, in + 1, inlen - 2);	
+			INIT_NAME(out);
+			STRN_TO_NAME(out, in + 1, inlen - 2);
 			return out;
 		}
 	}

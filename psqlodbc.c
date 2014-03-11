@@ -171,7 +171,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			{
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
 				OSVERSIONINFO	osversion;
-				
+
 				getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
 				{

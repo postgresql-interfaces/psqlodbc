@@ -431,10 +431,10 @@ static BOOL CheckHasOids(StatementClass * stmt)
 		}
 	}
 	QR_Destructor(res);
-	SC_set_checked_hasoids(stmt, foundKey); 
+	SC_set_checked_hasoids(stmt, foundKey);
 	return TRUE;
 }
-	
+
 static BOOL increaseNtab(StatementClass *stmt, const char *func)
 {
 	TABLE_INFO	**ti = stmt->ti, *wti;
@@ -455,7 +455,7 @@ static BOOL increaseNtab(StatementClass *stmt, const char *func)
 	stmt->ntab++;
 	return TRUE;
 }
-	
+
 static void setNumFields(IRDFields *irdflds, size_t numFields)
 {
 	FIELD_INFO	**fi = irdflds->fi;
@@ -678,7 +678,7 @@ mylog("->%d\n", updatable);
 			{
 				if (attid > 0)
 				{
-					if (getColumnsInfo(NULL, rti, reloid, stmt) && 
+					if (getColumnsInfo(NULL, rti, reloid, stmt) &&
 					    searchColInfo(col_info, wfi))
 					{
 						STR_TO_NAME(wfi->column_alias, QR_get_fieldname(res, i));
@@ -700,7 +700,7 @@ mylog("->%d\n", updatable);
 }
 
 static BOOL
-getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name, 
+getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name,
 COL_INFO **coli)
 {
 	int	colidx;
@@ -738,8 +738,8 @@ COL_INFO **coli)
 				BOOL		tblFound = FALSE;
 
 				/*
-			  	 * We also have to check as follows.
-			  	 */
+				 * We also have to check as follows.
+				 */
 				snprintf(token, sizeof(token),
 						 "select nspname from pg_namespace n, pg_class c"
 						 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
@@ -908,7 +908,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
 		}
 		if (!coli)
-		{	
+		{
 			if (stmt)
 				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "PGAPI_AllocStmt failed in parse_statement for col_info(2).", __FUNCTION__);
 			goto cleanup;
@@ -923,10 +923,10 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			if (!wti->table_oid)
 				wti->table_oid = greloid;
 			if (NAME_IS_NULL(wti->schema_name))
-				STR_TO_NAME(wti->schema_name, 
+				STR_TO_NAME(wti->schema_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_SCHEMA_NAME));
 			if (NAME_IS_NULL(wti->table_name))
-				STR_TO_NAME(wti->table_name, 
+				STR_TO_NAME(wti->table_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
 		}
 inolog("#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
@@ -990,7 +990,7 @@ inolog("getCOLIfromTI reloid=%u ti=%p\n", reloid, wti);
 		{
 			if (stmt->ti[i]->table_oid == greloid)
 			{
-				wti = stmt->ti[i]; 
+				wti = stmt->ti[i];
 				break;
 			}
 		}
@@ -1000,7 +1000,7 @@ inolog("before increaseNtab\n");
 			if (!increaseNtab(stmt, func))
 				return FALSE;
 			wti = stmt->ti[stmt->ntab - 1];
-			wti->table_oid = greloid; 
+			wti->table_oid = greloid;
 		}
 		*pti = wti;
 	}
@@ -1063,10 +1063,10 @@ cleanup:
 			if (!wti->table_oid)
 				wti->table_oid = greloid;
 			if (NAME_IS_NULL(wti->schema_name))
-				STR_TO_NAME(wti->schema_name, 
+				STR_TO_NAME(wti->schema_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_SCHEMA_NAME));
 			if (NAME_IS_NULL(wti->table_name))
-				STR_TO_NAME(wti->table_name, 
+				STR_TO_NAME(wti->table_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
 		}
 inolog("#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
@@ -1161,7 +1161,7 @@ inolog("%s: contains_key=%d\n", func, contains_key);
 			continue;
 		if (!contains_key || tfi->columnkey < 0)
 			tfi->columnkey = FALSE;
-	} 
+	}
 cleanup:
 	if (pstmt)
 		PGAPI_FreeStmt(pstmt, SQL_DROP);
@@ -1181,7 +1181,7 @@ mylog("alias ? token=%s btoken=%s\n", token, btoken);
 		 0 == stricmp("not", btoken) ||
 		 0 == stricmp(",", btoken))
 		return FALSE;
-	else 
+	else
 	{
 		CSTR ops = "+-*/%^|!@&#~<>=.";
 		const char *cptr, *optr;
@@ -1196,7 +1196,7 @@ mylog("alias ? token=%s btoken=%s\n", token, btoken);
 		}
 	}
 
-	return FALSE; 
+	return FALSE;
 }
 
 static char *insert_as_to_the_statement(char *stmt, char **pptr, char **ptr)
@@ -1215,7 +1215,7 @@ static char *insert_as_to_the_statement(char *stmt, char **pptr, char **ptr)
 		*ptr = sptr + (*ptr - *pptr) + ins_size;
 		*pptr = sptr + ins_size;
 	}
-	
+
 	return newstmt;
 }
 
@@ -1377,7 +1377,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 				stoken[0] = '\0';
 				if (0 == blevel)
 				{
-					in_select = TRUE; 
+					in_select = TRUE;
 					mylog("SELECT\n");
 					continue;
 				}
@@ -1685,7 +1685,7 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 				case '\0':
 					continue;
 				case ',':
-					out_table = TRUE; 
+					out_table = TRUE;
 					continue;
 			}
 			if (out_table && !in_table) /* new table */
@@ -1768,16 +1768,16 @@ mylog("blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken, i
 				if (')' == token[0])
 					continue;
 				if (stricmp(token, "LEFT") == 0 ||
-			    	    stricmp(token, "RIGHT") == 0 ||
-			    	    stricmp(token, "OUTER") == 0 ||
-			    	    stricmp(token, "FULL") == 0)
+					stricmp(token, "RIGHT") == 0 ||
+					stricmp(token, "OUTER") == 0 ||
+					stricmp(token, "FULL") == 0)
 				{
 					maybe_join = 1;
 					in_table = FALSE;
 					continue;
 				}
 				else if (stricmp(token, "INNER") == 0 ||
-					 stricmp(token, "CROSS") == 0)
+						 stricmp(token, "CROSS") == 0)
 				{
 					maybe_join = 2;
 					in_table = FALSE;

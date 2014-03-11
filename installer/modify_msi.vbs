@@ -32,12 +32,12 @@ If Left(gFile, 8) = "psqlodbc" Then
 	pos = InStr(record.StringData(3), "|")
 	If pos > 0 Then
 		' Omit the ShortName part
-		gFile = Mid(record.StringData(3), pos + 1) 
+		gFile = Mid(record.StringData(3), pos + 1)
 		WScript.echo record.StringData(3) & " -> " & gFile
 		' And update the field
 		record.StringData(3) = gFile
-		view.Modify msiViewModifyUpdate, record 
-	End If 
+		view.Modify msiViewModifyUpdate, record
+	End If
 End If
 Set record = view.Fetch
 Loop

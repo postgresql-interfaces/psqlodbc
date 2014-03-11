@@ -61,7 +61,7 @@ static pg_CS CS_Table[] =
 	{ "SJIS",	SJIS },
 	{ "BIG5",	BIG5 },
 	{ "GBK",	GBK },		/* since 7.3 */
-	{ "UHC",	UHC },		/* since 7.3 */	
+	{ "UHC",	UHC },		/* since 7.3 */
 	{ "GB18030",	GB18030 },	/* since 7.3 */
 	{ "SHIFT_JIS_2004", SHIFT_JIS_2004 },	/* SHIFT-JIS-2004 Japanese, standard JIS X 0213, since 8.3 */
 	{ "OTHER",	OTHER }
@@ -87,7 +87,7 @@ pg_CS_code(const char *characterset_string)
 	{
 		if (0 == stricmp(characterset_string, CS_Table[i].name))
 		{
-                       	c = CS_Table[i].code;
+			c = CS_Table[i].code;
 			break;
 		}
 	}
@@ -97,7 +97,7 @@ pg_CS_code(const char *characterset_string)
 		{
 			if (0 == stricmp(characterset_string, CS_Alias[i].name))
 			{
-                       		c = CS_Alias[i].code;
+				c = CS_Alias[i].code;
 				break;
 			}
 		}
@@ -118,8 +118,8 @@ check_client_encoding(const pgNAME conn_settings)
 
 	if (NAME_IS_NULL(conn_settings))
 		return NULL;
- 	for (cptr = SAFE_NAME(conn_settings); *cptr; cptr++)
- 	{
+	for (cptr = SAFE_NAME(conn_settings); *cptr; cptr++)
+	{
 		if (in_quote)
 			if (LITERAL_QUOTE == *cptr)
 			{
@@ -325,11 +325,11 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			/* 0x8e is JIS X 0201 2 byte */
 			/* 0xa0-0xff is JIS X 0208 2 byte */
 			{
-				if (stat < 3 && 
+				if (stat < 3 &&
 					character == 0x8f)	/* JIS X 0212 */
 					stat = 3;
 				else
-				if (stat != 2 && 
+				if (stat != 2 &&
 					(character == 0x8e ||
 					character > 0xa0))	/* Half Katakana HighByte & Kanji HighByte */
 					stat = 2;
@@ -411,7 +411,7 @@ pg_mbschr(int csc, const UCHAR *string, unsigned int character)
 	int			mb_st = 0;
 	const UCHAR *s, *rs = NULL;
 
-	for(s = string; *s ; s++) 
+	for(s = string; *s ; s++)
 	{
 		mb_st = pg_CS_stat(mb_st, (UCHAR) *s, csc);
 		if (mb_st == 0 && (*s == character))
@@ -447,7 +447,7 @@ CC_lookup_cs_new(ConnectionClass *self)
 	res = CC_send_query(self, "select pg_client_encoding()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	if (QR_command_maybe_successful(res))
 	{
-		const char 	*enc = QR_get_value_backend_text(res, 0, 0);
+		const char *enc = QR_get_value_backend_text(res, 0, 0);
 
 		if (enc)
 			encstr = strdup(enc);
@@ -518,7 +518,7 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 				wenc = "GBK";
 			break;
 		case 949:
-			if (!bStartup && PG_VERSION_GT(conn, 7.2))  
+			if (!bStartup && PG_VERSION_GT(conn, 7.2))
 				wenc = "UHC";
 			break;
 		case 950:
@@ -635,7 +635,7 @@ CC_lookup_characterset(ConnectionClass *self)
 			char msg[256];
 
 			snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", tencstr);
-			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func); 
+			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
 		}
 	}
 	else
@@ -657,20 +657,20 @@ int encoded_nextchar(encoded_str *encstr)
 {
 	int	chr;
 
-	chr = encstr->encstr[++encstr->pos]; 
+	chr = encstr->encstr[++encstr->pos];
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
-	return chr; 
+	return chr;
 }
 ssize_t encoded_position_shift(encoded_str *encstr, size_t shift)
 {
-	encstr->pos += shift; 
-	return encstr->pos; 
+	encstr->pos += shift;
+	return encstr->pos;
 }
 int encoded_byte_check(encoded_str *encstr, size_t abspos)
 {
 	int	chr;
 
-	chr = encstr->encstr[encstr->pos = abspos]; 
+	chr = encstr->encstr[encstr->pos = abspos];
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
-	return chr; 
+	return chr;
 }

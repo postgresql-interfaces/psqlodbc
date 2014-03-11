@@ -6,7 +6,7 @@
  * Classes:			n/a
  *
  * API functions:	SQLColumnPrivilegesW, SQLColumnsW,
- 			SQLConnectW, SQLDataSourcesW, SQLDescribeColW,
+			SQLConnectW, SQLDataSourcesW, SQLDescribeColW,
 			SQLDriverConnectW, SQLExecDirectW,
 			SQLForeignKeysW,
 			SQLGetCursorNameW, SQLGetInfoW, SQLNativeSqlW,
@@ -38,7 +38,7 @@ RETCODE  SQL_API SQLColumnsW(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL	lower_id;
-	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA; 
+	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -87,7 +87,7 @@ RETCODE  SQL_API SQLConnectW(HDBC ConnectionHandle,
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
-	
+
 	mylog("[%s]", func);
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
@@ -224,8 +224,8 @@ RETCODE  SQL_API SQLDataSourcesW(HENV EnvironmentHandle,
 	mylog("[%s]", func);
 	/*
 	return PGAPI_DataSources(EnvironmentHandle, Direction, ServerName,
-		 BufferLength1, NameLength1, Description, BufferLength2,
-           	NameLength2);
+		BufferLength1, NameLength1, Description, BufferLength2,
+		NameLength2);
 	*/
 	return SQL_ERROR;
 }
@@ -279,7 +279,7 @@ RETCODE  SQL_API SQLDescribeColW(HSTMT StatementHandle,
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (clName)
-		free(clName); 
+		free(clName);
 	return ret;
 }
 
@@ -372,13 +372,13 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 #if (ODBCVER >= 0x0300)
 	mylog("[%s(30)]", func);
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
-           	BufferLength, StringLength)) == SQL_ERROR)
+							 BufferLength, StringLength)) == SQL_ERROR)
 	{
 		if (conn->driver_version >= 0x0300)
 		{
 			CC_clear_error(conn);
 			ret = PGAPI_GetInfo30(ConnectionHandle, InfoType, InfoValue,
-           			BufferLength, StringLength);
+								  BufferLength, StringLength);
 		}
 	}
 	if (SQL_ERROR == ret)
@@ -386,7 +386,7 @@ RETCODE  SQL_API SQLGetInfoW(HDBC ConnectionHandle,
 #else
 	mylog("[%s]", func);
 	ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
-           	BufferLength, StringLength);
+						BufferLength, StringLength);
 	if (SQL_ERROR == ret)
 		CC_log_error("SQLGetInfoW", "", conn);
 #endif
@@ -455,7 +455,7 @@ RETCODE  SQL_API SQLSpecialColumnsW(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
 	BOOL lower_id;
-	
+
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
@@ -594,7 +594,7 @@ RETCODE SQL_API SQLColumnPrivilegesW(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
-	UWORD	flag = 0; 
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -653,7 +653,7 @@ RETCODE SQL_API SQLForeignKeysW(
 	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -763,7 +763,7 @@ RETCODE SQL_API SQLPrimaryKeysW(
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
+	BOOL	lower_id;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -810,7 +810,7 @@ RETCODE SQL_API SQLProcedureColumnsW(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
-	UWORD	flag = 0; 
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -864,7 +864,7 @@ RETCODE SQL_API SQLProceduresW(
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	BOOL	lower_id;
-	UWORD	flag = 0; 
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);
@@ -913,8 +913,8 @@ RETCODE SQL_API SQLTablePrivilegesW(
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
-	BOOL	lower_id; 
-	UWORD	flag = 0; 
+	BOOL	lower_id;
+	UWORD	flag = 0;
 
 	mylog("[%s]", func);
 	conn = SC_get_conn(stmt);

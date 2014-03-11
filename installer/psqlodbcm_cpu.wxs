@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 <?ifdef var.Platform ?>
 <?define ModuleName = "psqlODBC_$(var.Platform)" ?>
@@ -29,14 +29,14 @@
     Id="$(var.ModuleName)"
     Version="$(var.VERSION)"
     Language="1033">
-    
-    <Package 
+
+    <Package
       Id="$(var.Module_PackageId)"
       Description="PostgreSQL ODBC Driver"
       Keywords="PostgreSQL, ODBC"
-      Manufacturer="PostgreSQL Global Development Group" 
+      Manufacturer="PostgreSQL Global Development Group"
       InstallerVersion="300"
-      Platform="$(var.Platform)" 
+      Platform="$(var.Platform)"
       Languages="1033"
       SummaryCodepage="1252" />
 
@@ -56,10 +56,10 @@
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
 <?if "$(var.LIBPQBINDIR)" != "" ?>
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
-          
+
           <!-- Gettext -->
           <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.LIBPQBINDIR)\libintl-8.dll" />
-          
+
           <!-- SSL -->
           <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.LIBPQBINDIR)\libeay32.dll" />
           <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.LIBPQBINDIR)\ssleay32.dll" />

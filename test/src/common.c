@@ -222,7 +222,7 @@ print_result(HSTMT hstmt)
 	while(1)
 	{
 		rc = SQLFetch(hstmt);
-		if (rc == SQL_NO_DATA) 
+		if (rc == SQL_NO_DATA)
 			break;
 		if (rc == SQL_SUCCESS)
 		{

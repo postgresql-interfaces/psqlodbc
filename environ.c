@@ -150,7 +150,7 @@ PG_ErrorInfo	*ER_Constructor(SDWORD errnumber, const char *msg)
 		if (errsize > 0)
 			memcpy(error->__error_message, msg, errsize);
 		error->__error_message[aladd] = '\0';
-        	error->recsize = -1;
+		error->recsize = -1;
 	}
 	return error;
 }
@@ -206,7 +206,7 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 	/*
 	 *	Even though an application specifies a larger error message
 	 *	buffer, the driver manager changes it silently.
-	 *	Therefore we divide the error message into ... 
+	 *	Therefore we divide the error message into ...
 	 */
 	if (error->recsize < 0)
 	{
@@ -224,19 +224,19 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 	}
 	stapos = (RecNumber - 1) * error->recsize;
 	if (stapos > msglen)
-		return SQL_NO_DATA_FOUND; 
+		return SQL_NO_DATA_FOUND;
 	pcblen = wrtlen = msglen - stapos;
 	if (pcblen > error->recsize)
 		pcblen = error->recsize;
 	if (0 == cbErrorMsgMax)
-		wrtlen = 0; 
+		wrtlen = 0;
 	else if (wrtlen >= cbErrorMsgMax)
 	{
 		if (partial_ok)
 			wrtlen = cbErrorMsgMax - 1;
 		else if (cbErrorMsgMax <= error->recsize)
 			wrtlen = 0;
-		else 
+		else
 			wrtlen = error->recsize;
 	}
 	if (wrtlen > pcblen)
@@ -327,7 +327,7 @@ PGAPI_ConnectError(	HDBC hdbc,
 	{
 		if (conn->sqlstate[0])
 			strcpy((char *) szSqlState, conn->sqlstate);
-		else	
+		else
 		switch (status)
 		{
 			case CONN_OPTION_VALUE_CHANGED:
@@ -428,8 +428,8 @@ PGAPI_EnvError(		HENV henv,
 		return SQL_ERROR;
 	if (!EN_get_error(env, &status, &msg) || NULL == msg)
 	{
-			mylog("EN_get_error: status = %d, msg = #%s#\n", status, msg);
-		
+		mylog("EN_get_error: status = %d, msg = #%s#\n", status, msg);
+
 		if (NULL != szSqlState)
 			pg_sqlstate_set(env, szSqlState, "00000", "00000");
 		if (NULL != pcbErrorMsg)
@@ -667,7 +667,7 @@ EN_add_connection(EnvironmentClass *self, ConnectionClass *conn)
 	ret = TRUE;
 	mylog("       added at %d, conn->henv = %p, conns[%d]->henv = %p\n", conns_count, conn->henv, conns_count, conns[conns_count]->henv);
 	for (i = conns_count + 1; i < alloc; i++)
-		conns[i] = NULL; 
+		conns[i] = NULL;
 	conns_count = alloc;
 cleanup:
 	LEAVE_CONNS_CS;

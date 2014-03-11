@@ -54,7 +54,6 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_CONCURRENCY:
-
 			/*
 			 * positioned update isn't supported so cursor concurrency is
 			 * read-only
@@ -85,7 +84,6 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_CURSOR_TYPE:
-
 			/*
 			 * if declare/fetch, then type can only be forward. otherwise,
 			 * it can only be forward or static.
@@ -98,16 +96,16 @@ set_statement_option(ConnectionClass *conn,
 				setval = vParam;
 			else if (SQL_CURSOR_KEYSET_DRIVEN == vParam)
 			{
-				if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS)) 
+				if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
 					setval = vParam;
 				else
 					setval = SQL_CURSOR_STATIC; /* at least scrollable */
 			}
 			else if (SQL_CURSOR_DYNAMIC == vParam)
 			{
-				if (0 != (ci->updatable_cursors & ALLOW_DYNAMIC_CURSORS)) 
+				if (0 != (ci->updatable_cursors & ALLOW_DYNAMIC_CURSORS))
 					setval = vParam;
-				else if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS)) 
+				else if (0 != (ci->updatable_cursors & ALLOW_KEYSET_DRIVEN_CURSORS))
 					setval = SQL_CURSOR_KEYSET_DRIVEN;
 				else
 					setval = SQL_CURSOR_STATIC; /* at least scrollable */
@@ -137,7 +135,7 @@ set_statement_option(ConnectionClass *conn,
 			if (stmt)
 			{
 				stmt->options_orig.keyset_size = vParam;
-				if (!SC_get_Result(stmt)) 
+				if (!SC_get_Result(stmt))
 					stmt->options.keyset_size = vParam;
 				if (stmt->options.keyset_size != (SQLLEN) vParam)
 					changed = TRUE;
@@ -152,7 +150,7 @@ set_statement_option(ConnectionClass *conn,
 			if (stmt)
 			{
 				stmt->options_orig.maxLength = vParam;
-				if (!SC_get_Result(stmt)) 
+				if (!SC_get_Result(stmt))
 					stmt->options.maxLength = vParam;
 				if (stmt->options.maxLength != (SQLLEN) vParam)
 					changed = TRUE;
@@ -166,7 +164,7 @@ set_statement_option(ConnectionClass *conn,
 			if (stmt)
 			{
 				stmt->options_orig.maxRows = vParam;
-				if (!SC_get_Result(stmt)) 
+				if (!SC_get_Result(stmt))
 					stmt->options.maxRows = vParam;
 				if (stmt->options.maxRows != (SQLLEN)vParam)
 					changed = TRUE;
@@ -295,8 +293,7 @@ set_statement_option(ConnectionClass *conn,
 
 /* Implements only SQL_AUTOCOMMIT */
 RETCODE		SQL_API
-PGAPI_SetConnectOption(
-					   HDBC hdbc,
+PGAPI_SetConnectOption(HDBC hdbc,
 					   SQLUSMALLINT fOption,
 					   SQLULEN vParam)
 {
@@ -316,10 +313,10 @@ PGAPI_SetConnectOption(
 
 	switch (fOption)
 	{
-			/*
-			 * Statement Options (apply to all stmts on the connection and
-			 * become defaults for new stmts)
-			 */
+		/*
+		 * Statement Options (apply to all stmts on the connection and
+		 * become defaults for new stmts)
+		 */
 		case SQL_ASYNC_ENABLE:
 		case SQL_BIND_TYPE:
 		case SQL_CONCURRENCY:
@@ -359,9 +356,9 @@ PGAPI_SetConnectOption(
 
 			break;
 
-			/*
-			 * Connection Options
-			 */
+		/*
+		 * Connection Options
+		 */
 
 		case SQL_ACCESS_MODE:	/* ignored */
 			break;
@@ -412,7 +409,7 @@ PGAPI_SetConnectOption(
 		case SQL_TXN_ISOLATION:
 			retval = SQL_SUCCESS;
 			if (conn->isolation == vParam)
-				break; 
+				break;
 			switch (vParam)
 			{
 				case SQL_TXN_SERIALIZABLE:
@@ -445,7 +442,7 @@ PGAPI_SetConnectOption(
 				char *query;
 				QResultClass *res;
 
-                        	if (CC_is_in_trans(conn))
+				if (CC_is_in_trans(conn))
 				{
 					if (CC_does_autocommit(conn) && !CC_is_in_error_trans(conn))
 						CC_commit(conn);
@@ -484,7 +481,7 @@ PGAPI_SetConnectOption(
 			}
 			break;
 
-			/* These options should be handled by driver manager */
+		/* These options should be handled by driver manager */
 		case SQL_ODBC_CURSORS:
 		case SQL_OPT_TRACE:
 		case SQL_OPT_TRACEFILE:
@@ -539,12 +536,11 @@ PGAPI_SetConnectOption(
 
 /* This function just can tell you whether you are in Autcommit mode or not */
 RETCODE		SQL_API
-PGAPI_GetConnectOption(
-					   HDBC hdbc,
+PGAPI_GetConnectOption(HDBC hdbc,
 					   SQLUSMALLINT fOption,
 					   PTR pvParam,
-					SQLINTEGER *StringLength,
-					SQLINTEGER BufferLength)
+					   SQLINTEGER *StringLength,
+					   SQLINTEGER BufferLength)
 {
 	CSTR func = "PGAPI_GetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -631,7 +627,7 @@ PGAPI_GetConnectOption(
 	}
 
 	if (NULL != p && 0 == len)
-	{ 
+	{
 		/* char/binary data */
 		len = strlen(p);
 
@@ -661,8 +657,7 @@ PGAPI_GetConnectOption(
 
 
 RETCODE		SQL_API
-PGAPI_SetStmtOption(
-					HSTMT hstmt,
+PGAPI_SetStmtOption(HSTMT hstmt,
 					SQLUSMALLINT fOption,
 					SQLULEN vParam)
 {
@@ -692,8 +687,7 @@ PGAPI_SetStmtOption(
 
 
 RETCODE		SQL_API
-PGAPI_GetStmtOption(
-					HSTMT hstmt,
+PGAPI_GetStmtOption(HSTMT hstmt,
 					SQLUSMALLINT fOption,
 					PTR pvParam,
 					SQLINTEGER *StringLength,

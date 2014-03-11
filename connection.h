@@ -59,9 +59,9 @@ enum
 #define CONN_OPTION_VALUE_CHANGED					(-1)
 /*	These errors correspond to specific SQL states */
 #define CONN_INIREAD_ERROR						201
-#define CONN_OPENDB_ERROR						202 
+#define CONN_OPENDB_ERROR						202
 #define CONN_STMT_ALLOC_ERROR						203
-#define CONN_IN_USE							204 
+#define CONN_IN_USE							204
 #define CONN_UNSUPPORTED_OPTION						205
 /* Used by SetConnectoption to indicate unsupported options */
 #define CONN_INVALID_ARGUMENT_NO					206
@@ -79,7 +79,7 @@ enum
 #define CONN_EXEC_ERROR							217
 
 /* Conn_status defines */
-#define CONN_IN_AUTOCOMMIT		1L 
+#define CONN_IN_AUTOCOMMIT		1L
 #define CONN_IN_TRANSACTION		(1L<<1)
 #define CONN_IN_MANUAL_TRANSACTION	(1L<<2)
 #define CONN_IN_ERROR_BEFORE_IDLE	(1L<<3)
@@ -158,7 +158,7 @@ do { \
 #define INIT_CONN_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
 #define INIT_CONNLOCK(x)	pthread_mutex_init(&((x)->slock), getMutexAttr())
 #define ENTER_CONN_CS(x)	pthread_mutex_lock(&((x)->cs))
-#define CONNLOCK_ACQUIRE(x) 	pthread_mutex_lock(&((x)->slock))
+#define CONNLOCK_ACQUIRE(x)		pthread_mutex_lock(&((x)->slock))
 #define TRY_ENTER_CONN_CS(x)	(0 == pthread_mutex_trylock(&((x)->cs)))
 #define ENTER_INNER_CONN_CS(x, entered) \
 do { \
@@ -173,8 +173,8 @@ do { \
 #define DELETE_CONN_CS(x)	pthread_mutex_destroy(&((x)->cs))
 #define DELETE_CONNLOCK(x)	pthread_mutex_destroy(&((x)->slock))
 #else
-#define INIT_CONN_CS(x)	
-#define INIT_CONNLOCK(x)	
+#define INIT_CONN_CS(x)
+#define INIT_CONNLOCK(x)
 #define TRY_ENTER_CONN_CS(x)	(1)
 #define ENTER_CONN_CS(x)
 #define CONNLOCK_ACQUIRE(x)
@@ -230,9 +230,9 @@ do { \
 typedef unsigned int ProtocolVersion;
 
 #define PG_PROTOCOL(major, minor)	(((major) << 16) | (minor))
-#define PG_PROTOCOL_LATEST	PG_PROTOCOL(3, 0) 
-#define PG_PROTOCOL_74	PG_PROTOCOL(3, 0) 
-#define PG_PROTOCOL_64	PG_PROTOCOL(2, 0) 
+#define PG_PROTOCOL_LATEST	PG_PROTOCOL(3, 0)
+#define PG_PROTOCOL_74	PG_PROTOCOL(3, 0)
+#define PG_PROTOCOL_64	PG_PROTOCOL(2, 0)
 #define PG_PROTOCOL_63	PG_PROTOCOL(1, 0)
 #define PG_PROTOCOL_62	PG_PROTOCOL(0, 0)
 #define PG_NEGOTIATE_SSLMODE	PG_PROTOCOL(1234, 5679)
@@ -412,7 +412,7 @@ struct col_info
 
 typedef BOOL (FAR WINAPI * DataSourceToDriverProc) (UDWORD, SWORD, PTR,
 		SDWORD, PTR, SDWORD, SDWORD FAR *, UCHAR FAR *, SWORD,
-		SWORD FAR *); 
+		SWORD FAR *);
 typedef BOOL (FAR WINAPI * DriverToDataSourceProc) (UDWORD, SWORD, PTR,
 		SDWORD, PTR, SDWORD, SDWORD FAR *, UCHAR FAR *, SWORD,
 		SWORD FAR *);
@@ -618,4 +618,3 @@ enum {
 }
 #endif
 #endif /* __CONNECTION_H__ */
-

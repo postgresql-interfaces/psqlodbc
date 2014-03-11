@@ -516,7 +516,7 @@ SC_Destructor(StatementClass *self)
 	DC_Destructor((DescriptorClass *) SC_get_IPDi(self));
 	GDATA_unbind_cols(SC_get_GDTI(self), TRUE);
 	PDATA_free_params(SC_get_PDTI(self), STMT_FREE_PARAMS_ALL);
-	
+
 	if (self->__error_message)
 		free(self->__error_message);
 	if (self->pgerror)
@@ -641,7 +641,7 @@ inolog(":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
 				QR_set_no_valid_base(res);
 		}
 		else if (valid_base)
-		{	
+		{
 			QR_set_has_valid_base(res);
 			if (start < 0)
 				QR_set_rowstart_in_cache(res, -1);
@@ -659,7 +659,7 @@ void
 SC_inc_rowset_start(StatementClass *stmt, SQLLEN inc)
 {
 	SQLLEN	start = stmt->rowset_start + inc;
-	
+
 	SC_set_rowset_start(stmt, start, TRUE);
 }
 int
@@ -772,7 +772,7 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 		return FALSE;
 	if (self->status == STMT_EXECUTING)
 	{
-        	SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
 		return TRUE;
 	}
 	/*
@@ -787,7 +787,7 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 	{
 		if (QR_command_maybe_successful(res) && res->backend_tuples)
 		{
-        		SC_set_error(self, STMT_SEQUENCE_ERROR, "The cursor is open.", func);
+			SC_set_error(self, STMT_SEQUENCE_ERROR, "The cursor is open.", func);
 			return TRUE;
 		}
 	}
@@ -865,7 +865,7 @@ SC_recycle_statement(StatementClass *self)
 	{
 		case NOT_YET_PREPARED:
 		case ONCE_DESCRIBED:
-        		/* Free the parsed table/field information */
+			/* Free the parsed table/field information */
 			SC_initialize_cols_info(self, TRUE, TRUE);
 
 inolog("SC_clear_parse_status\n");
@@ -1098,7 +1098,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 }
 
 /*
- * Pre-execute a statement (for SQLPrepare/SQLDescribeCol) 
+ * Pre-execute a statement (for SQLPrepare/SQLDescribeCol)
  */
 Int4	/* returns # of fields if successful */
 SC_pre_execute(StatementClass *self)
@@ -1249,7 +1249,7 @@ static const struct
 	{ STMT_ERROR_TAKEN_FROM_BACKEND, "HY000", "S1000" }, /* general error */
 	{ STMT_INTERNAL_ERROR, "HY000", "S1000" }, /* general error */
 	{ STMT_STILL_EXECUTING, "HY010", "S1010" },
-	{ STMT_NOT_IMPLEMENTED_ERROR, "HYC00", "S1C00" }, /* == 'driver not 
+	{ STMT_NOT_IMPLEMENTED_ERROR, "HYC00", "S1C00" }, /* == 'driver not
 							  * capable' */
 	{ STMT_BAD_PARAMETER_NUMBER_ERROR, "07009", "S1093" },
 	{ STMT_OPTION_OUT_OF_RANGE_ERROR, "HY092", "S1092" },
@@ -1265,7 +1265,7 @@ static const struct
 	{ STMT_INVALID_CURSOR_POSITION, "HY109", "S1109" },
 	{ STMT_VALUE_OUT_OF_RANGE, "HY019", "22003" },
 	{ STMT_OPERATION_INVALID, "HY011", "S1011" },
-	{ STMT_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" }, 
+	{ STMT_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" },
 	{ STMT_BAD_ERROR, "08S01", "08S01" }, /* communication link failure */
 	{ STMT_INVALID_OPTION_IDENTIFIER, "HY092", "HY092" },
 	{ STMT_RETURN_NULL_WITHOUT_INDICATOR, "22002", "22002" },
@@ -1384,17 +1384,19 @@ SC_create_errorinfo(const StatementClass *self)
 			strcpy(pgerror->sqlstate, conn->sqlstate);
 		else
 		{
-        		EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
+			EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 
 			errornum -= LOWEST_STMT_ERROR;
-        		if (errornum < 0 ||
+			if (errornum < 0 ||
 				errornum >= sizeof(Statement_sqlstate) / sizeof(Statement_sqlstate[0]))
+			{
 				errornum = 1 - LOWEST_STMT_ERROR;
-        		strcpy(pgerror->sqlstate, EN_is_odbc3(env) ?
-				Statement_sqlstate[errornum].ver3str : 
-				Statement_sqlstate[errornum].ver2str);
+			}
+			strcpy(pgerror->sqlstate, EN_is_odbc3(env) ?
+				   Statement_sqlstate[errornum].ver3str :
+				   Statement_sqlstate[errornum].ver2str);
 		}
-	} 
+	}
 
 	return pgerror;
 }
@@ -1563,7 +1565,7 @@ inolog("SC_full_error_copy %p->%p\n", from ,self);
 	{
 		ER_Destructor(pgerror);
 		return;
-	} 
+	}
 	if (self->pgerror)
 		ER_Destructor(self->pgerror);
 	self->pgerror = pgerror;
@@ -1713,8 +1715,10 @@ inolog("SC_ pstatus[%d]=%hx fetch_count=" FORMAT_LEN "\n", kres_ridx, pstatus, s
 			if (0 != (pstatus & (CURS_SELF_DELETING | CURS_SELF_DELETED)))
 				return SQL_SUCCESS_WITH_INFO;
 			if (SQL_ROW_DELETED != (pstatus & KEYSET_INFO_PUBLIC) &&
-		    		0 != (pstatus & CURS_OTHER_DELETED))
+				0 != (pstatus & CURS_OTHER_DELETED))
+			{
 				return SQL_SUCCESS_WITH_INFO;
+			}
 			if (0 != (CURS_NEEDS_REREAD & pstatus))
 			{
 				UWORD	qcount;
@@ -1891,7 +1895,7 @@ SC_execute(StatementClass *self)
 		if (NULL != curres &&
 		    curres->dataFilled)
 			useCursor = (NULL != QR_get_cursor(curres));
-	} 
+	}
 	/* issue BEGIN ? */
 	issue_begin = TRUE;
 	if (self->internal)
@@ -1960,7 +1964,7 @@ SC_execute(StatementClass *self)
 	{
 		case PREPARING_PERMANENTLY:
 		case PREPARED_PERMANENTLY:
-	    		if (PROTOCOL_74(ci))
+			if (PROTOCOL_74(ci))
 				use_extended_protocol = TRUE;
 			break;
 		case PREPARING_TEMPORARILY:
@@ -2025,7 +2029,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		char		fetch[128];
 		const char *appendq = NULL;
 		QueryInfo	*qryi = NULL;
- 
+
 		qflag |= (SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency ? CREATE_KEYSET : 0);
 		mylog("       Sending SELECT statement on stmt=%p, cursor_name='%s' qflag=%d,%d\n", self, SC_cursor_name(self), qflag, self->options.scroll_concurrency);
 
@@ -2060,7 +2064,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 					QR_Destructor(qres);
 					qres = nres;
 				}
-			}	
+			}
 			if (res && SC_is_with_hold(self))
 				QR_set_withhold(res);
 		}
@@ -2111,7 +2115,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 			;
 		else if (was_nonfatal)
 			SC_set_errornumber(self, STMT_INFO_ONLY);
-		else 
+		else
 		{
 			switch (QR_get_rstatus(res))
 			{
@@ -2165,7 +2169,8 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 
 inolog("!!%p->SC_is_concat_pre=%x res=%p\n", self, self->miscinfo, res);
 			/*
-			 * special handling of result for keyset driven cursors. 			 * Use the columns info of the 1st query and
+			 * special handling of result for keyset driven cursors.
+			 * Use the columns info of the 1st query and
 			 * user the keyset info of the 2nd query.
 			 */
 			if (SQL_CURSOR_KEYSET_DRIVEN == self->options.cursor_type &&
@@ -2266,7 +2271,7 @@ inolog("!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_ty
 			STR_TO_NAME(self->cursor_name, QR_get_value_backend_text(res, 0, 0));
 			QR_Destructor(res);
 			SC_init_Result(self);
-			SC_set_fetchcursor(self); 
+			SC_set_fetchcursor(self);
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
 			qi.row_size = ci->drivers.fetch_max;
@@ -2305,7 +2310,7 @@ inolog("!!SC_fetch return =%d\n", ret);
 				if (ipara->paramType == SQL_PARAM_OUTPUT ||
 				    ipara->paramType == SQL_PARAM_INPUT_OUTPUT)
 				{
-					apara = apdopts->parameters + i;	
+					apara = apdopts->parameters + i;
 					ret = PGAPI_GetData(hstmt, gidx + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
 					if (!SQL_SUCCEEDED(ret))
 					{
@@ -2464,7 +2469,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 }
 
 /*
- *	Extended Query 
+ *	Extended Query
  */
 
 static BOOL
@@ -2665,7 +2670,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 				{
 					for (i = 0, pidx = stmt->proc_return; i < num_p; i++, pidx++)
 					{
-						paramType = ipdopts->parameters[pidx].paramType;	
+						paramType = ipdopts->parameters[pidx].paramType;
 						oid = SOCK_get_int(sock, 4);
 						if (SQL_PARAM_OUTPUT != paramType ||
 						    PG_TYPE_VOID != oid)
@@ -2685,7 +2690,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 						break;
 					}
 					oid = SOCK_get_int(sock, 4);
-					paramType = ipdopts->parameters[pidx].paramType;	
+					paramType = ipdopts->parameters[pidx].paramType;
 					if (SQL_PARAM_OUTPUT != paramType ||
 					    PG_TYPE_VOID != oid)
 						PIC_set_pgtype(ipdopts->parameters[pidx], oid);
@@ -2713,8 +2718,8 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 							if (i < stmt->proc_return)
 								ipdopts->parameters[i].paramType = SQL_PARAM_OUTPUT;
 							paramType =ipdopts->parameters[i].paramType;
- 							if (SQL_PARAM_OUTPUT == paramType ||
-							    SQL_PARAM_INPUT_OUTPUT == paramType)
+							if (SQL_PARAM_OUTPUT == paramType ||
+								SQL_PARAM_INPUT_OUTPUT == paramType)
 							{
 inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
 								PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(res), cidx));
@@ -2846,7 +2851,7 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query,
 mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		pileng += (sizeof(UInt4) * num_params);
 	}
-	qlen = (SQL_NTS == qlen) ? strlen(query) : qlen; 
+	qlen = (SQL_NTS == qlen) ? strlen(query) : qlen;
 	leng = strlen(plan_name) + 1 + qlen + 1 + pileng;
 	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
 inolog("parse leng=" FORMAT_SIZE_T "\n", leng);
@@ -3053,7 +3058,7 @@ BOOL	SC_IsExecuting(const StatementClass *self)
 }
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
 {
-	BOOL	exeSet = FALSE;	
+	BOOL	exeSet = FALSE;
 	ENTER_COMMON_CS; /* short time blocking */
 	if (on)
 	{
@@ -3068,7 +3073,7 @@ BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
 		self->cancel_info = 0;
 		self->status = STMT_FINISHED;
 		exeSet = TRUE;
-	}	
+	}
 	LEAVE_COMMON_CS;
 	return exeSet;
 }
@@ -3092,7 +3097,7 @@ BOOL	SC_SetCancelRequest(StatementClass *self)
 			enteredCS = TRUE;
 		else
 			self->cancel_info |= CancelRequestSet;
-	}	
+	}
 	LEAVE_COMMON_CS;
 	return enteredCS;
 }

@@ -87,11 +87,11 @@ static int sendall(SOCKET sock, const void *buf, int len)
 		}
 		ttllen += wrtlen;
 		reqlen -= wrtlen;
-		retry_count = 0; 
+		retry_count = 0;
 	}
 	return ttllen;
 }
- 
+
 static int recvall(SOCKET sock, void *buf, int len)
 {
 	CSTR	func = "recvall";
@@ -119,12 +119,12 @@ static int recvall(SOCKET sock, void *buf, int len)
 		}
 		ttllen += rcvlen;
 		reqlen -= rcvlen;
-		retry_count = 0; 
+		retry_count = 0;
 	}
 	return ttllen;
 }
- 
-/*	
+
+/*
  *	service specific data
  */
 
@@ -208,7 +208,7 @@ static BOOL format_sspierr(char *errmsg, size_t buflen, SECURITY_STATUS r, const
 	BOOL ret = FALSE;
 
 	if (!cmd2)
-		cmd2 = ""; 
+		cmd2 = "";
 	if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
 		r, MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT),
 		errmsg, (DWORD)buflen, NULL))
@@ -265,7 +265,7 @@ static void FreeCertStores()
 	shortterm_common_lock();
 	if (pClientCertContext)
 	{
-        	CertFreeCertificateContext(pClientCertContext);
+		CertFreeCertificateContext(pClientCertContext);
 		pClientCertContext = NULL;
 	}
 	if (hProv)
@@ -290,7 +290,7 @@ void LeaveSSPIService()
 
 /*
  *	This driver allows certificates of PFX form when a pair of
- *	postgresql.crt and postgresql.key doesn't work well. 
+ *	postgresql.crt and postgresql.key doesn't work well.
  */
 static void CertStoreInit_pfx()
 {
@@ -305,7 +305,7 @@ static void CertStoreInit_pfx()
 	if (bMyCert)			return;
 	if (hMyCertStore != NULL)	return;
 
-	bMyCert = TRUE; 
+	bMyCert = TRUE;
 	pgsslpfx = getenv("PGSSLPFX");
 	if (!pgsslpfx)
 	{
@@ -331,7 +331,7 @@ static void CertStoreInit_pfx()
 	crypt_data.pbData = (LPBYTE) CryptMemAlloc(flen);
 	ReadFile(fd, crypt_data.pbData, flen, &rlen, NULL);
 	CloseHandle(fd);
-	fd = INVALID_HANDLE_VALUE;  
+	fd = INVALID_HANDLE_VALUE;
 	hMyCertStore = PFXImportCertStore(&crypt_data, L"", 0);
 	CryptMemFree(crypt_data.pbData);
 
@@ -358,7 +358,7 @@ static void CertStoreInit()
 
 	if (hMyCertStore != NULL)	return;
 
-	bMyCert = TRUE; 
+	bMyCert = TRUE;
 
 	pgsslkey = getenv("PGSSLKEY");
 	if (!pgsslkey)
@@ -386,7 +386,7 @@ static void CertStoreInit()
 	ReadFile(fd, pemdata, flen, &rlen, NULL);
 	CloseHandle(fd);
 	fd = INVALID_HANDLE_VALUE;
-  
+
 	if (!CryptStringToBinaryA(pemdata, 0, CRYPT_STRING_BASE64HEADER,
 		NULL, &dwBufferLen, NULL, NULL))
 	{
@@ -452,7 +452,7 @@ GetLastError());
 	hMyCertStore = CertOpenStore(
 			CERT_STORE_PROV_FILENAME_A
 			, 0
-  			, (HCRYPTPROV) NULL
+			, (HCRYPTPROV) NULL
 			, CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG
 			, pgsslcert
 			);
@@ -505,7 +505,7 @@ static int InstallRootCA()
 
 	shortterm_common_lock();
 	if (bRootCALoaded)
-	{	
+	{
 		shortterm_common_unlock();
 		goto cleanup;
 	}
@@ -523,7 +523,7 @@ static int InstallRootCA()
 	hTempCertStore = CertOpenStore(
 			CERT_STORE_PROV_FILENAME_A
 			, 0
-  			, (HCRYPTPROV) NULL
+			, (HCRYPTPROV) NULL
 			, CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG
 			, pgsslroot
 			);
@@ -561,8 +561,7 @@ static int InstallRootCA()
 	shortterm_common_lock();
 	if (!bRootCALoaded)
 	{
-		if (installed_count > 0 ||
-	    	    reject_count == 0)
+		if (installed_count > 0 || reject_count == 0)
 			bRootCALoaded = TRUE;
 	}
 	shortterm_common_unlock();
@@ -629,7 +628,7 @@ cleanup:
 	}
 	else
 	{
-		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		SSPI_set_error(self, r, __FUNCTION__, cmd);
 		if (cCreds)
 			FreeCredentialHandle(&ssd->hCred);
 		if (cCtxt)
@@ -651,7 +650,7 @@ CreateSchannelCredentials(
 {
 	TimeStamp	tsExpiry;
 	SECURITY_STATUS	Status;
-	SCHANNEL_CRED	SchannelCred;	
+	SCHANNEL_CRED	SchannelCred;
 
 	DWORD		cSupportedAlgs = 0;
 	ALG_ID		rgbSupportedAlgs[16];
@@ -670,12 +669,12 @@ CreateSchannelCredentials(
 		pCertContext = pClientCertContext;
 	else if (pszUserName)
 	{
-		/* Find client certificate. Note that this sample just searchs for a 
+		/* Find client certificate. Note that this sample just searchs for a
 		 * certificate that contains the user name somewhere in the subject name.
 		 * A real application should be a bit less casual.
 		 */
-		pCertContext = CertFindCertificateInStore(hMyCertStore, 
-							X509_ASN_ENCODING, 
+		pCertContext = CertFindCertificateInStore(hMyCertStore,
+							X509_ASN_ENCODING,
 							0,
 							CERT_FIND_SUBJECT_STR_A,
 							pszUserName,
@@ -691,8 +690,8 @@ CreateSchannelCredentials(
 
 	/*
 	 * Build Schannel credential structure. Currently, this sample only
-	 * specifies the protocol to be used (and optionally the certificate, 
-	 * of course). Real applications may wish to specify other parameters 
+	 * specifies the protocol to be used (and optionally the certificate,
+	 * of course). Real applications may wish to specify other parameters
 	 * as well.
 	 */
 
@@ -721,13 +720,13 @@ CreateSchannelCredentials(
 	SchannelCred.dwFlags |= SCH_CRED_NO_DEFAULT_CREDS;
 
 	/* The SCH_CRED_MANUAL_CRED_VALIDATION flag is specified because
-	 * this sample verifies the server certificate manually. 
-	 * Applications that expect to run on WinNT, Win9x, or WinME 
+	 * this sample verifies the server certificate manually.
+	 * Applications that expect to run on WinNT, Win9x, or WinME
 	 * should specify this flag and also manually verify the server
 	 * certificate. Applications running on newer versions of Windows can
 	 * leave off this flag, in which case the InitializeSecurityContext
 	 * function will validate the server certificate automatically.
- 	 */
+	 */
 	if (opt != NULL)
 		sslmode = ((ConnInfo *) opt)->sslmode;
 	if (sslmode == NULL || sslmode[0] != 'v')
@@ -744,7 +743,7 @@ CreateSchannelCredentials(
 	 */
 
 	Status = AcquireCredentialsHandle(
-			NULL,			/* Name of principal */    
+			NULL,			/* Name of principal */
 			UNI_SCHANNEL,		/* Name of package */
 			SECPKG_CRED_OUTBOUND,	/* Flags indicating use */
 			NULL,			/* Pointer to logon ID */
@@ -897,7 +896,7 @@ SchannelClientHandshakeLoop(
 
 	cbIoBuffer = 0;
 	fDoRead = fDoInitialRead;
-	/* 
+	/*
 	 * Loop until the handshake is finished or an error occurs.
 	 */
 
@@ -905,7 +904,7 @@ SchannelClientHandshakeLoop(
 	scRet = SEC_I_CONTINUE_NEEDED;
 	while (scRet == SEC_I_CONTINUE_NEEDED	||
 		scRet == SEC_E_INCOMPLETE_MESSAGE	||
-		scRet == SEC_I_INCOMPLETE_CREDENTIALS) 
+		scRet == SEC_I_INCOMPLETE_CREDENTIALS)
 	{
 		/*
 		 * Read data from server.
@@ -914,9 +913,9 @@ SchannelClientHandshakeLoop(
 		{
 			if (fDoRead)
 			{
-				cbData = recv(Socket, 
-						IoBuffer + cbIoBuffer, 
-						IO_BUFFER_SIZE - cbIoBuffer, 
+				cbData = recv(Socket,
+						IoBuffer + cbIoBuffer,
+						IO_BUFFER_SIZE - cbIoBuffer,
 						RECV_FLAG);
 				if (cbData == SOCKET_ERROR)
 				{
@@ -1005,7 +1004,7 @@ SchannelClientHandshakeLoop(
 						&tsExpiry);
 
 		/*
-		 * If InitializeSecurityContext was successful (or if the error was 
+		 * If InitializeSecurityContext was successful (or if the error was
 		 * one of the special extended ones), send the contends of the output
 		 * buffer to the server.
 		 */
@@ -1021,7 +1020,7 @@ SchannelClientHandshakeLoop(
 						OutBuffers[0].cbBuffer);
 				if (cbData == SOCKET_ERROR || cbData == 0)
 				{
-					mylog("**** Error %d sending data to server (2)\n", 
+					mylog("**** Error %d sending data to server (2)\n",
 						SOCK_ERRNO);
 					FreeContextBuffer(OutBuffers[0].pvBuffer);
 					DeleteSecurityContext(phContext);
@@ -1046,7 +1045,7 @@ SchannelClientHandshakeLoop(
 		}
 
 		/*
-		 * If InitializeSecurityContext returned SEC_E_OK, then the 
+		 * If InitializeSecurityContext returned SEC_E_OK, then the
 		 * handshake completed successfully.
 		 */
 
@@ -1104,7 +1103,7 @@ SchannelClientHandshakeLoop(
 
 		/*
 		 * If InitializeSecurityContext returned SEC_I_INCOMPLETE_CREDENTIALS,
-		 * then the server just requested client authentication. 
+		 * then the server just requested client authentication.
 		 */
 
 		if (scRet == SEC_I_INCOMPLETE_CREDENTIALS)
@@ -1114,16 +1113,16 @@ SchannelClientHandshakeLoop(
 			 * the credential we supplied didn't contain a client certificate.
 			 *
 
-			 * 
+			 *
 			 * This function will read the list of trusted certificate
 			 * authorities ("issuers") that was received from the server
 			 * and attempt to find a suitable client certificate that
-			 * was issued by one of these. If this function is successful, 
+			 * was issued by one of these. If this function is successful,
 			 * then we will connect using the new certificate. Otherwise,
 			 * we will attempt to connect anonymously (using our current
 			 * credentials).
 			 */
-            
+
 			mylog("Server returned SEC_I_INCOMPLETE_CREDENTIALS\n");
 			shortterm_common_lock();
 			GetNewSchannelClientCredentials(phCreds, phContext);
@@ -1194,12 +1193,12 @@ GetNewSchannelClientCredentials(
 		mylog("certificate context found\n");
 
 		ZeroMemory(&SchannelCred, sizeof(SchannelCred));
-        	/* Create schannel credential. */
-        	SchannelCred.dwVersion = SCHANNEL_CRED_VERSION;
-        	SchannelCred.cCreds = 1;
-        	SchannelCred.paCred = &pCertContext;
+		/* Create schannel credential. */
+		SchannelCred.dwVersion = SCHANNEL_CRED_VERSION;
+		SchannelCred.cCreds = 1;
+		SchannelCred.paCred = &pCertContext;
 
-        	Status = AcquireCredentialsHandle(
+		Status = AcquireCredentialsHandle(
                             NULL,		/* Name of principal */
                             UNI_SCHANNEL,	/* Name of package */
                             SECPKG_CRED_OUTBOUND,	/* Flags indicating use */
@@ -1228,7 +1227,7 @@ GetNewSchannelClientCredentials(
 		 * Many applications maintain a global credential handle that's
 		 * anonymous (that is, it doesn't contain a client certificate),
 		 * which is used to connect to all servers. If a particular server
-		 * should require client authentication, then a new credential 
+		 * should require client authentication, then a new credential
 		 * is created for use when connecting to that server. The global
 		 * anonymous credential is retained for future connections to
 		 * other servers.
@@ -1268,7 +1267,7 @@ mylog("!!! %s in\n", __FUNCTION__);
 	{
 		cmd = "CreateKerberosCredentials";
 		mylog("%s:%s failed\n", func, cmd);
-		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		SSPI_set_error(self, r, __FUNCTION__, cmd);
 		return 0;
 	}
 mylog("!!! CreateKerberosCredentials passed\n");
@@ -1292,7 +1291,7 @@ mylog("!!! %s in\n", __FUNCTION__);
 	{
 		cmd = "CreateNegotiateCredentials";
 		mylog("%s:%s failed\n", func, cmd);
-		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		SSPI_set_error(self, r, __FUNCTION__, cmd);
 		return 0;
 	}
 mylog("!!! CreateNegotiateCredentials passed\n");
@@ -1325,7 +1324,7 @@ mylog("!!! PerformKerberosEtcClientHandshake passed\n");
 cleanup:
 	if (!ret)
 	{
-		SSPI_set_error(self, r, __FUNCTION__, cmd); 
+		SSPI_set_error(self, r, __FUNCTION__, cmd);
 		FreeCredentialHandle(&ssd->hKerbEtcCred);
 		if (cCtxt)
 		{
@@ -1352,7 +1351,7 @@ CreateKerberosEtcCredentials(
 	 */
 
 	Status = AcquireCredentialsHandle(
-			NULL,			/* Name of principal */    
+			NULL,			/* Name of principal */
 			packname,		/* Name of package */
 			SECPKG_CRED_OUTBOUND,   /* Flags indicating use */
 			NULL,			/* Pointer to logon ID */
@@ -1390,7 +1389,7 @@ PerformKerberosEtcClientHandshake(
 	CtxtHandle	hContext;
 	PBYTE		inbuf = NULL;
 
-mylog("!!! inlen=%u svcprinc=%s\n", inlen, ssd->svcprinc); 
+mylog("!!! inlen=%u svcprinc=%s\n", inlen, ssd->svcprinc);
 	if (ssd->ValidCtxt && inlen > 0)
 	{
 		if (NULL == (inbuf = malloc(inlen + 1)))
@@ -1408,9 +1407,9 @@ mylog("!!! inlen=%u svcprinc=%s\n", inlen, ssd->svcprinc);
 		InBuffer.ulVersion = SECBUFFER_VERSION;
 		InBuffer.cBuffers = 1;
 		InBuffer.pBuffers = InBuffers;
-		InBuffers[0].pvBuffer = inbuf; 
-		InBuffers[0].cbBuffer = inlen; 
-		InBuffers[0].BufferType = SECBUFFER_TOKEN; 
+		InBuffers[0].pvBuffer = inbuf;
+		InBuffers[0].cbBuffer = inlen;
+		InBuffers[0].BufferType = SECBUFFER_TOKEN;
 	}
 
 	dwSSPIFlags = ISC_REQ_SEQUENCE_DETECT	|
@@ -1432,7 +1431,7 @@ mylog("!!! inlen=%u svcprinc=%s\n", inlen, ssd->svcprinc);
 	OutBuffer.pBuffers = OutBuffers;
 	OutBuffer.ulVersion = SECBUFFER_VERSION;
 
-mylog("!!! before InitializeSecurityContext\n"); 
+mylog("!!! before InitializeSecurityContext\n");
 	scRet = InitializeSecurityContext(
 					&ssd->hKerbEtcCred,
 					ssd->ValidCtxt ? &ssd->hKerbEtcCtxt : NULL,
@@ -1446,7 +1445,7 @@ mylog("!!! before InitializeSecurityContext\n");
 					&OutBuffer,
 					&dwSSPIOutFlags,
 					&tsExpiry);
-mylog("!!! %s:InitializeSecurityContext ret=%x\n", __FUNCTION__, scRet); 
+mylog("!!! %s:InitializeSecurityContext ret=%x\n", __FUNCTION__, scRet);
 
 	if (inbuf)
 		free(inbuf);
@@ -1461,12 +1460,12 @@ mylog("!!! %s:InitializeSecurityContext ret=%x\n", __FUNCTION__, scRet);
 		ssd->ValidCtxt = TRUE;
 	}
 
-mylog("!!! cbBuffer=%d pvBuffer=%p\n", OutBuffers[0].cbBuffer, OutBuffers[0].pvBuffer); 
+mylog("!!! cbBuffer=%d pvBuffer=%p\n", OutBuffers[0].cbBuffer, OutBuffers[0].pvBuffer);
 	/* Send response to server if there is one. */
 	if (OutBuffers[0].cbBuffer != 0 && OutBuffers[0].pvBuffer != NULL)
 	{
 		int	reslen = OutBuffers[0].cbBuffer;
-mylog("!!! responding 'p' + int(%d) + %dbytes of data\n", reslen + 4, reslen); 
+mylog("!!! responding 'p' + int(%d) + %dbytes of data\n", reslen + 4, reslen);
 		SOCK_put_char(sock, 'p');
 		SOCK_put_int(sock, reslen + 4, 4);
 		SOCK_put_n_char(sock, OutBuffers[0].pvBuffer, reslen);
@@ -1561,9 +1560,9 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 					pbIoBuffer = ssd->iobuf = iobuf;
 					ssd->iobuflen = cbIoBufferLength;
 				}
-				cbData = recv(self->socket, 
-						pbIoBuffer + cbIoBuffer, 
-						reqlen, 
+				cbData = recv(self->socket,
+						pbIoBuffer + cbIoBuffer,
+						reqlen,
 						RECV_FLAG);
 				if (cbData == SOCKET_ERROR)
 				{
@@ -1604,13 +1603,13 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 				{
 					mylog("%d bytes of (encrypted) application data received\n", cbData);
 
-                			cbIoBuffer += cbData;
+					cbIoBuffer += cbData;
 					reqlen -= cbData;
 					retry_count = 0;
-            			}
-        		}
+				}
+			}
 
-			/* 
+			/*
 			 * Attempt to decrypt the received data.
 			 */
 
@@ -1648,8 +1647,8 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 			if (scRet == SEC_I_CONTEXT_EXPIRED)
 				break;
 
-			if (scRet != SEC_E_OK && 
-			    scRet != SEC_I_RENEGOTIATE) 
+			if (scRet != SEC_E_OK &&
+			    scRet != SEC_I_RENEGOTIATE)
 			{
 				mylog("**** Error 0x%p returned by DecryptMessage\n", scRet);
 				goto cleanup;
@@ -1683,7 +1682,7 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 
 					ssd->ioovrlen = pDataBuffer->cbBuffer - len;
 					ssd->ioovrbuf = realloc(ssd->ioovrbuf, ssd->ioovrlen);
-					memcpy(ssd->ioovrbuf, (const char *) pDataBuffer->pvBuffer + len, ssd->ioovrlen); 
+					memcpy(ssd->ioovrbuf, (const char *) pDataBuffer->pvBuffer + len, ssd->ioovrlen);
 				}
 				else
 				{
@@ -1711,10 +1710,10 @@ mylog("buf=%p read=%d req=%d\n", pbIoBuffer, cbIoBuffer, reqlen);
 				 */
 				mylog("Server requested renegotiate!\n");
 				scRet = SchannelClientHandshakeLoop(
-							self->socket, 
-							&ssd->hCred, 
-							&ssd->hCtxt, 
-							FALSE, 
+							self->socket,
+							&ssd->hCred,
+							&ssd->hCtxt,
+							FALSE,
 							&ExtraBuffer);
 				if (scRet != SEC_E_OK)
 				{

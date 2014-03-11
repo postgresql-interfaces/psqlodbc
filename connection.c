@@ -147,7 +147,7 @@ PGAPI_Connect(
 	 * override values from DSN info with UID and authStr(pwd) This only
 	 * occurs if the values are actually there.
 	 */
-	fchar = ci->username[0]; /* save the first byte */ 
+	fchar = ci->username[0]; /* save the first byte */
 	make_string(szUID, cbUID, ci->username, sizeof(ci->username));
 	if ('\0' == ci->username[0]) /* an empty string is specified */
 		ci->username[0] = fchar; /* restore the original username */
@@ -359,7 +359,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(extra_opts);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	CORR_VALCPY(xa_opt);
-#endif 
+#endif
 	copy_globals(&(ci->drivers), &(sci->drivers));	/* moved from driver's option */
 }
 #undef	CORR_STRCPY
@@ -682,7 +682,7 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 		{
 			if (coli = self->col_info[i], NULL != coli)
 			{
-				if (destroy || coli->refcnt == 0) 
+				if (destroy || coli->refcnt == 0)
 				{
 					free_col_info_contents(coli);
 					free(coli);
@@ -899,7 +899,7 @@ inolog("putting p and %s\n", pwd2);
 	SOCK_flush_output(sock);
 inolog("sockerr=%d\n", SOCK_get_errcode(sock));
 	free(pwd2);
-	return 0; 
+	return 0;
 }
 
 int
@@ -929,11 +929,11 @@ EatReadyForQuery(ConnectionClass *conn)
 				break;
 			case 'E':
 				CC_set_in_error_trans(conn);
-				break;	
+				break;
 		}
 		conn->stmt_in_extquery = NULL;
 	}
-	return id;	
+	return id;
 }
 
 int
@@ -1118,7 +1118,7 @@ void	getParameterValues(ConnectionClass *conn)
 	SocketClass	*sock = conn->sock;
 	/* ERROR_MSG_LENGTH is suffcient */
 	char msgbuffer[ERROR_MSG_LENGTH + 1];
-	
+
 	SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
 inolog("parameter name=%s\n", msgbuffer);
 	if (stricmp(msgbuffer, "server_encoding") == 0)
@@ -1138,7 +1138,7 @@ inolog("parameter name=%s\n", msgbuffer);
 	else if (stricmp(msgbuffer, std_cnf_strs) == 0)
 	{
 		SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
-		mylog("%s=%s\n", std_cnf_strs, msgbuffer); 
+		mylog("%s=%s\n", std_cnf_strs, msgbuffer);
 		if (stricmp(msgbuffer, "on") == 0)
 		{
 			conn->escape_in_literal = '\0';
@@ -1305,7 +1305,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 		slen += (strlen(vals[i]) + 1);
 	}
 	slen++;
-				
+
 	if (packet = malloc(slen), !packet)
 	{
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not allocate a startup packet", func);
@@ -1368,7 +1368,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 		slen += strlen(tmout);
 	}
 	slen++;
-				
+
 	if (conninfo = malloc(slen), !conninfo)
 	{
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not allocate a connectdb option", func);
@@ -1587,7 +1587,7 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	if (password_req != AUTH_REQ_OK)
 	{
 		sock = self->sock;		/* already connected, just authenticate */
-		CC_clear_error(self);	
+		CC_clear_error(self);
 	}
 	else
 	{
@@ -1643,7 +1643,7 @@ another_version_retry:
 					strncpy_null(ci->protocol, PG62, sizeof(ci->protocol));
 				else if (PROTOCOL_64(ci))
 					strncpy_null(ci->protocol, PG63, sizeof(ci->protocol));
-				else 
+				else
 					strncpy_null(ci->protocol, PG64, sizeof(ci->protocol));
 #ifdef	USE_SSPI
 				ssl_try_no = 0;
@@ -1969,10 +1969,10 @@ inolog("Ekita retry=%d\n", retry);
 							if (ci->gssauth_use_gssapi)
 #endif /* USE_SSPI */
 							{
-                                				// pglock_thread();
-                                				authRet = pg_GSS_startup(self, MakePrincHint(ci, FALSE));
-                                				// pgunlock_thread();
-                                				if (authRet != 0)
+								// pglock_thread();
+								authRet = pg_GSS_startup(self, MakePrincHint(ci, FALSE));
+								// pgunlock_thread();
+								if (authRet != 0)
 								{
 									CC_set_errornumber(self, CONN_INVALID_AUTHENTICATION);
 									goto error_proc;
@@ -1998,10 +1998,10 @@ inolog("Ekita retry=%d\n", retry);
 							}
 #endif /* USE_SSPI */
 #ifdef	USE_GSS
-                                			// pglock_thread();
-                                			authRet = pg_GSS_continue(self, leng - 4);
-                                			// pgunlock_thread();
-                                			if (authRet != 0)
+							// pglock_thread();
+							authRet = pg_GSS_continue(self, leng - 4);
+							// pgunlock_thread();
+							if (authRet != 0)
 							{
 								CC_set_errornumber(self, CONN_INVALID_AUTHENTICATION);
 								goto error_proc;
@@ -2109,7 +2109,7 @@ error_proc:
 
 		mylog("empty query seems to be OK.\n");
 
-		/* 
+		/*
 		 * Get the version number first so we can check it before
 		 * sending options that are now obsolete. DJP 21/06/2002
 		 */
@@ -2120,7 +2120,7 @@ inolog("CC_lookup_pg_version\n");
 	}
 
 	return 1;
-}	
+}
 
 char
 CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -2143,7 +2143,7 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 #endif /* USE_SSPI */
 	if (self->connInfo.username[0] == '\0')
 		call_libpq = TRUE;
-	else if (self->connInfo.sslmode[0] != SSLLBYTE_DISABLE) 
+	else if (self->connInfo.sslmode[0] != SSLLBYTE_DISABLE)
 		call_libpq = TRUE;
 	if (call_libpq)
 	{
@@ -2244,7 +2244,7 @@ inolog("CC_send_settings\n");
 		goto cleanup;
 	}
 #endif /* UNICODE_SUPPORT */
-	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS; 
+	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS;
 	if (ci->allow_keyset &&
 		PG_VERSION_GE(self, 7.0)) /* Tid scan since 7.0 */
 	{
@@ -2380,7 +2380,7 @@ int	CC_get_max_idlen(ConnectionClass *self)
 		QR_Destructor(res);
 	}
 mylog("max_identifier_length=%d\n", len);
-	return len < 0 ? 0 : len; 
+	return len < 0 ? 0 : len;
 }
 
 /*
@@ -2426,7 +2426,7 @@ CC_set_error(ConnectionClass *self, int number, const char *message, const char 
 	if (0 != number)
 		CC_set_error_statements(self);
 	if (func && number != 0)
-		CC_log_error(func, "", self); 
+		CC_log_error(func, "", self);
 	CONNLOCK_RELEASE(self);
 }
 
@@ -2497,7 +2497,7 @@ static int CC_close_eof_cursors(ConnectionClass *self)
 		    QR_once_reached_eof(res))
 		{
 			if (QR_get_num_cached_tuples(res) >= QR_get_num_total_tuples(res) ||
-	    		    SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
+				SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
 			{
 				QR_close(res);
 				ccount++;
@@ -2523,15 +2523,17 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 		if (stmt && (res = SC_get_Result(stmt)) &&
 			 (NULL != QR_get_cursor(res)))
 		{
-			if ((on_abort && !QR_is_permanent(res)) ||
-				!QR_is_withhold(res))
 			/*
 			 * non-holdable cursors are automatically closed
 			 * at commit time.
 			 * all non-permanent cursors are automatically closed
 			 * at rollback time.
-			 */	
+			 */
+			if ((on_abort && !QR_is_permanent(res)) ||
+				!QR_is_withhold(res))
+			{
 				QR_on_close_cursor(res);
+			}
 			else if (!QR_is_permanent(res))
 			{
 				QResultClass	*wres;
@@ -2827,7 +2829,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	 *	In case the round trip time can be ignored, the query
 	 *	and the appeneded query would be issued separately.
 	 *	Otherwise a multiple command query would be issued.
-	 */ 
+	 */
 	if (appendq && !reduce_round_trip_time)
 	{
 		res = CC_send_query_append(self, query, qi, flag, stmt, NULL);
@@ -2939,7 +2941,7 @@ inolog("leng=%d\n", leng);
 	}
 
 	mylog("send_query: done sending query %dbytes flushed\n", leng);
- 
+
 	empty_reqs = 0;
 	for (wq = query; isspace((UCHAR) *wq); wq++)
 		;
@@ -3006,7 +3008,7 @@ inolog("send_query response_length=%d\n", response_length);
 
 					mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 
-					my_trim(cmdbuffer); /* get rid of trailing space */ 
+					my_trim(cmdbuffer); /* get rid of trailing space */
 					if (strnicmp(cmdbuffer, bgncmd, lenbgncmd) == 0)
 					{
 						CC_set_in_trans(self);
@@ -3347,7 +3349,7 @@ cleanup:
 	{
 		char	cmd[64];
 
-		cmd[0] = '\0'; 
+		cmd[0] = '\0';
 		if (query_rollback)
 		{
 			if (CC_is_in_error_trans(self))
@@ -3384,7 +3386,7 @@ cleanup:
 		{
 			/** if (ignore_abort_on_conn)
 			{
-	   			if (!used_passed_result_object)
+				if (!used_passed_result_object)
 				{
 					QR_Destructor(retres);
 					retres = NULL;
@@ -3477,7 +3479,7 @@ CC_send_function(ConnectionClass *self, int fnid, void *result_buf, int *actual_
 	{
 		leng = 4 + sizeof(uint32) + 2 + 2
 			+ sizeof(uint16);
- 
+
 		for (i = 0; i < nargs; i++)
 		{
 			leng += 4;
@@ -3587,7 +3589,7 @@ inolog("send_func response_length=%d\n", response_length);
 				break;
 
 			case 'E':
-				handle_error_message(self, msgbuffer, sizeof(msgbuffer), NULL, "send_function", NULL); 
+				handle_error_message(self, msgbuffer, sizeof(msgbuffer), NULL, "send_function", NULL);
 				CC_set_errormsg(self, msgbuffer);
 #ifdef	_LEGACY_MODE_
 				CC_on_abort(self, 0);
@@ -3820,7 +3822,7 @@ CC_lookup_lo(ConnectionClass *self)
 	mylog("%s: entering...\n", func);
 
 	if (PG_VERSION_GE(self, 7.4))
-		res = CC_send_query(self, "select oid, typbasetype from pg_type where typname = '"  PG_TYPE_LO_NAME "'", 
+		res = CC_send_query(self, "select oid, typbasetype from pg_type where typname = '"  PG_TYPE_LO_NAME "'",
 			NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 	else
 		res = CC_send_query(self, "select oid, 0 from pg_type where typname='" PG_TYPE_LO_NAME "'",
@@ -4099,7 +4101,7 @@ int	CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *pla
 {
 	int	cnt = conn->num_discardp + 1;
 	char	*pname;
-	
+
 	CC_REALLOC_return_with_error(conn->discardp, char *,
 		(cnt * sizeof(char *)), conn, "Couldn't alloc discardp.", -1);
 	CC_MALLOC_return_with_error(pname, char, (strlen(plan) + 2),
@@ -4123,9 +4125,9 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	{
 		pname = conn->discardp[i];
 		if ('s' == pname[0])
-        		snprintf(cmd, sizeof(cmd), "DEALLOCATE \"%s\"", pname + 1);
+			snprintf(cmd, sizeof(cmd), "DEALLOCATE \"%s\"", pname + 1);
 		else
-        		snprintf(cmd, sizeof(cmd), "CLOSE \"%s\"", pname + 1);
+			snprintf(cmd, sizeof(cmd), "CLOSE \"%s\"", pname + 1);
 		res = CC_send_query(conn, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 		QR_Destructor(res);
 		free(conn->discardp[i]);
@@ -4160,7 +4162,7 @@ inolog("sock=%p\n", sock);
 		}
 	}
 
-#ifdef	NOT_USED	/* currently not yet used */  
+#ifdef	NOT_USED	/* currently not yet used */
 	if (FALSE && connect_with_param_available())
 	{
 		const char *opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
@@ -4211,7 +4213,7 @@ inolog("status=%d\n", pqret);
 		goto cleanup1;
 	}
 	ret = 1;
- 
+
 cleanup1:
 	if (!ret)
 	{
@@ -4289,7 +4291,7 @@ if (TRUE)
 		SOCK_Destructor(sock);
 		self->sock = NULL;
 	}
-	
+
 	mylog("%s: retuning %d\n", func, ret);
 	return ret;
 }
@@ -4304,7 +4306,7 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 
 	if (!sock)
 		return FALSE;
-		
+
 	cancel = PQgetCancel(sock->pqconn);
 	if(!cancel)
 		return FALSE;
@@ -4355,9 +4357,9 @@ const char *CurrCatString(const ConnectionClass *conn)
 DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strsize)
 {
 	ConnectionClass	*conn = (ConnectionClass *) self;
-	
+
 	ConnInfo *ci = &(conn->connInfo);
-	snprintf(connstr, strsize, "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s", 
+	snprintf(connstr, strsize, "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s",
 		ci->drivername, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode);
 }
 
@@ -4517,7 +4519,7 @@ PgDtc_two_phase_operation(void *self, int operation, const char *gxid)
 		case ROLLBACK_PREPARED:
 			snprintf(cmd, sizeof(cmd), "ROLLBACK PREPARED '%s'", gxid);
 			break;
-	}	
+	}
 
 	qres = CC_send_query(conn, cmd, NULL, 0, NULL);
 	if (!QR_command_maybe_successful(qres))
@@ -4534,7 +4536,7 @@ PgDtc_lock_cntrl(void *self, BOOL acquire, BOOL bTrial)
 
 	if (acquire)
 		if (bTrial)
-			ret = TRY_ENTER_CONN_CS(conn); 
+			ret = TRY_ENTER_CONN_CS(conn);
 		else
 			ENTER_CONN_CS(conn);
 	else
@@ -4580,7 +4582,7 @@ PgDtc_isolate(void *self, DWORD option)
 		if (newconn = CC_Copy(sconn), NULL == newconn)
 			return newconn;
 		mylog("%s:newconn=%p from %p\n", __FUNCTION__, newconn, sconn);
-		CC_initialize(sconn, FALSE); 
+		CC_initialize(sconn, FALSE);
 #ifdef	CLEANUP_CONN_BEFORE_ISOLATION
 		if (!disposingConn)
 			CC_copy_conninfo(&sconn->connInfo, &newconn->connInfo);
@@ -4605,7 +4607,7 @@ PgDtc_isolate(void *self, DWORD option)
 #endif /* ODBCVER */
 #endif /* CLEANUP_CONN_BEFORE_ISOLATION */
 		return newconn;
-	} 
+	}
 	newconn = CC_Constructor();
 	CC_copy_conninfo(&newconn->connInfo, &sconn->connInfo);
 	newconn->asdum = sconn->asdum;
@@ -4631,17 +4633,17 @@ PgDtc_isolate(void *self, DWORD option)
 	newconn->errormsg_created = sconn->errormsg_created;
 	sconn->errormsg_created = FALSE;
 	strcpy(newconn->sqlstate, sconn->sqlstate);
-	sconn->sqlstate[0] = '\0'; 
+	sconn->sqlstate[0] = '\0';
 	// newconn->ardOptions = sconn->ardOptions;
 	// newconn->apdOptions = sconn->apdOptions;
 	newconn->status = sconn->status;
 	sconn->status = CONN_NOT_CONNECTED;
-	/* Cursors are no longer available */ 
+	/* Cursors are no longer available */
 	for (i = 0; i < sconn->num_stmts; i++)
 	{
 		StatementClass	*stmt;
 		QResultClass	*res;
-	
+
 		stmt = sconn->stmts[i];
 		if (stmt && (res = SC_get_Result(stmt)) &&
 			 (NULL != QR_get_cursor(res)))
@@ -4650,7 +4652,7 @@ PgDtc_isolate(void *self, DWORD option)
 	sconn->ncursors = 0;
 	newconn->lobj_type = sconn->lobj_type;
 	newconn->driver_version = sconn->driver_version;
-	newconn->transact_status = sconn->transact_status & (CONN_IN_TRANSACTION  
+	newconn->transact_status = sconn->transact_status & (CONN_IN_TRANSACTION
 | CONN_IN_ERROR_BEFORE_IDLE);
 	sconn->transact_status = 0;
 	strcpy(newconn->pg_version, sconn->pg_version);

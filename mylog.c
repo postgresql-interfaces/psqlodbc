@@ -96,7 +96,7 @@ generate_homefile(const char *prefix, char *filename)
 	if (ptr=getenv("HOMEPATH"), NULL != ptr)
 		strcat(dir, ptr);
 #else
-	strcpy(dir, "~");	
+	strcpy(dir, "~");
 #endif /* WIN32 */
 	generate_filename(dir, prefix, filename);
 
