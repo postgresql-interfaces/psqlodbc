@@ -1,7 +1,7 @@
 /*--------
  * Module :			multibyte.c
  *
- * Description:		New Mlutibyte related additional function.
+ * Description:		New Multibyte related additional function.
  *
  *					Create 2001-03-03 Eiji Tokuya
  *					New Create 2001-09-16 Eiji Tokuya

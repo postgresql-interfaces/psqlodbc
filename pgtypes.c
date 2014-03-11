@@ -1540,15 +1540,6 @@ pgtype_to_datetime_sub(const StatementClass *stmt, OID type, int col)
 	return pgtype_attr_to_datetime_sub(SC_get_conn(stmt), type, atttypmod);
 }
 
-
-SQLSMALLINT
-pgtype_to_ctype(const StatementClass *stmt, OID type, int col)
-{
-	int	atttypmod = getAtttypmodEtc(stmt, col, NULL);
-
-	return pgtype_attr_to_ctype(SC_get_conn(stmt), type, atttypmod);
-}
-
 const char *
 pgtype_to_name(const StatementClass *stmt, OID type, int col, BOOL auto_increment)
 {

@@ -18,7 +18,6 @@
 extern "C" {
 #endif
 
-void		remove_newlines(char *string);
 char	   *strncpy_null(char *dst, const char *src, ssize_t len);
 #ifndef	HAVE_STRLCPY
 size_t		strlcat(char *, const char *, size_t);

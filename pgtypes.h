@@ -104,7 +104,6 @@ OID		sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 SQLSMALLINT	pgtype_to_concise_type(const StatementClass *stmt, OID type, int col);
 SQLSMALLINT	pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col);
 SQLSMALLINT	pgtype_to_datetime_sub(const StatementClass *stmt, OID type, int col);
-SQLSMALLINT	pgtype_to_ctype(const StatementClass *stmt, OID type, int col);
 const char	*pgtype_to_name(const StatementClass *stmt, OID type, int col, BOOL auto_increment);
 
 SQLSMALLINT	pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int typmod, int adtsize_or_longestlen);

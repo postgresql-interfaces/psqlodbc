@@ -231,21 +231,6 @@ schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQ
 	return my_strcat(buf, fmt, (char *) s, len);
 }
 
-
-void
-remove_newlines(char *string)
-{
-	size_t i, len = strlen(string);
-
-	for (i = 0; i < len; i++)
-	{
-		if ((PG_LINEFEED == string[i]) ||
-			(PG_CARRIAGE_RETURN == string[i]))
-			string[i] = ' ';
-	}
-}
-
-
 char *
 my_trim(char *s)
 {
