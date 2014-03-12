@@ -378,7 +378,8 @@ reset_current_schema(ConnectionClass *self)
 	}
 }
 
-static ConnectionClass *CC_alloc()
+static ConnectionClass *
+CC_alloc(void)
 {
 	return (ConnectionClass *) calloc(sizeof(ConnectionClass), 1);
 }

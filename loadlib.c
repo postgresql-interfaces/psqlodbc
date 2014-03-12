@@ -491,7 +491,7 @@ RETCODE	CALL_IsolateDtcConn(ConnectionClass *conn, BOOL continueConnection)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 #if defined(WIN_DYN_LOAD)
-BOOL SSLLIB_check()
+BOOL SSLLIB_check(void)
 {
 	extern	HINSTANCE	s_hModule;
 	HMODULE	hmodule = NULL;
@@ -516,7 +516,7 @@ BOOL SSLLIB_check()
 	return (NULL != hmodule);
 }
 #else
-BOOL SSLLIB_check()
+BOOL SSLLIB_check(void)
 {
 	return TRUE;
 }

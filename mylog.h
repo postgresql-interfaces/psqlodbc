@@ -87,8 +87,8 @@ static void DumLog(const char *fmt,...) {}
 int	get_qlog(void);
 int	get_mylog(void);
 
-void	InitializeLogging();
-void	FinalizeLogging();
+void	InitializeLogging(void);
+void	FinalizeLogging(void);
 
 #ifdef __cplusplus
 }

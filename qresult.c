@@ -166,7 +166,7 @@ QR_set_fields(QResultClass *self, ColumnInfoClass *fields)
  * CLASS QResult
  */
 QResultClass *
-QR_Constructor()
+QR_Constructor(void)
 {
 	QResultClass *rv;
 

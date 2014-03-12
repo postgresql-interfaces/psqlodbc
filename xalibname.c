@@ -24,7 +24,7 @@ extern HMODULE	s_hModule;
 static char	xalibpath[_MAX_PATH] = "";
 static char	xalibname[_MAX_FNAME] = "";
 
-const char *GetXaLibName()
+const char *GetXaLibName(void)
 {
 	char	dllpath[_MAX_PATH], drive[_MAX_DRIVE], dir[_MAX_DIR],
 		fname[_MAX_FNAME], ext[_MAX_EXT];
@@ -43,7 +43,7 @@ const char *GetXaLibName()
 	return xalibname;
 }
 
-const char *GetXaLibPath()
+const char *GetXaLibPath(void)
 {
 	GetXaLibName();
 	return xalibpath;

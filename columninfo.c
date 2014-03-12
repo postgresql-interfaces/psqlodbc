@@ -22,7 +22,7 @@
 #include "pgapifunc.h"
 
 ColumnInfoClass *
-CI_Constructor()
+CI_Constructor(void)
 {
 	ColumnInfoClass *rv;
 

@@ -18,7 +18,7 @@ typedef enum {
 	,NegotiateService = (1L << 2)
 } SSPI_Service;
 
-void	LeaveSSPIService();
+void	LeaveSSPIService(void);
 void	ReleaseSvcSpecData(SocketClass *self, UInt4);
 int	StartupSspiService(SocketClass *self, SSPI_Service svc, const void *opt, int *bReconnect);
 int	ContinueSspiService(SocketClass *self, SSPI_Service svc, const void *opt);

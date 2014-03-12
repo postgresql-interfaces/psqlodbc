@@ -43,20 +43,20 @@ pthread_mutex_t     common_cs;
 pthread_mutex_t     common_lcs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
-void	shortterm_common_lock()
+void	shortterm_common_lock(void)
 {
 	ENTER_COMMON_CS;
 }
-void	shortterm_common_unlock()
+void	shortterm_common_unlock(void)
 {
 	LEAVE_COMMON_CS;
 }
 
-int	getConnCount()
+int	getConnCount(void)
 {
 	return conns_count;
 }
-ConnectionClass * const *getConnList()
+ConnectionClass * const *getConnList(void)
 {
 	return conns;
 }
@@ -124,7 +124,8 @@ pg_sqlstate_set(const EnvironmentClass *env, UCHAR *szSqlState, const char *ver3
 	strcpy((char *) szSqlState, EN_is_odbc3(env) ? ver3str : ver2str);
 }
 
-PG_ErrorInfo	*ER_Constructor(SDWORD errnumber, const char *msg)
+PG_ErrorInfo *
+ER_Constructor(SDWORD errnumber, const char *msg)
 {
 	PG_ErrorInfo	*error;
 	ssize_t		aladd, errsize;
@@ -161,7 +162,8 @@ ER_Destructor(PG_ErrorInfo *self)
 	free(self);
 }
 
-PG_ErrorInfo *ER_Dup(const PG_ErrorInfo *self)
+PG_ErrorInfo *
+ER_Dup(const PG_ErrorInfo *self)
 {
 	PG_ErrorInfo	*new;
 	Int4		alsize;

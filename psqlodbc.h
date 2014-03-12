@@ -290,9 +290,9 @@ typedef double SDOUBLE;
 #define DRIVER_FILE_NAME                        "psqlodbca.so"
 #endif
 #endif   /* WIN32 */
-BOOL isMsAccess();
-BOOL isMsQuery();
-BOOL isSqlServr();
+BOOL isMsAccess(void);
+BOOL isMsQuery(void);
+BOOL isSqlServr(void);
 
 /* ESCAPEs */
 #define	ESCAPE_IN_LITERAL				'\\'

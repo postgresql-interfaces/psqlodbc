@@ -32,9 +32,9 @@ int	platformId = 0;
 #endif
 
 static int	exepgm = 0;
-BOOL isMsAccess() {return 1 == exepgm;}
-BOOL isMsQuery() {return 2 == exepgm;}
-BOOL isSqlServr() {return 3 == exepgm;}
+BOOL isMsAccess(void) {return 1 == exepgm;}
+BOOL isMsQuery(void) {return 2 == exepgm;}
+BOOL isSqlServr(void) {return 3 == exepgm;}
 
 GLOBAL_VALUES globals;
 

@@ -41,8 +41,8 @@ char		EN_get_error(EnvironmentClass *self, int *number, char **message);
 char		EN_add_connection(EnvironmentClass *self, ConnectionClass *conn);
 char		EN_remove_connection(EnvironmentClass *self, ConnectionClass *conn);
 void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
-int	getConnCount();
-ConnectionClass * const *getConnList();
+int	getConnCount(void);
+ConnectionClass * const *getConnList(void);
 
 #define	EN_OV_ODBC2	1L
 #define	EN_CONN_POOLING	(1L<<1)
@@ -96,8 +96,8 @@ ConnectionClass * const *getConnList();
 #define DELETE_COMMON_CS
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
-void shortterm_common_lock();
-void shortterm_common_unlock();
+void shortterm_common_lock(void);
+void shortterm_common_unlock(void);
 #ifdef	__cplusplus
 }
 #endif

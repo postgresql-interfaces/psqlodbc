@@ -609,7 +609,7 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 #ifdef	HAVE_LOCALE_H
 static char *current_locale = NULL;
 static char *current_decimal_point = NULL;
-static void current_numeric_locale()
+static void current_numeric_locale(void)
 {
 	char *loc = setlocale(LC_NUMERIC, NULL);
 	if (NULL == current_locale || 0 != stricmp(loc, current_locale))

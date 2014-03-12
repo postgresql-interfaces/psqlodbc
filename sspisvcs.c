@@ -260,7 +260,7 @@ static HCERTSTORE	hMyCertStore  = NULL;
 static HCRYPTPROV	hProv = (HCRYPTPROV) 0;
 static PCCERT_CONTEXT	pClientCertContext = NULL;
 
-static void FreeCertStores()
+static void FreeCertStores(void)
 {
 	shortterm_common_lock();
 	if (pClientCertContext)
@@ -281,7 +281,7 @@ static void FreeCertStores()
 	shortterm_common_unlock();
 }
 
-void LeaveSSPIService()
+void LeaveSSPIService(void)
 {
 	FreeCertStores();
 	bMyCert = FALSE;
@@ -292,7 +292,7 @@ void LeaveSSPIService()
  *	This driver allows certificates of PFX form when a pair of
  *	postgresql.crt and postgresql.key doesn't work well.
  */
-static void CertStoreInit_pfx()
+static void CertStoreInit_pfx(void)
 {
 	BOOL	success = FALSE;
 	LPCTSTR pgsslpfx = NULL;
@@ -343,7 +343,7 @@ cleanup:
 		FreeCertStores();
 }
 
-static void CertStoreInit()
+static void CertStoreInit(void)
 {
 	BOOL	success = FALSE;
 	LPCTSTR pgsslkey = NULL, pgsslcert = NULL;
@@ -494,7 +494,7 @@ cleanup:
 	return;
 }
 
-static int InstallRootCA()
+static int InstallRootCA(void)
 {
 	HCERTSTORE	hTempCertStore = NULL, hRootCertStore = NULL;
 	LPCTSTR pgsslroot = NULL;

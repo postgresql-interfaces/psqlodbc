@@ -334,12 +334,12 @@ forcelog(const char *fmt,...)
 	LEAVE_MYLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
 }
-static void mylog_initialize()
+static void mylog_initialize(void)
 {
 	INIT_MYLOG_CS;
 	mylog_on = force_log;
 }
-static void mylog_finalize()
+static void mylog_finalize(void)
 {
 	mylog_on = 0;
 	if (MLOGFP)
@@ -350,8 +350,8 @@ static void mylog_finalize()
 	DELETE_MYLOG_CS;
 }
 #else
-static void mylog_initialize() {}
-static void mylog_finalize() {}
+static void mylog_initialize(void) {}
+static void mylog_finalize(void) {}
 #endif /* MY_LOG */
 
 
@@ -402,12 +402,12 @@ qlog(char *fmt,...)
 	LEAVE_QLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
 }
-static void qlog_initialize()
+static void qlog_initialize(void)
 {
 	INIT_QLOG_CS;
 	qlog_on = force_log;
 }
-static void qlog_finalize()
+static void qlog_finalize(void)
 {
 	qlog_on = 0;
 	if (QLOGFP)
@@ -418,11 +418,11 @@ static void qlog_finalize()
 	DELETE_QLOG_CS;
 }
 #else
-static void qlog_initialize() {}
-static void qlog_finalize() {}
+static void qlog_initialize(void) {}
+static void qlog_finalize(void) {}
 #endif /* Q_LOG */
 
-void InitializeLogging()
+void InitializeLogging(void)
 {
 	char dir[PATH_MAX];
 
@@ -433,7 +433,7 @@ void InitializeLogging()
 	qlog_initialize();
 }
 
-void FinalizeLogging()
+void FinalizeLogging(void)
 {
 	mylog_finalize();
 	qlog_finalize();
