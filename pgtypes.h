@@ -116,6 +116,9 @@ Int4		pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int attty
 Int4		pgtype_attr_display_size(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as);
 Int2		pgtype_attr_decimal_digits(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as);
 Int4		pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, int atttypmod, int handle_unknown_size_as);
+SQLSMALLINT	pgtype_attr_precision(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as);
+Int4		pgtype_attr_desclength(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as);
+Int2		pgtype_attr_scale(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as);
 
 /*	These functions can use static numbers or result sets(col parameter) */
 Int4		pgtype_column_size(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as); /* corresponds to "precision" in ODBC 2.x */
