@@ -6,6 +6,10 @@ TESTS = connect stmthandles select commands multistmt getresult prepare \
 TESTBINS = $(patsubst %,src/%-test, $(TESTS))
 TESTSQLS = $(patsubst %,sql/%.sql, $(TESTS))
 
+# Set by autoconf
+LDFLAGS = @LDFLAGS@
+CFLAGS = @CFLAGS@
+
 REGRESS = sampletables $(TESTS)
 
 all: $(TESTBINS) $(TESTSQLS)
@@ -19,7 +23,7 @@ src/common.o: src/common.c
 # For each test file, compile the .c file, and create a .sql file that
 # when executed from psql, just runs the binary.
 src/%-test sql/%.sql: src/%-test.c src/common.o
-	$(CC) $(CFLAGS) src/$*-test.c src/common.o -o src/$*-test -lodbc
+	$(CC) $(CFLAGS) $(LDFLAGS) src/$*-test.c src/common.o -o src/$*-test -lodbc
 	echo "\! ./src/$*-test" > sql/$*.sql
 
 EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o

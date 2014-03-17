@@ -357,5 +357,5 @@ fi
 # AC_CHECK_LIB(ltdl, lt_dlopen)
 
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile test/Makefile])
 AC_OUTPUT
