@@ -9,6 +9,7 @@ TESTSQLS = $(patsubst %,sql/%.sql, $(TESTS))
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
 CFLAGS = @CFLAGS@
+PG_CONFIG = @PG_CONFIG@
 
 REGRESS = sampletables $(TESTS)
 
@@ -30,6 +31,5 @@ EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o
 
 REGRESS_OPTS = --launcher=./launcher
 
-PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
