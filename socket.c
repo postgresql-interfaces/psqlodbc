@@ -20,12 +20,12 @@
 #ifdef	USE_GSS
 #include "gsssvcs.h"
 #endif /* USE_GSS */
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 #include <libpq-fe.h>
 #ifdef USE_SSL
 #include <openssl/ssl.h>
 #endif /* USE_SSL */
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 #include "misc.h"
 #include "loadlib.h"
 
@@ -85,13 +85,13 @@ SOCK_Constructor(const ConnectionClass *conn)
 		rv->gctx = NULL;
 		rv->gtarg_nam = NULL;
 #endif /* USE_GSS */
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 		rv->via_libpq = FALSE;
 #ifdef USE_SSL
 		rv->ssl = NULL;
 #endif
 		rv->pqconn = NULL;
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 		rv->pversion = 0;
 		rv->reslen = 0;
 		rv->buffer_filled_in = 0;
@@ -135,7 +135,7 @@ SOCK_Destructor(SocketClass *self)
 	mylog("SOCK_Destructor\n");
 	if (!self)
 		return;
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 	if (self->pqconn)
 	{
 		if (self->via_libpq)
@@ -150,7 +150,7 @@ SOCK_Destructor(SocketClass *self)
 #endif
 	}
 	else
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 	{
 		if (self->socket != (SOCKETFD) -1)
 		{

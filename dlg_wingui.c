@@ -68,7 +68,7 @@ SetDlgStuff(HWND hdlg, const ConnInfo *ci)
 	SetDlgItemText(hdlg, IDC_PORT, ci->port);
 
 	dsplevel = 0;
-#ifndef NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 	libpq_exist = SSLLIB_check();
 mylog("libpq_exist=%d\n", libpq_exist);
 	if (libpq_exist)
@@ -77,7 +77,7 @@ mylog("libpq_exist=%d\n", libpq_exist);
 		dsplevel = 2;
 	}
 	else
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 	{
 mylog("SendMessage CTL_COLOR\n");
 		SendMessage(GetDlgItem(hdlg, IDC_NOTICE_USER), WM_CTLCOLOR, 0, 0);
@@ -600,7 +600,7 @@ ds_options2Proc(HWND hdlg,
 			/*CheckDlgButton(hdlg, DS_LOWERCASEIDENTIFIER, ci->lower_case_identifier);*/
 			CheckDlgButton(hdlg, DS_GSSAUTHUSEGSSAPI, ci->gssauth_use_gssapi);
 
-#if	defined(NOT_USE_LIBPQ) && !defined(USE_SSPI) && !defined(USE_GSS)
+#if	!defined(USE_LIBPQ) && !defined(USE_SSPI) && !defined(USE_GSS)
 			EnableWindow(GetDlgItem(hdlg, DS_GSSAUTHUSEGSSAPI), FALSE);
 #endif
 			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), atoi(ci->show_oid_column));

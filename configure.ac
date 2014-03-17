@@ -120,29 +120,27 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 AC_ARG_WITH(libpq, [  --with-libpq[[=DIR]]	  [[default=yes]] DIR is the PostgreSQL base install
 			  directory or the path to pg_config
   --without-libpq	  specify when PostgreSQL package isn't installed],
-[
-	if test "$with_libpq" = no; then
-		AC_DEFINE(NOT_USE_LIBPQ, 1,
-			 [Define to 1 to build without libpq])
-		enable_openssl=no
-	else
-		if test "$with_libpq" != yes; then
-			if test -d "$with_libpq"; then
-				PATH="$PATH:$with_libpq/bin"
-				CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
-				LDFLAGS="$LDFLAGS -L$with_libpq/lib"
+[], [with_libpq=yes])
+
+if test "$with_libpq" != no; then
+	AC_DEFINE(USE_LIBPQ, 1,
+		 [Define to 1 to build with libpq])
+	if test "$with_libpq" != yes; then
+		if test -d "$with_libpq"; then
+			PATH="$PATH:$with_libpq/bin"
+			CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
+			LDFLAGS="$LDFLAGS -L$with_libpq/lib"
+		else
+			if test -x "$with_libpq"; then
+				PG_CONFIG=$with_libpq
 			else
-				if test -x "$with_libpq"; then
-					PG_CONFIG=$with_libpq
-				else
-					AC_MSG_ERROR([specified pg_config not found])
-				fi
+				AC_MSG_ERROR([specified pg_config not found])
 			fi
 		fi
 	fi
-	],
-[with_libpq=yes])
-
+else
+	enable_openssl=no
+fi
 
 #
 # Default odbc version number (--with-odbcver), default 0x0351

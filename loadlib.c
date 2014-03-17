@@ -16,24 +16,24 @@
 #endif /* WIN32 */
 
 #include "loadlib.h"
-#ifndef NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 #ifdef	RESET_CRYPTO_CALLBACKS
 #include <openssl/ssl.h>
 #endif /* RESET_CRYPTO_CALLBACKS */
 #include <libpq-fe.h>
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 #include "pgenlist.h"
 
 #ifdef  WIN32
 #ifdef  _MSC_VER
 #pragma comment(lib, "Delayimp")
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 #pragma comment(lib, "libpq")
 #pragma comment(lib, "ssleay32")
 #ifdef	RESET_CRYPTO_CALLBACKS
 #pragma comment(lib, "libeay32")
 #endif /* RESET_CRYPTO_CALLBACKS */
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #ifdef	UNICODE_SUPPORT
 #pragma comment(lib, "pgenlist")
@@ -44,13 +44,13 @@
 // The followings works under VC++6.0 but doesn't work under VC++7.0.
 // Please add the equivalent linker options using command line etc.
 #if (_MSC_VER == 1200) && defined(DYNAMIC_LOAD) // VC6.0
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 #pragma comment(linker, "/Delayload:libpq.dll")
 #pragma comment(linker, "/Delayload:ssleay32.dll")
 #ifdef	RESET_CRYPTO_CALLBACKS
 #pragma comment(linker, "/Delayload:libeay32.dll")
 #endif /* RESET_CRYPTO_CALLBACKS */
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 #ifdef	UNICODE_SUPPORT
 #pragma comment(linker, "/Delayload:pgenlist.dll")
 #else
@@ -87,12 +87,12 @@ CSTR	gssapilib = "gssapi64";
 #else
 CSTR	gssapilib = "gssapi32";
 #endif /* _WIN64 */
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 CSTR	checkproc1 = "PQconnectdbParams";
 static int	connect_withparam_available = -1;
 CSTR	checkproc2 = "PQconninfoParse";
 static int	sslverify_available = -1;
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 static BOOL	loaded_libpq = FALSE, loaded_ssllib = FALSE;
@@ -157,7 +157,7 @@ DliErrorHook(unsigned	dliNotify,
 			{
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpqlib), NULL == hmodule)
 					hmodule = LoadLibrary(libpqlib);
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 				if (NULL == hmodule)
 					connect_withparam_available = sslverify_available = FALSE;
 				if (connect_withparam_available < 0)
@@ -175,7 +175,7 @@ inolog("connect_withparam_available=%d\n", connect_withparam_available);
 					else
 						sslverify_available = TRUE;
 				}
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 			}
 			else if (_strnicmp(pdli->szDll, pgenlist, strlen(pgenlist)) == 0)
 			{
@@ -185,7 +185,7 @@ inolog("connect_withparam_available=%d\n", connect_withparam_available);
 #ifdef	USE_GSS
 			else if (_strnicmp(pdli->szDll, gssapilib, strlen(gssapilib)) == 0)
 			{
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 				if (hmodule = GetModuleHandle(gssapilib), NULL == hmodule)
 #endif
 				{
@@ -274,7 +274,7 @@ void CleanupDelayLoadedDLLs(void)
 }
 #endif	/* _MSC_DELAY_LOAD_IMPORT */
 
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 static int filter_env2encoding(int level)
 {
@@ -441,7 +441,7 @@ BOOL	connect_with_param_available(void)
 {
 	return	FALSE;
 }
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
@@ -498,12 +498,12 @@ BOOL SSLLIB_check(void)
 
 	mylog("checking libpq library\n");
 	/* First search the driver's folder */
-#ifndef	NOT_USE_LIBPQ
+#ifdef	USE_LIBPQ
 	if (NULL == (hmodule = MODULE_load_from_psqlodbc_path(libpqlib)))
 		/* Second try the PATH ordinarily */
 		hmodule = LoadLibrary(libpqlib);
 	mylog("libpq hmodule=%p\n", hmodule);
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 #ifdef	USE_SSPI
 	if (NULL == hmodule)
 	{

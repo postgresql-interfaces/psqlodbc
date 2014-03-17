@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -93,11 +93,8 @@
   <PropertyGroup Condition="'$(USE_LIBPQ)'!='no'" >
     <ADD_INC>$(ADD_INC);$(PG_INC);$(SSL_INC)</ADD_INC>
     <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB);$(SSL_LIB)</ADD_LIBPATH>
-    <ADD_DEFINES>$(ADD_DEFINES);USE_SSL;RESET_CRYPTO_CALLBACKS</ADD_DEFINES>
+    <ADD_DEFINES>$(ADD_DEFINES);USE_LIBPQ;USE_SSL;RESET_CRYPTO_CALLBACKS</ADD_DEFINES>
     <DELAY_LOAD_DLLS>libpq.dll;ssleay32.dll;libeay32.dll</DELAY_LOAD_DLLS>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(USE_LIBPQ)'=='no'" >
-    <ADD_DEFINES>$(ADD_DEFINES);NOT_USE_LIBPQ</ADD_DEFINES>
   </PropertyGroup>
   <!-- USE_GSS -->
   <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|Win32'" >

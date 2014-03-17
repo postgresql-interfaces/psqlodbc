@@ -20,9 +20,9 @@
 #endif /* _WIN32_WINNT */
 
 #include "connection.h"
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 #include <libpq-fe.h>
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 #include "misc.h"
 
 #include <stdio.h>
@@ -1334,7 +1334,7 @@ static int	protocol3_packet_build(ConnectionClass *self)
 	return 1;
 }
 
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 CSTR	l_login_timeout = "connect_timeout";
 static char	*protocol3_opts_build(ConnectionClass *self)
 {
@@ -1404,7 +1404,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
 	return conninfo;
 }
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 
 static char CC_initial_log(ConnectionClass *self, const char *func)
 {
@@ -1498,7 +1498,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 }
 
 static	char	CC_setenv(ConnectionClass *self);
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
@@ -1520,7 +1520,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	return 1;
 }
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 
 #if	defined(USE_SSPI) || defined(USE_GSS)
 /*
@@ -2124,14 +2124,14 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	ConnInfo *ci = &(self->connInfo);
 	CSTR	func = "CC_connect";
 	char		ret, *saverr = NULL, retsend;
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 	BOOL	call_libpq = FALSE;
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 
 	mylog("%s: entering...\n", func);
 
 	mylog("sslmode=%s\n", self->connInfo.sslmode);
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 #ifdef	USE_SSPI
 	if (0 != self->svcs_allowed)
 		;
@@ -2156,17 +2156,17 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 #endif /* USE_SSPI */
 	}
 	else
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 	{
 		ret = original_CC_connect(self, password_req, salt_para);
-#ifndef	NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 		if (0 == ret && CONN_AUTH_TYPE_UNSUPPORTED == CC_get_errornumber(self))
 		{
 			SOCK_Destructor(self->sock);
 			self->sock = (SocketClass *) 0;
 			ret = LIBPQ_CC_connect(self, password_req, salt_para);
 		}
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 	}
 	if (ret <= 0)
 		return ret;
@@ -4041,10 +4041,10 @@ CC_send_cancel_request(const ConnectionClass *conn)
 	if (!sock)
 		return FALSE;
 
-#ifndef NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 	if (sock->via_libpq)
 		return LIBPQ_send_cancel_request(conn);
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 	/*
 	 * We need to open a temporary connection to the postmaster. Use the
 	 * information saved by connectDB to do this with only kernel calls.
@@ -4133,7 +4133,7 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	return 1;
 }
 
-#ifndef NOT_USE_LIBPQ
+#ifdef USE_LIBPQ
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
@@ -4313,7 +4313,7 @@ LIBPQ_send_cancel_request(const ConnectionClass *conn)
 	else
 		return FALSE;
 }
-#endif /* NOT_USE_LIBPQ */
+#endif /* USE_LIBPQ */
 
 const char *CurrCat(const ConnectionClass *conn)
 {
