@@ -27,6 +27,12 @@ extern void print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle);
 extern void test_connect_ext(char *extraparams);
 extern void test_connect(void);
 extern void test_disconnect(void);
+extern void print_result_meta_series(HSTMT hstmt,
+									 SQLSMALLINT *colids,
+									 SQLSMALLINT numcols);
+extern void print_result_series(HSTMT hstmt,
+								SQLSMALLINT *colids,
+								SQLSMALLINT numcols);
 extern void print_result_meta(HSTMT hstmt);
 extern void print_result(HSTMT hstmt);
 extern const char *datatype_str(SQLSMALLINT datatype);

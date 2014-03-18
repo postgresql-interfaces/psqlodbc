@@ -163,23 +163,17 @@ const char *nullable_str(SQLSMALLINT nullable)
 }
 
 void
-print_result_meta(HSTMT hstmt)
+print_result_meta_series(HSTMT hstmt,
+						 SQLSMALLINT *colids,
+						 SQLSMALLINT numcols)
 {
-	SQLRETURN rc;
-	SQLSMALLINT numcols;
 	int i;
-
-	rc = SQLNumResultCols(hstmt, &numcols);
-	if (!SQL_SUCCEEDED(rc))
-	{
-		print_diag("SQLNumResultCols failed", SQL_HANDLE_STMT, hstmt);
-		return;
-	}
 
 	printf("Result set metadata:\n");
 
-	for (i = 1; i <= numcols; i++)
+	for (i = 0; i < numcols; i++)
 	{
+		SQLRETURN rc;
 		SQLCHAR colname[50];
 		SQLSMALLINT colnamelen;
 		SQLSMALLINT datatype;
@@ -187,7 +181,7 @@ print_result_meta(HSTMT hstmt)
 		SQLSMALLINT decdigits;
 		SQLSMALLINT nullable;
 
-		rc = SQLDescribeCol(hstmt, i,
+		rc = SQLDescribeCol(hstmt, colids[i],
 							colname, sizeof(colname),
 							&colnamelen,
 							&datatype,
@@ -206,10 +200,11 @@ print_result_meta(HSTMT hstmt)
 }
 
 void
-print_result(HSTMT hstmt)
+print_result_meta(HSTMT hstmt)
 {
 	SQLRETURN rc;
-	SQLSMALLINT numcols;
+	SQLSMALLINT numcols, i;
+	SQLSMALLINT *colids;
 
 	rc = SQLNumResultCols(hstmt, &numcols);
 	if (!SQL_SUCCEEDED(rc))
@@ -217,6 +212,21 @@ print_result(HSTMT hstmt)
 		print_diag("SQLNumResultCols failed", SQL_HANDLE_STMT, hstmt);
 		return;
 	}
+
+	colids = (SQLSMALLINT *) malloc(numcols * sizeof(SQLSMALLINT));
+	for (i = 0; i < numcols; i++)
+		colids[i] = i + 1;
+	print_result_meta_series(hstmt, colids, numcols);
+	free(colids);
+}
+
+/*
+ * Print result only for the selected columns.
+ */
+void
+print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols)
+{
+	SQLRETURN rc;
 
 	printf("Result set:\n");
 	while(1)
@@ -230,9 +240,9 @@ print_result(HSTMT hstmt)
 			int i;
 			SQLLEN ind;
 
-			for (i = 1; i <= numcols; i++)
+			for (i = 0; i < numcols; i++)
 			{
-				rc = SQLGetData(hstmt,i, SQL_C_CHAR, buf, sizeof(buf), &ind);
+				rc = SQLGetData(hstmt, colids[i], SQL_C_CHAR, buf, sizeof(buf), &ind);
 				if (!SQL_SUCCEEDED(rc))
 				{
 					print_diag("SQLGetData failed", SQL_HANDLE_STMT, hstmt);
@@ -240,7 +250,7 @@ print_result(HSTMT hstmt)
 				}
 				if (ind == SQL_NULL_DATA)
 					strcpy(buf, "NULL");
-				printf("%s%s", (i > 1) ? "\t" : "", buf);
+				printf("%s%s", (i > 0) ? "\t" : "", buf);
 			}
 			printf("\n");
 		}
@@ -250,4 +260,28 @@ print_result(HSTMT hstmt)
 			exit(1);
 		}
 	}
+}
+
+/*
+ * Print result on all the columns
+ */
+void
+print_result(HSTMT hstmt)
+{
+	SQLRETURN rc;
+	SQLSMALLINT numcols, i;
+	SQLSMALLINT *colids;
+
+	rc = SQLNumResultCols(hstmt, &numcols);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("SQLNumResultCols failed", SQL_HANDLE_STMT, hstmt);
+		return;
+	}
+
+	colids = (SQLSMALLINT *) malloc(numcols * sizeof(SQLSMALLINT));
+	for (i = 0; i < numcols; i++)
+		colids[i] = i + 1;
+	print_result_series(hstmt, colids, numcols);
+	free(colids);
 }

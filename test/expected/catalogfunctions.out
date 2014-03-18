@@ -1,10 +1,192 @@
 \! ./src/catalogfunctions-test
 connected
+Check for SQLTypeInfo
+Result set metadata:
+TYPE_NAME: VARCHAR(128) digits: 0, nullable
+DATA_TYPE: SMALLINT(5) digits: 0, nullable
+PRECISION: INTEGER(10) digits: 0, nullable
+LITERAL_PREFIX: VARCHAR(128) digits: 0, nullable
+LITERAL_SUFFIX: VARCHAR(128) digits: 0, nullable
+CREATE_PARAMS: VARCHAR(128) digits: 0, nullable
+NULLABLE: SMALLINT(5) digits: 0, nullable
+CASE_SENSITIVE: SMALLINT(5) digits: 0, nullable
+SEARCHABLE: SMALLINT(5) digits: 0, nullable
+UNSIGNED_ATTRIBUTE: SMALLINT(5) digits: 0, nullable
+MONEY: SMALLINT(5) digits: 0, nullable
+AUTO_INCREMENT: SMALLINT(5) digits: 0, nullable
+LOCAL_TYPE_NAME: VARCHAR(128) digits: 0, nullable
+MINIMUM_SCALE: SMALLINT(5) digits: 0, nullable
+MAXIMUM_SCALE: SMALLINT(5) digits: 0, nullable
+SQL_DATA_TYPE: SMALLINT(5) digits: 0, nullable
+SQL_DATETIME_SUB: SMALLINT(5) digits: 0, nullable
+NUM_PREC_RADIX: INTEGER(10) digits: 0, nullable
+INTERVAL_PRECISION: SMALLINT(5) digits: 0, nullable
+Result set:
+varchar	12	255	'	'	max. length	1	1	3	NULL	0	NULL	NULL	NULL	NULL	12	NULL	NULL	0
+Check for SQLTables
+Result set metadata:
+TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
+TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_NAME: VARCHAR(128) digits: 0, nullable
+TABLE_TYPE: VARCHAR(128) digits: 0, nullable
+REMARKS: VARCHAR(254) digits: 0, nullable
 Result set:
 contrib_regression	public	booltab	TABLE	
 contrib_regression	public	byteatab	TABLE	
 contrib_regression	public	intervaltable	TABLE	
 contrib_regression	public	testtab1	TABLE	
+contrib_regression	public	testtab_fk	TABLE	
+Check for SQLColumns
+Result set metadata:
+TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
+TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_NAME: VARCHAR(128) digits: 0, nullable
+COLUMN_NAME: VARCHAR(128) digits: 0, nullable
+DATA_TYPE: SMALLINT(5) digits: 0, nullable
+TYPE_NAME: VARCHAR(128) digits: 0, nullable
+PRECISION: INTEGER(10) digits: 0, nullable
+LENGTH: INTEGER(10) digits: 0, nullable
+SCALE: SMALLINT(5) digits: 0, nullable
+RADIX: SMALLINT(5) digits: 0, nullable
+NULLABLE: SMALLINT(5) digits: 0, nullable
+REMARKS: VARCHAR(254) digits: 0, nullable
+COLUMN_DEF: VARCHAR(254) digits: 0, nullable
+SQL_DATA_TYPE: SMALLINT(5) digits: 0, nullable
+SQL_DATETIME_SUB: SMALLINT(5) digits: 0, nullable
+CHAR_OCTET_LENGTH: INTEGER(10) digits: 0, nullable
+ORDINAL_POSITION: INTEGER(10) digits: 0, nullable
+IS_NULLABLE: VARCHAR(254) digits: 0, nullable
+DISPLAY_SIZE: INTEGER(10) digits: 0, nullable
+FIELD_TYPE: INTEGER(10) digits: 0, nullable
+AUTO_INCREMENT: INTEGER(10) digits: 0, nullable
+PHYSICAL NUMBER: SMALLINT(5) digits: 0, nullable
+TABLE OID: INTEGER(10) digits: 0, nullable
+BASE TYPEID: INTEGER(10) digits: 0, nullable
+TYPMOD: INTEGER(10) digits: 0, nullable
+Result set:
+contrib_regression	public	booltab	id	4	int4
+contrib_regression	public	booltab	t	12	varchar
+contrib_regression	public	booltab	b	12	bool
+contrib_regression	public	byteatab	id	4	int4
+contrib_regression	public	byteatab	t	-3	bytea
+contrib_regression	public	intervaltable	id	4	int4
+contrib_regression	public	intervaltable	iv	12	interval
+contrib_regression	public	intervaltable	d	12	varchar
+contrib_regression	public	testtab1	id	4	int4
+contrib_regression	public	testtab1	t	12	varchar
+contrib_regression	public	testtab1_pkey	id	4	int4
+contrib_regression	public	testtab_fk	id	4	int4
+contrib_regression	public	testtab_fk	t	12	varchar
+Check for SQLSpecialColumns
+Result set metadata:
+SCOPE: SMALLINT(5) digits: 0, nullable
+COLUMN_NAME: VARCHAR(128) digits: 0, nullable
+DATA_TYPE: SMALLINT(5) digits: 0, nullable
+TYPE_NAME: VARCHAR(128) digits: 0, nullable
+PRECISION: INTEGER(10) digits: 0, nullable
+LENGTH: INTEGER(10) digits: 0, nullable
+SCALE: SMALLINT(5) digits: 0, nullable
+PSEUDO_COLUMN: SMALLINT(5) digits: 0, nullable
+Result set:
+NULL	xmin	4	xid	10	4	0	2
+Check for SQLStatistics
+Result set metadata:
+TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
+TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_NAME: VARCHAR(128) digits: 0, nullable
+NON_UNIQUE: SMALLINT(5) digits: 0, nullable
+INDEX_QUALIFIER: VARCHAR(128) digits: 0, nullable
+INDEX_NAME: VARCHAR(128) digits: 0, nullable
+TYPE: SMALLINT(5) digits: 0, nullable
+SEQ_IN_INDEX: SMALLINT(5) digits: 0, nullable
+COLUMN_NAME: VARCHAR(128) digits: 0, nullable
+COLLATION: CHAR(1) digits: 0, nullable
+CARDINALITY: INTEGER(10) digits: 0, nullable
+PAGES: INTEGER(10) digits: 0, nullable
+FILTER_CONDITION: VARCHAR(128) digits: 0, nullable
+Result set:
+contrib_regression	public	testtab1	0	public	testtab1_pkey	3	1	id	A	NULL	NULL	NULL
+Check for SQLPrimaryKeys
+Result set metadata:
+TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
+TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_NAME: VARCHAR(128) digits: 0, nullable
+COLUMN_NAME: VARCHAR(128) digits: 0, nullable
+KEY_SEQ: SMALLINT(5) digits: 0, nullable
+PK_NAME: VARCHAR(128) digits: 0, nullable
+Result set:
+contrib_regression	public	testtab1	id	1	testtab1_pkey
+Check for SQLForeignKeys
+Result set metadata:
+pktable_cat: VARCHAR(64) digits: 0, nullable
+pktable_schem: VARCHAR(64) digits: 0, not nullable
+pktable_name: VARCHAR(64) digits: 0, not nullable
+pkcolumn_name: VARCHAR(64) digits: 0, not nullable
+fktable_cat: VARCHAR(64) digits: 0, nullable
+fktable_schem: VARCHAR(64) digits: 0, not nullable
+fktable_name: VARCHAR(64) digits: 0, not nullable
+fkcolumn_name: VARCHAR(64) digits: 0, not nullable
+key_seq: SMALLINT(5) digits: 0, nullable
+update_rule: SMALLINT(5) digits: 0, nullable
+delete_rule: SMALLINT(5) digits: 0, nullable
+fk_name: VARCHAR(64) digits: 0, not nullable
+pk_name: VARCHAR(64) digits: 0, not nullable
+deferrablity: SMALLINT(5) digits: 0, nullable
+Result set:
+contrib_regression	public	testtab1	id	contrib_regression	public	testtab_fk	id	1	3	3	testtab_fk_id_fkey	testtab1_pkey	7
+Check for SQLProcedures
+Result set metadata:
+procedure_cat: VARCHAR(255) digits: 0, nullable
+procedure_schem: VARCHAR(64) digits: 0, not nullable
+procedure_name: VARCHAR(64) digits: 0, not nullable
+num_input_params: VARCHAR(255) digits: 0, nullable
+num_output_params: VARCHAR(255) digits: 0, nullable
+num_result_sets: VARCHAR(255) digits: 0, nullable
+remarks: VARCHAR(255) digits: 0, nullable
+procedure_type: SMALLINT(5) digits: 0, nullable
+Result set:
+	public	simple_add					2
+Check for SQLProcedureColumns
+Result set metadata:
+PROCEDURE_CAT: VARCHAR(128) digits: 0, nullable
+PROCEDUR_SCHEM: VARCHAR(128) digits: 0, nullable
+PROCEDURE_NAME: VARCHAR(128) digits: 0, nullable
+COLUMN_NAME: VARCHAR(128) digits: 0, nullable
+COLUMN_TYPE: SMALLINT(5) digits: 0, nullable
+DATA_TYPE: SMALLINT(5) digits: 0, nullable
+TYPE_NAME: VARCHAR(128) digits: 0, nullable
+COLUMN_SIZE: INTEGER(10) digits: 0, nullable
+BUFFER_LENGTH: INTEGER(10) digits: 0, nullable
+DECIMAL_DIGITS: SMALLINT(5) digits: 0, nullable
+NUM_PREC_RADIX: SMALLINT(5) digits: 0, nullable
+NULLABLE: SMALLINT(5) digits: 0, nullable
+REMARKS: VARCHAR(128) digits: 0, nullable
+COLUMN_DEF: VARCHAR(128) digits: 0, nullable
+SQL_DATA_TYPE: SMALLINT(5) digits: 0, nullable
+SQL_DATETIME_SUB: SMALLINT(5) digits: 0, nullable
+CHAR_OCTET_LENGTH: INTEGER(10) digits: 0, nullable
+ORDINAL_POSITION: INTEGER(10) digits: 0, nullable
+IS_NULLABLE: VARCHAR(128) digits: 0, nullable
+Result set:
+contrib_regression	public	simple_add		1	4	int4	10	4	0	10	2	NULL	NULL	4	NULL	NULL	1	
+contrib_regression	public	simple_add		1	4	int4	10	4	0	10	2	NULL	NULL	4	NULL	NULL	2	
+contrib_regression	public	simple_add		4	4	int4	10	4	0	10	2	NULL	NULL	4	NULL	NULL	3	
+Check for SQLTablePrivileges
+Result set metadata:
+TABLE_CAT: VARCHAR(128) digits: 0, nullable
+TABLE_SCHEM: VARCHAR(128) digits: 0, nullable
+TABLE_NAME: VARCHAR(128) digits: 0, nullable
+GRANTOR: VARCHAR(128) digits: 0, nullable
+GRANTEE: VARCHAR(128) digits: 0, nullable
+PRIVILEGE: VARCHAR(128) digits: 0, nullable
+IS_GRANTABLE: VARCHAR(128) digits: 0, nullable
+Result set:
+contrib_regression	public	testtab1	_SYSTEM	INSERT	YES
+contrib_regression	public	testtab1	_SYSTEM	SELECT	YES
+contrib_regression	public	testtab1	_SYSTEM	UPDATE	YES
+contrib_regression	public	testtab1	_SYSTEM	DELETE	YES
+contrib_regression	public	testtab1	_SYSTEM	REFERENCES	YES
 Result set:
 contrib_regression	public	testtab1	TABLE	
+contrib_regression	public	testtab_fk	TABLE	
 disconnecting

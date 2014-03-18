@@ -1,8 +1,12 @@
 -- This file creates some tables to be used in the tests
-CREATE TABLE testtab1 (id integer, t varchar(20));
+CREATE TABLE testtab1 (id integer PRIMARY KEY, t varchar(20));
 INSERT INTO testtab1 VALUES (1, 'foo');
 INSERT INTO testtab1 VALUES (2, 'bar');
 INSERT INTO testtab1 VALUES (3, 'foobar');
+CREATE TABLE testtab_fk (id integer REFERENCES testtab1, t varchar(20));
+INSERT INTO testtab_fk VALUES (1, 'hoge');
+INSERT INTO testtab_fk VALUES (2, 'pogno');
+INSERT INTO testtab_fk VALUES (3, 'poco');
 CREATE TABLE byteatab (id integer, t bytea);
 INSERT INTO byteatab VALUES (1, E'\\001\\002\\003\\004\\005\\006\\007\\010'::bytea);
 INSERT INTO byteatab VALUES (2, 'bar');
@@ -19,3 +23,7 @@ INSERT INTO booltab VALUES (2, 'yes', true);
 INSERT INTO booltab VALUES (3, 'true', true);
 INSERT INTO booltab VALUES (4, 'false', false);
 INSERT INTO booltab VALUES (5, 'not', false);
+-- Procedure for catalog function checks
+CREATE FUNCTION simple_add(in int, in int, out int)
+AS $$ SELECT $1 + $2;
+$$ LANGUAGE SQL;
