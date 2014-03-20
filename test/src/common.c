@@ -68,7 +68,7 @@ test_disconnect(void)
 		exit(1);
 	}
 
-	rc = SQLFreeConnect(conn);
+	rc = SQLFreeHandle(SQL_HANDLE_DBC, conn);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("SQLFreeConnect failed", SQL_HANDLE_DBC, conn);
@@ -76,7 +76,7 @@ test_disconnect(void)
 	}
 	conn = NULL;
 
-	rc = SQLFreeEnv(env);
+	rc = SQLFreeHandle(SQL_HANDLE_ENV, env);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("SQLFreeEnv failed", SQL_HANDLE_ENV, env);

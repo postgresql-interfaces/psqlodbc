@@ -98,6 +98,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/cursors_1.out \
 	test/expected/cvtnulldate.out \
 	test/expected/dataatexecution.out \
+	test/expected/deprecated.out \
 	test/expected/getresult.out \
 	test/expected/insertreturning.out \
 	test/expected/lfconversion.out \
@@ -129,6 +130,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/cursors-test.c \
 	test/src/cvtnulldate-test.c \
 	test/src/dataatexecution-test.c \
+	test/src/deprecated-test.c \
 	test/src/getresult-test.c \
 	test/src/insertreturning-test.c \
 	test/src/lfconversion-test.c \
