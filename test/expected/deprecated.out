@@ -3,6 +3,8 @@ Check for SQLAllocEnv
 Check for SQLAllocConnect
 Check for SQLAllocStmt
 Check for SQLSetConnectOption
+Check for SQLGetConnectOption
+Access type is: read-write
 Check for SQLError
 Error check: ERROR: relation "table_not_here" does not exist;
 Error while executing the query

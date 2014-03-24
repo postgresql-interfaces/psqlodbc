@@ -11,7 +11,7 @@
 void
 print_cursor_type(SQLINTEGER cursor_type)
 {
-	printf( "Cursor type is: " ) ;
+	printf("Cursor type is: ");
 	if (cursor_type == SQL_CURSOR_FORWARD_ONLY)
 		printf("forward\n");
 	else if (cursor_type == SQL_CURSOR_STATIC)
@@ -21,6 +21,21 @@ print_cursor_type(SQLINTEGER cursor_type)
 	else
 	{
 		printf("Incorrect type of cursor\n");
+		exit(1);
+	}
+}
+
+void
+print_access_type(SQLINTEGER access_type)
+{
+	printf("Access type is: ");
+	if (access_type == SQL_MODE_READ_ONLY)
+		printf("read-only\n");
+	else if (access_type == SQL_MODE_READ_WRITE)
+		printf("read-write\n");
+	else
+	{
+		printf("Incorrect type of access\n");
 		exit(1);
 	}
 }
@@ -93,6 +108,7 @@ main(int argc, char **argv)
 	}
 
 	/*
+	 * SQLSetConnectOption -> SQLSetConnectAttr
 	 * SQLGetConnectOption -> SQLGetConnectAttr
 	 * Test connection attribute.
 	 */
@@ -101,6 +117,12 @@ main(int argc, char **argv)
 							 SQL_ATTR_ACCESS_MODE,
 							 SQL_MODE_READ_WRITE);
 	CHECK_STMT_RESULT(rc, "SQLSetConnectOption failed", hstmt);
+	printf("Check for SQLGetConnectOption\n");
+	rc = SQLGetConnectOption(conn2,
+							 SQL_ATTR_ACCESS_MODE,
+							 &valint);
+	CHECK_STMT_RESULT(rc, "SQLGetConnectOption failed", hstmt);
+	print_access_type(valint);
 
 	/*
 	 * SQLError -> SQLGetDiagRec
