@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 
 	test_connect();
 
-	rc = SQLAllocStmt(conn, &hstmt);
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
@@ -75,10 +75,10 @@ int main(int argc, char **argv)
 		CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 	}
 
-	rc = SQLFreeStmt(hstmt, SQL_DROP);
+	rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
 	if (!SQL_SUCCEEDED(rc))
 	{
-		print_diag("SQLFreeStmt failed", SQL_HANDLE_STMT, hstmt);
+		print_diag("SQLFreeHandle failed", SQL_HANDLE_STMT, hstmt);
 		exit(1);
 	}
 

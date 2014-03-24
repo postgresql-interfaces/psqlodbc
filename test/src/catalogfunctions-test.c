@@ -33,7 +33,7 @@ main(int argc, char **argv)
 
 	test_connect();
 
-	rc = SQLAllocStmt(conn, &hstmt);
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);

@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 	/* BoolsAsChar is the default, but just in case.. */
 	test_connect_ext("BoolsAsChar=1;UseServerSidePrepare=1");
 
-	rc = SQLAllocStmt(conn, &hstmt);
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);

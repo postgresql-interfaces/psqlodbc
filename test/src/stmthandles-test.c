@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 	/* Allocate a lot of stmt handles */
 	for (i = 0; i < NUM_STMT_HANDLES; i++)
 	{
-		rc = SQLAllocStmt(conn, &hstmt[i]);
+		rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt[i]);
 		if (!SQL_SUCCEEDED(rc))
 		{
 			printf("failed to allocate stmt handle %d\n", i + 1);

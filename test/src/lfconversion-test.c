@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 	/* Enable LF -> CR+LF conversion */
 	test_connect_ext("CX=1");
 
-	rc = SQLAllocStmt(conn, &hstmt);
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
