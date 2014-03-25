@@ -1,0 +1,33 @@
+\! ./src/error-rollback-test
+Test for rollback protocol 0
+connected
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for integer: "foo"
+Rolling back with SQLEndTran
+Executing query that will succeed
+Result set:
+1
+disconnecting
+Test for rollback protocol 1
+connected
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for integer: "foo"
+Executing query that will succeed
+Result set:
+1
+disconnecting
+Test for rollback protocol 2
+connected
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for integer: "foo"
+Executing query that will succeed
+Result set:
+1
+1
+disconnecting
