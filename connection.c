@@ -2464,7 +2464,6 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 	}
 	rv = (CC_get_errornumber(self) != 0);
 
-	self->__error_number = 0;		/* clear the error */
 	CONNLOCK_RELEASE(self);
 
 	mylog("exit CC_get_error\n");

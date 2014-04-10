@@ -1,0 +1,15 @@
+\! ./src/diagnostic-test
+connected
+SQLExecDirect
+42601=ERROR: syntax error at or near "broken";
+Error while executing the query
+get same message again
+42601=ERROR: syntax error at or near "broken";
+Error while executing the query
+killing connection...
+57P01=FATAL: terminating connection due to administrator command;
+Error while executing the query
+SQLGetDiagRec on connection says:
+57P01=FATAL: terminating connection due to administrator command
+SQLGetDiagRec called again:.
+57P01=FATAL: terminating connection due to administrator command
