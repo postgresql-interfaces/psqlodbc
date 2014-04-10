@@ -17,8 +17,9 @@ print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle)
 
 	ret = SQLGetDiagRec(htype, handle, 1, sqlstate, &nativeerror,
 						message, 256, &textlen);
-
-	if (ret != SQL_ERROR)
+	if (ret == SQL_INVALID_HANDLE)
+		printf("Invalid handle\n");
+	else if (ret != SQL_ERROR)
 		printf("%s=%s\n", (CHAR *)sqlstate, (CHAR *)message);
 }
 
