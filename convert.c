@@ -3296,7 +3296,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		if (0 == (qb->flags & FLGB_CREATE_KEYSET))
 		{
 			qb->errornumber = STMT_SEQUENCE_ERROR;
-			qb->errormsg = "Should come here only when hamdling updatable cursors";
+			qb->errormsg = "Should come here only when handling updatable cursors";
 			return SQL_ERROR;
 		}
 		CVT_APPEND_STR(qb, ", \"ctid");

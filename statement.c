@@ -2048,6 +2048,12 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
 		if (useCursor && QR_command_maybe_successful(res))
 		{
+			/*
+			 * If we sent a DECLARE CURSOR + FETCH, throw away the result of
+			 * the DECLARE CURSOR statement, and only return the result of the
+			 * FETCH to the caller. However, if we received any NOTICEs as
+			 * part of the DECLARE CURSOR, carry those over.
+			 */
 			if (appendq)
 			{
 				QResultClass	*qres, *nres;
@@ -2060,6 +2066,15 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 						break;
 					}
 					nres = qres->next;
+					if (nres && QR_get_notice(qres) != NULL)
+					{
+						if (QR_command_successful(nres) &&
+							QR_command_nonfatal(qres))
+						{
+							QR_set_rstatus(nres, PORES_NONFATAL_ERROR);
+						}
+						QR_add_notice(nres, QR_get_notice(qres));
+					}
 					qres->next = NULL;
 					QR_Destructor(qres);
 					qres = nres;

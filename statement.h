@@ -422,7 +422,13 @@ enum
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
 void SC_forget_unnamed(StatementClass *self);
 #define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)
-#define SC_may_use_cursor(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
+/*
+ * DECLARE CURSOR + FETCH can only be used with SELECT-type queries. And
+ * it's not currently supported with array-bound parameters.
+ */
+#define SC_may_use_cursor(a) \
+	(SC_get_APDF(a)->paramset_size <= 1 &&								\
+	 (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type) )
 #define SC_may_fetch_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
 #define SC_can_req_colinfo(a) (STMT_TYPE_SELECT == (a)->statement_type || \
 		 STMT_TYPE_WITH == (a)->statement_type || \
@@ -501,8 +507,6 @@ BOOL	SC_SetExecuting(StatementClass *self, BOOL on);
 BOOL	SC_SetCancelRequest(StatementClass *self);
 BOOL	SC_AcceptedCancelRequest(const StatementClass *self);
 
-DescriptorClass	*SC_set_ARD(StatementClass *stmt, DescriptorClass *desc);
-DescriptorClass	*SC_set_APD(StatementClass *stmt, DescriptorClass *desc);
 int		enqueueNeedDataCallback(StatementClass *self, NeedDataCallfunc, void *);
 RETCODE		dequeueNeedDataCallback(RETCODE, StatementClass *self);
 void		cancelNeedDataState(StatementClass *self);
