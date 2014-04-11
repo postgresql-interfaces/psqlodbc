@@ -61,5 +61,5 @@ int main(int argc, char **argv)
 	 * error.
 	 */
 	print_diag("SQLGetDiagRec on connection says:", SQL_HANDLE_DBC, conn);
-	print_diag("SQLGetDiagRec called again:.", SQL_HANDLE_DBC, conn);
+	print_diag("SQLGetDiagRec called again:", SQL_HANDLE_DBC, conn);
 }

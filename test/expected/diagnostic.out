@@ -11,5 +11,5 @@ killing connection...
 Error while executing the query
 SQLGetDiagRec on connection says:
 57P01=FATAL: terminating connection due to administrator command
-SQLGetDiagRec called again:.
+SQLGetDiagRec called again:
 57P01=FATAL: terminating connection due to administrator command
