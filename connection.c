@@ -2743,7 +2743,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			lenrlscmd = 0, lenperqsvp = 0;
 	size_t	qrylen;
 	int			id;
-	SocketClass *sock = self->sock;
 	int			maxlen,
 				empty_reqs;
 	BOOL		ReadyToReturn = FALSE,
@@ -2812,7 +2811,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		return NULL;
 	}
 
-	if (SOCK_get_errcode(sock) != 0)
+	if (SOCK_get_errcode(self->sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
 		CC_on_abort(self, CONN_DEAD);
@@ -2866,8 +2865,8 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		}
 	}
 
-	SOCK_put_char(sock, 'Q');
-	if (SOCK_get_errcode(sock) != 0)
+	SOCK_put_char(self->sock, 'Q');
+	if (SOCK_get_errcode(self->sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
 		goto cleanup;
@@ -2896,13 +2895,13 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			leng += (UInt4) (1 + lenrlscmd + 1 + lenperqsvp);
 		}
 		leng++;
-		SOCK_put_int(sock, leng + 4, 4);
+		SOCK_put_int(self->sock, leng + 4, 4);
 inolog("leng=%d\n", leng);
 	}
 	if (issue_begin)
 	{
-		SOCK_put_n_char(sock, bgncmd, lenbgncmd);
-		SOCK_put_n_char(sock, semi_colon, 1);
+		SOCK_put_n_char(self->sock, bgncmd, lenbgncmd);
+		SOCK_put_n_char(self->sock, semi_colon, 1);
 		discard_next_begin = TRUE;
 	}
 	if (query_rollback)
@@ -2910,26 +2909,26 @@ inolog("leng=%d\n", leng);
 		char cmd[64];
 
 		snprintf(cmd, sizeof(cmd), "%s %s;", svpcmd, per_query_svp);
-		SOCK_put_n_char(sock, cmd, strlen(cmd));
+		SOCK_put_n_char(self->sock, cmd, strlen(cmd));
 		discard_next_savepoint = TRUE;
 	}
-	SOCK_put_n_char(sock, query, qrylen);
+	SOCK_put_n_char(self->sock, query, qrylen);
 	if (appendq)
 	{
-		SOCK_put_n_char(sock, semi_colon, 1);
-		SOCK_put_n_char(sock, appendq, strlen(appendq));
+		SOCK_put_n_char(self->sock, semi_colon, 1);
+		SOCK_put_n_char(self->sock, appendq, strlen(appendq));
 	}
 	if (query_rollback)
 	{
 		char cmd[64];
 
 		snprintf(cmd, sizeof(cmd), ";%s %s", rlscmd, per_query_svp);
-		SOCK_put_n_char(sock, cmd, strlen(cmd));
+		SOCK_put_n_char(self->sock, cmd, strlen(cmd));
 	}
-	SOCK_put_n_char(sock, NULL_STRING, 1);
-	leng = SOCK_flush_output(sock);
+	SOCK_put_n_char(self->sock, NULL_STRING, 1);
+	leng = SOCK_flush_output(self->sock);
 
-	if (SOCK_get_errcode(sock) != 0)
+	if (SOCK_get_errcode(self->sock) != 0)
 	{
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query to backend", func);
 		goto cleanup;
@@ -2958,34 +2957,33 @@ inolog("leng=%d\n", leng);
 	while (!ReadyToReturn)
 	{
 		/* what type of message is coming now ? */
-		id = SOCK_get_id(sock);
+		id = SOCK_get_id(self->sock);
 
-		if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
+		if ((SOCK_get_errcode(self->sock) != 0) || (id == EOF))
 		{
 			CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from the backend", func);
 
 			mylog("send_query: 'id' - %s\n", CC_get_errormsg(self));
 			kill_conn = TRUE;
-			ReadyToReturn = TRUE;
 			break;
 		}
 
 		mylog("send_query: got id = '%c'\n", id);
 
-		response_length = SOCK_get_response_length(sock);
+		response_length = SOCK_get_response_length(self->sock);
 inolog("send_query response_length=%d\n", response_length);
 		switch (id)
 		{
 			case 'A':			/* Asynchronous Messages are ignored */
-				(void) SOCK_get_int(sock, 4);	/* id of notification */
-				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
+				(void) SOCK_get_int(self->sock, 4);	/* id of notification */
+				SOCK_get_string(self->sock, msgbuffer, ERROR_MSG_LENGTH);
 				/* name of the relation the message comes from */
 				break;
 			case 'C':			/* portal query command, no tuples
 								 * returned */
 				/* read in the return message from the backend */
-				SOCK_get_string(sock, cmdbuffer, ERROR_MSG_LENGTH);
-				if (SOCK_get_errcode(sock) != 0)
+				SOCK_get_string(self->sock, cmdbuffer, ERROR_MSG_LENGTH);
+				if (SOCK_get_errcode(self->sock) != 0)
 				{
 					CC_set_error(self, CONNECTION_NO_RESPONSE, "No response from backend while receiving a portal query command", func);
 					mylog("send_query: 'C' - %s\n", CC_get_errormsg(self));
@@ -3083,8 +3081,8 @@ inolog("Discarded the first SAVEPOINT\n");
 
 					if (empty_reqs == 0)
 					{
-						SOCK_put_string(sock, "Q ");
-						SOCK_flush_output(sock);
+						SOCK_put_string(self->sock, "Q ");
+						SOCK_flush_output(self->sock);
 						empty_reqs++;
 					}
 				}
@@ -3110,8 +3108,8 @@ inolog("Discarded the first SAVEPOINT\n");
 				if (PROTOCOL_74(ci) && 0 == response_length)
 					swallow = '\0';
 				else
-					swallow = SOCK_get_char(sock);
-				if ((swallow != '\0') || SOCK_get_errcode(sock) != 0)
+					swallow = SOCK_get_char(self->sock);
+				if ((swallow != '\0') || SOCK_get_errcode(self->sock) != 0)
 				{
 					CC_set_errornumber(self, CONNECTION_BACKEND_CRAZY);
 					QR_set_message(res, "Unexpected protocol character from backend (send_query - I)");
@@ -3143,7 +3141,7 @@ inolog("Discarded the first SAVEPOINT\n");
 				break;
 
 			case 'P':			/* get the Portal name */
-				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
+				SOCK_get_string(self->sock, msgbuffer, ERROR_MSG_LENGTH);
 				break;
 			case 'T':			/* Tuple results start here */
 				if (query_completed)
@@ -3239,25 +3237,25 @@ mylog("get copydata len=%d %02x%02x\n", len, ((UCHAR *) buf)[0], ((UCHAR *) buf)
 							}
 						}
 					}
-					SOCK_put_char(sock, 'd'); /* CopyData */
-					SOCK_put_int(sock, 4 + len, 4);
-					SOCK_put_n_char(sock, buf, len);
+					SOCK_put_char(self->sock, 'd'); /* CopyData */
+					SOCK_put_int(self->sock, 4 + len, 4);
+					SOCK_put_n_char(self->sock, buf, len);
 					pos = 0;
 				}
 				if (aborted)
 				{
 mylog("copy fail\n");
-					SOCK_put_char(sock, 'f'); /* CopyFail */
-					SOCK_put_int(sock, 18, 4);
-					SOCK_put_string(sock, "Out of memory");
+					SOCK_put_char(self->sock, 'f'); /* CopyFail */
+					SOCK_put_int(self->sock, 18, 4);
+					SOCK_put_string(self->sock, "Out of memory");
 				}
 				else
 				{
 mylog("copy done\n");
-					SOCK_put_char(sock, 'c'); /* CopyDone */
-					SOCK_put_int(sock, 4, 4);
+					SOCK_put_char(self->sock, 'c'); /* CopyDone */
+					SOCK_put_int(self->sock, 4, 4);
 				}
-				SOCK_flush_output(sock);
+				SOCK_flush_output(self->sock);
 				free(buf);
 				}
 				break;
@@ -3313,7 +3311,7 @@ mylog("!!! copydata len=%d\n", response_length);
 				break;
 		}
 
-		if (SOCK_get_errcode(sock) != 0)
+		if (SOCK_get_errcode(self->sock) != 0)
 			break;
 		if (CONN_DOWN == self->status)
 			break;
@@ -3328,12 +3326,11 @@ mylog("!!! copydata len=%d\n", response_length);
 	}
 
 cleanup:
-	if (SOCK_get_errcode(sock) != 0)
+	if (SOCK_get_errcode(self->sock) != 0)
 	{
 		if (0 == CC_get_errornumber(self))
 			CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, "Communication error while sending query", func);
 		kill_conn = TRUE;
-		ReadyToReturn = TRUE;
 	}
 	if (kill_conn)
 	{
