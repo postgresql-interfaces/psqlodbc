@@ -2797,7 +2797,7 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 	}
 	if (0 != SOCK_get_errcode(sock) || EOF == id)
 	{
-		SC_set_error(stmt, STMT_NO_RESPONSE, "No response rom the backend", func);
+		SC_set_error(stmt, STMT_NO_RESPONSE, "No response from the backend", func);
 
 		mylog("%s: 'id' - %s\n", func, SC_get_errormsg(stmt));
 		CC_on_abort(conn, CONN_DEAD);
