@@ -9,6 +9,39 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.03.0300">psqlODBC 09.03.0300 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Fix implicit casts between SQLCHAR and char. Don't rely on -Wno-pointer-sign.</b><br /></li>
+<li><b>Pass the argument to isalpha/isspace etc. routines as unsigned char.</b><br /></li>
+Per the C standard, the routine should be passed an int, with a value that's representable as an unsigned char or EOF.
+ Passing a signed char is wrong, because a negative value is not representable as an unsigned char.
+ Unfortunately no compiler warns about that.<br />
+<li><b>Use "function(void)" instead of "function()" to declare 0-arg functions.</b><br /></li>
+"function(void)" is the correct syntax in a function declaration, although in practice compilers accept the latter too. It's OK in a function definition, but change those too for consistency.
+ This fixed by Michael Paquier.<br />
+<li><b>Add missing function declarations.</b><br /></li>
+These are not actually used outside of pgtypes.c, but let's be consistent and declare them in pgtypes.h
+ This fixed by Michael Paquier.<br />
+<li><b>Use the PG_CONFIG setting from ./configure cmd line in regression tests.</b><br /></li>
+If compiling without libpq (configure --without-libpq), then you still need to have pg_config in path to build the regression tests, or specify
+ PG_CONFIG at the make command line.<br />
+<li><b>Add more test cases.</b><br /></li>
+Add a new test case to test ODBC functions deprecated in ODBC 3.0, ODBC catalog functions, SQLGetConnectOption and Avoid deprecated SQLAllocStmt/SQLFreeStmt in regression tests. and more.
+Per Michael Paquier<br />
+<li><b>Don't clear error number when SQLGetDiagRec is called.</b><br /></li>
+Calls to SQLGetDiagRec are supposed to be nondestructive, per ODBC spec. Also add a test case for that.<br />
+<li><b>Fix two UseDeclareFetch bugs.</b><br /></li>
+<ol type="a">
+<li>NOTICE messages were not delivered to the application, if they arrived as response to the DECLARE CURSOR statement.</li>
+<li>Array-bound parameters on SELECT-queries caused a "cursor already open"
+ error.</li>
+</ol>
+ These bugs were found by running the regression suite with
+ UseDeclareFetch=1. It's now clean.<br />
+<li><b>Fix crash if connection is closed during CC_send_query_append function.</b><br /></li>
+ This fixed Malcolm MacLeod<br />
+</ol><br />
 <h2><a id="09.03.0210">psqlODBC 09.03.0210 Release</a></h2>
 Changes:<br />
 <ol type="1">
