@@ -186,6 +186,11 @@ contrib_regression	public	testtab1	_SYSTEM	SELECT	YES
 contrib_regression	public	testtab1	_SYSTEM	UPDATE	YES
 contrib_regression	public	testtab1	_SYSTEM	DELETE	YES
 contrib_regression	public	testtab1	_SYSTEM	REFERENCES	YES
+contrib_regression	public	testtab1	_SYSTEM	INSERT	YES
+contrib_regression	public	testtab1	_SYSTEM	SELECT	YES
+contrib_regression	public	testtab1	_SYSTEM	UPDATE	YES
+contrib_regression	public	testtab1	_SYSTEM	DELETE	YES
+contrib_regression	public	testtab1	_SYSTEM	REFERENCES	YES
 Result set:
 contrib_regression	public	testtab1	TABLE	
 contrib_regression	public	testtab_fk	TABLE	

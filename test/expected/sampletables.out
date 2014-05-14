@@ -1,5 +1,6 @@
 -- This file creates some tables to be used in the tests
 CREATE TABLE testtab1 (id integer PRIMARY KEY, t varchar(20));
+NOTICE:  CREATE TABLE / PRIMARY KEY will create implicit index "testtab1_pkey" for table "testtab1"
 INSERT INTO testtab1 VALUES (1, 'foo');
 INSERT INTO testtab1 VALUES (2, 'bar');
 INSERT INTO testtab1 VALUES (3, 'foobar');
