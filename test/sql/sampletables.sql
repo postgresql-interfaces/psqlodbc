@@ -1,4 +1,5 @@
 -- This file creates some tables to be used in the tests
+SET client_min_messages TO WARNING;
 
 CREATE TABLE testtab1 (id integer PRIMARY KEY, t varchar(20));
 INSERT INTO testtab1 VALUES (1, 'foo');
