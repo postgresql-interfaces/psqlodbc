@@ -523,9 +523,7 @@ cleanup:
 /*
  *	To handle EWOULDBLOCK etc (mainly for libpq non-blocking connection).
  */
-#define	MAX_RETRY_COUNT	30
-
-static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
+static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, BOOL nowait)
 {
 	int	ret, gerrno;
 #ifdef	HAVE_POLL
@@ -534,44 +532,34 @@ static int SOCK_wait_for_ready(SocketClass *sock, BOOL output, int retry_count)
 	fd_set	fds, except_fds;
 	struct	timeval	tm;
 #endif /* HAVE_POLL */
-	BOOL	no_timeout = TRUE;
 
-	if (0 == retry_count)
-		no_timeout = FALSE;
-	else if (0  > retry_count)
-		no_timeout = TRUE;
 #ifdef	USE_SSL
-	else if (sock->ssl == NULL)
-		no_timeout = TRUE;
+	/* always wait if SSL is disabled. XXX: why? */
+	if (sock->ssl == NULL)
+		nowait = FALSE;
 #endif /* USE_SSL */
+
 	do {
 #ifdef	HAVE_POLL
 		fds.fd = sock->socket;
 		fds.events = output ? POLLOUT : POLLIN;
 		fds.revents = 0;
-		ret = poll(&fds, 1, no_timeout ? -1 : retry_count * 1000);
+		ret = poll(&fds, 1, nowait ? 0 : -1);
 mylog("!!!  poll ret=%d revents=%x\n", ret, fds.revents);
 #else
 		FD_ZERO(&fds);
 		FD_ZERO(&except_fds);
 		FD_SET(sock->socket, &fds);
 		FD_SET(sock->socket, &except_fds);
-		if (!no_timeout)
+		if (nowait)
 		{
-			tm.tv_sec = retry_count;
+			tm.tv_sec = 0;
 			tm.tv_usec = 0;
 		}
-		ret = select((int) sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, no_timeout ? NULL : &tm);
+		ret = select((int) sock->socket + 1, output ? NULL : &fds, output ? &fds : NULL, &except_fds, nowait ? &tm : NULL);
 #endif /* HAVE_POLL */
 		gerrno = SOCK_ERRNO;
 	} while (ret < 0 && EINTR == gerrno);
-	if (retry_count < 0)
-		retry_count *= -1;
-	if (0 == ret && retry_count > MAX_RETRY_COUNT)
-	{
-		ret = -1;
-		SOCK_set_error(sock, output ? SOCKET_WRITE_TIMEOUT : SOCKET_READ_TIMEOUT, "SOCK_wait_for_ready timeout");
-	}
 	return ret;
 }
 
@@ -617,7 +605,7 @@ static int SOCK_SSPI_send(SocketClass *self, const void *buffer, int len)
 static int SOCK_SSL_recv(SocketClass *sock, void *buffer, int len)
 {
 	CSTR	func = "SOCK_SSL_recv";
-	int n, err, gerrno, retry_count = 0;
+	int n, err, gerrno;
 
 retry:
 	n = SSL_read(sock->ssl, buffer, len);
@@ -629,8 +617,7 @@ inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, gerrno);
 		case	SSL_ERROR_NONE:
 			break;
 		case	SSL_ERROR_WANT_READ:
-			retry_count++;
-			if (SOCK_wait_for_ready(sock, FALSE, retry_count) >= 0)
+			if (SOCK_wait_for_ready(sock, FALSE, FALSE) >= 0)
 				goto retry;
 			n = -1;
 			break;
@@ -662,7 +649,7 @@ inolog("%s: %d get_error=%d Lasterror=%d\n", func, n, err, gerrno);
 static int SOCK_SSL_send(SocketClass *sock, void *buffer, int len)
 {
 	CSTR	func = "SOCK_SSL_send";
-	int n, err, gerrno, retry_count = 0;
+	int n, err, gerrno;
 
 retry:
 	n = SSL_write(sock->ssl, buffer, len);
@@ -675,8 +662,7 @@ inolog("%s: %d get_error=%d Lasterror=%d\n", func,  n, err, gerrno);
 			break;
 		case	SSL_ERROR_WANT_READ:
 		case	SSL_ERROR_WANT_WRITE:
-			retry_count++;
-			if (SOCK_wait_for_ready(sock, TRUE, retry_count) >= 0)
+			if (SOCK_wait_for_ready(sock, TRUE, FALSE) >= 0)
 				goto retry;
 			n = -1;
 			break;
@@ -878,7 +864,7 @@ SOCK_put_int(SocketClass *self, int value, short len)
 Int4
 SOCK_flush_output(SocketClass *self)
 {
-	int	written, pos = 0, retry_count = 0, ttlsnd = 0, gerrno;
+	int	written, pos = 0, ttlsnd = 0, gerrno;
 
 	if (!self)
 		return -1;
@@ -908,8 +894,7 @@ SOCK_flush_output(SocketClass *self)
 #if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 				case EWOULDBLOCK:
 #endif /* EWOULDBLOCK */
-					retry_count++;
-					if (SOCK_wait_for_ready(self, TRUE, retry_count) >= 0)
+					if (SOCK_wait_for_ready(self, TRUE, FALSE) >= 0)
 						continue;
 					break;
 			}
@@ -919,7 +904,6 @@ SOCK_flush_output(SocketClass *self)
 		pos += written;
 		self->buffer_filled_out -= written;
 		ttlsnd += written;
-		retry_count = 0;
 	}
 
 	return ttlsnd;
@@ -929,7 +913,7 @@ SOCK_flush_output(SocketClass *self)
 UCHAR
 SOCK_get_next_byte(SocketClass *self, BOOL peek)
 {
-	int	retry_count = 0, gerrno;
+	int		gerrno;
 	BOOL	maybeEOF = FALSE;
 
 	if (!self)
@@ -965,8 +949,7 @@ mylog("Lasterror=%d\n", gerrno);
 #if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 				case	EWOULDBLOCK:
 #endif /* EWOULDBLOCK */
-					retry_count++;
-					if (SOCK_wait_for_ready(self, FALSE, retry_count) >= 0)
+					if (SOCK_wait_for_ready(self, FALSE, FALSE) >= 0)
 						goto retry;
 					break;
 				case	ECONNRESET:
@@ -984,7 +967,7 @@ inolog("ECONNRESET\n");
 		{
 			if (!maybeEOF)
 			{
-				int	nready = SOCK_wait_for_ready(self, FALSE, 0);
+				int	nready = SOCK_wait_for_ready(self, FALSE, TRUE);
 				if (nready > 0)
 				{
 					maybeEOF = TRUE;
@@ -1010,7 +993,7 @@ inolog("ECONNRESET\n");
 static int
 SOCK_get_next_n_bytes(SocketClass *self, int n, char *buf)
 {
-	int	retry_count = 0, gerrno, rest, rlen;
+	int		gerrno, rest, rlen;
 	BOOL	maybeEOF = FALSE;
 
 	if (!self || !n)
@@ -1048,8 +1031,7 @@ mylog("Lasterror=%d\n", gerrno);
 #if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 				case	EWOULDBLOCK:
 #endif /* EWOULDBLOCK */
-					retry_count++;
-					if (SOCK_wait_for_ready(self, FALSE, retry_count) >= 0)
+					if (SOCK_wait_for_ready(self, FALSE, FALSE) >= 0)
 						goto retry;
 					break;
 				case	ECONNRESET:
@@ -1067,7 +1049,7 @@ inolog("ECONNRESET\n");
 		{
 			if (!maybeEOF)
 			{
-				int	nready = SOCK_wait_for_ready(self, FALSE, 0);
+				int	nready = SOCK_wait_for_ready(self, FALSE, TRUE);
 				if (nready > 0)
 				{
 					maybeEOF = TRUE;
@@ -1105,7 +1087,8 @@ inolog("ECONNRESET\n");
 void
 SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 {
-	int	bytes_sent, pos = 0, retry_count = 0, gerrno;
+	int			bytes_sent, pos = 0;
+	int			gerrno;
 
 	if (!self)
 		return;
@@ -1139,8 +1122,7 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 #if defined(EWOULDBLOCK) && (!defined(EAGAIN) || (EWOULDBLOCK != EAGAIN))
 					case	EWOULDBLOCK:
 #endif /* EWOULDBLOCK */
-						retry_count++;
-						if (SOCK_wait_for_ready(self, TRUE, retry_count) >= 0)
+						if (SOCK_wait_for_ready(self, TRUE, FALSE) >= 0)
 							continue;
 				}
 				if (0 == self->errornumber)
@@ -1149,7 +1131,6 @@ SOCK_put_next_byte(SocketClass *self, UCHAR next_byte)
 			}
 			pos += bytes_sent;
 			self->buffer_filled_out -= bytes_sent;
-			retry_count = 0;
 		} while (self->buffer_filled_out > 0);
 	}
 }
