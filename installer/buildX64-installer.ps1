@@ -21,7 +21,7 @@ if ($USE_LIBPQ -eq "yes")
 			$pgmfs = "$env:ProgramFiles"
 			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 		}
-		else if ("${env:ProgramW6432}" -ne "") {
+		elseif ("${env:ProgramW6432}" -ne "") {
 			$pgmfs = "$env:ProgramW6432"
 			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 		}

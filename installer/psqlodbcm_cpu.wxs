@@ -69,6 +69,7 @@
 <?endif ?>
 
 <?ifdef var.GSSBINDIR ?>
+<?if "$(var.GSSBINDIR)" != "" ?>
 <?if $(var.BIT64) = no ?>
 	  <!-- GSSAPI -->
           <File Id="gssapi32.dll" Name="gssapi32.dll" Source="$(var.GSSBINDIR)\gssapi32.dll" />
@@ -87,6 +88,7 @@
           <File Id="comerr64.dll" Name="comerr64.dll" Source="$(var.GSSBINDIR)\comerr64.dll" />
           <File Id="krb5_64.dll" Name="krb5_64.dll" Source="$(var.GSSBINDIR)\krb5_64.dll" />
           <File Id="k5sprt64.dll" Name="k5sprt64.dll" Source="$(var.GSSBINDIR)\k5sprt64.dll" />
+<?endif ?>
 <?endif ?>
 <?endif ?>
 
