@@ -582,6 +582,7 @@ static BOOL
 SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR message, WORD cbMessage)
 {
 	BOOL	ret = FALSE;
+	char ver_string[8];
 
 	/* Validate arguments */
 	if (!lpszDriver || !lpszDriver[0])
@@ -596,12 +597,11 @@ SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR message, WORD cb
 		goto cleanup;
 	if (!SQLWritePrivateProfileString(lpszDriver, "ConnectFunctions", "YYN", ODBCINST_INI))
 		goto cleanup;
+	snprintf(ver_string, sizeof(ver_string), "%02x.%02x",
+				 ODBCVER / 256,
+				 ODBCVER % 256);
 	if (!SQLWritePrivateProfileString(lpszDriver, "DriverODBCVer",
-#ifdef UNICODE_SUPPORT
-		 "03.51",
-#else
-		 "03.00",
-#endif
+		ver_string,
 		ODBCINST_INI))
 		goto cleanup;
 	if (!SQLWritePrivateProfileString(lpszDriver, "FileUsage", "0", ODBCINST_INI))
