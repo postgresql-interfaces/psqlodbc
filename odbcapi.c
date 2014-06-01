@@ -386,6 +386,7 @@ SQLExecute(HSTMT StatementHandle)
 	else
 	{
 		StartRollbackState(stmt);
+		stmt->exec_current_row = -1;
 		ret = PGAPI_Execute(StatementHandle, flag);
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	}

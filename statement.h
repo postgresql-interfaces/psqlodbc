@@ -466,6 +466,7 @@ char		SC_Destructor(StatementClass *self);
 BOOL		SC_opencheck(StatementClass *self, const char *func);
 RETCODE		SC_initialize_and_recycle(StatementClass *self);
 void		SC_initialize_cols_info(StatementClass *self, BOOL DCdestroy, BOOL parseReset);
+void		SC_reset_result_for_rerun(StatementClass *self);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
 char		parse_sqlsvr(StatementClass *stmt);

@@ -976,16 +976,13 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	else if (PREPARED_PERMANENTLY == stmt->prepared ||
 		 PREPARED_TEMPORARILY == stmt->prepared)
 	{
-		QResultClass	*res;
-
 		/*
 		 * re-executing an prepared statement.
 		 * Don't recycle the statement but
 		 * discard the old result.
 		 */
 		recycle = FALSE;
-		if (res = SC_get_Result(stmt), res)
-			QR_close_result(res, FALSE);
+		SC_reset_result_for_rerun(stmt);
 	}
 	/*
 	 * If SQLExecute is being called again, recycle the statement. Note

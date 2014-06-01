@@ -196,7 +196,6 @@ QR_Constructor(void)
 		rv->notice = NULL;
 		rv->conn = NULL;
 		rv->next = NULL;
-		rv->pstatus = 0;
 		rv->count_backend_allocated = 0;
 		rv->count_keyset_allocated = 0;
 		rv->num_total_read = 0;
@@ -317,6 +316,25 @@ QR_close_result(QResultClass *self, BOOL destroy)
 	}
 
 	mylog("QResult: exit close_result\n");
+}
+
+void
+QR_reset_for_re_execute(QResultClass *self)
+{
+	mylog("QResult: enter %s for %x\n", __FUNCTION__, self);
+	if (!self)	return;
+	QR_close_result(self, FALSE);
+	/* reset flags etc */
+	self->flags = 0;
+	QR_set_rowstart_in_cache(self, -1);
+	self->recent_processed_row_count = -1;
+	/* clear error info etc */
+	self->rstatus = PORES_EMPTY_QUERY;
+	self->aborted = FALSE;
+	self->sqlstate[0] = '\0';
+	self->messageref = NULL;
+
+	mylog("QResult: exit %s\n", __FUNCTION__);
 }
 
 void
@@ -464,6 +482,7 @@ QR_free_memory(QResultClass *self)
 		self->count_backend_allocated = 0;
 		self->backend_tuples = NULL;
 		self->dataFilled = FALSE;
+		self->tupleField = NULL;
 	}
 	if (self->keyset)
 	{

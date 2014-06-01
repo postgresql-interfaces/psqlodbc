@@ -226,6 +226,7 @@ int		QR_next_tuple(QResultClass *self, StatementClass *, int *LastMessageType);
 int			QR_close(QResultClass *self);
 void		QR_on_close_cursor(QResultClass *self);
 void		QR_close_result(QResultClass *self, BOOL destroy);
+void		QR_reset_for_re_execute(QResultClass *self);
 char		QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, int *LastMessageType);
 void		QR_free_memory(QResultClass *self);
 void		QR_set_command(QResultClass *self, const char *msg);

@@ -805,6 +805,27 @@ SC_initialize_and_recycle(StatementClass *self)
 	return SQL_SUCCESS;
 }
 
+void
+SC_reset_result_for_rerun(StatementClass *self)
+{
+	QResultClass	*res;
+	ColumnInfoClass	*flds;
+
+	if (!self)	return;
+	if (res = SC_get_Result(self), NULL == res)
+		return;
+	flds = QR_get_fields(res);
+	if (NULL == flds ||
+	    0 == CI_get_num_fields(flds))
+		SC_set_Result(self, NULL);
+	else
+	{
+		QR_reset_for_re_execute(res);
+		self->curr_param_result = 1;
+		SC_set_Curres(self, NULL);
+	}
+}
+
 /*
  *	Called from SQLPrepare if STMT_PREMATURE, or
  *	from SQLExecute if STMT_FINISHED, or
@@ -880,11 +901,10 @@ inolog("SC_clear_parse_status\n");
 		{
 			case PREPARED_PERMANENTLY:
 			case PREPARED_TEMPORARILY:
-				QR_close_result(res, FALSE);
+				SC_reset_result_for_rerun(self);
 				break;
 			default:
-				QR_Destructor(res);
-				SC_init_Result(self);
+				SC_set_Result(self, NULL);
 				break;
 		}
 	}
@@ -2533,7 +2553,8 @@ ReflectColumnsInfo(StatementClass *self, QResultClass *res)
 	if (res->num_fields > 0)
 		return FALSE;
 	pres = SC_get_Result(self);
-	if (pres != res &&
+	if (pres != NULL &&
+	    pres != res &&
 	    pres->num_fields > 0)
 	{
 		QR_set_fields(res, QR_get_fields(pres));
@@ -2626,6 +2647,8 @@ inolog(" response_length=%d\n", response_length);
 							res->recent_processed_row_count = ret1;
 					}
 				}
+				else if (QR_command_successful(res))
+					QR_set_rstatus(res, PORES_COMMAND_OK);
 				break;
 			case 'E': /* ErrorMessage */
 				handle_error_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
