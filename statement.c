@@ -317,6 +317,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		{
 			return SQL_ERROR;
 		}
+		SC_set_Curres(stmt, NULL);
 	}
 	else if (fOption == SQL_RESET_PARAMS)
 		SC_free_params(stmt, STMT_FREE_PARAMS_ALL);
@@ -2280,6 +2281,8 @@ inolog("res->next=%p\n", tres);
 			last->next = res;
 		self->curr_param_result = 1;
 	}
+	if (NULL == SC_get_Curres(self))
+		SC_set_Curres(self, SC_get_Result(self));
 
 	ipdopts = SC_get_IPDF(self);
 	has_out_para = FALSE;
