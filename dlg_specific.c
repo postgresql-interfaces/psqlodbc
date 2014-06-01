@@ -193,11 +193,37 @@ abbrev_sslmode(const char *sslmode, char *abbrevmode)
 	return abbrevmode;
 }
 
+static char *makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
+{
+	char	*buf = target;
+	*buf = '\0';
+	if (ci->disable_keepalive)
+		return target;
+	if (ci->keepalive_idle < 0 && ci->keepalive_interval < 0)
+		return target;
+	if (ci->keepalive_idle >= 0)
+	{
+		if (abbrev)
+			sprintf(buf, ABBR_KEEPALIVETIME "=%u;", ci->keepalive_idle);
+		else
+			sprintf(buf, INI_KEEPALIVETIME "=%u;", ci->keepalive_idle);
+		buf = strchr(buf, (int) '\0');
+	}
+	if (ci->keepalive_interval >= 0)
+	{
+		if (abbrev)
+			sprintf(buf, ABBR_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
+		else
+			sprintf(buf, INI_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
+	}
+	return target;
+}
+
 void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
-	char		encoded_item[LARGE_REGISTRY_LEN];
+	char		encoded_item[LARGE_REGISTRY_LEN], keepaliveStr[64];
 	ssize_t		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
@@ -268,6 +294,7 @@ inolog("hlen=%d", hlen);
 			INI_BYTEAASLONGVARBINARY "=%d;"
 			INI_USESERVERSIDEPREPARE "=%d;"
 			INI_LOWERCASEIDENTIFIER "=%d;"
+			"%s"
 #ifdef	WIN32
 			INI_GSSAUTHUSEGSSAPI "=%d;"
 #endif /* WIN32 */
@@ -306,6 +333,7 @@ inolog("hlen=%d", hlen);
 			,ci->bytea_as_longvarbinary
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
+			,makeKeepaliveConnectString(keepaliveStr, ci, FALSE)
 #ifdef	WIN32
 			,ci->gssauth_use_gssapi
 #endif /* WIN32 */
@@ -399,7 +427,8 @@ inolog("hlen=%d", hlen);
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
-				INI_ABBREVIATE "=%02x%x",
+				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
+				"%s",
 				encoded_item,
 				ci->drivers.fetch_max,
 				ci->drivers.socket_buffersize,
@@ -407,6 +436,7 @@ inolog("hlen=%d", hlen);
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
+				makeKeepaliveConnectString(keepaliveStr, ci, TRUE),
 				EFFECTIVE_BIT_COUNT, flag);
 		if (olen < nlen && (PROTOCOL_74(ci) || ci->rollback_on_error >= 0))
 		{
@@ -602,6 +632,10 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->lower_case_identifier = atoi(value);
 	else if (stricmp(attribute, INI_GSSAUTHUSEGSSAPI) == 0 || stricmp(attribute, ABBR_GSSAUTHUSEGSSAPI) == 0)
 		ci->gssauth_use_gssapi = atoi(value);
+	else if (stricmp(attribute, INI_KEEPALIVETIME) == 0 || stricmp(attribute, ABBR_KEEPALIVETIME) == 0)
+		ci->keepalive_idle = atoi(value);
+	else if (stricmp(attribute, INI_KEEPALIVEINTERVAL) == 0 || stricmp(attribute, ABBR_KEEPALIVEINTERVAL) == 0)
+		ci->keepalive_interval = atoi(value);
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
 	{
 		switch (value[0])
@@ -983,6 +1017,21 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 			ci->gssauth_use_gssapi = atoi(temp);
 	}
 
+	if (ci->keepalive_idle < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_KEEPALIVETIME, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			if (0 == (ci->keepalive_idle = atoi(temp)))
+				ci->keepalive_idle = -1;
+	}
+	if (ci->keepalive_interval < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_KEEPALIVEINTERVAL, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			if (0 == (ci->keepalive_interval = atoi(temp)))
+				ci->keepalive_interval = -1;
+	}
+
 	if (ci->sslmode[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
 
@@ -1273,6 +1322,16 @@ writeDSNinfo(const ConnInfo *ci)
 	SQLWritePrivateProfileString(DSN,
 								 INI_SSLMODE,
 								 ci->sslmode,
+								 ODBC_INI);
+	sprintf(temp, "%d", ci->keepalive_idle);
+	SQLWritePrivateProfileString(DSN,
+								 INI_KEEPALIVETIME,
+								 temp,
+								 ODBC_INI);
+	sprintf(temp, "%d", ci->keepalive_interval);
+	SQLWritePrivateProfileString(DSN,
+								 INI_KEEPALIVEINTERVAL,
+								 temp,
 								 ODBC_INI);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	sprintf(temp, "%d", ci->xa_opt);

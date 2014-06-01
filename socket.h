@@ -52,6 +52,7 @@ typedef unsigned int in_addr_t;
 #else
 
 #include <winsock2.h>
+#include <Mstcpip.h>
 #include <ws2tcpip.h>
 
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
@@ -179,6 +180,8 @@ struct SocketClass_
 	char		reverse;	/* used to handle Postgres 6.2 protocol
 						* (reverse byte order) */
 	char		keepalive;	/* TCP keepalive */
+	int		keepalive_idle;
+	int		keepalive_interval;
 };
 
 #define SOCK_get_char(self)	(SOCK_get_next_byte(self, FALSE))

@@ -16,6 +16,7 @@
 #define DLG_OPTIONS_DRV                 102
 #define DLG_OPTIONS_DS                  103
 #define DLG_OPTIONS_GLOBAL		104
+#define DLG_OPTIONS_DS3			105
 #define IDC_DSNAME			400
 #define IDC_DSNAMETEXT			401
 #define IDC_DESC			404
@@ -98,14 +99,20 @@
 #define IDC_TEST			1085
 #define DS_LOGDIR			1086
 #define DS_GSSAUTHUSEGSSAPI		1087
+#define DS_DISABLE_KEEPALIVE		1088
+#define DS_KEEPALIVETIME		1089
+#define DS_KEEPALIVEINTERVAL		1090
+#define DS_DEFAULT_DTCLOG		1091
+#define DS_DTCLOG			1092
+#define DS_NO_DTCLOG			1093
 
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        105
+#define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1088
+#define _APS_NEXT_CONTROL_VALUE         1094
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

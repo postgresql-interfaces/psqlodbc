@@ -147,6 +147,11 @@ extern "C" {
 #define INI_LOGDIR			"Logdir"
 #define INI_GSSAUTHUSEGSSAPI		"GssAuthUseGSS"
 #define ABBR_GSSAUTHUSEGSSAPI		"D0"
+#define INI_KEEPALIVETIME		"KeepaliveTime"
+#define ABBR_KEEPALIVETIME		"D1"
+#define INI_KEEPALIVEINTERVAL		"KeepaliveInterval"
+#define ABBR_KEEPALIVEINTERVAL		"D2"
+#define INI_DTCLOG			"Dtclog"
 
 #define	SSLMODE_DISABLE		"disable"
 #define	SSLMODE_ALLOW		"allow"

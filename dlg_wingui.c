@@ -34,6 +34,8 @@ extern HINSTANCE NEAR s_hModule;
 static int	driver_optionsDraw(HWND, const ConnInfo *, int src, BOOL enable);
 static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 
+static int	ds_options_update(HWND hdlg, ConnInfo *ci);
+
 static struct {
 	int	ids;
 	const char * const	modestr;
@@ -447,7 +449,7 @@ ds_options1Proc(HWND hdlg,
 						fbuf,
 						sizeof(fbuf));
 				if (cmd <= 0)
-					strcpy(fbuf, "Advanced Options (%s) 1/2");
+					strcpy(fbuf, "Advanced Options (%s) 1/3");
 				sprintf(strbuf, fbuf, ci->dsn);
 				SetWindowText(hdlg, strbuf);
 			}
@@ -494,6 +496,101 @@ ds_options1Proc(HWND hdlg,
 	return FALSE;
 }
 
+static int
+ds_options_update(HWND hdlg, ConnInfo *ci)
+{
+	char		buf[128];
+
+	mylog("%s: got ci = %p\n", __FUNCTION__, ci);
+
+	/* Readonly */
+	sprintf(ci->onlyread, "%d", IsDlgButtonChecked(hdlg, DS_READONLY));
+
+	/* Protocol */
+	if (IsDlgButtonChecked(hdlg, DS_PG62))
+		strcpy(ci->protocol, PG62);
+	else if (IsDlgButtonChecked(hdlg, DS_PG63))
+		strcpy(ci->protocol, PG63);
+	else if (IsDlgButtonChecked(hdlg, DS_PG64))
+		strcpy(ci->protocol, PG64);
+	else
+		/* latest */
+		strcpy(ci->protocol, PG74);
+
+	/* Issue rollback command on error */
+	if (IsDlgButtonChecked(hdlg, DS_NO_ROLLBACK))
+		ci->rollback_on_error = 0;
+	else if (IsDlgButtonChecked(hdlg, DS_TRANSACTION_ROLLBACK))
+		ci->rollback_on_error = 1;
+	else if (IsDlgButtonChecked(hdlg, DS_STATEMENT_ROLLBACK))
+		ci->rollback_on_error = 2;
+	else
+		/* legacy */
+		ci->rollback_on_error = 1;
+
+	/* Int8 As */
+	if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DEFAULT))
+		ci->int8_as = 0;
+	else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_BIGINT))
+		ci->int8_as = SQL_BIGINT;
+	else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_NUMERIC))
+		ci->int8_as = SQL_NUMERIC;
+	else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DOUBLE))
+		ci->int8_as = SQL_DOUBLE;
+	else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_INT4))
+		ci->int8_as = SQL_INTEGER;
+	else
+		ci->int8_as = SQL_VARCHAR;
+
+	GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
+	setExtraOptions(ci, buf, NULL);
+	sprintf(ci->show_system_tables, "%d", IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
+
+	sprintf(ci->row_versioning, "%d", IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
+	ci->disallow_premature = IsDlgButtonChecked(hdlg, DS_DISALLOWPREMATURE);
+	ci->lf_conversion = IsDlgButtonChecked(hdlg, DS_LFCONVERSION);
+	ci->true_is_minus1 = IsDlgButtonChecked(hdlg, DS_TRUEISMINUS1);
+	ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
+	ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
+	ci->bytea_as_longvarbinary = IsDlgButtonChecked(hdlg, DS_BYTEAASLONGVARBINARY);
+	/*ci->lower_case_identifier = IsDlgButtonChecked(hdlg, DS_LOWERCASEIDENTIFIER);*/
+	ci->gssauth_use_gssapi = IsDlgButtonChecked(hdlg, DS_GSSAUTHUSEGSSAPI);
+
+	/* OID Options */
+	sprintf(ci->fake_oid_index, "%d", IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));
+	sprintf(ci->show_oid_column, "%d", IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
+
+	/* Datasource Connection Settings */
+	{
+		char conn_settings[LARGE_REGISTRY_LEN];
+		GetDlgItemText(hdlg, DS_CONNSETTINGS, conn_settings, sizeof(conn_settings));
+		if ('\0' != conn_settings[0])
+			STR_TO_NAME(ci->conn_settings, conn_settings);
+	}
+
+	/* TCP KEEPALIVE */
+	ci->disable_keepalive = IsDlgButtonChecked(hdlg, DS_DISABLE_KEEPALIVE);
+	if (ci->disable_keepalive)
+	{
+		ci->keepalive_idle = -1;
+		ci->keepalive_interval = -1;
+	}
+	else
+	{
+		char	temp[64];
+		int	val;
+
+		GetDlgItemText(hdlg, DS_KEEPALIVETIME, temp, sizeof(temp));
+		if  (val = atoi(temp), 0 == val)
+			val = -1;
+		ci->keepalive_idle = val;
+		GetDlgItemText(hdlg, DS_KEEPALIVEINTERVAL, temp, sizeof(temp));
+		if  (val = atoi(temp), 0 == val)
+			val = -1;
+		ci->keepalive_interval = val;
+	}
+	return 0;
+}
 
 LRESULT			CALLBACK
 ds_options2Proc(HWND hdlg,
@@ -522,7 +619,7 @@ ds_options2Proc(HWND hdlg,
 						fbuf,
 						sizeof(fbuf));
 				if (cmd <= 0)
-					strcpy(fbuf, "Advanced Options (%s) 2/2");
+					strcpy(fbuf, "Advanced Options (%s) 2/3");
 				sprintf(buf, fbuf, ci->dsn);
 				SetWindowText(hdlg, buf);
 			}
@@ -609,108 +706,60 @@ ds_options2Proc(HWND hdlg,
 
 			/* Datasource Connection Settings */
 			SetDlgItemText(hdlg, DS_CONNSETTINGS, SAFE_NAME(ci->conn_settings));
+			/* KEEPALIVE */
+			enable = (0 == (ci->extra_opts & BIT_DISABLE_KEEPALIVE));
+			CheckDlgButton(hdlg, DS_DISABLE_KEEPALIVE, !enable);
+			if (enable)
+			{
+				if (ci->keepalive_idle > 0)
+				{
+					snprintf(buf, sizeof(buf), "%d", ci->keepalive_idle);
+					SetDlgItemText(hdlg, DS_KEEPALIVETIME, buf);
+				}
+				if (ci->keepalive_interval > 0)
+				{
+					snprintf(buf, sizeof(buf), "%d", ci->keepalive_interval);
+					SetDlgItemText(hdlg, DS_KEEPALIVEINTERVAL, buf);
+				}
+			}
 			break;
 
 		case WM_COMMAND:
+			ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 			switch (cmd = GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case DS_SHOWOIDCOLUMN:
 					mylog("WM_COMMAND: DS_SHOWOIDCOLUMN\n");
 					EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
 					return TRUE;
+				case DS_DISABLE_KEEPALIVE:
+					mylog("WM_COMMAND: DS_SHOWOIDCOLUMN\n");
+					EnableWindow(GetDlgItem(hdlg, DS_KEEPALIVETIME), !IsDlgButtonChecked(hdlg, cmd));
+					EnableWindow(GetDlgItem(hdlg, DS_KEEPALIVEINTERVAL), !IsDlgButtonChecked(hdlg, cmd));
+					return TRUE;
 
 				case IDOK:
-				case IDAPPLY:
-				case IDPREVPAGE:
-					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
-					mylog("IDOK: got ci = %p\n", ci);
-
-					/* Readonly */
-					sprintf(ci->onlyread, "%d", IsDlgButtonChecked(hdlg, DS_READONLY));
-
-					/* Protocol */
-					if (IsDlgButtonChecked(hdlg, DS_PG62))
-						strcpy(ci->protocol, PG62);
-					else if (IsDlgButtonChecked(hdlg, DS_PG63))
-						strcpy(ci->protocol, PG63);
-					else if (IsDlgButtonChecked(hdlg, DS_PG64))
-						strcpy(ci->protocol, PG64);
-					else
-						/* latest */
-						strcpy(ci->protocol, PG74);
-
-					/* Issue rollback command on error */
-					if (IsDlgButtonChecked(hdlg, DS_NO_ROLLBACK))
-						ci->rollback_on_error = 0;
-					else if (IsDlgButtonChecked(hdlg, DS_TRANSACTION_ROLLBACK))
-						ci->rollback_on_error = 1;
-					else if (IsDlgButtonChecked(hdlg, DS_STATEMENT_ROLLBACK))
-						ci->rollback_on_error = 2;
-					else
-						/* legacy */
-						ci->rollback_on_error = 1;
-
-					/* Int8 As */
-					if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DEFAULT))
-						ci->int8_as = 0;
-					else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_BIGINT))
-						ci->int8_as = SQL_BIGINT;
-					else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_NUMERIC))
-						ci->int8_as = SQL_NUMERIC;
-					else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DOUBLE))
-						ci->int8_as = SQL_DOUBLE;
-					else if (IsDlgButtonChecked(hdlg, DS_INT8_AS_INT4))
-						ci->int8_as = SQL_INTEGER;
-					else
-						ci->int8_as = SQL_VARCHAR;
-
-					GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
-					setExtraOptions(ci, buf, NULL);
-					sprintf(ci->show_system_tables, "%d", IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
-
-					sprintf(ci->row_versioning, "%d", IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
-					ci->disallow_premature = IsDlgButtonChecked(hdlg, DS_DISALLOWPREMATURE);
-					ci->lf_conversion = IsDlgButtonChecked(hdlg, DS_LFCONVERSION);
-					ci->true_is_minus1 = IsDlgButtonChecked(hdlg, DS_TRUEISMINUS1);
-					ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
-					ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
-					ci->bytea_as_longvarbinary = IsDlgButtonChecked(hdlg, DS_BYTEAASLONGVARBINARY);
-					/*ci->lower_case_identifier = IsDlgButtonChecked(hdlg, DS_LOWERCASEIDENTIFIER);*/
-					ci->gssauth_use_gssapi = IsDlgButtonChecked(hdlg, DS_GSSAUTHUSEGSSAPI);
-
-					/* OID Options */
-					sprintf(ci->fake_oid_index, "%d", IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));
-					sprintf(ci->show_oid_column, "%d", IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
-
-					/* Datasource Connection Settings */
-					{
-						char conn_settings[LARGE_REGISTRY_LEN];
-						GetDlgItemText(hdlg, DS_CONNSETTINGS, conn_settings, sizeof(conn_settings));
-						if ('\0' != conn_settings[0])
-							STR_TO_NAME(ci->conn_settings, conn_settings);
-					}
-					if (IDAPPLY == cmd)
-					{
-						SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
-						break;
-					}
-
-					EndDialog(hdlg, cmd == IDOK);
-					if (IDOK == cmd)
-						return TRUE;
-					DialogBoxParam(s_hModule,
-								   MAKEINTRESOURCE(DLG_OPTIONS_DRV),
-								   hdlg, ds_options1Proc, (LPARAM) ci);
-					break;
-
+					ds_options_update(hdlg, ci);
 				case IDCANCEL:
-					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
+					EndDialog(hdlg, IDOK == cmd);
 					return TRUE;
+				case IDAPPLY:
+					ds_options_update(hdlg, ci);
+					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
+					break;
+				case IDPREVPAGE:
+					ds_options_update(hdlg, ci);
+					EndDialog(hdlg, cmd == IDOK);
+					DialogBoxParam(s_hModule,
+						MAKEINTRESOURCE(DLG_OPTIONS_DRV),
+						   hdlg, ds_options1Proc, (LPARAM) ci);
+					break;
 			}
 	}
 
 	return FALSE;
 }
+
 
 typedef	SQLRETURN (SQL_API *SQLAPIPROC)();
 static int

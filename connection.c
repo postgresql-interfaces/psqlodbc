@@ -298,6 +298,8 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->ignore_round_trip_time = -1;
 	conninfo->disable_keepalive = -1;
 	conninfo->gssauth_use_gssapi = -1;
+	conninfo->keepalive_idle = -1;
+	conninfo->keepalive_interval = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -352,6 +354,8 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(disable_keepalive);
 	CORR_VALCPY(gssauth_use_gssapi);
 	CORR_VALCPY(extra_opts);
+	CORR_VALCPY(keepalive_idle);
+	CORR_VALCPY(keepalive_interval);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	CORR_VALCPY(xa_opt);
 #endif
@@ -1336,6 +1340,9 @@ static int	protocol3_packet_build(ConnectionClass *self)
 
 #ifdef USE_LIBPQ
 CSTR	l_login_timeout = "connect_timeout";
+CSTR	l_keepalives_idle = "keepalives_idle";
+CSTR	l_keepalives_interval = "keepalives_interval";
+
 static char	*protocol3_opts_build(ConnectionClass *self)
 {
 	CSTR	func = "protocol3_opts_build";
@@ -1359,10 +1366,27 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	{
 		char	tmout[16];
 
-		slen += (strlen(l_login_timeout) + 2 + 2);
+		slen += (strlen(l_login_timeout) + 2);
 		snprintf(tmout, sizeof(tmout), FORMAT_UINTEGER, self->login_timeout);
 		slen += strlen(tmout);
 	}
+	if (self->connInfo.keepalive_idle > 0)
+	{
+		char	outwrk[16];
+
+		slen += (strlen(l_keepalives_idle) + 2);
+		snprintf(outwrk, sizeof(outwrk), FORMAT_UINTEGER, self->connInfo.keepalive_idle);
+		slen += strlen(outwrk);
+	}
+	if (self->connInfo.keepalive_interval > 0)
+	{
+		char	outwrk[16];
+
+		slen += (strlen(l_keepalives_interval) + 2);
+		snprintf(outwrk, sizeof(outwrk), FORMAT_UINTEGER, self->connInfo.keepalive_interval);
+		slen += strlen(outwrk);
+	}
+
 	slen++;
 
 	if (conninfo = malloc(slen), !conninfo)
@@ -1396,9 +1420,23 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	if (self->login_timeout > 0)
 	{
 		sprintf(ppacket, " %s=", l_login_timeout);
-		ppacket += (strlen(l_login_timeout) + 2);
+		ppacket = strchr(ppacket, (int) '\0');
 		sprintf(ppacket, FORMAT_UINTEGER, self->login_timeout);
-		ppacket = strchr(ppacket, '\0');
+		ppacket = strchr(ppacket, (int) '\0');
+	}
+	if (self->connInfo.keepalive_idle > 0)
+	{
+		sprintf(ppacket, " %s=", l_keepalives_idle);
+		ppacket = strchr(ppacket, (int) '\0');
+		sprintf(ppacket, FORMAT_UINTEGER, self->connInfo.keepalive_idle);
+		ppacket = strchr(ppacket, (int) '\0');
+	}
+	if (self->connInfo.keepalive_interval > 0)
+	{
+		sprintf(ppacket, " %s=", l_keepalives_interval);
+		ppacket = strchr(ppacket, (int) '\0');
+		sprintf(ppacket, FORMAT_UINTEGER, self->connInfo.keepalive_interval);
+		ppacket = strchr(ppacket, (int) '\0');
 	}
 	*ppacket = '\0';
 inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));

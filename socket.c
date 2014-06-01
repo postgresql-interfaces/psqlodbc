@@ -102,11 +102,15 @@ SOCK_Constructor(const ConnectionClass *conn)
 		{
 			rv->buffer_size = conn->connInfo.drivers.socket_buffersize;
 			rv->keepalive = !conn->connInfo.disable_keepalive;
+			rv->keepalive_idle = conn->connInfo.keepalive_idle;
+			rv->keepalive_interval = conn->connInfo.keepalive_interval;
 		}
 		else
 		{
 			rv->buffer_size = globals.socket_buffersize;
 			rv->keepalive = TRUE;
+			rv->keepalive_idle = -1;
+			rv->keepalive_interval = -1;
 		}
 		rv->buffer_in = (UCHAR *) malloc(rv->buffer_size);
 		if (!rv->buffer_in)
@@ -357,9 +361,54 @@ retry:
 		}
 	}
 #endif /* TCP_NODELAY */
-#ifdef	SO_KEEPALIVE
 	if (family != AF_UNIX && self->keepalive)
 	{
+#ifdef	WIN32
+		if (self->keepalive_idle < 0 && self->keepalive_interval < 0)
+		{
+#ifdef	SO_KEEPALIVE
+			int i;
+			socklen_t	len;
+
+			i = 1;
+			len = sizeof(i);
+			if (setsockopt(self->socket, SOL_SOCKET, SO_KEEPALIVE, (char *) &i, len) < 0)
+			{
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to SO_KEEPALIVE.");
+				goto cleanup;
+			}
+#endif /* SO_KEEPALIVE */
+		}
+		else
+		{
+#ifdef	SIO_KEEPALIVE_VALS
+			struct tcp_keepalive ka;
+			DWORD		retsize;
+			int		idle = 0;
+			int		interval = 0;
+
+			if (self->keepalive_idle >= 0)
+        			idle = self->keepalive_idle;
+			else
+        			idle = 2 * 60 * 60;	/* 2 hours = default */
+
+			if (self->keepalive_interval >= 0)
+        			interval = self->keepalive_interval;
+			else
+        			interval = 1;		/* 1 second = default */
+
+			ka.onoff = 1;
+			ka.keepalivetime = idle * 1000;
+			ka.keepaliveinterval = interval * 1000;
+			if (WSAIoctl(self->socket, SIO_KEEPALIVE_VALS, (LPVOID) &ka, sizeof(ka), NULL, 0, &retsize, NULL, NULL) != 0)
+			{
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to SO_KEEPALIVE VALS.");
+				goto cleanup;
+			}
+#endif /* SIO_KEEPALIVE_VALS */
+		}
+#else
+#ifdef	SO_KEEPALIVE
 		int i;
 		socklen_t	len;
 
@@ -370,8 +419,56 @@ retry:
 			SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to SO_KEEPALIVE.");
 			goto cleanup;
 		}
-	}
 #endif /* SO_KEEPALIVE */
+		/*
+		 * Set the keepalive idle timer.
+		 */
+		if (self->keepalive_idle >= 0)
+		{
+			int	idle = self->keepalive_idle;
+
+#ifdef TCP_KEEPIDLE
+			if (setsockopt(self->socket, IPPROTO_TCP, TCP_KEEPIDLE,
+				   (char *) &idle, sizeof(idle)) < 0)
+			{
+				char		sebuf[256];
+
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to TCP_KEEPIDLE.");
+				goto cleanup;
+			}
+#else
+#ifdef TCP_KEEPALIVE
+		/* Darwin uses TCP_KEEPALIVE rather than TCP_KEEPIDLE */
+			if (setsockopt(self->socket, IPPROTO_TCP, TCP_KEEPALIVE,
+				   (char *) &idle, sizeof(idle)) < 0)
+			{
+				char		sebuf[256];
+
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to TCP_KEEPALIVE.");
+				goto cleanup;
+			}
+#endif /* TCP_KEEPALIVE */
+#endif /* TCP_KEEPIDLE */
+		}
+
+		/*
+		 * Set the keepalive interval.
+		 */
+		if (self->keepalive_interval >= 0)
+		{
+			int	interval = self->keepalive_interval;
+
+#ifdef TCP_KEEPINTVL
+			if (setsockopt(self->socket, IPPROTO_TCP, TCP_KEEPINTVL,
+				   (char *) &interval, sizeof(interval)) < 0)
+			{
+				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to TCP_KEEPINTVL.");
+				goto cleanup;
+			}
+#endif /* TCP_KEEPINTVL */
+		}
+#endif /* WIN32 */
+	}
 #ifdef	WIN32
 	{
 		long	ioctlsocket_ret = 1;

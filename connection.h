@@ -319,6 +319,8 @@ typedef struct
 	signed char	disable_keepalive;
 	signed char	gssauth_use_gssapi;
 	UInt4		extra_opts;
+	Int4		keepalive_idle;
+	Int4		keepalive_interval;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	signed char	xa_opt;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
