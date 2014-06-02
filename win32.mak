@@ -151,27 +151,22 @@ XADLL = $(XALIB).dll
 !IF  "$(CFG)" == "Release"
 !IF  "$(ANSI_VERSION)" == "yes"
 OUTDIR=.\MultibyteRelease
-OUTDIRBIN=.\MultibyteRelease
 INTDIR=.\MultibyteRelease
 !ELSE
 OUTDIR=.\Release
-OUTDIRBIN=.\Release
 INTDIR=.\Release
 !ENDIF
 !ELSEIF  "$(CFG)" == "Debug"
 !IF  "$(ANSI_VERSION)" == "yes"
 OUTDIR=.\MultibyteDebug
-OUTDIRBIN=.\MultibyteDebug
 INTDIR=.\MultibyteDebug
 !ELSE
 OUTDIR=.\Debug
-OUTDIRBIN=.\Debug
 INTDIR=.\Debug
 !ENDIF
 !ENDIF
 !IF "$(LINKMT)" != "MT"
 OUTDIR = $(OUTDIR)$(LINKMT)
-OUTDIRBIN = $(OUTDIRBIN)$(LINKMT)
 INTDIR = $(INTDIR)$(LINKMT)
 !ENDIF
 
@@ -274,9 +269,9 @@ DEF_FILE= "psqlodbca.def"
 DEF_FILE= "psqlodbc.def"
 !ENDIF
 !IF  "$(CFG)" == "Release"
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no
+LINK32_FLAGS=$(LINK32_FLAGS)
 !ELSE
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug
+LINK32_FLAGS=$(LINK32_FLAGS) /debug
 !ENDIF
 LINK32_FLAGS=$(LINK32_FLAGS) $(VC07_DELAY_LOAD)
 !IF "$(PG_LIB)" != ""
@@ -337,12 +332,12 @@ LINK32_OBJS= \
 DTCDEF_FILE= "$(DTCLIB).def"
 LIB32_DTCLIBFLAGS=/nologo /machine:I386 /def:$(DTCDEF_FILE)
 
-LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:I386
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /machine:I386
 LINK32_DTCOBJS= \
 	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /incremental:no /machine:I386 /def:$(XADEF_FILE)
+LINK32_XAFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib odbc32.lib odbccp32.lib uuid.lib wsock32.lib /nologo /dll /machine:I386 /def:$(XADEF_FILE)
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj"
 

@@ -280,9 +280,9 @@ DEF_FILE= "psqlodbca.def"
 DEF_FILE= "psqlodbc.def"
 !ENDIF
 !IF  "$(CFG)" == "Release"
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no
+LINK32_FLAGS=$(LINK32_FLAGS)
 !ELSE
-LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug /pdbtype:sept
+LINK32_FLAGS=$(LINK32_FLAGS) /debug /pdbtype:sept
 !ENDIF
 LINK32_FLAGS=$(LINK32_FLAGS) $(VC07_DELAY_LOAD)
 !IF "$(PG_LIB)" != ""
@@ -349,12 +349,12 @@ LINK32_OBJS= \
 DTCDEF_FILE= "$(DTCLIB).def"
 LIB32_DTCLIBFLAGS=/nologo /def:"$(DTCDEF_FILE)"
 
-LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib $(CUSTOMLINKLIBS) Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib $(CUSTOMLINKLIBS) Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll
 LINK32_DTCOBJS= \
 	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /incremental:no /def:"$(XADEF_FILE)"
+LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /def:"$(XADEF_FILE)"
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj"
 
