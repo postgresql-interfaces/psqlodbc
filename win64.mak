@@ -11,16 +11,10 @@
 # Comments:		Created by Hiroshi Inoue, 2006-10-31
 #
 
-!IF "$(CPU)" == ""
-!MESSAGE Making 64bit DLL...
-!MESSAGE You should set the CPU environemt variable
-!MESSAGE to distinguish your OS
-!ENDIF
-
 !IF "$(ANSI_VERSION)" == "yes"
-!MESSAGE Building the PostgreSQL ANSI 3.0 Driver for $(CPU)...
+!MESSAGE Building the PostgreSQL ANSI 3.0 Driver for $(TARGET_CPU)...
 !ELSE
-!MESSAGE Building the PostgreSQL Unicode 3.5 Driver for $(CPU)...
+!MESSAGE Building the PostgreSQL Unicode 3.5 Driver for $(TARGET_CPU)...
 !ENDIF
 !MESSAGE
 !IF "$(CFG)" == ""
@@ -38,8 +32,8 @@ CFG=Release
 !MESSAGE
 !MESSAGE Possible choices for configuration are:
 !MESSAGE
-!MESSAGE "Release" ($(CPU) Release DLL)
-!MESSAGE "Debug" ($(CPU) Debug DLL)
+!MESSAGE "Release" ($(TARGET_CPU) Release DLL)
+!MESSAGE "Debug" ($(TARGET_CPU) Debug DLL)
 !MESSAGE
 !ERROR An invalid configuration was specified.
 !ENDIF
@@ -61,7 +55,9 @@ CUSTOMCLOPT=/nologo /MD /W3 /wd4018 /EHsc
 #
 CUSTOMLINKLIBS=
 
+!IF "$(TARGET_CPU)" == "x64"
 ADD_DEFINES=/D _WIN64
+!ENDIF
 #
 #	Include libraries as well as import libraries
 #	may be different from those of 32bit ones.
@@ -74,7 +70,7 @@ PG_INC=$(PROGRAMFILES)\PostgreSQL\9.3\include
 !ENDIF
 
 !IFNDEF PG_LIB
-PG_LIB=C:\develop\lib\$(CPU)
+PG_LIB=C:\develop\lib\$(TARGET_CPU)
 !MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
 !ENDIF
 
@@ -125,7 +121,7 @@ VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /Delayload:crypt32.dll
 !IF "$(USE_GSS)" == "yes"
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /Delayload:gssapi64.dll
 !ENDIF
-VC07_DELAY_LOAD="$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD"
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 
@@ -135,15 +131,10 @@ ADD_DEFINES = $(ADD_DEFINES) /D "_HANDLE_ENLIST_IN_DTC_"
 !IF "$(MEMORY_DEBUG)" == "yes"
 ADD_DEFINES = $(ADD_DEFINES) /D "_MEMORY_DEBUG_" /GS
 !ENDIF
-!IF "$(CPU)" == "AMD64"
-CPUTYPE = x64
-!ELSE
-CPUTYPE = $(CPU)
-!ENDIF
 !IF "$(ANSI_VERSION)" == "yes"
-ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL ANSI($(CPUTYPE))\"" /D "ODBCVER=0x0300"
+ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL ANSI($(TARGET_CPU))\"" /D "ODBCVER=0x0300"
 !ELSE
-ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL Unicode($(CPUTYPE))\"" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT"
+ADD_DEFINES = $(ADD_DEFINES) /D "DBMS_NAME=\"PostgreSQL Unicode($(TARGET_CPU))\"" /D "ODBCVER=0x0351" /D "UNICODE_SUPPORT"
 RSC_DEFINES = $(RSC_DEFINES) /D "UNICODE_SUPPORT"
 !ENDIF
 
@@ -181,23 +172,23 @@ XADLL = $(XALIB).dll
 
 !IF  "$(CFG)" == "Release"
 !IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=.\$(CPU)ANSI
-OUTDIRBIN=.\$(CPU)ANSI
-INTDIR=.\$(CPU)ANSI
+OUTDIR=.\$(TARGET_CPU)ANSI
+OUTDIRBIN=.\$(TARGET_CPU)ANSI
+INTDIR=.\$(TARGET_CPU)ANSI
 !ELSE
-OUTDIR=.\$(CPU)
-OUTDIRBIN=.\$(CPU)
-INTDIR=.\$(CPU)
+OUTDIR=.\$(TARGET_CPU)
+OUTDIRBIN=.\$(TARGET_CPU)
+INTDIR=.\$(TARGET_CPU)
 !ENDIF
 !ELSEIF  "$(CFG)" == "Debug"
 !IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=.\$(CPU)ANSIDebug
-OUTDIRBIN=.\$(CPU)ANSIDebug
-INTDIR=.\$(CPU)ANSIDebug
+OUTDIR=.\$(TARGET_CPU)ANSIDebug
+OUTDIRBIN=.\$(TARGET_CPU)ANSIDebug
+INTDIR=.\$(TARGET_CPU)ANSIDebug
 !ELSE
-OUTDIR=.\$(CPU)Debug
-OUTDIRBIN=.\$(CPU)Debug
-INTDIR=.\$(CPU)Debug
+OUTDIR=.\$(TARGET_CPU)Debug
+OUTDIRBIN=.\$(TARGET_CPU)Debug
+INTDIR=.\$(TARGET_CPU)Debug
 !ENDIF
 !ENDIF
 
@@ -205,7 +196,6 @@ ALLDLL  = "$(INTDIR)"
 !IF "$(OUTDIR)" != "$(INTDIR)"
 ALLDLL  = $(ALLDLL) "$(INTDIR)"
 !ENDIF
-
 ALLDLL  = $(ALLDLL) "$(OUTDIR)\$(MAINDLL)"
 
 !IF  "$(MSDTC)" != "no"
@@ -226,16 +216,15 @@ CLEAN :
 	-@erase "$(OUTDIR)\$(XADLL)"
 !ENDIF
 
-!IF  "$(MSDTC)" != "no"
-"$(OUTDIR)\$(MAINDLL)": "$(OUTDIR)\$(DTCLIB).lib"
-!ENDIF
-
 "$(INTDIR)" :
     if not exist "$(INTDIR)/$(NULL)" mkdir "$(INTDIR)"
-
 !IF "$(OUTDIR)" != "$(INTDIR)"
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
+!ENDIF
+
+!IF  "$(MSDTC)" != "no"
+"$(OUTDIR)\$(MAINDLL)": "$(OUTDIR)\$(DTCLIB).lib"
 !ENDIF
 
 CPP=cl.exe
@@ -280,7 +269,7 @@ MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
 MTL_PROJ=/nologo /mktyplib203 /win32
-RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res" /d "MULTIBUTE"
+RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res"
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 !IF  "$(CFG)" == "Release"
 MTL_PROJ=$(MTL_PROJ) /D "NDEBUG"
@@ -293,7 +282,7 @@ BSC32_SBRS= \
 
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /machine:$(CPU) /def:"$(DEF_FILE)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /def:"$(DEF_FILE)"
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
@@ -304,7 +293,7 @@ LINK32_FLAGS=$(LINK32_FLAGS) /incremental:no
 !ELSE
 LINK32_FLAGS=$(LINK32_FLAGS) /incremental:yes /debug /pdbtype:sept
 !ENDIF
-LINK32_FLAGS=$(LINK32_FLAGS) "$(VC07_DELAY_LOAD)"
+LINK32_FLAGS=$(LINK32_FLAGS) $(VC07_DELAY_LOAD)
 !IF "$(PG_LIB)" != ""
 LINK32_FLAGS=$(LINK32_FLAGS) /libpath:"$(PG_LIB)"
 !ENDIF
@@ -367,14 +356,14 @@ LINK32_OBJS= \
 	"$(INTDIR)\psqlodbc.res"
 
 DTCDEF_FILE= "$(DTCLIB).def"
-LIB32_DTCLIBFLAGS=/nologo /machine:$(CPU) /def:"$(DTCDEF_FILE)"
+LIB32_DTCLIBFLAGS=/nologo /def:"$(DTCDEF_FILE)"
 
-LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib $(CUSTOMLINKLIBS) Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:$(CPU)
+LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib $(CUSTOMLINKLIBS) Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no
 LINK32_DTCOBJS= \
-        "$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
+	"$(INTDIR)\msdtc_enlist.obj" "$(INTDIR)\xalibname.obj"
 
 XADEF_FILE= "$(XALIB).def"
-LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /incremental:no /machine:$(CPU) /def:"$(XADEF_FILE)"
+LINK32_XAFLAGS=/nodefaultlib:libcmt.lib kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /incremental:no /def:"$(XADEF_FILE)"
 LINK32_XAOBJS= \
 	"$(INTDIR)\pgxalib.obj"
 
@@ -383,12 +372,12 @@ LINK32_XAOBJS= \
   $(LINK32_FLAGS) $(LINK32_OBJS) /pdb:$*.pdb /implib:$*.lib /out:$@
 <<
 
-"$(OUTDIR)\$(DTCLIB).lib" : $(DEF_FILE) $(LINK32_DTCOBJS)
+"$(OUTDIR)\$(DTCLIB).lib" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
     $(LIB32) @<<
   $(LIB32_DTCLIBFLAGS) $(LINK32_DTCOBJS) /out:$@
 <<
 
-"$(OUTDIR)\$(DTCDLL)" : $(LINK32_DTCOBJS)
+"$(OUTDIR)\$(DTCDLL)" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
     $(LINK32) @<<
   $(LINK32_DTCFLAGS) $(LINK32_DTCOBJS) $*.exp /pdb:$*.pdb /out:$@
 <<
@@ -401,5 +390,5 @@ LINK32_XAOBJS= \
 
 SOURCE=psqlodbc.rc
 
-"$(INTDIR)\psqlodbc.res" : $(SOURCE) "$(INTDIR)"
-	$(RSC) $(RSC_PROJ)  $(RSC_DEFINES) $(SOURCE)
+"$(INTDIR)\psqlodbc.res" : $(SOURCE)
+	$(RSC) $(RSC_PROJ) $(RSC_DEFINES) $(SOURCE)

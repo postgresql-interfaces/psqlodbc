@@ -92,6 +92,7 @@ DTCLIB = pgenlista
 DTCLIB = pgenlist
 !ENDIF
 DTCDLL = $(DTCLIB).dll
+
 !IF "$(_NMAKE_VER)" == "6.00.9782.0"
 MSVC_VERSION=vc60
 VC07_DELAY_LOAD=
@@ -107,9 +108,9 @@ ADD_DEFINES=$(ADD_DEFINES) /D RESET_CRYPTO_CALLBACKS
 !ENDIF
 !ENDIF
 !IF "$(USE_SSPI)" == "yes"
-VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /Delayload:secur32.dll /Delayload:crypt32.dll
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /Delayload:crypt32.dll
 !ENDIF
-VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /delayLoad:$(DTCDLL) /DELAY:UNLOAD
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD
 VC_FLAGS=/EHsc
 !ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
@@ -134,10 +135,10 @@ ADD_DEFINES = $(ADD_DEFINES) /D _WIN64
 !ENDIF
 
 !IF "$(PG_INC)" != ""
-INC_OPT=$(INC_OPT) /I "$(PG_INC)"
+INC_OPT = $(INC_OPT) /I "$(PG_INC)"
 !ENDIF
 !IF "$(SSL_INC)" != ""
-INC_OPT=$(INC_OPT) /I "$(SSL_INC)"
+INC_OPT = $(INC_OPT) /I "$(SSL_INC)"
 !ENDIF
 
 !IF "$(OS)" == "Windows_NT"
@@ -214,7 +215,7 @@ CLEAN :
 !ENDIF
 
 !IF  "$(MSDTC)" != "no"
-"$(OUTDIR)\$(MAINDLL)" : "$(OUTDIR)\$(DTCLIB).lib"
+"$(OUTDIR)\$(MAINDLL)": "$(OUTDIR)\$(DTCLIB).lib"
 !ENDIF
 
 $(INTDIR)\connection.obj $(INTDIR)\psqlodbc.res: version.h
@@ -227,6 +228,7 @@ CPP_PROJ=/$(LINKMT)d /Gm /ZI /Od /RTC1 /D "_DEBUG"
 !ENDIF
 CPP_PROJ=$(CPP_PROJ) $(CUSTOMCLOPT) $(VC_FLAGS) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)"\ /Fd"$(INTDIR)"\ /FD
 !MESSAGE CPP_PROJ=$(CPP_PROJ)
+
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
    $(CPP_PROJ) /c $<
@@ -261,7 +263,7 @@ MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
 MTL_PROJ=/nologo /mktyplib203 /win32
-RSC_PROJ=/l 0x809 /d "MULTIBYTE"
+RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res"
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 !IF  "$(CFG)" == "Release"
 MTL_PROJ=$(MTL_PROC) /D "NDEBUG"
@@ -345,7 +347,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\psqlodbc.res"
 
 DTCDEF_FILE= "$(DTCLIB).def"
-LIB_DTCLIBFLAGS=/nologo /machine:I386 /def:$(DTCDEF_FILE)
+LIB32_DTCLIBFLAGS=/nologo /machine:I386 /def:$(DTCDEF_FILE)
 
 LINK32_DTCFLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib wsock32.lib XOleHlp.lib $(OUTDIR)\$(MAINLIB).lib Delayimp.lib /DelayLoad:XOLEHLP.DLL /nologo /dll /incremental:no /machine:I386
 LINK32_DTCOBJS= \
@@ -363,7 +365,7 @@ LINK32_XAOBJS= \
 
 "$(OUTDIR)\$(DTCLIB).lib" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
     $(LIB32) @<<
-  $(LIB_DTCLIBFLAGS) $(LINK32_DTCOBJS) /out:$@
+  $(LIB32_DTCLIBFLAGS) $(LINK32_DTCOBJS) /out:$@
 <<
 
 "$(OUTDIR)\$(DTCDLL)" : $(DTCDEF_FILE) $(LINK32_DTCOBJS)
@@ -380,4 +382,4 @@ LINK32_XAOBJS= \
 SOURCE=psqlodbc.rc
 
 "$(INTDIR)\psqlodbc.res" : $(SOURCE)
-	$(RSC) $(RSC_PROJ) /fo$@ $(RSC_DEFINES) $(SOURCE)
+	$(RSC) $(RSC_PROJ) $(RSC_DEFINES) $(SOURCE)
