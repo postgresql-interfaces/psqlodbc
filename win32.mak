@@ -259,17 +259,13 @@ CPP_PROJ=$(CPP_PROJ) $(CUSTOMCLOPT) $(VC_FLAGS) $(INC_OPT) /D "WIN32" /D "_WINDO
    $(CPP_PROJ) /c $<
 <<
 
-MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
-MTL_PROJ=/nologo /mktyplib203 /win32
 RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res"
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 !IF  "$(CFG)" == "Release"
-MTL_PROJ=$(MTL_PROC) /D "NDEBUG"
 RSC_PROJ=$(RSC_PROJ) /d "NDEBUG"
 !ELSE
-MTL_PROJ=$(MTL_PROJ) /D "_DEBUG"
 RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 !ENDIF
 BSC32_SBRS= \

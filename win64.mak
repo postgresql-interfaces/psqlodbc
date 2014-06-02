@@ -116,10 +116,10 @@ ADD_DEFINES=$(ADD_DEFINES) /D RESET_CRYPTO_CALLBACKS
 !ENDIF
 !ENDIF
 !IF "$(USE_SSPI)" == "yes"
-VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /Delayload:crypt32.dll
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /DelayLoad:crypt32.dll
 !ENDIF
 !IF "$(USE_GSS)" == "yes"
-VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /Delayload:gssapi64.dll
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:gssapi64.dll
 !ENDIF
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD
 !ENDIF
@@ -265,17 +265,13 @@ CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /GZ
    $(CPP_PROJ) /c $<
 <<
 
-MTL=midl.exe
 RSC=rc.exe
 BSC32=bscmake.exe
-MTL_PROJ=/nologo /mktyplib203 /win32
 RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res"
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
 !IF  "$(CFG)" == "Release"
-MTL_PROJ=$(MTL_PROJ) /D "NDEBUG"
 RSC_PROJ=$(RSC_PROJ) /d "NDEBUG"
 !ELSE
-MTL_PROJ=$(MTL_PROJ) /D "_DEBUG"
 RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 !ENDIF
 BSC32_SBRS= \

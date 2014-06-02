@@ -4,15 +4,12 @@
 
 setlocal
 SET X86PROGRAMFILES=%ProgramFiles%
-SET X86COMMONFILES=%CommonProgramFiles%
 
 if "%PROCESSOR_ARCHITECTURE%" == "x86" GOTO SET_LINKFILES
 SET X86PROGRAMFILES=%ProgramFiles(x86)%
-SET X86COMMONFILES=%CommonProgramFiles(x86)%
 
 :SET_LINKFILES
 :: echo X86PROGRAMFILES=%X86PROGRAMFILES%
-:: echo X86COMMONFILES=%X86COMMONFILES%
 ::
 :: When you reference PG server's libpq related dlls, set the
 :: version to the variable PGVERSION (default 9.3) and call
@@ -71,7 +68,6 @@ IF ERRORLEVEL 1 GOTO ERR_HANDLER
 echo.
 echo Building psqlODBC installer database...
 
-::SET PROGRAMCOM="%X86COMMONFILES%/Merge Modules"
 candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPRODUCTCODE="%PRODUCTCODE%" psqlodbc.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
