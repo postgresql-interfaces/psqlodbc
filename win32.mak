@@ -93,13 +93,6 @@ DTCLIB = pgenlist
 !ENDIF
 DTCDLL = $(DTCLIB).dll
 
-!IF "$(_NMAKE_VER)" == "6.00.9782.0"
-MSVC_VERSION=vc60
-VC07_DELAY_LOAD=
-MSDTC=no
-VC_FLAGS=/GX /YX
-!ELSE
-MSVC_VERSION=vc70
 !IF "$(USE_LIBPQ)" != "no"
 VC07_DELAY_LOAD=/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL)
 !IF "$(RESET_CRYPTO)" == "yes"
@@ -112,7 +105,6 @@ VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /Delayload:crypt32.dll
 !ENDIF
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD
 VC_FLAGS=/EHsc
-!ENDIF
 ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 
 !IF "$(MSDTC)" != "no"
