@@ -133,12 +133,6 @@ INC_OPT = $(INC_OPT) /I "$(PG_INC)"
 INC_OPT = $(INC_OPT) /I "$(SSL_INC)"
 !ENDIF
 
-!IF "$(OS)" == "Windows_NT"
-NULL=
-!ELSE
-NULL=nul
-!ENDIF
-
 !IF "$(ANSI_VERSION)" == "yes"
 MAINLIB = psqlodbc30a
 !ELSE
@@ -195,10 +189,11 @@ CLEAN :
 !ENDIF
 
 "$(INTDIR)" :
-    if not exist "$(INTDIR)/$(NULL)" mkdir "$(INTDIR)"
-!IF "$(OUTDIR)" != "$(INTDIR)"
-"$(OUTDIR)" :
-    if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
+!IF !EXISTS($(INTDIR))
+    mkdir "$(INTDIR)"
+!ENDIF
+!IF !EXISTS($(OUTDIR)) && "$(OUTDIR)" != "$(INTDIR)"
+    mkdir "$(OUTDIR)"
 !ENDIF
 
 !IF  "$(MSDTC)" != "no"
