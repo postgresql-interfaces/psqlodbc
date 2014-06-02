@@ -2,6 +2,15 @@
 '	When the dll name of the driver is not of 8.3-format
 '		the modification of the FileName is needed
 '
+' This is to work-around a bug in the WiX Toolset, see
+' http://wixtoolset.org/issues/1422/
+'
+' We remove the short name from the filename field in the File-table
+' of the two DLLs that need to be registered as ODBC drivers. Strictly
+' speaking, that makes the contents of the table invalid, because a short
+' name is mandatory, but Windows Installer seems nevertheless install it
+' just fine.
+'
 option Explicit
 
 Const msiOpenDatabaseModeTransact = 1
