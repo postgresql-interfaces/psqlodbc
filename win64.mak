@@ -11,6 +11,12 @@
 # Comments:		Created by Hiroshi Inoue, 2006-10-31
 #
 
+# Include default configuration options, followed by any local overrides
+!INCLUDE windows-defaults.mak
+!IF EXISTS(windows-local.mak)
+!INCLUDE windows-local.mak
+!ENDIF
+
 !IF "$(ANSI_VERSION)" == "yes"
 !MESSAGE Building the PostgreSQL ANSI 3.0 Driver for $(TARGET_CPU)...
 !ELSE
@@ -55,36 +61,16 @@ CUSTOMCLOPT=/nologo /MD /W3 /wd4018 /EHsc
 #
 CUSTOMLINKLIBS=
 
-!IF "$(TARGET_CPU)" == "x64"
-ADD_DEFINES=/D _WIN64
-!ENDIF
-#
-#	Include libraries as well as import libraries
-#	may be different from those of 32bit ones.
-#	Please set PG_INC, PG_LIB, SSL_INC or PG_LIB
-#	variables to appropriate ones.
-#
-!IFNDEF PG_INC
-PG_INC=$(PROGRAMFILES)\PostgreSQL\9.3\include
-!MESSAGE Using default PostgreSQL Include directory: $(PG_INC)
-!ENDIF
+# Print the paths that will be used in the build
+!MESSAGE Using PostgreSQL Include directory: $(PG_INC)
+!MESSAGE Using PostgreSQL Library directory: $(PG_LIB)
 
-!IFNDEF PG_LIB
-PG_LIB=C:\develop\lib\$(TARGET_CPU)
-!MESSAGE Using default PostgreSQL Library directory: $(PG_LIB)
+!IF "$(USE_LIBPQ)" != "no"
+!MESSAGE Using OpenSSL Include directory: $(SSL_INC)
+!MESSAGE Using OpenSSL Library directory: $(SSL_LIB)
 !ENDIF
 
 !IF "$(USE_LIBPQ)" != "no"
-!IFNDEF SSL_INC
-SSL_INC=C:\OpenSSL\include
-!MESSAGE Using default OpenSSL Include directory: $(SSL_INC)
-!ENDIF
-
-!IFNDEF SSL_LIB
-SSL_LIB=C:\develop\lib\$(CPU)
-!MESSAGE Using default OpenSSL Library directory: $(SSL_LIB)
-!ENDIF
-
 SSL_DLL = "SSLEAY32.dll"
 RESET_CRYPTO = yes
 ADD_DEFINES = $(ADD_DEFINES) /D USE_LIBPQ /D "SSL_DLL=\"$(SSL_DLL)\"" /D USE_SSL
@@ -103,6 +89,10 @@ DTCLIB = pgenlista
 DTCLIB = pgenlist
 !ENDIF
 DTCDLL = $(DTCLIB).dll
+
+!IF "$(TARGET_CPU)" == "x64"
+ADD_DEFINES=$(ADD_DEFINES) /D _WIN64
+!ENDIF
 
 !IF "$(USE_LIBPQ)" != "no"
 VC07_DELAY_LOAD=/DelayLoad:libpq.dll /DelayLoad:$(SSL_DLL)
@@ -165,27 +155,24 @@ MAINDLL = $(MAINLIB).dll
 XALIB = pgxalib
 XADLL = $(XALIB).dll
 
-!IF  "$(CFG)" == "Release"
-!IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=.\$(TARGET_CPU)ANSI
-OUTDIRBIN=.\$(TARGET_CPU)ANSI
-INTDIR=.\$(TARGET_CPU)ANSI
-!ELSE
+# Construct output directory name. The base name is the target architecture,
+# i.e. ".\x86" or ".\x64". For the ANSI version, "ANSI" is appended to the
+# base name. Finally, for Debug-enabled version, "Debug" is appended.
+#
+# For example,the output directory debug-enabled 32-bit ANSI-version is:
+#
+# .\X86ANSIDebug
+#
 OUTDIR=.\$(TARGET_CPU)
-OUTDIRBIN=.\$(TARGET_CPU)
-INTDIR=.\$(TARGET_CPU)
-!ENDIF
-!ELSEIF  "$(CFG)" == "Debug"
 !IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=.\$(TARGET_CPU)ANSIDebug
-OUTDIRBIN=.\$(TARGET_CPU)ANSIDebug
-INTDIR=.\$(TARGET_CPU)ANSIDebug
-!ELSE
-OUTDIR=.\$(TARGET_CPU)Debug
-OUTDIRBIN=.\$(TARGET_CPU)Debug
-INTDIR=.\$(TARGET_CPU)Debug
+OUTDIR=$(OUTDIR)ANSI
 !ENDIF
+!IF  "$(CFG)" == "Debug"
+OUTDIR=$(OUTDIR)Debug
 !ENDIF
+
+# Location for intermediary build targets (e.g. *.obj files).
+INTDIR=$(OUTDIR)
 
 ALLDLL  = "$(INTDIR)"
 !IF "$(OUTDIR)" != "$(INTDIR)"
