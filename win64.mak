@@ -107,9 +107,12 @@ VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /DelayLoad:crypt32.dll
 !IF "$(USE_GSS)" == "yes"
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:gssapi64.dll
 !ENDIF
-VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL) /DELAY:UNLOAD
-ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
+!IF "$(MSDTC)" != "no"
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:$(DTCDLL)
+!ENDIF
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DELAY:UNLOAD
 
+ADD_DEFINES = $(ADD_DEFINES) /D "DYNAMIC_LOAD"
 !IF "$(MSDTC)" != "no"
 ADD_DEFINES = $(ADD_DEFINES) /D "_HANDLE_ENLIST_IN_DTC_"
 !ENDIF
@@ -257,7 +260,12 @@ BSC32_SBRS= \
 
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib "$(OUTDIR)\$(DTCLIB).lib" msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /def:"$(DEF_FILE)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /def:"$(DEF_FILE)"
+!IF "$(MSDTC)" != "no"
+LINK32_FLAGS=$(LINK32_FLAGS) "$(OUTDIR)\$(DTCLIB).lib"
+!ENDIF
+
+
 !IF  "$(ANSI_VERSION)" == "yes"
 DEF_FILE= "psqlodbca.def"
 !ELSE
