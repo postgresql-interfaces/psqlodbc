@@ -11,7 +11,7 @@
     Visual Studio version is determined automatically unless this
     option is specified.
 .PARAMETER Platform
-    Specify build platforms, "both"(default), "Wind32" or "x64" is
+    Specify build platforms, "both"(default), "Win32" or "x64" is
     available.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this

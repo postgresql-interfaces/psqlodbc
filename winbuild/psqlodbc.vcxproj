@@ -114,58 +114,51 @@
     <ADD_DEFINES>$(ADD_DEFINES);USE_SSPI</ADD_DEFINES>
     <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);secur32.dll;crypt32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
-  <!-- ANSI_VERSION -->
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'" >
+
+  <PropertyGroup Condition="'$(ANSI_VERSION)'=='yes'">
     <TargetName>psqlodbc30a</TargetName>
+    <TargetType>ANSI</TargetType>
     <MAINDEF>$(srcPath)psqlodbca.def</MAINDEF>
     <DTCDLL>pgenlista</DTCDLL>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)'!='yes'">
+    <TargetName>psqlodbc35w</TargetName>
+    <TargetType>Unicode</TargetType>
+    <MAINDEF>$(srcPath)psqlodbc.def</MAINDEF>
+    <DTCDLL>pgenlist</DTCDLL>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Platform)'=='Win32'">
+    <TARGET_CPU>x86</TARGET_CPU>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'!='Win32'">
+    <TARGET_CPU>x64</TARGET_CPU>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</IntDir>
+    <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'" >
     <ADD_DEFINES>$(ADD_DEFINES);ODBCVER=0x0350;DBMS_NAME="PostgreSQL ANSI"</ADD_DEFINES>
-    <!-- IntDir>$(IntDir)ANSI\</IntDir>
-    <OutDir>$(OutDir)ANSI\</OutDir -->
-    <IntDir>$(srcPath)Multibyte$(Configuration)\</IntDir>
-    <OutDir>$(srcPath)Multibyte$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|x64'" >
-    <TargetName>psqlodbc30a</TargetName>
-    <MAINDEF>$(srcPath)psqlodbca.def</MAINDEF>
-    <DTCDLL>pgenlista</DTCDLL>
     <ADD_DEFINES>$(ADD_DEFINES);ODBCVER=0x0350;DBMS_NAME="PostgreSQL ANSI(x64)"</ADD_DEFINES>
-    <!-- IntDir>$(IntDir)ANSI\</IntDir>
-    <OutDir>$(OutDir)ANSI\</OutDir -->
-    <IntDir>$(srcPath)AMD64ANSI\</IntDir>
-    <OutDir>$(srcPath)AMD64ANSI\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)|$(Configuration)'=='yes|x64|Debug'" >
-    <IntDir>$(srcPath)AMD64ANSI$(Configuration)\</IntDir>
-    <OutDir>$(srcPath)AMD64ANSI$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'" >
-    <TargetName>psqlodbc35w</TargetName>
-    <MAINDEF>$(srcPath)psqlodbc.def</MAINDEF>
-    <DTCDLL>pgenlist</DTCDLL>
     <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;ODBCVER=0x0351</ADD_DEFINES>
-    <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
-    <IntDir>$(srcPath)$(Configuration)\</IntDir>
-    <OutDir>$(srcPath)$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'" >
-    <TargetName>psqlodbc35w</TargetName>
-    <MAINDEF>$(srcPath)psqlodbc.def</MAINDEF>
-    <DTCDLL>pgenlist</DTCDLL>
     <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;ODBCVER=0x0351;DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
     <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
-    <IntDir>$(srcPath)AMD64\</IntDir>
-    <OutDir>$(srcPath)AMD64\</OutDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)|$(Configuration)'=='no|x64|Debug'" >
-    <IntDir>$(srcPath)AMD64$(Configuration)\</IntDir>
-    <OutDir>$(srcPath)AMD64$(Configuration)\</OutDir>
-  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSDTC)'=='yes'">
     <ADD_DEFINES>$(ADD_DEFINES);_HANDLE_ENLIST_IN_DTC_</ADD_DEFINES>
     <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);$(DTCDLL).dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
-  <!-- PropertyGroup Condition="'$(MSDTC)'!='yes'" -->
+
   <PropertyGroup>
     <PreBuildEventUseInBuild>false</PreBuildEventUseInBuild>
   </PropertyGroup>

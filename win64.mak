@@ -149,20 +149,22 @@ MAINDLL = $(MAINLIB).dll
 XALIB = pgxalib
 XADLL = $(XALIB).dll
 
-# Construct output directory name. The base name is the target architecture,
-# i.e. ".\x86" or ".\x64". For the ANSI version, "ANSI" is appended to the
-# base name. Finally, for Debug-enabled version, "Debug" is appended.
+# Construct output directory name. The name consists of three parts,
+# target CPU, ANSI/Unicode, and Debug/Release. For example,the output
+# directory debug-enabled 32-bit ANSI-version is:
 #
-# For example,the output directory debug-enabled 32-bit ANSI-version is:
-#
-# .\X86ANSIDebug
+# .\x86_ANSI_Debug
 #
 OUTDIR=.\$(TARGET_CPU)
 !IF  "$(ANSI_VERSION)" == "yes"
-OUTDIR=$(OUTDIR)ANSI
+OUTDIR=$(OUTDIR)_ANSI
+!ELSE
+OUTDIR=$(OUTDIR)_Unicode
 !ENDIF
 !IF  "$(CFG)" == "Debug"
-OUTDIR=$(OUTDIR)Debug
+OUTDIR=$(OUTDIR)_Debug
+!ELSE
+OUTDIR=$(OUTDIR)_Release
 !ENDIF
 
 # Location for intermediary build targets (e.g. *.obj files).

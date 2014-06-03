@@ -72,44 +72,28 @@
   <PropertyGroup Label="UserMacros" >
 	<ANSI_VERSION>no</ANSI_VERSION>
   </PropertyGroup>
-  <!-- ANSI_VERSION -->
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'">
-	<TargetName>pgenlista</TargetName>
-	<DriverName>psqlodbc30a</DriverName>
-	<!-- OutDir>$(OutDir)ANSI\</OutDir>
-	<IntDir>$(IntDir)ANSI\pgenlist\</IntDir -->
-	<OutDir>$(srcPath)Multibyte$(Configuration)\</OutDir>
-	<IntDir>$(srcPath)Multibyte$(Configuration)\pgenlist\</IntDir>
+
+  <PropertyGroup Condition="'$(ANSI_VERSION)'=='yes'">
+    <TargetName>pgenlista</TargetName>
+    <TargetType>ANSI</TargetType>
+    <DriverName>psqlodbc30a</DriverName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'">
-	<TargetName>pgenlist</TargetName>
-	<DriverName>psqlodbc35w</DriverName>
-	<!-- IntDir>$(IntDir)pgenlist\</IntDir -->
-	<OutDir>$(srcPath)$(Configuration)\</OutDir>
-	<IntDir>$(srcPath)$(Configuration)\pgenlist\</IntDir>
+  <PropertyGroup Condition="'$(ANSI_VERSION)'!='yes'">
+    <TargetName>pgenlist</TargetName>
+    <TargetType>Unicode</TargetType>
+    <DriverName>psqlodbc35w</DriverName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|x64'">
-	<TargetName>pgenlista</TargetName>
-	<DriverName>psqlodbc30a</DriverName>
-	<!-- OutDir>$(OutDir)ANSI\</OutDir>
-	<IntDir>$(IntDir)ANSI\pgenlist\</IntDir -->
-	<OutDir>$(srcPath)AMD64ANSI\</OutDir>
-	<IntDir>$(srcPath)AMD64ANSI\pgenlist\</IntDir>
+
+  <PropertyGroup Condition="'$(Platform)'=='Win32'">
+    <TARGET_CPU>x86</TARGET_CPU>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)|$(Configuration)'=='yes|x64|Debug'">
-	<OutDir>$(srcPath)AMD64ANSI$(Configuration)\</OutDir>
-	<IntDir>$(srcPath)AMD64ANSI$(Configuration)\pgenlist\</IntDir>
+  <PropertyGroup Condition="'$(Platform)'!='Win32'">
+    <TARGET_CPU>x64</TARGET_CPU>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'">
-	<TargetName>pgenlist</TargetName>
-	<DriverName>psqlodbc35w</DriverName>
-	<!-- IntDir>$(IntDir)pgenlist\</IntDir -->
-	<OutDir>$(srcPath)AMD64\</OutDir>
-	<IntDir>$(srcPath)AMD64\pgenlist\</IntDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)|$(Configuration)'=='no|x64|Debug'">
-	<OutDir>$(srcPath)AMD64$(Configuration)\</OutDir>
-	<IntDir>$(srcPath)AMD64$(Configuration)\pgenlist\</IntDir>
+
+  <PropertyGroup>
+    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\pgenlist\</IntDir>
+    <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

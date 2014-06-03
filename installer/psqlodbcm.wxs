@@ -19,11 +19,11 @@
       <Directory Id="BINDIR" Name=".">
         <Component Id="psqlodbc.files" Guid="00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E">
           <!-- PostgreSQL -->
-          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../MultibyteRelease/psqlodbc30a.dll" />
-          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../Release/psqlodbc35w.dll" />
-          <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../Release/pgxalib.dll" />
-          <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../Release/pgenlist.dll" />
-          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../MultibyteRelease/pgenlista.dll" />
+          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../x86_ANSI_Release/psqlodbc30a.dll" />
+          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../x86_Unicode_Release/psqlodbc35w.dll" />
+          <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../x86_Unicode_Release/pgxalib.dll" />
+          <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../x86_Unicode_Release/pgenlist.dll" />
+          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../x86_ANSI_Release/pgenlista.dll" />
 <?if "$(var.LINKFILES)" != ""?>
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LINKFILES)\libpq.dll" KeyPath="yes" />
 

@@ -66,20 +66,26 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup>
-	<TargetName>pgxalib</TargetName>
-	<!-- IntDir>$(IntDir)pgxalib\</IntDir -->
+    <TargetName>pgxalib</TargetName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-	<IntDir>$(srcPath)AMD64\$(TargetName)\</IntDir>
-	<OutDir>$(srcPath)AMD64\</OutDir>
+
+  <PropertyGroup Condition="'$(ANSI_VERSION)'=='yes'">
+    <TargetType>ANSI</TargetType>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-	<IntDir>$(srcPath)AMD64$(Configuration)\$(TargetName)\</IntDir>
-	<OutDir>$(srcPath)AMD64$(Configuration)\</OutDir>
+  <PropertyGroup Condition="'$(ANSI_VERSION)'!='yes'">
+    <TargetType>Unicode</TargetType>
   </PropertyGroup>
+
   <PropertyGroup Condition="'$(Platform)'=='Win32'">
-	<IntDir>$(srcPath)$(Configuration)\$(TargetName)\</IntDir>
-	<OutDir>$(srcPath)$(Configuration)\</OutDir>
+    <TARGET_CPU>x86</TARGET_CPU>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'!='Win32'">
+    <TARGET_CPU>x64</TARGET_CPU>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</IntDir>
+    <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
