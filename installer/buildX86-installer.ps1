@@ -68,7 +68,7 @@ try {
 
 	Write-Host ".`nBuilding psqlODBC installer database..."
 
-	invoke-expression "candle -nologo `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dPRODUCTCODE=$PRODUCTCODE`" psqlodbc.wxs"
+	invoke-expression "candle -nologo -dPlatform=`"x86`" `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dPRODUCTCODE=$PRODUCTCODE`" -o psqlodbc.wixobj psqlodbc_cpu.wxs"
 
 	invoke-expression "light -nologo -ext WixUIExtension -cultures:en-us psqlodbc.wixobj"
 

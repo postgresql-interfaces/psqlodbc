@@ -68,7 +68,7 @@ IF ERRORLEVEL 1 GOTO ERR_HANDLER
 echo.
 echo Building psqlODBC installer database...
 
-candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPRODUCTCODE="%PRODUCTCODE%" psqlodbc.wxs
+candle -nologo -dPlatform="x86" -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dPRODUCTCODE="%PRODUCTCODE%" -o psqlodbc.wixobj psqlodbc_cpu.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
 light -nologo -ext WixUIExtension -cultures:en-us psqlodbc.wixobj

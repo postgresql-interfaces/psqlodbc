@@ -1,36 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-<?ifdef var.Platform ?>
-<?define PKGNAME = "psqlODBC_$(var.Platform)" ?>
-<?define MERGEM = "$(var.Platform)\psqlodbc_$(var.Platform).msm" ?>
-<?if $(var.Platform) = x64 ?>
-<?define BIT64 = "yes" ?>
-<?define PGFOLDER = "ProgramFiles64Folder" ?>
-<?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
-<?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
-<?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
-<?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
-<?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
+
+<!-- Default to x86 platform -->
+<?ifndef var.Platform ?>
+  <?define Platform = "x86" ?>
 <?else?>
-<?define BIT64 = "no" ?>
-<?define PGFOLDER = "ProgramFilesFolder" ?>
-<?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2D" ?>
-<?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693FA" ?>
-<?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E430" ?>
-<?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20127}" ?>
-<?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145E0" ?>
+  <?if $(var.Platform) != x64 and $(var.Platform) != x86 ?>
+    <?error Invalid Platform variable ?>
+  <?endif?>
 <?endif?>
+
+<?if $(var.Platform) = x64 ?>
+  <?define PKGNAME = "psqlODBC_x64" ?>
+  <?define MERGEM = "$(var.Platform)\psqlodbc_$(var.Platform).msm" ?>
+  <?define BIT64 = "yes" ?>
+  <?define PGFOLDER = "ProgramFiles64Folder" ?>
+  <?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
+  <?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
+  <?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
+  <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
+  <?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
+  <?define ALLUSERS = "2" ?>
 <?else?>
-<?define Platform = "x86" ?>
-<?define PKGNAME = "psqlODBC" ?>
-<?define MERGEM = "psqlodbc.msm" ?>
-<?define BIT64 = "no" ?>
-<?define PGFOLDER = "ProgramFilesFolder" ?>
-<?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
-<?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
-<?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E42E" ?>
-<?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
-<?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
+  <?define PKGNAME = "psqlODBC" ?>
+  <?define MERGEM = "psqlodbc.msm" ?>
+  <?define BIT64 = "no" ?>
+  <?define PGFOLDER = "ProgramFilesFolder" ?>
+  <?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
+  <?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
+  <?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E42E" ?>
+  <?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
+  <?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
+  <?define ALLUSERS = "1" ?>
 <?endif?>
 
 <!-- Product details -->
@@ -71,6 +72,7 @@
               <Component Id="docs" Guid="$(var.CIDDOC)" Win64="$(var.BIT64)">
                 <File Id="docs.README.txt" Name="README.txt" DiskId="1" Source="../docs/README.txt" KeyPath="yes" />
                 <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
+                <File Id="docs.config_opt.html" Name="config-opt.html" DiskId="1" Source="../docs/config-opt.html" />
                 <File Id="docs.release.html" Name="release.html" DiskId="1" Source="../docs/release.html" />
                 <File Id="docs.release_7.3.html" Name="release-7.3.html" DiskId="1" Source="../docs/release-7.3.html" />
                 <File Id="docs.unix_compilation.html" Name="unix-compilation.html" DiskId="1" Source="../docs/unix-compilation.html" />
@@ -110,7 +112,7 @@
 
 <!-- Properties -->
 
-    <Property Id="ALLUSERS">2</Property>
+    <Property Id="ALLUSERS">$(var.ALLUSERS)</Property>
     <Property Id="WIXUI_INSTALLDIR" Value="BASEDIR" />
 
 <!-- UI -->

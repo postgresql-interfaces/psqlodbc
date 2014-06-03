@@ -1,28 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-<?ifdef var.Platform ?>
-<?define ModuleName = "psqlODBC_$(var.Platform)" ?>
-<?if $(var.Platform) = x64 ?>
-<?define BIT64 = "yes" ?>
-<?define ANSIFOLDER = "x64_ANSI_Release" ?>
-<?define UNICODEFOLDER = "x64_Unicode_Release" ?>
-<?define Module_PackageId = "970B6E07-7105-4d66-80FA-9E208952FB96" ?>
-<?define CIDPFILES = "5C9A19B5-D7C6-4bb4-BBBC-88C2A67A59B0" ?>
+
+<!-- Default to x86 platform -->
+<?ifndef var.Platform ?>
+  <?define Platform = "x86" ?>
 <?else?>
-<?define BIT64 = "no" ?>
-<?define ANSIFOLDER = "x86_ANSI_Release" ?>
-<?define UNICODEFOLDER = "x86_Unicode_Release" ?>
-<?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA4A" ?>
-<?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA50" ?>
+  <?if $(var.Platform) != x64 and $(var.Platform) != x86 ?>
+    <?error Invalid Platform variable ?>
+  <?endif?>
 <?endif?>
+
+<?if $(var.Platform) = x64 ?>
+  <?define ModuleName = "psqlODBC_$(var.Platform)" ?>
+  <?define BIT64 = "yes" ?>
+  <?define ANSIFOLDER = "x64_ANSI_Release" ?>
+  <?define UNICODEFOLDER = "x64_Unicode_Release" ?>
+  <?define Module_PackageId = "970B6E07-7105-4d66-80FA-9E208952FB96" ?>
+  <?define CIDPFILES = "5C9A19B5-D7C6-4bb4-BBBC-88C2A67A59B0" ?>
 <?else?>
-<?define BIT64 = "no" ?>
-<?define Platform = "x86" ?>
-<?define ModuleName = "psqlODBC" ?>
-<?define ANSIFOLDER = "x86_ANSI_Release" ?>
-<?define UNICODEFOLDER = "x86_Unicode_Release" ?>
-<?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA48" ?>
-<?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E" ?>
+  <?define ModuleName = "psqlODBC" ?>
+  <?define BIT64 = "no" ?>
+  <?define ANSIFOLDER = "x86_ANSI_Release" ?>
+  <?define UNICODEFOLDER = "x86_Unicode_Release" ?>
+  <?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA48" ?>
+  <?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E" ?>
 <?endif?>
 
   <Module
