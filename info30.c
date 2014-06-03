@@ -262,7 +262,9 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_INDEX_KEYWORDS:
 			len = 4;
+			/* FIXME: PostgreSQL actually supports ASC/DESC since version 8.3 */
 			value = SQL_IK_NONE;
+			break;
 		case SQL_INFO_SCHEMA_VIEWS:
 			len = 4;
 			value = 0;

@@ -993,7 +993,7 @@ inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
 				if (QR_is_moving_from_the_last(self))  /* in case of FETCH LAST */
 				{
 					SQLULEN	bmovement, mback;
-					SQLLEN	rowset_start = self->cursTuple + 1, back_offset = self->move_offset, backpt;
+					SQLLEN	rowset_start = self->cursTuple + 1, back_offset, backpt;
 inolog("FETCH LAST case\n");
 					if (getNthValid(self, QR_get_num_total_tuples(self) - 1, SQL_FETCH_PRIOR, self->move_offset, &backpt) < 0)
 					{

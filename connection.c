@@ -1349,8 +1349,8 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	if (cnt < 0)
 		return NULL;
 
-	slen =  sizeof(ProtocolVersion);
-	for (i = 0, slen = 0; i < cnt; i++)
+	slen =  0;
+	for (i = 0; i < cnt; i++)
 	{
 		slen += (strlen(opts[i]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
 		slen += strlen(vals[i]);
@@ -3940,7 +3940,7 @@ CC_lookup_pg_version(ConnectionClass *self)
 	qlog("    [ PostgreSQL version string = '%s' ]\n", self->pg_version);
 	qlog("    [ PostgreSQL version number = '%1.1f' ]\n", self->pg_version_number);
 
-	result = PGAPI_FreeStmt(hstmt, SQL_DROP);
+	PGAPI_FreeStmt(hstmt, SQL_DROP);
 }
 
 

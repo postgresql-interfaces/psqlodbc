@@ -145,16 +145,6 @@ struct IPDFields_
 	ParameterImplClass	*parameters;
 };
 
-typedef	struct
-{
-	DescriptorClass	deschd;
-	union {
-		ARDFields	ard;
-		APDFields	apd;
-		IRDFields	ird;
-		IPDFields	ipd;
-	} flds;
-}	DescriptorAlloc;
 typedef struct
 {
 	DescriptorClass	deschd;
@@ -176,7 +166,7 @@ typedef struct
 	IPDFields	ipdopts;
 }	IPDClass;
 
-#define	DC_get_conn(a)	(a->conn_conn)
+#define	DC_get_conn(a)	((a)->conn_conn)
 
 void InitializeEmbeddedDescriptor(DescriptorClass *, StatementClass *stmt,
 				UInt4 desc_type);

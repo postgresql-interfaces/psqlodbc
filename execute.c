@@ -51,12 +51,6 @@ PGAPI_Prepare(HSTMT hstmt,
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	/* StartRollbackState(self); */
-	if (!self)
-	{
-		SC_log_error(func, "", NULL);
-		retval = SQL_INVALID_HANDLE;
-		goto cleanup;
-	}
 
 	/*
 	 * According to the ODBC specs it is valid to call SQLPrepare multiple
@@ -643,7 +637,7 @@ int
 StartRollbackState(StatementClass *stmt)
 {
 	CSTR	func = "StartRollbackState";
-	int	ret;
+	int			ret;
 	ConnectionClass	*conn;
 	ConnInfo	*ci = NULL;
 
@@ -651,7 +645,7 @@ inolog("%s:%p->internal=%d\n", func, stmt, stmt->internal);
 	conn = SC_get_conn(stmt);
 	if (conn)
 		ci = &conn->connInfo;
-	ret = 0;
+
 	if (!ci || ci->rollback_on_error < 0) /* default */
 	{
 		if (conn && PG_VERSION_GE(conn, 8.0))
@@ -665,6 +659,7 @@ inolog("%s:%p->internal=%d\n", func, stmt, stmt->internal);
 		if (2 == ret && PG_VERSION_LT(conn, 8.0))
 			ret = 1;
 	}
+
 	switch (ret)
 	{
 		case 1:
@@ -925,13 +920,6 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	SQLSMALLINT	num_params;
 
 	mylog("%s: entering...%x\n", func, flag);
-
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		mylog("%s: NULL statement so return SQL_INVALID_HANDLE\n", func);
-		return SQL_INVALID_HANDLE;
-	}
 
 	conn = SC_get_conn(stmt);
 	apdopts = SC_get_APDF(stmt);
@@ -1418,12 +1406,6 @@ PGAPI_ParamData(HSTMT hstmt,
 
 	mylog("%s: entering...\n", func);
 
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		retval = SQL_INVALID_HANDLE;
-		goto cleanup;
-	}
 	conn = SC_get_conn(stmt);
 
 	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
@@ -1576,12 +1558,6 @@ PGAPI_PutData(HSTMT hstmt,
 	mylog("%s: entering...\n", func);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	if (!stmt)
-	{
-		SC_log_error(func, "", NULL);
-		retval = SQL_INVALID_HANDLE;
-		goto cleanup;
-	}
 	if (SC_AcceptedCancelRequest(stmt))
 	{
 		SC_set_error(stmt, STMT_OPERATION_CANCELLED, "Cancel the statement, sorry.", func);

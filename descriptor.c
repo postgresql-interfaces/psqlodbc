@@ -300,12 +300,14 @@ PGAPI_AllocDesc(HDBC ConnectionHandle,
 	CSTR func = "PGAPI_AllocDesc";
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret = SQL_SUCCESS;
-	DescriptorClass	*desc = (DescriptorClass *) malloc(sizeof(DescriptorAlloc));
+	DescriptorClass	*desc;
 
 	mylog("%s: entering...\n", func);
+
+	desc = (DescriptorClass *) malloc(sizeof(DescriptorClass));
 	if (desc)
 	{
-		memset(desc, 0, sizeof(DescriptorAlloc));
+		memset(desc, 0, sizeof(DescriptorClass));
 		DC_get_conn(desc) = conn;
 		if (CC_add_descriptor(conn, desc))
 			*DescriptorHandle = desc;
@@ -388,7 +390,7 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 	memcpy(target, src, sizeof(APDFields));
 	if (src->bookmark)
 	{
-		target->bookmark = malloc(sizeof(BindInfoClass));
+		target->bookmark = malloc(sizeof(ParameterInfoClass));
 		ParameterInfoClass_copy(src->bookmark, target->bookmark);
 	}
 	if (src->allocated <= 0)

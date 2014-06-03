@@ -54,16 +54,13 @@ PGAPI_RowCount(HSTMT hstmt,
 	}
 	if (stmt->proc_return > 0)
 	{
-		if (pcrow)
-{
-			*pcrow = 0;
-inolog("returning RowCount=%d\n", *pcrow);
-}
+		*pcrow = 0;
+		inolog("returning RowCount=%d\n", *pcrow);
 		return SQL_SUCCESS;
 	}
 
 	res = SC_get_Curres(stmt);
-	if (res && pcrow)
+	if (res)
 	{
 		if (stmt->status != STMT_FINISHED)
 		{
@@ -85,7 +82,6 @@ inolog("returning RowCount=%d\n", *pcrow);
 		}
 	}
 
-	*pcrow = -1;
 	return SQL_SUCCESS;
 }
 
@@ -1918,9 +1914,13 @@ PGAPI_MoreResults(HSTMT hstmt)
 	RETCODE		ret = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
-	if (stmt && (res = SC_get_Curres(stmt)))
-		SC_set_Curres(stmt, res->next);
-	if (res = SC_get_Curres(stmt), res)
+	res = SC_get_Curres(stmt);
+	if (res)
+	{
+		res = res->next;
+		SC_set_Curres(stmt, res);
+	}
+	if (res)
 	{
 		SQLSMALLINT	num_p;
 
@@ -2946,7 +2946,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
 	char		tidval[32];
-	BOOL		use_ctid = TRUE, data_in_cache = TRUE, key_in_cache = TRUE;
+	BOOL		use_ctid = TRUE;
 
 	mylog("positioned load fi=%p ti=%p\n", irdflds->fi, stmt->ti);
 	rcnt = 0;
@@ -2960,14 +2960,12 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	res_ridx = GIdx2CacheIdx(global_ridx, stmt, res);
 	if (res_ridx < 0 || res_ridx >= QR_get_num_cached_tuples(res))
 	{
-		data_in_cache = FALSE;
 		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
 		return SQL_ERROR;
 	}
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
 	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
-		key_in_cache = FALSE;
 		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
 		return SQL_ERROR;
 	}
@@ -3023,15 +3021,14 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 
 			QR_set_position(qres, 0);
 			tuple_new = qres->tupleField;
-			if (res->keyset && key_in_cache)
+			if (res->keyset)
 			{
 				if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
 					strcmp(tuple_new[qres->num_fields - res->num_key_fields].value, tidval))
 					res->keyset[kres_ridx].status |= SQL_ROW_UPDATED;
 				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
 			}
-			if (data_in_cache)
-				MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
+			MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
 			ret = SQL_SUCCESS;
 		}
 		else
@@ -4464,7 +4461,6 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 		for (i = 0; i < gdata_allocated; i++)
 			gdata[i].data_left = -1;
 	}
-	ret = SQL_SUCCESS;
 	conn = SC_get_conn(s.stmt);
 	switch (s.fOption)
 	{

@@ -1629,7 +1629,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						break;
 					dot_exist = TRUE;
 				}
-				else if (!isdigit((unsigned char) *wv))
+				else if (*wv == '\0' || !isdigit((unsigned char) *wv))
 						break;
 				else
 				{
@@ -4130,7 +4130,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		if (apara->used || apara->indicator)
 		{
-			SQLULEN	p_offset = offset;
+			SQLULEN	p_offset;
 
 			if (bind_size > 0)
 				p_offset = offset + bind_size * current_row;

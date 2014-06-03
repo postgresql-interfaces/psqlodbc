@@ -112,7 +112,7 @@ PGAPI_FreeEnv(HENV henv)
 
 	mylog("    error\n");
 	ret = SQL_ERROR;
-	EN_log_error(func, "Error freeing environment", env);
+	EN_log_error(func, "Error freeing environment", NULL);
 cleanup:
 	return ret;
 }
@@ -420,7 +420,7 @@ PGAPI_EnvError(HENV henv,
 			   UWORD flag)
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
-	char		*msg;
+	char		*msg = NULL;
 	int		status;
 
 	mylog("**** PGAPI_EnvError: henv=%p <%d>\n", henv, cbErrorMsgMax);
@@ -430,7 +430,7 @@ PGAPI_EnvError(HENV henv,
 		return SQL_ERROR;
 	if (!EN_get_error(env, &status, &msg) || NULL == msg)
 	{
-		mylog("EN_get_error: status = %d, msg = #%s#\n", status, msg);
+		mylog("EN_get_error: msg = #%s#\n", msg);
 
 		if (NULL != szSqlState)
 			pg_sqlstate_set(env, szSqlState, "00000", "00000");
