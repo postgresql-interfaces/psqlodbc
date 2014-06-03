@@ -39,11 +39,10 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	pgenlist.def pgenlista.def connexp.h \
 	dlg_wingui.c inouealc.c win_setup.h \
         setup.c win_unicode.c win_md5.c psqlodbc.rc win64.mak \
-        win32.mak psqlodbc.reg psqlodbc.dsp psqlodbc.vcproj \
+        psqlodbc.reg psqlodbc.dsp psqlodbc.vcproj \
         psqlodbc.sln msdtc_enlist.cpp pgxalib.cpp xalibname.c \
         pgxalib.def odbc.sql odbc-drop.sql odbcapi25w.c \
 	sspisvcs.c sspisvcs.h gsssvcs.c gsssvcs.h \
-	buildx64.ps1 buildx86.ps1 \
 \
 	docs/config-opt.html \
 	docs/config.html \
