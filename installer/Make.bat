@@ -59,7 +59,7 @@ echo PRODUCTCODE=%PRODUCTCODE%
 echo.
 echo Building psqlODBC/%SUBLOC% merge module...
 
-candle -nologo -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dLINKFILES=%LINKFILES% psqlodbcm.wxs
+candle -nologo -dPlatform="x86" -dVERSION=%VERSION% -dSUBLOC=%SUBLOC% -dLIBPQBINDIR=%LINKFILES% -o psqlodbcm.wixobj psqlodbcm_cpu.wxs
 IF ERRORLEVEL 1 GOTO ERR_HANDLER
 
 light -nologo -out psqlodbc.msm psqlodbcm.wixobj

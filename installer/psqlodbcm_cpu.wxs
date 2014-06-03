@@ -17,6 +17,7 @@
   <?define UNICODEFOLDER = "x64_Unicode_Release" ?>
   <?define Module_PackageId = "970B6E07-7105-4d66-80FA-9E208952FB96" ?>
   <?define CIDPFILES = "5C9A19B5-D7C6-4bb4-BBBC-88C2A67A59B0" ?>
+  <?define InstallerVersion = "300" ?>
 <?else?>
   <?define ModuleName = "psqlODBC" ?>
   <?define BIT64 = "no" ?>
@@ -24,6 +25,7 @@
   <?define UNICODEFOLDER = "x86_Unicode_Release" ?>
   <?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA48" ?>
   <?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E" ?>
+  <?define InstallerVersion = "150" ?>
 <?endif?>
 
   <Module
@@ -36,7 +38,7 @@
       Description="PostgreSQL ODBC Driver"
       Keywords="PostgreSQL, ODBC"
       Manufacturer="PostgreSQL Global Development Group"
-      InstallerVersion="300"
+      InstallerVersion="$(var.InstallerVersion)"
       Platform="$(var.Platform)"
       Languages="1033"
       SummaryCodepage="1252" />
@@ -46,12 +48,8 @@
         <Component Id="psqlodbc.files" Guid="$(var.CIDPFILES)" Win64="$(var.BIT64)">
 
           <!-- PostgreSQL -->
-          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../$(var.ANSIFOLDER)/psqlodbc30a.dll">
-	    <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))" />
-	  </File>
-          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.dll">
-	    <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(var.Platform))" />
-	  </File>
+          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../$(var.ANSIFOLDER)/psqlodbc30a.dll" />
+          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.dll" />
           <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../$(var.UNICODEFOLDER)/pgxalib.dll" />
           <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../$(var.UNICODEFOLDER)/pgenlist.dll" />
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
@@ -59,20 +57,24 @@
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
 
           <!-- Gettext -->
+<?if $(var.Platform) = x64 ?>
           <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.LIBPQBINDIR)\libintl-8.dll" />
+<?else?>
+          <File Id="libintl.dll" Name="libintl.dll" Source="$(var.LIBPQBINDIR)\libintl.dll" />
+<?endif?>
 
           <!-- SSL -->
           <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.LIBPQBINDIR)\libeay32.dll" />
           <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.LIBPQBINDIR)\ssleay32.dll" />
 <?endif ?>
 
-<?if "$(var.GSSBINDIR)" != "" ?>
+<?ifdef var.GSSBINDIR ?>
 <?if $(var.BIT64) = no ?>
 	  <!-- GSSAPI -->
           <File Id="gssapi32.dll" Name="gssapi32.dll" Source="$(var.GSSBINDIR)\gssapi32.dll" />
 
           <!-- MIT Kerberos -->
-           <File Id="comerr32.dll" Name="comerr32.dll" Source="$(var.GSSBINDIR)\comerr32.dll" />
+          <File Id="comerr32.dll" Name="comerr32.dll" Source="$(var.GSSBINDIR)\comerr32.dll" />
           <File Id="krb5_32.dll" Name="krb5_32.dll" Source="$(var.GSSBINDIR)\krb5_32.dll" />
           <File Id="k5sprt32.dll" Name="k5sprt32.dll" Source="$(var.GSSBINDIR)\k5sprt32.dll" />
           <!-- VC++ 7.1 runtime - required by Kerberos -->
@@ -82,13 +84,43 @@
           <File Id="gssapi64.dll" Name="gssapi64.dll" Source="$(var.GSSBINDIR)\gssapi64.dll" />
 
           <!-- MIT Kerberos -->
-           <File Id="comerr64.dll" Name="comerr64.dll" Source="$(var.GSSBINDIR)\comerr64.dll" />
+          <File Id="comerr64.dll" Name="comerr64.dll" Source="$(var.GSSBINDIR)\comerr64.dll" />
           <File Id="krb5_64.dll" Name="krb5_64.dll" Source="$(var.GSSBINDIR)\krb5_64.dll" />
           <File Id="k5sprt64.dll" Name="k5sprt64.dll" Source="$(var.GSSBINDIR)\k5sprt64.dll" />
 <?endif ?>
 <?endif ?>
-          <!-- Note, installing the driver properly (IE, using ODBCDriver) has proven unreliable -->
-          <!--       so we install the registry keys manually ourselves.                         -->
+
+
+          <!-- Note, installing the driver properly (IE, using ODBCDriver) has
+               proven unreliable, so we install the registry keys manually
+               ourselves. On 64-bit Windows, however, we trust that ODBCDriver
+               works. Nowadays, it probably would be safe to use ODBCDriver on
+               all platforms, but no-one's gotten around to revisit this
+          -->
+<?if $(var.Platform) = x64 ?>
+          <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))" File="psqlodbc30a.dll" />
+          <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(var.Platform))" File="psqlodbc35w.dll" />
+<?else?>
+          <RegistryValue Id="psqlodbc30a.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL ANSI" Type="string" Value="Installed" />
+          <RegistryValue Id="psqlodbc30a.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="APILevel" Type="string" Value="1" />
+          <RegistryValue Id="psqlodbc30a.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="ConnectFunctions" Type="string" Value="YYN" />
+          <RegistryValue Id="psqlodbc30a.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="Driver" Type="string" Value="[#psqlodbc30a.dll]" />
+          <RegistryValue Id="psqlodbc30a.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="DriverODBCVer" Type="string" Value="03.00" />
+          <RegistryValue Id="psqlodbc30a.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="FileUsage" Type="string" Value="0" />
+          <RegistryValue Id="psqlodbc30a.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="Setup" Type="string" Value="[#psqlodbc30a.dll]" />
+          <RegistryValue Id="psqlodbc30a.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="SQLLevel" Type="string" Value="1" />
+          <RegistryValue Id="psqlodbc30a.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="UsageCount" Type="integer" Value="1" />
+
+          <RegistryValue Id="psqlodbc35w.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL Unicode" Type="string" Value="Installed" />
+          <RegistryValue Id="psqlodbc35w.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="APILevel" Type="string" Value="1" />
+          <RegistryValue Id="psqlodbc35w.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="ConnectFunctions" Type="string" Value="YYN" />
+          <RegistryValue Id="psqlodbc35w.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="Driver" Type="string" Value="[#psqlodbc35w.dll]" />
+          <RegistryValue Id="psqlodbc35w.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="DriverODBCVer" Type="string" Value="03.51" />
+          <RegistryValue Id="psqlodbc35w.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="FileUsage" Type="string" Value="0" />
+          <RegistryValue Id="psqlodbc35w.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="Setup" Type="string" Value="[#psqlodbc35w.dll]" />
+          <RegistryValue Id="psqlodbc35w.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="SQLLevel" Type="string" Value="1" />
+          <RegistryValue Id="psqlodbc35w.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="UsageCount" Type="integer" Value="1" />
+<?endif?>
         </Component>
       </Directory>
     </Directory>
