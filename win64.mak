@@ -48,7 +48,12 @@ CFG=Release
 #	Please replace the default options from the commandline if necessary
 #
 !IFNDEF	CUSTOMCLOPT
-CUSTOMCLOPT=/nologo /MD /W3 /wd4018 /EHsc
+CUSTOMCLOPT=/nologo /W3 /wd4018 /EHsc
+!IF  "$(CFG)" == "Release"
+CUSTOMCLOPT=$(CUSTOMCLOPT) /MD
+!ELSE
+CUSTOMCLOPT=$(CUSTOMCLOPT) /MDd
+!ENDIF
 !ELSE
 !MESSAGE CL option $(CUSTOMCLOPT) specified
 !ENDIF
@@ -214,7 +219,7 @@ CPP_PROJ=$(CUSTOMCLOPT) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRD
 !IF  "$(CFG)" == "Release"
 CPP_PROJ=$(CPP_PROJ) /O2 /D "NDEBUG"
 !ELSEIF  "$(CFG)" == "Debug"
-CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /GZ
+CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /RTC1
 !ENDIF
 
 .c{$(INTDIR)}.obj::
