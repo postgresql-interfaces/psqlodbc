@@ -45,7 +45,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\9.3\include&quot;;&quot;C:\OpenSSL\include&quot;"
-				PreprocessorDefinitions="NDEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;DYNAMIC_LOAD;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE;USE_SSPI"
+				PreprocessorDefinitions="USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;DYNAMIC_LOAD;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE;USE_SSPI"
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -61,7 +61,6 @@
 			/>
 			<Tool
 				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
 				Culture="1041"
 				AdditionalIncludeDirectories="."
 			/>
@@ -142,7 +141,7 @@
 				Optimization="2"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="&quot;C:\Program Files\PostgreSQL\9.3\include&quot;;&quot;C:\OpenSSL\include&quot;"
-				PreprocessorDefinitions="_DEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;PSQLODBC_EXPORTS;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;DYNAMIC_LOAD;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE;USE_SSPI"
+				PreprocessorDefinitions="_DEBUG;USE_LIBPQ;WIN32;_WINDOWS;_USRDLL;ODBCVER=0x0351;DRIVER_CURSOR_IMPLEMENT;WIN_MULTITHREAD_SUPPORT;DYNAMIC_LOAD;MULTIBYTE;UNICODE_SUPPORT;USE_SSL;_CRT_SECURE_NO_DEPRECATE;USE_SSPI"
 				StringPooling="true"
 				RuntimeLibrary="1"
 				EnableFunctionLevelLinking="true"
