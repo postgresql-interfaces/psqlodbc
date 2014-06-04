@@ -692,6 +692,8 @@ SOCK_get_id(SocketClass *self)
 {
 	int	id;
 
+	if (!self)
+		return 0;
 	if (0 != self->errornumber)
 		return 0;
 	if (self->reslen > 0)

@@ -2569,7 +2569,6 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 {
 	CSTR func = "SendSyncAndReceive";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	SocketClass	*sock = conn->sock;
 	char		id;
 	Int4		response_length;
 	UInt4		oid;
@@ -2584,26 +2583,26 @@ QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const 
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
-	SOCK_put_char(sock, 'S');	/* Sync command */
-	SOCK_put_int(sock, 4, 4);	/* length */
-	SOCK_flush_output(sock);
+	SOCK_put_char(conn->sock, 'S');	/* Sync command */
+	SOCK_put_int(conn->sock, 4, 4);	/* length */
+	SOCK_flush_output(conn->sock);
 
 	if (!res)
 		newres = res = QR_Constructor();
 	for (;!loopend;)
 	{
-		id = SOCK_get_id(sock);
-		if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
+		id = SOCK_get_id(conn->sock);
+		if ((SOCK_get_errcode(conn->sock) != 0) || (id == EOF))
 			break;
 inolog("desc id=%c", id);
-		response_length = SOCK_get_response_length(sock);
-		if (0 != SOCK_get_errcode(sock))
+		response_length = SOCK_get_response_length(conn->sock);
+		if (0 != SOCK_get_errcode(conn->sock))
 			break;
 inolog(" response_length=%d\n", response_length);
 		switch (id)
 		{
 			case 'C':
-				SOCK_get_string(sock, msgbuffer, sizeof(msgbuffer));
+				SOCK_get_string(conn->sock, msgbuffer, sizeof(msgbuffer));
 				mylog("command response=%s\n", msgbuffer);
 				QR_set_command(res, msgbuffer);
 				if (QR_is_fetching_tuples(res))
@@ -2652,7 +2651,7 @@ inolog(" response_length=%d\n", response_length);
 				EatReadyForQuery(conn);
 				break;
 			case 't': /* ParameterDesription */
-				num_p = SOCK_get_int(sock, 2);
+				num_p = SOCK_get_int(conn->sock, 2);
 inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 				num_discard_params = 0;
 				if (stmt->discard_output_params)
@@ -2677,7 +2676,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 							i++;
 							continue;
 						}
-						oid = SOCK_get_int(sock, 4);
+						oid = SOCK_get_int(conn->sock, 4);
 						PIC_set_pgtype(ipdopts->parameters[pidx], oid);
 					}
 				}
@@ -2686,7 +2685,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 					for (i = 0, pidx = stmt->proc_return; i < num_p; i++, pidx++)
 					{
 						paramType = ipdopts->parameters[pidx].paramType;
-						oid = SOCK_get_int(sock, 4);
+						oid = SOCK_get_int(conn->sock, 4);
 						if (SQL_PARAM_OUTPUT != paramType ||
 						    PG_TYPE_VOID != oid)
 							PIC_set_pgtype(ipdopts->parameters[pidx], oid);
@@ -2704,7 +2703,7 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 						mylog("%dth parameter's position(%d) is out of bound[%d]\n", i, pidx, stmt->num_params);
 						break;
 					}
-					oid = SOCK_get_int(sock, 4);
+					oid = SOCK_get_int(conn->sock, 4);
 					paramType = ipdopts->parameters[pidx].paramType;
 					if (SQL_PARAM_OUTPUT != paramType ||
 					    PG_TYPE_VOID != oid)
@@ -2777,15 +2776,15 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 				break;
 		}
 	}
-	if (!rcvend && 0 == SOCK_get_errcode(sock) && EOF != id)
+	if (!rcvend && 0 == SOCK_get_errcode(conn->sock) && EOF != id)
 	{
 		for (;;)
 		{
-			id = SOCK_get_id(sock);
-			if ((SOCK_get_errcode(sock) != 0) || (id == EOF))
+			id = SOCK_get_id(conn->sock);
+			if ((SOCK_get_errcode(conn->sock) != 0) || (id == EOF))
 				break;
-			response_length = SOCK_get_response_length(sock);
-			if (0 != SOCK_get_errcode(sock))
+			response_length = SOCK_get_response_length(conn->sock);
+			if (0 != SOCK_get_errcode(conn->sock))
 				break;
 			if ('Z' == id)
 			{
@@ -2795,7 +2794,7 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 			}
 		}
 	}
-	if (0 != SOCK_get_errcode(sock) || EOF == id)
+	if (0 != SOCK_get_errcode(conn->sock) || EOF == id)
 	{
 		SC_set_error(stmt, STMT_NO_RESPONSE, "No response from the backend", func);
 
