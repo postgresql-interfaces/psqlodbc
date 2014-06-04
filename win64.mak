@@ -217,7 +217,7 @@ CLEAN :
 CPP=cl.exe
 CPP_PROJ=$(CUSTOMCLOPT) $(INC_OPT) /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "_CRT_SECURE_NO_DEPRECATE" /D "PSQLODBC_EXPORTS" /D "WIN_MULTITHREAD_SUPPORT" $(ADD_DEFINES) /Fp"$(INTDIR)\psqlodbc.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD
 !IF  "$(CFG)" == "Release"
-CPP_PROJ=$(CPP_PROJ) /O2 /D "NDEBUG"
+CPP_PROJ=$(CPP_PROJ) /O2
 !ELSEIF  "$(CFG)" == "Debug"
 CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /RTC1
 !ENDIF
@@ -237,31 +237,11 @@ CPP_PROJ=$(CPP_PROJ) /Gm /ZI /Od /D "_DEBUG" /RTC1
    $(CPP_PROJ) /c $<
 <<
 
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) /c $<
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) /c $<
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) /c $<
-<<
-
 RSC=rc.exe
-BSC32=bscmake.exe
 RSC_PROJ=/l 0x809 /fo"$(INTDIR)\psqlodbc.res"
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\psqlodbc.bsc"
-!IF  "$(CFG)" == "Release"
-RSC_PROJ=$(RSC_PROJ) /d "NDEBUG"
-!ELSE
+!IF  "$(CFG)" == "Debug"
 RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 !ENDIF
-BSC32_SBRS= \
 
 LINK32=link.exe
 LIB32=lib.exe
