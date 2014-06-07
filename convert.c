@@ -90,7 +90,7 @@ char	   *mapFuncs[][2] = {
 /*	{ "ACOS",		 "acos"		  }, built_in */
 /*	{ "ASIN",		 "asin"		  }, built_in */
 /*	{ "ATAN",		 "atan"		  }, built_in */
-/*	{ "ATAN2",		 "atan2"	  }, bui;t_in */
+/*	{ "ATAN2",		 "atan2"	  }, built_in */
 	{"CEILING", "ceil($*)" },
 /*	{ "COS",		 "cos" 		  }, built_in */
 /*	{ "COT",		 "cot" 		  }, built_in */
@@ -2321,24 +2321,6 @@ do { \
 	qb->npos += cnvlen; \
 } while (0)
 
-#ifdef NOT_USED
-#define CVT_TEXT_FIELD(qb, buf, used) \
-do { \
-	char	escape_ch = CC_get_escape(qb->conn); \
-	int flags = ((0 != qb->flags & FLGB_CONVERT_LF) ? CONVERT_CRLF_TO_LF : 0) | ((0 != qb->flags & FLGB_BUILDING_BIND_REQUEST) ? 0 : DOUBLE_LITERAL_QUOTE | (escape_ch ? DOUBLE_LITERAL_IN_ESCAPE : 0)); \
-	int cnvlen = (flags & (DOUBLE_LITERAL_QUOTE | DOUBLE_LITERAL_IN_ESCAPE)) != 0 ? used * 2 : used; \
-	if (used > 0 && qb->npos + cnvlen >= qb->str_alsize) \
-	{ \
-		cnvlen = convert_text_field(buf, NULL, used, qb->ccsc, escape_ch, &flags); \
-		size_t	newlimit = qb->npos + cnvlen; \
-\
-		ENLARGE_NEWSTATEMENT(qb, newlimit); \
-	} \
-	cnvlen = convert_text_field(buf, &qb->query_statement[qb->npos], used, qb->ccsc, escape_ch, &flags); \
-	qb->npos += cnvlen; \
-} while (0)
-#endif /* NOT_USED */
-
 static RETCODE
 QB_start_brace(QueryBuild *qb)
 {
@@ -3634,7 +3616,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	}
 
 	/*
-	 * Its a '?' parameter alright
+	 * It's a '?' parameter alright
 	 */
 	if (retval = ResolveOneParam(qb, qp), retval < 0)
 		return retval;
@@ -3656,7 +3638,7 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 	UInt4		netleng;
 	SQLSMALLINT	num_p;
 	Int2		netnum_p;
-	int		i, num_params;
+	int			i, num_params;
 	char		*bindreq;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	BOOL		ret = TRUE, sockerr = FALSE, discard_output;
@@ -3681,35 +3663,35 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 	 * sure there's enough space for all the fields before the parameter
 	 * values, without enlarging.
 	 */
-        plen = strlen(plan_name);
+	plen = strlen(plan_name);
 	netleng = sizeof(netleng)	/* length fields */
 		  + 2 * (plen + 1)	/* portal and plan name */
 		  + sizeof(Int2)	/* number of param format codes */
 		  + sizeof(Int2) * num_params /* parameter types (max) */
 		  + sizeof(Int2)	/* result format */
 		  + 1;
-        if (QB_initialize(&qb, netleng > MIN_ALC_SIZE ? netleng : MIN_ALC_SIZE, stmt, NULL) < 0)
+	if (QB_initialize(&qb, netleng > MIN_ALC_SIZE ? netleng : MIN_ALC_SIZE, stmt, NULL) < 0)
 	{
-                return FALSE;
+		return FALSE;
 	}
-        qb.flags |= FLGB_BUILDING_BIND_REQUEST;
-        qb.flags |= FLGB_BINARY_AS_POSSIBLE;
-        bindreq = qb.query_statement;
-        leng = sizeof(netleng);
-        memcpy(bindreq + leng, plan_name, plen + 1); /* portal name */
-        leng += (plen + 1);
-        memcpy(bindreq + leng, plan_name, plen + 1); /* prepared plan name */
-        leng += (plen + 1);
+	qb.flags |= FLGB_BUILDING_BIND_REQUEST;
+	qb.flags |= FLGB_BINARY_AS_POSSIBLE;
+	bindreq = qb.query_statement;
+	leng = sizeof(netleng);
+	memcpy(bindreq + leng, plan_name, plen + 1); /* portal name */
+	leng += (plen + 1);
+	memcpy(bindreq + leng, plan_name, plen + 1); /* prepared plan name */
+	leng += (plen + 1);
 inolog("num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
-        num_p = num_params - qb.num_discard_params;
+	num_p = num_params - qb.num_discard_params;
 inolog("num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
-        netnum_p = htons(num_p);	/* Network byte order */
+	netnum_p = htons(num_p);	/* Network byte order */
 	if (0 != (qb.flags & FLGB_BINARY_AS_POSSIBLE) && num_p > 0)
 	{
-		int	j;
+		int			j;
 		ParameterImplClass	*parameters = ipdopts->parameters;
-		Int2	net_one = htons(1);
+		Int2		net_one = htons(1);
 
 		/* number of parameter formats */
 		memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p));
@@ -3750,10 +3732,10 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 	 * Note: when you append more data to the packet after this, you must
 	 * check that there's enough space left!
 	 */
-        qb.npos = leng;
-        for (i = 0; i < stmt->num_params; i++)
+	qb.npos = leng;
+	for (i = 0; i < stmt->num_params; i++)
 	{
-                retval = ResolveOneParam(&qb, NULL);
+		retval = ResolveOneParam(&qb, NULL);
 		if (SQL_ERROR == retval)
 		{
 			QB_replace_SC_error(stmt, &qb, func);
@@ -3761,7 +3743,7 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 			goto cleanup;
 		}
 	}
-        leng = qb.npos;
+	leng = qb.npos;
 
 	/* result format is text */
 	if (leng + sizeof(Int2) >= qb.str_alsize)
@@ -3775,10 +3757,10 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 	memset(qb.query_statement + leng, 0, sizeof(Int2));
 	leng += sizeof(Int2);
 
-        /* now that we know the final length of the packet, fill that in */
+	/* now that we know the final length of the packet, fill that in */
 inolog("bind leng=%d\n", leng);
-        netleng = htonl((UInt4) leng);	/* Network byte order */
-        memcpy(qb.query_statement, &netleng, sizeof(netleng));
+	netleng = htonl((UInt4) leng);	/* Network byte order */
+	memcpy(qb.query_statement, &netleng, sizeof(netleng));
 
 	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
 	{
@@ -3790,13 +3772,13 @@ inolog("bind leng=%d\n", leng);
 		}
 	}
 
-        SOCK_put_char(conn->sock, 'B'); /* Bind Message */
+	SOCK_put_char(conn->sock, 'B'); /* Bind Message */
 	if (SOCK_get_errcode(conn->sock) != 0)
 	{
 		sockerr = TRUE;
 		goto cleanup;
 	}
-        SOCK_put_n_char(conn->sock, qb.query_statement, leng);
+	SOCK_put_n_char(conn->sock, qb.query_statement, leng);
 	if (SOCK_get_errcode(conn->sock) != 0)
 		sockerr = TRUE;
 cleanup:
@@ -3957,10 +3939,11 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	const IPDFields *ipdopts = qb->ipdopts;
 	PutDataInfo *pdata = qb->pdata;
 
-	int		param_number;
-	char		param_string[128], tmp[256],
-			cbuf[PG_NUMERIC_MAX_PRECISION * 2]; /* seems big enough to handle the data in this function */
-	OID		param_pgtype;
+	int			param_number;
+	char		param_string[128],
+				tmp[256];
+	char		cbuf[PG_NUMERIC_MAX_PRECISION * 2]; /* seems big enough to handle the data in this function */
+	OID			param_pgtype;
 	SQLSMALLINT	param_ctype, param_sqltype;
 	SIMPLE_TIME	st;
 	time_t		t;
@@ -3970,22 +3953,23 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 #endif /* HAVE_LOCALTIME_R */
 	SQLLEN		used;
 	char		*buffer, *buf, *allocbuf = NULL, *lastadd = NULL;
-	OID		lobj_oid;
-	int		lobj_fd;
-	SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-	size_t	current_row = qb->current_row;
-	int	npos = 0;
-	BOOL	handling_large_object = FALSE, req_bind, add_quote = FALSE;
+	OID			lobj_oid;
+	int			lobj_fd;
+	SQLULEN		offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
+	size_t		current_row = qb->current_row;
+	int			npos = 0;
+	BOOL		handling_large_object = FALSE, req_bind, add_quote = FALSE;
 	ParameterInfoClass	*apara;
 	ParameterImplClass	*ipara;
-	BOOL outputDiscard, valueOutput;
-	SDOUBLE	dbv;
-	SFLOAT	flv;
+	BOOL		outputDiscard,
+				valueOutput;
+	SDOUBLE		dbv;
+	SFLOAT		flv;
 #if (ODBCVER >= 0x0300)
 	SQL_INTERVAL_STRUCT	*ivstruct;
-	const char		*ivsign;
+	const char *ivsign;
 #endif /* ODBCVER */
-	RETCODE	retval = SQL_ERROR;
+	RETCODE		retval = SQL_ERROR;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
@@ -3993,7 +3977,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	if (qb->proc_return < 0 && qb->stmt)
 		qb->proc_return = qb->stmt->proc_return;
 	/*
-	 * Its a '?' parameter alright
+	 * It's a '?' parameter alright
 	 */
 	param_number = ++qb->param_number;
 
@@ -4040,8 +4024,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		return SQL_SUCCESS;
 	}
-	if (ipara &&
-	    SQL_PARAM_OUTPUT == ipara->paramType)
+	if (ipara && SQL_PARAM_OUTPUT == ipara->paramType)
 	{
 		if (PG_VERSION_LT(conn, 8.1))
 		{
@@ -4087,15 +4070,6 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	{
 		char	pnum[16];
 
-#ifdef	NOT_USED /* !! named parameter is unavailable !! */
-		if (ipara && SAFE_NAME(ipara->paramName)[0])
-		{
-			CVT_APPEND_CHAR(qb, '"');
-			CVT_APPEND_STR(qb, SAFE_NAME(ipara->paramName));
-			CVT_APPEND_CHAR(qb, '"');
-			CVT_APPEND_STR(qb, " = ");
-		}
-#endif /* NOT_USED */
 		qb->dollar_number++;
 		sprintf(pnum, "$%d", qb->dollar_number);
 		CVT_APPEND_STR(qb, pnum);
@@ -5525,83 +5499,6 @@ convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int c
 		p[out] = '\0';
 	return out;
 }
-
-#ifdef NOT_USED
-#define	CVT_CRLF_TO_LF			1L
-#define	DOUBLE_LITERAL_QUOTE		(1L << 1)
-#define	DOUBLE_ESCAPE_IN_LITERAL	(1L << 2)
-static int
-convert_text_field(const char *si, char *dst, int used, int ccsc, int escape_in_literal, UInt4 *flags)
-{
-	size_t		i = 0, out = 0, max;
-	UInt4	iflags = *flags;
-	char	*p = NULL, literal_quote = LITERAL_QUOTE, tchar;
-	encoded_str	encstr;
-	BOOL	convlf = (0 != (iflags & CVT_CRLF_TO_LF)),
-		double_literal_quote = (0 != (iflags & DOUBLE_LITERAL_QUOTE)),
-		double_escape_in_literal = (0 != (iflags & DOUBLE_ESCAPE_IN_LITERAL));
-
-	if (SQL_NTS == used)
-		max = strlen(si);
-	else
-		max = used;
-	if (0 == iflags)
-	{
-		if (dst)
-			strncpy_null(dst, si, max + 1);
-		else
-			return max;
-	}
-	if (dst)
-	{
-		p = dst;
-		p[0] = '\0';
-	}
-	encoded_str_constr(&encstr, ccsc, si);
-
-	*flags = 0;
-	for (i = 0; i < max && si[i]; i++)
-	{
-		tchar = encoded_nextchar(&encstr);
-		if (ENCODE_STATUS(encstr) != 0)
-		{
-			if (p)
-				p[out] = tchar;
-			out++;
-			continue;
-		}
-		if (convlf &&	/* CR/LF -> LF */
-		    PG_CARRIAGE_RETURN == tchar &&
-		    PG_LINEFEED == si[i + 1])
-		{
-			*flags |= CVT_CRLF_TO_LF;
-			continue;
-		}
-		else if (double_literal_quote && /* double literal quote ? */
-			 tchar == literal_quote)
-		{
-			if (p)
-				p[out] = tchar;
-			out++;
-			*flags |= DOUBLE_LITERAL_QUOTE;
-		}
-		else if (double_escape_in_literal && /* double escape ? */
-			 tchar == escape_in_literal)
-		{
-			if (p)
-				p[out] = tchar;
-			out++;
-			*flags |= DOUBLE_ESCAPE_IN_LITERAL;
-		}
-		if (p)
-			p[out] = tchar;
-		out++;
-	}
-	if (p)
-		p[out] = '\0';
-	return out;
-}
-#endif /* NOT_USED */
 
 
 /*	!!! Need to implement this function !!!  */
