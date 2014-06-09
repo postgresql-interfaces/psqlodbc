@@ -2145,46 +2145,37 @@ QB_Destructor(QueryBuild *qb)
  *--------------------
  */
 
-#define F_OldChar(qp) \
-qp->statement[qp->opos]
+#define F_OldChar(qp) ((qp)->statement[(qp)->opos])
 
-#define F_OldPtr(qp) \
-(qp->statement + qp->opos)
+#define F_OldPtr(qp) ((qp)->statement + (qp)->opos)
 
-#define F_OldNext(qp) \
-(++qp->opos)
+#define F_OldNext(qp) (++(qp)->opos)
 
-#define F_OldPrior(qp) \
-(--qp->opos)
+#define F_OldPrior(qp) (--(qp)->opos)
 
-#define F_OldPos(qp) \
-qp->opos
+#define F_OldPos(qp) (qp)->opos
 
 #define F_ExtractOldTo(qp, buf, ch, maxsize) \
 do { \
 	size_t	c = 0; \
-	while (qp->statement[qp->opos] != '\0' && qp->statement[qp->opos] != ch) \
+	while ((qp)->statement[qp->opos] != '\0' && (qp)->statement[qp->opos] != ch) \
 	{ \
 		if (c >= maxsize) \
 			break; \
-		buf[c++] = qp->statement[qp->opos++]; \
+		buf[c++] = (qp)->statement[qp->opos++];	\
 	} \
-	if (qp->statement[qp->opos] == '\0') \
+	if ((qp)->statement[qp->opos] == '\0')	\
 		{retval = SQL_ERROR; goto cleanup;} \
 	buf[c] = '\0'; \
 } while (0)
 
-#define F_NewChar(qb) \
-qb->query_statement[qb->npos]
+#define F_NewChar(qb) (qb->query_statement[(qb)->npos])
 
-#define F_NewPtr(qb) \
-(qb->query_statement + qb->npos)
+#define F_NewPtr(qb) ((qb)->query_statement + (qb)->npos)
 
-#define F_NewNext(qb) \
-(++qb->npos)
+#define F_NewNext(qb) (++(qb)->npos)
 
-#define F_NewPos(qb) \
-(qb->npos)
+#define F_NewPos(qb) ((qb)->npos)
 
 
 static int
@@ -2192,7 +2183,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb);
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb);
 static int
-ResolveOneParam(QueryBuild *qb, QueryParse *qp);
+ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull);
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
 	size_t *output_count, SQLLEN param_pos[][2]);
@@ -2245,81 +2236,108 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
  *	Enlarge stmt_with_params if necessary.
  *----------
  */
-#define ENLARGE_NEWSTATEMENT(qb, newpos) \
-	if (newpos >= qb->str_alsize) \
-	{ \
-		if (enlarge_query_statement(qb, newpos) <= 0) \
-			{retval = SQL_ERROR; goto cleanup;} \
-	}
+#define ENLARGE_NEWSTATEMENT(qb, newpos)					\
+	do {													\
+		if ((newpos) >= (qb)->str_alsize)					\
+		{													\
+			if (enlarge_query_statement(qb, newpos) <= 0)	\
+			{												\
+				retval = SQL_ERROR;							\
+				goto cleanup;								\
+			}												\
+		}													\
+	} while(0)
 
 /*----------
  *	Terminate the stmt_with_params string with NULL.
  *----------
  */
-#define CVT_TERMINATE(qb) \
-do { \
-	if (NULL == qb->query_statement) {retval = SQL_ERROR; goto cleanup;} \
-	qb->query_statement[qb->npos] = '\0'; \
-} while (0)
+#define CVT_TERMINATE(qb) 									\
+	do {													\
+		if (NULL == (qb)->query_statement)					\
+		{													\
+			retval = SQL_ERROR;								\
+			goto cleanup;									\
+		}													\
+		(qb)->query_statement[(qb)->npos] = '\0';			\
+	} while (0)
 
 /*----------
  *	Append a data.
  *----------
  */
-#define CVT_APPEND_DATA(qb, s, len) \
-do { \
-	size_t	newpos = qb->npos + len; \
-	ENLARGE_NEWSTATEMENT(qb, newpos) \
-	memcpy(&qb->query_statement[qb->npos], s, len); \
-	qb->npos = newpos; \
-	qb->query_statement[newpos] = '\0'; \
-} while (0)
+#define CVT_APPEND_DATA(qb, s, len)							\
+	do {													\
+		size_t	newpos = (qb)->npos + len;					\
+		ENLARGE_NEWSTATEMENT((qb), newpos);					\
+		memcpy(&(qb)->query_statement[(qb)->npos], s, len);	\
+		(qb)->npos = newpos;								\
+		(qb)->query_statement[newpos] = '\0';				\
+	} while (0)
 
 /*----------
  *	Append a string.
  *----------
  */
-#define CVT_APPEND_STR(qb, s) \
-do { \
-	size_t	len = strlen(s); \
-	CVT_APPEND_DATA(qb, s, len); \
-} while (0)
+#define CVT_APPEND_STR(qb, s)								\
+	do {													\
+		size_t	len = strlen(s);							\
+		CVT_APPEND_DATA(qb, s, len);						\
+	} while (0)
 
 /*----------
  *	Append a char.
  *----------
  */
-#define CVT_APPEND_CHAR(qb, c) \
-do { \
-	ENLARGE_NEWSTATEMENT(qb, qb->npos + 1); \
-	qb->query_statement[qb->npos++] = c; \
-} while (0)
+#define CVT_APPEND_CHAR(qb, c)								\
+	do {													\
+		ENLARGE_NEWSTATEMENT(qb, (qb)->npos + 1);			\
+		(qb)->query_statement[(qb)->npos++] = c;			\
+	} while (0)
 
 /*----------
  *	Append a binary data.
  *	Newly required size may be overestimated currently.
  *----------
  */
-#define CVT_APPEND_BINARY(qb, buf, used) \
-do { \
-	size_t	newlimit = qb->npos + ((qb->flags & FLGB_HEX_BIN_FORMAT) ? 2 * used + 4 : 5 * used); \
-	ENLARGE_NEWSTATEMENT(qb, newlimit); \
-	qb->npos += convert_to_pgbinary(buf, &qb->query_statement[qb->npos], used, qb); \
-} while (0)
+#define CVT_APPEND_BINARY(qb, buf, used)					\
+	do {													\
+		size_t	newlimit;									\
+															\
+		newlimit = (qb)->npos;								\
+		if (qb->flags & FLGB_HEX_BIN_FORMAT)				\
+			newlimit += 2 * used + 4;						\
+		else												\
+			newlimit += 5 * used;							\
+		ENLARGE_NEWSTATEMENT(qb, newlimit);					\
+		(qb)->npos += convert_to_pgbinary(buf,				\
+										  &qb->query_statement[(qb)->npos], \
+										  used, qb);		\
+	} while (0)
 
 /*----------
  *
  *----------
  */
-#define CVT_SPECIAL_CHARS(qb, buf, used) \
-do { \
-	size_t cnvlen = convert_special_chars(buf, NULL, used, qb->flags, qb->ccsc, CC_get_escape(qb->conn)); \
-	size_t	newlimit = qb->npos + cnvlen; \
-\
-	ENLARGE_NEWSTATEMENT(qb, newlimit); \
-	convert_special_chars(buf, &qb->query_statement[qb->npos], used, qb->flags, qb->ccsc, CC_get_escape(qb->conn)); \
-	qb->npos += cnvlen; \
-} while (0)
+#define CVT_SPECIAL_CHARS(qb, buf, used)					\
+	do {													\
+		size_t cnvlen;										\
+		size_t newlimit;									\
+															\
+		cnvlen = convert_special_chars(buf, NULL, used,		\
+									   (qb)->flags,			\
+									   (qb)->ccsc,			\
+									   CC_get_escape(qb->conn));	\
+															\
+		newlimit = (qb)->npos + cnvlen;						\
+		ENLARGE_NEWSTATEMENT(qb, newlimit);					\
+															\
+		convert_special_chars(buf,							\
+							  &(qb)->query_statement[(qb)->npos], \
+							  used, qb->flags, qb->ccsc,	\
+							  CC_get_escape(qb->conn));		\
+		qb->npos += cnvlen;									\
+	} while (0)
 
 static RETCODE
 QB_start_brace(QueryBuild *qb)
@@ -3263,6 +3281,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	char	   oldchar;
 	StatementClass	*stmt = qb->stmt;
 	char	literal_quote = LITERAL_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal = '\0';
+	BOOL		isnull;
 
 	if (stmt && stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
@@ -3618,7 +3637,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * It's a '?' parameter alright
 	 */
-	if (retval = ResolveOneParam(qb, qp), retval < 0)
+	if (retval = ResolveOneParam(qb, qp, &isnull), retval < 0)
 		return retval;
 
 	if (SQL_SUCCESS_WITH_INFO == retval) /* means discarding output parameter */
@@ -3735,13 +3754,29 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 	qb.npos = leng;
 	for (i = 0; i < stmt->num_params; i++)
 	{
-		retval = ResolveOneParam(&qb, NULL);
+		BOOL		isnull;
+		int			npos;
+		UInt4		slen;
+
+		/* reserve a spot for the length word */
+		npos = qb.npos;
+		ENLARGE_NEWSTATEMENT(&qb, npos + 4);
+		qb.npos += 4;
+
+		retval = ResolveOneParam(&qb, NULL, &isnull);
 		if (SQL_ERROR == retval)
 		{
 			QB_replace_SC_error(stmt, &qb, func);
 			ret = FALSE;
 			goto cleanup;
 		}
+
+		/* fill in the length word */
+		if (isnull)
+			slen = htonl(-1);
+		else
+			slen = htonl((UInt4) (qb.npos - npos - 4));
+		memcpy(qb.query_statement + npos, &slen, sizeof(slen));
 	}
 	leng = qb.npos;
 
@@ -3930,7 +3965,7 @@ inolog(" convval(2) len=%d %s\n", newlen, chrform);
  *
  */
 static int
-ResolveOneParam(QueryBuild *qb, QueryParse *qp)
+ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull)
 {
 	CSTR func = "ResolveOneParam";
 
@@ -3970,6 +4005,8 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp)
 	const char *ivsign;
 #endif /* ODBCVER */
 	RETCODE		retval = SQL_ERROR;
+
+	*isnull = FALSE;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
@@ -4132,23 +4169,14 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	{
 		return SQL_SUCCESS;
 	} */
-	if (req_bind)
-	{
-		npos = qb->npos;
-		ENLARGE_NEWSTATEMENT(qb, npos + 4);
-		qb->npos += 4;
-	}
+
 	/* Handle NULL parameter data */
 	if ((ipara && SQL_PARAM_OUTPUT == ipara->paramType)
 	    || used == SQL_NULL_DATA
 	    || used == SQL_DEFAULT_PARAM)
 	{
-		if (req_bind)
-		{
-			DWORD	len = htonl(-1);
-			memcpy(qb->query_statement + npos, &len, sizeof(len));
-		}
-		else
+		*isnull = TRUE;
+		if (!req_bind)
 			CVT_APPEND_STR(qb, "NULL");
 		return SQL_SUCCESS;
 	}
@@ -4470,12 +4498,8 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 #endif /* UNICODE_SUPPORT */
 	    ))
 	{
-		if (req_bind)
-		{
-			DWORD	len = htonl(-1);
-			memcpy(qb->query_statement + npos, &len, sizeof(len));
-		}
-		else
+		*isnull = TRUE;
+		if (!req_bind)
 			CVT_APPEND_STR(qb, "NULL");
 		retval = SQL_SUCCESS;
 		goto cleanup;
@@ -4795,12 +4819,6 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 		CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
 		if (lastadd)
 			CVT_APPEND_STR(qb, lastadd);
-	}
-	if (req_bind)
-	{
-		UInt4	slen = htonl((UInt4) (qb->npos - npos - 4));
-
-		memcpy(qb->query_statement + npos, &slen, sizeof(slen));
 	}
 	retval = SQL_SUCCESS;
 cleanup:
