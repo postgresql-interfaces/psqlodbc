@@ -215,6 +215,8 @@ static unsigned ODBCINT64 ATOI64U(const char *val)
 #endif /* WIN32 */
 #endif /* ODBCINT64 */
 
+static void parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow);
+
 /*
  *	TIMESTAMP <-----> SIMPLE_TIME
  *		precision support since 7.2.
@@ -1595,80 +1597,21 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 #if (ODBCVER >= 0x0300)
-                        case SQL_C_NUMERIC:
-			{
-			SQL_NUMERIC_STRUCT      *ns;
-			int	i, nlen, bit, hval, tv, dig, sta, olen;
-			char	calv[SQL_MAX_NUMERIC_LEN * 3];
-			const char *wv;
-			BOOL	dot_exist;
+			case SQL_C_NUMERIC:
+				{
+					SQL_NUMERIC_STRUCT      *ns;
+					BOOL	overflowed;
 
-			len = sizeof(SQL_NUMERIC_STRUCT);
-			if (bind_size > 0)
-				ns = (SQL_NUMERIC_STRUCT *) rgbValueBindRow;
-			else
-				ns = (SQL_NUMERIC_STRUCT *) rgbValue + bind_row;
-			for (wv = neut_str; *wv && isspace((unsigned char) *wv); wv++)
-				;
-			ns->sign = 1;
-			if (*wv == '-')
-			{
-				ns->sign = 0;
-				wv++;
-			}
-			else if (*wv == '+')
-				wv++;
-			while (*wv == '0') wv++;
-			ns->precision = 0;
-			ns->scale = 0;
-			for (nlen = 0, dot_exist = FALSE;; wv++)
-			{
-				if (*wv == '.')
-				{
-					if (dot_exist)
-						break;
-					dot_exist = TRUE;
+					if (bind_size > 0)
+						ns = (SQL_NUMERIC_STRUCT *) rgbValueBindRow;
+					else
+						ns = (SQL_NUMERIC_STRUCT *) rgbValue + bind_row;
+
+					parse_to_numeric_struct(neut_str, ns, &overflowed);
+					if (overflowed)
+						result = COPY_RESULT_TRUNCATED;
 				}
-				else if (*wv == '\0' || !isdigit((unsigned char) *wv))
-						break;
-				else
-				{
-					if (dot_exist)
-						ns->scale++;
-					ns->precision++;
-					calv[nlen++] = *wv;
-				}
-			}
-			memset(ns->val, 0, sizeof(ns->val));
-			for (hval = 0, bit = 1L, sta = 0, olen = 0; sta < nlen;)
-			{
-				for (dig = 0, i = sta; i < nlen; i++)
-				{
-					tv = dig * 10 + calv[i] - '0';
-					dig = tv % 2;
-					calv[i] = tv / 2 + '0';
-					if (i == sta && tv < 2)
-						sta++;
-				}
-				if (dig > 0)
-					hval |= bit;
-				bit <<= 1;
-				if (bit >= (1L << 8))
-				{
-					ns->val[olen++] = hval;
-					hval = 0;
-					bit = 1L;
-					if (olen >= SQL_MAX_NUMERIC_LEN - 1)
-					{
-						ns->scale = sta - ns->precision;
-						break;
-					}
-				}
-			}
-			if (hval && olen < SQL_MAX_NUMERIC_LEN - 1)
-				ns->val[olen++] = hval;
-			}
-			break;
+				break;
 #endif /* ODBCVER */
 
 			case SQL_C_SSHORT:
@@ -3829,136 +3772,201 @@ cleanup:
 }
 
 #if (ODBCVER >= 0x0300)
-static BOOL
+
+/*
+ * With SQL_MAX_NUMERIC_LEN = 16, the highest representable number is
+ * 2^128 - 1, which fits in 39 digits.
+ */
+#define MAX_NUMERIC_DIGITS 39
+
+/*
+ * Convert a SQL_NUMERIC_STRUCT into string representation.
+ */
+static void
 ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 {
-	static const int prec[] = {1, 3, 5, 8, 10, 13, 15, 17, 20, 22, 25, 27, 29, 32, 34, 37, 39};
-	Int4	i, j, k, ival, vlen, len, newlen;
-	UCHAR		calv[40];
+	Int4		i, vlen, len, newlen;
 	const UCHAR	*val = (const UCHAR *) ns->val;
-	BOOL	next_figure;
+	UCHAR		vals[SQL_MAX_NUMERIC_LEN];
+	int			lastnonzero;
+	UCHAR		calv[MAX_NUMERIC_DIGITS];
+	int			precision;
 
 inolog("C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
+
 	if (0 == ns->precision)
 	{
 		strcpy(chrform, "0");
-		return TRUE;
-	}
-	else if (ns->precision < prec[sizeof(Int4)])
-	{
-		for (i = 0, ival = 0; i < sizeof(Int4) && prec[i] <= ns->precision; i++)
-		{
-inolog("(%d)", val[i]);
-			ival += (val[i] << (8 * i)); /* ns->val is little endian */
-		}
-inolog(" ival=%d,%d", ival, (val[3] << 24) | (val[2] << 16) | (val[1] << 8) | val[0]);
-		if (0 == ns->scale)
-		{
-			if (0 == ns->sign)
-				ival *= -1;
-			sprintf(chrform, "%d", ival);
-		}
-		else if (ns->scale > 0)
-		{
-			Int4	i, div, o1val, o2val;
-
-			for (i = 0, div = 1; i < ns->scale; i++)
-				div *= 10;
-			o1val = ival / div;
-			o2val = ival % div;
-			if (0 == ns->sign)
-				sprintf(chrform, "-%d.%0*d", o1val, ns->scale, o2val);
-			else
-				sprintf(chrform, "%d.%0*d", o1val, ns->scale, o2val);
-		}
-inolog(" convval=%s\n", chrform);
-		return TRUE;
+		return;
 	}
 
-	for (i = 0; i < SQL_MAX_NUMERIC_LEN && prec[i] <= ns->precision; i++)
-		;
-	vlen = i;
+	precision = ns->precision;
+	if (precision > MAX_NUMERIC_DIGITS)
+		precision = MAX_NUMERIC_DIGITS;
+
+	/*
+	 * The representation in SQL_NUMERIC_STRUCT is 16 bytes with most
+	 * significant byte first. Make a working copy.
+	 */
+	memcpy(vals, val, SQL_MAX_NUMERIC_LEN);
+
+	vlen = SQL_MAX_NUMERIC_LEN;
 	len = 0;
-	memset(calv, 0, sizeof(calv));
-inolog(" len1=%d", vlen);
-	for (i = vlen - 1; i >= 0; i--)
+	do
 	{
-		for (j = len - 1; j >= 0; j--)
+		UInt2		d, r;
+
+		/*
+		 * Divide the number by 10, and output the reminder as the next digit.
+		 *
+		 * Begin from the most-significant byte (last in the array), and at
+		 * each step, carry the remainder to the prev byte.
+		 */
+		r = 0;
+		lastnonzero = -1;
+		for (i = vlen - 1; i >= 0; i--)
 		{
-			if (!calv[j])
-				continue;
-			ival = (((Int4)calv[j]) << 8);
-			calv[j] = (ival % 10);
-			ival /= 10;
-			calv[j + 1] += (ival % 10);
-			ival /= 10;
-			calv[j + 2] += (ival % 10);
-			ival /= 10;
-			calv[j + 3] += ival;
-			for (k = j;; k++)
-			{
-				next_figure = FALSE;
-				if (calv[k] > 0)
-				{
-					if (k >= len)
-						len = k + 1;
-					while (calv[k] > 9)
-					{
-						calv[k + 1]++;
-						calv[k] -= 10;
-						next_figure = TRUE;
-					}
-				}
-				if (k >= j + 3 && !next_figure)
-					break;
-			}
+			UInt2	v;
+
+			v = ((UInt2) vals[i]) + (r << 8);
+			d = v / 10; r = v % 10;
+			vals[i] = (UCHAR) d;
+
+			if (d != 0 && lastnonzero == -1)
+				lastnonzero = i;
 		}
-		ival = val[i];
-		if (!ival)
-			continue;
-		calv[0] += (ival % 10);
-		ival /= 10;
-		calv[1] += (ival % 10);
-		ival /= 10;
-		calv[2] += ival;
-		for (j = 0;; j++)
-		{
-			next_figure = FALSE;
-			if (calv[j] > 0)
-			{
-				if (j >= len)
-					len = j + 1;
-				while (calv[j] > 9)
-				{
-					calv[j + 1]++;
-					calv[j] -= 10;
-					next_figure = TRUE;
-				}
-			}
-			if (j >= 2 && !next_figure)
-				break;
-		}
-	}
+
+		/* output the remainder */
+		calv[len++] = r;
+
+		vlen = lastnonzero + 1;
+	} while(lastnonzero >= 0 && len < precision);
+
+	/*
+	 * calv now contains the digits in reverse order, i.e. least significant
+	 * digit is at calv[0]
+	 */
+
 inolog(" len2=%d", len);
+
+	/* build the final output string. */
 	newlen = 0;
 	if (0 == ns->sign)
 		chrform[newlen++] = '-';
-	if (i = len - 1, i < ns->scale)
+
+	i = len - 1;
+	if (i < ns->scale)
 		i = ns->scale;
 	for (; i >= ns->scale; i--)
-		chrform[newlen++] = calv[i] + '0';
+	{
+		if (i >= len)
+			chrform[newlen++] = '0';
+		else
+			chrform[newlen++] = calv[i] + '0';
+	}
 	if (ns->scale > 0)
 	{
 		chrform[newlen++] = '.';
 		for (; i >= 0; i--)
-			chrform[newlen++] = calv[i] + '0';
+		{
+			if (i >= len)
+				chrform[newlen++] = '0';
+			else
+				chrform[newlen++] = calv[i] + '0';
+		}
 	}
 	if (0 == len)
 		chrform[newlen++] = '0';
 	chrform[newlen] = '\0';
 inolog(" convval(2) len=%d %s\n", newlen, chrform);
-	return TRUE;
 }
+
+/*
+ * Convert a string representation of a numeric into SQL_NUMERIC_STRUCT.
+ */
+static void
+parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
+{
+	int			i, nlen, dig;
+	char		calv[SQL_MAX_NUMERIC_LEN * 3];
+	BOOL		dot_exist;
+
+	*overflow = FALSE;
+
+	/* skip leading space */
+	while (*wv && isspace((unsigned char) *wv))
+		wv++;
+
+	/* sign */
+	ns->sign = 1;
+	if (*wv == '-')
+	{
+		ns->sign = 0;
+		wv++;
+	}
+	else if (*wv == '+')
+		wv++;
+
+	/* skip leading zeros */
+	while (*wv == '0')
+		wv++;
+
+	/* read the digits into calv */
+	ns->precision = 0;
+	ns->scale = 0;
+	for (nlen = 0, dot_exist = FALSE;; wv++)
+	{
+		if (*wv == '.')
+		{
+			if (dot_exist)
+				break;
+			dot_exist = TRUE;
+		}
+		else if (*wv == '\0' || !isdigit((unsigned char) *wv))
+			break;
+		else
+		{
+			if (nlen >= sizeof(calv))
+			{
+				if (dot_exist)
+					break;
+				else
+				{
+					ns->scale--;
+					*overflow = TRUE;
+					continue;
+				}
+			}
+			if (dot_exist)
+				ns->scale++;
+			calv[nlen++] = *wv;
+		}
+	}
+	ns->precision = nlen;
+
+	/* Convert the decimal digits to binary */
+	memset(ns->val, 0, sizeof(ns->val));
+	for (dig = 0; dig < nlen; dig++)
+	{
+		UInt4 carry;
+
+		/* multiply the current value by 10, and add the next digit */
+		carry = calv[dig] - '0';
+		for (i = 0; i < sizeof(ns->val); i++)
+		{
+			UInt4		t;
+
+			t = ((UInt4) ns->val[i]) * 10 + carry;
+			ns->val[i] = (unsigned char) (t & 0xFF);
+			carry = (t >> 8);
+		}
+
+		if (carry != 0)
+			*overflow = TRUE;
+	}
+}
+
+
 #endif /* ODBCVER */
 
 /*
@@ -3975,7 +3983,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull)
 	PutDataInfo *pdata = qb->pdata;
 
 	int			param_number;
-	char		param_string[128],
+	char		param_string[150],
 				tmp[256];
 	char		cbuf[PG_NUMERIC_MAX_PRECISION * 2]; /* seems big enough to handle the data in this function */
 	OID			param_pgtype;
@@ -4403,8 +4411,10 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			}
 #if (ODBCVER >= 0x0300)
 		case SQL_C_NUMERIC:
-			if (ResolveNumericParam((SQL_NUMERIC_STRUCT *) buffer, param_string))
-				break;
+		{
+			ResolveNumericParam((SQL_NUMERIC_STRUCT *) buffer, param_string);
+			break;
+		}
 		case SQL_C_INTERVAL_YEAR:
 			ivsign = ivstruct->interval_sign ? "-" : "";
 			sprintf(param_string, "%s%d years", ivsign, ivstruct->intval.year_month.year);
