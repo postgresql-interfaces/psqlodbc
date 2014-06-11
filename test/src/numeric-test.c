@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	test_numeric_param(hstmt, 1, "0203", 25, 80);
 
 	/* max length output; negative with max scale and decimal dot */
-	test_numeric_param(hstmt, 0, "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF", 25, 127);
+	test_numeric_param(hstmt, 0, "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF", 40, 127);
 
 	/* large scale with small value */
 	test_numeric_param(hstmt, 1, "0203", 3, 50);
