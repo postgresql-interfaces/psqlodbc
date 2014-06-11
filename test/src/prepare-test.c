@@ -14,7 +14,6 @@ int main(int argc, char **argv)
 	SQLSMALLINT colcount;
 	char		byteaParam[5000];
 	int			i;
-	char		errstr[100];
 
 	test_connect();
 

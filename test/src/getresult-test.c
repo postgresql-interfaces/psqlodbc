@@ -7,9 +7,6 @@ int main(int argc, char **argv)
 {
 	SQLRETURN rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	char *param1;
-	SQLLEN cbParam1;
-	long longparam;
 	SQL_INTERVAL_STRUCT intervalval;
 	char *sql;
 
@@ -59,27 +56,29 @@ int main(int argc, char **argv)
 
 	rc = SQLGetData(hstmt, 2, SQL_C_LONG, &ld, sizeof(ld), NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("integercol: %ld\n", ld);
+	printf("integercol: %ld\n", (long) ld);
 
 	rc = SQLGetData(hstmt, 3, SQL_C_INTERVAL_YEAR, &intervalval, sizeof(intervalval), NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("intervalyears: %ld\n", intervalval.intval.year_month.year);
+	printf("intervalyears: %ld\n", (long) intervalval.intval.year_month.year);
 
 	rc = SQLGetData(hstmt, 4, SQL_C_INTERVAL_MONTH, &intervalval, sizeof(intervalval), NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("intervalmonths: %ld\n", intervalval.intval.year_month.month);
+	printf("intervalmonths: %ld\n", (long) intervalval.intval.year_month.month);
 
 	rc = SQLGetData(hstmt, 5, SQL_C_INTERVAL_DAY, &intervalval, sizeof(intervalval), NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("intervaldays: %ld\n", intervalval.intval.day_second.day);
+	printf("intervaldays: %ld\n", (long) intervalval.intval.day_second.day);
 
 	rc = SQLGetData(hstmt, 6, SQL_C_INTERVAL_DAY, &intervalval, sizeof(intervalval), NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("bogus long string as interval: %ld\n", intervalval.intval.day_second.day);
+	printf("bogus long string as interval: %ld\n", (long) intervalval.intval.day_second.day);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

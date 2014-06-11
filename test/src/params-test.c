@@ -9,8 +9,6 @@ int main(int argc, char **argv)
 	HSTMT hstmt = SQL_NULL_HSTMT;
 	char param1[20] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 	SQLLEN cbParam1;
-	long longparam;
-	SQL_INTERVAL_STRUCT intervalparam;
 	SQLSMALLINT colcount;
 	SQLSMALLINT dataType;
 	SQLULEN paramSize;
@@ -94,8 +92,8 @@ int main(int argc, char **argv)
 
 	rc = SQLDescribeParam(hstmt, 1, &dataType, &paramSize, &decDigits, &nullable);
 	CHECK_STMT_RESULT(rc, "SQLDescribeParams failed", hstmt);
-	printf("Param 1: type %s; size %d; dec digits %d; %s\n",
-		   datatype_str(dataType), paramSize, decDigits, nullable_str(nullable));
+	printf("Param 1: type %s; size %u; dec digits %d; %s\n",
+		   datatype_str(dataType), (unsigned int) paramSize, decDigits, nullable_str(nullable));
 	/* bind param  */
 	strcpy(param1, "3");
 	cbParam1 = SQL_NTS;

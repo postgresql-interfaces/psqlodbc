@@ -6,11 +6,8 @@
 
 int main(int argc, char **argv)
 {
-	int rc;
-	HSTMT hstmt = SQL_NULL_HSTMT;
-	char sql[100000];
-	char *sqlend;
-	int i;
+	int			rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
 
 	test_connect();
 
@@ -78,4 +75,6 @@ int main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

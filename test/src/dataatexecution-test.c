@@ -11,11 +11,7 @@ int main(int argc, char **argv)
 	char *param1, *param2;
 	SQLLEN cbParam1, cbParam2;
 	SQLLEN param1bytes, param2bytes;
-	SQLSMALLINT colcount;
 	PTR paramid;
-	char buf[40];
-	SQLLEN lenOrInd;
-	SQLCHAR str_array2[2][6];
 	SQLLEN str_ind_array[2];
 	SQLUSMALLINT status_array[2];
 	SQLULEN nprocessed = 0;
@@ -90,7 +86,7 @@ int main(int argc, char **argv)
 	  }
 	  else
 	  {
-		  printf("unexpected parameter id returned by SQLParamData: %d\n", paramid);
+		  printf("unexpected parameter id returned by SQLParamData: %p\n", paramid);
 		  exit(1);
 	  }
 	}
@@ -147,7 +143,7 @@ int main(int argc, char **argv)
 			rc = SQLPutData(hstmt, "barf", strlen("barf"));
 		else
 		{
-			printf("unexpected # of rows processed after SQL_NEED_DATA: %d\n", nprocessed);
+			printf("unexpected # of rows processed after SQL_NEED_DATA: %u\n", (unsigned int) nprocessed);
 			exit(1);
 		}
 		CHECK_STMT_RESULT(rc, "SQLPutData failed", hstmt);
@@ -178,8 +174,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf ("Fetching result sets for array bound (%d results expected)\n",
-			nprocessed);
+	printf ("Fetching result sets for array bound (%u results expected)\n",
+			(unsigned int) nprocessed);
 	for (i = 1; rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO; i++)
 	{
 		printf("%d: ", i);

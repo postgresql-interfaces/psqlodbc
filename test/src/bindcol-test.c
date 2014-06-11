@@ -8,9 +8,6 @@ int main(int argc, char **argv)
 {
 	int rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	char sql[100000];
-	char *sqlend;
-	int			i;
 	/*
 	 * NOTE: in the psqlodbc, we assume that SQL_C_LONG actually means a
 	 * variable of type SQLINTEGER. They are not the same on platforms where
@@ -50,11 +47,7 @@ int main(int argc, char **argv)
 			break;
 		if (rc == SQL_SUCCESS)
 		{
-			char buf[40];
-			int i;
-			SQLLEN ind;
-
-			printf("%ld %s\n", longvalue, charvalue);
+			printf("%ld %s\n", (long) longvalue, charvalue);
 		}
 		else
 		{
@@ -68,4 +61,6 @@ int main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

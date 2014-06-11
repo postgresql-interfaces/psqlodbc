@@ -82,4 +82,6 @@ int main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

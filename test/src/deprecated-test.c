@@ -52,7 +52,6 @@ main(int argc, char **argv)
 	SQLHENV env2;
 	SQLSMALLINT val;
 	SQLINTEGER valint;
-	SQLLEN paramlen;
 	char buffer[256];
 	char message[1000];
 	int i;
@@ -345,4 +344,6 @@ main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

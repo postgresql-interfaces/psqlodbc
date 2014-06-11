@@ -175,8 +175,8 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf ("Fetching result sets for array bound (%d results expected)\n",
-			nprocessed);
+	printf ("Fetching result sets for array bound (%u results expected)\n",
+			(unsigned int) nprocessed);
 	for (i = 1; rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO; i++)
 	{
 		printf("%d: ", i);

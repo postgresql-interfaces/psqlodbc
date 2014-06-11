@@ -194,8 +194,8 @@ print_result_meta_series(HSTMT hstmt,
 			print_diag("SQLDescribeCol failed", SQL_HANDLE_STMT, hstmt);
 			return;
 		}
-		printf("%s: %s(%d) digits: %d, %s\n",
-			   colname, datatype_str(datatype), colsize,
+		printf("%s: %s(%u) digits: %d, %s\n",
+			   colname, datatype_str(datatype), (unsigned int) colsize,
 			   decdigits, nullable_str(nullable));
 	}
 }

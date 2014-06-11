@@ -7,11 +7,7 @@
 void testLargeResult(HSTMT hstmt, int betweenstmts)
 {
 	int rc;
-	char sql[100000];
-	char *sqlend;
 	int i;
-	int len;
-	SQLUINTEGER info;
 
 	/*
 	 * Fetch a large result set without cursor (in Declare/fetch mode, it will
@@ -24,7 +20,6 @@ void testLargeResult(HSTMT hstmt, int betweenstmts)
 	for (i = 0; i < 10; i++)
 	{
 		char buf[40];
-		int i;
 		SQLLEN ind;
 
 		rc = SQLFetch(hstmt);
@@ -130,10 +125,6 @@ int main(int argc, char **argv)
 {
 	int rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	char sql[100000];
-	char *sqlend;
-	int i;
-	int len;
 	SQLUSMALLINT info;
 
 	test_connect();
@@ -165,4 +156,6 @@ int main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

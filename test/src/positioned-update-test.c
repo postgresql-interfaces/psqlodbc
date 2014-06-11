@@ -8,8 +8,6 @@ int main(int argc, char **argv)
 {
 	int rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	char sql[100000];
-	char *sqlend;
 	int			i;
 	SQLINTEGER	colvalue;
 	SQLLEN		indColvalue;
@@ -104,4 +102,6 @@ int main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

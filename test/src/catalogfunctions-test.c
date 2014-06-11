@@ -24,9 +24,6 @@ main(int argc, char **argv)
 {
 	int rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	char sql[100000];
-	char *sqlend;
-	int i;
 	/* Cases where output is limited to relevant information only */
 	SQLSMALLINT sql_tab_privileges_ids[6] = {1, 2, 3, 4, 6, 7};
 	SQLSMALLINT sql_column_ids[6] = {1, 2, 3, 4, 5, 6};
@@ -205,4 +202,6 @@ main(int argc, char **argv)
 
 	/* Clean up */
 	test_disconnect();
+
+	return 0;
 }

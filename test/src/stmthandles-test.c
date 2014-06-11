@@ -106,4 +106,6 @@ int main(int argc, char **argv)
 	}
 
 	test_disconnect();
+
+	return 0;
 }

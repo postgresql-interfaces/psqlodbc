@@ -9,9 +9,6 @@ int main(int argc, char **argv)
 	HSTMT hstmt = SQL_NULL_HSTMT;
 	char *param1;
 	SQLLEN cbParam1;
-	long longparam;
-	SQL_INTERVAL_STRUCT intervalparam;
-	SQLSMALLINT colcount;
 
 	/* BoolsAsChar is the default, but just in case.. */
 	test_connect_ext("BoolsAsChar=1;UseServerSidePrepare=1");

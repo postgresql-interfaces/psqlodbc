@@ -11,7 +11,6 @@
 int main(int argc, char **argv)
 {
 	SQLRETURN rc;
-	SQLLEN		sqlLen;
 	SQLLEN		ccharlen;
 	SQLLEN		wcharlen;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
@@ -48,12 +47,12 @@ int main(int argc, char **argv)
 	printf("reading to char buffer...\n");
 	rc = SQLGetData(hstmt, 1, SQL_C_CHAR, buf, sizeof(buf), &ccharlen);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("strlen %d, SQLGetData claims %d\n\n", strlen(buf), ccharlen);
+	printf("strlen %d, SQLGetData claims %d\n\n", (int) strlen(buf), (int) ccharlen);
 
 	printf("reading to char buffer, with truncation...\n");
 	rc = SQLGetData(hstmt, 2, SQL_C_CHAR, buf, 10, &ccharlen);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
-	printf("strlen %d, SQLGetData claims %d\n\n", strlen(buf), ccharlen);
+	printf("strlen %d, SQLGetData claims %d\n\n", (int) strlen(buf), (int) ccharlen);
 
 	printf("reading to SQLWCHAR buffer...\n");
 	rc = SQLGetData(hstmt, 3, SQL_C_WCHAR, wbuf, sizeof(wbuf), &wcharlen);
@@ -61,14 +60,14 @@ int main(int argc, char **argv)
 
 	/* On some platforms, SQLWCHAR != wchar_t, so we cannot use wcslen here */
 	for (i = 0; i < sizeof(wbuf) && wbuf[i] != 0; i++);
-	printf("len %d chars, SQLGetData claims %d bytes\n\n", i, wcharlen);
+	printf("len %d chars, SQLGetData claims %d bytes\n\n", i, (int) wcharlen);
 
 	printf("reading to SQLWCHAR buffer, with truncation...\n");
 	rc = SQLGetData(hstmt, 4, SQL_C_WCHAR, wbuf, 10, &wcharlen);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
 
 	for (i = 0; i < sizeof(wbuf) && wbuf[i] != 0; i++);
-	printf("len %d chars, SQLGetData claims %d bytes\n\n", i, wcharlen);
+	printf("len %d chars, SQLGetData claims %d bytes\n\n", i, (int) wcharlen);
 
 	/*
 	 * Read into a buffer that's slightly too small, so that it would fit
@@ -79,7 +78,7 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
 
 	for (i = 0; i < sizeof(wbuf) && wbuf[i] != 0; i++);
-	printf("len %d chars, SQLGetData claims %d bytes\n\n", i, wcharlen);
+	printf("len %d chars, SQLGetData claims %d bytes\n\n", i, (int) wcharlen);
 
 	/*
 	 * Print out the string, but on Unix we have to convert it to UTF-8 first.

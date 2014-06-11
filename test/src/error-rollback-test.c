@@ -219,4 +219,6 @@ main(int argc, char **argv)
 
 	/* Clean up */
 	error_rollback_clean();
+
+	return 0;
 }

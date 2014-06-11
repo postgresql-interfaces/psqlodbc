@@ -7,4 +7,6 @@ int main(int argc, char **argv)
 {
 	test_connect();
 	test_disconnect();
+
+	return 0;
 }
