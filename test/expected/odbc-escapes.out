@@ -1,0 +1,19 @@
+\! ./src/odbc-escapes-test
+connected
+
+Query: SELECT {fn CONCAT(?, ?) }
+Param 1: foo
+Param 2: bar
+Result set:
+foobar
+
+Query: SELECT {fn LOCATE(?, ?, 2) }
+Param 1: needle
+Param 2: this is a needle in an ol' haystack
+Result set:
+11
+
+Query: SELECT 'x' || {fn SPACE(10) } || 'x'
+Result set:
+x          x
+disconnecting

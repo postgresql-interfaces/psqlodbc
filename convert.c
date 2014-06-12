@@ -78,7 +78,7 @@ char	   *mapFuncs[][2] = {
 	{"LENGTH", "char_length($*)"},
 /*	{ "LTRIM",		 "ltrim"	  }, built_in */
 	{"RIGHT", "rtrunc($*)" },
-	{"SPACE", "repeat('' '', $1)" },
+	{"SPACE", "repeat(' ', $1)" },
 /*	{ "REPEAT",		 "repeat"	  }, built_in */
 /*	{ "REPLACE", "replace" }, ??? */
 /*	{ "RTRIM",		 "rtrim"	  }, built_in */
