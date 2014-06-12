@@ -1,4 +1,4 @@
-\! ./src/insertreturning-test
+\! "./src/insertreturning-test"
 connected
 # of result cols before SQLExecute: 1, after: 1
 Result set:

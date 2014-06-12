@@ -1,4 +1,4 @@
-\! ./src/positioned-update-test
+\! "./src/positioned-update-test"
 connected
 Creating test table pos_update_test
 Opening a cursor for update, and fetching 10 rows

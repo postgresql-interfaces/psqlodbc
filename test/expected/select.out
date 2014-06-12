@@ -1,4 +1,4 @@
-\! ./src/select-test
+\! "./src/select-test"
 connected
 Result set:
 1

@@ -1,0 +1,36 @@
+# List of regression test programs.
+#
+# This is in a separate file so that it can be included by both the Unix
+# Makefile, and Windows nmake file, win.mak. Note that the format of this
+# file must be acceptable to both, so don't add anything fancy here. That's
+# also why we list program names here, in format src/<testname>-test, rather
+# than the base test names: nmake makes it difficult to add a prefix or suffix
+# to each name in a list, but it's easy to strip them away.
+
+TESTBINS = src/connect-test \
+	src/stmthandles-test \
+	src/select-test \
+	src/commands-test \
+	src/multistmt-test \
+	src/getresult-test \
+	src/prepare-test \
+	src/params-test \
+	src/notice-test \
+	src/arraybinding-test \
+	src/insertreturning-test \
+	src/dataatexecution-test \
+	src/boolsaschar-test \
+	src/cvtnulldate-test \
+	src/alter-test \
+	src/quotes-test \
+	src/cursors-test \
+	src/positioned-update-test \
+	src/catalogfunctions-test \
+	src/bindcol-test \
+	src/lfconversion-test \
+	src/cte-test \
+	src/deprecated-test \
+	src/error-rollback-test \
+	src/diagnostic-test \
+	src/numeric-test \
+	src/odbc-escapes-test

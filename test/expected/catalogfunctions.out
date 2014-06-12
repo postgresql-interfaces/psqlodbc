@@ -1,4 +1,4 @@
-\! ./src/catalogfunctions-test
+\! "./src/catalogfunctions-test"
 connected
 Check for SQLTypeInfo
 Result set metadata:

@@ -1,18 +1,18 @@
-TESTS = connect stmthandles select commands multistmt getresult prepare \
-	params notice arraybinding insertreturning dataatexecution \
-	boolsaschar cvtnulldate alter quotes cursors positioned-update \
-	catalogfunctions bindcol lfconversion cte deprecated error-rollback \
-	diagnostic numeric odbc-escapes
+# The list of test is stored in a separate file, so that it can be shared with
+# the Windows makefile, win.mak.
+include tests
 
-TESTBINS = $(patsubst %,src/%-test, $(TESTS))
-TESTSQLS = $(patsubst %,sql/%.sql, $(TESTS))
+# The included file defined variable TESTBINS, which is a list of program
+# names in format src/<testname>-test. Extract the base test names from it.
+TESTNAMES = $(patsubst src/%-test,%, $(TESTBINS))
+TESTSQLS = $(patsubst %,sql/%.sql, $(TESTNAMES))
 
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
 CFLAGS = @CFLAGS@
 PG_CONFIG = @PG_CONFIG@
 
-REGRESS = sampletables $(TESTS)
+REGRESS = sampletables $(TESTNAMES)
 
 all: $(TESTBINS) $(TESTSQLS)
 
@@ -26,7 +26,7 @@ src/common.o: src/common.c
 # when executed from psql, just runs the binary.
 src/%-test sql/%.sql: src/%-test.c src/common.o
 	$(CC) $(CFLAGS) $(LDFLAGS) src/$*-test.c src/common.o -o src/$*-test -lodbc
-	echo "\! ./src/$*-test" > sql/$*.sql
+	echo "\! \"./src/$*-test\"" > sql/$*.sql
 
 EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o
 

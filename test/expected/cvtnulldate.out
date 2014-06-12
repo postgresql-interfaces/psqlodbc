@@ -1,4 +1,4 @@
-\! ./src/cvtnulldate-test
+\! "./src/cvtnulldate-test"
 connected
 Result set:
 1

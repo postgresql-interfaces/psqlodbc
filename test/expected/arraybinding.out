@@ -1,4 +1,4 @@
-\! ./src/arraybinding-test
+\! "./src/arraybinding-test"
 connected
 Parameter	Status
 Result set:

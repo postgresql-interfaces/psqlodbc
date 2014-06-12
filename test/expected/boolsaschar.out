@@ -1,4 +1,4 @@
-\! ./src/boolsaschar-test
+\! "./src/boolsaschar-test"
 connected
 Result set metadata:
 id: INTEGER(10) digits: 0, nullable

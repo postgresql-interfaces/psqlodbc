@@ -1,4 +1,4 @@
-\! ./src/bindcol-test
+\! "./src/bindcol-test"
 connected
 Result set:
 1 foo

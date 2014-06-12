@@ -85,7 +85,9 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	rc = SQLDriverConnect(conn2, NULL, "DSN=psqlodbc_test_dsn;", SQL_NTS,
+	snprintf(buffer, sizeof(buffer), "DSN=psqlodbc_test_dsn;");
+
+	rc = SQLDriverConnect(conn2, NULL, buffer, SQL_NTS,
 						  NULL, 0, &val,
 						  SQL_DRIVER_COMPLETE);
 	if (!SQL_SUCCEEDED(rc))

@@ -1,4 +1,4 @@
-\! ./src/diagnostic-test
+\! "./src/diagnostic-test"
 connected
 SQLExecDirect
 42601=ERROR: syntax error at or near "broken";

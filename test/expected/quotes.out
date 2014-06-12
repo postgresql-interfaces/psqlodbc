@@ -1,4 +1,4 @@
-\! ./src/quotes-test
+\! "./src/quotes-test"
 connected
 Result set:
 Result set:

@@ -1,4 +1,4 @@
-\! ./src/dataatexecution-test
+\! "./src/dataatexecution-test"
 connected
 Result set:
 2

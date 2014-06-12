@@ -1,4 +1,4 @@
-\! ./src/deprecated-test
+\! "./src/deprecated-test"
 Check for SQLAllocEnv
 Check for SQLAllocConnect
 Check for SQLAllocStmt

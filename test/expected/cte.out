@@ -1,4 +1,4 @@
-\! ./src/cte-test
+\! "./src/cte-test"
 connected
 Result set:
 1	foo1
