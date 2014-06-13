@@ -102,6 +102,11 @@
 <?if $(var.Platform) = x64 ?>
           <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))" File="psqlodbc30a.dll" />
           <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(var.Platform))" File="psqlodbc35w.dll" />
+	  <!--
+		Because MSDTC runs in 64bit mode on 64bit machine, we had
+		better register the XA DLL on installation.
+	  --> 
+          <RegistryValue Id="psqlodbc.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
 <?else?>
           <RegistryValue Id="psqlodbc30a.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL ANSI" Type="string" Value="Installed" />
           <RegistryValue Id="psqlodbc30a.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="APILevel" Type="string" Value="1" />
