@@ -109,7 +109,7 @@ inolog("FI_Destructor count=%d\n", count);
 void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 {
 	memset(self, 0, sizeof(DescriptorClass));
-	self->embedded = embedded;
+	self->deschd.embedded = embedded;
 }
 
 static void ARDFields_free(ARDFields * self)
@@ -158,63 +158,87 @@ static void IPDFields_free(IPDFields * self)
 	IPD_free_params(self, STMT_FREE_PARAMS_ALL);
 }
 
-void	DC_Destructor(DescriptorClass *self)
+static void XXXFields_free(DescriptorClass *self)
 {
-	if (self->__error_message)
+	if (self->deschd.type_defined)
 	{
-		free(self->__error_message);
-		self->__error_message = NULL;
-	}
-	if (self->pgerror)
-	{
-		ER_Destructor(self->pgerror);
-		self->pgerror = NULL;
-	}
-	if (self->type_defined)
-	{
-		switch (self->desc_type)
+		switch (self->deschd.desc_type)
 		{
 			case SQL_ATTR_APP_ROW_DESC:
-				ARDFields_free((ARDFields *) (self + 1));
+				ARDFields_free(&(self->ardf));
 				break;
 			case SQL_ATTR_APP_PARAM_DESC:
-				APDFields_free((APDFields *) (self + 1));
+				APDFields_free(&(self->apdf));
 				break;
 			case SQL_ATTR_IMP_ROW_DESC:
-				IRDFields_free((IRDFields *) (self + 1));
+				IRDFields_free(&(self->irdf));
 				break;
 			case SQL_ATTR_IMP_PARAM_DESC:
-				IPDFields_free((IPDFields *) (self + 1));
+				IPDFields_free(&(self->ipdf));
 				break;
 		}
 	}
 }
 
-void InitializeEmbeddedDescriptor(DescriptorClass *desc, StatementClass *stmt,
+void	DC_Destructor(DescriptorClass *self)
+{
+	DescriptorHeader *deschd = &(self->deschd);
+	if (deschd->__error_message)
+	{
+		free(deschd->__error_message);
+		deschd->__error_message = NULL;
+	}
+	if (deschd->pgerror)
+	{
+		ER_Destructor(deschd->pgerror);
+		deschd->pgerror = NULL;
+	}
+	if (deschd->type_defined)
+	{
+		switch (deschd->desc_type)
+		{
+			case SQL_ATTR_APP_ROW_DESC:
+				ARDFields_free(&(self->ardf));
+				break;
+			case SQL_ATTR_APP_PARAM_DESC:
+				APDFields_free(&(self->apdf));
+				break;
+			case SQL_ATTR_IMP_ROW_DESC:
+				IRDFields_free(&(self->irdf));
+				break;
+			case SQL_ATTR_IMP_PARAM_DESC:
+				IPDFields_free(&(self->ipdf));
+				break;
+		}
+	}
+}
+
+void InitializeEmbeddedDescriptor(DescriptorClass *self, StatementClass *stmt,
 		 UInt4 desc_type)
 {
-	DC_Constructor(desc, TRUE, stmt);
-	DC_get_conn(desc) = SC_get_conn(stmt);
-	desc->type_defined = TRUE;
-	desc->desc_type = desc_type;
+	DescriptorHeader *deschd = &(self->deschd);
+	DC_Constructor(self, TRUE, stmt);
+	DC_get_conn(self) = SC_get_conn(stmt);
+	deschd->type_defined = TRUE;
+	deschd->desc_type = desc_type;
 	switch (desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-			memset(desc + 1, 0, sizeof(ARDFields));
-			stmt->ard = (ARDClass *) desc;
+			memset(&(self->ardf), 0, sizeof(ARDFields));
+			stmt->ard = self;
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			memset(desc + 1, 0, sizeof(APDFields));
-			stmt->apd = (APDClass *) desc;
+			memset(&(self->apdf), 0, sizeof(APDFields));
+			stmt->apd = self;
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:
-			memset(desc + 1, 0, sizeof(IRDFields));
-			stmt->ird = (IRDClass *) desc;
-			stmt->ird->irdopts.stmt = stmt;
+			memset(&(self->irdf), 0, sizeof(IRDFields));
+			stmt->ird = self;
+			stmt->ird->irdf.stmt = stmt;
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			memset(desc + 1, 0, sizeof(IPDFields));
-			stmt->ipd = (IPDClass *) desc;
+			memset(&(self->ipdf), 0, sizeof(IPDFields));
+			stmt->ipd = self;
 			break;
 	}
 }
@@ -330,12 +354,12 @@ RETCODE SQL_API
 PGAPI_FreeDesc(SQLHDESC DescriptorHandle)
 {
 	CSTR func = "PGAPI_FreeDesc";
-	DescriptorClass	*desc = (DescriptorClass *) DescriptorHandle;
+	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 	RETCODE	ret = SQL_SUCCESS;
 
 	mylog("%s: entering...\n", func);
 	DC_Destructor(desc);
-	if (!desc->embedded)
+	if (!desc->deschd.embedded)
 	{
 		int	i;
 		ConnectionClass	*conn = DC_get_conn(desc);
@@ -437,6 +461,7 @@ PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
 	CSTR func = "PGAPI_CopyDesc";
 	RETCODE ret = SQL_ERROR;
 	DescriptorClass	*src, *target;
+	DescriptorHeader	*srchd, *targethd;
 	ARDFields	*ard_src, *ard_tgt;
 	APDFields	*apd_src, *apd_tgt;
 	IPDFields	*ipd_src, *ipd_tgt;
@@ -444,113 +469,121 @@ PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
 	mylog("%s: entering...\n", func);
 	src = (DescriptorClass *) SourceDescHandle;
 	target = (DescriptorClass *) TargetDescHandle;
-	if (!src->type_defined)
+	srchd = &(src->deschd);
+	targethd = &(target->deschd);
+	if (!srchd->type_defined)
 	{
 		mylog("source type undefined\n");
 		DC_set_error(target, DESC_EXEC_ERROR, "source handle type undefined");
 		return ret;
 	}
-	if (target->type_defined)
+	if (targethd->type_defined)
 	{
-inolog("source type=%d -> target type=%d\n", src->desc_type, target->desc_type);
-		if (SQL_ATTR_IMP_ROW_DESC == target->desc_type)
+inolog("source type=%d -> target type=%d\n", srchd->desc_type, targethd->desc_type);
+		if (SQL_ATTR_IMP_ROW_DESC == targethd->desc_type)
 		{
 			mylog("can't modify IRD\n");
 			DC_set_error(target, DESC_EXEC_ERROR, "can't copy to IRD");
 			return ret;
 		}
-		else if (target->desc_type != src->desc_type)
+		else if (targethd->desc_type != srchd->desc_type)
 		{
-			mylog("src type != target type\n");
-			DC_set_error(target, DESC_EXEC_ERROR, "src descriptor != target type");
-			return ret;
+			if (targethd->embedded)
+			{
+				mylog("src type != target type\n");
+				DC_set_error(target, DESC_EXEC_ERROR, "copying different type descriptor to embedded one");
+				return ret;
+			}
 		}
 		DC_Destructor(target);
 	}
 	ret = SQL_SUCCESS;
-	switch (src->desc_type)
+	switch (srchd->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-inolog("src=%p target=%p type=%d", src, target, src->desc_type);
-			if (!target->type_defined)
+inolog("src=%p target=%p type=%d", src, target, srchd->desc_type);
+			if (!targethd->type_defined)
 			{
-				target->desc_type = src->desc_type;
+				targethd->desc_type = srchd->desc_type;
 			}
-			ard_src = (ARDFields *) (src + 1);
+			ard_src = &(src->ardf);
 inolog(" rowset_size=%d bind_size=%d ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
 ard_src->row_operation_ptr, ard_src->row_offset_ptr);
-			ard_tgt = (ARDFields *) (target + 1);
+			ard_tgt = &(target->ardf);
 inolog(" target=%p", ard_tgt);
 			ARDFields_copy(ard_src, ard_tgt);
 inolog(" offset_ptr=%p\n", ard_tgt->row_offset_ptr);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			if (!target->type_defined)
+			if (!targethd->type_defined)
 			{
-				target->desc_type = src->desc_type;
+				targethd->desc_type = srchd->desc_type;
 			}
-			apd_src = (APDFields *) (src + 1);
-			apd_tgt = (APDFields *) (target + 1);
+			apd_src = &(src->apdf);
+			apd_tgt = &(target->apdf);
 			APDFields_copy(apd_src, apd_tgt);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			if (!target->type_defined)
+			if (!targethd->type_defined)
 			{
-				target->desc_type = src->desc_type;
+				targethd->desc_type = srchd->desc_type;
 			}
-			ipd_src = (IPDFields *) (src + 1);
-			ipd_tgt = (IPDFields *) (target + 1);
+			ipd_src = &(src->ipdf);
+			ipd_tgt = &(target->ipdf);
 			IPDFields_copy(ipd_src, ipd_tgt);
 			break;
 		default:
-			mylog("invalid descriptor handle type=%d\n", src->desc_type);
+			mylog("invalid descriptor handle type=%d\n", srchd->desc_type);
 			DC_set_error(target, DESC_EXEC_ERROR, "invalid descriptor type");
 			ret = SQL_ERROR;
 	}
 
 	if (SQL_SUCCESS == ret)
-		target->type_defined = TRUE;
+		targethd->type_defined = TRUE;
         return ret;
 }
 
 void	DC_clear_error(DescriptorClass *self)
 {
-	if (self->__error_message)
+	DescriptorHeader *deschd = &(self->deschd);
+	if (deschd->__error_message)
 	{
-		free(self->__error_message);
-		self->__error_message = NULL;
+		free(deschd->__error_message);
+		deschd->__error_message = NULL;
 	}
-	if (self->pgerror)
+	if (deschd->pgerror)
 	{
-		ER_Destructor(self->pgerror);
-		self->pgerror = NULL;
+		ER_Destructor(deschd->pgerror);
+		deschd->pgerror = NULL;
 	}
-	self->__error_number = 0;
-	self->error_row = 0;
-	self->error_index = 0;
+	deschd->__error_number = 0;
+	deschd->error_row = 0;
+	deschd->error_index = 0;
 }
 
-void    DC_set_error(DescriptorClass *desc, int errornumber, const char *errormsg)
+void    DC_set_error(DescriptorClass *self, int errornumber, const char *errormsg)
 {
-	if (desc->__error_message)
-		free(desc->__error_message);
-	desc->__error_number = errornumber;
-	desc->__error_message = errormsg ? strdup(errormsg) : NULL;
+	DescriptorHeader *deschd = &(self->deschd);
+	if (deschd->__error_message)
+		free(deschd->__error_message);
+	deschd->__error_number = errornumber;
+	deschd->__error_message = errormsg ? strdup(errormsg) : NULL;
 }
-void    DC_set_errormsg(DescriptorClass *desc, const char *errormsg)
+void    DC_set_errormsg(DescriptorClass *self, const char *errormsg)
 {
-	if (desc->__error_message)
-		free(desc->__error_message);
-	desc->__error_message = errormsg ? strdup(errormsg) : NULL;
+	DescriptorHeader *deschd = &(self->deschd);
+	if (deschd->__error_message)
+		free(deschd->__error_message);
+	deschd->__error_message = errormsg ? strdup(errormsg) : NULL;
 }
 const char	*DC_get_errormsg(const DescriptorClass *desc)
 {
-        return desc->__error_message;
+        return desc->deschd.__error_message;
 }
 int	DC_get_errornumber(const DescriptorClass *desc)
 {
-        return desc->__error_number;
+        return desc->deschd.__error_number;
 }
 
 /*	Map sql commands to statement types */
@@ -600,21 +633,22 @@ static struct
 	{ DESC_COUNT_FIELD_INCORRECT, "07002", "07002" },
 };
 
-static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *desc)
+static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *self)
 {
+	const DescriptorHeader *deschd = &(self->deschd);
 	PG_ErrorInfo	*error;
 	ConnectionClass	*conn;
 	EnvironmentClass	*env;
 	Int4	errornum;
 	BOOL		env_is_odbc3 = TRUE;
 
-	if (desc->pgerror)
-		return desc->pgerror;
-	errornum = desc->__error_number;
-	error = ER_Constructor(errornum, desc->__error_message);
+	if (deschd->pgerror)
+		return deschd->pgerror;
+	errornum = deschd->__error_number;
+	error = ER_Constructor(errornum, deschd->__error_message);
 	if (!error)
 		return error;
-	conn = DC_get_conn(desc);
+	conn = DC_get_conn(self);
 	if (conn && (env = (EnvironmentClass *) conn->henv))
 		env_is_odbc3 = EN_is_odbc3(env);
 	errornum -= LOWEST_DESC_ERROR;
@@ -630,8 +664,8 @@ DC_log_error(const char *func, const char *desc, const DescriptorClass *self)
 #define nullcheck(a) (a ? a : "(NULL)")
 	if (self)
 	{
-		qlog("DESCRIPTOR ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
-		mylog("DESCRIPTOR ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		qlog("DESCRIPTOR ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->deschd.__error_number, nullcheck(self->deschd.__error_message));
+		mylog("DESCRIPTOR ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->deschd.__error_number, nullcheck(self->deschd.__error_message));
 	}
 }
 
@@ -649,10 +683,11 @@ PGAPI_DescError(SQLHDESC hdesc,
 	CSTR func = "PGAPI_DescError";
 	/* CC: return an error of a hdesc  */
 	DescriptorClass *desc = (DescriptorClass *) hdesc;
+	DescriptorHeader *deschd = &(desc->deschd);
 
 	mylog("%s RecN=%d\n", func);
-	desc->pgerror = DC_create_errorinfo(desc);
-	return ER_ReturnError(&(desc->pgerror), RecNumber, szSqlState,
+	deschd->pgerror = DC_create_errorinfo(desc);
+	return ER_ReturnError(&(deschd->pgerror), RecNumber, szSqlState,
 				pfNativeError, szErrorMsg, cbErrorMsgMax,
 				pcbErrorMsg, flag);
 }

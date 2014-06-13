@@ -215,13 +215,13 @@ PGAPI_AllocStmt(HDBC hdbc,
 	if (0 != (PODBC_INHERIT_CONNECT_OPTIONS & flag))
 	{
 		stmt->options = stmt->options_orig = conn->stmtOptions;
-		stmt->ardi.ardopts = conn->ardOptions;
+		stmt->ardi.ardf = conn->ardOptions;
 	}
 	else
 	{
 		InitializeStatementOptions(&stmt->options_orig);
 		stmt->options = stmt->options_orig;
-		InitializeARDFields(&stmt->ardi.ardopts);
+		InitializeARDFields(&stmt->ardi.ardf);
 	}
 	ardopts = SC_get_ARDF(stmt);
 	ARD_AllocBookmark(ardopts);

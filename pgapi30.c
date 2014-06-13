@@ -475,7 +475,7 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	ARDFields	*opts = (ARDFields *) (desc + 1);
+	ARDFields	*opts = &(desc->ardf);
 	SQLSMALLINT	row_idx;
 	BOOL		unbind = TRUE;
 
@@ -646,7 +646,7 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 {
 	CSTR		func = "APDSetField";
 	RETCODE		ret = SQL_SUCCESS;
-	APDFields	*opts = (APDFields *) (desc + 1);
+	APDFields	*opts = &(desc->apdf);
 	SQLSMALLINT	para_idx;
 	BOOL		unbind = TRUE;
 
@@ -760,7 +760,7 @@ IRDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	IRDFields	*opts = (IRDFields *) (desc + 1);
+	IRDFields	*opts = &(desc->irdf);
 
 	switch (FieldIdentifier)
 	{
@@ -816,7 +816,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	IPDFields	*ipdopts = (IPDFields *) (desc + 1);
+	IPDFields	*ipdopts = &(desc->ipdf);
 	SQLSMALLINT	para_idx;
 
 	switch (FieldIdentifier)
@@ -941,7 +941,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	SQLLEN		ival = 0;
 	SQLINTEGER	len, rettype = 0;
 	PTR		ptr = NULL;
-	const ARDFields	*opts = (ARDFields *) (desc + 1);
+	const ARDFields	*opts = &(desc->ardf);
 	SQLSMALLINT	row_idx;
 
 	len = sizeof(SQLINTEGER);
@@ -1060,7 +1060,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 			rettype = SQL_IS_SMALLINT;
-			if (desc->embedded)
+			if (DC_get_embedded(desc))
 				ival = SQL_DESC_ALLOC_AUTO;
 			else
 				ival = SQL_DESC_ALLOC_USER;
@@ -1114,7 +1114,7 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	SQLLEN		ival = 0;
 	SQLINTEGER	len, rettype = 0;
 	PTR		ptr = NULL;
-	const APDFields	*opts = (const APDFields *) (desc + 1);
+	const APDFields	*opts = (const APDFields *) &(desc->apdf);
 	SQLSMALLINT	para_idx;
 
 	len = sizeof(SQLINTEGER);
@@ -1209,7 +1209,7 @@ inolog("APDGetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 			rettype = SQL_IS_SMALLINT;
-			if (desc->embedded)
+			if (DC_get_embedded(desc))
 				ival = SQL_DESC_ALLOC_AUTO;
 			else
 				ival = SQL_DESC_ALLOC_USER;
@@ -1267,7 +1267,7 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	SQLINTEGER	len = 0, rettype = 0;
 	PTR		ptr = NULL;
 	BOOL		bCallColAtt = FALSE;
-	const IRDFields	*opts = (IRDFields *) (desc + 1);
+	const IRDFields	*opts = &(desc->irdf);
 
 	switch (FieldIdentifier)
 	{
@@ -1372,7 +1372,7 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	ival = 0, len = 0, rettype = 0;
 	PTR		ptr = NULL;
-	const IPDFields	*ipdopts = (const IPDFields *) (desc + 1);
+	const IPDFields	*ipdopts = (const IPDFields *) &(desc->ipdf);
 	SQLSMALLINT	para_idx;
 
 	switch (FieldIdentifier)
@@ -1755,7 +1755,7 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
 	mylog("%s h=%p rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
-	switch (desc->desc_type)
+	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
 			ret = ARDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
@@ -1804,8 +1804,8 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	mylog("%s h=%p(%d) rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, desc->desc_type, RecNumber, FieldIdentifier, Value, BufferLength);
-	switch (desc->desc_type)
+	mylog("%s h=%p(%d) rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
+	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
 			ret = ARDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
@@ -1886,7 +1886,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			}
 			else
 			{
-				stmt->ard = (ARDClass *) Value;
+				stmt->ard = (DescriptorClass *) Value;
 inolog("set ard=%p\n", stmt->ard);
 			}
 			break;
@@ -1897,7 +1897,7 @@ inolog("set ard=%p\n", stmt->ard);
 			}
 			else
 			{
-				stmt->apd = (APDClass *) Value;
+				stmt->apd = (DescriptorClass *) Value;
 			}
 			break;
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:		/* 16 */

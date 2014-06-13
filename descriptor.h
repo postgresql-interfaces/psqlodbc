@@ -91,7 +91,7 @@ typedef struct DescriptorHeader_
 	Int4	__error_number;
 	char	*__error_message;
 	PG_ErrorInfo	*pgerror;
-} DescriptorClass;
+} DescriptorHeader;
 
 /*
  *	ARD and APD are(must be) of the same format
@@ -145,28 +145,42 @@ struct IPDFields_
 	ParameterImplClass	*parameters;
 };
 
+/***
 typedef struct
 {
-	DescriptorClass	deschd;
-	ARDFields	ardopts;
+	DescriptorHeader	deschd;
+	ARDFields		ardopts;
 }	ARDClass;
 typedef struct
 {
-	DescriptorClass	deschd;
-	APDFields	apdopts;
+	DescriptorHeader	deschd;
+	APDFields		apdopts;
 }	APDClass;
 typedef struct
 {
-	DescriptorClass	deschd;
-	IRDFields	irdopts;
+	DescriptorHeader	deschd;
+	IRDFields		irdopts;
 }	IRDClass;
 typedef struct
 {
-	DescriptorClass	deschd;
-	IPDFields	ipdopts;
+	DescriptorHeader	deschd;
+	IPDFields		ipdopts;
 }	IPDClass;
+***/
+typedef struct
+{
+	DescriptorHeader	deschd;
+	union {
+		ARDFields	ardf;
+		APDFields	apdf;
+		IRDFields	irdf;
+		IPDFields	ipdf;
+	};
+}	DescriptorClass;
 
-#define	DC_get_conn(a)	((a)->conn_conn)
+#define	DC_get_conn(a)	((a)->deschd.conn_conn)
+#define	DC_get_desc_type(a)	((a)->deschd.desc_type)
+#define	DC_get_embedded(a)	((a)->deschd.embedded)
 
 void InitializeEmbeddedDescriptor(DescriptorClass *, StatementClass *stmt,
 				UInt4 desc_type);

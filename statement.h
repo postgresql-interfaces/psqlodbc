@@ -1,4 +1,4 @@
-/* File:			statement.h
+/* File:			statement.hPD
  *
  * Description:		See "statement.c"
  *
@@ -186,15 +186,15 @@ struct StatementClass_
 	StatementOptions options;
 	StatementOptions options_orig;
 	/* attached descriptor handles */
-	ARDClass	*ard;
-	APDClass	*apd;
-	IRDClass	*ird;
-	IPDClass	*ipd;
+	DescriptorClass	*ard;
+	DescriptorClass	*apd;
+	DescriptorClass	*ird;
+	DescriptorClass	*ipd;
 	/* implicit descriptor handles */
-	ARDClass	ardi;
-	IRDClass	irdi;
-	APDClass	apdi;
-	IPDClass	ipdi;
+	DescriptorClass	ardi;
+	DescriptorClass	irdi;
+	DescriptorClass apdi;
+	DescriptorClass ipdi;
 
 	STMT_Status status;
 	char	   *__error_message;
@@ -294,10 +294,10 @@ void SC_set_Result(StatementClass *self, QResultClass *res);
 #define SC_get_APD(a)  (a->apd)
 #define SC_get_IRD(a)  (a->ird)
 #define SC_get_IPD(a)  (a->ipd)
-#define SC_get_ARDF(a)  (&(SC_get_ARD(a)->ardopts))
-#define SC_get_APDF(a)  (&(SC_get_APD(a)->apdopts))
-#define SC_get_IRDF(a)  (&(SC_get_IRD(a)->irdopts))
-#define SC_get_IPDF(a)  (&(SC_get_IPD(a)->ipdopts))
+#define SC_get_ARDF(a)  (&(SC_get_ARD(a)->ardf))
+#define SC_get_APDF(a)  (&(SC_get_APD(a)->apdf))
+#define SC_get_IRDF(a)  (&(SC_get_IRD(a)->irdf))
+#define SC_get_IPDF(a)  (&(SC_get_IPD(a)->ipdf))
 #define SC_get_ARDi(a)  (&(a->ardi))
 #define SC_get_APDi(a)  (&(a->apdi))
 #define SC_get_IRDi(a)  (&(a->irdi))
