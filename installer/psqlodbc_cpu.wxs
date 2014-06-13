@@ -12,7 +12,6 @@
 
 <?if $(var.Platform) = x64 ?>
   <?define PKGNAME = "psqlODBC_x64" ?>
-  <?define MERGEM = "$(var.Platform)\psqlodbc_$(var.Platform).msm" ?>
   <?define BIT64 = "yes" ?>
   <?define PGFOLDER = "ProgramFiles64Folder" ?>
   <?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
@@ -23,7 +22,6 @@
   <?define ALLUSERS = "2" ?>
 <?else?>
   <?define PKGNAME = "psqlODBC" ?>
-  <?define MERGEM = "psqlodbc.msm" ?>
   <?define BIT64 = "no" ?>
   <?define PGFOLDER = "ProgramFilesFolder" ?>
   <?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
@@ -33,6 +31,8 @@
   <?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
   <?define ALLUSERS = "1" ?>
 <?endif?>
+
+<?define MERGEM = "$(var.Platform)\psqlodbc_$(var.Platform).msm" ?>
 
 <!-- Product details -->
 

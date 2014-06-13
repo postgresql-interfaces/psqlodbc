@@ -33,6 +33,8 @@ The following 3rd party software are required for the build:
 <li> OpenSSL library and header files. Download the latest version from the
      <a href="https://www.openssl.org/related/binaries.html">OpenSSL website</a>.
 </li>
+<li> WiX Toolset. Required for building the installer. Download the latest
+     version from the <a href="http://wixtoolset.org/">WiX Toolset website</a>
 </ul>
 </p>
 
@@ -49,17 +51,28 @@ methods will be disabled.
 
 Use NMAKE.exe to build the driver for the currently active target:<br><br>
 
-    <code>C:\psqlodbc\&gt; nmake /f win64.mak CFG=Release ALL</code><br><br>
-
-Possible configurations are Release and Debug.<br>
-Possible build types are ALL or CLEAN.</li></ol>
+    <code>C:\psqlodbc\&gt; nmake /f win64.mak &lt;options&gt;</code><br><br>
 
 <p>
 Despite the name, win64.mak is used to build both 32-bit and 64-bit binaries.
 With the Microsoft SDK scripts, you can switch between 32-bit and 64-bit
-target architectures with "setenv /x86" and "setenv /x64" commands. To build
-both versions, run the nmake command twice, switching the target inbetween.
+target architectures with "setenv /x86" and "setenv /x64" commands.
 </p>
+
+<p>
+To build the .msi installer file:<br><br>
+
+    <code>C:\psqlodbc\&gt; nmake /f win64.mak installer</code><br><br>
+
+The resulting installer file goes to installer/x64 or installer/x86 directory.
+</p>
+
+<p>
+To build both 32-bit and 64-bit versions in one command:<br><br>
+
+    <code>C:\psqlodbc\&gt; nmake /f win64.mak world</code><br><br>
+</p>
+
 
 <p>
 The following build options may be used, either on the command line, or
