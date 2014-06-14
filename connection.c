@@ -1560,7 +1560,7 @@ original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 	StartupPacket sp;
 	StartupPacket6_2 sp62;
 	QResultClass *res;
-	SocketClass *sock;
+	SocketClass *sock = NULL;
 	ConnInfo   *ci = &(self->connInfo);
 	int		areq = -1;
 	int		ret = 0, beresp, sockerr;

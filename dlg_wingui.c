@@ -136,7 +136,7 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 static int
 driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 {
-	const GLOBAL_VALUES *comval;
+	const GLOBAL_VALUES *comval = NULL;
 	static BOOL defset = FALSE;
 	static GLOBAL_VALUES defval;
 
