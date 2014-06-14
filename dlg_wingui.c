@@ -171,6 +171,8 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 			defset = TRUE;
 			comval = &defval;
 			break;
+		default:
+			return 0;
 	}
 
 	ShowWindow(GetDlgItem(hdlg, DRV_MSG_LABEL2), enable ? SW_SHOW : SW_HIDE);
