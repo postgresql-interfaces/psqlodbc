@@ -84,7 +84,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</IntDir>
+    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\pgxalib\</IntDir>
     <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
