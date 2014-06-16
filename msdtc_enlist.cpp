@@ -337,8 +337,10 @@ ULONG	STDMETHODCALLTYPE IAsyncPG::Release(void)
 		SLOCK_ACQUIRE();
 		if (refcnt <=0)
 		{
+			const int refcnt_copy = refcnt;
 			mylog("delete %p\n", this);
 			delete this;
+			return refcnt_copy;
 		}
 		else
 		{
