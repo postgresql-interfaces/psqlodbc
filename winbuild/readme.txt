@@ -57,4 +57,34 @@
 
 	Get-Help .\BuildAll(.ps1) [-Detailed | -Examples | -Full]
 
+  5. Outputs
+
+     The build can produce output in up to four directories for each of
+     the debug and release configurations:
+
+     - AMD64Release            the Unicode driver, 64-bit
+     - AMD64ANSIRelease        the ANSI driver, 64-bit
+     - Release                 the ANSI driver, 32-bit
+     - MultibyteRelease        the Unicode driver, 32-bit
+
+     For debug builds (-Configuration Debug) the directories are named with
+     Debug instead of Release but otherwise the same.
+
+     pgxalib.dll is only built for the multibyte/unicode version, as it is
+     the same for both unicode and ansi drivers.
+
+     Dependencies like libpq, openssl, etc are not copied into the build
+     output directories. You must copy them to the target directory yourself.
+     Dependency Walker (depends.exe) from http://dependencywalker.com/ can help
+     you find what's needed, but in general you'll need to add:
+
+     - libpq (from the PostgreSQL bin dir)
+     - libintl (from the PostgreSQL bin dir)
+     - ssleay32 (from the OpenSSL bin dir)
+     - libeay32 (from the OpenSSL bin dir)
+
+     ... and the Visual Studio runtime redist for the version of Visual Studio
+     you compiled with.
+     
+
 ***********************************************************************/
