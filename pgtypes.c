@@ -2372,6 +2372,11 @@ ctype_length(SQLSMALLINT ctype)
 		case SQL_C_INTERVAL_HOUR_TO_SECOND:
 		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
 			return sizeof(SQL_INTERVAL_STRUCT);
+		case SQL_C_NUMERIC:
+			return sizeof(SQL_NUMERIC_STRUCT);
+		case SQL_C_SBIGINT:
+		case SQL_C_UBIGINT:
+			return sizeof(SQLBIGINT);
 #endif /* ODBCVER */
 
 		case SQL_C_BINARY:
