@@ -17,8 +17,15 @@
      You have to include x64 development tools (bin, lib, include) as
      well as x86 ones for the installation.
 
+  Note that the Visual Studio 2010 install conflicts with Windows SDK 7.1.
+  Visual Studio 2012 conflict with both Windows SDK 7.1 and Visual Studio 2010.
+  Finally, Windows SDK 7.1 will fail to install if a newer Visual Studio 2010 
+  runtime is already installed on the computer.
 
-  Please start a powershell console and
+  To avoid conflicts, install only one SDK. There is an order in which all
+  can be installed safely, but it's cumbersome and there's little benefit.
+
+  Once you have an SDK installed, please start a powershell console and
 
   2. Set the ExecutionPolicy of Powershell to RemoteSigned or Unrestricted.
      You can get the ExecutionPolicy by typing
@@ -85,6 +92,12 @@
 
      ... and the Visual Studio runtime redist for the version of Visual Studio
      you compiled with.
+
+Troubleshooting:
+
+Some documentation on dealing with Windows SDK installation issues can be found
+on the related pg_build_win page:
+https://github.com/2ndQuadrant/pg_build_win#troubleshooting
      
 
 ***********************************************************************/
