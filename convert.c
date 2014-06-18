@@ -215,7 +215,10 @@ static unsigned ODBCINT64 ATOI64U(const char *val)
 #endif /* WIN32 */
 #endif /* ODBCINT64 */
 
+#if (ODBCVER >= 0x0300)
+static void ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform);
 static void parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow);
+#endif
 
 /*
  *	TIMESTAMP <-----> SIMPLE_TIME
