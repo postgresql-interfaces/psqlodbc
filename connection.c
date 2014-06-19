@@ -2747,7 +2747,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				empty_reqs;
 	BOOL		ReadyToReturn = FALSE,
 				query_completed = FALSE,
-				beforeV2 = PG_VERSION_LT(self, 6.4),
+				beforeV2 = !(PROTOCOL_64(&self->connInfo) || PROTOCOL_74(&self->connInfo)),
 				aborted = FALSE,
 				used_passed_result_object = FALSE,
 			discard_next_begin = FALSE,
