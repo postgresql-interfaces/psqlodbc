@@ -4278,7 +4278,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			if (_finite(dbv))
 #endif /* WIN32 */
 			{
-				sprintf(param_string, "%.15g", dbv);
+				sprintf(param_string, "%.*g", PG_DOUBLE_DIGITS, dbv);
 				set_server_decimal_point(param_string);
 			}
 #ifdef	WIN32
@@ -4297,7 +4297,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			if (_finite(flv))
 #endif /* WIN32 */
 			{
-				sprintf(param_string, "%.6g", flv);
+				sprintf(param_string, "%.*g", PG_REAL_DIGITS, flv);
 				set_server_decimal_point(param_string);
 			}
 #ifdef	WIN32

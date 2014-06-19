@@ -553,6 +553,10 @@ void		logs_on_off(int cnopen, int, int);
 #define PG_NUMERIC_MAX_PRECISION	1000
 #define PG_NUMERIC_MAX_SCALE		1000
 
+/* Sufficient digits to recover original float values */
+#define PG_REAL_DIGITS			9
+#define PG_DOUBLE_DIGITS		17
+
 #define INFO_INQUIRY_LEN		8192	/* this seems sufficiently big for
 										 * queries used in info.c inoue
 										 * 2001/05/17 */

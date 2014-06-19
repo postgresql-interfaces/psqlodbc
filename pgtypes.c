@@ -981,12 +981,13 @@ pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, in
 		case PG_TYPE_NUMERIC:
 			return getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longest, handle_unknown_size_as);
 
-		case PG_TYPE_FLOAT4:
 		case PG_TYPE_MONEY:
-			return 7;
+			return 10;
+		case PG_TYPE_FLOAT4:
+			return PG_REAL_DIGITS;
 
 		case PG_TYPE_FLOAT8:
-			return 15;
+			return PG_DOUBLE_DIGITS;
 
 		case PG_TYPE_DATE:
 			return 10;
@@ -1077,11 +1078,11 @@ pgtype_attr_display_size(const ConnectionClass *conn, OID type, int atttypmod, i
 		case PG_TYPE_MONEY:
 			return 15;			/* ($9,999,999.99) */
 
-		case PG_TYPE_FLOAT4:
-			return 13;
+		case PG_TYPE_FLOAT4:	/* a sign, PG_REAL_DIGITS digits, a decimal point, the letter E, a sign, and 2 digits */
+			return (1 + PG_REAL_DIGITS + 1 + 1 + 3);
 
-		case PG_TYPE_FLOAT8:
-			return 22;
+		case PG_TYPE_FLOAT8:	/* a sign, PG_DOUBLE_DIGITS digits, a decimal point, the letter E, a sign, and 3 digits */
+			return (1 + PG_DOUBLE_DIGITS + 1 + 1 + 1 + 3);
 
 		case PG_TYPE_MACADDR:
 			return 17;
