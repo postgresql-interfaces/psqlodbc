@@ -1554,6 +1554,14 @@ mylog("!!! %s settings=%s svcname=%p\n", __FUNCTION__, ci->conn_settings, svcnam
 }
 #endif /* USE_SSPI */
 
+/*
+ *	Don't call PG_VERSION_XX() in original_CC_connect()
+ *	  because the server version is not obtained yet.
+ *	Invalidate those macros to inhibit the use.
+ */
+#undef	STRING_AFTER_DOT
+#define	STRING_AFTER_DOT(string) DONT_CALL_PG_VERSION_xx_HERE
+
 static char
 original_CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 {
@@ -1792,7 +1800,7 @@ inolog("protocol=%s version=%d,%d\n", ci->protocol, self->pg_version_major, self
 
 	if (!PROTOCOL_62(ci))
 	{
-		BOOL		beforeV2 = PG_VERSION_LT(self, 6.4),
+		BOOL		beforeV2 = !(PROTOCOL_64(&self->connInfo) || PROTOCOL_74(&self->connInfo)),
 					ReadyForQuery = FALSE, retry = FALSE;
 		uint32	leng = 0;
 #if defined(USE_GSS) || defined(USE_SSPI) || defined(USE_KRB5)
@@ -2117,6 +2125,11 @@ inolog("CC_lookup_pg_version\n");
 
 	return 1;
 }
+/*
+ *	Restore inhibited PG_VERSION_XX() macros.
+ */
+#undef	STRING_AFTER_DOT
+#define STRING_AFTER_DOT(string)   (strchr(#string, '.') + 1)
 
 char
 CC_connect(ConnectionClass *self, char password_req, char *salt_para)
