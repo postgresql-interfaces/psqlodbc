@@ -3896,7 +3896,7 @@ CC_lookup_lo(ConnectionClass *self)
 void
 CC_initialize_pg_version(ConnectionClass *self)
 {
-	strcpy(self->pg_version, self->connInfo.protocol);
+	strncpy_null(self->pg_version, self->connInfo.protocol, sizeof(self->pg_version));
 	if (PROTOCOL_62(&self->connInfo))
 	{
 		self->pg_version_number = (float) 6.2;
@@ -4643,135 +4643,39 @@ CC_Copy(const ConnectionClass *conn)
 	return newconn;
 }
 
-#define	CLEANUP_CONN_BEFORE_ISOLATION
 DLL_DECLARE void *
 PgDtc_isolate(void *self, DWORD option)
 {
 	BOOL	disposingConn = (0 != (disposingConnection & option));
 	ConnectionClass *sconn = (ConnectionClass *) self, *newconn = NULL;
-#ifndef	CLEANUP_CONN_BEFORE_ISOLATION
-	int		i;
-#endif /* CLEANUP_CONN_BEFORE_ISOLATION */
 
-#ifdef	CLEANUP_CONN_BEFORE_ISOLATION
 	if (0 == (useAnotherRoom & option))
-#else
-	if (disposingConn)
-#endif /* CLEANUP_CONN_BEFORE_ISOLATION */
 	{
 		HENV	henv = sconn->henv;
 
-#ifdef	CLEANUP_CONN_BEFORE_ISOLATION
 		CC_cleanup(sconn, TRUE);
-#endif /* CLEANUP_CONN_BEFORE_ISOLATION */
 		if (newconn = CC_Copy(sconn), NULL == newconn)
 			return newconn;
 		mylog("%s:newconn=%p from %p\n", __FUNCTION__, newconn, sconn);
 		CC_initialize(sconn, FALSE);
-#ifdef	CLEANUP_CONN_BEFORE_ISOLATION
 		if (!disposingConn)
 			CC_copy_conninfo(&sconn->connInfo, &newconn->connInfo);
-#endif /* CLEANUP_CONN_BEFORE_ISOLATION */
-		sconn->henv = newconn->henv;
+		CC_initialize_pg_version(sconn);
+		sconn->henv = henv;
 		newconn->henv = NULL;
 		SYNC_AUTOCOMMIT(sconn);
-#ifndef	CLEANUP_CONN_BEFORE_ISOLATION
-		for (i = 0; i < newconn->num_stmts; i++)
-		{
-			StatementClass	*stmt;
-			if (stmt = newconn->stmts[i], NULL != stmt)
-				SC_get_conn(stmt) = newconn;
-		}
-#if (ODBCVER >= 0x0300)
-		for (i = 0; i < newconn->num_descs; i++)
-		{
-			DescriptorClass	*desc;
-			if (desc = newconn->descs[i], NULL != desc)
-				DC_get_conn(desc) = newconn;
-		}
-#endif /* ODBCVER */
-#endif /* CLEANUP_CONN_BEFORE_ISOLATION */
 		return newconn;
 	}
 	newconn = CC_Constructor();
 	CC_copy_conninfo(&newconn->connInfo, &sconn->connInfo);
+	CC_initialize_pg_version(newconn);
 	newconn->asdum = sconn->asdum;
 	newconn->gTranInfo = sconn->gTranInfo;
 	CC_set_dtc_isolated(newconn);
 	sconn->asdum = NULL;
 	SYNC_AUTOCOMMIT(sconn);
 	CC_set_dtc_clear(sconn);
-	if (0 != (useAnotherRoom & option))
-	{
-		mylog("generated connection=%p with %p\n", newconn, newconn->asdum);
-		return newconn;
-	}
-
-#ifndef	CLEANUP_CONN_BEFORE_ISOLATION
-	newconn->sock = sconn->sock;
-	sconn->sock = NULL;
-	mylog("Isolated connection=%p(status %d) with %p\n", newconn, sconn->status, sconn->asdum);
-	newconn->__error_number = sconn->__error_number;
-	sconn->__error_number = 0;
-	newconn->__error_message = sconn->__error_message;
-	sconn->__error_message = NULL;
-	newconn->errormsg_created = sconn->errormsg_created;
-	sconn->errormsg_created = FALSE;
-	strcpy(newconn->sqlstate, sconn->sqlstate);
-	sconn->sqlstate[0] = '\0';
-	// newconn->ardOptions = sconn->ardOptions;
-	// newconn->apdOptions = sconn->apdOptions;
-	newconn->status = sconn->status;
-	sconn->status = CONN_NOT_CONNECTED;
-	/* Cursors are no longer available */
-	for (i = 0; i < sconn->num_stmts; i++)
-	{
-		StatementClass	*stmt;
-		QResultClass	*res;
-
-		stmt = sconn->stmts[i];
-		if (stmt && (res = SC_get_Result(stmt)) &&
-			 (NULL != QR_get_cursor(res)))
-			QR_set_cursor(res, NULL);
-	}
-	sconn->ncursors = 0;
-	newconn->lobj_type = sconn->lobj_type;
-	newconn->driver_version = sconn->driver_version;
-	newconn->transact_status = sconn->transact_status & (CONN_IN_TRANSACTION
-| CONN_IN_ERROR_BEFORE_IDLE);
-	sconn->transact_status = 0;
-	strcpy(newconn->pg_version, sconn->pg_version);
-	newconn->pg_version_number = sconn->pg_version_number;
-	newconn->pg_version_major = sconn->pg_version_major;
-	newconn->pg_version_minor = sconn->pg_version_minor;
-	newconn->ms_jet = sconn->ms_jet;
-	newconn->unicode = sconn->unicode;
-	newconn->schema_support = sconn->schema_support;
-	newconn->lo_is_domain = sconn->lo_is_domain;
-	newconn->escape_in_literal = sconn->escape_in_literal;
-	newconn->original_client_encoding = sconn->original_client_encoding;
-	sconn->original_client_encoding = NULL;
-	newconn->current_client_encoding = sconn->current_client_encoding;
-	sconn->current_client_encoding = NULL;
-	newconn->server_encoding = sconn->server_encoding;
-	sconn->server_encoding = NULL;
-	newconn->ccsc = sconn->ccsc;
-	newconn->mb_maxbyte_per_char = sconn->mb_maxbyte_per_char;
-	newconn->be_pid = sconn->be_pid;
-	sconn->be_pid = 0;
-	newconn->isolation = sconn->isolation;
-	newconn->current_schema = sconn->current_schema;
-	sconn->current_schema = NULL;
-	newconn->max_identifier_length = sconn->max_identifier_length;
-	newconn->num_discardp = sconn->num_discardp;
-	newconn->discardp = sconn->discardp;
-	sconn->num_discardp = 0;
-	sconn->discardp = NULL;
-#ifdef	USE_SSPI
-	newconn->svcs_allowed = sconn->svcs_allowed;
-	sconn->svcs_allowed = 0;
-#endif /* USE_SSPI */
-#endif /* CLEANUP_CONN_BEFORE_ISOLATION */
+	mylog("generated connection=%p with %p\n", newconn, newconn->asdum);
 
 	return newconn;
 }
