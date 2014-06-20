@@ -103,14 +103,10 @@ SQLBindCol(HSTMT StatementHandle,
 RETCODE		SQL_API
 SQLCancel(HSTMT StatementHandle)
 {
-	RETCODE	ret;
-	StatementClass	*stmt = (StatementClass *) StatementHandle;
-
 	mylog("[SQLCancel]");
 	/* Not that neither ENTER_STMT_CS nor StartRollbackState is called */
 	/* SC_clear_error((StatementClass *) StatementHandle); maybe this neither */
-	ret = PGAPI_Cancel(StatementHandle);
-	return DiscardStatementSvp(stmt, ret, FALSE);
+	return PGAPI_Cancel(StatementHandle);
 }
 
 static BOOL theResultIsEmpty(const StatementClass *stmt)
