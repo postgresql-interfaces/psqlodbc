@@ -31,6 +31,8 @@ Write-Host "USE LIBPQ  : $USE_LIBPQ ($LIBPQBINDIR)"
 Write-Host "USE GSS    : $USE_GSS ($GSSBINDIR)"
 Write-Host "USE SSPI   : $USE_SSPI"
 
+$CPUTYPE="x86"
+
 if ($env:WIX -ne "")
 {
 	$wix = "$env:WIX"
@@ -46,6 +48,8 @@ $PRODUCTID["09.02.0100"]="838E187D-8B7A-473d-B93C-C8E970B15D2B"
 $PRODUCTID["09.03.0100"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
 $PRODUCTID["09.03.0200"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
 $PRODUCTID["09.03.0210"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
+$PRODUCTID["09.03.0300"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
+$PRODUCTID["09.03.0400"]="D3527FA5-9C2B-4550-A59B-9534A78950F4"
 
 # The subdirectory to install into
 $SUBLOC=$VERSION.substring(0, 2) + $VERSION.substring(3, 2)
@@ -62,15 +66,15 @@ try {
 
 	Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
-	invoke-expression "candle -nologo `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLINKFILES=$LIBPQBINDIR`" psqlodbcm.wxs"
+	invoke-expression "candle -nologo -dPlatform=`"x86`" `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
 
-	invoke-expression "light -nologo -out psqlodbc.msm psqlodbcm.wixobj"
+	invoke-expression "light -nologo -out $CPUTYPE\psqlodbc_$CPUTYPE.msm $CPUTYPE\psqlodbcm.wixobj"
 
 	Write-Host ".`nBuilding psqlODBC installer database..."
 
-	invoke-expression "candle -nologo -dPlatform=`"x86`" `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dPRODUCTCODE=$PRODUCTCODE`" -o psqlodbc.wixobj psqlodbc_cpu.wxs"
+	invoke-expression "candle -nologo -dPlatform=`"x86`" `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dPRODUCTCODE=$PRODUCTCODE`" -o $CPUTYPE\psqlodbc.wixobj psqlodbc_cpu.wxs"
 
-	invoke-expression "light -nologo -ext WixUIExtension -cultures:en-us psqlodbc.wixobj"
+	invoke-expression "light -nologo -ext WixUIExtension -cultures:en-us -o $CPUTYPE\psqlodbc_$CPUTYPE.msi $CPUTYPE\psqlodbc.wixobj"
 
 	Write-Host ".`nDone!"
 }
