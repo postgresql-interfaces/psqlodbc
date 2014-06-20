@@ -1231,7 +1231,6 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	StatementClass *stmt = (StatementClass *) hstmt, *estmt;
 	ConnectionClass *conn;
 	RETCODE		ret = SQL_SUCCESS;
-	BOOL	entered_cs = FALSE;
 
 	mylog("%s: entering...\n", func);
 
@@ -1243,92 +1242,108 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	}
 	conn = SC_get_conn(stmt);
 
-#define	return	DONT_CALL_RETURN_FROM_HERE???
-	/* StartRollbackState(stmt); */
-
 	if (stmt->execute_delegate)
 		estmt = stmt->execute_delegate;
 	else
 		estmt = stmt;
+
 	/*
-	 * Not in the middle of SQLParamData/SQLPutData so cancel like a
-	 * close.
+	 * SQLCancel works differently depending on what the statement is
+	 * currently doing:
+	 *
+	 * 1. In the middle of SQLParamData / SQLPutData
+	 *    -> cancel the statement
+	 *
+	 * 2. Running a query asynchronously. (asynchronous mode is not supported
+	 *    by psqlODBC)
+	 *
+	 * 3. Busy running a function in another thread.
+	 *    -> Send a query cancel request to the server
+	 *
+	 * 4. Not doing anything.
+	 *    -> in ODBC version 2.0, same as SQLFreeStmt(SQL_CLOSE). In version
+	 *       3.5, it has no effect.
+	 *
+	 * XXX: Checking for these conditions is racy. For example, we might
+	 * see that the statement is waiting for SQLParamdata/SQLPutData, but
+	 * before we acquire the lock on the statement, another thread has
+	 * supplied the data and started executing. In that case, we'll block
+	 * on the lock until the execution finishes.
 	 */
-	if (estmt->data_at_exec < 0)
+	if (estmt->data_at_exec >= 0)
 	{
+		/* Waiting for more data from SQLParamData/SQLPutData. Cancel that. */
 		/*
-		 * Tell the Backend that we're cancelling this request
+		 * Note, any previous data-at-exec buffers will be freed in the
+		 * recycle
 		 */
-		if (estmt->status == STMT_EXECUTING)
-		{
-			if (!CC_send_cancel_request(conn))
-			{
-				ret = SQL_ERROR;
-			}
-			goto cleanup;
-		}
-		/*
-		 * MAJOR HACK for Windows to reset the driver manager's cursor
-		 * state: Because of what seems like a bug in the Odbc driver
-		 * manager, SQLCancel does not act like a SQLFreeStmt(CLOSE), as
-		 * many applications depend on this behavior.  So, this brute
-		 * force method calls the driver manager's function on behalf of
-		 * the application.
-		 */
+		/* if they call SQLExecDirect or SQLExecute again. */
 
-		if (conn->driver_version < 0x0350)
-		{
-#ifdef WIN32
-		ConnInfo   *ci = &(conn->connInfo);
-
-		if (ci->drivers.cancel_as_freestmt)
-		{
-	typedef SQLRETURN (SQL_API *SQLAPIPROC)();
-			HMODULE		hmodule;
-			SQLAPIPROC	addr;
-
-			hmodule = GetModuleHandle("ODBC32");
-			addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLFreeStmt");
-			ret = addr((char *) (stmt->phstmt) - 96, SQL_CLOSE);
-		}
-		else
-#endif /* WIN32 */
-		{
-			ENTER_STMT_CS(stmt);
-			entered_cs = TRUE;
-			SC_clear_error(hstmt);
-			ret = PGAPI_FreeStmt(hstmt, SQL_CLOSE);
-		}
-
-		mylog("PGAPI_Cancel:  PGAPI_FreeStmt returned %d\n", ret);
-		}
-		goto cleanup;
-	}
-
-	/* In the middle of SQLParamData/SQLPutData, so cancel that. */
-	/*
-	 * Note, any previous data-at-exec buffers will be freed in the
-	 * recycle
-	 */
-	/* if they call SQLExecDirect or SQLExecute again. */
-
-	ENTER_STMT_CS(stmt);
-	entered_cs = TRUE;
-	SC_clear_error(stmt);
-	estmt->data_at_exec = -1;
-	estmt->current_exec_param = -1;
-	estmt->put_data = FALSE;
-	cancelNeedDataState(estmt);
-
-cleanup:
-#undef	return
-	if (entered_cs)
-	{
+		ENTER_STMT_CS(stmt);
+		SC_clear_error(stmt);
+		estmt->data_at_exec = -1;
+		estmt->current_exec_param = -1;
+		estmt->put_data = FALSE;
+		cancelNeedDataState(estmt);
 		if (stmt->internal)
 			ret = DiscardStatementSvp(stmt, ret, FALSE);
 		LEAVE_STMT_CS(stmt);
+		return ret;
 	}
-	return ret;
+	else if (estmt->status == STMT_EXECUTING)
+	{
+		/*
+		 * Busy executing in a different thread. Send a cancel request to
+		 * the server.
+		 */
+		if (!CC_send_cancel_request(conn))
+			return SQL_ERROR;
+		else
+			return SQL_SUCCESS;
+	}
+	else
+	{
+		/*
+		 * The statement is not executing, and it's not waiting for params
+		 * either. Looks like it's not doing anything.
+		 */
+		if (conn->driver_version >= 0x0350)
+			return SQL_SUCCESS;
+		else
+		{
+			/*
+			 * MAJOR HACK for Windows to reset the driver manager's cursor
+			 * state: Because of what seems like a bug in the Odbc driver
+			 * manager, SQLCancel does not act like a SQLFreeStmt(CLOSE), as
+			 * many applications depend on this behavior.  So, this brute
+			 * force method calls the driver manager's function on behalf of
+			 * the application.
+			 */
+#ifdef WIN32
+			if (conn->connInfo->drivers.cancel_as_freestmt)
+			{
+	typedef SQLRETURN (SQL_API *SQLAPIPROC)();
+				HMODULE		hmodule;
+				SQLAPIPROC	addr;
+
+				hmodule = GetModuleHandle("ODBC32");
+				addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLFreeStmt");
+				ret = addr((char *) (stmt->phstmt) - 96, SQL_CLOSE);
+			}
+			else
+#endif /* WIN32 */
+			{
+				ENTER_STMT_CS(stmt);
+				SC_clear_error(hstmt);
+				ret = PGAPI_FreeStmt(hstmt, SQL_CLOSE);
+				if (stmt->internal)
+					ret = DiscardStatementSvp(stmt, ret, FALSE);
+				LEAVE_STMT_CS(stmt);
+			}
+			mylog("PGAPI_Cancel:  PGAPI_FreeStmt returned %d\n", ret);
+			return ret;
+		}
+	}
 }
 
 
