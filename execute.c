@@ -1320,7 +1320,7 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 			 * the application.
 			 */
 #ifdef WIN32
-			if (conn->connInfo->drivers.cancel_as_freestmt)
+			if (conn->connInfo.drivers.cancel_as_freestmt)
 			{
 	typedef SQLRETURN (SQL_API *SQLAPIPROC)();
 				HMODULE		hmodule;
