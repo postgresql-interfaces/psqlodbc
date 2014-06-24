@@ -19,7 +19,7 @@
   <?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
   <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
   <?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
-  <?define ALLUSERS = "2" ?>
+  <?define ALLUSERS = "1" ?>
 <?else?>
   <?define PKGNAME = "psqlODBC" ?>
   <?define BIT64 = "no" ?>
@@ -129,12 +129,9 @@
       		    Maximum="$(var.VERSION)" IncludeMaximum='yes' />
       <UpgradeVersion OnlyDetect='yes' Property='NEWERFOUND'
       		    Minimum="$(var.VERSION)" IncludeMinimum='no' />
-      <UpgradeVersion OnlyDetect='yes' Property='PREVIOUSFOUND'
-      		    Minimum='9.3.1' IncludeMinimum='yes'
-      		    Maximum="$(var.VERSION)" IncludeMaximum='no' />
       <UpgradeVersion OnlyDetect='no' Property='UPGRADEFOUND'
                     Minimum='8.3.0' IncludeMinimum='yes'
-      		    Maximum='9.3.0' IncludeMaximum='no' />
+      		    Maximum="$(var.VERSION)" IncludeMaximum='no' />
     </Upgrade>
 
     <CustomAction Id='AlreadyUpdated'

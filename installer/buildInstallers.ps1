@@ -205,7 +205,7 @@ function buildInstaller($CPUTYPE)
 			throw "Failed to modify installer database"
 		}
 
-		Write-Host ".`nDone!"
+		Write-Host ".`nDone!`n"
 	}
 	catch [Exception] {
 		Write-Host ".`Aborting build!"
@@ -240,6 +240,18 @@ if ($AlongWithDrivers) {
 if ($cpu -eq "both") {
 	buildInstaller "x86"
 	buildInstaller "x64"
+	$VERSION = $configInfo.Configuration.version
+	try {
+		pushd "$scriptPath"
+		invoke-expression "psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION" -ErrorAction Stop
+		if ($LASTEXITCODE -ne 0) {
+			throw "Failed to build bootstrapper"
+		}
+	} catch [Exception] {
+		throw $error[0]
+	} finally {
+		popd
+	} 
 }
 else {
 	buildInstaller $cpu
