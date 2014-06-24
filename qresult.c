@@ -700,7 +700,6 @@ void
 QR_on_close_cursor(QResultClass *self)
 {
 	QR_set_cursor(self, NULL);
-	QR_set_has_valid_base(self);
 }
 
 /*
