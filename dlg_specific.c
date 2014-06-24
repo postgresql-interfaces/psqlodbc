@@ -1619,6 +1619,7 @@ char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comm
 	int	step = 0, skiplen;
 	size_t	len = 0, attrlen = strlen(attr);
 
+	if (!str) return;	/* for safety */
 	for (cptr = str; *cptr; cptr++)
 	{
 		if (in_quote)
@@ -1740,7 +1741,7 @@ char *extract_attribute_setting(const char *str, const char *attr, BOOL ref_comm
  */
 char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 {
-	const char *str = GET_NAME(setting);
+	const char *str = SAFE_NAME(setting);
 	const char *cptr, *sptr = NULL;
 	char	   *rptr;
 	BOOL	allowed_cmd = FALSE, in_quote = FALSE, in_comment = FALSE;
