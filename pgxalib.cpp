@@ -34,11 +34,15 @@ class	XAConnection
 {
 private:
 	string	connstr;
+	string	dsnstr;
 	HDBC	xaconn;
 	vector<string>	qvec;
 	int		pos;
+	bool	immediateConnection;
+
+	void	parse_xa_info();
 public:
-	XAConnection(LPCTSTR str) : connstr(str), xaconn(NULL), pos(-1) {}
+	XAConnection(LPCTSTR str) : connstr(str), xaconn(NULL), pos(-1), immediateConnection(false) {parse_xa_info();}
 	~XAConnection();
 	HDBC	ActivateConnection(void);
 	void	SetPos(int spos) {pos = spos;}
@@ -46,6 +50,8 @@ public:
 	vector<string>	&GetResultVec(void) {return qvec;}
 	int	GetPos(void) {return pos;}
 	const string &GetConnstr(void) {return connstr;}
+	const string &GetDsnstr(void) {return dsnstr;}
+	bool	GetImmediateConnection(void) {return immediateConnection;}
 };
 
 static class INIT_CRIT
@@ -121,7 +127,7 @@ HDBC	XAConnection::ActivateConnection(void)
 	if (!init_crit.env)
 	{
 		ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &init_crit.env);
-		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+		if (!SQL_SUCCEEDED(ret))
 			return NULL;
 	}
 	MLOCK_RELEASE;
@@ -129,19 +135,18 @@ HDBC	XAConnection::ActivateConnection(void)
 	{
 		ret = SQLSetEnvAttr(init_crit.env, SQL_ATTR_ODBC_VERSION, (PTR) SQL_OV_ODBC3, 0);
 		ret = SQLAllocHandle(SQL_HANDLE_DBC, init_crit.env, &xaconn);
-		if (SQL_SUCCESS == ret || SQL_SUCCESS_WITH_INFO == ret)
+		if (SQL_SUCCEEDED(ret))
 		{
-			string	cstr = connstr;
-			if (dtclog)
-			{
-				cstr += ";B2=";
-				cstr += dtclog;
-			}
 			ret = SQLDriverConnect(xaconn, NULL,
-			 (SQLCHAR *) cstr.c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
-			if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+			 (SQLCHAR *) dsnstr.c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
+			if (!SQL_SUCCEEDED(ret))
 			{
-				mylog("SQLDriverConnect return=%d\n", ret);
+				SQLCHAR	sqlstate[8], errmsg[256];
+
+				SQLGetDiagRec(SQL_HANDLE_DBC, xaconn,
+						1, sqlstate, NULL, errmsg,
+						sizeof(errmsg), NULL);
+				mylog("SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
 				SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
 				xaconn = NULL;
 			}
@@ -407,14 +412,137 @@ static int	TextToXid(XID &xid, const char *rtext)
 }
 
 
+static	bool bImmediateConnectDefault = false;
+
+#define	CHAR_OPENING_BRACE	'{'
+#define	CHAR_CLOSING_BRACE	'}'
+#define	CHAR_SEMI_COLON		';'
+#define	CHAR_EQUAL		'='
+#define	STR_OPENING_BRACE	"{"
+#define	STR_CLOSING_BRACE	"}"
+#define	STR_SEMI_COLON		";"
+#define	STR_EQUAL		"="
+
+#define	KEYWORD_DTC_CHECK	"dtchk"
+#define	KEYWORD_DEBUG		"debug"
+#define	KEYWORD_ABDEBUG		"B2"
+
+void XAConnection::parse_xa_info()
+{
+	const char	*cstr, *pstr, *pnstr;
+	char		keyword[64], value[64];
+	bool		keyhasbr, valhasbr;
+	int		debugv = -1;
+
+	cstr = connstr.c_str();
+
+	immediateConnection = bImmediateConnectDefault;
+	GetMsdtclog();
+
+	for (pstr = cstr; *pstr;)
+	{
+		keyhasbr = valhasbr = false;
+		if (CHAR_OPENING_BRACE == *pstr)
+		{
+			keyhasbr = true;
+			if (pnstr = strchr(pstr, (int) CHAR_CLOSING_BRACE), NULL != pnstr)
+				strncpy_s(keyword, sizeof(keyword), pstr + 1, pnstr - pstr - 1);
+			else
+				break;
+			pstr = pnstr + 1;
+			if (CHAR_EQUAL != *pstr)
+				break; 
+		}
+		else
+		{
+			if (pnstr = strchr(pstr, (int) CHAR_EQUAL), NULL != pnstr)
+				strncpy_s(keyword, sizeof(keyword), pstr, pnstr - pstr);
+			else
+				break;
+			pstr = pnstr;
+		}
+		pstr++;
+		if (CHAR_OPENING_BRACE == *pstr)
+		{
+			valhasbr = true;
+			if (pnstr = strchr(pstr, (int) CHAR_CLOSING_BRACE), NULL != pnstr)
+				strncpy_s(value, sizeof(value), pstr + 1, pnstr - pstr - 1);
+			else
+				break;
+			pstr = pnstr + 1;
+		}
+		else
+		{
+			if (pnstr = strchr(pstr, (int) CHAR_SEMI_COLON), NULL != pnstr)
+			{
+				strncpy_s(value, sizeof(value), pstr, pnstr - pstr);
+				pstr = pnstr;
+			}
+			else
+			{
+				strcpy(value, pstr);
+				pstr = strchr(pstr, '\0');
+			}
+		}
+
+		if (0 == _stricmp(keyword, KEYWORD_DTC_CHECK))
+			immediateConnection = (0 != atoi(value)); 
+		else if (0 == _stricmp(keyword, KEYWORD_DEBUG) ||
+			 0 == _stricmp(keyword, KEYWORD_ABDEBUG))
+			debugv = atoi(value); 
+		else
+		{
+			if (keyhasbr)
+				dsnstr += STR_OPENING_BRACE;
+			dsnstr += keyword;
+			if (keyhasbr)
+				dsnstr += STR_CLOSING_BRACE;
+			dsnstr += STR_EQUAL;
+			if (valhasbr)
+				dsnstr += STR_OPENING_BRACE;
+			dsnstr += value;
+			if (valhasbr)
+				dsnstr += STR_CLOSING_BRACE;
+			dsnstr += STR_SEMI_COLON;
+		}
+
+		if (NULL == pstr ||
+		    CHAR_SEMI_COLON != *pstr)
+			break;
+		pstr++;
+	}
+	if (0 != dtclog)
+	{
+		char	dbgopt[16];
+
+		if (debugv <= 0)
+			debugv = 1;
+		_snprintf(dbgopt, sizeof(dbgopt), KEYWORD_ABDEBUG "=%d;", debugv);
+		dsnstr += dbgopt;
+	}
+}
+
 EXTERN_C static int __cdecl xa_open(char *xa_info, int rmid, long flags)
 {
+	int	xartn = XA_OK;
+	bool	bActivateConnection = bImmediateConnectDefault;
+
+	XAConnection	xconn(xa_info);
 	mylog("xa_open %s rmid=%d flags=%ld\n", xa_info, rmid, flags);
-	GetMsdtclog();
 	MLOCK_ACQUIRE;
-	init_crit.xatab.insert(pair<int, XAConnection>(rmid, XAConnection(xa_info)));
+	init_crit.xatab.insert(pair<int, XAConnection>(rmid, xconn));
 	MLOCK_RELEASE;
-	return	S_OK;
+	if (xconn.GetImmediateConnection())
+	{
+		mylog("xa_open calls ActivateConnection %s\n", xconn.GetDsnstr().c_str());
+		if (xconn.ActivateConnection())
+			xartn = XA_OK;
+		else
+			xartn = XAER_RMERR;
+	}
+
+	mylog("xa_open %s rmid=%d returning %d\n", xa_info, rmid, xartn);
+	return	xartn;
 }
 EXTERN_C static int __cdecl xa_close(char *xa_info, int rmid, long flags)
 {

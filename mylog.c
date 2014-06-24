@@ -213,6 +213,8 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 
 #ifdef	WIN32
 #define	LOGGING_PROCESS_TIME
+#include <direct.h>
+#define	PODBCLOGDIR	"C:\\podbclog"
 #endif /* WIN32 */
 #ifdef	LOGGING_PROCESS_TIME
 #include <mmsystem.h>
@@ -220,11 +222,40 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 #endif /* LOGGING_PROCESS_TIME */
 #ifdef MY_LOG
 static FILE *MLOGFP = NULL;
+
+static void MLOG_open()
+{
+	char		filebuf[80];
+
+	if (MLOGFP) return;
+
+	generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf);
+	MLOGFP = fopen(filebuf, PG_BINARY_A);
+	if (!MLOGFP)
+	{
+		generate_homefile(MYLOGFILE, filebuf);
+		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		if (!MLOGFP)
+		{
+			generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
+			MLOGFP = fopen(filebuf, PG_BINARY_A);
+#ifdef	WIN32
+			if (!MLOGFP)
+			{
+				if (0 == _mkdir(PODBCLOGDIR))
+					MLOGFP = fopen(filebuf, PG_BINARY_A);
+			}
+#endif /* WIN32 */
+		}
+	}
+	if (MLOGFP)
+		setbuf(MLOGFP, NULL);
+}
+
 DLL_DECLARE void
 mylog(const char *fmt,...)
 {
 	va_list		args;
-	char		filebuf[80];
 	int		gerrno;
 
 	if (!mylog_on)	return;
@@ -239,21 +270,8 @@ mylog(const char *fmt,...)
 
 	if (!MLOGFP)
 	{
-		generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf);
-		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		MLOG_open();
 		if (!MLOGFP)
-		{
-			generate_homefile(MYLOGFILE, filebuf);
-			MLOGFP = fopen(filebuf, PG_BINARY_A);
-			if (!MLOGFP)
-			{
-				generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
-				MLOGFP = fopen(filebuf, PG_BINARY_A);
-			}
-		}
-		if (MLOGFP)
-			setbuf(MLOGFP, NULL);
-		else
 			mylog_on = 0;
 	}
 
@@ -282,7 +300,6 @@ forcelog(const char *fmt,...)
 {
 	static BOOL	force_on = TRUE;
 	va_list		args;
-	char		filebuf[80];
 	int		gerrno = GENERAL_ERRNO;
 
 	if (!force_on)
@@ -293,23 +310,8 @@ forcelog(const char *fmt,...)
 
 	if (!MLOGFP)
 	{
-		generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf);
-		MLOGFP = fopen(filebuf, PG_BINARY_A);
-		if (MLOGFP)
-			setbuf(MLOGFP, NULL);
+		MLOG_open();
 		if (!MLOGFP)
-		{
-			generate_homefile(MYLOGFILE, filebuf);
-			MLOGFP = fopen(filebuf, PG_BINARY_A);
-		}
-		if (!MLOGFP)
-		{
-			generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
-			MLOGFP = fopen(filebuf, PG_BINARY_A);
-		}
-		if (MLOGFP)
-			setbuf(MLOGFP, NULL);
-		else
 			force_on = FALSE;
 	}
 	if (MLOGFP)
