@@ -249,6 +249,10 @@ typedef double SDOUBLE;
 /* Driver stuff */
 
 #define DRIVERNAME				"PostgreSQL ODBC"
+
+#define DBMS_NAME_UNICODE		"PostgreSQL Unicode"
+#define DBMS_NAME_ANSI			"PostgreSQL ANSI"
+
 #if (ODBCVER >= 0x0300)
 #if (ODBCVER >= 0x0351)
 #define DRIVER_ODBC_VER				"03.51"
@@ -257,9 +261,9 @@ typedef double SDOUBLE;
 #endif /* ODBCVER 0x0351 */
 #ifndef DBMS_NAME
 #ifdef	UNICODE_SUPPORT
-#define DBMS_NAME				"PostgreSQL Unicode"
+#define DBMS_NAME				DBMS_NAME_UNICODE
 #else
-#define DBMS_NAME				"PostgreSQL ANSI"
+#define DBMS_NAME				DBMS_NAME_ANSI
 #endif /* UNICODE_SUPPORT */
 #endif /* DBMS_NAME */
 #else

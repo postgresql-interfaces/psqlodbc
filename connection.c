@@ -4362,10 +4362,52 @@ const char *CurrCatString(const ConnectionClass *conn)
 DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strsize)
 {
 	ConnectionClass	*conn = (ConnectionClass *) self;
-
+	SYSTEM_INFO si;
 	ConnInfo *ci = &(conn->connInfo);
+	const char *drivername = ci->drivername;
+
+#if defined(_WIN32) && !defined(_WIN64)
+	/*
+	 * If this is an x86 driver running on an x64 host then the driver name
+	 * passed to MSDTC must be the (x64) driver but the client app will be
+	 * using the 32-bit driver name. So MSDTC.exe will fail to find the driver
+	 * and we'll fail to recover XA transactions.
+	 *
+	 * IsWow64Process(...) would be the ideal function for this, but is only
+	 * available on Windows 6+ (Vista/2k8). We'd use GetNativeSystemInfo, which
+	 * is supported on XP and 2k3, instead, but that won't link with older
+	 * SDKs.
+	 *
+	 * It's impler to just test the PROCESSOR_ARCHITEW6432 environment
+	 * variable.
+	 *
+	 * See http://www.postgresql.org/message-id/53A45B59.70303@2ndquadrant.com
+	 * for details on this issue.
+	 */
+	const char * const procenv = getenv("PROCESSOR_ARCHITEW6432");
+	if (procenv != NULL && strcmp(procenv, "AMD64") == 0)
+	{
+		/*
+		 * We're a 32-bit binary running under SysWow64 on a 64-bit host and need
+		 * to pass a different driver name.
+		 *
+		 * To avoid playing memory management games, just return a different
+		 * string constant depending on the unicode-ness of the driver.
+		 *
+		 * It probably doesn't matter whether we use the Unicode or ANSI driver
+		 * for the XA transaction manager, but pick the same as the client driver
+		 * to keep things as similar as possible.
+		 */
+#ifdef UNICODE_SUPPORT
+		drivername = DBMS_NAME_UNICODE"(x64)";
+#else
+		drivername = DBMS_NAME_ANSI"(x64)";
+#endif
+	}
+#endif // _WIN32 &&  !_WIN64
+
 	snprintf(connstr, strsize, "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s",
-		ci->drivername, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode);
+		drivername, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode);
 }
 
 DLL_DECLARE void PgDtc_set_async(void *self, void *async)
