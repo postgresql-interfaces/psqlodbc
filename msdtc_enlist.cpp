@@ -646,7 +646,6 @@ HRESULT IAsyncPG::RequestExec(DWORD type, HRESULT res)
 				SetDone(res);
 				bReleaseEnlist = true;
 			}
-			PgDtc_set_property(dtcconn, prepareRequested, (void *) 0);
 			ret = enlist->PrepareRequestDone(res, NULL, NULL);
 			SetPrepareResult(res);
 			break;
