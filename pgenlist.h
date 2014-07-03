@@ -14,11 +14,27 @@ extern "C" {
 #endif
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
+
+#undef	DLL_DECLARE
+#ifdef	_PGENLIST_FUNCS_IMPLEMENT_
+#define	DLL_DECLARE	_declspec(dllexport)
+#else
+#ifdef	_PGENLIST_FUNCS_IMPORT_
+#define	DLL_DECLARE	_declspec(dllimport)
+#else
+#define	DLL_DECLARE
+#endif /* _PGENLIST_FUNCS_IMPORT_ */
+#endif /* _PGENLIST_FUNCS_IMPLEMENT_ */
+
 RETCODE	EnlistInDtc(void *conn, void *pTra, int method);
 RETCODE	DtcOnDisconnect(void *);
 RETCODE	IsolateDtcConn(void *, BOOL continueConnection);
 const char *GetXaLibName(void);
 const char *GetXaLibPath(void);
+//	for testing
+DLL_DECLARE	void	*GetTransactionObject(HRESULT *hres);
+DLL_DECLARE	void	ReleaseTransactionObject(void *);
+
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 #endif /* WIN32 */
 

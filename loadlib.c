@@ -81,6 +81,27 @@ CSTR	pgenlistdll = "PGENLISTA.dll";
 #endif /* DYNAMIC_LOAD */
 #endif /* WIN32 */
 
+#if defined(_MSC_DELAY_LOAD_IMPORT)
+#if (_MSC_VER < 1300)
+#define	TRY_DLI_HOOK \
+		__try { \
+			__pfnDliFailureHook = DliErrorHook; \
+			__pfnDliNotifyHook = DliErrorHook;
+#define	RELEASE_NOTIFY_HOOK \
+			__pfnDliNotifyHook = NULL;
+#else
+#define	TRY_DLI_HOOK \
+		__try { \
+			__pfnDliFailureHook2 = DliErrorHook; \
+			__pfnDliNotifyHook2 = DliErrorHook;
+#define	RELEASE_NOTIFY_HOOK \
+			__pfnDliNotifyHook2 = NULL;
+#endif /* _MSC_VER */
+#else
+#define	TRY_DLI_HOOK
+#define	RELEASE_NOTIFY_HOOK
+#endif /* _MSC_DELAY_LOAD_IMPORT */
+
 CSTR	libpqlib = "libpq";
 #ifdef	_WIN64
 CSTR	gssapilib = "gssapi64";
@@ -148,11 +169,7 @@ DliErrorHook(unsigned	dliNotify,
 	{
 		case dliNotePreLoadLibrary:
 		case dliFailLoadLib:
-#if (_MSC_VER < 1300)
-			__pfnDliNotifyHook = NULL;
-#else
-			__pfnDliNotifyHook2 = NULL;
-#endif /* _MSC_VER */
+			RELEASE_NOTIFY_HOOK
 			if (_strnicmp(pdli->szDll, libpqlib, strlen(libpqlib)) == 0)
 			{
 				if (hmodule = MODULE_load_from_psqlodbc_path(libpqlib), NULL == hmodule)
@@ -293,14 +310,7 @@ BOOL	ssl_verify_available(void)
 	if (sslverify_available < 0)
 	{
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-		__try {
-#if (_MSC_VER < 1300)
-			__pfnDliFailureHook = DliErrorHook;
-			__pfnDliNotifyHook = DliErrorHook;
-#else
-			__pfnDliFailureHook2 = DliErrorHook;
-			__pfnDliNotifyHook2 = DliErrorHook;
-#endif /* _MSC_VER */
+		TRY_DLI_HOOK
 			PQenv2encoding();
 		}
 		__except (filter_env2encoding(GetExceptionCode())) {
@@ -320,14 +330,7 @@ BOOL	connect_with_param_available(void)
 	if (connect_withparam_available < 0)
 	{
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-		__try {
-#if (_MSC_VER < 1300)
-			__pfnDliFailureHook = DliErrorHook;
-			__pfnDliNotifyHook = DliErrorHook;
-#else
-			__pfnDliFailureHook2 = DliErrorHook;
-			__pfnDliNotifyHook2 = DliErrorHook;
-#endif /* _MSC_VER */
+		TRY_DLI_HOOK
 			PQescapeLiteral(NULL, NULL, 0);
 		}
 		__except (filter_env2encoding(GetExceptionCode())) {
@@ -362,25 +365,14 @@ void *CALL_PQconnectdb(const char *conninfo, BOOL *libpqLoaded)
 	void *pqconn = NULL;
 	*libpqLoaded = TRUE;
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-	__try {
-#if (_MSC_VER < 1300)
-		__pfnDliFailureHook = DliErrorHook;
-		__pfnDliNotifyHook = DliErrorHook;
-#else
-		__pfnDliFailureHook2 = DliErrorHook;
-		__pfnDliNotifyHook2 = DliErrorHook;
-#endif /* _MSC_VER */
+	TRY_DLI_HOOK
 inolog("calling PQconnectdb\n");
 		pqconn = PQconnectdb(conninfo);
 	}
 	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
 		*libpqLoaded = FALSE;
 	}
-#if (_MSC_VER < 1300)
-	__pfnDliNotifyHook = NULL;
-#else
-	__pfnDliNotifyHook2 = NULL;
-#endif /* _MSC_VER */
+	RELEASE_NOTIFY_HOOK
 	if (*libpqLoaded)
 	{
 		loaded_libpq = TRUE;
@@ -400,25 +392,14 @@ void *CALL_PQconnectdbParams(const char *opts[], const char *vals[], BOOL *libpq
 	void *pqconn = NULL;
 	*libpqLoaded = TRUE;
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-	__try {
-#if (_MSC_VER < 1300)
-		__pfnDliFailureHook = DliErrorHook;
-		__pfnDliNotifyHook = DliErrorHook;
-#else
-		__pfnDliFailureHook2 = DliErrorHook;
-		__pfnDliNotifyHook2 = DliErrorHook;
-#endif /* _MSC_VER */
+	TRY_DLI_HOOK
 inolog("calling PQconnectdbParams\n");
 		pqconn = PQconnectdbParams(opts, vals, 0);
 	}
 	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
 		*libpqLoaded = FALSE;
 	}
-#if (_MSC_VER < 1300)
-	__pfnDliNotifyHook = NULL;
-#else
-	__pfnDliNotifyHook2 = NULL;
-#endif /* _MSC_VER */
+	RELEASE_NOTIFY_HOOK
 	if (*libpqLoaded)
 	{
 		loaded_libpq = TRUE;
@@ -450,26 +431,20 @@ RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 	BOOL	loaded = TRUE;
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-	__try {
-#if (_MSC_VER < 1300)
-		__pfnDliFailureHook = DliErrorHook;
-		__pfnDliNotifyHook = DliErrorHook;
-#else
-		__pfnDliFailureHook2 = DliErrorHook;
-		__pfnDliNotifyHook2 = DliErrorHook;
-#endif /* _MSC_VER */
+	if (!loaded_pgenlist)
+	{
+		TRY_DLI_HOOK
+			ret = EnlistInDtc(conn, pTra, method);
+		}
+		__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
+			loaded = FALSE;
+		}
+		if (loaded)
+			loaded_pgenlist = TRUE;
+		RELEASE_NOTIFY_HOOK
+	}
+	else
 		ret = EnlistInDtc(conn, pTra, method);
-	}
-	__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
-		loaded = FALSE;
-	}
-	if (loaded)
-		loaded_pgenlist = TRUE;
-#if (_MSC_VER < 1300)
-	__pfnDliNotifyHook = NULL;
-#else
-	__pfnDliNotifyHook2 = NULL;
-#endif /* _MSC_VER */
 #else
 	ret = EnlistInDtc(conn, pTra, method);
 	loaded_pgenlist = TRUE;
@@ -487,6 +462,39 @@ RETCODE	CALL_IsolateDtcConn(ConnectionClass *conn, BOOL continueConnection)
 	if (loaded_pgenlist)
 		return IsolateDtcConn(conn, continueConnection);
 	return FALSE;
+}
+
+void	*CALL_GetTransactionObject(HRESULT *hres)
+{
+	void	*ret;
+	BOOL	loaded = TRUE;
+
+#if defined(_MSC_DELAY_LOAD_IMPORT)
+	if (!loaded_pgenlist)
+	{
+		TRY_DLI_HOOK
+			ret = GetTransactionObject(hres);
+		}
+		__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
+			loaded = FALSE;
+		}
+		if (loaded)
+			loaded_pgenlist = TRUE;
+		RELEASE_NOTIFY_HOOK
+	}
+	else
+		ret = GetTransactionObject(hres);
+#else
+	ret = GetTransactionObject(hres);
+	loaded_pgenlist = TRUE;
+#endif /* _MSC_DELAY_LOAD_IMPORT */
+	return ret;
+}
+void	CALL_ReleaseTransactionObject(void *pObj)
+{
+	if (loaded_pgenlist)
+		ReleaseTransactionObject(pObj);
+	return;
 }
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 

@@ -25,4 +25,6 @@ void INTFUNC ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg);
 BOOL INTFUNC SetDSNAttributes(HWND hwnd, LPSETUPDLG lpsetupdlg, DWORD *);
 BOOL INTFUNC ChangeDriverName(HWND hwnd, LPSETUPDLG lpsetupdlg, LPCSTR driver_name);
 
+void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC);
+
 #endif /* _WIN_SETUP_H__ */

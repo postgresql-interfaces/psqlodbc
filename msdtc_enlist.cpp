@@ -34,6 +34,7 @@
 #include <sql.h>
 #define	_MYLOG_FUNCS_IMPORT_
 #include "mylog.h"
+#define	_PGENLIST_FUNCS_IMPLEMENT_
 #include "pgenlist.h"
 
 #ifdef WIN32
@@ -57,8 +58,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
         switch (ul_reason_for_call)
         {
                 case DLL_PROCESS_ATTACH:
-                        s_hModule = (HINSTANCE) hInst;  /* Save for dialog boxes
- */
+                        s_hModule = (HINSTANCE) hInst;  /* Save for dialog boxes */
 			break;
 	}
 	return TRUE;
@@ -1034,7 +1034,7 @@ static int regkeyCheck(const char *xalibname, const char *xalibpath)
 						break;
 					mylog("%s:XADLL value %s is different\n", __FUNCTION__, keyval);
 				}
-			default:
+			case ERROR_FILE_NOT_FOUND:
 				mylog("%s:Setting value %s\n", __FUNCTION__, xalibpath);
 				ret = ::RegSetValueEx(sKey, xalibname, 0, REG_SZ, (CONST BYTE *) xalibpath, (DWORD) strlen(xalibpath) + 1);
 				if (ERROR_SUCCESS == ret)
@@ -1044,6 +1044,10 @@ static int regkeyCheck(const char *xalibname, const char *xalibpath)
 					retcode = -1;
 					mylog("%s:SetValuEx ret=%d\n", __FUNCTION__, ret);
 				}
+				break;
+			default:
+				retcode = -1;
+				mylog("%s:QueryValuEx ret=%d\n", __FUNCTION__, ret);
 				break;
 		}
 		::RegCloseKey(sKey);
@@ -1230,9 +1234,61 @@ IsolateDtcConn(void *conn, BOOL continueConnection)
 }
 
 
-EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
+static ITransactionDispenser *getITransactionDispenser(DWORD grfOptions, HRESULT *hres)
 {
 	static	ITransactionDispenser	*pDtc = NULL;
+	HRESULT	res = S_OK;
+
+	if (!pDtc)
+	{
+		res = DtcGetTransactionManagerEx(NULL, NULL, IID_ITransactionDispenser,
+			
+			grfOptions, NULL, (void **) &pDtc);
+		if (FAILED(res))
+		{
+			forcelog("DtcGetTransactionManager error %x\n", res);
+			pDtc = NULL;
+		}
+	}
+	if (hres) 
+		*hres = res;
+
+	return pDtc;
+}
+
+EXTERN_C void	*GetTransactionObject(HRESULT *hres)
+{
+	
+	ITransaction	*pTra = NULL;
+	ITransactionDispenser	*pDtc = NULL;
+
+	if (pDtc = getITransactionDispenser(OLE_TM_FLAG_NONE, hres), NULL == pDtc)
+		return pTra;
+	HRESULT res = pDtc->BeginTransaction(NULL, ISOLATIONLEVEL_READCOMMITTED,
+		0, NULL, &pTra);
+	switch (res)
+	{
+		case S_OK:
+			break;
+		default:
+			pTra = NULL;
+	}
+	if (hres)
+		*hres = res;
+	return pTra; 
+}
+
+EXTERN_C void	ReleaseTransactionObject(void *pObj)
+{
+	ITransaction	*pTra = (ITransaction *) pObj;
+
+	if (!pTra)	return;
+	pTra->Release();
+}
+
+EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
+{
+	ITransactionDispenser	*pDtc = NULL;
 	RETCODE	ret;
 
 	if (!pTra)
@@ -1245,17 +1301,14 @@ EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
 	{
 		PgDtc_one_phase_operation(conn, SHUTDOWN_LOCAL_TRANSACTION);
 	}
+	HRESULT	hres;
+	pDtc = getITransactionDispenser(OLE_TM_FLAG_NODEMANDSTART, &hres);
 	if (!pDtc)
 	{
-		HRESULT	res;
-
-		res = DtcGetTransactionManager(NULL, NULL, IID_ITransactionDispenser,
-			0, 0, NULL,  (void **) &pDtc);
-		if (res != S_OK || !pDtc)
-		{
-			forcelog("TransactionManager get error %d\n", res);
-			pDtc = NULL;
-		}
+		char	errmsg[128];
+		snprintf(errmsg, sizeof(errmsg), "enlistment error:DtcGetTransactionManager error code=%x", hres);
+		PgDtc_set_error(conn, errmsg, __FUNCTION__);
+		return SQL_ERROR;
 	}
 	ret = EnlistInDtc_1pipe(conn, (ITransaction *) pTra, pDtc, method);
 	if (SQL_SUCCEEDED(ret))

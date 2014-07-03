@@ -14,6 +14,8 @@
  */
 
 #include  "psqlodbc.h"
+#include  "pgenlist.h"
+#include  "loadlib.h"
 #include  "misc.h" // strncpy_null
 
 #include  "environ.h"
@@ -235,6 +237,7 @@ CenterDialog(HWND hdlg)
 	return;
 }
 
+void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC);
 /*-------
  * ConfigDlgProc
  *	Description:	Manage add data source name dialog
@@ -349,69 +352,9 @@ ConfigDlgProc(HWND hdlg,
 					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					if (NULL != lpsetupdlg)
 					{
-						EnvironmentClass *env = EN_Constructor();
-						ConnectionClass *conn = NULL;
-						char    szMsg[SQL_MAX_MESSAGE_LENGTH];
-
 						/* Get Dialog Values */
 						GetDlgStuff(hdlg, &lpsetupdlg->ci);
-						if (env)
-							conn = CC_Constructor();
-						if (conn)
-						{
-							char *emsg, *allocstr = NULL;
-#ifdef	UNICODE_SUPPORT
-							int	tlen;
-							SQLWCHAR *wermsg = NULL;
-							SQLULEN	ulen;
-#endif /* UNICODE_SUPPORT */
-							int errnum;
-
-							EN_add_connection(env, conn);
-							CC_copy_conninfo(&conn->connInfo, &lpsetupdlg->ci);
-							CC_initialize_pg_version(conn);
-							logs_on_off(1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
-#ifdef	UNICODE_SUPPORT
-							CC_set_in_unicode_driver(conn);
-#endif /* UNICODE_SUPPORT */
-							if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
-							{
-								if (CC_get_errornumber(conn) != 0)
-								{
-									CC_get_error(conn, &errnum, &emsg);
-									snprintf(szMsg, sizeof(szMsg), "Warning: %s", emsg);
-								}
-								else
-									strncpy_null(szMsg, "Connection successful", sizeof(szMsg));
-								emsg = szMsg;
-							}
-							else
-							{
-								CC_get_error(conn, &errnum, &emsg);
-							}
-#ifdef	UNICODE_SUPPORT
-							tlen = strlen(emsg);
-							wermsg = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (tlen + 1));
-							ulen = utf8_to_ucs2_lf(emsg, SQL_NTS, FALSE, wermsg, tlen + 1, TRUE);
-							if (ulen != (SQLULEN) -1)
-							{
-								allocstr = malloc(4 * tlen + 1);
-								tlen = (SQLSMALLINT) wstrtomsg(NULL, wermsg,
-					(int) tlen, allocstr, (int) 4 * tlen + 1);
-								emsg = allocstr;
-							}
-							if (NULL != wermsg)
-								free(wermsg);
-#endif /* UNICODE_SUPPORT */
-							MessageBox(lpsetupdlg->hwndParent, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
-							logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
-							EN_remove_connection(env, conn);
-							CC_Destructor(conn);
-							if (NULL != allocstr)
-								free(allocstr);
-						}
-						if (env)
-							EN_Destructor(env);
+						test_connection(lpsetupdlg->hwndParent, &lpsetupdlg->ci, FALSE);
 						return TRUE;
 					}
 					break;
@@ -452,6 +395,119 @@ ConfigDlgProc(HWND hdlg,
 	return FALSE;
 }
 
+void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
+{
+	EnvironmentClass *env = EN_Constructor();
+	ConnectionClass *conn = NULL;
+	char    szMsg[SQL_MAX_MESSAGE_LENGTH];
+#ifdef	UNICODE_SUPPORT
+	int	tlen;
+	SQLWCHAR *wermsg = NULL;
+	SQLULEN	ulen;
+#endif /* UNICODE_SUPPORT */
+	char *emsg = NULL, *allocstr = NULL;
+	int errnum;
+
+	env = EN_Constructor();
+	if (!env)
+	{
+		emsg = "Environment object allocation failure";
+		goto cleanup;
+	}
+	conn = CC_Constructor();
+	if (!conn)
+	{
+		emsg = "connection object allocation failure";
+		goto cleanup;
+	}
+
+	EN_add_connection(env, conn);
+	CC_copy_conninfo(&conn->connInfo, ci);
+	CC_initialize_pg_version(conn);
+	logs_on_off(1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
+#ifdef	UNICODE_SUPPORT
+	CC_set_in_unicode_driver(conn);
+#endif /* UNICODE_SUPPORT */
+	if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
+	{
+		if (CC_get_errornumber(conn) != 0)
+		{
+			CC_get_error(conn, &errnum, &emsg);
+			snprintf(szMsg, sizeof(szMsg), "Warning: %s", emsg);
+		}
+		else
+		{
+			strncpy_null(szMsg, "Connection successful", sizeof(szMsg));
+		}
+		emsg = szMsg;
+		if (withDTC)
+		{
+			HRESULT	res;
+			void *pObj = NULL;
+
+			pObj = CALL_GetTransactionObject(&res);
+			if (NULL != pObj)
+			{
+				SQLRETURN ret = PGAPI_SetConnectAttr(conn, SQL_ATTR_ENLIST_IN_DTC, (SQLPOINTER) pObj, 0);
+				if (SQL_SUCCEEDED(ret))
+				{
+					PGAPI_SetConnectAttr(conn, SQL_ATTR_ENLIST_IN_DTC, SQL_DTC_DONE, 0);
+					snprintf(szMsg, sizeof(szMsg), "%s\nenlistment was successful\n", szMsg);
+				}
+				else
+				{
+					char *dtcerr = NULL;
+
+					CC_get_error(conn, &errnum, &dtcerr);
+					if (NULL != dtcerr)
+						snprintf(szMsg, sizeof(szMsg), "%s\nMSDTC error:%s", emsg, dtcerr);
+				}
+				CALL_ReleaseTransactionObject(pObj);
+			}
+			else if (FAILED(res))
+				snprintf(szMsg, sizeof(szMsg), "%s\nDistibuted Transaction enlistment error %x", emsg, res);
+		}
+	}
+	else
+	{
+		CC_get_error(conn, &errnum, &emsg);
+	}
+
+cleanup:
+	if (NULL != emsg && NULL != hwnd)
+	{
+#ifdef	UNICODE_SUPPORT
+		tlen = strlen(emsg);
+		wermsg = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (tlen + 1));
+		ulen = utf8_to_ucs2_lf(emsg, SQL_NTS, FALSE, wermsg, tlen + 1, TRUE);
+		if (ulen != (SQLULEN) -1)
+		{
+			allocstr = malloc(4 * tlen + 1);
+			tlen = (SQLSMALLINT) wstrtomsg(NULL, wermsg,
+			(int) tlen, allocstr, (int) 4 * tlen + 1);
+			emsg = allocstr;
+		}
+#endif /* UNICODE_SUPPORT */
+		MessageBox(hwnd, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
+	}
+
+#ifdef	UNICODE_SUPPORT
+	if (NULL != wermsg)
+		free(wermsg);
+#endif /* UNICODE_SUPPORT */
+	if (NULL != allocstr)
+		free(allocstr);
+	if (NULL != conn)
+	{
+		logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
+		EN_remove_connection(env, conn);
+		CC_Destructor(conn);
+	}
+	if (env)
+		EN_Destructor(env);
+
+	return;
+}
 
 /*-------
  * ParseAttributes

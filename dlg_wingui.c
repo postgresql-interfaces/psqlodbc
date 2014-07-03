@@ -373,11 +373,13 @@ global_optionsProc(HWND hdlg,
 	HMODULE	hmodule;
 	FARPROC	proc;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+	ConnInfo	*ci;
 	char logdir[PATH_MAX];
 
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam); /* save for test etc */ 
 			CheckDlgButton(hdlg, DRV_COMMLOG, globals.commlog);
 #ifndef Q_LOG
 			EnableWindow(GetDlgItem(hdlg, DRV_COMMLOG), FALSE);
@@ -405,6 +407,7 @@ global_optionsProc(HWND hdlg,
 			break;
 
 		case WM_COMMAND:
+			ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
@@ -858,7 +861,7 @@ ds_options3Proc(HWND hdlg,
 			   WPARAM wParam,
 			   LPARAM lParam)
 {
-	ConnInfo   *ci;
+	ConnInfo   *ci, tmpInfo;
 	char		buf[128];
 	DWORD		cmd;
 
@@ -895,16 +898,6 @@ ds_options3Proc(HWND hdlg,
 			ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 			switch (cmd = GET_WM_COMMAND_ID(wParam, lParam))
 			{
-				case DS_SHOWOIDCOLUMN:
-					mylog("WM_COMMAND: DS_SHOWOIDCOLUMN\n");
-					EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
-					return TRUE;
-				case DS_DISABLE_KEEPALIVE:
-					mylog("WM_COMMAND: DS_SHOWOIDCOLUMN\n");
-					EnableWindow(GetDlgItem(hdlg, DS_KEEPALIVETIME), !IsDlgButtonChecked(hdlg, cmd));
-					EnableWindow(GetDlgItem(hdlg, DS_KEEPALIVEINTERVAL), !IsDlgButtonChecked(hdlg, cmd));
-					return TRUE;
-
 				case IDOK:
 					ds_options3_update(hdlg, ci);
 				case IDCANCEL:
@@ -913,6 +906,11 @@ ds_options3Proc(HWND hdlg,
 				case IDAPPLY:
 					ds_options3_update(hdlg, ci);
 					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
+					break;
+				case IDC_TEST:
+					memcpy(&tmpInfo, ci, sizeof(tmpInfo));
+					ds_options3_update(hdlg, &tmpInfo);
+					test_connection(hdlg, &tmpInfo, TRUE);
 					break;
 				case IDPREVPAGE:
 					ds_options3_update(hdlg, ci);
