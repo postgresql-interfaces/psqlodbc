@@ -1,17 +1,41 @@
 This directory contains the psqlODBC installer for Windows. To build the
 installer, you will need a copy of WiX installed somewhere in your system
-path. The installer has been tested with WiX version 3.0.2420 only at the
-time writing. WiX may be downloaded from:
+path. The installer has been tested with WiX version 3.0.2420 and WiX 3.8 at
+the time writing.
+
+WiX may be downloaded from:
 
   http://wix.codeplex.com/
 
-In order to build the installer, first ensure that a suitable binary is in
-the $SRC\Release directory, then, from the $SRC\Installer directory run:
 
-C:\psqlODBC\Installer> make 09.02.0100
+Two parallel systems to build the installers are currently provided:
 
-The version number will default to a value set in the Make.bat batch file if
-not specified on the command line. 2 files will be built:
+POWERSHELL BASED
+----------
 
-psqlodbc.msm - A merge module for use in other projects.
-psqlodbc.msi - A Windows Installer package for standalone use.
+Ensure that suitable binaries are in the parent directory Release build outputs
+(see ..\winbuild for that). 
+
+  .\BuildX64Installer.ps1
+
+  .\BuildX86Installer.ps1
+
+For help:
+
+  Get-Help .\BuildX64Installer.ps1
+
+If you get execution policy errors:
+
+  Set-ExecutionPolicy RemoteSigned
+
+and try again.
+
+Note that these installer generators use the configuration prepared by the
+PowerShell scripts in ..\winbuild, defaulting to ..\winbuild\configuration.xml,
+so you can't just mix them with SDK- or NMake based compilation.
+
+NMAKE BASED
+-----------
+
+Use the top-level file (win64.mak), per the documentation in
+docs/win32-compilation.html, to build installers using NMake.
