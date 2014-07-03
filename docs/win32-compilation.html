@@ -55,8 +55,11 @@ Use NMAKE.exe to build the driver for the currently active target:<br><br>
 
 <p>
 Despite the name, win64.mak is used to build both 32-bit and 64-bit binaries.
-With the Microsoft SDK scripts, you can switch between 32-bit and 64-bit
-target architectures with "setenv /x86" and "setenv /x64" commands.
+With the Microsoft Windows SDK Command Prompt, you can switch between 32-bit
+and 64-bit target architectures with <tt>setenv /x86</tt> and <tt>setenv
+/x64</tt> commands. If using a Visual Studio Command Prompt you can start the
+x86 or x64 versions from the Start menu, or run <tt>vcvarsall.bat</tt> with
+appropriate options to switch architectures.
 </p>
 
 <p>
