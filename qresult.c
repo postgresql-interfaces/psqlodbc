@@ -945,7 +945,7 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 	if (0 != self->move_offset)
 	{
 		char		movecmd[256];
-		QResultClass	*mres;
+		QResultClass	*mres = NULL;
 		SQLULEN		movement, moved;
 
 		movement = self->move_offset;
@@ -1019,6 +1019,7 @@ inolog("FETCH LAST case\n");
 						self->tupleField = NULL;
 						SC_set_rowset_start(stmt, -1, TRUE);
 						stmt->currTuple = -1;
+						QR_Destructor(mres);
 						RETURN(-1)
 					}
 					back_offset = QR_get_num_total_tuples(self) - backpt;
