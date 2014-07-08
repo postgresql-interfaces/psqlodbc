@@ -427,7 +427,6 @@ inolog("hlen=%d", hlen);
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
-				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
 				"%s",
 				encoded_item,
 				ci->drivers.fetch_max,
