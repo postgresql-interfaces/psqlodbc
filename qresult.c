@@ -1705,6 +1705,15 @@ else
 
 			if (field_lf >= effective_cols)
 			{
+				if (NULL == this_keyset)
+				{
+					char	emsg[128];
+
+					QR_set_rstatus(self, PORES_INTERNAL_ERROR);
+					snprintf(emsg, sizeof(emsg), "Internal Error -- this_keyset == NULL ci_num_fields=%d effective_cols=%d", ci_num_fields, effective_cols);
+					QR_set_message(self, emsg);
+					return FALSE;
+				}
 				if (field_lf == effective_cols)
 					sscanf(buffer, "(%u,%hu)",
 						&this_keyset->blocknum, &this_keyset->offset);
