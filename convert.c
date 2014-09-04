@@ -612,34 +612,49 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 
 
 #ifdef	HAVE_LOCALE_H
-static char *current_locale = NULL;
-static char *current_decimal_point = NULL;
-static void current_numeric_locale(void)
+/*
+ * Get the decimal point of the current locale.
+ *
+ * XXX: This isn't thread-safe, if another thread changes the locale with
+ * setlocale() concurrently. There are two problems with that:
+ *
+ * 1. The pointer returned by localeconv(), or the lc->decimal_point string,
+ * might be invalidated by calls in other threads. Until someone comes up
+ * with a thread-safe version of localeconv(), there isn't much we can do
+ * about that. (libc implementations that return a static buffer (like glibc)
+ * happen to be safe from the lconv struct being invalidated, but the
+ * decimal_point string might still not point to a static buffer).
+ *
+ * 2. The between the call to sprintf() and get_current_decimal_point(), the
+ * decimal point might change. That would cause set_server_decimal_point()
+ * to fail to recognize a decimal separator, and we might send a numeric
+ * string to the server that the server won't recognize. This would cause
+ * the query to fail in the server.
+ *
+ * XXX: we only take into account the first byte of the decimal separator.
+ */
+static char get_current_decimal_point(void)
 {
-	char *loc = setlocale(LC_NUMERIC, NULL);
-	if (NULL == current_locale || 0 != stricmp(loc, current_locale))
-	{
-		struct lconv	*lc = localeconv();
+	struct lconv	*lc = localeconv();
 
-		if (NULL != current_locale)
-			free(current_locale);
-		current_locale = strdup(loc);
-		if (NULL != current_decimal_point)
-			free(current_decimal_point);
-		current_decimal_point = strdup(lc->decimal_point);
-	}
+	return lc->decimal_point[0];
 }
 
+/*
+ * Modify the string representation of a numeric/float value, converting the
+ * decimal point from '.' to the correct decimal separator of the current
+ * locale.
+ */
 static void set_server_decimal_point(char *num)
 {
+	char current_decimal_point = get_current_decimal_point();
 	char *str;
 
-	current_numeric_locale();
-	if ('.' == *current_decimal_point)
+	if ('.' == current_decimal_point)
 		return;
 	for (str = num; '\0' != *str; str++)
 	{
-		if (*str == *current_decimal_point)
+		if (*str == current_decimal_point)
 		{
 			*str = '.';
 			break;
@@ -647,18 +662,21 @@ static void set_server_decimal_point(char *num)
 	}
 }
 
+/*
+ * Inverse of set_server_decimal_point.
+ */
 static void set_client_decimal_point(char *num)
 {
+	char current_decimal_point = get_current_decimal_point();
 	char *str;
 
-	current_numeric_locale();
-	if ('.' == *current_decimal_point)
+	if ('.' == current_decimal_point)
 		return;
 	for (str = num; '\0' != *str; str++)
 	{
 		if (*str == '.')
 		{
-			*str = *current_decimal_point;
+			*str = current_decimal_point;
 			break;
 		}
 	}
