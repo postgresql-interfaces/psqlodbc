@@ -158,28 +158,6 @@ static void IPDFields_free(IPDFields * self)
 	IPD_free_params(self, STMT_FREE_PARAMS_ALL);
 }
 
-static void XXXFields_free(DescriptorClass *self)
-{
-	if (self->deschd.type_defined)
-	{
-		switch (self->deschd.desc_type)
-		{
-			case SQL_ATTR_APP_ROW_DESC:
-				ARDFields_free(&(self->ardf));
-				break;
-			case SQL_ATTR_APP_PARAM_DESC:
-				APDFields_free(&(self->apdf));
-				break;
-			case SQL_ATTR_IMP_ROW_DESC:
-				IRDFields_free(&(self->irdf));
-				break;
-			case SQL_ATTR_IMP_PARAM_DESC:
-				IPDFields_free(&(self->ipdf));
-				break;
-		}
-	}
-}
-
 void	DC_Destructor(DescriptorClass *self)
 {
 	DescriptorHeader *deschd = &(self->deschd);
