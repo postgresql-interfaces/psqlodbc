@@ -425,25 +425,23 @@ retry:
 		 */
 		if (self->keepalive_idle >= 0)
 		{
+#ifdef TCP_KEEPIDLE
 			int	idle = self->keepalive_idle;
 
-#ifdef TCP_KEEPIDLE
 			if (setsockopt(self->socket, IPPROTO_TCP, TCP_KEEPIDLE,
 				   (char *) &idle, sizeof(idle)) < 0)
 			{
-				char		sebuf[256];
-
 				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to TCP_KEEPIDLE.");
 				goto cleanup;
 			}
 #else
 #ifdef TCP_KEEPALIVE
-		/* Darwin uses TCP_KEEPALIVE rather than TCP_KEEPIDLE */
+			/* Darwin uses TCP_KEEPALIVE rather than TCP_KEEPIDLE */
+			int	idle = self->keepalive_idle;
+
 			if (setsockopt(self->socket, IPPROTO_TCP, TCP_KEEPALIVE,
 				   (char *) &idle, sizeof(idle)) < 0)
 			{
-				char		sebuf[256];
-
 				SOCK_set_error(self, SOCKET_COULD_NOT_CONNECT, "Could not set socket to TCP_KEEPALIVE.");
 				goto cleanup;
 			}
@@ -456,9 +454,9 @@ retry:
 		 */
 		if (self->keepalive_interval >= 0)
 		{
+#ifdef TCP_KEEPINTVL
 			int	interval = self->keepalive_interval;
 
-#ifdef TCP_KEEPINTVL
 			if (setsockopt(self->socket, IPPROTO_TCP, TCP_KEEPINTVL,
 				   (char *) &interval, sizeof(interval)) < 0)
 			{
