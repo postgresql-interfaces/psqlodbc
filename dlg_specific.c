@@ -193,14 +193,15 @@ abbrev_sslmode(const char *sslmode, char *abbrevmode)
 	return abbrevmode;
 }
 
-static char *makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
+static char *
+makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 {
 	char	*buf = target;
 	*buf = '\0';
+
 	if (ci->disable_keepalive)
 		return target;
-	if (ci->keepalive_idle < 0 && ci->keepalive_interval < 0)
-		return target;
+
 	if (ci->keepalive_idle >= 0)
 	{
 		if (abbrev)
@@ -427,7 +428,8 @@ inolog("hlen=%d", hlen);
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
-				"%s",
+				"%s"
+				INI_ABBREVIATE "=%02x%x",
 				encoded_item,
 				ci->drivers.fetch_max,
 				ci->drivers.socket_buffersize,
