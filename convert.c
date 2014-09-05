@@ -784,8 +784,8 @@ copy_and_convert_field(StatementClass *stmt,
 	BOOL		changed;
 	BOOL	text_handling, localize_needed;
 	const char *neut_str = value;
-	char		midtemp[2][32];
-	int			mtemp_cnt = 0;
+	char		booltemp[3];
+	char		moneytemp[32];
 	GetDataClass *pgdc;
 #ifdef	UNICODE_SUPPORT
 	BOOL	wconverted =   FALSE;
@@ -1025,10 +1025,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 		case PG_TYPE_BOOL:
 			{					/* change T/F to 1/0 */
-				char	   *s;
 				const ConnInfo *ci = &(conn->connInfo);
 
-				s = midtemp[mtemp_cnt];
 				switch (((char *)value)[0])
 				{
 					case 'f':
@@ -1036,16 +1034,15 @@ inolog("2stime fr=%d\n", std_time.fr);
 					case 'n':
 					case 'N':
 					case '0':
-						strcpy(s, "0");
+						strcpy(booltemp, "0");
 						break;
 					default:
 						if (ci->true_is_minus1)
-							strcpy(s, "-1");
+							strcpy(booltemp, "-1");
 						else
-							strcpy(s, "1");
+							strcpy(booltemp, "1");
 				}
-				neut_str = midtemp[mtemp_cnt];
-				mtemp_cnt++;
+				neut_str = booltemp;
 			}
 			break;
 
@@ -1496,11 +1493,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 		 */
 		if (field_type == PG_TYPE_MONEY)
 		{
-			if (convert_money(neut_str, midtemp[mtemp_cnt], sizeof(midtemp[0])))
-			{
-				neut_str = midtemp[mtemp_cnt];
-				mtemp_cnt++;
-			}
+			if (convert_money(neut_str, moneytemp, sizeof(moneytemp)))
+				neut_str = moneytemp;
 			else
 			{
 				qlog("couldn't convert money type to %d\n", fCType);
