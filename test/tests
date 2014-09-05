@@ -13,6 +13,7 @@ TESTBINS = src/connect-test \
 	src/commands-test \
 	src/multistmt-test \
 	src/getresult-test \
+	src/result-conversions-test \
 	src/prepare-test \
 	src/params-test \
 	src/notice-test \
