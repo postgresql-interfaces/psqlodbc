@@ -532,9 +532,6 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
-		case PG_TYPE_CHAR2:
-		case PG_TYPE_CHAR4:
-		case PG_TYPE_CHAR8:
 			return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
 		case PG_TYPE_NAME:
 		case PG_TYPE_REFCURSOR:
@@ -828,12 +825,6 @@ pgtype_attr_to_name(const ConnectionClass *conn, OID type, int atttypmod, BOOL a
 	{
 		case PG_TYPE_CHAR:
 			return "char";
-		case PG_TYPE_CHAR2:
-			return "char2";
-		case PG_TYPE_CHAR4:
-			return "char4";
-		case PG_TYPE_CHAR8:
-			return "char8";
 		case PG_TYPE_INT8:
 			return auto_increment ? "bigserial" : "int8";
 		case PG_TYPE_NUMERIC:
@@ -928,12 +919,6 @@ pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, in
 	{
 		case PG_TYPE_CHAR:
 			return 1;
-		case PG_TYPE_CHAR2:
-			return 2;
-		case PG_TYPE_CHAR4:
-			return 4;
-		case PG_TYPE_CHAR8:
-			return 8;
 
 		case PG_TYPE_NAME:
 		case PG_TYPE_REFCURSOR:
@@ -2072,10 +2057,6 @@ pgtype_case_sensitive(const ConnectionClass *conn, OID type)
 	{
 		case PG_TYPE_CHAR:
 
-		case PG_TYPE_CHAR2:
-		case PG_TYPE_CHAR4:
-		case PG_TYPE_CHAR8:
-
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_TEXT:
@@ -2108,9 +2089,6 @@ pgtype_searchable(const ConnectionClass *conn, OID type)
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
-		case PG_TYPE_CHAR2:
-		case PG_TYPE_CHAR4:
-		case PG_TYPE_CHAR8:
 
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
