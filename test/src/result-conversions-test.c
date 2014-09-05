@@ -111,13 +111,21 @@ static HSTMT hstmt = SQL_NULL_HSTMT;
 void
 printwchar(SQLWCHAR *wstr)
 {
-	while(*wstr)
+	int			i;
+	/*
+	 * a backstop to make sure we terminate if the string isn't null-terminated
+	 * properly
+	 */
+	int			MAXLEN = 50;
+
+	while(*wstr && i < MAXLEN)
 	{
 		if (isprint(*wstr))
 			printf("%c", *wstr);
 		else
 			printf("\\%4X", *wstr);
 		wstr++;
+		i++;
 	}
 }
 
@@ -314,21 +322,101 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 	}
 }
 
+
+/*
+ * Get the size of fixed-length data types, or -1 for var-length types
+ */
+int
+get_sql_type_size(int sql_c_type)
+{
+	switch(sql_c_type)
+	{
+		case SQL_C_CHAR:
+			return -1;
+		case SQL_C_WCHAR:
+			return -1;
+		case SQL_C_SSHORT:
+			return sizeof(short);
+		case SQL_C_USHORT:
+			return sizeof(unsigned short);
+		case SQL_C_SLONG:
+			/* always 32-bits, regardless of native 'long' type */
+			return sizeof(SQLINTEGER);
+		case SQL_C_ULONG:
+			return sizeof(SQLUINTEGER);
+		case SQL_C_FLOAT:
+			return sizeof(SQLREAL);
+		case SQL_C_DOUBLE:
+			return sizeof(SQLDOUBLE);
+		case SQL_C_BIT:
+			return sizeof(unsigned char);
+		case SQL_C_STINYINT:
+			return sizeof(signed char);
+		case SQL_C_UTINYINT:
+			return sizeof(unsigned char);
+		case SQL_C_SBIGINT:
+			return sizeof(SQLBIGINT);
+		case SQL_C_UBIGINT:
+			return sizeof(SQLUBIGINT);
+		case SQL_C_BINARY:
+			return -1;
+		/* SQL_C_BOOKMARK has same value as SQL_C_UBIGINT */
+		/* SQL_C_VARBOOKMARK has same value as SQL_C_BINARY */
+		case SQL_C_TYPE_DATE:
+			return sizeof(DATE_STRUCT);
+		case SQL_C_TYPE_TIME:
+			return sizeof(TIME_STRUCT);
+		case SQL_C_TYPE_TIMESTAMP:
+			return sizeof(TIMESTAMP_STRUCT);
+		case SQL_C_NUMERIC:
+			return sizeof(SQL_NUMERIC_STRUCT);
+		case SQL_C_GUID:
+			return sizeof(SQLGUID);
+		case SQL_C_INTERVAL_YEAR:
+		case SQL_C_INTERVAL_MONTH:
+		case SQL_C_INTERVAL_DAY:
+		case SQL_C_INTERVAL_HOUR:
+		case SQL_C_INTERVAL_MINUTE:
+		case SQL_C_INTERVAL_SECOND:
+		case SQL_C_INTERVAL_YEAR_TO_MONTH:
+		case SQL_C_INTERVAL_DAY_TO_HOUR:
+		case SQL_C_INTERVAL_DAY_TO_MINUTE:
+		case SQL_C_INTERVAL_DAY_TO_SECOND:
+		case SQL_C_INTERVAL_HOUR_TO_MINUTE:
+		case SQL_C_INTERVAL_HOUR_TO_SECOND:
+		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
+			return sizeof(SQL_INTERVAL_STRUCT);
+		default:
+			printf("unknown SQL C type: %u", sql_c_type);
+			return -1;
+	}
+}
+
 static char *resultbuf = NULL;
 
 void
-test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char *sqltypestr)
+test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char *sqltypestr, int buflen)
 {
 	char		sql[500];
 	SQLRETURN	rc;
 	SQLLEN		len_or_ind;
+	int			fixed_len;
+
+	printf("'%s' (%s) as %s: ", pgvalue, pgtype, sqltypestr);
 
 	if (resultbuf == NULL)
 		resultbuf = malloc(500);
 
 	memset(resultbuf, 0xFF, 500);
 
-	printf("'%s' (%s) as %s: ", pgvalue, pgtype, sqltypestr);
+	fixed_len = get_sql_type_size(sqltype);
+	if (fixed_len != -1)
+		buflen = fixed_len;
+	if (buflen == -1)
+	{
+		printf("no buffer length given!");
+		exit(1);
+	}
 
 	snprintf(sql, sizeof(sql),
 			 "SELECT '%s'::%s AS %s_col /* convert to %s */",
@@ -340,11 +428,27 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 	rc = SQLFetch(hstmt);
 	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
 
-	rc = SQLGetData(hstmt, 1, sqltype, resultbuf, 100, &len_or_ind);
+	rc = SQLGetData(hstmt, 1, sqltype, resultbuf, buflen, &len_or_ind);
 	if (SQL_SUCCEEDED(rc))
 	{
 		print_sql_type(sqltype, resultbuf, len_or_ind);
+
+		if (rc == SQL_SUCCESS_WITH_INFO)
+		{
+			char sqlstate[10];
+
+			rc = SQLGetDiagRec(SQL_HANDLE_STMT, hstmt, 1, sqlstate, NULL, NULL, 0, NULL);
+			CHECK_STMT_RESULT(rc, "SQLGetDiagRec failed", hstmt);
+			if (memcmp(sqlstate, "01004", 5) == 0)
+				printf(" (truncated)");
+			else
+				print_diag("SQLGetData success with info", SQL_HANDLE_STMT, hstmt);
+		}
+
 		printf("\n");
+		/* Check that the driver didn't write past the buffer */
+		if ((unsigned char) resultbuf[buflen] != 0xFF)
+			printf("Driver wrote byte %02X past result buffer of size %d!\n", (unsigned char) resultbuf[buflen], buflen);
 	}
 	else
 	{
@@ -354,6 +458,8 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	fflush(stdout);
 }
 
 int main(int argc, char **argv)
@@ -394,7 +500,7 @@ int main(int argc, char **argv)
 			int sqltype = sqltypes[sqltype_i].sqltype;
 			const char *sqltypestr = sqltypes[sqltype_i].str;
 
-			test_conversion(pgtype, value, sqltype, sqltypestr);
+			test_conversion(pgtype, value, sqltype, sqltypestr, 100);
 		}
 	}
 
@@ -404,15 +510,40 @@ int main(int argc, char **argv)
 	 */
 
 	/* Conversion to GUID throws error if the string is not of correct form */
-	test_conversion("text", "543c5e21-435a-440b-943c-64af1ad571f1", SQL_C_GUID, "SQL_C_GUID");
+	test_conversion("text", "543c5e21-435a-440b-943c-64af1ad571f1", SQL_C_GUID, "SQL_C_GUID", -1);
 
 	/* Date/timestamp tests of non-date input depends on current date */
-	test_conversion("date", "2011-02-13", SQL_C_DATE, "SQL_C_DATE");
-	test_conversion("date", "2011-02-13", SQL_C_TIMESTAMP, "SQL_C_TIMESTAMP");
-	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_DATE, "SQL_C_DATE");
-	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TIMESTAMP, "SQL_C_TIMESTAMP");
-	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_DATE, "SQL_C_DATE");
-	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TIMESTAMP, "SQL_C_TIMESTAMP");
+	test_conversion("date", "2011-02-13", SQL_C_TYPE_DATE, "SQL_C_DATE", -1);
+	test_conversion("date", "2011-02-13", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1);
+	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TYPE_DATE, "SQL_C_DATE", -1);
+	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1);
+	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TYPE_DATE, "SQL_C_DATE", -1);
+	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1);
+
+	/*
+	 * Test for truncations.
+	 */
+	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 5);
+	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 6);
+	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 7);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 10);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 11);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 12);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 13);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 14);
+
+	test_conversion("text", "", SQL_C_CHAR, "SQL_C_CHAR", 1);
+	test_conversion("text", "", SQL_C_WCHAR, "SQL_C_WCHAR", 1);
+
+	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_CHAR, "SQL_C_CHAR", 19);
+
+	/*
+	 * Test for a specific bug, where the driver used to overrun the output
+	 * buffer because it assumed that a timestamp value is always max 20 bytes
+	 * long (not true for BC values, or with years > 10000)
+	 */
+	test_conversion("timestamp", "2011-02-15 15:49:18 BC", SQL_C_CHAR, "SQL_C_CHAR", 20);
+
 
 	/* Clean up */
 	test_disconnect();

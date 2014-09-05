@@ -1346,10 +1346,22 @@ Result set:
 'foocur' (refcursor) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 'foocur' (refcursor) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
 '543c5e21-435a-440b-943c-64af1ad571f1' (text) as SQL_C_GUID: d1: 543C5E21 d2: 435A d3: 440B d4: 943C64AF1AD571F1
-'2011-02-13' (date) as SQL_C_DATE: unknown SQL C type: 9
-'2011-02-13' (date) as SQL_C_TIMESTAMP: unknown SQL C type: 11
-'2011-02-15 15:49:18' (timestamp) as SQL_C_DATE: unknown SQL C type: 9
-'2011-02-15 15:49:18' (timestamp) as SQL_C_TIMESTAMP: unknown SQL C type: 11
-'2011-02-16 17:49:18+03' (timestamptz) as SQL_C_DATE: unknown SQL C type: 9
-'2011-02-16 17:49:18+03' (timestamptz) as SQL_C_TIMESTAMP: unknown SQL C type: 11
+'2011-02-13' (date) as SQL_C_DATE: y: 2011 m: 2 d: 13
+'2011-02-13' (date) as SQL_C_TIMESTAMP: y: 2011 m: 2 d: 13 h: 0 m: 0 s: 0 f: 0
+'2011-02-15 15:49:18' (timestamp) as SQL_C_DATE: y: 2011 m: 2 d: 15
+'2011-02-15 15:49:18' (timestamp) as SQL_C_TIMESTAMP: y: 2011 m: 2 d: 15 h: 15 m: 49 s: 18 f: 0
+'2011-02-16 17:49:18+03' (timestamptz) as SQL_C_DATE: y: 2011 m: 2 d: 16
+'2011-02-16 17:49:18+03' (timestamptz) as SQL_C_TIMESTAMP: y: 2011 m: 2 d: 16 h: 6 m: 49 s: 18 f: 0
+'foobar' (text) as SQL_C_CHAR: foob (truncated)
+'foobar' (text) as SQL_C_CHAR: fooba (truncated)
+'foobar' (text) as SQL_C_CHAR: foobar
+'foobar' (text) as SQL_C_WCHAR: foob (truncated)
+'foobar' (text) as SQL_C_WCHAR: foob (truncated)
+'foobar' (text) as SQL_C_WCHAR: fooba (truncated)
+'foobar' (text) as SQL_C_WCHAR: fooba (truncated)
+'foobar' (text) as SQL_C_WCHAR: foobar
+'' (text) as SQL_C_CHAR: 
+'' (text) as SQL_C_WCHAR: \FF00\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF (truncated)
+'2011-02-15 15:49:18' (timestamp) as SQL_C_CHAR: 2011-02-15 15:49:1 (truncated)
+'2011-02-15 15:49:18 BC' (timestamp) as SQL_C_CHAR: 2011-02-15 15:49:18 (truncated)
 disconnecting

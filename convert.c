@@ -343,8 +343,9 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	return TRUE;
 }
 
-static BOOL
-stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, int precision)
+static int
+stime2timestamp(const SIMPLE_TIME *st, char *str, size_t bufsize, BOOL bZone,
+				int precision)
 {
 	char		precstr[16],
 				zonestr[16];
@@ -353,17 +354,15 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, int precision)
 	precstr[0] = '\0';
 	if (st->infinity > 0)
 	{
-		strcpy(str, INFINITY_STRING);
-		return TRUE;
+		return snprintf(str, bufsize, "%s", INFINITY_STRING);
 	}
 	else if (st->infinity < 0)
 	{
-		strcpy(str, MINFINITY_STRING);
-		return TRUE;
+		return snprintf(str, bufsize, "%s", MINFINITY_STRING);
 	}
 	if (precision > 0 && st->fr)
 	{
-		sprintf(precstr, ".%09d", st->fr);
+		snprintf(precstr, sizeof(precstr), ".%09d", st->fr);
 		if (precision < 9)
 			precstr[precision + 1] = '\0';
 		for (i = precision; i > 0; i--)
@@ -398,16 +397,15 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, BOOL bZone, int precision)
 				zoneint -= 3600;
 		}
 		if (zoneint > 0)
-			sprintf(zonestr, "-%02d", (int) zoneint / 3600);
+			snprintf(zonestr, sizeof(zonestr), "-%02d", (int) zoneint / 3600);
 		else
-			sprintf(zonestr, "+%02d", -(int) zoneint / 3600);
+			snprintf(zonestr, sizeof(zonestr), "+%02d", -(int) zoneint / 3600);
 	}
 #endif /* TIMEZONE_GLOBAL */
 	if (st->y < 0)
-		sprintf(str, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d%s%s BC", -st->y, st->m, st->d, st->hh, st->mm, st->ss, precstr, zonestr);
+		return snprintf(str, bufsize, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d%s%s BC", -st->y, st->m, st->d, st->hh, st->mm, st->ss, precstr, zonestr);
 	else
-		sprintf(str, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d%s%s", st->y, st->m, st->d, st->hh, st->mm, st->ss, precstr, zonestr);
-	return TRUE;
+		return snprintf(str, bufsize, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d%s%s", st->y, st->m, st->d, st->hh, st->mm, st->ss, precstr, zonestr);
 }
 
 #if (ODBCVER >= 0x0300)
@@ -797,6 +795,7 @@ copy_and_convert_field(StatementClass *stmt,
 #if (ODBCVER >= 0x0350)
 	SQLGUID g;
 #endif
+	int			i;
 
 	if (stmt->current_col >= 0)
 	{
@@ -1158,8 +1157,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 	if (text_handling)
 	{
 #ifdef	WIN_UNICODE_SUPPORT
-		if (SQL_C_CHAR == fCType
-		    || SQL_C_BINARY == fCType)
+		if (SQL_C_CHAR == fCType || SQL_C_BINARY == fCType)
 			localize_needed = TRUE;
 #endif /* WIN_UNICODE_SUPPORT */
 	}
@@ -1176,52 +1174,45 @@ inolog("2stime fr=%d\n", std_time.fr);
 		switch (field_type)
 		{
 			case PG_TYPE_DATE:
-				len = 10;
-				if (cbValueMax > len)
-					sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
+				len = snprintf(rgbValueBindRow, cbValueMax, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
+				if (len + 1 > cbValueMax)
+					result = COPY_RESULT_TRUNCATED;
 				break;
 
 			case PG_TYPE_TIME:
-				len = 8;
-				if (cbValueMax > len)
-					sprintf(rgbValueBindRow, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
+				len = snprintf(rgbValueBindRow, cbValueMax, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
+				if (len + 1 > cbValueMax)
+					result = COPY_RESULT_TRUNCATED;
 				break;
 
 			case PG_TYPE_ABSTIME:
 			case PG_TYPE_DATETIME:
 			case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			case PG_TYPE_TIMESTAMP:
-				len = 19;
-				if (cbValueMax > len)
-				{
-					/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
-						std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
-					stime2timestamp(&std_time, rgbValueBindRow, FALSE,
-									PG_VERSION_GE(conn, 7.2) ? (int) cbValueMax - len - 2 : 0);
-					len = strlen(rgbValueBindRow);
-				}
+				/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+					std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
+				len = stime2timestamp(&std_time, rgbValueBindRow, cbValueMax, FALSE,
+								PG_VERSION_GE(conn, 7.2) ? (int) cbValueMax - len - 2 : 0);
+				if (len + 1 > cbValueMax)
+					result = COPY_RESULT_TRUNCATED;
 				break;
 
 			case PG_TYPE_BOOL:
-				len = strlen(neut_str);
-				if (cbValueMax > len)
-				{
-					strcpy(rgbValueBindRow, neut_str);
-					mylog("PG_TYPE_BOOL: rgbValueBindRow = '%s'\n", rgbValueBindRow);
-				}
+				len = snprintf(rgbValueBindRow, cbValueMax, "%s", neut_str);
+				if (len + 1 > cbValueMax)
+					result = COPY_RESULT_TRUNCATED;
+				mylog("PG_TYPE_BOOL: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				break;
 
 			case PG_TYPE_UUID:
 				len = strlen(neut_str);
-				if (cbValueMax > len)
-				{
-					int i;
-
-					for (i = 0; i < len; i++)
-						rgbValueBindRow[i] = toupper((UCHAR) neut_str[i]);
+				for (i = 0; i < len && i < cbValueMax - 1; i++)
+					rgbValueBindRow[i] = toupper((UCHAR) neut_str[i]);
+				if (cbValueMax > 0)
 					rgbValueBindRow[i] = '\0';
-					mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
-				}
+				if (len + 1 > cbValueMax)
+					result = COPY_RESULT_TRUNCATED;
+				mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				break;
 
 				/*
@@ -1309,8 +1300,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* WIN_UNICODE_SUPPORT */
 						/* convert linefeeds to carriage-return/linefeed */
 						len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
-					if (cbValueMax == 0)		/* just returns length
-												 * info */
+					/* just returns length info */
+					if (cbValueMax == 0)
 					{
 						result = COPY_RESULT_TRUNCATED;
 #ifdef	WIN_UNICODE_SUPPORT
@@ -1319,6 +1310,19 @@ inolog("2stime fr=%d\n", std_time.fr);
 #endif /* WIN_UNICODE_SUPPORT */
 						break;
 					}
+#ifdef	UNICODE_SUPPORT
+					if (cbValueMax == 1 && fCType == SQL_C_WCHAR)
+					{
+						rgbValueBindRow[0] = '\0';
+						result = COPY_RESULT_TRUNCATED;
+#ifdef	WIN_UNICODE_SUPPORT
+						if (allocbuf)
+							free(allocbuf);
+#endif /* WIN_UNICODE_SUPPORT */
+						break;
+					}
+#endif
+
 					if (!pgdc->ttlbuf)
 						pgdc->ttlbuflen = 0;
 					needbuflen = len;
@@ -1414,33 +1418,37 @@ inolog("2stime fr=%d\n", std_time.fr);
 				if (cbValueMax > 0)
 				{
 					BOOL	already_copied = FALSE;
+					int		terminatorlen;
 
 					if (fCType == SQL_C_BINARY)
-						copy_len = (len > cbValueMax) ? cbValueMax : len;
-					else
-						copy_len = (len >= cbValueMax) ? (cbValueMax - 1) : len;
-#ifdef	UNICODE_SUPPORT
-					if (fCType == SQL_C_WCHAR)
 					{
-						copy_len /= WCLEN;
-						copy_len *= WCLEN;
+						terminatorlen = 0;
 					}
-#endif /* UNICODE_SUPPORT */
+#ifdef	UNICODE_SUPPORT
+					else if (fCType == SQL_C_WCHAR)
+					{
+						terminatorlen = WCLEN;
+						/* make sure the output buffer size is divisible by two */
+						cbValueMax = (cbValueMax / WCLEN) * WCLEN;
+					}
+#endif
+					else
+					{
+						terminatorlen = 1;
+					}
+
+					if (len + terminatorlen > cbValueMax)
+						copy_len = cbValueMax - terminatorlen;
+					else
+						copy_len = len;
+
 					if (!already_copied)
 					{
 						/* Copy the data */
 						memcpy(rgbValueBindRow, ptr, copy_len);
 						/* Add null terminator */
-#ifdef	UNICODE_SUPPORT
-						if (fCType == SQL_C_WCHAR)
-						{
-							if (copy_len + WCLEN <= cbValueMax)
-								memset(rgbValueBindRow + copy_len, 0, WCLEN);
-						}
-						else
-#endif /* UNICODE_SUPPORT */
-						if (copy_len < cbValueMax)
-							rgbValueBindRow[copy_len] = '\0';
+						for (i = 0; i < terminatorlen && copy_len + i < cbValueMax; i++)
+							rgbValueBindRow[copy_len + i] = '\0';
 					}
 					/* Adjust data_left for next time */
 					if (stmt->current_col >= 0)
@@ -1461,7 +1469,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 						pgdc->ttlbuf = NULL;
 					}
 				}
-
 
 				if (SQL_C_WCHAR == fCType)
 					mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
@@ -4658,7 +4665,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			 * st.m, st.d, st.hh, st.mm, st.ss);
 			 */
 			/* Time zone stuff is unreliable */
-			stime2timestamp(&st, tmp, USE_ZONE, PG_VERSION_GE(conn, 7.2) ? 6 : 0);
+			stime2timestamp(&st, tmp, sizeof(tmp), USE_ZONE, PG_VERSION_GE(conn, 7.2) ? 6 : 0);
 			lastadd = "::timestamp";
 			CVT_APPEND_STR(qb, tmp);
 
