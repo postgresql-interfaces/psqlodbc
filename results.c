@@ -4012,7 +4012,7 @@ pos_add_callback(RETCODE retcode, void *para)
 		else
 			status |= CURS_SELF_ADDED;
 		kres_ridx = GIdx2KResIdx(global_ridx, s->stmt, s->res);
-		if (kres_ridx >= 0 || kres_ridx < s->res->num_cached_keys)
+		if (kres_ridx >= 0 && kres_ridx < s->res->num_cached_keys)
 		{
 			s->res->keyset[kres_ridx].status = status;
 		}
