@@ -298,6 +298,7 @@ typedef struct
 	char		translation_dll[MEDIUM_REGISTRY_LEN];
 	char		translation_option[SMALL_REGISTRY_LEN];
 	char		focus_password;
+	signed char	prefer_libpq;
 	pgNAME		conn_settings;
 	signed char	disallow_premature;
 	signed char	allow_keyset;

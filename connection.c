@@ -300,6 +300,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->gssauth_use_gssapi = -1;
 	conninfo->keepalive_idle = -1;
 	conninfo->keepalive_interval = -1;
+	conninfo->prefer_libpq = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -333,6 +334,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_STRCPY(translation_dll);
 	CORR_STRCPY(translation_option);
 	CORR_VALCPY(focus_password);
+	CORR_VALCPY(prefer_libpq);
 	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
 	CORR_VALCPY(disallow_premature);
 	CORR_VALCPY(allow_keyset);
@@ -2183,6 +2185,11 @@ CC_connect(ConnectionClass *self, char password_req, char *salt_para)
 
 	mylog("sslmode=%s\n", self->connInfo.sslmode);
 #ifdef USE_LIBPQ
+	if (0 < ci->prefer_libpq)
+		call_libpq = TRUE;
+	else if (0 == ci->prefer_libpq)
+		call_libpq = FALSE;
+	else
 #ifdef	USE_SSPI
 	if (0 != self->svcs_allowed)
 		;
