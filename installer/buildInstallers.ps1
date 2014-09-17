@@ -6,9 +6,10 @@
 .PARAMETER cpu
     Specify build cpu type, "both"(default), "x86" or "x64" is
     available.
-.PARAMETER BuildBinaries
-    Specify wherther build binary dlls or not, $FALSE(default) or $TRUE is
-    available.
+.PARAMETER AlongWithDrivers
+    Specify when you'd like to build drivers before building installers.
+.PARAMETER ExcludeRuntime
+    Specify when you'd like to exclude a msvc runtime dll from the installer.
 .PARAMETER BuildConfigPath
     Specify the configuration xml file name if you want to use
     the configuration file other than standard one.
@@ -28,7 +29,8 @@
 Param(
 [ValidateSet("x86", "x64", "both")]
 [string]$cpu="both",
-[Boolean]$BuildBinaries=$FALSE,
+[switch]$AlongWithDrivers,
+[switch]$ExcludeRuntime,
 [string]$BuildConfigPath
 )
 
@@ -83,6 +85,61 @@ function buildInstaller($CPUTYPE)
 	{
 		throw "Unknown CPU type $CPUTYPE";
 	}
+	# msvc runtime
+	$MSVCRUNTIMEDLL = ""
+	if (-not $ExcludeRuntime) {
+		$toolset = $configInfo.Configuration.BuildResult.PlatformToolset
+		if ($toolset -match "^v(\d+)0") {
+			$runtime_version = $matches[1]
+		} else {
+			$runtime_version = "10"
+		}
+		# runtime dll required 
+		$rt_dllname = "msvcr${runtime_version}0.dll"
+		# where's the dll? 
+		$pgmvc = $archinfo.runtime_folder
+		if ("$pgmvc" -eq "") {
+			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+				$pgmvc = "$env:ProgramFiles"
+			} else {
+				$pgmvc = "${env:ProgramFiles(x86)}"
+			}
+			$dllinredist = "$pgmvc\Microsoft Visual Studio ${runtime_version}.0\VC\redist\${CPUTYPE}\Microsoft.VC${runtime_version}0.CRT\${rt_dllname}"
+			if (Test-Path -Path $dllinredist) {
+				$MSVCRUNTIMEDLL = $dllinredist
+			} else {
+				$messageSpec = "Please specify Configuration.$CPUTYPE.runtime_folder element of the configuration file where msvc runtime dll $rt_dllname can be found"
+				if ($CPUTYPE -eq "x86") {
+					if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+						$pgmvc = "${env:SystemRoot}\system32"
+					} else {
+						$pgmvc = "${env:SystemRoot}\syswow64"
+					}
+				} else {
+					if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") {
+						$pgmvc = "${env:SystemRoot}\system32"
+					} elseif ($env:PROCESSOR_ARCHITEW6432 -eq "AMD64") {
+						$pgmvc = "${env:SystemRoot}\sysnative"
+					} else {
+    						throw "${messageSpec}`n$dllinredist doesn't exist unfortunately"
+					}
+				}
+				$dllinsystem = "${pgmvc}\${rt_dllname}"
+				if (Test-Path -Path $dllinsystem) {
+					$MSVCRUNTIMEDLL = $dllinsystem
+				} else {
+    					throw "${messageSpec}`nneither $dllinredist nor $dllinsystem exists unfortunately"
+				}
+			}
+		} else {
+			$dllspecified = "${pgmvc}\${rt_dllname}"
+			if (Test-Path -Path $dllspecified) {
+				$MSVCRUNTIMEDLL = $dllspecified
+			} else {
+    				throw "specified msvc runtime $dllspecified doesn't exist"
+			} 
+		}
+	}
 
 	$USE_SSPI=$archinfo.use_sspi
 
@@ -107,7 +164,7 @@ function buildInstaller($CPUTYPE)
 	$SUBLOC=$VERSION.substring(0, 2) + $VERSION.substring(3, 2)
 
 	if (-not(Test-Path -Path $CPUTYPE)) {
-    		New-Item -ItemType directory -Path $CPUTYPE
+    		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
 	}
 
 	$PRODUCTCODE = [GUID]::NewGuid();
@@ -118,7 +175,7 @@ function buildInstaller($CPUTYPE)
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dGSSBINDIR=$GSSBINDIR`" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
+		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dGSSBINDIR=$GSSBINDIR`" `"-dMSVCRUNTIMEDLL=$MSVCRUNTIMEDLL`" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}
@@ -162,7 +219,7 @@ function buildInstaller($CPUTYPE)
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $configInfo = & "$scriptPath\..\winbuild\configuration.ps1" "$BuildConfigPath"
 
-if ($BuildBinaries) {
+if ($AlongWithDrivers) {
 	try {
 		pushd "$scriptpath"
 		$platform = $cpu

@@ -53,6 +53,11 @@
           <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../$(var.UNICODEFOLDER)/pgxalib.dll" />
           <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../$(var.UNICODEFOLDER)/pgenlist.dll" />
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
+	<!-- MSVC Runtime -->
+<?if "$(var.MSVCRUNTIMEDLL)" != "" ?>
+          <File Source="$(var.MSVCRUNTIMEDLL)" />
+<?endif?>
+
 <?if "$(var.LIBPQBINDIR)" != "" ?>
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
 
