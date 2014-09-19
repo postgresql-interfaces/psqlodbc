@@ -13,6 +13,8 @@
 .PARAMETER Platform
     Specify build platforms, "both"(default), "Win32" or "x64" is
     available.
+.PARAMETER AlongWithInstallers
+    Specify when you'd like build installers after building drivers.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
@@ -38,6 +40,9 @@
 .EXAMPLE
     > .\BuildAll -P(latform) x64
 	Build only 64bit dlls.
+.EXAMPLE
+    > .\BuildAll -A(longWithInstallers)
+	Build installers as well after building drivers.
 .NOTES
     Author: Hiroshi Inoue
     Date:   Febrary 1, 2014
@@ -57,7 +62,8 @@ Param(
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
-[string]$BuildConfigPath
+[string]$BuildConfigPath,
+[switch]$AlongWithInstallers
 )
 
 function buildPlatform($platinfo, $Platform)
@@ -290,6 +296,19 @@ try {
 		$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
 		$configInfo.Configuration.BuildResult.Platform=$Platform
 		SaveConfiguration $configInfo
+	}
+#
+#	build installers as well
+#
+	if ($AlongWithInstallers) {
+                $cpu = $Platform
+                if ($Platform -eq "win32") {
+                        $cpu = "x86"
+                }
+                invoke-expression "..\installer\buildInstallers.ps1 -cpu $cpu -BuildConfigPath `"$BuildConfigPath`"" -ErrorAction Stop
+                if ($LASTEXITCODE -ne 0) {
+                        throw "Failed to build installers"
+                }
 	}
 } catch {
 	$error[0] | Format-List -Force
