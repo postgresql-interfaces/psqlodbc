@@ -863,45 +863,38 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	NULL_THE_NAME(conn->tableIns);
 	if (!SQL_SUCCEEDED(retval))
 		return;
-	ptr = NULL;
-	if (IDENTIFIER_QUOTE == *cmd)
+	while (TRUE)
 	{
-		if (ptr = strchr(cmd + 1, IDENTIFIER_QUOTE), NULL == ptr)
-			return;
-		if ('.' == ptr[1])
+		if (IDENTIFIER_QUOTE == *cmd)
 		{
+			if (ptr = strchr(cmd + 1, IDENTIFIER_QUOTE), NULL == ptr)	/* syntax error */
+			{
+				NULL_THE_NAME(conn->schemaIns);
+				NULL_THE_NAME(conn->tableIns);
+				break;
+			}
 			len = ptr - cmd - 1;
-			STRN_TO_NAME(conn->schemaIns, cmd + 1, len);
-			cmd = ptr + 2;
-			ptr = NULL;
+			cmd++;
+			ptr++;
 		}
-	}
-	else
-	{
-		if (ptr = strchr(cmd + 1, '.'), NULL != ptr)
+		else
 		{
-			len = ptr - cmd;
-			STRN_TO_NAME(conn->schemaIns, cmd, len);
-			cmd = ptr + 1;
-			ptr = NULL;
+			if (ptr = strchr(cmd + 1, '.'), NULL != ptr)
+				len = ptr - cmd;
+			else
+			{
+				ptr = cmd;
+				while (*ptr && !isspace((UCHAR) *ptr)) ptr++;
+				len = ptr - cmd;
+			}
 		}
-	}
-	if (IDENTIFIER_QUOTE == *cmd && NULL == ptr)
-	{
-		if (ptr = strchr(cmd + 1, IDENTIFIER_QUOTE), NULL == ptr)
-			return;
-	}
-	if (IDENTIFIER_QUOTE == *cmd)
-	{
-		len = ptr - cmd - 1;
-		STRN_TO_NAME(conn->tableIns, cmd + 1, len);
-	}
-	else
-	{
-		ptr = cmd;
-		while (*ptr && !isspace((UCHAR) *ptr)) ptr++;
-		len = ptr - cmd;
+		if (NAME_IS_VALID(conn->tableIns))
+			MOVE_NAME(conn->schemaIns, conn->tableIns);
 		STRN_TO_NAME(conn->tableIns, cmd, len);
+		if ('.' == *ptr)
+			cmd = ptr + 1;
+		else
+			break;
 	}
 }
 
