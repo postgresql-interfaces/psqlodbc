@@ -238,11 +238,35 @@ makePreferLibpqConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 }
 #endif /* USE_LIBPQ */
 
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+char *
+makeXaOptConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
+{
+	char	*buf = target;
+	*buf = '\0';
+
+	if (ci->xa_opt < 0)
+		return target;
+
+	if (abbrev)
+	{
+		if (DEFAULT_XAOPT != ci->xa_opt)
+			sprintf(buf, ABBR_XAOPT "=%u;", ci->xa_opt);
+	}
+	else
+		sprintf(buf, INI_XAOPT "=%u;", ci->xa_opt);
+	return target;
+}
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+
 void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
-	char		encoded_item[LARGE_REGISTRY_LEN], keepaliveStr[64], preferLibpqStr[64];
+	char		encoded_item[LARGE_REGISTRY_LEN]
+			, keepaliveStr[32]
+			, preferLibpqStr[32]
+			, xaOptStr[16];
 	ssize_t		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
@@ -456,6 +480,9 @@ inolog("hlen=%d", hlen);
 #ifdef	USE_LIBPQ
 				"%s"
 #endif /* USE_LIBPQ */
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+				"%s"
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 				INI_ABBREVIATE "=%02x%x",
 				encoded_item,
 				ci->drivers.fetch_max,
@@ -468,6 +495,9 @@ inolog("hlen=%d", hlen);
 #ifdef	USE_LIBPQ
 				makePreferLibpqConnectString(preferLibpqStr, ci, TRUE),
 #endif /* USE_LIBPQ */
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+				makeXaOptConnectString(xaOptStr, ci, TRUE),
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 				EFFECTIVE_BIT_COUNT, flag);
 		if (olen < nlen && (PROTOCOL_74(ci) || ci->rollback_on_error >= 0))
 		{

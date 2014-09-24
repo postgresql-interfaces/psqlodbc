@@ -999,18 +999,73 @@ EXTERN_C static unsigned WINAPI DtcRequestExec(LPVOID para)
 
 CSTR	regKey = "SOFTWARE\\Microsoft\\MSDTC\\XADLL";
 
-RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDispenser *pDtc)
+static int regkeyCheck(const char *xalibname, const char *xalibpath)
+{
+	int	retcode = 0;
+	LONG	ret;
+	HKEY	sKey;
+	DWORD	rSize;
+
+	ret = ::RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_QUERY_VALUE | KEY_SET_VALUE | KEY_WOW64_64KEY, &sKey);
+	switch (ret)
+	{
+		case ERROR_SUCCESS:
+			break;
+		case ERROR_FILE_NOT_FOUND:
+			ret = ::RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &sKey, NULL);
+			mylog("%s:CreateKeyEx ret=%d\n", __FUNCTION__, ret);
+			break;
+		default:
+			mylog("%s:OpenKeyEx ret=%d\n", __FUNCTION__, ret);
+	}
+	if (ERROR_SUCCESS != ret)
+		return -1;
+	else
+	{
+		char keyval[1024];
+
+		rSize = sizeof(keyval);
+		switch (ret = ::RegQueryValueEx(sKey, xalibname, NULL, NULL, (LPBYTE) keyval, &rSize))
+		{
+			case ERROR_SUCCESS:
+				if (rSize > 0)
+				{
+					if (0 == _stricmp(keyval, xalibpath))
+						break;
+					mylog("%s:XADLL value %s is different\n", __FUNCTION__, keyval);
+				}
+			default:
+				mylog("%s:Setting value %s\n", __FUNCTION__, xalibpath);
+				ret = ::RegSetValueEx(sKey, xalibname, 0, REG_SZ, (CONST BYTE *) xalibpath, (DWORD) strlen(xalibpath) + 1);
+				if (ERROR_SUCCESS == ret)
+					retcode = 1;
+				else
+				{
+					retcode = -1;
+					mylog("%s:SetValuEx ret=%d\n", __FUNCTION__, ret);
+				}
+				break;
+		}
+		::RegCloseKey(sKey);
+	}
+	return retcode;
+}
+
+RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDispenser *pDtc, int method)
 {
 	CSTR	func = "EnlistInDtc_1pipe";
 	static	IDtcToXaHelperSinglePipe	*pHelper = NULL;
 	ITransactionResourceAsync		*pRes = NULL;
 	IAsyncPG				*asdum;
 	HRESULT	res;
-	bool	retry, errset;
 	DWORD	dwRMCookie;
 	XID	xid;
 	const char *xalibname = GetXaLibName();
 	const char *xalibpath = GetXaLibPath();
+
+	int	recovLvl;
+	char	errmsg[256];
+	char	reason[128];
 
 	if (!pHelper)
 	{
@@ -1029,56 +1084,94 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 		return SQL_ERROR;
 	}
 
+	recovLvl = PgDtc_is_recovery_available(conn, reason, sizeof(reason));
+	switch (method)
+	{
+		case DTC_CHECK_BEFORE_LINK:
+			if (0 == recovLvl)
+			{
+				snprintf(errmsg, sizeof(errmsg), "%s is unavailable in distributed transactions", reason);
+				PgDtc_set_error(conn, errmsg, func);
+				return SQL_ERROR;
+			}
+	}
 /*mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;*/
-	retry = false;
-	errset = false;
 	char	dtcname[1024];
 	PgDtc_create_connect_string(conn, dtcname, sizeof(dtcname));
-	do {
-		res = pHelper->XARMCreate(dtcname, (char *) xalibname, &dwRMCookie);
-		if (S_OK == res)
-			break;
-		mylog("XARMCreate error code=%x\n", res);
-		if (XACT_E_XA_TX_DISABLED == res)
-		{
-			PgDtc_set_error(conn, "XARMcreate error:Please enable XA transaction in MSDTC security configuration", func);
-			errset = true;
-		}
-		else if (!retry)
-		{
-			LONG	ret;
-			HKEY	sKey;
-			DWORD	rSize;
 
-			ret = ::RegOpenKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &sKey);
-			if (ERROR_SUCCESS != ret)
-				ret = ::RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &sKey, NULL);
-			if (ERROR_SUCCESS == ret)
-			{
-				switch (ret = ::RegQueryValueEx(sKey, xalibname, NULL, NULL, NULL, &rSize))
+	bool	confirmedRegkey = false, confirmingLink = false, xarmerr = false;
+	char	error_header[64];
+	while (true)
+	{
+		res = pHelper->XARMCreate(dtcname, (char *) xalibname, &dwRMCookie);
+
+		mylog("XARMcreate error code=%x (%d %d)\n", res, confirmedRegkey, confirmingLink);
+		xarmerr = true;
+		if (!confirmingLink)
+			snprintf(error_header, sizeof(error_header), "XARMcreate error code=%x", res);
+		switch (res)
+		{
+			case S_OK:
+				if (confirmingLink)
 				{
-					case ERROR_SUCCESS:
-						if (rSize > 0)
+					switch (recovLvl)
+					{
+						case 0:
+							snprintf(errmsg, sizeof(errmsg), "%s:%s is currently unavailable in distributed transactions", error_header, reason);
 							break;
-					default:
-						ret = ::RegSetValueEx(sKey, xalibname, 0, REG_SZ,
-											  (CONST BYTE *) xalibpath, (DWORD) strlen(xalibpath) + 1);
-						if (ERROR_SUCCESS == ret)
-						{
-							retry = true;
-							::RegCloseKey(sKey);
-							continue; // retry
-						}
-						PgDtc_set_error(conn, "XARMCreate error:Please register HKLM\\SOFTWARE\\Microsoft\\MSDTC\\XADLL", func);
-						break;
+						case -1:
+							snprintf(errmsg, sizeof(errmsg), "%s:Possibly you connect to the database whose authentication method is %s or ident", error_header, reason);
+							break;
+						case 1:
+							snprintf(errmsg, sizeof(errmsg), "%s:Are you trying to connect to the database whose authentication method is ident?", error_header, reason);
+							break;
+					}
 				}
-				::RegCloseKey(sKey);
-			}
+				else
+					xarmerr = false;
+				break;
+			case XACT_E_XA_TX_DISABLED:
+				snprintf(errmsg, sizeof(errmsg), "%s:Please enable XA transaction in MSDTC security configuration", error_header);
+				break;
+			case XACT_E_TMNOTAVAILABLE:
+				snprintf(errmsg, sizeof(errmsg), "%s:Please start Distributed Transaction Coordinator service", error_header);
+				break;
+			case E_FAIL:
+				if (!confirmedRegkey)
+				{
+					int retcode = regkeyCheck(xalibname, xalibpath);
+					confirmedRegkey = true;
+					if (retcode > 0)
+						continue;
+				}
+				switch (method)
+				{
+					case DTC_CHECK_RM_CONNECTION:
+						if (!confirmingLink)
+						{
+							confirmingLink = true;
+							strcat(dtcname, ";" KEYWORD_DTC_CHECK "=0");
+							continue;
+						}
+					default:
+						snprintf(errmsg, sizeof(errmsg), "%s:Failed to link with DTC service. Please look at the log of Event Viewer etc.", error_header);
+				}
+				break;
+			case XACT_E_CONNECTION_DOWN:
+				snprintf(errmsg, sizeof(errmsg), "%s:Lost connection with DTC transaction manager\nMSDTC has some trouble?", error_header);
+				break;
+			default:
+				snprintf(errmsg, sizeof(errmsg), "%s\n", error_header);
+				break;
 		}
-		if (!errset)
-			PgDtc_set_error(conn, "MSDTC XARMCreate error", func);
+		break;
+	}
+	if (xarmerr)
+	{
+		PgDtc_set_error(conn, errmsg, func);
 		return SQL_ERROR;
-	} while (1);
+	}
+
 	res = pHelper->ConvertTridToXID((DWORD *) pTra, dwRMCookie, &xid);
 	if (res != S_OK)
 	{
@@ -1164,7 +1257,7 @@ EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
 			pDtc = NULL;
 		}
 	}
-	ret = EnlistInDtc_1pipe(conn, (ITransaction *) pTra, pDtc);
+	ret = EnlistInDtc_1pipe(conn, (ITransaction *) pTra, pDtc, method);
 	if (SQL_SUCCEEDED(ret))
 		PgDtc_set_property(conn, enlisted, (void *) 1);
 	return ret;

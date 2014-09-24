@@ -29,6 +29,11 @@
 extern "C" {
 #endif
 
+#define	KEYWORD_DTC_CHECK	"dtchk"
+#define	DTC_CHECK_LINK_ONLY	1
+#define	DTC_CHECK_BEFORE_LINK	2
+#define	DTC_CHECK_RM_CONNECTION	3
+
 /*	Property */
 enum {
 	inprogress
@@ -62,6 +67,7 @@ enum {
 };
 
 DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strsize);
+DLL_DECLARE int  PgDtc_is_recovery_available(void *self, char *reason, int rsize);
 DLL_DECLARE void PgDtc_set_async(void *self, void *async);
 DLL_DECLARE void *PgDtc_get_async(void *self);
 DLL_DECLARE void PgDtc_set_property(void *self, int property, void *value);

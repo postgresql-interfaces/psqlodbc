@@ -154,6 +154,7 @@ extern "C" {
 #define INI_DTCLOG			"Dtclog"
 #define INI_PREFERLIBPQ			"PreferLibpq"
 #define ABBR_PREFERLIBPQ		"D3"
+#define ABBR_XAOPT			"D4"
 
 #define	SSLMODE_DISABLE		"disable"
 #define	SSLMODE_ALLOW		"allow"

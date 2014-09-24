@@ -4411,9 +4411,9 @@ const char *CurrCatString(const ConnectionClass *conn)
 DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strsize)
 {
 	ConnectionClass	*conn = (ConnectionClass *) self;
-	SYSTEM_INFO si;
 	ConnInfo *ci = &(conn->connInfo);
 	const char *drivername = ci->drivername;
+	char	xaOptStr[32];
 
 #if defined(_WIN32) && !defined(_WIN64)
 	/*
@@ -4455,8 +4455,152 @@ DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strs
 	}
 #endif // _WIN32 &&  !_WIN64
 
-	snprintf(connstr, strsize, "DRIVER={%s};SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s",
-		drivername, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode);
+	if (0 >= ci->xa_opt)	return;
+	switch (ci->xa_opt)
+	{
+		case DTC_CHECK_LINK_ONLY: 
+		case DTC_CHECK_BEFORE_LINK:
+			sprintf(xaOptStr, KEYWORD_DTC_CHECK "=0;");
+			break;
+		case DTC_CHECK_RM_CONNECTION:
+			sprintf(xaOptStr, KEYWORD_DTC_CHECK "=1;");
+			break;
+		default:
+			*xaOptStr = '\0';
+			break;
+	}
+	snprintf(connstr, strsize, "DRIVER={%s};"
+				"%s"
+				"SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s",
+		drivername, xaOptStr 
+		, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode);
+	return;
+}
+
+#define SECURITY_WIN32
+#include <security.h>
+DLL_DECLARE int PgDtc_is_recovery_available(void *self, char *reason, int rsize)
+{
+	ConnectionClass	*conn = (ConnectionClass *) self;
+	ConnInfo *ci = &(conn->connInfo);
+	int	ret = -1;	// inknown
+	LONG	nameSize;
+	char	loginUser[256];
+
+	SocketClass	*sock;
+	BOOL	outReason = FALSE;
+	BOOL	doubtRootCert = TRUE, doubtCert = TRUE, doubtSspi = TRUE;
+	const char *delim;
+
+	/*
+	 *	Root certificate is used?
+	 */
+	if (NULL != reason &&
+	    rsize > 0)
+		outReason = TRUE;
+	/*
+	 *	Root certificate is used?
+	 */
+	doubtRootCert = FALSE;
+	if (0 == stricmp(ci->sslmode, SSLMODE_VERIFY_CA) ||
+	    0 == stricmp(ci->sslmode, SSLMODE_VERIFY_FULL))
+	{
+		if (outReason)
+			strncpy_null(reason, "sslmode verify-[ca|full]", rsize);
+		return 0;
+	}
+
+	sock = CC_get_socket(conn);
+	if (!sock)
+		return 0;
+
+	/*
+	 *	Client certificate is used?
+	 *	There seems no way to check it.
+	 */
+	doubtCert = FALSE;
+#ifdef	USE_LIBPQ
+#ifdef	USE_SSL
+	if (sock->via_libpq &&
+	    NULL != sock->ssl)
+		doubtCert = TRUE;
+#endif /* USE_SSL */
+#endif /* USE_LIBPQ */
+#ifdef	USE_SSPI
+	if (0 != (sock->sspisvcs & SchannelService))
+		doubtCert = TRUE;
+#endif	/* USE_SSPI */
+
+	/*
+	 *	Sspi authentication is used?
+	 */
+	doubtSspi = FALSE;
+#ifdef	USE_SSPI
+	if (0 != (sock->sspisvcs & (KerberosService | NegotiateService)))
+	{
+		if (outReason)
+			strncpy_null(reason, "sspi authentication", rsize);
+		return 0;
+	}
+#endif	/* USE_SSPI */
+#ifdef	USE_LIBPQ
+	if (sock->via_libpq)
+	{
+		nameSize = sizeof(loginUser);
+		if (GetUserNameEx(NameUserPrincipal, loginUser, &nameSize))
+		{
+			doubtSspi = TRUE;
+			mylog("loginUser=%s\n", loginUser);
+		}
+		else
+		{
+			int err = GetLastError();
+			switch (err)
+			{
+				case ERROR_NONE_MAPPED:
+					mylog("The user name is unavailable in the specified format\n");
+					break;
+				case ERROR_NO_SUCH_DOMAIN:
+					mylog("The domain controller is unavailable to perform the lookup\n");
+					break;
+				case ERROR_MORE_DATA:
+					doubtSspi = TRUE;
+					mylog("The buffer is too small\n");
+					break;
+				default:
+					mylog("GetUserNameEx error=%d\n", err);
+					break;
+			}
+		}
+	}
+#endif /* USE_LIBPQ */
+
+	ret = 1;	
+	if (outReason)
+		*reason = '\0';
+	delim = "";
+	if (doubtRootCert) 
+	{
+		if (outReason)
+			snprintf(reason, rsize, "%s%ssslmode verify-[ca|full]", reason, delim);
+		delim = ", ";
+		ret = -1;
+	}
+	if (doubtCert) 
+	{
+		if (outReason)
+			snprintf(reason, rsize, "%s%scertificate", reason, delim);
+		delim = ", ";
+		ret = -1;
+	}
+	if (doubtCert) 
+	{
+		if (outReason)
+			snprintf(reason, rsize, "%s%ssspi", reason, delim);
+		delim = ", ";
+		ret = -1;
+	}
+	return ret;
 }
 
 DLL_DECLARE void PgDtc_set_async(void *self, void *async)

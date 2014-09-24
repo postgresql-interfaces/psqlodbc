@@ -24,12 +24,18 @@ extern HMODULE	s_hModule;
 static char	xalibpath[_MAX_PATH] = "";
 static char	xalibname[_MAX_FNAME] = "";
 
+static const char * const PGMFILESX86 = "Program Files(x86)";
+
 const char *GetXaLibName(void)
 {
 	char	dllpath[_MAX_PATH], drive[_MAX_DRIVE], dir[_MAX_DIR],
 		fname[_MAX_FNAME], ext[_MAX_EXT];
 	if (!xalibpath[0])
 	{
+		size_t	pgmflen = strlen(PGMFILESX86);
+		char	*ptr;
+		BOOL	x86path = FALSE;
+
 		GetModuleFileName(s_hModule, dllpath, sizeof(dllpath));
 		/* In Windows XP SP2, the dllname should be specified */
 		/* instead of the dll path name, because it looks up */
@@ -38,7 +44,17 @@ const char *GetXaLibName(void)
 		_splitpath(dllpath, drive, dir, fname, ext);
 		// _snprintf(xalibname, sizeof(xalibname), "%s%s", fname, ext);
 		strcpy(xalibname, "pgxalib.dll");
-		_snprintf(xalibpath, sizeof(xalibpath), "%s%s%s", drive, dir, xalibname);
+		if ('\\' == *dir &&
+		    0 == _strnicmp(dir + 1, PGMFILESX86, pgmflen))
+		{
+			ptr = dir + 1 + pgmflen;
+			if ('\\' == *ptr)
+				x86path = TRUE;
+		}
+		if (x86path)
+			_snprintf(xalibpath, sizeof(xalibpath), "\\Program Files%s%s", drive, ptr, xalibname);
+		else 	
+			_snprintf(xalibpath, sizeof(xalibpath), "%s%s%s", drive, dir, xalibname);
 	}
 	return xalibname;
 }
