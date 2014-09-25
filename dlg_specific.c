@@ -220,6 +220,7 @@ makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 	return target;
 }
 
+#ifdef	USE_LIBPQ
 static char *
 makePreferLibpqConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 {
@@ -235,6 +236,7 @@ makePreferLibpqConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 		sprintf(buf, INI_PREFERLIBPQ "=%u;", ci->prefer_libpq);
 	return target;
 }
+#endif /* USE_LIBPQ */
 
 void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
@@ -312,7 +314,9 @@ inolog("hlen=%d", hlen);
 			INI_USESERVERSIDEPREPARE "=%d;"
 			INI_LOWERCASEIDENTIFIER "=%d;"
 			"%s"
+#ifdef	USE_LIBPQ
 			"%s"
+#endif /* USE_LIBPQ */
 #ifdef	WIN32
 			INI_GSSAUTHUSEGSSAPI "=%d;"
 #endif /* WIN32 */
@@ -352,7 +356,9 @@ inolog("hlen=%d", hlen);
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
 			,makeKeepaliveConnectString(keepaliveStr, ci, FALSE)
+#ifdef	USE_LIBPQ
 			,makePreferLibpqConnectString(preferLibpqStr, ci, FALSE)
+#endif /* USE_LIBPQ */
 #ifdef	WIN32
 			,ci->gssauth_use_gssapi
 #endif /* WIN32 */
@@ -447,7 +453,9 @@ inolog("hlen=%d", hlen);
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
 				"%s"
+#ifdef	USE_LIBPQ
 				"%s"
+#endif /* USE_LIBPQ */
 				INI_ABBREVIATE "=%02x%x",
 				encoded_item,
 				ci->drivers.fetch_max,
@@ -457,7 +465,9 @@ inolog("hlen=%d", hlen);
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
 				makeKeepaliveConnectString(keepaliveStr, ci, TRUE),
+#ifdef	USE_LIBPQ
 				makePreferLibpqConnectString(preferLibpqStr, ci, TRUE),
+#endif /* USE_LIBPQ */
 				EFFECTIVE_BIT_COUNT, flag);
 		if (olen < nlen && (PROTOCOL_74(ci) || ci->rollback_on_error >= 0))
 		{
@@ -657,8 +667,10 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->keepalive_idle = atoi(value);
 	else if (stricmp(attribute, INI_KEEPALIVEINTERVAL) == 0 || stricmp(attribute, ABBR_KEEPALIVEINTERVAL) == 0)
 		ci->keepalive_interval = atoi(value);
+#ifdef	USE_LIBPQ
 	else if (stricmp(attribute, INI_PREFERLIBPQ) == 0 || stricmp(attribute, ABBR_PREFERLIBPQ) == 0)
 		ci->prefer_libpq = atoi(value);
+#endif /* USE_LIBPQ */
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
 	{
 		switch (value[0])
@@ -1054,12 +1066,14 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 			if (0 == (ci->keepalive_interval = atoi(temp)))
 				ci->keepalive_interval = -1;
 	}
+#ifdef	USE_LIBPQ
 	if (ci->prefer_libpq < 0 || overwrite)
 	{
 		SQLGetPrivateProfileString(DSN, INI_PREFERLIBPQ, "-1", temp, sizeof(temp), ODBC_INI);
 		if (temp[0])
 			ci->prefer_libpq = atoi(temp);
 	}
+#endif /* USE_LIBPQ */
 
 	if (ci->sslmode[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
@@ -1362,11 +1376,13 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_KEEPALIVEINTERVAL,
 								 temp,
 								 ODBC_INI);
+#ifdef	USE_LIBPQ
 	sprintf(temp, "%d", ci->prefer_libpq);
 	SQLWritePrivateProfileString(DSN,
 								 INI_PREFERLIBPQ,
 								 temp,
 								 ODBC_INI);
+#endif /* USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	sprintf(temp, "%d", ci->xa_opt);
 	SQLWritePrivateProfileString(DSN, INI_XAOPT, temp, ODBC_INI);

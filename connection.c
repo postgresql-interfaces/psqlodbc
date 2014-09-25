@@ -300,7 +300,9 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->gssauth_use_gssapi = -1;
 	conninfo->keepalive_idle = -1;
 	conninfo->keepalive_interval = -1;
+#ifdef USE_LIBPQ
 	conninfo->prefer_libpq = -1;
+#endif /* USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -334,7 +336,9 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_STRCPY(translation_dll);
 	CORR_STRCPY(translation_option);
 	CORR_VALCPY(focus_password);
+#ifdef USE_LIBPQ
 	CORR_VALCPY(prefer_libpq);
+#endif /* USE_LIBPQ */
 	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
 	CORR_VALCPY(disallow_premature);
 	CORR_VALCPY(allow_keyset);
