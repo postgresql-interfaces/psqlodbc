@@ -1009,6 +1009,8 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 	bool	retry, errset;
 	DWORD	dwRMCookie;
 	XID	xid;
+	const char *xalibname = GetXaLibName();
+	const char *xalibpath = GetXaLibPath();
 
 	if (!pHelper)
 	{
@@ -1027,13 +1029,13 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 		return SQL_ERROR;
 	}
 
-/*mylog("dllname=%s dsn=%s\n", GetXaLibName(), conn->connInfo.dsn); res = 0;*/
+/*mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;*/
 	retry = false;
 	errset = false;
 	char	dtcname[1024];
 	PgDtc_create_connect_string(conn, dtcname, sizeof(dtcname));
 	do {
-		res = pHelper->XARMCreate(dtcname, (char *) GetXaLibName(), &dwRMCookie);
+		res = pHelper->XARMCreate(dtcname, (char *) xalibname, &dwRMCookie);
 		if (S_OK == res)
 			break;
 		mylog("XARMCreate error code=%x\n", res);
@@ -1053,17 +1055,18 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 				ret = ::RegCreateKeyEx(HKEY_LOCAL_MACHINE, regKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &sKey, NULL);
 			if (ERROR_SUCCESS == ret)
 			{
-				switch (ret = ::RegQueryValueEx(sKey, "XADLL", NULL, NULL, NULL, &rSize))
+				switch (ret = ::RegQueryValueEx(sKey, xalibname, NULL, NULL, NULL, &rSize))
 				{
 					case ERROR_SUCCESS:
 						if (rSize > 0)
 							break;
 					default:
-						ret = ::RegSetValueEx(sKey, GetXaLibName(), 0, REG_SZ,
-											  (CONST BYTE *) GetXaLibPath(), (DWORD) strlen(GetXaLibPath()) + 1);
+						ret = ::RegSetValueEx(sKey, xalibname, 0, REG_SZ,
+											  (CONST BYTE *) xalibpath, (DWORD) strlen(xalibpath) + 1);
 						if (ERROR_SUCCESS == ret)
 						{
 							retry = true;
+							::RegCloseKey(sKey);
 							continue; // retry
 						}
 						PgDtc_set_error(conn, "XARMCreate error:Please register HKLM\\SOFTWARE\\Microsoft\\MSDTC\\XADLL", func);
