@@ -283,6 +283,10 @@ LRESULT CALLBACK ds_options2Proc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,
 			   LPARAM lParam);
+LRESULT CALLBACK ds_options3Proc(HWND hdlg,
+			   UINT wMsg,
+			   WPARAM wParam,
+			   LPARAM lParam);
 LRESULT CALLBACK manage_dsnProc(HWND hdlg,
 			   UINT wMsg,
 			   WPARAM wParam,

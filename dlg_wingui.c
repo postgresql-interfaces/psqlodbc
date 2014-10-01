@@ -27,6 +27,9 @@
 
 #include "multibyte.h"
 #include "pgapifunc.h"
+#ifdef _HANDLE_ENLIST_IN_DTC_
+#include "connexp.h"
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 extern GLOBAL_VALUES globals;
 
@@ -35,6 +38,9 @@ static int	driver_optionsDraw(HWND, const ConnInfo *, int src, BOOL enable);
 static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 
 static int	ds_options_update(HWND hdlg, ConnInfo *ci);
+
+static int	ds_options3Draw(HWND, const ConnInfo *);
+static int	ds_options3_update(HWND hdlg, ConnInfo *ci);
 
 static struct {
 	int	ids;
@@ -753,6 +759,167 @@ ds_options2Proc(HWND hdlg,
 					DialogBoxParam(s_hModule,
 						MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 						   hdlg, ds_options1Proc, (LPARAM) ci);
+					break;
+				case IDNEXTPAGE:
+					ds_options_update(hdlg, ci);
+					EndDialog(hdlg, cmd == IDOK);
+					DialogBoxParam(s_hModule,
+						MAKEINTRESOURCE(DLG_OPTIONS_DS3),
+						   hdlg, ds_options3Proc, (LPARAM) ci);
+					break;
+			}
+	}
+
+	return FALSE;
+}
+
+static int
+ds_options3Draw(HWND hdlg, const ConnInfo *ci)
+{
+	BOOL	enable = TRUE;
+	static BOOL defset = FALSE;
+
+	/* The use of LIBPQ library */
+#ifdef	USE_LIBPQ
+	if (ci->prefer_libpq < 0)
+		CheckDlgButton(hdlg, DS_DEFAULT_LIBPQ_USE, 1);
+	else if (0 == ci->prefer_libpq)
+		CheckDlgButton(hdlg, DS_NO_LIBPQ_USE, 1);
+	else 
+		CheckDlgButton(hdlg, DS_LIBPQ_USE, 1);
+#else
+	enable = FALSE;
+	EnableWindow(GetDlgItem(hdlg, DS_DEFAULT_LIBPQ_USE), enable);
+	EnableWindow(GetDlgItem(hdlg, DS_LIBPQ_USE), enable);
+	EnableWindow(GetDlgItem(hdlg, DS_NO_LIBPQ_USE), enable);
+#endif /* USE_LIBPQ */
+
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	switch (ci->xa_opt)
+	{
+		case 0:
+			enable = FALSE;
+			break;
+		case DTC_CHECK_LINK_ONLY:
+			CheckDlgButton(hdlg, DS_DTC_LINK_ONLY, 1);
+			break;
+		case DTC_CHECK_BEFORE_LINK:
+			CheckDlgButton(hdlg, DS_DTC_SIMPLE_PRECHECK, 1);
+			break;
+		case DTC_CHECK_RM_CONNECTION:
+			CheckDlgButton(hdlg, DS_DTC_CONFIRM_RM_CONNECTION, 1);
+			break;
+	}
+#else
+	enable = FALSE;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+	if (!enable)
+	{
+		EnableWindow(GetDlgItem(hdlg, DS_DTC_LINK_ONLY), enable);
+		EnableWindow(GetDlgItem(hdlg, DS_DTC_SIMPLE_PRECHECK), enable);
+		EnableWindow(GetDlgItem(hdlg, DS_DTC_CONFIRM_RM_CONNECTION), enable);
+	}
+
+	return 0;
+}
+
+static int
+ds_options3_update(HWND hdlg, ConnInfo *ci)
+{
+	mylog("%s: got ci = %p\n", __FUNCTION__, ci);
+
+#ifdef	USE_LIBPQ
+	/* Libpq use */
+	if (IsDlgButtonChecked(hdlg, DS_DEFAULT_LIBPQ_USE))
+		ci->prefer_libpq = -1;
+	else if (IsDlgButtonChecked(hdlg, DS_NO_LIBPQ_USE))
+		ci->prefer_libpq = 0;
+	else
+		ci->prefer_libpq = 1;
+#endif /* USE_LIBPQ */
+
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	if (IsDlgButtonChecked(hdlg, DS_DTC_LINK_ONLY))
+		ci->xa_opt = DTC_CHECK_LINK_ONLY;
+	else if (IsDlgButtonChecked(hdlg, DS_DTC_SIMPLE_PRECHECK))
+		ci->xa_opt = DTC_CHECK_BEFORE_LINK;
+	else if (IsDlgButtonChecked(hdlg, DS_DTC_CONFIRM_RM_CONNECTION))
+		ci->xa_opt = DTC_CHECK_RM_CONNECTION;
+	else
+		ci->xa_opt = 0;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+
+	return 0;
+}
+
+LRESULT			CALLBACK
+ds_options3Proc(HWND hdlg,
+			   UINT wMsg,
+			   WPARAM wParam,
+			   LPARAM lParam)
+{
+	ConnInfo   *ci;
+	char		buf[128];
+	DWORD		cmd;
+
+	switch (wMsg)
+	{
+		case WM_INITDIALOG:
+			ci = (ConnInfo *) lParam;
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* save for OK */
+
+			/* Change window caption */
+			if (ci && ci->dsn && ci->dsn[0])
+			{
+				char	fbuf[64];
+
+				cmd = LoadString(s_hModule,
+						IDS_ADVANCE_OPTION_DSN3,
+						fbuf,
+						sizeof(fbuf));
+				if (cmd <= 0)
+					strcpy(fbuf, "Advanced Options (%s) 3/3");
+				sprintf(buf, fbuf, ci->dsn);
+				SetWindowText(hdlg, buf);
+			}
+			else
+			{
+				LoadString(s_hModule, IDS_ADVANCE_OPTION_CON3, buf, sizeof(buf));
+				SetWindowText(hdlg, buf);
+				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);				}
+
+			ds_options3Draw(hdlg, ci);
+			break;
+
+		case WM_COMMAND:
+			ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
+			switch (cmd = GET_WM_COMMAND_ID(wParam, lParam))
+			{
+				case DS_SHOWOIDCOLUMN:
+					mylog("WM_COMMAND: DS_SHOWOIDCOLUMN\n");
+					EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
+					return TRUE;
+				case DS_DISABLE_KEEPALIVE:
+					mylog("WM_COMMAND: DS_SHOWOIDCOLUMN\n");
+					EnableWindow(GetDlgItem(hdlg, DS_KEEPALIVETIME), !IsDlgButtonChecked(hdlg, cmd));
+					EnableWindow(GetDlgItem(hdlg, DS_KEEPALIVEINTERVAL), !IsDlgButtonChecked(hdlg, cmd));
+					return TRUE;
+
+				case IDOK:
+					ds_options3_update(hdlg, ci);
+				case IDCANCEL:
+					EndDialog(hdlg, IDOK == cmd);
+					return TRUE;
+				case IDAPPLY:
+					ds_options3_update(hdlg, ci);
+					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
+					break;
+				case IDPREVPAGE:
+					ds_options3_update(hdlg, ci);
+					EndDialog(hdlg, cmd == IDOK);
+					DialogBoxParam(s_hModule,
+						MAKEINTRESOURCE(DLG_OPTIONS_DS),
+						   hdlg, ds_options2Proc, (LPARAM) ci);
 					break;
 			}
 	}

@@ -13,6 +13,8 @@
 #define IDS_ADVANCE_OPTION_DSN2         7
 #define IDS_ADVANCE_OPTION_CON2         8
 #define IDS_ADVANCE_CONNECTION          9
+#define IDS_ADVANCE_OPTION_DSN3		10
+#define IDS_ADVANCE_OPTION_CON3		11
 #define DLG_OPTIONS_DRV                 102
 #define DLG_OPTIONS_DS                  103
 #define DLG_OPTIONS_GLOBAL		104
@@ -105,6 +107,13 @@
 #define DS_DEFAULT_DTCLOG		1091
 #define DS_DTCLOG			1092
 #define DS_NO_DTCLOG			1093
+#define DS_DEFAULT_LIBPQ_USE		1094
+#define DS_LIBPQ_USE			1095
+#define DS_NO_LIBPQ_USE			1096
+#define DS_DTC_NO_USE			1097
+#define DS_DTC_LINK_ONLY	     	1098
+#define DS_DTC_SIMPLE_PRECHECK		1099
+#define DS_DTC_CONFIRM_RM_CONNECTION	1100
 
 // Next default values for new objects
 //
@@ -112,7 +121,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1094
+#define _APS_NEXT_CONTROL_VALUE         1101
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
