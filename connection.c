@@ -4471,9 +4471,18 @@ DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strs
 	}
 	snprintf(connstr, strsize, "DRIVER={%s};"
 				"%s"
-				"SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s",
+				"SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s"
+#ifdef	USE_LIBPQ
+		";" ABBR_PREFERLIBPQ "=%d"
+#endif /* USE_LIBPQ */
+		,
+
 		drivername, xaOptStr 
-		, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode);
+		, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode
+#ifdef	USE_LIBPQ
+		, (CC_get_socket(conn))->via_libpq
+#endif /* USE_LIBPQ */
+		);
 	return;
 }
 
