@@ -462,6 +462,21 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 	fflush(stdout);
 }
 
+/* A helper function to execute one command */
+void
+exec_cmd(char *sql)
+{
+	SQLRETURN	rc;
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	printf("Executed: %s\n", sql);
+}
+
 int main(int argc, char **argv)
 {
 	SQLRETURN	rc;
@@ -482,12 +497,13 @@ int main(int argc, char **argv)
 	 * Someone should fix the driver to understand other formats,
 	 * postgres_verbose in particular...
 	 */
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SET intervalstyle=postgres", SQL_NTS);
-	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
-	print_result(hstmt);
+	exec_cmd("SET intervalstyle=postgres");
 
-	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
-	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*
+	 * Use octal escape bytea format in the tests. We will test the conversion
+	 * from the hex format separately later.
+	 */
+	exec_cmd("SET bytea_output=escape");
 
 	/* Test all combinations of PostgreSQL data types and SQL datatypes */
 	for (pgtype_i = 0; pgtypes[pgtype_i * 2] != NULL; pgtype_i++)
@@ -508,6 +524,16 @@ int main(int argc, char **argv)
 	 * Test a few things separately that were not part of the exhaustive test
 	 * above.
 	 */
+
+	/* Conversions from bytea, in the hex format */
+
+	/*
+	 * Use octal escape bytea format in the tests. We will test the conversion
+	 * from the hex format separately later.
+	 */
+	exec_cmd("SET bytea_output=hex");
+	test_conversion("bytea", "\\x464F4F", SQL_C_CHAR, "SQL_C_CHAR", 100);
+	test_conversion("bytea", "\\x464F4F", SQL_C_WCHAR, "SQL_C_WCHAR", 100);
 
 	/* Conversion to GUID throws error if the string is not of correct form */
 	test_conversion("text", "543c5e21-435a-440b-943c-64af1ad571f1", SQL_C_GUID, "SQL_C_GUID", -1);

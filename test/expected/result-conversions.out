@@ -1,6 +1,7 @@
 \! "./src/result-conversions-test"
 connected
-Result set:
+Executed: SET intervalstyle=postgres
+Executed: SET bytea_output=escape
 'true' (boolean) as SQL_C_CHAR: 1
 'true' (boolean) as SQL_C_WCHAR: 1
 'true' (boolean) as SQL_C_SSHORT: 1
@@ -1345,6 +1346,9 @@ Result set:
 'foocur' (refcursor) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
 'foocur' (refcursor) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 'foocur' (refcursor) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
+Executed: SET bytea_output=hex
+'\x464F4F' (bytea) as SQL_C_CHAR: 464f4f
+'\x464F4F' (bytea) as SQL_C_WCHAR: 464f4f
 '543c5e21-435a-440b-943c-64af1ad571f1' (text) as SQL_C_GUID: d1: 543C5E21 d2: 435A d3: 440B d4: 943C64AF1AD571F1
 '2011-02-13' (date) as SQL_C_DATE: y: 2011 m: 2 d: 13
 '2011-02-13' (date) as SQL_C_TIMESTAMP: y: 2011 m: 2 d: 13 h: 0 m: 0 s: 0 f: 0
