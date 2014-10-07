@@ -263,10 +263,14 @@ void
 makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
-	char		encoded_item[LARGE_REGISTRY_LEN]
-			, keepaliveStr[32]
-			, preferLibpqStr[32]
-			, xaOptStr[16];
+	char		encoded_item[LARGE_REGISTRY_LEN];
+	char		keepaliveStr[32];
+#ifdef	USE_LIBPQ
+	char		preferLibpqStr[32];
+#endif
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	char		xaOptStr[16];
+#endif
 	ssize_t		hlen, nlen, olen;
 	/*BOOL		abbrev = (len <= 400);*/
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
