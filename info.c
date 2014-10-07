@@ -1557,6 +1557,7 @@ PGAPI_Tables(HSTMT hstmt,
 	BOOL		search_pattern;
 	BOOL		list_cat = FALSE, list_schemas = FALSE, list_table_types = FALSE, list_some = FALSE;
 	SQLLEN		cbRelname, cbRelkind, cbSchName;
+	EnvironmentClass *env;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
@@ -1565,6 +1566,7 @@ PGAPI_Tables(HSTMT hstmt,
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+	env = CC_get_env(conn);
 
 	result = PGAPI_AllocStmt(conn, &htbl_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -1850,8 +1852,16 @@ retry_public_schema:
 	stmt->catalog_result = TRUE;
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info_v(res, TABLES_CATALOG_NAME, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, TABLES_SCHEMA_NAME, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	if (EN_is_odbc3(env))
+	{
+		QR_set_field_info_v(res, TABLES_CATALOG_NAME, "TABLE_CAT", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+		QR_set_field_info_v(res, TABLES_SCHEMA_NAME, "TABLE_SCHEM", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	}
+	else
+	{
+		QR_set_field_info_v(res, TABLES_CATALOG_NAME, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+		QR_set_field_info_v(res, TABLES_SCHEMA_NAME, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	}
 	QR_set_field_info_v(res, TABLES_TABLE_NAME, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info_v(res, TABLES_TABLE_TYPE, "TABLE_TYPE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info_v(res, TABLES_REMARKS, "REMARKS", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
