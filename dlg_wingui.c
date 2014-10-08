@@ -233,8 +233,8 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	/* Driver Connection Settings */
 	SetDlgItemText(hdlg, DRV_CONNSETTINGS, SAFE_NAME(comval->conn_settings));
 	EnableWindow(GetDlgItem(hdlg, DRV_CONNSETTINGS), enable);
-	ShowWindow(GetDlgItem(hdlg, IDPREVPAGE), enable ? SW_HIDE : SW_SHOW);
-	ShowWindow(GetDlgItem(hdlg, IDNEXTPAGE), enable ? SW_HIDE : SW_SHOW);
+	ShowWindow(GetDlgItem(hdlg, ID2NDPAGE), enable ? SW_HIDE : SW_SHOW);
+	ShowWindow(GetDlgItem(hdlg, ID3RDPAGE), enable ? SW_HIDE : SW_SHOW);
 	return 0;
 }
 
@@ -492,13 +492,19 @@ ds_options1Proc(HWND hdlg,
 					driver_optionsDraw(hdlg, ci, 0, FALSE);
 					break;
 
-				case IDNEXTPAGE:
+				case ID2NDPAGE:
 					driver_options_update(hdlg, ci, NULL);
-
 					EndDialog(hdlg, FALSE);
 					DialogBoxParam(s_hModule,
 								   MAKEINTRESOURCE(DLG_OPTIONS_DS),
 								   hdlg, ds_options2Proc, (LPARAM) ci);
+					break;
+				case ID3RDPAGE:
+					driver_options_update(hdlg, ci, NULL);
+					EndDialog(hdlg, FALSE);
+					DialogBoxParam(s_hModule,
+								   MAKEINTRESOURCE(DLG_OPTIONS_DS3),
+								   hdlg, ds_options3Proc, (LPARAM) ci);
 					break;
 			}
 	}
@@ -757,14 +763,14 @@ ds_options2Proc(HWND hdlg,
 					ds_options_update(hdlg, ci);
 					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
 					break;
-				case IDPREVPAGE:
+				case ID1STPAGE:
 					ds_options_update(hdlg, ci);
 					EndDialog(hdlg, cmd == IDOK);
 					DialogBoxParam(s_hModule,
 						MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 						   hdlg, ds_options1Proc, (LPARAM) ci);
 					break;
-				case IDNEXTPAGE:
+				case ID3RDPAGE:
 					ds_options_update(hdlg, ci);
 					EndDialog(hdlg, cmd == IDOK);
 					DialogBoxParam(s_hModule,
@@ -913,7 +919,14 @@ ds_options3Proc(HWND hdlg,
 					ds_options3_update(hdlg, &tmpInfo);
 					test_connection(hdlg, &tmpInfo, TRUE);
 					break;
-				case IDPREVPAGE:
+				case ID1STPAGE:
+					ds_options3_update(hdlg, ci);
+					EndDialog(hdlg, cmd == IDOK);
+					DialogBoxParam(s_hModule,
+						MAKEINTRESOURCE(DLG_OPTIONS_DRV),
+						   hdlg, ds_options1Proc, (LPARAM) ci);
+					break;
+				case ID2NDPAGE:
 					ds_options3_update(hdlg, ci);
 					EndDialog(hdlg, cmd == IDOK);
 					DialogBoxParam(s_hModule,

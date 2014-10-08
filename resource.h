@@ -114,6 +114,9 @@
 #define DS_DTC_LINK_ONLY	     	1098
 #define DS_DTC_SIMPLE_PRECHECK		1099
 #define DS_DTC_CONFIRM_RM_CONNECTION	1100
+#define ID1STPAGE			1101
+#define ID2NDPAGE			1102
+#define ID3RDPAGE			1103
 
 // Next default values for new objects
 //
@@ -121,7 +124,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1101
+#define _APS_NEXT_CONTROL_VALUE         1104
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
