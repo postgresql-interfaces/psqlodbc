@@ -289,6 +289,7 @@ try {
 #
 #	Write the result to configuration xml
 #
+	$resultText="successful"
 	if ($recordResult) {
 		$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
 		$configInfo.Configuration.BuildResult.VisualStudioVersion=$VisualStudioVersion
@@ -296,11 +297,17 @@ try {
 		$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
 		$configInfo.Configuration.BuildResult.Platform=$Platform
 		SaveConfiguration $configInfo
-	}
+	} else {
+		$resultText="failed"
+	} 
+	Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VisualStudioVersion PlatformToolset=$Toolset Platform=$Platform $resultText`n"
 #
 #	build installers as well
 #
 	if ($AlongWithInstallers) {
+		if (-not $recordResult) {
+			throw("compilation failed")
+		} 
                 $cpu = $Platform
                 if ($Platform -eq "win32") {
                         $cpu = "x86"
@@ -312,8 +319,7 @@ try {
 	}
 } catch {
 	$error[0] | Format-List -Force
+} finally {
+	$env:PATH = $path_save
+	popd
 }
-
-Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VisualStudioVersion PlatformToolset=$Toolset"
-$env:PATH = $path_save
-popd
