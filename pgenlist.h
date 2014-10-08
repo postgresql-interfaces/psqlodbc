@@ -29,8 +29,6 @@ extern "C" {
 RETCODE	EnlistInDtc(void *conn, void *pTra, int method);
 RETCODE	DtcOnDisconnect(void *);
 RETCODE	IsolateDtcConn(void *, BOOL continueConnection);
-const char *GetXaLibName(void);
-const char *GetXaLibPath(void);
 //	for testing
 DLL_DECLARE	void	*GetTransactionObject(HRESULT *hres);
 DLL_DECLARE	void	ReleaseTransactionObject(void *);

@@ -36,6 +36,7 @@
 #include "mylog.h"
 #define	_PGENLIST_FUNCS_IMPLEMENT_
 #include "pgenlist.h"
+#include "xalibname.h"
 
 #ifdef WIN32
 #ifndef snprintf
@@ -1032,7 +1033,12 @@ static int regkeyCheck(const char *xalibname, const char *xalibpath)
 				{
 					if (0 == _stricmp(keyval, xalibpath))
 						break;
-					mylog("%s:XADLL value %s is different\n", __FUNCTION__, keyval);
+					mylog("%s:XADLL value %s is different from %s\n", __FUNCTION__, keyval, xalibpath);
+					if (IsWow64())
+					{
+						mylog("%s:avoid RegSetValue operation from wow64 process\n", __FUNCTION__);
+						break;
+					}
 				}
 			case ERROR_FILE_NOT_FOUND:
 				mylog("%s:Setting value %s\n", __FUNCTION__, xalibpath);

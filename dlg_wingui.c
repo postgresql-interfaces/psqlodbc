@@ -28,6 +28,7 @@
 #include "multibyte.h"
 #include "pgapifunc.h"
 #ifdef _HANDLE_ENLIST_IN_DTC_
+#include "xalibname.h"
 #include "connexp.h"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 

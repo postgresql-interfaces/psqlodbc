@@ -170,7 +170,6 @@ extern "C" {
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define INI_XAOPT			"XaOpt"
-const char *GetXaLibPath(void);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 /* Bit representaion for abbreviated connection strings */
 #define BIT_LFCONVERSION			(1L)

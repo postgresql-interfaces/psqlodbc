@@ -24,7 +24,32 @@ extern HMODULE	s_hModule;
 static char	xalibpath[_MAX_PATH] = "";
 static char	xalibname[_MAX_FNAME] = "";
 
-static const char * const PGMFILESX86 = "Program Files(x86)";
+static const char * const PGMFILES = "Program Files";
+static const char * const PGMFILESX86 = "Program Files (x86)";
+
+typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
+LPFN_ISWOW64PROCESS fnIsWow64Process;
+
+BOOL IsWow64()
+{
+	static BOOL bCalled = FALSE;
+	static BOOL bIsWow64 = FALSE;
+
+	if (bCalled)
+		return bIsWow64;
+	fnIsWow64Process = (LPFN_ISWOW64PROCESS) GetProcAddress(
+		GetModuleHandle("kernel32"), "IsWow64Process");
+
+	if (NULL != fnIsWow64Process)
+	{
+		if (!fnIsWow64Process(GetCurrentProcess(), &bIsWow64))
+		{
+			//handle error
+		}
+	}
+	bCalled = TRUE;
+	return bIsWow64;
+}
 
 const char *GetXaLibName(void)
 {
@@ -34,7 +59,6 @@ const char *GetXaLibName(void)
 	{
 		size_t	pgmflen = strlen(PGMFILESX86);
 		char	*ptr;
-		BOOL	x86path = FALSE;
 
 		GetModuleFileName(s_hModule, dllpath, sizeof(dllpath));
 		/* In Windows XP SP2, the dllname should be specified */
@@ -44,15 +68,16 @@ const char *GetXaLibName(void)
 		_splitpath(dllpath, drive, dir, fname, ext);
 		// _snprintf(xalibname, sizeof(xalibname), "%s%s", fname, ext);
 		strcpy(xalibname, "pgxalib.dll");
-		if ('\\' == *dir &&
-		    0 == _strnicmp(dir + 1, PGMFILESX86, pgmflen))
+		if (IsWow64())
 		{
-			ptr = dir + 1 + pgmflen;
-			if ('\\' == *ptr)
-				x86path = TRUE;
+			if ('\\' == *dir &&
+		    	    0 == _strnicmp(dir + 1, PGMFILESX86, pgmflen))
+			{
+				ptr = dir + 1 + pgmflen;
+				if ('\\' == *ptr)
+					_snprintf(xalibpath, sizeof(xalibpath), "\\%s%s%s", drive, PGMFILES, ptr, xalibname);
+			}
 		}
-		if (x86path)
-			_snprintf(xalibpath, sizeof(xalibpath), "\\Program Files%s%s", drive, ptr, xalibname);
 		else 	
 			_snprintf(xalibpath, sizeof(xalibpath), "%s%s%s", drive, dir, xalibname);
 	}
