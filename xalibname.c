@@ -75,7 +75,7 @@ const char *GetXaLibName(void)
 			{
 				ptr = dir + 1 + pgmflen;
 				if ('\\' == *ptr)
-					_snprintf(xalibpath, sizeof(xalibpath), "\\%s%s%s", drive, PGMFILES, ptr, xalibname);
+					_snprintf(xalibpath, sizeof(xalibpath), "%s\\%s%s%s", drive, PGMFILES, ptr, xalibname);
 			}
 		}
 		else 	
