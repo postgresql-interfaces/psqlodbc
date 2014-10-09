@@ -1,14 +1,12 @@
 <#
 .SYNOPSIS
-    Build a bootstrapperprogram of psqlodbc drivers.
+    Build a bootstrapper application of psqlodbc drivers.
 .DESCRIPTION
     Build psqlodbc-setup.exe
 .PARAMETER version
     Specify when you'd like to specify the version explicitly.
 .PARAMETER UI
     Specify when you'd like to show UIs of each MSIs.
-.PARAMETER withRedist
-    Specify when you have to include vcredist.
 .PARAMETER withRedist
     Specify when you have to include vcredist.
 .PARAMETER BuildConfigPath
