@@ -1473,7 +1473,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* DEBUG */
 		" library"
 #endif /* WIN32 */
-		"\n", POSTGRESDRIVERVERSION, PG_BUILD_VERSION
+		"\n", POSTGRESDRIVERVERSION, __DATE__
 #ifdef	_MSC_VER
 		, _MSC_VER
 #endif /* _MSC_VER */

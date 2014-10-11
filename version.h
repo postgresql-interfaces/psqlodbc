@@ -22,6 +22,5 @@
 #ifndef PG_DRVFILE_VERSION
 #define PG_DRVFILE_VERSION		9,3,03,00
 #endif
-#define PG_BUILD_VERSION		"201405140001"
 
 #endif
