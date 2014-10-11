@@ -93,8 +93,8 @@
   <PropertyGroup Condition="'$(USE_LIBPQ)'!='no'" >
     <ADD_INC>$(ADD_INC);$(PG_INC);$(SSL_INC)</ADD_INC>
     <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB);$(SSL_LIB)</ADD_LIBPATH>
-    <ADD_DEFINES>$(ADD_DEFINES);USE_LIBPQ;USE_SSL;RESET_CRYPTO_CALLBACKS</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>libpq.dll;ssleay32.dll;libeay32.dll</DELAY_LOAD_DLLS>
+    <ADD_DEFINES>$(ADD_DEFINES);USE_LIBPQ;USE_SSL</ADD_DEFINES>
+    <DELAY_LOAD_DLLS>libpq.dll;ssleay32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
   <!-- USE_GSS -->
   <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|Win32'" >
