@@ -15,18 +15,16 @@ AC_PROG_CC
 AM_CONDITIONAL([GCC], [test -n "$GCC"])
 
 if test -n "$GCC" && test "$ac_test_CFLAGS" != set; then
-	CFLAGS_ADD=
-	CFLAGS_save="${CFLAGS}"
 
 	AC_MSG_CHECKING(-Wall is a valid compile option)
-	CFLAGS="${CFLAGS_save} -Wall"
+	CFLAGS_SAVE="${CFLAGS}"
+	CFLAGS="${CFLAGS} -Wall"
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 		[[#include <stdio.h>]],
 		[])],
-		[AC_MSG_RESULT(yes)
-		 CFLAGS_ADD="${CFLAGS_ADD} -Wall"],
-		[AC_MSG_RESULT(no)])
-	CFLAGS=${CFLAGS_save}
+		[AC_MSG_RESULT(yes)],
+		[AC_MSG_RESULT(no)
+		 CFLAGS="${CFLAGS_SAVE}"])
 fi
 
 #
