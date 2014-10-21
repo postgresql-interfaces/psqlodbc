@@ -1,36 +1,64 @@
 # The list of test is stored in a separate file, so that it can be shared with
 # the Windows makefile, win.mak.
-include tests
+
+origdir = @srcdir@
+
+vpath %.c $(origdir)
+vpath %.sh $(origdir)
+
+include $(origdir)/tests
 
 # The included file defined variable TESTBINS, which is a list of program
 # names in format src/<testname>-test. Extract the base test names from it.
 TESTNAMES = $(patsubst src/%-test,%, $(TESTBINS))
 TESTSQLS = $(patsubst %,sql/%.sql, $(TESTNAMES))
 
+INIGEN=odbcini-gen
+INIGENSQL=sql/$(INIGEN).sql
+
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
 CFLAGS = @CFLAGS@
 PG_CONFIG = @PG_CONFIG@
+ODBC_CONFIG = @ODBC_CONFIG@
 
-REGRESS = sampletables $(TESTNAMES)
+ifneq (,$(findstring iodbc,$(ODBC_CONFIG)))
+	launcher=launcher_i
+else
+	launcher=launcher
+endif
 
-all: $(TESTBINS) $(TESTSQLS)
+REGRESS = sampletables $(INIGEN) $(TESTNAMES)
+
+LIBODBC := $(shell $(ODBC_CONFIG) --libs)
+
+all: $(TESTBINS) $(TESTSQLS) $(INIGENSQL)
 
 installcheck: all
 
-override CFLAGS += -Wno-pointer-sign
+override CFLAGS += -Wno-pointer-sign $(CFLAGS_ADD)
 
 src/common.o: src/common.c
+	@if test ! -d src; then mkdir -p src; fi
+	$(COMPILE.c) -c $< -o $@
 
 # For each test file, compile the .c file, and create a .sql file that
 # when executed from psql, just runs the binary.
 src/%-test sql/%.sql: src/%-test.c src/common.o
-	$(CC) $(CFLAGS) $(LDFLAGS) src/$*-test.c src/common.o -o src/$*-test -lodbc
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o src/$*-test $(LIBODBC)
+	@if test ! -d sql; then mkdir -p sql; fi
 	echo "\! \"./src/$*-test\"" > sql/$*.sql
 
-EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o
+# For each shell file, create a .sql file that when executed from psql, 
+# just runs the shell.
+sql/%.sql: src/%.sh
+	@if test ! -d sql; then mkdir -p sql; fi
+	echo "\! \"$<\"" > $@
 
-REGRESS_OPTS = --launcher=./launcher
+EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o $(INIGENSQL)
 
+REGRESS_OPTS = --launcher=$(origdir)/$(launcher) --inputdir=$(origdir)
+ifndef PGXS
 PGXS := $(shell $(PG_CONFIG) --pgxs)
+endif
 include $(PGXS)
