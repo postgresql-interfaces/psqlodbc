@@ -51,27 +51,28 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	docs/release.html \
 	docs/unix-compilation.html \
 	docs/win32-compilation.html \
+	docs/msdtc_pgxalib_tracing_enable.reg \
+	docs/msdtc_pgxalib_tracing_disable.reg \
+	docs/msdtc_pgxalib_tracing_README.txt \
 \
 	installer/background.bmp \
 	installer/banner.bmp \
-	installer/buildX64-installer.ps1 \
-	installer/buildX86-installer.ps1 \
+	installer/buildInstallers.ps1 \
+	installer/installer.mak \
 	installer/lgpl.rtf \
-	installer/Make.bat \
-	installer/MakeX64.bat \
 	installer/modify_msi.vbs \
+	installer/productcodes.mak \
 	installer/psqlodbc-setup \
+	installer/README.txt \
+	installer/upgrade.bat \
+	installer/upgrade_x64.bat \
+	installer/psqlodbcm_cpu.wxs \
+	installer/psqlodbc_cpu.wxs \
+	installer/psqlodbc-setup/buildBootstrapper.ps1 \
 	installer/psqlodbc-setup/Bundle.wxs \
 	installer/psqlodbc-setup/Make.bat \
 	installer/psqlodbc-setup/psqlodbc-setup.wixproj \
 	installer/psqlodbc-setup/vcredist.wxs \
-	installer/psqlodbc.wxs \
-	installer/psqlodbcm.wxs \
-	installer/psqlodbcm_cpu.wxs \
-	installer/psqlodbc_cpu.wxs \
-	installer/README.txt \
-	installer/upgrade.bat \
-	installer/upgrade_x64.bat \
 \
 	winbuild/BuildAll.ps1 \
 	winbuild/configuration.ps1 \
@@ -93,6 +94,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/commands.out \
 	test/expected/connect.out \
 	test/expected/cte.out \
+	test/expected/cursor-commit.out \
 	test/expected/cursors.out \
 	test/expected/cursors_1.out \
 	test/expected/cvtnulldate.out \
@@ -105,15 +107,18 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/lfconversion.out \
 	test/expected/multistmt.out \
 	test/expected/notice.out \
+	test/expected/numeric.out \
+	test/expected/odbc-escapes.out \
 	test/expected/params.out \
 	test/expected/positioned-update.out \
 	test/expected/prepare.out \
 	test/expected/quotes.out \
+	test/expected/result-conversions.out \
 	test/expected/sampletables.out \
 	test/expected/select.out \
 	test/expected/stmthandles.out \
 	test/launcher \
-	test/Makefile \
+	test/Makefile.in \
 	test/odbc.ini \
 	test/odbcinst.ini \
 	test/README.txt \
@@ -128,6 +133,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/common.h \
 	test/src/connect-test.c \
 	test/src/cte-test.c \
+	test/src/cursor-commit-test.c \
 	test/src/cursors-test.c \
 	test/src/cvtnulldate-test.c \
 	test/src/dataatexecution-test.c \
@@ -139,12 +145,17 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/lfconversion-test.c \
 	test/src/multistmt-test.c \
 	test/src/notice-test.c \
+	test/src/numeric-test.c \
+	test/src/odbc-escapes-test.c \
 	test/src/params-test.c \
 	test/src/positioned-update-test.c \
 	test/src/prepare-test.c \
 	test/src/quotes-test.c \
+	test/src/result-conversions-test.c \
 	test/src/select-test.c \
-	test/src/stmthandles-test.c
+	test/src/stmthandles-test.c \
+	test/tests \
+	test/win.mak
 
 MAINTAINERCLEANFILES = \
 	Makefile.in config/config.guess config.h.in config/config.sub configure \
