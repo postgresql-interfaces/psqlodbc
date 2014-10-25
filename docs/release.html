@@ -9,6 +9,158 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.03.0400">psqlODBC 09.03.0400 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Rip out broken retry/timeout logic in SOCK_wait_for_ready.</b><br /></li>
+At a quick glance, the logic looked like retry with progressive timeout, but it was horribly broken. 
+First of all, the timeout was only used if retry_count was passed as 0. And in that case, the timeout was 0. 
+So retry_count == 0 actually meant "check if data can be read/written without blocking", while retry_count > 0 meant "sleep until data is available".
+There was also some code to handle retry_count < 0, but that was dead code because none of the callers passed a negative value.
+The hardcoded max. retry count of 30 retries was quite bogus too.
+Filling the output buffer more 30 times is not necessary an error, and it's not clear that the ssl library could not return SSL_ERROR_WANT_READ or
+SSL_ERROR_WANT_WRITE more than 30 times.
+Unlikely, yes, but possible. So, just rip out the retry_count and progressive timeout logic. Replace
+the retry_count argument with a simple "should block?" argument. I didn't dare to remove the condition that we always wait if SSL is enabled, although
+I don't understand that at all. But perhaps there's some well-hidden reason for that.
+Per report from Prakash Itnal, although this just removes the broken code, and won't enable the kind of a timeout that he wanted.
+<li><b>Clean up Windows makefiles.</b><br /></li>
+Get rid of the CPU and CPUTYPE variables in win64.mak. Instead, assume that the TARGET_CPU variable has been set correctly in the environment.
+TARGET_CPU is set by "setenv" script that comes with the Microsoft Visual Studio C compiler package.
+It never worked to pass a "CPU=x86" and using a x64 compiler, for example, so seems better to determine the correct target
+from the environment, than fail with a cryptic error message if the CPU argument and the environment don't match.
+To build 32-bit binaries with win64.mak, simply do "setenv /x86" before running "nmake -f win64.mak".
+Similarly, to build 64-bit binaries, use "setenv /x64".
+It should now be possible to build both 32-bit and 64-bit binaries with win64.mak. 
+Ideally, we could now remove win32.mak altogether, but there are small differences between win64.mak and win32.mak in the build options that
+they use. I don't understand the differences enough to dare to remove win32.mak yet.
+The CPU=AMD64 alias for x64 is no longer supported (as the whole parameter is now gone).
+Also do whitespace & other cosmetic fixes to win32.mak and win64, to make them more similar. 
+This helps when comparing the two with "diff".
+Remove remains of the long-gone "MULTIBYTE" setting (it was misspelled in win64.mak, anyway)
+<li><b>Fix crash if connection is closed while sending a query to the server.</b><br /></li>
+Some functions reset conn->sock to NULL on a socket error, so we must not keep a copy of it in a local variable. 
+Also, SOCK_get_id should check for NULL argument like all the rest of the SOCK_get/put_* functions.
+<li><b>Rewrite the conversion functions between strings and SQL_NUMERIC_STRUCT.</b><br /></li>
+Aside from making the functions more readable and faster, this fixes a number of bugs:
+<ol type="a">
+<li>When converting a large number from decimal to binary, the least significant byte might be wrong.<br />
+reported by Walter Couto.</li>
+<li>In binary->decimal conversion, a number with small precision but large scale caused a "Floating point exception".<br /></li>
+<li>In binary->decimal conversion, building the final string was wrong, picking
+up "digits" from outside the reserved stack space, if scale was larger than 40<br /></li>
+<li>The param_string buffer allocated for the result of binary->decimal conversion was too small.<br /></li>
+</ol>
+Also add a test cases for all of these bugs.
+<li><b>Fix ODBC function escape for SPACE function.</b><br /></li>
+<li><b>Make sure that the psqlodbc ANSI driver is ODBC3.5.</b><br /></li>
+<li><b>Register 64bit XA DLL on installation</b><br /></li>
+Changes by a patch from Craig Ringer 
+<li><b>Fix potentially uninitialized local pointer access which causes.</b><br /></li>
+fatal compilation errors on vs2012/2013 reported by Craig Ringer.
+<li><b>Fixed ctype_length() is missing the length for SQL_C_BIGINT and SQL_C_NUMERIC.</b><br /></li>
+patch by John Smith.
+<li><b>Fix access to unallocated memory in IAsyncPG.</b><br /></li>
+IAsyncPG was deleting its self, then returning an instance variable by value. 
+This is probably going to be safe pretty much all the time,
+but it's still a memory error, and DrMemory (a Windows valgrind-alike)
+<li><b>SQL_NUMERIC_STRUCT was not available until ODBC 3.0.</b><br /></li>
+Also add a prototype for ResolveNumericParam for readability.
+<li><b>Increase digits used to convert from REAL/DOUBLEs to strings so that the reverse conversions can recover original values.</b><br /></li> 
+Patch originally by John Smith.
+<li><b>Clear errors for prepared statement for subsequent exections.</b><br /></li>
+<li><b>Fix the problems using SQLFetch on prepared INSERT with RETURNING clause.</b><br /></li>
+reported by John Smith.
+<li><b>Fix use of server-queried version before connection.</b><br /></li>
+psqlODBC attempted to use the version that's queried from the server before it was obtained from the server during the connection setup. Because the server
+version is initialized to 0.0, tests for "server version >= 7.4" or "server version >= 6.4" using the PG_VERSION_LT macro were always returning false.
+Instead, use PROTOCOL_64 and PROTOCOL_74 tests against conninfo. These don't offer any "greater than" form, so just test both. There's little point adding
+anything prettier when it can all be removed when v1/v2 protocol support is removed soon anyway.
+The main symptom of this issue was that psqlODBC was sending an invalid protocol message for the v3 protocol, "Q \0", causing the server to wait for
+the second half of the length word forever. At connection close, the server
+would emit:
+<br />
+&nbsp; unexpected EOF within message length word
+<br />
+This issue was observed while tracking down problems with XA transactions in MSDTC failing to commit after a successful prepare because an isolated tx 
+created via getLockedXAConn() got stuck here, but is not confined to that problem.
+<li><b>Don't use PG_VERSION_xx() macros in original_CC_connect().</b><br /></li>
+it's not obtained from the server yet. This may fix another cause of the problem Craig Ringer reported.
+<li><b>Fix bug in SQLCancel().</b><br /></li>
+If one thread was busy executing a savepoint statement, while another thread calls SQLCancel() on the statement, SQLCancel() would try to release the
+locks held by the other thread. That's extremely racy; if the other thread tries to increment/decrement the lock_CC_for_rb counter at the same time,
+we could end up releasing the lock to many times or too few times. Also, releasing a pthread mutex from a different thread than the one who acquired
+it is undefined behavior.
+AFAICS the DiscardStatementSvp() call in SQLCancel() can be safely removed.
+It's outright wrong and dangerous if the statement is busy executing in a different thread, and the other codepaths in PGAPI_Cancel() already call
+DiscardStatementSvp().
+Bug report by Jade Koskela.
+<li><b>Fixes a NULL pointer dereference occurring when connecting.</b><br /></li>
+using SSPI authentication (without kerberos, a local Windows user trying to connect to postgres instance on same host). 
+Patch originally by Nikhil R Deshpande.
+<li><b>Fix bug with UseDeclareFetch=1 when a transaction is committed before fetch.</b><br /></li>
+If a server cursor is closed before the application has fetched any rows from the result set, the "base" of the result set's cached rowset was off-by-one.
+Also add a regression test for the same. This fixes the bug reported by Jan-Peter Seifert.
+<li><b>Fix driver name mismatch between 32-bit ODBC app and 64-bit MSDTC host.</b><br /></li>
+If the 32-bit driver runs on a 64-bit host within a 32-bit app running under SysWow64 then XA transactions will fail to recover.
+That's because recovery is done by pgxalib.dll which runs with in MSDTC.exe - a 64-bit application. 
+It connects to a DSN supplied by psqlODBC in EnlistInDtc_1pipe during DTC enlistment by the XA resource manager. 
+This DSN uses the driver name of the client's ODBC driver - which is fine so long as the client and MSDTC architectures match. 
+If they don't then MSDTC will fail to connect to Pg, so it'll never resolve transactions.
+Traces of MSDTC will show RM_COMMIT_DELIVERY_FAILED_DUE_TO_CONNECTION_DOWN events.
+Traces of pgxalib.dll will show xa_recover(..) being entered, followed by "SQLDriverConnect return=-1".
+<li><b>Remove PgDtc_set_property(.., prepareRequestded, 0) which causes a crash in case PREPARE TRANSACTION error.</b><br /></li>
+The property prepareRequested isn't set anywhere.
+<li><b>Add KeepaliveTime and KeepaliveInterval options to specify time or interval for keepalive.</b><br /></li>
+<li><b>Fix a memory leak check qresult.</b><br /></li>
+Per report by Pluto Cobain.
+<li><b>Get rid of copy and paste code in installer/ and unify them.</b><br /></li>
+The powershell scripts had lots of duplication. Make the unified code instead.
+Original patch was provided by Craig Ringer.
+<li><b>Clear unused stuff from PgDtc_isolate() function.</b><br /></li>
+Also add CC_initialize_pg_version() call after CC_copy_conninfo() so as to avoid the trouble caused by early PG_VERSION_xx() calls.
+<li><b>Fix race condition in getting the current decimal separator.</b><br /></li>
+The code to get the current decimal separator was not thread-safe. If two threads concurrently saw that the locale had changed, they might both try
+to free() the same string.
+This isn't a perfect fix, there's still a race condition if a thread changes the locale while another thread is running the psqlodbc code. But at least
+this eliminates the race condition when the locale was changed earlier, not concurrently, and even if it is changed concurrently, this is less likely
+to crash, depending on the way localeconv() is implemented in libc.
+<li><b>Fix bug in building an abbreviated connection string.</b><br /></li>
+Introduced by the keepalive-patch, which accidentally removed a line from sprintf format string. Caught by a compiler warning.
+<li><b>Fix buffer overflow in SQLGetData.</b><br /></li>
+If a PostgreSQL timestamp column is fetched using SQLGetData, into a SQL_C_CHAR output variable, with size of 20-22 bytes, the driver might
+overrun the buffer by a few bytes with unusual timestamp values, with year < 0 or > 10000.
+While at it, fix the truncation behavior for date/time/timestamp values so that if the output buffer is too small, we still write what fits and
+truncate, instead of writing nothing. This is something that one might do on purpose, e.g. if you only want to fetch the year part of a date,
+you might call SQLGetData() on a date column, with only 4 bytes long output buffer. (although we haven't heard any complaints from the field).
+Also, if the output buffer is of type SQL_C_WCHAR, but the buffer length is odd, and we have to truncate, we didn't NULL-terminate the string.
+Using an odd-sized buffer with SQL_C_WCHAR is a pretty unlikely thing to do, but nevertheless I think this is more correct behavior.
+<li><b>The function SC_setInsertedTable() prepares an info for subsequent 'select @@IDENTITY' command.</b><br /></li>
+Take table name like catalog.schema.table into account in the function.
+Fix the bug reported by Phillippe Champignon.
+<li><b>Improve pgxalib.dll(MSDTC support).</b><br /></li>
+<ol type="a">
+<li>Add an option which lets xa_open() try to connect to the database immediately.
+This would cause an error at enlistment in dtc when the authentication method depends not only on the db user but also
+on the OS user, which means the automatic transaction recovery is unavailable.<br /></li>
+<li>Log the error message in case of SQLDriverConnect() error.<br /></li>
+<li>Improve the logging.<br /></li>
+</ol>
+<li><b>Fix the regkey search bug when XARMcreate() causes an error at enlistmentvin DTC.</b><br /></li>
+<li><b>Additonal improvement on MSDTC enlistment.</b><br /></li>
+Unfortunately the current pgxalib.dll can't recover transactions which use sslmode verify-[ca|full] or whose authentication is SSPI, certificate or ident.
+When MSDTC.exe tries to connect to PostgreSQL it does so under Windows user NETWORKSERVICE, which won't match the username the original user connected
+to PostgreSQL as. So PostgreSQL will reject the connection.
+<li><b>Fix SQLTables column names to be ODBC version 3 compliant.</b><br /></li>
+In ODBC3, TABLE_QUALIFIER was renamed to TABLE_CAT, and TABLE_OWNER to TABLE_SCHEM.
+Per report David Hedberg.
+<li><b>Add a new dialog page to the setup program and allow the setting of PREFERLIBPQ and XAOPT option.</b><br /></li>
+<li><b>Add a powershell script buildBootStrapper.ps1 which builds bootStrapper program with some optional parameters.</b><br /></li>
+Quote the version number of bootstrapper from the configuration xml file unless specified. 
+Also change the name of 32bit MSI in the bootstrapper according to changes of 32bit installer build system.
+Change buildInstallers.ps1 build the bootstrapper together.
+Change ALLUSERS from "2" to "1" of the 64bit installer.
+</ol><br />
 <h2><a id="09.03.0300">psqlODBC 09.03.0300 Release</a></h2>
 Changes:<br />
 <ol type="1">
