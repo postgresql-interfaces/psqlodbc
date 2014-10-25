@@ -28,7 +28,7 @@ psqlodbca_la_SOURCES = \
 	descriptor.h dlg_specific.h environ.h \
 	lobj.h md5.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h socket.h statement.h tuple.h \
-	version.h loadlib.h pgenlist.h mylog.h
+	version.h loadlib.h pgenlist.h mylog.h xalibname.h
 
 psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 	odbcapi30w.c odbcapiw.c win_unicode.c
@@ -36,6 +36,7 @@ psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 
 EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	psqlodbc.def psqlodbca.def editConfiguration.bat BuildAll.bat \
+	windows-defaults.mak \
 	pgenlist.def pgenlista.def connexp.h \
 	dlg_wingui.c inouealc.c win_setup.h \
         setup.c win_unicode.c win_md5.c psqlodbc.rc win64.mak \
