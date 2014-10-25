@@ -111,7 +111,7 @@ static HSTMT hstmt = SQL_NULL_HSTMT;
 void
 printwchar(SQLWCHAR *wstr)
 {
-	int			i;
+	int			i = 0;
 	/*
 	 * a backstop to make sure we terminate if the string isn't null-terminated
 	 * properly
@@ -120,7 +120,7 @@ printwchar(SQLWCHAR *wstr)
 
 	while(*wstr && i < MAXLEN)
 	{
-		if (isprint(*wstr))
+		if ((*wstr & 0xFFFFFF00) == 0 && isprint(*wstr))
 			printf("%c", *wstr);
 		else
 			printf("\\%4X", *wstr);
@@ -498,6 +498,7 @@ int main(int argc, char **argv)
 	 * postgres_verbose in particular...
 	 */
 	exec_cmd("SET intervalstyle=postgres");
+	SQLExecDirect(hstmt, (SQLCHAR *) "SET timezone=-08", SQL_NTS);
 
 	/*
 	 * Use octal escape bytea format in the tests. We will test the conversion

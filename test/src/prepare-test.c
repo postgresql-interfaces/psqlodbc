@@ -26,6 +26,7 @@ int main(int argc, char **argv)
 
 	/**** A simple query with one text param ****/
 
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SET intervalstyle=postgres_verbose", SQL_NTS);
 	/* Prepare a statement */
 	rc = SQLPrepare(hstmt, (SQLCHAR *) "SELECT id, t FROM testtab1 WHERE t = ?", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
