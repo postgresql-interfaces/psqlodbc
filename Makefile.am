@@ -42,7 +42,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
         setup.c win_unicode.c win_md5.c psqlodbc.rc win64.mak \
         psqlodbc.reg psqlodbc.dsp psqlodbc.vcproj \
         psqlodbc.sln msdtc_enlist.cpp pgxalib.cpp xalibname.c \
-        pgxalib.def odbc.sql odbc-drop.sql odbcapi25w.c \
+        pgxalib.def odbc.sql odbc-drop.sql \
 	sspisvcs.c sspisvcs.h gsssvcs.c gsssvcs.h \
 \
 	docs/config-opt.html \
