@@ -70,7 +70,6 @@ PGAPI_GetInfo(HDBC hdbc,
 				value = 0;
 	RETCODE		result = SQL_ERROR;
 	char		odbcver[16];
-	int		i_odbcver;
 
 	mylog("%s: entering...fInfoType=%d\n", func, fInfoType);
 
@@ -250,8 +249,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_DRIVER_ODBC_VER:
-			i_odbcver = conn->driver_version;
-			snprintf(odbcver, sizeof(odbcver), "%02x.%02x", i_odbcver / 256, i_odbcver % 256);
+			snprintf(odbcver, sizeof(odbcver), "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
 			/* p = DRIVER_ODBC_VER; */
 			p = odbcver;
 			break;

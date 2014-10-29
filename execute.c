@@ -1259,42 +1259,7 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 		 * The statement is not executing, and it's not waiting for params
 		 * either. Looks like it's not doing anything.
 		 */
-		if (conn->driver_version >= 0x0350)
-			return SQL_SUCCESS;
-		else
-		{
-			/*
-			 * MAJOR HACK for Windows to reset the driver manager's cursor
-			 * state: Because of what seems like a bug in the Odbc driver
-			 * manager, SQLCancel does not act like a SQLFreeStmt(CLOSE), as
-			 * many applications depend on this behavior.  So, this brute
-			 * force method calls the driver manager's function on behalf of
-			 * the application.
-			 */
-#ifdef WIN32
-			if (conn->connInfo.drivers.cancel_as_freestmt)
-			{
-	typedef SQLRETURN (SQL_API *SQLAPIPROC)();
-				HMODULE		hmodule;
-				SQLAPIPROC	addr;
-
-				hmodule = GetModuleHandle("ODBC32");
-				addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLFreeStmt");
-				ret = addr((char *) (stmt->phstmt) - 96, SQL_CLOSE);
-			}
-			else
-#endif /* WIN32 */
-			{
-				ENTER_STMT_CS(stmt);
-				SC_clear_error(hstmt);
-				ret = PGAPI_FreeStmt(hstmt, SQL_CLOSE);
-				if (stmt->internal)
-					ret = DiscardStatementSvp(stmt, ret, FALSE);
-				LEAVE_STMT_CS(stmt);
-			}
-			mylog("PGAPI_Cancel:  PGAPI_FreeStmt returned %d\n", ret);
-			return ret;
-		}
+		return SQL_SUCCESS;
 	}
 }
 

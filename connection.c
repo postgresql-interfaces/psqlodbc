@@ -426,7 +426,6 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 	rv->num_descs = STMT_INCREMENT;
 
 	rv->lobj_type = PG_TYPE_LO_UNDEFINED;
-	rv->driver_version = ODBCVER;
 	if (isMsAccess())
 		rv->ms_jet = 1;
 	rv->isolation = SQL_TXN_READ_COMMITTED;
