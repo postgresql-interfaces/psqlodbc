@@ -28,7 +28,6 @@
 
 #ifdef WIN32
 #include "loadlib.h"
-int	platformId = 0;
 #endif
 
 static int	exepgm = 0;
@@ -170,6 +169,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			{
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
 				OSVERSIONINFO	osversion;
+				int platformId = 0;
 
 				getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)

@@ -387,12 +387,6 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 					ret = SQL_SUCCESS_WITH_INFO;
 				if (pcbDiagInfo)
 				{
-#ifdef	WIN32
-					extern int	platformId;
-
-					if (VER_PLATFORM_WIN32_WINDOWS == platformId && NULL == rgbDiagInfo && 0 == cbDiagInfoMax)
-						blen++;
-#endif /* WIN32 */
 					*pcbDiagInfo = blen * WCLEN;
 				}
 			}

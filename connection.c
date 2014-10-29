@@ -368,10 +368,6 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 #undef	CORR_STRCPY
 #undef	CORR_VALCPY
 
-#ifdef	WIN32
-extern	int	platformId;
-#endif /* WIN32 */
-
 /*
  *		IMPLEMENTATION CONNECTION CLASS
  */
@@ -431,10 +427,6 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 
 	rv->lobj_type = PG_TYPE_LO_UNDEFINED;
 	rv->driver_version = ODBCVER;
-#ifdef	WIN32
-	if (VER_PLATFORM_WIN32_WINDOWS == platformId && rv->driver_version > 0x0300)
-		rv->driver_version = 0x0300;
-#endif /* WIN32 */
 	if (isMsAccess())
 		rv->ms_jet = 1;
 	rv->isolation = SQL_TXN_READ_COMMITTED;
