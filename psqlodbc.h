@@ -452,7 +452,6 @@ typedef struct GlobalValues_
 	int			max_longvarchar_size;
 	char		debug;
 	char		commlog;
-	char		disable_optimizer;
 	char		unique_index;
 	char		onlyread;		/* readonly is reserved on Digital C++
 								 * compiler */

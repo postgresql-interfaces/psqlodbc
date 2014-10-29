@@ -71,9 +71,11 @@ extern "C" {
 #define ABBR_COMMLOG			"B3"
 #define INI_PROTOCOL			"Protocol"	/* What protocol (6.2) */
 #define ABBR_PROTOCOL			"A1"
-#define INI_OPTIMIZER			"Optimizer"	/* Use backend genetic
-							 * optimizer */
+/*	"Optimizer", abbreviated to B4 used to stand for "disable genetic query
+ * optimizer". No longer supported, you can use generic ConnSettings instead.
+#define INI_OPTIMIZER			"Optimizer"
 #define ABBR_OPTIMIZER			"B4"
+*/
 /* "Ksqo", abbreviated to B5 was used with pre-7.1 server versions for
  * "keyset query optimization". No longer used.
 #define INI_KSQO                       "Ksqo"
@@ -178,7 +180,6 @@ extern "C" {
 #define BIT_PROTOCOL_64				(1L<<5)
 #define BIT_UNKNOWN_DONTKNOW			(1L<<6)
 #define BIT_UNKNOWN_ASMAX			(1L<<7)
-#define BIT_OPTIMIZER				(1L<<8)
 #define BIT_COMMLOG				(1L<<10)
 #define BIT_DEBUG				(1L<<11)
 #define BIT_PARSE				(1L<<12)
@@ -218,7 +219,6 @@ extern "C" {
 #define DEFAULT_TEXTASLONGVARCHAR		1
 #define DEFAULT_UNKNOWNSASLONGVARCHAR		0
 #define DEFAULT_BOOLSASCHAR			1
-#define DEFAULT_OPTIMIZER			0		/* enable */
 #define DEFAULT_UNIQUEINDEX			1		/* dont recognize */
 #define DEFAULT_COMMLOG				0		/* dont log */
 #define DEFAULT_DEBUG				0

@@ -1207,12 +1207,6 @@ mylog("!!! usrname=%s server=%s\n", usrname, ci->server);
 		opts[cnt] = "DateStyle"; vals[cnt++] = "ISO";
 		/* extra_float_digits */
 		opts[cnt] = "extra_float_digits";	vals[cnt++] = "2";
-		/* geqo */
-		opts[cnt] = "geqo";
-		if (ci->drivers.disable_optimizer)
-			vals[cnt++] = "off";
-		else
-			vals[cnt++] = "on";
 		/* client_encoding */
 		enc = get_environment_encoding(self, self->original_client_encoding, NULL, TRUE);
 		if (enc)
@@ -1423,8 +1417,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		 ci->drivers.unknown_sizes,
 		 ci->drivers.max_varchar_size,
 		 ci->drivers.max_longvarchar_size);
-	qlog("                disable_optimizer=%d, unique_index=%d, use_declarefetch=%d\n",
-		 ci->drivers.disable_optimizer,
+	qlog("                unique_index=%d, use_declarefetch=%d\n",
 		 ci->drivers.unique_index,
 		 ci->drivers.use_declarefetch);
 	qlog("                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
@@ -3404,8 +3397,6 @@ cleanup:
 static	char
 CC_setenv(ConnectionClass *self)
 {
-	ConnInfo   *ci = &(self->connInfo);
-
 	HSTMT		hstmt;
 	StatementClass *stmt;
 	RETCODE		result;
@@ -3433,16 +3424,6 @@ CC_setenv(ConnectionClass *self)
 		status = FALSE;
 
 	mylog("%s: result %d, status %d from set DateStyle\n", func, result, status);
-	/* Disable genetic optimizer based on global flag */
-	if (ci->drivers.disable_optimizer)
-	{
-		result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set geqo to 'OFF'", SQL_NTS, 0);
-		if (!SQL_SUCCEEDED(result))
-			status = FALSE;
-
-		mylog("%s: result %d, status %d from set geqo\n", func, result, status);
-
-	}
 
 	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set extra_float_digits to 2", SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))

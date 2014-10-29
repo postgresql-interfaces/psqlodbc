@@ -324,7 +324,6 @@ inolog("hlen=%d", hlen);
 			INI_MAXLONGVARCHARSIZE "=%d;"
 			INI_DEBUG "=%d;"
 			INI_COMMLOG "=%d;"
-			INI_OPTIMIZER "=%d;"
 			INI_USEDECLAREFETCH "=%d;"
 			INI_TEXTASLONGVARCHAR "=%d;"
 			INI_UNKNOWNSASLONGVARCHAR "=%d;"
@@ -365,7 +364,6 @@ inolog("hlen=%d", hlen);
 			,ci->drivers.max_longvarchar_size
 			,ci->drivers.debug
 			,ci->drivers.commlog
-			,ci->drivers.disable_optimizer
 			,ci->drivers.use_declarefetch
 			,ci->drivers.text_as_longvarchar
 			,ci->drivers.unknowns_as_longvarchar
@@ -414,8 +412,6 @@ inolog("hlen=%d", hlen);
 				flag |= BIT_UNKNOWN_ASMAX;
 				break;
 		}
-		if (ci->drivers.disable_optimizer)
-			flag |= BIT_OPTIMIZER;
 		if (ci->drivers.commlog)
 			flag |= BIT_COMMLOG;
 		if (ci->drivers.debug)
@@ -557,7 +553,6 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_MAX;
 	else
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_LONGEST;
-	ci->drivers.disable_optimizer = (char)((flag & BIT_OPTIMIZER) != 0);
 	ci->drivers.commlog = (char)((flag & BIT_COMMLOG) != 0);
 	ci->drivers.debug = (char)((flag & BIT_DEBUG) != 0);
 	ci->drivers.parse = (char)((flag & BIT_PARSE) != 0);
@@ -766,9 +761,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->drivers.debug = atoi(value);
 	else if (stricmp(attribute, INI_COMMLOG) == 0 || stricmp(attribute, ABBR_COMMLOG) == 0)
 		ci->drivers.commlog = atoi(value);
-	else if (stricmp(attribute, INI_OPTIMIZER) == 0 || stricmp(attribute, ABBR_OPTIMIZER) == 0)
-		ci->drivers.disable_optimizer = atoi(value);
-
 	/*
 	 * else if (stricmp(attribute, INI_UNIQUEINDEX) == 0 ||
 	 * stricmp(attribute, "UIX") == 0) ci->drivers.unique_index =
@@ -799,7 +791,7 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
+	mylog("%s: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,
 		  ci->drivers.unknown_sizes,
@@ -807,7 +799,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		  ci->drivers.max_longvarchar_size,
 		  ci->drivers.debug,
 		  ci->drivers.commlog,
-		  ci->drivers.disable_optimizer,
 		  ci->drivers.use_declarefetch,
 		  ci->drivers.text_as_longvarchar,
 		  ci->drivers.unknowns_as_longvarchar,
@@ -1171,10 +1162,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	if (!SQLWritePrivateProfileString(sectionName, INI_FETCH, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->disable_optimizer);
-	if (!SQLWritePrivateProfileString(sectionName, INI_OPTIMIZER, tmp, fileName))
-		errc--;
-
 	sprintf(tmp, "%d", comval->unique_index);
 	if (!SQLWritePrivateProfileString(sectionName, INI_UNIQUEINDEX, tmp, fileName))
 		errc--;
@@ -1452,13 +1439,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 
 	if (!ci)
 		logs_on_off(0, 0, 0);
-	/* Optimizer is stored in the driver section only */
-	SQLGetPrivateProfileString(section, INI_OPTIMIZER, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
-		comval->disable_optimizer = atoi(temp);
-	else if (inst_position)
-		comval->disable_optimizer = DEFAULT_OPTIMIZER;
 
 	/* Recognize Unique Index is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_UNIQUEINDEX, "",

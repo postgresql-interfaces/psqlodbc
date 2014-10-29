@@ -161,7 +161,6 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 			if (!defset)
 			{
 				defval.commlog = DEFAULT_COMMLOG;
-				defval.disable_optimizer = DEFAULT_OPTIMIZER;
 				defval.unique_index = DEFAULT_UNIQUEINDEX;
 				defval.onlyread = DEFAULT_READONLY;
 				defval.use_declarefetch = DEFAULT_USEDECLAREFETCH;
@@ -188,7 +187,6 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 #ifndef Q_LOG
 	EnableWindow(GetDlgItem(hdlg, DRV_COMMLOG), FALSE);
 #endif /* Q_LOG */
-	CheckDlgButton(hdlg, DRV_OPTIMIZER, comval->disable_optimizer);
 	CheckDlgButton(hdlg, DRV_UNIQUEINDEX, comval->unique_index);
 	/* EnableWindow(GetDlgItem(hdlg, DRV_UNIQUEINDEX), enable); */
 	CheckDlgButton(hdlg, DRV_READONLY, comval->onlyread);
@@ -246,7 +244,6 @@ driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
 	else
 		comval = &globals;
 	comval->commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
-	comval->disable_optimizer = IsDlgButtonChecked(hdlg, DRV_OPTIMIZER);
 	comval->unique_index = IsDlgButtonChecked(hdlg, DRV_UNIQUEINDEX);
 	if (!ci)
 	{

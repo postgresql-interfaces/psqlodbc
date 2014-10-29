@@ -90,8 +90,6 @@ FONT 9, "ＭＳ ゴシック"
 BEGIN
     PUSHBUTTON      "設定2",ID2NDPAGE,5,5,40,15
     PUSHBUTTON      "設定3",ID3RDPAGE,49,5,40,15
-    CONTROL         "遺伝的最適化処理を無効にする(&O)",DRV_OPTIMIZER,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,15,26,140,10
     CONTROL         "一般ログ出力をする(&L) (C:\\psqlodbc.log)",DRV_COMMLOG,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,24,170,10
     CONTROL         "ユニ－クインデックスを使う(&I)",DRV_UNIQUEINDEX,"Button",
@@ -544,8 +542,6 @@ FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Page 2",ID2NDPAGE,5,5,40,15
     PUSHBUTTON      "Page 3",ID3RDPAGE,49,5,40,15
-    CONTROL         "Disable Genetic &Optimizer",DRV_OPTIMIZER,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,15,26,116,10
     CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log)",DRV_COMMLOG,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,149,26,131,10
     CONTROL         "Recognize Unique &Indexes",DRV_UNIQUEINDEX,"Button",
