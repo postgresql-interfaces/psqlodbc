@@ -112,9 +112,6 @@ RETCODE SQL_API PGAPI_GetFunctions30(HDBC ConnectionHandle,
 RETCODE SQL_API PGAPI_GetInfo(HDBC ConnectionHandle,
 			  SQLUSMALLINT InfoType, PTR InfoValue,
 			  SQLSMALLINT BufferLength, SQLSMALLINT *StringLength);
-RETCODE SQL_API PGAPI_GetInfo30(HDBC ConnectionHandle,
-				SQLUSMALLINT InfoType, PTR InfoValue,
-				SQLSMALLINT BufferLength, SQLSMALLINT *StringLength);
 RETCODE SQL_API PGAPI_GetStmtOption(HSTMT StatementHandle,
 			SQLUSMALLINT Option, PTR Value,
 			SQLINTEGER *StringLength, SQLINTEGER BufferLength);

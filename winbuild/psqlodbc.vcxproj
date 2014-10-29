@@ -280,7 +280,6 @@
     <ClCompile Include="$(srcPath)environ.c" />
     <ClCompile Include="$(srcPath)execute.c" />
     <ClCompile Include="$(srcPath)info.c" />
-    <ClCompile Include="$(srcPath)info30.c" />
     <ClCompile Condition="'$(MEMORY_DEBUG)'=='yes'" Include="$(srcPath)inouealc.c" />
     <ClCompile Include="$(srcPath)loadlib.c" />
     <ClCompile Include="$(srcPath)lobj.c" />

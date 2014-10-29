@@ -22,7 +22,7 @@ psqlodbca_la_SOURCES = \
 	pgtypes.c psqlodbc.c qresult.c results.c socket.c parse.c \
 	statement.c tuple.c dlg_specific.c loadlib.c \
 	multibyte.c odbcapi.c descriptor.c \
-	odbcapi30.c pgapi30.c info30.c mylog.c \
+	odbcapi30.c pgapi30.c mylog.c \
 \
 	bind.h catfunc.h columninfo.h connection.h convert.h \
 	descriptor.h dlg_specific.h environ.h \

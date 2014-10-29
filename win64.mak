@@ -283,7 +283,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\environ.obj" \
 	"$(INTDIR)\execute.obj" \
 	"$(INTDIR)\info.obj" \
-	"$(INTDIR)\info30.obj" \
 	"$(INTDIR)\lobj.obj" \
 	"$(INTDIR)\md5.obj" \
 	"$(INTDIR)\misc.obj" \

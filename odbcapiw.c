@@ -374,19 +374,10 @@ SQLGetInfoW(HDBC ConnectionHandle,
 	ENTER_CONN_CS(conn);
 	CC_set_in_unicode_driver(conn);
 	CC_clear_error(conn);
-	mylog("[%s(30)]", func);
+	mylog("[%s]", func);
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
 							 BufferLength, StringLength)) == SQL_ERROR)
-	{
-		if (conn->driver_version >= 0x0300)
-		{
-			CC_clear_error(conn);
-			ret = PGAPI_GetInfo30(ConnectionHandle, InfoType, InfoValue,
-								  BufferLength, StringLength);
-		}
-	}
-	if (SQL_ERROR == ret)
-		CC_log_error("SQLGetInfoW(30)", "", conn);
+		CC_log_error("SQLGetInfoW", "", conn);
 	LEAVE_CONN_CS(conn);
 	return ret;
 }

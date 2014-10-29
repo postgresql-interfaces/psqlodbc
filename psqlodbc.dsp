@@ -136,10 +136,6 @@ SOURCE=info.c
 # End Source File
 # Begin Source File
 
-SOURCE=info30.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\inouealc.c
 # End Source File
 # Begin Source File

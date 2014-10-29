@@ -460,18 +460,7 @@ SQLGetInfo(HDBC ConnectionHandle,
 	mylog("[%s(30)]", func);
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
 				BufferLength, StringLength)) == SQL_ERROR)
-	{
-		if (conn->driver_version >= 0x0300)
-		{
-			CC_clear_error(conn);
-			ret = PGAPI_GetInfo30(ConnectionHandle, InfoType, InfoValue,
-								   BufferLength, StringLength);
-			goto cleanup;
-		}
-	}
-	if (SQL_ERROR == ret)
 		CC_log_error("SQLGetInfo(30)", "", conn);
-cleanup:
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
