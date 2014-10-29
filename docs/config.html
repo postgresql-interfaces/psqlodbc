@@ -21,12 +21,6 @@ is a convenience feature rather than having to type it in the connect settings.
 This feature was added when we noticed the backend seemed to have
 big problems optimizing some queries.<br />&nbsp;</li>
 
-<li><b>KSQO (Keyset Query Optimization):</b>
-<b><em>Deprecated for 7.1+ servers.</em></b> Check this option when connecting 7.0- servers and the application seems to be suffering from the following kind of queries:<br><br>
-
-<code>select...where (a = 1 AND b = 1 AND c = 1) OR (a=1 AND b=1 AND
-c = 2)...</code><br>&nbsp;</li>
-
 <li><b>Recognize Unique Indexes:</b>
 Check this option.<br />&nbsp;</li>
 
@@ -56,9 +50,7 @@ If this option is enabled,
 the driver will parse an SQL query statement to identify the columns and
 tables and gather statistics about them such as precision, nullability,
 aliases, etc. It then reports this information in SQLDescribeCol,
-SQLColAttributes, and SQLNumResultCols. <b>Prior to PostgreSQL 6.4,
-this was the only accurate way of getting information on precision from
-a query result.</b><br><br>
+SQLColAttributes, and SQLNumResultCols.<br><br>
 
 If the parser can not deal with a column (because it is a function
 or expression, etc.), it will fallback to executing the statement which
@@ -172,7 +164,7 @@ for details on what you need to do to your database to allow for the row
 versioning feature to be used.<br />&nbsp;</li>
 
 <li><b>Disallow Premature:</b>
-Mainly for 7.1 to 7.3 servers. <b><em>Server side prepare</em></b> is a more preferable option for 7.4+ servers.<br>
+<b><em>Server side prepare</em></b> is a more preferable option.<br>
 Tell the driver how to gather the information about result columns. See also <em>Parse Staements</em> and <em>Server Side Prepare</em> options.<br>
 This is an option to compensate for the lack of a server's <em>Prepare</em> functionality.
 For example, (Middleware) applications issue the following ODBC API calls.<br><br>
@@ -206,11 +198,7 @@ command immediately.<br />&nbsp;</li>
 <li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
 <br />&nbsp;</li>
 
-<li><b>Server side prepare:</b> Applicable for 7.3+ servers and <em>recommended for 7.4+.</em><br />&nbsp
-(7.4+) Tell the driver how to gather the information about result columns. See also <em>Parse Statement</em> and <em>Disallow Premature</em> options.<br>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp By using extended query protocol the driver replies to the inquiry correctly and effectively.<br>&nbsp
-(7.4+) By using extended query protocol the driver replies to the inquiry for the information of parameters.<br>&nbsp
-(7.3+) When using prepared statements, prepare them on the server rather than in the driver. This can give a slight performance advantage as the server<br>
-&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp doesn't need to re-parse the statement each time it is used.<br />&nbsp;</li>
+<li><b>Server side prepare:</b>If set, the driver uses server-side prepared statements. See also <em>Parse Statement</em> and <em>Disallow Premature</em> options.
 
 <li><b>use gssapi for GSS request:</b> GSSAPI use to AUTH_REQ_GSS request from a server.(only Windows)<br />&nbsp;</li>
 
@@ -224,18 +212,7 @@ command immediately.<br />&nbsp;</li>
 <li><b>Protocol:</b> Note that when using SSL connections this setting is ignored.<br />&nbsp;
 
 <ul>
-<li><i>6.2:</i> Forces driver to
-use PostgreSQL 6.2(V0) protocol, which had different byte ordering, protocol,
-and other semantics.<br />&nbsp;
-
-<li><i>6.3</i>: Use the 6.3(V1) protocol. This is compatible
-with both V1(6.3) and V2(6.4 to 7.3) backends.<br />&nbsp;</li>
-
-<li><i>6.4+</i>: Use the 6.4(V2) protocol. This is only compatible
-with 6.4 and higher backends.<br />&nbsp;</li>
-
-<li><i>7.4+</i>: Use the 7.4(V3) protocol. This is only compatible
-with 7.4 and higher backends.<br />&nbsp;</li>
+<li><i>7.4+</i>: Use the 7.4(V3) protocol. This is currently the only option.<br />&nbsp;</li>
 </ul></li>
 
 <li><b>Level of rollback on errors:</b> Specifies what to rollback should an
