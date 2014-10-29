@@ -295,7 +295,6 @@ BOOL isSqlServr(void);
 #define	PG_LINEFEED					'\n'
 
 /* Limits */
-#define BLCKSZ						4096
 #define MAXPGPATH					1024
 
 #define MAX_MESSAGE_LEN				65536		/* This puts a limit on
@@ -310,9 +309,6 @@ BOOL isSqlServr(void);
 												 * size */
 #define MAX_CONNECTIONS				128 /* conns per environment
 										 * (arbitrary)	*/
-#define MAX_FIELDS					512
-#define BYTELEN						8
-#define VARHDRSZ					sizeof(Int4)
 
 #ifdef	NAMEDATALEN
 #define MAX_SCHEMA_LEN				NAMEDATALEN
