@@ -990,7 +990,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 			}
 			if (strnicmp(value, "invalid", 7) != 0)
 			{
-				BOOL		bZone = (field_type != PG_TYPE_TIMESTAMP_NO_TMZONE && PG_VERSION_GE(conn, 7.2));
+				BOOL		bZone = field_type != PG_TYPE_TIMESTAMP_NO_TMZONE;
 				int			zone;
 
 				/*
@@ -1065,8 +1065,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (sscanf(vp, "%hi", &shortv) != 1)
 						break;
 					mylog(" %hi", shortv);
-					if (0 == shortv && PG_VERSION_LT(conn, 7.2))
-						break;
 					nval++;
 					if (nval < maxc)
 						short_array[i + 1] = shortv;
@@ -1192,7 +1190,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 					std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
 				len = stime2timestamp(&std_time, rgbValueBindRow, cbValueMax, FALSE,
-								PG_VERSION_GE(conn, 7.2) ? (int) cbValueMax - len - 2 : 0);
+									  (int) cbValueMax - len - 2 );
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				break;
@@ -1916,7 +1914,7 @@ typedef struct _QueryParse {
 static void
 QP_initialize(QueryParse *q, const StatementClass *stmt)
 {
-	q->statement = stmt->execute_statement ? stmt->execute_statement : stmt->statement;
+	q->statement = stmt->statement;
 	q->statement_type = stmt->statement_type;
 	q->opos = 0;
 	q->from_pos = -1;
@@ -1938,7 +1936,6 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_PRE_EXECUTING	1L
 #define	FLGB_BUILDING_PREPARE_STATEMENT	(1L << 1)
 #define	FLGB_BUILDING_BIND_REQUEST	(1L << 2)
-#define	FLGB_EXECUTE_PREPARED		(1L << 3)
 
 #define	FLGB_INACCURATE_RESULT	(1L << 4)
 #define	FLGB_CREATE_KEYSET	(1L << 5)
@@ -1950,7 +1947,6 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 #define	FLGB_HEX_BIN_FORMAT	(1L << 11)
 typedef struct _QueryBuild {
 	char   *query_statement;
-	size_t	str_size_limit;
 	size_t	str_alsize;
 	size_t	npos;
 	SQLLEN	current_row;
@@ -2028,22 +2024,10 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 	if (PG_VERSION_GE(qb->conn, 9.0))
 		qb->flags |= FLGB_HEX_BIN_FORMAT;
 
-	if (stmt)
-		qb->str_size_limit = stmt->stmt_size_limit;
-	else
-		qb->str_size_limit = -1;
-	if (qb->str_size_limit > 0)
-	{
-		if (size > qb->str_size_limit)
-			return -1;
-		newsize = qb->str_size_limit;
-	}
-	else
-	{
-		newsize = INIT_MIN_ALLOC;
-		while (newsize <= size)
-			newsize *= 2;
-	}
+	newsize = INIT_MIN_ALLOC;
+	while (newsize <= size)
+		newsize *= 2;
+
 	if ((qb->query_statement = malloc(newsize)) == NULL)
 	{
 		qb->str_alsize = 0;
@@ -2066,11 +2050,6 @@ QB_initialize_copy(QueryBuild *qb_to, const QueryBuild *qb_from, UInt4 size)
 {
 	memcpy(qb_to, qb_from, sizeof(QueryBuild));
 
-	if (qb_to->str_size_limit > 0)
-	{
-		if (size > qb_to->str_size_limit)
-			return -1;
-	}
 	if ((qb_to->query_statement = malloc(size)) == NULL)
 	{
 		qb_to->str_alsize = 0;
@@ -2161,22 +2140,6 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
 	size_t	newalsize = INIT_MIN_ALLOC;
 	CSTR func = "enlarge_statement";
 
-	if (qb->str_size_limit > 0 && qb->str_size_limit < (int) newsize)
-	{
-		free(qb->query_statement);
-		qb->query_statement = NULL;
-		qb->str_alsize = 0;
-		if (qb->stmt)
-		{
-			SC_set_error(qb->stmt, STMT_EXEC_ERROR, "Query buffer overflow in copy_statement_with_parameters", func);
-		}
-		else
-		{
-			qb->errormsg = "Query buffer overflow in copy_statement_with_parameters";
-			qb->errornumber = STMT_EXEC_ERROR;
-		}
-		return -1;
-	}
 	while (newalsize <= newsize)
 		newalsize *= 2;
 	if (!(qb->query_statement = realloc(qb->query_statement, newalsize)))
@@ -2558,139 +2521,17 @@ RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb, BOOL s
 static	int
 Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
-	CSTR func = "Prepare_and_convert";
-	char	*exe_statement = NULL;
-	RETCODE	retval;
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	ConnInfo	*ci = &(conn->connInfo);
-	BOOL	discardOutput, outpara;
-
-	if (PROTOCOL_74(ci))
+	switch (stmt->prepared)
 	{
-		switch (stmt->prepared)
-		{
-			case NOT_YET_PREPARED:
-			case ONCE_DESCRIBED:
-				break;
-			default:
-				return SQL_SUCCESS;
-		}
+		case NOT_YET_PREPARED:
+		case ONCE_DESCRIBED:
+			break;
+		default:
+			return SQL_SUCCESS;
 	}
 	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
 		return SQL_ERROR;
-	if (PROTOCOL_74(ci))
-		return prep_params(stmt, qp, qb, FALSE);
-	discardOutput = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
-	if (NOT_YET_PREPARED == stmt->prepared) /*  not yet prepared */
-	{
-		ssize_t	elen;
-		int	i, oc;
-		SQLSMALLINT	marker_count;
-		const IPDFields *ipdopts = qb->ipdopts;
-		char	plan_name[32];
-
-		qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
-		sprintf(plan_name, "_PLAN%p", stmt);
-#ifdef NOT_USED
-		new_statement = qb->query_statement;
-		sprintf(new_statement, "PREPARE \"%s\"", plan_name);
-		qb->npos = strlen(new_statement);
-#endif /* NOT_USED */
-		CVT_APPEND_STR(qb, "PREPARE \"");
-		CVT_APPEND_STR(qb, plan_name);
-		CVT_APPEND_CHAR(qb, IDENTIFIER_QUOTE);
-		marker_count = stmt->num_params - qb->num_discard_params;
-		if (!ipdopts || ipdopts->allocated < marker_count)
-		{
-			SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT,
-				"The # of binded parameters < the # of parameter markers", func);
-			retval = SQL_ERROR;
-			goto cleanup;
-		}
-		if (marker_count > 0)
-		{
-			CVT_APPEND_CHAR(qb, '(');
-			for (i = qb->proc_return, oc = 0; i < stmt->num_params; i++)
-			{
-				outpara = FALSE;
-				if (i < ipdopts->allocated &&
-				    SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
-				{
-					outpara = TRUE;
-					if (discardOutput)
-						continue;
-				}
-				if (oc > 0)
-					CVT_APPEND_STR(qb, ", ");
-				if (outpara)
-					CVT_APPEND_STR(qb, "void");
-				else
-					CVT_APPEND_STR(qb, pgtype_to_name(stmt, PIC_dsp_pgtype(conn, ipdopts->parameters[i]), -1, FALSE));
-				oc++;
-			}
-			CVT_APPEND_CHAR(qb, ')');
-		}
-		CVT_APPEND_STR(qb, " as ");
-		for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
-		{
-			retval = inner_process_tokens(qp, qb);
-			if (SQL_ERROR == retval)
-				goto cleanup;
-		}
-		CVT_APPEND_CHAR(qb, ';');
-		/* build the execute statement */
-		exe_statement = malloc(30 + 2 * marker_count);
-		sprintf(exe_statement, "EXECUTE \"%s\"", plan_name);
-		if (marker_count > 0)
-		{
-			elen = strlen(exe_statement);
-			exe_statement[elen++] = '(';
-			for (i = 0; i < marker_count; i++)
-			{
-				if (i > 0)
-					exe_statement[elen++] = ',';
-				exe_statement[elen++]  = '?';
-			}
-			exe_statement[elen++] = ')';
-			exe_statement[elen] = '\0';
-		}
-inolog("exe_statement=%s\n", exe_statement);
-		stmt->execute_statement = exe_statement;
-		QP_initialize(qp, stmt);
-		SC_set_planname(stmt, plan_name);
-	}
-	qb->flags &= FLGB_DISCARD_OUTPUT;
-	qb->flags |= FLGB_EXECUTE_PREPARED;
-	qb->param_number = -1;
-	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
-	{
-		retval = inner_process_tokens(qp, qb);
-		if (SQL_ERROR == retval)
-			goto cleanup;
-	}
-	/* make sure new_statement is always null-terminated */
-	CVT_TERMINATE(qb);
-	retval = SQL_SUCCESS;
-
-cleanup:
-	if (SQL_SUCCEEDED(retval))
-	{
-		if (exe_statement)
-			SC_set_concat_prepare_exec(stmt);
-		stmt->stmt_with_params = qb->query_statement;
-		qb->query_statement = NULL;
-	}
-	else
-	{
-		QB_replace_SC_error(stmt, qb, func);
-		if (exe_statement)
-		{
-			free(exe_statement);
-			stmt->execute_statement = NULL;
-		}
-		QB_Destructor(qb);
-	}
-	return retval;
+	return prep_params(stmt, qp, qb, FALSE);
 }
 
 #define		my_strchr(conn, s1,c1) pg_mbschr(conn->ccsc, s1,c1)
@@ -2970,9 +2811,8 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		if (prepare_dummy_cursor)
 		{
 			SC_set_fetchcursor(stmt);
-			if (PG_VERSION_GE(conn, 7.4))
-					opt_scroll = " scroll";
-			if (!CC_is_in_trans(conn) && PG_VERSION_GE(conn, 7.1))
+			opt_scroll = " scroll";
+			if (!CC_is_in_trans(conn))
 			{
 				strcpy(new_statement, "BEGIN;");
 				begin_first = TRUE;
@@ -2985,11 +2825,8 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 			SC_set_fetchcursor(stmt);
 			if (SC_is_with_hold(stmt))
 				opt_hold = " with hold";
-			if (PG_VERSION_GE(conn, 7.4))
-			{
-				if (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type)
-					opt_scroll = " scroll";
-			}
+			if (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type)
+				opt_scroll = " scroll";
 		}
 		if (SC_is_fetchcursor(stmt))
 		{
@@ -4063,21 +3900,6 @@ mylog("!!! The # of binded parameters (%d, %d) < the # of parameter markers %d\n
 		CVT_TERMINATE(qb);	/* just in case */
 		return SQL_ERROR;
 	}
-	if (0 != (qb->flags & FLGB_EXECUTE_PREPARED)
-	    && (outputDiscard || param_number < qb->proc_return)
-			)
-	{
-		while (ipara && SQL_PARAM_OUTPUT == ipara->paramType)
-		{
-			apara = NULL;
-			ipara = NULL;
-			param_number = ++qb->param_number;
-			if (param_number < apdopts->allocated)
-				apara = apdopts->parameters + param_number;
-			if (param_number < ipdopts->allocated)
-				ipara = ipdopts->parameters + param_number;
-		}
-	}
 
 inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
 	if (param_number < qb->proc_return)
@@ -4665,7 +4487,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			 * st.m, st.d, st.hh, st.mm, st.ss);
 			 */
 			/* Time zone stuff is unreliable */
-			stime2timestamp(&st, tmp, sizeof(tmp), USE_ZONE, PG_VERSION_GE(conn, 7.2) ? 6 : 0);
+			stime2timestamp(&st, tmp, sizeof(tmp), USE_ZONE, 6);
 			lastadd = "::timestamp";
 			CVT_APPEND_STR(qb, tmp);
 
@@ -4986,7 +4808,6 @@ static int
 convert_escape(QueryParse *qp, QueryBuild *qb)
 {
 	CSTR func = "convert_escape";
-	ConnectionClass *conn = qb->conn;
 	RETCODE	retval = SQL_SUCCESS;
 	char		buf[1024], buf_small[128], key[65];
 	UCHAR	ucv;
@@ -5018,44 +4839,6 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		}
 		while (isspace((UCHAR) qp->statement[++qp->opos]));
 	}
-	/**
-	if (qp->statement_type == STMT_TYPE_PROCCALL)
-	{
-		int	lit_call_len = 4;
-
-		// '?=' to accept return values exists ?
-		if (F_OldChar(qp) == '?')
-		{
-			qb->param_number++;
-			qb->proc_return = 1;
-			if (qb->stmt)
-				qb->stmt->proc_return = 1;
-			while (isspace((UCHAR) qp->statement[++qp->opos]));
-			if (F_OldChar(qp) != '=')
-			{
-				F_OldPrior(qp);
-				return SQL_SUCCESS;
-			}
-			while (isspace((UCHAR) qp->statement[++qp->opos]));
-		}
-		if (strnicmp(F_OldPtr(qp), "call", lit_call_len) ||
-			!isspace((UCHAR) F_OldPtr(qp)[lit_call_len]))
-		{
-			F_OldPrior(qp);
-			return SQL_SUCCESS;
-		}
-		qp->opos += lit_call_len;
-		if (qb->num_io_params > 1 ||
-		    (0 == qb->proc_return &&
-		     PG_VERSION_GE(conn, 7.3)))
-			CVT_APPEND_STR(qb, "SELECT * FROM");
-		else
-			CVT_APPEND_STR(qb, "SELECT");
-		if (my_strchr(conn, F_OldPtr(qp), '('))
-			qp->proc_no_param = FALSE;
-		return SQL_SUCCESS;
-	}
-	**/
 
 	sscanf(F_OldPtr(qp), "%32s", key);
 	while ((ucv = F_OldChar(qp)) != '\0' && (!isspace(ucv)))
@@ -5076,8 +4859,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			goto cleanup;
 		}
 		if (qb->num_io_params > 1 ||
-		    (0 == qb->proc_return &&
-		     PG_VERSION_GE(conn, 7.3)))
+		    (0 == qb->proc_return))
 			CVT_APPEND_STR(qb, "SELECT * FROM ");
 		else
 			CVT_APPEND_STR(qb, "SELECT ");
@@ -5105,10 +4887,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
-		if (PG_VERSION_LT(conn, 7.3))
-			prtlen = snprintf(buf, sizeof(buf), "%s", buf_small);
-		else
-			prtlen = snprintf(buf, sizeof(buf), "%s::date", buf_small);
+		prtlen = snprintf(buf, sizeof(buf), "%s::date", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
@@ -5124,10 +4903,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
-		if (PG_VERSION_LT(conn, 7.1))
-			prtlen = snprintf(buf, sizeof(buf), "%s::datetime", buf_small);
-		else
-			prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf_small);
+		prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}

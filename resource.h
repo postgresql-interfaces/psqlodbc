@@ -41,7 +41,6 @@
 #define DS_SHOWOIDCOLUMN                1012
 #define DS_FAKEOIDINDEX                 1013
 #define DRV_COMMLOG                     1014
-#define DS_PG62                         1016
 #define IDC_DATASOURCE                  1018
 #define DRV_OPTIMIZER                   1019
 #define DS_CONNSETTINGS                 1020
@@ -68,9 +67,6 @@
 #define DRV_PARSE                       1052
 #define DRV_CANCELASFREESTMT            1053
 #define IDC_OPTIONS                     1054
-#define DRV_KSQO                        1055
-#define DS_PG64                         1057
-#define DS_PG63                         1058
 #define DRV_OR_DSN                      1059
 #define DRV_DEBUG                       1060
 #define DS_DISALLOWPREMATURE            1061
@@ -92,7 +88,6 @@
 #define IDC_DRIVERNAME                  1076
 #define IDC_MANAGEDSN                   1077
 #define IDC_DRIVER_LIST                 1078
-#define DS_PG74				1079
 #define DS_NO_ROLLBACK			1080
 #define DS_TRANSACTION_ROLLBACK		1081
 #define DS_STATEMENT_ROLLBACK		1082

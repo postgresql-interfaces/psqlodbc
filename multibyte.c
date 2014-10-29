@@ -455,31 +455,6 @@ CC_lookup_cs_new(ConnectionClass *self)
 	QR_Destructor(res);
 	return encstr;
 }
-static char *
-CC_lookup_cs_old(ConnectionClass *self)
-{
-	char		*encstr = NULL;
-	HSTMT		hstmt;
-	RETCODE		result;
-
-	result = PGAPI_AllocStmt(self, &hstmt, 0);
-	if (!SQL_SUCCEEDED(result))
-		return encstr;
-
-	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "Show Client_Encoding", SQL_NTS, 0);
-	if (result == SQL_SUCCESS_WITH_INFO)
-	{
-		SQLCHAR		sqlState[8];
-		char		errormsg[128], enc[32];
-
-		if (PGAPI_Error(NULL, NULL, hstmt, sqlState, NULL, (SQLCHAR *) errormsg,
-			sizeof(errormsg), NULL) == SQL_SUCCESS &&
-		    sscanf(errormsg, "%*s %*s %*s %*s %*s %s", enc) > 0)
-			encstr = strdup(enc);
-	}
-	PGAPI_FreeStmt(hstmt, SQL_DROP);
-	return encstr;
-}
 
 /*
  *	This function works under Windows or Unicode case only.
@@ -514,11 +489,11 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 			wenc = "SJIS";
 			break;
 		case 936:
-			if (!bStartup && PG_VERSION_GT(conn, 7.2))
+			if (!bStartup)
 				wenc = "GBK";
 			break;
 		case 949:
-			if (!bStartup && PG_VERSION_GT(conn, 7.2))
+			if (!bStartup)
 				wenc = "UHC";
 			break;
 		case 950:
@@ -531,8 +506,7 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 			wenc = "WIN1251";
 			break;
 		case 1256:
-			if (PG_VERSION_GE(conn, 7.3))
-				wenc = "WIN1256";
+			wenc = "WIN1256";
 			break;
 		case 1252:
 			if (strnicmp(currenc, "LATIN", 5) == 0)
@@ -578,8 +552,6 @@ CC_lookup_characterset(ConnectionClass *self)
 		encspec = strdup(self->original_client_encoding);
 	if (self->current_client_encoding)
 		currenc = strdup(self->current_client_encoding);
-	else if (PG_VERSION_LT(self, 7.2))
-		currenc = CC_lookup_cs_old(self);
 	else
 		currenc = CC_lookup_cs_new(self);
 	tencstr = encspec ? encspec : currenc;

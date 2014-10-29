@@ -78,9 +78,11 @@ extern "C" {
 #define INI_OPTIMIZER			"Optimizer"	/* Use backend genetic
 							 * optimizer */
 #define ABBR_OPTIMIZER			"B4"
-#define INI_KSQO			"Ksqo"		/* Keyset query
-							 * optimization */
-#define ABBR_KSQO			"B5"
+/* "Ksqo", abbreviated to B5 was used with pre-7.1 server versions for
+ * "keyset query optimization". No longer used.
+#define INI_KSQO                       "Ksqo"
+#define ABBR_KSQO                      "B5"
+*/
 #define INI_CONNSETTINGS		 "ConnSettings" /* Anything to send to
 							 * backend on successful
 							 * connection */
@@ -181,7 +183,6 @@ extern "C" {
 #define BIT_UNKNOWN_DONTKNOW			(1L<<6)
 #define BIT_UNKNOWN_ASMAX			(1L<<7)
 #define BIT_OPTIMIZER				(1L<<8)
-#define BIT_KSQO				(1L<<9)
 #define BIT_COMMLOG				(1L<<10)
 #define BIT_DEBUG				(1L<<11)
 #define BIT_PARSE				(1L<<12)
@@ -222,7 +223,6 @@ extern "C" {
 #define DEFAULT_UNKNOWNSASLONGVARCHAR		0
 #define DEFAULT_BOOLSASCHAR			1
 #define DEFAULT_OPTIMIZER			0		/* enable */
-#define DEFAULT_KSQO				1		/* on */
 #define DEFAULT_UNIQUEINDEX			1		/* dont recognize */
 #define DEFAULT_COMMLOG				0		/* dont log */
 #define DEFAULT_DEBUG				0

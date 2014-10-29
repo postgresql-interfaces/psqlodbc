@@ -117,7 +117,6 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 	CORR_VALCPY(debug);
 	CORR_VALCPY(commlog);
 	CORR_VALCPY(disable_optimizer);
-	CORR_VALCPY(ksqo);
 	CORR_VALCPY(unique_index);
 	CORR_VALCPY(onlyread);		/* readonly is reserved on Digital C++
 								 * compiler */

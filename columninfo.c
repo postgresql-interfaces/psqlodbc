@@ -66,10 +66,8 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	/* COLUMN_NAME_STORAGE_LEN may be sufficient but for safety */
 	char		new_field_name[2 * COLUMN_NAME_STORAGE_LEN + 1];
 	SocketClass *sock;
-	ConnInfo   *ci;
 
 	sock = CC_get_socket(conn);
-	ci = &conn->connInfo;
 
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = (Int2) SOCK_get_int(sock, sizeof(Int2));
@@ -79,7 +77,7 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	if (self)
 	{
 		/* according to that allocate memory */
-		CI_set_num_fields(self, new_num_fields, PROTOCOL_74(ci));
+		CI_set_num_fields(self, new_num_fields);
 		if (NULL == self->coli_array)
 			return FALSE;
 	}
@@ -88,37 +86,29 @@ CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn)
 	for (lf = 0; lf < new_num_fields; lf++)
 	{
 		SOCK_get_string(sock, new_field_name, 2 * COLUMN_NAME_STORAGE_LEN);
-		if (PROTOCOL_74(ci))	/* tableid & columnid */
-		{
-			new_relid = SOCK_get_int(sock, sizeof(Int4));
-			new_attid = SOCK_get_int(sock, sizeof(Int2));
-		}
+		new_relid = SOCK_get_int(sock, sizeof(Int4));
+		new_attid = SOCK_get_int(sock, sizeof(Int2));
 		new_adtid = (OID) SOCK_get_int(sock, 4);
 		new_adtsize = (Int2) SOCK_get_int(sock, 2);
 
-		/* If 6.4 protocol, then read the atttypmod field */
-		if (PG_VERSION_GE(conn, 6.4))
+		mylog("READING ATTTYPMOD\n");
+		new_atttypmod = (Int4) SOCK_get_int(sock, 4);
+
+		/* Subtract the header length */
+		switch (new_adtid)
 		{
-			mylog("READING ATTTYPMOD\n");
-			new_atttypmod = (Int4) SOCK_get_int(sock, 4);
-
-			/* Subtract the header length */
-			switch (new_adtid)
-			{
-				case PG_TYPE_DATETIME:
-				case PG_TYPE_TIMESTAMP_NO_TMZONE:
-				case PG_TYPE_TIME:
-				case PG_TYPE_TIME_WITH_TMZONE:
-					break;
-				default:
-					new_atttypmod -= 4;
-			}
-			if (new_atttypmod < 0)
-				new_atttypmod = -1;
-			if (PROTOCOL_74(ci))	/* format */
-				SOCK_get_int(sock, sizeof(Int2));
-
+			case PG_TYPE_DATETIME:
+			case PG_TYPE_TIMESTAMP_NO_TMZONE:
+			case PG_TYPE_TIME:
+			case PG_TYPE_TIME_WITH_TMZONE:
+				break;
+			default:
+				new_atttypmod -= 4;
 		}
+		if (new_atttypmod < 0)
+			new_atttypmod = -1;
+		/* format */
+		SOCK_get_int(sock, sizeof(Int2));
 
 		mylog("%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
@@ -155,7 +145,7 @@ CI_free_memory(ColumnInfoClass *self)
 
 
 void
-CI_set_num_fields(ColumnInfoClass *self, int new_num_fields, BOOL allocrelatt)
+CI_set_num_fields(ColumnInfoClass *self, int new_num_fields)
 {
 	CI_free_memory(self);		/* always safe to call */
 

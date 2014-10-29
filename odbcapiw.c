@@ -303,8 +303,7 @@ SQLExecDirectW(HSTMT StatementHandle,
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	if (PG_VERSION_GE(SC_get_conn(stmt), 7.4))
-		flag |= PODBC_WITH_HOLD;
+	flag |= PODBC_WITH_HOLD;
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;

@@ -709,76 +709,61 @@ COL_INFO **coli)
 	*coli = NULL;
 	if (NAME_IS_NULL(table_name))
 		return TRUE;
-	if (conn->schema_support)
+	if (NAME_IS_NULL(*schema_name))
 	{
-		if (NAME_IS_NULL(*schema_name))
+		const char *curschema = CC_get_current_schema(conn);
+		/*
+		 * Though current_schema() doesn't have
+		 * much sense in PostgreSQL, we first
+		 * check the current_schema() when no
+		 * explicit schema name is specified.
+		 */
+		for (colidx = 0; colidx < conn->ntables; colidx++)
 		{
-			const char *curschema = CC_get_current_schema(conn);
-			/*
-			 * Though current_schema() doesn't have
-			 * much sense in PostgreSQL, we first
-			 * check the current_schema() when no
-			 * explicit schema name is specified.
-			 */
-			for (colidx = 0; colidx < conn->ntables; colidx++)
+			if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
+			    !stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
 			{
-				if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
-				    !stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
-				{
-					mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(table_name), curschema);
-					found = TRUE;
-					STR_TO_NAME(*schema_name, curschema);
-					break;
-				}
-			}
-			if (!found)
-			{
-				QResultClass	*res;
-				char		token[256];
-				BOOL		tblFound = FALSE;
-
-				/*
-				 * We also have to check as follows.
-				 */
-				snprintf(token, sizeof(token),
-						 "select nspname from pg_namespace n, pg_class c"
-						 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
-						 SAFE_NAME(table_name));
-				res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
-				if (QR_command_maybe_successful(res))
-				{
-					if (QR_get_num_total_tuples(res) == 1)
-					{
-						tblFound = TRUE;
-						STR_TO_NAME(*schema_name, QR_get_value_backend_text(res, 0, 0));
-					}
-				}
-				QR_Destructor(res);
-				if (!tblFound)
-					return FALSE;
+				mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(table_name), curschema);
+				found = TRUE;
+				STR_TO_NAME(*schema_name, curschema);
+				break;
 			}
 		}
-		if (!found && NAME_IS_VALID(*schema_name))
+		if (!found)
 		{
-			for (colidx = 0; colidx < conn->ntables; colidx++)
+			QResultClass	*res;
+			char		token[256];
+			BOOL		tblFound = FALSE;
+
+			/*
+			 * We also have to check as follows.
+			 */
+			snprintf(token, sizeof(token),
+					 "select nspname from pg_namespace n, pg_class c"
+					 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
+					 SAFE_NAME(table_name));
+			res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+			if (QR_command_maybe_successful(res))
 			{
-				if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
-				    !NAMEICMP(conn->col_info[colidx]->schema_name, *schema_name))
+				if (QR_get_num_total_tuples(res) == 1)
 				{
-					mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(table_name), PRINT_NAME(*schema_name));
-					found = TRUE;
-					break;
+					tblFound = TRUE;
+					STR_TO_NAME(*schema_name, QR_get_value_backend_text(res, 0, 0));
 				}
 			}
+			QR_Destructor(res);
+			if (!tblFound)
+				return FALSE;
 		}
 	}
-	else
+	if (!found && NAME_IS_VALID(*schema_name))
 	{
 		for (colidx = 0; colidx < conn->ntables; colidx++)
 		{
-			if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name))
+			if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
+			    !NAMEICMP(conn->col_info[colidx]->schema_name, *schema_name))
 			{
-				mylog("FOUND col_info table='%s'\n", table_name);
+				mylog("FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(table_name), PRINT_NAME(*schema_name));
 				found = TRUE;
 				break;
 			}

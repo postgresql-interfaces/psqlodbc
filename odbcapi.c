@@ -350,8 +350,7 @@ SQLExecDirect(HSTMT StatementHandle,
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	if (PG_VERSION_GE(SC_get_conn(stmt), 7.4))
-		flag |= PODBC_WITH_HOLD;
+	flag |= PODBC_WITH_HOLD;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
@@ -375,8 +374,7 @@ SQLExecute(HSTMT StatementHandle)
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	if (PG_VERSION_GE(SC_get_conn(stmt), 7.4))
-		flag |= PODBC_WITH_HOLD;
+	flag |= PODBC_WITH_HOLD;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else

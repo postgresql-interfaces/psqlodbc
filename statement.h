@@ -253,7 +253,6 @@ struct StatementClass_
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
-	Int4		stmt_size_limit; /* PG restriction */
 	SQLLEN		exec_start_row;
 	SQLLEN		exec_end_row;
 	SQLLEN		exec_current_row;
@@ -265,7 +264,6 @@ struct StatementClass_
 	po_ind_t	updatable;
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
-	char		*execute_statement; /* to execute the prepared plans */
 	Int4		from_pos;
 	Int4		where_pos;
 	SQLLEN		last_fetch_count_include_ommitted;
@@ -370,7 +368,6 @@ enum {
 	  NON_PREPARE_STATEMENT = 0
 	, PREPARE_STATEMENT = 1
 	, PREPARE_BY_THE_DRIVER = (1L << 1)
-	, USING_PREPARE_COMMAND = (2L << 1)
 	, NAMED_PARSE_REQUEST = (3L << 1)
 	, PARSE_TO_EXEC_ONCE = (4L << 1)
 	, PARSE_REQ_FOR_INFO = (5L << 1)
@@ -394,9 +391,6 @@ enum
 #define SC_set_fetchcursor(a)	(a->miscinfo |= (1L << 1))
 #define SC_no_fetchcursor(a)	(a->miscinfo &= ~(1L << 1))
 #define SC_is_fetchcursor(a)	((a->miscinfo & (1L << 1)) != 0)
-#define SC_set_concat_prepare_exec(a)	(a->miscinfo |= (1L << 2))
-#define SC_no_concat_prepare_exec(a)	(a->miscinfo &= ~(1L << 2))
-#define SC_is_concat_prepare_exec(a)	((a->miscinfo & (1L << 2)) != 0)
 #define SC_set_with_hold(a)	(a->miscinfo |= (1L << 3))
 #define SC_set_without_hold(a)	(a->miscinfo &= ~(1L << 3))
 #define SC_is_with_hold(a)	((a->miscinfo & (1L << 3)) != 0)

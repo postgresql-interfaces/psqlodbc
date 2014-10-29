@@ -177,8 +177,6 @@ struct SocketClass_
 	gss_name_t	gtarg_nam;	/* GSS target name */
 #endif /* USE_GSS */
 
-	char		reverse;	/* used to handle Postgres 6.2 protocol
-						* (reverse byte order) */
 	char		keepalive;	/* TCP keepalive */
 	int		keepalive_idle;
 	int		keepalive_interval;

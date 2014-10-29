@@ -28,16 +28,6 @@ void	TI_Constructor(TABLE_INFO *self, const ConnectionClass *conn)
 {
 	memset(self, 0, sizeof(TABLE_INFO));
 	TI_set_updatable(self);
-	if (PG_VERSION_LT(conn, 7.2))
-	{
-		char	qual[32];
-
-		STR_TO_NAME(self->bestitem, OID_NAME);
-		sprintf(qual, "\"%s\" = %%u", OID_NAME);
-		STRX_TO_NAME(self->bestqual, qual);
-		TI_set_hasoids(self);
-		TI_set_hasoids_checked(self);
-	}
 }
 void	TI_Destructor(TABLE_INFO **ti, int count)
 {

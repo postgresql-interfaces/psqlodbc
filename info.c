@@ -105,18 +105,15 @@ PGAPI_GetInfo(HDBC hdbc,
 		case SQL_ALTER_TABLE:	/* ODBC 2.0 */
 			len = 4;
 			value = SQL_AT_ADD_COLUMN;
-			if (PG_VERSION_GE(conn, 7.3))
-				value |= SQL_AT_DROP_COLUMN;
+			value |= SQL_AT_DROP_COLUMN;
 #if (ODBCVER >= 0x0300)
-			value |= SQL_AT_ADD_COLUMN_SINGLE;
-			if (PG_VERSION_GE(conn, 7.1))
-				value |= SQL_AT_ADD_CONSTRAINT
+			value |= SQL_AT_ADD_COLUMN_SINGLE
+					| SQL_AT_ADD_CONSTRAINT
 					| SQL_AT_ADD_TABLE_CONSTRAINT
 					| SQL_AT_CONSTRAINT_INITIALLY_DEFERRED
 					| SQL_AT_CONSTRAINT_INITIALLY_IMMEDIATE
-					| SQL_AT_CONSTRAINT_DEFERRABLE;
-			if (PG_VERSION_GE(conn, 7.3))
-				value |= SQL_AT_DROP_TABLE_CONSTRAINT_RESTRICT
+					| SQL_AT_CONSTRAINT_DEFERRABLE
+					| SQL_AT_DROP_TABLE_CONSTRAINT_RESTRICT
 					| SQL_AT_DROP_TABLE_CONSTRAINT_CASCADE
 					| SQL_AT_DROP_COLUMN_RESTRICT
 					| SQL_AT_DROP_COLUMN_CASCADE;
@@ -126,7 +123,7 @@ PGAPI_GetInfo(HDBC hdbc,
 		case SQL_BOOKMARK_PERSISTENCE:	/* ODBC 2.0 */
 			/* very simple bookmark support */
 			len = 4;
-			value = ci->drivers.use_declarefetch && PG_VERSION_LT(conn, 7.4) ? 0 : (SQL_BP_SCROLL | SQL_BP_DELETE | SQL_BP_UPDATE | SQL_BP_TRANSACTION);
+			value = SQL_BP_SCROLL | SQL_BP_DELETE | SQL_BP_UPDATE | SQL_BP_TRANSACTION;
 			break;
 
 		case SQL_COLUMN_ALIAS:	/* ODBC 2.0 */
@@ -188,16 +185,15 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_CURSOR_COMMIT_BEHAVIOR:		/* ODBC 1.0 */
 			len = 2;
-			value = SQL_CB_CLOSE;
-			if (!ci->drivers.use_declarefetch || PG_VERSION_GE(conn, 7.4))
-				value = SQL_CB_PRESERVE;
+			value = SQL_CB_PRESERVE;
 			break;
 
 		case SQL_CURSOR_ROLLBACK_BEHAVIOR:		/* ODBC 1.0 */
 			len = 2;
-			value = SQL_CB_CLOSE;
 			if (!ci->drivers.use_declarefetch)
 				value = SQL_CB_PRESERVE;
+			else
+				value = SQL_CB_CLOSE;
 			break;
 
 		case SQL_DATA_SOURCE_NAME:		/* ODBC 1.0 */
@@ -248,10 +244,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_DEFAULT_TXN_ISOLATION: /* ODBC 1.0 */
 			len = 4;
-			if (PG_VERSION_LT(conn, 6.5))
-				value = SQL_TXN_SERIALIZABLE;
-			else
-				value = SQL_TXN_READ_COMMITTED;
+			value = SQL_TXN_READ_COMMITTED;
 			break;
 
 		case SQL_DRIVER_NAME:	/* ODBC 1.0 */
@@ -270,7 +263,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_EXPRESSIONS_IN_ORDERBY:		/* ODBC 1.0 */
-			p = PG_VERSION_GE(conn, 6.5) ? "Y" : "N";
+			p = "Y";
 			break;
 
 		case SQL_FETCH_DIRECTION:		/* ODBC 1.0 */
@@ -311,7 +304,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_IDENTIFIER_QUOTE_CHAR: /* ODBC 1.0 */
 			/* the character used to quote "identifiers" */
-			p = PG_VERSION_LE(conn, 6.2) ? " " : "\"";
+			p = "\"";
 			break;
 
 		case SQL_KEYWORDS:		/* ODBC 2.0 */
@@ -344,19 +337,9 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_MAX_COLUMN_NAME_LEN:	/* ODBC 1.0 */
 			len = 2;
-			if (PG_VERSION_GT(conn, 7.4))
-				value = CC_get_max_idlen(conn);
-#ifdef	MAX_COLUMN_LEN
-			else
-				value = MAX_COLUMN_LEN;
-#endif /* MAX_COLUMN_LEN */
+			value = CC_get_max_idlen(conn);
 			if (0 == value)
-			{
-				if (PG_VERSION_GE(conn, 7.3))
-					value = NAMEDATALEN_V73;
-				else
-					value = NAMEDATALEN_V72;
-			}
+				value = NAMEDATALEN_V73;
 			break;
 
 		case SQL_MAX_COLUMNS_IN_GROUP_BY:		/* ODBC 2.0 */
@@ -400,14 +383,11 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			if (PG_VERSION_GT(conn, 7.4))
 				value = CC_get_max_idlen(conn);
 #ifdef	MAX_SCHEMA_LEN
-			else if (conn->schema_support)
+			else
 				value = MAX_SCHEMA_LEN;
 #endif /* MAX_SCHEMA_LEN */
 			if (0 == value)
-			{
-				if (PG_VERSION_GE(conn, 7.3))
-					value = NAMEDATALEN_V73;
-			}
+				value = NAMEDATALEN_V73;
 			break;
 
 		case SQL_MAX_PROCEDURE_NAME_LEN:		/* ODBC 1.0 */
@@ -422,16 +402,8 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_MAX_ROW_SIZE:	/* ODBC 2.0 */
 			len = 4;
-			if (PG_VERSION_GE(conn, 7.1))
-			{
-				/* No limit with tuptoaster in 7.1+ */
-				value = 0;
-			}
-			else
-			{
-				/* Without the Toaster we're limited to the blocksize */
-				value = BLCKSZ;
-			}
+			/* No limit with tuptoaster in 7.1+ */
+			value = 0;
 			break;
 
 		case SQL_MAX_ROW_SIZE_INCLUDES_LONG:	/* ODBC 2.0 */
@@ -445,9 +417,8 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_MAX_STATEMENT_LEN:		/* ODBC 2.0 */
-			/* maybe this should be 0? */
 			len = 4;
-			value = CC_get_max_query_len(conn);
+			value = 0;
 			break;
 
 		case SQL_MAX_TABLE_NAME_LEN:	/* ODBC 1.0 */
@@ -459,12 +430,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 				value = MAX_TABLE_LEN;
 #endif /* MAX_TABLE_LEN */
 			if (0 == value)
-			{
-				if (PG_VERSION_GE(conn, 7.3))
-					value = NAMEDATALEN_V73;
-				else
-					value = NAMEDATALEN_V72;
-			}
+				value = NAMEDATALEN_V73;
 			break;
 
 		case SQL_MAX_TABLES_IN_SELECT:	/* ODBC 2.0 */
@@ -503,10 +469,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		case SQL_NULL_COLLATION:		/* ODBC 2.0 */
 			/* where are nulls sorted? */
 			len = 2;
-			if (PG_VERSION_GE(conn, 7.2))
-				value = SQL_NC_HIGH;
-			else
-				value = SQL_NC_END;
+			value = SQL_NC_HIGH;
 			break;
 
 		case SQL_NUMERIC_FUNCTIONS:		/* ODBC 1.0 */
@@ -535,51 +498,33 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_OJ_CAPABILITIES:		/* ODBC 2.01 */
 			len = 4;
-			if (PG_VERSION_GE(conn, 7.1))
-			{
-				/* OJs in 7.1+ */
-				value = (SQL_OJ_LEFT |
-						 SQL_OJ_RIGHT |
-						 SQL_OJ_FULL |
-						 SQL_OJ_NESTED |
-						 SQL_OJ_NOT_ORDERED |
-						 SQL_OJ_INNER |
-						 SQL_OJ_ALL_COMPARISON_OPS);
-			}
-			else
-				/* OJs not in <7.1 */
-				value = 0;
+			value = (SQL_OJ_LEFT |
+					 SQL_OJ_RIGHT |
+					 SQL_OJ_FULL |
+					 SQL_OJ_NESTED |
+					 SQL_OJ_NOT_ORDERED |
+					 SQL_OJ_INNER |
+					 SQL_OJ_ALL_COMPARISON_OPS);
 			break;
 
 		case SQL_ORDER_BY_COLUMNS_IN_SELECT:	/* ODBC 2.0 */
-			p = (PG_VERSION_LE(conn, 6.3)) ? "Y" : "N";
+			p = "Y";
 			break;
 
 		case SQL_OUTER_JOINS:	/* ODBC 1.0 */
-			if (PG_VERSION_GE(conn, 7.1))
-				/* OJs in 7.1+ */
-				p = "Y";
-			else
-				/* OJs not in <7.1 */
-				p = "N";
+			p = "Y";
 			break;
 
 		case SQL_OWNER_TERM:	/* ODBC 1.0 */
-			if (conn->schema_support)
-				p = "schema";
-			else
-				p = "owner";
+			p = "schema";
 			break;
 
 		case SQL_OWNER_USAGE:	/* ODBC 2.0 */
 			len = 4;
-			value = 0;
-			if (conn->schema_support)
-				value = SQL_OU_DML_STATEMENTS
+			value = SQL_OU_DML_STATEMENTS
 					| SQL_OU_TABLE_DEFINITION
 					| SQL_OU_INDEX_DEFINITION
-					| SQL_OU_PRIVILEGE_DEFINITION
-					;
+					| SQL_OU_PRIVILEGE_DEFINITION;
 			break;
 
 		case SQL_POS_OPERATIONS:		/* ODBC 2.0 */
@@ -670,10 +615,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_SEARCH_PATTERN_ESCAPE: /* ODBC 1.0 */
-			if (PG_VERSION_GE(conn, 6.5))
-				p = "\\";
-			else
-				p = NULL_STRING;
+			p = "\\";
 			break;
 
 		case SQL_SERVER_NAME:	/* ODBC 1.0 */
@@ -748,12 +690,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_TXN_ISOLATION_OPTION:	/* ODBC 1.0 */
 			len = 4;
-			if (PG_VERSION_LT(conn, 6.5))
-				value = SQL_TXN_SERIALIZABLE;
-			else if (PG_VERSION_GE(conn, 7.1))
-				value = SQL_TXN_READ_COMMITTED | SQL_TXN_SERIALIZABLE;
-			else
-				value = SQL_TXN_READ_COMMITTED;
+			value = SQL_TXN_READ_COMMITTED | SQL_TXN_SERIALIZABLE;
 			break;
 
 		case SQL_UNION: /* ODBC 2.0 */
@@ -908,7 +845,7 @@ inolog("%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgTy
 			if (SQL_INTEGER == sqlType)
 			{
 mylog("sqlType=%d ms_jet=%d\n", sqlType, conn->ms_jet);
-				if (conn->ms_jet && PG_VERSION_GE(conn, 6.4))
+				if (conn->ms_jet)
 				{
 					aunq_match = 1;
 					pgtcount = 2;
@@ -1069,10 +1006,7 @@ PGAPI_GetFunctions(HDBC hdbc,
 
 			/* ODBC level 2 functions */
 			pfExists[SQL_API_SQLBROWSECONNECT] = FALSE;
-			if (PG_VERSION_GE(conn, 7.4))
-				pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
-			else
-				pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
+			pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
 			pfExists[SQL_API_SQLDATASOURCES] = FALSE;	/* only implemented by
 														 * DM */
 			if (SUPPORT_DESCRIBE_PARAM(ci))
@@ -1089,14 +1023,8 @@ PGAPI_GetFunctions(HDBC hdbc,
 			pfExists[SQL_API_SQLNUMPARAMS] = TRUE;
 			pfExists[SQL_API_SQLPARAMOPTIONS] = TRUE;
 			pfExists[SQL_API_SQLPRIMARYKEYS] = TRUE;
-			if (PG_VERSION_LT(conn, 6.5))
-				pfExists[SQL_API_SQLPROCEDURECOLUMNS] = FALSE;
-			else
-				pfExists[SQL_API_SQLPROCEDURECOLUMNS] = TRUE;
-			if (PG_VERSION_LT(conn, 6.5))
-				pfExists[SQL_API_SQLPROCEDURES] = FALSE;
-			else
-				pfExists[SQL_API_SQLPROCEDURES] = TRUE;
+			pfExists[SQL_API_SQLPROCEDURECOLUMNS] = TRUE;
+			pfExists[SQL_API_SQLPROCEDURES] = TRUE;
 			pfExists[SQL_API_SQLSETPOS] = TRUE;
 			pfExists[SQL_API_SQLSETSCROLLOPTIONS] = TRUE;		/* odbc 1.0 */
 			pfExists[SQL_API_SQLTABLEPRIVILEGES] = TRUE;
@@ -1297,16 +1225,10 @@ PGAPI_GetFunctions(HDBC hdbc,
 					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLPROCEDURECOLUMNS:
-					if (PG_VERSION_LT(conn, 6.5))
-						*pfExists = FALSE;
-					else
-						*pfExists = TRUE;
+					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLPROCEDURES:
-					if (PG_VERSION_LT(conn, 6.5))
-						*pfExists = FALSE;
-					else
-						*pfExists = TRUE;
+					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLSETPOS:
 					*pfExists = TRUE;
@@ -1631,46 +1553,21 @@ retry_public_schema:
 		strncpy_null(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a", sizeof(tables_query));
 	else if (list_schemas)
 	{
-		if (conn->schema_support)
-			strncpy_null(tables_query, "select NULL, nspname, NULL"
+		strncpy_null(tables_query, "select NULL, nspname, NULL"
 			" from pg_catalog.pg_namespace n where true", sizeof(tables_query));
-		else
-			strncpy_null(tables_query, "select NULL, NULL as nspname, NULL", sizeof(tables_query));
 	}
-	else if (conn->schema_support)
+	else
 	{
 		/* view is represented by its relkind since 7.1 */
 		strcpy(tables_query, "select relname, nspname, relkind"
 			" from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
 		strcat(tables_query, " where relkind in ('r', 'v')");
 	}
-	else if (PG_VERSION_GE(conn, 7.1))
-	{
-		/* view is represented by its relkind since 7.1 */
-		strcpy(tables_query, "select relname, usename, relkind"
-		" from pg_class c, pg_user u");
-		strcat(tables_query, " where relkind in ('r', 'v')");
-	}
-	else
-	{
-		strcpy(tables_query, "select relname, usename, relhasrules from pg_class c, pg_user u");
-		strcat(tables_query, " where relkind = 'r'");
-	}
 
 	op_string = gen_opestr(like_or_eq, conn);
 	if (!list_some)
 	{
-		if (conn->schema_support)
-		{
-			schema_strcat1(tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
-			/* strcat(tables_query, " and pg_catalog.pg_table_is_visible(c.oid)"); */
-		}
-		else
-		{
-			if (IS_VALID_NAME(escSchemaName))
-				snprintf_add(tables_query, sizeof(tables_query),
-						 " and usename %s'%s'", op_string, escSchemaName);
-		}
+		schema_strcat1(tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 		if (IS_VALID_NAME(escTableName))
 			snprintf_add(tables_query, sizeof(tables_query),
 					 " and relname %s'%s'", op_string, escTableName);
@@ -1750,22 +1647,7 @@ retry_public_schema:
 	 * tables, then dont filter either.
 	 */
 	if ((list_schemas || !list_some) && !atoi(ci->show_system_tables) && !show_system_tables)
-	{
-		if (conn->schema_support)
-			strcat(tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
-		else if (!list_schemas)
-		{
-			strcat(tables_query, " and relname !~ '^" POSTGRES_SYS_PREFIX);
-
-			/* Also filter out user-defined system table types */
-			for (i = 0; i < nprefixes; i++)
-			{
-				strcat(tables_query, "|^");
-				strcat(tables_query, prefix[i]);
-			}
-			strcat(tables_query, "'");
-		}
-	}
+		strcat(tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
 
 	if (!list_some)
 	{
@@ -1776,16 +1658,8 @@ retry_public_schema:
 		strcat(tables_query, " order by nspname");
 	else if (list_some)
 		;
-	else if (conn->schema_support)
-		strcat(tables_query, " and n.oid = relnamespace order by nspname, relname");
 	else
-	{
-		/* match users */
-		if (PG_VERSION_LT(conn, 7.1))
-			/* filter out large objects in older versions */
-			strcat(tables_query, " and relname !~ '^xinv[0-9]+'");
-		strcat(tables_query, " and usesysid = relowner order by relname");
-	}
+		strcat(tables_query, " and n.oid = relnamespace order by nspname, relname");
 
 	result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -1795,8 +1669,7 @@ retry_public_schema:
 	}
 
 	/* If not found */
-	if (conn->schema_support &&
-	    (res = SC_get_Result(tbl_stmt)) &&
+	if ((res = SC_get_Result(tbl_stmt)) &&
 	    0 == QR_get_num_total_tuples(res))
 	{
 		if (allow_public_schema(conn, szSchemaName, cbSchemaName))
@@ -1879,17 +1752,11 @@ retry_public_schema:
 		systable = FALSE;
 		if (!atoi(ci->show_system_tables))
 		{
-			if (conn->schema_support)
-			{
-				if (stricmp(table_owner, "pg_catalog") == 0 ||
-				    stricmp(table_owner, "pg_toast") == 0 ||
-				    strnicmp(table_owner, "pg_temp_", 8) == 0 ||
-				    stricmp(table_owner, "information_schema") == 0)
-					systable = TRUE;
-			}
-			else if (strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0)
+			if (stricmp(table_owner, "pg_catalog") == 0 ||
+			    stricmp(table_owner, "pg_toast") == 0 ||
+			    strnicmp(table_owner, "pg_temp_", 8) == 0 ||
+			    stricmp(table_owner, "information_schema") == 0)
 				systable = TRUE;
-
 			else
 			{
 				/* Check extra system table prefixes */
@@ -1906,15 +1773,10 @@ retry_public_schema:
 		}
 
 		/* Determine if the table name is a view */
-		if (PG_VERSION_GE(conn, 7.1))
-			/* view is represented by its relkind since 7.1 */
-			view = (relkind_or_hasrules[0] == 'v');
-		else
-			view = (relkind_or_hasrules[0] == '1');
+		view = (relkind_or_hasrules[0] == 'v');
 
 		/* It must be a regular table */
 		regular_table = (!systable && !view);
-
 
 		/* Include the row in the result set if meets all criteria */
 
@@ -1944,7 +1806,7 @@ retry_public_schema:
 
 			mylog("%s: table_name = '%s'\n", func, table_name);
 
-			if (list_schemas || (conn->schema_support && !list_some))
+			if (list_schemas || !list_some)
 				set_tuplefield_string(&tuple[TABLES_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 			else
 				set_tuplefield_null(&tuple[TABLES_SCHEMA_NAME]);
@@ -2103,67 +1965,38 @@ retry_public_schema:
 	 * have the atttypmod field)
 	 */
 	op_string = gen_opestr(like_or_eq, conn);
-	if (conn->schema_support)
-	{
-		snprintf(columns_query, sizeof(columns_query),
-			"select n.nspname, c.relname, a.attname, a.atttypid"
-			", t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull"
-			", c.relhasrules, c.relkind, c.oid, %s, %s, %s"
-			" from (((pg_catalog.pg_class c"
-			" inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
-			PG_VERSION_GE(conn, 7.4) ?
-			"pg_get_expr(d.adbin, d.adrelid)" : "d.adsrc",
-			PG_VERSION_GE(conn, 7.4) ?
-			"case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod"
-					: "0, -1",
-			PG_VERSION_GE(conn, 7.2) ? "c.relhasoids" : "1"
-					);
-		if (search_by_ids)
-			snprintf_add(columns_query, sizeof(columns_query), " and c.oid = %u", reloid);
-		else
-		{
-			if (escTableName)
-				snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
-			schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
-		}
-		strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
-			" on (not a.attisdropped)");
-		if (0 == attnum && (NULL == escColumnName || like_or_eq != eqop))
-			strcat(columns_query, " and a.attnum > 0");
-		if (search_by_ids)
-		{
-			if (attnum != 0)
-				snprintf_add(columns_query, sizeof(columns_query), " and a.attnum = %d", attnum);
-		}
-		else if (escColumnName)
-			snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s'%s'", op_string, escColumnName);
-		strcat(columns_query,
-			" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
-			" on t.oid = a.atttypid) left outer join pg_attrdef d"
-			" on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum");
-		strcat(columns_query, " order by n.nspname, c.relname, attnum");
-	}
+	snprintf(columns_query, sizeof(columns_query),
+		"select n.nspname, c.relname, a.attname, a.atttypid, "
+		"t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull, "
+		"c.relhasrules, c.relkind, c.oid, pg_get_expr(d.adbin, d.adrelid), "
+        "case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod, "
+        "c.relhasoids "
+		"from (((pg_catalog.pg_class c "
+		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace");
+	if (search_by_ids)
+		snprintf_add(columns_query, sizeof(columns_query), " and c.oid = %u", reloid);
 	else
 	{
-		snprintf(columns_query, sizeof(columns_query),
-			"select u.usename, c.relname, a.attname, a.atttypid"
-			", t.typname, a.attnum, a.attlen, %s, a.attnotnull"
-			", c.relhasrules, c.relkind, c.oid, NULL, 0, -1 from"
-			"  pg_user u, pg_class c, pg_attribute a, pg_type t where"
-			"  u.usesysid = c.relowner and c.oid= a.attrelid"
-			"  and a.atttypid = t.oid and (a.attnum > 0)",
-			PG_VERSION_LE(conn, 6.2) ? "a.attlen" : "a.atttypmod");
 		if (escTableName)
-			snprintf_add(columns_query, sizeof(columns_query),
-						 " and c.relname %s'%s'", op_string, escTableName);
-		if (IS_VALID_NAME(escSchemaName))
-			snprintf_add(columns_query, sizeof(columns_query),
-					 " and u.usename %s'%s'", op_string, escSchemaName);
-		if (escColumnName)
-			snprintf_add(columns_query, sizeof(columns_query),
-						 " and a.attname %s'%s'", op_string, escColumnName);
-		strcat(columns_query, " order by c.relname, attnum");
+			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
+		schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	}
+	strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
+		" on (not a.attisdropped)");
+	if (0 == attnum && (NULL == escColumnName || like_or_eq != eqop))
+		strcat(columns_query, " and a.attnum > 0");
+	if (search_by_ids)
+	{
+		if (attnum != 0)
+			snprintf_add(columns_query, sizeof(columns_query), " and a.attnum = %d", attnum);
+	}
+	else if (escColumnName)
+		snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s'%s'", op_string, escColumnName);
+	strcat(columns_query,
+		" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
+		" on t.oid = a.atttypid) left outer join pg_attrdef d"
+		" on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum");
+	strcat(columns_query, " order by n.nspname, c.relname, attnum");
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -2185,8 +2018,7 @@ retry_public_schema:
 	}
 
 	/* If not found */
-	if (conn->schema_support &&
-	    (flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
+	if ((flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
 	    (res = SC_get_Result(col_stmt)) &&
 	    0 == QR_get_num_total_tuples(res))
 	{
@@ -2384,11 +2216,8 @@ retry_public_schema:
 	 * being called by SQLStatistics . Always show OID if it's a system
 	 * table
 	 */
+	relisaview = (relkind[0] == 'v');
 
-	if (PG_VERSION_GE(conn, 7.1))
-		relisaview = (relkind[0] == 'v');
-	else
-		relisaview = (relhasrules[0] == '1');
 	if (result != SQL_ERROR && !stmt->internal)
 	{
 		if (!relisaview &&
@@ -2403,10 +2232,7 @@ retry_public_schema:
 			tuple = QR_AddNew(res);
 			set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
 			/* see note in SQLTables() */
-			if (conn->schema_support)
-				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
-			else
-				set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
+			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 			set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], OID_NAME);
 			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
@@ -2466,10 +2292,7 @@ mylog(" and the data=%s\n", attdef);
 		sqltype = SQL_TYPE_NULL;	/* unspecified */
 		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
 		/* see note in SQLTables() */
-		if (conn->schema_support)
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
-		else
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
+		set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], field_name);
 		auto_unique = SQL_FALSE;
@@ -2552,12 +2375,8 @@ mylog(" and the data=%s\n", attdef);
 		else if ((field_type == PG_TYPE_DATETIME) ||
 			(field_type == PG_TYPE_TIMESTAMP_NO_TMZONE))
 		{
-			if (PG_VERSION_GE(conn, 7.2))
-			{
-				useStaticScale = FALSE;
-
-				set_nullfield_int2(&tuple[COLUMNS_SCALE], (Int2) mod_length);
-			}
+			useStaticScale = FALSE;
+			set_nullfield_int2(&tuple[COLUMNS_SCALE], (Int2) mod_length);
 		}
 
 		if ((field_type == PG_TYPE_VARCHAR) ||
@@ -2690,10 +2509,7 @@ mylog(" and the data=%s\n", attdef);
 		tuple = QR_AddNew(res);
 
 		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
-		if (conn->schema_support)
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
-		else
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], NULL_STRING);
+		set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "xmin");
 		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
@@ -2810,32 +2626,17 @@ retry_public_schema:
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
-	strcpy(columns_query, "select c.relhasrules, c.relkind");
-	if (PG_VERSION_GE(conn, 7.2))
-		strcat(columns_query, ", c.relhasoids");
-	if (conn->schema_support)
-		strcat(columns_query, " from pg_catalog.pg_namespace u,"
-		" pg_catalog.pg_class c where "
-			"u.oid = c.relnamespace");
-	else
-		strcat(columns_query, " from pg_user u, pg_class c where "
-			"u.usesysid = c.relowner");
+	strcpy(columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
+	strcat(columns_query, " from pg_catalog.pg_namespace u,"
+					" pg_catalog.pg_class c where "
+					"u.oid = c.relnamespace");
 
 	/* TableName cannot contain a string search pattern */
-	/* my_strcat(columns_query, " and c.relname = '%.*s'", szTableName, cbTableName); */
 	if (escTableName)
 		snprintf_add(columns_query, sizeof(columns_query),
 					 " and c.relname %s'%s'", eq_string, escTableName);
 	/* SchemaName cannot contain a string search pattern */
-	if (conn->schema_support)
-		schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
-	else
-	{
-		if (IS_VALID_NAME(escSchemaName))
-			snprintf_add(columns_query, sizeof(columns_query),
-					 " and u.usename %s'%s'", eq_string, escSchemaName);
-	}
-
+	schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -2857,8 +2658,7 @@ retry_public_schema:
 	}
 
 	/* If not found */
-	if (conn->schema_support &&
-	    (res = SC_get_Result(col_stmt)) &&
+	if ((res = SC_get_Result(col_stmt)) &&
 	    0 == QR_get_num_total_tuples(res))
 	{
 		if (allow_public_schema(conn, szSchemaName, cbSchemaName))
@@ -2889,23 +2689,17 @@ retry_public_schema:
 		goto cleanup;
 	}
 	relhasoids[0] = '1';
-	if (PG_VERSION_GE(conn, 7.2))
+	result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
+				relhasoids, sizeof(relhasoids), NULL);
+	if (!SQL_SUCCEEDED(result))
 	{
-		result = PGAPI_BindCol(hcol_stmt, 3, internal_asis_type,
-					relhasoids, sizeof(relhasoids), NULL);
-		if (!SQL_SUCCEEDED(result))
-		{
-			SC_error_copy(stmt, col_stmt, TRUE);
-			result = SQL_ERROR;
-			goto cleanup;
-		}
+		SC_error_copy(stmt, col_stmt, TRUE);
+		result = SQL_ERROR;
+		goto cleanup;
 	}
 
 	result = PGAPI_Fetch(hcol_stmt);
-	if (PG_VERSION_GE(conn, 7.1))
-		relisaview = (relkind[0] == 'v');
-	else
-		relisaview = (relhasrules[0] == '1');
+	relisaview = (relkind[0] == 'v');
 	PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	hcol_stmt = NULL;
 
@@ -3110,8 +2904,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	cbSchemaName = cbTableOwner;
 
 	table_schemaname[0] = '\0';
-	if (conn->schema_support)
-		schema_strcat(table_schemaname, "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
+	schema_strcat(table_schemaname, "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 
 	/*
 	 * we need to get a list of the field names first, so we can return
@@ -3217,41 +3010,23 @@ PGAPI_Statistics(HSTMT hstmt,
 	/* TableName cannot contain a string search pattern */
 	escTableName = simpleCatalogEscape((SQLCHAR *) table_name, SQL_NTS, NULL, conn);
 	eq_string = gen_opestr(eqop, conn);
-	if (conn->schema_support)
-	{
-		escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, NULL, conn);
-		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
-			", i.indisclustered, a.amname, c.relhasrules, n.nspname"
-			", c.oid, %s, %s"
-			" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
-			" pg_catalog.pg_class d, pg_catalog.pg_am a,"
-			" pg_catalog.pg_namespace n"
-			" where d.relname %s'%s'"
-			" and n.nspname %s'%s'"
-			" and n.oid = d.relnamespace"
-			" and d.oid = i.indrelid"
-			" and i.indexrelid = c.oid"
-			" and c.relam = a.oid order by"
-			, PG_VERSION_GE(conn, 7.2) ? "d.relhasoids" : "1"
-			, PG_VERSION_GE(conn, 8.3) ? "i.indoption" : "0"
-			, eq_string, escTableName, eq_string, escSchemaName);
-	}
-	else
-		snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
-			", i.indisclustered, a.amname, c.relhasrules, c.oid, %s, 0"
-			" from pg_index i, pg_class c, pg_class d, pg_am a"
-			" where d.relname %s'%s'"
-			" and d.oid = i.indrelid"
-			" and i.indexrelid = c.oid"
-			" and c.relam = a.oid order by"
-			, PG_VERSION_GE(conn, 7.2) ? "d.relhasoids" : "1"
-			, eq_string, escTableName);
-	if (PG_VERSION_GT(SC_get_conn(stmt), 6.4))
-		strcat(index_query, " i.indisprimary desc,");
-	if (conn->schema_support)
-		strcat(index_query, " i.indisunique, n.nspname, c.relname");
-	else
-		strcat(index_query, " i.indisunique, c.relname");
+	escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, NULL, conn);
+	snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
+		", i.indisclustered, a.amname, c.relhasrules, n.nspname"
+		", c.oid, d.relhasoids, %s"
+		" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
+		" pg_catalog.pg_class d, pg_catalog.pg_am a,"
+		" pg_catalog.pg_namespace n"
+		" where d.relname %s'%s'"
+		" and n.nspname %s'%s'"
+		" and n.oid = d.relnamespace"
+		" and d.oid = i.indrelid"
+		" and i.indexrelid = c.oid"
+		" and c.relam = a.oid order by"
+		, PG_VERSION_GE(conn, 8.3) ? "i.indoption" : "0"
+		, eq_string, escTableName, eq_string, escSchemaName);
+	strcat(index_query, " i.indisprimary desc,");
+	strcat(index_query, " i.indisunique, n.nspname, c.relname");
 
 	result = PGAPI_ExecDirect(hindx_stmt, (SQLCHAR *) index_query, SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -3561,8 +3336,6 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
-	if (PG_VERSION_LT(conn, 7.4))
-		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Function not implementedyet", func);
 	escSchemaName = simpleCatalogEscape(szTableOwner, cbTableOwner, NULL, conn);
 	escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
@@ -3752,8 +3525,7 @@ retry_public_schema:
 		if (escSchemaName)
 			free(escSchemaName);
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
-		if (conn->schema_support)
-			schema_strcat(pkscm, "%.*s", (SQLCHAR *) escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_strcat(pkscm, "%.*s", (SQLCHAR *) escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	}
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
@@ -3789,10 +3561,7 @@ retry_public_schema:
 		goto cleanup;
 	}
 
-	if (PG_VERSION_LE(conn, 6.4))
-		qstart = 2;
-	else
-		qstart = 1;
+	qstart = 1;
 	if (0 == reloid)
 		qend = 2;
 	else
@@ -3811,98 +3580,58 @@ retry_public_schema:
 				 * possible index columns. Courtesy of Tom Lane - thomas
 				 * 2000-03-21
 				 */
-				if (conn->schema_support)
-				{
-					strncpy_null(tables_query,
-						"select ta.attname, ia.attnum, ic.relname, n.nspname, tc.relname"
-						" from pg_catalog.pg_attribute ta,"
-						" pg_catalog.pg_attribute ia, pg_catalog.pg_class tc,"
-						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
-						", pg_catalog.pg_class ic"
-						, sizeof(tables_query));
-					qsize = strlen(tables_query);
-					tsize = sizeof(tables_query) - qsize;
-					tbqry = tables_query + qsize;
-					if (0 == reloid)
-						snprintf(tbqry, tsize,
-						" where tc.relname %s'%s'"
-						" AND n.nspname %s'%s'"
-						, eq_string, escTableName, eq_string, pkscm);
-					else
-						snprintf(tbqry, tsize,
-						" where tc.oid = " FORMAT_UINT4
-						, reloid);
-
-					strlcat(tables_query,
-						" AND tc.oid = i.indrelid"
-						" AND n.oid = tc.relnamespace"
-						" AND i.indisprimary = 't'"
-						" AND ia.attrelid = i.indexrelid"
-						" AND ta.attrelid = i.indrelid"
-						" AND ta.attnum = i.indkey[ia.attnum-1]"
-						" AND (NOT ta.attisdropped)"
-						" AND (NOT ia.attisdropped)"
-						" AND ic.oid = i.indexrelid"
-						" order by ia.attnum"
-						, sizeof(tables_query));
-				}
+				strncpy_null(tables_query,
+					"select ta.attname, ia.attnum, ic.relname, n.nspname, tc.relname"
+					" from pg_catalog.pg_attribute ta,"
+					" pg_catalog.pg_attribute ia, pg_catalog.pg_class tc,"
+					" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
+					", pg_catalog.pg_class ic"
+					, sizeof(tables_query));
+				qsize = strlen(tables_query);
+				tsize = sizeof(tables_query) - qsize;
+				tbqry = tables_query + qsize;
+				if (0 == reloid)
+					snprintf(tbqry, tsize,
+					" where tc.relname %s'%s'"
+					" AND n.nspname %s'%s'"
+					, eq_string, escTableName, eq_string, pkscm);
 				else
-				{
-					strncpy_null(tables_query,
-						"select ta.attname, ia.attnum, ic.relname, NULL, tc.relname"
-						" from pg_attribute ta, pg_attribute ia, pg_class tc, pg_index i, pg_class ic"
-						, sizeof(tables_query));
-					qsize = strlen(tables_query);
-					tsize = sizeof(tables_query) - qsize;
-					tbqry = tables_query + qsize;
-					if (0 == reloid)
-						snprintf(tbqry, tsize,
-						" where tc.relname %s'%s'"
-						, eq_string, escTableName);
-					else
-						snprintf(tbqry, tsize,
-						" where tc.oid = " FORMAT_UINT4, reloid);
+					snprintf(tbqry, tsize,
+					" where tc.oid = " FORMAT_UINT4
+					, reloid);
 
-					strlcat(tables_query,
-						" AND tc.oid = i.indrelid"
-						" AND i.indisprimary = 't'"
-						" AND ia.attrelid = i.indexrelid"
-						" AND ta.attrelid = i.indrelid"
-						" AND ta.attnum = i.indkey[ia.attnum-1]"
-						" AND ic.oid = i.indexrelid"
-						" order by ia.attnum"
-						, sizeof(tables_query));
-				}
+				strlcat(tables_query,
+					" AND tc.oid = i.indrelid"
+					" AND n.oid = tc.relnamespace"
+					" AND i.indisprimary = 't'"
+					" AND ia.attrelid = i.indexrelid"
+					" AND ta.attrelid = i.indrelid"
+					" AND ta.attnum = i.indkey[ia.attnum-1]"
+					" AND (NOT ta.attisdropped)"
+					" AND (NOT ia.attisdropped)"
+					" AND ic.oid = i.indexrelid"
+					" order by ia.attnum"
+					, sizeof(tables_query));
 				break;
 			case 2:
 
 				/*
 				 * Simplified query to search old fashoned primary key
 				 */
-				if (conn->schema_support)
-					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
-						" from pg_catalog.pg_attribute ta,"
-						" pg_catalog.pg_attribute ia, pg_catalog.pg_class ic,"
-						" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
-						" where ic.relname %s'%s_pkey'"
-						" AND n.nspname %s'%s'"
-						" AND ic.oid = i.indexrelid"
-						" AND n.oid = ic.relnamespace"
-						" AND ia.attrelid = i.indexrelid"
-						" AND ta.attrelid = i.indrelid"
-						" AND ta.attnum = i.indkey[ia.attnum-1]"
-						" AND (NOT ta.attisdropped)"
-						" AND (NOT ia.attisdropped)"
-						" order by ia.attnum", eq_string, escTableName, eq_string, pkscm);
-				else
-					snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, NULL, NULL"
-						" from pg_attribute ta, pg_attribute ia, pg_class ic, pg_index i"
-						" where ic.relname %s'%s_pkey'"
-						" AND ic.oid = i.indexrelid"
-						" AND ia.attrelid = i.indexrelid"
-						" AND ta.attrelid = i.indrelid"
-						" AND ta.attnum = i.indkey[ia.attnum-1]"
-						" order by ia.attnum", eq_string, escTableName);
+				snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
+					" from pg_catalog.pg_attribute ta,"
+					" pg_catalog.pg_attribute ia, pg_catalog.pg_class ic,"
+					" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
+					" where ic.relname %s'%s_pkey'"
+					" AND n.nspname %s'%s'"
+					" AND ic.oid = i.indexrelid"
+					" AND n.oid = ic.relnamespace"
+					" AND ia.attrelid = i.indexrelid"
+					" AND ta.attrelid = i.indrelid"
+					" AND ta.attnum = i.indkey[ia.attnum-1]"
+					" AND (NOT ta.attisdropped)"
+					" AND (NOT ia.attisdropped)"
+					" order by ia.attnum", eq_string, escTableName, eq_string, pkscm);
 				break;
 		}
 		mylog("%s: tables_query='%s'\n", func, tables_query);
@@ -3921,8 +3650,7 @@ retry_public_schema:
 	}
 
 	/* If not found */
-	if (conn->schema_support &&
-	    SQL_NO_DATA_FOUND == result)
+	if (SQL_NO_DATA_FOUND == result)
 	{
 		if (0 == reloid &&
 		    allow_public_schema(conn, szSchemaName, cbSchemaName))
@@ -4239,93 +3967,54 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	 */
 	if (fk_table_needed && fk_table_needed[0] != '\0')
 	{
+		char    *escSchemaName;
+
 		mylog("%s: entering Foreign Key Case #2", func);
 		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, NULL, conn);
-		if (conn->schema_support)
-		{
-			char	*escSchemaName;
-
-			schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
-			escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
-			snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
-				"		pt.tgnargs, "
-				"		pt.tgdeferrable, "
-				"		pt.tginitdeferred, "
-				"		pp1.proname, "
-				"		pp2.proname, "
-				"		pc.oid, "
-				"		pc1.oid, "
-				"		pc1.relname, "
-				"		pt.tgconstrname, pn.nspname "
-				"FROM	pg_catalog.pg_class pc, "
-				"		pg_catalog.pg_proc pp1, "
-				"		pg_catalog.pg_proc pp2, "
-				"		pg_catalog.pg_trigger pt1, "
-				"		pg_catalog.pg_trigger pt2, "
-				"		pg_catalog.pg_proc pp, "
-				"		pg_catalog.pg_trigger pt, "
-				"		pg_catalog.pg_class pc1, "
-				"		pg_catalog.pg_namespace pn, "
-				"		pg_catalog.pg_namespace pn1 "
-				"WHERE	pt.tgrelid = pc.oid "
-				"AND pp.oid = pt.tgfoid "
-				"AND pt1.tgconstrrelid = pc.oid "
-				"AND pp1.oid = pt1.tgfoid "
-				"AND pt2.tgfoid = pp2.oid "
-				"AND pt2.tgconstrrelid = pc.oid "
-				"AND ((pc.relname %s'%s') "
-				"AND (pn1.oid = pc.relnamespace) "
-				"AND (pn1.nspname %s'%s') "
-				"AND (pp.proname LIKE '%%ins') "
-				"AND (pp1.proname LIKE '%%upd') "
-				"AND (pp1.proname not LIKE '%%check%%') "
-				"AND (pp2.proname LIKE '%%del') "
-				"AND (pt1.tgrelid=pt.tgconstrrelid) "
-				"AND (pt1.tgconstrname=pt.tgconstrname) "
-				"AND (pt2.tgrelid=pt.tgconstrrelid) "
-				"AND (pt2.tgconstrname=pt.tgconstrname) "
-				"AND (pt.tgconstrrelid=pc1.oid) "
-				"AND (pc1.relnamespace=pn.oid))"
-				" order by pt.tgconstrname",
-				eq_string, escFkTableName, eq_string, escSchemaName);
-			free(escSchemaName);
-		}
-		else
-			snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
-				"		pt.tgnargs, "
-				"		pt.tgdeferrable, "
-				"		pt.tginitdeferred, "
-				"		pp1.proname, "
-				"		pp2.proname, "
-				"		pc.oid, "
-				"		pc1.oid, "
-				"		pc1.relname, pt.tgconstrname "
-				"FROM	pg_class pc, "
-				"		pg_proc pp1, "
-				"		pg_proc pp2, "
-				"		pg_trigger pt1, "
-				"		pg_trigger pt2, "
-				"		pg_proc pp, "
-				"		pg_trigger pt, "
-				"		pg_class pc1 "
-				"WHERE	pt.tgrelid = pc.oid "
-				"AND pp.oid = pt.tgfoid "
-				"AND pt1.tgconstrrelid = pc.oid "
-				"AND pp1.oid = pt1.tgfoid "
-				"AND pt2.tgfoid = pp2.oid "
-				"AND pt2.tgconstrrelid = pc.oid "
-				"AND ((pc.relname %s'%s') "
-				"AND (pp.proname LIKE '%%ins') "
-				"AND (pp1.proname LIKE '%%upd') "
-				"AND (pp1.proname not LIKE '%%check%%') "
-				"AND (pp2.proname LIKE '%%del') "
-				"AND (pt1.tgrelid=pt.tgconstrrelid) "
-				"AND (pt1.tgconstrname=pt.tgconstrname) "
-				"AND (pt2.tgrelid=pt.tgconstrrelid) "
-				"AND (pt2.tgconstrname=pt.tgconstrname) "
-				"AND (pt.tgconstrrelid=pc1.oid)) "
-				"order by pt.tgconstrname",
-				eq_string, escFkTableName);
+		schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
+		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
+		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
+			"		pt.tgnargs, "
+			"		pt.tgdeferrable, "
+			"		pt.tginitdeferred, "
+			"		pp1.proname, "
+			"		pp2.proname, "
+			"		pc.oid, "
+			"		pc1.oid, "
+			"		pc1.relname, "
+			"		pt.tgconstrname, pn.nspname "
+			"FROM	pg_catalog.pg_class pc, "
+			"		pg_catalog.pg_proc pp1, "
+			"		pg_catalog.pg_proc pp2, "
+			"		pg_catalog.pg_trigger pt1, "
+			"		pg_catalog.pg_trigger pt2, "
+			"		pg_catalog.pg_proc pp, "
+			"		pg_catalog.pg_trigger pt, "
+			"		pg_catalog.pg_class pc1, "
+			"		pg_catalog.pg_namespace pn, "
+			"		pg_catalog.pg_namespace pn1 "
+			"WHERE	pt.tgrelid = pc.oid "
+			"AND pp.oid = pt.tgfoid "
+			"AND pt1.tgconstrrelid = pc.oid "
+			"AND pp1.oid = pt1.tgfoid "
+			"AND pt2.tgfoid = pp2.oid "
+			"AND pt2.tgconstrrelid = pc.oid "
+			"AND ((pc.relname %s'%s') "
+			"AND (pn1.oid = pc.relnamespace) "
+			"AND (pn1.nspname %s'%s') "
+			"AND (pp.proname LIKE '%%ins') "
+			"AND (pp1.proname LIKE '%%upd') "
+			"AND (pp1.proname not LIKE '%%check%%') "
+			"AND (pp2.proname LIKE '%%del') "
+			"AND (pt1.tgrelid=pt.tgconstrrelid) "
+			"AND (pt1.tgconstrname=pt.tgconstrname) "
+			"AND (pt2.tgrelid=pt.tgconstrrelid) "
+			"AND (pt2.tgconstrname=pt.tgconstrname) "
+			"AND (pt.tgconstrrelid=pc1.oid) "
+			"AND (pc1.relnamespace=pn.oid))"
+			" order by pt.tgconstrname",
+			eq_string, escFkTableName, eq_string, escSchemaName);
+		free(escSchemaName);
 
 		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
 
@@ -4412,15 +4101,12 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			goto cleanup;
 		}
 
-		if (conn->schema_support)
+		result = PGAPI_BindCol(htbl_stmt, 11, internal_asis_type,
+				schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
+		if (!SQL_SUCCEEDED(result))
 		{
-			result = PGAPI_BindCol(htbl_stmt, 11, internal_asis_type,
-					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
-			if (!SQL_SUCCEEDED(result))
-			{
-				SC_error_copy(stmt, tbl_stmt, TRUE);
-				goto cleanup;
-			}
+			SC_error_copy(stmt, tbl_stmt, TRUE);
+			goto cleanup;
 		}
 
 		result = PGAPI_Fetch(htbl_stmt);
@@ -4614,92 +4300,53 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	 */
 	else if (pk_table_needed[0] != '\0')
 	{
-		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
-		if (conn->schema_support)
-		{
-			char	*escSchemaName;
+		char	*escSchemaName;
 
-			schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
-			escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
-			snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
-				"	pt.tgnargs, "
-				"	pt.tgdeferrable, "
-				"	pt.tginitdeferred, "
-				"	pp1.proname, "
-				"	pp2.proname, "
-				"	pc.oid, "
-				"	pc1.oid, "
-				"	pc1.relname, "
-				"	pt.tgconstrname, pn1.nspname "
-				"FROM	pg_catalog.pg_class pc, "
-				"	pg_catalog.pg_class pc1, "
-				"	pg_catalog.pg_proc pp, "
-				"	pg_catalog.pg_proc pp1, "
-				"	pg_catalog.pg_proc pp2, "
-				"	pg_catalog.pg_trigger pt, "
-				"	pg_catalog.pg_trigger pt1, "
-				"	pg_catalog.pg_trigger pt2, "
-				"	pg_catalog.pg_namespace pn, "
-				"	pg_catalog.pg_namespace pn1 "
-				"WHERE  pc.relname %s'%s' "
-				"	AND pn.nspname %s'%s' "
-				"	AND pc.relnamespace = pn.oid "
-				"	AND pt.tgconstrrelid = pc.oid "
-				"	AND pp.oid = pt.tgfoid "
-				"	AND pp.proname Like '%%ins' "
-				"	AND pt1.tgconstrname = pt.tgconstrname "
-				"	AND pt1.tgconstrrelid = pt.tgrelid "
-				"	AND pt1.tgrelid = pc.oid "
-				"	AND pc1.oid = pt.tgrelid "
-				"	AND pp1.oid = pt1.tgfoid "
-				"	AND pp1.proname like '%%upd' "
-				"	AND (pp1.proname not like '%%check%%') "
-				"	AND pt2.tgconstrname = pt.tgconstrname "
-				"	AND pt2.tgconstrrelid = pt.tgrelid "
-				"	AND pt2.tgrelid = pc.oid "
-				"	AND pp2.oid = pt2.tgfoid "
-				"	AND pp2.proname Like '%%del' "
-				"	AND pn1.oid = pc1.relnamespace "
-				" order by pt.tgconstrname",
-				eq_string, escPkTableName, eq_string, escSchemaName);
-			free(escSchemaName);
-		}
-		else
-			snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
-				"	pt.tgnargs, "
-				"	pt.tgdeferrable, "
-				"	pt.tginitdeferred, "
-				"	pp1.proname, "
-				"	pp2.proname, "
-				"	pc.oid, "
-				"	pc1.oid, "
-				"	pc1.relname, pt.tgconstrname "
-				"FROM	pg_class pc, "
-				"	pg_class pc1, "
-				"	pg_proc pp, "
-				"	pg_proc pp1, "
-				"	pg_proc pp2, "
-				"	pg_trigger pt, "
-				"	pg_trigger pt1, "
-				"	pg_trigger pt2 "
-				"WHERE  pc.relname %s'%s' "
-				"	AND pt.tgconstrrelid = pc.oid "
-				"	AND pp.oid = pt.tgfoid "
-				"	AND pp.proname Like '%%ins' "
-				"	AND pt1.tgconstrname = pt.tgconstrname "
-				"	AND pt1.tgconstrrelid = pt.tgrelid "
-				"	AND pt1.tgrelid = pc.oid "
-				"	AND pc1.oid = pt.tgrelid "
-				"	AND pp1.oid = pt1.tgfoid "
-				"	AND pp1.proname like '%%upd' "
-				"	AND pp1.(proname not like '%%check%%') "
-				"	AND pt2.tgconstrname = pt.tgconstrname "
-				"	AND pt2.tgconstrrelid = pt.tgrelid "
-				"	AND pt2.tgrelid = pc.oid "
-				"	AND pp2.oid = pt2.tgfoid "
-				"	AND pp2.proname Like '%%del'"
-				" order by pt.tgconstrname",
-				eq_string, escPkTableName);
+		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
+		schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
+		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
+		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
+			"	pt.tgnargs, "
+			"	pt.tgdeferrable, "
+			"	pt.tginitdeferred, "
+			"	pp1.proname, "
+			"	pp2.proname, "
+			"	pc.oid, "
+			"	pc1.oid, "
+			"	pc1.relname, "
+			"	pt.tgconstrname, pn1.nspname "
+			"FROM	pg_catalog.pg_class pc, "
+			"	pg_catalog.pg_class pc1, "
+			"	pg_catalog.pg_proc pp, "
+			"	pg_catalog.pg_proc pp1, "
+			"	pg_catalog.pg_proc pp2, "
+			"	pg_catalog.pg_trigger pt, "
+			"	pg_catalog.pg_trigger pt1, "
+			"	pg_catalog.pg_trigger pt2, "
+			"	pg_catalog.pg_namespace pn, "
+			"	pg_catalog.pg_namespace pn1 "
+			"WHERE  pc.relname %s'%s' "
+			"	AND pn.nspname %s'%s' "
+			"	AND pc.relnamespace = pn.oid "
+			"	AND pt.tgconstrrelid = pc.oid "
+			"	AND pp.oid = pt.tgfoid "
+			"	AND pp.proname Like '%%ins' "
+			"	AND pt1.tgconstrname = pt.tgconstrname "
+			"	AND pt1.tgconstrrelid = pt.tgrelid "
+			"	AND pt1.tgrelid = pc.oid "
+			"	AND pc1.oid = pt.tgrelid "
+			"	AND pp1.oid = pt1.tgfoid "
+			"	AND pp1.proname like '%%upd' "
+			"	AND (pp1.proname not like '%%check%%') "
+			"	AND pt2.tgconstrname = pt.tgconstrname "
+			"	AND pt2.tgconstrrelid = pt.tgrelid "
+			"	AND pt2.tgrelid = pc.oid "
+			"	AND pp2.oid = pt2.tgfoid "
+			"	AND pp2.proname Like '%%del' "
+			"	AND pn1.oid = pc1.relnamespace "
+			" order by pt.tgconstrname",
+			eq_string, escPkTableName, eq_string, escSchemaName);
+		free(escSchemaName);
 
 		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
 		if (!SQL_SUCCEEDED(result))
@@ -4785,15 +4432,12 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			goto cleanup;
 		}
 
-		if (conn->schema_support)
+		result = PGAPI_BindCol(htbl_stmt, 11, internal_asis_type,
+				schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
+		if (!SQL_SUCCEEDED(result))
 		{
-			result = PGAPI_BindCol(htbl_stmt, 11, internal_asis_type,
-					schema_fetched, SCHEMA_NAME_STORAGE_LEN, NULL);
-			if (!SQL_SUCCEEDED(result))
-			{
-				SC_error_copy(stmt, tbl_stmt, TRUE);
-				goto cleanup;
-			}
+			SC_error_copy(stmt, tbl_stmt, TRUE);
+			goto cleanup;
 		}
 
 		result = PGAPI_Fetch(htbl_stmt);
@@ -5057,11 +4701,6 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 
 	mylog("%s: entering...\n", func);
 
-	if (PG_VERSION_LT(conn, 6.5))
-	{
-		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Version is too old", func);
-		return SQL_ERROR;
-	}
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
@@ -5078,64 +4717,50 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 		escProcName = simpleCatalogEscape(szProcName, cbProcName, NULL, conn);
 	}
 	op_string = gen_opestr(like_or_eq, conn);
-	if (conn->schema_support)
-	{
-		strcpy(proc_query, "select proname, proretset, prorettype, "
-				"pronargs, proargtypes, nspname, p.oid");
-		ret_col = ext_pos = 7;
-		poid_pos = 6;
+	strcpy(proc_query, "select proname, proretset, prorettype, "
+			"pronargs, proargtypes, nspname, p.oid");
+	ret_col = ext_pos = 7;
+	poid_pos = 6;
 #ifdef	PRORET_COUNT
-		strcat(proc_query, ", atttypid, attname");
-		attid_pos = ext_pos;
-		attname_pos = ext_pos + 1;
+	strcat(proc_query, ", atttypid, attname");
+	attid_pos = ext_pos;
+	attname_pos = ext_pos + 1;
+	ret_col += 2;
+	ext_pos = ret_col;
+#endif /* PRORET_COUNT */
+	if (PG_VERSION_GE(conn, 8.0))
+	{
+		strcat(proc_query, ", proargnames");
+		ret_col++;
+	}
+	if (PG_VERSION_GE(conn, 8.1))
+	{
+		strcat(proc_query, ", proargmodes, proallargtypes");
 		ret_col += 2;
-		ext_pos = ret_col;
-#endif /* PRORET_COUNT */
-		if (PG_VERSION_GE(conn, 8.0))
-		{
-			strcat(proc_query, ", proargnames");
-			ret_col++;
-		}
-		if (PG_VERSION_GE(conn, 8.1))
-		{
-			strcat(proc_query, ", proargmodes, proallargtypes");
-			ret_col += 2;
-		}
+	}
 #ifdef	PRORET_COUNT
-		strcat(proc_query, " from ((pg_catalog.pg_namespace n inner join"
-				   " pg_catalog.pg_proc p on p.pronamespace = n.oid)"
-			" inner join pg_type t on t.oid = p.prorettype)"
-			" left outer join pg_attribute a on a.attrelid = t.typrelid "
-			" and attnum > 0 and not attisdropped where");
+	strcat(proc_query, " from ((pg_catalog.pg_namespace n inner join"
+			   " pg_catalog.pg_proc p on p.pronamespace = n.oid)"
+		" inner join pg_type t on t.oid = p.prorettype)"
+		" left outer join pg_attribute a on a.attrelid = t.typrelid "
+		" and attnum > 0 and not attisdropped where");
 #else
-		strcat(proc_query, " from pg_catalog.pg_namespace n,"
-				   " pg_catalog.pg_proc p where");
-				   " p.pronamespace = n.oid  and"
-				   " (not proretset) and");
+	strcat(proc_query, " from pg_catalog.pg_namespace n,"
+			   " pg_catalog.pg_proc p where");
+			   " p.pronamespace = n.oid  and"
+			   " (not proretset) and");
 #endif /* PRORET_COUNT */
+	snprintf_add(proc_query, sizeof(proc_query),
+				 " has_function_privilege(p.oid, 'EXECUTE')");
+	if (IS_VALID_NAME(escSchemaName))
 		snprintf_add(proc_query, sizeof(proc_query),
-					 " has_function_privilege(p.oid, 'EXECUTE')");
-		if (IS_VALID_NAME(escSchemaName))
-			snprintf_add(proc_query, sizeof(proc_query),
-					 " and nspname %s'%s'",
-					 op_string, escSchemaName);
-		if (escProcName)
-			snprintf_add(proc_query, sizeof(proc_query),
-						 " and proname %s'%s'", op_string, escProcName);
+				 " and nspname %s'%s'",
+				 op_string, escSchemaName);
+	if (escProcName)
 		snprintf_add(proc_query, sizeof(proc_query),
-					 " order by nspname, proname, p.oid, attnum");
-	}
-	else
-	{
-		strcpy(proc_query, "select proname, proretset, prorettype, "
-				"pronargs, proargtypes from pg_proc where "
-				"(not proretset)");
-		ret_col = 5;
-		if (escProcName)
-			snprintf_add(proc_query, sizeof(proc_query), " and proname %s'%s'", op_string, escProcName);
-		snprintf_add(proc_query, sizeof(proc_query),
-					 " order by proname, proretset");
-	}
+					 " and proname %s'%s'", op_string, escProcName);
+	snprintf_add(proc_query, sizeof(proc_query),
+				 " order by nspname, proname, p.oid, attnum");
 	if (tres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(tres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ProcedureColumns query error", func);
@@ -5193,10 +4818,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 		tcount = QR_get_num_total_tuples(tres);
 	for (i = 0, poid = 0; i < tcount; i++)
 	{
-		if (conn->schema_support)
-			schema_name = GET_SCHEMA_NAME(QR_get_value_backend_text(tres, i, 5));
-		else
-			schema_name = NULL;
+		schema_name = GET_SCHEMA_NAME(QR_get_value_backend_text(tres, i, 5));
 		procname = QR_get_value_backend_text(tres, i, 0);
 		retset = QR_get_value_backend_text(tres, i, 1);
 		pgtype = QR_get_value_backend_int(tres, i, 2, NULL);
@@ -5460,11 +5082,6 @@ PGAPI_Procedures(HSTMT hstmt,
 
 	mylog("%s: entering... scnm=%p len=%d\n", func, szProcOwner, cbProcOwner);
 
-	if (PG_VERSION_LT(conn, 6.5))
-	{
-		SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Version is too old", func);
-		return SQL_ERROR;
-	}
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 
@@ -5485,34 +5102,18 @@ PGAPI_Procedures(HSTMT hstmt,
 	 * The following seems the simplest implementation
 	 */
 	op_string = gen_opestr(like_or_eq, conn);
-	if (conn->schema_support)
-	{
-		strcpy(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
-		" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
-		   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
-		   " '' as " "REMARKS" ","
-		   " case when prorettype = 0 then 1::int2 else 2::int2 end"
-		   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
-		   " pg_catalog.pg_proc"
-		  " where pg_proc.pronamespace = pg_namespace.oid");
-		schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szProcName, cbProcName, conn);
-		if (IS_VALID_NAME(escProcName))
-			snprintf_add(proc_query, sizeof(proc_query),
-					 " and proname %s'%s'", op_string, escProcName);
-	}
-	else
-	{
-		snprintf(proc_query, sizeof(proc_query),
-				 "select '' as " "PROCEDURE_CAT" ", '' as " "PROCEDURE_SCHEM" ","
-				 " proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
-				 " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
-				 " '' as " "REMARKS" ","
-				 " case when prorettype = 0 then 1::int2 else 2::int2 end as " "PROCEDURE_TYPE" " from pg_proc");
-		if (IS_VALID_NAME(escSchemaName))
-			snprintf_add(proc_query, sizeof(proc_query),
-				 " where proname %s'%s'",
-				 op_string, escSchemaName);
-	}
+	strcpy(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
+	" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
+	   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
+	   " '' as " "REMARKS" ","
+	   " case when prorettype = 0 then 1::int2 else 2::int2 end"
+	   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
+	   " pg_catalog.pg_proc"
+	  " where pg_proc.pronamespace = pg_namespace.oid");
+	schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szProcName, cbProcName, conn);
+	if (IS_VALID_NAME(escProcName))
+		snprintf_add(proc_query, sizeof(proc_query),
+				 " and proname %s'%s'", op_string, escProcName);
 
 	if (res = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
 	{
@@ -5673,26 +5274,18 @@ retry_public_schema:
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
 
 	op_string = gen_opestr(like_or_eq, conn);
-	if (conn->schema_support)
-		strncpy_null(proc_query, "select relname, usename, relacl, nspname"
-		" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
-		" pg_catalog.pg_user where", sizeof(proc_query));
-	else
-		strncpy_null(proc_query, "select relname, usename, relacl"
-		" from pg_class , pg_user where", sizeof(proc_query));
-	if (conn->schema_support)
-	{
-		if (escSchemaName)
-			schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
-	}
+	strncpy_null(proc_query, "select relname, usename, relacl, nspname"
+	" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
+	" pg_catalog.pg_user where", sizeof(proc_query));
+	if (escSchemaName)
+		schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+
 	if (escTableName)
 		snprintf_add(proc_query, sizeof(proc_query), " relname %s'%s' and", op_string, escTableName);
-	if (conn->schema_support)
-	{
-		strcat(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
-		if ((!escTableName) && (!escSchemaName))
-			strcat(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
-	}
+	strcat(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
+	if ((!escTableName) && (!escSchemaName))
+		strcat(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
+
 	strcat(proc_query, " pg_user.usesysid = relowner");
 	if (wres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(wres))
 	{
@@ -5702,8 +5295,7 @@ retry_public_schema:
 	}
 	tablecount = (Int4) QR_get_num_cached_tuples(wres);
 	/* If not found */
-	if (conn->schema_support &&
-	    (flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
+	if ((flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
 	    0 == tablecount)
 	{
 		if (allow_public_schema(conn, szSchemaName, cbSchemaName))
@@ -5795,8 +5387,7 @@ mylog("guid=%s\n", uid);
 		}
 		reln = QR_get_value_backend_text(wres, i, 0);
 		owner = QR_get_value_backend_text(wres, i, 1);
-		if (conn->schema_support)
-			schnm = QR_get_value_backend_text(wres, i, 3);
+		schnm = QR_get_value_backend_text(wres, i, 3);
 		/* The owner has all privileges */
 		useracl_upd(useracl, allures, owner, ALL_PRIVILIGES);
 		for (j = 0; j < usercount; j++)
@@ -5819,10 +5410,7 @@ mylog("guid=%s\n", uid);
 				}
 				tuple = QR_AddNew(res);
 				set_tuplefield_string(&tuple[0], CurrCat(conn));
-				if (conn->schema_support)
-					set_tuplefield_string(&tuple[1], GET_SCHEMA_NAME(schnm));
-				else
-					set_tuplefield_string(&tuple[1], NULL_STRING);
+				set_tuplefield_string(&tuple[1], GET_SCHEMA_NAME(schnm));
 				set_tuplefield_string(&tuple[2], reln);
 				if (su || sys)
 					set_tuplefield_string(&tuple[3], "_SYSTEM");
@@ -5900,6 +5488,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	char		*pk_table_needed = NULL, *escTableName = NULL;
 	char		*fk_table_needed = NULL;
 	char		schema_needed[SCHEMA_NAME_STORAGE_LEN + 1];
+	char		*escSchemaName;
 	char		catName[SCHEMA_NAME_STORAGE_LEN],
 			scmName1[SCHEMA_NAME_STORAGE_LEN],
 			scmName2[SCHEMA_NAME_STORAGE_LEN];
@@ -5949,19 +5538,15 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 		goto cleanup;
 	}
 
-	if (conn->schema_support)
-	{
-		char	*escSchemaName;
+	if (NULL != CurrCat(conn))
+		snprintf(catName, sizeof(catName), "'%s'::name", CurrCat(conn));
+	else
+		strcpy(catName, "NULL::name");
+	strcpy(scmName1, "n2.nspname");
+	strcpy(scmName2, "n1.nspname");
+	escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
 
-		if (NULL != CurrCat(conn))
-			snprintf(catName, sizeof(catName), "'%s'::name", CurrCat(conn));
-		else
-			strcpy(catName, "NULL::name");
-		strcpy(scmName1, "n2.nspname");
-		strcpy(scmName2, "n1.nspname");
-		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
-
-		snprintf(tables_query, sizeof(tables_query),
+	snprintf(tables_query, sizeof(tables_query),
 		"select"
 		"	%s as PKTABLE_CAT"
 		",\n	%s as PKTABLE_SCHEM"
@@ -6052,102 +5637,17 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 		, eq_string, escTableName
 		, eq_string, escSchemaName);
 
-		free(escSchemaName);
-		if (NULL != pk_table_needed &&
-		    NULL != fk_table_needed)
-		{
-			free(escTableName);
-			escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
-			snprintf_add(tables_query, sizeof(tables_query),
-					"\n where c2.relname %s'%s'",
-					eq_string, escTableName);
-		}
-		strcat(tables_query, "\n  order by ref.oid, ref.i");
-	}
-	else
+	free(escSchemaName);
+	if (NULL != pk_table_needed &&
+	    NULL != fk_table_needed)
 	{
-		strcpy(catName, "NULL::name");
-		strcpy(scmName1, "NULL::name");
-		strcpy(scmName2, "NULL::name");
-
-		snprintf(tables_query, sizeof(tables_query),
-		"select %s as PKTABLE_CAT"
-		",\n	%s as PKTABLE_SCHEM"
-		",\n	c2.relname as PKTABLE_NAME"
-		",\n	a2.attname as PKCOLUMN_NAME"
-		",\n	%s as FKTABLE_CAT"
-		",\n	%s as FKTABLE_SCHEM"
-		",\n	c1.relname as FKTABLE_NAME"
-		",\n	a1.attname as FKCOLUMN_NAME"
-		",\n	i::int2 as KEY_SEQ"
-		",\n	case confupdtype"
-		"\n		when 'c' then %d::int2"
-		"\n		when 'n' then %d::int2"
-		"\n		when 'd' then %d::int2"
-		"\n		when 'r' then %d::int2"
-		"\n		else %d::int2"
-		"\n	end as UPDATE_RULE"
-		",\n	case confdeltype"
-		"\n		when 'c' then %d::int2"
-		"\n		when 'n' then %d::int2"
-		"\n		when 'd' then %d::int2"
-		"\n		when 'r' then %d::int2"
-		"\n		else %d::int2"
-		"\n	end as DELETE_RULE"
-		",\n	conname as FK_NAME"
-		",\n	NULL::name as PK_NAME"
-#if (ODBCVER >= 0x0300)
-		",\n	case"
-		"\n		when condeferrable then"
-		"\n			case"
-		"\n			when condeferred then %d::int2"
-		"\n			else %d::int2"
-		"\n			end"
-		"\n		else %d::int2"
-		"\n	end as DEFERRABLITY"
-#endif /* ODBCVER */
-		"\n from"
-		"\n (select conrelid, conkey, confrelid, confkey"
-		",\n	 generate_series(array_lower(conkey, 1), array_upper(conkey, 1)) as i"
-		",\n	 confupdtype, confdeltype, conname"
-		",\n	 condeferrable, condeferred"
-		"\n  from pg_catalog.pg_constraint cn"
-		",\n	pg_catalog.pg_class c"
-		"\n  where contype = 'f' %s"
-		"\n   and  relname %s'%s'"
-		"\n ) ref"
-		",\n pg_catalog.pg_class c1"
-		",\n pg_catalog.pg_attribute a1"
-		",\n pg_catalog.pg_class c2"
-		",\n pg_catalog.pg_attribute a2"
-		"\n where c1.oid = ref.conrelid"
-		"\n  and  c2.oid = ref.confrelid"
-		"\n  and  a1.attrelid = c1.oid"
-		"\n  and  a1.attnum = conkey[i]"
-		"\n  and  a2.attrelid = c2.oid"
-		"\n  and  a2.attnum = confkey[i]"
-		"\n  order by ref.oid, ref.i"
-		, catName
-		, scmName1
-		, catName
-		, scmName2
-		, SQL_CASCADE
-		, SQL_SET_NULL
-		, SQL_SET_DEFAULT
-		, SQL_RESTRICT
-		, SQL_NO_ACTION
-		, SQL_CASCADE
-		, SQL_SET_NULL
-		, SQL_SET_DEFAULT
-		, SQL_RESTRICT
-		, SQL_NO_ACTION
-#if (ODBCVER >= 0x0300)
-		, SQL_INITIALLY_DEFERRED
-		, SQL_INITIALLY_IMMEDIATE
-		, SQL_NOT_DEFERRABLE
-#endif /* ODBCVER */
-		, relqual, eq_string, escTableName);
+		free(escTableName);
+		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
+		snprintf_add(tables_query, sizeof(tables_query),
+				"\n where c2.relname %s'%s'",
+				eq_string, escTableName);
 	}
+	strcat(tables_query, "\n  order by ref.oid, ref.i");
 
 	if (res = CC_send_query(conn, tables_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
 	{

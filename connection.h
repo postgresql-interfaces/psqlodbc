@@ -221,47 +221,13 @@ do { \
 #define SM_UNUSED		64
 #define SM_TTY			64
 
-/*	Old 6.2 protocol defines */
-#define NO_AUTHENTICATION	7
-#define PATH_SIZE		64
-#define ARGV_SIZE		64
-#define USRNAMEDATALEN		16
-
 typedef unsigned int ProtocolVersion;
 
 #define PG_PROTOCOL(major, minor)	(((major) << 16) | (minor))
 #define PG_PROTOCOL_LATEST	PG_PROTOCOL(3, 0)
-#define PG_PROTOCOL_74	PG_PROTOCOL(3, 0)
-#define PG_PROTOCOL_64	PG_PROTOCOL(2, 0)
-#define PG_PROTOCOL_63	PG_PROTOCOL(1, 0)
-#define PG_PROTOCOL_62	PG_PROTOCOL(0, 0)
 #define PG_NEGOTIATE_SSLMODE	PG_PROTOCOL(1234, 5679)
 
-/*	This startup packet is to support latest Postgres protocol (6.4, 6.3) */
-typedef struct _StartupPacket
-{
-	ProtocolVersion protoVersion;
-	char		database[SM_DATABASE];
-	char		user[SM_USER];
-	char		options[SM_OPTIONS];
-	char		unused[SM_UNUSED];
-	char		tty[SM_TTY];
-} StartupPacket;
-
-
-/*	This startup packet is to support pre-Postgres 6.3 protocol */
-typedef struct _StartupPacket6_2
-{
-	unsigned int authtype;
-	char		database[PATH_SIZE];
-	char		user[USRNAMEDATALEN];
-	char		options[ARGV_SIZE];
-	char		execfile[ARGV_SIZE];
-	char		tty[PATH_SIZE];
-} StartupPacket6_2;
-
 /* Transferred from pqcomm.h:  */
-
 
 typedef ProtocolVersion MsgType;
 
@@ -287,7 +253,6 @@ typedef struct
 	char		database[MEDIUM_REGISTRY_LEN];
 	char		username[MEDIUM_REGISTRY_LEN];
 	pgNAME		password;
-	char		protocol[SMALL_REGISTRY_LEN];
 	char		port[SMALL_REGISTRY_LEN];
 	char		sslmode[16];
 	char		onlyread[SMALL_REGISTRY_LEN];
@@ -330,22 +295,11 @@ typedef struct
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
 
-/*	Macro to determine is the connection using 6.2 protocol? */
-#define PROTOCOL_62(conninfo_)		(strncmp((conninfo_)->protocol, PG62, strlen(PG62)) == 0)
-
-/*	Macro to determine is the connection using 6.3 protocol? */
-#define PROTOCOL_63(conninfo_)		(strncmp((conninfo_)->protocol, PG63, strlen(PG63)) == 0)
-
-/*	Macro to determine is the connection using 6.4 protocol? */
-#define PROTOCOL_64(conninfo_)		(strncmp((conninfo_)->protocol, PG64, strlen(PG64)) == 0)
-
-/*	Macro to determine is the connection using 7.4 protocol? */
-#define PROTOCOL_74(conninfo_)		(strncmp((conninfo_)->protocol, PG74, strlen(PG74)) == 0)
-
 /*	Macro to determine is the connection using 7.4 rejected? */
 #define PROTOCOL_74REJECTED(conninfo_)	(strncmp((conninfo_)->protocol, PG74REJECTED, strlen(PG74REJECTED)) == 0)
 
-#define SUPPORT_DESCRIBE_PARAM(conninfo_) (PROTOCOL_74(conninfo_) && conninfo_->use_server_side_prepare)
+#define SUPPORT_DESCRIBE_PARAM(conninfo_) (conninfo_->use_server_side_prepare)
+
 /*
  *	Macros to compare the server's version with a specified version
  *		1st parameter: pointer to a ConnectionClass object
@@ -360,13 +314,8 @@ typedef struct
 	((conn)->pg_version_major == major && (conn)->pg_version_minor >= minor))
 #define SERVER_VERSION_EQ(conn, major, minor) \
 	((conn)->pg_version_major == major && (conn)->pg_version_minor == minor)
-#define SERVER_VERSION_LE(conn, major, minor) (! SERVER_VERSION_GT(conn, major, minor))
-#define SERVER_VERSION_LT(conn, major, minor) (! SERVER_VERSION_GE(conn, major, minor))
-/*#if ! defined(HAVE_CONFIG_H) || defined(HAVE_STRINGIZE)*/
 #define STRING_AFTER_DOT(string)	(strchr(#string, '.') + 1)
-/*#else
-#define STRING_AFTER_DOT(str)	(strchr("str", '.') + 1)
-#endif*/
+
 /*
  *	Simplified macros to compare the server's version with a
  *		specified version
@@ -385,7 +334,6 @@ typedef struct
 /*	This is used to store cached table information in the connection */
 struct col_info
 {
-	Int2		num_reserved_cols;
 	Int2		refcnt;
 	QResultClass	*result;
 	pgNAME		schema_name;
@@ -462,7 +410,6 @@ struct ConnectionClass_
 	char		ms_jet;
 	char		unicode;
 	char		result_uncommitted;
-	char		schema_support;
 	char		lo_is_domain;
 	char		escape_in_literal;
 	char		*original_client_encoding;
@@ -512,7 +459,7 @@ struct ConnectionClass_
 #define CC_is_onlyread(x)			(x->connInfo.onlyread[0] == '1')
 #define CC_get_escape(x)			(x->escape_in_literal)
 #define CC_fake_mss(x)	(/* 0 != (x)->ms_jet && */ 0 < (x)->connInfo.fake_mss)
-#define CC_accessible_only(x)	(0 < (x)->connInfo.accessible_only && PG_VERSION_GE((x), 7.2))
+#define CC_accessible_only(x)	(0 < (x)->connInfo.accessible_only)
 #define CC_default_is_c(x)	(CC_is_in_ansi_app(x) || x->ms_jet /* not only */ || TRUE /* but for any other ? */)
 /*	for CC_DSN_info */
 #define CONN_DONT_OVERWRITE		0
@@ -581,8 +528,7 @@ void		CC_lookup_pg_version(ConnectionClass *conn);
 */
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
-int		CC_get_max_query_len(const ConnectionClass *self);
-int		CC_send_cancel_request(const ConnectionClass *conn);
+int			CC_send_cancel_request(const ConnectionClass *conn);
 void		CC_on_commit(ConnectionClass *conn);
 void		CC_on_abort(ConnectionClass *conn, UDWORD opt);
 void		CC_on_abort_partial(ConnectionClass *conn);

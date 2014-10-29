@@ -413,17 +413,12 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			switch (vParam)
 			{
 				case SQL_TXN_SERIALIZABLE:
-					if (PG_VERSION_GE(conn, 6.5) &&
-					    PG_VERSION_LE(conn, 7.0))
-						retval = SQL_ERROR;
 					break;
 				case SQL_TXN_REPEATABLE_READ:
 					if (PG_VERSION_LT(conn, 8.0))
 						retval = SQL_ERROR;
 					break;
 				case SQL_TXN_READ_COMMITTED:
-					if (PG_VERSION_LT(conn, 6.5))
-						retval = SQL_ERROR;
 					break;
 				case SQL_TXN_READ_UNCOMMITTED:
 					if (PG_VERSION_LT(conn, 8.0))

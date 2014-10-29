@@ -305,9 +305,9 @@ inolog("hlen=%d", hlen);
 		char	protocol_and[16];
 
 		if (ci->rollback_on_error >= 0)
-			snprintf(protocol_and, sizeof(protocol_and), "%s-%d", ci->protocol, ci->rollback_on_error);
+			snprintf(protocol_and, sizeof(protocol_and), "7.4-%d", ci->rollback_on_error);
 		else
-			strncpy_null(protocol_and, ci->protocol, sizeof(protocol_and));
+			strcpy(protocol_and, "7.4");
 		olen = snprintf(&connect_string[hlen], nlen, ";"
 			INI_SSLMODE "=%s;"
 			INI_READONLY "=%s;"
@@ -325,7 +325,6 @@ inolog("hlen=%d", hlen);
 			INI_DEBUG "=%d;"
 			INI_COMMLOG "=%d;"
 			INI_OPTIMIZER "=%d;"
-			INI_KSQO "=%d;"
 			INI_USEDECLAREFETCH "=%d;"
 			INI_TEXTASLONGVARCHAR "=%d;"
 			INI_UNKNOWNSASLONGVARCHAR "=%d;"
@@ -367,7 +366,6 @@ inolog("hlen=%d", hlen);
 			,ci->drivers.debug
 			,ci->drivers.commlog
 			,ci->drivers.disable_optimizer
-			,ci->drivers.ksqo
 			,ci->drivers.use_declarefetch
 			,ci->drivers.text_as_longvarchar
 			,ci->drivers.unknowns_as_longvarchar
@@ -407,12 +405,6 @@ inolog("hlen=%d", hlen);
 			flag |= BIT_LFCONVERSION;
 		if (ci->drivers.unique_index)
 			flag |= BIT_UNIQUEINDEX;
-		if (PROTOCOL_74(ci))
-			flag |= (BIT_PROTOCOL_64 | BIT_PROTOCOL_63);
-		else if (PROTOCOL_64(ci))
-			flag |= BIT_PROTOCOL_64;
-		else if (PROTOCOL_63(ci))
-			flag |= BIT_PROTOCOL_63;
 		switch (ci->drivers.unknown_sizes)
 		{
 			case UNKNOWNS_AS_DONTKNOW:
@@ -424,8 +416,6 @@ inolog("hlen=%d", hlen);
 		}
 		if (ci->drivers.disable_optimizer)
 			flag |= BIT_OPTIMIZER;
-		if (ci->drivers.ksqo)
-			flag |= BIT_KSQO;
 		if (ci->drivers.commlog)
 			flag |= BIT_COMMLOG;
 		if (ci->drivers.debug)
@@ -503,7 +493,7 @@ inolog("hlen=%d", hlen);
 				makeXaOptConnectString(xaOptStr, ci, TRUE),
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				EFFECTIVE_BIT_COUNT, flag);
-		if (olen < nlen && (PROTOCOL_74(ci) || ci->rollback_on_error >= 0))
+		if (olen < nlen || ci->rollback_on_error >= 0)
 		{
 			hlen = strlen(connect_string);
 			nlen = MAX_CONNECT_STRING - hlen;
@@ -513,12 +503,11 @@ inolog("hlen=%d", hlen);
 			 */
 			if (ci->rollback_on_error >= 0)
 				olen = snprintf(&connect_string[hlen], nlen, ";"
-				ABBR_PROTOCOL "=%s-%d",
-				ci->protocol, ci->rollback_on_error);
+				ABBR_PROTOCOL "=7.4-%d",
+								ci->rollback_on_error);
 			else
 				olen = snprintf(&connect_string[hlen], nlen, ";"
-				ABBR_PROTOCOL "=%s",
-				ci->protocol);
+								ABBR_PROTOCOL "=7.4");
 		}
 	}
 	if (olen < nlen)
@@ -562,17 +551,6 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	if (count < 4)
 		return;
 	ci->drivers.unique_index = (char)((flag & BIT_UNIQUEINDEX) != 0);
-	if ((flag & BIT_PROTOCOL_64) != 0)
-	{
-		if ((flag & BIT_PROTOCOL_63) != 0)
-			strcpy(ci->protocol, PG74);
-		else
-			strcpy(ci->protocol, PG64);
-	}
-	else if ((flag & BIT_PROTOCOL_63) != 0)
-		strcpy(ci->protocol, PG63);
-	else
-		strcpy(ci->protocol, PG62);
 	if ((flag & BIT_UNKNOWN_DONTKNOW) != 0)
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_DONTKNOW;
 	else if ((flag & BIT_UNKNOWN_ASMAX) != 0)
@@ -580,7 +558,6 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	else
 		ci->drivers.unknown_sizes = UNKNOWNS_AS_LONGEST;
 	ci->drivers.disable_optimizer = (char)((flag & BIT_OPTIMIZER) != 0);
-	ci->drivers.ksqo = (char)((flag & BIT_KSQO) != 0);
 	ci->drivers.commlog = (char)((flag & BIT_COMMLOG) != 0);
 	ci->drivers.debug = (char)((flag & BIT_DEBUG) != 0);
 	ci->drivers.parse = (char)((flag & BIT_PARSE) != 0);
@@ -636,20 +613,24 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_PROTOCOL) == 0 || stricmp(attribute, ABBR_PROTOCOL) == 0)
 	{
 		char	*ptr;
-
+		/*
+		 * The first part of the Protocol used to be "6.2", "6.3" or
+		 * "7.4" to denote which protocol version to use. Nowadays we
+		 * only support the 7.4 protocol, also known as the protocol
+		 * version 3. So just ignore the first part of the string,
+		 * parsing only the rollback_on_error value.
+		 */
 		ptr = strchr(value, '-');
 		if (ptr)
 		{
 			if ('-' != *value)
 			{
 				*ptr = '\0';
-				strcpy(ci->protocol, value);
+				/* ignore first part */
 			}
 			ci->rollback_on_error = atoi(ptr + 1);
 			mylog("rollback_on_error=%d\n", ci->rollback_on_error);
 		}
-		else
-			strcpy(ci->protocol, value);
 	}
 
 	else if (stricmp(attribute, INI_SHOWOIDCOLUMN) == 0 || stricmp(attribute, ABBR_SHOWOIDCOLUMN) == 0)
@@ -766,7 +747,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',protocol='%s',conn_settings='%s',disallow_premature=%d)\n", func, ci->dsn, ci->server, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "", ci->port, ci->onlyread, ci->protocol, ci->conn_settings, ci->disallow_premature);
+	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',conn_settings='%s',disallow_premature=%d)\n", func, ci->dsn, ci->server, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "", ci->port, ci->onlyread, ci->conn_settings, ci->disallow_premature);
 
 	return found;
 }
@@ -787,8 +768,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->drivers.commlog = atoi(value);
 	else if (stricmp(attribute, INI_OPTIMIZER) == 0 || stricmp(attribute, ABBR_OPTIMIZER) == 0)
 		ci->drivers.disable_optimizer = atoi(value);
-	else if (stricmp(attribute, INI_KSQO) == 0 || stricmp(attribute, ABBR_KSQO) == 0)
-		ci->drivers.ksqo = atoi(value);
 
 	/*
 	 * else if (stricmp(attribute, INI_UNIQUEINDEX) == 0 ||
@@ -820,7 +799,7 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B5=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
+	mylog("%s: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B4=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
 		  ci->drivers.fetch_max,
 		  ci->drivers.socket_buffersize,
 		  ci->drivers.unknown_sizes,
@@ -829,7 +808,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		  ci->drivers.debug,
 		  ci->drivers.commlog,
 		  ci->drivers.disable_optimizer,
-		  ci->drivers.ksqo,
 		  ci->drivers.use_declarefetch,
 		  ci->drivers.text_as_longvarchar,
 		  ci->drivers.unknowns_as_longvarchar,
@@ -852,9 +830,6 @@ getDSNdefaults(ConnInfo *ci)
 
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
-
-	if (ci->protocol[0] == '\0')
-		strcpy(ci->protocol, globals.protocol);
 
 	if (ci->fake_oid_index[0] == '\0')
 		sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
@@ -996,11 +971,12 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (ci->show_system_tables[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, "", ci->show_system_tables, sizeof(ci->show_system_tables), ODBC_INI);
 
-	if (ci->protocol[0] == '\0' || overwrite)
+	if (ci->rollback_on_error == -1 || overwrite)
 	{
+		char protocol[SMALL_REGISTRY_LEN];
 		char	*ptr;
-		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, "", ci->protocol, sizeof(ci->protocol), ODBC_INI);
-		if (ptr = strchr(ci->protocol, '-'), NULL != ptr)
+		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, "", protocol, sizeof(protocol), ODBC_INI);
+		if (ptr = strchr(protocol, '-'), NULL != ptr)
 		{
 			*ptr = '\0';
 			if (overwrite || ci->rollback_on_error < 0)
@@ -1143,9 +1119,8 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		 ci->database,
 		 ci->username,
 		 NAME_IS_VALID(ci->password) ? "xxxxx" : "");
-	qlog("          onlyread='%s',protocol='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
+	qlog("          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
-		 ci->protocol,
 		 ci->show_oid_column,
 		 ci->fake_oid_index,
 		 ci->show_system_tables);
@@ -1198,10 +1173,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 
 	sprintf(tmp, "%d", comval->disable_optimizer);
 	if (!SQLWritePrivateProfileString(sectionName, INI_OPTIMIZER, tmp, fileName))
-		errc--;
-
-	sprintf(tmp, "%d", comval->ksqo);
-	if (!SQLWritePrivateProfileString(sectionName, INI_KSQO, tmp, fileName))
 		errc--;
 
 	sprintf(tmp, "%d", comval->unique_index);
@@ -1332,9 +1303,9 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	if (ci->rollback_on_error >= 0)
-		sprintf(temp, "%s-%d", ci->protocol, ci->rollback_on_error);
+		sprintf(temp, "7.4-%d", ci->rollback_on_error);
 	else
-		strncpy_null(temp, ci->protocol, sizeof(temp));
+		strncpy_null(temp, "", sizeof(temp));
 	SQLWritePrivateProfileString(DSN,
 								 INI_PROTOCOL,
 								 temp,
@@ -1489,14 +1460,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 	else if (inst_position)
 		comval->disable_optimizer = DEFAULT_OPTIMIZER;
 
-	/* KSQO is stored in the driver section only */
-	SQLGetPrivateProfileString(section, INI_KSQO, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
-		comval->ksqo = atoi(temp);
-	else if (inst_position)
-		comval->ksqo = DEFAULT_KSQO;
-
 	/* Recognize Unique Index is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_UNIQUEINDEX, "",
 							   temp, sizeof(temp), filename);
@@ -1504,7 +1467,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		comval->unique_index = atoi(temp);
 	else if (inst_position)
 		comval->unique_index = DEFAULT_UNIQUEINDEX;
-
 
 	/* Unknown Sizes is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_UNKNOWNSIZES, "",

@@ -33,12 +33,10 @@ static char QR_read_a_tuple_from_db(QResultClass *, char);
 void
 QR_set_num_fields(QResultClass *self, int new_num_fields)
 {
-	BOOL	allocrelatt = FALSE;
-
 	if (!self)	return;
 	mylog("in QR_set_num_fields\n");
 
-	CI_set_num_fields(QR_get_fields(self), new_num_fields, allocrelatt);
+	CI_set_num_fields(QR_get_fields(self), new_num_fields);
 
 	mylog("exit QR_set_num_fields\n");
 }
@@ -1201,9 +1199,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 
 		if (enlargeKeyCache(self, self->cache_size - num_backend_rows, "Out of memory while reading tuples") < 0)
 			RETURN(FALSE)
-		if (PROTOCOL_74(ci)
-		    && !QR_is_permanent(self) /* Execute seems an invalid operation after COMMIT */
-			)
+		if (!QR_is_permanent(self)) /* Execute seems an invalid operation after COMMIT */
 		{
 			ExecuteRequest = TRUE;
 			if (!SendExecuteRequest(stmt, QR_get_cursor(self),
@@ -1353,8 +1349,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 					/* We are done because we didn't even get CACHE_SIZE tuples */
 					mylog("%s: backend_rows < CACHE_SIZE: brows = %d, cache_size = %d\n", func, num_backend_rows, self->cache_size);
 				}
-				if (!internally_invoked ||
-				    PG_VERSION_LE(conn, 6.3))
+				if (!internally_invoked)
 					loopend = rcvend = TRUE;
 				break;
 
@@ -1364,8 +1359,7 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				mylog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
 				qlog("ERROR from backend in next_tuple: '%s'\n", msgbuffer);
 
-				if (!internally_invoked ||
-				    PG_VERSION_LE(conn, 6.3))
+				if (!internally_invoked)
 					loopend = rcvend = TRUE;
 				ret = FALSE;
 				break;
@@ -1405,33 +1399,28 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 	}
 	if (!kill_conn && !rcvend && 0 == SOCK_get_errcode(sock))
 	{
-		if (PROTOCOL_74(ci))
+		for (;;) /* discard the result until ReadyForQuery comes */
 		{
-			for (;;) /* discard the result until ReadyForQuery comes */
+			id = SOCK_get_id(sock);
+			if (0 != SOCK_get_errcode(sock))
+				break;
+			if (NULL != LastMessageType)
+				*LastMessageType = id;
+			response_length = SOCK_get_response_length(sock);
+			if (0 != SOCK_get_errcode(sock))
+				break;
+			if ('Z' == id) /* ready for query */
 			{
-				id = SOCK_get_id(sock);
-				if (0 != SOCK_get_errcode(sock))
-					break;
-				if (NULL != LastMessageType)
-					*LastMessageType = id;
-				response_length = SOCK_get_response_length(sock);
-				if (0 != SOCK_get_errcode(sock))
-					break;
-				if ('Z' == id) /* ready for query */
+				EatReadyForQuery(conn);
+				qlog("%s discarded data until ReadyForQuery comes\n", __FUNCTION__);
+				if (QR_is_fetching_tuples(self))
 				{
-					EatReadyForQuery(conn);
-					qlog("%s discarded data until ReadyForQuery comes\n", __FUNCTION__);
-					if (QR_is_fetching_tuples(self))
-					{
-						reached_eof_now = TRUE;
-						QR_set_no_fetching_tuples(self);
-					}
-					break;
+					reached_eof_now = TRUE;
+					QR_set_no_fetching_tuples(self);
 				}
+				break;
 			}
 		}
-		else
-			kill_conn = TRUE;
 	}
 	if (0 != SOCK_get_errcode(sock))
 	{
@@ -1588,11 +1577,6 @@ QR_read_a_tuple_from_db(QResultClass *self, char binary)
 	Int2		field_lf;
 	TupleField *this_tuplefield;
 	KeySet	*this_keyset = NULL;
-	char		bmp = 0,
-				bitmap[MAX_FIELDS];		/* Max. len of the bitmap */
-	Int2		bitmaplen;		/* len of the bitmap in bytes */
-	Int2		bitmap_pos;
-	Int2		bitcnt;
 	Int4		len;
 	char	   *buffer;
 	int		ci_num_fields = QR_NumResultCols(self);	/* speed up access */
@@ -1601,7 +1585,6 @@ QR_read_a_tuple_from_db(QResultClass *self, char binary)
 	ColumnInfoClass *flds;
 	int		effective_cols;
 	char		tidoidbuf[32];
-	ConnInfo	*ci = &(QR_get_conn(self)->connInfo);
 
 	/* set the current row to read the fields into */
 	effective_cols = QR_NumPublicResultCols(self);
@@ -1617,25 +1600,12 @@ QR_read_a_tuple_from_db(QResultClass *self, char binary)
 	 * At first the server sends a bitmap that indicates which database
 	 * fields are null
 	 */
-	if (PROTOCOL_74(ci))
 	{
 		int	numf = SOCK_get_int(sock, sizeof(Int2));
 if (effective_cols > 0)
 {inolog("%dth record in cache numf=%d\n", self->num_cached_rows, numf);}
 else
 {inolog("%dth record in key numf=%d\n", self->num_cached_keys, numf);}
-	}
-	else
-	{
-		bitmaplen = (Int2) ci_num_fields / BYTELEN;
-		if ((ci_num_fields % BYTELEN) > 0)
-			bitmaplen++;
-
-		SOCK_get_n_char(sock, bitmap, bitmaplen);
-
-		bitmap_pos = 0;
-		bitcnt = 0;
-		bmp = bitmap[bitmap_pos];
 	}
 
 	flds = QR_get_fields(self);
@@ -1644,45 +1614,12 @@ else
 	{
 		BOOL isnull = FALSE;
 
-		if (!PROTOCOL_74(ci))
-		{
-			isnull = ((bmp & 0200) == 0);
-			/* move to next bit in the bitmap */
-			bitcnt++;
-			if (BYTELEN == bitcnt)
-			{
-				bitmap_pos++;
-				bmp = bitmap[bitmap_pos];
-				bitcnt = 0;
-			}
-			else
-				bmp <<= 1;
+		/* get the length of the field (four bytes) */
+		len = SOCK_get_int(sock, sizeof(Int4));
 
-			if (!isnull)
-			{
-				/* get the length of the field (four bytes) */
-				len = SOCK_get_int(sock, sizeof(Int4));
-
-				/*
-				 * In the old protocol version, the length
-				 * field of an AsciiRow message includes the
-				 * 4-byte length field itself, while the
-				 * length field in the BinaryRow does not.
-				 */
-				if (!binary)
-					len -= sizeof(Int4);
-			}
-		}
-		else
-		{
-			/* get the length of the field (four bytes) */
-			len = SOCK_get_int(sock, sizeof(Int4));
-
-			/* -1 means NULL */
-			if (len < 0)
-				isnull = TRUE;
-
-		}
+		/* -1 means NULL */
+		if (len < 0)
+			isnull = TRUE;
 
 		if (isnull)
 		{

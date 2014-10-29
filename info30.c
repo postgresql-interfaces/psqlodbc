@@ -187,23 +187,19 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_CREATE_SCHEMA:
 			len = 4;
-			if (conn->schema_support)
-				value = SQL_CS_CREATE_SCHEMA | SQL_CS_AUTHORIZATION;
-			else
-				value = 0;
+			value = SQL_CS_CREATE_SCHEMA | SQL_CS_AUTHORIZATION;
 			break;
 		case SQL_CREATE_TABLE:
 			len = 4;
-			value = SQL_CT_CREATE_TABLE | SQL_CT_COLUMN_CONSTRAINT
-				| SQL_CT_COLUMN_DEFAULT;
-			if (PG_VERSION_GE(conn, 6.5))
-				value |= SQL_CT_GLOBAL_TEMPORARY;
-			if (PG_VERSION_GE(conn, 7.0))
-				value |= SQL_CT_TABLE_CONSTRAINT
-					| SQL_CT_CONSTRAINT_NAME_DEFINITION
-					| SQL_CT_CONSTRAINT_INITIALLY_DEFERRED
-					| SQL_CT_CONSTRAINT_INITIALLY_IMMEDIATE
-					| SQL_CT_CONSTRAINT_DEFERRABLE;
+			value = SQL_CT_CREATE_TABLE
+				| SQL_CT_COLUMN_CONSTRAINT
+				| SQL_CT_COLUMN_DEFAULT
+				| SQL_CT_GLOBAL_TEMPORARY
+				| SQL_CT_TABLE_CONSTRAINT
+				| SQL_CT_CONSTRAINT_NAME_DEFINITION
+				| SQL_CT_CONSTRAINT_INITIALLY_DEFERRED
+				| SQL_CT_CONSTRAINT_INITIALLY_IMMEDIATE
+				| SQL_CT_CONSTRAINT_DEFERRABLE;
 			break;
 		case SQL_CREATE_TRANSLATION:
 			len = 4;
@@ -239,16 +235,12 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_DROP_SCHEMA:
 			len = 4;
-			if (conn->schema_support)
-				value = SQL_DS_DROP_SCHEMA | SQL_DS_RESTRICT | SQL_DS_CASCADE;
-			else
-				value = 0;
+			value = SQL_DS_DROP_SCHEMA | SQL_DS_RESTRICT | SQL_DS_CASCADE;
 			break;
 		case SQL_DROP_TABLE:
 			len = 4;
 			value = SQL_DT_DROP_TABLE;
-			if (PG_VERSION_GT(conn, 7.2)) /* hopefully */
-				value |= (SQL_DT_RESTRICT | SQL_DT_CASCADE);
+			value |= (SQL_DT_RESTRICT | SQL_DT_CASCADE);
 			break;
 		case SQL_DROP_TRANSLATION:
 			len = 4;
@@ -257,8 +249,7 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 		case SQL_DROP_VIEW:
 			len = 4;
 			value = SQL_DV_DROP_VIEW;
-			if (PG_VERSION_GT(conn, 7.2)) /* hopefully */
-				value |= (SQL_DV_RESTRICT | SQL_DV_CASCADE);
+			value |= (SQL_DV_RESTRICT | SQL_DV_CASCADE);
 			break;
 		case SQL_INDEX_KEYWORDS:
 			len = 4;
@@ -275,9 +266,9 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_MAX_IDENTIFIER_LEN:
 			len = 2;
-			value = 32;
-			if (PG_VERSION_GT(conn, 7.2))
-				value = 64;
+			/* FIXME: This is the default, but the server might be compiled
+			 * with a different NAMEDATALEN value */
+			value = 64;
 			break;
 		case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
 			len = 0;
@@ -327,12 +318,11 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			break;
 		case SQL_SQL92_RELATIONAL_JOIN_OPERATORS:
 			len = 4;
-			if (PG_VERSION_GE(conn, 7.1))
-				value = SQL_SRJO_CROSS_JOIN | SQL_SRJO_EXCEPT_JOIN
-					| SQL_SRJO_FULL_OUTER_JOIN | SQL_SRJO_INNER_JOIN
-					| SQL_SRJO_INTERSECT_JOIN | SQL_SRJO_LEFT_OUTER_JOIN
-					| SQL_SRJO_NATURAL_JOIN | SQL_SRJO_RIGHT_OUTER_JOIN
-					| SQL_SRJO_UNION_JOIN;
+			value = SQL_SRJO_CROSS_JOIN | SQL_SRJO_EXCEPT_JOIN
+				| SQL_SRJO_FULL_OUTER_JOIN | SQL_SRJO_INNER_JOIN
+				| SQL_SRJO_INTERSECT_JOIN | SQL_SRJO_LEFT_OUTER_JOIN
+				| SQL_SRJO_NATURAL_JOIN | SQL_SRJO_RIGHT_OUTER_JOIN
+				| SQL_SRJO_UNION_JOIN;
 			break;
 		case SQL_SQL92_REVOKE:
 			len = 4;

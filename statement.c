@@ -226,7 +226,6 @@ PGAPI_AllocStmt(HDBC hdbc,
 	ardopts = SC_get_ARDF(stmt);
 	ARD_AllocBookmark(ardopts);
 
-	stmt->stmt_size_limit = CC_get_max_query_len(conn);
 	/* Save the handle for later */
 	stmt->phstmt = phstmt;
 
@@ -353,11 +352,6 @@ InitializeStatementOptions(StatementOptions *opt)
 static void SC_clear_parse_status(StatementClass *self, ConnectionClass *conn)
 {
 	self->parse_status = STMT_PARSE_NONE;
-	if (PG_VERSION_LT(conn, 7.2))
-	{
-		SC_set_checked_hasoids(self, TRUE);
-		self->num_key_fields = PG_NUM_NORMAL_KEYS;
-	}
 }
 
 static void SC_init_discard_output_params(StatementClass *self)
@@ -414,8 +408,6 @@ SC_Constructor(ConnectionClass *conn)
 		rv->statement = NULL;
 		rv->stmt_with_params = NULL;
 		rv->load_statement = NULL;
-		rv->execute_statement = NULL;
-		rv->stmt_size_limit = -1;
 		rv->statement_type = STMT_TYPE_UNKNOWN;
 
 		rv->currTuple = -1;
@@ -712,9 +704,9 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 }
 
 /*
- *	Initialize stmt_with_params, load_statement and execute_statement
- *		member pointer deallocating corresponding prepared plan.
- *	Also initialize statement member pointer if specified.
+ * Initialize stmt_with_params and load_statement member pointer
+ * deallocating corresponding prepared plan. Also initialize
+ * statement member pointer if specified.
  */
 RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
@@ -735,11 +727,6 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		{
 			free(self->statement);
 			self->statement = NULL;
-		}
-		if (self->execute_statement)
-		{
-			free(self->execute_statement);
-			self->execute_statement = NULL;
 		}
 		self->prepare = NON_PREPARE_STATEMENT;
 		SC_set_prepared(self, NOT_YET_PREPARED);
@@ -1956,13 +1943,7 @@ SC_execute(StatementClass *self)
 	if (issue_begin)
 	{
 		mylog("   about to begin a transaction on statement = %p\n", self);
-		if (PG_VERSION_GE(conn, 7.1))
-			qflag |= GO_INTO_TRANSACTION;
-                else if (!CC_begin(conn))
-                {
-			SC_set_error(self, STMT_EXEC_ERROR, "Could not begin a transaction", func);
-			goto cleanup;
-                }
+		qflag |= GO_INTO_TRANSACTION;
 	}
 
 	/* self->status = STMT_EXECUTING; */
@@ -1985,8 +1966,7 @@ SC_execute(StatementClass *self)
 	{
 		case PREPARING_PERMANENTLY:
 		case PREPARED_PERMANENTLY:
-			if (PROTOCOL_74(ci))
-				use_extended_protocol = TRUE;
+			use_extended_protocol = TRUE;
 			break;
 		case PREPARING_TEMPORARILY:
 		case PREPARED_TEMPORARILY:
@@ -2203,7 +2183,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 				}
 			}
 
-inolog("!!%p->SC_is_concat_pre=%x res=%p\n", self, self->miscinfo, res);
+inolog("!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
 			/*
 			 * special handling of result for keyset driven cursors.
 			 * Use the columns info of the 1st query and
@@ -2224,19 +2204,6 @@ inolog("!!%p->SC_is_concat_pre=%x res=%p\n", self, self->miscinfo, res);
 					SC_set_Result(self, tres);
 					res = tres;
 				}
-			}
-			/* skip the result of PREPARE in 'PREPARE ..:EXECUTE ..' call */
-			else if (SC_is_concat_prepare_exec(self))
-			{
-				tres = res->next;
-inolog("res->next=%p\n", tres);
-				res->next = NULL;
-				if (res != SC_get_Result(self))
-					QR_Destructor(res);
-				SC_set_Result(self, tres);
-				res = tres;
-				SC_set_prepared(self, PREPARED_PERMANENTLY);
-				SC_no_concat_prepare_exec(self);
 			}
 		}
 	}

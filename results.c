@@ -309,7 +309,7 @@ inolog("answering bookmark info\n");
 		 * (i.e., because it was a function or expression, etc, then do it the
 		 * old fashioned way.
 		 */
-		BOOL	build_fi = PROTOCOL_74(ci) && (NULL != pfNullable || NULL != pfSqlType);
+		BOOL	build_fi = (NULL != pfNullable || NULL != pfSqlType);
 		fi = NULL;
 		if (!SC_pre_execute_ok(stmt, build_fi, icol, func))
 		{
@@ -563,27 +563,24 @@ inolog("answering bookmark info\n");
 		BOOL	build_fi = FALSE;
 
 		fi = NULL;
-		if (PROTOCOL_74(ci))
+		switch (fDescType)
 		{
-			switch (fDescType)
-			{
-				case SQL_COLUMN_OWNER_NAME:
-				case SQL_COLUMN_TABLE_NAME:
-				case SQL_COLUMN_TYPE:
-				case SQL_COLUMN_TYPE_NAME:
-				case SQL_COLUMN_AUTO_INCREMENT:
+			case SQL_COLUMN_OWNER_NAME:
+			case SQL_COLUMN_TABLE_NAME:
+			case SQL_COLUMN_TYPE:
+			case SQL_COLUMN_TYPE_NAME:
+			case SQL_COLUMN_AUTO_INCREMENT:
 #if (ODBCVER >= 0x0300)
-				case SQL_DESC_NULLABLE:
-				case SQL_DESC_BASE_TABLE_NAME:
-				case SQL_DESC_BASE_COLUMN_NAME:
+			case SQL_DESC_NULLABLE:
+			case SQL_DESC_BASE_TABLE_NAME:
+			case SQL_DESC_BASE_COLUMN_NAME:
 #else
-				case SQL_COLUMN_NULLABLE:
+			case SQL_COLUMN_NULLABLE:
 #endif /* ODBCVER */
-				case SQL_COLUMN_UPDATABLE:
-				case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
-					build_fi = TRUE;
-					break;
-			}
+			case SQL_COLUMN_UPDATABLE:
+			case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
+				build_fi = TRUE;
+				break;
 		}
 		if (!SC_pre_execute_ok(stmt, build_fi, col_idx, func))
 			return SQL_ERROR;
@@ -765,7 +762,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			if (!stmt_updatable)
 				value = SQL_ATTR_READONLY;
 			else
-				value = fi ? (fi->updatable ? SQL_ATTR_WRITE : SQL_ATTR_READONLY) : (QR_get_attid(res, col_idx) > 0 ? SQL_ATTR_WRITE : (PROTOCOL_74(ci) ? SQL_ATTR_READONLY : SQL_ATTR_READWRITE_UNKNOWN));
+				value = fi ? (fi->updatable ? SQL_ATTR_WRITE : SQL_ATTR_READONLY) : (QR_get_attid(res, col_idx) > 0 ? SQL_ATTR_WRITE : SQL_ATTR_READONLY);
 			if (SQL_ATTR_READONLY != value)
 			{
 				const char *name = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);
@@ -3060,7 +3057,6 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	SQLLEN	i;
 	int	j, rowc, rcnt = 0;
-	BOOL	prepare;
 	OID	oid;
 	UInt4	blocknum;
 	SQLLEN	kres_ridx;
@@ -3068,7 +3064,6 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	char	*qval = NULL, *sval = NULL;
 	int	keys_per_fetch = 10;
 
-	prepare = PG_VERSION_GE(conn, 7.3);
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++)
 	{
 		if (i >= limitrow)
@@ -3146,73 +3141,65 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			{
 				size_t	allen;
 
-				if (prepare)
-				{
-					if (res->reload_count > 0)
-						keys_per_fetch = res->reload_count;
-					else
-					{
-						char	planname[32];
-						int	j;
-						QResultClass	*qres;
-
-						if (rows_per_fetch >= pre_fetch_count * 2)
-							keys_per_fetch = pre_fetch_count;
-						else
-							keys_per_fetch = rows_per_fetch;
-						if (!keys_per_fetch)
-							keys_per_fetch = 2;
-						lodlen = strlen(stmt->load_statement);
-						sprintf(planname, "_KEYSET_%p", res);
-						allen = 8 + strlen(planname) +
-							3 + 4 * keys_per_fetch + 1
-							+ 1 + 2 + lodlen + 20 +
-							4 * keys_per_fetch + 1;
-						SC_MALLOC_return_with_error(qval, char, allen,
-							stmt, "Couldn't alloc qval", -1);
-						sprintf(qval, "PREPARE \"%s\"", planname);
-						sval = strchr(qval, '\0');
-						for (j = 0; j < keys_per_fetch; j++)
-						{
-							if (j == 0)
-								strcpy(sval, "(tid");
-							else
-								strcpy(sval, ",tid");
-							sval = strchr(sval, '\0');
-						}
-						sprintf(sval, ") as %s where ctid in ", stmt->load_statement);
-						sval = strchr(sval, '\0');
-						for (j = 0; j < keys_per_fetch; j++)
-						{
-							if (j == 0)
-								strcpy(sval, "($1");
-							else
-								sprintf(sval, ",$%d", j + 1);
-							sval = strchr(sval, '\0');
-						}
-						strcpy(sval, ")");
-						qres = CC_send_query(conn, qval, NULL, 0, stmt);
-						if (QR_command_maybe_successful(qres))
-						{
-							res->reload_count = keys_per_fetch;
-						}
-						else
-						{
-							SC_set_error(stmt, STMT_EXEC_ERROR, "Prepare for Data Load Error", func);
-							rcnt = -1;
-							QR_Destructor(qres);
-							break;
-						}
-						QR_Destructor(qres);
-					}
-					allen = 25 + 23 * keys_per_fetch;
-				}
+				if (res->reload_count > 0)
+					keys_per_fetch = res->reload_count;
 				else
 				{
-					keys_per_fetch = pre_fetch_count;
+					char	planname[32];
+					int	j;
+					QResultClass	*qres;
+
+					if (rows_per_fetch >= pre_fetch_count * 2)
+						keys_per_fetch = pre_fetch_count;
+					else
+						keys_per_fetch = rows_per_fetch;
+					if (!keys_per_fetch)
+						keys_per_fetch = 2;
 					lodlen = strlen(stmt->load_statement);
-					allen = lodlen + 20 + 23 * keys_per_fetch;
+					sprintf(planname, "_KEYSET_%p", res);
+					allen = 8 + strlen(planname) +
+						3 + 4 * keys_per_fetch + 1
+						+ 1 + 2 + lodlen + 20 +
+						4 * keys_per_fetch + 1;
+					SC_MALLOC_return_with_error(qval, char, allen,
+						stmt, "Couldn't alloc qval", -1);
+					sprintf(qval, "PREPARE \"%s\"", planname);
+					sval = strchr(qval, '\0');
+					for (j = 0; j < keys_per_fetch; j++)
+					{
+						if (j == 0)
+							strcpy(sval, "(tid");
+						else
+							strcpy(sval, ",tid");
+						sval = strchr(sval, '\0');
+					}
+					sprintf(sval, ") as %s where ctid in ", stmt->load_statement);
+					sval = strchr(sval, '\0');
+					for (j = 0; j < keys_per_fetch; j++)
+					{
+						if (j == 0)
+							strcpy(sval, "($1");
+						else
+							sprintf(sval, ",$%d", j + 1);
+						sval = strchr(sval, '\0');
+					}
+					strcpy(sval, ")");
+					qres = CC_send_query(conn, qval, NULL, 0, stmt);
+					if (QR_command_maybe_successful(qres))
+					{
+						res->reload_count = keys_per_fetch;
+					}
+					else
+					{
+						SC_set_error(stmt, STMT_EXEC_ERROR, "Prepare for Data Load Error", func);
+						rcnt = -1;
+						QR_Destructor(qres);
+						break;
+					}
+					QR_Destructor(qres);
 				}
+				allen = 25 + 23 * keys_per_fetch;
+
 				SC_REALLOC_return_with_error(qval, char, allen,
 					stmt, "Couldn't alloc qval", -1);
 			}
@@ -3912,23 +3899,20 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 			sscanf(cmdstr, "INSERT %u %d", &oid, &addcnt) == 2 &&
 			addcnt == 1)
 		{
-			ConnectionClass	*conn = SC_get_conn(stmt);
 			RETCODE	qret;
+			const char * tidval = NULL;
 
 			if (0 != oid)
 				poid = &oid;
 			qret = SQL_NO_DATA_FOUND;
-			if (PG_VERSION_GE(conn, 7.2))
-			{
-				const char * tidval = NULL;
 
-				if (NULL != tres->backend_tuples &&
-				    1 == QR_get_num_cached_tuples(tres))
-					tidval = QR_get_value_backend_text(tres, 0, 0);
-				qret = SC_pos_newload(stmt, poid, TRUE, tidval);
-				if (SQL_ERROR == qret)
-					return qret;
-			}
+			if (NULL != tres->backend_tuples &&
+			    1 == QR_get_num_cached_tuples(tres))
+				tidval = QR_get_value_backend_text(tres, 0, 0);
+			qret = SC_pos_newload(stmt, poid, TRUE, tidval);
+			if (SQL_ERROR == qret)
+				return qret;
+
 			if (SQL_NO_DATA_FOUND == qret)
 			{
 				qret = SC_pos_newload(stmt, poid, FALSE, NULL);

@@ -128,7 +128,6 @@ SOCK_Constructor(const ConnectionClass *conn)
 		}
 		rv->_errormsg_ = NULL;
 		rv->errornumber = 0;
-		rv->reverse = FALSE;
 	}
 	return rv;
 }
@@ -159,8 +158,7 @@ SOCK_Destructor(SocketClass *self)
 		if (self->socket != (SOCKETFD) -1)
 		{
 			SOCK_put_char(self, 'X');
-			if (PG_PROTOCOL_74 == self->pversion)
-				SOCK_put_int(self, 4, 4);
+			SOCK_put_int(self, 4, 4);
 			SOCK_flush_output(self);
 			closesocket(self->socket);
 		}
@@ -888,9 +886,6 @@ SOCK_put_string(SocketClass *self, const char *string)
 	}
 }
 
-#define	REVERSE_SHORT(val)	((val & 0xff) << 8) | (val >> 8)
-#define	REVERSE_INT(val) ((val & 0xff) << 24) | ((val & 0xff00) << 8) | ((val & 0xff0000) >> 8) | (val >> 24)
-
 int
 SOCK_get_int(SocketClass *self, short len)
 {
@@ -903,10 +898,7 @@ SOCK_get_int(SocketClass *self, short len)
 				unsigned short buf;
 
 				SOCK_get_n_char(self, (char *) &buf, len);
-				if (self->reverse)
-					return REVERSE_SHORT(ntohs(buf));
-				else
-					return ntohs(buf);
+				return ntohs(buf);
 			}
 
 		case 4:
@@ -914,10 +906,7 @@ SOCK_get_int(SocketClass *self, short len)
 				unsigned int buf;
 
 				SOCK_get_n_char(self, (char *) &buf, len);
-				if (self->reverse)
-					return REVERSE_INT(htonl(buf));
-				else
-					return ntohl(buf);
+				return ntohl(buf);
 			}
 
 		default:
@@ -939,15 +928,11 @@ SOCK_put_int(SocketClass *self, int value, short len)
 	{
 		case 2:
 			rsv = htons((unsigned short) value);
-			if (self->reverse)
-				rsv = REVERSE_SHORT(rsv);
 			SOCK_put_n_char(self, (char *) &rsv, 2);
 			return;
 
 		case 4:
 			rv = htonl((unsigned int) value);
-			if (self->reverse)
-				rv = REVERSE_INT(rv);
 			SOCK_put_n_char(self, (char *) &rv, 4);
 			return;
 
@@ -1082,8 +1067,7 @@ inolog("ECONNRESET\n");
 	}
 	if (peek)
 		return self->buffer_in[self->buffer_read_in];
-	if (PG_PROTOCOL_74 == self->pversion)
-		self->reslen--;
+	self->reslen--;
 	return self->buffer_in[self->buffer_read_in++];
 }
 
@@ -1173,8 +1157,7 @@ inolog("ECONNRESET\n");
 	if (buf)
 		memcpy(buf + n - rest, self->buffer_in + self->buffer_read_in, rlen);
 	rest -= rlen;
-	if (PG_PROTOCOL_74 == self->pversion)
-		self->reslen -= rlen;
+	self->reslen -= rlen;
 	self->buffer_read_in += rlen;
 	}
 
@@ -1237,11 +1220,8 @@ SOCK_get_response_length(SocketClass *self)
 {
 	int     leng = -1;
 
-	if (PG_PROTOCOL_74 == self->pversion)
-	{
-		leng = SOCK_get_int(self, 4) - 4;
-		self->reslen = leng;
-	}
+	leng = SOCK_get_int(self, 4) - 4;
+	self->reslen = leng;
 
 	return leng;
 }

@@ -207,8 +207,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-	if (!ci->use_server_side_prepare ||
-		PG_VERSION_LT(conn, 7.3))
+	if (!ci->use_server_side_prepare)
 	{
 		/* Do prepare operations by the driver itself */
 		return PREPARE_BY_THE_DRIVER;
@@ -224,9 +223,15 @@ inquireHowToPrepare(const StatementClass *stmt)
 		}
 		if (stmt->multi_statement < 0)
 			PGAPI_NumParams((StatementClass *) stmt, &num_params);
-		if (stmt->multi_statement > 0) /* would divide the query into multiple commands and apply V3 parse requests for each of them */
-			ret = PROTOCOL_74(ci) ? PARSE_REQ_FOR_INFO : PREPARE_BY_THE_DRIVER;
-		else if (PROTOCOL_74(ci))
+		if (stmt->multi_statement > 0)
+		{
+			/*
+			 * divide the query into multiple commands and apply V3 parse
+			 * requests for each of them
+			 */
+			ret = PARSE_REQ_FOR_INFO;
+		}
+		else
 		{
 			if (SC_may_use_cursor(stmt))
 			{
@@ -239,17 +244,6 @@ inquireHowToPrepare(const StatementClass *stmt)
 			}
 			else
 				ret = PARSE_TO_EXEC_ONCE;
-		}
-		else
-		{
-			if (SC_may_use_cursor(stmt) &&
-			    (SQL_CURSOR_FORWARD_ONLY != stmt->options.cursor_type ||
-			    ci->drivers.use_declarefetch))
-				ret = PREPARE_BY_THE_DRIVER;
-			else if (SC_is_prepare_statement(stmt))
-				ret = USING_PREPARE_COMMAND;
-			else
-				ret = PREPARE_BY_THE_DRIVER;
 		}
 	}
 	if (SC_is_prepare_statement(stmt) && (PARSE_TO_EXEC_ONCE == ret))
@@ -314,8 +308,6 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 	{
 		switch (how_to_prepare)
 		{
-			case USING_PREPARE_COMMAND:
-				return checkOnly ? doNothing : usingCommand;
 			case NAMED_PARSE_REQUEST:
 				return shouldParse;
 			case PARSE_TO_EXEC_ONCE:
@@ -335,9 +327,6 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 				return doNothing;
 		}
 	}
-	if (PG_VERSION_LE(conn, 7.3) ||
-	    !PROTOCOL_74(ci))
-		return nCallParse;
 
 	if (num_params > 0)
 	{
@@ -532,29 +521,6 @@ mylog("about to begin SC_execute\n");
 			res = kres;
 		}
 	}
-#ifdef	NOT_USED
-	else if (SC_is_concat_prepare_exec(stmt))
-	{
-		if (res && QR_command_maybe_successful(res))
-		{
-			QResultClass	*kres;
-
-			kres = res->next;
-inolog("res->next=%p\n", kres);
-			res->next = NULL;
-			SC_set_Result(stmt, kres);
-			res = kres;
-			SC_set_prepared(stmt, PREPARED_PERMANENTLY);
-		}
-		else
-		{
-			retval = SQL_ERROR;
-			if (stmt->execute_statement)
-				free(stmt->execute_statement);
-			stmt->execute_statement = NULL;
-		}
-	}
-#endif /* NOT_USED */
 #if (ODBCVER >= 0x0300)
 	ipdopts = SC_get_IPDF(stmt);
 	if (ipdopts->param_status_ptr)
