@@ -438,24 +438,6 @@ pg_mbslen(int csc, const UCHAR *string)
 	return len;
 }
 
-static char *
-CC_lookup_cs_new(ConnectionClass *self)
-{
-	char		*encstr = NULL;
-	QResultClass	*res;
-
-	res = CC_send_query(self, "select pg_client_encoding()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
-	if (QR_command_maybe_successful(res))
-	{
-		const char *enc = QR_get_value_backend_text(res, 0, 0);
-
-		if (enc)
-			encstr = strdup(enc);
-	}
-	QR_Destructor(res);
-	return encstr;
-}
-
 /*
  *	This function works under Windows or Unicode case only.
  *	Simply returns NULL under other OSs.
@@ -552,8 +534,7 @@ CC_lookup_characterset(ConnectionClass *self)
 		encspec = strdup(self->original_client_encoding);
 	if (self->current_client_encoding)
 		currenc = strdup(self->current_client_encoding);
-	else
-		currenc = CC_lookup_cs_new(self);
+
 	tencstr = encspec ? encspec : currenc;
 	if (self->original_client_encoding)
 	{

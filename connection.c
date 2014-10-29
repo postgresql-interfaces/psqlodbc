@@ -3797,6 +3797,8 @@ LIBPQ_connect(ConnectionClass *self)
 	SocketClass	*sock;
 	int	socket = -1, pqret;
 	BOOL	libpqLoaded;
+	int		pversion;
+	const char *param_val;
 
 	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
 	sock = self->sock;
@@ -3880,37 +3882,38 @@ inolog("socket=%d\n", socket);
 	sock->ssl = PQgetssl(pqconn);
 inolog("ssl=%p\n", sock->ssl);
 #endif /* USE_SSL */
-	if (TRUE)
+	sock->pversion = PG_PROTOCOL_LATEST;
+	pversion = PQprotocolVersion(pqconn);
+	if (pversion < 3)
 	{
-		int	pversion;
-
-		sock->pversion = PG_PROTOCOL_LATEST;
-		pversion = PQprotocolVersion(pqconn);
-		if (pversion < 3)
-		{
-			mylog("Protocol version %d is not supported\n", pversion);
-			goto cleanup1;
-		}
-		mylog("protocol=%d\n", pversion);
+		mylog("Protocol version %d is not supported\n", pversion);
+		goto cleanup1;
 	}
+	mylog("protocol=%d\n", pversion);
+
+	pversion = PQserverVersion(pqconn);
+	self->pg_version_major = pversion / 10000;
+	self->pg_version_minor = (pversion % 10000) / 100;
+	sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
+	self->pg_version_number = (float) atof(self->pg_version);
+
+	param_val = PQparameterStatus(pqconn, std_cnf_strs);
+	if (param_val != NULL)
 	{
-		int pversion;
-		const char *conforming_strings;
-
-		pversion = PQserverVersion(pqconn);
-		self->pg_version_major = pversion / 10000;
-		self->pg_version_minor = (pversion % 10000) / 100;
-		sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
-		self->pg_version_number = (float) atof(self->pg_version);
-		if (conforming_strings = PQparameterStatus(pqconn, std_cnf_strs), NULL != conforming_strings)
-		{
-			if (stricmp(conforming_strings, "on") == 0)
-				self->escape_in_literal = '\0';
-		}
-		/* blocking mode */
-		/* ioctlsocket(sock, FIONBIO , 0);
-		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof(on)); */
+		if (stricmp(param_val, "on") == 0)
+			self->escape_in_literal = '\0';
 	}
+
+	param_val = PQparameterStatus(pqconn, "client_encoding");
+	if (param_val != NULL)
+	{
+		self->current_client_encoding = strdup(param_val);
+	}
+
+	/* blocking mode */
+	/* ioctlsocket(sock, FIONBIO , 0);
+	   setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &on, sizeof(on)); */
+
 #ifdef USE_SSL
 	if (sock->ssl)
 	{
