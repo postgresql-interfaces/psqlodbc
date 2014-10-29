@@ -2969,9 +2969,6 @@ inolog("Discarded the first SAVEPOINT\n");
 				query_completed = TRUE;
 				break;
 
-			case 'P':			/* get the Portal name */
-				SOCK_get_string(self->sock, msgbuffer, ERROR_MSG_LENGTH);
-				break;
 			case 'T':			/* Tuple results start here */
 				if (query_completed)
 				{

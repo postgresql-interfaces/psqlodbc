@@ -1271,11 +1271,6 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 inolog("id='%c' response_length=%d\n", id, response_length);
 		switch (id)
 		{
-
-			case 'P':
-				mylog("Portal name within tuples ?? just ignore\n");
-				SOCK_get_string(sock, msgbuffer, ERROR_MSG_LENGTH);
-				break;
 			case 'T':
 				mylog("Tuples within tuples ?? OK try to handle them\n");
 				QR_set_no_fetching_tuples(self);
@@ -1308,10 +1303,9 @@ inolog("id='%c' response_length=%d\n", id, response_length);
 				loopend = rcvend = TRUE;
 				break;
 
-			case 'B':			/* Tuples in binary format */
 			case 'D':			/* Tuples in ASCII format  */
 
-				if (!QR_get_tupledata(self, id == 'B'))
+				if (!QR_get_tupledata(self, FALSE))
 				{
 					ret = FALSE;
 					loopend = TRUE;
