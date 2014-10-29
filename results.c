@@ -246,7 +246,6 @@ PGAPI_DescribeCol(HSTMT hstmt,
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	irdflds = SC_get_IRDF(stmt);
-#if (ODBCVER >= 0x0300)
 	if (0 == icol) /* bookmark column */
 	{
 		SQLSMALLINT	fType = stmt->options.use_bookmarks == SQL_UB_VARIABLE ? SQL_BINARY : SQL_INTEGER;
@@ -267,7 +266,7 @@ inolog("answering bookmark info\n");
 		result = SQL_SUCCESS;
 		goto cleanup;
 	}
-#endif /* ODBCVER */
+
 	/*
 	 * Dont check for bookmark column. This is the responsibility of the
 	 * driver manager.
@@ -489,7 +488,6 @@ PGAPI_ColAttributes(HSTMT hstmt,
 	 */
 
 	res = SC_get_Curres(stmt);
-#if (ODBCVER >= 0x0300)
 	if (0 == icol && SQL_DESC_COUNT != fDescType) /* bookmark column */
 	{
 inolog("answering bookmark info\n");
@@ -506,7 +504,7 @@ inolog("answering bookmark info\n");
 		}
 		return SQL_SUCCESS;
 	}
-#endif /* ODBCVER */
+
 	col_idx = icol - 1;
 
 	/* atoi(ci->unknown_sizes); */
@@ -532,11 +530,7 @@ inolog("answering bookmark info\n");
 		 * Column Count is a special case.	The Column number is ignored
 		 * in this case.
 		 */
-#if (ODBCVER >= 0x0300)
 		if (fDescType == SQL_DESC_COUNT)
-#else
-		if (fDescType == SQL_COLUMN_COUNT)
-#endif /* ODBCVER */
 		{
 			if (pfDesc)
 				*pfDesc = cols;
@@ -570,13 +564,9 @@ inolog("answering bookmark info\n");
 			case SQL_COLUMN_TYPE:
 			case SQL_COLUMN_TYPE_NAME:
 			case SQL_COLUMN_AUTO_INCREMENT:
-#if (ODBCVER >= 0x0300)
 			case SQL_DESC_NULLABLE:
 			case SQL_DESC_BASE_TABLE_NAME:
 			case SQL_DESC_BASE_COLUMN_NAME:
-#else
-			case SQL_COLUMN_NULLABLE:
-#endif /* ODBCVER */
 			case SQL_COLUMN_UPDATABLE:
 			case 1212: /* SQL_CA_SS_COLUMN_KEY ? */
 				build_fi = TRUE;
@@ -592,11 +582,7 @@ inolog("answering bookmark info\n");
 		 * Column Count is a special case.	The Column number is ignored
 		 * in this case.
 		 */
-#if (ODBCVER >= 0x0300)
 		if (fDescType == SQL_DESC_COUNT)
-#else
-		if (fDescType == SQL_COLUMN_COUNT)
-#endif /* ODBCVER */
 		{
 			if (pfDesc)
 				*pfDesc = cols;
@@ -662,11 +648,7 @@ inolog("answering bookmark info\n");
 			}
 			/* otherwise same as column name -- FALL THROUGH!!! */
 
-#if (ODBCVER >= 0x0300)
 		case SQL_DESC_NAME:
-#else
-		case SQL_COLUMN_NAME:
-#endif /* ODBCVER */
 inolog("fi=%p", fi);
 if (fi)
 inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
@@ -689,11 +671,7 @@ inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
 inolog("COLUMN_MONEY=%d\n", value);
 			break;
 
-#if (ODBCVER >= 0x0300)
 		case SQL_DESC_NULLABLE:
-#else
-		case SQL_COLUMN_NULLABLE:
-#endif /* ODBCVER */
 			if (SC_has_outer_join(stmt))
 				value = TRUE;
 			else
@@ -776,7 +754,6 @@ inolog("COLUMN_SCALE=%d\n", value);
 
 			mylog("%s: UPDATEABLE = %d\n", func, value);
 			break;
-#if (ODBCVER >= 0x0300)
 		case SQL_DESC_BASE_COLUMN_NAME:
 
 			p = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);
@@ -832,7 +809,6 @@ inolog("COLUMN_SCALE=%d\n", value);
 		case SQL_DESC_UNNAMED:
 			value = (fi && NAME_IS_NULL(fi->column_name) && NAME_IS_NULL(fi->column_alias)) ? SQL_UNNAMED : SQL_NAMED;
 			break;
-#endif /* ODBCVER */
 		case 1211: /* SQL_CA_SS_COLUMN_HIDDEN ? */
 			value = 0;
 			break;
@@ -928,7 +904,6 @@ PGAPI_GetData(HSTMT hstmt,
 		return SQL_ERROR;
 	}
 
-#if (ODBCVER >= 0x0300)
 	if (SQL_ARD_TYPE == fCType)
 	{
 		ARDFields	*opts;
@@ -952,7 +927,6 @@ PGAPI_GetData(HSTMT hstmt,
 		}
 	}
 	else
-#endif /* ODBCVER */
 		target_type = fCType;
 	if (icol == 0)
 	{
@@ -966,9 +940,7 @@ PGAPI_GetData(HSTMT hstmt,
 		switch (target_type)
 		{
 			case SQL_C_BOOKMARK:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_VARBOOKMARK:
-#endif /* ODBCVER */
 				break;
 			default:
 inolog("GetData Column 0 is type %d not of type SQL_C_BOOKMARK", target_type);
@@ -3549,7 +3521,6 @@ inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_ke
 		else
 			s->res->keyset[kres_ridx].status |= (SQL_ROW_UPDATED  | CURS_SELF_UPDATED);
 	}
-#if (ODBCVER >= 0x0300)
 	if (s->irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -3561,7 +3532,6 @@ inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_ke
 				s->irdflds->rowStatusArray[s->irow] = ret;
 		}
 	}
-#endif /* ODBCVER */
 
 	return ret;
 }
@@ -3862,7 +3832,6 @@ SC_pos_delete(StatementClass *stmt,
 			res->keyset[kres_ridx].status |= (SQL_ROW_DELETED | CURS_SELF_DELETED);
 inolog(".status[%d]=%x\n", global_ridx, res->keyset[kres_ridx].status);
 	}
-#if (ODBCVER >= 0x0300)
 	if (irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -3874,7 +3843,6 @@ inolog(".status[%d]=%x\n", global_ridx, res->keyset[kres_ridx].status);
 				irdflds->rowStatusArray[irow] = ret;
 		}
 	}
-#endif /* ODBCVER */
 	return ret;
 }
 
@@ -4001,7 +3969,6 @@ pos_add_callback(RETCODE retcode, void *para)
 			s->res->keyset[kres_ridx].status = status;
 		}
 	}
-#if (ODBCVER >= 0x0300)
 	if (s->irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -4013,7 +3980,6 @@ pos_add_callback(RETCODE retcode, void *para)
 				s->irdflds->rowStatusArray[s->irow] = ret;
 		}
 	}
-#endif /* ODBCVER */
 
 	return ret;
 }
@@ -4173,9 +4139,7 @@ RETCODE
 SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 {
 	RETCODE	ret;
-#if (ODBCVER >= 0x0300)
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-#endif /* ODBCVER */
 	/* save the last_fetch_count */
 	SQLLEN		last_fetch = stmt->last_fetch_count;
 	SQLLEN		last_fetch2 = stmt->last_fetch_count_include_ommitted;
@@ -4205,7 +4169,6 @@ SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 	stmt->last_fetch_count = last_fetch;
 	stmt->last_fetch_count_include_ommitted = last_fetch2;
 	stmt->bind_row = bind_save;
-#if (ODBCVER >= 0x0300)
 	if (irdflds->rowStatusArray)
 	{
 		switch (ret)
@@ -4222,7 +4185,6 @@ SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 				break;
 		}
 	}
-#endif /* ODBCVER */
 
 	return SQL_SUCCESS;
 }
@@ -4301,10 +4263,8 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 		}
 		s->ridx = s->nrow;
 		pos_ridx = s->idx;
-#if (ODBCVER >= 0x0300)
 		if (0 != s->irow || !opts->row_operation_ptr || opts->row_operation_ptr[s->nrow] == SQL_ROW_PROCEED)
 		{
-#endif /* ODBCVER */
 			switch (s->fOption)
 			{
 				case SQL_UPDATE:
@@ -4331,9 +4291,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 				return ret;
 			}
 			s->processed++;
-#if (ODBCVER >= 0x0300)
 		}
-#endif /* ODBCVER */
 		if (SQL_ERROR != ret)
 			s->nrow++;
 	}
@@ -4354,11 +4312,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 if (opts)
 {
 inolog("processed=%d ret=%d rowset=%d", s->processed, ret, opts->size_of_rowset_odbc2);
-#if (ODBCVER >= 0x0300)
 inolog(",%d\n", opts->size_of_rowset);
-#else
-inolog("\n");
-#endif /* ODBCVER */
 }
 
 	return ret;
@@ -4412,11 +4366,7 @@ PGAPI_SetPos(HSTMT hstmt,
 		return SQL_ERROR;
 	}
 
-#if (ODBCVER >= 0x0300)
 	rowsetSize = (s.stmt->transition_status == STMT_TRANSITION_EXTENDED_FETCH ? s.opts->size_of_rowset_odbc2 : s.opts->size_of_rowset);
-#else
-	rowsetSize = s.opts->size_of_rowset_odbc2;
-#endif /* ODBCVER */
 	if (s.irow == 0) /* bulk operation */
 	{
 		if (SQL_POSITION == s.fOption)

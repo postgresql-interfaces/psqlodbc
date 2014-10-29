@@ -17,7 +17,6 @@
 #include "psqlodbc.h"
 #include "misc.h"
 
-#if (ODBCVER >= 0x0300)
 #include <stdio.h>
 #include <string.h>
 
@@ -263,7 +262,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 						case SQL_SUCCESS_WITH_INFO:
 							ret = SQL_SUCCESS;
 							if (pcbErrm > 0 && stmt->pgerror)
-							
+
 								*((SQLINTEGER *) DiagInfoPtr) = (pcbErrm  - 1)/ stmt->pgerror->recsize + 1;
 							break;
 						default:
@@ -792,9 +791,7 @@ IRDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_NUM_PREC_RADIX: /* read-only */
 		case SQL_DESC_OCTET_LENGTH: /* read-only */
 		case SQL_DESC_PRECISION: /* read-only */
-#if (ODBCVER >= 0x0350)
 		case SQL_DESC_ROWVER: /* read-only */
-#endif /* ODBCVER */
 		case SQL_DESC_SCALE: /* read-only */
 		case SQL_DESC_SCHEMA_NAME: /* read-only */
 		case SQL_DESC_SEARCHABLE: /* read-only */
@@ -919,9 +916,7 @@ inolog("IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		case SQL_DESC_NUM_PREC_RADIX:
 		case SQL_DESC_OCTET_LENGTH:
 		case SQL_DESC_PRECISION:
-#if (ODBCVER >= 0x0350)
 		case SQL_DESC_ROWVER: /* read-only */
-#endif /* ODBCVER */
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		default:ret = SQL_ERROR;
@@ -1296,9 +1291,7 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_NUM_PREC_RADIX: /* read-only */
 		case SQL_DESC_OCTET_LENGTH: /* read-only */
 		case SQL_DESC_PRECISION: /* read-only */
-#if (ODBCVER >= 0x0350)
 		case SQL_DESC_ROWVER: /* read-only */
-#endif /* ODBCVER */
 		case SQL_DESC_SCALE: /* read-only */
 		case SQL_DESC_SEARCHABLE: /* read-only */
 		case SQL_DESC_TYPE: /* read-only */
@@ -1480,9 +1473,7 @@ inolog("IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		case SQL_DESC_NULLABLE: /* read-only */
 		case SQL_DESC_NUM_PREC_RADIX:
 		case SQL_DESC_OCTET_LENGTH:
-#if (ODBCVER >= 0x0350)
 		case SQL_DESC_ROWVER: /* read-only */
-#endif /* ODBCVER */
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		default:ret = SQL_ERROR;
@@ -1631,7 +1622,6 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_METADATA_ID:
 			conn->stmtOptions.metadata_id = CAST_UPTR(SQLUINTEGER, Value);
 			break;
-#if (ODBCVER >= 0x0351)
 		case SQL_ATTR_ANSI_APP:
 			if (SQL_AA_FALSE != CAST_PTR(SQLINTEGER, Value))
 			{
@@ -1645,7 +1635,6 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			}
 			/*return SQL_ERROR;*/
 			return SQL_SUCCESS;
-#endif /* ODBCVER */
 		case SQL_ATTR_ENLIST_IN_DTC:
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -2067,4 +2056,3 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 		ret = DiscardStatementSvp(s.stmt, ret, FALSE);
 	return ret;
 }
-#endif /* ODBCVER >= 0x0300 */

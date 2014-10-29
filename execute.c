@@ -521,7 +521,6 @@ mylog("about to begin SC_execute\n");
 			res = kres;
 		}
 	}
-#if (ODBCVER >= 0x0300)
 	ipdopts = SC_get_IPDF(stmt);
 	if (ipdopts->param_status_ptr)
 	{
@@ -538,7 +537,6 @@ mylog("about to begin SC_execute\n");
 				break;
 		}
 	}
-#endif /* ODBCVER */
 	if (end_row = stmt->exec_end_row, end_row < 0)
 	{
 		apdopts = SC_get_APDF(stmt);
@@ -554,7 +552,6 @@ mylog("about to begin SC_execute\n");
 		stmt->exec_current_row++;
 	if (res)
 	{
-#if (ODBCVER >= 0x0300)
 		EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 		const char *cmd = QR_get_command(res);
 		SQLLEN	start_row;
@@ -578,7 +575,6 @@ mylog("about to begin SC_execute\n");
 			if (0 == count)
 				retval = SQL_NO_DATA;
 		}
-#endif /* ODBCVER */
 		stmt->diag_row_count = res->recent_processed_row_count;
 	}
 	/*
@@ -997,7 +993,6 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
-#if (ODBCVER >= 0x0300)
 		/*
 		 * Initialize param_status_ptr
 		 */
@@ -1006,7 +1001,6 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 			for (i = 0; i <= end_row; i++)
 				ipdopts->param_status_ptr[i] = SQL_PARAM_UNUSED;
 		}
-#endif /* ODBCVER */
 		if (recycle && !recycled)
 			SC_recycle_statement(stmt);
 		if (isSqlServr() &&
@@ -1018,7 +1012,6 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 	}
 
 next_param_row:
-#if (ODBCVER >= 0x0300)
 	if (apdopts->param_operation_ptr)
 	{
 		while (apdopts->param_operation_ptr[stmt->exec_current_row] == SQL_PARAM_IGNORE)
@@ -1037,7 +1030,7 @@ next_param_row:
 	 */
 	if (ipdopts->param_status_ptr)
 		ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
-#endif /* ODBCVER */
+
 	/*
 	 * Check if statement has any data-at-execute parameters when it is
 	 * not in SC_pre_execute.

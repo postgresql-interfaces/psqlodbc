@@ -74,14 +74,12 @@ extern SQLSMALLINT sqlTypes[];
 #define PG_UNSPECIFIED				(-1)
 #define PG_WIDTH_OF_BOOLS_AS_CHAR		5
 
-#if (ODBCVER >= 0x0300)
 /*
  *	SQL_INTERVAL support is disabled because I found
  *	some applications which are unhappy with it.
  *
 #define	PG_INTERVAL_AS_SQL_INTERVAL
  */
-#endif /* ODBCVER */
 
 OID		pg_true_type(const ConnectionClass *, OID, OID);
 OID		sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);

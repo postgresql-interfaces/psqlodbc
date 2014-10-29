@@ -141,16 +141,16 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'" >
-    <ADD_DEFINES>$(ADD_DEFINES);ODBCVER=0x0350;DBMS_NAME="PostgreSQL ANSI"</ADD_DEFINES>
+    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL ANSI"</ADD_DEFINES>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|x64'" >
-    <ADD_DEFINES>$(ADD_DEFINES);ODBCVER=0x0350;DBMS_NAME="PostgreSQL ANSI(x64)"</ADD_DEFINES>
+    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL ANSI(x64)"</ADD_DEFINES>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'" >
-    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;ODBCVER=0x0351</ADD_DEFINES>
+    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT</ADD_DEFINES>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'" >
-    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;ODBCVER=0x0351;DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
+    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
     <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
   </PropertyGroup>
 

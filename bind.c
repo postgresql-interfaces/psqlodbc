@@ -82,7 +82,6 @@ PGAPI_BindParameter(HSTMT hstmt,
 	ipdopts->parameters[ipar].decimal_digits = ibScale;
 	ipdopts->parameters[ipar].precision = 0;
 	ipdopts->parameters[ipar].scale = 0;
-#if (ODBCVER >= 0x0300)
 	switch (fCType)
 	{
 		case SQL_C_NUMERIC:
@@ -104,7 +103,6 @@ PGAPI_BindParameter(HSTMT hstmt,
 	}
 	apdopts->parameters[ipar].precision = ipdopts->parameters[ipar].precision;
 	apdopts->parameters[ipar].scale = ipdopts->parameters[ipar].scale;
-#endif /* ODBCVER */
 
 	/*
 	 * If rebinding a parameter that had data-at-exec stuff in it, then
@@ -199,9 +197,7 @@ PGAPI_BindCol(HSTMT hstmt,
 			switch (fCType)
 			{
 				case SQL_C_BOOKMARK:
-#if (ODBCVER >= 0x0300)
 				case SQL_C_VARBOOKMARK:
-#endif /* ODBCVER */
 					break;
 				default:
 					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK", func);
@@ -270,7 +266,6 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		opts->bindings[icol].indicator = pcbValue;
 		opts->bindings[icol].returntype = fCType;
 		opts->bindings[icol].precision = 0;
-#if (ODBCVER >= 0x0300)
 		switch (fCType)
 		{
 			case SQL_C_NUMERIC:
@@ -284,7 +279,6 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 				opts->bindings[icol].precision = 6;
 				break;
 		}
-#endif /* ODBCVER */
 		opts->bindings[icol].scale = 0;
 
 		mylog("       bound buffer[%d] = %p\n", icol, opts->bindings[icol].buffer);
@@ -412,29 +406,6 @@ cleanup:
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	return ret;
 }
-
-
-#if (ODBCVER < 0x0300)
-/*	Sets multiple values (arrays) for the set of parameter markers. */
-RETCODE		SQL_API
-PGAPI_ParamOptions(HSTMT hstmt,
-				   SQLULEN crow,
-				   SQLULEN FAR * pirow)
-{
-	CSTR func = "PGAPI_ParamOptions";
-	StatementClass *stmt = (StatementClass *) hstmt;
-	APDFields	*apdopts;
-	IPDFields	*ipdopts;
-
-	mylog("%s: entering... %d %p\n", func, crow, pirow);
-
-	apdopts = SC_get_APDF(stmt);
-	apdopts->paramset_size = crow;
-	ipdopts = SC_get_IPDF(stmt);
-	ipdopts->param_processed_ptr = pirow;
-	return SQL_SUCCESS;
-}
-#endif /* ODBCVER */
 
 
 /*

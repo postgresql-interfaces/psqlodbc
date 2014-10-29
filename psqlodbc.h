@@ -71,9 +71,7 @@ void		debug_memory_check(void);
 #include <delayimp.h>
 #endif /* WIN32 */
 /* Must come before sql.h */
-#ifndef ODBCVER
-#define ODBCVER						0x0250
-#endif   /* ODBCVER_REP */
+#define ODBCVER					0x0351
 
 #define NAMEDATALEN_V72					32
 #define NAMEDATALEN_V73					64
@@ -253,12 +251,8 @@ typedef double SDOUBLE;
 #define DBMS_NAME_UNICODE		"PostgreSQL Unicode"
 #define DBMS_NAME_ANSI			"PostgreSQL ANSI"
 
-#if (ODBCVER >= 0x0300)
-#if (ODBCVER >= 0x0351)
 #define DRIVER_ODBC_VER				"03.51"
-#else
-#define DRIVER_ODBC_VER				"03.00"
-#endif /* ODBCVER 0x0351 */
+
 #ifndef DBMS_NAME
 #ifdef	UNICODE_SUPPORT
 #define DBMS_NAME				DBMS_NAME_UNICODE
@@ -266,27 +260,16 @@ typedef double SDOUBLE;
 #define DBMS_NAME				DBMS_NAME_ANSI
 #endif /* UNICODE_SUPPORT */
 #endif /* DBMS_NAME */
-#else
-#define DRIVER_ODBC_VER				"02.50"
+
 #ifndef DBMS_NAME
 #define DBMS_NAME				"PostgreSQL Legacy"
 #endif   /* DBMS_NAME */
-#endif   /* ODBCVER */
-
 #ifdef WIN32
-#if (ODBCVER >= 0x0300)
 #ifdef	UNICODE_SUPPORT
-#if (ODBCVER >= 0x0350)
 #define DRIVER_FILE_NAME			"PSQLODBC35W.DLL"
-#else
-#define DRIVER_FILE_NAME			"PSQLODBC30W.DLL"
-#endif /* ODBCVER 0x0350 */
 #else
 #define DRIVER_FILE_NAME			"PSQLODBC.DLL"
 #endif   /* UNICODE_SUPPORT */
-#else
-#define DRIVER_FILE_NAME			"PSQLODBC25.DLL"
-#endif   /* ODBCVER 0x0300 */
 #else
 #ifdef  UNICODE_SUPPORT
 #define DRIVER_FILE_NAME                        "psqlodbcw.so"
@@ -498,9 +481,7 @@ typedef struct StatementOptions_
 	SQLUINTEGER		retrieve_data;
 	SQLUINTEGER		use_bookmarks;
 	void			*bookmark_ptr;
-#if (ODBCVER >= 0x0300)
 	SQLUINTEGER		metadata_id;
-#endif /* ODBCVER */
 } StatementOptions;
 
 /*	Used to pass extra query info to send_query */

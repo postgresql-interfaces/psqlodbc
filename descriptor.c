@@ -218,9 +218,7 @@ void
 InitializeARDFields(ARDFields *opt)
 {
 	memset(opt, 0, sizeof(ARDFields));
-#if (ODBCVER >= 0x0300)
 	opt->size_of_rowset = 1;
-#endif /* ODBCVER */
 	opt->bind_size = 0;		/* default is to bind by column */
 	opt->size_of_rowset_odbc2 = 1;
 }
@@ -245,8 +243,6 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *ardopts)
 	}
 	return ardopts->bookmark;
 }
-
-#if (ODBCVER >= 0x0300)
 
 #define	DESC_INCREMENT	10
 char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
@@ -659,5 +655,3 @@ PGAPI_DescError(SQLHDESC hdesc,
 				pfNativeError, szErrorMsg, cbErrorMsgMax,
 				pcbErrorMsg, flag);
 }
-
-#endif /* ODBCVER */

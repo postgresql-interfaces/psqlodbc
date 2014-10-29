@@ -13,8 +13,6 @@
  */
 
 #include "psqlodbc.h"
-
-#if (ODBCVER >= 0x0300)
 #include <stdio.h>
 #include <string.h>
 
@@ -412,5 +410,3 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 
 	return ret;
 }
-
-#endif /* ODBCVER >= 0x0300 */

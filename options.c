@@ -23,8 +23,6 @@
 #include "qresult.h"
 #include "pgapifunc.h"
 
-
-
 RETCODE
 set_statement_option(ConnectionClass *conn,
 					 StatementClass *stmt,
@@ -217,9 +215,7 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_USE_BOOKMARKS:
 			if (stmt)
 			{
-#if (ODBCVER >= 0x0300)
 				mylog("USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
-#endif /* ODBCVER */
 				setval = vParam;
 				stmt->options.use_bookmarks = (SQLUINTEGER) setval;
 			}
@@ -330,19 +326,6 @@ PGAPI_SetConnectOption(HDBC hdbc,
 		case SQL_ROWSET_SIZE:
 		case SQL_SIMULATE_CURSOR:
 		case SQL_USE_BOOKMARKS:
-
-#if (ODBCVER < 0x0300)
-			{
-				int	i;
-				/* Affect all current Statements */
-				for (i = 0; i < conn->num_stmts; i++)
-				{
-					if (conn->stmts[i])
-						set_statement_option(NULL, conn->stmts[i], fOption, vParam);
-				}
-			}
-#endif /* ODBCVER */
-
 			/*
 			 * Become the default for all future statements on this
 			 * connection
@@ -593,12 +576,10 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			mylog(" val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
 
-#if (ODBCVER >= 0x0351)
 		case SQL_ATTR_ANSI_APP:
 			*((SQLUINTEGER *) pvParam) = CC_is_in_ansi_app(conn);
 			mylog("ANSI_APP val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
-#endif /* ODBCVER */
 
 			/* These options should be handled by driver manager */
 		case SQL_ODBC_CURSORS:

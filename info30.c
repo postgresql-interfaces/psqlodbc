@@ -8,8 +8,6 @@
 
 #include "psqlodbc.h"
 #include "misc.h"
-
-#if (ODBCVER >= 0x0300)
 #include "connection.h"
 #include "pgapifunc.h"
 
@@ -35,7 +33,6 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 			len = 4;
 			value = 0;
 			break;
-
 		case SQL_FORWARD_ONLY_CURSOR_ATTRIBUTES1:
 			len = 4;
 			value = SQL_CA1_NEXT; /* others aren't allowed in ODBC spec */
@@ -414,4 +411,3 @@ PGAPI_GetInfo30(HDBC hdbc, SQLUSMALLINT fInfoType, PTR rgbInfoValue,
 		*pcbInfoValue = (SQLSMALLINT) len;
 	return result;
 }
-#endif /* ODBCVER >= 0x0300 */

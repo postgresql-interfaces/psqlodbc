@@ -425,10 +425,8 @@ struct ConnectionClass_
 	Int2		max_identifier_length;
 	Int2		num_discardp;
 	char		**discardp;
-#if (ODBCVER >= 0x0300)
 	int		num_descs;
 	DescriptorClass	**descs;
-#endif /* ODBCVER */
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
 #ifdef	USE_SSPI
@@ -509,10 +507,8 @@ char		CC_connect(ConnectionClass *self, char password_req, char *salt);
 char		CC_add_statement(ConnectionClass *self, StatementClass *stmt);
 char		CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
 ;
-#if (ODBCVER >= 0x0300)
 char		CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc);
 char		CC_remove_descriptor(ConnectionClass *self, DescriptorClass *desc);
-#endif /* ODBCVER */
 void		CC_set_error(ConnectionClass *self, int number, const char *message, const char *func);
 void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);

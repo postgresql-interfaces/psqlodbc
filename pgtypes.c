@@ -80,9 +80,7 @@ SQLSMALLINT	sqlTypes[] = {
 	/* SQL_BINARY, -- Commented out because VarBinary is more correct. */
 	SQL_BIT,
 	SQL_CHAR,
-#if (ODBCVER >= 0x0300)
 	SQL_TYPE_DATE,
-#endif /* ODBCVER */
 	SQL_DATE,
 	SQL_DECIMAL,
 	SQL_DOUBLE,
@@ -93,10 +91,8 @@ SQLSMALLINT	sqlTypes[] = {
 	SQL_NUMERIC,
 	SQL_REAL,
 	SQL_SMALLINT,
-#if (ODBCVER >= 0x0300)
 	SQL_TYPE_TIME,
 	SQL_TYPE_TIMESTAMP,
-#endif /* ODBCVER */
 	SQL_TIME,
 	SQL_TIMESTAMP,
 	SQL_TINYINT,
@@ -107,9 +103,7 @@ SQLSMALLINT	sqlTypes[] = {
 	SQL_WVARCHAR,
 	SQL_WLONGVARCHAR,
 #endif /* UNICODE_SUPPORT */
-#if (ODBCVER >= 0x0350)
 	SQL_GUID,
-#endif /* ODBCVER */
 /* AFAIK SQL_INTERVAL types cause troubles in some spplications */
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 	SQL_INTERVAL_MONTH,
@@ -129,7 +123,7 @@ SQLSMALLINT	sqlTypes[] = {
 	0
 };
 
-#if (ODBCVER >= 0x0300) && defined(ODBCINT64)
+#ifdef ODBCINT64
 #define	ALLOWED_C_BIGINT	SQL_C_SBIGINT
 /* #define	ALLOWED_C_BIGINT	SQL_C_CHAR */ /* Delphi should be either ? */
 #else
@@ -155,7 +149,6 @@ pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
 #define MINUTE_BIT	(1 << 27)
 #define SECOND_BIT	(1 << 28)
 
-#if	(ODBCVER >= 0x0300)
 static SQLSMALLINT
 get_interval_type(Int4 atttypmod, const char **name)
 {
@@ -245,7 +238,6 @@ mylog("!!! %s atttypmod=%x\n", __FUNCTION__, atttypmod);
 		*name = "interval";
 	return 0;
 }
-#endif /* ODBCVER */
 
 static Int4
 getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
@@ -324,13 +316,7 @@ inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 		{
 			case PG_TYPE_VARCHAR:
 			case PG_TYPE_BPCHAR:
-#if (ODBCVER >= 0x0300)
 				return atttypmod;
-#else
-				if (CC_is_in_unicode_driver(conn) || conn->ms_jet)
-					return atttypmod;
-				return p;
-#endif /* ODBCVER */
 		}
 	}
 
@@ -468,7 +454,6 @@ getIntervalColumnSize(OID type, int atttypmod)
 	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	ttl = leading_precision;
-#if (ODBCVER >= 0x0300)
 	switch (get_interval_type(atttypmod, NULL))
 	{
 		case 0:
@@ -501,9 +486,6 @@ getIntervalColumnSize(OID type, int atttypmod)
 			ttl = 24;
 			break;
 	}
-#else
-	ttl += 9;
-#endif /* ODBCVER */
 	scale = getIntervalDecimalDigits(type, atttypmod);
 	return (scale > 0) ? ttl + 1 + scale : ttl;
 }
@@ -513,12 +495,10 @@ SQLSMALLINT
 pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen)
 {
 	const ConnInfo	*ci = &(conn->connInfo);
-#if (ODBCVER >= 0x0300)
 	EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 	SQLSMALLINT	sqltype;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
-#endif /* ODBCVER */
 
 	switch (type)
 	{
@@ -581,11 +561,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 				return ci->int8_as;
 			if (conn->ms_jet)
 				return SQL_NUMERIC; /* maybe a little better than SQL_VARCHAR */
-#if (ODBCVER >= 0x0300)
 			return SQL_BIGINT;
-#else
-			return SQL_VARCHAR;
-#endif /* ODBCVER */
 
 		case PG_TYPE_NUMERIC:
 			return SQL_NUMERIC;
@@ -595,25 +571,19 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 		case PG_TYPE_FLOAT8:
 			return SQL_FLOAT;
 		case PG_TYPE_DATE:
-#if (ODBCVER >= 0x0300)
 			if (EN_is_odbc3(env))
 				return SQL_TYPE_DATE;
-#endif /* ODBCVER */
 			return SQL_DATE;
 		case PG_TYPE_TIME:
-#if (ODBCVER >= 0x0300)
 			if (EN_is_odbc3(env))
 				return SQL_TYPE_TIME;
-#endif /* ODBCVER */
 			return SQL_TIME;
 		case PG_TYPE_ABSTIME:
 		case PG_TYPE_DATETIME:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 		case PG_TYPE_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 			if (EN_is_odbc3(env))
 				return SQL_TYPE_TIMESTAMP;
-#endif /* ODBCVER */
 			return SQL_TIMESTAMP;
 		case PG_TYPE_MONEY:
 			return SQL_FLOAT;
@@ -626,9 +596,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 		case PG_TYPE_MACADDR:
 			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 		case PG_TYPE_UUID:
-#if (ODBCVER >= 0x0350)
 			return SQL_GUID;
-#endif /* ODBCVER */
 			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		case PG_TYPE_INTERVAL:
@@ -668,12 +636,10 @@ pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int atttypmod)
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
 	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_UNSPECIFIED))
 	{
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
 		case SQL_TYPE_TIME:
 		case SQL_TYPE_TIMESTAMP:
 			return SQL_DATETIME;
-#endif /* ODBCVER */
 	}
 	return rettype;
 }
@@ -685,7 +651,6 @@ pgtype_attr_to_datetime_sub(const ConnectionClass *conn, OID type, int atttypmod
 
 	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_UNSPECIFIED))
 	{
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
 			return SQL_CODE_DATE;
 		case SQL_TYPE_TIME:
@@ -706,7 +671,6 @@ pgtype_attr_to_datetime_sub(const ConnectionClass *conn, OID type, int atttypmod
 		case SQL_INTERVAL_HOUR_TO_SECOND:
 		case SQL_INTERVAL_MINUTE_TO_SECOND:
 			return rettype - 100;
-#endif /* ODBCVER */
 	}
 	return -1;
 }
@@ -715,20 +679,16 @@ SQLSMALLINT
 pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 {
 	const ConnInfo	*ci = &(conn->connInfo);
-#if (ODBCVER >= 0x0300)
 	EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 	SQLSMALLINT	ctype;
 #endif /* PG_INTERVAL_A_SQL_INTERVAL */
-#endif /* ODBCVER */
 
 	switch (type)
 	{
 		case PG_TYPE_INT8:
-#if (ODBCVER >= 0x0300)
 			if (!conn->ms_jet)
 				return ALLOWED_C_BIGINT;
-#endif /* ODBCVER */
 			return SQL_C_CHAR;
 		case PG_TYPE_NUMERIC:
 			return SQL_C_CHAR;
@@ -744,25 +704,19 @@ pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 		case PG_TYPE_FLOAT8:
 			return SQL_C_DOUBLE;
 		case PG_TYPE_DATE:
-#if (ODBCVER >= 0x0300)
 			if (EN_is_odbc3(env))
 				return SQL_C_TYPE_DATE;
-#endif /* ODBCVER */
 			return SQL_C_DATE;
 		case PG_TYPE_TIME:
-#if (ODBCVER >= 0x0300)
 			if (EN_is_odbc3(env))
 				return SQL_C_TYPE_TIME;
-#endif /* ODBCVER */
 			return SQL_C_TIME;
 		case PG_TYPE_ABSTIME:
 		case PG_TYPE_DATETIME:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 		case PG_TYPE_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 			if (EN_is_odbc3(env))
 				return SQL_C_TYPE_TIMESTAMP;
-#endif /* ODBCVER */
 			return SQL_C_TIMESTAMP;
 		case PG_TYPE_MONEY:
 			return SQL_C_FLOAT;
@@ -780,10 +734,8 @@ pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 			return ALLOW_WCHAR(conn) ? SQL_C_WCHAR : SQL_C_CHAR;
 #endif /* UNICODE_SUPPORT */
 		case PG_TYPE_UUID:
-#if (ODBCVER >= 0x0350)
 			if (!conn->ms_jet)
 				return SQL_C_GUID;
-#endif /* ODBCVER */
 			return ALLOW_WCHAR(conn) ? SQL_C_WCHAR : SQL_C_CHAR;
 
 		case PG_TYPE_INTERVAL:
@@ -871,12 +823,9 @@ inolog("pgtype_to_name int4\n");
 			return "cidr";
 		case PG_TYPE_UUID:
 			return "uuid";
-#if (ODBCVER >= 0x0300)
 		case PG_TYPE_INTERVAL:
 			get_interval_type(atttypmod, &tname);
 			return tname;
-#endif /* ODBCVER */
-
 		case PG_TYPE_LO_UNDEFINED:
 			return PG_TYPE_LO_NAME;
 
@@ -1055,11 +1004,8 @@ pgtype_attr_display_size(const ConnectionClass *conn, OID type, int atttypmod, i
 		case PG_TYPE_INET:
 		case PG_TYPE_CIDR:
 			return sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255/128");
-#if (ODBCVER >= 0x0350)
 		case PG_TYPE_UUID:
 			return 36;
-#endif /* ODBCVER */
-
 		case PG_TYPE_INTERVAL:
 			return 30;
 
@@ -1116,10 +1062,7 @@ pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, 
 		case PG_TYPE_CIDR:
 			return sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255/128");
 		case PG_TYPE_UUID:
-#if (ODBCVER >= 0x0350)
 			return 16;		/* sizeof(SQLGUID) */
-#endif /* ODBCVER */
-			return 36;
 
 			/* Character types use the default precision */
 		case PG_TYPE_VARCHAR:
@@ -1314,9 +1257,7 @@ sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
 			break;
 
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
-#endif /* ODBCVER */
 		case SQL_DATE:
 			pgType = PG_TYPE_DATE;
 			break;
@@ -1366,16 +1307,12 @@ sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			break;
 
 		case SQL_TIME:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_TIME:
-#endif /* ODBCVER */
 			pgType = PG_TYPE_TIME;
 			break;
 
 		case SQL_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_TIMESTAMP:
-#endif /* ODBCVER */
 			pgType = PG_TYPE_DATETIME;
 			break;
 
@@ -1393,12 +1330,10 @@ sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			break;
 #endif /* UNICODE_SUPPORT */
 
-#if (ODBCVER >= 0x0350)
 		case SQL_GUID:
 			if (PG_VERSION_GE(conn, 8.3))
 				pgType = PG_TYPE_UUID;
 			break;
-#endif /* ODBCVER */
 
 		case SQL_INTERVAL_MONTH:
 		case SQL_INTERVAL_YEAR:
@@ -1678,13 +1613,7 @@ getCharColumnSize(const StatementClass *stmt, OID type, int col, int handle_unkn
 		{
 			case PG_TYPE_VARCHAR:
 			case PG_TYPE_BPCHAR:
-#if (ODBCVER >= 0x0300)
 				return attlen;
-#else
-				if (CC_is_in_unicode_driver(conn) || conn->ms_jet)
-					return attlen;
-				return p;
-#endif /* ODBCVER */
 		}
 	}
 
@@ -2172,14 +2101,9 @@ sqltype_to_default_ctype(const ConnectionClass *conn, SQLSMALLINT sqltype)
 		case SQL_LONGVARCHAR:
 		case SQL_DECIMAL:
 		case SQL_NUMERIC:
-#if (ODBCVER < 0x0300)
-		case SQL_BIGINT:
-			return SQL_C_CHAR;
-#else
 			return SQL_C_CHAR;
 		case SQL_BIGINT:
 			return ALLOWED_C_BIGINT;
-#endif
 
 #ifdef	UNICODE_SUPPORT
 		case SQL_WCHAR:
@@ -2223,7 +2147,6 @@ sqltype_to_default_ctype(const ConnectionClass *conn, SQLSMALLINT sqltype)
 		case SQL_TIMESTAMP:
 			return SQL_C_TIMESTAMP;
 
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:
 			return SQL_C_TYPE_DATE;
 
@@ -2232,15 +2155,12 @@ sqltype_to_default_ctype(const ConnectionClass *conn, SQLSMALLINT sqltype)
 
 		case SQL_TYPE_TIMESTAMP:
 			return SQL_C_TYPE_TIMESTAMP;
-#endif /* ODBCVER */
 
-#if (ODBCVER >= 0x0350)
 		case SQL_GUID:
 			if (conn->ms_jet)
 				return SQL_C_CHAR;
 			else
 				return SQL_C_GUID;
-#endif /* ODBCVER */
 
 		default:
 			/* should never happen */
@@ -2284,28 +2204,19 @@ ctype_length(SQLSMALLINT ctype)
 			return sizeof(UCHAR);
 
 		case SQL_C_DATE:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_DATE:
-#endif /* ODBCVER */
 			return sizeof(DATE_STRUCT);
 
 		case SQL_C_TIME:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_TIME:
-#endif /* ODBCVER */
 			return sizeof(TIME_STRUCT);
 
 		case SQL_C_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_TIMESTAMP:
-#endif /* ODBCVER */
 			return sizeof(TIMESTAMP_STRUCT);
 
-#if (ODBCVER >= 0x0350)
 		case SQL_C_GUID:
 			return sizeof(SQLGUID);
-#endif /* ODBCVER */
-#if (ODBCVER >= 0x0300)
 		case SQL_C_INTERVAL_YEAR:
 		case SQL_C_INTERVAL_MONTH:
 		case SQL_C_INTERVAL_YEAR_TO_MONTH:
@@ -2325,7 +2236,6 @@ ctype_length(SQLSMALLINT ctype)
 		case SQL_C_SBIGINT:
 		case SQL_C_UBIGINT:
 			return sizeof(SQLBIGINT);
-#endif /* ODBCVER */
 
 		case SQL_C_BINARY:
 		case SQL_C_CHAR:

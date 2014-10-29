@@ -215,10 +215,8 @@ static unsigned ODBCINT64 ATOI64U(const char *val)
 #endif /* WIN32 */
 #endif /* ODBCINT64 */
 
-#if (ODBCVER >= 0x0300)
 static void ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform);
 static void parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow);
-#endif
 
 /*
  *	TIMESTAMP <-----> SIMPLE_TIME
@@ -408,7 +406,6 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, size_t bufsize, BOOL bZone,
 		return snprintf(str, bufsize, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d%s%s", st->y, st->m, st->d, st->hh, st->mm, st->ss, precstr, zonestr);
 }
 
-#if (ODBCVER >= 0x0300)
 static
 SQLINTERVAL	interval2itype(SQLSMALLINT ctype)
 {
@@ -606,7 +603,6 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 
 	return FALSE;
 }
-#endif /* ODBCVER */
 
 
 #ifdef	HAVE_LOCALE_H
@@ -728,7 +724,6 @@ static double get_double_value(const char *str)
 	return atof(str);
 }
 
-#if (ODBCVER >= 0x0350)
 static int char2guid(const char *str, SQLGUID *g)
 {
 	/*
@@ -747,7 +742,6 @@ static int char2guid(const char *str, SQLGUID *g)
 	g->Data1 = Data1;
 	return COPY_OK;
 }
-#endif /* ODBCVER */
 
 /*	This is called by SQLGetData() */
 int
@@ -792,9 +786,7 @@ copy_and_convert_field(StatementClass *stmt,
 	SQLWCHAR	*allocbuf = NULL;
 	ssize_t		wstrlen;
 #endif /* WIN_UNICODE_SUPPORT */
-#if (ODBCVER >= 0x0350)
 	SQLGUID g;
-#endif
 	int			i;
 
 	if (stmt->current_col >= 0)
@@ -875,9 +867,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		     SQL_C_WCHAR == fCType ||
 #endif	/* UNICODE_SUPPORT */
 		     SQL_C_DATE == fCType ||
-#if (ODBCVER >= 0x0300)
 		     SQL_C_TYPE_DATE == fCType ||
-#endif /* ODBCVER */
 		     SQL_C_DEFAULT == fCType))
 		{
 			if (pcbValueBindRow)
@@ -891,9 +881,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 						result = COPY_RESULT_TRUNCATED;
 					break;
 				case SQL_C_DATE:
-#if (ODBCVER >= 0x0300)
 				case SQL_C_TYPE_DATE:
-#endif /* ODBCVER */
 				case SQL_C_DEFAULT:
 					if (rgbValueBindRow && cbValueMax >= sizeof(DATE_STRUCT))
 					{
@@ -1510,9 +1498,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		switch (fCType)
 		{
 			case SQL_C_DATE:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_TYPE_DATE:		/* 91 */
-#endif
 				len = 6;
 				{
 					DATE_STRUCT *ds;
@@ -1528,9 +1514,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_TIME:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_TYPE_TIME:		/* 92 */
-#endif
 				len = 6;
 				{
 					TIME_STRUCT *ts;
@@ -1546,9 +1530,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				break;
 
 			case SQL_C_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 			case SQL_C_TYPE_TIMESTAMP:	/* 93 */
-#endif
 				len = 16;
 				{
 					TIMESTAMP_STRUCT *ts;
@@ -1616,7 +1598,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 					*((SDOUBLE *) rgbValue + bind_row) = get_double_value(neut_str);
 				break;
 
-#if (ODBCVER >= 0x0300)
 			case SQL_C_NUMERIC:
 				{
 					SQL_NUMERIC_STRUCT      *ns;
@@ -1632,7 +1613,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 						result = COPY_RESULT_TRUNCATED;
 				}
 				break;
-#endif /* ODBCVER */
 
 			case SQL_C_SSHORT:
 			case SQL_C_SHORT:
@@ -1668,7 +1648,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					*((SQLUINTEGER *) rgbValue + bind_row) = ATOI32U(neut_str);
 				break;
 
-#if (ODBCVER >= 0x0300) && defined(ODBCINT64)
+#ifdef ODBCINT64
 			case SQL_C_SBIGINT:
 				len = 8;
 				if (bind_size > 0)
@@ -1728,7 +1708,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					else
 						return COPY_RESULT_TRUNCATED;
 				}
-#if (ODBCVER >= 0x0350)
 				else if (PG_TYPE_UUID == field_type)
 				{
 					int rtn = char2guid(neut_str, &g);
@@ -1745,7 +1724,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					else
 						return COPY_RESULT_TRUNCATED;
 				}
-#endif /* ODBCVER */
 				else if (PG_TYPE_BYTEA != field_type)
 				{
 					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
@@ -1827,7 +1805,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				}
 				mylog("SQL_C_BINARY: len = %d, copy_len = %d\n", len, copy_len);
 				break;
-#if (ODBCVER >= 0x0350)
 			case SQL_C_GUID:
 
 				result = char2guid(neut_str, &g);
@@ -1842,8 +1819,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				else
 					*((SQLGUID *) rgbValue + bind_row) = g;
 				break;
-#endif /* ODBCVER */
-#if (ODBCVER >= 0x0300)
 			case SQL_C_INTERVAL_YEAR:
 			case SQL_C_INTERVAL_MONTH:
 			case SQL_C_INTERVAL_YEAR_TO_MONTH:
@@ -1858,7 +1833,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 			case SQL_C_INTERVAL_MINUTE_TO_SECOND:
 				interval2istruct(fCType, precision, neut_str, bind_size > 0 ? (SQL_INTERVAL_STRUCT *) rgbValueBindRow : (SQL_INTERVAL_STRUCT *) rgbValue + bind_row);
 				break;
-#endif /* ODBCVER */
 
 			default:
 				qlog("conversion to the type %d isn't supported\n", fCType);
@@ -3630,7 +3604,6 @@ cleanup:
 	return ret;
 }
 
-#if (ODBCVER >= 0x0300)
 
 /*
  * With SQL_MAX_NUMERIC_LEN = 16, the highest representable number is
@@ -3826,8 +3799,6 @@ parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
 }
 
 
-#endif /* ODBCVER */
-
 /*
  *
  */
@@ -3867,10 +3838,8 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull)
 				valueOutput;
 	SDOUBLE		dbv;
 	SFLOAT		flv;
-#if (ODBCVER >= 0x0300)
 	SQL_INTERVAL_STRUCT	*ivstruct;
 	const char *ivsign;
-#endif /* ODBCVER */
 	RETCODE		retval = SQL_ERROR;
 
 	*isnull = FALSE;
@@ -4082,9 +4051,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	st.d = tim->tm_mday;
 	st.y = tim->tm_year + 1900;
 
-#if (ODBCVER >= 0x0300)
 	ivstruct = (SQL_INTERVAL_STRUCT *) buffer;
-#endif /* ODBCVER */
 	/* Convert input C type to a neutral format */
 	switch (param_ctype)
 	{
@@ -4157,7 +4124,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 					*((SQLINTEGER *) buffer));
 			break;
 
-#if (ODBCVER >= 0x0300) && defined(ODBCINT64)
+#ifdef ODBCINT64
 		case SQL_C_SBIGINT:
 		case SQL_BIGINT: /* Is this needed ? */
 			sprintf(param_string, FORMATI64,
@@ -4206,9 +4173,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			}
 
 		case SQL_C_DATE:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_DATE:		/* 91 */
-#endif
 			{
 				DATE_STRUCT *ds = (DATE_STRUCT *) buffer;
 
@@ -4220,9 +4185,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			}
 
 		case SQL_C_TIME:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_TIME:		/* 92 */
-#endif
 			{
 				TIME_STRUCT *ts = (TIME_STRUCT *) buffer;
 
@@ -4234,9 +4197,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 			}
 
 		case SQL_C_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 		case SQL_C_TYPE_TIMESTAMP:	/* 93 */
-#endif
 			{
 				TIMESTAMP_STRUCT *tss = (TIMESTAMP_STRUCT *) buffer;
 
@@ -4253,7 +4214,6 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 				break;
 
 			}
-#if (ODBCVER >= 0x0300)
 		case SQL_C_NUMERIC:
 		{
 			ResolveNumericParam((SQL_NUMERIC_STRUCT *) buffer, param_string);
@@ -4306,8 +4266,6 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 				sprintf(&param_string[strlen(param_string)], ".%0*d", prec, fraction);
 			}
 			break;
-#endif
-#if (ODBCVER >= 0x0350)
 		case SQL_C_GUID:
 		{
 			/*
@@ -4323,7 +4281,6 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 				g->Data4[4], g->Data4[5], g->Data4[6], g->Data4[7]);
 		}
 		break;
-#endif
 		default:
 			/* error */
 			qb->errormsg = "Unrecognized C_parameter type in copy_statement_with_parameters";
@@ -4439,9 +4396,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			break;
 
 		case SQL_DATE:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_DATE:	/* 91 */
-#endif
 			if (buf)
 			{				/* copy char data to time */
 				my_strcpy(cbuf, sizeof(cbuf), buf, used);
@@ -4457,9 +4412,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			break;
 
 		case SQL_TIME:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_TIME:	/* 92 */
-#endif
 			if (buf)
 			{				/* copy char data to time */
 				my_strcpy(cbuf, sizeof(cbuf), buf, used);
@@ -4472,10 +4425,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			break;
 
 		case SQL_TIMESTAMP:
-#if (ODBCVER >= 0x0300)
 		case SQL_TYPE_TIMESTAMP:	/* 93 */
-#endif
-
 			if (buf)
 			{
 				my_strcpy(cbuf, sizeof(cbuf), buf, used);

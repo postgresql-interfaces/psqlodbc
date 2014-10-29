@@ -344,9 +344,7 @@ InitializeStatementOptions(StatementOptions *opt)
 	opt->cursor_type = SQL_CURSOR_FORWARD_ONLY;
 	opt->retrieve_data = SQL_RD_ON;
 	opt->use_bookmarks = SQL_UB_OFF;
-#if (ODBCVER >= 0x0300)
 	opt->metadata_id = SQL_FALSE;
-#endif /* ODBCVER */
 }
 
 static void SC_clear_parse_status(StatementClass *self, ConnectionClass *conn)
@@ -2424,11 +2422,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		const APDFields	*apdopts = SC_get_APDF(self);
 		SQLLEN	rowsetSize;
 
-#if (ODBCVER >= 0x0300)
 		rowsetSize = (STMT_TRANSITION_EXTENDED_FETCH == self->transition_status ? opts->size_of_rowset_odbc2 : opts->size_of_rowset);
-#else
-		rowsetSize = opts->size_of_rowset_odbc2;
-#endif /* ODBCVER */
 		if (SC_get_errornumber(self) <= 0)
 			head = "STATEMENT WARNING";
 		else

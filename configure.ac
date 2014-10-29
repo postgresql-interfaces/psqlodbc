@@ -141,18 +141,6 @@ else
 fi
 
 #
-# Default odbc version number (--with-odbcver), default 0x0351
-#
-
-PGAC_ARG_REQ(with, odbcver,
-             [  --with-odbcver=VERSION  change default ODBC version number [[0x0351]]],
-             [],
-             [with_odbcver=0x0351])
-AC_DEFINE_UNQUOTED(ODBCVER, [$with_odbcver],
-                   [Define to ODBC version (--with-odbcver)])
-
-
-#
 # Unicode support
 #
 
