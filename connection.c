@@ -573,10 +573,13 @@ CC_endup_authentication(ConnectionClass *self)
 #endif /* USE_GSS */
 }
 
-CSTR	bgncmd = "BEGIN";
-CSTR	cmtcmd = "COMMIT";
-CSTR	rbkcmd = "ROLLBACK";
-CSTR	semi_colon = ";";
+static const char *bgncmd = "BEGIN";
+static const char *cmtcmd = "COMMIT";
+static const char *rbkcmd = "ROLLBACK";
+static const char *svpcmd = "SAVEPOINT";
+static const char *per_query_svp = "_per_query_svp_";
+static const char *rlscmd = "RELEASE";
+
 /*
  *	Used to begin a transaction.
  */
@@ -2606,11 +2609,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	const char	*wq;
 	char		swallow, *ptr;
-	CSTR	svpcmd = "SAVEPOINT";
-	CSTR	per_query_svp = "_per_query_svp_";
-	CSTR	rlscmd = "RELEASE";
-	static size_t	lenbgncmd = 0, lenrbkcmd = 0, lensvpcmd = 0,
-			lenrlscmd = 0, lenperqsvp = 0;
 	size_t	qrylen;
 	int			id;
 	SocketClass *sock = self->sock;
@@ -2735,24 +2733,15 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	if (stmt)
 		SC_forget_unnamed(stmt);
 
-	if (!lenbgncmd)
-	{
-		lenbgncmd = strlen(bgncmd);
-		lensvpcmd = strlen(svpcmd);
-		lenrbkcmd = strlen(rbkcmd);
-		lenrlscmd = strlen(rlscmd);
-		lenperqsvp = strlen(per_query_svp);
-	}
-
 	leng = (UInt4) qrylen;
 	if (appendq)
 		leng += (UInt4) (strlen(appendq) + 1);
 	if (issue_begin)
-		leng += (UInt4) (lenbgncmd + 1);
+		leng += (UInt4) (strlen(bgncmd) + 1);
 	if (query_rollback)
 	{
-		leng += (UInt4) (lensvpcmd + 1 + lenperqsvp + 1);
-		leng += (UInt4) (1 + lenrlscmd + 1 + lenperqsvp);
+		leng += (UInt4) (strlen(svpcmd) + 1 + strlen(per_query_svp) + 1);
+		leng += (UInt4) (1 + strlen(rlscmd) + 1 + strlen(per_query_svp));
 	}
 	leng++;
 	SOCK_put_int(sock, leng + 4, 4);
@@ -2760,8 +2749,8 @@ inolog("leng=%d\n", leng);
 
 	if (issue_begin)
 	{
-		SOCK_put_n_char(self->sock, bgncmd, lenbgncmd);
-		SOCK_put_n_char(self->sock, semi_colon, 1);
+		SOCK_put_n_char(self->sock, bgncmd, strlen(bgncmd));
+		SOCK_put_n_char(self->sock, ";", 1);
 		discard_next_begin = TRUE;
 	}
 	if (query_rollback)
@@ -2775,7 +2764,7 @@ inolog("leng=%d\n", leng);
 	SOCK_put_n_char(self->sock, query, qrylen);
 	if (appendq)
 	{
-		SOCK_put_n_char(self->sock, semi_colon, 1);
+		SOCK_put_n_char(self->sock, ";", 1);
 		SOCK_put_n_char(self->sock, appendq, strlen(appendq));
 	}
 	if (query_rollback)
@@ -2862,7 +2851,7 @@ inolog("send_query response_length=%d\n", response_length);
 					mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 
 					my_trim(cmdbuffer); /* get rid of trailing space */
-					if (strnicmp(cmdbuffer, bgncmd, lenbgncmd) == 0)
+					if (strnicmp(cmdbuffer, bgncmd, strlen(bgncmd)) == 0)
 					{
 						CC_set_in_trans(self);
 						if (discard_next_begin) /* discard the automatically issued BEGIN */
@@ -2871,7 +2860,7 @@ inolog("send_query response_length=%d\n", response_length);
 							continue; /* discard the result */
 						}
 					}
-					else if (strnicmp(cmdbuffer, svpcmd, lensvpcmd) == 0)
+					else if (strnicmp(cmdbuffer, svpcmd, strlen(svpcmd)) == 0)
 					{
 						if (discard_next_savepoint)
 						{
@@ -2880,7 +2869,7 @@ inolog("Discarded the first SAVEPOINT\n");
 							continue; /* discard the result */
 						}
 					}
-					else if (strnicmp(cmdbuffer, rbkcmd, lenrbkcmd) == 0)
+					else if (strnicmp(cmdbuffer, rbkcmd, strlen(rbkcmd)) == 0)
 					{
 						CC_mark_cursors_doubtful(self);
 						CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
@@ -3506,9 +3495,9 @@ CC_send_settings(ConnectionClass *self)
 		if (cs)
 		{
 #ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(cs, semi_colon, &last);
+			ptr = strtok_r(cs, ";", &last);
 #else
-			ptr = strtok(cs, semi_colon);
+			ptr = strtok(cs, ";");
 #endif /* HAVE_STRTOK_R */
 			while (ptr)
 			{
@@ -3519,9 +3508,9 @@ CC_send_settings(ConnectionClass *self)
 				mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
-				ptr = strtok_r(NULL, semi_colon, &last);
+				ptr = strtok_r(NULL, ";", &last);
 #else
-				ptr = strtok(NULL, semi_colon);
+				ptr = strtok(NULL, ";");
 #endif /* HAVE_STRTOK_R */
 			}
 			free(cs);
@@ -3537,9 +3526,9 @@ CC_send_settings(ConnectionClass *self)
 		if (cs)
 		{
 #ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(cs, semi_colon, &last);
+			ptr = strtok_r(cs, ";", &last);
 #else
-			ptr = strtok(cs, semi_colon);
+			ptr = strtok(cs, ";");
 #endif /* HAVE_STRTOK_R */
 			while (ptr)
 			{
@@ -3550,9 +3539,9 @@ CC_send_settings(ConnectionClass *self)
 				mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
-				ptr = strtok_r(NULL, semi_colon, &last);
+				ptr = strtok_r(NULL, ";", &last);
 #else
-				ptr = strtok(NULL, semi_colon);
+				ptr = strtok(NULL, ";");
 #endif /* HAVE_STRTOK_R */
 			}
 			free(cs);
