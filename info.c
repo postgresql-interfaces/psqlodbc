@@ -335,7 +335,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			len = 2;
 			value = CC_get_max_idlen(conn);
 			if (0 == value)
-				value = NAMEDATALEN_V73;
+				value = NAMEDATALEN_V73 - 1;
 			break;
 
 		case SQL_MAX_COLUMNS_IN_GROUP_BY:		/* ODBC 2.0 */
@@ -383,7 +383,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 				value = MAX_SCHEMA_LEN;
 #endif /* MAX_SCHEMA_LEN */
 			if (0 == value)
-				value = NAMEDATALEN_V73;
+				value = NAMEDATALEN_V73 - 1;
 			break;
 
 		case SQL_MAX_PROCEDURE_NAME_LEN:		/* ODBC 1.0 */
@@ -416,7 +416,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 				value = MAX_TABLE_LEN;
 #endif /* MAX_TABLE_LEN */
 			if (0 == value)
-				value = NAMEDATALEN_V73;
+				value = NAMEDATALEN_V73 - 1;
 			break;
 
 		case SQL_MAX_TABLES_IN_SELECT:	/* ODBC 2.0 */
@@ -924,9 +924,9 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 		case SQL_MAX_IDENTIFIER_LEN:
 			len = 2;
-			/* FIXME: This is the default, but the server might be compiled
-			 * with a different NAMEDATALEN value */
-			value = 64;
+			value = CC_get_max_idlen(conn);
+			if (0 == value)
+				value = NAMEDATALEN_V73 - 1;
 			break;
 		case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
 			len = 0;

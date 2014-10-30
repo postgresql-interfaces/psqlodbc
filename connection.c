@@ -2242,7 +2242,7 @@ int	CC_get_max_idlen(ConnectionClass *self)
 
 		res = CC_send_query(self, "show max_identifier_length", NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 		if (QR_command_maybe_successful(res))
-			len = self->max_identifier_length = atoi(res->command);
+			len = self->max_identifier_length = QR_get_value_backend_int(res, 0, 0, FALSE);
 		QR_Destructor(res);
 	}
 mylog("max_identifier_length=%d\n", len);

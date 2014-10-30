@@ -73,11 +73,15 @@ void		debug_memory_check(void);
 /* Must come before sql.h */
 #define ODBCVER					0x0351
 
-#define NAMEDATALEN_V72					32
+/*
+ * Default NAMEDATALEN value in the server. The server can be compiled with
+ * a different value, but this will do.
+ */
 #define NAMEDATALEN_V73					64
+
 #ifndef NAMESTORAGELEN
 #define NAMESTORAGELEN					64
-#endif   /* NAMEDATALEN */
+#endif   /* NAMESTORAGELEN */
 
 
 #ifndef	WIN32
