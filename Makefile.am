@@ -14,7 +14,7 @@ else
 lib_LTLIBRARIES = psqlodbca.la
 endif
 
-AM_LDFLAGS = -module -no-undefined -avoid-version
+AM_LDFLAGS = -module -no-undefined -avoid-version -export-symbols-regex '^SQL'
 
 psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
