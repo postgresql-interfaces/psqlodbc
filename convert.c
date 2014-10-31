@@ -2508,8 +2508,6 @@ Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	return prep_params(stmt, qp, qb, FALSE);
 }
 
-#define		my_strchr(conn, s1,c1) pg_mbschr(conn->ccsc, s1,c1)
-
 static
 RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb, BOOL sync)
 {
