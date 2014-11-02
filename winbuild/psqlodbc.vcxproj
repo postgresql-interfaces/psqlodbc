@@ -148,6 +148,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'" >
     <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT</ADD_DEFINES>
+    <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'" >
     <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
