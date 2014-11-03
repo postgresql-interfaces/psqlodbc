@@ -26,6 +26,7 @@ TESTBINS = src/connect-test \
 	src/quotes-test \
 	src/cursors-test \
 	src/cursor-commit-test \
+	src/declare-fetch-commit-test \
 	src/positioned-update-test \
 	src/catalogfunctions-test \
 	src/bindcol-test \
