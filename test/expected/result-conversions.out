@@ -354,42 +354,6 @@ Executed: SET bytea_output=escape
 'textdata' (text) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
 'textdata' (text) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 'textdata' (text) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_CHAR: 3234567901
-'3234567901' (oid) as SQL_C_WCHAR: 3234567901
-'3234567901' (oid) as SQL_C_SSHORT: -26915
-'3234567901' (oid) as SQL_C_USHORT: 38621
-'3234567901' (oid) as SQL_C_SLONG: -1060399395
-'3234567901' (oid) as SQL_C_ULONG: 3234567901
-'3234567901' (oid) as SQL_C_FLOAT: 3234567936.000000
-'3234567901' (oid) as SQL_C_DOUBLE: 3234567901.000000
-'3234567901' (oid) as SQL_C_BIT: 221
-'3234567901' (oid) as SQL_C_STINYINT: -35
-'3234567901' (oid) as SQL_C_UTINYINT: 221
-'3234567901' (oid) as SQL_C_SBIGINT: 3234567901
-'3234567901' (oid) as SQL_C_UBIGINT: 3234567901
-'3234567901' (oid) as SQL_C_BINARY: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'3234567901' (oid) as SQL_C_BOOKMARK: 3234567901
-'3234567901' (oid) as SQL_C_VARBOOKMARK: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'3234567901' (oid) as SQL_C_TYPE_TIME: h: 0 m: 0 s: 0
-'3234567901' (oid) as SQL_C_NUMERIC: precision: 10 scale: 0 sign: 0 val: dd96cbc0000000000000000000000000
-'3234567901' (oid) as SQL_C_GUID: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'3234567901' (oid) as SQL_C_INTERVAL_YEAR: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_MONTH: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_DAY: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_HOUR: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_MINUTE: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_SECOND: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_YEAR_TO_MONTH: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_DAY_TO_HOUR: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_DAY_TO_MINUTE: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'3234567901' (oid) as SQL_C_INTERVAL_DAY_TO_SECOND: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
-'3234567901' (oid) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
 '(1,2)' (tid) as SQL_C_CHAR: (1,2)
 '(1,2)' (tid) as SQL_C_WCHAR: (1,2)
 '(1,2)' (tid) as SQL_C_SSHORT: 0

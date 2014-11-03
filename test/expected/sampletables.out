@@ -28,3 +28,6 @@ INSERT INTO booltab VALUES (5, 'not', false);
 CREATE FUNCTION simple_add(in int, in int, out int)
 AS $$ SELECT $1 + $2;
 $$ LANGUAGE SQL;
+-- Large object support
+CREATE DOMAIN lo AS oid;
+CREATE TABLE lo_test_tab (id int4, large_data lo);

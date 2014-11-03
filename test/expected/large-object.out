@@ -1,0 +1,6 @@
+\! "./src/large-object-test"
+connected
+inserting large object...
+reading it back...
+hex: 0102030405060708
+disconnecting

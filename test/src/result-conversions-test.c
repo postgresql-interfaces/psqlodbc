@@ -24,7 +24,7 @@ static const char *pgtypes[] =
 	"1234567",		"int4",
 	"int4pl",		"regproc",
 	"textdata",		"text",
-	"3234567901",	"oid",
+/*	"3234567901",	"oid", */ /* OID can be confused with large objects */
 	"(1,2)",		"tid",
 	"1234",			"xid",
 	"4321",			"cid",

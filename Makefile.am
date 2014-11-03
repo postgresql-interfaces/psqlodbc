@@ -106,6 +106,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/error-rollback.out \
 	test/expected/getresult.out \
 	test/expected/insertreturning.out \
+	test/expected/large-object.out \
 	test/expected/lfconversion.out \
 	test/expected/multistmt.out \
 	test/expected/notice.out \
@@ -145,6 +146,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/error-rollback-test.c \
 	test/src/getresult-test.c \
 	test/src/insertreturning-test.c \
+	test/src/large-object-test.c \
 	test/src/lfconversion-test.c \
 	test/src/multistmt-test.c \
 	test/src/notice-test.c \

@@ -36,4 +36,5 @@ TESTBINS = src/connect-test \
 	src/error-rollback-test \
 	src/diagnostic-test \
 	src/numeric-test \
+	src/large-object-test \
 	src/odbc-escapes-test
