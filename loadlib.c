@@ -512,13 +512,6 @@ BOOL SSLLIB_check(void)
 		hmodule = LoadLibrary(libpqlib);
 	mylog("libpq hmodule=%p\n", hmodule);
 #endif /* USE_LIBPQ */
-#ifdef	USE_SSPI
-	if (NULL == hmodule)
-	{
-		hmodule = LoadLibrary("secur32.dll");
-		mylog("secur32 hmodule=%p\n", hmodule);
-	}
-#endif /* USE_SSPI */
 	if (hmodule)
 		FreeLibrary(hmodule);
 	return (NULL != hmodule);

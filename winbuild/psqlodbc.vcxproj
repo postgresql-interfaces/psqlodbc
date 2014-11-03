@@ -87,14 +87,14 @@
     <ADD_INC></ADD_INC>
     <ADD_LIBPATH></ADD_LIBPATH>
     <RSC_DEFINES></RSC_DEFINES>
-    <DELAY_LOAD_DLLS></DELAY_LOAD_DLLS>
+    <DELAY_LOAD_DLLS>secur32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
   <!-- USE_LIBPQ -->
   <PropertyGroup Condition="'$(USE_LIBPQ)'!='no'" >
     <ADD_INC>$(ADD_INC);$(PG_INC);$(SSL_INC)</ADD_INC>
     <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB);$(SSL_LIB)</ADD_LIBPATH>
     <ADD_DEFINES>$(ADD_DEFINES);USE_LIBPQ;USE_SSL</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>libpq.dll;ssleay32.dll</DELAY_LOAD_DLLS>
+    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);libpq.dll;ssleay32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
   <!-- USE_GSS -->
   <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|Win32'" >
@@ -112,7 +112,7 @@
   <!-- USE_SSPI -->
   <PropertyGroup Condition="'$(USE_SSPI)'=='yes'" >
     <ADD_DEFINES>$(ADD_DEFINES);USE_SSPI</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);secur32.dll;crypt32.dll</DELAY_LOAD_DLLS>
+    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);crypt32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(ANSI_VERSION)'=='yes'">
@@ -198,7 +198,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;secur32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -217,7 +217,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;secur32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -236,7 +236,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -255,7 +255,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>

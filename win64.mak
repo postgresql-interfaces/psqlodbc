@@ -107,7 +107,7 @@ ADD_DEFINES=$(ADD_DEFINES) /D RESET_CRYPTO_CALLBACKS
 !ENDIF
 !ENDIF
 !IF "$(USE_SSPI)" == "yes"
-VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:secur32.dll /DelayLoad:crypt32.dll
+VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:crypt32.dll
 !ENDIF
 !IF "$(USE_GSS)" == "yes"
 VC07_DELAY_LOAD=$(VC07_DELAY_LOAD) /DelayLoad:gssapi64.dll
@@ -245,7 +245,7 @@ RSC_PROJ=$(RSC_PROJ) /d "_DEBUG"
 
 LINK32=link.exe
 LIB32=lib.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /def:"$(DEF_FILE)"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib advapi32.lib odbc32.lib odbccp32.lib wsock32.lib ws2_32.lib secur32.lib XOleHlp.lib winmm.lib msvcrt.lib $(CUSTOMLINKLIBS) /nologo /dll /def:"$(DEF_FILE)"
 !IF "$(MSDTC)" != "no"
 LINK32_FLAGS=$(LINK32_FLAGS) "$(OUTDIR)\$(DTCLIB).lib"
 !ENDIF
