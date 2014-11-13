@@ -264,7 +264,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_item[LARGE_REGISTRY_LEN];
-	char		keepaliveStr[32];
+	char		keepaliveStr[64];
 #ifdef	USE_LIBPQ
 	char		preferLibpqStr[32];
 #endif
