@@ -159,10 +159,10 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 			break;
 		case SQL_C_SLONG:
 			/* always 32-bits, regardless of native 'long' type */
-			printf("%d", *((SQLINTEGER *) buf));
+			printf("%d", (int) *((SQLINTEGER *) buf));
 			break;
 		case SQL_C_ULONG:
-			printf("%u", *((SQLUINTEGER *) buf));
+			printf("%u", (unsigned int) *((SQLUINTEGER *) buf));
 			break;
 		case SQL_C_FLOAT:
 			printf("%f", *((SQLREAL *) buf));
@@ -211,7 +211,8 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 				TIMESTAMP_STRUCT *tss = (TIMESTAMP_STRUCT *) buf;
 				printf("y: %d m: %u d: %u h: %d m: %u s: %u f: %u",
 					   tss->year, tss->month, tss->day,
-					   tss->hour, tss->minute, tss->second, tss->fraction);
+					   tss->hour, tss->minute, tss->second,
+					   (unsigned int) tss->fraction);
 			}
 			break;
 		case SQL_C_NUMERIC:
@@ -228,7 +229,7 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 			{
 				SQLGUID *g = (SQLGUID *) buf;
 				printf("d1: %04X d2: %04X d3: %04X d4: %02X%02X%02X%02X%02X%02X%02X%02X",
-					   g->Data1, g->Data2, g->Data3,
+					   (unsigned int) g->Data1, g->Data2, g->Data3,
 					   g->Data4[0], g->Data4[1], g->Data4[2], g->Data4[3],
 					   g->Data4[4], g->Data4[5], g->Data4[6], g->Data4[7]);
 			}
@@ -253,30 +254,32 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 				switch(s->interval_type)
 				{
 					case SQL_IS_YEAR:
-						printf("year: %u", s->intval.year_month.year);
+						printf("year: %u", (unsigned int) s->intval.year_month.year);
 						break;
 					case SQL_IS_MONTH:
-						printf("year: %u", s->intval.year_month.month);
+						printf("year: %u", (unsigned int) s->intval.year_month.month);
 						break;
 					case SQL_IS_DAY:
-						printf("day: %u", s->intval.day_second.day);
+						printf("day: %u", (unsigned int) s->intval.day_second.day);
 						break;
 					case SQL_IS_HOUR:
-						printf("hour: %u", s->intval.day_second.hour);
+						printf("hour: %u", (unsigned int) s->intval.day_second.hour);
 						break;
 					case SQL_IS_MINUTE:
-						printf("minute: %u", s->intval.day_second.minute);
+						printf("minute: %u", (unsigned int) s->intval.day_second.minute);
 						break;
 					case SQL_IS_SECOND:
-						printf("second: %u", s->intval.day_second.second);
+						printf("second: %u", (unsigned int) s->intval.day_second.second);
 						break;
 					case SQL_IS_YEAR_TO_MONTH:
-						printf("year %u month: %u", s->intval.year_month.year,
-							   s->intval.year_month.month);
+						printf("year %u month: %u",
+							   (unsigned int) s->intval.year_month.year,
+							   (unsigned int) s->intval.year_month.month);
 						break;
 					case SQL_IS_DAY_TO_HOUR:
-						printf("day: %u hour: %u", s->intval.day_second.day,
-							   s->intval.day_second.hour);
+						printf("day: %u hour: %u",
+							   (unsigned int) s->intval.day_second.day,
+							   (unsigned int) s->intval.day_second.hour);
 						break;
 					case SQL_IS_DAY_TO_MINUTE:
 						printf("day: %u hour: %u minute: %u",
@@ -286,29 +289,29 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 						break;
 					case SQL_IS_DAY_TO_SECOND:
 						printf("day: %u hour: %u minute: %u second: %u fraction: %u",
-							   s->intval.day_second.day,
-							   s->intval.day_second.hour,
-							   s->intval.day_second.minute,
-							   s->intval.day_second.second,
-							   s->intval.day_second.fraction);
+							   (unsigned int) s->intval.day_second.day,
+							   (unsigned int) s->intval.day_second.hour,
+							   (unsigned int) s->intval.day_second.minute,
+							   (unsigned int) s->intval.day_second.second,
+							   (unsigned int) s->intval.day_second.fraction);
 						break;
 					case SQL_IS_HOUR_TO_MINUTE:
 						printf("hour: %u minute: %u",
-							   s->intval.day_second.hour,
-							   s->intval.day_second.minute);
+							   (unsigned int) s->intval.day_second.hour,
+							   (unsigned int) s->intval.day_second.minute);
 						break;
 					case SQL_IS_HOUR_TO_SECOND:
 						printf("hour: %u minute: %u second: %u fraction: %u",
-							   s->intval.day_second.hour,
-							   s->intval.day_second.minute,
-							   s->intval.day_second.second,
-							   s->intval.day_second.fraction);
+							   (unsigned int) s->intval.day_second.hour,
+							   (unsigned int) s->intval.day_second.minute,
+							   (unsigned int) s->intval.day_second.second,
+							   (unsigned int) s->intval.day_second.fraction);
 						break;
 					case SQL_IS_MINUTE_TO_SECOND:
 						printf("minute: %u second: %u fraction: %u",
-							   s->intval.day_second.minute,
-							   s->intval.day_second.second,
-							   s->intval.day_second.fraction);
+							   (unsigned int) s->intval.day_second.minute,
+							   (unsigned int) s->intval.day_second.second,
+							   (unsigned int) s->intval.day_second.fraction);
 						break;
 					default:
 						printf("unknown interval type: %u", s->interval_type);
