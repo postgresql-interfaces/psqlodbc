@@ -1312,7 +1312,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 		char	outwrk[16];
 
 		slen += (strlen(l_keepalives_idle) + 2);
-		snprintf(outwrk, sizeof(outwrk), FORMAT_UINTEGER, self->connInfo.keepalive_idle);
+		snprintf(outwrk, sizeof(outwrk), FORMAT_INT4, self->connInfo.keepalive_idle);
 		slen += strlen(outwrk);
 	}
 	if (self->connInfo.keepalive_interval > 0)
@@ -1320,7 +1320,7 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 		char	outwrk[16];
 
 		slen += (strlen(l_keepalives_interval) + 2);
-		snprintf(outwrk, sizeof(outwrk), FORMAT_UINTEGER, self->connInfo.keepalive_interval);
+		snprintf(outwrk, sizeof(outwrk), FORMAT_INT4, self->connInfo.keepalive_interval);
 		slen += strlen(outwrk);
 	}
 
@@ -1365,14 +1365,14 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 	{
 		sprintf(ppacket, " %s=", l_keepalives_idle);
 		ppacket = strchr(ppacket, (int) '\0');
-		sprintf(ppacket, FORMAT_UINTEGER, self->connInfo.keepalive_idle);
+		sprintf(ppacket, FORMAT_INT4, self->connInfo.keepalive_idle);
 		ppacket = strchr(ppacket, (int) '\0');
 	}
 	if (self->connInfo.keepalive_interval > 0)
 	{
 		sprintf(ppacket, " %s=", l_keepalives_interval);
 		ppacket = strchr(ppacket, (int) '\0');
-		sprintf(ppacket, FORMAT_UINTEGER, self->connInfo.keepalive_interval);
+		sprintf(ppacket, FORMAT_INT4, self->connInfo.keepalive_interval);
 		ppacket = strchr(ppacket, (int) '\0');
 	}
 	*ppacket = '\0';
