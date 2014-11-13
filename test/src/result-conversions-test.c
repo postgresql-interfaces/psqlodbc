@@ -182,12 +182,12 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 		case SQL_C_SBIGINT:
 			/* XXX: the %ld format string won't handle the full 64-bit range on
 			 * all platforms. */
-			printf("%ld", *((SQLBIGINT *) buf));
+			printf("%ld", (long) *((SQLBIGINT *) buf));
 			break;
 		case SQL_C_UBIGINT:
 			/* XXX: the %lu format string won't handle the full 64-bit range on
 			 * all platforms. */
-			printf("%lu", *((SQLUBIGINT *) buf));
+			printf("%lu", (unsigned long) *((SQLUBIGINT *) buf));
 			break;
 		case SQL_C_BINARY:
 			printhex((unsigned char *) buf, strlen_or_ind);
