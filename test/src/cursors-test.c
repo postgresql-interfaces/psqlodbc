@@ -116,7 +116,7 @@ sql_commit_behavior_str(SQLUINTEGER info)
 			return "SQL_CB_PRESERVE";
 
 		default:
-			sprintf(buf, "unknown (%u)", info);
+			sprintf(buf, "unknown (%u)", (unsigned int) info);
 			return buf;
 	}
 }

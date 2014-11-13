@@ -283,9 +283,9 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 						break;
 					case SQL_IS_DAY_TO_MINUTE:
 						printf("day: %u hour: %u minute: %u",
-							   s->intval.day_second.day,
-							   s->intval.day_second.hour,
-							   s->intval.day_second.minute);
+							   (unsigned int) s->intval.day_second.day,
+							   (unsigned int) s->intval.day_second.hour,
+							   (unsigned int) s->intval.day_second.minute);
 						break;
 					case SQL_IS_DAY_TO_SECOND:
 						printf("day: %u hour: %u minute: %u second: %u fraction: %u",
