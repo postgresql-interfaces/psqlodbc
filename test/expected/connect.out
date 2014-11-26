@@ -1,3 +1,5 @@
 \! "./src/connect-test"
 connected
 disconnecting
+Connecting with SQLConnect...connected
+disconnecting

@@ -4,7 +4,8 @@
 
 #include "common.h"
 
-void testLargeResult(HSTMT hstmt, int betweenstmts)
+static void
+testLargeResult(HSTMT hstmt, int betweenstmts)
 {
 	int rc;
 	int i;

@@ -19,6 +19,8 @@ print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle)
 						message, 256, &textlen);
 	if (ret == SQL_INVALID_HANDLE)
 		printf("Invalid handle\n");
+	if (ret == SQL_NO_DATA)
+		printf("No error information\n");
 	else if (ret != SQL_ERROR)
 		printf("%s=%s\n", (CHAR *)sqlstate, (CHAR *)message);
 }

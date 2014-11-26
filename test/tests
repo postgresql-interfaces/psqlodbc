@@ -10,6 +10,7 @@
 TESTBINS = src/connect-test \
 	src/stmthandles-test \
 	src/select-test \
+	src/update-test \
 	src/commands-test \
 	src/multistmt-test \
 	src/getresult-test \
@@ -25,7 +26,9 @@ TESTBINS = src/connect-test \
 	src/alter-test \
 	src/quotes-test \
 	src/cursors-test \
+	src/cursor-movement-test \
 	src/cursor-commit-test \
+	src/bookmark-test \
 	src/declare-fetch-commit-test \
 	src/positioned-update-test \
 	src/catalogfunctions-test \
