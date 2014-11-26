@@ -69,7 +69,9 @@ extern "C" {
 #define INI_COMMLOG			"CommLog"	/* Communication to
 							 * backend logging */
 #define ABBR_COMMLOG			"B3"
-#define INI_PROTOCOL			"Protocol"	/* What protocol (6.2) */
+#define INI_PROTOCOL			"Protocol"	/* Controls rollback-on-error
+											 * behavior. Called "Protocol"
+											 * for historical reasons */
 #define ABBR_PROTOCOL			"A1"
 /*	"Optimizer", abbreviated to B4 used to stand for "disable genetic query
  * optimizer". No longer supported, you can use generic ConnSettings instead.
@@ -176,8 +178,6 @@ extern "C" {
 #define BIT_UPDATABLECURSORS			(1L<<1)
 #define BIT_DISALLOWPREMATURE			(1L<<2)
 #define BIT_UNIQUEINDEX				(1L<<3)
-#define BIT_PROTOCOL_63				(1L<<4)
-#define BIT_PROTOCOL_64				(1L<<5)
 #define BIT_UNKNOWN_DONTKNOW			(1L<<6)
 #define BIT_UNKNOWN_ASMAX			(1L<<7)
 #define BIT_COMMLOG				(1L<<10)

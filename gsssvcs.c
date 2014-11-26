@@ -161,8 +161,7 @@ mylog("!!! %s 1-1 outlen=%d\n", __FUNCTION__, goutbuf.length);
 		 * packet.
 		 */
 mylog("!!! %s 2\n", __FUNCTION__);
-		if (PROTOCOL_74(&(conn->connInfo)))
-			SOCK_put_char(sock, 'p');
+		SOCK_put_char(sock, 'p');
 		slen = goutbuf.length;
 		SOCK_put_int(sock, slen + 4, 4);
 		SOCK_put_n_char(sock, goutbuf.value, slen);
