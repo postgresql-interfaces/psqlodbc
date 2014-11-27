@@ -3,13 +3,9 @@
 #	This isn't a test application.
 #	Initial setting of odbc(inst).ini.
 #
-echo This isn\'t a test application
-echo Initializing odbc\(inst\).ini
-
 outini=odbc.ini
 outinstini=odbcinst.ini
-if test -s ${outini}; then exit; fi
- 
+
 drvr=../.libs/psqlodbcw
 driver=${drvr}.so
 if test ! -e $driver ; then
@@ -38,7 +34,7 @@ if test "${PGPORT}" != "" ; then
 	port=${PGPORT}
 fi
 
-echo creating $outini
+echo creating $outini: $@
 cat << _EOT_ > $outini
 [psqlodbc_test_dsn]
 Description             = psqlodbc regression test DSN
@@ -57,3 +53,9 @@ ShowOidColumn           = No
 FakeOidIndex            = No
 ConnSettings            =
 _EOT_
+
+# Add any extra options from the command line
+for opt in "$@"
+do
+    echo "${opt}" >> $outini
+done
