@@ -6,7 +6,31 @@
 
 #include "common.h"
 
+static void run_test();
+
 int main(int argc, char **argv)
+{
+	/*
+	 * SQLNumResultCols(), when run after SQLPrepare but before SQLExecute,
+	 * return 0 in UseServerSidePrepare=0 mode. Run the test in both modes,
+	 * mainly to make the output predictable regardless of the default
+	 * UseServerSidePrepare mode in effect.
+	 */
+	printf("Testing with UseServerSidePrepare=1\n");
+	test_connect_ext("UseServerSidePrepare=1");
+	run_test();
+	test_disconnect();
+
+	printf("Testing with UseServerSidePrepare=0\n");
+	test_connect_ext("UseServerSidePrepare=0");
+	run_test();
+	test_disconnect();
+
+	return 0;
+}
+
+static void
+run_test()
 {
 	SQLRETURN rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
@@ -15,8 +39,6 @@ int main(int argc, char **argv)
 	SQLSMALLINT colcount1, colcount2;
 	SQLCHAR *sql;
 	int i;
-
-	test_connect();
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
@@ -81,9 +103,4 @@ int main(int argc, char **argv)
 		print_diag("SQLFreeHandle failed", SQL_HANDLE_STMT, hstmt);
 		exit(1);
 	}
-
-	/* Clean up */
-	test_disconnect();
-
-	return 0;
 }

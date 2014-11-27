@@ -14,6 +14,7 @@ int main(int argc, char **argv)
 	SQLULEN paramSize;
 	SQLSMALLINT decDigits;
 	SQLSMALLINT nullable;
+	SQLUSMALLINT supported;
 
 	test_connect();
 
@@ -90,10 +91,22 @@ int main(int argc, char **argv)
 	rc = SQLPrepare(hstmt, (SQLCHAR *) "SELECT id, t FROM testtab1 WHERE id = ?", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
 
-	rc = SQLDescribeParam(hstmt, 1, &dataType, &paramSize, &decDigits, &nullable);
-	CHECK_STMT_RESULT(rc, "SQLDescribeParams failed", hstmt);
-	printf("Param 1: type %s; size %u; dec digits %d; %s\n",
-		   datatype_str(dataType), (unsigned int) paramSize, decDigits, nullable_str(nullable));
+	/*
+	 * SQLDescribeParam is not supported in UseServerSidePrepare=0 mode, so
+	 * check for IM001 result and continue the test if we get that.
+	 */
+	rc = SQLGetFunctions(conn, SQL_API_SQLDESCRIBEPARAM, &supported);
+	CHECK_CONN_RESULT(rc, "SQLGetFunctions failed", conn);
+	if (supported)
+	{
+		rc = SQLDescribeParam(hstmt, 1, &dataType, &paramSize, &decDigits, &nullable);
+		CHECK_STMT_RESULT(rc, "SQLDescribeParam failed", hstmt);
+		printf("Param 1: type %s; size %u; dec digits %d; %s\n",
+			   datatype_str(dataType), (unsigned int) paramSize, decDigits, nullable_str(nullable));
+	}
+	else
+		printf("Skipped, SQLDescribeParam is not supported\n");
+
 	/* bind param  */
 	strcpy(param1, "3");
 	cbParam1 = SQL_NTS;

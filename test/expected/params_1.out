@@ -1,0 +1,17 @@
+\! "./src/params-test"
+connected
+# of result cols: 2
+Result set:
+1	0102030405060708
+
+Testing SQLBindParameter with SQLExecDirect...
+Result set:
+foo
+bar
+
+Testing SQLDescribeParam...
+Skipped, SQLDescribeParam is not supported
+# of result cols: 2
+Result set:
+3	foobar
+disconnecting

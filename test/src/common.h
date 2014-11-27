@@ -23,6 +23,13 @@ extern SQLHDBC conn;
 		exit(1);									\
     }
 
+#define CHECK_CONN_RESULT(rc, msg, hconn)	\
+	if (!SQL_SUCCEEDED(rc)) \
+	{ \
+		print_diag(msg, SQL_HANDLE_DBC, hconn);	\
+		exit(1);									\
+    }
+
 extern void print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle);
 extern void test_connect_ext(char *extraparams);
 extern void test_connect(void);

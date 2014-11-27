@@ -1,6 +1,6 @@
 /*
- * Test what happens when the transaction is committed while fetching from a result
- * set.
+ * Test what happens when the transaction is committed while fetching from a
+ * result set.
  */
 
 #include <string.h>
@@ -17,9 +17,10 @@ int main(int argc, char **argv)
 
 	/****
      * Run this test with UseDeclareFetch = 1 and Fetch=1, so that we fetch
-     * one row at a time
+     * one row at a time. Protocol=-2 is required so that the cursors survives
+	 * the commit.
      */
-	test_connect_ext("UseDeclareFetch=1;Fetch=1");
+	test_connect_ext("UseDeclareFetch=1;Fetch=1;Protocol=7.4-2");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
