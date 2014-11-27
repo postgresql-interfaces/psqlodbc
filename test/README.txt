@@ -25,6 +25,9 @@ The PostgreSQL username used for the test is determined by the normal ODBC /
 libpq rules. You can set the PGUSER environment variable or .pgpass to
 override.
 
+You can also run "make installcheck-all" to run the regression suite with
+different combinations of configuration options.
+
 Windows
 =======
 

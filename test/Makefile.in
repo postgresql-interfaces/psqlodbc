@@ -32,7 +32,7 @@ LIBODBC := $(shell $(ODBC_CONFIG) --libs)
 all: $(TESTBINS) $(TESTSQLS)
 
 odbc.ini:
-	./odbcini-gen.sh
+	./odbcini-gen.sh $(odbc_ini_extras)
 
 installcheck: all odbc.ini
 
@@ -62,3 +62,34 @@ ifndef PGXS
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 endif
 include $(PGXS)
+
+# This target runs the regression tests with all combinations of
+# UseDeclareFetch, UseServerSidePrepare and Protocol options.
+installcheck-all:
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=0 UseServerSidePrepare=1 Protocol=7.4-2"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=0 UseServerSidePrepare=1 Protocol=7.4-1"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=0 UseServerSidePrepare=1 Protocol=7.4-0"
+
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=0 UseServerSidePrepare=0 Protocol=7.4-2"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=0 UseServerSidePrepare=0 Protocol=7.4-1"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=0 UseServerSidePrepare=0 Protocol=7.4-0"
+
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=1 Protocol=7.4-2"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=1 Protocol=7.4-1"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=1 Protocol=7.4-0"
+
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=0 Protocol=7.4-2"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=0 Protocol=7.4-1"
+	rm -f odbc.ini odbcinst.ini
+	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=0 Protocol=7.4-0"
