@@ -575,6 +575,20 @@ int main(int argc, char **argv)
 	test_conversion("timestamp", "2011-02-15 15:49:18 BC", SQL_C_CHAR, "SQL_C_CHAR", 20);
 
 
+	/* Test special float values */
+	test_conversion("float4", "NaN", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
+	test_conversion("float4", "Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
+	test_conversion("float4", "-Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
+	test_conversion("float8", "NaN", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
+	test_conversion("float8", "Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
+	test_conversion("float8", "-Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
+	test_conversion("float4", "NaN", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+	test_conversion("float4", "Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+	test_conversion("float4", "-Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+	test_conversion("float8", "NaN", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+	test_conversion("float8", "Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+	test_conversion("float8", "-Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+
 	/* Clean up */
 	test_disconnect();
 

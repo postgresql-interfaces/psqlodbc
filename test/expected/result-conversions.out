@@ -1332,4 +1332,16 @@ Executed: SET bytea_output=hex
 '' (text) as SQL_C_WCHAR: \FF00\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF (truncated)
 '2011-02-15 15:49:18' (timestamp) as SQL_C_CHAR: 2011-02-15 15:49:1 (truncated)
 '2011-02-15 15:49:18 BC' (timestamp) as SQL_C_CHAR: 2011-02-15 15:49:18 (truncated)
+'NaN' (float4) as SQL_C_FLOAT: nan
+'Infinity' (float4) as SQL_C_FLOAT: inf
+'-Infinity' (float4) as SQL_C_FLOAT: -inf
+'NaN' (float8) as SQL_C_FLOAT: nan
+'Infinity' (float8) as SQL_C_FLOAT: inf
+'-Infinity' (float8) as SQL_C_FLOAT: -inf
+'NaN' (float4) as SQL_C_DOUBLE: nan
+'Infinity' (float4) as SQL_C_DOUBLE: inf
+'-Infinity' (float4) as SQL_C_DOUBLE: -inf
+'NaN' (float8) as SQL_C_DOUBLE: nan
+'Infinity' (float8) as SQL_C_DOUBLE: inf
+'-Infinity' (float8) as SQL_C_DOUBLE: -inf
 disconnecting
