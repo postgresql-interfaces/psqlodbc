@@ -111,7 +111,6 @@ int main(int argc, char **argv)
 {
 	int rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	SQLUSMALLINT info;
 
 	test_connect();
 
