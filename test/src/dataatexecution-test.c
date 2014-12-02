@@ -8,9 +8,9 @@ int main(int argc, char **argv)
 {
 	SQLRETURN rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
-	char *param1, *param2;
+	char *param1;
 	SQLLEN cbParam1, cbParam2;
-	SQLLEN param1bytes, param2bytes;
+	SQLLEN param1bytes;
 	PTR paramid;
 	SQLLEN str_ind_array[2];
 	SQLUSMALLINT status_array[2];
@@ -38,8 +38,6 @@ int main(int argc, char **argv)
 	param1 = "bar";
 	param1bytes = strlen(param1);
 	cbParam1 = SQL_DATA_AT_EXEC;
-	param2 = "foobar";
-	param2bytes = strlen(param2);
 	cbParam2 = SQL_DATA_AT_EXEC;
 
 	/* bind them. */
@@ -57,7 +55,7 @@ int main(int argc, char **argv)
 	rc = SQLBindParameter(hstmt, 2, SQL_PARAM_INPUT,
 						  SQL_C_BINARY,	/* value type */
 						  SQL_VARBINARY, /* param type */
-						  param2bytes,	/* column size */
+						  6,	/* column size */
 						  0,			/* dec digits */
 						  (void *) 2,	/* param value ptr. For a data-at-exec
 										 * param, this is a "parameter id" */
@@ -81,7 +79,10 @@ int main(int argc, char **argv)
 	  }
 	  else if (paramid == (void *) 2)
 	  {
-		  rc = SQLPutData(hstmt, param2, param2bytes);
+		  rc = SQLPutData(hstmt, "foo", 3);
+		  CHECK_STMT_RESULT(rc, "SQLPutData failed", hstmt);
+		  /* append more data */
+		  rc = SQLPutData(hstmt, "bar", 3);
 		  CHECK_STMT_RESULT(rc, "SQLPutData failed", hstmt);
 	  }
 	  else
