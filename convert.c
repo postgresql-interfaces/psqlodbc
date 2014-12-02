@@ -2762,7 +2762,6 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		goto cleanup;
 	}
 	SC_forget_unnamed(stmt);
-	buildPrepareStatement = FALSE;
 
 	if (ci->disallow_premature)
 		prepare_dummy_cursor = stmt->pre_executing;
@@ -5007,7 +5006,7 @@ mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 			SQLLEN	paramlen;
 			int	pidx;
 
-			for (prtlen = 0, mapptr = mapExpr; *mapptr; mapptr++)
+			for (mapptr = mapExpr; *mapptr; mapptr++)
 			{
 				if (*mapptr != '$')
 				{

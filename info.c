@@ -914,6 +914,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		case SQL_INDEX_KEYWORDS:
 			len = 4;
 			value = SQL_IK_NONE;
+			break;
 		case SQL_INFO_SCHEMA_VIEWS:
 			len = 4;
 			value = 0;

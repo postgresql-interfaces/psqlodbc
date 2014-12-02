@@ -453,7 +453,7 @@ inolog("hlen=%d", hlen);
 		{
 			char	abbrevmode[sizeof(ci->sslmode)];
 
-			olen = snprintf(&connect_string[hlen], nlen, ";"
+			(void) snprintf(&connect_string[hlen], nlen, ";"
 				ABBR_SSLMODE "=%s", abbrev_sslmode(ci->sslmode, abbrevmode));
 		}
 		hlen = strlen(connect_string);

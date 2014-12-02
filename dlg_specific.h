@@ -288,7 +288,6 @@ LRESULT CALLBACK manage_dsnProc(HWND hdlg,
 			   LPARAM lParam);
 #endif   /* WIN32 */
 
-void		updateGlobals(void);
 int		writeDriverCommoninfo(const char *fileName, const char *sectionName,
 		const GLOBAL_VALUES *);
 void		writeDSNinfo(const ConnInfo *ci);
@@ -300,7 +299,6 @@ BOOL		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *valu
 int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);
 int	getLogDir(char *dir, int dirmax);
 int	setLogDir(const char *dir);
-int     changeDriverNameOfaDSN(const char *dsn, const char *driver_name, DWORD *errcode);
 UInt4	getExtraOptions(const ConnInfo *);
 BOOL	setExtraOptions(ConnInfo *, const char *str, const char *format);
 char	*extract_extra_attribute_setting(const pgNAME setting, const char *attr);

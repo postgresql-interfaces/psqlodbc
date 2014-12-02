@@ -2651,7 +2651,6 @@ static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 		rollbps = rollbp = res->rb_count;
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
 		{
-			index = rollback[i].index;
 			keys.blocknum = rollback[i].blocknum;
 			keys.offset = rollback[i].offset;
 			texist = tupleExists(stmt, &keys);
@@ -3872,7 +3871,6 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 
 			if (0 != oid)
 				poid = &oid;
-			qret = SQL_NO_DATA_FOUND;
 
 			if (NULL != tres->backend_tuples &&
 			    1 == QR_get_num_cached_tuples(tres))

@@ -1070,7 +1070,7 @@ next_param_row:
 			/* Check for data at execution parameters */
 			if (apdopts->parameters[i].data_at_exec)
 			{
-				mylog("The %dth parameter of %d-row is data at exec(%d)\n", i, current_row, *pcVal);
+				mylog("The %dth parameter of %d-row is data at exec(%d)\n", i, current_row, pcVal ? (*pcVal) : -1);
 				if (stmt->data_at_exec < 0)
 					stmt->data_at_exec = 1;
 				else
@@ -1479,7 +1479,7 @@ PGAPI_PutData(HSTMT hstmt,
 	ParameterInfoClass *current_param;
 	ParameterImplClass *current_iparam;
 	PutDataClass	*current_pdata;
-	char	   *buffer, *putbuf, *allocbuf = NULL;
+	char	   *putbuf, *allocbuf = NULL;
 	Int2		ctype;
 	SQLLEN		putlen;
 	BOOL		lenset = FALSE, handling_lo = FALSE;
@@ -1654,11 +1654,13 @@ PGAPI_PutData(HSTMT hstmt,
 		}
 		else
 		{
-			buffer = current_pdata->EXEC_buffer;
 			old_pos = *current_pdata->EXEC_used;
 			if (putlen > 0)
 			{
-				SQLLEN	used = *current_pdata->EXEC_used + putlen, allocsize;
+				SQLLEN	used = *current_pdata->EXEC_used + putlen;
+				SQLLEN allocsize;
+				char *buffer;
+
 				for (allocsize = (1 << 4); allocsize <= used; allocsize <<= 1) ;
 				mylog("        cbValue = %d, old_pos = %d, *used = %d\n", putlen, old_pos, used);
 
