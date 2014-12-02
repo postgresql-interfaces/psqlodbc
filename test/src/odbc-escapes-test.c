@@ -82,6 +82,32 @@ int main(int argc, char **argv)
 	prepareQuery(hstmt, "SELECT 'x' || {fn SPACE(10) } || 'x'");
 	executeQuery(hstmt);
 
+	/**** CALL escapes ****/
+
+	prepareQuery(hstmt, "{ call length(?) }");
+	bindParamString(hstmt, 1, "foobar");
+	executeQuery(hstmt);
+
+	prepareQuery(hstmt, "{ call right(?, ?) }");
+	bindParamString(hstmt, 1, "foobar");
+	bindParamString(hstmt, 2, "3");
+	executeQuery(hstmt);
+
+	/* TODO: This doesn't currently work.
+	prepareQuery(hstmt, "{ ? = call concat(?, ?) }");
+	*/
+
+	/**** Date, Time, and Timestamp literals ****/
+
+	prepareQuery(hstmt, "SELECT {d '2014-12-21' } + '1 day'::interval");
+	executeQuery(hstmt);
+
+	prepareQuery(hstmt, "SELECT {t '20:30:40' } + '1 hour 1 minute 1 second'::interval");
+	executeQuery(hstmt);
+
+	prepareQuery(hstmt, "SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::interval");
+	executeQuery(hstmt);
+
 	/* Clean up */
 	test_disconnect();
 

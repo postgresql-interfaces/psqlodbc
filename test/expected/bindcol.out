@@ -1,7 +1,14 @@
 \! "./src/bindcol-test"
 connected
 Result set:
-1 foo
-2 bar
-3 foobar
+1 foo1
+2 foo2
+3 foo3
+4 foo3
+5 foo3
+6 foo6
+7 foo7
+7 foo7
+7 foo7
+7 foo10
 disconnecting

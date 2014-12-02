@@ -103,6 +103,30 @@ testBookmarks(HSTMT hstmt)
 	rc = SQLFetchScroll(hstmt, SQL_FETCH_BOOKMARK, -10);
 	printFetchResult(hstmt, rc);
 
+	/*** Test getting a bookmark with SQLBindCol */
+	printf("Getting bookmark with SQLBindCol...\n");
+	rc = SQLBindCol(hstmt, 0, SQL_C_VARBOOKMARK, book_middle, sizeof(book_middle), &book_middle_ind);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+
+	rc = SQLFetchScroll(hstmt, SQL_FETCH_ABSOLUTE, 100);
+	printFetchResult(hstmt, rc);
+
+	printf("Unbinding boomark column...\n");
+	rc = SQLBindCol(hstmt, 0, SQL_C_VARBOOKMARK, NULL, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+
+	printf("Moving +100...\n");
+	rc = SQLFetchScroll(hstmt, SQL_FETCH_RELATIVE, 100);
+	printFetchResult(hstmt, rc);
+
+	printf("Goind back to bookmark acquired with SQLBindCol...\n");
+	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_FETCH_BOOKMARK_PTR,
+						(SQLPOINTER) book_middle, SQL_IS_POINTER);
+	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr failed", hstmt);
+
+	rc = SQLFetchScroll(hstmt, SQL_FETCH_BOOKMARK, 0);
+	printFetchResult(hstmt, rc);
+
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 }

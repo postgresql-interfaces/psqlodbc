@@ -16,4 +16,27 @@ Result set:
 Query: SELECT 'x' || {fn SPACE(10) } || 'x'
 Result set:
 x          x
+
+Query: { call length(?) }
+Param 1: foobar
+Result set:
+6
+
+Query: { call right(?, ?) }
+Param 1: foobar
+Param 2: 3
+Result set:
+bar
+
+Query: SELECT {d '2014-12-21' } + '1 day'::interval
+Result set:
+2014-12-22 00:00:00
+
+Query: SELECT {t '20:30:40' } + '1 hour 1 minute 1 second'::interval
+Result set:
+21:31:41
+
+Query: SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::interval
+Result set:
+2014-12-22 21:31:41
 disconnecting
