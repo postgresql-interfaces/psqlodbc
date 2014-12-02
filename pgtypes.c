@@ -1198,11 +1198,13 @@ pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, int att
 {
 	int	coef = 1;
 	Int4	maxvarc, column_size;
+
 	switch (type)
 	{
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_TEXT:
+		case PG_TYPE_UNKNOWN:
 			column_size = pgtype_attr_column_size(conn, type, atttypmod, PG_UNSPECIFIED, handle_unknown_size_as);
 			if (SQL_NO_TOTAL == column_size)
 				return column_size;
