@@ -7,7 +7,15 @@ Opening a cursor for update, and fetching 10 rows
 3	3
 4	4
 5	5
+
 Updating result set
+
+Re-fetching the rows in the result set
+6	6
+105	5
+4	4
+
+Querying the table again
 Result set:
 1	1
 2	2

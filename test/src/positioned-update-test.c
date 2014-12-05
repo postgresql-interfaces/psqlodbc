@@ -4,10 +4,33 @@
 
 #include "common.h"
 
+void
+printCurrentRow(HSTMT hstmt)
+{
+	char		buf[40];
+	int			col;
+	SQLLEN		ind;
+	int			rc;
+
+	for (col = 1; col <= 2; col++)
+	{
+		rc = SQLGetData(hstmt, col, SQL_C_CHAR, buf, sizeof(buf), &ind);
+		if (!SQL_SUCCEEDED(rc))
+		{
+			print_diag("SQLGetData failed", SQL_HANDLE_STMT, hstmt);
+			exit(1);
+		}
+		if (ind == SQL_NULL_DATA)
+			strcpy(buf, "NULL");
+		printf("%s%s", (col > 1) ? "\t" : "", buf);
+	}
+	printf("\n");
+}
+
 int main(int argc, char **argv)
 {
-	int rc;
-	HSTMT hstmt = SQL_NULL_HSTMT;
+	int			rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
 	int			i;
 	SQLINTEGER	colvalue;
 	SQLLEN		indColvalue;
@@ -55,23 +78,8 @@ int main(int argc, char **argv)
 			break;
 		if (rc == SQL_SUCCESS)
 		{
-			char buf[40];
-			int col;
-			SQLLEN ind;
 
-			for (col = 1; col <= 2; col++)
-			{
-				rc = SQLGetData(hstmt, col, SQL_C_CHAR, buf, sizeof(buf), &ind);
-				if (!SQL_SUCCEEDED(rc))
-				{
-					print_diag("SQLGetData failed", SQL_HANDLE_STMT, hstmt);
-					exit(1);
-				}
-				if (ind == SQL_NULL_DATA)
-					strcpy(buf, "NULL");
-				printf("%s%s", (col > 1) ? "\t" : "", buf);
-			}
-			printf("\n");
+			printCurrentRow(hstmt);
 		}
 		else
 		{
@@ -81,7 +89,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Do a positioned update and delete */
-	printf("Updating result set\n");
+	printf("\nUpdating result set\n");
 	colvalue += 100;
 	rc = SQLSetPos(hstmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
 	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
@@ -92,10 +100,28 @@ int main(int argc, char **argv)
 	rc = SQLSetPos(hstmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE);
 	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
 
+
+	/**** See if the updates are reflected in the still-open result set ***/
+	printf("\nRe-fetching the rows in the result set\n");
+
+	rc = SQLFetchScroll(hstmt, SQL_FETCH_RELATIVE, 0);
+	CHECK_STMT_RESULT(rc, "SQLFetchScroll failed", hstmt);
+	printCurrentRow(hstmt);
+
+	rc = SQLFetchScroll(hstmt, SQL_FETCH_PRIOR, -1);
+	CHECK_STMT_RESULT(rc, "SQLFetchScroll failed", hstmt);
+	printCurrentRow(hstmt);
+
+	rc = SQLFetchScroll(hstmt, SQL_FETCH_PRIOR, -1);
+	CHECK_STMT_RESULT(rc, "SQLFetchScroll failed", hstmt);
+	printCurrentRow(hstmt);
+
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
-	/* See if the update took effect */
+
+	/**** See if the updates really took effect ****/
+	printf("\nQuerying the table again\n");
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM pos_update_test ORDER BY orig", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 	print_result(hstmt);
