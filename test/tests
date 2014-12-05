@@ -33,6 +33,7 @@ TESTBINS = src/connect-test \
 	src/bookmark-test \
 	src/declare-fetch-commit-test \
 	src/positioned-update-test \
+	src/bulkoperations-test \
 	src/catalogfunctions-test \
 	src/bindcol-test \
 	src/lfconversion-test \

@@ -1012,14 +1012,15 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 
 		if (rgbValue)
 		{
-			if (SQL_C_BOOKMARK == target_type || 4 <= cbValueMax)
+			if (SQL_C_BOOKMARK == target_type || sizeof(BOOKMARK) <= cbValueMax)
 			{
+				SQLULEN tmp = SC_get_bookmark(stmt);
+				memcpy(rgbValue, &tmp, sizeof(BOOKMARK));
 				contents_get = TRUE;
-				*((SQLULEN *) rgbValue) = SC_get_bookmark(stmt);
 			}
 		}
 		if (pcbValue)
-			*pcbValue = sizeof(SQLULEN);
+			*pcbValue = sizeof(BOOKMARK);
 
 		if (contents_get)
 			result = SQL_SUCCESS;
