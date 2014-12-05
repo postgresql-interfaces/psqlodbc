@@ -674,6 +674,7 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 	QResultClass *res;
 	SQLLEN		ridx;
 	SQLINTEGER	len = sizeof(SQLINTEGER);
+	UInt4		bookmark;
 
 	mylog("%s: entering...\n", func);
 
@@ -726,7 +727,8 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 				return SQL_ERROR;
 			}
 
-			*((SQLULEN *) pvParam) = SC_get_bookmark(stmt);
+			bookmark = SC_get_bookmark(stmt);
+			memcpy(pvParam, &bookmark, sizeof(UInt4));
 
 			break;
 

@@ -40,8 +40,18 @@ int main(int argc, char **argv)
 	SQLINTEGER	colvalue2;
 	SQLLEN		indColvalue1;
 	SQLLEN		indColvalue2;
-	char		bookmark[100];
+	char		bookmark[10];
 	SQLLEN		bookmark_ind;
+
+	char		saved_bookmarks[3][10];
+	SQLLEN		saved_bookmark_inds[3];
+	SQLINTEGER	colvalues1[3];
+	SQLINTEGER	colvalues2[3];
+	SQLLEN		indColvalues1[3];
+	SQLLEN		indColvalues2[3];
+
+	memset(bookmark, 0x7F, sizeof(bookmark));
+	memset(saved_bookmarks, 0xF7, sizeof(saved_bookmarks));
 
 	test_connect_ext("UpdatableCursors=1;UseDeclareFetch=0");
 
@@ -88,7 +98,7 @@ int main(int argc, char **argv)
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM bulkoperations_test ORDER BY orig", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 
-	for (i = 0; i < 5; i++)
+	for (i = 1; i <= 5; i++)
 	{
 		rc = SQLFetch(hstmt);
 		if (rc == SQL_NO_DATA)
@@ -99,6 +109,13 @@ int main(int argc, char **argv)
 		{
 			print_diag("SQLFetch failed", SQL_HANDLE_STMT, hstmt);
 			exit(1);
+		}
+
+		/* Save row # 2's bookmark for fetch test */
+		if (i == 2)
+		{
+			memcpy(saved_bookmarks[0], bookmark, bookmark_ind);
+			saved_bookmark_inds[0] = bookmark_ind;
 		}
 	}
 
@@ -123,14 +140,50 @@ int main(int argc, char **argv)
 	/* Print the updated row */
 	printCurrentRow(hstmt);
 
+	/* remember its bookmark for later fetch */
+	memcpy(saved_bookmarks[1], bookmark, bookmark_ind);
+	saved_bookmark_inds[1] = bookmark_ind;
+
 	/* Perform an insertion */
 	colvalue1 = 1234;
 	colvalue2 = 5678;
 	rc = SQLBulkOperations(hstmt, SQL_ADD);
 	CHECK_STMT_RESULT(rc, "SQLBulkOperations failed", hstmt);
 
+	/* Remember the bookmark of the inserted row */
+	memcpy(saved_bookmarks[2], bookmark, bookmark_ind);
+	saved_bookmark_inds[2] = bookmark_ind;
+
+	/**** Test bulk fetch *****/
+	printf("Testing bulk fetch of original, updated, and inserted rows\n");
+	rc = SQLBindCol(hstmt, 0, SQL_C_VARBOOKMARK, saved_bookmarks, sizeof(bookmark), saved_bookmark_inds);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+	rc = SQLBindCol(hstmt, 1, SQL_C_LONG, colvalues1, 0, indColvalues1);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+	rc = SQLBindCol(hstmt, 2, SQL_C_LONG, colvalues2, 0, indColvalues2);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+
+	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER) 3, 0);
+	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr failed", hstmt);
+
+	/*
+	 * FIXME: Disabled, because this doesn't currently seem to produce the
+	 * right results.
+	 */
+#ifdef BROKEN
+	rc = SQLBulkOperations(hstmt, SQL_FETCH_BY_BOOKMARK);
+	CHECK_STMT_RESULT(rc, "SQLBulkOperations failed", hstmt);
+
+	printf ("row no #2: %d - %d\n", colvalues1[0], colvalues2[0]);
+	printf ("updated row: %d - %d\n", colvalues1[1], colvalues2[1]);
+	printf ("inserted row: %d - %d\n", colvalues1[2], colvalues2[2]);
+#endif
+
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER) 1, 0);
+	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr failed", hstmt);
 
 	/**** See if the updates really took effect ****/
 	printf("\nQuerying the table again\n");

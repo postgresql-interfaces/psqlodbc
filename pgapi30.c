@@ -1933,7 +1933,7 @@ inolog("set ard=%p\n", stmt->ard);
 
 #define	CALC_BOOKMARK_ADDR(book, offset, bind_size, index) \
 	(book->buffer + offset + \
-	(bind_size > 0 ? bind_size : (SQL_C_VARBOOKMARK == book->returntype ? book->buflen : sizeof(BOOKMARK))) * index)
+	(bind_size > 0 ? bind_size : (SQL_C_VARBOOKMARK == book->returntype ? book->buflen : sizeof(UInt4))) * index)
 
 /*	SQL_NEED_DATA callback for PGAPI_BulkOperations */
 typedef struct
@@ -1976,8 +1976,8 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	{
 		if (SQL_ADD != s->operation)
 		{
-			BOOKMARK tmp;
-			memcpy(&tmp, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, s->idx), sizeof(BOOKMARK));
+			UInt4 tmp;
+			memcpy(&tmp, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, s->idx), sizeof(UInt4));
 			global_idx = SC_resolve_bookmark(tmp);
 		}
 		/* Note opts->row_operation_ptr is ignored */

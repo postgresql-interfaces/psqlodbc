@@ -10,6 +10,7 @@ Opening a cursor for update, and fetching 10 rows
 
 Updating result set
 105	5
+Testing bulk fetch of original, updated, and inserted rows
 
 Querying the table again
 Result set:
