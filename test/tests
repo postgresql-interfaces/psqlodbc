@@ -29,6 +29,7 @@ TESTBINS = src/connect-test \
 	src/cursors-test \
 	src/cursor-movement-test \
 	src/cursor-commit-test \
+	src/cursor-name-test \
 	src/bookmark-test \
 	src/declare-fetch-commit-test \
 	src/positioned-update-test \

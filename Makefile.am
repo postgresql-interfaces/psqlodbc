@@ -99,11 +99,12 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/cte.out \
 	test/expected/cursor-commit.out \
 	test/expected/cursor-movement.out \
-	test/expected/declare-fetch-commit-test.out \
+	test/expected/cursor-name.out \
 	test/expected/cursors.out \
 	test/expected/cursors_1.out \
 	test/expected/cvtnulldate.out \
 	test/expected/dataatexecution.out \
+	test/expected/declare-fetch-commit-test.out \
 	test/expected/deprecated.out \
 	test/expected/diagnostic.out \
 	test/expected/error-rollback.out \
@@ -144,10 +145,11 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/cte-test.c \
 	test/src/cursor-commit-test.c \
 	test/src/cursor-movement-test.c \
-	test/src/declare-fetch-commit-test.c \
+	test/src/cursor-name-test.c \
 	test/src/cursors-test.c \
 	test/src/cvtnulldate-test.c \
 	test/src/dataatexecution-test.c \
+	test/src/declare-fetch-commit-test.c \
 	test/src/deprecated-test.c \
 	test/src/diagnostic-test.c \
 	test/src/error-rollback-test.c \
