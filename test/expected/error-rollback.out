@@ -4,7 +4,7 @@ connected
 Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "foo"
+22P02=ERROR: invalid input syntax for integer: "fail1"
 Rolling back with SQLEndTran
 Executing query that will succeed
 Result set:
@@ -15,7 +15,7 @@ connected
 Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "foo"
+22P02=ERROR: invalid input syntax for integer: "fail1"
 Executing query that will succeed
 Result set:
 1
@@ -23,11 +23,30 @@ disconnecting
 Test for rollback protocol 2
 connected
 Executing query that will succeed
+Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "foo"
+22P02=ERROR: invalid input syntax for integer: "fail-1"
+Executing query that will succeed
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for integer: "fail-1"
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for integer: "fail-1"
+Executing query that will succeed
+Executing procedure call that will fail
+Failed to execute procedure call
+22P02=ERROR: invalid input syntax for integer: "fail-1"
+Executing query that will succeed
 Executing query that will succeed
 Result set:
 1
-1
+2
+3
+4
+5
+6
+7
 disconnecting

@@ -13,7 +13,7 @@
 
 HSTMT hstmt = SQL_NULL_HSTMT;
 
-void
+static void
 error_rollback_init(char *options)
 {
 	SQLRETURN rc;
@@ -50,17 +50,10 @@ error_rollback_init(char *options)
 	CHECK_STMT_RESULT(rc, "SQLEndTran failed", hstmt);
 }
 
-void
+static void
 error_rollback_clean(void)
 {
 	SQLRETURN rc;
-
-	/* Leave if trying to clean an empty handle */
-	if (hstmt == SQL_NULL_HSTMT)
-	{
-		printf("Handle is NULL, leaving...\n");
-		exit(1);
-	}
 
 	/* Clean up everything */
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
@@ -69,47 +62,35 @@ error_rollback_clean(void)
 	hstmt = SQL_NULL_HSTMT;
 }
 
-void
-error_rollback_exec_success(void)
+static void
+error_rollback_exec_success(int arg)
 {
 	SQLRETURN rc;
-
-	/* Leave if executing with an empty handle */
-	if (hstmt == SQL_NULL_HSTMT)
-	{
-		printf("Cannot execute query with NULL handle\n");
-		exit(1);
-	}
+	char buf[100];
 
 	printf("Executing query that will succeed\n");
 
 	/* Now execute the query */
-	rc = SQLExecDirect(hstmt,
-					   (SQLCHAR *) "INSERT INTO errortab VALUES (1)",
-					   SQL_NTS);
+	snprintf(buf, sizeof(buf), "INSERT INTO errortab VALUES (%d)", arg);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) buf, SQL_NTS);
 
 	/* Print error if any, but do not exit */
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 }
 
-void
-error_rollback_exec_failure(void)
+/* Runs a query that's expected to fail */
+static void
+error_rollback_exec_failure(int arg)
 {
 	SQLRETURN rc;
-
-	/* Leave if executing with an empty handle */
-	if (hstmt == SQL_NULL_HSTMT)
-	{
-		printf("Cannot execute query with NULL handle\n");
-		exit(1);
-	}
+	char buf[100];
 
 	printf("Executing query that will fail\n");
 
+	snprintf(buf, sizeof(buf), "INSERT INTO errortab VALUES ('fail%d')", arg);
+
 	/* Now execute the query */
-	rc = SQLExecDirect(hstmt,
-					   (SQLCHAR *) "INSERT INTO errortab VALUES ('foo')",
-					   SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) buf, SQL_NTS);
 	if (SQL_SUCCEEDED(rc))
 	{
 		printf("SQLExecDirect should have failed but it succeeded\n");
@@ -120,22 +101,40 @@ error_rollback_exec_failure(void)
 	print_diag("Failed to execute statement", SQL_HANDLE_DBC, conn);
 }
 
+/*
+ * Runs another query that's expected to fail.
+ *
+ * This query uses the ODBC procedure call escape syntax, because such queries
+ * go through a slightly different execution path in the driver.
+ */
+void
+error_rollback_exec_proccall_failure(void)
+{
+	SQLRETURN rc;
+
+	printf("Executing procedure call that will fail\n");
+
+	/* Now execute the query */
+	rc = SQLExecDirect(hstmt,
+					   (SQLCHAR *) "{ call invalidfunction() }",
+					   SQL_NTS);
+	if (SQL_SUCCEEDED(rc))
+	{
+		printf("SQLExecDirect should have failed but it succeeded\n");
+		exit(1);
+	}
+
+	/* Print error, it is expected */
+	print_diag("Failed to execute procedure call", SQL_HANDLE_DBC, conn);
+}
+
 void
 error_rollback_print(void)
 {
 	SQLRETURN rc;
 
-	/* Leave if executing with an empty handle */
-	if (hstmt == SQL_NULL_HSTMT)
-	{
-		printf("Cannot execute query with NULL handle\n");
-		exit(1);
-	}
-
 	/* Create a table to use */
-	rc = SQLExecDirect(hstmt,
-			   (SQLCHAR *) "SELECT i FROM errortab",
-			   SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT i FROM errortab", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 
 	/* Show results */
@@ -156,13 +155,13 @@ main(int argc, char **argv)
 	error_rollback_init("Protocol=7.4-0");
 
 	/* Insert a row correctly */
-	error_rollback_exec_success();
+	error_rollback_exec_success(1);
 
 	/* Now trigger an error, the row previously inserted will disappear */
-	error_rollback_exec_failure();
+	error_rollback_exec_failure(1);
 
 	/*
-	 * Now rollback the transaction block, it is the responsability of
+	 * Now rollback the transaction block, it is the responsibility of
 	 * application.
 	 */
 	printf("Rolling back with SQLEndTran\n");
@@ -170,7 +169,7 @@ main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLEndTran failed", hstmt);
 
 	/* Insert row correctly now */
-	error_rollback_exec_success();
+	error_rollback_exec_success(1);
 
 	/* Not yet committed... */
 	rc = SQLEndTran(SQL_HANDLE_DBC, conn, SQL_COMMIT);
@@ -193,9 +192,9 @@ main(int argc, char **argv)
 	 * Insert a row, trigger an error, and re-insert a row. Only one
 	 * row should be visible here.
 	 */
-	error_rollback_exec_success();
-	error_rollback_exec_failure();
-	error_rollback_exec_success();
+	error_rollback_exec_success(1);
+	error_rollback_exec_failure(1);
+	error_rollback_exec_success(1);
 	error_rollback_print();
 
 	/* Clean up */
@@ -209,12 +208,19 @@ main(int argc, char **argv)
 	error_rollback_init("Protocol=7.4-2");
 
 	/*
-	 * Similarly to previous case, do insert, error and insert. This
-	 * time two rows should be visible.
+	 * Do a bunch of insertions and failures.
 	 */
-	error_rollback_exec_success();
-	error_rollback_exec_failure();
-	error_rollback_exec_success();
+	error_rollback_exec_success(1);
+	error_rollback_exec_success(2);
+	error_rollback_exec_failure(-1);
+	error_rollback_exec_success(3);
+	error_rollback_exec_success(4);
+	error_rollback_exec_failure(-1);
+	error_rollback_exec_failure(-1);
+	error_rollback_exec_success(5);
+	error_rollback_exec_proccall_failure();
+	error_rollback_exec_success(6);
+	error_rollback_exec_success(7);
 	error_rollback_print();
 
 	/* Clean up */
