@@ -1,0 +1,12 @@
+\! "./src/errors-test"
+connected
+
+42703=ERROR: column "doesnotexist" does not exist;
+Error while executing the query
+
+42703=ERROR: column "doesnotexist2" does not exist;
+Error while executing the query
+
+42703=ERROR: column "doesnotexist3" does not exist;
+Error while executing the query
+disconnecting

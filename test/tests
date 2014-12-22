@@ -39,6 +39,7 @@ TESTBINS = src/connect-test \
 	src/lfconversion-test \
 	src/cte-test \
 	src/deprecated-test \
+	src/errors-test \
 	src/error-rollback-test \
 	src/diagnostic-test \
 	src/numeric-test \

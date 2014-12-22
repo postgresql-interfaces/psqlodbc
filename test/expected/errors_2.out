@@ -1,0 +1,12 @@
+\! "./src/errors-test"
+connected
+
+42703=ERROR: column "doesnotexist" does not exist;
+Error while executing the query
+
+25P02=ERROR: current transaction is aborted, commands ignored until end of transaction block;
+Error while executing the query
+
+25P02=ERROR: current transaction is aborted, commands ignored until end of transaction block;
+Error while executing the query
+disconnecting
