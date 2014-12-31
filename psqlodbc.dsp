@@ -41,8 +41,8 @@ RSC=rc.exe
 # PROP Intermediate_Dir "Release"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "USE_LIBPQ" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /Fp"psqlodbc.pch" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /I "C:\Program Files\PostgreSQL\9.3\include" /I "C:\OpenSSL\include" /D "NDEBUG" /D "USE_LIBPQ" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /D "USE_SSL" /Fp"psqlodbc.pch" /YX /FD /D SSL_DLL="\"SSLEAY32.dll\"" /c
+# ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /Fp"psqlodbc.pch" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "C:\Program Files\PostgreSQL\9.3\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /Fp"psqlodbc.pch" /YX /FD" /c
 # ADD BASE RSC /l 0x411 /d "NDEBUG"
 # ADD RSC /l 0x411 /i "." /d "NDEBUG"
 # SUBTRACT RSC /x
@@ -51,7 +51,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib /nologo /subsystem:windows /machine:I386
-# ADD LINK32 wsock32.lib XOleHlp.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\Program Files\PostgreSQL\9.3\lib\ms" /libpath:"C:\OpenSSL\lib\VC"
+# ADD LINK32 wsock32.lib XOleHlp.lib winmm.lib libpq.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\Program Files\PostgreSQL\9.3\lib\ms"
 # SUBTRACT LINK32 /pdb:none /nodefaultlib
 
 !ELSEIF  "$(CFG)" == "psqlODBC - Win32 Debug"
@@ -67,8 +67,8 @@ LINK32=link.exe
 # PROP Intermediate_Dir "Debug"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MT /W3 /GX /Od /D "USE_LIBPQ" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /I "C:\Program Files\PostgreSQL\9.3\include" /I "C:\OpenSSL\include" /D "_DEBUG" /D "USE_LIBPQ" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /D "USE_SSL" /FR /YX /FD /D SSL_DLL="\"SSLEAY32.dll\"" /c
+# ADD BASE CPP /nologo /MT /W3 /GX /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "C:\Program Files\PostgreSQL\9.3\include" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "PSQLODBC_EXPORTS" /D "DRIVER_CURSOR_IMPLEMENT" /D "WIN_MULTITHREAD_SUPPORT" /D "DYNAMIC_LOAD" /D "MULTIBYTE" /D "UNICODE_SUPPORT" /FR /YX /FD /c
 # SUBTRACT CPP /X
 # ADD BASE RSC /l 0x411 /d "_DEBUG"
 # ADD RSC /l 0x411 /i "." /d "_DEBUG"
@@ -78,7 +78,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib wsock32.lib XOleHlp.lib winmm.lib /nologo /subsystem:windows /debug /machine:I386
-# ADD LINK32 wsock32.lib XOleHlp.lib winmm.lib libpq.lib ssleay32.lib libeay32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /debug /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\Program Files\PostgreSQL\9.3\lib\ms" /libpath:"C:\OpenSSL\lib\VC"
+# ADD LINK32 wsock32.lib XOleHlp.lib winmm.lib libpq.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /pdb:"psqlodbc35w.pdb" /debug /machine:I386 /out:"psqlodbc35w.dll" /implib:"psqlodbc35w.lib" /libpath:"C:\Program Files\PostgreSQL\9.3\lib\ms"
 # SUBTRACT LINK32 /pdb:none /nodefaultlib
 
 !ENDIF 
@@ -208,19 +208,11 @@ SOURCE=setup.c
 # End Source File
 # Begin Source File
 
-SOURCE=socket.c
-# End Source File
-# Begin Source File
-
 SOURCE=statement.c
 # End Source File
 # Begin Source File
 
 SOURCE=tuple.c
-# End Source File
-# Begin Source File
-
-SOURCE=win_md5.c
 # End Source File
 # Begin Source File
 
@@ -277,10 +269,6 @@ SOURCE=.\loadlib.h
 # Begin Source File
 
 SOURCE=lobj.h
-# End Source File
-# Begin Source File
-
-SOURCE=md5.h
 # End Source File
 # Begin Source File
 

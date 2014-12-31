@@ -68,58 +68,45 @@ Param(
 
 function buildPlatform($platinfo, $Platform)
 {
-	$USE_LIBPQ=$platinfo.use_libpq
 	$LIBPQVER=$platinfo.libpq.version
 	if ($LIBPQVER -eq "") {
 		$LIBPQVER = $LIBPQ_VERSION
 	}
-	$USE_SSPI=$platinfo.use_sspi
-	$USE_GSS=$platinfo.use_gss
 	$PG_INC=$platinfo.libpq.include
 	$PG_LIB=$platinfo.libpq.lib
-	$SSL_INC=$platinfo.ssl.include
-	$SSL_LIB=$platinfo.ssl.lib
-	$GSS_INC=$platinfo.gss.include
-	$GSS_LIB=$platinfo.gss.lib
 	$BUILD_MACROS=$platinfo.build_macros
-	if ($USE_LIBPQ -eq "yes")
-	{
-		if ($Platform -eq "x64") {
-			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-				$pgmfs = "$env:ProgramW6432"
-			} else {
-				$pgmfs = "$env:ProgramFiles"
-			}
+	if ($Platform -eq "x64") {
+		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+			$pgmfs = "$env:ProgramW6432"
 		} else {
-			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-				$pgmfs = "$env:ProgramFiles"
-			} else {
-				$pgmfs = "${env:ProgramFiles(x86)}"
-			}
+			$pgmfs = "$env:ProgramFiles"
 		}
-		if ($PG_INC -eq "default") {
-			if ($pgmfs -eq "") {
-				PG_INC=""
-			} else {
-				$PG_INC = "$pgmfs\PostgreSQL\$LIBPQVER\include"
-			}
+	} else {
+		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+			$pgmfs = "$env:ProgramFiles"
+		} else {
+			$pgmfs = "${env:ProgramFiles(x86)}"
 		}
-		if ($PG_LIB -eq "default") {
-			if ($pgmfs -eq "") {
-				PG_LIB=""
-			} else {
-				$PG_LIB = "$pgmfs\PostgreSQL\$LIBPQVER\lib"
-			}
+	}
+	if ($PG_INC -eq "default") {
+		if ($pgmfs -eq "") {
+			PG_INC=""
+		} else {
+			$PG_INC = "$pgmfs\PostgreSQL\$LIBPQVER\include"
+		}
+	}
+	if ($PG_LIB -eq "default") {
+		if ($pgmfs -eq "") {
+			PG_LIB=""
+		} else {
+			$PG_LIB = "$pgmfs\PostgreSQL\$LIBPQVER\lib"
 		}
 	}
 
-	Write-Host "USE LIBPQ  : $USE_LIBPQ ($PG_INC $PG_LIB)"
-	Write-Host "USE GSS    : $USE_GSS ($GSS_INC $GSS_LIB)"
-	Write-Host "USE SSPI   : $USE_SSPI"
-	Write-Host "SSL DIR    : ($SSL_INC $SSL_LIB)"
+	Write-Host "USE LIBPQ  : ($PG_INC $PG_LIB)"
 
 	$MACROS=@"
-/p:USE_LIBPQ=$USE_LIBPQ``;USE_SSPI=$USE_SSPI``;USE_GSS=$USE_GSS``;PG_LIB="$PG_LIB"``;PG_INC="$PG_INC"``;SSL_LIB="$SSL_LIB"``;SSL_INC="$SSL_INC"``;GSS_LIB="$GSS_LIB"``;GSS_INC="$GSS_INC"
+/p:PG_LIB="$PG_LIB" /p:PG_INC="$PG_INC"
 "@
 	if ($BUILD_MACROS -ne "") {
 		$BUILD_MACROS = $BUILD_MACROS -replace ';', '`;'

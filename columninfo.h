@@ -11,6 +11,8 @@
 
 #include "psqlodbc.h"
 
+#include <libpq-fe.h>
+
 struct ColumnInfoClass_
 {
 	UInt4		refcount;	/* reference count. A ColumnInfo can be shared by
@@ -40,7 +42,7 @@ struct ColumnInfoClass_
 ColumnInfoClass *CI_Constructor(void);
 void		CI_Destructor(ColumnInfoClass *self);
 void		CI_free_memory(ColumnInfoClass *self);
-char		CI_read_fields(ColumnInfoClass *self, ConnectionClass *conn);
+BOOL		CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres);
 
 /* functions for setting up the fields from within the program, */
 /* without reading from a socket */

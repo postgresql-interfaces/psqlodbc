@@ -96,7 +96,6 @@ PGAPI_DriverConnect(HDBC hdbc,
 	char		connStrOut[MAX_CONNECT_STRING];
 	int			retval;
 	char		salt[5];
-	char		password_required = AUTH_REQ_OK;
 	ssize_t		len = 0;
 	SQLSMALLINT	lenStrout;
 
@@ -154,8 +153,6 @@ PGAPI_DriverConnect(HDBC hdbc,
 #ifdef WIN32
 dialog:
 #endif
-	ci->focus_password = password_required;
-
 inolog("DriverCompletion=%d\n", fDriverCompletion);
 	switch (fDriverCompletion)
 	{
@@ -173,7 +170,7 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 
 		case SQL_DRIVER_COMPLETE:
 
-			paramRequired = password_required;
+			paramRequired = (ci->password_required && NAME_IS_NULL(ci->password));
 			/* Password is not a required parameter. */
 			if (ci->database[0] == '\0')
 				paramRequired = TRUE;
@@ -225,7 +222,7 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 
 inolog("before CC_connect\n");
 	/* do the actual connect */
-	retval = CC_connect(conn, password_required, salt);
+	retval = CC_connect(conn, salt);
 	if (retval < 0)
 	{							/* need a password */
 		if (fDriverCompletion == SQL_DRIVER_NOPROMPT)
@@ -237,7 +234,6 @@ inolog("before CC_connect\n");
 		else
 		{
 #ifdef WIN32
-			password_required = -retval;
 			goto dialog;
 #else
 			return SQL_ERROR;	/* until a better solution is found. */
@@ -384,7 +380,7 @@ dconn_FDriverConnectProc(
 				SetFocus(GetDlgItem(hdlg, IDC_PORT));
 			else if (ci->username[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_USER));
-			else if (ci->focus_password)
+			else if (ci->password_required)
 				SetFocus(GetDlgItem(hdlg, IDC_PASSWORD));
 			break;
 

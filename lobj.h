@@ -23,15 +23,6 @@ struct lo_arg
 	}			u;
 };
 
-#define LO_CREAT					957
-#define LO_OPEN						952
-#define LO_CLOSE					953
-#define LO_READ						954
-#define LO_WRITE					955
-#define LO_LSEEK					956
-#define LO_TELL						958
-#define LO_UNLINK					964
-
 #define INV_WRITE					0x00020000
 #define INV_READ					0x00040000
 

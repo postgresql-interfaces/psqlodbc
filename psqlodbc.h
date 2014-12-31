@@ -309,8 +309,6 @@ BOOL isSqlServr(void);
 #define FETCH_MAX					100 /* default number of rows to cache
 										 * for declare/fetch */
 #define TUPLE_MALLOC_INC			100
-#define SOCK_BUFFER_SIZE			4096		/* default socket buffer
-												 * size */
 #define MAX_CONNECTIONS				128 /* conns per environment
 										 * (arbitrary)	*/
 
@@ -356,7 +354,6 @@ BOOL isSqlServr(void);
 typedef struct ConnectionClass_ ConnectionClass;
 typedef struct StatementClass_ StatementClass;
 typedef struct QResultClass_ QResultClass;
-typedef struct SocketClass_ SocketClass;
 typedef struct BindInfoClass_ BindInfoClass;
 typedef struct ParameterInfoClass_ ParameterInfoClass;
 typedef struct ParameterImplClass_ ParameterImplClass;
@@ -446,7 +443,6 @@ typedef struct GlobalValues_
 {
 	pgNAME		drivername;
 	int			fetch_max;
-	int			socket_buffersize;
 	int			unknown_sizes;
 	int			max_varchar_size;
 	int			max_longvarchar_size;

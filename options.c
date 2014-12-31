@@ -555,7 +555,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			break;
 
 		case SQL_PACKET_SIZE:	/* NOT SUPPORTED */
-			*((SQLUINTEGER *) pvParam) = ci->drivers.socket_buffersize;
+			*((SQLUINTEGER *) pvParam) = 4096;
 			break;
 
 		case SQL_QUIET_MODE:	/* NOT SUPPORTED */

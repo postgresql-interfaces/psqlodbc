@@ -428,7 +428,7 @@ void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 #ifdef	UNICODE_SUPPORT
 	CC_set_in_unicode_driver(conn);
 #endif /* UNICODE_SUPPORT */
-	if (CC_connect(conn, AUTH_REQ_OK, NULL) > 0)
+	if (CC_connect(conn, NULL) > 0)
 	{
 		if (CC_get_errornumber(conn) != 0)
 		{

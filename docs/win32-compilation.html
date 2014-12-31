@@ -42,11 +42,6 @@ The following 3rd party software are required for the build:
 For the MSBuild method, you will also need PowerShell.
 </p>
 
-</p>
-It's also possible to build without libpq and OpenSSL, but some authentication
-methods will be disabled.
-</p>
-
 <h2>Building with nmake.exe</h2>
 
 Use NMAKE.exe to build the driver for the currently active target:<br><br>
@@ -87,7 +82,7 @@ by creating a file called "windows-local.mak".
 <table cellspacing="0" cellpadding="3" width="780" border=1>
 
   <tr>
-    <td>Valiable</td>
+    <td>Variable</td>
     <td>Values</td>
     </tr>
   <tr>
@@ -122,24 +117,11 @@ by creating a file called "windows-local.mak".
     <td>MSDTC</td>
     <td>yes</td>
   </tr>
-  <tr>
-    <td>USE_LIBPQ</td>
-    <td>yes (libpq is required) </td>
-  </tr>
-  <tr>
-    <td>USE_SSPI</td>
-    <td>yes (secur32 and crypt32 libraries are required) </td>
-  </tr>
-  <tr>
-    <td>USE_GSS</td>
-    <td>no (gssapi library is required) </td>
-  </tr>
   </table></p>
 
 <ol>
 <li>UNICODE is the default (psqlodbc35w.dll), unless ANSI_VERSION is selected (psqlodbc30a.dll)</li>
-<li>libpq.dll is used supported.</li>
-<li>SSL and Kerberos are original equipment.</li>
+<li>libpq.dll is mandatory.</li>
 <li>If MSDTC == Yes, "pgxalib.dll" is created.</li>
 <li>If MSDTC is enabled, ANSI_VERSION also creates "pgenlista.dll", or UNICODE creates "pgenlist.dll".</li>
 </ol>
@@ -185,8 +167,7 @@ The default build settings will create the following driver:
 
 <ol>
 <li>UNICODE support.
-<li>libpq and SSL equipped are supported.
-<li>Kerberos are supported peculiar by psqlODBC.
+<li>libpq is mandatory.
 <li>The driver filename is "psqlodbc35w.dll".</li></ol>
 
 </body>

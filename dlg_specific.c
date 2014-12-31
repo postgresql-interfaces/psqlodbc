@@ -220,24 +220,6 @@ makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 	return target;
 }
 
-#ifdef	USE_LIBPQ
-static char *
-makePreferLibpqConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
-{
-	char	*buf = target;
-	*buf = '\0';
-
-	if (ci->prefer_libpq < 0)
-		return target;
-
-	if (abbrev)
-		sprintf(buf, ABBR_PREFERLIBPQ "=%u;", ci->prefer_libpq);
-	else
-		sprintf(buf, INI_PREFERLIBPQ "=%u;", ci->prefer_libpq);
-	return target;
-}
-#endif /* USE_LIBPQ */
-
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 char *
 makeXaOptConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
@@ -265,9 +247,6 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_item[LARGE_REGISTRY_LEN];
 	char		keepaliveStr[64];
-#ifdef	USE_LIBPQ
-	char		preferLibpqStr[32];
-#endif
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	char		xaOptStr[16];
 #endif
@@ -318,7 +297,6 @@ inolog("hlen=%d", hlen);
 			INI_SHOWSYSTEMTABLES "=%s;"
 			INI_CONNSETTINGS "=%s;"
 			INI_FETCH "=%d;"
-			INI_SOCKET "=%d;"
 			INI_UNKNOWNSIZES "=%d;"
 			INI_MAXVARCHARSIZE "=%d;"
 			INI_MAXLONGVARCHARSIZE "=%d;"
@@ -340,9 +318,6 @@ inolog("hlen=%d", hlen);
 			INI_USESERVERSIDEPREPARE "=%d;"
 			INI_LOWERCASEIDENTIFIER "=%d;"
 			"%s"
-#ifdef	USE_LIBPQ
-			"%s"
-#endif /* USE_LIBPQ */
 #ifdef	WIN32
 			INI_GSSAUTHUSEGSSAPI "=%d;"
 #endif /* WIN32 */
@@ -358,7 +333,6 @@ inolog("hlen=%d", hlen);
 			,ci->show_system_tables
 			,encoded_item
 			,ci->drivers.fetch_max
-			,ci->drivers.socket_buffersize
 			,ci->drivers.unknown_sizes
 			,ci->drivers.max_varchar_size
 			,ci->drivers.max_longvarchar_size
@@ -380,9 +354,6 @@ inolog("hlen=%d", hlen);
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
 			,makeKeepaliveConnectString(keepaliveStr, ci, FALSE)
-#ifdef	USE_LIBPQ
-			,makePreferLibpqConnectString(preferLibpqStr, ci, FALSE)
-#endif /* USE_LIBPQ */
 #ifdef	WIN32
 			,ci->gssauth_use_gssapi
 #endif /* WIN32 */
@@ -461,30 +432,22 @@ inolog("hlen=%d", hlen);
 		olen = snprintf(&connect_string[hlen], nlen, ";"
 				ABBR_CONNSETTINGS "=%s;"
 				ABBR_FETCH "=%d;"
-				ABBR_SOCKET "=%d;"
 				ABBR_MAXVARCHARSIZE "=%d;"
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
 				"%s"
-#ifdef	USE_LIBPQ
-				"%s"
-#endif /* USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				"%s"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				INI_ABBREVIATE "=%02x%x",
 				encoded_item,
 				ci->drivers.fetch_max,
-				ci->drivers.socket_buffersize,
 				ci->drivers.max_varchar_size,
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
 				makeKeepaliveConnectString(keepaliveStr, ci, TRUE),
-#ifdef	USE_LIBPQ
-				makePreferLibpqConnectString(preferLibpqStr, ci, TRUE),
-#endif /* USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				makeXaOptConnectString(xaOptStr, ci, TRUE),
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -677,10 +640,6 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->keepalive_idle = atoi(value);
 	else if (stricmp(attribute, INI_KEEPALIVEINTERVAL) == 0 || stricmp(attribute, ABBR_KEEPALIVEINTERVAL) == 0)
 		ci->keepalive_interval = atoi(value);
-#ifdef	USE_LIBPQ
-	else if (stricmp(attribute, INI_PREFERLIBPQ) == 0 || stricmp(attribute, ABBR_PREFERLIBPQ) == 0)
-		ci->prefer_libpq = atoi(value);
-#endif /* USE_LIBPQ */
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
 	{
 		switch (value[0])
@@ -755,8 +714,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 
 	if (stricmp(attribute, INI_FETCH) == 0 || stricmp(attribute, ABBR_FETCH) == 0)
 		ci->drivers.fetch_max = atoi(value);
-	else if (stricmp(attribute, INI_SOCKET) == 0 || stricmp(attribute, ABBR_SOCKET) == 0)
-		ci->drivers.socket_buffersize = atoi(value);
 	else if (stricmp(attribute, INI_DEBUG) == 0 || stricmp(attribute, ABBR_DEBUG) == 0)
 		ci->drivers.debug = atoi(value);
 	else if (stricmp(attribute, INI_COMMLOG) == 0 || stricmp(attribute, ABBR_COMMLOG) == 0)
@@ -791,9 +748,8 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: A7=%d;A8=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
+	mylog("%s: A7=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
 		  ci->drivers.fetch_max,
-		  ci->drivers.socket_buffersize,
 		  ci->drivers.unknown_sizes,
 		  ci->drivers.max_varchar_size,
 		  ci->drivers.max_longvarchar_size,
@@ -1067,14 +1023,6 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 			if (0 == (ci->keepalive_interval = atoi(temp)))
 				ci->keepalive_interval = -1;
 	}
-#ifdef	USE_LIBPQ
-	if (ci->prefer_libpq < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_PREFERLIBPQ, "-1", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->prefer_libpq = atoi(temp);
-	}
-#endif /* USE_LIBPQ */
 
 	if (ci->sslmode[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
@@ -1368,13 +1316,6 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_KEEPALIVEINTERVAL,
 								 temp,
 								 ODBC_INI);
-#ifdef	USE_LIBPQ
-	sprintf(temp, "%d", ci->prefer_libpq);
-	SQLWritePrivateProfileString(DSN,
-								 INI_PREFERLIBPQ,
-								 temp,
-								 ODBC_INI);
-#endif /* USE_LIBPQ */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	sprintf(temp, "%d", ci->xa_opt);
 	SQLWritePrivateProfileString(DSN, INI_XAOPT, temp, ODBC_INI);
@@ -1412,14 +1353,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 	}
 	else if (inst_position)
 		comval->fetch_max = FETCH_MAX;
-
-	/* Socket Buffersize is stored in driver section */
-	SQLGetPrivateProfileString(section, INI_SOCKET, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
-		comval->socket_buffersize = atoi(temp);
-	else if (inst_position)
-		comval->socket_buffersize = SOCK_BUFFER_SIZE;
 
 	/* Debug is stored in the driver section */
 	SQLGetPrivateProfileString(section, INI_DEBUG, "",

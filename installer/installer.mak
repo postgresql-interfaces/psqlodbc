@@ -25,10 +25,6 @@ LIGHT="$(WIX)bin\light"
 !MESSAGE Got product code $(PRODUCTCODE)
 
 MSM_OPTS = -dLIBPQBINDIR="$(LIBPQ_BIN)"
-!IF "$(USE_GSS)" == "yes"
-MSM_OPTS = $(MSM_OPTS) -dGSSBINDIR="$(GSSBINDIR)"
-!ENDIF
-
 
 # Merge module
 $(TARGET_CPU)\psqlodbc_$(TARGET_CPU).msm: psqlodbcm_cpu.wxs $(DRIVER_FILES)

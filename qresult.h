@@ -11,8 +11,9 @@
 
 #include "psqlodbc.h"
 
+#include "libpq-fe.h"
+
 #include "connection.h"
-#include "socket.h"
 #include "columninfo.h"
 #include "tuple.h"
 
@@ -44,8 +45,7 @@ enum	QueryResultCode_
 
 enum
 {
-	FQR_FETCHING_TUPLES = 1L	/* is fetching tuples from db */
-	,FQR_REACHED_EOF = (1L << 1)	/* reached eof */
+	FQR_REACHED_EOF = (1L << 1)	/* reached eof */
 	,FQR_HAS_VALID_BASE = (1L << 2)
 	,FQR_NEEDS_SURVIVAL_CHECK = (1L << 3) /* check if the cursor is open */
 };
@@ -166,8 +166,6 @@ enum {
 #define QR_set_withhold(self)		(self->flags |= FQR_WITHHOLD)
 #define QR_set_permanent(self)		(self->flags |= FQR_HOLDPERMANENT)
 #define	QR_set_reached_eof(self)	(self->pstatus |= FQR_REACHED_EOF)
-#define	QR_set_fetching_tuples(self)	(self->pstatus |= FQR_FETCHING_TUPLES)
-#define	QR_set_no_fetching_tuples(self)	(self->pstatus &= ~FQR_FETCHING_TUPLES)
 #define QR_set_has_valid_base(self)	(self->pstatus |= FQR_HAS_VALID_BASE)
 #define QR_set_no_valid_base(self)	(self->pstatus &= ~FQR_HAS_VALID_BASE)
 #define QR_set_survival_check(self)	(self->pstatus |= FQR_NEEDS_SURVIVAL_CHECK)
@@ -199,7 +197,6 @@ do { \
 #define QR_get_cursor(self)				(self->cursor_name)
 #define QR_get_rowstart_in_cache(self)			(self->base)
 #define QR_once_reached_eof(self)	((self->pstatus & FQR_REACHED_EOF) != 0)
-#define QR_is_fetching_tuples(self)	((self->pstatus & FQR_FETCHING_TUPLES) != 0)
 #define	QR_has_valid_base(self)		(0 != (self->pstatus & FQR_HAS_VALID_BASE))
 #define	QR_needs_survival_check(self)		(0 != (self->pstatus & FQR_NEEDS_SURVIVAL_CHECK))
 
@@ -221,13 +218,12 @@ do { \
 QResultClass	*QR_Constructor(void);
 void		QR_Destructor(QResultClass *self);
 TupleField	*QR_AddNew(QResultClass *self);
-BOOL		QR_get_tupledata(QResultClass *self, BOOL binary);
-int		QR_next_tuple(QResultClass *self, StatementClass *, int *LastMessageType);
+int		QR_next_tuple(QResultClass *self, StatementClass *);
 int			QR_close(QResultClass *self);
 void		QR_on_close_cursor(QResultClass *self);
 void		QR_close_result(QResultClass *self, BOOL destroy);
 void		QR_reset_for_re_execute(QResultClass *self);
-char		QR_fetch_tuples(QResultClass *self, ConnectionClass *conn, const char *cursor, int *LastMessageType);
+BOOL		QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn, const char *cursor, PGresult **pgres);
 void		QR_free_memory(QResultClass *self);
 void		QR_set_command(QResultClass *self, const char *msg);
 void		QR_set_message(QResultClass *self, const char *msg);

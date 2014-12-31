@@ -63,7 +63,6 @@
           <File Source="$(var.MSVCRUNTIMEDLL)" />
 <?endif?>
 
-<?if "$(var.LIBPQBINDIR)" != "" ?>
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
 
           <!-- Gettext -->
@@ -71,37 +70,8 @@
           <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.LIBPQBINDIR)\libintl-8.dll" />
 <?else?>
           <File Id="libintl.dll" Name="libintl.dll" Source="$(var.LIBPQBINDIR)\libintl.dll" />
-<?endif?>
 
-          <!-- SSL -->
-          <File Id="libeay32.dll" Name="libeay32.dll" Source="$(var.LIBPQBINDIR)\libeay32.dll" />
-          <File Id="ssleay32.dll" Name="ssleay32.dll" Source="$(var.LIBPQBINDIR)\ssleay32.dll" />
 <?endif ?>
-
-<?ifdef var.GSSBINDIR ?>
-<?if "$(var.GSSBINDIR)" != "" ?>
-<?if $(var.BIT64) = no ?>
-	  <!-- GSSAPI -->
-          <File Id="gssapi32.dll" Name="gssapi32.dll" Source="$(var.GSSBINDIR)\gssapi32.dll" />
-
-          <!-- MIT Kerberos -->
-          <File Id="comerr32.dll" Name="comerr32.dll" Source="$(var.GSSBINDIR)\comerr32.dll" />
-          <File Id="krb5_32.dll" Name="krb5_32.dll" Source="$(var.GSSBINDIR)\krb5_32.dll" />
-          <File Id="k5sprt32.dll" Name="k5sprt32.dll" Source="$(var.GSSBINDIR)\k5sprt32.dll" />
-          <!-- VC++ 7.1 runtime - required by Kerberos -->
-          <File Id="msvcr71.dll" Name="msvcr71.dll" Source="$(var.GSSBINDIR)\msvcr71.dll" />
-<?else ?>
-	  <!-- GSSAPI -->
-          <File Id="gssapi64.dll" Name="gssapi64.dll" Source="$(var.GSSBINDIR)\gssapi64.dll" />
-
-          <!-- MIT Kerberos -->
-          <File Id="comerr64.dll" Name="comerr64.dll" Source="$(var.GSSBINDIR)\comerr64.dll" />
-          <File Id="krb5_64.dll" Name="krb5_64.dll" Source="$(var.GSSBINDIR)\krb5_64.dll" />
-          <File Id="k5sprt64.dll" Name="k5sprt64.dll" Source="$(var.GSSBINDIR)\k5sprt64.dll" />
-<?endif ?>
-<?endif ?>
-<?endif ?>
-
 
           <!-- Note, installing the driver properly (IE, using ODBCDriver) has
                proven unreliable, so we install the registry keys manually

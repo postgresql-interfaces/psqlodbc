@@ -115,29 +115,26 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
 #
 # Whether libpq functionalities are used
 #
-AC_ARG_WITH(libpq, [  --with-libpq[[=DIR]]	  [[default=yes]] DIR is the PostgreSQL base install
-			  directory or the path to pg_config
-  --without-libpq	  specify when PostgreSQL package isn't installed],
+AC_ARG_WITH(libpq, [  --with-libpq[[=DIR]]	  DIR is the PostgreSQL base install
+			  directory or the path to pg_config],
 [], [with_libpq=yes])
 
-if test "$with_libpq" != no; then
-	AC_DEFINE(USE_LIBPQ, 1,
-		 [Define to 1 to build with libpq])
-	if test "$with_libpq" != yes; then
-		if test -d "$with_libpq"; then
-			PATH="$PATH:$with_libpq/bin"
-			CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
-			LDFLAGS="$LDFLAGS -L$with_libpq/lib"
+if test "$with_libpq" = no; then
+	AC_MSG_ERROR([libpq is mandatory, --without-libpq is no longer supported])
+fi
+
+if test "$with_libpq" != yes; then
+	if test -d "$with_libpq"; then
+		PATH="$PATH:$with_libpq/bin"
+		CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
+		LDFLAGS="$LDFLAGS -L$with_libpq/lib"
+	else
+		if test -x "$with_libpq"; then
+			PG_CONFIG=$with_libpq
 		else
-			if test -x "$with_libpq"; then
-				PG_CONFIG=$with_libpq
-			else
-				AC_MSG_ERROR([specified pg_config not found])
-			fi
+			AC_MSG_ERROR([specified pg_config not found])
 		fi
 	fi
-else
-	enable_openssl=no
 fi
 
 #
@@ -150,40 +147,6 @@ PGAC_ARG_BOOL(enable, unicode, yes,
                          [Define to 1 to build with Unicode support (--enable-unicode)])])
 
 AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
-
-
-#
-# SSL support
-#
-
-PGAC_ARG_BOOL(enable, openssl, yes,
-              [  --disable-openssl       do not build OpenSSL support],
-              [AC_DEFINE(USE_SSL, 1,
-                         [Define to 1 to build with OpenSSL support (--enable-openssl)])])
-
-AM_CONDITIONAL(enable_openssl, [test x"$enable_openssl" = xyes])
-
-#
-# GSSAPI support
-#
-
-PGAC_ARG_BOOL(enable, gss, no,
-              [  --disable-gss       do not build GSSAPI support],
-              [AC_DEFINE(USE_GSS, 1,
-                         [Define to 1 to build with GSSAPI support (--enable-gss)])])
-
-AM_CONDITIONAL(enable_gss, [test x"$enable_gss" = xyes])
-
-#
-# GKerberos 5 support
-#
-
-PGAC_ARG_BOOL(enable, krb5, no,
-              [  --disable-krb5       do not build Kerberos5 support],
-              [AC_DEFINE(USE_KRB5, 1,
-                         [Define to 1 to build with Kerberos 5 support (--enable-krb5)])])
-
-AM_CONDITIONAL(enable_krb5, [test x"$enable_krb5" = xyes])
 
 #
 # Pthreads
@@ -200,17 +163,15 @@ PGAC_ARG_BOOL(enable, pthreads, yes,
 # Find libpq headers and libraries
 #
 
-if test "$with_libpq" != no; then
-  if test -z "$PG_CONFIG"; then
-    AC_PATH_PROGS(PG_CONFIG, pg_config)
-  fi
+if test -z "$PG_CONFIG"; then
+  AC_PATH_PROGS(PG_CONFIG, pg_config)
+fi
 
-  if test -n "$PG_CONFIG"; then
-    pg_includedir=`"$PG_CONFIG" --includedir`
-    pg_libdir=`"$PG_CONFIG" --libdir`
-    CPPFLAGS="$CPPFLAGS -I$pg_includedir"
-    LDFLAGS="$LDFLAGS -L$pg_libdir"
-  fi
+if test -n "$PG_CONFIG"; then
+  pg_includedir=`"$PG_CONFIG" --includedir`
+  pg_libdir=`"$PG_CONFIG" --libdir`
+  CPPFLAGS="$CPPFLAGS -I$pg_includedir"
+  LDFLAGS="$LDFLAGS -L$pg_libdir"
 fi
 
 
@@ -241,40 +202,13 @@ if test "$enable_pthreads" = yes; then
 	       [AC_CHECK_LIB(pthread, pthread_create)])
 fi
 
-if test "$with_libpq" != no; then
-  AC_CHECK_LIB(pq, PQconnectdb, [],
+AC_CHECK_LIB(pq, PQconnectdb, [],
 	      [AC_MSG_ERROR([libpq library not found])])
-fi
-
-if test "$enable_openssl" = yes; then
-  AC_CHECK_LIB(ssl, SSL_read, [], [AC_MSG_ERROR([ssl library not found])])
-fi
-
-if test "$enable_gss" = yes; then
-  AC_SEARCH_LIBS(gss_init_sec_context, [gssapi_krb5 gss 'gssapi -lkrb5 -lcrypto'], [],  [AC_MSG_ERROR([gssapi library not found])])
-fi
-
-if test "$enable_krb5" = yes; then
-  AC_SEARCH_LIBS(krb5_sendauth, [krb5 'krb5 -lcrypto -ldes -lasn1 -lroken'], [], [AC_MSG_ERROR([krb5 library not found])])
-  AC_SEARCH_LIBS(com_err, [krb5 'krb5 -lcrypto -ldes -lasn1 -lroken' comerr 'comerr -lssl -lcrypto'], [], [AC_MSG_ERROR([comerr library not found])])
-fi
 
 # 3. Header files
 
 AC_CHECK_HEADERS(locale.h sys/un.h sys/time.h)
-if test "$with_libpq" != no; then
-  AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
-fi
-if test "$enable_openssl" = yes; then
-  AC_CHECK_HEADER([openssl/ssl.h],,[AC_MSG_ERROR([ssl header not found])])
-fi
-if test "$enable_gss" = yes; then
-  AC_CHECK_HEADERS([gssapi/gssapi.h], [],
-	[AC_CHECK_HEADERS([gssapi.h], [], [AC_MSG_ERROR([gssapi header not found])])])
-fi
-if test "$enable_krb5" = yes; then
-  AC_CHECK_HEADER([krb5.h],,[AC_MSG_ERROR([krb5 header not found])])
-fi
+AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
 AC_HEADER_TIME
 
 
@@ -322,19 +256,6 @@ if test "$enable_pthreads" = yes; then
 		                 [AC_DEFINE(PG_RECURSIVE_MUTEXATTR, PTHREAD_MUTEX_RECURSIVE_NP,
                                             [Define if you have PTHREAD_MUTEX_RECURSIVE_NP])])])
   fi
-fi
-if test "$enable_krb5" = yes; then
-  AC_CHECK_MEMBERS(krb5_error.text.data, [],
-                   [AC_CHECK_MEMBERS(krb5_error.e_data, [],
-                                     [AC_MSG_ERROR([could not determine how to extract Kerberos 5 error messages])],
-                                     [#include <krb5.h>])],
-                   [#include <krb5.h>])
-  AC_MSG_CHECKING(for krb5_free_unparsed_name)
-  AC_TRY_LINK([#include <krb5.h>],
-              [krb5_free_unparsed_name(NULL,NULL);],
-              [AC_DEFINE(HAVE_KRB5_FREE_UNPARSED_NAME, 1, [Define to 1 if you have krb5_free_unparsed_name])
-AC_MSG_RESULT(yes)],
-              [AC_MSG_RESULT(no)])
 fi
 
 # 8. Libltdl	This release doesn't need libltdl

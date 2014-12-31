@@ -209,8 +209,6 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,139,85,110,10
 END
 
-#define	LIBPQ_USE_X	10
-#define	LIBPQ_USE_Y	40
 #define	DTC_GRP_X	10
 #define	DTC_GRP_Y	60
 #define	DTC_GRP_WIDTH	200
@@ -230,14 +228,6 @@ FONT 9, "ＭＳ ゴシック"
 BEGIN
     PUSHBUTTON      "設定2",ID2NDPAGE,49,5,40,15
     PUSHBUTTON      "設定1",ID1STPAGE,5,5,40,15
-
-    GROUPBOX        "LIBPQライブラリ使用",IDC_STATIC,LIBPQ_USE_X,LIBPQ_USE_Y-10,150,25
-    CONTROL         "無指定",DS_DEFAULT_LIBPQ_USE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,15,LIBPQ_USE_Y,40,10
-    CONTROL         "利用する",DS_LIBPQ_USE,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,55,LIBPQ_USE_Y,50,10
-    CONTROL         "利用しない",DS_NO_LIBPQ_USE,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,105,LIBPQ_USE_Y,50,10
 
     GROUPBOX        "分散トランザクション関連設定",IDC_STATIC,DTC_GRP_X,DTC_GRP_Y,DTC_GRP_WIDTH,DTC_GRP_HEIGHT
     GROUPBOX        "MSDTCリカバリー不可接続を許可?",IDC_STATIC,DTC_OPT_X,DTC_OPT_Y,DTC_OPT_WIDTH,DTC_OPT_HEIGHT
@@ -660,8 +650,6 @@ BEGIN
                     BS_AUTORADIOBUTTON | WS_TABSTOP,247,138,47,9
 END
 
-#undef	LIBPQ_USE_X
-#undef	LIBPQ_USE_Y
 #undef	DTC_GRP_X
 #undef	DTC_GRP_Y
 #undef	DTC_GRP_WIDTH
@@ -672,8 +660,6 @@ END
 #undef	DTC_OPT_HEIGHT
 #undef	DTC_LOG_X
 #undef	DTC_LOG_Y
-#define	LIBPQ_USE_X	10
-#define	LIBPQ_USE_Y	40
 #define	DTC_GRP_X	10
 #define	DTC_GRP_Y	60
 #define	DTC_GRP_WIDTH	200
@@ -693,14 +679,6 @@ FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Page 2",ID2NDPAGE,49,5,40,15
     PUSHBUTTON      "Page 1",ID1STPAGE,5,5,40,15
-
-    GROUPBOX        "The use of LIBPQ library",IDC_STATIC,LIBPQ_USE_X,LIBPQ_USE_Y-12,150,25
-    CONTROL         "unspecified",DS_DEFAULT_LIBPQ_USE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,LIBPQ_USE_X+5,LIBPQ_USE_Y,50,10
-    CONTROL         "yes",DS_LIBPQ_USE,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,LIBPQ_USE_X+55,LIBPQ_USE_Y,30,10
-    CONTROL         "no",DS_NO_LIBPQ_USE,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,LIBPQ_USE_X+85,LIBPQ_USE_Y,50,10
 
     GROUPBOX        "Distributed Transaction related settings",IDC_STATIC,DTC_GRP_X,DTC_GRP_Y,DTC_GRP_WIDTH,DTC_GRP_HEIGHT
     GROUPBOX        "Allow connections unrecoverable by MSDTC?",IDC_STATIC,DTC_OPT_X,DTC_OPT_Y,DTC_OPT_WIDTH,DTC_OPT_HEIGHT

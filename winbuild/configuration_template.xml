@@ -1,40 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration version="09.03.0400" formatVersion="0.4" vcversion="" toolset="">
   <title></title>
-  <x86 disabled="no" use_libpq="yes" use_sspi="no" use_gss="no">
+  <x86 disabled="no">
     <libpq version="">
       <include>default</include>
       <lib>default</lib>
       <bin>default</bin>
     </libpq>
-    <ssl>
-      <include></include>
-      <lib></lib>
-    </ssl>
-    <gss>
-      <include></include>
-      <lib></lib>
-      <bin></bin>
-    </gss>
     <setvcvars></setvcvars>
     <build_macros></build_macros>
     <runtime_folder></runtime_folder>
   </x86>
-  <x64 use_libpq="yes" use_sspi="yes" use_gss="no">
+  <x64>
     <libpq version="">
       <include>default</include>
       <lib>default</lib>
       <bin>default</bin>
     </libpq>
-    <ssl>
-      <include></include>
-      <lib></lib>
-    </ssl>
-    <gss>
-      <include></include>
-      <lib></lib>
-      <bin></bin>
-    </gss>
     <setvcvars></setvcvars>
     <build_macros></build_macros>
     <runtime_folder></runtime_folder>

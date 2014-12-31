@@ -58,6 +58,11 @@ int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
 	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
 Int4		findTag(const char *str, char dollar_quote, int ccsc);
 
+BOOL build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
+						int *nParams, char ***paramValues,
+						int **paramLengths,
+						int **paramFormats,
+						int *resultFormat);
 #ifdef	__cplusplus
 }
 #endif

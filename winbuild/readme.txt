@@ -45,7 +45,7 @@
 	.\editConfiguration(.ps1)
 
      and edit the setting of your environment especially the folders
-     you placed libpq/Openssl related include/lib files.
+     you placed libpq related include/lib files.
 
   4. Please type
 
@@ -80,15 +80,13 @@
      pgxalib.dll is only built for the multibyte/unicode version, as it is
      the same for both unicode and ansi drivers.
 
-     Dependencies like libpq, openssl, etc are not copied into the build
+     Dependencies like libpq etc are not copied into the build
      output directories. You must copy them to the target directory yourself.
      Dependency Walker (depends.exe) from http://dependencywalker.com/ can help
      you find what's needed, but in general you'll need to add:
 
      - libpq (from the PostgreSQL bin dir)
      - libintl (from the PostgreSQL bin dir)
-     - ssleay32 (from the OpenSSL bin dir)
-     - libeay32 (from the OpenSSL bin dir)
 
      ... and the Visual Studio runtime redist for the version of Visual Studio
      you compiled with.

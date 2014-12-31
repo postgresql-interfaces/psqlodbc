@@ -171,6 +171,8 @@ static const struct
 	}
 };
 
+static QResultClass *libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
+										 const char *comment);
 
 RETCODE		SQL_API
 PGAPI_AllocStmt(HDBC hdbc,
@@ -263,14 +265,9 @@ PGAPI_FreeStmt(HSTMT hstmt,
 				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
 				return SQL_ERROR; /* stmt may be executing a transaction */
 			}
-			/*
-			 *	Before dropping the statement, sync and discard
-			 *	the response from the server for the pending
-			 *	extended query.
-			 */
-			if (NULL != conn->sock && stmt == conn->stmt_in_extquery)
-				QR_Destructor(SendSyncAndReceive(stmt, NULL, "finish the pending query"));
-			conn->stmt_in_extquery = NULL; /* for safety */
+			if (conn->unnamed_prepared_stmt == stmt)
+				conn->unnamed_prepared_stmt = NULL;
+
 			/*
 			 * Free any cursors and discard any result info.
 			 * Don't detach the statement from the connection
@@ -398,6 +395,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->transition_status = STMT_TRANSITION_UNALLOCATED;
 		rv->multi_statement = -1; /* unknown */
 		rv->num_params = -1; /* unknown */
+		rv->processed_statements = NULL;
 
 		rv->__error_message = NULL;
 		rv->__error_number = 0;
@@ -542,21 +540,6 @@ SC_set_Result(StatementClass *self, QResultClass *res)
 		self->result = self->curres = res;
 		if (NULL != res)
 			self->curr_param_result = 1;
-	}
-}
-
-void
-SC_forget_unnamed(StatementClass *self)
-{
-	if (PREPARED_TEMPORARILY == self->prepared)
-	{
-		SC_set_prepared(self, ONCE_DESCRIBED);
-		if (FALSE && !SC_IsExecuting(self))
-		{
-			QResultClass	*res = SC_get_Curres(self);
-			if (NULL != res && !res->dataFilled && !QR_is_fetching_tuples(res))
-				SC_set_Result(self, NULL);
-		}
 	}
 }
 
@@ -710,6 +693,8 @@ RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
 	ConnectionClass *conn = SC_get_conn(self);
+	ProcessedStmt *pstmt;
+	ProcessedStmt *next_pstmt;
 
 	if (self->lock_CC_for_rb > 0)
 	{
@@ -726,6 +711,18 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 			free(self->statement);
 			self->statement = NULL;
 		}
+
+		pstmt = self->processed_statements;
+		while (pstmt)
+		{
+			if (pstmt->query)
+				free(pstmt->query);
+			next_pstmt = pstmt->next;
+			free(pstmt);
+			pstmt = next_pstmt;
+		}
+		self->processed_statements = NULL;
+
 		self->prepare = NON_PREPARE_STATEMENT;
 		SC_set_prepared(self, NOT_YET_PREPARED);
 		self->statement_type = STMT_TYPE_UNKNOWN; /* unknown */
@@ -822,7 +819,6 @@ SC_recycle_statement(StatementClass *self)
 {
 	CSTR	func = "SC_recycle_statement";
 	ConnectionClass *conn;
-	QResultClass	*res;
 
 	mylog("%s: self= %p\n", func, self);
 
@@ -833,6 +829,9 @@ SC_recycle_statement(StatementClass *self)
 		SC_set_error(self, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
 		return FALSE;
 	}
+
+	if (SC_get_conn(self)->unnamed_prepared_stmt == self)
+		SC_get_conn(self)->unnamed_prepared_stmt = NULL;
 
 	conn = SC_get_conn(self);
 	switch (self->status)
@@ -871,7 +870,7 @@ SC_recycle_statement(StatementClass *self)
 	switch (self->prepared)
 	{
 		case NOT_YET_PREPARED:
-		case ONCE_DESCRIBED:
+		case PREPARED_TEMPORARILY:
 			/* Free the parsed table/field information */
 			SC_initialize_cols_info(self, TRUE, TRUE);
 
@@ -881,19 +880,8 @@ inolog("SC_clear_parse_status\n");
 	}
 
 	/* Free any cursors */
-	if (res = SC_get_Result(self), res)
-	{
-		switch (self->prepared)
-		{
-			case PREPARED_PERMANENTLY:
-			case PREPARED_TEMPORARILY:
-				SC_reset_result_for_rerun(self);
-				break;
-			default:
-				SC_set_Result(self, NULL);
-				break;
-		}
-	}
+	if (SC_get_Result(self))
+		SC_set_Result(self, NULL);
 	self->inaccurate_result = FALSE;
 	self->miscinfo = 0;
 	/* self->rbonerr = 0; Never clear the bits here */
@@ -1365,20 +1353,12 @@ SC_create_errorinfo(const StatementClass *self)
 
 	if (conn && !msgend)
 	{
-		SocketClass *sock = conn->sock;
-		const char *sockerrmsg;
-
 		if (!resmsg && (wmsg = CC_get_errormsg(conn)) && wmsg[0] != '\0')
 		{
 			pos = strlen(msg);
 			snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", CC_get_errormsg(conn));
 		}
 
-		if (sock && NULL != (sockerrmsg = SOCK_get_errmsg(sock)) && '\0' != sockerrmsg[0])
-		{
-			pos = strlen(msg);
-			snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", sockerrmsg);
-		}
 		ermsg = msg;
 	}
 	pgerror = ER_Constructor(self->__error_number, ermsg);
@@ -1666,10 +1646,8 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 	}
 	else
 	{
-		int	lastMessageType;
-
 		/* read from the cache or the physical next tuple */
-		retval = QR_next_tuple(res, self, &lastMessageType);
+		retval = QR_next_tuple(res, self);
 		if (retval < 0)
 		{
 			mylog("**** %s: end_tuples\n", func);
@@ -1959,38 +1937,11 @@ SC_execute(StatementClass *self)
 	 * statement
 	 */
 	/* in copy_statement... */
-	use_extended_protocol = FALSE;
-	switch (self->prepared)
+	if (self->stmt_with_params)
+		use_extended_protocol = FALSE;
+	else
 	{
-		case PREPARING_PERMANENTLY:
-		case PREPARED_PERMANENTLY:
-			use_extended_protocol = TRUE;
-			break;
-		case PREPARING_TEMPORARILY:
-		case PREPARED_TEMPORARILY:
-			if (!issue_begin)
-			{
-				switch (SC_get_prepare_method(self))
-				{
-#ifndef	BYPASS_ONESHOT_PLAN_EXECUTION
-					case PARSE_TO_EXEC_ONCE:
-#endif /* BYPASS_ONESHOT_PLAN_EXECUTION */
-					case NAMED_PARSE_REQUEST:
-						use_extended_protocol = TRUE;
-						break;
-				}
-			}
-			if (use_extended_protocol)
-				break;
-			/* fall through */
-		case ONCE_DESCRIBED:
-			SC_forget_unnamed(self);
-			{
-				QResultClass	*pres = SC_get_Result(self);
-				if (NULL != pres && NULL == QR_get_command(pres))
-					SC_set_Result(self, NULL); /* discard the parsed information */
-			}
-			break;
+		use_extended_protocol = TRUE;
 	}
 	isSelectType = (SC_may_use_cursor(self) || self->statement_type == STMT_TYPE_PROCCALL);
 	if (use_extended_protocol)
@@ -2001,21 +1952,9 @@ SC_execute(StatementClass *self)
 			CC_begin(conn);
 		if (!plan_name)
 			plan_name = "";
-		if (!SendBindRequest(self, plan_name))
-		{
-			if (SC_get_errornumber(self) <= 0)
-				SC_set_error(self, STMT_EXEC_ERROR, "Bind request error", func);
-			goto cleanup;
-		}
-		if (!SendExecuteRequest(self, plan_name, 0))
-		{
-			if (SC_get_errornumber(self) <= 0)
-				SC_set_error(self, STMT_EXEC_ERROR, "Execute request error", func);
-			goto cleanup;
-		}
-		for (res = SC_get_Result(self); NULL != res && NULL != res->next; res = res->next) ;
-inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_result);
-		if (!(res = SendSyncAndReceive(self, self->curr_param_result ? res : NULL, "bind_and_execute")))
+
+		res = libpq_bind_and_exec(self, plan_name, "bind_and_execute");
+		if (!res)
 		{
 			if (SC_get_errornumber(self) <= 0)
 				SC_set_error(self, STMT_NO_RESPONSE, "Could not receive the response, communication down ??", func);
@@ -2044,6 +1983,9 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 			if (0 != (ci->extra_opts & BIT_IGNORE_ROUND_TRIP_TIME))
 				qflag |= IGNORE_ROUND_TRIP;
 		}
+		res = SC_get_Result(self);
+		if (self->curr_param_result && res)
+			SC_set_Result(self, res->next);
 		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
 		if (useCursor && QR_command_maybe_successful(res))
 		{
@@ -2061,7 +2003,6 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 				{
 					if (qres->command && strnicmp(qres->command, fetch_cmd, 5) == 0)
 					{
-						res = qres;
 						break;
 					}
 					nres = qres->next;
@@ -2077,7 +2018,15 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 					qres->next = NULL;
 					QR_Destructor(qres);
 					qres = nres;
+
+					/*
+					 * If we received fewer rows than requested, there are no
+					 * more rows to fetch.
+					 */
+					if (qres->num_cached_rows < qi.row_size)
+						QR_set_reached_eof(qres);
 				}
+				res = qres;
 			}
 			if (res && SC_is_with_hold(self))
 				QR_set_withhold(res);
@@ -2110,7 +2059,6 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(self), self->curr_param_resul
 				CC_commit(conn);
 		}
 	}
-	SC_forget_unnamed(self);
 
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
@@ -2208,7 +2156,7 @@ inolog("!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
 	else
 	{
 		/* Bad Error -- The error message will be in the Connection */
-		if (!conn->sock)
+		if (!conn->pqconn)
 			SC_set_error(self, STMT_BAD_ERROR, CC_get_errormsg(conn), func);
 		else if (self->statement_type == STMT_TYPE_CREATE)
 		{
@@ -2452,7 +2400,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 				qlog("                 fields=%p, backend_tuples=%p, tupleField=%d, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
 				qlog("                 fetch_count=%d, num_total_rows=%d, num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, nullcheck(QR_get_cursor(res)));
 				qlog("                 message='%s', command='%s', notice='%s'\n", nullcheck(QR_get_message(res)), nullcheck(res->command), nullcheck(res->notice));
-				qlog("                 status=%d, inTuples=%d\n", QR_get_rstatus(res), QR_is_fetching_tuples(res));
+				qlog("                 status=%d\n", QR_get_rstatus(res));
 			}
 
 			/* Log the connection error if there is one */
@@ -2504,321 +2452,209 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 	return ret;
 }
 
-/*
- * Copies the column information from the first result set of 'self' to 'res'.
- */
-static BOOL
-ReflectColumnsInfo(StatementClass *self, QResultClass *res)
+
+static QResultClass *
+libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
+					const char *comment)
 {
-	QResultClass	*pres;
-
-	if (NOT_YET_PREPARED == self->prepared)
-		return FALSE;
-	if (res->num_fields > 0)
-		return FALSE;
-	pres = SC_get_Result(self);
-	if (pres != NULL &&
-	    pres != res &&
-	    pres->num_fields > 0)
-	{
-		QR_set_fields(res, QR_get_fields(pres));
-		QR_set_conn(res, SC_get_conn(self));
-		if (QR_haskeyset(pres))
-			QR_set_haskeyset(res);
-		if (QR_is_withhold(pres))
-			QR_set_withhold(res);
-		res->num_fields = pres->num_fields;
-
-		return TRUE;
-	}
-	return FALSE;
-}
-
-BOOL
-SendBindRequest(StatementClass *stmt, const char *plan_name)
-{
-	CSTR	func = "SendBindRequest";
+	CSTR		func = "libpq_bind_and_exec";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-
-	mylog("%s: plan_name=%s\n", func, plan_name);
-	if (!RequestStart(stmt, conn, func))
-		return FALSE;
-	if (!BuildBindRequest(stmt, plan_name))
-		return FALSE;
-	conn->stmt_in_extquery = stmt;
-
-	return TRUE;
-}
-
-QResultClass *SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const char *comment)
-{
-	CSTR func = "SendSyncAndReceive";
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	char		id;
-	Int4		response_length;
-	UInt4		oid;
-	int		num_p, num_io_params;
-	int		i, pidx;
-	Int2		num_discard_params, paramType;
-	BOOL		rcvend = FALSE, loopend = FALSE;
-	char		msgbuffer[ERROR_MSG_LENGTH + 1];
-	IPDFields	*ipdopts;
+	int			nParams;
+	char	  **paramValues = NULL;
+	int		   *paramLengths = NULL;
+	int		   *paramFormats = NULL;
+	int			resultFormat;
+	PGresult   *pgres = NULL;
+	int			pgresstatus;
 	QResultClass	*newres = NULL;
+	QResultClass *res;
+	char	   *cmdtag;
+	char	   *rowcount;
+	BOOL		ret = FALSE;
 
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
-	SOCK_put_char(conn->sock, 'S');	/* Sync command */
-	SOCK_put_int(conn->sock, 4, 4);	/* length */
-	SOCK_flush_output(conn->sock);
+	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
+	{
+		if (SQL_ERROR == SetStatementSvp(stmt))
+		{
+			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error in build_libpq_bind_params", func);
+			return NULL;
+		}
+	}
+
+	/* 1. Bind */
+	mylog("%s: bind plan_name=%s\n", func, plan_name);
+	if (!build_libpq_bind_params(stmt, plan_name,
+								 &nParams, &paramValues,
+								 &paramLengths, &paramFormats,
+								 &resultFormat))
+	{
+		goto cleanup;
+	}
+
+	/* 2. Execute */
+	mylog("%s: execute plan_name=%s\n", func, plan_name);
+	if (!SC_is_fetchcursor(stmt))
+	{
+		if (stmt->prepared == NOT_YET_PREPARED ||
+			(stmt->prepared == PREPARED_TEMPORARILY && conn->unnamed_prepared_stmt != stmt))
+		{
+			SC_set_error(stmt, STMT_EXEC_ERROR, "about to execute a non-prepared statement", func);
+			goto cleanup;
+		}
+	}
+
+	/* 2.5 Prepare and Describe if needed */
+	if (stmt->prepared == PREPARING_TEMPORARILY ||
+		(stmt->prepared == PREPARED_TEMPORARILY && conn->unnamed_prepared_stmt != stmt))
+	{
+		ProcessedStmt *pstmt;
+
+		if (!stmt->processed_statements)
+		{
+			if (prepareParametersNoDesc(stmt) == SQL_ERROR)
+				goto cleanup;
+		}
+
+		pstmt = stmt->processed_statements;
+		pgres = PQexecParams(conn->pqconn,
+							 pstmt->query,
+							 pstmt->num_params,
+							 NULL,
+							 (const char **) paramValues, paramLengths, paramFormats,
+							 resultFormat);
+	}
+	else
+	{
+		if (stmt->prepared == PREPARING_PERMANENTLY)
+		{
+			if (prepareParameters(stmt) == SQL_ERROR)
+				goto cleanup;
+		}
+
+		/* already prepared */
+		pgres = PQexecPrepared(conn->pqconn,
+							   plan_name, 	/* portal name == plan name */
+							   nParams,
+							   (const char **) paramValues, paramLengths, paramFormats,
+							   resultFormat);
+	}
+	if (stmt->curr_param_result)
+	{
+		for (res = SC_get_Result(stmt); NULL != res && NULL != res->next; res = res->next) ;
+	}
+	else
+		res = NULL;
 
 	if (!res)
 		newres = res = QR_Constructor();
-	for (;!loopend;)
+
+	/* 3. Receive results */
+inolog("get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_result);
+	pgresstatus = PQresultStatus(pgres);
+	switch (pgresstatus)
 	{
-		id = SOCK_get_id(conn->sock);
-		if ((SOCK_get_errcode(conn->sock) != 0) || (id == EOF))
+		case PGRES_COMMAND_OK:
+			/* portal query command, no tuples returned */
+			/* read in the return message from the backend */
+			cmdtag = PQcmdStatus(pgres);
+			mylog("command response: %s\n", cmdtag);
+			QR_set_command(res, cmdtag);
+			if (QR_command_successful(res))
+				QR_set_rstatus(res, PORES_COMMAND_OK);
+
+			/* get rowcount */
+			rowcount = PQcmdTuples(pgres);
+			if (rowcount && rowcount[0])
+				res->recent_processed_row_count = atoi(rowcount);
+			else
+				res->recent_processed_row_count = -1;
 			break;
-inolog("desc id=%c", id);
-		response_length = SOCK_get_response_length(conn->sock);
-		if (0 != SOCK_get_errcode(conn->sock))
+
+		case PGRES_EMPTY_QUERY:
+			/* We return the empty query */
+			QR_set_rstatus(res, PORES_EMPTY_QUERY);
 			break;
-inolog(" response_length=%d\n", response_length);
-		switch (id)
-		{
-			case 'C':
-				SOCK_get_string(conn->sock, msgbuffer, sizeof(msgbuffer));
-				mylog("command response=%s\n", msgbuffer);
-				QR_set_command(res, msgbuffer);
-				if (QR_is_fetching_tuples(res))
-				{
-					res->dataFilled = TRUE;
-					QR_set_no_fetching_tuples(res);
-					/* in case of FETCH, Portal Suspend never arrives */
-					if (strnicmp(msgbuffer, "SELECT", 6) == 0)
-					{
-						mylog("%s: reached eof now\n", func);
-						QR_set_reached_eof(res);
-					}
-					else
-					{
-						int	ret1, ret2;
+		case PGRES_NONFATAL_ERROR:
+			handle_pgres_error(conn, pgres, "libpq_bind_and_exec", res, FALSE);
+			break;
 
-						ret1 = ret2 = 0;
-						if (sscanf(msgbuffer, "%*s %d %d", &ret1, &ret2) > 1)
-							res->recent_processed_row_count = ret2;
-						else
-							res->recent_processed_row_count = ret1;
-					}
-				}
-				else if (QR_command_successful(res))
-					QR_set_rstatus(res, PORES_COMMAND_OK);
-				break;
-			case 'E': /* ErrorMessage */
-				handle_error_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
+		case PGRES_BAD_RESPONSE:
+		case PGRES_FATAL_ERROR:
+			handle_pgres_error(conn, pgres, "libpq_bind_and_exec", res, TRUE);
+			break;
+		case PGRES_TUPLES_OK:
+			if (!QR_from_PGresult(res, stmt, conn, NULL, &pgres))
+				goto cleanup;
+			if (res->rstatus == PORES_TUPLES_OK && res->notice)
+				QR_set_rstatus(res, PORES_NONFATAL_ERROR);
+			break;
+		case PGRES_COPY_OUT:
+		case PGRES_COPY_IN:
+		case PGRES_COPY_BOTH:
+		default:
+			/* skip the unexpected response if possible */
+			CC_set_error(conn, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)", func);
+			CC_on_abort(conn, CONN_DEAD);
 
-				break;
-			case 'N': /* Notice */
-				handle_notice_message(conn, msgbuffer, sizeof(msgbuffer), res->sqlstate, comment, res);
-				break;
-			case '1': /* ParseComplete */
-				if (stmt->plan_name)
-					SC_set_prepared(stmt, PREPARED_PERMANENTLY);
-				else
-					SC_set_prepared(stmt, PREPARED_TEMPORARILY);
-				break;
-			case '2': /* BindComplete */
-				QR_set_fetching_tuples(res);
-				break;
-			case '3': /* CloseComplete */
-				QR_set_no_fetching_tuples(res);
-				break;
-			case 'Z': /* ReadyForQuery */
-				loopend = rcvend = TRUE;
-				EatReadyForQuery(conn);
-				break;
-			case 't': /* ParameterDesription */
-				num_p = SOCK_get_int(conn->sock, 2);
-inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
-				num_discard_params = 0;
-				if (stmt->discard_output_params)
-					CountParameters(stmt, NULL, NULL, &num_discard_params);
-				if (num_discard_params < stmt->proc_return)
-					num_discard_params = stmt->proc_return;
-				if (num_p + num_discard_params != (int) stmt->num_params)
-				{
-					mylog("ParamInfo unmatch num_params(=%d) != info(=%d)+discard(=%d)\n", stmt->num_params, num_p, num_discard_params);
-					/* stmt->num_params = (Int2) num_p + num_discard_params; it's possible in case of multi command queries */
-				}
-				ipdopts = SC_get_IPDF(stmt);
-				extend_iparameter_bindings(ipdopts, stmt->num_params);
-#ifdef	NOT_USED
-				if (stmt->discard_output_params)
-				{
-					for (i = 0, pidx = stmt->proc_return; i < num_p && pidx < stmt->num_params; pidx++)
-					{
-						paramType = ipdopts->parameters[pidx].paramType;
-						if (SQL_PARAM_OUTPUT == paramType)
-						{
-							i++;
-							continue;
-						}
-						oid = SOCK_get_int(conn->sock, 4);
-						PIC_set_pgtype(ipdopts->parameters[pidx], oid);
-					}
-				}
-				else
-				{
-					for (i = 0, pidx = stmt->proc_return; i < num_p; i++, pidx++)
-					{
-						paramType = ipdopts->parameters[pidx].paramType;
-						oid = SOCK_get_int(conn->sock, 4);
-						if (SQL_PARAM_OUTPUT != paramType ||
-						    PG_TYPE_VOID != oid)
-							PIC_set_pgtype(ipdopts->parameters[pidx], oid);
-					}
-				}
-#endif /* NOT_USED */
-				pidx = stmt->current_exec_param;
-				if (pidx >= 0)
-					pidx--;
-				for (i = 0; i < num_p; i++)
-				{
-					SC_param_next(stmt, &pidx, NULL, NULL);
-					if (pidx >= stmt->num_params)
-					{
-						mylog("%dth parameter's position(%d) is out of bound[%d]\n", i, pidx, stmt->num_params);
-						break;
-					}
-					oid = SOCK_get_int(conn->sock, 4);
-					paramType = ipdopts->parameters[pidx].paramType;
-					if (SQL_PARAM_OUTPUT != paramType ||
-					    PG_TYPE_VOID != oid)
-						PIC_set_pgtype(ipdopts->parameters[pidx], oid);
-				}
-				break;
-			case 'T': /* RowDesription */
-				QR_set_conn(res, conn);
-				if (CI_read_fields(QR_get_fields(res), conn))
-				{
-					Int2	dummy1, dummy2;
-					int	cidx;
-
-					QR_set_rstatus(res, PORES_FIELDS_OK);
-					res->num_fields = CI_get_num_fields(QR_get_fields(res));
-					if (QR_haskeyset(res))
-						res->num_fields -= res->num_key_fields;
-					num_io_params = CountParameters(stmt, NULL, &dummy1, &dummy2);
-					if (stmt->proc_return > 0 ||
-					    num_io_params > 0)
-					{
-						ipdopts = SC_get_IPDF(stmt);
-						extend_iparameter_bindings(ipdopts, stmt->num_params);
-						for (i = 0, cidx = 0; i < stmt->num_params; i++)
-						{
-							if (i < stmt->proc_return)
-								ipdopts->parameters[i].paramType = SQL_PARAM_OUTPUT;
-							paramType =ipdopts->parameters[i].paramType;
-							if (SQL_PARAM_OUTPUT == paramType ||
-								SQL_PARAM_INPUT_OUTPUT == paramType)
-							{
-inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
-								PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(res), cidx));
-								cidx++;
-							}
-						}
-					}
-				}
-				else
-				{
-					if (NULL == QR_get_fields(res)->coli_array)
-					{
-						QR_set_rstatus(res, PORES_NO_MEMORY_ERROR);
-						QR_set_messageref(res, "Out of memory while reading field information");
-					}
-					else
-					{
-						QR_set_rstatus(res, PORES_BAD_RESPONSE);
-						QR_set_message(res, "Error reading field information");
-					}
-					loopend = rcvend = TRUE;
-				}
-				break;
-			case 'B': /* Binary data */
-			case 'D': /* ASCII data */
-				ReflectColumnsInfo(stmt, res);
-				if (!QR_get_tupledata(res, id == 'B'))
-				{
-					loopend = TRUE;
-				}
-				break;
-			case 'S': /* parameter status */
-				getParameterValues(conn);
-				break;
-			case 's':	/* portal suspend */
-				QR_set_no_fetching_tuples(res);
-				res->dataFilled = TRUE;
-				break;
-			default:
-				break;
-		}
+			mylog("send_query: error - %s\n", CC_get_errormsg(conn));
+			break;
 	}
-	if (!rcvend && 0 == SOCK_get_errcode(conn->sock) && EOF != id)
-	{
-		for (;;)
-		{
-			id = SOCK_get_id(conn->sock);
-			if ((SOCK_get_errcode(conn->sock) != 0) || (id == EOF))
-				break;
-			response_length = SOCK_get_response_length(conn->sock);
-			if (0 != SOCK_get_errcode(conn->sock))
-				break;
-			if ('Z' == id)
-			{
-				EatReadyForQuery(conn);
-				qlog("%s Discarded data until ReadyForQuery comes\n", __FUNCTION__);
-				break;
-			}
-		}
-	}
-	if (0 != SOCK_get_errcode(conn->sock) || EOF == id)
-	{
-		SC_set_error(stmt, STMT_NO_RESPONSE, "No response from the backend", func);
 
-		mylog("%s: 'id' - %s\n", func, SC_get_errormsg(stmt));
-		CC_on_abort(conn, CONN_DEAD);
-		res = NULL;
-	}
-	if (res != newres &&
-	    NULL != newres)
+	if (res != newres && NULL != newres)
 		QR_Destructor(newres);
-	conn->stmt_in_extquery = NULL;
-	return res;
+
+	ret = TRUE;
+
+cleanup:
+	if (pgres)
+		PQclear(pgres);
+	if (paramValues)
+	{
+		int			i;
+		for (i = 0; i < nParams; i++)
+		{
+			if (paramValues[i] != NULL)
+				free(paramValues[i]);
+		}
+		free(paramValues);
+	}
+	if (paramLengths)
+		free(paramLengths);
+	if (paramFormats)
+		free(paramFormats);
+
+	if (ret)
+		return res;
+	else
+		return NULL;
 }
 
+/*
+ * Parse a query using libpq.
+ *
+ * 'res' is only passed here for error reporting purposes. If an error is
+ * encountered, it is set in 'res', and the function returns FALSE.
+ */
 BOOL
-SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query, Int4 qlen, Int2 num_params)
+ParseWithLibpq(StatementClass *stmt, const char *plan_name,
+			   const char *query,
+			   Int2 num_params, const char *comment, QResultClass *res)
 {
-	CSTR	func = "SendParseRequest";
+	CSTR	func = "ParseWithLibpq";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	SocketClass	*sock = conn->sock;
 	Int4		sta_pidx = -1, end_pidx = -1;
-	size_t		pileng, leng;
+	Oid		   *paramTypes = NULL;
+	BOOL		retval = FALSE;
+	PGresult   *pgres = NULL;
 
 	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);
 	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query);
 	if (!RequestStart(stmt, conn, func))
 		return FALSE;
 
-	SOCK_put_char(sock, 'P'); /* Parse command */
-	if (SOCK_get_errcode(sock) != 0)
-	{
-		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send P request to backend", func);
-		CC_on_abort(conn, CONN_DEAD);
-		return FALSE;
-	}
-
-	pileng = sizeof(Int2);
 	if (stmt->discard_output_params)
 		num_params = 0;
 	else if (num_params != 0)
@@ -2850,192 +2686,222 @@ SendParseRequest(StatementClass *stmt, const char *plan_name, const char *query,
 			}
 		}
 mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
-		pileng += (sizeof(UInt4) * num_params);
 	}
-	qlen = (SQL_NTS == qlen) ? strlen(query) : qlen;
-	leng = strlen(plan_name) + 1 + qlen + 1 + pileng;
-	SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
-inolog("parse leng=" FORMAT_SIZE_T "\n", leng);
-	SOCK_put_string(sock, plan_name);
-	SOCK_put_n_char(sock, query, qlen);
-	SOCK_put_char(sock, '\0');
-	SOCK_put_int(sock, num_params, sizeof(Int2)); /* number of parameters specified */
+
+	/*
+	 * We let the server deduce the right datatype for the parameters, except
+	 * for out parameters, which are sent as VOID.
+	 */
 	if (num_params > 0)
 	{
 		int	i;
+		int j;
 		IPDFields	*ipdopts = SC_get_IPDF(stmt);
 
+		paramTypes = malloc(sizeof(Oid) * num_params);
+		if (paramTypes == NULL)
+			goto cleanup;
+
+		j = 0;
 		for (i = sta_pidx; i <= end_pidx; i++)
 		{
 			if (i < ipdopts->allocated &&
 			    SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
-				SOCK_put_int(sock, PG_TYPE_VOID, sizeof(UInt4));
+				paramTypes[j++] = PG_TYPE_VOID;
 			else
-				SOCK_put_int(sock, 0, sizeof(UInt4));
+				paramTypes[j++] = 0;
 		}
 	}
-	conn->stmt_in_extquery = stmt;
 
-	return TRUE;
-}
+	if (plan_name == NULL || plan_name[0] == '\0')
+		conn->unnamed_prepared_stmt = NULL;
 
-BOOL	SyncParseRequest(ConnectionClass *conn)
-{
-	StatementClass *stmt = conn->stmt_in_extquery;
-	QResultClass	*res, *last;
-	BOOL	ret = FALSE;
-
-	if (!stmt)
-		return TRUE;
-
-	res = SC_get_Result(stmt);
-	for (last = res; last && last->next; last = last->next)
-		;
-	if (!(res = SendSyncAndReceive(stmt, stmt->curr_param_result ? last : NULL, __FUNCTION__)))
+	/* Prepare */
+	pgres = PQprepare(conn->pqconn, plan_name, query, num_params, paramTypes);
+	if (PQresultStatus(pgres) != PGRES_COMMAND_OK)
 	{
-		if (SC_get_errornumber(stmt) <= 0)
-			SC_set_error(stmt, STMT_NO_RESPONSE, "Could not receive the response, communication down ??", __FUNCTION__);
-		CC_on_abort(conn, CONN_DEAD);
+		handle_pgres_error(conn, pgres, "ParseWithlibpq", res, TRUE);
 		goto cleanup;
 	}
 
-	if (!last)
-		SC_set_Result(stmt, res);
+	if (stmt->plan_name)
+		SC_set_prepared(stmt, PREPARED_PERMANENTLY);
+	else
+		SC_set_prepared(stmt, PREPARED_TEMPORARILY);
+
+	if (plan_name == NULL || plan_name[0] == '\0')
+		conn->unnamed_prepared_stmt = stmt;
+
+	retval = TRUE;
+
+cleanup:
+	if (paramTypes)
+		free(paramTypes);
+
+	if (pgres)
+		PQclear(pgres);
+
+	return retval;
+}
+
+
+/*
+ * Parse and describe a query using libpq.
+ *
+ * Returns an empty result set that has the column information, or error code
+ * and message, filled in. If 'res' is not NULL, it is the result set
+ * returned, otherwise a new one is allocated.
+ */
+QResultClass *
+ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
+						  const char *query_param,
+						  Int2 num_params, const char *comment,
+						  QResultClass *res)
+{
+	CSTR	func = "ParseAndDescribeWithLibpq";
+	ConnectionClass	*conn = SC_get_conn(stmt);
+	char	   *query = NULL;
+	Oid		   *paramTypes = NULL;
+	PGresult   *pgres = NULL;
+	int			num_p;
+	Int2		num_discard_params;
+	IPDFields	*ipdopts;
+	int			pidx;
+	int			i;
+	Oid			oid;
+	SQLSMALLINT paramType;
+
+	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);
+	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query);
+	if (!RequestStart(stmt, conn, func))
+		return NULL;
+
+	if (!res)
+		res = QR_Constructor();
+
+	/*
+	 * We need to do Prepare + Describe as two different round-trips to the
+	 * server, while before we switched to use libpq, we used to send a Parse
+	 * and Describe message followed by a single Sync.
+	 */
+	if (!ParseWithLibpq(stmt, plan_name, query_param, num_params, comment, res))
+		goto cleanup;
+
+	/* Describe */
+	mylog("%s: describing plan_name=%s\n", func, plan_name);
+
+	pgres = PQdescribePrepared(conn->pqconn, plan_name);
+	switch (PQresultStatus(pgres))
+	{
+		case PGRES_COMMAND_OK:
+			/* expected */
+			break;
+		case PGRES_NONFATAL_ERROR:
+			handle_pgres_error(conn, pgres, "ParseAndDescribeWithLibpq", res, FALSE);
+			goto cleanup;
+		case PGRES_FATAL_ERROR:
+			handle_pgres_error(conn, pgres, "ParseAndDescribeWithLibpq", res, TRUE);
+			goto cleanup;
+		default:
+			/* skip the unexpected response if possible */
+			CC_set_error(conn, CONNECTION_BACKEND_CRAZY, "Unexpected result from PQdescribePrepared", func);
+			CC_on_abort(conn, CONN_DEAD);
+
+			mylog("send_query: error - %s\n", CC_get_errormsg(conn));
+			goto cleanup;
+	}
+
+	/* Extract parameter information from the result set */
+	num_p = PQnparams(pgres);
+inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
+	num_discard_params = 0;
+	if (stmt->discard_output_params)
+		CountParameters(stmt, NULL, NULL, &num_discard_params);
+	if (num_discard_params < stmt->proc_return)
+		num_discard_params = stmt->proc_return;
+	if (num_p + num_discard_params != (int) stmt->num_params)
+	{
+		mylog("ParamInfo unmatch num_params(=%d) != info(=%d)+discard(=%d)\n", stmt->num_params, num_p, num_discard_params);
+		/* stmt->num_params = (Int2) num_p + num_discard_params; it's possible in case of multi command queries */
+	}
+	ipdopts = SC_get_IPDF(stmt);
+	extend_iparameter_bindings(ipdopts, stmt->num_params);
+	pidx = stmt->current_exec_param;
+	if (pidx >= 0)
+		pidx--;
+	for (i = 0; i < num_p; i++)
+	{
+		SC_param_next(stmt, &pidx, NULL, NULL);
+		if (pidx >= stmt->num_params)
+		{
+			mylog("%dth parameter's position(%d) is out of bound[%d]\n", i, pidx, stmt->num_params);
+			break;
+		}
+		oid = PQparamtype(pgres, i);
+		paramType = ipdopts->parameters[pidx].paramType;
+		if (SQL_PARAM_OUTPUT != paramType ||
+			PG_TYPE_VOID != oid)
+			PIC_set_pgtype(ipdopts->parameters[pidx], oid);
+	}
+
+	/* Extract Portal information */
+	QR_set_conn(res, conn);
+
+	if (CI_read_fields_from_pgres(QR_get_fields(res), pgres))
+	{
+		Int2	dummy1, dummy2;
+		int	cidx;
+		int num_io_params;
+
+		QR_set_rstatus(res, PORES_FIELDS_OK);
+		res->num_fields = CI_get_num_fields(QR_get_fields(res));
+		if (QR_haskeyset(res))
+			res->num_fields -= res->num_key_fields;
+		num_io_params = CountParameters(stmt, NULL, &dummy1, &dummy2);
+		if (stmt->proc_return > 0 ||
+			num_io_params > 0)
+		{
+			ipdopts = SC_get_IPDF(stmt);
+			extend_iparameter_bindings(ipdopts, stmt->num_params);
+			for (i = 0, cidx = 0; i < stmt->num_params; i++)
+			{
+				if (i < stmt->proc_return)
+					ipdopts->parameters[i].paramType = SQL_PARAM_OUTPUT;
+				paramType =ipdopts->parameters[i].paramType;
+				if (SQL_PARAM_OUTPUT == paramType ||
+					SQL_PARAM_INPUT_OUTPUT == paramType)
+				{
+					inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
+					PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(res), cidx));
+					cidx++;
+				}
+			}
+		}
+	}
 	else
 	{
-		if (res != last)
-			last->next = res;
-		stmt->curr_param_result = 1;
+		if (NULL == QR_get_fields(res)->coli_array)
+		{
+			QR_set_rstatus(res, PORES_NO_MEMORY_ERROR);
+			QR_set_messageref(res, "Out of memory while reading field information");
+		}
+		else
+		{
+			QR_set_rstatus(res, PORES_BAD_RESPONSE);
+			QR_set_message(res, "Error reading field information");
+		}
 	}
-	if (!QR_command_maybe_successful(res))
-	{
-		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while syncing parse reuest", __FUNCTION__);
-		goto cleanup;
-	}
-	ret = TRUE;
+
 cleanup:
-	return ret;
-}
+	if (paramTypes)
+		free(paramTypes);
+	if (query && query != query_param)
+		free(query);
 
-BOOL
-SendDescribeRequest(StatementClass *stmt, const char *plan_name, BOOL paramAlso)
-{
-	CSTR	func = "SendDescribeRequest";
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	SocketClass	*sock = conn->sock;
-	size_t		leng;
-	BOOL		sockerr = FALSE;
+	if (pgres)
+		PQclear(pgres);
 
-	mylog("%s:plan_name=%s\n", func, plan_name);
-	if (!RequestStart(stmt, conn, func))
-		return FALSE;
-
-	SOCK_put_char(sock, 'D'); /* Describe command */
-	if (SOCK_get_errcode(sock) != 0)
-		sockerr = TRUE;
-	if (!sockerr)
-	{
-		leng = 1 + strlen(plan_name) + 1;
-		SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
-		if (SOCK_get_errcode(sock) != 0)
-			sockerr = TRUE;
-	}
-	if (!sockerr)
-	{
-inolog("describe leng=%d\n", leng);
-		SOCK_put_char(sock, paramAlso ? 'S' : 'P'); /* describe a prepared statement */
-		if (SOCK_get_errcode(sock) != 0)
-			sockerr = TRUE;
-	}
-	if (!sockerr)
-	{
-		SOCK_put_string(sock, plan_name);
-		if (SOCK_get_errcode(sock) != 0)
-			sockerr = TRUE;
-	}
-	if (sockerr)
-	{
-		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send D Request to backend", func);
-		CC_on_abort(conn, CONN_DEAD);
-		return FALSE;
-	}
-	conn->stmt_in_extquery = stmt;
-
-	return TRUE;
-}
-
-BOOL
-SendExecuteRequest(StatementClass *stmt, const char *plan_name, UInt4 count)
-{
-	CSTR	func = "SendExecuteRequest";
-	ConnectionClass	*conn;
-	SocketClass	*sock;
-	size_t		leng;
-
-	if (!stmt)	return FALSE;
-	if (conn = SC_get_conn(stmt), !conn)	return FALSE;
-	if (sock = conn->sock, !sock)	return FALSE;
-
-	mylog("%s: plan_name=%s count=%d\n", func, plan_name, count);
-	qlog("%s: plan_name=%s count=%d\n", func, plan_name, count);
-	if (!SC_is_fetchcursor(stmt))
-	{
-		switch (stmt->prepared)
-		{
-			case NOT_YET_PREPARED:
-			case ONCE_DESCRIBED:
-				SC_set_error(stmt, STMT_EXEC_ERROR, "about to execute a non-prepared statement", func);
-				return FALSE;
-		}
-	}
-	if (!RequestStart(stmt, conn, func))
-		return FALSE;
-
-	SOCK_put_char(sock, 'E'); /* Execute command */
-	SC_forget_unnamed(stmt); /* unnamed plans are unavailable */
-	if (SOCK_get_errcode(sock) != 0)
-	{
-		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send E Request to backend", func);
-		CC_on_abort(conn, CONN_DEAD);
-		return FALSE;
-	}
-
-	leng = strlen(plan_name) + 1 + 4;
-	SOCK_put_int(sock, (Int4) (leng + 4), sizeof(Int4)); /* length */
-inolog("execute leng=%d\n", leng);
-	SOCK_put_string(sock, plan_name);	/* portal name == plan name */
-	SOCK_put_int(sock, count, sizeof(Int4));
-	if (0 == count) /* will send a Close portal command */
-	{
-		SOCK_put_char(sock, 'C');	/* Close command */
-		if (SOCK_get_errcode(sock) != 0)
-		{
-			CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send C Request to backend", func);
-			CC_on_abort(conn, CONN_DEAD);
-			return FALSE;
-		}
-
-		leng = 1 + strlen(plan_name) + 1;
-		SOCK_put_int(sock, (Int4) (leng + 4), 4); /* length */
-inolog("Close leng=%d\n", leng);
-		SOCK_put_char(sock, 'P');	/* Portal */
-		SOCK_put_string(sock, plan_name);
-	}
-	conn->stmt_in_extquery = stmt;
-
-	return TRUE;
-}
-
-BOOL	SendSyncRequest(ConnectionClass *conn)
-{
-	SocketClass	*sock = conn->sock;
-
-	SOCK_put_char(sock, 'S');	/* Sync command */
-	SOCK_put_int(sock, 4, 4);
-	SOCK_flush_output(sock);
-	conn->stmt_in_extquery = NULL;
-
-	return TRUE;
+	return res;
 }
 
 enum {

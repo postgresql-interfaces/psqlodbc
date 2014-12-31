@@ -71,16 +71,9 @@
     <ANSI_VERSION>no</ANSI_VERSION>
     <!-- 		-->
     <PG_INC></PG_INC>
-    <SSL_INC></SSL_INC>
-    <GSS_INC></GSS_INC>
     <PG_LIB></PG_LIB>
-    <SSL_LIB></SSL_LIB>
-    <GSS_LIB></GSS_LIB>
     <!-- 		-->
     <MSDTC>yes</MSDTC>
-    <USE_LIBPQ>yes</USE_LIBPQ>
-    <USE_GSS>no</USE_GSS>
-    <USE_SSPI>yes</USE_SSPI>
     <MEMORY_DEBUG>no</MEMORY_DEBUG>
     <!-- work properties -->
     <ADD_DEFINES></ADD_DEFINES>
@@ -89,30 +82,10 @@
     <RSC_DEFINES></RSC_DEFINES>
     <DELAY_LOAD_DLLS>secur32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
-  <!-- USE_LIBPQ -->
-  <PropertyGroup Condition="'$(USE_LIBPQ)'!='no'" >
-    <ADD_INC>$(ADD_INC);$(PG_INC);$(SSL_INC)</ADD_INC>
-    <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB);$(SSL_LIB)</ADD_LIBPATH>
-    <ADD_DEFINES>$(ADD_DEFINES);USE_LIBPQ;USE_SSL</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);libpq.dll;ssleay32.dll</DELAY_LOAD_DLLS>
-  </PropertyGroup>
-  <!-- USE_GSS -->
-  <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|Win32'" >
-    <ADD_INC>$(ADD_INC);$(GSS_INC)</ADD_INC>
-    <ADD_LIBPATH>$(ADD_LIBPATH);$(GSS_LIB)</ADD_LIBPATH>
-    <ADD_DEFINES>$(ADD_DEFINES);USE_GSS</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);gssapi32.dll</DELAY_LOAD_DLLS>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(USE_GSS)|$(Platform)'=='yes|x64'" >
-    <ADD_INC>$(ADD_INC);$(GSS_INC)</ADD_INC>
-    <ADD_LIBPATH>$(ADD_LIBPATH);$(GSS_LIB)</ADD_LIBPATH>
-    <ADD_DEFINES>$(ADD_DEFINES);USE_GSS</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);gssapi64.dll</DELAY_LOAD_DLLS>
-  </PropertyGroup>
-  <!-- USE_SSPI -->
-  <PropertyGroup Condition="'$(USE_SSPI)'=='yes'" >
-    <ADD_DEFINES>$(ADD_DEFINES);USE_SSPI</ADD_DEFINES>
-    <DELAY_LOAD_DLLS>$(DELAY_LOAD_DLLS);crypt32.dll</DELAY_LOAD_DLLS>
+  <PropertyGroup Condition="'$(PG_INC)'!=''">
+    <ADD_INC>$(ADD_INC);$(PG_INC)</ADD_INC>
+    <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB)</ADD_LIBPATH>
+    <ADD_DEFINES>$(ADD_DEFINES)</ADD_DEFINES>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(ANSI_VERSION)'=='yes'">
@@ -198,7 +171,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;secur32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libpq.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;secur32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -217,7 +190,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;secur32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libpq.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;wsock32.lib;ws2_32.lib;secur32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -236,7 +209,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libpq.lib;winmm.lib;wsock32.lib;ws2_32.lib;secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -255,7 +228,7 @@
     <Link>
       <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalLibraryDirectories>$(ADD_LIBPATH);$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>winmm.lib;wsock32.lib;ws2_32.lib;secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libpq.lib;winmm.lib;wsock32.lib;ws2_32.lib;secur32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(MAINDEF)</ModuleDefinitionFile>
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
     </Link>
@@ -299,12 +272,8 @@
     <ClCompile Include="$(srcPath)qresult.c" />
     <ClCompile Include="$(srcPath)results.c" />
     <ClCompile Include="$(srcPath)setup.c" />
-    <ClCompile Include="$(srcPath)socket.c" />
-    <ClCompile Condition="'$(USE_GSS)'=='yes'" Include="$(srcPath)gsssvcs.c" />
-    <ClCompile Condition="'$(USE_SSPI)'=='yes'" Include="$(srcPath)sspisvcs.c" />
     <ClCompile Include="$(srcPath)statement.c" />
     <ClCompile Include="$(srcPath)tuple.c" />
-    <ClCompile Include="$(srcPath)win_md5.c" />
     <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)win_unicode.c" />
     <ClCompile Condition="'$(MSDTC)'=='yes'" Include="$(srcPath)xalibname.c" />
   </ItemGroup>

@@ -112,6 +112,7 @@ void	PDATA_free_params(PutDataInfo *pdata, char option);
 void	SC_param_next(const StatementClass*, int *param_number, ParameterInfoClass **, ParameterImplClass **);
 
 RETCODE       prepareParameters(StatementClass *stmt);
+RETCODE       prepareParametersNoDesc(StatementClass *stmt);
 int	decideHowToPrepare(StatementClass *stmt, BOOL force);
 
 #endif

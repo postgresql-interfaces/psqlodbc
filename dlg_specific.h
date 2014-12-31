@@ -62,8 +62,10 @@ extern "C" {
 #define ABBR_DEBUG			"B2"
 #define INI_FETCH			"Fetch"		/* Fetch Max Count */
 #define ABBR_FETCH			"A7"
-#define INI_SOCKET			"Socket"	/* Socket buffer size */
-#define ABBR_SOCKET			"A8"
+/*
+ * "Socket", abbreviated as "A8" was used for socket buffer. Now that we do
+ * everything through libpq, it's not used
+ */
 #define INI_READONLY			"ReadOnly"	/* Database is read only */
 #define ABBR_READONLY			"A0"
 #define INI_COMMLOG			"CommLog"	/* Communication to
@@ -154,8 +156,11 @@ extern "C" {
 #define INI_KEEPALIVEINTERVAL		"KeepaliveInterval"
 #define ABBR_KEEPALIVEINTERVAL		"D2"
 #define INI_DTCLOG			"Dtclog"
+/* "PreferLibpq", abbreviated "D4", used to mean whether to prefer libpq.
+ * libpq is now required
 #define INI_PREFERLIBPQ			"PreferLibpq"
 #define ABBR_PREFERLIBPQ		"D3"
+*/
 #define ABBR_XAOPT			"D4"
 
 #define	SSLMODE_DISABLE		"disable"

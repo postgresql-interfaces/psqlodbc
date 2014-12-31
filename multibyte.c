@@ -526,14 +526,13 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 void
 CC_lookup_characterset(ConnectionClass *self)
 {
-	char	*encspec = NULL, *currenc = NULL, *tencstr;
+	const char *encspec, *currenc;
+	const char *tencstr;
 	CSTR func = "CC_lookup_characterset";
 
 	mylog("%s: entering...\n", func);
-	if (self->original_client_encoding)
-		encspec = strdup(self->original_client_encoding);
-	if (self->current_client_encoding)
-		currenc = strdup(self->current_client_encoding);
+	encspec = self->original_client_encoding;
+	currenc = PQparameterStatus(self->pqconn, "client_encoding");
 
 	tencstr = encspec ? encspec : currenc;
 	if (self->original_client_encoding)
@@ -567,10 +566,6 @@ CC_lookup_characterset(ConnectionClass *self)
 			{
 				self->original_client_encoding = strdup(wenc);
 				self->ccsc = pg_CS_code(self->original_client_encoding);
-				if (encspec)
-					free(encspec);
-				if (currenc)
-					free(currenc);
 				return;
 			}
 		}
@@ -578,9 +573,7 @@ CC_lookup_characterset(ConnectionClass *self)
 #endif /* UNICODE_SUPPORT */
 	if (tencstr)
 	{
-		self->original_client_encoding = tencstr;
-		if (encspec && currenc)
-			free(currenc);
+		self->original_client_encoding = strdup(tencstr);
 		self->ccsc = pg_CS_code(tencstr);
 		qlog("    [ Client encoding = '%s' (code = %d) ]\n", self->original_client_encoding, self->ccsc);
 		if (self->ccsc < 0)

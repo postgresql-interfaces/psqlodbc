@@ -45,41 +45,31 @@ function buildInstaller($CPUTYPE)
 		$LIBPQVER=$LIBPQ_VERSION
 	}
 
-	$USE_LIBPQ=$archinfo.use_libpq
-
 	if ($CPUTYPE -eq "x64")
 	{
-		if ($USE_LIBPQ -eq "yes")
-		{
-			$LIBPQBINDIR=$archinfo.libpq.bin
-			if ($LIBPQBINDIR -eq "default") {
-				if ($env:PROCESSOR_ARCHITECTURE -ne "x86") {
-					$pgmfs = "$env:ProgramFiles"
-					$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
-				}
-				elseif ("${env:ProgramW6432}" -ne "") {
-					$pgmfs = "$env:ProgramW6432"
-					$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
-				}
-			}
-		}
-	
-	}
-	elseif ($CPUTYPE -eq "x86")
-	{
-		if ($USE_LIBPQ -eq "yes")
-		{
-			$LIBPQBINDIR=$archinfo.libpq.bin
-			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+		$LIBPQBINDIR=$archinfo.libpq.bin
+		if ($LIBPQBINDIR -eq "default") {
+			if ($env:PROCESSOR_ARCHITECTURE -ne "x86") {
 				$pgmfs = "$env:ProgramFiles"
-			} else {
-				$pgmfs = "${env:ProgramFiles(x86)}"
+				$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 			}
-			if ($LIBPQBINDIR -eq "default") {
+			elseif ("${env:ProgramW6432}" -ne "") {
+				$pgmfs = "$env:ProgramW6432"
 				$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
 			}
 		}
-
+	}
+	elseif ($CPUTYPE -eq "x86")
+	{
+		$LIBPQBINDIR=$archinfo.libpq.bin
+		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+			$pgmfs = "$env:ProgramFiles"
+		} else {
+			$pgmfs = "${env:ProgramFiles(x86)}"
+		}
+		if ($LIBPQBINDIR -eq "default") {
+			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
+		}
 	}
 	else
 	{
@@ -141,19 +131,9 @@ function buildInstaller($CPUTYPE)
 		}
 	}
 
-	$USE_SSPI=$archinfo.use_sspi
-
-	$USE_GSS=$archinfo.use_gss
-	if ($USE_GSS -eq "yes")
-	{
-		$GSSBINDIR=$archinfo.gss.bin
-	}
-
 	Write-Host "CPUTYPE    : $CPUTYPE"
 	Write-Host "VERSION    : $VERSION"
-	Write-Host "USE LIBPQ  : $USE_LIBPQ ($LIBPQBINDIR)"
-	Write-Host "USE GSS    : $USE_GSS ($GSSBINDIR)"
-	Write-Host "USE SSPI   : $USE_SSPI"
+	Write-Host "LIBPQBINDIR: $LIBPQBINDIR"
 
 	if ($env:WIX -ne "")
 	{

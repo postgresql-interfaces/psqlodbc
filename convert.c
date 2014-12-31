@@ -2490,41 +2490,53 @@ insert_without_target(const char *stmt, size_t *endpos)
 		|| ';' == wstmt[0];
 }
 
-static
-RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb, BOOL sync);
-static	int
-Prepare_and_convert(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
+static ProcessedStmt *
+buildProcessedStmt(const char *srvquery, Int4 endp, int num_params)
 {
-	switch (stmt->prepared)
+	ProcessedStmt *pstmt;
+	int			qlen;
+
+	qlen = (endp == SQL_NTS) ? strlen(srvquery) : endp;
+
+	pstmt = malloc(sizeof(ProcessedStmt));
+	if (!pstmt)
+		return NULL;
+
+	pstmt->next = NULL;
+	pstmt->query = malloc(qlen + 1);
+	if (!pstmt->query)
 	{
-		case NOT_YET_PREPARED:
-		case ONCE_DESCRIBED:
-			break;
-		default:
-			return SQL_SUCCESS;
+		free(pstmt);
+		return NULL;
 	}
-	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
-		return SQL_ERROR;
-	return prep_params(stmt, qp, qb, FALSE);
+	memcpy(pstmt->query, srvquery, qlen);
+	pstmt->query[qlen] = '\0';
+	pstmt->num_params = num_params;
+
+	return pstmt;
 }
 
-static
-RETCODE	prep_params(StatementClass *stmt, QueryParse *qp, QueryBuild *qb, BOOL sync)
+/*
+ * Split a possible multi-statement query into parts, and replace ?-style
+ * parameter markers with $n (or the values of the parameters, in
+ * UseServerSidePrepare=0 mode). The resulting queries are stored in a
+ * linked list in stmt->processed_statements.
+ */
+static RETCODE
+process_statements(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 {
-	CSTR		func = "prep_params";
+	CSTR		func = "process_statements";
 	RETCODE		retval;
-	BOOL		ret, once_descr;
 	ConnectionClass *conn = SC_get_conn(stmt);
-	QResultClass	*res, *dest_res = NULL;
 	char		plan_name[32];
 	po_ind_t	multi;
-	int		func_cs_count = 0;
 	const char	*orgquery = NULL, *srvquery = NULL;
 	Int4		endp1, endp2;
 	SQLSMALLINT	num_pa = 0, num_p1, num_p2;
+	ProcessedStmt *pstmt;
+	ProcessedStmt *last_pstmt;
 
-inolog("prep_params\n");
-	once_descr = (ONCE_DESCRIBED == stmt->prepared);
+inolog("prep_params_and_sync\n");
 	qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
 	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
 	{
@@ -2540,7 +2552,6 @@ inolog("prep_params\n");
 
 	retval = SQL_ERROR;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	ENTER_INNER_CONN_CS(conn, func_cs_count);
 	if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
 		sprintf(plan_name, "_PLAN%p", stmt);
 	else
@@ -2548,48 +2559,16 @@ inolog("prep_params\n");
 
 	stmt->current_exec_param = 0;
 	multi = stmt->multi_statement;
-	if (multi > 0)
-	{
-		orgquery = stmt->statement;
-		SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, NULL, NULL);
-		srvquery = qb->query_statement;
-		SC_scanQueryAndCountParams(srvquery, conn, &endp2, NULL, NULL, NULL);
-		mylog("%s:SendParseRequest for the first command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
-		ret = SendParseRequest(stmt, plan_name, srvquery, endp2, num_p1);
-	}
-	else
-		ret = SendParseRequest(stmt, plan_name, qb->query_statement, SQL_NTS, -1);
-	if (!ret)
+	orgquery = stmt->statement;
+	srvquery = qb->query_statement;
+
+	SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
+	SC_scanQueryAndCountParams(srvquery, conn, &endp2, NULL, NULL, NULL);
+	mylog("%s:parsed for the first command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
+	pstmt = buildProcessedStmt(srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
+	if (!pstmt)
 		goto cleanup;
-	if (!once_descr && (!SendDescribeRequest(stmt, plan_name, TRUE)))
-		goto cleanup;
-	SC_set_planname(stmt, plan_name);
-	SC_set_prepared(stmt, plan_name[0] ? PREPARING_PERMANENTLY : PREPARING_TEMPORARILY);
-	if (!sync)
-	{
-		retval = SQL_SUCCESS;
-		goto cleanup;
-	}
-	if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
-	{
-		SC_set_error(stmt, STMT_NO_RESPONSE, "commnication error while preapreand_describe", func);
-		CC_on_abort(conn, CONN_DEAD);
-		goto cleanup;
-	}
-	if (once_descr)
-		dest_res = res;
-	else
-		SC_set_Result(stmt, res);
-	if (!QR_command_maybe_successful(res))
-	{
-		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while preparing parameters", func);
-		goto cleanup;
-	}
-	if (stmt->multi_statement <= 0)
-	{
-		retval = SQL_SUCCESS;
-		goto cleanup;
-	}
+	stmt->processed_statements = last_pstmt = pstmt;
 	while (multi > 0)
 	{
 		orgquery += (endp1 + 1);
@@ -2597,52 +2576,125 @@ inolog("prep_params\n");
 		num_pa += num_p1;
 		SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
 		SC_scanQueryAndCountParams(srvquery, conn, &endp2, &num_p2, NULL, NULL);
-		mylog("%s:SendParseRequest for the subsequent command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
-		if (num_p2 > 0)
-		{
-			stmt->current_exec_param = num_pa;
-			ret = SendParseRequest(stmt, plan_name, srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
-			if (!ret)	goto cleanup;
-			if (!once_descr && !SendDescribeRequest(stmt, plan_name, TRUE))
-				goto cleanup;
-			if (!(res = SendSyncAndReceive(stmt, NULL, "prepare_and_describe")))
-			{
-				SC_set_error(stmt, STMT_NO_RESPONSE, "commnication error while preapreand_describe", func);
-				CC_on_abort(conn, CONN_DEAD);
-				goto cleanup;
-			}
-			QR_Destructor(res);
-		}
+		mylog("%s:parsed for the subsequent command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
+		pstmt = buildProcessedStmt(srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
+		if (!pstmt)
+			goto cleanup;
+		last_pstmt->next = pstmt;
 	}
+
+	SC_set_planname(stmt, plan_name);
+	SC_set_prepared(stmt, plan_name[0] ? PREPARING_PERMANENTLY : PREPARING_TEMPORARILY);
+
 	retval = SQL_SUCCESS;
 cleanup:
 #undef	return
-	if (dest_res)
-		QR_Destructor(dest_res);
-	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
 	stmt->current_exec_param = -1;
 	QB_Destructor(qb);
 	return retval;
 }
 
+/*
+ * Describe the parameters and portal for given query.
+ */
+static RETCODE
+desc_params_and_sync(StatementClass *stmt)
+{
+	CSTR		func = "desc_params_and_sync";
+	RETCODE		retval;
+	ConnectionClass *conn = SC_get_conn(stmt);
+	QResultClass	*res;
+	char	   *plan_name;
+	int		func_cs_count = 0;
+	SQLSMALLINT	num_pa = 0;
+	ProcessedStmt *pstmt;
+
+inolog("prep_params_and_sync\n");
+
+	retval = SQL_ERROR;
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	ENTER_INNER_CONN_CS(conn, func_cs_count);
+
+	plan_name = stmt->plan_name ? stmt->plan_name : "";
+
+	pstmt = stmt->processed_statements;
+
+	res = ParseAndDescribeWithLibpq(stmt, plan_name, pstmt->query, pstmt->num_params, "prepare_and_describe", NULL);
+	if (res == NULL)
+		goto cleanup;
+	SC_set_Result(stmt, res);
+	if (!QR_command_maybe_successful(res))
+	{
+		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while preparing parameters", func);
+		goto cleanup;
+	}
+	num_pa = pstmt->num_params;
+	for (pstmt = pstmt->next; pstmt; pstmt = pstmt->next)
+	{
+		if (pstmt->num_params > 0)
+		{
+			stmt->current_exec_param = num_pa;
+
+			res = ParseAndDescribeWithLibpq(stmt, plan_name, pstmt->query, pstmt->num_params, "prepare_and_describe", NULL);
+			if (res == NULL)
+				goto cleanup;
+			QR_Destructor(res);
+			num_pa += pstmt->num_params;
+		}
+	}
+	retval = SQL_SUCCESS;
+cleanup:
+#undef	return
+	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
+	stmt->current_exec_param = -1;
+	return retval;
+}
+
+/*
+ * Process the original SQL query, and and ask the server describe the
+ * parameters.
+ */
 RETCODE	prepareParameters(StatementClass *stmt)
 {
+	ConnectionClass *conn = SC_get_conn(stmt);
+
 	switch (stmt->prepared)
 	{
-		QueryParse	query_org, *qp;
-		QueryBuild	query_crt, *qb;
+		case PREPARED_TEMPORARILY:
+			if (conn->unnamed_prepared_stmt == stmt)
+				return SQL_SUCCESS;
+			else
+				break;
 		case NOT_YET_PREPARED:
-		case ONCE_DESCRIBED:
+		case PREPARING_PERMANENTLY:
+		case PREPARING_TEMPORARILY:
+			break;
+		default:
+			return SQL_SUCCESS;
+	}
 
 inolog("prepareParameters\n");
-			qp = &query_org;
-			QP_initialize(qp, stmt);
-			qb = &query_crt;
-			if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
-				return SQL_ERROR;
-			return prep_params(stmt, qp, qb, TRUE);
-	}
-	return SQL_SUCCESS;
+
+	if (prepareParametersNoDesc(stmt) == SQL_ERROR)
+		return SQL_ERROR;
+	return desc_params_and_sync(stmt);
+}
+
+/*
+ * Process the original SQL query.
+ */
+RETCODE	prepareParametersNoDesc(StatementClass *stmt)
+{
+	QueryParse	query_org, *qp;
+	QueryBuild	query_crt, *qb;
+
+inolog("prepareParametersNoDesc\n");
+	qp = &query_org;
+	QP_initialize(qp, stmt);
+	qb = &query_crt;
+	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
+		return SQL_ERROR;
+	return process_statements(stmt, qp, qb);
 }
 
 /*
@@ -2660,7 +2712,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 
 	char	   *new_statement;
 
-	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE, bPrepConv;
+	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
 	const		char *bestitem = NULL;
@@ -2750,19 +2802,36 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		SC_set_pre_executable(stmt);
 	qb = &query_crt;
 	qb->query_statement = NULL;
-	bPrepConv = FALSE;
 	if (PREPARED_PERMANENTLY == stmt->prepared)
-		bPrepConv = TRUE;
-	else if (buildPrepareStatement &&
-		 SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency)
-		bPrepConv = TRUE;
-	if (bPrepConv)
 	{
-		retval = Prepare_and_convert(stmt, qp, qb);
+		/* already prepared */
+		retval = SQL_SUCCESS;
 		goto cleanup;
 	}
-	SC_forget_unnamed(stmt);
 
+	/*
+	 * If it's a simple read-only cursor, we use extended query protocol to
+	 * Parse it.
+	 */
+	if (buildPrepareStatement &&
+		 SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency)
+	{
+		/* Nothing to do here. It will be prepared before execution. */
+		char		plan_name[32];
+		if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
+			sprintf(plan_name, "_PLAN%p", stmt);
+		else
+			strcpy(plan_name, NULL_STRING);
+
+		SC_set_planname(stmt, plan_name);
+		SC_set_prepared(stmt, plan_name[0] ? PREPARING_PERMANENTLY : PREPARING_TEMPORARILY);
+
+		retval = SQL_SUCCESS;
+
+		goto cleanup;
+	}
+
+	/* Otherwise... */
 	if (ci->disallow_premature)
 		prepare_dummy_cursor = stmt->pre_executing;
 	if (prepare_dummy_cursor)
@@ -3422,20 +3491,30 @@ cleanup:
 }
 
 #define	MIN_ALC_SIZE	128
-BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
+
+/*
+ * Build an array of parameters to pass to libpq's PQexecPrepared
+ * function.
+ */
+BOOL
+build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
+						int *nParams, char ***paramValues,
+						int **paramLengths,
+						int **paramFormats,
+						int *resultFormat)
 {
-	CSTR func = "BuildBindRequest";
+	CSTR func = "build_libpq_bind_params";
 	QueryBuild	qb;
-	size_t		leng, plen;
-	UInt4		netleng;
 	SQLSMALLINT	num_p;
-	Int2		netnum_p;
 	int			i, num_params;
-	char		*bindreq;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	BOOL		ret = TRUE, sockerr = FALSE, discard_output;
+	BOOL		ret = FALSE, sockerr = FALSE, discard_output;
 	RETCODE		retval;
 	const		IPDFields *ipdopts = SC_get_IPDF(stmt);
+
+	*paramValues = NULL;
+	*paramLengths = NULL;
+	*paramFormats = NULL;
 
 	num_params = stmt->num_params;
 	if (num_params < 0)
@@ -3449,48 +3528,32 @@ BOOL	BuildBindRequest(StatementClass *stmt, const char *plan_name)
 		return FALSE;
 	}
 
-	/*
-	 * Calculate minimum length of the packet. This doesn't take any of
-	 * the actual parameter values into account, but it's enough to make
-	 * sure there's enough space for all the fields before the parameter
-	 * values, without enlarging.
-	 */
-	plen = strlen(plan_name);
-	netleng = sizeof(netleng)	/* length fields */
-		  + 2 * (plen + 1)	/* portal and plan name */
-		  + sizeof(Int2)	/* number of param format codes */
-		  + sizeof(Int2) * num_params /* parameter types (max) */
-		  + sizeof(Int2)	/* result format */
-		  + 1;
-	if (QB_initialize(&qb, netleng > MIN_ALC_SIZE ? netleng : MIN_ALC_SIZE, stmt, NULL) < 0)
-	{
+	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt, NULL) < 0)
 		return FALSE;
-	}
+
+	*paramValues = malloc(sizeof(char *) * num_params);
+	if (*paramValues == NULL)
+		goto cleanup;
+	memset(*paramValues, 0, sizeof(char *) * num_params);
+	*paramLengths = malloc(sizeof(int) * num_params);
+	if (paramLengths == NULL)
+		goto cleanup;
+	*paramFormats = malloc(sizeof(int) * num_params);
+	if (*paramFormats == NULL)
+		goto cleanup;
+
 	qb.flags |= FLGB_BUILDING_BIND_REQUEST;
 	qb.flags |= FLGB_BINARY_AS_POSSIBLE;
-	bindreq = qb.query_statement;
-	leng = sizeof(netleng);
-	memcpy(bindreq + leng, plan_name, plen + 1); /* portal name */
-	leng += (plen + 1);
-	memcpy(bindreq + leng, plan_name, plen + 1); /* prepared plan name */
-	leng += (plen + 1);
-inolog("num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
+
+	inolog("num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
 	num_p = num_params - qb.num_discard_params;
 inolog("num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
-	netnum_p = htons(num_p);	/* Network byte order */
-	if (0 != (qb.flags & FLGB_BINARY_AS_POSSIBLE) && num_p > 0)
+	if (num_p > 0)
 	{
 		int			j;
 		ParameterImplClass	*parameters = ipdopts->parameters;
-		Int2		net_one = htons(1);
 
-		/* number of parameter formats */
-		memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p));
-		leng += sizeof(Int2);
-
-		/* initialize to text format */
-		memset(bindreq + leng, 0, sizeof(Int2) * num_p);
 		for (i = stmt->proc_return, j = 0; i < num_params; i++)
 		{
 inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
@@ -3501,94 +3564,61 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 			{
 				mylog("%dth parameter is of binary format\n", j);
 				/* use binary format for this param */
-				memcpy(bindreq + leng + sizeof(Int2) * j,
-				       &net_one, sizeof(net_one));
+				(*paramFormats)[j] = 1;
 			}
+			else
+				(*paramFormats)[j] = 0;
 			j++;
 		}
-		leng += sizeof(Int2) * num_p;
+
+		*nParams = j;
+
+		/*
+		 * Now build the parameter values.
+		 */
+		for (i = 0; i < stmt->num_params; i++)
+		{
+			BOOL		isnull;
+			char	   *val_copy;
+
+			if (discard_output && SQL_PARAM_OUTPUT == parameters[i].paramType)
+				continue;
+
+			qb.npos = 0;
+			retval = ResolveOneParam(&qb, NULL, &isnull);
+			if (SQL_ERROR == retval)
+			{
+				QB_replace_SC_error(stmt, &qb, func);
+				ret = FALSE;
+				goto cleanup;
+			}
+
+			if (!isnull)
+			{
+				val_copy = malloc(qb.npos + 1);
+				if (!val_copy)
+					goto cleanup;
+				memcpy(val_copy, qb.query_statement, qb.npos);
+				val_copy[qb.npos] = '\0';
+
+				(*paramValues)[i] = val_copy;
+				(*paramLengths)[i] = qb.npos;
+			}
+			else
+			{
+				(*paramValues)[i] = NULL;
+				(*paramLengths)[i] = 0;
+			}
+		}
 	}
 	else
-	{
-		memset(bindreq + leng, 0, sizeof(Int2));  /* text format */
-		leng += sizeof(Int2);
-	}
-
-	/* number of params */
-	memcpy(bindreq + leng, &netnum_p, sizeof(netnum_p));
-	leng += sizeof(Int2);
-
-	/*
-	 * Now add the parameter values.
-	 *
-	 * Note: when you append more data to the packet after this, you must
-	 * check that there's enough space left!
-	 */
-	qb.npos = leng;
-	for (i = 0; i < stmt->num_params; i++)
-	{
-		BOOL		isnull;
-		int			npos;
-		UInt4		slen;
-
-		/* reserve a spot for the length word */
-		npos = qb.npos;
-		ENLARGE_NEWSTATEMENT(&qb, npos + 4);
-		qb.npos += 4;
-
-		retval = ResolveOneParam(&qb, NULL, &isnull);
-		if (SQL_ERROR == retval)
-		{
-			QB_replace_SC_error(stmt, &qb, func);
-			ret = FALSE;
-			goto cleanup;
-		}
-
-		/* fill in the length word */
-		if (isnull)
-			slen = htonl(-1);
-		else
-			slen = htonl((UInt4) (qb.npos - npos - 4));
-		memcpy(qb.query_statement + npos, &slen, sizeof(slen));
-	}
-	leng = qb.npos;
+		*nParams = 0;
 
 	/* result format is text */
-	if (leng + sizeof(Int2) >= qb.str_alsize)
-	{
-		if (enlarge_query_statement(&qb, leng + sizeof(Int2)) <= 0)
-		{
-			ret = FALSE;
-			goto cleanup;
-		}
-	}
-	memset(qb.query_statement + leng, 0, sizeof(Int2));
-	leng += sizeof(Int2);
+	*resultFormat = 0;
 
-	/* now that we know the final length of the packet, fill that in */
-inolog("bind leng=%d\n", leng);
-	netleng = htonl((UInt4) leng);	/* Network byte order */
-	memcpy(qb.query_statement, &netleng, sizeof(netleng));
+	ret = TRUE;
 
-	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
-	{
-		if (SQL_ERROR == SetStatementSvp(stmt))
-		{
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error in SendBindRequest", func);
-			ret = FALSE;
-			goto cleanup;
-		}
-	}
-
-	SOCK_put_char(conn->sock, 'B'); /* Bind Message */
-	if (SOCK_get_errcode(conn->sock) != 0)
-	{
-		sockerr = TRUE;
-		goto cleanup;
-	}
-	SOCK_put_n_char(conn->sock, qb.query_statement, leng);
-	if (SOCK_get_errcode(conn->sock) != 0)
-		sockerr = TRUE;
 cleanup:
 	QB_Destructor(&qb);
 

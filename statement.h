@@ -175,6 +175,22 @@ typedef	struct
 	void			*data;
 }	NeedDataCallback;
 
+
+/*
+ * ProcessedStmt represents a fragment of the original SQL query, after
+ * converting ? markers to $n style, processing ODBC escapes, and splitting
+ * a multi-statement into individual statements. Each individual statement
+ * is represented by one ProcessedStmt struct.
+ */
+struct ProcessedStmt
+{
+	struct ProcessedStmt *next;
+	char	   *query;
+	int			num_params;		/* number of parameter markers in this,
+								 * fragment or -1 if not known */
+};
+typedef struct ProcessedStmt ProcessedStmt;
+
 /********	Statement Handle	***********/
 struct StatementClass_
 {
@@ -218,6 +234,12 @@ struct StatementClass_
 
 	char	   *statement;		/* if non--null pointer to the SQL
 					 * statement that has been executed */
+	/*
+	 * processed_statements is the SQL after splitting multi-statement into
+	 * parts, and replacing ? markers with $n style markers, or injecting the
+	 * values in UseServerSidePrepare=0 mode.
+	 */
+	ProcessedStmt *processed_statements;
 
 	TABLE_INFO	**ti;
 	Int2		ntab;
@@ -376,8 +398,10 @@ enum
 	,PREPARING_PERMANENTLY
 	,PREPARING_TEMPORARILY
 	,PREPARED_PERMANENTLY
-	,PREPARED_TEMPORARILY
-	,ONCE_DESCRIBED
+	,PREPARED_TEMPORARILY /* Is currently, or once was, prepared as unnamed
+						   * statement. You must check
+						   * connection->unnamed_prepared_stmt to see if it
+						   * still is */
 };
 
 /*	misc info */
@@ -410,7 +434,6 @@ enum
 #define SC_started_rbpoint(a)	((a->rbonerr & (1L << 4)) != 0)
 #define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
-void SC_forget_unnamed(StatementClass *self);
 #define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)
 /*
  * DECLARE CURSOR + FETCH can only be used with SELECT-type queries. And
@@ -505,14 +528,8 @@ int		StartRollbackState(StatementClass *self);
 RETCODE		SetStatementSvp(StatementClass *self);
 RETCODE		DiscardStatementSvp(StatementClass *self, RETCODE, BOOL errorOnly);
 
-BOOL		SendParseRequest(StatementClass *self, const char *name,
-			const char *query, Int4 qlen, Int2 num_params);
-BOOL		SyncParseRequest(ConnectionClass *conn);
-BOOL		SendDescribeRequest(StatementClass *self, const char *name, BOOL paramAlso);
-BOOL		SendBindRequest(StatementClass *self, const char *name);
-BOOL		BuildBindRequest(StatementClass *stmt, const char *name);
-BOOL		SendExecuteRequest(StatementClass *stmt, const char *portal, UInt4 count);
-QResultClass	*SendSyncAndReceive(StatementClass *stmt, QResultClass *res, const char *comment);
+QResultClass *ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name, const char *query_p, Int2 num_params, const char *comment, QResultClass *res);
+
 /*
  *	Macros to convert global index <-> relative index in resultset/rowset
  */
