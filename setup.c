@@ -442,6 +442,7 @@ void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 		emsg = szMsg;
 		if (withDTC)
 		{
+#ifdef	_HANDLE_ENLIST_IN_DTC_
 			HRESULT	res;
 			void *pObj = NULL;
 
@@ -466,6 +467,9 @@ void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 			}
 			else if (FAILED(res))
 				snprintf(szMsg, sizeof(szMsg), "%s\nDistibuted Transaction enlistment error %x", emsg, res);
+#else	/* _HANDLE_ENLIST_IN_DTC_ */
+			snprintf(szMsg, sizeof(szMsg), "%s\nDistibuted Transaction enlistment not supported by this driver", emsg);
+#endif
 		}
 	}
 	else
