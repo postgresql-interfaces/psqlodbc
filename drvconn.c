@@ -431,7 +431,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 	char	*equals, *delp;
 	char	*strtok_arg;
 #ifdef	HAVE_STRTOK_R
-	char	*last;
+	char	*last = NULL;
 #endif /* HAVE_STRTOK_R */
 
 	if (our_connect_string = strdup(connect_string), NULL == our_connect_string)
