@@ -2101,7 +2101,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb);
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb);
 static int
-ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull);
+ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *usebinary);
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
 	size_t *output_count, SQLLEN param_pos[][2]);
@@ -3124,6 +3124,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	StatementClass	*stmt = qb->stmt;
 	char	literal_quote = LITERAL_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal = '\0';
 	BOOL		isnull;
+	BOOL		isbinary;
 
 	if (stmt && stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
@@ -3479,7 +3480,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * It's a '?' parameter alright
 	 */
-	if (retval = ResolveOneParam(qb, qp, &isnull), retval < 0)
+	retval = ResolveOneParam(qb, qp, &isnull, &isbinary);
+	if (retval < 0)
 		return retval;
 
 	if (SQL_SUCCESS_WITH_INFO == retval) /* means discarding output parameter */
@@ -3551,41 +3553,25 @@ inolog("num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
 	if (num_p > 0)
 	{
-		int			j;
 		ParameterImplClass	*parameters = ipdopts->parameters;
-
-		for (i = stmt->proc_return, j = 0; i < num_params; i++)
-		{
-inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
-			if (discard_output &&
-			    SQL_PARAM_OUTPUT == parameters[i].paramType)
-				continue;
-			if (PG_TYPE_BYTEA == PIC_dsp_pgtype(conn, parameters[i]))
-			{
-				mylog("%dth parameter is of binary format\n", j);
-				/* use binary format for this param */
-				(*paramFormats)[j] = 1;
-			}
-			else
-				(*paramFormats)[j] = 0;
-			j++;
-		}
-
-		*nParams = j;
 
 		/*
 		 * Now build the parameter values.
 		 */
+		*nParams = 0;
 		for (i = 0; i < stmt->num_params; i++)
 		{
 			BOOL		isnull;
+			BOOL		isbinary;
 			char	   *val_copy;
+
+			inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
 
 			if (discard_output && SQL_PARAM_OUTPUT == parameters[i].paramType)
 				continue;
 
 			qb.npos = 0;
-			retval = ResolveOneParam(&qb, NULL, &isnull);
+			retval = ResolveOneParam(&qb, NULL, &isnull, &isbinary);
 			if (SQL_ERROR == retval)
 			{
 				QB_replace_SC_error(stmt, &qb, func);
@@ -3609,6 +3595,11 @@ inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i])
 				(*paramValues)[i] = NULL;
 				(*paramLengths)[i] = 0;
 			}
+			if (isbinary)
+				mylog("%dth parameter is of binary format\n", *nParams);
+			(*paramFormats)[i] = isbinary ? 1 : 0;
+
+			(*nParams)++;
 		}
 	}
 	else
@@ -3827,10 +3818,14 @@ parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
 
 
 /*
+ * Resolve one parameter.
  *
+ * *isnull is set to TRUE if it was NULL.
+ * *isbinary is set to TRUE, if the binary output format was used. (binary
+ *   output is only produced if the FLGB_BINARY_AS_POSSIBLE flag is set)
  */
 static int
-ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull)
+ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary)
 {
 	CSTR func = "ResolveOneParam";
 
@@ -3870,6 +3865,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull)
 	RETCODE		retval = SQL_ERROR;
 
 	*isnull = FALSE;
+	*isbinary = FALSE;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
@@ -4507,6 +4503,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				{
 					mylog("sending binary data leng=%d\n", used);
 					CVT_APPEND_DATA(qb, buf, used);
+					*isbinary = TRUE;
 				}
 				else
 				{
