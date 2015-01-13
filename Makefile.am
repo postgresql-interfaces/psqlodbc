@@ -120,6 +120,9 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/numeric.out \
 	test/expected/odbc-escapes.out \
 	test/expected/params.out \
+	test/expected/params_1.out \
+	test/expected/param-conversions.out \
+	test/expected/param-conversions_1.out \
 	test/expected/positioned-update.out \
 	test/expected/prepare.out \
 	test/expected/quotes.out \
@@ -167,6 +170,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/numeric-test.c \
 	test/src/odbc-escapes-test.c \
 	test/src/params-test.c \
+	test/src/param-conversions-test.c \
 	test/src/positioned-update-test.c \
 	test/src/prepare-test.c \
 	test/src/quotes-test.c \

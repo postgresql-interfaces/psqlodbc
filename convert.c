@@ -639,13 +639,15 @@ static char get_current_decimal_point(void)
  * decimal point from '.' to the correct decimal separator of the current
  * locale.
  */
-static void set_server_decimal_point(char *num)
+static void set_server_decimal_point(char *num, SQLLEN len)
 {
 	char current_decimal_point = get_current_decimal_point();
 	char *str;
+	SQLLEN i;
 
 	if ('.' == current_decimal_point)
 		return;
+	i = 0;
 	for (str = num; '\0' != *str; str++)
 	{
 		if (*str == current_decimal_point)
@@ -653,6 +655,9 @@ static void set_server_decimal_point(char *num)
 			*str = '.';
 			break;
 		}
+
+		if (len != SQL_NTS && i++ >= len)
+			break;
 	}
 }
 
@@ -696,6 +701,34 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, int atttyp
 		bic->returntype, bic->precision,
 		(PTR) (bic->buffer + offset), bic->buflen,
 		LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset));
+}
+
+/*
+ * Is 'str' a valid integer literal, consisting only of ASCII characters
+ * 0-9 ?
+ *
+ * We don't check for overflow here. This is just to decide if we need to
+ * quote the value.
+ */
+static BOOL
+valid_int_literal(const char *str, SQLLEN len)
+{
+	SQLLEN i;
+
+	i = 0;
+
+	if (str[0] == '-')
+		i++;
+
+	for (; str[i] && (len == SQL_NTS || i < len); i++)
+	{
+		if (str[i] >= '0' && str[i] <= '9')
+			continue;
+
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static double get_double_value(const char *str)
@@ -3862,6 +3895,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary)
 	SFLOAT		flv;
 	SQL_INTERVAL_STRUCT	*ivstruct;
 	const char *ivsign;
+	BOOL		final_binary_convert = FALSE;
 	RETCODE		retval = SQL_ERROR;
 
 	*isnull = FALSE;
@@ -4110,7 +4144,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 #endif /* WIN32 */
 			{
 				sprintf(param_string, "%.*g", PG_DOUBLE_DIGITS, dbv);
-				set_server_decimal_point(param_string);
+				set_server_decimal_point(param_string, SQL_NTS);
 			}
 #ifdef	WIN32
 			else if (_isnan(dbv))
@@ -4129,7 +4163,7 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 #endif /* WIN32 */
 			{
 				sprintf(param_string, "%.*g", PG_REAL_DIGITS, flv);
-				set_server_decimal_point(param_string);
+				set_server_decimal_point(param_string, SQL_NTS);
 			}
 #ifdef	WIN32
 			else if (_isnan(flv))
@@ -4338,35 +4372,31 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 		retval = SQL_SUCCESS;
 		goto cleanup;
 	}
-	if (!req_bind)
+
+	/*
+	 * We now have the value we want to print in one of these three canonical
+	 * formats:
+	 *
+	 * 1. As a string in 'buf', with length indicated by 'used' (can be
+	 *    SQL_NTS).
+	 * 2. As a null-terminated string in 'param_string'.
+	 * 3. Time-related fields in 'st'.
+	 */
+
+	/*
+	 * For simplicity, fold the param_string representation into 'buf'.
+	 */
+	if (!buf && param_string[0])
 	{
-		switch (param_sqltype)
-		{
-			case SQL_INTEGER:
-			case SQL_SMALLINT:
-				break;
-			case SQL_CHAR:
-			case SQL_VARCHAR:
-			case SQL_LONGVARCHAR:
-			case SQL_BINARY:
-			case SQL_VARBINARY:
-			case SQL_LONGVARBINARY:
-#ifdef	UNICODE_SUPPORT
-			case SQL_WCHAR:
-			case SQL_WVARCHAR:
-			case SQL_WLONGVARCHAR:
-#endif /* UNICODE_SUPPORT */
-mylog("buf=%p flag=%d\n", buf, qb->flags);
-				if (buf && (qb->flags & FLGB_LITERAL_EXTENSION) != 0)
-				{
-					CVT_APPEND_CHAR(qb, LITERAL_EXT);
-				}
-			default:
-				CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
-				add_quote = TRUE;
-				break;
-		}
+		buf = param_string;
+		used = SQL_NTS;
 	}
+
+	/*
+	 * Do some further processing to create the final string we want to output.
+	 * This will use the fields in 'st' to create a string if it's a time/date
+	 * value, and do some other conversions.
+	 */
 	switch (param_sqltype)
 	{
 		case SQL_CHAR:
@@ -4378,43 +4408,37 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 		case SQL_WLONGVARCHAR:
 #endif /* UNICODE_SUPPORT */
 
+			/* Special handling for some column types */
 			switch (param_pgtype)
 			{
 				case PG_TYPE_BOOL:
-					/* consider True is -1 case */
-					if (NULL != buf)
+					/*
+					 * consider True is -1 case.
+					 *
+					 * FIXME: This actually matches anything that begins
+					 * with -1, like "-1234" or "-1foobar". Is that
+					 * intentional?
+					 */
+					if (NULL != buf && '-' == buf[0] && '1' == buf[1])
 					{
-						if ('-' == buf[0] &&
-						    '1' == buf[1])
-							strcpy(buf, "1");
+						buf = "1";
+						used = 1;
 					}
-					else if ('-' == param_string[0] &&
-						 '1' == param_string[1])
-						strcpy(param_string, "1");
 					break;
 				case PG_TYPE_FLOAT4:
 				case PG_TYPE_FLOAT8:
 				case PG_TYPE_NUMERIC:
 					if (NULL != buf)
-						set_server_decimal_point(buf);
-					else
-						set_server_decimal_point(param_string);
+						set_server_decimal_point(buf, used);
 					break;
 			}
-			/* it was a SQL_C_CHAR */
-			if (buf)
-				CVT_SPECIAL_CHARS(qb, buf, used);
-			/* it was a numeric type */
-			else if (param_string[0] != '\0')
-				CVT_APPEND_STR(qb, param_string);
-
-			/* it was date,time,timestamp -- use m,d,y,hh,mm,ss */
-			else
+			if (!buf)
 			{
+				/* it was date,time,timestamp -- use m,d,y,hh,mm,ss */
 				snprintf(tmp, sizeof(tmp), "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 						st.y, st.m, st.d, st.hh, st.mm, st.ss);
-
-				CVT_APPEND_STR(qb, tmp);
+				buf = tmp;
+				used = SQL_NTS;
 			}
 			break;
 
@@ -4431,7 +4455,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			else
 				sprintf(tmp, "%.4d-%.2d-%.2d", st.y, st.m, st.d);
 			lastadd = "::date";
-			CVT_APPEND_STR(qb, tmp);
+			buf = tmp;
+			used = SQL_NTS;
 			break;
 
 		case SQL_TIME:
@@ -4444,7 +4469,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 
 			sprintf(tmp, "%.2d:%.2d:%.2d", st.hh, st.mm, st.ss);
 			lastadd = "::time";
-			CVT_APPEND_STR(qb, tmp);
+			buf = tmp;
+			used = SQL_NTS;
 			break;
 
 		case SQL_TIMESTAMP:
@@ -4462,8 +4488,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			/* Time zone stuff is unreliable */
 			stime2timestamp(&st, tmp, sizeof(tmp), USE_ZONE, 6);
 			lastadd = "::timestamp";
-			CVT_APPEND_STR(qb, tmp);
-
+			buf = tmp;
+			used = SQL_NTS;
 			break;
 
 		case SQL_BINARY:
@@ -4502,7 +4528,6 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 				if (0 != (qb->flags & FLGB_BINARY_AS_POSSIBLE))
 				{
 					mylog("sending binary data leng=%d\n", used);
-					CVT_APPEND_DATA(qb, buf, used);
 					*isbinary = TRUE;
 				}
 				else
@@ -4511,8 +4536,7 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 					 * converted to octal
 					 */
 					mylog("SQL_VARBINARY: about to call convert_to_pgbinary, used = %d\n", used);
-
-					CVT_APPEND_BINARY(qb, buf, used);
+					final_binary_convert = TRUE;
 				}
 				break;
 			}
@@ -4588,8 +4612,8 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			 */
 			sprintf(param_string, "%u", lobj_oid);
 			lastadd = "::lo";
-			CVT_APPEND_STR(qb, param_string);
-
+			buf = param_string;
+			used = SQL_NTS;
 			break;
 
 			/*
@@ -4599,49 +4623,67 @@ mylog("buf=%p flag=%d\n", buf, qb->flags);
 			/* must be quoted (0 or 1 is ok to use inside the quotes) */
 
 		case SQL_REAL:
-			if (buf)
-				my_strcpy(param_string, sizeof(param_string), buf, used);
-			set_server_decimal_point(param_string);
+			set_server_decimal_point(buf, used);
 			lastadd = "::float4";
-			CVT_APPEND_STR(qb, param_string);
 			break;
 		case SQL_FLOAT:
 		case SQL_DOUBLE:
-			if (buf)
-				my_strcpy(param_string, sizeof(param_string), buf, used);
-			set_server_decimal_point(param_string);
+			set_server_decimal_point(buf, used);
 			lastadd = "::float8";
-			CVT_APPEND_STR(qb, param_string);
 			break;
 		case SQL_NUMERIC:
-			if (buf)
-			{
-				my_strcpy(cbuf, sizeof(cbuf), buf, used);
-			}
-			else
-				sprintf(cbuf, "%s", param_string);
-			CVT_APPEND_STR(qb, cbuf);
 			break;
 		default:			/* a numeric type or SQL_BIT */
-
-			if (buf)
-			{
-				switch (used)
-				{
-					case SQL_NULL_DATA:
-						break;
-					case SQL_NTS:
-						CVT_APPEND_STR(qb, buf);
-						break;
-					default:
-						CVT_APPEND_DATA(qb, buf, used);
-				}
-			}
-			else
-				CVT_APPEND_STR(qb, param_string);
-
 			break;
 	}
+
+	/*
+	 * Ok, we now have the final string representation in 'buf', length 'used'.
+	 *
+	 * Do we need to escape it?
+	 */
+	if (!req_bind)
+	{
+		switch (param_sqltype)
+		{
+			case SQL_INTEGER:
+			case SQL_SMALLINT:
+				if (valid_int_literal(buf, used))
+					break;
+				/* fall through */
+			case SQL_CHAR:
+			case SQL_VARCHAR:
+			case SQL_LONGVARCHAR:
+			case SQL_BINARY:
+			case SQL_VARBINARY:
+			case SQL_LONGVARBINARY:
+#ifdef	UNICODE_SUPPORT
+			case SQL_WCHAR:
+			case SQL_WVARCHAR:
+			case SQL_WLONGVARCHAR:
+#endif /* UNICODE_SUPPORT */
+mylog("buf=%p flag=%d\n", buf, qb->flags);
+			default:
+				if ((qb->flags & FLGB_LITERAL_EXTENSION) != 0)
+					CVT_APPEND_CHAR(qb, LITERAL_EXT);
+				CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
+				add_quote = TRUE;
+				break;
+		}
+	}
+
+	if (used == SQL_NTS)
+		used = strlen(buf);
+	if (add_quote)
+	{
+		if (final_binary_convert)
+			CVT_APPEND_BINARY(qb, buf, used);
+		else
+			CVT_SPECIAL_CHARS(qb, buf, used);
+	}
+	else
+		CVT_APPEND_DATA(qb, buf, used);
+
 	if (add_quote)
 	{
 		CVT_APPEND_CHAR(qb, LITERAL_QUOTE);

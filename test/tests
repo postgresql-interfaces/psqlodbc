@@ -18,6 +18,7 @@ TESTBINS = src/connect-test \
 	src/result-conversions-test \
 	src/prepare-test \
 	src/params-test \
+	src/param-conversions-test \
 	src/notice-test \
 	src/arraybinding-test \
 	src/insertreturning-test \

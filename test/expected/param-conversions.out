@@ -1,0 +1,30 @@
+\! "./src/param-conversions-test"
+connected
+
+Testing conversions...
+Result set:
+0
+Result set:
+1
+Result set:
+0
+Result set:
+1
+SQLExecDirect failed
+22P02=ERROR: invalid input syntax for integer: "5 escapes: \ and '";
+Error while executing the query
+
+Testing conversions with invalid values...
+SQLExecDirect failed
+22P02=ERROR: invalid input syntax for integer: "2, 'injected, BAD!'";
+Error while executing the query
+SQLExecDirect failed
+22P02=ERROR: invalid input syntax for type numeric: "3', 'injected, BAD!', '1";
+Error while executing the query
+SQLExecDirect failed
+22P02=ERROR: invalid input syntax for type numeric: "4 \'bad', '1";
+Error while executing the query
+SQLExecDirect failed
+22003=ERROR: value "99999999999999999999999" is out of range for type integer;
+Error while executing the query
+disconnecting
