@@ -2467,7 +2467,7 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 	PGresult   *pgres = NULL;
 	int			pgresstatus;
 	QResultClass	*newres = NULL;
-	QResultClass *res;
+	QResultClass *res = NULL;
 	char	   *cmdtag;
 	char	   *rowcount;
 	BOOL		ret = FALSE;

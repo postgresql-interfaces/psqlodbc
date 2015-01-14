@@ -220,7 +220,7 @@ RETCODE	CALL_IsolateDtcConn(ConnectionClass *conn, BOOL continueConnection)
 
 void	*CALL_GetTransactionObject(HRESULT *hres)
 {
-	void	*ret;
+	void	*ret = NULL;
 	BOOL	loaded = TRUE;
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
