@@ -941,6 +941,10 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[], const
 	{
 		opts[cnt] = "dbname";	vals[cnt++] = ci->database;
 	}
+	if (ci->username[0])
+	{
+		opts[cnt] = "user";		vals[cnt++] = ci->username;
+	}
 
 	switch (ci->sslmode[0])
 	{
