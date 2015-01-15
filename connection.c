@@ -2793,7 +2793,10 @@ const char *CurrCatString(const ConnectionClass *conn)
 #define	_PGDTC_FUNCS_IMPLEMENT_
 #include "connexp.h"
 
-#define	SYNC_AUTOCOMMIT(conn)	(SQL_AUTOCOMMIT_OFF != conn->connInfo.autocommit_public ? (conn->transact_status |= CONN_IN_AUTOCOMMIT) : (conn->transact_status &= ~CONN_IN_AUTOCOMMIT))
+#define	SYNC_AUTOCOMMIT(conn)								\
+	(SQL_AUTOCOMMIT_OFF != conn->autocommit_public ?		\
+	 (conn->transact_status |= CONN_IN_AUTOCOMMIT) :		\
+	 (conn->transact_status &= ~CONN_IN_AUTOCOMMIT))
 
 DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strsize)
 {
