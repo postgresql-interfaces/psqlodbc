@@ -3,3 +3,8 @@ connected
 disconnecting
 Connecting with SQLConnect...connected
 disconnecting
+Testing that autocommit persists SQLDriverConnect...
+connected
+autocommit is still off (correct).
+Result set:
+disconnecting

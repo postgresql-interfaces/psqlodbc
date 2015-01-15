@@ -261,7 +261,6 @@ typedef struct
 	signed char	bde_environment;
 	signed char	fake_mss;
 	signed char	cvt_null_date_string;
-	signed char	autocommit_public;
 	signed char	accessible_only;
 	signed char	ignore_round_trip_time;
 	signed char	disable_keepalive;
@@ -356,6 +355,7 @@ struct ConnectionClass_
 	HENV		henv;		/* environment this connection was
 					 * created on */
 	SQLUINTEGER	login_timeout;
+	signed char	autocommit_public;
 	StatementOptions stmtOptions;
 	ARDFields	ardOptions;
 	APDFields	apdOptions;

@@ -285,7 +285,6 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->bde_environment = -1;
 	conninfo->fake_mss = -1;
 	conninfo->cvt_null_date_string = -1;
-	conninfo->autocommit_public = SQL_AUTOCOMMIT_ON;
 	conninfo->accessible_only = -1;
 	conninfo->ignore_round_trip_time = -1;
 	conninfo->disable_keepalive = -1;
@@ -339,7 +338,6 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(bde_environment);
 	CORR_VALCPY(fake_mss);
 	CORR_VALCPY(cvt_null_date_string);
-	CORR_VALCPY(autocommit_public);
 	CORR_VALCPY(accessible_only);
 	CORR_VALCPY(ignore_round_trip_time);
 	CORR_VALCPY(disable_keepalive);
@@ -418,6 +416,7 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 	rv->isolation = SQL_TXN_READ_COMMITTED;
 	rv->mb_maxbyte_per_char = 1;
 	rv->max_identifier_length = -1;
+	rv->autocommit_public = SQL_AUTOCOMMIT_ON;
 
 	/* Initialize statement options to defaults */
 	/* Statements under this conn will inherit these options */

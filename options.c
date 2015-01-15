@@ -295,7 +295,6 @@ PGAPI_SetConnectOption(HDBC hdbc,
 {
 	CSTR func = "PGAPI_SetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
-	ConnInfo   *ci = &(conn->connInfo);
 	char		changed = FALSE;
 	RETCODE		retval;
 	BOOL		autocomm_on;
@@ -359,11 +358,11 @@ PGAPI_SetConnectOption(HDBC hdbc,
 					CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_AUTOCOMMIT", func);
 					return SQL_ERROR;
 			}
-			if (autocomm_on && SQL_AUTOCOMMIT_OFF != ci->autocommit_public)
+			if (autocomm_on && SQL_AUTOCOMMIT_OFF != conn->autocommit_public)
 				break;
-			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == ci->autocommit_public)
+			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == conn->autocommit_public)
 				break;
-			ci->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
+			conn->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
 			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=" FORMAT_LEN "\n", func, conn->transact_status, vParam);
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -522,7 +521,6 @@ PGAPI_GetConnectOption(HDBC hdbc,
 {
 	CSTR func = "PGAPI_GetConnectOption";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
-	ConnInfo   *ci = &(conn->connInfo);
 	const char	*p = NULL;
 	SQLLEN		len = sizeof(SQLINTEGER);
 	SQLRETURN	result = SQL_SUCCESS;
@@ -542,7 +540,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			break;
 
 		case SQL_AUTOCOMMIT:
-			*((SQLUINTEGER *) pvParam) = ci->autocommit_public;
+			*((SQLUINTEGER *) pvParam) = conn->autocommit_public;
 			break;
 
 		case SQL_CURRENT_QUALIFIER:		/* don't use qualifiers */
