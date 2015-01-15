@@ -2527,7 +2527,7 @@ static ProcessedStmt *
 buildProcessedStmt(const char *srvquery, Int4 endp, int num_params)
 {
 	ProcessedStmt *pstmt;
-	int			qlen;
+	size_t		qlen;
 
 	qlen = (endp == SQL_NTS) ? strlen(srvquery) : endp;
 
@@ -3043,9 +3043,9 @@ remove_declare_cursor(QueryBuild *qb, QueryParse *qp)
 	qp->declare_pos = 0;
 }
 
-Int4 findTag(const char *tag, char dollar_quote, int ccsc)
+size_t findTag(const char *tag, char dollar_quote, int ccsc)
 {
-	Int4	taglen = 0;
+	size_t	taglen = 0;
 	encoded_str	encstr;
 	unsigned char	tchar;
 	const char	*sptr;
@@ -3885,7 +3885,6 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary)
 	int			lobj_fd;
 	SQLULEN		offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 	size_t		current_row = qb->current_row;
-	int			npos = 0;
 	BOOL		handling_large_object = FALSE, req_bind, add_quote = FALSE;
 	ParameterInfoClass	*apara;
 	ParameterImplClass	*ipara;
@@ -3950,6 +3949,8 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		if (outputDiscard)
 		{
+			ssize_t			npos = 0;
+
 			for (npos = qb->npos - 1; npos >= 0 && isspace((unsigned char) qb->query_statement[npos]) ; npos--) ;
 			if (npos >= 0)
 			{

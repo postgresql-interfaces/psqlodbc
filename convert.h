@@ -56,7 +56,7 @@ size_t		convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueM
 SQLLEN		pg_hex2bin(const char *in, char *out, SQLLEN len);
 int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
 	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
-Int4		findTag(const char *str, char dollar_quote, int ccsc);
+size_t		findTag(const char *str, char dollar_quote, int ccsc);
 
 BOOL build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
 						int *nParams, char ***paramValues,

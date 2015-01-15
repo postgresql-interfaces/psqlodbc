@@ -1382,16 +1382,22 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 					   atttypmod < 0 &&
 					   *adtsize_or_longestlen > 0)
 					{
-						int i, sval, maxscale = 0;
-						const char	*tval, *sptr;
+						SQLULEN		i;
+						size_t		sval, maxscale = 0;
+						const char *tval, *sptr;
 
 						for (i = 0; i < res->num_cached_rows; i++)
 						{
-							if (tval = QR_get_value_backend_text(res, i, col), NULL != tval)
+							tval = QR_get_value_backend_text(res, i, col);
+							if (NULL != tval)
 							{
-								if (sptr = strchr(tval, '.'), NULL != sptr)
-									if (sval = strlen(tval) - (sptr + 1 - tval), sval > maxscale)
+								sptr = strchr(tval, '.');
+								if (NULL != sptr)
+								{
+									sval = strlen(tval) - (sptr + 1 - tval);
+									if (sval > maxscale)
 										maxscale = sval;
+								}
 							}
 						}
 						*adtsize_or_longestlen += (maxscale << 16);

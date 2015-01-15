@@ -83,8 +83,9 @@ getNextToken(
 	char escape_ch,
 	char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
-	int			i = 0;
-	int		out = 0, taglen;
+	size_t		i = 0;
+	size_t		out = 0;
+	size_t		taglen;
 	char		qc, in_quote, in_dollar_quote, in_escape;
 	const	char	*tag, *tagend;
 	encoded_str	encstr;
