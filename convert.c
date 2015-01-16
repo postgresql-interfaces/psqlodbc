@@ -2144,7 +2144,8 @@ convert_escape(QueryParse *qp, QueryBuild *qb);
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb);
 static int
-ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *usebinary);
+ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *usebinary,
+				Oid *pgType);
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
 	size_t *output_count, SQLLEN param_pos[][2]);
@@ -3168,6 +3169,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	char	literal_quote = LITERAL_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal = '\0';
 	BOOL		isnull;
 	BOOL		isbinary;
+	Oid			dummy;
 
 	if (stmt && stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
@@ -3523,7 +3525,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * It's a '?' parameter alright
 	 */
-	retval = ResolveOneParam(qb, qp, &isnull, &isbinary);
+	retval = ResolveOneParam(qb, qp, &isnull, &isbinary, &dummy);
 	if (retval < 0)
 		return retval;
 
@@ -3543,7 +3545,9 @@ cleanup:
  */
 BOOL
 build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
-						int *nParams, char ***paramValues,
+						int *nParams,
+						OID **paramTypes,
+						char ***paramValues,
 						int **paramLengths,
 						int **paramFormats,
 						int *resultFormat)
@@ -3557,6 +3561,7 @@ build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
 	RETCODE		retval;
 	const		IPDFields *ipdopts = SC_get_IPDF(stmt);
 
+	*paramTypes = NULL;
 	*paramValues = NULL;
 	*paramLengths = NULL;
 	*paramFormats = NULL;
@@ -3576,6 +3581,9 @@ build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
 	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt, NULL) < 0)
 		return FALSE;
 
+	*paramTypes = malloc(sizeof(OID) * num_params);
+	if (*paramTypes == NULL)
+		goto cleanup;
 	*paramValues = malloc(sizeof(char *) * num_params);
 	if (*paramValues == NULL)
 		goto cleanup;
@@ -3607,6 +3615,7 @@ inolog("num_p=%d\n", num_p);
 			BOOL		isnull;
 			BOOL		isbinary;
 			char	   *val_copy;
+			OID			pgType;
 
 			inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
 
@@ -3614,7 +3623,7 @@ inolog("num_p=%d\n", num_p);
 				continue;
 
 			qb.npos = 0;
-			retval = ResolveOneParam(&qb, NULL, &isnull, &isbinary);
+			retval = ResolveOneParam(&qb, NULL, &isnull, &isbinary, &pgType);
 			if (SQL_ERROR == retval)
 			{
 				QB_replace_SC_error(stmt, &qb, func);
@@ -3630,11 +3639,13 @@ inolog("num_p=%d\n", num_p);
 				memcpy(val_copy, qb.query_statement, qb.npos);
 				val_copy[qb.npos] = '\0';
 
+				(*paramTypes)[i] = pgType;
 				(*paramValues)[i] = val_copy;
 				(*paramLengths)[i] = qb.npos;
 			}
 			else
 			{
+				(*paramTypes)[i] = pgType;
 				(*paramValues)[i] = NULL;
 				(*paramLengths)[i] = 0;
 			}
@@ -3866,9 +3877,12 @@ parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
  * *isnull is set to TRUE if it was NULL.
  * *isbinary is set to TRUE, if the binary output format was used. (binary
  *   output is only produced if the FLGB_BINARY_AS_POSSIBLE flag is set)
+ * *pgType is set to the PostgreSQL type OID that should be used when binding
+ * (or 0, to let the server decide)
  */
 static int
-ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary)
+ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
+				OID *pgType)
 {
 	CSTR func = "ResolveOneParam";
 
@@ -4095,6 +4109,9 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	param_ctype = apara->CType;
 	param_sqltype = ipara->SQLType;
 	param_pgtype = PIC_dsp_pgtype(qb->conn, *ipara);
+
+	/* XXX: should we use param_pgtype here instead? */
+	*pgType = sqltype_to_bind_pgtype(conn, param_sqltype);
 
 	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u)\n", func,
 				param_ctype, param_sqltype, param_pgtype);

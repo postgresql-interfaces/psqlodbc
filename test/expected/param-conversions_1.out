@@ -39,6 +39,21 @@ Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_SMALLINT param "-32768"...
 Result set:
 1
 
+
+Testing conversions whose result depend on whether the
+parameter is treated as a string or an integer...
+Testing "SELECT '555' > ?" with SQL_C_CHAR -> SQL_INTEGER param "6"...
+Result set:
+1
+
+Testing "SELECT '555' > ?" with SQL_C_CHAR -> SQL_SMALLINT param "6"...
+Result set:
+1
+
+Testing "SELECT '555' > ?" with SQL_C_CHAR -> SQL_CHAR param "6"...
+Result set:
+0
+
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_INTEGER param "99999999999999999999999"...
 Result set:
 0

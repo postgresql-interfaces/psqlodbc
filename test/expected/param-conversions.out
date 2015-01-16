@@ -39,6 +39,21 @@ Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_SMALLINT param "-32768"...
 Result set:
 1
 
+
+Testing conversions whose result depend on whether the
+parameter is treated as a string or an integer...
+Testing "SELECT '555' > ?" with SQL_C_CHAR -> SQL_INTEGER param "6"...
+Result set:
+1
+
+Testing "SELECT '555' > ?" with SQL_C_CHAR -> SQL_SMALLINT param "6"...
+Result set:
+1
+
+Testing "SELECT '555' > ?" with SQL_C_CHAR -> SQL_CHAR param "6"...
+Result set:
+0
+
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_INTEGER param "99999999999999999999999"...
 SQLExecDirect failed
 22003=ERROR: value "99999999999999999999999" is out of range for type integer;
@@ -58,12 +73,12 @@ Error while executing the query
 
 Testing "SELECT 1.3 > ?" with SQL_C_CHAR -> SQL_FLOAT param "3', 'injected, BAD!', '1"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for type numeric: "3', 'injected, BAD!', '1";
+22P02=ERROR: invalid input syntax for type double precision: "3', 'injected, BAD!', '1";
 Error while executing the query
 
 Testing "SELECT 1.4 > ?" with SQL_C_CHAR -> SQL_FLOAT param "4 \'bad', '1"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for type numeric: "4 \'bad', '1";
+22P02=ERROR: invalid input syntax for type double precision: "4 \'bad', '1";
 Error while executing the query
 
 Testing "SELECT 1-?" with SQL_C_CHAR -> SQL_INTEGER param "-1"...

@@ -59,7 +59,8 @@ int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
 size_t		findTag(const char *str, char dollar_quote, int ccsc);
 
 BOOL build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
-						int *nParams, char ***paramValues,
+						int *nParams, OID **paramTypes,
+						char ***paramValues,
 						int **paramLengths,
 						int **paramFormats,
 						int *resultFormat);

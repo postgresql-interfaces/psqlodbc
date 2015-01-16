@@ -46,6 +46,16 @@ int main(int argc, char **argv)
 	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "-32768");
 
 	/*
+	 * The result of these depend on whether the server treats the parameters
+	 * as a string or an integer.
+	 */
+	printf("\nTesting conversions whose result depend on whether the\n");
+	printf("parameter is treated as a string or an integer...\n");
+	TEST_CONVERT("SELECT '555' > ?", SQL_C_CHAR, SQL_INTEGER, "6");
+	TEST_CONVERT("SELECT '555' > ?", SQL_C_CHAR, SQL_SMALLINT, "6");
+	TEST_CONVERT("SELECT '555' > ?", SQL_C_CHAR, SQL_CHAR, "6");
+
+	/*
 	 * The result of this test depends on what datatype the server thinks
 	 * it's dealing with. If the driver sends it as a naked literal, the
 	 * server will treat it as a numeric because it doesn't fit in an int4.

@@ -1232,6 +1232,130 @@ pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, int att
 }
 
 
+
+/*
+ * This is used when binding a query parameter, to decide which PostgreSQL
+ * datatype to send to the server, depending on the SQL datatype that was
+ * used in the SQLBindParameter call.
+ *
+ * For most types, this returns 0, which means that the server should treat
+ * the parameter the same as an untyped literal string, and deduce the type
+ * based on the context.
+ *
+ * This is different from sqltype_to_pgtype(), which doesn't return 0 but
+ * tries to give a closer match to the actual datatype.
+ */
+OID
+sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
+{
+	OID		pgType;
+	const ConnInfo	*ci = &(conn->connInfo);
+
+	pgType = 0; /* ??? */
+	switch (fSqlType)
+	{
+		case SQL_BINARY:
+		case SQL_VARBINARY:
+			pgType = PG_TYPE_BYTEA;
+			break;
+
+		case SQL_BIT:
+			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
+			break;
+
+		case SQL_TYPE_DATE:
+		case SQL_DATE:
+			pgType = PG_TYPE_DATE;
+			break;
+
+		case SQL_DOUBLE:
+		case SQL_FLOAT:
+			pgType = PG_TYPE_FLOAT8;
+			break;
+
+		case SQL_DECIMAL:
+		case SQL_NUMERIC:
+			pgType = PG_TYPE_NUMERIC;
+			break;
+
+		case SQL_BIGINT:
+			pgType = PG_TYPE_INT8;
+			break;
+
+		case SQL_INTEGER:
+			pgType = PG_TYPE_INT4;
+			break;
+
+		case SQL_LONGVARBINARY:
+			if (ci->bytea_as_longvarbinary)
+				pgType = PG_TYPE_BYTEA;
+			else
+				pgType = conn->lobj_type;
+			break;
+
+		case SQL_REAL:
+			pgType = PG_TYPE_FLOAT4;
+			break;
+
+		case SQL_SMALLINT:
+		case SQL_TINYINT:
+			pgType = PG_TYPE_INT2;
+			break;
+
+		case SQL_TIME:
+		case SQL_TYPE_TIME:
+			pgType = PG_TYPE_TIME;
+			break;
+
+		case SQL_TIMESTAMP:
+		case SQL_TYPE_TIMESTAMP:
+			pgType = PG_TYPE_DATETIME;
+			break;
+
+		case SQL_GUID:
+			if (PG_VERSION_GE(conn, 8.3))
+				pgType = PG_TYPE_UUID;
+			else
+				pgType = 0;
+			break;
+
+		case SQL_INTERVAL_MONTH:
+		case SQL_INTERVAL_YEAR:
+		case SQL_INTERVAL_YEAR_TO_MONTH:
+		case SQL_INTERVAL_DAY:
+		case SQL_INTERVAL_HOUR:
+		case SQL_INTERVAL_MINUTE:
+		case SQL_INTERVAL_SECOND:
+		case SQL_INTERVAL_DAY_TO_HOUR:
+		case SQL_INTERVAL_DAY_TO_MINUTE:
+		case SQL_INTERVAL_DAY_TO_SECOND:
+		case SQL_INTERVAL_HOUR_TO_MINUTE:
+		case SQL_INTERVAL_HOUR_TO_SECOND:
+		case SQL_INTERVAL_MINUTE_TO_SECOND:
+			pgType = PG_TYPE_INTERVAL;
+			break;
+
+		case SQL_CHAR:
+#ifdef	UNICODE_SUPPORT
+		case SQL_WCHAR:
+#endif /* UNICODE_SUPPORT */
+		case SQL_LONGVARCHAR:
+#ifdef	UNICODE_SUPPORT
+		case SQL_WLONGVARCHAR:
+#endif /* UNICODE_SUPPORT */
+		case SQL_VARCHAR:
+#if	UNICODE_SUPPORT
+		case SQL_WVARCHAR:
+#endif /* UNICODE_SUPPORT */
+		default:
+			/* The default is to let the server choose */
+			pgType = 0;
+			break;
+	}
+
+	return pgType;
+}
+
 OID
 sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 {

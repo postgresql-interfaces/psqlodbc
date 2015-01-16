@@ -53,7 +53,7 @@
 #define PG_TYPE_DATE			1082
 #define PG_TYPE_TIME			1083
 #define PG_TYPE_TIMESTAMP_NO_TMZONE	1114		/* since 7.2 */
-#define PG_TYPE_DATETIME		1184
+#define PG_TYPE_DATETIME		1184	/* timestamptz */
 #define PG_TYPE_INTERVAL		1186
 #define PG_TYPE_TIME_WITH_TMZONE	1266		/* since 7.1 */
 #define PG_TYPE_TIMESTAMP		1296	/* deprecated since 7.0 */
@@ -83,6 +83,7 @@ extern SQLSMALLINT sqlTypes[];
 
 OID		pg_true_type(const ConnectionClass *, OID, OID);
 OID		sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
+OID		sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 
 SQLSMALLINT	pgtype_to_concise_type(const StatementClass *stmt, OID type, int col);
 SQLSMALLINT	pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col);

@@ -2460,6 +2460,7 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 	CSTR		func = "libpq_bind_and_exec";
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	int			nParams;
+	Oid		   *paramTypes = NULL;
 	char	  **paramValues = NULL;
 	int		   *paramLengths = NULL;
 	int		   *paramFormats = NULL;
@@ -2487,7 +2488,9 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 	/* 1. Bind */
 	mylog("%s: bind plan_name=%s\n", func, plan_name);
 	if (!build_libpq_bind_params(stmt, plan_name,
-								 &nParams, &paramValues,
+								 &nParams,
+								 &paramTypes,
+								 &paramValues,
 								 &paramLengths, &paramFormats,
 								 &resultFormat))
 	{
@@ -2522,8 +2525,10 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 pstmt->num_params,
-							 NULL,
-							 (const char **) paramValues, paramLengths, paramFormats,
+							 paramTypes,
+							 (const char **) paramValues,
+							 paramLengths,
+							 paramFormats,
 							 resultFormat);
 	}
 	else
@@ -2621,6 +2626,8 @@ cleanup:
 		}
 		free(paramValues);
 	}
+	if (paramTypes)
+		free(paramTypes);
 	if (paramLengths)
 		free(paramLengths);
 	if (paramFormats)
@@ -2709,7 +2716,10 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 			    SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
 				paramTypes[j++] = PG_TYPE_VOID;
 			else
-				paramTypes[j++] = 0;
+			{
+				paramTypes[j++] = sqltype_to_bind_pgtype(conn,
+														 ipdopts->parameters[i].SQLType);
+			}
 		}
 	}
 
