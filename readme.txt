@@ -32,7 +32,7 @@
   How to contact the authors:
 
   email:   pgsql-odbc@postgresql.org
-  website: http://pgfoundry.org/projects/psqlodbc
+  website: https://odbc.postgresql.org/
 
 
 ***********************************************************************/
