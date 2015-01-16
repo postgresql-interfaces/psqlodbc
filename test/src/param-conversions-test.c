@@ -6,14 +6,20 @@
 
 #include "common.h"
 
-static void test_convert(const char *sql, SQLUSMALLINT c_type,
-						 SQLSMALLINT sql_type, char *value);
+#define TEST_CONVERT(sql, c_type, sql_type, value) \
+	test_convert(sql, c_type, #c_type, sql_type, #sql_type, value)
+
+static void test_convert(const char *sql,
+						 SQLSMALLINT c_type, const char *c_type_str,
+						 SQLSMALLINT sql_type, const char *sql_type_str,
+						 SQLPOINTER value);
 
 static HSTMT hstmt = SQL_NULL_HSTMT;
 
 int main(int argc, char **argv)
 {
 	SQLRETURN rc;
+	SQLINTEGER intparam;
 
 	test_connect();
 
@@ -24,21 +30,55 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/*** Test proper escaping of parameters  ***/
+	/*** Test proper escaping of integer parameters  ***/
 	printf("\nTesting conversions...\n");
 
-	test_convert("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "2");
-	test_convert("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "-2");
-	test_convert("SELECT 2.2 > ?", SQL_C_CHAR, SQL_FLOAT, "2.3");
-	test_convert("SELECT 3.3 > ?", SQL_C_CHAR, SQL_DOUBLE, "3.01");
-	test_convert("SELECT 1 > ?", SQL_C_CHAR, SQL_CHAR, "5 escapes: \\ and '");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "2");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "-2");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "2");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "-2");
+	TEST_CONVERT("SELECT 2.2 > ?", SQL_C_CHAR, SQL_FLOAT, "2.3");
+	TEST_CONVERT("SELECT 3.3 > ?", SQL_C_CHAR, SQL_DOUBLE, "3.01");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_CHAR, "5 escapes: \\ and '");
+
+	/* test boundary cases */
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "32767");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "-32768");
+
+	/*
+	 * The result of this test depends on what datatype the server thinks
+	 * it's dealing with. If the driver sends it as a naked literal, the
+	 * server will treat it as a numeric because it doesn't fit in an int4.
+	 * But if the driver tells the server what the datatype is, int4, the
+	 * server will throw an error. In either case, this isn't something that
+	 * a correct application should be doing, because it's clearly not a
+	 * valid value for an SQL_INTEGER. But it's an interesting edge case to
+	 * test.
+	 */
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "99999999999999999999999");
 
 	printf("\nTesting conversions with invalid values...\n");
 
-	test_convert("SELECT 2 > ?", SQL_C_CHAR, SQL_INTEGER, "2, 'injected, BAD!'");
-	test_convert("SELECT 1.3 > ?", SQL_C_CHAR, SQL_FLOAT, "3', 'injected, BAD!', '1");
-	test_convert("SELECT 1.4 > ?", SQL_C_CHAR, SQL_FLOAT, "4 \\'bad', '1");
-	test_convert("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "99999999999999999999999");
+	TEST_CONVERT("SELECT 2 > ?", SQL_C_CHAR, SQL_INTEGER, "2, 'injected, BAD!'");
+	TEST_CONVERT("SELECT 2 > ?", SQL_C_CHAR, SQL_SMALLINT, "2, 'injected, BAD!'");
+	TEST_CONVERT("SELECT 1.3 > ?", SQL_C_CHAR, SQL_FLOAT, "3', 'injected, BAD!', '1");
+	TEST_CONVERT("SELECT 1.4 > ?", SQL_C_CHAR, SQL_FLOAT, "4 \\'bad', '1");
+	TEST_CONVERT("SELECT 1-?", SQL_C_CHAR, SQL_INTEGER, "-1");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "-");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_INTEGER, "");
+	TEST_CONVERT("SELECT 1-?", SQL_C_CHAR, SQL_SMALLINT, "-1");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "-");
+	TEST_CONVERT("SELECT 1 > ?", SQL_C_CHAR, SQL_SMALLINT, "");
+
+	intparam = 1234;
+	TEST_CONVERT("SELECT 0-?", SQL_C_SLONG, SQL_INTEGER, &intparam);
+	intparam = -1234;
+	TEST_CONVERT("SELECT 0-?", SQL_C_SLONG, SQL_INTEGER, &intparam);
+
+	intparam = 1234;
+	TEST_CONVERT("SELECT 0-?", SQL_C_SLONG, SQL_SMALLINT, &intparam);
+	intparam = -1234;
+	TEST_CONVERT("SELECT 0-?", SQL_C_SLONG, SQL_SMALLINT, &intparam);
 
 	/* Clean up */
 	test_disconnect();
@@ -51,14 +91,35 @@ int main(int argc, char **argv)
  * error or result.
  */
 static void
-test_convert(const char *sql, SQLUSMALLINT c_type, SQLSMALLINT sql_type,
-			  char *value)
+test_convert(const char *sql,
+			 SQLSMALLINT c_type, const char *c_type_str,
+			 SQLSMALLINT sql_type, const char *sql_type_str,
+			 SQLPOINTER value)
 {
-	SQLRETURN rc;
-	SQLLEN cbParam = SQL_NTS;
-	int failed = 0;
+	SQLRETURN	rc;
+	SQLLEN		cbParam = SQL_NTS;
+	int			failed = 0;
 
-	/* a query with an SQL_INTEGER param. */
+	/* Print what we're doing */
+	switch (c_type)
+	{
+		case SQL_C_SLONG:
+			printf("Testing \"%s\" with %s -> %s param %d...\n",
+				   sql, c_type_str, sql_type_str, *((SQLINTEGER *) value));
+			break;
+
+		case SQL_C_CHAR:
+			printf("Testing \"%s\" with %s -> %s param \"%s\"...\n",
+				   sql, c_type_str, sql_type_str, (char *) value);
+			break;
+
+		default:
+			printf("Testing \"%s\" with %s -> %s param...\n",
+				   sql, c_type_str, sql_type_str);
+			break;
+	}
+
+	cbParam = SQL_NTS; /* ignored for non-character data */
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
 						  c_type,	/* value type */
 						  sql_type,	/* param type */
@@ -91,5 +152,7 @@ test_convert(const char *sql, SQLUSMALLINT c_type, SQLSMALLINT sql_type,
 		rc = SQLExecDirect(hstmt, (SQLCHAR *) "ROLLBACK /* clean up after failed test */", SQL_NTS);
 		CHECK_STMT_RESULT(rc, "SQLExecDirect(ROLLBACK) failed", hstmt);
 	}
+
+	printf("\n");
 }
 

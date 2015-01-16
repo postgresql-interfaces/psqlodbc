@@ -707,25 +707,35 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, int atttyp
  * Is 'str' a valid integer literal, consisting only of ASCII characters
  * 0-9 ?
  *
+ * Also, *negative is set to TRUE if the value was negative.
+ *
  * We don't check for overflow here. This is just to decide if we need to
  * quote the value.
  */
 static BOOL
-valid_int_literal(const char *str, SQLLEN len)
+valid_int_literal(const char *str, SQLLEN len, BOOL *negative)
 {
-	SQLLEN i;
+	SQLLEN i = 0;
 
-	i = 0;
-
-	if (str[0] == '-')
+	/* Check there is a minus sign in front */
+	if ((len == SQL_NTS || len > 0) && str[0] == '-')
+	{
 		i++;
+		*negative = TRUE;
+	}
+	else
+		*negative = FALSE;
+
+	/*
+	 * Must begin with a digit. This also rejects empty strings and '-'.
+	 */
+	if (i == len || !(str[i] >= '0' && str[i] <= '9'))
+		return FALSE;
 
 	for (; str[i] && (len == SQL_NTS || i < len); i++)
 	{
-		if (str[i] >= '0' && str[i] <= '9')
-			continue;
-
-		return FALSE;
+		if (!(str[i] >= '0' && str[i] <= '9'))
+			return FALSE;
 	}
 
 	return TRUE;
@@ -3885,7 +3895,10 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary)
 	int			lobj_fd;
 	SQLULEN		offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 	size_t		current_row = qb->current_row;
-	BOOL		handling_large_object = FALSE, req_bind, add_quote = FALSE;
+	BOOL		handling_large_object = FALSE, req_bind;
+	BOOL		need_quotes = TRUE;
+	BOOL		add_parens = FALSE;
+	BOOL		negative;
 	ParameterInfoClass	*apara;
 	ParameterImplClass	*ipara;
 	BOOL		outputDiscard,
@@ -4634,63 +4647,84 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 			break;
 		case SQL_NUMERIC:
 			break;
+		/*
+		 * If it looks like a valid integer, we can pass it without quotes
+		 * and let the server interpret it. Arguably, it would always be
+		 * better to explicitly pass it as 'xxx'::integer or 'xxx'::smallint,
+		 * but historically we haven't done that, so let's avoid changing the
+		 * behaviour.
+		 *
+		 * If it's a negative number, we have to wrap it in parens. Otherwise
+		 * a query like "SELECT 0-?" would turn into "SELECT 0--123".
+		 */
+		case SQL_INTEGER:
+			if (valid_int_literal(buf, used, &negative))
+			{
+				need_quotes = FALSE;
+				add_parens = negative;
+			}
+			else
+			{
+				/*
+				 * Doesn't look like a valid integer. The server will most
+				 * likely throw an error, unless it's in some format we don't
+				 * recognize but the server does.
+				 */
+				lastadd = "::int4";
+			}
+			break;
+		case SQL_SMALLINT:
+			if (valid_int_literal(buf, used, &negative))
+			{
+				need_quotes = FALSE;
+				add_parens = negative;
+			}
+			else
+				lastadd = "::smallint";
+			break;
 		default:			/* a numeric type or SQL_BIT */
 			break;
 	}
 
-	/*
-	 * Ok, we now have the final string representation in 'buf', length 'used'.
-	 *
-	 * Do we need to escape it?
-	 */
-	if (!req_bind)
-	{
-		switch (param_sqltype)
-		{
-			case SQL_INTEGER:
-			case SQL_SMALLINT:
-				if (valid_int_literal(buf, used))
-					break;
-				/* fall through */
-			case SQL_CHAR:
-			case SQL_VARCHAR:
-			case SQL_LONGVARCHAR:
-			case SQL_BINARY:
-			case SQL_VARBINARY:
-			case SQL_LONGVARBINARY:
-#ifdef	UNICODE_SUPPORT
-			case SQL_WCHAR:
-			case SQL_WVARCHAR:
-			case SQL_WLONGVARCHAR:
-#endif /* UNICODE_SUPPORT */
-mylog("buf=%p flag=%d\n", buf, qb->flags);
-			default:
-				if ((qb->flags & FLGB_LITERAL_EXTENSION) != 0)
-					CVT_APPEND_CHAR(qb, LITERAL_EXT);
-				CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
-				add_quote = TRUE;
-				break;
-		}
-	}
-
 	if (used == SQL_NTS)
 		used = strlen(buf);
-	if (add_quote)
-	{
-		if (final_binary_convert)
-			CVT_APPEND_BINARY(qb, buf, used);
-		else
-			CVT_SPECIAL_CHARS(qb, buf, used);
-	}
-	else
-		CVT_APPEND_DATA(qb, buf, used);
 
-	if (add_quote)
+	/*
+	 * Ok, we now have the final string representation in 'buf', length 'used'.
+	 * We're ready to output the final string, with quotes and other
+	 * embellishments if necessary.
+	 *
+	 * In bind-mode, we don't need to do any quoting.
+	 */
+	if (req_bind)
+		CVT_APPEND_DATA(qb, buf, used);
+	else
 	{
-		CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
+		if (add_parens)
+			CVT_APPEND_CHAR(qb, '(');
+
+		if (need_quotes)
+		{
+			if ((qb->flags & FLGB_LITERAL_EXTENSION) != 0)
+				CVT_APPEND_CHAR(qb, LITERAL_EXT);
+			CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
+
+			if (final_binary_convert)
+				CVT_APPEND_BINARY(qb, buf, used);
+			else
+				CVT_SPECIAL_CHARS(qb, buf, used);
+
+			CVT_APPEND_CHAR(qb, LITERAL_QUOTE);
+		}
+		else
+			CVT_APPEND_DATA(qb, buf, used);
+
+		if (add_parens)
+			CVT_APPEND_CHAR(qb, ')');
 		if (lastadd)
 			CVT_APPEND_STR(qb, lastadd);
 	}
+
 	retval = SQL_SUCCESS;
 cleanup:
 	if (allocbuf)
