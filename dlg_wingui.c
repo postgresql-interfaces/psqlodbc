@@ -154,7 +154,6 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 				defval.use_declarefetch = DEFAULT_USEDECLAREFETCH;
 
 				defval.parse = DEFAULT_PARSE;
-				defval.cancel_as_freestmt = DEFAULT_CANCELASFREESTMT;
 				defval.debug = DEFAULT_DEBUG;
 
 				/* Unknown Sizes */
@@ -204,7 +203,6 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	CheckDlgButton(hdlg, DRV_UNKNOWNS_LONGVARCHAR, comval->unknowns_as_longvarchar);
 	CheckDlgButton(hdlg, DRV_BOOLS_CHAR, comval->bools_as_char);
 	CheckDlgButton(hdlg, DRV_PARSE, comval->parse);
-	CheckDlgButton(hdlg, DRV_CANCELASFREESTMT, comval->cancel_as_freestmt);
 	CheckDlgButton(hdlg, DRV_DEBUG, comval->debug);
 #ifndef MY_LOG
 	EnableWindow(GetDlgItem(hdlg, DRV_DEBUG), FALSE);
@@ -255,7 +253,6 @@ driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
 
 	comval->parse = IsDlgButtonChecked(hdlg, DRV_PARSE);
 
-	comval->cancel_as_freestmt = IsDlgButtonChecked(hdlg, DRV_CANCELASFREESTMT);
 	comval->debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
 
 	comval->fetch_max = GetDlgItemInt(hdlg, DRV_CACHE_SIZE, NULL, FALSE);

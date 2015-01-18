@@ -307,7 +307,6 @@ inolog("hlen=%d", hlen);
 			INI_UNKNOWNSASLONGVARCHAR "=%d;"
 			INI_BOOLSASCHAR "=%d;"
 			INI_PARSE "=%d;"
-			INI_CANCELASFREESTMT "=%d;"
 			INI_EXTRASYSTABLEPREFIXES "=%s;"
 			INI_LFCONVERSION "=%d;"
 			INI_UPDATABLECURSORS "=%d;"
@@ -343,7 +342,6 @@ inolog("hlen=%d", hlen);
 			,ci->drivers.unknowns_as_longvarchar
 			,ci->drivers.bools_as_char
 			,ci->drivers.parse
-			,ci->drivers.cancel_as_freestmt
 			,ci->drivers.extra_systable_prefixes
 			,ci->lf_conversion
 			,ci->allow_keyset
@@ -389,8 +387,6 @@ inolog("hlen=%d", hlen);
 			flag |= BIT_DEBUG;
 		if (ci->drivers.parse)
 			flag |= BIT_PARSE;
-		if (ci->drivers.cancel_as_freestmt)
-			flag |= BIT_CANCELASFREESTMT;
 		if (ci->drivers.use_declarefetch)
 			flag |= BIT_USEDECLAREFETCH;
 		if (ci->onlyread[0] == '1')
@@ -519,7 +515,6 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	ci->drivers.commlog = (char)((flag & BIT_COMMLOG) != 0);
 	ci->drivers.debug = (char)((flag & BIT_DEBUG) != 0);
 	ci->drivers.parse = (char)((flag & BIT_PARSE) != 0);
-	ci->drivers.cancel_as_freestmt = (char)((flag & BIT_CANCELASFREESTMT) != 0);
 	ci->drivers.use_declarefetch = (char)((flag & BIT_USEDECLAREFETCH) != 0);
 	sprintf(ci->onlyread, "%d", (char)((flag & BIT_READONLY) != 0));
 	ci->drivers.text_as_longvarchar = (char)((flag & BIT_TEXTASLONGVARCHAR) !=0);
@@ -729,8 +724,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->drivers.lie = atoi(value);
 	else if (stricmp(attribute, INI_PARSE) == 0 || stricmp(attribute, ABBR_PARSE) == 0)
 		ci->drivers.parse = atoi(value);
-	else if (stricmp(attribute, INI_CANCELASFREESTMT) == 0 || stricmp(attribute, ABBR_CANCELASFREESTMT) == 0)
-		ci->drivers.cancel_as_freestmt = atoi(value);
 	else if (stricmp(attribute, INI_USEDECLAREFETCH) == 0 || stricmp(attribute, ABBR_USEDECLAREFETCH) == 0)
 		ci->drivers.use_declarefetch = atoi(value);
 	else if (stricmp(attribute, INI_MAXVARCHARSIZE) == 0 || stricmp(attribute, ABBR_MAXVARCHARSIZE) == 0)
@@ -748,7 +741,7 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: A7=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C1=%d;C2=%s", func,
+	mylog("%s: A7=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C2=%s", func,
 		  ci->drivers.fetch_max,
 		  ci->drivers.unknown_sizes,
 		  ci->drivers.max_varchar_size,
@@ -760,7 +753,6 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		  ci->drivers.unknowns_as_longvarchar,
 		  ci->drivers.bools_as_char,
 		  ci->drivers.parse,
-		  ci->drivers.cancel_as_freestmt,
 		  ci->drivers.extra_systable_prefixes);
 
 	return found;
@@ -1147,10 +1139,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	if (!SQLWritePrivateProfileString(sectionName, INI_PARSE, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->cancel_as_freestmt);
-	if (!SQLWritePrivateProfileString(sectionName, INI_CANCELASFREESTMT, tmp, fileName))
-		errc--;
-
 	sprintf(tmp, "%d", comval->max_varchar_size);
 	if (!SQLWritePrivateProfileString(sectionName, INI_MAXVARCHARSIZE, tmp, fileName))
 		errc--;
@@ -1405,14 +1393,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		comval->parse = atoi(temp);
 	else if (inst_position)
 		comval->parse = DEFAULT_PARSE;
-
-	/* SQLCancel calls SQLFreeStmt in Driver Manager */
-	SQLGetPrivateProfileString(section, INI_CANCELASFREESTMT, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
-		comval->cancel_as_freestmt = atoi(temp);
-	else if (inst_position)
-		comval->cancel_as_freestmt = DEFAULT_CANCELASFREESTMT;
 
 	/* UseDeclareFetch is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_USEDECLAREFETCH, "",

@@ -457,7 +457,6 @@ typedef struct GlobalValues_
 	char		bools_as_char;
 	char		lie;
 	char		parse;
-	char		cancel_as_freestmt;
 	char		extra_systable_prefixes[MEDIUM_REGISTRY_LEN];
 	char		protocol[SMALL_REGISTRY_LEN];
 	pgNAME		conn_settings;

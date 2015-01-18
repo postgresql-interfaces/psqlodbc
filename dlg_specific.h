@@ -95,8 +95,12 @@ extern "C" {
 							 * result set sizes */
 #define ABBR_UNKNOWNSIZES		"A9"
 
+/* "CancelAsFreeStmt", abbreviated to "C1" was used with ODBC versions older
+ * than 3.51. It was a hack that made SQLCancel to imply
+ * SQLFreeStmt(SQL_CLOSE). It never had an effect in > 3.51 mode.
 #define INI_CANCELASFREESTMT		"CancelAsFreeStmt"
 #define ABBR_CANCELASFREESTMT	"C1"
+*/
 #define INI_USEDECLAREFETCH		"UseDeclareFetch"	/* Use Declare/Fetch
 								 * cursors */
 #define ABBR_USEDECLAREFETCH		"B6"

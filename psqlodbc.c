@@ -120,7 +120,6 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 	CORR_VALCPY(bools_as_char);
 	CORR_VALCPY(lie);
 	CORR_VALCPY(parse);
-	CORR_VALCPY(cancel_as_freestmt);
 	CORR_STRCPY(extra_systable_prefixes);
 	CORR_STRCPY(protocol);
 	NAME_TO_NAME(to->conn_settings, from->conn_settings);
