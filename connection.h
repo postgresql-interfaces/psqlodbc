@@ -204,26 +204,6 @@ do { \
 	} \
 } while (0)
 
-typedef unsigned int ProtocolVersion;
-
-#define PG_PROTOCOL(major, minor)	(((major) << 16) | (minor))
-#define PG_PROTOCOL_LATEST	PG_PROTOCOL(3, 0)
-#define PG_NEGOTIATE_SSLMODE	PG_PROTOCOL(1234, 5679)
-
-/* Transferred from pqcomm.h:  */
-
-typedef ProtocolVersion MsgType;
-
-#define CANCEL_REQUEST_CODE PG_PROTOCOL(1234,5678)
-
-typedef struct CancelRequestPacket
-{
-	/* Note that each field is stored in network byte order! */
-	MsgType		cancelRequestCode;	/* code to identify a cancel request */
-	unsigned int	backendPID;	/* PID of client's backend */
-	unsigned int	cancelAuthCode; /* secret key to authorize cancel */
-} CancelRequestPacket;
-
 /*	Structure to hold all the connection attributes for a specific
 	connection (used for both registry and file, DSN and DRIVER)
 */
@@ -273,9 +253,6 @@ typedef struct
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	GLOBAL_VALUES drivers;		/* moved from driver's option */
 } ConnInfo;
-
-/*	Macro to determine is the connection using 7.4 rejected? */
-#define PROTOCOL_74REJECTED(conninfo_)	(strncmp((conninfo_)->protocol, PG74REJECTED, strlen(PG74REJECTED)) == 0)
 
 #define SUPPORT_DESCRIBE_PARAM(conninfo_) (conninfo_->use_server_side_prepare)
 
@@ -383,7 +360,6 @@ struct ConnectionClass_
 	char		pg_version[MAX_INFO_STRING];	/* Version of PostgreSQL
 							 * we're connected to -
 							 * DJP 25-1-2001 */
-	float		pg_version_number;
 	Int2		pg_version_major;
 	Int2		pg_version_minor;
 	char		ms_jet;
@@ -489,11 +465,6 @@ void		handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 void		CC_clear_error(ConnectionClass *self);
 int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
 char		CC_send_settings(ConnectionClass *self);
-/*
-char		*CC_create_errormsg(ConnectionClass *self);
-void		CC_lookup_lo(ConnectionClass *conn);
-void		CC_lookup_pg_version(ConnectionClass *conn);
-*/
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
 int			CC_send_cancel_request(const ConnectionClass *conn);

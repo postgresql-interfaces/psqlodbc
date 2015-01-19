@@ -36,8 +36,6 @@
 #include "pgapifunc.h"
 
 
-#define PRN_NULLCHECK
-
 /*	Map sql commands to statement types */
 static const struct
 {
@@ -2360,9 +2358,7 @@ void
 SC_log_error(const char *func, const char *desc, const StatementClass *self)
 {
 	const	char *head;
-#ifdef PRN_NULLCHECK
-#define nullcheck(a) (a ? a : "(NULL)")
-#endif
+#define NULLCHECK(a) (a ? a : "(NULL)")
 	if (self)
 	{
 		QResultClass *res = SC_get_Result(self);
@@ -2376,9 +2372,9 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		else
 		{
 			head = "STATEMENT ERROR";
-			qlog("%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n",head, func, desc, self->__error_number, nullcheck(self->__error_message));
+			qlog("%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n",head, func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		}
-		mylog("%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", head, func, desc, self->__error_number, nullcheck(self->__error_message));
+		mylog("%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", head, func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		if (SC_get_errornumber(self) > 0)
 		{
 			qlog("                 ------------------------------------------------------------\n");
@@ -2386,8 +2382,8 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 			qlog("                 prepare=%d, internal=%d\n", self->prepare, self->internal);
 			qlog("                 bindings=%p, bindings_allocated=%d\n", opts->bindings, opts->allocated);
 			qlog("                 parameters=%p, parameters_allocated=%d\n", apdopts->parameters, apdopts->allocated);
-			qlog("                 statement_type=%d, statement='%s'\n", self->statement_type, nullcheck(self->statement));
-			qlog("                 stmt_with_params='%s'\n", nullcheck(self->stmt_with_params));
+			qlog("                 statement_type=%d, statement='%s'\n", self->statement_type, NULLCHECK(self->statement));
+			qlog("                 stmt_with_params='%s'\n", NULLCHECK(self->stmt_with_params));
 			qlog("                 data_at_exec=%d, current_exec_param=%d, put_data=%d\n", self->data_at_exec, self->current_exec_param, self->put_data);
 			qlog("                 currTuple=%d, current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
 			qlog("                 maxRows=%d, rowset_size=%d, keyset_size=%d, cursor_type=%d, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
@@ -2398,8 +2394,8 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 			if (res)
 			{
 				qlog("                 fields=%p, backend_tuples=%p, tupleField=%d, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
-				qlog("                 fetch_count=%d, num_total_rows=%d, num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, nullcheck(QR_get_cursor(res)));
-				qlog("                 message='%s', command='%s', notice='%s'\n", nullcheck(QR_get_message(res)), nullcheck(res->command), nullcheck(res->notice));
+				qlog("                 fetch_count=%d, num_total_rows=%d, num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, NULLCHECK(QR_get_cursor(res)));
+				qlog("                 message='%s', command='%s', notice='%s'\n", NULLCHECK(QR_get_message(res)), NULLCHECK(res->command), NULLCHECK(res->notice));
 				qlog("                 status=%d\n", QR_get_rstatus(res));
 			}
 
@@ -2412,7 +2408,6 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		qlog("INVALID STATEMENT HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 		mylog("INVALID STATEMENT HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 	}
-#undef PRN_NULLCHECK
 }
 
 /*

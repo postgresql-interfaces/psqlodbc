@@ -49,8 +49,6 @@
 #define STMT_INCREMENT 16		/* how many statement holders to allocate
 								 * at a time */
 
-#define PRN_NULLCHECK
-
 static void CC_lookup_lo(ConnectionClass *self);
 static char *CC_create_errormsg(ConnectionClass *self);
 static int  CC_close_eof_cursors(ConnectionClass *self);
@@ -2502,7 +2500,6 @@ void
 CC_initialize_pg_version(ConnectionClass *self)
 {
 	strcpy(self->pg_version, "7.4");
-	self->pg_version_number = (float) 7.4;
 	self->pg_version_major = 7;
 	self->pg_version_minor = 4;
 }
@@ -2511,14 +2508,12 @@ CC_initialize_pg_version(ConnectionClass *self)
 void
 CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 {
-#ifdef PRN_NULLCHECK
-#define nullcheck(a) (a ? a : "(NULL)")
-#endif
+#define NULLCHECK(a) (a ? a : "(NULL)")
 
 	if (self)
 	{
-		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
-		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, nullcheck(self->__error_message));
+		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
+		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		qlog("            ------------------------------------------------------------\n");
 		qlog("            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
 		qlog("            pqconn=%p, stmts=%p, lobj_type=%d\n", self->pqconn, self->stmts, self->lobj_type);
@@ -2528,7 +2523,6 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 		qlog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 		mylog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 }
-#undef PRN_NULLCHECK
 }
 
 /*
@@ -2702,7 +2696,6 @@ cleanup1:
 	self->pg_version_major = pversion / 10000;
 	self->pg_version_minor = (pversion % 10000) / 100;
 	sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
-	self->pg_version_number = (float) atof(self->pg_version);
 
 	mylog("Server version=%s\n", self->pg_version);
 	ret = 1;
@@ -2845,13 +2838,13 @@ DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strs
 			*xaOptStr = '\0';
 			break;
 	}
-	snprintf(connstr, strsize, "DRIVER={%s};"
-				"%s"
-				"SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;" ABBR_SSLMODE "=%s"
-		,
-
-		drivername, xaOptStr
-		, ci->server, ci->port, ci->database, ci->username, SAFE_NAME(ci->password), ci->sslmode
+	snprintf(connstr, strsize,
+			 "DRIVER={%s};%s"
+			 "SERVER=%s;PORT=%s;DATABASE=%s;"
+			 "UID=%s;PWD=%s;" ABBR_SSLMODE "=%s",
+			 drivername, xaOptStr,
+			 ci->server, ci->port, ci->database, ci->username,
+			 SAFE_NAME(ci->password), ci->sslmode
 		);
 	return;
 }
