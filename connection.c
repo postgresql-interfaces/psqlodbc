@@ -1159,24 +1159,6 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 
 	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 
-	if (ci->port[0] == '\0')
-	{
-		CC_set_error(self, CONN_INIREAD_ERROR, "Missing port name in call to CC_connect.", func);
-		return 0;
-	}
-#ifdef	WIN32
-	if (ci->server[0] == '\0')
-	{
-		CC_set_error(self, CONN_INIREAD_ERROR, "Missing server name in call to CC_connect.", func);
-		return 0;
-	}
-#endif /* WIN32 */
-	if (ci->database[0] == '\0')
-	{
-		CC_set_error(self, CONN_INIREAD_ERROR, "Missing database name in call to CC_connect.", func);
-		return 0;
-	}
-
 	return 1;
 }
 
