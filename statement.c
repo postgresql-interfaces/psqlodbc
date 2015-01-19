@@ -174,7 +174,7 @@ static QResultClass *libpq_bind_and_exec(StatementClass *stmt, const char *plan_
 
 RETCODE		SQL_API
 PGAPI_AllocStmt(HDBC hdbc,
-				HSTMT FAR * phstmt, UDWORD flag)
+				HSTMT * phstmt, UDWORD flag)
 {
 	CSTR func = "PGAPI_AllocStmt";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -1559,11 +1559,11 @@ inolog("SC_full_error_copy %p->%p\n", from ,self);
 RETCODE		SQL_API
 PGAPI_StmtError(SQLHSTMT	hstmt,
 				SQLSMALLINT RecNumber,
-				SQLCHAR FAR * szSqlState,
-				SQLINTEGER FAR * pfNativeError,
-				SQLCHAR FAR * szErrorMsg,
+				SQLCHAR * szSqlState,
+				SQLINTEGER * pfNativeError,
+				SQLCHAR * szErrorMsg,
 				SQLSMALLINT cbErrorMsgMax,
-				SQLSMALLINT FAR * pcbErrorMsg,
+				SQLSMALLINT * pcbErrorMsg,
 				UWORD flag)
 {
 	/* CC: return an error of a hdesc  */

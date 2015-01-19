@@ -40,7 +40,7 @@ PGAPI_BindParameter(HSTMT hstmt,
 					SQLSMALLINT ibScale,
 					PTR rgbValue,
 					SQLLEN cbValueMax,
-					SQLLEN FAR * pcbValue)
+					SQLLEN * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindParameter";
@@ -149,7 +149,7 @@ PGAPI_BindCol(HSTMT hstmt,
 			  SQLSMALLINT fCType,
 			  PTR rgbValue,
 			  SQLLEN cbValueMax,
-			  SQLLEN FAR * pcbValue)
+			  SQLLEN * pcbValue)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_BindCol";
@@ -303,10 +303,10 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_DescribeParam(HSTMT hstmt,
 					SQLUSMALLINT ipar,
-					SQLSMALLINT FAR * pfSqlType,
-					SQLULEN FAR * pcbParamDef,
-					SQLSMALLINT FAR * pibScale,
-					SQLSMALLINT FAR * pfNullable)
+					SQLSMALLINT * pfSqlType,
+					SQLULEN * pcbParamDef,
+					SQLSMALLINT * pibScale,
+					SQLSMALLINT * pfNullable)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_DescribeParam";
@@ -419,7 +419,7 @@ cleanup:
  */
 RETCODE		SQL_API
 PGAPI_NumParams(HSTMT hstmt,
-				SQLSMALLINT FAR * pcpar)
+				SQLSMALLINT * pcpar)
 {
 	StatementClass *stmt = (StatementClass *) hstmt;
 	CSTR func = "PGAPI_NumParams";

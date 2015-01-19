@@ -319,12 +319,12 @@ struct col_info
 #define HINSTANCE void *
 #endif
 
-typedef BOOL (FAR WINAPI * DataSourceToDriverProc) (UDWORD, SWORD, PTR,
-		SDWORD, PTR, SDWORD, SDWORD FAR *, UCHAR FAR *, SWORD,
-		SWORD FAR *);
-typedef BOOL (FAR WINAPI * DriverToDataSourceProc) (UDWORD, SWORD, PTR,
-		SDWORD, PTR, SDWORD, SDWORD FAR *, UCHAR FAR *, SWORD,
-		SWORD FAR *);
+typedef BOOL (WINAPI * DataSourceToDriverProc) (UDWORD, SWORD, PTR,
+		SDWORD, PTR, SDWORD, SDWORD *, UCHAR *, SWORD,
+		SWORD *);
+typedef BOOL (WINAPI * DriverToDataSourceProc) (UDWORD, SWORD, PTR,
+		SDWORD, PTR, SDWORD, SDWORD *, UCHAR *, SWORD,
+		SWORD *);
 
 /*******	The Connection handle	************/
 struct ConnectionClass_

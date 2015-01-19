@@ -149,7 +149,7 @@ static void finalize_global_cs(void)
 }
 
 #ifdef WIN32
-HINSTANCE NEAR s_hModule;		/* Saved module handle. */
+HINSTANCE s_hModule;		/* Saved module handle. */
 /*	This is where the Driver Manager attaches to this Driver */
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)

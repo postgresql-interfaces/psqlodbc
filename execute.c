@@ -39,7 +39,7 @@
 /*		Perform a Prepare on the SQL statement */
 RETCODE		SQL_API
 PGAPI_Prepare(HSTMT hstmt,
-			  const SQLCHAR FAR * szSqlStr,
+			  const SQLCHAR * szSqlStr,
 			  SQLINTEGER cbSqlStr)
 {
 	CSTR func = "PGAPI_Prepare";
@@ -141,7 +141,7 @@ inolog("SQLPrepare return=%d\n", retval);
 /*		Performs the equivalent of SQLPrepare, followed by SQLExecute. */
 RETCODE		SQL_API
 PGAPI_ExecDirect(HSTMT hstmt,
-				 const SQLCHAR FAR * szSqlStr,
+				 const SQLCHAR * szSqlStr,
 				 SQLINTEGER cbSqlStr,
 				 UWORD flag)
 {
@@ -1271,11 +1271,11 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
  */
 RETCODE		SQL_API
 PGAPI_NativeSql(HDBC hdbc,
-				const SQLCHAR FAR * szSqlStrIn,
+				const SQLCHAR * szSqlStrIn,
 				SQLINTEGER cbSqlStrIn,
-				SQLCHAR FAR * szSqlStr,
+				SQLCHAR * szSqlStr,
 				SQLINTEGER cbSqlStrMax,
-				SQLINTEGER FAR * pcbSqlStr)
+				SQLINTEGER * pcbSqlStr)
 {
 	CSTR func = "PGAPI_NativeSql";
 	size_t		len = 0;
@@ -1322,7 +1322,7 @@ PGAPI_NativeSql(HDBC hdbc,
  */
 RETCODE		SQL_API
 PGAPI_ParamData(HSTMT hstmt,
-				PTR FAR * prgbValue)
+				PTR * prgbValue)
 {
 	CSTR func = "PGAPI_ParamData";
 	StatementClass *stmt = (StatementClass *) hstmt, *estmt;

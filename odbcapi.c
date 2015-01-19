@@ -173,11 +173,11 @@ SQLConnect(HDBC ConnectionHandle,
 RETCODE		SQL_API
 SQLDriverConnect(HDBC hdbc,
 				 HWND hwnd,
-				 SQLCHAR FAR * szConnStrIn,
+				 SQLCHAR * szConnStrIn,
 				 SQLSMALLINT cbConnStrIn,
-				 SQLCHAR FAR * szConnStrOut,
+				 SQLCHAR * szConnStrOut,
 				 SQLSMALLINT cbConnStrOutMax,
-				 SQLSMALLINT FAR * pcbConnStrOut,
+				 SQLSMALLINT * pcbConnStrOut,
 				 SQLUSMALLINT fDriverCompletion)
 {
 	RETCODE	ret;

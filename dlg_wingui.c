@@ -34,7 +34,7 @@
 
 extern GLOBAL_VALUES globals;
 
-extern HINSTANCE NEAR s_hModule;
+extern HINSTANCE s_hModule;
 static int	driver_optionsDraw(HWND, const ConnInfo *, int src, BOOL enable);
 static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
 

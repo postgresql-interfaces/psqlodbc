@@ -117,7 +117,7 @@ SQLDriverConnectW(HDBC hdbc,
 				  SQLSMALLINT cbConnStrIn,
 				  SQLWCHAR *szConnStrOut,
 				  SQLSMALLINT cbConnStrOutMax,
-				  SQLSMALLINT FAR *pcbConnStrOut,
+				  SQLSMALLINT *pcbConnStrOut,
 				  SQLUSMALLINT fDriverCompletion)
 {
 	CSTR func = "SQLDriverConnectW";

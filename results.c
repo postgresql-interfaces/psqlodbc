@@ -40,7 +40,7 @@
 
 RETCODE		SQL_API
 PGAPI_RowCount(HSTMT hstmt,
-			   SQLLEN FAR * pcrow)
+			   SQLLEN * pcrow)
 {
 	CSTR func = "PGAPI_RowCount";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -138,7 +138,7 @@ inolog("nfields=%d\n", irdflds->nfields);
  */
 RETCODE		SQL_API
 PGAPI_NumResultCols(HSTMT hstmt,
-					SQLSMALLINT FAR * pccol)
+					SQLSMALLINT * pccol)
 {
 	CSTR func = "PGAPI_NumResultCols";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -206,13 +206,13 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_DescribeCol(HSTMT hstmt,
 				  SQLUSMALLINT icol,
-				  SQLCHAR FAR * szColName,
+				  SQLCHAR * szColName,
 				  SQLSMALLINT cbColNameMax,
-				  SQLSMALLINT FAR * pcbColName,
-				  SQLSMALLINT FAR * pfSqlType,
-				  SQLULEN FAR * pcbColDef,
-				  SQLSMALLINT FAR * pibScale,
-				  SQLSMALLINT FAR * pfNullable)
+				  SQLSMALLINT * pcbColName,
+				  SQLSMALLINT * pfSqlType,
+				  SQLULEN * pcbColDef,
+				  SQLSMALLINT * pibScale,
+				  SQLSMALLINT * pfNullable)
 {
 	CSTR func = "PGAPI_DescribeCol";
 
@@ -441,8 +441,8 @@ PGAPI_ColAttributes(HSTMT hstmt,
 					SQLUSMALLINT fDescType,
 					PTR rgbDesc,
 					SQLSMALLINT cbDescMax,
-					SQLSMALLINT FAR * pcbDesc,
-					SQLLEN FAR * pfDesc)
+					SQLSMALLINT * pcbDesc,
+					SQLLEN * pfDesc)
 {
 	CSTR func = "PGAPI_ColAttributes";
 	StatementClass *stmt = (StatementClass *) hstmt;
@@ -868,7 +868,7 @@ PGAPI_GetData(HSTMT hstmt,
 			  SQLSMALLINT fCType,
 			  PTR rgbValue,
 			  SQLLEN cbValueMax,
-			  SQLLEN FAR * pcbValue)
+			  SQLLEN * pcbValue)
 {
 	CSTR func = "PGAPI_GetData";
 	QResultClass *res;
@@ -1356,8 +1356,8 @@ RETCODE		SQL_API
 PGAPI_ExtendedFetch(HSTMT hstmt,
 					SQLUSMALLINT fFetchType,
 					SQLLEN irow,
-					SQLULEN FAR * pcrow,
-					SQLUSMALLINT FAR * rgfRowStatus,
+					SQLULEN * pcrow,
+					SQLUSMALLINT * rgfRowStatus,
 					SQLLEN bookmark_offset,
 					SQLLEN rowsetSize)
 {
@@ -4440,7 +4440,7 @@ PGAPI_SetScrollOptions(HSTMT hstmt,
 /*	Set the cursor name on a statement handle */
 RETCODE		SQL_API
 PGAPI_SetCursorName(HSTMT hstmt,
-					const SQLCHAR FAR * szCursor,
+					const SQLCHAR * szCursor,
 					SQLSMALLINT cbCursor)
 {
 	CSTR func = "PGAPI_SetCursorName";
@@ -4462,9 +4462,9 @@ PGAPI_SetCursorName(HSTMT hstmt,
 /*	Return the cursor name for a statement handle */
 RETCODE		SQL_API
 PGAPI_GetCursorName(HSTMT hstmt,
-					SQLCHAR FAR * szCursor,
+					SQLCHAR * szCursor,
 					SQLSMALLINT cbCursorMax,
-					SQLSMALLINT FAR * pcbCursor)
+					SQLSMALLINT * pcbCursor)
 {
 	CSTR func = "PGAPI_GetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;

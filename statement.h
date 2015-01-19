@@ -198,7 +198,7 @@ struct StatementClass_
 								 * statement belongs to */
 	QResultClass *result;		/* result of the current statement */
 	QResultClass *curres;		/* the current result in the chain */
-	HSTMT FAR  *phstmt;
+	HSTMT	   *phstmt;
 	StatementOptions options;
 	StatementOptions options_orig;
 	/* attached descriptor handles */

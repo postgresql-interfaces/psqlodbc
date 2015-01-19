@@ -23,7 +23,6 @@
 #ifndef WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
-#define NEAR
 #else
 #include <winsock2.h>
 #endif
@@ -69,18 +68,18 @@ static void dconn_get_common_attributes(const char *connect_string, ConnInfo *ci
 LRESULT CALLBACK dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
 RETCODE		dconn_DoDialog(HWND hwnd, ConnInfo *ci);
 
-extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
+extern HINSTANCE s_hModule;	/* Saved module handle. */
 #endif
 
 
 RETCODE		SQL_API
 PGAPI_DriverConnect(HDBC hdbc,
 					HWND hwnd,
-					const SQLCHAR FAR * szConnStrIn,
+					const SQLCHAR * szConnStrIn,
 					SQLSMALLINT cbConnStrIn,
-					SQLCHAR FAR * szConnStrOut,
+					SQLCHAR * szConnStrOut,
 					SQLSMALLINT cbConnStrOutMax,
-					SQLSMALLINT FAR * pcbConnStrOut,
+					SQLSMALLINT * pcbConnStrOut,
 					SQLUSMALLINT fDriverCompletion)
 {
 	CSTR func = "PGAPI_DriverConnect";

@@ -60,7 +60,7 @@ extern GLOBAL_VALUES globals;
 
 RETCODE		SQL_API
 PGAPI_AllocConnect(HENV henv,
-				   HDBC FAR * phdbc)
+				   HDBC * phdbc)
 {
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 	ConnectionClass *conn;
@@ -99,11 +99,11 @@ PGAPI_AllocConnect(HENV henv,
 
 RETCODE		SQL_API
 PGAPI_Connect(HDBC hdbc,
-			  const SQLCHAR FAR * szDSN,
+			  const SQLCHAR * szDSN,
 			  SQLSMALLINT cbDSN,
-			  const SQLCHAR FAR * szUID,
+			  const SQLCHAR * szUID,
 			  SQLSMALLINT cbUID,
-			  const SQLCHAR FAR * szAuthStr,
+			  const SQLCHAR * szAuthStr,
 			  SQLSMALLINT cbAuthStr)
 {
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -169,11 +169,11 @@ PGAPI_Connect(HDBC hdbc,
 
 RETCODE		SQL_API
 PGAPI_BrowseConnect(HDBC hdbc,
-					const SQLCHAR FAR * szConnStrIn,
+					const SQLCHAR * szConnStrIn,
 					SQLSMALLINT cbConnStrIn,
-					SQLCHAR FAR * szConnStrOut,
+					SQLCHAR * szConnStrOut,
 					SQLSMALLINT cbConnStrOutMax,
-					SQLSMALLINT FAR * pcbConnStrOut)
+					SQLSMALLINT * pcbConnStrOut)
 {
 	CSTR func = "PGAPI_BrowseConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;

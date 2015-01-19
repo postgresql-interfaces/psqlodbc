@@ -31,7 +31,7 @@
 
 #define INTFUNC  __stdcall
 
-extern HINSTANCE NEAR s_hModule;	/* Saved module handle. */
+extern HINSTANCE s_hModule;	/* Saved module handle. */
 extern GLOBAL_VALUES	globals;
 
 /* Constants */

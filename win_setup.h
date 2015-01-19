@@ -16,7 +16,7 @@ typedef struct tagSETUPDLG
 	BOOL		fNewDSN;		/* New data source flag */
 	BOOL		fDefault;		/* Default data source flag */
 
-}	SETUPDLG, FAR * LPSETUPDLG;
+}	SETUPDLG, * LPSETUPDLG;
 
 /* Prototypes */
 void INTFUNC CenterDialog(HWND hdlg);

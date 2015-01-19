@@ -28,8 +28,8 @@ extern "C" {
 #define	PODBC_ERROR_CLEAR		(1L << 1)
 
 RETCODE SQL_API PGAPI_AllocConnect(HENV EnvironmentHandle,
-				   HDBC FAR * ConnectionHandle);
-RETCODE SQL_API PGAPI_AllocEnv(HENV FAR * EnvironmentHandle);
+				   HDBC * ConnectionHandle);
+RETCODE SQL_API PGAPI_AllocEnv(HENV * EnvironmentHandle);
 RETCODE SQL_API PGAPI_AllocStmt(HDBC ConnectionHandle,
 				HSTMT *StatementHandle, UDWORD flag);
 RETCODE SQL_API PGAPI_BindCol(HSTMT StatementHandle,
@@ -50,9 +50,9 @@ RETCODE SQL_API PGAPI_Connect(HDBC ConnectionHandle,
 		const SQLCHAR *UserName, SQLSMALLINT NameLength2,
 		const SQLCHAR *Authentication, SQLSMALLINT NameLength3);
 RETCODE SQL_API PGAPI_DriverConnect(HDBC hdbc, HWND hwnd,
-		const SQLCHAR FAR * szConnStrIn, SQLSMALLINT cbConnStrIn,
-		SQLCHAR FAR * szConnStrOut, SQLSMALLINT cbConnStrOutMax,
-		SQLSMALLINT FAR * pcbConnStrOut, SQLUSMALLINT fDriverCompletion);
+		const SQLCHAR * szConnStrIn, SQLSMALLINT cbConnStrIn,
+		SQLCHAR * szConnStrOut, SQLSMALLINT cbConnStrOutMax,
+		SQLSMALLINT * pcbConnStrOut, SQLUSMALLINT fDriverCompletion);
 RETCODE SQL_API PGAPI_BrowseConnect(HDBC hdbc,
 					const SQLCHAR *szConnStrIn, SQLSMALLINT cbConnStrIn,
 					SQLCHAR *szConnStrOut, SQLSMALLINT cbConnStrOutMax,

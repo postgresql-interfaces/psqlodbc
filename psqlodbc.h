@@ -500,8 +500,8 @@ typedef struct
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
 PG_ErrorInfo	*ER_Dup(const PG_ErrorInfo *from);
 void ER_Destructor(PG_ErrorInfo *);
-RETCODE SQL_API ER_ReturnError(PG_ErrorInfo **, SQLSMALLINT, UCHAR FAR *,
-		SQLINTEGER FAR *, UCHAR FAR *, SQLSMALLINT, SQLSMALLINT FAR *, UWORD);
+RETCODE SQL_API ER_ReturnError(PG_ErrorInfo **, SQLSMALLINT, UCHAR *,
+		SQLINTEGER *, UCHAR *, SQLSMALLINT, SQLSMALLINT *, UWORD);
 
 void		logs_on_off(int cnopen, int, int);
 
