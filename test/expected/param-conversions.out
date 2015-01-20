@@ -140,4 +140,22 @@ Result set:
 foo
 \bar
 
+
+Testing datetime conversions
+Testing "SELECT ?" with SQL_C_CHAR -> SQL_TIMESTAMP param "04-22-2011 01:23:45"...
+Result set:
+2011-04-22 01:23:45
+
+Testing "SELECT ?" with SQL_C_CHAR -> SQL_TIMESTAMP param "{ts '2011-04-22 01:23:45'}"...
+Result set:
+2011-04-22 01:23:45
+
+Testing "SELECT ?" with SQL_C_CHAR -> SQL_TIME param "{t '01:23:45'}"...
+Result set:
+01:23:45
+
+Testing "SELECT ?" with SQL_C_CHAR -> SQL_DATE param "{d '2011-04-22'}"...
+Result set:
+2011-04-22
+
 disconnecting

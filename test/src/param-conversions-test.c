@@ -96,6 +96,12 @@ int main(int argc, char **argv)
 	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_BINARY, "666f6f0001");
 	TEST_CONVERT("SELECT ?::text", SQL_C_BINARY, SQL_CHAR, byteaparam);
 
+	printf("\nTesting datetime conversions\n");
+	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_TIMESTAMP, "04-22-2011 01:23:45");
+	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_TIMESTAMP, "{ts '2011-04-22 01:23:45'}");
+	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_TIME, "{t '01:23:45'}");
+	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_DATE, "{d '2011-04-22'}");
+
 	/* Clean up */
 	test_disconnect();
 
@@ -139,6 +145,7 @@ test_convert(const char *sql,
 		cbParam = strlen(value) + 1;
 	else
 		cbParam = SQL_NTS; /* ignored for non-character data */
+
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
 						  c_type,	/* value type */
 						  sql_type,	/* param type */

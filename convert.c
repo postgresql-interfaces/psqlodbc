@@ -5235,7 +5235,12 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 	st->fr = 0;
 	st->infinity = 0;
 
-	/* escape sequence ? */
+	/*
+	 * Handle ODBC time/date/timestamp literals, e.g.
+	 * { d '2011-04-22' }
+	 * { t '12:34:56' }
+	 * { ts '2011-04-22 12:34:56' }
+	 */
 	if (buf[0] == ODBC_ESCAPE_START)
 	{
 		while (*(++buf) && *buf != LITERAL_QUOTE);
