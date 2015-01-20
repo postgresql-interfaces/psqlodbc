@@ -141,7 +141,26 @@ char	   *mapFuncs[][2] = {
 	{0, 0}
 };
 
+typedef struct
+{
+	int		infinity;
+	int			m;
+	int			d;
+	int			y;
+	int			hh;
+	int			mm;
+	int			ss;
+	int			fr;
+} SIMPLE_TIME;
+
 static const char *mapFunction(const char *func, int param_count);
+static BOOL convert_money(const char *s, char *sout, size_t soutmax);
+static char parse_datetime(const char *buf, SIMPLE_TIME *st);
+static size_t convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOOL *changed);
+static size_t convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags,int ccsc, int escape_ch);
+static size_t convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax);
+static int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
+	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
 static int conv_from_octal(const char *s);
 static SQLLEN pg_bin2hex(const char *src, char *dst, SQLLEN length);
 #ifdef	UNICODE_SUPPORT
@@ -5191,7 +5210,7 @@ cleanup:
 	return retval;
 }
 
-BOOL
+static BOOL
 convert_money(const char *s, char *sout, size_t soutmax)
 {
 	size_t		i = 0,
@@ -5220,7 +5239,7 @@ convert_money(const char *s, char *sout, size_t soutmax)
  *	This function parses a character string for date/time info and fills in SIMPLE_TIME
  *	It does not zero out SIMPLE_TIME in case it is desired to initialize it with a value
  */
-char
+static char
 parse_datetime(const char *buf, SIMPLE_TIME *st)
 {
 	int			y,
@@ -5294,7 +5313,7 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 
 
 /*	Change linefeed to carriage-return/linefeed */
-size_t
+static size_t
 convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *changed)
 {
 	size_t		i = 0,
@@ -5344,7 +5363,7 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
  *	Change carriage-return/linefeed to just linefeed
  *	Plus, escape any special characters.
  */
-size_t
+static size_t
 convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int ccsc, int escape_in_literal)
 {
 	size_t		i = 0,
@@ -5399,18 +5418,6 @@ convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int c
 	return out;
 }
 
-
-/*	!!! Need to implement this function !!!  */
-int
-convert_pgbinary_to_char(const char *value, char *rgbValue, ssize_t cbValueMax)
-{
-	mylog("convert_pgbinary_to_char: value = '%s'\n", value);
-
-	strncpy_null(rgbValue, value, cbValueMax);
-	return 0;
-}
-
-
 static int
 conv_from_octal(const char *s)
 {
@@ -5425,7 +5432,7 @@ conv_from_octal(const char *s)
 
 
 /*	convert octal escapes to bytes */
-size_t
+static size_t
 convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax)
 {
 	size_t		i,
@@ -5666,7 +5673,7 @@ pg_hex2bin(const char *src, char *dst, SQLLEN length)
  *	mapped to PG_TYPE_LO someday, instead of PG_TYPE_TEXT as it is now.
  *-------
  */
-int
+static int
 convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbValue,
 		   SQLLEN cbValueMax, SQLLEN *pcbValue)
 {
