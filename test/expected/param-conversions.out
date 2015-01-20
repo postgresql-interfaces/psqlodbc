@@ -125,4 +125,19 @@ Testing "SELECT 0-?" with SQL_C_SLONG -> SQL_SMALLINT param -1234...
 Result set:
 1234
 
+
+Testing bytea conversions
+Testing "SELECT ?" with SQL_C_BINARY -> SQL_BINARY param...
+Result set:
+666f6f0a5c62617200
+
+Testing "SELECT ?" with SQL_C_CHAR -> SQL_BINARY param "666f6f0001"...
+Result set:
+666f6f0001
+
+Testing "SELECT ?::text" with SQL_C_BINARY -> SQL_CHAR param...
+Result set:
+foo
+\bar
+
 disconnecting

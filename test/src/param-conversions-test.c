@@ -20,6 +20,7 @@ int main(int argc, char **argv)
 {
 	SQLRETURN rc;
 	SQLINTEGER intparam;
+	char	byteaparam[] = { 'f', 'o', 'o', '\n', '\\', 'b', 'a', 'r', '\0' };
 
 	test_connect();
 
@@ -90,6 +91,11 @@ int main(int argc, char **argv)
 	intparam = -1234;
 	TEST_CONVERT("SELECT 0-?", SQL_C_SLONG, SQL_SMALLINT, &intparam);
 
+	printf("\nTesting bytea conversions\n");
+	TEST_CONVERT("SELECT ?", SQL_C_BINARY, SQL_BINARY, byteaparam);
+	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_BINARY, "666f6f0001");
+	TEST_CONVERT("SELECT ?::text", SQL_C_BINARY, SQL_CHAR, byteaparam);
+
 	/* Clean up */
 	test_disconnect();
 
@@ -129,7 +135,10 @@ test_convert(const char *sql,
 			break;
 	}
 
-	cbParam = SQL_NTS; /* ignored for non-character data */
+	if (c_type == SQL_BINARY)
+		cbParam = strlen(value) + 1;
+	else
+		cbParam = SQL_NTS; /* ignored for non-character data */
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
 						  c_type,	/* value type */
 						  sql_type,	/* param type */
