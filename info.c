@@ -1504,15 +1504,13 @@ PGAPI_GetFunctions(HDBC hdbc,
 
 
 static char	*
-simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, int *result_len, const ConnectionClass *conn)
+simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn)
 {
 	int	i, outlen;
 	const char *in;
 	char	*dest = NULL, escape_ch = CC_get_escape(conn);
 	encoded_str	encstr;
 
-	if (result_len)
-		*result_len = 0;
 	if (!src || srclen == SQL_NULL_DATA)
 		return dest;
 	else if (srclen == SQL_NTS)
@@ -1536,8 +1534,6 @@ mylog("simple in=%s(%d)\n", src, srclen);
 		dest[outlen++] = *in;
 	}
 	dest[outlen] = '\0';
-	if (result_len)
-		*result_len = outlen;
 mylog("simple output=%s(%d)\n", dest, outlen);
 	return dest;
 }
@@ -1546,7 +1542,7 @@ mylog("simple output=%s(%d)\n", dest, outlen);
  *	PostgreSQL needs 2 '\\' to escape '_' and '%'.
  */
 static char	*
-adjustLikePattern(const SQLCHAR *src, int srclen, char escape_ch, int *result_len, const ConnectionClass *conn)
+adjustLikePattern(const SQLCHAR *src, int srclen, const ConnectionClass *conn)
 {
 	int	i, outlen;
 	const char *in;
@@ -1554,8 +1550,6 @@ adjustLikePattern(const SQLCHAR *src, int srclen, char escape_ch, int *result_le
 	BOOL	escape_in = FALSE;
 	encoded_str	encstr;
 
-	if (result_len)
-		*result_len = 0;
 	if (!src || srclen == SQL_NULL_DATA)
 		return dest;
 	else if (srclen == SQL_NTS)
@@ -1582,16 +1576,16 @@ mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 				case '_':
 					break;
 				default:
-					if (escape_ch == escape_in_literal)
+					if (SEARCH_PATTERN_ESCAPE == escape_in_literal)
 						dest[outlen++] = escape_in_literal;
-					dest[outlen++] = escape_ch;
+					dest[outlen++] = SEARCH_PATTERN_ESCAPE;
 					break;
 			}
 		}
-		if (*in == escape_ch)
+		if (*in == SEARCH_PATTERN_ESCAPE)
 		{
 			escape_in = TRUE;
-			if (escape_ch == escape_in_literal)
+			if (SEARCH_PATTERN_ESCAPE == escape_in_literal)
 				dest[outlen++] = escape_in_literal; /* insert 1 more LEXER escape */
 		}
 		else
@@ -1604,13 +1598,11 @@ mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 	}
 	if (escape_in)
 	{
-		if (escape_ch == escape_in_literal)
+		if (SEARCH_PATTERN_ESCAPE == escape_in_literal)
 			dest[outlen++] = escape_in_literal;
-		dest[outlen++] = escape_ch;
+		dest[outlen++] = SEARCH_PATTERN_ESCAPE;
 	}
 	dest[outlen] = '\0';
-	if (result_len)
-		*result_len = outlen;
 mylog("adjust output=%s(%d)\n", dest, outlen);
 	return dest;
 }
@@ -1731,22 +1723,22 @@ PGAPI_Tables(HSTMT hstmt,
 	if (search_pattern)
 	{
 		like_or_eq = likeop;
-		escCatName = adjustLikePattern(szTableQualifier, cbTableQualifier, SEARCH_PATTERN_ESCAPE, NULL, conn);
-		escTableName = adjustLikePattern(szTableName, cbTableName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escCatName = adjustLikePattern(szTableQualifier, cbTableQualifier, conn);
+		escTableName = adjustLikePattern(szTableName, cbTableName, conn);
 	}
 	else
 	{
 		like_or_eq = eqop;
-		escCatName = simpleCatalogEscape(szTableQualifier, cbTableQualifier, NULL, conn);
-		escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+		escCatName = simpleCatalogEscape(szTableQualifier, cbTableQualifier, conn);
+		escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
 	}
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
 	if (search_pattern)
-		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, conn);
 	else
-		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 	/*
 	 * Create the query to find out the tables
 	 */
@@ -2162,14 +2154,14 @@ PGAPI_Columns(HSTMT hstmt,
 		if (search_pattern)
 		{
 			like_or_eq = likeop;
-			escTableName = adjustLikePattern(szTableName, cbTableName, SEARCH_PATTERN_ESCAPE, NULL, conn);
-			escColumnName = adjustLikePattern(szColumnName, cbColumnName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+			escTableName = adjustLikePattern(szTableName, cbTableName, conn);
+			escColumnName = adjustLikePattern(szColumnName, cbColumnName, conn);
 		}
 		else
 		{
 			like_or_eq = eqop;
-			escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
-			escColumnName = simpleCatalogEscape(szColumnName, cbColumnName, NULL, conn);
+			escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
+			escColumnName = simpleCatalogEscape(szColumnName, cbColumnName, conn);
 		}
 	}
 retry_public_schema:
@@ -2178,9 +2170,9 @@ retry_public_schema:
 		if (escSchemaName)
 			free(escSchemaName);
 		if (search_pattern)
-			escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+			escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, conn);
 		else
-			escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+			escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 	}
 	/*
 	 * Create the query to find out the columns (Note: pre 6.3 did not
@@ -2817,7 +2809,7 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	szSchemaName = szTableOwner;
 	cbSchemaName = cbTableOwner;
 
-	escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+	escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
 	if (!escTableName)
 	{
 		SC_set_error(stmt, STMT_INVALID_NULL_ARG, "The table name is required", func);
@@ -2828,7 +2820,7 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
-	escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+	escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 	eq_string = gen_opestr(eqop, conn);
 	/*
 	 * Create the query to find out if this is a view or not...
@@ -3215,9 +3207,9 @@ PGAPI_Statistics(HSTMT hstmt,
 	indx_stmt = (StatementClass *) hindx_stmt;
 
 	/* TableName cannot contain a string search pattern */
-	escTableName = simpleCatalogEscape((SQLCHAR *) table_name, SQL_NTS, NULL, conn);
+	escTableName = simpleCatalogEscape((SQLCHAR *) table_name, SQL_NTS, conn);
 	eq_string = gen_opestr(eqop, conn);
-	escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, NULL, conn);
+	escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, conn);
 	snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
 		", i.indisclustered, a.amname, c.relhasrules, n.nspname"
 		", c.oid, d.relhasoids, %s"
@@ -3543,18 +3535,18 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
-	escSchemaName = simpleCatalogEscape(szTableOwner, cbTableOwner, NULL, conn);
-	escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+	escSchemaName = simpleCatalogEscape(szTableOwner, cbTableOwner, conn);
+	escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));
 	if (search_pattern)
 	{
 		like_or_eq = likeop;
-		escColumnName = adjustLikePattern(szColumnName, cbColumnName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escColumnName = adjustLikePattern(szColumnName, cbColumnName, conn);
 	}
 	else
 	{
 		like_or_eq = eqop;
-		escColumnName = simpleCatalogEscape(szColumnName, cbColumnName, NULL, conn);
+		escColumnName = simpleCatalogEscape(szColumnName, cbColumnName, conn);
 	}
 	strcpy(column_query, "select '' as TABLE_CAT, table_schema as TABLE_SCHEM,"
 			" table_name, column_name, grantor, grantee,"
@@ -3721,7 +3713,7 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 		}
 		szSchemaName = szTableOwner;
 		cbSchemaName = cbTableOwner;
-		escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+		escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
 	}
 	eq_string = gen_opestr(eqop, conn);
 
@@ -3731,7 +3723,7 @@ retry_public_schema:
 	{
 		if (escSchemaName)
 			free(escSchemaName);
-		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 		schema_strcat(pkscm, "%.*s", (SQLCHAR *) escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	}
 
@@ -4172,9 +4164,9 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 		char    *escSchemaName;
 
 		mylog("%s: entering Foreign Key Case #2", func);
-		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, NULL, conn);
+		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
-		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
+		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
 			"		pt.tgnargs, "
 			"		pt.tgdeferrable, "
@@ -4500,9 +4492,9 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	{
 		char	*escSchemaName;
 
-		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
+		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
 		schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
-		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
+		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
 			"	pt.tgnargs, "
 			"	pt.tgdeferrable, "
@@ -4901,14 +4893,14 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	if (search_pattern)
 	{
 		like_or_eq = likeop;
-		escSchemaName = adjustLikePattern(szProcOwner, cbProcOwner, SEARCH_PATTERN_ESCAPE, NULL, conn);
-		escProcName = adjustLikePattern(szProcName, cbProcName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escSchemaName = adjustLikePattern(szProcOwner, cbProcOwner, conn);
+		escProcName = adjustLikePattern(szProcName, cbProcName, conn);
 	}
 	else
 	{
 		like_or_eq = eqop;
-		escSchemaName = simpleCatalogEscape(szProcOwner, cbProcOwner, NULL, conn);
-		escProcName = simpleCatalogEscape(szProcName, cbProcName, NULL, conn);
+		escSchemaName = simpleCatalogEscape(szProcOwner, cbProcOwner, conn);
+		escProcName = simpleCatalogEscape(szProcName, cbProcName, conn);
 	}
 	op_string = gen_opestr(like_or_eq, conn);
 	strcpy(proc_query, "select proname, proretset, prorettype, "
@@ -5275,14 +5267,14 @@ PGAPI_Procedures(HSTMT hstmt,
 	if (search_pattern)
 	{
 		like_or_eq = likeop;
-		escSchemaName = adjustLikePattern(szProcOwner, cbProcOwner, SEARCH_PATTERN_ESCAPE, NULL, conn);
-		escProcName = adjustLikePattern(szProcName, cbProcName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escSchemaName = adjustLikePattern(szProcOwner, cbProcOwner, conn);
+		escProcName = adjustLikePattern(szProcName, cbProcName, conn);
 	}
 	else
 	{
 		like_or_eq = eqop;
-		escSchemaName = simpleCatalogEscape(szProcOwner, cbProcOwner, NULL, conn);
-		escProcName = simpleCatalogEscape(szProcName, cbProcName, NULL, conn);
+		escSchemaName = simpleCatalogEscape(szProcOwner, cbProcOwner, conn);
+		escProcName = simpleCatalogEscape(szProcName, cbProcName, conn);
 	}
 	/*
 	 * The following seems the simplest implementation
@@ -5443,21 +5435,21 @@ PGAPI_TablePrivileges(HSTMT hstmt,
 	if (search_pattern)
 	{
 		like_or_eq = likeop;
-		escTableName = adjustLikePattern(szTableName, cbTableName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escTableName = adjustLikePattern(szTableName, cbTableName, conn);
 	}
 	else
 	{
 		like_or_eq = eqop;
-		escTableName = simpleCatalogEscape(szTableName, cbTableName, NULL, conn);
+		escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
 	}
 
 retry_public_schema:
 	if (escSchemaName)
 		free(escSchemaName);
 	if (search_pattern)
-		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, SEARCH_PATTERN_ESCAPE, NULL, conn);
+		escSchemaName = adjustLikePattern(szSchemaName, cbSchemaName, conn);
 	else
-		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, NULL, conn);
+		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 
 	op_string = gen_opestr(like_or_eq, conn);
 	strncpy_null(proc_query, "select relname, usename, relacl, nspname"
@@ -5703,7 +5695,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	if (NULL != fk_table_needed)
 	{
 		mylog("%s: entering Foreign Key Case #2", func);
-		escTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, NULL, conn);
+		escTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
 		relqual = "\n   and  conrelid = c.oid";
 	}
@@ -5714,7 +5706,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	 */
 	else if (NULL != pk_table_needed)
 	{
-		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
+		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
 		schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
 		relqual = "\n   and  confrelid = c.oid";
 	}
@@ -5730,7 +5722,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 		strcpy(catName, "NULL::name");
 	strcpy(scmName1, "n2.nspname");
 	strcpy(scmName2, "n1.nspname");
-	escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, NULL, conn);
+	escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 
 	snprintf(tables_query, sizeof(tables_query),
 		"select"
@@ -5824,7 +5816,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	    NULL != fk_table_needed)
 	{
 		free(escTableName);
-		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, NULL, conn);
+		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
 		snprintf_add(tables_query, sizeof(tables_query),
 				"\n where c2.relname %s'%s'",
 				eq_string, escTableName);
