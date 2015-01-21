@@ -6,23 +6,29 @@ SQLHDBC conn;
 void
 print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle)
 {
-	char sqlstate[32];
-	char message[1000];
-	SQLINTEGER nativeerror;
+	char		sqlstate[32];
+	char		message[1000];
+	SQLINTEGER	nativeerror;
 	SQLSMALLINT textlen;
-	SQLRETURN ret;
+	SQLRETURN	ret;
+	SQLSMALLINT	recno = 0;
 
 	if (msg)
 		printf("%s\n", msg);
 
-	ret = SQLGetDiagRec(htype, handle, 1, sqlstate, &nativeerror,
-						message, 256, &textlen);
-	if (ret == SQL_INVALID_HANDLE)
-		printf("Invalid handle\n");
-	if (ret == SQL_NO_DATA)
+	do
+	{
+		recno++;
+		ret = SQLGetDiagRec(htype, handle, recno, sqlstate, &nativeerror,
+							message, 256, &textlen);
+		if (ret == SQL_INVALID_HANDLE)
+			printf("Invalid handle\n");
+		else if (SQL_SUCCEEDED(ret))
+			printf("%s=%s\n", sqlstate, message);
+	} while (ret == SQL_SUCCESS);
+
+	if (ret == SQL_NO_DATA && recno == 1)
 		printf("No error information\n");
-	else if (ret != SQL_ERROR)
-		printf("%s=%s\n", (CHAR *)sqlstate, (CHAR *)message);
 }
 
 void
