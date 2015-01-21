@@ -2704,6 +2704,7 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		if (paramTypes == NULL)
 			goto cleanup;
 
+		mylog("ipdopts->allocated: %d\n", ipdopts->allocated);
 		j = 0;
 		for (i = sta_pidx; i <= end_pidx; i++)
 		{
@@ -2728,7 +2729,7 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		handle_pgres_error(conn, pgres, "ParseWithlibpq", res, TRUE);
 		goto cleanup;
 	}
-
+mylog("PQprepare was successful, plan=%s\n", plan_name ? plan_name : "");
 	if (stmt->plan_name)
 		SC_set_prepared(stmt, PREPARED_PERMANENTLY);
 	else
@@ -2765,7 +2766,6 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 {
 	CSTR	func = "ParseAndDescribeWithLibpq";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	char	   *query = NULL;
 	Oid		   *paramTypes = NULL;
 	PGresult   *pgres = NULL;
 	int			num_p;
@@ -2776,8 +2776,8 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	Oid			oid;
 	SQLSMALLINT paramType;
 
-	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query);
-	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query);
+	mylog("%s: plan_name=%s query=%s\n", func, plan_name, query_param);
+	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query_param);
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
@@ -2900,8 +2900,6 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 cleanup:
 	if (paramTypes)
 		free(paramTypes);
-	if (query && query != query_param)
-		free(query);
 
 	if (pgres)
 		PQclear(pgres);
