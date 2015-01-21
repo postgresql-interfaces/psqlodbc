@@ -867,13 +867,6 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 
 	mylog("notice/error message len=%d\n", strlen(errmsg));
 
-	if (0 != abort_opt
-#ifdef	_LEGACY_MODE_
-		|| TRUE
-#endif /* _LEGACY_NODE_ */
-		)
-		CC_on_abort(self, abort_opt);
-
 	if (fatal)
 	{
 		if (res)
@@ -895,6 +888,13 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	}
 	if (errmsg != errprimary)
 		free(errmsg);
+
+	if (0 != abort_opt
+#ifdef	_LEGACY_MODE_
+		|| TRUE
+#endif /* _LEGACY_NODE_ */
+		)
+		CC_on_abort(self, abort_opt);
 
 	LIBPQ_update_transaction_status(self);
 }
