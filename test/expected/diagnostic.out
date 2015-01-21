@@ -7,9 +7,18 @@ get same message again
 42601=ERROR: syntax error at or near "broken";
 Error while executing the query
 killing connection...
-57P01=FATAL: terminating connection due to administrator command;
+57P01=server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+;
 Error while executing the query
 SQLGetDiagRec on connection says:
-57P01=FATAL: terminating connection due to administrator command
+57P01=server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
 SQLGetDiagRec called again:
-57P01=FATAL: terminating connection due to administrator command
+57P01=server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
