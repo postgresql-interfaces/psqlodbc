@@ -811,6 +811,9 @@ inolog("QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
 			else
 				tuple_size *= 2;
 			QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * tuple_size, self, "Out of mwmory while allocating keyset", FALSE);
+			memset(self->keyset + self->count_keyset_allocated * sizeof(KeySet),
+				   0,
+				   (tuple_size - self->count_keyset_allocated) * sizeof(KeySet));
 			self->count_keyset_allocated = tuple_size;
 		}
 	}
