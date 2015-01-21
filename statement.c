@@ -169,8 +169,7 @@ static const struct
 	}
 };
 
-static QResultClass *libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
-										 const char *comment);
+static QResultClass *libpq_bind_and_exec(StatementClass *stmt);
 
 RETCODE		SQL_API
 PGAPI_AllocStmt(HDBC hdbc,
@@ -1944,14 +1943,10 @@ SC_execute(StatementClass *self)
 	isSelectType = (SC_may_use_cursor(self) || self->statement_type == STMT_TYPE_PROCCALL);
 	if (use_extended_protocol)
 	{
-		char	*plan_name = self->plan_name;
-
 		if (issue_begin)
 			CC_begin(conn);
-		if (!plan_name)
-			plan_name = "";
 
-		res = libpq_bind_and_exec(self, plan_name, "bind_and_execute");
+		res = libpq_bind_and_exec(self);
 		if (!res)
 		{
 			if (SC_get_errornumber(self) <= 0)
@@ -2449,8 +2444,7 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 
 
 static QResultClass *
-libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
-					const char *comment)
+libpq_bind_and_exec(StatementClass *stmt)
 {
 	CSTR		func = "libpq_bind_and_exec";
 	ConnectionClass	*conn = SC_get_conn(stmt);
@@ -2481,8 +2475,8 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 	}
 
 	/* 1. Bind */
-	mylog("%s: bind plan_name=%s\n", func, plan_name);
-	if (!build_libpq_bind_params(stmt, plan_name,
+	mylog("%s: bind stmt=%p\n", func, stmt);
+	if (!build_libpq_bind_params(stmt,
 								 &nParams,
 								 &paramTypes,
 								 &paramValues,
@@ -2493,7 +2487,7 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 	}
 
 	/* 2. Execute */
-	mylog("%s: execute plan_name=%s\n", func, plan_name);
+	mylog("%s: execute stmt=%p\n", func, stmt);
 	if (!SC_is_fetchcursor(stmt))
 	{
 		if (stmt->prepared == NOT_YET_PREPARED ||
@@ -2528,11 +2522,16 @@ libpq_bind_and_exec(StatementClass *stmt, const char *plan_name,
 	}
 	else
 	{
+		const char *plan_name;
+
 		if (stmt->prepared == PREPARING_PERMANENTLY)
 		{
 			if (prepareParameters(stmt) == SQL_ERROR)
 				goto cleanup;
 		}
+
+		/* prepareParameters() set plan name, so don't fetch this earlier */
+		plan_name = stmt->plan_name ? stmt->plan_name : "";
 
 		/* already prepared */
 		pgres = PQexecPrepared(conn->pqconn,

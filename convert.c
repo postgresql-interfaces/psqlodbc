@@ -3564,7 +3564,7 @@ cleanup:
  * function.
  */
 BOOL
-build_libpq_bind_params(StatementClass *stmt, const char *plan_name,
+build_libpq_bind_params(StatementClass *stmt,
 						int *nParams,
 						OID **paramTypes,
 						char ***paramValues,
