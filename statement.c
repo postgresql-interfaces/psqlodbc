@@ -2757,6 +2757,9 @@ cleanup:
  * Returns an empty result set that has the column information, or error code
  * and message, filled in. If 'res' is not NULL, it is the result set
  * returned, otherwise a new one is allocated.
+ *
+ * NB: The caller must set stmt->current_exec_param before calling this
+ * function!
  */
 QResultClass *
 ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,

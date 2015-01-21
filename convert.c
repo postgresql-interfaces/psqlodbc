@@ -2682,6 +2682,7 @@ inolog("prep_params_and_sync\n");
 
 	pstmt = stmt->processed_statements;
 
+	stmt->current_exec_param = 0;
 	res = ParseAndDescribeWithLibpq(stmt, plan_name, pstmt->query, pstmt->num_params, "prepare_and_describe", NULL);
 	if (res == NULL)
 		goto cleanup;
