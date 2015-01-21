@@ -587,37 +587,35 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 		return FALSE;
 	}
 	scnt = sscanf(str, "%d %10s %02d:%02d:%02d.%09s", &days, lit1, &hours, &minutes, &seconds, lit2);
-	if (strnicmp(lit1, "day", 3) != 0)
-		return FALSE;
-	sign = days < 0 ? SQL_TRUE : SQL_FALSE;
-	switch (scnt)
+	if (scnt == 5 || scnt == 6)
 	{
-		case 5:
-		case 6:
-			st->interval_type = itype;
-			st->interval_sign = sign;
-			st->intval.day_second.day = sign ? (-days) : days;
-			st->intval.day_second.hour = sign ? (-hours) : hours;
-			st->intval.day_second.minute = minutes;
-			st->intval.day_second.second = seconds;
-			if (scnt > 5)
-				st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
-			return TRUE;
+		if (strnicmp(lit1, "day", 3) != 0)
+			return FALSE;
+		sign = days < 0 ? SQL_TRUE : SQL_FALSE;
+
+		st->interval_type = itype;
+		st->interval_sign = sign;
+		st->intval.day_second.day = sign ? (-days) : days;
+		st->intval.day_second.hour = sign ? (-hours) : hours;
+		st->intval.day_second.minute = minutes;
+		st->intval.day_second.second = seconds;
+		if (scnt > 5)
+			st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
+		return TRUE;
 	}
 	scnt = sscanf(str, "%02d:%02d:%02d.%09s", &hours, &minutes, &seconds, lit2);
-	sign = hours < 0 ? SQL_TRUE : SQL_FALSE;
-	switch (scnt)
+	if (scnt == 3 || scnt == 4)
 	{
-		case 3:
-		case 4:
-			st->interval_type = itype;
-			st->interval_sign = sign;
-			st->intval.day_second.hour = sign ? (-hours) : hours;
-			st->intval.day_second.minute = minutes;
-			st->intval.day_second.second = seconds;
-			if (scnt > 3)
-				st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
-			return TRUE;
+		sign = hours < 0 ? SQL_TRUE : SQL_FALSE;
+
+		st->interval_type = itype;
+		st->interval_sign = sign;
+		st->intval.day_second.hour = sign ? (-hours) : hours;
+		st->intval.day_second.minute = minutes;
+		st->intval.day_second.second = seconds;
+		if (scnt > 3)
+			st->intval.day_second.fraction = getPrecisionPart(precision, lit2);
+		return TRUE;
 	}
 
 	return FALSE;
