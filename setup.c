@@ -41,6 +41,10 @@ extern GLOBAL_VALUES	globals;
 #define MAXDESC			(255+1) /* Max description length */
 #define MAXDSNAME		(32+1)	/* Max data source name length */
 
+static void ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg);
+static BOOL SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode);
+static BOOL SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR pErrorMessage, WORD cbMessage);
+static void CenterDialog(HWND hdlg);
 
 /*--------
  *	ConfigDSN
@@ -145,7 +149,6 @@ ConfigDSN(HWND hwnd,
  *	Returns :	TRUE success, FALSE otherwise
  *--------
  */
-static BOOL SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR pErrorMessage, WORD cbMessage);
 BOOL		CALLBACK
 ConfigDriver(HWND hwnd,
 		WORD fRequest,
@@ -192,7 +195,7 @@ ConfigDriver(HWND hwnd,
  *		Output	   :  None
  *-------
  */
-void		INTFUNC
+static void
 CenterDialog(HWND hdlg)
 {
 	HWND		hwndFrame;
@@ -237,7 +240,6 @@ CenterDialog(HWND hdlg)
 	return;
 }
 
-void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC);
 /*-------
  * ConfigDlgProc
  *	Description:	Manage add data source name dialog
@@ -395,17 +397,13 @@ ConfigDlgProc(HWND hdlg,
 	return FALSE;
 }
 
-void test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
+void
+test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 {
 	EnvironmentClass *env = EN_Constructor();
 	ConnectionClass *conn = NULL;
 	char    szMsg[SQL_MAX_MESSAGE_LENGTH];
-#ifdef	UNICODE_SUPPORT
-	int	tlen;
-	SQLWCHAR *wermsg = NULL;
-	SQLULEN	ulen;
-#endif /* UNICODE_SUPPORT */
-	char *emsg = NULL, *allocstr = NULL;
+	char *emsg = NULL;
 	int errnum;
 
 	env = EN_Constructor();
@@ -481,26 +479,32 @@ cleanup:
 	if (NULL != emsg && NULL != hwnd)
 	{
 #ifdef	UNICODE_SUPPORT
+		size_t		tlen;
+		SQLULEN		ulen;
+		SQLWCHAR   *wermsg = NULL;
+		char	   *allocstr = NULL;
+
 		tlen = strlen(emsg);
 		wermsg = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (tlen + 1));
 		ulen = utf8_to_ucs2_lf(emsg, SQL_NTS, FALSE, wermsg, tlen + 1, TRUE);
 		if (ulen != (SQLULEN) -1)
 		{
 			allocstr = malloc(4 * tlen + 1);
-			tlen = (SQLSMALLINT) wstrtomsg(NULL, wermsg,
-			(int) tlen, allocstr, (int) 4 * tlen + 1);
+			(void) wstrtomsg(wermsg, (int) tlen, allocstr, (int) (4 * tlen + 1));
 			emsg = allocstr;
 		}
 #endif /* UNICODE_SUPPORT */
+
 		MessageBox(hwnd, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
-	}
 
 #ifdef	UNICODE_SUPPORT
-	if (NULL != wermsg)
-		free(wermsg);
+		if (NULL != wermsg)
+			free(wermsg);
+		if (NULL != allocstr)
+			free(allocstr);
 #endif /* UNICODE_SUPPORT */
-	if (NULL != allocstr)
-		free(allocstr);
+	}
+
 	if (NULL != conn)
 	{
 		logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
@@ -521,13 +525,13 @@ cleanup:
  *	Output	 :	None (global aAttr normally updated)
  *-------
  */
-void		INTFUNC
+static void
 ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 {
 	LPCSTR		lpsz;
 	LPCSTR		lpszStart;
 	char		aszKey[MAXKEYLEN];
-	int			cbKey;
+	size_t		cbKey;
 	char		value[MAXPGPATH];
 
 	CC_conninfo_init(&(lpsetupdlg->ci), COPY_GLOBALS);
@@ -550,7 +554,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 		cbKey = lpsz - lpszStart;
 		if (cbKey < sizeof(aszKey))
 		{
-			_fmemcpy(aszKey, lpszStart, cbKey);
+			memcpy(aszKey, lpszStart, cbKey);
 			aszKey[cbKey] = '\0';
 		}
 
@@ -560,7 +564,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			;
 
 		/* lpsetupdlg->aAttr[iElement].fSupplied = TRUE; */
-		_fmemcpy(value, lpszStart, MIN(lpsz - lpszStart + 1, MAXPGPATH));
+		memcpy(value, lpszStart, MIN(lpsz - lpszStart + 1, MAXPGPATH));
 
 		mylog("aszKey='%s', value='%s'\n", aszKey, value);
 
@@ -580,7 +584,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
  *	Output	 :	TRUE if successful, FALSE otherwise
  *--------
  */
-BOOL		INTFUNC
+static BOOL
 SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 {
 	LPCSTR		lpszDSN;		/* Pointer to data source name */

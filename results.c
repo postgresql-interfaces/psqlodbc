@@ -1014,7 +1014,7 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 		{
 			if (SQL_C_BOOKMARK == target_type || sizeof(UInt4) <= cbValueMax)
 			{
-				UInt4 bookmark = SC_get_bookmark(stmt);
+				UInt4 bookmark = (UInt4) SC_get_bookmark(stmt);
 				contents_get = TRUE;
 				memcpy(rgbValue, &bookmark, sizeof(UInt4));
 			}

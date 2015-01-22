@@ -31,7 +31,7 @@ int	copy_and_convert_field(StatementClass *stmt,
 
 int		copy_statement_with_parameters(StatementClass *stmt, BOOL);
 SQLLEN		pg_hex2bin(const char *in, char *out, SQLLEN len);
-size_t		findTag(const char *str, char dollar_quote, int ccsc);
+size_t		findTag(const char *str, int ccsc);
 
 BOOL build_libpq_bind_params(StatementClass *stmt,
 						int *nParams, OID **paramTypes,

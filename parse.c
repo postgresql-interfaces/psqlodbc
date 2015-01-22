@@ -89,7 +89,7 @@ getNextToken(
 	char		qc, in_quote, in_dollar_quote, in_escape;
 	const	char	*tag, *tagend;
 	encoded_str	encstr;
-	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal;
+	char		escape_in_literal;
 
 	if (smax <= 1)
 		return NULL;
@@ -136,19 +136,19 @@ getNextToken(
 		if (out == 0)
 		{
 			qc = s[i];
-			if (qc == dollar_quote)
+			if (qc == DOLLAR_QUOTE)
 			{
 				in_quote = in_dollar_quote = TRUE;
 				tag = s + i;
 				taglen = 1;
-				if (tagend = strchr(s + i + 1, dollar_quote), NULL != tagend)
+				if (tagend = strchr(s + i + 1, DOLLAR_QUOTE), NULL != tagend)
 					taglen = tagend - s - i + 1;
 				i += (taglen - 1);
 				encoded_position_shift(&encstr, taglen - 1);
 				if (quote)
 					*quote = TRUE;
 			}
-			else if (qc == literal_quote)
+			else if (qc == LITERAL_QUOTE)
 			{
 				in_quote = TRUE;
 				if (quote)
@@ -160,7 +160,7 @@ getNextToken(
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
-			else if (qc == identifier_quote)
+			else if (qc == IDENTIFIER_QUOTE)
 			{
 				in_quote = TRUE;
 				if (dquote)
@@ -193,7 +193,7 @@ getNextToken(
 					}
 					token[out++] = s[i];
 				}
-				else if (literal_quote == qc && s[i] == escape_in_literal)
+				else if (LITERAL_QUOTE == qc && s[i] == escape_in_literal)
 				{
 					in_escape = TRUE;
 				}
@@ -400,8 +400,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				TI_set_hasoids(ti);
 				foundKey = TRUE;
 				STR_TO_NAME(ti->bestitem, OID_NAME);
-				sprintf(query, "\"%s\" = %%u", OID_NAME);
-				STRX_TO_NAME(ti->bestqual, query);
+				STRX_TO_NAME(ti->bestqual, "\"" OID_NAME "\" = %u");
 			}
 			TI_set_hasoids_checked(ti);
 			ti->table_oid = (OID) strtoul(QR_get_value_backend_text(res, 0, 1), NULL, 10);

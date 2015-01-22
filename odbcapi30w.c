@@ -243,7 +243,7 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 			SQLULEN ulen = utf8_to_ucs2_lf(mtxt, tlen, FALSE, szErrorMsg, cbErrorMsgMax, TRUE);
 			if (ulen == (SQLULEN) -1)
 			{
-				tlen = (SQLSMALLINT) msgtowstr(NULL, mtxt,
+				tlen = (SQLSMALLINT) msgtowstr(mtxt,
 					(int) tlen, (LPWSTR) szErrorMsg, (int) cbErrorMsgMax);
 			}
 			else
@@ -378,7 +378,7 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 				SQLULEN ulen = (SQLSMALLINT) utf8_to_ucs2_lf(rgbD, blen, FALSE, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, TRUE);
 				if (ulen == (SQLULEN) -1)
 				{
-					blen = (SQLSMALLINT) msgtowstr(NULL, rgbD,
+					blen = (SQLSMALLINT) msgtowstr(rgbD,
 						(int) blen, (LPWSTR) rgbDiagInfo, (int) cbDiagInfoMax / WCLEN);
 				}
 				else

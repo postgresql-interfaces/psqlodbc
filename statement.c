@@ -928,11 +928,10 @@ inolog("%s statement=%p ommitted=0\n", func, self);
  */
 void
 SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
-		Int4 *next_cmd, SQLSMALLINT * pcpar,
+		ssize_t *next_cmd, SQLSMALLINT * pcpar,
 		po_ind_t *multi_st, po_ind_t *proc_return)
 {
 	CSTR func = "SC_scanQueryAndCountParams";
-	char	literal_quote = LITERAL_QUOTE, identifier_quote = IDENTIFIER_QUOTE, dollar_quote = DOLLAR_QUOTE;
 	const	char *sptr, *tstr, *tag = NULL;
 	size_t	taglen = 0;
 	char	tchar, bchar, escape_in_literal = '\0';
@@ -972,7 +971,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		}
 		if (in_dollar_quote)
 		{
-			if (tchar == dollar_quote)
+			if (tchar == DOLLAR_QUOTE)
 			{
 				if (strncmp(sptr, tag, taglen) == 0)
 				{
@@ -990,12 +989,12 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				in_escape = FALSE;
 			else if (tchar == escape_in_literal)
 				in_escape = TRUE;
-			else if (tchar == literal_quote)
+			else if (tchar == LITERAL_QUOTE)
 				in_literal = FALSE;
 		}
 		else if (in_identifier)
 		{
-			if (tchar == identifier_quote)
+			if (tchar == IDENTIFIER_QUOTE)
 				in_identifier = FALSE;
 		}
 		else if (in_line_comment)
@@ -1035,9 +1034,9 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				if (next_cmd)
 					*next_cmd = sptr - query;
 			}
-			else if (tchar == dollar_quote)
+			else if (tchar == DOLLAR_QUOTE)
 			{
-				taglen = findTag(sptr, dollar_quote, encstr.ccsc);
+				taglen = findTag(sptr, encstr.ccsc);
 				if (taglen > 0)
 				{
 					in_dollar_quote = TRUE;
@@ -1048,7 +1047,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				else
 					num_p++;
 			}
-			else if (tchar == literal_quote)
+			else if (tchar == LITERAL_QUOTE)
 			{
 				in_literal = TRUE;
 				escape_in_literal = CC_get_escape(conn);
@@ -1058,7 +1057,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
-			else if (tchar == identifier_quote)
+			else if (tchar == IDENTIFIER_QUOTE)
 				in_identifier = TRUE;
 			else if ('-' == tchar)
 			{

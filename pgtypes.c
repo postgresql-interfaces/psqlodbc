@@ -1524,7 +1524,7 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 								}
 							}
 						}
-						*adtsize_or_longestlen += (maxscale << 16);
+						*adtsize_or_longestlen += (int) (maxscale << 16);
 					}
 				}
 			}

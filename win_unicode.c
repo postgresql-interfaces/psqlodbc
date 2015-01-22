@@ -305,18 +305,13 @@ cleanup:
 	return rtn;
 }
 
-int msgtowstr(const char *enc, const char *inmsg, int inlen, LPWSTR outmsg, int buflen)
+int msgtowstr(const char *inmsg, int inlen, LPWSTR outmsg, int buflen)
 {
 	int	outlen;
 #ifdef	WIN32
-	int	wlen, cp = CP_ACP;
-
-	if (NULL != enc && 0 != atoi(enc))
-		cp = atoi(enc);
-	wlen = MultiByteToWideChar(cp, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-							   inmsg, inlen, outmsg, buflen);
-mylog(" out=%dchars\n", wlen);
-	outlen = wlen;
+	outlen = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
+								 inmsg, inlen, outmsg, buflen);
+mylog(" out=%dchars\n", outlen);
 #else
 #ifdef	HAVE_MBSTOWCS_L
 	outlen = 0;
@@ -330,16 +325,12 @@ mylog(" out=%dchars\n", wlen);
 	return outlen;
 }
 
-int wstrtomsg(const char *enc, const LPWSTR wstr, int wstrlen, char * outmsg, int buflen)
+int wstrtomsg(const LPWSTR wstr, int wstrlen, char *outmsg, int buflen)
 {
 	int	outlen;
-#ifdef	WIN32
-	int	len, cp = CP_ACP;
 
-	if (NULL != enc && 0 != atoi(enc))
-		cp = atoi(enc);
-	len = WideCharToMultiByte(cp, 0, wstr, (int) wstrlen, outmsg, buflen, NULL, NULL);
-	outlen = len;
+#ifdef	WIN32
+	outlen = WideCharToMultiByte(CP_ACP, 0, wstr, (int) wstrlen, outmsg, buflen, NULL, NULL);
 #else
 #ifdef	HAVE_MBSTOWCS_L
 	outlen = 0;

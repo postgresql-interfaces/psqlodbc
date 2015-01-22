@@ -725,7 +725,7 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 				return SQL_ERROR;
 			}
 
-			bookmark = SC_get_bookmark(stmt);
+			bookmark = (UInt4) SC_get_bookmark(stmt);
 			memcpy(pvParam, &bookmark, sizeof(UInt4));
 
 			break;

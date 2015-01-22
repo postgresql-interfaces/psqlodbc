@@ -286,8 +286,8 @@ struct StatementClass_
 	po_ind_t	updatable;
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
-	Int4		from_pos;
-	Int4		where_pos;
+	ssize_t		from_pos;
+	ssize_t		where_pos;
 	SQLLEN		last_fetch_count_include_ommitted;
 	time_t		stmt_time;
 	/* SQL_NEED_DATA Callback list */
@@ -513,7 +513,7 @@ RETCODE		SC_pos_add(StatementClass *self, SQLSETPOSIROW irow);
 int		SC_set_current_col(StatementClass *self, int col);
 void		SC_setInsertedTable(StatementClass *, RETCODE);
 void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,
-			Int4 *next_cmd, SQLSMALLINT *num_params,
+			ssize_t *next_cmd, SQLSMALLINT *num_params,
 			po_ind_t *multi, po_ind_t *proc_return);
 
 BOOL	SC_IsExecuting(const StatementClass *self);

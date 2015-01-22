@@ -1636,14 +1636,17 @@ allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALL
 {
 	const char *user = CC_get_username(conn);
 	size_t	userlen = strlen(user);
+	size_t	schemalen;
 
 	if (NULL == szSchemaName)
 		return FALSE;
 
 	if (SQL_NTS == cbSchemaName)
-		cbSchemaName = strlen((char *) szSchemaName);
+		schemalen = strlen((char *) szSchemaName);
+	else
+		schemalen = cbSchemaName;
 
-	return (cbSchemaName == (SQLSMALLINT) userlen &&
+	return (schemalen == (SQLSMALLINT) userlen &&
 			strnicmp((char *) szSchemaName, user, userlen) == 0 &&
 			stricmp(CC_get_current_schema(conn), (char *) pubstr) == 0);
 }
@@ -3795,9 +3798,7 @@ retry_public_schema:
 					" AND n.nspname %s'%s'"
 					, eq_string, escTableName, eq_string, pkscm);
 				else
-					snprintf(tbqry, tsize,
-					" where tc.oid = " FORMAT_UINT4
-					, reloid);
+					snprintf(tbqry, tsize, " where tc.oid = %u", reloid);
 
 				strlcat(tables_query,
 					" AND tc.oid = i.indrelid"

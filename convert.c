@@ -36,6 +36,7 @@
 #endif
 #include <math.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "statement.h"
 #include "qresult.h"
 #include "bind.h"
@@ -65,7 +66,16 @@ CSTR	MINFINITY_STRING = "-Infinity";
  *	http://www.merant.com/datadirect/download/docs/odbc16/Odbcref/rappc.htm
  *	- thomas 2000-04-03
  */
-char	   *mapFuncs[][2] = {
+static const struct
+{
+	/*
+	 * There's a horrible hack in odbc_name field: if it begins with a %,
+	 * the digit after the % indicates the number of arguments. Otherwise,
+	 * the entry matches any number of args.
+	 */
+	char *odbc_name;
+	char *pgsql_name;
+} mapFuncs[] = {
 /*	{ "ASCII",		 "ascii"	  }, built_in */
 	{"CHAR", "chr($*)" },
 	{"CONCAT", "textcat($*)" },
@@ -138,6 +148,7 @@ char	   *mapFuncs[][2] = {
 /*	{ "DATABASE",	 "database"   }, */
 	{"IFNULL", "coalesce($*)" },
 	{"USER", "cast(current_user as text)" },
+
 	{0, 0}
 };
 
@@ -1238,7 +1249,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 					std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
 				len = stime2timestamp(&std_time, rgbValueBindRow, cbValueMax, FALSE,
-									  (int) cbValueMax - len - 2 );
+									  (int) (cbValueMax - len - 2) );
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				break;
@@ -1339,7 +1350,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
 						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
 						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1, FALSE);
-						len = wstrtomsg(NULL, (const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
+						len = wstrtomsg((const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
 						changed = TRUE;
 					}
 					else
@@ -1421,7 +1432,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	WIN_UNICODE_SUPPORT
 						if (localize_needed)
 						{
-							len = wstrtomsg(NULL, allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
+							len = wstrtomsg(allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
 							free(allocbuf);
 							allocbuf = NULL;
 						}
@@ -1931,8 +1942,8 @@ typedef struct _QueryParse {
 	const char	*statement;
 	int		statement_type;
 	size_t		opos;
-	Int4		from_pos;	/* PG comm length restriction */
-	Int4		where_pos;	/* PG comm length restriction */
+	ssize_t		from_pos;
+	ssize_t		where_pos;
 	ssize_t		stmt_len;
 	char		in_literal, in_identifier, in_escape, in_dollar_quote;
 	const	char *dollar_tag;
@@ -2552,7 +2563,7 @@ insert_without_target(const char *stmt, size_t *endpos)
 }
 
 static ProcessedStmt *
-buildProcessedStmt(const char *srvquery, Int4 endp, int num_params)
+buildProcessedStmt(const char *srvquery, ssize_t endp, int num_params)
 {
 	ProcessedStmt *pstmt;
 	size_t		qlen;
@@ -2592,7 +2603,7 @@ process_statements(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	char		plan_name[32];
 	po_ind_t	multi;
 	const char	*orgquery = NULL, *srvquery = NULL;
-	Int4		endp1, endp2;
+	ssize_t		endp1, endp2;
 	SQLSMALLINT	num_pa = 0, num_p1, num_p2;
 	ProcessedStmt *pstmt;
 	ProcessedStmt *last_pstmt;
@@ -3072,7 +3083,14 @@ remove_declare_cursor(QueryBuild *qb, QueryParse *qp)
 	qp->declare_pos = 0;
 }
 
-size_t findTag(const char *tag, char dollar_quote, int ccsc)
+/*
+ * When 'tag' starts with dollar-quoted tag, e.g. "$foo$...", return
+ * the length of the tag (e.g. 5, with the previous example). If there
+ * is no end-dollar in the string, returns 0. The caller should've checked
+ * that the string begins with a dollar.
+ */
+size_t
+findTag(const char *tag, int ccsc)
 {
 	size_t	taglen = 0;
 	encoded_str	encstr;
@@ -3085,7 +3103,7 @@ size_t findTag(const char *tag, char dollar_quote, int ccsc)
 		tchar = encoded_nextchar(&encstr);
 		if (ENCODE_STATUS(encstr) != 0)
 			continue;
-		if (dollar_quote == tchar)
+		if (DOLLAR_QUOTE == tchar)
 		{
 			taglen = sptr - tag + 1;
 			break;
@@ -3096,10 +3114,10 @@ size_t findTag(const char *tag, char dollar_quote, int ccsc)
 	return taglen;
 }
 
-static
-Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
+static size_t
+findIdentifier(const char *str, int ccsc, const char **nextdel)
 {
-	Int4	strlen = 0;
+	size_t	slen = 0;
 	encoded_str	encstr;
 	unsigned char	tchar;
 	const char	*sptr;
@@ -3118,7 +3136,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 				continue;
 			if (!isalpha(tchar))
 			{
-				strlen = 0;
+				slen = 0;
 				if (!isspace(tchar))
 					*nextdel = sptr;
 				break;
@@ -3134,7 +3152,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 					sptr++;
 					continue;
 				}
-				strlen = sptr - str + 1;
+				slen = sptr - str + 1;
 				sptr++;
 				break;
 			}
@@ -3145,7 +3163,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 				continue;
 			if (isspace(tchar))
 			{
-				strlen = sptr - str;
+				slen = sptr - str;
 				break;
 			}
 			switch (tchar)
@@ -3154,7 +3172,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 				case '$':
 					continue;
 			}
-			strlen = sptr - str;
+			slen = sptr - str;
 			*nextdel = sptr;
 			break;
 		}
@@ -3170,7 +3188,7 @@ Int4 findIdentifier(const char *str, int ccsc, const char **nextdel)
 			}
 		}
 	}
-	return strlen;
+	return slen;
 }
 
 static int
@@ -3184,7 +3202,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	Int4	opos;
 	char	   oldchar;
 	StatementClass	*stmt = qb->stmt;
-	char	literal_quote = LITERAL_QUOTE, dollar_quote = DOLLAR_QUOTE, escape_in_literal = '\0';
+	char		escape_in_literal = '\0';
 	BOOL		isnull;
 	BOOL		isbinary;
 	Oid			dummy;
@@ -3247,7 +3265,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	}
 	else if (qp->in_dollar_quote) /* dollar quote check */
 	{
-		if (oldchar == dollar_quote)
+		if (oldchar == DOLLAR_QUOTE)
 		{
 			if (strncmp(F_OldPtr(qp), qp->dollar_tag, qp->taglen) == 0)
 			{
@@ -3267,7 +3285,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	{
 		if (oldchar == escape_in_literal)
 			qp->in_escape = TRUE;
-		else if (oldchar == literal_quote)
+		else if (oldchar == LITERAL_QUOTE)
 			qp->in_literal = FALSE;
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
@@ -3309,8 +3327,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	}
 
 	/*
-	 * From here we are guranteed to be in neither a literal_escape,
-	 * a literal_quote nor an idetifier_quote.
+	 * From here we are guaranteed to be in neither a literal_escape,
+	 * a LITREAL_QUOTE nor an IDENTIFIER_QUOTE.
 	 */
 	/* Squeeze carriage-return/linefeed pairs to linefeed only */
 	else if (lf_conv &&
@@ -3397,9 +3415,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 */
 	else if (oldchar != '?')
 	{
-		if (oldchar == dollar_quote)
+		if (oldchar == DOLLAR_QUOTE)
 		{
-			qp->taglen = findTag(F_OldPtr(qp), dollar_quote, qp->encstr.ccsc);
+			qp->taglen = findTag(F_OldPtr(qp), qp->encstr.ccsc);
 			if (qp->taglen > 0)
 			{
 				qp->in_literal = TRUE;
@@ -3410,7 +3428,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				return SQL_SUCCESS;
 			}
 		}
-		else if (oldchar == literal_quote)
+		else if (oldchar == LITERAL_QUOTE)
 		{
 			if (!qp->in_identifier)
 			{
@@ -3659,7 +3677,9 @@ inolog("num_p=%d\n", num_p);
 
 				(*paramTypes)[i] = pgType;
 				(*paramValues)[i] = val_copy;
-				(*paramLengths)[i] = qb.npos;
+				if (qb.npos > INT_MAX)
+					goto cleanup;
+				(*paramLengths)[i] = (int) qb.npos;
 			}
 			else
 			{
@@ -3759,7 +3779,7 @@ inolog("C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 		}
 
 		/* output the remainder */
-		calv[len++] = r;
+		calv[len++] = (UCHAR) r;
 
 		vlen = lastnonzero + 1;
 	} while(lastnonzero >= 0 && len < precision);
@@ -4169,7 +4189,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			if (SQL_NTS == used)
 				used = strlen(buffer);
 			allocbuf = malloc(WCLEN * (used + 1));
-			used = msgtowstr(NULL, buffer, (int) used, (LPWSTR) allocbuf, (int) (used + 1));
+			used = msgtowstr(buffer, (int) used, (LPWSTR) allocbuf, (int) (used + 1));
 			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
 			free(allocbuf);
 			allocbuf = buf;
@@ -4773,16 +4793,16 @@ mapFunction(const char *func, int param_count)
 {
 	int			i;
 
-	for (i = 0; mapFuncs[i][0]; i++)
+	for (i = 0; mapFuncs[i].odbc_name; i++)
 	{
-		if (mapFuncs[i][0][0] == '%')
+		if (mapFuncs[i].odbc_name[0] == '%')
 		{
-			if (mapFuncs[i][0][1] - '0' == param_count &&
-			    !stricmp(mapFuncs[i][0] + 2, func))
-				return mapFuncs[i][1];
+			if (mapFuncs[i].odbc_name[1] - '0' == param_count &&
+			    !stricmp(&mapFuncs[i].odbc_name[2], func))
+				return mapFuncs[i].pgsql_name;
 		}
-		else if (!stricmp(mapFuncs[i][0], func))
-			return mapFuncs[i][1];
+		else if (!stricmp(mapFuncs[i].odbc_name, func))
+			return mapFuncs[i].pgsql_name;
 	}
 
 	return NULL;
@@ -4936,7 +4956,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 
 	if (stricmp(key, "call") == 0)
 	{
-		Int4 funclen;
+		size_t funclen;
 		const char *nextdel;
 
 		if (SQL_ERROR == QB_start_brace(qb))
@@ -5368,7 +5388,7 @@ convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int c
 	size_t		i = 0,
 				out = 0,
 				max;
-	char	   *p = NULL, literal_quote = LITERAL_QUOTE, tchar;
+	char	   *p = NULL, tchar;
 	encoded_str	encstr;
 	BOOL	convlf = (0 != (flags & FLGB_CONVERT_LF)),
 		double_special = (0 == (flags & FLGB_BUILDING_BIND_REQUEST));
@@ -5399,7 +5419,7 @@ convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int c
 		    PG_LINEFEED == si[i + 1])
 			continue;
 		else if (double_special && /* double special chars ? */
-			 (tchar == literal_quote ||
+			 (tchar == LITERAL_QUOTE ||
 			  tchar == escape_in_literal))
 		{
 			if (p)
