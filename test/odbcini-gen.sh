@@ -25,15 +25,6 @@ Debug           = 0
 CommLog         = 1
 _EOT_
 
-server=localhost
-if test "${PGHOST}" != "" ; then
-	server=${PGHOST}
-fi
-port=5432
-if test "${PGPORT}" != "" ; then
-	port=${PGPORT}
-fi
-
 echo creating $outini: $@
 cat << _EOT_ > $outini
 [psqlodbc_test_dsn]
@@ -42,10 +33,10 @@ Driver          = psqlodbc test driver
 Trace           = No
 TraceFile               =
 Database                = contrib_regression
-Servername              = ${server}
+Servername              =
 Username                =
 Password                =
-Port            = ${port}
+Port                    =
 ReadOnly                = No
 RowVersioning           = No
 ShowSystemTables                = No
