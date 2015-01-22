@@ -5,18 +5,31 @@ Testing SQLColAttribute...
 
 -- Column 1: intcol --
 SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: int4
 
 -- Column 2: textcol --
 SQL_DESC_OCTET_LENGTH: 49140
+SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
 
 -- Column 5: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 6: varchar5col --
+SQL_DESC_OCTET_LENGTH: 30
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 7: interval --
+SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
 Running tests with UnknownSizes=0;MaxVarcharSize=100...
 connected
@@ -24,18 +37,31 @@ Testing SQLColAttribute...
 
 -- Column 1: intcol --
 SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: int4
 
 -- Column 2: textcol --
 SQL_DESC_OCTET_LENGTH: 49140
+SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
 
 -- Column 5: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 6: varchar5col --
+SQL_DESC_OCTET_LENGTH: 30
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 7: interval --
+SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
 Running tests with UnknownSizes=1;MaxVarcharSize=100...
 connected
@@ -43,18 +69,31 @@ Testing SQLColAttribute...
 
 -- Column 1: intcol --
 SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: int4
 
 -- Column 2: textcol --
 SQL_DESC_OCTET_LENGTH: 49140
+SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
 
 -- Column 5: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 6: varchar5col --
+SQL_DESC_OCTET_LENGTH: 30
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 7: interval --
+SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
 Running tests with UnknownSizes=2;MaxVarcharSize=100...
 connected
@@ -62,18 +101,31 @@ Testing SQLColAttribute...
 
 -- Column 1: intcol --
 SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: int4
 
 -- Column 2: textcol --
 SQL_DESC_OCTET_LENGTH: 36
+SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
 SQL_DESC_OCTET_LENGTH: 84
+SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --
 SQL_DESC_OCTET_LENGTH: 84
+SQL_DESC_TYPE_NAME: varchar
 
 -- Column 5: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 6: varchar5col --
+SQL_DESC_OCTET_LENGTH: 30
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 7: interval --
+SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
 Running tests with UnknownSizes=100;MaxVarcharSize=100...
 connected
@@ -81,16 +133,29 @@ Testing SQLColAttribute...
 
 -- Column 1: intcol --
 SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: int4
 
 -- Column 2: textcol --
 SQL_DESC_OCTET_LENGTH: 49140
+SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
 
 -- Column 5: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 6: varchar5col --
+SQL_DESC_OCTET_LENGTH: 100
+SQL_DESC_TYPE_NAME: varchar
+
+-- Column 7: interval --
+SQL_DESC_OCTET_LENGTH: 0
+SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
