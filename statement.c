@@ -1830,7 +1830,6 @@ RETCODE
 SC_execute(StatementClass *self)
 {
 	CSTR func = "SC_execute";
-	CSTR fetch_cmd = "fetch";
 	ConnectionClass *conn;
 	IPDFields	*ipdopts;
 	char		was_ok, was_nonfatal;
@@ -1969,11 +1968,11 @@ SC_execute(StatementClass *self)
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
 			qi.row_size = ci->drivers.fetch_max;
-			sprintf(fetch, "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
+			snprintf(fetch, sizeof(fetch),
+					 "fetch " FORMAT_LEN " in \"%s\"",
+					 qi.row_size, SC_cursor_name(self));
 			qryi = &qi;
 			appendq = fetch;
-			if (0 != (ci->extra_opts & BIT_IGNORE_ROUND_TRIP_TIME))
-				qflag |= IGNORE_ROUND_TRIP;
 		}
 		res = SC_get_Result(self);
 		if (self->curr_param_result && res)
@@ -1993,7 +1992,7 @@ SC_execute(StatementClass *self)
 
 				for (qres = res; qres;)
 				{
-					if (qres->command && strnicmp(qres->command, fetch_cmd, 5) == 0)
+					if (qres->command && strnicmp(qres->command, "fetch", 5) == 0)
 					{
 						break;
 					}
@@ -2218,10 +2217,9 @@ inolog("!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_ty
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
 			qi.row_size = ci->drivers.fetch_max;
-			snprintf(fetch, sizeof(fetch), "%s " FORMAT_LEN " in \"%s\"", fetch_cmd, qi.row_size, SC_cursor_name(self));
-			if (0 != (ci->extra_opts & BIT_IGNORE_ROUND_TRIP_TIME))
-				qflag |= IGNORE_ROUND_TRIP;
-			if (res = CC_send_query_append(conn, fetch, &qi, qflag, SC_get_ancestor(self), NULL), NULL != res)
+			snprintf(fetch, sizeof(fetch), "fetch " FORMAT_LEN " in \"%s\"", qi.row_size, SC_cursor_name(self));
+			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
+			if (NULL != res)
 				SC_set_Result(self, res);
 		}
 #endif	/* REFCUR_SUPPORT */

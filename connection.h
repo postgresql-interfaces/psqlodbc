@@ -487,11 +487,10 @@ void	CC_examine_global_transaction(ConnectionClass *self);
 /* CC_send_query options */
 enum {
 	IGNORE_ABORT_ON_CONN	= 1L /* not set the error result even when  */
-	,CREATE_KEYSET		= (1L << 1) /* create keyset for updatable curosrs */
-	,GO_INTO_TRANSACTION	= (1L << 2) /* issue begin in advance */
+	,CREATE_KEYSET		= (1L << 1) /* create keyset for updatable cursors */
+	,GO_INTO_TRANSACTION	= (1L << 2) /* issue BEGIN in advance */
 	,ROLLBACK_ON_ERROR	= (1L << 3) /* rollback the query when an error occurs */
-	,END_WITH_COMMIT	= (1L << 4) /* the query ends with COMMMIT command */
-	,IGNORE_ROUND_TRIP	= (1L << 5) /* the commincation round trip time is considered ignorable */
+	,END_WITH_COMMIT	= (1L << 4) /* the query ends with COMMIT command */
 };
 /* CC_on_abort options */
 #define	NO_TRANS		1L

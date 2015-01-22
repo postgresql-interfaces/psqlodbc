@@ -1935,7 +1935,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 #define	FLGP_USING_CURSOR	(1L << 1)
 #define	FLGP_SELECT_INTO		(1L << 2)
 #define	FLGP_SELECT_FOR_UPDATE_OR_SHARE	(1L << 3)
-#define	FLGP_BUILDING_PREPARE_STATEMENT	(1L << 4)
 #define	FLGP_MULTIPLE_STATEMENT	(1L << 5)
 #define	FLGP_SELECT_FOR_READONLY	(1L << 6)
 typedef struct _QueryParse {
@@ -2018,7 +2017,7 @@ typedef struct _QueryBuild {
 
 #define INIT_MIN_ALLOC	4096
 static ssize_t
-QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass *conn)
+QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt)
 {
 	size_t	newsize = 0;
 
@@ -2034,32 +2033,24 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ConnectionClass
 	qb->num_discard_params = 0;
 	qb->brace_level = 0;
 	qb->parenthesize_the_first = FALSE;
-	if (conn)
-		qb->conn = conn;
-	else if (stmt)
-	{
-		Int2	dummy;
 
-		qb->apdopts = SC_get_APDF(stmt);
-		qb->ipdopts = SC_get_IPDF(stmt);
-		qb->pdata = SC_get_PDTI(stmt);
-		qb->conn = SC_get_conn(stmt);
-		if (stmt->pre_executing)
-			qb->flags |= FLGB_PRE_EXECUTING;
-		if (stmt->discard_output_params)
-			qb->flags |= FLGB_DISCARD_OUTPUT;
-		qb->num_io_params = CountParameters(stmt, NULL, &dummy, &qb->num_output_params);
-		qb->proc_return = stmt->proc_return;
-		if (0 != (qb->flags & FLGB_DISCARD_OUTPUT))
-			qb->num_discard_params = qb->num_output_params;
-		if (qb->num_discard_params < qb->proc_return)
-			qb->num_discard_params = qb->proc_return;
-	}
-	else
-	{
-		qb->conn = NULL;
-		return -1;
-	}
+	/* Copy options from statement */
+	qb->apdopts = SC_get_APDF(stmt);
+	qb->ipdopts = SC_get_IPDF(stmt);
+	qb->pdata = SC_get_PDTI(stmt);
+	qb->conn = SC_get_conn(stmt);
+	if (stmt->pre_executing)
+		qb->flags |= FLGB_PRE_EXECUTING;
+	if (stmt->discard_output_params)
+		qb->flags |= FLGB_DISCARD_OUTPUT;
+	qb->num_io_params = CountParameters(stmt, NULL, NULL, &qb->num_output_params);
+	qb->proc_return = stmt->proc_return;
+	if (0 != (qb->flags & FLGB_DISCARD_OUTPUT))
+		qb->num_discard_params = qb->num_output_params;
+	if (qb->num_discard_params < qb->proc_return)
+		qb->num_discard_params = qb->proc_return;
+
+	/* Copy options from connection */
 	if (qb->conn->connInfo.lf_conversion)
 		qb->flags |= FLGB_CONVERT_LF;
 	qb->ccsc = qb->conn->ccsc;
@@ -2589,13 +2580,15 @@ buildProcessedStmt(const char *srvquery, ssize_t endp, int num_params)
 }
 
 /*
+ * Process the original SQL query for execution using server-side prepared
+ * statements.
+ *
  * Split a possible multi-statement query into parts, and replace ?-style
- * parameter markers with $n (or the values of the parameters, in
- * UseServerSidePrepare=0 mode). The resulting queries are stored in a
- * linked list in stmt->processed_statements.
+ * parameter markers with $n. The resulting queries are stored in a linked
+ * list in stmt->processed_statements.
  */
-static RETCODE
-process_statements(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
+RETCODE
+prepareParametersNoDesc(StatementClass *stmt)
 {
 	CSTR		func = "process_statements";
 	RETCODE		retval;
@@ -2607,8 +2600,16 @@ process_statements(StatementClass *stmt, QueryParse *qp, QueryBuild *qb)
 	SQLSMALLINT	num_pa = 0, num_p1, num_p2;
 	ProcessedStmt *pstmt;
 	ProcessedStmt *last_pstmt;
+	QueryParse	query_org, *qp;
+	QueryBuild	query_crt, *qb;
 
-inolog("prep_params_and_sync\n");
+inolog("prepareParametersNoDesc\n");
+	qp = &query_org;
+	QP_initialize(qp, stmt);
+	qb = &query_crt;
+	if (QB_initialize(qb, qp->stmt_len, stmt) < 0)
+		return SQL_ERROR;
+
 	qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
 	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
 	{
@@ -2754,23 +2755,6 @@ inolog("prepareParameters\n");
 }
 
 /*
- * Process the original SQL query.
- */
-RETCODE	prepareParametersNoDesc(StatementClass *stmt)
-{
-	QueryParse	query_org, *qp;
-	QueryBuild	query_crt, *qb;
-
-inolog("prepareParametersNoDesc\n");
-	qp = &query_org;
-	QP_initialize(qp, stmt);
-	qb = &query_crt;
-	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
-		return SQL_ERROR;
-	return process_statements(stmt, qp, qb);
-}
-
-/*
  *	This function inserts parameters into an SQL statements.
  *	It will also modify a SELECT statement for use with declare/fetch cursors.
  *	This function does a dynamic memory allocation to get rid of query size limit!
@@ -2909,7 +2893,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		prepare_dummy_cursor = stmt->pre_executing;
 	if (prepare_dummy_cursor)
 		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
-	if (QB_initialize(qb, qp->stmt_len, stmt, NULL) < 0)
+	if (QB_initialize(qb, qp->stmt_len, stmt) < 0)
 	{
 		retval = SQL_ERROR;
 		goto cleanup;
@@ -3614,7 +3598,7 @@ build_libpq_bind_params(StatementClass *stmt,
 		return FALSE;
 	}
 
-	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt, NULL) < 0)
+	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt) < 0)
 		return FALSE;
 
 	*paramTypes = malloc(sizeof(OID) * num_params);

@@ -1745,7 +1745,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	/* QR_set_command() dups this string so doesn't need static */
 	char	   *cmdbuffer;
-	BOOL		reduce_round_trip_time = !(flag & IGNORE_ROUND_TRIP);
 	PGresult   *pgres = NULL;
 	notice_receiver_arg nrarg;
 
@@ -1780,7 +1779,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	 *	and the appeneded query would be issued separately.
 	 *	Otherwise a multiple command query would be issued.
 	 */
-	if (appendq && !reduce_round_trip_time)
+	if (appendq && (self->connInfo.extra_opts & BIT_IGNORE_ROUND_TRIP_TIME) != 0)
 	{
 		res = CC_send_query_append(self, query, qi, flag, stmt, NULL);
 		if (QR_command_maybe_successful(res))
