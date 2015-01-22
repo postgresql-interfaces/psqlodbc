@@ -202,8 +202,8 @@ if test "$enable_pthreads" = yes; then
 	       [AC_CHECK_LIB(pthread, pthread_create)])
 fi
 
-AC_CHECK_LIB(pq, PQconnectdb, [],
-	      [AC_MSG_ERROR([libpq library not found])])
+AC_CHECK_LIB(pq, PQsetSingleRowMode, [],
+	      [AC_MSG_ERROR([libpq library version >= 9.2 is required])])
 
 # 3. Header files
 
