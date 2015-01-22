@@ -764,9 +764,6 @@ getDSNdefaults(ConnInfo *ci)
 {
 	mylog("calling getDSNdefaults\n");
 
-	if (ci->port[0] == '\0')
-		strcpy(ci->port, DEFAULT_PORT);
-
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
 

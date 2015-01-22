@@ -220,7 +220,6 @@ extern "C" {
 #define	BIT_DISABLE_KEEPALIVE			(1L << 6)
 
 /*	Connection Defaults */
-#define DEFAULT_PORT				"5432"
 #define DEFAULT_READONLY			0
 #define DEFAULT_PROTOCOL			"7.4"	/* the latest protocol is
 												 * the default */

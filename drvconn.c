@@ -205,8 +205,6 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	paramRequired = FALSE;
 	if (ci->database[0] == '\0')
 		paramRequired = TRUE;
-	else if (ci->port[0] == '\0')
-		paramRequired = TRUE;
 #ifdef	WIN32
 	else if (ci->server[0] == '\0')
 		paramRequired = TRUE;
@@ -215,7 +213,7 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	{
 		if (didUI)
 			return SQL_NO_DATA_FOUND;
-		CC_set_error(conn, CONN_OPENDB_ERROR, "connction string lacks some options", func);
+		CC_set_error(conn, CONN_OPENDB_ERROR, "connection string lacks some options", func);
 		return SQL_ERROR;
 	}
 
