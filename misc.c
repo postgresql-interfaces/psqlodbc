@@ -252,13 +252,12 @@ my_trim(char *s)
  *	It can have 1 more parameter than my_strcat.
  */
 static char *
-my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len)
+my_strcat1(char *buf, const char *fmt, const char *s1, const char *s)
 {
-	ssize_t	length = len;
-
-	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(s)) > 0)))
+	if (s && s[0] != '\0')
 	{
 		size_t	pos = strlen(buf);
+		ssize_t	length = strlen(s);
 
 		if (s1)
 			sprintf(&buf[pos], fmt, s1, length, s);
@@ -270,15 +269,15 @@ my_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t le
 }
 
 char *
-schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, ssize_t len, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
+schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
 {
-	if (!s || 0 == len)
+	if (!s || s[0] == '\0')
 	{
 		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat1(buf, fmt, s1, CC_get_current_schema(conn), SQL_NTS);
+			return my_strcat1(buf, fmt, s1, CC_get_current_schema(conn));
 		return NULL;
 	}
-	return my_strcat1(buf, fmt, s1, s, len);
+	return my_strcat1(buf, fmt, s1, s);
 }
 
 /*

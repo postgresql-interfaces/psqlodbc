@@ -28,7 +28,7 @@ SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len,
 char	   *schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
 		const SQLCHAR *, SQLLEN, ConnectionClass *conn);
 char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
-				const char *s, ssize_t len,
+				const char *s,
 				const SQLCHAR *, int, ConnectionClass *conn);
 int	   snprintf_add(char *buf, size_t size, const char *format, ...);
 size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);

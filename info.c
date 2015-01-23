@@ -1784,7 +1784,7 @@ retry_public_schema:
 	op_string = gen_opestr(like_or_eq, conn);
 	if (!list_some)
 	{
-		schema_strcat1(tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_strcat1(tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 		if (IS_VALID_NAME(escTableName))
 			snprintf_add(tables_query, sizeof(tables_query),
 					 " and relname %s'%s'", op_string, escTableName);
@@ -2194,7 +2194,7 @@ retry_public_schema:
 	{
 		if (escTableName)
 			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
-		schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 	}
 	strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
 		" on (not a.attisdropped)");
@@ -2836,7 +2836,7 @@ retry_public_schema:
 		snprintf_add(columns_query, sizeof(columns_query),
 					 " and c.relname %s'%s'", eq_string, escTableName);
 	/* SchemaName cannot contain a string search pattern */
-	schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+	schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, szTableName, cbTableName, conn);
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -5287,7 +5287,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
 	   " pg_catalog.pg_proc"
 	  " where pg_proc.pronamespace = pg_namespace.oid");
-	schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, SQL_NTS, szProcName, cbProcName, conn);
+	schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, szProcName, cbProcName, conn);
 	if (IS_VALID_NAME(escProcName))
 		snprintf_add(proc_query, sizeof(proc_query),
 				 " and proname %s'%s'", op_string, escProcName);
@@ -5455,7 +5455,7 @@ retry_public_schema:
 	" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
 	" pg_catalog.pg_user where", sizeof(proc_query));
 	if (escSchemaName)
-		schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, szTableName, cbTableName, conn);
 
 	if (escTableName)
 		snprintf_add(proc_query, sizeof(proc_query), " relname %s'%s' and", op_string, escTableName);
