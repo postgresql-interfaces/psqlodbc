@@ -168,7 +168,6 @@ static const char *mapFunction(const char *func, int param_count);
 static BOOL convert_money(const char *s, char *sout, size_t soutmax);
 static char parse_datetime(const char *buf, SIMPLE_TIME *st);
 static size_t convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOOL *changed);
-static size_t convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags,int ccsc, int escape_ch);
 static size_t convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax);
 static int convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType,
 	 PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue);
@@ -1977,9 +1976,33 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
 }
 
-#define	FLGB_PRE_EXECUTING	1L
-#define	FLGB_BUILDING_PREPARE_STATEMENT	(1L << 1)
-#define	FLGB_BUILDING_BIND_REQUEST	(1L << 2)
+/*
+ * ResolveOneParam can be work in these four modes:
+ *
+ * RPM_REPLACE_PARAMS
+ *      Replace parameter markers with their values.
+ *
+ * RPM_FAKE_PARAMS
+ *      The query is going to be sent to the server only to be able to
+ *      Describe the result set. Parameter markers are replaced with NULL
+ *      literals if we don't know their real values yet.
+ *
+ * RPM_BUILDING_PREPARE_STATEMENT
+ *      Building a query suitable for PREPARE statement, or server-side Parse.
+ *      Parameter markers are replaced with $n-style parameter markers.
+ *
+ * RPM_BUILDING_BIND_REQUEST
+ *      Building the actual parameter values to send to the server in a Bind
+ *      request. Return an unescaped value that will be accepted by the
+ *      server's input function.
+ */
+typedef enum
+{
+	RPM_REPLACE_PARAMS,
+	RPM_FAKE_PARAMS,
+	RPM_BUILDING_PREPARE_STATEMENT,
+	RPM_BUILDING_BIND_REQUEST
+} ResolveParamMode;
 
 #define	FLGB_INACCURATE_RESULT	(1L << 4)
 #define	FLGB_CREATE_KEYSET	(1L << 5)
@@ -2006,6 +2029,7 @@ typedef struct _QueryBuild {
 	IPDFields *ipdopts;
 	PutDataInfo *pdata;
 	size_t	load_stmt_len;
+	ResolveParamMode param_mode;
 	UInt4	flags;
 	int	ccsc;
 	int	errornumber;
@@ -2017,10 +2041,11 @@ typedef struct _QueryBuild {
 
 #define INIT_MIN_ALLOC	4096
 static ssize_t
-QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt)
+QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ResolveParamMode param_mode)
 {
 	size_t	newsize = 0;
 
+	qb->param_mode = param_mode;
 	qb->flags = 0;
 	qb->load_stmt_len = 0;
 	qb->stmt = stmt;
@@ -2039,8 +2064,6 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt)
 	qb->ipdopts = SC_get_IPDF(stmt);
 	qb->pdata = SC_get_PDTI(stmt);
 	qb->conn = SC_get_conn(stmt);
-	if (stmt->pre_executing)
-		qb->flags |= FLGB_PRE_EXECUTING;
 	if (stmt->discard_output_params)
 		qb->flags |= FLGB_DISCARD_OUTPUT;
 	qb->num_io_params = CountParameters(stmt, NULL, NULL, &qb->num_output_params);
@@ -2170,7 +2193,12 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 	size_t *output_count, SQLLEN param_pos[][2]);
 static size_t
 convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb);
+static BOOL convert_special_chars(QueryBuild *qb, const char *si, size_t used);
 
+/*
+ * Enlarge qb->query_statement buffer so that it is at least newsize + 1
+ * in size.
+ */
 static ssize_t
 enlarge_query_statement(QueryBuild *qb, size_t newsize)
 {
@@ -2286,23 +2314,13 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
  */
 #define CVT_SPECIAL_CHARS(qb, buf, used)					\
 	do {													\
-		size_t cnvlen;										\
-		size_t newlimit;									\
-															\
-		cnvlen = convert_special_chars(buf, NULL, used,		\
-									   (qb)->flags,			\
-									   (qb)->ccsc,			\
-									   CC_get_escape(qb->conn));	\
-															\
-		newlimit = (qb)->npos + cnvlen;						\
-		ENLARGE_NEWSTATEMENT(qb, newlimit);					\
-															\
-		convert_special_chars(buf,							\
-							  &(qb)->query_statement[(qb)->npos], \
-							  used, qb->flags, qb->ccsc,	\
-							  CC_get_escape(qb->conn));		\
-		qb->npos += cnvlen;									\
+		if (!convert_special_chars(qb, buf, used))			\
+		{													\
+			retval = SQL_ERROR;								\
+			goto cleanup;									\
+		}													\
 	} while (0)
+
 
 static RETCODE
 QB_start_brace(QueryBuild *qb)
@@ -2607,10 +2625,9 @@ inolog("prepareParametersNoDesc\n");
 	qp = &query_org;
 	QP_initialize(qp, stmt);
 	qb = &query_crt;
-	if (QB_initialize(qb, qp->stmt_len, stmt) < 0)
+	if (QB_initialize(qb, qp->stmt_len, stmt, RPM_BUILDING_PREPARE_STATEMENT) < 0)
 		return SQL_ERROR;
 
-	qb->flags |= FLGB_BUILDING_PREPARE_STATEMENT;
 	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
 	{
 		retval = inner_process_tokens(qp, qb);
@@ -2893,7 +2910,8 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		prepare_dummy_cursor = stmt->pre_executing;
 	if (prepare_dummy_cursor)
 		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
-	if (QB_initialize(qb, qp->stmt_len, stmt) < 0)
+	if (QB_initialize(qb, qp->stmt_len, stmt,
+					  stmt->pre_executing ? RPM_FAKE_PARAMS : RPM_REPLACE_PARAMS) < 0)
 	{
 		retval = SQL_ERROR;
 		goto cleanup;
@@ -3598,7 +3616,7 @@ build_libpq_bind_params(StatementClass *stmt,
 		return FALSE;
 	}
 
-	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt) < 0)
+	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt, RPM_BUILDING_BIND_REQUEST) < 0)
 		return FALSE;
 
 	*paramTypes = malloc(sizeof(OID) * num_params);
@@ -3615,7 +3633,6 @@ build_libpq_bind_params(StatementClass *stmt,
 	if (*paramFormats == NULL)
 		goto cleanup;
 
-	qb.flags |= FLGB_BUILDING_BIND_REQUEST;
 	qb.flags |= FLGB_BINARY_AS_POSSIBLE;
 
 	inolog("num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
@@ -3950,7 +3967,8 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	*isbinary = FALSE;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
-	valueOutput = (0 == (qb->flags & (FLGB_PRE_EXECUTING | FLGB_BUILDING_PREPARE_STATEMENT)));
+	valueOutput = (qb->param_mode != RPM_FAKE_PARAMS &&
+				   qb->param_mode != RPM_BUILDING_PREPARE_STATEMENT);
 
 	if (qb->proc_return < 0 && qb->stmt)
 		qb->proc_return = qb->stmt->proc_return;
@@ -4022,16 +4040,13 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 	}
 
-	if (!apara || !ipara)
+	if ((!apara || !ipara) && qb->param_mode == RPM_FAKE_PARAMS)
 	{
-		if (0 != (qb->flags & FLGB_PRE_EXECUTING))
-		{
-			CVT_APPEND_STR(qb, "NULL");
-			qb->flags |= FLGB_INACCURATE_RESULT;
-			return SQL_SUCCESS;
-		}
+		CVT_APPEND_STR(qb, "NULL");
+		qb->flags |= FLGB_INACCURATE_RESULT;
+		return SQL_SUCCESS;
 	}
-	if (0 != (qb->flags & FLGB_BUILDING_PREPARE_STATEMENT))
+	if (qb->param_mode == RPM_BUILDING_PREPARE_STATEMENT)
 	{
 		char	pnum[16];
 
@@ -4091,7 +4106,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			used = SQL_NTS;
 	}
 
-	req_bind = (0 != (FLGB_BUILDING_BIND_REQUEST & qb->flags));
+	req_bind = (qb->param_mode == RPM_BUILDING_BIND_REQUEST);
 	/* Handle DEFAULT_PARAM parameter data. Should be NULL ?
 	if (used == SQL_DEFAULT_PARAM)
 	{
@@ -4115,7 +4130,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	 */
 	if (!buffer)
 	{
-		if (0 != (qb->flags & FLGB_PRE_EXECUTING))
+		if (qb->param_mode == RPM_FAKE_PARAMS)
 		{
 			CVT_APPEND_STR(qb, "NULL");
 			qb->flags |= FLGB_INACCURATE_RESULT;
@@ -5366,36 +5381,49 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
  *	Change carriage-return/linefeed to just linefeed
  *	Plus, escape any special characters.
  */
-static size_t
-convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int ccsc, int escape_in_literal)
+static BOOL
+convert_special_chars(QueryBuild *qb, const char *si, size_t used)
 {
 	size_t		i = 0,
-				out = 0,
 				max;
-	char	   *p = NULL, tchar;
+	char		tchar;
 	encoded_str	encstr;
-	BOOL	convlf = (0 != (flags & FLGB_CONVERT_LF)),
-		double_special = (0 == (flags & FLGB_BUILDING_BIND_REQUEST));
+	BOOL	convlf = (0 != (qb->flags & FLGB_CONVERT_LF));
+	BOOL	double_special = (qb->param_mode != RPM_BUILDING_BIND_REQUEST);
+	int		ccsc = qb->ccsc;
+	int		escape_in_literal = CC_get_escape(qb->conn);
 
 	if (used == SQL_NTS)
 		max = strlen(si);
 	else
 		max = used;
-	if (dst)
-	{
-		p = dst;
-		p[0] = '\0';
-	}
-	encoded_str_constr(&encstr, ccsc, si);
 
+	/*
+	 * Make sure there's room for the null-terminator, if the input is an
+	 * empty string. XXX: I don't think the null-termination is actually
+	 * even required, but better safe than sorry.
+	 */
+	if (!enlarge_query_statement(qb, qb->npos + 1))
+		return FALSE;
+
+	encoded_str_constr(&encstr, ccsc, si);
 	for (i = 0; i < max && si[i]; i++)
 	{
 		tchar = encoded_nextchar(&encstr);
+
+		/*
+		 * Make sure there is room for three more bytes in the buffer. We
+		 * expand quotes to two bytes, plus null-terminate the end.
+		 */
+		if (qb->npos + 3 >= qb->str_alsize)
+		{
+			if (!enlarge_query_statement(qb, qb->npos + 3))
+				return FALSE;
+		}
+
 		if (ENCODE_STATUS(encstr) != 0)
 		{
-			if (p)
-				p[out] = tchar;
-			out++;
+			qb->query_statement[qb->npos++] = tchar;
 			continue;
 		}
 		if (convlf &&	/* CR/LF -> LF */
@@ -5406,19 +5434,14 @@ convert_special_chars(const char *si, char *dst, SQLLEN used, UInt4 flags, int c
 			 (tchar == LITERAL_QUOTE ||
 			  tchar == escape_in_literal))
 		{
-			if (p)
-				p[out++] = tchar;
-			else
-				out++;
+			qb->query_statement[qb->npos++] = tchar;
 		}
-		if (p)
-			p[out++] = tchar;
-		else
-			out++;
+		qb->query_statement[qb->npos++] = tchar;
 	}
-	if (p)
-		p[out] = '\0';
-	return out;
+
+	qb->query_statement[qb->npos] = '\0';
+
+	return TRUE;
 }
 
 static int
@@ -5540,7 +5563,8 @@ convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 	UCHAR	inc;
 	size_t			i, o = 0;
 	char	escape_in_literal = CC_get_escape(qb->conn);
-	BOOL	esc_double = (0 == (qb->flags & FLGB_BUILDING_BIND_REQUEST) && 0 != escape_in_literal);
+	BOOL	esc_double = (qb->param_mode != RPM_BUILDING_BIND_REQUEST &&
+						  0 != escape_in_literal);
 
 	/* use hex format for 9.0 or later servers */
 	if (0 != (qb->flags & FLGB_HEX_BIN_FORMAT))
