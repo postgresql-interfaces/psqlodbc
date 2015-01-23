@@ -1557,15 +1557,15 @@ adjustLikePattern(const SQLCHAR *src, int srclen, const ConnectionClass *conn)
 		return dest;
 mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
-	dest = malloc(2 * srclen + 1);
+	dest = malloc(4 * srclen + 1);
 	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
 	{
-                encoded_nextchar(&encstr);
-                if (ENCODE_STATUS(encstr) != 0)
-                {
-                        dest[outlen++] = *in;
-                        continue;
-                }
+		encoded_nextchar(&encstr);
+		if (ENCODE_STATUS(encstr) != 0)
+		{
+			dest[outlen++] = *in;
+			continue;
+		}
 		if (escape_in)
 		{
 			switch (*in)

@@ -22,11 +22,13 @@
 int
 main(int argc, char **argv)
 {
-	int rc;
-	HSTMT hstmt = SQL_NULL_HSTMT;
+	int			rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
 	/* Cases where output is limited to relevant information only */
 	SQLSMALLINT sql_tab_privileges_ids[6] = {1, 2, 3, 4, 6, 7};
 	SQLSMALLINT sql_column_ids[6] = {1, 2, 3, 4, 5, 6};
+	char		buf[1000];
+	int			i;
 
 	test_connect();
 
@@ -184,8 +186,11 @@ main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/****
+	 * Misc extra tests.
+	 */
+
 	/*
-	 * Extra tests.
 	 * Older versions of the driver had a bug in handling table-types lists
 	 * longer than 32 entries. Check for that.
 	 */
@@ -193,6 +198,25 @@ main(int argc, char **argv)
 				   "public", SQL_NTS,
 				   "testtab%", SQL_NTS,
 				   "1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5, TABLES", SQL_NTS);
+
+	CHECK_STMT_RESULT(rc, "SQLTables failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*
+	 * Older versions of the driver had a buffer overflow bug in handling table
+	 * patterns with lots of escapes, with standard_conforming_strings=off.
+	 * Check for that.
+	 */
+	for (i = 0; i < sizeof(buf) - 1; i++)
+		buf[i] = '\\';
+	buf[i] = '\0';
+	rc = SQLTables(hstmt, "", SQL_NTS,
+				   "public", SQL_NTS,
+				   buf, SQL_NTS,
+				   "TABLES", SQL_NTS);
 
 	CHECK_STMT_RESULT(rc, "SQLTables failed", hstmt);
 	print_result(hstmt);

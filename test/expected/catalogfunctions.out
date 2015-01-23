@@ -192,4 +192,5 @@ contrib_regression	public	testtab1	_SYSTEM	REFERENCES	YES
 Result set:
 contrib_regression	public	testtab1	TABLE	
 contrib_regression	public	testtab_fk	TABLE	
+Result set:
 disconnecting
