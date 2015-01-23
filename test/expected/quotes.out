@@ -1,23 +1,58 @@
 \! "./src/quotes-test"
 connected
+
+SET standard_conforming_strings=on
+Executing: SELECT 'foo', ?::text with param: param'quote
 Result set:
+foo	param'quote
+Executing: SELECT 'foo', ?::text with param: param\backslash
 Result set:
-foo
-param'quote
+foo	param\backslash
+Executing: SELECT 'foo', ?::text with param: ends with backslash\
 Result set:
-foo
-param\backslash
+foo	ends with backslash\
+Executing: SELECT 'doubled '' quotes', ?::text with param: param
 Result set:
-foo
-ends with backslash\
+doubled ' quotes	param
+Executing: SELECT E'escaped quote\' here', ?::text with param: param
 Result set:
+escaped quote' here	param
+Executing: SELECT $$dollar quoted string$$, ?::text with param: param
 Result set:
-foo
-param'quote
+dollar quoted string	param
+Executing: SELECT $xx$complex $dollar quotes$xx$, ?::text with param: param
 Result set:
-foo
-param\backslash
+complex $dollar quotes	param
+Executing: SELECT $dollar$morecomplex $dollar quotes$dollar$, ?::text with param: param
 Result set:
-foo
-ends with backslash\
+morecomplex $dollar quotes	param
+
+SET standard_conforming_strings=off
+Executing: SELECT 'foo', ?::text with param: param'quote
+Result set:
+foo	param'quote
+Executing: SELECT 'foo', ?::text with param: param\backslash
+Result set:
+foo	param\backslash
+Executing: SELECT 'foo', ?::text with param: ends with backslash\
+Result set:
+foo	ends with backslash\
+Executing: SELECT 'doubled '' quotes', ?::text with param: param
+Result set:
+doubled ' quotes	param
+Executing: SELECT E'escaped quote\' here', ?::text with param: param
+Result set:
+escaped quote' here	param
+Executing: SELECT $$dollar quoted string$$, ?::text with param: param
+Result set:
+dollar quoted string	param
+Executing: SELECT $xx$complex $dollar quotes$xx$, ?::text with param: param
+Result set:
+complex $dollar quotes	param
+Executing: SELECT $dollar$morecomplex $dollar quotes$dollar$, ?::text with param: param
+Result set:
+morecomplex $dollar quotes	param
+Executing: SELECT 'escaped quote\' here', ?::text with param: param
+Result set:
+escaped quote' here	param
 disconnecting

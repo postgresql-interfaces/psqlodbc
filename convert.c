@@ -1944,6 +1944,7 @@ typedef struct _QueryParse {
 	ssize_t		where_pos;
 	ssize_t		stmt_len;
 	char		in_literal, in_identifier, in_escape, in_dollar_quote;
+	char		escape_in_literal;
 	const	char *dollar_tag;
 	ssize_t		taglen;
 	char		token_save[64];
@@ -1964,6 +1965,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->where_pos = -1;
 	q->stmt_len = (q->statement) ? strlen(q->statement) : -1;
 	q->in_literal = q->in_identifier = q->in_escape = q->in_dollar_quote = FALSE;
+	q->escape_in_literal = '\0';
 	q->dollar_tag = NULL;
 	q->taglen = -1;
 	q->token_save[0] = '\0';
@@ -3204,7 +3206,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	Int4	opos;
 	char	   oldchar;
 	StatementClass	*stmt = qb->stmt;
-	char		escape_in_literal = '\0';
 	BOOL		isnull;
 	BOOL		isbinary;
 	Oid			dummy;
@@ -3285,7 +3286,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	}
 	else if (qp->in_literal) /* quote check */
 	{
-		if (oldchar == escape_in_literal)
+		if (oldchar == qp->escape_in_literal)
 			qp->in_escape = TRUE;
 		else if (oldchar == LITERAL_QUOTE)
 			qp->in_literal = FALSE;
@@ -3435,11 +3436,11 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			if (!qp->in_identifier)
 			{
 				qp->in_literal = TRUE;
-				escape_in_literal = CC_get_escape(qb->conn);
-				if (!escape_in_literal)
+				qp->escape_in_literal = CC_get_escape(qb->conn);
+				if (!qp->escape_in_literal)
 				{
 					if (LITERAL_EXT == F_OldPtr(qp)[-1])
-						escape_in_literal = ESCAPE_IN_LITERAL;
+						qp->escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
 		}
@@ -5391,7 +5392,7 @@ convert_special_chars(QueryBuild *qb, const char *si, size_t used)
 	BOOL	convlf = (0 != (qb->flags & FLGB_CONVERT_LF));
 	BOOL	double_special = (qb->param_mode != RPM_BUILDING_BIND_REQUEST);
 	int		ccsc = qb->ccsc;
-	int		escape_in_literal = CC_get_escape(qb->conn);
+	char		escape_in_literal = CC_get_escape(qb->conn);
 
 	if (used == SQL_NTS)
 		max = strlen(si);
