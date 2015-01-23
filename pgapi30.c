@@ -1819,6 +1819,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 			{
 				case DESC_INVALID_DESCRIPTOR_IDENTIFIER:
 					DC_set_errormsg(desc, "can't SQLSetDescField for this descriptor identifier");
+					break;
 				case DESC_INVALID_COLUMN_NUMBER_ERROR:
 					DC_set_errormsg(desc, "can't SQLSetDescField for this column number");
 					break;

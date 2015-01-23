@@ -241,8 +241,9 @@ set_statement_option(ConnectionClass *conn,
 				if (0 != vParam)
 					changed = TRUE;
 				break;
-#endif /* NOT_USED */
+#else
 				SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "The option may be for MS SQL Server(Set)", func);
+#endif /* NOT_USED */
 			}
 			else if (conn)
 			{

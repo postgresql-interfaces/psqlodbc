@@ -3534,8 +3534,8 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 
 	/* Neither Access or Borland care about this. */
 
-	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
-		return result;
+	if (SC_initialize_and_recycle(stmt) != SQL_SUCCESS)
+		return SQL_ERROR;
 	escSchemaName = simpleCatalogEscape(szTableOwner, cbTableOwner, conn);
 	escTableName = simpleCatalogEscape(szTableName, cbTableName, conn);
 	search_pattern = (0 == (flag & PODBC_NOT_SEARCH_PATTERN));

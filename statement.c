@@ -469,10 +469,9 @@ SC_Constructor(ConnectionClass *conn)
 char
 SC_Destructor(StatementClass *self)
 {
-	CSTR func	= "SC_Destrcutor";
+	CSTR func	= "SC_Destructor";
 	QResultClass	*res = SC_get_Result(self);
 
-	if (!self)	return FALSE;
 	mylog("SC_Destructor: self=%p, self->result=%p, self->hdbc=%p\n", self, res, self->hdbc);
 	SC_clear_error(self);
 	if (STMT_EXECUTING == self->status)
@@ -2772,7 +2771,6 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 {
 	CSTR	func = "ParseAndDescribeWithLibpq";
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	Oid		   *paramTypes = NULL;
 	PGresult   *pgres = NULL;
 	int			num_p;
 	Int2		num_discard_params;
@@ -2904,9 +2902,6 @@ inolog("num_params=%d info=%d\n", stmt->num_params, num_p);
 	}
 
 cleanup:
-	if (paramTypes)
-		free(paramTypes);
-
 	if (pgres)
 		PQclear(pgres);
 

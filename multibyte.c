@@ -121,11 +121,13 @@ check_client_encoding(const pgNAME conn_settings)
 	for (cptr = SAFE_NAME(conn_settings); *cptr; cptr++)
 	{
 		if (in_quote)
+		{
 			if (LITERAL_QUOTE == *cptr)
 			{
 				in_quote = FALSE;
 				continue;
 			}
+		}
 		if (';' == *cptr)
 		{
 			allowed_cmd = TRUE;

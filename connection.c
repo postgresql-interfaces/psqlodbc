@@ -381,7 +381,6 @@ CC_lockinit(ConnectionClass *self)
 static ConnectionClass *
 CC_initialize(ConnectionClass *rv, BOOL lockinit)
 {
-	ConnectionClass *retrv = NULL;
 	size_t		clear_size;
 
 #if defined(WIN_MULTITHREAD_SUPPORT) || defined(POSIX_THREADMUTEX_SUPPORT)
@@ -428,11 +427,12 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	if (lockinit)
 		CC_lockinit(rv);
-	retrv = rv;
+
+	return rv;
+
 cleanup:
-	if (rv && !retrv)
-		CC_Destructor(rv);
-	return retrv;
+	CC_Destructor(rv);
+	return NULL;
 }
 
 ConnectionClass *
@@ -872,7 +872,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		if (res)
 		{
 			QR_set_rstatus(res, PORES_FATAL_ERROR);
-			if (errmsg && errmsg[0])
+			if (errmsg[0])
 				QR_set_message(res, errmsg);
 			QR_set_aborted(res, TRUE);
 		}
@@ -1880,7 +1880,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		 * this should not happen, and if it does, we've already overrun
 		 * the buffer and possibly corrupted memory.
 		 */
-		SC_set_error(stmt, STMT_INTERNAL_ERROR, "query buffer overrun", func);
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "query buffer overrun", func);
 		goto cleanup;
 	}
 
@@ -2629,12 +2629,12 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
-	CSTR	func = "LIBPQ_connect";
-	char	ret = 0;
-	char *conninfo = NULL;
-	void		*pqconn = NULL;
-	int		pqret;
-	int		pversion;
+	CSTR		func = "LIBPQ_connect";
+	char		ret = 0;
+	char	   *conninfo = NULL;
+	void	   *pqconn = NULL;
+	int			pqret;
+	int			pversion;
 
 	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
 
@@ -2642,52 +2642,43 @@ LIBPQ_connect(ConnectionClass *self)
 	{
 		if (CC_get_errornumber(self) <= 0)
 			CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
-		goto cleanup1;
+		goto cleanup;
 	}
 	pqconn = PQconnectdb(conninfo);
-	free(conninfo);
-
 	if (!pqconn)
 	{
 		CC_set_error(self, CONN_OPENDB_ERROR, "PQconnectdb error", func);
-		goto cleanup1;
+		goto cleanup;
 	}
 	self->pqconn = pqconn;
+
 	pqret = PQstatus(pqconn);
+	if (pqret == CONNECTION_BAD && PQconnectionNeedsPassword(pqconn))
+	{
+		mylog("password retry\n");
+		PQfinish(pqconn);
+		self->pqconn = NULL;
+		self->connInfo.password_required = TRUE;
+		ret = -1;
+		goto cleanup;
+	}
+
 	if (CONNECTION_OK != pqret)
 	{
 		const char	*errmsg;
 inolog("status=%d\n", pqret);
 		errmsg = PQerrorMessage(pqconn);
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
-		if (CONNECTION_BAD == pqret && PQconnectionNeedsPassword(pqconn))
-		{
-			mylog("password retry\n");
-			PQfinish(pqconn);
-			self->pqconn = NULL;
-			self->connInfo.password_required = TRUE;
-			return -1;
-		}
 		mylog("Could not establish connection to the database; LIBPQ returned -> %s\n", errmsg);
-		goto cleanup1;
+		goto cleanup;
 	}
-	ret = 1;
 
-cleanup1:
-	if (!ret)
-	{
-		if (self->pqconn)
-			PQfinish(self->pqconn);
-		self->pqconn = NULL;
-		return ret;
-	}
-	mylog("libpq connection to the database succeeded.\n");
-	ret = 0;
+	mylog("libpq connection to the database established.\n");
 	pversion = PQprotocolVersion(pqconn);
 	if (pversion < 3)
 	{
 		mylog("Protocol version %d is not supported\n", pversion);
-		goto cleanup1;
+		goto cleanup;
 	}
 	mylog("protocol=%d\n", pversion);
 
@@ -2697,23 +2688,24 @@ cleanup1:
 	sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
 
 	mylog("Server version=%s\n", self->pg_version);
-	ret = 1;
-	if (ret)
+
+	if (!CC_get_username(self)[0])
 	{
-		if (!CC_get_username(self)[0])
-		{
-			mylog("PQuser=%s\n", PQuser(pqconn));
-			strcpy(self->connInfo.username, PQuser(pqconn));
-		}
+		mylog("PQuser=%s\n", PQuser(pqconn));
+		strncpy_null(self->connInfo.username, PQuser(pqconn), sizeof(self->connInfo.username));
 	}
-	else
+
+	ret = 1;
+
+cleanup:
+	if (ret != 1)
 	{
 		if (self->pqconn)
-		{
 			PQfinish(self->pqconn);
-			self->pqconn = NULL;
-		}
+		self->pqconn = NULL;
 	}
+	if (conninfo)
+		free(conninfo);
 
 	mylog("%s: retuning %d\n", func, ret);
 	return ret;

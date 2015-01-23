@@ -2647,7 +2647,7 @@ inolog("prepareParametersNoDesc\n");
 	if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
 		sprintf(plan_name, "_PLAN%p", stmt);
 	else
-		strcpy(plan_name, NULL_STRING);
+		plan_name[0] = '\0';
 
 	stmt->current_exec_param = 0;
 	multi = stmt->multi_statement;
@@ -2897,7 +2897,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
 			sprintf(plan_name, "_PLAN%p", stmt);
 		else
-			strcpy(plan_name, NULL_STRING);
+			plan_name[0] = '\0';
 
 		SC_set_planname(stmt, plan_name);
 		SC_set_prepared(stmt, plan_name[0] ? PREPARING_PERMANENTLY : PREPARING_TEMPORARILY);
@@ -3596,7 +3596,7 @@ build_libpq_bind_params(StatementClass *stmt,
 	SQLSMALLINT	num_p;
 	int			i, num_params;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	BOOL		ret = FALSE, sockerr = FALSE, discard_output;
+	BOOL		ret = FALSE, discard_output;
 	RETCODE		retval;
 	const		IPDFields *ipdopts = SC_get_IPDF(stmt);
 
@@ -3628,7 +3628,7 @@ build_libpq_bind_params(StatementClass *stmt,
 		goto cleanup;
 	memset(*paramValues, 0, sizeof(char *) * num_params);
 	*paramLengths = malloc(sizeof(int) * num_params);
-	if (paramLengths == NULL)
+	if (*paramLengths == NULL)
 		goto cleanup;
 	*paramFormats = malloc(sizeof(int) * num_params);
 	if (*paramFormats == NULL)
@@ -3707,12 +3707,6 @@ inolog("num_p=%d\n", num_p);
 cleanup:
 	QB_Destructor(&qb);
 
-	if (sockerr)
-	{
-		CC_set_error(conn, CONNECTION_COULD_NOT_SEND, "Could not send D Request to backend", func);
-		CC_on_abort(conn, CONN_DEAD);
-		ret = FALSE;
-	}
 	return ret;
 }
 

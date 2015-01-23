@@ -2140,6 +2140,7 @@ static	void RemoveAdded(QResultClass *, SQLLEN);
 static	void RemoveUpdated(QResultClass *, SQLLEN);
 static	void RemoveUpdatedAfterTheKey(QResultClass *, SQLLEN, const KeySet*);
 static	void RemoveDeleted(QResultClass *, SQLLEN);
+
 static	void RemoveAdded(QResultClass *res, SQLLEN index)
 {
 	SQLLEN	rmidx, mv_count;
@@ -2169,7 +2170,8 @@ static	void RemoveAdded(QResultClass *res, SQLLEN index)
 	mylog("RemoveAdded removed=1 count=%d\n", res->ad_count);
 }
 
-static void CommitAdded(QResultClass *res)
+static void
+CommitAdded(QResultClass *res)
 {
 	KeySet	*added_keyset;
 	int	i;
@@ -2204,8 +2206,8 @@ inolog("!!Commit Added=%d(%d)\n", QR_get_num_total_read(res) + i, i);
 	}
 }
 
-
-int AddDeleted(QResultClass *res, SQLULEN index, KeySet *keyset)
+static int
+AddDeleted(QResultClass *res, SQLULEN index, KeySet *keyset)
 {
 	int	i;
 	Int2	dl_count, new_alloc;
@@ -2215,7 +2217,6 @@ int AddDeleted(QResultClass *res, SQLULEN index, KeySet *keyset)
 	Int2	num_fields = res->num_fields;
 
 inolog("AddDeleted %d\n", index);
-	if (!res)	return FALSE;
 	dl_count = res->dl_count;
 	res->dl_count++;
 	if (!QR_get_cursor(res))
@@ -2272,7 +2273,8 @@ inolog("AddDeleted %d\n", index);
 	return TRUE;
 }
 
-static void RemoveDeleted(QResultClass *res, SQLLEN index)
+static void
+RemoveDeleted(QResultClass *res, SQLLEN index)
 {
 	int	i, mv_count, rm_count = 0;
 	SQLLEN	pidx, midx;
@@ -2313,7 +2315,8 @@ static void RemoveDeleted(QResultClass *res, SQLLEN index)
 	mylog("RemoveDeleted removed count=%d,%d\n", rm_count, res->dl_count);
 }
 
-static void CommitDeleted(QResultClass *res)
+static void
+CommitDeleted(QResultClass *res)
 {
 	int	i;
 	SQLLEN	*deleted;
@@ -2349,7 +2352,8 @@ inolog("!!Commit Deleted=%d(%d)\n", *deleted, i);
 	}
 }
 
-static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
+static BOOL
+enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
 {
 	Int2	alloc;
 
@@ -2373,7 +2377,8 @@ static BOOL enlargeUpdated(QResultClass *res, Int4 number, const StatementClass 
 	return TRUE;
 }
 
-static void AddUpdated(StatementClass *stmt, SQLLEN index)
+static void
+AddUpdated(StatementClass *stmt, SQLLEN index)
 {
 	QResultClass	*res;
 	SQLLEN	*updated;
@@ -2479,13 +2484,15 @@ inolog("AddUpdated index=%d\n", index);
 	mylog("up_count=%d\n", res->up_count);
 }
 
-static void RemoveUpdated(QResultClass *res, SQLLEN index)
+static void
+RemoveUpdated(QResultClass *res, SQLLEN index)
 {
 	mylog("RemoveUpdated index=%d\n", index);
 	RemoveUpdatedAfterTheKey(res, index, NULL);
 }
 
-static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeySet *keyset)
+static void
+RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeySet *keyset)
 {
 	SQLLEN	*updated, num_read = QR_get_num_total_read(res);
 	KeySet	*updated_keyset;
@@ -2539,7 +2546,8 @@ static void RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeyS
 	mylog("RemoveUpdatedAfter removed count=%d,%d\n", rm_count, res->up_count);
 }
 
-static void CommitUpdated(QResultClass *res)
+static void
+CommitUpdated(QResultClass *res)
 {
 	KeySet	*updated_keyset;
 	int	i;
@@ -2580,7 +2588,8 @@ inolog("!!Commit Updated=%d(%d)\n", res->updated[i], i);
 }
 
 
-static void DiscardRollback(StatementClass *stmt, QResultClass *res)
+static void
+DiscardRollback(StatementClass *stmt, QResultClass *res)
 {
 	int	i;
 	SQLLEN	index, kres_ridx;
@@ -2628,7 +2637,9 @@ inolog("DiscardRollback");
 }
 
 static QResultClass *positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const char *tid);
-static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
+
+static void
+UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 {
 	Int4	i, rollbp;
 	SQLLEN	index, ridx, kres_ridx;
@@ -2646,7 +2657,8 @@ static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 	if (partial)
 	{
 		SQLLEN	pidx, midx;
-		Int2	doubtp, rollbps;
+		int		rollbps;
+		int		doubtp;
 		int	j;
 
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
@@ -2676,8 +2688,6 @@ inolog(" doubtp=%d\n", doubtp);
 		}
 		rollbp = i;
 inolog(" doubtp=%d,rollbp=%d\n", doubtp, rollbp);
-		if (doubtp < 0)
-			doubtp = 0;
 		do
 		{
 			rollbps = rollbp;
@@ -2812,7 +2822,8 @@ inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 	}
 }
 
-void	ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
+void
+ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 {
 	int	i;
 	StatementClass	*stmt;
