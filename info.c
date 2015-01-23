@@ -46,8 +46,6 @@
 #define TRIGGER_DELETE 0x01
 #define TRIGGER_UPDATE 0x02
 
-#define	NULL_IF_NULL(a) ((a) ? ((const char *) a) : "(NULL)")
-
 /* extern GLOBAL_VALUES globals; */
 
 static const SQLCHAR *pubstr = (SQLCHAR *) "public";

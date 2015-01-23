@@ -4624,6 +4624,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 			else
 			{
 				BOOL	is_in_trans_at_entry = CC_is_in_trans(conn);
+				int		write_result;
 
 				/* begin transaction if needed */
 				if (!is_in_trans_at_entry)
@@ -4642,7 +4643,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 				if (lobj_oid == 0)
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
-					qb->errormsg = "Couldnt create (in-line) large object.";
+					qb->errormsg = "Couldn't create (in-line) large object.";
 					retval = SQL_ERROR;
 					goto cleanup;
 				}
@@ -4652,12 +4653,19 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 				if (lobj_fd < 0)
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
-					qb->errormsg = "Couldnt open (in-line) large object for writing.";
+					qb->errormsg = "Couldn't open (in-line) large object for writing.";
 					retval = SQL_ERROR;
 					goto cleanup;
 				}
 
-				retval = odbc_lo_write(conn, lobj_fd, buffer, (Int4) used);
+				write_result = odbc_lo_write(conn, lobj_fd, buffer, (Int4) used);
+				if (write_result < 0)
+				{
+					qb->errornumber = STMT_EXEC_ERROR;
+					qb->errormsg = "Couldn't write to (in-line) large object.";
+					retval = SQL_ERROR;
+					goto cleanup;
+				}
 
 				odbc_lo_close(conn, lobj_fd);
 

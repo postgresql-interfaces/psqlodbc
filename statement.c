@@ -2545,7 +2545,14 @@ libpq_bind_and_exec(StatementClass *stmt)
 		res = NULL;
 
 	if (!res)
+	{
 		newres = res = QR_Constructor();
+		if (!res)
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory while allocating result set", func);
+			goto cleanup;
+		}
+	}
 
 	/* 3. Receive results */
 inolog("get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_result);
