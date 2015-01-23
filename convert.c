@@ -946,7 +946,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 			{
 				case SQL_C_CHAR:
 					if (rgbValueBindRow && cbValueMax > 0)
-						rgbValueBindRow = '\0';
+						*rgbValueBindRow = '\0';
 					else
 						result = COPY_RESULT_TRUNCATED;
 					break;

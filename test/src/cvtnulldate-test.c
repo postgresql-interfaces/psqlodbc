@@ -47,7 +47,14 @@ int main(int argc, char **argv)
 	/* Check the resulting table */
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT d IS NULL FROM nulldate", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
 
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/* Check how the NULL comes out when we read it back */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT d FROM nulldate", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 	print_result(hstmt);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);

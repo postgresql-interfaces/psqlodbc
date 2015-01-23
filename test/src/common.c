@@ -230,6 +230,24 @@ print_result_meta(HSTMT hstmt)
 }
 
 /*
+ * Initialize a buffer with "XxXxXx..." to indicate an uninitialized value.
+ */
+static void
+invalidate_buf(char *buf, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++)
+	{
+		if (i % 2 == 0)
+			buf[i] = 'X';
+		else
+			buf[i] = 'x';
+	}
+	buf[len - 1] = '\0';
+}
+
+/*
  * Print result only for the selected columns.
  */
 void
@@ -251,6 +269,12 @@ print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols)
 
 			for (i = 0; i < numcols; i++)
 			{
+				/*
+				 * Initialize the buffer with garbage, so that we see readily
+				 * if SQLGetData fails to set the value properly or forgets
+				 * to null-terminate it.
+				 */
+				invalidate_buf(buf, sizeof(buf));
 				rc = SQLGetData(hstmt, colids[i], SQL_C_CHAR, buf, sizeof(buf), &ind);
 				if (!SQL_SUCCEEDED(rc))
 				{
