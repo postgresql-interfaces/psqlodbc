@@ -894,7 +894,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	char		fetch[128];
 	QueryInfo	qi;
 	ConnectionClass	*conn;
-	ConnInfo   *ci = NULL;
+	ConnInfo   *ci;
 	BOOL		internally_invoked = FALSE;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 
@@ -1110,8 +1110,6 @@ inolog("tupleField=%p\n", self->tupleField);
 	 */
 	self->tupleField = NULL;
 
-	fetch_size = 0;
-
 	ci = &(conn->connInfo);
 	if (!QR_get_cursor(self))
 	{
@@ -1197,7 +1195,6 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 	QR_set_rowstart_in_cache(self, offset);
 
 	self->tupleField = NULL;
-	ci = &(conn->connInfo);
 	num_rows_in = self->num_cached_rows;
 
 	if (curr_eof)

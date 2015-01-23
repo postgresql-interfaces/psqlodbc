@@ -2649,7 +2649,6 @@ static void UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 		Int2	doubtp, rollbps;
 		int	j;
 
-		rollbps = rollbp = res->rb_count;
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
 		{
 			keys.blocknum = rollback[i].blocknum;

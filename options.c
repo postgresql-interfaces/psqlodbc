@@ -23,7 +23,7 @@
 #include "qresult.h"
 #include "pgapifunc.h"
 
-RETCODE
+static RETCODE
 set_statement_option(ConnectionClass *conn,
 					 StatementClass *stmt,
 					 SQLUSMALLINT fOption,
@@ -36,7 +36,7 @@ set_statement_option(ConnectionClass *conn,
 
 	if (conn)
 		ci = &(conn->connInfo);
-	else if (stmt)
+	else
 		ci = &(SC_get_conn(stmt)->connInfo);
 	switch (fOption)
 	{

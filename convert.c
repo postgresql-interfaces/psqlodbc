@@ -3210,7 +3210,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	BOOL		isbinary;
 	Oid			dummy;
 
-	if (stmt && stmt->ntab > 0)
+	if (stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
 	opos = (Int4) qp->opos;
 	if (opos < 0)

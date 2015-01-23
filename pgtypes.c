@@ -1251,7 +1251,6 @@ sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 	OID		pgType;
 	const ConnInfo	*ci = &(conn->connInfo);
 
-	pgType = 0; /* ??? */
 	switch (fSqlType)
 	{
 		case SQL_BINARY:
