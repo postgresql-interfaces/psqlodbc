@@ -421,8 +421,13 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 		exit(1);
 	}
 
+	/*
+	 * Use dollar-quotes to make the test case insensitive to
+	 * standards_conforming_strings. Some of the test values we use contain
+	 * backslashes.
+	 */
 	snprintf(sql, sizeof(sql),
-			 "SELECT '%s'::%s AS %s_col /* convert to %s */",
+			 "SELECT $$%s$$::%s AS %s_col /* convert to %s */",
 			 pgvalue, pgtype, pgtype, sqltypestr);
 
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
