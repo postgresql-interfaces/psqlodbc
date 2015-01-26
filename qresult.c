@@ -899,7 +899,7 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 
 inolog("Oh %p->fetch_number=%d\n", self, self->fetch_number);
-inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt ? stmt->currTuple : -1, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
+inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt->currTuple, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
 
 	num_total_rows = QR_get_num_total_tuples(self);
 	conn = QR_get_conn(self);
@@ -949,8 +949,7 @@ inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_si
 		if (!QR_command_maybe_successful(mres))
 		{
 			QR_Destructor(mres);
-			if (stmt)
-				SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
+			SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
 			RETURN(-1)
 		}
 		moved = movement;
@@ -1003,8 +1002,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 						if (!QR_command_maybe_successful(mres))
 						{
 							QR_Destructor(mres);
-							if (stmt)
-								SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
+							SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
 							RETURN(-1)
 						}
 
@@ -1037,11 +1035,8 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 						/* adjust move_offset */
 						/*** self->move_offset++; ***/
 					}
-					if (stmt)
-					{
-						SC_set_rowset_start(stmt, rowset_start, TRUE); /* affects the result's rowset_start but it is reset immediately ... */
-						stmt->currTuple = RowIdx2GIdx(-1, stmt);
-					}
+					SC_set_rowset_start(stmt, rowset_start, TRUE); /* affects the result's rowset_start but it is reset immediately ... */
+					stmt->currTuple = RowIdx2GIdx(-1, stmt);
 				}
 			}
 		}
@@ -1066,8 +1061,7 @@ inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
 	{
 		if (!self->dataFilled) /* should never occur */
 		{
-			if (stmt)
-				SC_set_error(stmt, STMT_EXEC_ERROR, "Hmm where are fetched data?", func);
+			SC_set_error(stmt, STMT_EXEC_ERROR, "Hmm where are fetched data?", func);
 			RETURN(-1)
 		}
 		/* return a row from cache */
@@ -1081,18 +1075,9 @@ inolog("tupleField=%p\n", self->tupleField);
 	else if (QR_once_reached_eof(self))
 	{
 		BOOL	reached_eod = FALSE;
-		SQLULEN	num_total_read = self->num_total_read;
 
-		if (stmt)
-		{
-			if (stmt->currTuple + 1 >= num_total_rows)
-				reached_eod = TRUE;
-		}
-		else if (self->cursTuple + 1 >= (Int4)num_total_read)
-		{
-			if (self->ad_count == 0)
-				reached_eod = TRUE;
-		}
+		if (stmt->currTuple + 1 >= num_total_rows)
+			reached_eod = TRUE;
 		if (reached_eod)
 		{
 			mylog("next_tuple: fetch end\n");
