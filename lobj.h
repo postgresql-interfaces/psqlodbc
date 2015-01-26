@@ -33,6 +33,5 @@ Int4		odbc_lo_read(ConnectionClass *conn, int fd, char *buf, Int4 len);
 Int4		odbc_lo_write(ConnectionClass *conn, int fd, char *buf, Int4 len);
 Int4		odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, Int4 len);
 Int4		odbc_lo_tell(ConnectionClass *conn, int fd);
-int		odbc_lo_unlink(ConnectionClass *conn, OID lobjId);
 
 #endif

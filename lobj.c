@@ -166,20 +166,3 @@ odbc_lo_tell(ConnectionClass *conn, int fd)
 	else
 		return retval;
 }
-
-
-Int4
-odbc_lo_unlink(ConnectionClass *conn, OID lobjId)
-{
-	LO_ARG		argv[1];
-	Int4		retval, result_len;
-
-	argv[0].isint = 1;
-	argv[0].len = 4;
-	argv[0].u.integer = lobjId;
-
-	if (!CC_send_function(conn, "lo_unlink", &retval, &result_len, 1, argv, 1))
-		return -1;
-	else
-		return retval;
-}
