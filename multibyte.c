@@ -20,6 +20,12 @@
 #define	TRUE	1
 #endif
 
+typedef struct pg_CS
+{
+	char   *name;
+	int		code;
+} pg_CS;
+
 static pg_CS CS_Table[] =
 {
 	{ "SQL_ASCII",	SQL_ASCII },
@@ -406,55 +412,19 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 	return stat;
 }
 
-
-UCHAR *
-pg_mbschr(int csc, const UCHAR *string, unsigned int character)
-{
-	int			mb_st = 0;
-	const UCHAR *s, *rs = NULL;
-
-	for(s = string; *s ; s++)
-	{
-		mb_st = pg_CS_stat(mb_st, (UCHAR) *s, csc);
-		if (mb_st == 0 && (*s == character))
-		{
-			rs = s;
-			break;
-		}
-	}
-	return ((UCHAR *) rs);
-}
-
-size_t
-pg_mbslen(int csc, const UCHAR *string)
-{
-	UCHAR *s;
-	size_t	len;
-	int	cs_stat;
-	for (len = 0, cs_stat = 0, s = (UCHAR *) string; *s != 0; s++)
-	{
-		cs_stat = pg_CS_stat(cs_stat,(unsigned int) *s, csc);
-		if (cs_stat < 2)
-			len++;
-	}
-	return len;
-}
-
 /*
  *	This function works under Windows or Unicode case only.
  *	Simply returns NULL under other OSs.
  */
-const char * get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc, BOOL bStartup)
+#ifndef	UNICODE_SUPPORT
+static const char *
+get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc)
 {
 	const char *wenc = NULL;
 #ifdef	WIN32
 	int	acp;
 #endif /* WIN32 */
 
-#ifdef	UNICODE_SUPPORT
-	if (CC_is_in_unicode_driver(conn))
-		return "UTF8";
-#endif /* UNICODE_SUPPORT */
 	if (setenc && stricmp(setenc, OTHER_STRING))
 		return setenc;
 	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc)
@@ -463,8 +433,7 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 	acp = GetACP();
 	if (acp >= 1251 && acp <= 1258)
 	{
-		if (bStartup ||
-		    stricmp(currenc, "SQL_ASCII") == 0)
+		if (stricmp(currenc, "SQL_ASCII") == 0)
 			return wenc;
 	}
 	switch (acp)
@@ -473,12 +442,10 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 			wenc = "SJIS";
 			break;
 		case 936:
-			if (!bStartup)
-				wenc = "GBK";
+			wenc = "GBK";
 			break;
 		case 949:
-			if (!bStartup)
-				wenc = "UHC";
+			wenc = "UHC";
 			break;
 		case 950:
 			wenc = "BIG5";
@@ -524,6 +491,7 @@ const char * get_environment_encoding(const ConnectionClass *conn, const char *s
 #endif /* WIN32 */
 	return wenc;
 }
+#endif /* !UNICODE_SUPPORT */
 
 void
 CC_lookup_characterset(ConnectionClass *self)
@@ -551,7 +519,7 @@ CC_lookup_characterset(ConnectionClass *self)
 #ifndef	UNICODE_SUPPORT
 	else
 	{
-		const char *wenc = get_environment_encoding(self, encspec, currenc, FALSE);
+		const char *wenc = get_environment_encoding(self, encspec, currenc);
 		if (wenc && (!tencstr || stricmp(tencstr, wenc)))
 		{
 			QResultClass	*res;

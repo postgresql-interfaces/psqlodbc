@@ -1234,9 +1234,6 @@ inolog("CC_send_settings\n");
 			QR_Destructor(res);
 		}
 	}
-#else
-	{
-	}
 #endif /* UNICODE_SUPPORT */
 
 	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS;

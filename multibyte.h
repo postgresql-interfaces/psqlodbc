@@ -55,17 +55,7 @@ enum {
 };
 
 extern void CC_lookup_characterset(ConnectionClass *self);
-extern const char *get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *svrenc, BOOL bStartup);
-
 extern int pg_CS_code(const char *stat_string);
-
-typedef struct pg_CS
-{
-	char *name;
-	int code;
-}pg_CS;
-extern size_t	pg_mbslen(int ccsc, const UCHAR *string);
-extern UCHAR *pg_mbschr(int ccsc, const UCHAR *string, unsigned int character);
 
 /* Old Type Compatible */
 typedef struct
