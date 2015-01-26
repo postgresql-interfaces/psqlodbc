@@ -126,6 +126,50 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 	print_result(hstmt);
 
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*** Check that the code can deal with large keysets correctly.
+	 *
+	 * There was a bug in the reallocation in old driver versions.
+	 */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO pos_update_test SELECT g, g FROM generate_series(1, 5000) g", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*
+	 * Set Fetch option, and create a new statement to reflect the new
+	 * setting.
+	 */
+	{
+		SQLINTEGER fetch_val = 10000;
+		rc = SQLSetConnectAttr(conn,
+							   65541, /* SQL_ATTR_PGOPT_FETCH */
+							   &fetch_val,
+							   SQL_IS_INTEGER);
+		CHECK_STMT_RESULT(rc, "SQLSetConnectAttr failed", hstmt);
+	}
+
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	CHECK_CONN_RESULT(rc, "SQLAllocHandle failed", conn);
+
+	printf("\nOpening a cursor for update, and fetching 5000 rows\n");
+
+	rc  = SQLSetStmtAttr(hstmt, SQL_ATTR_CONCURRENCY,
+						 (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
+	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr failed", hstmt);
+	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE,
+						(SQLPOINTER) SQL_CURSOR_KEYSET_DRIVEN, 0);
+	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr failed", hstmt);
+
+	rc = SQLBindCol(hstmt, 1, SQL_C_LONG, &colvalue, 0, &indColvalue);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM pos_update_test ORDER BY orig", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
 	/* Clean up */
 	test_disconnect();
 

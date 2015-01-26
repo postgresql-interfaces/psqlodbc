@@ -26,4 +26,6 @@ Result set:
 8	8
 9	9
 10	10
+
+Opening a cursor for update, and fetching 5000 rows
 disconnecting
