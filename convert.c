@@ -3500,10 +3500,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							remove_declare_cursor(qb, qp);
 						}
 						else if (stricmp(qp->token_save, "join") == 0)
-						{
-							if (stmt)
-								check_join(stmt, F_OldPtr(qp), F_OldPos(qp));
-						}
+							check_join(stmt, F_OldPtr(qp), F_OldPos(qp));
 					}
 					else if (qp->token_len == 3)
 					{
