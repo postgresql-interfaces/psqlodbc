@@ -3000,13 +3000,10 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 
 			QR_set_position(qres, 0);
 			tuple_new = qres->tupleField;
-			if (res->keyset)
-			{
-				if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
-					strcmp(tuple_new[qres->num_fields - res->num_key_fields].value, tidval))
-					res->keyset[kres_ridx].status |= SQL_ROW_UPDATED;
-				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
-			}
+			if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
+				strcmp(tuple_new[qres->num_fields - res->num_key_fields].value, tidval))
+				res->keyset[kres_ridx].status |= SQL_ROW_UPDATED;
+			KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
 			MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
 			ret = SQL_SUCCESS;
 		}
