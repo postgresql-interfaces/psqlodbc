@@ -3820,9 +3820,12 @@ SC_pos_delete(StatementClass *stmt,
 	else
 	{
 		ret = SQL_ERROR;
-		strcpy(res->sqlstate, qres->sqlstate);
-		res->message = qres->message;
-		qres->message = NULL;
+		if (qres)
+		{
+			strcpy(res->sqlstate, qres->sqlstate);
+			res->message = qres->message;
+			qres->message = NULL;
+		}
 	}
 	if (ret == SQL_ERROR && SC_get_errornumber(stmt) == 0)
 	{
