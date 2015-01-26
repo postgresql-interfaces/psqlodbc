@@ -10,14 +10,8 @@
 #
 
 # Environment checks
-!IF "$(CPU)" == ""
-!MESSAGE Making 64bit DLL...
-!MESSAGE You should set the CPU environment variable
-!MESSAGE to distinguish your OS
-!ENDIF
 
 !IFNDEF PG_BIN
-PG_LIB=C:\develop\bin\$(CPU)
 !MESSAGE Using default PostgreSQL Binary directory: $(PG_BIN)
 !ENDIF
 
@@ -32,17 +26,12 @@ PG_LIB=C:\develop\bin\$(CPU)
 # prefix/suffix to a list in nmake. Removing them is much easier.)
 TESTS = $(TESTBINS:src/=)
 TESTS = $(TESTS:-test=)
-TESTS = sampletables $(TESTS)
 
-# Now create names of the test .exe and .sql files from the base names
+# Now create names of the test .exe from the base names
 
 # src\<testname>.exe
 TESTEXES = $(TESTBINS:-test=-test.exe)
 TESTEXES = $(TESTEXES:src/=src\)
-
-# sql\<testname>.sql
-TESTSQLS = $(TESTBINS:-test=.sql)
-TESTSQLS = $(TESTSQLS:src/=sql\)
 
 
 # Flags
@@ -59,25 +48,23 @@ LINKFLAGS=/link odbc32.lib odbccp32.lib
 .c.exe:
 	cl /Fe.\src\ /Fo.\src\ $*.c src/common.c $(CLFLAGS) $(LINKFLAGS)
 
-all: $(TESTEXES) $(TESTSQLS)
+all: $(TESTEXES) runsuite.exe
 
-# A rule to generate sql/<testname>.sql files. The expected output files
-# are used as the dependent files, to give nmake a hint on how to build
-# them, even though the .sql files don't really depend on the .out files.
-{expected\}.out{sql\}.sql:
-	echo \! "./src/$(*:sql\=)-test" > $*.sql
+runsuite.exe: runsuite.c
+	cl runsuite.c $(CLFLAGS) $(LINKFLAGS)
+
+reset-db.exe: reset-db.c
+	cl reset-db.c $(CLFLAGS) $(LINKFLAGS)
 
 # activate the above inference rule
 .SUFFIXES: .out
 
-
 # Run regression tests
-installcheck:
-	cmd /c $(PG_BIN)\pg_regress --inputdir=. --psqldir="$(PG_BIN)" \
-	    --dbname="contrib_regression" $(REGRESSOPTS) \
-	    $(TESTS)
+installcheck: runsuite.exe $(TESTEXES) reset-db.exe
+	del regression.diffs
+	.\reset-db < sampletables.sql
+	.\runsuite $(TESTS)
 
 clean:
 	-del src\*.exe
 	-del src\*.obj
-	-del $(TESTSQLS)

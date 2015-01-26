@@ -178,6 +178,8 @@ fi
 
 # 1. Programs
 
+# 'prove' is used to pretty-print regression test results, if available.
+AC_CHECK_PROGS(PROVE, prove)
 
 # 2. Libraries
 

@@ -1,6 +1,0 @@
-#!/bin/sh
-
-# Lancher script for iodbc
-# Pass ODBCINSTINI and ODBCINI env variables to psql, so that it finds 
-# the odbc.ini and odbcinst.ini files from the current dir.
-ODBCINSTINI=./odbcinst.ini ODBCINI=./odbc.ini $*

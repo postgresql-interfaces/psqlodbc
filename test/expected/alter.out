@@ -1,4 +1,3 @@
-\! "./src/alter-test"
 connected
 Result set metadata:
 t: VARCHAR(40) digits: 0, nullable

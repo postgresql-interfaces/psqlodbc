@@ -11,57 +11,46 @@ include $(origdir)/tests
 # The included file defined variable TESTBINS, which is a list of program
 # names in format src/<testname>-test. Extract the base test names from it.
 TESTNAMES = $(patsubst src/%-test,%, $(TESTBINS))
-TESTSQLS = $(patsubst %,sql/%.sql, $(TESTNAMES))
 
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
 CFLAGS = @CFLAGS@
-PG_CONFIG = @PG_CONFIG@
 ODBC_CONFIG = @ODBC_CONFIG@
-
-ifneq (,$(findstring iodbc,$(ODBC_CONFIG)))
-	launcher=launcher_i
-else
-	launcher=launcher
-endif
-
-REGRESS = sampletables $(TESTNAMES)
+PROVE = @PROVE@
 
 LIBODBC := $(shell $(ODBC_CONFIG) --libs)
 
-all: $(TESTBINS) $(TESTSQLS)
+all: $(TESTBINS) runsuite reset-db
 
 odbc.ini:
 	./odbcini-gen.sh $(odbc_ini_extras)
 
-installcheck: all odbc.ini
+installcheck: all odbc.ini reset-db runsuite
+	rm -f regression.diffs
+	@if test ! -d results; then mkdir -p results; fi
+	ODBCSYSINI=. ODBCINSTINI=./odbcinst.ini ODBCINI=./odbc.ini ./reset-db < sampletables.sql
+# If the perl 'prove' test running utility is available, use it. It produces
+# nice output. But otherwise just run the plain suite, it's usable as is too.
+ifdef PROVE
+	prove -e ./runsuite $(TESTNAMES)
+else
+	./runsuite $(TESTNAMES)
+endif
 
 override CFLAGS += -Wno-pointer-sign $(CFLAGS_ADD)
+
+runsuite: runsuite.c
+
+reset-db: reset-db.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@ $(LIBODBC)
 
 src/common.o: src/common.c
 	@if test ! -d src; then mkdir -p src; fi
 	$(COMPILE.c) -c $< -o $@
 
-# For each test file, compile the .c file, and create a .sql file that
-# when executed from psql, just runs the binary.
-src/%-test sql/%.sql: src/%-test.c src/common.o
+# For each test, compile the .c file.
+src/%-test: src/%-test.c src/common.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o src/$*-test $(LIBODBC)
-	@if test ! -d sql; then mkdir -p sql; fi
-	echo "\! \"./src/$*-test\"" > sql/$*.sql
-
-# For each shell file, create a .sql file that when executed from psql, 
-# just runs the shell.
-sql/%.sql: src/%.sh
-	@if test ! -d sql; then mkdir -p sql; fi
-	echo "\! \"$<\"" > $@
-
-EXTRA_CLEAN = $(TESTBINS) $(TESTSQLS) src/common.o
-
-REGRESS_OPTS = --launcher=$(origdir)/$(launcher) --inputdir=$(origdir)
-ifndef PGXS
-PGXS := $(shell $(PG_CONFIG) --pgxs)
-endif
-include $(PGXS)
 
 # This target runs the regression tests with all combinations of
 # UseDeclareFetch, UseServerSidePrepare and Protocol options.
@@ -93,3 +82,7 @@ installcheck-all:
 	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=0 Protocol=7.4-1"
 	rm -f odbc.ini odbcinst.ini
 	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=0 Protocol=7.4-0"
+
+clean:
+	rm -f $(TESTBINS) src/*.o runsuite reset-db
+	rm -f results/*

@@ -1,4 +1,3 @@
-\! "./src/parse-test"
 connected
 Result set metadata:
 id: INTEGER(10) digits: 0, not nullable

@@ -1,4 +1,3 @@
-\! "./src/odbc-escapes-test"
 connected
 
 Query: SELECT {fn CONCAT(?, ?) }

@@ -1,4 +1,3 @@
-\! "./src/bulkoperations-test"
 connected
 Creating test table bulkoperations_test
 Opening a cursor for update, and fetching 10 rows

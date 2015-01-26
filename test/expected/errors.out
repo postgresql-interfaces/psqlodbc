@@ -1,4 +1,3 @@
-\! "./src/errors-test"
 connected
 
 42703=ERROR: column "doesnotexist" does not exist;

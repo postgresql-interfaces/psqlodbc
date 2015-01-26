@@ -1,4 +1,3 @@
-\! "./src/numeric-test"
 connected
 Testing SQL_NUMERIC_STRUCT params...
 

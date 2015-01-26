@@ -1,4 +1,3 @@
-\! "./src/insertreturning-test"
 Testing with UseServerSidePrepare=1
 connected
 # of result cols before SQLExecute: 1, after: 1

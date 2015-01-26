@@ -1,4 +1,3 @@
-\! "./src/lfconversion-test"
 connected
 reading to char buffer...
 strlen 22, SQLGetData claims 22

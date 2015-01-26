@@ -1,4 +1,3 @@
-\! "./src/boolsaschar-test"
 connected
 Result set metadata:
 b: VARCHAR(5) digits: 0, nullable

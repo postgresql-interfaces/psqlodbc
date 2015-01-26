@@ -1,4 +1,3 @@
-\! "./src/error-rollback-test"
 Test for rollback protocol 0
 connected
 Executing query that will succeed
