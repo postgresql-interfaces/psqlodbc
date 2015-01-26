@@ -51,8 +51,8 @@ if test "$with_iodbc" != no; then
 	else
 		ODBC_CONFIG=$with_iodbc
 	fi
-	if test ! -f "${ODBC_CONFIG}/bin/iodbc-config"; then
-		if test ! -f "${ODBC_CONFIG}"; then
+	if test ! -x "${ODBC_CONFIG}/bin/iodbc-config"; then
+		if test ! -x "${ODBC_CONFIG}"; then
 			AC_MSG_ERROR([iodbc-config not found (required for iODBC build)])
 		fi
 	else
@@ -68,8 +68,8 @@ if test "$with_unixodbc" != no; then
 	else
 		ODBC_CONFIG=$with_unixodbc
 	fi
-	if test ! -f "${ODBC_CONFIG}/bin/odbc_config"; then
-		if test ! -f "${ODBC_CONFIG}"; then
+	if test ! -x "${ODBC_CONFIG}/bin/odbc_config"; then
+		if test ! -x "${ODBC_CONFIG}"; then
 			AC_MSG_ERROR([odbc_config not found (required for unixODBC build)])
 		fi
 	else
