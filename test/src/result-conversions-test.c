@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
 
 #include "common.h"
 
@@ -131,13 +132,30 @@ printwchar(SQLWCHAR *wstr)
 
 
 void
-printhex(unsigned char *b, int len)
+printhex(unsigned char *b, SQLLEN len)
 {
-	int i;
+	SQLLEN i;
 
 	printf("hex: ");
 	for (i = 0; i < len; i++)
 		printf("%02X", b[i]);
+}
+
+void
+printdouble(double d)
+{
+	/*
+	 * printf() can print NaNs and infinite values too, but the output is
+	 * platform dependent.
+	 */
+	if (isnan(d))
+		printf("nan");
+	else if (d < 0 && isinf(d))
+		printf("-inf");
+	else if (isinf(d))
+		printf("inf");
+	else
+		printf("%f", d);
 }
 
 void
@@ -165,10 +183,10 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 			printf("%u", (unsigned int) *((SQLUINTEGER *) buf));
 			break;
 		case SQL_C_FLOAT:
-			printf("%f", *((SQLREAL *) buf));
+			printdouble(*((SQLREAL *) buf));
 			break;
 		case SQL_C_DOUBLE:
-			printf("%f", *((SQLDOUBLE *) buf));
+			printdouble(*((SQLDOUBLE *) buf));
 			break;
 		case SQL_C_BIT:
 			printf("%u", *((unsigned char *) buf));
@@ -446,11 +464,15 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 			char sqlstate[10];
 
 			rc = SQLGetDiagRec(SQL_HANDLE_STMT, hstmt, 1, sqlstate, NULL, NULL, 0, NULL);
-			CHECK_STMT_RESULT(rc, "SQLGetDiagRec failed", hstmt);
-			if (memcmp(sqlstate, "01004", 5) == 0)
-				printf(" (truncated)");
+			if (!SQL_SUCCEEDED(rc))
+				print_diag(" SQLGetDiagRec failed", SQL_HANDLE_STMT, hstmt);
 			else
-				print_diag("SQLGetData success with info", SQL_HANDLE_STMT, hstmt);
+			{
+				if (memcmp(sqlstate, "01004", 5) == 0)
+					printf(" (truncated)");
+				else
+					print_diag("SQLGetData success with info", SQL_HANDLE_STMT, hstmt);
+			}
 		}
 
 		printf("\n");
