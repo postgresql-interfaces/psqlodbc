@@ -9,9 +9,10 @@ int main(int argc, char **argv)
 	HSTMT hstmt = SQL_NULL_HSTMT;
 	char *param1;
 	SQLLEN cbParam1;
+	SQLSMALLINT colid;
 
 	/* BoolsAsChar is the default, but just in case.. */
-	test_connect_ext("BoolsAsChar=1;UseServerSidePrepare=1");
+	test_connect_ext("BoolsAsChar=1");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
@@ -44,7 +45,8 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLExecute failed", hstmt);
 
 	/* Fetch result */
-	print_result_meta(hstmt);
+	colid = 3;
+	print_result_meta_series(hstmt, &colid, 1);
 	print_result(hstmt);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
@@ -70,7 +72,8 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 
 	/* Fetch result */
-	print_result_meta(hstmt);
+	colid = 3;
+	print_result_meta_series(hstmt, &colid, 1);
 	print_result(hstmt);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
