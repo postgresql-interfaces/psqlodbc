@@ -98,7 +98,7 @@ error_rollback_exec_failure(int arg)
 	}
 
 	/* Print error, it is expected */
-	print_diag("Failed to execute statement", SQL_HANDLE_DBC, conn);
+	print_diag("Failed to execute statement", SQL_HANDLE_STMT, hstmt);
 }
 
 /*
@@ -125,7 +125,7 @@ error_rollback_exec_proccall_failure(void)
 	}
 
 	/* Print error, it is expected */
-	print_diag("Failed to execute procedure call", SQL_HANDLE_DBC, conn);
+	print_diag("Failed to execute procedure call", SQL_HANDLE_STMT, hstmt);
 }
 
 void

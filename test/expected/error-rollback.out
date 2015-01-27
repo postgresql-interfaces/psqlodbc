@@ -4,7 +4,8 @@ connected
 Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "fail1"
+22P02=ERROR: invalid input syntax for integer: "fail1";
+Error while executing the query
 Rolling back with SQLEndTran
 Executing query that will succeed
 Result set:
@@ -15,7 +16,8 @@ connected
 Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "fail1"
+22P02=ERROR: invalid input syntax for integer: "fail1";
+Error while executing the query
 Executing query that will succeed
 Result set:
 1
@@ -26,19 +28,23 @@ Executing query that will succeed
 Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "fail-1"
+22P02=ERROR: invalid input syntax for integer: "fail-1";
+Error while executing the query
 Executing query that will succeed
 Executing query that will succeed
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "fail-1"
+22P02=ERROR: invalid input syntax for integer: "fail-1";
+Error while executing the query
 Executing query that will fail
 Failed to execute statement
-22P02=ERROR: invalid input syntax for integer: "fail-1"
+22P02=ERROR: invalid input syntax for integer: "fail-1";
+Error while executing the query
 Executing query that will succeed
 Executing procedure call that will fail
 Failed to execute procedure call
-22P02=ERROR: invalid input syntax for integer: "fail-1"
+42883=ERROR: function invalidfunction() does not exist;
+Error while executing the query
 Executing query that will succeed
 Executing query that will succeed
 Result set:
