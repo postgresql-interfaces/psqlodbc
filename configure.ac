@@ -207,7 +207,7 @@ AC_CHECK_LIB(pq, PQsetSingleRowMode, [],
 
 # 3. Header files
 
-AC_CHECK_HEADERS(locale.h sys/un.h sys/time.h)
+AC_CHECK_HEADERS(locale.h sys/time.h)
 AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
 AC_HEADER_TIME
 
@@ -226,8 +226,6 @@ AC_TYPE_SIZE_T
 # 5. Structures
 
 AC_STRUCT_TM
-PGAC_STRUCT_ADDRINFO
-
 
 # 6. Compiler characteristics
 
@@ -237,11 +235,7 @@ AC_C_CONST
 # 7. Functions, global variables
 
 AC_FUNC_STRERROR_R
-AC_CHECK_FUNCS(strtoul strtoll strlcat strlcpy poll)
-
-if test x"$enable_unicode" = xyes; then
-  AC_CHECK_FUNCS(iswascii)
-fi
+AC_CHECK_FUNCS(strtoul strtoll strlcat)
 
 if test "$enable_pthreads" = yes; then
   AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
