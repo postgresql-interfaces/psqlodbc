@@ -173,8 +173,6 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 			/* Password is not a required parameter. */
 			if (ci->database[0] == '\0')
 				paramRequired = TRUE;
-			else if (ci->port[0] == '\0')
-				paramRequired = TRUE;
 #ifdef	WIN32
 			else if (ci->server[0] == '\0')
 				paramRequired = TRUE;
