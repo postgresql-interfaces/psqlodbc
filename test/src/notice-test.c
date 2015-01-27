@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 	}
 
 	sql =
-		"CREATE FUNCTION raisenotice(s text) RETURNS void AS $$"
+		"CREATE OR REPLACE FUNCTION raisenotice(s text) RETURNS void AS $$"
 		"begin\n"
 		"  raise notice 'test notice: %',s;\n"
 		"end;\n"
@@ -58,10 +58,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* The same, with a really long notice. XXX: At the moment, this returns
-	 * an empty string, as the driver has a built-in limit on the error/notice
-	 * size */
-
+	/*
+	 * The same, with a really long notice.
+	 */
 	sql = "SELECT raisenotice(repeat('foo', 100))";
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
 	if (!SQL_SUCCEEDED(rc))
