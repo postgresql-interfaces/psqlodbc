@@ -14,13 +14,15 @@ print_cursor_type(SQLINTEGER cursor_type)
 	printf("Cursor type is: ");
 	if (cursor_type == SQL_CURSOR_FORWARD_ONLY)
 		printf("forward\n");
+	else if (cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
+		printf("keyset driven\n");
+	else if (cursor_type == SQL_CURSOR_DYNAMIC)
+		printf("dynamic\n");
 	else if (cursor_type == SQL_CURSOR_STATIC)
 		printf("static\n");
-	else if (cursor_type == SQL_SCROLL_DYNAMIC)
-		printf("dynamic\n");
 	else
 	{
-		printf("Incorrect type of cursor\n");
+		printf("unknown type of cursor: %d\n", cursor_type);
 		exit(1);
 	}
 }
@@ -162,15 +164,15 @@ main(int argc, char **argv)
 
 	/* Pointer should be forward-only here */
 	printf("Check for SQLGetStmtOption\n");
-	rc = SQLGetStmtOption(hstmt, SQL_ATTR_CURSOR_TYPE, &valint);
+	rc = SQLGetStmtOption(hstmt, SQL_CURSOR_TYPE, &valint);
 	CHECK_STMT_RESULT(rc, "SQLGetStmtOption failed", hstmt);
 	print_cursor_type(valint);
 
 	/* Change it to static and check its new value */
 	printf("Check for SQLSetStmtOption\n");
-	rc = SQLSetStmtOption(hstmt, SQL_ATTR_CURSOR_TYPE, SQL_CURSOR_STATIC);
+	rc = SQLSetStmtOption(hstmt, SQL_CURSOR_TYPE, SQL_CURSOR_STATIC);
 	CHECK_STMT_RESULT(rc, "SQLSetStmtOption failed", hstmt);
-	rc = SQLGetStmtOption(hstmt, SQL_ATTR_CURSOR_TYPE, &valint);
+	rc = SQLGetStmtOption(hstmt, SQL_CURSOR_TYPE, &valint);
 	CHECK_STMT_RESULT(rc, "SQLGetStmtOption failed", hstmt);
 	print_cursor_type(valint);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
@@ -181,7 +183,7 @@ main(int argc, char **argv)
 	rc = SQLSetScrollOptions(hstmt, SQL_CONCUR_READ_ONLY,
 							SQL_SCROLL_FORWARD_ONLY, 1);
 	CHECK_STMT_RESULT(rc, "SQLSetScrollOptions failed", hstmt);
-	rc = SQLGetStmtOption(hstmt, SQL_ATTR_CURSOR_TYPE, &valint);
+	rc = SQLGetStmtOption(hstmt, SQL_CURSOR_TYPE, &valint);
 	CHECK_STMT_RESULT(rc, "SQLGetStmtOption failed", hstmt);
 	print_cursor_type(valint);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
