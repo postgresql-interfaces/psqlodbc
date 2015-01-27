@@ -316,6 +316,63 @@ snprintf_len(char *buf, size_t size, const char *format, ...)
 	return len;
 }
 
+/*
+ * Windows doesn't have snprintf(). It has _snprintf() which is similar,
+ * but it behaves differently wrt. truncation. This is a compatibility
+ * function that uses _snprintf() to provide POSIX snprintf() behavior.
+ *
+ * Our strategy, if the output doesn't fit, is to create a temporary buffer
+ * and call _snprintf() on that. If it still doesn't fit, enlarge the buffer
+ * and repeat.
+ */
+#ifdef WIN32
+static int
+posix_vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{
+	int			len;
+	char	   *tmp;
+	size_t		newsize;
+
+	len = _vsnprintf(str, size, format, ap);
+	if (len < 0)
+	{
+		if (size == 0)
+			newsize = 100;
+		else
+			newsize = size;
+		do
+		{
+			newsize *= 2;
+			tmp = malloc(newsize);
+			if (!tmp)
+				return -1;
+			len = _vsnprintf(tmp, newsize, format, ap);
+			if (len >= 0)
+				memcpy(str, tmp, size);
+			free(tmp);
+		} while (len < 0);
+	}
+	if (len >= size && size > 0)
+	{
+		/* Ensure the buffer is NULL-terminated */
+		str[size - 1] = '\0';
+	}
+	return len;
+}
+
+int
+posix_snprintf(char *buf, size_t size, const char *format, ...)
+{
+	int		len;
+	va_list arglist;
+
+	va_start(arglist, format);
+	len = posix_vsnprintf(buf, size, format, arglist);
+	va_end(arglist);
+	return len;
+}
+#endif
+
 #ifndef	HAVE_STRLCAT
 size_t
 strlcat(char *dst, const char *src, size_t size)

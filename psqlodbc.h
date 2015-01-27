@@ -223,7 +223,9 @@ typedef double SDOUBLE;
 #define	FALSE	(BOOL)0
 #endif /* FALSE */
 #else
-#define snprintf _snprintf
+#define snprintf posix_snprintf
+extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
+
 #ifndef strdup
 #define strdup _strdup
 #endif /* strdup */
