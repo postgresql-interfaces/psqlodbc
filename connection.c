@@ -921,10 +921,21 @@ receive_libpq_notice(void *arg, const PGresult *pgres)
 	}
 }
 
-static int	protocol3_opts_array(ConnectionClass *self, const char *opts[], const char *vals[])
+#define        PROTOCOL3_OPTS_MAX      20
+
+static char	*
+protocol3_opts_build(ConnectionClass *self)
 {
+	CSTR	func = "protocol3_opts_build";
+	size_t	slen;
+	char	*conninfo, *ppacket;
+	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
+	int	cnt, i;
+	BOOL	blankExist;
 	ConnInfo	*ci = &(self->connInfo);
-	int	cnt;
+	char	login_timeout_str[20];
+	char	keepalive_idle_str[20];
+	char	keepalive_interval_str[20];
 
 	cnt = 0;
 	if (ci->server[0])
@@ -978,60 +989,31 @@ static int	protocol3_opts_array(ConnectionClass *self, const char *opts[], const
 	{
 		opts[cnt] = "keepalives";	vals[cnt++] = "0";
 	}
+
+	if (self->login_timeout > 0)
+	{
+		sprintf(login_timeout_str, "%u", (unsigned int) self->login_timeout);
+		opts[cnt] = "connect_timeout";	vals[cnt++] = login_timeout_str;
+	}
+	if (self->connInfo.keepalive_idle > 0)
+	{
+		sprintf(keepalive_idle_str, "%d", self->connInfo.keepalive_idle);
+		opts[cnt] = "keepalives_idle";	vals[cnt++] = keepalive_idle_str;
+	}
+	if (self->connInfo.keepalive_interval > 0)
+	{
+		sprintf(keepalive_interval_str, "%d", self->connInfo.keepalive_interval);
+		opts[cnt] = "keepalives_interval";	vals[cnt++] = keepalive_interval_str;
+	}
+
 	opts[cnt] = vals[cnt] = NULL;
 
-	return cnt;
-}
-
-
-CSTR	l_login_timeout = "connect_timeout";
-CSTR	l_keepalives_idle = "keepalives_idle";
-CSTR	l_keepalives_interval = "keepalives_interval";
-
-#define        PROTOCOL3_OPTS_MAX      20
-
-static char	*protocol3_opts_build(ConnectionClass *self)
-{
-	CSTR	func = "protocol3_opts_build";
-	size_t	slen;
-	char	*conninfo, *ppacket;
-	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
-	int	cnt, i;
-	BOOL	blankExist;
-
-	cnt = protocol3_opts_array(self, opts, vals);
-	if (cnt < 0)
-		return NULL;
 
 	slen =  0;
 	for (i = 0; i < cnt; i++)
 	{
 		slen += (strlen(opts[i]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
 		slen += strlen(vals[i]);
-	}
-	if (self->login_timeout > 0)
-	{
-		char	tmout[16];
-
-		slen += (strlen(l_login_timeout) + 2);
-		snprintf(tmout, sizeof(tmout), FORMAT_UINTEGER, self->login_timeout);
-		slen += strlen(tmout);
-	}
-	if (self->connInfo.keepalive_idle > 0)
-	{
-		char	outwrk[16];
-
-		slen += (strlen(l_keepalives_idle) + 2);
-		snprintf(outwrk, sizeof(outwrk), "%d", self->connInfo.keepalive_idle);
-		slen += strlen(outwrk);
-	}
-	if (self->connInfo.keepalive_interval > 0)
-	{
-		char	outwrk[16];
-
-		slen += (strlen(l_keepalives_interval) + 2);
-		snprintf(outwrk, sizeof(outwrk), "%d", self->connInfo.keepalive_interval);
-		slen += strlen(outwrk);
 	}
 
 	slen++;
@@ -1063,27 +1045,6 @@ static char	*protocol3_opts_build(ConnectionClass *self)
 			*ppacket = '\'';
 			ppacket++;
 		}
-	}
-	if (self->login_timeout > 0)
-	{
-		sprintf(ppacket, " %s=", l_login_timeout);
-		ppacket = strchr(ppacket, (int) '\0');
-		sprintf(ppacket, FORMAT_UINTEGER, self->login_timeout);
-		ppacket = strchr(ppacket, (int) '\0');
-	}
-	if (self->connInfo.keepalive_idle > 0)
-	{
-		sprintf(ppacket, " %s=", l_keepalives_idle);
-		ppacket = strchr(ppacket, (int) '\0');
-		sprintf(ppacket, "%d", self->connInfo.keepalive_idle);
-		ppacket = strchr(ppacket, (int) '\0');
-	}
-	if (self->connInfo.keepalive_interval > 0)
-	{
-		sprintf(ppacket, " %s=", l_keepalives_interval);
-		ppacket = strchr(ppacket, (int) '\0');
-		sprintf(ppacket, "%d", self->connInfo.keepalive_interval);
-		ppacket = strchr(ppacket, (int) '\0');
 	}
 	*ppacket = '\0';
 inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
@@ -2633,12 +2594,12 @@ LIBPQ_connect(ConnectionClass *self)
 	int			pqret;
 	int			pversion;
 
-	mylog("connecting to the database  using %s as the server\n",self->connInfo.server);
+	mylog("connecting to the database using %s as the server\n", self->connInfo.server);
 
 	if (!(conninfo = protocol3_opts_build(self)))
 	{
 		if (CC_get_errornumber(self) <= 0)
-			CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allcate conninfo", func);
+			CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allocate conninfo", func);
 		goto cleanup;
 	}
 	pqconn = PQconnectdb(conninfo);
