@@ -184,8 +184,18 @@ getNextToken(
 				else if (s[i] == qc)
 				{
 					if (!in_dollar_quote)
-						break;
-					if (strncmp(s + i, tag, taglen) == 0)
+					{
+						/*
+						 * Peek at the next byte to see if this is a '' or
+						 * "", i.e a quote character that has been escaped
+						 * by doubling it.
+						 */
+						if (s[i + 1] == qc)
+							i++;
+						else
+							break;
+					}
+					else if (strncmp(s + i, tag, taglen) == 0)
 					{
 						i += (taglen - 1);
 						encoded_position_shift(&encstr, taglen - 1);
