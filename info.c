@@ -3978,7 +3978,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 		{
 			if (QR_get_num_cached_tuples(res) > 0)
 			{
-				strcpy(saveattnum, QR_get_value_backend_text(res, 0, 0));
+				strncpy_null(saveattnum, QR_get_value_backend_text(res, 0, 0), sizeof(saveattnum));
 			}
 			else
 				continueExec = FALSE;
