@@ -107,5 +107,9 @@ int main(int argc, char **argv)
 
 	test_disconnect();
 
+	/* free the buffers, to keep Valgrind from complaining about the leaks */
+	for (i = 0; i < NUM_STMT_HANDLES; i++)
+		free(sqlbufs[i]);
+
 	return 0;
 }
