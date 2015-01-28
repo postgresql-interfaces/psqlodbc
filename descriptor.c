@@ -551,11 +551,11 @@ int	DC_get_errornumber(const DescriptorClass *desc)
 }
 
 /*	Map sql commands to statement types */
-static struct
+static const struct
 {
-	int	number;
-	const	char	* ver3str;
-	const	char	* ver2str;
+	int		number;
+	const char	ver3str[6];
+	const char	ver2str[6];
 }	Descriptor_sqlstate[] =
 
 {

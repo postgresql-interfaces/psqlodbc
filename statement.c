@@ -1215,9 +1215,9 @@ SC_clear_error(StatementClass *self)
 /*	Map sql commands to statement types */
 static const struct
 {
-	int	number;
-	const	char	* ver3str;
-	const	char	* ver2str;
+	int		number;
+	const char ver3str[6];
+	const char ver2str[6];
 }	Statement_sqlstate[] =
 
 {
