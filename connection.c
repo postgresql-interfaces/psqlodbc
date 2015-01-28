@@ -2462,7 +2462,6 @@ LIBPQ_connect(ConnectionClass *self)
 	CSTR		func = "LIBPQ_connect";
 	ConnInfo	*ci = &(self->connInfo);
 	char		ret = 0;
-	char	   *conninfo = NULL;
 	void	   *pqconn = NULL;
 	int			pqret;
 	int			pversion;
@@ -2605,8 +2604,6 @@ cleanup:
 			PQfinish(self->pqconn);
 		self->pqconn = NULL;
 	}
-	if (conninfo)
-		free(conninfo);
 
 	mylog("%s: retuning %d\n", func, ret);
 	return ret;
