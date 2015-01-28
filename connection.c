@@ -921,136 +921,6 @@ receive_libpq_notice(void *arg, const PGresult *pgres)
 	}
 }
 
-#define        PROTOCOL3_OPTS_MAX      20
-
-static char	*
-protocol3_opts_build(ConnectionClass *self)
-{
-	CSTR	func = "protocol3_opts_build";
-	size_t	slen;
-	char	*conninfo, *ppacket;
-	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
-	int	cnt, i;
-	BOOL	blankExist;
-	ConnInfo	*ci = &(self->connInfo);
-	char	login_timeout_str[20];
-	char	keepalive_idle_str[20];
-	char	keepalive_interval_str[20];
-
-	cnt = 0;
-	if (ci->server[0])
-	{
-		opts[cnt] = "host";		vals[cnt++] = ci->server;
-	}
-	if (ci->port[0])
-	{
-		opts[cnt] = "port";		vals[cnt++] = ci->port;
-	}
-	if (ci->database[0])
-	{
-		opts[cnt] = "dbname";	vals[cnt++] = ci->database;
-	}
-	if (ci->username[0])
-	{
-		opts[cnt] = "user";		vals[cnt++] = ci->username;
-	}
-
-	switch (ci->sslmode[0])
-	{
-		case '\0':
-			break;
-		case SSLLBYTE_VERIFY:
-			opts[cnt] = "sslmode";
-			switch (ci->sslmode[1])
-			{
-				case 'f':
-					vals[cnt++] = SSLMODE_VERIFY_FULL;
-					break;
-				case 'c':
-					vals[cnt++] = SSLMODE_VERIFY_CA;
-					break;
-				default:
-					vals[cnt++] = ci->sslmode;
-			}
-			break;
-		default:
-			opts[cnt] = "sslmode";
-			vals[cnt++] = ci->sslmode;
-	}
-	if (NAME_IS_VALID(ci->password))
-	{
-		opts[cnt] = "password";	vals[cnt++] = SAFE_NAME(ci->password);
-	}
-	if (ci->gssauth_use_gssapi)
-	{
-		opts[cnt] = "gsslib";	vals[cnt++] = "gssapi";
-	}
-	if (ci->disable_keepalive)
-	{
-		opts[cnt] = "keepalives";	vals[cnt++] = "0";
-	}
-
-	if (self->login_timeout > 0)
-	{
-		sprintf(login_timeout_str, "%u", (unsigned int) self->login_timeout);
-		opts[cnt] = "connect_timeout";	vals[cnt++] = login_timeout_str;
-	}
-	if (self->connInfo.keepalive_idle > 0)
-	{
-		sprintf(keepalive_idle_str, "%d", self->connInfo.keepalive_idle);
-		opts[cnt] = "keepalives_idle";	vals[cnt++] = keepalive_idle_str;
-	}
-	if (self->connInfo.keepalive_interval > 0)
-	{
-		sprintf(keepalive_interval_str, "%d", self->connInfo.keepalive_interval);
-		opts[cnt] = "keepalives_interval";	vals[cnt++] = keepalive_interval_str;
-	}
-
-	opts[cnt] = vals[cnt] = NULL;
-
-
-	slen =  0;
-	for (i = 0; i < cnt; i++)
-	{
-		slen += (strlen(opts[i]) + 2 + 2); /* add 2 bytes for safety (literal quotes) */
-		slen += strlen(vals[i]);
-	}
-
-	slen++;
-
-	if (conninfo = malloc(slen), !conninfo)
-	{
-		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, "Could not allocate a connectdb option", func);
-		return 0;
-	}
-
-	mylog("sizeof connectdb option = %d\n", slen);
-
-	for (i = 0, ppacket = conninfo; i < cnt; i++)
-	{
-		sprintf(ppacket, " %s=", opts[i]);
-		ppacket += (strlen(opts[i]) + 2);
-		blankExist = FALSE;
-		if (strchr(vals[i], ' '))
-			blankExist = TRUE;
-		if (blankExist)
-		{
-			*ppacket = '\'';
-			ppacket++;
-		}
-		strcpy(ppacket, vals[i]);
-		ppacket += strlen(vals[i]);
-		if (blankExist)
-		{
-			*ppacket = '\'';
-			ppacket++;
-		}
-	}
-	*ppacket = '\0';
-inolog("return conninfo=%s(%d)\n", conninfo, strlen(conninfo));
-	return conninfo;
-}
-
 static char CC_initial_log(ConnectionClass *self, const char *func)
 {
 	const ConnInfo	*ci = &self->connInfo;
@@ -2584,25 +2454,98 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 	}
 }
 
+#define        PROTOCOL3_OPTS_MAX      20
+
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
 	CSTR		func = "LIBPQ_connect";
+	ConnInfo	*ci = &(self->connInfo);
 	char		ret = 0;
 	char	   *conninfo = NULL;
 	void	   *pqconn = NULL;
 	int			pqret;
 	int			pversion;
+	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
+	int			cnt;
+	char		login_timeout_str[20];
+	char		keepalive_idle_str[20];
+	char		keepalive_interval_str[20];
 
 	mylog("connecting to the database using %s as the server\n", self->connInfo.server);
 
-	if (!(conninfo = protocol3_opts_build(self)))
+	/* Build arrays of keywords & values, for PQconnectDBParams */
+	cnt = 0;
+	if (ci->server[0])
 	{
-		if (CC_get_errornumber(self) <= 0)
-			CC_set_error(self, CONN_OPENDB_ERROR, "Couldn't allocate conninfo", func);
-		goto cleanup;
+		opts[cnt] = "host";		vals[cnt++] = ci->server;
 	}
-	pqconn = PQconnectdb(conninfo);
+	if (ci->port[0])
+	{
+		opts[cnt] = "port";		vals[cnt++] = ci->port;
+	}
+	if (ci->database[0])
+	{
+		opts[cnt] = "dbname";	vals[cnt++] = ci->database;
+	}
+	if (ci->username[0])
+	{
+		opts[cnt] = "user";		vals[cnt++] = ci->username;
+	}
+	switch (ci->sslmode[0])
+	{
+		case '\0':
+			break;
+		case SSLLBYTE_VERIFY:
+			opts[cnt] = "sslmode";
+			switch (ci->sslmode[1])
+			{
+				case 'f':
+					vals[cnt++] = SSLMODE_VERIFY_FULL;
+					break;
+				case 'c':
+					vals[cnt++] = SSLMODE_VERIFY_CA;
+					break;
+				default:
+					vals[cnt++] = ci->sslmode;
+			}
+			break;
+		default:
+			opts[cnt] = "sslmode";
+			vals[cnt++] = ci->sslmode;
+	}
+	if (NAME_IS_VALID(ci->password))
+	{
+		opts[cnt] = "password";	vals[cnt++] = SAFE_NAME(ci->password);
+	}
+	if (ci->gssauth_use_gssapi)
+	{
+		opts[cnt] = "gsslib";	vals[cnt++] = "gssapi";
+	}
+	if (ci->disable_keepalive)
+	{
+		opts[cnt] = "keepalives";	vals[cnt++] = "0";
+	}
+	if (self->login_timeout > 0)
+	{
+		sprintf(login_timeout_str, "%u", (unsigned int) self->login_timeout);
+		opts[cnt] = "connect_timeout";	vals[cnt++] = login_timeout_str;
+	}
+	if (self->connInfo.keepalive_idle > 0)
+	{
+		sprintf(keepalive_idle_str, "%d", self->connInfo.keepalive_idle);
+		opts[cnt] = "keepalives_idle";	vals[cnt++] = keepalive_idle_str;
+	}
+	if (self->connInfo.keepalive_interval > 0)
+	{
+		sprintf(keepalive_interval_str, "%d", self->connInfo.keepalive_interval);
+		opts[cnt] = "keepalives_interval";	vals[cnt++] = keepalive_interval_str;
+	}
+	opts[cnt] = vals[cnt] = NULL;
+
+	/* Ok, we're all set to connect */
+
+	pqconn = PQconnectdbParams(opts, vals, FALSE);
 	if (!pqconn)
 	{
 		CC_set_error(self, CONN_OPENDB_ERROR, "PQconnectdb error", func);
