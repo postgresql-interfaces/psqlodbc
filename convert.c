@@ -4133,6 +4133,11 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			CVT_APPEND_CHAR(qb, '?');
 			return SQL_SUCCESS;
 		}
+
+		/* shouldn't happen */
+		qb->errormsg = "unexpected NULL parameter value";
+		qb->errornumber = STMT_EXEC_ERROR;
+		return SQL_ERROR;
 	}
 
 	param_ctype = apara->CType;
