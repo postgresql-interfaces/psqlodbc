@@ -22,7 +22,11 @@ int main(int argc, char **argv)
 	SQLINTEGER intparam;
 	char	byteaparam[] = { 'f', 'o', 'o', '\n', '\\', 'b', 'a', 'r', '\0' };
 
-	test_connect();
+	/*
+	 * let's not confuse the output with LF conversions. There's a separate
+	 * regression test for that.
+	 */
+	test_connect_ext("LFConversion=0");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
