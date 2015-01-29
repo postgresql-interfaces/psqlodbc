@@ -33,7 +33,7 @@ Windows
 
 To run the test suite, you need first to build and install the driver, and
 create a Data Source with the name "psqlodbc_test_dsn". This DSN is used by
-all the regression tests, and it should point to a valid PostgrSQL server
+all the regression tests, and it should point to a valid PostgreSQL server.
 
 The Windows test suite makes use of environment variable PG_BIN to find the
 location of pg_regress and the location of the binaries of PostgreSQL that
