@@ -13,8 +13,10 @@
 
 #include "common.h"
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(isnan)
 #define isnan(x)	_isnan(x)
+#endif
+#if defined(WIN32) && !defined(isinf)
 #define isinf(x)	((_fpclass(x) == _FPCLASS_PINF) || \
 					 (_fpclass(x) == _FPCLASS_NINF))
 #endif
