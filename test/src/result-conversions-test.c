@@ -7,7 +7,17 @@
 #include <ctype.h>
 #include <math.h>
 
+#ifdef WIN32
+#include <float.h>
+#endif
+
 #include "common.h"
+
+#ifdef WIN32
+#define isnan(x)	_isnan(x)
+#define isinf(x)	((_fpclass(x) == _FPCLASS_PINF) || \
+					 (_fpclass(x) == _FPCLASS_NINF))
+#endif
 
 static const char *pgtypes[] =
 {
