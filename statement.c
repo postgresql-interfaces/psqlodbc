@@ -2675,13 +2675,18 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		j = 0;
 		for (i = sta_pidx; i <= end_pidx; i++)
 		{
-			if (i < ipdopts->allocated &&
-			    SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
-				paramTypes[j++] = PG_TYPE_VOID;
+			if (i < ipdopts->allocated)
+			{
+				if (SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
+					paramTypes[j++] = PG_TYPE_VOID;
+				else
+					paramTypes[j++] = sqltype_to_bind_pgtype(conn,
+															 ipdopts->parameters[i].SQLType);
+			}
 			else
 			{
-				paramTypes[j++] = sqltype_to_bind_pgtype(conn,
-														 ipdopts->parameters[i].SQLType);
+				/* Unknown type of parameter. Let the server decide */
+				paramTypes[j++] = 0;
 			}
 		}
 	}

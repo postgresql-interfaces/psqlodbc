@@ -112,16 +112,21 @@ int main(int argc, char **argv)
 	 */
 	printf("\nPreparing an INSERT statement\n");
 	runtest("INSERT INTO premature_test VALUES (?) RETURNING 'plain insert'::text", "plain insert", NULL, 0);
+	/* same with no parameter bound */
+	runtest("INSERT INTO premature_test VALUES (?) RETURNING 'plain insert'::text", NULL, NULL, 0);
 
 	/*** Now, do the same with the function ***/
 	printf("\nPreparing an insert using a function\n");
 	runtest("SELECT insertfunc(?)", "function insert", NULL, 0);
+	runtest("SELECT insertfunc(?)", NULL, NULL, 0);
 
 	/*** Same with the function, used in a multi-statement ***/
 
 	printf("\nPreparing a multi-statement\n");
 	runtest("SELECT 'foo', 2, 3; SELECT insertfunc(?), 2; SELECT 'bar'",
 			"function insert in multi-statement", NULL, 0);
+	runtest("SELECT 'foo', 2, 3; SELECT insertfunc(?), 2; SELECT 'bar'",
+			NULL, NULL, 0);
 
 	/*** Again with the function, but this time execute it too. With a
 	 * twist: we rebind a different parameter after the SQLNumResultCols

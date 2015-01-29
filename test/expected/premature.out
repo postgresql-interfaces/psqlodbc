@@ -3,11 +3,14 @@ connected
 
 Preparing an INSERT statement
 # of result cols: 1
+# of result cols: 1
 
 Preparing an insert using a function
 # of result cols: 1
+# of result cols: 1
 
 Preparing a multi-statement
+# of result cols: 3
 # of result cols: 3
 
 Prepare with function, but execute with different param
