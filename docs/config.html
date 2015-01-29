@@ -36,9 +36,11 @@ the old podbc32.<br />&nbsp;</li>
 Log communications to/from the backend to that file. This is good
 for debugging problems.<br />&nbsp;</li>
 
-<li><b>Parse Statements:</b> Tell the driver how to gather the information about result columns of queries. See also <em>Disallow Premature</em> and <em>ServerSide Prepare</em> options.<br>
-The driver checks this option first. If disabled then it checks the Server Side Prepare option. If disabled also it checks the Disallow Premature option.<br>
-If neither of them is specified the driver would execute the prepared statement prematurely when the application inquires the result columns' info.<br><br>
+<li><b>Parse Statements:</b> Tell the driver how to gather the information
+  about result columns of queries, if the application requests that information
+  before executing the query. See also <em>ServerSide Prepare</em> options.<br>
+The driver checks this option first. If disabled then it checks the Server Side Prepare option.<br>
+<br>
 
 If this option is enabled,
 the driver will parse an SQL query statement to identify the columns and
@@ -46,9 +48,12 @@ tables and gather statistics about them such as precision, nullability,
 aliases, etc. It then reports this information in SQLDescribeCol,
 SQLColAttributes, and SQLNumResultCols.<br><br>
 
+When this option is disabled (the default), the query is sent to the server
+to be parsed and described.
+
 If the parser can not deal with a column (because it is a function
-or expression, etc.), it will fallback to executing the statement which
-is the old style of getting the info. The parser is fairly
+or expression, etc.), it will fall back to describing the statement in
+the server. The parser is fairly
 sophisticated and can handle many things such as column and table aliases,
 quoted identifiers, literals, joins, cross-products, etc. It can
 correctly identify a function or expression column, regardless of the complexity,
@@ -154,42 +159,17 @@ option well. See the <a "https://odbc.postgresql.org/faq.html">faq</a>
 for details on what you need to do to your database to allow for the row
 versioning feature to be used.<br />&nbsp;</li>
 
-<li><b>Disallow Premature:</b>
-<b><em>Server side prepare</em></b> is a more preferable option.<br>
-Tell the driver how to gather the information about result columns. See also <em>Parse Staements</em> and <em>Server Side Prepare</em> options.<br>
-This is an option to compensate for the lack of a server's <em>Prepare</em> functionality.
-For example, (Middleware) applications issue the following ODBC API calls.<br><br>
-
-   SQLPrepare(hstmt, "select ...", ..)<br><br>
-
-In most cases they have to know how many fields, what kind
-of fields they would return and so they would issue<br><br>
-
-   SQLNumResultCols and/or <br>
-   SQLDescribeCols/SQLColAttribute etc.<br><br>
-
-The problem is how the psqlODBC driver answers the inquiry. PostgreSQL hadn't
-provided the <em>Prepare</em> functionality until 7.4 and we couldn't ask the
-backend about it directly.
-
-When using Disallow Premature, the driver will get the column info as follows:<br><br>
-<i>
-&nbsp;&nbsp;&nbsp;begin;(unless in a transaction)<br>
-&nbsp;&nbsp;&nbsp;declare cursor .. for select ...<br>
-&nbsp;&nbsp;&nbsp;fetch backward in ..<br>
-&nbsp;&nbsp;&nbsp;close ..<br><br>
-</i>
-The driver gets the field info using the fetch backward's result. The fetch
-backward command returns no row but returns the field info. Though the command
-is expected to be returned immediately it isn't true for 7.0- servers
-unfortunately.
-The 7.1 or later servers <b>do</b> seem to return from the fetch backward
-command immediately.<br />&nbsp;</li>
-
 <li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
 <br />&nbsp;</li>
 
-<li><b>Server side prepare:</b>If set, the driver uses server-side prepared statements. See also <em>Parse Statement</em> and <em>Disallow Premature</em> options.
+<li><b>Server side prepare:</b>If set, the driver uses server-side prepared
+  statements. See also <em>Parse Statement</em> option. Note that if a query
+  needs to be described before execution, e.g. because the application calls
+  SQLDescribeCol() or SQLNumResultCols() before SQLExecute(), the driver will
+  send a Parse request to the server even if this option is disabled. In that
+  case, the query that is sent to the server for parsing will have the
+  parameter markers replaced with the actual parameter values, or NULL literals
+  if the values are not known yet.
 
 <li><b>use gssapi for GSS request:</b> GSSAPI use to AUTH_REQ_GSS request from a server.(only Windows)<br />&nbsp;</li>
 

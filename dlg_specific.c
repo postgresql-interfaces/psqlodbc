@@ -310,7 +310,6 @@ inolog("hlen=%d", hlen);
 			INI_EXTRASYSTABLEPREFIXES "=%s;"
 			INI_LFCONVERSION "=%d;"
 			INI_UPDATABLECURSORS "=%d;"
-			INI_DISALLOWPREMATURE "=%d;"
 			INI_TRUEISMINUS1 "=%d;"
 			INI_INT8AS "=%d;"
 			INI_BYTEAASLONGVARBINARY "=%d;"
@@ -345,7 +344,6 @@ inolog("hlen=%d", hlen);
 			,ci->drivers.extra_systable_prefixes
 			,ci->lf_conversion
 			,ci->allow_keyset
-			,ci->disallow_premature
 			,ci->true_is_minus1
 			,ci->int8_as
 			,ci->bytea_as_longvarbinary
@@ -364,8 +362,6 @@ inolog("hlen=%d", hlen);
 	if (abbrev || olen >= nlen || olen < 0)
 	{
 		flag = 0;
-		if (ci->disallow_premature)
-			flag |= BIT_DISALLOWPREMATURE;
 		if (ci->allow_keyset)
 			flag |= BIT_UPDATABLECURSORS;
 		if (ci->lf_conversion)
@@ -500,7 +496,6 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		sscanf(cnt, "%x", &count);
 		sscanf(value + 2, "%x", &flag);
 	}
-	ci->disallow_premature = (char)((flag & BIT_DISALLOWPREMATURE) != 0);
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);
 	ci->lf_conversion = (char)((flag & BIT_LFCONVERSION) != 0);
 	if (count < 4)
@@ -613,8 +608,6 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		else
 			ci->conn_settings = decode(value);
 	}
-	else if (stricmp(attribute, INI_DISALLOWPREMATURE) == 0 || stricmp(attribute, ABBR_DISALLOWPREMATURE) == 0)
-		ci->disallow_premature = atoi(value);
 	else if (stricmp(attribute, INI_UPDATABLECURSORS) == 0 || stricmp(attribute, ABBR_UPDATABLECURSORS) == 0)
 		ci->allow_keyset = atoi(value);
 	else if (stricmp(attribute, INI_LFCONVERSION) == 0 || stricmp(attribute, ABBR_LFCONVERSION) == 0)
@@ -696,7 +689,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',conn_settings='%s',disallow_premature=%d)\n", func, ci->dsn, ci->server, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "", ci->port, ci->onlyread, ci->conn_settings, ci->disallow_premature);
+	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',conn_settings='%s')\n", func, ci->dsn, ci->server, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "", ci->port, ci->onlyread, ci->conn_settings);
 
 	return found;
 }
@@ -779,8 +772,6 @@ getDSNdefaults(ConnInfo *ci)
 	if (ci->row_versioning[0] == '\0')
 		sprintf(ci->row_versioning, "%d", DEFAULT_ROWVERSIONING);
 
-	if (ci->disallow_premature < 0)
-		ci->disallow_premature = DEFAULT_DISALLOWPREMATURE;
 	if (ci->allow_keyset < 0)
 		ci->allow_keyset = DEFAULT_UPDATABLECURSORS;
 	if (ci->lf_conversion < 0)
@@ -934,13 +925,6 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->translation_option[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_TRANSLATIONOPTION, "", ci->translation_option, sizeof(ci->translation_option), ODBC_INI);
-
-	if (ci->disallow_premature < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_DISALLOWPREMATURE, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->disallow_premature = atoi(temp);
-	}
 
 	if (ci->allow_keyset < 0 || overwrite)
 	{
@@ -1237,11 +1221,6 @@ writeDSNinfo(const ConnInfo *ci)
 								 encoded_item,
 								 ODBC_INI);
 
-	sprintf(temp, "%d", ci->disallow_premature);
-	SQLWritePrivateProfileString(DSN,
-								 INI_DISALLOWPREMATURE,
-								 temp,
-								 ODBC_INI);
 	sprintf(temp, "%d", ci->allow_keyset);
 	SQLWritePrivateProfileString(DSN,
 								 INI_UPDATABLECURSORS,

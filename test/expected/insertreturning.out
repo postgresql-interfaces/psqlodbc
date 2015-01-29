@@ -304,304 +304,304 @@ foobar 99
 disconnecting
 Testing with UseServerSidePrepare=0
 connected
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 0
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 1
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 2
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 3
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 4
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 5
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 6
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 7
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 8
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 9
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 10
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 11
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 12
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 13
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 14
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 15
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 16
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 17
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 18
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 19
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 20
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 21
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 22
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 23
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 24
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 25
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 26
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 27
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 28
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 29
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 30
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 31
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 32
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 33
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 34
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 35
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 36
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 37
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 38
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 39
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 40
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 41
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 42
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 43
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 44
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 45
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 46
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 47
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 48
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 49
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 50
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 51
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 52
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 53
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 54
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 55
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 56
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 57
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 58
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 59
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 60
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 61
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 62
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 63
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 64
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 65
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 66
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 67
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 68
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 69
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 70
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 71
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 72
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 73
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 74
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 75
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 76
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 77
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 78
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 79
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 80
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 81
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 82
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 83
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 84
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 85
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 86
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 87
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 88
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 89
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 90
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 91
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 92
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 93
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 94
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 95
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 96
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 97
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 98
-# of result cols before SQLExecute: 0, after: 1
+# of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 99
 disconnecting

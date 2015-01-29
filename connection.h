@@ -227,7 +227,6 @@ typedef struct
 	char		translation_option[SMALL_REGISTRY_LEN];
 	char		password_required;
 	pgNAME		conn_settings;
-	signed char	disallow_premature;
 	signed char	allow_keyset;
 	signed char	updatable_cursors;
 	signed char	lf_conversion;

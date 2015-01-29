@@ -366,8 +366,6 @@ static void SC_init_parse_method(StatementClass *self)
 	if (self->catalog_result) return;
 	if (conn->connInfo.drivers.parse)
 		SC_set_parse_forced(self);
-	if (self->multi_statement <= 0 && conn->connInfo.disallow_premature)
-		SC_set_parse_tricky(self);
 }
 
 StatementClass *
@@ -447,8 +445,6 @@ SC_Constructor(ConnectionClass *conn)
 		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->ipdi),
 				rv, SQL_ATTR_IMP_PARAM_DESC);
 
-		rv->pre_executing = FALSE;
-		rv->inaccurate_result = FALSE;
 		rv->miscinfo = 0;
 		rv->rbonerr = 0;
 		SC_reset_updatable(rv);
@@ -755,11 +751,11 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 		return TRUE;
 	}
 	/*
-	 * We can dispose the result of PREMATURE execution any time.
+	 * We can dispose the result of Describe-only any time.
 	 */
-	if (self->prepare && self->status == STMT_PREMATURE)
+	if (self->prepare && self->status == STMT_DESCRIBED)
 	{
-		mylog("SC_opencheck: self->prepare && self->status == STMT_PREMATURE\n");
+		mylog("SC_opencheck: self->prepare && self->status == STMT_DESCRIBED\n");
 		return FALSE;
 	}
 	if (res = SC_get_Curres(self), NULL != res)
@@ -839,20 +835,7 @@ SC_recycle_statement(StatementClass *self)
 		case STMT_READY:
 			break;
 
-		case STMT_PREMATURE:
-
-			/*
-			 * Premature execution of the statement might have caused the
-			 * start of a transaction. If so, we have to rollback that
-			 * transaction.
-			 */
-			if (CC_loves_visible_trans(conn) && CC_is_in_trans(conn))
-			{
-				if (SC_is_pre_executable(self) && !SC_is_parse_tricky(self))
-				{
-					/* CC_abort(conn); */
-				}
-			}
+		case STMT_DESCRIBED:
 			break;
 
 		case STMT_FINISHED:
@@ -878,7 +861,6 @@ inolog("SC_clear_parse_status\n");
 	/* Free any cursors */
 	if (SC_get_Result(self))
 		SC_set_Result(self, NULL);
-	self->inaccurate_result = FALSE;
 	self->miscinfo = 0;
 	/* self->rbonerr = 0; Never clear the bits here */
 
@@ -1087,14 +1069,17 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 }
 
 /*
- * Pre-execute a statement (for SQLPrepare/SQLDescribeCol)
+ * Describe the result set a statement will produce (for
+ * SQLPrepare/SQLDescribeCol)
+ *
+ * returns # of fields if successful, -1 on error.
  */
-Int4	/* returns # of fields if successful */
-SC_pre_execute(StatementClass *self)
+Int4
+SC_describe(StatementClass *self)
 {
 	Int4		num_fields = -1;
 	QResultClass	*res;
-	mylog("SC_pre_execute: status = %d\n", self->status);
+	mylog("SC_describe: status = %d\n", self->status);
 
 	res = SC_get_Curres(self);
 	if (NULL != res)
@@ -1106,53 +1091,33 @@ SC_pre_execute(StatementClass *self)
 	}
 	if (self->status == STMT_READY)
 	{
-		mylog("              preprocess: status = READY\n");
+mylog("              preprocess: status = READY\n");
 
 		self->miscinfo = 0;
-		if (SC_can_req_colinfo(self))
+
+		decideHowToPrepare(self, FALSE);
+		switch (SC_get_prepare_method(self))
 		{
-			char		old_pre_executing = self->pre_executing;
-
-			decideHowToPrepare(self, FALSE);
-			self->inaccurate_result = FALSE;
-			switch (SC_get_prepare_method(self))
-			{
-				case NAMED_PARSE_REQUEST:
-				case PARSE_TO_EXEC_ONCE:
-					if (SQL_SUCCESS != prepareParameters(self))
-						return num_fields;
-					break;
-				case PARSE_REQ_FOR_INFO:
-					if (SQL_SUCCESS != prepareParameters(self))
-						return num_fields;
-					self->status = STMT_PREMATURE;
-					self->inaccurate_result = TRUE;
-					break;
-				default:
-					self->pre_executing = TRUE;
-					PGAPI_Execute(self, 0);
-
-					self->pre_executing = old_pre_executing;
-
-					if (self->status == STMT_FINISHED)
-					{
-						mylog("              preprocess: after status = FINISHED, so set PREMATURE\n");
-						self->status = STMT_PREMATURE;
-					}
-			}
-			if (res = SC_get_Curres(self), NULL != res)
-			{
-				num_fields = QR_NumResultCols(res);
-				return num_fields;
-			}
+			case NAMED_PARSE_REQUEST:
+			case PARSE_TO_EXEC_ONCE:
+				if (SQL_SUCCESS != prepareParameters(self, FALSE))
+					return num_fields;
+				break;
+			case PARSE_REQ_FOR_INFO:
+				if (SQL_SUCCESS != prepareParameters(self, FALSE))
+					return num_fields;
+				self->status = STMT_DESCRIBED;
+				break;
+			default:
+				if (SQL_SUCCESS != prepareParameters(self, TRUE))
+					return num_fields;
+				self->status = STMT_DESCRIBED;
+				break;
 		}
-		if (!SC_is_pre_executable(self))
+		if (res = SC_get_Curres(self), NULL != res)
 		{
-			SC_set_Result(self, QR_Constructor());
-			QR_set_rstatus(SC_get_Result(self), PORES_TUPLES_OK);
-			self->inaccurate_result = TRUE;
-			self->status = STMT_PREMATURE;
-			num_fields = 0;
+			num_fields = QR_NumResultCols(res);
+			return num_fields;
 		}
 	}
 	return num_fields;
@@ -2502,7 +2467,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		if (!stmt->processed_statements)
 		{
-			if (prepareParametersNoDesc(stmt) == SQL_ERROR)
+			if (prepareParametersNoDesc(stmt, FALSE) == SQL_ERROR)
 				goto cleanup;
 		}
 
@@ -2522,7 +2487,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		if (stmt->prepared == PREPARING_PERMANENTLY)
 		{
-			if (prepareParameters(stmt) == SQL_ERROR)
+			if (prepareParameters(stmt, FALSE) == SQL_ERROR)
 				goto cleanup;
 		}
 

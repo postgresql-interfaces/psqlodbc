@@ -531,7 +531,6 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	sprintf(ci->show_system_tables, "%d", IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
 
 	sprintf(ci->row_versioning, "%d", IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
-	ci->disallow_premature = IsDlgButtonChecked(hdlg, DS_DISALLOWPREMATURE);
 	ci->lf_conversion = IsDlgButtonChecked(hdlg, DS_LFCONVERSION);
 	ci->true_is_minus1 = IsDlgButtonChecked(hdlg, DS_TRUEISMINUS1);
 	ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
@@ -661,7 +660,6 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_FAKEOIDINDEX, atoi(ci->fake_oid_index));
 			CheckDlgButton(hdlg, DS_ROWVERSIONING, atoi(ci->row_versioning));
 			CheckDlgButton(hdlg, DS_SHOWSYSTEMTABLES, atoi(ci->show_system_tables));
-			CheckDlgButton(hdlg, DS_DISALLOWPREMATURE, ci->disallow_premature);
 			CheckDlgButton(hdlg, DS_LFCONVERSION, ci->lf_conversion);
 			CheckDlgButton(hdlg, DS_TRUEISMINUS1, ci->true_is_minus1);
 			CheckDlgButton(hdlg, DS_UPDATABLECURSORS, ci->allow_keyset);

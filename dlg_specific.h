@@ -134,8 +134,14 @@ extern "C" {
 #define INI_TRANSLATIONNAME		"TranslationName"
 #define INI_TRANSLATIONDLL		"TranslationDLL"
 #define INI_TRANSLATIONOPTION		"TranslationOption"
-#define INI_DISALLOWPREMATURE		"DisallowPremature"
-#define ABBR_DISALLOWPREMATURE		"C3"
+/*
+ * "DisallowPremature", abbreviated "C3", used to mean that we should not
+ * execute a statement prematurely, before SQLExecute() when e.g.
+ * SQLPrepare+SQLDescribeCol is called. We never do that anymore.
+ *
+#define INI_DISALLOWPREMATURE          "DisallowPremature"
+#define ABBR_DISALLOWPREMATURE         "C3"
+*/
 #define INI_UPDATABLECURSORS		"UpdatableCursors"
 #define ABBR_UPDATABLECURSORS		"C4"
 #define INI_LFCONVERSION		"LFConversion"
@@ -182,10 +188,10 @@ extern "C" {
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define INI_XAOPT			"XaOpt"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
-/* Bit representaion for abbreviated connection strings */
+/* Bit representation for abbreviated connection strings */
 #define BIT_LFCONVERSION			(1L)
 #define BIT_UPDATABLECURSORS			(1L<<1)
-#define BIT_DISALLOWPREMATURE			(1L<<2)
+/* #define BIT_DISALLOWPREMATURE                  (1L<<2) */
 #define BIT_UNIQUEINDEX				(1L<<3)
 #define BIT_UNKNOWN_DONTKNOW			(1L<<6)
 #define BIT_UNKNOWN_ASMAX			(1L<<7)
@@ -244,7 +250,6 @@ extern "C" {
 
 #define DEFAULT_EXTRASYSTABLEPREFIXES	"dd_"
 
-#define DEFAULT_DISALLOWPREMATURE	0
 #define DEFAULT_TRUEISMINUS1		0
 #define DEFAULT_UPDATABLECURSORS	1
 #ifdef	WIN32

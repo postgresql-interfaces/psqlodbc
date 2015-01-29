@@ -25,14 +25,14 @@ typedef enum
 	STMT_ALLOCATED,				/* The statement handle is allocated, but
 								 * not used so far */
 	STMT_READY,					/* the statement is waiting to be executed */
-	STMT_PREMATURE,				/* ODBC states that it is legal to call
+	STMT_DESCRIBED,				/* ODBC states that it is legal to call
 								 * e.g. SQLDescribeCol before a call to
 								 * SQLExecute, but after SQLPrepare. To
 								 * get all the necessary information in
-								 * such a case, we simply execute the
-								 * query _before_ the actual call to
-								 * SQLExecute, so that statement is
-								 * considered to be "premature". */
+								 * such a case, we parse the query _before_
+								 * the actual call to SQLExecute, and the
+								 * result set contains only column information,
+								 * but no actual data. */
 	STMT_FINISHED,				/* statement execution has finished */
 	STMT_EXECUTING				/* statement execution is still going on */
 } STMT_Status;
@@ -279,9 +279,6 @@ struct StatementClass_
 	SQLLEN		exec_end_row;
 	SQLLEN		exec_current_row;
 
-	po_ind_t	pre_executing;	/* This statement is prematurely executing */
-	po_ind_t	inaccurate_result;	/* Current status is PREMATURE but
-						 * result is inaccurate */
 	unsigned char	miscinfo;
 	po_ind_t	updatable;
 	SQLLEN		diag_row_count;
@@ -346,9 +343,6 @@ void SC_set_Result(StatementClass *self, QResultClass *res);
 #define	SC_clear_parse_method(s)	((s)->parse_method = 0)
 #define	SC_is_parse_forced(s)	(0 != ((s)->parse_method & 1L))
 #define	SC_set_parse_forced(s)	((s)->parse_method |= 1L)
-#define	SC_is_parse_tricky(s)	(0 != ((s)->parse_method & 2L))
-#define	SC_set_parse_tricky(s)	((s)->parse_method |= 2L)
-#define	SC_no_parse_tricky(s)	((s)->parse_method &= ~2L)
 
 #define	SC_cursor_is_valid(s)	(NAME_IS_VALID(s->cursor_name))
 #define	SC_cursor_name(s)	(SAFE_NAME(s->cursor_name))
@@ -405,9 +399,6 @@ enum
 };
 
 /*	misc info */
-#define SC_set_pre_executable(a) (a->miscinfo |= 1L)
-#define SC_no_pre_executable(a) (a->miscinfo &= ~1L)
-#define SC_is_pre_executable(a) ((a->miscinfo & 1L) != 0)
 #define SC_set_fetchcursor(a)	(a->miscinfo |= (1L << 1))
 #define SC_no_fetchcursor(a)	(a->miscinfo &= ~(1L << 1))
 #define SC_is_fetchcursor(a)	((a->miscinfo & (1L << 1)) != 0)
@@ -443,13 +434,6 @@ enum
 	(SC_get_APDF(a)->paramset_size <= 1 &&								\
 	 (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type) )
 #define SC_may_fetch_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
-#define SC_can_req_colinfo(a) (STMT_TYPE_SELECT == (a)->statement_type || \
-		 STMT_TYPE_WITH == (a)->statement_type || \
-		((a)->prepare && \
-		 STMT_TYPE_INSERT <= (a)->statement_type && \
-		 STMT_TYPE_DELETE >= (a)->statement_type && \
-		 SC_get_conn((a))->connInfo.use_server_side_prepare))
-#define SC_determine_statement_type(a) (STMT_TYPE_SELECT != (a)->statement_type ? (a)->statement_type : ((a)->statement_type = || statement_type((a)->statement)))
 
 
 /* For Multi-thread */
@@ -484,7 +468,7 @@ int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
 char		parse_sqlsvr(StatementClass *stmt);
 SQLRETURN	SC_set_SS_columnkey(StatementClass *stmt);
-Int4		SC_pre_execute(StatementClass *self);
+Int4		SC_describe(StatementClass *self);
 char		SC_unbind_cols(StatementClass *self);
 char		SC_recycle_statement(StatementClass *self);
 

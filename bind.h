@@ -111,8 +111,8 @@ void	reset_a_putdata_info(PutDataInfo *pdata, int ipar);
 void	PDATA_free_params(PutDataInfo *pdata, char option);
 void	SC_param_next(const StatementClass*, int *param_number, ParameterInfoClass **, ParameterImplClass **);
 
-RETCODE       prepareParameters(StatementClass *stmt);
-RETCODE       prepareParametersNoDesc(StatementClass *stmt);
+RETCODE       prepareParameters(StatementClass *stmt, BOOL fake_params);
+RETCODE       prepareParametersNoDesc(StatementClass *stmt, BOOL fake_params);
 int	decideHowToPrepare(StatementClass *stmt, BOOL force);
 
 #endif

@@ -1930,7 +1930,6 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
  *--------------------------------------------------------------------
  */
 
-#define	FLGP_PREPARE_DUMMY_CURSOR	1L
 #define	FLGP_USING_CURSOR	(1L << 1)
 #define	FLGP_SELECT_INTO		(1L << 2)
 #define	FLGP_SELECT_FOR_UPDATE_OR_SHARE	(1L << 3)
@@ -2606,9 +2605,14 @@ buildProcessedStmt(const char *srvquery, ssize_t endp, int num_params)
  * Split a possible multi-statement query into parts, and replace ?-style
  * parameter markers with $n. The resulting queries are stored in a linked
  * list in stmt->processed_statements.
+ *
+ * If 'fake_params' is true, we will replace ?-style parameter markers with
+ * fake parameter values instead. This is used when a query's result columns
+ * have to be described (SQLPrepare+SQLDescribeCol) before executing the
+ * query, in UseServerSidePrepare=0 mode.
  */
 RETCODE
-prepareParametersNoDesc(StatementClass *stmt)
+prepareParametersNoDesc(StatementClass *stmt, BOOL fake_params)
 {
 	CSTR		func = "process_statements";
 	RETCODE		retval;
@@ -2627,7 +2631,8 @@ inolog("prepareParametersNoDesc\n");
 	qp = &query_org;
 	QP_initialize(qp, stmt);
 	qb = &query_crt;
-	if (QB_initialize(qb, qp->stmt_len, stmt, RPM_BUILDING_PREPARE_STATEMENT) < 0)
+	if (QB_initialize(qb, qp->stmt_len, stmt,
+					  fake_params ? RPM_FAKE_PARAMS : RPM_BUILDING_PREPARE_STATEMENT) < 0)
 		return SQL_ERROR;
 
 	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
@@ -2657,7 +2662,9 @@ inolog("prepareParametersNoDesc\n");
 	SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
 	SC_scanQueryAndCountParams(srvquery, conn, &endp2, NULL, NULL, NULL);
 	mylog("%s:parsed for the first command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
-	pstmt = buildProcessedStmt(srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
+	pstmt = buildProcessedStmt(srvquery,
+							   endp2 < 0 ? SQL_NTS : endp2,
+							   fake_params ? 0 : num_p1);
 	if (!pstmt)
 		goto cleanup;
 	stmt->processed_statements = last_pstmt = pstmt;
@@ -2669,7 +2676,9 @@ inolog("prepareParametersNoDesc\n");
 		SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
 		SC_scanQueryAndCountParams(srvquery, conn, &endp2, &num_p2, NULL, NULL);
 		mylog("%s:parsed for the subsequent command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
-		pstmt = buildProcessedStmt(srvquery, endp2 < 0 ? SQL_NTS : endp2, num_p1);
+		pstmt = buildProcessedStmt(srvquery,
+								   endp2 < 0 ? SQL_NTS : endp2,
+								   fake_params ? 0 : num_p1);
 		if (!pstmt)
 			goto cleanup;
 		last_pstmt->next = pstmt;
@@ -2747,7 +2756,7 @@ cleanup:
  * Process the original SQL query, and and ask the server describe the
  * parameters.
  */
-RETCODE	prepareParameters(StatementClass *stmt)
+RETCODE	prepareParameters(StatementClass *stmt, BOOL fake_params)
 {
 	ConnectionClass *conn = SC_get_conn(stmt);
 
@@ -2768,7 +2777,7 @@ RETCODE	prepareParameters(StatementClass *stmt)
 
 inolog("prepareParameters\n");
 
-	if (prepareParametersNoDesc(stmt) == SQL_ERROR)
+	if (prepareParametersNoDesc(stmt, fake_params) == SQL_ERROR)
 		return SQL_ERROR;
 	return desc_params_and_sync(stmt);
 }
@@ -2788,7 +2797,6 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 
 	char	   *new_statement;
 
-	BOOL	begin_first = FALSE, prepare_dummy_cursor = FALSE;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
 	const		char *bestitem = NULL;
@@ -2873,9 +2881,6 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	}
 
 	SC_no_fetchcursor(stmt);
-	SC_no_pre_executable(stmt);
-	if (SC_may_use_cursor(stmt))
-		SC_set_pre_executable(stmt);
 	qb = &query_crt;
 	qb->query_statement = NULL;
 	if (PREPARED_PERMANENTLY == stmt->prepared)
@@ -2908,12 +2913,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	}
 
 	/* Otherwise... */
-	if (ci->disallow_premature)
-		prepare_dummy_cursor = stmt->pre_executing;
-	if (prepare_dummy_cursor)
-		qp->flags |= FLGP_PREPARE_DUMMY_CURSOR;
-	if (QB_initialize(qb, qp->stmt_len, stmt,
-					  stmt->pre_executing ? RPM_FAKE_PARAMS : RPM_REPLACE_PARAMS) < 0)
+	if (QB_initialize(qb, qp->stmt_len, stmt, RPM_REPLACE_PARAMS) < 0)
 	{
 		retval = SQL_ERROR;
 		goto cleanup;
@@ -2925,17 +2925,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	{
 		const char *opt_scroll = NULL_STRING, *opt_hold = NULL_STRING;
 
-		if (prepare_dummy_cursor)
-		{
-			SC_set_fetchcursor(stmt);
-			opt_scroll = " scroll";
-			if (!CC_is_in_trans(conn))
-			{
-				strcpy(new_statement, "BEGIN;");
-				begin_first = TRUE;
-			}
-		}
-		else if (ci->drivers.use_declarefetch
+		if (ci->drivers.use_declarefetch
 			 /** && SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency **/
 			)
 		{
@@ -2976,7 +2966,6 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 
 	new_statement = qb->query_statement;
 	stmt->statement_type = qp->statement_type;
-	stmt->inaccurate_result = (0 != (qb->flags & FLGB_INACCURATE_RESULT));
 	if (0 == (qp->flags & FLGP_USING_CURSOR))
 		SC_no_fetchcursor(stmt);
 #ifdef NOT_USED	/* this seems problematic */
@@ -3005,7 +2994,6 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	if (0 != (qp->flags & FLGP_SELECT_INTO) ||
 	    0 != (qp->flags & FLGP_MULTIPLE_STATEMENT))
 	{
-		SC_no_pre_executable(stmt);
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	}
 	if (0 != (qp->flags & FLGP_SELECT_FOR_UPDATE_OR_SHARE))
@@ -3058,17 +3046,6 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		stmt->load_statement = malloc(npos + 1);
 		memcpy(stmt->load_statement, qb->query_statement + qp->declare_pos, npos);
 		stmt->load_statement[npos] = '\0';
-	}
-	if (prepare_dummy_cursor && SC_is_pre_executable(stmt))
-	{
-		char		fetchstr[128];
-
-		sprintf(fetchstr, ";fetch backward in \"%s\";close \"%s\";",
-				SC_cursor_name(stmt), SC_cursor_name(stmt));
-		if (begin_first && CC_is_in_autocommit(conn))
-			strcat(fetchstr, "COMMIT;");
-		CVT_APPEND_STR(qb, fetchstr);
-		stmt->inaccurate_result = TRUE;
 	}
 
 	stmt->stmt_with_params = qb->query_statement;
@@ -3514,16 +3491,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							flg = table_for_update_or_share(F_OldPtr(qp), &endpos);
 							if (0 != (FLGP_SELECT_FOR_UPDATE_OR_SHARE & flg))
 							{
-								if (qp->flags & FLGP_PREPARE_DUMMY_CURSOR)
-								{
-									qb->npos -= 4;
-									qp->opos += endpos;
-								}
-								else
-								{
-									qp->flags |= flg;
-									remove_declare_cursor(qb, qp);
-								}
+								qp->flags |= flg;
+								remove_declare_cursor(qb, qp);
 							}
 							else
 								qp->flags |= flg;

@@ -62,8 +62,8 @@ PGAPI_Prepare(HSTMT hstmt,
 	SC_set_prepared(self, NOT_YET_PREPARED);
 	switch (self->status)
 	{
-		case STMT_PREMATURE:
-			mylog("**** PGAPI_Prepare: STMT_PREMATURE, recycle\n");
+		case STMT_DESCRIBED:
+			mylog("**** PGAPI_Prepare: STMT_DESCRIBED, recycle\n");
 			SC_recycle_statement(self); /* recycle the statement, but do
 										 * not remove parameter bindings */
 			break;
@@ -174,10 +174,10 @@ inolog("a2\n");
 
 	/*
 	 * If an SQLPrepare was performed prior to this, but was left in the
-	 * premature state because an error occurred prior to SQLExecute then
+	 * described state because an error occurred prior to SQLExecute then
 	 * set the statement to finished so it can be recycled.
 	 */
-	if (stmt->status == STMT_PREMATURE)
+	if (stmt->status == STMT_DESCRIBED)
 		stmt->status = STMT_FINISHED;
 
 	stmt->statement_type = statement_type(stmt->statement);
@@ -258,8 +258,6 @@ decideHowToPrepare(StatementClass *stmt, BOOL force)
 	int	method = SC_get_prepare_method(stmt);
 
 	if (0 != method) /* a method was already determined */
-		return method;
-	if (stmt->inaccurate_result)
 		return method;
 	switch (stmt->prepare)
 	{
@@ -426,11 +424,9 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	cursor_type = stmt->options.cursor_type;
 	scroll_concurrency = stmt->options.scroll_concurrency;
 	/* Prepare the statement if possible at backend side */
-	if (!stmt->inaccurate_result)
-	{
-		if (HowToPrepareBeforeExec(stmt, FALSE) >= allowParse)
-			prepare_before_exec = TRUE;
-	}
+	if (HowToPrepareBeforeExec(stmt, FALSE) >= allowParse)
+		prepare_before_exec = TRUE;
+
 inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.use_server_side_prepare);
 	/* Create the statement with parameters substituted. */
 	retval = copy_statement_with_parameters(stmt, prepare_before_exec);
@@ -444,55 +440,6 @@ inolog("prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.us
 
 	mylog("   stmt_with_params = '%s'\n", stmt->stmt_with_params);
 
-	/*
-	 *	Dummy exection to get the column info.
-	 */
-	if (stmt->inaccurate_result && SC_is_parse_tricky(stmt))
-	{
-		BOOL		in_trans = CC_is_in_trans(conn);
-		BOOL		issued_begin = FALSE;
-		QResultClass *curres;
-
-		stmt->exec_current_row = -1;
-		*exec_end = TRUE;
-		if (!SC_is_pre_executable(stmt))
-			RETURN(SQL_SUCCESS)
-		if (strnicmp(stmt->stmt_with_params, "BEGIN;", 6) == 0)
-		{
-			/* do nothing */
-		}
-		else if (!in_trans)
-		{
-			if (issued_begin = CC_begin(conn), !issued_begin)
-			{
-				SC_set_error(stmt, STMT_EXEC_ERROR,  "Handle prepare error", func);
-				RETURN(SQL_ERROR)
-			}
-		}
-		/* we are now in a transaction */
-		res = CC_send_query(conn, stmt->stmt_with_params, NULL, 0, SC_get_ancestor(stmt));
-		if (!QR_command_maybe_successful(res))
-		{
-#ifndef	_LEGACY_MODE_
-			if (PG_VERSION_LT(conn, 8.0))
-				CC_abort(conn);
-#endif /* LEGACY_MODE_ */
-			SC_set_error(stmt, STMT_EXEC_ERROR, "Handle prepare error", func);
-			QR_Destructor(res);
-			RETURN(SQL_ERROR)
-		}
-		SC_set_Result(stmt, res);
-		for (curres = res; !curres->num_fields; curres = curres->next)
-			;
-		SC_set_Curres(stmt, curres);
-		if (CC_does_autocommit(conn))
-		{
-			if (issued_begin)
-				CC_commit(conn);
-		}
-		stmt->status = STMT_FINISHED;
-		RETURN(SQL_SUCCESS)
-	}
 	/*
 	 *	The real execution.
 	 */
@@ -542,8 +489,7 @@ mylog("about to begin SC_execute\n");
 		apdopts = SC_get_APDF(stmt);
 		end_row = (SQLINTEGER) apdopts->paramset_size - 1;
 	}
-	if (stmt->inaccurate_result ||
-	    stmt->exec_current_row >= end_row)
+	if (stmt->exec_current_row >= end_row)
 	{
 		*exec_end = TRUE;
 		stmt->exec_current_row = -1;
@@ -878,34 +824,15 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 
 	conn = SC_get_conn(stmt);
 	apdopts = SC_get_APDF(stmt);
+
 	/*
-	 * If the statement is premature, it means we already executed it from
-	 * an SQLPrepare/SQLDescribeCol type of scenario.  So just return
-	 * success.
+	 * If the statement was previously described, just recycle the old result
+	 * set that contained just the column information.
 	 */
-	if (stmt->prepare && stmt->status == STMT_PREMATURE)
+	if (stmt->prepare && stmt->status == STMT_DESCRIBED)
 	{
-		if (stmt->inaccurate_result)
-		{
-			stmt->exec_current_row = -1;
-			SC_recycle_statement(stmt);
-		}
-		else
-		{
-			stmt->status = STMT_FINISHED;
-			if (NULL == SC_get_errormsg(stmt))
-			{
-				mylog("%s: premature statement but return SQL_SUCCESS\n", func);
-				retval = SQL_SUCCESS;
-				goto cleanup;
-			}
-			else
-			{
-				SC_set_error(stmt,STMT_INTERNAL_ERROR, "premature statement so return SQL_ERROR", func);
-				retval = SQL_ERROR;
-				goto cleanup;
-			}
-		}
+		stmt->exec_current_row = -1;
+		SC_recycle_statement(stmt);
 	}
 
 	mylog("%s: clear errors...\n", func);
@@ -984,7 +911,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 			switch (nCallParse = HowToPrepareBeforeExec(stmt, TRUE))
 			{
 				case shouldParse:
-					if (retval = prepareParameters(stmt), SQL_ERROR == retval)
+					if (retval = prepareParameters(stmt, FALSE), SQL_ERROR == retval)
 						goto cleanup;
 					break;
 			}
@@ -1035,7 +962,6 @@ next_param_row:
 	 * Check if statement has any data-at-execute parameters when it is
 	 * not in SC_pre_execute.
 	 */
-	if (!stmt->pre_executing)
 	{
 		/*
 		 * The bound parameters could have possibly changed since the last

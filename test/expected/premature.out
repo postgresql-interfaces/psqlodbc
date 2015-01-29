@@ -1,0 +1,19 @@
+\! "./src/premature-test"
+connected
+
+Preparing an INSERT statement
+# of result cols: 1
+
+Preparing an insert using a function
+# of result cols: 1
+
+Preparing a multi-statement
+# of result cols: 3
+
+Prepare with function, but execute with different param
+# of result cols: 1
+
+Checking table contents. Should contain only one row.
+Result set:
+function insert right
+disconnecting

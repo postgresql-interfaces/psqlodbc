@@ -17,6 +17,7 @@ TESTBINS = src/connect-test \
 	src/colattribute-test \
 	src/result-conversions-test \
 	src/prepare-test \
+	src/premature-test \
 	src/params-test \
 	src/param-conversions-test \
 	src/parse-test \

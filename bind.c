@@ -132,7 +132,7 @@ PGAPI_BindParameter(HSTMT hstmt,
 #endif /* NOT_USED */
 
 	/* Clear premature result */
-	if (stmt->status == STMT_PREMATURE)
+	if (stmt->status == STMT_DESCRIBED)
 		SC_recycle_statement(stmt);
 
 	mylog("%s: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=%d, ibScale=%d,", func, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale);
@@ -353,7 +353,7 @@ inolog("howTo=%d\n", SC_get_prepare_method(stmt));
 			case NAMED_PARSE_REQUEST:
 			case PARSE_TO_EXEC_ONCE:
 			case PARSE_REQ_FOR_INFO:
-				if (ret = prepareParameters(stmt), SQL_ERROR == ret)
+				if (ret = prepareParameters(stmt, FALSE), SQL_ERROR == ret)
 					goto cleanup;
 		}
 	}
@@ -457,8 +457,6 @@ inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 		stmt->num_params = *pcpar;
 		stmt->proc_return = proc_return;
 		stmt->multi_statement = multi;
-		if (multi)
-			SC_no_parse_tricky(stmt);
 	}
 inolog("num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	return SQL_SUCCESS;

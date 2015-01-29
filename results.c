@@ -85,11 +85,15 @@ PGAPI_RowCount(HSTMT hstmt,
 	return SQL_SUCCESS;
 }
 
-static BOOL SC_pre_execute_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *func)
+static BOOL
+SC_describe_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *func)
 {
-	Int2 num_fields = SC_pre_execute(stmt);
-	QResultClass	*result = SC_get_Curres(stmt);
-	BOOL	exec_ok = TRUE;
+	Int2		num_fields;
+	QResultClass *result;
+	BOOL		exec_ok = TRUE;
+
+	num_fields = SC_describe(stmt);
+	result = SC_get_Curres(stmt);
 
 	mylog("%s: result = %p, status = %d, numcols = %d\n", func, result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
 	/****if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
@@ -181,7 +185,7 @@ PGAPI_NumResultCols(HSTMT hstmt,
 
 	if (!parse_ok)
 	{
-		if (!SC_pre_execute_ok(stmt, FALSE, -1, func))
+		if (!SC_describe_ok(stmt, FALSE, -1, func))
 		{
 			ret = SQL_ERROR;
 			goto cleanup;
@@ -310,7 +314,7 @@ inolog("answering bookmark info\n");
 		 */
 		BOOL	build_fi = (NULL != pfNullable || NULL != pfSqlType);
 		fi = NULL;
-		if (!SC_pre_execute_ok(stmt, build_fi, icol, func))
+		if (!SC_describe_ok(stmt, build_fi, icol, func))
 		{
 			result = SQL_ERROR;
 			goto cleanup;
@@ -572,7 +576,7 @@ inolog("answering bookmark info\n");
 				build_fi = TRUE;
 				break;
 		}
-		if (!SC_pre_execute_ok(stmt, build_fi, col_idx, func))
+		if (!SC_describe_ok(stmt, build_fi, col_idx, func))
 			return SQL_ERROR;
 
 		res = SC_get_Curres(stmt);

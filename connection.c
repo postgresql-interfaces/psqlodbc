@@ -270,7 +270,6 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	if (0 != (CLEANUP_FOR_REUSE & option))
 		CC_conninfo_release(conninfo);
 	memset(conninfo, 0, sizeof(ConnInfo));
-	conninfo->disallow_premature = -1;
 	conninfo->allow_keyset = -1;
 	conninfo->lf_conversion = -1;
 	conninfo->true_is_minus1 = -1;
@@ -322,7 +321,6 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_STRCPY(translation_option);
 	CORR_VALCPY(password_required);
 	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
-	CORR_VALCPY(disallow_premature);
 	CORR_VALCPY(allow_keyset);
 	CORR_VALCPY(updatable_cursors);
 	CORR_VALCPY(lf_conversion);
