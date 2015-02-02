@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 	SQLRETURN rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
 
-	test_connect_ext("Parse=1:DisallowPremature=1");
+	test_connect_ext("Parse=1;DisallowPremature=1");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
