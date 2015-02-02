@@ -613,7 +613,8 @@ inolog(" multi=%d\n", multi_table);
 /*
  *	SQLColAttribute tries to set the FIELD_INFO (using protocol 3).
  */
-static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
+static BOOL
+ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 {
 	QResultClass	*res = SC_get_Curres(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
@@ -625,14 +626,12 @@ static BOOL ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 	BOOL		fi_reuse, updatable, call_xxxxx;
 
 mylog("ColAttSet in\n");
-	if (rti)
-	{
-		if (reloid = rti->table_oid, 0 == reloid)
-			return FALSE;
-		if (0 != (rti->flags & TI_COLATTRIBUTE))
-			return TRUE;
-		col_info = rti->col_info;
-	}
+
+	if (reloid = rti->table_oid, 0 == reloid)
+		return FALSE;
+	if (0 != (rti->flags & TI_COLATTRIBUTE))
+		return TRUE;
+	col_info = rti->col_info;
 	if (!QR_command_maybe_successful(res))
 		return FALSE;
 	if (num_fields = QR_NumPublicResultCols(res), num_fields <= 0)
@@ -645,7 +644,7 @@ mylog("ColAttSet in\n");
 		fi = irdflds->fi;
 	}
 	setNumFields(irdflds, num_fields);
-	updatable = rti ? TI_is_updatable(rti) : FALSE;
+	updatable = TI_is_updatable(rti);
 mylog("updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 	if (updatable)
 	{
@@ -704,8 +703,7 @@ mylog("->%d\n", updatable);
 			wfi->flag |= FIELD_COL_ATTRIBUTE;
 		}
 	}
-	if (rti)
-		rti->flags |= TI_COLATTRIBUTE;
+	rti->flags |= TI_COLATTRIBUTE;
 	return TRUE;
 }
 
