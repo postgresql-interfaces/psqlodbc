@@ -2185,7 +2185,6 @@ CC_setenv(ConnectionClass *self)
 char
 CC_send_settings(ConnectionClass *self)
 {
-	/* char ini_query[MAX_MESSAGE_LEN]; */
 	ConnInfo   *ci = &(self->connInfo);
 
 /* QResultClass *res; */

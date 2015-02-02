@@ -83,10 +83,10 @@ void		debug_memory_check(void);
 #define NAMESTORAGELEN					64
 #endif   /* NAMESTORAGELEN */
 
-
 #ifndef	WIN32
 #undef	WIN_MULTITHREAD_SUPPORT
 #endif
+
 #if defined(WIN32) || defined(WITH_UNIXODBC) || defined(WITH_IODBC)
 #include <sql.h>
 #include <sqlext.h>
@@ -113,8 +113,6 @@ void		debug_memory_check(void);
 #include <odbcinst.h>
 #elif defined(WITH_IODBC)
 #include <iodbcinst.h>
-#else
-#include "gpps.h"
 #endif
 
 #ifdef	__cplusplus
@@ -300,11 +298,8 @@ BOOL isSqlServr(void);
 /* Limits */
 #define MAXPGPATH					1024
 
-#define MAX_MESSAGE_LEN				65536		/* This puts a limit on
-												 * query size but I don't */
  /* see an easy way round this - DJP 24-1-2001 */
 #define MAX_CONNECT_STRING			4096
-#define ERROR_MSG_LENGTH			4096
 #define FETCH_MAX					100 /* default number of rows to cache
 										 * for declare/fetch */
 #define TUPLE_MALLOC_INC			100
