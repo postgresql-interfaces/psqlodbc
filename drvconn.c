@@ -516,9 +516,6 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 #endif /* FORCE_PASSWORD_DISPLAY */
 			mylog("attribute = '%s', value = '%s'\n", attribute, value);
 
-		if (!attribute)
-			continue;
-
 		/* Copy the appropriate value to the conninfo  */
 		(*func)(ci, attribute, value);
 
