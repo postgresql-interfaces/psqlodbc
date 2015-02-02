@@ -301,8 +301,6 @@ inolog("before CC_connect\n");
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
-	if (connStrIn)
-		free(connStrIn);
 	mylog("PGAPI_DriverConnect: returning %d\n", result);
 	return result;
 }
@@ -527,7 +525,6 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 static void
 dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
 {
-
 	CC_conninfo_init(ci, COPY_GLOBALS);
 	dconn_get_attributes(copyAttributes, connect_string, ci);
 }

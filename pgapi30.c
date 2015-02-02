@@ -1314,7 +1314,8 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			rettype = SQL_NTS;
 			bCallColAtt = TRUE;
 			break;
-		default:ret = SQL_ERROR;
+		default:
+			ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
 	}
