@@ -3070,6 +3070,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Statistics result.", func);
+		free(table_name);
 		return SQL_ERROR;
 	}
 	SC_set_Result(stmt, res);
@@ -4946,7 +4947,14 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 					 " and proname %s'%s'", op_string, escProcName);
 	snprintf_add(proc_query, sizeof(proc_query),
 				 " order by nspname, proname, p.oid, attnum");
-	if (tres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(tres))
+
+	if (escSchemaName)
+		free(escSchemaName);
+	if (escProcName)
+		free(escProcName);
+
+	tres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt);
+	if (!QR_command_maybe_successful(tres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ProcedureColumns query error", func);
 		QR_Destructor(tres);
@@ -5223,10 +5231,6 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.
 	 */
-	if (escSchemaName)
-		free(escSchemaName);
-	if (escProcName)
-		free(escProcName);
 	stmt->status = STMT_FINISHED;
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
@@ -5292,10 +5296,15 @@ PGAPI_Procedures(HSTMT hstmt,
 		snprintf_add(proc_query, sizeof(proc_query),
 				 " and proname %s'%s'", op_string, escProcName);
 
-	if (res = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
+	res = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt);
+	if (!QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Procedures query error", func);
 		QR_Destructor(res);
+		if (escSchemaName)
+			free(escSchemaName);
+		if (escProcName)
+			free(escProcName);
 		return SQL_ERROR;
 	}
 	SC_set_Result(stmt, res);
