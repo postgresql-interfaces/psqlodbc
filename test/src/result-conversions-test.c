@@ -13,12 +13,10 @@
 
 #include "common.h"
 
-#if defined(WIN32) && !defined(isnan)
-#define isnan(x)	_isnan(x)
-#endif
-#if defined(WIN32) && !defined(isinf)
-#define isinf(x)	((_fpclass(x) == _FPCLASS_PINF) || \
-					 (_fpclass(x) == _FPCLASS_NINF))
+/* Visual Studio didn't have isinf and isinf until VS2013. */
+#if defined (WIN32) && (_MSC_VER < 1800)
+#define isinf(x) ((_fpclass(x) == _FPCLASS_PINF) || (_fpclass(x) == _FPCLASS_NINF))
+#define isnan(x) _isnan(x)
 #endif
 
 static const char *pgtypes[] =
