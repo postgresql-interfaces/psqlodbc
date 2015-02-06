@@ -105,7 +105,7 @@ test_setting_attribute_before_connect()
 	CHECK_STMT_RESULT(ret, "SQLFreeStmt failed", hstmt);
 
 	ret = SQLTransact(SQL_NULL_HENV, conn, SQL_ROLLBACK);
-	CHECK_STMT_RESULT(ret, "SQLTransact failed", hstmt);
+	CHECK_CONN_RESULT(ret, "SQLTransact failed", conn);
 
 	ret = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM testtab1 WHERE id = 10000", SQL_NTS);
 	CHECK_STMT_RESULT(ret, "SQLExecDirect failed", hstmt);
