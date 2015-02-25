@@ -25,6 +25,10 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	/* Prepare a test table */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "CREATE TEMPORARY TABLE tmptable (i int4, t text)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed while creating temp table", hstmt);
+
 	/**** Query with a bytea param ****/
 
 	/* Prepare a statement */
@@ -58,6 +62,7 @@ int main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+
 	/*** Test SQLBindParameter with SQLExecDirect ***/
 	printf("\nTesting SQLBindParameter with SQLExecDirect...\n");
 
@@ -80,6 +85,50 @@ int main(int argc, char **argv)
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+
+	/*** Test SQLBindParameter with NULL param ***/
+	printf("\nTesting SQLBindParameter with NULL param...\n");
+
+	cbParam1 = SQL_NULL_DATA;
+	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
+						  SQL_C_CHAR,	/* value type */
+						  SQL_CHAR,		/* param type */
+						  20,			/* column size */
+						  0,			/* dec digits */
+						  NULL,			/* param value ptr */
+						  0,			/* buffer len */
+						  &cbParam1		/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT ? || 'foobar'", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+
+	/*** Test SQLBindParameter with an integer NULL param ***/
+	printf("\nTesting SQLBindParameter with integer NULL param...\n");
+
+	cbParam1 = SQL_NULL_DATA;
+	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
+						  SQL_C_LONG,	/* value type */
+						  SQL_INTEGER,	/* param type */
+						  20,			/* column size */
+						  0,			/* dec digits */
+						  NULL,			/* param value ptr */
+						  0,			/* buffer len */
+						  &cbParam1		/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO tmptable (i) values (1 + ?)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
 
 	/*** Test SQLDescribeParam ***/
 	printf("\nTesting SQLDescribeParam...\n");

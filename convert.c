@@ -3926,10 +3926,12 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 
 	*isnull = FALSE;
 	*isbinary = FALSE;
+	*pgType = 0;
 
 	outputDiscard = (0 != (qb->flags & FLGB_DISCARD_OUTPUT));
 	valueOutput = (qb->param_mode != RPM_FAKE_PARAMS &&
 				   qb->param_mode != RPM_BUILDING_PREPARE_STATEMENT);
+	req_bind = (qb->param_mode == RPM_BUILDING_BIND_REQUEST);
 
 	if (qb->proc_return < 0 && qb->stmt)
 		qb->proc_return = qb->stmt->proc_return;
@@ -4016,6 +4018,12 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		CVT_APPEND_STR(qb, pnum);
 		return SQL_SUCCESS;
 	}
+	/*
+	 * After this point, we can assume apara and ipara to be set. The only
+	 * cases where we allow them to be NULL is when param_mode is
+	 * RPM_FAKE_PARAMS or RPM_BUILDING_PREPARE_STATEMENT, and we've now handled
+	 * those cases.
+	 */
 
 	/* Assign correct buffers based on data at exec param or not */
 	if (apara->data_at_exec)
@@ -4067,15 +4075,24 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			used = SQL_NTS;
 	}
 
-	req_bind = (qb->param_mode == RPM_BUILDING_BIND_REQUEST);
 	/* Handle DEFAULT_PARAM parameter data. Should be NULL ?
 	if (used == SQL_DEFAULT_PARAM)
 	{
 		return SQL_SUCCESS;
 	} */
 
+	param_ctype = apara->CType;
+	param_sqltype = ipara->SQLType;
+	param_pgtype = PIC_dsp_pgtype(qb->conn, *ipara);
+
+	/* XXX: should we use param_pgtype here instead? */
+	*pgType = sqltype_to_bind_pgtype(conn, param_sqltype);
+
+	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u), *pgType=%u\n", func,
+		  param_ctype, param_sqltype, param_pgtype, *pgType);
+
 	/* Handle NULL parameter data */
-	if ((ipara && SQL_PARAM_OUTPUT == ipara->paramType)
+	if (SQL_PARAM_OUTPUT == ipara->paramType
 	    || used == SQL_NULL_DATA
 	    || used == SQL_DEFAULT_PARAM)
 	{
@@ -4108,16 +4125,6 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		qb->errornumber = STMT_EXEC_ERROR;
 		return SQL_ERROR;
 	}
-
-	param_ctype = apara->CType;
-	param_sqltype = ipara->SQLType;
-	param_pgtype = PIC_dsp_pgtype(qb->conn, *ipara);
-
-	/* XXX: should we use param_pgtype here instead? */
-	*pgType = sqltype_to_bind_pgtype(conn, param_sqltype);
-
-	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u)\n", func,
-				param_ctype, param_sqltype, param_pgtype);
 
 	/* replace DEFAULT with something we can use */
 	if (param_ctype == SQL_C_DEFAULT)

@@ -8,6 +8,12 @@ Result set:
 foo
 bar
 
+Testing SQLBindParameter with NULL param...
+Result set:
+NULL
+
+Testing SQLBindParameter with integer NULL param...
+
 Testing SQLDescribeParam...
 Skipped, SQLDescribeParam is not supported
 # of result cols: 2

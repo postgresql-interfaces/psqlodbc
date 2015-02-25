@@ -8,6 +8,12 @@ Result set:
 foo
 bar
 
+Testing SQLBindParameter with NULL param...
+Result set:
+NULL
+
+Testing SQLBindParameter with integer NULL param...
+
 Testing SQLDescribeParam...
 Param 1: type INTEGER; size 10; dec digits -1; nullable
 # of result cols: 2
