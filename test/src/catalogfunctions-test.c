@@ -234,9 +234,8 @@ main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
 	/*
-	 * Check that things work with a search_path with multiple elements.
-	 * current_schema() returns NULL in that case, which used to cause a
-	 * segfault.
+	 * Check that things work with an invalid search_path. current_schema()
+	 * returns NULL in that case, which used to cause a segfault.
 	 *
 	 * Perform these tests in a fresh connection, so that we don't use a
 	 * cached current_schema value.
@@ -246,7 +245,7 @@ main(int argc, char **argv)
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	CHECK_CONN_RESULT(rc, "failed to allocate stmt handle", conn);
 
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "set search_path='public, a'", SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "set search_path='bogus_schema'", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 
 	rc = SQLGetInfo(conn, SQL_USER_NAME, username, sizeof(username), &len);
