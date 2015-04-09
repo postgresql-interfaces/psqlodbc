@@ -1633,6 +1633,7 @@ static BOOL
 allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALLINT cbSchemaName)
 {
 	const char *user = CC_get_username(conn);
+	const char *curschema;
 	size_t	userlen = strlen(user);
 	size_t	schemalen;
 
@@ -1644,9 +1645,16 @@ allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALL
 	else
 		schemalen = cbSchemaName;
 
-	return (schemalen == (SQLSMALLINT) userlen &&
-			strnicmp((char *) szSchemaName, user, userlen) == 0 &&
-			stricmp(CC_get_current_schema(conn), (char *) pubstr) == 0);
+	if (schemalen != userlen)
+		return FALSE;
+	if (strnicmp((char *) szSchemaName, user, userlen) != 0)
+		return FALSE;
+
+	curschema = CC_get_current_schema(conn);
+	if (curschema == NULL)
+		return FALSE;
+
+	return stricmp(curschema, (const char *) pubstr) == 0;
 }
 
 RETCODE		SQL_API

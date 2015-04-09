@@ -361,6 +361,7 @@ reset_current_schema(ConnectionClass *self)
 		free(self->current_schema);
 		self->current_schema = NULL;
 	}
+	self->current_schema_valid = FALSE;
 }
 
 static ConnectionClass *
@@ -1799,7 +1800,7 @@ inolog("Discarded the first SAVEPOINT\n");
 						res->recent_processed_row_count = atoi(ptr + 1);
 					else
 						res->recent_processed_row_count = -1;
-					if (NULL != self->current_schema &&
+					if (self->current_schema_valid &&
 						strnicmp(cmdbuffer, "SET", 3) == 0)
 					{
 						if (is_setting_search_path(query))
@@ -2356,14 +2357,19 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 const char *
 CC_get_current_schema(ConnectionClass *conn)
 {
-	if (!conn->current_schema)
+	if (!conn->current_schema_valid)
 	{
 		QResultClass	*res;
 
 		if (res = CC_send_query(conn, "select current_schema()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL), QR_command_maybe_successful(res))
 		{
 			if (QR_get_num_total_tuples(res) == 1)
-				conn->current_schema = strdup(QR_get_value_backend_text(res, 0, 0));
+			{
+				char *curschema = QR_get_value_backend_text(res, 0, 0);
+				if (curschema)
+					conn->current_schema = strdup(curschema);
+			}
+			conn->current_schema_valid = TRUE;
 		}
 		QR_Destructor(res);
 	}

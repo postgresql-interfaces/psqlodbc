@@ -12,6 +12,7 @@
  * - SQLTablePrivileges
  * - SQLColumnPrivileges
  * - SQLProcedures
+ * - SQLGetInfo
  */
 #include <string.h>
 #include <stdio.h>
@@ -28,6 +29,8 @@ main(int argc, char **argv)
 	SQLSMALLINT sql_tab_privileges_ids[6] = {1, 2, 3, 4, 6, 7};
 	SQLSMALLINT sql_column_ids[6] = {1, 2, 3, 4, 5, 6};
 	char		buf[1000];
+	char		username[100];
+	SQLSMALLINT	len;
 	int			i;
 
 	test_connect();
@@ -186,6 +189,12 @@ main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/* Test SQLGetInfo */
+	printf("Check for SQLGetInfo\n");
+	rc = SQLGetInfo(conn, SQL_TABLE_TERM, buf, sizeof(buf), &len);
+	CHECK_STMT_RESULT(rc, "SQLGetInfo failed", hstmt);
+	printf("Term for \"table\": %s\n", buf);
+
 	/****
 	 * Misc extra tests.
 	 */
@@ -217,6 +226,36 @@ main(int argc, char **argv)
 				   "public", SQL_NTS,
 				   buf, SQL_NTS,
 				   "TABLES", SQL_NTS);
+
+	CHECK_STMT_RESULT(rc, "SQLTables failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*
+	 * Check that things work with a search_path with multiple elements.
+	 * current_schema() returns NULL in that case, which used to cause a
+	 * segfault.
+	 *
+	 * Perform these tests in a fresh connection, so that we don't use a
+	 * cached current_schema value.
+	 */
+	test_disconnect();
+	test_connect();
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	CHECK_CONN_RESULT(rc, "failed to allocate stmt handle", conn);
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "set search_path='public, a'", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLGetInfo(conn, SQL_USER_NAME, username, sizeof(username), &len);
+	CHECK_STMT_RESULT(rc, "SQLGetInfo failed", hstmt);
+
+	rc = SQLTables(hstmt, "", SQL_NTS,
+				   username, SQL_NTS,
+				   "testtab%", SQL_NTS,
+				   "", SQL_NTS);
 
 	CHECK_STMT_RESULT(rc, "SQLTables failed", hstmt);
 	print_result(hstmt);

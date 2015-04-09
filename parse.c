@@ -726,15 +726,18 @@ COL_INFO **coli)
 		 * check the current_schema() when no
 		 * explicit schema name is specified.
 		 */
-		for (colidx = 0; colidx < conn->ntables; colidx++)
+		if (curschema)
 		{
-			if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
-			    !stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
+			for (colidx = 0; colidx < conn->ntables; colidx++)
 			{
-				mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(table_name), curschema);
-				found = TRUE;
-				STR_TO_NAME(*schema_name, curschema);
-				break;
+				if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
+					!stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
+				{
+					mylog("FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(table_name), curschema);
+					found = TRUE;
+					STR_TO_NAME(*schema_name, curschema);
+					break;
+				}
 			}
 		}
 		if (!found)

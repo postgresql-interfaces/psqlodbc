@@ -188,8 +188,13 @@ contrib_regression	public	testtab1	_SYSTEM	SELECT	YES
 contrib_regression	public	testtab1	_SYSTEM	UPDATE	YES
 contrib_regression	public	testtab1	_SYSTEM	DELETE	YES
 contrib_regression	public	testtab1	_SYSTEM	REFERENCES	YES
+Check for SQLGetInfo
+Term for "table": table
 Result set:
 contrib_regression	public	testtab1	TABLE	
 contrib_regression	public	testtab_fk	TABLE	
+Result set:
+disconnecting
+connected
 Result set:
 disconnecting

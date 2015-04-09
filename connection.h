@@ -371,6 +371,10 @@ struct ConnectionClass_
 	Int2		mb_maxbyte_per_char;
 	UInt4		isolation;
 	char		*current_schema;
+	char		current_schema_valid;	/* is current_schema valid? TRUE when
+										 * current_schema == NULL means it's
+										 * really NULL, while FALSE means it's
+										 * unknown */
 	StatementClass *unnamed_prepared_stmt;
 	Int2		max_identifier_length;
 	Int2		num_discardp;
