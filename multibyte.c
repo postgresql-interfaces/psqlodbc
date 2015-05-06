@@ -82,8 +82,6 @@ static pg_CS CS_Alias[] =
 	{ "OTHER",	OTHER }
 };
 
-CSTR	OTHER_STRING = "OTHER";
-
 int
 pg_CS_code(const char *characterset_string)
 {
@@ -425,7 +423,7 @@ get_environment_encoding(const ConnectionClass *conn, const char *setenc, const 
 	int	acp;
 #endif /* WIN32 */
 
-	if (setenc && stricmp(setenc, OTHER_STRING))
+	if (setenc && stricmp(setenc, "OTHER"))
 		return setenc;
 	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc)
 		return wenc;
