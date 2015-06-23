@@ -128,7 +128,10 @@ HDBC	XAConnection::ActivateConnection(void)
 	{
 		ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &init_crit.env);
 		if (!SQL_SUCCEEDED(ret))
+		{
+			MLOCK_RELEASE;
 			return NULL;
+		}
 	}
 	MLOCK_RELEASE;
 	if (!xaconn)
