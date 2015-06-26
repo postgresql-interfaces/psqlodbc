@@ -101,15 +101,28 @@ fi
 #
 # SQLCOLATTRIBUTE_SQLLEN check
 #
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-	[[#include <sql.h>>
-	SQLRETURN  SQL_API SQLColAttribute
-	(SQLHSTMT StatementHandle,SQLUSMALLINT ColumnNumber,
-	SQLUSMALLINT FieldIdentifier, SQLPOINTER CharacterAttribute,
-	SQLSMALLINT BufferLength, SQLSMALLINT *StringLength,
-	SQLLEN *NumercAttribute);]],[[]])],
-	AC_DEFINE(SQLCOLATTRIBUTE_SQLLEN, 1,
-	[Define to 1 if SQLColAttribute use SQLLEN]))
+AC_MSG_CHECKING(last argument to SQLColAttribute is SQLLEN *)
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+#include <sql.h>
+
+SQLRETURN SQL_API SQLColAttribute(SQLHSTMT StatementHandle,
+  SQLUSMALLINT ColumnNumber,
+  SQLUSMALLINT FieldIdentifier,
+  SQLPOINTER CharacterAttribute,
+  SQLSMALLINT BufferLength,
+  SQLSMALLINT *StringLength,
+  SQLLEN *NumericAttribute)
+{
+  SQLLEN t = 1;
+  *NumericAttribute = t;
+  return 0;
+}
+]])],
+  [AC_DEFINE(SQLCOLATTRIBUTE_SQLLEN, 1,
+	[Define to 1 if SQLColAttribute use SQLLEN])
+   AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)]
+)
 
 
 #
