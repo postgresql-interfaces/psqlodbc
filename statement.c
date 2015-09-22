@@ -1299,12 +1299,9 @@ SC_create_errorinfo(const StatementClass *self)
 	{
 		pos = strlen(msg);
 
-		if (detailmsg)
-		{
-			msg[pos++] = ';';
-			msg[pos++] = '\n';
-		}
-		strncpy_null(msg + pos, wmsg, sizeof(msg) - pos);
+		snprintf(&msg[pos], sizeof(msg) - pos, "%s%s",
+				 detailmsg ? ";\n" : "",
+				 wmsg);
 		ermsg = msg;
 		detailmsg = TRUE;
 	}
@@ -1316,7 +1313,8 @@ SC_create_errorinfo(const StatementClass *self)
 		if (!resmsg && (wmsg = CC_get_errormsg(conn)) && wmsg[0] != '\0')
 		{
 			pos = strlen(msg);
-			snprintf(&msg[pos], sizeof(msg) - pos, ";\n%s", CC_get_errormsg(conn));
+			snprintf(&msg[pos], sizeof(msg) - pos,
+					 ";\n%s", CC_get_errormsg(conn));
 		}
 
 		ermsg = msg;

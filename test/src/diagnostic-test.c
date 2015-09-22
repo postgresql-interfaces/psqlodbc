@@ -11,6 +11,9 @@ int main(int argc, char **argv)
 {
 	int			rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
+	SQLSMALLINT	slen;
+	char		sqlstate[32];
+	char		buf[10000];
 
 	test_connect();
 
@@ -26,9 +29,27 @@ int main(int argc, char **argv)
 	 * statement. Should get the same result both times; SQLGetDiagRec is
 	 * not supposed to change the state of the statement.
 	 */
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "broken query ", SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "broken query", SQL_NTS);
 	print_diag("SQLExecDirect", SQL_HANDLE_STMT, hstmt);
 	print_diag("get same message again", SQL_HANDLE_STMT, hstmt);
+
+	/*
+	 * Test a very long error message.
+	 */
+	memset(buf, 'x', sizeof(buf) - 10);
+	sprintf(buf + sizeof(buf) - 10, "END");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) buf, SQL_NTS);
+	print_diag("SQLExecDirect", SQL_HANDLE_STMT, hstmt);
+
+	rc = SQLGetDiagField(SQL_HANDLE_STMT, hstmt, 1, SQL_DIAG_SQLSTATE,
+						 sqlstate, sizeof(sqlstate), &slen);
+	if (rc == SQL_INVALID_HANDLE)
+		printf("Invalid handle\n");
+	else if (SQL_SUCCEEDED(rc))
+		printf("%s\n", sqlstate);
+	else
+		printf("unexpected return code %d\n", rc);
+
 
 	rc = SQLEndTran(SQL_HANDLE_DBC, conn, SQL_ROLLBACK);
 	CHECK_STMT_RESULT(rc, "SQLEndTran failed", hstmt);
