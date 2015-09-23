@@ -4,8 +4,7 @@ Prerequisites
 -------------
 
 To run the regression tests, you must have a PostgreSQL server running and
-accepting connections at port 5432. You must have the PostgreSQL server
-binaries, including the regression test driver pg_regress, in your $PATH.
+accepting connections from the host where you run the regression tests.
 
 By default in Linux, the regression tests use the driver built from the
 parent directory, ../.libs/psqlodbcw.so, for the tests. You can edit
@@ -21,9 +20,10 @@ To run the test suite, type:
 
   make installcheck
 
-The PostgreSQL username used for the test is determined by the normal ODBC /
-libpq rules. You can set the PGUSER environment variable or .pgpass to
-override.
+The test suite uses the normal ODBC / libpq defaults, which assume that the
+server is running on the same host, at port 5432, and the username is the
+same as the OS username. You can use PGHOST, PGUSER, etc. environment
+variables or .pgpass to override these defaults.
 
 You can also run "make installcheck-all" to run the regression suite with
 different combinations of configuration options.
@@ -35,21 +35,10 @@ To run the test suite, you need first to build and install the driver, and
 create a Data Source with the name "psqlodbc_test_dsn". This DSN is used by
 all the regression tests, and it should point to a valid PostgreSQL server.
 
-The Windows test suite makes use of environment variable PG_BIN to find the
-location of pg_regress and the location of the binaries of PostgreSQL that
-are passed to it. So be sure to set it accordingly. If the PostgreSQL server
-is not running locally, at the default port, you will also need to pass
-extra options to specify the hostname and port of the same server that the
-DSN points to.
-
 Then type the following commands to run the tests:
 
   nmake /f win.mak
   nmake /f win.mak installcheck
-
-or for a non-default server host
-
-  nmake /f win.mak installcheck REGRESSOPTS=--host=myserver.mydomain
 
 Development
 -----------
