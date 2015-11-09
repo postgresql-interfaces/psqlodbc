@@ -21,6 +21,7 @@ TESTBINS = src/connect-test \
 	src/params-test \
 	src/param-conversions-test \
 	src/parse-test \
+	src/identity-test \
 	src/notice-test \
 	src/arraybinding-test \
 	src/insertreturning-test \

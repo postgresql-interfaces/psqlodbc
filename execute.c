@@ -33,6 +33,8 @@
 #include "lobj.h"
 #include "pgapifunc.h"
 
+static const char *next_name_token(const char *s, size_t *len);
+
 /*extern GLOBAL_VALUES globals;*/
 
 
@@ -732,16 +734,22 @@ cleanup:
 	return ret;
 }
 
+/*
+ * Given a SQL statement, see if it is an INSERT INTO statement and extract
+ * the name of the table (with schema) of the table that was inserted to.
+ * (It is needed to resolve any @@identity references in the future.)
+ */
 void
 SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 {
 	const char *cmd = stmt->statement, *ptr;
 	ConnectionClass	*conn;
 	size_t	len;
+	const char *token = NULL;
 
 	if (STMT_TYPE_INSERT != stmt->statement_type)
 		return;
-	if (SQL_NEED_DATA == retval)
+	if (!SQL_SUCCEEDED(retval))
 		return;
 	conn = SC_get_conn(stmt);
 #ifdef	NOT_USED /* give up the use of lastval() */
@@ -750,6 +758,15 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 #endif /* NOT_USED */
 	/*if (!CC_fake_mss(conn))
 		return;*/
+
+	/*
+	 * Parse a statement that was just executed. If it looks like an INSERT INTO
+	 * statement, try to extract the table name (and schema) of the table that
+	 * we inserted into.
+	 *
+	 * This is by no means fool-proof, we don't implement the whole backend
+	 * lexer and grammar here, but should handle most simple INSERT statements.
+	 */
 	while (isspace((UCHAR) *cmd)) cmd++;
 	if (!*cmd)
 		return;
@@ -769,41 +786,72 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 		return;
 	NULL_THE_NAME(conn->schemaIns);
 	NULL_THE_NAME(conn->tableIns);
-	if (!SQL_SUCCEEDED(retval))
-		return;
-	while (TRUE)
+
+	len = 0;
+	token = next_name_token(cmd, &len);
+	if (token && *token == IDENTIFIER_QUOTE)
+		STRN_TO_NAME(conn->tableIns, token + 1, len - 2);
+	else
+		STRN_TO_NAME(conn->tableIns, token, len);
+	token = next_name_token(token, &len);
+	if (token && *token == '.')
 	{
-		if (IDENTIFIER_QUOTE == *cmd)
-		{
-			if (ptr = strchr(cmd + 1, IDENTIFIER_QUOTE), NULL == ptr)	/* syntax error */
-			{
-				NULL_THE_NAME(conn->schemaIns);
-				NULL_THE_NAME(conn->tableIns);
-				break;
-			}
-			len = ptr - cmd - 1;
-			cmd++;
-			ptr++;
-		}
-		else
-		{
-			if (ptr = strchr(cmd + 1, '.'), NULL != ptr)
-				len = ptr - cmd;
+		token = next_name_token(token, &len);
+		if (token) {
+			if (NAME_IS_VALID(conn->tableIns))
+				MOVE_NAME(conn->schemaIns, conn->tableIns);
+			if (*token == IDENTIFIER_QUOTE)
+				STRN_TO_NAME(conn->tableIns, token + 1, len - 2);
 			else
-			{
-				ptr = cmd;
-				while (*ptr && !isspace((UCHAR) *ptr)) ptr++;
-				len = ptr - cmd;
-			}
+				STRN_TO_NAME(conn->tableIns, token, len);
 		}
-		if (NAME_IS_VALID(conn->tableIns))
-			MOVE_NAME(conn->schemaIns, conn->tableIns);
-		STRN_TO_NAME(conn->tableIns, cmd, len);
-		if ('.' == *ptr)
-			cmd = ptr + 1;
-		else
+	}
+
+	if (!NAME_IS_VALID(conn->tableIns))
+		NULL_THE_NAME(conn->schemaIns);
+}
+
+/*
+ * Returns the next token from a qualified or unqualified name.
+ *
+ * s is the previous token. On entry, *len is the length of the previous
+ * token; on return, it is the length of the next one. If the token is
+ * quoted, the quotes are included in the result. If no valid token is found,
+ * NULL is returned.
+ */
+static const char *
+next_name_token(const char *s, size_t *len)
+{
+	const char *p;
+
+	s += *len;
+	while (*s && isspace(*s)) ++s;
+
+	switch (*s) {
+		case '\0':
+			break;
+		case '.':
+			*len = 1;
+			return s;
+		case IDENTIFIER_QUOTE:
+			p = strchr(s + 1, IDENTIFIER_QUOTE);
+			if (p) {
+				*len = p - s + 1;
+				return s;
+			}
+			break;
+		default:
+			p = s;
+			while (*p && !isspace(*p) && *p != '.') ++p;
+			if (p) {
+				*len = p - s;
+				return s;
+			}
 			break;
 	}
+
+	*len = 0;
+	return NULL;
 }
 
 /*	Execute a prepared SQL statement */
