@@ -2558,7 +2558,11 @@ LIBPQ_connect(ConnectionClass *self)
 	pqret = PQstatus(pqconn);
 	if (pqret == CONNECTION_BAD && PQconnectionNeedsPassword(pqconn))
 	{
+		const char	*errmsg;
+
 		mylog("password retry\n");
+		errmsg = PQerrorMessage(pqconn);
+		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
 		PQfinish(pqconn);
 		self->pqconn = NULL;
 		self->connInfo.password_required = TRUE;

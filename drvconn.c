@@ -231,7 +231,8 @@ inolog("before CC_connect\n");
 #ifdef WIN32
 			goto dialog;
 #else
-			return SQL_ERROR;	/* until a better solution is found. */
+			/* Prompting for missing options is only supported on Windows. */
+			return SQL_ERROR;
 #endif
 		}
 	}
