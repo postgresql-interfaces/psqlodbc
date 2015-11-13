@@ -65,12 +65,36 @@
 
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
 
-          <!-- Gettext -->
-<?if $(var.Platform) = x64 ?>
-          <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.LIBPQBINDIR)\libintl-8.dll" />
-<?else?>
-          <File Id="libintl.dll" Name="libintl.dll" Source="$(var.LIBPQBINDIR)\libintl.dll" />
-
+          <!-- libpq related -->
+<?if "$(var.LIBPQMEM0)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM0)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM1)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM1)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM2)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM2)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM3)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM3)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM4)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM4)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM5)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM5)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM6)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM6)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM7)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM7)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM8)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM8)" />
+<?endif ?>
+<?if "$(var.LIBPQMEM9)" != "" ?>
+          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM9)" />
 <?endif ?>
 
           <!-- Note, installing the driver properly (IE, using ODBCDriver) has

@@ -143,8 +143,40 @@ function buildInstaller($CPUTYPE)
 	# The subdirectory to install into
 	$SUBLOC=$VERSION.substring(0, 2) + $VERSION.substring(3, 2)
 
+	#
+	$libpqmem=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${LIBPQBINDIR}\" + $_)}
+	if ($LASTEXITCODE -ne 0) {
+		throw "Failed to collect libpq info"
+	}
+	if ($libpqmem.GetType().Name -eq "String") {
+		$addpara = " `"-dLIBPQMEM0=" + $libpqmem + `
+			"`" `"-dLIBPQMEM1=`"" + `
+			" `"-dLIBPQMEM2=`"" + `
+			" `"-dLIBPQMEM3=`"" + `
+			" `"-dLIBPQMEM4=`"" + `
+			" `"-dLIBPQMEM5=`"" + `
+			" `"-dLIBPQMEM6=`"" + `
+			" `"-dLIBPQMEM7=`"" + `
+			" `"-dLIBPQMEM8=`"" + `
+			" `"-dLIBPQMEM9=`""
+	} else {
+		for ($i=$libpqmem.length; $i -lt 10; $i++) {
+			$libpqmem += ""
+		}
+		$addpara = " `"-dLIBPQMEM0=" + $libpqmem[0] + `
+			"`" `"-dLIBPQMEM1=" + $libpqmem[1] + `
+			"`" `"-dLIBPQMEM2=" + $libpqmem[2] + `
+			"`" `"-dLIBPQMEM3=" + $libpqmem[3] + `
+			"`" `"-dLIBPQMEM4=" + $libpqmem[4] + `
+			"`" `"-dLIBPQMEM5=" + $libpqmem[5] + `
+			"`" `"-dLIBPQMEM6=" + $libpqmem[6] + `
+			"`" `"-dLIBPQMEM7=" + $libpqmem[7] + `
+			"`" `"-dLIBPQMEM8=" + $libpqmem[8] + `
+			"`" `"-dLIBPQMEM9=" + $libpqmem[9] + "`""
+	}
+
 	if (-not(Test-Path -Path $CPUTYPE)) {
-    		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
+		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
 	}
 
 	$PRODUCTCODE = [GUID]::NewGuid();
@@ -155,7 +187,7 @@ function buildInstaller($CPUTYPE)
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dGSSBINDIR=$GSSBINDIR`" `"-dMSVCRUNTIMEDLL=$MSVCRUNTIMEDLL`" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
+		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dGSSBINDIR=$GSSBINDIR`" `"-dMSVCRUNTIMEDLL=$MSVCRUNTIMEDLL`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}
@@ -217,6 +249,17 @@ if ($AlongWithDrivers) {
 	} 
 }
 
+$dumpbinexe="dumpbin"
+try {
+	dumpbin | Out-Null
+} catch [Exception] {
+	$dumpbinexe="$env:DUMPBINEXE"
+	if ($dumpbinexe -eq "")
+	{
+		throw "dumpbin doesn't exist"
+	}
+}
+Write-Host "Dumpbin=$dumpbinexe"
 if ($cpu -eq "both") {
 	buildInstaller "x86"
 	buildInstaller "x64"
