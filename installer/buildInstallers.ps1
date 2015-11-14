@@ -34,6 +34,52 @@ Param(
 [string]$BuildConfigPath
 )
 
+function findRuntime($runtime_version)
+{
+	# where's the dll? 
+	$rt_dllname="msvcr${runtime_version}0.dll"
+	$pgmvc = $archinfo.runtime_folder
+	if ("$pgmvc" -ne "") {
+		$dllspecified = "${pgmvc}\${rt_dllname}"
+		if (Test-Path -Path $dllspecified) {
+			return $dllspecified
+		}
+	}
+	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+		$pgmvc = "$env:ProgramFiles"
+	} else {
+		$pgmvc = "${env:ProgramFiles(x86)}"
+	}
+	$dllinredist = "$pgmvc\Microsoft Visual Studio ${runtime_version}.0\VC\redist\${CPUTYPE}\Microsoft.VC${runtime_version}0.CRT\${rt_dllname}"
+	if (Test-Path -Path $dllinredist) {
+		return $dllinredist
+	} else {
+		$messageSpec = "Please specify Configuration.$CPUTYPE.runtime_folder element of the configuration file where msvc runtime dll $rt_dllname can be found"
+		if ($CPUTYPE -eq "x86") {
+			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+				$pgmvc = "${env:SystemRoot}\system32"
+			} else {
+				$pgmvc = "${env:SystemRoot}\syswow64"
+			}
+		} else {
+			if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") {
+				$pgmvc = "${env:SystemRoot}\system32"
+			} elseif ($env:PROCESSOR_ARCHITEW6432 -eq "AMD64") {
+				$pgmvc = "${env:SystemRoot}\sysnative"
+			} else {
+				throw "${messageSpec}`n$dllinredist doesn't exist unfortunately"
+			}
+		}
+		$dllinsystem = "${pgmvc}\${rt_dllname}"
+		if (Test-Path -Path $dllinsystem) {
+			$MSVCRUNTIMEDLL = $dllinsystem
+		} else {
+			throw "${messageSpec}`nneither $dllinredist nor $dllinsystem exists unfortunately"
+		}
+	}
+	return $dllinsystem
+}
+
 function buildInstaller($CPUTYPE)
 {
 	$VERSION = $configInfo.Configuration.version
@@ -77,57 +123,28 @@ function buildInstaller($CPUTYPE)
 	}
 	# msvc runtime
 	$MSVCRUNTIMEDLL = ""
+	$LIBPQMSVC = ""
 	if (-not $ExcludeRuntime) {
 		$toolset = $configInfo.Configuration.BuildResult.PlatformToolset
 		if ($toolset -match "^v(\d+)0") {
-			$runtime_version = $matches[1]
+			$runtime_version0 = $matches[1]
 		} else {
-			$runtime_version = "10"
+			$runtime_version0 = "10"
 		}
-		# runtime dll required 
-		$rt_dllname = "msvcr${runtime_version}0.dll"
 		# where's the dll? 
-		$pgmvc = $archinfo.runtime_folder
-		if ("$pgmvc" -eq "") {
-			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-				$pgmvc = "$env:ProgramFiles"
+		$MSVCRUNTIMEDLL=findRuntime($runtime_version0)
+		# where's the dll? 
+		$msvclist=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*msvcr(\d+)0\.dll" | % {$_.matches[0].Groups[1].Value}
+		if ($msvclist -ne $Null -and $msvclist.length -gt 0) {
+			if ($msvclist.GetType().Name -eq "String") {
+				$runtime_version1=$msvclist
 			} else {
-				$pgmvc = "${env:ProgramFiles(x86)}"
+				$runtime_version1=$msvclist[0]
 			}
-			$dllinredist = "$pgmvc\Microsoft Visual Studio ${runtime_version}.0\VC\redist\${CPUTYPE}\Microsoft.VC${runtime_version}0.CRT\${rt_dllname}"
-			if (Test-Path -Path $dllinredist) {
-				$MSVCRUNTIMEDLL = $dllinredist
-			} else {
-				$messageSpec = "Please specify Configuration.$CPUTYPE.runtime_folder element of the configuration file where msvc runtime dll $rt_dllname can be found"
-				if ($CPUTYPE -eq "x86") {
-					if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-						$pgmvc = "${env:SystemRoot}\system32"
-					} else {
-						$pgmvc = "${env:SystemRoot}\syswow64"
-					}
-				} else {
-					if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") {
-						$pgmvc = "${env:SystemRoot}\system32"
-					} elseif ($env:PROCESSOR_ARCHITEW6432 -eq "AMD64") {
-						$pgmvc = "${env:SystemRoot}\sysnative"
-					} else {
-    						throw "${messageSpec}`n$dllinredist doesn't exist unfortunately"
-					}
-				}
-				$dllinsystem = "${pgmvc}\${rt_dllname}"
-				if (Test-Path -Path $dllinsystem) {
-					$MSVCRUNTIMEDLL = $dllinsystem
-				} else {
-    					throw "${messageSpec}`nneither $dllinredist nor $dllinsystem exists unfortunately"
-				}
+			if ($runtime_version1 -ne $runtime_version0) {
+				$LIBPQMSVC=findRuntime($runtime_version1)
+				Write-Host "LIBPQ requires msvcr${runtime_version1}0.dll"
 			}
-		} else {
-			$dllspecified = "${pgmvc}\${rt_dllname}"
-			if (Test-Path -Path $dllspecified) {
-				$MSVCRUNTIMEDLL = $dllspecified
-			} else {
-    				throw "specified msvc runtime $dllspecified doesn't exist"
-			} 
 		}
 	}
 
@@ -187,7 +204,7 @@ function buildInstaller($CPUTYPE)
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dGSSBINDIR=$GSSBINDIR`" `"-dMSVCRUNTIMEDLL=$MSVCRUNTIMEDLL`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
+		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dLIBPQMSVC=$LIBPQMSVC`" `"-dMSVCRUNTIMEDLL=$MSVCRUNTIMEDLL`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}

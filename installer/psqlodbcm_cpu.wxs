@@ -62,6 +62,9 @@
 <?if "$(var.MSVCRUNTIMEDLL)" != "" ?>
           <File Source="$(var.MSVCRUNTIMEDLL)" />
 <?endif?>
+<?if "$(var.LIBPQMSVC)" != "" ?>
+          <File Source="$(var.LIBPQMSVC)" />
+<?endif?>
 
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
 
