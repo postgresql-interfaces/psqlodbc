@@ -392,6 +392,8 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, size_t bufsize, BOOL bZone,
 		snprintf(precstr, sizeof(precstr), ".%09d", st->fr);
 		if (precision < 9)
 			precstr[precision + 1] = '\0';
+		else if (precision > 9)
+			precision = 9;
 		for (i = precision; i > 0; i--)
 		{
 			if (precstr[i] != '0')
@@ -1248,7 +1250,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 					std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
 				len = stime2timestamp(&std_time, rgbValueBindRow, cbValueMax, FALSE,
-									  (int) (cbValueMax - len - 2) );
+									  (int) (cbValueMax - 19 - 2) );
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				break;
