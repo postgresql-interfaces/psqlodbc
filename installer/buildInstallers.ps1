@@ -71,9 +71,7 @@ function findRuntime($runtime_version)
 			}
 		}
 		$dllinsystem = "${pgmvc}\${rt_dllname}"
-		if (Test-Path -Path $dllinsystem) {
-			$MSVCRUNTIMEDLL = $dllinsystem
-		} else {
+		if (-not(Test-Path -Path $dllinsystem)) {
 			throw "${messageSpec}`nneither $dllinredist nor $dllinsystem exists unfortunately"
 		}
 	}
