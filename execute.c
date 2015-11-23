@@ -742,7 +742,7 @@ cleanup:
 void
 SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 {
-	const char *cmd = stmt->statement, *ptr;
+	const char *cmd = stmt->statement;
 	ConnectionClass	*conn;
 	size_t	len;
 	const char *token = NULL;
