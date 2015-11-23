@@ -42,7 +42,8 @@ function findRuntime($runtime_version)
 	if ("$pgmvc" -ne "") {
 		$dllspecified = "${pgmvc}\${rt_dllname}"
 		if (Test-Path -Path $dllspecified) {
-			return $dllspecified
+			$dllspecified
+			return ""
 		}
 	}
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
@@ -52,7 +53,8 @@ function findRuntime($runtime_version)
 	}
 	$dllinredist = "$pgmvc\Microsoft Visual Studio ${runtime_version}.0\VC\redist\${CPUTYPE}\Microsoft.VC${runtime_version}0.CRT\${rt_dllname}"
 	if (Test-Path -Path $dllinredist) {
-		return $dllinredist
+		$dllinredist
+		return ""
 	} else {
 		$messageSpec = "Please specify Configuration.$CPUTYPE.runtime_folder element of the configuration file where msvc runtime dll $rt_dllname can be found"
 		if ($CPUTYPE -eq "x86") {
@@ -75,7 +77,8 @@ function findRuntime($runtime_version)
 			throw "${messageSpec}`nneither $dllinredist nor $dllinsystem exists unfortunately"
 		}
 	}
-	return $dllinsystem
+	""
+	return $rt_dllname
 }
 
 function buildInstaller($CPUTYPE)
@@ -119,9 +122,12 @@ function buildInstaller($CPUTYPE)
 	{
 		throw "Unknown CPU type $CPUTYPE";
 	}
-	# msvc runtime
-	$MSVCRUNTIMEDLL = ""
-	$LIBPQMSVC = ""
+	# msvc runtime psqlodbc links
+	$PODBCMSVCDLL = ""
+	$PODBCMSVCSYS = ""
+	# msvc runtime libpq links
+	$LIBPQMSVCDLL = ""
+	$LIBPQMSVCSYS = ""
 	if (-not $ExcludeRuntime) {
 		$toolset = $configInfo.Configuration.BuildResult.PlatformToolset
 		if ($toolset -match "^v(\d+)0") {
@@ -129,9 +135,11 @@ function buildInstaller($CPUTYPE)
 		} else {
 			$runtime_version0 = "10"
 		}
-		# where's the dll? 
-		$MSVCRUNTIMEDLL=findRuntime($runtime_version0)
-		# where's the dll? 
+		# where's the msvc runtime dll psqlodbc links? 
+		$dlls=findRuntime($runtime_version0)
+		$PODBCMSVCDLL=$dlls[0]
+		$PODBCMSVCSYS=$dlls[1]
+		# where's the runtime dll libpq links? 
 		$msvclist=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*msvcr(\d+)0\.dll" | % {$_.matches[0].Groups[1].Value}
 		if ($msvclist -ne $Null -and $msvclist.length -gt 0) {
 			if ($msvclist.GetType().Name -eq "String") {
@@ -140,7 +148,9 @@ function buildInstaller($CPUTYPE)
 				$runtime_version1=$msvclist[0]
 			}
 			if ($runtime_version1 -ne $runtime_version0) {
-				$LIBPQMSVC=findRuntime($runtime_version1)
+				$dlls=findRuntime($runtime_version1)
+				$LIBPQMSVCDLL=$dlls[0]
+				$LIBPQMSVCSYS=$dlls[1]
 				Write-Host "LIBPQ requires msvcr${runtime_version1}0.dll"
 			}
 		}
@@ -202,7 +212,7 @@ function buildInstaller($CPUTYPE)
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dLIBPQMSVC=$LIBPQMSVC`" `"-dMSVCRUNTIMEDLL=$MSVCRUNTIMEDLL`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
+		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dLIBPQMSVCDLL=$LIBPQMSVCDLL`" `"-dLIBPQMSVCSYS=$LIBPQMSVCSYS`" `"-dPODBCMSVCDLL=$PODBCMSVCDLL`" `"-dPODBCMSVCSYS=$PODBCMSVCSYS`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}

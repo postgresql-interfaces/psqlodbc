@@ -19,6 +19,11 @@
   <?define CIDPFILES = "5C9A19B5-D7C6-4bb4-BBBC-88C2A67A59B0" ?>
   <?define CIDXFILES = "121A6C41-2B8F-463D-BA84-6BF36701428A" ?>
   <?define InstallerVersion = "300" ?>
+<?if $(env.PROCESSOR_ARCHITECTURE) = x64 ?>
+  <?define SysFolder = "$(env.SystemRoot)\system32" ?>
+<?else?>
+  <?define SysFolder = "$(env.SystemRoot)\sysnative" ?>
+<?endif?>
 <?else?>
   <?define ModuleName = "psqlODBC" ?>
   <?define BIT64 = "no" ?>
@@ -28,6 +33,11 @@
   <?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E" ?>
   <?define CIDXFILES = "49933A1E-4350-437C-B8D5-E96AA5D61139" ?>
   <?define InstallerVersion = "150" ?>
+<?if $(env.PROCESSOR_ARCHITECTURE) = x64 ?>
+  <?define SysFolder = "$(env.SystemRoot)\syswow64" ?>
+<?else?>
+  <?define SysFolder = "$(env.SystemRoot)\system32" ?>
+<?endif?>
 <?endif?>
 
   <Module
@@ -59,11 +69,17 @@
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
           <File Id="pgenlista.pdb" Name="pgenlista.pdb" Source="../$(var.ANSIFOLDER)/pgenlista.pdb" />
 	<!-- MSVC Runtime -->
-<?if "$(var.MSVCRUNTIMEDLL)" != "" ?>
-          <File Source="$(var.MSVCRUNTIMEDLL)" />
+<?if "$(var.PODBCMSVCDLL)" != "" ?>
+          <File Source="$(var.PODBCMSVCDLL)" />
 <?endif?>
-<?if "$(var.LIBPQMSVC)" != "" ?>
-          <File Source="$(var.LIBPQMSVC)" />
+<?if "$(var.PODBCMSVCSYS)" != "" ?>
+          <File Source="$(var.SysFolder)\$(var.PODBCMSVCSYS)" />
+<?endif?>
+<?if "$(var.LIBPQMSVCDLL)" != "" ?>
+          <File Source="$(var.LIBPQMSVCDLL)" />
+<?endif?>
+<?if "$(var.LIBPQMSVCSYS)" != "" ?>
+          <File Source="$(var.SysFolder)\$(var.LIBPQMSVCSYS)" />
 <?endif?>
 
           <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
