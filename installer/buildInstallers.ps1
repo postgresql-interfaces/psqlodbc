@@ -46,6 +46,11 @@ function findRuntime($runtime_version)
 			return ""
 		}
 	}
+	$dllinredist = "${LIBPQBINDIR}\${rt_dllname}"
+	if (Test-Path -Path $dllinredist) {
+		$dllinredist
+		return ""
+	}
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
 		$pgmvc = "$env:ProgramFiles"
 	} else {
@@ -79,6 +84,36 @@ function findRuntime($runtime_version)
 	}
 	""
 	return $rt_dllname
+}
+
+function dumpbinRecurs($dllname, $dllfolder, $instarray)
+{
+	$tmem=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$dllfolder\${dllname}`"" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
+	if ($LASTEXITCODE -ne 0) {
+		throw "Failed to dumpbin $dllfolder\$dllname"
+	}
+	if ($tmem -eq $Null) {
+		return $instarray
+	}
+	if ($tmem.GetType().Name -eq "String") {
+		[String []]$tarray = @($tmem)
+	} else {
+		$tarray = $tmem
+	}
+	$iarray=@()
+	for ($i=0; $i -lt $tarray.length; $i++) {
+		if (-not($instarray -contains $tarray[$i])) {
+			$iarray += $tarray[$i]
+		}
+	}
+	if ($iarray.length -eq 0) {
+		return $instarray
+	}
+	$instarray += $iarray
+	for ($i=0; $i -lt $iarray.length; $i++) {
+		$instarray=dumpbinRecurs $iarray[$i] $dllfolder $instarray
+	}
+	return $instarray
 }
 
 function buildInstaller($CPUTYPE)
@@ -169,36 +204,32 @@ function buildInstaller($CPUTYPE)
 	$SUBLOC=$VERSION.substring(0, 2) + $VERSION.substring(3, 2)
 
 	#
-	$libpqmem=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${LIBPQBINDIR}\" + $_)}
-	if ($LASTEXITCODE -ne 0) {
-		throw "Failed to collect libpq info"
-	}
-	if ($libpqmem.GetType().Name -eq "String") {
-		$addpara = " `"-dLIBPQMEM0=" + $libpqmem + `
-			"`" `"-dLIBPQMEM1=`"" + `
-			" `"-dLIBPQMEM2=`"" + `
-			" `"-dLIBPQMEM3=`"" + `
-			" `"-dLIBPQMEM4=`"" + `
-			" `"-dLIBPQMEM5=`"" + `
-			" `"-dLIBPQMEM6=`"" + `
-			" `"-dLIBPQMEM7=`"" + `
-			" `"-dLIBPQMEM8=`"" + `
-			" `"-dLIBPQMEM9=`""
-	} else {
-		for ($i=$libpqmem.length; $i -lt 10; $i++) {
-			$libpqmem += ""
+	$maxmem=10
+	$libpqmem=@()
+	$libpqmem=dumpbinRecurs "libpq.dll" $LIBPQBINDIR $libpqmem
+	for ($i=0; $i -lt $libpqmem.length; ) {
+		if ($libpqmem[$i] -match "^msvcr\d+0.dll") {
+			$libpqmem[$i]=$Null	
+		} else {
+			$i++
 		}
-		$addpara = " `"-dLIBPQMEM0=" + $libpqmem[0] + `
-			"`" `"-dLIBPQMEM1=" + $libpqmem[1] + `
-			"`" `"-dLIBPQMEM2=" + $libpqmem[2] + `
-			"`" `"-dLIBPQMEM3=" + $libpqmem[3] + `
-			"`" `"-dLIBPQMEM4=" + $libpqmem[4] + `
-			"`" `"-dLIBPQMEM5=" + $libpqmem[5] + `
-			"`" `"-dLIBPQMEM6=" + $libpqmem[6] + `
-			"`" `"-dLIBPQMEM7=" + $libpqmem[7] + `
-			"`" `"-dLIBPQMEM8=" + $libpqmem[8] + `
-			"`" `"-dLIBPQMEM9=" + $libpqmem[9] + "`""
 	}
+	if ($libpqmem.length -gt $maxmem) {
+		throw("number of libpq related dlls exceeds $maxmem")
+	}
+	for ($i=$libpqmem.length; $i -lt $maxmem; $i++) {
+		$libpqmem += ""
+	}
+	$addpara = " `"-dLIBPQMEM0=" + $libpqmem[0] + `
+		"`" `"-dLIBPQMEM1=" + $libpqmem[1] + `
+		"`" `"-dLIBPQMEM2=" + $libpqmem[2] + `
+		"`" `"-dLIBPQMEM3=" + $libpqmem[3] + `
+		"`" `"-dLIBPQMEM4=" + $libpqmem[4] + `
+		"`" `"-dLIBPQMEM5=" + $libpqmem[5] + `
+		"`" `"-dLIBPQMEM6=" + $libpqmem[6] + `
+		"`" `"-dLIBPQMEM7=" + $libpqmem[7] + `
+		"`" `"-dLIBPQMEM8=" + $libpqmem[8] + `
+		"`" `"-dLIBPQMEM9=" + $libpqmem[9] + "`""
 
 	if (-not(Test-Path -Path $CPUTYPE)) {
 		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
