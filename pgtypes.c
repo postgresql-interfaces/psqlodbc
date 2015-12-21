@@ -1258,6 +1258,19 @@ sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			pgType = PG_TYPE_BYTEA;
 			break;
 
+		case SQL_LONGVARBINARY:
+			/*
+			 * SQL_LONGVARBINARY could mean a large object, but it could also
+			 * mean bytea, in particular with ByteaAsLongVarBinary=1. With
+			 * large binary parameters, there isn't much danger of confusing
+			 * the datatype in practice - you typically just INSERT them
+			 * into a table or UPDATE them, and don't apply any operators to
+			 * them. So instead of trying to guess whether this is a 'bytea'
+			 * or large object, let the server decide.
+			 */
+			pgType = 0;
+			break;
+
 		case SQL_BIT:
 			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
 			break;
@@ -1283,13 +1296,6 @@ sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 
 		case SQL_INTEGER:
 			pgType = PG_TYPE_INT4;
-			break;
-
-		case SQL_LONGVARBINARY:
-			if (ci->bytea_as_longvarbinary)
-				pgType = PG_TYPE_BYTEA;
-			else
-				pgType = conn->lobj_type;
 			break;
 
 		case SQL_REAL:
