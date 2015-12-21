@@ -4118,14 +4118,11 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		}
 		else if (!handling_large_object)
 		{
-			CVT_APPEND_CHAR(qb, '?');
-			return SQL_SUCCESS;
+			/* shouldn't happen */
+			qb->errormsg = "unexpected NULL parameter value";
+			qb->errornumber = STMT_EXEC_ERROR;
+			return SQL_ERROR;
 		}
-
-		/* shouldn't happen */
-		qb->errormsg = "unexpected NULL parameter value";
-		qb->errornumber = STMT_EXEC_ERROR;
-		return SQL_ERROR;
 	}
 
 	/* replace DEFAULT with something we can use */
