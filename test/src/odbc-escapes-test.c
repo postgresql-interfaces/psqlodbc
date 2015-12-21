@@ -29,6 +29,24 @@ bindParamString(HSTMT hstmt, int paramno, char *str)
 }
 
 static void
+bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen)
+{
+	SQLRETURN	rc;
+	static SQLLEN		cbParams[10];
+
+    rc = SQLBindParameter(hstmt, paramno, SQL_PARAM_OUTPUT,
+						  SQL_C_CHAR,	/* value type */
+						  SQL_CHAR,		/* param type */
+						  20,			/* column size */
+						  0,			/* dec digits */
+						  outbuf,		/* param value ptr */
+						  outbuflen,	/* buffer len */
+						  &cbParams[paramno]		/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
+	printf("Param %d is an OUT parameter\n", paramno);
+}
+
+static void
 executeQuery(HSTMT hstmt)
 {
 	SQLRETURN	rc;
@@ -54,6 +72,7 @@ int main(int argc, char **argv)
 {
 	SQLRETURN	rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
+	char		outbuf[10];
 
 	test_connect();
 
@@ -93,8 +112,20 @@ int main(int argc, char **argv)
 	bindParamString(hstmt, 2, "3");
 	executeQuery(hstmt);
 
+	prepareQuery(hstmt, "{ ? = call length('foo') }");
+	memset(outbuf, 0, sizeof(outbuf));
+	bindOutParamString(hstmt, 1, outbuf, sizeof(outbuf) - 1);
+	executeQuery(hstmt);
+	printf("OUT param: %s\n", outbuf);
+
 	/* TODO: This doesn't currently work.
 	prepareQuery(hstmt, "{ ? = call concat(?, ?) }");
+	memset(outbuf, 0, sizeof(outbuf));
+	bindOutParamString(hstmt, 1, outbuf, sizeof(outbuf) - 1);
+	bindParamString(hstmt, 2, "foo");
+	bindParamString(hstmt, 3, "bar");
+	executeQuery(hstmt);
+	printf("OUT param: %s\n", outbuf);
 	*/
 
 	/**** Date, Time, and Timestamp literals ****/

@@ -2472,7 +2472,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		pstmt = stmt->processed_statements;
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
-							 pstmt->num_params,
+							 nParams,
 							 paramTypes,
 							 (const char **) paramValues,
 							 paramLengths,
