@@ -18,10 +18,10 @@
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
-    "v110_xp", "v120" or "v120_xp" is available.
+    "v110_xp", "v120", "v120_xp", "v140" or "v140_xp" is available.
 .PARAMETER MSToolsVersion
     MSBuild ToolsVersion is detemrined automatically unless this
-    option is specified.  Currently "4.0" or "12.0" is available.
+    option is specified.  Currently "4.0", "12.0" or "14.0" is available.
 .PARAMETER Configuration
     Specify "Release"(default) or "Debug".
 .PARAMETER BuildConfigPath
@@ -58,7 +58,7 @@ Param(
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="both",
 [string]$Toolset,
-[ValidateSet("", "4.0", "12.0")]
+[ValidateSet("", "4.0", "12.0", "14.0")]
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
@@ -148,10 +148,12 @@ if ("$VisualStudioVersion" -eq "") {
 }
 #	neither C++ nor SDK prompt
 if ("$VisualStudioVersion" -eq "") {
-	if ("${env:VS100COMNTOOLS}" -ne "") { # VC10 or SDK 7.1 is installed (current official)
-		$VisualStudioVersion = "10.0"
-	} elseif ("${env:VS120COMNTOOLS}" -ne "") { # VC12 is installed
+	if ("${env:VS120COMNTOOLS}" -ne "") { # VC12 is installed (current official)
 		$VisualStudioVersion = "12.0"
+	} elseif ("${env:VS100COMNTOOLS}" -ne "") { # VC10 is installed
+		$VisualStudioVersion = "10.0"
+	} elseif ("${env:VS140COMNTOOLS}" -ne "") { # VC14 is installed
+		$VisualStudioVersion = "14.0"
 	} elseif ("${env:VS110COMNTOOLS}" -ne "") { # VC11 is installed
 		$VisualStudioVersion = "11.0"
 	} else {
@@ -165,6 +167,7 @@ switch ($VisualStudioVersion) {
  "10.0"	{ $tv = "4.0" }
  "11.0"	{ $tv = "4.0" }
  "12.0"	{ $tv = "12.0" }
+ "14.0"	{ $tv = "14.0" }
  default { Write-Error "Selected Visual Stuidio is Version ${VisualStudioVersion}. Please use VC10 or later" -Category InvalidArgument; return }
 }
 #
@@ -246,6 +249,7 @@ if ("$Toolset" -eq "") {
 		}
 	 "11.0"	{$Toolset="v110_xp"}
 	 "12.0"	{$Toolset="v120_xp"}
+	 "14.0"	{$Toolset="v140_xp"}
 	}
 }
 #	avoid a bug of Windows7.1SDK PlatformToolset
