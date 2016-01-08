@@ -9,6 +9,166 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+
+<h2><a id="09.05.0100">psqlODBC 09.05.0100 Release</a></h2>
+Changes:<br />
+<ol type="1">
+  <li><b>Use libpq for all communication with the server</b><br /></li>
+  Previously, libpq was only used for authentication. Using it for all
+  communication lets us remove a lot of duplicated code. libpq is now
+  required for building or using libpq.
+
+  <li><b>Remove support for protocol versions older than 3.</b><br /></li>
+  Protocol version 3 was introduced in PostgreSQL 7.4, so this means that we
+  no longer support server versions 7.3 or older. This simplified the
+  code, making maintenance easier.
+
+  <li><b>Remove support for ODBC versions older than 3.51.</b><br /></li>
+  The official binaries have been compiled in 3.51 mode for a very long time,
+  so this has no effect on the official binaries.
+
+  <li><b>Avoid one round-trip to the server when establishing connection.</b><br /></li>
+  When connecting to a server, the driver used to issue a query to determine
+  the client_encoding setting being used, but that was unnecessary because
+  all supported server versions send that information as part of the connection
+  handshake when a connection is established. Remove the extra query, which
+  should make connecting over a high-latency link faster.
+
+  <li><b>Report max length of 'name' fields correctly.</b><br /></li>
+  PostgreSQL columns of type 'name', used e.g. in catalog tables to hold
+  names of relations and other objects, were reported as having type
+  VARCHAR(64). However, the real max length of a name field is only 63 bytes.
+
+  <li><b>Remove 'Optimizer' configuration option</b><br /></li>
+  You can use the generic ConnSettings option with value "set geqo=off", to
+  disable GEQO.
+
+  <li><b>Fix title in 32-bit Unicode drivers setup dialog</b><br /></li>
+  The title on the 32-bit Unicode drivers's setup dialog on Windows
+  incorrectly said "ANSI".
+
+  <li><b>Don't export private symbols that are not part of the ODBC interface </b><br /></li>
+  This was causing problems when the driver was loaded together with another
+  dynamically loaded library with a function of the same name. This was
+  reported to happen when loading the odbc_fdw foreign data wrapper into
+  a PostgreSQL server, because both the PostgreSQL server and the ODBC driver
+  contain a function called check_client_encoding().
+
+  <li><b>Report a sensible SQL_DESC_OCTET_LENGTH value for result set columns of type 'unknown'</b><br /></li>
+  If a query returns a column of type 'unknown', as happens e.g. in a query
+  like "select 'foobar' from table" where the datatype of the constant
+  'foobar' is not specified, the SQL_DESC_OCTET_LENGTH property of the column
+  was returned as invalid. Report it the same as 'varchar' field with no
+  explicit length, instead.
+
+  <li><b>Fix quoting bugs in sending integer query parameters to server</b><br /></li>
+  The drivers used to assume that if a parameter's SQL type is SQL_INTEGER
+  or SQL_SMALLINT, the value does not require quoting when its send to the
+  server. For example, "SELECT ?", with parameter 123 was translated to
+  "SELECT 123", when UseServerSidePrepare was not enabled. However, there
+  was no check that the query parameter in fact contained a valid integer,
+  when replacing the parameter markers with their values. Also, in a query
+  like "SELECT 0-?", a negative value needs to have parens around it, as in
+  "SELECT 0-(-123)".
+
+  <li><b>Don't reset autocommit when a connection is established</b><br /></li>
+  If autocommit is disabled on a connection, by calling
+  SQLSetConnectAttr(SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF, 0), before
+  connecting with SQLDriverConnect(), autocommit was incorrectly reset back
+  to on when the connection was established.
+
+  <li><b>Send datatype information for query parameters, when known</b><br /></li>
+  If a query parameter is bound with a specific SQL type, pass on that
+  information to the server. This makes the behaviour of queries like
+  "SELECT '555' &gt; ?" more sensible, where the result depends on whether the query parameter
+  is interpreted as an integer or a string.
+
+  <li><b>Use libpq defaults for Server, Username and Database settings</b><br /></li>
+  Server, Username and Database settings can now be left empty, in which case
+  the corresponding libpq defaults will be used. The libpq default is
+  to connect to a local server over Unix domain sockets (on Unix systems)
+  or to localhost over TCP/IP (on Windows), if Server is left empty. The
+  default username is the current operating system user, and the database to
+  connect to is a database with the same name as the user. These built-in
+  defaults can be changed by environment variables, however.
+
+  This is particularly useful for connecting to a local installation via Unix
+  domain sockets, as that is the default when Server is left empty, and was
+  difficult to configure otherwise.
+
+  <li><b>Fix bug in parsing E'' literals</b><br /></li>
+  The driver needs to parse a query string to determine whether a '?'
+  character is a parameter marker, or if it's inside a quoted string or a
+  SQL comment. This parsing did not correctly handle E''-style strings.
+
+  <li><b>Remove 256 byte limit on the length of NOTICE messages</b><br /></li>
+  There was a built-in limit of 256 bytes on the length of NOTICE messages
+  received from the server. Strings larger than 256 bytes were not returned
+  to the application. That limit has been removed.
+
+  <li><b>Fix parsing of strings containing escaped quotes with Parse=1</b><br /></li>
+  This fixes issues in extracting metadata like result set column names, with the Parse=1 option.
+
+  <li><b>Fix connecting with a user or database name that contains spaces or quotes </b><br/></li>
+  User and database names were not quoted correctly when building a connection
+  string. A different method is now used for sending those parameters, which
+  doesn't require quoting and escaping.
+
+  <li><b>Remove support for so-called "premature execution"</b><br/></li>
+  Premature execution was a method for getting information about a result set
+  of a query, before SQLExecute() was called. That was always dangerous, as
+  any side-effects of the query would happen, even if the application did
+  not call SQLExecute() after all. With protocol version 3, there is a safer
+  way to do this. This also removes the DisallowPremature configuration
+  option, as the driver never does premature execution anymore.
+
+  <li><b>Fix buffer overrun when the server reports an error message longer than 4096 bytes</b><br/></li>
+  If the server returned an error longer than 4096 bytes, we would overrun
+  the buffer by two bytes. If you're unlucky, that could lead to a crash.
+  That consistently happened on Windows.
+
+  <li><b>Improve parsing of INSERT INTO statements, for @@identity support</b><br/></li>
+  The code that parses INSERT INTO statements, to extract the name of the
+  target table, got confused by values containing dots, and other things.
+  Improve the parsing support to handle a wider range of INSERT statements.
+
+  <li><b>Fix crash in SQLTables() function, if search_path was set to a non-existent schema</b><br/></li>
+  The server-side current_schema() function returns a NULL if search_path is
+  set to a non-existent schema, and the driver code was not prepared for a
+  NULL result.
+
+  <li><b>Fix buffer overrun when connecting, and KeepaliveTime and KeepaliveInterval were both set</b><br/></li>
+
+   If the server returned an error longer than 4096 bytes, we would overrun
+   the buffer by two bytes. If you're unlucky, that could lead to a crash,
+   and it consistently did on Windows.
+   Per report from Andrus Moor.<br />
+
+  <li><b>Set an error message when password is required to connect.</b><br/></li>
+   In previous versions, if a connection fails because the server requires a
+   password and no password was supplied.
+   Per report from "PSequel Support".<br />
+
+   <li><b>Improve parsing of INSERT INTO statements to support @@identity</b><br/></li>
+    Patch by Christian Ullrich.<br />
+
+   <li><b>Fix SQL_DATA_AT_EXEC processing for large objects.</b><br/></li>
+   Reported by Vadym Krevs.<br />
+
+  <li><b>The server decide if SQL_LONGVARBINARY means a bytea or large object.</b><br/></li>
+   This reverts the behaviour of SQL_LONGVARBINARY parameters.<br />
+
+   <li><b>Fix handling of return value in {? = CALL ... } syntax.</b><br/></li>
+
+   When sending the query to the server, need to use the number of parameters
+   calculated by build_libpq_bind_params(), which excludes the OUT parameter,
+   rather than the original number of parameters.
+   Reported by Haribabu Kommi.<br />
+
+</ol><br />
+
+
+
 <h2><a id="09.03.0400">psqlODBC 09.03.0400 Release</a></h2>
 Changes:<br />
 <ol type="1">
