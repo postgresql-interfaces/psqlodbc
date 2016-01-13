@@ -388,7 +388,7 @@ ConfigDlgProc(HWND hdlg,
 			{
 				HBRUSH hBrush = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
 				SetTextColor((HDC)wParam, RGB(255, 0, 0));
-				return (long)hBrush;
+				return (LRESULT)hBrush;
 			}
 			break;
 	}
