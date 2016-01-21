@@ -966,6 +966,11 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		}
 mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCallParse ? "" : "not", stmt->prepare);
 
+		if (shouldParse == nCallParse &&
+		    PREPARE_BY_THE_DRIVER == stmt->prepare)
+		{
+			SC_set_Result(stmt, NULL);
+		}
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
 		/*
