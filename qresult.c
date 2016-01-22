@@ -592,8 +592,9 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 	Int2		dummy1, dummy2;
 	int			cidx;
 
-	/* First, get column information */
-	QR_set_conn(self, conn);
+	if (NULL != conn)
+		/* First, get column information */
+		QR_set_conn(self, conn);
 
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(*pgres);
@@ -636,7 +637,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		self->num_fields = CI_get_num_fields(QR_get_fields(self));
 		if (QR_haskeyset(self))
 			self->num_fields -= self->num_key_fields;
-		if (stmt)
+		if (stmt && conn)
 		{
 			num_io_params = CountParameters(stmt, NULL, &dummy1, &dummy2);
 			if (stmt->proc_return > 0 ||
@@ -670,10 +671,13 @@ inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_tota
 	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
 		self->num_total_read = self->cursTuple + 1;
 
-	/* Force a read to occur in next_tuple */
-	QR_set_next_in_cache(self, 0);
-	QR_set_rowstart_in_cache(self, 0);
-	self->key_base = 0;
+	if (NULL != conn)
+	{
+		/* Force a read to occur in next_tuple */
+		QR_set_next_in_cache(self, 0);
+		QR_set_rowstart_in_cache(self, 0);
+		self->key_base = 0;
+	}
 
 	/*
 	 * Also fill in command tag. (Typically, it's SELECT, but can also be

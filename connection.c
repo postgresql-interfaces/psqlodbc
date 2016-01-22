@@ -1857,7 +1857,7 @@ inolog("Discarded the first SAVEPOINT\n");
 					 * called from QR_next_tuple and must return
 					 * immediately.
 					 */
-					if (!CC_from_PGresult(res, stmt, self, cursor, &pgres))
+					if (!CC_from_PGresult(res, stmt, NULL, cursor, &pgres))
 					{
 						retres = NULL;
 						break;
