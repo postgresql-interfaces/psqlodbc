@@ -591,6 +591,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 	char	   *new_field_name;
 	Int2		dummy1, dummy2;
 	int			cidx;
+	BOOL		reached_eof_now = FALSE;
 
 	if (NULL != conn)
 		/* First, get column information */
@@ -668,8 +669,15 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 		return FALSE;
 
 inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
+	if (self->num_cached_rows < self->cache_size)
+	{
+		reached_eof_now = TRUE;
+		QR_set_reached_eof(self);
+	}
 	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
 		self->num_total_read = self->cursTuple + 1;
+	if (reached_eof_now && self->cursTuple < (Int4) self->num_total_read)
+		self->cursTuple++;
 
 	if (NULL != conn)
 	{
@@ -1186,10 +1194,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 	self->tupleField = NULL;
 	num_rows_in = self->num_cached_rows;
 
-	if (curr_eof)
-		reached_eof_now = curr_eof;
-	else
-		curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
+	curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
 inolog("reached_eof_now=%d\n", reached_eof_now);
 
 	mylog("_%s: PGresult: fetch_total = %d & this_fetch = %d\n", func, self->num_total_read, self->num_cached_rows);
@@ -1206,12 +1211,6 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 		{
 			mylog("%s: reached eof now\n", func);
 			QR_set_reached_eof(self);
-			if (self->cursTuple >= (Int4) self->num_total_read)
-			{
-				self->num_total_read = self->cursTuple + 1;
-inolog("mayumi setting total_read to %d\n", self->num_total_read);
-			}
-			self->cursTuple++;
 			if (self->ad_count > 0 && cur_fetch < fetch_size)
 			{
 				/* We have to append the tuples(keys) info from the added tuples(keys) here */
