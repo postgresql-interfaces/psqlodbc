@@ -5219,21 +5219,50 @@ cleanup:
 static BOOL
 convert_money(const char *s, char *sout, size_t soutmax)
 {
+	char		in, decp = 0;
 	size_t		i = 0,
 				out = 0;
+	int	num_in = -1, period_in = -1, comma_in = -1;
 
 	for (i = 0; s[i]; i++)
 	{
-		if (s[i] == '$' || s[i] == ',' || s[i] == ')')
-			;					/* skip these characters */
-		else
+		switch (in = s[i])
 		{
-			if (out + 1 >= soutmax)
-				return FALSE;	/* sout is too short */
-			if (s[i] == '(')
+			case '.':
+				if (period_in < 0)
+					period_in = i;
+				break;
+			case ',':
+				if (comma_in < 0)
+					comma_in = i;
+				break;
+			default:
+				if ('0' <= in && '9' >= in)
+					num_in = i;
+				break;
+		}
+	}
+	if (period_in > comma_in)
+	{
+		if ( period_in >= num_in - 2)
+			decp = '.';
+	}
+	else if (comma_in >= 0 &&
+		 comma_in >= num_in - 2)
+		decp = ',';
+	for (i = 0; s[i] && out + 1 < soutmax; i++)
+	{
+		switch (in = s[i])
+		{
+			case '(':
+			case '-':
 				sout[out++] = '-';
-			else
-				sout[out++] = s[i];
+				break;
+			default:
+				if (in >= '0' && in <= '9')
+					sout[out++] = in;
+				else if (in == decp)
+					sout[out++] = '.';
 		}
 	}
 	sout[out] = '\0';

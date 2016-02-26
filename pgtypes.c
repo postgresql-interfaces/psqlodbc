@@ -1280,11 +1280,6 @@ sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			pgType = PG_TYPE_DATE;
 			break;
 
-		case SQL_DOUBLE:
-		case SQL_FLOAT:
-			pgType = PG_TYPE_FLOAT8;
-			break;
-
 		case SQL_DECIMAL:
 		case SQL_NUMERIC:
 			pgType = PG_TYPE_NUMERIC;
