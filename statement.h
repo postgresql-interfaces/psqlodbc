@@ -370,6 +370,17 @@ do { \
 	} \
 	t = tmp; \
 } while (0)
+#define	SC_REALLOC_gexit_with_error(t, tp, s, a, m, r) \
+do { \
+	tp *tmp; \
+	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
+	{ \
+		SC_set_error(a, STMT_NO_MEMORY_ERROR, m, __FUNCTION__); \
+		r; \
+		goto cleanup; \
+	} \
+	t = tmp; \
+} while (0)
 
 /*	options for SC_free_params() */
 #define STMT_FREE_PARAMS_ALL				0

@@ -354,8 +354,6 @@ struct ConnectionClass_
 	DriverToDataSourceProc DriverToDataSource;
 	char		transact_status;	/* Is a transaction is currently
 						 * in progress */
-	char		errormsg_created;	/* has an informative error msg
-						 * been created ? */
 	char		pg_version[MAX_INFO_STRING];	/* Version of PostgreSQL
 							 * we're connected to -
 							 * DJP 25-1-2001 */

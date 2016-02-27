@@ -616,6 +616,7 @@ inolog(" multi=%d\n", multi_table);
 static BOOL
 ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 {
+	CSTR		func = "ColAttSet";
 	QResultClass	*res = SC_get_Curres(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	COL_INFO	*col_info = NULL;
@@ -663,6 +664,11 @@ mylog("->%d\n", updatable);
 			if (wfi = fi[i], NULL == wfi)
 			{
 				wfi = (FIELD_INFO *) malloc(sizeof(FIELD_INFO));
+				if (wfi == NULL)
+				{
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for field info.", func);
+					return FALSE;
+				}
 				fi_reuse = FALSE;
 				fi[i] = wfi;
 			}

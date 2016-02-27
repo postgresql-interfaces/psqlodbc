@@ -1320,6 +1320,7 @@ SC_create_errorinfo(const StatementClass *self)
 		ermsg = msg;
 	}
 	pgerror = ER_Constructor(self->__error_number, ermsg);
+	if (!pgerror) return NULL;
 	if (sqlstate)
 		strcpy(pgerror->sqlstate, sqlstate);
 	else if (conn)
@@ -1505,7 +1506,7 @@ inolog("SC_full_error_copy %p->%p\n", from ,self);
 	else if (!allres)
 		return;
 	pgerror = SC_create_errorinfo(from);
-	if (!pgerror->__error_message[0])
+	if (!pgerror || !pgerror->__error_message[0])
 	{
 		ER_Destructor(pgerror);
 		return;
@@ -2755,6 +2756,11 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 
 	if (!res)
 		res = QR_Constructor();
+	if (!res)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for query", func);
+		return NULL;
+	}
 
 	/*
 	 * We need to do Prepare + Describe as two different round-trips to the

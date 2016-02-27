@@ -1965,6 +1965,11 @@ inolog("AddRollback %d(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dm
 		res->rb_count = 0;
 		res->rb_alloc = 10;
 		rollback = res->rollback = malloc(sizeof(Rollback) * res->rb_alloc);
+		if (!rollback)
+		{
+			res->rb_alloc = res->rb_count = 0;
+			return;
+		}
 	}
 	else
 	{
@@ -2027,7 +2032,10 @@ inolog("ReplaceCachedRows %p num_fields=%d num_rows=%d\n", otuple, num_fields, n
 			otuple->value = strdup(ituple->value);
 inolog("[%d,%d] %s copied\n", i / num_fields, i % num_fields, otuple->value);
 }
-		otuple->len = ituple->len;
+		if (otuple->value)
+			otuple->len = ituple->len;
+		else
+			otuple->len = -1;
 	}
 	return i;
 }
@@ -2881,6 +2889,11 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	else
 		len += 20;
 	selstr = malloc(len);
+	if (!selstr)
+	{
+		SC_set_error(stmt,STMT_NO_MEMORY_ERROR, "Could not allocate memory for query", func);
+		goto cleanup;
+	}
 	if (tidval)
 	{
 		if (latest)
@@ -3401,17 +3414,6 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 					else
 						tuple_size = res->count_backend_allocated * 2;
 					QR_REALLOC_return_with_error(res->backend_tuples, TupleField, res->num_fields * sizeof(TupleField) * tuple_size, res, "SC_pos_newload failed", SQL_ERROR);
-					/*
-					res->backend_tuples = (TupleField *) realloc(
-						res->backend_tuples,
-						res->num_fields * sizeof(TupleField) * tuple_size);
-					if (!res->backend_tuples)
-					{
-						SC_set_error(stmt, QR_set_rstatus(res, PORES_FATAL_ERROR), "Out of memory while reading tuples.", func);
-						QR_Destructor(qres);
-						return SQL_ERROR;
-					}
-					*/
 					res->count_backend_allocated = tuple_size;
 				}
 				tuple_old = res->backend_tuples + res->num_fields * num_cached_rows;
@@ -3706,6 +3708,11 @@ SC_pos_update(StatementClass *stmt,
 		if (ret == SQL_NEED_DATA)
 		{
 			pup_cdata *cbdata = (pup_cdata *) malloc(sizeof(pup_cdata));
+			if (!cbdata)
+			{
+				SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for cbdata", func);
+				return SQL_ERROR;
+			}
 			memcpy(cbdata, &s, sizeof(pup_cdata));
 			if (0 == enqueueNeedDataCallback(s.stmt, pos_update_callback, cbdata))
 				ret = SQL_ERROR;
@@ -4122,6 +4129,12 @@ SC_pos_add(StatementClass *stmt,
 		if (ret == SQL_NEED_DATA)
 		{
 			padd_cdata *cbdata = (padd_cdata *) malloc(sizeof(padd_cdata));
+			if (!cbdata)
+			{
+				SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for cbdata", func);
+				ret = SQL_ERROR;
+			goto cleanup;
+			}
 			memcpy(cbdata, &s, sizeof(padd_cdata));
 			if (0 == enqueueNeedDataCallback(s.stmt, pos_add_callback, cbdata))
 				ret = SQL_ERROR;
@@ -4296,6 +4309,11 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			if (SQL_NEED_DATA == ret)
 			{
 				spos_cdata *cbdata = (spos_cdata *) malloc(sizeof(spos_cdata));
+				if (!cbdata)
+				{
+					SC_set_error(s->stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for cbdata", func);
+					return SQL_ERROR;
+				}
 
 				memcpy(cbdata, s, sizeof(spos_cdata));
 				cbdata->need_data_callback = TRUE;

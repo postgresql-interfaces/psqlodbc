@@ -47,6 +47,7 @@ static char * hide_password(const char *str)
 
 	if (!str)	return NULL;
 	outstr = strdup(str);
+	if (!outstr) return NULL;
 	if (pwdp = strstr(outstr, "PWD="), !pwdp)
 		pwdp = strstr(outstr, "pwd=");
 	if (pwdp)

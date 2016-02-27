@@ -174,7 +174,8 @@ ER_Dup(const PG_ErrorInfo *self)
 	if (self->errorsize  > 0)
 		alsize += self->errorsize;
 	new = (PG_ErrorInfo *) malloc(alsize);
-	memcpy(new, self, alsize);
+	if (new)
+		memcpy(new, self, alsize);
 
 	return new;
 }

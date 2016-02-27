@@ -1518,6 +1518,7 @@ simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *co
 mylog("simple in=%s(%d)\n", src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	dest = malloc(2 * srclen + 1);
+	if (!dest) return NULL;
 	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
 	{
                 encoded_nextchar(&encstr);
@@ -1558,6 +1559,7 @@ adjustLikePattern(const SQLCHAR *src, int srclen, const ConnectionClass *conn)
 mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	dest = malloc(4 * srclen + 1);
+	if (!dest) return NULL;
 	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
 	{
 		encoded_nextchar(&encstr);
@@ -2502,6 +2504,12 @@ retry_public_schema:
 		{
 mylog("len_needed=%d\n", len_needed);
 			attdef = malloc(len_needed + 1);
+			if (!attdef)
+			{
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for attdef.", func);
+				goto cleanup;
+			}
+
 			PGAPI_GetData(hcol_stmt, 13, internal_asis_type, attdef, len_needed + 1, &len_needed);
 mylog(" and the data=%s\n", attdef);
 		}
@@ -2912,6 +2920,12 @@ retry_public_schema:
 	hcol_stmt = NULL;
 
 	res = QR_Constructor();
+	if (!res)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for query.", func);
+		result = SQL_ERROR;
+		goto cleanup;
+	}
 	SC_set_Result(stmt, res);
 	extend_column_bindings(SC_get_ARDF(stmt), 8);
 
@@ -3177,12 +3191,16 @@ PGAPI_Statistics(HSTMT hstmt,
 				alcount = 4;
 			else
 				alcount *= 2;
-			column_names =
-				(struct columns_idx *) realloc(column_names,
-							  alcount * sizeof(struct columns_idx));
+			SC_REALLOC_gexit_with_error(column_names, struct columns_idx, alcount * sizeof(struct columns_idx), stmt, "Couldn't allocate memory for column names.", (result = SQL_ERROR));
 		}
 		column_names[total_columns].col_name =
 			(char *) malloc(strlen(column_name) + 1);
+		if (!column_names[total_columns].col_name)
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for column name.", func);
+			result = SQL_ERROR;
+			goto cleanup;
+		}
 		strcpy(column_names[total_columns].col_name, column_name);
 		column_names[total_columns].pnum = field_number;
 		total_columns++;
@@ -4008,8 +4026,14 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	{
 		if (QR_get_num_cached_tuples(res) > 0)
 		{
-			ret = strdup(QR_get_value_backend_text(res, 0, 0));
-			*nameAlloced = TRUE;
+			char *tmp;
+
+			tmp = strdup(QR_get_value_backend_text(res, 0, 0));
+			if (tmp)
+			{
+				ret = tmp;
+				*nameAlloced = TRUE;
+			}
 		}
 	}
 	QR_Destructor(res);
@@ -5424,6 +5448,11 @@ PGAPI_TablePrivileges(HSTMT hstmt,
 	stmt->catalog_result = TRUE;
 	/* set the field names */
 	res = QR_Constructor();
+	if (!res)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for query.", func);
+		return SQL_ERROR;
+	}
 	SC_set_Result(stmt, res);
 	QR_set_num_fields(res, result_cols);
 	QR_set_field_info_v(res, 0, "TABLE_CAT", PG_TYPE_VARCHAR, MAX_INFO_STRING);
@@ -5511,6 +5540,12 @@ retry_public_schema:
 	}
 	usercount = (Int4) QR_get_num_cached_tuples(allures);
 	useracl = (char (*)[ACLMAX]) malloc(usercount * sizeof(char [ACLMAX]));
+	if (!useracl)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for user acl.", func);
+		ret = SQL_ERROR;
+		goto cleanup;
+	}
 	for (i = 0; i < tablecount; i++)
 	{
 		memset(useracl, 0, usercount * sizeof(char[ACLMAX]));

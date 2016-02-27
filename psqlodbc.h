@@ -400,8 +400,11 @@ do { \
 	if (str) \
 	{ \
 		(the_name).name = malloc((n) + 1); \
-		memcpy((the_name).name, str, (n)); \
-		(the_name).name[(n)] = '\0'; \
+		if ((the_name).name) \
+		{ \
+			memcpy((the_name).name, str, (n));	\
+			(the_name).name[(n)] = '\0';		\
+		} \
 	} \
 	else \
 		(the_name).name = NULL; \

@@ -486,12 +486,18 @@ cleanup:
 
 		tlen = strlen(emsg);
 		wermsg = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (tlen + 1));
-		ulen = utf8_to_ucs2_lf(emsg, SQL_NTS, FALSE, wermsg, tlen + 1, TRUE);
+		if (wermsg)
+			ulen = utf8_to_ucs2_lf(emsg, SQL_NTS, FALSE, wermsg, tlen + 1, TRUE);
+		else
+			ulen = (SQLULEN) -1;
 		if (ulen != (SQLULEN) -1)
 		{
 			allocstr = malloc(4 * tlen + 1);
-			(void) wstrtomsg(wermsg, (int) tlen, allocstr, (int) (4 * tlen + 1));
-			emsg = allocstr;
+			if (allocstr)
+			{
+				(void) wstrtomsg(wermsg, (int) tlen, allocstr, (int) (4 * tlen + 1));
+				emsg = allocstr;
+			}
 		}
 #endif /* UNICODE_SUPPORT */
 

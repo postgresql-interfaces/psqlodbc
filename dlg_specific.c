@@ -1544,6 +1544,8 @@ decode(const char *in)
 		return out;
 	}
 	outs = (char *) malloc(ilen + 1);
+	if (!outs)
+		return out;
 	for (i = 0; i < ilen; i++)
 	{
 		inc = in[i];
@@ -1687,6 +1689,8 @@ char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 	if (!sptr)
 		return NULL;
 	rptr = malloc(len + 1);
+	if (!rptr)
+		return NULL;
 	memcpy(rptr, sptr, len);
 	rptr[len] = '\0';
 	mylog("extracted a %s '%s' from %s\n", attr, rptr, str);

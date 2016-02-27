@@ -352,7 +352,8 @@ static void ARDFields_copy(const ARDFields *src, ARDFields *target)
 	if (src->bookmark)
 	{
 		BindInfoClass *bookmark = ARD_AllocBookmark(target);
-		BindInfoClass_copy(src->bookmark, bookmark);
+		if (bookmark)
+			BindInfoClass_copy(src->bookmark, bookmark);
 	}
 	if (src->allocated <= 0)
 	{
@@ -364,6 +365,8 @@ static void ARDFields_copy(const ARDFields *src, ARDFields *target)
 		int	i;
 
 		target->bindings = malloc(target->allocated * sizeof(BindInfoClass));
+		if (!target->bindings)
+			target->allocated = 0;
 		for (i = 0; i < target->allocated; i++)
 			BindInfoClass_copy(&src->bindings[i], &target->bindings[i]);
 	}
@@ -379,7 +382,8 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 	if (src->bookmark)
 	{
 		target->bookmark = malloc(sizeof(ParameterInfoClass));
-		ParameterInfoClass_copy(src->bookmark, target->bookmark);
+		if (target->bookmark)
+			ParameterInfoClass_copy(src->bookmark, target->bookmark);
 	}
 	if (src->allocated <= 0)
 	{
@@ -391,6 +395,8 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 		int	i;
 
 		target->parameters = malloc(target->allocated * sizeof(ParameterInfoClass));
+		if (!target->parameters)
+			target->allocated = 0;
 		for (i = 0; i < target->allocated; i++)
 			ParameterInfoClass_copy(&src->parameters[i], &target->parameters[i]);
 	}
@@ -413,6 +419,8 @@ static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 		int	i;
 
 		target->parameters = (ParameterImplClass *) malloc(target->allocated * sizeof(ParameterImplClass));
+		if (!target->parameters)
+			target->allocated = 0;
 		for (i = 0; i < target->allocated; i++)
 			ParameterImplClass_copy(&src->parameters[i], &target->parameters[i]);
 	}

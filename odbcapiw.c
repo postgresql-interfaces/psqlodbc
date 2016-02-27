@@ -141,6 +141,12 @@ SQLDriverConnectW(HDBC hdbc,
 	{
 		obuflen = maxlen + 1;
 		szOut = malloc(obuflen);
+		if (!szOut)
+		{
+			CC_set_error(conn, CONN_NO_MEMORY_ERROR, "Could not allocate memory for output buffer", func);
+			ret = SQL_ERROR;
+			goto cleanup;
+		}
 		pCSO = &olen;
 	}
 	else if (pcbConnStrOut)
@@ -169,6 +175,7 @@ inolog("cbConnstrOutMax=%d pcb=%p\n", cbConnStrOutMax, pcbConnStrOut);
 		if (pcbConnStrOut)
 			*pcbConnStrOut = (SQLSMALLINT) outlen;
 	}
+cleanup:
 	LEAVE_CONN_CS(conn);
 	if (szOut)
 		free(szOut);
@@ -200,8 +207,14 @@ SQLBrowseConnectW(HDBC			hdbc,
 	szIn = ucs2_to_utf8(szConnStrIn, cbConnStrIn, &inlen, FALSE);
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
-	ret = PGAPI_BrowseConnect(hdbc, (SQLCHAR *) szIn, (SQLSMALLINT) inlen,
-							  (SQLCHAR *) szOut, cbConnStrOutMax, &olen);
+	if (szOut)
+		ret = PGAPI_BrowseConnect(hdbc, (SQLCHAR *) szIn, (SQLSMALLINT) inlen,
+								  (SQLCHAR *) szOut, cbConnStrOutMax, &olen);
+	else
+	{
+		CC_set_error(conn, CONN_NO_MEMORY_ERROR, "Could not allocate memory for output buffer", func);
+		ret = SQL_ERROR;
+	}
 	LEAVE_CONN_CS(conn);
 	if (ret != SQL_ERROR)
 	{
@@ -243,7 +256,7 @@ SQLDescribeColW(HSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	SQLSMALLINT	buflen, nmlen;
-	char	*clName = NULL;
+	char	*clName = NULL, *clNamet = NULL;
 
 	mylog("[%s]", func);
 	buflen = 0;
@@ -252,12 +265,19 @@ SQLDescribeColW(HSTMT StatementHandle,
 	else if (NameLength)
 		buflen = 32;
 	if (buflen > 0)
-		clName = malloc(buflen);
+		clNamet = malloc(buflen);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	for (;; buflen = nmlen + 1, clName = realloc(clName, buflen))
+	for (;; buflen = nmlen + 1, clNamet = realloc(clName, buflen))
 	{
+		if (!clNamet)
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for column name", func);
+			ret = SQL_ERROR;
+			break;
+		}
+		clName = clNamet;
 		ret = PGAPI_DescribeCol(StatementHandle, ColumnNumber,
 								(SQLCHAR *) clName, buflen,
 								&nmlen, DataType, ColumnSize,
@@ -323,7 +343,7 @@ SQLGetCursorNameW(HSTMT StatementHandle,
 	CSTR func = "SQLGetCursorNameW";
 	RETCODE	ret;
 	StatementClass * stmt = (StatementClass *) StatementHandle;
-	char	*crName;
+	char	*crName = NULL, *crNamet;
 	SQLSMALLINT	clen, buflen;
 
 	mylog("[%s]", func);
@@ -331,12 +351,19 @@ SQLGetCursorNameW(HSTMT StatementHandle,
 		buflen = BufferLength * 3;
 	else
 		buflen = 32;
-	crName = malloc(buflen);
+	crNamet = malloc(buflen);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	for (;; buflen = clen + 1, crName = realloc(crName, buflen))
+	for (;; buflen = clen + 1, crNamet = realloc(crName, buflen))
 	{
+		if (!crNamet)
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for cursor name", func);
+			ret = SQL_ERROR;
+			break;
+		}
+		crName = crNamet;
 		ret = PGAPI_GetCursorName(StatementHandle, (SQLCHAR *) crName, buflen, &clen);
 		if (SQL_SUCCESS_WITH_INFO != ret || clen < buflen)
 			break;
@@ -693,7 +720,7 @@ SQLNativeSqlW(HDBC			hdbc,
 {
 	CSTR func = "SQLNativeSqlW";
 	RETCODE		ret;
-	char		*szIn, *szOut = NULL;
+	char		*szIn, *szOut = NULL, *szOutt = NULL;
 	SQLLEN		slen;
 	SQLINTEGER	buflen, olen;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
@@ -706,9 +733,16 @@ SQLNativeSqlW(HDBC			hdbc,
 	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen, FALSE);
 	buflen = 3 * cbSqlStrMax;
 	if (buflen > 0)
-		szOut = malloc(buflen);
-	for (;; buflen = olen + 1, szOut = realloc(szOut, buflen))
+		szOutt = malloc(buflen);
+	for (;; buflen = olen + 1, szOutt = realloc(szOut, buflen))
 	{
+		if (!szOutt)
+		{
+			CC_set_error(conn, CONN_NO_MEMORY_ERROR, "Could not allocate memory for output buffer", func);
+			ret = SQL_ERROR;
+			break;
+		}
+		szOut = szOutt;
 		ret = PGAPI_NativeSql(hdbc, (SQLCHAR *) szIn, (SQLINTEGER) slen,
 							  (SQLCHAR *) szOut, buflen, &olen);
 		if (SQL_SUCCESS_WITH_INFO != ret || olen < buflen)

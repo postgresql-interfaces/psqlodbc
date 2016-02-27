@@ -189,6 +189,8 @@ check_client_encoding(const pgNAME conn_settings)
 	if (!sptr)
 		return NULL;
 	rptr = malloc(len + 1);
+	if (!rptr)
+		return NULL;
 	memcpy(rptr, sptr, len);
 	rptr[len] = '\0';
 	mylog("extracted a client_encoding '%s' from conn_settings\n", rptr);

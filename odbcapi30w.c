@@ -158,7 +158,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 	CSTR func = "SQLGetDescFieldW";
 	RETCODE	ret;
 	SQLINTEGER		blen = 0, bMax,	*pcbV;
-        char    *rgbV = NULL;
+        char    *rgbV = NULL, *rgbVt;
 
 	mylog("[%s]", func);
 	switch (iField)
@@ -175,10 +175,16 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 		case SQL_DESC_TABLE_NAME:
 		case SQL_DESC_TYPE_NAME:
 			bMax = cbValueMax * 3 / WCLEN;
-			rgbV = malloc(bMax + 1);
+			rgbVt = malloc(bMax + 1);
 			pcbV = &blen;
-			for (;; bMax = blen + 1, rgbV = realloc(rgbV, bMax))
+			for (;; bMax = blen + 1, rgbVt = realloc(rgbV, bMax))
 			{
+				if (!rgbVt)
+				{
+					ret = SQL_ERROR;
+					break;
+				}
+				rgbV = rgbVt;
 				ret = PGAPI_GetDescField(hdesc, iRecord, iField, rgbV, bMax, pcbV);
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
 					break;
@@ -279,7 +285,7 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
-        char    *rgbD = NULL;
+        char    *rgbD = NULL, *rgbDt;
 
 	mylog("[%s]", func);
 	ENTER_STMT_CS(stmt);
@@ -300,10 +306,16 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 		case SQL_DESC_TYPE_NAME:
 		case SQL_COLUMN_NAME:
 			bMax = cbCharAttrMax * 3 / WCLEN;
-			rgbD = malloc(bMax);
+			rgbDt = malloc(bMax);
 			rgbL = &blen;
-			for (;; bMax = blen + 1, rgbD = realloc(rgbD, bMax))
+			for (;; bMax = blen + 1, rgbDt = realloc(rgbD, bMax))
 			{
+				if (!rgbDt)
+				{
+					ret = SQL_ERROR;
+					break;
+				}
+				rgbD = rgbDt;
 				ret = PGAPI_ColAttributes(hstmt, iCol, iField, rgbD,
 					bMax, rgbL, pNumAttr);
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
@@ -349,7 +361,7 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 	CSTR		func = "SQLGetDiagFieldW";
 	RETCODE		ret;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
-	char	   *rgbD = NULL;
+	char	   *rgbD = NULL, *rgbDt;
 
 	mylog("[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, fHandleType,
 			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);
@@ -363,11 +375,14 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 		case SQL_DIAG_SQLSTATE:
 		case SQL_DIAG_SUBCLASS_ORIGIN:
 			bMax = cbDiagInfoMax * 3 / WCLEN + 1;
-			if (rgbD = malloc(bMax), !rgbD)
+			if (rgbDt = malloc(bMax), !rgbD)
 				return SQL_ERROR;
 			rgbL = &blen;
-			for (;; bMax = blen + 1, rgbD = realloc(rgbD, bMax))
+			for (;; bMax = blen + 1, rgbDt = realloc(rgbD, bMax))
 			{
+				if (!rgbDt)
+					return SQL_ERROR;
+				rgbD = rgbDt;
 				ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
 					bMax, rgbL);
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)

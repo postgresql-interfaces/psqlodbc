@@ -1951,6 +1951,7 @@ typedef struct
 static
 RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 {
+	CSTR func = "bulk_ope_callback";
 	RETCODE	ret = retcode;
 	bop_cdata *s = (bop_cdata *) para;
 	SQLULEN		offset, global_idx;
@@ -2001,6 +2002,11 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 		if (SQL_NEED_DATA == ret)
 		{
 			bop_cdata *cbdata = (bop_cdata *) malloc(sizeof(bop_cdata));
+			if (!cbdata)
+			{
+				SC_set_error(s->stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for cbdata.", func);
+				return SQL_ERROR;
+			}
 			memcpy(cbdata, s, sizeof(bop_cdata));
 			cbdata->need_data_callback = TRUE;
 			if (0 == enqueueNeedDataCallback(s->stmt, bulk_ope_callback, cbdata))

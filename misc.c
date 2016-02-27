@@ -182,6 +182,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 				if (!str)
 				{
 					str = malloc(length + 1);
+					if (!str) return NULL;
 					memcpy(str, s, length);
 					str[length] = '\0';
 				}

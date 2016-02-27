@@ -3046,6 +3046,11 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		}
 		npos -= qp->declare_pos;
 		stmt->load_statement = malloc(npos + 1);
+		if (!stmt->load_statement)
+		{
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		memcpy(stmt->load_statement, qb->query_statement + qp->declare_pos, npos);
 		stmt->load_statement[npos] = '\0';
 	}
@@ -4160,10 +4165,13 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			if (SQL_NTS == used)
 				used = strlen(buffer);
 			allocbuf = malloc(WCLEN * (used + 1));
-			used = msgtowstr(buffer, (int) used, (LPWSTR) allocbuf, (int) (used + 1));
-			buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
-			free(allocbuf);
-			allocbuf = buf;
+			if (allocbuf)
+			{
+				used = msgtowstr(buffer, (int) used, (LPWSTR) allocbuf, (int) (used + 1));
+				buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
+				free(allocbuf);
+				allocbuf = buf;
+			}
 #else
 			buf = buffer;
 #endif /* WIN_UNICODE_SUPPORT */

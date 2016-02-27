@@ -50,7 +50,6 @@
 								 * at a time */
 
 static void CC_lookup_lo(ConnectionClass *self);
-static char *CC_create_errormsg(ConnectionClass *self);
 static int  CC_close_eof_cursors(ConnectionClass *self);
 
 static void LIBPQ_update_transaction_status(ConnectionClass *self);
@@ -522,7 +521,6 @@ CC_clear_error(ConnectionClass *self)
 		self->__error_message = NULL;
 	}
 	self->sqlstate[0] = '\0';
-	self->errormsg_created = FALSE;
 	CONNLOCK_RELEASE(self);
 }
 
@@ -1218,30 +1216,6 @@ mylog("max_identifier_length=%d\n", len);
 	return len < 0 ? 0 : len;
 }
 
-/*
- *	Create a more informative error message by concatenating the connection
- *	error message with its socket error message.
- *
- * XXX: actually, there is no such thing as socket error message anymore
- */
-static char *
-CC_create_errormsg(ConnectionClass *self)
-{
-	char	msg[4096];
-
-	mylog("enter CC_create_errormsg\n");
-
-	msg[0] = '\0';
-
-	if (CC_get_errormsg(self))
-		strncpy_null(msg, CC_get_errormsg(self), sizeof(msg));
-
-	mylog("msg = '%s'\n", msg);
-
-	mylog("exit CC_create_errormsg\n");
-	return strdup(msg);
-}
-
 
 void
 CC_set_error(ConnectionClass *self, int number, const char *message, const char *func)
@@ -1274,20 +1248,10 @@ char
 CC_get_error(ConnectionClass *self, int *number, char **message)
 {
 	int			rv;
-	char *msgcrt;
 
 	mylog("enter CC_get_error\n");
 
 	CONNLOCK_ACQUIRE(self);
-	/* Create a very informative errormsg if it hasn't been done yet. */
-	if (!self->errormsg_created)
-	{
-		msgcrt = CC_create_errormsg(self);
-		if (self->__error_message)
-			free(self->__error_message);
-		self->__error_message = msgcrt;
-		self->errormsg_created = TRUE;
-	}
 
 	if (CC_get_errornumber(self))
 	{
@@ -1755,6 +1719,13 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				if (query_completed)	/* allow for "show" style notices */
 				{
 					res->next = QR_Constructor();
+					if (!res->next)
+					{
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
+						ReadyToReturn = TRUE;
+						retres = NULL;
+						break;
+					}
 					res = res->next;
 					nrarg.res = res;
 				}
@@ -1904,6 +1875,13 @@ inolog("Discarded the first SAVEPOINT\n");
 				if (query_completed)
 				{
 					res->next = QR_Constructor();
+					if (!res->next)
+					{
+						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
+						ReadyToReturn = TRUE;
+						retres = NULL;
+						break;
+					}
 					res = res->next;
 					nrarg.res = res;
 				}
@@ -2369,7 +2347,8 @@ CC_get_current_schema(ConnectionClass *conn)
 				if (curschema)
 					conn->current_schema = strdup(curschema);
 			}
-			conn->current_schema_valid = TRUE;
+			if (conn->current_schema)
+				conn->current_schema_valid = TRUE;
 		}
 		QR_Destructor(res);
 	}
@@ -3050,6 +3029,7 @@ PgDtc_isolate(void *self, DWORD option)
 		return newconn;
 	}
 	newconn = CC_Constructor();
+	if (!newconn) return NULL;
 	CC_copy_conninfo(&newconn->connInfo, &sconn->connInfo);
 	CC_initialize_pg_version(newconn);
 	newconn->asdum = sconn->asdum;
