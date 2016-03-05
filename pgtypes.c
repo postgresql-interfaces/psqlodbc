@@ -955,6 +955,7 @@ pgtype_attr_precision(const ConnectionClass *conn, OID type, int atttypmod, int 
 	{
 		case PG_TYPE_NUMERIC:
 			return getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longest, handle_unknown_size_as);
+		case PG_TYPE_TIME:
 		case PG_TYPE_DATETIME:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			return getTimestampDecimalDigitsX(conn, type, atttypmod);
@@ -1164,6 +1165,7 @@ pgtype_attr_decimal_digits(const ConnectionClass *conn, OID type, int atttypmod,
 		case PG_TYPE_ABSTIME:
 		case PG_TYPE_TIMESTAMP:
 			return 0;
+		case PG_TYPE_TIME:
 		case PG_TYPE_DATETIME:
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			/* return 0; */

@@ -259,6 +259,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 			   *ptr;
 	int			scnt,
 				i;
+	int			y, m, d, hh, mm, ss;
 #ifdef	TIMEZONE_GLOBAL
 	long		timediff;
 #endif
@@ -270,10 +271,40 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	st->infinity = 0;
 	rest[0] = '\0';
 	bc[0] = '\0';
-	if ((scnt = sscanf(str, "%4d-%2d-%2d %2d:%2d:%2d%31s %15s", &st->y, &st->m, &st->d, &st->hh, &st->mm, &st->ss, rest, bc)) < 6)
-		return FALSE;
-	else if (scnt == 6)
-		return TRUE;
+	if ((scnt = sscanf(str, "%4d-%2d-%2d %2d:%2d:%2d%31s %15s", &y, &m, &d, &hh, &mm, &ss, rest, bc)) < 6)
+	{
+		if (scnt == 3) /* date */
+		{
+			st->y  = y;
+			st->m  = m;
+			st->d  = d;
+			st->hh = 0;
+			st->mm = 0;
+			st->ss = 0;
+			return TRUE;
+		}
+		if ((scnt = sscanf(str, "%2d:%2d:%2d%31s %15s", &hh, &mm, &ss, rest, bc)) < 3)
+			return FALSE;
+		else
+		{
+			st->hh = hh;
+			st->mm = mm;
+			st->ss = ss;
+			if (scnt == 3) /* time */
+				return TRUE;
+		}
+	}
+	else
+	{
+		st->y  = y;
+		st->m  = m;
+		st->d  = d;
+		st->hh = hh;
+		st->mm = mm;
+		st->ss = ss;
+		if (scnt == 6)
+			return TRUE;
+	}
 	switch (rest[0])
 	{
 		case '+':
@@ -815,6 +846,13 @@ static int char2guid(const char *str, SQLGUID *g)
 	return COPY_OK;
 }
 
+static int	effective_fraction(int fraction, int *width)
+{
+	for (*width = 9; fraction % 10 == 0; (*width)--, fraction /= 10)
+		;
+	return fraction;
+}
+
 /*	This is called by SQLGetData() */
 int
 copy_and_convert_field(StatementClass *stmt,
@@ -1018,7 +1056,12 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 			break;
 
 		case PG_TYPE_TIME:
-			sscanf(value, "%2d:%2d:%2d", &std_time.hh, &std_time.mm, &std_time.ss);
+			{
+
+				BOOL	bZone = FALSE;	/* time zone stuff is unreliable */
+				int	zone;
+				timestamp2stime(value, &std_time, &bZone, &zone);
+			}
 			break;
 
 		case PG_TYPE_ABSTIME:
@@ -1241,6 +1284,15 @@ inolog("2stime fr=%d\n", std_time.fr);
 				len = snprintf(rgbValueBindRow, cbValueMax, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
+				else if (std_time.fr > 0)
+				{
+					int	wdt;
+					int	fr = effective_fraction(std_time.fr, &wdt);
+
+					len = snprintf(rgbValueBindRow, cbValueMax, "%s.%0*d", rgbValueBindRow, wdt, fr);
+					if (len + 1 > cbValueMax)
+						result = COPY_RESULT_TRUNCATED;
+				}
 				break;
 
 			case PG_TYPE_ABSTIME:
@@ -4515,7 +4567,14 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 				parse_datetime(cbuf, &st);
 			}
 
-			sprintf(tmp, "%.2d:%.2d:%.2d", st.hh, st.mm, st.ss);
+			if (st.fr > 0)
+			{
+				int	wdt;
+				int	fr = effective_fraction(st.fr, &wdt);
+				sprintf(tmp, "%.2d:%.2d:%.2d.%0*d", st.hh, st.mm, st.ss, wdt, fr);
+			}
+			else
+				sprintf(tmp, "%.2d:%.2d:%.2d", st.hh, st.mm, st.ss);
 			lastadd = "::time";
 			buf = tmp;
 			used = SQL_NTS;
@@ -5284,6 +5343,7 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 				mm,
 				ss;
 	int			nf;
+	BOOL	bZone;	int	zone;
 
 	y = m = d = hh = mm = ss = 0;
 	st->fr = 0;
@@ -5302,6 +5362,9 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 			return FALSE;
 		buf++;
 	}
+	bZone = FALSE;
+	if (timestamp2stime(buf, st, &bZone, &zone))
+		return TRUE;
 	if (buf[4] == '-')			/* year first */
 		nf = sscanf(buf, "%4d-%2d-%2d %2d:%2d:%2d", &y, &m, &d, &hh, &mm, &ss);
 	else
