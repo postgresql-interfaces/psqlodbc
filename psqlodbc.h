@@ -474,6 +474,7 @@ typedef struct StatementOptions_
 typedef struct QueryInfo_
 {
 	SQLLEN		row_size;
+	SQLLEN		fetch_size;
 	QResultClass	*result_in;
 	const char	*cursor;
 } QueryInfo;

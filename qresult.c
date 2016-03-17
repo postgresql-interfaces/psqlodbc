@@ -215,6 +215,7 @@ QR_Constructor(void)
 		rv->aborted = FALSE;
 
 		rv->cache_size = 0;
+		rv->cmd_fetch_size = 0;
 		rv->rowset_size_include_ommitted = 1;
 		rv->move_direction = 0;
 		rv->keyset = NULL;
@@ -579,7 +580,7 @@ BOOL
 QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn, const char *cursor, PGresult **pgres)
 {
 	CSTR func = "QR_from_PGResult";
-	int			num_io_params;
+	int			num_io_params, num_cached_rows;
 	int			i;
 	Int2		paramType;
 	IPDFields  *ipdopts;
@@ -665,13 +666,15 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 
 
 	/* Then, get the data itself */
+	num_cached_rows = self->num_cached_rows;
 	if (!QR_read_tuples_from_pgres(self, pgres))
 		return FALSE;
 
 inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
 	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
 		self->num_total_read = self->cursTuple + 1;
-	if (self->num_cached_rows < self->cache_size)
+	/* EOF is 'fetched < fetch requested' */
+	if (self->num_cached_rows - num_cached_rows < self->cmd_fetch_size)
 	{
 		reached_eof_now = TRUE;
 		QR_set_reached_eof(self);
@@ -1177,6 +1180,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 
 	/* don't read ahead for the next tuple (self) ! */
 	qi.row_size = self->cache_size;
+	qi.fetch_size = fetch_size;
 	qi.result_in = self;
 	qi.cursor = NULL;
 	res = CC_send_query(conn, fetch, &qi, 0, stmt);

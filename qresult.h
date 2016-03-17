@@ -68,9 +68,10 @@ struct QResultClass_
 
 	UInt2		num_fields;	/* number of fields in the result */
 	UInt2		num_key_fields;	/* number of key fields in the result */
-	SQLULEN		cache_size;
 	UInt4		rowset_size_include_ommitted; /* PG restriction */
 	SQLLEN		recent_processed_row_count;
+	SQLULEN		cache_size;
+	SQLULEN		cmd_fetch_size;
 
 	QueryResultCode	rstatus;	/* result status */
 

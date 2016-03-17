@@ -1826,7 +1826,10 @@ inolog("Discarded the first SAVEPOINT\n");
 					nrarg.res = res;
 
 					if (qi)
+					{
 						QR_set_cache_size(res, qi->row_size);
+						res->cmd_fetch_size = qi->fetch_size;
+					}
 				}
 				if (!used_passed_result_object)
 				{

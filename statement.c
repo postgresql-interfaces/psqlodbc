@@ -1930,10 +1930,10 @@ SC_execute(StatementClass *self)
 		{
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
-			qi.row_size = ci->drivers.fetch_max;
+			qi.fetch_size = qi.row_size = ci->drivers.fetch_max;
 			snprintf(fetch, sizeof(fetch),
 					 "fetch " FORMAT_LEN " in \"%s\"",
-					 qi.row_size, SC_cursor_name(self));
+					 qi.fetch_size, SC_cursor_name(self));
 			qryi = &qi;
 			appendq = fetch;
 		}
@@ -2179,8 +2179,8 @@ inolog("!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_ty
 			SC_set_fetchcursor(self);
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
-			qi.row_size = ci->drivers.fetch_max;
-			snprintf(fetch, sizeof(fetch), "fetch " FORMAT_LEN " in \"%s\"", qi.row_size, SC_cursor_name(self));
+			qi.cache_size = qi.row_size = ci->drivers.fetch_max;
+			snprintf(fetch, sizeof(fetch), "fetch " FORMAT_LEN " in \"%s\"", qi.fetch_size, SC_cursor_name(self));
 			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
 			if (NULL != res)
 				SC_set_Result(self, res);
