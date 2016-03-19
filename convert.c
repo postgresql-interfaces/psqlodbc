@@ -888,6 +888,7 @@ copy_and_convert_field(StatementClass *stmt,
 	const char *neut_str = value;
 	char		booltemp[3];
 	char		moneytemp[32];
+	char		midtemp[64];
 	GetDataClass *pgdc;
 #ifdef	UNICODE_SUPPORT
 	BOOL	wconverted =   FALSE;
@@ -1265,6 +1266,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 	if (text_handling)
 	{
+		BOOL	pre_process = TRUE;
+		int	midsize = sizeof(midtemp);
 		/* Special character formatting as required */
 
 		BOOL	hex_bin_format = FALSE;
@@ -1275,21 +1278,21 @@ inolog("2stime fr=%d\n", std_time.fr);
 		switch (field_type)
 		{
 			case PG_TYPE_DATE:
-				len = snprintf(rgbValueBindRow, cbValueMax, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
+				len = snprintf(midtemp, midsize, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				break;
 
 			case PG_TYPE_TIME:
-				len = snprintf(rgbValueBindRow, cbValueMax, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
+				len = snprintf(midtemp, midsize, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
-				else if (std_time.fr > 0)
+				if (std_time.fr > 0)
 				{
 					int	wdt;
 					int	fr = effective_fraction(std_time.fr, &wdt);
 
-					len = snprintf(rgbValueBindRow, cbValueMax, "%s.%0*d", rgbValueBindRow, wdt, fr);
+					len = snprintf(midtemp, midsize, "%s.%0*d", midtemp, wdt, fr);
 					if (len + 1 > cbValueMax)
 						result = COPY_RESULT_TRUNCATED;
 				}
@@ -1299,16 +1302,14 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case PG_TYPE_DATETIME:
 			case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			case PG_TYPE_TIMESTAMP:
-				/* sprintf(rgbValueBindRow, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
-					std_time.y, std_time.m, std_time.d, std_time.hh, std_time.mm, std_time.ss); */
-				len = stime2timestamp(&std_time, rgbValueBindRow, cbValueMax, FALSE,
-									  (int) (cbValueMax - 19 - 2) );
+				len = stime2timestamp(&std_time, midtemp, midsize, FALSE,
+									  (int) (midsize - 19 - 2) );
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				break;
 
 			case PG_TYPE_BOOL:
-				len = snprintf(rgbValueBindRow, cbValueMax, "%s", neut_str);
+				len = snprintf(midtemp, midsize, "%s", neut_str);
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				mylog("PG_TYPE_BOOL: rgbValueBindRow = '%s'\n", rgbValueBindRow);
@@ -1316,10 +1317,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 			case PG_TYPE_UUID:
 				len = strlen(neut_str);
-				for (i = 0; i < len && i < cbValueMax - 1; i++)
-					rgbValueBindRow[i] = toupper((UCHAR) neut_str[i]);
-				if (cbValueMax > 0)
-					rgbValueBindRow[i] = '\0';
+				for (i = 0; i < len && i < midsize - 2; i++)
+					midtemp[i] = toupper((UCHAR) neut_str[i]);
+				midtemp[i] = '\0';
 				if (len + 1 > cbValueMax)
 					result = COPY_RESULT_TRUNCATED;
 				mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
@@ -1341,6 +1341,21 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case PG_TYPE_BYTEA:/* convert binary data to hex strings
 								 * (i.e, 255 = "FF") */
 
+			default:
+				pre_process = FALSE;
+		}
+		switch (pre_process)
+		{
+			case TRUE:
+				if (fCType == SQL_C_CHAR)
+				{
+					strncpy_null(rgbValueBindRow, midtemp, cbValueMax);
+					if (len + 1 > cbValueMax)
+						result = COPY_RESULT_TRUNCATED;
+					break;
+				}
+				neut_str = midtemp;
+				/* fall through */
 			default:
 				switch (field_type)
 				{
@@ -1591,7 +1606,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 #ifdef	UNICODE_SUPPORT
 		if (SQL_C_WCHAR == fCType && ! wconverted)
 		{
-			char *str = strdup(rgbValueBindRow);
+			char *str = strdup(midtemp);
 			SQLLEN	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
 			if (cbValueMax < WCLEN * ucount)
 				result = COPY_RESULT_TRUNCATED;

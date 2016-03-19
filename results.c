@@ -886,6 +886,9 @@ PGAPI_GetData(HSTMT hstmt,
 	char		get_bookmark = FALSE;
 	SQLSMALLINT	target_type;
 	int		precision = -1;
+#ifdef	WITH_UNIXODBC
+	SQLCHAR		dum_rgb[2] = "\0\0";
+#endif	/* WITH_UNIXODBC */
 
 	mylog("%s: enter, stmt=%p icol=%d\n", func, stmt, icol);
 
@@ -908,6 +911,13 @@ PGAPI_GetData(HSTMT hstmt,
 		return SQL_ERROR;
 	}
 
+#ifdef	WITH_UNIXODBC
+	if (NULL == rgbValue) /* unixODBC allows rgbValue is NULL? */
+	{
+		cbValueMax = 0;
+		rgbValue = dum_rgb; /* to avoid a crash */
+	}
+#endif	/* WITH_UNIXODBC */
 	if (SQL_ARD_TYPE == fCType)
 	{
 		ARDFields	*opts;
