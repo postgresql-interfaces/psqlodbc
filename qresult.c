@@ -669,15 +669,15 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 		return FALSE;
 
 inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
+	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
+		self->num_total_read = self->cursTuple + 1;
 	if (self->num_cached_rows < self->cache_size)
 	{
 		reached_eof_now = TRUE;
 		QR_set_reached_eof(self);
 	}
-	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
-		self->num_total_read = self->cursTuple + 1;
 	if (reached_eof_now && self->cursTuple < (Int4) self->num_total_read)
-		self->cursTuple++;
+		self->cursTuple = self->num_total_read;
 
 	if (NULL != conn)
 	{
