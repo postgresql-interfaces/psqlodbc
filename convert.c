@@ -887,12 +887,8 @@ copy_and_convert_field(StatementClass *stmt,
 	BOOL	text_handling, localize_needed;
 	const char *neut_str = value;
 	char		booltemp[3];
-	char		moneytemp[32];
 	char		midtemp[64];
 	GetDataClass *pgdc;
-#ifdef	UNICODE_SUPPORT
-	BOOL	wconverted =   FALSE;
-#endif /* UNICODE_SUPPORT */
 #ifdef	WIN_UNICODE_SUPPORT
 	SQLWCHAR	*allocbuf = NULL;
 	ssize_t		wstrlen;
@@ -1266,7 +1262,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 	if (text_handling)
 	{
-		BOOL	pre_process = TRUE;
+		BOOL	pre_convert = TRUE;
 		int	midsize = sizeof(midtemp);
 		/* Special character formatting as required */
 
@@ -1279,22 +1275,16 @@ inolog("2stime fr=%d\n", std_time.fr);
 		{
 			case PG_TYPE_DATE:
 				len = snprintf(midtemp, midsize, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
-				if (len + 1 > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
 				break;
 
 			case PG_TYPE_TIME:
 				len = snprintf(midtemp, midsize, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
-				if (len + 1 > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
 				if (std_time.fr > 0)
 				{
 					int	wdt;
 					int	fr = effective_fraction(std_time.fr, &wdt);
 
 					len = snprintf(midtemp, midsize, "%s.%0*d", midtemp, wdt, fr);
-					if (len + 1 > cbValueMax)
-						result = COPY_RESULT_TRUNCATED;
 				}
 				break;
 
@@ -1304,15 +1294,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case PG_TYPE_TIMESTAMP:
 				len = stime2timestamp(&std_time, midtemp, midsize, FALSE,
 									  (int) (midsize - 19 - 2) );
-				if (len + 1 > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
-				break;
-
-			case PG_TYPE_BOOL:
-				len = snprintf(midtemp, midsize, "%s", neut_str);
-				if (len + 1 > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
-				mylog("PG_TYPE_BOOL: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				break;
 
 			case PG_TYPE_UUID:
@@ -1320,8 +1301,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 				for (i = 0; i < len && i < midsize - 2; i++)
 					midtemp[i] = toupper((UCHAR) neut_str[i]);
 				midtemp[i] = '\0';
-				if (len + 1 > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
 				mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				break;
 
@@ -1342,18 +1321,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 								 * (i.e, 255 = "FF") */
 
 			default:
-				pre_process = FALSE;
+				pre_convert = FALSE;
 		}
-		switch (pre_process)
+		switch (pre_convert)
 		{
 			case TRUE:
-				if (fCType == SQL_C_CHAR)
-				{
-					strncpy_null(rgbValueBindRow, midtemp, cbValueMax);
-					if (len + 1 > cbValueMax)
-						result = COPY_RESULT_TRUNCATED;
-					break;
-				}
 				neut_str = midtemp;
 				/* fall through */
 			default:
@@ -1380,10 +1352,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 				}
 				else
 					pgdc = &gdata->gdata[stmt->current_col];
-#ifdef	UNICODE_SUPPORT
-				if (fCType == SQL_C_WCHAR)
-					wconverted = TRUE;
-#endif /* UNICODE_SUPPORT */
 				if (pgdc->data_left < 0)
 				{
 					BOOL lf_conv = conn->connInfo.lf_conversion;
@@ -1603,17 +1571,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 					mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 				break;
 		}
-#ifdef	UNICODE_SUPPORT
-		if (SQL_C_WCHAR == fCType && ! wconverted)
-		{
-			char *str = strdup(midtemp);
-			SQLLEN	ucount = utf8_to_ucs2(str, len, (SQLWCHAR *) rgbValueBindRow, cbValueMax / WCLEN);
-			if (cbValueMax < WCLEN * ucount)
-				result = COPY_RESULT_TRUNCATED;
-			len = ucount * WCLEN;
-			free(str);
-		}
-#endif /* UNICODE_SUPPORT */
 
 	}
 	else
@@ -1625,8 +1582,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 		 */
 		if (field_type == PG_TYPE_MONEY)
 		{
-			if (convert_money(neut_str, moneytemp, sizeof(moneytemp)))
-				neut_str = moneytemp;
+			if (convert_money(neut_str, midtemp, sizeof(midtemp)))
+				neut_str = midtemp;
 			else
 			{
 				qlog("couldn't convert money type to %d\n", fCType);
