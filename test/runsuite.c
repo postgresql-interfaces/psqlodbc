@@ -23,8 +23,8 @@
 #define strdup _strdup
 #endif
 
-static int rundiff(const char *testname);
-static int runtest(const char *binname, const char *testname, int testno);
+static int rundiff(const char *testname, const char *inputdir);
+static int runtest(const char *binname, const char *testname, int testno, const char *inputdir);
 
 static char *slurpfile(const char *filename, size_t *len);
 
@@ -101,15 +101,22 @@ int main(int argc, char **argv)
 	char		binname[1000];
 	char		testname[100];
 	int			numtests;
-	int			i;
+	int			i, j;
 	int			failures;
+	const char	*inputdir = ".";
+	int		sub_count = 1;
 
 	if (argc < 2)
 	{
 		printf("Usage: runsuite <test binary> ...\n");
 		exit(1);
 	}
-	numtests = argc - 1;
+	if (strncmp(argv[argc - 1], "--inputdir=", 11) == 0)
+	{
+		sub_count++;
+		inputdir = argv[argc - 1] + 11;
+	}
+	numtests = argc - sub_count;
 
 	printf("TAP version 13\n");
 	printf("1..%d\n", numtests);
@@ -118,10 +125,10 @@ int main(int argc, char **argv)
 	 * We accept either test binary name or plain test name.
 	 */
 	failures = 0;
-	for (i = 1; i <= numtests; i++)
+	for (i = 1, j = 1; i <= numtests; i++, j++)
 	{
-		parse_argument(argv[i], testname, binname);
-		if (runtest(binname, testname, i) != 0)
+		parse_argument(argv[j], testname, binname);
+		if (runtest(binname, testname, i, inputdir) != 0)
 			failures++;
 	}
 
@@ -130,7 +137,7 @@ int main(int argc, char **argv)
 
 /* Return 0 on success, 1 on failure */
 static int
-runtest(const char *binname, const char *testname, int testno)
+runtest(const char *binname, const char *testname, int testno, const char *inputdir)
 {
 	char		cmdline[1024];
 	int			rc;
@@ -159,7 +166,7 @@ runtest(const char *binname, const char *testname, int testno)
 #endif
 	rc = system(cmdline);
 
-	diff = rundiff(testname);
+	diff = rundiff(testname, inputdir);
 	if (rc != 0)
 	{
 		printf("not ok %d - %s test returned %d\n", testno, testname, rc);
@@ -181,7 +188,7 @@ runtest(const char *binname, const char *testname, int testno)
 }
 
 static int
-rundiff(const char *testname)
+rundiff(const char *testname, const char *inputdir)
 {
 	char		filename[1024];
 	char		cmdline[1024];
@@ -199,9 +206,9 @@ rundiff(const char *testname)
 		size_t		expected_len;
 
 		if (outputno == 0)
-			snprintf(filename, sizeof(filename), "expected/%s.out", testname);
+			snprintf(filename, sizeof(filename), "%s/expected/%s.out", inputdir, testname);
 		else
-			snprintf(filename, sizeof(filename), "expected/%s_%d.out", testname, outputno);
+			snprintf(filename, sizeof(filename), "%s/expected/%s_%d.out", inputdir, testname, outputno);
 		expected = slurpfile(filename, &expected_len);
 		if (expected == NULL)
 		{
@@ -237,8 +244,8 @@ rundiff(const char *testname)
 	 * files and print the smallest diff?
 	 */
 	snprintf(cmdline, sizeof(cmdline),
-			 "diff -c expected/%s.out results/%s.out >> regression.diffs",
-			 testname, testname);
+			 "diff -c %s/expected/%s.out results/%s.out >> regression.diffs",
+			 inputdir, testname, testname);
 	if (system(cmdline) == -1)
 		printf("# diff failed\n");
 

@@ -23,18 +23,18 @@ LIBODBC := $(shell $(ODBC_CONFIG) --libs)
 all: $(TESTBINS) runsuite reset-db
 
 odbc.ini:
-	./odbcini-gen.sh $(odbc_ini_extras)
+	$(origdir)/odbcini-gen.sh $(odbc_ini_extras)
 
 installcheck: all odbc.ini reset-db runsuite
 	rm -f regression.diffs
 	@if test ! -d results; then mkdir -p results; fi
-	ODBCSYSINI=. ODBCINSTINI=./odbcinst.ini ODBCINI=./odbc.ini ./reset-db < sampletables.sql
+	ODBCSYSINI=. ODBCINSTINI=./odbcinst.ini ODBCINI=./odbc.ini ./reset-db < $(origdir)/sampletables.sql
 # If the perl 'prove' test running utility is available, use it. It produces
 # nice output. But otherwise just run the plain suite, it's usable as is too.
 ifdef PROVE
-	prove -e ./runsuite $(TESTNAMES)
+	prove -e ./runsuite $(TESTNAMES) :: --inputdir=$(origdir)
 else
-	./runsuite $(TESTNAMES)
+	./runsuite $(TESTNAMES) --inputdir=$(origdir)
 endif
 
 override CFLAGS += -Wno-pointer-sign $(CFLAGS_ADD)
