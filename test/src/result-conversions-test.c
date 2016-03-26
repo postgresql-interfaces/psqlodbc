@@ -585,6 +585,7 @@ int main(int argc, char **argv)
 	 * from the hex format separately later.
 	 */
 	exec_cmd("SET bytea_output=escape");
+	exec_cmd("SET lc_monetary='C'");
 
 	/* Test all combinations of PostgreSQL data types and SQL datatypes */
 	for (pgtype_i = 0; pgtypes[pgtype_i * 2] != NULL; pgtype_i++)
