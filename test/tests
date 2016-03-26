@@ -36,6 +36,7 @@ TESTBINS = src/connect-test \
 	src/cursor-name-test \
 	src/bookmark-test \
 	src/declare-fetch-commit-test \
+	src/declare-fetch-block-test \
 	src/positioned-update-test \
 	src/bulkoperations-test \
 	src/catalogfunctions-test \

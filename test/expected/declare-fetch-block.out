@@ -1,0 +1,10 @@
+connected
+fetchIdx=1, fetched rows=84, total rows=84
+fetchIdx=2, fetched rows=36, total rows=120
+next  total rows=120
+prior total rows=120
+next  total rows=120
+prior total rows=120
+FetchScroll beyond the end failed 100
+encountered EOF at 120
+disconnecting
