@@ -419,3 +419,33 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 
 	return ret;
 }
+
+/*	new function */
+RETCODE		SQL_API
+SQLGetDescRecW(SQLHDESC DescriptorHandle,
+			  SQLSMALLINT RecNumber, SQLWCHAR *Name,
+			  SQLSMALLINT BufferLength, SQLSMALLINT *StringLength,
+			  SQLSMALLINT *Type, SQLSMALLINT *SubType,
+			  SQLLEN *Length, SQLSMALLINT *Precision,
+			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
+{
+	mylog("[[SQLGetDescRecW]]\n");
+	mylog("Error not implemented\n");
+	return SQL_ERROR;
+}
+
+/*	new fucntion */
+RETCODE		SQL_API
+SQLSetDescRecW(SQLHDESC DescriptorHandle,
+			  SQLSMALLINT RecNumber, SQLSMALLINT Type,
+			  SQLSMALLINT SubType, SQLLEN Length,
+			  SQLSMALLINT Precision, SQLSMALLINT Scale,
+			  PTR Data, SQLLEN *StringLength,
+			  SQLLEN *Indicator)
+{
+	CSTR func = "SQLSetDescRecW";
+
+	mylog("[[%s]]\n", func);
+	mylog("Error not implemented\n");
+	return SQL_ERROR;
+}
