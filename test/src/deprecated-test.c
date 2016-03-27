@@ -138,7 +138,7 @@ main(int argc, char **argv)
 	rc = SQLError(env2, conn2, hstmt, buffer, &valint,
 				  message, 256, &val);
 	CHECK_STMT_RESULT(rc, "SQLError failed", hstmt);
-	printf("Error check: %s\n", (CHAR *)message);
+	printf("Error check: %s\n", (char *)message);
 
 	/*
 	 * SQLSetParam[2] -> SQLBindParameter
