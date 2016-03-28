@@ -1529,14 +1529,17 @@ inolog("num_tuples=%d\n", num_tuples);
 			}
 			else if (QR_haskeyset(res))
 			{
-				if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i < -1)
+				if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i < 0)
 				{
-					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining", func);
-					SC_set_rowset_start(stmt, 0, TRUE);
-				}
-				else if (i <= 0)
-				{
-					EXTFETCH_RETURN_BOF(stmt, res)
+					if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, 1, &rowset_start), i < 0)
+					{
+						EXTFETCH_RETURN_BOF(stmt, res)
+					}
+					else
+					{
+						SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining", func);
+						SC_set_rowset_start(stmt, 0, TRUE);
+					}
 				}
 				else
 					should_set_rowset_start = TRUE;
