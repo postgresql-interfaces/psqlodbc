@@ -1702,6 +1702,11 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		}
 	}
 	res = cmdres;
+	if (qi)
+	{
+		res->cmd_fetch_size = qi->fetch_size;
+		res->cache_size = qi->row_size;
+	}
 	nrarg.res = res;
 
 	while (self->pqconn && (pgres = PQgetResult(self->pqconn)) != NULL)

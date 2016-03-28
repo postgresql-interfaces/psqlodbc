@@ -676,6 +676,7 @@ inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_tota
 	/* EOF is 'fetched < fetch requested' */
 	if (self->num_cached_rows - num_cached_rows < self->cmd_fetch_size)
 	{
+		mylog("detect EOF %d - %d < %d\n", self->num_cached_rows, num_cached_rows, self->cmd_fetch_size);
 		reached_eof_now = TRUE;
 		QR_set_reached_eof(self);
 	}
