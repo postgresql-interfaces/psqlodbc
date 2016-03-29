@@ -2708,6 +2708,7 @@ inolog("prepareParametersNoDesc\n");
 		if (!pstmt)
 			goto cleanup;
 		last_pstmt->next = pstmt;
+		last_pstmt = pstmt;
 	}
 
 	SC_set_planname(stmt, plan_name);
