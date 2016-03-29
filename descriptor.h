@@ -29,12 +29,12 @@ typedef struct
 	UInt4		flags;
 } TABLE_INFO;
 #define	TI_set_updatable(ti)	(ti->flags |= TI_UPDATABLE)
-#define	TI_is_updatable(ti)	(0 != (ti->flags &= TI_UPDATABLE))
+#define	TI_is_updatable(ti)	(0 != (ti->flags & TI_UPDATABLE))
 #define	TI_no_updatable(ti)	(ti->flags &= (~TI_UPDATABLE))
 #define	TI_set_hasoids_checked(ti)	(ti->flags |= TI_HASOIDS_CHECKED)
-#define	TI_checked_hasoids(ti)		(0 != (ti->flags &= TI_HASOIDS))
+#define	TI_checked_hasoids(ti)		(0 != (ti->flags & TI_HASOIDS))
 #define	TI_set_hasoids(ti)	(ti->flags |= TI_HASOIDS)
-#define	TI_has_oids(ti)		(0 != (ti->flags &= TI_HASOIDS))
+#define	TI_has_oids(ti)		(0 != (ti->flags & TI_HASOIDS))
 #define	TI_set_has_no_oids(ti)	(ti->flags &= (~TI_HASOIDS))
 void	TI_Constructor(TABLE_INFO *, const ConnectionClass *);
 void	TI_Destructor(TABLE_INFO **, int);
