@@ -228,7 +228,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 		extend_getdata_info(gdata_info, icol, FALSE);
 
 	/* check to see if the bindings were allocated */
-	if (!opts->bindings)
+	if (!opts->bindings || !gdata_info->gdata)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for bindings.", func);
 		ret = SQL_ERROR;
@@ -506,6 +506,8 @@ extend_parameter_bindings(APDFields *self, int num_params)
 		{
 			mylog("%s: unable to create %d new bindings from %d old bindings\n", func, num_params, self->allocated);
 
+			if (self->parameters)
+				free(self->parameters);
 			self->parameters = NULL;
 			self->allocated = 0;
 			return;
@@ -538,6 +540,8 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 		{
 			mylog("%s: unable to create %d new bindings from %d old bindings\n", func, num_params, self->allocated);
 
+			if (self->parameters)
+				free(self->parameters);
 			self->parameters = NULL;
 			self->allocated = 0;
 			return;
