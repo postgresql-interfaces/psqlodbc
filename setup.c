@@ -400,7 +400,7 @@ ConfigDlgProc(HWND hdlg,
 void
 test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 {
-	EnvironmentClass *env = EN_Constructor();
+	EnvironmentClass *env;
 	ConnectionClass *conn = NULL;
 	char    szMsg[SQL_MAX_MESSAGE_LENGTH];
 	char *emsg = NULL;
