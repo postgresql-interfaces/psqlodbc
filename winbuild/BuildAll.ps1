@@ -14,7 +14,7 @@
     Specify build platforms, "both"(default), "Win32" or "x64" is
     available.
 .PARAMETER AlongWithInstallers
-    Specify when you'd like build installers after building drivers.
+    Specify when you'd like to build installers after building drivers.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
