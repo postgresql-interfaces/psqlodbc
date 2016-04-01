@@ -54,10 +54,14 @@ CSTR	NAN_STRING = "NaN";
 CSTR	INFINITY_STRING = "Infinity";
 CSTR	MINFINITY_STRING = "-Infinity";
 
-#ifdef	__CYGWIN__
+#if	defined(WIN32) || defined(__CYGWIN__)
 #define TIMEZONE_GLOBAL _timezone
-#elif	defined(WIN32) || defined(HAVE_INT_TIMEZONE)
+#define TZNAME_GLOBAL _tzname
+#define DAYLIGHT_GLOBAL _daylight
+#elif	defined(HAVE_INT_TIMEZONE)
 #define TIMEZONE_GLOBAL timezone
+#define TZNAME_GLOBAL tzname
+#define DAYLIGHT_GLOBAL daylight
 #endif
 
 /*
@@ -352,13 +356,13 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	if (!withZone || !*bZone || st->y < 1970)
 		return TRUE;
 #ifdef	TIMEZONE_GLOBAL
-	if (!tzname[0] || !tzname[0][0])
+	if (!TZNAME_GLOBAL[0] || !TZNAME_GLOBAL[0][0])
 	{
 		*bZone = FALSE;
 		return TRUE;
 	}
 	timediff = TIMEZONE_GLOBAL + (*zone) * 3600;
-	if (!daylight && timediff == 0)		/* the same timezone */
+	if (!DAYLIGHT_GLOBAL && timediff == 0)		/* the same timezone */
 		return TRUE;
 	else
 	{
@@ -436,14 +440,14 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, size_t bufsize, BOOL bZone,
 	}
 	zonestr[0] = '\0';
 #ifdef	TIMEZONE_GLOBAL
-	if (bZone && tzname[0] && tzname[0][0] && st->y >= 1970)
+	if (bZone && TZNAME_GLOBAL[0] && TZNAME_GLOBAL[0][0] && st->y >= 1970)
 	{
 		long		zoneint;
 		struct tm	tm;
 		time_t		time0;
 
 		zoneint = TIMEZONE_GLOBAL;
-		if (daylight && st->y >= 1900)
+		if (DAYLIGHT_GLOBAL && st->y >= 1900)
 		{
 			tm.tm_year = st->y - 1900;
 			tm.tm_mon = st->m - 1;
