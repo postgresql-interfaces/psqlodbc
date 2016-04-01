@@ -1133,7 +1133,7 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 							snprintf(errmsg, sizeof(errmsg), "%s:Possibly you connect to the database whose authentication method is %s or ident", error_header, reason);
 							break;
 						case 1:
-							snprintf(errmsg, sizeof(errmsg), "%s:Are you trying to connect to the database whose authentication method is ident?", error_header, reason);
+							snprintf(errmsg, sizeof(errmsg), "%s:Are you trying to connect to the database whose authentication method is ident?", error_header);
 							break;
 					}
 				}
