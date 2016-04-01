@@ -107,7 +107,7 @@ ADD_DEFINES = $(ADD_DEFINES) /Wp64
 !IF "$(PG_INC)" != ""
 INC_OPT = $(INC_OPT) /I "$(PG_INC)"
 !ENDIF
-!IF "$(ADDL_INC)" != ""
+!IF "$(ADD_INC)" != ""
 INC_OPT = $(INC_OPT) /I "$(ADD_INC)"
 !ENDIF
 
@@ -159,11 +159,8 @@ CLEAN :
 	-@erase "$(OUTDIR)\*.lib"
 	-@erase "$(OUTDIR)\*.exp"
 	-@erase "$(INTDIR)\*.pch"
-	-@erase "$(OUTDIR)\$(MAINDLL)"
-!IF "$(MSDTC)" != "no"
-	-@erase "$(OUTDIR)\$(DTCDLL)"
-	-@erase "$(OUTDIR)\$(XADLL)"
-!ENDIF
+	-@erase "$(INTDIR)\*.dll"
+	-@erase "$(INTDIR)\*.pdb"
 
 "$(INTDIR)" :
 !IF !EXISTS($(INTDIR))
