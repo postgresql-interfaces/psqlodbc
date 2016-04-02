@@ -170,10 +170,12 @@ function buildInstaller($CPUTYPE)
 		} else {
 			$runtime_version0 = "10"
 		}
-		# where's the msvc runtime dll psqlodbc links? 
-		$dlls=findRuntime($runtime_version0)
-		$PODBCMSVCDLL=$dlls[0]
-		$PODBCMSVCSYS=$dlls[1]
+		# where's the msvc runtime dll psqlodbc links?
+		if ([int] $runtime_version0 -lt 14) { 
+			$dlls=findRuntime($runtime_version0)
+			$PODBCMSVCDLL=$dlls[0]
+			$PODBCMSVCSYS=$dlls[1]
+		}
 		# where's the runtime dll libpq links? 
 		$msvclist=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*msvcr(\d+)0\.dll" | % {$_.matches[0].Groups[1].Value}
 		if ($msvclist -ne $Null -and $msvclist.length -gt 0) {
