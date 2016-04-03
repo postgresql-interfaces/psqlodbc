@@ -325,7 +325,6 @@ void SC_set_Result(StatementClass *self, QResultClass *res);
 #define	SC_get_errornumber(a) (a->__error_number)
 #define	SC_set_errornumber(a, n) (a->__error_number = n)
 #define	SC_get_errormsg(a) (a->__error_message)
-#define	SC_get_errormsg(a) (a->__error_message)
 #define	SC_is_prepare_statement(a) (0 != (a->prepare & PREPARE_STATEMENT))
 #define	SC_get_prepare_method(a) (a->prepare & (~PREPARE_STATEMENT))
 

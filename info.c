@@ -817,14 +817,12 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			value = SQL_BS_SELECT_EXPLICIT | SQL_BS_ROW_COUNT_EXPLICIT;
 			break;
 		case SQL_CATALOG_NAME:
-			len = 0;
 			if (CurrCat(conn))
 				p = "Y";
 			else
 				p = "N";
 			break;
 		case SQL_COLLATION_SEQ:
-			len = 0;
 			p = "";
 			break;
 		case SQL_CREATE_ASSERTION:
@@ -872,7 +870,6 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			value = SQL_DI_CREATE_INDEX | SQL_DI_DROP_INDEX;
 			break;
 		case SQL_DESCRIBE_PARAMETER:
-			len = 0;
 			p = "N";
 			break;
 		case SQL_DROP_ASSERTION:
@@ -928,7 +925,6 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 				value = NAMEDATALEN_V73 - 1;
 			break;
 		case SQL_MAX_ROW_SIZE_INCLUDES_LONG:
-			len = 0;
 			p = "Y";
 			break;
 		case SQL_PARAM_ARRAY_ROW_COUNTS:

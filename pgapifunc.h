@@ -22,7 +22,6 @@ extern "C" {
 #define	PODBC_INHERIT_CONNECT_OPTIONS	(1L << 1)
 /*	Internal flags for PGAPI_Exec... functions */
 #define	PODBC_WITH_HOLD			1L
-#define	PODBC_PER_STATEMENT_ROLLBACK	(1L << 1)
 /*	Flags for the error handling */
 #define	PODBC_ALLOW_PARTIAL_EXTRACT	1L
 #define	PODBC_ERROR_CLEAR		(1L << 1)

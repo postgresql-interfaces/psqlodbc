@@ -193,7 +193,6 @@ inolog("a2\n");
 
 	mylog("%s: calling PGAPI_Execute...\n", func);
 
-	flag = SC_is_with_hold(stmt) ? PODBC_WITH_HOLD : 0;
 	result = PGAPI_Execute(hstmt, flag);
 
 	mylog("%s: returned %hd from PGAPI_Execute\n", func, result);

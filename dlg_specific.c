@@ -1086,15 +1086,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	sprintf(tmp, "%d", comval->unique_index);
 	if (!SQLWritePrivateProfileString(sectionName, INI_UNIQUEINDEX, tmp, fileName))
 		errc--;
-	/*
-	 * Never update the onlyread from this module.
-	 */
-	if (stricmp(ODBCINST_INI, fileName) == 0)
-	{
-		sprintf(tmp, "%d", comval->onlyread);
-		SQLWritePrivateProfileString(sectionName, INI_READONLY, tmp,
-									 fileName);
-	}
 
 	sprintf(tmp, "%d", comval->use_declarefetch);
 	if (!SQLWritePrivateProfileString(sectionName, INI_USEDECLAREFETCH, tmp, fileName))
