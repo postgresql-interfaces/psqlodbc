@@ -40,10 +40,10 @@ int main(int argc, char **argv)
 	SQLINTEGER	colvalue2;
 	SQLLEN		indColvalue1;
 	SQLLEN		indColvalue2;
-	char		bookmark[10];
+	char		bookmark[8];
 	SQLLEN		bookmark_ind;
 
-	char		saved_bookmarks[3][10];
+	char		saved_bookmarks[3][8];
 	SQLLEN		saved_bookmark_inds[3];
 	SQLINTEGER	colvalues1[3];
 	SQLINTEGER	colvalues2[3];
