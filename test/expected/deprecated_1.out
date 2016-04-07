@@ -1,0 +1,30 @@
+Check for SQLAllocEnv
+Check for SQLAllocConnect
+Check for SQLAllocStmt
+Check for SQLSetConnectOption
+Check for SQLGetConnectOption
+Access type is: read-write
+Check for SQLError
+Error check: [unixODBC]ERROR: relation "table_not_here" does not exist;
+Error while executing the query
+Check for SQLSetParam
+Result set:
+100
+Check for SQLGetStmtOption
+Cursor type is: forward
+Check for SQLSetStmtOption
+Cursor type is: static
+Check for SQLSetScrollOptions
+Cursor type is: forward
+Check for SQLColAttributes
+Column 1: foo
+Column 2: bar
+Check for SQLParamOptions
+Status of execution
+Check for SQLFreeStmt
+Check for SQLFreeConnect
+Check for SQLFreeEnv
+connected
+Check for SQLTransact
+Result set:
+disconnecting
