@@ -10,6 +10,79 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 
+<h2><a id="09.05.0200">psqlODBC 09.05.0200 Release</a></h2>
+Changes:<br />
+<ol type="1">
+ <li><b>Clear the parsed result before executing simple query so that SQLRowCount() returns.</b><br /></li>
+ This fix the bug reported by Walter Willmertinger.
+
+ <li><b>Fix NULL dereferences which causes application crash.</b><br /></li>
+ Patch by Tsunakawa, Takayuki.
+
+ <li><b>Don't initialize next_in_cache or rowstart_in_cache info when scrolling (block) cursors in declare/fetch mode.</b><br /></li>
+ This fixes the bug reported by John Kew.
+
+ <li><b>Correct the detection of eof in useDeclare/fetch mode.</b><br /></li>
+ This change fixes the bug about fetching prior after scrolling next until eof reported by BenS.
+
+ <li><b>Fix the bug about MONEY type.</b><br /></li>
+
+ <li><b>Consider decimal_digits of SQL_TIME (and time field of PostgreSQL).</b><br /></li>
+
+ <li><b>Don't forget to update num_total_read field of QResultClass record in case 'fetch 0 rows' after 'move'.</b><br /></li>
+ This fixes the bug 'When fetching a row "behind" the rowset by "fetch absolute" only the first ones of the result set can be fetched.' reported by Bernhard Goebel.
+
+ <li><b>Make sure that EOF occurs when 'fetched < fetch requested'.</b><br /></li>
+
+ <li><b>Correctly handle SQLGetData() when the target type is SQL_C_WCHAR and the buffer is small to get the whole data for some data types such as bool, date, time ... etc.</b><br /></li>
+
+ <li><b>Refine SQLGetData().</b><br /></li>
+ <ol type="a">
+ <li>Unify midtemp and moneytemp.<br /></li>
+ <li>Variable wconverted is no longer needed.<br /></li>
+ <li>Pre_convert for PG_TYPE_BOOL is not needed.<br /></li>
+ <li>It's better to take the same road even in case of pre_convet.<br /></li>
+ </ol>
+
+ <li><b>Fixed possible once to build test suite in a different place other than the source code is, it's not now.</b><br /></li> 
+
+ <li><b>CHAR causes a compilation error in some environment. Use char instead of CHAR.</b><br /></li>
+
+ <li><b>Correctly judge the SQLSTATE 01S06(Attempt to fetch before the result set returned the first rowset) for SQL_FETCH_PRIOR operations of SQFetchScroll.</b><br /></li>
+
+ <li><b>Checking a flag bit mistakenly resets other flag bits.</b><br /></li> 
+ Patch by Tsunakawa, Takayuki.
+
+ <li><b>setup.c:test_connection() calls EN_Constructor() twice, leaking small memory.</b><br /></li>
+ Patch by tsunakawa, Takayuki.
+
+ <li><b>The existing memory is not freed upon realloc() failure.</b><br /></li>
+ PGAPI_BindCol() doesn't check the failure of extend_getdata_info().<br />
+ Patch by Tsunakawa, Takayuki.
+
+ <li><b>The statement linked list is not properly chained, which throws away some statements.</b><br /></li>
+ Patch by Tsunakawa, Takayuki.
+
+ <li><b>LINKMT is not used in the build process.</b><br /></li>
+ ADDL_INC should be ADD_INC.  Just a typo. The CLEAN target doesn't delete .pdb files.<br />
+ Patch by Tsunakawa, Takayuki.
+
+ <li><b>Fix a parameter unmatch of snprintf.</b><br /></li>
+
+ <li><b>In Windows the use of external variables timezone, tzname and daylight are deprecated. Use _timezone, _tzname and _daylight instead.</b><br /></li>
+
+ <li><b>SQLS(G)etDescRecW instead of SQLS(G)etDescRec for Unicode driver.</b><br /></li>
+
+ <li><b>The third stricmp() in writeDriverCommoninfo() is useless, because the second one causes the function to return.</b><br /></li>
+ <ol type="a">
+ <li>SC_get_errormsg() definition is repeated twice in succession.<br /></li>
+ <li>In info.c:SQLGetInfo(), "len = 0" is unnecessary because len is assigned at the end of the function.<br /></li>
+ <li>In execute.c:PGAPI_ExecDirect(), flag doesn't need to be set as its value doesn't change.<br /></li>
+ <li>PODBC_PER_STATEMENT_ROLLBACK is not used.<br /></li>
+ </ol>
+ Patch by Tsunakawa, Takayuki.
+ </ol><br />
+
 <h2><a id="09.05.0100">psqlODBC 09.05.0100 Release</a></h2>
 Changes:<br />
 <ol type="1">
