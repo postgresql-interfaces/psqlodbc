@@ -17,10 +17,7 @@ SQLExecDirect
 42601=xxxxxxx
 42601
 killing connection...
-57P01=server closed the connection unexpectedly
-	This probably means the server terminated abnormally
-	before or while processing the request.
-;
+57P01=FATAL: terminating connection due to administrator command;
 Error while executing the query
 SQLGetDiagRec on connection says:
 No error information
