@@ -159,7 +159,9 @@ function buildInstaller($CPUTYPE)
 	}
 	# msvc runtime psqlodbc links
 	$PODBCMSVCDLL = ""
+	$PODBCMSVPDLL = ""
 	$PODBCMSVCSYS = ""
+	$PODBCMSVPSYS = ""
 	# msvc runtime libpq links
 	$LIBPQMSVCDLL = ""
 	$LIBPQMSVCSYS = ""
@@ -174,7 +176,10 @@ function buildInstaller($CPUTYPE)
 		if ([int] $runtime_version0 -lt 14) { 
 			$dlls=findRuntime($runtime_version0)
 			$PODBCMSVCDLL=$dlls[0]
+			$PODBCMSVPDLL=$PODBCMSVCDLL.Replace("msvcr", "msvcp")
+			write-host $PODBCMSVPDLL=$PODBCMSVCDLL
 			$PODBCMSVCSYS=$dlls[1]
+			$PODBCMSVPSYS=$PODBCMSVCSYS.Replace("msvcr", "msvcp")
 		}
 		# where's the runtime dll libpq links? 
 		$msvclist=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*msvcr(\d+)0\.dll" | % {$_.matches[0].Groups[1].Value}
@@ -245,7 +250,7 @@ function buildInstaller($CPUTYPE)
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
 
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dLIBPQMSVCDLL=$LIBPQMSVCDLL`" `"-dLIBPQMSVCSYS=$LIBPQMSVCSYS`" `"-dPODBCMSVCDLL=$PODBCMSVCDLL`" `"-dPODBCMSVCSYS=$PODBCMSVCSYS`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
+		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dLIBPQMSVCDLL=$LIBPQMSVCDLL`" `"-dLIBPQMSVCSYS=$LIBPQMSVCSYS`" `"-dPODBCMSVCDLL=$PODBCMSVCDLL`" `"-dPODBCMSVPDLL=$PODBCMSVPDLL`" `"-dPODBCMSVCSYS=$PODBCMSVCSYS`" `"-dPODBCMSVPSYS=$PODBCMSVPSYS`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}

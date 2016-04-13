@@ -72,8 +72,14 @@
 <?if "$(var.PODBCMSVCDLL)" != "" ?>
           <File Source="$(var.PODBCMSVCDLL)" />
 <?endif?>
+<?if "$(var.PODBCMSVPDLL)" != "" ?>
+          <File Source="$(var.PODBCMSVPDLL)" />
+<?endif?>
 <?if "$(var.PODBCMSVCSYS)" != "" ?>
           <File Source="$(var.SysFolder)\$(var.PODBCMSVCSYS)" />
+<?endif?>
+<?if "$(var.PODBCMSVPSYS)" != "" ?>
+          <File Source="$(var.SysFolder)\$(var.PODBCMSVPSYS)" />
 <?endif?>
 <?if "$(var.LIBPQMSVCDLL)" != "" ?>
           <File Source="$(var.LIBPQMSVCDLL)" />
