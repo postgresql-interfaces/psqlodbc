@@ -107,7 +107,9 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/cvtnulldate.out \
 	test/expected/dataatexecution.out \
 	test/expected/declare-fetch-commit.out \
+	test/expected/declare-fetch-block.out \
 	test/expected/deprecated.out \
+	test/expected/deprecated_1.out \
 	test/expected/diagnostic.out \
 	test/expected/error-rollback.out \
 	test/expected/errors.out \
@@ -133,6 +135,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/expected/prepare.out \
 	test/expected/quotes.out \
 	test/expected/result-conversions.out \
+	test/expected/result-conversions_1.out \
 	test/expected/select.out \
 	test/expected/stmthandles.out \
 	test/expected/update.out \
@@ -163,6 +166,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/src/cvtnulldate-test.c \
 	test/src/dataatexecution-test.c \
 	test/src/declare-fetch-commit-test.c \
+	test/src/declare-fetch-block-test.c \
 	test/src/deprecated-test.c \
 	test/src/diagnostic-test.c \
 	test/src/error-rollback-test.c \
