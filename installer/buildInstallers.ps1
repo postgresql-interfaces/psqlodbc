@@ -177,7 +177,6 @@ function buildInstaller($CPUTYPE)
 			$dlls=findRuntime($runtime_version0)
 			$PODBCMSVCDLL=$dlls[0]
 			$PODBCMSVPDLL=$PODBCMSVCDLL.Replace("msvcr", "msvcp")
-			write-host $PODBCMSVPDLL=$PODBCMSVCDLL
 			$PODBCMSVCSYS=$dlls[1]
 			$PODBCMSVPSYS=$PODBCMSVCSYS.Replace("msvcr", "msvcp")
 		}
