@@ -333,7 +333,7 @@ HMODULE DtcProc(const char *procname, FARPROC *proc)
 	HMODULE	hmodule;
 
 	*proc = NULL;
-	if (hmodule = LoadLibrary(GetXaLibPath()), NULL != hmodule)
+	if (hmodule = LoadLibraryEx(GetXaLibPath(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH), NULL != hmodule)
 	{
 mylog("GetProcAddres for %s\n", procname);
 		*proc = GetProcAddress(hmodule, procname);
