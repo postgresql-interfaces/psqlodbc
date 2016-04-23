@@ -16,6 +16,7 @@ enum {
 	,TI_HASOIDS_CHECKED	=	(1L << 1)
 	,TI_HASOIDS	=	(1L << 2)
 	,TI_COLATTRIBUTE	=	(1L << 3)
+	,TI_HASSUBCLASS	=	(1L << 4)
 };
 typedef struct
 {
@@ -36,6 +37,9 @@ typedef struct
 #define	TI_set_hasoids(ti)	(ti->flags |= TI_HASOIDS)
 #define	TI_has_oids(ti)		(0 != (ti->flags & TI_HASOIDS))
 #define	TI_set_has_no_oids(ti)	(ti->flags &= (~TI_HASOIDS))
+#define	TI_set_hassubclass(ti)	(ti->flags |= TI_HASSUBCLASS)
+#define	TI_has_subclass(ti)	(0 != (ti->flags & TI_HASSUBCLASS))
+#define	TI_set_has_no_subclass(ti)	(ti->flags &= (~TI_HASSUBCLASS))
 void	TI_Constructor(TABLE_INFO *, const ConnectionClass *);
 void	TI_Destructor(TABLE_INFO **, int);
 

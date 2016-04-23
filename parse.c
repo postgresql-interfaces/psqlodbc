@@ -380,7 +380,7 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 static BOOL CheckHasOids(StatementClass * stmt)
 {
 	QResultClass	*res;
-	BOOL		hasoids = TRUE, foundKey = FALSE;
+	BOOL		hasoids = TRUE, hassubclass =FALSE, foundKey = FALSE;
 	char		query[512];
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	TABLE_INFO	*ti;
@@ -391,7 +391,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 		return FALSE;
 	ti = stmt->ti[0];
 	snprintf(query, sizeof(query),
-			 "select relhasoids, c.oid from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid",
+			 "select relhasoids, c.oid, relhassubclass from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid",
 			 SAFE_NAME(ti->table_name), SAFE_NAME(ti->schema_name));
 	res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 	if (QR_command_maybe_successful(res))
@@ -400,6 +400,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 		if (1 == QR_get_num_total_tuples(res))
 		{
 			const char *value = QR_get_value_backend_text(res, 0, 0);
+			const char *value2 = QR_get_value_backend_text(res, 0, 2);
 			if (value && ('f' == *value || '0' == *value))
 			{
 				hasoids = FALSE;
@@ -412,12 +413,23 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				STR_TO_NAME(ti->bestitem, OID_NAME);
 				STRX_TO_NAME(ti->bestqual, "\"" OID_NAME "\" = %u");
 			}
+			if (value2 && ('f' == *value2 || '0' == *value2))
+			{
+				TI_set_has_no_subclass(ti);
+			}
+			else
+			{
+				hassubclass = TRUE;
+				TI_set_hassubclass(ti);
+				STR_TO_NAME(ti->bestitem, TABLEOID_NAME);
+				STRX_TO_NAME(ti->bestqual, "\"" TABLEOID_NAME "\" = %u");
+			}
 			TI_set_hasoids_checked(ti);
 			ti->table_oid = (OID) strtoul(QR_get_value_backend_text(res, 0, 1), NULL, 10);
 		}
 		QR_Destructor(res);
 		res = NULL;
-		if (!hasoids)
+		if (!hasoids && !hassubclass)
 		{
 			sprintf(query, "select a.attname, a.atttypid from pg_index i, pg_attribute a where indrelid=%u and indnatts=1 and indisunique and indexprs is null and indpred is null and i.indrelid = a.attrelid and a.attnum=i.indkey[0] and attnotnull and atttypid in (%d, %d)", ti->table_oid, PG_TYPE_INT4, PG_TYPE_OID);
 			res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);

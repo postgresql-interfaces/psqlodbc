@@ -554,6 +554,7 @@ int	wstrtomsg(const LPWSTR, int, char *, int);
 CSTR	NULL_STRING = "";
 CSTR	PRINT_NULL = "(null)";
 #define OID_NAME "oid"
+#define TABLEOID_NAME "tableoid"
 
 #ifdef	__cplusplus
 }
