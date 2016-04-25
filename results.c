@@ -2039,10 +2039,12 @@ inolog("AddRollback %d(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dm
 	rollback->option = dmlcode;
 	rollback->offset = 0;
 	rollback->blocknum = 0;
+	rollback->oid = 0;
 	if (keyset)
 	{
 		rollback->blocknum = keyset->blocknum;
 		rollback->offset = keyset->offset;
+		rollback->oid = keyset->oid;
 	}
 
 	conn->result_uncommitted = 1;
@@ -2121,11 +2123,17 @@ static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
 	const TABLE_INFO	*ti = stmt->ti[0];
 	QResultClass	*res;
 	RETCODE		ret = FALSE;
+	const char *bestqual = GET_NAME(ti->bestqual);
 
 	snprintf(selstr, sizeof(selstr),
 			 "select 1 from %s where ctid = '(%u,%u)'",
 			 quote_table(ti->schema_name, ti->table_name),
 			 keyset->blocknum, keyset->offset);
+	if (NULL != bestqual && 0 != keyset->oid)
+	{
+		snprintf_add(selstr, sizeof(selstr), " and ");
+		snprintf_add(selstr, sizeof(selstr), bestqual, keyset->oid);
+	}
 	res = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, NULL);
 	if (QR_command_maybe_successful(res) && 1 == res->num_cached_rows)
 		ret = TRUE;
@@ -2727,6 +2735,7 @@ UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 		{
 			keys.blocknum = rollback[i].blocknum;
 			keys.offset = rollback[i].offset;
+			keys.oid = rollback[i].oid;
 			texist = tupleExists(stmt, &keys);
 inolog("texist[%d]=%d", i, texist);
 			if (SQL_ADD == rollback[i].option)
@@ -2810,6 +2819,7 @@ inolog("UndoRollback %d(%d)\n", i, rollback[i].option);
 			RemoveDeleted(res, index);
 			keys.blocknum = rollback[i].blocknum;
 			keys.offset = rollback[i].offset;
+			keys.oid = rollback[i].oid;
 			RemoveUpdatedAfterTheKey(res, index, &keys);
 		}
 		status = 0;
@@ -2850,6 +2860,7 @@ inolog(" index=%d status=%hx", index, status);
 inolog(" (%u, %u)", wkey->blocknum,  wkey->offset);
 				wkey->blocknum = rollback[i].blocknum;
 				wkey->offset = rollback[i].offset;
+				wkey->oid = rollback[i].oid;
 inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 				wkey->status &= ~KEYSET_INFO_PUBLIC;
 				if (SQL_DELETE == rollback[i].option)
@@ -2860,10 +2871,11 @@ inolog("->(%u, %u)\n", wkey->blocknum, wkey->offset);
 				if (ridx >=0 && ridx < res->num_cached_rows)
 				{
 					char	tidval[32];
+					Oid	oid = wkey->oid;
 
 					snprintf(tidval, sizeof(tidval),
 							 "(%u,%u)", wkey->blocknum, wkey->offset);
-					qres = positioned_load(stmt, 0, NULL, tidval);
+					qres = positioned_load(stmt, 0, &oid, tidval);
 					if (QR_command_maybe_successful(qres) &&
 					    QR_get_num_cached_tuples(qres) == 1)
 					{
@@ -3110,7 +3122,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	char	*qval = NULL, *sval = NULL;
 	int	keys_per_fetch = 10;
 
-	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++)
+	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++, kres_ridx++)
 	{
 		if (i >= limitrow)
 		{
@@ -3265,7 +3277,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 		}
 		if (0 != (res->keyset[kres_ridx].status & CURS_NEEDS_REREAD))
 		{
-			getTid(res, i, &blocknum, &offset);
+			getTid(res, kres_ridx, &blocknum, &offset);
 			if (rowc)
 				sprintf(sval, ",'(%u,%u)'", blocknum, offset);
 			else
@@ -3941,12 +3953,15 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 			RETCODE	qret;
 			const char * tidval = NULL;
 
-			if (0 != oid)
-				poid = &oid;
-
 			if (NULL != tres->backend_tuples &&
 			    1 == QR_get_num_cached_tuples(tres))
+			{
 				tidval = QR_get_value_backend_text(tres, 0, 0);
+				if (tres->num_fields > 1)
+					oid = QR_get_value_backend_int(tres, 0, 1, NULL);
+			}
+			if (0 != oid)
+				poid = &oid;
 			qret = SC_pos_newload(stmt, poid, TRUE, tidval);
 			if (SQL_ERROR == qret)
 				return qret;
@@ -4171,7 +4186,17 @@ SC_pos_add(StatementClass *stmt,
 		}
 		snprintf_add(addstr, sizeof(addstr), ")");
 		if (PG_VERSION_GE(conn, 8.2))
+		{
+			TABLE_INFO	*ti = stmt->ti[0];
+			const char *bestitem = GET_NAME(ti->bestitem);
+
 			snprintf_add(addstr, sizeof(addstr), " returning ctid");
+			if (bestitem)
+			{
+				snprintf_add(addstr, sizeof(addstr), ", ");
+				snprintf_add(addstr, sizeof(addstr), bestitem);
+			}
+		}
 		mylog("addstr=%s\n", addstr);
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;

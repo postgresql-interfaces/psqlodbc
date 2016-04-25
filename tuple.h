@@ -36,6 +36,7 @@ struct Rollback_
 	SQLLEN	index;
 	UInt4	blocknum;
 	UInt2	offset;
+	OID	oid;
 	UWORD	option;
 };
 #define	KEYSET_INFO_PUBLIC	0x07
