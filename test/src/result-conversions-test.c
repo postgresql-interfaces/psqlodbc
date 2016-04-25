@@ -169,7 +169,7 @@ printdouble(double d)
 }
 
 void
-print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
+print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind, int use_time)
 {
 	switch(sql_c_type)
 	{
@@ -225,22 +225,61 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind)
 		case SQL_C_TYPE_DATE:
 			{
 				DATE_STRUCT *ds = (DATE_STRUCT *) buf;
-				printf("y: %d m: %u d: %u", ds->year, ds->month, ds->day);
+				if (use_time != 0)
+				{
+					time_t  t = 0;
+					struct tm  *tim;
+
+					t = time(NULL);
+					tim = localtime(&t);
+					printf("y: %d m: %u d: %u",
+						   ds->year - (tim->tm_year + 1900),
+						   ds->month - (tim->tm_mon + 1),
+						   ds->day - tim->tm_mday);
+				}
+				else
+					printf("y: %d m: %u d: %u", ds->year, ds->month, ds->day);
 			}
 			break;
 		case SQL_C_TYPE_TIME:
 			{
 				TIME_STRUCT *ts = (TIME_STRUCT *) buf;
-				printf("h: %d m: %u s: %u", ts->hour, ts->minute, ts->second);
+
+				if (use_time != 0)
+				{
+					time_t  t = 0;
+					struct tm  *tim;
+
+					t = time(NULL);
+					tim = localtime(&t);
+				}
+				else
+					printf("h: %d m: %u s: %u", ts->hour, ts->minute, ts->second);
 			}
 			break;
 		case SQL_C_TYPE_TIMESTAMP:
 			{
 				TIMESTAMP_STRUCT *tss = (TIMESTAMP_STRUCT *) buf;
-				printf("y: %d m: %u d: %u h: %d m: %u s: %u f: %u",
-					   tss->year, tss->month, tss->day,
-					   tss->hour, tss->minute, tss->second,
-					   (unsigned int) tss->fraction);
+
+				if (use_time)
+				{
+					time_t  t = 0;
+					struct tm  *tim;
+
+					t = time(NULL);
+					tim = localtime(&t);
+					printf("y: %d m: %u d: %u h: %d m: %u s: %u f: %u",
+						   tss->year - (tim->tm_year + 1900),
+						   tss->month - (tim->tm_mon + 1),
+						   tss->day - tim->tm_mday,
+						   tss->hour, tss->minute, tss->second,
+						   (unsigned int) tss->fraction);
+				}
+				else
+					printf("y: %d m: %u d: %u h: %d m: %u s: %u f: %u",
+						   tss->year, tss->month, tss->day,
+						   tss->hour, tss->minute, tss->second,
+						   (unsigned int) tss->fraction);
 			}
 			break;
 		case SQL_C_NUMERIC:
@@ -426,7 +465,7 @@ get_sql_type_size(int sql_c_type)
 static char *resultbuf = NULL;
 
 void
-test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char *sqltypestr, int buflen)
+test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char *sqltypestr, int buflen, int use_time)
 {
 	char		sql[500];
 	SQLRETURN	rc;
@@ -467,7 +506,7 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 	rc = SQLGetData(hstmt, 1, sqltype, resultbuf, buflen, &len_or_ind);
 	if (SQL_SUCCEEDED(rc))
 	{
-		print_sql_type(sqltype, resultbuf, len_or_ind);
+		print_sql_type(sqltype, resultbuf, len_or_ind, use_time);
 
 		if (rc == SQL_SUCCESS_WITH_INFO)
 		{
@@ -557,7 +596,7 @@ int main(int argc, char **argv)
 			int sqltype = sqltypes[sqltype_i].sqltype;
 			const char *sqltypestr = sqltypes[sqltype_i].str;
 
-			test_conversion(pgtype, value, sqltype, sqltypestr, 100);
+			test_conversion(pgtype, value, sqltype, sqltypestr, 100, 0);
 		}
 	}
 
@@ -573,58 +612,62 @@ int main(int argc, char **argv)
 	 * from the hex format separately later.
 	 */
 	exec_cmd("SET bytea_output=hex");
-	test_conversion("bytea", "\\x464F4F", SQL_C_CHAR, "SQL_C_CHAR", 100);
-	test_conversion("bytea", "\\x464F4F", SQL_C_WCHAR, "SQL_C_WCHAR", 100);
+	test_conversion("bytea", "\\x464F4F", SQL_C_CHAR, "SQL_C_CHAR", 100, 0);
+	test_conversion("bytea", "\\x464F4F", SQL_C_WCHAR, "SQL_C_WCHAR", 100, 0);
 
 	/* Conversion to GUID throws error if the string is not of correct form */
-	test_conversion("text", "543c5e21-435a-440b-943c-64af1ad571f1", SQL_C_GUID, "SQL_C_GUID", -1);
+	test_conversion("text", "543c5e21-435a-440b-943c-64af1ad571f1", SQL_C_GUID, "SQL_C_GUID", -1, 0);
 
 	/* Date/timestamp tests of non-date input depends on current date */
-	test_conversion("date", "2011-02-13", SQL_C_TYPE_DATE, "SQL_C_DATE", -1);
-	test_conversion("date", "2011-02-13", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1);
-	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TYPE_DATE, "SQL_C_DATE", -1);
-	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1);
-	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TYPE_DATE, "SQL_C_DATE", -1);
-	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1);
+	test_conversion("date", "2011-02-13", SQL_C_TYPE_DATE, "SQL_C_DATE", -1, 0);
+	test_conversion("date", "2011-02-13", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1, 0);
+	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TYPE_DATE, "SQL_C_DATE", -1, 0);
+	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1, 0);
+	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TYPE_DATE, "SQL_C_DATE", -1, 0);
+	test_conversion("timestamptz", "2011-02-16 17:49:18+03", SQL_C_TYPE_TIMESTAMP, "SQL_C_TIMESTAMP", -1, 0);
+
+	/* cast of empty text values using localtime() */
+	test_conversion("text", "", SQL_C_TYPE_DATE, "SQL_C_TYPE_DATE", -1, 1);
+	test_conversion("text", "", SQL_C_TYPE_TIME, "SQL_C_TYPE_TIME", -1, 0);
+	test_conversion("text", "", SQL_C_TYPE_TIMESTAMP, "SQL_C_TYPE_TIMESTAMP", -1, 1);
 
 	/*
 	 * Test for truncations.
 	 */
-	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 5);
-	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 6);
-	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 7);
-	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 10);
-	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 11);
-	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 12);
-	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 13);
-	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 14);
+	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 5, 0);
+	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 6, 0);
+	test_conversion("text", "foobar", SQL_C_CHAR, "SQL_C_CHAR", 7, 0);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 10, 0);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 11, 0);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 12, 0);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 13, 0);
+	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 14, 0);
 
-	test_conversion("text", "", SQL_C_CHAR, "SQL_C_CHAR", 1);
-	test_conversion("text", "", SQL_C_WCHAR, "SQL_C_WCHAR", 1);
+	test_conversion("text", "", SQL_C_CHAR, "SQL_C_CHAR", 1, 0);
+	test_conversion("text", "", SQL_C_WCHAR, "SQL_C_WCHAR", 1, 0);
 
-	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_CHAR, "SQL_C_CHAR", 19);
+	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_CHAR, "SQL_C_CHAR", 19, 0);
 
 	/*
 	 * Test for a specific bug, where the driver used to overrun the output
 	 * buffer because it assumed that a timestamp value is always max 20 bytes
 	 * long (not true for BC values, or with years > 10000)
 	 */
-	test_conversion("timestamp", "2011-02-15 15:49:18 BC", SQL_C_CHAR, "SQL_C_CHAR", 20);
-
+	test_conversion("timestamp", "2011-02-15 15:49:18 BC", SQL_C_CHAR, "SQL_C_CHAR", 20, 0);
 
 	/* Test special float values */
-	test_conversion("float4", "NaN", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
-	test_conversion("float4", "Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
-	test_conversion("float4", "-Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
-	test_conversion("float8", "NaN", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
-	test_conversion("float8", "Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
-	test_conversion("float8", "-Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20);
-	test_conversion("float4", "NaN", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
-	test_conversion("float4", "Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
-	test_conversion("float4", "-Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
-	test_conversion("float8", "NaN", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
-	test_conversion("float8", "Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
-	test_conversion("float8", "-Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20);
+	test_conversion("float4", "NaN", SQL_C_FLOAT, "SQL_C_FLOAT", 20, 0);
+	test_conversion("float4", "Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20, 0);
+	test_conversion("float4", "-Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20, 0);
+	test_conversion("float8", "NaN", SQL_C_FLOAT, "SQL_C_FLOAT", 20, 0);
+	test_conversion("float8", "Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20, 0);
+	test_conversion("float8", "-Infinity", SQL_C_FLOAT, "SQL_C_FLOAT", 20, 0);
+	test_conversion("float4", "NaN", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20, 0);
+	test_conversion("float4", "Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20, 0);
+	test_conversion("float4", "-Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20, 0);
+	test_conversion("float8", "NaN", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20, 0);
+	test_conversion("float8", "Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20, 0);
+	test_conversion("float8", "-Infinity", SQL_C_DOUBLE, "SQL_C_DOUBLE", 20, 0);
 
 	/* Clean up */
 	test_disconnect();
