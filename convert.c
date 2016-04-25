@@ -953,16 +953,6 @@ copy_and_convert_field(StatementClass *stmt,
 
 	memset(&std_time, 0, sizeof(SIMPLE_TIME));
 
-	/* Initialize current date */
-#ifdef	HAVE_LOCALTIME_R
-	tim = localtime_r(&stmt_t, &tm);
-#else
-	tim = localtime(&stmt_t);
-#endif /* HAVE_LOCALTIME_R */
-	std_time.m = tim->tm_mon + 1;
-	std_time.d = tim->tm_mday;
-	std_time.y = tim->tm_year + 1900;
-
 	mylog("copy_and_convert: field_type = %d, fctype = %d, value = '%s', cbValueMax=%d\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
 
 	if (!value)
@@ -1607,6 +1597,25 @@ inolog("2stime fr=%d\n", std_time.fr);
 						ds = (DATE_STRUCT *) rgbValueBindRow;
 					else
 						ds = (DATE_STRUCT *) rgbValue + bind_row;
+
+					/*
+					 * Initialize date in case conversion destination
+					 * expects date part from this source time data.
+					 * A value may be partially set here, so do some
+					 * sanity checks on the existing values before
+					 * setting them.
+					 */
+#ifdef HAVE_LOCALTIME_R
+					tim = localtime_r(&stmt_t, &tm);
+#else
+					tim = localtime(&stmt_t);
+#endif /* HAVE_LOCALTIME_R */
+					if (std_time.m == 0)
+						std_time.m = tim->tm_mon + 1;
+					if (std_time.d == 0)
+						std_time.d = tim->tm_mday;
+					if (std_time.y == 0)
+						std_time.y = tim->tm_year + 1900;
 					ds->year = std_time.y;
 					ds->month = std_time.m;
 					ds->day = std_time.d;
@@ -1639,6 +1648,26 @@ inolog("2stime fr=%d\n", std_time.fr);
 						ts = (TIMESTAMP_STRUCT *) rgbValueBindRow;
 					else
 						ts = (TIMESTAMP_STRUCT *) rgbValue + bind_row;
+
+					/*
+					 * Initialize date in case conversion destination
+					 * expects date part from this source time data.
+					 * A value may be partially set here, so do some
+					 * sanity checks on the existing values before
+					 * setting them.
+					 */
+#ifdef HAVE_LOCALTIME_R
+					tim = localtime_r(&stmt_t, &tm);
+#else
+					tim = localtime(&stmt_t);
+#endif /* HAVE_LOCALTIME_R */
+					if (std_time.m == 0)
+						std_time.m = tim->tm_mon + 1;
+					if (std_time.d == 0)
+						std_time.d = tim->tm_mday;
+					if (std_time.y == 0)
+						std_time.y = tim->tm_year + 1900;
+
 					ts->year = std_time.y;
 					ts->month = std_time.m;
 					ts->day = std_time.d;
@@ -4173,14 +4202,6 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	cbuf[0] = '\0';
 	memset(&st, 0, sizeof(st));
 	t = SC_get_time(qb->stmt);
-#ifdef	HAVE_LOCALTIME_R
-	tim = localtime_r(&t, &tm);
-#else
-	tim = localtime(&t);
-#endif /* HAVE_LOCALTIME_R */
-	st.m = tim->tm_mon + 1;
-	st.d = tim->tm_mday;
-	st.y = tim->tm_year + 1900;
 
 	ivstruct = (SQL_INTERVAL_STRUCT *) buffer;
 	/* Convert input C type to a neutral format */
@@ -4326,7 +4347,19 @@ mylog("C_WCHAR=%s(%d)\n", buffer, used);
 				st.hh = ts->hour;
 				st.mm = ts->minute;
 				st.ss = ts->second;
-
+				/*
+				 * Initialize date in case conversion destination
+				 * expects date part from this source time data.
+				 */
+				t = SC_get_time(qb->stmt);
+#ifdef HAVE_LOCALTIME_R
+				tim = localtime_r(&t, &tm);
+#else
+				tim = localtime(&t);
+#endif /* HAVE_LOCALTIME_R */
+				st.m = tim->tm_mon + 1;
+				st.d = tim->tm_mday;
+				st.y = tim->tm_year + 1900;
 				break;
 			}
 
