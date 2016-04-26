@@ -1219,38 +1219,50 @@ inolog("get %dth Valid data from %d to %s [dlt=%d]", nth, sta, orientation == SQ
 	if (QR_get_cursor(res))
 	{
 		SQLLEN	*deleted = res->deleted;
+		SQLLEN	delsta;
 
-		*nearest = sta - 1 + nth;
 		if (SQL_FETCH_PRIOR == orientation)
 		{
+			*nearest = sta + 1 - nth;
+			delsta = (-1);
 			for (i = res->dl_count - 1; i >=0 && *nearest <= deleted[i]; i--)
 			{
 inolog("deleted[%d]=%d\n", i, deleted[i]);
 				if (sta >= deleted[i])
+				{
 					(*nearest)--;
+					if (i > delsta)
+						delsta = i;
+				}
 			}
 inolog("nearest=%d\n", *nearest);
 			if (*nearest < 0)
 			{
 				*nearest = -1;
-				count = sta + 1;
+				count = sta - delsta;
 			}
 			else
 				return nth;
 		}
 		else
 		{
+			*nearest = sta - 1 + nth;
+			delsta = res->dl_count;
 			if (!QR_once_reached_eof(res))
 				num_tuples = INT_MAX;
 			for (i = 0; i < res->dl_count && *nearest >= deleted[i]; i++)
 			{
 				if (sta <= deleted[i])
+				{
 					(*nearest)++;
+					if (i < delsta)
+						delsta = i;
+				}
 			}
 			if (*nearest >= num_tuples)
 			{
 				*nearest = num_tuples;
-				count = *nearest - sta;
+				count = *nearest - sta + delsta - res->dl_count;
 			}
 			else
 				return nth;
@@ -1515,23 +1527,21 @@ inolog("num_tuples=%d\n", num_tuples);
 			 * RESULT SET, then this should be equivalent to
 			 * SQL_FETCH_LAST.
 			 */
-			if (SC_get_rowset_start(stmt) <= 0)
+			if (rowset_start <= 0)
 			{
 				EXTFETCH_RETURN_BOF(stmt, res)
 			}
-			if (SC_get_rowset_start(stmt) >= num_tuples)
+			if (rowset_start >= num_tuples &&
+			    rowsetSize > num_tuples)
 			{
-				if (rowsetSize > num_tuples)
-				{
-					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beginning", func);
-				}
-				SC_set_rowset_start(stmt, num_tuples <= 0 ? 0 : (num_tuples - rowsetSize), TRUE);
+				SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beginning", func);
+				SC_set_rowset_start(stmt, 0, TRUE);
 			}
 			else if (QR_haskeyset(res))
 			{
-				if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i < 0)
+				if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i <= 0)
 				{
-					if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, 1, &rowset_start), i < 0)
+					if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, 1, &rowset_start), i <= 0)
 					{
 						EXTFETCH_RETURN_BOF(stmt, res)
 					}
@@ -1544,7 +1554,7 @@ inolog("num_tuples=%d\n", num_tuples);
 				else
 					should_set_rowset_start = TRUE;
 			}
-			else if (SC_get_rowset_start(stmt) < rowsetSize)
+			else if (rowset_start < rowsetSize)
 			{
 				SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beggining", func);
 				SC_set_rowset_start(stmt, 0, TRUE);

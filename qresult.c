@@ -996,7 +996,7 @@ inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
 					SQLULEN	bmovement, mback;
 					SQLLEN	rowset_start = self->cursTuple + 1, back_offset, backpt;
 inolog("FETCH LAST case\n");
-					if (getNthValid(self, QR_get_num_total_tuples(self) - 1, SQL_FETCH_PRIOR, self->move_offset, &backpt) < 0)
+					if (getNthValid(self, QR_get_num_total_tuples(self) - 1, SQL_FETCH_PRIOR, self->move_offset, &backpt) <= 0)
 					{
 						/* the rowset_start is on BOF */
 						self->tupleField = NULL;
