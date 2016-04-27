@@ -911,7 +911,6 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	QueryInfo	qi;
 	ConnectionClass	*conn;
 	ConnInfo   *ci;
-	BOOL		internally_invoked = FALSE;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 
 inolog("Oh %p->fetch_number=%d\n", self, self->fetch_number);
@@ -921,6 +920,11 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 	conn = QR_get_conn(self);
 	curr_eof = FALSE;
 	req_size = self->rowset_size_include_ommitted;
+	/* Determine the optimum cache size.  */
+	ci = &(conn->connInfo);
+	fetch_size = ci->drivers.fetch_max;
+	if ((Int4)req_size > fetch_size)
+		fetch_size = req_size;
 	if (QR_once_reached_eof(self) && self->cursTuple >= (Int4) QR_get_num_total_read(self))
 		curr_eof = TRUE;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
@@ -935,9 +939,9 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 		movement = self->move_offset;
 		if (QR_is_moving_backward(self))
 		{
-			if (self->cache_size > req_size)
+			if (fetch_size > req_size)
 			{
-				SQLLEN	incr_move = self->cache_size - (req_size < 0 ? 1 : req_size);
+				SQLLEN	incr_move = fetch_size - (req_size < 0 ? 1 : req_size);
 
 				movement += incr_move;
 				if (movement > (UInt4)(self->cursTuple + 1))
@@ -1111,7 +1115,6 @@ inolog("tupleField=%p\n", self->tupleField);
 	 */
 	self->tupleField = NULL;
 
-	ci = &(conn->connInfo);
 	if (!QR_get_cursor(self))
 	{
 		mylog("%s: ALL_ROWS: done, fcount = %d, fetch_number = %d\n", func, QR_get_num_total_tuples(self), fetch_number);
@@ -1126,17 +1129,6 @@ inolog("tupleField=%p\n", self->tupleField);
 		TupleField *tuple = self->backend_tuples;
 
 		/* not a correction */
-		/* Determine the optimum cache size.  */
-		if (ci->drivers.fetch_max % req_size == 0)
-			fetch_size = ci->drivers.fetch_max;
-		else if ((Int4)req_size < ci->drivers.fetch_max)
-		{
-			/*fetch_size = (ci->drivers.fetch_max / req_size + 1) * req_size;*/
-			fetch_size = (ci->drivers.fetch_max / req_size) * req_size;
-		}
-		else
-			fetch_size = req_size;
-
 		self->cache_size = fetch_size;
 		/* clear obsolete tuples */
 inolog("clear obsolete %d tuples\n", num_backend_rows);
@@ -1177,7 +1169,11 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 
 	mylog("%s: sending actual fetch (%d) query '%s'\n", func, fetch_size, fetch);
 	if (!boundary_adjusted)
+	{
 		QR_set_num_cached_rows(self, 0);
+		QR_set_rowstart_in_cache(self, offset);
+	}
+	num_rows_in = self->num_cached_rows;
 
 	/* don't read ahead for the next tuple (self) ! */
 	qi.row_size = self->cache_size;
@@ -1191,13 +1187,9 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 			QR_set_message(self, "Error fetching next group.");
 		RETURN(FALSE)
 	}
-	internally_invoked = TRUE;
 	cur_fetch = 0;
 
-	QR_set_rowstart_in_cache(self, offset);
-
 	self->tupleField = NULL;
-	num_rows_in = self->num_cached_rows;
 
 	curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
 inolog("reached_eof_now=%d\n", reached_eof_now);
@@ -1205,6 +1197,7 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 	mylog("_%s: PGresult: fetch_total = %d & this_fetch = %d\n", func, self->num_total_read, self->num_cached_rows);
 	mylog("_%s: PGresult: cursTuple = %d, offset = %d\n", func, self->cursTuple, offset);
 
+	cur_fetch = self->num_cached_rows - num_rows_in;
 	if (!ret)
 		RETURN(ret)
 
@@ -1222,9 +1215,9 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 				SQLLEN	add_size;
 				TupleField	*tuple, *added_tuple;
 
-				if (curr_eof)
+				start_idx = CacheIdx2GIdx(offset, stmt, self) - self->num_total_read;
+				if (curr_eof && start_idx >= 0)
 				{
-					start_idx = CacheIdx2GIdx(offset, stmt, self) - self->num_total_read;
 					add_size = self->ad_count - start_idx;
 					if (0 == num_backend_rows)
 					{
@@ -1240,11 +1233,9 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 				}
 				if (add_size > fetch_size - cur_fetch)
 					add_size = fetch_size - cur_fetch;
-inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add_size, start_idx, offset - num_backend_rows + start_idx);
-				if (add_size > fetch_size - cur_fetch)
-					add_size = fetch_size - cur_fetch;
 				else if (add_size < 0)
 					add_size = 0;
+inolog("will add %d added_tuples from %d and select the %dth added tuple %d\n", add_size, start_idx, offset - num_backend_rows + start_idx, cur_fetch);
 				if (enlargeKeyCache(self, add_size, "Out of memory while adding tuples") < 0)
 					RETURN(FALSE)
 				/* append the KeySet info first */
@@ -1276,27 +1267,32 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 	 If the cursor operation was invoked inside this function,
 	 we have to set the status bits here.
 	*/
-	if (internally_invoked && self->keyset && (self->dl_count > 0 || self->up_count > 0))
+	if (self->keyset && (self->dl_count > 0 || self->up_count > 0))
 	{
 		SQLLEN	i, lf;
-		SQLLEN	lidx, hidx;
+		SQLLEN	lidx, hidx, lkidx, hkidx;
 		SQLLEN	*deleted = self->deleted, *updated = self->updated;
 
 		num_backend_rows = QR_get_num_cached_tuples(self);
+		lidx = CacheIdx2GIdx(num_rows_in, stmt, self);
+		hidx = CacheIdx2GIdx(num_backend_rows, stmt, self);
+		lkidx = GIdx2KResIdx(lidx, stmt, self);
+		hkidx = GIdx2KResIdx(hidx, stmt, self);
 		/* For simplicty, use CURS_NEEDS_REREAD bit to mark the row */
-		for (i = num_rows_in; i < num_backend_rows; i++)
+		for (i = lkidx; i < hkidx; i++)
 			self->keyset[i].status |= CURS_NEEDS_REREAD;
-		hidx = RowIdx2GIdx(num_backend_rows, stmt);
-		lidx = hidx - num_backend_rows;
 		/* deleted info */
 		for (i = 0; i < self->dl_count && hidx > deleted[i]; i++)
 		{
 			if (lidx <= deleted[i])
 			{
-				lf = num_backend_rows - hidx + deleted[i];
-				self->keyset[lf].status = self->deleted_keyset[i].status;
-				/* mark the row off */
-				self->keyset[lf].status &= (~CURS_NEEDS_REREAD);
+				lf = GIdx2KResIdx(deleted[i], stmt, self);
+				if (lf >= 0 && lf < self->num_cached_keys)
+				{
+					self->keyset[lf].status = self->deleted_keyset[i].status;
+					/* mark the row off */
+					self->keyset[lf].status &= (~CURS_NEEDS_REREAD);
+				}
 			}
 		}
 		for (i = self->up_count - 1; i >= 0; i--)
@@ -1304,7 +1300,7 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple\n", add
 			if (hidx > updated[i] &&
 			    lidx <= updated[i])
 			{
-				lf = num_backend_rows - hidx + updated[i];
+				lf = GIdx2KResIdx(updated[i], stmt, self);
 				/* in case the row is marked off */
 				if (0 == (self->keyset[lf].status & CURS_NEEDS_REREAD))
 					continue;
