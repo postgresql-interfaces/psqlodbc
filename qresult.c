@@ -60,9 +60,9 @@ QR_set_cache_size(QResultClass *self, SQLLEN cache_size)
 
 
 void
-QR_set_rowset_size(QResultClass *self, Int4 rowset_size)
+QR_set_reqsize(QResultClass *self, Int4 reqsize)
 {
-	self->rowset_size_include_ommitted = rowset_size;
+	self->rowset_size_include_ommitted = reqsize;
 }
 
 void
@@ -919,7 +919,7 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 	num_total_rows = QR_get_num_total_tuples(self);
 	conn = QR_get_conn(self);
 	curr_eof = FALSE;
-	req_size = self->rowset_size_include_ommitted;
+	req_size = QR_get_reqsize(self);
 	/* Determine the optimum cache size.  */
 	ci = &(conn->connInfo);
 	fetch_size = ci->drivers.fetch_max;

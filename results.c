@@ -1165,7 +1165,7 @@ PGAPI_Fetch(HSTMT hstmt)
 	/* StartRollbackState(stmt); */
 	if (stmt->rowset_start < 0)
 		SC_set_rowset_start(stmt, 0, TRUE);
-	QR_set_rowset_size(res, 1);
+	QR_set_reqsize(res, 1);
 	/* QR_inc_rowstart_in_cache(res, stmt->last_fetch_count_include_ommitted); */
 	SC_inc_rowset_start(stmt, stmt->last_fetch_count_include_ommitted);
 
@@ -1394,12 +1394,13 @@ PGAPI_ExtendedFetch(HSTMT hstmt,
 	BindInfoClass	*bookmark;
 	SQLLEN		num_tuples, i, fc_io;
 	SQLLEN		save_rowset_size, progress_size;
-	SQLLEN		rowset_start;
+	SQLLEN		rowset_start, rowset_end = (-1);
 	RETCODE		result = SQL_SUCCESS;
 	char		truncated, error, should_set_rowset_start = FALSE;
 	SQLLEN		currp;
 	UWORD		pstatus;
 	BOOL		currp_is_valid, reached_eof, useCursor;
+	SQLLEN		reqsize = rowsetSize;
 
 	mylog("%s: stmt=%p rowsetSize=%d\n", func, stmt, rowsetSize);
 
@@ -1539,20 +1540,25 @@ inolog("num_tuples=%d\n", num_tuples);
 			}
 			else if (QR_haskeyset(res))
 			{
-				if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i <= 0)
+				rowset_end = rowset_start - 1;
+				if (i = getNthValid(res, rowset_end, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i <= 0)
 				{
-					if (i = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, 1, &rowset_start), i <= 0)
+					if (i == 0)
 					{
 						EXTFETCH_RETURN_BOF(stmt, res)
 					}
 					else
 					{
 						SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining", func);
+						rowset_end = (-1);
 						SC_set_rowset_start(stmt, 0, TRUE);
 					}
 				}
 				else
+				{
 					should_set_rowset_start = TRUE;
+					reqsize = rowset_end - rowset_start + 1;
+				}
 			}
 			else if (rowset_start < rowsetSize)
 			{
@@ -1727,11 +1733,16 @@ inolog("num_tuples=%d\n", num_tuples);
 	}
 
 #define	return DONT_CALL_RETURN_FROM_HERE???
-	/* increment the base row in the tuple cache */
-	QR_set_rowset_size(res, (Int4) rowsetSize);
 	/* set the rowset_start if needed */
 	if (should_set_rowset_start)
 		SC_set_rowset_start(stmt, rowset_start, TRUE);
+	if (rowset_end < 0 && QR_haskeyset(res))
+	{
+		getNthValid(res, rowset_start,
+			SQL_FETCH_NEXT, rowsetSize, &rowset_end);
+		reqsize = rowset_end - rowset_start + 1;
+	}
+	QR_set_reqsize(res, (Int4) reqsize);
 	/* currTuple is always 1 row prior to the rowset start */
 	stmt->currTuple = RowIdx2GIdx(-1, stmt);
 
@@ -1746,14 +1757,11 @@ inolog("num_tuples=%d\n", num_tuples);
 	if (res->keyset && !QR_get_cursor(res))
 	{
 		UDWORD	flag = 0;
-		SQLLEN	rowset_end, req_size;
 
-		getNthValid(res, rowset_start, SQL_FETCH_NEXT, rowsetSize, &rowset_end);
-		req_size = rowset_end - rowset_start + 1;
 		if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type)
 		{
 			if (fFetchType != SQL_FETCH_NEXT ||
-				QR_get_rowstart_in_cache(res) + req_size > QR_get_num_cached_tuples(res))
+				QR_get_rowstart_in_cache(res) + reqsize > QR_get_num_cached_tuples(res))
 			{
 				flag = 1;
 			}
@@ -1761,7 +1769,7 @@ inolog("num_tuples=%d\n", num_tuples);
 		if (SQL_RD_ON == stmt->options.retrieve_data ||
 		    flag != 0)
 		{
-			SC_pos_reload_needed(stmt, req_size, flag);
+			SC_pos_reload_needed(stmt, reqsize, flag);
 		}
 	}
 	/* Physical Row advancement occurs for each row fetched below */
@@ -1808,7 +1816,8 @@ inolog("ExtFetch result=%d\n", result);
 		if (currp_is_valid && SQL_SUCCESS_WITH_INFO == result && 0 == stmt->last_fetch_count)
 		{
 inolog("just skipping deleted row %d\n", currp);
-			QR_set_rowset_size(res, (Int4) (rowsetSize - i + fc_io));
+			if (rowsetSize - i + fc_io > reqsize)
+				QR_set_reqsize(res, (Int4) (rowsetSize - i + fc_io));
 			result = SC_fetch(stmt);
 			if (SQL_ERROR == result)
 				break;

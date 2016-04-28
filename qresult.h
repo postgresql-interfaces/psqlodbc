@@ -239,7 +239,7 @@ void		QR_set_num_cached_rows(QResultClass *, SQLLEN);
 void		QR_set_rowstart_in_cache(QResultClass *, SQLLEN);
 void		QR_inc_rowstart_in_cache(QResultClass *self, SQLLEN base_inc);
 void		QR_set_cache_size(QResultClass *self, SQLLEN cache_size);
-void		QR_set_rowset_size(QResultClass *self, Int4 rowset_size);
+void		QR_set_reqsize(QResultClass *self, Int4 reqsize);
 void		QR_set_position(QResultClass *self, SQLLEN pos);
 void		QR_set_cursor(QResultClass *self, const char *name);
 SQLLEN		getNthValid(const QResultClass *self, SQLLEN sta, UWORD orientation, SQLULEN nth, SQLLEN *nearest);
