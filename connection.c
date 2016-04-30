@@ -2423,7 +2423,11 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 
 		case PQTRANS_INTRANS:
 			CC_set_in_trans(self);
-			CC_set_no_error_trans(self);
+			if (CC_is_in_error_trans(self))
+			{
+				CC_set_no_error_trans(self);
+				CC_on_abort_partial(self);
+			}
 			break;
 
 		case PQTRANS_INERROR:

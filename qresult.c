@@ -697,6 +697,8 @@ inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_tota
 	 */
 	QR_set_command(self, PQcmdStatus(*pgres));
 	QR_set_cursor(self, cursor);
+	if (NULL == cursor)
+		QR_set_reached_eof(self);
 	return TRUE;
 }
 
