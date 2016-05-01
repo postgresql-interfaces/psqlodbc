@@ -1106,14 +1106,7 @@ CC_connect(ConnectionClass *self, char *salt_para)
 			goto cleanup;
 		}
 
-	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS;
-	if (ci->allow_keyset)
-	{
-		if (ci->drivers.lie || !ci->drivers.use_declarefetch)
-			ci->updatable_cursors |= (ALLOW_STATIC_CURSORS | ALLOW_KEYSET_DRIVEN_CURSORS | ALLOW_BULK_OPERATIONS | SENSE_SELF_OPERATIONS);
-		else
-			ci->updatable_cursors |= (ALLOW_STATIC_CURSORS | ALLOW_BULK_OPERATIONS | SENSE_SELF_OPERATIONS);
-	}
+	ci_updatable_cursors_set(ci);
 
 	if (CC_get_errornumber(self) > 0)
 		CC_clear_error(self);		/* clear any initial command errors */

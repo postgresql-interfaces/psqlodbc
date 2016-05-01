@@ -317,6 +317,7 @@ int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);
 UInt4	getExtraOptions(const ConnInfo *);
 BOOL	setExtraOptions(ConnInfo *, const char *str, const char *format);
 char	*extract_extra_attribute_setting(const pgNAME setting, const char *attr);
+signed char	ci_updatable_cursors_set(ConnInfo *ci);
 
 #ifdef	__cplusplus
 }

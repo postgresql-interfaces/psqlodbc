@@ -1681,6 +1681,19 @@ char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 	return rptr;
 }
 
+signed char	ci_updatable_cursors_set(ConnInfo *ci)
+{
+	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS;
+	if (ci->allow_keyset)
+	{
+		if (ci->drivers.lie || !ci->drivers.use_declarefetch)
+			ci->updatable_cursors |= (ALLOW_STATIC_CURSORS | ALLOW_KEYSET_DRIVEN_CURSORS | ALLOW_BULK_OPERATIONS | SENSE_SELF_OPERATIONS);
+		else
+			ci->updatable_cursors |= (ALLOW_STATIC_CURSORS | ALLOW_BULK_OPERATIONS | SENSE_SELF_OPERATIONS);
+	}
+	return	ci->updatable_cursors;
+}
+
 void
 CC_conninfo_release(ConnInfo *conninfo)
 {

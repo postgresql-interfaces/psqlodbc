@@ -27,6 +27,7 @@
 #include "qresult.h"
 #include "pgapifunc.h"
 #include "loadlib.h"
+#include "dlg_specific.h"
 
 
 /*	SQLError -> SQLDiagRec */
@@ -1743,6 +1744,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			break;
 		case SQL_ATTR_PGOPT_USE_DECLAREFETCH:
 			conn->connInfo.drivers.use_declarefetch = CAST_UPTR(SQLCHAR, Value);
+			ci_updatable_cursors_set(&conn->connInfo);
 			qlog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
 			mylog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
 			break;
