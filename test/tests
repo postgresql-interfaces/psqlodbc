@@ -34,6 +34,7 @@ TESTBINS = src/connect-test \
 	src/cursor-movement-test \
 	src/cursor-commit-test \
 	src/cursor-name-test \
+	src/cursor-block-delete-test \
 	src/bookmark-test \
 	src/declare-fetch-commit-test \
 	src/declare-fetch-block-test \
