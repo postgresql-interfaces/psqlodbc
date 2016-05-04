@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <math.h>
+#include <time.h>
 
 #ifdef WIN32
 #include <float.h>
