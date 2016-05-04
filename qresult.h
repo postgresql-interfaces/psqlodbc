@@ -243,6 +243,7 @@ void		QR_set_reqsize(QResultClass *self, Int4 reqsize);
 void		QR_set_position(QResultClass *self, SQLLEN pos);
 void		QR_set_cursor(QResultClass *self, const char *name);
 SQLLEN		getNthValid(const QResultClass *self, SQLLEN sta, UWORD orientation, SQLULEN nth, SQLLEN *nearest);
+SQLLEN		QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt);
 
 #define QR_MALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \

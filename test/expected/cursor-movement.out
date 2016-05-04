@@ -51,7 +51,9 @@ fetched: foo3210
 Testing negative SQL_FETCH_ABSOLUTE (-5)...
 fetched: foo3206
 Testing negative SQL_FETCH_ABSOLUTE, before start...
-Fetch: no data found
+got SUCCESS_WITH_INFO
+01S06=fetch absolute and before the beginning
+fetched: foo1
 Testing  SQL_FETCH_ABSOLUTE, beoynd end...
 Fetch: no data found
 disconnecting

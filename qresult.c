@@ -891,6 +891,43 @@ static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *m
 	return alloc;
 }
 
+SQLLEN	QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt)
+{
+	char		movecmd[64];
+	QResultClass	*res;
+	SQLLEN		moved;
+	ConnectionClass	*conn = SC_get_conn(stmt);
+
+	if (!QR_get_cursor(self))
+		return 0;
+	if (QR_once_reached_eof(self) &&
+	    self->cursTuple >= self->num_total_read)
+		return 0;
+	snprintf(movecmd, sizeof(movecmd),
+		 "move all in \"%s\"", QR_get_cursor(self));
+	res = CC_send_query(conn, movecmd, NULL, 0, stmt);
+	if (!QR_command_maybe_successful(res))
+	{
+		QR_Destructor(res);
+		SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", __FUNCTION__);
+		return (-1);
+	}
+	moved = (-1);
+	if (sscanf(res->command, "MOVE " FORMAT_ULEN, &moved) > 0)
+	{
+		moved++;
+		self->cursTuple += moved;
+		if (!QR_once_reached_eof(self))
+		{
+			self->num_total_read = self->cursTuple;
+			QR_set_reached_eof(self);
+		}
+	}
+	QR_Destructor(res);
+
+	return	moved;
+}
+
 /*	This function is called by fetch_tuples() AND SQLFetch() */
 int
 QR_next_tuple(QResultClass *self, StatementClass *stmt)
@@ -996,69 +1033,6 @@ inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
 						self->num_total_read = self->cursTuple + moved;
 						QR_set_reached_eof(self);
 					}
-				}
-				if (QR_is_moving_from_the_last(self))  /* in case of FETCH LAST */
-				{
-					SQLULEN	bmovement, mback;
-					SQLLEN	rowset_start = self->cursTuple + 1, back_offset, backpt;
-inolog("FETCH LAST case\n");
-					if (getNthValid(self, QR_get_num_total_tuples(self) - 1, SQL_FETCH_PRIOR, self->move_offset, &backpt) <= 0)
-					{
-						/* the rowset_start is on BOF */
-						self->tupleField = NULL;
-						SC_set_rowset_start(stmt, -1, TRUE);
-						stmt->currTuple = -1;
-						QR_Destructor(mres);
-						RETURN(-1)
-					}
-					back_offset = QR_get_num_total_tuples(self) - backpt;
-inolog("back_offset=%d and move_offset=%d\n", back_offset, self->move_offset);
-					if (back_offset + 1 > (Int4) self->ad_count)
-					{
-						bmovement = back_offset + 1 - self->ad_count;
-						snprintf(movecmd, sizeof(movecmd),
-								 "move backward " FORMAT_ULEN " in \"%s\"",
-								 bmovement, QR_get_cursor(self));
-						QR_Destructor(mres);
-						mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
-						if (!QR_command_maybe_successful(mres))
-						{
-							QR_Destructor(mres);
-							SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
-							RETURN(-1)
-						}
-
-						if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &mback) > 0)
-						{
-							if (mback < bmovement)
-								mback++;
-							if (moved < mback)
-							{
-								QR_set_move_backward(self);
-								mback -= moved;
-								moved = mback;
-								self->move_offset = moved;
-								rowset_start = self->cursTuple - moved + 1;
-							}
-							else
-							{
-								QR_set_move_forward(self);
-								moved-= mback;
-								self->move_offset = moved;
-								rowset_start = self->cursTuple + moved + 1;
-							}
-						}
-					}
-					else
-					{
-						QR_set_move_forward(self);
-						self->move_offset = moved + self->ad_count - back_offset - 1;
-						rowset_start = self->cursTuple +self->move_offset + 1;
-						/* adjust move_offset */
-						/*** self->move_offset++; ***/
-					}
-					SC_set_rowset_start(stmt, rowset_start, TRUE); /* affects the result's rowset_start but it is reset immediately ... */
-					stmt->currTuple = RowIdx2GIdx(-1, stmt);
 				}
 			}
 		}

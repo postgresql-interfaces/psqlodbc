@@ -1319,21 +1319,6 @@ move_cursor_position_if_needed(StatementClass *self, QResultClass *res)
 	}
 inolog("BASE=%d numb=%d curr=%d cursT=%d\n", QR_get_rowstart_in_cache(res), res->num_cached_rows, self->currTuple, res->cursTuple);
 
-	/* retrieve "move from the last" case first */
-	if (QR_is_moving_from_the_last(res))
-	{
-		mylog("must MOVE from the last\n");
-		if (QR_once_reached_eof(res) || self->rowset_start <= QR_get_num_total_tuples(res)) /* this shouldn't happen */
-			mylog("strange situation in move from the last\n");
-		if (0 == res->move_offset)
-			res->move_offset = INT_MAX - self->rowset_start;
-else
-{
-inolog("!!move_offset=%d calc=%d\n", res->move_offset, INT_MAX - self->rowset_start);
-}
-		return;
-	}
-
 	/* normal case */
 	res->move_offset = 0;
 	move_offset = self->currTuple - res->cursTuple;
@@ -1485,6 +1470,9 @@ inolog("num_tuples=%d\n", num_tuples);
 	res->move_offset = 0;
 	switch (fFetchType)
 	{
+		int	min_nth;
+		SQLLEN	bidx;
+
 		case SQL_FETCH_NEXT:
 
 			/*
@@ -1541,15 +1529,15 @@ inolog("num_tuples=%d\n", num_tuples);
 			else if (QR_haskeyset(res))
 			{
 				rowset_end = rowset_start - 1;
-				if (i = getNthValid(res, rowset_end, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), i <= 0)
+				if (min_nth = getNthValid(res, rowset_end, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), min_nth <= 0)
 				{
-					if (i == 0)
+					if (min_nth == 0)
 					{
 						EXTFETCH_RETURN_BOF(stmt, res)
 					}
 					else
 					{
-						SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beggining", func);
+						SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior and before the beginning", func);
 						rowset_end = (-1);
 						SC_set_rowset_start(stmt, 0, TRUE);
 					}
@@ -1562,7 +1550,7 @@ inolog("num_tuples=%d\n", num_tuples);
 			}
 			else if (rowset_start < rowsetSize)
 			{
-				SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beggining", func);
+				SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch prior from eof and before the beginning", func);
 				SC_set_rowset_start(stmt, 0, TRUE);
 			}
 			else
@@ -1580,10 +1568,28 @@ inolog("num_tuples=%d\n", num_tuples);
 
 			if (!reached_eof)
 			{
-				QR_set_move_from_the_last(res);
-				res->move_offset = rowsetSize;
+				QR_move_cursor_to_last(res, stmt);
+				num_tuples = QR_get_num_total_tuples(res);
 			}
-			SC_set_rowset_start(stmt, num_tuples <= 0 ? 0 : (num_tuples - rowsetSize), TRUE);
+			rowset_end = num_tuples - 1;
+			if (min_nth = getNthValid(res, rowset_end, SQL_FETCH_PRIOR, rowsetSize, &rowset_start), min_nth <= 0)
+			{
+				if (min_nth == 0)
+				{
+					EXTFETCH_RETURN_BOF(stmt, res)
+				}
+				else
+				{
+					SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch last and before the beginning", func);
+					rowset_end = (-1);
+					SC_set_rowset_start(stmt, 0, TRUE);
+				}
+			}
+			else
+			{
+				should_set_rowset_start = TRUE;
+				reqsize = rowset_end - rowset_start + 1;
+			}
 			break;
 
 		case SQL_FETCH_ABSOLUTE:
@@ -1607,19 +1613,26 @@ inolog("num_tuples=%d\n", num_tuples);
 			/* Position with respect to the end of the result set */
 			else
 			{
-				if (getNthValid(res, num_tuples - 1, SQL_FETCH_PRIOR, -irow, &rowset_start) <= 0)
+				if (!reached_eof)
 				{
-					EXTFETCH_RETURN_BOF(stmt, res)
+					QR_move_cursor_to_last(res, stmt);
+					num_tuples = QR_get_num_total_tuples(res);
+				}
+				if (min_nth = getNthValid(res, num_tuples - 1, SQL_FETCH_PRIOR, -irow, &rowset_start), min_nth <= 0)
+				{
+					if (min_nth == 0)
+					{
+						EXTFETCH_RETURN_BOF(stmt, res)
+					}
+					else
+					{
+						SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch absolute and before the beginning", func);
+						rowset_end = (-1);
+						SC_set_rowset_start(stmt, 0, TRUE);
+					}
 				}
 				else
-				{
-					if (!reached_eof)
-					{
-						QR_set_move_from_the_last(res);
-						res->move_offset = -irow;
-					}
 					should_set_rowset_start = TRUE;
-				}
 			}
 			break;
 
@@ -1643,9 +1656,16 @@ inolog("num_tuples=%d\n", num_tuples);
 			}
 			else
 			{
-				if (getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, -irow, &rowset_start) <= 0)
+				if (min_nth = getNthValid(res, SC_get_rowset_start(stmt) - 1, SQL_FETCH_PRIOR, -irow, &rowset_start), min_nth <= 0)
 				{
-					EXTFETCH_RETURN_BOF(stmt, res)
+					if (min_nth == 0)
+						EXTFETCH_RETURN_BOF(stmt, res)
+					else
+					{
+						SC_set_error(stmt, STMT_POS_BEFORE_RECORDSET, "fetch relative and before the beginning", func);
+						rowset_end = (-1);
+						SC_set_rowset_start(stmt, 0, TRUE);
+					}
 				}
 				else
 					should_set_rowset_start = TRUE;
@@ -1653,15 +1673,14 @@ inolog("num_tuples=%d\n", num_tuples);
 			break;
 
 		case SQL_FETCH_BOOKMARK:
-			{
-			SQLLEN	bidx = SC_resolve_bookmark(irow);
+			bidx = SC_resolve_bookmark(irow);
 
 			if (bidx < 0)
 			{
 				if (!reached_eof)
 				{
-					QR_set_move_from_the_last(res);
-					res->move_offset = 1 + res->ad_count + bidx;
+					QR_move_cursor_to_last(res, stmt);
+					num_tuples = QR_get_num_total_tuples(res);
 				}
 				bidx = num_tuples - 1 - res->ad_count - bidx;
 			}
@@ -1683,7 +1702,6 @@ inolog("num_tuples=%d\n", num_tuples);
 			}
 			else
 				should_set_rowset_start = TRUE;
-			}
 			break;
 
 		default:
