@@ -3,52 +3,52 @@
 # This is in a separate file so that it can be included by both the Unix
 # Makefile, and Windows nmake file, win.mak. Note that the format of this
 # file must be acceptable to both, so don't add anything fancy here. That's
-# also why we list program names here, in format src/<testname>-test, rather
+# also why we list program names here, in format exe/<testname>-test, rather
 # than the base test names: nmake makes it difficult to add a prefix or suffix
 # to each name in a list, but it's easy to strip them away.
 
-TESTBINS = src/connect-test \
-	src/stmthandles-test \
-	src/select-test \
-	src/update-test \
-	src/commands-test \
-	src/multistmt-test \
-	src/getresult-test \
-	src/colattribute-test \
-	src/result-conversions-test \
-	src/prepare-test \
-	src/premature-test \
-	src/params-test \
-	src/param-conversions-test \
-	src/parse-test \
-	src/identity-test \
-	src/notice-test \
-	src/arraybinding-test \
-	src/insertreturning-test \
-	src/dataatexecution-test \
-	src/boolsaschar-test \
-	src/cvtnulldate-test \
-	src/alter-test \
-	src/quotes-test \
-	src/cursors-test \
-	src/cursor-movement-test \
-	src/cursor-commit-test \
-	src/cursor-name-test \
-	src/cursor-block-delete-test \
-	src/bookmark-test \
-	src/declare-fetch-commit-test \
-	src/declare-fetch-block-test \
-	src/positioned-update-test \
-	src/bulkoperations-test \
-	src/catalogfunctions-test \
-	src/bindcol-test \
-	src/lfconversion-test \
-	src/cte-test \
-	src/deprecated-test \
-	src/errors-test \
-	src/error-rollback-test \
-	src/diagnostic-test \
-	src/numeric-test \
-	src/large-object-test \
-	src/large-object-data-at-exec-test \
-	src/odbc-escapes-test
+TESTBINS = exe/connect-test \
+	exe/stmthandles-test \
+	exe/select-test \
+	exe/update-test \
+	exe/commands-test \
+	exe/multistmt-test \
+	exe/getresult-test \
+	exe/colattribute-test \
+	exe/result-conversions-test \
+	exe/prepare-test \
+	exe/premature-test \
+	exe/params-test \
+	exe/param-conversions-test \
+	exe/parse-test \
+	exe/identity-test \
+	exe/notice-test \
+	exe/arraybinding-test \
+	exe/insertreturning-test \
+	exe/dataatexecution-test \
+	exe/boolsaschar-test \
+	exe/cvtnulldate-test \
+	exe/alter-test \
+	exe/quotes-test \
+	exe/cursors-test \
+	exe/cursor-movement-test \
+	exe/cursor-commit-test \
+	exe/cursor-name-test \
+	exe/cursor-block-delete-test \
+	exe/bookmark-test \
+	exe/declare-fetch-commit-test \
+	exe/declare-fetch-block-test \
+	exe/positioned-update-test \
+	exe/bulkoperations-test \
+	exe/catalogfunctions-test \
+	exe/bindcol-test \
+	exe/lfconversion-test \
+	exe/cte-test \
+	exe/deprecated-test \
+	exe/errors-test \
+	exe/error-rollback-test \
+	exe/diagnostic-test \
+	exe/numeric-test \
+	exe/large-object-test \
+	exe/large-object-data-at-exec-test \
+	exe/odbc-escapes-test

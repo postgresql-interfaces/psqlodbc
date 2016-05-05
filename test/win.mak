@@ -20,18 +20,18 @@
 !INCLUDE tests
 
 # The 'tests' file contains names of the test programs, in form
-# src/<testname>-test. Extract the base names of the tests, by stripping the
-# "src/" prefix and "-test" suffix. (It would seem more straightforward to do
+# exe/<testname>-test. Extract the base names of the tests, by stripping the
+# "exe/" prefix and "-test" suffix. (It would seem more straightforward to do
 # it the other way round, but it is surprisingly difficult to add a
 # prefix/suffix to a list in nmake. Removing them is much easier.)
-TESTS = $(TESTBINS:src/=)
+TESTS = $(TESTBINS:exe/=)
 TESTS = $(TESTS:-test=)
 
 # Now create names of the test .exe from the base names
 
-# src\<testname>.exe
+# exe\<testname>.exe
 TESTEXES = $(TESTBINS:-test=-test.exe)
-TESTEXES = $(TESTEXES:src/=src\)
+TESTEXES = $(TESTEXES:exe/=exe\)
 
 
 # Flags
@@ -46,7 +46,7 @@ LINKFLAGS=/link odbc32.lib odbccp32.lib
 # for each test - ideally we would build common.obj once and just link it
 # to each test.
 .c.exe:
-	cl /Fe.\src\ /Fo.\src\ $*.c src/common.c $(CLFLAGS) $(LINKFLAGS)
+	cl /Fe.\exe\ /Fo.\exe\ $*.c src/common.c $(CLFLAGS) $(LINKFLAGS)
 
 all: $(TESTEXES) runsuite.exe
 
@@ -66,5 +66,5 @@ installcheck: runsuite.exe $(TESTEXES) reset-db.exe
 	.\runsuite $(TESTS)
 
 clean:
-	-del src\*.exe
-	-del src\*.obj
+	-del exe\*.exe
+	-del exe\*.obj

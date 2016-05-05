@@ -1,7 +1,7 @@
 /*
  * A test driver for the psqlodbc regression tests.
  *
- * This program runs one regression tests from the src/ directory,
+ * This program runs one regression tests from the exe/ directory,
  * and compares the output with the expected output in the expected/ directory.
  * Reports success or failure in TAP compatible fashion.
  */
@@ -65,7 +65,7 @@ parse_argument(const char *in, char *testname, char *binname)
 	if (strchr(in, DIR_SEP) == NULL)
 	{
 		strcpy(testname, in);
-		sprintf(binname, "src%c%s-test", DIR_SEP, in);
+		sprintf(binname, "exe%c%s-test", DIR_SEP, in);
 		return;
 	}
 

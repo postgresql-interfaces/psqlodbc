@@ -86,114 +86,17 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	winbuild/psqlodbc.vcxproj \
 	winbuild/readme.txt \
 \
-	test/expected/alter.out \
-	test/expected/arraybinding.out \
-	test/expected/bindcol.out \
-	test/expected/bookmark.out \
-	test/expected/boolsaschar.out \
-	test/expected/bulkoperations.out \
-	test/expected/catalogfunctions.out \
-	test/expected/colattribute.out \
-	test/expected/colattribute_1.out \
-	test/expected/commands.out \
-	test/expected/connect.out \
-	test/expected/cte.out \
-	test/expected/cursor-commit.out \
-	test/expected/cursor-movement.out \
-	test/expected/cursor-movement_1.out \
-	test/expected/cursor-name.out \
-	test/expected/cursors.out \
-	test/expected/cursors_1.out \
-	test/expected/cvtnulldate.out \
-	test/expected/dataatexecution.out \
-	test/expected/declare-fetch-commit.out \
-	test/expected/declare-fetch-block.out \
-	test/expected/deprecated.out \
-	test/expected/deprecated_1.out \
-	test/expected/diagnostic.out \
-	test/expected/error-rollback.out \
-	test/expected/errors.out \
-	test/expected/errors_1.out \
-	test/expected/errors_2.out \
-	test/expected/getresult.out \
-	test/expected/identity.out \
-	test/expected/insertreturning.out \
-	test/expected/large-object-data-at-exec.out \
-	test/expected/large-object.out \
-	test/expected/lfconversion.out \
-	test/expected/multistmt.out \
-	test/expected/notice.out \
-	test/expected/numeric.out \
-	test/expected/odbc-escapes.out \
-	test/expected/param-conversions.out \
-	test/expected/param-conversions_1.out \
-	test/expected/params.out \
-	test/expected/params_1.out \
-	test/expected/parse.out \
-	test/expected/positioned-update.out \
-	test/expected/premature.out \
-	test/expected/prepare.out \
-	test/expected/quotes.out \
-	test/expected/result-conversions.out \
-	test/expected/result-conversions_1.out \
-	test/expected/select.out \
-	test/expected/stmthandles.out \
-	test/expected/update.out \
 	test/Makefile.in \
 	test/odbcini-gen.sh \
 	test/README.txt \
 	test/reset-db.c \
 	test/runsuite.c \
 	test/sampletables.sql \
-	test/src/alter-test.c \
-	test/src/arraybinding-test.c \
-	test/src/bindcol-test.c \
-	test/src/bookmark-test.c \
-	test/src/boolsaschar-test.c \
-	test/src/bulkoperations-test.c \
-	test/src/catalogfunctions-test.c \
-	test/src/colattribute-test.c \
-	test/src/commands-test.c \
-	test/src/common.c \
-	test/src/common.h \
-	test/src/connect-test.c \
-	test/src/cte-test.c \
-	test/src/cursor-commit-test.c \
-	test/src/cursor-movement-test.c \
-	test/src/cursor-name-test.c \
-	test/src/cursors-test.c \
-	test/src/errors-test.c \
-	test/src/cvtnulldate-test.c \
-	test/src/dataatexecution-test.c \
-	test/src/declare-fetch-commit-test.c \
-	test/src/declare-fetch-block-test.c \
-	test/src/deprecated-test.c \
-	test/src/diagnostic-test.c \
-	test/src/error-rollback-test.c \
-	test/src/getresult-test.c \
-	test/src/identity-test.c \
-	test/src/insertreturning-test.c \
-	test/src/large-object-data-at-exec-test.c \
-	test/src/large-object-test.c \
-	test/src/lfconversion-test.c \
-	test/src/multistmt-test.c \
-	test/src/notice-test.c \
-	test/src/numeric-test.c \
-	test/src/odbc-escapes-test.c \
-	test/src/param-conversions-test.c \
-	test/src/params-test.c \
-	test/src/parse-test.c \
-	test/src/positioned-update-test.c \
-	test/src/premature-test.c \
-	test/src/prepare-test.c \
-	test/src/quotes-test.c \
-	test/src/result-conversions-test.c \
-	test/src/select-test.c \
-	test/src/stmthandles-test.c \
-	test/src/update-test.c \
 	test/tests \
 	test/win.mak \
-	test/Makefile 
+	test/Makefile \
+	test/expected \
+	test/src 
 
 MAINTAINERCLEANFILES = \
 	Makefile.in config/config.guess config.h.in config/config.sub configure \

@@ -9,8 +9,8 @@ vpath %.sh $(origdir)
 include $(origdir)/tests
 
 # The included file defined variable TESTBINS, which is a list of program
-# names in format src/<testname>-test. Extract the base test names from it.
-TESTNAMES = $(patsubst src/%-test,%, $(TESTBINS))
+# names in format exe/<testname>-test. Extract the base test names from it.
+TESTNAMES = $(patsubst exe/%-test,%, $(TESTBINS))
 
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
@@ -44,13 +44,13 @@ runsuite: runsuite.c
 reset-db: reset-db.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@ $(LIBODBC)
 
-src/common.o: src/common.c
-	@if test ! -d src; then mkdir -p src; fi
+exe/common.o: src/common.c
+	@if test ! -d exe; then mkdir -p exe; fi
 	$(COMPILE.c) -c $< -o $@
 
 # For each test, compile the .c file.
-src/%-test: src/%-test.c src/common.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o src/$*-test $(LIBODBC)
+exe/%-test: src/%-test.c exe/common.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o exe/$*-test $(LIBODBC)
 
 # This target runs the regression tests with all combinations of
 # UseDeclareFetch, UseServerSidePrepare and Protocol options.
@@ -84,5 +84,5 @@ installcheck-all:
 	$(MAKE) installcheck odbc_ini_extras="UseDeclareFetch=1 UseServerSidePrepare=0 Protocol=7.4-0"
 
 clean:
-	rm -f $(TESTBINS) src/*.o runsuite reset-db
+	rm -f $(TESTBINS) exe/*.o runsuite reset-db
 	rm -f results/*
