@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 	/****
      * Run this test with UseDeclareFetch = 1 and Fetch=37.
      */
-	test_connect_ext("UseDeclareFetch=1");
+	test_connect_ext("UseDeclareFetch=1;Fetch=37");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
