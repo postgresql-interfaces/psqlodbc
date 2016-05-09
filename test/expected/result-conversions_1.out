@@ -1,6 +1,7 @@
 connected
 Executed: SET intervalstyle=postgres
 Executed: SET bytea_output=escape
+Executed: SET lc_monetary='C'
 'true' (boolean) as SQL_C_CHAR: 1
 'true' (boolean) as SQL_C_WCHAR: 1
 'true' (boolean) as SQL_C_SSHORT: 1
