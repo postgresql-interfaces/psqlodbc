@@ -406,7 +406,7 @@ SC_Constructor(ConnectionClass *conn)
 		SC_set_rowset_start(rv, -1, FALSE);
 		rv->current_col = -1;
 		rv->bind_row = 0;
-		rv->from_pos = rv->where_pos = -1;
+		rv->from_pos = rv->load_from_pos = rv->where_pos = -1;
 		rv->last_fetch_count = rv->last_fetch_count_include_ommitted = 0;
 		rv->save_rowset_size = -1;
 

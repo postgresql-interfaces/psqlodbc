@@ -407,7 +407,7 @@ strlcat(char *dst, const char *src, size_t size)
  * Returns a statically allocated buffer.
  */
 char *
-quote_table(const pgNAME schema, pgNAME table)
+quote_table(const pgNAME schema, const pgNAME table)
 {
 	static char buf[200];
 	const char *ptr;

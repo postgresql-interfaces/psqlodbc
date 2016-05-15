@@ -2089,6 +2089,7 @@ typedef struct _QueryBuild {
 	IPDFields *ipdopts;
 	PutDataInfo *pdata;
 	size_t	load_stmt_len;
+	size_t	load_from_pos;
 	ResolveParamMode param_mode;
 	UInt4	flags;
 	int	ccsc;
@@ -2108,6 +2109,7 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ResolveParamMod
 	qb->param_mode = param_mode;
 	qb->flags = 0;
 	qb->load_stmt_len = 0;
+	qb->load_from_pos = 0;
 	qb->stmt = stmt;
 	qb->apdopts = NULL;
 	qb->ipdopts = NULL;
@@ -3110,6 +3112,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 			goto cleanup;
 		}
 		memcpy(stmt->load_statement, qb->query_statement + qp->declare_pos, npos);
+		stmt->load_from_pos = qb->load_from_pos - qp->declare_pos;
 		stmt->load_statement[npos] = '\0';
 	}
 
@@ -3276,6 +3279,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			CVT_APPEND_STR(qb, bestitem);
 		}
 		CVT_APPEND_STR(qb, "\" ");
+		qb->load_from_pos = qb->npos;
 	}
 	else if (qp->where_pos == opos)
 	{

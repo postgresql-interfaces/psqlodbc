@@ -284,6 +284,7 @@ struct StatementClass_
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
 	ssize_t		from_pos;
+	ssize_t		load_from_pos;
 	ssize_t		where_pos;
 	SQLLEN		last_fetch_count_include_ommitted;
 	time_t		stmt_time;

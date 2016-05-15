@@ -53,6 +53,7 @@ mylog("!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 				NULL_THE_NAME(ti[i]->table_alias);
 				NULL_THE_NAME(ti[i]->bestitem);
 				NULL_THE_NAME(ti[i]->bestqual);
+				TI_Destroy_IH(ti[i]);
 				free(ti[i]);
 				ti[i] = NULL;
 			}
@@ -94,6 +95,88 @@ inolog("FI_Destructor count=%d\n", count);
 		if (freeFI)
 			free(fi);
 	}
+}
+
+static	const pgNAME invNAME = {NULL};
+
+#define	INIT_IH	32
+void	TI_Create_IH(TABLE_INFO *ti)
+{
+	int	alloc = INIT_IH;
+	InheritanceClass	*ih;
+
+	ih = (InheritanceClass *) malloc(sizeof(InheritanceClass) + (alloc - 1) * sizeof(ih->inf[0]));
+	memset(ih, 0, sizeof(InheritanceClass));
+	ih->allocated = alloc;
+	ti->ih = ih;
+}
+
+void	TI_Destroy_IH(TABLE_INFO *ti)
+{
+	InheritanceClass	*ih;
+
+	if (NULL == (ih = ti->ih))
+		return;
+	for (int i = 0; i < ih->count; i++)
+	{
+		NULL_THE_NAME(ih->inf[i].fullTable);
+	}
+	free(ih);
+	ti->ih = NULL;
+}
+
+const pgNAME	TI_From_IH(TABLE_INFO *ti, OID tableoid)
+{
+	InheritanceClass	*ih;
+
+	if (NULL == (ih = ti->ih))
+		return invNAME;
+	if (tableoid == ih->cur_tableoid)
+		return ih->cur_fullTable;
+	for (int i = 0; i < ih->count; i++)
+	{
+		if (ih->inf[i].tableoid == tableoid)
+		{
+			ih->cur_tableoid = tableoid;
+			ih->cur_fullTable = ih->inf[i].fullTable;
+			return ih->cur_fullTable;
+		}
+	}
+	return invNAME;
+}
+
+const pgNAME	TI_Ins_IH(TABLE_INFO *ti, OID tableoid, const char *fullName)
+{
+	InheritanceClass	*ih;
+	int			count;
+
+	if (NULL == (ih = ti->ih))
+	{
+		TI_Create_IH(ti);
+		if (ih = ti->ih, NULL == ih)
+			return invNAME;
+	}
+	if ((count = ih->count) >= ih->allocated)
+	{
+		int	alloc = ih->allocated * 2;
+		InheritanceClass	*nih;
+
+		if (nih = (InheritanceClass *) realloc(ih, sizeof(InheritanceClass) + (alloc - 1) * sizeof(ih->inf[0])), NULL == nih)
+		{
+			TI_Destroy_IH(ti);
+			return invNAME;
+		}
+		ti->ih = ih = nih;
+		ih->allocated = alloc;
+	}
+	ih->inf[count].tableoid = tableoid;
+	INIT_NAME(ih->inf[count].fullTable);
+	STR_TO_NAME(ih->inf[count].fullTable, fullName);
+	ih->cur_tableoid = tableoid;
+	ih->cur_fullTable = ih->inf[count].fullTable;
+	ih->count++;
+
+	return ih->inf[count].fullTable;
 }
 
 void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)

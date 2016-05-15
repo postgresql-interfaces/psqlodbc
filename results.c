@@ -1997,7 +1997,14 @@ static void KeySetSet(const TupleField *tuple, int num_fields, int num_key_field
 	sscanf(tuple[num_fields - num_key_fields].value, "(%u,%hu)",
 			&keyset->blocknum, &keyset->offset);
 	if (num_key_fields > 1)
-		sscanf(tuple[num_fields - 1].value, "%u", &keyset->oid);
+	{
+		const char *oval = tuple[num_fields - 1].value;
+
+		if ('-' == oval[0])
+			sscanf(oval, "%d", &keyset->oid);
+		else
+			sscanf(oval, "%u", &keyset->oid);
+	}
 	else
 		keyset->oid = 0;
 }
@@ -2117,7 +2124,40 @@ inolog("[%d,%d] %s copied\n", i / num_fields, i % num_fields, otuple->value);
 	return i;
 }
 
-static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
+static char *
+ti_quote(StatementClass *stmt, OID tableoid)
+{
+	TABLE_INFO	*ti = stmt->ti[0];
+	pgNAME		rNAME;
+
+	if (0 == tableoid || !TI_has_subclass(ti))
+		return quote_table(ti->schema_name, ti->table_name);
+	else if (NAME_IS_VALID(rNAME = TI_From_IH(ti, tableoid)))
+		return SAFE_NAME(rNAME);
+	else
+	{
+		char	query[200];
+		QResultClass	*res;
+		char	*ret = "";
+
+		snprintf(query, sizeof(query), "select relname, nspname from pg_class c, pg_namespace n where c.oid=%u and c.relnamespace=n.oid", tableoid);
+		res = CC_send_query(SC_get_conn(stmt), query, NULL, 0, stmt);
+		if (QR_command_maybe_successful(res) &&
+		    QR_get_num_cached_tuples(res) == 1)
+		{
+			pgNAME	schema_name, table_name;
+
+			SET_NAME_DIRECTLY(schema_name, QR_get_value_backend_text(res, 0, 1));
+			SET_NAME_DIRECTLY(table_name, QR_get_value_backend_text(res, 0, 0));
+			ret = quote_table(schema_name, table_name);
+			TI_Ins_IH(ti, tableoid, ret);
+		}
+		QR_Destructor(res);
+		return ret;
+	}
+}
+
+static BOOL	tupleExists(StatementClass *stmt, const KeySet *keyset)
 {
 	char	selstr[256];
 	const TABLE_INFO	*ti = stmt->ti[0];
@@ -2127,9 +2167,9 @@ static BOOL	tupleExists(const StatementClass *stmt, const KeySet *keyset)
 
 	snprintf(selstr, sizeof(selstr),
 			 "select 1 from %s where ctid = '(%u,%u)'",
-			 quote_table(ti->schema_name, ti->table_name),
+			 ti_quote(stmt, keyset->oid),
 			 keyset->blocknum, keyset->offset);
-	if (NULL != bestqual && 0 != keyset->oid)
+	if (NULL != bestqual && 0 != keyset->oid && !TI_has_subclass(ti))
 	{
 		snprintf_add(selstr, sizeof(selstr), " and ");
 		snprintf_add(selstr, sizeof(selstr), bestqual, keyset->oid);
@@ -2932,17 +2972,18 @@ positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const cha
 	TABLE_INFO	*ti = stmt->ti[0];
 	const char *bestitem = GET_NAME(ti->bestitem);
 	const char *bestqual = GET_NAME(ti->bestqual);
+	const ssize_t	from_pos = stmt->load_from_pos;
+	const char *load_stmt = stmt->load_statement;
 
 inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(ti->bestqual));
-	if (!bestitem || !oidint)
+	if (!bestqual || !oidint)
 		*oideqstr = '\0';
 	else
 	{
-		/*snprintf(oideqstr, sizeof(oideqstr), " and \"%s\" = %u", bestitem, oid);*/
 		strcpy(oideqstr, andqual);
 		snprintf_add(oideqstr, sizeof(oideqstr), bestqual, *oidint);
 	}
-	len = strlen(stmt->load_statement);
+	len = strlen(load_stmt);
 	len += strlen(oideqstr);
 	if (tidval)
 		len += 100;
@@ -2956,31 +2997,64 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 		SC_set_error(stmt,STMT_NO_MEMORY_ERROR, "Could not allocate memory for query", func);
 		goto cleanup;
 	}
-	if (tidval)
+	if (TI_has_subclass(ti))
 	{
-		if (latest)
+		OID	tableoid = *oidint;
+
+		if (tidval)
 		{
-			snprintf(selstr, len,
-					 "%s where ctid = currtid2('%s', '%s') %s",
-					 stmt->load_statement,
-					 quote_table(ti->schema_name, ti->table_name),
-					 tidval, oideqstr);
+			if (latest)
+			{
+				snprintf(selstr, len,
+					 "%.*sfrom %s where ctid = currtid2('%s', '%s')",
+					 from_pos, load_stmt,
+					 ti_quote(stmt, tableoid),
+					 ti_quote(stmt, tableoid),
+					 tidval);
+			}
+			else
+				snprintf(selstr, len, "%.*sfrom %s where ctid = '%s'", from_pos, load_stmt, ti_quote(stmt, tableoid), tidval);
 		}
+		else if ((flag & USE_INSERTED_TID) != 0)
+			snprintf(selstr, len, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", from_pos, load_stmt, ti_quote(stmt, tableoid));
+		/*
+		else if (bestitem && oidint)
+		{
+		}
+		*/
 		else
-			snprintf(selstr, len, "%s where ctid = '%s' %s", stmt->load_statement, tidval, oideqstr);
-	}
-	else if ((flag & USE_INSERTED_TID) != 0)
-		snprintf(selstr, len, "%s where ctid = currtid(0, '(0,0)') %s", stmt->load_statement, oideqstr);
-	else if (bestitem && oidint)
-	{
-		/*snprintf(selstr, len, "%s where \"%s\" = %u", stmt->load_statement, bestitem, *oid);*/
-		snprintf(selstr, len, "%s where ", stmt->load_statement);
-		snprintf_add(selstr, len, bestqual, *oidint);
+		{
+			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
+			goto cleanup;
+		}
 	}
 	else
 	{
-		SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
-		goto cleanup;
+		if (tidval)
+		{
+			if (latest)
+			{
+				snprintf(selstr, len,
+					 "%s where ctid = currtid2('%s', '%s') %s",
+					 load_stmt,
+					 ti_quote(stmt, 0),
+					 tidval, oideqstr);
+			}
+			else
+				snprintf(selstr, len, "%s where ctid = '%s' %s", load_stmt, tidval, oideqstr);
+		}
+		else if ((flag & USE_INSERTED_TID) != 0)
+			snprintf(selstr, len, "%s where ctid = currtid(0, '(0,0)') %s", load_stmt, oideqstr);
+		else if (bestqual && oidint)
+		{
+			snprintf(selstr, len, "%s where ", load_stmt);
+			snprintf_add(selstr, len, bestqual, *oidint);
+		}
+		else
+		{
+			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
+			goto cleanup;
+		}
 	}
 
 	mylog("selstr=%s\n", selstr);
@@ -2991,7 +3065,7 @@ cleanup:
 }
 
 static RETCODE
-SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind, const char *tid)
+SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind, const KeySet *keyset)
 {
 	CSTR		func = "SC_pos_reload";
 	int		res_cols;
@@ -3029,7 +3103,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	}
 	else if (0 != (res->keyset[kres_ridx].status & CURS_SELF_ADDING))
 	{
-		if (NULL == tid)
+		if (NULL == keyset)
 		{
 			use_ctid = FALSE;
 			mylog("The tuple is currently being added and can't use ctid\n");
@@ -3044,6 +3118,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
 		return SQL_ERROR;
 	}
+	/* old oid & tid */
 	if (!(oidint = getOid(res, kres_ridx)))
 	{
 		if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
@@ -3055,8 +3130,14 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	getTid(res, kres_ridx, &blocknum, &offset);
 	snprintf(tidval, sizeof(tidval), "(%u, %u)", blocknum, offset);
 	res_cols = getNumResultCols(res);
-	if (tid)
+	if (keyset)
+	{
+		char tid[32];
+
+		oidint = keyset->oid;
+		snprintf(tid, sizeof(tid), "(%u,%hu)", keyset->blocknum, keyset->offset);
 		qres = positioned_load(stmt, 0, &oidint, tid);
+	}
 	else
 		qres = positioned_load(stmt, use_ctid ? LATEST_TUPLE_LOAD : 0, &oidint, use_ctid ? tidval : NULL);
 	if (!QR_command_maybe_successful(qres))
@@ -3105,7 +3186,7 @@ SC_pos_reload_with_tid(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 RETCODE
 SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind)
 {
-	return SC_pos_reload_with_tid(stmt, global_ridx, count, logKind, NULL);
+	return SC_pos_reload_with_key(stmt, global_ridx, count, logKind, NULL);
 }
 
 static	const int	pre_fetch_count = 32;
@@ -3152,6 +3233,8 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 				SQLLEN		j, k, l;
 				Int2		m;
 				TupleField	*tuple, *tuplew;
+				UInt4		bln;
+				UInt2		off;
 
 				for (j = 0; j < QR_get_num_total_read(qres); j++)
 				{
@@ -3159,7 +3242,10 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 					getTid(qres, j, &blocknum, &offset);
 					for (k = SC_get_rowset_start(stmt); k < limitrow; k++)
 					{
-						if (oid == getOid(res, k))
+						getTid(res, k, &bln, &off);
+						if (oid == getOid(res, k) &&
+						    bln == blocknum &&
+						    off == offset)
 						{
 							l = GIdx2CacheIdx(k, stmt, res);
 							tuple = res->backend_tuples + res->num_fields * l;
@@ -3292,6 +3378,134 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	return rcnt;
 }
 
+static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int rows_per_fetch, SQLLEN limitrow)
+{
+	ConnectionClass	*conn = SC_get_conn(stmt);
+	SQLLEN	i;
+	int	j, rowc, rcnt = 0;
+	OID	oid, new_oid;
+	UInt4	blocknum;
+	SQLLEN	kres_ridx;
+	UInt2	offset;
+	char	*qval = NULL, *sval = NULL;
+	int	keys_per_fetch = 10;
+	const char *load_stmt = stmt->load_statement;
+	const TABLE_INFO *ti = stmt->ti[0];
+	const ssize_t	from_pos = stmt->load_from_pos;
+	const int	max_identifier = 100;
+
+	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0, oid = 0;; i++, kres_ridx++)
+	{
+		if (i >= limitrow)
+		{
+			if (!rowc)
+				break;
+			rowc = -1; /* end of loop */
+		}
+		else if (0 == (res->keyset[kres_ridx].status & CURS_NEEDS_REREAD))
+			continue;
+		else
+			new_oid = getOid(res, kres_ridx);
+		if (rowc < 0 ||
+		    rowc >= keys_per_fetch ||
+		    (oid != 0 &&
+		     new_oid != oid))
+		{
+			QResultClass	*qres;
+
+			strcpy(sval, ")");
+			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET, stmt);
+			if (QR_command_maybe_successful(qres))
+			{
+				SQLLEN		k, l;
+				Int2		m;
+				TupleField	*tuple, *tuplew;
+				UInt4		bln;
+				UInt2		off;
+				OID		tbloid;
+
+				for (j = 0; j < QR_get_num_total_read(qres); j++)
+				{
+					tbloid = getOid(qres, j);
+					getTid(qres, j, &blocknum, &offset);
+					for (k = SC_get_rowset_start(stmt); k < limitrow; k++)
+					{
+						getTid(res, k, &bln, &off);
+						if (tbloid == getOid(res, k) &&
+						    bln == blocknum &&
+						    off == offset)
+						{
+							l = GIdx2CacheIdx(k, stmt, res);
+							tuple = res->backend_tuples + res->num_fields * l;
+							tuplew = qres->backend_tuples + qres->num_fields * j;
+							for (m = 0; m < res->num_fields; m++, tuple++, tuplew++)
+							{
+								if (tuple->len > 0 && tuple->value)
+									free(tuple->value);
+								tuple->value = tuplew->value;
+								tuple->len = tuplew->len;
+								tuplew->value = NULL;
+								tuplew->len = -1;
+							}
+							res->keyset[k].status &= ~CURS_NEEDS_REREAD;
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				SC_set_error(stmt, STMT_EXEC_ERROR, "Data Load Error", __FUNCTION__);
+				rcnt = -1;
+				QR_Destructor(qres);
+				break;
+			}
+			QR_Destructor(qres);
+			if (rowc < 0)
+				break;
+			rowc = 0;
+		}
+		if (!rowc)
+		{
+			size_t lodlen = 0;
+
+			if (!qval)
+			{
+				size_t	allen;
+
+
+				if (rows_per_fetch >= pre_fetch_count * 2)
+					keys_per_fetch = pre_fetch_count;
+				else
+					keys_per_fetch = rows_per_fetch;
+				if (!keys_per_fetch)
+					keys_per_fetch = 2;
+				allen = from_pos + sizeof("from ") +
+					2 * (2 + max_identifier) + 1 *
+					+ sizeof(" where ctid in ") +
+					20 * keys_per_fetch + 2;
+				SC_MALLOC_return_with_error(qval, char, allen,
+					stmt, "Couldn't alloc qval", -1);
+			}
+			sprintf(qval, "%.*sfrom %s where ctid in (", from_pos, load_stmt, ti_quote(stmt, new_oid));
+			sval = strchr(qval, '\0');
+		}
+		if (new_oid != oid)
+			oid = new_oid;
+		getTid(res, kres_ridx, &blocknum, &offset);
+		if (rowc)
+			sprintf(sval, ",'(%u,%u)'", blocknum, offset);
+		else
+			sprintf(sval, "'(%u,%u)'", blocknum, offset);
+		sval = strchr(sval, '\0');
+		rowc++;
+		rcnt++;
+	}
+	if (qval)
+		free(qval);
+	return rcnt;
+}
+
 static RETCODE	SQL_API
 SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 {
@@ -3360,7 +3574,14 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 				res->keyset[kres_ridx].status |= CURS_NEEDS_REREAD;
 		}
 	}
-	if (rowc = LoadFromKeyset(stmt, res, rows_per_fetch, limitrow), rowc < 0)
+	if (TI_has_subclass(stmt->ti[0]))
+	{
+		if (rowc = LoadFromKeyset_inh(stmt, res, rows_per_fetch, limitrow), rowc < 0)
+		{
+			return SQL_ERROR;
+		}
+	}
+	else if (rowc = LoadFromKeyset(stmt, res, rows_per_fetch, limitrow), rowc < 0)
 	{
 		return SQL_ERROR;
 	}
@@ -3520,12 +3741,15 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt,
 		{
 			if (updcnt == 1)
 			{
-				const char *tidval = NULL;
+				KeySet	*keyset = NULL, keys;
 
 				if (NULL != tres->backend_tuples &&
 				    1 == QR_get_num_cached_tuples(tres))
-					tidval = QR_get_value_backend_text(tres, 0, 0);
-				ret = SC_pos_reload_with_tid(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE, tidval);
+				{
+					KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys);
+					keyset = &keys;
+				}
+				ret = SC_pos_reload_with_key(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE, keyset);
 				if (SQL_ERROR != ret)
 					AddUpdated(stmt, global_ridx);
 			}
@@ -3671,7 +3895,7 @@ SC_pos_update(StatementClass *stmt,
 	ti = s.stmt->ti[0];
 
 	snprintf(updstr, sizeof(updstr),
-			 "update %s set", quote_table(ti->schema_name, ti->table_name));
+			 "update %s set", ti_quote(stmt, oid));
 
 	num_cols = s.irdflds->nfields;
 	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
@@ -3715,14 +3939,20 @@ SC_pos_update(StatementClass *stmt,
 		snprintf_add(updstr, sizeof(updstr),
 					 " where ctid = '(%u, %u)'",
 					 blocknum, pgoffset);
-		if (bestitem)
+		if (bestqual)
 		{
-			/*sprintf(updstr, "%s and \"%s\" = %u", updstr, bestitem, oid);*/
 			snprintf_add(updstr, sizeof(updstr), " and ");
 			snprintf_add(updstr, sizeof(updstr), bestqual, oid);
 		}
 		if (PG_VERSION_GE(conn, 8.2))
+		{
 			snprintf_add(updstr, sizeof(updstr), " returning ctid");
+			if (bestitem)
+			{
+				snprintf_add(updstr, sizeof(updstr), ", ");
+				snprintf_add(updstr, sizeof(updstr), "\"%s\"", bestitem);
+			}
+		}
 		mylog("updstr=%s\n", updstr);
 		if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 		{
@@ -3845,10 +4075,9 @@ SC_pos_delete(StatementClass *stmt,
 	/*sprintf(dltstr, "delete from \"%s\" where ctid = '%s' and oid = %s",*/
 	snprintf(dltstr, sizeof(dltstr),
 			 "delete from %s where ctid = '(%u, %u)'",
-			 quote_table(ti->schema_name, ti->table_name), blocknum, offset);
-	if (bestitem)
+			 ti_quote(stmt, oid), blocknum, offset);
+	if (bestqual && !TI_has_subclass(ti))
 	{
-		/*sprintf(dltstr, "%s and \"%s\" = %u", dltstr, bestitem, oid);*/
 		snprintf_add(dltstr, sizeof(dltstr), " and ");
 		snprintf_add(dltstr, sizeof(dltstr), bestqual, oid);
 	}
@@ -3952,13 +4181,16 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 		{
 			RETCODE	qret;
 			const char * tidval = NULL;
+			char	tidv[32];
+			KeySet	keys;
 
 			if (NULL != tres->backend_tuples &&
 			    1 == QR_get_num_cached_tuples(tres))
 			{
-				tidval = QR_get_value_backend_text(tres, 0, 0);
-				if (tres->num_fields > 1)
-					oid = QR_get_value_backend_int(tres, 0, 1, NULL);
+				KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys);
+				oid = keys.oid;
+				snprintf(tidv, sizeof(tidv), "(%u,%hu)", keys.blocknum, keys.offset);
+				tidval = tidv;
 			}
 			if (0 != oid)
 				poid = &oid;
@@ -4117,7 +4349,7 @@ SC_pos_add(StatementClass *stmt,
 
 	snprintf(addstr, sizeof(addstr),
 			 "insert into %s (",
-			 quote_table(s.stmt->ti[0]->schema_name, s.stmt->ti[0]->table_name));
+			 ti_quote(s.stmt, 0));
 	if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 	{
 		SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
@@ -4194,7 +4426,7 @@ SC_pos_add(StatementClass *stmt,
 			if (bestitem)
 			{
 				snprintf_add(addstr, sizeof(addstr), ", ");
-				snprintf_add(addstr, sizeof(addstr), bestitem);
+				snprintf_add(addstr, sizeof(addstr), "\"%s\"", bestitem);
 			}
 		}
 		mylog("addstr=%s\n", addstr);

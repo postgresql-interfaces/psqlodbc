@@ -11,6 +11,18 @@
 
 #include "psqlodbc.h"
 
+typedef struct InheritanceClass
+{
+	UInt4	allocated;
+	UInt4	count;
+	OID	cur_tableoid;
+	pgNAME	cur_fullTable;
+	struct {
+		OID	tableoid;
+		pgNAME	fullTable;
+	} inf[1];
+} InheritanceClass;
+
 enum {
 	TI_UPDATABLE	=	1L
 	,TI_HASOIDS_CHECKED	=	(1L << 1)
@@ -28,6 +40,7 @@ typedef struct
 	pgNAME		bestitem;
 	pgNAME		bestqual;
 	UInt4		flags;
+	InheritanceClass	*ih;
 } TABLE_INFO;
 #define	TI_set_updatable(ti)	(ti->flags |= TI_UPDATABLE)
 #define	TI_is_updatable(ti)	(0 != (ti->flags & TI_UPDATABLE))
@@ -42,6 +55,10 @@ typedef struct
 #define	TI_set_has_no_subclass(ti)	(ti->flags &= (~TI_HASSUBCLASS))
 void	TI_Constructor(TABLE_INFO *, const ConnectionClass *);
 void	TI_Destructor(TABLE_INFO **, int);
+void	TI_Create_IH(TABLE_INFO *ti);
+void	TI_Destroy_IH(TABLE_INFO *ti);
+const pgNAME	TI_From_IH(TABLE_INFO *ti, OID tableoid);
+const pgNAME	TI_Ins_IH(TABLE_INFO *ti, OID tableoid, const char *fullName);
 
 enum {
 	FIELD_INITIALIZED 	= 0
