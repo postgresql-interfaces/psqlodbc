@@ -12,11 +12,13 @@
 #define	TOTAL	120
 #define	BLOCK	4
 
+static HSTMT	hstmte = SQL_NULL_HSTMT;
+
 static SQLRETURN delete_loop(HSTMT hstmt)
 {
 	SQLRETURN	rc;
 	BOOL	use_first_last = 0;
-	int	delcnt = 0, delsav;
+	int	delcnt = 0, delsav, loopcnt = 0;
 	SQLSMALLINT	orientation = SQL_FETCH_FIRST;
 	
 	do {
@@ -36,6 +38,8 @@ static SQLRETURN delete_loop(HSTMT hstmt)
 			CHECK_STMT_RESULT(rc, "SQLFetchScroll failed", hstmt);
 		}
 		orientation = (orientation == SQL_FETCH_NEXT ? SQL_FETCH_PRIOR : SQL_FETCH_NEXT);
+		if (++loopcnt == 4)
+			SQLExecDirect(hstmte, (SQLCHAR *) "savepoint miho", SQL_NTS);
 	} while (delcnt != delsav);
 	printf("delete all count %d\n", delcnt);
 
@@ -45,7 +49,7 @@ static SQLRETURN delete_loop(HSTMT hstmt)
 int main(int argc, char **argv)
 {
 	int		rc;
-	HSTMT		hstmt = SQL_NULL_HSTMT, hstmt2 = SQL_NULL_HSTMT;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
 	int		i, j, k;
 	int		count = TOTAL;	
 	char		query[100];
@@ -65,7 +69,7 @@ int main(int argc, char **argv)
 		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
 		exit(1);
 	}
-	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt2);
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmte);
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("failed to allocate stmt handle2", SQL_HANDLE_DBC, conn);
@@ -102,16 +106,16 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr CURSOR_TYPE failed", hstmt);
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "select * from tmptable", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "select failed", hstmt);
-	rc = SQLExecDirect(hstmt2, (SQLCHAR *) "savepoint yuuki", SQL_NTS);
-	CHECK_STMT_RESULT(rc, "savepoint failed", hstmt2);
+	rc = SQLExecDirect(hstmte, (SQLCHAR *) "savepoint yuuki", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "savepoint failed", hstmte);
 	/*
 	 * Scroll next -> EOF -> prior -> BOF -> next -> EOF ->
 	 * ......
 	 */
 	delete_loop(hstmt);	/* the 1st loop */
 
-	rc = SQLExecDirect(hstmt2, (SQLCHAR *) "rollback to yuuki", SQL_NTS);
-	CHECK_STMT_RESULT(rc, "rollback failed", hstmt2);
+	rc = SQLExecDirect(hstmte, (SQLCHAR *) "rollback to yuuki;release yuuki", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "rollback failed", hstmte);
 	for (i = 0, j = count, i = 0; i < 2; i++)
 	{
 		for (k = 0; k < rowArraySize; k++)
@@ -125,17 +129,22 @@ int main(int argc, char **argv)
 		CHECK_STMT_RESULT(rc, "SQLSetPos SQL_ADD failed", hstmt);
 		if (0 == i)
 		{
-			rc = SQLExecDirect(hstmt2, (SQLCHAR *) "savepoint yuuki", SQL_NTS);
-			CHECK_STMT_RESULT(rc, "savpoint failed", hstmt2);
+			rc = SQLExecDirect(hstmte, (SQLCHAR *) "savepoint yuuki", SQL_NTS);
+			CHECK_STMT_RESULT(rc, "savpoint failed", hstmte);
 		}
 	}	
 	
 	delete_loop(hstmt);	/* the 2nd loop */
 
-	rc = SQLExecDirect(hstmt2, (SQLCHAR *) "rollback to yuuki", SQL_NTS);
-	CHECK_STMT_RESULT(rc, "rollback failed", hstmt2);
+	rc = SQLExecDirect(hstmte, (SQLCHAR *) "rollback to yuuki;release yuuki", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "rollback failed", hstmte);
 
 	delete_loop(hstmt);	/* the 3rd loop */
+
+	rc = SQLExecDirect(hstmte, (SQLCHAR *) "rollback to miho;release miho", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "rollback failed", hstmte);
+
+	delete_loop(hstmt);	/* the 4th loop */
 
 	rc = SQLEndTran(SQL_HANDLE_DBC, conn, SQL_ROLLBACK);
 	CHECK_STMT_RESULT(rc, "SQLEndTran failed", hstmt);

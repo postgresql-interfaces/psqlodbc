@@ -50,4 +50,17 @@ delete all count 128
 	orientation=1 delete count=123
 	orientation=4 delete count=124
 delete all count 124
+	orientation=2 delete count=0
+	orientation=4 delete count=10
+	orientation=1 delete count=17
+	orientation=4 delete count=23
+	orientation=1 delete count=27
+	orientation=4 delete count=30
+	orientation=1 delete count=32
+	orientation=4 delete count=34
+	orientation=1 delete count=35
+	orientation=4 delete count=36
+	orientation=1 delete count=37
+	orientation=4 delete count=38
+delete all count 38
 disconnecting
