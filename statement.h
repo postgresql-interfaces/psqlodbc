@@ -15,6 +15,7 @@
 #include "pgtypes.h"
 #include "bind.h"
 #include "descriptor.h"
+#include "tuple.h"
 
 #if defined (POSIX_MULTITHREAD_SUPPORT)
 #include <pthread.h>
@@ -508,13 +509,16 @@ RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);
 void		SC_log_error(const char *func, const char *desc, const StatementClass *self);
 time_t		SC_get_time(StatementClass *self);
-SQLULEN		SC_get_bookmark(StatementClass *self);
+SQLLEN		SC_get_int4_bookmark(StatementClass *self);
 RETCODE		SC_pos_reload(StatementClass *self, SQLULEN index, UInt2 *, Int4);
-RETCODE		SC_pos_update(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
-RETCODE		SC_pos_delete(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
+RETCODE		SC_pos_update(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index, const KeySet *keyset);
+RETCODE		SC_pos_delete(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index, const KeySet *keyset);
 RETCODE		SC_pos_refresh(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
+RETCODE		SC_pos_fetch(StatementClass *self, const PG_BM *pg_bm);
 RETCODE		SC_pos_add(StatementClass *self, SQLSETPOSIROW irow);
 RETCODE		SC_fetch_by_bookmark(StatementClass *self);
+int		SC_Create_bookmark(StatementClass *stmt, BindInfoClass *bookmark, Int4 row_pos, Int4 currTuple, const KeySet *keyset);
+PG_BM		SC_Resolve_bookmark(const ARDFields *opts, Int4 idx);
 int		SC_set_current_col(StatementClass *self, int col);
 void		SC_setInsertedTable(StatementClass *, RETCODE);
 void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,
@@ -551,6 +555,6 @@ QResultClass *ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_n
 #define	KResIdx2GIdx(ridx, stmt, res)	(ridx - (res)->key_base + (stmt)->rowset_start)
 
 #define	BOOKMARK_SHIFT	1
-#define	SC_make_bookmark(b)	((b < 0) ? (b) : (b + BOOKMARK_SHIFT))
-#define	SC_resolve_bookmark(b)	((b < 0) ? (b) : (b - BOOKMARK_SHIFT))
+#define	SC_make_int4_bookmark(b)	((b < 0) ? (b) : (b + BOOKMARK_SHIFT))
+#define	SC_resolve_int4_bookmark(b)	((b < 0) ? (b) : (b - BOOKMARK_SHIFT))
 #endif /* __STATEMENT_H__ */

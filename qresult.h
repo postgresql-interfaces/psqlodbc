@@ -244,6 +244,7 @@ void		QR_set_position(QResultClass *self, SQLLEN pos);
 void		QR_set_cursor(QResultClass *self, const char *name);
 SQLLEN		getNthValid(const QResultClass *self, SQLLEN sta, UWORD orientation, SQLULEN nth, SQLLEN *nearest);
 SQLLEN		QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt);
+BOOL		QR_get_last_bookmark(const QResultClass *self, Int4 index, KeySet *keyset);
 
 #define QR_MALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \

@@ -31,7 +31,7 @@ printCurrentRow(HSTMT hstmt)
 	printf("\n");
 }
 
-#define	BOOKMARK_SIZE	10
+#define	BOOKMARK_SIZE	14
 
 int main(int argc, char **argv)
 {

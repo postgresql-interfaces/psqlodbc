@@ -65,4 +65,9 @@ void		set_tuplefield_int4(TupleField *tuple_field, Int4 value);
 SQLLEN	ClearCachedRows(TupleField *tuple, int num_fields, SQLLEN num_rows);
 SQLLEN	ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_fields, SQLLEN num_rows);
 
+typedef struct _PG_BM_ {
+	Int4	index;
+	KeySet	keys;
+} PG_BM;
+
 #endif

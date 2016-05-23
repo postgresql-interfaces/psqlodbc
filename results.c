@@ -1028,13 +1028,13 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 		{
 			if (SQL_C_BOOKMARK == target_type || sizeof(UInt4) <= cbValueMax)
 			{
-				UInt4 bookmark = (UInt4) SC_get_bookmark(stmt);
+				Int4 bookmark = SC_make_int4_bookmark(stmt->currTuple);
 				contents_get = TRUE;
-				memcpy(rgbValue, &bookmark, sizeof(UInt4));
+				memcpy(rgbValue, &bookmark, sizeof(bookmark));
 			}
 		}
 		if (pcbValue)
-			*pcbValue = sizeof(UInt4);
+			*pcbValue = sizeof(Int4);
 
 		if (contents_get)
 			result = SQL_SUCCESS;
@@ -1673,7 +1673,7 @@ inolog("num_tuples=%d\n", num_tuples);
 			break;
 
 		case SQL_FETCH_BOOKMARK:
-			bidx = SC_resolve_bookmark(irow);
+			bidx = SC_resolve_int4_bookmark(irow);
 
 			if (bidx < 0)
 			{
@@ -1994,6 +1994,7 @@ static void getTid(const QResultClass *res, SQLLEN index, UInt4 *blocknum, UInt2
 }
 static void KeySetSet(const TupleField *tuple, int num_fields, int num_key_fields, KeySet *keyset)
 {
+	keyset->status = 0;
 	sscanf(tuple[num_fields - num_key_fields].value, "(%u,%hu)",
 			&keyset->blocknum, &keyset->offset);
 	if (num_key_fields > 1)
@@ -2317,7 +2318,7 @@ inolog("!!Commit Added=%d(%d)\n", QR_get_num_total_read(res) + i, i);
 }
 
 static int
-AddDeleted(QResultClass *res, SQLULEN index, KeySet *keyset)
+AddDeleted(QResultClass *res, SQLULEN index, const KeySet *keyset)
 {
 	int	i;
 	Int2	dl_count, new_alloc;
@@ -2488,12 +2489,12 @@ enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
 }
 
 static void
-AddUpdated(StatementClass *stmt, SQLLEN index)
+AddUpdated(StatementClass *stmt, SQLLEN index, const KeySet *keyset, const TupleField *tuple_updated)
 {
 	QResultClass	*res;
 	SQLLEN	*updated;
-	KeySet	*updated_keyset, *keyset;
-	TupleField	*updated_tuples = NULL, *tuple_updated,  *tuple;
+	KeySet	*updated_keyset;
+	TupleField	*updated_tuples = NULL,  *tuple;
 	SQLLEN	kres_ridx;
 	UInt2	up_count;
 	BOOL	is_in_trans;
@@ -2505,18 +2506,14 @@ AddUpdated(StatementClass *stmt, SQLLEN index)
 inolog("AddUpdated index=%d\n", index);
 	if (!stmt)	return;
 	if (res = SC_get_Curres(stmt), !res)	return;
-	if (!res->keyset)		return;
-	kres_ridx = GIdx2KResIdx(index, stmt, res);
-	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
-		return;
-	keyset = res->keyset + kres_ridx;
-	if (0 != (keyset->status & CURS_SELF_ADDING))
-		AddRollback(stmt, res, index, res->keyset + kres_ridx, SQL_REFRESH);
+	if (!keyset)	return;
 	if (!QR_get_cursor(res))	return;
 	up_count = res->up_count;
 	if (up_count > 0 && 0 == res->up_alloc)	return;
 	num_fields = res->num_fields;
-	tuple_updated = res->backend_tuples + kres_ridx * num_fields;
+	kres_ridx = GIdx2KResIdx(index, stmt, res);
+	if (kres_ridx >= 0 && kres_ridx < res->num_cached_keys)
+		tuple_updated = res->backend_tuples + kres_ridx * num_fields;
 	if (!tuple_updated)
 		return;
 	upd_idx = -1;
@@ -2773,6 +2770,7 @@ UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
 		{
+			keys.status = 0;
 			keys.blocknum = rollback[i].blocknum;
 			keys.offset = rollback[i].offset;
 			keys.oid = rollback[i].oid;
@@ -2857,10 +2855,12 @@ inolog("UndoRollback %d(%d)\n", i, rollback[i].option);
 			if (SQL_ADD == rollback[i].option)
 				RemoveAdded(res, index);
 			RemoveDeleted(res, index);
+			keys.status = 0;
 			keys.blocknum = rollback[i].blocknum;
 			keys.offset = rollback[i].offset;
 			keys.oid = rollback[i].oid;
-			RemoveUpdatedAfterTheKey(res, index, &keys);
+			/* RemoveUpdatedAfterTheKey(res, index, &keys); is no longer needed? */
+			RemoveUpdated(res, index);
 		}
 		status = 0;
 		kres_is_valid = FALSE;
@@ -3063,21 +3063,51 @@ cleanup:
 	return qres;
 }
 
+BOOL QR_get_last_bookmark(const QResultClass *res, Int4 index, KeySet *keyset)
+{
+	int	i;
+
+	if (res->dl_count > 0)
+	{
+		for (i = 0; i < res->dl_count; i++)
+		{
+			if (res->deleted[i] == index)
+			{
+				*keyset = res->deleted_keyset[i];
+				return TRUE;
+			}
+			if (res->deleted[i] > index)
+				break;
+		}
+	}
+	if (res->up_count > 0)
+	{
+		for (i = res->up_count - 1; i >= 0; i--)
+		{
+			if (res->updated[i] == index)
+			{
+				*keyset = res->updated_keyset[i];
+				return TRUE;
+			}
+		}
+	}
+	return FALSE;
+}
+
 static RETCODE
 SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind, const KeySet *keyset)
 {
-	CSTR		func = "SC_pos_reload";
+	CSTR		func = "SC_pos_reload_with_key";
 	int		res_cols;
-	UInt2		offset;
 	UInt2		rcnt;
-	SQLLEN		res_ridx, kres_ridx;
+	SQLLEN		kres_ridx;
 	OID		oidint;
-	UInt4		blocknum;
 	QResultClass	*res, *qres;
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	RETCODE		ret = SQL_ERROR;
 	char		tidval[32];
 	BOOL		use_ctid = TRUE;
+	BOOL		idx_exist = TRUE;
 
 	mylog("positioned load fi=%p ti=%p\n", irdflds->fi, stmt->ti);
 	rcnt = 0;
@@ -3088,21 +3118,20 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_reload.", func);
 		return SQL_ERROR;
 	}
-	res_ridx = GIdx2CacheIdx(global_ridx, stmt, res);
-	if (res_ridx < 0 || res_ridx >= QR_get_num_cached_tuples(res))
-	{
-		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
-		return SQL_ERROR;
-	}
+
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
 	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
-		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
-		return SQL_ERROR;
+		if (NULL == keyset || keyset->offset == 0)
+		{
+			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target keys are out of the rowset", func);
+			return SQL_ERROR;
+		}
+		idx_exist = FALSE;
 	}
 	else if (0 != (res->keyset[kres_ridx].status & CURS_SELF_ADDING))
 	{
-		if (NULL == keyset)
+		if (NULL == keyset || keyset->offset == 0)
 		{
 			use_ctid = FALSE;
 			mylog("The tuple is currently being added and can't use ctid\n");
@@ -3118,18 +3147,19 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 		return SQL_ERROR;
 	}
 	/* old oid & tid */
-	if (!(oidint = getOid(res, kres_ridx)))
+	if (idx_exist)
 	{
-		if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+		if (!(oidint = getOid(res, kres_ridx)))
 		{
-			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
-			return SQL_SUCCESS_WITH_INFO;
+			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+			{
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
+				return SQL_SUCCESS_WITH_INFO;
+			}
 		}
 	}
-	getTid(res, kres_ridx, &blocknum, &offset);
-	snprintf(tidval, sizeof(tidval), "(%u, %u)", blocknum, offset);
 	res_cols = getNumResultCols(res);
-	if (keyset)
+	if (keyset) /* after or update */
 	{
 		char tid[32];
 
@@ -3138,24 +3168,41 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 		qres = positioned_load(stmt, 0, &oidint, tid);
 	}
 	else
-		qres = positioned_load(stmt, use_ctid ? LATEST_TUPLE_LOAD : 0, &oidint, use_ctid ? tidval : NULL);
+	{
+		if (use_ctid)
+			qres = positioned_load(stmt, LATEST_TUPLE_LOAD, &oidint, tidval);
+		else
+			qres = positioned_load(stmt, 0, &oidint, NULL);
+		keyset = res->keyset + kres_ridx;
+	}
 	if (!QR_command_maybe_successful(qres))
 	{
 		ret = SQL_ERROR;
 		SC_replace_error_with_res(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "positioned_load failed", qres, TRUE);
 	}
-	else
+	else if (rcnt = (UInt2) QR_get_num_cached_tuples(qres), rcnt == 1)
 	{
-		TupleField *tuple_old, *tuple_new;
 		ConnectionClass	*conn = SC_get_conn(stmt);
+		SQLLEN		res_ridx;
 
-		rcnt = (UInt2) QR_get_num_cached_tuples(qres);
-		tuple_old = res->backend_tuples + res->num_fields * res_ridx;
-		if (0 != logKind && CC_is_in_trans(conn))
-			AddRollback(stmt, res, global_ridx, res->keyset + kres_ridx, logKind);
-		if (rcnt == 1)
+		switch (logKind)
 		{
+			case 0:
+			case SQL_FETCH_BY_BOOKMARK:
+				break;
+			case SQL_UPDATE:
+				AddUpdated(stmt, global_ridx, keyset, qres->tupleField);
+				break;
+			default:
+				AddRollback(stmt, res, global_ridx, keyset, logKind);
+		}
+		res_ridx = GIdx2CacheIdx(global_ridx, stmt, res);
+		if (res_ridx >= 0 && res_ridx < QR_get_num_cached_tuples(res))
+		{
+			TupleField *tuple_old, *tuple_new;
 			int	effective_fields = res_cols;
+
+			tuple_old = res->backend_tuples + res->num_fields * res_ridx;
 
 			QR_set_position(qres, 0);
 			tuple_new = qres->tupleField;
@@ -3167,9 +3214,15 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 			ret = SQL_SUCCESS;
 		}
 		else
+			ret = SQL_SUCCESS;
+	}
+	else
+	{
+		SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was deleted after last fetch", func);
+		ret = SQL_SUCCESS_WITH_INFO;
+		AddRollback(stmt, res, global_ridx, keyset, logKind);
+		if (idx_exist)
 		{
-			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was deleted after last fetch", func);
-			ret = SQL_SUCCESS_WITH_INFO;
 			if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 			{
 				res->keyset[kres_ridx].status |= SQL_ROW_DELETED;
@@ -3722,8 +3775,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 }
 
 static RETCODE SQL_API
-irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt,
-			SQLSETPOSIROW irow, SQLULEN global_ridx)
+irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLULEN global_ridx, const KeySet *old_keyset)
 {
 	CSTR	func = "irow_update";
 
@@ -3744,11 +3796,11 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt,
 				    1 == QR_get_num_cached_tuples(tres))
 				{
 					KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys);
-					keyset = &keys;
+					if (SQL_SUCCEEDED(ret = SC_pos_reload_with_key(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE, &keys)))
+						AddRollback(stmt, SC_get_Curres(stmt), global_ridx, old_keyset, SQL_UPDATE);
 				}
-				ret = SC_pos_reload_with_key(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE, keyset);
-				if (SQL_ERROR != ret)
-					AddUpdated(stmt, global_ridx);
+				else
+					ret = SQL_ERROR;
 			}
 			else if (updcnt == 0)
 			{
@@ -3779,6 +3831,7 @@ typedef struct
 	IRDFields	*irdflds;
 	SQLSETPOSIROW		irow;
 	SQLULEN		global_ridx;
+	KeySet		old_keyset;
 }	pup_cdata;
 static RETCODE
 pos_update_callback(RETCODE retcode, void *para)
@@ -3787,11 +3840,12 @@ pos_update_callback(RETCODE retcode, void *para)
 	RETCODE	ret = retcode;
 	pup_cdata *s = (pup_cdata *) para;
 	SQLLEN	kres_ridx;
+	BOOL	idx_exist = TRUE;
 
 	if (s->updyes)
 	{
 		mylog("pos_update_callback in\n");
-		ret = irow_update(ret, s->stmt, s->qstmt, s->irow, s->global_ridx);
+		ret = irow_update(ret, s->stmt, s->qstmt, s->global_ridx, &s->old_keyset);
 inolog("irow_update ret=%d,%d\n", ret, SC_get_errornumber(s->qstmt));
 		if (ret != SQL_SUCCESS)
 			SC_error_copy(s->stmt, s->qstmt, TRUE);
@@ -3802,11 +3856,9 @@ inolog("irow_update ret=%d,%d\n", ret, SC_get_errornumber(s->qstmt));
 	kres_ridx = GIdx2KResIdx(s->global_ridx, s->stmt, s->res);
 	if (kres_ridx < 0 || kres_ridx >= s->res->num_cached_keys)
 	{
-		SC_set_error(s->stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
-inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_keys, kres_ridx);
-		return SQL_ERROR;
+		idx_exist = FALSE;
 	}
-	if (SQL_SUCCESS == ret && s->res->keyset)
+	if (SQL_SUCCESS == ret && s->res->keyset && idx_exist)
 	{
 		ConnectionClass	*conn = SC_get_conn(s->stmt);
 
@@ -3833,7 +3885,7 @@ inolog("gidx=%d num_keys=%d kresidx=%d\n", s->global_ridx, s->res->num_cached_ke
 }
 RETCODE
 SC_pos_update(StatementClass *stmt,
-			  SQLSETPOSIROW irow, SQLULEN global_ridx)
+		  SQLSETPOSIROW irow, SQLULEN global_ridx, const KeySet *keyset)
 {
 	CSTR	func = "SC_pos_update";
 	int			i,
@@ -3853,6 +3905,7 @@ SC_pos_update(StatementClass *stmt,
 	SQLLEN	offset;
 	SQLLEN	*used, kres_ridx;
 	Int4	bind_size = opts->bind_size;
+	BOOL	idx_exist = TRUE;
 
 	s.stmt = stmt;
 	s.irow = irow;
@@ -3876,18 +3929,33 @@ SC_pos_update(StatementClass *stmt,
 	kres_ridx = GIdx2KResIdx(s.global_ridx, s.stmt, s.res);
 	if (kres_ridx < 0 || kres_ridx >= s.res->num_cached_keys)
 	{
-		SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
-		return SQL_ERROR;
-	}
-	if (!(oid = getOid(s.res, kres_ridx)))
-	{
-		if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+		if (NULL == keyset || keyset->offset == 0)
 		{
-			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
+			SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the target keys are out of the rowset", func);
 			return SQL_ERROR;
 		}
+		idx_exist = FALSE;
 	}
-	getTid(s.res, kres_ridx, &blocknum, &pgoffset);
+	if (idx_exist)
+	{
+		if (!(oid = getOid(s.res, kres_ridx)))
+		{
+			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+			{
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
+				return SQL_ERROR;
+			}
+		}
+		getTid(s.res, kres_ridx, &blocknum, &pgoffset);
+		s.old_keyset = s.res->keyset[kres_ridx];
+	}
+	else
+	{
+		oid = keyset->oid;
+		blocknum = keyset->blocknum;
+		pgoffset = keyset->offset;
+		s.old_keyset = *keyset;
+	}
 
 	ti = s.stmt->ti[0];
 
@@ -4021,7 +4089,7 @@ SC_pos_update(StatementClass *stmt,
 }
 RETCODE
 SC_pos_delete(StatementClass *stmt,
-			  SQLSETPOSIROW irow, SQLULEN global_ridx)
+		  SQLSETPOSIROW irow, SQLULEN global_ridx, const KeySet *keyset)
 {
 	CSTR	func = "SC_pos_update";
 	UWORD		offset;
@@ -4036,6 +4104,7 @@ SC_pos_delete(StatementClass *stmt,
 	TABLE_INFO	*ti;
 	const char	*bestitem;
 	const char	*bestqual;
+	BOOL		idx_exist = TRUE;
 
 	mylog("POS DELETE ti=%p\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
@@ -4054,22 +4123,35 @@ SC_pos_delete(StatementClass *stmt,
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
 	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
-		SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", func);
-		return SQL_ERROR;
+		if (NULL == keyset || keyset->offset == 0)
+		{
+			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target keys are out of the rowset", func);
+			return SQL_ERROR;
+		}
+		idx_exist = FALSE;
 	}
 	ti = stmt->ti[0];
 	bestitem = GET_NAME(ti->bestitem);
-	if (!(oid = getOid(res, kres_ridx)))
-	{
-		if (bestitem && !strcmp(bestitem, OID_NAME))
-		{
-			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
-			return SQL_ERROR;
-		}
-	}
 	bestqual = GET_NAME(ti->bestqual);
-	getTid(res, kres_ridx, &blocknum, &offset);
-	/*sprintf(dltstr, "delete from \"%s\" where ctid = '%s' and oid = %s",*/
+	if (idx_exist)
+	{
+		if (!(oid = getOid(res, kres_ridx)))
+		{
+			if (bestitem && !strcmp(bestitem, OID_NAME))
+			{
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
+				return SQL_ERROR;
+			}
+		}
+		getTid(res, kres_ridx, &blocknum, &offset);
+		keyset = res->keyset + kres_ridx;
+	}
+	else
+	{
+		oid = keyset->oid;
+		blocknum = keyset->blocknum;
+		offset = keyset->offset;
+	}
 	snprintf(dltstr, sizeof(dltstr),
 			 "delete from %s where ctid = '(%u, %u)'",
 			 ti_quote(stmt, oid), blocknum, offset);
@@ -4096,7 +4178,7 @@ SC_pos_delete(StatementClass *stmt,
 		{
 			if (dltcnt == 1)
 			{
-				RETCODE	tret = SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, SQL_DELETE);
+				RETCODE	tret = SC_pos_reload_with_key(stmt, global_ridx, (UInt2 *) 0, SQL_DELETE, keyset);
 				if (!SQL_SUCCEEDED(tret))
 					ret = tret;
 			}
@@ -4104,7 +4186,7 @@ SC_pos_delete(StatementClass *stmt,
 			{
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before deletion", func);
 				ret = SQL_ERROR;
-				if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
+				if (idx_exist && stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 					SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
 			}
 			else
@@ -4129,9 +4211,10 @@ SC_pos_delete(StatementClass *stmt,
 	}
 	if (qres)
 		QR_Destructor(qres);
-	if (SQL_SUCCESS == ret && res->keyset)
+	if (SQL_SUCCESS == ret && keyset)
+		AddDeleted(res, global_ridx, keyset);
+	if (SQL_SUCCESS == ret && keyset && idx_exist)
 	{
-		AddDeleted(res, global_ridx, res->keyset + kres_ridx);
 		res->keyset[kres_ridx].status &= (~KEYSET_INFO_PUBLIC);
 		if (CC_is_in_trans(conn))
 		{
@@ -4204,21 +4287,8 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 			bookmark = opts->bookmark;
 			if (bookmark && bookmark->buffer)
 			{
-				char	buf[32];
-				SQLULEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
-
-				snprintf(buf, sizeof(buf), FORMAT_LEN, SC_make_bookmark(addpos));
 				SC_set_current_col(stmt, -1);
-				copy_and_convert_field(stmt,
-									   PG_TYPE_INT4,
-									   PG_UNSPECIFIED,
-									   buf,
-									   bookmark->returntype,
-									   0,
-									   bookmark->buffer + offset,
-									   bookmark->buflen,
-									   LENADDR_SHIFT(bookmark->used, offset),
-									   LENADDR_SHIFT(bookmark->used, offset));
+				SC_Create_bookmark(stmt, bookmark, stmt->bind_row, addpos, &keys);
 			}
 		}
 		else
@@ -4598,10 +4668,10 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			switch (s->fOption)
 			{
 				case SQL_UPDATE:
-					ret = SC_pos_update(s->stmt, s->nrow, global_ridx);
+					ret = SC_pos_update(s->stmt, s->nrow, global_ridx, NULL);
 					break;
 				case SQL_DELETE:
-					ret = SC_pos_delete(s->stmt, s->nrow, global_ridx);
+					ret = SC_pos_delete(s->stmt, s->nrow, global_ridx, NULL);
 					break;
 				case SQL_ADD:
 					ret = SC_pos_add(s->stmt, s->nrow);
@@ -4888,28 +4958,43 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 	SC_MALLOC_gexit_with_error(tidbuf, char, size_of_rowset * tidbuflen, stmt, "Couldn't allocate memory for tidbuf bind.", (ret = SQL_ERROR));
 	for (i = 0; i < size_of_rowset; i++)
 	{
+		PG_BM	pg_bm;
 		SQLLEN	bidx;
-		UInt4 tmp;
+		BOOL	idx_exist = FALSE;
 
-		memcpy(&tmp, CALC_BOOKMARK_ADDR(opts->bookmark, (opts->row_offset_ptr ? *(opts->row_offset_ptr) : 0), opts->bind_size, i), sizeof(UInt4));
-		bidx = SC_resolve_bookmark(tmp);
+		pg_bm = SC_Resolve_bookmark(opts, i);
+		bidx = pg_bm.index;
 
 mylog("i=%d bidx=%d cached=%d\n", i, bidx, res->num_cached_keys);
 		kres_ridx = GIdx2KResIdx(bidx, stmt, res);
 		if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 		{
-			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", __FUNCTION__);
-			goto cleanup;
-		}
-		if (!(oidint = getOid(res, kres_ridx)))
-		{
-			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+			if (pg_bm.keys.offset > 0)
 			{
-				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", __FUNCTION__);
+				QR_get_last_bookmark(res, bidx, &pg_bm.keys);
+				blocknum = pg_bm.keys.blocknum;
+				offset = pg_bm.keys.offset;
+				oidint = pg_bm.keys.oid;
+			}
+			else
+			{
+				SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", __FUNCTION__);
+				goto cleanup;
 			}
 		}
-		getTid(res, kres_ridx, &blocknum, &offset);
+		else
+		{
+			if (!(oidint = getOid(res, kres_ridx)))
+			{
+				if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+				{
+					SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", __FUNCTION__);
+				}
+			}
+			getTid(res, kres_ridx, &blocknum, &offset);
+		}
 		snprintf(tidbuf + i * tidbuflen, tidbuflen, "(%u,%u)", blocknum, offset);
+		mylog("!!!! tidbuf=%s\n", tidbuf + i * tidbuflen);
 	}
 	if (!SQL_SUCCEEDED(PGAPI_BindParameter(hstmt, 1, SQL_PARAM_INPUT,
 			SQL_C_CHAR, SQL_CHAR, tidbuflen, 0,

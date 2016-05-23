@@ -1956,6 +1956,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	QResultClass	*res;
 	IRDFields	*irdflds;
 	BindInfoClass	*bookmark;
+	PG_BM		pg_bm;
 
 	if (s->need_data_callback)
 	{
@@ -1971,13 +1972,14 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	bookmark = s->opts->bookmark;
 	offset = s->opts->row_offset_ptr ? *(s->opts->row_offset_ptr) : 0;
 	bind_size = s->opts->bind_size;
+	res = SC_get_Curres(s->stmt);
 	for (; SQL_ERROR != ret && s->idx < s->opts->size_of_rowset; s->idx++)
 	{
 		if (SQL_ADD != s->operation)
 		{
-			UInt4 tmp;
-			memcpy(&tmp, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, s->idx), sizeof(UInt4));
-			global_idx = SC_resolve_bookmark(tmp);
+			pg_bm = SC_Resolve_bookmark(s->opts, s->idx);
+			QR_get_last_bookmark(res, s->idx, &pg_bm.keys);
+			global_idx = pg_bm.index;
 		}
 		/* Note opts->row_operation_ptr is ignored */
 		switch (s->operation)
@@ -1986,10 +1988,10 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 				ret = SC_pos_add(s->stmt, (UWORD) s->idx);
 				break;
 			case SQL_UPDATE_BY_BOOKMARK:
-				ret = SC_pos_update(s->stmt, (UWORD) s->idx, global_idx);
+				ret = SC_pos_update(s->stmt, (UWORD) s->idx, global_idx, &(pg_bm.keys));
 				break;
 			case SQL_DELETE_BY_BOOKMARK:
-				ret = SC_pos_delete(s->stmt, (UWORD) s->idx, global_idx);
+				ret = SC_pos_delete(s->stmt, (UWORD) s->idx, global_idx, &(pg_bm.keys));
 				break;
 		}
 		if (SQL_NEED_DATA == ret)
@@ -2015,7 +2017,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	if (irdflds->rowsFetched)
 		*(irdflds->rowsFetched) = s->processed;
 
-	if (res = SC_get_Curres(s->stmt), res)
+	if (res)
 		res->recent_processed_row_count = s->stmt->diag_row_count = s->processed;
 	return ret;
 }

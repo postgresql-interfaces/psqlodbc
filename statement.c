@@ -1544,17 +1544,6 @@ SC_get_time(StatementClass *stmt)
 		stmt->stmt_time = time(NULL);
 	return stmt->stmt_time;
 }
-/*
- *	Currently, the driver offers very simple bookmark support -- it is
- *	just the current row number.  But it could be more sophisticated
- *	someday, such as mapping a key to a 32 bit value
- */
-SQLULEN
-SC_get_bookmark(StatementClass *self)
-{
-	return SC_make_bookmark(self->currTuple);
-}
-
 
 RETCODE
 SC_fetch(StatementClass *self)
@@ -1574,6 +1563,7 @@ SC_fetch(StatementClass *self)
 	ColumnInfoClass *coli;
 	BindInfoClass	*bookmark;
 	BOOL		useCursor;
+	KeySet		*keyset = NULL;
 
 	/* TupleField *tupleField; */
 
@@ -1648,6 +1638,7 @@ inolog("SC_ pstatus[%d]=%hx fetch_count=" FORMAT_LEN "\n", kres_ridx, pstatus, s
 					return result;
 				pstatus &= ~CURS_NEEDS_REREAD;
 			}
+			keyset =  res->keyset + kres_ridx;
 		}
 	}
 
@@ -1667,15 +1658,8 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 	 */
 	if ((bookmark = opts->bookmark) && bookmark->buffer)
 	{
-		char		buf[32];
-		SQLLEN	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
-
-		sprintf(buf, FORMAT_ULEN, SC_get_bookmark(self));
 		SC_set_current_col(self, -1);
-		result = copy_and_convert_field(self, 0, PG_UNSPECIFIED, buf,
-			 SQL_C_ULONG, 0, bookmark->buffer + offset, 0,
-			LENADDR_SHIFT(bookmark->used, offset),
-			LENADDR_SHIFT(bookmark->used, offset));
+		SC_Create_bookmark(self, bookmark, self->bind_row, self->currTuple, keyset);
 	}
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
@@ -2973,4 +2957,80 @@ SC_set_errorinfo(StatementClass *self, QResultClass *res)
 			SC_set_error_if_not_set(self, STMT_EXEC_ERROR, "Error fetching next row", __FUNCTION__);
 			break;
 	}
+}
+
+/*
+ *	Before 9.6, the driver offered very simple bookmark support -- it is just
+ *	the current row number.
+ *	Now the driver offers more verbose bookmarks which contain KeySet informations
+ *	(CTID (+ OID)). Though they consume 12bytes(row number + CTID) or 16bytes
+ *	(row number + CTID + OID), they are useful in declare/fetch mode.
+ */
+
+PG_BM	SC_Resolve_bookmark(const ARDFields *opts, Int4 idx)
+{
+	BindInfoClass	*bookmark;
+	SQLLEN		*used;
+	SQLULEN		offset;
+	SQLUINTEGER	bind_size;
+	size_t	cpylen = sizeof(Int4);
+	PG_BM	pg_bm;
+
+	bookmark = opts->bookmark;
+	offset = opts->row_offset_ptr ? *(opts->row_offset_ptr) : 0;
+	bind_size = opts->bind_size;
+	memset(&pg_bm, 0, sizeof(pg_bm));
+	if (used = bookmark->used, used != NULL)
+	{
+		used = LENADDR_SHIFT(used, offset);
+		if (bind_size > 0)
+			used = LENADDR_SHIFT(used, idx * bind_size);
+		else
+			used = LENADDR_SHIFT(used, idx * sizeof(SQLLEN));
+		if (*used >= sizeof(pg_bm))
+			cpylen = sizeof(pg_bm);
+		else if (*used >= 12)
+			cpylen = 12;
+		mylog("%s used=%d cpylen=%d\n", __FUNCTION__, *used, cpylen);
+	}
+	memcpy(&pg_bm, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, idx), cpylen);
+mylog("%s index=%d block=%d off=%d\n", __FUNCTION__, pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
+	pg_bm.index = SC_resolve_int4_bookmark(pg_bm.index);
+
+	return pg_bm;
+}
+
+int	SC_Create_bookmark(StatementClass *self, BindInfoClass *bookmark, Int4 bind_row, Int4 currTuple, const KeySet *keyset)
+{
+	ARDFields	*opts = SC_get_ARDF(self);
+	SQLUINTEGER	bind_size = opts->bind_size;
+	SQLULEN		offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
+	size_t		cvtlen = sizeof(Int4);
+	PG_BM		pg_bm;
+
+mylog("%s type=%d buflen=%d buf=%p\n", __FUNCTION__, bookmark->returntype, bookmark->buflen, bookmark->buffer);
+	memset(&pg_bm, 0, sizeof(pg_bm));
+	if (SQL_C_BOOKMARK == bookmark->returntype)
+		;
+	else if (bookmark->buflen >= sizeof(pg_bm))
+		cvtlen = sizeof(pg_bm);
+	else if (bookmark->buflen >= 12)
+		cvtlen = 12;
+	pg_bm.index = SC_make_int4_bookmark(currTuple);
+	if (keyset)
+		pg_bm.keys  = *keyset;
+	memcpy(CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, bind_row), &pg_bm, cvtlen);
+	if (bookmark->used)
+	{
+		SQLLEN *used = LENADDR_SHIFT(bookmark->used, offset);
+
+		if (bind_size > 0)
+			used = LENADDR_SHIFT(used, bind_row * bind_size);
+		else
+			used = LENADDR_SHIFT(used, bind_row * sizeof(SQLLEN));
+		*used = cvtlen;
+	}
+mylog("%s cvtlen=%d ix(bl,of)=%d(%d,%d)\n", __FUNCTION__, cvtlen, pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
+
+	return COPY_OK;
 }
