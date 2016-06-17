@@ -114,10 +114,11 @@ void	TI_Create_IH(TABLE_INFO *ti)
 void	TI_Destroy_IH(TABLE_INFO *ti)
 {
 	InheritanceClass	*ih;
+	int			i;
 
 	if (NULL == (ih = ti->ih))
 		return;
-	for (int i = 0; i < ih->count; i++)
+	for (i = 0; i < ih->count; i++)
 	{
 		NULL_THE_NAME(ih->inf[i].fullTable);
 	}
