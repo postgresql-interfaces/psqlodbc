@@ -468,6 +468,7 @@ typedef struct StatementOptions_
 	SQLUINTEGER		use_bookmarks;
 	void			*bookmark_ptr;
 	SQLUINTEGER		metadata_id;
+	SQLULEN			stmt_timeout;
 } StatementOptions;
 
 /*	Used to pass extra query info to send_query */

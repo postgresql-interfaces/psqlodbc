@@ -381,6 +381,7 @@ struct ConnectionClass_
 	DescriptorClass	**descs;
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
+	SQLULEN		stmt_timeout_in_effect;
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 	CRITICAL_SECTION	slock;
@@ -465,7 +466,7 @@ void		handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   QResultClass *res, BOOL fatal);
 void		CC_clear_error(ConnectionClass *self);
 int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
-char		CC_send_settings(ConnectionClass *self);
+char		CC_send_settings(ConnectionClass *self, const char *set_query);
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
 int			CC_send_cancel_request(const ConnectionClass *conn);

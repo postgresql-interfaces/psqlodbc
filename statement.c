@@ -331,9 +331,6 @@ void
 InitializeStatementOptions(StatementOptions *opt)
 {
 	memset(opt, 0, sizeof(StatementOptions));
-	opt->maxRows = 0;		/* driver returns all rows */
-	opt->maxLength = 0;		/* driver returns all data for char/binary */
-	opt->keyset_size = 0;		/* fully keyset driven is the default */
 	opt->scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	opt->cursor_type = SQL_CURSOR_FORWARD_ONLY;
 	opt->retrieve_data = SQL_RD_ON;
@@ -1880,7 +1877,22 @@ SC_execute(StatementClass *self)
 		qflag |= GO_INTO_TRANSACTION;
 	}
 
-	/* self->status = STMT_EXECUTING; */
+	/*
+	 * If the session query timeout setting differs from the statement one,
+	 * change it.
+	 */
+	if (conn->stmt_timeout_in_effect != self->options.stmt_timeout)
+	{
+		char query[64];
+
+		snprintf(query, sizeof(query), "SET statement_timeout = %d",
+				 (int) self->options.stmt_timeout * 1000);
+		res = CC_send_query(conn, query, NULL, 0, NULL);
+		if (QR_command_maybe_successful(res))
+			conn->stmt_timeout_in_effect = self->options.stmt_timeout;
+		QR_Destructor(res);
+	}
+
 	if (!SC_SetExecuting(self, TRUE))
 	{
 		SC_set_error(self, STMT_OPERATION_CANCELLED, "Cancel Reuest Accepted", func);

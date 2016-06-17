@@ -175,7 +175,10 @@ set_statement_option(ConnectionClass *conn,
 
 		case SQL_QUERY_TIMEOUT:	/* ignored */
 			mylog("SetStmtOption: SQL_QUERY_TIMEOUT, vParam = " FORMAT_LEN "\n", vParam);
-			/* "0" returned in SQLGetStmtOption */
+			if (conn)
+				conn->stmtOptions.stmt_timeout = (SQLULEN) vParam;
+			if (stmt)
+				stmt->options.stmt_timeout = (SQLULEN) vParam;
 			break;
 
 		case SQL_RETRIEVE_DATA:
@@ -557,6 +560,10 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			*((SQLUINTEGER *) pvParam) = 4096;
 			break;
 
+		case SQL_QUERY_TIMEOUT:
+			*((SQLULEN *) pvParam) = conn->stmtOptions.stmt_timeout;
+			break;
+
 		case SQL_QUIET_MODE:	/* NOT SUPPORTED */
 			*((SQLULEN *) pvParam) = 0;
 			break;
@@ -768,7 +775,7 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 			break;
 
 		case SQL_QUERY_TIMEOUT:	/* NOT SUPPORTED */
-			*((SQLINTEGER *) pvParam) = 0;
+			*((SQLULEN *) pvParam) = stmt->options.stmt_timeout;
 			break;
 
 		case SQL_RETRIEVE_DATA:

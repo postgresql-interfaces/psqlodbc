@@ -988,7 +988,6 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 	return 1;
 }
 
-static	char	CC_setenv(ConnectionClass *self);
 static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
@@ -1003,7 +1002,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 
 	if (ret = LIBPQ_connect(self), ret <= 0)
 		return ret;
-	CC_setenv(self);
+	CC_send_settings(self, "SET DateStyle = 'ISO';SET extra_float_digits = 2");
 
 	return 1;
 }
@@ -1035,8 +1034,12 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	 * rules.  Therefore, these functions call the corresponding local
 	 * function instead.
 	 */
-inolog("CC_send_settings\n");
-	retsend = CC_send_settings(self);
+
+	/* Global settings */
+ retsend = CC_send_settings(self, GET_NAME(self->connInfo.drivers.conn_settings));
+	/* Per Datasource settings */
+ if (retsend)
+	 retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
 
 	if (CC_get_errornumber(self) > 0)
 		saverr = strdup(CC_get_errormsg(self));
@@ -1090,7 +1093,7 @@ cleanup:
 			CC_set_error(self, -1, saverr, func);
 		free(saverr);
 	}
-	if (1 == ret && 0 == retsend)
+	if (1 == ret && FALSE == retsend)
 		ret = 2;
 
 	return ret;
@@ -2127,54 +2130,9 @@ cleanup:
 }
 
 
-static	char
-CC_setenv(ConnectionClass *self)
-{
-	HSTMT		hstmt;
-	StatementClass *stmt;
-	RETCODE		result;
-	char		status = TRUE;
-	CSTR func = "CC_setenv";
-
-
-	mylog("%s: entering...\n", func);
-
-/*
- *	This function must use the local odbc API functions since the odbc state
- *	has not transitioned to "connected" yet.
- */
-
-	result = PGAPI_AllocStmt(self, &hstmt, 0);
-	if (!SQL_SUCCEEDED(result))
-		return FALSE;
-	stmt = (StatementClass *) hstmt;
-
-	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
-
-	/* Set the Datestyle to the format the driver expects it to be in */
-	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set DateStyle to 'ISO'", SQL_NTS, 0);
-	if (!SQL_SUCCEEDED(result))
-		status = FALSE;
-
-	mylog("%s: result %d, status %d from set DateStyle\n", func, result, status);
-
-	result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) "set extra_float_digits to 2", SQL_NTS, 0);
-	if (!SQL_SUCCEEDED(result))
-		status = FALSE;
-
-	mylog("%s: result %d, status %d from set extra_float_digits\n", func, result, status);
-
-	PGAPI_FreeStmt(hstmt, SQL_DROP);
-
-	return status;
-}
-
 char
-CC_send_settings(ConnectionClass *self)
+CC_send_settings(ConnectionClass *self, const char *set_query)
 {
-	ConnInfo   *ci = &(self->connInfo);
-
-/* QResultClass *res; */
 	HSTMT		hstmt;
 	StatementClass *stmt;
 	RETCODE		result;
@@ -2189,6 +2147,8 @@ CC_send_settings(ConnectionClass *self)
 
 	mylog("%s: entering...\n", func);
 
+	if (set_query == NULL) return TRUE;
+
 /*
  *	This function must use the local odbc API functions since the odbc state
  *	has not transitioned to "connected" yet.
@@ -2201,67 +2161,33 @@ CC_send_settings(ConnectionClass *self)
 
 	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
 
-	/* Global settings */
-	if (NAME_IS_VALID(ci->drivers.conn_settings))
+	cs = strdup(set_query);
+	if (cs == NULL)
 	{
-		cs = strdup(GET_NAME(ci->drivers.conn_settings));
-		if (cs)
-		{
-#ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(cs, ";", &last);
-#else
-			ptr = strtok(cs, ";");
-#endif /* HAVE_STRTOK_R */
-			while (ptr)
-			{
-				result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) ptr, SQL_NTS, 0);
-				if (!SQL_SUCCEEDED(result))
-					status = FALSE;
-
-				mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
-
-#ifdef	HAVE_STRTOK_R
-				ptr = strtok_r(NULL, ";", &last);
-#else
-				ptr = strtok(NULL, ";");
-#endif /* HAVE_STRTOK_R */
-			}
-			free(cs);
-		}
-		else
-			status = FALSE;
+		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", func);
+		return FALSE;
 	}
 
-	/* Per Datasource settings */
-	if (NAME_IS_VALID(ci->conn_settings))
+#ifdef	HAVE_STRTOK_R
+	ptr = strtok_r(cs, ";", &last);
+#else
+	ptr = strtok(cs, ";");
+#endif /* HAVE_STRTOK_R */
+	while (ptr)
 	{
-		cs = strdup(GET_NAME(ci->conn_settings));
-		if (cs)
-		{
-#ifdef	HAVE_STRTOK_R
-			ptr = strtok_r(cs, ";", &last);
-#else
-			ptr = strtok(cs, ";");
-#endif /* HAVE_STRTOK_R */
-			while (ptr)
-			{
-				result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) ptr, SQL_NTS, 0);
-				if (!SQL_SUCCEEDED(result))
-					status = FALSE;
-
-				mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
-
-#ifdef	HAVE_STRTOK_R
-				ptr = strtok_r(NULL, ";", &last);
-#else
-				ptr = strtok(NULL, ";");
-#endif /* HAVE_STRTOK_R */
-			}
-			free(cs);
-		}
-		else
+		result = PGAPI_ExecDirect(hstmt, (SQLCHAR *) ptr, SQL_NTS, 0);
+		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
+
+		mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
+
+#ifdef	HAVE_STRTOK_R
+		ptr = strtok_r(NULL, ";", &last);
+#else
+		ptr = strtok(NULL, ";");
+#endif /* HAVE_STRTOK_R */
 	}
+	free(cs);
 
 	PGAPI_FreeStmt(hstmt, SQL_DROP);
 
