@@ -9,6 +9,46 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.05.0300">psqlODBC 09.05.0300 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Largely reduce overhead of localtime() in SQLFetch</b><br /></li>
+localtime() is a very costly system call causing serious grief on
+performance of the driver for OLTP-type applications using a lot
+SQLFetch and this one is being called for all data types when performing
+an in-line conversion, while it is being used only in the case where
+some of the date and/or timestamp fields are not initialized. While
+testing performance of an internal application, this patch has proved
+to improve the overall performance of an application by 20%.
+
+<li><b>Fix the use and the implementation of getNthValid().</b><br /></li>
+
+<li><b>Fix the handling of boundary_should_be_adjusted case when a rowset is cut in the middle of cached rows.
+Also fix the row info of SQL_ADDed tuples.</b><br /></li>
+
+<li><b>Estimate the rowsetSize including deleted tuples correctly so that rowset can be effectively handled.</b><br /></li>
+
+<li><b>Set once_reached_eof status when useDeclareFetch=0 so that QR_num_total_read() macro works well.</b><br /></li>
+Don't forget to call CC_on_abort_partial() when rollback back to a savepoint.
+Now the driver passes cursor-block-delete test.
+
+<li><b>Refine SQLFetchScroll() for the orientations other than SQL_FETCH_NEXT/PRIOR.</b><br /></li>
+Discard move_from_the_last stuff and call move_cursor_to_last() instead.
+
+<li><b>Refine cursors with KEYSET using oid or oid alternative as far as possible.</b><br /></li>
+
+<li><b>Preparation for handling inheritance.</b><br /></li>
+
+<li><b>Convert tableoid to relation name in case of inheritance.</b><br /></li>
+
+<li><b>fix buffer overrun in logging, and code cleanup.</b><br /></li>
+Patch by Tsunakawa, Takayuki.
+
+<li><b>Implement SQL_QUERY_TIMEOUT.</b><br /></li>
+Patch by Tsunakawa, Takayuki.
+
+<li><b>'for' loop initial declarations are only allowed in C99 mode.</b><br /></li>
+</ol><br />
 
 <h2><a id="09.05.0210">psqlODBC 09.05.0210 Release</a></h2>
 Changes:<br />
