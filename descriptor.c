@@ -129,12 +129,13 @@ void	TI_Destroy_IH(TABLE_INFO *ti)
 const pgNAME	TI_From_IH(TABLE_INFO *ti, OID tableoid)
 {
 	InheritanceClass	*ih;
+	int			i;
 
 	if (NULL == (ih = ti->ih))
 		return invNAME;
 	if (tableoid == ih->cur_tableoid)
 		return ih->cur_fullTable;
-	for (int i = 0; i < ih->count; i++)
+	for (i = 0; i < ih->count; i++)
 	{
 		if (ih->inf[i].tableoid == tableoid)
 		{
