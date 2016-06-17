@@ -103,13 +103,8 @@ public:
 			DeleteCriticalSection(&life_cs);
 			}
 } init_crit;
-#ifdef	_LOCK_DEBUG_
-#define	LIFELOCK_ACQUIRE (forcelog("LIFELOCK_ACQUIRE\n"), EnterCriticalSection(&init_crit.life_cs), forcelog("LIFELOCK ACQUIRED\n"))
-#define	LIFELOCK_RELEASE (forcelog("LIFELOCK_RELEASE\n"), LeaveCriticalSection(&init_crit.life_cs))
-#else
 #define	LIFELOCK_ACQUIRE EnterCriticalSection(&init_crit.life_cs)
 #define	LIFELOCK_RELEASE LeaveCriticalSection(&init_crit.life_cs)
-#endif
 
 /*
  *	Some helper macros about connection handling.
@@ -236,17 +231,10 @@ public:
 	bool CloseThread(DWORD type);
 private:
 	~IAsyncPG();
-#ifdef	_LOCK_DEBUG_
-	void SLOCK_ACQUIRE() {forcelog("SLOCK_ACQUIRE %d\n", spin_cnt); EnterCriticalSection(&as_spin); spin_cnt++;}
-	void SLOCK_RELEASE() {forcelog("SLOCK_RELEASE=%d\n", spin_cnt); LeaveCriticalSection(&as_spin); spin_cnt--;}
-	void ELOCK_ACQUIRE() {forcelog("%p->ELOCK_ACQUIRE\n", this); EnterCriticalSection(&as_exec); forcelog("ELOCK ACQUIRED\n");}
-	void ELOCK_RELEASE() {forcelog("ELOCK_RELEASE\n"); LeaveCriticalSection(&as_exec);}
-#else
 	void SLOCK_ACQUIRE() {EnterCriticalSection(&as_spin);}
 	void SLOCK_RELEASE() {LeaveCriticalSection(&as_spin);}
 	void ELOCK_ACQUIRE() {EnterCriticalSection(&as_exec);}
 	void ELOCK_RELEASE() {LeaveCriticalSection(&as_exec);}
-#endif /* _LOCK_DEBUG_ */
 	void	*getLockedXAConn(void);
 	void	*generateXAConn(bool spinAcquired);
 	void	*isolateXAConn(bool spinAcquired, bool continueConnection);
@@ -301,7 +289,7 @@ IAsyncPG::~IAsyncPG(void)
 }
 HRESULT STDMETHODCALLTYPE IAsyncPG::QueryInterface(REFIID riid, void ** ppvObject)
 {
-forcelog("%p QueryInterface called\n", this);
+	mylog("%p QueryInterface called\n", this);
 	if (riid == IID_IUnknown || riid == IID_ITransactionResourceAsync)
 	{
 		*ppvObject = this;
@@ -910,7 +898,7 @@ HRESULT STDMETHODCALLTYPE IAsyncPG::AbortRequest(BOID * pboidReason, BOOL fRetai
 }
 HRESULT STDMETHODCALLTYPE IAsyncPG::TMDown(void)
 {
-forcelog("%p TMDown called\n", this);
+	mylog("%p TMDown called\n", this);
 	return	S_OK;
 }
 
@@ -1082,7 +1070,7 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 		res = pDtc->QueryInterface(IID_IDtcToXaHelperSinglePipe, (void **) &pHelper);
 		if (res != S_OK || !pHelper)
 		{
-			forcelog("DtcToXaHelperSingelPipe get error %d\n", res);
+			mylog("DtcToXaHelperSingelPipe get error %d\n", res);
 			pHelper = NULL;
 			return SQL_ERROR;
 		}
@@ -1252,7 +1240,7 @@ static ITransactionDispenser *getITransactionDispenser(DWORD grfOptions, HRESULT
 			grfOptions, NULL, (void **) &pDtc);
 		if (FAILED(res))
 		{
-			forcelog("DtcGetTransactionManager error %x\n", res);
+			mylog("DtcGetTransactionManager error %x\n", res);
 			pDtc = NULL;
 		}
 	}

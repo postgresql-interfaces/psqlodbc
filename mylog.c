@@ -108,7 +108,6 @@ static	CRITICAL_SECTION	qlog_cs, mylog_cs;
 #elif defined(POSIX_MULTITHREAD_SUPPORT)
 static	pthread_mutex_t	qlog_cs, mylog_cs;
 #endif /* WIN_MULTITHREAD_SUPPORT */
-static int	force_log = 0;
 static int	mylog_on = 0, qlog_on = 0;
 
 #if defined(WIN_MULTITHREAD_SUPPORT)
@@ -140,23 +139,19 @@ static int	mylog_on = 0, qlog_on = 0;
 #define	DELETE_MYLOG_CS
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
-#ifdef MY_LOG
 #define MYLOGFILE			"mylog_"
 #ifndef WIN32
 #define MYLOGDIR			"/tmp"
 #else
 #define MYLOGDIR			"c:"
 #endif /* WIN32 */
-#endif /* MY_LOG */
 
-#ifdef Q_LOG
 #define QLOGFILE			"psqlodbc_"
 #ifndef WIN32
 #define QLOGDIR				"/tmp"
 #else
 #define QLOGDIR				"c:"
 #endif /* WIN32 */
-#endif /* QLOG */
 
 
 int	get_mylog(void)
@@ -193,8 +188,6 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 		mylog_on = 0;
 	else if (globals.debug > 0)
 		mylog_on = globals.debug;
-	else
-		mylog_on = force_log;
 	if (qlog_onoff)
 		qlog_on_count += cnopen;
 	else
@@ -205,8 +198,6 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 		qlog_on = 0;
 	else if (globals.commlog > 0)
 		qlog_on = globals.commlog;
-	else
-		qlog_on = force_log;
 	LEAVE_QLOG_CS;
 	LEAVE_MYLOG_CS;
 }
@@ -214,13 +205,11 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 #ifdef	WIN32
 #define	LOGGING_PROCESS_TIME
 #include <direct.h>
-#define	PODBCLOGDIR	"C:\\podbclog"
 #endif /* WIN32 */
 #ifdef	LOGGING_PROCESS_TIME
 #include <mmsystem.h>
 	static	DWORD	start_time = 0;
 #endif /* LOGGING_PROCESS_TIME */
-#ifdef MY_LOG
 static FILE *MLOGFP = NULL;
 
 static void MLOG_open()
@@ -235,18 +224,6 @@ static void MLOG_open()
 	{
 		generate_homefile(MYLOGFILE, filebuf);
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
-		if (!MLOGFP)
-		{
-			generate_filename("C:\\podbclog", MYLOGFILE, filebuf);
-			MLOGFP = fopen(filebuf, PG_BINARY_A);
-#ifdef	WIN32
-			if (!MLOGFP)
-			{
-				if (0 == _mkdir(PODBCLOGDIR))
-					MLOGFP = fopen(filebuf, PG_BINARY_A);
-			}
-#endif /* WIN32 */
-		}
 	}
 	if (MLOGFP)
 		setbuf(MLOGFP, NULL);
@@ -295,51 +272,9 @@ mylog(const char *fmt,...)
 	LEAVE_MYLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
 }
-DLL_DECLARE void
-forcelog(const char *fmt,...)
-{
-	static BOOL	force_on = TRUE;
-	va_list		args;
-	int		gerrno = GENERAL_ERRNO;
-
-	if (!force_on)
-		return;
-
-	ENTER_MYLOG_CS;
-	va_start(args, fmt);
-
-	if (!MLOGFP)
-	{
-		MLOG_open();
-		if (!MLOGFP)
-			force_on = FALSE;
-	}
-	if (MLOGFP)
-	{
-#ifdef	WIN_MULTITHREAD_SUPPORT
-#ifdef	WIN32
-		time_t	ntime;
-		char	ctim[128];
-
-		time(&ntime);
-		strcpy(ctim, ctime(&ntime));
-		ctim[strlen(ctim) - 1] = '\0';
-		fprintf(MLOGFP, "[%d.%d(%s)]", GetCurrentProcessId(), GetCurrentThreadId(), ctim);
-#endif /* WIN32 */
-#endif /* WIN_MULTITHREAD_SUPPORT */
-#if defined(POSIX_MULTITHREAD_SUPPORT)
-		fprintf(MLOGFP, "[%lu]", pthread_self());
-#endif /* POSIX_MULTITHREAD_SUPPORT */
-		vfprintf(MLOGFP, fmt, args);
-	}
-	va_end(args);
-	LEAVE_MYLOG_CS;
-	GENERAL_ERRNO_SET(gerrno);
-}
 static void mylog_initialize(void)
 {
 	INIT_MYLOG_CS;
-	mylog_on = force_log;
 }
 static void mylog_finalize(void)
 {
@@ -351,13 +286,8 @@ static void mylog_finalize(void)
 	}
 	DELETE_MYLOG_CS;
 }
-#else
-static void mylog_initialize(void) {}
-static void mylog_finalize(void) {}
-#endif /* MY_LOG */
 
 
-#ifdef Q_LOG
 static FILE *QLOGFP = NULL;
 void
 qlog(char *fmt,...)
@@ -407,7 +337,6 @@ qlog(char *fmt,...)
 static void qlog_initialize(void)
 {
 	INIT_QLOG_CS;
-	qlog_on = force_log;
 }
 static void qlog_finalize(void)
 {
@@ -419,10 +348,6 @@ static void qlog_finalize(void)
 	}
 	DELETE_QLOG_CS;
 }
-#else
-static void qlog_initialize(void) {}
-static void qlog_finalize(void) {}
-#endif /* Q_LOG */
 
 void InitializeLogging(void)
 {
