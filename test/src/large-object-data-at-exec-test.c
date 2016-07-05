@@ -58,11 +58,12 @@ do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
 		SQLLEN lobChunkSize = 4096;
 		SQLPOINTER pParamId = 0;
 		const char *what = 0;
+		int error;
 
 		/* Get the parameter that needs data */
 		what = "SQLParamData failed (first call)";
 		rc = SQLParamData(hstmt, &pParamId);
-		int error = SQL_SUCCESS != rc && SQL_SUCCESS_WITH_INFO != rc && SQL_NEED_DATA != rc;
+		error = SQL_SUCCESS != rc && SQL_SUCCESS_WITH_INFO != rc && SQL_NEED_DATA != rc;
 		if (SQL_NEED_DATA == rc)
 		{
 			/* Send parameter data in chunks */

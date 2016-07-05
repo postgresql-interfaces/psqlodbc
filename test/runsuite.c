@@ -195,6 +195,8 @@ rundiff(const char *testname, const char *inputdir)
 	int			outputno;
 	char	   *result;
 	size_t		result_len;
+	static int	diff_call = 1, first_call = 1;
+	int		diff_rtn;
 
 	snprintf(filename, sizeof(filename), "results/%s.out", testname);
 	result = slurpfile(filename, &result_len);
@@ -243,13 +245,40 @@ rundiff(const char *testname, const char *inputdir)
 	 * expected output file. Perhaps we should run it against all output
 	 * files and print the smallest diff?
 	 */
+#ifndef	WIN32
 	snprintf(cmdline, sizeof(cmdline),
 			 "diff -c %s/expected/%s.out results/%s.out >> regression.diffs",
 			 inputdir, testname, testname);
-	if (system(cmdline) == -1)
+#else
+	if (first_call)
+	{
+		/*
+		 *	test diff the same file
+		 */
+		snprintf(cmdline, sizeof(cmdline),
+			 "diff -c --strip-trailing-cr results\\%s.out results\\%s.out",
+			 testname, testname);
+		first_call = 0;
+		/*
+		 *	If diff command exists, the system function would
+		 *	return 0.
+		 */
+		if (system(cmdline) != 0)
+			diff_call = 0;
+	}
+	if (diff_call)
+		snprintf(cmdline, sizeof(cmdline),
+			 "diff -c --strip-trailing-cr %s\\expected\\%s.out results\\%s.out >> regression.diffs",
+			 inputdir, testname, testname);
+	else	/* use fc command instead */
+		snprintf(cmdline, sizeof(cmdline),
+			 "fc /N %s\\expected\\%s.out results\\%s.out >> regression.diffs",
+			 inputdir, testname, testname);
+#endif
+	if ((diff_rtn = system(cmdline)) == -1)
 		printf("# diff failed\n");
 
-	return 1;
+	return diff_rtn;
 }
 
 

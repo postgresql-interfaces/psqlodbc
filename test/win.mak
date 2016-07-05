@@ -19,6 +19,9 @@
 # Include the list of tests
 !INCLUDE tests
 
+SRCDIR=src
+OBJDIR=exe
+
 # The 'tests' file contains names of the test programs, in form
 # exe/<testname>-test. Extract the base names of the tests, by stripping the
 # "exe/" prefix and "-test" suffix. (It would seem more straightforward to do
@@ -31,7 +34,7 @@ TESTS = $(TESTS:-test=)
 
 # exe\<testname>.exe
 TESTEXES = $(TESTBINS:-test=-test.exe)
-TESTEXES = $(TESTEXES:exe/=exe\)
+TESTEXES = $(TESTEXES:/=\)
 
 
 # Flags
@@ -45,10 +48,15 @@ LINKFLAGS=/link odbc32.lib odbccp32.lib
 # we fail to notice if common.c changes. Also, we build common.c separately
 # for each test - ideally we would build common.obj once and just link it
 # to each test.
-.c.exe:
-	cl /Fe.\exe\ /Fo.\exe\ $*.c src/common.c $(CLFLAGS) $(LINKFLAGS)
+{$(SRCDIR)\}.c{$(OBJDIR)\}.exe:
+	$(CC) /Fe.\$(OBJDIR)\ /Fo.\$(OBJDIR)\ $< $(SRCDIR)\common.c $(CLFLAGS) $(LINKFLAGS)
 
-all: $(TESTEXES) runsuite.exe
+all: $(OBJDIR) $(TESTEXES) runsuite.exe
+
+$(OBJDIR) :
+!IF !EXIST($(OBJDIR))
+	mkdir $(OBJDIR)
+!ENDIF
 
 runsuite.exe: runsuite.c
 	cl runsuite.c $(CLFLAGS) $(LINKFLAGS)
@@ -60,11 +68,15 @@ reset-db.exe: reset-db.c
 .SUFFIXES: .out
 
 # Run regression tests
-installcheck: runsuite.exe $(TESTEXES) reset-db.exe
+RESDIR=results
+installcheck: $(OBJDIR) runsuite.exe $(TESTEXES) reset-db.exe
 	del regression.diffs
 	.\reset-db < sampletables.sql
+!IF !EXIST($(RESDIR))
+	mkdir $(RESDIR)
+!ENDIF
 	.\runsuite $(TESTS)
 
 clean:
-	-del exe\*.exe
-	-del exe\*.obj
+	-del $(OBJDIR)\*.exe
+	-del $(OBJDIR)\*.obj
