@@ -497,8 +497,8 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	else if (IsDlgButtonChecked(hdlg, DS_STATEMENT_ROLLBACK))
 		ci->rollback_on_error = 2;
 	else
-		/* legacy */
-		ci->rollback_on_error = 1;
+		/* no button is checked */
+		ci->rollback_on_error = -1;
 
 	/* Int8 As */
 	if (IsDlgButtonChecked(hdlg, DS_INT8_AS_DEFAULT))
