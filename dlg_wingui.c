@@ -171,9 +171,6 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 
 	ShowWindow(GetDlgItem(hdlg, DRV_MSG_LABEL2), enable ? SW_SHOW : SW_HIDE);
 	CheckDlgButton(hdlg, DRV_COMMLOG, comval->commlog);
-#ifndef Q_LOG
-	EnableWindow(GetDlgItem(hdlg, DRV_COMMLOG), FALSE);
-#endif /* Q_LOG */
 	CheckDlgButton(hdlg, DRV_UNIQUEINDEX, comval->unique_index);
 	/* EnableWindow(GetDlgItem(hdlg, DRV_UNIQUEINDEX), enable); */
 	CheckDlgButton(hdlg, DRV_READONLY, comval->onlyread);
@@ -204,9 +201,6 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	CheckDlgButton(hdlg, DRV_BOOLS_CHAR, comval->bools_as_char);
 	CheckDlgButton(hdlg, DRV_PARSE, comval->parse);
 	CheckDlgButton(hdlg, DRV_DEBUG, comval->debug);
-#ifndef MY_LOG
-	EnableWindow(GetDlgItem(hdlg, DRV_DEBUG), FALSE);
-#endif /* MY_LOG */
 	SetDlgItemInt(hdlg, DRV_CACHE_SIZE, comval->fetch_max, FALSE);
 	SetDlgItemInt(hdlg, DRV_VARCHAR_SIZE, comval->max_varchar_size, FALSE);
 	SetDlgItemInt(hdlg, DRV_LONGVARCHAR_SIZE, comval->max_longvarchar_size, TRUE);
@@ -361,13 +355,7 @@ global_optionsProc(HWND hdlg,
 		case WM_INITDIALOG:
 			SetWindowLongPtr(hdlg, DWLP_USER, lParam); /* save for test etc */ 
 			CheckDlgButton(hdlg, DRV_COMMLOG, globals.commlog);
-#ifndef Q_LOG
-			EnableWindow(GetDlgItem(hdlg, DRV_COMMLOG), FALSE);
-#endif /* Q_LOG */
 			CheckDlgButton(hdlg, DRV_DEBUG, globals.debug);
-#ifndef MY_LOG
-			EnableWindow(GetDlgItem(hdlg, DRV_DEBUG), FALSE);
-#endif /* MY_LOG */
 			getLogDir(logdir, sizeof(logdir));
 			SetDlgItemText(hdlg, DS_LOGDIR, logdir);
 #ifdef _HANDLE_ENLIST_IN_DTC_
