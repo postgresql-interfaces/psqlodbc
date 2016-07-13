@@ -193,10 +193,13 @@ rundiff(const char *testname, const char *inputdir)
 	char		filename[1024];
 	char		cmdline[1024];
 	int			outputno;
-	char	   *result;
+	char	   *result = NULL;
 	size_t		result_len;
 	static int	diff_call = 1, first_call = 1;
 	int		diff_rtn;
+	int		i, j;
+	const char	CR = '\r', LF = '\n';
+	char		se, sr;
 
 	snprintf(filename, sizeof(filename), "results/%s.out", testname);
 	result = slurpfile(filename, &result_len);
@@ -216,12 +219,56 @@ rundiff(const char *testname, const char *inputdir)
 		{
 			if (outputno == 0)
 				bailout("could not open file %s: %s\n", filename, strerror(ENOENT));
-			free(result);
 			break;
 		}
 
 		if (expected_len == result_len &&
 			memcmp(expected, result, expected_len) == 0)
+		{
+			/* The files are equal. */
+			free(result);
+			free(expected);
+			return 0;
+		}
+		/* Ignore the difference between CR LF, LF and CR line break */
+		for (i = 0, j = 0, se = sr = '\0'; i < expected_len && j < result_len;
+				se = expected[i], sr = result[j], i++, j++)
+		{
+			if (expected[i] == result[j])
+				continue;
+			if (result[j] == LF)
+			{
+				if (expected[i] == CR)
+				{
+					i++;
+					if (expected[i] != LF)
+						i--;
+					continue;
+				}
+				else if (sr == CR && se == CR)
+				{
+					i--;
+					continue;
+				}
+			}
+			else if (expected[i] == LF)
+			{
+				if (result[j] == CR)
+				{
+					j++;
+					if (result[j] != LF)
+						j--;
+					continue;
+				}
+				else if (sr == CR && se == CR)
+				{
+					j--;
+					continue;
+				}
+			}
+			break;
+		}
+		if (i >= expected_len && j >= result_len)
 		{
 			/* The files are equal. */
 			free(result);
@@ -234,6 +281,8 @@ rundiff(const char *testname, const char *inputdir)
 		outputno++;
 	}
 	/* no matching output found */
+	if (NULL != result)
+		free(result);
 
 	/*
 	 * Try to run diff. If this fails, e.g. because the 'diff' program is
