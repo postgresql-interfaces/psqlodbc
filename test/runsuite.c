@@ -195,7 +195,9 @@ rundiff(const char *testname, const char *inputdir)
 	int			outputno;
 	char	   *result = NULL;
 	size_t		result_len;
+#ifdef	WIN32
 	static int	diff_call = 1, first_call = 1;
+#endif
 	int		diff_rtn;
 	int		i, j;
 	const char	CR = '\r', LF = '\n';
