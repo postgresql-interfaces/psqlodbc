@@ -15,6 +15,8 @@
 #include <errno.h>
 #endif /* WIN32 */
 
+#define	DELAYIMP_INSECURE_WRITABLE_HOOKS
+
 #include "loadlib.h"
 #include "pgenlist.h"
 
