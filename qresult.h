@@ -88,7 +88,7 @@ struct QResultClass_
 	char	pstatus;		/* processing status */
 	char	aborted;		/* was aborted ? */
 	char	flags;			/* this result contains keyset etc ? */
-	char	move_direction;		/* must move before fetching this
+	po_ind_t	move_direction;	/* must move before fetching this
 						result set */
 	SQLULEN		count_keyset_allocated; /* m(re)alloced count */
 	SQLULEN		num_cached_keys;	/* count of keys kept in backend_keys member */
