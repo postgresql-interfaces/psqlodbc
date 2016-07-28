@@ -36,6 +36,8 @@ TESTS = $(TESTS:-test=)
 TESTEXES = $(TESTBINS:-test=-test.exe)
 TESTEXES = $(TESTEXES:/=\)
 
+COMSRC = $(SRCDIR)\common.c
+COMOBJ = $(OBJDIR)\common.obj
 
 # Flags
 CLFLAGS=/D WIN32
@@ -43,15 +45,15 @@ LINKFLAGS=/link odbc32.lib odbccp32.lib
 
 # Build an executable for each test.
 #
-# XXX: Note that nmake syntax doesn't allow passing a dependent on an
-# inference rule. Hence, we cannot have a dependency to common.c here. So,
-# we fail to notice if common.c changes. Also, we build common.c separately
-# for each test - ideally we would build common.obj once and just link it
-# to each test.
 {$(SRCDIR)\}.c{$(OBJDIR)\}.exe:
-	$(CC) /Fe.\$(OBJDIR)\ /Fo.\$(OBJDIR)\ $< $(SRCDIR)\common.c $(CLFLAGS) $(LINKFLAGS)
+	$(CC) /Fe.\$(OBJDIR)\ /Fo.\$(OBJDIR)\ $< $(COMOBJ) $(CLFLAGS) $(LINKFLAGS)
 
-all: $(OBJDIR) $(TESTEXES) runsuite.exe
+all: $(TESTEXES) runsuite.exe
+
+$(TESTEXES): $(OBJDIR) $(COMOBJ)
+
+$(COMOBJ): $(COMSRC)
+	$(CC) $(CLFLAGS) /c $? /Fo$@
 
 $(OBJDIR) :
 !IF !EXIST($(OBJDIR))
@@ -69,7 +71,7 @@ reset-db.exe: reset-db.c
 
 # Run regression tests
 RESDIR=results
-installcheck: $(OBJDIR) runsuite.exe $(TESTEXES) reset-db.exe
+installcheck: runsuite.exe $(TESTEXES) reset-db.exe
 	del regression.diffs
 	.\reset-db < sampletables.sql
 !IF !EXIST($(RESDIR))
