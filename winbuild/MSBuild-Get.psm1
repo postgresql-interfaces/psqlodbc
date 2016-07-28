@@ -142,3 +142,103 @@ function Get-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $conf
 
 	return $msbuildexe
 }
+
+$dumpbinexe = ""
+$addPath=""
+
+function Find-Dumpbin($CurMaxVC = 14)
+{
+	if ("$dumpbinexe" -ne "") {
+		if ("$addPath" -ne "") {
+			if (${env:PATH}.indexof($addPath) -lt 0) {
+				$env:PATH = "${addPath};" + $env:PATH
+			}
+		}
+		return $dumpbinexe
+	}
+	$addPath=""
+	try {
+		$dum = invoke-expression "dumpbin /NOLOGO"
+		$dumpbinexe="dumpbin"
+	} catch [Exception] {
+#		$dumpbinexe="$env:DUMPBINEXE"
+		if ($dumpbinexe -eq "") {
+			if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+				$pgmfs = "$env:ProgramFiles"
+			} else {
+				$pgmfs = "${env:ProgramFiles(x86)}"
+			}
+			for ($i = $CurMaxVc; $i -lt 20; )
+			{
+				$dumpbinexe="$pgmfs\Microsoft Visual Studio ${i}.0\VC\bin\dumpbin.exe"
+				if (Test-Path -Path $dumpbinexe) {
+					break
+				}
+				if ($i -le 10) {
+					$i = $CurMaxVc + 1
+				} elseif ($i -le $CurMaxVc) {
+					$i--
+				} else {
+					$i++
+				}
+			}
+			if ($i -ge 20) {
+				throw "dumpbin doesn't exist"
+			}
+			elseif ($i -eq 10) {
+				$addPath = "$pgmfs\Microsoft Visual Studio ${i}.0\Common7\ide"
+			}
+		}
+	}
+	
+	Write-Host "Dumpbin=$dumpbinexe"
+	Set-Variable -Name dumpbinexe -Value $dumpbinexe -Scope 1
+	Set-Variable -Name addPath -Value $addPath -Scope 1
+	if ("$addPath" -ne "") {
+		if (${env:PATH}.indexof($addPath) -lt 0) {
+			$env:PATH = "${addPath};" + $env:PATH
+		}
+	}
+	return $dumpbinexe
+}
+
+function dumpbinRecurs($dllname, $dllfolder, $instarray)
+{
+	$tmem=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$dllfolder\${dllname}`"" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
+	if ($LASTEXITCODE -ne 0) {
+		throw "Failed to dumpbin ${dllfolder}\${dllname}"
+	}
+	if ($tmem -eq $Null) {
+		return $instarray
+	}
+	if ($tmem.GetType().Name -eq "String") {
+		[String []]$tarray = @($tmem)
+	} else {
+		$tarray = $tmem
+	}
+	$iarray=@()
+	for ($i=0; $i -lt $tarray.length; $i++) {
+		if (-not($instarray -contains $tarray[$i])) {
+			$iarray += $tarray[$i]
+		}
+	}
+	if ($iarray.length -eq 0) {
+		return $instarray
+	}
+	$instarray += $iarray
+	for ($i=0; $i -lt $iarray.length; $i++) {
+		$instarray=dumpbinRecurs $iarray[$i] $dllfolder $instarray
+	}
+	return $instarray
+}
+
+function Get-RelatedDlls($dllname, $dllfolder)
+{
+	Find-Dumpbin | Out-Null
+	$libpqmem=@()
+	$libpqmem=dumpbinRecurs $dllname $dllfolder $libpqmem
+
+	return $libpqmem
+}
+
+Export-ModuleMember -function Get-MSBuild, Find-Dumpbin, Get-RelatedDlls

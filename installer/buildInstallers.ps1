@@ -85,36 +85,6 @@ function findRuntime($runtime_version, $pgmvc)
 	return $rt_dllname
 }
 
-function dumpbinRecurs($dllname, $dllfolder, $instarray)
-{
-	$tmem=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$dllfolder\${dllname}`"" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
-	if ($LASTEXITCODE -ne 0) {
-		throw "Failed to dumpbin $dllfolder\$dllname"
-	}
-	if ($tmem -eq $Null) {
-		return $instarray
-	}
-	if ($tmem.GetType().Name -eq "String") {
-		[String []]$tarray = @($tmem)
-	} else {
-		$tarray = $tmem
-	}
-	$iarray=@()
-	for ($i=0; $i -lt $tarray.length; $i++) {
-		if (-not($instarray -contains $tarray[$i])) {
-			$iarray += $tarray[$i]
-		}
-	}
-	if ($iarray.length -eq 0) {
-		return $instarray
-	}
-	$instarray += $iarray
-	for ($i=0; $i -lt $iarray.length; $i++) {
-		$instarray=dumpbinRecurs $iarray[$i] $dllfolder $instarray
-	}
-	return $instarray
-}
-
 function buildInstaller($CPUTYPE)
 {
 	$VERSION = $configInfo.Configuration.version
@@ -175,8 +145,7 @@ function buildInstaller($CPUTYPE)
 
 	#
 	$maxmem=10
-	$libpqmem=@()
-	$libpqmem=dumpbinRecurs "libpq.dll" $LIBPQBINDIR $libpqmem
+	$libpqmem=Get-RelatedDlls "libpq.dll" $LIBPQBINDIR
 	for ($i=0; $i -lt $libpqmem.length; ) {
 		if ($libpqmem[$i] -match "^msvcr\d+0.dll") {
 			$libpqmem[$i]=$Null	
@@ -275,33 +244,29 @@ if ($AlongWithDrivers) {
 	} 
 }
 
-$dumpbinexe="dumpbin"
+Import-Module ${scriptPath}\..\winbuild\MSBuild-Get.psm1
 try {
-	dumpbin | Out-Null
-} catch [Exception] {
-	$dumpbinexe="$env:DUMPBINEXE"
-	if ($dumpbinexe -eq "")
-	{
-		throw "dumpbin doesn't exist"
+	$dumpbinexe = Find-Dumpbin
+
+	if ($cpu -eq "both") {
+		buildInstaller "x86"
+		buildInstaller "x64"
+		$VERSION = $configInfo.Configuration.version
+		try {
+			pushd "$scriptPath"
+			invoke-expression "psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION" -ErrorAction Stop
+			if ($LASTEXITCODE -ne 0) {
+				throw "Failed to build bootstrapper"
+			}
+		} catch [Exception] {
+			throw $error[0]
+		} finally {
+			popd
+		} 
 	}
-}
-Write-Host "Dumpbin=$dumpbinexe"
-if ($cpu -eq "both") {
-	buildInstaller "x86"
-	buildInstaller "x64"
-	$VERSION = $configInfo.Configuration.version
-	try {
-		pushd "$scriptPath"
-		invoke-expression "psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION" -ErrorAction Stop
-		if ($LASTEXITCODE -ne 0) {
-			throw "Failed to build bootstrapper"
-		}
-	} catch [Exception] {
-		throw $error[0]
-	} finally {
-		popd
-	} 
-}
-else {
-	buildInstaller $cpu
+	else {
+		buildInstaller $cpu
+	}
+} catch [Exception] {
+	throw $error[0]
 }
