@@ -1,0 +1,12 @@
+connected
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: WVARCHAR(20) digits: 0, nullable
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: WVARCHAR(20) digits: 0, nullable
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: WVARCHAR(20) digits: 0, nullable
+con"stant: WVARCHAR(7) digits: 0, nullable
+disconnecting
