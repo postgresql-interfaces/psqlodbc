@@ -251,12 +251,13 @@ invalidate_buf(char *buf, size_t len)
  * Print result only for the selected columns.
  */
 void
-print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols)
+print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols, SQLINTEGER rowcount)
 {
 	SQLRETURN rc;
+	SQLINTEGER	rowc = 0;
 
 	printf("Result set:\n");
-	while(1)
+	while (rowcount <0 || rowc < rowcount)
 	{
 		rc = SQLFetch(hstmt);
 		if (rc == SQL_NO_DATA)
@@ -267,6 +268,7 @@ print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols)
 			int i;
 			SQLLEN ind;
 
+			rowc++;
 			for (i = 0; i < numcols; i++)
 			{
 				/*
@@ -315,6 +317,6 @@ print_result(HSTMT hstmt)
 	colids = (SQLSMALLINT *) malloc(numcols * sizeof(SQLSMALLINT));
 	for (i = 0; i < numcols; i++)
 		colids[i] = i + 1;
-	print_result_series(hstmt, colids, numcols);
+	print_result_series(hstmt, colids, numcols, -1);
 	free(colids);
 }

@@ -77,7 +77,7 @@ main(int argc, char **argv)
 	 * to get the OID in output, and this information looks to be
 	 * enough.
 	 */
-	print_result_series(hstmt, sql_column_ids, 6);
+	print_result_series(hstmt, sql_column_ids, 6, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
@@ -185,7 +185,7 @@ main(int argc, char **argv)
 							(SQLCHAR *) "testtab1", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLTablePrivileges failed", hstmt);
 	print_result_meta(hstmt);
-	print_result_series(hstmt, sql_tab_privileges_ids, 6);
+	print_result_series(hstmt, sql_tab_privileges_ids, 6, 5);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 

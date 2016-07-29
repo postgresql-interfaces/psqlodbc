@@ -39,7 +39,8 @@ extern void print_result_meta_series(HSTMT hstmt,
 									 SQLSMALLINT numcols);
 extern void print_result_series(HSTMT hstmt,
 								SQLSMALLINT *colids,
-								SQLSMALLINT numcols);
+								SQLSMALLINT numcols,
+								SQLINTEGER rowcount);
 extern void print_result_meta(HSTMT hstmt);
 extern void print_result(HSTMT hstmt);
 extern const char *datatype_str(SQLSMALLINT datatype);
