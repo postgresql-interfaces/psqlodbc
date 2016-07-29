@@ -2124,7 +2124,7 @@ inolog("[%d,%d] %s copied\n", i / num_fields, i % num_fields, otuple->value);
 	return i;
 }
 
-static char *
+static const char *
 ti_quote(StatementClass *stmt, OID tableoid)
 {
 	TABLE_INFO	*ti = stmt->ti[0];
@@ -2970,7 +2970,6 @@ positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const cha
 	BOOL	latest = ((flag & LATEST_TUPLE_LOAD) != 0);
 	size_t	len;
 	TABLE_INFO	*ti = stmt->ti[0];
-	const char *bestitem = GET_NAME(ti->bestitem);
 	const char *bestqual = GET_NAME(ti->bestqual);
 	const ssize_t	from_pos = stmt->load_from_pos;
 	const char *load_stmt = stmt->load_statement;
@@ -3007,16 +3006,16 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 			{
 				snprintf(selstr, len,
 					 "%.*sfrom %s where ctid = currtid2('%s', '%s')",
-					 from_pos, load_stmt,
+					 (int) from_pos, load_stmt,
 					 ti_quote(stmt, tableoid),
 					 ti_quote(stmt, tableoid),
 					 tidval);
 			}
 			else
-				snprintf(selstr, len, "%.*sfrom %s where ctid = '%s'", from_pos, load_stmt, ti_quote(stmt, tableoid), tidval);
+				snprintf(selstr, len, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, ti_quote(stmt, tableoid), tidval);
 		}
 		else if ((flag & USE_INSERTED_TID) != 0)
-			snprintf(selstr, len, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", from_pos, load_stmt, ti_quote(stmt, tableoid));
+			snprintf(selstr, len, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", (int) from_pos, load_stmt, ti_quote(stmt, tableoid));
 		/*
 		else if (bestitem && oidint)
 		{
@@ -3390,10 +3389,10 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 	char	*qval = NULL, *sval = NULL;
 	int	keys_per_fetch = 10;
 	const char *load_stmt = stmt->load_statement;
-	const TABLE_INFO *ti = stmt->ti[0];
 	const ssize_t	from_pos = stmt->load_from_pos;
 	const int	max_identifier = 100;
 
+	new_oid = 0;
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0, oid = 0;; i++, kres_ridx++)
 	{
 		if (i >= limitrow)
@@ -3467,8 +3466,6 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 		}
 		if (!rowc)
 		{
-			size_t lodlen = 0;
-
 			if (!qval)
 			{
 				size_t	allen;
@@ -3487,7 +3484,7 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 				SC_MALLOC_return_with_error(qval, char, allen,
 					stmt, "Couldn't alloc qval", -1);
 			}
-			sprintf(qval, "%.*sfrom %s where ctid in (", from_pos, load_stmt, ti_quote(stmt, new_oid));
+			sprintf(qval, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid));
 			sval = strchr(qval, '\0');
 		}
 		if (new_oid != oid)
