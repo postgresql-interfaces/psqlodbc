@@ -9,6 +9,22 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.05.0400">psqlODBC 09.05.0400 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Enable COMMLOG and MYLOG button.</b><br /></li>
+<li><b>Default of *level of rollback on errors* is default(statement) not transaction.</b><br /></li>
+<li><b>Fix the bug SQLGetDescFieldW or SQLColAttributeW mistakenly returns SQL_ERROR.</b><br /></li>
+<li><b>Move src/*.exe to exe/*.exe on Windows.</b><br /></li>
+Also use fc command instead of diff command on Windows. Fix a compilation error in large-object-data-at-exec-test.c regarding a type declaration in the middle of a code block.<br />
+Patch by Michael Paquier.
+<li><b>Ignore the difference between CR LF, LF and CR line break when comparing expected and result output.</b><br /></li>
+<li><b>Prior to Visual Studio 2015 Update 3, the hook functions of type PfnDliHook __pfnDliNotifyHook2 and __pfnDliFailureHook2 were non-const.</b><br /></li>
+They were made const to improve security (global, writable function pointers are bad).  If for backwards compatibility you require the hooks to be writable, define the macro DELAYIMP_INSECURE_WRITABLE_HOOKS prior to including this header and provide your own non-const definition of the hooks.<br />
+The following infomation is from Dave Cramer(davecramer@gmail.com).
+<li><b>Fix a regression test some failures.</b><br /></li>
+</ol><br />
+
 <h2><a id="09.05.0300">psqlODBC 09.05.0300 Release</a></h2>
 Changes:<br />
 <ol type="1">
