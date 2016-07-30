@@ -9,18 +9,13 @@
 # Comments:             Created by Michael Paquier, 2014-05-21
 #
 
-# Environment checks
-
-!IFNDEF PG_BIN
-!MESSAGE Using default PostgreSQL Binary directory: $(PG_BIN)
-!ENDIF
-
 
 # Include the list of tests
 !INCLUDE tests
 
 SRCDIR=src
 OBJDIR=exe
+EXEDIR=exe
 
 # The 'tests' file contains names of the test programs, in form
 # exe/<testname>-test. Extract the base names of the tests, by stripping the
@@ -40,13 +35,13 @@ COMSRC = $(SRCDIR)\common.c
 COMOBJ = $(OBJDIR)\common.obj
 
 # Flags
-CLFLAGS=/D WIN32
+CLFLAGS=/W3 /D WIN32 /D _CRT_SECURE_NO_DEPRECATE
 LINKFLAGS=/link odbc32.lib odbccp32.lib
 
 # Build an executable for each test.
 #
-{$(SRCDIR)\}.c{$(OBJDIR)\}.exe:
-	$(CC) /Fe.\$(OBJDIR)\ /Fo.\$(OBJDIR)\ $< $(COMOBJ) $(CLFLAGS) $(LINKFLAGS)
+{$(SRCDIR)\}.c{$(EXEDIR)\}.exe:
+	$(CC) /Fe.\$(EXEDIR)\ /Fo.\$(OBJDIR)\ $< $(COMOBJ) $(CLFLAGS) $(LINKFLAGS)
 
 all: $(TESTEXES) runsuite.exe
 
@@ -59,6 +54,10 @@ $(OBJDIR) :
 !IF !EXIST($(OBJDIR))
 	mkdir $(OBJDIR)
 !ENDIF
+!IF !EXIST($(EXEDIR)) && "$(EXEDIR)" != "$(OBJDIR)"
+	mkdir "$(EXEDIR)"
+!ENDIF
+
 
 runsuite.exe: runsuite.c
 	cl runsuite.c $(CLFLAGS) $(LINKFLAGS)
@@ -80,5 +79,5 @@ installcheck: runsuite.exe $(TESTEXES) reset-db.exe
 	.\runsuite $(TESTS)
 
 clean:
-	-del $(OBJDIR)\*.exe
+	-del $(EXEDIR)\*.exe
 	-del $(OBJDIR)\*.obj
