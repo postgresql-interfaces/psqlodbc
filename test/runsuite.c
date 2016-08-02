@@ -201,6 +201,9 @@ rundiff(const char *testname, const char *inputdir)
 	size_t		result_len;
 #ifdef	WIN32
 	static int	diff_call = 1, first_call = 1;
+	const char	*expected_dir = "\\expected\\";
+#else
+	const char	*expected_dir = "/expected/";
 #endif
 	int		diff_rtn;
 	int		i, j;
@@ -217,9 +220,9 @@ rundiff(const char *testname, const char *inputdir)
 		size_t		expected_len;
 
 		if (outputno == 0)
-			snprintf(filename, sizeof(filename), "%s/expected/%s.out", inputdir, testname);
+			snprintf(filename, sizeof(filename), "%s%s%s.out", inputdir, expected_dir, testname);
 		else
-			snprintf(filename, sizeof(filename), "%s/expected/%s_%d.out", inputdir, testname, outputno);
+			snprintf(filename, sizeof(filename), "%s%s%s_%d.out", inputdir, expected_dir, testname, outputno);
 		expected = slurpfile(filename, &expected_len);
 		if (expected == NULL)
 		{
