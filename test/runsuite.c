@@ -18,6 +18,10 @@
 #include <fcntl.h>
 
 #ifdef WIN32
+#include <io.h>
+#define open _open
+#define read _read
+#define close _close
 #define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #define strdup _strdup

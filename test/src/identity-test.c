@@ -20,7 +20,6 @@ void
 test_identity_col(const char *createsql, const char *insertsql, const char *verifysql)
 {
 	SQLRETURN rc;
-	char		sql[1000];
 	SQLLEN		rowcount;
 
 	/* Create the test table */
@@ -57,7 +56,6 @@ test_identity_col(const char *createsql, const char *insertsql, const char *veri
 int main(int argc, char **argv)
 {
 	SQLRETURN	rc;
-	SQLCHAR	   *sql;
 
 	test_connect();
 
