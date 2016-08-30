@@ -32,7 +32,7 @@ BOOL isMsAccess(void) {return 1 == exepgm;}
 BOOL isMsQuery(void) {return 2 == exepgm;}
 BOOL isSqlServr(void) {return 3 == exepgm;}
 
-GLOBAL_VALUES globals;
+extern GLOBAL_VALUES globals;
 
 RETCODE SQL_API SQLDummyOrdinal(void);
 
@@ -91,48 +91,6 @@ int	initialize_global_cs(void)
 	INIT_COMMON_CS;
 
 	return 0;
-}
-
-#define	CORR_STRCPY(item)	strncpy_null(to->item, from->item, sizeof(to->item))
-#define	CORR_VALCPY(item)	(to->item = from->item)
-
-void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
-{
-	memset(to, 0, sizeof(*to));
-	/***
-	memcpy(to, from, sizeof(GLOBAL_VALUES));
-	SET_NAME_DIRECTLY(to->drivername, NULL);
-	SET_NAME_DIRECTLY(to->conn_settings, NULL);
-	***/
-	NAME_TO_NAME(to->drivername, from->drivername);
-	CORR_VALCPY(fetch_max);
-	CORR_VALCPY(unknown_sizes);
-	CORR_VALCPY(max_varchar_size);
-	CORR_VALCPY(max_longvarchar_size);
-	CORR_VALCPY(debug);
-	CORR_VALCPY(commlog);
-	CORR_VALCPY(unique_index);
-	CORR_VALCPY(onlyread);		/* readonly is reserved on Digital C++
-								 * compiler */
-	CORR_VALCPY(use_declarefetch);
-	CORR_VALCPY(text_as_longvarchar);
-	CORR_VALCPY(unknowns_as_longvarchar);
-	CORR_VALCPY(bools_as_char);
-	CORR_VALCPY(lie);
-	CORR_VALCPY(parse);
-	CORR_STRCPY(extra_systable_prefixes);
-	CORR_STRCPY(protocol);
-	NAME_TO_NAME(to->conn_settings, from->conn_settings);
-
-	mylog("copy_globals driver=%s\n", SAFE_NAME(to->drivername));
-}
-#undef	CORR_STRCPY
-#undef	CORR_VALCPY
-
-void	finalize_globals(GLOBAL_VALUES *glbv)
-{
-	NULL_THE_NAME(glbv->drivername);
-	NULL_THE_NAME(glbv->conn_settings);
 }
 
 static void finalize_global_cs(void)

@@ -252,102 +252,6 @@ PGAPI_FreeConnect(HDBC hdbc)
 	return SQL_SUCCESS;
 }
 
-static void
-CC_conninfo_release(ConnInfo *conninfo)
-{
-	NULL_THE_NAME(conninfo->password);
-	NULL_THE_NAME(conninfo->conn_settings);
-	finalize_globals(&conninfo->drivers);
-}
-
-void
-CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
-{
-	CSTR	func = "CC_conninfo_init";
-	mylog("%s opt=%d\n", func, option);
-
-	if (0 != (CLEANUP_FOR_REUSE & option))
-		CC_conninfo_release(conninfo);
-	memset(conninfo, 0, sizeof(ConnInfo));
-	conninfo->allow_keyset = -1;
-	conninfo->lf_conversion = -1;
-	conninfo->true_is_minus1 = -1;
-	conninfo->int8_as = -101;
-	conninfo->bytea_as_longvarbinary = -1;
-	conninfo->use_server_side_prepare = -1;
-	conninfo->lower_case_identifier = -1;
-	conninfo->rollback_on_error = -1;
-	conninfo->force_abbrev_connstr = -1;
-	conninfo->bde_environment = -1;
-	conninfo->fake_mss = -1;
-	conninfo->cvt_null_date_string = -1;
-	conninfo->accessible_only = -1;
-	conninfo->ignore_round_trip_time = -1;
-	conninfo->disable_keepalive = -1;
-	conninfo->gssauth_use_gssapi = -1;
-	conninfo->keepalive_idle = -1;
-	conninfo->keepalive_interval = -1;
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-	conninfo->xa_opt = -1;
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
-	if (0 != (COPY_GLOBALS & option))
-		copy_globals(&(conninfo->drivers), &globals);
-}
-
-#define	CORR_STRCPY(item)	strncpy_null(ci->item, sci->item, sizeof(ci->item))
-#define	CORR_VALCPY(item)	(ci->item = sci->item)
-
-void
-CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
-{
-	memset(ci, 0,sizeof(ConnInfo));
-
-	CORR_STRCPY(dsn);
-	CORR_STRCPY(desc);
-	CORR_STRCPY(drivername);
-	CORR_STRCPY(server);
-	CORR_STRCPY(database);
-	CORR_STRCPY(username);
-	NAME_TO_NAME(ci->password, sci->password);
-	CORR_STRCPY(port);
-	CORR_STRCPY(sslmode);
-	CORR_STRCPY(onlyread);
-	CORR_STRCPY(fake_oid_index);
-	CORR_STRCPY(show_oid_column);
-	CORR_STRCPY(row_versioning);
-	CORR_STRCPY(show_system_tables);
-	CORR_STRCPY(translation_dll);
-	CORR_STRCPY(translation_option);
-	CORR_VALCPY(password_required);
-	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
-	CORR_VALCPY(allow_keyset);
-	CORR_VALCPY(updatable_cursors);
-	CORR_VALCPY(lf_conversion);
-	CORR_VALCPY(true_is_minus1);
-	CORR_VALCPY(int8_as);
-	CORR_VALCPY(bytea_as_longvarbinary);
-	CORR_VALCPY(use_server_side_prepare);
-	CORR_VALCPY(lower_case_identifier);
-	CORR_VALCPY(rollback_on_error);
-	CORR_VALCPY(force_abbrev_connstr);
-	CORR_VALCPY(bde_environment);
-	CORR_VALCPY(fake_mss);
-	CORR_VALCPY(cvt_null_date_string);
-	CORR_VALCPY(accessible_only);
-	CORR_VALCPY(ignore_round_trip_time);
-	CORR_VALCPY(disable_keepalive);
-	CORR_VALCPY(gssauth_use_gssapi);
-	CORR_VALCPY(extra_opts);
-	CORR_VALCPY(keepalive_idle);
-	CORR_VALCPY(keepalive_interval);
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-	CORR_VALCPY(xa_opt);
-#endif
-	copy_globals(&(ci->drivers), &(sci->drivers));	/* moved from driver's option */
-}
-#undef	CORR_STRCPY
-#undef	CORR_VALCPY
-
 /*
  *		IMPLEMENTATION CONNECTION CLASS
  */
@@ -2574,6 +2478,127 @@ const char *CurrCatString(const ConnectionClass *conn)
 	if (!cat)
 		cat = NULL_STRING;
 	return cat;
+}
+
+/*------
+ *	Create a null terminated lower-case string if the
+ *	original string contains upper-case characters.
+ *	The SQL_NTS length is considered.
+ *------
+ */
+SQLCHAR *
+make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL ifallupper)
+{
+	ssize_t	length = len;
+	char	   *str = NULL;
+	const char *ccs = (const char *) s;
+
+	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(ccs)) > 0)))
+	{
+		int	i;
+		const UCHAR *ptr;
+		encoded_str encstr;
+
+		make_encoded_str(&encstr, conn, ccs);
+		for (i = 0, ptr = (const UCHAR *) ccs; i < length; i++, ptr++)
+		{
+			encoded_nextchar(&encstr);
+			if (ENCODE_STATUS(encstr) != 0)
+				continue;
+			if (ifallupper && islower(*ptr))
+			{
+				if (str)
+				{
+					free(str);
+					str = NULL;
+				}
+				break;
+			}
+			if (tolower(*ptr) != *ptr)
+			{
+				if (!str)
+				{
+					str = malloc(length + 1);
+					if (!str) return NULL;
+					memcpy(str, s, length);
+					str[length] = '\0';
+				}
+				str[i] = tolower(*ptr);
+			}
+		}
+	}
+
+	return (SQLCHAR *) str;
+}
+
+/*
+ *	Concatenate a single formatted argument to a given buffer handling the SQL_NTS thing.
+ *	"fmt" must contain somewhere in it the single form '%.*s'.
+ *	This is heavily used in creating queries for info routines (SQLTables, SQLColumns).
+ *	This routine could be modified to use vsprintf() to handle multiple arguments.
+ */
+static char *
+my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
+{
+	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
+	{
+		size_t			length = (len > 0) ? len : strlen(s);
+		size_t			pos = strlen(buf);
+
+		sprintf(&buf[pos], fmt, length, s);
+		return buf;
+	}
+	return NULL;
+}
+
+/*
+ *	my_strcat1 is a extension of my_strcat.
+ *	It can have 1 more parameter than my_strcat.
+ */
+static char *
+my_strcat1(char *buf, const char *fmt, const char *s1, const char *s)
+{
+	if (s && s[0] != '\0')
+	{
+		size_t	pos = strlen(buf);
+		ssize_t	length = strlen(s);
+
+		if (s1)
+			sprintf(&buf[pos], fmt, s1, length, s);
+		else
+			sprintf(&buf[pos], fmt, length, s);
+		return buf;
+	}
+	return NULL;
+}
+
+char *
+schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQLCHAR *tbname, SQLLEN tbnmlen, ConnectionClass *conn)
+{
+	if (!s || 0 == len)
+	{
+		/*
+		 * Note that this driver assumes the implicit schema is
+		 * the CURRENT_SCHEMA() though it doesn't worth the
+		 * naming.
+		 */
+		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
+			return my_strcat(buf, fmt, CC_get_current_schema(conn), SQL_NTS);
+		return NULL;
+	}
+	return my_strcat(buf, fmt, (char *) s, len);
+}
+
+char *
+schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
+{
+	if (!s || s[0] == '\0')
+	{
+		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
+			return my_strcat1(buf, fmt, s1, CC_get_current_schema(conn));
+		return NULL;
+	}
+	return my_strcat1(buf, fmt, s1, s);
 }
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_

@@ -24,12 +24,6 @@ size_t		strlcat(char *, const char *, size_t);
 #endif /* HAVE_STRLCAT */
 char	   *my_trim(char *string);
 char	   *make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize);
-SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
-char	   *schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
-		const SQLCHAR *, SQLLEN, ConnectionClass *conn);
-char	   *schema_strcat1(char *buf, const char *fmt, const char *s1,
-				const char *s,
-				const SQLCHAR *, int, ConnectionClass *conn);
 int	   snprintf_add(char *buf, size_t size, const char *format, ...);
 size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */

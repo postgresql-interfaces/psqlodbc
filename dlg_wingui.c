@@ -22,10 +22,8 @@
 #include "misc.h" // strncpy_null
 #include "win_setup.h"
 
-#include "convert.h"
 #include "loadlib.h"
 
-#include "multibyte.h"
 #include "pgapifunc.h"
 #ifdef _HANDLE_ENLIST_IN_DTC_
 #include "xalibname.h"

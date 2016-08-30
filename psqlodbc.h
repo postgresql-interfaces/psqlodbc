@@ -527,7 +527,66 @@ void		logs_on_off(int cnopen, int, int);
 
 #define	LENADDR_SHIFT(x, sft)	((x) ? (SQLLEN *)((char *)(x) + (sft)) : NULL)
 
+/*	Structure to hold all the connection attributes for a specific
+	connection (used for both registry and file, DSN and DRIVER)
+*/
+typedef struct
+{
+	char		dsn[MEDIUM_REGISTRY_LEN];
+	char		desc[MEDIUM_REGISTRY_LEN];
+	char		drivername[MEDIUM_REGISTRY_LEN];
+	char		server[MEDIUM_REGISTRY_LEN];
+	char		database[MEDIUM_REGISTRY_LEN];
+	char		username[MEDIUM_REGISTRY_LEN];
+	pgNAME		password;
+	char		port[SMALL_REGISTRY_LEN];
+	char		sslmode[16];
+	char		onlyread[SMALL_REGISTRY_LEN];
+	char		fake_oid_index[SMALL_REGISTRY_LEN];
+	char		show_oid_column[SMALL_REGISTRY_LEN];
+	char		row_versioning[SMALL_REGISTRY_LEN];
+	char		show_system_tables[SMALL_REGISTRY_LEN];
+	char		translation_dll[MEDIUM_REGISTRY_LEN];
+	char		translation_option[SMALL_REGISTRY_LEN];
+	char		password_required;
+	pgNAME		conn_settings;
+	signed char	allow_keyset;
+	signed char	updatable_cursors;
+	signed char	lf_conversion;
+	signed char	true_is_minus1;
+	signed char	int8_as;
+	signed char	bytea_as_longvarbinary;
+	signed char	use_server_side_prepare;
+	signed char	lower_case_identifier;
+	signed char	rollback_on_error;
+	signed char	force_abbrev_connstr;
+	signed char	bde_environment;
+	signed char	fake_mss;
+	signed char	cvt_null_date_string;
+	signed char	accessible_only;
+	signed char	ignore_round_trip_time;
+	signed char	disable_keepalive;
+	signed char	gssauth_use_gssapi;
+	UInt4		extra_opts;
+	Int4		keepalive_idle;
+	Int4		keepalive_interval;
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	signed char	xa_opt;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+	GLOBAL_VALUES drivers;		/* moved from driver's option */
+} ConnInfo;
+
+#define SUPPORT_DESCRIBE_PARAM(conninfo_) (conninfo_->use_server_side_prepare)
+
 int	initialize_global_cs(void);
+enum { /* CC_conninfo_init option */
+	CLEANUP_FOR_REUSE	= 1L		/* reuse the info */
+	,COPY_GLOBALS		= (1L << 1) /* copy globals to drivers */
+};
+char		CC_Destructor(ConnectionClass *self);
+void	CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
+void	CC_conninfo_release(ConnInfo *conninfo);
+void	CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci);
 #ifdef	POSIX_MULTITHREAD_SUPPORT
 #if	!defined(HAVE_ECO_THREAD_LOCKS)
 #define	POSIX_THREADMUTEX_SUPPORT

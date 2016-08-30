@@ -10,7 +10,6 @@
 #define __DLG_SPECIFIC_H__
 
 #include "psqlodbc.h"
-#include "connection.h"
 
 #ifdef WIN32
 #include  <windowsx.h>
@@ -267,6 +266,10 @@ extern "C" {
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define DEFAULT_XAOPT			1
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+
+/*	for CC_DSN_info */
+#define CONN_DONT_OVERWRITE		0
+#define CONN_OVERWRITE			1
 
 /*	prototypes */
 void		getCommonDefaults(const char *section, const char *filename, ConnInfo *ci);

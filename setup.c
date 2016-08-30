@@ -18,8 +18,7 @@
 #include  "loadlib.h"
 #include  "misc.h" // strncpy_null
 
-#include  "environ.h"
-#include  "connection.h"
+//#include  "environ.h"
 #include  <windowsx.h>
 #include  <string.h>
 #include  <stdlib.h>
@@ -290,6 +289,10 @@ ConfigDlgProc(HWND hdlg,
 
 			/* Initialize dialog fields */
 			SetDlgStuff(hdlg, ci);
+	
+			/* Save drivername */
+			if (!(lpsetupdlg->ci.drivername[0]))
+				lstrcpy(lpsetupdlg->ci.drivername, lpsetupdlg->lpszDrvr);
 
 			if (lpsetupdlg->fNewDSN || !ci->dsn[0])
 				ShowWindow(GetDlgItem(hdlg, IDC_MANAGEDSN), SW_HIDE);
@@ -397,128 +400,161 @@ ConfigDlgProc(HWND hdlg,
 	return FALSE;
 }
 
+#ifdef	USE_PROC_ADDRESS
+#define	SQLALLOCHANDLEFUNC	sqlallochandle
+#define	SQLSETENVATTRFUNC	sqlsetenvattr
+#define	SQLDISCONNECTFUNC	sqldisconnect
+#define	SQLFREEHANDLEFUNC	sqlfreehandle
+#ifdef	UNICODE_SUPPORT
+#define	SQLGETDIAGRECFUNC	sqlgetdiagrecw
+#define	SQLDRIVERCONNECTFUNC	sqldriverconnectw
+#define	SQLSETCONNECTATTRFUNC	sqlsetconnectattrw
+#else
+#define	SQLGETDIAGRECFUNC	sqlgetdiagrec
+#define	SQLDRIVERCONNECTFUNC	sqldriverconnect
+#define	SQLSETCONNECTATTRFUNC	sqlsetconnectAttr
+#endif	/* UNICODE_SUPPORT */
+#else
+#define	SQLALLOCHANDLEFUNC	SQLAllocHandle
+#define	SQLSETENVATTRFUNC	SQLSetEnvAttr
+#define	SQLDISCONNECTFUNC	SQLDisconnect
+#define	SQLFREEHANDLEFUNC	SQLFreeHandle
+#ifdef	UNICODE_SUPPORT
+#define	SQLGETDIAGRECFUNC	SQLGetDiagRecW
+#define	SQLDRIVERCONNECTFUNC	SQLDriverConnectW
+#define	SQLSETCONNECTATTRFUNC	SQLSetConnectAttrW
+#else
+#define	SQLGETDIAGRECFUNC	SQLGetDiagRec
+#define	SQLDRIVERCONNECTFUNC	SQLDriverConnect
+#define	SQLSETCONNECTATTRFUNC	SQLSetConnectAttr
+#endif	/* UNICODE_SUPPORT */
+#endif	/* USE_PROC_ADDRESS */
+
+#define	MAX_CONNECT_STRING_LEN	2048
+#ifdef	UNICODE_SUPPORT
+#define	MESSAGEBOXFUNC		MessageBoxW
+#define	_T(str)			L ## str
+#undef	snprintf
+#define	snprintf		_snwprintf
+#else
+#define	MESSAGEBOXFUNC		MessageBoxA
+#define	_T(str)			str
+#endif	/* UNICODE_SUPPORT */
+
 void
 test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 {
-	EnvironmentClass *env;
-	ConnectionClass *conn = NULL;
-	char    szMsg[SQL_MAX_MESSAGE_LENGTH];
-	char *emsg = NULL;
-	int errnum;
-
-	env = EN_Constructor();
-	if (!env)
-	{
-		emsg = "Environment object allocation failure";
-		goto cleanup;
-	}
-	conn = CC_Constructor();
-	if (!conn)
-	{
-		emsg = "connection object allocation failure";
-		goto cleanup;
-	}
-
-	EN_add_connection(env, conn);
-	CC_copy_conninfo(&conn->connInfo, ci);
-	CC_initialize_pg_version(conn);
-	logs_on_off(1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
+	int		errnum;
+	char		out_conn[MAX_CONNECT_STRING_LEN];
+	SQLRETURN	ret;
+	SQLHENV		env = SQL_NULL_HANDLE;
+	SQLHDBC		conn = SQL_NULL_HANDLE;
+	SQLSMALLINT	str_len;
+	char		dsn_1st;
+	BOOL		connected = FALSE;
 #ifdef	UNICODE_SUPPORT
-	CC_set_in_unicode_driver(conn);
+	SQLWCHAR	wout_conn[MAX_CONNECT_STRING_LEN];
+	SQLWCHAR	szMsg[SQL_MAX_MESSAGE_LENGTH];
+	const SQLWCHAR	*ermsg = NULL;
+	SQLWCHAR	*conn_str;
+#else
+	SQLCHAR		szMsg[SQL_MAX_MESSAGE_LENGTH];
+	const SQLCHAR	*ermsg = NULL;
+	SQLCHAR		*conn_str;
+#endif	/* UNICODE_SUPPORT */
+
+	dsn_1st = ci->dsn[0];
+	ci->dsn[0] = '\0';
+	makeConnectString(out_conn, ci, sizeof(out_conn));
+mylog("conn_string=%s\n", out_conn);
+#ifdef	UNICODE_SUPPORT
+	msgtowstr(out_conn, strlen(out_conn), wout_conn, _countof(wout_conn));
+	conn_str = wout_conn;
+#else
+	conn_str = out_conn;
 #endif /* UNICODE_SUPPORT */
-	if (CC_connect(conn, NULL) > 0)
+	ci->dsn[0] = dsn_1st;
+	if (!SQL_SUCCEEDED(ret = SQLALLOCHANDLEFUNC(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env)))
 	{
-		if (CC_get_errornumber(conn) != 0)
-		{
-			CC_get_error(conn, &errnum, &emsg);
-			snprintf(szMsg, sizeof(szMsg), "Warning: %s", emsg);
-		}
-		else
-		{
-			strncpy_null(szMsg, "Connection successful", sizeof(szMsg));
-		}
-		emsg = szMsg;
-		if (withDTC)
-		{
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-			HRESULT	res;
-			void *pObj = NULL;
-
-			pObj = CALL_GetTransactionObject(&res);
-			if (NULL != pObj)
-			{
-				SQLRETURN ret = PGAPI_SetConnectAttr(conn, SQL_ATTR_ENLIST_IN_DTC, (SQLPOINTER) pObj, 0);
-				if (SQL_SUCCEEDED(ret))
-				{
-					PGAPI_SetConnectAttr(conn, SQL_ATTR_ENLIST_IN_DTC, SQL_DTC_DONE, 0);
-					snprintf(szMsg, sizeof(szMsg), "%s\nenlistment was successful\n", szMsg);
-				}
-				else
-				{
-					char *dtcerr = NULL;
-
-					CC_get_error(conn, &errnum, &dtcerr);
-					if (NULL != dtcerr)
-						snprintf(szMsg, sizeof(szMsg), "%s\nMSDTC error:%s", emsg, dtcerr);
-				}
-				CALL_ReleaseTransactionObject(pObj);
-			}
-			else if (FAILED(res))
-				snprintf(szMsg, sizeof(szMsg), "%s\nDistibuted Transaction enlistment error %x", emsg, res);
-#else	/* _HANDLE_ENLIST_IN_DTC_ */
-			snprintf(szMsg, sizeof(szMsg), "%s\nDistibuted Transaction enlistment not supported by this driver", emsg);
-#endif
-		}
+		ermsg = _T("SQLAllocHandle for env error");
+		goto cleanup;
 	}
-	else
+	if (!SQL_SUCCEEDED(ret = SQLSETENVATTRFUNC(env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER) SQL_OV_ODBC3, 0)))
 	{
-		CC_get_error(conn, &errnum, &emsg);
+		snprintf(szMsg, _countof(szMsg), _T("SQLAllocHandle for env error=%d"), ret);
+		goto cleanup;
+	}
+	if (!SQL_SUCCEEDED(ret = SQLALLOCHANDLEFUNC(SQL_HANDLE_DBC, env, &conn)))
+	{
+		SQLGETDIAGRECFUNC(SQL_HANDLE_ENV, env, 1, NULL, &errnum, szMsg, _countof(szMsg), &str_len);
+		ermsg = szMsg;
+		goto cleanup;
+	}
+	if (!SQL_SUCCEEDED(ret = SQLDRIVERCONNECTFUNC(conn, hwnd, conn_str, SQL_NTS, NULL, MAX_CONNECT_STRING_LEN, &str_len, SQL_DRIVER_NOPROMPT)))
+	{
+		SQLGETDIAGRECFUNC(SQL_HANDLE_DBC, conn, 1, NULL, &errnum, szMsg, _countof(szMsg), &str_len);
+		ermsg = szMsg;
+		goto cleanup;
+	}
+	connected = TRUE;
+	ermsg = _T("Connection successful");
+
+	if (withDTC)
+	{
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+		HRESULT	res;
+		void *pObj = NULL;
+
+		pObj = CALL_GetTransactionObject(&res);
+		if (NULL != pObj)
+		{
+			SQLRETURN ret = SQLSETCONNECTATTRFUNC(conn, SQL_ATTR_ENLIST_IN_DTC, (SQLPOINTER) pObj, 0);
+			if (SQL_SUCCEEDED(ret))
+			{
+				SQLSETCONNECTATTRFUNC(conn, SQL_ATTR_ENLIST_IN_DTC, SQL_DTC_DONE, 0);
+				snprintf(szMsg, _countof(szMsg), _T("%s\nenlistment was successful\n"), ermsg);
+				ermsg = szMsg;
+			}
+			else
+			{
+				SQLGETDIAGRECFUNC(SQL_HANDLE_DBC, conn, 1, NULL, &errnum, szMsg, _countof(szMsg), &str_len);
+				if (szMsg[0] != 0)
+				{
+					snprintf(szMsg, _countof(szMsg), _T("%s\nMSDTC error:%s"), ermsg, szMsg);
+					ermsg = szMsg;
+				}
+			}
+			CALL_ReleaseTransactionObject(pObj);
+		}
+		else if (FAILED(res))
+		{
+			snprintf(szMsg, _countof(szMsg), _T("%s\nDistibuted Transaction enlistment error %x"), ermsg, res);
+			ermsg = szMsg;
+		}
+#else	/* _HANDLE_ENLIST_IN_DTC_ */
+		snprintf(szMsg, _countof(szMsg), _T("%s\nDistibuted Transaction enlistment not supported by this driver"), ermsg);
+		ermsg = szMsg;
+#endif
 	}
 
 cleanup:
-	if (NULL != emsg && NULL != hwnd)
+	if (NULL != ermsg && NULL != hwnd)
 	{
-#ifdef	UNICODE_SUPPORT
-		size_t		tlen;
-		SQLULEN		ulen;
-		SQLWCHAR   *wermsg = NULL;
-		char	   *allocstr = NULL;
-
-		tlen = strlen(emsg);
-		wermsg = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (tlen + 1));
-		if (wermsg)
-			ulen = utf8_to_ucs2_lf(emsg, SQL_NTS, FALSE, wermsg, tlen + 1, TRUE);
-		else
-			ulen = (SQLULEN) -1;
-		if (ulen != (SQLULEN) -1)
-		{
-			allocstr = malloc(4 * tlen + 1);
-			if (allocstr)
-			{
-				(void) wstrtomsg(wermsg, (int) tlen, allocstr, (int) (4 * tlen + 1));
-				emsg = allocstr;
-			}
-		}
-#endif /* UNICODE_SUPPORT */
-
-		MessageBox(hwnd, emsg, "Connection Test", MB_ICONEXCLAMATION | MB_OK);
-
-#ifdef	UNICODE_SUPPORT
-		if (NULL != wermsg)
-			free(wermsg);
-		if (NULL != allocstr)
-			free(allocstr);
-#endif /* UNICODE_SUPPORT */
+		MESSAGEBOXFUNC(hwnd, ermsg, _T("Connection Test"), MB_ICONEXCLAMATION | MB_OK);
 	}
+
+#undef _T
+#undef snprintf
+#define snprintf _snprintf
 
 	if (NULL != conn)
 	{
-		logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
-		EN_remove_connection(env, conn);
-		CC_Destructor(conn);
+		if (connected)
+			SQLDISCONNECTFUNC(conn);
+		SQLFREEHANDLEFUNC(SQL_HANDLE_DBC, conn);
 	}
 	if (env)
-		EN_Destructor(env);
+		SQLFREEHANDLEFUNC(SQL_HANDLE_ENV, env);
 
 	return;
 }

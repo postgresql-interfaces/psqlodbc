@@ -204,57 +204,6 @@ do { \
 	} \
 } while (0)
 
-/*	Structure to hold all the connection attributes for a specific
-	connection (used for both registry and file, DSN and DRIVER)
-*/
-typedef struct
-{
-	char		dsn[MEDIUM_REGISTRY_LEN];
-	char		desc[MEDIUM_REGISTRY_LEN];
-	char		drivername[MEDIUM_REGISTRY_LEN];
-	char		server[MEDIUM_REGISTRY_LEN];
-	char		database[MEDIUM_REGISTRY_LEN];
-	char		username[MEDIUM_REGISTRY_LEN];
-	pgNAME		password;
-	char		port[SMALL_REGISTRY_LEN];
-	char		sslmode[16];
-	char		onlyread[SMALL_REGISTRY_LEN];
-	char		fake_oid_index[SMALL_REGISTRY_LEN];
-	char		show_oid_column[SMALL_REGISTRY_LEN];
-	char		row_versioning[SMALL_REGISTRY_LEN];
-	char		show_system_tables[SMALL_REGISTRY_LEN];
-	char		translation_dll[MEDIUM_REGISTRY_LEN];
-	char		translation_option[SMALL_REGISTRY_LEN];
-	char		password_required;
-	pgNAME		conn_settings;
-	signed char	allow_keyset;
-	signed char	updatable_cursors;
-	signed char	lf_conversion;
-	signed char	true_is_minus1;
-	signed char	int8_as;
-	signed char	bytea_as_longvarbinary;
-	signed char	use_server_side_prepare;
-	signed char	lower_case_identifier;
-	signed char	rollback_on_error;
-	signed char	force_abbrev_connstr;
-	signed char	bde_environment;
-	signed char	fake_mss;
-	signed char	cvt_null_date_string;
-	signed char	accessible_only;
-	signed char	ignore_round_trip_time;
-	signed char	disable_keepalive;
-	signed char	gssauth_use_gssapi;
-	UInt4		extra_opts;
-	Int4		keepalive_idle;
-	Int4		keepalive_interval;
-#ifdef	_HANDLE_ENLIST_IN_DTC_
-	signed char	xa_opt;
-#endif /* _HANDLE_ENLIST_IN_DTC_ */
-	GLOBAL_VALUES drivers;		/* moved from driver's option */
-} ConnInfo;
-
-#define SUPPORT_DESCRIBE_PARAM(conninfo_) (conninfo_->use_server_side_prepare)
-
 /*
  *	Macros to compare the server's version with a specified version
  *		1st parameter: pointer to a ConnectionClass object
@@ -406,9 +355,6 @@ struct ConnectionClass_
 #define CC_fake_mss(x)	(/* 0 != (x)->ms_jet && */ 0 < (x)->connInfo.fake_mss)
 #define CC_accessible_only(x)	(0 < (x)->connInfo.accessible_only)
 #define CC_default_is_c(x)	(CC_is_in_ansi_app(x) || x->ms_jet /* not only */ || TRUE /* but for any other ? */)
-/*	for CC_DSN_info */
-#define CONN_DONT_OVERWRITE		0
-#define CONN_OVERWRITE			1
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 enum {
@@ -436,12 +382,6 @@ enum {
 
 /*	prototypes */
 ConnectionClass *CC_Constructor(void);
-enum { /* CC_conninfo_init option */
-	CLEANUP_FOR_REUSE	= 1L		/* reuse the info */
-	,COPY_GLOBALS		= (1L << 1) /* copy globals to drivers */
-};
-void		CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
-void		CC_copy_conninfo(ConnInfo *to, const ConnInfo *from);
 char		CC_Destructor(ConnectionClass *self);
 int		CC_cursor_count(ConnectionClass *self);
 char		CC_cleanup(ConnectionClass *self, BOOL keepCommunication);
@@ -483,6 +423,13 @@ char	CC_get_escape(const ConnectionClass *self);
 
 const		char *CurrCat(const ConnectionClass *self);
 const		char *CurrCatString(const ConnectionClass *self);
+
+SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
+char	*schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
+		const SQLCHAR *, SQLLEN, ConnectionClass *conn);
+char	*schema_strcat1(char *buf, const char *fmt, const char *s1,
+				const char *s,
+				const SQLCHAR *, int, ConnectionClass *conn);
 
 void	CC_examine_global_transaction(ConnectionClass *self);
 

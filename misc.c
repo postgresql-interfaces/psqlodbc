@@ -29,8 +29,6 @@
 #include <process.h>			/* Byron: is this where Windows keeps def.
 								 * of getpid ? */
 #endif
-#include "connection.h"
-#include "multibyte.h"
 
 /*
  *	returns STRCPY_FAIL, STRCPY_TRUNCATED, or #bytes copied
@@ -143,95 +141,6 @@ inolog("str=%p\n", str);
 	return str;
 }
 
-/*------
- *	Create a null terminated lower-case string if the
- *	original string contains upper-case characters.
- *	The SQL_NTS length is considered.
- *------
- */
-SQLCHAR *
-make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL ifallupper)
-{
-	ssize_t	length = len;
-	char	   *str = NULL;
-	const char *ccs = (const char *) s;
-
-	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(ccs)) > 0)))
-	{
-		int	i;
-		const UCHAR *ptr;
-		encoded_str encstr;
-
-		make_encoded_str(&encstr, conn, ccs);
-		for (i = 0, ptr = (const UCHAR *) ccs; i < length; i++, ptr++)
-		{
-			encoded_nextchar(&encstr);
-			if (ENCODE_STATUS(encstr) != 0)
-				continue;
-			if (ifallupper && islower(*ptr))
-			{
-				if (str)
-				{
-					free(str);
-					str = NULL;
-				}
-				break;
-			}
-			if (tolower(*ptr) != *ptr)
-			{
-				if (!str)
-				{
-					str = malloc(length + 1);
-					if (!str) return NULL;
-					memcpy(str, s, length);
-					str[length] = '\0';
-				}
-				str[i] = tolower(*ptr);
-			}
-		}
-	}
-
-	return (SQLCHAR *) str;
-}
-
-
-/*
- *	Concatenate a single formatted argument to a given buffer handling the SQL_NTS thing.
- *	"fmt" must contain somewhere in it the single form '%.*s'.
- *	This is heavily used in creating queries for info routines (SQLTables, SQLColumns).
- *	This routine could be modified to use vsprintf() to handle multiple arguments.
- */
-static char *
-my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
-{
-	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
-	{
-		size_t			length = (len > 0) ? len : strlen(s);
-		size_t			pos = strlen(buf);
-
-		sprintf(&buf[pos], fmt, length, s);
-		return buf;
-	}
-	return NULL;
-}
-
-char *
-schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQLCHAR *tbname, SQLLEN tbnmlen, ConnectionClass *conn)
-{
-	if (!s || 0 == len)
-	{
-		/*
-		 * Note that this driver assumes the implicit schema is
-		 * the CURRENT_SCHEMA() though it doesn't worth the
-		 * naming.
-		 */
-		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat(buf, fmt, CC_get_current_schema(conn), SQL_NTS);
-		return NULL;
-	}
-	return my_strcat(buf, fmt, (char *) s, len);
-}
-
 char *
 my_trim(char *s)
 {
@@ -246,39 +155,6 @@ my_trim(char *s)
 	}
 
 	return s;
-}
-
-/*
- *	my_strcat1 is a extension of my_strcat.
- *	It can have 1 more parameter than my_strcat.
- */
-static char *
-my_strcat1(char *buf, const char *fmt, const char *s1, const char *s)
-{
-	if (s && s[0] != '\0')
-	{
-		size_t	pos = strlen(buf);
-		ssize_t	length = strlen(s);
-
-		if (s1)
-			sprintf(&buf[pos], fmt, s1, length, s);
-		else
-			sprintf(&buf[pos], fmt, length, s);
-		return buf;
-	}
-	return NULL;
-}
-
-char *
-schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
-{
-	if (!s || s[0] == '\0')
-	{
-		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat1(buf, fmt, s1, CC_get_current_schema(conn));
-		return NULL;
-	}
-	return my_strcat1(buf, fmt, s1, s);
 }
 
 /*

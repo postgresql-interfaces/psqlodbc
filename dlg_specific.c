@@ -21,12 +21,9 @@
 #include "dlg_specific.h"
 #include "misc.h"
 
-#include "convert.h"
-
-#include "multibyte.h"
 #include "pgapifunc.h"
 
-extern GLOBAL_VALUES globals;
+GLOBAL_VALUES globals;
 
 static void encode(const pgNAME, char *out, int outlen);
 static pgNAME decode(const char *in);
@@ -1039,12 +1036,14 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (get_qlog())
 	{
+#ifdef	NOT_USED
 		char	*enc = (char *) check_client_encoding(ci->conn_settings);
 
 		qlog("          conn_settings='%s', conn_encoding='%s'\n", ci->conn_settings,
 			NULL != enc ? enc : "(null)");
 		if (NULL != enc)
 			free(enc);
+#endif /* NOT_USED */
 		qlog("          translation_dll='%s',translation_option='%s'\n",
 			ci->translation_dll,
 			ci->translation_option);
@@ -1687,3 +1686,141 @@ char *extract_extra_attribute_setting(const pgNAME setting, const char *attr)
 	mylog("extracted a %s '%s' from %s\n", attr, rptr, str);
 	return rptr;
 }
+
+void
+CC_conninfo_release(ConnInfo *conninfo)
+{
+	NULL_THE_NAME(conninfo->password);
+	NULL_THE_NAME(conninfo->conn_settings);
+	finalize_globals(&conninfo->drivers);
+}
+
+void
+CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
+{
+	CSTR	func = "CC_conninfo_init";
+	mylog("%s opt=%d\n", func, option);
+
+	if (0 != (CLEANUP_FOR_REUSE & option))
+		CC_conninfo_release(conninfo);
+	memset(conninfo, 0, sizeof(ConnInfo));
+	conninfo->allow_keyset = -1;
+	conninfo->lf_conversion = -1;
+	conninfo->true_is_minus1 = -1;
+	conninfo->int8_as = -101;
+	conninfo->bytea_as_longvarbinary = -1;
+	conninfo->use_server_side_prepare = -1;
+	conninfo->lower_case_identifier = -1;
+	conninfo->rollback_on_error = -1;
+	conninfo->force_abbrev_connstr = -1;
+	conninfo->bde_environment = -1;
+	conninfo->fake_mss = -1;
+	conninfo->cvt_null_date_string = -1;
+	conninfo->accessible_only = -1;
+	conninfo->ignore_round_trip_time = -1;
+	conninfo->disable_keepalive = -1;
+	conninfo->gssauth_use_gssapi = -1;
+	conninfo->keepalive_idle = -1;
+	conninfo->keepalive_interval = -1;
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	conninfo->xa_opt = -1;
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+	if (0 != (COPY_GLOBALS & option))
+		copy_globals(&(conninfo->drivers), &globals);
+}
+
+#define	CORR_STRCPY(item)	strncpy_null(to->item, from->item, sizeof(to->item))
+#define	CORR_VALCPY(item)	(to->item = from->item)
+
+void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
+{
+	memset(to, 0, sizeof(*to));
+	/***
+	memcpy(to, from, sizeof(GLOBAL_VALUES));
+	SET_NAME_DIRECTLY(to->drivername, NULL);
+	SET_NAME_DIRECTLY(to->conn_settings, NULL);
+	***/
+	NAME_TO_NAME(to->drivername, from->drivername);
+	CORR_VALCPY(fetch_max);
+	CORR_VALCPY(unknown_sizes);
+	CORR_VALCPY(max_varchar_size);
+	CORR_VALCPY(max_longvarchar_size);
+	CORR_VALCPY(debug);
+	CORR_VALCPY(commlog);
+	CORR_VALCPY(unique_index);
+	CORR_VALCPY(onlyread);		/* readonly is reserved on Digital C++
+								 * compiler */
+	CORR_VALCPY(use_declarefetch);
+	CORR_VALCPY(text_as_longvarchar);
+	CORR_VALCPY(unknowns_as_longvarchar);
+	CORR_VALCPY(bools_as_char);
+	CORR_VALCPY(lie);
+	CORR_VALCPY(parse);
+	CORR_STRCPY(extra_systable_prefixes);
+	CORR_STRCPY(protocol);
+	NAME_TO_NAME(to->conn_settings, from->conn_settings);
+
+	mylog("copy_globals driver=%s\n", SAFE_NAME(to->drivername));
+}
+
+void	finalize_globals(GLOBAL_VALUES *glbv)
+{
+	NULL_THE_NAME(glbv->drivername);
+	NULL_THE_NAME(glbv->conn_settings);
+}
+
+#undef	CORR_STRCPY
+#undef	CORR_VALCPY
+#define	CORR_STRCPY(item)	strncpy_null(ci->item, sci->item, sizeof(ci->item))
+#define	CORR_VALCPY(item)	(ci->item = sci->item)
+
+void
+CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
+{
+	memset(ci, 0,sizeof(ConnInfo));
+
+	CORR_STRCPY(dsn);
+	CORR_STRCPY(desc);
+	CORR_STRCPY(drivername);
+	CORR_STRCPY(server);
+	CORR_STRCPY(database);
+	CORR_STRCPY(username);
+	NAME_TO_NAME(ci->password, sci->password);
+	CORR_STRCPY(port);
+	CORR_STRCPY(sslmode);
+	CORR_STRCPY(onlyread);
+	CORR_STRCPY(fake_oid_index);
+	CORR_STRCPY(show_oid_column);
+	CORR_STRCPY(row_versioning);
+	CORR_STRCPY(show_system_tables);
+	CORR_STRCPY(translation_dll);
+	CORR_STRCPY(translation_option);
+	CORR_VALCPY(password_required);
+	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
+	CORR_VALCPY(allow_keyset);
+	CORR_VALCPY(updatable_cursors);
+	CORR_VALCPY(lf_conversion);
+	CORR_VALCPY(true_is_minus1);
+	CORR_VALCPY(int8_as);
+	CORR_VALCPY(bytea_as_longvarbinary);
+	CORR_VALCPY(use_server_side_prepare);
+	CORR_VALCPY(lower_case_identifier);
+	CORR_VALCPY(rollback_on_error);
+	CORR_VALCPY(force_abbrev_connstr);
+	CORR_VALCPY(bde_environment);
+	CORR_VALCPY(fake_mss);
+	CORR_VALCPY(cvt_null_date_string);
+	CORR_VALCPY(accessible_only);
+	CORR_VALCPY(ignore_round_trip_time);
+	CORR_VALCPY(disable_keepalive);
+	CORR_VALCPY(gssauth_use_gssapi);
+	CORR_VALCPY(extra_opts);
+	CORR_VALCPY(keepalive_idle);
+	CORR_VALCPY(keepalive_interval);
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	CORR_VALCPY(xa_opt);
+#endif
+	copy_globals(&(ci->drivers), &(sci->drivers));	/* moved from driver's option */
+}
+#undef	CORR_STRCPY
+#undef	CORR_VALCPY
