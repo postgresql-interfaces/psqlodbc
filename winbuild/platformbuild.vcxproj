@@ -18,61 +18,93 @@
         </ProjectToBuild>
         <ProjectToBuild Include="pgxalib.vcxproj">
         </ProjectToBuild>
+        <ProjectToBuild Include="psqlsetup.vcxproj">
+        </ProjectToBuild>
+        <ProjectToBuild Include="psqlsetup.vcxproj">
+	  <AdditionalProperties>ANSI_VERSION=yes
+	  </AdditionalProperties>
+        </ProjectToBuild>
     </ItemGroup>
     <Target Name="Build">
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="BuildCompile"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Lib"/>
-        <MSBuild Projects="psqlodbc.vcxproj" 
+        <MSBuild Projects="psqlodbc.vcxproj"
 	  Targets="Build"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="Build"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Link"/>
 
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="BuildCompile"
 	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Lib"/>
-        <MSBuild Projects="psqlodbc.vcxproj" 
+        <MSBuild Projects="psqlodbc.vcxproj"
 	  Targets="Build"
 	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="Build"
 	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath);BuildStep=Link"/>
-        <MSBuild Projects="pgxalib.vcxproj" 
+        <MSBuild Projects="pgxalib.vcxproj"
 	  Targets="Build"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
-        <!-- MSBuild Projects="@(ProjectToBuild)" 
+
+	<Error
+	  Text="PG_BIN isn't set%0D%0Acoudn't build psqlsetup."
+		Condition="'$PG_BIN)'==''"/>
+	<Error
+	  Text="directory $(PG_BIN) doesn't exist.%0D%0Aset PG_BIN properly."
+		Condition="!exists('$(PG_BIN)')"/>
+	<Error
+	  Text="$(PG_BIN)\libpq.dll doesn't exist.%0D%0Aset PG_BIN properly."
+		Condition="!exists('$(PG_BIN)\libpq.dll')"/>
+
+        <MSBuild Projects="psqlsetup.vcxproj"
 	  Targets="Build"
-	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/ -->
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="psqlsetup.vcxproj"
+	  Targets="Build"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
     </Target>
     <Target Name="Rebuild">
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="Clean;BuildCompile"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath);ImpLibForward=true"/>
-        <MSBuild Projects="psqlodbc.vcxproj" 
+        <MSBuild Projects="psqlodbc.vcxproj"
 	  Targets="ReBuild"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="Build"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
 
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="Clean;BuildCompile"
 	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath);ImpLibForward=true"/>
-        <MSBuild Projects="psqlodbc.vcxproj" 
+        <MSBuild Projects="psqlodbc.vcxproj"
 	  Targets="ReBuild"
 	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
-        <MSBuild Projects="pgenlist.vcxproj" 
+        <MSBuild Projects="pgenlist.vcxproj"
 	  Targets="Build"
 	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
-        <MSBuild Projects="pgxalib.vcxproj" 
+        <MSBuild Projects="pgxalib.vcxproj"
 	  Targets="ReBuild"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
 
-        <!-- MSBuild Projects="@(ProjectToBuild)"
-	  Targets="Rebuild" 
-	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/ -->
+	<Error
+	  Text="PG_BIN isn't set%0D%0Acoudn't build psqlsetup."
+		Condition="'$PG_BIN)'==''"/>
+	<Error
+	  Text="directory $(PG_BIN) doesn't exist.%0D%0Aset PG_BIN properly."
+		Condition="!exists('$(PG_BIN)')"/>
+	<Error
+	  Text="$(PG_BIN)\libpq.dll doesn't exist.%0D%0Aset PG_BIN properly."
+		Condition="!exists('$(PG_BIN)\llibpq.dll')"/>
+        <MSBuild Projects="psqlsetup.vcxproj"
+	  Targets="ReBuild"
+	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
+        <MSBuild Projects="psqlsetup.vcxproj"
+	  Targets="ReBuild"
+	  Properties="ANSI_VERSION=yes;Configuration=$(Configuration);srcPath=$(srcPath)"/>
     </Target>
     <Target Name="Clean">
         <MSBuild Projects="@(ProjectToBuild)"

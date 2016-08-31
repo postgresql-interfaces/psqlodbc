@@ -32,6 +32,7 @@ void	CALL_ReleaseTransactionObject(void *);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 /* void	UnloadDelayLoadedDLLs(BOOL); */
 void	CleanupDelayLoadedDLLs(void);
+void	EnableDelayLoadHook(void);
 
 #ifdef	__cplusplus
 }

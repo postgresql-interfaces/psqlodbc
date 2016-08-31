@@ -46,10 +46,14 @@
 #define	WIN_DYN_LOAD
 #ifdef	UNICODE_SUPPORT
 CSTR	pgenlist = "pgenlist";
-CSTR	pgenlistdll = "PGENLIST.dll";
+CSTR	pgenlistdll = "pgenlist.dll";
+CSTR	psqlodbc = "psqlodbc35w";
+CSTR	psqlodbcdll = "psqlodbc35w.dll";
 #else
 CSTR	pgenlist = "pgenlista";
-CSTR	pgenlistdll = "PGENLISTA.dll";
+CSTR	pgenlistdll = "pgenlista.dll";
+CSTR	psqlodbc = "psqlodbc30a";
+CSTR	psqlodbcdll = "psqlodbc30a.dll";
 #endif /* UNICODE_SUPPORT */
 #if defined(_MSC_VER) && (_MSC_VER >= 1200)
 #define	_MSC_DELAY_LOAD_IMPORT
@@ -80,6 +84,7 @@ CSTR	pgenlistdll = "PGENLISTA.dll";
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 static BOOL	loaded_pgenlist = FALSE;
+static BOOL	loaded_psqlodbc = FALSE;
 /*
  *	Load a DLL based on psqlodbc path.
  */
@@ -122,6 +127,7 @@ DliErrorHook(unsigned	dliNotify,
 		PDelayLoadInfo	pdli)
 {
 	HMODULE	hmodule = NULL;
+	const char* call_module = NULL;
 
 	mylog("Dli%sHook %s Notify=%d\n", (dliFailLoadLib == dliNotify || dliFailGetProc == dliNotify) ? "Error" : "Notify", NULL != pdli->szDll ? pdli->szDll : pdli->dlp.szProcName, dliNotify);
 	switch (dliNotify)
@@ -130,14 +136,39 @@ DliErrorHook(unsigned	dliNotify,
 		case dliFailLoadLib:
 			RELEASE_NOTIFY_HOOK
 			if (_strnicmp(pdli->szDll, pgenlist, strlen(pgenlist)) == 0)
+				call_module = pgenlist;
+			else if (_strnicmp(pdli->szDll, psqlodbc, strlen(psqlodbc)) == 0)
+				call_module = psqlodbc;
+			if (call_module)
 			{
-				if (hmodule = MODULE_load_from_psqlodbc_path(pgenlist), NULL == hmodule)
-					hmodule = LoadLibrary(pgenlist);
+				if (hmodule = MODULE_load_from_psqlodbc_path(call_module), NULL == hmodule)
+					hmodule = LoadLibrary(call_module);
+				if (NULL != hmodule)
+				{
+					if (pgenlist == call_module)
+						loaded_pgenlist = TRUE;
+					else if (psqlodbc == call_module)
+						loaded_psqlodbc = TRUE;
+				}
 			}
 			break;
 	}
 	return (FARPROC) hmodule;
 }
+
+#if (_MSC_VER < 1300)
+void EnableDelayLoadHook()
+{
+	__pfnDliFailureHook = DliErrorHook;
+	__pfnDliNotifyHook = DliErrorHook;
+}
+#else
+void EnableDelayLoadHook()
+{
+	__pfnDliFailureHook2 = DliErrorHook;
+	__pfnDliNotifyHook2 = DliErrorHook;
+}
+#endif /* _MSC_VER */
 
 /*
  *	unload delay loaded libraries.
@@ -156,7 +187,14 @@ void CleanupDelayLoadedDLLs(void)
 	if (loaded_pgenlist)
 	{
 		success = (*func)(pgenlistdll);
+		loaded_pgenlist = FALSE;
 		mylog("%s unload success=%d\n", pgenlistdll, success);
+	}
+	if (loaded_psqlodbc)
+	{
+		success = (*func)(psqlodbcdll);
+		loaded_psqlodbc = FALSE;
+		mylog("%s unload success=%d\n", psqlodbcdll, success);
 	}
 	return;
 }

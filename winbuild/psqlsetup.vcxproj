@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DFD90C9A-E9BA-4CA3-812B-E820EE9A3F5B}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>psqlsetup</RootNamespace>
+    <GenerateImportLib>true</GenerateImportLib>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <!-- GenerateImportLib>true</GenerateImportLib -->
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <!-- GenerateImportLib>true</GenerateImportLib -->
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <!-- GenerateImportLib>true</GenerateImportLib -->
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <!-- GenerateImportLib>true</GenerateImportLib -->
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120_xp</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" >
+	<ANSI_VERSION>no</ANSI_VERSION>
+	<PG_BIN></PG_BIN>
+	<CALL_LIB></CALL_LIB>
+	<DELAY_LOAD_DLLS></DELAY_LOAD_DLLS>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ANSI_VERSION)'=='yes'">
+    <TargetName>psqlsetupa</TargetName>
+    <TargetType>ANSI</TargetType>
+    <CALL_LIB>psqlodbc30a.lib</CALL_LIB>
+    <DELAY_LOAD_DLLS>psqlodbc30a.dll;pgenlista.dll</DELAY_LOAD_DLLS>
+    <ADD_DEFINES></ADD_DEFINES>
+    <RSC_DEFINES></RSC_DEFINES>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)'!='yes'">
+    <TargetName>psqlsetup</TargetName>
+    <TargetType>Unicode</TargetType>
+    <CALL_LIB>psqlodbc35w.lib</CALL_LIB>
+    <DELAY_LOAD_DLLS>psqlodbc35w.dll;pgenlist.dll</DELAY_LOAD_DLLS>
+    <ADD_DEFINES>UNICODE_SUPPORT</ADD_DEFINES>
+    <RSC_DEFINES>UNICODE_SUPPORT</RSC_DEFINES>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Platform)'=='Win32'">
+    <TARGET_CPU>x86</TARGET_CPU>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'!='Win32'">
+    <TARGET_CPU>x64</TARGET_CPU>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BuildStep)'==''">
+    <GenerateImportLib>false</GenerateImportLib>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\psqlsetup\</IntDir>
+    <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+
+  <Import Project="psqlodbc.Cpp.props" />
+
+  <PropertyGroup Condition="'$(PG_BIN)'!=''">
+    <ADD_DEFINES>$(ADD_DEFINES);PG_BIN="$(PG_BIN.Replace('\','\\'))"</ADD_DEFINES>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>DYNAMIC_LOAD;_HANDLE_ENLIST_IN_DTC_;$(ADD_DEFINES);_CRT_SECURE_NO_DEPRECATE;WIN32;_DEBUG;_WINDOWS;_USRDLL;PSQLSETUP_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <ImpLib Condition="'$(GenerateImportLib)'=='true'">
+      <TargetMachine>MachineX86</TargetMachine>
+      <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </ImpLib>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>$(CALL_LIB);winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>DYNAMIC_LOAD;_HANDLE_ENLIST_IN_DTC_;WIN_MULTITHREAD_SUPPORT;$(ADD_DEFINES);_CRT_SECURE_NO_DEPRECATE;WIN32;_DEBUG;_WINDOWS;_USRDLL;PSQLSETUP_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <ImpLib Condition="'$(GenerateImportLib)'=='true'">
+      <TargetMachine>MachineX64</TargetMachine>
+      <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </ImpLib>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>$(CALL_LIB);winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>DYNAMIC_LOAD;_HANDLE_ENLIST_IN_DTC_;WIN_MULTITHREAD_SUPPORT;$(ADD_DEFINES);_CRT_SECURE_NO_DEPRECATE;WIN32;NDEBUG;_WINDOWS;_USRDLL;PSQLSETUP_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <ImpLib Condition="'$(GenerateImportLib)'=='true'">
+      <TargetMachine>MachineX86</TargetMachine>
+      <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </ImpLib>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>$(CALL_LIB);winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PreprocessorDefinitions>DYNAMIC_LOAD;_HANDLE_ENLIST_IN_DTC_;WIN_MULTITHREAD_SUPPORT;$(ADD_DEFINES);_CRT_SECURE_NO_DEPRECATE;WIN32;NDEBUG;_WINDOWS;_USRDLL;PSQLSETUP_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>$(RSC_DEFINES);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <ImpLib Condition="'$(GenerateImportLib)'=='true'">
+      <TargetMachine>MachineX64</TargetMachine>
+      <ModuleDefinitionFile>$(srcPath)$(targetName).def</ModuleDefinitionFile>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </ImpLib>
+    <Link>
+      <DelayLoadDLLs>$(DELAY_LOAD_DLLS);%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>$(CALL_LIB);winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
+    </Link>
+    <PreLinkEvent>
+      <Command>
+      </Command>
+    </PreLinkEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(GenerateImportLib)'=='true'">
+    <Link>
+      <ModuleDefinitionFile></ModuleDefinitionFile>
+      <AdditionalDependencies>$(TargetName).exp;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(srcPath)psqlsetup.c" />
+    <ClCompile Include="$(srcPath)setup.c" />
+    <ClCompile Include="$(srcPath)dlg_wingui.c" />
+    <ClCompile Include="$(srcPath)dlg_specific.c" />
+    <ClCompile Include="$(srcPath)mylog.c" />
+    <ClCompile Include="$(srcPath)xalibname.c" />
+    <ClCompile Include="$(srcPath)misc.c" />
+    <ClCompile Include="$(srcPath)loadlib.c" />
+    <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)win_unicode.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="$(srcPath)psqlodbc.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

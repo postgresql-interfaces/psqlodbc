@@ -1,0 +1,70 @@
+LIBRARY psqlsetup
+EXPORTS
+
+DllMain @201
+ConfigDSN @202
+ConfigDriver @203
+
+SQLBindCol @4
+SQLCancel @5
+SQLDisconnect @9
+SQLExecute @12
+SQLFetch @13
+SQLFreeStmt @16
+SQLNumResultCols @18
+SQLRowCount @20
+SQLGetData @43
+SQLGetFunctions @44
+SQLParamData @48
+SQLPutData @49
+SQLDescribeParam @58
+SQLExtendedFetch @59
+SQLMoreResults @61
+SQLNumParams @63
+SQLSetPos @68
+SQLBindParameter @72
+
+SQLAllocHandle @80
+SQLBindParam @81
+SQLCloseCursor @82
+SQLCopyDesc @84
+SQLEndTran @85
+SQLFetchScroll @86
+SQLFreeHandle @87
+SQLGetEnvAttr @92
+SQLSetEnvAttr @98
+SQLBulkOperations @100
+
+SQLDummyOrdinal @199
+
+SQLColAttributeW	@101
+SQLColumnPrivilegesW	@102
+SQLColumnsW		@103
+SQLConnectW		@104
+SQLDescribeColW		@106
+SQLExecDirectW		@107
+SQLForeignKeysW		@108
+SQLGetConnectAttrW	@109
+SQLGetCursorNameW	@110
+SQLGetInfoW		@111
+SQLNativeSqlW		@112
+SQLPrepareW		@113
+SQLPrimaryKeysW		@114
+SQLProcedureColumnsW	@115
+SQLProceduresW		@116
+SQLSetConnectAttrW	@117
+SQLSetCursorNameW	@118
+SQLSpecialColumnsW	@119
+SQLStatisticsW		@120
+SQLTablesW		@121
+SQLTablePrivilegesW	@122
+SQLDriverConnectW	@123
+SQLGetDiagRecW		@124
+SQLGetStmtAttrW		@125
+SQLSetStmtAttrW		@126
+SQLSetDescFieldW	@127
+SQLGetTypeInfoW		@128
+SQLGetDiagFieldW	@129
+SQLGetDescFieldW	@130
+SQLGetDescRecW		@131
+SQLSetDescRecW		@132
