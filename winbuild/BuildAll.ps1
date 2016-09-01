@@ -66,42 +66,16 @@ Param(
 [switch]$AlongWithInstallers
 )
 
-function buildPlatform($platinfo, $Platform)
+function buildPlatform($configInfo, $Platform)
 {
-	$LIBPQVER=$platinfo.libpq.version
-	if ($LIBPQVER -eq "") {
-		$LIBPQVER = $LIBPQ_VERSION
-	}
-	$PG_INC=$platinfo.libpq.include
-	$PG_LIB=$platinfo.libpq.lib
-	$BUILD_MACROS=$platinfo.build_macros
-	if ($Platform -eq "x64") {
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-			$pgmfs = "$env:ProgramW6432"
-		} else {
-			$pgmfs = "$env:ProgramFiles"
-		}
+	if ($Platform -ieq "x64") {
+		$platinfo=$configInfo.Configuration.x64
 	} else {
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-			$pgmfs = "$env:ProgramFiles"
-		} else {
-			$pgmfs = "${env:ProgramFiles(x86)}"
-		}
+		$platinfo=$configInfo.Configuration.x86
 	}
-	if ($PG_INC -eq "default") {
-		if ($pgmfs -eq "") {
-			PG_INC=""
-		} else {
-			$PG_INC = "$pgmfs\PostgreSQL\$LIBPQVER\include"
-		}
-	}
-	if ($PG_LIB -eq "default") {
-		if ($pgmfs -eq "") {
-			PG_LIB=""
-		} else {
-			$PG_LIB = "$pgmfs\PostgreSQL\$LIBPQVER\lib"
-		}
-	}
+	$BUILD_MACROS=$platinfo.build_macros
+	$PG_INC=getPGDir $configInfo $Platform "include"
+	$PG_LIB=getPGDir $configInfo $Platform "lib"
 
 	Write-Host "USE LIBPQ  : ($PG_INC $PG_LIB)"
 
@@ -263,7 +237,7 @@ try {
 #	build 32bit dlls
 #
 	if ($Platform -ieq "Win32" -or $Platform -ieq "both") {
-		buildPlatform $configInfo.Configuration.x86 "Win32"
+		buildPlatform $configInfo "Win32"
 		if ($LastExitCode -ne 0) {
 			$recordResult = $false
 		}
@@ -272,7 +246,7 @@ try {
 #	build 64bit dlls
 #
 	if ($Platform -ieq "x64" -or $Platform -ieq "both") {
-		buildPlatform $configInfo.Configuration.x64 "x64"
+		buildPlatform $configInfo "x64"
 		if ($LastExitCode -ne 0) {
 			$recordResult = $false
 		}

@@ -77,8 +77,50 @@ function global:unifyNodes($node1, $node2)
     }
 }
 
+function global:getPGDir($configInfo, $Platform, $kind)
+{
+	if ($Platform -ieq "x64") {
+		$platinfo=$configInfo.Configuration.x64
+	} else {
+		$platinfo=$configInfo.Configuration.x86
+	}
+	$LIBPQVER=$platinfo.libpq.version
+	if ($LIBPQVER -eq "") {
+		$LIBPQVER = $LIBPQ_VERSION
+	}
+	if ($kind -eq "include") {
+		$result=$platinfo.libpq.include
+	} elseif ($kind -eq "lib") {
+		$result=$platinfo.libpq.lib
+	} else {
+		$result=$platinfo.libpq.bin
+	}
+	if ($result -ne "default") {
+		return $result
+	}
+	if ($Platform -ieq "x64") {
+		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+			$pgmfs = "$env:ProgramW6432"
+		} else {
+			$pgmfs = "$env:ProgramFiles"
+		}
+	} else {
+		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+			$pgmfs = "$env:ProgramFiles"
+		} else {
+			$pgmfs = "${env:ProgramFiles(x86)}"
+		}
+	}
+	if ("$pgmfs" -eq "") {
+		$result = $null
+	} else {
+		$result = "$pgmfs\PostgreSQL\$LIBPQVER\$kind"
+	}
+	return $result
+}
+
 Write-Debug "configPath=$configPath"
-$global:LIBPQ_VERSION="9.3"
+$global:LIBPQ_VERSION="9.5"
 $scriptPath = [System.IO.Path]::GetDirectoryName($myInvocation.MyCommand.Definition)
 $global:configurationTemplatePath = "$scriptPath\configuration_template.xml"
 $global:configurationXmlPath = $configPath

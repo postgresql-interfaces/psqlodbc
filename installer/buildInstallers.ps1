@@ -34,11 +34,10 @@ Param(
 [string]$BuildConfigPath
 )
 
-function findRuntime($runtime_version)
+function findRuntime($runtime_version, $pgmvc)
 {
 	# where's the dll? 
 	$rt_dllname="msvcr${runtime_version}0.dll"
-	$pgmvc = $archinfo.runtime_folder
 	if ("$pgmvc" -ne "") {
 		$dllspecified = "${pgmvc}\${rt_dllname}"
 		if (Test-Path -Path $dllspecified) {
@@ -120,43 +119,7 @@ function buildInstaller($CPUTYPE)
 {
 	$VERSION = $configInfo.Configuration.version
 
-	$archinfo = $configInfo.Configuration.$CPUTYPE
-
-	$LIBPQVER=$archinfo.libpq.version
-	if ($LIBPQVER -eq "") {
-		$LIBPQVER=$LIBPQ_VERSION
-	}
-
-	if ($CPUTYPE -eq "x64")
-	{
-		$LIBPQBINDIR=$archinfo.libpq.bin
-		if ($LIBPQBINDIR -eq "default") {
-			if ($env:PROCESSOR_ARCHITECTURE -ne "x86") {
-				$pgmfs = "$env:ProgramFiles"
-				$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
-			}
-			elseif ("${env:ProgramW6432}" -ne "") {
-				$pgmfs = "$env:ProgramW6432"
-				$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
-			}
-		}
-	}
-	elseif ($CPUTYPE -eq "x86")
-	{
-		$LIBPQBINDIR=$archinfo.libpq.bin
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-			$pgmfs = "$env:ProgramFiles"
-		} else {
-			$pgmfs = "${env:ProgramFiles(x86)}"
-		}
-		if ($LIBPQBINDIR -eq "default") {
-			$LIBPQBINDIR = "$pgmfs\PostgreSQL\$LIBPQVER\bin"
-		}
-	}
-	else
-	{
-		throw "Unknown CPU type $CPUTYPE";
-	}
+	$LIBPQBINDIR=getPGDir $configInfo $CPUTYPE "bin"
 	# msvc runtime psqlodbc links
 	$PODBCMSVCDLL = ""
 	$PODBCMSVPDLL = ""
@@ -165,6 +128,7 @@ function buildInstaller($CPUTYPE)
 	# msvc runtime libpq links
 	$LIBPQMSVCDLL = ""
 	$LIBPQMSVCSYS = ""
+	$pgmvc = $configInfo.Configuration.$CPUTYPE.runtime_folder
 	if (-not $ExcludeRuntime) {
 		$toolset = $configInfo.Configuration.BuildResult.PlatformToolset
 		if ($toolset -match "^v(\d+)0") {
@@ -174,7 +138,7 @@ function buildInstaller($CPUTYPE)
 		}
 		# where's the msvc runtime dll psqlodbc links?
 		if ([int] $runtime_version0 -lt 14) { 
-			$dlls=findRuntime($runtime_version0)
+			$dlls=findRuntime $runtime_version0 $pgmvc
 			$PODBCMSVCDLL=$dlls[0]
 			$PODBCMSVPDLL=$PODBCMSVCDLL.Replace("msvcr", "msvcp")
 			$PODBCMSVCSYS=$dlls[1]
@@ -189,7 +153,7 @@ function buildInstaller($CPUTYPE)
 				$runtime_version1=$msvclist[0]
 			}
 			if ($runtime_version1 -ne $runtime_version0) {
-				$dlls=findRuntime($runtime_version1)
+				$dlls=findRuntime $runtime_version1 $pgmvc
 				$LIBPQMSVCDLL=$dlls[0]
 				$LIBPQMSVCSYS=$dlls[1]
 				Write-Host "LIBPQ requires msvcr${runtime_version1}0.dll"
