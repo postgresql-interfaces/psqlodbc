@@ -89,7 +89,7 @@ function buildPlatform($configInfo, $Platform)
 	}
 	Write-Debug "MACROS in function = $MACROS"
 
-	invoke-expression -Command "& `"${msbuildexe}`" ./platformbuild.vcxproj /tv:$MSToolsVersion /p:Platform=$Platform``;Configuration=$Configuration``;PlatformToolset=${Toolset} /t:$target /p:VisualStudioVersion=${VisualStudioVersion} /p:DRIVERVERSION=$DRIVERVERSION ${MACROS}"
+	invoke-expression -Command "& `"${msbuildexe}`" ./platformbuild.vcxproj /tv:$MSToolsVersion /p:Platform=$Platform``;Configuration=$Configuration``;PlatformToolset=${Toolset} /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION ${MACROS}"
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
@@ -98,138 +98,8 @@ $DRIVERVERSION=$configInfo.Configuration.version
 pushd $scriptPath
 $path_save = ${env:PATH}
 
-$WSDK71Set="Windows7.1SDK"
-$refnum=""
-Write-Debug "VCVersion=$VCVersion $env:VisualStudioVersion"
-#
-#	Determine VisualStudioVersion
-#
-if ("$VCVersion" -eq "") {
-	$VCVersion=$configInfo.Configuration.vcversion
-}
-$VisualStudioVersion=$VCVersion
-if ("$VisualStudioVersion" -eq "") {
-	$VisualStudioVersion = $env:VisualStudioVersion # VC11 or later version of C++ command prompt sets this variable
-}
-if ("$VisualStudioVersion" -eq "") {
-	if ("${env:WindowsSDKVersionOverride}" -eq "v7.1") { # SDK7.1+ command prompt
-		$VisualStudioVersion = "10.0"
-	} elseif ("${env:VCInstallDir}" -ne "") { # C++ command prompt
-		if ("${env:VCInstallDir}" -match "Visual Studio\s*(\S+)\\VC\\$") {
-			$VisualStudioVersion = $matches[1]
-		}
-	}
-}
-#	neither C++ nor SDK prompt
-if ("$VisualStudioVersion" -eq "") {
-	if ("${env:VS120COMNTOOLS}" -ne "") { # VC12 is installed (current official)
-		$VisualStudioVersion = "12.0"
-	} elseif ("${env:VS100COMNTOOLS}" -ne "") { # VC10 is installed
-		$VisualStudioVersion = "10.0"
-	} elseif ("${env:VS140COMNTOOLS}" -ne "") { # VC14 is installed
-		$VisualStudioVersion = "14.0"
-	} elseif ("${env:VS110COMNTOOLS}" -ne "") { # VC11 is installed
-		$VisualStudioVersion = "11.0"
-	} else {
-		Write-Error "Visual Studio >= 10.0 not found" -Category InvalidArgument;return
-	}
-} elseif ([int]::TryParse($VisualStudioVersion, [ref]$refnum)) {
-	$VisualStudioVersion="${refnum}.0"
-}
-#	Check VisualStudioVersion and prepare for ToolsVersion
-switch ($VisualStudioVersion) {
- "10.0"	{ $tv = "4.0" }
- "11.0"	{ $tv = "4.0" }
- "12.0"	{ $tv = "12.0" }
- "14.0"	{ $tv = "14.0" }
- default { Write-Error "Selected Visual Stuidio is Version ${VisualStudioVersion}. Please use VC10 or later" -Category InvalidArgument; return }
-}
-#
-#	Determine ToolsVersion
-#
-if ("$MSToolsVersion" -eq "") {
-	$MSToolsVersion=$env:ToolsVersion
-}
-if ("$MSToolsVersion" -eq "") {
-	 $MSToolsVersion = $tv
-} elseif ([int]::TryParse($MSToolsVersion, [ref]$refnum)) {
-	$MSToolsVersion="${refnum}.0"
-}
-#
-#	Determine MSBuild executable
-#
-Write-Debug "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VisualStudioVersion"
-try {
-	$msbver = invoke-expression "msbuild /ver /nologo"
-	if ("$msbver" -match "^(\d+)\.(\d+)") {
-		$major1 = [int] $matches[1]
-		$minor1 = [int] $matches[2]
-		if ($MSToolsVersion -match "^(\d+)\.(\d+)") {
-			$bavail = $false
-			$major2 = [int] $matches[1]
-			$minor2 = [int] $matches[2]
-			if ($major1 -gt $major2) {
-				Write-Debug "$major1 > $major2"
-				$bavail = $true
-			}
-			elseif ($major1 -eq $major2 -And $minor1 -ge $minor2) {
-				Write-Debug "($major1, $minor1) >= ($major2, $minor2)"
-				$bavail = $true
-			}
-			if ($bavail) {
-				$msbuildexe = "MSBuild"
-			}
-		}
-	}
-} catch {}
-if ("$msbuildexe" -eq "") {
-	$msbindir=""
-	$regKey="HKLM:\Software\Wow6432Node\Microsoft\MSBuild\ToolsVersions\${MSToolsVersion}"
-	if (Test-Path -path $regkey) {
-		$msbitem=Get-ItemProperty $regKey
-		if ($msbitem -ne $null) {
-			$msbindir=$msbitem.MSBuildToolsPath
-		}
-	} else {
-		$regKey="HKLM:\Software\Microsoft\MSBuild\ToolsVersions\${MSToolsVersion}"
-		if (Test-Path -path $regkey) {
-			$msbitem=Get-ItemProperty $regKey
-			if ($msbitem -ne $null) {
-				$msbindir=$msbitem.MSBuildToolsPath
-			}
-		} else {
-			Write-Error "MSBuild ToolsVersion $MSToolsVersion not Found" -Category NotInstalled; return
-		}
-	}
-	$msbuildexe = "$msbindir\msbuild"
-}
-#
-#	Determine PlatformToolset
-#
-if ("$Toolset" -eq "") {
-	$Toolset=$configInfo.Configuration.toolset
-}
-if ("$Toolset" -eq "") {
-	$Toolset=$env:PlatformToolset
-}
-if ("$Toolset" -eq "") {
-	switch ($VisualStudioVersion) {
-	 "10.0"	{
-			if (Test-path "HKLM:\Software\Microsoft\Microsoft SDKs\Windows\v7.1") {
-				$Toolset=$WSDK71Set
-			} else {
-				$Toolset="v100"
-			}
-		}
-	 "11.0"	{$Toolset="v110_xp"}
-	 "12.0"	{$Toolset="v120_xp"}
-	 "14.0"	{$Toolset="v140_xp"}
-	}
-}
-#	avoid a bug of Windows7.1SDK PlatformToolset
-if ($Toolset -eq $WSDK71Set) {
-	$env:TARGET_CPU=""
-}
+Import-Module ${scriptPath}\MSBuild-Get.psm1
+$msbuildexe=Get-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
 
 $recordResult = $true
 try {
@@ -257,7 +127,7 @@ try {
 	$resultText="successful"
 	if ($recordResult) {
 		$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
-		$configInfo.Configuration.BuildResult.VisualStudioVersion=$VisualStudioVersion
+		$configInfo.Configuration.BuildResult.VisualStudioVersion=$VCVersion
 		$configInfo.Configuration.BuildResult.PlatformToolset=$Toolset
 		$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
 		$configInfo.Configuration.BuildResult.Platform=$Platform
@@ -265,7 +135,7 @@ try {
 	} else {
 		$resultText="failed"
 	} 
-	Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VisualStudioVersion PlatformToolset=$Toolset Platform=$Platform $resultText`n"
+	Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VCVersion PlatformToolset=$Toolset Platform=$Platform $resultText`n"
 #
 #	build installers as well
 #

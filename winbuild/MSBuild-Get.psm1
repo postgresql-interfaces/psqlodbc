@@ -1,7 +1,5 @@
 function Get-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $configInfo)
 {
-	$path_save = ${env:PATH}
-
 	$VisualStudioVersion=$VCVersion.Value
 	$MSToolsVersionv=$MSToolsVersion.Value
 	$Toolsetv=$Toolset.Value
@@ -137,8 +135,6 @@ function Get-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $conf
 	if ($Toolsetv -eq $WSDK71Set) {
 		$env:TARGET_CPU=""
 	}
-#	Restore PATH & current directory
-	$env:PATH = $path_save
 #
 	$VCVersion.value=$VisualStudioVersion
 	$MSToolsVersion.value=$MSToolsVersionv
