@@ -181,14 +181,14 @@ function RunTest($scriptPath, $Platform)
 	popd
 }
 
+$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $usingExe=$false
-$testsf="..\test\tests"
+$testsf="$scriptPath\..\test\tests"
 Write-Debug testsf=$testsf
-$vcxfile="./generated_regress.vcxproj"
+$vcxfile="$scriptPath\generated_regress.vcxproj"
 
 $TESTEXES=vcxfile_make $testsf $vcxfile $usingExe
 
-$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $configInfo = & "$scriptPath\configuration.ps1" "$BuildConfigPath"
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 $msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
@@ -199,6 +199,7 @@ if ($Platform -ieq "both") {
 	$pary = @($Platform)
 }
 
+cd $scriptPath
 foreach ($pl in $pary) {
 	invoke-expression -Command "& `"${msbuildexe}`" $vcxfile /tv:$MSToolsVersion /p:Platform=$pl``;Configuration=$Configuration``;PlatformToolset=${Toolset} /t:$target /p:VisualStudioVersion=${VisualStudioVersion} /Verbosity:minimal"
 
