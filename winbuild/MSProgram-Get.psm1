@@ -1,4 +1,4 @@
-function Get-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $configInfo)
+function Find-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $configInfo)
 {
 	$VisualStudioVersion=$VCVersion.Value
 	$MSToolsVersionv=$MSToolsVersion.Value
@@ -241,4 +241,4 @@ function Get-RelatedDlls($dllname, $dllfolder)
 	return $libpqmem
 }
 
-Export-ModuleMember -function Get-MSBuild, Find-Dumpbin, Get-RelatedDlls
+Export-ModuleMember -function Find-MSBuild, Find-Dumpbin, Get-RelatedDlls

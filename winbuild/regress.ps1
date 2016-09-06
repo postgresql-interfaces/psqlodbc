@@ -190,8 +190,8 @@ $TESTEXES=vcxfile_make $testsf $vcxfile $usingExe
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $configInfo = & "$scriptPath\configuration.ps1" "$BuildConfigPath"
-Import-Module ${scriptPath}\MSBuild-Get.psm1
-$msbuildexe=Get-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+Import-Module ${scriptPath}\MSProgram-Get.psm1
+$msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
 
 if ($Platform -ieq "both") {
 	$pary = @("Win32", "x64")

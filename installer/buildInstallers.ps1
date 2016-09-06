@@ -244,7 +244,7 @@ if ($AlongWithDrivers) {
 	} 
 }
 
-Import-Module ${scriptPath}\..\winbuild\MSBuild-Get.psm1
+Import-Module ${scriptPath}\..\winbuild\MSProgram-Get.psm1
 try {
 	$dumpbinexe = Find-Dumpbin
 

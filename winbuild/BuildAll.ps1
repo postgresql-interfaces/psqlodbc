@@ -98,8 +98,8 @@ $DRIVERVERSION=$configInfo.Configuration.version
 pushd $scriptPath
 $path_save = ${env:PATH}
 
-Import-Module ${scriptPath}\MSBuild-Get.psm1
-$msbuildexe=Get-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+Import-Module ${scriptPath}\MSProgram-Get.psm1
+$msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
 
 $recordResult = $true
 try {
