@@ -76,11 +76,12 @@ function buildPlatform($configInfo, $Platform)
 	$BUILD_MACROS=$platinfo.build_macros
 	$PG_INC=getPGDir $configInfo $Platform "include"
 	$PG_LIB=getPGDir $configInfo $Platform "lib"
+	$PG_BIN=getPGDir $configInfo $Platform "bin"
 
 	Write-Host "USE LIBPQ  : ($PG_INC $PG_LIB)"
 
 	$MACROS=@"
-/p:PG_LIB="$PG_LIB" /p:PG_INC="$PG_INC"
+/p:PG_LIB="$PG_LIB" /p:PG_INC="$PG_INC" /p:PG_BIN="$PG_BIN"
 "@
 	if ($BUILD_MACROS -ne "") {
 		$BUILD_MACROS = $BUILD_MACROS -replace ';', '`;'
