@@ -4,7 +4,7 @@
 .DESCRIPTION
     Build test programs and run them.
 .PARAMETER Target
-    Specify the target of MSBuild. "Build"(default) or
+    Specify the target of MSBuild. "Build&Go"(default), "Build" or
     "Clean" is available.
 .PARAMETER VCVersion
     Visual Studio version is determined automatically unless this
@@ -46,8 +46,8 @@
 #	build 32bit & 64bit dlls for VC10 or later
 #
 Param(
-[ValidateSet("Build", "Clean")]
-[string]$Target="Build",
+[ValidateSet("Build&Go", "Build", "Clean")]
+[string]$Target="Build&Go",
 [string]$VCVersion,
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="Win32",
@@ -123,7 +123,7 @@ function vcxfile_make($testsf, $vcxfile, $usingExe)
 		for ($i=0;$i -lt $sary.length - 1;$i++) {
 			$dirname+=($sary[$i]+"`\")
 		}
-		Write-Debug "testname=$testname dirname=$dirname"
+		#Write-Debug "testname=$testname dirname=$dirname"
 		if ($usingExe) {
 			$testexes+=($dirname+$testname+".exe")
 		} else {
@@ -141,6 +141,12 @@ function vcxfile_make($testsf, $vcxfile, $usingExe)
         <MSBuild Projects="regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=runsuite;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
+        <MSBuild Projects="regress_one.vcxproj"
+	  Targets="Build"
+	  Properties="TestName=RegisterRegdsn;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
+        <!-- MSBuild Projects="regress_one.vcxproj"
+	  Targets="Build"
+	  Properties="TestName=ConfigDsn;Configuration=$(Configuration);srcPath=$(srcPath)..\"/-->
         <MSBuild Projects="regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=reset-db;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
@@ -169,16 +175,69 @@ function RunTest($scriptPath, $Platform)
 
 	pushd $scriptPath\$targetdir
 
-	$regdiff="regression.diffs"
-	$RESDIR="results"
-	if (Test-Path $regdiff) {
-		Remove-Item $regdiff
+	try {
+		$regdiff="regression.diffs"
+		$RESDIR="results"
+		if (Test-Path $regdiff) {
+			Remove-Item $regdiff
+		}
+		New-Item $RESDIR -ItemType Directory -Force > $null
+		Get-Content "${origdir}\sampletables.sql" | .\reset-db
+		if ($LASTEXITCODE -ne 0) {
+			throw "`treset_db error"
+		}
+		.\runsuite $TESTEXES --inputdir=$origdir
+	} catch [Exception] {
+		throw $error[0]
+	} finally {
+		popd
 	}
-	New-Item $RESDIR -ItemType Directory -Force > $null
-	Get-Content "${origdir}\sampletables.sql" | .\reset-db
-	.\runsuite $TESTEXES --inputdir=$origdir
+}
 
-	popd
+function SpecialDsn($testdsn, $testdriver)
+{
+	function input-dsninfo($server="localhost", $uid="postgres", $passwd="postgres", $port="5432", $database="contrib_regression")
+	{
+		$in = read-host "Server [$server]"
+		if ("$in" -ne "") {
+			$server = $in
+		}
+		$in = read-host "Port [$port]"
+		if ("$in" -ne "") {
+			$port = $in
+		}
+		$in = read-host "Username [$uid]"
+		if ("$in" -ne "") {
+			$uid = $in
+		}
+		$in = read-host -assecurestring "Password [$passwd]"
+		if ("$in" -ne "") {
+			$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($in)
+			$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+		}
+		return "SERVER=${server}|DATABASE=${database}|PORT=${port}|UID=${uid}|PWD=${passwd}"
+	}
+
+	$dsnArray = Get-OdbcDsn $testdsn -Platform $bit -EA SilentlyContinue
+	if ($dsnArray.length -eq 0) {
+		$drvArray = Get-OdbcDriver $testdriver -Platform $bit -EA SilentlyContinue
+		if ($drvArray.length -eq 0) {
+			Write-Host "`tAdding $bit driver $testdriver of $dlldir"
+			$proc = Start-Process ./RegisterRegdsn.exe -Verb runas -Wait -PassThru -ArgumentList "install $testdriver `"$dlldir`" Driver=${dllname}|Setup=${setup}|Debug=0|Commlog=0"
+			if ($proc.ExitCode -ne 0) {
+				throw "`tRegisterRegdsn $testdriver error"
+			}
+		}
+		Write-Host "`tAdding System DSN=$testdsn"
+		$prop = input-dsninfo
+		$prop += "|Debug=0|Commlog=0"
+		$proc = Start-Process ./RegisterRegdsn.exe -Verb runas -Wait -PassThru -ArgumentList "add_dsn", "$testdriver", "$testdsn", "$prop"
+#		Add-OdbcDsn $testdsn -DriverName $testdriver -DsnType "System" -Platform $bit -SetPropertyValue @("Database=contrib_regression", "Server=localhost", "UID=postgres", "PWD=postgres") -EA Stop
+		if ($proc.ExitCode -ne 0) {
+			throw "`tAddDsn $testdsn error"
+		}
+	}
+
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
@@ -199,13 +258,44 @@ if ($Platform -ieq "both") {
 	$pary = @($Platform)
 }
 
-cd $scriptPath
+$vcx_target=$target
+if ($target -ieq "Build&Go") {
+	$vcx_target="Build"
+}
+$testdriver="postgres_devw"
+$testdsn="psqlodbc_test_dsn"
+$dllname="psqlsetup.dll"
+$setup="psqlsetup.dll"
 foreach ($pl in $pary) {
-	invoke-expression -Command "& `"${msbuildexe}`" $vcxfile /tv:$MSToolsVersion /p:Platform=$pl``;Configuration=$Configuration``;PlatformToolset=${Toolset} /t:$target /p:VisualStudioVersion=${VisualStudioVersion} /Verbosity:minimal"
+	cd $scriptPath
+	invoke-expression -Command "& `"${msbuildexe}`" `"${vcxfile}`" /tv:$MSToolsVersion /p:Platform=$pl``;Configuration=$Configuration``;PlatformToolset=${Toolset} /t:$vcx_target /p:VisualStudioVersion=${VisualStudioVersion} /Verbosity:minimal"
+	if ($LASTEXITCODE -ne 0) {
+		throw "`nCompile error"
+	}
 
-	if ($target -ieq "Clean") {
+	if (($target -ieq "Clean") -or ($target -ieq "Build")) {
 		continue
 	}
 
-	RunTest $scriptPath $pl $TESTEXES
+	switch ($pl) {
+	 "Win32" {
+			$targetdir="test_x86"
+			$bit="32-bit"
+			$dlldir="$scriptPath\..\x86_Unicode_Release"
+		}
+	 default {
+			$targetdir="test_x64"
+			$bit="64-bit"
+			$dlldir="$scriptPath\..\x64_Unicode_Release"
+		}
+	}
+	pushd $scriptPath\$targetdir
+	try {
+		SpecialDsn $testdsn $testdriver
+		RunTest $scriptPath $pl $TESTEXES
+	} catch [Exception] {
+		throw $error[0]
+	} finally {
+		popd
+	}
 }
