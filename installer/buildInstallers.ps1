@@ -85,10 +85,20 @@ function findRuntime($runtime_version, $pgmvc)
 	return $rt_dllname
 }
 
+function getVersion($connInfo)
+{
+	$version_no = $connInfo.Configuration.version
+	if ("$version_no" -eq "") {
+		pushd "$scriptPath"
+		$splitItem = Get-Content "..\version.h" | Where-Object {($_.IndexOf("#define") -ge 0) -and ($_.IndexOf("POSTGRESDRIVERVERSION") -ge 0) -and ($_.IndexOF("`"") -ge 0)} | ForEach-Object {$_.split("`"")}
+		$version_no = $splitItem[1]
+		popd
+	}
+	return $version_no
+}
+
 function buildInstaller($CPUTYPE)
 {
-	$VERSION = $configInfo.Configuration.version
-
 	$LIBPQBINDIR=getPGDir $configInfo $CPUTYPE "bin"
 	# msvc runtime psqlodbc links
 	$PODBCMSVCDLL = ""
@@ -248,10 +258,10 @@ Import-Module ${scriptPath}\..\winbuild\MSProgram-Get.psm1
 try {
 	$dumpbinexe = Find-Dumpbin
 
+	$VERSION = getVersion $configInfo
 	if ($cpu -eq "both") {
 		buildInstaller "x86"
 		buildInstaller "x64"
-		$VERSION = $configInfo.Configuration.version
 		try {
 			pushd "$scriptPath"
 			invoke-expression "psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION" -ErrorAction Stop
