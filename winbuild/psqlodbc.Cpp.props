@@ -16,6 +16,10 @@ psqlodbc.Cpp.props
       <WarningLevel>Level3</WarningLevel>
       <DisableSpecificWarnings>4018</DisableSpecificWarnings>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(DRIVERVERSION)'!=''" >
+    <ADD_DEFINES>$(ADD_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)"</ADD_DEFINES>
+    <RSC_DEFINES>$(RSC_DEFINES);PG_DRVFILE_VERSION=$(DRIVERVERSION.substring(0, 2)),$(DRIVERVERSION.substring(3,2)),$(DRIVERVERSION.substring(6, 2)),$(DRIVERVERSION.substring(8, 2));POSTGRES_RESOURCE_VERSION=\"$(DRIVERVERSION)\"</RSC_DEFINES>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

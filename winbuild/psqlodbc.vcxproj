@@ -140,10 +140,6 @@
   <PropertyGroup Condition="'$(MEMORY_DEBUG)'=='yes'" >
     <ADD_DEFINES>$(ADD_DEFINES);_MEMORY_DEBUG_</ADD_DEFINES>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(DRIVERVERSION)'!=''" >
-    <ADD_DEFINES>$(ADD_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)"</ADD_DEFINES>
-    <RSC_DEFINES>$(RSC_DEFINES);PG_DRVFILE_VERSION=$(DRIVERVERSION.substring(0, 2)),$(DRIVERVERSION.substring(3,2)),$(DRIVERVERSION.substring(6, 2)),$(DRIVERVERSION.substring(8, 2));POSTGRES_RESOURCE_VERSION=\"$(DRIVERVERSION)\"</RSC_DEFINES>
-  </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
