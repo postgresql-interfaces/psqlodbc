@@ -854,7 +854,11 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	{
 		getDriverNameFromDSN(DSN, ci->drivername, sizeof(ci->drivername));
 		if (ci->drivername[0] && stricmp(ci->drivername, SAFE_NAME(ci->drivers.drivername)))
+		{
+			mylog("driver is about to change from '%s' to '%s'\n", SAFE_NAME(ci->drivers.drivername), ci->drivername);
 			getCommonDefaults(ci->drivername, ODBCINST_INI, ci);
+			getCommonDefaults(ci->drivername, ODBCINST_INI, NULL);
+		}
 	}
 
 	/* Proceed with getting info for the given DSN. */
