@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Build all dlls of psqlodbc project using MSbuild.
+    Run regressin test on Windows.
 .DESCRIPTION
     Build test programs and run them.
 .PARAMETER Target
@@ -162,7 +162,7 @@ function vcxfile_make($testsf, $vcxfile, $usingExe)
 	return $testexes
 }
 
-function RunTest($scriptPath, $Platform)
+function RunTest($scriptPath, $Platform, $testexes)
 {
 	# Run regression tests
 	if ($Platform -eq "x64") {
@@ -186,7 +186,7 @@ function RunTest($scriptPath, $Platform)
 		if ($LASTEXITCODE -ne 0) {
 			throw "`treset_db error"
 		}
-		.\runsuite $TESTEXES --inputdir=$origdir
+		.\runsuite $testexes --inputdir=$origdir
 	} catch [Exception] {
 		throw $error[0]
 	} finally {
