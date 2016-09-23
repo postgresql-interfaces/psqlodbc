@@ -6,8 +6,11 @@
 .PARAMETER Target
     Specify the target of MSBuild. "Build&Go"(default), "Build" or
     "Clean" is available.
+.PARAMETER TestList
+    Specify the list of test cases. If this parameter isn't specified(default),
+    all test cased are executed.
 .PARAMETER VCVersion
-    Visual Studio version is determined automatically unless this
+    Used Visual Studio version is determined automatically unless this
     option is specified.
 .PARAMETER Platform
     Specify build platforms, "Win32"(default), "x64" or "both" is available.
@@ -27,16 +30,19 @@
 .EXAMPLE
     > .\regress
 	Build with default or automatically selected parameters
-	and run them.
+	and run tests.
 .EXAMPLE
     > .\regress Clean
 	Clean all generated files.
 .EXAMPLE
+    > .\regress -TestList connect, deprected
+	Build and run connect-test and deprecated-test.
+.EXAMPLE
     > .\regress -V(CVersion) 14.0
-	Build using Visual Studio 11.0 environment.
+	Build using Visual Studio 14.0 environment and run tests.
 .EXAMPLE
     > .\regress -P(latform) x64
-	Build only 64bit dlls.
+	Build 64bit test programs and run them.
 .NOTES
     Author: Hiroshi Inoue
     Date:   August 2, 2016
@@ -48,6 +54,7 @@
 Param(
 [ValidateSet("Build&Go", "Build", "Clean")]
 [string]$Target="Build&Go",
+[string[]]$TestList,
 [string]$VCVersion,
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="Win32",
@@ -60,9 +67,11 @@ Param(
 )
 
 
-function vcxfile_make($testsf, $vcxfile, $usingExe)
+function testlist_make($testsf)
 {
+	$testbins=@()
 	$testnames=@()
+	$dirnames=@()
 	$testexes=@()
 	$f = (Get-Content -Path $testsf) -as [string[]]
 	$nstart=$false
@@ -87,15 +96,37 @@ function vcxfile_make($testsf, $vcxfile, $usingExe)
 			} else {
 				$nstart=$false
 			}
-			$testnames+=$sary
+			$testbins+=$sary
 			if (-not $nstart) {
 				break
 			}
 		}
 	}
-	for ($i=0; $i -lt $testnames.length; $i++) {
-		Write-Debug "$i : $testnames[$i]"
+	for ($i=0; $i -lt $testbins.length; $i++) {
+		Write-Debug "$i : $testbins[$i]"
 	}
+
+	foreach ($testbin in $testbins) {
+		if ("$testbin" -eq "") {
+			continue
+		}
+		$sary=$testbin.split("/")
+		$testname=$sary[$sary.length -1]
+		$dirname=""
+		for ($i=0;$i -lt $sary.length - 1;$i++) {
+			$dirname+=($sary[$i]+"`\")
+		}
+		Write-Debug "testbin=$testbin => testname=$testname dirname=$dirname"
+		$dirnames += $dirname
+		$testexes+=($dirname+$testname+".exe")
+		$testnames+=$testname.Replace("-test","")
+	}
+
+	return $testexes, $testnames, $dirnames
+}
+
+function vcxfile_make($testnames, $dirnames, $vcxfile)
+{
 # here-string
 	@'
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
@@ -113,22 +144,10 @@ function vcxfile_make($testsf, $vcxfile, $usingExe)
 	  Properties="TestName=common;Configuration=$(Configuration);srcPath=$(srcPath)"/>
 '@ > $vcxfile
 
-	foreach ($testbin in $testnames) {
-		if ("$testbin" -eq "") {
-			continue
-		}
-		$sary=$testbin.split("/")
-		$testname=$sary[$sary.length -1]
-		$dirname=""
-		for ($i=0;$i -lt $sary.length - 1;$i++) {
-			$dirname+=($sary[$i]+"`\")
-		}
-		#Write-Debug "testname=$testname dirname=$dirname"
-		if ($usingExe) {
-			$testexes+=($dirname+$testname+".exe")
-		} else {
-			$testexes+=$testname.Replace("-test","")
-		}
+	for ($i=0; $i -lt $testnames.length; $i++) {
+		$testname=$testnames[$i]
+		$dirname=$dirnames[$i]
+		$testname+="-test"
 # here-string
 		@"
         <MSBuild Projects="regress_one.vcxproj"
@@ -159,7 +178,6 @@ function vcxfile_make($testsf, $vcxfile, $usingExe)
 </Project>
 '@ >> $vcxfile
 
-	return $testexes
 }
 
 function RunTest($scriptPath, $Platform, $testexes)
@@ -219,7 +237,7 @@ function SpecialDsn($testdsn, $testdriver)
 	}
 
 	$dsnArray = Get-OdbcDsn $testdsn -Platform $bit -EA SilentlyContinue
-	if ($dsnArray.length -eq 0) {
+	if ($null -eq $dsnArray) {
 		$drvArray = Get-OdbcDriver $testdriver -Platform $bit -EA SilentlyContinue
 		if ($drvArray.length -eq 0) {
 			Write-Host "`tAdding $bit driver $testdriver of $dlldir"
@@ -241,12 +259,39 @@ function SpecialDsn($testdsn, $testdriver)
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
-$usingExe=$false
+$usingExe=$true
 $testsf="$scriptPath\..\test\tests"
 Write-Debug testsf=$testsf
 $vcxfile="$scriptPath\generated_regress.vcxproj"
 
-$TESTEXES=vcxfile_make $testsf $vcxfile $usingExe
+$arrays=testlist_make $testsf
+if ($null -eq $TestList) {
+	$TESTEXES=$arrays[0]
+	$TESTNAMES=$arrays[1]
+	$DIRNAMES=$arrays[2]
+} else {
+	$err=$false
+	$TESTNAMES=$TestList
+	$TESTEXES=@()
+	$DIRNAMES=@()
+	foreach ($l in $TestList) {
+		for ($i=0;$i -lt $arrays[1].length;$i++) {
+			if ($l -eq $arrays[1][$i]) {
+				$TESTEXES+=$arrays[0][$i]
+				$DIRNAMES+=$arrays[2][$i]
+				break
+			}
+		}
+<#		if ($i -ge $arrays[1].length) {
+			write "!! test case $l doesn't exist"
+			$err=$true
+		} #>
+	}
+	if ($err) {
+		return
+	}
+}
+vcxfile_make $TESTNAMES $DIRNAMES $vcxfile
 
 $configInfo = & "$scriptPath\configuration.ps1" "$BuildConfigPath"
 Import-Module ${scriptPath}\MSProgram-Get.psm1
