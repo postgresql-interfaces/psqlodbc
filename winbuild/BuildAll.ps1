@@ -78,19 +78,17 @@ function buildPlatform($configInfo, $Platform)
 	$PG_LIB=getPGDir $configInfo $Platform "lib"
 	$PG_BIN=getPGDir $configInfo $Platform "bin"
 
-	Write-Host "USE LIBPQ  : ($PG_INC $PG_LIB)"
+	Write-Host "USE LIBPQ  : ($PG_INC $PG_LIB $PG_BIN)"
 
-	$MACROS=@"
-/p:PG_LIB="$PG_LIB" /p:PG_INC="$PG_INC" /p:PG_BIN="$PG_BIN"
-"@
-	if ($BUILD_MACROS -ne "") {
+	$useSplit=$true
+	if ($useSplit) {
+			$macroList = -split $BUILD_MACROS
+	} else {
 		$BUILD_MACROS = $BUILD_MACROS -replace ';', '`;'
 		$BUILD_MACROS = $BUILD_MACROS -replace '"', '`"'
-		$MACROS="$MACROS $BUILD_MACROS"
+		$macroList = iex "write-output $BUILD_MACROS"
 	}
-	Write-Debug "MACROS in function = $MACROS"
-
-	invoke-expression -Command "& `"${msbuildexe}`" ./platformbuild.vcxproj /tv:$MSToolsVersion /p:Platform=$Platform``;Configuration=$Configuration``;PlatformToolset=${Toolset} /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION ${MACROS}"
+	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsVersion "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN $macroList
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
@@ -148,7 +146,7 @@ try {
                 if ($Platform -eq "win32") {
                         $cpu = "x86"
                 }
-                invoke-expression "..\installer\buildInstallers.ps1 -cpu $cpu -BuildConfigPath `"$BuildConfigPath`"" -ErrorAction Stop
+                ..\installer\buildInstallers.ps1 -cpu $cpu -BuildConfigPath $BuildConfigPath
                 if ($LASTEXITCODE -ne 0) {
                         throw "Failed to build installers"
                 }

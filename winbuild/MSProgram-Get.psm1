@@ -65,7 +65,7 @@ function Find-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $con
 #
 	Write-Debug "ToolsVersion=$MSToolsVersionv VisualStudioVersion=$VisualStudioVersion"
 	try {
-		$msbver = invoke-expression "msbuild /ver /nologo"
+		$msbver = msbuild.exe /ver /nologo
 		if ("$msbver" -match "^(\d+)\.(\d+)") {
 			$major1 = [int] $matches[1]
 			$minor1 = [int] $matches[2]
@@ -158,7 +158,7 @@ function Find-Dumpbin($CurMaxVC = 14)
 	}
 	$addPath=""
 	try {
-		$dum = invoke-expression "dumpbin /NOLOGO"
+		$dum = dumpbin.exe /NOLOGO
 		$dumpbinexe="dumpbin"
 	} catch [Exception] {
 #		$dumpbinexe="$env:DUMPBINEXE"
@@ -204,7 +204,7 @@ function Find-Dumpbin($CurMaxVC = 14)
 
 function dumpbinRecurs($dllname, $dllfolder, $instarray)
 {
-	$tmem=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$dllfolder\${dllname}`"" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
+	$tmem=& ${dumpbinexe} /imports "$dllfolder\${dllname}" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
 	if ($LASTEXITCODE -ne 0) {
 		throw "Failed to dumpbin ${dllfolder}\${dllname}"
 	}

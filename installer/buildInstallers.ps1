@@ -125,7 +125,7 @@ function buildInstaller($CPUTYPE)
 			$PODBCMSVPSYS=$PODBCMSVCSYS.Replace("msvcr", "msvcp")
 		}
 		# where's the runtime dll libpq links? 
-		$msvclist=invoke-expression -command "& `"${dumpbinexe}`" /imports `"$LIBPQBINDIR\libpq.dll`""| select-string -pattern "^\s*msvcr(\d+)0\.dll" | % {$_.matches[0].Groups[1].Value}
+		$msvclist=& ${dumpbinexe} /imports $LIBPQBINDIR\libpq.dll | select-string -pattern "^\s*msvcr(\d+)0\.dll" | % {$_.matches[0].Groups[1].Value}
 		if ($msvclist -ne $Null -and $msvclist.length -gt 0) {
 			if ($msvclist.GetType().Name -eq "String") {
 				$runtime_version1=$msvclist
@@ -169,16 +169,11 @@ function buildInstaller($CPUTYPE)
 	for ($i=$libpqmem.length; $i -lt $maxmem; $i++) {
 		$libpqmem += ""
 	}
-	$addpara = " `"-dLIBPQMEM0=" + $libpqmem[0] + `
-		"`" `"-dLIBPQMEM1=" + $libpqmem[1] + `
-		"`" `"-dLIBPQMEM2=" + $libpqmem[2] + `
-		"`" `"-dLIBPQMEM3=" + $libpqmem[3] + `
-		"`" `"-dLIBPQMEM4=" + $libpqmem[4] + `
-		"`" `"-dLIBPQMEM5=" + $libpqmem[5] + `
-		"`" `"-dLIBPQMEM6=" + $libpqmem[6] + `
-		"`" `"-dLIBPQMEM7=" + $libpqmem[7] + `
-		"`" `"-dLIBPQMEM8=" + $libpqmem[8] + `
-		"`" `"-dLIBPQMEM9=" + $libpqmem[9] + "`""
+
+	[string []]$libpqRelArgs=@()
+	for ($i=0; $i -lt $maxmem; $i++) {
+		$libpqRelArgs += ("-dLIBPQMEM$i=" + $libpqmem[$i])
+	}
 
 	if (-not(Test-Path -Path $CPUTYPE)) {
 		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
@@ -191,33 +186,32 @@ function buildInstaller($CPUTYPE)
 		pushd "$scriptPath"
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
-
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dLIBPQBINDIR=$LIBPQBINDIR`" `"-dLIBPQMSVCDLL=$LIBPQMSVCDLL`" `"-dLIBPQMSVCSYS=$LIBPQMSVCSYS`" `"-dPODBCMSVCDLL=$PODBCMSVCDLL`" `"-dPODBCMSVPDLL=$PODBCMSVPDLL`" `"-dPODBCMSVCSYS=$PODBCMSVCSYS`" `"-dPODBCMSVPSYS=$PODBCMSVPSYS`" $addpara -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs"
+		candle -nologo $libpqRelArgs "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dLIBPQBINDIR=$LIBPQBINDIR" "-dLIBPQMSVCDLL=$LIBPQMSVCDLL" "-dLIBPQMSVCSYS=$LIBPQMSVCSYS" "-dPODBCMSVCDLL=$PODBCMSVCDLL" "-dPODBCMSVPDLL=$PODBCMSVPDLL" "-dPODBCMSVCSYS=$PODBCMSVCSYS" "-dPODBCMSVPSYS=$PODBCMSVPSYS" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}
 
 		Write-Host ".`nLinking psqlODBC merge module..."
-		invoke-expression "light -nologo -o $CPUTYPE\psqlodbc_$CPUTYPE.msm $CPUTYPE\psqlodbcm.wixobj"
+		light -nologo -o $CPUTYPE\psqlodbc_$CPUTYPE.msm $CPUTYPE\psqlodbcm.wixobj
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to link merge module"
 		}
 
 		Write-Host ".`nBuilding psqlODBC installer database..."
 
-		invoke-expression "candle -nologo -dPlatform=$CPUTYPE `"-dVERSION=$VERSION`" -dSUBLOC=$SUBLOC `"-dPRODUCTCODE=$PRODUCTCODE`" -o $CPUTYPE\psqlodbc.wixobj psqlodbc_cpu.wxs"
+		candle -nologo "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dPRODUCTCODE=$PRODUCTCODE" -o $CPUTYPE\psqlodbc.wixobj psqlodbc_cpu.wxs
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build installer database"
 		}
 
 		Write-Host ".`nLinking psqlODBC installer database..."
-		invoke-expression "light -nologo -ext WixUIExtension -cultures:en-us -o $CPUTYPE\psqlodbc_$CPUTYPE.msi $CPUTYPE\psqlodbc.wixobj"
+		light -nologo -ext WixUIExtension -cultures:en-us -o $CPUTYPE\psqlodbc_$CPUTYPE.msi $CPUTYPE\psqlodbc.wixobj
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to link installer database"
 		}
 
 		Write-Host ".`nModifying psqlODBC installer database..."
-		invoke-expression "cscript modify_msi.vbs $CPUTYPE\psqlodbc_$CPUTYPE.msi"
+		cscript modify_msi.vbs $CPUTYPE\psqlodbc_$CPUTYPE.msi
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to modify installer database"
 		}
@@ -243,7 +237,7 @@ if ($AlongWithDrivers) {
 		if ($cpu -eq "x86") {
 			$platform = "win32"
 		}
-		invoke-expression "..\winbuild\BuildAll.ps1 -Platform $platform -BuildConfigPath `"$BuildConfigPath`"" -ErrorAction Stop
+		..\winbuild\BuildAll.ps1 -Platform $platform -BuildConfigPath "$BuildConfigPath"
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build binaries"
 		}
@@ -264,7 +258,7 @@ try {
 		buildInstaller "x64"
 		try {
 			pushd "$scriptPath"
-			invoke-expression "psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION" -ErrorAction Stop
+			psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION
 			if ($LASTEXITCODE -ne 0) {
 				throw "Failed to build bootstrapper"
 			}
