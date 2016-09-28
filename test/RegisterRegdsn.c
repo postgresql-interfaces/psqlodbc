@@ -5,7 +5,8 @@
 #define RETURN_1 \
 { \
 	char	gtlin[80]; \
-	fprintf(stderr, "Hit return key to continue "); \
+	fprintf(stderr, "Hit return key to continue ...\n"); \
+	fflush(stderr); \
 	gets(gtlin); \
 	return 1; \
 }
@@ -35,6 +36,10 @@ static int inst_driver(const char *driver, int argc, const char **argv)
 	WORD	cbMsg;
 	char	*psz, *pchr;
 
+	if (argc < 5) {
+		fprintf(stderr, "install driver needs 4 parameters\n", argv[0]);
+		return 1;
+	}
 	memset(szDriver, 0, sizeof(szDriver));
 	psz = szDriver;
 	strncpy(szDriver, driver, sizeof(szDriver));
@@ -92,6 +97,10 @@ static int add_dsn(const char *driver, int argc, const char **argv)
 	size_t	pcnt;
 	const char *dsn = argv[3];
 
+	if (argc < 5) {
+		fprintf(stderr, "add dsn needs 4 parameters\n");
+		return 1;
+	}
 	memset(szDsn, 0, sizeof(szDsn));
 	psz = szDsn;
 	_snprintf(psz, sizeof(szDsn), "DSN=%s", dsn);
@@ -126,10 +135,9 @@ int main(int argc, char **argv)
 
 	if (argc < 3)
 	{
-		fprintf(stderr, "%s needs at least 3 parameters\n", argv[0]);
-		RETURN_1
+		fprintf(stderr, "%s needs at least 2 parameters\n", argv[0]);
+		return 1;
 	}
-	// for (int i = 1; i < argc; i++) fprintf(stderr, "argv[%d]=%s\n", i, argv[i]);
 	switch (argv[1][0])
 	{
 		case 'i':
@@ -139,5 +147,7 @@ int main(int argc, char **argv)
 		case 'a':
 			return add_dsn(driver, argc, argv);
 	}
-	RETURN_1
+
+	fprintf(stderr, "mode %s is invalid\n", argv[1]);
+	return 1;
 }
