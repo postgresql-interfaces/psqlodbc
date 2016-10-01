@@ -50,12 +50,12 @@ $build_config="Release"
 $objdir="obj\${build_config}"
 $bindir="bin\${build_config}"
 
-$modules="Bundle.wxs"
+$modules=@("Bundle.wxs")
 $wRedist="no"
-$objs="${objdir}\Bundle.wixobj"
+$objs=@("${objdir}\Bundle.wixobj")
 if ($withRedist) {
-	$modules += " vcredist.wxs"
-	$objs += " ${objdir}\vcredist.wixobj"
+	$modules += "vcredist.wxs"
+	$objs += "${objdir}\vcredist.wixobj"
 	$wRedist = "yes"
 }
 $wUI = "no"
@@ -66,15 +66,17 @@ if ($UI) {
 try {
 	pushd "$scriptPath"
 
-	$candle_cmd = "& `"${wix_dir}\candle.exe`" -v `"-dVERSION=$version`" -dwithRedist=$wRedist -dwithUI=$wUI -dConfiguration=${build_config} `"-dOutDir=${bindir}\`" -dPlatform=x86 `"-dProjectDir=.\`" `"-dProjectExt=.wixproj`" `"-dProjectFileName=${pgmname}.wixproj`" -dProjectName=${pgmname} `"-dProjectPath=${pgmname}.wixproj`" -dTargetDir=${bindir}\ `"-dTargetExt=.exe`" `"-dTargetFileName=${pgmname}.exe`" -dTargetName=${pgmname} `"-dTargetPath=${bindir}\${pgmname}.exe`" -out `"${objdir}\`" -arch x86 -ext `"${wix_dir}\WixUtilExtension.dll`" -ext `"${wix_dir}\WixBalExtension.dll`" $modules"
-	write-debug "candle_cmd = ${candle_cmd}"
+	& ${wix_dir}\candle.exe -v "-dVERSION=$version" "-dwithRedist=$wRedist" "-dwithUI=$wUI" "-dConfiguration=${build_config}" "-dOutDir=${bindir}\" -dPlatform=x86 "-dProjectDir=.\" "-dProjectExt=.wixproj" "-dProjectFileName=${pgmname}.wixproj" "-dProjectName=${pgmname}" "-dProjectPath=${pgmname}.wixproj" "-dTargetDir=${bindir}\" "-dTargetExt=.exe" "-dTargetFileName=${pgmname}.exe" "-dTargetName=${pgmname}" "-dTargetPath=${bindir}\${pgmname}.exe" -out "${objdir}\" -arch x86 -ext ${wix_dir}\WixUtilExtension.dll -ext ${wix_dir}\WixBalExtension.dll $modules
+	# $candle_cmd = "& `"${wix_dir}\candle.exe`" -v `"-dVERSION=$version`" -dwithRedist=$wRedist -dwithUI=$wUI -dConfiguration=${build_config} `"-dOutDir=${bindir}\`" -dPlatform=x86 `"-dProjectDir=.\`" `"-dProjectExt=.wixproj`" `"-dProjectFileName=${pgmname}.wixproj`" -dProjectName=${pgmname} `"-dProjectPath=${pgmname}.wixproj`" -dTargetDir=${bindir}\ `"-dTargetExt=.exe`" `"-dTargetFileName=${pgmname}.exe`" -dTargetName=${pgmname} `"-dTargetPath=${bindir}\${pgmname}.exe`" -out `"${objdir}\`" -arch x86 -ext `"${wix_dir}\WixUtilExtension.dll`" -ext `"${wix_dir}\WixBalExtension.dll`" $modules"
+	#write-debug "candle_cmd = ${candle_cmd}"
 	# compile
-	invoke-expression $candle_cmd
+	#invoke-expression $candle_cmd
 	if ($LASTEXITCODE -ne 0) {
 		throw "Failed to compile $modules"
 	}
 	# link
-	invoke-expression "& `"${wix_dir}\Light.exe`" -out ${bindir}\${pgmname}.exe -pdbout ${bindir}\${pgmname}.wixpdb -ext `"${wix_dir}\\WixUtilExtension.dll`" -ext `"${wix_dir}\\WixBalExtension.dll`" -contentsfile ${objdir}\${pgmname}.wixproj.BindContentsFileList.txt -outputsfile ${objdir}\${pgmname}.wixproj.BindOutputsFileList.txt -builtoutputsfile ${objdir}\${pgmname}.wixproj.BindBuiltOutputsFileList.txt -wixprojectfile ${pgmname}.wixproj  ${objs}"
+	# invoke-expression "& `"${wix_dir}\Light.exe`" -out ${bindir}\${pgmname}.exe -pdbout ${bindir}\${pgmname}.wixpdb -ext `"${wix_dir}\\WixUtilExtension.dll`" -ext `"${wix_dir}\\WixBalExtension.dll`" -contentsfile ${objdir}\${pgmname}.wixproj.BindContentsFileList.txt -outputsfile ${objdir}\${pgmname}.wixproj.BindOutputsFileList.txt -builtoutputsfile ${objdir}\${pgmname}.wixproj.BindBuiltOutputsFileList.txt -wixprojectfile ${pgmname}.wixproj  ${objs}"
+	& ${wix_dir}\Light.exe -out ${bindir}\${pgmname}.exe -pdbout ${bindir}\${pgmname}.wixpdb -ext ${wix_dir}\\WixUtilExtension.dll -ext ${wix_dir}\\WixBalExtension.dll -contentsfile ${objdir}\${pgmname}.wixproj.BindContentsFileList.txt -outputsfile ${objdir}\${pgmname}.wixproj.BindOutputsFileList.txt -builtoutputsfile ${objdir}\${pgmname}.wixproj.BindBuiltOutputsFileList.txt -wixprojectfile "${pgmname}.wixproj" ${objs}
 	if ($LASTEXITCODE -ne 0) {
 		throw "Failed to link bootstrapper"
 	}
