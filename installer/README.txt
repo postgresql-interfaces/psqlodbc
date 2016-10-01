@@ -16,13 +16,11 @@ POWERSHELL BASED
 Ensure that suitable binaries are in the parent directory Release build outputs
 (see ..\winbuild for that). 
 
-  .\BuildX64Installer.ps1
-
-  .\BuildX86Installer.ps1
+  .\buildInstallers.ps1
 
 For help:
 
-  Get-Help .\BuildX64Installer.ps1
+  Get-Help .\buildInstallers.ps1
 
 If you get execution policy errors:
 
@@ -30,7 +28,7 @@ If you get execution policy errors:
 
 and try again.
 
-Note that these installer generators use the configuration prepared by the
+Note that these installer generators use the configuration file prepared by the
 PowerShell scripts in ..\winbuild, defaulting to ..\winbuild\configuration.xml,
 so you can't just mix them with SDK- or NMake based compilation.
 

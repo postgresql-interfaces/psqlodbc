@@ -1,6 +1,8 @@
-This folder contains 2 batch scripts
+This folder contains 4 batch scripts
 	BuildAll.bat
 	editConfiguration.bat
+	regress.bat
+	buildInstallers.bat
 which have the same functionalities as corresponding powershell scripts in
 winbuild folder.
 
