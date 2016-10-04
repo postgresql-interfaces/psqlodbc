@@ -99,6 +99,7 @@ $path_save = ${env:PATH}
 
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 $msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+Remove-Module MSProgram-Get
 
 $recordResult = $true
 try {

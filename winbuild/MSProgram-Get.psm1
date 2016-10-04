@@ -1,5 +1,6 @@
 function Find-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, $configInfo)
 {
+	$msbuildexe=""
 	$VisualStudioVersion=$VCVersion.Value
 	$MSToolsVersionv=$MSToolsVersion.Value
 	$Toolsetv=$Toolset.Value

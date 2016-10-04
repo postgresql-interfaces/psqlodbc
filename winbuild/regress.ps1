@@ -296,6 +296,7 @@ vcxfile_make $TESTNAMES $DIRNAMES $vcxfile
 $configInfo = & "$scriptPath\configuration.ps1" "$BuildConfigPath"
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 $msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+Remove-Module MSProgram-Get
 
 if ($Platform -ieq "both") {
 	$pary = @("Win32", "x64")

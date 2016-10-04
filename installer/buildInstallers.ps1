@@ -273,4 +273,6 @@ try {
 	}
 } catch [Exception] {
 	throw $error[0]
+} finally {
+	Remove-Module MSProgram-Get
 }
