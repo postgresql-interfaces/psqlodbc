@@ -1,17 +1,24 @@
-/********************************************************************
-
-  Development using Powershell and MSBuild instead of Batch and Nmake
+  Using Powershell and MSBuild is recommended. 
+  In fact the binaries of official release are built using this mothod.
 
   Currently 4 Windows Powershell scripts are provided for developpers.
 
-  BuildAll.ps1          - build all dlls for psqlodbc using MSBuild.
-  editConfiguration.ps1 - a GUI tool to set Build environment
-  regress.ps1           - build regression test programs and run
-  buildInstallers.ps1   - build installers(.msi or setup.exe)
+  winbuild/BuildAll.ps1          - build all dlls for psqlodbc drivers using
+				   MSBuild.
+  winbuild/editConfiguration.ps1 - a GUI tool to set Build environment
+  winbuild/regress.ps1           - build regression test programs and run
+  installer/buildInstallers.ps1  - build installers(.msi or setup.exe)
 
-  You can invoke these scripts from Powershell console or you can also 
-  use the same functionality from Command prompt using Windows helper 
-  batch at the parent folder (..\). See ..\readme_winbuild.txt.
+  Use Powershell console or Command Prompt to invoke scripts:
+
+  For example, to build the driver:
+
+  C:\psqlodbc\winbuild\> (Powershell) ./BuildAll.ps1 <options>
+ 
+    or you can use the same functionality from Command Prompt using Windows
+    helper batch at the parent folder (..\). See ..\readme_winbuild.txt.
+ 
+  C:\psqlodbc\> (Commnd Prompt) .\BuildAll.bat <options>
 
   1. Please start a powershell console and set the ExecutionPolicy of
      Powershell to RemoteSigned or Unrestricted.
@@ -74,18 +81,7 @@
 
 	Get-Help .\BuildAll(.ps1) [-Detailed | -Examples | -Full]
 
-  5. Regression test
-
-     Please type
-
-	.\regress(.ps1)
-
-     By default, build 32-bit binaries from test sources and run the tests.
-     If you'd like to test 64-bit version, please type
-
-	.\regress(.ps1) -p(latform) x64
-	
-  6. Outputs
+  5. Outputs of Build
 
      The build can produce output in up to four directories for each of
      the debug and release configurations:
@@ -100,29 +96,47 @@
 
      pgxalib.dll is only built for the multibyte/unicode version, as it is
      the same for both unicode and ansi drivers.
+  
+  6. How to use drivers.
 
-     Dependencies like libpq etc are not copied into the build
-     output directories. You must copy them to the target directory yourself.
-     Dependency Walker (depends.exe) from http://dependencywalker.com/ can help
-     you find what's needed, but in general you'll need to add:
+     You can't use psqlodbc drivers at once you build the drivers.
+     Usually you have to install drivers using installers made by
+     installer/buildInstallers.ps1. buildInstallers.ps1 bundles
+     libpq and related libraries like ssleay32, libeay32 from the
+     PostgreSQL bin directory and MSVC runtime libraries compiled with.
 
-     - libpq (from the PostgreSQL bin dir)
-     - ssleay32 (from the PostgreSQL bin dir)
-     - libeay32 (from the PostgreSQL bin dir)
-     - libintl (from the PostgreSQL bin dir)
+     However, it is painful for developers to build binaries, build
+     installers and install each time the source files are changed. 
+     It is recommended to use a special installation-less driver
+     (postgres_devw) registered by regress.ps1
 
-     ... and the Visual Studio runtime redist for the version of Visual Studio
-     you compiled with.
+  7. Regression test in place
 
-  7. Installer
+     After BuildAll(.ps1), please type
 
-     See ..\installers\README.txt.
+	.\regress(.ps1)
+
+     You have to neither install nor copy binaries.
+     By default, build 32-bit binaries from test sources and run the tests.
+     If you'd like to test 64-bit version, please type
+
+	.\regress(.ps1) -p(latform) x64
+	
+  8. Installer
+     
+     To build the .msi installer file:
+
+     C:\psqlodbc\installer\> (Powershell) ./buildInstallers.ps1 <options>
+        or
+     C:\psqlodbc\> (Command Prompt) .\buildInstallers.bat <options>
+
+     By default, buildInstallers.ps1 builds bootstrapper program
+     psqlodbc-setup.exe together.
+
+     See ../installer/readme.txt in the source directory for details.
 
 Troubleshooting:
 
-Some documentation on dealing with Windows SDK installation issues can be found
-on the related pg_build_win page:
-https://github.com/2ndQuadrant/pg_build_win#troubleshooting
-     
-
-***********************************************************************/
+     Some documentation on dealing with Windows SDK installation issues
+     can be found on the related pg_build_win page:
+     https://github.com/2ndQuadrant/pg_build_win#troubleshooting

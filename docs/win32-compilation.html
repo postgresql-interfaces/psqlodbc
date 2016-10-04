@@ -1,8 +1,8 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
     <title>Compiling psqlODBC on Windows</title>
+    <script src="frame_adjust.js" language="javascript"></script>
   </head>
 
   <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
@@ -31,6 +31,10 @@ The following 3rd party software are required for the build:
      version from the <a href="http://wixtoolset.org/">WiX Toolset website</a>
 </ul>
 </p>
+
+<h2>Building with Powershell and MSBuild</h2>
+
+<iframe src="../winbuild/readme.txt" width="60%" height="200%" border="0" frameborder="0" seamless id='wbuild'>See winbuild/readme.txt in the source directory for details.</iframe>
 
 <h2>Building with nmake.exe</h2>
 
@@ -112,30 +116,24 @@ by creating a file called "windows-local.mak".
 <li>If MSDTC is enabled, ANSI_VERSION also creates "pgenlista.dll", or UNICODE creates "pgenlist.dll".</li>
 </ol>
 
-<h2>Building with MSBuild</h2>
 
-This is a recommendation method in recent environment where Powershell is included as standard equipment and installed Visual C++ is VC10 or later.
-<br>In fact the binaries of official release are built using this method.
+<h2>IDE Method</h2>
 
-<p>
-Use Powershell.exe or Powershell Prompt to build the driver:<br><br>
+<p>A Microsoft Visual Studio project file (and workspace) is included in the source tree.
+</p>
 
-    <code>C:\psqlodbc\winbuild\&gt; (Powershell) BuildAll.ps1 &lt;options&gt;</code><br><br>
+<p><strong>psqlodbc.dsp</strong>
+ can be used with Microsoft Visual C++ 6.0.
+</p>
 
-<p>
-By default, BuildAll.ps1 builds all the dlls at once.<br>
-Note that neither Microsoft Windows SDK Command Prompt nor Visual Studio Command Prompt is needed.<br>
-(See win32_compilation_using_MSBuild.txt for details.)
-
-<p><iframe src="../winbuild/README.txt" width="60%" height="200%" border="0" frameborder="0" seamless></iframe>
-<p>
-To build the .msi installer file:<br><br>
-
-    <code>C:\psqlodbc\installer\&gt; (Powershell) buildInstallers.ps1 &lt;optios&gt;</code><br><br>
+<p><strong>psqlodbc.proj</strong> and
+<strong>psqlodbc.sln</strong>
+can be used with Microsoft Visual C++ 2005 Edition (including the Express edition which can be downloaded free of charge from <a href="http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx">http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx</a>)
+</p>
 
 <p>
-By default, buildInstallers.ps1 builds bootstrapper program psqlodbc-setup.exe together.
-
+     Preparation before the build:
+</p>
 <ol>
   <li>The Windows distribution of PostgreSQL will install the required headers and libraries into C:\Program Files\PostgreSQL\9.2
   <li>OpenSSL should be installed into C:\OpenSSL (OpenSSL binaries can be downloaded from <a href="http://www.slproweb.com/products/Win32OpenSSL.html">http://www.slproweb.com/products/Win32OpenSSL.html</a>)
