@@ -824,7 +824,7 @@ next_name_token(const char *s, size_t *len)
 	const char *p;
 
 	s += *len;
-	while (*s && isspace(*s)) ++s;
+	while (*s && isspace((UCHAR) *s)) ++s;
 
 	switch (*s) {
 		case '\0':
@@ -841,7 +841,7 @@ next_name_token(const char *s, size_t *len)
 			break;
 		default:
 			p = s;
-			while (*p && !isspace(*p) && *p != '.') ++p;
+			while (*p && !isspace((UCHAR) *p) && *p != '.') ++p;
 			if (p) {
 				*len = p - s;
 				return s;

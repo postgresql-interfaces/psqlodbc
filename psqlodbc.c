@@ -22,6 +22,7 @@
 #include "dlg_specific.h"
 #include "environ.h"
 #include "misc.h"
+#include <string.h>
 
 #ifdef WIN32
 #include "loadlib.h"

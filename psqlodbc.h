@@ -37,6 +37,8 @@
 #else  /* _DEBUG */
 #include <stdlib.h>
 #endif /* _DEBUG */
+#else  /* WIN32 */
+#include <stdlib.h>
 #endif /* WIN32 */
 
 #ifdef	_MEMORY_DEBUG_
