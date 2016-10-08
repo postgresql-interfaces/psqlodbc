@@ -248,7 +248,7 @@ function SpecialDsn($testdsn, $testdriver)
 		}
 		Write-Host "`tAdding System DSN=$testdsn"
 		$prop = input-dsninfo
-		$prop += "|Debug=0|Commlog=0"
+		$prop += "|Debug=0|Commlog=0|ConnSettings=set+lc_messages='C'"
 		$proc = Start-Process ./RegisterRegdsn.exe -Verb runas -Wait -PassThru -ArgumentList "add_dsn", "$testdriver", "$testdsn", "$prop"
 #		Add-OdbcDsn $testdsn -DriverName $testdriver -DsnType "System" -Platform $bit -SetPropertyValue @("Database=contrib_regression", "Server=localhost", "UID=postgres", "PWD=postgres") -EA Stop
 		if ($proc.ExitCode -ne 0) {
