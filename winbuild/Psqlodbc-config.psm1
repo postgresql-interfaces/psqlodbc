@@ -1,9 +1,10 @@
-Param(
-[string]$configPath
-)
-function InitConfiguration($savePath = $configurationXmlPath)
+$LIBPQ_VERSION="9.5"
+$configurationXmlPath=""
+$configurationTemplatePath=""
+
+function InitConfiguration($savePath)
 {
-	$configInfo = [xml](Get-Content "$configurationTemplatePath")
+	$configInfo = [xml](Get-Content $configurationTemplatePath)
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86")
 	{
 		$x64info = $configInfo.Configuration.x64
@@ -11,35 +12,56 @@ function InitConfiguration($savePath = $configurationXmlPath)
 		$x64info.libpq.lib = ""
 		$x64info.libpq.bin = ""
 	}
-	$configInfo.save("$savePath")
+	$configInfo.save($savePath)
 
 	return $configInfo
 }
 
-function global:GetConfiguration($loadPath = $configurationXmlPath)
+function GetConfiguration($loadPath)
 {
-	$configInfo =  [xml] (Get-Content "$loadPath")
+	$configInfo =  [xml] (Get-Content $loadPath)
 	set-variable -name xmlFormatVersion -value "0.4" -option constant
 	if ($configInfo.Configuration.formatVersion -ne $xmlFormatVersion)
 	{
-        	$xmlDoc2 = [xml](Get-Content "$configurationTemplatePath")
+		$xmlDoc2 = [xml](Get-Content $configurationTemplatePath)
         	$root2 = $XmlDoc2.get_DocumentElement()
         	$root1 = $configInfo.get_DocumentElement()
         	unifyNodes $root1 $root2
 
 		$root1.formatVersion = $xmlFormatVersion
-            	$configInfo.save("$loadPath")
+		$configInfo.save($loadPath)
 	}
 
 	return $configInfo
 }
 
-function global:SaveConfiguration($configInfo, $savePath = $configurationXmlPath)
+function LoadConfiguration($configPath, $configDir)
 {
-	$configInfo.save("$savePath")
+	Write-Debug "configPath=$configPath"
+	set-variable -name configurationTemplatePath -scope 1 -value "$configDir\configuration_template.xml"
+	if ("$configPath" -eq "") {
+		$configPath = "$configDir\configuration.xml"
+	}
+	set-variable -name configurationXmlPath -scope 1 -value $configPath
+	if (!(Test-Path -path $configPath))
+	{
+		return InitConFiguration $configPath
+	}
+	else
+	{
+		return GetConfiguration $configPath
+	}
 }
 
-function global:unifyNodes($node1, $node2)
+function SaveConfiguration($configInfo, $savePath)
+{
+	if ("$savePath" -eq "") {
+		$savePath = $configurationXmlPath
+	}
+	$configInfo.save($savePath)
+}
+
+function unifyNodes($node1, $node2)
 {
     $attributes2 = $node2.get_Attributes()
     if ($attributes2.Count -gt 0)
@@ -77,7 +99,7 @@ function global:unifyNodes($node1, $node2)
     }
 }
 
-function global:getPGDir($configInfo, $Platform, $kind)
+function getPGDir($configInfo, $Platform, $kind)
 {
 	if ($Platform -ieq "x64") {
 		$platinfo=$configInfo.Configuration.x64
@@ -85,7 +107,7 @@ function global:getPGDir($configInfo, $Platform, $kind)
 		$platinfo=$configInfo.Configuration.x86
 	}
 	$LIBPQVER=$platinfo.libpq.version
-	if ($LIBPQVER -eq "") {
+	if ("$LIBPQVER" -eq "") {
 		$LIBPQVER = $LIBPQ_VERSION
 	}
 	if ($kind -eq "include") {
@@ -100,15 +122,15 @@ function global:getPGDir($configInfo, $Platform, $kind)
 	}
 	if ($Platform -ieq "x64") {
 		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-			$pgmfs = "$env:ProgramW6432"
+			$pgmfs = $env:ProgramW6432
 		} else {
-			$pgmfs = "$env:ProgramFiles"
+			$pgmfs = $env:ProgramFiles
 		}
 	} else {
 		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-			$pgmfs = "$env:ProgramFiles"
+			$pgmfs = $env:ProgramFiles
 		} else {
-			$pgmfs = "${env:ProgramFiles(x86)}"
+			$pgmfs = ${env:ProgramFiles(x86)}
 		}
 	}
 	if ("$pgmfs" -eq "") {
@@ -119,20 +141,4 @@ function global:getPGDir($configInfo, $Platform, $kind)
 	return $result
 }
 
-Write-Debug "configPath=$configPath"
-$global:LIBPQ_VERSION="9.5"
-$scriptPath = [System.IO.Path]::GetDirectoryName($myInvocation.MyCommand.Definition)
-$global:configurationTemplatePath = "$scriptPath\configuration_template.xml"
-$global:configurationXmlPath = $configPath
-if ($configurationXmlPath -eq "") {
-	$global:configurationXmlPath = "$scriptPath\configuration.xml"
-}
-if (!(Test-Path -path $configurationXmlPath))
-{
-	InitConfiguration
-}
-else
-{
-	GetConfiguration
-}
-Return
+Export-ModuleMember -function LoadConfiguration, SaveConfiguration, unifyNodes, getPGDir -variable LIBPQ_VERSION

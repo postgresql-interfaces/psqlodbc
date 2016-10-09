@@ -109,6 +109,7 @@ $window=[Windows.Markup.XamlReader]::Load( $reader )
 $buttonEnd = $window.FindName("buttonEnd")
 $buttonEnd_clicked = $buttonEnd.add_Click
 $buttonEnd_clicked.Invoke({
+	Remove-Module Psqlodbc-config
 	$window.close()
 })
 
@@ -155,7 +156,8 @@ foreach ($btnname in ("button86vcvars", "button64vcvars"))
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
-$configInfo = & "$scriptPath\configuration.ps1" "$configPath"
+Import-Module "$scriptPath\Psqlodbc-config.psm1"
+$configInfo = LoadConfiguration $configPath $scriptPath
 
 $window.findName("versionBox").Text = $configInfo.Configuration.version
 $window.findName("vcversionBox").Text = $configInfo.Configuration.vcversion

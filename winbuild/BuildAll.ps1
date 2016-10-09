@@ -92,7 +92,8 @@ function buildPlatform($configInfo, $Platform)
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
-$configInfo = & "$scriptPath\configuration.ps1" "$BuildConfigPath"
+Import-Module ${scriptPath}\Psqlodbc-config.psm1
+$configInfo = LoadConfiguration $BuildConfigPath $scriptPath
 $DRIVERVERSION=$configInfo.Configuration.version
 pushd $scriptPath
 $path_save = ${env:PATH}
@@ -157,4 +158,5 @@ try {
 } finally {
 	$env:PATH = $path_save
 	popd
+	Remove-Module Psqlodbc-config
 }

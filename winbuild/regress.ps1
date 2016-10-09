@@ -293,10 +293,12 @@ if ($null -eq $TestList) {
 }
 vcxfile_make $TESTNAMES $DIRNAMES $vcxfile
 
-$configInfo = & "$scriptPath\configuration.ps1" "$BuildConfigPath"
+Import-Module "$scriptPath\Psqlodbc-config.psm1"
+$configInfo = LoadConfiguration $BuildConfigPath $scriptPath
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 $msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
 Remove-Module MSProgram-Get
+Remove-Module Psqlodbc-config
 
 if ($Platform -ieq "both") {
 	$pary = @("Win32", "x64")
