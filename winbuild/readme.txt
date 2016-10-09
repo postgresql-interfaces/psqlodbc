@@ -74,8 +74,7 @@
 
         .\BuildAll(.ps1) -V(CVersion) 10.0
 
-     or set the value 10.0 to Configuration.vcver attribute of the
-     configuration file.
+     or set the value 10.0 to vcversion using ./editConfiguration.
 
      To see details about the use of BuildAll, type
 
