@@ -56,9 +56,9 @@ Add-Type -AssemblyName presentationframework
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
-	    <!-- x86.setvcvars -->
+	    <!-- x86.build_macros -->
             <StackPanel Height="26" Name="stackPanel86vcvars" Orientation="Horizontal" Width="Auto">
-                <Label BorderBrush="Black" Content="setvcvars" Height="Auto" HorizontalContentAlignment="Center" Name="label86vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
+                <Label BorderBrush="Black" Content="build__macros" Height="Auto" HorizontalContentAlignment="Center" Name="label86vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
                 <StackPanel Height="Auto" Name="stackPanel86vcvars_1" Orientation="Horizontal" Width="Auto">
 			<TextBox Height="24" Name="textBox86vcvars" Width="304" />
                         <Button Content="..." Height="23" Name="button86vcvars" Width="20" />
@@ -89,9 +89,9 @@ Add-Type -AssemblyName presentationframework
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
-	    <!-- x64.setvcvars -->
+	    <!-- x64.build_macros -->
             <StackPanel Height="26" Name="stackPanel64vcvars" Orientation="Horizontal" Width="Auto">
-                <Label BorderBrush="Black" Content="setvcvars" Height="Auto" HorizontalContentAlignment="Center" Name="label64vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
+                <Label BorderBrush="Black" Content="build__macros" Height="Auto" HorizontalContentAlignment="Center" Name="label64vcvars" VerticalContentAlignment="Center" Width="107" BorderThickness="1,0,1,1" />
                 <StackPanel Height="Auto" Name="stackPanel64vcvars_1" Orientation="Horizontal" Width="Auto">
 			<TextBox Height="24" Name="textBox64vcvars" Width="304" />
                         <Button Content="..." Height="23" Name="button64vcvars" Width="20" />
@@ -166,7 +166,7 @@ $window.findName("versionBox1").Text = $x86info.libpq.version
 $window.findName("textBox1").Text = $x86info.libpq.include
 $window.findName("textBox2").Text = $x86info.libpq.lib
 $window.findName("textBox3").Text = $x86info.libpq.bin
-$window.findName("textBox86vcvars").Text = $x86info.setvcvars
+$window.findName("textBox86vcvars").Text = $x86info.build_macros
 
 $x64info = $configInfo.Configuration.x64
 
@@ -174,7 +174,7 @@ $window.findName("versionBox2").Text = $x64info.libpq.version
 $window.findName("textBox9").Text = $x64info.libpq.include
 $window.findName("textBox10").Text = $x64info.libpq.lib
 $window.findName("textBox11").Text = $x64info.libpq.bin
-$window.findName("textBox64vcvars").Text = $x64info.setvcvars
+$window.findName("textBox64vcvars").Text = $x64info.build_macros
 
 $buttonSave = $window.FindName("buttonSave")
 $buttonSave_clicked = $buttonSave.add_Click
@@ -186,13 +186,13 @@ $buttonSave_clicked.Invoke({
 	$x86info.libpq.include = $window.findName("textBox1").Text
 	$x86info.libpq.lib = $window.findName("textBox2").Text
 	$x86info.libpq.bin = $window.findName("textBox3").Text
-	$x86info.setvcvars = $window.findName("textBox86vcvars").Text
+	$x86info.build_macros = $window.findName("textBox86vcvars").Text
 
 	$x64info.libpq.version = $window.findName("versionBox2").Text
 	$x64info.libpq.include = $window.findName("textBox9").Text
 	$x64info.libpq.lib = $window.findName("textBox10").Text
 	$x64info.libpq.bin = $window.findName("textBox11").Text
-	$x64info.setvcvars = $window.findName("textBox64vcvars").Text
+	$x64info.build_macros = $window.findName("textBox64vcvars").Text
 
 	SaveConfiguration $configInfo
 })
