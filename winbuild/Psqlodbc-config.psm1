@@ -1,4 +1,3 @@
-$LIBPQ_VERSION="9.5"
 $configurationXmlPath=""
 $configurationTemplatePath=""
 
@@ -107,9 +106,6 @@ function getPGDir($configInfo, $Platform, $kind)
 		$platinfo=$configInfo.Configuration.x86
 	}
 	$LIBPQVER=$platinfo.libpq.version
-	if ("$LIBPQVER" -eq "") {
-		$LIBPQVER = $LIBPQ_VERSION
-	}
 	if ($kind -eq "include") {
 		$result=$platinfo.libpq.include
 	} elseif ($kind -eq "lib") {
@@ -136,7 +132,33 @@ function getPGDir($configInfo, $Platform, $kind)
 	if ("$pgmfs" -eq "") {
 		$result = $null
 	} else {
-		$result = "$pgmfs\PostgreSQL\$LIBPQVER\$kind"
+		$lslist = $null
+		$result = $null
+		if (-not (Test-Path "$pgmfs\PostgreSQL")) {
+			throw("default Postgres Directory not found`nPlease specify the directories other than default")
+		}
+		$lslist = @(Get-ChildItem "$pgmfs\PostgreSQL")
+		if ($null -eq $lslist) {
+			throw("default Postgres Directory not found")
+		} else {
+			[decimal]$vernum = 0
+			if ("$LIBPQVER" -eq "") {
+				foreach ($l in $lslist) {
+					$ver = [decimal]$l.Name
+					if ($ver -gt $vernum) {
+						$result = $l.FullName + "\$kind"
+						$vernum = $ver
+					}
+				}
+			} else {
+				foreach ($l in $lslist) {
+					if ($LIBPQVER -eq $l.Name) {
+						$result = $l.FullName + "\$kind"
+						break
+					}
+				}
+			}
+		}
 	}
 	return $result
 }
