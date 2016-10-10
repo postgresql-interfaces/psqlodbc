@@ -80,6 +80,16 @@ function buildPlatform($configInfo, $Platform)
 
 	Write-Host "USE LIBPQ  : ($PG_INC $PG_LIB $PG_BIN)"
 
+	if (-not (Test-Path $PG_INC)) {
+		throw("`n!!!! include directory $PG_INC does not exist`nplease specify the correct folder name using editConfiguration")
+	}
+	if (-not (Test-Path $PG_LIB)) {
+		throw("`n!!!! lib directory $PG_LIB does not exist`nplease specify the correct folder name using editConfiguration")
+	}
+	if (-not (Test-Path $PG_BIN)) {
+		throw("`n!!!! bin directory $PG_BIN does not exist`nplease specify the correct folder name using editConfiguration")
+	}
+	
 	$useSplit=$true
 	if ($useSplit) {
 			$macroList = -split $BUILD_MACROS
@@ -153,8 +163,12 @@ try {
                         throw "Failed to build installers"
                 }
 	}
-} catch {
-	$error[0] | Format-List -Force
+} catch [Exception] {
+	if ("$_.Exception.Message" -ne "") {
+		write-host $_.Exception.Message -ForegroundColor Red
+	} else {
+		echo $_.Exception | Format-List -Force
+	}
 } finally {
 	$env:PATH = $path_save
 	popd
