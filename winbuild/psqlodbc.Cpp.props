@@ -9,12 +9,12 @@ psqlodbc.Cpp.props
   <!--		-->
   <Import Project="pguser.Cpp.props" />
   <PropertyGroup Condition="'$(Platform)'=='Win32'">
-      <WarningLevel>Level3</WarningLevel>
-      <DisableSpecificWarnings>4018</DisableSpecificWarnings>
+      <WarnLvl>Level3</WarnLvl>
+      <DSpcWarn>4018</DSpcWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)'=='x64'">
-      <WarningLevel>Level3</WarningLevel>
-      <DisableSpecificWarnings>4018</DisableSpecificWarnings>
+      <WarnLvl>Level3</WarnLvl>
+      <DSpcWarn>4018</DSpcWarn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(DRIVERVERSION)'!=''" >
     <ADD_DEFINES>$(ADD_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)"</ADD_DEFINES>
@@ -23,11 +23,11 @@ psqlodbc.Cpp.props
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>$(WarningLevel)</WarningLevel>
+      <WarningLevel>$(WarnLvl)</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PrecompiledHeaderFile />
-      <DisableSpecificWarnings>$(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>$(DSpcWarn)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -39,11 +39,11 @@ psqlodbc.Cpp.props
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>$(WarningLevel)</WarningLevel>
+      <WarningLevel>$(WarnLvl)</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PrecompiledHeaderFile />
-      <DisableSpecificWarnings>$(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>$(DSpcWarn)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -54,14 +54,14 @@ psqlodbc.Cpp.props
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <WarningLevel>$(WarningLevel)</WarningLevel>
+      <WarningLevel>$(WarnLvl)</WarningLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PrecompiledHeaderFile />
-      <DisableSpecificWarnings>$(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>$(DSpcWarn)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -74,14 +74,14 @@ psqlodbc.Cpp.props
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>$(WarningLevel)</WarningLevel>
+      <WarningLevel>$(WarnLvl)</WarningLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PrecompiledHeaderFile />
-      <DisableSpecificWarnings>$(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>$(DSpcWarn)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
