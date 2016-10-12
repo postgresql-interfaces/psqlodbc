@@ -146,13 +146,9 @@ typedef	UInt4	OID;
 #ifdef	_WIN64
 #define	FORMAT_LEN	"%I64d" /* SQLLEN */
 #define	FORMAT_ULEN	"%I64u" /* SQLULEN */
-#define	FORMAT_LPTR	"%I64d" /* LONG_PTR */
-#define	FORMAT_ULPTR	"%I64u" /* ULONG_PTR */
 #else
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
-#define	FORMAT_LPTR	"%ld"	/* LONG_PTR */
-#define	FORMAT_ULPTR	"%lu"	/* ULONG_PTR */
 #endif /* _WIN64 */
 #else
 #define	FORMAT_SIZE_T	"%zu"	/* size_t */
@@ -164,13 +160,9 @@ typedef	long	ssize_t
 #if (SIZEOF_VOID_P == SIZEOF_LONG)
 typedef	long 	LONG_PTR;
 typedef	unsigned long 	ULONG_PTR;
-#define	FORMAT_LPTR	"%ld"	/* LONG_PTR */
-#define	FORMAT_ULPTR	"%lu"	/* ULONG_PTR */
 #elif defined (HAVE_LONG_LONG)
 typedef	long long LONG_PTR;
 typedef	unsigned long long ULONG_PTR;
-#define	FORMAT_LPTR	"%lld"	/* LONG_PTR */
-#define	FORMAT_ULPTR	"%llu"	/* ULONG_PTR */
 #else
 #error appropriate long pointer type not found
 #endif /* SIZEOF_VOID_P */
