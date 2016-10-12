@@ -198,7 +198,7 @@ check_client_encoding(const pgNAME conn_settings)
 }
 
 static int
-pg_mb_maxlen(characterset_code)
+pg_mb_maxlen(int characterset_code)
 {
 	switch (characterset_code)
 	{
