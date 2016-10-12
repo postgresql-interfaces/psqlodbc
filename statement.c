@@ -2618,7 +2618,7 @@ cleanup:
  * 'res' is only passed here for error reporting purposes. If an error is
  * encountered, it is set in 'res', and the function returns FALSE.
  */
-BOOL
+static BOOL
 ParseWithLibpq(StatementClass *stmt, const char *plan_name,
 			   const char *query,
 			   Int2 num_params, const char *comment, QResultClass *res)
