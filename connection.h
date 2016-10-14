@@ -51,9 +51,9 @@ enum
 #define CONNECTION_NO_SUCH_DATABASE				105
 #define CONNECTION_BACKEND_CRAZY				106
 #define CONNECTION_NO_RESPONSE					107
-#define CONNECTION_SERVER_REPORTED_ERROR			108
+#define CONNECTION_SERVER_REPORTED_SEVERITY_FATAL		108
 #define CONNECTION_COULD_NOT_RECEIVE				109
-#define CONNECTION_SERVER_REPORTED_WARNING			110
+#define CONNECTION_SERVER_REPORTED_SEVERITY_ERROR		110
 #define CONNECTION_NEED_PASSWORD				112
 #define CONNECTION_COMMUNICATION_ERROR				113
 
@@ -403,7 +403,7 @@ QResultClass *CC_send_query_append(ConnectionClass *self, const char *query, Que
 #define CC_send_query(self, query, qi, flag, stmt) CC_send_query_append(self, query, qi, flag, stmt, NULL)
 void		handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   const char *comment,
-				   QResultClass *res, BOOL fatal);
+				   QResultClass *res, BOOL error_not_a_notice);
 void		CC_clear_error(ConnectionClass *self);
 int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
 char		CC_send_settings(ConnectionClass *self, const char *set_query);

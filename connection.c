@@ -708,9 +708,8 @@ CC_set_translation(ConnectionClass *self)
 void
 handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   const char *comment,
-				   QResultClass *res, BOOL fatal)
+				   QResultClass *res, BOOL error_not_a_notice)
 {
-	UDWORD		abort_opt;
 	char	   *errseverity;
 	char	   *errprimary;
 	char	   *errmsg = NULL;
@@ -752,51 +751,47 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	if (errmsg == NULL)
 		errmsg = errprimary;
 
-	abort_opt = 0;
-
-	if (PQstatus(self->pqconn) == CONNECTION_BAD)
+	if (!error_not_a_notice) /* warning, notice, log etc */
 	{
-		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_ERROR);
-		abort_opt = CONN_DEAD;
-	}
-	else
-	{
-		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_WARNING);
-		if (fatal && CC_is_in_trans(self))
-			CC_set_in_error_trans(self);
-	}
-
-	mylog("notice/error message len=%d\n", strlen(errmsg));
-
-	if (fatal)
-	{
-		if (res)
-		{
-			QR_set_rstatus(res, PORES_FATAL_ERROR);
-			if (errmsg[0])
-				QR_set_message(res, errmsg);
-			QR_set_aborted(res, TRUE);
-		}
-	}
-	else
-	{
+		mylog("notice message %s\n", errmsg);
 		if (res)
 		{
 			if (QR_command_successful(res))
-				QR_set_rstatus(res, PORES_NONFATAL_ERROR);
+				QR_set_rstatus(res, PORES_NONFATAL_ERROR); /* notice or warning */
 			QR_set_notice(res, errmsg);  /* will dup this string */
 		}
+		goto cleanup;
 	}
+
+	mylog("error message len=%d\n", strlen(errmsg));
+
+	if (res)
+	{
+		QR_set_rstatus(res, PORES_FATAL_ERROR); /* error or fatal */
+		if (errmsg[0])
+			QR_set_message(res, errmsg);
+		QR_set_aborted(res, TRUE);
+	}
+
+	/*
+	 *	If the error is continuable after rollback?
+	 */
+	if (PQstatus(self->pqconn) == CONNECTION_BAD ||
+	    (errseverity && strcmp(errseverity, "FATAL") == 0)) /* no */
+	{
+		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_SEVERITY_FATAL);
+		CC_on_abort(self, CONN_DEAD); /* give up the connection */
+	}
+	else /* yes */
+	{
+		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_SEVERITY_ERROR);
+		if (CC_is_in_trans(self))
+			CC_set_in_error_trans(self);
+	}
+
+cleanup:
 	if (errmsg != errprimary)
 		free(errmsg);
-
-	if (0 != abort_opt
-#ifdef	_LEGACY_MODE_
-		|| TRUE
-#endif /* _LEGACY_NODE_ */
-		)
-		CC_on_abort(self, abort_opt);
-
 	LIBPQ_update_transaction_status(self);
 }
 
