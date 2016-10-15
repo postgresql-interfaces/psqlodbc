@@ -228,7 +228,10 @@ function buildInstaller($CPUTYPE)
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
-$configInfo = & "$scriptPath\..\winbuild\configuration.ps1" "$BuildConfigPath"
+$modulePath="${scriptPath}\..\winbuild"
+Import-Module ${modulePath}\Psqlodbc-config.psm1
+$defaultConfigDir=$modulePath
+$configInfo = LoadConfiguration $BuildConfigPath $defaultConfigDir
 
 if ($AlongWithDrivers) {
 	try {
@@ -275,4 +278,5 @@ try {
 	throw $error[0]
 } finally {
 	Remove-Module MSProgram-Get
+	Remove-Module Psqlodbc-config
 }
