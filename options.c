@@ -372,7 +372,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			if (CC_is_in_global_trans(conn))
 			{
-				CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Don't change AUTOCOMMIT mode in a distributed transaction", func);
+				CC_set_error(conn, CONN_ILLEGAL_TRANSACT_STATE, "Don't change AUTOCOMMIT mode in a distributed transaction", func);
 				return SQL_ERROR;
 			}
 #endif	/* _HANDLE_ENLIST_IN_DTC_ */
@@ -393,73 +393,35 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			break;
 
 		case SQL_TXN_ISOLATION:
-			retval = SQL_SUCCESS;
 			if (conn->isolation == vParam)
 				break;
-			switch (vParam)
+			/*
+			 * If the connection is not established, just record the setting to
+			 * reflect it upon connection.
+			 */
+			if (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN)
 			{
-				case SQL_TXN_SERIALIZABLE:
-					break;
-				case SQL_TXN_REPEATABLE_READ:
-					if (PG_VERSION_LT(conn, 8.0))
-						retval = SQL_ERROR;
-					break;
-				case SQL_TXN_READ_COMMITTED:
-					break;
-				case SQL_TXN_READ_UNCOMMITTED:
-					if (PG_VERSION_LT(conn, 8.0))
-						retval = SQL_ERROR;
-					break;
-				default:
-					retval = SQL_ERROR;
+				conn->isolation = (UInt4) vParam;
+				conn->isolation_set_delay = 1;
+				break;
 			}
-			if (SQL_ERROR == retval)
-			{
-				CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Illegal parameter value for SQL_TXN_ISOLATION", func);
-				return SQL_ERROR;
-			}
-			else
-			{
-				char *query;
-				QResultClass *res;
 
-				if (CC_is_in_trans(conn))
-				{
-					if (CC_does_autocommit(conn) && !CC_is_in_error_trans(conn))
-						CC_commit(conn);
-					else
-					{
-						CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress", func);
-						return SQL_ERROR;
-					}
-				}
-				switch (vParam)
-				{
-					case SQL_TXN_SERIALIZABLE:
-						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE";
-						break;
-					case SQL_TXN_REPEATABLE_READ:
-						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ";
-						break;
-					case SQL_TXN_READ_UNCOMMITTED:
-						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ UNCOMMITTED";
-						break;
-					default:
-						query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
-						break;
-				}
-				res = CC_send_query(conn, query, NULL, 0, NULL);
-				if (!QR_command_maybe_successful(res))
-					retval = SQL_ERROR;
+			/* The ODBC spec prohibits changing the isolation level while in manual transaction. */
+			if (CC_is_in_trans(conn))
+			{
+				if (CC_does_autocommit(conn) && !CC_is_in_error_trans(conn))
+					CC_commit(conn);
 				else
-					conn->isolation = (UInt4) vParam;
-				QR_Destructor(res);
-				if (SQL_ERROR == retval)
 				{
-					CC_set_error(conn, CONN_EXEC_ERROR, "ISOLATION change request to the server error", func);
+					CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress", func);
 					return SQL_ERROR;
 				}
 			}
+
+			if (!CC_set_transact(conn, (UInt4) vParam))
+				return SQL_ERROR;
+
+			conn->isolation = (UInt4) vParam;
 			break;
 
 		/* These options should be handled by driver manager */

@@ -74,7 +74,7 @@ enum
 #define CONN_INVALID_AUTHENTICATION					210
 #define CONN_AUTH_TYPE_UNSUPPORTED					211
 #define CONN_UNABLE_TO_LOAD_DLL						212
-
+#define CONN_ILLEGAL_TRANSACT_STATE					213
 #define CONN_VALUE_OUT_OF_RANGE						214
 
 #define CONN_OPTION_NOT_FOR_THE_DRIVER					216
@@ -322,6 +322,7 @@ struct ConnectionClass_
 										 * current_schema == NULL means it's
 										 * really NULL, while FALSE means it's
 										 * unknown */
+	char		isolation_set_delay;
 	StatementClass *unnamed_prepared_stmt;
 	Int2		max_identifier_length;
 	Int2		num_discardp;
@@ -432,6 +433,9 @@ char	*schema_strcat1(char *buf, const char *fmt, const char *s1,
 				const SQLCHAR *, int, ConnectionClass *conn);
 
 void	CC_examine_global_transaction(ConnectionClass *self);
+
+
+BOOL CC_set_transact(ConnectionClass *self, UInt4 isolation);
 
 /* CC_send_query options */
 enum {

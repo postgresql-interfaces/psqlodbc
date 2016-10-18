@@ -966,6 +966,12 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	}
 #endif /* UNICODE_SUPPORT */
 
+	if (!CC_set_transact(self, self->isolation))
+	{
+		ret = 0;
+		goto cleanup;
+	}
+
 	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS;
 	if (ci->allow_keyset)
 	{
@@ -3002,3 +3008,46 @@ PgDtc_isolate(void *self, DWORD option)
 }
 
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
+
+BOOL
+CC_set_transact(ConnectionClass *self, UInt4 isolation)
+{
+	char *query;
+	QResultClass *res;
+
+	if (PG_VERSION_LT(self, 8.0) &&
+		(isolation == SQL_TXN_READ_UNCOMMITTED ||
+		 isolation == SQL_TXN_REPEATABLE_READ))
+	{
+		CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "READ_UNCOMMITTED or REPEATABLE_READ is not supported by the server", __FUNCTION__);
+		return FALSE;
+	}
+
+	switch (isolation)
+	{
+		case SQL_TXN_SERIALIZABLE:
+			query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE";
+						break;
+		case SQL_TXN_REPEATABLE_READ:
+			query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ";
+			break;
+		case SQL_TXN_READ_UNCOMMITTED:
+			query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ UNCOMMITTED";
+			break;
+		default:
+			query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
+			break;
+	}
+	res = CC_send_query(self, query, NULL, 0, NULL);
+	if (!QR_command_maybe_successful(res))
+	{
+		CC_set_error(self, CONN_EXEC_ERROR, "ISOLATION change request to the server error", __FUNCTION__);
+		QR_Destructor(res);
+		return FALSE;
+	}
+	QR_Destructor(res);
+	self->isolation_set_delay = 0;
+
+	return TRUE;
+}
+

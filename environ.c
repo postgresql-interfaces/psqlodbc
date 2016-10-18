@@ -370,19 +370,16 @@ PGAPI_ConnectError(HDBC hdbc,
 				/* invalid argument value */
 				break;
 			case CONN_TRANSACT_IN_PROGRES:
-				pg_sqlstate_set(env, szSqlState, "HY010", "S1010");
-
-				/*
-				 * when the user tries to switch commit mode in a
-				 * transaction
-				 */
-				/* -> function sequence error */
+				pg_sqlstate_set(env, szSqlState, "HY011", "S1011");
 				break;
 			case CONN_NO_MEMORY_ERROR:
 				pg_sqlstate_set(env, szSqlState, "HY001", "S1001");
 				break;
 			case CONN_NOT_IMPLEMENTED_ERROR:
 				pg_sqlstate_set(env, szSqlState, "HYC00", "S1C00");
+				break;
+			case CONN_ILLEGAL_TRANSACT_STATE:
+				pg_sqlstate_set(env, szSqlState, "25000", "S1010");
 				break;
 			case CONN_VALUE_OUT_OF_RANGE:
 				pg_sqlstate_set(env, szSqlState, "HY019", "22003");
