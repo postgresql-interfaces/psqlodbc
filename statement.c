@@ -170,6 +170,8 @@ static const struct
 };
 
 static QResultClass *libpq_bind_and_exec(StatementClass *stmt);
+static void SC_set_errorinfo(StatementClass *self, QResultClass *res);
+
 
 RETCODE		SQL_API
 PGAPI_AllocStmt(HDBC hdbc,
@@ -1617,29 +1619,7 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 			(self->currTuple)++;	/* all is well */
 		else
 		{
-			ConnectionClass *conn = SC_get_conn(self);
-
-			mylog("%s: error\n", func);
-			switch (conn->status)
-			{
-				case CONN_NOT_CONNECTED:
-				case CONN_DOWN:
-					SC_set_error(self, STMT_BAD_ERROR, "Error fetching next row", func);
-					break;
-				default:
-					switch (QR_get_rstatus(res))
-					{
-						case PORES_NO_MEMORY_ERROR:
-							SC_set_error(self, STMT_NO_MEMORY_ERROR, "memory allocation error???", __FUNCTION__);
-							break;
-						case PORES_BAD_RESPONSE:
-							SC_set_error(self, STMT_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);
-							break;
-						default:
-							SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row", __FUNCTION__);
-							break;
-					}
-			}
+			SC_set_errorinfo(self, res);
 			return SQL_ERROR;
 		}
 	}
@@ -2044,22 +2024,7 @@ SC_execute(StatementClass *self)
 		else if (was_nonfatal)
 			SC_set_errornumber(self, STMT_INFO_ONLY);
 		else
-		{
-			switch (QR_get_rstatus(res))
-			{
-				case PORES_NO_MEMORY_ERROR:
-					SC_set_errornumber(self, STMT_NO_MEMORY_ERROR);
-					break;
-				case PORES_BAD_RESPONSE:
-					SC_set_errornumber(self, STMT_COMMUNICATION_ERROR);
-					break;
-				case PORES_INTERNAL_ERROR:
-					SC_set_errornumber(self, STMT_INTERNAL_ERROR);
-					break;
-				default:
-					SC_set_errornumber(self, STMT_ERROR_TAKEN_FROM_BACKEND);
-			}
-		}
+			SC_set_errorinfo(self, res);
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
 		SC_set_current_col(self, -1);
@@ -2968,4 +2933,32 @@ BOOL	SC_AcceptedCancelRequest(const StatementClass *self)
 		shouldCancel = TRUE;
 	LEAVE_COMMON_CS;
 	return shouldCancel;
+}
+
+static void
+SC_set_errorinfo(StatementClass *self, QResultClass *res)
+{
+	ConnectionClass *conn = SC_get_conn(self);
+
+	if (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN)
+	{
+		SC_set_error(self, STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__);
+		return;
+	}
+
+	switch (QR_get_rstatus(res))
+	{
+		case PORES_NO_MEMORY_ERROR:
+			SC_set_error(self, STMT_NO_MEMORY_ERROR, "memory allocation error???", __FUNCTION__);
+			break;
+		case PORES_BAD_RESPONSE:
+			SC_set_error(self, STMT_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);
+			break;
+		case PORES_INTERNAL_ERROR:
+			SC_set_error(self, STMT_INTERNAL_ERROR, "Internal error fetching next row", __FUNCTION__);
+			break;
+		default:
+			SC_set_error(self, STMT_EXEC_ERROR, "Error fetching next row", __FUNCTION__);
+			break;
+	}
 }

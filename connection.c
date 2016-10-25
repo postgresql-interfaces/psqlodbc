@@ -776,8 +776,12 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	/*
 	 *	If the error is continuable after rollback?
 	 */
-	if (PQstatus(self->pqconn) == CONNECTION_BAD ||
-	    (errseverity && strcmp(errseverity, "FATAL") == 0)) /* no */
+	if (PQstatus(self->pqconn) == CONNECTION_BAD)
+	{
+		CC_set_errornumber(self, CONNECTION_COMMUNICATION_ERROR);
+		CC_on_abort(self, CONN_DEAD); /* give up the connection */
+	}
+	else if (errseverity && strcmp(errseverity, "FATAL") == 0) /* no */
 	{
 		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_SEVERITY_FATAL);
 		CC_on_abort(self, CONN_DEAD); /* give up the connection */
@@ -1592,7 +1596,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	if (!PQsendQuery(self->pqconn, query_buf))
 	{
 		char *errmsg = PQerrorMessage(self->pqconn);
-		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
+		CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, func);
 		goto cleanup;
 	}
 	PQsetSingleRowMode(self->pqconn);
