@@ -86,6 +86,9 @@ enum
 #define CONN_IN_MANUAL_TRANSACTION	(1L<<2)
 #define CONN_IN_ERROR_BEFORE_IDLE	(1L<<3)
 
+/* not connected yet || already disconnected */
+#define	CC_not_connected(x)	(CONN_DOWN == (x)->status || CONN_NOT_CONNECTED == (x)->status)
+
 /* AutoCommit functions */
 #define CC_is_in_autocommit(x)		(x->transact_status & CONN_IN_AUTOCOMMIT)
 #define CC_does_autocommit(x) (CONN_IN_AUTOCOMMIT == ((x)->transact_status & (CONN_IN_AUTOCOMMIT | CONN_IN_MANUAL_TRANSACTION)))
@@ -316,18 +319,19 @@ struct ConnectionClass_
 	char		*server_encoding;
 	Int2		ccsc;
 	Int2		mb_maxbyte_per_char;
-	UInt4		isolation;
+	UInt4		isolation;		/* isolation level initially unknown */
+	SQLUINTEGER	server_isolation;	/* isolation at server initially unknown */
 	char		*current_schema;
 	char		current_schema_valid;	/* is current_schema valid? TRUE when
 										 * current_schema == NULL means it's
 										 * really NULL, while FALSE means it's
 										 * unknown */
-	char		isolation_set_delay;
 	StatementClass *unnamed_prepared_stmt;
 	Int2		max_identifier_length;
 	Int2		num_discardp;
 	char		**discardp;
 	int		num_descs;
+	SQLINTEGER	default_isolation;	/* server's default isolation initially unkown */
 	DescriptorClass	**descs;
 	pgNAME		schemaIns;
 	pgNAME		tableIns;

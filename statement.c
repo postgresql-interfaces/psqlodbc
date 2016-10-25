@@ -2952,7 +2952,7 @@ SC_set_errorinfo(StatementClass *self, QResultClass *res)
 {
 	ConnectionClass *conn = SC_get_conn(self);
 
-	if (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN)
+	if (CC_not_connected(conn))
 	{
 		SC_set_error_if_not_set(self, STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__);
 		return;

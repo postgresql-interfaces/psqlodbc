@@ -312,7 +312,7 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 	rv->lobj_type = PG_TYPE_LO_UNDEFINED;
 	if (isMsAccess())
 		rv->ms_jet = 1;
-	rv->isolation = SQL_TXN_READ_COMMITTED;
+	rv->isolation = 0; // means initially unknown server's default isolation
 	rv->mb_maxbyte_per_char = 1;
 	rv->max_identifier_length = -1;
 	rv->autocommit_public = SQL_AUTOCOMMIT_ON;
@@ -902,12 +902,17 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 	return 1;
 }
 
+static int handle_show_results(const QResultClass *res);
+#define	TRANSACTION_ISOLATION "transaction_isolation"
+#define	ISOLATION_SHOW_QUERY "show " TRANSACTION_ISOLATION
+
 static int LIBPQ_connect(ConnectionClass *self);
 static char
 LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 {
 	int		ret;
 	CSTR		func = "LIBPQ_CC_connect";
+	QResultClass	*res;
 
 	mylog("%s: entering...\n", func);
 
@@ -916,9 +921,17 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 
 	if (ret = LIBPQ_connect(self), ret <= 0)
 		return ret;
-	CC_send_settings(self, "SET DateStyle = 'ISO';SET extra_float_digits = 2");
+	res = CC_send_query(self, "SET DateStyle = 'ISO';SET extra_float_digits = 2;" ISOLATION_SHOW_QUERY, NULL, 0, NULL);
+	if (QR_command_maybe_successful(res))
+	{
+		handle_show_results(res);
+		ret = 1;
+	}
+	else
+		ret = 0;
+	QR_Destructor(res);
 
-	return 1;
+	return ret;
 }
 
 char
@@ -950,10 +963,10 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	 */
 
 	/* Global settings */
- retsend = CC_send_settings(self, GET_NAME(self->connInfo.drivers.conn_settings));
+	retsend = CC_send_settings(self, GET_NAME(self->connInfo.drivers.conn_settings));
 	/* Per Datasource settings */
- if (retsend)
-	 retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
+	if (retsend)
+		retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
 
 	if (CC_get_errornumber(self) > 0)
 		saverr = strdup(CC_get_errormsg(self));
@@ -981,11 +994,12 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	}
 #endif /* UNICODE_SUPPORT */
 
-	if (!CC_set_transact(self, self->isolation))
-	{
-		ret = 0;
-		goto cleanup;
-	}
+	if (self->server_isolation != self->isolation)
+		if (!CC_set_transact(self, self->isolation))
+		{
+			ret = 0;
+			goto cleanup;
+		}
 
 	ci->updatable_cursors = DISALLOW_UPDATABLE_CURSORS;
 	if (ci->allow_keyset)
@@ -1139,6 +1153,67 @@ mylog("max_identifier_length=%d\n", len);
 	return len < 0 ? 0 : len;
 }
 
+static SQLINTEGER
+isolation_str_to_enum(const char *str_isolation)
+{
+	SQLINTEGER	isolation = 0;
+
+	if (strnicmp(str_isolation, "seri", 4) == 0)
+		isolation = SQL_TXN_SERIALIZABLE;
+	else if (strnicmp(str_isolation, "repe", 4) == 0)
+		isolation = SQL_TXN_REPEATABLE_READ;
+	else if (strnicmp(str_isolation, "read com", 8) == 0)
+		isolation = SQL_TXN_READ_COMMITTED;
+	else if (strnicmp(str_isolation, "read unc", 8) == 0)
+		isolation = SQL_TXN_READ_UNCOMMITTED;
+
+	return isolation;
+}
+
+static int handle_show_results(const QResultClass *res)
+{
+	int			count = 0;
+	const QResultClass	*qres;
+	ConnectionClass		*conn = QR_get_conn(res);
+
+	for (qres = res; qres; qres = qres->next)
+	{
+		if (!qres->command ||
+		    stricmp(qres->command, "SHOW") != 0)
+			continue;
+		if (strcmp(QR_get_fieldname(qres, 0), TRANSACTION_ISOLATION) == 0)
+		{
+			conn->server_isolation = isolation_str_to_enum(QR_get_value_backend_text(qres, 0, 0));
+			mylog("isolation %d to be %d\n", conn->server_isolation, conn->isolation);
+			if (0 == conn->isolation)
+				conn->isolation = conn->server_isolation;
+			if (0 == conn->default_isolation)
+				conn->default_isolation = conn->server_isolation;
+			count++;
+		}
+	}
+
+	return count;
+}
+/*
+ *	This function may not be called as long as ISOLATION_SHOW_QUERY is
+ *	issued in LIBPQ_CC_connect.
+ */
+int	CC_get_isolation(ConnectionClass *self)
+{
+	SQLINTEGER	isolation = 0;
+	QResultClass	*res;
+
+	res = CC_send_query(self, ISOLATION_SHOW_QUERY, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+	if (QR_command_maybe_successful(res))
+	{
+		handle_show_results(res);
+		isolation = self->server_isolation;
+	}
+	QR_Destructor(res);
+mylog("isolation=%d\n", isolation);
+	return isolation;
+}
 
 void
 CC_set_error(ConnectionClass *self, int number, const char *message, const char *func)
@@ -1946,6 +2021,8 @@ cleanup:
 	 */
 	LIBPQ_update_transaction_status(self);
 
+	if (retres)
+		QR_set_conn(retres, self);
 	return retres;
 }
 
@@ -3029,6 +3106,7 @@ CC_set_transact(ConnectionClass *self, UInt4 isolation)
 {
 	char *query;
 	QResultClass *res;
+	BOOL	bShow = FALSE;
 
 	if (PG_VERSION_LT(self, 8.0) &&
 		(isolation == SQL_TXN_READ_UNCOMMITTED ||
@@ -3053,15 +3131,22 @@ CC_set_transact(ConnectionClass *self, UInt4 isolation)
 			query = "SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED";
 			break;
 	}
-	res = CC_send_query(self, query, NULL, 0, NULL);
+	if (self->default_isolation == 0)
+		bShow = TRUE;
+	if (bShow)
+		res = CC_send_query_append(self, ISOLATION_SHOW_QUERY, NULL, 0, NULL, query);
+	else
+		res = CC_send_query(self, query, NULL, 0, NULL);
 	if (!QR_command_maybe_successful(res))
 	{
 		CC_set_error(self, CONN_EXEC_ERROR, "ISOLATION change request to the server error", __FUNCTION__);
 		QR_Destructor(res);
 		return FALSE;
 	}
+	if (bShow)
+		handle_show_results(res);
 	QR_Destructor(res);
-	self->isolation_set_delay = 0;
+	self->server_isolation = isolation;
 
 	return TRUE;
 }

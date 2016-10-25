@@ -239,7 +239,9 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		case SQL_DEFAULT_TXN_ISOLATION: /* ODBC 1.0 */
 			len = 4;
-			value = SQL_TXN_READ_COMMITTED;
+			if (0 == conn->default_isolation)
+				conn->isolation = CC_get_isolation(conn);
+			value = conn->default_isolation;
 			break;
 
 		case SQL_DRIVER_NAME:	/* ODBC 1.0 */

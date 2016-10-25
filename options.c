@@ -399,10 +399,9 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			 * If the connection is not established, just record the setting to
 			 * reflect it upon connection.
 			 */
-			if (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN)
+			if (CC_not_connected(conn))
 			{
 				conn->isolation = (UInt4) vParam;
-				conn->isolation_set_delay = 1;
 				break;
 			}
 
@@ -531,6 +530,12 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			break;
 
 		case SQL_TXN_ISOLATION:
+			if (conn->isolation == 0)
+			{
+				if (CC_not_connected(conn))
+					return SQL_NO_DATA;
+				conn->isolation = CC_get_isolation(conn);
+			}
 			*((SQLUINTEGER *) pvParam) = conn->isolation;
 			break;
 
@@ -540,7 +545,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 		case 1209:
 #endif /* SQL_ATTR_CONNECTION_DEAD */
 			mylog("CONNECTION_DEAD status=%d", conn->status);
-			*((SQLUINTEGER *) pvParam) = (conn->status == CONN_NOT_CONNECTED || conn->status == CONN_DOWN);
+			*((SQLUINTEGER *) pvParam) = CC_not_connected(conn);
 			mylog(" val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
 
