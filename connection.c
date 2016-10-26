@@ -705,12 +705,17 @@ CC_set_translation(ConnectionClass *self)
 	return TRUE;
 }
 
+#ifndef PG_DIAG_SEVERITY_NONLOCALIZED
+#define PG_DIAG_SEVERITY_NONLOCALIZED 'V'
+#endif
+
 void
 handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   const char *comment,
 				   QResultClass *res, BOOL error_not_a_notice)
 {
 	char	   *errseverity;
+	char	   *errseverity_nonloc = NULL;
 	char	   *errprimary;
 	char	   *errmsg = NULL;
 	size_t		errmsglen;
@@ -731,6 +736,11 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	 * severity and primary message, which is backwards compatible.
 	 */
 	errseverity = PQresultErrorField(pgres, PG_DIAG_SEVERITY);
+	if (PG_VERSION_GE(self, 9.6))
+	{
+		errseverity_nonloc = PQresultErrorField(pgres, PG_DIAG_SEVERITY_NONLOCALIZED);
+		mylog("PG_DIAG_SEVERITY_NONLOCALIZED=%s\n", errseverity_nonloc ? errseverity_nonloc : "(null)");
+	}
 	errprimary = PQresultErrorField(pgres, PG_DIAG_MESSAGE_PRIMARY);
 	if (errprimary == NULL)
 	{
@@ -781,7 +791,8 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		CC_set_errornumber(self, CONNECTION_COMMUNICATION_ERROR);
 		CC_on_abort(self, CONN_DEAD); /* give up the connection */
 	}
-	else if (errseverity && strcmp(errseverity, "FATAL") == 0) /* no */
+	else if ((errseverity_nonloc && strcmp(errseverity_nonloc, "FATAL") == 0) ||
+		(NULL == errseverity_nonloc && errseverity && strcmp(errseverity, "FATAL") == 0)) /* no */ 
 	{
 		CC_set_errornumber(self, CONNECTION_SERVER_REPORTED_SEVERITY_FATAL);
 		CC_on_abort(self, CONN_DEAD); /* give up the connection */
