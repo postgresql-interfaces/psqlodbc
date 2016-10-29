@@ -214,7 +214,8 @@ static FILE *MLOGFP = NULL;
 
 static void MLOG_open()
 {
-	char		filebuf[80];
+	char		filebuf[80], errbuf[160];
+	BOOL		open_error = FALSE;
 
 	if (MLOGFP) return;
 
@@ -222,11 +223,19 @@ static void MLOG_open()
 	MLOGFP = fopen(filebuf, PG_BINARY_A);
 	if (!MLOGFP)
 	{
+		int lasterror = GENERAL_ERRNO;
+ 
+		open_error = TRUE;
+		snprintf(errbuf, sizeof(errbuf), "%s open error %d\n", filebuf, lasterror);
 		generate_homefile(MYLOGFILE, filebuf);
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
 	}
 	if (MLOGFP)
+	{
 		setbuf(MLOGFP, NULL);
+		if (open_error)
+			fputs(errbuf, MLOGFP);
+	}
 }
 
 DLL_DECLARE void

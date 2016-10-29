@@ -335,6 +335,27 @@ mylog("GetProcAddres for %s\n", procname);
 }
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
+#include <sys/stat.h>
+static const char *IsAnExistingDirectory(const char *path)
+{
+		
+	struct stat st;
+
+	if (stat(path, &st) < 0)
+	{
+		CSTR errmsg_doesnt_exist = "doesn't exist";
+
+		return errmsg_doesnt_exist;
+	}
+	if ((st.st_mode & S_IFDIR) == 0)
+	{
+		CSTR errmsg_isnt_a_dir = "isn't a directory";
+		
+		return errmsg_isnt_a_dir;
+	}
+	return NULL;
+}
+
 LRESULT			CALLBACK
 global_optionsProc(HWND hdlg,
 				   UINT wMsg,
@@ -347,6 +368,7 @@ global_optionsProc(HWND hdlg,
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	ConnInfo	*ci;
 	char logdir[PATH_MAX];
+	const char *logmsg;
 
 	switch (wMsg)
 	{
@@ -377,11 +399,16 @@ global_optionsProc(HWND hdlg,
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
+					GetDlgItemText(hdlg, DS_LOGDIR, logdir, sizeof(logdir));
+					if (logdir[0] && (logmsg = IsAnExistingDirectory(logdir)) != NULL)
+					{
+						MessageBox(hdlg, "Folder for logging error", logmsg, MB_ICONEXCLAMATION | MB_OK);
+						break;
+					}
 					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
 					if (writeDriverCommoninfo(ODBCINST_INI, NULL, &globals) < 0)
 						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
-					GetDlgItemText(hdlg, DS_LOGDIR, logdir, sizeof(logdir));
 					setLogDir(logdir[0] ? logdir : NULL);
 #ifdef _HANDLE_ENLIST_IN_DTC_
 					hmodule = DtcProc("SetMsdtclog", &proc);
