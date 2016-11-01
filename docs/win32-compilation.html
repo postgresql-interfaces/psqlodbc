@@ -38,24 +38,24 @@ The following 3rd party software are required for the build:
   Using Powershell and MSBuild is recommended. 
   In fact the binaries of official release are built using this mothod.
 
-  Currently 4 Windows Powershell scripts are provided for developpers.
+  Currently 4 Windows Powershell scripts are provided for developers.
 
   winbuild/BuildAll.ps1          - build all dlls for psqlodbc drivers using
 				   MSBuild.
   winbuild/editConfiguration.ps1 - a GUI tool to set Build environment
   winbuild/regress.ps1           - build regression test programs and run
-  installer/buildInstallers.ps1  - build installers(.msi or setup.exe)
+  installer/buildInstallers.ps1  - build installers(.msi and setup.exe)
 
   Use Powershell console or Command Prompt to invoke scripts:
 
   For example, to build the driver:
 
-  C:\psqlodbc\winbuild\> (Powershell) ./BuildAll.ps1 <options>
+  C:\psqlodbc\winbuild\> (Powershell) ./BuildAll.ps1 &lt;options&gt;
  
     or you can use the same functionality from Command Prompt using Windows
     helper batch at the parent folder (..\). See ..\readme_winbuild.txt.
  
-  C:\psqlodbc\> (Commnd Prompt) .\BuildAll.bat <options>
+  C:\psqlodbc\> (Commnd Prompt) .\BuildAll.bat &lt;options&gt;
 
   1. Please start a powershell console and set the ExecutionPolicy of
      Powershell to RemoteSigned or Unrestricted.
@@ -97,6 +97,8 @@ The following 3rd party software are required for the build:
 
      and edit the setting of your environment especially the folders
      you placed libpq related include/lib/bin files.
+
+	<img src="./editConfiguration.jpg" />	
 
   4. Build
 
@@ -166,9 +168,9 @@ The following 3rd party software are required for the build:
      
      To build the .msi installer file:
 
-     C:\psqlodbc\installer\> (Powershell) ./buildInstallers.ps1 <options>
+     C:\psqlodbc\installer\> (Powershell) ./buildInstallers.ps1 &lt;options&gt;
         or
-     C:\psqlodbc\> (Command Prompt) .\buildInstallers.bat <options>
+     C:\psqlodbc\> (Command Prompt) .\buildInstallers.bat &lt;options&gt;
 
      By default, buildInstallers.ps1 builds bootstrapper program
      psqlodbc-setup.exe together.
