@@ -57,6 +57,19 @@ static void LIBPQ_update_transaction_status(ConnectionClass *self);
 extern GLOBAL_VALUES globals;
 
 
+static CC_set_error_if_not_set(ConnectionClass *self, int errornumber, const char *errormsg, const char *func)
+{
+	if (CC_get_errornumber(self) <= 0)
+	{
+		if (CC_get_errormsg(self) == NULL)
+			CC_set_error(self, errornumber, errormsg, func);
+		else
+			CC_set_errornumber(self, errornumber);
+	}
+	else
+		CC_set_errormsg(self, errormsg);
+}
+
 RETCODE		SQL_API
 PGAPI_AllocConnect(HENV henv,
 				   HDBC * phdbc)
@@ -891,9 +904,14 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		 ci->drivers.extra_systable_prefixes,
 		 PRINT_NAME(ci->drivers.conn_settings),
 		 encoding ? encoding : "");
-	if (self->status != CONN_NOT_CONNECTED)
+	if (self->status == CONN_DOWN)
 	{
-		CC_set_error(self, CONN_OPENDB_ERROR, "Already connected.", func);
+		CC_set_error_if_not_set(self, CONN_OPENDB_ERROR, "Connection broken.", func);
+		return 0;
+	}
+	else if (self->status != CONN_NOT_CONNECTED)
+	{
+		CC_set_error_if_not_set(self, CONN_OPENDB_ERROR, "Already connected.", func);
 		return 0;
 	}
 
