@@ -407,7 +407,7 @@ global_optionsProc(HWND hdlg,
 					}
 					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
-					if (writeDriverCommoninfo(ODBCINST_INI, NULL, &globals) < 0)
+					if (writeDriverCommoninfo(ODBCINST_INI, ci->drivername, &globals) < 0)
 						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
 					setLogDir(logdir[0] ? logdir : NULL);
 #ifdef _HANDLE_ENLIST_IN_DTC_

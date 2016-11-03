@@ -25,6 +25,11 @@
 
 GLOBAL_VALUES globals;
 
+/*
+ *	TRUE means that even though drivername is different, share common driver info.
+ */
+static BOOL share_common_driver_info = TRUE;
+
 static void encode(const pgNAME, char *out, int outlen);
 static pgNAME decode(const char *in);
 static pgNAME decode_or_remove_braces(const char *in);
@@ -852,12 +857,17 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->drivername[0] == '\0' || overwrite)
 	{
+		const char *drivername;
+
 		getDriverNameFromDSN(DSN, ci->drivername, sizeof(ci->drivername));
-		if (ci->drivername[0] && stricmp(ci->drivername, SAFE_NAME(ci->drivers.drivername)))
+		drivername = ci->drivername;
+		if (!share_common_driver_info &&
+		    drivername[0] &&
+		    stricmp(drivername, SAFE_NAME(ci->drivers.drivername)))
 		{
-			mylog("driver is about to change from '%s' to '%s'\n", SAFE_NAME(ci->drivers.drivername), ci->drivername);
-			getCommonDefaults(ci->drivername, ODBCINST_INI, ci);
-			getCommonDefaults(ci->drivername, ODBCINST_INI, NULL);
+			mylog("driver is about to change from '%s' to '%s'\n", SAFE_NAME(ci->drivers.drivername), drivername);
+			getCommonDefaults(drivername, ODBCINST_INI, ci);
+			getCommonDefaults(drivername, ODBCINST_INI, NULL);
 		}
 	}
 
@@ -1064,8 +1074,13 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	char		tmp[128];
 	int		errc = 0;
 
-	if (stricmp(ODBCINST_INI, fileName) == 0 && NULL == sectionName)
-		sectionName = DBMS_NAME;
+	if (stricmp(ODBCINST_INI, fileName) == 0)
+	{
+		if (share_common_driver_info)
+			sectionName = DBMS_NAME;
+		else if (NULL == sectionName)
+			sectionName = DBMS_NAME;
+	}
 
 	sprintf(tmp, "%d", comval->commlog);
 	if (!SQLWritePrivateProfileString(sectionName, INI_COMMLOG, tmp, fileName))
@@ -1073,10 +1088,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 
 	sprintf(tmp, "%d", comval->debug);
 	if (!SQLWritePrivateProfileString(sectionName, INI_DEBUG, tmp, fileName))
-		errc--;
-
-	sprintf(tmp, "%d", comval->fetch_max);
-	if (!SQLWritePrivateProfileString(sectionName, INI_FETCH, tmp, fileName))
 		errc--;
 
 	if (stricmp(ODBCINST_INI, fileName) == 0)
