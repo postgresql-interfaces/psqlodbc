@@ -319,7 +319,7 @@ struct ConnectionClass_
 	char		*server_encoding;
 	Int2		ccsc;
 	Int2		mb_maxbyte_per_char;
-	UInt4		isolation;		/* isolation level initially unknown */
+	SQLUINTEGER	isolation;		/* isolation level initially unknown */
 	SQLUINTEGER	server_isolation;	/* isolation at server initially unknown */
 	char		*current_schema;
 	char		current_schema_valid;	/* is current_schema valid? TRUE when
@@ -331,7 +331,7 @@ struct ConnectionClass_
 	Int2		num_discardp;
 	char		**discardp;
 	int		num_descs;
-	SQLINTEGER	default_isolation;	/* server's default isolation initially unkown */
+	SQLUINTEGER	default_isolation;	/* server's default isolation initially unkown */
 	DescriptorClass	**descs;
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
@@ -428,6 +428,7 @@ char	CC_get_escape(const ConnectionClass *self);
 
 const		char *CurrCat(const ConnectionClass *self);
 const		char *CurrCatString(const ConnectionClass *self);
+SQLUINTEGER	CC_get_isolation(ConnectionClass *self);
 
 SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
 char	*schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,

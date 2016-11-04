@@ -1217,9 +1217,9 @@ static int handle_show_results(const QResultClass *res)
  *	This function may not be called as long as ISOLATION_SHOW_QUERY is
  *	issued in LIBPQ_CC_connect.
  */
-int	CC_get_isolation(ConnectionClass *self)
+SQLUINTEGER	CC_get_isolation(ConnectionClass *self)
 {
-	SQLINTEGER	isolation = 0;
+	SQLUINTEGER	isolation = 0;
 	QResultClass	*res;
 
 	res = CC_send_query(self, ISOLATION_SHOW_QUERY, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
