@@ -1,0 +1,22 @@
+<!--
+***********************************************************************************************
+dbmsname.Cpp.props
+
+***********************************************************************************************
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--		-->
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'" >
+    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL ANSI"</ADD_DEFINES>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|x64'" >
+    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL ANSI(x64)"</ADD_DEFINES>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'" >
+    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL Unicode"</ADD_DEFINES>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'" >
+    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
+  </PropertyGroup>
+</Project>

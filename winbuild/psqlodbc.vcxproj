@@ -99,6 +99,8 @@
     <TargetType>Unicode</TargetType>
     <MAINDEF>$(srcPath)psqlodbc.def</MAINDEF>
     <DTCDLL>pgenlist</DTCDLL>
+    <ADD_DEFINES>UNICODE_SUPPORT;UNICODE_SUPPORTXX</ADD_DEFINES>
+    <RSC_DEFINES>UNICODE_SUPPORT</RSC_DEFINES>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Platform)'=='Win32'">
@@ -113,20 +115,7 @@
     <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|Win32'" >
-    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL ANSI"</ADD_DEFINES>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='yes|x64'" >
-    <ADD_DEFINES>$(ADD_DEFINES);DBMS_NAME="PostgreSQL ANSI(x64)"</ADD_DEFINES>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|Win32'" >
-    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;UNICODE_SUPPORTXX</ADD_DEFINES>
-    <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(ANSI_VERSION)|$(Platform)'=='no|x64'" >
-    <ADD_DEFINES>$(ADD_DEFINES);UNICODE_SUPPORT;UNICODE_SUPPORTXX;DBMS_NAME="PostgreSQL Unicode(x64)"</ADD_DEFINES>
-    <RSC_DEFINES>$(RSC_DEFINES);UNICODE_SUPPORT</RSC_DEFINES>
-  </PropertyGroup>
+  <Import Project="std_dbmsname.Cpp.props" />
 
   <PropertyGroup Condition="'$(MSDTC)'=='yes'">
     <ADD_DEFINES>$(ADD_DEFINES);_HANDLE_ENLIST_IN_DTC_</ADD_DEFINES>

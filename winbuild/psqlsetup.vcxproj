@@ -94,6 +94,8 @@
     <RSC_DEFINES>UNICODE_SUPPORT</RSC_DEFINES>
   </PropertyGroup>
 
+  <Import Project="std_dbmsname.Cpp.props" />
+
   <PropertyGroup Condition="'$(Platform)'=='Win32'">
     <TARGET_CPU>x86</TARGET_CPU>
   </PropertyGroup>
