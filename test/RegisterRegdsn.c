@@ -17,8 +17,9 @@ void err()
 	DWORD	ErrorCode;
 	char	szMsg[256];
 	WORD	cbMsg;
+	int	i;
 
-	for (int i = 1; i <= 8; i++)
+	for (i = 1; i <= 8; i++)
 	{
 		ret = SQLInstallerError(i, &ErrorCode, szMsg, sizeof(szMsg), &cbMsg);
 		if (!SQL_SUCCEEDED(ret))
