@@ -81,6 +81,9 @@
     <IntDir>test_$(TARGET_CPU)\obj\</IntDir>
     <OutDir>test_$(TARGET_CPU)\$(SubDir)</OutDir>
   </PropertyGroup>
+
+  <Import Project="pguser.Cpp.props" />
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>

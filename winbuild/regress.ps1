@@ -297,6 +297,7 @@ Import-Module "$scriptPath\Psqlodbc-config.psm1"
 $configInfo = LoadConfiguration $BuildConfigPath $scriptPath
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 $msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+write-host "vcversion=$VCVersion toolset=$Toolset"
 Remove-Module MSProgram-Get
 Remove-Module Psqlodbc-config
 
