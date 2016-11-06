@@ -11,10 +11,10 @@
 	return 1; \
 }
 
-void err()
+DWORD err()
 {
 	RETCODE	ret;
-	DWORD	ErrorCode;
+	DWORD	ErrorCode = 0;
 	char	szMsg[256];
 	WORD	cbMsg;
 	int	i;
@@ -26,10 +26,17 @@ void err()
 			break;
 		szMsg[cbMsg] = '\0';
 		fprintf(stderr, "SQLInstallDriverEx ErrorCode=%d:%s\n", ErrorCode, szMsg);
+		switch (ErrorCode)
+		{
+			case ODBC_ERROR_COMPONENT_NOT_FOUND:
+			case ODBC_ERROR_INVALID_NAME:
+				return ErrorCode;
+		}
 	}
+	return ErrorCode;
 }
 
-static int inst_driver(const char *driver, int argc, const char **argv)
+static int inst_driver(const char *driver, const char *pathIn, const char *key_value_pairs)
 {
 	char	szDriver[256], szOut[256];
 	DWORD	usageCount;
@@ -37,26 +44,22 @@ static int inst_driver(const char *driver, int argc, const char **argv)
 	WORD	cbMsg;
 	char	*psz, *pchr;
 
-	if (argc < 5) {
-		fprintf(stderr, "install driver needs 4 parameters\n", argv[0]);
-		return 1;
-	}
 	memset(szDriver, 0, sizeof(szDriver));
 	psz = szDriver;
 	strncpy(szDriver, driver, sizeof(szDriver));
 	pcnt = strlen(psz) + 1;
 	psz += pcnt;
-	strncpy(psz, argv[4], sizeof(szDriver) - pcnt);
+	strncpy(psz, key_value_pairs, sizeof(szDriver) - pcnt);
 	for (pchr = psz; *pchr; pchr++)
 	{
 		if (*pchr == '|')
 			*pchr = '\0';
 	}
 	psz += (strlen(psz) + 1);
-	if (!SQLInstallDriverEx(szDriver, argv[3], szOut, sizeof(szOut), &cbMsg, ODBC_INSTALL_COMPLETE, &usageCount))
+	if (!SQLInstallDriverEx(szDriver, pathIn, szOut, sizeof(szOut), &cbMsg, ODBC_INSTALL_COMPLETE, &usageCount))
 	{
 		err();
-		fprintf(stderr, "SQLInstallDriverEx %s:%s:%s error\n", szDriver,  szDriver + strlen(szDriver) + 2, argv[3]);
+		fprintf(stderr, "SQLInstallDriverEx %s:%s:%s error\n", szDriver,  szDriver + strlen(szDriver) + 2, pathIn);
 		RETURN_1
 	}
 	if (!SQLConfigDriver(NULL, ODBC_INSTALL_DRIVER, driver, "", szOut, sizeof(szOut), &cbMsg))
@@ -91,23 +94,18 @@ static int uninst_driver(const char *driver)
 	return 0;
 }
 
-static int add_dsn(const char *driver, int argc, const char **argv)
+static int add_dsn(const char *driver, const char *dsn, const char *key_value_pairs)
 {
 	char	szDsn[256];
 	char	*psz, *pchr;
 	size_t	pcnt;
-	const char *dsn = argv[3];
 
-	if (argc < 5) {
-		fprintf(stderr, "add dsn needs 4 parameters\n");
-		return 1;
-	}
 	memset(szDsn, 0, sizeof(szDsn));
 	psz = szDsn;
 	_snprintf(psz, sizeof(szDsn), "DSN=%s", dsn);
 	pcnt = strlen(psz) + 1;
 	psz += pcnt;
-	strncpy(psz, argv[4], sizeof(szDsn) - pcnt);
+	strncpy(psz, key_value_pairs, sizeof(szDsn) - pcnt);
 	for (pchr = psz; *pchr; pchr++)
 	{
 		if (*pchr == '|')
@@ -116,13 +114,86 @@ static int add_dsn(const char *driver, int argc, const char **argv)
 	psz += (strlen(psz) + 1);
 	if (!SQLConfigDataSource(NULL, ODBC_ADD_SYS_DSN, driver, szDsn))
 	{
-		err();
+		switch (err())
+		{
+			case ODBC_ERROR_COMPONENT_NOT_FOUND:
+			case ODBC_ERROR_INVALID_NAME:
+				return -1;
+		}
 		fprintf(stderr, "SQLConfigDataSource ADD_SYS_DSN %s error\n", driver);
 		RETURN_1
 	}
 	fprintf(stderr, "SQLConfigDataSource ADD_SYS_DSN %s\n", dsn);
 
 	return 0;
+}
+
+typedef	SQLRETURN (SQL_API *SQLAPIPROC)();
+static int
+IsDsnExist(const char *dsn)
+{
+	HMODULE	hmodule;
+	SQLHENV	henv;
+	int	retcode = 1;
+	char	dsnname[64], dsnatt[128];
+	SQLUSMALLINT	direction = SQL_FETCH_FIRST;
+	SQLSMALLINT	dsnncount, dsnacount;
+	SQLRETURN	ret;
+	SQLAPIPROC	addr;
+
+	hmodule = LoadLibrary("ODBC32");
+	if (!hmodule)
+	{
+		fprintf(stderr, "LoadLibrary ODBC32 failed\n");
+		RETURN_1;
+	}
+	addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLAllocEnv");
+	if (!addr)
+	{
+		fprintf(stderr, "GetProcAddress for SQLAllocEnv failed\n");
+		RETURN_1;
+	}
+	ret = (*addr)(&henv);
+	if (!SQL_SUCCEEDED(ret))
+	{
+		fprintf(stderr, "SQLAllocEnv failed\n");
+		RETURN_1;
+	}
+	retcode = -1;
+	do
+	{
+		ret = SQLDataSources(henv, direction,
+						 dsnname, sizeof(dsnname), &dsnncount,
+						 dsnatt, sizeof(dsnatt), &dsnacount);
+		if (!SQL_SUCCEEDED(ret))
+			break;
+		if (_strnicmp(dsnname, dsn, sizeof(dsnname)) == 0)
+		{
+			retcode = 0;
+			break;
+		}
+		direction = SQL_FETCH_NEXT;
+	} while (1);
+	addr = (SQLAPIPROC) GetProcAddress(hmodule, "SQLFreeEnv");
+	if (addr)
+		(*addr)(henv);
+	FreeLibrary(hmodule);
+
+	return retcode;
+}
+
+static int register_dsn(const char *driver, const char *dsn, const char *key_value_pairs, const char *pathIn, const char *driver_key_value_pairs)
+{
+	int	ret;
+
+	if (ret = IsDsnExist(dsn), ret != -1)
+		return ret;
+	if (ret = add_dsn(driver, dsn, key_value_pairs), ret != -1)
+		return ret;
+	fprintf(stderr, "\tAdding driver %s of %s\n", driver, pathIn);
+	if (ret = inst_driver(driver, pathIn, driver_key_value_pairs), ret != 0)
+		return ret;
+	return add_dsn(driver, dsn, key_value_pairs);
 }
 
 /*
@@ -141,12 +212,28 @@ int main(int argc, char **argv)
 	}
 	switch (argv[1][0])
 	{
+		case 'e':
+			return IsDsnExist(argv[2]);
+		case 'r':
+			if (argc < 7) {
+				fprintf(stderr, "register dsn needs 4 parameters\n");
+				return 1;
+			}
+			return register_dsn(driver, argv[3], argv[4], argv[5], argv[6]);
 		case 'i':
-			return inst_driver(driver, argc, argv);
+			if (argc < 5) {
+				fprintf(stderr, "install driver needs 4 parameters\n", argv[0]);
+				return 1;
+			}
+			return inst_driver(driver, argv[3], argv[4]);
 		case 'u':
 			return uninst_driver(driver);
 		case 'a':
-			return add_dsn(driver, argc, argv);
+			if (argc < 5) {
+				fprintf(stderr, "add dsn needs 4 parameters\n");
+				return 1;
+			}
+			return add_dsn(driver, argv[3], argv[4]);
 	}
 
 	fprintf(stderr, "mode %s is invalid\n", argv[1]);

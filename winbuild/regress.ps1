@@ -236,26 +236,20 @@ function SpecialDsn($testdsn, $testdriver)
 		return "SERVER=${server}|DATABASE=${database}|PORT=${port}|UID=${uid}|PWD=${passwd}"
 	}
 
-	$dsnArray = Get-OdbcDsn $testdsn -Platform $bit -EA SilentlyContinue
-	if ($null -eq $dsnArray) {
-		$drvArray = Get-OdbcDriver $testdriver -Platform $bit -EA SilentlyContinue
-		if ($drvArray.length -eq 0) {
-			Write-Host "`tAdding $bit driver $testdriver of $dlldir"
-			$proc = Start-Process ./RegisterRegdsn.exe -Verb runas -Wait -PassThru -ArgumentList "install $testdriver `"$dlldir`" Driver=${dllname}|Setup=${setup}|Debug=0|Commlog=0"
-			if ($proc.ExitCode -ne 0) {
-				throw "`tRegisterRegdsn $testdriver error"
-			}
-		}
+	$regProgram = "./RegisterRegdsn.exe"
+	& $regProgram "existCheck" $testdsn
+	if ($LastExitCode -eq -1) {
 		Write-Host "`tAdding System DSN=$testdsn"
 		$prop = input-dsninfo
 		$prop += "|Debug=0|Commlog=0|ConnSettings=set+lc_messages='C'"
-		$proc = Start-Process ./RegisterRegdsn.exe -Verb runas -Wait -PassThru -ArgumentList "add_dsn", "$testdriver", "$testdsn", "$prop"
-#		Add-OdbcDsn $testdsn -DriverName $testdriver -DsnType "System" -Platform $bit -SetPropertyValue @("Database=contrib_regression", "Server=localhost", "UID=postgres", "PWD=postgres") -EA Stop
+		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "register_dsn $testdriver $testdsn $prop `"$dlldir`" Driver=${dllname}|Setup=${setup}"
 		if ($proc.ExitCode -ne 0) {
 			throw "`tAddDsn $testdsn error"
 		}
 	}
-
+	elseif ($LastExitCode -ne 0) {
+		throw "$regProgram error"
+	}
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
