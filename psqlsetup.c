@@ -72,7 +72,26 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 #ifdef	PG_BIN
 			if (s_hLModule = LoadLibraryEx(PG_BIN "\\libpq.dll", NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule == NULL)
 			{
-				mylog("libpq folder %s couldn't be loaded\n", PG_BIN);
+				char dllPath[MAX_PATH] = "", message[MAX_PATH] = "";
+
+				mylog("libpq in the folder %s couldn't be loaded\n", PG_BIN);
+				SQLGetPrivateProfileString(DBMS_NAME, "Driver", "", dllPath, sizeof(dllPath), ODBCINST_INI);
+				if (dllPath[0])
+				{
+					char drive[_MAX_DRIVE], dir[_MAX_DIR];
+
+					_splitpath(dllPath, drive, dir, NULL, NULL);
+					snprintf(dllPath, sizeof(dllPath), "%s%slibpq.dll", drive, dir);
+					if (s_hLModule = LoadLibraryEx(dllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule == NULL)
+					{
+						mylog("libpq in the folder %s%s couldn't be loaded\n", drive, dir);
+						snprintf(message, sizeof(message), "libpq in neither %s nor %s%s could be loaded", PG_BIN, drive, dir);
+					}
+				}
+				else
+					snprintf(message, sizeof(message),  "libpq in the folder %s couldn't be loaded", PG_BIN);
+				if (message[0])
+					MessageBox(NULL, message, "psqlsetup", MB_OK);
 			}
 			EnableDelayLoadHook();
 #endif
