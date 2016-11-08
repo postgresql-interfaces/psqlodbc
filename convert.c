@@ -3523,6 +3523,47 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		else
 		{
+			/*
+			 *	a hack to handle boolean items in VBA
+			 *		with MS Access.
+			 *	VBA seems to transform the where condition
+			 *		a_boolean_item=True
+			 *	into
+			 *		("a_boolean_item" = 1)
+			 *	which causes an ERROR:Operator does not exist boolean = integer .
+			 *	So transforms it into
+			 *		("a_boolean_item"='1')
+			 *	here.
+			 */
+			if (')' == oldchar &&
+			    qb->conn->ms_jet &&
+			    1 == qp->token_len &&
+			    '1' == qp->token_save[0] &&
+			    8 <= F_OldPos(qp))
+			{
+				const char *oldptr = F_OldPtr(qp);
+				int	oldpos = F_OldPos(qp);
+
+				if (strncmp(oldptr - 5, "\" =", 3) == 0)
+				{
+					int	i;
+
+					for (i = 6; i < oldpos - 1; i++)
+					{
+						if (oldptr[-i] == '"')
+						{
+							if (oldptr[-(i+1)] == '(')
+							{
+								F_NewPtr(qb)[-4] = '=';
+								F_NewPtr(qb)[-3] = '\'';
+								F_NewPtr(qb)[-2] = '1';
+								F_NewPtr(qb)[-1] = '\'';
+							}
+							break;
+						}
+					}
+				}
+			}
 			if (isspace((UCHAR) oldchar))
 			{
 				if (!qp->prev_token_end)
