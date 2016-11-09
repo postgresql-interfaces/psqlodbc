@@ -77,6 +77,7 @@
                 <File Id="docs.release_7.3.html" Name="release-7.3.html" DiskId="1" Source="../docs/release-7.3.html" />
                 <File Id="docs.unix_compilation.html" Name="unix-compilation.html" DiskId="1" Source="../docs/unix-compilation.html" />
                 <File Id="docs.win32_compilation.html" Name="win32-compilation.html" DiskId="1" Source="../docs/win32-compilation.html" />
+                <File Id="docs.editConfiguration.jpg" Name="editConfiguration.jpg" DiskId="1" Source="../docs/editConfiguration.jpg" />
 
                 <!-- <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" /> -->
               </Component>

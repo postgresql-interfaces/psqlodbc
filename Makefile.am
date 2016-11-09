@@ -54,6 +54,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	docs/msdtc_pgxalib_tracing_enable.reg \
 	docs/msdtc_pgxalib_tracing_disable.reg \
 	docs/msdtc_pgxalib_tracing_README.txt \
+	docs/editConfiguration.jpg \
 \
 	installer/background.bmp \
 	installer/banner.bmp \
