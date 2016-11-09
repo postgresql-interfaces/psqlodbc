@@ -1310,6 +1310,45 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 		comval = &(ci->drivers);
 	else
 		comval = &globals;
+
+	/*
+	 * globals.debug or globals.commlog means whether take mylog or commlog
+	 * out of the connection time or not but doesn't mean the default of
+	 * ci->drivers.debug(commlog).
+	 */
+	/* Debug is stored in the driver section */
+	SQLGetPrivateProfileString(section, INI_DEBUG, "",
+				   temp, sizeof(temp), filename);
+	if (temp[0])
+	{
+		if (inst_position && ci)
+			;
+		else
+			comval->debug = atoi(temp);
+	}
+	else if (inst_position)
+		comval->debug = DEFAULT_DEBUG;
+
+	/* CommLog is stored in the driver section */
+	SQLGetPrivateProfileString(section, INI_COMMLOG, "",
+				   temp, sizeof(temp), filename);
+	if (temp[0])
+	{
+		if (inst_position && ci)
+			;
+		else
+			comval->commlog = atoi(temp);
+	}
+	else if (inst_position)
+		comval->commlog = DEFAULT_COMMLOG;
+
+	if (!ci)
+		logs_on_off(0, 0, 0);
+
+	/*
+	 * If inst_position of xxxxxx is present(usually not present),
+	 * it is the default of ci->drivers.xxxxxx .
+	 */
 	/* Fetch Count is stored in driver section */
 	SQLGetPrivateProfileString(section, INI_FETCH, "",
 							   temp, sizeof(temp), filename);
@@ -1322,25 +1361,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 	}
 	else if (inst_position)
 		comval->fetch_max = FETCH_MAX;
-
-	/* Debug is stored in the driver section */
-	SQLGetPrivateProfileString(section, INI_DEBUG, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
-		comval->debug = atoi(temp);
-	else if (inst_position)
-		comval->debug = DEFAULT_DEBUG;
-
-	/* CommLog is stored in the driver section */
-	SQLGetPrivateProfileString(section, INI_COMMLOG, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
-		comval->commlog = atoi(temp);
-	else if (inst_position)
-		comval->commlog = DEFAULT_COMMLOG;
-
-	if (!ci)
-		logs_on_off(0, 0, 0);
 
 	/* Recognize Unique Index is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_UNIQUEINDEX, "",
