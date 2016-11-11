@@ -4521,6 +4521,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
 #endif /* UNICODE_SUPPORT */
+		case SQL_BIT:
 
 			/* Special handling for some column types */
 			switch (param_pgtype)

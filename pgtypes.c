@@ -1273,10 +1273,6 @@ sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			pgType = 0;
 			break;
 
-		case SQL_BIT:
-			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
-			break;
-
 		case SQL_TYPE_DATE:
 		case SQL_DATE:
 			pgType = PG_TYPE_DATE;
@@ -1382,7 +1378,7 @@ sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 #endif /* UNICODE_SUPPORT */
 
 		case SQL_BIT:
-			pgType = ci->drivers.bools_as_char ? PG_TYPE_CHAR : PG_TYPE_BOOL;
+			pgType = PG_TYPE_BOOL;
 			break;
 
 		case SQL_TYPE_DATE:
