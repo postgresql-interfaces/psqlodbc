@@ -156,20 +156,6 @@ DliErrorHook(unsigned	dliNotify,
 	return (FARPROC) hmodule;
 }
 
-#if (_MSC_VER < 1300)
-void EnableDelayLoadHook()
-{
-	__pfnDliFailureHook = DliErrorHook;
-	__pfnDliNotifyHook = DliErrorHook;
-}
-#else
-void EnableDelayLoadHook()
-{
-	__pfnDliFailureHook2 = DliErrorHook;
-	__pfnDliNotifyHook2 = DliErrorHook;
-}
-#endif /* _MSC_VER */
-
 /*
  *	unload delay loaded libraries.
  */
