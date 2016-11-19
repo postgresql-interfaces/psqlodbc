@@ -7,7 +7,7 @@
 	char	gtlin[80]; \
 	fprintf(stderr, "Hit return key to continue ...\n"); \
 	fflush(stderr); \
-	gets(gtlin); \
+	fgets(gtlin, sizeof(gtlin), stdin); \
 	return 1; \
 }
 
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
 			return register_dsn(driver, argv[3], argv[4], argv[5], argv[6]);
 		case 'i':
 			if (argc < 5) {
-				fprintf(stderr, "install driver needs 4 parameters\n", argv[0]);
+				fprintf(stderr, "install driver needs 4 parameters\n");
 				return 1;
 			}
 			return inst_driver(driver, argv[3], argv[4]);
