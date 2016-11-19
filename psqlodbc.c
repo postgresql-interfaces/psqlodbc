@@ -121,7 +121,6 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			if (initialize_global_cs() == 0)
 			{
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
-				OSVERSIONINFO	osversion;
 				int platformId = 0;
 
 				getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
@@ -135,12 +134,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 					else if (strnicmp(fname, "sqlservr", 8) == 0)
 						exepgm = 3;
 				}
-				osversion.dwOSVersionInfoSize = sizeof(osversion);
-				if (GetVersionEx(&osversion))
-				{
-					platformId=osversion.dwPlatformId;
-				}
-				mylog("exe name=%s plaformId=%d\n", fname, platformId);
+				mylog("exe name=%s\n", fname);
 			}
 			break;
 
