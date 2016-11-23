@@ -157,6 +157,11 @@ DliErrorHook(unsigned	dliNotify,
 	return (FARPROC) hmodule;
 }
 
+void AlreadyLoadedPsqlodbc(void)
+{
+	loaded_psqlodbc = TRUE;
+}
+
 /*
  *	unload delay loaded libraries.
  */
@@ -173,16 +178,13 @@ void CleanupDelayLoadedDLLs(void)
 	/* The dll names are case sensitive for the unload helper */
 	if (loaded_pgenlist)
 	{
-		if (enlist_module == NULL)
-		{
-			success = (*func)(pgenlistdll);
-			mylog("%s unload success=%d\n", pgenlistdll, success);
-		}
-		else
+		if (enlist_module != NULL)
 		{
 			FreeLibrary(enlist_module);
 			mylog("FreeLibrary %s\n", pgenlistdll);
 		}
+		success = (*func)(pgenlistdll);
+		mylog("%s unload success=%d\n", pgenlistdll, success);
 		loaded_pgenlist = FALSE;
 	}
 	if (loaded_psqlodbc)

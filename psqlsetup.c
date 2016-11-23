@@ -107,6 +107,8 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				MessageBox(NULL, "psqlodbc load error", "psqlsetup",  MB_OK);
 				return TRUE;
 			}
+			else
+				AlreadyLoadedPsqlodbc();
 			break;
 
 		case DLL_THREAD_ATTACH:

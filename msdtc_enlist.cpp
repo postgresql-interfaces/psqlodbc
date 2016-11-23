@@ -61,6 +61,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
                 case DLL_PROCESS_ATTACH:
                         s_hModule = (HINSTANCE) hInst;  /* Save for dialog boxes */
 			break;
+                case DLL_PROCESS_DETACH:
+                        mylog("DETACHING pgenlist\n");
+			break;
 	}
 	return TRUE;
 }

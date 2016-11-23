@@ -33,6 +33,7 @@ void	CALL_ReleaseTransactionObject(void *);
 /* void	UnloadDelayLoadedDLLs(BOOL); */
 void	CleanupDelayLoadedDLLs(void);
 HMODULE MODULE_load_from_psqlodbc_path(const char *module_name);
+void	AlreadyLoadedPsqlodbc(void);
 
 #ifdef	__cplusplus
 }
