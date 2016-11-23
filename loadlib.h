@@ -32,6 +32,7 @@ void	CALL_ReleaseTransactionObject(void *);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 /* void	UnloadDelayLoadedDLLs(BOOL); */
 void	CleanupDelayLoadedDLLs(void);
+HMODULE MODULE_load_from_psqlodbc_path(const char *module_name);
 
 #ifdef	__cplusplus
 }

@@ -2,10 +2,9 @@
 
 #include	"psqlodbc.h"
 #include	"dlg_specific.h"
+#include	"loadlib.h"
 
 HINSTANCE s_hModule;		/* Saved module handle. */
-
-#ifdef	PG_BIN
 
 #include <stdio.h>
 #include <string.h>
@@ -26,9 +25,8 @@ SQLDummyOrdinal(void)
 	return SQL_SUCCESS;
 }
 
-#endif /* PG_BIN */
 
-static HINSTANCE s_hLModule = NULL;
+static HINSTANCE s_hLModule = NULL;	/* for libpq */
 static HINSTANCE s_hLModule2 = NULL;
 /*	This is where the Driver Manager attaches to this Driver */
 
@@ -59,17 +57,15 @@ static void finalize_global_cs(void)
 }
 
 #ifdef	UNICODE_SUPPORT
-CSTR	psqlodbcdll = "psqlodbc35w.dll";
+CSTR	psqlodbc = "psqlodbc35w";
 #else
-CSTR	psqlodbcdll = "psqlodbc30a.dll";
-
+CSTR	psqlodbc = "psqlodbc30a";
 #endif
 
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 {
 	char dllPath[MAX_PATH] = "";
-	char *sptr;
 
 	switch (ul_reason_for_call)
 	{
@@ -106,20 +102,9 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				if (message[0])
 					MessageBox(NULL, message, "psqlsetup", MB_OK);
 			}
-			if (GetModuleFileName(s_hModule, dllPath, sizeof(dllPath)) <= 0)
+			if (s_hLModule2 = MODULE_load_from_psqlodbc_path(psqlodbc), s_hLModule2 == NULL)
 			{
-				MessageBox(NULL, "GetModuleFileName error", "psqlsetup", MB_OK);
-				return TRUE;
-			}
-			if (sptr = strrchr(dllPath, '\\'), NULL == sptr)
-			{
-				MessageBox(NULL, "strrchr error", "psqlsetup", MB_OK);
-				return FALSE;
-			}
-			strcpy_s(sptr + 1, MAX_PATH - (size_t)(sptr - dllPath), psqlodbcdll);
-			if (s_hLModule2 = LoadLibraryEx(dllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule2 == NULL)
-			{
-				MessageBox(NULL, dllPath, "psqlodbc load error", MB_OK);
+				MessageBox(NULL, "psqlodbc load error", "psqlsetup",  MB_OK);
 				return TRUE;
 			}
 			break;
@@ -128,10 +113,18 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			break;
 
 		case DLL_PROCESS_DETACH:
-			if (NULL != s_hLModule2)
-				FreeLibrary(s_hLModule2);
+			mylog("DETACHING psqlsetup\n");
+			CleanupDelayLoadedDLLs();
 			if (NULL != s_hLModule)
+			{
 				FreeLibrary(s_hLModule);
+				mylog("FreeLibrary libpq\n");
+			}
+			if (NULL != s_hLModule2)
+			{
+				FreeLibrary(s_hLModule2);
+				mylog("FreeLibrary %s\n", psqlodbc);
+			}
 			finalize_global_cs();
 			return TRUE;
 

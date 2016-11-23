@@ -15,8 +15,6 @@
 #include <errno.h>
 #endif /* WIN32 */
 
-#define	DELAYIMP_INSECURE_WRITABLE_HOOKS
-
 #include "loadlib.h"
 #include "pgenlist.h"
 
@@ -62,14 +60,26 @@ CSTR	psqlodbcdll = "psqlodbc30a.dll";
 #endif /* WIN32 */
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
-#if (_MSC_VER < 1300)
+/*
+ *	Error hook function for delay load import.
+ *	Try to load a DLL based on psqlodbc path.
+ */
+#if (_MSC_VER >= 1900)		/* vc14 or later */
+#define	TRY_DLI_HOOK \
+		__try {
+#define	RELEASE_NOTIFY_HOOK
+#elif (_MSC_VER < 1300)		/* vc6 */
+extern PfnDliHook __pfnDliFailureHook;
+extern PfnDliHook __pfnDliNotifyHook;
 #define	TRY_DLI_HOOK \
 		__try { \
 			__pfnDliFailureHook = DliErrorHook; \
 			__pfnDliNotifyHook = DliErrorHook;
 #define	RELEASE_NOTIFY_HOOK \
 			__pfnDliNotifyHook = NULL;
-#else
+#else				/* vc7 ~ 12 */
+extern PfnDliHook __pfnDliFailureHook2;
+extern PfnDliHook __pfnDliNotifyHook2;
 #define	TRY_DLI_HOOK \
 		__try { \
 			__pfnDliFailureHook2 = DliErrorHook; \
@@ -78,17 +88,19 @@ CSTR	psqlodbcdll = "psqlodbc30a.dll";
 			__pfnDliNotifyHook2 = NULL;
 #endif /* _MSC_VER */
 #else
-#define	TRY_DLI_HOOK
+#define	TRY_DLI_HOOK \
+		__try {
 #define	RELEASE_NOTIFY_HOOK
 #endif /* _MSC_DELAY_LOAD_IMPORT */
 
 #if defined(_MSC_DELAY_LOAD_IMPORT)
 static BOOL	loaded_pgenlist = FALSE;
+static HMODULE	enlist_module = NULL;
 static BOOL	loaded_psqlodbc = FALSE;
 /*
  *	Load a DLL based on psqlodbc path.
  */
-static HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
+HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
 {
 	extern	HINSTANCE	s_hModule;
 	HMODULE	hmodule = NULL;
@@ -110,17 +122,6 @@ static HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
 	return hmodule;
 }
 
-/*
- *	Error hook function for delay load import.
- *	Try to load a DLL based on psqlodbc path.
- */
-#if (_MSC_VER < 1300)
-extern PfnDliHook __pfnDliFailureHook;
-extern PfnDliHook __pfnDliNotifyHook;
-#else
-extern PfnDliHook __pfnDliFailureHook2;
-extern PfnDliHook __pfnDliNotifyHook2;
-#endif /* _MSC_VER */
 
 static FARPROC WINAPI
 DliErrorHook(unsigned	dliNotify,
@@ -172,9 +173,17 @@ void CleanupDelayLoadedDLLs(void)
 	/* The dll names are case sensitive for the unload helper */
 	if (loaded_pgenlist)
 	{
-		success = (*func)(pgenlistdll);
+		if (enlist_module == NULL)
+		{
+			success = (*func)(pgenlistdll);
+			mylog("%s unload success=%d\n", pgenlistdll, success);
+		}
+		else
+		{
+			FreeLibrary(enlist_module);
+			mylog("FreeLibrary %s\n", pgenlistdll);
+		}
 		loaded_pgenlist = FALSE;
-		mylog("%s unload success=%d\n", pgenlistdll, success);
 	}
 	if (loaded_psqlodbc)
 	{
@@ -191,19 +200,6 @@ void CleanupDelayLoadedDLLs(void)
 }
 #endif	/* _MSC_DELAY_LOAD_IMPORT */
 
-#if defined(_MSC_DELAY_LOAD_IMPORT)
-static int filter_env2encoding(int level)
-{
-	switch (level & 0xffff)
-	{
-		case ERROR_MOD_NOT_FOUND:
-		case ERROR_PROC_NOT_FOUND:
-			return EXCEPTION_EXECUTE_HANDLER;
-	}
-	return EXCEPTION_CONTINUE_SEARCH;
-}
-#endif /* _MSC_DELAY_LOAD_IMPORT */
-
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 {
@@ -217,7 +213,10 @@ RETCODE	CALL_EnlistInDtc(ConnectionClass *conn, void *pTra, int method)
 			ret = EnlistInDtc(conn, pTra, method);
 		}
 		__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
-			loaded = FALSE;
+			if (enlist_module = MODULE_load_from_psqlodbc_path(pgenlist), NULL == enlist_module)
+				loaded = FALSE;
+			else
+				ret = EnlistInDtc(conn, pTra, method);
 		}
 		if (loaded)
 			loaded_pgenlist = TRUE;
@@ -256,7 +255,10 @@ void	*CALL_GetTransactionObject(HRESULT *hres)
 			ret = GetTransactionObject(hres);
 		}
 		__except ((GetExceptionCode() & 0xffff) == ERROR_MOD_NOT_FOUND ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH) {
-			loaded = FALSE;
+			if (enlist_module = MODULE_load_from_psqlodbc_path(pgenlist), NULL == enlist_module)
+				loaded = FALSE;
+			else
+				ret = GetTransactionObject(hres);
 		}
 		if (loaded)
 			loaded_pgenlist = TRUE;
