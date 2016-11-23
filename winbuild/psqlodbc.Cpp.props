@@ -20,11 +20,6 @@ psqlodbc.Cpp.props
     <ADD_DEFINES>$(ADD_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)"</ADD_DEFINES>
     <RSC_DEFINES>$(RSC_DEFINES);PG_DRVFILE_VERSION=$(DRIVERVERSION.substring(0, 2)),$(DRIVERVERSION.substring(3,2)),$(DRIVERVERSION.substring(6, 2)),$(DRIVERVERSION.substring(8, 2));POSTGRES_RESOURCE_VERSION=\"$(DRIVERVERSION)\"</RSC_DEFINES>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(VisualStudioVersion)'!=''AND'$(VisualStudioVersion)'!='10.0'AND'$(PlatformToolset.Substring(1, 2))'>'13'">
-    <Link>
-      <AdditionalDependencies>legacy_stdio_definitions.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

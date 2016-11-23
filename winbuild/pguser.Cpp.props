@@ -14,6 +14,8 @@ pguser.Cpp.props
 	the last 3 characters 'VC\'. Then we prepend
 		$(VSInstallDir)Common7\ide and $(VSInstallDir)Common7\tools
 	to the ExecutablePath property unless $(ExecutablePath) contains them.
+
+	Added library legacy_stdio_definitions.lib for vc14 or later.
 ***********************************************************************************************
 -->
 
@@ -24,4 +26,9 @@ pguser.Cpp.props
     <VSIdePath>$(VSInstallDir)Common7\ide</VSIdePath>
     <ExecutablePath Condition="!$(ExecutablePath.ToLower().Contains($(VSIdePath.ToLower())))">$(VSIdePath);$(VSInstallDir)Common7\Tools;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(PlatformToolset.Substring(1,1))'=='1'AND($(PlatformToolset.Substring(2,1).CompareTo('3'))>0)">
+    <Link>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
 </Project>
