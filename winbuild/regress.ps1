@@ -311,7 +311,7 @@ $dllname="psqlsetup.dll"
 $setup="psqlsetup.dll"
 foreach ($pl in $pary) {
 	cd $scriptPath
-	& ${msbuildexe} ${vcxfile} /tv:$MSToolsVersion "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VisualStudioVersion} /Verbosity:minimal
+	& ${msbuildexe} ${vcxfile} /tv:$MSToolsVersion "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /Verbosity:minimal
 	if ($LASTEXITCODE -ne 0) {
 		throw "`nCompile error"
 	}
