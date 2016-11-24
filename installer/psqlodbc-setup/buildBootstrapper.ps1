@@ -57,6 +57,7 @@ if ($withRedist) {
 	$modules += "vcredist.wxs"
 	$objs += "${objdir}\vcredist.wixobj"
 	$wRedist = "yes"
+	write-host "with Redistributable"
 }
 $wUI = "no"
 if ($UI) {

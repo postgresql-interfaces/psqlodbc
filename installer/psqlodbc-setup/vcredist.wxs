@@ -1,36 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?ifndef VCVER?>
+<?define VCVER = 14?>
+<?endif?>
 <!-- ?define vcredist_x86 =  http://download.microsoft.com/download/d/d/9/dd9a82d0-52ef-40db-8dab-795376989c03/vcredist_x86.exe ?>
 <?define vcredist_x64 =  http://download.microsoft.com/download/d/d/9/dd9a82d0-52ef-40db-8dab-795376989c03/vcredist_x64.exe ? -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <Fragment>
 		<!-- TODO: Put your code here. -->
-    <util:RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\10.0\VC\VCRedist\x86" Value="Installed" Variable="vc100_redist_x86" />
-    <util:RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\10.0\VC\VCRedist\x64" Value="Installed" Variable="vc100_redist_x64" Win64="yes"/>
+    <util:RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\$(var.VCVER).0\VC\VCRedist\x86" Value="Installed" Variable="vc$(var.VCVER)0_redist_x86" />
+    <util:RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\$(var.VCVER).0\VC\VCRedist\x64" Value="Installed" Variable="vc$(var.VCVER)0_redist_x64" Win64="yes"/>
     <PackageGroup Id="vcredist">
-      <ExePackage Id="vc100_redist_x86"
+      <ExePackage Id="vc$(var.VCVER)0_redist_x86"
         Cache="no"
         Compressed="yes"
         PerMachine="yes"
         Permanent="yes"
         Vital="yes"
-        Name="Redist\vc100_redist_x86.exe"
-        SourceFile="vc100_redist_x86.exe"
+        Name="vc$(var.VCVER)0_redist_x86.exe"
+        SourceFile="Redist\vc$(var.VCVER)0_redist_x86.exe"
         InstallCommand="/q"
-        DetectCondition="vc100_redist_x86 AND (vc100_redist_x86 &gt;= 1)">
+        DetectCondition="vc$(var.VCVER)0_redist_x86 AND (vc$(var.VCVER)0_redist_x86 &gt;= 1)">
         <ExitCode Value ="3010" Behavior="forceReboot" />
       </ExePackage>
-      <ExePackage Id="vc100_redist_x64"
+      <ExePackage Id="vc$(var.VCVER)0_redist_x64"
         Cache="no"
         Compressed="yes"
         PerMachine="yes"
         Permanent="yes"
         Vital="yes"
-        Name="Redist\vc100_redist_x64.exe"
-        SourceFile="vc100_redist_x64.exe"
+        Name="vc$(var.VCVER)0_redist_x64.exe"
+        SourceFile="Redist\vc$(var.VCVER)0_redist_x64.exe"
         InstallCommand="/q"
         InstallCondition="VersionNT64"
-        DetectCondition="vc100_redist_x64 AND (vc100_redist_x64 &gt;= 1)">
+        DetectCondition="vc$(var.VCVER)0_redist_x64 AND (vc$(var.VCVER)0_redist_x64 &gt;= 1)">
         <ExitCode Value ="3010" Behavior="forceReboot" />
       </ExePackage>
     </PackageGroup>
