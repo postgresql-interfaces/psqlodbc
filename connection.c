@@ -57,7 +57,7 @@ static void LIBPQ_update_transaction_status(ConnectionClass *self);
 extern GLOBAL_VALUES globals;
 
 
-static CC_set_error_if_not_set(ConnectionClass *self, int errornumber, const char *errormsg, const char *func)
+static void CC_set_error_if_not_set(ConnectionClass *self, int errornumber, const char *errormsg, const char *func)
 {
 	if (CC_get_errornumber(self) <= 0)
 	{
