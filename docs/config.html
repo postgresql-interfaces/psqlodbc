@@ -121,11 +121,10 @@ precision of the LongVarChar type. The default is 4094 which actually
 means 4095 with the null terminator. You can even specify (-4) for
 this size, which is the odbc SQL_NO_TOTAL value.<br />&nbsp;</li>
 
-<li><b>SysTable Prefixes:</b> The
-additional prefixes of table names to regard as System Tables. The
-driver already treats names that begin with "pg_" as system tables.
-Here you can add additional ones, such as data dictionary tables (dd_).
-Separate each prefix with a semicolon (;)<br />&nbsp;</li>
+<li><b>SysTable Prefixes:</b> Additional prefixes of table names to regard
+as System Tables. Tables that begin with "pg_" are always treated as system
+tables, even without this option. Separate each prefix with a semicolon
+(;)<br />&nbsp;</li>
 
 </ul>
 
@@ -265,7 +264,7 @@ party drivers.</p>
 myConn = "ODBC;DRIVER={PostgreSQL};" & serverConn & _
             "A0=0;A1=6.4;A2=0;A3=0;A4=0;A5=0;A6=;A7=100;A8=4096;A9=0;" & _
             "B0=254;B1=8190;B2=0;B3=0;B4=1;B5=1;B6=0;B7=1;B8=0;B9=1;" & _
-            "C0=0;C1=0;C2=dd_"
+            "C0=0;C1=0"
 </b></li>
 </ul>
 <p>Please refer to a <a href="config-opt.html">keyword list</a> for details. </p>
