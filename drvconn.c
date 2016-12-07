@@ -91,6 +91,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 	RETCODE		dialog_result;
 #endif
 	BOOL		paramRequired, didUI = FALSE;
+	const char 	*lackMessage = NULL;
 	RETCODE		result;
 	char		*connStrIn = NULL;
 	char		connStrOut[MAX_CONNECT_STRING];
@@ -203,16 +204,24 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	 */
 	paramRequired = FALSE;
 	if (ci->database[0] == '\0')
+	{
 		paramRequired = TRUE;
+		lackMessage = "Please specify Database name";
+	}
 #ifdef	WIN32
 	else if (ci->server[0] == '\0')
+	{
 		paramRequired = TRUE;
+		lackMessage = "Please specify Server name";
+	}
 #endif /* WIN32 */
 	if (paramRequired)
 	{
 		if (didUI)
 			return SQL_NO_DATA_FOUND;
-		CC_set_error(conn, CONN_OPENDB_ERROR, "connection string lacks some options", func);
+		if (!lackMessage)
+			lackMessage = "connection string lacks some options";
+		CC_set_error(conn, CONN_OPENDB_ERROR, lackMessage, func);
 		return SQL_ERROR;
 	}
 
