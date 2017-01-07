@@ -239,7 +239,7 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 	icol--;
 
 	/* Reset for SQLGetData */
-	gdata_info->gdata[icol].data_left = -1;
+	GETDATA_RESET(gdata_info->gdata[icol]);
 
 	if (rgbValue == NULL)
 	{
@@ -834,7 +834,7 @@ inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%p", freeall, self->allo
 		self->fdata.ttlbuf = NULL;
 	}
 	self->fdata.ttlbuflen = self->fdata.ttlbufused = 0;
-	self->fdata.data_left = -1;
+	GETDATA_RESET(self->fdata);
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_getdata_info(self, lf);
 	if (freeall)
@@ -848,7 +848,7 @@ inolog("GDATA_unbind_cols freeall=%d allocated=%d gdata=%p", freeall, self->allo
 
 void GetDataInfoInitialize(GetDataInfo *gdata_info)
 {
-	gdata_info->fdata.data_left = -1;
+	GETDATA_RESET(gdata_info->fdata);
 	gdata_info->fdata.ttlbuf = NULL;
 	gdata_info->fdata.ttlbuflen = gdata_info->fdata.ttlbufused = 0;
 	gdata_info->allocated = 0;
@@ -863,10 +863,9 @@ create_empty_gdata(int num_columns)
 	new_gdata = (GetDataClass *) malloc(num_columns * sizeof(GetDataClass));
 	if (!new_gdata)
 		return NULL;
-
 	for (i = 0; i < num_columns; i++)
 	{
-		new_gdata[i].data_left = -1;
+		GETDATA_RESET(new_gdata[i]);
 		new_gdata[i].ttlbuf = NULL;
 		new_gdata[i].ttlbuflen = 0;
 		new_gdata[i].ttlbufused = 0;
@@ -946,7 +945,7 @@ void	reset_a_getdata_info(GetDataInfo *gdata_info, int icol)
 	}
 	gdata_info->gdata[icol].ttlbuflen =
 	gdata_info->gdata[icol].ttlbufused = 0;
-	gdata_info->gdata[icol].data_left = -1;
+	GETDATA_RESET(gdata_info->gdata[icol]);
 }
 
 void PutDataInfoInitialize(PutDataInfo *pdata_info)

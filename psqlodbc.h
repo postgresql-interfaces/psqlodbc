@@ -125,6 +125,7 @@ extern "C" {
 #define UInt4 unsigned int
 #define Int2 short
 #define UInt2 unsigned short
+typedef SQLBIGINT Int8;
 typedef	UInt4	OID;
 
 #ifndef SQL_TRUE
@@ -138,50 +139,66 @@ typedef	UInt4	OID;
 #ifndef	SSIZE_T_DEFINED
 #define	ssize_t	SSIZE_T
 #define	SSIZE_T_DEFINED
-#endif
+#endif /* SSIZE_T */
 #define	FORMAT_SIZE_T	"%Iu"	/* size_t */
 #define	FORMAT_SSIZE_T	"%Id"	/* ssize_t */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
 #define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
+#define	FORMATI64	"%I64d"	/* SQLBIGINT */
+#define	FORMATI64U	"%I64u"	/* SQLUBIGINT */
 #ifdef	_WIN64
 #define	FORMAT_LEN	"%I64d" /* SQLLEN */
 #define	FORMAT_ULEN	"%I64u" /* SQLULEN */
-#else
+#else /* _WIN64 */
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
 #endif /* _WIN64 */
-#else
+#else /* WIN32 */
 #define	FORMAT_SIZE_T	"%zu"	/* size_t */
 #define	FORMAT_SSIZE_T	"%zd"	/* ssize_t */
 #ifndef	HAVE_SSIZE_T
 typedef	long	ssize_t
 #endif /* HAVE_SSIZE_T */
 
-#if (SIZEOF_VOID_P == SIZEOF_LONG)
+#if (SIZEOF_VOID_P == SIZEOF_LONG) /* ILP32 or LP64 */
 typedef	long 	LONG_PTR;
 typedef	unsigned long 	ULONG_PTR;
-#elif defined (HAVE_LONG_LONG)
+#elif defined (HAVE_LONG_LONG) /* LLP64 */
 typedef	long long LONG_PTR;
 typedef	unsigned long long ULONG_PTR;
-#else
+#else /* SIZEOF_VOID_P */
 #error appropriate long pointer type not found
 #endif /* SIZEOF_VOID_P */
-#if (SIZEOF_LONG == 8)
+#if (SIZEOF_LONG == 8) /* LP64 */
 #define	FORMAT_INTEGER	"%d"	/* SQLINTEGER */
 #define	FORMAT_UINTEGER	"%u"	/* SQLUINTEGER */
+#define	FORMATI64	"%ld"	/* SQLBIGINT */
+#define	FORMATI64U	"%lu"	/* SQLUBIGINT */
 #if defined(WITH_UNIXODBC) && defined(BUILD_LEGACY_64_BIT_MODE)
 #define FORMAT_LEN	"%d"	/* SQLLEN */
 #define FORMAT_ULEN	"%u"	/* SQLULEN */
-#else
+#else /* WITH_UNIXODBC */
 #define FORMAT_LEN	"%ld"	/* SQLLEN */
 #define FORMAT_ULEN	"%lu"	/* SQLULEN */
 #endif /* WITH_UNIXODBC */
-#else
-#define	FORMAT_LEN	"%ld"	/* SQLLEN */
-#define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#else /* SIZEOF_LONG */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
 #define	FORMAT_UINTEGER	"%lu"	/* SQLUINTEGER */
+#if defined(HAVE_LONG_LONG)
+#define	FORMATI64	"%lld"	/* SQLBIGINT */
+#define	FORMATI64U	"%llu"	/* SQLUBIGINT */
+#if (SIZEOF_VOID_P == 8) /* LLP64 */
+#define	FORMAT_LEN	"%lld"	/* SQLLEN */
+#define	FORMAT_ULEN	"%llu"	/* SQLULEN */
+#else /* SIZEOF_VOID_P ILP32 */
+#define	FORMAT_LEN	"%ld"	/* SQLLEN */
+#define	FORMAT_ULEN	"%lu"	/* SQLULEN */
 #endif /* SIZEOF_VOID_P */
+#else /* HAVE_LONG_LONG */
+#define	FORMAT_LEN	"%ld"	/* SQLLEN */
+#define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#endif /* HAVE_LONG_LONG */
+#endif /* SIZEOF_LONG */
 #endif /* WIN32 */
 #define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))
 #define	CAST_UPTR(type, ptr)	(type)((ULONG_PTR)(ptr))

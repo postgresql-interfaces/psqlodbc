@@ -20,6 +20,7 @@ struct lo_arg
 	{
 		int			integer;
 		char	   *ptr;
+		Int8	integer64;
 	}			u;
 };
 
@@ -34,4 +35,6 @@ Int4		odbc_lo_write(ConnectionClass *conn, int fd, char *buf, Int4 len);
 Int4		odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, Int4 len);
 Int4		odbc_lo_tell(ConnectionClass *conn, int fd);
 
+Int8		odbc_lo_lseek64(ConnectionClass *conn, int fd, Int8 offset, Int4 len);
+Int8		odbc_lo_tell64(ConnectionClass *conn, int fd);
 #endif

@@ -1691,7 +1691,7 @@ inolog("%s: stmt=%p ommitted++\n", func, self);
 		mylog("fetch: cols=%d, lf=%d, opts = %p, opts->bindings = %p, buffer[] = %p\n", num_cols, lf, opts, opts->bindings, opts->bindings[lf].buffer);
 
 		/* reset for SQLGetData */
-		gdata->gdata[lf].data_left = -1;
+		GETDATA_RESET(gdata->gdata[lf]);
 
 		if (NULL == opts->bindings)
 			continue;

@@ -30,14 +30,22 @@ struct BindInfoClass_
 	/* area for work variables */
 	char	dummy_data;		/* currently not used */
 };
+
+/* struct for SQLGetData */
 typedef struct
 {
+	/* for BLOBs which don't hold the data */
+	struct GetBlobDataClass {
+		Int8	data_left64;	/* amount of large object data
+					   left to read before conversion */
+	} blob;
+	/* for non-BLOBs which hold the data in ttlbuf after conversion */
 	char	*ttlbuf;		/* to save the large result */
 	SQLLEN	ttlbuflen;		/* the buffer length */
 	SQLLEN	ttlbufused;		/* used length of the buffer */
-	SQLLEN	data_left;		/* amount of data left to read
-					 * (SQLGetData) */
+	SQLLEN	data_left;		/* amount of data left to read */
 }	GetDataClass;
+#define GETDATA_RESET(gdc) ((gdc).blob.data_left64 = (gdc).data_left = -1)
 
 /*
  * ParameterInfoClass -- stores information about a bound parameter

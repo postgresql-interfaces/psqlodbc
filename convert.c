@@ -218,16 +218,10 @@ static SQLLEN pg_bin2whex(const char *src, SQLWCHAR *dst, SQLLEN length);
 #ifdef	WIN32
 #define	ATOI64(val)	_strtoi64(val, NULL, 10)
 #define	ATOI64U(val)	_strtoui64(val, NULL, 10)
-#define	FORMATI64	"%I64d"
-#define	FORMATI64U	"%I64u"
 #elif	(SIZEOF_LONG == 8)
 #define	ATOI64(val)	strtol(val, NULL, 10)
 #define	ATOI64U(val)	strtoul(val, NULL, 10)
-#define	FORMATI64	"%ld"
-#define	FORMATI64U	"%lu"
 #else
-#define	FORMATI64	"%lld"
-#define	FORMATI64U	"%llu"
 #if	defined(HAVE_STRTOLL)
 #define	ATOI64(val)	strtoll(val, NULL, 10)
 #define	ATOI64U(val)	strtoull(val, NULL, 10)
@@ -5801,10 +5795,10 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 {
 	CSTR	func = "convert_lo";
 	OID			oid;
-	int			retval,
-				result;
-	SQLLEN	left = -1;
-	GetDataClass *gdata = NULL;
+	int			result;
+	Int8			retval;
+	Int8		left64 = -1;
+	struct GetBlobDataClass *gdata_blob = NULL;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	ConnInfo   *ci = &(conn->connInfo);
 	GetDataInfo	*gdata_info = SC_get_GDTI(stmt);
@@ -5832,8 +5826,8 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 	/* If using SQLGetData, then current_col will be set */
 	if (stmt->current_col >= 0)
 	{
-		gdata = &gdata_info->gdata[stmt->current_col];
-		left = gdata->data_left;
+		gdata_blob = &(gdata_info->gdata[stmt->current_col].blob);
+		left64 = gdata_blob->data_left64;
 	}
 
 	/*
@@ -5841,7 +5835,7 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 	 * for reading
 	 */
 
-	if (!gdata || gdata->data_left == -1)
+	if (!gdata_blob || gdata_blob->data_left64 == -1)
 	{
 		/* begin transaction if needed */
 		if (!CC_is_in_trans(conn))
@@ -5861,20 +5855,20 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		}
 
 		/* Get the size */
-		retval = odbc_lo_lseek(conn, stmt->lobj_fd, 0L, SEEK_END);
+		retval = odbc_lo_lseek64(conn, stmt->lobj_fd, 0L, SEEK_END);
 		if (retval >= 0)
 		{
-			left = odbc_lo_tell(conn, stmt->lobj_fd);
-			if (gdata)
-				gdata->data_left = left;
+			left64 = odbc_lo_tell64(conn, stmt->lobj_fd);
+			if (gdata_blob)
+				gdata_blob->data_left64 = left64;
 
 			/* return to beginning */
-			odbc_lo_lseek(conn, stmt->lobj_fd, 0L, SEEK_SET);
+			odbc_lo_lseek64(conn, stmt->lobj_fd, 0L, SEEK_SET);
 		}
 	}
-	else if (left == 0)
+	else if (left64 == 0)
 		return COPY_NO_DATA_FOUND;
-	mylog("lo data left = %d\n", left);
+	mylog("lo data left = " FORMATI64 "\n", left64);
 
 	if (stmt->lobj_fd < 0)
 	{
@@ -5885,7 +5879,7 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 	if (0 >= cbValueMax)
 		retval = 0;
 	else
-		retval = odbc_lo_read(conn, stmt->lobj_fd, (char *) rgbValue, (Int4) (factor > 1 ? (cbValueMax - 1) / factor : cbValueMax));
+		retval = (Int8) odbc_lo_read(conn, stmt->lobj_fd, (char *) rgbValue, (Int4) (factor > 1 ? (cbValueMax - 1) / factor : cbValueMax));
 	if (retval < 0)
 	{
 		odbc_lo_close(conn, stmt->lobj_fd);
@@ -5908,18 +5902,21 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 
 	if (factor > 1)
 		pg_bin2hex((char *) rgbValue, (char *) rgbValue, retval);
-	if (retval < left)
+	if (retval < left64)
 		result = COPY_RESULT_TRUNCATED;
 	else
 		result = COPY_OK;
 
 	if (pcbValue)
-		*pcbValue = left < 0 ? SQL_NO_TOTAL : left * factor;
+	{
+		Int8	leftbytes = left64 * factor;
+		*pcbValue = left64 < 0 ? SQL_NO_TOTAL : (leftbytes == (SQLLEN) leftbytes ? leftbytes : /* exceeds SQLLEN limit */ SQL_NO_TOTAL);
+	}
 
-	if (gdata && gdata->data_left > 0)
-		gdata->data_left -= retval;
+	if (gdata_blob && gdata_blob->data_left64 > 0)
+		gdata_blob->data_left64 -= retval;
 
-	if (!gdata || gdata->data_left == 0)
+	if (!gdata_blob || gdata_blob->data_left64 == 0)
 	{
 		odbc_lo_close(conn, stmt->lobj_fd);
 

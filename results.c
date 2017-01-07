@@ -4728,7 +4728,7 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 	if (gdata)
 	{
 		for (i = 0; i < gdata_allocated; i++)
-			gdata[i].data_left = -1;
+			GETDATA_RESET(gdata[i]);
 	}
 	conn = SC_get_conn(s.stmt);
 	switch (s.fOption)

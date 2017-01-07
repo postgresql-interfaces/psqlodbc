@@ -2053,6 +2053,37 @@ static const char *func_param_str[MAX_SEND_FUNC_ARGS + 1] =
 	"($1, $2, $3)"
 };
 
+static
+Int8 odbc_hton64(Int8 h64)
+{
+	union {
+		Int8	n64;
+		UInt4	i32[2];
+	} u;
+
+	u.i32[0] = htonl((UInt4) (h64 >> 32));
+	u.i32[1] = htonl((UInt4) h64);
+
+	return u.n64;
+}
+
+static
+Int8 odbc_ntoh64(Int8 n64)
+{
+	union {
+		Int8	h64;
+		UInt4	i32[2];
+	} u;
+	Int8 result;
+
+	u.h64 = n64;
+	result = ntohl(u.i32[0]);
+	result <<= 32;
+	result |= ntohl(u.i32[1]);
+
+	return result;
+}
+
 
 int
 CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *args, int nargs)
@@ -2067,6 +2098,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 	int			paramLengths[MAX_SEND_FUNC_ARGS];
 	int			paramFormats[MAX_SEND_FUNC_ARGS];
 	Int4		intParamBufs[MAX_SEND_FUNC_ARGS];
+	Int8		int8ParamBufs[MAX_SEND_FUNC_ARGS];
 
 	mylog("send_function(): conn=%p, fn_name=%s, result_is_int=%d, nargs=%d\n", self, fn_name, result_is_int, nargs);
 
@@ -2078,10 +2110,17 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 			 func_param_str[nargs]);
 	for (i = 0; i < nargs; ++i)
 	{
-		mylog("  arg[%d]: len = %d, isint = %d, integer = %d, ptr = %p\n", i, args[i].len, args[i].isint, args[i].u.integer, args[i].u.ptr);
-
+		mylog("  arg[%d]: len = %d, isint = %d, integer = " FORMATI64 ", ptr = %p\n", i, args[i].len, args[i].isint, args[i].isint == 2 ? args[i].u.integer64 : args[i].u.integer, args[i].u.ptr);
 		/* integers are sent as binary, others as text */
-		if (args[i].isint)
+		if (args[i].isint == 2)
+		{
+			paramTypes[i] = PG_TYPE_INT8;
+			int8ParamBufs[i] = odbc_hton64(args[i].u.integer64);
+			paramValues[i] = (char *) &int8ParamBufs[i];
+			paramLengths[i] = 8;
+			paramFormats[i] = 1;
+		}
+		else if (args[i].isint)
 		{
 			paramTypes[i] = PG_TYPE_INT4;
 			intParamBufs[i] = htonl(args[i].u.integer);
@@ -2123,7 +2162,15 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 	if (*actual_result_len > 0)
 	{
 		char *value = PQgetvalue(pgres, 0, 0);
-		if (result_is_int)
+		if (result_is_int == 2)
+		{
+			Int8 int8val;
+			memcpy(&int8val, value, sizeof(Int8));
+			int8val = odbc_ntoh64(int8val);
+			memcpy(result_buf, &int8val, sizeof(Int8));
+mylog("int8 result=" FORMATI64 "\n", int8val);
+		}
+		else if (result_is_int)
 		{
 			Int4 int4val;
 			memcpy(&int4val, value, sizeof(Int4));
