@@ -594,7 +594,6 @@ enum { /* CC_conninfo_init option */
 	CLEANUP_FOR_REUSE	= 1L		/* reuse the info */
 	,COPY_GLOBALS		= (1L << 1) /* copy globals to drivers */
 };
-char		CC_Destructor(ConnectionClass *self);
 void	CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
 void	CC_conninfo_release(ConnInfo *conninfo);
 void	CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci);
