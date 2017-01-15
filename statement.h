@@ -514,6 +514,7 @@ RETCODE		SC_pos_update(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
 RETCODE		SC_pos_delete(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
 RETCODE		SC_pos_refresh(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index);
 RETCODE		SC_pos_add(StatementClass *self, SQLSETPOSIROW irow);
+RETCODE		SC_fetch_by_bookmark(StatementClass *self);
 int		SC_set_current_col(StatementClass *self, int col);
 void		SC_setInsertedTable(StatementClass *, RETCODE);
 void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,

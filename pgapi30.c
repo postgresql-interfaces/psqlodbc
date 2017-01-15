@@ -1933,10 +1933,6 @@ inolog("set ard=%p\n", stmt->ard);
 	return ret;
 }
 
-#define	CALC_BOOKMARK_ADDR(book, offset, bind_size, index) \
-	(book->buffer + offset + \
-	(bind_size > 0 ? bind_size : (SQL_C_VARBOOKMARK == book->returntype ? book->buflen : sizeof(UInt4))) * index)
-
 /*	SQL_NEED_DATA callback for PGAPI_BulkOperations */
 typedef struct
 {
@@ -1994,9 +1990,6 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 				break;
 			case SQL_DELETE_BY_BOOKMARK:
 				ret = SC_pos_delete(s->stmt, (UWORD) s->idx, global_idx);
-				break;
-			case SQL_FETCH_BY_BOOKMARK:
-				ret = SC_pos_refresh(s->stmt, (UWORD) s->idx, global_idx);
 				break;
 		}
 		if (SQL_NEED_DATA == ret)
@@ -2059,8 +2052,13 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	}
 
 	/* StartRollbackState(s.stmt); */
-	s.need_data_callback = FALSE;
-	ret = bulk_ope_callback(SQL_SUCCESS, &s);
+	if (SQL_FETCH_BY_BOOKMARK == operationX)
+		ret = SC_fetch_by_bookmark(s.stmt);
+	else
+	{
+		s.need_data_callback = FALSE;
+		ret = bulk_ope_callback(SQL_SUCCESS, &s);
+	}
 	if (s.stmt->internal)
 		ret = DiscardStatementSvp(s.stmt, ret, FALSE);
 	return ret;

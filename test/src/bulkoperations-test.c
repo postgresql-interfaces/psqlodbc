@@ -31,6 +31,8 @@ printCurrentRow(HSTMT hstmt)
 	printf("\n");
 }
 
+#define	BOOKMARK_SIZE	10
+
 int main(int argc, char **argv)
 {
 	int			rc;
@@ -40,10 +42,10 @@ int main(int argc, char **argv)
 	SQLINTEGER	colvalue2;
 	SQLLEN		indColvalue1;
 	SQLLEN		indColvalue2;
-	char		bookmark[8];
+	char		bookmark[BOOKMARK_SIZE];
 	SQLLEN		bookmark_ind;
 
-	char		saved_bookmarks[3][8];
+	char		saved_bookmarks[3][BOOKMARK_SIZE];
 	SQLLEN		saved_bookmark_inds[3];
 	SQLINTEGER	colvalues1[3];
 	SQLINTEGER	colvalues2[3];
@@ -166,18 +168,12 @@ int main(int argc, char **argv)
 	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER) 3, 0);
 	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr failed", hstmt);
 
-	/*
-	 * FIXME: Disabled, because this doesn't currently seem to produce the
-	 * right results.
-	 */
-#ifdef BROKEN
 	rc = SQLBulkOperations(hstmt, SQL_FETCH_BY_BOOKMARK);
 	CHECK_STMT_RESULT(rc, "SQLBulkOperations failed", hstmt);
 
 	printf ("row no #2: %d - %d\n", colvalues1[0], colvalues2[0]);
 	printf ("updated row: %d - %d\n", colvalues1[1], colvalues2[1]);
 	printf ("inserted row: %d - %d\n", colvalues1[2], colvalues2[2]);
-#endif
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);

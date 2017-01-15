@@ -97,6 +97,10 @@ typedef struct
 	PutDataClass	*pdata;
 }	PutDataInfo;
 
+#define CALC_BOOKMARK_ADDR(book, offset, bind_size, index) \
+	(book->buffer + offset + \
+	(bind_size > 0 ? bind_size : (SQL_C_VARBOOKMARK == book->returntype ? book->buflen : sizeof(UInt4))) * index)
+
 /* Macros to handle pgtype of parameters */
 #define	PIC_get_pgtype(pari) ((pari).PGType)
 #define	PIC_set_pgtype(pari, type) ((pari).PGType = (type))

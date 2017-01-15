@@ -4838,3 +4838,143 @@ PGAPI_GetCursorName(HSTMT hstmt,
 
 	return result;
 }
+
+RETCODE
+SC_fetch_by_bookmark(StatementClass *stmt)
+{
+	UInt2		offset;
+	SQLLEN		kres_ridx;
+	OID		oidint;
+	UInt4		blocknum;
+	QResultClass	*res, *qres;
+	RETCODE		ret = SQL_ERROR;
+
+	HSTMT		hstmt = NULL;
+	StatementClass	*fstmt;
+	SQLLEN		size_of_rowset,	cached_rows;
+	SQLULEN		cRow;
+	UInt2		num_fields;
+	ARDFields	*opts = SC_get_ARDF(stmt);
+	SQLHDESC	hdesc;
+	APDFields	*apdf;
+	const int	tidbuflen = 20;
+	char 		*tidbuf = NULL, *query = NULL;
+	int		i, lodlen;
+	BindInfoClass	*bookmark_orig = opts->bookmark;
+	TupleField	*otuple, *ituple;
+	SQLUSMALLINT	*rowStatusArray;
+
+	mylog("%s in\n", __FUNCTION__);
+
+	if (!(res = SC_get_Curres(stmt)))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_fetch_by_bookmark.", __FUNCTION__);
+		return SQL_ERROR;
+	}
+	if (SC_update_not_ready(stmt))
+		parse_statement(stmt, TRUE);	/* not preferable */
+	if (!SC_is_updatable(stmt))
+	{
+		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
+		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", __FUNCTION__);
+		return SQL_ERROR;
+	}
+	if (ret = PGAPI_AllocStmt(SC_get_conn(stmt), &hstmt, 0), !SQL_SUCCEEDED(ret))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", __FUNCTION__);
+		return ret;
+	}
+	size_of_rowset = opts->size_of_rowset;
+	SC_MALLOC_gexit_with_error(tidbuf, char, size_of_rowset * tidbuflen, stmt, "Couldn't allocate memory for tidbuf bind.", (ret = SQL_ERROR));
+	for (i = 0; i < size_of_rowset; i++)
+	{
+		SQLLEN	bidx;
+		UInt4 tmp;
+
+		memcpy(&tmp, CALC_BOOKMARK_ADDR(opts->bookmark, (opts->row_offset_ptr ? *(opts->row_offset_ptr) : 0), opts->bind_size, i), sizeof(UInt4));
+		bidx = SC_resolve_bookmark(tmp);
+
+mylog("i=%d bidx=%d cached=%d\n", i, bidx, res->num_cached_keys);
+		kres_ridx = GIdx2KResIdx(bidx, stmt, res);
+		if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
+		{
+			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", __FUNCTION__);
+			goto cleanup;
+		}
+		if (!(oidint = getOid(res, kres_ridx)))
+		{
+			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+			{
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", __FUNCTION__);
+			}
+		}
+		getTid(res, kres_ridx, &blocknum, &offset);
+		snprintf(tidbuf + i * tidbuflen, tidbuflen, "(%u,%u)", blocknum, offset);
+	}
+	if (!SQL_SUCCEEDED(PGAPI_BindParameter(hstmt, 1, SQL_PARAM_INPUT,
+			SQL_C_CHAR, SQL_CHAR, tidbuflen, 0,
+			tidbuf, tidbuflen, NULL)))
+		goto cleanup;
+	apdf = SC_get_APDF((StatementClass *) hstmt);
+	apdf->paramset_size = size_of_rowset;
+	if (!SQL_SUCCEEDED(PGAPI_GetStmtAttr(stmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) &hdesc, SQL_IS_POINTER, NULL)))
+		goto cleanup;
+	if (!SQL_SUCCEEDED(PGAPI_SetStmtAttr(hstmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) hdesc, SQL_IS_POINTER)))
+		goto cleanup;
+
+	lodlen = strlen(stmt->load_statement) + 15;
+	SC_MALLOC_gexit_with_error(query, char, lodlen, stmt, "Couldn't allocate memory for query buf.", (ret = SQL_ERROR));
+	snprintf(query, lodlen, "%s where ctid=?", stmt->load_statement);
+	if (!SQL_SUCCEEDED(ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) query, SQL_NTS, 0)))
+		goto cleanup;
+	/*
+	 * Combine multiple results into one
+	 */
+	fstmt = (StatementClass *) hstmt;
+	res = SC_get_Result(fstmt);
+	num_fields = QR_NumResultCols(res);
+	cached_rows = QR_get_num_cached_tuples(res);
+	if (size_of_rowset > res->count_backend_allocated)
+	{
+		SC_REALLOC_gexit_with_error(res->backend_tuples, TupleField, size_of_rowset * sizeof(TupleField) * num_fields, hstmt, "Couldn't realloc memory for backend.", (ret = SQL_ERROR));
+	}
+	memset(res->backend_tuples + num_fields * cached_rows, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField), 0);
+	QR_set_num_cached_rows(res, size_of_rowset);
+	res->num_total_read = size_of_rowset;
+	rowStatusArray = (SC_get_IRDF(stmt))->rowStatusArray;
+	for (i = 0, qres = res; i < size_of_rowset && NULL != qres; i++, qres = qres->next)
+	{
+		if (1 == QR_get_num_cached_tuples(qres))
+		{
+			otuple = res->backend_tuples + i * num_fields;
+			ituple = qres->backend_tuples;
+			if (otuple != ituple)
+				MoveCachedRows(otuple, ituple, num_fields, 1);
+			if (NULL != rowStatusArray)
+				rowStatusArray[i] = SQL_ROW_SUCCESS;
+		}
+		else if (NULL != rowStatusArray)
+			rowStatusArray[i] = SQL_ROW_DELETED;
+	}
+
+	/* Fetch and fill bind info */
+	cRow = 0;
+	opts->bookmark = NULL;
+	ret = PGAPI_ExtendedFetch(fstmt, SQL_FETCH_NEXT, 0,
+		&cRow, NULL, 0, size_of_rowset);
+	mylog("%s cRow=" FORMAT_ULEN "\n", __FUNCTION__, cRow);
+
+cleanup:
+	if (NULL != hstmt)
+	{
+		PGAPI_SetStmtAttr(hstmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) NULL, SQL_IS_POINTER);
+		PGAPI_FreeStmt(hstmt, SQL_DROP);
+	}
+	opts->bookmark = bookmark_orig;
+	if (NULL != tidbuf)
+		free(tidbuf);
+	if (NULL != query)
+		free(query);
+
+	return ret;
+}

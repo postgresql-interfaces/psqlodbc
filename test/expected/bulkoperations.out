@@ -10,6 +10,9 @@ Opening a cursor for update, and fetching 10 rows
 Updating result set
 105	5
 Testing bulk fetch of original, updated, and inserted rows
+row no #2: 2 - 2
+updated row: 105 - 5
+inserted row: 1234 - 5678
 
 Querying the table again
 Result set:
