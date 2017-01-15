@@ -132,7 +132,7 @@ enum
 	,STMT_TYPE_SPECIAL
 };
 
-#define STMT_UPDATE(stmt)	(stmt->statement_type > STMT_TYPE_SELECT)
+#define STMT_UPDATE(stmt)	((stmt)->statement_type > STMT_TYPE_SELECT)
 
 
 /*	Parsing status */
@@ -302,40 +302,40 @@ struct StatementClass_
 
 };
 
-#define SC_get_conn(a)	  (a->hdbc)
+#define SC_get_conn(a)	  ((a)->hdbc)
 void SC_init_Result(StatementClass *self);
 void SC_set_Result(StatementClass *self, QResultClass *res);
-#define SC_get_Result(a)  (a->result)
-#define SC_set_Curres(a, b)  (a->curres = b)
-#define SC_get_Curres(a)  (a->curres)
-#define SC_get_ARD(a)  (a->ard)
-#define SC_get_APD(a)  (a->apd)
-#define SC_get_IRD(a)  (a->ird)
-#define SC_get_IPD(a)  (a->ipd)
+#define SC_get_Result(a)  ((a)->result)
+#define SC_set_Curres(a, b)  ((a)->curres = b)
+#define SC_get_Curres(a)  ((a)->curres)
+#define SC_get_ARD(a)  ((a)->ard)
+#define SC_get_APD(a)  ((a)->apd)
+#define SC_get_IRD(a)  ((a)->ird)
+#define SC_get_IPD(a)  ((a)->ipd)
 #define SC_get_ARDF(a)  (&(SC_get_ARD(a)->ardf))
 #define SC_get_APDF(a)  (&(SC_get_APD(a)->apdf))
 #define SC_get_IRDF(a)  (&(SC_get_IRD(a)->irdf))
 #define SC_get_IPDF(a)  (&(SC_get_IPD(a)->ipdf))
-#define SC_get_ARDi(a)  (&(a->ardi))
-#define SC_get_APDi(a)  (&(a->apdi))
-#define SC_get_IRDi(a)  (&(a->irdi))
-#define SC_get_IPDi(a)  (&(a->ipdi))
-#define SC_get_GDTI(a)  (&(a->gdata_info))
-#define SC_get_PDTI(a)  (&(a->pdata_info))
+#define SC_get_ARDi(a)  (&((a)->ardi))
+#define SC_get_APDi(a)  (&((a)->apdi))
+#define SC_get_IRDi(a)  (&((a)->irdi))
+#define SC_get_IPDi(a)  (&((a)->ipdi))
+#define SC_get_GDTI(a)  (&((a)->gdata_info))
+#define SC_get_PDTI(a)  (&((a)->pdata_info))
 
-#define	SC_get_errornumber(a) (a->__error_number)
-#define	SC_set_errornumber(a, n) (a->__error_number = n)
-#define	SC_get_errormsg(a) (a->__error_message)
-#define	SC_is_prepare_statement(a) (0 != (a->prepare & PREPARE_STATEMENT))
-#define	SC_get_prepare_method(a) (a->prepare & (~PREPARE_STATEMENT))
+#define	SC_get_errornumber(a) ((a)->__error_number)
+#define	SC_set_errornumber(a, n) ((a)->__error_number = n)
+#define	SC_get_errormsg(a) ((a)->__error_message)
+#define	SC_is_prepare_statement(a) (0 != ((a)->prepare & PREPARE_STATEMENT))
+#define	SC_get_prepare_method(a) ((a)->prepare & (~PREPARE_STATEMENT))
 
-#define	SC_parsed_status(a)	(a->parse_status & STMT_PARSE_MASK)
-#define	SC_set_parse_status(a, s) (a->parse_status |= s)
-#define	SC_update_not_ready(a)	(SC_parsed_status(a) == STMT_PARSE_NONE || 0 == (a->parse_status & STMT_PARSED_OIDS))
-#define	SC_update_ready(a)	(SC_parsed_status(a) == STMT_PARSE_COMPLETE && 0 != (a->parse_status & STMT_FOUND_KEY) && a->updatable)
-#define	SC_set_checked_hasoids(a, b)	(a->parse_status |= (STMT_PARSED_OIDS | (b ? STMT_FOUND_KEY : 0)))
-#define	SC_checked_hasoids(a)	(0 != (a->parse_status & STMT_PARSED_OIDS))
-#define	SC_set_delegate(p, c) (p->execute_delegate = c, c->execute_parent = p)
+#define	SC_parsed_status(a)	((a)->parse_status & STMT_PARSE_MASK)
+#define	SC_set_parse_status(a, s) ((a)->parse_status |= s)
+#define	SC_update_not_ready(a)	(SC_parsed_status(a) == STMT_PARSE_NONE || 0 == ((a)->parse_status & STMT_PARSED_OIDS))
+#define	SC_update_ready(a)	(SC_parsed_status(a) == STMT_PARSE_COMPLETE && 0 != ((a)->parse_status & STMT_FOUND_KEY) && (a)->updatable)
+#define	SC_set_checked_hasoids(a, b)	((a)->parse_status |= (STMT_PARSED_OIDS | (b ? STMT_FOUND_KEY : 0)))
+#define	SC_checked_hasoids(a)	(0 != ((a)->parse_status & STMT_PARSED_OIDS))
+#define	SC_set_delegate(p, c) ((p)->execute_delegate = c, (c)->execute_parent = p)
 
 #define	SC_is_updatable(s)	(0 < ((s)->updatable))
 #define	SC_reset_updatable(s)	((s)->updatable = -1)
@@ -344,13 +344,13 @@ void SC_set_Result(StatementClass *self, QResultClass *res);
 #define	SC_is_parse_forced(s)	(0 != ((s)->parse_method & 1L))
 #define	SC_set_parse_forced(s)	((s)->parse_method |= 1L)
 
-#define	SC_cursor_is_valid(s)	(NAME_IS_VALID(s->cursor_name))
-#define	SC_cursor_name(s)	(SAFE_NAME(s->cursor_name))
+#define	SC_cursor_is_valid(s)	(NAME_IS_VALID((s)->cursor_name))
+#define	SC_cursor_name(s)	(SAFE_NAME((s)->cursor_name))
 
 void	SC_reset_delegate(RETCODE, StatementClass *);
 StatementClass *SC_get_ancestor(StatementClass *);
 
-#define	SC_is_lower_case(a, b) (a->options.metadata_id || b->connInfo.lower_case_identifier)
+#define	SC_is_lower_case(a, b) ((a)->options.metadata_id || (b)->connInfo.lower_case_identifier)
 
 #define	SC_MALLOC_return_with_error(t, tp, s, a, m, r) \
 do { \
@@ -358,6 +358,15 @@ do { \
 	{ \
 		SC_set_error(a, STMT_NO_MEMORY_ERROR, m, "SC_MALLOC"); \
 		return r; \
+	} \
+} while (0)
+#define	SC_MALLOC_gexit_with_error(t, tp, s, a, m, r) \
+do { \
+	if (t = (tp *) malloc(s), NULL == t) \
+	{ \
+		SC_set_error(a, STMT_NO_MEMORY_ERROR, m, "SC_MALLOC"); \
+		r; \
+		goto cleanup; \
 	} \
 } while (0)
 #define	SC_REALLOC_return_with_error(t, tp, s, a, m, r) \
@@ -410,13 +419,13 @@ enum
 };
 
 /*	misc info */
-#define SC_set_fetchcursor(a)	(a->miscinfo |= (1L << 1))
-#define SC_no_fetchcursor(a)	(a->miscinfo &= ~(1L << 1))
-#define SC_is_fetchcursor(a)	((a->miscinfo & (1L << 1)) != 0)
-#define SC_set_with_hold(a)	(a->miscinfo |= (1L << 3))
-#define SC_set_without_hold(a)	(a->miscinfo &= ~(1L << 3))
-#define SC_is_with_hold(a)	((a->miscinfo & (1L << 3)) != 0)
-#define SC_miscinfo_clear(a)	(a->miscinfo &= (1L << 3))
+#define SC_set_fetchcursor(a)	((a)->miscinfo |= (1L << 1))
+#define SC_no_fetchcursor(a)	((a)->miscinfo &= ~(1L << 1))
+#define SC_is_fetchcursor(a)	(((a)->miscinfo & (1L << 1)) != 0)
+#define SC_set_with_hold(a)	((a)->miscinfo |= (1L << 3))
+#define SC_set_without_hold(a)	((a)->miscinfo &= ~(1L << 3))
+#define SC_is_with_hold(a)	(((a)->miscinfo & (1L << 3)) != 0)
+#define SC_miscinfo_clear(a)	((a)->miscinfo &= (1L << 3))
 #define	STMT_HAS_OUTER_JOIN	1L
 #define	STMT_HAS_INNER_JOIN	(1L << 1)
 #define SC_has_join(a)		(0 != (a)->join_info)
@@ -425,17 +434,17 @@ enum
 #define SC_set_outer_join(a)	((a)->join_info |= STMT_HAS_OUTER_JOIN)
 #define SC_set_inner_join(a)	((a)->join_info |= STMT_HAS_INNER_JOIN)
 
-#define SC_start_stmt(a)	(a->rbonerr = 0)
-#define SC_start_tc_stmt(a)	(a->rbonerr = (1L << 1))
-#define SC_is_tc_stmt(a)	((a->rbonerr & (1L << 1)) != 0)
-#define SC_start_rb_stmt(a)	(a->rbonerr = (1L << 2))
-#define SC_is_rb_stmt(a)	((a->rbonerr & (1L << 2)) != 0)
-#define SC_set_accessed_db(a)	(a->rbonerr |= (1L << 3))
-#define SC_accessed_db(a)	((a->rbonerr & (1L << 3)) != 0)
-#define SC_start_rbpoint(a)	(a->rbonerr |= (1L << 4))
-#define SC_started_rbpoint(a)	((a->rbonerr & (1L << 4)) != 0)
-#define SC_unref_CC_error(a)	((a->ref_CC_error) = FALSE)
-#define SC_ref_CC_error(a)	((a->ref_CC_error) = TRUE)
+#define SC_start_stmt(a)	((a)->rbonerr = 0)
+#define SC_start_tc_stmt(a)	((a)->rbonerr = (1L << 1))
+#define SC_is_tc_stmt(a)	(((a)->rbonerr & (1L << 1)) != 0)
+#define SC_start_rb_stmt(a)	((a)->rbonerr = (1L << 2))
+#define SC_is_rb_stmt(a)	(((a)->rbonerr & (1L << 2)) != 0)
+#define SC_set_accessed_db(a)	((a)->rbonerr |= (1L << 3))
+#define SC_accessed_db(a)	(((a)->rbonerr & (1L << 3)) != 0)
+#define SC_start_rbpoint(a)	((a)->rbonerr |= (1L << 4))
+#define SC_started_rbpoint(a)	(((a)->rbonerr & (1L << 4)) != 0)
+#define SC_unref_CC_error(a)	(((a)->ref_CC_error) = FALSE)
+#define SC_ref_CC_error(a)	(((a)->ref_CC_error) = TRUE)
 #define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)
 /*
  * DECLARE CURSOR + FETCH can only be used with SELECT-type queries. And
@@ -529,16 +538,16 @@ QResultClass *ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_n
  *	Macros to convert global index <-> relative index in resultset/rowset
  */
 /* a global index to the relative index in a rowset */
-#define	SC_get_rowset_start(stmt) (stmt->rowset_start)
-#define	GIdx2RowIdx(gidx, stmt)	(gidx - stmt->rowset_start)
+#define	SC_get_rowset_start(stmt) ((stmt)->rowset_start)
+#define	GIdx2RowIdx(gidx, stmt)	(gidx - (stmt)->rowset_start)
 /* a global index to the relative index in a resultset(not a rowset) */
-#define	GIdx2CacheIdx(gidx, s, r)	(gidx - (QR_has_valid_base(r) ? (s->rowset_start - r->base) : 0))
-#define	GIdx2KResIdx(gidx, s, r)	(gidx - (QR_has_valid_base(r) ? (s->rowset_start - r->key_base) : 0))
+#define	GIdx2CacheIdx(gidx, s, r)	(gidx - (QR_has_valid_base(r) ? ((s)->rowset_start - (r)->base) : 0))
+#define	GIdx2KResIdx(gidx, s, r)	(gidx - (QR_has_valid_base(r) ? ((s)->rowset_start - (r)->key_base) : 0))
 /* a relative index in a rowset to the global index */
-#define	RowIdx2GIdx(ridx, stmt)	(ridx + stmt->rowset_start)
+#define	RowIdx2GIdx(ridx, stmt)	(ridx + (stmt)->rowset_start)
 /* a relative index in a resultset to the global index */
-#define	CacheIdx2GIdx(ridx, stmt, res)	(ridx - res->base + stmt->rowset_start)
-#define	KResIdx2GIdx(ridx, stmt, res)	(ridx - res->key_base + stmt->rowset_start)
+#define	CacheIdx2GIdx(ridx, stmt, res)	(ridx - (res)->base + (stmt)->rowset_start)
+#define	KResIdx2GIdx(ridx, stmt, res)	(ridx - (res)->key_base + (stmt)->rowset_start)
 
 #define	BOOKMARK_SHIFT	1
 #define	SC_make_bookmark(b)	((b < 0) ? (b) : (b + BOOKMARK_SHIFT))
