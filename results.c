@@ -4937,8 +4937,9 @@ mylog("i=%d bidx=%d cached=%d\n", i, bidx, res->num_cached_keys);
 	if (size_of_rowset > res->count_backend_allocated)
 	{
 		SC_REALLOC_gexit_with_error(res->backend_tuples, TupleField, size_of_rowset * sizeof(TupleField) * num_fields, hstmt, "Couldn't realloc memory for backend.", (ret = SQL_ERROR));
+		res->count_backend_allocated = size_of_rowset;
 	}
-	memset(res->backend_tuples + num_fields * cached_rows, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField), 0);
+	memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
 	QR_set_num_cached_rows(res, size_of_rowset);
 	res->num_total_read = size_of_rowset;
 	rowStatusArray = (SC_get_IRDF(stmt))->rowStatusArray;
