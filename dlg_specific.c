@@ -222,6 +222,47 @@ makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 	return target;
 }
 
+#define OPENING_BRACKET '{'
+#define CLOSING_BRACKET '}'
+static const char *
+makePqoptConnectString(char **target, const ConnInfo *ci, BOOL abbrev)
+{
+	const char	*istr, *iptr;
+	char	*buf, *optr;
+	int	len;
+
+	istr = SAFE_NAME(ci->pqopt);
+	if (!istr[0])
+		return NULL_STRING;
+
+	for (iptr = istr, len = 0; *iptr; iptr++)
+	{
+		if (CLOSING_BRACKET == *iptr)
+			len++;
+		len++;
+	}
+	len += 30;
+	if (buf = (char *) malloc(len), buf == NULL)
+		return NULL_STRING;
+	if (abbrev)
+		snprintf(buf, len, ABBR_PQOPT "=%c", OPENING_BRACKET);
+	else
+		snprintf(buf, len, INI_PQOPT "=%c", OPENING_BRACKET);
+	optr = strchr(buf, '\0');
+	for (iptr = istr; *iptr; iptr++)
+	{
+		if (CLOSING_BRACKET == *iptr)
+			*(optr++) = *iptr;
+		*(optr++) = *iptr;
+	}
+	*(optr++) = CLOSING_BRACKET;
+	*(optr++) = ';';
+	*optr = '\0';
+	*target = buf;
+
+	return buf;
+}
+
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 char *
 makeXaOptConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
@@ -248,6 +289,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_item[LARGE_REGISTRY_LEN];
+	char		*pqoptStr = NULL;
 	char		keepaliveStr[64];
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	char		xaOptStr[16];
@@ -317,7 +359,8 @@ inolog("hlen=%d", hlen);
 			INI_BYTEAASLONGVARBINARY "=%d;"
 			INI_USESERVERSIDEPREPARE "=%d;"
 			INI_LOWERCASEIDENTIFIER "=%d;"
-			"%s"
+			"%s"		/* INI_PQOPT */
+			"%s"		/* INIKEEPALIVE TIME/INTERVAL */
 #ifdef	WIN32
 			INI_GSSAUTHUSEGSSAPI "=%d;"
 #endif /* WIN32 */
@@ -351,6 +394,7 @@ inolog("hlen=%d", hlen);
 			,ci->bytea_as_longvarbinary
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
+			,makePqoptConnectString(&pqoptStr, ci, FALSE)
 			,makeKeepaliveConnectString(keepaliveStr, ci, FALSE)
 #ifdef	WIN32
 			,ci->gssauth_use_gssapi
@@ -430,7 +474,8 @@ inolog("hlen=%d", hlen);
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
 				INI_INT8AS "=%d;"
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
-				"%s"
+				"%s"		/* ABBR_PQOPT */
+				"%s"		/* ABBRKEEPALIVE TIME/INTERVAL */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				"%s"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -441,6 +486,7 @@ inolog("hlen=%d", hlen);
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
+				makePqoptConnectString(&pqoptStr, ci, TRUE),
 				makeKeepaliveConnectString(keepaliveStr, ci, TRUE),
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				makeXaOptConnectString(xaOptStr, ci, TRUE),
@@ -477,6 +523,9 @@ inolog("hlen=%d", hlen);
 	}
 	if (olen < 0 || olen >= nlen) /* failed */
 		connect_string[0] = '\0';
+
+	if (NULL != pqoptStr)
+		free(pqoptStr);
 }
 
 static void
@@ -609,6 +658,10 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		}
 		else
 			ci->conn_settings = decode(value);
+	}
+	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
+	{
+		ci->pqopt = decode_or_remove_braces(value);
 	}
 	else if (stricmp(attribute, INI_UPDATABLECURSORS) == 0 || stricmp(attribute, ABBR_UPDATABLECURSORS) == 0)
 		ci->allow_keyset = atoi(value);
@@ -930,6 +983,11 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_item, sizeof(encoded_item), ODBC_INI);
 		ci->conn_settings = decode(encoded_item);
 	}
+	if (NAME_IS_NULL(ci->pqopt))
+	{
+		SQLGetPrivateProfileString(DSN, INI_PQOPT, "", encoded_item, sizeof(encoded_item), ODBC_INI);
+		STR_TO_NAME(ci->pqopt, encoded_item);
+	}
 
 	if (ci->translation_dll[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_TRANSLATIONDLL, "", ci->translation_dll, sizeof(ci->translation_dll), ODBC_INI);
@@ -1224,6 +1282,11 @@ writeDSNinfo(const ConnInfo *ci)
 	SQLWritePrivateProfileString(DSN,
 								 INI_CONNSETTINGS,
 								 encoded_item,
+								 ODBC_INI);
+
+	SQLWritePrivateProfileString(DSN,
+								 INI_PQOPT,
+								 SAFE_NAME(ci->pqopt),
 								 ODBC_INI);
 
 	sprintf(temp, "%d", ci->allow_keyset);
@@ -1597,15 +1660,29 @@ decode(const char *in)
 static pgNAME
 decode_or_remove_braces(const char *in)
 {
-	if ('{' == in[0])
+	if (OPENING_BRACKET == in[0])
 	{
 		size_t inlen = strlen(in);
-		if ('}' == in[inlen - 1]) /* enclosed by braces */
+		if (CLOSING_BRACKET == in[inlen - 1]) /* enclosed with braces */
 		{
+			int	i;
+			const char	*istr, *eptr;
+			char	*ostr;
 			pgNAME	out;
 
 			INIT_NAME(out);
-			STRN_TO_NAME(out, in + 1, inlen - 2);
+			if (NULL == (ostr = (char *) malloc(inlen)))
+				return out;
+			eptr = in + inlen - 1;
+			for (istr = in + 1, i = 0; *istr && istr < eptr; i++)
+			{
+				if (CLOSING_BRACKET == istr[0] &&
+				    CLOSING_BRACKET == istr[1])
+					istr++;
+				ostr[i] = *(istr++);
+			}
+			ostr[i] = '\0';
+			SET_NAME_DIRECTLY(out, ostr);
 			return out;
 		}
 	}
@@ -1727,6 +1804,7 @@ CC_conninfo_release(ConnInfo *conninfo)
 {
 	NULL_THE_NAME(conninfo->password);
 	NULL_THE_NAME(conninfo->conn_settings);
+	NULL_THE_NAME(conninfo->pqopt);
 	finalize_globals(&conninfo->drivers);
 }
 

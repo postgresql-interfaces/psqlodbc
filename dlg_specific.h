@@ -164,6 +164,8 @@ extern "C" {
 #define ABBR_KEEPALIVETIME		"D1"
 #define INI_KEEPALIVEINTERVAL		"KeepaliveInterval"
 #define ABBR_KEEPALIVEINTERVAL		"D2"
+#define INI_PQOPT			"pqopt"
+#define ABBR_PQOPT			"D5"
 #define INI_DTCLOG			"Dtclog"
 /* "PreferLibpq", abbreviated "D4", used to mean whether to prefer libpq.
  * libpq is now required

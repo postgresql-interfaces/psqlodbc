@@ -2436,7 +2436,7 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 	}
 }
 
-#define        PROTOCOL3_OPTS_MAX      20
+#define        PROTOCOL3_OPTS_MAX      30
 
 static int
 LIBPQ_connect(ConnectionClass *self)
@@ -2448,13 +2448,26 @@ LIBPQ_connect(ConnectionClass *self)
 	int			pqret;
 	int			pversion;
 	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
-	int			cnt;
+	PQconninfoOption	*conninfoOption = NULL, *pqopt;
+	int			i, cnt;
 	char		login_timeout_str[20];
 	char		keepalive_idle_str[20];
 	char		keepalive_interval_str[20];
+	char		*errmsg = NULL;
 
-	mylog("connecting to the database using %s as the server\n", self->connInfo.server);
+	mylog("connecting to the database using %s as the server and pqopt={%s}\n", self->connInfo.server, SAFE_NAME(ci->pqopt));
 
+	if (NULL == (conninfoOption = PQconninfoParse(SAFE_NAME(ci->pqopt), &errmsg)))
+	{
+		char emsg[200];
+
+		if (errmsg != NULL)
+			snprintf(emsg, sizeof(emsg), "libpq connection parameter error:%s", errmsg);
+		else
+			strncpy_null(emsg, "memory error? in PQconninfoParse", sizeof(emsg));
+		CC_set_error(self, CONN_OPENDB_ERROR, emsg, func);
+		goto cleanup;
+	}
 	/* Build arrays of keywords & values, for PQconnectDBParams */
 	cnt = 0;
 	if (ci->server[0])
@@ -2522,8 +2535,36 @@ LIBPQ_connect(ConnectionClass *self)
 		sprintf(keepalive_interval_str, "%d", self->connInfo.keepalive_interval);
 		opts[cnt] = "keepalives_interval";	vals[cnt++] = keepalive_interval_str;
 	}
-	opts[cnt] = vals[cnt] = NULL;
+	if (conninfoOption != NULL)
+	{
+		const char *keyword, *val;
+		int j;
 
+		for (i = 0, pqopt = conninfoOption; (keyword = pqopt->keyword) != NULL; i++, pqopt++)
+		{
+			if ((val = pqopt->val) != NULL)
+			{
+				for (j = 0; j < cnt; j++)
+				{
+					if (stricmp(opts[j], keyword) == 0)
+					{
+						char emsg[100];
+
+						if (vals[j] != NULL && strcmp(vals[j], val) == 0)
+							continue;
+						snprintf(emsg, sizeof(emsg), "%s parameter in pqopt option conflicts with other ordinary option", keyword);
+						CC_set_error(self, CONN_OPENDB_ERROR, emsg, func);
+						goto cleanup;
+					}
+				}
+				if (j >= cnt && cnt < PROTOCOL3_OPTS_MAX - 1)
+				{
+					opts[cnt] = keyword; vals[cnt++] = val;
+				}
+			}
+		}
+	}
+	opts[cnt] = vals[cnt] = NULL;
 	/* Ok, we're all set to connect */
 
 	pqconn = PQconnectdbParams(opts, vals, FALSE);
@@ -2584,6 +2625,9 @@ inolog("status=%d\n", pqret);
 	ret = 1;
 
 cleanup:
+	if (errmsg != NULL)
+		free(errmsg);
+	PQconninfoFree(conninfoOption);
 	if (ret != 1)
 	{
 		if (self->pqconn)

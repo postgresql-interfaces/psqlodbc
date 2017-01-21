@@ -144,9 +144,9 @@
 			A1
 		</TD>
 	</TR>
-	<TR>
+	<!-- TR>
 		<TD WIDTH=38%>
-			Backend enetic optimizer
+			Backend genetic optimizer
 		</TD>
 		<TD WIDTH=31%>
 			Optimizer
@@ -154,7 +154,7 @@
 		<TD WIDTH=31%>
 			B4
 		</TD>
-	</TR>
+	</TR
 	<TR>
 		<TD WIDTH=38%>
 			Keyset query optimization
@@ -165,10 +165,10 @@
 		<TD WIDTH=31%>
 			B5
 		</TD>
-	</TR>
+	</TR -->
 	<TR>
 		<TD WIDTH=38%>
-			Send tobackend on connection
+			Connect Settings (commands sent to backend on connection)
 		</TD>
 		<TD WIDTH=31%>
 			ConnSettings
@@ -190,7 +190,7 @@
 	</TR>
 	<TR>
 		<TD WIDTH=38%>
-			Unknownresult set sizes
+			Unknown result set sizes
 		</TD>
 		<TD WIDTH=31%>
 			UnknownSizes
@@ -377,7 +377,7 @@
 	</TR>
 	<TR>
 		<TD WIDTH=38%>
-			Bytea as LongVarBinary
+			Bytea as LO (longVarBinary)
 		</TD>
 		<TD WIDTH=31%>
 			ByteaAsLongVarBinary
@@ -441,6 +441,40 @@
 			Nothing
 		</TD>
 	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			TCP KEEPALIVE setting: idle time
+		</TD>
+		<TD WIDTH=31%>
+			KeepaliveTime
+		</TD>
+		<TD WIDTH=31%>
+			D1
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			TCP KEEPALIVE setting: interval
+		</TD>
+		<TD WIDTH=31%>
+			KeepaliveInterval
+		</TD>
+		<TD WIDTH=31%>
+			D2
+		</TD>
+	</TR>
+	<TR>
+		<TD WIDTH=38%>
+			Libpq parameters  (a conninfo style string e.g. pqopt={sslcert=~/mycert sslkey=~/mykey} enclosed with braces in the case of connection strings)
+		</TD>
+		<TD WIDTH=31%>
+			Pqopt
+		</TD>
+		<TD WIDTH=31%>
+			D5
+		</TD>
+	</TR>
+</TABLE>
 </TABLE>
 <P><BR><BR>
 </P>

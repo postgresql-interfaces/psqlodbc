@@ -777,14 +777,50 @@ ds_options3Draw(HWND hdlg, const ConnInfo *ci)
 		EnableWindow(GetDlgItem(hdlg, DS_DTC_SIMPLE_PRECHECK), enable);
 		EnableWindow(GetDlgItem(hdlg, DS_DTC_CONFIRM_RM_CONNECTION), enable);
 	}
+	/* Datasource libpq parameters */
+	SetDlgItemText(hdlg, DS_LIBPQOPT, SAFE_NAME(ci->pqopt));
 
 	return 0;
 }
 
+void *PQconninfoParse(const char *, char **);
+void PQconninfoFree(void *);
+typedef void *(*PQCONNINFOPARSEPROC)(const char *, char **);
+typedef void (*PQCONNINFOFREEPROC)(void *); 
 static int
 ds_options3_update(HWND hdlg, ConnInfo *ci)
 {
+	void	*connOpt = NULL;
+	char	*ermsg = NULL;
+	char	pqopt[LARGE_REGISTRY_LEN];
+	HMODULE	hmodule;
+	PQCONNINFOPARSEPROC	pproc = NULL;
+	PQCONNINFOFREEPROC	fproc = NULL;	
+
 	mylog("%s: got ci = %p\n", __FUNCTION__, ci);
+
+	/* Datasource libpq parameters */
+	GetDlgItemText(hdlg, DS_LIBPQOPT, pqopt, sizeof(pqopt));
+	if (hmodule = LoadLibraryEx("libpq.dll", NULL, LOAD_WITH_ALTERED_SEARCH_PATH), NULL != hmodule)
+	{
+		pproc = (PQCONNINFOPARSEPROC) GetProcAddress(hmodule, "PQconninfoParse");
+		if (NULL != pproc && NULL == (connOpt= (*pproc)(pqopt, &ermsg)))
+		{
+			const char *logmsg = "libpq parameter error";
+
+			MessageBox(hdlg, ermsg ? ermsg : "memory over?", logmsg, MB_ICONEXCLAMATION | MB_OK);
+			if (NULL != ermsg)
+				free(ermsg);
+			FreeLibrary(hmodule);
+
+			return 1;
+		}
+		fproc = (PQCONNINFOFREEPROC) GetProcAddress(hmodule, "PQconninfoFree");
+		if (fproc)
+			(*fproc)(connOpt);
+		FreeLibrary(hmodule);
+	}
+	STR_TO_NAME(ci->pqopt, pqopt);
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (IsDlgButtonChecked(hdlg, DS_DTC_LINK_ONLY))

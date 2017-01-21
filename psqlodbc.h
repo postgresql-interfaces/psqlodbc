@@ -561,6 +561,7 @@ typedef struct
 	char		translation_option[SMALL_REGISTRY_LEN];
 	char		password_required;
 	pgNAME		conn_settings;
+	pgNAME		pqopt;
 	signed char	allow_keyset;
 	signed char	updatable_cursors;
 	signed char	lf_conversion;

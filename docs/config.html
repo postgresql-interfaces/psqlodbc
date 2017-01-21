@@ -9,7 +9,7 @@
 
 <h1>psqlODBC Configuration Options</h1>
 
-<h2>Advanced Options 1/2 Dialog Box</h2>
+<h2>Advanced Options 1/3 Dialog Box</h2>
 
 <ul>
 <li><b>DEFAULTS:</b> Press to this button restore the normal defaults for the
@@ -128,7 +128,7 @@ tables, even without this option. Separate each prefix with a semicolon
 
 </ul>
 
-<h2>Advanced Options 2/2 Dialog Box</h2>
+<h2>Advanced Options 2/3 Dialog Box</h2>
 
 <ul>
 
@@ -169,8 +169,6 @@ versioning feature to be used.<br />&nbsp;</li>
   case, the query that is sent to the server for parsing will have the
   parameter markers replaced with the actual parameter values, or NULL literals
   if the values are not known yet.
-
-<li><b>use gssapi for GSS request:</b> GSSAPI use to AUTH_REQ_GSS request from a server.(only Windows)<br />&nbsp;</li>
 
 <li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>
 
@@ -224,6 +222,40 @@ It sends these settings AFTER it sends the driver "Connect Settings".
 Use a semi-colon (;) to separate commands. This can now handle any
 query, even if it returns results. The results will be thrown away
 however!<br />&nbsp;</li>
+
+<li><b>TCP KEEPALIVE setting(by sec):</b> Specifies TCP keepalives setting.<br />&nbsp;
+
+<ul>
+<li><i>disable:</i> Check when client-side TCP keepalives are not used.<br />&nbsp;</li>
+
+<li><i>idle time:</i> The number of seconds of inactivity after which TCP should send a keepalive message to the server.<br />&nbsp;</li>
+
+<li><i>interval:</i>  The number of seconds after which a TCP keepalive message that is not acknowledged by the server should be retransmitted.<br />&nbsp;</li></ul>
+<br>
+</ul>
+
+<h2>Advanced Options 3/3 Dialog Box</h2>
+
+<ul>
+
+<li><b>Allow connections urecoverable by MSDTC?:</b> How to test distributed transactions.
+<br />&nbsp;</li>
+
+<ul>
+<li><i>yes:</i> MSDTC is needless unless applications crash. So don't check the connectivity from MSDTC.<br />&nbsp;</li>
+
+<li><i>rejects sslmode verify-[ca|full]:</i> reject ssl connections with verify-ca or verify-full mode because in those cases msdtc could hardly establish the connection.<br />&nbsp;</li>
+
+<li><i>no:</i> First confirm the connectivity from MSDTC.<br />&nbsp;</li></ul>
+<br>
+
+<li><b>Libpq parameters:</b> Specify libpq connection parameters with conninfo
+style strings e.g.  <b>sslrootcert=c:\\myfolder\\myroot sslcert=C:\\myfolder\\mycert sslkey=C:\\myfolder\\mykey</b>.<br>
+Though host, port, dbname, user, password, sslmode, keepalives_idle or
+keepalive_interval parameters can be set using this(pqopt) option, the use
+is not recommended because they are ordinarily set by other options.
+When some settings for those parameters conflict with other ordinary options,
+connections are rejected.<br />&nbsp;</li>
 </ul>
 
 <h2>Global settings Dialog Box</h2>
@@ -261,10 +293,11 @@ party drivers.</p>
 <p>There is a method of specifying a connection option in a keyword strings.</p>
 <p>Example:VBA</p>
 <ul><li><b>
-myConn = "ODBC;DRIVER={PostgreSQL};" & serverConn & _
-            "A0=0;A1=6.4;A2=0;A3=0;A4=0;A5=0;A6=;A7=100;A8=4096;A9=0;" & _
-            "B0=254;B1=8190;B2=0;B3=0;B4=1;B5=1;B6=0;B7=1;B8=0;B9=1;" & _
-            "C0=0;C1=0"
+myConn = "ODBC;DRIVER={PostgreSQL Unicode};" & serverConn & _<br>
+            "A0=0;A1=7.4;A2=0;A3=0;A4=0;A5=0;A6=;A7=100;A8=4096;A9=0;" & _<br>
+            "B0=254;B1=8190;B2=0;B3=0;B4=1;B5=1;B6=0;B7=1;B8=0;B9=1;BI=-5;" & _<br>
+            "C0=0;C2=dd_;C4=1;C5=1;C6=1;C7=1;C8=1;C9=0;CA=verify-full;D1=30;D4=40;" & _<br>
+	    "D5={sslrootcert=C:\\myfolder\\myroot sslcert=C:\\myfolder\\mycert sslkey=C:\\myfolder\\mykey}"
 </b></li>
 </ul>
 <p>Please refer to a <a href="config-opt.html">keyword list</a> for details. </p>
