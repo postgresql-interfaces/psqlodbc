@@ -11,6 +11,8 @@
     all test cased are executed.
 .PARAMETER Ansi
     Specify this switch in case of testing Ansi drivers.
+.PARAMETER DeclareFetch
+    Specify Use Declare/Fetch mode. "On"(default), "off" or "both" is available.
 .PARAMETER VCVersion
     Used Visual Studio version is determined automatically unless this
     option is specified.
@@ -69,7 +71,9 @@ Param(
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
-[string]$BuildConfigPath
+[string]$BuildConfigPath,
+[ValidateSet("off", "on", "all")]
+[string]$DeclareFetch="on"
 )
 
 
@@ -210,11 +214,31 @@ function RunTest($scriptPath, $Platform, $testexes)
 		if ($LASTEXITCODE -ne 0) {
 			throw "`treset_db error"
 		}
-		.\runsuite $testexes --inputdir=$origdir
+		$cnstr = @()
+		if (($DeclareFetch -eq "off") -or ($DeclareFetch -eq "all")) {
+			$cnstr += "UseDeclareFetch=0";
+		}
+		if (($DeclareFetch -eq "on") -or ($DeclareFetch -eq "all")) {
+			$cnstr += "UseDeclareFetch=1";
+		}
+		if ($cnstr.length -eq 0) {
+			$cnstr += $null;
+		}
+		switch ($DeclareFetch) {
+		 0 { $env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = "useDeclareFetch=" + $_ }
+		 1 { $env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = "useDeclareFetch=" + $_ }
+		}
+		for ($i = 0; $i -lt $cnstr.length; $i++)
+		{
+			$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $cnstr[$i]
+			write-host "env=" $env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST
+			.\runsuite $testexes --inputdir=$origdir
+		}
 	} catch [Exception] {
 		throw $error[0]
 	} finally {
 		popd
+		$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $null
 	}
 }
 

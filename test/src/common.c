@@ -56,9 +56,33 @@ test_connect_ext(char *extraparams)
 	SQLCHAR str[1024];
 	SQLSMALLINT strl;
 	SQLCHAR dsn[1024];
+	const char * const test_dsn = get_test_dsn();
+	char *envvar;
 
-	snprintf(dsn, sizeof(dsn), "DSN=%s;%s", get_test_dsn(),
-			 extraparams ? extraparams : "");
+	/*
+	 *	Use an environment variable to switch settings of connection
+	 *	strings throughout the regression test. Note that extraparams
+	 *	parameters have precedence over the environment variable.
+	 *	ODBC spec says
+	 *		If any keywords are repeated in the connection string,
+	 *		the driver uses the value associated with the first
+	 *		occurrence of the keyword.
+	 *	But the current psqlodbc driver uses the value associated with
+	 *	the last occurrence of the keyword. Here we place extraparams
+	 *	both before and after the value of the environment variable
+	 *	so as to protect the priority order whichever way we take.
+	 */
+	if ((envvar = getenv("COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST")) != NULL && envvar[0] != '\0')
+	{
+		if (NULL == extraparams)
+			snprintf(dsn, sizeof(dsn), "DSN=%s;%s", test_dsn);
+		else
+			snprintf(dsn, sizeof(dsn), "DSN=%s;%s;%s;%s",
+			 test_dsn, extraparams, envvar, extraparams);
+	}
+	else
+		snprintf(dsn, sizeof(dsn), "DSN=%s;%s",
+			 test_dsn, extraparams ? extraparams : "");
 
 	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
 
