@@ -62,8 +62,8 @@ static char * hide_password(const char *str)
 #endif
 
 /* prototypes */
-static void dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);
-static void dconn_get_common_attributes(const char *connect_string, ConnInfo *ci);
+static BOOL dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);
+static BOOL dconn_get_common_attributes(const char *connect_string, ConnInfo *ci);
 
 #ifdef WIN32
 LRESULT CALLBACK dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -129,15 +129,22 @@ PGAPI_DriverConnect(HDBC hdbc,
 	ci = &(conn->connInfo);
 
 	/* Parse the connect string and fill in conninfo for this hdbc. */
-	dconn_get_connect_attributes(connStrIn, ci);
-
+	if (!dconn_get_connect_attributes(connStrIn, ci))
+	{
+		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
+		return SQL_ERROR;
+	}
 	/*
 	 * If the ConnInfo in the hdbc is missing anything, this function will
 	 * fill them in from the registry (assuming of course there is a DSN
 	 * given -- if not, it does nothing!)
 	 */
 	getDSNinfo(ci, CONN_DONT_OVERWRITE);
-	dconn_get_common_attributes(connStrIn, ci);
+	if (!dconn_get_common_attributes(connStrIn, ci))
+	{
+		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
+		return SQL_ERROR;
+	}
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
 	if (connStrIn)
 	{
@@ -423,9 +430,10 @@ dconn_FDriverConnectProc(
 #define	CLOSING_BRACKET		'}'
 
 typedef	BOOL (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
-static void
+static BOOL
 dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 {
+	BOOL	ret = TRUE;
 	char	*our_connect_string;
 	const	char	*pair,
 			*attribute,
@@ -439,7 +447,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 #endif /* HAVE_STRTOK_R */
 
 	if (our_connect_string = strdup(connect_string), NULL == our_connect_string)
-		return;
+		return FALSE;
 	strtok_arg = our_connect_string;
 
 #ifdef	FORCE_PASSWORD_DISPLAY
@@ -458,6 +466,8 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 	eoftok = FALSE;
 	while (!eoftok)
 	{
+		if (strtok_arg != NULL && strtok_arg >= termp)	/* for safety */
+			break;
 #ifdef	HAVE_STRTOK_R
 		pair = strtok_r(strtok_arg, ";", &last);
 #else
@@ -482,39 +492,69 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 		 * would remove them later.
 		 * Just correct the misdetected delimter(;).
 		 */
-		if (OPENING_BRACKET == *value)
+		switch (*value)
 		{
-			delp = strchr(value, '\0');
-			if (NULL == delp) continue; /* shouldn't occur */
-			if (delp == termp)
-			{
-				/* there's a corresponding closing bracket? */
-				if (CLOSING_BRACKET == delp[-1])
-					eoftok = TRUE;
-			}
-			else
-			{
-				char	*closep;
+			const char *closep;
 
+			case OPENING_BRACKET:
+				delp = strchr(value, '\0');
+				if (delp >= termp)
+				{
+					eoftok = TRUE;
+					break;
+				}
 				/* Where's a corresponding closing bracket? */
 				closep = strchr(value, CLOSING_BRACKET);
-				if (NULL == closep)
+				if (NULL != closep &&
+				    closep[1] == '\0')
+				break;
+
+				for (const char *valuen = value; valuen < termp; closep = strchr(valuen, CLOSING_BRACKET))
 				{
-					closep = strchr(delp + 1, CLOSING_BRACKET);
-					if (NULL != closep) /* the delimiter is misdetected */
+					if (NULL == closep)
 					{
-						*delp = ATTRIBUTE_DELIMITER;
-						strtok_arg = closep + 1;
-						if (delp = strchr(closep + 1, ATTRIBUTE_DELIMITER), NULL != delp)
+						if (!delp)	/* error */
 						{
-							*delp = '\0';
-							strtok_arg = delp + 1;
+							mylog("%s closing bracket doesn't exist 1\n", __FUNCTION__);
+							ret = FALSE;
+							goto cleanup;
 						}
+						closep = strchr(delp + 1, CLOSING_BRACKET);
+						if (!closep)	/* error */
+						{
+							mylog("%s closing bracket doesn't exist 2\n", __FUNCTION__);
+							ret = FALSE;
+							goto cleanup;
+						}
+						*delp = ATTRIBUTE_DELIMITER;	/* restore delimiter */
+						delp = NULL;
+					}
+					if (CLOSING_BRACKET == closep[1])
+					{
+						valuen = closep + 2;
+						if (valuen >= termp)
+							break;
+						else if (valuen == delp)
+						{
+							*delp = ATTRIBUTE_DELIMITER;
+							delp = NULL;
+						}
+						continue;
+					}
+					else if (ATTRIBUTE_DELIMITER == closep[1] ||
+						 delp == closep + 1)
+					{
+						delp = (char *) (closep + 1);
+						*delp = '\0';
+						strtok_arg = delp + 1;
 						if (strtok_arg + 1 >= termp)
 							eoftok = TRUE;
+						break;
 					}
+mylog("%s subsequent char to the closing bracket is %c\n", __FUNCTION__, closep[1]);
+					ret = FALSE;
+					goto cleanup;
 				}
-			}
 		}
 
 #ifndef	FORCE_PASSWORD_DISPLAY
@@ -530,18 +570,21 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 
 	}
 
+cleanup:
 	free(our_connect_string);
+
+	return ret;
 }
 
-static void
+static BOOL
 dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
 {
 	CC_conninfo_init(ci, COPY_GLOBALS);
-	dconn_get_attributes(copyAttributes, connect_string, ci);
+	return dconn_get_attributes(copyAttributes, connect_string, ci);
 }
 
-static void
+static BOOL
 dconn_get_common_attributes(const char *connect_string, ConnInfo *ci)
 {
-	dconn_get_attributes(copyCommonAttributes, connect_string, ci);
+	return dconn_get_attributes(copyCommonAttributes, connect_string, ci);
 }
