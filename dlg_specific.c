@@ -986,7 +986,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	if (NAME_IS_NULL(ci->pqopt))
 	{
 		SQLGetPrivateProfileString(DSN, INI_PQOPT, "", encoded_item, sizeof(encoded_item), ODBC_INI);
-		STR_TO_NAME(ci->pqopt, encoded_item);
+		STRX_TO_NAME(ci->pqopt, encoded_item);
 	}
 
 	if (ci->translation_dll[0] == '\0' || overwrite)

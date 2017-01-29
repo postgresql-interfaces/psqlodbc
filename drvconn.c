@@ -494,7 +494,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 		 */
 		switch (*value)
 		{
-			const char *closep;
+			const char *valuen, *closep;
 
 			case OPENING_BRACKET:
 				delp = strchr(value, '\0');
@@ -509,7 +509,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 				    closep[1] == '\0')
 				break;
 
-				for (const char *valuen = value; valuen < termp; closep = strchr(valuen, CLOSING_BRACKET))
+				for (valuen = value; valuen < termp; closep = strchr(valuen, CLOSING_BRACKET))
 				{
 					if (NULL == closep)
 					{

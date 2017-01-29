@@ -1251,7 +1251,6 @@ OID
 sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 {
 	OID		pgType;
-	const ConnInfo	*ci = &(conn->connInfo);
 
 	switch (fSqlType)
 	{

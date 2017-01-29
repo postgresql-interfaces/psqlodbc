@@ -3182,7 +3182,6 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	}
 	else if (rcnt = (UInt2) QR_get_num_cached_tuples(qres), rcnt == 1)
 	{
-		ConnectionClass	*conn = SC_get_conn(stmt);
 		SQLLEN		res_ridx;
 
 		switch (logKind)
@@ -3790,7 +3789,7 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLULEN gl
 		{
 			if (updcnt == 1)
 			{
-				KeySet	*keyset = NULL, keys;
+				KeySet	keys;
 
 				if (NULL != tres->backend_tuples &&
 				    1 == QR_get_num_cached_tuples(tres))
@@ -3836,7 +3835,6 @@ typedef struct
 static RETCODE
 pos_update_callback(RETCODE retcode, void *para)
 {
-	CSTR	func = "pos_update_callback";
 	RETCODE	ret = retcode;
 	pup_cdata *s = (pup_cdata *) para;
 	SQLLEN	kres_ridx;
@@ -4960,7 +4958,6 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 	{
 		PG_BM	pg_bm;
 		SQLLEN	bidx;
-		BOOL	idx_exist = FALSE;
 
 		pg_bm = SC_Resolve_bookmark(opts, i);
 		bidx = pg_bm.index;

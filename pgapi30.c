@@ -1950,8 +1950,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	CSTR func = "bulk_ope_callback";
 	RETCODE	ret = retcode;
 	bop_cdata *s = (bop_cdata *) para;
-	SQLULEN		offset, global_idx;
-	SQLUINTEGER	bind_size;
+	SQLULEN		global_idx;
 	ConnectionClass	*conn;
 	QResultClass	*res;
 	IRDFields	*irdflds;
@@ -1970,8 +1969,6 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	}
 	s->need_data_callback = FALSE;
 	bookmark = s->opts->bookmark;
-	offset = s->opts->row_offset_ptr ? *(s->opts->row_offset_ptr) : 0;
-	bind_size = s->opts->bind_size;
 	res = SC_get_Curres(s->stmt);
 	for (; SQL_ERROR != ret && s->idx < s->opts->size_of_rowset; s->idx++)
 	{
