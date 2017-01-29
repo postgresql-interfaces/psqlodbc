@@ -2495,7 +2495,7 @@ AddUpdated(StatementClass *stmt, SQLLEN index, const KeySet *keyset, const Tuple
 	SQLLEN	*updated;
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL,  *tuple;
-	SQLLEN	kres_ridx;
+	/* SQLLEN	res_ridx; */
 	UInt2	up_count;
 	BOOL	is_in_trans;
 	SQLLEN	upd_idx, upd_add_idx;
@@ -2511,9 +2511,11 @@ inolog("AddUpdated index=%d\n", index);
 	up_count = res->up_count;
 	if (up_count > 0 && 0 == res->up_alloc)	return;
 	num_fields = res->num_fields;
-	kres_ridx = GIdx2KResIdx(index, stmt, res);
-	if (kres_ridx >= 0 && kres_ridx < res->num_cached_keys)
-		tuple_updated = res->backend_tuples + kres_ridx * num_fields;
+	/*
+	res_ridx = GIdx2CacheIdx(index, stmt, res);
+	if (res_ridx >= 0 && res_ridx < QR_get_num_cached_tuples(res))
+		tuple_updated = res->backend_tuples + res_ridx * num_fields;
+	*/
 	if (!tuple_updated)
 		return;
 	upd_idx = -1;
@@ -3210,10 +3212,8 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 				res->keyset[kres_ridx].status |= SQL_ROW_UPDATED;
 			KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
 			MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
-			ret = SQL_SUCCESS;
 		}
-		else
-			ret = SQL_SUCCESS;
+		ret = SQL_SUCCESS;
 	}
 	else
 	{
