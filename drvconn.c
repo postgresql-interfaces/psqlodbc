@@ -542,6 +542,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 						continue;
 					}
 					else if (ATTRIBUTE_DELIMITER == closep[1] ||
+						 '\0' == closep[1] ||
 						 delp == closep + 1)
 					{
 						delp = (char *) (closep + 1);
@@ -551,7 +552,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 							eoftok = TRUE;
 						break;
 					}
-mylog("%s subsequent char to the closing bracket is %c\n", __FUNCTION__, closep[1]);
+mylog("%s subsequent char to the closing bracket is %c value=%s\n", __FUNCTION__, closep[1], value);
 					ret = FALSE;
 					goto cleanup;
 				}
