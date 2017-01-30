@@ -68,7 +68,7 @@ contrib_regression	public	booltab	id	4	int4
 contrib_regression	public	booltab	t	12	varchar
 contrib_regression	public	booltab	b	12	bool
 contrib_regression	public	byteatab	id	4	int4
-contrib_regression	public	byteatab	t	-3	bytea
+contrib_regression	public	byteatab	t	-4	bytea
 contrib_regression	public	intervaltable	id	4	int4
 contrib_regression	public	intervaltable	iv	12	interval
 contrib_regression	public	intervaltable	d	12	varchar

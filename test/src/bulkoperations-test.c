@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 	memset(bookmark, 0x7F, sizeof(bookmark));
 	memset(saved_bookmarks, 0xF7, sizeof(saved_bookmarks));
 
-	test_connect_ext("UpdatableCursors=1;UseDeclareFetch=0");
+	test_connect_ext("UpdatableCursors=1;Fetch=1");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
