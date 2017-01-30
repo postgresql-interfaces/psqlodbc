@@ -1666,9 +1666,9 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			break;
 		case SQL_ATTR_PGOPT_DEBUG:
 			newValue = CAST_UPTR(SQLCHAR, Value);
-			if (newValue > 0 && conn->connInfo.drivers.debug <= 0)
+			if (newValue > 0)
 			{
-				logs_on_off(-1, 0, 0);
+				logs_on_off(-1, conn->connInfo.drivers.debug, 0);
 				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, conn->connInfo.drivers.debug, 0);
 				mylog("debug => %d\n", conn->connInfo.drivers.debug);
