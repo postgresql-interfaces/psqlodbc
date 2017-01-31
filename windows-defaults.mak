@@ -5,11 +5,11 @@
 #after these defaults. (You can copy this file as a template, and modify)
 #
 !IF "$(TARGET_CPU)" == "x86"
-PG_INC=C:\Program Files (x86)\PostgreSQL\9.3\include
-PG_LIB=C:\Program Files (x86)\PostgreSQL\9.3\lib
+PG_INC=C:\Program Files (x86)\PostgreSQL\9.6\include
+PG_LIB=C:\Program Files (x86)\PostgreSQL\9.6\lib
 !ELSE
-PG_INC=$(PROGRAMFILES)\PostgreSQL\9.3\include
-PG_LIB=$(PROGRAMFILES)\PostgreSQL\9.3\lib
+PG_INC=$(PROGRAMFILES)\PostgreSQL\9.6\include
+PG_LIB=$(PROGRAMFILES)\PostgreSQL\9.6\lib
 !ENDIF
 
 # Enable/disable features

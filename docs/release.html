@@ -9,6 +9,61 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.06.0100">psqlODBC 09.06.0100 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Optimization of a build system.</b><br /></li>
+some adjustment and support Visual Studio 2015 for Windows.
+<li><b>Use SIZEOF_LONG_INT to check whether SQLROWSETSIZE exists.</b><br /></li>
+SIZEOF_LONG_INT is defined in UnixODBC headers, while SIZEOF_LONG is defined
+by psqlodbc's ./configure. In odbcapi.c, we use it to determine what format
+modifier, %ld or %lld, to use for pointers. (Why don't we use %p?). We should
+rely on our autoconf check for that. In odbcapi.c, however, the check should
+match that in the ODBC headers, to determine whether SQLROWSIZE exists, so
+we should use SIZEOF_LONG_INT.
+<li><b>Fix the bug messages handle.</b><br /></li>
+handle_error_message() and handle_notice_message() were unified into handle_pgres_error() in the wrong way.
+Unfortunately handle_error_message() never handled notice messages and set positive errornumbers which mean
+ error_not_a_notice in psqlodbc. 
+I renamed the constant CONNECTION_SERVER_REPORTED_ERROR to CONNECTION_SERVER_REPORTED_SEVERITY_FATAL and 
+the constant CONNECTION_SERVER_REPORTED_WARNING to CONNECTION_SERVER_REPORTED_SEVERITY_ERROR so as to avoid
+ confusion.<br />
+Reported by Shinji Mecha.
+<li><b>Allow setting isolation level before the establishment of connection.</b><br /></li>
+<li><b>Fixed return proper sqlstate error 08S01 in case of communication link failures.</b><br /></li>
+Patch by Tsunakawa,Takayuki.
+<li><b>Check the existence of directory for logging.</b><br /></li>
+<li><b>Handle PG_DIAG_SEVERITY_NONLOCALIZED for servers whose version >= 9.6 so as to detect FATAL message properly.</b><br /></li>
+<li><b>Now default isolation level is server's default instead of fixed SQL_TXN_READ_COMMITTED.</b><br /></li>
+Patch by Tsunakawa,Takayuki.
+<li><b>Make sure the isolation level is SQLUINTEGER and add the declaration of CC_get_isolation().</b><br /></li>
+<li><b>Change the default for ExtraSysTablePrefixes to an empty string.</b><br /></li>
+<li><b>Use lo_lseek64(lo_tell64) instead of lo_lseek(lo_tell) if the server's version >= 9.3. We are now able to handle > 2GB BLOBs.</b><br /></li>
+<li><b>Implement SQL_FECTH_BY_BOOKMARK operation of SQLBulkOperations properly.</b><br /></li>
+<li><b>Enable SQLBulkOperations in declare/fetch mode using long (>=12bytes) bookmarks.</b><br /></li>
+Formerly the driver offered very simple bookmark support -- it is just
+the current row number. Now the driver offers more verbose bookmarks which
+contain KeySet informations (CTID (+ OID)). Though they consume 12bytes
+(row number + CTID) or 16bytes (row number + CTID + OID), they are useful
+in declare/fetch mode.
+<li><b>a hack to handle boolean items in VBA with MS Access.</b><br /></li>
+VBA seems to transform the where condition
+a_boolean_item=True
+into
+("a_boolean_item" = 1)
+which causes an ERROR:Operator does not exist boolean = integer .
+Here transforms it into
+("a_boolean_item"='1')
+which seems safe in anyway.
+<li><b>Add a new option 'pqopt' which specifies libpq connection parameters as a conninfo style string.</b><br /></li>
+The string must be enclosed with braces {} e.g. pqopt={sslcert=... sslkey=... sslrootcert=...} in the case
+ of connection strings. Though host, port, dbname, user, password, sslmode, keepalives_idle or keepalive_interval
+ parameters can be set using this option, they are ordinarily set by other options. When some settings for
+ those parameters conflict with other ordinary options, connections are rejected.
+<li><b>Fix a corner case when parsing connection strings enclosed with braces.</b><br /></li>
+<li><b>As tuple_updated item in AddUpdated(), the parameter should be used. Deriving from other items caused bad results.</b><br /></li>
+<li><b>Change the default of ByteaAsLongVarBinary from 0 to 1.</b><br /></li>
+</ol><br />
 <h2><a id="09.05.0400">psqlODBC 09.05.0400 Release</a></h2>
 Changes:<br />
 <ol type="1">
