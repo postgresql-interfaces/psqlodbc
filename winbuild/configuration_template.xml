@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration version="09.06.0100" formatVersion="0.4" vcversion="" toolset="">
+<Configuration version="" formatVersion="0.4" vcversion="" toolset="">
   <title></title>
   <x86 disabled="no">
     <libpq version="">
