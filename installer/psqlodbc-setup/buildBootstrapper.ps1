@@ -36,8 +36,14 @@ write-host "Building bootstrapper program`n"
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 if ("$version" -eq "") {
-	$configInfo = & "$scriptPath\..\..\winbuild\configuration.ps1" "$BuildConfigPath"
-	$version = $configInfo.Configuration.version
+	# $configInfo = & "$scriptPath\..\..\winbuild\configuration.ps1" "$BuildConfigPath"
+	$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
+	$modulePath="${scriptPath}\..\..\winbuild"
+	Import-Module ${modulePath}\Psqlodbc-config.psm1
+	$defaultConfigDir=$modulePath
+	$configInfo = LoadConfiguration $BuildConfigPath $defaultConfigDir
+	$version = GetPackageVersion $configInfo "$scriptPath/../.."
+	Remove-Module Psqlodbc-config
 }
 
 if ("$env:WIX" -eq "") {

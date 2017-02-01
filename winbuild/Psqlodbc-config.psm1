@@ -163,4 +163,16 @@ function getPGDir($configInfo, $Platform, $kind)
 	return $result
 }
 
-Export-ModuleMember -function LoadConfiguration, SaveConfiguration, unifyNodes, getPGDir -variable LIBPQ_VERSION
+function GetPackageVersion($configInfo, $srcpath)
+{
+	$version_no = $configInfo.Configuration.version
+	if ("$version_no" -eq "") {
+		pushd "$srcpath"
+		$splitItem = Get-Content ".\version.h" | Where-Object {($_.IndexOf("#define") -ge 0) -and ($_.IndexOf("POSTGRESDRIVERVERSION") -ge 0) -and ($_.IndexOF("`"") -ge 0)} | ForEach-Object {$_.split("`"")}
+		$version_no = $splitItem[1]
+		popd
+	}
+	return $version_no
+}
+
+Export-ModuleMember -function LoadConfiguration, SaveConfiguration, unifyNodes, getPGDir, getPackageVersion -variable LIBPQ_VERSION
