@@ -277,7 +277,6 @@ try {
 	if ($cpu -eq "both") {
 		buildInstaller "x86"
 		buildInstaller "x64"
-		$VERSION = $configInfo.Configuration.version
 		write-host "wRedist=$wRedist"
 		try {
 			pushd "$scriptPath"
