@@ -76,16 +76,21 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	installer/psqlodbc-setup/vcredist.wxs \
 \
 	winbuild/BuildAll.ps1 \
-	winbuild/configuration.ps1 \
-	winbuild/configuration_template.xml \
-	winbuild/editConfiguration.ps1 \
-	winbuild/pgenlist.vcxproj \
-	winbuild/pguser.Cpp.props \
-	winbuild/pgxalib.vcxproj \
 	winbuild/platformbuild.vcxproj \
+	winbuild/MSProgram-Get.psm1 \
 	winbuild/psqlodbc.Cpp.props \
+	winbuild/Psqlodbc-config.psm1 \
 	winbuild/psqlodbc.vcxproj \
+	winbuild/configuration_template.xml \
+	winbuild/psqlsetup.vcxproj \
+	winbuild/editConfiguration.ps1 \
 	winbuild/readme.txt \
+	winbuild/pgenlist.vcxproj \
+	winbuild/regress.ps1 \
+	winbuild/pguser.Cpp.props \
+	winbuild/regress_one.vcxproj \
+	winbuild/pgxalib.vcxproj \
+	winbuild/std_dbmsname.Cpp.props \
 \
 	test/Makefile.in \
 	test/odbcini-gen.sh \
