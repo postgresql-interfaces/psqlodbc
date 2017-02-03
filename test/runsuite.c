@@ -191,26 +191,61 @@ runtest(const char *binname, const char *testname, int testno, const char *input
 	return ret;
 }
 
+#ifdef	WIN32
+	static int	diff_call = 1, first_call = 1;
+#endif /* WIN32 */
+
+static int
+call_diff(const char *inputdir, const char *expected_dir, const char *testname, int outputno, const char *result_dir, const char *outspec)
+{
+	char	no_str[8];
+	char	cmdline[1024];
+	int	diff_rtn;
+
+	if (0 == outputno)
+		*no_str = '\0';
+	else
+		snprintf(no_str, sizeof(no_str), "_%d", outputno);
+#ifdef	WIN32
+	if (diff_call)
+		snprintf(cmdline, sizeof(cmdline),
+			 "diff -c --strip-trailing-cr %s%s%s%s.out %s%s.out %s",
+			 inputdir, expected_dir, testname, no_str, result_dir, testname, outspec);
+	else	/* use fc command instead */
+		snprintf(cmdline, sizeof(cmdline),
+			 "fc /N %s%s%s%s.out %s%s.out %s",
+			 inputdir, expected_dir, testname, no_str, result_dir, testname, outspec);
+#else
+	snprintf(cmdline, sizeof(cmdline),
+			 "diff -c %s%s%s%s.out %s%s.out %s",
+			 inputdir, expected_dir, testname, no_str, result_dir, testname, outspec);
+#endif /* WIN32 */
+	if ((diff_rtn = system(cmdline)) == -1)
+		printf("# diff failed\n");
+
+	return diff_rtn;
+}
+
 static int
 rundiff(const char *testname, const char *inputdir)
 {
 	char		filename[1024];
-	char		cmdline[1024];
-	int			outputno;
+	int		outputno, no_spec;
 	char	   *result = NULL;
 	size_t		result_len;
 #ifdef	WIN32
-	static int	diff_call = 1, first_call = 1;
 	const char	*expected_dir = "\\expected\\";
+	const char	*result_dir = "results\\";
 #else
 	const char	*expected_dir = "/expected/";
+	const char	*result_dir = "results/";
 #endif
 	int		diff_rtn;
 	int		i, j;
 	const char	CR = '\r', LF = '\n';
 	char		se, sr;
 
-	snprintf(filename, sizeof(filename), "results/%s.out", testname);
+	snprintf(filename, sizeof(filename), "%s%s.out", result_dir, testname);
 	result = slurpfile(filename, &result_len);
 
 	outputno = 0;
@@ -294,22 +329,14 @@ rundiff(const char *testname, const char *inputdir)
 		free(result);
 
 	/*
-	 * Try to run diff. If this fails, e.g. because the 'diff' program is
-	 * not installed, which is typical on Windows system, that's OK. You'll
-	 * miss the regression.diffs output, but we'll still report "not ok"
-	 * correctly. You can always compare the files manually...
-	 *
-	 * XXX: Somewhat arbitrarily, always run the diff against the primary
-	 * expected output file. Perhaps we should run it against all output
-	 * files and print the smallest diff?
+	 * Try to run diff. If this fails on Windows system, use fc command
+	 * instead.
 	 */
-#ifndef	WIN32
-	snprintf(cmdline, sizeof(cmdline),
-			 "diff -c %s/expected/%s.out results/%s.out >> regression.diffs",
-			 inputdir, testname, testname);
-#else
+#ifdef	WIN32
 	if (first_call)
 	{
+		char	cmdline[1024];
+
 		/*
 		 *	test diff the same file
 		 */
@@ -324,17 +351,47 @@ rundiff(const char *testname, const char *inputdir)
 		if (system(cmdline) != 0)
 			diff_call = 0;
 	}
-	if (diff_call)
-		snprintf(cmdline, sizeof(cmdline),
-			 "diff -c --strip-trailing-cr %s\\expected\\%s.out results\\%s.out >> regression.diffs",
-			 inputdir, testname, testname);
-	else	/* use fc command instead */
-		snprintf(cmdline, sizeof(cmdline),
-			 "fc /N %s\\expected\\%s.out results\\%s.out >> regression.diffs",
-			 inputdir, testname, testname);
 #endif
-	if ((diff_rtn = system(cmdline)) == -1)
-		printf("# diff failed\n");
+	/*
+	 * We run the diff against all output files and print the smallest
+	 * diff.
+	 */
+	no_spec = 0;
+	if (outputno > 1)
+	{
+		const char	*tmpdiff = "tmpdiff.diffs";
+		char	outfmt[32];
+		int	fd, file_size;
+		struct stat stbuf;
+		int	min_size = -1;
+
+		snprintf(outfmt, sizeof(outfmt), "> %s", tmpdiff);
+		for (i = 0; i < outputno; i++)
+		{
+			call_diff(inputdir, expected_dir, testname, i, result_dir, outfmt);
+			if ((fd = open(tmpdiff, O_RDONLY)) < 0)
+				break;
+			if (fstat(fd, &stbuf) == -1)
+				break;
+			if (file_size = stbuf.st_size, file_size == 0)
+			{
+				min_size = 0;
+				no_spec = i;
+			}
+			else if (min_size < 0)
+				min_size = file_size;
+			else if (file_size < min_size)
+			{
+				no_spec = i;
+				min_size = file_size;
+			}
+			close(fd);
+		}
+		remove(tmpdiff);
+		if (min_size == 0)
+			return 0;
+	}
+	diff_rtn = call_diff(inputdir, expected_dir, testname, no_spec, result_dir, ">> regression.diffs");
 
 	return diff_rtn;
 }
