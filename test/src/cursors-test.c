@@ -10,6 +10,8 @@ testLargeResult(HSTMT hstmt, int betweenstmts)
 	int rc;
 	int i;
 
+	rc = SQLSetConnectAttr(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0);
+	CHECK_CONN_RESULT(rc, "SQL_AUTOCOMMIT off failed", conn);
 	/*
 	 * Fetch a large result set without cursor (in Declare/fetch mode, it will
 	 * be fetched in chunks)
