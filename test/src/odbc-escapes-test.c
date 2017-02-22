@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "common.h"
 
@@ -29,12 +30,13 @@ bindParamString(HSTMT hstmt, int paramno, char *str)
 }
 
 static void
-bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen)
+bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen, BOOL inout)
 {
 	SQLRETURN	rc;
 	static SQLLEN		cbParams[10];
 
-    rc = SQLBindParameter(hstmt, paramno, SQL_PARAM_OUTPUT,
+	cbParams[paramno] = SQL_NTS;
+	rc = SQLBindParameter(hstmt, paramno, inout ? SQL_PARAM_INPUT_OUTPUT : SQL_PARAM_OUTPUT,
 						  SQL_C_CHAR,	/* value type */
 						  SQL_CHAR,		/* param type */
 						  20,			/* column size */
@@ -43,15 +45,21 @@ bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen)
 						  outbuflen,	/* buffer len */
 						  &cbParams[paramno]		/* StrLen_or_IndPtr */);
 	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
-	printf("Param %d is an OUT parameter\n", paramno);
+	printf("Param %d is an %s parameter\n", paramno, inout ? "I-O": "OUT");
 }
+
+static BOOL	execDirectMode = FALSE;
+static SQLCHAR	saveQuery[128];
 
 static void
 executeQuery(HSTMT hstmt)
 {
 	SQLRETURN	rc;
 
-	rc = SQLExecute(hstmt);
+	if (execDirectMode)
+		rc = SQLExecDirect(hstmt, saveQuery, SQL_NTS);
+	else
+		rc = SQLExecute(hstmt);
 	CHECK_STMT_RESULT(rc, "SQLExecute failed", hstmt);
 	print_result(hstmt);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
@@ -63,25 +71,20 @@ prepareQuery(HSTMT hstmt, char *str)
 {
 	SQLRETURN	rc;
 
-	rc = SQLPrepare(hstmt, (SQLCHAR *) str, SQL_NTS);
-	CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
+	if (execDirectMode)
+		strcpy(saveQuery, str);
+	else
+	{
+		rc = SQLPrepare(hstmt, (SQLCHAR *) str, SQL_NTS);
+		CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
+	}
 	printf("\nQuery: %s\n", str);
 }
 
-int main(int argc, char **argv)
+static void	escape_test(HSTMT hstmt)
 {
-	SQLRETURN	rc;
-	HSTMT		hstmt = SQL_NULL_HSTMT;
-	char		outbuf[10];
-
-	test_connect();
-
-	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
-	if (!SQL_SUCCEEDED(rc))
-	{
-		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
-		exit(1);
-	}
+	char	outbuf1[64], outbuf3[64], outbuf5[64];
+	BOOL	variadic_test_success = FALSE;
 
 	/**** Function escapes ****/
 
@@ -113,20 +116,22 @@ int main(int argc, char **argv)
 	executeQuery(hstmt);
 
 	prepareQuery(hstmt, "{ ? = call length('foo') }");
-	memset(outbuf, 0, sizeof(outbuf));
-	bindOutParamString(hstmt, 1, outbuf, sizeof(outbuf) - 1);
+	memset(outbuf1, 0, sizeof(outbuf1));
+	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, FALSE);
 	executeQuery(hstmt);
-	printf("OUT param: %s\n", outbuf);
+	printf("OUT param: %s\n", outbuf1);
 
-	/* TODO: This doesn't currently work.
-	prepareQuery(hstmt, "{ ? = call concat(?, ?) }");
-	memset(outbuf, 0, sizeof(outbuf));
-	bindOutParamString(hstmt, 1, outbuf, sizeof(outbuf) - 1);
+	/* It's preferable to cast VARIADIC any fields */
+	prepareQuery(hstmt, "{ ? = call concat(?::text, ?::text) }");
+	memset(outbuf1, 0, sizeof(outbuf1));
+	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, FALSE);
 	bindParamString(hstmt, 2, "foo");
 	bindParamString(hstmt, 3, "bar");
-	executeQuery(hstmt);
-	printf("OUT param: %s\n", outbuf);
-	*/
+	if (variadic_test_success)
+		executeQuery(hstmt);
+	else
+		printf("skip this test because it fails\n");
+	printf("OUT param: %s\n", outbuf1);
 
 	/**** Date, Time, and Timestamp literals ****/
 
@@ -138,6 +143,56 @@ int main(int argc, char **argv)
 
 	prepareQuery(hstmt, "SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::interval");
 	executeQuery(hstmt);
+
+	/**** call procedure with out and i-o parameters ****/
+	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}");
+	memset(outbuf1, 0, sizeof(outbuf1));
+	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, FALSE);
+	bindParamString(hstmt, 2, "2017-02-23 11:34:46");
+	strcpy(outbuf3, "4");
+	bindOutParamString(hstmt, 3, outbuf3, sizeof(outbuf3) - 1, TRUE);
+	bindParamString(hstmt, 4, "3.4");
+	memset(outbuf5, 0, sizeof(outbuf5));
+	bindOutParamString(hstmt, 5, outbuf5, sizeof(outbuf5) - 1, FALSE);
+	executeQuery(hstmt);
+	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
+}
+
+int main(int argc, char **argv)
+{
+	SQLRETURN	rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
+
+	test_connect();
+
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
+		exit(1);
+	}
+
+	rc = SQLExecDirect(hstmt, "create or replace function a_b_c_d_e"
+			"(out a float8, in b timestamp, inout c integer, "
+			"in d numeric, out e timestamp) returns record as "
+			"$function$ \n"
+			"DECLARE \n"
+			"BEGIN \n"
+			"a := 2 * d; \n"
+			"e := b + '1 day'::interval; \n"
+			"c := c + 3; \n"
+			"END; \n"
+			"$function$ \n"
+			"LANGUAGE plpgsql\n"
+			, SQL_NTS);
+	CHECK_STMT_RESULT(rc, "create function a_b_c_d_e failed", hstmt);
+
+	execDirectMode = FALSE;
+	printf("\n-- TEST using SQLExecute after SQLPrepare\n");
+	escape_test(hstmt);
+	execDirectMode = TRUE;
+	printf("\n-- TEST using SQLExecDirect\n");
+	escape_test(hstmt);
 
 	/* Clean up */
 	test_disconnect();

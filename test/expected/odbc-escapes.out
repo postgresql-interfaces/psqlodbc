@@ -1,5 +1,7 @@
 connected
 
+-- TEST using SQLExecute after SQLPrepare
+
 Query: SELECT {fn CONCAT(?, ?) }
 Param 1: foo
 Param 2: bar
@@ -33,6 +35,14 @@ Result set:
 
 OUT param: 3
 
+Query: { ? = call concat(?::text, ?::text) }
+Param 1 is an OUT parameter
+Param 2: foo
+Param 3: bar
+Result set:
+
+OUT param: foobar
+
 Query: SELECT {d '2014-12-21' } + '1 day'::interval
 Result set:
 2014-12-22 00:00:00
@@ -44,4 +54,79 @@ Result set:
 Query: SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::interval
 Result set:
 2014-12-22 21:31:41
+
+Query: {call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}
+Param 1 is an OUT parameter
+Param 2: 2017-02-23 11:34:46
+Param 3 is an I-O parameter
+Param 4: 3.4
+Param 5 is an OUT parameter
+Result set:
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
+
+-- TEST using SQLExecDirect
+
+Query: SELECT {fn CONCAT(?, ?) }
+Param 1: foo
+Param 2: bar
+Result set:
+foobar
+
+Query: SELECT {fn LOCATE(?, ?, 2) }
+Param 1: needle
+Param 2: this is a needle in an ol' haystack
+Result set:
+11
+
+Query: SELECT 'x' || {fn SPACE(10) } || 'x'
+Result set:
+x          x
+
+Query: { call length(?) }
+Param 1: foobar
+Result set:
+6
+
+Query: { call right(?, ?) }
+Param 1: foobar
+Param 2: 3
+Result set:
+bar
+
+Query: { ? = call length('foo') }
+Param 1 is an OUT parameter
+Result set:
+
+OUT param: 3
+
+Query: { ? = call concat(?::text, ?::text) }
+Param 1 is an OUT parameter
+Param 2: foo
+Param 3: bar
+Result set:
+
+OUT param: foobar
+
+Query: SELECT {d '2014-12-21' } + '1 day'::interval
+Result set:
+2014-12-22 00:00:00
+
+Query: SELECT {t '20:30:40' } + '1 hour 1 minute 1 second'::interval
+Result set:
+21:31:41
+
+Query: SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::interval
+Result set:
+2014-12-22 21:31:41
+
+Query: {call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}
+Param 1 is an OUT parameter
+Param 2: 2017-02-23 11:34:46
+Param 3 is an I-O parameter
+Param 4: 3.4
+Param 5 is an OUT parameter
+Result set:
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
 disconnecting
