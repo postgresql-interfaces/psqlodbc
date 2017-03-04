@@ -765,6 +765,11 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 			return TRUE;
 		}
 	}
+	if (CC_not_connected((ConnectionClass *) SC_get_conn(self)))
+	{
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "the connection is closed", func);
+		return TRUE;
+	}
 
 	return	FALSE;
 }
@@ -1887,8 +1892,10 @@ SC_execute(StatementClass *self)
 		if (!res)
 		{
 			if (SC_get_errornumber(self) <= 0)
+			{
 				SC_set_error(self, STMT_NO_RESPONSE, "Could not receive the response, communication down ??", func);
-			CC_on_abort(conn, CONN_DEAD);
+				CC_on_abort(conn, CONN_DEAD);
+			}
 			goto cleanup;
 		}
 	}

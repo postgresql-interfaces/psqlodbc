@@ -87,7 +87,7 @@ enum
 #define CONN_IN_ERROR_BEFORE_IDLE	(1L<<3)
 
 /* not connected yet || already disconnected */
-#define	CC_not_connected(x)	(CONN_DOWN == (x)->status || CONN_NOT_CONNECTED == (x)->status)
+#define	CC_not_connected(x)	(!(x) || CONN_DOWN == (x)->status || CONN_NOT_CONNECTED == (x)->status)
 
 /* AutoCommit functions */
 #define CC_is_in_autocommit(x)		(x->transact_status & CONN_IN_AUTOCOMMIT)

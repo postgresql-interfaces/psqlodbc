@@ -1413,7 +1413,7 @@ void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 {
 	BOOL	set_no_trans = FALSE;
 
-mylog("CC_on_abort in\n");
+mylog("CC_on_abort in opt=%x\n", opt);
 	CONNLOCK_ACQUIRE(conn);
 	if (0 != (opt & CONN_DEAD)) /* CONN_DEAD implies NO_TRANS also */
 		opt |= NO_TRANS;
