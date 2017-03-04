@@ -55,7 +55,7 @@ Query: SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::in
 Result set:
 2014-12-22 21:31:41
 
-Query: {call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}
+Query: {call a_b_c_d_e(?, ?, ?, ?, ?)}
 Param 1 is an OUT parameter
 Param 2: 2017-02-23 11:34:46
 Param 3 is an I-O parameter
@@ -120,7 +120,7 @@ Query: SELECT {ts '2014-12-21 20:30:40' } + '1 day 1 hour 1 minute 1 second'::in
 Result set:
 2014-12-22 21:31:41
 
-Query: {call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}
+Query: {call a_b_c_d_e(?, ?, ?, ?, ?)}
 Param 1 is an OUT parameter
 Param 2: 2017-02-23 11:34:46
 Param 3 is an I-O parameter

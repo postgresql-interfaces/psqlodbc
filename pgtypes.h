@@ -84,6 +84,7 @@ extern SQLSMALLINT sqlTypes[];
 OID		pg_true_type(const ConnectionClass *, OID, OID);
 OID		sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 OID		sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
+const char	*sqltype_to_pgcast(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 
 SQLSMALLINT	pgtype_to_concise_type(const StatementClass *stmt, OID type, int col);
 SQLSMALLINT	pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col);

@@ -2066,6 +2066,7 @@ typedef enum
 #define	FLGB_BINARY_AS_POSSIBLE	(1L << 9)
 #define	FLGB_LITERAL_EXTENSION	(1L << 10)
 #define	FLGB_HEX_BIN_FORMAT	(1L << 11)
+#define	FLGB_PARAM_CAST		(1L << 12)
 typedef struct _QueryBuild {
 	char   *query_statement;
 	size_t	str_alsize;
@@ -2667,7 +2668,7 @@ buildProcessedStmt(const char *srvquery, ssize_t endp, int num_params)
  * query, in UseServerSidePrepare=0 mode.
  */
 RETCODE
-prepareParametersNoDesc(StatementClass *stmt, BOOL fake_params)
+prepareParametersNoDesc(StatementClass *stmt, BOOL fake_params, BOOL param_cast)
 {
 	CSTR		func = "process_statements";
 	RETCODE		retval;
@@ -2689,6 +2690,8 @@ inolog("prepareParametersNoDesc\n");
 	if (QB_initialize(qb, qp->stmt_len, stmt,
 					  fake_params ? RPM_FAKE_PARAMS : RPM_BUILDING_PREPARE_STATEMENT) < 0)
 		return SQL_ERROR;
+	if (param_cast)
+		qb->flags |= FLGB_PARAM_CAST;
 
 	for (qp->opos = 0; qp->opos < qp->stmt_len; qp->opos++)
 	{
@@ -2833,7 +2836,7 @@ RETCODE	prepareParameters(StatementClass *stmt, BOOL fake_params)
 
 inolog("prepareParameters\n");
 
-	if (prepareParametersNoDesc(stmt, fake_params) == SQL_ERROR)
+	if (prepareParametersNoDesc(stmt, fake_params, PARSE_PARAM_CAST) == SQL_ERROR)
 		return SQL_ERROR;
 	return desc_params_and_sync(stmt);
 }
@@ -2974,6 +2977,8 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		retval = SQL_ERROR;
 		goto cleanup;
 	}
+	if (SIMPLE_PARAM_CAST)
+		qb->flags |= FLGB_PARAM_CAST;
 	new_statement = qb->query_statement;
 
 	/* For selects, prepend a declare cursor to the statement */
@@ -3984,7 +3989,21 @@ parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
 	}
 }
 
+static BOOL
+parameter_is_with_cast(const QueryParse *qp)
+{
+	const char *str = F_OldPtr(qp);
 
+	if ('?' != *str)	return FALSE;
+	while (isspace(*(++str))) ;
+	if (strncmp(str, "::", 2) == 0)
+		return TRUE;
+	if (strnicmp(str, "as", 2) != 0)
+		return FALSE;
+	if (isspace(str[2]))
+		return TRUE;
+	return FALSE;
+}
 /*
  * Resolve one parameter.
  *
@@ -4128,7 +4147,13 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		char	pnum[16];
 
 		qb->dollar_number++;
-		sprintf(pnum, "$%d", qb->dollar_number);
+		if (ipara &&
+		    SQL_PARAM_OUTPUT != ipara->paramType &&
+		    (qb->flags & FLGB_PARAM_CAST) != 0 &&
+		    !parameter_is_with_cast(qp))
+			sprintf(pnum, "$%d%s", qb->dollar_number, sqltype_to_pgcast(conn, ipara->SQLType));
+		else
+			sprintf(pnum, "$%d", qb->dollar_number);
 		CVT_APPEND_STR(qb, pnum);
 		return SQL_SUCCESS;
 	}
@@ -4882,7 +4907,7 @@ mylog("cvt_null_date_string=%d pgtype=%d buf=%p\n", conn->connInfo.cvt_null_date
 
 		if (add_parens)
 			CVT_APPEND_CHAR(qb, ')');
-		if (lastadd)
+		if (lastadd && (FLGB_PARAM_CAST & qb->flags) != 0)
 			CVT_APPEND_STR(qb, lastadd);
 	}
 

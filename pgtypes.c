@@ -1236,86 +1236,72 @@ pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, int att
 
 
 /*
- * This is used when binding a query parameter, to decide which PostgreSQL
+ * This was used when binding a query parameter, to decide which PostgreSQL
  * datatype to send to the server, depending on the SQL datatype that was
  * used in the SQLBindParameter call.
  *
- * For most types, this returns 0, which means that the server should treat
- * the parameter the same as an untyped literal string, and deduce the type
- * based on the context.
- *
- * This is different from sqltype_to_pgtype(), which doesn't return 0 but
- * tries to give a closer match to the actual datatype.
+ * However it is inflexible and rather harmful.
+ * Now this function always returns 0.
+ * We use cast instead to keep regression test results
+ * in order to keep regression test results.
  */
 OID
 sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 {
-	OID		pgType;
+	OID		pgType = 0;
+
+	return pgType;
+}
+
+/*
+ * Casting parameters e.g. ?::timestamp is much more flexible
+ * than specifying parameter datatype oids determined by
+ * sqltype_to_bind_pgtype() via parse message.
+ */
+const char *
+sqltype_to_pgcast(const ConnectionClass *conn, SQLSMALLINT fSqlType)
+{
+	const char *pgCast = NULL_STRING;
 
 	switch (fSqlType)
 	{
 		case SQL_BINARY:
 		case SQL_VARBINARY:
-			pgType = PG_TYPE_BYTEA;
+			pgCast = "::bytea";
 			break;
-
-		case SQL_LONGVARBINARY:
-			/*
-			 * SQL_LONGVARBINARY could mean a large object, but it could also
-			 * mean bytea, in particular with ByteaAsLongVarBinary=1. With
-			 * large binary parameters, there isn't much danger of confusing
-			 * the datatype in practice - you typically just INSERT them
-			 * into a table or UPDATE them, and don't apply any operators to
-			 * them. So instead of trying to guess whether this is a 'bytea'
-			 * or large object, let the server decide.
-			 */
-			pgType = 0;
-			break;
-
 		case SQL_TYPE_DATE:
 		case SQL_DATE:
-			pgType = PG_TYPE_DATE;
+			pgCast = "::date";
 			break;
-
 		case SQL_DECIMAL:
 		case SQL_NUMERIC:
-			pgType = PG_TYPE_NUMERIC;
+			pgCast = "::numeric";
 			break;
-
 		case SQL_BIGINT:
-			pgType = PG_TYPE_INT8;
+			pgCast = "::int8";
 			break;
-
 		case SQL_INTEGER:
-			pgType = PG_TYPE_INT4;
+			pgCast = "::int4";
 			break;
-
 		case SQL_REAL:
-			pgType = PG_TYPE_FLOAT4;
+			pgCast = "::float4";
 			break;
-
 		case SQL_SMALLINT:
 		case SQL_TINYINT:
-			pgType = PG_TYPE_INT2;
+			pgCast = "::int2";
 			break;
-
 		case SQL_TIME:
 		case SQL_TYPE_TIME:
-			pgType = PG_TYPE_TIME;
+			pgCast = "::time";
 			break;
-
 		case SQL_TIMESTAMP:
 		case SQL_TYPE_TIMESTAMP:
-			pgType = PG_TYPE_DATETIME;
+			pgCast = "::timestamp";
 			break;
-
 		case SQL_GUID:
 			if (PG_VERSION_GE(conn, 8.3))
-				pgType = PG_TYPE_UUID;
-			else
-				pgType = 0;
+				pgCast = "::uuid";
 			break;
-
 		case SQL_INTERVAL_MONTH:
 		case SQL_INTERVAL_YEAR:
 		case SQL_INTERVAL_YEAR_TO_MONTH:
@@ -1329,28 +1315,11 @@ sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 		case SQL_INTERVAL_HOUR_TO_MINUTE:
 		case SQL_INTERVAL_HOUR_TO_SECOND:
 		case SQL_INTERVAL_MINUTE_TO_SECOND:
-			pgType = PG_TYPE_INTERVAL;
-			break;
-
-		case SQL_CHAR:
-#ifdef	UNICODE_SUPPORT
-		case SQL_WCHAR:
-#endif /* UNICODE_SUPPORT */
-		case SQL_LONGVARCHAR:
-#ifdef	UNICODE_SUPPORT
-		case SQL_WLONGVARCHAR:
-#endif /* UNICODE_SUPPORT */
-		case SQL_VARCHAR:
-#if	UNICODE_SUPPORT
-		case SQL_WVARCHAR:
-#endif /* UNICODE_SUPPORT */
-		default:
-			/* The default is to let the server choose */
-			pgType = 0;
+			pgCast = "::interval";
 			break;
 	}
 
-	return pgType;
+	return pgCast;
 }
 
 OID

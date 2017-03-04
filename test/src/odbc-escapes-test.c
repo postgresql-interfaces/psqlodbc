@@ -145,7 +145,7 @@ static void	escape_test(HSTMT hstmt)
 	executeQuery(hstmt);
 
 	/**** call procedure with out and i-o parameters ****/
-	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}");
+	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?, ?, ?, ?)}");
 	memset(outbuf1, 0, sizeof(outbuf1));
 	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
 	bindParamString(hstmt, 2, "2017-02-23 11:34:46");

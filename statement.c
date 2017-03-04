@@ -1,4 +1,4 @@
-/*-------
+/*------
  * Module:			statement.c
  *
  * Description:		This module contains functions related to creating
@@ -2435,11 +2435,12 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		if (!stmt->processed_statements)
 		{
-			if (prepareParametersNoDesc(stmt, FALSE) == SQL_ERROR)
+			if (prepareParametersNoDesc(stmt, FALSE, EXEC_PARAM_CAST) == SQL_ERROR)
 				goto cleanup;
 		}
 
 		pstmt = stmt->processed_statements;
+		mylog("%s execParams query=%s nParams=%d\n", __FUNCTION__, pstmt->query, nParams);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 nParams,
@@ -2460,9 +2461,10 @@ libpq_bind_and_exec(StatementClass *stmt)
 		}
 
 		/* prepareParameters() set plan name, so don't fetch this earlier */
-		plan_name = stmt->plan_name ? stmt->plan_name : "";
+		plan_name = stmt->plan_name ? stmt->plan_name : NULL_STRING;
 
 		/* already prepared */
+		mylog("%s execPrepared plan=%s nParams=%d\n", __FUNCTION__, plan_name, nParams);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
 							   nParams,
