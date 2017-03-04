@@ -3710,26 +3710,22 @@ build_libpq_bind_params(StatementClass *stmt,
 	num_p = num_params - qb.num_discard_params;
 inolog("num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
+	*nParams = 0;
 	if (num_p > 0)
 	{
 		ParameterImplClass	*parameters = ipdopts->parameters;
+		int	pno;
+
+		BOOL	isnull;
+		BOOL	isbinary;
+		char	*val_copy;
+		OID	pgType;
 
 		/*
 		 * Now build the parameter values.
 		 */
-		*nParams = 0;
-		for (i = 0; i < stmt->num_params; i++)
+		for (i = 0, pno = 0; i < stmt->num_params; i++)
 		{
-			BOOL		isnull;
-			BOOL		isbinary;
-			char	   *val_copy;
-			OID			pgType;
-
-			inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
-
-			if (discard_output && SQL_PARAM_OUTPUT == parameters[i].paramType)
-				continue;
-
 			qb.npos = 0;
 			retval = ResolveOneParam(&qb, NULL, &isnull, &isbinary, &pgType);
 			if (SQL_ERROR == retval)
@@ -3739,6 +3735,21 @@ inolog("num_p=%d\n", num_p);
 				goto cleanup;
 			}
 
+			inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
+
+			if (i < qb.proc_return)
+				continue;
+			if (SQL_PARAM_OUTPUT == parameters[i].paramType)
+			{
+				if (discard_output)
+					continue;
+				(*paramTypes)[pno] = PG_TYPE_VOID;
+				(*paramValues)[pno] = NULL;
+				(*paramLengths)[pno] = 0;
+				(*paramFormats)[pno] = 0;
+				pno++;
+				continue;
+			}
 			if (!isnull)
 			{
 				val_copy = malloc(qb.npos + 1);
@@ -3747,27 +3758,26 @@ inolog("num_p=%d\n", num_p);
 				memcpy(val_copy, qb.query_statement, qb.npos);
 				val_copy[qb.npos] = '\0';
 
-				(*paramTypes)[i] = pgType;
-				(*paramValues)[i] = val_copy;
+				(*paramTypes)[pno] = pgType;
+				(*paramValues)[pno] = val_copy;
 				if (qb.npos > INT_MAX)
 					goto cleanup;
-				(*paramLengths)[i] = (int) qb.npos;
+				(*paramLengths)[pno] = (int) qb.npos;
 			}
 			else
 			{
-				(*paramTypes)[i] = pgType;
-				(*paramValues)[i] = NULL;
-				(*paramLengths)[i] = 0;
+				(*paramTypes)[pno] = pgType;
+				(*paramValues)[pno] = NULL;
+				(*paramLengths)[pno] = 0;
 			}
 			if (isbinary)
-				mylog("%dth parameter is of binary format\n", *nParams);
-			(*paramFormats)[i] = isbinary ? 1 : 0;
+				mylog("%dth parameter is of binary format\n", pno);
+			(*paramFormats)[pno] = isbinary ? 1 : 0;
 
-			(*nParams)++;
+			pno++;
 		}
+		*nParams = pno;
 	}
-	else
-		*nParams = 0;
 
 	/* result format is text */
 	*resultFormat = 0;

@@ -84,7 +84,7 @@ prepareQuery(HSTMT hstmt, char *str)
 static void	escape_test(HSTMT hstmt)
 {
 	char	outbuf1[64], outbuf3[64], outbuf5[64];
-	BOOL	variadic_test_success = FALSE;
+	BOOL	variadic_test_success = TRUE;
 
 	/**** Function escapes ****/
 

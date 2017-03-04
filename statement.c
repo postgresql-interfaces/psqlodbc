@@ -2614,7 +2614,11 @@ ParseWithLibpq(StatementClass *stmt, const char *plan_name,
 			if (pidx > end_pidx)
 				break;
 			else if (pidx < end_pidx)
+			{
+				if (0 == num_params)
+					sta_pidx = pidx;
 				num_params++;
+			}
 			else
 			{
 				num_params++;
