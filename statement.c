@@ -35,6 +35,16 @@
 
 #include "pgapifunc.h"
 
+#define STMT_LOST_GEXIT(stmt) \
+do { \
+	ConnectionClass *conn = SC_get_conn(stmt); \
+        if (NULL == conn->pqconn) \
+        { \
+                SC_set_error((stmt), STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__); \
+                goto cleanup; \
+        } \
+	break; \
+} while (1)
 
 /*	Map sql commands to statement types */
 static const struct
@@ -767,7 +777,7 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 	}
 	if (CC_not_connected((ConnectionClass *) SC_get_conn(self)))
 	{
-		SC_set_error(self, STMT_SEQUENCE_ERROR, "the connection is closed", func);
+		SC_set_error(self, STMT_SEQUENCE_ERROR, "The connection has been lost", func);
 		return TRUE;
 	}
 
@@ -2439,6 +2449,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		}
 
 		pstmt = stmt->processed_statements;
+		STMT_LOST_GEXIT(stmt);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 nParams,
@@ -2462,6 +2473,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		plan_name = stmt->plan_name ? stmt->plan_name : "";
 
 		/* already prepared */
+		STMT_LOST_GEXIT(stmt);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
 							   nParams,
@@ -2666,6 +2678,7 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		conn->unnamed_prepared_stmt = NULL;
 
 	/* Prepare */
+	STMT_LOST_GEXIT(stmt);
 	pgres = PQprepare(conn->pqconn, plan_name, query, num_params, paramTypes);
 	if (PQresultStatus(pgres) != PGRES_COMMAND_OK)
 	{
@@ -2745,6 +2758,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	/* Describe */
 	mylog("%s: describing plan_name=%s\n", func, plan_name);
 
+	STMT_LOST_GEXIT(stmt);
 	pgres = PQdescribePrepared(conn->pqconn, plan_name);
 	switch (PQresultStatus(pgres))
 	{

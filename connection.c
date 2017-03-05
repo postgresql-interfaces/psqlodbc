@@ -729,19 +729,34 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 {
 	char	   *errseverity;
 	char	   *errseverity_nonloc = NULL;
-	char	   *errprimary;
+	char	   *errprimary = NULL;
 	char	   *errmsg = NULL;
 	size_t		errmsglen;
 
 	inolog("handle_pgres_error");
 
-	if (res)
+	if (res && pgres)
 	{
 		char *sqlstate = PQresultErrorField(pgres, PG_DIAG_SQLSTATE);
 		if (sqlstate)
 			strncpy_null(res->sqlstate, sqlstate, sizeof(res->sqlstate));
 	}
 
+	if (NULL == pgres &&
+	    NULL == self->pqconn)
+	{
+		const char *errmsg = "The connection has been lost";
+
+		mylog("%s setting error message=%s\n", __FUNCTION__, errmsg);
+		if (CC_get_errornumber(self) <= 0)
+			CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, comment);
+		if (res)
+		{
+			QR_set_rstatus(res, PORES_FATAL_ERROR);
+			QR_set_message(res, errmsg);
+		}
+		goto cleanup;
+	}
 	/*
 	 * The full message with details and context and everything could
 	 * be obtained with PQresultErrorMessage(). I think that would be
