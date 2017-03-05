@@ -594,6 +594,11 @@ SetStatementSvp(StatementClass *stmt)
 	QResultClass *res;
 	RETCODE	ret = SQL_SUCCESS_WITH_INFO;
 
+	if (NULL == conn->pqconn)
+	{
+		SC_set_error(stmt, STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__);
+		return SQL_ERROR;
+	}
 	if (CC_is_in_error_trans(conn))
 		return ret;
 

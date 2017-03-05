@@ -42,6 +42,9 @@ SQLColumnsW(HSTMT StatementHandle,
 	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
@@ -259,6 +262,9 @@ SQLDescribeColW(HSTMT StatementHandle,
 	char	*clName = NULL, *clNamet = NULL;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	buflen = 0;
 	if (BufferLength > 0)
 		buflen = BufferLength * 3;
@@ -318,6 +324,9 @@ SQLExecDirectW(HSTMT StatementHandle,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
@@ -420,6 +429,9 @@ SQLPrepareW(HSTMT StatementHandle,
 	SQLLEN	slen;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	stxt = ucs2_to_utf8(StatementText, TextLength, &slen, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
@@ -475,6 +487,9 @@ SQLSpecialColumnsW(HSTMT StatementHandle,
 	BOOL lower_id;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
@@ -518,6 +533,9 @@ SQLStatisticsW(HSTMT StatementHandle,
 	BOOL lower_id;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
@@ -562,6 +580,9 @@ SQLTablesW(HSTMT StatementHandle,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
@@ -615,6 +636,9 @@ SQLColumnPrivilegesW(HSTMT			hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -672,6 +696,9 @@ SQLForeignKeysW(HSTMT			hstmt,
 	BOOL	lower_id;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szPkCatalogName, cbPkCatalogName, &nmlen1, lower_id);
@@ -789,6 +816,9 @@ SQLPrimaryKeysW(HSTMT			hstmt,
 	BOOL	lower_id;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -888,6 +918,9 @@ SQLProceduresW(HSTMT		hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -936,6 +969,9 @@ SQLTablePrivilegesW(HSTMT			hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -974,6 +1010,9 @@ SQLGetTypeInfoW(SQLHSTMT	StatementHandle,
 	StatementClass * stmt = (StatementClass *) StatementHandle;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);

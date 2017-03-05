@@ -530,6 +530,8 @@ BOOL	SC_SetExecuting(StatementClass *self, BOOL on);
 BOOL	SC_SetCancelRequest(StatementClass *self);
 BOOL	SC_AcceptedCancelRequest(const StatementClass *self);
 
+BOOL	SC_connection_lost_check(StatementClass *stmt, const char *funcname);
+
 int		enqueueNeedDataCallback(StatementClass *self, NeedDataCallfunc, void *);
 RETCODE		dequeueNeedDataCallback(RETCODE, StatementClass *self);
 void		cancelNeedDataState(StatementClass *self);

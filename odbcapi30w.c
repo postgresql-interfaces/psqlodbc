@@ -288,6 +288,9 @@ SQLColAttributeW(SQLHSTMT	hstmt,
         char    *rgbD = NULL, *rgbDt;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);

@@ -38,6 +38,19 @@
 #include "qresult.h"
 #include "loadlib.h"
 
+BOOL	SC_connection_lost_check(StatementClass *stmt, const char *funcname)
+{
+	ConnectionClass	*conn = SC_get_conn(stmt);
+	char	message[64];
+
+	if (NULL != conn->pqconn)
+		return	FALSE;
+	SC_clear_error(stmt);
+	snprintf(message, sizeof(message), "%s unable due to the connection lost", funcname);
+	SC_set_error(stmt, STMT_COMMUNICATION_ERROR, message, funcname);
+	return TRUE;
+}
+
 RETCODE		SQL_API
 SQLBindCol(HSTMT StatementHandle,
 		   SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType,
@@ -64,6 +77,8 @@ SQLCancel(HSTMT StatementHandle)
 	mylog("[SQLCancel]");
 	/* Not that neither ENTER_STMT_CS nor StartRollbackState is called */
 	/* SC_clear_error((StatementClass *) StatementHandle); maybe this neither */
+	if (SC_connection_lost_check((StatementClass *) StatementHandle, __FUNCTION__))
+		return SQL_ERROR;
 	return PGAPI_Cancel(StatementHandle);
 }
 
@@ -90,6 +105,9 @@ SQLColumns(HSTMT StatementHandle,
 	UWORD	flag	= PODBC_SEARCH_PUBLIC_SCHEMA;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -241,6 +259,9 @@ SQLDescribeCol(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLDescribeCol]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -282,6 +303,9 @@ SQLExecDirect(HSTMT StatementHandle,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	flag |= PODBC_WITH_HOLD;
@@ -306,6 +330,9 @@ SQLExecute(HSTMT StatementHandle)
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	flag |= PODBC_WITH_HOLD;
@@ -333,11 +360,14 @@ SQLFetch(HSTMT StatementHandle)
 	SQLUSMALLINT *rowStatusArray = irdopts->rowStatusArray;
 	SQLULEN *pcRow = irdopts->rowsFetched;
 
+	mylog("[[%s]]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 
-	mylog("[[%s]]", func);
 	ret = PGAPI_ExtendedFetch(StatementHandle, SQL_FETCH_NEXT, 0,
 							   pcRow, rowStatusArray, 0, ardopts->size_of_rowset);
 	stmt->transition_status = STMT_TRANSITION_FETCH_SCROLL;
@@ -416,6 +446,9 @@ SQLGetData(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLGetData]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -475,6 +508,9 @@ SQLGetTypeInfo(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check((StatementClass *) StatementHandle, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	if (SC_opencheck(stmt, func))
@@ -497,6 +533,9 @@ SQLNumResultCols(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLNumResultCols]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -514,6 +553,9 @@ SQLParamData(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLParamData]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	ret = PGAPI_ParamData(StatementHandle, Value);
@@ -531,6 +573,9 @@ SQLPrepare(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLPrepare]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	if (SC_opencheck(stmt, func))
@@ -553,6 +598,9 @@ SQLPutData(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLPutData]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	ret = PGAPI_PutData(StatementHandle, Data, StrLen_or_Ind);
@@ -569,6 +617,9 @@ SQLRowCount(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
 	mylog("[SQLRowCount]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -629,6 +680,9 @@ SQLSpecialColumns(HSTMT StatementHandle,
 	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -692,6 +746,9 @@ SQLStatistics(HSTMT StatementHandle,
 	SQLCHAR *ctName = CatalogName, *scName = SchemaName, *tbName = TableName;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -756,6 +813,9 @@ SQLTables(HSTMT StatementHandle,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -828,6 +888,9 @@ SQLColumnPrivileges(HSTMT hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -899,6 +962,9 @@ SQLDescribeParam(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLDescribeParam]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -924,6 +990,9 @@ SQLExtendedFetch(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLExtendedFetch]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -967,6 +1036,9 @@ SQLForeignKeys(HSTMT hstmt,
 		*fkscName = szFkSchemaName, *fktbName = szFkTableName;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1048,6 +1120,9 @@ SQLMoreResults(HSTMT hstmt)
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLMoreResults]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1086,6 +1161,9 @@ SQLNumParams(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLNumParams]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1111,6 +1189,9 @@ SQLPrimaryKeys(HSTMT hstmt,
 		*tbName = szTableName;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1178,6 +1259,9 @@ SQLProcedureColumns(HSTMT hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1254,6 +1338,9 @@ SQLProcedures(HSTMT hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1315,6 +1402,9 @@ SQLSetPos(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 
 	mylog("[SQLSetPos]");
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -1341,6 +1431,9 @@ SQLTablePrivileges(HSTMT hstmt,
 	UWORD	flag = 0;
 
 	mylog("[%s]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);

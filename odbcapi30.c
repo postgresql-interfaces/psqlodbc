@@ -103,6 +103,9 @@ SQLCloseCursor(HSTMT StatementHandle)
 	RETCODE	ret;
 
 	mylog("[[%s]]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -132,6 +135,9 @@ SQLColAttribute(SQLHSTMT StatementHandle,
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
 	mylog("[[%s]]", func);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -200,6 +206,9 @@ SQLFetchScroll(HSTMT StatementHandle,
 	SQLLEN	bkmarkoff = 0;
 
 	mylog("[[%s]] %d,%d\n", func, FetchOrientation, FetchOffset);
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
+
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -673,6 +682,9 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 	RETCODE	ret;
 	CSTR func = "SQLBulkOperations";
 	StatementClass	*stmt = (StatementClass *) hstmt;
+
+	if (SC_connection_lost_check(stmt, __FUNCTION__))
+		return SQL_ERROR;
 
 	ENTER_STMT_CS(stmt);
 	mylog("[[%s]] Handle=%p %d\n", func, hstmt, operation);
