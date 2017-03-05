@@ -65,8 +65,6 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	installer/productcodes.mak \
 	installer/psqlodbc-setup \
 	installer/README.txt \
-	installer/upgrade.bat \
-	installer/upgrade_x64.bat \
 	installer/psqlodbcm_cpu.wxs \
 	installer/psqlodbc_cpu.wxs \
 	installer/psqlodbc-setup/buildBootstrapper.ps1 \
