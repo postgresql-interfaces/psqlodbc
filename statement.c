@@ -181,6 +181,7 @@ static const struct
 
 static QResultClass *libpq_bind_and_exec(StatementClass *stmt);
 static void SC_set_errorinfo(StatementClass *self, QResultClass *res);
+static void SC_set_error_if_not_set(StatementClass *self, int errornumber, const char *errmsg, const char *func);
 
 
 RETCODE		SQL_API
@@ -2947,9 +2948,13 @@ BOOL	SC_AcceptedCancelRequest(const StatementClass *self)
 static void
 SC_set_error_if_not_set(StatementClass *self, int errornumber, const char *errmsg, const char *func)
 {
-	if (SC_get_errormsg(self) <= 0)
+	int	errnum = SC_get_errornumber(self);
+
+	if (errnum <= 0)
 	{
-		if (!SC_get_errormsg(self))
+		const char *emsg = SC_get_errormsg(self);
+
+		if (emsg && 0 == errnum)
 			SC_set_errornumber(self, errornumber);
 		else
 			SC_set_error(self, errornumber, errmsg, func);
