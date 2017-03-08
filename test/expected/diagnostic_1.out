@@ -18,8 +18,8 @@ SQLExecDirect
 42601
 killing connection...
 57P01=FATAL: terminating connection due to administrator command;
-Error while executing the query
+The connection has been lost
 SQLGetDiagRec on connection says:
-57P01=FATAL: terminating connection due to administrator command
+No error information
 SQLGetDiagRec called again:
-57P01=FATAL: terminating connection due to administrator command
+No error information

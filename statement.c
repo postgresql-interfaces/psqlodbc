@@ -170,7 +170,7 @@ static const struct
 };
 
 static QResultClass *libpq_bind_and_exec(StatementClass *stmt);
-static void SC_set_errorinfo(StatementClass *self, QResultClass *res);
+static void SC_set_errorinfo(StatementClass *self, QResultClass *res, int errkind);
 static void SC_set_error_if_not_set(StatementClass *self, int errornumber, const char *errmsg, const char *func);
 
 
@@ -1610,7 +1610,7 @@ inolog("%s statement=%p res=%x ommitted=0\n", func, self, res);
 			(self->currTuple)++;	/* all is well */
 		else
 		{
-			SC_set_errorinfo(self, res);
+			SC_set_errorinfo(self, res, 1);
 			return SQL_ERROR;
 		}
 	}
@@ -2011,7 +2011,7 @@ SC_execute(StatementClass *self)
 		else if (was_nonfatal)
 			SC_set_errornumber(self, STMT_INFO_ONLY);
 		else
-			SC_set_errorinfo(self, res);
+			SC_set_errorinfo(self, res, 0);
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
 		SC_set_current_col(self, -1);
@@ -2948,7 +2948,7 @@ SC_set_error_if_not_set(StatementClass *self, int errornumber, const char *errms
 }
 
 static void
-SC_set_errorinfo(StatementClass *self, QResultClass *res)
+SC_set_errorinfo(StatementClass *self, QResultClass *res, int errkind)
 {
 	ConnectionClass *conn = SC_get_conn(self);
 
@@ -2970,7 +2970,15 @@ SC_set_errorinfo(StatementClass *self, QResultClass *res)
 			SC_set_error_if_not_set(self, STMT_INTERNAL_ERROR, "Internal error fetching next row", __FUNCTION__);
 			break;
 		default:
-			SC_set_error_if_not_set(self, STMT_EXEC_ERROR, "Error fetching next row", __FUNCTION__);
+			switch (errkind)
+			{
+				case 1:
+					SC_set_error_if_not_set(self, STMT_EXEC_ERROR, "Error while fetching the next result", __FUNCTION__);
+					break;
+				default:
+					SC_set_error_if_not_set(self, STMT_EXEC_ERROR, "Error while executing the query", __FUNCTION__);
+					break;
+			}
 			break;
 	}
 }
