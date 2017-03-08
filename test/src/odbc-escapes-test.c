@@ -48,7 +48,7 @@ bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen, BOOL i
 	printf("Param %d is an %s parameter\n", paramno, inout ? "I-O": "OUT");
 }
 
-static BOOL	execDirectMode = FALSE;
+static BOOL	execDirectMode = 0;
 static SQLCHAR	saveQuery[128];
 
 static void
@@ -84,7 +84,7 @@ prepareQuery(HSTMT hstmt, char *str)
 static void	escape_test(HSTMT hstmt)
 {
 	char	outbuf1[64], outbuf3[64], outbuf5[64];
-	BOOL	variadic_test_success = TRUE;
+	BOOL	variadic_test_success = 1;
 
 	/**** Function escapes ****/
 
@@ -117,14 +117,14 @@ static void	escape_test(HSTMT hstmt)
 
 	prepareQuery(hstmt, "{ ? = call length('foo') }");
 	memset(outbuf1, 0, sizeof(outbuf1));
-	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, FALSE);
+	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT param: %s\n", outbuf1);
 
 	/* It's preferable to cast VARIADIC any fields */
 	prepareQuery(hstmt, "{ ? = call concat(?::text, ?::text) }");
 	memset(outbuf1, 0, sizeof(outbuf1));
-	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, FALSE);
+	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
 	bindParamString(hstmt, 2, "foo");
 	bindParamString(hstmt, 3, "bar");
 	if (variadic_test_success)
@@ -147,13 +147,13 @@ static void	escape_test(HSTMT hstmt)
 	/**** call procedure with out and i-o parameters ****/
 	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?::timestamp, ?, ?, ?)}");
 	memset(outbuf1, 0, sizeof(outbuf1));
-	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, FALSE);
+	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
 	bindParamString(hstmt, 2, "2017-02-23 11:34:46");
 	strcpy(outbuf3, "4");
-	bindOutParamString(hstmt, 3, outbuf3, sizeof(outbuf3) - 1, TRUE);
+	bindOutParamString(hstmt, 3, outbuf3, sizeof(outbuf3) - 1, 1);
 	bindParamString(hstmt, 4, "3.4");
 	memset(outbuf5, 0, sizeof(outbuf5));
-	bindOutParamString(hstmt, 5, outbuf5, sizeof(outbuf5) - 1, FALSE);
+	bindOutParamString(hstmt, 5, outbuf5, sizeof(outbuf5) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
 }
@@ -187,10 +187,10 @@ int main(int argc, char **argv)
 			, SQL_NTS);
 	CHECK_STMT_RESULT(rc, "create function a_b_c_d_e failed", hstmt);
 
-	execDirectMode = FALSE;
+	execDirectMode = 0;
 	printf("\n-- TEST using SQLExecute after SQLPrepare\n");
 	escape_test(hstmt);
-	execDirectMode = TRUE;
+	execDirectMode = 1;
 	printf("\n-- TEST using SQLExecDirect\n");
 	escape_test(hstmt);
 
