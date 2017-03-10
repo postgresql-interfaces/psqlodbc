@@ -9,6 +9,26 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.06.0200">psqlODBC 09.06.0200 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Start transactons first before calling SQLEndTran().</b><br /></li>
+<li><b>The failure of libpq_bind_exec() which returns NULL doesn't mean a FATAL error.
+ Also make a check for disconnected connections.</b><br /></li>
+<li><b>Handle output parameters properly in build_libpq_bind_params.Also handle return values properly.</b><br /></li>
+<li><b>Make check of connection lost.</b><br /></li>
+<li><b>Revise recent lost connection check.</b><br /></li>
+Check the lost connection<br />
+<ol type="a">
+<li>at the beginning of ODBC APIs.<br /></li>
+<li>at the beginning of FE-BE communications using extended protocol.<br /></li>
+</ol>
+<li><b>Stop specifying parameter datatype oids in parse message. Unfortunately it is inflexible
+ and rather harmful. Though I don't know if it has much meaning, use cast instead just in order
+ to keep regression test results. It's not necessary to cast any more the 2nd parameter of
+ {call a_b_c_d_e(?, ?, ?, ?, ?)} in odbc-escapes-test.
+</b><br /></li>
+</ol><br />
 <h2><a id="09.06.0100">psqlODBC 09.06.0100 Release</a></h2>
 Changes:<br />
 <ol type="1">
