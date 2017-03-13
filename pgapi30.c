@@ -419,6 +419,42 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_METADATA_ID:
 			*((SQLUINTEGER *) Value) = conn->stmtOptions.metadata_id;
 			break;
+		case SQL_ATTR_PGOPT_DEBUG:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.debug;
+			break;
+		case SQL_ATTR_PGOPT_COMMLOG:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.commlog;
+			break;
+		case SQL_ATTR_PGOPT_PARSE:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.parse;
+			break;
+		case SQL_ATTR_PGOPT_USE_DECLAREFETCH:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.use_declarefetch;
+			break;
+		case SQL_ATTR_PGOPT_SERVER_SIDE_PREPARE:
+			*((SQLINTEGER *) Value) = conn->connInfo.use_server_side_prepare;
+			break;
+		case SQL_ATTR_PGOPT_FETCH:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.fetch_max;
+			break;
+		case SQL_ATTR_PGOPT_UNKNOWNSIZES:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.unknown_sizes;
+			break;
+		case SQL_ATTR_PGOPT_TEXTASLONGVARCHAR:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.text_as_longvarchar;
+			break;
+		case SQL_ATTR_PGOPT_UNKNOWNSASLONGVARCHAR:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.unknowns_as_longvarchar;
+			break;
+		case SQL_ATTR_PGOPT_BOOLSASCHAR:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.bools_as_char;
+			break;
+		case SQL_ATTR_PGOPT_MAXVARCHARSIZE:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.max_varchar_size;
+			break;
+		case SQL_ATTR_PGOPT_MAXLONGVARCHARSIZE:
+			*((SQLINTEGER *) Value) = conn->connInfo.drivers.max_longvarchar_size;
+			break;
 		default:
 			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value, &len, BufferLength);
 	}
@@ -1716,9 +1752,39 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			mylog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			break;
 		case SQL_ATTR_PGOPT_FETCH:
-			conn->connInfo.drivers.fetch_max = CAST_PTR(int, Value);
+			conn->connInfo.drivers.fetch_max = CAST_PTR(SQLINTEGER, Value);
 			qlog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			mylog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
+			break;
+		case SQL_ATTR_PGOPT_UNKNOWNSIZES:
+			conn->connInfo.drivers.unknown_sizes = CAST_PTR(SQLINTEGER, Value);
+			qlog("unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
+			mylog("unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
+			break;
+		case SQL_ATTR_PGOPT_TEXTASLONGVARCHAR:
+			conn->connInfo.drivers.text_as_longvarchar = CAST_PTR(SQLINTEGER, Value);
+			qlog("text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
+			mylog("text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
+			break;
+		case SQL_ATTR_PGOPT_UNKNOWNSASLONGVARCHAR:
+			conn->connInfo.drivers.unknowns_as_longvarchar = CAST_PTR(SQLINTEGER, Value);
+			qlog("unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
+			mylog("unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
+			break;
+		case SQL_ATTR_PGOPT_BOOLSASCHAR:
+			conn->connInfo.drivers.bools_as_char = CAST_PTR(SQLINTEGER, Value);
+			qlog("bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
+			mylog("bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
+			break;
+		case SQL_ATTR_PGOPT_MAXVARCHARSIZE:
+			conn->connInfo.drivers.max_varchar_size = CAST_PTR(SQLINTEGER, Value);
+			qlog("max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
+			mylog("max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
+			break;
+		case SQL_ATTR_PGOPT_MAXLONGVARCHARSIZE:
+			conn->connInfo.drivers.max_longvarchar_size = CAST_PTR(SQLINTEGER, Value);
+			qlog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
+			mylog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
 			break;
 		default:
 			ret = PGAPI_SetConnectOption(ConnectionHandle, (SQLUSMALLINT) Attribute, (SQLLEN) Value);
