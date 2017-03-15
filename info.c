@@ -1175,13 +1175,13 @@ mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 				/* These values can't be NULL */
 				if (aunq_match == cnt)
 				{
-					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType, PG_UNSPECIFIED, TRUE));
+					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType, PG_ADT_UNSET, TRUE));
 					set_tuplefield_int2(&tuple[6], SQL_NO_NULLS);
 inolog("serial in\n");
 				}
 				else
 				{
-					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType, PG_UNSPECIFIED, FALSE));
+					set_tuplefield_string(&tuple[0], pgtype_to_name(stmt, pgType, PG_ADT_UNSET, FALSE));
 					set_tuplefield_int2(&tuple[6], pgtype_nullable(conn, pgType));
 				}
 				set_tuplefield_int2(&tuple[1], (Int2) sqlType);
@@ -1196,7 +1196,7 @@ inolog("serial in\n");
 				set_tuplefield_null(&tuple[12]);
 
 				/* These values can be NULL */
-				set_nullfield_int4(&tuple[2], pgtype_column_size(stmt, pgType, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+				set_nullfield_int4(&tuple[2], pgtype_column_size(stmt, pgType, PG_STATIC, PG_UNKNOWNS_UNSET));
 				set_nullfield_string(&tuple[3], pgtype_literal_prefix(conn, pgType));
 				set_nullfield_string(&tuple[4], pgtype_literal_suffix(conn, pgType));
 				set_nullfield_string(&tuple[5], pgtype_create_params(conn, pgType));
@@ -1210,8 +1210,8 @@ inolog("serial in\n");
 					set_nullfield_int2(&tuple[11], pgtype_auto_increment(conn, pgType));
 				set_nullfield_int2(&tuple[13], pgtype_min_decimal_digits(conn, pgType));
 				set_nullfield_int2(&tuple[14], pgtype_max_decimal_digits(conn, pgType));
-				set_nullfield_int2(&tuple[15], pgtype_to_sqldesctype(stmt, pgType, PG_STATIC));
-				set_nullfield_int2(&tuple[16], pgtype_to_datetime_sub(stmt, pgType, PG_UNSPECIFIED));
+				set_nullfield_int2(&tuple[15], pgtype_to_sqldesctype(stmt, pgType, PG_STATIC, PG_UNKNOWNS_UNSET));
+				set_nullfield_int2(&tuple[16], pgtype_to_datetime_sub(stmt, pgType, PG_ADT_UNSET));
 				set_nullfield_int4(&tuple[17], pgtype_radix(conn, pgType));
 				set_nullfield_int4(&tuple[18], 0);
 			}
@@ -2452,7 +2452,7 @@ retry_public_schema:
 			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 			set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], OID_NAME);
-			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
+			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET);
 			set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 			if (CC_fake_mss(conn))
 			{
@@ -2462,8 +2462,8 @@ retry_public_schema:
 			else
 				set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID");
 
-			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(conn, the_type));
 			set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
@@ -2474,7 +2474,7 @@ retry_public_schema:
 			set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
 			set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 			set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
-			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
 			set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], TRUE);
 			set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], OID_ATTNUM);
@@ -2577,13 +2577,13 @@ mylog(" and the data=%s\n", attdef);
 				if (mod_length >= 4)
 					mod_length -= 4;
 		}
-		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_attr_column_size(conn, field_type, mod_length, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
-		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_attr_buffer_length(conn, field_type, mod_length, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
-		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_attr_display_size(conn, field_type, mod_length, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
-		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_attr_decimal_digits(conn, field_type, mod_length, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
+		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_attr_column_size(conn, field_type, mod_length, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_attr_buffer_length(conn, field_type, mod_length, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_attr_display_size(conn, field_type, mod_length, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_attr_decimal_digits(conn, field_type, mod_length, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
 
-		sqltype = pgtype_attr_to_concise_type(conn, field_type, mod_length, PG_UNSPECIFIED);
-		concise_type = pgtype_attr_to_sqldesctype(conn, field_type, mod_length);
+		sqltype = pgtype_attr_to_concise_type(conn, field_type, mod_length, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
+		concise_type = pgtype_attr_to_sqldesctype(conn, field_type, mod_length, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
 
 		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 
@@ -2596,7 +2596,7 @@ mylog(" and the data=%s\n", attdef);
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_DEF], attdef);
 		set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], concise_type);
 		set_nullfield_int2(&tuple[COLUMNS_SQL_DATETIME_SUB], pgtype_attr_to_datetime_sub(conn, field_type, mod_length));
-		set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, field_type, mod_length, UNKNOWNS_AS_DEFAULT));
+		set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, field_type, mod_length, PG_UNKNOWNS_UNSET));
 		set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 		set_tuplefield_null(&tuple[COLUMNS_IS_NULLABLE]);
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], field_type);
@@ -2632,11 +2632,11 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
 		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
 		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "xmin");
-		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC);
+		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET);
 		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
-		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], pgtype_to_name(stmt, the_type, PG_UNSPECIFIED, FALSE));
-		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], pgtype_to_name(stmt, the_type, PG_ADT_UNSET, FALSE));
+		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 		set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(conn, the_type));
 		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
@@ -2647,7 +2647,7 @@ mylog(" and the data=%s\n", attdef);
 		set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
 		set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 		set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
-		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
 		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], FALSE);
 		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], XMIN_ATTNUM);
@@ -2857,10 +2857,10 @@ retry_public_schema:
 
 			set_tuplefield_null(&tuple[0]);
 			set_tuplefield_string(&tuple[1], "ctid");
-			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_UNSPECIFIED, FALSE));
-			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_ADT_UNSET, FALSE));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_tuplefield_int2(&tuple[7], SQL_PC_NOT_PSEUDO);
 inolog("Add ctid\n");
@@ -2881,10 +2881,10 @@ inolog("Add ctid\n");
 
 			set_tuplefield_int2(&tuple[0], SQL_SCOPE_SESSION);
 			set_tuplefield_string(&tuple[1], OID_NAME);
-			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_UNSPECIFIED, TRUE));
-			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_ADT_UNSET, TRUE));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
 		}
@@ -2896,10 +2896,10 @@ inolog("Add ctid\n");
 
 			set_tuplefield_null(&tuple[0]);
 			set_tuplefield_string(&tuple[1], "xmin");
-			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC));
-			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_UNSPECIFIED, FALSE));
-			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_ADT_UNSET, FALSE));
+			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_int4(&tuple[5], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_tuplefield_int2(&tuple[6], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
 			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
 		}
@@ -4981,19 +4981,19 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_NAME], procname);
 				set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], NULL_STRING);
 				set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_RETURN_VALUE);
-				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
-				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, PG_UNSPECIFIED, FALSE));
-				column_size = pgtype_column_size(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT);
+				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET));
+				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, PG_ADT_UNSET, FALSE));
+				column_size = pgtype_column_size(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET);
 				set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], column_size);
-				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET));
 				set_nullfield_int2(&tuple[PROCOLS_DECIMAL_DIGITS], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
 				set_nullfield_int2(&tuple[PROCOLS_NUM_PREC_RADIX], pgtype_radix(conn, pgtype));
 				set_tuplefield_int2(&tuple[PROCOLS_NULLABLE], SQL_NULLABLE_UNKNOWN);
 				set_tuplefield_null(&tuple[PROCOLS_REMARKS]);
 				set_tuplefield_null(&tuple[PROCOLS_COLUMN_DEF]);
-				set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
-				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype, PG_UNSPECIFIED));
-				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, pgtype, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
+				set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET));
+				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype, PG_ADT_UNSET));
+				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, pgtype, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
 				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 			}
@@ -5105,19 +5105,19 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				}
 				else
 					set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_PARAM_INPUT);
-				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC));
-				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, PG_UNSPECIFIED, FALSE));
-				column_size = pgtype_column_size(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT);
+				set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET));
+				set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, pgtype, PG_ADT_UNSET, FALSE));
+				column_size = pgtype_column_size(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET);
 				set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], column_size);
-				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+				set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET));
 				set_nullfield_int2(&tuple[PROCOLS_DECIMAL_DIGITS], pgtype_decimal_digits(stmt, pgtype, PG_STATIC));
 				set_nullfield_int2(&tuple[PROCOLS_NUM_PREC_RADIX], pgtype_radix(conn, pgtype));
 				set_tuplefield_int2(&tuple[PROCOLS_NULLABLE], SQL_NULLABLE_UNKNOWN);
 				set_tuplefield_null(&tuple[PROCOLS_REMARKS]);
 				set_tuplefield_null(&tuple[PROCOLS_COLUMN_DEF]);
-				set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC));
-				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype, PG_UNSPECIFIED));
-				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, pgtype, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
+				set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET));
+				set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, pgtype, PG_ADT_UNSET));
+				set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, pgtype, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], j + 1);
 				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 			}
@@ -5143,19 +5143,19 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_NAME], procname);
 			set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], attname);
 			set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_RESULT_COL);
-			set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, typid, PG_STATIC));
-			set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, typid, PG_UNSPECIFIED, FALSE));
-			column_size = pgtype_column_size(stmt, typid, PG_STATIC, UNKNOWNS_AS_DEFAULT);
+			set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], pgtype_to_concise_type(stmt, typid, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], pgtype_to_name(stmt, typid, PG_ADT_UNSET, FALSE));
+			column_size = pgtype_column_size(stmt, typid, PG_STATIC, PG_UNKNOWNS_UNSET);
 			set_nullfield_int4(&tuple[PROCOLS_COLUMN_SIZE], column_size);
-			set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, typid, PG_STATIC, UNKNOWNS_AS_DEFAULT));
+			set_tuplefield_int4(&tuple[PROCOLS_BUFFER_LENGTH], pgtype_buffer_length(stmt, typid, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_nullfield_int2(&tuple[PROCOLS_DECIMAL_DIGITS], pgtype_decimal_digits(stmt, typid, PG_STATIC));
 			set_nullfield_int2(&tuple[PROCOLS_NUM_PREC_RADIX], pgtype_radix(conn, typid));
 			set_tuplefield_int2(&tuple[PROCOLS_NULLABLE], SQL_NULLABLE_UNKNOWN);
 			set_tuplefield_null(&tuple[PROCOLS_REMARKS]);
 			set_tuplefield_null(&tuple[PROCOLS_COLUMN_DEF]);
-			set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, typid, PG_STATIC));
-			set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, typid, PG_UNSPECIFIED));
-			set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, typid, PG_UNSPECIFIED, UNKNOWNS_AS_DEFAULT));
+			set_nullfield_int2(&tuple[PROCOLS_SQL_DATA_TYPE], pgtype_to_sqldesctype(stmt, typid, PG_STATIC, PG_UNKNOWNS_UNSET));
+			set_nullfield_int2(&tuple[PROCOLS_SQL_DATETIME_SUB], pgtype_to_datetime_sub(stmt, typid, PG_ADT_UNSET));
+			set_nullfield_int4(&tuple[PROCOLS_CHAR_OCTET_LENGTH], pgtype_attr_transfer_octet_length(conn, typid, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
 			set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
 			set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 		}

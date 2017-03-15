@@ -163,7 +163,7 @@ CI_set_field_info(ColumnInfoClass *self, int field_num, char *new_name,
 	self->coli_array[field_num].adtsize = new_adtsize;
 	self->coli_array[field_num].atttypmod = new_atttypmod;
 
-	self->coli_array[field_num].display_size = 0;
+	self->coli_array[field_num].display_size = PG_ADT_UNSET;
 	self->coli_array[field_num].relid = new_relid;
 	self->coli_array[field_num].attid = new_attid;
 }

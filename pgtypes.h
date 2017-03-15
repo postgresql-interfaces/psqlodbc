@@ -71,7 +71,8 @@ extern SQLSMALLINT sqlTypes[];
 
 /*	Defines for pgtype_precision */
 #define PG_STATIC				(-1)
-#define PG_UNSPECIFIED				(-1)
+#define PG_ADT_UNSET				(-3)
+#define PG_UNKNOWNS_UNSET			0 /* UNKNOWNS_AS_MAX */
 #define PG_WIDTH_OF_BOOLS_AS_CHAR		5
 
 /*
@@ -86,13 +87,13 @@ OID		sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 OID		sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 const char	*sqltype_to_pgcast(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 
-SQLSMALLINT	pgtype_to_concise_type(const StatementClass *stmt, OID type, int col);
-SQLSMALLINT	pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col);
+SQLSMALLINT	pgtype_to_concise_type(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
+SQLSMALLINT	pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 SQLSMALLINT	pgtype_to_datetime_sub(const StatementClass *stmt, OID type, int col);
 const char	*pgtype_to_name(const StatementClass *stmt, OID type, int col, BOOL auto_increment);
 
-SQLSMALLINT	pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int typmod, int adtsize_or_longestlen);
-SQLSMALLINT	pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int typmod);
+SQLSMALLINT	pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int typmod, int adtsize_or_longestlen,int handle_unknown_size_as);
+SQLSMALLINT	pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int typmod, int adtsize_or_longestlen, int handle_unknown_size_as);
 SQLSMALLINT	pgtype_attr_to_datetime_sub(const ConnectionClass *conn, OID type, int typmod);
 SQLSMALLINT	pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int typmod);
 const char	*pgtype_attr_to_name(const ConnectionClass *conn, OID type, int typmod, BOOL auto_increment);

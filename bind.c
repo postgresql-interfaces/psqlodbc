@@ -371,7 +371,7 @@ inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, 
 		if (ipdopts->parameters[ipar].SQLType)
 			*pfSqlType = ipdopts->parameters[ipar].SQLType;
 		else if (pgtype)
-			*pfSqlType = pgtype_to_concise_type(stmt, pgtype, PG_STATIC);
+			*pfSqlType = pgtype_to_concise_type(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET);
 		else
 		{
 			ret = SQL_ERROR;

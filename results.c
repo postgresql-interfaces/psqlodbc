@@ -202,6 +202,7 @@ cleanup:
 	return ret;
 }
 
+#define	USE_FI(fi, unknown) (fi && UNKNOWNS_AS_LONGEST != unknown)
 
 /*
  *	Return information about the database column the user wants
@@ -228,6 +229,7 @@ PGAPI_DescribeCol(HSTMT hstmt,
 	char	   *col_name = NULL;
 	OID			fieldtype = 0;
 	SQLLEN		column_size = 0;
+	int		unknown_sizes;
 	SQLINTEGER	decimal_digits = 0;
 	ConnInfo   *ci;
 	FIELD_INFO *fi;
@@ -245,6 +247,7 @@ PGAPI_DescribeCol(HSTMT hstmt,
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+	unknown_sizes = ci->drivers.unknown_sizes;
 
 	SC_clear_error(stmt);
 
@@ -332,6 +335,16 @@ inolog("answering bookmark info\n");
 		if (icol < irdflds->nfields && irdflds->fi)
 			fi = irdflds->fi[icol];
 	}
+#ifdef	SUPPRESS_LONGEST_ON_CURSORS
+	if (UNKNOWNS_AS_LONGEST == unknown_sizes)
+	{
+		if ((res = SC_get_Curres(stmt)) &&
+		    QR_once_reached_eof(res))
+			unknown_sizes = UNKNOWNS_AS_LONGEST;
+		else
+			unknown_sizes = UNKNOWNS_AS_MAX;
+	}
+#endif /* SUPPRESS_LONGEST_ON_CURSORS */
 	if (FI_is_applicable(fi))
 	{
 		fieldtype = getEffectiveOid(conn, fi);
@@ -339,8 +352,16 @@ inolog("answering bookmark info\n");
 			col_name = GET_NAME(fi->column_alias);
 		else
 			col_name = GET_NAME(fi->column_name);
-		column_size = fi->column_size;
-		decimal_digits = fi->decimal_digits;
+		if (USE_FI(fi, unknown_sizes))
+		{
+			column_size = fi->column_size;
+			decimal_digits = fi->decimal_digits;
+		}
+		else
+		{
+			column_size = pgtype_column_size(stmt, fieldtype, icol, unknown_sizes);
+			decimal_digits = pgtype_decimal_digits(stmt, fieldtype, icol);
+		}
 
 		mylog("PARSE: fieldtype=%d, col_name='%s', column_size=%d\n", fieldtype, NULL_IF_NULL(col_name), column_size);
 	}
@@ -349,8 +370,7 @@ inolog("answering bookmark info\n");
 		col_name = QR_get_fieldname(res, icol);
 		fieldtype = QR_get_field_type(res, icol);
 
-		/* atoi(ci->unknown_sizes) */
-		column_size = pgtype_column_size(stmt, fieldtype, icol, ci->drivers.unknown_sizes);
+		column_size = pgtype_column_size(stmt, fieldtype, icol, unknown_sizes);
 		decimal_digits = pgtype_decimal_digits(stmt, fieldtype, icol);
 	}
 
@@ -387,7 +407,7 @@ inolog("answering bookmark info\n");
 	 */
 	if (pfSqlType)
 	{
-		*pfSqlType = pgtype_to_concise_type(stmt, fieldtype, icol);
+		*pfSqlType = pgtype_to_concise_type(stmt, fieldtype, icol, unknown_sizes);
 
 		mylog("describeCol: col %d *pfSqlType = %d\n", icol, *pfSqlType);
 	}
@@ -436,6 +456,7 @@ cleanup:
 		result = DiscardStatementSvp(stmt, result, FALSE);
 	return result;
 }
+
 
 
 /*		Returns result column descriptor information for a result set. */
@@ -511,7 +532,6 @@ inolog("answering bookmark info\n");
 
 	col_idx = icol - 1;
 
-	/* atoi(ci->unknown_sizes); */
 	unknown_sizes = ci->drivers.unknown_sizes;
 
 	/* not appropriate for SQLColAttributes() */
@@ -612,7 +632,16 @@ inolog("answering bookmark info\n");
 
 	mylog("colAttr: col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
 
-	column_size = (fi != NULL && fi->column_size > 0) ? fi->column_size : pgtype_column_size(stmt, field_type, col_idx, unknown_sizes);
+#ifdef SUPPRESS_LONGEST_ON_CURSORS
+	if (UNKNOWNS_AS_LONGEST == unknown_sizes)
+	{
+		if (QR_once_reached_eof(res))
+			unknown_sizes = UNKNOWNS_AS_LONGEST;
+		else
+			unknown_sizes = UNKNOWNS_AS_MAX;
+	}
+#endif /* SUPPRESS_LONGEST_ON_CURSORS */
+	column_size = (USE_FI(fi, unknown_sizes) && fi->column_size > 0) ? fi->column_size : pgtype_column_size(stmt, field_type, col_idx, unknown_sizes);
 	switch (fDescType)
 	{
 		case SQL_COLUMN_AUTO_INCREMENT: /* == SQL_DESC_AUTO_UNIQUE_VALUE */
@@ -636,7 +665,7 @@ inolog("answering bookmark info\n");
 			 * case SQL_COLUMN_COUNT:
 			 */
 		case SQL_COLUMN_DISPLAY_SIZE: /* == SQL_DESC_DISPLAY_SIZE */
-			value = (fi && 0 != fi->display_size) ? fi->display_size : pgtype_display_size(stmt, field_type, col_idx, unknown_sizes);
+			value = (USE_FI(fi, unknown_sizes) && 0 != fi->display_size) ? fi->display_size : pgtype_display_size(stmt, field_type, col_idx, unknown_sizes);
 
 			mylog("%s: col %d, display_size= %d\n", func, col_idx, value);
 
@@ -662,7 +691,7 @@ inolog(" (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
 			break;
 
 		case SQL_COLUMN_LENGTH:
-			value = (fi && fi->length > 0) ? fi->length : pgtype_buffer_length(stmt, field_type, col_idx, unknown_sizes);
+			value = (USE_FI(fi, unknown_sizes) && fi->length > 0) ? fi->length : pgtype_buffer_length(stmt, field_type, col_idx, unknown_sizes);
 			if (0 > value)
 			/* if (-1 == value)  I'm not sure which is right */
 				value = 0;
@@ -718,7 +747,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			break;
 
 		case SQL_COLUMN_TYPE: /* == SQL_DESC_CONCISE_TYPE */
-			value = pgtype_to_concise_type(stmt, field_type, col_idx);
+			value = pgtype_to_concise_type(stmt, field_type, col_idx, unknown_sizes);
 			mylog("COLUMN_TYPE=%d\n", value);
 			break;
 
@@ -777,7 +806,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			mylog("%s: col %d, desc_length = %d\n", func, col_idx, value);
 			break;
 		case SQL_DESC_OCTET_LENGTH:
-			value = (fi && fi->length > 0) ? fi->length : pgtype_attr_transfer_octet_length(conn, field_type, column_size, unknown_sizes);
+			value = (USE_FI(fi, unknown_sizes) && fi->length > 0) ? fi->length : pgtype_attr_transfer_octet_length(conn, field_type, column_size, unknown_sizes);
 			if (-1 == value)
 				value = 0;
 			mylog("%s: col %d, octet_length = %d\n", func, col_idx, value);
@@ -799,7 +828,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 			p = pgtype_to_name(stmt, field_type, col_idx, fi && fi->auto_increment);
 			break;
 		case SQL_DESC_TYPE:
-			value = pgtype_to_sqldesctype(stmt, field_type, col_idx);
+			value = pgtype_to_sqldesctype(stmt, field_type, col_idx, unknown_sizes);
 			break;
 		case SQL_DESC_NUM_PREC_RADIX:
 			value = pgtype_radix(conn, field_type);
@@ -4048,7 +4077,7 @@ SC_pos_update(StatementClass *stmt,
 						(SQLUSMALLINT) ++j,
 						SQL_PARAM_INPUT,
 						bindings[i].returntype,
-						pgtype_to_concise_type(s.stmt, fieldtype, i),
+						pgtype_to_concise_type(s.stmt, fieldtype, i, UNKNOWNS_AS_DEFAULT),
 																fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, ci->drivers.unknown_sizes),
 						(SQLSMALLINT) fi[i]->decimal_digits,
 						bindings[i].buffer,
@@ -4457,7 +4486,7 @@ SC_pos_add(StatementClass *stmt,
 					(SQLUSMALLINT) ++add_cols,
 					SQL_PARAM_INPUT,
 					bindings[i].returntype,
-					pgtype_to_concise_type(s.stmt, fieldtype, i),
+					pgtype_to_concise_type(s.stmt, fieldtype, i, UNKNOWNS_AS_DEFAULT),
 															fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, ci->drivers.unknown_sizes),
 					(SQLSMALLINT) fi[i]->decimal_digits,
 					bindings[i].buffer,

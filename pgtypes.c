@@ -247,6 +247,8 @@ getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adt
 
 	mylog("%s: type=%d, atttypmod=%d, adtsize_or=%d, unknown = %d\n", __FUNCTION__, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
 
+	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
+		handle_unknown_size_as = ci->drivers.unknown_sizes;
 	/* Assign Maximum size based on parameters */
 	switch (type)
 	{
@@ -308,16 +310,11 @@ inolog("!!! catalog_result=%d\n", handle_unknown_size_as);
 inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 	p = adtsize_or_longestlen; /* longest */
 	/* Size is unknown -- handle according to parameter */
-	if (atttypmod > 0)	/* maybe the length is known */
+	if (atttypmod > 0 &&	/* maybe the length is known */
+	    (p < 0 ||
+	     UNKNOWNS_AS_LONGEST != handle_unknown_size_as))
 	{
-		if (atttypmod >= p)
-			return atttypmod;
-		switch (type)
-		{
-			case PG_TYPE_VARCHAR:
-			case PG_TYPE_BPCHAR:
-				return atttypmod;
-		}
+		return atttypmod;
 	}
 
 	/* The type is really unknown */
@@ -350,8 +347,13 @@ inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 	return maxsize;
 }
 
+/*
+ *	Specify when handle_unknown_size_as parameter is unused 
+ */
+#define	UNUSED_HANDLE_UNKNOWN_SIZE_AS	(-2)
+
 static SQLSMALLINT
-getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as)
+getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int UNUSED_handle_unknown_size_as)
 {
 	Int4		default_decimal_digits = 6;
 
@@ -375,6 +377,8 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 
 	mylog("%s: type=%d, typmod=%d\n", __FUNCTION__, type, atttypmod);
 
+	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
+		handle_unknown_size_as = conn->connInfo.drivers.unknown_sizes;
 	if (atttypmod > -1)
 		return (atttypmod >> 16) & 0xffff;
 	switch (handle_unknown_size_as)
@@ -492,7 +496,7 @@ getIntervalColumnSize(OID type, int atttypmod)
 
 
 SQLSMALLINT
-pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen)
+pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
 	const ConnInfo	*ci = &(conn->connInfo);
 	EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
@@ -510,12 +514,12 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 
 #ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, UNKNOWNS_AS_DEFAULT) > ci->drivers.max_varchar_size)
+			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
 				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 			return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
 
 		case PG_TYPE_VARCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, UNKNOWNS_AS_DEFAULT) > ci->drivers.max_varchar_size)
+			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
 				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
 			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
@@ -526,12 +530,12 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 
 #else
 		case PG_TYPE_BPCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, UNKNOWNS_AS_DEFAULT) > ci->drivers.max_varchar_size)
+			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
 				return SQL_LONGVARCHAR;
 			return SQL_CHAR;
 
 		case PG_TYPE_VARCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, UNKNOWNS_AS_DEFAULT) > ci->drivers.max_varchar_size)
+			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
 				return SQL_LONGVARCHAR;
 			return SQL_VARCHAR;
 
@@ -626,7 +630,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 }
 
 SQLSMALLINT
-pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int atttypmod)
+pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
 	SQLSMALLINT	rettype;
 
@@ -634,7 +638,7 @@ pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int atttypmod)
 	if (PG_TYPE_INTERVAL == type)
 		return SQL_INTERVAL;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
-	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_UNSPECIFIED))
+	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as))
 	{
 		case SQL_TYPE_DATE:
 		case SQL_TYPE_TIME:
@@ -649,7 +653,7 @@ pgtype_attr_to_datetime_sub(const ConnectionClass *conn, OID type, int atttypmod
 {
 	SQLSMALLINT	rettype;
 
-	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_UNSPECIFIED))
+	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_ADT_UNSET, UNKNOWNS_AS_DEFAULT))
 	{
 		case SQL_TYPE_DATE:
 			return SQL_CODE_DATE;
@@ -1144,7 +1148,7 @@ pgtype_attr_desclength(const ConnectionClass *conn, OID type, int atttypmod, int
 }
 
 Int2
-pgtype_attr_decimal_digits(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
+pgtype_attr_decimal_digits(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int UNUSED_handle_unknown_size_as)
 {
 	switch (type)
 	{
@@ -1172,7 +1176,7 @@ pgtype_attr_decimal_digits(const ConnectionClass *conn, OID type, int atttypmod,
 			return getTimestampDecimalDigitsX(conn, type, atttypmod);
 
 		case PG_TYPE_NUMERIC:
-			return getNumericDecimalDigitsX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+			return getNumericDecimalDigitsX(conn, type, atttypmod, adtsize_or_longestlen, UNUSED_handle_unknown_size_as);
 
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 		case PG_TYPE_INTERVAL:
@@ -1185,12 +1189,12 @@ pgtype_attr_decimal_digits(const ConnectionClass *conn, OID type, int atttypmod,
 }
 
 Int2
-pgtype_attr_scale(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
+pgtype_attr_scale(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int UNUSED_handle_unknown_size_as)
 {
 	switch (type)
 	{
 		case PG_TYPE_NUMERIC:
-			return getNumericDecimalDigitsX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+			return getNumericDecimalDigitsX(conn, type, atttypmod, adtsize_or_longestlen, UNUSED_handle_unknown_size_as);
 	}
 	return -1;
 }
@@ -1207,7 +1211,7 @@ pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, int att
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_TEXT:
 		case PG_TYPE_UNKNOWN:
-			column_size = pgtype_attr_column_size(conn, type, atttypmod, PG_UNSPECIFIED, handle_unknown_size_as);
+			column_size = pgtype_attr_column_size(conn, type, atttypmod, PG_ADT_UNSET, handle_unknown_size_as);
 			if (SQL_NO_TOTAL == column_size)
 				return column_size;
 #ifdef	UNICODE_SUPPORT
@@ -1225,10 +1229,10 @@ pgtype_attr_transfer_octet_length(const ConnectionClass *conn, OID type, int att
 				return maxvarc;
 			return coef * column_size;
 		case PG_TYPE_BYTEA:
-			return pgtype_attr_column_size(conn, type, atttypmod, PG_UNSPECIFIED, handle_unknown_size_as);
+			return pgtype_attr_column_size(conn, type, atttypmod, PG_ADT_UNSET, handle_unknown_size_as);
 		default:
 			if (type == conn->lobj_type)
-				return pgtype_attr_column_size(conn, type, atttypmod, PG_UNSPECIFIED, handle_unknown_size_as);
+				return pgtype_attr_column_size(conn, type, atttypmod, PG_ADT_UNSET, handle_unknown_size_as);
 	}
 	return -1;
 }
@@ -1453,7 +1457,7 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 	int	atttypmod = -1;
 
 	if (NULL != adtsize_or_longestlen)
-		*adtsize_or_longestlen = -1;
+		*adtsize_or_longestlen = PG_ADT_UNSET;
 	if (col >= 0)
 	{
 		const QResultClass	*res;
@@ -1512,20 +1516,21 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
  *	types that are unknown.  All other pg routines in here return a suitable default.
  */
 SQLSMALLINT
-pgtype_to_concise_type(const StatementClass *stmt, OID type, int col)
+pgtype_to_concise_type(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_to_concise_type(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen);
+	return pgtype_attr_to_concise_type(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
 }
 
 SQLSMALLINT
-pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col)
+pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as)
 {
-	int	atttypmod = getAtttypmodEtc(stmt, col, NULL);
+	int	adtsize_or_longestlen;
+	int	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
 
-	return pgtype_attr_to_sqldesctype(SC_get_conn(stmt), type, atttypmod);
+	return pgtype_attr_to_sqldesctype(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
 }
 
 SQLSMALLINT
@@ -1704,7 +1709,7 @@ pgtype_max_decimal_digits(const ConnectionClass *conn, OID type)
 		case PG_TYPE_TIMESTAMP_NO_TMZONE:
 			return 38;
 		case PG_TYPE_NUMERIC:
-			return getNumericDecimalDigitsX(conn, type, -1, -1, UNKNOWNS_AS_DEFAULT);
+			return getNumericDecimalDigitsX(conn, type, -1, -1, UNUSED_HANDLE_UNKNOWN_SIZE_AS);
 		default:
 			return -1;
 	}
@@ -1719,7 +1724,7 @@ pgtype_decimal_digits(const StatementClass *stmt, OID type, int col)
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_decimal_digits(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : UNKNOWNS_AS_DEFAULT);
+	return pgtype_attr_decimal_digits(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, UNUSED_HANDLE_UNKNOWN_SIZE_AS);
 }
 
 /*
@@ -1731,7 +1736,7 @@ pgtype_scale(const StatementClass *stmt, OID type, int col)
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_scale(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : UNKNOWNS_AS_DEFAULT);
+	return pgtype_attr_scale(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, UNUSED_HANDLE_UNKNOWN_SIZE_AS);
 }
 
 
