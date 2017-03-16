@@ -2116,11 +2116,6 @@ PGAPI_Columns(HSTMT hstmt,
 				ordinal,
 				typmod, relhasoids;
 	OID		field_type, the_type, greloid, basetype;
-#ifdef	USE_OLD_IMPL
-	Int2		decimal_digits;
-	Int4		field_length, column_size;
-	char		useStaticPrecision, useStaticScale;
-#endif /* USE_OLD_IMPL */
 	char		not_null[MAX_INFO_STRING],
 				relhasrules[MAX_INFO_STRING], relkind[8];
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
@@ -2569,97 +2564,6 @@ mylog(" and the data=%s\n", attdef);
 		qlog("%s: table='%s',field_name='%s',type=%d,name='%s'\n",
 			 func, table_name, field_name, field_type, field_type_name);
 
-#ifdef	USE_OLD_IMPL
-		useStaticPrecision = TRUE;
-		useStaticScale = TRUE;
-
-		if (field_type == PG_TYPE_NUMERIC)
-		{
-			if (mod_length >= 4)
-				mod_length -= 4;	/* the length is in atttypmod - 4 */
-
-			if (mod_length >= 0)
-			{
-				useStaticPrecision = FALSE;
-				useStaticScale = FALSE;
-
-				column_size = (mod_length >> 16) & 0xffff;
-				decimal_digits = mod_length & 0xffff;
-
-				mylog("%s: field type is NUMERIC: field_type = %d, mod_length=%d, precision=%d, scale=%d\n", func, field_type, mod_length, column_size, decimal_digits);
-
-				set_tuplefield_int4(&tuple[COLUMNS_PRECISION], column_size);
-				set_tuplefield_int4(&tuple[COLUMNS_LENGTH], column_size + 2);		/* sign+dec.point */
-				set_nullfield_int2(&tuple[COLUMNS_SCALE], decimal_digits);
-				set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
-				set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], column_size + 2);	/* sign+dec.point */
-			}
-		}
-		else if ((field_type == PG_TYPE_DATETIME) ||
-			(field_type == PG_TYPE_TIMESTAMP_NO_TMZONE))
-		{
-			useStaticScale = FALSE;
-			set_nullfield_int2(&tuple[COLUMNS_SCALE], (Int2) mod_length);
-		}
-
-		if ((field_type == PG_TYPE_VARCHAR) ||
-			(field_type == PG_TYPE_BPCHAR))
-		{
-			useStaticPrecision = FALSE;
-
-			if (mod_length >= 4)
-				mod_length -= 4;	/* the length is in atttypmod - 4 */
-
-			/* if (mod_length > ci->drivers.max_varchar_size || mod_length <= 0) */
-			if (mod_length <= 0)
-				mod_length = ci->drivers.max_varchar_size;
-#ifdef	__MS_REPORTS_ANSI_CHAR__
-			if (mod_length > ci->drivers.max_varchar_size)
-				sqltype = SQL_LONGVARCHAR;
-			else
-				sqltype = (field_type == PG_TYPE_BPCHAR) ? SQL_CHAR : SQL_VARCHAR;
-#else
-			if (mod_length > ci->drivers.max_varchar_size)
-				sqltype = (ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR);
-			else
-				sqltype = (field_type == PG_TYPE_BPCHAR) ? (ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR) : (ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR);
-#endif /* __MS_LOVES_REPORTS_CHAR__ */
-
-			mylog("%s: field type is VARCHAR,BPCHAR: field_type = %d, mod_length = %d\n", func, field_type, mod_length);
-
-			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], mod_length);
-			field_length = mod_length;
-#ifdef	UNICODE_SUPPORT
-			if (0 < field_length && ALLOW_WCHAR(conn))
-				field_length *= WCLEN;
-#endif /* UNICODE_SUPPORT */
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], field_length);
-			set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], pgtype_transfer_octet_length(conn, field_type, mod_length));
-			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], mod_length);
-		}
-
-		if (useStaticPrecision)
-		{
-			mylog("%s: field type is OTHER: field_type = %d, pgtype_length = %d\n", func, field_type, pgtype_buffer_length(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-
-			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-			set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
-			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, field_type, PG_STATIC, UNKNOWNS_AS_DEFAULT));
-		}
-		if (useStaticScale)
-		{
-			set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, field_type, PG_STATIC));
-		}
-
-		if (SQL_TYPE_NULL == sqltype)
-		{
-			sqltype = pgtype_attr_to_concise_type(conn, field_type, mod_length, -1);
-			concise_type = pgtype_attr_to_sqldesctype(conn, field_type, mod_length);
-		}
-		else
-			concise_type = sqltype;
-#else /* USE_OLD_IMPL */
 		/* Subtract the header length */
 		switch (field_type)
 		{
@@ -2680,7 +2584,6 @@ mylog(" and the data=%s\n", attdef);
 
 		sqltype = pgtype_attr_to_concise_type(conn, field_type, mod_length, PG_UNSPECIFIED);
 		concise_type = pgtype_attr_to_sqldesctype(conn, field_type, mod_length);
-#endif /* USE_OLD_IMPL */
 
 		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
 
