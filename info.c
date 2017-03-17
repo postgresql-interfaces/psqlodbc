@@ -2084,6 +2084,45 @@ cleanup:
 	return ret;
 }
 
+/*
+ *	for oid or xmin
+ */
+static void
+add_tuple_for_oid_or_xmin(TupleField *tuple, int ordinal, const char *colname, OID the_type, const char *typname, const ConnectionClass *conn, const char *table_owner, const char *table_name, OID greloid, int attnum, BOOL auto_increment)
+{
+	int	sqltype;
+	const int atttypmod = -1;
+
+	set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
+	/* see note in SQLTables() */
+	set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
+	set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
+	set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], colname);
+	sqltype = pgtype_attr_to_concise_type(conn, the_type, atttypmod, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
+	set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
+	set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], typname);
+
+	set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_attr_column_size(conn, the_type, atttypmod, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+	set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_attr_buffer_length(conn, the_type, atttypmod, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+	set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_attr_decimal_digits(conn, the_type, atttypmod, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+	set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(conn, the_type));
+	set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
+	set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
+	set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
+	set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], sqltype);
+	set_tuplefield_null(&tuple[COLUMNS_SQL_DATETIME_SUB]);
+	set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
+	set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
+	set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
+	set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_attr_display_size(conn, the_type, atttypmod, PG_ADT_UNSET, PG_UNKNOWNS_UNSET));
+	set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
+	set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], auto_increment);
+	set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], attnum);
+	set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
+	set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
+	set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], -1);
+}
+
 RETCODE		SQL_API
 PGAPI_Columns(HSTMT hstmt,
 			  const SQLCHAR * szTableQualifier, /* OA X*/
@@ -2119,7 +2158,7 @@ PGAPI_Columns(HSTMT hstmt,
 	char		not_null[MAX_INFO_STRING],
 				relhasrules[MAX_INFO_STRING], relkind[8];
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
-	BOOL	search_pattern = TRUE, search_by_ids, relisaview;
+	BOOL	search_pattern = TRUE, search_by_ids, relisaview, show_oid_column, row_versioning;
 	ConnInfo   *ci;
 	ConnectionClass *conn;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
@@ -2140,6 +2179,8 @@ PGAPI_Columns(HSTMT hstmt,
 #endif /* UNICODE_SUPPORT */
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
+	show_oid_column = ((flag & PODBC_SHOW_OID_COLUMN) != 0);
+	row_versioning = ((flag & PODBC_ROW_VERSIONING) != 0);
 	search_by_ids = ((flag & PODBC_SEARCH_BY_IDS) != 0);
 	if (search_by_ids)
 	{
@@ -2435,52 +2476,28 @@ retry_public_schema:
 	 */
 	relisaview = (relkind[0] == 'v');
 
-	if (result != SQL_ERROR && !stmt->internal)
+	if (result != SQL_ERROR)
 	{
 		if (!relisaview &&
 			relhasoids &&
-			(atoi(ci->show_oid_column) ||
+			(show_oid_column ||
 			 strncmp(table_name, POSTGRES_SYS_PREFIX, strlen(POSTGRES_SYS_PREFIX)) == 0) &&
 			(NULL == escColumnName ||
 			 0 == strcmp(escColumnName, OID_NAME)))
 		{
+			const char *typname;
+
 			/* For OID fields */
-			the_type = PG_TYPE_OID;
 			tuple = QR_AddNew(res);
-			set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
-			/* see note in SQLTables() */
-			set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
-			set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
-			set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], OID_NAME);
-			sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET);
-			set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
+
 			if (CC_fake_mss(conn))
 			{
-				set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID identity");
+				typname = "OID identity";
 				setIdentity = TRUE;
 			}
 			else
-				set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "OID");
-
-			set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
-			set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
-			set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
-			set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(conn, the_type));
-			set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
-			set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
-			set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
-			set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], sqltype);
-			set_tuplefield_null(&tuple[COLUMNS_SQL_DATETIME_SUB]);
-			set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
-			set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
-			set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
-			set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
-			set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
-			set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], TRUE);
-			set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], OID_ATTNUM);
-			set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
-			set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
-			set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], -1);
+				typname = OID_NAME;
+			add_tuple_for_oid_or_xmin(tuple, ordinal, OID_NAME, PG_TYPE_OID, typname, conn, table_owner, table_name, greloid, OID_ATTNUM, TRUE);
 			ordinal++;
 		}
 	}
@@ -2621,39 +2638,14 @@ mylog(" and the data=%s\n", attdef);
 	 * Put the row version column at the end so it might not be mistaken
 	 * for a key field.
 	 */
-	if (!relisaview && !stmt->internal && atoi(ci->row_versioning))
+	if (!relisaview && row_versioning &&
+		(NULL == escColumnName ||
+		 0 == strcmp(escColumnName, XMIN_NAME)))
 	{
 		/* For Row Versioning fields */
-		the_type = PG_TYPE_INT4;
-
 		tuple = QR_AddNew(res);
 
-		set_tuplefield_string(&tuple[COLUMNS_CATALOG_NAME], CurrCat(conn));
-		set_tuplefield_string(&tuple[COLUMNS_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
-		set_tuplefield_string(&tuple[COLUMNS_TABLE_NAME], table_name);
-		set_tuplefield_string(&tuple[COLUMNS_COLUMN_NAME], "xmin");
-		sqltype = pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET);
-		set_tuplefield_int2(&tuple[COLUMNS_DATA_TYPE], sqltype);
-		set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], pgtype_to_name(stmt, the_type, PG_ADT_UNSET, FALSE));
-		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
-		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], pgtype_buffer_length(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
-		set_nullfield_int2(&tuple[COLUMNS_SCALE], pgtype_decimal_digits(stmt, the_type, PG_STATIC));
-		set_nullfield_int2(&tuple[COLUMNS_RADIX], pgtype_radix(conn, the_type));
-		set_tuplefield_int2(&tuple[COLUMNS_NULLABLE], SQL_NO_NULLS);
-		set_tuplefield_string(&tuple[COLUMNS_REMARKS], NULL_STRING);
-		set_tuplefield_null(&tuple[COLUMNS_COLUMN_DEF]);
-		set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], sqltype);
-		set_tuplefield_null(&tuple[COLUMNS_SQL_DATETIME_SUB]);
-		set_tuplefield_null(&tuple[COLUMNS_CHAR_OCTET_LENGTH]);
-		set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
-		set_tuplefield_string(&tuple[COLUMNS_IS_NULLABLE], "No");
-		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], pgtype_display_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
-		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], the_type);
-		set_tuplefield_int4(&tuple[COLUMNS_AUTO_INCREMENT], FALSE);
-		set_tuplefield_int2(&tuple[COLUMNS_PHYSICAL_NUMBER], XMIN_ATTNUM);
-		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
-		set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
-		set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], -1);
+		add_tuple_for_oid_or_xmin(tuple, ordinal, XMIN_NAME, PG_TYPE_XID, "xid", conn, table_owner, table_name, greloid, XMIN_ATTNUM, FALSE);
 		ordinal++;
 	}
 	result = SQL_SUCCESS;
@@ -2895,7 +2887,7 @@ inolog("Add ctid\n");
 			tuple = QR_AddNew(res);
 
 			set_tuplefield_null(&tuple[0]);
-			set_tuplefield_string(&tuple[1], "xmin");
+			set_tuplefield_string(&tuple[1], XMIN_NAME);
 			set_tuplefield_int2(&tuple[2], pgtype_to_concise_type(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
 			set_tuplefield_string(&tuple[3], pgtype_to_name(stmt, the_type, PG_ADT_UNSET, FALSE));
 			set_tuplefield_int4(&tuple[4], pgtype_column_size(stmt, the_type, PG_STATIC, PG_UNKNOWNS_UNSET));
@@ -3045,11 +3037,6 @@ PGAPI_Statistics(HSTMT hstmt,
 	col_stmt = (StatementClass *) hcol_stmt;
 
 	/*
-	 * "internal" prevents SQLColumns from returning the oid if it is
-	 * being shown. This would throw everything off.
-	 */
-	col_stmt->internal = TRUE;
-	/*
 	 * table_name parameter cannot contain a string search pattern.
 	 */
 	result = PGAPI_Columns(hcol_stmt,
@@ -3058,7 +3045,6 @@ PGAPI_Statistics(HSTMT hstmt,
 						   (SQLCHAR *) table_name, SQL_NTS,
 						   NULL, 0,
 						   PODBC_NOT_SEARCH_PATTERN | PODBC_SEARCH_PUBLIC_SCHEMA, 0, 0);
-	col_stmt->internal = FALSE;
 
 	if (!SQL_SUCCEEDED(result))
 	{

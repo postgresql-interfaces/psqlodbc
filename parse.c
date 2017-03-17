@@ -582,7 +582,7 @@ static void xxxxx(StatementClass *stmt, FIELD_INFO *fi, QResultClass *res, int i
 				STR_TO_NAME(fi->column_name, OID_NAME);
 				break;
 			case XMIN_ATTNUM:
-				STR_TO_NAME(fi->column_name, "xmin");
+				STR_TO_NAME(fi->column_name, XMIN_NAME);
 				break;
 		}
 	}
@@ -824,7 +824,6 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 	}
 
 	col_stmt = (StatementClass *) hcol_stmt;
-	col_stmt->internal = TRUE;
 
 	if (greloid)
 		result = PGAPI_Columns(hcol_stmt, NULL, 0,

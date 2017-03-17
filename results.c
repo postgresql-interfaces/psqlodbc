@@ -779,7 +779,7 @@ inolog("COLUMN_SCALE=%d\n", value);
 				const char *name = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);
 				if (stricmp(name, OID_NAME) == 0 ||
 				    stricmp(name, "ctid") == 0 ||
-				    stricmp(name, "xmin") == 0)
+				    stricmp(name, XMIN_NAME) == 0)
 					value = SQL_ATTR_READONLY;
 				else if (conn->ms_jet && fi && fi->auto_increment)
 					value = SQL_ATTR_READONLY;

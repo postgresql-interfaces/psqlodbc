@@ -40,12 +40,14 @@ SQLColumnsW(HSTMT StatementHandle,
 	ConnectionClass *conn;
 	BOOL	lower_id;
 	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
+	ConnInfo	*ci;
 
 	mylog("[%s]", func);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
 	conn = SC_get_conn(stmt);
+	ci = &(conn->connInfo);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
 	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
@@ -56,6 +58,10 @@ SQLColumnsW(HSTMT StatementHandle,
 	StartRollbackState(stmt);
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
+	if (atoi(ci->show_oid_column))
+		flag |= PODBC_SHOW_OID_COLUMN;
+	if (atoi(ci->row_versioning))
+		flag |= PODBC_ROW_VERSIONING;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else

@@ -17,6 +17,8 @@ extern "C" {
 #define	PODBC_NOT_SEARCH_PATTERN	1L
 #define	PODBC_SEARCH_PUBLIC_SCHEMA	(1L << 1)
 #define	PODBC_SEARCH_BY_IDS		(1L << 2)
+#define	PODBC_SHOW_OID_COLUMN		(1L << 3)
+#define	PODBC_ROW_VERSIONING		(1L << 4)
 /*	Internal flags for PGAPI_AllocStmt functions */
 #define	PODBC_EXTERNAL_STATEMENT	1L	/* visible to the driver manager */
 #define	PODBC_INHERIT_CONNECT_OPTIONS	(1L << 1)
