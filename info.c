@@ -1125,7 +1125,7 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 	SC_set_Result(stmt, res);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	result_cols = 19;
+	result_cols = NUM_OF_GETTYPE_FIELDS;
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	stmt->catalog_result = TRUE;
@@ -1187,45 +1187,45 @@ mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 				/* These values can't be NULL */
 				if (aunq_match == cnt)
 				{
-					set_tuplefield_string(&tuple[0], PGTYPE_TO_NAME(conn, pgType, TRUE));
-					set_tuplefield_int2(&tuple[6], SQL_NO_NULLS);
+					set_tuplefield_string(&tuple[GETTYPE_TYPE_NAME], PGTYPE_TO_NAME(conn, pgType, TRUE));
+					set_tuplefield_int2(&tuple[GETTYPE_NULLABLE], SQL_NO_NULLS);
 inolog("serial in\n");
 				}
 				else
 				{
-					set_tuplefield_string(&tuple[0], PGTYPE_TO_NAME(conn, pgType, FALSE));
-					set_tuplefield_int2(&tuple[6], pgtype_nullable(conn, pgType));
+					set_tuplefield_string(&tuple[GETTYPE_TYPE_NAME], PGTYPE_TO_NAME(conn, pgType, FALSE));
+					set_tuplefield_int2(&tuple[GETTYPE_NULLABLE], pgtype_nullable(conn, pgType));
 				}
-				set_tuplefield_int2(&tuple[1], (Int2) sqlType);
-				set_tuplefield_int2(&tuple[7], pgtype_case_sensitive(conn, pgType));
-				set_tuplefield_int2(&tuple[8], pgtype_searchable(conn, pgType));
-				set_tuplefield_int2(&tuple[10], pgtype_money(conn, pgType));
+				set_tuplefield_int2(&tuple[GETTYPE_DATA_TYPE], (Int2) sqlType);
+				set_tuplefield_int2(&tuple[GETTYPE_CASE_SENSITIVE], pgtype_case_sensitive(conn, pgType));
+				set_tuplefield_int2(&tuple[GETTYPE_SEARCHABLE], pgtype_searchable(conn, pgType));
+				set_tuplefield_int2(&tuple[GETTYPE_FIXED_PREC_SCALE], pgtype_money(conn, pgType));
 
 			/*
 			 * Localized data-source dependent data type name (always
 			 * NULL)
 			 */
-				set_tuplefield_null(&tuple[12]);
+				set_tuplefield_null(&tuple[GETTYPE_LOCAL_TYPE_NAME]);
 
 				/* These values can be NULL */
-				set_nullfield_int4(&tuple[2], PGTYPE_COLUMN_SIZE(conn, pgType));
-				set_nullfield_string(&tuple[3], pgtype_literal_prefix(conn, pgType));
-				set_nullfield_string(&tuple[4], pgtype_literal_suffix(conn, pgType));
-				set_nullfield_string(&tuple[5], pgtype_create_params(conn, pgType));
+				set_nullfield_int4(&tuple[GETTYPE_COLUMN_SIZE], PGTYPE_COLUMN_SIZE(conn, pgType));
+				set_nullfield_string(&tuple[GETTYPE_LITERAL_PREFIX], pgtype_literal_prefix(conn, pgType));
+				set_nullfield_string(&tuple[GETTYPE_LITERAL_SUFFIX], pgtype_literal_suffix(conn, pgType));
+				set_nullfield_string(&tuple[GETTYPE_CREATE_PARAMS], pgtype_create_params(conn, pgType));
 				if (1 < pgtcount)
-					set_tuplefield_int2(&tuple[9], SQL_TRUE);
+					set_tuplefield_int2(&tuple[GETTYPE_UNSIGNED_ATTRIBUTE], SQL_TRUE);
 				else
-					set_nullfield_int2(&tuple[9], pgtype_unsigned(conn, pgType));
+					set_nullfield_int2(&tuple[GETTYPE_UNSIGNED_ATTRIBUTE], pgtype_unsigned(conn, pgType));
 				if (aunq_match == cnt)
-					set_tuplefield_int2(&tuple[11], SQL_TRUE);
+					set_tuplefield_int2(&tuple[GETTYPE_AUTO_UNIQUE_VALUE], SQL_TRUE);
 				else
-					set_nullfield_int2(&tuple[11], pgtype_auto_increment(conn, pgType));
-				set_nullfield_int2(&tuple[13], pgtype_min_decimal_digits(conn, pgType));
-				set_nullfield_int2(&tuple[14], pgtype_max_decimal_digits(conn, pgType));
-				set_nullfield_int2(&tuple[15], PGTYPE_TO_SQLDESCTYPE(conn, pgType));
-				set_nullfield_int2(&tuple[16], PGTYPE_TO_DATETIME_SUB(conn, pgType));
-				set_nullfield_int4(&tuple[17], pgtype_radix(conn, pgType));
-				set_nullfield_int4(&tuple[18], 0);
+					set_nullfield_int2(&tuple[GETTYPE_AUTO_UNIQUE_VALUE], pgtype_auto_increment(conn, pgType));
+				set_nullfield_int2(&tuple[GETTYPE_MINIMUM_SCALE], pgtype_min_decimal_digits(conn, pgType));
+				set_nullfield_int2(&tuple[GETTYPE_MAXIMUM_SCALE], pgtype_max_decimal_digits(conn, pgType));
+				set_nullfield_int2(&tuple[GETTYPE_SQL_DATA_TYPE], PGTYPE_TO_SQLDESCTYPE(conn, pgType));
+				set_nullfield_int2(&tuple[GETTYPE_SQL_DATETIME_SUB], PGTYPE_TO_DATETIME_SUB(conn, pgType));
+				set_nullfield_int4(&tuple[GETTYPE_NUM_PREC_RADIX], pgtype_radix(conn, pgType));
+				set_nullfield_int4(&tuple[GETTYPE_INTERVAL_PRECISION], 0);
 			}
 		}
 	}
@@ -2730,6 +2730,7 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const SQLCHAR	*szSchemaName;
 	const char *eq_string;
+	int		result_cols;
 
 	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d scope=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType, fScope);
 
@@ -2848,7 +2849,8 @@ retry_public_schema:
 	extend_column_bindings(SC_get_ARDF(stmt), 8);
 
 	stmt->catalog_result = TRUE;
-	QR_set_num_fields(res, 8);
+	result_cols = NUM_OF_SPECOLS_FIELDS;
+	QR_set_num_fields(res, result_cols);
 	QR_set_field_info_v(res, 0, "SCOPE", PG_TYPE_INT2, 2);
 	QR_set_field_info_v(res, 1, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
 	QR_set_field_info_v(res, 2, "DATA_TYPE", PG_TYPE_INT2, 2);
@@ -2872,14 +2874,14 @@ retry_public_schema:
 
 			tuple = QR_AddNew(res);
 
-			set_tuplefield_null(&tuple[0]);
-			set_tuplefield_string(&tuple[1], "ctid");
-			set_tuplefield_int2(&tuple[2], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
-			set_tuplefield_string(&tuple[3], pgtype_attr_to_name(conn, the_type, atttypmod, FALSE));
-			set_tuplefield_int4(&tuple[4], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
-			set_tuplefield_int4(&tuple[5], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[6], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[7], SQL_PC_NOT_PSEUDO);
+			set_tuplefield_null(&tuple[SPECOLS_SCOPE]);
+			set_tuplefield_string(&tuple[SPECOLS_COLUMN_NAME], "ctid");
+			set_tuplefield_int2(&tuple[SPECOLS_DATA_TYPE], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
+			set_tuplefield_string(&tuple[SPECOLS_TYPE_NAME], pgtype_attr_to_name(conn, the_type, atttypmod, FALSE));
+			set_tuplefield_int4(&tuple[SPECOLS_COLUMN_SIZE], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
+			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
+			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
+			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_NOT_PSEUDO);
 inolog("Add ctid\n");
 		}
 	}
@@ -2897,14 +2899,14 @@ inolog("Add ctid\n");
 			}
 			tuple = QR_AddNew(res);
 
-			set_tuplefield_int2(&tuple[0], SQL_SCOPE_SESSION);
-			set_tuplefield_string(&tuple[1], OID_NAME);
-			set_tuplefield_int2(&tuple[2], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
-			set_tuplefield_string(&tuple[3], pgtype_attr_to_name(conn, the_type, atttypmod, TRUE));
-			set_tuplefield_int4(&tuple[4], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
-			set_tuplefield_int4(&tuple[5], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[6], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
+			set_tuplefield_int2(&tuple[SPECOLS_SCOPE], SQL_SCOPE_SESSION);
+			set_tuplefield_string(&tuple[SPECOLS_COLUMN_NAME], OID_NAME);
+			set_tuplefield_int2(&tuple[SPECOLS_DATA_TYPE], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
+			set_tuplefield_string(&tuple[SPECOLS_TYPE_NAME], pgtype_attr_to_name(conn, the_type, atttypmod, TRUE));
+			set_tuplefield_int4(&tuple[SPECOLS_COLUMN_SIZE], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
+			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
+			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
+			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
 		}
 		else if (fColType == SQL_ROWVER)
 		{
@@ -2913,14 +2915,14 @@ inolog("Add ctid\n");
 
 			tuple = QR_AddNew(res);
 
-			set_tuplefield_null(&tuple[0]);
-			set_tuplefield_string(&tuple[1], XMIN_NAME);
-			set_tuplefield_int2(&tuple[2], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
-			set_tuplefield_string(&tuple[3], pgtype_attr_to_name(conn, the_type, atttypmod, FALSE));
-			set_tuplefield_int4(&tuple[4], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
-			set_tuplefield_int4(&tuple[5], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[6], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[7], SQL_PC_PSEUDO);
+			set_tuplefield_null(&tuple[SPECOLS_SCOPE]);
+			set_tuplefield_string(&tuple[SPECOLS_COLUMN_NAME], XMIN_NAME);
+			set_tuplefield_int2(&tuple[SPECOLS_DATA_TYPE], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
+			set_tuplefield_string(&tuple[SPECOLS_TYPE_NAME], pgtype_attr_to_name(conn, the_type, atttypmod, FALSE));
+			set_tuplefield_int4(&tuple[SPECOLS_COLUMN_SIZE], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
+			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
+			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
+			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
 		}
 	}
 
@@ -5357,7 +5359,7 @@ PGAPI_TablePrivileges(HSTMT hstmt,
 	 * a statement is actually executed, so we'll have to do this
 	 * ourselves.
 	 */
-	result_cols = 7;
+	result_cols = NUM_OF_TABPRIV_FIELDS;
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	stmt->catalog_result = TRUE;
@@ -5553,15 +5555,15 @@ mylog("guid=%s\n", uid);
 						continue;
 				}
 				tuple = QR_AddNew(res);
-				set_tuplefield_string(&tuple[0], CurrCat(conn));
-				set_tuplefield_string(&tuple[1], GET_SCHEMA_NAME(schnm));
-				set_tuplefield_string(&tuple[2], reln);
+				set_tuplefield_string(&tuple[TABPRIV_TABLE_CAT], CurrCat(conn));
+				set_tuplefield_string(&tuple[TABPRIV_TABLE_SCHEM], GET_SCHEMA_NAME(schnm));
+				set_tuplefield_string(&tuple[TABPRIV_TABLE_NAME], reln);
 				if (su || sys)
-					set_tuplefield_string(&tuple[3], "_SYSTEM");
+					set_tuplefield_string(&tuple[TABPRIV_GRANTOR], "_SYSTEM");
 				else
-					set_tuplefield_string(&tuple[3], owner);
+					set_tuplefield_string(&tuple[TABPRIV_GRANTOR], owner);
 				mylog("user=%s\n", user);
-				set_tuplefield_string(&tuple[4], user);
+				set_tuplefield_string(&tuple[TABPRIV_GRANTEE], user);
 				switch (useracl[j][k])
 				{
 					case 'a':
@@ -5582,12 +5584,12 @@ mylog("guid=%s\n", uid);
 					default:
 						priv = NULL_STRING;
 				}
-				set_tuplefield_string(&tuple[5], priv);
+				set_tuplefield_string(&tuple[TABPRIV_PRIVILEGE], priv);
 				/* The owner and the super user are grantable */
 				if (sys || su)
-					set_tuplefield_string(&tuple[6], "YES");
+					set_tuplefield_string(&tuple[TABPRIV_IS_GRANTABLE], "YES");
 				else
-					set_tuplefield_string(&tuple[6], "NO");
+					set_tuplefield_string(&tuple[TABPRIV_IS_GRANTABLE], "NO");
 			}
 		}
 	}
