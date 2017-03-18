@@ -70,8 +70,8 @@
 extern SQLSMALLINT sqlTypes[];
 
 /*	Defines for pgtype_precision */
-#define PG_STATIC				(-1)
-#define PG_ADT_UNSET				(-3)
+#define PG_ATP_UNSET				(-3)	/* atttypmod */
+#define PG_ADT_UNSET				(-3)	/* adtsize_or_longestlen */
 #define PG_UNKNOWNS_UNSET			0 /* UNKNOWNS_AS_MAX */
 #define PG_WIDTH_OF_BOOLS_AS_CHAR		5
 

@@ -4027,6 +4027,7 @@ SC_pos_update(StatementClass *stmt,
 		OID		fieldtype = 0;
 		const char *bestitem = GET_NAME(ti->bestitem);
 		const char *bestqual = GET_NAME(ti->bestqual);
+		int	unknown_sizes = ci->drivers.unknown_sizes;
 
 		snprintf_add(updstr, sizeof(updstr),
 					 " where ctid = '(%u, %u)'",
@@ -4077,8 +4078,8 @@ SC_pos_update(StatementClass *stmt,
 						(SQLUSMALLINT) ++j,
 						SQL_PARAM_INPUT,
 						bindings[i].returntype,
-						pgtype_to_concise_type(s.stmt, fieldtype, i, UNKNOWNS_AS_DEFAULT),
-																fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, ci->drivers.unknown_sizes),
+						pgtype_to_concise_type(s.stmt, fieldtype, i, unknown_sizes),
+																fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, unknown_sizes),
 						(SQLSMALLINT) fi[i]->decimal_digits,
 						bindings[i].buffer,
 						bindings[i].buflen,
@@ -4419,6 +4420,7 @@ SC_pos_add(StatementClass *stmt,
 	SQLLEN		*used;
 	Int4		bind_size = opts->bind_size;
 	OID		fieldtype;
+	int		unknown_sizes;
 	int		func_cs_count = 0;
 
 	mylog("POS ADD fi=%p ti=%p\n", fi, stmt->ti);
@@ -4460,6 +4462,7 @@ SC_pos_add(StatementClass *stmt,
 	ipdopts = SC_get_IPDF(s.qstmt);
 	SC_set_delegate(s.stmt, s.qstmt);
 	ci = &(conn->connInfo);
+	unknown_sizes = ci->drivers.unknown_sizes;
 	extend_iparameter_bindings(ipdopts, num_cols);
 	for (i = add_cols = 0; i < num_cols; i++)
 	{
@@ -4486,8 +4489,8 @@ SC_pos_add(StatementClass *stmt,
 					(SQLUSMALLINT) ++add_cols,
 					SQL_PARAM_INPUT,
 					bindings[i].returntype,
-					pgtype_to_concise_type(s.stmt, fieldtype, i, UNKNOWNS_AS_DEFAULT),
-															fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, ci->drivers.unknown_sizes),
+					pgtype_to_concise_type(s.stmt, fieldtype, i, unknown_sizes),
+															fi[i]->column_size > 0 ? fi[i]->column_size : pgtype_column_size(s.stmt, fieldtype, i, unknown_sizes),
 					(SQLSMALLINT) fi[i]->decimal_digits,
 					bindings[i].buffer,
 					bindings[i].buflen,

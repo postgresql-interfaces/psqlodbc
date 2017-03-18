@@ -247,8 +247,6 @@ getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adt
 
 	mylog("%s: type=%d, atttypmod=%d, adtsize_or=%d, unknown = %d\n", __FUNCTION__, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
 
-	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
-		handle_unknown_size_as = ci->drivers.unknown_sizes;
 	/* Assign Maximum size based on parameters */
 	switch (type)
 	{
@@ -377,8 +375,6 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 
 	mylog("%s: type=%d, typmod=%d\n", __FUNCTION__, type, atttypmod);
 
-	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
-		handle_unknown_size_as = conn->connInfo.drivers.unknown_sizes;
 	if (atttypmod > -1)
 		return (atttypmod >> 16) & 0xffff;
 	switch (handle_unknown_size_as)
@@ -653,7 +649,7 @@ pgtype_attr_to_datetime_sub(const ConnectionClass *conn, OID type, int atttypmod
 {
 	SQLSMALLINT	rettype;
 
-	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_ADT_UNSET, UNKNOWNS_AS_DEFAULT))
+	switch (rettype = pgtype_attr_to_concise_type(conn, type, atttypmod, PG_ADT_UNSET, PG_UNKNOWNS_UNSET))
 	{
 		case SQL_TYPE_DATE:
 			return SQL_CODE_DATE;
@@ -852,8 +848,6 @@ pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, in
 {
 	const ConnInfo	*ci = &(conn->connInfo);
 
-	if (handle_unknown_size_as == UNKNOWNS_AS_DEFAULT)
-		handle_unknown_size_as = ci->drivers.unknown_sizes;
 	switch (type)
 	{
 		case PG_TYPE_CHAR:

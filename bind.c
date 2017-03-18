@@ -314,6 +314,7 @@ PGAPI_DescribeParam(HSTMT hstmt,
 	RETCODE		ret = SQL_SUCCESS;
 	int		num_params;
 	OID		pgtype;
+	ConnectionClass	*conn;
 
 	mylog("%s: entering...%d\n", func, ipar);
 
@@ -322,6 +323,7 @@ PGAPI_DescribeParam(HSTMT hstmt,
 		SC_log_error(func, "", NULL);
 		return SQL_INVALID_HANDLE;
 	}
+	conn = SC_get_conn(stmt);
 	SC_clear_error(stmt);
 
 	ipdopts = SC_get_IPDF(stmt);
@@ -371,7 +373,7 @@ inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, 
 		if (ipdopts->parameters[ipar].SQLType)
 			*pfSqlType = ipdopts->parameters[ipar].SQLType;
 		else if (pgtype)
-			*pfSqlType = pgtype_to_concise_type(stmt, pgtype, PG_STATIC, PG_UNKNOWNS_UNSET);
+			*pfSqlType = pgtype_attr_to_concise_type(conn, pgtype, PG_ATP_UNSET, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
 		else
 		{
 			ret = SQL_ERROR;
@@ -386,7 +388,7 @@ inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, 
 		if (ipdopts->parameters[ipar].SQLType)
 			*pcbParamDef = ipdopts->parameters[ipar].column_size;
 		if (0 == *pcbParamDef && pgtype)
-			*pcbParamDef = pgtype_column_size(stmt, pgtype, PG_STATIC, PG_STATIC);
+			*pcbParamDef = pgtype_attr_column_size(conn, pgtype, PG_ATP_UNSET, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
 	}
 
 	if (pibScale)
