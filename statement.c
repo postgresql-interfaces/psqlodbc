@@ -2020,10 +2020,6 @@ SC_execute(StatementClass *self)
 		/* issue "ABORT" when query aborted */
 		if (QR_get_aborted(res))
 		{
-#ifdef	_LEGACY_MODE_
-			if (!self->internal)
-				CC_abort(conn);
-#endif /* _LEGACY_MODE */
 		}
 		else
 		{
@@ -2092,10 +2088,6 @@ inolog("!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
 			SC_set_error(self, STMT_EXEC_ERROR, CC_get_errormsg(conn), func);
 		}
 
-#ifdef	_LEGACY_MODE_
-		if (!self->internal)
-			CC_abort(conn);
-#endif /* _LEGACY_MODE_ */
 	}
 	if (!SC_get_Result(self))
 		SC_set_Result(self, res);
