@@ -292,11 +292,11 @@ inolog("!!! atttypmod  < 0 ?\n");
 	 * set_tuplefield_string)
 	 */
 inolog("!!! catalog_result=%d\n", handle_unknown_size_as);
-	if (UNKNOWNS_AS_CATALOG == handle_unknown_size_as)
+	if (UNKNOWNS_AS_LONGEST == handle_unknown_size_as)
 	{
+		mylog("%s: LONGEST: p = %d\n", __FUNCTION__, adtsize_or_longestlen);
 		if (adtsize_or_longestlen > 0)
 			return adtsize_or_longestlen;
-		return maxsize;
 	}
 	if (TYPE_MAY_BE_ARRAY(type))
 	{
@@ -308,9 +308,7 @@ inolog("!!! catalog_result=%d\n", handle_unknown_size_as);
 inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 	p = adtsize_or_longestlen; /* longest */
 	/* Size is unknown -- handle according to parameter */
-	if (atttypmod > 0 &&	/* maybe the length is known */
-	    (p < 0 ||
-	     UNKNOWNS_AS_LONGEST != handle_unknown_size_as))
+	if (atttypmod > 0)	/* maybe the length is known */
 	{
 		return atttypmod;
 	}
@@ -321,10 +319,6 @@ inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 		case UNKNOWNS_AS_DONTKNOW:
 			return -1;
 		case UNKNOWNS_AS_LONGEST:
-			mylog("%s: LONGEST: p = %d\n", __FUNCTION__, p);
-			if (p > 0)
-				return p;
-			break;
 		case UNKNOWNS_AS_MAX:
 			break;
 		default:
@@ -389,8 +383,6 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 	{
 		case UNKNOWNS_AS_MAX:
 			return adtsize_or_longest > default_column_size ? adtsize_or_longest : default_column_size;
-		case UNKNOWNS_AS_CATALOG:
-			break;
 		default:
 			if (adtsize_or_longest < 10)
 				adtsize_or_longest = 10;
@@ -1559,7 +1551,7 @@ pgtype_column_size(const StatementClass *stmt, OID type, int col, int handle_unk
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_column_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
+	return pgtype_attr_column_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_LONGEST : handle_unknown_size_as);
 }
 
 /*
@@ -1571,7 +1563,7 @@ pgtype_precision(const StatementClass *stmt, OID type, int col, int handle_unkno
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_precision(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
+	return pgtype_attr_precision(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_LONGEST : handle_unknown_size_as);
 }
 
 
@@ -1581,7 +1573,7 @@ pgtype_display_size(const StatementClass *stmt, OID type, int col, int handle_un
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_display_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
+	return pgtype_attr_display_size(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_LONGEST : handle_unknown_size_as);
 }
 
 
@@ -1595,7 +1587,7 @@ pgtype_buffer_length(const StatementClass *stmt, OID type, int col, int handle_u
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_buffer_length(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
+	return pgtype_attr_buffer_length(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_LONGEST : handle_unknown_size_as);
 }
 
 /*
@@ -1606,7 +1598,7 @@ pgtype_desclength(const StatementClass *stmt, OID type, int col, int handle_unkn
 	int	atttypmod, adtsize_or_longestlen;
 
 	atttypmod = getAtttypmodEtc(stmt, col, &adtsize_or_longestlen);
-	return pgtype_attr_desclength(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_CATALOG : handle_unknown_size_as);
+	return pgtype_attr_desclength(SC_get_conn(stmt), type, atttypmod, adtsize_or_longestlen, stmt->catalog_result ? UNKNOWNS_AS_LONGEST : handle_unknown_size_as);
 }
 
 #ifdef	NOT_USED

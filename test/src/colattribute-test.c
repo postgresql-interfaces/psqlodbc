@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 	runtest("UnknownSizes=0;MaxVarcharSize=100");
 	runtest("UnknownSizes=1;MaxVarcharSize=100");
 	runtest("UnknownSizes=2;MaxVarcharSize=100");
-	runtest("UnknownSizes=100;MaxVarcharSize=100");
+	// runtest("UnknownSizes=100;MaxVarcharSize=100"); meaningless
 
 	return 0;
 }

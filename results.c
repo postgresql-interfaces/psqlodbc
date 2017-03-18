@@ -536,7 +536,7 @@ inolog("answering bookmark info\n");
 
 	/* not appropriate for SQLColAttributes() */
 	if (stmt->catalog_result)
-		unknown_sizes = UNKNOWNS_AS_CATALOG;
+		unknown_sizes = UNKNOWNS_AS_LONGEST;
 	else if (unknown_sizes == UNKNOWNS_AS_DONTKNOW)
 		unknown_sizes = UNKNOWNS_AS_MAX;
 
