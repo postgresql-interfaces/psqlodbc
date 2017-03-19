@@ -287,6 +287,8 @@ inolog("!!! atttypmod  < 0 ?\n");
 	if (atttypmod < 0 && adtsize_or_longestlen < 0)
 		return maxsize;
 
+inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
+	p = adtsize_or_longestlen; /* longest */
 	/*
 	 * Catalog Result Sets -- use assigned column width (i.e., from
 	 * set_tuplefield_string)
@@ -294,19 +296,18 @@ inolog("!!! atttypmod  < 0 ?\n");
 inolog("!!! catalog_result=%d\n", handle_unknown_size_as);
 	if (UNKNOWNS_AS_LONGEST == handle_unknown_size_as)
 	{
-		mylog("%s: LONGEST: p = %d\n", __FUNCTION__, adtsize_or_longestlen);
-		if (adtsize_or_longestlen > 0)
-			return adtsize_or_longestlen;
+		mylog("%s: LONGEST: p = %d\n", __FUNCTION__, p);
+		if (p > 0 &&
+		    (atttypmod < 0 || atttypmod > p))
+			return p;
 	}
 	if (TYPE_MAY_BE_ARRAY(type))
 	{
-		if (adtsize_or_longestlen > 0)
-			return adtsize_or_longestlen;
+		if (p > 0)
+			return p;
 		return maxsize;
 	}
 
-inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
-	p = adtsize_or_longestlen; /* longest */
 	/* Size is unknown -- handle according to parameter */
 	if (atttypmod > 0)	/* maybe the length is known */
 	{
@@ -491,6 +492,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 	SQLSMALLINT	sqltype;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
+	BOOL	bLongVarchar, bFixed = FALSE;
 
 	switch (type)
 	{
@@ -500,35 +502,41 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 		case PG_TYPE_REFCURSOR:
 			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
-#ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
-				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
-			return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
-
+			bFixed = TRUE;
 		case PG_TYPE_VARCHAR:
 			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
+				bLongVarchar = TRUE;
+			else
+				bLongVarchar = FALSE;
+			if (bLongVarchar)
+#ifdef	UNICODE_SUPPORT
 				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
-			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
-
+			else if (bFixed)
+				return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
+			else
+				return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+#else
+				return SQL_LONGVARCHAR;
+			else
+				return bFixed ? SQL_CHAR : SQL_VARCHAR;
+#endif /* UNICODE_SUPPORT */
 		case PG_TYPE_TEXT:
-			return ci->drivers.text_as_longvarchar ?
+			bLongVarchar = ci->drivers.text_as_longvarchar;
+			if (bLongVarchar)
+			{
+				int column_size = getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+				if (column_size > 0 &&
+				    column_size <= ci->drivers.max_varchar_size)
+					bLongVarchar = FALSE;
+			}
+#ifdef	UNICODE_SUPPORT
+			return bLongVarchar ?
 				(ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR) :
 				(ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR);
 
 #else
-		case PG_TYPE_BPCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
-				return SQL_LONGVARCHAR;
-			return SQL_CHAR;
-
-		case PG_TYPE_VARCHAR:
-			if (getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as) > ci->drivers.max_varchar_size)
-				return SQL_LONGVARCHAR;
-			return SQL_VARCHAR;
-
-		case PG_TYPE_TEXT:
-			return ci->drivers.text_as_longvarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
+			return bLongVarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
 #endif /* UNICODE_SUPPORT */
 
 		case PG_TYPE_BYTEA:
@@ -609,11 +617,19 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 			if (type == conn->lobj_type)
 				return SQL_LONGVARBINARY;
 
+			bLongVarchar = ci->drivers.unknowns_as_longvarchar;
+			if (bLongVarchar)
+			{
+				int column_size = getCharColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+				if (column_size > 0 &&
+				    column_size <= ci->drivers.max_varchar_size)
+					bLongVarchar = FALSE;
+			}
 #ifdef	EXPERIMENTAL_CURRENTLY
 			if (ALLOW_WCHAR(conn))
-				return ci->drivers.unknowns_as_longvarchar ? SQL_WLONGVARCHAR : SQL_WVARCHAR;
+				return bLongVarchar ? SQL_WLONGVARCHAR : SQL_WVARCHAR;
 #endif	/* EXPERIMENTAL_CURRENTLY */
-			return ci->drivers.unknowns_as_longvarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
+			return bLongVarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
 	}
 }
 

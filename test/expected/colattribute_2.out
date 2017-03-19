@@ -11,7 +11,7 @@ SQL_DESC_OCTET_LENGTH: 16380
 SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
-SQL_DESC_OCTET_LENGTH: 200
+SQL_DESC_OCTET_LENGTH: 28
 SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --
@@ -43,7 +43,7 @@ SQL_DESC_OCTET_LENGTH: 16380
 SQL_DESC_TYPE_NAME: text
 
 -- Column 3: unknowncol --
-SQL_DESC_OCTET_LENGTH: 200
+SQL_DESC_OCTET_LENGTH: 28
 SQL_DESC_TYPE_NAME: unknown
 
 -- Column 4: varcharcol --

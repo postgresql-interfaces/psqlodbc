@@ -335,16 +335,21 @@ inolog("answering bookmark info\n");
 		if (icol < irdflds->nfields && irdflds->fi)
 			fi = irdflds->fi[icol];
 	}
+	res = SC_get_Curres(stmt);
 #ifdef	SUPPRESS_LONGEST_ON_CURSORS
 	if (UNKNOWNS_AS_LONGEST == unknown_sizes)
 	{
-		if ((res = SC_get_Curres(stmt)) &&
-		    QR_once_reached_eof(res))
+		if (QR_once_reached_eof(res))
 			unknown_sizes = UNKNOWNS_AS_LONGEST;
 		else
 			unknown_sizes = UNKNOWNS_AS_MAX;
 	}
 #endif /* SUPPRESS_LONGEST_ON_CURSORS */
+	/* handle constants */
+	if (res &&
+	    -2 == QR_get_fieldsize(res, icol))
+		unknown_sizes = UNKNOWNS_AS_LONGEST;
+
 	if (FI_is_applicable(fi))
 	{
 		fieldtype = getEffectiveOid(conn, fi);
@@ -641,6 +646,11 @@ inolog("answering bookmark info\n");
 			unknown_sizes = UNKNOWNS_AS_MAX;
 	}
 #endif /* SUPPRESS_LONGEST_ON_CURSORS */
+	/* handle constants */
+	if (res &&
+	    -2 == QR_get_fieldsize(res, col_idx))
+		unknown_sizes = UNKNOWNS_AS_LONGEST;
+
 	column_size = (USE_FI(fi, unknown_sizes) && fi->column_size > 0) ? fi->column_size : pgtype_column_size(stmt, field_type, col_idx, unknown_sizes);
 	switch (fDescType)
 	{
