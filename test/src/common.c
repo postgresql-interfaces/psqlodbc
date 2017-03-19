@@ -31,6 +31,18 @@ print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle)
 		printf("No error information\n");
 }
 
+const char * const default_dsn = "psqlodbc_test_dsn";
+const char * const test_dsn_env = "PSQLODBC_TEST_DSN";
+
+const char *get_test_dsn(void)
+{
+	char	*env = getenv(test_dsn_env);
+
+	if (NULL != env)
+		return env;
+	return default_dsn;
+}
+
 void
 test_connect_ext(char *extraparams)
 {
@@ -39,7 +51,7 @@ test_connect_ext(char *extraparams)
 	SQLSMALLINT strl;
 	SQLCHAR dsn[1024];
 
-	snprintf(dsn, sizeof(dsn), "DSN=psqlodbc_test_dsn;%s",
+	snprintf(dsn, sizeof(dsn), "DSN=%s;%s", get_test_dsn(),
 			 extraparams ? extraparams : "");
 
 	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);

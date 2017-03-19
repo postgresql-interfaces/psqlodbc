@@ -31,6 +31,7 @@ extern SQLHDBC conn;
     }
 
 extern void print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle);
+extern const char *get_test_dsn(void);
 extern void test_connect_ext(char *extraparams);
 extern void test_connect(void);
 extern void test_disconnect(void);

@@ -10,7 +10,7 @@ static void
 test_SQLConnect()
 {
 	SQLRETURN ret;
-	SQLCHAR *dsn = (SQLCHAR *) "psqlodbc_test_dsn";
+	SQLCHAR *dsn = (SQLCHAR *) get_test_dsn();
 
 	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
 
@@ -43,7 +43,7 @@ test_setting_attribute_before_connect()
 	SQLULEN		value;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 
-	snprintf(dsn, sizeof(dsn), "DSN=psqlodbc_test_dsn");
+	snprintf(dsn, sizeof(dsn), "DSN=%s", get_test_dsn());
 
 	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
 	SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);

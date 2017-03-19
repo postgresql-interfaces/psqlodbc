@@ -14,6 +14,8 @@
     option is specified.
 .PARAMETER Platform
     Specify build platforms, "Win32"(default), "x64" or "both" is available.
+.PARAMETER Ansi
+    Specify when testing Ansi drivers.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
@@ -58,6 +60,7 @@ Param(
 [string]$VCVersion,
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="Win32",
+[switch]$Ansi,
 [string]$Toolset,
 [ValidateSet("", "4.0", "12.0", "14.0")]
 [string]$MSToolsVersion,
@@ -239,7 +242,7 @@ function SpecialDsn($testdsn, $testdriver)
 	$regProgram = "./RegisterRegdsn.exe"
 	& $regProgram "existCheck" $testdsn
 	if ($LastExitCode -eq -1) {
-		Write-Host "`tAdding System DSN=$testdsn"
+		Write-Host "`tAdding System DSN=$testdsn Driver=$testdriver"
 		$prop = input-dsninfo
 		$prop += "|Debug=0|Commlog=0|ConnSettings=set+lc_messages='C'"
 		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "register_dsn $testdriver $testdsn $prop `"$dlldir`" Driver=${dllname}|Setup=${setup}"
@@ -305,10 +308,21 @@ $vcx_target=$target
 if ($target -ieq "Build&Go") {
 	$vcx_target="Build"
 }
-$testdriver="postgres_devw"
-$testdsn="psqlodbc_test_dsn"
-$dllname="psqlsetup.dll"
-$setup="psqlsetup.dll"
+if ($Ansi) {
+	write-host ** testing Ansi driver **
+	$testdriver="postgres_deva"
+	$testdsn="psqlodbc_test_dsna"
+	$ansi_dir_part="ANSI"
+	$dllname="psqlsetupa.dll"
+	$setup="psqlsetupa.dll"
+} else {
+	write-host ** testing unicode driver **
+	$testdriver="postgres_devw"
+	$testdsn="psqlodbc_test_dsn"
+	$ansi_dir_part="Unicode"
+	$dllname="psqlsetup.dll"
+	$setup="psqlsetup.dll"
+}
 foreach ($pl in $pary) {
 	cd $scriptPath
 	& ${msbuildexe} ${vcxfile} /tv:$MSToolsVersion "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /Verbosity:minimal
@@ -324,15 +338,17 @@ foreach ($pl in $pary) {
 	 "Win32" {
 			$targetdir="test_x86"
 			$bit="32-bit"
-			$dlldir="$scriptPath\..\x86_Unicode_Release"
+			$dlldir="$scriptPath\..\x86_${ansi_dir_part}_Release"
 		}
 	 default {
 			$targetdir="test_x64"
 			$bit="64-bit"
-			$dlldir="$scriptPath\..\x64_Unicode_Release"
+			$dlldir="$scriptPath\..\x64_${ansi_dir_part}_Release"
 		}
 	}
 	pushd $scriptPath\$targetdir
+
+	$env:PSQLODBC_TEST_DSN = $testdsn
 	try {
 		SpecialDsn $testdsn $testdriver
 		RunTest $scriptPath $pl $TESTEXES
@@ -340,5 +356,6 @@ foreach ($pl in $pary) {
 		throw $error[0]
 	} finally {
 		popd
+		$env:PSQLODBC_TEST_DSN = $null
 	}
 }
