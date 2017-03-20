@@ -1047,7 +1047,7 @@ CC_connect(ConnectionClass *self, char *salt_para)
 		CC_clear_error(self);		/* clear any initial command errors */
 	self->status = CONN_CONNECTED;
 	if (CC_is_in_unicode_driver(self)
-	    && 0 < ci->bde_environment)
+	    && (CC_is_in_ansi_app(self) || 0 < ci->bde_environment))
 		self->unicode |= CONN_DISALLOW_WCHAR;
 mylog("conn->unicode=%d\n", self->unicode);
 	ret = 1;

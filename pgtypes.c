@@ -604,7 +604,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 			if (sqltype = get_interval_type(atttypmod, NULL), 0 != sqltype)
 				return sqltype;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
-			return CC_is_in_unicode_driver(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		default:
 
