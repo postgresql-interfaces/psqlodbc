@@ -9,13 +9,13 @@
 .PARAMETER TestList
     Specify the list of test cases. If this parameter isn't specified(default),
     all test cased are executed.
+.PARAMETER Ansi
+    Specify this switch in case of testing Ansi drivers.
 .PARAMETER VCVersion
     Used Visual Studio version is determined automatically unless this
     option is specified.
 .PARAMETER Platform
     Specify build platforms, "Win32"(default), "x64" or "both" is available.
-.PARAMETER Ansi
-    Specify when testing Ansi drivers.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
@@ -40,6 +40,9 @@
     > .\regress -TestList connect, deprected
 	Build and run connect-test and deprecated-test.
 .EXAMPLE
+    > .\regress -Ansi
+	Build and run with ANSI version of drivers.
+.EXAMPLE
     > .\regress -V(CVersion) 14.0
 	Build using Visual Studio 14.0 environment and run tests.
 .EXAMPLE
@@ -57,10 +60,10 @@ Param(
 [ValidateSet("Build&Go", "Build", "Clean")]
 [string]$Target="Build&Go",
 [string[]]$TestList,
+[switch]$Ansi,
 [string]$VCVersion,
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="Win32",
-[switch]$Ansi,
 [string]$Toolset,
 [ValidateSet("", "4.0", "12.0", "14.0")]
 [string]$MSToolsVersion,

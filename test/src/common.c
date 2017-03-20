@@ -33,14 +33,20 @@ print_diag(char *msg, SQLSMALLINT htype, SQLHANDLE handle)
 
 const char * const default_dsn = "psqlodbc_test_dsn";
 const char * const test_dsn_env = "PSQLODBC_TEST_DSN";
+const char * const test_dsn_ansi = "psqlodbc_test_dsna";
 
 const char *get_test_dsn(void)
 {
 	char	*env = getenv(test_dsn_env);
 
-	if (NULL != env)
+	if (NULL != env && env[0])
 		return env;
 	return default_dsn;
+}
+
+int IsAnsi(void)
+{
+	return (strcmp(get_test_dsn(), test_dsn_ansi) == 0);
 }
 
 void
