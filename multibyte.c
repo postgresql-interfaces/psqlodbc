@@ -505,16 +505,18 @@ CC_lookup_characterset(ConnectionClass *self)
 	currenc = PQparameterStatus(self->pqconn, "client_encoding");
 
 	tencstr = encspec ? encspec : currenc;
-	if (self->original_client_encoding)
+	mylog(__FUNCTION__ " encoding spec=%s parameter=%s tenc=%s\n", encspec ? encspec : "(null)", currenc, tencstr);
+	if (encspec)
 	{
-		if (stricmp(self->original_client_encoding, tencstr))
+		if (stricmp(encspec, tencstr))
 		{
 			char msg[256];
 
-			snprintf(msg, sizeof(msg), "The client_encoding '%s' was changed to '%s'", self->original_client_encoding, tencstr);
+			snprintf(msg, sizeof(msg), "The client_encoding '%s' was changed to '%s'", encspec, tencstr);
 			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
 		}
-		free(self->original_client_encoding);
+		else
+			return;
 	}
 #ifndef	UNICODE_SUPPORT
 	else
@@ -544,6 +546,8 @@ CC_lookup_characterset(ConnectionClass *self)
 	if (tencstr)
 	{
 		self->original_client_encoding = strdup(tencstr);
+		if (encspec)
+			free((char *) encspec);
 		self->ccsc = pg_CS_code(tencstr);
 		qlog("    [ Client encoding = '%s' (code = %d) ]\n", self->original_client_encoding, self->ccsc);
 		if (self->ccsc < 0)
