@@ -12,13 +12,16 @@
 
 #ifdef WIN32
 #include <windows.h>
+#define	snprintf _snprintf
 #endif
 
 #include <sql.h>
 #include <sqlext.h>
 
-static SQLHENV env;
-static SQLHDBC conn;
+#include "src/common.h"
+
+SQLHENV env;
+SQLHDBC conn;
 static HSTMT hstmt = SQL_NULL_HSTMT;
 
 static void
@@ -92,17 +95,19 @@ run_statement(char *statement)
 
 int main(int argc, char **argv)
 {
-	char		line[500];
+	char		line[500], dsn[100];
 
 	SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
 	SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
 
-	connect_to_db("DSN=psqlodbc_test_dsn;Database=postgres");
+	snprintf(dsn, sizeof(dsn), "DSN=%s;Database=postgres", get_test_dsn());
+	connect_to_db(dsn);
 	printf("Dropping and creating database contrib_regression...\n");
 	run_statement("DROP DATABASE IF EXISTS contrib_regression");
 	run_statement("CREATE DATABASE contrib_regression");
 
-	connect_to_db("DSN=psqlodbc_test_dsn;Database=contrib_regression");
+	snprintf(dsn, sizeof(dsn), "DSN=%s;Database=contrib_regression", get_test_dsn());
+	connect_to_db(dsn);
 
 	printf("Running initialization script...\n");
 	while (fgets(line, sizeof(line), stdin) != NULL)

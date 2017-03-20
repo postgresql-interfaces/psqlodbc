@@ -41,8 +41,8 @@ override CFLAGS += -Wno-pointer-sign $(CFLAGS_ADD)
 
 runsuite: runsuite.c
 
-reset-db: reset-db.c
-	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@ $(LIBODBC)
+reset-db: reset-db.c exe/common.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBODBC)
 
 exe/common.o: src/common.c
 	@if test ! -d exe; then mkdir -p exe; fi
