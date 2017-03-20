@@ -2178,7 +2178,7 @@ PGAPI_Columns(HSTMT hstmt,
 	Int4		mod_length,
 				ordinal,
 				typmod, relhasoids;
-	OID		field_type, the_type, greloid, basetype;
+	OID		field_type, greloid, basetype;
 	char		not_null[MAX_INFO_STRING],
 				relhasrules[MAX_INFO_STRING], relkind[8];
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;

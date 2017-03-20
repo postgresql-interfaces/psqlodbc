@@ -505,7 +505,7 @@ CC_lookup_characterset(ConnectionClass *self)
 	currenc = PQparameterStatus(self->pqconn, "client_encoding");
 
 	tencstr = encspec ? encspec : currenc;
-	mylog(__FUNCTION__ " encoding spec=%s parameter=%s tenc=%s\n", encspec ? encspec : "(null)", currenc, tencstr);
+	mylog("%s encoding spec=%s parameter=%s tenc=%s\n", __FUNCTION__, encspec ? encspec : "(null)", currenc, tencstr);
 	if (encspec)
 	{
 		if (stricmp(encspec, tencstr))
