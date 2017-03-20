@@ -90,6 +90,7 @@ static BOOL theResultIsEmpty(const StatementClass *stmt)
 	return (0 == QR_get_num_total_tuples(res));
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLColumns(HSTMT StatementHandle,
 		   SQLCHAR *CatalogName, SQLSMALLINT NameLength1,
@@ -173,7 +174,6 @@ SQLColumns(HSTMT StatementHandle,
 }
 
 
-#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLConnect(HDBC ConnectionHandle,
 		   SQLCHAR *ServerName, SQLSMALLINT NameLength1,
@@ -298,6 +298,7 @@ SQLDisconnect(HDBC ConnectionHandle)
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLExecDirect(HSTMT StatementHandle,
 			  SQLCHAR *StatementText, SQLINTEGER TextLength)
@@ -325,6 +326,7 @@ SQLExecDirect(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLExecute(HSTMT StatementHandle)
@@ -422,6 +424,7 @@ SQLFreeStmt(HSTMT StatementHandle,
 }
 
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLGetCursorName(HSTMT StatementHandle,
 				 SQLCHAR *CursorName, SQLSMALLINT BufferLength,
@@ -440,6 +443,7 @@ SQLGetCursorName(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLGetData(HSTMT StatementHandle,
@@ -483,6 +487,8 @@ SQLGetFunctions(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
+
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLGetInfo(HDBC ConnectionHandle,
 		   SQLUSMALLINT InfoType, PTR InfoValue,
@@ -529,6 +535,7 @@ SQLGetTypeInfo(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLNumResultCols(HSTMT StatementHandle,
@@ -569,6 +576,7 @@ SQLParamData(HSTMT StatementHandle,
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLPrepare(HSTMT StatementHandle,
 		   SQLCHAR *StatementText, SQLINTEGER TextLength)
@@ -594,6 +602,7 @@ SQLPrepare(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLPutData(HSTMT StatementHandle,
@@ -635,6 +644,7 @@ SQLRowCount(HSTMT StatementHandle,
 }
 
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLSetCursorName(HSTMT StatementHandle,
 				 SQLCHAR *CursorName, SQLSMALLINT NameLength)
@@ -651,6 +661,7 @@ SQLSetCursorName(HSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLSetParam(HSTMT StatementHandle,
@@ -671,6 +682,7 @@ SQLSetParam(HSTMT StatementHandle,
 }
 
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLSpecialColumns(HSTMT StatementHandle,
 				  SQLUSMALLINT IdentifierType, SQLCHAR *CatalogName,
@@ -954,6 +966,7 @@ SQLColumnPrivileges(HSTMT hstmt,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLDescribeParam(HSTMT hstmt,
@@ -1018,6 +1031,7 @@ SQLExtendedFetch(HSTMT hstmt,
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLForeignKeys(HSTMT hstmt,
 			   SQLCHAR *szPkCatalogName,
@@ -1117,6 +1131,7 @@ SQLForeignKeys(HSTMT hstmt,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLMoreResults(HSTMT hstmt)
@@ -1137,6 +1152,7 @@ SQLMoreResults(HSTMT hstmt)
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLNativeSql(HDBC hdbc,
 			 SQLCHAR *szSqlStrIn,
@@ -1157,6 +1173,7 @@ SQLNativeSql(HDBC hdbc,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLNumParams(HSTMT hstmt,
@@ -1178,6 +1195,7 @@ SQLNumParams(HSTMT hstmt,
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLPrimaryKeys(HSTMT hstmt,
 			   SQLCHAR *szCatalogName,
@@ -1396,6 +1414,7 @@ SQLProcedures(HSTMT hstmt,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLSetPos(HSTMT hstmt,
@@ -1419,6 +1438,7 @@ SQLSetPos(HSTMT hstmt,
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 RETCODE		SQL_API
 SQLTablePrivileges(HSTMT hstmt,
 				   SQLCHAR *szCatalogName,
@@ -1488,6 +1508,7 @@ SQLTablePrivileges(HSTMT hstmt,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 RETCODE		SQL_API
 SQLBindParameter(HSTMT hstmt,

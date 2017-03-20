@@ -115,6 +115,7 @@ SQLCloseCursor(HSTMT StatementHandle)
 	return ret;
 }
 
+#ifndef	UNICODE_SUPPORTXX
 /*	SQLColAttributes -> SQLColAttribute */
 SQLRETURN	SQL_API
 SQLColAttribute(SQLHSTMT StatementHandle,
@@ -148,6 +149,7 @@ SQLColAttribute(SQLHSTMT StatementHandle,
 	LEAVE_STMT_CS(stmt);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 /*	new function */
 RETCODE		SQL_API
@@ -285,7 +287,8 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 	}
 	return ret;
 }
-
+		
+#ifndef	UNICODE_SUPPORTXX
 /*	new function */
 RETCODE		SQL_API
 SQLGetDescField(SQLHDESC DescriptorHandle,
@@ -345,6 +348,7 @@ SQLGetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 			NativeError, MessageText, BufferLength, TextLength);
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 /*	new function */
 RETCODE		SQL_API
@@ -438,7 +442,6 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	LEAVE_CONN_CS(conn);
 	return ret;
 }
-#endif /* UNICODE_SUPPORTXX */
 
 /*	new function */
 RETCODE		SQL_API
@@ -469,6 +472,7 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 	mylog("Error not implemented\n");
 	return SQL_ERROR;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 /*	new function */
 RETCODE		SQL_API
