@@ -16,6 +16,9 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef	WIN32
+#include <locale.h>
+#endif
 #ifndef	TRUE
 #define	TRUE	1
 #endif
@@ -161,15 +164,20 @@ check_client_encoding(const pgNAME conn_settings)
 				}
 				step++;
 				cptr += 15;
+				if ('=' == *cptr)
+					cptr--;
 				break;
 			case 2:
-				if (0 != strnicmp(cptr, "to", 2))
+				if (0 == strnicmp(cptr, "to", 2))
+					cptr += 2;
+				else if (0 == strnicmp(cptr, "=", 1))
+					;
+				else
 				{
 					allowed_cmd = FALSE;
 					continue;
 				}
 				step++;
-				cptr += 2;
 				break;
 			case 3:
 				if (LITERAL_QUOTE == *cptr)
@@ -179,9 +187,11 @@ check_client_encoding(const pgNAME conn_settings)
 				}
 				else
 				{
-					for (sptr = cptr; *cptr && !isspace((unsigned char) *cptr); cptr++) ;
+					for (sptr = cptr; *cptr && ';' != *cptr && !isspace((unsigned char) *cptr); cptr++) ;
 				}
 				len = cptr - sptr;
+				if (';' == *cptr)
+					cptr--;
 				step++;
 				break;
 		}
@@ -423,6 +433,8 @@ get_environment_encoding(const ConnectionClass *conn, const char *setenc, const 
 	const char *wenc = NULL;
 #ifdef	WIN32
 	int	acp;
+#else
+	const char *loc, *ptr;
 #endif /* WIN32 */
 
 	if (setenc && stricmp(setenc, "OTHER"))
@@ -487,6 +499,20 @@ get_environment_encoding(const ConnectionClass *conn, const char *setenc, const 
 			if (PG_VERSION_GE(conn, 8.2))
 				wenc = "WIN1257";
 			break;
+	}
+#else
+	/*
+	 *	If the codeset part of the current locale is UTF8,
+	 *	set the client_encoding to 'UTF8'.
+	 */
+	loc = setlocale(LC_ALL, "");
+	if (loc && (ptr = strchr(loc, '.')))
+	{
+		ptr++;
+		if (strnicmp(ptr, "UTF-8", 5) == 0 ||
+		    strnicmp(ptr, "UTF8", 4) == 0)
+			wenc = "UTF8";
+		mylog("%s locale=%s enc=%s\n", __FUNCTION__, loc, wenc ? wenc : "(null)");
 	}
 #endif /* WIN32 */
 	return wenc;
