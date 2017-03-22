@@ -151,17 +151,6 @@ if test "$with_libpq" != yes; then
 fi
 
 #
-# Unicode support
-#
-
-PGAC_ARG_BOOL(enable, unicode, yes,
-              [  --disable-unicode       do not build Unicode support],
-              [AC_DEFINE(UNICODE_SUPPORT, 1,
-                         [Define to 1 to build with Unicode support (--enable-unicode)])])
-
-AM_CONDITIONAL(enable_unicode, [test x"$enable_unicode" = xyes])
-
-#
 # Pthreads
 #
 

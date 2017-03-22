@@ -8,13 +8,11 @@ AUTOMAKE_OPTIONS = 1.8 foreign
 
 ACLOCAL_AMFLAGS = -I config
 
-if enable_unicode
-lib_LTLIBRARIES = psqlodbcw.la
-else
-lib_LTLIBRARIES = psqlodbca.la
-endif
+lib_LTLIBRARIES = psqlodbcw.la psqlodbca.la
 
 AM_LDFLAGS = -module -no-undefined -avoid-version -export-symbols-regex '^SQL'
+
+psqlodbcw_la_CFLAGS = -DUNICODE_SUPPORT # -DUNICODE_SUPPORTXX
 
 psqlodbca_la_SOURCES = \
 	info.c bind.c columninfo.c connection.c convert.c drvconn.c \
@@ -100,7 +98,7 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/win.mak \
 	test/Makefile \
 	test/expected \
-	test/src 
+	test/src
 
 MAINTAINERCLEANFILES = \
 	Makefile.in config/config.guess config.h.in config/config.sub configure \
