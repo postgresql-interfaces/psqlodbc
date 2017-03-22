@@ -207,7 +207,7 @@ check_client_encoding(const pgNAME conn_settings)
 	return rptr;
 }
 
-static int
+int
 pg_mb_maxlen(int characterset_code)
 {
 	switch (characterset_code)
@@ -522,74 +522,32 @@ get_environment_encoding(const ConnectionClass *conn, const char *setenc, const 
 void
 CC_lookup_characterset(ConnectionClass *self)
 {
-	const char *encspec, *currenc;
-	const char *tencstr;
+	const char *encspec;
 	CSTR func = "CC_lookup_characterset";
 
 	mylog("%s: entering...\n", func);
 	encspec = self->original_client_encoding;
-	currenc = PQparameterStatus(self->pqconn, "client_encoding");
 
-	tencstr = encspec ? encspec : currenc;
-	mylog("%s encoding spec=%s parameter=%s tenc=%s\n", __FUNCTION__, encspec ? encspec : "(null)", currenc, tencstr);
+	mylog("%s encoding spec=%s\n", __FUNCTION__, encspec ? encspec : "(null)");
 	if (encspec)
-	{
-		if (stricmp(encspec, tencstr))
-		{
-			char msg[256];
-
-			snprintf(msg, sizeof(msg), "The client_encoding '%s' was changed to '%s'", encspec, tencstr);
-			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
-		}
-		else
-			return;
-	}
+		CC_send_client_encoding(self, encspec);
 #ifndef	UNICODE_SUPPORT
-	else
+	if (!encspec)
 	{
+		const char *currenc = PQparameterStatus(self->pqconn, "client_encoding");
 		const char *wenc = get_environment_encoding(self, encspec, currenc);
-		if (wenc && (!tencstr || stricmp(tencstr, wenc)))
-		{
-			QResultClass	*res;
-			char		query[64];
-			int		errnum = CC_get_errornumber(self);
-			BOOL		cmd_success;
-
-			sprintf(query, "set client_encoding to '%s'", wenc);
-			res = CC_send_query(self, query, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
-			cmd_success = QR_command_maybe_successful(res);
-			QR_Destructor(res);
-			CC_set_errornumber(self, errnum);
-			if (cmd_success)
-			{
-				self->original_client_encoding = strdup(wenc);
-				self->ccsc = pg_CS_code(self->original_client_encoding);
-				return;
-			}
-		}
+		CC_send_client_encoding(self, wenc);
 	}
 #endif /* UNICODE_SUPPORT */
-	if (tencstr)
+	encspec = self->original_client_encoding;
+	mylog("    [ Client encoding = '%s' (code = %d) ]\n", encspec ? encspec : "(null)", self->ccsc);
+	if (self->ccsc < 0)
 	{
-		self->original_client_encoding = strdup(tencstr);
-		if (encspec)
-			free((char *) encspec);
-		self->ccsc = pg_CS_code(tencstr);
-		qlog("    [ Client encoding = '%s' (code = %d) ]\n", self->original_client_encoding, self->ccsc);
-		if (self->ccsc < 0)
-		{
-			char msg[256];
+		char msg[256];
 
-			snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", tencstr);
-			CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
-		}
+		snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", encspec);
+		CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
 	}
-	else
-	{
-		self->ccsc = SQL_ASCII;
-		self->original_client_encoding = NULL;
-	}
-	self->mb_maxbyte_per_char = pg_mb_maxlen(self->ccsc);
 }
 
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str)

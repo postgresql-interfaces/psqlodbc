@@ -575,6 +575,52 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 	}
 }
 
+static void
+CC_set_client_encoding(ConnectionClass *self, const char * encoding)
+{
+	char	*currenc = self->original_client_encoding;
+
+	if (encoding)
+	{
+		self->original_client_encoding = strdup(encoding);
+		self->ccsc = pg_CS_code(encoding);
+	}
+	else
+	{
+		self->original_client_encoding = NULL;
+		self->ccsc = SQL_ASCII;
+	}
+	self->mb_maxbyte_per_char = pg_mb_maxlen(self->ccsc);
+	if (currenc)
+		free(currenc);
+}
+
+int
+CC_send_client_encoding(ConnectionClass *self, const char * encoding)
+{
+	const char *currenc = PQparameterStatus(self->pqconn, "client_encoding");
+
+	if (encoding && (!currenc || stricmp(encoding, currenc)))
+	{
+                char	query[64];
+		QResultClass	*res;
+		int	errnum = CC_get_errornumber(self);
+		BOOL	cmd_success;
+
+		snprintf(query, sizeof(query), "set client_encoding to '%s'", encoding);
+		res = CC_send_query(self, query, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+		cmd_success = QR_command_maybe_successful(res);
+		QR_Destructor(res);
+		CC_set_errornumber(self, errnum);
+
+		if (!cmd_success)
+			return SQL_ERROR;
+	}
+	CC_set_client_encoding(self, encoding);
+
+	return 0;
+}
+
 /* This is called by SQLDisconnect also */
 char
 CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
@@ -905,16 +951,9 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		 TABLE_NAME_STORAGE_LEN);
 
 	encoding = check_client_encoding(ci->conn_settings);
-	if (encoding)
-		self->original_client_encoding = encoding;
-	else
-	{
+	if (!encoding)
 		encoding = check_client_encoding(ci->drivers.conn_settings);
-		if (encoding)
-			self->original_client_encoding = encoding;
-	}
-	if (self->original_client_encoding)
-		self->ccsc = pg_CS_code(self->original_client_encoding);
+	CC_set_client_encoding(self, encoding);
 	qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
 		 ci->drivers.extra_systable_prefixes,
 		 PRINT_NAME(ci->drivers.conn_settings),
@@ -1017,12 +1056,11 @@ CC_connect(ConnectionClass *self, char *salt_para)
 #ifdef UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(self))
 	{
-		const char *curr = PQparameterStatus(self->pqconn, "client_encoding");
-		if (!curr || strcmp(curr, "UTF8") != 0)
+		if (SQL_ERROR == CC_send_client_encoding(self, "UTF8"))
 		{
-			QResultClass	*res;
-			res = CC_send_query(self, "set client_encoding to 'UTF8'", NULL, 0, NULL);
-			QR_Destructor(res);
+			CC_set_error(self, CONN_OPENDB_ERROR, "Failed to set client_encoding to UTF8", __FUNCTION__);
+			ret = 0;
+			goto cleanup;
 		}
 	}
 #endif /* UNICODE_SUPPORT */

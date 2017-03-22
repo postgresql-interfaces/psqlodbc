@@ -441,6 +441,7 @@ void	CC_examine_global_transaction(ConnectionClass *self);
 
 
 BOOL CC_set_transact(ConnectionClass *self, UInt4 isolation);
+int CC_send_client_encoding(ConnectionClass *self, const char *encoding);
 
 /* CC_send_query options */
 enum {
