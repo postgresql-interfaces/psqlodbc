@@ -213,7 +213,7 @@ pg_mb_maxlen(int characterset_code)
 	switch (characterset_code)
 	{
 		case UTF8:
-			return 6;
+			return 4;
 		case EUC_TW:
 			return 4;
 		case EUC_JIS_2004:
