@@ -27,6 +27,26 @@
 #define	EXPERIMENTAL_CURRENTLY
 
 
+SQLSMALLINT ansi_to_wtype(const ConnectionClass *self, SQLSMALLINT ansitype)
+{
+#ifndef	UNICODE_SUPPORT
+	return ansitype;
+#else
+	if (!ALLOW_WCHAR(self))
+		return ansitype;
+	switch (ansitype)
+	{
+		case SQL_CHAR:
+			return SQL_WCHAR;
+		case SQL_VARCHAR:
+			return SQL_WVARCHAR;
+		case SQL_LONGVARCHAR:
+			return SQL_WLONGVARCHAR;
+	}
+	return ansitype;
+#endif /* UNICODE_SUPPORT */
+}
+
 Int4		getCharColumnSize(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 
 /*
@@ -497,10 +517,10 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 	switch (type)
 	{
 		case PG_TYPE_CHAR:
-			return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
+			return ansi_to_wtype(conn, SQL_CHAR);
 		case PG_TYPE_NAME:
 		case PG_TYPE_REFCURSOR:
-			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ansi_to_wtype(conn, SQL_VARCHAR);
 
 		case PG_TYPE_BPCHAR:
 			bFixed = TRUE;
@@ -509,18 +529,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 				bLongVarchar = TRUE;
 			else
 				bLongVarchar = FALSE;
-			if (bLongVarchar)
-#ifdef	UNICODE_SUPPORT
-				return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
-			else if (bFixed)
-				return ALLOW_WCHAR(conn) ? SQL_WCHAR : SQL_CHAR;
-			else
-				return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
-#else
-				return SQL_LONGVARCHAR;
-			else
-				return bFixed ? SQL_CHAR : SQL_VARCHAR;
-#endif /* UNICODE_SUPPORT */
+			return ansi_to_wtype(conn, bLongVarchar ? SQL_LONGVARCHAR : (bFixed ? SQL_CHAR : SQL_VARCHAR));
 		case PG_TYPE_TEXT:
 			bLongVarchar = ci->drivers.text_as_longvarchar;
 			if (bLongVarchar)
@@ -530,14 +539,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 				    column_size <= ci->drivers.max_varchar_size)
 					bLongVarchar = FALSE;
 			}
-#ifdef	UNICODE_SUPPORT
-			return bLongVarchar ?
-				(ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR) :
-				(ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR);
-
-#else
-			return bLongVarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
-#endif /* UNICODE_SUPPORT */
+			return ansi_to_wtype(conn, bLongVarchar ? SQL_LONGVARCHAR : SQL_VARCHAR);
 
 		case PG_TYPE_BYTEA:
 			if (ci->bytea_as_longvarbinary)
@@ -590,21 +592,20 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 		case PG_TYPE_BOOL:
 			return ci->drivers.bools_as_char ? SQL_VARCHAR : SQL_BIT;
 		case PG_TYPE_XML:
-			return ALLOW_WCHAR(conn) ? SQL_WLONGVARCHAR : SQL_LONGVARCHAR;
+			return ansi_to_wtype(conn, SQL_LONGVARCHAR);
 		case PG_TYPE_INET:
 		case PG_TYPE_CIDR:
 		case PG_TYPE_MACADDR:
-			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ansi_to_wtype(conn, SQL_VARCHAR);
 		case PG_TYPE_UUID:
 			return SQL_GUID;
-			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
 
 		case PG_TYPE_INTERVAL:
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 			if (sqltype = get_interval_type(atttypmod, NULL), 0 != sqltype)
 				return sqltype;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
-			return ALLOW_WCHAR(conn) ? SQL_WVARCHAR : SQL_VARCHAR;
+			return ansi_to_wtype(conn, SQL_VARCHAR);
 
 		default:
 
@@ -626,8 +627,7 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 					bLongVarchar = FALSE;
 			}
 #ifdef	EXPERIMENTAL_CURRENTLY
-			if (ALLOW_WCHAR(conn))
-				return bLongVarchar ? SQL_WLONGVARCHAR : SQL_WVARCHAR;
+			return ansi_to_wtype(conn, bLongVarchar ? SQL_LONGVARCHAR : SQL_VARCHAR);
 #endif	/* EXPERIMENTAL_CURRENTLY */
 			return bLongVarchar ? SQL_LONGVARCHAR : SQL_VARCHAR;
 	}
@@ -735,23 +735,21 @@ pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 			return SQL_C_BINARY;
 		case PG_TYPE_LO_UNDEFINED:
 			return SQL_C_BINARY;
-#ifdef	UNICODE_SUPPORT
 		case PG_TYPE_BPCHAR:
 		case PG_TYPE_VARCHAR:
 		case PG_TYPE_TEXT:
-			return ALLOW_WCHAR(conn) ? SQL_C_WCHAR : SQL_C_CHAR;
-#endif /* UNICODE_SUPPORT */
+			return ansi_to_wtype(conn, SQL_C_CHAR);
 		case PG_TYPE_UUID:
 			if (!conn->ms_jet)
 				return SQL_C_GUID;
-			return ALLOW_WCHAR(conn) ? SQL_C_WCHAR : SQL_C_CHAR;
+			return ansi_to_wtype(conn, SQL_C_CHAR);
 
 		case PG_TYPE_INTERVAL:
 #ifdef	PG_INTERVAL_AS_SQL_INTERVAL
 			if (ctype = get_interval_type(atttypmod, NULL), 0 != ctype)
 				return ctype;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
-			return CC_is_in_unicode_driver(conn) ? SQL_C_WCHAR : SQL_CHAR;
+			return ansi_to_wtype(conn, SQL_CHAR);
 
 		default:
 			/* hack until permanent type is available */
@@ -760,8 +758,7 @@ pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 
 			/* Experimental, Does this work ? */
 #ifdef	EXPERIMENTAL_CURRENTLY
-			if (ALLOW_WCHAR(conn))
-				return SQL_C_WCHAR;
+			return ansi_to_wtype(conn, SQL_C_CHAR);
 #endif	/* EXPERIMENTAL_CURRENTLY */
 			return SQL_C_CHAR;
 	}
@@ -1422,7 +1419,7 @@ sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 			pgType = PG_TYPE_VARCHAR;
 			break;
 
-#if	UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 		case SQL_WVARCHAR:
 			pgType = PG_TYPE_VARCHAR;
 			break;
@@ -1962,9 +1959,7 @@ sqltype_to_default_ctype(const ConnectionClass *conn, SQLSMALLINT sqltype)
 		case SQL_WCHAR:
 		case SQL_WVARCHAR:
 		case SQL_WLONGVARCHAR:
-			if (!ALLOW_WCHAR(conn))
-				return SQL_C_CHAR;
-			return SQL_C_WCHAR;
+			return ansi_to_wtype(conn, SQL_C_CHAR);
 #endif /* UNICODE_SUPPORT */
 
 		case SQL_BIT:

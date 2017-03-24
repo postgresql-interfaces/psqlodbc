@@ -265,6 +265,16 @@ extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
 
 #define DRIVER_ODBC_VER				"03.51"
 
+#ifndef	UNICODE_SUPPORT
+#undef	SQL_WCHAR
+#undef	SQL_WVARCHAR
+#undef	SQL_WLONGVARCHAR
+#undef	SQL_C_WCHAR
+#define	SQL_WCHAR	SQL_WCHAR_IS_INHIBITED
+#define	SQL_WVARCHAR	SQL_WVARCHAR_IS_INHIBITED
+#define	SQL_WLONGVARCHAR	SQL_WLONGVARCHAR_IS_INHIBITED
+#define	SQL_C_WCHAR	SQL_C_WCHAR_IS_INHIBITED
+#endif
 #ifndef DBMS_NAME
 #ifdef	UNICODE_SUPPORT
 #define DBMS_NAME				DBMS_NAME_UNICODE

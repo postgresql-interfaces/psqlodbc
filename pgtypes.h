@@ -133,5 +133,7 @@ const char	*pgtype_create_params(const ConnectionClass *conn, OID type);
 SQLSMALLINT	sqltype_to_default_ctype(const ConnectionClass *stmt, SQLSMALLINT sqltype);
 Int4		ctype_length(SQLSMALLINT ctype);
 
+SQLSMALLINT	ansi_to_wtype(const ConnectionClass *self, SQLSMALLINT ansitype);
+
 #define	USE_ZONE	FALSE
 #endif

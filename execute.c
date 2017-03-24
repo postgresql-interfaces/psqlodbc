@@ -1497,9 +1497,11 @@ PGAPI_PutData(HSTMT hstmt,
 	if (ctype == SQL_C_DEFAULT)
 	{
 		ctype = sqltype_to_default_ctype(conn, current_iparam->SQLType);
+#ifdef	UNICODE_SUPPORT
 		if (SQL_C_WCHAR == ctype &&
 		    CC_default_is_c(conn))
 			ctype = SQL_C_CHAR;
+#endif
 	}
 	if (SQL_NTS == cbValue)
 	{

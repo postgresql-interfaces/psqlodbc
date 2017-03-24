@@ -1206,9 +1206,11 @@ inolog("2stime fr=%d\n", std_time.fr);
 	if (fCType == SQL_C_DEFAULT)
 	{
 		fCType = pgtype_attr_to_ctype(conn, field_type, atttypmod);
+#ifdef	UNICODE_SUPPORT
 		if (fCType == SQL_C_WCHAR
 		    && CC_default_is_c(conn))
 			fCType = SQL_C_CHAR;
+#endif
 
 		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
@@ -1551,9 +1553,12 @@ inolog("2stime fr=%d\n", std_time.fr);
 					}
 				}
 
+#ifdef	UNICODE_SUPPORT
 				if (SQL_C_WCHAR == fCType)
 					mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
-				else if (SQL_C_BINARY == fCType)
+				else
+#endif /* UNICODE_SUPPORT */
+				if (SQL_C_BINARY == fCType)
 					mylog("    SQL_C_BINARY, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
 				else
 					mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
@@ -4266,9 +4271,11 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	if (param_ctype == SQL_C_DEFAULT)
 	{
 		param_ctype = sqltype_to_default_ctype(conn, param_sqltype);
+#ifdef	UNICODE_SUPPORT
 		if (param_ctype == SQL_C_WCHAR
 		    && CC_default_is_c(conn))
 			param_ctype =SQL_C_CHAR;
+#endif
 	}
 
 	allocbuf = buf = NULL;
