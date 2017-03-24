@@ -225,13 +225,13 @@ makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 #define OPENING_BRACKET '{'
 #define CLOSING_BRACKET '}'
 static const char *
-makePqoptConnectString(char **target, const ConnInfo *ci, BOOL abbrev)
+makeBracketConnectString(char **target, pgNAME item, const char *optname)
 {
 	const char	*istr, *iptr;
 	char	*buf, *optr;
 	int	len;
 
-	istr = SAFE_NAME(ci->pqopt);
+	istr = SAFE_NAME(item);
 	if (!istr[0])
 		return NULL_STRING;
 
@@ -244,10 +244,7 @@ makePqoptConnectString(char **target, const ConnInfo *ci, BOOL abbrev)
 	len += 30;
 	if (buf = (char *) malloc(len), buf == NULL)
 		return NULL_STRING;
-	if (abbrev)
-		snprintf(buf, len, ABBR_PQOPT "=%c", OPENING_BRACKET);
-	else
-		snprintf(buf, len, INI_PQOPT "=%c", OPENING_BRACKET);
+	snprintf(buf, len, "%s=%c", optname, OPENING_BRACKET);
 	optr = strchr(buf, '\0');
 	for (iptr = istr; *iptr; iptr++)
 	{
@@ -289,6 +286,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_item[LARGE_REGISTRY_LEN];
+	char		*connsetStr = NULL;
 	char		*pqoptStr = NULL;
 	char		keepaliveStr[64];
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -317,8 +315,6 @@ inolog("force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 		return;
 	}
 
-	encode(ci->conn_settings, encoded_item, sizeof(encoded_item));
-
 	/* extra info */
 	hlen = strlen(connect_string);
 	nlen = MAX_CONNECT_STRING - hlen;
@@ -339,7 +335,7 @@ inolog("hlen=%d", hlen);
 			INI_SHOWOIDCOLUMN "=%s;"
 			INI_ROWVERSIONING "=%s;"
 			INI_SHOWSYSTEMTABLES "=%s;"
-			INI_CONNSETTINGS "=%s;"
+			"=%s"		/* INI_CONNSETTINGS */
 			INI_FETCH "=%d;"
 			INI_UNKNOWNSIZES "=%d;"
 			INI_MAXVARCHARSIZE "=%d;"
@@ -374,7 +370,7 @@ inolog("hlen=%d", hlen);
 			,ci->show_oid_column
 			,ci->row_versioning
 			,ci->show_system_tables
-			,encoded_item
+			,makeBracketConnectString(&connsetStr, ci->conn_settings, INI_CONNSETTINGS)
 			,ci->drivers.fetch_max
 			,ci->drivers.unknown_sizes
 			,ci->drivers.max_varchar_size
@@ -394,7 +390,7 @@ inolog("hlen=%d", hlen);
 			,ci->bytea_as_longvarbinary
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
-			,makePqoptConnectString(&pqoptStr, ci, FALSE)
+			,makeBracketConnectString(&pqoptStr, ci->pqopt, INI_PQOPT)
 			,makeKeepaliveConnectString(keepaliveStr, ci, FALSE)
 #ifdef	WIN32
 			,ci->gssauth_use_gssapi
@@ -468,7 +464,7 @@ inolog("hlen=%d", hlen);
 		hlen = strlen(connect_string);
 		nlen = MAX_CONNECT_STRING - hlen;
 		olen = snprintf(&connect_string[hlen], nlen, ";"
-				ABBR_CONNSETTINGS "=%s;"
+				"%s"		/* ABBR_CONNSETTINGS */
 				ABBR_FETCH "=%d;"
 				ABBR_MAXVARCHARSIZE "=%d;"
 				ABBR_MAXLONGVARCHARSIZE "=%d;"
@@ -480,13 +476,13 @@ inolog("hlen=%d", hlen);
 				"%s"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				INI_ABBREVIATE "=%02x%x",
-				encoded_item,
+				makeBracketConnectString(&connsetStr, ci->conn_settings, ABBR_CONNSETTINGS),
 				ci->drivers.fetch_max,
 				ci->drivers.max_varchar_size,
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
-				makePqoptConnectString(&pqoptStr, ci, TRUE),
+				makeBracketConnectString(&pqoptStr, ci->pqopt, ABBR_PQOPT),
 				makeKeepaliveConnectString(keepaliveStr, ci, TRUE),
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				makeXaOptConnectString(xaOptStr, ci, TRUE),
@@ -524,6 +520,8 @@ inolog("hlen=%d", hlen);
 	if (olen < 0 || olen >= nlen) /* failed */
 		connect_string[0] = '\0';
 
+	if (NULL != connsetStr)
+		free(connsetStr);
 	if (NULL != pqoptStr)
 		free(pqoptStr);
 }
@@ -647,17 +645,7 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
 		/* We can use the conn_settings directly when they are enclosed with braces */
-		if ('{' == *value)
-		{
-			size_t	len;
-
-			len = strlen(value + 1);
-			if (len > 0 && '}' == value[len])
-				len--;
-			STRN_TO_NAME(ci->conn_settings, value + 1, len);
-		}
-		else
-			ci->conn_settings = decode(value);
+		ci->conn_settings = decode_or_remove_braces(value);
 	}
 	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
 	{
@@ -980,8 +968,36 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (NAME_IS_NULL(ci->conn_settings) || overwrite)
 	{
+		const UCHAR *ptr;
+		BOOL	percent_encoded = TRUE, pspace;
+		int	nspcnt;
+
 		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_item, sizeof(encoded_item), ODBC_INI);
-		ci->conn_settings = decode(encoded_item);
+		/*
+		 *	percent-encoding was used before.
+		 *	Note that there's no space in percent-encoding.
+		 */
+		for (ptr = (UCHAR *) encoded_item, pspace = TRUE, nspcnt = 0; *ptr; ptr++)
+		{
+			if (isspace(*ptr))
+				pspace = TRUE;
+			else
+			{
+				if (pspace)
+				{
+					if (nspcnt++ > 1)
+					{
+						percent_encoded = FALSE;
+						break;
+					}
+				}
+				pspace = FALSE;
+			}
+		}
+		if (percent_encoded)
+			ci->conn_settings = decode(encoded_item);
+		else
+			STRX_TO_NAME(ci->conn_settings, encoded_item);
 	}
 	if (NAME_IS_NULL(ci->pqopt))
 	{
@@ -1208,7 +1224,7 @@ void
 writeDSNinfo(const ConnInfo *ci)
 {
 	const char *DSN = ci->dsn;
-	char		encoded_item[LARGE_REGISTRY_LEN],
+	char		encoded_item[MEDIUM_REGISTRY_LEN],
 				temp[SMALL_REGISTRY_LEN];
 
 
@@ -1278,10 +1294,9 @@ writeDSNinfo(const ConnInfo *ci)
 								 temp,
 								 ODBC_INI);
 
-	encode(ci->conn_settings, encoded_item, sizeof(encoded_item));
 	SQLWritePrivateProfileString(DSN,
 								 INI_CONNSETTINGS,
-								 encoded_item,
+								 SAFE_NAME(ci->conn_settings),
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
