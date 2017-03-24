@@ -423,12 +423,10 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 }
 
 /*
- *	This function works under Windows or Unicode case only.
- *	Simply returns NULL under other OSs.
+ *	This function is used when ANSI behavior is required.
  */
-#ifndef	UNICODE_SUPPORT
 static const char *
-get_environment_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc)
+get_ansi_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc)
 {
 	const char *wenc = NULL;
 #ifdef	WIN32
@@ -517,7 +515,6 @@ get_environment_encoding(const ConnectionClass *conn, const char *setenc, const 
 #endif /* WIN32 */
 	return wenc;
 }
-#endif /* !UNICODE_SUPPORT */
 
 void
 CC_lookup_characterset(ConnectionClass *self)
@@ -531,14 +528,12 @@ CC_lookup_characterset(ConnectionClass *self)
 	mylog("%s encoding spec=%s\n", __FUNCTION__, encspec ? encspec : "(null)");
 	if (encspec)
 		CC_send_client_encoding(self, encspec);
-#ifndef	UNICODE_SUPPORT
-	if (!encspec)
+	else
 	{
 		const char *currenc = PQparameterStatus(self->pqconn, "client_encoding");
-		const char *wenc = get_environment_encoding(self, encspec, currenc);
+		const char *wenc = get_ansi_encoding(self, encspec, currenc);
 		CC_send_client_encoding(self, wenc);
 	}
-#endif /* UNICODE_SUPPORT */
 	encspec = self->original_client_encoding;
 	mylog("    [ Client encoding = '%s' (code = %d) ]\n", encspec ? encspec : "(null)", self->ccsc);
 	if (self->ccsc < 0)

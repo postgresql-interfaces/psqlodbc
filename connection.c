@@ -1047,12 +1047,6 @@ CC_connect(ConnectionClass *self, char *salt_para)
 						   our large object oid type */
 
 	/* Multibyte handling */
-	CC_lookup_characterset(self);
-	if (CC_get_errornumber(self) > 0)
-	{
-		ret = 0;
-		goto cleanup;
-	}
 #ifdef UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(self))
 	{
@@ -1063,7 +1057,16 @@ CC_connect(ConnectionClass *self, char *salt_para)
 			goto cleanup;
 		}
 	}
+	else
 #endif /* UNICODE_SUPPORT */
+	{
+		CC_lookup_characterset(self);
+		if (CC_get_errornumber(self) > 0)
+		{
+			ret = 0;
+			goto cleanup;
+		}
+	}
 
 	if (self->server_isolation != self->isolation)
 		if (!CC_set_transact(self, self->isolation))
