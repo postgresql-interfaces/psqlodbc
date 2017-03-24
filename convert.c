@@ -851,6 +851,274 @@ static int	effective_fraction(int fraction, int *width)
 	return fraction;
 }
 
+
+/*
+	gdata		SC_get_GDTI(stmt)
+	current_col	stmt->current_col
+ */
+static int
+convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neut_str, OID field_type, SQLSMALLINT fCType, char *rgbValueBindRow, SQLLEN cbValueMax, BOOL localize_needed, BOOL lf_conv, SQLLEN *length)
+{
+	BOOL	hex_bin_format = FALSE, changed = FALSE;
+	int	result = COPY_OK;
+	SQLLEN	len = *length;
+	GetDataClass *pgdc;
+	int	wstrlen, copy_len, needbuflen, i;
+	const char	*ptr;
+#ifdef	UNICODE_SUPPORT
+	SQLWCHAR	*allocbuf = NULL;
+#endif /* UNICODE_SUPPORT */
+
+mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
+	switch (field_type)
+	{
+		case PG_TYPE_FLOAT4:
+		case PG_TYPE_FLOAT8:
+		case PG_TYPE_NUMERIC:
+			set_client_decimal_point((char *) neut_str);
+			break;
+		case PG_TYPE_BYTEA:
+			if (0 == strnicmp(neut_str, "\\x", 2))
+			{
+				hex_bin_format = TRUE;
+				neut_str += 2;
+			}
+			break;
+	}
+
+	if (current_col < 0)
+	{
+		pgdc = &(gdata->fdata);
+		pgdc->data_left = -1;
+	}
+	else
+		pgdc = &gdata->gdata[current_col];
+	if (pgdc->data_left < 0)
+	{
+		if (PG_TYPE_BYTEA == field_type)
+		{
+			if (hex_bin_format)
+				len = strlen(neut_str);
+			else
+			{
+				len = convert_from_pgbinary(neut_str, NULL, 0);
+				len *= 2;
+			}
+			changed = TRUE;
+#ifdef	UNICODE_SUPPORT
+			if (fCType == SQL_C_WCHAR)
+				len *= WCLEN;
+#endif /* UNICODE_SUPPORT */
+		}
+		else
+#ifdef	UNICODE_SUPPORT
+		if (fCType == SQL_C_WCHAR)
+		{
+			len = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
+			len *= WCLEN;
+			changed = TRUE;
+		}
+		else
+#endif /* UNICODE_SUPPORT */
+#ifdef	WIN_UNICODE_SUPPORT
+		if (localize_needed)
+		{
+			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
+			allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
+			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1, FALSE);
+			len = wstrtomsg((const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
+			changed = TRUE;
+		}
+		else
+#endif /* WIN_UNICODE_SUPPORT */
+			/* convert linefeeds to carriage-return/linefeed */
+			len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
+		/* just returns length info */
+		if (cbValueMax == 0)
+		{
+			result = COPY_RESULT_TRUNCATED;
+#ifdef	WIN_UNICODE_SUPPORT
+			if (allocbuf)
+				free(allocbuf);
+#endif /* WIN_UNICODE_SUPPORT */
+			*length = len;
+			return result;
+		}
+#ifdef	UNICODE_SUPPORT
+		if (cbValueMax == 1 && fCType == SQL_C_WCHAR)
+		{
+			rgbValueBindRow[0] = '\0';
+			result = COPY_RESULT_TRUNCATED;
+#ifdef	WIN_UNICODE_SUPPORT
+			if (allocbuf)
+				free(allocbuf);
+#endif /* WIN_UNICODE_SUPPORT */
+			*length = len;
+			return result;
+		}
+#endif
+
+		if (!pgdc->ttlbuf)
+			pgdc->ttlbuflen = 0;
+		needbuflen = len;
+		switch (fCType)
+		{
+#ifdef	UNICODE_SUPPORT
+			case SQL_C_WCHAR:
+				needbuflen += WCLEN;
+				break;
+#endif /* UNICODE_SUPPORT */
+			case SQL_C_BINARY:
+				break;
+			default:
+				needbuflen++;
+		}
+		if (changed || needbuflen > cbValueMax)
+		{
+			if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
+			{
+				pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen);
+				pgdc->ttlbuflen = needbuflen;
+			}
+#ifdef	UNICODE_SUPPORT
+			if (fCType == SQL_C_WCHAR)
+			{
+				if (PG_TYPE_BYTEA == field_type && !hex_bin_format)
+				{
+					len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+					len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
+				}
+				else
+					utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN, FALSE);
+			}
+			else
+#endif /* UNICODE_SUPPORT */
+			if (PG_TYPE_BYTEA == field_type)
+			{
+				if (hex_bin_format)
+				{
+					len = strlen(neut_str);
+					strncpy_null(pgdc->ttlbuf, neut_str, pgdc->ttlbuflen);
+				}
+				else
+				{
+					len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+					len = pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
+				}
+			}
+			else
+#ifdef	WIN_UNICODE_SUPPORT
+			if (localize_needed)
+			{
+				len = wstrtomsg(allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
+				free(allocbuf);
+				allocbuf = NULL;
+			}
+			else
+#endif /* WIN_UNICODE_SUPPORT */
+				convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
+			ptr = pgdc->ttlbuf;
+			pgdc->ttlbufused = len;
+		}
+		else
+		{
+			if (pgdc->ttlbuf)
+			{
+				free(pgdc->ttlbuf);
+				pgdc->ttlbuf = NULL;
+			}
+			ptr = neut_str;
+		}
+	}
+	else
+	{
+		ptr = pgdc->ttlbuf;
+		len = pgdc->ttlbufused;
+	}
+
+	mylog("DEFAULT: len = %d, ptr = '%.*s'\n", len, len, ptr);
+
+	if (current_col >= 0)
+	{
+		if (pgdc->data_left > 0)
+		{
+			ptr += (len - pgdc->data_left);
+			len = pgdc->data_left;
+			needbuflen = len + (pgdc->ttlbuflen - pgdc->ttlbufused);
+		}
+		else
+			pgdc->data_left = len;
+	}
+
+	if (cbValueMax > 0)
+	{
+		BOOL	already_copied = FALSE;
+		int		terminatorlen;
+
+		if (fCType == SQL_C_BINARY)
+		{
+			terminatorlen = 0;
+		}
+#ifdef	UNICODE_SUPPORT
+		else if (fCType == SQL_C_WCHAR)
+		{
+			terminatorlen = WCLEN;
+			/* make sure the output buffer size is divisible by two */
+			cbValueMax = (cbValueMax / WCLEN) * WCLEN;
+		}
+#endif
+		else
+		{
+			terminatorlen = 1;
+		}
+
+		if (len + terminatorlen > cbValueMax)
+			copy_len = cbValueMax - terminatorlen;
+		else
+			copy_len = len;
+
+		if (!already_copied)
+		{
+			/* Copy the data */
+			memcpy(rgbValueBindRow, ptr, copy_len);
+			/* Add null terminator */
+			for (i = 0; i < terminatorlen && copy_len + i < cbValueMax; i++)
+				rgbValueBindRow[copy_len + i] = '\0';
+		}
+		/* Adjust data_left for next time */
+		if (current_col >= 0)
+			pgdc->data_left -= copy_len;
+	}
+
+	/*
+	 * Finally, check for truncation so that proper status can
+	 * be returned
+	 */
+	if (cbValueMax > 0 && needbuflen > cbValueMax)
+		result = COPY_RESULT_TRUNCATED;
+	else
+	{
+		if (pgdc->ttlbuf != NULL)
+		{
+			free(pgdc->ttlbuf);
+			pgdc->ttlbuf = NULL;
+		}
+	}
+
+#ifdef	UNICODE_SUPPORT
+	if (SQL_C_WCHAR == fCType)
+		mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
+	else
+#endif /* UNICODE_SUPPORT */
+	if (SQL_C_BINARY == fCType)
+		mylog("    SQL_C_BINARY, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
+	else
+		mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
+
+	*length = len;
+	return result;
+}
+
 /*	This is called by SQLGetData() */
 int
 copy_and_convert_field(StatementClass *stmt,
@@ -1319,250 +1587,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				neut_str = midtemp;
 				/* fall through */
 			default:
-				switch (field_type)
-				{
-					case PG_TYPE_FLOAT4:
-					case PG_TYPE_FLOAT8:
-					case PG_TYPE_NUMERIC:
-						set_client_decimal_point((char *) neut_str);
-						break;
-					case PG_TYPE_BYTEA:
-						if (0 == strnicmp(neut_str, "\\x", 2))
-						{
-							hex_bin_format = TRUE;
-							neut_str += 2;
-						}
-						break;
-				}
-
-				if (stmt->current_col < 0)
-				{
-					pgdc = &(gdata->fdata);
-					pgdc->data_left = -1;
-				}
-				else
-					pgdc = &gdata->gdata[stmt->current_col];
-				if (pgdc->data_left < 0)
-				{
-					BOOL lf_conv = conn->connInfo.lf_conversion;
-					if (PG_TYPE_BYTEA == field_type)
-					{
-						if (hex_bin_format)
-							len = strlen(neut_str);
-						else
-						{
-							len = convert_from_pgbinary(neut_str, NULL, 0);
-							len *= 2;
-						}
-						changed = TRUE;
-#ifdef	UNICODE_SUPPORT
-						if (fCType == SQL_C_WCHAR)
-							len *= WCLEN;
-#endif /* UNICODE_SUPPORT */
-					}
-					else
-#ifdef	UNICODE_SUPPORT
-					if (fCType == SQL_C_WCHAR)
-					{
-						len = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
-						len *= WCLEN;
-						changed = TRUE;
-					}
-					else
-#endif /* UNICODE_SUPPORT */
-#ifdef	WIN_UNICODE_SUPPORT
-					if (localize_needed)
-					{
-						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
-						allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
-						wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1, FALSE);
-						len = wstrtomsg((const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
-						changed = TRUE;
-					}
-					else
-#endif /* WIN_UNICODE_SUPPORT */
-						/* convert linefeeds to carriage-return/linefeed */
-						len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
-					/* just returns length info */
-					if (cbValueMax == 0)
-					{
-						result = COPY_RESULT_TRUNCATED;
-#ifdef	WIN_UNICODE_SUPPORT
-						if (allocbuf)
-							free(allocbuf);
-#endif /* WIN_UNICODE_SUPPORT */
-						break;
-					}
-#ifdef	UNICODE_SUPPORT
-					if (cbValueMax == 1 && fCType == SQL_C_WCHAR)
-					{
-						rgbValueBindRow[0] = '\0';
-						result = COPY_RESULT_TRUNCATED;
-#ifdef	WIN_UNICODE_SUPPORT
-						if (allocbuf)
-							free(allocbuf);
-#endif /* WIN_UNICODE_SUPPORT */
-						break;
-					}
-#endif
-
-					if (!pgdc->ttlbuf)
-						pgdc->ttlbuflen = 0;
-					needbuflen = len;
-					switch (fCType)
-					{
-#ifdef	UNICODE_SUPPORT
-						case SQL_C_WCHAR:
-							needbuflen += WCLEN;
-							break;
-#endif /* UNICODE_SUPPORT */
-						case SQL_C_BINARY:
-							break;
-						default:
-							needbuflen++;
-					}
-					if (changed || needbuflen > cbValueMax)
-					{
-						if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
-						{
-							pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen);
-							pgdc->ttlbuflen = needbuflen;
-						}
-#ifdef	UNICODE_SUPPORT
-						if (fCType == SQL_C_WCHAR)
-						{
-							if (PG_TYPE_BYTEA == field_type && !hex_bin_format)
-							{
-								len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
-								len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
-							}
-							else
-								utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN, FALSE);
-						}
-						else
-#endif /* UNICODE_SUPPORT */
-						if (PG_TYPE_BYTEA == field_type)
-						{
-							if (hex_bin_format)
-							{
-								len = strlen(neut_str);
-								strncpy_null(pgdc->ttlbuf, neut_str, pgdc->ttlbuflen);
-							}
-							else
-							{
-								len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
-								len = pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
-							}
-						}
-						else
-#ifdef	WIN_UNICODE_SUPPORT
-						if (localize_needed)
-						{
-							len = wstrtomsg(allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
-							free(allocbuf);
-							allocbuf = NULL;
-						}
-						else
-#endif /* WIN_UNICODE_SUPPORT */
-							convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
-						ptr = pgdc->ttlbuf;
-						pgdc->ttlbufused = len;
-					}
-					else
-					{
-						if (pgdc->ttlbuf)
-						{
-							free(pgdc->ttlbuf);
-							pgdc->ttlbuf = NULL;
-						}
-						ptr = neut_str;
-					}
-				}
-				else
-				{
-					ptr = pgdc->ttlbuf;
-					len = pgdc->ttlbufused;
-				}
-
-				mylog("DEFAULT: len = %d, ptr = '%.*s'\n", len, len, ptr);
-
-				if (stmt->current_col >= 0)
-				{
-					if (pgdc->data_left > 0)
-					{
-						ptr += len - pgdc->data_left;
-						len = pgdc->data_left;
-						needbuflen = len + (pgdc->ttlbuflen - pgdc->ttlbufused);
-					}
-					else
-						pgdc->data_left = len;
-				}
-
-				if (cbValueMax > 0)
-				{
-					BOOL	already_copied = FALSE;
-					int		terminatorlen;
-
-					if (fCType == SQL_C_BINARY)
-					{
-						terminatorlen = 0;
-					}
-#ifdef	UNICODE_SUPPORT
-					else if (fCType == SQL_C_WCHAR)
-					{
-						terminatorlen = WCLEN;
-						/* make sure the output buffer size is divisible by two */
-						cbValueMax = (cbValueMax / WCLEN) * WCLEN;
-					}
-#endif
-					else
-					{
-						terminatorlen = 1;
-					}
-
-					if (len + terminatorlen > cbValueMax)
-						copy_len = cbValueMax - terminatorlen;
-					else
-						copy_len = len;
-
-					if (!already_copied)
-					{
-						/* Copy the data */
-						memcpy(rgbValueBindRow, ptr, copy_len);
-						/* Add null terminator */
-						for (i = 0; i < terminatorlen && copy_len + i < cbValueMax; i++)
-							rgbValueBindRow[copy_len + i] = '\0';
-					}
-					/* Adjust data_left for next time */
-					if (stmt->current_col >= 0)
-						pgdc->data_left -= copy_len;
-				}
-
-				/*
-				 * Finally, check for truncation so that proper status can
-				 * be returned
-				 */
-				if (cbValueMax > 0 && needbuflen > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
-				else
-				{
-					if (pgdc->ttlbuf != NULL)
-					{
-						free(pgdc->ttlbuf);
-						pgdc->ttlbuf = NULL;
-					}
-				}
-
-#ifdef	UNICODE_SUPPORT
-				if (SQL_C_WCHAR == fCType)
-					mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
-				else
-#endif /* UNICODE_SUPPORT */
-				if (SQL_C_BINARY == fCType)
-					mylog("    SQL_C_BINARY, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
-				else
-					mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
-				break;
+				result = convert_text_field_to_sql_c(gdata, stmt->current_col, neut_str, field_type, fCType, rgbValueBindRow, cbValueMax, localize_needed, conn->connInfo.lf_conversion, &len);
 		}
 
 	}
