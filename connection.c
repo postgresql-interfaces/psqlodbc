@@ -576,6 +576,32 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 }
 
 static void
+CC_set_locale_encoding(ConnectionClass *self, const char * encoding)
+{
+	char	*currenc = self->locale_encoding;
+
+	if (encoding)
+		self->locale_encoding = strdup(encoding);
+	else
+		self->locale_encoding = NULL;
+	if (currenc)
+		free(currenc);
+}
+
+static void
+CC_determine_locale_encoding(ConnectionClass *self)
+{
+	const char *dbencoding = PQparameterStatus(self->pqconn, "client_encoding");
+	const char *encoding;
+
+	if (self->locale_encoding) /* already set */
+                return;
+	encoding = derive_locale_encoding(dbencoding);
+	if (encoding)
+		CC_set_locale_encoding(self, encoding);
+}
+
+static void
 CC_set_client_encoding(ConnectionClass *self, const char * encoding)
 {
 	char	*currenc = self->original_client_encoding;
@@ -598,9 +624,9 @@ CC_set_client_encoding(ConnectionClass *self, const char * encoding)
 int
 CC_send_client_encoding(ConnectionClass *self, const char * encoding)
 {
-	const char *currenc = PQparameterStatus(self->pqconn, "client_encoding");
+	const char *dbencoding = PQparameterStatus(self->pqconn, "client_encoding");
 
-	if (encoding && (!currenc || stricmp(encoding, currenc)))
+	if (encoding && (!dbencoding || stricmp(encoding, dbencoding)))
 	{
                 char	query[64];
 		QResultClass	*res;
@@ -618,7 +644,7 @@ CC_send_client_encoding(ConnectionClass *self, const char * encoding)
 	}
 	CC_set_client_encoding(self, encoding);
 
-	return 0;
+	return SQL_SUCCESS;
 }
 
 /* This is called by SQLDisconnect also */
@@ -694,6 +720,11 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 		{
 			free(self->original_client_encoding);
 			self->original_client_encoding = NULL;
+		}
+		if (self->locale_encoding)
+		{
+			free(self->locale_encoding);
+			self->locale_encoding = NULL;
 		}
 		if (self->server_encoding)
 		{
@@ -950,14 +981,17 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		 ci->drivers.bools_as_char,
 		 TABLE_NAME_STORAGE_LEN);
 
-	encoding = check_client_encoding(ci->conn_settings);
-	if (!encoding)
-		encoding = check_client_encoding(ci->drivers.conn_settings);
-	CC_set_client_encoding(self, encoding);
-	qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
-		 ci->drivers.extra_systable_prefixes,
-		 PRINT_NAME(ci->drivers.conn_settings),
-		 encoding ? encoding : "");
+	if (NULL == self->locale_encoding)
+	{
+		encoding = check_client_encoding(ci->conn_settings);
+		if (!encoding)
+			encoding = check_client_encoding(ci->drivers.conn_settings);
+		CC_set_locale_encoding(self, encoding);
+		qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
+			ci->drivers.extra_systable_prefixes,
+			PRINT_NAME(ci->drivers.conn_settings),
+			encoding ? encoding : "");
+	}
 	if (self->status == CONN_DOWN)
 	{
 		CC_set_error_if_not_set(self, CONN_OPENDB_ERROR, "Connection broken.", func);
@@ -1046,22 +1080,27 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	CC_lookup_lo(self);			/* a hack to get the oid of
 						   our large object oid type */
 
-	/* Multibyte handling */
+	/*
+	 *		Multibyte handling
+	 *
+	 *	Send 'UTF8' when required Unicode behavior, otherwise send
+	 *	locale encodings.
+	 */
+	CC_determine_locale_encoding(self); /* determine the locale_encoding */
 #ifdef UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(self))
 	{
-		if (SQL_ERROR == CC_send_client_encoding(self, "UTF8"))
+		if (!SQL_SUCCEEDED(CC_send_client_encoding(self, "UTF8")))
 		{
 			CC_set_error(self, CONN_OPENDB_ERROR, "Failed to set client_encoding to UTF8", __FUNCTION__);
 			ret = 0;
 			goto cleanup;
 		}
 	}
-	else
+	else	/* for unicode drivers require ANSI behavior */
 #endif /* UNICODE_SUPPORT */
 	{
-		CC_lookup_characterset(self);
-		if (CC_get_errornumber(self) > 0)
+		if (!SQL_SUCCEEDED(CC_send_client_encoding(self, self->locale_encoding)))
 		{
 			ret = 0;
 			goto cleanup;
@@ -1090,7 +1129,7 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	if (CC_is_in_unicode_driver(self)
 	    && (CC_is_in_ansi_app(self) || 0 < ci->bde_environment))
 		self->unicode |= CONN_DISALLOW_WCHAR;
-mylog("conn->unicode=%d\n", self->unicode);
+mylog("conn->unicode=%d Client Encoding='%s' (Code %d)\n", self->unicode, self->original_client_encoding, self->ccsc);
 	ret = 1;
 
 cleanup:

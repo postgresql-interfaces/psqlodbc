@@ -82,6 +82,7 @@ static pg_CS CS_Alias[] =
 	{ "TCVN",	WIN1258 },
 	{ "ALT",	WIN866 },
 	{ "WIN",	WIN1251 },
+	{ "KOI8R",	KOI8R },
 	{ "OTHER",	OTHER }
 };
 
@@ -423,10 +424,11 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 }
 
 /*
- *	This function is used when ANSI behavior is required.
+ *	This function is used to know the encoding corresponding to
+ *	the current locale.
  */
-static const char *
-get_ansi_encoding(const ConnectionClass *conn, const char *setenc, const char *currenc)
+const char *
+derive_locale_encoding(const char *dbencoding)
 {
 	const char *wenc = NULL;
 #ifdef	WIN32
@@ -435,15 +437,13 @@ get_ansi_encoding(const ConnectionClass *conn, const char *setenc, const char *c
 	const char *loc, *ptr;
 #endif /* WIN32 */
 
-	if (setenc && stricmp(setenc, "OTHER"))
-		return setenc;
-	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc)
+	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc) /* environmnt variable */
 		return wenc;
 #ifdef	WIN32
 	acp = GetACP();
 	if (acp >= 1251 && acp <= 1258)
 	{
-		if (stricmp(currenc, "SQL_ASCII") == 0)
+		if (stricmp(dbencoding, "SQL_ASCII") == 0)
 			return wenc;
 	}
 	switch (acp)
@@ -470,79 +470,42 @@ get_ansi_encoding(const ConnectionClass *conn, const char *setenc, const char *c
 			wenc = "WIN1256";
 			break;
 		case 1252:
-			if (strnicmp(currenc, "LATIN", 5) == 0)
+			if (strnicmp(dbencoding, "LATIN", 5) == 0)
 				break;
-			if (PG_VERSION_GE(conn, 8.1))
-				wenc = "WIN1252";
-			else
-				wenc = "LATIN1";
+			wenc = "WIN1252";
 			break;
 		case 1258:
-			if (PG_VERSION_GE(conn, 8.1))
-				wenc = "WIN1258";
+			wenc = "WIN1258";
 			break;
 		case 1253:
-			if (PG_VERSION_GE(conn, 8.2))
-				wenc = "WIN1253";
+			wenc = "WIN1253";
 			break;
 		case 1254:
-			if (PG_VERSION_GE(conn, 8.2))
-				wenc = "WIN1254";
+			wenc = "WIN1254";
 			break;
 		case 1255:
-			if (PG_VERSION_GE(conn, 8.2))
-				wenc = "WIN1255";
+			wenc = "WIN1255";
 			break;
 		case 1257:
-			if (PG_VERSION_GE(conn, 8.2))
-				wenc = "WIN1257";
+			wenc = "WIN1257";
 			break;
 	}
 #else
 	/*
-	 *	If the codeset part of the current locale is UTF8,
-	 *	set the client_encoding to 'UTF8'.
+	 *	Derive the encoding from the codeset part of the current locale.
 	 */
 	loc = setlocale(LC_ALL, "");
 	if (loc && (ptr = strchr(loc, '.')))
 	{
+		int enc_no;
+
 		ptr++;
-		if (strnicmp(ptr, "UTF-8", 5) == 0 ||
-		    strnicmp(ptr, "UTF8", 4) == 0)
-			wenc = "UTF8";
+		if ((enc_no= pg_char_to_encoding(ptr)) >= 0)
+			wenc = pg_encoding_to_char(enc_no);
 		mylog("%s locale=%s enc=%s\n", __FUNCTION__, loc, wenc ? wenc : "(null)");
 	}
 #endif /* WIN32 */
 	return wenc;
-}
-
-void
-CC_lookup_characterset(ConnectionClass *self)
-{
-	const char *encspec;
-	CSTR func = "CC_lookup_characterset";
-
-	mylog("%s: entering...\n", func);
-	encspec = self->original_client_encoding;
-
-	mylog("%s encoding spec=%s\n", __FUNCTION__, encspec ? encspec : "(null)");
-	if (encspec)
-		CC_send_client_encoding(self, encspec);
-	else
-	{
-		const char *currenc = PQparameterStatus(self->pqconn, "client_encoding");
-		const char *wenc = get_ansi_encoding(self, encspec, currenc);
-		CC_send_client_encoding(self, wenc);
-	}
-	encspec = self->original_client_encoding;
-	mylog("    [ Client encoding = '%s' (code = %d) ]\n", encspec ? encspec : "(null)", self->ccsc);
-	if (self->ccsc < 0)
-	{
-		char msg[256];
-
-		snprintf(msg, sizeof(msg), "would handle the encoding '%s' like ASCII", encspec);
-		CC_set_error(self, CONN_OPTION_VALUE_CHANGED, msg, func);
-	}
 }
 
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str)
