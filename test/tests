@@ -51,4 +51,5 @@ TESTBINS = exe/connect-test \
 	exe/numeric-test \
 	exe/large-object-test \
 	exe/large-object-data-at-exec-test \
-	exe/odbc-escapes-test
+	exe/odbc-escapes-test \
+	exe/wchar-char-test
