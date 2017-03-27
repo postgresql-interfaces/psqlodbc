@@ -619,11 +619,17 @@ const pthread_mutexattr_t *getMutexAttr(void);
 #endif /* POSIX_THREADMUTEX_SUPPORT */
 #ifdef	UNICODE_SUPPORT
 #define WCLEN sizeof(SQLWCHAR)
+enum {
+	WCSTYPE_UNKNOWN
+	,WCSTYPE_UTF16_LE
+	,WCSTYPE_UTF32_LE
+	};
 SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
 SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen, BOOL errcheck);
-int	msgtowstr(const char *, int, LPWSTR, int);
-int	wstrtomsg(const LPWSTR, int, char *, int);
+int	get_wcstype(void);
+int	msgtowstr(const char *, int, wchar_t *, int);
+int	wstrtomsg(const wchar_t *, int, char *, int);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen, FALSE)
 #endif /* UNICODE_SUPPORT */
 

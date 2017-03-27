@@ -247,12 +247,14 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 		if (mtxt && tlen <= cbErrorMsgMax)
 		{
 			SQLULEN ulen = utf8_to_ucs2_lf(mtxt, tlen, FALSE, szErrorMsg, cbErrorMsgMax, TRUE);
+			/*
 			if (ulen == (SQLULEN) -1)
 			{
 				tlen = (SQLSMALLINT) msgtowstr(mtxt,
 					(int) tlen, (LPWSTR) szErrorMsg, (int) cbErrorMsgMax);
 			}
 			else
+			*/
 				tlen = (SQLSMALLINT) ulen;
 			if (tlen >= cbErrorMsgMax)
 				ret = SQL_SUCCESS_WITH_INFO;
@@ -397,12 +399,14 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 			if (SQL_SUCCEEDED(ret))
 			{
 				SQLULEN ulen = (SQLSMALLINT) utf8_to_ucs2_lf(rgbD, blen, FALSE, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, TRUE);
+				/*
 				if (ulen == (SQLULEN) -1)
 				{
 					blen = (SQLSMALLINT) msgtowstr(rgbD,
 						(int) blen, (LPWSTR) rgbDiagInfo, (int) cbDiagInfoMax / WCLEN);
 				}
 				else
+				*/
 					blen = (SQLSMALLINT) ulen;
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
 					ret = SQL_SUCCESS_WITH_INFO;

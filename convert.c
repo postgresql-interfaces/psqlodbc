@@ -46,10 +46,6 @@
 #include "catfunc.h"
 #include "pgapifunc.h"
 
-#if defined(UNICODE_SUPPORT) && defined(WIN32)
-#define	WIN_UNICODE_SUPPORT
-#endif
-
 CSTR	NAN_STRING = "NaN";
 CSTR	INFINITY_STRING = "Infinity";
 CSTR	MINFINITY_STRING = "-Infinity";
@@ -863,13 +859,19 @@ convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neu
 	int	result = COPY_OK;
 	SQLLEN	len = *length;
 	GetDataClass *pgdc;
-	int	wstrlen, copy_len, needbuflen, i;
+	int	copy_len = 0, needbuflen = 0, i;
 	const char	*ptr;
 #ifdef	UNICODE_SUPPORT
-	SQLWCHAR	*allocbuf = NULL;
+	ssize_t	wstrlen = 0;
+	wchar_t	*allocbuf = NULL;
 #endif /* UNICODE_SUPPORT */
+	BOOL	mbs_wcs = FALSE;
 
 mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
+#ifdef	UNICODE_SUPPORT
+	mbs_wcs = (get_wcstype() == WCSTYPE_UTF16_LE);
+#endif /* UNICODE_SUPPORT */
+	localize_needed = (localize_needed && mbs_wcs);
 	switch (field_type)
 	{
 		case PG_TYPE_FLOAT4:
@@ -919,44 +921,32 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 			changed = TRUE;
 		}
 		else
-#endif /* UNICODE_SUPPORT */
-#ifdef	WIN_UNICODE_SUPPORT
 		if (localize_needed)
 		{
 			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
-			allocbuf = (SQLWCHAR *) malloc(WCLEN * (wstrlen + 1));
-			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1, FALSE);
-			len = wstrtomsg((const LPWSTR) allocbuf, (int) wstrlen, NULL, 0);
+			allocbuf = (wchar_t *) malloc(sizeof(wchar_t) * (wstrlen + 1));
+			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) allocbuf, wstrlen + 1, FALSE);
+			len = wstrtomsg(allocbuf, (int) wstrlen, NULL, 0);
 			changed = TRUE;
 		}
 		else
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* UNICODE_SUPPORT */
 			/* convert linefeeds to carriage-return/linefeed */
 			len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
 		/* just returns length info */
 		if (cbValueMax == 0)
 		{
 			result = COPY_RESULT_TRUNCATED;
-#ifdef	WIN_UNICODE_SUPPORT
-			if (allocbuf)
-				free(allocbuf);
-#endif /* WIN_UNICODE_SUPPORT */
-			*length = len;
-			return result;
+			goto cleanup;
 		}
 #ifdef	UNICODE_SUPPORT
 		if (cbValueMax == 1 && fCType == SQL_C_WCHAR)
 		{
 			rgbValueBindRow[0] = '\0';
 			result = COPY_RESULT_TRUNCATED;
-#ifdef	WIN_UNICODE_SUPPORT
-			if (allocbuf)
-				free(allocbuf);
-#endif /* WIN_UNICODE_SUPPORT */
-			*length = len;
-			return result;
+			goto cleanup;
 		}
-#endif
+#endif /* UNICODE_SUPPORT */
 
 		if (!pgdc->ttlbuf)
 			pgdc->ttlbuflen = 0;
@@ -1007,7 +997,7 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 				}
 			}
 			else
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 			if (localize_needed)
 			{
 				len = wstrtomsg(allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
@@ -1015,7 +1005,7 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 				allocbuf = NULL;
 			}
 			else
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* UNICODE_SUPPORT */
 				convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
 			ptr = pgdc->ttlbuf;
 			pgdc->ttlbufused = len;
@@ -1066,7 +1056,7 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 			/* make sure the output buffer size is divisible by two */
 			cbValueMax = (cbValueMax / WCLEN) * WCLEN;
 		}
-#endif
+#endif /* UNICODE_SUPPORT */
 		else
 		{
 			terminatorlen = 1;
@@ -1115,6 +1105,12 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 	else
 		mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 
+cleanup:
+#ifdef	UNICODE_SUPPORT
+	if (allocbuf)
+		free(allocbuf);
+#endif /* UNICODE_SUPPORT */
+
 	*length = len;
 	return result;
 }
@@ -1133,7 +1129,7 @@ copy_and_convert_field(StatementClass *stmt,
 	ARDFields	*opts = SC_get_ARDF(stmt);
 	GetDataInfo	*gdata = SC_get_GDTI(stmt);
 	SQLLEN		len = 0,
-				copy_len = 0, needbuflen = 0;
+				copy_len = 0;
 	SIMPLE_TIME std_time;
 	time_t		stmt_t = SC_get_time(stmt);
 	struct tm  *tim;
@@ -1149,16 +1145,11 @@ copy_and_convert_field(StatementClass *stmt,
 	int			bind_size = opts->bind_size;
 	int			result = COPY_OK;
 	const ConnectionClass	*conn = SC_get_conn(stmt);
-	BOOL		changed;
 	BOOL	text_handling, localize_needed;
 	const char *neut_str = value;
 	char		booltemp[3];
 	char		midtemp[64];
 	GetDataClass *pgdc;
-#ifdef	WIN_UNICODE_SUPPORT
-	SQLWCHAR	*allocbuf = NULL;
-	ssize_t		wstrlen;
-#endif /* WIN_UNICODE_SUPPORT */
 	SQLGUID g;
 	int			i;
 
@@ -1512,10 +1503,10 @@ inolog("2stime fr=%d\n", std_time.fr);
 	}
 	if (text_handling)
 	{
-#ifdef	WIN_UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
 		if (SQL_C_CHAR == fCType || SQL_C_BINARY == fCType)
 			localize_needed = TRUE;
-#endif /* WIN_UNICODE_SUPPORT */
+#endif /* UNICODE_SUPPORT */
 	}
 
 	if (text_handling)
@@ -1524,7 +1515,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 		int	midsize = sizeof(midtemp);
 		/* Special character formatting as required */
 
-		BOOL	hex_bin_format = FALSE;
 		/*
 		 * These really should return error if cbValueMax is not big
 		 * enough.
@@ -4317,25 +4307,28 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			buf = buffer;
 			break;
 		case SQL_C_CHAR:
-#ifdef	WIN_UNICODE_SUPPORT
-			if (SQL_NTS == used)
-				used = strlen(buffer);
-			allocbuf = malloc(WCLEN * (used + 1));
-			if (allocbuf)
+#ifdef	UNICODE_SUPPORT
+			if (WCSTYPE_UTF16_LE == get_wcstype())
 			{
-				used = msgtowstr(buffer, (int) used, (LPWSTR) allocbuf, (int) (used + 1));
-				buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
-				free(allocbuf);
-				allocbuf = buf;
+				if (SQL_NTS == used)
+					used = strlen(buffer);
+				allocbuf = malloc(WCLEN * (used + 1));
+				if (allocbuf)
+				{
+					used = msgtowstr(buffer, (int) used, (wchar_t *) allocbuf, (int) (used + 1));
+					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
+					free(allocbuf);
+					allocbuf = buf;
+				}
 			}
-#else
+			else
+#endif /* UNICODE_SUPPORT */
 			buf = buffer;
-#endif /* WIN_UNICODE_SUPPORT */
 			break;
 
 #ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
-mylog("C_WCHAR=%s(%d)\n", buffer, used);
+mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, used);
 			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used > 0 ? used / WCLEN : used, &used, FALSE);
 			/* used *= WCLEN; */
 			break;
