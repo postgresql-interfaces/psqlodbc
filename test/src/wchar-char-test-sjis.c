@@ -41,11 +41,7 @@ static int sjis_test(HSTMT hstmt)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_WCHAR", hstmt);
 	while (SQL_SUCCEEDED(rc = SQLFetch(hstmt)))
 	{
-		int	i;
-		for (i = 0; wchar[i]; i++)
-			printf("U+%02X%02X", (unsigned short) wchar[i] / 256, wchar[i] % 256);
-		printf("\n");
-		// wprintf(L"Unicode=%ls\n", wchar);
+		print_utf16_le(wchar);
 	}
 
 	return rc;

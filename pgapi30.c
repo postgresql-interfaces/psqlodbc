@@ -1786,8 +1786,16 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			qlog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
 			mylog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
 			break;
+		case SQL_ATTR_PGOPT_WCSDEBUG:
+			conn->connInfo.wcs_debug = CAST_PTR(SQLINTEGER, Value);
+			qlog("wcs_debug => %d\n", conn->connInfo.wcs_debug);
+			mylog("wcs_debug => %d\n", conn->connInfo.wcs_debug);
+			break;
 		default:
-			ret = PGAPI_SetConnectOption(ConnectionHandle, (SQLUSMALLINT) Attribute, (SQLLEN) Value);
+			if (Attribute < 65536)
+				ret = PGAPI_SetConnectOption(ConnectionHandle, (SQLUSMALLINT) Attribute, (SQLLEN) Value);
+			else
+				unsupported = TRUE;
 	}
 	if (unsupported)
 	{

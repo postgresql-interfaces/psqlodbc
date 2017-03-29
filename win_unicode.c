@@ -7,6 +7,8 @@
  *-------
  */
 
+#ifdef	UNICODE_SUPPORT
+
 #include "psqlodbc.h"
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +61,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 	}
 	if (SQL_NTS == ilen)
 		ilen = ucs2strlen(ucs2str);
-/*mylog(" newlen=%d", ilen);*/
+mylog(" newlen=%d", ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
@@ -306,7 +308,7 @@ cleanup:
 	return rtn;
 }
 
-#ifdef	NOT_USED
+
 /* UCS4 => utf8 */
 #define	byte4check	0xffff0000
 #define	byte4_check	0x10000
@@ -317,6 +319,7 @@ cleanup:
 
 #define	byte4_m3	0x3f
 
+static
 SQLULEN	ucs4strlen(const UInt4 *ucs4str)
 {
 	SQLULEN	len;
@@ -325,14 +328,17 @@ SQLULEN	ucs4strlen(const UInt4 *ucs4str)
 	return len;
 }
 
+static
 char *ucs4_to_utf8(const UInt4 *ucs4str, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
-/*mylog(" %s:%p ilen=%d ", __FUNCTION__, ucs4str, ilen);*/
+	int	len = 0;
+mylog(" %s:%p ilen=%d\n", __FUNCTION__, ucs4str, ilen);
 
 	if (!ucs4str)
 	{
-		*olen = SQL_NULL_DATA;
+		if (olen)
+			*olen = SQL_NULL_DATA;
 		return NULL;
 	}
 	if (little_endian < 0)
@@ -342,11 +348,11 @@ char *ucs4_to_utf8(const UInt4 *ucs4str, SQLLEN ilen, SQLLEN *olen, BOOL lower_i
 	}
 	if (SQL_NTS == ilen)
 		ilen = ucs4strlen(ucs4str);
-/*mylog(" newlen=%d", ilen);*/
+mylog(" newlen=%d\n", ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
-		int	i, len = 0;
+		int	i;
 		UInt2	byte2code;
 		Int4	byte4code;
 		const UInt4 *wstr;
@@ -397,8 +403,9 @@ char *ucs4_to_utf8(const UInt4 *ucs4str, SQLLEN ilen, SQLLEN *olen, BOOL lower_i
 				byte4code = byte4_base |
 					   ((byte4_mask1 & *wstr) >> 18) |
 					   ((byte4_mask2 & *wstr) >> 4) |
-					   ((byte4_mask3 & *wstr) << 2) |
-					   ((byte4_mask4 & *wstr) << 16);
+					   ((byte4_mask3 & *wstr) << 10) |
+					   ((byte4_mask4 & *wstr) << 24);
+/* mylog(" %s:%08x->%08x\n", __FUNCTION__, *wstr, byte4code); */
 				if (little_endian)
 					memcpy(utf8str + len, (char *) &byte4code, sizeof(byte4code));
 				else
@@ -415,7 +422,7 @@ char *ucs4_to_utf8(const UInt4 *ucs4str, SQLLEN ilen, SQLLEN *olen, BOOL lower_i
 		if (olen)
 			*olen = len;
 	}
-mylog(" %s:olen=%d %s\n", __FUNCTION__, *olen, utf8str ? utf8str : "");
+mylog(" %s:olen=%d %s\n", __FUNCTION__, len, utf8str ? utf8str : "");
 	return utf8str;
 }
 
@@ -433,15 +440,15 @@ mylog(" %s:olen=%d %s\n", __FUNCTION__, *olen, utf8str ? utf8str : "");
  * buffer is too small, the output is truncated. The output string is
  * NULL-terminated, except when the output is truncated.
  */
-SQLULEN
-utf8_to_ucs4_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
+static
+SQLULEN utf8_to_ucs4_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				UInt4 *ucs4str, SQLULEN bufcount, BOOL errcheck)
 {
 	int			i;
 	SQLULEN		rtn, ocount, wcode;
 	const UCHAR *str;
 
-/*mylog(" %s:ilen=%d bufcount=%d", __FUNCTION__. ilen, bufcount);*/
+mylog(" %s:ilen=%d bufcount=%d\n", __FUNCTION__, ilen, bufcount);
 	if (!utf8str)
 		return 0;
 /*mylog(" string=%s\n", utf8str);*/
@@ -559,10 +566,9 @@ cleanup:
 	}
 	if (ocount < bufcount && ucs4str)
 		ucs4str[ocount] = 0;
-/*mylog(" ocount=%d\n", ocount);*/
+mylog(" %s:ocount=%d\n", __FUNCTION__, ocount);
 	return rtn;
 }
-#endif /* NOT_USED */
 
 static	int	wcstype = -1;
 
@@ -608,45 +614,111 @@ int get_wcstype(void)
 	return wcstype;
 }
 
+SQLULEN
+utf8_to_wcs_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
+				wchar_t *wcsstr, SQLULEN bufcount, BOOL errcheck)
+{
+	switch (get_wcstype())
+	{
+		case WCSTYPE_UTF16_LE:
+			return utf8_to_ucs2_lf(utf8str, ilen, lfconv,
+				(SQLWCHAR *) wcsstr, bufcount, errcheck);
+		case WCSTYPE_UTF32_LE:
+			return utf8_to_ucs4_lf(utf8str, ilen, lfconv,
+				(UInt4 *) wcsstr, bufcount, errcheck);
+	}
+	return -1;
+}
+
+char *wcs_to_utf8(const wchar_t *wcsstr, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
+{
+	switch (get_wcstype())
+	{
+		case WCSTYPE_UTF16_LE:
+			return ucs2_to_utf8((const SQLWCHAR *) wcsstr, ilen, olen, lower_identifier);
+		case WCSTYPE_UTF32_LE:
+			return ucs4_to_utf8((const UInt4 *) wcsstr, ilen, olen, lower_identifier);
+	}
+
+	return NULL;
+}
+
 /*
- *	Firstly this function must be called with outmsg parameter is NULL
+ *	Input strings must be NULL terminated.
+ *	Output wide character strings would be NULL terminated. The result
+ *	outmsg would be truncated when the buflen is small.
+ *
+ *	The output NULL terminator is counted as buflen.
+ *	if outmsg is NULL or buflen is 0, only output length is returned.
+ *	As for return values, NULL terminators aren't counted.
  */
-int msgtowstr(const char *inmsg, int inlen, wchar_t *outmsg, int buflen)
+int msgtowstr(const char *inmsg, wchar_t *outmsg, int buflen)
 {
 	int	outlen = 0;
 
-mylog(" %s:inmsg=%p inlen=%d buflen=%d\n", __FUNCTION__, inmsg, inlen, buflen);
+mylog(" %s:inmsg=%p buflen=%d\n", __FUNCTION__, inmsg, buflen);
 #ifdef	WIN32
-	outlen = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS,
-								 inmsg, inlen, outmsg, buflen);
+	if (NULL == outmsg)
+		buflen = 0;
+	if ((outlen = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED
+		| MB_ERR_INVALID_CHARS, inmsg, -1, outmsg, buflen)) > 0)
+		outlen--;
+	else if (ERROR_INSUFFICIENT_BUFFER == GetLastError())
+		outlen = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED
+			| MB_ERR_INVALID_CHARS, inmsg, -1, NULL, 0) - 1;
 #else
 #ifdef	HAVE_MBSTOWCS
-	outlen = mbstowcs((wchar_t *) outmsg, inmsg, inlen);
-mylog(" mbstowcs inlen=%d buflen=%d outlen=%d\n", inlen, buflen, outlen);
+	if (0 == buflen)
+		outmsg = NULL;
+	outlen = mbstowcs((wchar_t *) outmsg, inmsg, buflen);
 #endif /* HAVE_MBSTOWCS */
 #endif /* WIN32 */
-	if (outmsg && outlen < buflen)
-		outmsg[outlen] = 0;
-mylog(" %s:out=%dchars\n", __FUNCTION__, outlen);
+	if (outmsg && outlen >= buflen)
+	{
+		outmsg[buflen - 1] = 0;
+		mylog(" %s:out=%dchars truncated to %d\n", __FUNCTION__, outlen, buflen - 1);
+	}
+mylog(" %s in=%dchars out=%dchars\n", __FUNCTION__, buflen, outlen);
 
 	return outlen;
 }
 
-int wstrtomsg(const wchar_t *wstr, int wstrlen, char *outmsg, int buflen)
+/*
+ *	Input wide character strings must be NULL terminated.
+ *	Output strings would be NULL terminated. The result outmsg would be
+ *	truncated when the buflen is small.
+ *
+ *	The output NULL terminator is counted as buflen.
+ *	if outmsg is NULL or buflen is 0, only output length is returned.
+ *	As for return values, NULL terminators aren't counted.
+ */
+int wstrtomsg(const wchar_t *wstr, char *outmsg, int buflen)
 {
 	int	outlen = 0;
 
-mylog(" %s:wstr=%p wstrlen=%d buflen=%d\n", __FUNCTION__, wstr, wstrlen, buflen);
+mylog(" %s:wstr=%p buflen=%d\n", __FUNCTION__, wstr, buflen);
 #ifdef	WIN32
-	outlen = WideCharToMultiByte(CP_ACP, 0, wstr, (int) wstrlen, outmsg, buflen, NULL, NULL);
+	if (NULL == outmsg)
+		buflen = 0;
+	if ((outlen = WideCharToMultiByte(CP_ACP, 0, wstr, -1, outmsg, buflen, NULL, NULL)) > 0)
+		outlen--;
+	else if (ERROR_INSUFFICIENT_BUFFER == GetLastError())
+		outlen = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL) - 1;
 #else
 #ifdef	HAVE_MBSTOWCS
+	if (0 == buflen)
+		outmsg = NULL;
 	outlen = wcstombs(outmsg, wstr, buflen);
-mylog(" wcstombs wstrlen=%d buflen=%d outlen=%d\n", wstrlen, buflen, outlen);
 #endif /* HAVE_MBSTOWCS */
 #endif /* WIN32 */
-	if (outmsg && outlen < buflen)
-		outmsg[outlen] = 0;
+	if (outmsg && outlen >= buflen)
+	{
+		outmsg[buflen - 1] = 0;
+		mylog(" %s:out=%dbytes truncated to %d\n", __FUNCTION__, outlen, buflen - 1);
+	}
+mylog(" %s buf=%dbytes outlen=%dbytes\n", __FUNCTION__, buflen, outlen);
 
 	return outlen;
 }
+
+#endif	/* UNICODE_SUPPORT */

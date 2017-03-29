@@ -589,6 +589,7 @@ typedef struct
 	signed char	ignore_round_trip_time;
 	signed char	disable_keepalive;
 	signed char	gssauth_use_gssapi;
+	signed char	wcs_debug;
 	UInt4		extra_opts;
 	Int4		keepalive_idle;
 	Int4		keepalive_interval;
@@ -628,8 +629,10 @@ SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
 SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen, BOOL errcheck);
 int	get_wcstype(void);
-int	msgtowstr(const char *, int, wchar_t *, int);
-int	wstrtomsg(const wchar_t *, int, char *, int);
+int	msgtowstr(const char *, wchar_t *, int);
+int	wstrtomsg(const wchar_t *, char *, int);
+char	*wcs_to_utf8(const wchar_t *wcsstr, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
+SQLULEN	utf8_to_wcs_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, wchar_t *wcsstr, SQLULEN buflen, BOOL errcheck);
 #define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen, FALSE)
 #endif /* UNICODE_SUPPORT */
 

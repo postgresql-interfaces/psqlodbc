@@ -853,25 +853,48 @@ static int	effective_fraction(int fraction, int *width)
 	current_col	stmt->current_col
  */
 static int
-convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neut_str, OID field_type, SQLSMALLINT fCType, char *rgbValueBindRow, SQLLEN cbValueMax, BOOL localize_needed, BOOL lf_conv, SQLLEN *length)
+convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neut_str, OID field_type, SQLSMALLINT fCType, char *rgbValueBindRow, SQLLEN cbValueMax, const ConnectionClass *conn, SQLLEN *length_return)
 {
 	BOOL	hex_bin_format = FALSE, changed = FALSE;
 	int	result = COPY_OK;
-	SQLLEN	len = *length;
+	SQLLEN	len = *length_return;
 	GetDataClass *pgdc;
-	int	copy_len = 0, needbuflen = 0, i;
+	int	copy_len = 0, needbuflen = 0, len_for_wcs_term = 0, i;
 	const char	*ptr;
+	BOOL	lf_conv = conn->connInfo.lf_conversion;
 #ifdef	UNICODE_SUPPORT
+	BOOL	wcs_debug = conn->connInfo.wcs_debug;
 	ssize_t	wstrlen = 0;
 	wchar_t	*allocbuf = NULL;
-#endif /* UNICODE_SUPPORT */
-	BOOL	mbs_wcs = FALSE;
+	int	wcstype = 0, ucount = 0;
+	BOOL	localize_needed = FALSE;
+	BOOL	same_encoding = (conn->ccsc == pg_CS_code(conn->locale_encoding));
+	BOOL	is_utf8 = (UTF8 == conn->ccsc);
+	BOOL	hybrid = FALSE;
 
-mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
-#ifdef	UNICODE_SUPPORT
-	mbs_wcs = (get_wcstype() == WCSTYPE_UTF16_LE);
+	wcstype = get_wcstype();
+	switch (field_type)
+	{
+		case PG_TYPE_UNKNOWN:
+		case PG_TYPE_BPCHAR:
+		case PG_TYPE_VARCHAR:
+		case PG_TYPE_TEXT:
+		case PG_TYPE_BPCHARARRAY:
+		case PG_TYPE_VARCHARARRAY:
+		case PG_TYPE_TEXTARRAY:
+			if (SQL_C_CHAR == fCType || SQL_C_BINARY == fCType)
+				localize_needed = ((!same_encoding || wcs_debug) &&
+				   wcstype > 0);
+			if (SQL_C_WCHAR == fCType)
+				hybrid = ((!is_utf8 || (same_encoding && wcs_debug)) &&
+				   wcstype > 0);
+	}
+
+	mylog("%s:field_type=%u type=%d is_utf8=%d same_encoding=%d localize=%d\n", __FUNCTION__, field_type, fCType, is_utf8, same_encoding, localize_needed);
+#else
+	mylog("%s:field_type=%u type=%dd\n", __FUNCTION__, field_type, fCType);
 #endif /* UNICODE_SUPPORT */
-	localize_needed = (localize_needed && mbs_wcs);
+
 	switch (field_type)
 	{
 		case PG_TYPE_FLOAT4:
@@ -908,6 +931,7 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 			}
 			changed = TRUE;
 #ifdef	UNICODE_SUPPORT
+			ucount = len;
 			if (fCType == SQL_C_WCHAR)
 				len *= WCLEN;
 #endif /* UNICODE_SUPPORT */
@@ -916,17 +940,36 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 #ifdef	UNICODE_SUPPORT
 		if (fCType == SQL_C_WCHAR)
 		{
-			len = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
-			len *= WCLEN;
+			if (hybrid)
+			{
+				mylog("%s:hybrid estimate\n", __FUNCTION__);
+				ucount = msgtowstr(neut_str, NULL, 0);
+				if (WCSTYPE_UTF16_LE != wcstype)
+				{
+					wchar_t	*alw;
+					char	*alc;
+
+					alw = (wchar_t *) malloc(sizeof(wchar_t) * (ucount + 1));
+					ucount = msgtowstr(neut_str, alw, ucount + 1);
+					alc = wcs_to_utf8(alw, SQL_NTS, NULL, FALSE);
+					free(alw);
+					ucount = utf8_to_ucs2_lf(alc, SQL_NTS, lf_conv, NULL, 0, FALSE);
+					allocbuf = (wchar_t *) alc;
+				}
+			}
+			else	/* normally */
+			{
+				ucount = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
+			}
+			len = WCLEN * ucount;
 			changed = TRUE;
 		}
-		else
-		if (localize_needed)
+		else if (localize_needed)
 		{
-			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
+			wstrlen = utf8_to_wcs_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
 			allocbuf = (wchar_t *) malloc(sizeof(wchar_t) * (wstrlen + 1));
-			wstrlen = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) allocbuf, wstrlen + 1, FALSE);
-			len = wstrtomsg(allocbuf, (int) wstrlen, NULL, 0);
+			wstrlen = utf8_to_wcs_lf(neut_str, SQL_NTS, lf_conv, allocbuf, wstrlen + 1, FALSE);
+			len = wstrtomsg(allocbuf, NULL, 0);
 			changed = TRUE;
 		}
 		else
@@ -959,6 +1002,11 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 				break;
 #endif /* UNICODE_SUPPORT */
 			case SQL_C_BINARY:
+				/*
+				 * Though Binary doesn't have NULL terminator,
+				 * wstrtomsg() needs output buffer for NULL terminator
+				 */
+				len_for_wcs_term = 1;
 				break;
 			default:
 				needbuflen++;
@@ -967,7 +1015,7 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 		{
 			if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
 			{
-				pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen);
+				pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen + len_for_wcs_term);
 				pgdc->ttlbuflen = needbuflen;
 			}
 #ifdef	UNICODE_SUPPORT
@@ -979,7 +1027,20 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 					len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
 				}
 				else
-					utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, len / WCLEN, FALSE);
+				{
+					if (!hybrid)	/* normally */
+						utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, ucount, FALSE);
+					else /* hybrid */
+					{
+						mylog("%s:hybrid convert\n", __FUNCTION__);
+						if (WCSTYPE_UTF16_LE == wcstype)
+							msgtowstr(neut_str, (wchar_t *) pgdc->ttlbuf, (int) ucount + 1);
+						else
+						{
+							utf8_to_ucs2_lf((char *) allocbuf, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, ucount, FALSE);
+						}
+					}
+				}
 			}
 			else
 #endif /* UNICODE_SUPPORT */
@@ -1000,7 +1061,8 @@ mylog("%s;type=%d localize=%d\n", __FUNCTION__, fCType, localize_needed);
 #ifdef	UNICODE_SUPPORT
 			if (localize_needed)
 			{
-				len = wstrtomsg(allocbuf, (int) wstrlen, pgdc->ttlbuf, (int) pgdc->ttlbuflen);
+				len = wstrtomsg(allocbuf, pgdc->ttlbuf, (int) pgdc->ttlbuflen + len_for_wcs_term);
+				pgdc->ttlbuflen = len;
 				free(allocbuf);
 				allocbuf = NULL;
 			}
@@ -1111,7 +1173,7 @@ cleanup:
 		free(allocbuf);
 #endif /* UNICODE_SUPPORT */
 
-	*length = len;
+	*length_return = len;
 	return result;
 }
 
@@ -1145,7 +1207,7 @@ copy_and_convert_field(StatementClass *stmt,
 	int			bind_size = opts->bind_size;
 	int			result = COPY_OK;
 	const ConnectionClass	*conn = SC_get_conn(stmt);
-	BOOL	text_handling, localize_needed;
+	BOOL	text_handling;
 	const char *neut_str = value;
 	char		booltemp[3];
 	char		midtemp[64];
@@ -1474,7 +1536,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
 
-	text_handling = localize_needed = FALSE;
+	text_handling = FALSE;
 	switch (fCType)
 	{
 		case INTERNAL_ASIS_TYPE:
@@ -1500,13 +1562,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 					break;
 			}
 			break;
-	}
-	if (text_handling)
-	{
-#ifdef	UNICODE_SUPPORT
-		if (SQL_C_CHAR == fCType || SQL_C_BINARY == fCType)
-			localize_needed = TRUE;
-#endif /* UNICODE_SUPPORT */
 	}
 
 	if (text_handling)
@@ -1577,7 +1632,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				neut_str = midtemp;
 				/* fall through */
 			default:
-				result = convert_text_field_to_sql_c(gdata, stmt->current_col, neut_str, field_type, fCType, rgbValueBindRow, cbValueMax, localize_needed, conn->connInfo.lf_conversion, &len);
+				result = convert_text_field_to_sql_c(gdata, stmt->current_col, neut_str, field_type, fCType, rgbValueBindRow, cbValueMax, conn, &len);
 		}
 
 	}
@@ -4077,6 +4132,13 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	BOOL		final_binary_convert = FALSE;
 	RETCODE		retval = SQL_ERROR;
 
+#ifdef	UNICODE_SUPPORT
+	BOOL	wcs_debug = conn->connInfo.wcs_debug;
+	BOOL	is_utf8 = (UTF8 == conn->ccsc);
+	BOOL	same_encoding = (conn->ccsc == pg_CS_code(conn->locale_encoding));
+	int	wcstype = get_wcstype();
+#endif
+
 	*isnull = FALSE;
 	*isbinary = FALSE;
 	*pgType = 0;
@@ -4308,15 +4370,16 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			break;
 		case SQL_C_CHAR:
 #ifdef	UNICODE_SUPPORT
-			if (WCSTYPE_UTF16_LE == get_wcstype())
+			if ((!same_encoding || wcs_debug) &&
+			    wcstype > 0)
 			{
 				if (SQL_NTS == used)
 					used = strlen(buffer);
-				allocbuf = malloc(WCLEN * (used + 1));
+				allocbuf = malloc(sizeof(wchar_t) * (used + 1));
 				if (allocbuf)
 				{
-					used = msgtowstr(buffer, (int) used, (wchar_t *) allocbuf, (int) (used + 1));
-					buf = ucs2_to_utf8((SQLWCHAR *) allocbuf, used, &used, FALSE);
+					used = msgtowstr(buffer, (wchar_t *) allocbuf, used + 1);
+					buf = wcs_to_utf8((const wchar_t *) allocbuf, used, &used, FALSE);
 					free(allocbuf);
 					allocbuf = buf;
 				}
@@ -4329,7 +4392,25 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 #ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
 mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, used);
-			buf = allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used > 0 ? used / WCLEN : used, &used, FALSE);
+			allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used > 0 ? used / WCLEN : used, &used, FALSE);
+			if ((!is_utf8 || (same_encoding && wcs_debug)) &&
+				   wcstype > 0)	/* hybrid case */
+			{
+				ssize_t	wstrlen = ucs2strlen((SQLWCHAR *) buffer);
+				size_t	allen = (wstrlen + 1) * sizeof(wchar_t);
+				BOOL	lf_conv = conn->connInfo.lf_conversion;
+				wchar_t *al1;
+
+				mylog("%s:hybrid convert wstrlen=%d\n", __FUNCTION__, wstrlen);
+				al1 = (wchar_t *) malloc(allen);
+				wstrlen = utf8_to_wcs_lf(allocbuf, SQL_NTS, lf_conv, al1, allen, FALSE);
+				free(allocbuf);
+				allen = 4 * wstrlen;
+				allocbuf = malloc(allen + 1);
+				used = wstrtomsg(al1, allocbuf, allen + 1);
+			}
+			buf = allocbuf;
+
 			/* used *= WCLEN; */
 			break;
 #endif /* UNICODE_SUPPORT */

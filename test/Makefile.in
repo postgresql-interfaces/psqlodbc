@@ -48,6 +48,9 @@ exe/common.o: src/common.c
 	@if test ! -d exe; then mkdir -p exe; fi
 	$(COMPILE.c) -c $< -o $@
 
+$(origdir)/src/wchar-char-test.c: $(wildcard $(origdir)/src/wchar-char-test-*.c)
+	@touch -c $@
+
 # For each test, compile the .c file.
 exe/%-test: src/%-test.c exe/common.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o exe/$*-test $(LIBODBC)

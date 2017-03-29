@@ -1,5 +1,5 @@
 
-static int utf8_test(HSTMT hstmt)
+static int utf8_test_one(HSTMT hstmt)
 {
 	int rc;
 
@@ -8,7 +8,8 @@ static int utf8_test(HSTMT hstmt)
 	SQLWCHAR	wchar[100];
 	SQLCHAR		str[100];
 	SQLCHAR		chardt[100];
-	SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？'");
+	// SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂𪘚𪚲'");
+	SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂'");
 
 	rc = SQLBindCol(hstmt, 1, SQL_C_CHAR, (SQLPOINTER) chardt, sizeof(chardt), &ind);
 	CHECK_STMT_RESULT(rc, "SQLBindCol to SQL_C_CHAR failed", hstmt);
@@ -41,12 +42,23 @@ static int utf8_test(HSTMT hstmt)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_WCHAR", hstmt);
 	while (SQL_SUCCEEDED(rc = SQLFetch(hstmt)))
 	{
-		int	i;
-		for (i = 0; wchar[i]; i++)
-			printf("U+%02X%02X", (unsigned short) wchar[i] / 256, wchar[i] % 256);
-		printf("\n");
-		// wprintf(L"Unicode=%ls\n", wchar);
+		print_utf16_le(wchar);
 	}
+	SQLFreeStmt(hstmt, SQL_CLOSE);
+
+	return rc;
+}
+
+int static utf8_test(HSTMT hstmt)
+{
+	int rc;
+
+	rc = SQLSetConnectAttr(conn, 65548, (SQLPOINTER) 0, 0);
+	printf("\t*** wcs_debug = 0 ***\n");
+	rc = utf8_test_one(hstmt);
+	rc = SQLSetConnectAttr(conn, 65548, (SQLPOINTER) 1, 0);
+	printf("\t*** wcs_debug = 1 ***\n");
+	rc = utf8_test_one(hstmt);
 
 	return rc;
 }

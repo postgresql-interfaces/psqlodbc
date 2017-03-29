@@ -468,7 +468,7 @@ test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 	makeConnectString(out_conn, ci, sizeof(out_conn));
 mylog("conn_string=%s\n", out_conn);
 #ifdef	UNICODE_SUPPORT
-	msgtowstr(out_conn, strlen(out_conn), wout_conn, _countof(wout_conn));
+	msgtowstr(out_conn, wout_conn, _countof(wout_conn));
 	conn_str = wout_conn;
 #else
 	conn_str = out_conn;

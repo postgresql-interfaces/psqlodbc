@@ -20,6 +20,20 @@
 #define stricmp strcasecmp
 #endif
 
+static void
+print_utf16_le(const SQLWCHAR *wdt)
+{
+	int	i;
+	unsigned char *ucdt;
+
+	for (i = 0; wdt[i]; i++)
+	{
+		ucdt = (unsigned char *) &wdt[i];
+		printf("U+%02X%02X", ucdt[1], ucdt[0]);
+	}
+	printf("\n");
+}
+
 #include	"wchar-char-test-sjis.c"
 #include	"wchar-char-test-utf8.c"
 

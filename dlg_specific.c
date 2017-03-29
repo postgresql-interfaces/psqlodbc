@@ -847,6 +847,15 @@ getDSNdefaults(ConnInfo *ci)
 		ci->ignore_round_trip_time = 0;
 	if (ci->disable_keepalive < 0)
 		ci->disable_keepalive = 0;
+	if (ci->wcs_debug < 0)
+	{
+		const char *p;
+
+		ci->wcs_debug = 0;
+		if (p =getenv("PSQLODBC_WCS_DEBUG"))
+			if (strcmp(p, "1") == 0)
+				ci->wcs_debug = 1;
+	}
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (ci->xa_opt < 0)
 		ci->xa_opt = DEFAULT_XAOPT;
@@ -1850,6 +1859,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->gssauth_use_gssapi = -1;
 	conninfo->keepalive_idle = -1;
 	conninfo->keepalive_interval = -1;
+	conninfo->wcs_debug = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
