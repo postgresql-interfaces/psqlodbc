@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 		}
 		if (testsw < 0)
 		{
-			printf("can't handle this locale\n");
+			printf("Unfortunately can't handle this locale\n");
 			exit(1);
 		}
 	}
@@ -77,11 +77,11 @@ int main(int argc, char **argv)
 	switch (testsw)
 	{
 		case SJIS_TEST:
-			fprintf(stderr, "SJIS test\n");
+			printf("SJIS test\n");
 			rc = sjis_test(hstmt);
 			break;
 		case UTF8_TEST:
-			fprintf(stderr, "UTF8 test\n");
+			printf("UTF8 test\n");
 			rc = utf8_test(hstmt);
 			break;
 	}
