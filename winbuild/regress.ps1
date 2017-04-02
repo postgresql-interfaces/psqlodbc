@@ -314,7 +314,7 @@ if ($target -ieq "Build&Go") {
 if ($Ansi) {
 	write-host ** testing Ansi driver **
 	$testdriver="postgres_deva"
-	$testdsn="psqlodbc_test_dsna"
+	$testdsn="psqlodbc_test_dsn_ansi"
 	$ansi_dir_part="ANSI"
 	$dllname="psqlsetupa.dll"
 	$setup="psqlsetupa.dll"

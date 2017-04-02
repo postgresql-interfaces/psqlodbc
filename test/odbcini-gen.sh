@@ -72,7 +72,7 @@ done
 
 # ANSI
 cat << _EOT_ >> $outini
-[psqlodbc_test_dsna]
+[psqlodbc_test_dsn_ansi]
 Description             = psqlodbc ansi regression test DSN
 Driver          = PostgreSQL ANSI
 Trace           = No
