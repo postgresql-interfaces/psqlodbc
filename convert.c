@@ -4398,12 +4398,11 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			{
 				ssize_t	wstrlen = ucs2strlen((SQLWCHAR *) buffer);
 				size_t	allen = (wstrlen + 1) * sizeof(wchar_t);
-				BOOL	lf_conv = conn->connInfo.lf_conversion;
 				wchar_t *al1;
 
 				mylog("%s:hybrid convert wstrlen=%d\n", __FUNCTION__, wstrlen);
 				al1 = (wchar_t *) malloc(allen);
-				wstrlen = utf8_to_wcs_lf(allocbuf, SQL_NTS, lf_conv, al1, allen, FALSE);
+				wstrlen = utf8_to_wcs_lf(allocbuf, SQL_NTS, FALSE, al1, allen, FALSE);
 				free(allocbuf);
 				allen = 4 * wstrlen;
 				allocbuf = malloc(allen + 1);
