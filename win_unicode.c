@@ -580,6 +580,7 @@ int get_wcstype(void)
 
 	if (wcstype >= 0)
 		return wcstype;
+#if defined(__STDC_ISO_10646__) || defined(WIN32)
 	wdt = L"a";
 	cdt = (UCHAR *) wdt;
 	switch (sizeof_w)
@@ -609,6 +610,7 @@ int get_wcstype(void)
 			}
 			break;
 	}
+#endif /* __STDC_ISO_10646__ */
 	if (wcstype < 0)
 		wcstype = WCSTYPE_UNKNOWN;	/* unknown */
 	return wcstype;
@@ -654,7 +656,7 @@ char *wcs_to_utf8(const wchar_t *wcsstr, SQLLEN ilen, SQLLEN *olen, BOOL lower_i
  */
 int msgtowstr(const char *inmsg, wchar_t *outmsg, int buflen)
 {
-	int	outlen = 0;
+	int	outlen = -1;
 
 mylog(" %s:inmsg=%p buflen=%d\n", __FUNCTION__, inmsg, buflen);
 #ifdef	WIN32
@@ -668,9 +670,11 @@ mylog(" %s:inmsg=%p buflen=%d\n", __FUNCTION__, inmsg, buflen);
 			| MB_ERR_INVALID_CHARS, inmsg, -1, NULL, 0) - 1;
 #else
 #ifdef	HAVE_MBSTOWCS
+#ifdef  __STDC_ISO_10646__
 	if (0 == buflen)
 		outmsg = NULL;
 	outlen = mbstowcs((wchar_t *) outmsg, inmsg, buflen);
+#endif /* __STDC_ISO_10646__ */
 #endif /* HAVE_MBSTOWCS */
 #endif /* WIN32 */
 	if (outmsg && outlen >= buflen)
@@ -694,7 +698,7 @@ mylog(" %s in=%dchars out=%dchars\n", __FUNCTION__, buflen, outlen);
  */
 int wstrtomsg(const wchar_t *wstr, char *outmsg, int buflen)
 {
-	int	outlen = 0;
+	int	outlen = -1;
 
 mylog(" %s:wstr=%p buflen=%d\n", __FUNCTION__, wstr, buflen);
 #ifdef	WIN32
@@ -706,9 +710,11 @@ mylog(" %s:wstr=%p buflen=%d\n", __FUNCTION__, wstr, buflen);
 		outlen = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL) - 1;
 #else
 #ifdef	HAVE_MBSTOWCS
+#ifdef  __STDC_ISO_10646__
 	if (0 == buflen)
 		outmsg = NULL;
 	outlen = wcstombs(outmsg, wstr, buflen);
+#endif /* __STDC_ISO_10646__ */
 #endif /* HAVE_MBSTOWCS */
 #endif /* WIN32 */
 	if (outmsg && outlen >= buflen)
