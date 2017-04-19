@@ -2031,9 +2031,10 @@ static void getTid(const QResultClass *res, SQLLEN index, UInt4 *blocknum, UInt2
 	*blocknum = res->keyset[index].blocknum;
 	*offset = res->keyset[index].offset;
 }
-static void KeySetSet(const TupleField *tuple, int num_fields, int num_key_fields, KeySet *keyset)
+static void KeySetSet(const TupleField *tuple, int num_fields, int num_key_fields, KeySet *keyset, BOOL statusInit)
 {
-	keyset->status = 0;
+	if (statusInit)
+		keyset->status = 0;
 	sscanf(tuple[num_fields - num_key_fields].value, "(%u,%hu)",
 			&keyset->blocknum, &keyset->offset);
 	if (num_key_fields > 1)
@@ -2259,7 +2260,7 @@ inolog("AddAdded index=%d, tuple=%p, num_fields=%d\n", index, tuple_added, num_f
 		index = -(SQLLEN)res->ad_count;
 	if (!tuple_added)
 		return;
-	KeySetSet(tuple_added, num_fields + res->num_key_fields, res->num_key_fields, &keys);
+	KeySetSet(tuple_added, num_fields + res->num_key_fields, res->num_key_fields, &keys, TRUE);
 	keys.status = SQL_ROW_ADDED;
 	if (CC_is_in_trans(SC_get_conn(stmt)))
 		keys.status |= CURS_SELF_ADDING;
@@ -3249,7 +3250,7 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 			if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
 				strcmp(tuple_new[qres->num_fields - res->num_key_fields].value, tidval))
 				res->keyset[kres_ridx].status |= SQL_ROW_UPDATED;
-			KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
+			KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx, FALSE);
 			MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
 		}
 		ret = SQL_SUCCESS;
@@ -3770,7 +3771,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 					QR_REALLOC_return_with_error(res->keyset, KeySet, sizeof(KeySet) * tuple_size, res, "pos_newload failed", SQL_ERROR);
 					res->count_keyset_allocated = tuple_size;
 				}
-				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx);
+				KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx, TRUE);
 				res->num_cached_keys++;
 			}
 			if (appendData)
@@ -3833,7 +3834,7 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLULEN gl
 				if (NULL != tres->backend_tuples &&
 				    1 == QR_get_num_cached_tuples(tres))
 				{
-					KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys);
+					KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys, TRUE);
 					if (SQL_SUCCEEDED(ret = SC_pos_reload_with_key(stmt, global_ridx, (UInt2 *) 0, SQL_UPDATE, &keys)))
 						AddRollback(stmt, SC_get_Curres(stmt), global_ridx, old_keyset, SQL_UPDATE);
 				}
@@ -4305,7 +4306,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 			if (NULL != tres->backend_tuples &&
 			    1 == QR_get_num_cached_tuples(tres))
 			{
-				KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys);
+				KeySetSet(tres->backend_tuples, QR_NumResultCols(tres), QR_NumResultCols(tres), &keys, TRUE);
 				oid = keys.oid;
 				snprintf(tidv, sizeof(tidv), "(%u,%hu)", keys.blocknum, keys.offset);
 				tidval = tidv;
