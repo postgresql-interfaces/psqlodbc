@@ -4800,6 +4800,27 @@ PGAPI_ForeignKeys(HSTMT hstmt,
 
 #define	PRORET_COUNT
 #define	DISPLAY_ARGNAME
+static BOOL
+has_outparam(const char *proargmodes)
+{
+	const char *ptr;
+
+	if (!proargmodes)
+		return FALSE;
+	for (ptr = proargmodes; *ptr; ptr++)
+	{
+		switch (*ptr)
+		{
+			case 'o':
+			case 'b':
+			case 't':
+				return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 RETCODE		SQL_API
 PGAPI_ProcedureColumns(HSTMT hstmt,
 					   const SQLCHAR * szProcQualifier, /* OA X*/
@@ -4829,7 +4850,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	OID			pgtype;
 	Int4		paramcount, column_size, i, j;
 	RETCODE		result;
-	BOOL		search_pattern, bRetset;
+	BOOL		search_pattern, bRetset, outpara_exist;
 	const char	*like_or_eq, *op_string, *retset;
 	int		ret_col = -1, ext_pos = -1, poid_pos = -1, attid_pos = -1, attname_pos = -1;
 	UInt4		poid = 0, newpoid;
@@ -4963,6 +4984,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 		retset = QR_get_value_backend_text(tres, i, 1);
 		pgtype = QR_get_value_backend_int(tres, i, 2, NULL);
 		bRetset = retset && (retset[0] == 't' || retset[0] == 'y');
+		outpara_exist = FALSE;
 		newpoid = 0;
 		if (poid_pos >= 0)
 			newpoid = QR_get_value_backend_int(tres, i, poid_pos, NULL);
@@ -4987,8 +5009,9 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 				if (PG_VERSION_GE(conn, 8.1))
 					proargmodes = QR_get_value_backend_text(tres, i, ext_pos + 1);
 			}
+			outpara_exist = has_outparam(proargmodes);
 			/* RETURN_VALUE info */
-			if (0 != pgtype && PG_TYPE_VOID != pgtype && !bRetset && !atttypid && !proargmodes)
+			if (0 != pgtype && PG_TYPE_VOID != pgtype && !bRetset && !atttypid && !outpara_exist)
 			{
 				tuple = QR_AddNew(res);
 				set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_CAT], CurrCat(conn));
@@ -5106,7 +5129,8 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 					switch (*proargmodes)
 					{
 						case 'o':
-							ptype = SQL_PARAM_OUTPUT;
+						case 't':
+							ptype = bRetset ? SQL_RESULT_COL : SQL_PARAM_OUTPUT;
 							break;
 						case 'b':
 							ptype = SQL_PARAM_INPUT_OUTPUT;
@@ -5138,11 +5162,12 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			}
 		}
 		/* RESULT Columns info */
-		if (NULL != atttypid || bRetset)
+		if (!outpara_exist &&
+		    (NULL != atttypid || bRetset))
 		{
 			int	typid;
 
-			if (bRetset)
+			if (!atttypid)
 			{
 				typid = pgtype;
 				attname = NULL;
@@ -5157,7 +5182,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_nullfield_string(&tuple[PROCOLS_PROCEDURE_SCHEM], schema_name);
 			set_tuplefield_string(&tuple[PROCOLS_PROCEDURE_NAME], procname);
 			set_tuplefield_string(&tuple[PROCOLS_COLUMN_NAME], attname);
-			set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], SQL_RESULT_COL);
+			set_tuplefield_int2(&tuple[PROCOLS_COLUMN_TYPE], bRetset ? SQL_RESULT_COL : SQL_PARAM_OUTPUT);
 			set_tuplefield_int2(&tuple[PROCOLS_DATA_TYPE], PGTYPE_TO_CONCISE_TYPE(conn, typid));
 			set_tuplefield_string(&tuple[PROCOLS_TYPE_NAME], PGTYPE_TO_NAME(conn, typid, FALSE));
 			column_size = PGTYPE_COLUMN_SIZE(conn, typid);

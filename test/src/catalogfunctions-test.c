@@ -28,6 +28,7 @@ main(int argc, char **argv)
 	/* Cases where output is limited to relevant information only */
 	SQLSMALLINT sql_tab_privileges_ids[6] = {1, 2, 3, 4, 6, 7};
 	SQLSMALLINT sql_column_ids[6] = {1, 2, 3, 4, 5, 6};
+	SQLSMALLINT sql_pro_column_ids[] = {1, 2, 3, 4, 5, 6, 7};
 	char		buf[1000];
 	char		username[100];
 	SQLSMALLINT	len;
@@ -174,6 +175,67 @@ main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
 	print_result_meta(hstmt);
 	print_result(hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*
+	 * Check for SQLProcedureColumns for a function
+	 * 	returning normal type
+	 */
+	rc = SQLProcedureColumns(hstmt, NULL, 0,
+				 NULL, 0,
+				 (SQLCHAR *) "set_byte", SQL_NTS,
+				 NULL, 0);
+	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
+	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*
+	 * Check for SQLProcedureColumns for a function
+	 * 	returning composite type
+	 */
+	rc = SQLProcedureColumns(hstmt, NULL, 0,
+				 (SQLCHAR *) "public", SQL_NTS,
+				 (SQLCHAR *) "getfoo", SQL_NTS,
+				 NULL, 0);
+	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
+	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*
+	 * Check for SQLProcedureColumns for a function
+	 * 	returning setof composite type
+	 */
+	rc = SQLProcedureColumns(hstmt, NULL, 0,
+				 (SQLCHAR *) "public", SQL_NTS,
+				 (SQLCHAR *) "getboo", SQL_NTS,
+				 NULL, 0);
+	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
+	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*
+	 * Check for SQLProcedureColumns for a function
+	 * 	returning table
+	 */
+	rc = SQLProcedureColumns(hstmt, NULL, 0,
+				 (SQLCHAR *) "public", SQL_NTS,
+				 (SQLCHAR *) "tbl_arg", SQL_NTS,
+				 NULL, 0);
+	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
+	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*
+	 * Check for SQLProcedureColumns for a function with OUT
+	 * 	parameters returning setof
+	 *	This is equivalent to tbl_arg.
+	 */
+	rc = SQLProcedureColumns(hstmt, NULL, 0,
+				 (SQLCHAR *) "public", SQL_NTS,
+				 (SQLCHAR *) "set_of", SQL_NTS,
+				 NULL, 0);
+	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
+	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 

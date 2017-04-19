@@ -173,6 +173,29 @@ Result set:
 contrib_regression	public	simple_add		1	4	int4	10	4	0	10	2	NULL	NULL	4	NULL	NULL	1	
 contrib_regression	public	simple_add		1	4	int4	10	4	0	10	2	NULL	NULL	4	NULL	NULL	2	
 contrib_regression	public	simple_add		4	4	int4	10	4	0	10	2	NULL	NULL	4	NULL	NULL	3	
+Result set:
+contrib_regression	pg_catalog	set_byte		5	-4	bytea
+contrib_regression	pg_catalog	set_byte		1	-4	bytea
+contrib_regression	pg_catalog	set_byte		1	4	int4
+contrib_regression	pg_catalog	set_byte		1	4	int4
+Result set:
+contrib_regression	public	getfoo		1	4	int4
+contrib_regression	public	getfoo	id	4	4	int4
+contrib_regression	public	getfoo	t	4	12	varchar
+contrib_regression	public	getfoo	b	4	12	bool
+Result set:
+contrib_regression	public	getboo		1	4	int4
+contrib_regression	public	getboo	id	3	4	int4
+contrib_regression	public	getboo	t	3	12	varchar
+contrib_regression	public	getboo	b	3	12	bool
+Result set:
+contrib_regression	public	tbl_arg	p_f1	1	4	int4
+contrib_regression	public	tbl_arg	p_f2	3	-1	text
+contrib_regression	public	tbl_arg	p_f3	3	12	bool
+Result set:
+contrib_regression	public	set_of	p_f1	1	4	int4
+contrib_regression	public	set_of	p_f2	3	-1	text
+contrib_regression	public	set_of	p_f3	3	12	bool
 Check for SQLTablePrivileges
 Result set metadata:
 TABLE_CAT: VARCHAR(128) digits: 0, nullable

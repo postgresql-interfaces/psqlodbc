@@ -34,6 +34,16 @@ INSERT INTO booltab VALUES (5, 'not', false);
 
 -- Procedure for catalog function checks
 CREATE FUNCTION simple_add(in int, in int, out int) AS $$ SELECT $1 + $2; $$ LANGUAGE SQL;
+-- 	Function Returning composite type
+CREATE FUNCTION getfoo(int) RETURNS booltab AS $$ SELECT * FROM booltab WHERE id = $1; $$ LANGUAGE SQL;
+--	Function Returning set of composite type
+CREATE FUNCTION getboo(int) RETURNS SETOF booltab AS $$ SELECT * FROM booltab WHERE id = $1; $$ LANGUAGE SQL;
+--	Function Returning table
+CREATE FUNCTION tbl_arg(in p_f1 int) returns table(p_f2 text, p_f3 boolean) AS $$ SELECT t, b from booltab where id = p_f1; $$ LANGUAGE SQL;
+--	The previous one is equivalent to using one or more OUT parameters
+--	plus marking the function as returning SETOF record (or SETOF a single
+--	output parameter's type, as appropriate).
+CREATE FUNCTION set_of(in p_f1 int, out p_f2 text, out p_f3 boolean) returns setof record AS $$ SELECT t, b from booltab where id = p_f1; $$ LANGUAGE SQL;
 
 -- Large object support
 CREATE DOMAIN lo AS oid;
