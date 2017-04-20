@@ -90,7 +90,10 @@ int main(int argc, char **argv)
 
 	/* Do a positioned update and delete */
 	printf("\nUpdating result set\n");
-	colvalue += 100;
+	colvalue += 50;
+	rc = SQLSetPos(hstmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
+	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
+	colvalue += 50;
 	rc = SQLSetPos(hstmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
 	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
 
