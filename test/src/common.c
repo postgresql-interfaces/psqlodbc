@@ -75,7 +75,7 @@ test_connect_ext(char *extraparams)
 	if ((envvar = getenv("COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST")) != NULL && envvar[0] != '\0')
 	{
 		if (NULL == extraparams)
-			snprintf(dsn, sizeof(dsn), "DSN=%s;%s", test_dsn);
+			snprintf(dsn, sizeof(dsn), "DSN=%s;%s", test_dsn, envvar);
 		else
 			snprintf(dsn, sizeof(dsn), "DSN=%s;%s;%s;%s",
 			 test_dsn, extraparams, envvar, extraparams);
