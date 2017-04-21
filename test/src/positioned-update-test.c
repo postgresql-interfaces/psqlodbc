@@ -92,16 +92,16 @@ int main(int argc, char **argv)
 	printf("\nUpdating result set\n");
 	colvalue += 50;
 	rc = SQLSetPos(hstmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
-	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
+	CHECK_STMT_RESULT(rc, "SQLSetPos 1st UPDATE failed", hstmt);
 	colvalue += 50;
 	rc = SQLSetPos(hstmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
-	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
+	CHECK_STMT_RESULT(rc, "SQLSetPos 2nd UPDATE failed", hstmt);
 
 	rc = SQLFetch(hstmt);
 	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
 
 	rc = SQLSetPos(hstmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE);
-	CHECK_STMT_RESULT(rc, "SQLSetPos failed", hstmt);
+	CHECK_STMT_RESULT(rc, "SQLSetPos DELETE failed", hstmt);
 
 
 	/**** See if the updates are reflected in the still-open result set ***/

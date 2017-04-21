@@ -4858,6 +4858,11 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 	/* StartRollbackState(s.stmt); */
 	ret = spos_callback(SQL_SUCCESS, &s);
 #undef	return
+	if (SQL_SUCCEEDED(ret) && 0 == s.processed)
+	{
+		SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the row was deleted?", func);
+		ret = SQL_ERROR;
+	}
 	if (s.stmt->internal)
 		ret = DiscardStatementSvp(s.stmt, ret, FALSE);
 	mylog("%s returning %d\n", func, ret);
