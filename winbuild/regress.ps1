@@ -231,7 +231,7 @@ function RunTest($scriptPath, $Platform, $testexes)
 		for ($i = 0; $i -lt $cnstr.length; $i++)
 		{
 			$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $cnstr[$i]
-			write-host "env=" $env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST
+			write-host "`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
 			.\runsuite $testexes --inputdir=$origdir
 		}
 	} catch [Exception] {
