@@ -852,7 +852,7 @@ getDSNdefaults(ConnInfo *ci)
 		const char *p;
 
 		ci->wcs_debug = 0;
-		if (p =getenv("PSQLODBC_WCS_DEBUG"))
+		if (NULL != (p = getenv("PSQLODBC_WCS_DEBUG")))
 			if (strcmp(p, "1") == 0)
 				ci->wcs_debug = 1;
 	}
