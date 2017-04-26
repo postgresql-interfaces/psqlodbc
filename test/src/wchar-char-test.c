@@ -32,6 +32,7 @@ print_utf16_le(const SQLWCHAR *wdt)
 		printf("U+%02X%02X", ucdt[1], ucdt[0]);
 	}
 	printf("\n");
+	fflush(stdout);
 }
 
 #include	"wchar-char-test-sjis.c"
@@ -92,10 +93,12 @@ int main(int argc, char **argv)
 	{
 		case SJIS_TEST:
 			printf("SJIS test\n");
+			fflush(stdout);
 			rc = sjis_test(hstmt);
 			break;
 		case UTF8_TEST:
 			printf("UTF8 test\n");
+			fflush(stdout);
 			rc = utf8_test(hstmt);
 			break;
 	}

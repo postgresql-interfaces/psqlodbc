@@ -31,6 +31,7 @@ static int sjis_test(HSTMT hstmt)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_CHAR", hstmt);
 	while (SQL_SUCCEEDED(SQLFetch(hstmt)))
 		printf("ANSI=%s\n", chardt);
+	fflush(stdout);
 	SQLFreeStmt(hstmt, SQL_CLOSE);
 
 	rc = SQLBindCol(hstmt, 1, SQL_C_WCHAR, (SQLPOINTER) wchar, sizeof(wchar) / sizeof(wchar[0]), &ind);

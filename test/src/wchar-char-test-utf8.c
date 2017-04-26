@@ -32,6 +32,7 @@ static int utf8_test_one(HSTMT hstmt)
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_CHAR", hstmt);
 	while (SQL_SUCCEEDED(SQLFetch(hstmt)))
 		printf("ANSI=%s\n", chardt);
+	fflush(stdout);
 	SQLFreeStmt(hstmt, SQL_CLOSE);
 
 	rc = SQLBindCol(hstmt, 1, SQL_C_WCHAR, (SQLPOINTER) wchar, sizeof(wchar) / sizeof(wchar[0]), &ind);
@@ -55,9 +56,11 @@ int static utf8_test(HSTMT hstmt)
 
 	rc = SQLSetConnectAttr(conn, 65548, (SQLPOINTER) 0, 0);
 	printf("\t*** wcs_debug = 0 ***\n");
+	fflush(stdout);
 	rc = utf8_test_one(hstmt);
 	rc = SQLSetConnectAttr(conn, 65548, (SQLPOINTER) 1, 0);
 	printf("\t*** wcs_debug = 1 ***\n");
+	fflush(stdout);
 	rc = utf8_test_one(hstmt);
 
 	return rc;
