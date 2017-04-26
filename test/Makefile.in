@@ -15,6 +15,7 @@ TESTNAMES = $(patsubst exe/%-test,%, $(TESTBINS))
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
 CFLAGS = @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
 ODBC_CONFIG = @ODBC_CONFIG@
 PROVE = @PROVE@
 
@@ -42,7 +43,7 @@ override CFLAGS += -Wno-pointer-sign $(CFLAGS_ADD)
 runsuite: runsuite.c
 
 reset-db: reset-db.c exe/common.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBODBC)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBODBC)
 
 exe/common.o: src/common.c
 	@if test ! -d exe; then mkdir -p exe; fi
@@ -53,7 +54,7 @@ $(origdir)/src/wchar-char-test.c: $(wildcard $(origdir)/src/wchar-char-test-*.c)
 
 # For each test, compile the .c file.
 exe/%-test: src/%-test.c exe/common.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o exe/$*-test $(LIBODBC)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $^ -o exe/$*-test $(LIBODBC)
 
 # This target runs the regression tests with all combinations of
 # UseDeclareFetch, UseServerSidePrepare and Protocol options.

@@ -211,7 +211,7 @@ AC_CHECK_LIB(pq, PQsetSingleRowMode, [],
 
 # 3. Header files
 
-AC_CHECK_HEADERS(locale.h sys/time.h)
+AC_CHECK_HEADERS(locale.h sys/time.h uchar.h)
 AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
 AC_HEADER_TIME
 
