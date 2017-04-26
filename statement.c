@@ -1729,6 +1729,11 @@ inolog("curt=%d\n", curt);
 					result = SQL_SUCCESS_WITH_INFO;
 					break;
 
+				case COPY_INVALID_STRING_CONVERSION:    /* invalid string */
+					SC_set_error(self, STMT_STRING_CONVERSION_ERROR, "invalid string conversion occured.", func);
+					result = SQL_ERROR;
+					break;
+
 					/* error msg already filled in */
 				case COPY_GENERAL_ERROR:
 					result = SQL_ERROR;

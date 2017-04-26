@@ -265,7 +265,10 @@ extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
 
 #define DRIVER_ODBC_VER				"03.51"
 
-#ifndef	UNICODE_SUPPORT
+#ifdef	UNICODE_SUPPORT
+#define WCLEN	sizeof(SQLWCHAR)
+SQLULEN ucs2strlen(const SQLWCHAR *);
+#else
 #undef	SQL_WCHAR
 #undef	SQL_WVARCHAR
 #undef	SQL_WLONGVARCHAR
@@ -618,23 +621,6 @@ void	CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci);
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 const pthread_mutexattr_t *getMutexAttr(void);
 #endif /* POSIX_THREADMUTEX_SUPPORT */
-#ifdef	UNICODE_SUPPORT
-#define WCLEN sizeof(SQLWCHAR)
-enum {
-	WCSTYPE_UNKNOWN
-	,WCSTYPE_UTF16_LE
-	,WCSTYPE_UTF32_LE
-	};
-SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str);
-char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
-SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen, BOOL errcheck);
-int	get_wcstype(void);
-int	msgtowstr(const char *, wchar_t *, int);
-int	wstrtomsg(const wchar_t *, char *, int);
-char	*wcs_to_utf8(const wchar_t *wcsstr, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
-SQLULEN	utf8_to_wcs_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, wchar_t *wcsstr, SQLULEN buflen, BOOL errcheck);
-#define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen, FALSE)
-#endif /* UNICODE_SUPPORT */
 
 /* Define a type for defining a constant string expression */
 #ifndef	CSTR

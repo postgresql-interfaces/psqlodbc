@@ -9,10 +9,88 @@
 
 #ifdef	UNICODE_SUPPORT
 
-#include "psqlodbc.h"
+#include "unicode_support.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+#if (defined(__STDC_ISO_10646__) && defined(HAVE_MBSTOWCS) && defined(HAVE_WCSTOMBS)) || defined(WIN32)
+#define	__WCS_ISO10646__
+static	BOOL	use_wcs = FALSE;
+#endif
+
+#if (defined(__STDC_UTF_16__) && defined(HAVE_UCHAR_H) && defined(HAVE_MBRTOC16) && defined(HAVE_C16RTOMB))
+#define	__CHAR16_UTF_16__
+#include <uchar.h>
+static	BOOL	use_c16 = FALSE;
+#endif
+
+static	int	convtype = -1;
+
+int get_convtype(void)
+{
+	const UCHAR *cdt;
+
+#if defined(__WCS_ISO10646__)
+	if (convtype < 0)
+	{
+		wchar_t *wdt = L"a";
+		int sizeof_w = sizeof(wchar_t);
+
+		cdt = (UCHAR *) wdt;
+		switch (sizeof_w)
+		{
+			case 2:
+				if ('a'  == cdt[0] &&
+				    '\0' == cdt[1] &&
+				    '\0' == cdt[2] &&
+				    '\0' == cdt[3])
+				{
+					mylog(" %s:UTF-16LE detected\n", __FUNCTION__);
+					convtype = WCSTYPE_UTF16_LE;
+					use_wcs = TRUE;
+				}
+				break;
+			case 4:
+				if ('a'  == cdt[0] &&
+				    '\0' == cdt[1] &&
+				    '\0' == cdt[2] &&
+				    '\0' == cdt[3] &&
+				    '\0' == cdt[4] &&
+				    '\0' == cdt[5] &&
+				    '\0' == cdt[6] &&
+				    '\0' == cdt[7])
+				{
+					mylog(" %s:UTF32-LE detected\n", __FUNCTION__);
+					convtype = WCSTYPE_UTF32_LE;
+					use_wcs = TRUE;
+				}
+				break;
+		}
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (convtype < 0)
+	{
+		char16_t *c16dt = u"a";
+
+		cdt = (UCHAR *) c16dt;
+		if ('a'  == cdt[0] &&
+		    '\0' == cdt[1] &&
+		    '\0' == cdt[2] &&
+		    '\0' == cdt[3])
+		{
+			mylog(" %s:C16_UTF-16LE detected\n", __FUNCTION__);
+			convtype = C16TYPE_UTF16_LE;
+			use_c16 = TRUE;
+		}
+	}
+#endif /* __CHAR16_UTF_16__ */
+	if (convtype < 0)
+		convtype = CONVTYPE_UNKNOWN;	/* unknown */
+	return convtype;
+}
+
 
 #define	byte3check	0xfffff800
 #define	byte2_base	0x80c0
@@ -311,6 +389,8 @@ cleanup:
 }
 
 
+#ifdef	__WCS_ISO10646__
+
 /* UCS4 => utf8 */
 #define	byte4check	0xffff0000
 #define	byte4_check	0x10000
@@ -572,57 +652,122 @@ mylog(" %s:ocount=%d\n", __FUNCTION__, ocount);
 	return rtn;
 }
 
-static	int	wcstype = -1;
+#define	SURROGATE_CHECK	0xfc
+#define	SURROG1_BYTE	0xd8
+#define	SURROG2_BYTE	0xdc
 
-int get_wcstype(void)
+static
+int ucs4_to_ucs2_lf(const unsigned int *ucs4str, SQLLEN ilen, SQLWCHAR *ucs2str, int bufcount, BOOL lfconv)
 {
-	wchar_t	*wdt;
-	int sizeof_w = sizeof(wchar_t);
-	const UCHAR *cdt;
+	int outlen = 0, i;
+	UCHAR		*ucdt;
+	SQLWCHAR	*sqlwdt, dmy_wchar;
+	UCHAR * const udt = (UCHAR *) &dmy_wchar;
+	unsigned int	uintdt;
 
-	if (wcstype >= 0)
-		return wcstype;
-#if defined(__STDC_ISO_10646__) || defined(WIN32)
-	wdt = L"a";
-	cdt = (UCHAR *) wdt;
-	switch (sizeof_w)
+mylog(" %s:ilen=%d bufcount=%d\n", __FUNCTION__, ilen, bufcount);
+	if (ilen < 0)
+		ilen = ucs4strlen(ucs4str);
+	for (i = 0; i < ilen && (uintdt = ucs4str[i]); i++)
 	{
-		case 2:
-			if ('a'  == cdt[0] &&
-			    '\0' == cdt[1] &&
-			    '\0' == cdt[2] &&
-			    '\0' == cdt[3])
+		sqlwdt = (SQLWCHAR *)&uintdt;
+		ucdt = (UCHAR *)&uintdt;
+		if (0 == sqlwdt[1])
+		{
+			if (lfconv && PG_LINEFEED == ucdt[0] &&
+				(i == 0 ||
+					PG_CARRIAGE_RETURN != *((UCHAR *)&ucs4str[i - 1]))
+				)
 			{
-				mylog(" %s:UTF-16LE detected\n", __FUNCTION__);
-				wcstype = WCSTYPE_UTF16_LE;
+				if (outlen < bufcount)
+				{
+					udt[0] = PG_CARRIAGE_RETURN;
+					udt[1] = 0;
+					ucs2str[outlen] = *((SQLWCHAR *) udt);
+				}
+				outlen++;
 			}
-			break;
-		case 4:
-			if ('a'  == cdt[0] &&
-			    '\0' == cdt[1] &&
-			    '\0' == cdt[2] &&
-			    '\0' == cdt[3] &&
-			    '\0' == cdt[4] &&
-			    '\0' == cdt[5] &&
-			    '\0' == cdt[6] &&
-			    '\0' == cdt[7])
-			{
-				mylog(" %s:UTF32-LE detected\n", __FUNCTION__);
-				wcstype = WCSTYPE_UTF32_LE;
-			}
-			break;
+			if (outlen < bufcount)
+				ucs2str[outlen] = sqlwdt[0];
+			outlen++;
+			continue;
+		}
+		sqlwdt[1]--;
+		udt[0] = ((0xfc & ucdt[1]) >> 2) | ((0x3 & ucdt[2]) << 6);
+		//	printf("%02x", udt[0]);
+		udt[1] = SURROG1_BYTE | ((0xc & ucdt[2]) >> 2);
+		//	printf("%02x", udt[1]);
+		if (outlen < bufcount)
+			ucs2str[outlen] = *((SQLWCHAR *)udt);
+		outlen++;
+		udt[0] = ucdt[0];
+		//	printf("%02x", udt[0]);
+		udt[1] = SURROG2_BYTE | (0x3 & ucdt[1]);
+		//	printf("%02x\n", udt[1]);
+		if (outlen < bufcount)
+			ucs2str[outlen] = *((SQLWCHAR *)udt);
+		outlen++;
 	}
-#endif /* __STDC_ISO_10646__ */
-	if (wcstype < 0)
-		wcstype = WCSTYPE_UNKNOWN;	/* unknown */
-	return wcstype;
-}
+	if (outlen < bufcount)
+		ucs2str[outlen] = 0;
 
-SQLULEN
+	return outlen;
+}
+static
+int ucs2_to_ucs4(const SQLWCHAR *ucs2str, SQLLEN ilen, unsigned int *ucs4str, int bufcount)
+{
+	int			outlen = 0, i;
+	UCHAR		*ucdt;
+	SQLWCHAR	sqlwdt;
+	unsigned int	dmy_uint;
+	UCHAR * const udt = (UCHAR *) &dmy_uint;
+
+mylog(" %s:ilen=%d bufcount=%d\n", __FUNCTION__, ilen, bufcount);
+	if (ilen < 0)
+		ilen = ucs2strlen(ucs2str);
+	udt[3] = 0;	/* always */
+	for (i = 0; i < ilen && (sqlwdt = ucs2str[i]); i++)
+	{
+		ucdt = (UCHAR *)(ucs2str + i);
+		//	printf("IN=%x\n", sqlwdt);
+		if ((ucdt[1] & SURROGATE_CHECK) != SURROG1_BYTE)
+		{
+			//	printf("SURROG1=%2x\n", ucdt[1] & SURROG1_BYTE);
+			if (outlen < bufcount)
+			{
+				udt[0] = ucdt[0];
+				udt[1] = ucdt[1];
+				udt[2] = 0;
+				ucs4str[outlen] = *((unsigned int *)udt);
+			}
+			outlen++;
+			continue;
+		}
+		/* surrogate pair */
+		udt[0] = ucdt[2];
+		udt[1] = (ucdt[3] & 0x3) | ((ucdt[0] & 0x3f) << 2);
+		udt[2] = (((ucdt[0] & 0xc0) >> 6) | ((ucdt[1] & 0x3) << 2)) + 1;
+		// udt[3] = 0; needless
+		if (outlen < bufcount)
+			ucs4str[outlen] = *((unsigned int *)udt);
+		outlen++;
+		i++;
+	}
+	if (outlen < bufcount)
+		ucs4str[outlen] = 0;
+
+	return outlen;
+}
+#endif /* __WCS_ISO10646__ */
+
+
+#if defined(__WCS_ISO10646__)
+
+static SQLULEN
 utf8_to_wcs_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				wchar_t *wcsstr, SQLULEN bufcount, BOOL errcheck)
 {
-	switch (get_wcstype())
+	switch (get_convtype())
 	{
 		case WCSTYPE_UTF16_LE:
 			return utf8_to_ucs2_lf(utf8str, ilen, lfconv,
@@ -634,9 +779,10 @@ utf8_to_wcs_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 	return -1;
 }
 
+static
 char *wcs_to_utf8(const wchar_t *wcsstr, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
-	switch (get_wcstype())
+	switch (get_convtype())
 	{
 		case WCSTYPE_UTF16_LE:
 			return ucs2_to_utf8((const SQLWCHAR *) wcsstr, ilen, olen, lower_identifier);
@@ -656,6 +802,7 @@ char *wcs_to_utf8(const wchar_t *wcsstr, SQLLEN ilen, SQLLEN *olen, BOOL lower_i
  *	if outmsg is NULL or buflen is 0, only output length is returned.
  *	As for return values, NULL terminators aren't counted.
  */
+static
 int msgtowstr(const char *inmsg, wchar_t *outmsg, int buflen)
 {
 	int	outlen = -1;
@@ -670,14 +817,12 @@ mylog(" %s:inmsg=%p buflen=%d\n", __FUNCTION__, inmsg, buflen);
 	else if (ERROR_INSUFFICIENT_BUFFER == GetLastError())
 		outlen = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED
 			| MB_ERR_INVALID_CHARS, inmsg, -1, NULL, 0) - 1;
+	else
+		outlen = -1;
 #else
-#ifdef	HAVE_MBSTOWCS
-#ifdef  __STDC_ISO_10646__
 	if (0 == buflen)
 		outmsg = NULL;
 	outlen = mbstowcs((wchar_t *) outmsg, inmsg, buflen);
-#endif /* __STDC_ISO_10646__ */
-#endif /* HAVE_MBSTOWCS */
 #endif /* WIN32 */
 	if (outmsg && outlen >= buflen)
 	{
@@ -698,6 +843,7 @@ mylog(" %s in=%dchars out=%dchars\n", __FUNCTION__, buflen, outlen);
  *	if outmsg is NULL or buflen is 0, only output length is returned.
  *	As for return values, NULL terminators aren't counted.
  */
+static
 int wstrtomsg(const wchar_t *wstr, char *outmsg, int buflen)
 {
 	int	outlen = -1;
@@ -710,14 +856,12 @@ mylog(" %s:wstr=%p buflen=%d\n", __FUNCTION__, wstr, buflen);
 		outlen--;
 	else if (ERROR_INSUFFICIENT_BUFFER == GetLastError())
 		outlen = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL) - 1;
+	else
+		outlen = -1;
 #else
-#ifdef	HAVE_MBSTOWCS
-#ifdef  __STDC_ISO_10646__
 	if (0 == buflen)
 		outmsg = NULL;
 	outlen = wcstombs(outmsg, wstr, buflen);
-#endif /* __STDC_ISO_10646__ */
-#endif /* HAVE_MBSTOWCS */
 #endif /* WIN32 */
 	if (outmsg && outlen >= buflen)
 	{
@@ -727,6 +871,356 @@ mylog(" %s:wstr=%p buflen=%d\n", __FUNCTION__, wstr, buflen);
 mylog(" %s buf=%dbytes outlen=%dbytes\n", __FUNCTION__, buflen, outlen);
 
 	return outlen;
+}
+#endif /* __WCS_ISO10646__ */
+
+
+
+
+#if defined(__CHAR16_UTF_16__)
+
+static	mbstate_t	initial_state;
+
+static
+SQLLEN	mbstoc16_lf(char16_t *c16dt, const char *c8dt, size_t n, BOOL lf_conv)
+{
+	int			i;
+	size_t		brtn;
+	const char	*cdt;
+	mbstate_t	mbst = initial_state;
+
+mylog(" %s:c16dt=%p size=%lu\n", __FUNCTION__, c16dt, n);
+	for (i = 0, cdt = c8dt; i < n || (!c16dt); i++)
+	{
+		if (lf_conv && PG_LINEFEED == *cdt && i > 0 && PG_CARRIAGE_RETURN != cdt[-1])
+		{
+			if (c16dt)
+				c16dt[i] = PG_CARRIAGE_RETURN;
+			i++;
+		}
+		brtn = mbrtoc16(c16dt ? c16dt + i : NULL, cdt, 4, &mbst);
+		if (0 == brtn)
+			break;
+		if (brtn == (size_t) -1 || 
+		    brtn == (size_t) -2)
+			return -1;
+		if (brtn == (size_t) -3)
+			continue;
+		cdt += brtn;
+	}
+	if (c16dt && i >= n)
+		c16dt[n - 1] = 0;
+
+	return i;
+}
+
+static
+SQLLEN	c16tombs(char *c8dt, const char16_t *c16dt, size_t n)
+{
+	int		i;
+	SQLLEN	result = 0;
+	size_t	brtn;
+	char	*cdt, c4byte[4];
+	mbstate_t	mbst = initial_state;
+
+mylog(" %s:c8dt=%p size=%lu\n", __FUNCTION__, c8dt, n);
+	if (!c8dt)
+		n = 0;
+	for (i = 0, cdt = c8dt; c16dt[i] && (result < n || (!cdt)); i++)
+	{
+		if (NULL != cdt && result + 4 < n)
+			brtn = c16rtomb(cdt, c16dt[i], &mbst);
+		else
+		{
+			brtn = c16rtomb(c4byte, c16dt[i], &mbst);
+			if (brtn < 5)
+			{
+				SQLLEN result_n = result + brtn;
+
+				if (result_n < n)
+					memcpy(cdt, c4byte, brtn);
+				else
+				{
+					if (cdt && n > 0)
+					{
+						c8dt[result] = '\0'; /* truncate */
+						return result_n;
+					}
+				}
+			}
+		}
+		/*
+		printf("c16dt=%04X brtn=%lu result=%ld cdt=%02X%02X%02X%02X\n", 
+			c16dt[i], brtn, result, (UCHAR) cdt[0], (UCHAR) cdt[1], (UCHAR) cdt[2], (UCHAR) cdt[3]);
+		*/
+		if (brtn == (size_t) -1)
+		{
+			if (n > 0)
+				c8dt[n - 1] = '\0';
+			return -1;
+		}
+		if (cdt)
+			cdt += brtn;
+		result += brtn;
+	}
+	if (cdt)
+		*cdt = '\0';
+
+	return result;
+}
+#endif /* __CHAR16_UTF_16__ */
+
+//
+//	SQLBindParameter	SQL_C_CHAR to UTF-8 case
+//		the current locale => UTF-8
+//
+SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
+{
+	SQLLEN	l = (-2);
+	char	*utf8 = NULL;
+	int		count = strlen(ldt);
+ 
+	mylog(" %s\n", __FUNCTION__);
+#if defined(__WCS_ISO10646__)
+	if (use_wcs)
+	{
+		wchar_t	*wcsdt = (wchar_t *) malloc((count + 1) * sizeof(wchar_t));
+
+		if ((l = msgtowstr(ldt, (wchar_t *) wcsdt, count + 1)) >= 0)
+			utf8 = wcs_to_utf8(wcsdt, SQL_NTS, &l, FALSE);
+		free(wcsdt);
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (use_c16)
+	{
+		SQLWCHAR	*utf16 = (SQLWCHAR *) malloc((count + 1) * sizeof(SQLWCHAR));
+
+		if ((l = mbstoc16_lf((char16_t *) utf16, ldt, count + 1, FALSE)) >= 0)
+			utf8 = ucs2_to_utf8(utf16, SQL_NTS, &l, FALSE);
+		free(utf16);
+	}
+#endif /* __CHAR16_UTF_16__ */
+	if (l < 0 && NULL != utf8)
+		free(utf8);
+	else
+		*wcsbuf = (char *) utf8;
+
+	return l;
+}
+
+
+//
+//	SQLBindParameter	hybrid case
+//		SQLWCHAR(UTF-16) => the current locale
+//
+SQLLEN bindpara_wchar_to_msg(const SQLWCHAR *utf16, char **wcsbuf)
+{
+	SQLLEN	l = (-2);
+	char			*ldt = NULL;
+	int		count = ucs2strlen(utf16);
+
+mylog(" %s\n", __FUNCTION__);
+#if defined(__WCS_ISO10646__)
+	if (use_wcs)
+	{
+		if (sizeof(SQLWCHAR) == sizeof(wchar_t))
+		{
+			ldt = (char *) malloc(2 * count + 1);
+			l = wstrtomsg((wchar_t *) utf16, ldt, 2 * count + 1);
+		}
+		else
+		{
+			unsigned int	*utf32 = (unsigned int *) malloc((count + 1) * sizeof(unsigned int));
+
+			l = ucs2_to_ucs4(utf16, -1, utf32, count + 1);
+			if ((l = wstrtomsg((wchar_t *)utf32, NULL, 0)) >= 0)
+			{
+				ldt = (char *) malloc(l + 1);
+				l = wstrtomsg((wchar_t *)utf32, ldt, l + 1);
+			}
+			free(utf32);
+		}
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (use_c16)
+	{
+		ldt = (char *) malloc(4 * count + 1);
+		l = c16tombs(ldt, (const char16_t *) utf16, 4 * count + 1);
+	}
+#endif /* __CHAR16_UTF_16__ */
+	if (l < 0 && NULL != ldt)
+		free(ldt);
+	else
+		*wcsbuf = ldt;
+
+	return l;
+}
+
+size_t convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOOL *changed);
+//
+//	SQLBindCol	hybrid case
+//		the current locale => SQLWCHAR(UTF-16)
+//
+SQLLEN bindcol_hybrid_estimate(const char *ldt, BOOL lf_conv, char **wcsbuf)
+{
+	SQLLEN	l = (-2);
+
+	mylog(" %s:lf_conv=%d\n", __FUNCTION__, lf_conv);
+#if defined(__WCS_ISO10646__)
+	if (use_wcs)
+	{
+		unsigned int	*utf32 = NULL;
+
+		if (sizeof(SQLWCHAR) == sizeof(wchar_t))
+		{
+			l = msgtowstr(ldt, (wchar_t *) NULL, 0);
+			if (l >= 0 && lf_conv)
+			{
+				BOOL changed;
+				size_t	len;
+
+				len = convert_linefeeds(ldt, NULL, 0, TRUE, &changed);
+				if (changed)
+				{
+					l += (len - strlen(ldt));
+					*wcsbuf = (char *) malloc(len + 1);
+					convert_linefeeds(ldt, *wcsbuf, len + 1, TRUE, NULL);
+				}
+			}
+		}
+		else
+		{
+			int	count = strlen(ldt);
+
+			utf32 = (unsigned int *) malloc((count + 1) * sizeof(unsigned int));
+			if ((l = msgtowstr(ldt, (wchar_t *) utf32, count + 1)) >= 0)
+			{
+				l = ucs4_to_ucs2_lf(utf32, -1, NULL, 0, lf_conv);
+				*wcsbuf = (char *) utf32;
+			}
+		}
+		if (l < 0 && NULL != utf32)
+			free(utf32);
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (use_c16)
+		l = mbstoc16_lf((char16_t *) NULL, ldt, 0, lf_conv);
+#endif /* __CHAR16_UTF_16__ */
+
+	return l;
+}
+
+SQLLEN bindcol_hybrid_exec(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_conv, char **wcsbuf)
+{
+	SQLLEN	l = (-2);
+
+	mylog(" %s:size=%zu lf_conv=%d\n", __FUNCTION__, n, lf_conv);
+#if defined(__WCS_ISO10646__)
+	if (use_wcs)
+	{
+		unsigned int	*utf32 = NULL;
+		BOOL	midbuf = (wcsbuf && *wcsbuf);
+
+		if (sizeof(SQLWCHAR) == sizeof(wchar_t))
+		{
+			if (midbuf)
+				l = msgtowstr(*wcsbuf, (wchar_t *) utf16, n);
+			else
+				l = msgtowstr(ldt, (wchar_t *) utf16, n);
+		}
+		else if (midbuf)
+		{
+			utf32 = (unsigned int *) *wcsbuf;
+			l = ucs4_to_ucs2_lf(utf32, -1, utf16, n, lf_conv);
+		}
+		if (midbuf)
+		{
+			free(*wcsbuf);
+			*wcsbuf = NULL;
+		}
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (use_c16)
+	{
+		l = mbstoc16_lf((char16_t *) utf16, ldt, n, lf_conv);
+	}
+#endif /* __CHAR16_UTF_16__ */
+
+	return l;
+}
+//
+//	SQLBindCol	localize case
+//		UTF-8 => the current locale
+//
+SQLLEN bindcol_localize_estimate(const char *utf8dt, BOOL lf_conv, char **wcsbuf)
+{
+	SQLLEN	l = (-2);
+	char *convalc = NULL;
+
+	mylog(" %s:lf_conv=%d\n", __FUNCTION__, lf_conv);
+#if defined(__WCS_ISO10646__)
+	if (use_wcs)
+	{
+		wchar_t	*wcsalc = NULL;
+
+		l = utf8_to_wcs_lf(utf8dt, -1, lf_conv, NULL, 0, FALSE);
+		wcsalc = (wchar_t *) malloc(sizeof(wchar_t) * (l + 1));
+		convalc = (char *) wcsalc;
+		l = utf8_to_wcs_lf(utf8dt, -1, lf_conv, wcsalc, l + 1, FALSE);
+		l = wstrtomsg(wcsalc, NULL, 0);
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (use_c16)
+	{
+		SQLWCHAR	*wcsalc = NULL;
+
+		l = utf8_to_ucs2_lf(utf8dt, -1, lf_conv, (SQLWCHAR *) NULL, 0, FALSE);
+		wcsalc = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (l + 1));
+		convalc = (char *) wcsalc;
+		l = utf8_to_ucs2_lf(utf8dt, -1, lf_conv, wcsalc, l + 1, FALSE);
+		l = c16tombs(NULL, (char16_t *) wcsalc, 0);
+	}
+#endif /* __CHAR16_UTF_16__ */
+	if (l < 0 && NULL != convalc)
+		free(convalc);
+	else if (NULL != convalc)
+		*wcsbuf = (char *) convalc;
+	
+mylog(" %s:return=%d\n", __FUNCTION__, l);
+	return l;
+}
+
+SQLLEN bindcol_localize_exec(char *ldt, size_t n, BOOL lf_conv, char **wcsbuf)
+{
+	SQLLEN	l = (-2);
+
+	mylog(" %s:size=%zu\n", __FUNCTION__, n);
+#if defined(__WCS_ISO10646__)
+	if (use_wcs)
+	{
+		wchar_t	*wcsalc = (wchar_t *) *wcsbuf;
+
+		l = wstrtomsg(wcsalc, ldt, n);
+	}
+#endif /* __WCS_ISO10646__ */
+#ifdef __CHAR16_UTF_16__
+	if (use_c16)
+	{
+		char16_t	*wcsalc = (char16_t *) *wcsbuf;
+
+		l = c16tombs(ldt, (char16_t *) wcsalc, n);
+	}
+#endif /* __CHAR16_UTF_16__ */
+	free(*wcsbuf);
+	*wcsbuf = NULL;
+
+mylog(" %s:return=%d\n", __FUNCTION__, l);
+	return l;
 }
 
 #endif	/* UNICODE_SUPPORT */

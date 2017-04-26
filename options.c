@@ -14,6 +14,7 @@
  */
 
 #include "psqlodbc.h"
+#include "unicode_support.h"
 #include <string.h>
 
 #include "misc.h"

@@ -265,7 +265,6 @@
     <ClCompile Include="$(srcPath)xalibname.c" />
     <ClCompile Include="$(srcPath)misc.c" />
     <ClCompile Include="$(srcPath)loadlib.c" />
-    <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)win_unicode.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="$(srcPath)psqlodbc.rc" />

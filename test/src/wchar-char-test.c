@@ -37,10 +37,12 @@ print_utf16_le(const SQLWCHAR *wdt)
 
 #include	"wchar-char-test-sjis.c"
 #include	"wchar-char-test-utf8.c"
+#include	"wchar-char-test-eucjp.c"
 
 enum {
 	SJIS_TEST
 	,UTF8_TEST
+	,EUCJP_TEST
 };
 
 int main(int argc, char **argv)
@@ -58,6 +60,7 @@ int main(int argc, char **argv)
 		,{ "932", SJIS_TEST }
 		,{ "utf-8", UTF8_TEST }
 		,{ "utf8", UTF8_TEST }
+		,{ "eucjp", EUCJP_TEST }
 	};
 
 	loc = setlocale(LC_ALL, "");
@@ -101,6 +104,11 @@ int main(int argc, char **argv)
 			printf("UTF8 test\n");
 			fflush(stdout);
 			rc = utf8_test(hstmt);
+			break;
+		case EUCJP_TEST:
+			printf("EUCJP test\n");
+			fflush(stdout);
+			rc = eucjp_test(hstmt);
 			break;
 	}
 

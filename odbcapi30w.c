@@ -13,6 +13,7 @@
  */
 
 #include "psqlodbc.h"
+#include "unicode_support.h"
 #include <stdio.h>
 #include <string.h>
 
