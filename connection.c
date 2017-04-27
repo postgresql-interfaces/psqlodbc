@@ -597,8 +597,9 @@ CC_determine_locale_encoding(ConnectionClass *self)
 	if (self->locale_encoding) /* already set */
                 return;
 	encoding = derive_locale_encoding(dbencoding);
-	if (encoding)
-		CC_set_locale_encoding(self, encoding);
+	if (!encoding)
+		encoding = "SQL_ASCII";
+	CC_set_locale_encoding(self, encoding);
 }
 
 static void
