@@ -61,7 +61,7 @@ RowVersioning           = No
 ShowSystemTables                = No
 ShowOidColumn           = No
 FakeOidIndex            = No
-ConnSettings            =
+ConnSettings            = set lc_messages='C'
 _EOT_
 
 # Add any extra options from the command line
@@ -87,7 +87,7 @@ RowVersioning           = No
 ShowSystemTables                = No
 ShowOidColumn           = No
 FakeOidIndex            = No
-ConnSettings            =
+ConnSettings            = set lc_messages='C'
 _EOT_
 
 # Add any extra options from the command line
