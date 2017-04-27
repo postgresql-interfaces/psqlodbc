@@ -61,7 +61,8 @@ int main(int argc, char **argv)
 	};
 
 	loc = setlocale(LC_ALL, "");
-	if (NULL != (ptr = strchr(loc, '.')))
+	if (NULL != loc &&
+	    NULL != (ptr = strchr(loc, '.')))
 	{
 		int i;
 
@@ -74,11 +75,11 @@ int main(int argc, char **argv)
 				break;
 			}
 		}
-		if (testsw < 0)
-		{
-			printf("Unfortunately can't handle this locale\n");
-			exit(0);
-		}
+	}
+	if (testsw < 0)
+	{
+		printf("Unfortunately can't handle this locale\n");
+		exit(0);
 	}
 	test_connect_ext("");
 
