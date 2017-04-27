@@ -77,7 +77,7 @@ int main(int argc, char **argv)
 		if (testsw < 0)
 		{
 			printf("Unfortunately can't handle this locale\n");
-			exit(1);
+			exit(0);
 		}
 	}
 	test_connect_ext("");
