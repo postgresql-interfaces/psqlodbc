@@ -34,7 +34,7 @@ psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 
 EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	psqlodbc.def psqlodbca.def editConfiguration.bat BuildAll.bat \
-	windows-defaults.mak \
+	windows-defaults.mak buildInstallers.bat regress.bat \
 	pgenlist.def pgenlista.def connexp.h \
 	dlg_wingui.c loadlib.c loadlib.h inouealc.c win_setup.h \
         psqlsetup.c setup.c win_unicode.c psqlodbc.rc win64.mak \
