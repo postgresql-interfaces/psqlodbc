@@ -849,70 +849,78 @@ static int	effective_fraction(int fraction, int *width)
 }
 
 
-/*
-	gdata		SC_get_GDTI(stmt)
-	current_col	stmt->current_col
- */
+static int
+get_terminator_len(SQLSMALLINT fCType)
+{
+	switch (fCType)
+	{
+#ifdef	UNICODE_SUPPORT
+		case SQL_C_WCHAR:
+			return WCLEN;
+#endif /* UNICODE_SUPPORT */
+		case SQL_C_BINARY:
+			return 0;
+	}
+
+	/* SQL_C_CHAR or INTERNAL_ASIS_TYPE */
+	return 1;
+}
+
+static SQLLEN
+get_adjust_len(SQLSMALLINT fCType, SQLLEN len)
+{
+	switch (fCType)
+	{
+#ifdef	UNICODE_SUPPORT
+		case SQL_C_WCHAR:
+			return (len / WCLEN) * WCLEN;
+#endif /* UNICODE_SUPPORT */
+	}
+
+	return len;
+}
+
+#define	BYTEA_PROCESS_ESCAPE	1
+#define	BYTEA_PROCESS_BINARY	2
 
 static int
-convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neut_str, OID field_type, SQLSMALLINT fCType, char *rgbValueBindRow, SQLLEN cbValueMax, const ConnectionClass *conn, SQLLEN *length_return)
+setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
+	int *needbuflen_return, GetDataClass * const pgdc, const char *neut_str,
+	const OID field_type, const SQLSMALLINT fCType,
+	const SQLLEN cbValueMax, const ConnectionClass * const conn)
 {
-	BOOL	bytea_bad_format = FALSE;
+	SQLLEN len = (-2);
+	const char *ptr = NULL;
+	int	needbuflen = 0;
 	int	result = COPY_OK;
-	SQLLEN	len = (-2);
-	GetDataClass *pgdc;
-	int	copy_len = 0, needbuflen = 0, i;
-	const char	*ptr;
+
+	BOOL	lf_conv = conn->connInfo.lf_conversion;
+	int	bytea_process_kind = 0;
+	BOOL	already_processed = FALSE;
+	BOOL	changed = FALSE;
+	int	len_for_wcs_term = 0;
+
 #ifdef	UNICODE_SUPPORT
 	char	*allocbuf = NULL;
+	int	unicode_count = -1;
+	BOOL	localize_needed = FALSE;
+	BOOL	hybrid = FALSE;
 #endif /* UNICODE_SUPPORT */
 
-	mylog("%s:field_type=%u type=%d\n", __FUNCTION__, field_type, fCType);
-
-	switch (field_type)
+	if (PG_TYPE_BYTEA == field_type)
 	{
-		case PG_TYPE_FLOAT4:
-		case PG_TYPE_FLOAT8:
-		case PG_TYPE_NUMERIC:
-			set_client_decimal_point((char *) neut_str);
-			break;
-		case PG_TYPE_BYTEA:
-			if (0 == strnicmp(neut_str, "\\x", 2)) /* hex format */
-				neut_str += 2;
-			else
-				bytea_bad_format = TRUE;
-			break;
+		if (SQL_C_BINARY == fCType)
+			bytea_process_kind = BYTEA_PROCESS_BINARY;
+		else if (0 == strnicmp(neut_str, "\\x", 2)) /* hex format */
+			neut_str += 2;
+		else
+			bytea_process_kind = BYTEA_PROCESS_ESCAPE;
 	}
 
-	if (current_col < 0)
-	{
-		pgdc = &(gdata->fdata);
-		pgdc->data_left = -1;
-	}
-	else
-		pgdc = &gdata->gdata[current_col];
-	if (pgdc->data_left < 0)
-	{
-		BOOL	lf_conv = conn->connInfo.lf_conversion;
-		BOOL	already_processed = FALSE;
-		BOOL	changed = FALSE;
-		int	len_for_wcs_term = 0;
-
 #ifdef	UNICODE_SUPPORT
-		int	unicode_count = -1;
-		BOOL	localize_needed = FALSE;
-		BOOL	hybrid = FALSE;
-#endif /* UNICODE_SUPPORT */
-
-		/* process bad bytea format first */
-		if (bytea_bad_format)
-		{
-			len = convert_from_pgbinary(neut_str, NULL, 0) * 2;
-			already_processed = changed = TRUE;
-		}
-
-#ifdef	UNICODE_SUPPORT
-		if (!already_processed && get_convtype() > 0) /* coversion between the current locale is available */
+	if (0 == bytea_process_kind)
+	{
+		if (get_convtype() > 0) /* coversion between the current locale is available */
 		{
 			BOOL	wcs_debug = conn->connInfo.wcs_debug;
 			BOOL	same_encoding = (conn->ccsc == pg_CS_code(conn->locale_encoding));
@@ -934,152 +942,194 @@ convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neu
 			}
 			mylog("%s:localize=%d hybrid=%d is_utf8=%d same_encoding=%d wcs_debug=%d\n", __FUNCTION__, localize_needed, hybrid, is_utf8, same_encoding, wcs_debug);
 		}
-		if (already_processed)	/* skip */
-			;
-		else if (fCType == SQL_C_WCHAR)
+	}
+	if (fCType == SQL_C_WCHAR)
+	{
+		if (BYTEA_PROCESS_ESCAPE == bytea_process_kind)
+			unicode_count = convert_from_pgbinary(neut_str, NULL, 0) * 2;
+		else if (hybrid)
 		{
-			if (hybrid)
-			{
-				mylog("%s:hybrid estimate\n", __FUNCTION__);
-				if ((unicode_count = bindcol_hybrid_estimate(neut_str, lf_conv, &allocbuf)) < 0)
-				{
-					result = COPY_INVALID_STRING_CONVERSION;
-					goto cleanup;
-				}
-			}
-			else	/* normally */
-			{
-				unicode_count = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
-			}
-			len = WCLEN * unicode_count;
-			already_processed = changed = TRUE;
-		}
-		else if (localize_needed)
-		{
-			if ((len = bindcol_localize_estimate(neut_str, lf_conv, &allocbuf)) < 0)
+			mylog("%s:hybrid estimate\n", __FUNCTION__);
+			if ((unicode_count = bindcol_hybrid_estimate(neut_str, lf_conv, &allocbuf)) < 0)
 			{
 				result = COPY_INVALID_STRING_CONVERSION;
 				goto cleanup;
 			}
-			already_processed = changed = TRUE;
 		}
+		else	/* normally */
+		{
+			unicode_count = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
+		}
+		len = WCLEN * unicode_count;
+		already_processed = changed = TRUE;
+	}
+	else if (localize_needed)
+	{
+		if ((len = bindcol_localize_estimate(neut_str, lf_conv, &allocbuf)) < 0)
+		{
+			result = COPY_INVALID_STRING_CONVERSION;
+			goto cleanup;
+		}
+		already_processed = changed = TRUE;
+	}
 #endif /* UNICODE_SUPPORT */
 
-		if (!already_processed)	/* not yet processed */
-			/* convert linefeeds to carriage-return/linefeed */
-			len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
+	if (already_processed)	/* skip */
+		;
+	else if (0 != bytea_process_kind)
+	{
+		len = convert_from_pgbinary(neut_str, NULL, 0) * 2;
+		changed = TRUE;
+	}
+	else
+		/* convert linefeeds to carriage-return/linefeed */
+		len = convert_linefeeds(neut_str, NULL, 0, lf_conv, &changed);
 
+	/* just returns length info */
+	if (cbValueMax == 0)
+	{
+		result = COPY_RESULT_TRUNCATED;
+		goto cleanup;
+	}
+
+	if (!pgdc->ttlbuf)
+		pgdc->ttlbuflen = 0;
+	needbuflen = len + get_terminator_len(fCType);
+	if (SQL_C_BINARY == fCType)
+	{
+		/*
+		 * Though Binary doesn't have NULL terminator,
+		 * bindcol_localize_exec() needs output buffer
+		 * for NULL terminator.
+		 */
+		len_for_wcs_term = 1;
+	}
+	if (changed || needbuflen > cbValueMax)
+	{
+		if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
+		{
+			pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen + len_for_wcs_term);
+			pgdc->ttlbuflen = needbuflen;
+		}
+
+		already_processed = FALSE;
 #ifdef	UNICODE_SUPPORT
 		if (fCType == SQL_C_WCHAR)
 		{
-			if (unicode_count < 0)
-			{
-				unicode_count = len;
-				len *= WCLEN;
-			}
-		}
-#endif /* UNICODE_SUPPORT */
-
-		/* just returns length info */
-		if (cbValueMax == 0)
-		{
-			result = COPY_RESULT_TRUNCATED;
-			goto cleanup;
-		}
-#ifdef	UNICODE_SUPPORT
-		if (cbValueMax == 1 && fCType == SQL_C_WCHAR)
-		{
-			rgbValueBindRow[0] = '\0';
-			result = COPY_RESULT_TRUNCATED;
-			goto cleanup;
-		}
-#endif /* UNICODE_SUPPORT */
-
-		if (!pgdc->ttlbuf)
-			pgdc->ttlbuflen = 0;
-		needbuflen = len;
-		switch (fCType)
-		{
-#ifdef	UNICODE_SUPPORT
-			case SQL_C_WCHAR:
-				needbuflen += WCLEN;
-				break;
-#endif /* UNICODE_SUPPORT */
-			case SQL_C_BINARY:
-				/*
-				 * Though Binary doesn't have NULL terminator,
-				 * wstrtomsg() needs output buffer for NULL terminator
-				 */
-				len_for_wcs_term = 1;
-				break;
-			default:
-				needbuflen++;
-		}
-		if (changed || needbuflen > cbValueMax)
-		{
-			if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
-			{
-				pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen + len_for_wcs_term);
-				pgdc->ttlbuflen = needbuflen;
-			}
-
-			already_processed = FALSE;
-#ifdef	UNICODE_SUPPORT
-			if (fCType == SQL_C_WCHAR)
-			{
-				if (bytea_bad_format)
-				{
-					len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
-					len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
-				}
-				else
-				{
-					if (!hybrid)	/* normally */
-						utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, unicode_count, FALSE);
-					else /* hybrid */
-					{
-						mylog("%s:hybrid convert\n", __FUNCTION__);
-						if (bindcol_hybrid_exec((SQLWCHAR *) pgdc->ttlbuf, neut_str, unicode_count + 1, lf_conv, &allocbuf) < 0)
-						{
-							result = COPY_INVALID_STRING_CONVERSION;
-							goto cleanup;
-						}
-					}
-				}
-				already_processed = TRUE;
-			}
-			else if (localize_needed)
-			{
-				if (bindcol_localize_exec(pgdc->ttlbuf, len + 1, lf_conv, &allocbuf) < 0)
-				{
-					result = COPY_INVALID_STRING_CONVERSION;
-					goto cleanup;
-				}
-				already_processed = TRUE;
-			}
-#endif /* UNICODE_SUPPORT */
-
-			if (already_processed)
-				;
-			else if (bytea_bad_format)
+			if (BYTEA_PROCESS_ESCAPE == bytea_process_kind)
 			{
 				len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
-				len = pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
+				len = pg_bin2whex(pgdc->ttlbuf, (SQLWCHAR *) pgdc->ttlbuf, len);
 			}
 			else
-				convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
-			ptr = pgdc->ttlbuf;
-			pgdc->ttlbufused = len;
+			{
+				if (!hybrid)	/* normally */
+					utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, unicode_count, FALSE);
+				else /* hybrid */
+				{
+					mylog("%s:hybrid convert\n", __FUNCTION__);
+					if (bindcol_hybrid_exec((SQLWCHAR *) pgdc->ttlbuf, neut_str, unicode_count + 1, lf_conv, &allocbuf) < 0)
+					{
+						result = COPY_INVALID_STRING_CONVERSION;
+						goto cleanup;
+					}
+				}
+			}
+			already_processed = TRUE;
+		}
+		else if (localize_needed)
+		{
+			if (bindcol_localize_exec(pgdc->ttlbuf, len + 1, lf_conv, &allocbuf) < 0)
+			{
+				result = COPY_INVALID_STRING_CONVERSION;
+				goto cleanup;
+			}
+			already_processed = TRUE;
+		}
+#endif /* UNICODE_SUPPORT */
+
+		if (already_processed)
+			;
+		else if (0 != bytea_process_kind)
+		{
+			len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
+			if (BYTEA_PROCESS_ESCAPE == bytea_process_kind)
+				len = pg_bin2hex(pgdc->ttlbuf, pgdc->ttlbuf, len);
 		}
 		else
+			convert_linefeeds(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen, lf_conv, &changed);
+		ptr = pgdc->ttlbuf;
+		pgdc->ttlbufused = len;
+	}
+	else
+	{
+		if (pgdc->ttlbuf)
 		{
-			if (pgdc->ttlbuf)
-			{
-				free(pgdc->ttlbuf);
-				pgdc->ttlbuf = NULL;
-			}
-			ptr = neut_str;
+			free(pgdc->ttlbuf);
+			pgdc->ttlbuf = NULL;
 		}
+		ptr = neut_str;
+	}
+cleanup:
+#ifdef	UNICODE_SUPPORT
+	if (allocbuf)
+		free(allocbuf);
+#endif /* UNICODE_SUPPORT */
+
+	*length_return = len;
+	*ptr_return = ptr;
+	*needbuflen_return = needbuflen;
+
+	return result;
+}
+
+/*
+	gdata		SC_get_GDTI(stmt)
+	current_col	stmt->current_col
+ */
+
+/*
+ *	fCType treated in the following function is
+ *
+ *	SQL_C_CHAR, SQL_C_BINARY, SQL_C_WCHAR or INTERNAL_ASIS_TYPE
+ */
+static int
+convert_text_field_to_sql_c(GetDataInfo * const gdata, const int current_col,
+	const char * const neut_str, const OID field_type,
+	const SQLSMALLINT fCType, char * const rgbValueBindRow,
+	const SQLLEN cbValueMax, const ConnectionClass * const conn,
+	SQLLEN * const length_return)
+{
+	int	result = COPY_OK;
+	SQLLEN	len = (-2);
+	GetDataClass *pgdc;
+	int	copy_len = 0, needbuflen = 0, i;
+	const char	*ptr;
+
+	mylog("%s:field_type=%u type=%d\n", __FUNCTION__, field_type, fCType);
+
+	switch (field_type)
+	{
+		case PG_TYPE_FLOAT4:
+		case PG_TYPE_FLOAT8:
+		case PG_TYPE_NUMERIC:
+			set_client_decimal_point((char *) neut_str);
+			break;
+	}
+
+	if (current_col < 0)
+	{
+		pgdc = &(gdata->fdata);
+		pgdc->data_left = -1;
+	}
+	else
+		pgdc = &gdata->gdata[current_col];
+	if (pgdc->data_left < 0)
+	{
+		if (COPY_OK != (result = setup_getdataclass(&len, &ptr,
+				&needbuflen, pgdc, neut_str, field_type,
+				fCType, cbValueMax, conn)))
+			goto cleanup;
 	}
 	else
 	{
@@ -1106,32 +1156,19 @@ convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neu
 		BOOL	already_copied = FALSE;
 		int		terminatorlen;
 
-		if (fCType == SQL_C_BINARY)
-		{
-			terminatorlen = 0;
-		}
-#ifdef	UNICODE_SUPPORT
-		else if (fCType == SQL_C_WCHAR)
-		{
-			terminatorlen = WCLEN;
-			/* make sure the output buffer size is divisible by two */
-			cbValueMax = (cbValueMax / WCLEN) * WCLEN;
-		}
-#endif /* UNICODE_SUPPORT */
-		else
-		{
-			terminatorlen = 1;
-		}
-
-		if (len + terminatorlen > cbValueMax)
-			copy_len = cbValueMax - terminatorlen;
+		terminatorlen = get_terminator_len(fCType);
+		if (terminatorlen >= cbValueMax)
+			copy_len = 0;
+		else if (len + terminatorlen > cbValueMax)
+			copy_len = get_adjust_len(fCType, cbValueMax - terminatorlen);
 		else
 			copy_len = len;
 
 		if (!already_copied)
 		{
 			/* Copy the data */
-			memcpy(rgbValueBindRow, ptr, copy_len);
+			if (copy_len > 0)
+				memcpy(rgbValueBindRow, ptr, copy_len);
 			/* Add null terminator */
 			for (i = 0; i < terminatorlen && copy_len + i < cbValueMax; i++)
 				rgbValueBindRow[copy_len + i] = '\0';
@@ -1167,12 +1204,8 @@ convert_text_field_to_sql_c(GetDataInfo *gdata, int current_col, const char *neu
 		mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 
 cleanup:
-#ifdef	UNICODE_SUPPORT
-	if (allocbuf)
-		free(allocbuf);
-#endif /* UNICODE_SUPPORT */
-
 	*length_return = len;
+
 	return result;
 }
 
@@ -1189,10 +1222,8 @@ copy_and_convert_field(StatementClass *stmt,
 	const char *value = valuei;
 	ARDFields	*opts = SC_get_ARDF(stmt);
 	GetDataInfo	*gdata = SC_get_GDTI(stmt);
-	SQLLEN		len = 0,
-				copy_len = 0;
+	SQLLEN		len = 0;
 	SIMPLE_TIME std_time;
-	time_t		stmt_t = SC_get_time(stmt);
 	struct tm  *tim;
 #ifdef	HAVE_LOCALTIME_R
 	struct tm  tm;
@@ -1201,18 +1232,15 @@ copy_and_convert_field(StatementClass *stmt,
 				rgbValueOffset;
 	char	   *rgbValueBindRow = NULL;
 	SQLLEN		*pcbValueBindRow = NULL, *pIndicatorBindRow = NULL;
-	const char *ptr;
 	SQLSETPOSIROW		bind_row = stmt->bind_row;
 	int			bind_size = opts->bind_size;
 	int			result = COPY_OK;
 	const ConnectionClass	*conn = SC_get_conn(stmt);
-	BOOL	text_handling;
+	BOOL	text_bin_handling;
 	const char *neut_str = value;
 	char		booltemp[3];
 	char		midtemp[64];
 	GetDataClass *pgdc;
-	SQLGUID g;
-	int			i;
 
 	if (stmt->current_col >= 0)
 	{
@@ -1535,7 +1563,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
 
-	text_handling = FALSE;
+	text_bin_handling = FALSE;
 	switch (fCType)
 	{
 		case INTERNAL_ASIS_TYPE:
@@ -1543,7 +1571,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 		case SQL_C_WCHAR:
 #endif /* UNICODE_SUPPORT */
 		case SQL_C_CHAR:
-			text_handling = TRUE;
+			text_bin_handling = TRUE;
 			break;
 		case SQL_C_BINARY:
 			switch (field_type)
@@ -1557,16 +1585,19 @@ inolog("2stime fr=%d\n", std_time.fr);
 				case PG_TYPE_VARCHARARRAY:
 				case PG_TYPE_TEXTARRAY:
 				case PG_TYPE_XMLARRAY:
-					text_handling = TRUE;
+				case PG_TYPE_BYTEA:
+					text_bin_handling = TRUE;
 					break;
 			}
 			break;
 	}
 
-	if (text_handling)
+	if (text_bin_handling)
 	{
 		BOOL	pre_convert = TRUE;
 		int	midsize = sizeof(midtemp);
+		int	i;
+
 		/* Special character formatting as required */
 
 		/*
@@ -1631,6 +1662,9 @@ inolog("2stime fr=%d\n", std_time.fr);
 	}
 	else
 	{
+		time_t	stmt_t = SC_get_time(stmt);
+		SQLGUID g;
+
 		/*
 		 * for SQL_C_CHAR, it's probably ok to leave currency symbols in.
 		 * But to convert to numeric types, it is necessary to get rid of
@@ -1858,33 +1892,8 @@ inolog("2stime fr=%d\n", std_time.fr);
 
 #endif /* ODBCINT64 */
 			case SQL_C_BINARY:
-				if (PG_TYPE_UNKNOWN == field_type ||
-				    PG_TYPE_TEXT == field_type ||
-				    PG_TYPE_VARCHAR == field_type ||
-				    PG_TYPE_BPCHAR == field_type ||
-				    PG_TYPE_TEXTARRAY == field_type ||
-				    PG_TYPE_VARCHARARRAY == field_type ||
-				    PG_TYPE_BPCHARARRAY == field_type)
-				{
-					ssize_t	len = SQL_NULL_DATA;
-
-					if (neut_str)
-						len = strlen(neut_str);
-					if (pcbValue)
-						*pcbValueBindRow = len;
-					if (len > 0 && cbValueMax > 0)
-					{
-						memcpy(rgbValueBindRow, neut_str, len < cbValueMax ? len : cbValueMax);
-						if (cbValueMax >= len + 1)
-							rgbValueBindRow[len] = '\0';
-					}
-					if (cbValueMax >= len)
-						return COPY_OK;
-					else
-						return COPY_RESULT_TRUNCATED;
-				}
 				/* The following is for SQL_C_VARBOOKMARK */
-				else if (PG_TYPE_INT4 == field_type)
+				if (PG_TYPE_INT4 == field_type)
 				{
 					UInt4	ival = ATOI32U(neut_str);
 
@@ -1915,86 +1924,12 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 					else
 						return COPY_RESULT_TRUNCATED;
 				}
-				else if (PG_TYPE_BYTEA != field_type)
+				else
 				{
 					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					qlog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					return COPY_UNSUPPORTED_TYPE;
 				}
-				/* truncate if necessary */
-				/* convert octal escapes to bytes */
-
-				if (stmt->current_col < 0)
-				{
-					pgdc = &(gdata->fdata);
-					pgdc->data_left = -1;
-				}
-				else
-					pgdc = &gdata->gdata[stmt->current_col];
-				if (!pgdc->ttlbuf)
-					pgdc->ttlbuflen = 0;
-				if (pgdc->data_left < 0)
-				{
-					if (cbValueMax <= 0)
-					{
-						len = convert_from_pgbinary(neut_str, NULL, 0);
-						result = COPY_RESULT_TRUNCATED;
-						break;
-					}
-					if (len = strlen(neut_str), len >= (int) pgdc->ttlbuflen)
-					{
-						pgdc->ttlbuf = realloc(pgdc->ttlbuf, len + 1);
-						pgdc->ttlbuflen = len + 1;
-					}
-					len = convert_from_pgbinary(neut_str, pgdc->ttlbuf, pgdc->ttlbuflen);
-					pgdc->ttlbufused = len;
-				}
-				else
-					len = pgdc->ttlbufused;
-				ptr = pgdc->ttlbuf;
-
-				if (stmt->current_col >= 0)
-				{
-					/*
-					 * Second (or more) call to SQLGetData so move the
-					 * pointer
-					 */
-					if (pgdc->data_left > 0)
-					{
-						ptr += len - pgdc->data_left;
-						len = pgdc->data_left;
-					}
-
-					/* First call to SQLGetData so initialize data_left */
-					else
-						pgdc->data_left = len;
-
-				}
-
-				if (cbValueMax > 0)
-				{
-					copy_len = (len > cbValueMax) ? cbValueMax : len;
-
-					/* Copy the data */
-					memcpy(rgbValueBindRow, ptr, copy_len);
-
-					/* Adjust data_left for next time */
-					if (stmt->current_col >= 0)
-						pgdc->data_left -= copy_len;
-				}
-
-				/*
-				 * Finally, check for truncation so that proper status can
-				 * be returned
-				 */
-				if (len > cbValueMax)
-					result = COPY_RESULT_TRUNCATED;
-				else if (pgdc->ttlbuf)
-				{
-					free(pgdc->ttlbuf);
-					pgdc->ttlbuf = NULL;
-				}
-				mylog("SQL_C_BINARY: len = %d, copy_len = %d\n", len, copy_len);
 				break;
 			case SQL_C_GUID:
 
