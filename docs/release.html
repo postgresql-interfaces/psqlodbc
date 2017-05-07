@@ -9,6 +9,51 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.06.0300">psqlODBC 09.06.0300 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Implement SQLSet/GetConnectAttr() for some driver specific options.</b><br /></li>
+<li><b>Modify the code about UNKNOWNS_AS_LONGEST of the Unknown Sizes option so that it works properly.</b><br /></li>
+<li><b>Revise the handling of show oid column and row versioning option.</b><br /></li>
+<li><b>Revise the use of pgtype_xxxx() in catalog functions.</b><br /></li>
+<li><b>Replace pgtype_xxxx() whose 1st parameter is StatementClass with pgtype_attr_xxxx(). </b><br /></li>
+Also use macros for pgtype_xxxx() calls which have PG_ATP_UNSET, PG_ADT_UNSET or PG_UNKNOWNS_UNSET parameters.
+<li><b>Remove the use of PG_STATIC and UNKNOWNS_AS_DEFAULT.</b><br /></li>
+<li><b>Remove UNKNOWNS_AS_CATALOG of Unknown Sizes option.</b><br /></li>
+<li><b>Use symbols defined in catfunc.h instead of literal column numbers in SQLGetTypeInfo(), SQLSpecialColumns() and SQLTablePrivileges().</b><br /></li>
+<li><b>Fixes about SQLDescribeCol() or SQLColAttribute().</b><br /></li>
+<ol type="a">
+<li>Report the size of constant strings using Unknown Sizes as Longest.</li>
+<li>Correct the inconsistency between the sqltype of PG_TYPE_TEXT or PG_TYPE_UNKNOWN and the size in case of Unknown Sizes as Longeset.</li>
+</ol>
+<li><b>Fix a bug about Unicode driver for ansi apps.</b><br /></li>
+<li><b>Fix a dangling reference in CC_lookup_characterset() introduced.</b><br /></li>
+<li><b>Simple implementation of get_environment_setting() on non-Windows platforms.
+If the codeset part of the current locale is UTF8, set the client_encoding to 'UTF8'.
+Take * set client_coding='...' * into account in check_client_coding().</b><br /></li>
+<li><b>Revise the handling of client encoding so as not to forget the update of related items(ccsc or mb_maxbyte_per_char).</b><br /></li>
+<li><b>Change the max byte per char of UTF8 from 6 to 4.</b><br /></li>
+<li><b>For Unicode drivers, when SQLConnect() or SQLDriverConnect() instead of SQLConnectW or SQLDriverConnectW is called, use the same client encoding as ANSI version of drivers use.Stop using percent-encoding to store the conn_settings option in odbc.ini.</b><br /></li>
+<li><b>Stop using percent-encoding to store the conn_settings option in odbc.ini.</b><br /></li>
+<li><b>Add #ifdef UNICODE_SUPPORT where there should be.</b><br /></li>
+<li><b>Introduce locale_encoding which corresponds to the locale. For non-Windows platforms determine the locale encodings from the current locale.</b><br /></li>
+<li><b>Make a function convert_text_field_to_sql_c() simply extracting from long confusing code and clarify the parameters for subsequent modifications.</b><br /></li>
+<li><b>Handle locales in non-Windows platforms and overhaule the language system.</b><br /></li>
+<li><b>convert bad to use lf_conv here.</b><br /></li>
+<li><b>Add __STDC_ISO_10646__ check to confirm that wchar_t means unicode.</b><br /></li>
+<li><b>Error out when SQLSetPos() skips updates.</b><br /></li>
+<li><b>Don't reset the status of Keyset in case of updates.</b><br /></li>
+This fixes the bug about repeated updates using SQLSetPos().
+<li><b>Correct the inappropriate use of set_nullfield_int2().</b><br /></li>
+<li><b>Review the handling of OUTPUT parameters in SQLProcedureColumns().</b><br /></li>
+<ol type="a">
+<li>If there are OUT, INOUT or TABLE arguments, ignore RETURN values.</li>
+<li>OUT parameters of functions with returning SETOF should be treated as SQL_RESULT_COL rather than SQL_PARAM_OUTPUT.</li>
+<li>Also treat table output arguments as SQL_RESULT_COL because functions returning table are equivalent to using one or more OUT parameters plus marking the function as returning SETOF record (or SETOF a single output parameter's type).</li>
+</ol>
+<li><b>Use the same CPPFLAGS as well as CFLAGS/LDFLAGS to build regression tests as used to build driver.Also uchar.h header checking for later use.</b><br /></li
+<li><b>Fix a crash bug when the locale isn't set connection.
+</ol><br />
 <h2><a id="09.06.0200">psqlODBC 09.06.0200 Release</a></h2>
 Changes:<br />
 <ol type="1">
