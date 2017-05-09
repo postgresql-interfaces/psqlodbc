@@ -290,6 +290,7 @@ struct StatementClass_
 	ssize_t		where_pos;
 	SQLLEN		last_fetch_count_include_ommitted;
 	time_t		stmt_time;
+	struct tm	localtime;
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
 	StatementClass	*execute_parent;
@@ -510,6 +511,7 @@ RETCODE		SC_fetch(StatementClass *self);
 void		SC_free_params(StatementClass *self, char option);
 void		SC_log_error(const char *func, const char *desc, const StatementClass *self);
 time_t		SC_get_time(StatementClass *self);
+struct tm	*SC_get_localtime(StatementClass *self);
 SQLLEN		SC_get_int4_bookmark(StatementClass *self);
 RETCODE		SC_pos_reload(StatementClass *self, SQLULEN index, UInt2 *, Int4);
 RETCODE		SC_pos_update(StatementClass *self, SQLSETPOSIROW irow, SQLULEN index, const KeySet *keyset);

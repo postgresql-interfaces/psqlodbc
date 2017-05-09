@@ -1168,6 +1168,8 @@ SC_clear_error(StatementClass *self)
 		res->sqlstate[0] = '\0';
 	}
 	self->stmt_time = 0;
+	memset(&self->localtime, 0, sizeof(self->localtime));
+	self->localtime.tm_sec = -1;
 	SC_unref_CC_error(self);
 }
 
@@ -1544,6 +1546,25 @@ SC_get_time(StatementClass *stmt)
 	if (0 == stmt->stmt_time)
 		stmt->stmt_time = time(NULL);
 	return stmt->stmt_time;
+}
+
+struct tm *
+SC_get_localtime(StatementClass *stmt)
+{
+	struct tm * tim;
+
+	if (stmt->localtime.tm_sec < 0)
+	{
+		SC_get_time(stmt);
+#ifdef HAVE_LOCALTIME_R
+		tim = localtime_r(&stmt->stmt_time, &(stmt->localtime));
+#else
+		tim = localtime(&stmt->stmt_time);
+		stmt->localtime = *tim;
+#endif /* HAVE_LOCALTIME_R */
+	}
+
+	return &(stmt->localtime);
 }
 
 RETCODE

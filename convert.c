@@ -1224,7 +1224,6 @@ copy_and_convert_field(StatementClass *stmt,
 	GetDataInfo	*gdata = SC_get_GDTI(stmt);
 	SQLLEN		len = 0;
 	SIMPLE_TIME std_time;
-	struct tm  *tim;
 #ifdef	HAVE_LOCALTIME_R
 	struct tm  tm;
 #endif /* HAVE_LOCALTIME_R */
@@ -1443,6 +1442,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				 * The timestamp is invalid so set something conspicuous,
 				 * like the epoch
 				 */
+				struct tm  *tim;
 				time_t	t = 0;
 #ifdef	HAVE_LOCALTIME_R
 				tim = localtime_r(&t, &tm);
@@ -1662,7 +1662,6 @@ inolog("2stime fr=%d\n", std_time.fr);
 	}
 	else
 	{
-		time_t	stmt_t = SC_get_time(stmt);
 		SQLGUID g;
 
 		/*
@@ -1688,6 +1687,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				len = 6;
 				{
 					DATE_STRUCT *ds;
+					struct tm  *tim;
 
 					if (bind_size > 0)
 						ds = (DATE_STRUCT *) rgbValueBindRow;
@@ -1701,11 +1701,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					 * sanity checks on the existing values before
 					 * setting them.
 					 */
-#ifdef HAVE_LOCALTIME_R
-					tim = localtime_r(&stmt_t, &tm);
-#else
-					tim = localtime(&stmt_t);
-#endif /* HAVE_LOCALTIME_R */
+					tim = SC_get_localtime(stmt);
 					if (std_time.m == 0)
 						std_time.m = tim->tm_mon + 1;
 					if (std_time.d == 0)
@@ -1738,6 +1734,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			case SQL_C_TYPE_TIMESTAMP:	/* 93 */
 				len = 16;
 				{
+					struct tm  *tim;
 					TIMESTAMP_STRUCT *ts;
 
 					if (bind_size > 0)
@@ -1752,11 +1749,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					 * sanity checks on the existing values before
 					 * setting them.
 					 */
-#ifdef HAVE_LOCALTIME_R
-					tim = localtime_r(&stmt_t, &tm);
-#else
-					tim = localtime(&stmt_t);
-#endif /* HAVE_LOCALTIME_R */
+					tim = SC_get_localtime(stmt);
 					if (std_time.m == 0)
 						std_time.m = tim->tm_mon + 1;
 					if (std_time.d == 0)
@@ -4034,7 +4027,6 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	OID			param_pgtype;
 	SQLSMALLINT	param_ctype, param_sqltype;
 	SIMPLE_TIME	st;
-	time_t		t;
 	struct tm	*tim;
 #ifdef	HAVE_LOCALTIME_R
 	struct tm	tm;
@@ -4282,7 +4274,6 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 	param_string[0] = '\0';
 	cbuf[0] = '\0';
 	memset(&st, 0, sizeof(st));
-	t = SC_get_time(qb->stmt);
 
 	ivstruct = (SQL_INTERVAL_STRUCT *) buffer;
 	/* Convert input C type to a neutral format */
@@ -4463,12 +4454,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 				 * Initialize date in case conversion destination
 				 * expects date part from this source time data.
 				 */
-				t = SC_get_time(qb->stmt);
-#ifdef HAVE_LOCALTIME_R
-				tim = localtime_r(&t, &tm);
-#else
-				tim = localtime(&t);
-#endif /* HAVE_LOCALTIME_R */
+				tim = SC_get_localtime(qb->stmt);
 				st.m = tim->tm_mon + 1;
 				st.d = tim->tm_mday;
 				st.y = tim->tm_year + 1900;
