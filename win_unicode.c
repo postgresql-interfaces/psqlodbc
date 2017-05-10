@@ -47,11 +47,13 @@ SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str)
 char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
+	int	len = 0;
 /*mylog("ucs2_to_utf8 %p ilen=%d ", ucs2str, ilen);*/
 
 	if (!ucs2str)
 	{
-		*olen = SQL_NULL_DATA;
+		if (olen)
+			*olen = SQL_NULL_DATA;
 		return NULL;
 	}
 	if (little_endian < 0)
@@ -65,7 +67,7 @@ mylog(" newlen=%d", ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
-		int	i, len = 0;
+		int	i = 0;
 		UInt2	byte2code;
 		Int4	byte4code, surrd1, surrd2;
 		const SQLWCHAR	*wstr;
@@ -140,7 +142,7 @@ mylog(" newlen=%d", ilen);
 		if (olen)
 			*olen = len;
 	}
-mylog(" %s:olen=%d utf8str=%s\n", __FUNCTION__, *olen, utf8str ? utf8str : "");
+mylog(" %s:olen=%d utf8str=%s\n", __FUNCTION__, len, utf8str ? utf8str : "");
 	return utf8str;
 }
 
