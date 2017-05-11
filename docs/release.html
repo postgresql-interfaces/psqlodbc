@@ -9,6 +9,13 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.06.0310">psqlODBC 09.06.0310 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li><b>Fix a crash bug when connecting from MSACCESS(Microsoft Jet)</b><br /></li>
+Per reported by Robert Ball.<br />
+This occurs when MSACCESS(Jet) calls SQLConnectAttr(.., 30002, ..) => ucs2_to_utf8() and about to call mylog() with a NULL derefernced pointer parameter.
+</ol><br />
 <h2><a id="09.06.0300">psqlODBC 09.06.0300 Release</a></h2>
 Changes:<br />
 <ol type="1">
