@@ -278,12 +278,21 @@ SQLULEN ucs2strlen(const SQLWCHAR *);
 #define	SQL_WLONGVARCHAR	SQL_WLONGVARCHAR_IS_INHIBITED
 #define	SQL_C_WCHAR	SQL_C_WCHAR_IS_INHIBITED
 #endif
+
 #ifndef DBMS_NAME
+#ifdef	_WIN64
+#ifdef	UNICODE_SUPPORT
+#define DBMS_NAME				DBMS_NAME_UNICODE"(x64)"
+#else
+#define DBMS_NAME				DBMS_NAME_ANSI"(x64)"
+#endif /* UNICODE_SUPPORT */
+#else	/* _WIN64 */
 #ifdef	UNICODE_SUPPORT
 #define DBMS_NAME				DBMS_NAME_UNICODE
 #else
 #define DBMS_NAME				DBMS_NAME_ANSI
 #endif /* UNICODE_SUPPORT */
+#endif /* _WIN64 */
 #endif /* DBMS_NAME */
 
 #ifndef DBMS_NAME

@@ -115,7 +115,7 @@
     <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
-  <Import Project="std_dbmsname.Cpp.props" />
+  <!-- Import Project="std_dbmsname.Cpp.props" /-->
 
   <PropertyGroup Condition="'$(MSDTC)'=='yes'">
     <ADD_DEFINES>$(ADD_DEFINES);_HANDLE_ENLIST_IN_DTC_</ADD_DEFINES>
