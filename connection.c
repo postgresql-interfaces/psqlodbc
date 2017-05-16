@@ -54,8 +54,6 @@ static int  CC_close_eof_cursors(ConnectionClass *self);
 
 static void LIBPQ_update_transaction_status(ConnectionClass *self);
 
-extern GLOBAL_VALUES globals;
-
 
 static void CC_set_error_if_not_set(ConnectionClass *self, int errornumber, const char *errormsg, const char *func)
 {

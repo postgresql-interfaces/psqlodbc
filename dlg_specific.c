@@ -800,6 +800,11 @@ getDSNdefaults(ConnInfo *ci)
 {
 	mylog("calling getDSNdefaults\n");
 
+	if (ci->drivers.debug < 0)
+		ci->drivers.debug = DEFAULT_DEBUG;
+	if (ci->drivers.commlog < 0)
+		ci->drivers.commlog = DEFAULT_COMMLOG;
+
 	if (ci->onlyread[0] == '\0')
 		sprintf(ci->onlyread, "%d", globals.onlyread);
 
@@ -868,17 +873,6 @@ getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 	return SQLGetPrivateProfileString(ODBC_DATASOURCES, dsn, "", driver_name, namelen, ODBC_INI);
 }
 
-int
-getLogDir(char *dir, int dirmax)
-{
-	return SQLGetPrivateProfileString(DBMS_NAME, INI_LOGDIR, "", dir, dirmax, ODBCINST_INI);
-}
-
-int
-setLogDir(const char *dir)
-{
-	return SQLWritePrivateProfileString(DBMS_NAME, INI_LOGDIR, dir, ODBCINST_INI);
-}
 
 void
 getDSNinfo(ConnInfo *ci, char overwrite)
@@ -943,6 +937,20 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 
 	if (ci->port[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
+
+	/* It's appropriate to handle debug and commlog here */
+	if (ci->drivers.debug < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_DEBUG, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->drivers.debug = atoi(temp);
+	}
+	if (ci->drivers.commlog < 0 || overwrite)
+	{
+		SQLGetPrivateProfileString(DSN, INI_COMMLOG, "", temp, sizeof(temp), ODBC_INI);
+		if (temp[0])
+			ci->drivers.commlog = atoi(temp);
+	}
 
 	if (ci->onlyread[0] == '\0' || overwrite)
 		SQLGetPrivateProfileString(DSN, INI_READONLY, "", ci->onlyread, sizeof(ci->onlyread), ODBC_INI);
@@ -1165,6 +1173,9 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 			sectionName = DBMS_NAME;
 	}
 
+	if (stricmp(ODBCINST_INI, fileName) == 0)
+		return errc;
+
 	sprintf(tmp, "%d", comval->commlog);
 	if (!SQLWritePrivateProfileString(sectionName, INI_COMMLOG, tmp, fileName))
 		errc--;
@@ -1172,9 +1183,6 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	sprintf(tmp, "%d", comval->debug);
 	if (!SQLWritePrivateProfileString(sectionName, INI_DEBUG, tmp, fileName))
 		errc--;
-
-	if (stricmp(ODBCINST_INI, fileName) == 0)
-		return errc;
 
 	sprintf(tmp, "%d", comval->fetch_max);
 	if (!SQLWritePrivateProfileString(sectionName, INI_FETCH, tmp, fileName))
@@ -1392,45 +1400,16 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 	BOOL	inst_position = (stricmp(filename, ODBCINST_INI) == 0);
 	const char *drivername = (inst_position ? section : ci->drivername);
 
-	mylog("%s:setting %s position of %p\n", func, filename, ci);
+	mylog("%s:setting %s position of %s(%p)\n", func, filename, section, ci);
 	if (ci)
 		comval = &(ci->drivers);
 	else
 		comval = &globals;
 
 	/*
-	 * globals.debug or globals.commlog means whether take mylog or commlog
-	 * out of the connection time or not but doesn't mean the default of
-	 * ci->drivers.debug(commlog).
+	 * It's not appropriate to handle debug or commlog here.
+	 * Now they are handled in getDSNinfo().
 	 */
-	/* Debug is stored in the driver section */
-	SQLGetPrivateProfileString(section, INI_DEBUG, "",
-				   temp, sizeof(temp), filename);
-	if (temp[0])
-	{
-		if (inst_position && ci)
-			;
-		else
-			comval->debug = atoi(temp);
-	}
-	else if (inst_position)
-		comval->debug = DEFAULT_DEBUG;
-
-	/* CommLog is stored in the driver section */
-	SQLGetPrivateProfileString(section, INI_COMMLOG, "",
-				   temp, sizeof(temp), filename);
-	if (temp[0])
-	{
-		if (inst_position && ci)
-			;
-		else
-			comval->commlog = atoi(temp);
-	}
-	else if (inst_position)
-		comval->commlog = DEFAULT_COMMLOG;
-
-	if (!ci)
-		logs_on_off(0, 0, 0);
 
 	/*
 	 * If inst_position of xxxxxx is present(usually not present),
@@ -1841,6 +1820,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	if (0 != (CLEANUP_FOR_REUSE & option))
 		CC_conninfo_release(conninfo);
 	memset(conninfo, 0, sizeof(ConnInfo));
+
 	conninfo->allow_keyset = -1;
 	conninfo->lf_conversion = -1;
 	conninfo->true_is_minus1 = -1;
@@ -1865,6 +1845,8 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 	if (0 != (COPY_GLOBALS & option))
 		copy_globals(&(conninfo->drivers), &globals);
+	conninfo->drivers.debug = -1;
+	conninfo->drivers.commlog = -1;
 }
 
 #define	CORR_STRCPY(item)	strncpy_null(to->item, from->item, sizeof(to->item))

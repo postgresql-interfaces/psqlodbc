@@ -42,6 +42,14 @@ extern void qlog(char *fmt,...);
 int	get_qlog(void);
 int	get_mylog(void);
 
+int	getGlobalDebug();
+int	setGlobalDebug(int val);
+int	getGlobalCommlog();
+int	setGlobalCommlog(int val);
+int	writeGlobalLogs();
+int	getLogDir(char *dir, int dirmax);
+int	setLogDir(const char *dir);
+
 void	InitializeLogging(void);
 void	FinalizeLogging(void);
 

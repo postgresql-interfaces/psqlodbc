@@ -35,9 +35,6 @@
 
 static const char *next_name_token(const char *s, size_t *len);
 
-/*extern GLOBAL_VALUES globals;*/
-
-
 /*		Perform a Prepare on the SQL statement */
 RETCODE		SQL_API
 PGAPI_Prepare(HSTMT hstmt,

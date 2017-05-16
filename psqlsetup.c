@@ -39,8 +39,9 @@ int	initialize_global_cs(void)
 	if (!init)
 		return 0;
 	init = 0;
-	InitializeLogging();
 	memset(&globals, 0, sizeof(globals));
+	globals.debug = globals.commlog = -1;
+	InitializeLogging();
 
 	return 0;
 }

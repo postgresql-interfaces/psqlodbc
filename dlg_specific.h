@@ -313,8 +313,6 @@ void		makeConnectString(char *connect_string, const ConnInfo *ci, UWORD);
 BOOL		copyAttributes(ConnInfo *ci, const char *attribute, const char *value);
 BOOL		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value);
 int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);
-int	getLogDir(char *dir, int dirmax);
-int	setLogDir(const char *dir);
 UInt4	getExtraOptions(const ConnInfo *);
 BOOL	setExtraOptions(ConnInfo *, const char *str, const char *format);
 char	*extract_extra_attribute_setting(const pgNAME setting, const char *attr);

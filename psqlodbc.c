@@ -86,8 +86,9 @@ int	initialize_global_cs(void)
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 	getMutexAttr();
 #endif /* POSIX_THREADMUTEX_SUPPORT */
-	InitializeLogging();
 	memset(&globals, 0, sizeof(globals));
+	globals.debug = globals.commlog = -1;
+	InitializeLogging();
 	INIT_CONNS_CS;
 	INIT_COMMON_CS;
 

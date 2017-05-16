@@ -374,8 +374,8 @@ global_optionsProc(HWND hdlg,
 	{
 		case WM_INITDIALOG:
 			SetWindowLongPtr(hdlg, DWLP_USER, lParam); /* save for test etc */ 
-			CheckDlgButton(hdlg, DRV_COMMLOG, globals.commlog);
-			CheckDlgButton(hdlg, DRV_DEBUG, globals.debug);
+			CheckDlgButton(hdlg, DRV_COMMLOG, getGlobalCommlog());
+			CheckDlgButton(hdlg, DRV_DEBUG, getGlobalDebug());
 			getLogDir(logdir, sizeof(logdir));
 			SetDlgItemText(hdlg, DS_LOGDIR, logdir);
 #ifdef _HANDLE_ENLIST_IN_DTC_
@@ -405,8 +405,9 @@ global_optionsProc(HWND hdlg,
 						MessageBox(hdlg, "Folder for logging error", logmsg, MB_ICONEXCLAMATION | MB_OK);
 						break;
 					}
-					globals.commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
-					globals.debug = IsDlgButtonChecked(hdlg, DRV_DEBUG);
+					setGlobalCommlog(IsDlgButtonChecked(hdlg, DRV_COMMLOG));
+					setGlobalDebug(IsDlgButtonChecked(hdlg, DRV_DEBUG));
+					writeGlobalLogs();
 					if (writeDriverCommoninfo(ODBCINST_INI, ci->drivername, &globals) < 0)
 						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
 					setLogDir(logdir[0] ? logdir : NULL);

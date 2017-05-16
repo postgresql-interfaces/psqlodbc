@@ -47,8 +47,6 @@
 #define TRIGGER_DELETE 0x01
 #define TRIGGER_UPDATE 0x02
 
-/* extern GLOBAL_VALUES globals; */
-
 static const SQLCHAR *pubstr = (SQLCHAR *) "public";
 static const char	*likeop = "like";
 static const char	*eqop = "=";

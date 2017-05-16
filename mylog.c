@@ -186,8 +186,8 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 	}
 	else if (mylog_off_count > 0)
 		mylog_on = 0;
-	else if (globals.debug > 0)
-		mylog_on = globals.debug;
+	else if (getGlobalDebug() > 0)
+		mylog_on = getGlobalDebug();
 	if (qlog_onoff)
 		qlog_on_count += cnopen;
 	else
@@ -196,8 +196,8 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 		qlog_on = 1;
 	else if (qlog_off_count > 0)
 		qlog_on = 0;
-	else if (globals.commlog > 0)
-		qlog_on = globals.commlog;
+	else if (getGlobalCommlog() > 0)
+		qlog_on = getGlobalCommlog();
 	LEAVE_QLOG_CS;
 	LEAVE_MYLOG_CS;
 }
@@ -358,6 +358,94 @@ static void qlog_finalize(void)
 	DELETE_QLOG_CS;
 }
 
+static int	globalDebug = -1;
+int
+getGlobalDebug()
+{
+	char	temp[16];
+
+	if (globalDebug >=0)
+		return globalDebug;
+	/* Debug is stored in the driver section */
+	SQLGetPrivateProfileString(DBMS_NAME, INI_DEBUG, "", temp, sizeof(temp), ODBCINST_INI);
+	if (temp[0])
+		globalDebug = atoi(temp);
+	else
+		globalDebug = DEFAULT_DEBUG;
+
+	return globalDebug;
+}
+
+int
+setGlobalDebug(int val)
+{
+	return (globalDebug = val);
+}
+
+static int	globalCommlog = -1;
+int
+getGlobalCommlog()
+{
+	char	temp[16];
+
+	if (globalCommlog >= 0)
+		return globalCommlog;
+	/* Commlog is stored in the driver section */
+	SQLGetPrivateProfileString(DBMS_NAME, INI_COMMLOG, "", temp, sizeof(temp), ODBCINST_INI);
+	if (temp[0])
+		globalCommlog = atoi(temp);
+	else
+		globalCommlog = DEFAULT_COMMLOG;
+
+	return globalCommlog;
+}
+
+int
+setGlobalCommlog(int val)
+{
+	return (globalCommlog = val);
+}
+
+int
+writeGlobalLogs()
+{
+	char	temp[10];
+
+	sprintf(temp, "%d", globalDebug);
+	SQLWritePrivateProfileString(DBMS_NAME, INI_DEBUG, temp, ODBCINST_INI);
+	sprintf(temp, "%d", globalCommlog);
+	SQLWritePrivateProfileString(DBMS_NAME, INI_COMMLOG, temp, ODBCINST_INI);
+	return 0;
+}
+
+int
+getLogDir(char *dir, int dirmax)
+{
+	return SQLGetPrivateProfileString(DBMS_NAME, INI_LOGDIR, "", dir, dirmax, ODBCINST_INI);
+}
+
+int
+setLogDir(const char *dir)
+{
+	return SQLWritePrivateProfileString(DBMS_NAME, INI_LOGDIR, dir, ODBCINST_INI);
+}
+
+/*
+ *	This function starts a logging out of connections according the ODBCINST.INI
+ *	portion of the DBMS_NAME registry.
+ */
+static void
+start_logging()
+{
+	/*
+	 * GlobalDebug or GlobalCommlog means whether take mylog or commlog
+	 * out of the connection time or not but doesn't mean the default of
+	 * ci->drivers.debug(commlog).
+	 */
+	logs_on_off(0, 0, 0);
+	mylog("\t%s:Global.debug&commlog=%d&%d\n", __FUNCTION__, getGlobalDebug(), getGlobalCommlog());
+}
+
 void InitializeLogging(void)
 {
 	char dir[PATH_MAX];
@@ -367,6 +455,7 @@ void InitializeLogging(void)
 		logdir = strdup(dir);
 	mylog_initialize();
 	qlog_initialize();
+	start_logging();
 }
 
 void FinalizeLogging(void)
