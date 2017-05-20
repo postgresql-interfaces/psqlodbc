@@ -131,12 +131,15 @@ PGAPI_Connect(HDBC hdbc,
 	}
 
 	ci = &conn->connInfo;
-	CC_conninfo_init(ci, COPY_GLOBALS);
+	CC_conninfo_init(ci, INIT_GLOBALS);
 
 	make_string(szDSN, cbDSN, ci->dsn, sizeof(ci->dsn));
 
 	/* get the values for the DSN from the registry */
-	getDSNinfo(ci, CONN_OVERWRITE);
+	getDSNinfo(ci, CONN_OVERWRITE, NULL);
+	/* fill in any defaults */
+	getDSNdefaults(ci);
+
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
 	/* initialize pg_version from connInfo.protocol    */
 	CC_initialize_pg_version(conn);
@@ -156,9 +159,6 @@ PGAPI_Connect(HDBC hdbc,
 			STR_TO_NAME(ci->password, tmpstr);
 		free(tmpstr);
 	}
-
-	/* fill in any defaults */
-	getDSNdefaults(ci);
 
 	qlog("conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 

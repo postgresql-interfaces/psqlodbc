@@ -34,6 +34,7 @@ extern "C" {
 #endif
 
 #define	ODBC_DATASOURCES	"ODBC Data Sources"
+#define	INVALID_DRIVER		" @@driver not exist@@ "
 
 #ifdef  UNICODE_SUPPORT
 #define INI_DSN				"PostgreSQL35W"
@@ -272,7 +273,6 @@ extern "C" {
 #define CONN_OVERWRITE			1
 
 /*	prototypes */
-void		getCommonDefaults(const char *section, const char *filename, ConnInfo *ci);
 
 #ifdef WIN32
 void		SetDlgStuff(HWND hdlg, const ConnInfo *ci);
@@ -304,11 +304,12 @@ LRESULT CALLBACK manage_dsnProc(HWND hdlg,
 			   LPARAM lParam);
 #endif   /* WIN32 */
 
-int		writeDriverCommoninfo(const char *fileName, const char *sectionName,
+int		write_Ci_Drivers(const char *fileName, const char *sectionName,
 		const GLOBAL_VALUES *);
+int		writeDriversDefaults(const char *drivername, const GLOBAL_VALUES *);
 void		writeDSNinfo(const ConnInfo *ci);
 void		getDSNdefaults(ConnInfo *ci);
-void		getDSNinfo(ConnInfo *ci, char overwrite);
+void		getDSNinfo(ConnInfo *ci, char overwrite, const char *configDrvrname);
 void		makeConnectString(char *connect_string, const ConnInfo *ci, UWORD);
 BOOL		copyAttributes(ConnInfo *ci, const char *attribute, const char *value);
 BOOL		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value);

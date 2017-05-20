@@ -31,7 +31,6 @@
 #define INTFUNC  __stdcall
 
 extern HINSTANCE s_hModule;	/* Saved module handle. */
-extern GLOBAL_VALUES	globals;
 
 /* Constants */
 #define MIN(x,y)	  ((x) < (y) ? (x) : (y))
@@ -123,6 +122,7 @@ ConfigDSN(HWND hwnd,
 			fSuccess = FALSE;
 	}
 
+	CC_conninfo_release(&(lpsetupdlg->ci));
 	GlobalUnlock(hglbAttr);
 	GlobalFree(hglbAttr);
 
@@ -280,9 +280,9 @@ ConfigDlgProc(HWND hdlg,
 			 */
 			/* override settings in ODBC.INI */
 
-			copy_globals(&ci->drivers, &globals);
+			init_globals(&ci->drivers);
 			/* Get the rest of the common attributes */
-			getDSNinfo(ci, CONN_DONT_OVERWRITE);
+			getDSNinfo(ci, CONN_DONT_OVERWRITE, lpsetupdlg->lpszDrvr);
 
 			/* Fill in any defaults */
 			getDSNdefaults(ci);
@@ -576,7 +576,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 	size_t		cbKey;
 	char		value[MAXPGPATH];
 
-	CC_conninfo_init(&(lpsetupdlg->ci), COPY_GLOBALS);
+	CC_conninfo_init(&(lpsetupdlg->ci), INIT_GLOBALS);
 
 	for (lpsz = lpszAttributes; *lpsz; lpsz++)
 	{
@@ -665,7 +665,7 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 	}
 
 	/* Update ODBC.INI */
-	writeDriverCommoninfo(ODBC_INI, lpsetupdlg->ci.dsn, &(lpsetupdlg->ci.drivers));
+	write_Ci_Drivers(ODBC_INI, lpsetupdlg->ci.dsn, &(lpsetupdlg->ci.drivers));
 	writeDSNinfo(&lpsetupdlg->ci);
 
 	/* If the data source name has changed, remove the old name */

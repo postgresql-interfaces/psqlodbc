@@ -50,7 +50,6 @@
 #define PG_BINARY_A			"a"
 #endif /* WIN32 */
 
-extern GLOBAL_VALUES globals;
 
 static char *logdir = NULL;
 

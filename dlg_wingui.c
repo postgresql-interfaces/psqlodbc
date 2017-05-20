@@ -30,11 +30,10 @@
 #include "connexp.h"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
-extern GLOBAL_VALUES globals;
 
 extern HINSTANCE s_hModule;
 static int	driver_optionsDraw(HWND, const ConnInfo *, int src, BOOL enable);
-static int	driver_options_update(HWND hdlg, ConnInfo *ci, const char *);
+static int	driver_options_update(HWND hdlg, ConnInfo *ci);
 
 static int	ds_options_update(HWND hdlg, ConnInfo *ci);
 
@@ -127,48 +126,47 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	strncpy_null(ci->sslmode, modetab[sslposition].modestr, sizeof(ci->sslmode));
 }
 
+static void
+getDriversDefaultsOfCi(const ConnInfo *ci, GLOBAL_VALUES *glbv)
+{
+	const char *drivername = NULL;
+
+	if (ci->drivername[0])
+		drivername = ci->drivername;
+	else if (NAME_IS_VALID(ci->drivers.drivername))
+		drivername = SAFE_NAME(ci->drivers.drivername);	
+	if (drivername && drivername[0])
+		getDriversDefaults(drivername, glbv);
+	else
+		getDriversDefaults(INVALID_DRIVER, glbv);
+}
 
 static int
 driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 {
 	const GLOBAL_VALUES *comval = NULL;
-	static BOOL defset = FALSE;
-	static GLOBAL_VALUES defval;
+	const char * drivername = NULL;
+	GLOBAL_VALUES defval;
 
+mylog("!!!! %s;%d in\n", __FUNCTION__, src);
+	init_globals(&defval);
 	switch (src)
 	{
-		case 0:			/* driver common */
-			comval = &globals;
+		case 0:			/* default */
+			getDriversDefaultsOfCi(ci, &defval);
+			defval.debug = DEFAULT_DEBUG;
+			defval.commlog = DEFAULT_COMMLOG;
+			comval = &defval;
 			break;
 		case 1:			/* dsn specific */
 			comval = &(ci->drivers);
-			break;
-		case 2:			/* default */
-			if (!defset)
-			{
-				defval.commlog = DEFAULT_COMMLOG;
-				defval.unique_index = DEFAULT_UNIQUEINDEX;
-				defval.onlyread = DEFAULT_READONLY;
-				defval.use_declarefetch = DEFAULT_USEDECLAREFETCH;
-
-				defval.parse = DEFAULT_PARSE;
-				defval.debug = DEFAULT_DEBUG;
-
-				/* Unknown Sizes */
-				defval.unknown_sizes = DEFAULT_UNKNOWNSIZES;
-				defval.text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
-				defval.unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
-				defval.bools_as_char = DEFAULT_BOOLSASCHAR;
-			}
-			defset = TRUE;
-			comval = &defval;
 			break;
 		default:
 			return 0;
 	}
 
 	ShowWindow(GetDlgItem(hdlg, DRV_MSG_LABEL2), enable ? SW_SHOW : SW_HIDE);
-	CheckDlgButton(hdlg, DRV_COMMLOG, comval->commlog);
+	CheckDlgButton(hdlg, DRV_COMMLOG, comval->commlog > 0);
 	CheckDlgButton(hdlg, DRV_UNIQUEINDEX, comval->unique_index);
 	/* EnableWindow(GetDlgItem(hdlg, DRV_UNIQUEINDEX), enable); */
 	CheckDlgButton(hdlg, DRV_READONLY, comval->onlyread);
@@ -198,7 +196,7 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	CheckDlgButton(hdlg, DRV_UNKNOWNS_LONGVARCHAR, comval->unknowns_as_longvarchar);
 	CheckDlgButton(hdlg, DRV_BOOLS_CHAR, comval->bools_as_char);
 	CheckDlgButton(hdlg, DRV_PARSE, comval->parse);
-	CheckDlgButton(hdlg, DRV_DEBUG, comval->debug);
+	CheckDlgButton(hdlg, DRV_DEBUG, comval->debug > 0);
 	SetDlgItemInt(hdlg, DRV_CACHE_SIZE, comval->fetch_max, FALSE);
 	SetDlgItemInt(hdlg, DRV_VARCHAR_SIZE, comval->max_varchar_size, FALSE);
 	SetDlgItemInt(hdlg, DRV_LONGVARCHAR_SIZE, comval->max_longvarchar_size, TRUE);
@@ -209,18 +207,19 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	EnableWindow(GetDlgItem(hdlg, DRV_CONNSETTINGS), enable);
 	ShowWindow(GetDlgItem(hdlg, ID2NDPAGE), enable ? SW_HIDE : SW_SHOW);
 	ShowWindow(GetDlgItem(hdlg, ID3RDPAGE), enable ? SW_HIDE : SW_SHOW);
+
+	finalize_globals(&defval);
 	return 0;
 }
 
 static int
-driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
+driver_options_update(HWND hdlg, ConnInfo *ci)
 {
 	GLOBAL_VALUES *comval;
 
-	if (ci)
-		comval = &(ci->drivers);
-	else
-		comval = &globals;
+// mylog("!!!! %s in\n", __FUNCTION__);
+	comval = &(ci->drivers);
+
 	comval->commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 	comval->unique_index = IsDlgButtonChecked(hdlg, DRV_UNIQUEINDEX);
 	if (!ci)
@@ -264,59 +263,10 @@ driver_options_update(HWND hdlg, ConnInfo *ci, const char *updateDriver)
 			STR_TO_NAME(comval->conn_settings, conn_settings);
 	}
 
-	if (updateDriver)
-	{
-		if (writeDriverCommoninfo(ODBCINST_INI, updateDriver, comval) < 0)
-			MessageBox(hdlg, "impossible to update the values, sorry", "Update Error", MB_ICONEXCLAMATION | MB_OK);
-;
-	}
-
 	/* fall through */
 	return 0;
 }
 
-LRESULT		CALLBACK
-driver_optionsProc(HWND hdlg,
-				   UINT wMsg,
-				   WPARAM wParam,
-				   LPARAM lParam)
-{
-	ConnInfo   *ci;
-	char	strbuf[128];
-
-	switch (wMsg)
-	{
-		case WM_INITDIALOG:
-			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* save for OK etc */
-			ci = (ConnInfo *) lParam;
-			LoadString(s_hModule, IDS_ADVANCE_OPTION_DEF, strbuf, sizeof(strbuf));
-			SetWindowText(hdlg, strbuf);
-			LoadString(s_hModule, IDS_ADVANCE_SAVE, strbuf, sizeof(strbuf));
-			SetWindowText(GetDlgItem(hdlg, IDOK), strbuf);
-			ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);
-			driver_optionsDraw(hdlg, ci, 0, TRUE);
-			break;
-
-		case WM_COMMAND:
-			switch (GET_WM_COMMAND_ID(wParam, lParam))
-			{
-				case IDOK:
-					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
-					driver_options_update(hdlg, NULL,
-						ci ? ci->drivername : NULL);
-
-				case IDCANCEL:
-					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
-					return TRUE;
-
-				case IDDEFAULTS:
-					driver_optionsDraw(hdlg, NULL, 2, TRUE);
-					break;
-			}
-	}
-
-	return FALSE;
-}
 
 #ifdef _HANDLE_ENLIST_IN_DTC_
 static
@@ -369,11 +319,17 @@ global_optionsProc(HWND hdlg,
 	ConnInfo	*ci;
 	char logdir[PATH_MAX];
 	const char *logmsg;
+	GLOBAL_VALUES	defval;
 
+// if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
+// mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
+	init_globals(&defval);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
 			SetWindowLongPtr(hdlg, DWLP_USER, lParam); /* save for test etc */ 
+			ci = (ConnInfo *) lParam;
+			getDriversDefaultsOfCi(ci, &defval);
 			CheckDlgButton(hdlg, DRV_COMMLOG, getGlobalCommlog());
 			CheckDlgButton(hdlg, DRV_DEBUG, getGlobalDebug());
 			getLogDir(logdir, sizeof(logdir));
@@ -399,6 +355,7 @@ global_optionsProc(HWND hdlg,
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
+					getDriversDefaultsOfCi(ci, &defval);
 					GetDlgItemText(hdlg, DS_LOGDIR, logdir, sizeof(logdir));
 					if (logdir[0] && (logmsg = IsAnExistingDirectory(logdir)) != NULL)
 					{
@@ -408,7 +365,7 @@ global_optionsProc(HWND hdlg,
 					setGlobalCommlog(IsDlgButtonChecked(hdlg, DRV_COMMLOG));
 					setGlobalDebug(IsDlgButtonChecked(hdlg, DRV_DEBUG));
 					writeGlobalLogs();
-					if (writeDriverCommoninfo(ODBCINST_INI, ci->drivername, &globals) < 0)
+					if (writeDriversDefaults(ci->drivername, &defval) < 0)
 						MessageBox(hdlg, "Sorry, impossible to update the values\nWrite permission seems to be needed", "Update Error", MB_ICONEXCLAMATION | MB_OK);
 					setLogDir(logdir[0] ? logdir : NULL);
 #ifdef _HANDLE_ENLIST_IN_DTC_
@@ -425,6 +382,7 @@ global_optionsProc(HWND hdlg,
 			}
 	}
 
+	finalize_globals(&defval);
 	return FALSE;
 }
 
@@ -437,6 +395,8 @@ ds_options1Proc(HWND hdlg,
 	ConnInfo   *ci;
 	char	strbuf[128];
 
+// if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
+// mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
@@ -470,14 +430,14 @@ ds_options1Proc(HWND hdlg,
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
-					driver_options_update(hdlg, ci, NULL);
+					driver_options_update(hdlg, ci);
 
 				case IDCANCEL:
 					EndDialog(hdlg, GET_WM_COMMAND_ID(wParam, lParam) == IDOK);
 					return TRUE;
 
 				case IDAPPLY:
-					driver_options_update(hdlg, ci, NULL);
+					driver_options_update(hdlg, ci);
 					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
 					break;
 
@@ -486,14 +446,14 @@ ds_options1Proc(HWND hdlg,
 					break;
 
 				case ID2NDPAGE:
-					driver_options_update(hdlg, ci, NULL);
+					driver_options_update(hdlg, ci);
 					EndDialog(hdlg, FALSE);
 					DialogBoxParam(s_hModule,
 								   MAKEINTRESOURCE(DLG_OPTIONS_DS),
 								   hdlg, ds_options2Proc, (LPARAM) ci);
 					break;
 				case ID3RDPAGE:
-					driver_options_update(hdlg, ci, NULL);
+					driver_options_update(hdlg, ci);
 					EndDialog(hdlg, FALSE);
 					DialogBoxParam(s_hModule,
 								   MAKEINTRESOURCE(DLG_OPTIONS_DS3),
@@ -600,6 +560,8 @@ ds_options2Proc(HWND hdlg,
 	DWORD		cmd;
 	BOOL		enable;
 
+// if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
+// mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
@@ -753,6 +715,7 @@ ds_options3Draw(HWND hdlg, const ConnInfo *ci)
 	BOOL	enable = TRUE;
 	static BOOL defset = FALSE;
 
+mylog("!!!! %s in\n", __FUNCTION__);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	switch (ci->xa_opt)
 	{
@@ -847,6 +810,8 @@ ds_options3Proc(HWND hdlg,
 	char		buf[128];
 	DWORD		cmd;
 
+if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
+mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:

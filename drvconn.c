@@ -139,12 +139,14 @@ PGAPI_DriverConnect(HDBC hdbc,
 	 * fill them in from the registry (assuming of course there is a DSN
 	 * given -- if not, it does nothing!)
 	 */
-	getDSNinfo(ci, CONN_DONT_OVERWRITE);
+	getDSNinfo(ci, CONN_DONT_OVERWRITE, NULL);
 	if (!dconn_get_common_attributes(connStrIn, ci))
 	{
 		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
 		return SQL_ERROR;
 	}
+	/* Fill in any default parameters if they are not there. */
+	getDSNdefaults(ci);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
 	if (connStrIn)
 	{
@@ -152,8 +154,6 @@ PGAPI_DriverConnect(HDBC hdbc,
 		connStrIn = NULL;
 	}
 
-	/* Fill in any default parameters if they are not there. */
-	getDSNdefaults(ci);
 	/* initialize pg_version */
 	CC_initialize_pg_version(conn);
 	memset(salt, 0, sizeof(salt));
@@ -336,12 +336,18 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 	{
 		dialog_result = DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_CONFIG),
 				hwnd, dconn_FDriverConnectProc, (LPARAM) ci);
+		if (-1 == dialog_result)
+		{
+			int errc = GetLastError();
+			mylog(" %s:LastError=%d\n", __FUNCTION__, errc);
+		}
 		if (!dialog_result || (dialog_result == -1))
 			return SQL_NO_DATA_FOUND;
 		else
 			return SQL_SUCCESS;
 	}
 
+	mylog(" %s:No window specified\n", __FUNCTION__);
 	return SQL_ERROR;
 }
 
@@ -411,12 +417,6 @@ dconn_FDriverConnectProc(
 					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 								   hdlg, ds_options1Proc, (LPARAM) ci);
-					break;
-
-				case IDC_DRIVER:
-					ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
-					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
-								   hdlg, driver_optionsProc, (LPARAM) ci);
 					break;
 			}
 	}
@@ -580,7 +580,7 @@ cleanup:
 static BOOL
 dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
 {
-	CC_conninfo_init(ci, COPY_GLOBALS);
+	CC_conninfo_init(ci, INIT_GLOBALS);
 	return dconn_get_attributes(copyAttributes, connect_string, ci);
 }
 

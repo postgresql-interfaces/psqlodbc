@@ -27,7 +27,6 @@
 #endif /* WIN32 */
 #include "loadlib.h"
 
-extern GLOBAL_VALUES globals;
 
 /* The one instance of the handles */
 static int conns_count = 0;
@@ -70,16 +69,12 @@ PGAPI_AllocEnv(HENV * phenv)
 	mylog("**** in %s ** \n", func);
 
 	/*
-	 * Hack for systems on which none of the constructor-making techniques
-	 * in psqlodbc.c work: if globals appears not to have been
-	 * initialized, then cause it to be initialized.  Since this should be
-	 * the first function called in this shared library, doing it here
-	 * should work.
+	 * For systems on which none of the constructor-making
+	 * techniques in psqlodbc.c work:
+	 * It's ok to call initialize_global_cs() twice.
 	 */
-	if (globals.fetch_max <= 0)
 	{
 		initialize_global_cs();
-		getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 	}
 
 	*phenv = (HENV) EN_Constructor();

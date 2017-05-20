@@ -23,12 +23,7 @@
 
 #include "pgapifunc.h"
 
-GLOBAL_VALUES globals;
-
-/*
- *	TRUE means that even though drivername is different, share common driver info.
- */
-static BOOL share_common_driver_info = TRUE;
+#define	NULL_IF_NULL(a) ((a) ? ((const char *)(a)) : "(null)")
 
 static void encode(const pgNAME, char *out, int outlen);
 static pgNAME decode(const char *in);
@@ -806,7 +801,7 @@ getDSNdefaults(ConnInfo *ci)
 		ci->drivers.commlog = DEFAULT_COMMLOG;
 
 	if (ci->onlyread[0] == '\0')
-		sprintf(ci->onlyread, "%d", globals.onlyread);
+		sprintf(ci->onlyread, "%d", DEFAULT_READONLY);
 
 	if (ci->fake_oid_index[0] == '\0')
 		sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
@@ -870,50 +865,80 @@ getDSNdefaults(ConnInfo *ci)
 int
 getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 {
-	return SQLGetPrivateProfileString(ODBC_DATASOURCES, dsn, "", driver_name, namelen, ODBC_INI);
+#ifdef	WIN32
+	return SQLGetPrivateProfileString(ODBC_DATASOURCES, dsn, NULL_STRING, driver_name, namelen, ODBC_INI);
+#else /* WIN32 */
+	int	cnt;
+
+	cnt = SQLGetPrivateProfileString(dsn, "Driver", NULL_STRING, driver_name, namelen, ODBC_INI);
+	if (!driver_name[0])
+		return cnt;
+	if (strchr(driver_name, '/') || /* path to the driver */
+	    strchr(driver_name, '.'))
+	{
+		driver_name[0] = '\0';
+		return 0;
+	}
+	return cnt;
+#endif /* WIN32 */
 }
 
 
+static void
+get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval);
+
+void getDriversDefaults(const char *drivername, GLOBAL_VALUES *comval)
+{
+	mylog("%s:%p of the driver %s\n", __FUNCTION__, comval, NULL_IF_NULL(drivername));
+	get_Ci_Drivers(drivername, ODBCINST_INI, comval);
+	if (NULL != drivername)
+		STR_TO_NAME(comval->drivername, drivername);
+}
+
 void
-getDSNinfo(ConnInfo *ci, char overwrite)
+getDSNinfo(ConnInfo *ci, char overwrite, const char *configDrvrname)
 {
 	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
 	char		encoded_item[LARGE_REGISTRY_LEN],
 				temp[SMALL_REGISTRY_LEN];
+	const char *drivername;
 
 /*
  *	If a driver keyword was present, then dont use a DSN and return.
  *	If DSN is null and no driver, then use the default datasource.
  */
-	mylog("%s: DSN=%s overwrite=%d\n", func, DSN, overwrite);
+	mylog("%s: DSN=%s driver=%s&%s overwrite=%d\n", func, DSN,
+		ci->drivername, NULL_IF_NULL(configDrvrname),
+			overwrite);
+	drivername = ci->drivername;
 	if (DSN[0] == '\0')
 	{
-		if (ci->drivername[0] != '\0')
+		if (drivername[0] != '\0') /* dns-less connections */
+		{
+			getDriversDefaults(drivername, &(ci->drivers));
 			return;
-		else
+		}
+		else	/* adding new DSN via configDSN */
+		{
+			drivername = configDrvrname;
 			strncpy_null(DSN, INI_DSN, sizeof(ci->dsn));
+		}
 	}
 
 	/* brute-force chop off trailing blanks... */
 	while (*(DSN + strlen(DSN) - 1) == ' ')
 		*(DSN + strlen(DSN) - 1) = '\0';
 
-	if (ci->drivername[0] == '\0' || overwrite)
+	if (drivername[0] == '\0' || overwrite)
 	{
-		const char *drivername;
-
-		getDriverNameFromDSN(DSN, ci->drivername, sizeof(ci->drivername));
-		drivername = ci->drivername;
-		if (!share_common_driver_info &&
-		    drivername[0] &&
-		    stricmp(drivername, SAFE_NAME(ci->drivers.drivername)))
-		{
-			mylog("driver is about to change from '%s' to '%s'\n", SAFE_NAME(ci->drivers.drivername), drivername);
-			getCommonDefaults(drivername, ODBCINST_INI, ci);
-			getCommonDefaults(drivername, ODBCINST_INI, NULL);
-		}
+		if (DSN[0])
+			getDriverNameFromDSN(DSN, (char *) drivername, sizeof(ci->drivername));
 	}
+mylog("drivername=%s\n", drivername);
+	if (!drivername[0])
+		drivername = INVALID_DRIVER;
+	getDriversDefaults(drivername, &(ci->drivers));
 
 	/* Proceed with getting info for the given DSN. */
 
@@ -1124,7 +1149,8 @@ getDSNinfo(ConnInfo *ci, char overwrite)
 	}
 
 	/* Allow override of odbcinst.ini parameters here */
-	getCommonDefaults(DSN, ODBC_INI, ci);
+	get_Ci_Drivers(DSN, ODBC_INI, &(ci->drivers));
+	STR_TO_NAME(ci->drivers.drivername, drivername);
 
 	qlog("DSN info: DSN='%s',server='%s',port='%s',dbase='%s',user='%s',passwd='%s'\n",
 		 DSN,
@@ -1159,7 +1185,7 @@ getDSNinfo(ConnInfo *ci, char overwrite)
  *	to the ODBCINST.INI portion of the registry
  */
 int
-writeDriverCommoninfo(const char *fileName, const char *sectionName,
+write_Ci_Drivers(const char *fileName, const char *sectionName,
 			 const GLOBAL_VALUES *comval)
 {
 	char		tmp[128];
@@ -1167,9 +1193,7 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 
 	if (stricmp(ODBCINST_INI, fileName) == 0)
 	{
-		if (share_common_driver_info)
-			sectionName = DBMS_NAME;
-		else if (NULL == sectionName)
+		if (NULL == sectionName)
 			sectionName = DBMS_NAME;
 	}
 
@@ -1234,6 +1258,12 @@ writeDriverCommoninfo(const char *fileName, const char *sectionName,
 	 */
 
 	return errc;
+}
+
+int
+writeDriversDefaults(const char *drivername, const GLOBAL_VALUES *comval)
+{
+	return write_Ci_Drivers(ODBCINST_INI, drivername, comval);
 }
 
 /*	This is for datasource based options only */
@@ -1391,26 +1421,40 @@ writeDSNinfo(const ConnInfo *ci)
  *	This function reads the ODBCINST.INI portion of
  *	the registry and gets any driver defaults.
  */
-void
-getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
+static void
+get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 {
-	CSTR	func = "getCommonDefaults";
+	CSTR	func = "get_Ci_Drivers";
 	char		temp[256];
-	GLOBAL_VALUES *comval;
 	BOOL	inst_position = (stricmp(filename, ODBCINST_INI) == 0);
-	const char *drivername = (inst_position ? section : ci->drivername);
 
-	mylog("%s:setting %s position of %s(%p)\n", func, filename, section, ci);
-	if (ci)
-		comval = &(ci->drivers);
-	else
-		comval = &globals;
+	if (0 != strcmp(ODBCINST_INI, filename))
+		mylog("%s:setting %s position of %s(%p)\n", func, filename, section, comval);
 
 	/*
 	 * It's not appropriate to handle debug or commlog here.
 	 * Now they are handled in getDSNinfo().
 	 */
 
+	if (inst_position)
+	{
+		comval->fetch_max = FETCH_MAX;
+		comval->unique_index = DEFAULT_UNIQUEINDEX;
+		comval->unknown_sizes = DEFAULT_UNKNOWNSIZES;
+		comval->lie = DEFAULT_LIE;
+		comval->parse = DEFAULT_PARSE;
+		comval->use_declarefetch = DEFAULT_USEDECLAREFETCH;
+		comval->max_varchar_size = MAX_VARCHAR_SIZE;
+		comval->max_longvarchar_size = TEXT_FIELD_SIZE;
+		comval->text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
+		comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
+		comval->bools_as_char = DEFAULT_BOOLSASCHAR;
+		strcpy(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
+		comval->onlyread = DEFAULT_READONLY;
+		strcpy(comval->protocol, DEFAULT_PROTOCOL);
+	}
+	if (NULL == section || strcmp(section, INVALID_DRIVER) == 0)
+		return;
 	/*
 	 * If inst_position of xxxxxx is present(usually not present),
 	 * it is the default of ci->drivers.xxxxxx .
@@ -1420,94 +1464,69 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 	{
-		comval->fetch_max = atoi(temp);
-		/* sanity check if using cursors */
-		if (comval->fetch_max <= 0)
-			comval->fetch_max = FETCH_MAX;
+		if (atoi(temp) > 0)
+			comval->fetch_max = atoi(temp);
 	}
-	else if (inst_position)
-		comval->fetch_max = FETCH_MAX;
 
 	/* Recognize Unique Index is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_UNIQUEINDEX, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->unique_index = atoi(temp);
-	else if (inst_position)
-		comval->unique_index = DEFAULT_UNIQUEINDEX;
 
 	/* Unknown Sizes is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_UNKNOWNSIZES, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->unknown_sizes = atoi(temp);
-	else if (inst_position)
-		comval->unknown_sizes = DEFAULT_UNKNOWNSIZES;
-
 
 	/* Lie about supported functions? */
 	SQLGetPrivateProfileString(section, INI_LIE, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->lie = atoi(temp);
-	else if (inst_position)
-		comval->lie = DEFAULT_LIE;
 
 	/* Parse statements */
 	SQLGetPrivateProfileString(section, INI_PARSE, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->parse = atoi(temp);
-	else if (inst_position)
-		comval->parse = DEFAULT_PARSE;
 
 	/* UseDeclareFetch is stored in the driver section only */
 	SQLGetPrivateProfileString(section, INI_USEDECLAREFETCH, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->use_declarefetch = atoi(temp);
-	else if (inst_position)
-		comval->use_declarefetch = DEFAULT_USEDECLAREFETCH;
 
 	/* Max Varchar Size */
 	SQLGetPrivateProfileString(section, INI_MAXVARCHARSIZE, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->max_varchar_size = atoi(temp);
-	else if (inst_position)
-		comval->max_varchar_size = MAX_VARCHAR_SIZE;
 
 	/* Max TextField Size */
 	SQLGetPrivateProfileString(section, INI_MAXLONGVARCHARSIZE, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->max_longvarchar_size = atoi(temp);
-	else if (inst_position)
-		comval->max_longvarchar_size = TEXT_FIELD_SIZE;
 
 	/* Text As LongVarchar	*/
 	SQLGetPrivateProfileString(section, INI_TEXTASLONGVARCHAR, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->text_as_longvarchar = atoi(temp);
-	else if (inst_position)
-		comval->text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
 
 	/* Unknowns As LongVarchar	*/
 	SQLGetPrivateProfileString(section, INI_UNKNOWNSASLONGVARCHAR, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->unknowns_as_longvarchar = atoi(temp);
-	else if (inst_position)
-		comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
 
 	/* Bools As Char */
 	SQLGetPrivateProfileString(section, INI_BOOLSASCHAR, "",
 							   temp, sizeof(temp), filename);
 	if (temp[0])
 		comval->bools_as_char = atoi(temp);
-	else if (inst_position)
-		comval->bools_as_char = DEFAULT_BOOLSASCHAR;
 
 	/* Extra Systable prefixes */
 
@@ -1519,10 +1538,8 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 							   temp, sizeof(temp), filename);
 	if (strcmp(temp, "@@@"))
 		strcpy(comval->extra_systable_prefixes, temp);
-	else if (inst_position)
-		strcpy(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
 
-	mylog("ci=%p globals.extra_systable_prefixes = '%s'\n", ci, comval->extra_systable_prefixes);
+	mylog("comval=%p comval->extra_systable_prefixes = '%s'\n", comval, comval->extra_systable_prefixes);
 
 
 	/* Dont allow override of an override! */
@@ -1544,8 +1561,6 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 								   temp, sizeof(temp), filename);
 		if (temp[0])
 			comval->onlyread = atoi(temp);
-		else
-			comval->onlyread = DEFAULT_READONLY;
 
 		/*
 		 * Default state for future DSN's protocol attribute This isn't a
@@ -1556,10 +1571,7 @@ getCommonDefaults(const char *section, const char *filename, ConnInfo *ci)
 								   temp, sizeof(temp), filename);
 		if (strcmp(temp, "@@@"))
 			strncpy_null(comval->protocol, temp, sizeof(comval->protocol));
-		else
-			strcpy(comval->protocol, DEFAULT_PROTOCOL);
 	}
-	STR_TO_NAME(comval->drivername, drivername);
 }
 
 static void
@@ -1843,10 +1855,15 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
-	if (0 != (COPY_GLOBALS & option))
-		copy_globals(&(conninfo->drivers), &globals);
-	conninfo->drivers.debug = -1;
-	conninfo->drivers.commlog = -1;
+	if (0 != (INIT_GLOBALS & option))
+		init_globals(&(conninfo->drivers));
+}
+
+void	init_globals(GLOBAL_VALUES *glbv)
+{
+	memset(glbv, 0, sizeof(*glbv));
+	glbv->debug = -1;
+	glbv->commlog = -1;
 }
 
 #define	CORR_STRCPY(item)	strncpy_null(to->item, from->item, sizeof(to->item))

@@ -488,6 +488,7 @@ typedef struct GlobalValues_
 } GLOBAL_VALUES;
 
 void copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from);
+void init_globals(GLOBAL_VALUES *glbv);
 void finalize_globals(GLOBAL_VALUES *glbv);
 
 typedef struct StatementOptions_
@@ -616,7 +617,7 @@ typedef struct
 int	initialize_global_cs(void);
 enum { /* CC_conninfo_init option */
 	CLEANUP_FOR_REUSE	= 1L		/* reuse the info */
-	,COPY_GLOBALS		= (1L << 1) /* copy globals to drivers */
+	,INIT_GLOBALS		= (1L << 1) /* init globals memebers */
 };
 void	CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
 void	CC_conninfo_release(ConnInfo *conninfo);

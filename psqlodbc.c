@@ -33,7 +33,6 @@ BOOL isMsAccess(void) {return 1 == exepgm;}
 BOOL isMsQuery(void) {return 2 == exepgm;}
 BOOL isSqlServr(void) {return 3 == exepgm;}
 
-extern GLOBAL_VALUES globals;
 
 RETCODE SQL_API SQLDummyOrdinal(void);
 
@@ -86,8 +85,6 @@ int	initialize_global_cs(void)
 #ifdef	POSIX_THREADMUTEX_SUPPORT
 	getMutexAttr();
 #endif /* POSIX_THREADMUTEX_SUPPORT */
-	memset(&globals, 0, sizeof(globals));
-	globals.debug = globals.commlog = -1;
 	InitializeLogging();
 	INIT_CONNS_CS;
 	INIT_COMMON_CS;
@@ -99,7 +96,6 @@ static void finalize_global_cs(void)
 {
 	DELETE_COMMON_CS;
 	DELETE_CONNS_CS;
-	finalize_globals(&globals);
 	FinalizeLogging();
 #ifdef	_DEBUG
 #ifdef	_MEMORY_DEBUG_
@@ -124,7 +120,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
 				int platformId = 0;
 
-				getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
+				// getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
 				{
 					_splitpath(pathname, NULL, NULL, fname, NULL);
@@ -172,7 +168,7 @@ __attribute__((constructor))
 psqlodbc_init(void)
 {
 	initialize_global_cs();
-	getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
+	// getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 }
 
 static void
@@ -189,7 +185,7 @@ BOOL
 _init(void)
 {
 	initialize_global_cs();
-	getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
+	// getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 	return TRUE;
 }
 

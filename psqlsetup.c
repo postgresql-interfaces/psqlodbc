@@ -30,7 +30,6 @@ static HINSTANCE s_hLModule = NULL;	/* for libpq */
 static HINSTANCE s_hLModule2 = NULL;
 /*	This is where the Driver Manager attaches to this Driver */
 
-extern GLOBAL_VALUES globals;
 
 int	initialize_global_cs(void)
 {
@@ -39,8 +38,6 @@ int	initialize_global_cs(void)
 	if (!init)
 		return 0;
 	init = 0;
-	memset(&globals, 0, sizeof(globals));
-	globals.debug = globals.commlog = -1;
 	InitializeLogging();
 
 	return 0;
@@ -48,7 +45,6 @@ int	initialize_global_cs(void)
 
 static void finalize_global_cs(void)
 {
-	finalize_globals(&globals);
 	FinalizeLogging();
 #ifdef	_DEBUG
 #ifdef	_MEMORY_DEBUG_
@@ -74,7 +70,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			s_hModule = hInst;	/* Save for dialog boxes */
 
 			if (initialize_global_cs() == 0)
-				getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
+				; // getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 #ifdef	PG_BIN
 			if (s_hLModule = LoadLibraryEx(PG_BIN "\\libpq.dll", NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule == NULL)
 				mylog("libpq in the folder %s couldn't be loaded\n", PG_BIN);
