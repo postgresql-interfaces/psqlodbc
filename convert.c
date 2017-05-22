@@ -4028,9 +4028,6 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	SQLSMALLINT	param_ctype, param_sqltype;
 	SIMPLE_TIME	st;
 	struct tm	*tim;
-#ifdef	HAVE_LOCALTIME_R
-	struct tm	tm;
-#endif /* HAVE_LOCALTIME_R */
 	SQLLEN		used;
 	char		*send_buf;
 

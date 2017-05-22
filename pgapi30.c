@@ -2028,7 +2028,6 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 	ConnectionClass	*conn;
 	QResultClass	*res;
 	IRDFields	*irdflds;
-	BindInfoClass	*bookmark;
 	PG_BM		pg_bm;
 
 	if (s->need_data_callback)
@@ -2042,7 +2041,6 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 		s->idx = s->processed = 0;
 	}
 	s->need_data_callback = FALSE;
-	bookmark = s->opts->bookmark;
 	res = SC_get_Curres(s->stmt);
 	for (; SQL_ERROR != ret && s->idx < s->opts->size_of_rowset; s->idx++)
 	{
