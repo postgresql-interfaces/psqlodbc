@@ -1450,7 +1450,6 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 		comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
 		comval->bools_as_char = DEFAULT_BOOLSASCHAR;
 		strcpy(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
-		comval->onlyread = DEFAULT_READONLY;
 		strcpy(comval->protocol, DEFAULT_PROTOCOL);
 	}
 	if (NULL == section || strcmp(section, INVALID_DRIVER) == 0)
@@ -1545,23 +1544,6 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 	/* Dont allow override of an override! */
 	if (inst_position)
 	{
-		char conn_settings[LARGE_REGISTRY_LEN];
-
-		/*
-		 * ConnSettings is stored in the driver section and per datasource
-		 * for override
-		 */
-		SQLGetPrivateProfileString(section, INI_CONNSETTINGS, "",
-			conn_settings, sizeof(conn_settings), filename);
-		if ('\0' != conn_settings[0])
-			STRX_TO_NAME(comval->conn_settings, conn_settings);
-
-		/* Default state for future DSN's Readonly attribute */
-		SQLGetPrivateProfileString(section, INI_READONLY, "",
-								   temp, sizeof(temp), filename);
-		if (temp[0])
-			comval->onlyread = atoi(temp);
-
 		/*
 		 * Default state for future DSN's protocol attribute This isn't a
 		 * real driver option YET.	This is more intended for
@@ -1875,7 +1857,6 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 	/***
 	memcpy(to, from, sizeof(GLOBAL_VALUES));
 	SET_NAME_DIRECTLY(to->drivername, NULL);
-	SET_NAME_DIRECTLY(to->conn_settings, NULL);
 	***/
 	NAME_TO_NAME(to->drivername, from->drivername);
 	CORR_VALCPY(fetch_max);
@@ -1885,8 +1866,6 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 	CORR_VALCPY(debug);
 	CORR_VALCPY(commlog);
 	CORR_VALCPY(unique_index);
-	CORR_VALCPY(onlyread);		/* readonly is reserved on Digital C++
-								 * compiler */
 	CORR_VALCPY(use_declarefetch);
 	CORR_VALCPY(text_as_longvarchar);
 	CORR_VALCPY(unknowns_as_longvarchar);
@@ -1895,7 +1874,6 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 	CORR_VALCPY(parse);
 	CORR_STRCPY(extra_systable_prefixes);
 	CORR_STRCPY(protocol);
-	NAME_TO_NAME(to->conn_settings, from->conn_settings);
 
 	mylog("copy_globals driver=%s\n", SAFE_NAME(to->drivername));
 }
@@ -1903,7 +1881,6 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 void	finalize_globals(GLOBAL_VALUES *glbv)
 {
 	NULL_THE_NAME(glbv->drivername);
-	NULL_THE_NAME(glbv->conn_settings);
 }
 
 #undef	CORR_STRCPY

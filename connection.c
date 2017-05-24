@@ -983,12 +983,10 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 	if (NULL == self->locale_encoding)
 	{
 		encoding = check_client_encoding(ci->conn_settings);
-		if (!encoding)
-			encoding = check_client_encoding(ci->drivers.conn_settings);
 		CC_set_locale_encoding(self, encoding);
 		qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
 			ci->drivers.extra_systable_prefixes,
-			PRINT_NAME(ci->drivers.conn_settings),
+			PRINT_NAME(ci->conn_settings),
 			encoding ? encoding : "");
 	}
 	if (self->status == CONN_DOWN)
@@ -1067,11 +1065,8 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	 * function instead.
 	 */
 
-	/* Global settings */
-	retsend = CC_send_settings(self, GET_NAME(self->connInfo.drivers.conn_settings));
 	/* Per Datasource settings */
-	if (retsend)
-		retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
+	retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
 
 	if (CC_get_errornumber(self) > 0)
 		saverr = strdup(CC_get_errormsg(self));

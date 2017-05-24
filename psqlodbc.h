@@ -474,8 +474,6 @@ typedef struct GlobalValues_
 	char		debug;
 	char		commlog;
 	char		unique_index;
-	char		onlyread;		/* readonly is reserved on Digital C++
-								 * compiler */
 	char		use_declarefetch;
 	char		text_as_longvarchar;
 	char		unknowns_as_longvarchar;
@@ -484,7 +482,6 @@ typedef struct GlobalValues_
 	char		parse;
 	char		extra_systable_prefixes[MEDIUM_REGISTRY_LEN];
 	char		protocol[SMALL_REGISTRY_LEN];
-	pgNAME		conn_settings;
 } GLOBAL_VALUES;
 
 void copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from);

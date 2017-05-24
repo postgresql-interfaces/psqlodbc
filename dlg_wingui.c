@@ -169,8 +169,7 @@ mylog("!!!! %s;%d in\n", __FUNCTION__, src);
 	CheckDlgButton(hdlg, DRV_COMMLOG, comval->commlog > 0);
 	CheckDlgButton(hdlg, DRV_UNIQUEINDEX, comval->unique_index);
 	/* EnableWindow(GetDlgItem(hdlg, DRV_UNIQUEINDEX), enable); */
-	CheckDlgButton(hdlg, DRV_READONLY, comval->onlyread);
-	EnableWindow(GetDlgItem(hdlg, DRV_READONLY), enable);
+	EnableWindow(GetDlgItem(hdlg, DRV_READONLY), FALSE);
 	CheckDlgButton(hdlg, DRV_USEDECLAREFETCH, comval->use_declarefetch);
 
 	/* Unknown Sizes clear */
@@ -203,8 +202,7 @@ mylog("!!!! %s;%d in\n", __FUNCTION__, src);
 	SetDlgItemText(hdlg, DRV_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes);
 
 	/* Driver Connection Settings */
-	SetDlgItemText(hdlg, DRV_CONNSETTINGS, SAFE_NAME(comval->conn_settings));
-	EnableWindow(GetDlgItem(hdlg, DRV_CONNSETTINGS), enable);
+	EnableWindow(GetDlgItem(hdlg, DRV_CONNSETTINGS), FALSE);
 	ShowWindow(GetDlgItem(hdlg, ID2NDPAGE), enable ? SW_HIDE : SW_SHOW);
 	ShowWindow(GetDlgItem(hdlg, ID3RDPAGE), enable ? SW_HIDE : SW_SHOW);
 
@@ -222,10 +220,6 @@ driver_options_update(HWND hdlg, ConnInfo *ci)
 
 	comval->commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
 	comval->unique_index = IsDlgButtonChecked(hdlg, DRV_UNIQUEINDEX);
-	if (!ci)
-	{
-		comval->onlyread = IsDlgButtonChecked(hdlg, DRV_READONLY);
-	}
 	comval->use_declarefetch = IsDlgButtonChecked(hdlg, DRV_USEDECLAREFETCH);
 
 	/* Unknown (Default) Data Type sizes */
@@ -252,16 +246,6 @@ driver_options_update(HWND hdlg, ConnInfo *ci)
 																								 * SQL_NO_TOTAL */
 
 	GetDlgItemText(hdlg, DRV_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes, sizeof(comval->extra_systable_prefixes));
-
-	/* Driver Connection Settings */
-	if (!ci)
-	{
-		char	conn_settings[LARGE_REGISTRY_LEN];
-
-		GetDlgItemText(hdlg, DRV_CONNSETTINGS, conn_settings, sizeof(conn_settings));
-		if ('\0' != conn_settings[0])
-			STR_TO_NAME(comval->conn_settings, conn_settings);
-	}
 
 	/* fall through */
 	return 0;
