@@ -308,9 +308,9 @@ int		write_Ci_Drivers(const char *fileName, const char *sectionName,
 		const GLOBAL_VALUES *);
 int		writeDriversDefaults(const char *drivername, const GLOBAL_VALUES *);
 void		writeDSNinfo(const ConnInfo *ci);
-void		getDSNdefaults(ConnInfo *ci);
-void		getDSNinfo(ConnInfo *ci, char overwrite, const char *configDrvrname);
+void		getDSNinfo(ConnInfo *ci, const char *configDrvrname);
 void		makeConnectString(char *connect_string, const ConnInfo *ci, UWORD);
+BOOL		get_DSN_or_Driver(ConnInfo *ci, const char *attribute, const char *value);
 BOOL		copyAttributes(ConnInfo *ci, const char *attribute, const char *value);
 BOOL		copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value);
 int	getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen);

@@ -569,6 +569,22 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	ci->lower_case_identifier = (char)((flag & BIT_LOWERCASEIDENTIFIER) != 0);
 	ci->gssauth_use_gssapi = (char)((flag & BIT_GSSAUTHUSEGSSAPI) != 0);
 }
+
+BOOL
+get_DSN_or_Driver(ConnInfo *ci, const char *attribute, const char *value)
+{
+	BOOL	found = TRUE;
+
+	if (stricmp(attribute, "DSN") == 0)
+		strcpy(ci->dsn, value);
+	else if (stricmp(attribute, "driver") == 0)
+		strcpy(ci->drivername, value);
+	else
+		found = FALSE;
+
+	return found;
+}
+
 BOOL
 copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 {
@@ -790,64 +806,34 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 }
 
 
-void
-getDSNdefaults(ConnInfo *ci)
+static void
+getCiDefaults(ConnInfo *ci)
 {
-	mylog("calling getDSNdefaults\n");
+	mylog("calling %s\n", __FUNCTION__);
 
-	if (ci->drivers.debug < 0)
-		ci->drivers.debug = DEFAULT_DEBUG;
-	if (ci->drivers.commlog < 0)
-		ci->drivers.commlog = DEFAULT_COMMLOG;
-
-	if (ci->onlyread[0] == '\0')
-		sprintf(ci->onlyread, "%d", DEFAULT_READONLY);
-
-	if (ci->fake_oid_index[0] == '\0')
-		sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
-
-	if (ci->show_oid_column[0] == '\0')
-		sprintf(ci->show_oid_column, "%d", DEFAULT_SHOWOIDCOLUMN);
-
-	if (ci->show_system_tables[0] == '\0')
-		sprintf(ci->show_system_tables, "%d", DEFAULT_SHOWSYSTEMTABLES);
-
-	if (ci->row_versioning[0] == '\0')
-		sprintf(ci->row_versioning, "%d", DEFAULT_ROWVERSIONING);
-
-	if (ci->allow_keyset < 0)
-		ci->allow_keyset = DEFAULT_UPDATABLECURSORS;
-	if (ci->lf_conversion < 0)
-		ci->lf_conversion = DEFAULT_LFCONVERSION;
-	if (ci->true_is_minus1 < 0)
-		ci->true_is_minus1 = DEFAULT_TRUEISMINUS1;
-	if (ci->int8_as < -100)
-		ci->int8_as = DEFAULT_INT8AS;
-	if (ci->bytea_as_longvarbinary < 0)
-		ci->bytea_as_longvarbinary = DEFAULT_BYTEAASLONGVARBINARY;
-	if (ci->use_server_side_prepare < 0)
-		ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
-	if (ci->lower_case_identifier < 0)
-		ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
-	if (ci->gssauth_use_gssapi < 0)
-		ci->gssauth_use_gssapi = DEFAULT_GSSAUTHUSEGSSAPI;
-	if (ci->sslmode[0] == '\0')
-		strcpy(ci->sslmode, DEFAULT_SSLMODE);
-	if (ci->force_abbrev_connstr < 0)
-		ci->force_abbrev_connstr = 0;
-	if (ci->fake_mss < 0)
-		ci->fake_mss = 0;
-	if (ci->bde_environment < 0)
-		ci->bde_environment = 0;
-	if (ci->cvt_null_date_string < 0)
-		ci->cvt_null_date_string = 0;
-	if (ci->accessible_only < 0)
-		ci->accessible_only = 0;
-	if (ci->ignore_round_trip_time < 0)
-		ci->ignore_round_trip_time = 0;
-	if (ci->disable_keepalive < 0)
-		ci->disable_keepalive = 0;
-	if (ci->wcs_debug < 0)
+	ci->drivers.debug = DEFAULT_DEBUG;
+	ci->drivers.commlog = DEFAULT_COMMLOG;
+	sprintf(ci->onlyread, "%d", DEFAULT_READONLY);
+	sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
+	sprintf(ci->show_oid_column, "%d", DEFAULT_SHOWOIDCOLUMN);
+	sprintf(ci->show_system_tables, "%d", DEFAULT_SHOWSYSTEMTABLES);
+	sprintf(ci->row_versioning, "%d", DEFAULT_ROWVERSIONING);
+	ci->allow_keyset = DEFAULT_UPDATABLECURSORS;
+	ci->lf_conversion = DEFAULT_LFCONVERSION;
+	ci->true_is_minus1 = DEFAULT_TRUEISMINUS1;
+	ci->int8_as = DEFAULT_INT8AS;
+	ci->bytea_as_longvarbinary = DEFAULT_BYTEAASLONGVARBINARY;
+	ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
+	ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
+	ci->gssauth_use_gssapi = DEFAULT_GSSAUTHUSEGSSAPI;
+	strcpy(ci->sslmode, DEFAULT_SSLMODE);
+	ci->force_abbrev_connstr = 0;
+	ci->fake_mss = 0;
+	ci->bde_environment = 0;
+	ci->cvt_null_date_string = 0;
+	ci->accessible_only = 0;
+	ci->ignore_round_trip_time = 0;
+	ci->disable_keepalive = 0;
 	{
 		const char *p;
 
@@ -857,8 +843,7 @@ getDSNdefaults(ConnInfo *ci)
 				ci->wcs_debug = 1;
 	}
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-	if (ci->xa_opt < 0)
-		ci->xa_opt = DEFAULT_XAOPT;
+	ci->xa_opt = DEFAULT_XAOPT;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 }
 
@@ -896,125 +881,103 @@ void getDriversDefaults(const char *drivername, GLOBAL_VALUES *comval)
 }
 
 void
-getDSNinfo(ConnInfo *ci, char overwrite, const char *configDrvrname)
+getDSNinfo(ConnInfo *ci, const char *configDrvrname)
 {
 	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
 	char		encoded_item[LARGE_REGISTRY_LEN],
-				temp[SMALL_REGISTRY_LEN];
+				temp[32];
 	const char *drivername;
 
 /*
  *	If a driver keyword was present, then dont use a DSN and return.
  *	If DSN is null and no driver, then use the default datasource.
  */
-	mylog("%s: DSN=%s driver=%s&%s overwrite=%d\n", func, DSN,
-		ci->drivername, NULL_IF_NULL(configDrvrname),
-			overwrite);
+	mylog("%s: DSN=%s driver=%s&%s\n", func, DSN,
+		ci->drivername, NULL_IF_NULL(configDrvrname));
+
+	getCiDefaults(ci);
 	drivername = ci->drivername;
 	if (DSN[0] == '\0')
 	{
-		if (drivername[0] != '\0') /* dns-less connections */
+		if (drivername[0] == '\0') /* adding new DSN via configDSN */
 		{
-			getDriversDefaults(drivername, &(ci->drivers));
-			return;
-		}
-		else	/* adding new DSN via configDSN */
-		{
-			drivername = configDrvrname;
+			if (configDrvrname)
+				drivername = configDrvrname;
 			strncpy_null(DSN, INI_DSN, sizeof(ci->dsn));
 		}
+		/* else dns-less connections */
 	}
 
 	/* brute-force chop off trailing blanks... */
 	while (*(DSN + strlen(DSN) - 1) == ' ')
 		*(DSN + strlen(DSN) - 1) = '\0';
 
-	if (drivername[0] == '\0' || overwrite)
-	{
-		if (DSN[0])
-			getDriverNameFromDSN(DSN, (char *) drivername, sizeof(ci->drivername));
-	}
+	if (!drivername[0] && DSN[0])
+		getDriverNameFromDSN(DSN, (char *) drivername, sizeof(ci->drivername));
 mylog("drivername=%s\n", drivername);
 	if (!drivername[0])
 		drivername = INVALID_DRIVER;
 	getDriversDefaults(drivername, &(ci->drivers));
 
+	if (DSN[0] == '\0')
+		return;
+
 	/* Proceed with getting info for the given DSN. */
 
-	if (ci->desc[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_KDESC, "", ci->desc, sizeof(ci->desc), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_KDESC, NULL_STRING, ci->desc, sizeof(ci->desc), ODBC_INI);
 
-	if (ci->server[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_SERVER, "", ci->server, sizeof(ci->server), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_SERVER, NULL_STRING, ci->server, sizeof(ci->server), ODBC_INI);
 
-	if (ci->database[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_DATABASE, "", ci->database, sizeof(ci->database), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_DATABASE, NULL_STRING, ci->database, sizeof(ci->database), ODBC_INI);
 
-	if (ci->username[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_USERNAME, "", ci->username, sizeof(ci->username), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_USERNAME, NULL_STRING, ci->username, sizeof(ci->username), ODBC_INI);
 
-	if (NAME_IS_NULL(ci->password) || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_PASSWORD, "", encoded_item, sizeof(encoded_item), ODBC_INI);
-		ci->password = decode(encoded_item);
-	}
+	SQLGetPrivateProfileString(DSN, INI_PASSWORD, NULL_STRING, encoded_item, sizeof(encoded_item), ODBC_INI);
+	ci->password = decode(encoded_item);
 
-	if (ci->port[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_PORT, "", ci->port, sizeof(ci->port), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_PORT, NULL_STRING, ci->port, sizeof(ci->port), ODBC_INI);
 
 	/* It's appropriate to handle debug and commlog here */
-	if (ci->drivers.debug < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_DEBUG, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->drivers.debug = atoi(temp);
-	}
-	if (ci->drivers.commlog < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_COMMLOG, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->drivers.commlog = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_DEBUG, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->drivers.debug = atoi(temp);
+	SQLGetPrivateProfileString(DSN, INI_COMMLOG, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->drivers.commlog = atoi(temp);
 
-	if (ci->onlyread[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_READONLY, "", ci->onlyread, sizeof(ci->onlyread), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_READONLY, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->onlyread, temp, sizeof(ci->onlyread));
 
-	if (ci->show_oid_column[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_SHOWOIDCOLUMN, "", ci->show_oid_column, sizeof(ci->show_oid_column), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_SHOWOIDCOLUMN, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->show_oid_column, temp, sizeof(ci->show_oid_column));
 
-	if (ci->fake_oid_index[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_FAKEOIDINDEX, "", ci->fake_oid_index, sizeof(ci->fake_oid_index), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_FAKEOIDINDEX, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->fake_oid_index, temp, sizeof(ci->fake_oid_index));
 
-	if (ci->row_versioning[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_ROWVERSIONING, "", ci->row_versioning, sizeof(ci->row_versioning), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_ROWVERSIONING, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->row_versioning, temp, sizeof(ci->row_versioning));
 
-	if (ci->show_system_tables[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, "", ci->show_system_tables, sizeof(ci->show_system_tables), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, NULL_STRING, ci->show_system_tables, sizeof(ci->show_system_tables), ODBC_INI);
 
-	if (ci->rollback_on_error == -1 || overwrite)
 	{
 		char protocol[SMALL_REGISTRY_LEN];
 		char	*ptr;
-		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, "", protocol, sizeof(protocol), ODBC_INI);
+		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, NULL_STRING, protocol, sizeof(protocol), ODBC_INI);
 		if (ptr = strchr(protocol, '-'), NULL != ptr)
 		{
 			*ptr = '\0';
-			if (overwrite || ci->rollback_on_error < 0)
-			{
-				ci->rollback_on_error = atoi(ptr + 1);
-				mylog("rollback_on_error=%d\n", ci->rollback_on_error);
-			}
+			ci->rollback_on_error = atoi(ptr + 1);
+			mylog("rollback_on_error=%d\n", ci->rollback_on_error);
 		}
 	}
 
-	if (NAME_IS_NULL(ci->conn_settings) || overwrite)
 	{
 		const UCHAR *ptr;
 		BOOL	percent_encoded = TRUE, pspace;
 		int	nspcnt;
 
-		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, "", encoded_item, sizeof(encoded_item), ODBC_INI);
+		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, NULL_STRING, encoded_item, sizeof(encoded_item), ODBC_INI);
 		/*
 		 *	percent-encoding was used before.
 		 *	Note that there's no space in percent-encoding.
@@ -1041,110 +1004,72 @@ mylog("drivername=%s\n", drivername);
 		else
 			STRX_TO_NAME(ci->conn_settings, encoded_item);
 	}
-	if (NAME_IS_NULL(ci->pqopt))
-	{
-		SQLGetPrivateProfileString(DSN, INI_PQOPT, "", encoded_item, sizeof(encoded_item), ODBC_INI);
-		STRX_TO_NAME(ci->pqopt, encoded_item);
-	}
+	SQLGetPrivateProfileString(DSN, INI_PQOPT, NULL_STRING, encoded_item, sizeof(encoded_item), ODBC_INI);
+	STRX_TO_NAME(ci->pqopt, encoded_item);
 
-	if (ci->translation_dll[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_TRANSLATIONDLL, "", ci->translation_dll, sizeof(ci->translation_dll), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_TRANSLATIONDLL, NULL_STRING, ci->translation_dll, sizeof(ci->translation_dll), ODBC_INI);
 
-	if (ci->translation_option[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_TRANSLATIONOPTION, "", ci->translation_option, sizeof(ci->translation_option), ODBC_INI);
+	SQLGetPrivateProfileString(DSN, INI_TRANSLATIONOPTION, NULL_STRING, ci->translation_option, sizeof(ci->translation_option), ODBC_INI);
 
-	if (ci->allow_keyset < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_UPDATABLECURSORS, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->allow_keyset = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_UPDATABLECURSORS, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->allow_keyset = atoi(temp);
 
-	if (ci->lf_conversion < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_LFCONVERSION, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->lf_conversion = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_LFCONVERSION, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->lf_conversion = atoi(temp);
 
-	if (ci->true_is_minus1 < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_TRUEISMINUS1, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->true_is_minus1 = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_TRUEISMINUS1, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->true_is_minus1 = atoi(temp);
 
-	if (ci->int8_as < -100 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_INT8AS, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->int8_as = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_INT8AS, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->int8_as = atoi(temp);
 
-	if (ci->bytea_as_longvarbinary < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_BYTEAASLONGVARBINARY, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->bytea_as_longvarbinary = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_BYTEAASLONGVARBINARY, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->bytea_as_longvarbinary = atoi(temp);
 
-	if (ci->use_server_side_prepare < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_USESERVERSIDEPREPARE, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->use_server_side_prepare = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_USESERVERSIDEPREPARE, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->use_server_side_prepare = atoi(temp);
 
-	if (ci->lower_case_identifier < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_LOWERCASEIDENTIFIER, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->lower_case_identifier = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_LOWERCASEIDENTIFIER, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->lower_case_identifier = atoi(temp);
 
-	if (ci->gssauth_use_gssapi < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_GSSAUTHUSEGSSAPI, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->gssauth_use_gssapi = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_GSSAUTHUSEGSSAPI, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->gssauth_use_gssapi = atoi(temp);
 
-	if (ci->keepalive_idle < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_KEEPALIVETIME, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			if (0 == (ci->keepalive_idle = atoi(temp)))
-				ci->keepalive_idle = -1;
-	}
-	if (ci->keepalive_interval < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_KEEPALIVEINTERVAL, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			if (0 == (ci->keepalive_interval = atoi(temp)))
-				ci->keepalive_interval = -1;
-	}
+	SQLGetPrivateProfileString(DSN, INI_KEEPALIVETIME, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		if (0 == (ci->keepalive_idle = atoi(temp)))
+			ci->keepalive_idle = -1;
+	SQLGetPrivateProfileString(DSN, INI_KEEPALIVEINTERVAL, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		if (0 == (ci->keepalive_interval = atoi(temp)))
+			ci->keepalive_interval = -1;
 
-	if (ci->sslmode[0] == '\0' || overwrite)
-		SQLGetPrivateProfileString(DSN, INI_SSLMODE, "", ci->sslmode, sizeof(ci->sslmode), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_SSLMODE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->sslmode, temp, sizeof(ci->sslmode));
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-	if (ci->xa_opt < 0 || overwrite)
-	{
-		SQLGetPrivateProfileString(DSN, INI_XAOPT, "", temp, sizeof(temp), ODBC_INI);
-		if (temp[0])
-			ci->xa_opt = atoi(temp);
-	}
+	SQLGetPrivateProfileString(DSN, INI_XAOPT, NULL_STRING, temp, sizeof(temp), ODBC_INI);
+	if (temp[0])
+		ci->xa_opt = atoi(temp);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 	/* Force abbrev connstr or bde */
-	SQLGetPrivateProfileString(DSN, INI_EXTRAOPTIONS, "",
+	SQLGetPrivateProfileString(DSN, INI_EXTRAOPTIONS, NULL_STRING,
 					temp, sizeof(temp), ODBC_INI);
 	if (temp[0])
 	{
 		UInt4	val = 0;
 
 		sscanf(temp, "%x", &val);
-		replaceExtraOptions(ci, val, overwrite);
+		replaceExtraOptions(ci, val, TRUE);
 		mylog("force_abbrev=%d bde=%d cvt_null_date=%d\n", ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
 	}
 

@@ -282,10 +282,7 @@ ConfigDlgProc(HWND hdlg,
 
 			init_globals(&ci->drivers);
 			/* Get the rest of the common attributes */
-			getDSNinfo(ci, CONN_DONT_OVERWRITE, lpsetupdlg->lpszDrvr);
-
-			/* Fill in any defaults */
-			getDSNdefaults(ci);
+			getDSNinfo(ci, lpsetupdlg->lpszDrvr);
 
 			/* Initialize dialog fields */
 			SetDlgStuff(hdlg, ci);

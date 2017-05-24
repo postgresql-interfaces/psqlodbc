@@ -62,6 +62,7 @@ static char * hide_password(const char *str)
 #endif
 
 /* prototypes */
+static BOOL dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci);
 static BOOL dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);
 static BOOL dconn_get_common_attributes(const char *connect_string, ConnInfo *ci);
 
@@ -143,8 +144,8 @@ PGAPI_DriverConnect(HDBC hdbc,
 
 	ci = &(conn->connInfo);
 
-	/* Parse the connect string and fill in conninfo for this hdbc. */
-	if (!dconn_get_connect_attributes(connStrIn, ci))
+	/* First parse the connect string and get the name of DSN or Driver */
+	if (!dconn_get_DSN_or_Driver(connStrIn, ci))
 	{
 		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
 		return SQL_ERROR;
@@ -154,14 +155,18 @@ PGAPI_DriverConnect(HDBC hdbc,
 	 * fill them in from the registry (assuming of course there is a DSN
 	 * given -- if not, it does nothing!)
 	 */
-	getDSNinfo(ci, CONN_DONT_OVERWRITE, NULL);
+	getDSNinfo(ci, NULL);
+	/* Parse the connect string and fill in conninfo for this hdbc. */
+	if (!dconn_get_connect_attributes(connStrIn, ci))
+	{
+		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
+		return SQL_ERROR;
+	}
 	if (!dconn_get_common_attributes(connStrIn, ci))
 	{
 		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
 		return SQL_ERROR;
 	}
-	/* Fill in any default parameters if they are not there. */
-	getDSNdefaults(ci);
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
 	if (connStrIn)
 	{
@@ -596,9 +601,15 @@ cleanup:
 }
 
 static BOOL
-dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
+dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci)
 {
 	CC_conninfo_init(ci, INIT_GLOBALS);
+	return dconn_get_attributes(get_DSN_or_Driver, connect_string, ci);
+}
+
+static BOOL
+dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
+{
 	return dconn_get_attributes(copyAttributes, connect_string, ci);
 }
 
