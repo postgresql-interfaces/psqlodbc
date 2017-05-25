@@ -228,43 +228,41 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 	CSTR func = "SQLGetDiagRecW";
 	RETCODE	ret;
         SQLSMALLINT	buflen, tlen;
-        char    *qstr = NULL, *mtxt = NULL;
+        char    qstr_ansi[8], *mtxt = NULL;
 
 	mylog("[%s]", func);
-        if (szSqlState)
-                qstr = malloc(8);
 	buflen = 0;
         if (szErrorMsg && cbErrorMsgMax > 0)
 	{
 		buflen = cbErrorMsgMax;
                 mtxt = malloc(buflen);
 	}
-	ret = PGAPI_GetDiagRec(fHandleType, handle, iRecord, (SQLCHAR *) qstr,
+	ret = PGAPI_GetDiagRec(fHandleType, handle, iRecord, (SQLCHAR *) qstr_ansi,
 						   pfNativeError, (SQLCHAR *) mtxt, buflen, &tlen);
 	if (SQL_SUCCEEDED(ret))
 	{
-		if (qstr)
-			utf8_to_ucs2(qstr, strlen(qstr), szSqlState, 6);
+		if (szSqlState)
+			utf8_to_ucs2(qstr_ansi, -1, szSqlState, 6);
 		if (mtxt && tlen <= cbErrorMsgMax)
 		{
 			SQLULEN ulen = utf8_to_ucs2_lf(mtxt, tlen, FALSE, szErrorMsg, cbErrorMsgMax, TRUE);
-			/*
 			if (ulen == (SQLULEN) -1)
-			{
-				tlen = (SQLSMALLINT) msgtowstr(mtxt,
-					(int) tlen, (LPWSTR) szErrorMsg, (int) cbErrorMsgMax);
-			}
+				tlen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) szErrorMsg, mtxt, cbErrorMsgMax, FALSE);
 			else
-			*/
 				tlen = (SQLSMALLINT) ulen;
 			if (tlen >= cbErrorMsgMax)
 				ret = SQL_SUCCESS_WITH_INFO;
+			else if (tlen < 0)
+			{
+				char errc[32];
+
+				snprintf(errc, sizeof(errc), "Error: SqlState=%s", qstr_ansi);
+				tlen = utf8_to_ucs2(errc, -1, szErrorMsg, cbErrorMsgMax);
+			}
 		}
 		if (pcbErrorMsg)
 			*pcbErrorMsg = tlen;
 	}
-	if (qstr)
-		free(qstr);
 	if (mtxt)
 		free(mtxt);
 	return ret;
@@ -400,14 +398,9 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 			if (SQL_SUCCEEDED(ret))
 			{
 				SQLULEN ulen = (SQLSMALLINT) utf8_to_ucs2_lf(rgbD, blen, FALSE, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, TRUE);
-				/*
 				if (ulen == (SQLULEN) -1)
-				{
-					blen = (SQLSMALLINT) msgtowstr(rgbD,
-						(int) blen, (LPWSTR) rgbDiagInfo, (int) cbDiagInfoMax / WCLEN);
-				}
+					blen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) rgbDiagInfo, rgbD, cbDiagInfoMax / WCLEN, FALSE);
 				else
-				*/
 					blen = (SQLSMALLINT) ulen;
 				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
 					ret = SQL_SUCCESS_WITH_INFO;

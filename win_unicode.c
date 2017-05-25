@@ -14,6 +14,12 @@
 #include <string.h>
 #include <ctype.h>
 
+#ifdef	WIN32
+#define	FORMAT_SIZE_T	"%Iu"
+#else
+#define	FORMAT_SIZE_T	"%zu"
+#endif
+
 #if (defined(__STDC_ISO_10646__) && defined(HAVE_MBSTOWCS) && defined(HAVE_WCSTOMBS)) || defined(WIN32)
 #define	__WCS_ISO10646__
 static	BOOL	use_wcs = FALSE;
@@ -139,7 +145,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 		int	crt = 1;
 		little_endian = (0 != ((char *) &crt)[0]);
 	}
-	if (SQL_NTS == ilen)
+	if (ilen < 0)
 		ilen = ucs2strlen(ucs2str);
 mylog(" newlen=%d", ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
@@ -239,7 +245,7 @@ mylog(" %s:olen=%d utf8str=%s\n", __FUNCTION__, len, utf8str ? utf8str : "");
  * Convert a string from UTF-8 encoding to UCS-2.
  *
  * utf8str		- input string in UTF-8
- * ilen			- length of input string in bytes  (or SQL_NTS)
+ * ilen			- length of input string in bytes  (or minus)
  * lfconv		- TRUE if line feeds (LF) should be converted to CR + LF
  * ucs2str		- output buffer
  * bufcount		- size of output buffer
@@ -428,7 +434,7 @@ mylog(" %s:%p ilen=%d\n", __FUNCTION__, ucs4str, ilen);
 		int	crt = 1;
 		little_endian = (0 != ((char *) &crt)[0]);
 	}
-	if (SQL_NTS == ilen)
+	if (ilen < 0)
 		ilen = ucs4strlen(ucs4str);
 mylog(" newlen=%d\n", ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
@@ -512,7 +518,7 @@ mylog(" %s:olen=%d %s\n", __FUNCTION__, len, utf8str ? utf8str : "");
  * Convert a string from UTF-8 encoding to UTF-32.
  *
  * utf8str		- input string in UTF-8
- * ilen			- length of input string in bytes  (or SQL_NTS)
+ * ilen			- length of input string in bytes  (or minus)
  * lfconv		- TRUE if line feeds (LF) should be converted to CR + LF
  * ucs4str		- output buffer
  * bufcount		- size of output buffer
@@ -829,7 +835,7 @@ mylog(" %s:inmsg=%p buflen=%d\n", __FUNCTION__, inmsg, buflen);
 		outmsg[buflen - 1] = 0;
 		mylog(" %s:out=%dchars truncated to %d\n", __FUNCTION__, outlen, buflen - 1);
 	}
-mylog(" %s in=%dchars out=%dchars\n", __FUNCTION__, buflen, outlen);
+mylog(" %s buf=%dchars out=%dchars\n", __FUNCTION__, buflen, outlen);
 
 	return outlen;
 }
@@ -980,6 +986,7 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 	char	*utf8 = NULL;
 	int		count = strlen(ldt);
  
+	get_convtype();
 	mylog(" %s\n", __FUNCTION__);
 #if defined(__WCS_ISO10646__)
 	if (use_wcs)
@@ -987,7 +994,7 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 		wchar_t	*wcsdt = (wchar_t *) malloc((count + 1) * sizeof(wchar_t));
 
 		if ((l = msgtowstr(ldt, (wchar_t *) wcsdt, count + 1)) >= 0)
-			utf8 = wcs_to_utf8(wcsdt, SQL_NTS, &l, FALSE);
+			utf8 = wcs_to_utf8(wcsdt, -1, &l, FALSE);
 		free(wcsdt);
 	}
 #endif /* __WCS_ISO10646__ */
@@ -997,7 +1004,7 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 		SQLWCHAR	*utf16 = (SQLWCHAR *) malloc((count + 1) * sizeof(SQLWCHAR));
 
 		if ((l = mbstoc16_lf((char16_t *) utf16, ldt, count + 1, FALSE)) >= 0)
-			utf8 = ucs2_to_utf8(utf16, SQL_NTS, &l, FALSE);
+			utf8 = ucs2_to_utf8(utf16, -1, &l, FALSE);
 		free(utf16);
 	}
 #endif /* __CHAR16_UTF_16__ */
@@ -1020,6 +1027,7 @@ SQLLEN bindpara_wchar_to_msg(const SQLWCHAR *utf16, char **wcsbuf)
 	char			*ldt = NULL;
 	int		count = ucs2strlen(utf16);
 
+	get_convtype();
 mylog(" %s\n", __FUNCTION__);
 #if defined(__WCS_ISO10646__)
 	if (use_wcs)
@@ -1067,6 +1075,7 @@ SQLLEN bindcol_hybrid_estimate(const char *ldt, BOOL lf_conv, char **wcsbuf)
 {
 	SQLLEN	l = (-2);
 
+	get_convtype();
 	mylog(" %s:lf_conv=%d\n", __FUNCTION__, lf_conv);
 #if defined(__WCS_ISO10646__)
 	if (use_wcs)
@@ -1117,7 +1126,8 @@ SQLLEN bindcol_hybrid_exec(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_c
 {
 	SQLLEN	l = (-2);
 
-	mylog(" %s:size=%zu lf_conv=%d\n", __FUNCTION__, n, lf_conv);
+	get_convtype();
+	mylog(" %s:size=" FORMAT_SIZE_T " lf_conv=%d\n", __FUNCTION__, n, lf_conv);
 #if defined(__WCS_ISO10646__)
 	if (use_wcs)
 	{
@@ -1136,6 +1146,17 @@ SQLLEN bindcol_hybrid_exec(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_c
 			utf32 = (unsigned int *) *wcsbuf;
 			l = ucs4_to_ucs2_lf(utf32, -1, utf16, n, lf_conv);
 		}
+		else
+		{
+			int	count = strlen(ldt);
+
+			utf32 = (unsigned int *) malloc((count + 1) * sizeof(unsigned int));
+			if ((l = msgtowstr(ldt, (wchar_t *) utf32, count + 1)) >= 0)
+			{
+				l = ucs4_to_ucs2_lf(utf32, -1, utf16, n, lf_conv);
+			}
+			free(utf32);
+		}
 		if (midbuf)
 		{
 			free(*wcsbuf);
@@ -1152,6 +1173,12 @@ SQLLEN bindcol_hybrid_exec(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_c
 
 	return l;
 }
+
+SQLLEN locale_to_sqlwchar(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_conv)
+{
+	return bindcol_hybrid_exec(utf16, ldt, n, lf_conv, NULL);
+}
+
 //
 //	SQLBindCol	localize case
 //		UTF-8 => the current locale
@@ -1161,6 +1188,7 @@ SQLLEN bindcol_localize_estimate(const char *utf8dt, BOOL lf_conv, char **wcsbuf
 	SQLLEN	l = (-2);
 	char *convalc = NULL;
 
+	get_convtype();
 	mylog(" %s:lf_conv=%d\n", __FUNCTION__, lf_conv);
 #if defined(__WCS_ISO10646__)
 	if (use_wcs)
@@ -1199,7 +1227,8 @@ SQLLEN bindcol_localize_exec(char *ldt, size_t n, BOOL lf_conv, char **wcsbuf)
 {
 	SQLLEN	l = (-2);
 
-	mylog(" %s:size=%zu\n", __FUNCTION__, n);
+	get_convtype();
+	mylog(" %s:size=" FORMAT_SIZE_T "\n", __FUNCTION__, n);
 #if defined(__WCS_ISO10646__)
 	if (use_wcs)
 	{
@@ -1223,4 +1252,14 @@ mylog(" %s:return=%d\n", __FUNCTION__, l);
 	return l;
 }
 
+SQLLEN utf8_to_locale(char *ldt, const char *utf8dt, size_t n, BOOL lf_conv)
+{
+	SQLLEN	l;
+	char * tmpbuf;
+
+	if ((l = bindcol_localize_estimate(utf8dt, lf_conv, &tmpbuf)) >= 0)
+		l = bindcol_localize_exec(ldt, n, lf_conv, &tmpbuf);
+
+	return l;
+}
 #endif	/* UNICODE_SUPPORT */

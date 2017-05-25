@@ -30,6 +30,9 @@ SQLLEN bindcol_localize_estimate(const char *utf8dt, BOOL lf_conv, char **wcsbuf
 SQLLEN bindcol_localize_exec(char *ldt, size_t n, BOOL lf_conv, char **wcsbuf);
 SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf);
 SQLLEN bindpara_wchar_to_msg(const SQLWCHAR *utf16, char **wcsbuf);
+
+SQLLEN locale_to_sqlwchar(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_conv);
+SQLLEN utf8_to_locale(char *ldt, const char * utf8dt, size_t n, BOOL lf_conv);
 #endif /* UNICODE_SUPPORT */
 
 #endif /* __UNICODE_SUPPORT_H__ */
