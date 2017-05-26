@@ -72,6 +72,20 @@ RETCODE		dconn_DoDialog(HWND hwnd, ConnInfo *ci);
 extern HINSTANCE s_hModule;	/* Saved module handle. */
 #endif
 
+#define	PASSWORD_IS_REQUIRED	1
+static int
+paramRequired(const ConnInfo *ci, int reqs)
+{
+	int	required = 0;
+	const char *pw = SAFE_NAME(ci->password);
+
+	/* Password is not necessarily a required parameter. */
+	if ((reqs & PASSWORD_IS_REQUIRED) != 0)
+		if ('\0' == pw[0])
+			required |= PASSWORD_IS_REQUIRED;
+
+	return required;
+}
 
 RETCODE		SQL_API
 PGAPI_DriverConnect(HDBC hdbc,
@@ -90,7 +104,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 #ifdef WIN32
 	RETCODE		dialog_result;
 #endif
-	BOOL		paramRequired, didUI = FALSE;
+	BOOL		didUI = FALSE;
 	const char 	*lackMessage = NULL;
 	RETCODE		result;
 	char		*connStrIn = NULL;
@@ -99,6 +113,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 	char		salt[5];
 	ssize_t		len = 0;
 	SQLSMALLINT	lenStrout;
+	int		reqs = 0;
 
 
 	mylog("%s: entering...\n", func);
@@ -166,6 +181,8 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	{
 #ifdef WIN32
 		case SQL_DRIVER_PROMPT:
+			if (NULL == hwnd)
+				break;
 			dialog_result = dconn_DoDialog(hwnd, ci);
 			didUI = TRUE;
 			if (dialog_result != SQL_SUCCESS)
@@ -178,15 +195,9 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 
 		case SQL_DRIVER_COMPLETE:
 
-			paramRequired = (ci->password_required && NAME_IS_NULL(ci->password));
-			/* Password is not a required parameter. */
-			if (ci->database[0] == '\0')
-				paramRequired = TRUE;
-#ifdef	WIN32
-			else if (ci->server[0] == '\0')
-				paramRequired = TRUE;
-#endif /* WIN32 */
-			if (paramRequired)
+			if (NULL == hwnd)
+				break;
+			if (paramRequired(ci, reqs))
 			{
 				dialog_result = dconn_DoDialog(hwnd, ci);
 				didUI = TRUE;
@@ -209,28 +220,16 @@ inolog("DriverCompletion=%d\n", fDriverCompletion);
 	 * over and over until a password is entered (the user can always hit
 	 * Cancel to get out)
 	 */
-	paramRequired = FALSE;
-	if (ci->database[0] == '\0')
+	if (paramRequired(ci, reqs))
 	{
-		paramRequired = TRUE;
-		lackMessage = "Please specify Database name";
-	}
-#ifdef	WIN32
-	else if (ci->server[0] == '\0')
-	{
-		paramRequired = TRUE;
-		lackMessage = "Please specify Server name";
-	}
-#endif /* WIN32 */
-	if (paramRequired)
-	{
-		if (didUI)
-			return SQL_NO_DATA_FOUND;
+		/* if (didUI)
+			return SQL_NO_DATA_FOUND; */
 		if (!lackMessage)
-			lackMessage = "connection string lacks some options";
+			lackMessage = "Please supply password";
 		CC_set_error(conn, CONN_OPENDB_ERROR, lackMessage, func);
 		return SQL_ERROR;
 	}
+	reqs = 0;
 
 inolog("before CC_connect\n");
 	/* do the actual connect */
@@ -246,11 +245,13 @@ inolog("before CC_connect\n");
 		else
 		{
 #ifdef WIN32
-			goto dialog;
-#else
+			if (ci->password_required)
+				reqs |= PASSWORD_IS_REQUIRED;
+			if (hwnd && paramRequired(ci, reqs))
+				goto dialog;
+#endif /* WIN32 */
 			/* Prompting for missing options is only supported on Windows. */
 			return SQL_ERROR;
-#endif
 		}
 	}
 	else if (retval == 0)
@@ -380,25 +381,33 @@ dconn_FDriverConnectProc(
 			ShowWindow(GetDlgItem(hdlg, IDC_DESC), SW_HIDE);
 			ShowWindow(GetDlgItem(hdlg, IDC_DRIVER), SW_HIDE);
 			ShowWindow(GetDlgItem(hdlg, IDC_TEST), SW_HIDE);
+			ShowWindow(GetDlgItem(hdlg, IDC_MANAGEDSN), SW_HIDE);
+			// ShowWindow(GetDlgItem(hdlg, IDC_DATASOURCE), SW_HIDE);
 			if ('\0' != ci->server[0])
 				EnableWindow(GetDlgItem(hdlg, IDC_SERVER), FALSE);
 			if ('\0' != ci->port[0])
 				EnableWindow(GetDlgItem(hdlg, IDC_PORT), FALSE);
 
-			SetWindowLongPtr(hdlg, DWLP_USER, lParam);		/* Save the ConnInfo for
-														 * the "OK" */
+			SetWindowLongPtr(hdlg, DWLP_USER, lParam);					/* Save the ConnInfo for the "OK" */
 			SetDlgStuff(hdlg, ci);
 
-			if (ci->database[0] == '\0')
-				;				/* default focus */
+			if (ci->password_required)
+			{
+				HWND notu = GetDlgItem(hdlg, IDC_NOTICE_USER);
+
+				SetFocus(GetDlgItem(hdlg, IDC_PASSWORD));
+				SetWindowText(notu, "  Supply password       ");
+				ShowWindow(notu, SW_SHOW);
+				SendMessage(notu, WM_CTLCOLOR, 0, 0);
+			}
+			else if (ci->database[0] == '\0')
+				;			/* default focus */
 			else if (ci->server[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_SERVER));
 			else if (ci->port[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_PORT));
 			else if (ci->username[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_USER));
-			else if (ci->password_required)
-				SetFocus(GetDlgItem(hdlg, IDC_PASSWORD));
 			break;
 
 		case WM_COMMAND:
@@ -419,6 +428,15 @@ dconn_FDriverConnectProc(
 								   hdlg, ds_options1Proc, (LPARAM) ci);
 					break;
 			}
+			break;
+		case WM_CTLCOLORSTATIC:
+			if (lParam == (LPARAM)GetDlgItem(hdlg, IDC_NOTICE_USER))
+			{
+				HBRUSH hBrush = (HBRUSH)GetStockObject(WHITE_BRUSH);
+				SetTextColor((HDC)wParam, RGB(255, 0, 0));
+				return (LRESULT)hBrush;
+			}
+			break;
 	}
 
 	return FALSE;
