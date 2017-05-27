@@ -64,7 +64,6 @@ static char * hide_password(const char *str)
 /* prototypes */
 static BOOL dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci);
 static BOOL dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);
-static BOOL dconn_get_common_attributes(const char *connect_string, ConnInfo *ci);
 
 #ifdef WIN32
 LRESULT CALLBACK dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -158,11 +157,6 @@ PGAPI_DriverConnect(HDBC hdbc,
 	getDSNinfo(ci, NULL);
 	/* Parse the connect string and fill in conninfo for this hdbc. */
 	if (!dconn_get_connect_attributes(connStrIn, ci))
-	{
-		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
-		return SQL_ERROR;
-	}
-	if (!dconn_get_common_attributes(connStrIn, ci))
 	{
 		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
 		return SQL_ERROR;
@@ -581,14 +575,6 @@ mylog("%s subsequent char to the closing bracket is %c value=%s\n", __FUNCTION__
 				}
 		}
 
-#ifndef	FORCE_PASSWORD_DISPLAY
-		if (stricmp(attribute, INI_PASSWORD) == 0 ||
-		    stricmp(attribute, "pwd") == 0)
-			mylog("attribute = '%s', value = 'xxxxx'\n", attribute);
-		else
-#endif /* FORCE_PASSWORD_DISPLAY */
-			mylog("attribute = '%s', value = '%s'\n", attribute, value);
-
 		/* Copy the appropriate value to the conninfo  */
 		(*func)(ci, attribute, value);
 
@@ -610,11 +596,5 @@ dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci)
 static BOOL
 dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
 {
-	return dconn_get_attributes(copyAttributes, connect_string, ci);
-}
-
-static BOOL
-dconn_get_common_attributes(const char *connect_string, ConnInfo *ci)
-{
-	return dconn_get_attributes(copyCommonAttributes, connect_string, ci);
+	return dconn_get_attributes(copyConnAttributes, connect_string, ci);
 }

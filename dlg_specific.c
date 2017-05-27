@@ -586,38 +586,34 @@ get_DSN_or_Driver(ConnInfo *ci, const char *attribute, const char *value)
 }
 
 BOOL
-copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
+copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 {
-	CSTR	func = "copyAttributes";
-	BOOL	found = TRUE;
+	BOOL	found = TRUE, printed = FALSE;
 
 	if (stricmp(attribute, "DSN") == 0)
 		strcpy(ci->dsn, value);
-
 	else if (stricmp(attribute, "driver") == 0)
 		strcpy(ci->drivername, value);
-
 	else if (stricmp(attribute, INI_KDESC) == 0)
 		strcpy(ci->desc, value);
-
 	else if (stricmp(attribute, INI_DATABASE) == 0)
 		strcpy(ci->database, value);
-
 	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, SPEC_SERVER) == 0)
 		strcpy(ci->server, value);
-
 	else if (stricmp(attribute, INI_USERNAME) == 0 || stricmp(attribute, INI_UID) == 0)
 		strcpy(ci->username, value);
-
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
+	{
 		ci->password = decode_or_remove_braces(value);
-
+#ifndef FORCE_PASSWORDE_DISPLAY
+		mylog("%s: key='%s' value='xxxxxxxx'\n", __FUNCTION__, attribute);
+		printed = TRUE;
+#endif
+	}
 	else if (stricmp(attribute, INI_PORT) == 0)
 		strcpy(ci->port, value);
-
 	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, ABBR_READONLY) == 0)
 		strcpy(ci->onlyread, value);
-
 	else if (stricmp(attribute, INI_PROTOCOL) == 0 || stricmp(attribute, ABBR_PROTOCOL) == 0)
 	{
 		char	*ptr;
@@ -637,22 +633,19 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				/* ignore first part */
 			}
 			ci->rollback_on_error = atoi(ptr + 1);
-			mylog("rollback_on_error=%d\n", ci->rollback_on_error);
+			mylog("%s:key='%s' value='%s' rollback_on_error=%d\n",
+				__FUNCTION__, attribute, value, ci->rollback_on_error);
+			printed = TRUE;
 		}
 	}
-
 	else if (stricmp(attribute, INI_SHOWOIDCOLUMN) == 0 || stricmp(attribute, ABBR_SHOWOIDCOLUMN) == 0)
 		strcpy(ci->show_oid_column, value);
-
 	else if (stricmp(attribute, INI_FAKEOIDINDEX) == 0 || stricmp(attribute, ABBR_FAKEOIDINDEX) == 0)
 		strcpy(ci->fake_oid_index, value);
-
 	else if (stricmp(attribute, INI_ROWVERSIONING) == 0 || stricmp(attribute, ABBR_ROWVERSIONING) == 0)
 		strcpy(ci->row_versioning, value);
-
 	else if (stricmp(attribute, INI_SHOWSYSTEMTABLES) == 0 || stricmp(attribute, ABBR_SHOWSYSTEMTABLES) == 0)
 		strcpy(ci->show_system_tables, value);
-
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
 		/* We can use the conn_settings directly when they are enclosed with braces */
@@ -713,6 +706,9 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				strcpy(ci->sslmode, SSLMODE_DISABLE);
 				break;
 		}
+		mylog("%s:key='%s' set_value='%s'\n",
+				__FUNCTION__, attribute, ci->sslmode);
+		printed = TRUE;
 	}
 	else if (stricmp(attribute, INI_ABBREVIATE) == 0)
 		unfoldCXAttribute(ci, value);
@@ -738,23 +734,12 @@ copyAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		{
 			setExtraOptions(ci, value, hex_format);
 		}
-		mylog("force_abbrev=%d bde=%d cvt_null_date=%x\n", ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
+		mylog("%s:key='%s' value='%s'(force_abbrev=%d bde=%d cvt_null_date=%x)\n",
+			__FUNCTION__, attribute, value, ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
+		printed = TRUE;
 	}
-	else
-		found = FALSE;
 
-	mylog("%s: DSN='%s',server='%s',dbase='%s',user='%s',passwd='%s',port='%s',onlyread='%s',conn_settings='%s')\n", func, ci->dsn, ci->server, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "", ci->port, ci->onlyread, ci->conn_settings);
-
-	return found;
-}
-
-BOOL
-copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
-{
-	CSTR	func = "copyCommonAttributes";
-	BOOL	found = TRUE;
-
-	if (stricmp(attribute, INI_FETCH) == 0 || stricmp(attribute, ABBR_FETCH) == 0)
+	else if (stricmp(attribute, INI_FETCH) == 0 || stricmp(attribute, ABBR_FETCH) == 0)
 		ci->drivers.fetch_max = atoi(value);
 	else if (stricmp(attribute, INI_DEBUG) == 0 || stricmp(attribute, ABBR_DEBUG) == 0)
 		ci->drivers.debug = atoi(value);
@@ -788,19 +773,9 @@ copyCommonAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else
 		found = FALSE;
 
-	mylog("%s: A7=%d;A9=%d;B0=%d;B1=%d;B2=%d;B3=%d;B6=%d;B7=%d;B8=%d;B9=%d;C0=%d;C2=%s", func,
-		  ci->drivers.fetch_max,
-		  ci->drivers.unknown_sizes,
-		  ci->drivers.max_varchar_size,
-		  ci->drivers.max_longvarchar_size,
-		  ci->drivers.debug,
-		  ci->drivers.commlog,
-		  ci->drivers.use_declarefetch,
-		  ci->drivers.text_as_longvarchar,
-		  ci->drivers.unknowns_as_longvarchar,
-		  ci->drivers.bools_as_char,
-		  ci->drivers.parse,
-		  ci->drivers.extra_systable_prefixes);
+	if (!printed)
+		mylog("%s: key='%s' value='%s'%s\n", __FUNCTION__, attribute,
+			value, found ? NULL_STRING : " not found");
 
 	return found;
 }

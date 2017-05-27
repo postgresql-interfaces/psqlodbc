@@ -608,8 +608,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 		mylog("aszKey='%s', value='%s'\n", aszKey, value);
 
 		/* Copy the appropriate value to the conninfo  */
-		if (!copyAttributes(&lpsetupdlg->ci, aszKey, value))
-			copyCommonAttributes(&lpsetupdlg->ci, aszKey, value);
+		copyConnAttributes(&lpsetupdlg->ci, aszKey, value);
 	}
 	return;
 }
