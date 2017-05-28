@@ -24,6 +24,7 @@
 #include "pgapifunc.h"
 
 #define	NULL_IF_NULL(a) ((a) ? ((const char *)(a)) : "(null)")
+CSTR	ENTRY_TEST = " @@@ ";
 
 static void encode(const pgNAME, char *out, int outlen);
 static pgNAME decode(const char *in);
@@ -706,8 +707,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				strcpy(ci->sslmode, SSLMODE_DISABLE);
 				break;
 		}
-		mylog("%s:key='%s' set_value='%s'\n",
-				__FUNCTION__, attribute, ci->sslmode);
+		mylog("%s:key='%s' value='%s' set to '%s'\n",
+				__FUNCTION__, attribute, value, ci->sslmode);
 		printed = TRUE;
 	}
 	else if (stricmp(attribute, INI_ABBREVIATE) == 0)
@@ -860,8 +861,7 @@ getDSNinfo(ConnInfo *ci, const char *configDrvrname)
 {
 	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
-	char		encoded_item[LARGE_REGISTRY_LEN],
-				temp[32];
+	char	temp[LARGE_REGISTRY_LEN];
 	const char *drivername;
 
 /*
@@ -902,23 +902,25 @@ mylog("drivername=%s\n", drivername);
 
 	SQLGetPrivateProfileString(DSN, INI_KDESC, NULL_STRING, ci->desc, sizeof(ci->desc), ODBC_INI);
 
-	SQLGetPrivateProfileString(DSN, INI_SERVER, NULL_STRING, ci->server, sizeof(ci->server), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_SERVER, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->server, temp, sizeof(ci->server));
 
-	SQLGetPrivateProfileString(DSN, INI_DATABASE, NULL_STRING, ci->database, sizeof(ci->database), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_DATABASE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->database, temp, sizeof(ci->database));
 
-	SQLGetPrivateProfileString(DSN, INI_USERNAME, NULL_STRING, ci->username, sizeof(ci->username), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_USERNAME, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->username, temp, sizeof(ci->username));
 
-	SQLGetPrivateProfileString(DSN, INI_PASSWORD, NULL_STRING, encoded_item, sizeof(encoded_item), ODBC_INI);
-	ci->password = decode(encoded_item);
+	if (SQLGetPrivateProfileString(DSN, INI_PASSWORD, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		ci->password = decode(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_PORT, NULL_STRING, ci->port, sizeof(ci->port), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_PORT, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->port, temp, sizeof(ci->port));
 
 	/* It's appropriate to handle debug and commlog here */
-	SQLGetPrivateProfileString(DSN, INI_DEBUG, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_DEBUG, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->drivers.debug = atoi(temp);
-	SQLGetPrivateProfileString(DSN, INI_COMMLOG, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_COMMLOG, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->drivers.commlog = atoi(temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_READONLY, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
@@ -933,13 +935,15 @@ mylog("drivername=%s\n", drivername);
 	if (SQLGetPrivateProfileString(DSN, INI_ROWVERSIONING, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		strncpy_null(ci->row_versioning, temp, sizeof(ci->row_versioning));
 
-	SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, NULL_STRING, ci->show_system_tables, sizeof(ci->show_system_tables), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->show_system_tables, temp, sizeof(ci->show_system_tables));
 
+	SQLGetPrivateProfileString(DSN, INI_PROTOCOL, ENTRY_TEST, temp, sizeof(temp), ODBC_INI);
+	if (strcmp(temp, ENTRY_TEST))	/* entry exists */
 	{
-		char protocol[SMALL_REGISTRY_LEN];
 		char	*ptr;
-		SQLGetPrivateProfileString(DSN, INI_PROTOCOL, NULL_STRING, protocol, sizeof(protocol), ODBC_INI);
-		if (ptr = strchr(protocol, '-'), NULL != ptr)
+
+		if (ptr = strchr(temp, '-'), NULL != ptr)
 		{
 			*ptr = '\0';
 			ci->rollback_on_error = atoi(ptr + 1);
@@ -947,17 +951,18 @@ mylog("drivername=%s\n", drivername);
 		}
 	}
 
+	SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, ENTRY_TEST, temp, sizeof(temp), ODBC_INI);
+	if (strcmp(temp, ENTRY_TEST))	/* entry exists */
 	{
 		const UCHAR *ptr;
 		BOOL	percent_encoded = TRUE, pspace;
 		int	nspcnt;
 
-		SQLGetPrivateProfileString(DSN, INI_CONNSETTINGS, NULL_STRING, encoded_item, sizeof(encoded_item), ODBC_INI);
 		/*
 		 *	percent-encoding was used before.
 		 *	Note that there's no space in percent-encoding.
 		 */
-		for (ptr = (UCHAR *) encoded_item, pspace = TRUE, nspcnt = 0; *ptr; ptr++)
+		for (ptr = (UCHAR *) temp, pspace = TRUE, nspcnt = 0; *ptr; ptr++)
 		{
 			if (isspace(*ptr))
 				pspace = TRUE;
@@ -975,55 +980,48 @@ mylog("drivername=%s\n", drivername);
 			}
 		}
 		if (percent_encoded)
-			ci->conn_settings = decode(encoded_item);
+			ci->conn_settings = decode(temp);
 		else
-			STRX_TO_NAME(ci->conn_settings, encoded_item);
+			STRX_TO_NAME(ci->conn_settings, temp);
 	}
-	SQLGetPrivateProfileString(DSN, INI_PQOPT, NULL_STRING, encoded_item, sizeof(encoded_item), ODBC_INI);
-	STRX_TO_NAME(ci->pqopt, encoded_item);
+	SQLGetPrivateProfileString(DSN, INI_PQOPT, ENTRY_TEST, temp, sizeof(temp), ODBC_INI);
+	if (strcmp(temp, ENTRY_TEST))	/* entry exists */
+		STRX_TO_NAME(ci->pqopt, temp);
 
-	SQLGetPrivateProfileString(DSN, INI_TRANSLATIONDLL, NULL_STRING, ci->translation_dll, sizeof(ci->translation_dll), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_TRANSLATIONDLL, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->translation_dll, temp, sizeof(ci->translation_dll));
 
-	SQLGetPrivateProfileString(DSN, INI_TRANSLATIONOPTION, NULL_STRING, ci->translation_option, sizeof(ci->translation_option), ODBC_INI);
+	if (SQLGetPrivateProfileString(DSN, INI_TRANSLATIONOPTION, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		strncpy_null(ci->translation_option, temp, sizeof(ci->translation_option));
 
-	SQLGetPrivateProfileString(DSN, INI_UPDATABLECURSORS, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_UPDATABLECURSORS, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->allow_keyset = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_LFCONVERSION, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_LFCONVERSION, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->lf_conversion = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_TRUEISMINUS1, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_TRUEISMINUS1, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->true_is_minus1 = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_INT8AS, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_INT8AS, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->int8_as = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_BYTEAASLONGVARBINARY, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_BYTEAASLONGVARBINARY, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->bytea_as_longvarbinary = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_USESERVERSIDEPREPARE, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_USESERVERSIDEPREPARE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->use_server_side_prepare = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_LOWERCASEIDENTIFIER, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_LOWERCASEIDENTIFIER, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->lower_case_identifier = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_GSSAUTHUSEGSSAPI, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_GSSAUTHUSEGSSAPI, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->gssauth_use_gssapi = atoi(temp);
 
-	SQLGetPrivateProfileString(DSN, INI_KEEPALIVETIME, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_KEEPALIVETIME, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		if (0 == (ci->keepalive_idle = atoi(temp)))
 			ci->keepalive_idle = -1;
-	SQLGetPrivateProfileString(DSN, INI_KEEPALIVEINTERVAL, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_KEEPALIVEINTERVAL, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		if (0 == (ci->keepalive_interval = atoi(temp)))
 			ci->keepalive_interval = -1;
 
@@ -1031,15 +1029,13 @@ mylog("drivername=%s\n", drivername);
 		strncpy_null(ci->sslmode, temp, sizeof(ci->sslmode));
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-	SQLGetPrivateProfileString(DSN, INI_XAOPT, NULL_STRING, temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_XAOPT, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->xa_opt = atoi(temp);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 	/* Force abbrev connstr or bde */
-	SQLGetPrivateProfileString(DSN, INI_EXTRAOPTIONS, NULL_STRING,
-					temp, sizeof(temp), ODBC_INI);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(DSN, INI_EXTRAOPTIONS, NULL_STRING,
+					temp, sizeof(temp), ODBC_INI) > 0)
 	{
 		UInt4	val = 0;
 
@@ -1359,83 +1355,72 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 	 * it is the default of ci->drivers.xxxxxx .
 	 */
 	/* Fetch Count is stored in driver section */
-	SQLGetPrivateProfileString(section, INI_FETCH, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_FETCH, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 	{
 		if (atoi(temp) > 0)
 			comval->fetch_max = atoi(temp);
 	}
 
 	/* Recognize Unique Index is stored in the driver section only */
-	SQLGetPrivateProfileString(section, INI_UNIQUEINDEX, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_UNIQUEINDEX, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->unique_index = atoi(temp);
 
 	/* Unknown Sizes is stored in the driver section only */
-	SQLGetPrivateProfileString(section, INI_UNKNOWNSIZES, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_UNKNOWNSIZES, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->unknown_sizes = atoi(temp);
 
 	/* Lie about supported functions? */
-	SQLGetPrivateProfileString(section, INI_LIE, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_LIE, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->lie = atoi(temp);
 
 	/* Parse statements */
-	SQLGetPrivateProfileString(section, INI_PARSE, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_PARSE, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->parse = atoi(temp);
 
 	/* UseDeclareFetch is stored in the driver section only */
-	SQLGetPrivateProfileString(section, INI_USEDECLAREFETCH, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_USEDECLAREFETCH, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->use_declarefetch = atoi(temp);
 
 	/* Max Varchar Size */
-	SQLGetPrivateProfileString(section, INI_MAXVARCHARSIZE, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_MAXVARCHARSIZE, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->max_varchar_size = atoi(temp);
 
 	/* Max TextField Size */
-	SQLGetPrivateProfileString(section, INI_MAXLONGVARCHARSIZE, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_MAXLONGVARCHARSIZE, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->max_longvarchar_size = atoi(temp);
 
 	/* Text As LongVarchar	*/
-	SQLGetPrivateProfileString(section, INI_TEXTASLONGVARCHAR, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_TEXTASLONGVARCHAR, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->text_as_longvarchar = atoi(temp);
 
 	/* Unknowns As LongVarchar	*/
-	SQLGetPrivateProfileString(section, INI_UNKNOWNSASLONGVARCHAR, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_UNKNOWNSASLONGVARCHAR, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->unknowns_as_longvarchar = atoi(temp);
 
 	/* Bools As Char */
-	SQLGetPrivateProfileString(section, INI_BOOLSASCHAR, "",
-							   temp, sizeof(temp), filename);
-	if (temp[0])
+	if (SQLGetPrivateProfileString(section, INI_BOOLSASCHAR, NULL_STRING,
+				temp, sizeof(temp), filename) > 0)
 		comval->bools_as_char = atoi(temp);
 
 	/* Extra Systable prefixes */
 
 	/*
-	 * Use @@@ to distinguish between blank extra prefixes and no key
+	 * Use ENTRY_TEST to distinguish between blank extra prefixes and no key
 	 * entry
 	 */
-	SQLGetPrivateProfileString(section, INI_EXTRASYSTABLEPREFIXES, "@@@",
+	SQLGetPrivateProfileString(section, INI_EXTRASYSTABLEPREFIXES, ENTRY_TEST,
 							   temp, sizeof(temp), filename);
-	if (strcmp(temp, "@@@"))
+	if (strcmp(temp, ENTRY_TEST))
 		strcpy(comval->extra_systable_prefixes, temp);
 
 	mylog("comval=%p comval->extra_systable_prefixes = '%s'\n", comval, comval->extra_systable_prefixes);
@@ -1449,9 +1434,9 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 		 * real driver option YET.	This is more intended for
 		 * customization from the install.
 		 */
-		SQLGetPrivateProfileString(section, INI_PROTOCOL, "@@@",
+		SQLGetPrivateProfileString(section, INI_PROTOCOL, ENTRY_TEST,
 								   temp, sizeof(temp), filename);
-		if (strcmp(temp, "@@@"))
+		if (strcmp(temp, ENTRY_TEST))
 			strncpy_null(comval->protocol, temp, sizeof(comval->protocol));
 	}
 }
