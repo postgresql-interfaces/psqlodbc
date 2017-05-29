@@ -160,7 +160,7 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 }
 
 static const char *
-abbrev_sslmode(const char *sslmode, char *abbrevmode)
+abbrev_sslmode(const char *sslmode, char *abbrevmode, size_t abbrevsize)
 {
 	switch (sslmode[0])
 	{
@@ -184,7 +184,7 @@ abbrev_sslmode(const char *sslmode, char *abbrevmode)
 					if (strnicmp(sslmode, "verify_", 7) == 0)
 						abbrevmode[1] = sslmode[7];
 					else
-						strcpy(abbrevmode, sslmode);
+						strncpy_null(abbrevmode, sslmode, abbrevsize);
 			}
 			break;
 	}
@@ -322,7 +322,7 @@ inolog("hlen=%d", hlen);
 		if (ci->rollback_on_error >= 0)
 			snprintf(protocol_and, sizeof(protocol_and), "7.4-%d", ci->rollback_on_error);
 		else
-			strcpy(protocol_and, "7.4");
+			STRCPY_FIXED(protocol_and, "7.4");
 		olen = snprintf(&connect_string[hlen], nlen, ";"
 			INI_SSLMODE "=%s;"
 			INI_READONLY "=%s;"
@@ -455,7 +455,7 @@ inolog("hlen=%d", hlen);
 			char	abbrevmode[sizeof(ci->sslmode)];
 
 			(void) snprintf(&connect_string[hlen], nlen, ";"
-				ABBR_SSLMODE "=%s", abbrev_sslmode(ci->sslmode, abbrevmode));
+				ABBR_SSLMODE "=%s", abbrev_sslmode(ci->sslmode, abbrevmode, sizeof(abbrevmode)));
 		}
 		hlen = strlen(connect_string);
 		nlen = MAX_CONNECT_STRING - hlen;
@@ -577,9 +577,9 @@ get_DSN_or_Driver(ConnInfo *ci, const char *attribute, const char *value)
 	BOOL	found = TRUE;
 
 	if (stricmp(attribute, "DSN") == 0)
-		strcpy(ci->dsn, value);
+		STRCPY_FIXED(ci->dsn, value);
 	else if (stricmp(attribute, "driver") == 0)
-		strcpy(ci->drivername, value);
+		STRCPY_FIXED(ci->drivername, value);
 	else
 		found = FALSE;
 
@@ -592,17 +592,17 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	BOOL	found = TRUE, printed = FALSE;
 
 	if (stricmp(attribute, "DSN") == 0)
-		strcpy(ci->dsn, value);
+		STRCPY_FIXED(ci->dsn, value);
 	else if (stricmp(attribute, "driver") == 0)
-		strcpy(ci->drivername, value);
+		STRCPY_FIXED(ci->drivername, value);
 	else if (stricmp(attribute, INI_KDESC) == 0)
-		strcpy(ci->desc, value);
+		STRCPY_FIXED(ci->desc, value);
 	else if (stricmp(attribute, INI_DATABASE) == 0)
-		strcpy(ci->database, value);
+		STRCPY_FIXED(ci->database, value);
 	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, SPEC_SERVER) == 0)
-		strcpy(ci->server, value);
+		STRCPY_FIXED(ci->server, value);
 	else if (stricmp(attribute, INI_USERNAME) == 0 || stricmp(attribute, INI_UID) == 0)
-		strcpy(ci->username, value);
+		STRCPY_FIXED(ci->username, value);
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
 	{
 		ci->password = decode_or_remove_braces(value);
@@ -612,9 +612,9 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 #endif
 	}
 	else if (stricmp(attribute, INI_PORT) == 0)
-		strcpy(ci->port, value);
+		STRCPY_FIXED(ci->port, value);
 	else if (stricmp(attribute, INI_READONLY) == 0 || stricmp(attribute, ABBR_READONLY) == 0)
-		strcpy(ci->onlyread, value);
+		STRCPY_FIXED(ci->onlyread, value);
 	else if (stricmp(attribute, INI_PROTOCOL) == 0 || stricmp(attribute, ABBR_PROTOCOL) == 0)
 	{
 		char	*ptr;
@@ -640,13 +640,13 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		}
 	}
 	else if (stricmp(attribute, INI_SHOWOIDCOLUMN) == 0 || stricmp(attribute, ABBR_SHOWOIDCOLUMN) == 0)
-		strcpy(ci->show_oid_column, value);
+		STRCPY_FIXED(ci->show_oid_column, value);
 	else if (stricmp(attribute, INI_FAKEOIDINDEX) == 0 || stricmp(attribute, ABBR_FAKEOIDINDEX) == 0)
-		strcpy(ci->fake_oid_index, value);
+		STRCPY_FIXED(ci->fake_oid_index, value);
 	else if (stricmp(attribute, INI_ROWVERSIONING) == 0 || stricmp(attribute, ABBR_ROWVERSIONING) == 0)
-		strcpy(ci->row_versioning, value);
+		STRCPY_FIXED(ci->row_versioning, value);
 	else if (stricmp(attribute, INI_SHOWSYSTEMTABLES) == 0 || stricmp(attribute, ABBR_SHOWSYSTEMTABLES) == 0)
-		strcpy(ci->show_system_tables, value);
+		STRCPY_FIXED(ci->show_system_tables, value);
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
 		/* We can use the conn_settings directly when they are enclosed with braces */
@@ -681,30 +681,30 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		switch (value[0])
 		{
 			case SSLLBYTE_ALLOW:
-				strcpy(ci->sslmode, SSLMODE_ALLOW);
+				STRCPY_FIXED(ci->sslmode, SSLMODE_ALLOW);
 				break;
 			case SSLLBYTE_PREFER:
-				strcpy(ci->sslmode, SSLMODE_PREFER);
+				STRCPY_FIXED(ci->sslmode, SSLMODE_PREFER);
 				break;
 			case SSLLBYTE_REQUIRE:
-				strcpy(ci->sslmode, SSLMODE_REQUIRE);
+				STRCPY_FIXED(ci->sslmode, SSLMODE_REQUIRE);
 				break;
 			case SSLLBYTE_VERIFY:
 				switch (value[1])
 				{
 					case 'f':
-						strcpy(ci->sslmode, SSLMODE_VERIFY_FULL);
+						STRCPY_FIXED(ci->sslmode, SSLMODE_VERIFY_FULL);
 						break;
 					case 'c':
-						strcpy(ci->sslmode, SSLMODE_VERIFY_CA);
+						STRCPY_FIXED(ci->sslmode, SSLMODE_VERIFY_CA);
 						break;
 					default:
-						strcpy(ci->sslmode, value);
+						STRCPY_FIXED(ci->sslmode, value);
 				}
 				break;
 			case SSLLBYTE_DISABLE:
 			default:
-				strcpy(ci->sslmode, SSLMODE_DISABLE);
+				STRCPY_FIXED(ci->sslmode, SSLMODE_DISABLE);
 				break;
 		}
 		mylog("%s:key='%s' value='%s' set to '%s'\n",
@@ -770,7 +770,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_BOOLSASCHAR) == 0 || stricmp(attribute, ABBR_BOOLSASCHAR) == 0)
 		ci->drivers.bools_as_char = atoi(value);
 	else if (stricmp(attribute, INI_EXTRASYSTABLEPREFIXES) == 0 || stricmp(attribute, ABBR_EXTRASYSTABLEPREFIXES) == 0)
-		strcpy(ci->drivers.extra_systable_prefixes, value);
+		STRCPY_FIXED(ci->drivers.extra_systable_prefixes, value);
 	else
 		found = FALSE;
 
@@ -802,7 +802,7 @@ getCiDefaults(ConnInfo *ci)
 	ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 	ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
 	ci->gssauth_use_gssapi = DEFAULT_GSSAUTHUSEGSSAPI;
-	strcpy(ci->sslmode, DEFAULT_SSLMODE);
+	STRCPY_FIXED(ci->sslmode, DEFAULT_SSLMODE);
 	ci->force_abbrev_connstr = 0;
 	ci->fake_mss = 0;
 	ci->bde_environment = 0;
@@ -879,7 +879,7 @@ getDSNinfo(ConnInfo *ci, const char *configDrvrname)
 		{
 			if (configDrvrname)
 				drivername = configDrvrname;
-			strncpy_null(DSN, INI_DSN, sizeof(ci->dsn));
+			STRCPY_FIXED(DSN, INI_DSN);
 		}
 		/* else dns-less connections */
 	}
@@ -903,19 +903,19 @@ mylog("drivername=%s\n", drivername);
 	SQLGetPrivateProfileString(DSN, INI_KDESC, NULL_STRING, ci->desc, sizeof(ci->desc), ODBC_INI);
 
 	if (SQLGetPrivateProfileString(DSN, INI_SERVER, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->server, temp, sizeof(ci->server));
+		STRCPY_FIXED(ci->server, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_DATABASE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->database, temp, sizeof(ci->database));
+		STRCPY_FIXED(ci->database, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_USERNAME, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->username, temp, sizeof(ci->username));
+		STRCPY_FIXED(ci->username, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_PASSWORD, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->password = decode(temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_PORT, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->port, temp, sizeof(ci->port));
+		STRCPY_FIXED(ci->port, temp);
 
 	/* It's appropriate to handle debug and commlog here */
 	if (SQLGetPrivateProfileString(DSN, INI_DEBUG, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
@@ -924,19 +924,19 @@ mylog("drivername=%s\n", drivername);
 		ci->drivers.commlog = atoi(temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_READONLY, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->onlyread, temp, sizeof(ci->onlyread));
+		STRCPY_FIXED(ci->onlyread, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_SHOWOIDCOLUMN, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->show_oid_column, temp, sizeof(ci->show_oid_column));
+		STRCPY_FIXED(ci->show_oid_column, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_FAKEOIDINDEX, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->fake_oid_index, temp, sizeof(ci->fake_oid_index));
+		STRCPY_FIXED(ci->fake_oid_index, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_ROWVERSIONING, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->row_versioning, temp, sizeof(ci->row_versioning));
+		STRCPY_FIXED(ci->row_versioning, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_SHOWSYSTEMTABLES, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->show_system_tables, temp, sizeof(ci->show_system_tables));
+		STRCPY_FIXED(ci->show_system_tables, temp);
 
 	SQLGetPrivateProfileString(DSN, INI_PROTOCOL, ENTRY_TEST, temp, sizeof(temp), ODBC_INI);
 	if (strcmp(temp, ENTRY_TEST))	/* entry exists */
@@ -989,10 +989,10 @@ mylog("drivername=%s\n", drivername);
 		STRX_TO_NAME(ci->pqopt, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_TRANSLATIONDLL, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->translation_dll, temp, sizeof(ci->translation_dll));
+		STRCPY_FIXED(ci->translation_dll, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_TRANSLATIONOPTION, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->translation_option, temp, sizeof(ci->translation_option));
+		STRCPY_FIXED(ci->translation_option, temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_UPDATABLECURSORS, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->allow_keyset = atoi(temp);
@@ -1026,7 +1026,7 @@ mylog("drivername=%s\n", drivername);
 			ci->keepalive_interval = -1;
 
 	if (SQLGetPrivateProfileString(DSN, INI_SSLMODE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
-		strncpy_null(ci->sslmode, temp, sizeof(ci->sslmode));
+		STRCPY_FIXED(ci->sslmode, temp);
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (SQLGetPrivateProfileString(DSN, INI_XAOPT, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
@@ -1231,7 +1231,7 @@ writeDSNinfo(const ConnInfo *ci)
 	if (ci->rollback_on_error >= 0)
 		sprintf(temp, "7.4-%d", ci->rollback_on_error);
 	else
-		strncpy_null(temp, "", sizeof(temp));
+		STRCPY_FIXED(temp, NULL_STRING);
 	SQLWritePrivateProfileString(DSN,
 								 INI_PROTOCOL,
 								 temp,
@@ -1345,8 +1345,8 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 		comval->text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
 		comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
 		comval->bools_as_char = DEFAULT_BOOLSASCHAR;
-		strcpy(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
-		strcpy(comval->protocol, DEFAULT_PROTOCOL);
+		STRCPY_FIXED(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
+		STRCPY_FIXED(comval->protocol, DEFAULT_PROTOCOL);
 	}
 	if (NULL == section || strcmp(section, INVALID_DRIVER) == 0)
 		return;
@@ -1421,7 +1421,7 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 	SQLGetPrivateProfileString(section, INI_EXTRASYSTABLEPREFIXES, ENTRY_TEST,
 							   temp, sizeof(temp), filename);
 	if (strcmp(temp, ENTRY_TEST))
-		strcpy(comval->extra_systable_prefixes, temp);
+		STRCPY_FIXED(comval->extra_systable_prefixes, temp);
 
 	mylog("comval=%p comval->extra_systable_prefixes = '%s'\n", comval, comval->extra_systable_prefixes);
 
@@ -1437,7 +1437,7 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 		SQLGetPrivateProfileString(section, INI_PROTOCOL, ENTRY_TEST,
 								   temp, sizeof(temp), filename);
 		if (strcmp(temp, ENTRY_TEST))
-			strncpy_null(comval->protocol, temp, sizeof(comval->protocol));
+			STRCPY_FIXED(comval->protocol, temp);
 	}
 }
 
