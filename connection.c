@@ -2943,6 +2943,7 @@ DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strs
 		 * for the XA transaction manager, but pick the same as the client driver
 		 * to keep things as similar as possible.
 		 */
+		if (strcmp(drivername, DBMS_NAME) == 0)
 #ifdef UNICODE_SUPPORT
 		drivername = DBMS_NAME_UNICODE"(x64)";
 #else
