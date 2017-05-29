@@ -331,7 +331,7 @@ inolog("hlen=%d", hlen);
 			INI_SHOWOIDCOLUMN "=%s;"
 			INI_ROWVERSIONING "=%s;"
 			INI_SHOWSYSTEMTABLES "=%s;"
-			"=%s"		/* INI_CONNSETTINGS */
+			"%s"		/* INI_CONNSETTINGS */
 			INI_FETCH "=%d;"
 			INI_UNKNOWNSIZES "=%d;"
 			INI_MAXVARCHARSIZE "=%d;"
