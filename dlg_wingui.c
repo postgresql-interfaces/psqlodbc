@@ -839,9 +839,10 @@ mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
 					SendMessage(GetWindow(hdlg, GW_OWNER), WM_COMMAND, wParam, lParam);
 					break;
 				case IDC_TEST:
-					memcpy(&tmpInfo, ci, sizeof(tmpInfo));
+					CC_copy_conninfo(&tmpInfo, ci);
 					ds_options3_update(hdlg, &tmpInfo);
 					test_connection(hdlg, &tmpInfo, TRUE);
+					CC_conninfo_release(&tmpInfo);
 					break;
 				case ID1STPAGE:
 					ds_options3_update(hdlg, ci);
