@@ -268,7 +268,7 @@ BEGIN
     GROUPBOX        "MSDTCサポート", IDC_STATIC,5,75,296,27
     CONTROL         "専用ログ(C:\\pgdtclog\\mylog_xxxx.log - デバッグ出力ログ)",
                     DRV_DTCLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,87,260,10
-    DEFPUSHBUTTON   "OK",IDOK,5,ENDLINE_Y,50,14,WS_GROUP
+    DEFPUSHBUTTON   "保存",IDOK,5,ENDLINE_Y,50,14,WS_GROUP
     PUSHBUTTON      "キャンセル",IDCANCEL,65,ENDLINE_Y,50,15
 END
 
@@ -718,7 +718,7 @@ BEGIN
     RTEXT           "Folder for logging",IDC_STATIC,17,77,69,12
     EDITTEXT        DS_LOGDIR,98,75,188,13,ES_AUTOHSCROLL | WS_GROUP,
                     WS_EX_TRANSPARENT
-    DEFPUSHBUTTON   "OK",IDOK,82,92,50,14,WS_GROUP
+    DEFPUSHBUTTON   "Save",IDOK,82,92,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,172,91,50,15
     GROUPBOX        "Pre-connection/default logging options",IDC_STATIC,5,5,
                     296,85

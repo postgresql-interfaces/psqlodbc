@@ -39,6 +39,8 @@ private:
 	vector<string>	qvec;
 	int		pos;
 	bool	immediateConnection;
+	string	sqlState;
+	string	errMsg;
 
 	void	parse_xa_info();
 public:
@@ -150,6 +152,8 @@ HDBC	XAConnection::ActivateConnection(void)
 						1, sqlstate, NULL, errmsg,
 						sizeof(errmsg), NULL);
 				mylog("SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
+				sqlState = (char *) sqlstate;
+				errMsg = (char *) errmsg;
 				SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
 				xaconn = NULL;
 			}
