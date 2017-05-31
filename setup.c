@@ -514,12 +514,16 @@ mylog("conn_string=%s\n", out_conn);
 			}
 			else
 			{
-				SQLGETDIAGRECFUNC(SQL_HANDLE_DBC, conn, 1, NULL, &errnum, szMsg, _countof(szMsg), &str_len);
-				if (szMsg[0] != 0)
+				int	strl;
+
+				snprintf(szMsg, _countof(szMsg), _T("%s\nMSDTC error:"), ermsg);
+				for (strl = 0; strl < SQL_MAX_MESSAGE_LENGTH; strl++)
 				{
-					snprintf(szMsg, _countof(szMsg), _T("%s\nMSDTC error:%s"), ermsg, szMsg);
-					ermsg = szMsg;
+					if (!szMsg[strl])
+						break;
 				}
+				SQLGETDIAGRECFUNC(SQL_HANDLE_DBC, conn, 1, NULL, &errnum, szMsg + strl, _countof(szMsg) - strl, &str_len);
+				ermsg = szMsg;
 			}
 			CALL_ReleaseTransactionObject(pObj);
 		}
