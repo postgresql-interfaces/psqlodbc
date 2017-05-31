@@ -308,6 +308,7 @@ ConfigDlgProc(HWND hdlg,
 
 			/* Process buttons */
 		case WM_COMMAND:
+			lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 			switch (cmd = GET_WM_COMMAND_ID(wParam, lParam))
 			{
 					/*
@@ -331,15 +332,14 @@ ConfigDlgProc(HWND hdlg,
 					/* Accept results */
 				case IDOK:
 				case IDAPPLY:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					/* Retrieve dialog values */
 					if (!lpsetupdlg->fDefault)
 						GetDlgItemText(hdlg, IDC_DSNAME,
 									   lpsetupdlg->ci.dsn,
 									   sizeof(lpsetupdlg->ci.dsn));
+
 					/* Get Dialog Values */
 					GetDlgStuff(hdlg, &lpsetupdlg->ci);
-
 					/* Update ODBC.INI */
 					SetDSNAttributes(hdlg, lpsetupdlg, NULL);
 					if (IDAPPLY == cmd)
@@ -351,7 +351,6 @@ ConfigDlgProc(HWND hdlg,
 
 				case IDC_TEST:
 				{
-					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					if (NULL != lpsetupdlg)
 					{
 						/* Get Dialog Values */
@@ -362,19 +361,20 @@ ConfigDlgProc(HWND hdlg,
 					break;
 				}
 				case IDC_DATASOURCE:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
+					/* Get Dialog Values */
+					GetDlgStuff(hdlg, &lpsetupdlg->ci);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_DRV),
 					 hdlg, ds_options1Proc, (LPARAM) &lpsetupdlg->ci);
 					return TRUE;
 
 				case IDC_DRIVER:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
+					/* Get Dialog Values */
+					GetDlgStuff(hdlg, &lpsetupdlg->ci);
 					DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_OPTIONS_GLOBAL),
 						 hdlg, global_optionsProc, (LPARAM) &lpsetupdlg->ci);
 
 					return TRUE;
 				case IDC_MANAGEDSN:
-					lpsetupdlg = (LPSETUPDLG) GetWindowLongPtr(hdlg, DWLP_USER);
 					if (DialogBoxParam(s_hModule, MAKEINTRESOURCE(DLG_DRIVER_CHANGE),
 						hdlg, manage_dsnProc,
 						(LPARAM) lpsetupdlg) > 0)
