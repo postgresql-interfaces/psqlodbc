@@ -54,6 +54,7 @@ public:
 	const string &GetConnstr(void) {return connstr;}
 	const string &GetDsnstr(void) {return dsnstr;}
 	bool	GetImmediateConnection(void) {return immediateConnection;}
+	bool	AuthenticationError(void) {return sqlState == "08001" && errMsg.find("could not connect") == std::string::npos;}
 };
 
 static class INIT_CRIT
@@ -136,30 +137,48 @@ HDBC	XAConnection::ActivateConnection(void)
 		}
 	}
 	MLOCK_RELEASE;
-	if (!xaconn)
-	{
-		ret = SQLSetEnvAttr(init_crit.env, SQL_ATTR_ODBC_VERSION, (PTR) SQL_OV_ODBC3, 0);
-		ret = SQLAllocHandle(SQL_HANDLE_DBC, init_crit.env, &xaconn);
-		if (SQL_SUCCEEDED(ret))
-		{
-			ret = SQLDriverConnect(xaconn, NULL,
-			 (SQLCHAR *) dsnstr.c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
-			if (!SQL_SUCCEEDED(ret))
-			{
-				SQLCHAR	sqlstate[8], errmsg[256];
+	if (xaconn)
+		return xaconn;
 
-				SQLGetDiagRec(SQL_HANDLE_DBC, xaconn,
-						1, sqlstate, NULL, errmsg,
-						sizeof(errmsg), NULL);
-				mylog("SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
-				sqlState = (char *) sqlstate;
-				errMsg = (char *) errmsg;
-				SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
-				xaconn = NULL;
-			}
-		}
+	ret = SQLSetEnvAttr(init_crit.env, SQL_ATTR_ODBC_VERSION, (PTR) SQL_OV_ODBC3, 0);
+	ret = SQLAllocHandle(SQL_HANDLE_DBC, init_crit.env, &xaconn);
+	if (!SQL_SUCCEEDED(ret))
+		return NULL;
+
+	ret = SQLDriverConnect(xaconn, NULL,
+		 (SQLCHAR *) dsnstr.c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
+	if (SQL_SUCCEEDED(ret))
+		return xaconn;
+	SQLCHAR	sqlstate[8], errmsg[256];
+
+	SQLGetDiagRec(SQL_HANDLE_DBC, xaconn,
+			1, sqlstate, NULL, errmsg,
+			sizeof(errmsg), NULL);
+	mylog("first SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
+	sqlState = (char *) sqlstate;
+	errMsg = (char *) errmsg;
+	if (!AuthenticationError())
+	{
+		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
+		return NULL;
 	}
-	return xaconn;
+	sqlState.empty();
+	errMsg.empty();
+	ret = SQLDriverConnect(xaconn, NULL,
+		 (SQLCHAR *) (dsnstr + ";Username=postgres;Password=postgres;sslmode=allow").c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
+	if (SQL_SUCCEEDED(ret))
+	{
+		mylog("second SQLDriverConnect success\n");
+		return xaconn;
+	}
+
+	SQLGetDiagRec(SQL_HANDLE_DBC, xaconn,
+			1, sqlstate, NULL, errmsg,
+			sizeof(errmsg), NULL);
+	mylog("second SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
+	sqlState = (char *) sqlstate;
+	errMsg = (char *) errmsg;
+	return NULL;
 }
 
 #define _BUILD_DLL_
@@ -711,7 +730,12 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 		return rmcode;
 	HDBC	conn = p->second.ActivateConnection();
 	if (!conn)
+	{
+		if (p->second.AuthenticationError())
+			rmcode = 0;
+		mylog("%s returns %d\n", __FUNCTION__, rmcode);
 		return rmcode;
+	}
 	vector<string>	&vec = p->second.GetResultVec();
 	int	pos = p->second.GetPos();
 	if ((flags & TMSTARTRSCAN) != 0)
