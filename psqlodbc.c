@@ -120,7 +120,6 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 				char	pathname[_MAX_PATH], fname[_MAX_FNAME];
 				int platformId = 0;
 
-				// getCommonDefaults(DBMS_NAME, ODBCINST_INI, NULL);
 				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
 				{
 					_splitpath(pathname, NULL, NULL, fname, NULL);
@@ -139,7 +138,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			break;
 
 		case DLL_PROCESS_DETACH:
-			mylog("DETACHING PROCESS\n");
+			mylog("DETACHING %s\n", DRIVER_FILE_NAME);
 			CleanupDelayLoadedDLLs();
 			/* my(q)log is unavailable from here */
 			finalize_global_cs();

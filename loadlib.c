@@ -180,18 +180,20 @@ void CleanupDelayLoadedDLLs(void)
 	{
 		if (enlist_module != NULL)
 		{
+			mylog("Freeing Library %s\n", pgenlistdll);
 			FreeLibrary(enlist_module);
-			mylog("FreeLibrary %s\n", pgenlistdll);
 		}
+		mylog("%s unloading\n", pgenlistdll);
 		success = (*func)(pgenlistdll);
-		mylog("%s unload success=%d\n", pgenlistdll, success);
+		mylog("%s unloaded success=%d\n", pgenlistdll, success);
 		loaded_pgenlist = FALSE;
 	}
 	if (loaded_psqlodbc)
 	{
+		mylog("%s unloading\n", psqlodbcdll);
 		success = (*func)(psqlodbcdll);
+		mylog("%s unloaded success=%d\n", psqlodbcdll, success);
 		loaded_psqlodbc = FALSE;
-		mylog("%s unload success=%d\n", psqlodbcdll, success);
 	}
 	return;
 }

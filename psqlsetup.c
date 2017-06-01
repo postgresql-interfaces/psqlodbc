@@ -116,13 +116,13 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			CleanupDelayLoadedDLLs();
 			if (NULL != s_hLModule)
 			{
+				mylog("Freeing Library libpq\n");
 				FreeLibrary(s_hLModule);
-				mylog("FreeLibrary libpq\n");
 			}
 			if (NULL != s_hLModule2)
 			{
+				mylog("Freeing Library %s\n", psqlodbc);
 				FreeLibrary(s_hLModule2);
-				mylog("FreeLibrary %s\n", psqlodbc);
 			}
 			finalize_global_cs();
 			return TRUE;

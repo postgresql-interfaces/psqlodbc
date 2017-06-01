@@ -77,20 +77,13 @@ public:
 	~INIT_CRIT()
 	{
 // mylog("Leaving INIT_CRIT\n");
-		if (cs_init)
-		{
-			xatab.clear();
-			FreeEnv();
-			if (LOGFP)
-				fclose(LOGFP);
-			DeleteCriticalSection(&mylog_cs);
-			DeleteCriticalSection(&map_cs);
-		}
+		leave();
 	}
-	void finalize()
+	void leave()
 	{
 		if (cs_init)
 		{
+			mylog("leaving pgxadll\n");
 			xatab.clear();
 			FreeEnv();
 			if (LOGFP)
@@ -101,10 +94,15 @@ public:
 			cs_init = false;
 		}
 	}
+	void finalize()
+	{
+		leave();
+	}
 	void FreeEnv()
 	{
 		if (env)
 		{
+			mylog("Freeing env\n");
 			SQLFreeHandle(SQL_HANDLE_ENV, env);
 			env = NULL;
 		}
@@ -119,7 +117,12 @@ XAConnection::~XAConnection()
 {
 	qvec.clear();
 	if (xaconn)
+	{
+		mylog("disconnecting\n");
+		SQLDisconnect(xaconn);
+		mylog("Freeing connection\n");
 		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
+	}
 }
 
 HDBC	XAConnection::ActivateConnection(void)
@@ -309,7 +312,7 @@ static void XatabClear(void);
 static void finalize_globals(void)
 {
 	/* my(q)log is unavailable from here */
-	mylog("DETACHING PROCESS\n");
+	mylog("DETACHING From MSDTC PROCESS\n");
 	init_crit.finalize();
 }
 
