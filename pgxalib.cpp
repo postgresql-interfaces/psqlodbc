@@ -46,6 +46,7 @@ private:
 public:
 	XAConnection(LPCTSTR str) : connstr(str), xaconn(NULL), pos(-1), immediateConnection(false) {parse_xa_info();}
 	~XAConnection();
+	void	Reset(void);
 	HDBC	ActivateConnection(void);
 	void	SetPos(int spos) {pos = spos;}
 	HDBC	GetConnection(void) const {return xaconn;}
@@ -115,12 +116,16 @@ static int dtclog = 0;
 
 XAConnection::~XAConnection()
 {
+}
+
+void XAConnection::Reset()
+{
 	qvec.clear();
 	if (xaconn)
 	{
-		mylog("disconnecting\n");
+		mylog("about to Disconnect\n");
 		SQLDisconnect(xaconn);
-		mylog("Freeing connection\n");
+		mylog("Freeing HANDLE_DBC\n");
 		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
 	}
 }
@@ -556,15 +561,18 @@ EXTERN_C static int __cdecl xa_open(char *xa_info, int rmid, long flags)
 	int	xartn = XA_OK;
 	bool	bActivateConnection = bImmediateConnectDefault;
 
-	XAConnection	xconn(xa_info);
 	mylog("xa_open %s rmid=%d flags=%ld\n", xa_info, rmid, flags);
 	MLOCK_ACQUIRE;
-	init_crit.xatab.insert(pair<int, XAConnection>(rmid, xconn));
+	init_crit.xatab.insert(pair<int, XAConnection>(rmid, XAConnection(xa_info)));
 	MLOCK_RELEASE;
-	if (xconn.GetImmediateConnection())
+	map<int, XAConnection>::iterator p;
+	p = init_crit.xatab.find(rmid);
+	if (p == init_crit.xatab.end())
+		xartn = XAER_RMERR;
+	else if (p->second.GetImmediateConnection())
 	{
-		mylog("xa_open calls ActivateConnection %s\n", xconn.GetDsnstr().c_str());
-		if (xconn.ActivateConnection())
+		mylog("xa_open calls ActivateConnection %s\n", p->second.GetDsnstr().c_str());
+		if (p->second.ActivateConnection())
 			xartn = XA_OK;
 		else
 			xartn = XAER_RMERR;
@@ -576,7 +584,11 @@ EXTERN_C static int __cdecl xa_open(char *xa_info, int rmid, long flags)
 EXTERN_C static int __cdecl xa_close(char *xa_info, int rmid, long flags)
 {
 	mylog("xa_close rmid=%d flags=%ld\n", rmid, flags);
+	map<int, XAConnection>::iterator p;
 	MLOCK_ACQUIRE;
+	p = init_crit.xatab.find(rmid);
+	if (p != init_crit.xatab.end())
+		p->second.Reset();
 	init_crit.xatab.erase(rmid);
 	if (init_crit.xatab.size() == 0)
 		FreeEnv();
