@@ -36,6 +36,7 @@
 #include "catfunc.h"
 
 #include "multibyte.h"
+#include "misc.h"
 
 #define FLD_INCR	32
 #define TAB_INCR	8
@@ -1305,7 +1306,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 
 	delim = '\0';
 	token[0] = '\0';
-	while (pptr = ptr, (delim != ',') ? strcpy(btoken, token) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	while (pptr = ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 
@@ -1426,7 +1427,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 					subqlevel = 0;
 			}
 			if (blevel >= old_blevel && ',' != delim)
-				strcpy(stoken, token);
+				STRCPY_FIXED(stoken, token);
 			else
 				stoken[0] = '\0';
 		}

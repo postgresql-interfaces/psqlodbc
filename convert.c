@@ -1469,13 +1469,13 @@ inolog("2stime fr=%d\n", std_time.fr);
 					case 'n':
 					case 'N':
 					case '0':
-						strcpy(booltemp, "0");
+						STRCPY_FIXED(booltemp, "0");
 						break;
 					default:
 						if (ci->true_is_minus1)
-							strcpy(booltemp, "-1");
+							STRCPY_FIXED(booltemp, "-1");
 						else
-							strcpy(booltemp, "1");
+							STRCPY_FIXED(booltemp, "1");
 				}
 				neut_str = booltemp;
 			}
@@ -3815,7 +3815,8 @@ inolog("C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 
 	if (0 == ns->precision)
 	{
-		strcpy(chrform, "0");
+		if (chrform)
+			strncpy_null(chrform, "0", 2);
 		return;
 	}
 
@@ -4346,11 +4347,11 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			}
 #ifdef	WIN32
 			else if (_isnan(dbv))
-				strcpy(param_string, NAN_STRING);
+				STRCPY_FIXED(param_string, NAN_STRING);
 			else if (dbv < .0)
-				strcpy(param_string, MINFINITY_STRING);
+				STRCPY_FIXED(param_string, MINFINITY_STRING);
 			else
-				strcpy(param_string, INFINITY_STRING);
+				STRCPY_FIXED(param_string, INFINITY_STRING);
 #endif /* WIN32 */
 			break;
 
@@ -4365,11 +4366,11 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			}
 #ifdef	WIN32
 			else if (_isnan(flv))
-				strcpy(param_string, NAN_STRING);
+				STRCPY_FIXED(param_string, NAN_STRING);
 			else if (flv < .0)
-				strcpy(param_string, MINFINITY_STRING);
+				STRCPY_FIXED(param_string, MINFINITY_STRING);
 			else
-				strcpy(param_string, INFINITY_STRING);
+				STRCPY_FIXED(param_string, INFINITY_STRING);
 #endif /* WIN32 */
 			break;
 

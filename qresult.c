@@ -373,25 +373,26 @@ void
 QR_add_message(QResultClass *self, const char *msg)
 {
 	char	*message = self->message;
-	size_t	alsize, pos;
+	size_t	alsize, pos, addlen;
 
 	if (!msg || !msg[0])
 		return;
+	addlen = strlen(msg);
 	if (message)
 	{
 		pos = strlen(message) + 1;
-		alsize = pos + strlen(msg) + 1;
+		alsize = pos + addlen + 1;
 	}
 	else
 	{
 		pos = 0;
-		alsize = strlen(msg) + 1;
+		alsize = addlen + 1;
 	}
 	if (message = realloc(message, alsize), NULL == message)
 		return;
 	if (pos > 0)
 		message[pos - 1] = ';';
-	strcpy(message + pos, msg);
+	strncpy_null(message + pos, msg, addlen + 1);
 	self->message = message;
 }
 
@@ -409,25 +410,26 @@ void
 QR_add_notice(QResultClass *self, const char *msg)
 {
 	char	*message = self->notice;
-	size_t	alsize, pos;
+	size_t	alsize, pos, addlen;
 
 	if (!msg || !msg[0])
 		return;
+	addlen = strlen(msg);
 	if (message)
 	{
 		pos = strlen(message) + 1;
-		alsize = pos + strlen(msg) + 1;
+		alsize = pos + addlen + 1;
 	}
 	else
 	{
 		pos = 0;
-		alsize = strlen(msg) + 1;
+		alsize = addlen + 1;
 	}
 	if (message = realloc(message, alsize), NULL == message)
 		return;
 	if (pos > 0)
 		message[pos - 1] = ';';
-	strcpy(message + pos, msg);
+	strncpy_null(message + pos, msg, addlen + 1);
 	self->notice = message;
 }
 

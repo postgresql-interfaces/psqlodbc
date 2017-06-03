@@ -79,7 +79,7 @@ ConfigDSN(HWND hwnd,
 
 	/* Save original data source name */
 	if (lpsetupdlg->ci.dsn[0])
-		lstrcpy(lpsetupdlg->szDSN, lpsetupdlg->ci.dsn);
+		STRCPY_FIXED(lpsetupdlg->szDSN, lpsetupdlg->ci.dsn);
 	else
 		lpsetupdlg->szDSN[0] = '\0';
 
@@ -289,7 +289,7 @@ ConfigDlgProc(HWND hdlg,
 	
 			/* Save drivername */
 			if (!(lpsetupdlg->ci.drivername[0]))
-				lstrcpy(lpsetupdlg->ci.drivername, lpsetupdlg->lpszDrvr);
+				STRCPY_FIXED(lpsetupdlg->ci.drivername, lpsetupdlg->lpszDrvr);
 
 			if (lpsetupdlg->fNewDSN || !ci->dsn[0])
 				ShowWindow(GetDlgItem(hdlg, IDC_MANAGEDSN), SW_HIDE);

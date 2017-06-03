@@ -112,11 +112,12 @@ cleanup:
 	return ret;
 }
 
+#define	SIZEOF_SQLSTATE	6
 
 static void
 pg_sqlstate_set(const EnvironmentClass *env, UCHAR *szSqlState, const char *ver3str, const char *ver2str)
 {
-	strcpy((char *) szSqlState, EN_is_odbc3(env) ? ver3str : ver2str);
+	strncpy_null((char *) szSqlState, EN_is_odbc3(env) ? ver3str : ver2str, SIZEOF_SQLSTATE);
 }
 
 PG_ErrorInfo *
@@ -297,7 +298,7 @@ PGAPI_ConnectError(HDBC hdbc,
 	{
 		mylog("CC_Get_error returned nothing.\n");
 		if (NULL != szSqlState)
-			strcpy((char *) szSqlState, "00000");
+			strncpy_null((char *) szSqlState, "00000", SIZEOF_SQLSTATE);
 		if (NULL != pcbErrorMsg)
 			*pcbErrorMsg = 0;
 		if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
@@ -324,7 +325,7 @@ PGAPI_ConnectError(HDBC hdbc,
 	if (NULL != szSqlState)
 	{
 		if (conn->sqlstate[0])
-			strcpy((char *) szSqlState, conn->sqlstate);
+			STRCPY_FIXED((char *) szSqlState, conn->sqlstate);
 		else
 		switch (status)
 		{
@@ -492,7 +493,7 @@ PGAPI_Error(HENV henv,
 	else
 	{
 		if (NULL != szSqlState)
-			strcpy((char *) szSqlState, "00000");
+			strncpy_null((char *) szSqlState, "00000", SIZEOF_SQLSTATE);
 		if (NULL != pcbErrorMsg)
 			*pcbErrorMsg = 0;
 		if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))

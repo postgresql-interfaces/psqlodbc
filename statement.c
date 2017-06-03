@@ -1270,12 +1270,12 @@ SC_create_errorinfo(const StatementClass *self)
 		}
 		if (NULL != res->message)
 		{
-			strncpy_null(msg, res->message, sizeof(msg));
+			STRCPY_FIXED(msg, res->message);
 			detailmsg = resmsg = TRUE;
 		}
 		else if (NULL != res->messageref)
 		{
-			strncpy_null(msg, res->messageref, sizeof(msg));
+			STRCPY_FIXED(msg, res->messageref);
 			detailmsg = resmsg = TRUE;
 		}
 		if (msg[0])
@@ -1324,11 +1324,11 @@ SC_create_errorinfo(const StatementClass *self)
 	pgerror = ER_Constructor(self->__error_number, ermsg);
 	if (!pgerror) return NULL;
 	if (sqlstate)
-		strcpy(pgerror->sqlstate, sqlstate);
+		STRCPY_FIXED(pgerror->sqlstate, sqlstate);
 	else if (conn)
 	{
 		if (!msgend && conn->sqlstate[0])
-			strcpy(pgerror->sqlstate, conn->sqlstate);
+			STRCPY_FIXED(pgerror->sqlstate, conn->sqlstate);
 		else
 		{
 			EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
@@ -1339,7 +1339,7 @@ SC_create_errorinfo(const StatementClass *self)
 			{
 				errornum = 1 - LOWEST_STMT_ERROR;
 			}
-			strcpy(pgerror->sqlstate, EN_is_odbc3(env) ?
+			STRCPY_FIXED(pgerror->sqlstate, EN_is_odbc3(env) ?
 				   Statement_sqlstate[errornum].ver3str :
 				   Statement_sqlstate[errornum].ver2str);
 		}
@@ -1432,7 +1432,7 @@ inolog("SC_set_error_from_res %p->%p check=%i\n", from_res ,self, check);
 			repstate = TRUE;
 	}
 	if (repstate)
-		strcpy(self_res->sqlstate, from_res->sqlstate);
+		STRCPY_FIXED(self_res->sqlstate, from_res->sqlstate);
 }
 
 void
@@ -1480,7 +1480,7 @@ inolog("SC_error_copy %p->%p check=%i\n", from ,self, check);
 			repstate = TRUE;
 	}
 	if (repstate)
-		strcpy(self_res->sqlstate, from_res->sqlstate);
+		STRCPY_FIXED(self_res->sqlstate, from_res->sqlstate);
 }
 
 

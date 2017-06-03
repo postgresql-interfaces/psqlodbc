@@ -67,7 +67,7 @@ const char *GetXaLibName(void)
 		/* entry for security reason. */
 		_splitpath(dllpath, drive, dir, fname, ext);
 		// _snprintf(xalibname, sizeof(xalibname), "%s%s", fname, ext);
-		strcpy(xalibname, "pgxalib.dll");
+		strncpy(xalibname, "pgxalib.dll", sizeof(xalibname));
 		if (IsWow64())
 		{
 			if ('\\' == *dir &&

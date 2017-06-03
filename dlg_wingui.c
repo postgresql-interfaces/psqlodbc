@@ -123,7 +123,7 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	STR_TO_NAME(ci->password, medium_buf);
 	GetDlgItemText(hdlg, IDC_PORT, ci->port, sizeof(ci->port));
 	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
-	strncpy_null(ci->sslmode, modetab[sslposition].modestr, sizeof(ci->sslmode));
+	STRCPY_FIXED(ci->sslmode, modetab[sslposition].modestr);
 }
 
 static void
@@ -396,7 +396,7 @@ ds_options1Proc(HWND hdlg,
 						fbuf,
 						sizeof(fbuf));
 				if (cmd <= 0)
-					strcpy(fbuf, "Advanced Options (%s) 1/3");
+					STRCPY_FIXED(fbuf, "Advanced Options (%s) 1/3");
 				sprintf(strbuf, fbuf, ci->dsn);
 				SetWindowText(hdlg, strbuf);
 			}
@@ -562,7 +562,7 @@ ds_options2Proc(HWND hdlg,
 						fbuf,
 						sizeof(fbuf));
 				if (cmd <= 0)
-					strcpy(fbuf, "Advanced Options (%s) 2/3");
+					STRCPY_FIXED(fbuf, "Advanced Options (%s) 2/3");
 				sprintf(buf, fbuf, ci->dsn);
 				SetWindowText(hdlg, buf);
 			}
@@ -812,7 +812,7 @@ mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
 						fbuf,
 						sizeof(fbuf));
 				if (cmd <= 0)
-					strcpy(fbuf, "Advanced Options (%s) 3/3");
+					STRCPY_FIXED(fbuf, "Advanced Options (%s) 3/3");
 				sprintf(buf, fbuf, ci->dsn);
 				SetWindowText(hdlg, buf);
 			}

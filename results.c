@@ -3026,7 +3026,7 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 		*oideqstr = '\0';
 	else
 	{
-		strcpy(oideqstr, andqual);
+		STRCPY_FIXED(oideqstr, andqual);
 		snprintf_add(oideqstr, sizeof(oideqstr), bestqual, *oidint);
 	}
 	len = strlen(load_stmt);
@@ -3279,6 +3279,7 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	return ret;
 }
 
+
 RETCODE
 SC_pos_reload(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, Int4 logKind)
 {
@@ -3296,8 +3297,9 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	UInt4	blocknum;
 	SQLLEN	kres_ridx;
 	UInt2	offset;
-	char	*qval = NULL, *sval = NULL;
+	char	*qval = NULL;
 	int	keys_per_fetch = 10;
+	size_t	allen = 0;
 
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++, kres_ridx++)
 	{
@@ -3309,11 +3311,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			{
 				for (j = rowc; j < keys_per_fetch; j++)
 				{
-					if (j)
-						strcpy(sval, ",NULL");
-					else
-						strcpy(sval, "NULL");
-					sval = strchr(sval, '\0');
+					strlcat(qval, j ? ",NULL" : "NULL", allen);
 				}
 			}
 			rowc = -1; /* end of loop */
@@ -3322,7 +3320,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 		{
 			QResultClass	*qres;
 
-			strcpy(sval, ")");
+			strlcat(qval, ")", allen);
 			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
@@ -3379,7 +3377,6 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 
 			if (!qval)
 			{
-				size_t	allen;
 
 				if (res->reload_count > 0)
 					keys_per_fetch = res->reload_count;
@@ -3404,26 +3401,19 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 					SC_MALLOC_return_with_error(qval, char, allen,
 						stmt, "Couldn't alloc qval", -1);
 					sprintf(qval, "PREPARE \"%s\"", planname);
-					sval = strchr(qval, '\0');
+					for (j = 0; j < keys_per_fetch; j++)
+					{
+						strlcat(qval, j ? ",tid" : "(tid", allen);
+					}
+					snprintf_add(qval, allen, ") as %s where ctid in ", stmt->load_statement);
 					for (j = 0; j < keys_per_fetch; j++)
 					{
 						if (j == 0)
-							strcpy(sval, "(tid");
+							strlcat(qval, "($1", allen);
 						else
-							strcpy(sval, ",tid");
-						sval = strchr(sval, '\0');
+							snprintf_add(qval, allen, ",$%d", j + 1);
 					}
-					sprintf(sval, ") as %s where ctid in ", stmt->load_statement);
-					sval = strchr(sval, '\0');
-					for (j = 0; j < keys_per_fetch; j++)
-					{
-						if (j == 0)
-							strcpy(sval, "($1");
-						else
-							sprintf(sval, ",$%d", j + 1);
-						sval = strchr(sval, '\0');
-					}
-					strcpy(sval, ")");
+					strlcat(qval, ")", allen);
 					qres = CC_send_query(conn, qval, NULL, 0, stmt);
 					if (QR_command_maybe_successful(qres))
 					{
@@ -3445,26 +3435,20 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			}
 			if (res->reload_count > 0)
 			{
-				sprintf(qval, "EXECUTE \"_KEYSET_%p\"(", res);
-				sval = qval;
+				snprintf(qval, allen, "EXECUTE \"_KEYSET_%p\"(", res);
 			}
 			else
 			{
-				memcpy(qval, stmt->load_statement, lodlen);
-				sval = qval + lodlen;
-				sval[0]= '\0';
-				strcpy(sval, " where ctid in (");
+				snprintf(qval, allen, "%s where ctid in (", stmt->load_statement);
 			}
-			sval = strchr(sval, '\0');
 		}
 		if (0 != (res->keyset[kres_ridx].status & CURS_NEEDS_REREAD))
 		{
 			getTid(res, kres_ridx, &blocknum, &offset);
 			if (rowc)
-				sprintf(sval, ",'(%u,%u)'", blocknum, offset);
+				snprintf_add(qval, allen, ",'(%u,%u)'", blocknum, offset);
 			else
-				sprintf(sval, "'(%u,%u)'", blocknum, offset);
-			sval = strchr(sval, '\0');
+				snprintf_add(qval, allen, "'(%u,%u)'", blocknum, offset);
 			rowc++;
 			rcnt++;
 		}
@@ -3483,12 +3467,14 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 	UInt4	blocknum;
 	SQLLEN	kres_ridx;
 	UInt2	offset;
-	char	*qval = NULL, *sval = NULL;
+	char	*qval = NULL;
 	int	keys_per_fetch = 10;
 	const char *load_stmt = stmt->load_statement;
 	const ssize_t	from_pos = stmt->load_from_pos;
 	const int	max_identifier = 100;
+	size_t	allen = 0;
 
+mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, limitrow);
 	new_oid = 0;
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0, oid = 0;; i++, kres_ridx++)
 	{
@@ -3509,7 +3495,7 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 		{
 			QResultClass	*qres;
 
-			strcpy(sval, ")");
+			strlcat(qval, ")", allen);
 			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
@@ -3565,9 +3551,6 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 		{
 			if (!qval)
 			{
-				size_t	allen;
-
-
 				if (rows_per_fetch >= pre_fetch_count * 2)
 					keys_per_fetch = pre_fetch_count;
 				else
@@ -3582,16 +3565,14 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 					stmt, "Couldn't alloc qval", -1);
 			}
 			sprintf(qval, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid));
-			sval = strchr(qval, '\0');
 		}
 		if (new_oid != oid)
 			oid = new_oid;
 		getTid(res, kres_ridx, &blocknum, &offset);
 		if (rowc)
-			sprintf(sval, ",'(%u,%u)'", blocknum, offset);
+			snprintf_add(qval, allen, ",'(%u,%u)'", blocknum, offset);
 		else
-			sprintf(sval, "'(%u,%u)'", blocknum, offset);
-		sval = strchr(sval, '\0');
+			snprintf_add(qval, allen, "'(%u,%u)'", blocknum, offset);
 		rowc++;
 		rcnt++;
 	}
@@ -4244,7 +4225,7 @@ SC_pos_delete(StatementClass *stmt,
 		ret = SQL_ERROR;
 		if (qres)
 		{
-			strcpy(res->sqlstate, qres->sqlstate);
+			STRCPY_FIXED(res->sqlstate, qres->sqlstate);
 			res->message = qres->message;
 			qres->message = NULL;
 		}

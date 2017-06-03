@@ -54,7 +54,7 @@
 static char *logdir = NULL;
 
 void
-generate_filename(const char *dirname, const char *prefix, char *filename)
+generate_filename(const char *dirname, const char *prefix, char *filename, size_t filenamelen)
 {
 #ifdef	WIN32
 	int	pid;
@@ -70,20 +70,19 @@ generate_filename(const char *dirname, const char *prefix, char *filename)
 	if (dirname == 0 || filename == 0)
 		return;
 
-	strcpy(filename, dirname);
-	strcat(filename, DIRSEPARATOR);
+	snprintf(filename, filenamelen, "%s%s", dirname, DIRSEPARATOR);
 	if (prefix != 0)
-		strcat(filename, prefix);
+		strlcat(filename, prefix, filenamelen);
 #ifndef WIN32
 	if (ptr)
-		strcat(filename, ptr->pw_name);
+		strlcat(filename, ptr->pw_name, filenamelen);
 #endif
-	sprintf(filename, "%s%u%s", filename, pid, ".log");
+	snprintf_add(filename, filenamelen, "%u%s", pid, ".log");
 	return;
 }
 
 static void
-generate_homefile(const char *prefix, char *filename)
+generate_homefile(const char *prefix, char *filename, size_t filenamelen)
 {
 	char	dir[PATH_MAX];
 #ifdef	WIN32
@@ -91,13 +90,13 @@ generate_homefile(const char *prefix, char *filename)
 
 	dir[0] = '\0';
 	if (ptr=getenv("HOMEDRIVE"), NULL != ptr)
-		strcat(dir, ptr);
+		strlcat(dir, ptr, filenamelen);
 	if (ptr=getenv("HOMEPATH"), NULL != ptr)
-		strcat(dir, ptr);
+		strlcat(dir, ptr, filenamelen);
 #else
-	strcpy(dir, "~");
+	STRCPY_FIXED(dir, "~");
 #endif /* WIN32 */
-	generate_filename(dir, prefix, filename);
+	generate_filename(dir, prefix, filename, filenamelen);
 
 	return;
 }
@@ -218,7 +217,7 @@ static void MLOG_open()
 
 	if (MLOGFP) return;
 
-	generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf);
+	generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf, sizeof(filebuf));
 	MLOGFP = fopen(filebuf, PG_BINARY_A);
 	if (!MLOGFP)
 	{
@@ -226,7 +225,7 @@ static void MLOG_open()
  
 		open_error = TRUE;
 		snprintf(errbuf, sizeof(errbuf), "%s open error %d\n", filebuf, lasterror);
-		generate_homefile(MYLOGFILE, filebuf);
+		generate_homefile(MYLOGFILE, filebuf, sizeof(filebuf));
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
 	}
 	if (MLOGFP)
@@ -316,11 +315,11 @@ qlog(char *fmt,...)
 
 	if (!QLOGFP)
 	{
-		generate_filename(logdir ? logdir : QLOGDIR, QLOGFILE, filebuf);
+		generate_filename(logdir ? logdir : QLOGDIR, QLOGFILE, filebuf, sizeof(filebuf));
 		QLOGFP = fopen(filebuf, PG_BINARY_A);
 		if (!QLOGFP)
 		{
-			generate_homefile(QLOGFILE, filebuf);
+			generate_homefile(QLOGFILE, filebuf, sizeof(filebuf));
 			QLOGFP = fopen(filebuf, PG_BINARY_A);
 		}
 		if (QLOGFP)

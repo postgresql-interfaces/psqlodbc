@@ -813,7 +813,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	{
 		char *sqlstate = PQresultErrorField(pgres, PG_DIAG_SQLSTATE);
 		if (sqlstate)
-			strncpy_null(res->sqlstate, sqlstate, sizeof(res->sqlstate));
+			STRCPY_FIXED(res->sqlstate, sqlstate);
 	}
 
 	if (NULL == pgres &&
@@ -1634,7 +1634,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	int		func_cs_count = 0;
 	size_t		query_buf_len = 0;
 	char	   *query_buf = NULL;
-	char	   *query_buf_next;
 	size_t		query_len;
 
 	/* QR_set_command() dups this string so doesn't need static */
@@ -1729,53 +1728,25 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
 		goto cleanup;
 	}
-	query_buf_next = query_buf;
+	query_buf[0] = '\0';
 	if (issue_begin)
 	{
-		strcpy(query_buf_next, bgncmd);
-		query_buf_next += strlen(bgncmd);
-		*(query_buf_next++) = ';';
+		snprintf_add(query_buf, query_buf_len, "%s;", bgncmd);
 		discard_next_begin = TRUE;
 	}
 	if (query_rollback)
 	{
-		strcpy(query_buf_next, svpcmd);
-		query_buf_next += strlen(svpcmd);
-		*(query_buf_next++) = ' ';
-		strcpy(query_buf_next, per_query_svp);
-		query_buf_next += strlen(per_query_svp);
-		*(query_buf_next++) = ';';
+		snprintf_add(query_buf, query_buf_len, "%s %s;", svpcmd, per_query_svp);
 		discard_next_savepoint = TRUE;
 	}
-	memcpy(query_buf_next, query, query_len);
-	query_buf_next += query_len;
-	*query_buf_next = '\0';
+	strlcat(query_buf, query, query_buf_len);
 	if (appendq)
 	{
-		*(query_buf_next++) = ';';
-		strcpy(query_buf_next, appendq);
-		query_buf_next += strlen(appendq);
-		*query_buf_next = '\0';
+		snprintf_add(query_buf, query_buf_len, ";%s", appendq);
 	}
 	if (query_rollback)
 	{
-		*(query_buf_next++) = ';';
-		strcpy(query_buf_next, rlscmd);
-		query_buf_next += strlen(rlscmd);
-		*(query_buf_next++) = ' ';
-		strcpy(query_buf_next, per_query_svp);
-		query_buf_next += strlen(per_query_svp);
-		*query_buf_next = '\0';
-	}
-
-	if (query_buf_next > query_buf + query_buf_len)
-	{
-		/*
-		 * this should not happen, and if it does, we've already overrun
-		 * the buffer and possibly corrupted memory.
-		 */
-		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "query buffer overrun", func);
-		goto cleanup;
+		snprintf_add(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
 	}
 
 	/* Set up notice receiver */
@@ -2111,7 +2082,7 @@ cleanup:
 					    !CC_get_errormsg(self)[0])
 						CC_set_errormsg(self, QR_get_message(retres));
 					if (!self->sqlstate[0])
-						strcpy(self->sqlstate, retres->sqlstate);
+						STRCPY_FIXED(self->sqlstate, retres->sqlstate);
 				}
 			}
 		}
@@ -2385,7 +2356,7 @@ CC_lookup_lo(ConnectionClass *self)
 void
 CC_initialize_pg_version(ConnectionClass *self)
 {
-	strcpy(self->pg_version, "7.4");
+	STRCPY_FIXED(self->pg_version, "7.4");
 	self->pg_version_major = 7;
 	self->pg_version_minor = 4;
 }
@@ -2440,15 +2411,16 @@ CC_get_current_schema(ConnectionClass *conn)
 
 int	CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *plan)
 {
-	int	cnt = conn->num_discardp + 1;
+	int	cnt = conn->num_discardp + 1, plansize;
 	char	*pname;
 
 	CC_REALLOC_return_with_error(conn->discardp, char *,
 		(cnt * sizeof(char *)), conn, "Couldn't alloc discardp.", -1);
-	CC_MALLOC_return_with_error(pname, char, (strlen(plan) + 2),
+	plansize = strlen(plan) + 2;
+	CC_MALLOC_return_with_error(pname, char, plansize,
 		conn, "Couldn't alloc discardp mem.", -1);
 	pname[0] = (char) type;	/* 's':prepared statement 'p':cursor */
-	strcpy(pname + 1, plan);
+	strncpy_null(pname + 1, plan, plansize - 1);
 	conn->discardp[conn->num_discardp++] = pname;
 
 	return 1;
@@ -2551,7 +2523,7 @@ LIBPQ_connect(ConnectionClass *self)
 		if (errmsg != NULL)
 			snprintf(emsg, sizeof(emsg), "libpq connection parameter error:%s", errmsg);
 		else
-			strncpy_null(emsg, "memory error? in PQconninfoParse", sizeof(emsg));
+			STRCPY_FIXED(emsg, "memory error? in PQconninfoParse");
 		CC_set_error(self, CONN_OPENDB_ERROR, emsg, func);
 		goto cleanup;
 	}
@@ -2706,7 +2678,7 @@ inolog("status=%d\n", pqret);
 	if (!CC_get_username(self)[0])
 	{
 		mylog("PQuser=%s\n", PQuser(pqconn));
-		strncpy_null(self->connInfo.username, PQuser(pqconn), sizeof(self->connInfo.username));
+		STRCPY_FIXED(self->connInfo.username, PQuser(pqconn));
 	}
 
 	ret = 1;

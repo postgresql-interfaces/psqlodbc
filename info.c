@@ -231,7 +231,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 				p = "09.00.1399";
 			else
 			{
-				strncpy_null(tmp, conn->pg_version, sizeof(tmp));
+				STRCPY_FIXED(tmp, conn->pg_version);
 				p = tmp;
 			}
 			break;
@@ -1785,18 +1785,18 @@ retry_public_schema:
 
 	tables_query[0] = '\0';
 	if (list_cat)
-		strncpy_null(tables_query, "select NULL, NULL, NULL", sizeof(tables_query));
+		STRCPY_FIXED(tables_query, "select NULL, NULL, NULL");
 	else if (list_table_types)
-		strncpy_null(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a", sizeof(tables_query));
+		STRCPY_FIXED(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a");
 	else if (list_schemas)
 	{
-		strncpy_null(tables_query, "select NULL, nspname, NULL"
-			" from pg_catalog.pg_namespace n where true", sizeof(tables_query));
+		STRCPY_FIXED(tables_query, "select NULL, nspname, NULL"
+			" from pg_catalog.pg_namespace n where true");
 	}
 	else
 	{
 		/* view is represented by its relkind since 7.1 */
-		strcpy(tables_query, "select relname, nspname, relkind"
+		STRCPY_FIXED(tables_query, "select relname, nspname, relkind"
 			" from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
 		strcat(tables_query, " where relkind in ('r', 'v')");
 	}
@@ -1814,7 +1814,7 @@ retry_public_schema:
 	 * Parse the extra systable prefix configuration variable into an array
 	 * of prefixes.
 	 */
-	strcpy(prefixes, ci->drivers.extra_systable_prefixes);
+	STRCPY_FIXED(prefixes, ci->drivers.extra_systable_prefixes);
 	for (i = 0; i < MAX_PREFIXES; i++)
 	{
 		char	*str = (i == 0) ? prefixes : NULL;
@@ -2760,7 +2760,7 @@ retry_public_schema:
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
-	strcpy(columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
+	STRCPY_FIXED(columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
 	strcat(columns_query, " from pg_catalog.pg_namespace u,"
 					" pg_catalog.pg_class c where "
 					"u.oid = c.relnamespace");
@@ -3109,15 +3109,13 @@ PGAPI_Statistics(HSTMT hstmt,
 				alcount *= 2;
 			SC_REALLOC_gexit_with_error(column_names, struct columns_idx, alcount * sizeof(struct columns_idx), stmt, "Couldn't allocate memory for column names.", (result = SQL_ERROR));
 		}
-		column_names[total_columns].col_name =
-			(char *) malloc(strlen(column_name) + 1);
+		column_names[total_columns].col_name = strdup(column_name);
 		if (!column_names[total_columns].col_name)
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for column name.", func);
 			result = SQL_ERROR;
 			goto cleanup;
 		}
-		strcpy(column_names[total_columns].col_name, column_name);
 		column_names[total_columns].pnum = field_number;
 		total_columns++;
 
@@ -3492,7 +3490,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 		like_or_eq = eqop;
 		escColumnName = simpleCatalogEscape(szColumnName, cbColumnName, conn);
 	}
-	strcpy(column_query, "select '' as TABLE_CAT, table_schema as TABLE_SCHEM,"
+	STRCPY_FIXED(column_query, "select '' as TABLE_CAT, table_schema as TABLE_SCHEM,"
 			" table_name, column_name, grantor, grantee,"
 			" privilege_type as PRIVILEGE, is_grantable from"
 			" information_schema.column_privileges where true");
@@ -3723,13 +3721,12 @@ retry_public_schema:
 				 * possible index columns. Courtesy of Tom Lane - thomas
 				 * 2000-03-21
 				 */
-				strncpy_null(tables_query,
+				STRCPY_FIXED(tables_query,
 					"select ta.attname, ia.attnum, ic.relname, n.nspname, tc.relname"
 					" from pg_catalog.pg_attribute ta,"
 					" pg_catalog.pg_attribute ia, pg_catalog.pg_class tc,"
 					" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
-					", pg_catalog.pg_class ic"
-					, sizeof(tables_query));
+					", pg_catalog.pg_class ic");
 				qsize = strlen(tables_query);
 				tsize = sizeof(tables_query) - qsize;
 				tbqry = tables_query + qsize;
@@ -3921,7 +3918,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 		{
 			if (QR_get_num_cached_tuples(res) > 0)
 			{
-				strncpy_null(saveattnum, QR_get_value_backend_text(res, 0, 0), sizeof(saveattnum));
+				STRCPY_FIXED(saveattnum, QR_get_value_backend_text(res, 0, 0));
 			}
 			else
 				continueExec = FALSE;
@@ -4872,7 +4869,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 		escProcName = simpleCatalogEscape(szProcName, cbProcName, conn);
 	}
 	op_string = gen_opestr(like_or_eq, conn);
-	strcpy(proc_query, "select proname, proretset, prorettype, "
+	STRCPY_FIXED(proc_query, "select proname, proretset, prorettype, "
 			"pronargs, proargtypes, nspname, p.oid");
 	ret_col = ext_pos = 7;
 	poid_pos = 6;
@@ -5256,7 +5253,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	 * The following seems the simplest implementation
 	 */
 	op_string = gen_opestr(like_or_eq, conn);
-	strcpy(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
+	STRCPY_FIXED(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
 	" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
 	   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 	   " '' as " "REMARKS" ","
@@ -5438,9 +5435,9 @@ retry_public_schema:
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 
 	op_string = gen_opestr(like_or_eq, conn);
-	strncpy_null(proc_query, "select relname, usename, relacl, nspname"
+	STRCPY_FIXED(proc_query, "select relname, usename, relacl, nspname"
 	" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
-	" pg_catalog.pg_user where", sizeof(proc_query));
+	" pg_catalog.pg_user where");
 	if (escSchemaName)
 		schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, szTableName, cbTableName, conn);
 
@@ -5472,7 +5469,7 @@ retry_public_schema:
 		}
 	}
 
-	strncpy_null(proc_query, "select usename, usesysid, usesuper from pg_user", sizeof(proc_query));
+	STRCPY_FIXED(proc_query, "select usename, usesysid, usesuper from pg_user");
 	if (allures = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(allures))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
@@ -5711,9 +5708,9 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	if (NULL != CurrCat(conn))
 		snprintf(catName, sizeof(catName), "'%s'::name", CurrCat(conn));
 	else
-		strcpy(catName, "NULL::name");
-	strcpy(scmName1, "n2.nspname");
-	strcpy(scmName2, "n1.nspname");
+		STRCPY_FIXED(catName, "NULL::name");
+	STRCPY_FIXED(scmName1, "n2.nspname");
+	STRCPY_FIXED(scmName2, "n1.nspname");
 	escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 
 	snprintf(tables_query, sizeof(tables_query),

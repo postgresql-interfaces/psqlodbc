@@ -16,6 +16,7 @@
 #include "descriptor.h"
 #include "statement.h"
 #include "qresult.h"
+#include "misc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -712,7 +713,7 @@ static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *self)
 	if (errornum < 0 ||
 	    errornum >= sizeof(Descriptor_sqlstate) / sizeof(Descriptor_sqlstate[0]))
 		errornum = 1 - LOWEST_DESC_ERROR;
-	strcpy(error->sqlstate, env_is_odbc3 ? Descriptor_sqlstate[errornum].ver3str : Descriptor_sqlstate[errornum].ver2str);
+	STRCPY_FIXED(error->sqlstate, env_is_odbc3 ? Descriptor_sqlstate[errornum].ver3str : Descriptor_sqlstate[errornum].ver2str);
         return error;
 }
 void
