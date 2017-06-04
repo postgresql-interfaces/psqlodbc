@@ -203,6 +203,7 @@ snprintf_len(char *buf, size_t size, const char *format, ...)
  * and repeat.
  */
 #ifdef WIN32
+#if (_MSC_VER < 1900)	/* vc14 provieds snprintf() */
 static int
 posix_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 {
@@ -248,7 +249,8 @@ posix_snprintf(char *buf, size_t size, const char *format, ...)
 	va_end(arglist);
 	return len;
 }
-#endif
+#endif /* _MSC_VER */
+#endif /* WIN32 */
 
 #ifndef	HAVE_STRLCAT
 size_t

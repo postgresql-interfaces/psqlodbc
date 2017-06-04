@@ -232,15 +232,17 @@ typedef double SDOUBLE;
 #define	FALSE	(BOOL)0
 #endif /* FALSE */
 #else
+#if (_MSC_VER < 1900) /* vc12 or under */
 #define snprintf posix_snprintf
 extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
+#define vsnprintf _vsnprintf
+#endif /* _MSC_VER */
 
 #ifndef strdup
 #define strdup _strdup
 #endif /* strdup */
 #define strnicmp _strnicmp
 #define stricmp _stricmp
-#define vsnprintf _vsnprintf
 #endif /* WIN32 */
 
 #ifndef	SQL_ATTR_APP_ROW_DESC
