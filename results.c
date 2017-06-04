@@ -3114,7 +3114,7 @@ BOOL QR_get_last_bookmark(const QResultClass *res, Int4 index, KeySet *keyset)
 {
 	int	i;
 
-	if (res->dl_count > 0)
+	if (res->dl_count > 0 && res->deleted)
 	{
 		for (i = 0; i < res->dl_count; i++)
 		{
@@ -3127,7 +3127,7 @@ BOOL QR_get_last_bookmark(const QResultClass *res, Int4 index, KeySet *keyset)
 				break;
 		}
 	}
-	if (res->up_count > 0)
+	if (res->up_count > 0 && res->updated)
 	{
 		for (i = res->up_count - 1; i >= 0; i--)
 		{
