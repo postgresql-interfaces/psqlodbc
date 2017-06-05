@@ -409,9 +409,9 @@ writeGlobalLogs()
 {
 	char	temp[10];
 
-	sprintf(temp, "%d", globalDebug);
+	ITOA_FIXED(temp, globalDebug);
 	SQLWritePrivateProfileString(DBMS_NAME, INI_DEBUG, temp, ODBCINST_INI);
-	sprintf(temp, "%d", globalCommlog);
+	ITOA_FIXED(temp, globalCommlog);
 	SQLWritePrivateProfileString(DBMS_NAME, INI_COMMLOG, temp, ODBCINST_INI);
 	return 0;
 }

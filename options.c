@@ -261,13 +261,13 @@ set_statement_option(ConnectionClass *conn,
 				if (stmt)
 				{
 					SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", func);
-					sprintf(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
+					SPRINTF_FIXED(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
 					SC_log_error(func, option, stmt);
 				}
 				if (conn)
 				{
 					CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Set)", func);
-					sprintf(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
+					SPRINTF_FIXED(option, "fOption=%d, vParam=" FORMAT_ULEN, fOption, vParam);
 					CC_log_error(func, option, conn);
 				}
 
@@ -438,7 +438,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				char		option[64];
 
 				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Set)", func);
-				sprintf(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
+				SPRINTF_FIXED(option, "fOption=%d, vParam=" FORMAT_LEN, fOption, vParam);
 #ifdef	WIN32
 				if (fOption == 30002 && vParam)
 				{
@@ -569,7 +569,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 				char		option[64];
 
 				CC_set_error(conn, CONN_UNSUPPORTED_OPTION, "Unknown connect option (Get)", func);
-				sprintf(option, "fOption=%d", fOption);
+				SPRINTF_FIXED(option, "fOption=%d", fOption);
 				CC_log_error(func, option, conn);
 				return SQL_ERROR;
 				break;
@@ -771,7 +771,7 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 				char		option[64];
 
 				SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "Unknown statement option (Get)", func);
-				sprintf(option, "fOption=%d", fOption);
+				SPRINTF_FIXED(option, "fOption=%d", fOption);
 				SC_log_error(func, option, stmt);
 				return SQL_ERROR;
 			}

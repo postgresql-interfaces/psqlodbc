@@ -2574,17 +2574,17 @@ LIBPQ_connect(ConnectionClass *self)
 	}
 	if (self->login_timeout > 0)
 	{
-		sprintf(login_timeout_str, "%u", (unsigned int) self->login_timeout);
+		SPRINTF_FIXED(login_timeout_str, "%u", (unsigned int) self->login_timeout);
 		opts[cnt] = "connect_timeout";	vals[cnt++] = login_timeout_str;
 	}
 	if (self->connInfo.keepalive_idle > 0)
 	{
-		sprintf(keepalive_idle_str, "%d", self->connInfo.keepalive_idle);
+		ITOA_FIXED(keepalive_idle_str, self->connInfo.keepalive_idle);
 		opts[cnt] = "keepalives_idle";	vals[cnt++] = keepalive_idle_str;
 	}
 	if (self->connInfo.keepalive_interval > 0)
 	{
-		sprintf(keepalive_interval_str, "%d", self->connInfo.keepalive_interval);
+		ITOA_FIXED(keepalive_interval_str, self->connInfo.keepalive_interval);
 		opts[cnt] = "keepalives_interval";	vals[cnt++] = keepalive_interval_str;
 	}
 	if (conninfoOption != NULL)
@@ -2664,7 +2664,7 @@ inolog("status=%d\n", pqret);
 	pversion = PQserverVersion(pqconn);
 	self->pg_version_major = pversion / 10000;
 	self->pg_version_minor = (pversion % 10000) / 100;
-	sprintf(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
+	SPRINTF_FIXED(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
 
 	mylog("Server version=%s\n", self->pg_version);
 
@@ -2792,14 +2792,13 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
  *	This routine could be modified to use vsprintf() to handle multiple arguments.
  */
 static char *
-my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
+my_strcat(char *buf, int buflen, const char *fmt, const char *s, ssize_t len)
 {
-	if (s && (len > 0 || (len == SQL_NTS && strlen(s) > 0)))
+	if (s && (len > 0 || (len == SQL_NTS && *s != 0)))
 	{
-		size_t			length = (len > 0) ? len : strlen(s);
-		size_t			pos = strlen(buf);
+		size_t	length = (len > 0) ? len : strlen(s);
 
-		sprintf(&buf[pos], fmt, length, s);
+		snprintf_add(buf, buflen, fmt, length, s);
 		return buf;
 	}
 	return NULL;
@@ -2810,24 +2809,23 @@ my_strcat(char *buf, const char *fmt, const char *s, ssize_t len)
  *	It can have 1 more parameter than my_strcat.
  */
 static char *
-my_strcat1(char *buf, const char *fmt, const char *s1, const char *s)
+my_strcat1(char *buf, int buflen, const char *fmt, const char *s1, const char *s)
 {
 	if (s && s[0] != '\0')
 	{
-		size_t	pos = strlen(buf);
 		ssize_t	length = strlen(s);
 
 		if (s1)
-			sprintf(&buf[pos], fmt, s1, length, s);
+			snprintf_add(buf, buflen, fmt, s1, length, s);
 		else
-			sprintf(&buf[pos], fmt, length, s);
+			snprintf_add(buf, buflen, fmt, length, s);
 		return buf;
 	}
 	return NULL;
 }
 
 char *
-schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQLCHAR *tbname, SQLLEN tbnmlen, ConnectionClass *conn)
+schema_strcat(char *buf, int buflen, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQLCHAR *tbname, SQLLEN tbnmlen, ConnectionClass *conn)
 {
 	if (!s || 0 == len)
 	{
@@ -2837,22 +2835,22 @@ schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQ
 		 * naming.
 		 */
 		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat(buf, fmt, CC_get_current_schema(conn), SQL_NTS);
+			return my_strcat(buf, buflen, fmt, CC_get_current_schema(conn), SQL_NTS);
 		return NULL;
 	}
-	return my_strcat(buf, fmt, (char *) s, len);
+	return my_strcat(buf, buflen, fmt, (char *) s, len);
 }
 
 char *
-schema_strcat1(char *buf, const char *fmt, const char *s1, const char *s, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
+schema_strcat1(char *buf, int buflen, const char *fmt, const char *s1, const char *s, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
 {
 	if (!s || s[0] == '\0')
 	{
 		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat1(buf, fmt, s1, CC_get_current_schema(conn));
+			return my_strcat1(buf, buflen, fmt, s1, CC_get_current_schema(conn));
 		return NULL;
 	}
-	return my_strcat1(buf, fmt, s1, s);
+	return my_strcat1(buf, buflen, fmt, s1, s);
 }
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -2922,10 +2920,10 @@ DLL_DECLARE void PgDtc_create_connect_string(void *self, char *connstr, int strs
 	{
 		case DTC_CHECK_LINK_ONLY:
 		case DTC_CHECK_BEFORE_LINK:
-			sprintf(xaOptStr, KEYWORD_DTC_CHECK "=0;");
+			SPRINTF_FIXED(xaOptStr, KEYWORD_DTC_CHECK "=0;");
 			break;
 		case DTC_CHECK_RM_CONNECTION:
-			sprintf(xaOptStr, KEYWORD_DTC_CHECK "=1;");
+			SPRINTF_FIXED(xaOptStr, KEYWORD_DTC_CHECK "=1;");
 			break;
 		default:
 			*xaOptStr = '\0';

@@ -2704,7 +2704,7 @@ inolog("prepareParametersNoDesc\n");
 	retval = SQL_ERROR;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
-		sprintf(plan_name, "_PLAN%p", stmt);
+		SPRINTF_FIXED(plan_name, "_PLAN%p", stmt);
 	else
 		plan_name[0] = '\0';
 
@@ -2926,7 +2926,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	{
 		char	curname[32];
 
-		sprintf(curname, "SQL_CUR%p", stmt);
+		SPRINTF_FIXED(curname, "SQL_CUR%p", stmt);
 		STRX_TO_NAME(stmt->cursor_name, curname);
 	}
 	if (stmt->stmt_with_params)
@@ -2955,7 +2955,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		/* Nothing to do here. It will be prepared before execution. */
 		char		plan_name[32];
 		if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
-			sprintf(plan_name, "_PLAN%p", stmt);
+			SPRINTF_FIXED(plan_name, "_PLAN%p", stmt);
 		else
 			plan_name[0] = '\0';
 
@@ -2994,8 +2994,9 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		}
 		if (SC_is_fetchcursor(stmt))
 		{
-			sprintf(new_statement, "%sdeclare \"%s\"%s cursor%s for ",
-				new_statement, SC_cursor_name(stmt), opt_scroll, opt_hold);
+			snprintf_add(new_statement, qb->str_alsize, 
+				"declare \"%s\"%s cursor%s for ",
+				SC_cursor_name(stmt), opt_scroll, opt_hold);
 			qb->npos = strlen(new_statement);
 			qp->flags |= FLGP_USING_CURSOR;
 			qp->declare_pos = qb->npos;
@@ -4146,9 +4147,9 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		    SQL_PARAM_OUTPUT != ipara->paramType &&
 		    (qb->flags & FLGB_PARAM_CAST) != 0 &&
 		    !parameter_is_with_cast(qp))
-			sprintf(pnum, "$%d%s", qb->dollar_number, sqltype_to_pgcast(conn, ipara->SQLType));
+			SPRINTF_FIXED(pnum, "$%d%s", qb->dollar_number, sqltype_to_pgcast(conn, ipara->SQLType));
 		else
-			sprintf(pnum, "$%d", qb->dollar_number);
+			SPRINTF_FIXED(pnum, "$%d", qb->dollar_number);
 		CVT_APPEND_STR(qb, pnum);
 		return SQL_SUCCESS;
 	}
@@ -4342,7 +4343,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			if (_finite(dbv))
 #endif /* WIN32 */
 			{
-				sprintf(param_string, "%.*g", PG_DOUBLE_DIGITS, dbv);
+				SPRINTF_FIXED(param_string, "%.*g", PG_DOUBLE_DIGITS, dbv);
 				set_server_decimal_point(param_string, SQL_NTS);
 			}
 #ifdef	WIN32
@@ -4361,7 +4362,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			if (_finite(flv))
 #endif /* WIN32 */
 			{
-				sprintf(param_string, "%.*g", PG_REAL_DIGITS, flv);
+				SPRINTF_FIXED(param_string, "%.*g", PG_REAL_DIGITS, flv);
 				set_server_decimal_point(param_string, SQL_NTS);
 			}
 #ifdef	WIN32
@@ -4376,47 +4377,45 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 
 		case SQL_C_SLONG:
 		case SQL_C_LONG:
-			sprintf(param_string, FORMAT_INTEGER,
+			SPRINTF_FIXED(param_string, FORMAT_INTEGER,
 					*((SQLINTEGER *) buffer));
 			break;
 
 #ifdef ODBCINT64
 		case SQL_C_SBIGINT:
 		case SQL_BIGINT: /* Is this needed ? */
-			sprintf(param_string, FORMATI64,
+			SPRINTF_FIXED(param_string, FORMATI64,
 					*((SQLBIGINT *) buffer));
 			break;
 
 		case SQL_C_UBIGINT:
-			sprintf(param_string, FORMATI64U,
+			SPRINTF_FIXED(param_string, FORMATI64U,
 					*((SQLUBIGINT *) buffer));
 			break;
 
 #endif /* ODBCINT64 */
 		case SQL_C_SSHORT:
 		case SQL_C_SHORT:
-			sprintf(param_string, "%d",
-					*((SQLSMALLINT *) buffer));
+			ITOA_FIXED(param_string, *((SQLSMALLINT *) buffer));
 			break;
 
 		case SQL_C_STINYINT:
 		case SQL_C_TINYINT:
-			sprintf(param_string, "%d",
-					*((SCHAR *) buffer));
+			ITOA_FIXED(param_string, *((SCHAR *) buffer));
 			break;
 
 		case SQL_C_ULONG:
-			sprintf(param_string, FORMAT_UINTEGER,
+			SPRINTF_FIXED(param_string, FORMAT_UINTEGER,
 					*((SQLUINTEGER *) buffer));
 			break;
 
 		case SQL_C_USHORT:
-			sprintf(param_string, "%u",
+			SPRINTF_FIXED(param_string, "%u",
 					*((SQLUSMALLINT *) buffer));
 			break;
 
 		case SQL_C_UTINYINT:
-			sprintf(param_string, "%u",
+			SPRINTF_FIXED(param_string, "%u",
 					*((UCHAR *) buffer));
 			break;
 
@@ -4424,7 +4423,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			{
 				int	i = *((UCHAR *) buffer);
 
-				sprintf(param_string, "%d", i ? 1 : 0);
+				ITOA_FIXED(param_string, i ? 1 : 0);
 				break;
 			}
 
@@ -4484,27 +4483,27 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 		}
 		case SQL_C_INTERVAL_YEAR:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%u years", ivsign, (unsigned int) ivstruct->intval.year_month.year);
+			SPRINTF_FIXED(param_string, "%s%u years", ivsign, (unsigned int) ivstruct->intval.year_month.year);
 			break;
 		case SQL_C_INTERVAL_MONTH:
 		case SQL_C_INTERVAL_YEAR_TO_MONTH:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%u years %s%u mons", ivsign, (unsigned int) ivstruct->intval.year_month.year, ivsign, (unsigned int) ivstruct->intval.year_month.month);
+			SPRINTF_FIXED(param_string, "%s%u years %s%u mons", ivsign, (unsigned int) ivstruct->intval.year_month.year, ivsign, (unsigned int) ivstruct->intval.year_month.month);
 			break;
 		case SQL_C_INTERVAL_DAY:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%u days", ivsign, (unsigned int) ivstruct->intval.day_second.day);
+			SPRINTF_FIXED(param_string, "%s%u days", ivsign, (unsigned int) ivstruct->intval.day_second.day);
 			break;
 		case SQL_C_INTERVAL_HOUR:
 		case SQL_C_INTERVAL_DAY_TO_HOUR:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%u days %s%02u:00:00", ivsign, (unsigned int) ivstruct->intval.day_second.day, ivsign, (unsigned int) ivstruct->intval.day_second.hour);
+			SPRINTF_FIXED(param_string, "%s%u days %s%02u:00:00", ivsign, (unsigned int) ivstruct->intval.day_second.day, ivsign, (unsigned int) ivstruct->intval.day_second.hour);
 			break;
 		case SQL_C_INTERVAL_MINUTE:
 		case SQL_C_INTERVAL_HOUR_TO_MINUTE:
 		case SQL_C_INTERVAL_DAY_TO_MINUTE:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%u days %s%02u:%02u:00", ivsign, (unsigned int) ivstruct->intval.day_second.day, ivsign, (unsigned int) ivstruct->intval.day_second.hour, (unsigned int) ivstruct->intval.day_second.minute);
+			SPRINTF_FIXED(param_string, "%s%u days %s%02u:%02u:00", ivsign, (unsigned int) ivstruct->intval.day_second.day, ivsign, (unsigned int) ivstruct->intval.day_second.hour, (unsigned int) ivstruct->intval.day_second.minute);
 			break;
 
 		case SQL_C_INTERVAL_SECOND:
@@ -4512,7 +4511,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 		case SQL_C_INTERVAL_HOUR_TO_SECOND:
 		case SQL_C_INTERVAL_MINUTE_TO_SECOND:
 			ivsign = ivstruct->interval_sign ? "-" : "";
-			sprintf(param_string, "%s%u days %s%02u:%02u:%02u",
+			SPRINTF_FIXED(param_string, "%s%u days %s%02u:%02u:%02u",
 					ivsign, (unsigned int) ivstruct->intval.day_second.day,
 					ivsign, (unsigned int) ivstruct->intval.day_second.hour,
 					(unsigned int) ivstruct->intval.day_second.minute,
@@ -4526,7 +4525,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 					fraction /= 10;
 					prec--;
 				}
-				sprintf(&param_string[strlen(param_string)], ".%0*d", prec, fraction);
+				snprintf_add(param_string, sizeof(param_string), ".%0*d", prec, fraction);
 			}
 			break;
 		case SQL_C_GUID:
@@ -4658,9 +4657,9 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			}
 
 			if (st.y < 0)
-				sprintf(tmp, "%.4d-%.2d-%.2d BC", -st.y, st.m, st.d);
+				SPRINTF_FIXED(tmp, "%.4d-%.2d-%.2d BC", -st.y, st.m, st.d);
 			else
-				sprintf(tmp, "%.4d-%.2d-%.2d", st.y, st.m, st.d);
+				SPRINTF_FIXED(tmp, "%.4d-%.2d-%.2d", st.y, st.m, st.d);
 			lastadd = "::date";
 			send_buf = tmp;
 			used = SQL_NTS;
@@ -4678,10 +4677,10 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			{
 				int	wdt;
 				int	fr = effective_fraction(st.fr, &wdt);
-				sprintf(tmp, "%.2d:%.2d:%.2d.%0*d", st.hh, st.mm, st.ss, wdt, fr);
+				SPRINTF_FIXED(tmp, "%.2d:%.2d:%.2d.%0*d", st.hh, st.mm, st.ss, wdt, fr);
 			}
 			else
-				sprintf(tmp, "%.2d:%.2d:%.2d", st.hh, st.mm, st.ss);
+				SPRINTF_FIXED(tmp, "%.2d:%.2d:%.2d", st.hh, st.mm, st.ss);
 			lastadd = "::time";
 			send_buf = tmp;
 			used = SQL_NTS;
@@ -4696,7 +4695,7 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			}
 
 			/*
-			 * sprintf(tmp, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d", st.y,
+			 * SPRINTF_FIXED(tmp, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d", st.y,
 			 * st.m, st.d, st.hh, st.mm, st.ss);
 			 */
 			/* Time zone stuff is unreliable */
@@ -4832,7 +4831,7 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			 * parameter marker -- the data has already been sent to
 			 * the large object
 			 */
-			sprintf(param_string, "%u", lobj_oid);
+			SPRINTF_FIXED(param_string, "%u", lobj_oid);
 			lastadd = "::lo";
 			send_buf = param_string;
 			used = SQL_NTS;

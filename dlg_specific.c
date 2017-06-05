@@ -192,7 +192,7 @@ abbrev_sslmode(const char *sslmode, char *abbrevmode, size_t abbrevsize)
 }
 
 static char *
-makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
+makeKeepaliveConnectString(char *target, int buflen, const ConnInfo *ci, BOOL abbrev)
 {
 	char	*buf = target;
 	*buf = '\0';
@@ -203,17 +203,16 @@ makeKeepaliveConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 	if (ci->keepalive_idle >= 0)
 	{
 		if (abbrev)
-			sprintf(buf, ABBR_KEEPALIVETIME "=%u;", ci->keepalive_idle);
+			snprintf(buf, buflen, ABBR_KEEPALIVETIME "=%u;", ci->keepalive_idle);
 		else
-			sprintf(buf, INI_KEEPALIVETIME "=%u;", ci->keepalive_idle);
-		buf = strchr(buf, (int) '\0');
+			snprintf(buf, buflen, INI_KEEPALIVETIME "=%u;", ci->keepalive_idle);
 	}
 	if (ci->keepalive_interval >= 0)
 	{
 		if (abbrev)
-			sprintf(buf, ABBR_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
+			snprintf_add(buf, buflen, ABBR_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
 		else
-			sprintf(buf, INI_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
+			snprintf_add(buf, buflen, INI_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
 	}
 	return target;
 }
@@ -258,7 +257,7 @@ makeBracketConnectString(char **target, pgNAME item, const char *optname)
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 char *
-makeXaOptConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
+makeXaOptConnectString(char *target, int buflen, const ConnInfo *ci, BOOL abbrev)
 {
 	char	*buf = target;
 	*buf = '\0';
@@ -269,10 +268,10 @@ makeXaOptConnectString(char *target, const ConnInfo *ci, BOOL abbrev)
 	if (abbrev)
 	{
 		if (DEFAULT_XAOPT != ci->xa_opt)
-			sprintf(buf, ABBR_XAOPT "=%u;", ci->xa_opt);
+			snprintf(buf, buflen, ABBR_XAOPT "=%u;", ci->xa_opt);
 	}
 	else
-		sprintf(buf, INI_XAOPT "=%u;", ci->xa_opt);
+		snprintf(buf, buflen, INI_XAOPT "=%u;", ci->xa_opt);
 	return target;
 }
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -387,7 +386,7 @@ inolog("hlen=%d", hlen);
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
 			,makeBracketConnectString(&pqoptStr, ci->pqopt, INI_PQOPT)
-			,makeKeepaliveConnectString(keepaliveStr, ci, FALSE)
+			,makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, FALSE)
 #ifdef	WIN32
 			,ci->gssauth_use_gssapi
 #endif /* WIN32 */
@@ -479,9 +478,9 @@ inolog("hlen=%d", hlen);
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
 				makeBracketConnectString(&pqoptStr, ci->pqopt, ABBR_PQOPT),
-				makeKeepaliveConnectString(keepaliveStr, ci, TRUE),
+				makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, TRUE),
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-				makeXaOptConnectString(xaOptStr, ci, TRUE),
+				makeXaOptConnectString(xaOptStr, sizeof(xaOptStr), ci, TRUE),
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				EFFECTIVE_BIT_COUNT, flag);
 		if (olen < nlen || ci->rollback_on_error >= 0)
@@ -556,14 +555,14 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 	ci->drivers.debug = (char)((flag & BIT_DEBUG) != 0);
 	ci->drivers.parse = (char)((flag & BIT_PARSE) != 0);
 	ci->drivers.use_declarefetch = (char)((flag & BIT_USEDECLAREFETCH) != 0);
-	sprintf(ci->onlyread, "%d", (char)((flag & BIT_READONLY) != 0));
+	ITOA_FIXED(ci->onlyread, (char)((flag & BIT_READONLY) != 0));
 	ci->drivers.text_as_longvarchar = (char)((flag & BIT_TEXTASLONGVARCHAR) !=0);
 	ci->drivers.unknowns_as_longvarchar = (char)((flag & BIT_UNKNOWNSASLONGVARCHAR) !=0);
 	ci->drivers.bools_as_char = (char)((flag & BIT_BOOLSASCHAR) != 0);
-	sprintf(ci->row_versioning, "%d", (char)((flag & BIT_ROWVERSIONING) != 0));
-	sprintf(ci->show_system_tables, "%d", (char)((flag & BIT_SHOWSYSTEMTABLES) != 0));
-	sprintf(ci->show_oid_column, "%d", (char)((flag & BIT_SHOWOIDCOLUMN) != 0));
-	sprintf(ci->fake_oid_index, "%d", (char)((flag & BIT_FAKEOIDINDEX) != 0));
+	ITOA_FIXED(ci->row_versioning, (char)((flag & BIT_ROWVERSIONING) != 0));
+	ITOA_FIXED(ci->show_system_tables, (char)((flag & BIT_SHOWSYSTEMTABLES) != 0));
+	ITOA_FIXED(ci->show_oid_column, (char)((flag & BIT_SHOWOIDCOLUMN) != 0));
+	ITOA_FIXED(ci->fake_oid_index, (char)((flag & BIT_FAKEOIDINDEX) != 0));
 	ci->true_is_minus1 = (char)((flag & BIT_TRUEISMINUS1) != 0);
 	ci->bytea_as_longvarbinary = (char)((flag & BIT_BYTEAASLONGVARBINARY) != 0);
 	ci->use_server_side_prepare = (char)((flag & BIT_USESERVERSIDEPREPARE) != 0);
@@ -789,11 +788,11 @@ getCiDefaults(ConnInfo *ci)
 
 	ci->drivers.debug = DEFAULT_DEBUG;
 	ci->drivers.commlog = DEFAULT_COMMLOG;
-	sprintf(ci->onlyread, "%d", DEFAULT_READONLY);
-	sprintf(ci->fake_oid_index, "%d", DEFAULT_FAKEOIDINDEX);
-	sprintf(ci->show_oid_column, "%d", DEFAULT_SHOWOIDCOLUMN);
-	sprintf(ci->show_system_tables, "%d", DEFAULT_SHOWSYSTEMTABLES);
-	sprintf(ci->row_versioning, "%d", DEFAULT_ROWVERSIONING);
+	ITOA_FIXED(ci->onlyread, DEFAULT_READONLY);
+	ITOA_FIXED(ci->fake_oid_index, DEFAULT_FAKEOIDINDEX);
+	ITOA_FIXED(ci->show_oid_column, DEFAULT_SHOWOIDCOLUMN);
+	ITOA_FIXED(ci->show_system_tables, DEFAULT_SHOWSYSTEMTABLES);
+	ITOA_FIXED(ci->row_versioning, DEFAULT_ROWVERSIONING);
 	ci->allow_keyset = DEFAULT_UPDATABLECURSORS;
 	ci->lf_conversion = DEFAULT_LFCONVERSION;
 	ci->true_is_minus1 = DEFAULT_TRUEISMINUS1;
@@ -879,7 +878,7 @@ getDSNinfo(ConnInfo *ci, const char *configDrvrname)
 		{
 			if (configDrvrname)
 				drivername = configDrvrname;
-			STRCPY_FIXED(DSN, INI_DSN);
+			strncpy_null(DSN, INI_DSN, sizeof(ci->dsn));
 		}
 		/* else dns-less connections */
 	}
@@ -1096,51 +1095,51 @@ write_Ci_Drivers(const char *fileName, const char *sectionName,
 	if (stricmp(ODBCINST_INI, fileName) == 0)
 		return errc;
 
-	sprintf(tmp, "%d", comval->commlog);
+	ITOA_FIXED(tmp, comval->commlog);
 	if (!SQLWritePrivateProfileString(sectionName, INI_COMMLOG, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->debug);
+	ITOA_FIXED(tmp, comval->debug);
 	if (!SQLWritePrivateProfileString(sectionName, INI_DEBUG, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->fetch_max);
+	ITOA_FIXED(tmp, comval->fetch_max);
 	if (!SQLWritePrivateProfileString(sectionName, INI_FETCH, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->unique_index);
+	ITOA_FIXED(tmp, comval->unique_index);
 	if (!SQLWritePrivateProfileString(sectionName, INI_UNIQUEINDEX, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->use_declarefetch);
+	ITOA_FIXED(tmp, comval->use_declarefetch);
 	if (!SQLWritePrivateProfileString(sectionName, INI_USEDECLAREFETCH, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->unknown_sizes);
+	ITOA_FIXED(tmp, comval->unknown_sizes);
 	if (!SQLWritePrivateProfileString(sectionName, INI_UNKNOWNSIZES, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->text_as_longvarchar);
+	ITOA_FIXED(tmp, comval->text_as_longvarchar);
 	if (!SQLWritePrivateProfileString(sectionName, INI_TEXTASLONGVARCHAR, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->unknowns_as_longvarchar);
+	ITOA_FIXED(tmp, comval->unknowns_as_longvarchar);
 	if (!SQLWritePrivateProfileString(sectionName, INI_UNKNOWNSASLONGVARCHAR, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->bools_as_char);
+	ITOA_FIXED(tmp, comval->bools_as_char);
 	if (!SQLWritePrivateProfileString(sectionName, INI_BOOLSASCHAR, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->parse);
+	ITOA_FIXED(tmp, comval->parse);
 	if (!SQLWritePrivateProfileString(sectionName, INI_PARSE, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->max_varchar_size);
+	ITOA_FIXED(tmp, comval->max_varchar_size);
 	if (!SQLWritePrivateProfileString(sectionName, INI_MAXVARCHARSIZE, tmp, fileName))
 		errc--;
 
-	sprintf(tmp, "%d", comval->max_longvarchar_size);
+	ITOA_FIXED(tmp, comval->max_longvarchar_size);
 	if (!SQLWritePrivateProfileString(sectionName, INI_MAXLONGVARCHARSIZE, tmp, fileName))
 		errc--;
 
@@ -1229,7 +1228,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	if (ci->rollback_on_error >= 0)
-		sprintf(temp, "7.4-%d", ci->rollback_on_error);
+		snprintf(temp, sizeof(temp), "7.4-%d", ci->rollback_on_error);
 	else
 		STRCPY_FIXED(temp, NULL_STRING);
 	SQLWritePrivateProfileString(DSN,
@@ -1247,47 +1246,47 @@ writeDSNinfo(const ConnInfo *ci)
 								 SAFE_NAME(ci->pqopt),
 								 ODBC_INI);
 
-	sprintf(temp, "%d", ci->allow_keyset);
+	ITOA_FIXED(temp, ci->allow_keyset);
 	SQLWritePrivateProfileString(DSN,
 								 INI_UPDATABLECURSORS,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->lf_conversion);
+	ITOA_FIXED(temp, ci->lf_conversion);
 	SQLWritePrivateProfileString(DSN,
 								 INI_LFCONVERSION,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->true_is_minus1);
+	ITOA_FIXED(temp, ci->true_is_minus1);
 	SQLWritePrivateProfileString(DSN,
 								 INI_TRUEISMINUS1,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->int8_as);
+	ITOA_FIXED(temp, ci->int8_as);
 	SQLWritePrivateProfileString(DSN,
 								 INI_INT8AS,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%x", getExtraOptions(ci));
+	snprintf(temp, sizeof(temp), "%x", getExtraOptions(ci));
 	SQLWritePrivateProfileString(DSN,
 							INI_EXTRAOPTIONS,
 							 temp,
 							 ODBC_INI);
-	sprintf(temp, "%d", ci->bytea_as_longvarbinary);
+	ITOA_FIXED(temp, ci->bytea_as_longvarbinary);
 	SQLWritePrivateProfileString(DSN,
 								 INI_BYTEAASLONGVARBINARY,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->use_server_side_prepare);
+	ITOA_FIXED(temp, ci->use_server_side_prepare);
 	SQLWritePrivateProfileString(DSN,
 								 INI_USESERVERSIDEPREPARE,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->lower_case_identifier);
+	ITOA_FIXED(temp, ci->lower_case_identifier);
 	SQLWritePrivateProfileString(DSN,
 								 INI_LOWERCASEIDENTIFIER,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->gssauth_use_gssapi);
+	ITOA_FIXED(temp, ci->gssauth_use_gssapi);
 	SQLWritePrivateProfileString(DSN,
 								 INI_GSSAUTHUSEGSSAPI,
 								 temp,
@@ -1296,18 +1295,18 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_SSLMODE,
 								 ci->sslmode,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->keepalive_idle);
+	ITOA_FIXED(temp, ci->keepalive_idle);
 	SQLWritePrivateProfileString(DSN,
 								 INI_KEEPALIVETIME,
 								 temp,
 								 ODBC_INI);
-	sprintf(temp, "%d", ci->keepalive_interval);
+	ITOA_FIXED(temp, ci->keepalive_interval);
 	SQLWritePrivateProfileString(DSN,
 								 INI_KEEPALIVEINTERVAL,
 								 temp,
 								 ODBC_INI);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-	sprintf(temp, "%d", ci->xa_opt);
+	ITOA_FIXED(temp, ci->xa_opt);
 	SQLWritePrivateProfileString(DSN, INI_XAOPT, temp, ODBC_INI);
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 }
@@ -1461,7 +1460,7 @@ encode(const pgNAME in, char *out, int outlen)
 		{
 			if (o + 2 >= outlen)
 				break;
-			sprintf(&out[o], "%%2B");
+			snprintf(&out[o], outlen - o, "%%2B");
 			o += 3;
 		}
 		else if (isspace((unsigned char) inc))
@@ -1470,7 +1469,7 @@ encode(const pgNAME in, char *out, int outlen)
 		{
 			if (o + 2 >= outlen)
 				break;
-			sprintf(&out[o], "%%%02x", inc);
+			snprintf(&out[o], outlen - o, "%%%02x", inc);
 			o += 3;
 		}
 		else
@@ -1523,7 +1522,8 @@ decode(const char *in)
 			outs[o++] = ' ';
 		else if (inc == '%')
 		{
-			sprintf(&outs[o++], "%c", conv_from_hex(&in[i]));
+			snprintf(&outs[o], ilen + 1 - o, "%c", conv_from_hex(&in[i]));
+			o++;
 			i += 2;
 		}
 		else

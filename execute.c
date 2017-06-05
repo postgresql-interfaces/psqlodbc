@@ -630,7 +630,7 @@ SetStatementSvp(StatementClass *stmt)
 		}
 		if (need_savep)
 		{
-			sprintf(esavepoint, "_EXEC_SVP_%p", stmt);
+			SPRINTF_FIXED(esavepoint, "_EXEC_SVP_%p", stmt);
 			snprintf(cmd, sizeof(cmd), "SAVEPOINT %s", esavepoint);
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
 			if (QR_command_maybe_successful(res))
@@ -680,7 +680,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 		goto cleanup;
 	if (!SC_is_rb_stmt(stmt) && !SC_is_tc_stmt(stmt))
 		goto cleanup;
-	sprintf(esavepoint, "_EXEC_SVP_%p", stmt);
+	SPRINTF_FIXED(esavepoint, "_EXEC_SVP_%p", stmt);
 	if (SQL_ERROR == ret)
 	{
 		if (SC_started_rbpoint(stmt))

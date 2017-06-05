@@ -397,7 +397,7 @@ ds_options1Proc(HWND hdlg,
 						sizeof(fbuf));
 				if (cmd <= 0)
 					STRCPY_FIXED(fbuf, "Advanced Options (%s) 1/3");
-				sprintf(strbuf, fbuf, ci->dsn);
+				SPRINTF_FIXED(strbuf, fbuf, ci->dsn);
 				SetWindowText(hdlg, strbuf);
 			}
 			else
@@ -457,7 +457,7 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	mylog("%s: got ci = %p\n", __FUNCTION__, ci);
 
 	/* Readonly */
-	sprintf(ci->onlyread, "%d", IsDlgButtonChecked(hdlg, DS_READONLY));
+	ITOA_FIXED(ci->onlyread, IsDlgButtonChecked(hdlg, DS_READONLY));
 
 	/* Issue rollback command on error */
 	if (IsDlgButtonChecked(hdlg, DS_NO_ROLLBACK))
@@ -486,9 +486,9 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 
 	GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
 	setExtraOptions(ci, buf, NULL);
-	sprintf(ci->show_system_tables, "%d", IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
+	ITOA_FIXED(ci->show_system_tables, IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
 
-	sprintf(ci->row_versioning, "%d", IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
+	ITOA_FIXED(ci->row_versioning, IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
 	ci->lf_conversion = IsDlgButtonChecked(hdlg, DS_LFCONVERSION);
 	ci->true_is_minus1 = IsDlgButtonChecked(hdlg, DS_TRUEISMINUS1);
 	ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
@@ -498,8 +498,8 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	ci->gssauth_use_gssapi = IsDlgButtonChecked(hdlg, DS_GSSAUTHUSEGSSAPI);
 
 	/* OID Options */
-	sprintf(ci->fake_oid_index, "%d", IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));
-	sprintf(ci->show_oid_column, "%d", IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
+	ITOA_FIXED(ci->fake_oid_index, IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));
+	ITOA_FIXED(ci->show_oid_column, IsDlgButtonChecked(hdlg, DS_SHOWOIDCOLUMN));
 
 	/* Datasource Connection Settings */
 	{
@@ -563,7 +563,7 @@ ds_options2Proc(HWND hdlg,
 						sizeof(fbuf));
 				if (cmd <= 0)
 					STRCPY_FIXED(fbuf, "Advanced Options (%s) 2/3");
-				sprintf(buf, fbuf, ci->dsn);
+				SPRINTF_FIXED(buf, fbuf, ci->dsn);
 				SetWindowText(hdlg, buf);
 			}
 			else
@@ -613,7 +613,7 @@ ds_options2Proc(HWND hdlg,
 				default:
 					CheckDlgButton(hdlg, DS_INT8_AS_DEFAULT, 1);
 			}
-			sprintf(buf, "0x%x", getExtraOptions(ci));
+			SPRINTF_FIXED(buf, "0x%x", getExtraOptions(ci));
 			SetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf);
 
 			CheckDlgButton(hdlg, DS_SHOWOIDCOLUMN, atoi(ci->show_oid_column));
@@ -639,12 +639,12 @@ ds_options2Proc(HWND hdlg,
 			{
 				if (ci->keepalive_idle > 0)
 				{
-					snprintf(buf, sizeof(buf), "%d", ci->keepalive_idle);
+					ITOA_FIXED(buf, ci->keepalive_idle);
 					SetDlgItemText(hdlg, DS_KEEPALIVETIME, buf);
 				}
 				if (ci->keepalive_interval > 0)
 				{
-					snprintf(buf, sizeof(buf), "%d", ci->keepalive_interval);
+					ITOA_FIXED(buf, ci->keepalive_interval);
 					SetDlgItemText(hdlg, DS_KEEPALIVEINTERVAL, buf);
 				}
 			}
@@ -813,7 +813,7 @@ mylog("!!!! %s:%d in\n", __FUNCTION__, wMsg);
 						sizeof(fbuf));
 				if (cmd <= 0)
 					STRCPY_FIXED(fbuf, "Advanced Options (%s) 3/3");
-				sprintf(buf, fbuf, ci->dsn);
+				SPRINTF_FIXED(buf, fbuf, ci->dsn);
 				SetWindowText(hdlg, buf);
 			}
 			else

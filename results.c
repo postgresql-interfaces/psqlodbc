@@ -3393,14 +3393,14 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 					if (!keys_per_fetch)
 						keys_per_fetch = 2;
 					lodlen = strlen(stmt->load_statement);
-					sprintf(planname, "_KEYSET_%p", res);
+					SPRINTF_FIXED(planname, "_KEYSET_%p", res);
 					allen = 8 + strlen(planname) +
 						3 + 4 * keys_per_fetch + 1
 						+ 1 + 2 + lodlen + 20 +
 						4 * keys_per_fetch + 1;
 					SC_MALLOC_return_with_error(qval, char, allen,
 						stmt, "Couldn't alloc qval", -1);
-					sprintf(qval, "PREPARE \"%s\"", planname);
+					snprintf(qval, allen, "PREPARE \"%s\"", planname);
 					for (j = 0; j < keys_per_fetch; j++)
 					{
 						strlcat(qval, j ? ",tid" : "(tid", allen);
@@ -3564,7 +3564,7 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 				SC_MALLOC_return_with_error(qval, char, allen,
 					stmt, "Couldn't alloc qval", -1);
 			}
-			sprintf(qval, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid));
+			snprintf(qval, allen, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid));
 		}
 		if (new_oid != oid)
 			oid = new_oid;

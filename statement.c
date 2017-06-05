@@ -663,7 +663,7 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 					QResultClass	*res;
 					char dealloc_stmt[128];
 
-					sprintf(dealloc_stmt, "DEALLOCATE \"%s\"", stmt->plan_name);
+					SPRINTF_FIXED(dealloc_stmt, "DEALLOCATE \"%s\"", stmt->plan_name);
 					res = CC_send_query(conn, dealloc_stmt, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 					QR_Destructor(res);
 				}

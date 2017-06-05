@@ -1804,7 +1804,7 @@ retry_public_schema:
 	op_string = gen_opestr(like_or_eq, conn);
 	if (!list_some)
 	{
-		schema_strcat1(tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
+		schema_strcat1(tables_query, sizeof(tables_query), " and nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 		if (IS_VALID_NAME(escTableName))
 			snprintf_add(tables_query, sizeof(tables_query),
 					 " and relname %s'%s'", op_string, escTableName);
@@ -2262,7 +2262,7 @@ retry_public_schema:
 	{
 		if (escTableName)
 			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
-		schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
+		schema_strcat1(columns_query, sizeof(columns_query), " and n.nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 	}
 	STRCAT_FIXED(columns_query, ") inner join pg_catalog.pg_attribute a"
 		" on (not a.attisdropped)");
@@ -2770,7 +2770,7 @@ retry_public_schema:
 		snprintf_add(columns_query, sizeof(columns_query),
 					 " and c.relname %s'%s'", eq_string, escTableName);
 	/* SchemaName cannot contain a string search pattern */
-	schema_strcat1(columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, szTableName, cbTableName, conn);
+	schema_strcat1(columns_query, sizeof(columns_query), " and u.nspname %s'%.*s'", eq_string, escSchemaName, szTableName, cbTableName, conn);
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -3049,7 +3049,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	cbSchemaName = cbTableOwner;
 
 	table_schemaname[0] = '\0';
-	schema_strcat(table_schemaname, "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
+	schema_strcat(table_schemaname, sizeof(table_schemaname), "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
 
 	/*
 	 * we need to get a list of the field names first, so we can return
@@ -3666,7 +3666,7 @@ retry_public_schema:
 		if (escSchemaName)
 			free(escSchemaName);
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
-		schema_strcat(pkscm, "%.*s", (SQLCHAR *) escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_strcat(pkscm, sizeof(pkscm), "%.*s", (SQLCHAR *) escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
 	}
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
@@ -4110,7 +4110,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 
 		mylog("%s: entering Foreign Key Case #2", func);
 		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
+		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
 			"		pt.tgnargs, "
@@ -4438,7 +4438,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 		char	*escSchemaName;
 
 		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
+		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
 			"	pt.tgnargs, "
@@ -5261,7 +5261,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
 	   " pg_catalog.pg_proc"
 	  " where pg_proc.pronamespace = pg_namespace.oid");
-	schema_strcat1(proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, szProcName, cbProcName, conn);
+	schema_strcat1(proc_query, sizeof(proc_query), " and nspname %s'%.*s'", op_string, escSchemaName, szProcName, cbProcName, conn);
 	if (IS_VALID_NAME(escProcName))
 		snprintf_add(proc_query, sizeof(proc_query),
 				 " and proname %s'%s'", op_string, escProcName);
@@ -5439,7 +5439,7 @@ retry_public_schema:
 	" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
 	" pg_catalog.pg_user where");
 	if (escSchemaName)
-		schema_strcat1(proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, szTableName, cbTableName, conn);
+		schema_strcat1(proc_query, sizeof(proc_query), " nspname %s'%.*s' and", op_string, escSchemaName, szTableName, cbTableName, conn);
 
 	if (escTableName)
 		snprintf_add(proc_query, sizeof(proc_query), " relname %s'%s' and", op_string, escTableName);
@@ -5685,7 +5685,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	{
 		mylog("%s: entering Foreign Key Case #2", func);
 		escTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
+		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
 		relqual = "\n   and  conrelid = c.oid";
 	}
 	/*
@@ -5696,7 +5696,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	else if (NULL != pk_table_needed)
 	{
 		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
+		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
 		relqual = "\n   and  confrelid = c.oid";
 	}
 	else

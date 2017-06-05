@@ -422,9 +422,9 @@ const		char *CurrCatString(const ConnectionClass *self);
 SQLUINTEGER	CC_get_isolation(ConnectionClass *self);
 
 SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
-char	*schema_strcat(char *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
+char	*schema_strcat(char *buf, int buflen, const char *fmt, const SQLCHAR *s, SQLLEN len,
 		const SQLCHAR *, SQLLEN, ConnectionClass *conn);
-char	*schema_strcat1(char *buf, const char *fmt, const char *s1,
+char	*schema_strcat1(char *buf, int buflen, const char *fmt, const char *s1,
 				const char *s,
 				const SQLCHAR *, int, ConnectionClass *conn);
 

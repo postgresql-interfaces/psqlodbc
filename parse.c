@@ -432,13 +432,13 @@ static BOOL CheckHasOids(StatementClass * stmt)
 		res = NULL;
 		if (!hasoids && !hassubclass)
 		{
-			sprintf(query, "select a.attname, a.atttypid from pg_index i, pg_attribute a where indrelid=%u and indnatts=1 and indisunique and indexprs is null and indpred is null and i.indrelid = a.attrelid and a.attnum=i.indkey[0] and attnotnull and atttypid in (%d, %d)", ti->table_oid, PG_TYPE_INT4, PG_TYPE_OID);
+			SPRINTF_FIXED(query, "select a.attname, a.atttypid from pg_index i, pg_attribute a where indrelid=%u and indnatts=1 and indisunique and indexprs is null and indpred is null and i.indrelid = a.attrelid and a.attnum=i.indkey[0] and attnotnull and atttypid in (%d, %d)", ti->table_oid, PG_TYPE_INT4, PG_TYPE_OID);
 			res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 			if (QR_command_maybe_successful(res) && QR_get_num_total_tuples(res) > 0)
 			{
 				foundKey = TRUE;
 				STR_TO_NAME(ti->bestitem, QR_get_value_backend_text(res, 0, 0));
-				sprintf(query, "\"%s\" = %%", SAFE_NAME(ti->bestitem));
+				SPRINTF_FIXED(query, "\"%s\" = %%", SAFE_NAME(ti->bestitem));
 				if (PG_TYPE_INT4 == (OID) QR_get_value_backend_int(res, 0, 1, NULL))
 					STRCAT_FIXED(query, "d");
 				else
@@ -1306,7 +1306,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 
 	delim = '\0';
 	token[0] = '\0';
-	while (pptr = ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	while (pptr = ptr, (delim != ',') ? strncpy_null(btoken, token, sizeof(btoken)) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 

@@ -325,7 +325,7 @@ PGAPI_ConnectError(HDBC hdbc,
 	if (NULL != szSqlState)
 	{
 		if (conn->sqlstate[0])
-			STRCPY_FIXED((char *) szSqlState, conn->sqlstate);
+			strncpy_null((char *) szSqlState, conn->sqlstate, SIZEOF_SQLSTATE);
 		else
 		switch (status)
 		{
