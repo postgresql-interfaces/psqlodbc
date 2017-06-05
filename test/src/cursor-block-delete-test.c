@@ -59,9 +59,9 @@ int main(int argc, char **argv)
 	SQLLEN		cbLen[BLOCK];
 
 	/****
-     * Run this test with UseDeclareFetch = 1 and Fetch=37.
+     * Run this test with Fetch=37 when UseDeclareFecth=1.
      */
-	test_connect_ext("UseDeclareFetch=1;Fetch=37");
+	test_connect_ext("UpdatableCursors=1;Fetch=37");
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	if (!SQL_SUCCEEDED(rc))
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr CONCURRENCY failed", hstmt);
 	rc = SQLSetConnectAttr(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0);
 	
-	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_STATIC, 0);
+	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_KEYSET_DRIVEN, 0);
 	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr CURSOR_TYPE failed", hstmt);
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "select * from tmptable", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "select failed", hstmt);
