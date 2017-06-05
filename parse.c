@@ -440,9 +440,9 @@ static BOOL CheckHasOids(StatementClass * stmt)
 				STR_TO_NAME(ti->bestitem, QR_get_value_backend_text(res, 0, 0));
 				sprintf(query, "\"%s\" = %%", SAFE_NAME(ti->bestitem));
 				if (PG_TYPE_INT4 == (OID) QR_get_value_backend_int(res, 0, 1, NULL))
-					strcat(query, "d");
+					STRCAT_FIXED(query, "d");
 				else
-					strcat(query, "u");
+					STRCAT_FIXED(query, "u");
 				STRX_TO_NAME(ti->bestqual, query);
 			}
 			else

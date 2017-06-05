@@ -466,8 +466,9 @@ do { \
 #define	NAMEICMP(name1, name2) (stricmp(SAFE_NAME(name1), SAFE_NAME(name2)))
 /*	pgNAME define end */
 
-/* macro to strcpy() to fixed arrays. */
+/* macro to strcpy() or strcat() to fixed arrays. */
 #define	STRCPY_FIXED(to, from) strncpy_null((to), (from), sizeof(to))
+#define	STRCAT_FIXED(to, from) strlcat((to), (from), sizeof(to))
 
 typedef struct GlobalValues_
 {

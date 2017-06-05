@@ -1798,7 +1798,7 @@ retry_public_schema:
 		/* view is represented by its relkind since 7.1 */
 		STRCPY_FIXED(tables_query, "select relname, nspname, relkind"
 			" from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
-		strcat(tables_query, " where relkind in ('r', 'v')");
+		STRCAT_FIXED(tables_query, " where relkind in ('r', 'v')");
 	}
 
 	op_string = gen_opestr(like_or_eq, conn);
@@ -1882,19 +1882,19 @@ retry_public_schema:
 	 * tables, then dont filter either.
 	 */
 	if ((list_schemas || !list_some) && !atoi(ci->show_system_tables) && !show_system_tables)
-		strcat(tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
+		STRCAT_FIXED(tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
 
 	if (!list_some)
 	{
 		if (CC_accessible_only(conn))
-			strcat(tables_query, " and has_table_privilege(c.oid, 'select')");
+			STRCAT_FIXED(tables_query, " and has_table_privilege(c.oid, 'select')");
 	}
 	if (list_schemas)
-		strcat(tables_query, " order by nspname");
+		STRCAT_FIXED(tables_query, " order by nspname");
 	else if (list_some)
 		;
 	else
-		strcat(tables_query, " and n.oid = relnamespace order by nspname, relname");
+		STRCAT_FIXED(tables_query, " and n.oid = relnamespace order by nspname, relname");
 
 	result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -2264,10 +2264,10 @@ retry_public_schema:
 			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
 		schema_strcat1(columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 	}
-	strcat(columns_query, ") inner join pg_catalog.pg_attribute a"
+	STRCAT_FIXED(columns_query, ") inner join pg_catalog.pg_attribute a"
 		" on (not a.attisdropped)");
 	if (0 == attnum && (NULL == escColumnName || like_or_eq != eqop))
-		strcat(columns_query, " and a.attnum > 0");
+		STRCAT_FIXED(columns_query, " and a.attnum > 0");
 	if (search_by_ids)
 	{
 		if (attnum != 0)
@@ -2275,11 +2275,11 @@ retry_public_schema:
 	}
 	else if (escColumnName)
 		snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s'%s'", op_string, escColumnName);
-	strcat(columns_query,
+	STRCAT_FIXED(columns_query,
 		" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
 		" on t.oid = a.atttypid) left outer join pg_attrdef d"
 		" on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum");
-	strcat(columns_query, " order by n.nspname, c.relname, attnum");
+	STRCAT_FIXED(columns_query, " order by n.nspname, c.relname, attnum");
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -2761,7 +2761,7 @@ retry_public_schema:
 	 * Create the query to find out if this is a view or not...
 	 */
 	STRCPY_FIXED(columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
-	strcat(columns_query, " from pg_catalog.pg_namespace u,"
+	STRCAT_FIXED(columns_query, " from pg_catalog.pg_namespace u,"
 					" pg_catalog.pg_class c where "
 					"u.oid = c.relnamespace");
 
@@ -3166,8 +3166,8 @@ PGAPI_Statistics(HSTMT hstmt,
 		" and c.relam = a.oid order by"
 		, PG_VERSION_GE(conn, 8.3) ? "i.indoption" : "0"
 		, eq_string, escTableName, eq_string, escSchemaName);
-	strcat(index_query, " i.indisprimary desc,");
-	strcat(index_query, " i.indisunique, n.nspname, c.relname");
+	STRCAT_FIXED(index_query, " i.indisprimary desc,");
+	STRCAT_FIXED(index_query, " i.indisunique, n.nspname, c.relname");
 
 	result = PGAPI_ExecDirect(hindx_stmt, (SQLCHAR *) index_query, SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -4874,7 +4874,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	ret_col = ext_pos = 7;
 	poid_pos = 6;
 #ifdef	PRORET_COUNT
-	strcat(proc_query, ", atttypid, attname");
+	STRCAT_FIXED(proc_query, ", atttypid, attname");
 	attid_pos = ext_pos;
 	attname_pos = ext_pos + 1;
 	ret_col += 2;
@@ -4882,22 +4882,22 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 #endif /* PRORET_COUNT */
 	if (PG_VERSION_GE(conn, 8.0))
 	{
-		strcat(proc_query, ", proargnames");
+		STRCAT_FIXED(proc_query, ", proargnames");
 		ret_col++;
 	}
 	if (PG_VERSION_GE(conn, 8.1))
 	{
-		strcat(proc_query, ", proargmodes, proallargtypes");
+		STRCAT_FIXED(proc_query, ", proargmodes, proallargtypes");
 		ret_col += 2;
 	}
 #ifdef	PRORET_COUNT
-	strcat(proc_query, " from ((pg_catalog.pg_namespace n inner join"
+	STRCAT_FIXED(proc_query, " from ((pg_catalog.pg_namespace n inner join"
 			   " pg_catalog.pg_proc p on p.pronamespace = n.oid)"
 		" inner join pg_type t on t.oid = p.prorettype)"
 		" left outer join pg_attribute a on a.attrelid = t.typrelid "
 		" and attnum > 0 and not attisdropped where");
 #else
-	strcat(proc_query, " from pg_catalog.pg_namespace n,"
+	STRCAT_FIXED(proc_query, " from pg_catalog.pg_namespace n,"
 			   " pg_catalog.pg_proc p where");
 			   " p.pronamespace = n.oid  and"
 			   " (not proretset) and");
@@ -5443,11 +5443,11 @@ retry_public_schema:
 
 	if (escTableName)
 		snprintf_add(proc_query, sizeof(proc_query), " relname %s'%s' and", op_string, escTableName);
-	strcat(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
+	STRCAT_FIXED(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
 	if ((!escTableName) && (!escSchemaName))
-		strcat(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
+		STRCAT_FIXED(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
 
-	strcat(proc_query, " pg_user.usesysid = relowner");
+	STRCAT_FIXED(proc_query, " pg_user.usesysid = relowner");
 	if (wres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(wres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
@@ -5810,7 +5810,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 				"\n where c2.relname %s'%s'",
 				eq_string, escTableName);
 	}
-	strcat(tables_query, "\n  order by ref.oid, ref.i");
+	STRCAT_FIXED(tables_query, "\n  order by ref.oid, ref.i");
 
 	if (res = CC_send_query(conn, tables_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
 	{
