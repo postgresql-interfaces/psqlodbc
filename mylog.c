@@ -15,6 +15,7 @@
 #define	_MYLOG_FUNCS_IMPLEMENT_
 #include "psqlodbc.h"
 #include "dlg_specific.h"
+#include "misc.h"
 
 #include <stdio.h>
 #include <stdlib.h>

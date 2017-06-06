@@ -18,6 +18,7 @@
  */
 
 #include "tuple.h"
+#include "misc.h"
 
 #include <string.h>
 #include <stdlib.h>

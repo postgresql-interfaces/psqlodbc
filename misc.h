@@ -22,10 +22,11 @@ char	   *strncpy_null(char *dst, const char *src, ssize_t len);
 #ifndef	HAVE_STRLCAT
 size_t		strlcat(char *, const char *, size_t);
 #endif /* HAVE_STRLCAT */
-char	   *my_trim(char *string);
-char	   *make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize);
 int	   snprintf_add(char *buf, size_t size, const char *format, ...);
 size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);
+
+char	   *my_trim(char *string);
+char	   *make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
 char *quote_table(const pgNAME schema, const pgNAME table);
 
@@ -38,6 +39,64 @@ char *quote_table(const pgNAME schema, const pgNAME table);
 #define STRCPY_NULL			(-2)
 
 ssize_t			my_strcpy(char *dst, ssize_t dst_len, const char *src, ssize_t src_len);
+
+/*
+ *	Macros to safely strcpy, strcat or sprintf to fixed arrays.
+ *
+ */
+
+/*
+ *	With GCC, the macro CHECK_NOT_CHAR_P() causes a compilation error
+ *		when the target is pointer not a fixed array.
+ */
+#ifdef	__GNUC__
+#define	FUNCTION_BEGIN_MACRO ({
+#define	FUNCTION_END_MACRO ;})
+#define CHECK_NOT_CHAR_P(t) \
+_Pragma ("GCC diagnostic push") \
+_Pragma ("GCC diagnostic ignored \"-Wunused-variable\"") \
+	if (0) { typeof(t) dummy_for_check = {};} \
+_Pragma ("GCC diagnostic pop")
+#else
+#define	FUNCTION_BEGIN_MACRO
+#define	FUNCTION_END_MACRO
+#define CHECK_NOT_CHAR_P(t)
+#endif
+
+/* macro to safely strcpy() to fixed arrays. */
+#define	STRCPY_FIXED(to, from) \
+FUNCTION_BEGIN_MACRO \
+	CHECK_NOT_CHAR_P(to) \
+	strncpy_null((to), (from), sizeof(to)) \
+FUNCTION_END_MACRO
+
+/* macro to safely strcat() to fixed arrays. */
+#define	STRCAT_FIXED(to, from) \
+FUNCTION_BEGIN_MACRO \
+	CHECK_NOT_CHAR_P(to) \
+	strlcat((to), (from), sizeof(to)) \
+FUNCTION_END_MACRO
+
+/* macro to safely sprintf() to fixed arrays. */
+#define	SPRINTF_FIXED(to, ...) \
+FUNCTION_BEGIN_MACRO \
+	CHECK_NOT_CHAR_P(to) \
+	snprintf((to), sizeof(to), __VA_ARGS__) \
+FUNCTION_END_MACRO
+
+/* macro to safely sprintf() & cat to fixed arrays. */
+#define	SPRINTF_FIXEDCAT(to, ...) \
+FUNCTION_BEGIN_MACRO \
+	CHECK_NOT_CHAR_P(to) \
+	snprintf_add((to), sizeof(to), __VA_ARGS__) \
+FUNCTION_END_MACRO
+
+#define	ITOA_FIXED(to, from) \
+FUNCTION_BEGIN_MACRO \
+	CHECK_NOT_CHAR_P(to) \
+	snprintf((to), sizeof(to), "%d", from) \
+FUNCTION_END_MACRO
+
 
 #ifdef __cplusplus
 }
