@@ -699,7 +699,7 @@ SetDriverAttributes(LPCSTR lpszDriver, DWORD *pErrorCode, LPSTR message, WORD cb
 		goto cleanup;
 	if (!SQLWritePrivateProfileString(lpszDriver, "ConnectFunctions", "YYN", ODBCINST_INI))
 		goto cleanup;
-	snprintf(ver_string, sizeof(ver_string), "%02x.%02x",
+	SPRINTF_FIXED(ver_string, "%02x.%02x",
 				 ODBCVER / 256,
 				 ODBCVER % 256);
 	if (!SQLWritePrivateProfileString(lpszDriver, "DriverODBCVer",

@@ -630,7 +630,7 @@ CC_send_client_encoding(ConnectionClass *self, const char * encoding)
 		int	errnum = CC_get_errornumber(self);
 		BOOL	cmd_success;
 
-		snprintf(query, sizeof(query), "set client_encoding to '%s'", encoding);
+		SPRINTF_FIXED(query, "set client_encoding to '%s'", encoding);
 		res = CC_send_query(self, query, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 		cmd_success = QR_command_maybe_successful(res);
 		QR_Destructor(res);
@@ -1428,7 +1428,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 
 				if (QR_needs_survival_check(res))
 				{
-					snprintf(cmd, sizeof(cmd), "MOVE 0 in \"%s\"", QR_get_cursor(res));
+					SPRINTF_FIXED(cmd, "MOVE 0 in \"%s\"", QR_get_cursor(res));
 					CONNLOCK_RELEASE(self);
 					wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 					QR_set_no_survival_check(res);
@@ -1724,22 +1724,22 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	query_buf[0] = '\0';
 	if (issue_begin)
 	{
-		snprintf_add(query_buf, query_buf_len, "%s;", bgncmd);
+		snprintfcat(query_buf, query_buf_len, "%s;", bgncmd);
 		discard_next_begin = TRUE;
 	}
 	if (query_rollback)
 	{
-		snprintf_add(query_buf, query_buf_len, "%s %s;", svpcmd, per_query_svp);
+		snprintfcat(query_buf, query_buf_len, "%s %s;", svpcmd, per_query_svp);
 		discard_next_savepoint = TRUE;
 	}
 	strlcat(query_buf, query, query_buf_len);
 	if (appendq)
 	{
-		snprintf_add(query_buf, query_buf_len, ";%s", appendq);
+		snprintfcat(query_buf, query_buf_len, ";%s", appendq);
 	}
 	if (query_rollback)
 	{
-		snprintf_add(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
+		snprintfcat(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
 	}
 
 	/* Set up notice receiver */
@@ -1998,7 +1998,7 @@ cleanup:
 			if (CC_is_in_error_trans(self))
 			{
 				char tmpsqlbuf[100];
-				snprintf(tmpsqlbuf, sizeof(tmpsqlbuf),
+				SPRINTF_FIXED(tmpsqlbuf,
 						 "%s TO %s; %s %s",
 						 rbkcmd, per_query_svp,
 						 rlscmd, per_query_svp);
@@ -2157,7 +2157,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(self, func_cs_count);
 
-	snprintf(sqlbuffer, sizeof(sqlbuffer), "SELECT pg_catalog.%s%s", fn_name,
+	SPRINTF_FIXED(sqlbuffer, "SELECT pg_catalog.%s%s", fn_name,
 			 func_param_str[nargs]);
 	for (i = 0; i < nargs; ++i)
 	{
@@ -2431,9 +2431,9 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 	{
 		pname = conn->discardp[i];
 		if ('s' == pname[0])
-			snprintf(cmd, sizeof(cmd), "DEALLOCATE \"%s\"", pname + 1);
+			SPRINTF_FIXED(cmd, "DEALLOCATE \"%s\"", pname + 1);
 		else
-			snprintf(cmd, sizeof(cmd), "CLOSE \"%s\"", pname + 1);
+			SPRINTF_FIXED(cmd, "CLOSE \"%s\"", pname + 1);
 		res = CC_send_query(conn, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
 		QR_Destructor(res);
 		free(conn->discardp[i]);
@@ -2514,7 +2514,7 @@ LIBPQ_connect(ConnectionClass *self)
 		char emsg[200];
 
 		if (errmsg != NULL)
-			snprintf(emsg, sizeof(emsg), "libpq connection parameter error:%s", errmsg);
+			SPRINTF_FIXED(emsg, "libpq connection parameter error:%s", errmsg);
 		else
 			STRCPY_FIXED(emsg, "memory error? in PQconninfoParse");
 		CC_set_error(self, CONN_OPENDB_ERROR, emsg, func);
@@ -2604,7 +2604,7 @@ LIBPQ_connect(ConnectionClass *self)
 
 						if (vals[j] != NULL && strcmp(vals[j], val) == 0)
 							continue;
-						snprintf(emsg, sizeof(emsg), "%s parameter in pqopt option conflicts with other ordinary option", keyword);
+						SPRINTF_FIXED(emsg, "%s parameter in pqopt option conflicts with other ordinary option", keyword);
 						CC_set_error(self, CONN_OPENDB_ERROR, emsg, func);
 						goto cleanup;
 					}
@@ -2798,7 +2798,7 @@ my_strcat(char *buf, int buflen, const char *fmt, const char *s, ssize_t len)
 	{
 		size_t	length = (len > 0) ? len : strlen(s);
 
-		snprintf_add(buf, buflen, fmt, length, s);
+		snprintfcat(buf, buflen, fmt, length, s);
 		return buf;
 	}
 	return NULL;
@@ -2816,9 +2816,9 @@ my_strcat1(char *buf, int buflen, const char *fmt, const char *s1, const char *s
 		ssize_t	length = strlen(s);
 
 		if (s1)
-			snprintf_add(buf, buflen, fmt, s1, length, s);
+			snprintfcat(buf, buflen, fmt, s1, length, s);
 		else
-			snprintf_add(buf, buflen, fmt, length, s);
+			snprintfcat(buf, buflen, fmt, length, s);
 		return buf;
 	}
 	return NULL;
@@ -3174,13 +3174,13 @@ PgDtc_two_phase_operation(void *self, int operation, const char *gxid)
 	switch (operation)
 	{
 		case PREPARE_TRANSACTION:
-			snprintf(cmd, sizeof(cmd), "PREPARE TRANSACTION '%s'", gxid);
+			SPRINTF_FIXED(cmd, "PREPARE TRANSACTION '%s'", gxid);
 			break;
 		case COMMIT_PREPARED:
-			snprintf(cmd, sizeof(cmd), "COMMIT PREPARED '%s'", gxid);
+			SPRINTF_FIXED(cmd, "COMMIT PREPARED '%s'", gxid);
 			break;
 		case ROLLBACK_PREPARED:
-			snprintf(cmd, sizeof(cmd), "ROLLBACK PREPARED '%s'", gxid);
+			SPRINTF_FIXED(cmd, "ROLLBACK PREPARED '%s'", gxid);
 			break;
 	}
 

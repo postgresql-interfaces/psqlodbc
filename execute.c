@@ -631,7 +631,7 @@ SetStatementSvp(StatementClass *stmt)
 		if (need_savep)
 		{
 			SPRINTF_FIXED(esavepoint, "_EXEC_SVP_%p", stmt);
-			snprintf(cmd, sizeof(cmd), "SAVEPOINT %s", esavepoint);
+			SPRINTF_FIXED(cmd, "SAVEPOINT %s", esavepoint);
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
 			if (QR_command_maybe_successful(res))
 			{
@@ -685,7 +685,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	{
 		if (SC_started_rbpoint(stmt))
 		{
-			snprintf(cmd, sizeof(cmd), "ROLLBACK to %s", esavepoint);
+			SPRINTF_FIXED(cmd, "ROLLBACK to %s", esavepoint);
 			res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL);
 			cmd_success = QR_command_maybe_successful(res);
 			QR_Destructor(res);
@@ -707,7 +707,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 inolog("ret=%d\n", ret);
 	if (SQL_NEED_DATA != ret && SC_started_rbpoint(stmt))
 	{
-		snprintf(cmd, sizeof(cmd), "RELEASE %s", esavepoint);
+		SPRINTF_FIXED(cmd, "RELEASE %s", esavepoint);
 		res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL);
 		cmd_success = QR_command_maybe_successful(res);
 		QR_Destructor(res);

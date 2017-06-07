@@ -158,12 +158,12 @@ my_trim(char *s)
 }
 
 /*
- * snprintf_add is a extension to snprintf
+ * snprintfcat is a extension to snprintf
  * It add format to buf at given pos
  */
 
 int
-snprintf_add(char *buf, size_t size, const char *format, ...)
+snprintfcat(char *buf, size_t size, const char *format, ...)
 {
 	int len;
 	size_t pos = strlen(buf);
@@ -176,7 +176,7 @@ snprintf_add(char *buf, size_t size, const char *format, ...)
 }
 
 /*
- * snprintf_addlen is a extension to snprintf
+ * snprintf_len is a extension to snprintf
  * It returns strlen of buf every time (not -1 when truncated)
  */
 

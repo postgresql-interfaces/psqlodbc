@@ -3,6 +3,7 @@
 #include	"psqlodbc.h"
 #include	"dlg_specific.h"
 #include	"loadlib.h"
+#include	"misc.h"
 
 HINSTANCE s_hModule;		/* Saved module handle. */
 
@@ -85,16 +86,16 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 					char drive[_MAX_DRIVE], dir[_MAX_DIR];
 
 					_splitpath(dllPath, drive, dir, NULL, NULL);
-					snprintf(dllPath, sizeof(dllPath), "%s%slibpq.dll", drive, dir);
+					SPRINTF_FIXED(dllPath, "%s%slibpq.dll", drive, dir);
 					if (s_hLModule = LoadLibraryEx(dllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule == NULL)
 					{
 						mylog("libpq in the folder %s%s couldn't be loaded\n", drive, dir);
-						snprintf(message, sizeof(message), "libpq in neither %s nor %s%s could be loaded", PG_BIN, drive, dir);
+						SPRINTF_FIXED(message, "libpq in neither %s nor %s%s could be loaded", PG_BIN, drive, dir);
 					}
 				}
 #ifdef	PG_BIN
 				else
-					snprintf(message, sizeof(message),  "libpq in the folder %s couldn't be loaded", PG_BIN);
+					SPRINTF_FIXED(message, "libpq in the folder %s couldn't be loaded", PG_BIN);
 #endif /* PG_BIN */
 				if (message[0])
 					MessageBox(NULL, message, "psqlsetup", MB_OK);

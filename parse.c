@@ -391,7 +391,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 	if (!stmt->ti || !stmt->ti[0])
 		return FALSE;
 	ti = stmt->ti[0];
-	snprintf(query, sizeof(query),
+	SPRINTF_FIXED(query,
 			 "select relhasoids, c.oid, relhassubclass from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid",
 			 SAFE_NAME(ti->table_name), SAFE_NAME(ti->schema_name));
 	res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
@@ -768,7 +768,7 @@ COL_INFO **coli)
 			/*
 			 * We also have to check as follows.
 			 */
-			snprintf(token, sizeof(token),
+			SPRINTF_FIXED(token,
 					 "select nspname from pg_namespace n, pg_class c"
 					 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
 					 SAFE_NAME(table_name));

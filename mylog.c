@@ -78,7 +78,7 @@ generate_filename(const char *dirname, const char *prefix, char *filename, size_
 	if (ptr)
 		strlcat(filename, ptr->pw_name, filenamelen);
 #endif
-	snprintf_add(filename, filenamelen, "%u%s", pid, ".log");
+	snprintfcat(filename, filenamelen, "%u%s", pid, ".log");
 	return;
 }
 
@@ -225,7 +225,7 @@ static void MLOG_open()
 		int lasterror = GENERAL_ERRNO;
  
 		open_error = TRUE;
-		snprintf(errbuf, sizeof(errbuf), "%s open error %d\n", filebuf, lasterror);
+		SPRINTF_FIXED(errbuf, "%s open error %d\n", filebuf, lasterror);
 		generate_homefile(MYLOGFILE, filebuf, sizeof(filebuf));
 		MLOGFP = fopen(filebuf, PG_BINARY_A);
 	}

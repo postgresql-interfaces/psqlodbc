@@ -210,9 +210,9 @@ makeKeepaliveConnectString(char *target, int buflen, const ConnInfo *ci, BOOL ab
 	if (ci->keepalive_interval >= 0)
 	{
 		if (abbrev)
-			snprintf_add(buf, buflen, ABBR_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
+			snprintfcat(buf, buflen, ABBR_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
 		else
-			snprintf_add(buf, buflen, INI_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
+			snprintfcat(buf, buflen, INI_KEEPALIVEINTERVAL "=%u;", ci->keepalive_interval);
 	}
 	return target;
 }
@@ -319,7 +319,7 @@ inolog("hlen=%d", hlen);
 		char	protocol_and[16];
 
 		if (ci->rollback_on_error >= 0)
-			snprintf(protocol_and, sizeof(protocol_and), "7.4-%d", ci->rollback_on_error);
+			SPRINTF_FIXED(protocol_and, "7.4-%d", ci->rollback_on_error);
 		else
 			STRCPY_FIXED(protocol_and, "7.4");
 		olen = snprintf(&connect_string[hlen], nlen, ";"
@@ -1228,7 +1228,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	if (ci->rollback_on_error >= 0)
-		snprintf(temp, sizeof(temp), "7.4-%d", ci->rollback_on_error);
+		SPRINTF_FIXED(temp, "7.4-%d", ci->rollback_on_error);
 	else
 		STRCPY_FIXED(temp, NULL_STRING);
 	SQLWritePrivateProfileString(DSN,
@@ -1266,7 +1266,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 INI_INT8AS,
 								 temp,
 								 ODBC_INI);
-	snprintf(temp, sizeof(temp), "%x", getExtraOptions(ci));
+	SPRINTF_FIXED(temp, "%x", getExtraOptions(ci));
 	SQLWritePrivateProfileString(DSN,
 							INI_EXTRAOPTIONS,
 							 temp,

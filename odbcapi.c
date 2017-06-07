@@ -46,7 +46,7 @@ BOOL	SC_connection_lost_check(StatementClass *stmt, const char *funcname)
 	if (NULL != conn->pqconn)
 		return	FALSE;
 	SC_clear_error(stmt);
-	snprintf(message, sizeof(message), "%s unable due to the connection lost", funcname);
+	SPRINTF_FIXED(message, "%s unable due to the connection lost", funcname);
 	SC_set_error(stmt, STMT_COMMUNICATION_ERROR, message, funcname);
 	return TRUE;
 }

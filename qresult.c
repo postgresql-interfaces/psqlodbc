@@ -498,7 +498,7 @@ QR_free_memory(QResultClass *self)
 		{
 			char	plannm[32];
 
-			snprintf(plannm, sizeof(plannm), "_KEYSET_%p", self);
+			SPRINTF_FIXED(plannm, "_KEYSET_%p", self);
 			if (CC_is_in_error_trans(conn))
 			{
 				CC_mark_a_object_to_discard(conn, 's',plannm);
@@ -508,7 +508,7 @@ QR_free_memory(QResultClass *self)
 				QResultClass	*res;
 				char		cmd[64];
 
-				snprintf(cmd, sizeof(cmd), "DEALLOCATE \"%s\"", plannm);
+				SPRINTF_FIXED(cmd, "DEALLOCATE \"%s\"", plannm);
 				res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
 				QR_Destructor(res);
 			}
@@ -742,7 +742,7 @@ QR_close(QResultClass *self)
 			if (QR_needs_survival_check(self))
 				flag = ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN;
 
-			snprintf(buf, sizeof(buf), "close \"%s\"", QR_get_cursor(self));
+			SPRINTF_FIXED(buf, "close \"%s\"", QR_get_cursor(self));
 			/* End the transaction if there are no cursors left on this conn */
 			if (CC_is_in_trans(conn) &&
 			    CC_does_autocommit(conn) &&
@@ -751,7 +751,7 @@ QR_close(QResultClass *self)
 				mylog("QResult: END transaction on conn=%p\n", conn);
 				if ((ROLLBACK_ON_ERROR & flag) == 0)
 				{
-					strlcat(buf, ";commit", sizeof(buf));
+					STRCAT_FIXED(buf, ";commit");
 					flag |= END_WITH_COMMIT;
 					QR_set_cursor(self, NULL);
 				}
@@ -905,7 +905,7 @@ SQLLEN	QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt)
 	if (QR_once_reached_eof(self) &&
 	    self->cursTuple >= self->num_total_read)
 		return 0;
-	snprintf(movecmd, sizeof(movecmd),
+	SPRINTF_FIXED(movecmd,
 		 "move all in \"%s\"", QR_get_cursor(self));
 	res = CC_send_query(conn, movecmd, NULL, 0, stmt);
 	if (!QR_command_maybe_successful(res))
@@ -991,17 +991,17 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 			else
 				self->cache_size = req_size;
 inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
-			snprintf(movecmd, sizeof(movecmd),
+			SPRINTF_FIXED(movecmd,
 					 "move backward " FORMAT_ULEN " in \"%s\"",
 					 movement, QR_get_cursor(self));
 		}
 		else if (QR_is_moving_forward(self))
-			snprintf(movecmd, sizeof(movecmd),
+			SPRINTF_FIXED(movecmd,
 					 "move " FORMAT_ULEN " in \"%s\"",
 					 movement, QR_get_cursor(self));
 		else
 		{
-			snprintf(movecmd, sizeof(movecmd),
+			SPRINTF_FIXED(movecmd,
 					 "move all in \"%s\"",
 					 QR_get_cursor(self));
 			movement = INT_MAX;
@@ -1141,7 +1141,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 		RETURN(FALSE)
 
 	/* Send a FETCH command to get more rows */
-	snprintf(fetch, sizeof(fetch),
+	SPRINTF_FIXED(fetch,
 			 "fetch %d in \"%s\"",
 			 fetch_size, QR_get_cursor(self));
 
@@ -1400,7 +1400,7 @@ nextrow:
 						char	emsg[128];
 
 						QR_set_rstatus(self, PORES_INTERNAL_ERROR);
-						snprintf(emsg, sizeof(emsg), "Internal Error -- this_keyset == NULL ci_num_fields=%d effective_cols=%d", ci_num_fields, effective_cols);
+						SPRINTF_FIXED(emsg, "Internal Error -- this_keyset == NULL ci_num_fields=%d effective_cols=%d", ci_num_fields, effective_cols);
 						QR_set_message(self, emsg);
 						return FALSE;
 					}

@@ -415,7 +415,7 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, size_t bufsize, BOOL bZone,
 	}
 	if (precision > 0 && st->fr)
 	{
-		snprintf(precstr, sizeof(precstr), ".%09d", st->fr);
+		SPRINTF_FIXED(precstr, ".%09d", st->fr);
 		if (precision < 9)
 			precstr[precision + 1] = '\0';
 		else if (precision > 9)
@@ -452,9 +452,9 @@ stime2timestamp(const SIMPLE_TIME *st, char *str, size_t bufsize, BOOL bZone,
 				zoneint -= 3600;
 		}
 		if (zoneint > 0)
-			snprintf(zonestr, sizeof(zonestr), "-%02d", (int) zoneint / 3600);
+			SPRINTF_FIXED(zonestr, "-%02d", (int) zoneint / 3600);
 		else
-			snprintf(zonestr, sizeof(zonestr), "+%02d", -(int) zoneint / 3600);
+			SPRINTF_FIXED(zonestr, "+%02d", -(int) zoneint / 3600);
 	}
 #endif /* TIMEZONE_GLOBAL */
 	if (st->y < 0)
@@ -1607,17 +1607,17 @@ inolog("2stime fr=%d\n", std_time.fr);
 		switch (field_type)
 		{
 			case PG_TYPE_DATE:
-				len = snprintf(midtemp, midsize, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
+				len = SPRINTF_FIXED(midtemp, "%.4d-%.2d-%.2d", std_time.y, std_time.m, std_time.d);
 				break;
 
 			case PG_TYPE_TIME:
-				len = snprintf(midtemp, midsize, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
+				len = SPRINTF_FIXED(midtemp, "%.2d:%.2d:%.2d", std_time.hh, std_time.mm, std_time.ss);
 				if (std_time.fr > 0)
 				{
 					int	wdt;
 					int	fr = effective_fraction(std_time.fr, &wdt);
 
-					len = snprintf(midtemp, midsize, "%s.%0*d", midtemp, wdt, fr);
+					len = SPRINTF_FIXED(midtemp, "%s.%0*d", midtemp, wdt, fr);
 				}
 				break;
 
@@ -2994,7 +2994,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 		}
 		if (SC_is_fetchcursor(stmt))
 		{
-			snprintf_add(new_statement, qb->str_alsize, 
+			snprintfcat(new_statement, qb->str_alsize, 
 				"declare \"%s\"%s cursor%s for ",
 				SC_cursor_name(stmt), opt_scroll, opt_hold);
 			qb->npos = strlen(new_statement);
@@ -4525,7 +4525,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 					fraction /= 10;
 					prec--;
 				}
-				snprintf_add(param_string, sizeof(param_string), ".%0*d", prec, fraction);
+				SPRINTFCAT_FIXED(param_string, ".%0*d", prec, fraction);
 			}
 			break;
 		case SQL_C_GUID:
@@ -4535,7 +4535,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 			 * "unsigned int" on others.
 			 */
 			SQLGUID *g = (SQLGUID *) buffer;
-			snprintf (param_string, sizeof(param_string),
+			SPRINTF_FIXED (param_string,
 				"%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 				(unsigned int) g->Data1,
 				g->Data2, g->Data3,
@@ -4641,7 +4641,7 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			if (!send_buf)
 			{
 				/* it was date,time,timestamp -- use m,d,y,hh,mm,ss */
-				snprintf(tmp, sizeof(tmp), "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+				SPRINTF_FIXED(tmp, "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
 						st.y, st.m, st.d, st.hh, st.mm, st.ss);
 				send_buf = tmp;
 				used = SQL_NTS;
@@ -5145,7 +5145,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
-		prtlen = snprintf(buf, sizeof(buf), "%s::date", buf_small);
+		prtlen = SPRINTF_FIXED(buf, "%s::date", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
@@ -5153,7 +5153,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
-		prtlen = snprintf(buf, sizeof(buf), "%s::time", buf_small);
+		prtlen = SPRINTF_FIXED(buf, "%s::time", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
@@ -5161,7 +5161,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
-		prtlen = snprintf(buf, sizeof(buf), "%s::timestamp", buf_small);
+		prtlen = SPRINTF_FIXED(buf, "%s::timestamp", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}
@@ -5178,7 +5178,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	{
 		/* Literal; return the escape part adding type cast */
 		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
-		prtlen = snprintf(buf, sizeof(buf), "%s %s", key, buf_small);
+		prtlen = SPRINTF_FIXED(buf, "%s %s", key, buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
 	}

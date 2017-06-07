@@ -17,6 +17,7 @@
 
 #include "loadlib.h"
 #include "pgenlist.h"
+#include "misc.h"
 
 #ifdef  WIN32
 #ifdef  _MSC_VER
@@ -112,7 +113,7 @@ HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
 
 		_splitpath(szFileName, drive, dir, NULL, NULL);
 		GetSystemDirectory(sysdir, MAX_PATH);
-		snprintf(szFileName, sizeof(szFileName), "%s%s%s.dll", drive, dir, module_name);
+		SPRINTF_FIXED(szFileName, "%s%s%s.dll", drive, dir, module_name);
 		if (_strnicmp(szFileName, sysdir, strlen(sysdir)) != 0)
 		{
 			hmodule = LoadLibraryEx(szFileName, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);

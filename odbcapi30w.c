@@ -20,6 +20,7 @@
 #include "pgapifunc.h"
 #include "connection.h"
 #include "statement.h"
+#include "misc.h"
 
 
 RETCODE	SQL_API
@@ -256,7 +257,7 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 			{
 				char errc[32];
 
-				snprintf(errc, sizeof(errc), "Error: SqlState=%s", qstr_ansi);
+				SPRINTF_FIXED(errc, "Error: SqlState=%s", qstr_ansi);
 				tlen = utf8_to_ucs2(errc, -1, szErrorMsg, cbErrorMsgMax);
 			}
 		}

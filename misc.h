@@ -22,7 +22,7 @@ char	   *strncpy_null(char *dst, const char *src, ssize_t len);
 #ifndef	HAVE_STRLCAT
 size_t		strlcat(char *, const char *, size_t);
 #endif /* HAVE_STRLCAT */
-int	   snprintf_add(char *buf, size_t size, const char *format, ...);
+int	   snprintfcat(char *buf, size_t size, const char *format, ...);
 size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);
 
 char	   *my_trim(char *string);
@@ -85,10 +85,10 @@ FUNCTION_BEGIN_MACRO \
 FUNCTION_END_MACRO
 
 /* macro to safely sprintf() & cat to fixed arrays. */
-#define	SPRINTF_FIXEDCAT(to, ...) \
+#define	SPRINTFCAT_FIXED(to, ...) \
 FUNCTION_BEGIN_MACRO \
 	CHECK_NOT_CHAR_P(to) \
-	snprintf_add((to), sizeof(to), __VA_ARGS__) \
+	snprintfcat((to), sizeof(to), __VA_ARGS__) \
 FUNCTION_END_MACRO
 
 #define	ITOA_FIXED(to, from) \

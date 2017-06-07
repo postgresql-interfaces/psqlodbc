@@ -1876,7 +1876,7 @@ SC_execute(StatementClass *self)
 	{
 		char query[64];
 
-		snprintf(query, sizeof(query), "SET statement_timeout = %d",
+		SPRINTF_FIXED(query, "SET statement_timeout = %d",
 				 (int) self->options.stmt_timeout * 1000);
 		res = CC_send_query(conn, query, NULL, 0, NULL);
 		if (QR_command_maybe_successful(res))
@@ -1936,7 +1936,7 @@ SC_execute(StatementClass *self)
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
 			qi.fetch_size = qi.row_size = ci->drivers.fetch_max;
-			snprintf(fetch, sizeof(fetch),
+			SPRINTF_FIXED(fetch,
 					 "fetch " FORMAT_LEN " in \"%s\"",
 					 qi.fetch_size, SC_cursor_name(self));
 			qryi = &qi;
@@ -2162,7 +2162,7 @@ inolog("!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_ty
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
 			qi.cache_size = qi.row_size = ci->drivers.fetch_max;
-			snprintf(fetch, sizeof(fetch), "fetch " FORMAT_LEN " in \"%s\"", qi.fetch_size, SC_cursor_name(self));
+			SPRINTF_FIXED(fetch, "fetch " FORMAT_LEN " in \"%s\"", qi.fetch_size, SC_cursor_name(self));
 			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
 			if (NULL != res)
 				SC_set_Result(self, res);
@@ -2371,7 +2371,7 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 	{
 		char	emsg[128];
 
-		snprintf(emsg, sizeof(emsg), "internal savepoint error in %s", func);
+		SPRINTF_FIXED(emsg, "internal savepoint error in %s", func);
 		SC_set_error_if_not_set(stmt, STMT_INTERNAL_ERROR, emsg, func);
 		return FALSE;
 	}

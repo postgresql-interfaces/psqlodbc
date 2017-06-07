@@ -1802,7 +1802,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	if (unsupported)
 	{
 		char	msg[64];
-		snprintf(msg, sizeof(msg), "Couldn't set unsupported connect attribute " FORMAT_INTEGER, Attribute);
+		SPRINTF_FIXED(msg, "Couldn't set unsupported connect attribute " FORMAT_INTEGER, Attribute);
 		CC_set_error(conn, CONN_OPTION_NOT_FOR_THE_DRIVER, msg, func);
 		return SQL_ERROR;
 	}

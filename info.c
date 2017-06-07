@@ -225,7 +225,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			 */
 			/* version number to the dbms version string */
 			/*
-			snprintf(tmp, sizeof(tmp) - 1, "%s %s", POSTGRESDRIVERVERSION, conn->pg_version);
+			SPRINTF_FIXED(tmp, "%s %s", POSTGRESDRIVERVERSION, conn->pg_version);
                         tmp[sizeof(tmp) - 1] = '\0'; */
 			if (CC_fake_mss(conn))
 				p = "09.00.1399";
@@ -248,7 +248,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_DRIVER_ODBC_VER:
-			snprintf(odbcver, sizeof(odbcver), "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
+			SPRINTF_FIXED(odbcver, "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
 			/* p = DRIVER_ODBC_VER; */
 			p = odbcver;
 			break;
@@ -1806,7 +1806,7 @@ retry_public_schema:
 	{
 		schema_strcat1(tables_query, sizeof(tables_query), " and nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 		if (IS_VALID_NAME(escTableName))
-			snprintf_add(tables_query, sizeof(tables_query),
+			SPRINTFCAT_FIXED(tables_query,
 					 " and relname %s'%s'", op_string, escTableName);
 	}
 
@@ -2248,7 +2248,7 @@ retry_public_schema:
 	 * have the atttypmod field)
 	 */
 	op_string = gen_opestr(like_or_eq, conn);
-	snprintf(columns_query, sizeof(columns_query),
+	SPRINTF_FIXED(columns_query,
 		"select n.nspname, c.relname, a.attname, a.atttypid, "
 		"t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull, "
 		"c.relhasrules, c.relkind, c.oid, pg_get_expr(d.adbin, d.adrelid), "
@@ -2257,11 +2257,11 @@ retry_public_schema:
 		"from (((pg_catalog.pg_class c "
 		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace");
 	if (search_by_ids)
-		snprintf_add(columns_query, sizeof(columns_query), " and c.oid = %u", reloid);
+		SPRINTFCAT_FIXED(columns_query, " and c.oid = %u", reloid);
 	else
 	{
 		if (escTableName)
-			snprintf_add(columns_query, sizeof(columns_query), " and c.relname %s'%s'", op_string, escTableName);
+			SPRINTFCAT_FIXED(columns_query, " and c.relname %s'%s'", op_string, escTableName);
 		schema_strcat1(columns_query, sizeof(columns_query), " and n.nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
 	}
 	STRCAT_FIXED(columns_query, ") inner join pg_catalog.pg_attribute a"
@@ -2271,10 +2271,10 @@ retry_public_schema:
 	if (search_by_ids)
 	{
 		if (attnum != 0)
-			snprintf_add(columns_query, sizeof(columns_query), " and a.attnum = %d", attnum);
+			SPRINTFCAT_FIXED(columns_query, " and a.attnum = %d", attnum);
 	}
 	else if (escColumnName)
-		snprintf_add(columns_query, sizeof(columns_query), " and a.attname %s'%s'", op_string, escColumnName);
+		SPRINTFCAT_FIXED(columns_query, " and a.attname %s'%s'", op_string, escColumnName);
 	STRCAT_FIXED(columns_query,
 		" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
 		" on t.oid = a.atttypid) left outer join pg_attrdef d"
@@ -2578,7 +2578,7 @@ mylog(" and the data=%s\n", attdef);
 					{
 						char	tmp[32];
 
-						snprintf(tmp, sizeof(tmp), "%s identity", field_type_name);
+						SPRINTF_FIXED(tmp, "%s identity", field_type_name);
 						set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], tmp);
 						break;
 					}
@@ -2767,7 +2767,7 @@ retry_public_schema:
 
 	/* TableName cannot contain a string search pattern */
 	if (escTableName)
-		snprintf_add(columns_query, sizeof(columns_query),
+		SPRINTFCAT_FIXED(columns_query,
 					 " and c.relname %s'%s'", eq_string, escTableName);
 	/* SchemaName cannot contain a string search pattern */
 	schema_strcat1(columns_query, sizeof(columns_query), " and u.nspname %s'%.*s'", eq_string, escSchemaName, szTableName, cbTableName, conn);
@@ -3152,7 +3152,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	escTableName = simpleCatalogEscape((SQLCHAR *) table_name, SQL_NTS, conn);
 	eq_string = gen_opestr(eqop, conn);
 	escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, conn);
-	snprintf(index_query, sizeof(index_query), "select c.relname, i.indkey, i.indisunique"
+	SPRINTF_FIXED(index_query, "select c.relname, i.indkey, i.indisunique"
 		", i.indisclustered, a.amname, c.relhasrules, n.nspname"
 		", c.oid, d.relhasoids, %s"
 		" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
@@ -3286,7 +3286,7 @@ PGAPI_Statistics(HSTMT hstmt,
 		/* no index qualifier */
 		set_tuplefield_string(&tuple[STATS_INDEX_QUALIFIER], GET_SCHEMA_NAME(table_schemaname));
 
-		snprintf(buf, sizeof(buf), "%s_idx_fake_oid", table_name);
+		SPRINTF_FIXED(buf, "%s_idx_fake_oid", table_name);
 		set_tuplefield_string(&tuple[STATS_INDEX_NAME], buf);
 
 		/*
@@ -3352,7 +3352,7 @@ PGAPI_Statistics(HSTMT hstmt,
 
 					QResultClass *res;
 
-					snprintf(cmd, sizeof(cmd), "select pg_get_indexdef(%u, %d, true)", ioid, i);
+					SPRINTF_FIXED(cmd, "select pg_get_indexdef(%u, %d, true)", ioid, i);
 					res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, stmt);
 					if (QR_command_maybe_successful(res))
 						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], QR_get_value_backend_text(res, 0, 0));
@@ -3738,7 +3738,7 @@ retry_public_schema:
 				else
 					snprintf(tbqry, tsize, " where tc.oid = %u", reloid);
 
-				strlcat(tables_query,
+				STRCAT_FIXED(tables_query,
 					" AND tc.oid = i.indrelid"
 					" AND n.oid = tc.relnamespace"
 					" AND i.indisprimary = 't'"
@@ -3748,15 +3748,14 @@ retry_public_schema:
 					" AND (NOT ta.attisdropped)"
 					" AND (NOT ia.attisdropped)"
 					" AND ic.oid = i.indexrelid"
-					" order by ia.attnum"
-					, sizeof(tables_query));
+					" order by ia.attnum");
 				break;
 			case 2:
 
 				/*
 				 * Simplified query to search old fashoned primary key
 				 */
-				snprintf(tables_query, sizeof(tables_query), "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
+				SPRINTF_FIXED(tables_query, "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
 					" from pg_catalog.pg_attribute ta,"
 					" pg_catalog.pg_attribute ia, pg_catalog.pg_class ic,"
 					" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
@@ -3905,13 +3904,13 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	}
 	if (!conn->server_encoding)
 		return ret;
-	snprintf(query, sizeof(query), "SET CLIENT_ENCODING TO '%s'", conn->server_encoding);
+	SPRINTF_FIXED(query, "SET CLIENT_ENCODING TO '%s'", conn->server_encoding);
 	bError = (!QR_command_maybe_successful((res = CC_send_query(conn, query, NULL, flag, NULL))));
 	QR_Destructor(res);
 	eq_string = gen_opestr(eqop, conn);
 	if (!bError && continueExec)
 	{
-		snprintf(query, sizeof(query), "select attnum from pg_attribute "
+		SPRINTF_FIXED(query, "select attnum from pg_attribute "
 			"where attrelid = %u and attname %s'%s'",
 			relid, eq_string, serverColumnName);
 		if (res = CC_send_query(conn, query, NULL, flag, NULL), QR_command_maybe_successful(res))
@@ -3929,12 +3928,12 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	}
 	continueExec = (continueExec && !bError);
 	/* restore the cleint encoding */
-	snprintf(query, sizeof(query), "SET CLIENT_ENCODING TO '%s'", conn->original_client_encoding);
+	SPRINTF_FIXED(query, "SET CLIENT_ENCODING TO '%s'", conn->original_client_encoding);
 	bError = (!QR_command_maybe_successful((res = CC_send_query(conn, query, NULL, flag, NULL))));
 	QR_Destructor(res);
 	if (bError || !continueExec)
 		return ret;
-	snprintf(query, sizeof(query), "select attname from pg_attribute where attrelid = %u and attnum = %s", relid, saveattnum);
+	SPRINTF_FIXED(query, "select attname from pg_attribute where attrelid = %u and attnum = %s", relid, saveattnum);
 	if (res = CC_send_query(conn, query, NULL, flag, NULL), QR_command_maybe_successful(res))
 	{
 		if (QR_get_num_cached_tuples(res) > 0)
@@ -4112,7 +4111,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
-		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
+		SPRINTF_FIXED(tables_query, "SELECT	pt.tgargs, "
 			"		pt.tgnargs, "
 			"		pt.tgdeferrable, "
 			"		pt.tginitdeferred, "
@@ -4440,7 +4439,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
 		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
-		snprintf(tables_query, sizeof(tables_query), "SELECT	pt.tgargs, "
+		SPRINTF_FIXED(tables_query, "SELECT	pt.tgargs, "
 			"	pt.tgnargs, "
 			"	pt.tgdeferrable, "
 			"	pt.tginitdeferred, "
@@ -4902,16 +4901,16 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 			   " p.pronamespace = n.oid  and"
 			   " (not proretset) and");
 #endif /* PRORET_COUNT */
-	snprintf_add(proc_query, sizeof(proc_query),
+	SPRINTFCAT_FIXED(proc_query,
 				 " has_function_privilege(p.oid, 'EXECUTE')");
 	if (IS_VALID_NAME(escSchemaName))
-		snprintf_add(proc_query, sizeof(proc_query),
+		SPRINTFCAT_FIXED(proc_query,
 				 " and nspname %s'%s'",
 				 op_string, escSchemaName);
 	if (escProcName)
-		snprintf_add(proc_query, sizeof(proc_query),
+		SPRINTFCAT_FIXED(proc_query,
 					 " and proname %s'%s'", op_string, escProcName);
-	snprintf_add(proc_query, sizeof(proc_query),
+	SPRINTFCAT_FIXED(proc_query,
 				 " order by nspname, proname, p.oid, attnum");
 
 	if (escSchemaName)
@@ -5263,7 +5262,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	  " where pg_proc.pronamespace = pg_namespace.oid");
 	schema_strcat1(proc_query, sizeof(proc_query), " and nspname %s'%.*s'", op_string, escSchemaName, szProcName, cbProcName, conn);
 	if (IS_VALID_NAME(escProcName))
-		snprintf_add(proc_query, sizeof(proc_query),
+		SPRINTFCAT_FIXED(proc_query,
 				 " and proname %s'%s'", op_string, escProcName);
 
 	res = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt);
@@ -5442,7 +5441,7 @@ retry_public_schema:
 		schema_strcat1(proc_query, sizeof(proc_query), " nspname %s'%.*s' and", op_string, escSchemaName, szTableName, cbTableName, conn);
 
 	if (escTableName)
-		snprintf_add(proc_query, sizeof(proc_query), " relname %s'%s' and", op_string, escTableName);
+		SPRINTFCAT_FIXED(proc_query, " relname %s'%s' and", op_string, escTableName);
 	STRCAT_FIXED(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
 	if ((!escTableName) && (!escSchemaName))
 		STRCAT_FIXED(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
@@ -5522,7 +5521,7 @@ retry_public_schema:
 				int		i;
 				char	*grolist, *uid, *delm;
 
-				snprintf(proc_query, sizeof(proc_query) - 1, "select grolist from pg_group where groname = '%s'", user);
+				SPRINTF_FIXED(proc_query, "select grolist from pg_group where groname = '%s'", user);
 				if (gres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(gres))
 				{
 					grolist = QR_get_value_backend_text(gres, 0, 0);
@@ -5706,14 +5705,14 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	}
 
 	if (NULL != CurrCat(conn))
-		snprintf(catName, sizeof(catName), "'%s'::name", CurrCat(conn));
+		SPRINTF_FIXED(catName, "'%s'::name", CurrCat(conn));
 	else
 		STRCPY_FIXED(catName, "NULL::name");
 	STRCPY_FIXED(scmName1, "n2.nspname");
 	STRCPY_FIXED(scmName2, "n1.nspname");
 	escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 
-	snprintf(tables_query, sizeof(tables_query),
+	SPRINTF_FIXED(tables_query,
 		"select"
 		"	%s as PKTABLE_CAT"
 		",\n	%s as PKTABLE_SCHEM"
@@ -5806,7 +5805,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	{
 		free(escTableName);
 		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
-		snprintf_add(tables_query, sizeof(tables_query),
+		SPRINTFCAT_FIXED(tables_query,
 				"\n where c2.relname %s'%s'",
 				eq_string, escTableName);
 	}
