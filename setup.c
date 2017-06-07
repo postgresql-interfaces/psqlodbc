@@ -431,11 +431,11 @@ ConfigDlgProc(HWND hdlg,
 #ifdef	UNICODE_SUPPORT
 #define	MESSAGEBOXFUNC		MessageBoxW
 #define	_T(str)			L ## str
-#undef	snprintf
-#define	snprintf		_snwprintf
+#define	SNTPRINTF		_snwprintf
 #else
 #define	MESSAGEBOXFUNC		MessageBoxA
 #define	_T(str)			str
+#define	SNTPRINTF		snprintf
 #endif	/* UNICODE_SUPPORT */
 
 void
@@ -478,7 +478,7 @@ mylog("conn_string=%s\n", out_conn);
 	}
 	if (!SQL_SUCCEEDED(ret = SQLSETENVATTRFUNC(env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER) SQL_OV_ODBC3, 0)))
 	{
-		snprintf(szMsg, _countof(szMsg), _T("SQLAllocHandle for env error=%d"), ret);
+		SNTPRINTF(szMsg, _countof(szMsg), _T("SQLAllocHandle for env error=%d"), ret);
 		goto cleanup;
 	}
 	if (!SQL_SUCCEEDED(ret = SQLALLOCHANDLEFUNC(SQL_HANDLE_DBC, env, &conn)))
@@ -509,14 +509,14 @@ mylog("conn_string=%s\n", out_conn);
 			if (SQL_SUCCEEDED(ret))
 			{
 				SQLSETCONNECTATTRFUNC(conn, SQL_ATTR_ENLIST_IN_DTC, SQL_DTC_DONE, 0);
-				snprintf(szMsg, _countof(szMsg), _T("%s\nenlistment was successful\n"), ermsg);
+				SNTPRINTF(szMsg, _countof(szMsg), _T("%s\nenlistment was successful\n"), ermsg);
 				ermsg = szMsg;
 			}
 			else
 			{
 				int	strl;
 
-				snprintf(szMsg, _countof(szMsg), _T("%s\nMSDTC error:"), ermsg);
+				SNTPRINTF(szMsg, _countof(szMsg), _T("%s\nMSDTC error:"), ermsg);
 				for (strl = 0; strl < SQL_MAX_MESSAGE_LENGTH; strl++)
 				{
 					if (!szMsg[strl])
@@ -529,11 +529,11 @@ mylog("conn_string=%s\n", out_conn);
 		}
 		else if (FAILED(res))
 		{
-			snprintf(szMsg, _countof(szMsg), _T("%s\nDistibuted Transaction enlistment error %x"), ermsg, res);
+			SNTPRINTF(szMsg, _countof(szMsg), _T("%s\nDistibuted Transaction enlistment error %x"), ermsg, res);
 			ermsg = szMsg;
 		}
 #else	/* _HANDLE_ENLIST_IN_DTC_ */
-		snprintf(szMsg, _countof(szMsg), _T("%s\nDistibuted Transaction enlistment not supported by this driver"), ermsg);
+		SNTPRINTF(szMsg, _countof(szMsg), _T("%s\nDistibuted Transaction enlistment not supported by this driver"), ermsg);
 		ermsg = szMsg;
 #endif
 	}
@@ -545,8 +545,6 @@ cleanup:
 	}
 
 #undef _T
-#undef snprintf
-#define snprintf _snprintf
 
 	if (NULL != conn)
 	{
@@ -654,7 +652,7 @@ SetDSNAttributes(HWND hwndParent, LPSETUPDLG lpsetupdlg, DWORD *errcode)
 			if (SQL_SUCCESS != ret)
 			{
 				LoadString(s_hModule, IDS_BADDSN, szBuf, sizeof(szBuf));
-				wsprintf(szMsg, szBuf, lpszDSN);
+				SPRINTF_FIXED(szMsg, szBuf, lpszDSN);
 			}
 			LoadString(s_hModule, IDS_MSGTITLE, szBuf, sizeof(szBuf));
 			MessageBox(hwndParent, szMsg, szBuf, MB_ICONEXCLAMATION | MB_OK);
