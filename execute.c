@@ -393,6 +393,13 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 	return nCallParse;
 }
 
+static
+const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
+{
+	snprintf(wrk, wrksize, "_EXEC_SVP_%p_%d", conn, conn->internal_svp);
+	return wrk;
+}
+
 /*
  *	The execution after all parameters were resolved.
  */
@@ -597,10 +604,10 @@ SetStatementSvp(StatementClass *stmt)
 	if (CC_is_in_error_trans(conn))
 		return ret;
 
-	if (0 == stmt->lock_CC_for_rb)
+	if (0 == conn->lock_CC_for_rb)
 	{
 		ENTER_CONN_CS(conn);
-		stmt->lock_CC_for_rb++;
+		conn->lock_CC_for_rb++;
 	}
 	switch (stmt->statement_type)
 	{
@@ -608,26 +615,36 @@ SetStatementSvp(StatementClass *stmt)
 		case STMT_TYPE_TRANSACTION:
 			return ret;
 	}
-	if (!SC_accessed_db(stmt))
+	if (!CC_started_rbpoint(conn))
 	{
 		BOOL	need_savep = FALSE;
 
 		if (SC_is_rb_stmt(stmt))
 		{
-			if (CC_is_in_trans(conn))
+			if (CC_is_in_trans(conn)) /* needless to issue SAVEPOINT before the 1st command */
 			{
 				need_savep = TRUE;
 			}
 		}
 		if (need_savep)
 		{
-			SPRINTF_FIXED(esavepoint, "_EXEC_SVP_%p", stmt);
-			SPRINTF_FIXED(cmd, "SAVEPOINT %s", esavepoint);
+			int	internal_svp = conn->internal_svp;
+
+			cmd[0] = '\0';
+#ifdef	_RELEASE_INTERNAL_SAVEPOINT
+			if (conn->internal_svp)
+				SPRINTF_FIXED(cmd, "RELEASE %s;", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+#endif /* _RELEASE_INTERNAL_SAVEPOINT */
+			conn->internal_svp = 1;
+			SPRINTFCAT_FIXED(cmd, "SAVEPOINT %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+			conn->internal_svp = internal_svp;
+			conn->is_in_internal_op = 1;
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
+			conn->is_in_internal_op = 0;
 			if (QR_command_maybe_successful(res))
 			{
-				SC_set_accessed_db(stmt);
-				SC_start_rbpoint(stmt);
+				conn->internal_svp = 1;
+				CC_start_rbpoint(conn);
 				ret = SQL_SUCCESS;
 			}
 			else
@@ -637,10 +654,9 @@ SetStatementSvp(StatementClass *stmt)
 			}
 			QR_Destructor(res);
 		}
-		else
-			SC_set_accessed_db(stmt);
+		CC_set_accessed_db(conn);
 	}
-inolog("%s:%p->accessed=%d\n", func, stmt, SC_accessed_db(stmt));
+inolog("%s:%p->accessed=%d\n", func, conn, CC_accessed_db(conn));
 	return ret;
 }
 
@@ -648,12 +664,12 @@ RETCODE
 DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 {
 	CSTR	func = "DiscardStatementSvp";
-	char	esavepoint[32], cmd[64];
+	char	cmd[64];
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	QResultClass *res;
 	BOOL	cmd_success, start_stmt = FALSE;
 
-inolog("%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, stmt, SC_accessed_db(stmt),
+inolog("%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, conn, CC_accessed_db(conn),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	switch (ret)
 	{
@@ -667,17 +683,20 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 				start_stmt = TRUE;
 			break;
 	}
-	if (!SC_accessed_db(stmt) || !CC_is_in_trans(conn))
+	if (!CC_accessed_db(conn) || !CC_is_in_trans(conn))
 		goto cleanup;
 	if (!SC_is_rb_stmt(stmt) && !SC_is_tc_stmt(stmt))
 		goto cleanup;
-	SPRINTF_FIXED(esavepoint, "_EXEC_SVP_%p", stmt);
 	if (SQL_ERROR == ret)
 	{
-		if (SC_started_rbpoint(stmt))
+		if (CC_started_rbpoint(conn) && conn->internal_svp)
 		{
-			SPRINTF_FIXED(cmd, "ROLLBACK to %s", esavepoint);
+			char esavepoint[32];
+
+			SPRINTF_FIXED(cmd, "ROLLBACK to %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+			conn->is_in_internal_op = 1;
 			res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL);
+			conn->is_in_internal_op = 0;
 			cmd_success = QR_command_maybe_successful(res);
 			QR_Destructor(res);
 			if (!cmd_success)
@@ -696,19 +715,6 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	else if (errorOnly)
 		return ret;
 inolog("ret=%d\n", ret);
-	if (SQL_NEED_DATA != ret && SC_started_rbpoint(stmt))
-	{
-		SPRINTF_FIXED(cmd, "RELEASE %s", esavepoint);
-		res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL);
-		cmd_success = QR_command_maybe_successful(res);
-		QR_Destructor(res);
-		if (!cmd_success)
-		{
-			SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal RELEASE failed", func);
-			CC_abort(conn);
-			ret = SQL_ERROR;
-		}
-	}
 cleanup:
 #ifdef NOT_USED
 	if (!SC_is_prepare_statement(stmt) && ONCE_DESCRIBED == stmt->prepared)
@@ -716,12 +722,12 @@ cleanup:
 #endif
 	if (start_stmt || SQL_ERROR == ret)
 	{
-		if (stmt->lock_CC_for_rb > 0)
+		while (conn->lock_CC_for_rb > 0)
 		{
 			LEAVE_CONN_CS(conn);
-			stmt->lock_CC_for_rb--;
+			conn->lock_CC_for_rb--;
 		}
-		SC_start_stmt(stmt);
+		CC_start_stmt(conn);
 	}
 	return ret;
 }

@@ -417,7 +417,6 @@ SC_Constructor(ConnectionClass *conn)
 		rv->exec_current_row = -1;
 		rv->put_data = FALSE;
 		rv->ref_CC_error = FALSE;
-		rv->lock_CC_for_rb = 0;
 		rv->join_info = 0;
 		rv->curr_param_result = 0;
 		SC_init_parse_method(rv);
@@ -446,7 +445,7 @@ SC_Constructor(ConnectionClass *conn)
 				rv, SQL_ATTR_IMP_PARAM_DESC);
 
 		rv->miscinfo = 0;
-		rv->rbonerr = 0;
+		rv->rb_or_tc = 0;
 		SC_reset_updatable(rv);
 		rv->diag_row_count = 0;
 		rv->stmt_time = 0;
@@ -688,14 +687,6 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 	ProcessedStmt *pstmt;
 	ProcessedStmt *next_pstmt;
 
-	if (self->lock_CC_for_rb > 0)
-	{
-		while (self->lock_CC_for_rb > 0)
-		{
-			LEAVE_CONN_CS(conn);
-			self->lock_CC_for_rb--;
-		}
-	}
 	if (initializeOriginal)
 	{
 		if (self->statement)
@@ -2365,7 +2356,7 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 		SC_set_error(stmt, STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__);
 		return SQL_ERROR;
 	}
-	if (SC_accessed_db(stmt))
+	if (CC_started_rbpoint(conn))
 		return TRUE;
 	if (SQL_ERROR == SetStatementSvp(stmt))
 	{
@@ -2412,7 +2403,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
-	if (CC_is_in_trans(conn) && !SC_accessed_db(stmt))
+	if (CC_is_in_trans(conn) && !CC_started_rbpoint(conn))
 	{
 		if (SQL_ERROR == SetStatementSvp(stmt))
 		{

@@ -263,11 +263,11 @@ struct StatementClass_
 	po_ind_t	external;	/* Allocated via SQLAllocHandle() */
 	po_ind_t	transition_status;	/* Transition status */
 	po_ind_t	multi_statement; /* -1:unknown 0:single 1:multi */
-	po_ind_t	rbonerr;	/* rollback on error */
+	po_ind_t	rb_or_tc;	/* rollback on error */
 	po_ind_t	discard_output_params;	 /* discard output parameters on parse stage */
 	po_ind_t	cancel_info;	/* cancel information */
 	po_ind_t	ref_CC_error;	/* refer to CC_error ? */
-	po_ind_t	lock_CC_for_rb;	/* lock CC for statement rollback ? */
+//	po_ind_t	lock_CC_for_rb;	/* lock CC for statement rollback ? */
 	po_ind_t	join_info;	/* have joins ? */
 	po_ind_t	parse_method;	/* parse_statement is forced or ? */
 	po_ind_t	curr_param_result; /* current param result is set ? */
@@ -436,15 +436,10 @@ enum
 #define SC_set_outer_join(a)	((a)->join_info |= STMT_HAS_OUTER_JOIN)
 #define SC_set_inner_join(a)	((a)->join_info |= STMT_HAS_INNER_JOIN)
 
-#define SC_start_stmt(a)	((a)->rbonerr = 0)
-#define SC_start_tc_stmt(a)	((a)->rbonerr = (1L << 1))
-#define SC_is_tc_stmt(a)	(((a)->rbonerr & (1L << 1)) != 0)
-#define SC_start_rb_stmt(a)	((a)->rbonerr = (1L << 2))
-#define SC_is_rb_stmt(a)	(((a)->rbonerr & (1L << 2)) != 0)
-#define SC_set_accessed_db(a)	((a)->rbonerr |= (1L << 3))
-#define SC_accessed_db(a)	(((a)->rbonerr & (1L << 3)) != 0)
-#define SC_start_rbpoint(a)	((a)->rbonerr |= (1L << 4))
-#define SC_started_rbpoint(a)	(((a)->rbonerr & (1L << 4)) != 0)
+#define SC_start_tc_stmt(a)	((a)->rb_or_tc = (1L << 1))
+#define SC_is_tc_stmt(a)	(((a)->rb_or_tc & (1L << 1)) != 0)
+#define SC_start_rb_stmt(a)	((a)->rb_or_tc = (1L << 2))
+#define SC_is_rb_stmt(a)	(((a)->rb_or_tc & (1L << 2)) != 0)
 #define SC_unref_CC_error(a)	(((a)->ref_CC_error) = FALSE)
 #define SC_ref_CC_error(a)	(((a)->ref_CC_error) = TRUE)
 #define SC_can_parse_statement(a) (STMT_TYPE_SELECT == (a)->statement_type)

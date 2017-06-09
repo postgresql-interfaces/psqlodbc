@@ -448,12 +448,12 @@ CC_examine_global_transaction(ConnectionClass *self)
 }
 
 
-static const char *bgncmd = "BEGIN";
-static const char *cmtcmd = "COMMIT";
-static const char *rbkcmd = "ROLLBACK";
-static const char *svpcmd = "SAVEPOINT";
-static const char *per_query_svp = "_per_query_svp_";
-static const char *rlscmd = "RELEASE";
+CSTR	bgncmd = "BEGIN";
+CSTR	cmtcmd = "COMMIT";
+CSTR	rbkcmd = "ROLLBACK";
+CSTR	svpcmd = "SAVEPOINT";
+CSTR	per_query_svp = "_per_query_svp_";
+CSTR	rlscmd = "RELEASE";
 
 /*
  *	Used to begin a transaction.
@@ -1476,6 +1476,8 @@ void	CC_on_commit(ConnectionClass *conn)
 		CC_set_no_trans(conn);
 		CC_set_no_manual_trans(conn);
 	}
+	conn->internal_svp = conn->is_in_internal_op = 0;
+	CC_start_stmt(conn);
 	CC_clear_cursors(conn, FALSE);
 	CONNLOCK_RELEASE(conn);
 	CC_discard_marked_objects(conn);
@@ -1506,6 +1508,8 @@ mylog("CC_on_abort in opt=%x\n", opt);
 			set_no_trans = TRUE;
 		}
 	}
+	conn->internal_svp = conn->is_in_internal_op = 0;
+	CC_start_stmt(conn);
 	CC_clear_cursors(conn, TRUE);
 	if (0 != (opt & CONN_DEAD))
 	{
@@ -1537,8 +1541,13 @@ mylog("CC_on_abort in opt=%x\n", opt);
 void	CC_on_abort_partial(ConnectionClass *conn)
 {
 mylog("CC_on_abort_partial in\n");
-	ProcessRollback(conn, TRUE, TRUE);
 	CONNLOCK_ACQUIRE(conn);
+	if (!conn->is_in_internal_op)	/* manually rolling back to */
+	{
+		conn->internal_svp = 0; /* possibly an internal savepoint is invalid */
+		mylog(" %s:reset an internal savepoint\n", __FUNCTION__);
+	}
+	ProcessRollback(conn, TRUE, TRUE);
 	CC_discard_marked_objects(conn);
 	CONNLOCK_RELEASE(conn);
 }
@@ -1695,7 +1704,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		if (stmt)
 		{
 			StatementClass	*astmt = SC_get_ancestor(stmt);
-			if (!SC_accessed_db(astmt))
+			if (!CC_started_rbpoint(self))
 			{
 				if (SQL_ERROR == SetStatementSvp(astmt))
 				{
@@ -1713,7 +1722,9 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		+ strlen(svpcmd) + 1 + strlen(per_query_svp) + 1
 		+ query_len
 		+ (appendq ? (1 + strlen(appendq)) : 0)
+#ifdef	_RELEASE_INTERNAL_SAVEPOINT
 		+ 1 + strlen(rlscmd) + strlen(per_query_svp)
+#endif /* _RELEASE_INTERNAL_SAVEPOINT */
 		+ 1;
 	query_buf = malloc(query_buf_len);
 	if (!query_buf)
@@ -1737,10 +1748,12 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	{
 		snprintfcat(query_buf, query_buf_len, ";%s", appendq);
 	}
+#ifdef	_RELEASE_INTERNAL_SAVEPOINT
 	if (query_rollback)
 	{
 		snprintfcat(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
 	}
+#endif /* _RELEASE_INTERNAL_SAVEPOINT */
 
 	/* Set up notice receiver */
 	nrarg.conn = self;
@@ -1787,6 +1800,22 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				/* read in the return message from the backend */
 				cmdbuffer = PQcmdStatus(pgres);
 				mylog("send_query: ok - 'C' - %s\n", cmdbuffer);
+#ifdef	_RELEASE_INTERNAL_SAVEPOINT
+				/*
+				 * There are 2 risks to RELEASE an internal savepoint.
+				 * One is to RELEASE the savepoint invalitated
+				 * due to manually issued ROLLBACK or RELEASE.
+				 * Another is to invalitate manual SAVEPOINTs unexpectedly
+				 * by RELEASing the internal savepoint.
+				 */
+				if (!self->is_in_internal_op && self->internal_svp)
+				{
+					if (0 == stricmp(cmdbuffer, rlscmd) ||
+					    0 == stricmp(cmdbuffer, rbkcmd) ||
+					    0 == stricmp(cmdbuffer, svpcmd))
+						self->internal_svp = 0;
+				}
+#endif /* _RELEASE_INTERNAL_SAVEPOINT */
 
 				if (query_completed)	/* allow for "show" style notices */
 				{
@@ -1998,11 +2027,26 @@ cleanup:
 			if (CC_is_in_error_trans(self))
 			{
 				char tmpsqlbuf[100];
+#ifdef	_RELEASE_INTERNAL_SAVEPOINT
 				SPRINTF_FIXED(tmpsqlbuf,
-						 "%s TO %s; %s %s",
-						 rbkcmd, per_query_svp,
-						 rlscmd, per_query_svp);
+						"%s TO %s"
+						";%s %s"
+						, rbkcmd, per_query_svp
+						, rlscmd, per_query_svp);
+#else
+				SPRINTF_FIXED(tmpsqlbuf,
+						"%s TO %s"
+						, rbkcmd, per_query_svp);
+#endif /* _RELEASE_INTERNAL_SAVEPOINT */
+				self->is_in_internal_op = 1;
 				pgres = PQexec(self->pqconn, tmpsqlbuf);
+				self->is_in_internal_op = 0;
+				/*
+				 * Though it's not appropriate to
+				 * call PQExec for a multiple command,
+				 * it seems OK because we don't check
+				 * the result here.
+				 */
 			}
 		}
 		else if (CC_is_in_error_trans(self))

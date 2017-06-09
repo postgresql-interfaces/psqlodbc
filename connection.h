@@ -305,6 +305,16 @@ struct ConnectionClass_
 	char		unicode;
 	char		result_uncommitted;
 	char		lo_is_domain;
+	char		current_schema_valid;	/* is current_schema valid? TRUE when
+						 * current_schema == NULL means it's
+						 * really NULL, while FALSE means it's
+						 * unknown */
+	/* for per statement rollback */
+	char		internal_svp;		/* is set? */
+	char		is_in_internal_op;	/* an operation as to internal savepoint in progress */
+	unsigned char	lock_CC_for_rb;
+	unsigned char	rbonerr;
+
 	char		*original_client_encoding;
 	char		*locale_encoding;
 	char		*server_encoding;
@@ -313,10 +323,6 @@ struct ConnectionClass_
 	SQLUINTEGER	isolation;		/* isolation level initially unknown */
 	SQLUINTEGER	server_isolation;	/* isolation at server initially unknown */
 	char		*current_schema;
-	char		current_schema_valid;	/* is current_schema valid? TRUE when
-										 * current_schema == NULL means it's
-										 * really NULL, while FALSE means it's
-										 * unknown */
 	StatementClass *unnamed_prepared_stmt;
 	Int2		max_identifier_length;
 	Int2		num_discardp;
@@ -374,7 +380,16 @@ enum {
 #define	CC_set_dtc_isolated(x)	((x)->gTranInfo |= DTC_ISOLATED)
 #define	CC_is_idle_in_global_transaction(x)	(0 != ((x)->gTranInfo & DTC_PREPARE_REQUESTED) || (x)->gTranInfo == DTC_IN_PROGRESS)
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
-
+/* statement callback */
+#define CC_start_stmt(a)        ((a)->rbonerr = 0)
+#define CC_start_tc_stmt(a)     ((a)->rbonerr = (1L << 1))
+#define CC_is_tc_stmt(a)        (((a)->rbonerr & (1L << 1)) != 0)
+#define CC_start_rb_stmt(a)     ((a)->rbonerr = (1L << 2))
+#define CC_is_rb_stmt(a)        (((a)->rbonerr & (1L << 2)) != 0)
+#define CC_set_accessed_db(a)   ((a)->rbonerr |= (1L << 3))
+#define CC_accessed_db(a)       (((a)->rbonerr & (1L << 3)) != 0)
+#define CC_start_rbpoint(a)     ((a)->rbonerr |= (1L << 4))
+#define CC_started_rbpoint(a)   (((a)->rbonerr & (1L << 4)) != 0)
 
 /*	prototypes */
 ConnectionClass *CC_Constructor(void);
@@ -445,6 +460,8 @@ enum {
 /* CC_on_abort options */
 #define	NO_TRANS		1L
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
+
+#define	_RELEASE_INTERNAL_SAVEPOINT
 
 #ifdef	__cplusplus
 }
