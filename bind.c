@@ -286,8 +286,6 @@ inolog("Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
 
 cleanup:
 #undef	return
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	return ret;
 }
 
@@ -404,8 +402,6 @@ inolog("[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, 
 		*pfNullable = pgtype_nullable(SC_get_conn(stmt), ipdopts->parameters[ipar].paramType);
 cleanup:
 #undef	return
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	return ret;
 }
 

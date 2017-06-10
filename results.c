@@ -197,8 +197,6 @@ PGAPI_NumResultCols(HSTMT hstmt,
 
 cleanup:
 #undef	return
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	return ret;
 }
 
@@ -457,8 +455,6 @@ inolog("answering bookmark info\n");
 
 cleanup:
 #undef	return
-	if (stmt->internal)
-		result = DiscardStatementSvp(stmt, result, FALSE);
 	return result;
 }
 
@@ -1138,8 +1134,6 @@ inolog("currT=%d base=%d rowset=%d\n", stmt->currTuple, QR_get_rowstart_in_cache
 
 cleanup:
 #undef	return
-	if (stmt->internal)
-		result = DiscardStatementSvp(stmt, result, FALSE);
 inolog("%s returning %d\n", __FUNCTION__, result);
 	return result;
 }
@@ -1215,8 +1209,6 @@ PGAPI_Fetch(HSTMT hstmt)
 
 	retval = SC_fetch(stmt);
 #undef	return
-	if (stmt->internal)
-		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	return retval;
 }
 
@@ -1962,8 +1954,6 @@ inolog("pcrow=%d\n", i);
 
 cleanup:
 #undef	return
-	if (stmt->internal)
-		result = DiscardStatementSvp(stmt, result, FALSE);
 	return result;
 }
 
@@ -4188,7 +4178,7 @@ SC_pos_delete(StatementClass *stmt,
 
 	mylog("dltstr=%s\n", dltstr);
 	qflag = 0;
-        if (!stmt->internal && !CC_is_in_trans(conn) &&
+        if (stmt->external && !CC_is_in_trans(conn) &&
                  (!CC_does_autocommit(conn)))
 		qflag |= GO_INTO_TRANSACTION;
 	qres = CC_send_query(conn, dltstr, NULL, qflag, stmt);
@@ -4850,8 +4840,6 @@ mylog("num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allocat
 		SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the row was deleted?", func);
 		ret = SQL_ERROR;
 	}
-	if (s.stmt->internal)
-		ret = DiscardStatementSvp(s.stmt, ret, FALSE);
 	mylog("%s returning %d\n", func, ret);
 	return ret;
 }

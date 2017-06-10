@@ -384,7 +384,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->prepare = NON_PREPARE_STATEMENT;
 		rv->prepared = NOT_YET_PREPARED;
 		rv->status = STMT_ALLOCATED;
-		rv->internal = FALSE;
+		rv->external = FALSE;
 		rv->iflag = 0;
 		rv->plan_name = NULL;
 		rv->transition_status = STMT_TRANSITION_UNALLOCATED;
@@ -1828,7 +1828,7 @@ SC_execute(StatementClass *self)
 	}
 	/* issue BEGIN ? */
 	issue_begin = TRUE;
-	if (self->internal)
+	if (!self->external)
 		issue_begin = FALSE;
 	else if (is_in_trans)
 	{
@@ -2014,7 +2014,7 @@ SC_execute(StatementClass *self)
 		{
 			if (!is_in_trans)
 				CC_set_in_manual_trans(conn);
-			if (!self->internal && CC_does_autocommit(conn))
+			if (self->external && CC_does_autocommit(conn))
 				CC_commit(conn);
 		}
 	}
@@ -2316,7 +2316,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		{
 			qlog("                 ------------------------------------------------------------\n");
 			qlog("                 hdbc=%p, stmt=%p, result=%p\n", self->hdbc, self, res);
-			qlog("                 prepare=%d, internal=%d\n", self->prepare, self->internal);
+			qlog("                 prepare=%d, external=%d\n", self->prepare, self->external);
 			qlog("                 bindings=%p, bindings_allocated=%d\n", opts->bindings, opts->allocated);
 			qlog("                 parameters=%p, parameters_allocated=%d\n", apdopts->parameters, apdopts->allocated);
 			qlog("                 statement_type=%d, statement='%s'\n", self->statement_type, NULLCHECK(self->statement));

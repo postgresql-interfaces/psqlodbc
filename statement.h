@@ -260,8 +260,7 @@ struct StatementClass_
 	po_ind_t	prepare;	/* is this a prepared statement ? */
 	po_ind_t	prepared;	/* is this statement already
 					 * prepared at the server ? */
-	po_ind_t	internal;	/* Is this statement being called
-							 * internally ? */
+	po_ind_t	external;	/* Allocated via SQLAllocHandle() */
 	po_ind_t	transition_status;	/* Transition status */
 	po_ind_t	multi_statement; /* -1:unknown 0:single 1:multi */
 	po_ind_t	rbonerr;	/* rollback on error */
@@ -454,7 +453,7 @@ enum
  * it's not currently supported with array-bound parameters.
  */
 #define SC_may_use_cursor(a) \
-	(SC_get_APDF(a)->paramset_size <= 1 &&								\
+	(SC_get_APDF(a)->paramset_size <= 1 &&	\
 	 (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type) )
 #define SC_may_fetch_rows(a) (STMT_TYPE_SELECT == (a)->statement_type || STMT_TYPE_WITH == (a)->statement_type)
 

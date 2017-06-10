@@ -54,6 +54,8 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			CC_examine_global_transaction(conn);
 			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocStmt(InputHandle, OutputHandle, PODBC_EXTERNAL_STATEMENT | PODBC_INHERIT_CONNECT_OPTIONS);
+			if (*OutputHandle)
+				((StatementClass *) (*OutputHandle))->external = 1;
 			LEAVE_CONN_CS(conn);
 			break;
 		case SQL_HANDLE_DESC:

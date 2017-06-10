@@ -131,8 +131,6 @@ PGAPI_Prepare(HSTMT hstmt,
 cleanup:
 #undef	return
 inolog("SQLPrepare return=%d\n", retval);
-	if (self->internal)
-		retval = DiscardStatementSvp(self, retval, FALSE);
 	return retval;
 }
 
@@ -547,7 +545,7 @@ StartRollbackState(StatementClass *stmt)
 	ConnectionClass	*conn;
 	ConnInfo	*ci = NULL;
 
-inolog("%s:%p->internal=%d\n", func, stmt, stmt->internal);
+inolog("%s:%p->external=%d\n", func, stmt, stmt->external);
 	conn = SC_get_conn(stmt);
 	if (conn)
 		ci = &conn->connInfo;
@@ -614,13 +612,6 @@ SetStatementSvp(StatementClass *stmt)
 	{
 		BOOL	need_savep = FALSE;
 
-		if (stmt->internal)
-		{
-			if (PG_VERSION_GE(conn, 8.0))
-				SC_start_rb_stmt(stmt);
-			else
-				SC_start_tc_stmt(stmt);
-		}
 		if (SC_is_rb_stmt(stmt))
 		{
 			if (CC_is_in_trans(conn))
@@ -985,7 +976,7 @@ mylog("prepareParameters was %s called, prepare state:%d\n", shouldParse == nCal
 		if (recycle && !recycled)
 			SC_recycle_statement(stmt);
 		if (isSqlServr() &&
-		    !stmt->internal &&
+		    stmt->external &&
 		    0 != stmt->prepare &&
 		    PG_VERSION_LT(conn, 8.4) &&
 		    SC_can_parse_statement(stmt))
@@ -1086,8 +1077,6 @@ cleanup:
 mylog("retval=%d\n", retval);
 	SC_setInsertedTable(stmt, retval);
 #undef	return
-	if (stmt->internal)
-		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	return retval;
 }
 
@@ -1217,8 +1206,6 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 		estmt->current_exec_param = -1;
 		estmt->put_data = FALSE;
 		cancelNeedDataState(estmt);
-		if (stmt->internal)
-			ret = DiscardStatementSvp(stmt, ret, FALSE);
 		LEAVE_STMT_CS(stmt);
 		return ret;
 	}
@@ -1432,8 +1419,6 @@ inolog("return SQL_NEED_DATA\n");
 cleanup:
 #undef	return
 	SC_setInsertedTable(stmt, retval);
-	if (stmt->internal)
-		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	mylog("%s: returning %d\n", func, retval);
 	return retval;
 }
@@ -1676,8 +1661,6 @@ cleanup:
 #undef	return
 	if (allocbuf)
 		free(allocbuf);
-	if (stmt->internal)
-		retval = DiscardStatementSvp(stmt, retval, TRUE);
 
 	return retval;
 }

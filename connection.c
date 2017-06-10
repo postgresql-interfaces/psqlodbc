@@ -2270,9 +2270,9 @@ CC_send_settings(ConnectionClass *self, const char *set_query)
 	result = PGAPI_AllocStmt(self, &hstmt, 0);
 	if (!SQL_SUCCEEDED(result))
 		return FALSE;
-	stmt = (StatementClass *) hstmt;
 
-	stmt->internal = TRUE;		/* ensure no BEGIN/COMMIT/ABORT stuff */
+	/* non-external handle ensures no BEGIN/COMMIT/ABORT stuff */
+	stmt = (StatementClass *) hstmt;
 
 	cs = strdup(set_query);
 	if (cs == NULL)

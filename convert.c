@@ -2978,7 +2978,7 @@ inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_co
 	new_statement = qb->query_statement;
 
 	/* For selects, prepend a declare cursor to the statement */
-	if (SC_may_use_cursor(stmt) && !stmt->internal)
+	if (SC_may_use_cursor(stmt) && stmt->external)
 	{
 		const char *opt_scroll = NULL_STRING, *opt_hold = NULL_STRING;
 

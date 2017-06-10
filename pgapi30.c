@@ -2132,7 +2132,5 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 		s.need_data_callback = FALSE;
 		ret = bulk_ope_callback(SQL_SUCCESS, &s);
 	}
-	if (s.stmt->internal)
-		ret = DiscardStatementSvp(s.stmt, ret, FALSE);
 	return ret;
 }

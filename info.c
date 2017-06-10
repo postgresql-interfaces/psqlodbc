@@ -1243,8 +1243,6 @@ cleanup:
 		SC_set_Result(stmt, NULL);
 	SC_set_current_col(stmt, -1);
 
-	if (stmt->internal)
-		result = DiscardStatementSvp(stmt, result, FALSE);
 	return result;
 }
 
@@ -2089,8 +2087,6 @@ cleanup:
 	if (htbl_stmt)
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
@@ -2292,7 +2288,6 @@ retry_public_schema:
 
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
-	col_stmt->internal = TRUE;
 	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
@@ -2695,8 +2690,6 @@ cleanup:
 		free(escColumnName);
 	if (hcol_stmt)
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-	if (stmt->internal)
-		result = DiscardStatementSvp(stmt, result, FALSE);
 	mylog("%s: EXIT,  stmt=%p\n", func, stmt);
 	return result;
 }
@@ -2937,8 +2930,6 @@ cleanup:
 	SC_set_current_col(stmt, -1);
 	if (hcol_stmt)
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-	if (stmt->internal)
-		result = DiscardStatementSvp(stmt, result, FALSE);
 	mylog("%s: EXIT,  stmt=%p\n", func, stmt);
 	return result;
 }
@@ -3439,8 +3430,6 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 
 	return ret;
@@ -3856,8 +3845,6 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
@@ -4752,8 +4739,6 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	mylog("%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
@@ -5625,8 +5610,6 @@ cleanup:
 		QR_Destructor(wres);
 	if (allures)
 		QR_Destructor(allures);
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	return ret;
 }
 
@@ -5843,8 +5826,6 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	if (stmt->internal)
-		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	mylog("%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }

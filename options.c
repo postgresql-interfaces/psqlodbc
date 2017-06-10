@@ -630,8 +630,6 @@ PGAPI_SetStmtOption(HSTMT hstmt,
 
 	/* StartRollbackState(stmt); */
 	retval = set_statement_option(NULL, stmt, fOption, vParam);
-	if (stmt->internal)
-		retval = DiscardStatementSvp(stmt, retval, FALSE);
 	return retval;
 }
 
