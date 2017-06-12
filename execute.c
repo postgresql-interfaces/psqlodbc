@@ -168,6 +168,8 @@ inolog("a2\n");
 
 	if (0 != (flag & PODBC_WITH_HOLD))
 		SC_set_with_hold(stmt);
+	if (0 != (flag & PODBC_RDONLY))
+		SC_set_readonly(stmt);
 
 	/*
 	 * If an SQLPrepare was performed prior to this, but was left in the
@@ -588,7 +590,7 @@ inolog("%s:%p->external=%d\n", func, stmt, stmt->external);
  *	invokes a transaction.
  */
 RETCODE
-SetStatementSvp(StatementClass *stmt)
+SetStatementSvp(StatementClass *stmt, unsigned int option)
 {
 	CSTR	func = "SetStatementSvp";
 	char	esavepoint[32], cmd[64];
@@ -609,13 +611,16 @@ SetStatementSvp(StatementClass *stmt)
 		ENTER_CONN_CS(conn);
 		conn->lock_CC_for_rb++;
 	}
+inolog(" !!!! %s:%p->accessed=%d opt=%u in_progress=%u prev=%u\n", __FUNCTION__, conn, CC_accessed_db(conn), option, conn->opt_in_progress, conn->opt_previous);
+	conn->opt_in_progress &= option;
 	switch (stmt->statement_type)
 	{
 		case STMT_TYPE_SPECIAL:
 		case STMT_TYPE_TRANSACTION:
 			return ret;
 	}
-	if (!CC_started_rbpoint(conn))
+	/* If rbpoint is not yet started and the previous statement was not read-only */
+	if (!CC_started_rbpoint(conn) && 0 == (conn->opt_previous & SVPOPT_RDONLY))
 	{
 		BOOL	need_savep = FALSE;
 
@@ -638,13 +643,13 @@ SetStatementSvp(StatementClass *stmt)
 			conn->internal_svp = 1;
 			SPRINTFCAT_FIXED(cmd, "SAVEPOINT %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
 			conn->internal_svp = internal_svp;
-			conn->is_in_internal_op = 1;
+			conn->internal_op = SAVEPOINT_IN_PROGRESS;
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
-			conn->is_in_internal_op = 0;
+			conn->internal_op = 0;
 			if (QR_command_maybe_successful(res))
 			{
-				conn->internal_svp = 1;
-				CC_start_rbpoint(conn);
+				// conn->internal_svp = 1;
+				// CC_start_rbpoint(conn);
 				ret = SQL_SUCCESS;
 			}
 			else
@@ -654,8 +659,8 @@ SetStatementSvp(StatementClass *stmt)
 			}
 			QR_Destructor(res);
 		}
-		CC_set_accessed_db(conn);
 	}
+	CC_set_accessed_db(conn);
 inolog("%s:%p->accessed=%d\n", func, conn, CC_accessed_db(conn));
 	return ret;
 }
@@ -671,6 +676,8 @@ DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 
 inolog("%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, conn, CC_accessed_db(conn),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
+	if (conn->lock_CC_for_rb > 0)
+		mylog("%s:in_progress=%u previous=%d\n", func, conn->opt_in_progress, conn->opt_previous);
 	switch (ret)
 	{
 		case SQL_NEED_DATA:
@@ -694,9 +701,9 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 			char esavepoint[32];
 
 			SPRINTF_FIXED(cmd, "ROLLBACK to %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
-			conn->is_in_internal_op = 1;
+			conn->internal_op = ROLLBACK_IN_PROGRESS;
 			res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL);
-			conn->is_in_internal_op = 0;
+			conn->internal_op = 0;
 			cmd_success = QR_command_maybe_successful(res);
 			QR_Destructor(res);
 			if (!cmd_success)
@@ -722,10 +729,17 @@ cleanup:
 #endif
 	if (start_stmt || SQL_ERROR == ret)
 	{
+		stmt->execinfo = 0;
+		if (SQL_ERROR != ret && CC_accessed_db(conn))
+		{
+			conn->opt_previous = conn->opt_in_progress;
+			CC_init_opt_in_progress(conn);
+		}
 		while (conn->lock_CC_for_rb > 0)
 		{
 			LEAVE_CONN_CS(conn);
 			conn->lock_CC_for_rb--;
+			inolog(" %s:release conn_lock\n", __FUNCTION__);
 		}
 		CC_start_stmt(conn);
 	}

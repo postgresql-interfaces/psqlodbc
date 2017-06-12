@@ -1022,7 +1022,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 
 	if (ret = LIBPQ_connect(self), ret <= 0)
 		return ret;
-	res = CC_send_query(self, "SET DateStyle = 'ISO';SET extra_float_digits = 2;" ISOLATION_SHOW_QUERY, NULL, 0, NULL);
+	res = CC_send_query(self, "SET DateStyle = 'ISO';SET extra_float_digits = 2;" ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res))
 	{
 		handle_show_results(res);
@@ -1242,7 +1242,7 @@ int	CC_get_max_idlen(ConnectionClass *self)
 	{
 		QResultClass	*res;
 
-		res = CC_send_query(self, "show max_identifier_length", NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+		res = CC_send_query(self, "show max_identifier_length", NULL, READ_ONLY_QUERY, NULL);
 		if (QR_command_maybe_successful(res))
 			len = self->max_identifier_length = QR_get_value_backend_int(res, 0, 0, FALSE);
 		QR_Destructor(res);
@@ -1302,7 +1302,7 @@ SQLUINTEGER	CC_get_isolation(ConnectionClass *self)
 	SQLUINTEGER	isolation = 0;
 	QResultClass	*res;
 
-	res = CC_send_query(self, ISOLATION_SHOW_QUERY, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+	res = CC_send_query(self, ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res))
 	{
 		handle_show_results(res);
@@ -1430,7 +1430,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 				{
 					SPRINTF_FIXED(cmd, "MOVE 0 in \"%s\"", QR_get_cursor(res));
 					CONNLOCK_RELEASE(self);
-					wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+					wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN | READ_ONLY_QUERY, NULL);
 					QR_set_no_survival_check(res);
 					if (QR_command_maybe_successful(wres))
 						QR_set_permanent(res);
@@ -1476,7 +1476,7 @@ void	CC_on_commit(ConnectionClass *conn)
 		CC_set_no_trans(conn);
 		CC_set_no_manual_trans(conn);
 	}
-	conn->internal_svp = conn->is_in_internal_op = 0;
+	CC_svp_init(conn);
 	CC_start_stmt(conn);
 	CC_clear_cursors(conn, FALSE);
 	CONNLOCK_RELEASE(conn);
@@ -1508,7 +1508,7 @@ mylog("CC_on_abort in opt=%x\n", opt);
 			set_no_trans = TRUE;
 		}
 	}
-	conn->internal_svp = conn->is_in_internal_op = 0;
+	CC_svp_init(conn);
 	CC_start_stmt(conn);
 	CC_clear_cursors(conn, TRUE);
 	if (0 != (opt & CONN_DEAD))
@@ -1542,11 +1542,13 @@ void	CC_on_abort_partial(ConnectionClass *conn)
 {
 mylog("CC_on_abort_partial in\n");
 	CONNLOCK_ACQUIRE(conn);
-	if (!conn->is_in_internal_op)	/* manually rolling back to */
+	if (!conn->internal_op)	/* manually rolling back to */
 	{
 		conn->internal_svp = 0; /* possibly an internal savepoint is invalid */
 		mylog(" %s:reset an internal savepoint\n", __FUNCTION__);
+		conn->opt_previous = 0; /* unknown */
 	}
+	CC_init_opt_in_progress(conn);
 	ProcessRollback(conn, TRUE, TRUE);
 	CC_discard_marked_objects(conn);
 	CONNLOCK_RELEASE(conn);
@@ -1623,7 +1625,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	BOOL	ignore_abort_on_conn = ((flag & IGNORE_ABORT_ON_CONN) != 0),
 		create_keyset = ((flag & CREATE_KEYSET) != 0),
 		issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self)),
-		rollback_on_error, query_rollback, end_with_commit;
+		rollback_on_error, query_rollback, end_with_commit, read_only;
 
 	char		*ptr;
 	BOOL		ReadyToReturn = FALSE,
@@ -1694,6 +1696,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	rollback_on_error = (flag & ROLLBACK_ON_ERROR) != 0;
 	end_with_commit = (flag & END_WITH_COMMIT) != 0;
+	read_only = (flag & READ_ONLY_QUERY) != 0;
 #define	return DONT_CALL_RETURN_FROM_HERE???
 	consider_rollback = (issue_begin || (CC_is_in_trans(self) && !CC_is_in_error_trans(self)) || strnicmp(query, "begin", 5) == 0);
 	if (rollback_on_error)
@@ -1704,9 +1707,13 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		if (stmt)
 		{
 			StatementClass	*astmt = SC_get_ancestor(stmt);
+			unsigned int svpopt = 0;
+
+			if (read_only)
+				svpopt |= SVPOPT_RDONLY;
 			if (!CC_started_rbpoint(self))
 			{
-				if (SQL_ERROR == SetStatementSvp(astmt))
+				if (SQL_ERROR == SetStatementSvp(astmt, svpopt))
 				{
 					SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
 					goto cleanup;
@@ -1722,9 +1729,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		+ strlen(svpcmd) + 1 + strlen(per_query_svp) + 1
 		+ query_len
 		+ (appendq ? (1 + strlen(appendq)) : 0)
-#ifdef	_RELEASE_INTERNAL_SAVEPOINT
 		+ 1 + strlen(rlscmd) + strlen(per_query_svp)
-#endif /* _RELEASE_INTERNAL_SAVEPOINT */
 		+ 1;
 	query_buf = malloc(query_buf_len);
 	if (!query_buf)
@@ -1748,12 +1753,10 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	{
 		snprintfcat(query_buf, query_buf_len, ";%s", appendq);
 	}
-#ifdef	_RELEASE_INTERNAL_SAVEPOINT
 	if (query_rollback)
 	{
 		snprintfcat(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
 	}
-#endif /* _RELEASE_INTERNAL_SAVEPOINT */
 
 	/* Set up notice receiver */
 	nrarg.conn = self;
@@ -1800,22 +1803,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				/* read in the return message from the backend */
 				cmdbuffer = PQcmdStatus(pgres);
 				mylog("send_query: ok - 'C' - %s\n", cmdbuffer);
-#ifdef	_RELEASE_INTERNAL_SAVEPOINT
-				/*
-				 * There are 2 risks to RELEASE an internal savepoint.
-				 * One is to RELEASE the savepoint invalitated
-				 * due to manually issued ROLLBACK or RELEASE.
-				 * Another is to invalitate manual SAVEPOINTs unexpectedly
-				 * by RELEASing the internal savepoint.
-				 */
-				if (!self->is_in_internal_op && self->internal_svp)
-				{
-					if (0 == stricmp(cmdbuffer, rlscmd) ||
-					    0 == stricmp(cmdbuffer, rbkcmd) ||
-					    0 == stricmp(cmdbuffer, svpcmd))
-						self->internal_svp = 0;
-				}
-#endif /* _RELEASE_INTERNAL_SAVEPOINT */
+
 
 				if (query_completed)	/* allow for "show" style notices */
 				{
@@ -1843,6 +1831,13 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 						break; /* discard the result */
 					}
 				}
+				/*
+				 * There are 2 risks to RELEASE an internal savepoint.
+				 * One is to RELEASE the savepoint invalitated
+				 * due to manually issued ROLLBACK or RELEASE.
+				 * Another is to invalitate manual SAVEPOINTs unexpectedly
+				 * by RELEASing the internal savepoint.
+				 */
 				else if (strnicmp(cmdbuffer, svpcmd, strlen(svpcmd)) == 0)
 				{
 					if (discard_next_savepoint)
@@ -1851,11 +1846,28 @@ inolog("Discarded the first SAVEPOINT\n");
 						discard_next_savepoint = FALSE;
 						break; /* discard the result */
 					}
+					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
+					{
+						CC_start_rbpoint(self);
+						self->internal_op = 0;
+						break; /* discard the result */
+					}
+					/* Don't release the internal savepoint */
+					self->internal_svp = 0;
 				}
 				else if (strnicmp(cmdbuffer, rbkcmd, strlen(rbkcmd)) == 0)
 				{
 					CC_mark_cursors_doubtful(self);
 					CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
+					if (!self->internal_op)
+						self->internal_svp = 0;
+				}
+				else if (strnicmp(cmdbuffer, rlscmd, strlen(rlscmd)) == 0)
+				{
+					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
+						break; /* discard the result */
+					else /* internal savepoint may become invalid */
+						self->internal_svp = 0;
 				}
 				/*
 				 *	DROP TABLE or ALTER TABLE may change
@@ -2027,20 +2039,13 @@ cleanup:
 			if (CC_is_in_error_trans(self))
 			{
 				char tmpsqlbuf[100];
-#ifdef	_RELEASE_INTERNAL_SAVEPOINT
+
 				SPRINTF_FIXED(tmpsqlbuf,
 						"%s TO %s"
 						";%s %s"
 						, rbkcmd, per_query_svp
 						, rlscmd, per_query_svp);
-#else
-				SPRINTF_FIXED(tmpsqlbuf,
-						"%s TO %s"
-						, rbkcmd, per_query_svp);
-#endif /* _RELEASE_INTERNAL_SAVEPOINT */
-				self->is_in_internal_op = 1;
 				pgres = PQexec(self->pqconn, tmpsqlbuf);
-				self->is_in_internal_op = 0;
 				/*
 				 * Though it's not appropriate to
 				 * call PQExec for a multiple command,
@@ -2366,7 +2371,7 @@ CC_lookup_lo(ConnectionClass *self)
 	mylog("%s: entering...\n", func);
 
 	res = CC_send_query(self, "select oid, typbasetype from pg_type where typname = '"  PG_TYPE_LO_NAME "'",
-		NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+		NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
 	{
 		OID	basetype;
@@ -2430,7 +2435,7 @@ CC_get_current_schema(ConnectionClass *conn)
 	{
 		QResultClass	*res;
 
-		if (res = CC_send_query(conn, "select current_schema()", NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL), QR_command_maybe_successful(res))
+		if (res = CC_send_query(conn, "select current_schema()", NULL, READ_ONLY_QUERY, NULL), QR_command_maybe_successful(res))
 		{
 			if (QR_get_num_total_tuples(res) == 1)
 			{
@@ -2478,7 +2483,7 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 			SPRINTF_FIXED(cmd, "DEALLOCATE \"%s\"", pname + 1);
 		else
 			SPRINTF_FIXED(cmd, "CLOSE \"%s\"", pname + 1);
-		res = CC_send_query(conn, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+		res = CC_send_query(conn, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN | READ_ONLY_QUERY, NULL);
 		QR_Destructor(res);
 		free(conn->discardp[i]);
 		conn->num_discardp--;
@@ -3338,9 +3343,9 @@ CC_set_transact(ConnectionClass *self, UInt4 isolation)
 	if (self->default_isolation == 0)
 		bShow = TRUE;
 	if (bShow)
-		res = CC_send_query_append(self, ISOLATION_SHOW_QUERY, NULL, 0, NULL, query);
+		res = CC_send_query_append(self, ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL, query);
 	else
-		res = CC_send_query(self, query, NULL, 0, NULL);
+		res = CC_send_query(self, query, NULL, READ_ONLY_QUERY, NULL);
 	if (!QR_command_maybe_successful(res))
 	{
 		CC_set_error(self, CONN_EXEC_ERROR, "ISOLATION change request to the server error", __FUNCTION__);

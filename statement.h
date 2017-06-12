@@ -281,6 +281,7 @@ struct StatementClass_
 	SQLLEN		exec_current_row;
 
 	unsigned char	miscinfo;
+	unsigned char	execinfo;
 	po_ind_t	updatable;
 	SQLLEN		diag_row_count;
 	char		*load_statement; /* to (re)load updatable individual rows */
@@ -424,10 +425,14 @@ enum
 #define SC_set_fetchcursor(a)	((a)->miscinfo |= (1L << 1))
 #define SC_no_fetchcursor(a)	((a)->miscinfo &= ~(1L << 1))
 #define SC_is_fetchcursor(a)	(((a)->miscinfo & (1L << 1)) != 0)
-#define SC_set_with_hold(a)	((a)->miscinfo |= (1L << 3))
-#define SC_set_without_hold(a)	((a)->miscinfo &= ~(1L << 3))
-#define SC_is_with_hold(a)	(((a)->miscinfo & (1L << 3)) != 0)
-#define SC_miscinfo_clear(a)	((a)->miscinfo &= (1L << 3))
+#define SC_miscinfo_clear(a)	((a)->miscinfo = 0)
+#define SC_set_with_hold(a)	((a)->execinfo |= 1L)
+#define SC_set_without_hold(a)	((a)->execinfo &= (~1L))
+#define SC_is_with_hold(a)	(((a)->execinfo & 1L) != 0)
+#define SC_set_readonly(a)	((a)->execinfo |= (1L << 1))
+#define SC_set_no_readonly(a)	((a)->execinfo &= ~(1L << 1))
+#define SC_is_readonly(a)	(((a)->execinfo & (1L << 1)) != 0)
+#define SC_execinfo_clear(a)	(((a)->execinfo = 0)
 #define	STMT_HAS_OUTER_JOIN	1L
 #define	STMT_HAS_INNER_JOIN	(1L << 1)
 #define SC_has_join(a)		(0 != (a)->join_info)
@@ -533,7 +538,7 @@ int		enqueueNeedDataCallback(StatementClass *self, NeedDataCallfunc, void *);
 RETCODE		dequeueNeedDataCallback(RETCODE, StatementClass *self);
 void		cancelNeedDataState(StatementClass *self);
 int		StartRollbackState(StatementClass *self);
-RETCODE		SetStatementSvp(StatementClass *self);
+RETCODE		SetStatementSvp(StatementClass *self, unsigned int option);
 RETCODE		DiscardStatementSvp(StatementClass *self, RETCODE, BOOL errorOnly);
 
 QResultClass *ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name, const char *query_p, Int2 num_params, const char *comment, QResultClass *res);

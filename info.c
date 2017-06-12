@@ -1894,7 +1894,7 @@ retry_public_schema:
 	else
 		STRCAT_FIXED(tables_query, " and n.oid = relnamespace order by nspname, relname");
 
-	result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
+	result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, htbl_stmt, FALSE);
@@ -2288,7 +2288,7 @@ retry_public_schema:
 
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
-	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, 0);
+	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
@@ -2776,7 +2776,7 @@ retry_public_schema:
 
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
-	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, 0);
+	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
@@ -3160,7 +3160,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	STRCAT_FIXED(index_query, " i.indisprimary desc,");
 	STRCAT_FIXED(index_query, " i.indisunique, n.nspname, c.relname");
 
-	result = PGAPI_ExecDirect(hindx_stmt, (SQLCHAR *) index_query, SQL_NTS, 0);
+	result = PGAPI_ExecDirect(hindx_stmt, (SQLCHAR *) index_query, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		/*
@@ -3762,7 +3762,7 @@ retry_public_schema:
 		}
 		mylog("%s: tables_query='%s'\n", func, tables_query);
 
-		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
+		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
 		if (!SQL_SUCCEEDED(result))
 		{
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
@@ -4141,7 +4141,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			eq_string, escFkTableName, eq_string, escSchemaName);
 		free(escSchemaName);
 
-		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
+		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
 
 		if (!SQL_SUCCEEDED(result))
 		{
@@ -4469,7 +4469,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			eq_string, escPkTableName, eq_string, escSchemaName);
 		free(escSchemaName);
 
-		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, 0);
+		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
 		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);

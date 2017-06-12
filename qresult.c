@@ -739,8 +739,9 @@ QR_close(QResultClass *self)
 			UDWORD		flag = 0;
 			char		buf[64];
 
+			flag = READ_ONLY_QUERY;
 			if (QR_needs_survival_check(self))
-				flag = ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN;
+				flag |= (ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN);
 
 			SPRINTF_FIXED(buf, "close \"%s\"", QR_get_cursor(self));
 			/* End the transaction if there are no cursors left on this conn */
@@ -907,7 +908,7 @@ SQLLEN	QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt)
 		return 0;
 	SPRINTF_FIXED(movecmd,
 		 "move all in \"%s\"", QR_get_cursor(self));
-	res = CC_send_query(conn, movecmd, NULL, 0, stmt);
+	res = CC_send_query(conn, movecmd, NULL, READ_ONLY_QUERY, stmt);
 	if (!QR_command_maybe_successful(res))
 	{
 		QR_Destructor(res);
@@ -1006,7 +1007,7 @@ inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_si
 					 QR_get_cursor(self));
 			movement = INT_MAX;
 		}
-		mres = CC_send_query(conn, movecmd, NULL, 0, stmt);
+		mres = CC_send_query(conn, movecmd, NULL, READ_ONLY_QUERY, stmt);
 		if (!QR_command_maybe_successful(mres))
 		{
 			QR_Destructor(mres);
@@ -1158,7 +1159,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 	qi.fetch_size = fetch_size;
 	qi.result_in = self;
 	qi.cursor = NULL;
-	res = CC_send_query(conn, fetch, &qi, 0, stmt);
+	res = CC_send_query(conn, fetch, &qi, READ_ONLY_QUERY, stmt);
 	if (!QR_command_maybe_successful(res))
 	{
 		if (!QR_get_message(self))

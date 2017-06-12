@@ -445,6 +445,7 @@ SC_Constructor(ConnectionClass *conn)
 				rv, SQL_ATTR_IMP_PARAM_DESC);
 
 		rv->miscinfo = 0;
+		rv->execinfo = 0;
 		rv->rb_or_tc = 0;
 		SC_reset_updatable(rv);
 		rv->diag_row_count = 0;
@@ -853,6 +854,7 @@ inolog("SC_clear_parse_status\n");
 	if (SC_get_Result(self))
 		SC_set_Result(self, NULL);
 	self->miscinfo = 0;
+	self->execinfo = 0;
 	/* self->rbonerr = 0; Never clear the bits here */
 
 	/*
@@ -1085,6 +1087,7 @@ SC_describe(StatementClass *self)
 mylog("              preprocess: status = READY\n");
 
 		self->miscinfo = 0;
+		self->execinfo = 0;
 
 		decideHowToPrepare(self, FALSE);
 		switch (SC_get_prepare_method(self))
@@ -1932,6 +1935,7 @@ SC_execute(StatementClass *self)
 					 qi.fetch_size, SC_cursor_name(self));
 			qryi = &qi;
 			appendq = fetch;
+			qflag &= (~READ_ONLY_QUERY); /* must be a SAVEPOINT after DECLARE */
 		}
 		res = SC_get_Result(self);
 		if (self->curr_param_result && res)
@@ -2154,7 +2158,7 @@ inolog("!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_ty
 			qi.cursor = SC_cursor_name(self);
 			qi.cache_size = qi.row_size = ci->drivers.fetch_max;
 			SPRINTF_FIXED(fetch, "fetch " FORMAT_LEN " in \"%s\"", qi.fetch_size, SC_cursor_name(self));
-			res = CC_send_query(conn, fetch, &qi, qflag, SC_get_ancestor(self));
+			res = CC_send_query(conn, fetch, &qi, qflag | READ_ONLY_QUERY, SC_get_ancestor(self));
 			if (NULL != res)
 				SC_set_Result(self, res);
 		}
@@ -2346,6 +2350,7 @@ static BOOL
 RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 {
 	BOOL	ret = TRUE;
+	unsigned int	svpopt = 0;
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	if (conn->asdum)
@@ -2358,7 +2363,9 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 	}
 	if (CC_started_rbpoint(conn))
 		return TRUE;
-	if (SQL_ERROR == SetStatementSvp(stmt))
+	if (SC_is_readonly(stmt))
+		svpopt |= SVPOPT_RDONLY;
+	if (SQL_ERROR == SetStatementSvp(stmt, svpopt))
 	{
 		char	emsg[128];
 
@@ -2403,14 +2410,16 @@ libpq_bind_and_exec(StatementClass *stmt)
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
+#ifdef	NOT_USED
 	if (CC_is_in_trans(conn) && !CC_started_rbpoint(conn))
 	{
-		if (SQL_ERROR == SetStatementSvp(stmt))
+		if (SQL_ERROR == SetStatementSvp(stmt, 0))
 		{
 			SC_set_error_if_not_set(stmt, STMT_INTERNAL_ERROR, "internal savepoint error in build_libpq_bind_params", func);
 			return NULL;
 		}
 	}
+#endif /* NOT_USED */
 
 	/* 1. Bind */
 	mylog("%s: bind stmt=%p\n", func, stmt);

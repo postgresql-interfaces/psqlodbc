@@ -2177,7 +2177,7 @@ ti_quote(StatementClass *stmt, OID tableoid)
 		char	*ret = "";
 
 		SPRINTF_FIXED(query, "select relname, nspname from pg_class c, pg_namespace n where c.oid=%u and c.relnamespace=n.oid", tableoid);
-		res = CC_send_query(SC_get_conn(stmt), query, NULL, 0, stmt);
+		res = CC_send_query(SC_get_conn(stmt), query, NULL, READ_ONLY_QUERY, stmt);
 		if (QR_command_maybe_successful(res) &&
 		    QR_get_num_cached_tuples(res) == 1)
 		{
@@ -2210,7 +2210,7 @@ static BOOL	tupleExists(StatementClass *stmt, const KeySet *keyset)
 		SPRINTFCAT_FIXED(selstr, " and ");
 		SPRINTFCAT_FIXED(selstr, bestqual, keyset->oid);
 	}
-	res = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, NULL);
+	res = CC_send_query(SC_get_conn(stmt), selstr, NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res) && 1 == res->num_cached_rows)
 		ret = TRUE;
 	QR_Destructor(res);
@@ -3094,7 +3094,7 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	}
 
 	mylog("selstr=%s\n", selstr);
-	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, 0, stmt);
+	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, READ_ONLY_QUERY, stmt);
 cleanup:
 	free(selstr);
 	return qres;
@@ -3311,7 +3311,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			QResultClass	*qres;
 
 			strlcat(qval, ")", allen);
-			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET, stmt);
+			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
 				SQLLEN		j, k, l;
@@ -3404,7 +3404,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 							snprintfcat(qval, allen, ",$%d", j + 1);
 					}
 					strlcat(qval, ")", allen);
-					qres = CC_send_query(conn, qval, NULL, 0, stmt);
+					qres = CC_send_query(conn, qval, NULL, READ_ONLY_QUERY, stmt);
 					if (QR_command_maybe_successful(qres))
 					{
 						res->reload_count = keys_per_fetch;
@@ -3486,7 +3486,7 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 			QResultClass	*qres;
 
 			strlcat(qval, ")", allen);
-			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET, stmt);
+			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
 				SQLLEN		k, l;

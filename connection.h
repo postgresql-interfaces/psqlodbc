@@ -311,9 +311,11 @@ struct ConnectionClass_
 						 * unknown */
 	/* for per statement rollback */
 	char		internal_svp;		/* is set? */
-	char		is_in_internal_op;	/* an operation as to internal savepoint in progress */
+	char		internal_op;		/* operation being executed as to internal savepoint */
 	unsigned char	lock_CC_for_rb;
 	unsigned char	rbonerr;
+	unsigned char	opt_in_progress;
+	unsigned char	opt_previous;
 
 	char		*original_client_encoding;
 	char		*locale_encoding;
@@ -388,7 +390,7 @@ enum {
 #define CC_is_rb_stmt(a)        (((a)->rbonerr & (1L << 2)) != 0)
 #define CC_set_accessed_db(a)   ((a)->rbonerr |= (1L << 3))
 #define CC_accessed_db(a)       (((a)->rbonerr & (1L << 3)) != 0)
-#define CC_start_rbpoint(a)     ((a)->rbonerr |= (1L << 4))
+#define CC_start_rbpoint(a)     ((a)->rbonerr |= (1L << 4), (a)->internal_svp = 1)
 #define CC_started_rbpoint(a)   (((a)->rbonerr & (1L << 4)) != 0)
 
 /*	prototypes */
@@ -456,12 +458,31 @@ enum {
 	,GO_INTO_TRANSACTION	= (1L << 2) /* issue BEGIN in advance */
 	,ROLLBACK_ON_ERROR	= (1L << 3) /* rollback the query when an error occurs */
 	,END_WITH_COMMIT	= (1L << 4) /* the query ends with COMMIT command */
+	,READ_ONLY_QUERY	= (1L << 5) /* the query is read-only */
 };
 /* CC_on_abort options */
 #define	NO_TRANS		1L
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
 
+/*
+ *	internal savepoint related
+ */
+
 #define	_RELEASE_INTERNAL_SAVEPOINT
+
+/*      Operations about internal savepoint */
+enum {
+        SAVEPOINT_IN_PROGRESS = 1
+        ,ROLLBACK_IN_PROGRESS = 2
+};
+/*      StatementSvp entry option */
+enum {
+        SVPOPT_RDONLY = 1L
+};
+#define	INIT_SVPOPT	(SVPOPT_RDONLY)
+#define CC_svp_init(a) ((a)->internal_svp = (a)->internal_op = 0, (a)->opt_in_progress = (a)->opt_previous = INIT_SVPOPT)
+#define CC_init_opt_in_progress(a) ((a)->opt_in_progress = INIT_SVPOPT)
+#define CC_init_opt_previous(a) ((a)->opt_previous = INIT_SVPOPT)
 
 #ifdef	__cplusplus
 }

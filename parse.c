@@ -394,7 +394,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 	SPRINTF_FIXED(query,
 			 "select relhasoids, c.oid, relhassubclass from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid",
 			 SAFE_NAME(ti->table_name), SAFE_NAME(ti->schema_name));
-	res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+	res = CC_send_query(conn, query, NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res))
 	{
 		stmt->num_key_fields = PG_NUM_NORMAL_KEYS;
@@ -433,7 +433,7 @@ static BOOL CheckHasOids(StatementClass * stmt)
 		if (!hasoids && !hassubclass)
 		{
 			SPRINTF_FIXED(query, "select a.attname, a.atttypid from pg_index i, pg_attribute a where indrelid=%u and indnatts=1 and indisunique and indexprs is null and indpred is null and i.indrelid = a.attrelid and a.attnum=i.indkey[0] and attnotnull and atttypid in (%d, %d)", ti->table_oid, PG_TYPE_INT4, PG_TYPE_OID);
-			res = CC_send_query(conn, query, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+			res = CC_send_query(conn, query, NULL, READ_ONLY_QUERY, NULL);
 			if (QR_command_maybe_successful(res) && QR_get_num_total_tuples(res) > 0)
 			{
 				foundKey = TRUE;
@@ -772,7 +772,7 @@ COL_INFO **coli)
 					 "select nspname from pg_namespace n, pg_class c"
 					 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
 					 SAFE_NAME(table_name));
-			res = CC_send_query(conn, token, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN, NULL);
+			res = CC_send_query(conn, token, NULL, READ_ONLY_QUERY, NULL);
 			if (QR_command_maybe_successful(res))
 			{
 				if (QR_get_num_total_tuples(res) == 1)
