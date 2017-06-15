@@ -5029,7 +5029,7 @@ mylog("i=%d bidx=%d cached=%d\n", i, bidx, res->num_cached_keys);
 	lodlen = strlen(stmt->load_statement) + 15;
 	SC_MALLOC_gexit_with_error(query, char, lodlen, stmt, "Couldn't allocate memory for query buf.", (ret = SQL_ERROR));
 	snprintf(query, lodlen, "%s where ctid=?", stmt->load_statement);
-	if (!SQL_SUCCEEDED(ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) query, SQL_NTS, 0)))
+	if (!SQL_SUCCEEDED(ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) query, SQL_NTS, PODBC_RDONLY)))
 		goto cleanup;
 	/*
 	 * Combine multiple results into one

@@ -3344,7 +3344,7 @@ PGAPI_Statistics(HSTMT hstmt,
 					QResultClass *res;
 
 					SPRINTF_FIXED(cmd, "select pg_get_indexdef(%u, %d, true)", ioid, i);
-					res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, stmt);
+					res = CC_send_query(conn, cmd, NULL, READ_ONLY_QUERY, stmt);
 					if (QR_command_maybe_successful(res))
 						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], QR_get_value_backend_text(res, 0, 0));
 					QR_Destructor(res);
@@ -3509,7 +3509,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 		cq_len += snprintf_len(col_query, cq_size,
 			" and column_name %s'%s'", op_string, escColumnName);
 	}
-	if (res = CC_send_query(conn, column_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
+	if (res = CC_send_query(conn, column_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ColumnPrivileges query error", func);
 		goto cleanup;
@@ -3874,7 +3874,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 	BOOL		continueExec = TRUE,
 				bError = FALSE;
 	QResultClass *res = NULL;
-	UWORD	flag = IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR;
+	UWORD	flag = READ_ONLY_QUERY;
 
 	*nameAlloced = FALSE;
 	if (!conn->original_client_encoding || !isMultibyte(serverColumnName))
@@ -4903,7 +4903,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	if (escProcName)
 		free(escProcName);
 
-	tres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt);
+	tres = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt);
 	if (!QR_command_maybe_successful(tres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ProcedureColumns query error", func);
@@ -5250,7 +5250,7 @@ PGAPI_Procedures(HSTMT hstmt,
 		SPRINTFCAT_FIXED(proc_query,
 				 " and proname %s'%s'", op_string, escProcName);
 
-	res = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt);
+	res = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt);
 	if (!QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Procedures query error", func);
@@ -5432,7 +5432,7 @@ retry_public_schema:
 		STRCAT_FIXED(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
 
 	STRCAT_FIXED(proc_query, " pg_user.usesysid = relowner");
-	if (wres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(wres))
+	if (wres = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(wres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
 		ret = SQL_ERROR;
@@ -5454,7 +5454,7 @@ retry_public_schema:
 	}
 
 	STRCPY_FIXED(proc_query, "select usename, usesysid, usesuper from pg_user");
-	if (allures = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(allures))
+	if (allures = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(allures))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
 		ret = SQL_ERROR;
@@ -5507,7 +5507,7 @@ retry_public_schema:
 				char	*grolist, *uid, *delm;
 
 				SPRINTF_FIXED(proc_query, "select grolist from pg_group where groname = '%s'", user);
-				if (gres = CC_send_query(conn, proc_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(gres))
+				if (gres = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(gres))
 				{
 					grolist = QR_get_value_backend_text(gres, 0, 0);
 					if (grolist && grolist[0] == '{')
@@ -5794,7 +5794,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	}
 	STRCAT_FIXED(tables_query, "\n  order by ref.oid, ref.i");
 
-	if (res = CC_send_query(conn, tables_query, NULL, IGNORE_ABORT_ON_CONN, stmt), !QR_command_maybe_successful(res))
+	if (res = CC_send_query(conn, tables_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ForeignKeys query error", func);
 		QR_Destructor(res);
