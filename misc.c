@@ -172,7 +172,7 @@ snprintfcat(char *buf, size_t size, const char *format, ...)
 	va_start(arglist, format);
 	len = vsnprintf(buf + pos, size - pos, format, arglist);
 	va_end(arglist);
-	return len;
+	return len + pos;
 }
 
 /*

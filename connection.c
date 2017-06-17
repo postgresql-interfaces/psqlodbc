@@ -1542,13 +1542,6 @@ void	CC_on_abort_partial(ConnectionClass *conn)
 {
 mylog("CC_on_abort_partial in\n");
 	CONNLOCK_ACQUIRE(conn);
-	if (!conn->internal_op)	/* manually rolling back to */
-	{
-		conn->internal_svp = 0; /* possibly an internal savepoint is invalid */
-		mylog(" %s:reset an internal savepoint\n", __FUNCTION__);
-		conn->opt_previous = 0; /* unknown */
-	}
-	CC_init_opt_in_progress(conn);
 	ProcessRollback(conn, TRUE, TRUE);
 	CC_discard_marked_objects(conn);
 	CONNLOCK_RELEASE(conn);
@@ -1625,7 +1618,9 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	BOOL	ignore_abort_on_conn = ((flag & IGNORE_ABORT_ON_CONN) != 0),
 		create_keyset = ((flag & CREATE_KEYSET) != 0),
 		issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self)),
-		rollback_on_error, query_rollback, end_with_commit, read_only;
+		rollback_on_error, query_rollback, end_with_commit,
+		read_only, prepend_savepoint = FALSE,
+		ignore_roundtrip_time = ((self->connInfo.extra_opts & BIT_IGNORE_ROUND_TRIP_TIME) != 0);
 
 	char		*ptr;
 	BOOL		ReadyToReturn = FALSE,
@@ -1635,9 +1630,9 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			discard_next_begin = FALSE,
 			discard_next_savepoint = FALSE,
 			consider_rollback;
-	int		func_cs_count = 0;
+	int		func_cs_count = 0, i;
 	size_t		query_buf_len = 0;
-	char	   *query_buf = NULL;
+	char	   *query_buf = NULL, prepend_cmd[64];
 	size_t		query_len;
 
 	/* QR_set_command() dups this string so doesn't need static */
@@ -1676,7 +1671,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	 *	and the appeneded query would be issued separately.
 	 *	Otherwise a multiple command query would be issued.
 	 */
-	if (appendq && (self->connInfo.extra_opts & BIT_IGNORE_ROUND_TRIP_TIME) != 0)
+	if (appendq && ignore_roundtrip_time)
 	{
 		res = CC_send_query_append(self, query, qi, flag, stmt, NULL);
 		if (QR_command_maybe_successful(res))
@@ -1711,6 +1706,8 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 			if (read_only)
 				svpopt |= SVPOPT_RDONLY;
+			if (!ignore_roundtrip_time)
+				svpopt |= SVPOPT_REDUCE_ROUNDTRIP;
 			if (!CC_started_rbpoint(self))
 			{
 				if (SQL_ERROR == SetStatementSvp(astmt, svpopt))
@@ -1722,41 +1719,78 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		}
 	}
 
+	/* prepend internal savepoint command ? */
+	if (PREPEND_IN_PROGRESS == self->internal_op)
+		prepend_savepoint = TRUE;
+
 	/* append all these together, to avoid round-trips */
 	query_len = strlen(query);
+mylog("!!!! %s:query_len=%u\n", __FUNCTION__, query_len);
 
-	query_buf_len = strlen(bgncmd) + 1
-		+ strlen(svpcmd) + 1 + strlen(per_query_svp) + 1
-		+ query_len
-		+ (appendq ? (1 + strlen(appendq)) : 0)
-		+ 1 + strlen(rlscmd) + strlen(per_query_svp)
-		+ 1;
-	query_buf = malloc(query_buf_len);
-	if (!query_buf)
+	for (i = 0; i < 2; i++) /* 0:calculate& alloc 1:snprint */
 	{
-		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
-		goto cleanup;
+		/* issue_begin, query_rollback and prepend_savepoint are exclusive */
+		if (issue_begin)
+		{
+			if (0 == i)
+				query_buf_len += (strlen(bgncmd) + 1);
+			else
+			{
+				snprintfcat(query_buf, query_buf_len, "%s;", bgncmd);
+				discard_next_begin = TRUE;
+			}
+		}
+		else if (query_rollback)
+		{
+			if (0 == i)
+				query_buf_len += (strlen(svpcmd) + 1 + strlen(per_query_svp) + 1);
+			else
+			{
+				snprintfcat(query_buf, query_buf_len, "%s %s;", svpcmd, per_query_svp);
+				discard_next_savepoint = TRUE;
+			}
+		}
+		else if (prepend_savepoint)
+		{
+			if (0 == i)
+				query_buf_len += (GenerateSvpCommand(self, prepend_cmd, sizeof(prepend_cmd)) + 1);
+			else
+			{
+				snprintfcat(query_buf, query_buf_len, "%s;", prepend_cmd);
+				self->internal_op = SAVEPOINT_IN_PROGRESS;
+			}
+		}
+		if (0 == i)
+			query_buf_len += query_len;
+		else
+			strlcat(query_buf, query, query_buf_len);
+		if (appendq)
+		{
+			if (0 == i)
+				query_buf_len += (1 + strlen(appendq));
+			else
+				snprintfcat(query_buf, query_buf_len, ";%s", appendq);
+		}
+		if (query_rollback)
+		{
+			if (0 == i)
+				query_buf_len += (1 + strlen(rlscmd) + 1 + strlen(per_query_svp));
+			else
+				snprintfcat(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
+		}
+		if (0 == i)
+		{
+			query_buf_len++;
+			query_buf = malloc(query_buf_len);
+			if (!query_buf)
+			{
+				CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
+				goto cleanup;
+			}
+			query_buf[0] = '\0';
+		}
 	}
-	query_buf[0] = '\0';
-	if (issue_begin)
-	{
-		snprintfcat(query_buf, query_buf_len, "%s;", bgncmd);
-		discard_next_begin = TRUE;
-	}
-	if (query_rollback)
-	{
-		snprintfcat(query_buf, query_buf_len, "%s %s;", svpcmd, per_query_svp);
-		discard_next_savepoint = TRUE;
-	}
-	strlcat(query_buf, query, query_buf_len);
-	if (appendq)
-	{
-		snprintfcat(query_buf, query_buf_len, ";%s", appendq);
-	}
-	if (query_rollback)
-	{
-		snprintfcat(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
-	}
+inolog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf, query_buf_len);
 
 	/* Set up notice receiver */
 	nrarg.conn = self;
@@ -1859,15 +1893,19 @@ inolog("Discarded the first SAVEPOINT\n");
 				{
 					CC_mark_cursors_doubtful(self);
 					CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
-					if (!self->internal_op)
-						self->internal_svp = 0;
+					if (ROLLBACK_IN_PROGRESS != self->internal_op)
+					{
+						mylog(" %s:reset an internal savepoint\n", __FUNCTION__);
+						self->internal_svp = 0; /* possibly an internal savepoint is invalid */
+						self->opt_previous = 0; /* unknown */
+					}
+					CC_init_opt_in_progress(self);
 				}
 				else if (strnicmp(cmdbuffer, rlscmd, strlen(rlscmd)) == 0)
 				{
+					self->internal_svp = 0;
 					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
 						break; /* discard the result */
-					else /* internal savepoint may become invalid */
-						self->internal_svp = 0;
 				}
 				/*
 				 *	DROP TABLE or ALTER TABLE may change

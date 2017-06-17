@@ -398,7 +398,7 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 static
 const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
 {
-	snprintf(wrk, wrksize, "_EXEC_SVP_%p_%d", conn, conn->internal_svp);
+	snprintf(wrk, wrksize, "_EXEC_SVP_%p", conn);
 	return wrk;
 }
 
@@ -585,6 +585,21 @@ inolog("%s:%p->external=%d\n", func, stmt, stmt->external);
 	return	ret;
 }
 
+int
+GenerateSvpCommand(ConnectionClass *conn, char *cmd, int buflen)
+{
+	char esavepoint[32];
+	int	rtn;
+
+	cmd[0] = '\0';
+#ifdef	_RELEASE_INTERNAL_SAVEPOINT
+	if (conn->internal_svp)
+		rtn = snprintf(cmd, buflen, "RELEASE %s;", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+#endif /* _RELEASE_INTERNAL_SAVEPOINT */
+	rtn = snprintfcat(cmd, buflen, "SAVEPOINT %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+	return rtn;
+}
+
 /*
  *	Must be in a transaction or the subsequent execution
  *	invokes a transaction.
@@ -633,25 +648,18 @@ inolog(" !!!! %s:%p->accessed=%d opt=%u in_progress=%u prev=%u\n", __FUNCTION__,
 		}
 		if (need_savep)
 		{
-			int	internal_svp = conn->internal_svp;
-
-			cmd[0] = '\0';
-#ifdef	_RELEASE_INTERNAL_SAVEPOINT
-			if (conn->internal_svp)
-				SPRINTF_FIXED(cmd, "RELEASE %s;", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
-#endif /* _RELEASE_INTERNAL_SAVEPOINT */
-			conn->internal_svp = 1;
-			SPRINTFCAT_FIXED(cmd, "SAVEPOINT %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
-			conn->internal_svp = internal_svp;
+			if (0 != (option & SVPOPT_REDUCE_ROUNDTRIP))
+			{
+				conn->internal_op = PREPEND_IN_PROGRESS;
+				CC_set_accessed_db(conn);
+				return ret;
+			}
+			GenerateSvpCommand(conn, cmd, sizeof(cmd));
 			conn->internal_op = SAVEPOINT_IN_PROGRESS;
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
 			conn->internal_op = 0;
 			if (QR_command_maybe_successful(res))
-			{
-				// conn->internal_svp = 1;
-				// CC_start_rbpoint(conn);
 				ret = SQL_SUCCESS;
-			}
 			else
 			{
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal SAVEPOINT failed", func);

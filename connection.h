@@ -474,16 +474,19 @@ enum {
 enum {
         SAVEPOINT_IN_PROGRESS = 1
         ,ROLLBACK_IN_PROGRESS = 2
+        ,PREPEND_IN_PROGRESS = 2
 };
 /*      StatementSvp entry option */
 enum {
         SVPOPT_RDONLY = 1L
+        ,SVPOPT_REDUCE_ROUNDTRIP = (1L << 1)
 };
 #define	INIT_SVPOPT	(SVPOPT_RDONLY)
 #define CC_svp_init(a) ((a)->internal_svp = (a)->internal_op = 0, (a)->opt_in_progress = (a)->opt_previous = INIT_SVPOPT)
 #define CC_init_opt_in_progress(a) ((a)->opt_in_progress = INIT_SVPOPT)
 #define CC_init_opt_previous(a) ((a)->opt_previous = INIT_SVPOPT)
 
+int	GenerateSvpCommand(ConnectionClass *conn, char *cmd, int bufsize);
 #ifdef	__cplusplus
 }
 #endif
