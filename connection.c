@@ -631,7 +631,7 @@ CC_send_client_encoding(ConnectionClass *self, const char * encoding)
 		BOOL	cmd_success;
 
 		SPRINTF_FIXED(query, "set client_encoding to '%s'", encoding);
-		res = CC_send_query(self, query, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+		res = CC_send_query(self, query, NULL, 0, NULL);
 		cmd_success = QR_command_maybe_successful(res);
 		QR_Destructor(res);
 		CC_set_errornumber(self, errnum);
@@ -875,7 +875,8 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		goto cleanup;
 	}
 
-	mylog("error message len=%d\n", strlen(errmsg));
+	if (get_mylog() > 0)
+		mylog("error message=%s(%d)\n", errmsg, strlen(errmsg));
 
 	if (res)
 	{
@@ -1432,12 +1433,14 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 					CONNLOCK_RELEASE(self);
 					wres = CC_send_query(self, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN | READ_ONLY_QUERY, NULL);
 					QR_set_no_survival_check(res);
-					if (QR_command_maybe_successful(wres))
+					if (QR_command_maybe_successful(wres) &&
+					    CONN_ERROR_IGNORED != CC_get_errornumber(self))
 						QR_set_permanent(res);
 					else
 						QR_set_cursor(res, NULL);
 					QR_Destructor(wres);
 					CONNLOCK_ACQUIRE(self);
+inolog(" !!!! %s:%p->permanent -> %d %p\n", __FUNCTION__, res, QR_is_permanent(res), QR_get_cursor(res));
 				}
 				else
 					QR_set_permanent(res);
@@ -1604,6 +1607,8 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 	char		cmd[64];
 	PGresult   *pgres = NULL;
 
+	if (!CC_is_in_error_trans(self))
+		return 1;
 	switch (rollback_type)
 	{
 		case PER_STATEMENT_ROLLBACK:
@@ -1620,12 +1625,37 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 					LIBPQ_update_transaction_status(self);
 					break;
 			}
-			if (pgres)
-				PQclear(pgres);
 			break;
 		case PER_QUERY_ROLLBACK:
+			SPRINTF_FIXED(cmd, "%s TO %s;%s %s"
+				, rbkcmd, per_query_svp , rlscmd, per_query_svp);
+			mylog(" %s:query_rollback PQsendQuery %s\n", __FUNCTION__, cmd);
+			PQsendQuery(self->pqconn, cmd);
+			ret = 1;
+			while (self->pqconn && (pgres = PQgetResult(self->pqconn)) != NULL)
+			{
+				switch (PQresultStatus(pgres))
+				{
+					case PGRES_COMMAND_OK:
+					case PGRES_NONFATAL_ERROR:
+						break;
+					default:
+						ret = 0;
+				}
+			}
+			if (ret)
+			{
+				if (ignore_abort)
+					CC_set_no_error_trans(self);
+			}
+			else
+				mylog(" %s:return error\n", __FUNCTION__);
+			LIBPQ_update_transaction_status(self);
 			break;
 	}
+	if (pgres)
+		PQclear(pgres);
+
 	return ret;
 }
 
@@ -1665,6 +1695,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				used_passed_result_object = FALSE,
 			discard_next_begin = FALSE,
 			discard_next_savepoint = FALSE,
+			discard_next_release = FALSE,
 			consider_rollback;
 	int		func_cs_count = 0, i;
 	size_t		query_buf_len = 0;
@@ -1912,8 +1943,9 @@ inolog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf, query_buf_len);
 				{
 					if (discard_next_savepoint)
 					{
-inolog("Discarded the first SAVEPOINT\n");
 						discard_next_savepoint = FALSE;
+						discard_next_release = TRUE;
+inolog("Discarded a SAVEPOINT result\n");
 						break; /* discard the result */
 					}
 					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
@@ -1935,6 +1967,12 @@ inolog("Discarded the first SAVEPOINT\n");
 				}
 				else if (strnicmp(cmdbuffer, rlscmd, strlen(rlscmd)) == 0)
 				{
+					if (discard_next_release)
+					{
+inolog("Discarded a RELEASE result\n");
+						discard_next_release = FALSE;
+						break; /* discard the result */
+					}
 					self->internal_svp = 0;
 					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
 						break; /* discard the result */
@@ -2102,27 +2140,13 @@ cleanup:
 		PQclear(pgres);
 		pgres = NULL;
 	}
+inolog(" !!!! %s:rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d query_rollback=%d\n", __FUNCTION__, rollback_on_error, CC_is_in_trans(self), discard_next_savepoint, query_rollback);
 	if (rollback_on_error && CC_is_in_trans(self) && !discard_next_savepoint)
 	{
 		if (query_rollback)
 		{
-			if (CC_is_in_error_trans(self))
-			{
-				char tmpsqlbuf[100];
-
-				SPRINTF_FIXED(tmpsqlbuf,
-						"%s TO %s"
-						";%s %s"
-						, rbkcmd, per_query_svp
-						, rlscmd, per_query_svp);
-				pgres = PQexec(self->pqconn, tmpsqlbuf);
-				/*
-				 * Though it's not appropriate to
-				 * call PQExec for a multiple command,
-				 * it seems OK because we don't check
-				 * the result here.
-				 */
-			}
+			if (!CC_internal_rollback(self, PER_QUERY_ROLLBACK, ignore_abort_on_conn))
+				ignore_abort_on_conn = FALSE;
 		}
 		else if (CC_is_in_error_trans(self))
 			pgres = PQexec(self->pqconn, rbkcmd);
@@ -2187,7 +2211,12 @@ cleanup:
 				 *	If error message isn't set
 				 */
 				if (ignore_abort_on_conn)
-					CC_set_errornumber(self, 0);
+				{
+					CC_set_errornumber(self, CONN_ERROR_IGNORED);
+					if (retres)
+						QR_set_rstatus(retres, PORES_NONFATAL_ERROR);
+inolog(" !!!! %s:ignored abort_on_conn\n", __FUNCTION__);
+				}
 				else if (retres)
 				{
 					if (NULL == CC_get_errormsg(self) ||

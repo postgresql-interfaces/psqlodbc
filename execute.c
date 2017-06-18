@@ -621,7 +621,7 @@ RETCODE
 SetStatementSvp(StatementClass *stmt, unsigned int option)
 {
 	CSTR	func = "SetStatementSvp";
-	char	esavepoint[32], cmd[64];
+	char	cmd[64];
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	QResultClass *res;
 	RETCODE	ret = SQL_SUCCESS_WITH_INFO;
@@ -690,10 +690,8 @@ RETCODE
 DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 {
 	CSTR	func = "DiscardStatementSvp";
-	char	cmd[64];
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	QResultClass *res;
-	BOOL	cmd_success, start_stmt = FALSE;
+	BOOL	start_stmt = FALSE;
 
 inolog("%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, conn, CC_accessed_db(conn),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
@@ -724,7 +722,6 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 			if (!cmd_success)
 			{
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal ROLLBACK failed", func);
-				CC_abort(conn);
 				goto cleanup;
 			}
 		}

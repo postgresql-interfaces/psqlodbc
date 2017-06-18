@@ -760,6 +760,7 @@ QR_close(QResultClass *self)
 					does_commit = TRUE;
 			}
 
+inolog(" !!!! %s:Case I CC_send_query %s flag=%x\n", __FUNCTION__, buf, flag);
 			res = CC_send_query(conn, buf, NULL, flag, NULL);
 			QR_Destructor(res);
 			if (does_commit)

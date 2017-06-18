@@ -47,6 +47,7 @@ typedef enum
 #define CONNECTION_NEED_PASSWORD				112
 #define CONNECTION_COMMUNICATION_ERROR				113
 
+#define CONN_ERROR_IGNORED						(-3)
 #define CONN_TRUNCATED							(-2)
 #define CONN_OPTION_VALUE_CHANGED					(-1)
 /*	These errors correspond to specific SQL states */
