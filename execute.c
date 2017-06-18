@@ -586,17 +586,30 @@ inolog("%s:%p->external=%d\n", func, stmt, stmt->external);
 }
 
 int
-GenerateSvpCommand(ConnectionClass *conn, char *cmd, int buflen)
+GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int buflen)
 {
 	char esavepoint[32];
 	int	rtn;
 
 	cmd[0] = '\0';
+	switch (type)
+	{
+		case INTERNAL_SAVEPOINT_OPERATION:	/* savepoint */
 #ifdef	_RELEASE_INTERNAL_SAVEPOINT
-	if (conn->internal_svp)
-		rtn = snprintf(cmd, buflen, "RELEASE %s;", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+			if (conn->internal_svp)
+				rtn = snprintf(cmd, buflen, "RELEASE %s;", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
 #endif /* _RELEASE_INTERNAL_SAVEPOINT */
-	rtn = snprintfcat(cmd, buflen, "SAVEPOINT %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+			rtn = snprintfcat(cmd, buflen, "SAVEPOINT %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+			break;
+		case INTERNAL_ROLLBACK_OPERATION: /* rollback */
+			if (conn->internal_svp)
+				rtn = snprintf(cmd, buflen, "ROLLBACK TO %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
+			else
+				rtn = snprintf(cmd, buflen, "ROLLBACK");
+
+			break;
+	}
+
 	return rtn;
 }
 
@@ -654,7 +667,7 @@ inolog(" !!!! %s:%p->accessed=%d opt=%u in_progress=%u prev=%u\n", __FUNCTION__,
 				CC_set_accessed_db(conn);
 				return ret;
 			}
-			GenerateSvpCommand(conn, cmd, sizeof(cmd));
+			GenerateSvpCommand(conn, INTERNAL_SAVEPOINT_OPERATION, cmd, sizeof(cmd));
 			conn->internal_op = SAVEPOINT_IN_PROGRESS;
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);
 			conn->internal_op = 0;
@@ -706,14 +719,8 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	{
 		if (CC_started_rbpoint(conn) && conn->internal_svp)
 		{
-			char esavepoint[32];
+			int	cmd_success = CC_internal_rollback(conn, PER_STATEMENT_ROLLBACK, FALSE);
 
-			SPRINTF_FIXED(cmd, "ROLLBACK to %s", GetSvpName(conn, esavepoint, sizeof(esavepoint)));
-			conn->internal_op = ROLLBACK_IN_PROGRESS;
-			res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN, NULL);
-			conn->internal_op = 0;
-			cmd_success = QR_command_maybe_successful(res);
-			QR_Destructor(res);
 			if (!cmd_success)
 			{
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal ROLLBACK failed", func);

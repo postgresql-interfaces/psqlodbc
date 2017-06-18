@@ -470,11 +470,24 @@ enum {
 
 #define	_RELEASE_INTERNAL_SAVEPOINT
 
-/*      Operations about internal savepoint */
+/*      Internal rollback */
+enum {
+	PER_STATEMENT_ROLLBACK = 1
+	,PER_QUERY_ROLLBACK
+};
+int CC_internal_rollback(ConnectionClass *, int rollback_type, BOOL ignore_abort);
+
+/*     Commands generated */
+enum {
+	INTERNAL_SAVEPOINT_OPERATION = 1
+	,INTERNAL_ROLLBACK_OPERATION
+};
+int	GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int bufsize);
+
+/*      Operations in progress */
 enum {
         SAVEPOINT_IN_PROGRESS = 1
-        ,ROLLBACK_IN_PROGRESS = 2
-        ,PREPEND_IN_PROGRESS = 2
+        ,PREPEND_IN_PROGRESS
 };
 /*      StatementSvp entry option */
 enum {
@@ -486,7 +499,6 @@ enum {
 #define CC_init_opt_in_progress(a) ((a)->opt_in_progress = INIT_SVPOPT)
 #define CC_init_opt_previous(a) ((a)->opt_previous = INIT_SVPOPT)
 
-int	GenerateSvpCommand(ConnectionClass *conn, char *cmd, int bufsize);
 #ifdef	__cplusplus
 }
 #endif

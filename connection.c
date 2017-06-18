@@ -1593,6 +1593,38 @@ CC_from_PGresult(QResultClass *res, StatementClass *stmt,
 	return success;
 }
 
+int
+CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort)
+{
+	int	ret = 0;
+	char		cmd[64];
+	PGresult   *pgres = NULL;
+
+	switch (rollback_type)
+	{
+		case PER_STATEMENT_ROLLBACK:
+			GenerateSvpCommand(self, INTERNAL_ROLLBACK_OPERATION, cmd, sizeof(cmd));
+			mylog(" %s:rollback_type=%d %s\n", __FUNCTION__, rollback_type, cmd);
+			pgres = PQexec(self->pqconn, cmd);
+			switch (PQresultStatus(pgres))
+			{
+				case PGRES_COMMAND_OK:
+				case PGRES_NONFATAL_ERROR:
+					ret = 1;
+					if (ignore_abort)
+						CC_set_no_error_trans(self);
+					LIBPQ_update_transaction_status(self);
+					break;
+			}
+			if (pgres)
+				PQclear(pgres);
+			break;
+		case PER_QUERY_ROLLBACK:
+			break;
+	}
+	return ret;
+}
+
 /*
  *	The "result_in" is only used by QR_next_tuple() to fetch another group of rows into
  *	the same existing QResultClass (this occurs when the tuple cache is depleted and
@@ -1725,7 +1757,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	/* append all these together, to avoid round-trips */
 	query_len = strlen(query);
-mylog("!!!! %s:query_len=%u\n", __FUNCTION__, query_len);
+	mylog("%s:query_len=%u\n", __FUNCTION__, query_len);
 
 	for (i = 0; i < 2; i++) /* 0:calculate& alloc 1:snprint */
 	{
@@ -1753,7 +1785,7 @@ mylog("!!!! %s:query_len=%u\n", __FUNCTION__, query_len);
 		else if (prepend_savepoint)
 		{
 			if (0 == i)
-				query_buf_len += (GenerateSvpCommand(self, prepend_cmd, sizeof(prepend_cmd)) + 1);
+				query_buf_len += (GenerateSvpCommand(self, INTERNAL_SAVEPOINT_OPERATION, prepend_cmd, sizeof(prepend_cmd)) + 1);
 			else
 			{
 				snprintfcat(query_buf, query_buf_len, "%s;", prepend_cmd);
@@ -1893,12 +1925,8 @@ inolog("Discarded the first SAVEPOINT\n");
 				{
 					CC_mark_cursors_doubtful(self);
 					CC_set_in_error_trans(self); /* mark the transaction error in case of manual rollback */
-					if (ROLLBACK_IN_PROGRESS != self->internal_op)
-					{
-						mylog(" %s:reset an internal savepoint\n", __FUNCTION__);
-						self->internal_svp = 0; /* possibly an internal savepoint is invalid */
-						self->opt_previous = 0; /* unknown */
-					}
+					self->internal_svp = 0; /* possibly an internal savepoint is invalid */
+					self->opt_previous = 0; /* unknown */
 					CC_init_opt_in_progress(self);
 				}
 				else if (strnicmp(cmdbuffer, rlscmd, strlen(rlscmd)) == 0)
