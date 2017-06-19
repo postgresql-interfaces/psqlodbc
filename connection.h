@@ -309,6 +309,7 @@ struct ConnectionClass_
 						 * current_schema == NULL means it's
 						 * really NULL, while FALSE means it's
 						 * unknown */
+	unsigned char	on_commit_in_progress;
 	/* for per statement rollback */
 	char		internal_svp;		/* is set? */
 	char		internal_op;		/* operation being executed as to internal savepoint */

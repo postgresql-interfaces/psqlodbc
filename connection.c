@@ -1470,6 +1470,9 @@ static void CC_mark_cursors_doubtful(ConnectionClass *self)
 
 void	CC_on_commit(ConnectionClass *conn)
 {
+	if (conn->on_commit_in_progress)
+		return;
+	conn->on_commit_in_progress = 1;
 	CONNLOCK_ACQUIRE(conn);
 	if (CC_is_in_trans(conn))
 	{
@@ -1490,6 +1493,7 @@ void	CC_on_commit(ConnectionClass *conn)
 		conn->result_uncommitted = 0;
 	}
 	CONNLOCK_RELEASE(conn);
+	conn->on_commit_in_progress = 0;
 }
 void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
 {
