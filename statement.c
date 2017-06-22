@@ -1910,7 +1910,6 @@ SC_execute(StatementClass *self)
 			if (SC_get_errornumber(self) <= 0)
 			{
 				SC_set_error(self, STMT_NO_RESPONSE, "Could not receive the response, communication down ??", func);
-				CC_on_abort(conn, CONN_DEAD);
 			}
 			goto cleanup;
 		}
@@ -2025,10 +2024,10 @@ SC_execute(StatementClass *self)
 		was_ok = QR_command_successful(res);
 		was_nonfatal = QR_command_nonfatal(res);
 
-		if (was_ok)
-			SC_set_errornumber(self, STMT_OK);
-		else if (0 < SC_get_errornumber(self))
+		if (0 < SC_get_errornumber(self))
 			;
+		else if (was_ok)
+			SC_set_errornumber(self, STMT_OK);
 		else if (was_nonfatal)
 			SC_set_errornumber(self, STMT_INFO_ONLY);
 		else
@@ -2430,6 +2429,8 @@ libpq_bind_and_exec(StatementClass *stmt)
 								 &paramLengths, &paramFormats,
 								 &resultFormat))
 	{
+		if (SC_get_errornumber(stmt) <= 0)
+			SC_set_errornumber(stmt, STMT_NO_MEMORY_ERROR);
 		goto cleanup;
 	}
 
@@ -2551,6 +2552,7 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_resul
 		case PGRES_COPY_BOTH:
 		default:
 			/* skip the unexpected response if possible */
+			QR_set_rstatus(res, PORES_BAD_RESPONSE);
 			CC_set_error(conn, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)", func);
 			CC_on_abort(conn, CONN_DEAD);
 
@@ -2583,10 +2585,7 @@ cleanup:
 	if (paramFormats)
 		free(paramFormats);
 
-	if (ret)
-		return res;
-	else
-		return NULL;
+	return res;
 }
 
 /*
@@ -2661,7 +2660,10 @@ mylog("sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 
 		paramTypes = malloc(sizeof(Oid) * num_params);
 		if (paramTypes == NULL)
+		{
+			SC_set_errornumber(stmt, STMT_NO_MEMORY_ERROR);
 			goto cleanup;
+		}
 
 		mylog("ipdopts->allocated: %d\n", ipdopts->allocated);
 		j = 0;

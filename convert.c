@@ -2685,7 +2685,10 @@ inolog("prepareParametersNoDesc\n");
 	qb = &query_crt;
 	if (QB_initialize(qb, qp->stmt_len, stmt,
 					  fake_params ? RPM_FAKE_PARAMS : RPM_BUILDING_PREPARE_STATEMENT) < 0)
+	{
+		SC_set_errornumber(stmt, STMT_NO_MEMORY_ERROR);
 		return SQL_ERROR;
+	}
 	if (param_cast)
 		qb->flags |= FLGB_PARAM_CAST;
 
@@ -2720,7 +2723,10 @@ inolog("prepareParametersNoDesc\n");
 							   endp2 < 0 ? SQL_NTS : endp2,
 							   fake_params ? 0 : num_p1);
 	if (!pstmt)
+	{
+		SC_set_errornumber(stmt, STMT_NO_MEMORY_ERROR);
 		goto cleanup;
+	}
 	stmt->processed_statements = last_pstmt = pstmt;
 	while (multi > 0)
 	{
@@ -2734,7 +2740,10 @@ inolog("prepareParametersNoDesc\n");
 								   endp2 < 0 ? SQL_NTS : endp2,
 								   fake_params ? 0 : num_p1);
 		if (!pstmt)
+		{
+			SC_set_errornumber(stmt, STMT_NO_MEMORY_ERROR);
 			goto cleanup;
+		}
 		last_pstmt->next = pstmt;
 		last_pstmt = pstmt;
 	}
