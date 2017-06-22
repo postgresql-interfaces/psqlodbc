@@ -3692,19 +3692,22 @@ build_libpq_bind_params(StatementClass *stmt,
 	if (QB_initialize(&qb, MIN_ALC_SIZE, stmt, RPM_BUILDING_BIND_REQUEST) < 0)
 		return FALSE;
 
-	*paramTypes = malloc(sizeof(OID) * num_params);
-	if (*paramTypes == NULL)
-		goto cleanup;
-	*paramValues = malloc(sizeof(char *) * num_params);
-	if (*paramValues == NULL)
-		goto cleanup;
-	memset(*paramValues, 0, sizeof(char *) * num_params);
-	*paramLengths = malloc(sizeof(int) * num_params);
-	if (*paramLengths == NULL)
-		goto cleanup;
-	*paramFormats = malloc(sizeof(int) * num_params);
-	if (*paramFormats == NULL)
-		goto cleanup;
+	if (num_params > 0)
+	{
+		*paramTypes = malloc(sizeof(OID) * num_params);
+		if (*paramTypes == NULL)
+			goto cleanup;
+		*paramValues = malloc(sizeof(char *) * num_params);
+		if (*paramValues == NULL)
+			goto cleanup;
+		memset(*paramValues, 0, sizeof(char *) * num_params);
+		*paramLengths = malloc(sizeof(int) * num_params);
+		if (*paramLengths == NULL)
+			goto cleanup;
+		*paramFormats = malloc(sizeof(int) * num_params);
+		if (*paramFormats == NULL)
+			goto cleanup;
+	}
 
 	qb.flags |= FLGB_BINARY_AS_POSSIBLE;
 
