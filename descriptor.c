@@ -745,7 +745,7 @@ PGAPI_DescError(SQLHDESC hdesc,
 
 	mylog("%s RecN=%d\n", func);
 	deschd->pgerror = DC_create_errorinfo(desc);
-	return ER_ReturnError(&(deschd->pgerror), RecNumber, szSqlState,
+	return ER_ReturnError(deschd->pgerror, RecNumber, szSqlState,
 				pfNativeError, szErrorMsg, cbErrorMsgMax,
 				pcbErrorMsg, flag);
 }

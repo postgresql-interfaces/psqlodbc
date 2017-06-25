@@ -27,7 +27,7 @@ extern "C" {
 #define	PODBC_RDONLY			(1L << 1)
 /*	Flags for the error handling */
 #define	PODBC_ALLOW_PARTIAL_EXTRACT	1L
-#define	PODBC_ERROR_CLEAR		(1L << 1)
+/* #define	PODBC_ERROR_CLEAR		(1L << 1) 	no longer used */
 
 RETCODE SQL_API PGAPI_AllocConnect(HENV EnvironmentHandle,
 				   HDBC * ConnectionHandle);

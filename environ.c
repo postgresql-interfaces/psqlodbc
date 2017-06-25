@@ -131,7 +131,9 @@ ER_Constructor(SDWORD errnumber, const char *msg)
 	if (msg)
 	{
 		errsize = strlen(msg);
-		aladd = errsize;
+		aladd = errsize - sizeof(error->__error_message) + 1;
+		if (aladd < 0)
+			aladd = 0;
 	}
 	else
 	{
@@ -143,10 +145,10 @@ ER_Constructor(SDWORD errnumber, const char *msg)
 	{
 		memset(error, 0, sizeof(PG_ErrorInfo));
 		error->status = errnumber;
-		error->errorsize = (Int4) errsize;
+		error->errorsize = (Int2) errsize;
 		if (errsize > 0)
 			memcpy(error->__error_message, msg, errsize);
-		error->__error_message[aladd] = '\0';
+		error->__error_message[errsize] = '\0';
 		error->recsize = -1;
 	}
 	return error;
@@ -179,7 +181,7 @@ ER_Dup(const PG_ErrorInfo *self)
 #define	DRVMNGRDIV	511
 /*		Returns the next SQL error information. */
 RETCODE		SQL_API
-ER_ReturnError(PG_ErrorInfo **pgerror,
+ER_ReturnError(PG_ErrorInfo *pgerror,
 			   SQLSMALLINT	RecNumber,
 			   SQLCHAR * szSqlState,
 			   SQLINTEGER * pfNativeError,
@@ -191,14 +193,13 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 	CSTR func = "ER_ReturnError";
 	/* CC: return an error of a hstmt  */
 	PG_ErrorInfo	*error;
-	BOOL		partial_ok = ((flag & PODBC_ALLOW_PARTIAL_EXTRACT) != 0),
-			clear_str = ((flag & PODBC_ERROR_CLEAR) != 0);
+	BOOL		partial_ok = ((flag & PODBC_ALLOW_PARTIAL_EXTRACT) != 0);
 	const char	*msg;
 	SWORD		msglen, stapos, wrtlen, pcblen;
 
-	if (!pgerror || !*pgerror)
+	if (!pgerror)
 		return SQL_NO_DATA_FOUND;
-	error = *pgerror;
+	error = pgerror;
 	msg = error->__error_message;
 	mylog("%s: status = %d, msg = #%s#\n", func, error->status, msg);
 	msglen = (SQLSMALLINT) strlen(msg);
@@ -256,15 +257,6 @@ ER_ReturnError(PG_ErrorInfo **pgerror,
 		strncpy_null((char *) szSqlState, error->sqlstate, 6);
 
 	mylog("	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, pcblen, szErrorMsg);
-	if (clear_str)
-	{
-		error->errorpos = stapos + wrtlen;
-		if (error->errorpos >= msglen)
-		{
-			ER_Destructor(error);
-			*pgerror = NULL;
-		}
-	}
 	if (wrtlen == 0)
 		return SQL_SUCCESS_WITH_INFO;
 	else
@@ -462,48 +454,6 @@ PGAPI_EnvError(HENV henv,
 	return SQL_SUCCESS;
 }
 
-
-/*		Returns the next SQL error information. */
-RETCODE		SQL_API
-PGAPI_Error(HENV henv,
-			HDBC hdbc,
-			HSTMT hstmt,
-			SQLCHAR * szSqlState,
-			SQLINTEGER * pfNativeError,
-			SQLCHAR * szErrorMsg,
-			SQLSMALLINT cbErrorMsgMax,
-			SQLSMALLINT * pcbErrorMsg)
-{
-	RETCODE	ret;
-	UWORD	flag = PODBC_ALLOW_PARTIAL_EXTRACT | PODBC_ERROR_CLEAR;
-
-	mylog("**** PGAPI_Error: henv=%p, hdbc=%p hstmt=%d\n", henv, hdbc, hstmt);
-
-	if (cbErrorMsgMax < 0)
-		return SQL_ERROR;
-	if (SQL_NULL_HSTMT != hstmt)
-		ret = PGAPI_StmtError(hstmt, -1, szSqlState, pfNativeError,
-			 szErrorMsg, cbErrorMsgMax, pcbErrorMsg, flag);
-	else if (SQL_NULL_HDBC != hdbc)
-		ret = PGAPI_ConnectError(hdbc, -1, szSqlState, pfNativeError,
-			 szErrorMsg, cbErrorMsgMax, pcbErrorMsg, flag);
-	else if (SQL_NULL_HENV != henv)
-		ret = PGAPI_EnvError(henv, -1, szSqlState, pfNativeError,
-			 szErrorMsg, cbErrorMsgMax, pcbErrorMsg, flag);
-	else
-	{
-		if (NULL != szSqlState)
-			strncpy_null((char *) szSqlState, "00000", SIZEOF_SQLSTATE);
-		if (NULL != pcbErrorMsg)
-			*pcbErrorMsg = 0;
-		if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
-			szErrorMsg[0] = '\0';
-
-		ret = SQL_NO_DATA_FOUND;
-	}
-	mylog("**** PGAPI_Error exit code=%d\n", ret);
-	return ret;
-}
 
 /*
  * EnvironmentClass implementation

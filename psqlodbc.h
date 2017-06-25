@@ -518,17 +518,17 @@ typedef struct QueryInfo_
 typedef struct
 {
         UInt4	status;
-        Int4	errorsize;
+        Int2	errorsize;
         Int2	recsize;
         Int2	errorpos;
-        char    sqlstate[8];
+        char    sqlstate[6];
         SQLLEN	diag_row_count;
-        char    __error_message[1];
+        char    __error_message[40];
 }       PG_ErrorInfo;
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
 PG_ErrorInfo	*ER_Dup(const PG_ErrorInfo *from);
 void ER_Destructor(PG_ErrorInfo *);
-RETCODE SQL_API ER_ReturnError(PG_ErrorInfo **, SQLSMALLINT, UCHAR *,
+RETCODE SQL_API ER_ReturnError(PG_ErrorInfo *, SQLSMALLINT, UCHAR *,
 		SQLINTEGER *, UCHAR *, SQLSMALLINT, SQLSMALLINT *, UWORD);
 
 void		logs_on_off(int cnopen, int, int);

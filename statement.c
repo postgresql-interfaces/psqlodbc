@@ -1229,7 +1229,7 @@ static const struct
 };
 
 static PG_ErrorInfo *
-SC_create_errorinfo(const StatementClass *self)
+SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 {
 	QResultClass *res = SC_get_Curres(self);
 	ConnectionClass *conn = SC_get_conn(self);
@@ -1316,7 +1316,20 @@ SC_create_errorinfo(const StatementClass *self)
 		ermsg = msg;
 	}
 	pgerror = ER_Constructor(self->__error_number, ermsg);
-	if (!pgerror) return NULL;
+	if (!pgerror)
+	{
+		if (pgerror_fail_safe)
+		{
+			memset(pgerror_fail_safe, 0, sizeof(*pgerror_fail_safe));
+			pgerror = pgerror_fail_safe;
+			pgerror->status = self->__error_number;
+			pgerror->errorsize = sizeof(pgerror->__error_message);
+			STRCPY_FIXED(pgerror->__error_message, ermsg); 
+			pgerror->recsize = -1;
+		}
+		else
+			return NULL;
+	}
 	if (sqlstate)
 		STRCPY_FIXED(pgerror->sqlstate, sqlstate);
 	else if (conn)
@@ -1501,7 +1514,7 @@ inolog("SC_full_error_copy %p->%p\n", from ,self);
 	}
 	else if (!allres)
 		return;
-	pgerror = SC_create_errorinfo(from);
+	pgerror = SC_create_errorinfo(from, NULL);
 	if (!pgerror || !pgerror->__error_message[0])
 	{
 		ER_Destructor(pgerror);
@@ -1524,10 +1537,18 @@ PGAPI_StmtError(SQLHSTMT	hstmt,
 				UWORD flag)
 {
 	/* CC: return an error of a hdesc  */
+	PG_ErrorInfo		*pgerror, error;
 	StatementClass *stmt = (StatementClass *) hstmt;
+	int errnum = SC_get_errornumber(stmt);
 
-	stmt->pgerror = SC_create_errorinfo(stmt);
-	return ER_ReturnError(&(stmt->pgerror), RecNumber, szSqlState,
+	if (pgerror = SC_create_errorinfo(stmt, &error), NULL == pgerror)
+		return SQL_NO_DATA_FOUND;
+	if (pgerror != &error)
+		stmt->pgerror = pgerror;
+	if (STMT_NO_MEMORY_ERROR == errnum &&
+	    !pgerror->__error_message[0])
+		STRCPY_FIXED(pgerror->__error_message, "Memory Allocation Error??");
+	return ER_ReturnError(pgerror, RecNumber, szSqlState,
 						  pfNativeError, szErrorMsg, cbErrorMsgMax,
 						  pcbErrorMsg, flag);
 }
