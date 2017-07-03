@@ -32,6 +32,17 @@ INSERT INTO booltab VALUES (3, 'true', true);
 INSERT INTO booltab VALUES (4, 'false', false);
 INSERT INTO booltab VALUES (5, 'not', false);
 
+-- View
+CREATE VIEW testview AS SELECT * FROM testtab1;
+
+-- Materialized view
+CREATE MATERIALIZED VIEW testmatview AS SELECT * FROM testtab1;
+
+-- Foreign table
+CREATE FOREIGN DATA WRAPPER testfdw;
+CREATE SERVER testserver FOREIGN DATA WRAPPER testfdw;
+CREATE FOREIGN TABLE testforeign (c1 int) SERVER testserver;
+
 -- Procedure for catalog function checks
 CREATE FUNCTION simple_add(in int, in int, out int) AS $$ SELECT $1 + $2; $$ LANGUAGE SQL;
 -- 	Function Returning composite type

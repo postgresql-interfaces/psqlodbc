@@ -34,6 +34,8 @@ contrib_regression	public	booltab	TABLE
 contrib_regression	public	byteatab	TABLE	
 contrib_regression	public	intervaltable	TABLE	
 contrib_regression	public	lo_test_tab	TABLE	
+contrib_regression	public	testforeign	FOREIGN TABLE	
+contrib_regression	public	testmatview	MATVIEW	
 contrib_regression	public	testtab1	TABLE	
 contrib_regression	public	testtab_fk	TABLE	
 Check for SQLColumns
@@ -74,11 +76,16 @@ contrib_regression	public	intervaltable	iv	12	interval
 contrib_regression	public	intervaltable	d	12	varchar
 contrib_regression	public	lo_test_tab	id	4	int4
 contrib_regression	public	lo_test_tab	large_data	-4	lo
+contrib_regression	public	testforeign	c1	4	int4
+contrib_regression	public	testmatview	id	4	int4
+contrib_regression	public	testmatview	t	12	varchar
 contrib_regression	public	testtab1	id	4	int4
 contrib_regression	public	testtab1	t	12	varchar
 contrib_regression	public	testtab1_pkey	id	4	int4
 contrib_regression	public	testtab_fk	id	4	int4
 contrib_regression	public	testtab_fk	t	12	varchar
+contrib_regression	public	testview	id	4	int4
+contrib_regression	public	testview	t	12	varchar
 Check for SQLSpecialColumns
 Result set metadata:
 SCOPE: SMALLINT(5) digits: 0, nullable

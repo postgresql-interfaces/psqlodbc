@@ -1618,6 +1618,8 @@ mylog("adjust output=%s(%d)\n", dest, outlen);
 #define	CSTR_SYS_TABLE	"SYSTEM TABLE"
 #define	CSTR_TABLE	"TABLE"
 #define	CSTR_VIEW	"VIEW"
+#define CSTR_FOREIGN_TABLE "FOREIGN TABLE"
+#define CSTR_MATVIEW "MATVIEW"
 
 CSTR	like_op_sp = "like ";
 CSTR	like_op_ext = "like E";
@@ -1705,9 +1707,13 @@ PGAPI_Tables(HSTMT hstmt,
 	int			nprefixes;
 	char		show_system_tables,
 				show_regular_tables,
-				show_views;
+				show_views,
+				show_matviews,
+				show_foreign_tables;
 	char		regular_table,
 				view,
+				matview,
+				foreign_table,
 				systable;
 	int			i;
 	SQLSMALLINT		internal_asis_type = SQL_C_CHAR, cbSchemaName;
@@ -1785,7 +1791,18 @@ retry_public_schema:
 	if (list_cat)
 		STRCPY_FIXED(tables_query, "select NULL, NULL, NULL");
 	else if (list_table_types)
-		STRCPY_FIXED(tables_query, "select NULL, NULL, relkind from (select 'r' as relkind union select 'v') as a");
+	{
+		/*
+		 * Query relations depending on what is available:
+		 * - 9.3 and newer versions have materialized views
+		 * - 9.1 and newer versions have foreign tables
+		 */
+		STRCPY_FIXED(tables_query,
+				"select NULL, NULL, relkind from (select 'r' as relkind "
+				"union select 'v' "
+				"union select 'm' "
+				"union select 'f') as a");
+	}
 	else if (list_schemas)
 	{
 		STRCPY_FIXED(tables_query, "select NULL, nspname, NULL"
@@ -1793,10 +1810,14 @@ retry_public_schema:
 	}
 	else
 	{
-		/* view is represented by its relkind since 7.1 */
-		STRCPY_FIXED(tables_query, "select relname, nspname, relkind"
-			" from pg_catalog.pg_class c, pg_catalog.pg_namespace n");
-		STRCAT_FIXED(tables_query, " where relkind in ('r', 'v')");
+		/*
+		 * View is represented by its relkind since 7.1,
+		 * Materialized views are added in 9.3, and foreign
+		 * tables in 9.1.
+		 */
+		STRCPY_FIXED(tables_query, "select relname, nspname, relkind "
+			"from pg_catalog.pg_class c, pg_catalog.pg_namespace n "
+			"where relkind in ('r', 'v', 'm', 'f')");
 	}
 
 	op_string = gen_opestr(like_or_eq, conn);
@@ -1832,17 +1853,23 @@ retry_public_schema:
 	show_system_tables = FALSE;
 	show_regular_tables = FALSE;
 	show_views = FALSE;
+	show_foreign_tables = FALSE;
+	show_matviews = FALSE;
 
 	/* TABLE_TYPE */
 	if (!tableType)
 	{
 		show_regular_tables = TRUE;
 		show_views = TRUE;
+		show_foreign_tables = TRUE;
+		show_matviews = TRUE;
 	}
 	else if (list_some || stricmp(tableType, SQL_ALL_TABLE_TYPES) == 0)
 	{
 		show_regular_tables = TRUE;
 		show_views = TRUE;
+		show_foreign_tables = TRUE;
+		show_matviews = TRUE;
 	}
 	else
 	{
@@ -1871,6 +1898,10 @@ retry_public_schema:
 				show_regular_tables = TRUE;
 			else if (strnicmp(typestr, CSTR_VIEW, strlen(CSTR_VIEW)) == 0)
 				show_views = TRUE;
+			else if (strnicmp(typestr, CSTR_FOREIGN_TABLE, strlen(CSTR_FOREIGN_TABLE)) == 0)
+				show_foreign_tables = TRUE;
+			else if (strnicmp(typestr, CSTR_MATVIEW, strlen(CSTR_MATVIEW)) == 0)
+				show_matviews = TRUE;
 		}
 	}
 
@@ -2008,6 +2039,10 @@ retry_public_schema:
 		/* Determine if the table name is a view */
 		view = (relkind_or_hasrules[0] == 'v');
 
+		/* Check for foreign tables and materialized views ... */
+		foreign_table = (relkind_or_hasrules[0] == 'f');
+		matview =  (relkind_or_hasrules[0] == 'm');
+
 		/* It must be a regular table */
 		regular_table = (!systable && !view);
 
@@ -2019,6 +2054,8 @@ retry_public_schema:
 		 */
 		if ((systable && show_system_tables) ||
 			(view && show_views) ||
+			(foreign_table && show_foreign_tables) ||
+			(matview && show_matviews) ||
 			(regular_table && show_regular_tables))
 		{
 			tuple = QR_AddNew(res);
@@ -2048,7 +2085,19 @@ retry_public_schema:
 			else
 				set_tuplefield_string(&tuple[TABLES_TABLE_NAME], table_name);
 			if (list_table_types || !list_some)
-				set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], systable ? "SYSTEM TABLE" : (view ? "VIEW" : "TABLE"));
+			{
+				char buffer[64];
+				if (systable)
+					set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], CSTR_SYS_TABLE);
+				else if (view)
+					set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], CSTR_VIEW);
+				else if (matview)
+					set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], CSTR_MATVIEW);
+				else if (foreign_table)
+					set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], CSTR_FOREIGN_TABLE);
+				else
+					set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], CSTR_TABLE);
+			}
 			else
 				set_tuplefield_null(&tuple[TABLES_TABLE_TYPE]);
 			set_tuplefield_string(&tuple[TABLES_REMARKS], NULL_STRING);
