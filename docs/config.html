@@ -177,10 +177,13 @@ versioning feature to be used.<br />&nbsp;</li>
 0x2: Fake MS SQL Server so that MS Access recognizes PostgreSQL's serial type as AutoNumber type.<br />&nbsp;
 0x4: Reply ANSI (not Unicode) char types for the inquiries from applications. Try to check this bit when your applications don't seem to be good at handling Unicode data.<br />&nbsp;</li>
 
-<li><b>Protocol:</b> Note that when using SSL connections this setting is ignored.<br />&nbsp;
+<li><b>Protocol:</b> The libpq protocol version to use.<br /><br />
+This option controls two aspects of the connection, the libpq protocol version and the level of rollback on errors.
+For historical reasons the libpq protocol version is encoded as a PostgreSQL version number. The libpq protocol version used is the highest version, the given PostgreSQL server version supports.
+The level of rollback on errors is optional and is a dash separated suffix number as described below.<br /><br />
 
 <ul>
-<li><i>7.4+</i>: Use the 7.4(V3) protocol. This is currently the only option.<br />&nbsp;</li>
+<li><i>7.4+</i>: Use the 7.4(V3) protocol. This is currently the only supported libpq protocol and this part of the parameter is currently ignored.<br />&nbsp;</li>
 </ul></li>
 
 <li><b>Level of rollback on errors:</b> Specifies what to rollback should an
@@ -194,9 +197,9 @@ error.<br />&nbsp;</li>
 
 <li><i>Statement(2):</i> Rollback the statement.<br />&nbsp;</li>
 <br>
-<b>Notes in a setup: This specification is set up with a PROTOCOL option parameter.</b><br><br>
-PROTOCOL=[6.2|6.3|6.4|7.4][-(0|1|2)]<br>
-default value is a sentence unit (it is a transaction unit before 8.0).<br>
+<b>Setup note: This specification is set up with the PROTOCOL option parameter.</b><br><br>
+PROTOCOL=7.4-(0|1|2)<br>
+default value is Statement (it is Transaction for servers before 8.0).<br>
 <br>
 
 </ul></li>
