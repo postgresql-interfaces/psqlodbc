@@ -589,7 +589,7 @@ int
 GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int buflen)
 {
 	char esavepoint[32];
-	int	rtn;
+	int	rtn = -1;
 
 	cmd[0] = '\0';
 	switch (type)

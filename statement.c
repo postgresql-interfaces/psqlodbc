@@ -684,7 +684,6 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
-	ConnectionClass *conn = SC_get_conn(self);
 	ProcessedStmt *pstmt;
 	ProcessedStmt *next_pstmt;
 
@@ -2425,7 +2424,6 @@ libpq_bind_and_exec(StatementClass *stmt)
 	QResultClass *res = NULL;
 	char	   *cmdtag;
 	char	   *rowcount;
-	BOOL		ret = FALSE;
 
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
@@ -2583,8 +2581,6 @@ inolog("get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_resul
 
 	if (res != newres && NULL != newres)
 		QR_Destructor(newres);
-
-	ret = TRUE;
 
 cleanup:
 	if (pgres)

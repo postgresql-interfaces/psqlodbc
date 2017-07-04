@@ -2086,7 +2086,6 @@ retry_public_schema:
 				set_tuplefield_string(&tuple[TABLES_TABLE_NAME], table_name);
 			if (list_table_types || !list_some)
 			{
-				char buffer[64];
 				if (systable)
 					set_tuplefield_string(&tuple[TABLES_TABLE_TYPE], CSTR_SYS_TABLE);
 				else if (view)

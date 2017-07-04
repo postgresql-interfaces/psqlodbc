@@ -1624,6 +1624,8 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 						CC_set_no_error_trans(self);
 					LIBPQ_update_transaction_status(self);
 					break;
+				default:
+					break;
 			}
 			break;
 		case PER_QUERY_ROLLBACK:
@@ -2395,7 +2397,6 @@ char
 CC_send_settings(ConnectionClass *self, const char *set_query)
 {
 	HSTMT		hstmt;
-	StatementClass *stmt;
 	RETCODE		result;
 	char		status = TRUE;
 	char	   *cs,
@@ -2420,7 +2421,6 @@ CC_send_settings(ConnectionClass *self, const char *set_query)
 		return FALSE;
 
 	/* non-external handle ensures no BEGIN/COMMIT/ABORT stuff */
-	stmt = (StatementClass *) hstmt;
 
 	cs = strdup(set_query);
 	if (cs == NULL)
