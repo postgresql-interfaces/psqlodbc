@@ -73,7 +73,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 	{
 		/* according to that allocate memory */
 		CI_set_num_fields(self, new_num_fields);
-		if (NULL == self->coli_array)
+		if (new_num_fields > 0 && NULL == self->coli_array)
 			return FALSE;
 	}
 
