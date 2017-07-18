@@ -9,6 +9,24 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.06.0310">psqlODBC 09.06.0400 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Reorganize the language conversion between the current locale and unicode.<br /></li>
+<li>Make a function setup_getdataclass() separating from long confusing if-block in convert_text_field_to_sql_c() and clarify the parameters. <br /></li>
+<li>Implement SC_get_localtime() and reduce time()/localtime() calls.<br /></li>
+<li>Visual C++ 14 provides snprintf().<br /></li>
+<li>Fix a crash bug in SQLBulkOperations() under use_declare/fetch off mode.<br /></li>
+<li>Clean up the use of 'internal' member of StatementClass.<br /></li>
+<li>Fix an infinite loop of CC_on_commit. The loop occurs when checking whether cursors are alive using 'MOVE 0' in CC_clear_cursors().<br /></li>
+<li>Fix the bug, skip malloc(0) in build_libpq_bind_params(). malloc(0) seems to return NULL on AIX, whereas it returns non-NULL on Windows or linux.<br /></li>
+Per reported by Keith Handlon.
+<li>Add support for foreign tables and matviews in SQLTables.<br /></li>
+<li>Documentation fix for the 'PROTOCOL=' option. It's out of sync with the current driver behavior (since 09.05.0100).<br /></li>
+Patch by Jan Wieck.
+<li>Fix more bugs with returning NULL for malloc(0).<br /></li>
+Patch by TAKATSUKA Haruka.
+</ol><br />
 <h2><a id="09.06.0310">psqlODBC 09.06.0310 Release</a></h2>
 Changes:<br />
 <ol type="1">
