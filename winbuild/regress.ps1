@@ -17,7 +17,7 @@
     Used Visual Studio version is determined automatically unless this
     option is specified.
 .PARAMETER Platform
-    Specify build platforms, "Win32"(default), "x64" or "both" is available.
+    Specify build platforms, "x64"(default), "Win32" or "both" is available.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
@@ -65,7 +65,7 @@ Param(
 [switch]$Ansi,
 [string]$VCVersion,
 [ValidateSet("Win32", "x64", "both")]
-[string]$Platform="Win32",
+[string]$Platform="x64",
 [string]$Toolset,
 [ValidateSet("", "4.0", "12.0", "14.0")]
 [string]$MSToolsVersion,
