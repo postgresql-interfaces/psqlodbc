@@ -161,6 +161,10 @@ my_trim(char *s)
  * snprintfcat is a extension to snprintf
  * It add format to buf at given pos
  */
+#ifdef POSIX_SNPRINTF_REQUIRED
+static posix_vsnprintf(char *str, size_t size, const char *format, va_list ap);
+#define vsnprintf posix_vsnprintf
+#endif /* POSIX_SNPRINTF_REQUIRED */
 
 int
 snprintfcat(char *buf, size_t size, const char *format, ...)
@@ -202,8 +206,7 @@ snprintf_len(char *buf, size_t size, const char *format, ...)
  * and call _snprintf() on that. If it still doesn't fit, enlarge the buffer
  * and repeat.
  */
-#ifdef WIN32
-#if (_MSC_VER < 1900)	/* vc14 provieds snprintf() */
+#ifdef POSIX_SNPRINTF_REQUIRED
 static int
 posix_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 {
@@ -249,8 +252,7 @@ posix_snprintf(char *buf, size_t size, const char *format, ...)
 	va_end(arglist);
 	return len;
 }
-#endif /* _MSC_VER */
-#endif /* WIN32 */
+#endif /* POSIX_SNPRINTF_REQUIRED */
 
 #ifndef	HAVE_STRLCAT
 size_t

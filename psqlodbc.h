@@ -233,9 +233,9 @@ typedef double SDOUBLE;
 #endif /* FALSE */
 #else
 #if (_MSC_VER < 1900) /* vc12 or under */
+#define POSIX_SNPRINTF_REQUIRED
 #define snprintf posix_snprintf
 extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
-#define vsnprintf _vsnprintf
 #endif /* _MSC_VER */
 
 #ifndef strdup
