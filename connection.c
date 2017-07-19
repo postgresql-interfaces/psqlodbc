@@ -1604,7 +1604,7 @@ int
 CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort)
 {
 	int	ret = 0;
-	char		cmd[64];
+	char		cmd[128];
 	PGresult   *pgres = NULL;
 
 	if (!CC_is_in_error_trans(self))
@@ -1701,7 +1701,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			consider_rollback;
 	int		func_cs_count = 0, i;
 	size_t		query_buf_len = 0;
-	char	   *query_buf = NULL, prepend_cmd[64];
+	char	   *query_buf = NULL, prepend_cmd[128];
 	size_t		query_len;
 
 	/* QR_set_command() dups this string so doesn't need static */

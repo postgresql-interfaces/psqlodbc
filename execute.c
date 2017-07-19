@@ -588,7 +588,7 @@ inolog("%s:%p->external=%d\n", func, stmt, stmt->external);
 int
 GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int buflen)
 {
-	char esavepoint[32];
+	char esavepoint[50];
 	int	rtn = -1;
 
 	cmd[0] = '\0';
@@ -621,7 +621,7 @@ RETCODE
 SetStatementSvp(StatementClass *stmt, unsigned int option)
 {
 	CSTR	func = "SetStatementSvp";
-	char	cmd[64];
+	char	cmd[128];
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	QResultClass *res;
 	RETCODE	ret = SQL_SUCCESS_WITH_INFO;
