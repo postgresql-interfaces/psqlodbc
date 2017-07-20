@@ -91,12 +91,12 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/Makefile.in \
 	test/odbcini-gen.sh \
 	test/README.txt \
+	test/RegisterRegdsn.c \
 	test/reset-db.c \
 	test/runsuite.c \
 	test/sampletables.sql \
 	test/tests \
 	test/win.mak \
-	test/Makefile \
 	test/expected \
 	test/src
 
