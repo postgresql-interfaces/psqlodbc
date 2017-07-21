@@ -4301,7 +4301,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 				if (!same_encoding || wcs_debug)
 				{
 					mylog("%s:locale param convert\n", __FUNCTION__);
-					if ((used = bindpara_msg_to_utf8(buffer, &allocbuf)) < 0)
+					if ((used = bindpara_msg_to_utf8(buffer, &allocbuf, used)) < 0)
 					{
 						qb->errormsg = "Could not convert from the current locale to wide characters";
 						qb->errornumber = STMT_EXEC_ERROR;
@@ -4315,7 +4315,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 				if (!is_utf8 || (same_encoding && wcs_debug))
 				{
 					mylog("%s:hybrid param convert\n", __FUNCTION__);
-					if ((used = bindpara_wchar_to_msg((SQLWCHAR *) buffer, &allocbuf)) < 0)
+					if ((used = bindpara_wchar_to_msg((SQLWCHAR *) buffer, &allocbuf, used)) < 0)
 					{
 						qb->errormsg = "Could not convert from wide characters to the current locale";
 						qb->errornumber = STMT_EXEC_ERROR;

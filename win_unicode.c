@@ -980,11 +980,35 @@ mylog(" %s:c8dt=%p size=%lu\n", __FUNCTION__, c8dt, n);
 //	SQLBindParameter	SQL_C_CHAR to UTF-8 case
 //		the current locale => UTF-8
 //
-SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
+SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf, SQLLEN used)
 {
 	SQLLEN	l = (-2);
-	char	*utf8 = NULL;
-	int		count = strlen(ldt);
+	char	*utf8 = NULL, *ldt_nts, *alloc_nts = NULL, ntsbuf[128];
+	int		count;
+
+	if (SQL_NTS == used)
+	{
+		count = strlen(ldt);
+		ldt_nts = (char *) ldt;
+	}
+	else if (used < 0)
+	{
+		return -1;
+	}
+	else
+	{
+		count = used;
+		if (used < sizeof(ntsbuf))
+			ldt_nts = ntsbuf;
+		else
+		{
+			if (NULL == (alloc_nts = malloc(used + 1)))
+				return l;
+			ldt_nts = alloc_nts;
+		}
+		memcpy(ldt_nts, ldt, used);
+		ldt_nts[used] = '\0';
+	}
  
 	get_convtype();
 	mylog(" %s\n", __FUNCTION__);
@@ -993,7 +1017,7 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 	{
 		wchar_t	*wcsdt = (wchar_t *) malloc((count + 1) * sizeof(wchar_t));
 
-		if ((l = msgtowstr(ldt, (wchar_t *) wcsdt, count + 1)) >= 0)
+		if ((l = msgtowstr(ldt_nts, (wchar_t *) wcsdt, count + 1)) >= 0)
 			utf8 = wcs_to_utf8(wcsdt, -1, &l, FALSE);
 		free(wcsdt);
 	}
@@ -1003,7 +1027,7 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 	{
 		SQLWCHAR	*utf16 = (SQLWCHAR *) malloc((count + 1) * sizeof(SQLWCHAR));
 
-		if ((l = mbstoc16_lf((char16_t *) utf16, ldt, count + 1, FALSE)) >= 0)
+		if ((l = mbstoc16_lf((char16_t *) utf16, ldt_nts, count + 1, FALSE)) >= 0)
 			utf8 = ucs2_to_utf8(utf16, -1, &l, FALSE);
 		free(utf16);
 	}
@@ -1013,6 +1037,8 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 	else
 		*wcsbuf = (char *) utf8;
 
+	if (NULL != alloc_nts)
+		free(alloc_nts);
 	return l;
 }
 
@@ -1021,11 +1047,34 @@ SQLLEN bindpara_msg_to_utf8(const char *ldt, char **wcsbuf)
 //	SQLBindParameter	hybrid case
 //		SQLWCHAR(UTF-16) => the current locale
 //
-SQLLEN bindpara_wchar_to_msg(const SQLWCHAR *utf16, char **wcsbuf)
+SQLLEN bindpara_wchar_to_msg(const SQLWCHAR *utf16, char **wcsbuf, SQLLEN used)
 {
 	SQLLEN	l = (-2);
 	char			*ldt = NULL;
-	int		count = ucs2strlen(utf16);
+	SQLWCHAR	*utf16_nts, *alloc_nts = NULL, ntsbuf[128];
+	int		count;
+
+	if (SQL_NTS == used)
+	{
+		count = ucs2strlen(utf16);
+		utf16_nts = (SQLWCHAR *) utf16;
+	}
+	else if (used < 0)
+		return -1;
+	else
+	{
+		count = used / WCLEN;
+		if (used + WCLEN <= sizeof(ntsbuf))
+			utf16_nts = ntsbuf;
+		else
+		{
+			if (NULL == (alloc_nts = (SQLWCHAR *) malloc(used + WCLEN)))
+				return l;
+			utf16_nts = alloc_nts;
+		}
+		memcpy(utf16_nts, utf16, used);
+		utf16_nts[count] = 0;
+	}
 
 	get_convtype();
 mylog(" %s\n", __FUNCTION__);
@@ -1035,13 +1084,13 @@ mylog(" %s\n", __FUNCTION__);
 		if (sizeof(SQLWCHAR) == sizeof(wchar_t))
 		{
 			ldt = (char *) malloc(2 * count + 1);
-			l = wstrtomsg((wchar_t *) utf16, ldt, 2 * count + 1);
+			l = wstrtomsg((wchar_t *) utf16_nts, ldt, 2 * count + 1);
 		}
 		else
 		{
 			unsigned int	*utf32 = (unsigned int *) malloc((count + 1) * sizeof(unsigned int));
 
-			l = ucs2_to_ucs4(utf16, -1, utf32, count + 1);
+			l = ucs2_to_ucs4(utf16_nts, -1, utf32, count + 1);
 			if ((l = wstrtomsg((wchar_t *)utf32, NULL, 0)) >= 0)
 			{
 				ldt = (char *) malloc(l + 1);
@@ -1055,7 +1104,7 @@ mylog(" %s\n", __FUNCTION__);
 	if (use_c16)
 	{
 		ldt = (char *) malloc(4 * count + 1);
-		l = c16tombs(ldt, (const char16_t *) utf16, 4 * count + 1);
+		l = c16tombs(ldt, (const char16_t *) utf16_nts, 4 * count + 1);
 	}
 #endif /* __CHAR16_UTF_16__ */
 	if (l < 0 && NULL != ldt)
@@ -1063,6 +1112,8 @@ mylog(" %s\n", __FUNCTION__);
 	else
 		*wcsbuf = ldt;
 
+	if (NULL != alloc_nts)
+		free(alloc_nts);
 	return l;
 }
 
