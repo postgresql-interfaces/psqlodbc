@@ -81,7 +81,12 @@ int main(int argc, char **argv)
 	}
 	if (testsw < 0)
 	{
-		printf("Unfortunately can't handle this locale\n");
+		printf("Unfortunately this program can't handle this locale\n");
+		printf("Or you are testing an ansi driver\n");
+		printf("Anyway bypass this program\n");
+		printf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\n");
+		printf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\n");
+		printf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\n");
 		exit(0);
 	}
 	test_connect_ext("");

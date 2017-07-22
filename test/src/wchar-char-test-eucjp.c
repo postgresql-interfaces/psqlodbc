@@ -4,7 +4,9 @@ static int eucjp_test(HSTMT hstmt)
 	int rc;
 
 	SQLLEN		ind, cbParam, cbParam2;
+	SQLINTEGER	cbQueryLen;
 	unsigned char	lovedt[100] = {0x95, 0x4e, 0x0a, 0x4e, 0x5a, 0x53, 0xf2, 0x53, 0x0, 0x0};
+	unsigned char	lovedt2[100] = {0xf2, 0x53, 0x5a, 0x53, 0x0a, 0x4e, 0x95, 0x4e, 0x0, 0x0};
 	SQLWCHAR	wchar[100];
 	SQLCHAR		str[100];
 	SQLCHAR		chardt[100];
@@ -13,7 +15,9 @@ static int eucjp_test(HSTMT hstmt)
 	rc = SQLBindCol(hstmt, 1, SQL_C_CHAR, (SQLPOINTER) chardt, sizeof(chardt), &ind);
 	CHECK_STMT_RESULT(rc, "SQLBindCol to SQL_C_CHAR failed", hstmt);
 
-	cbParam = SQL_NTS;
+	// cbParam = SQL_NTS;
+	cbParam = strlen(lovedt);
+	strcat(lovedt, lovedt2);
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
 		SQL_C_WCHAR,	/* value type */
 		SQL_WCHAR,			/* param type */
@@ -23,11 +27,15 @@ static int eucjp_test(HSTMT hstmt)
 		sizeof(lovedt),			/* buffer len */
 		&cbParam	/* StrLen_or_IndPtr */);
 	CHECK_STMT_RESULT(rc, "SQLBindParameter 1 failed", hstmt);
-	cbParam2 = SQL_NTS;
+	// cbParam2 = SQL_NTS;
+	strncpy((char *) str, "ÀÆÆ£¹À", sizeof(str));
+	cbParam2 = strlen(str);
+	strcat((char *) str, "¿®¸¼");
 	rc = SQLBindParameter(hstmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(str), 0, str, sizeof(str), &cbParam2);
 	CHECK_STMT_RESULT(rc, "SQLBindParameter 2 failed", hstmt);
-	strncpy((char *) str, "ÀÆÆ£¹À", sizeof(str));
-	rc = SQLExecDirect(hstmt, query, SQL_NTS);
+	cbQueryLen = (SQLINTEGER) strlen(query);
+	strcat((char *) query, "¿®¸¼");
+	rc = SQLExecDirect(hstmt, query, cbQueryLen);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_CHAR", hstmt);
 	while (SQL_SUCCEEDED(SQLFetch(hstmt)))
 		printf("ANSI=%s\n", chardt);
@@ -38,7 +46,7 @@ static int eucjp_test(HSTMT hstmt)
 	CHECK_STMT_RESULT(rc, "SQLBindCol to SQL_C_WCHAR failed", hstmt);
 
 
-	rc = SQLExecDirect(hstmt, query, SQL_NTS);
+	rc = SQLExecDirect(hstmt, query, cbQueryLen);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed to return SQL_C_WCHAR", hstmt);
 	while (SQL_SUCCEEDED(rc = SQLFetch(hstmt)))
 	{
