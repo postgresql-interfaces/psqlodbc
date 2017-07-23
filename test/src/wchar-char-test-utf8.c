@@ -11,7 +11,7 @@ static int utf8_test_one(HSTMT hstmt)
 	SQLCHAR		str[100];
 	SQLCHAR		chardt[100];
 	// SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂𪘚𪚲'");
-	SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂'");
+	SQLTCHAR	query[512] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？  𠀋𡈽𡌛𡑮𡢽𪐷𪗱𪘂'");
 
 	rc = SQLBindCol(hstmt, 1, SQL_C_CHAR, (SQLPOINTER) chardt, sizeof(chardt), &ind);
 	CHECK_STMT_RESULT(rc, "SQLBindCol to SQL_C_CHAR failed", hstmt);

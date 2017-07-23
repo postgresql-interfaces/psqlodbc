@@ -10,7 +10,7 @@ static int eucjp_test(HSTMT hstmt)
 	SQLWCHAR	wchar[100];
 	SQLCHAR		str[100];
 	SQLCHAR		chardt[100];
-	SQLTCHAR	query[] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？'");
+	SQLTCHAR	query[200] = _T("select '私は' || ?::text || 'です。貴方は' || ?::text || 'さんですね？'");
 
 	rc = SQLBindCol(hstmt, 1, SQL_C_CHAR, (SQLPOINTER) chardt, sizeof(chardt), &ind);
 	CHECK_STMT_RESULT(rc, "SQLBindCol to SQL_C_CHAR failed", hstmt);
