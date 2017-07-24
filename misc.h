@@ -28,7 +28,7 @@ size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);
 char	   *my_trim(char *string);
 char	   *make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize);
 /* #define	GET_SCHEMA_NAME(nspname) 	(stricmp(nspname, "public") ? nspname : "") */
-char *quote_table(const pgNAME schema, const pgNAME table);
+char *quote_table(const pgNAME schema, const pgNAME table, char *buf, int nuf_size);
 
 #define	GET_SCHEMA_NAME(nspname) 	(nspname)
 

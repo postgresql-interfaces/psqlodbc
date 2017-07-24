@@ -284,12 +284,10 @@ strlcat(char *dst, const char *src, size_t size)
 
 /*
  * Proprly quote and escape a possibly schema-qualified table name.
- * Returns a statically allocated buffer.
  */
 char *
-quote_table(const pgNAME schema, const pgNAME table)
+quote_table(const pgNAME schema, const pgNAME table, char *buf, int buf_size)
 {
-	static char buf[200];
 	const char *ptr;
 	int			i;
 
@@ -298,7 +296,7 @@ quote_table(const pgNAME schema, const pgNAME table)
 	if (NAME_IS_VALID(schema))
 	{
 		buf[i++] = '"';
-		for (ptr = SAFE_NAME(schema); *ptr != '\0' && i < sizeof(buf) - 6; ptr++)
+		for (ptr = SAFE_NAME(schema); *ptr != '\0' && i < buf_size - 6; ptr++)
 		{
 			buf[i++] = *ptr;
 			if (*ptr == '"')
@@ -309,7 +307,7 @@ quote_table(const pgNAME schema, const pgNAME table)
 	}
 
 	buf[i++] = '"';
-	for (ptr = SAFE_NAME(table); *ptr != '\0' && i < sizeof(buf) - 3; ptr++)
+	for (ptr = SAFE_NAME(table); *ptr != '\0' && i < buf_size - 3; ptr++)
 	{
 		buf[i++] = *ptr;
 		if (*ptr == '"')

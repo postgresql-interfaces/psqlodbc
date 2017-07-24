@@ -2161,13 +2161,13 @@ inolog("[%d,%d] %s copied\n", i / num_fields, i % num_fields, otuple->value);
 }
 
 static const char *
-ti_quote(StatementClass *stmt, OID tableoid)
+ti_quote(StatementClass *stmt, OID tableoid, char *buf, int buf_size)
 {
 	TABLE_INFO	*ti = stmt->ti[0];
 	pgNAME		rNAME;
 
 	if (0 == tableoid || !TI_has_subclass(ti))
-		return quote_table(ti->schema_name, ti->table_name);
+		return quote_table(ti->schema_name, ti->table_name, buf, buf_size);
 	else if (NAME_IS_VALID(rNAME = TI_From_IH(ti, tableoid)))
 		return SAFE_NAME(rNAME);
 	else
@@ -2185,7 +2185,7 @@ ti_quote(StatementClass *stmt, OID tableoid)
 
 			SET_NAME_DIRECTLY(schema_name, QR_get_value_backend_text(res, 0, 1));
 			SET_NAME_DIRECTLY(table_name, QR_get_value_backend_text(res, 0, 0));
-			ret = quote_table(schema_name, table_name);
+			ret = quote_table(schema_name, table_name, buf, buf_size);
 			TI_Ins_IH(ti, tableoid, ret);
 		}
 		QR_Destructor(res);
@@ -2200,10 +2200,11 @@ static BOOL	tupleExists(StatementClass *stmt, const KeySet *keyset)
 	QResultClass	*res;
 	RETCODE		ret = FALSE;
 	const char *bestqual = GET_NAME(ti->bestqual);
+	char table_fqn[256];
 
 	SPRINTF_FIXED(selstr,
 			 "select 1 from %s where ctid = '(%u,%u)'",
-			 ti_quote(stmt, keyset->oid),
+			 ti_quote(stmt, keyset->oid, table_fqn, sizeof(table_fqn)),
 			 keyset->blocknum, keyset->offset);
 	if (NULL != bestqual && 0 != keyset->oid && !TI_has_subclass(ti))
 	{
@@ -3036,7 +3037,10 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	if (TI_has_subclass(ti))
 	{
 		OID	tableoid = *oidint;
+		char	table_fqn[256];
+		const char	*quoted_table;
 
+		quoted_table = ti_quote(stmt, tableoid, table_fqn, sizeof(table_fqn));
 		if (tidval)
 		{
 			if (latest)
@@ -3044,15 +3048,15 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 				snprintf(selstr, len,
 					 "%.*sfrom %s where ctid = currtid2('%s', '%s')",
 					 (int) from_pos, load_stmt,
-					 ti_quote(stmt, tableoid),
-					 ti_quote(stmt, tableoid),
+					 quoted_table,
+					 quoted_table,
 					 tidval);
 			}
 			else
-				snprintf(selstr, len, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, ti_quote(stmt, tableoid), tidval);
+				snprintf(selstr, len, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, quoted_table, tidval);
 		}
 		else if ((flag & USE_INSERTED_TID) != 0)
-			snprintf(selstr, len, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", (int) from_pos, load_stmt, ti_quote(stmt, tableoid));
+			snprintf(selstr, len, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", (int) from_pos, load_stmt, quoted_table);
 		/*
 		else if (bestitem && oidint)
 		{
@@ -3070,10 +3074,12 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 		{
 			if (latest)
 			{
+				char table_fqn[256];
+
 				snprintf(selstr, len,
 					 "%s where ctid = currtid2('%s', '%s') %s",
 					 load_stmt,
-					 ti_quote(stmt, 0),
+					 ti_quote(stmt, 0, table_fqn, sizeof(table_fqn)),
 					 tidval, oideqstr);
 			}
 			else
@@ -3539,6 +3545,8 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 		}
 		if (!rowc)
 		{
+			char table_fqn[256];
+
 			if (!qval)
 			{
 				if (rows_per_fetch >= pre_fetch_count * 2)
@@ -3554,7 +3562,7 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 				SC_MALLOC_return_with_error(qval, char, allen,
 					stmt, "Couldn't alloc qval", -1);
 			}
-			snprintf(qval, allen, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid));
+			snprintf(qval, allen, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid, table_fqn, sizeof(table_fqn)));
 		}
 		if (new_oid != oid)
 			oid = new_oid;
@@ -3920,6 +3928,7 @@ SC_pos_update(StatementClass *stmt,
 	SQLLEN	*used, kres_ridx;
 	Int4	bind_size = opts->bind_size;
 	BOOL	idx_exist = TRUE;
+	char	table_fqn[256];
 
 	s.stmt = stmt;
 	s.irow = irow;
@@ -3974,7 +3983,7 @@ SC_pos_update(StatementClass *stmt,
 	ti = s.stmt->ti[0];
 
 	SPRINTF_FIXED(updstr,
-			 "update %s set", ti_quote(stmt, oid));
+			 "update %s set", ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)));
 
 	num_cols = s.irdflds->nfields;
 	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
@@ -4120,6 +4129,7 @@ SC_pos_delete(StatementClass *stmt,
 	const char	*bestitem;
 	const char	*bestqual;
 	BOOL		idx_exist = TRUE;
+	char		table_fqn[256];
 
 	mylog("POS DELETE ti=%p\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
@@ -4169,7 +4179,7 @@ SC_pos_delete(StatementClass *stmt,
 	}
 	SPRINTF_FIXED(dltstr,
 			 "delete from %s where ctid = '(%u, %u)'",
-			 ti_quote(stmt, oid), blocknum, offset);
+			 ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)), blocknum, offset);
 	if (bestqual && !TI_has_subclass(ti))
 	{
 		SPRINTFCAT_FIXED(dltstr, " and ");
@@ -4409,6 +4419,7 @@ SC_pos_add(StatementClass *stmt,
 	OID		fieldtype;
 	int		unknown_sizes;
 	int		func_cs_count = 0;
+	char		table_fqn[256];
 
 	mylog("POS ADD fi=%p ti=%p\n", fi, stmt->ti);
 	s.stmt = stmt;
@@ -4432,7 +4443,7 @@ SC_pos_add(StatementClass *stmt,
 
 	SPRINTF_FIXED(addstr,
 			 "insert into %s (",
-			 ti_quote(s.stmt, 0));
+			 ti_quote(s.stmt, 0, table_fqn, sizeof(table_fqn)));
 	if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 	{
 		SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
