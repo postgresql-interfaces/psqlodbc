@@ -9,6 +9,17 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="09.06.0410">psqlODBC 09.06.0410 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Fix buffer truncations. The truncations occured when concatenating 'RELEASE xxxx...;' and 'SAVEPOINT xxxx....'.</li>
+Per reported by Pavel Raiskup.
+<li>Correct the behavior of snprintfcat() on Windows using posix_vsnprintf() instead of _vsnprintf().</li>
+<li>Handle StrLen_or_IndPtr argument of SQLBindParameter() properly when StrLen_or_IndPtr doesn't point to SQL_NTS and conversions between SQLWCHAR and SQLCHAR occur.</li>
+This change fixes MSACCESS errors reported by Christian Ullrich and Robert Ball.
+<li>Make quote_table() and ti_quote() thread safe.This change fixes "relation does not exist".</li>
+Per report and patch by Scott Beil.
+</ol><br />
 <h2><a id="09.06.0400">psqlODBC 09.06.0400 Release</a></h2>
 Changes:<br />
 <ol type="1">
