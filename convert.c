@@ -3694,7 +3694,14 @@ build_libpq_bind_params(StatementClass *stmt,
 	}
 	if (ipdopts->allocated < num_params)
 	{
-		SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, "The # of binded parameters < the # of parameter markers", func);
+		char	tmp[100];
+
+		if (0 == ipdopts->allocated)
+			STRCPY_FIXED(tmp, "Parameters exist but IPD isn't set. Please call SQLDescribeParam()");
+		else
+			SPRINTF_FIXED(tmp, "The # of IPD parameters %d < %d the # of parameter markers", ipdopts->allocated, num_params);
+		mylog("%s:%s\n", __FUNCTION__, tmp);
+		SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, tmp, func);
 		return FALSE;
 	}
 
@@ -4090,7 +4097,7 @@ inolog("resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts-
 		ipara = ipdopts->parameters + param_number;
 	if ((!apara || !ipara) && valueOutput)
 	{
-mylog("!!! The # of binded parameters (%d, %d) < the # of parameter markers %d\n", apdopts->allocated, ipdopts->allocated, param_number);
+		mylog("%s:The # of (A|I)PD parameters (%d, %d) < %d the # of parameter markers\n", __FUNCTION__, apdopts->allocated, ipdopts->allocated, param_number);
 		qb->errormsg = "The # of binded parameters < the # of parameter markers";
 		qb->errornumber = STMT_COUNT_FIELD_INCORRECT;
 		CVT_TERMINATE(qb);	/* just in case */
@@ -4234,6 +4241,15 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 
 	/* XXX: should we use param_pgtype here instead? */
 	*pgType = sqltype_to_bind_pgtype(conn, param_sqltype);
+
+	if (0 == param_sqltype) /* calling SQLSetStmtAttr(.., SQL_ATTR_APP_PARAM_DES, an ARD of another statement) may cause this */
+	{
+		if (0 != param_pgtype)
+		{
+			param_sqltype = pgtype_attr_to_concise_type(conn, param_pgtype, PG_ATP_UNSET, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
+			mylog("%s: convert from pgtype(%u) to sqltype(%d)\n", __FUNCTION__, param_pgtype, param_sqltype);
+		}
+	}
 
 	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u), *pgType=%u\n", func,
 		  param_ctype, param_sqltype, param_pgtype, *pgType);
@@ -4905,6 +4921,12 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			break;
 	}
 
+	if (!send_buf)
+	{
+		qb->errormsg = "Could not convert parameter ctype to sqltype";
+		qb->errornumber = STMT_EXEC_ERROR;
+		goto cleanup;
+	}
 	if (used == SQL_NTS)
 		used = strlen(send_buf);
 
