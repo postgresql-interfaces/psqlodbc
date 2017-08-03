@@ -62,8 +62,8 @@ $(OBJDIR) :
 runsuite.exe: runsuite.c
 	cl runsuite.c $(CLFLAGS) $(LINKFLAGS)
 
-reset-db.exe: reset-db.c
-	cl reset-db.c $(CLFLAGS) $(LINKFLAGS)
+reset-db.exe: reset-db.c $(COMOBJ)
+	cl reset-db.c $(CLFLAGS) $(LINKFLAGS) $(COMOBJ)
 
 # activate the above inference rule
 .SUFFIXES: .out
