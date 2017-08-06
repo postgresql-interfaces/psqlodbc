@@ -978,7 +978,9 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 		;
 	else if (0 != bytea_process_kind)
 	{
-		len = convert_from_pgbinary(neut_str, NULL, 0) * 2;
+		len = convert_from_pgbinary(neut_str, NULL, 0);
+		if (BYTEA_PROCESS_BINARY != bytea_process_kind)
+			len *= 2;
 		changed = TRUE;
 	}
 	else
