@@ -36,7 +36,7 @@ COMOBJ = $(OBJDIR)\common.obj
 
 # Flags
 CLFLAGS=/W3 /D WIN32 /D _CRT_SECURE_NO_DEPRECATE
-LINKFLAGS=/link odbc32.lib odbccp32.lib
+LINKFLAGS=/link odbc32.lib odbccp32.lib /MANIFEST:EMBED
 
 # Build an executable for each test.
 #
