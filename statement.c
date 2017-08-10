@@ -908,7 +908,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 	const	char *sptr, *tstr, *tag = NULL;
 	size_t	taglen = 0;
 	char	tchar, bchar, escape_in_literal = '\0';
-	char	in_literal = FALSE, in_identifier = FALSE,
+	char	in_literal = FALSE, in_ident_keyword = FALSE,
+		in_dquote_identifier = FALSE,
 		in_dollar_quote = FALSE, in_escape = FALSE,
 		in_line_comment = FALSE, del_found = FALSE;
 	int	comment_level = 0;
@@ -931,6 +932,16 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		{
 			if ((UCHAR) tchar >= 0x80)
 				bchar = tchar;
+			if (in_dquote_identifier ||
+			    in_literal ||
+			    in_dollar_quote ||
+			    in_escape ||
+			    in_line_comment ||
+			    comment_level > 0)
+				;
+			else
+				in_ident_keyword = TRUE;
+
 			continue;
 		}
 		if (!multi && del_found)
@@ -942,6 +953,17 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 					break;
 			}
 		}
+		if (in_ident_keyword)
+		{
+			if (isalnum(tchar) ||
+			    DOLLAR_QUOTE == tchar)
+			{
+				bchar = tchar;
+				continue;
+			}
+			in_ident_keyword = FALSE;
+		}
+
 		if (in_dollar_quote)
 		{
 			if (tchar == DOLLAR_QUOTE)
@@ -965,10 +987,10 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 			else if (tchar == LITERAL_QUOTE)
 				in_literal = FALSE;
 		}
-		else if (in_identifier)
+		else if (in_dquote_identifier)
 		{
 			if (tchar == IDENTIFIER_QUOTE)
-				in_identifier = FALSE;
+				in_dquote_identifier = FALSE;
 		}
 		else if (in_line_comment)
 		{
@@ -990,6 +1012,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				comment_level--;
 			}
 		}
+		else if (isalnum(tchar))
+			in_ident_keyword = TRUE;
 		else
 		{
 			if (tchar == '?')
@@ -1031,7 +1055,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				}
 			}
 			else if (tchar == IDENTIFIER_QUOTE)
-				in_identifier = TRUE;
+				in_dquote_identifier = TRUE;
 			else if ('-' == tchar)
 			{
 				if ('-' == sptr[1])

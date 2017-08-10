@@ -1993,13 +1993,12 @@ typedef struct _QueryParse {
 	ssize_t		from_pos;
 	ssize_t		where_pos;
 	ssize_t		stmt_len;
-	char		in_literal, in_identifier, in_escape, in_dollar_quote;
-	char		escape_in_literal;
+	int		in_status;
+	char		escape_in_literal, prev_token_end;
 	const	char *dollar_tag;
 	ssize_t		taglen;
 	char		token_save[64];
 	int		token_len;
-	char		prev_token_end, in_line_comment;
 	size_t		declare_pos;
 	UInt4		flags, comment_level;
 	encoded_str	encstr;
@@ -2014,19 +2013,34 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->from_pos = -1;
 	q->where_pos = -1;
 	q->stmt_len = (q->statement) ? strlen(q->statement) : -1;
-	q->in_literal = q->in_identifier = q->in_escape = q->in_dollar_quote = FALSE;
+	q->in_status = 0;
 	q->escape_in_literal = '\0';
 	q->dollar_tag = NULL;
 	q->taglen = -1;
 	q->token_save[0] = '\0';
 	q->token_len = 0;
 	q->prev_token_end = TRUE;
-	q->in_line_comment = FALSE;
 	q->declare_pos = 0;
 	q->flags = 0;
 	q->comment_level = 0;
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
 }
+
+static enum {
+	QP_IN_IDENT_KEYWORD = 1L	/* identifier or keyword */
+	, QP_IN_DQUOTE_IDENTIFIER = (1L << 1) /* "" */
+	, QP_IN_LITERAL = (1L << 2)	/* '' */
+	, QP_IN_ESCAPE = (1L << 3)	/* \ in literal */
+	, QP_IN_DOLLAR_QUOTE = (1L << 4) /* $...$    $...$ */
+	, QP_IN_COMMENT_BLOCK = (1L << 5)	 /* slash asterisk */
+	, QP_IN_LINE_COMMENT = (1L << 6) /* -- */
+};
+
+#define	QP_in_idle_status(qp)	((qp)->in_status == 0)
+
+#define	QP_is_in(qp, status)	(((qp)->in_status & status) != 0)
+#define	QP_enter(qp, status)	((qp)->in_status |= status)
+#define	QP_exit(qp, status)	((qp)->in_status &= (~status))
 
 /*
  * ResolveOneParam can be work in these four modes:
@@ -3164,7 +3178,7 @@ findTag(const char *tag, int ccsc)
 			taglen = sptr - tag + 1;
 			break;
 		}
-		if (isspace(tchar))
+		if (!isalnum(tchar))
 			break;
 	}
 	return taglen;
@@ -3306,6 +3320,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	oldchar = encoded_byte_check(&qp->encstr, qp->opos);
 	if (ENCODE_STATUS(qp->encstr) != 0)
 	{
+		if (QP_in_idle_status(qp))
+			QP_enter(qp, QP_IN_IDENT_KEYWORD);	/* identifier */
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
@@ -3313,13 +3329,25 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	/*
 	 * From here we are guaranteed to handle a 1-byte character.
 	 */
-	if (qp->in_escape)			/* escape check */
+
+	if (QP_is_in(qp, QP_IN_IDENT_KEYWORD))	/* identifier or keyword */
 	{
-		qp->in_escape = FALSE;
+		if (isalnum((UCHAR)oldchar) ||
+		    DOLLAR_QUOTE == oldchar)
+		{
+			CVT_APPEND_CHAR(qb, oldchar);
+			return SQL_SUCCESS;
+		}
+		QP_exit(qp, QP_IN_IDENT_KEYWORD);
+	}
+
+	if (QP_is_in(qp, QP_IN_ESCAPE))	/* escape in literal check */
+	{
+		QP_exit(qp, QP_IN_ESCAPE);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (qp->in_dollar_quote) /* dollar quote check */
+	else if (QP_is_in(qp, QP_IN_DOLLAR_QUOTE)) /* dollar quote check */
 	{
 		if (oldchar == DOLLAR_QUOTE)
 		{
@@ -3327,8 +3355,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			{
 				CVT_APPEND_DATA(qb, F_OldPtr(qp), qp->taglen);
 				qp->opos += (qp->taglen - 1);
-				qp->in_dollar_quote = FALSE;
-				qp->in_literal = FALSE;
+				QP_exit(qp, QP_IN_DOLLAR_QUOTE);
 				qp->dollar_tag = NULL;
 				qp->taglen = -1;
 				return SQL_SUCCESS;
@@ -3337,28 +3364,29 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (qp->in_literal) /* quote check */
+	else if (QP_is_in(qp, QP_IN_LITERAL)) /* quote check */
 	{
 		if (oldchar == qp->escape_in_literal)
-			qp->in_escape = TRUE;
+			QP_enter(qp, QP_IN_ESCAPE); /* escape in literal */
 		else if (oldchar == LITERAL_QUOTE)
-			qp->in_literal = FALSE;
+			QP_exit(qp, QP_IN_LITERAL);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (qp->in_identifier) /* double quote check */
+	else if (QP_is_in(qp, QP_IN_DQUOTE_IDENTIFIER)) /* double quote check */
 	{
 		if (oldchar == IDENTIFIER_QUOTE)
-			qp->in_identifier = FALSE;
+			QP_exit(qp, QP_IN_DQUOTE_IDENTIFIER);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (qp->comment_level > 0) /* comment_level check */
+	else if (QP_is_in(qp, QP_IN_COMMENT_BLOCK)) /* comment_level check */
 	{
 		if ('/' == oldchar &&
 		    '*' == F_OldPtr(qp)[1])
 		{
 			qp->comment_level++;
+			QP_enter(qp, QP_IN_COMMENT_BLOCK);
 			CVT_APPEND_CHAR(qb, oldchar);
 			F_OldNext(qp);
 			oldchar = F_OldChar(qp);
@@ -3366,7 +3394,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		else if ('*' == oldchar &&
 			 '/' == F_OldPtr(qp)[1])
 		{
-			qp->comment_level--;
+			if (--qp->comment_level <= 0)
+				QP_exit(qp, QP_IN_COMMENT_BLOCK);
 			CVT_APPEND_CHAR(qb, oldchar);
 			F_OldNext(qp);
 			oldchar = F_OldChar(qp);
@@ -3374,12 +3403,18 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (qp->in_line_comment) /* line comment check */
+	else if (QP_is_in(qp, QP_IN_LINE_COMMENT)) /* line comment check */
 	{
 		if (PG_LINEFEED == oldchar)
-			qp->in_line_comment = FALSE;
+			QP_exit(qp, QP_IN_LINE_COMMENT);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
+	}
+	else if (!QP_in_idle_status(qp))
+	{
+		qb->errornumber = STMT_EXEC_ERROR;
+		qb->errormsg = "logic error? not in QP_in_idle_status";
+		return SQL_ERROR;
 	}
 
 	/*
@@ -3476,8 +3511,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qp->taglen = findTag(F_OldPtr(qp), qp->encstr.ccsc);
 			if (qp->taglen > 0)
 			{
-				qp->in_literal = TRUE;
-				qp->in_dollar_quote = TRUE;
+				QP_enter(qp, QP_IN_DOLLAR_QUOTE);
 				qp->dollar_tag = F_OldPtr(qp);
 				CVT_APPEND_DATA(qb, F_OldPtr(qp), qp->taglen);
 				qp->opos += (qp->taglen - 1);
@@ -3486,31 +3520,28 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		else if (oldchar == LITERAL_QUOTE)
 		{
-			if (!qp->in_identifier)
+			QP_enter(qp, QP_IN_LITERAL);
+			qp->escape_in_literal = CC_get_escape(qb->conn);
+			if (!qp->escape_in_literal)
 			{
-				qp->in_literal = TRUE;
-				qp->escape_in_literal = CC_get_escape(qb->conn);
-				if (!qp->escape_in_literal)
-				{
-					if (LITERAL_EXT == F_OldPtr(qp)[-1])
-						qp->escape_in_literal = ESCAPE_IN_LITERAL;
-				}
+				if (LITERAL_EXT == F_OldPtr(qp)[-1])
+					qp->escape_in_literal = ESCAPE_IN_LITERAL;
 			}
 		}
 		else if (oldchar == IDENTIFIER_QUOTE)
 		{
-			if (!qp->in_literal)
-				qp->in_identifier = TRUE;
+			QP_enter(qp, QP_IN_DQUOTE_IDENTIFIER);
 		}
 		else if ('/' == oldchar &&
 			 '*' == F_OldPtr(qp)[1])
 		{
 			qp->comment_level++;
+			QP_enter(qp, QP_IN_COMMENT_BLOCK);
 		}
 		else if ('-' == oldchar &&
 			 '-' == F_OldPtr(qp)[1])
 		{
-			qp->in_line_comment = TRUE;
+			QP_enter(qp, QP_IN_LINE_COMMENT);
 		}
 		else if (oldchar == ';')
 		{
@@ -3534,6 +3565,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				}
 			}
 		}
+		else if (isalnum(oldchar))
+			QP_enter(qp, QP_IN_IDENT_KEYWORD); /* identifier or keyword */
 		else
 		{
 			/*
@@ -5021,7 +5054,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 			return retval;
 		if (ENCODE_STATUS(qp->encstr) != 0)
 			continue;
-		if (qp->in_identifier || qp->in_literal || qp->in_escape)
+		if (!QP_in_idle_status(qp))
 			continue;
 
 		switch (F_OldChar(qp))
