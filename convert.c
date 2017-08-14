@@ -2026,7 +2026,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
 }
 
-static enum {
+enum {
 	QP_IN_IDENT_KEYWORD = 1L	/* identifier or keyword */
 	, QP_IN_DQUOTE_IDENTIFIER = (1L << 1) /* "" */
 	, QP_IN_LITERAL = (1L << 2)	/* '' */
