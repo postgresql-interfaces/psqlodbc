@@ -83,7 +83,7 @@
     <DELAY_LOAD_DLLS>secur32.dll</DELAY_LOAD_DLLS>
   </PropertyGroup>
   <PropertyGroup Condition="'$(PG_INC)'!=''">
-    <ADD_INC>$(ADD_INC);$(PG_INC)</ADD_INC>
+    <ADD_INC>$(ADD_INC);$(PG_INC);$(PG_INC)/internal;$(PG_INC)/server;$(PG_INC)/server/port/win32</ADD_INC>
     <ADD_LIBPATH>$(ADD_LIBPATH);$(PG_LIB)</ADD_LIBPATH>
     <ADD_DEFINES>$(ADD_DEFINES)</ADD_DEFINES>
   </PropertyGroup>

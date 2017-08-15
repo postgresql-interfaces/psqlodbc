@@ -139,7 +139,7 @@ fi
 if test "$with_libpq" != yes; then
 	if test -d "$with_libpq"; then
 		PATH="$PATH:$with_libpq/bin"
-		CPPFLAGS="$CPPFLAGS -I$with_libpq/include"
+		CPPFLAGS="$CPPFLAGS -I$with_libpq/include -I$with_libpq/include/postgresql/internal"
 		LDFLAGS="$LDFLAGS -L$with_libpq/lib"
 	else
 		if test -x "$with_libpq"; then
@@ -171,8 +171,9 @@ fi
 
 if test -n "$PG_CONFIG"; then
   pg_includedir=`"$PG_CONFIG" --includedir`
+  pg_pkg_includedir=`"$PG_CONFIG" --pkgincludedir`
   pg_libdir=`"$PG_CONFIG" --libdir`
-  CPPFLAGS="$CPPFLAGS -I$pg_includedir"
+  CPPFLAGS="$CPPFLAGS -I$pg_includedir -I$pg_pkg_includedir/internal"
   LDFLAGS="$LDFLAGS -L$pg_libdir"
 fi
 

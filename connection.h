@@ -9,14 +9,29 @@
 #ifndef __CONNECTION_H__
 #define __CONNECTION_H__
 
+#ifdef	__INCLUDE_POSTGRES_FE_H__ /* currently not defined */
+/*
+ *	Unfortunately #including postgres_fe.h causes various trobles.
+ */
+#include "postgres_fe.h"
+#else /* currently */
+#if defined(__GNUC__) || defined(__IBMC__)
+#define PG_PRINTF_ATTRIBUTE gnu_printf
+#define pg_attribute_printf(f,a) __attribute__((format(PG_PRINTF_ATTRIBUTE, f, a)))
+#else
+#define pg_attribute_printf(f,a)
+#endif	/* __GNUC__ || __IBMC__ */
+#endif	/* __INCLUDE_POSTGRES_FE_H__ */
+
+#include <libpq-fe.h>
+#include "pqexpbuffer.h"
+
 #include "psqlodbc.h"
 #include <time.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include "descriptor.h"
-
-#include <libpq-fe.h>
 
 #if defined (POSIX_MULTITHREAD_SUPPORT)
 #include <pthread.h>
@@ -441,11 +456,19 @@ const		char *CurrCatString(const ConnectionClass *self);
 SQLUINTEGER	CC_get_isolation(ConnectionClass *self);
 
 SQLCHAR	*make_lstring_ifneeded(ConnectionClass *, const SQLCHAR *s, ssize_t len, BOOL);
+
+#define	TABLE_IS_VALID(tbname, tblen)	((tbname) && (tblen > 0 || SQL_NTS == tblen))
+int	schema_str(char *buf, int buflen, const SQLCHAR *s, SQLLEN len, BOOL table_is_valid, ConnectionClass *conn);
 char	*schema_strcat(char *buf, int buflen, const char *fmt, const SQLCHAR *s, SQLLEN len,
-		const SQLCHAR *, SQLLEN, ConnectionClass *conn);
+		BOOL table_is_valid, ConnectionClass *conn);
 char	*schema_strcat1(char *buf, int buflen, const char *fmt, const char *s1,
 				const char *s,
 				const SQLCHAR *, int, ConnectionClass *conn);
+
+void	schema_appendPQExpBuffer(PQExpBufferData *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
+		BOOL table_is_valid, ConnectionClass *conn);
+void	schema_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt, const char *s1, const char *s,
+				BOOL table_is_valid, ConnectionClass *conn);
 
 void	CC_examine_global_transaction(ConnectionClass *self);
 

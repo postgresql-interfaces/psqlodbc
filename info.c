@@ -1690,7 +1690,7 @@ PGAPI_Tables(HSTMT hstmt,
 	RETCODE		ret = SQL_ERROR, result;
 	int		result_cols;
 	char		*tableType = NULL;
-	char		tables_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		tables_query = {0};
 	char		table_name[MAX_INFO_STRING],
 				table_owner[MAX_INFO_STRING],
 				relkind_or_hasrules[MAX_INFO_STRING];
@@ -1787,9 +1787,10 @@ retry_public_schema:
 	}
 	list_some = (list_cat || list_schemas || list_table_types);
 
-	tables_query[0] = '\0';
+	initPQExpBuffer(&tables_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (list_cat)
-		STRCPY_FIXED(tables_query, "select NULL, NULL, NULL");
+		appendPQExpBufferStr(&tables_query, "select NULL, NULL, NULL");
 	else if (list_table_types)
 	{
 		/*
@@ -1797,7 +1798,7 @@ retry_public_schema:
 		 * - 9.3 and newer versions have materialized views
 		 * - 9.1 and newer versions have foreign tables
 		 */
-		STRCPY_FIXED(tables_query,
+		appendPQExpBufferStr(&tables_query,
 				"select NULL, NULL, relkind from (select 'r' as relkind "
 				"union select 'v' "
 				"union select 'm' "
@@ -1805,7 +1806,7 @@ retry_public_schema:
 	}
 	else if (list_schemas)
 	{
-		STRCPY_FIXED(tables_query, "select NULL, nspname, NULL"
+		appendPQExpBufferStr(&tables_query, "select NULL, nspname, NULL"
 			" from pg_catalog.pg_namespace n where true");
 	}
 	else
@@ -1815,7 +1816,7 @@ retry_public_schema:
 		 * Materialized views are added in 9.3, and foreign
 		 * tables in 9.1.
 		 */
-		STRCPY_FIXED(tables_query, "select relname, nspname, relkind "
+		appendPQExpBufferStr(&tables_query, "select relname, nspname, relkind "
 			"from pg_catalog.pg_class c, pg_catalog.pg_namespace n "
 			"where relkind in ('r', 'v', 'm', 'f')");
 	}
@@ -1823,9 +1824,9 @@ retry_public_schema:
 	op_string = gen_opestr(like_or_eq, conn);
 	if (!list_some)
 	{
-		schema_strcat1(tables_query, sizeof(tables_query), " and nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
+		schema_appendPQExpBuffer1(&tables_query, " and nspname %s'%.*s'", op_string, escSchemaName, TABLE_IS_VALID(szTableName, cbTableName), conn);
 		if (IS_VALID_NAME(escTableName))
-			SPRINTFCAT_FIXED(tables_query,
+			appendPQExpBuffer(&tables_query,
 					 " and relname %s'%s'", op_string, escTableName);
 	}
 
@@ -1911,21 +1912,26 @@ retry_public_schema:
 	 * tables, then dont filter either.
 	 */
 	if ((list_schemas || !list_some) && !atoi(ci->show_system_tables) && !show_system_tables)
-		STRCAT_FIXED(tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
+		appendPQExpBufferStr(&tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
 
 	if (!list_some)
 	{
 		if (CC_accessible_only(conn))
-			STRCAT_FIXED(tables_query, " and has_table_privilege(c.oid, 'select')");
+			appendPQExpBufferStr(&tables_query, " and has_table_privilege(c.oid, 'select')");
 	}
 	if (list_schemas)
-		STRCAT_FIXED(tables_query, " order by nspname");
+		appendPQExpBufferStr(&tables_query, " order by nspname");
 	else if (list_some)
 		;
 	else
-		STRCAT_FIXED(tables_query, " and n.oid = relnamespace order by nspname, relname");
+		appendPQExpBufferStr(&tables_query, " and n.oid = relnamespace order by nspname, relname");
 
-	result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
+	if (PQExpBufferDataBroken(tables_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_Tables()", func);
+		goto cleanup;
+	}
+	result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query.data, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, htbl_stmt, FALSE);
@@ -2119,6 +2125,8 @@ cleanup:
 	 */
 	stmt->status = STMT_FINISHED;
 
+	if (!PQExpBufferDataBroken(tables_query))
+		termPQExpBuffer(&tables_query);
 	if (escCatName)
 		free(escCatName);
 	if (escSchemaName)
@@ -2210,7 +2218,7 @@ PGAPI_Columns(HSTMT hstmt,
 	TupleField	*tuple;
 	HSTMT		hcol_stmt = NULL;
 	StatementClass *col_stmt;
-	char		columns_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		columns_query = {0};
 	RETCODE		result;
 	char		table_owner[MAX_INFO_STRING],
 				table_name[MAX_INFO_STRING],
@@ -2287,12 +2295,14 @@ retry_public_schema:
 		else
 			escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 	}
+	initPQExpBuffer(&columns_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	/*
 	 * Create the query to find out the columns (Note: pre 6.3 did not
 	 * have the atttypmod field)
 	 */
 	op_string = gen_opestr(like_or_eq, conn);
-	SPRINTF_FIXED(columns_query,
+	printfPQExpBuffer(&columns_query,
 		"select n.nspname, c.relname, a.attname, a.atttypid, "
 		"t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull, "
 		"c.relhasrules, c.relkind, c.oid, pg_get_expr(d.adbin, d.adrelid), "
@@ -2301,30 +2311,35 @@ retry_public_schema:
 		"from (((pg_catalog.pg_class c "
 		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace");
 	if (search_by_ids)
-		SPRINTFCAT_FIXED(columns_query, " and c.oid = %u", reloid);
+		appendPQExpBuffer(&columns_query, " and c.oid = %u", reloid);
 	else
 	{
 		if (escTableName)
-			SPRINTFCAT_FIXED(columns_query, " and c.relname %s'%s'", op_string, escTableName);
-		schema_strcat1(columns_query, sizeof(columns_query), " and n.nspname %s'%.*s'", op_string, escSchemaName, szTableName, cbTableName, conn);
+			appendPQExpBuffer(&columns_query, " and c.relname %s'%s'", op_string, escTableName);
+		schema_appendPQExpBuffer1(&columns_query, " and n.nspname %s'%.*s'", op_string, escSchemaName, TABLE_IS_VALID(szTableName, cbTableName), conn);
 	}
-	STRCAT_FIXED(columns_query, ") inner join pg_catalog.pg_attribute a"
+	appendPQExpBufferStr(&columns_query, ") inner join pg_catalog.pg_attribute a"
 		" on (not a.attisdropped)");
 	if (0 == attnum && (NULL == escColumnName || like_or_eq != eqop))
-		STRCAT_FIXED(columns_query, " and a.attnum > 0");
+		appendPQExpBufferStr(&columns_query, " and a.attnum > 0");
 	if (search_by_ids)
 	{
 		if (attnum != 0)
-			SPRINTFCAT_FIXED(columns_query, " and a.attnum = %d", attnum);
+			appendPQExpBuffer(&columns_query, " and a.attnum = %d", attnum);
 	}
 	else if (escColumnName)
-		SPRINTFCAT_FIXED(columns_query, " and a.attname %s'%s'", op_string, escColumnName);
-	STRCAT_FIXED(columns_query,
+		appendPQExpBuffer(&columns_query, " and a.attname %s'%s'", op_string, escColumnName);
+	appendPQExpBufferStr(&columns_query,
 		" and a.attrelid = c.oid) inner join pg_catalog.pg_type t"
 		" on t.oid = a.atttypid) left outer join pg_attrdef d"
 		" on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum");
-	STRCAT_FIXED(columns_query, " order by n.nspname, c.relname, attnum");
-
+	appendPQExpBufferStr(&columns_query, " order by n.nspname, c.relname, attnum");
+	if (PQExpBufferDataBroken(columns_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_Columns()", func);
+		result = SQL_ERROR;
+		goto cleanup;
+	}
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
@@ -2336,7 +2351,7 @@ retry_public_schema:
 
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
-	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, PODBC_RDONLY);
+	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
@@ -2730,6 +2745,8 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
+	if (!PQExpBufferDataBroken(columns_query))
+		termPQExpBuffer(&columns_query);
 	if (escSchemaName)
 		free(escSchemaName);
 	if (escTableName)
@@ -2762,7 +2779,7 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	QResultClass	*res;
 	HSTMT		hcol_stmt = NULL;
 	StatementClass *col_stmt;
-	char		columns_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		columns_query = {0};
 	char		*escSchemaName = NULL, *escTableName = NULL;
 	RETCODE		result = SQL_SUCCESS;
 	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8];
@@ -2798,20 +2815,22 @@ retry_public_schema:
 		free(escSchemaName);
 	escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 	eq_string = gen_opestr(eqop, conn);
+	initPQExpBuffer(&columns_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
-	STRCPY_FIXED(columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
-	STRCAT_FIXED(columns_query, " from pg_catalog.pg_namespace u,"
+	appendPQExpBufferStr(&columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
+	appendPQExpBufferStr(&columns_query, " from pg_catalog.pg_namespace u,"
 					" pg_catalog.pg_class c where "
 					"u.oid = c.relnamespace");
 
 	/* TableName cannot contain a string search pattern */
 	if (escTableName)
-		SPRINTFCAT_FIXED(columns_query,
+		appendPQExpBuffer(&columns_query,
 					 " and c.relname %s'%s'", eq_string, escTableName);
 	/* SchemaName cannot contain a string search pattern */
-	schema_strcat1(columns_query, sizeof(columns_query), " and u.nspname %s'%.*s'", eq_string, escSchemaName, szTableName, cbTableName, conn);
+	schema_appendPQExpBuffer1(&columns_query, " and u.nspname %s'%.*s'", eq_string, escSchemaName, TABLE_IS_VALID(szTableName, cbTableName), conn);
 
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -2824,7 +2843,13 @@ retry_public_schema:
 
 	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
-	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query, SQL_NTS, PODBC_RDONLY);
+	if (PQExpBufferDataBroken(columns_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_SpecialColumns()", func);
+		result = SQL_ERROR;
+		goto cleanup;
+	}
+	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
@@ -2968,6 +2993,8 @@ inolog("Add ctid\n");
 
 cleanup:
 #undef	return
+	if (!PQExpBufferDataBroken(columns_query))
+		termPQExpBuffer(&columns_query);
 	if (escSchemaName)
 		free(escSchemaName);
 	if (escTableName)
@@ -2999,7 +3026,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn;
 	QResultClass	*res;
-	char		index_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		index_query = {0};
 	HSTMT		hcol_stmt = NULL, hindx_stmt = NULL;
 	RETCODE		ret = SQL_ERROR, result;
 	char		*escSchemaName = NULL, *table_name = NULL, *escTableName = NULL;
@@ -3088,7 +3115,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	cbSchemaName = cbTableOwner;
 
 	table_schemaname[0] = '\0';
-	schema_strcat(table_schemaname, sizeof(table_schemaname), "%.*s", szSchemaName, cbSchemaName, szTableName, cbTableName, conn);
+	schema_str(table_schemaname, sizeof(table_schemaname), szSchemaName, cbSchemaName, TABLE_IS_VALID(szTableName, cbTableName), conn);
 
 	/*
 	 * we need to get a list of the field names first, so we can return
@@ -3191,7 +3218,8 @@ PGAPI_Statistics(HSTMT hstmt,
 	escTableName = simpleCatalogEscape((SQLCHAR *) table_name, SQL_NTS, conn);
 	eq_string = gen_opestr(eqop, conn);
 	escSchemaName = simpleCatalogEscape((SQLCHAR *) table_schemaname, SQL_NTS, conn);
-	SPRINTF_FIXED(index_query, "select c.relname, i.indkey, i.indisunique"
+	initPQExpBuffer(&index_query);
+	printfPQExpBuffer(&index_query, "select c.relname, i.indkey, i.indisunique"
 		", i.indisclustered, a.amname, c.relhasrules, n.nspname"
 		", c.oid, d.relhasoids, %s"
 		" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
@@ -3205,10 +3233,15 @@ PGAPI_Statistics(HSTMT hstmt,
 		" and c.relam = a.oid order by"
 		, PG_VERSION_GE(conn, 8.3) ? "i.indoption" : "0"
 		, eq_string, escTableName, eq_string, escSchemaName);
-	STRCAT_FIXED(index_query, " i.indisprimary desc,");
-	STRCAT_FIXED(index_query, " i.indisunique, n.nspname, c.relname");
+	appendPQExpBufferStr(&index_query, " i.indisprimary desc,");
+	appendPQExpBufferStr(&index_query, " i.indisunique, n.nspname, c.relname");
+	if (PQExpBufferDataBroken(index_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_Columns()", func);
+		goto cleanup;
+	}
 
-	result = PGAPI_ExecDirect(hindx_stmt, (SQLCHAR *) index_query, SQL_NTS, PODBC_RDONLY);
+	result = PGAPI_ExecDirect(hindx_stmt, (SQLCHAR *) index_query.data, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		/*
@@ -3460,6 +3493,8 @@ cleanup:
 	if (hindx_stmt)
 		PGAPI_FreeStmt(hindx_stmt, SQL_DROP);
 	/* These things should be freed on any error ALSO! */
+	if (!PQExpBufferDataBroken(index_query))
+		termPQExpBuffer(&index_query);
 	if (table_name)
 		free(table_name);
 	if (escTableName)
@@ -3502,9 +3537,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	RETCODE	result = SQL_ERROR;
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
 	const char	*like_or_eq, *op_string, *eq_string;
-	char	column_query[INFO_INQUIRY_LEN];
-	size_t		cq_len,cq_size;
-	char		*col_query;
+	PQExpBufferData	column_query = {0};
 	BOOL	search_pattern;
 	QResultClass	*res = NULL;
 
@@ -3527,37 +3560,29 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 		like_or_eq = eqop;
 		escColumnName = simpleCatalogEscape(szColumnName, cbColumnName, conn);
 	}
-	STRCPY_FIXED(column_query, "select '' as TABLE_CAT, table_schema as TABLE_SCHEM,"
+	initPQExpBuffer(&column_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	appendPQExpBufferStr(&column_query, "select '' as TABLE_CAT, table_schema as TABLE_SCHEM,"
 			" table_name, column_name, grantor, grantee,"
 			" privilege_type as PRIVILEGE, is_grantable from"
 			" information_schema.column_privileges where true");
-	cq_len = strlen(column_query);
+	/* cq_len = strlen(column_query);
 	cq_size = sizeof(column_query);
-	col_query = column_query;
+	col_query = column_query; */
 	op_string = gen_opestr(like_or_eq, conn);
 	eq_string = gen_opestr(eqop, conn);
 	if (escSchemaName)
-	{
-		col_query += cq_len;
-		cq_size -= cq_len;
-		cq_len = snprintf_len(col_query, cq_size,
-			" and table_schem %s'%s'", eq_string, escSchemaName);
-	}
+		appendPQExpBuffer(&column_query, " and table_schem %s'%s'", eq_string, escSchemaName);
 	if (escTableName)
-	{
-		col_query += cq_len;
-		cq_size -= cq_len;
-		cq_len += snprintf_len(col_query, cq_size,
-			" and table_name %s'%s'", eq_string, escTableName);
-	}
+		appendPQExpBuffer(&column_query, " and table_name %s'%s'", eq_string, escTableName);
 	if (escColumnName)
+		appendPQExpBuffer(&column_query, " and column_name %s'%s'", op_string, escColumnName);
+	if (PQExpBufferDataBroken(column_query))
 	{
-		col_query += cq_len;
-		cq_size -= cq_len;
-		cq_len += snprintf_len(col_query, cq_size,
-			" and column_name %s'%s'", op_string, escColumnName);
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_ColumnPriviles()", func);
+		goto cleanup;
 	}
-	if (res = CC_send_query(conn, column_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
+	if (res = CC_send_query(conn, column_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ColumnPrivileges query error", func);
 		goto cleanup;
@@ -3572,12 +3597,15 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	/* set up the current tuple pointer for SQLFetch */
 	result = SQL_SUCCESS;
 cleanup:
+#undef return
 	if (!SQL_SUCCEEDED(result))
 		QR_Destructor(res);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->status = STMT_FINISHED;
 	stmt->currTuple = -1;
 	SC_set_rowset_start(stmt, -1, FALSE);
+	if (!PQExpBufferDataBroken(column_query))
+		termPQExpBuffer(&column_query);
 	if (escSchemaName)
 		free(escSchemaName);
 	if (escTableName)
@@ -3612,7 +3640,7 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 	int			seq = 0;
 	HSTMT		htbl_stmt = NULL;
 	StatementClass *tbl_stmt;
-	char		tables_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		tables_query = {0};
 	char		attname[MAX_INFO_STRING];
 	SQLLEN		attname_len;
 	char		*pktab = NULL, *pktbname;
@@ -3703,7 +3731,7 @@ retry_public_schema:
 		if (escSchemaName)
 			free(escSchemaName);
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
-		schema_strcat(pkscm, sizeof(pkscm), "%.*s", (SQLCHAR *) escSchemaName, SQL_NTS, szTableName, cbTableName, conn);
+		schema_str(pkscm, sizeof(pkscm), (SQLCHAR *) escSchemaName, SQL_NTS, TABLE_IS_VALID(szTableName, cbTableName), conn);
 	}
 
 	result = PGAPI_BindCol(htbl_stmt, 1, internal_asis_type,
@@ -3739,6 +3767,7 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	initPQExpBuffer(&tables_query);
 	qstart = 1;
 	if (0 == reloid)
 		qend = 2;
@@ -3746,9 +3775,6 @@ retry_public_schema:
 		qend = 1;
 	for (qno = qstart; qno <= qend; qno++)
 	{
-		size_t	qsize, tsize;
-		char	*tbqry;
-
 		switch (qno)
 		{
 			case 1:
@@ -3758,24 +3784,21 @@ retry_public_schema:
 				 * possible index columns. Courtesy of Tom Lane - thomas
 				 * 2000-03-21
 				 */
-				STRCPY_FIXED(tables_query,
+				appendPQExpBufferStr(&tables_query,
 					"select ta.attname, ia.attnum, ic.relname, n.nspname, tc.relname"
 					" from pg_catalog.pg_attribute ta,"
 					" pg_catalog.pg_attribute ia, pg_catalog.pg_class tc,"
 					" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
 					", pg_catalog.pg_class ic");
-				qsize = strlen(tables_query);
-				tsize = sizeof(tables_query) - qsize;
-				tbqry = tables_query + qsize;
 				if (0 == reloid)
-					snprintf(tbqry, tsize,
+					appendPQExpBuffer(&tables_query,
 					" where tc.relname %s'%s'"
 					" AND n.nspname %s'%s'"
 					, eq_string, escTableName, eq_string, pkscm);
 				else
-					snprintf(tbqry, tsize, " where tc.oid = %u", reloid);
+					appendPQExpBuffer(&tables_query, " where tc.oid = %u", reloid);
 
-				STRCAT_FIXED(tables_query,
+				appendPQExpBufferStr(&tables_query,
 					" AND tc.oid = i.indrelid"
 					" AND n.oid = tc.relnamespace"
 					" AND i.indisprimary = 't'"
@@ -3792,7 +3815,7 @@ retry_public_schema:
 				/*
 				 * Simplified query to search old fashoned primary key
 				 */
-				SPRINTF_FIXED(tables_query, "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
+				appendPQExpBuffer(&tables_query, "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
 					" from pg_catalog.pg_attribute ta,"
 					" pg_catalog.pg_attribute ia, pg_catalog.pg_class ic,"
 					" pg_catalog.pg_index i, pg_catalog.pg_namespace n"
@@ -3808,9 +3831,15 @@ retry_public_schema:
 					" order by ia.attnum", eq_string, escTableName, eq_string, pkscm);
 				break;
 		}
-		mylog("%s: tables_query='%s'\n", func, tables_query);
+		if (PQExpBufferDataBroken(tables_query))
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PrimaryKeys()", func);
+			ret = SQL_ERROR;
+			goto cleanup;
+		}
+		mylog("%s: tables_query='%s'\n", func, tables_query.data);
 
-		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
+		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query.data, SQL_NTS, PODBC_RDONLY);
 		if (!SQL_SUCCEEDED(result))
 		{
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
@@ -3882,6 +3911,8 @@ cleanup:
 	if (htbl_stmt)
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 
+	if (!PQExpBufferDataBroken(tables_query))
+		termPQExpBuffer(&tables_query);
 	if (pktab)
 		free(pktab);
 	if (escSchemaName)
@@ -4024,7 +4055,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	HSTMT		htbl_stmt = NULL, hpkey_stmt = NULL;
 	StatementClass *tbl_stmt;
 	RETCODE		ret = SQL_ERROR, result, keyresult;
-	char		tables_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		tables_query = {0};
 	char		trig_deferrable[2];
 	char		trig_initdeferred[2];
 	char		trig_args[1024];
@@ -4134,6 +4165,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	pkey_alloced = fkey_alloced = FALSE;
 
 	eq_string = gen_opestr(eqop, conn);
+	initPQExpBuffer(&tables_query);
 	/*
 	 * Case #2 -- Get the foreign keys in the specified table (fktab) that
 	 * refer to the primary keys of other table(s).
@@ -4144,9 +4176,9 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 
 		mylog("%s: entering Foreign Key Case #2", func);
 		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
+		schema_str(schema_needed, sizeof(schema_needed), szFkTableOwner, cbFkTableOwner, TABLE_IS_VALID(szFkTableName, cbFkTableName), conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
-		SPRINTF_FIXED(tables_query, "SELECT	pt.tgargs, "
+		printfPQExpBuffer(&tables_query, "SELECT	pt.tgargs, "
 			"		pt.tgnargs, "
 			"		pt.tgdeferrable, "
 			"		pt.tginitdeferred, "
@@ -4188,8 +4220,13 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			" order by pt.tgconstrname",
 			eq_string, escFkTableName, eq_string, escSchemaName);
 		free(escSchemaName);
+		if (PQExpBufferDataBroken(tables_query))
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_ForeignKeys()", func);
+			goto cleanup;
+		}
 
-		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
+		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query.data, SQL_NTS, PODBC_RDONLY);
 
 		if (!SQL_SUCCEEDED(result))
 		{
@@ -4472,9 +4509,9 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 		char	*escSchemaName;
 
 		escPkTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
+		schema_str(schema_needed, sizeof(schema_needed), szPkTableOwner, cbPkTableOwner, TABLE_IS_VALID(szPkTableName, cbPkTableName), conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
-		SPRINTF_FIXED(tables_query, "SELECT	pt.tgargs, "
+		printfPQExpBuffer(&tables_query, "SELECT	pt.tgargs, "
 			"	pt.tgnargs, "
 			"	pt.tgdeferrable, "
 			"	pt.tginitdeferred, "
@@ -4516,8 +4553,13 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			" order by pt.tgconstrname",
 			eq_string, escPkTableName, eq_string, escSchemaName);
 		free(escSchemaName);
+		if (PQExpBufferDataBroken(tables_query))
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_ForeignKeys()", func);
+			goto cleanup;
+		}
 
-		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query, SQL_NTS, PODBC_RDONLY);
+		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query.data, SQL_NTS, PODBC_RDONLY);
 		if (!SQL_SUCCEEDED(result))
 		{
 			SC_error_copy(stmt, tbl_stmt, TRUE);
@@ -4764,6 +4806,8 @@ cleanup:
 	 */
 	stmt->status = STMT_FINISHED;
 
+	if (!PQExpBufferDataBroken(tables_query))
+		termPQExpBuffer(&tables_query);
 	if (pkey_alloced)
 		free(pkey_text);
 	if (fkey_alloced)
@@ -4864,7 +4908,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	CSTR func = "PGAPI_ProcedureColumns";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn = SC_get_conn(stmt);
-	char		proc_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		proc_query = {0};
 	Int2		result_cols;
 	TupleField	*tuple;
 	char		*schema_name, *procname;
@@ -4873,7 +4917,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	char		*proargmodes;
 	char		*delim = NULL;
 	char		*atttypid, *attname, *column_name;
-	QResultClass *res, *tres;
+	QResultClass *res, *tres = NULL;
 	SQLLEN		tcount;
 	OID			pgtype;
 	Int4		paramcount, column_size, i, j;
@@ -4901,12 +4945,14 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 		escProcName = simpleCatalogEscape(szProcName, cbProcName, conn);
 	}
 	op_string = gen_opestr(like_or_eq, conn);
-	STRCPY_FIXED(proc_query, "select proname, proretset, prorettype, "
+	initPQExpBuffer(&proc_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	appendPQExpBufferStr(&proc_query, "select proname, proretset, prorettype, "
 			"pronargs, proargtypes, nspname, p.oid");
 	ret_col = ext_pos = 7;
 	poid_pos = 6;
 #ifdef	PRORET_COUNT
-	STRCAT_FIXED(proc_query, ", atttypid, attname");
+	appendPQExpBufferStr(&proc_query, ", atttypid, attname");
 	attid_pos = ext_pos;
 	attname_pos = ext_pos + 1;
 	ret_col += 2;
@@ -4914,36 +4960,36 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 #endif /* PRORET_COUNT */
 	if (PG_VERSION_GE(conn, 8.0))
 	{
-		STRCAT_FIXED(proc_query, ", proargnames");
+		appendPQExpBufferStr(&proc_query, ", proargnames");
 		ret_col++;
 	}
 	if (PG_VERSION_GE(conn, 8.1))
 	{
-		STRCAT_FIXED(proc_query, ", proargmodes, proallargtypes");
+		appendPQExpBufferStr(&proc_query, ", proargmodes, proallargtypes");
 		ret_col += 2;
 	}
 #ifdef	PRORET_COUNT
-	STRCAT_FIXED(proc_query, " from ((pg_catalog.pg_namespace n inner join"
+	appendPQExpBufferStr(&proc_query, " from ((pg_catalog.pg_namespace n inner join"
 			   " pg_catalog.pg_proc p on p.pronamespace = n.oid)"
 		" inner join pg_type t on t.oid = p.prorettype)"
 		" left outer join pg_attribute a on a.attrelid = t.typrelid "
 		" and attnum > 0 and not attisdropped where");
 #else
-	STRCAT_FIXED(proc_query, " from pg_catalog.pg_namespace n,"
+	appendPQExpBufferStr(&proc_query, " from pg_catalog.pg_namespace n,"
 			   " pg_catalog.pg_proc p where");
 			   " p.pronamespace = n.oid  and"
 			   " (not proretset) and");
 #endif /* PRORET_COUNT */
-	SPRINTFCAT_FIXED(proc_query,
+	appendPQExpBuffer(&proc_query,
 				 " has_function_privilege(p.oid, 'EXECUTE')");
 	if (IS_VALID_NAME(escSchemaName))
-		SPRINTFCAT_FIXED(proc_query,
+		appendPQExpBuffer(&proc_query,
 				 " and nspname %s'%s'",
 				 op_string, escSchemaName);
 	if (escProcName)
-		SPRINTFCAT_FIXED(proc_query,
+		appendPQExpBuffer(&proc_query,
 					 " and proname %s'%s'", op_string, escProcName);
-	SPRINTFCAT_FIXED(proc_query,
+	appendPQExpBuffer(&proc_query,
 				 " order by nspname, proname, p.oid, attnum");
 
 	if (escSchemaName)
@@ -4951,18 +4997,26 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	if (escProcName)
 		free(escProcName);
 
-	tres = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt);
+	if (PQExpBufferDataBroken(proc_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_ProcedureColumns()", func);
+		result = SQL_ERROR;
+		goto cleanup;
+	}
+	tres = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt);
 	if (!QR_command_maybe_successful(tres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ProcedureColumns query error", func);
 		QR_Destructor(tres);
-		return SQL_ERROR;
+		result = SQL_ERROR;
+		goto cleanup;
 	}
 
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_ProcedureColumns result.", func);
-		return SQL_ERROR;
+		result = SQL_ERROR;
+		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
 
@@ -5228,7 +5282,12 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 		}
 	}
-	QR_Destructor(tres);
+cleanup:
+#undef return
+	if (tres)
+		QR_Destructor(tres);
+	if (!PQExpBufferDataBroken(proc_query))
+		termPQExpBuffer(&proc_query);
 	/*
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.
@@ -5239,7 +5298,7 @@ mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	return SQL_SUCCESS;
+	return result;
 }
 
 
@@ -5256,7 +5315,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	CSTR func = "PGAPI_Procedures";
 	StatementClass *stmt = (StatementClass *) hstmt;
 	ConnectionClass *conn = SC_get_conn(stmt);
-	char		proc_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		proc_query = {0};
 	char	*escSchemaName = NULL, *escProcName = NULL;
 	QResultClass *res;
 	RETCODE		result;
@@ -5285,7 +5344,9 @@ PGAPI_Procedures(HSTMT hstmt,
 	 * The following seems the simplest implementation
 	 */
 	op_string = gen_opestr(like_or_eq, conn);
-	STRCPY_FIXED(proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
+	initPQExpBuffer(&proc_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	appendPQExpBufferStr(&proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
 	" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
 	   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
 	   " '' as " "REMARKS" ","
@@ -5293,21 +5354,24 @@ PGAPI_Procedures(HSTMT hstmt,
 	   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
 	   " pg_catalog.pg_proc"
 	  " where pg_proc.pronamespace = pg_namespace.oid");
-	schema_strcat1(proc_query, sizeof(proc_query), " and nspname %s'%.*s'", op_string, escSchemaName, szProcName, cbProcName, conn);
+	schema_appendPQExpBuffer1(&proc_query, " and nspname %s'%.*s'", op_string, escSchemaName, TABLE_IS_VALID(szProcName, cbProcName), conn);
 	if (IS_VALID_NAME(escProcName))
-		SPRINTFCAT_FIXED(proc_query,
+		appendPQExpBuffer(&proc_query,
 				 " and proname %s'%s'", op_string, escProcName);
 
-	res = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt);
+	if (PQExpBufferDataBroken(proc_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_Procedures()", func);
+		result = SQL_ERROR;
+		goto cleanup;
+	}
+	res = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt);
 	if (!QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Procedures query error", func);
 		QR_Destructor(res);
-		if (escSchemaName)
-			free(escSchemaName);
-		if (escProcName)
-			free(escProcName);
-		return SQL_ERROR;
+		result = SQL_ERROR;
+		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
 
@@ -5315,18 +5379,22 @@ PGAPI_Procedures(HSTMT hstmt,
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.
 	 */
+cleanup:
+#undef return
 	stmt->status = STMT_FINISHED;
 	extend_column_bindings(SC_get_ARDF(stmt), 8);
 	if (escSchemaName)
 		free(escSchemaName);
 	if (escProcName)
 		free(escProcName);
+	if (!PQExpBufferDataBroken(proc_query))
+		termPQExpBuffer(&proc_query);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	return SQL_SUCCESS;
+	return result;
 }
 
 
@@ -5390,7 +5458,7 @@ PGAPI_TablePrivileges(HSTMT hstmt,
 	CSTR func = "PGAPI_TablePrivileges";
 	ConnectionClass *conn = SC_get_conn(stmt);
 	Int2		result_cols;
-	char		proc_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		proc_query = {0};
 	QResultClass	*res, *wres = NULL, *allures = NULL;
 	TupleField	*tuple;
 	Int4		tablecount, usercount, i, j, k;
@@ -5467,20 +5535,27 @@ retry_public_schema:
 		escSchemaName = simpleCatalogEscape(szSchemaName, cbSchemaName, conn);
 
 	op_string = gen_opestr(like_or_eq, conn);
-	STRCPY_FIXED(proc_query, "select relname, usename, relacl, nspname"
+	initPQExpBuffer(&proc_query);
+	appendPQExpBufferStr(&proc_query, "select relname, usename, relacl, nspname"
 	" from pg_catalog.pg_namespace, pg_catalog.pg_class ,"
 	" pg_catalog.pg_user where");
 	if (escSchemaName)
-		schema_strcat1(proc_query, sizeof(proc_query), " nspname %s'%.*s' and", op_string, escSchemaName, szTableName, cbTableName, conn);
+		schema_appendPQExpBuffer1(&proc_query, " nspname %s'%.*s' and", op_string, escSchemaName, TABLE_IS_VALID(szTableName, cbTableName), conn);
 
 	if (escTableName)
-		SPRINTFCAT_FIXED(proc_query, " relname %s'%s' and", op_string, escTableName);
-	STRCAT_FIXED(proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
+		appendPQExpBuffer(&proc_query, " relname %s'%s' and", op_string, escTableName);
+	appendPQExpBufferStr(&proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
 	if ((!escTableName) && (!escSchemaName))
-		STRCAT_FIXED(proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
+		appendPQExpBufferStr(&proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
 
-	STRCAT_FIXED(proc_query, " pg_user.usesysid = relowner");
-	if (wres = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(wres))
+	appendPQExpBufferStr(&proc_query, " pg_user.usesysid = relowner");
+	if (PQExpBufferDataBroken(proc_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_TablePrivileges()", func);
+		result = SQL_ERROR;
+		goto cleanup;
+	}
+	if (wres = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(wres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
 		ret = SQL_ERROR;
@@ -5501,8 +5576,15 @@ retry_public_schema:
 		}
 	}
 
-	STRCPY_FIXED(proc_query, "select usename, usesysid, usesuper from pg_user");
-	if (allures = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(allures))
+	resetPQExpBuffer(&proc_query);
+	appendPQExpBufferStr(&proc_query, "select usename, usesysid, usesuper from pg_user");
+	if (PQExpBufferDataBroken(proc_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_TablePrivileges()", func);
+		ret = SQL_ERROR;
+		goto cleanup;
+	}
+	if (allures = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(allures))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
 		ret = SQL_ERROR;
@@ -5554,8 +5636,15 @@ retry_public_schema:
 				int		i;
 				char	*grolist, *uid, *delm;
 
-				SPRINTF_FIXED(proc_query, "select grolist from pg_group where groname = '%s'", user);
-				if (gres = CC_send_query(conn, proc_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(gres))
+				resetPQExpBuffer(&proc_query);
+				appendPQExpBuffer(&proc_query, "select grolist from pg_group where groname = '%s'", user);
+				if (PQExpBufferDataBroken(proc_query))
+				{
+					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_TablePrivileges()", func);
+					ret = SQL_ERROR;
+					goto cleanup;
+				}
+				if (gres = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(gres))
 				{
 					grolist = QR_get_value_backend_text(gres, 0, 0);
 					if (grolist && grolist[0] == '{')
@@ -5654,6 +5743,8 @@ cleanup:
 		free(escTableName);
 	if (useracl)
 		free(useracl);
+	if (!PQExpBufferDataBroken(proc_query))
+		termPQExpBuffer(&proc_query);
 	if (wres)
 		QR_Destructor(wres);
 	if (allures)
@@ -5681,7 +5772,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	QResultClass	*res = NULL;
 	RETCODE		ret = SQL_ERROR, result;
-	char		tables_query[INFO_INQUIRY_LEN];
+	PQExpBufferData		tables_query = {0};
 	char		*pk_table_needed = NULL, *escTableName = NULL;
 	char		*fk_table_needed = NULL;
 	char		schema_needed[SCHEMA_NAME_STORAGE_LEN + 1];
@@ -5715,7 +5806,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	{
 		mylog("%s: entering Foreign Key Case #2", func);
 		escTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szFkTableOwner, cbFkTableOwner, szFkTableName, cbFkTableName, conn);
+		schema_str(schema_needed, sizeof(schema_needed), szFkTableOwner, cbFkTableOwner, TABLE_IS_VALID(szFkTableName, cbFkTableName), conn);
 		relqual = "\n   and  conrelid = c.oid";
 	}
 	/*
@@ -5726,7 +5817,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	else if (NULL != pk_table_needed)
 	{
 		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
-		schema_strcat(schema_needed, sizeof(schema_needed), "%.*s", szPkTableOwner, cbPkTableOwner, szPkTableName, cbPkTableName, conn);
+		schema_str(schema_needed, sizeof(schema_needed), szPkTableOwner, cbPkTableOwner, TABLE_IS_VALID(szPkTableName, cbPkTableName), conn);
 		relqual = "\n   and  confrelid = c.oid";
 	}
 	else
@@ -5743,7 +5834,9 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	STRCPY_FIXED(scmName2, "n1.nspname");
 	escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
 
-	SPRINTF_FIXED(tables_query,
+	initPQExpBuffer(&tables_query);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	printfPQExpBuffer(&tables_query,
 		"select"
 		"	%s as PKTABLE_CAT"
 		",\n	%s as PKTABLE_SCHEM"
@@ -5836,13 +5929,18 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	{
 		free(escTableName);
 		escTableName = simpleCatalogEscape((SQLCHAR *) pk_table_needed, SQL_NTS, conn);
-		SPRINTFCAT_FIXED(tables_query,
+		appendPQExpBuffer(&tables_query,
 				"\n where c2.relname %s'%s'",
 				eq_string, escTableName);
 	}
-	STRCAT_FIXED(tables_query, "\n  order by ref.oid, ref.i");
+	appendPQExpBufferStr(&tables_query, "\n  order by ref.oid, ref.i");
 
-	if (res = CC_send_query(conn, tables_query, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
+	if (PQExpBufferDataBroken(tables_query))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_SpecialColumns()", func);
+		goto cleanup;
+	}
+	if (res = CC_send_query(conn, tables_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ForeignKeys query error", func);
 		QR_Destructor(res);
@@ -5869,6 +5967,8 @@ cleanup:
 		free(escTableName);
 	if (fk_table_needed)
 		free(fk_table_needed);
+	if (!PQExpBufferDataBroken(tables_query))
+		termPQExpBuffer(&tables_query);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->currTuple = -1;
 	SC_set_rowset_start(stmt, -1, FALSE);

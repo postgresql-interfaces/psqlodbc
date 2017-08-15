@@ -20,7 +20,6 @@
 #endif /* _WIN32_WINNT */
 
 #include "connection.h"
-#include <libpq-fe.h>
 
 #include "misc.h"
 
@@ -1699,9 +1698,8 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			discard_next_savepoint = FALSE,
 			discard_next_release = FALSE,
 			consider_rollback;
-	int		func_cs_count = 0, i;
-	size_t		query_buf_len = 0;
-	char	   *query_buf = NULL, prepend_cmd[128];
+	int		func_cs_count = 0;
+	PQExpBufferData		query_buf = {0};
 	size_t		query_len;
 
 	/* QR_set_command() dups this string so doesn't need static */
@@ -1796,70 +1794,41 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	query_len = strlen(query);
 	mylog("%s:query_len=%u\n", __FUNCTION__, query_len);
 
-	for (i = 0; i < 2; i++) /* 0:calculate& alloc 1:snprint */
+	initPQExpBuffer(&query_buf);
+	/* issue_begin, query_rollback and prepend_savepoint are exclusive */
+	if (issue_begin)
 	{
-		/* issue_begin, query_rollback and prepend_savepoint are exclusive */
-		if (issue_begin)
-		{
-			if (0 == i)
-				query_buf_len += (strlen(bgncmd) + 1);
-			else
-			{
-				snprintfcat(query_buf, query_buf_len, "%s;", bgncmd);
-				discard_next_begin = TRUE;
-			}
-		}
-		else if (query_rollback)
-		{
-			if (0 == i)
-				query_buf_len += (strlen(svpcmd) + 1 + strlen(per_query_svp) + 1);
-			else
-			{
-				snprintfcat(query_buf, query_buf_len, "%s %s;", svpcmd, per_query_svp);
-				discard_next_savepoint = TRUE;
-			}
-		}
-		else if (prepend_savepoint)
-		{
-			if (0 == i)
-				query_buf_len += (GenerateSvpCommand(self, INTERNAL_SAVEPOINT_OPERATION, prepend_cmd, sizeof(prepend_cmd)) + 1);
-			else
-			{
-				snprintfcat(query_buf, query_buf_len, "%s;", prepend_cmd);
-				self->internal_op = SAVEPOINT_IN_PROGRESS;
-			}
-		}
-		if (0 == i)
-			query_buf_len += query_len;
-		else
-			strlcat(query_buf, query, query_buf_len);
-		if (appendq)
-		{
-			if (0 == i)
-				query_buf_len += (1 + strlen(appendq));
-			else
-				snprintfcat(query_buf, query_buf_len, ";%s", appendq);
-		}
-		if (query_rollback)
-		{
-			if (0 == i)
-				query_buf_len += (1 + strlen(rlscmd) + 1 + strlen(per_query_svp));
-			else
-				snprintfcat(query_buf, query_buf_len, ";%s %s", rlscmd, per_query_svp);
-		}
-		if (0 == i)
-		{
-			query_buf_len++;
-			query_buf = malloc(query_buf_len);
-			if (!query_buf)
-			{
-				CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
-				goto cleanup;
-			}
-			query_buf[0] = '\0';
-		}
+		appendPQExpBuffer(&query_buf, "%s;", bgncmd);
+		discard_next_begin = TRUE;
 	}
-inolog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf, query_buf_len);
+	else if (query_rollback)
+	{
+		appendPQExpBuffer(&query_buf, "%s %s;", svpcmd, per_query_svp);
+		discard_next_savepoint = TRUE;
+	}
+	else if (prepend_savepoint)
+	{
+		char   	prepend_cmd[128];
+
+		GenerateSvpCommand(self, INTERNAL_SAVEPOINT_OPERATION, prepend_cmd, sizeof(prepend_cmd));
+		appendPQExpBuffer(&query_buf, "%s;", prepend_cmd);
+		self->internal_op = SAVEPOINT_IN_PROGRESS;
+	}
+	appendPQExpBufferStr(&query_buf, query);
+	if (appendq)
+	{
+		appendPQExpBuffer(&query_buf, ";%s", appendq);
+	}
+	if (query_rollback)
+	{
+		appendPQExpBuffer(&query_buf, ";%s %s", rlscmd, per_query_svp);
+	}
+	if (PQExpBufferDataBroken(query_buf))
+	{
+		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
+		goto cleanup;
+	}
+mylog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf.data, strlen(query_buf.data));
 
 	/* Set up notice receiver */
 	nrarg.conn = self;
@@ -1867,7 +1836,7 @@ inolog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf, query_buf_len);
 	nrarg.res = NULL;
 	PQsetNoticeReceiver(self->pqconn, receive_libpq_notice, &nrarg);
 
-	if (!PQsendQuery(self->pqconn, query_buf))
+	if (!PQsendQuery(self->pqconn, query_buf.data))
 	{
 		char *errmsg = PQerrorMessage(self->pqconn);
 		CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, func);
@@ -2172,8 +2141,8 @@ inolog(" !!!! %s:rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%
 	if (!ReadyToReturn)
 		retres = cmdres;
 
-	if (query_buf)
-		free(query_buf);
+	if (!PQExpBufferDataBroken(query_buf))
+		termPQExpBuffer(&query_buf);
 
 	/*
 	 * Cleanup garbage results before returning.
@@ -2939,41 +2908,70 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
  *	This is heavily used in creating queries for info routines (SQLTables, SQLColumns).
  *	This routine could be modified to use vsprintf() to handle multiple arguments.
  */
-static char *
-my_strcat(char *buf, int buflen, const char *fmt, const char *s, ssize_t len)
+static int
+my_str(char *buf, int buflen, const char *fmt, const char *s, ssize_t len)
 {
 	if (s && (len > 0 || (len == SQL_NTS && *s != 0)))
 	{
 		size_t	length = (len > 0) ? len : strlen(s);
 
-		snprintfcat(buf, buflen, fmt, length, s);
-		return buf;
+		return snprintf(buf, buflen, fmt, length, s);
 	}
-	return NULL;
+	buf[0] = '\0';
+	return 0;
+}
+
+int
+schema_str(char *buf, int buflen, const SQLCHAR *s, SQLLEN len, BOOL table_is_valid, ConnectionClass *conn)
+{
+	CSTR	fmt = "%.*s";
+
+	buf[0] = '\0';
+	if (!s || 0 == len)
+	{
+		/*
+		 * Note that this driver assumes the implicit schema is
+		 * the CURRENT_SCHEMA() though it doesn't worth the
+		 * naming.
+		 */
+		if (table_is_valid)
+			return my_str(buf, buflen, fmt, CC_get_current_schema(conn), SQL_NTS);
+		return 0;
+	}
+	return my_str(buf, buflen, fmt, (char *) s, len);
+}
+
+static void
+my_appendPQExpBuffer(PQExpBufferData *buf, const char *fmt, const char *s, ssize_t len)
+{
+	if (s && (len > 0 || (len == SQL_NTS && *s != 0)))
+	{
+		size_t	length = (len > 0) ? len : strlen(s);
+
+		appendPQExpBuffer(buf, fmt, length, s);
+	}
 }
 
 /*
- *	my_strcat1 is a extension of my_strcat.
- *	It can have 1 more parameter than my_strcat.
+ *	my_appendPQExpBuffer1 is a extension of my_appendPQExpBuffer.
+ *	It can have 1 more parameter than my_aapendPQExpBuffer.
  */
-static char *
-my_strcat1(char *buf, int buflen, const char *fmt, const char *s1, const char *s)
+static void
+my_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt, const char *s1, const char *s)
 {
 	if (s && s[0] != '\0')
 	{
 		ssize_t	length = strlen(s);
 
 		if (s1)
-			snprintfcat(buf, buflen, fmt, s1, length, s);
+			appendPQExpBuffer(buf, fmt, s1, length, s);
 		else
-			snprintfcat(buf, buflen, fmt, length, s);
-		return buf;
+			appendPQExpBuffer(buf, fmt, length, s);
 	}
-	return NULL;
 }
 
-char *
-schema_strcat(char *buf, int buflen, const char *fmt, const SQLCHAR *s, SQLLEN len, const SQLCHAR *tbname, SQLLEN tbnmlen, ConnectionClass *conn)
+void
+schema_appendPQExpBuffer(PQExpBufferData *buf, const char *fmt, const SQLCHAR *s, SQLLEN len, BOOL table_is_valid, ConnectionClass *conn)
 {
 	if (!s || 0 == len)
 	{
@@ -2982,23 +2980,23 @@ schema_strcat(char *buf, int buflen, const char *fmt, const SQLCHAR *s, SQLLEN l
 		 * the CURRENT_SCHEMA() though it doesn't worth the
 		 * naming.
 		 */
-		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat(buf, buflen, fmt, CC_get_current_schema(conn), SQL_NTS);
-		return NULL;
+		if (table_is_valid)
+			my_appendPQExpBuffer(buf, fmt, CC_get_current_schema(conn), SQL_NTS);
+		return;
 	}
-	return my_strcat(buf, buflen, fmt, (char *) s, len);
+	my_appendPQExpBuffer(buf, fmt, (char *) s, len);
 }
 
-char *
-schema_strcat1(char *buf, int buflen, const char *fmt, const char *s1, const char *s, const SQLCHAR *tbname, int tbnmlen, ConnectionClass *conn)
+void
+schema_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt, const char *s1, const char *s, BOOL table_is_valid, ConnectionClass *conn)
 {
 	if (!s || s[0] == '\0')
 	{
-		if (tbname && (tbnmlen > 0 || tbnmlen == SQL_NTS))
-			return my_strcat1(buf, buflen, fmt, s1, CC_get_current_schema(conn));
-		return NULL;
+		if (table_is_valid)
+			my_appendPQExpBuffer1(buf, fmt, s1, CC_get_current_schema(conn));
+		return;
 	}
-	return my_strcat1(buf, buflen, fmt, s1, s);
+	my_appendPQExpBuffer1(buf, fmt, s1, s);
 }
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_

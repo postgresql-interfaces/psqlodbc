@@ -2195,26 +2195,35 @@ ti_quote(StatementClass *stmt, OID tableoid, char *buf, int buf_size)
 
 static BOOL	tupleExists(StatementClass *stmt, const KeySet *keyset)
 {
-	char	selstr[256];
+	PQExpBufferData	selstr = {0};
 	const TABLE_INFO	*ti = stmt->ti[0];
 	QResultClass	*res;
 	RETCODE		ret = FALSE;
 	const char *bestqual = GET_NAME(ti->bestqual);
 	char table_fqn[256];
 
-	SPRINTF_FIXED(selstr,
+	initPQExpBuffer(&selstr);
+	printfPQExpBuffer(&selstr,
 			 "select 1 from %s where ctid = '(%u,%u)'",
 			 ti_quote(stmt, keyset->oid, table_fqn, sizeof(table_fqn)),
 			 keyset->blocknum, keyset->offset);
 	if (NULL != bestqual && 0 != keyset->oid && !TI_has_subclass(ti))
 	{
-		SPRINTFCAT_FIXED(selstr, " and ");
-		SPRINTFCAT_FIXED(selstr, bestqual, keyset->oid);
+		appendPQExpBuffer(&selstr, " and ");
+		appendPQExpBuffer(&selstr, bestqual, keyset->oid);
 	}
-	res = CC_send_query(SC_get_conn(stmt), selstr, NULL, READ_ONLY_QUERY, NULL);
+	if (PQExpBufferDataBroken(selstr))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in tupleExists()", __FUNCTION__);
+		goto cleanup;
+	}
+	res = CC_send_query(SC_get_conn(stmt), selstr.data, NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res) && 1 == res->num_cached_rows)
 		ret = TRUE;
 	QR_Destructor(res);
+cleanup:
+	if (!PQExpBufferDataBroken(selstr))
+		termPQExpBuffer(&selstr);
 	return ret;
 }
 
@@ -3002,38 +3011,17 @@ static QResultClass *
 positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const char *tidval)
 {
 	CSTR	func = "positioned_load";
-	CSTR	andqual = " and ";
 	QResultClass *qres = NULL;
-	char	*selstr, oideqstr[256];
+	PQExpBufferData	selstr = {0};
 	BOOL	latest = ((flag & LATEST_TUPLE_LOAD) != 0);
-	size_t	len;
 	TABLE_INFO	*ti = stmt->ti[0];
 	const char *bestqual = GET_NAME(ti->bestqual);
 	const ssize_t	from_pos = stmt->load_from_pos;
 	const char *load_stmt = stmt->load_statement;
 
 inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(ti->bestqual));
-	if (!bestqual || !oidint)
-		*oideqstr = '\0';
-	else
-	{
-		STRCPY_FIXED(oideqstr, andqual);
-		SPRINTFCAT_FIXED(oideqstr, bestqual, *oidint);
-	}
-	len = strlen(load_stmt);
-	len += strlen(oideqstr);
-	if (tidval)
-		len += 100;
-	else if ((flag & USE_INSERTED_TID) != 0)
-		len += 50;
-	else
-		len += 20;
-	selstr = malloc(len);
-	if (!selstr)
-	{
-		SC_set_error(stmt,STMT_NO_MEMORY_ERROR, "Could not allocate memory for query", func);
-		goto cleanup;
-	}
+	initPQExpBuffer(&selstr);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (TI_has_subclass(ti))
 	{
 		OID	tableoid = *oidint;
@@ -3045,7 +3033,7 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 		{
 			if (latest)
 			{
-				snprintf(selstr, len,
+				printfPQExpBuffer(&selstr,
 					 "%.*sfrom %s where ctid = currtid2('%s', '%s')",
 					 (int) from_pos, load_stmt,
 					 quoted_table,
@@ -3053,10 +3041,10 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 					 tidval);
 			}
 			else
-				snprintf(selstr, len, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, quoted_table, tidval);
+				printfPQExpBuffer(&selstr, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, quoted_table, tidval);
 		}
 		else if ((flag & USE_INSERTED_TID) != 0)
-			snprintf(selstr, len, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", (int) from_pos, load_stmt, quoted_table);
+			printfPQExpBuffer(&selstr, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", (int) from_pos, load_stmt, quoted_table);
 		/*
 		else if (bestitem && oidint)
 		{
@@ -3070,39 +3058,55 @@ inolog("%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(
 	}
 	else
 	{
+		CSTR	andqual = " and ";
+		BOOL	andExist = TRUE;
+
 		if (tidval)
 		{
 			if (latest)
 			{
 				char table_fqn[256];
 
-				snprintf(selstr, len,
-					 "%s where ctid = currtid2('%s', '%s') %s",
+				printfPQExpBuffer(&selstr,
+					 "%s where ctid = currtid2('%s', '%s')",
 					 load_stmt,
 					 ti_quote(stmt, 0, table_fqn, sizeof(table_fqn)),
-					 tidval, oideqstr);
+					 tidval);
 			}
 			else
-				snprintf(selstr, len, "%s where ctid = '%s' %s", load_stmt, tidval, oideqstr);
+				printfPQExpBuffer(&selstr, "%s where ctid = '%s'", load_stmt, tidval);
 		}
 		else if ((flag & USE_INSERTED_TID) != 0)
-			snprintf(selstr, len, "%s where ctid = currtid(0, '(0,0)') %s", load_stmt, oideqstr);
-		else if (bestqual && oidint)
+			printfPQExpBuffer(&selstr, "%s where ctid = currtid(0, '(0,0)')", load_stmt);
+		else if (bestqual)
 		{
-			snprintf(selstr, len, "%s where ", load_stmt);
-			snprintfcat(selstr, len, bestqual, *oidint);
+			andExist = FALSE;
+			printfPQExpBuffer(&selstr, "%s where ", load_stmt);
 		}
 		else
 		{
 			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
 			goto cleanup;
 		}
+		if (bestqual && oidint)
+		{
+			if (andExist)
+				appendPQExpBufferStr(&selstr, andqual);
+			appendPQExpBuffer(&selstr, bestqual, *oidint);
+		}
 	}
 
-	mylog("selstr=%s\n", selstr);
-	qres = CC_send_query(SC_get_conn(stmt), selstr, NULL, READ_ONLY_QUERY, stmt);
+	if (PQExpBufferDataBroken(selstr))
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory positioned_load()", func);
+		goto cleanup;
+	}
+	mylog("selstr=%s\n", selstr.data);
+	qres = CC_send_query(SC_get_conn(stmt), selstr.data, NULL, READ_ONLY_QUERY, stmt);
 cleanup:
-	free(selstr);
+#undef	return
+	if (!PQExpBufferDataBroken(selstr))
+		termPQExpBuffer(&selstr);
 	return qres;
 }
 
@@ -3293,10 +3297,10 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 	UInt4	blocknum;
 	SQLLEN	kres_ridx;
 	UInt2	offset;
-	char	*qval = NULL;
+	PQExpBufferData	qval = {0};
 	int	keys_per_fetch = 10;
-	size_t	allen = 0;
 
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0;; i++, kres_ridx++)
 	{
 		if (i >= limitrow)
@@ -3307,7 +3311,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			{
 				for (j = rowc; j < keys_per_fetch; j++)
 				{
-					strlcat(qval, j ? ",NULL" : "NULL", allen);
+					appendPQExpBufferStr(&qval, j ? ",NULL" : "NULL");
 				}
 			}
 			rowc = -1; /* end of loop */
@@ -3316,8 +3320,14 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 		{
 			QResultClass	*qres;
 
-			strlcat(qval, ")", allen);
-			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
+			appendPQExpBufferStr(&qval, ")");
+			if (PQExpBufferDataBroken(qval))
+			{
+				rcnt = -1;
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in LoadFromKeyset()", func);
+				goto cleanup;
+			}
+			qres = CC_send_query(conn, qval.data, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
 				SQLLEN		j, k, l;
@@ -3369,10 +3379,9 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 		}
 		if (!rowc)
 		{
-			size_t lodlen = 0;
-
-			if (!qval)
+			if (PQExpBufferDataBroken(qval))
 			{
+				initPQExpBuffer(&qval);
 
 				if (res->reload_count > 0)
 					keys_per_fetch = res->reload_count;
@@ -3388,29 +3397,28 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 						keys_per_fetch = rows_per_fetch;
 					if (!keys_per_fetch)
 						keys_per_fetch = 2;
-					lodlen = strlen(stmt->load_statement);
 					SPRINTF_FIXED(planname, "_KEYSET_%p", res);
-					allen = 8 + strlen(planname) +
-						3 + 4 * keys_per_fetch + 1
-						+ 1 + 2 + lodlen + 20 +
-						4 * keys_per_fetch + 1;
-					SC_MALLOC_return_with_error(qval, char, allen,
-						stmt, "Couldn't alloc qval", -1);
-					snprintf(qval, allen, "PREPARE \"%s\"", planname);
+					printfPQExpBuffer(&qval, "PREPARE \"%s\"", planname);
 					for (j = 0; j < keys_per_fetch; j++)
 					{
-						strlcat(qval, j ? ",tid" : "(tid", allen);
+						appendPQExpBufferStr(&qval, j ? ",tid" : "(tid");
 					}
-					snprintfcat(qval, allen, ") as %s where ctid in ", stmt->load_statement);
+					appendPQExpBuffer(&qval, ") as %s where ctid in ", stmt->load_statement);
 					for (j = 0; j < keys_per_fetch; j++)
 					{
 						if (j == 0)
-							strlcat(qval, "($1", allen);
+							appendPQExpBufferStr(&qval, "($1");
 						else
-							snprintfcat(qval, allen, ",$%d", j + 1);
+							appendPQExpBuffer(&qval, ",$%d", j + 1);
 					}
-					strlcat(qval, ")", allen);
-					qres = CC_send_query(conn, qval, NULL, READ_ONLY_QUERY, stmt);
+					appendPQExpBufferStr(&qval, ")");
+					if (PQExpBufferDataBroken(qval))
+					{
+						rcnt = -1;
+						SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in LoadFromKeyset()", func);
+						goto cleanup;
+					}
+					qres = CC_send_query(conn, qval.data, NULL, READ_ONLY_QUERY, stmt);
 					if (QR_command_maybe_successful(qres))
 					{
 						res->reload_count = keys_per_fetch;
@@ -3424,33 +3432,31 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 					}
 					QR_Destructor(qres);
 				}
-				allen = 25 + 23 * keys_per_fetch;
-
-				SC_REALLOC_return_with_error(qval, char, allen,
-					stmt, "Couldn't alloc qval", -1);
 			}
 			if (res->reload_count > 0)
 			{
-				snprintf(qval, allen, "EXECUTE \"_KEYSET_%p\"(", res);
+				printfPQExpBuffer(&qval, "EXECUTE \"_KEYSET_%p\"(", res);
 			}
 			else
 			{
-				snprintf(qval, allen, "%s where ctid in (", stmt->load_statement);
+				printfPQExpBuffer(&qval, "%s where ctid in (", stmt->load_statement);
 			}
 		}
 		if (0 != (res->keyset[kres_ridx].status & CURS_NEEDS_REREAD))
 		{
 			getTid(res, kres_ridx, &blocknum, &offset);
 			if (rowc)
-				snprintfcat(qval, allen, ",'(%u,%u)'", blocknum, offset);
+				appendPQExpBuffer(&qval, ",'(%u,%u)'", blocknum, offset);
 			else
-				snprintfcat(qval, allen, "'(%u,%u)'", blocknum, offset);
+				appendPQExpBuffer(&qval, "'(%u,%u)'", blocknum, offset);
 			rowc++;
 			rcnt++;
 		}
 	}
-	if (qval)
-		free(qval);
+cleanup:
+#undef	return
+	if (!PQExpBufferDataBroken(qval))
+		termPQExpBuffer(&qval);
 	return rcnt;
 }
 
@@ -3463,15 +3469,14 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 	UInt4	blocknum;
 	SQLLEN	kres_ridx;
 	UInt2	offset;
-	char	*qval = NULL;
+	PQExpBufferData	qval = {0};
 	int	keys_per_fetch = 10;
 	const char *load_stmt = stmt->load_statement;
 	const ssize_t	from_pos = stmt->load_from_pos;
-	const int	max_identifier = 100;
-	size_t	allen = 0;
 
 mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, limitrow);
 	new_oid = 0;
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0, oid = 0;; i++, kres_ridx++)
 	{
 		if (i >= limitrow)
@@ -3491,8 +3496,14 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 		{
 			QResultClass	*qres;
 
-			strlcat(qval, ")", allen);
-			qres = CC_send_query(conn, qval, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
+			appendPQExpBufferStr(&qval, ")");
+			if (PQExpBufferDataBroken(qval))
+			{
+				rcnt = -1;
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in LoadFromKeyset_inh()", __FUNCTION__);
+				goto cleanup;
+			}
+			qres = CC_send_query(conn, qval.data, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
 			if (QR_command_maybe_successful(qres))
 			{
 				SQLLEN		k, l;
@@ -3547,7 +3558,7 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 		{
 			char table_fqn[256];
 
-			if (!qval)
+			if (PQExpBufferDataBroken(qval))
 			{
 				if (rows_per_fetch >= pre_fetch_count * 2)
 					keys_per_fetch = pre_fetch_count;
@@ -3555,27 +3566,24 @@ mylog(" %s in rows_per_fetch=%d limitrow=%d\n", __FUNCTION__, rows_per_fetch, li
 					keys_per_fetch = rows_per_fetch;
 				if (!keys_per_fetch)
 					keys_per_fetch = 2;
-				allen = from_pos + sizeof("from ") +
-					2 * (2 + max_identifier) + 1 *
-					+ sizeof(" where ctid in ") +
-					20 * keys_per_fetch + 2;
-				SC_MALLOC_return_with_error(qval, char, allen,
-					stmt, "Couldn't alloc qval", -1);
+				initPQExpBuffer(&qval);
 			}
-			snprintf(qval, allen, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid, table_fqn, sizeof(table_fqn)));
+			printfPQExpBuffer(&qval, "%.*sfrom %s where ctid in (", (int) from_pos, load_stmt, ti_quote(stmt, new_oid, table_fqn, sizeof(table_fqn)));
 		}
 		if (new_oid != oid)
 			oid = new_oid;
 		getTid(res, kres_ridx, &blocknum, &offset);
 		if (rowc)
-			snprintfcat(qval, allen, ",'(%u,%u)'", blocknum, offset);
+			appendPQExpBuffer(&qval, ",'(%u,%u)'", blocknum, offset);
 		else
-			snprintfcat(qval, allen, "'(%u,%u)'", blocknum, offset);
+			appendPQExpBuffer(&qval, "'(%u,%u)'", blocknum, offset);
 		rowc++;
 		rcnt++;
 	}
-	if (qval)
-		free(qval);
+cleanup:
+#undef	return
+	if (!PQExpBufferDataBroken(qval))
+		termPQExpBuffer(&qval);
 	return rcnt;
 }
 
@@ -3919,8 +3927,8 @@ SC_pos_update(StatementClass *stmt,
 	BindInfoClass *bindings = opts->bindings;
 	TABLE_INFO	*ti;
 	FIELD_INFO	**fi;
-	char		updstr[4096];
-	RETCODE		ret;
+	PQExpBufferData		updstr = {0};
+	RETCODE		ret = SQL_ERROR;
 	OID	oid;
 	UInt4	blocknum;
 	UInt2	pgoffset;
@@ -3982,7 +3990,9 @@ SC_pos_update(StatementClass *stmt,
 
 	ti = s.stmt->ti[0];
 
-	SPRINTF_FIXED(updstr,
+	initPQExpBuffer(&updstr);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	printfPQExpBuffer(&updstr,
 			 "update %s set", ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)));
 
 	num_cols = s.irdflds->nfields;
@@ -4000,10 +4010,10 @@ SC_pos_update(StatementClass *stmt,
 			if (*used != SQL_IGNORE && fi[i]->updatable)
 			{
 				if (upd_cols)
-					SPRINTFCAT_FIXED(updstr,
+					appendPQExpBuffer(&updstr,
 								 ", \"%s\" = ?", GET_NAME(fi[i]->column_name));
 				else
-					SPRINTFCAT_FIXED(updstr,
+					appendPQExpBuffer(&updstr,
 								 " \"%s\" = ?", GET_NAME(fi[i]->column_name));
 				upd_cols++;
 			}
@@ -4025,28 +4035,28 @@ SC_pos_update(StatementClass *stmt,
 		const char *bestqual = GET_NAME(ti->bestqual);
 		int	unknown_sizes = ci->drivers.unknown_sizes;
 
-		SPRINTFCAT_FIXED(updstr,
+		appendPQExpBuffer(&updstr,
 					 " where ctid = '(%u, %u)'",
 					 blocknum, pgoffset);
 		if (bestqual)
 		{
-			SPRINTFCAT_FIXED(updstr, " and ");
-			SPRINTFCAT_FIXED(updstr, bestqual, oid);
+			appendPQExpBuffer(&updstr, " and ");
+			appendPQExpBuffer(&updstr, bestqual, oid);
 		}
 		if (PG_VERSION_GE(conn, 8.2))
 		{
-			SPRINTFCAT_FIXED(updstr, " returning ctid");
+			appendPQExpBuffer(&updstr, " returning ctid");
 			if (bestitem)
 			{
-				SPRINTFCAT_FIXED(updstr, ", ");
-				SPRINTFCAT_FIXED(updstr, "\"%s\"", bestitem);
+				appendPQExpBuffer(&updstr, ", ");
+				appendPQExpBuffer(&updstr, "\"%s\"", bestitem);
 			}
 		}
 		mylog("updstr=%s\n", updstr);
 		if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 		{
 			SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
-			return SQL_ERROR;
+			goto cleanup;
 		}
 		s.qstmt = (StatementClass *) hstmt;
 		apdopts = SC_get_APDF(s.qstmt);
@@ -4085,19 +4095,25 @@ SC_pos_update(StatementClass *stmt,
 		}
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;
-		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) updstr, SQL_NTS, 0);
+		if (PQExpBufferDataBroken(updstr))
+		{
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in SC_pos_updatet()", func);
+			goto cleanup;
+		}
+		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) updstr.data, SQL_NTS, 0);
 		if (ret == SQL_NEED_DATA)
 		{
 			pup_cdata *cbdata = (pup_cdata *) malloc(sizeof(pup_cdata));
 			if (!cbdata)
 			{
 				SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for cbdata", func);
-				return SQL_ERROR;
+				ret = SQL_ERROR;
+				goto cleanup;
 			}
 			memcpy(cbdata, &s, sizeof(pup_cdata));
 			if (0 == enqueueNeedDataCallback(s.stmt, pos_update_callback, cbdata))
 				ret = SQL_ERROR;
-			return ret;
+			goto cleanup;
 		}
 		/* else if (ret != SQL_SUCCESS) this is unneccesary
 			SC_error_copy(s.stmt, s.qstmt, TRUE); */
@@ -4109,6 +4125,11 @@ SC_pos_update(StatementClass *stmt,
 	}
 
 	ret = pos_update_callback(ret, &s);
+
+cleanup:
+#undef	return
+	if (!PQExpBufferDataBroken(updstr))
+		termPQExpBuffer(&updstr);
 	return ret;
 }
 RETCODE
@@ -4120,7 +4141,7 @@ SC_pos_delete(StatementClass *stmt,
 	QResultClass *res, *qres;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
-	char		dltstr[4096];
+	PQExpBufferData		dltstr = {0};
 	RETCODE		ret;
 	SQLLEN		kres_ridx;
 	OID		oid;
@@ -4177,21 +4198,29 @@ SC_pos_delete(StatementClass *stmt,
 		blocknum = keyset->blocknum;
 		offset = keyset->offset;
 	}
-	SPRINTF_FIXED(dltstr,
+	initPQExpBuffer(&dltstr);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	printfPQExpBuffer(&dltstr,
 			 "delete from %s where ctid = '(%u, %u)'",
 			 ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)), blocknum, offset);
 	if (bestqual && !TI_has_subclass(ti))
 	{
-		SPRINTFCAT_FIXED(dltstr, " and ");
-		SPRINTFCAT_FIXED(dltstr, bestqual, oid);
+		appendPQExpBuffer(&dltstr, " and ");
+		appendPQExpBuffer(&dltstr, bestqual, oid);
 	}
 
-	mylog("dltstr=%s\n", dltstr);
+	if (PQExpBufferDataBroken(dltstr))
+	{
+		ret = SQL_ERROR;
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in SC_pos_delete()", func);
+		goto cleanup;
+	}
+	mylog("dltstr=%s\n", dltstr.data);
 	qflag = 0;
         if (stmt->external && !CC_is_in_trans(conn) &&
                  (!CC_does_autocommit(conn)))
 		qflag |= GO_INTO_TRANSACTION;
-	qres = CC_send_query(conn, dltstr, NULL, qflag, stmt);
+	qres = CC_send_query(conn, dltstr.data, NULL, qflag, stmt);
 	ret = SQL_SUCCESS;
 	if (QR_command_maybe_successful(qres))
 	{
@@ -4260,6 +4289,11 @@ inolog(".status[%d]=%x\n", global_ridx, res->keyset[kres_ridx].status);
 				irdflds->rowStatusArray[irow] = ret;
 		}
 	}
+
+cleanup:
+#undef return
+	if (!PQExpBufferDataBroken(dltstr))
+		termPQExpBuffer(&dltstr);
 	return ret;
 }
 
@@ -4411,7 +4445,7 @@ SC_pos_add(StatementClass *stmt,
 	IPDFields	*ipdopts;
 	BindInfoClass *bindings = opts->bindings;
 	FIELD_INFO	**fi = SC_get_IRDF(stmt)->fi;
-	char		addstr[4096];
+	PQExpBufferData		addstr = {0};
 	RETCODE		ret;
 	SQLULEN		offset;
 	SQLLEN		*used;
@@ -4441,14 +4475,16 @@ SC_pos_add(StatementClass *stmt,
 	num_cols = s.irdflds->nfields;
 	conn = SC_get_conn(s.stmt);
 
-	SPRINTF_FIXED(addstr,
-			 "insert into %s (",
-			 ti_quote(s.stmt, 0, table_fqn, sizeof(table_fqn)));
 	if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
 	{
 		SC_set_error(s.stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", func);
 		return SQL_ERROR;
 	}
+	initPQExpBuffer(&addstr);
+#define	return	DONT_CALL_RETURN_FROM_HERE???
+	printfPQExpBuffer(&addstr,
+			 "insert into %s (",
+			 ti_quote(s.stmt, 0, table_fqn, sizeof(table_fqn)));
 	if (opts->row_offset_ptr)
 		offset = *opts->row_offset_ptr;
 	else
@@ -4477,10 +4513,10 @@ SC_pos_add(StatementClass *stmt,
 				/* fieldtype = QR_get_field_type(s.res, i); */
 				fieldtype = getEffectiveOid(conn, fi[i]);
 				if (add_cols)
-					SPRINTFCAT_FIXED(addstr,
+					appendPQExpBuffer(&addstr,
 								 ", \"%s\"", GET_NAME(fi[i]->column_name));
 				else
-					SPRINTFCAT_FIXED(addstr,
+					appendPQExpBuffer(&addstr,
 								 "\"%s\"", GET_NAME(fi[i]->column_name));
 				PIC_set_pgtype(ipdopts->parameters[add_cols], fieldtype);
 				PGAPI_BindParameter(hstmt,
@@ -4499,35 +4535,40 @@ SC_pos_add(StatementClass *stmt,
 			mylog("%d null bind\n", i);
 	}
 	s.updyes = FALSE;
-#define	return	DONT_CALL_RETURN_FROM_HERE???
 	ENTER_INNER_CONN_CS(conn, func_cs_count);
 	if (add_cols > 0)
 	{
-		SPRINTFCAT_FIXED(addstr, ") values (");
+		appendPQExpBuffer(&addstr, ") values (");
 		for (i = 0; i < add_cols; i++)
 		{
 			if (i)
-				SPRINTFCAT_FIXED(addstr, ", ?");
+				appendPQExpBuffer(&addstr, ", ?");
 			else
-				SPRINTFCAT_FIXED(addstr, "?");
+				appendPQExpBuffer(&addstr, "?");
 		}
-		SPRINTFCAT_FIXED(addstr, ")");
+		appendPQExpBuffer(&addstr, ")");
 		if (PG_VERSION_GE(conn, 8.2))
 		{
 			TABLE_INFO	*ti = stmt->ti[0];
 			const char *bestitem = GET_NAME(ti->bestitem);
 
-			SPRINTFCAT_FIXED(addstr, " returning ctid");
+			appendPQExpBuffer(&addstr, " returning ctid");
 			if (bestitem)
 			{
-				SPRINTFCAT_FIXED(addstr, ", ");
-				SPRINTFCAT_FIXED(addstr, "\"%s\"", bestitem);
+				appendPQExpBuffer(&addstr, ", ");
+				appendPQExpBuffer(&addstr, "\"%s\"", bestitem);
 			}
 		}
-		mylog("addstr=%s\n", addstr);
+		if (PQExpBufferDataBroken(addstr))
+		{
+			ret = SQL_ERROR;
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in SC_pos_add()", func);
+			goto cleanup;
+		}
+		mylog("addstr=%s\n", addstr.data);
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;
-		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) addstr, SQL_NTS, 0);
+		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) addstr.data, SQL_NTS, 0);
 		if (ret == SQL_NEED_DATA)
 		{
 			padd_cdata *cbdata = (padd_cdata *) malloc(sizeof(padd_cdata));
@@ -4556,6 +4597,8 @@ SC_pos_add(StatementClass *stmt,
 cleanup:
 #undef	return
 	CLEANUP_FUNC_CONN_CS(func_cs_count, conn);
+	if (!PQExpBufferDataBroken(addstr))
+		termPQExpBuffer(&addstr);
 	return ret;
 }
 
