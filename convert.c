@@ -940,7 +940,7 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 					if (SQL_C_WCHAR == fCType)
 						hybrid = (!is_utf8 || (same_encoding && wcs_debug));
 			}
-			mylog("%s:localize=%d hybrid=%d is_utf8=%d same_encoding=%d wcs_debug=%d\n", __FUNCTION__, localize_needed, hybrid, is_utf8, same_encoding, wcs_debug);
+			MYLOG(0, "%s:localize=%d hybrid=%d is_utf8=%d same_encoding=%d wcs_debug=%d\n", __FUNCTION__, localize_needed, hybrid, is_utf8, same_encoding, wcs_debug);
 		}
 	}
 	if (fCType == SQL_C_WCHAR)
@@ -949,7 +949,7 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 			unicode_count = convert_from_pgbinary(neut_str, NULL, 0) * 2;
 		else if (hybrid)
 		{
-			mylog("%s:hybrid estimate\n", __FUNCTION__);
+			MYLOG(0, "%s:hybrid estimate\n", __FUNCTION__);
 			if ((unicode_count = bindcol_hybrid_estimate(neut_str, lf_conv, &allocbuf)) < 0)
 			{
 				result = COPY_INVALID_STRING_CONVERSION;
@@ -1029,7 +1029,7 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 					utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, (SQLWCHAR *) pgdc->ttlbuf, unicode_count, FALSE);
 				else /* hybrid */
 				{
-					mylog("%s:hybrid convert\n", __FUNCTION__);
+					MYLOG(0, "%s:hybrid convert\n", __FUNCTION__);
 					if (bindcol_hybrid_exec((SQLWCHAR *) pgdc->ttlbuf, neut_str, unicode_count + 1, lf_conv, &allocbuf) < 0)
 					{
 						result = COPY_INVALID_STRING_CONVERSION;
@@ -1108,7 +1108,7 @@ convert_text_field_to_sql_c(GetDataInfo * const gdata, const int current_col,
 	int	copy_len = 0, needbuflen = 0, i;
 	const char	*ptr;
 
-	mylog("%s:field_type=%u type=%d\n", __FUNCTION__, field_type, fCType);
+	MYLOG(0, "%s:field_type=%u type=%d\n", __FUNCTION__, field_type, fCType);
 
 	switch (field_type)
 	{
@@ -1139,7 +1139,7 @@ convert_text_field_to_sql_c(GetDataInfo * const gdata, const int current_col,
 		len = pgdc->ttlbufused;
 	}
 
-	mylog("DEFAULT: len = %d, ptr = '%.*s'\n", len, len, ptr);
+	MYLOG(0, "DEFAULT: len = " FORMAT_LEN ", ptr = '%.*s'\n", len, (int) len, ptr);
 
 	if (current_col >= 0)
 	{
@@ -1197,13 +1197,13 @@ convert_text_field_to_sql_c(GetDataInfo * const gdata, const int current_col,
 
 #ifdef	UNICODE_SUPPORT
 	if (SQL_C_WCHAR == fCType)
-		mylog("    SQL_C_WCHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
+		MYLOG(0, "    SQL_C_WCHAR, default: len = " FORMAT_LEN ", cbValueMax = " FORMAT_LEN ", rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 	else
 #endif /* UNICODE_SUPPORT */
 	if (SQL_C_BINARY == fCType)
-		mylog("    SQL_C_BINARY, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
+		MYLOG(0, "    SQL_C_BINARY, default: len = " FORMAT_LEN ", cbValueMax = " FORMAT_LEN ", rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
 	else
-		mylog("    SQL_C_CHAR, default: len = %d, cbValueMax = %d, rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
+		MYLOG(0, "    SQL_C_CHAR, default: len = " FORMAT_LEN ", cbValueMax = " FORMAT_LEN ", rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 
 cleanup:
 	*length_return = len;
@@ -1296,11 +1296,11 @@ copy_and_convert_field(StatementClass *stmt,
 
 	memset(&std_time, 0, sizeof(SIMPLE_TIME));
 
-	mylog("copy_and_convert: field_type = %d, fctype = %d, value = '%s', cbValueMax=%d\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
+	MYLOG(0, "copy_and_convert: field_type = %d, fctype = %d, value = '%s', cbValueMax=" FORMAT_LEN "\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
 
 	if (!value)
 	{
-mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
+MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		/* a speicial handling for FOXPRO NULL -> NULL_STRING */
 		if (conn->connInfo.cvt_null_date_string > 0 &&
 		    (PG_TYPE_DATE == field_type ||
@@ -1436,7 +1436,7 @@ mylog("null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 				 */
 				bZone = FALSE;	/* time zone stuff is unreliable */
 				timestamp2stime(value, &std_time, &bZone, &zone);
-inolog("2stime fr=%d\n", std_time.fr);
+MYLOG(1, "2stime fr=%d\n", std_time.fr);
 			}
 			else
 			{
@@ -1497,12 +1497,12 @@ inolog("2stime fr=%d\n", std_time.fr);
 					maxc = (int) cbValueMax / sizeof(short);
 				vp = value;
 				nval = 0;
-				mylog("index=(");
+				MYLOG(0, "index=(");
 				for (i = 0;; i++)
 				{
 					if (sscanf(vp, "%hi", &shortv) != 1)
 						break;
-					mylog(" %hi", shortv);
+					MYLOG(0, " %hi", shortv);
 					nval++;
 					if (nval < maxc)
 						short_array[i + 1] = shortv;
@@ -1516,7 +1516,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					if (*vp == '\0')
 						break;
 				}
-				mylog(") nval = %i\n", nval);
+				MYLOG(0, ") nval = %i\n", nval);
 				if (maxc > 0)
 					short_array[0] = nval;
 
@@ -1562,7 +1562,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 			fCType = SQL_C_CHAR;
 #endif
 
-		mylog("copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
+		MYLOG(0, "copy_and_convert, SQL_C_DEFAULT: fCType = %d\n", fCType);
 	}
 
 	text_bin_handling = FALSE;
@@ -1636,7 +1636,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				for (i = 0; i < len && i < midsize - 2; i++)
 					midtemp[i] = toupper((UCHAR) neut_str[i]);
 				midtemp[i] = '\0';
-				mylog("PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
+				MYLOG(0, "PG_TYPE_UUID: rgbValueBindRow = '%s'\n", rgbValueBindRow);
 				break;
 
 				/*
@@ -1777,7 +1777,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 					*((UCHAR *) rgbValue + bind_row) = atoi(neut_str);
 
 				/*
-				 * mylog("SQL_C_BIT: bind_row = %d val = %d, cb = %d,
+				 * MYLOG(0, "SQL_C_BIT: bind_row = %d val = %d, cb = %d,
 				 * rgb=%d\n", bind_row, atoi(neut_str), cbValueMax,
 				 * *((UCHAR *)rgbValue));
 				 */
@@ -1892,7 +1892,7 @@ inolog("2stime fr=%d\n", std_time.fr);
 				{
 					UInt4	ival = ATOI32U(neut_str);
 
-inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
+MYLOG(1, "SQL_C_VARBOOKMARK value=%d\n", ival);
 					if (pcbValue)
 						*pcbValueBindRow = sizeof(ival);
 					if (cbValueMax >= sizeof(ival))
@@ -1921,7 +1921,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				}
 				else
 				{
-					mylog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
+					MYLOG(0, "couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					qlog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					return COPY_UNSUPPORTED_TYPE;
 				}
@@ -1931,7 +1931,7 @@ inolog("SQL_C_VARBOOKMARK value=%d\n", ival);
 				result = char2guid(neut_str, &g);
 				if (COPY_OK != result)
 				{
-					mylog("Could not convert to SQL_C_GUID");
+					MYLOG(0, "Could not convert to SQL_C_GUID");
 					return	COPY_UNSUPPORTED_TYPE;
 				}
 				len = sizeof(g);
@@ -2695,7 +2695,7 @@ prepareParametersNoDesc(StatementClass *stmt, BOOL fake_params, BOOL param_cast)
 	QueryParse	query_org, *qp;
 	QueryBuild	query_crt, *qb;
 
-inolog("prepareParametersNoDesc\n");
+MYLOG(1, "prepareParametersNoDesc\n");
 	qp = &query_org;
 	QP_initialize(qp, stmt);
 	qb = &query_crt;
@@ -2734,7 +2734,7 @@ inolog("prepareParametersNoDesc\n");
 
 	SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
 	SC_scanQueryAndCountParams(srvquery, conn, &endp2, NULL, NULL, NULL);
-	mylog("%s:parsed for the first command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
+	MYLOG(0, "%s:parsed for the first command length=" FORMAT_SSIZE_T "(" FORMAT_SSIZE_T ") num_p=%d\n", func, endp2, endp1, num_p1);
 	pstmt = buildProcessedStmt(srvquery,
 							   endp2 < 0 ? SQL_NTS : endp2,
 							   fake_params ? 0 : num_p1);
@@ -2751,7 +2751,7 @@ inolog("prepareParametersNoDesc\n");
 		num_pa += num_p1;
 		SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
 		SC_scanQueryAndCountParams(srvquery, conn, &endp2, &num_p2, NULL, NULL);
-		mylog("%s:parsed for the subsequent command length=%d(%d) num_p=%d\n", func, endp2, endp1, num_p1);
+		MYLOG(0, "%s:parsed for the subsequent command length=" FORMAT_SSIZE_T "(" FORMAT_SSIZE_T ") num_p=%d\n", func, endp2, endp1, num_p1);
 		pstmt = buildProcessedStmt(srvquery,
 								   endp2 < 0 ? SQL_NTS : endp2,
 								   fake_params ? 0 : num_p1);
@@ -2790,7 +2790,7 @@ desc_params_and_sync(StatementClass *stmt)
 	SQLSMALLINT	num_pa = 0;
 	ProcessedStmt *pstmt;
 
-inolog("prep_params_and_sync\n");
+MYLOG(1, "prep_params_and_sync\n");
 
 	retval = SQL_ERROR;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
@@ -2855,7 +2855,7 @@ RETCODE	prepareParameters(StatementClass *stmt, BOOL fake_params)
 			return SQL_SUCCESS;
 	}
 
-inolog("prepareParameters\n");
+MYLOG(1, "prepareParameters\n");
 
 	if (prepareParametersNoDesc(stmt, fake_params, PARSE_PARAM_CAST) == SQL_ERROR)
 		return SQL_ERROR;
@@ -2881,7 +2881,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	ConnInfo   *ci = &(conn->connInfo);
 	const		char *bestitem = NULL;
 
-inolog("%s: enter prepared=%d\n", func, stmt->prepared);
+MYLOG(1, "%s: enter prepared=%d\n", func, stmt->prepared);
 	if (!stmt->statement)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No statement string", func);
@@ -2942,7 +2942,7 @@ inolog("%s: enter prepared=%d\n", func, stmt->prepared);
 			qp->from_pos = stmt->from_pos;
 			qp->where_pos = stmt->where_pos;
 		}
-inolog("type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
+MYLOG(1, "type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
 	}
 
 	SC_miscinfo_clear(stmt);
@@ -3441,7 +3441,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				qb->errornumber = STMT_EXEC_ERROR;
 				qb->errormsg = "ODBC escape convert error";
 			}
-			mylog("%s convert_escape error\n", func);
+			MYLOG(0, "%s convert_escape error\n", func);
 			return SQL_ERROR;
 		}
 		return SQL_SUCCESS;
@@ -3735,7 +3735,7 @@ build_libpq_bind_params(StatementClass *stmt,
 			STRCPY_FIXED(tmp, "Parameters exist but IPD isn't set. Please call SQLDescribeParam()");
 		else
 			SPRINTF_FIXED(tmp, "The # of IPD parameters %d < %d the # of parameter markers", ipdopts->allocated, num_params);
-		mylog("%s:%s\n", __FUNCTION__, tmp);
+		MYLOG(0, "%s:%s\n", __FUNCTION__, tmp);
 		SC_set_error(stmt, STMT_COUNT_FIELD_INCORRECT, tmp, func);
 		return FALSE;
 	}
@@ -3762,9 +3762,9 @@ build_libpq_bind_params(StatementClass *stmt,
 
 	qb.flags |= FLGB_BINARY_AS_POSSIBLE;
 
-	inolog("num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
+	MYLOG(1, "num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
 	num_p = num_params - qb.num_discard_params;
-inolog("num_p=%d\n", num_p);
+MYLOG(1, "num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
 	*nParams = 0;
 	if (num_p > 0)
@@ -3791,7 +3791,7 @@ inolog("num_p=%d\n", num_p);
 				goto cleanup;
 			}
 
-			inolog("%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
+			MYLOG(1, "%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
 
 			if (i < qb.proc_return)
 				continue;
@@ -3827,7 +3827,7 @@ inolog("num_p=%d\n", num_p);
 				(*paramLengths)[pno] = 0;
 			}
 			if (isbinary)
-				mylog("%dth parameter is of binary format\n", pno);
+				MYLOG(0, "%dth parameter is of binary format\n", pno);
 			(*paramFormats)[pno] = isbinary ? 1 : 0;
 
 			pno++;
@@ -3866,7 +3866,7 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 	UCHAR		calv[MAX_NUMERIC_DIGITS];
 	int			precision;
 
-inolog("C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
+MYLOG(1, "C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 
 	if (0 == ns->precision)
 	{
@@ -3922,7 +3922,7 @@ inolog("C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 	 * digit is at calv[0]
 	 */
 
-inolog(" len2=%d", len);
+MYLOG(1, " len2=%d", len);
 
 	/* build the final output string. */
 	newlen = 0;
@@ -3953,7 +3953,7 @@ inolog(" len2=%d", len);
 	if (0 == len)
 		chrform[newlen++] = '0';
 	chrform[newlen] = '\0';
-inolog(" convval(2) len=%d %s\n", newlen, chrform);
+MYLOG(1, " convval(2) len=%d %s\n", newlen, chrform);
 }
 
 /*
@@ -4123,7 +4123,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	 */
 	param_number = ++qb->param_number;
 
-inolog("resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
+MYLOG(1, "resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
 	apara = NULL;
 	ipara = NULL;
 	if (param_number < apdopts->allocated)
@@ -4132,14 +4132,14 @@ inolog("resolveOneParam %d(%d,%d)\n", param_number, ipdopts->allocated, apdopts-
 		ipara = ipdopts->parameters + param_number;
 	if ((!apara || !ipara) && valueOutput)
 	{
-		mylog("%s:The # of (A|I)PD parameters (%d, %d) < %d the # of parameter markers\n", __FUNCTION__, apdopts->allocated, ipdopts->allocated, param_number);
+		MYLOG(0, "%s:The # of (A|I)PD parameters (%d, %d) < %d the # of parameter markers\n", __FUNCTION__, apdopts->allocated, ipdopts->allocated, param_number);
 		qb->errormsg = "The # of binded parameters < the # of parameter markers";
 		qb->errornumber = STMT_COUNT_FIELD_INCORRECT;
 		CVT_TERMINATE(qb);	/* just in case */
 		return SQL_ERROR;
 	}
 
-inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
+MYLOG(1, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
 	if (param_number < qb->proc_return)
 	{
 		if (ipara && SQL_PARAM_OUTPUT != ipara->paramType)
@@ -4282,11 +4282,11 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 		if (0 != param_pgtype)
 		{
 			param_sqltype = pgtype_attr_to_concise_type(conn, param_pgtype, PG_ATP_UNSET, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
-			mylog("%s: convert from pgtype(%u) to sqltype(%d)\n", __FUNCTION__, param_pgtype, param_sqltype);
+			MYLOG(0, "%s: convert from pgtype(%u) to sqltype(%d)\n", __FUNCTION__, param_pgtype, param_sqltype);
 		}
 	}
 
-	mylog("%s: from(fcType)=%d, to(fSqlType)=%d(%u), *pgType=%u\n", func,
+	MYLOG(0, "%s: from(fcType)=%d, to(fSqlType)=%d(%u), *pgType=%u\n", func,
 		  param_ctype, param_sqltype, param_pgtype, *pgType);
 
 	/* Handle NULL parameter data */
@@ -4351,7 +4351,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			case SQL_C_CHAR:
 				if (!same_encoding || wcs_debug)
 				{
-					mylog("%s:locale param convert\n", __FUNCTION__);
+					MYLOG(0, "%s:locale param convert\n", __FUNCTION__);
 					if ((used = bindpara_msg_to_utf8(buffer, &allocbuf, used)) < 0)
 					{
 						qb->errormsg = "Could not convert from the current locale to wide characters";
@@ -4365,7 +4365,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 			case SQL_C_WCHAR:
 				if (!is_utf8 || (same_encoding && wcs_debug))
 				{
-					mylog("%s:hybrid param convert\n", __FUNCTION__);
+					MYLOG(0, "%s:hybrid param convert\n", __FUNCTION__);
 					if ((used = bindpara_wchar_to_msg((SQLWCHAR *) buffer, &allocbuf, used)) < 0)
 					{
 						qb->errormsg = "Could not convert from wide characters to the current locale";
@@ -4391,7 +4391,7 @@ inolog("ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramT
 
 #ifdef	UNICODE_SUPPORT
 		case SQL_C_WCHAR:
-mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, used);
+MYLOG(0, " %s:C_WCHAR=%d contents=%s(" FORMAT_LEN ")\n", __FUNCTION__, param_ctype, buffer, used);
 			if (NULL == send_buf)
 			{
 				allocbuf = ucs2_to_utf8((SQLWCHAR *) buffer, used > 0 ? used / WCLEN : used, &used, FALSE);
@@ -4534,7 +4534,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 				st.ss = tss->second;
 				st.fr = tss->fraction;
 
-				mylog("m=%d,d=%d,y=%d,hh=%d,mm=%d,ss=%d\n", st.m, st.d, st.y, st.hh, st.mm, st.ss);
+				MYLOG(0, "m=%d,d=%d,y=%d,hh=%d,mm=%d,ss=%d\n", st.m, st.d, st.y, st.hh, st.mm, st.ss);
 
 				break;
 
@@ -4621,7 +4621,7 @@ mylog(" %s:C_WCHAR=%d contents=%s(%d)\n", __FUNCTION__, param_ctype, buffer, use
 	 */
 
 	/* Special handling NULL string For FOXPRO */
-mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null_date_string, param_pgtype, send_buf);
+MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null_date_string, param_pgtype, send_buf);
 	if (conn->connInfo.cvt_null_date_string > 0 &&
 	    (PG_TYPE_DATE == param_pgtype ||
 	     PG_TYPE_DATETIME == param_pgtype ||
@@ -4803,7 +4803,7 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 			{
 				if (0 != (qb->flags & FLGB_BINARY_AS_POSSIBLE))
 				{
-					mylog("sending binary data leng=%d\n", used);
+					MYLOG(0, "sending binary data leng=" FORMAT_LEN "\n", used);
 					*isbinary = TRUE;
 				}
 				else
@@ -4811,7 +4811,7 @@ mylog("cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_null
 					/* non-ascii characters should be
 					 * converted to octal
 					 */
-					mylog("SQL_VARBINARY: about to call convert_to_pgbinary, used = %d\n", used);
+					MYLOG(0, "SQL_VARBINARY: about to call convert_to_pgbinary, used = " FORMAT_LEN "\n", used);
 					final_binary_convert = TRUE;
 				}
 				break;
@@ -5100,7 +5100,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 	}
 	if (param_pos[param_count][0] >= 0)
 	{
-		mylog("%s closing ) not found %d\n", func, innerParenthesis);
+		MYLOG(0, "%s closing ) not found %d\n", func, innerParenthesis);
 		qb->errornumber = STMT_EXEC_ERROR;
 		qb->errormsg = "processParameters closing ) not found";
 		return SQL_ERROR;
@@ -5350,7 +5350,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 						char	num[10];
 						memcpy(num, nqb.query_statement + from, to - from + 1);
 						num[to - from + 1] = '\0';
-mylog("%d-%d num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
+MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
 						switch (atoi(num))
 						{
 							case SQL_BIT:
@@ -5759,13 +5759,13 @@ convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax)
 			i++;
 		}
 		/** if (rgbValue)
-			mylog("convert_from_pgbinary: i=%d, rgbValue[%d] = %d, %c\n", i, o, rgbValue[o], rgbValue[o]); ***/
+			MYLOG(0, "convert_from_pgbinary: i=%d, rgbValue[%d] = %d, %c\n", i, o, rgbValue[o], rgbValue[o]); ***/
 	}
 
 	if (rgbValue)
 		rgbValue[o] = '\0';		/* extra protection */
 
-	mylog("convert_from_pgbinary: in=%d, out = %d\n", ilen, o);
+	MYLOG(0, "convert_from_pgbinary: in=" FORMAT_SIZE_T ", out = " FORMAT_SIZE_T "\n", ilen, o);
 
 	return o;
 }
@@ -5834,7 +5834,7 @@ convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 	for (i = 0; i < len; i++)
 	{
 		inc = in[i];
-		inolog("%s: in[%d] = %d, %c\n", func, i, inc, inc);
+		MYLOG(1, "%s: in[" FORMAT_SIZE_T "] = %d, %c\n", func, i, inc, inc);
 		if (inc < 128 && (isalnum(inc) || inc == ' '))
 			out[o++] = inc;
 		else
@@ -5851,7 +5851,7 @@ convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 		}
 	}
 
-	mylog("%s: returning %d, out='%.*s'\n", func, o, o, out);
+	MYLOG(0, "%s: returning " FORMAT_SIZE_T ", out='%.*s'\n", func, o, (int) o, out);
 
 	return o;
 }
@@ -6034,7 +6034,7 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 	}
 	else if (left64 == 0)
 		return COPY_NO_DATA_FOUND;
-	mylog("lo data left = " FORMATI64 "\n", left64);
+	MYLOG(0, "lo data left = " FORMATI64 "\n", left64);
 
 	if (stmt->lobj_fd < 0)
 	{

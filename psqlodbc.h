@@ -149,9 +149,11 @@ typedef	UInt4	OID;
 #ifdef	_WIN64
 #define	FORMAT_LEN	"%I64d" /* SQLLEN */
 #define	FORMAT_ULEN	"%I64u" /* SQLULEN */
+#define	FORMAT_POSIROW	"%I64u"
 #else /* _WIN64 */
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	FORMAT_POSIROW	"%hu"
 #endif /* _WIN64 */
 #else /* WIN32 */
 #define	FORMAT_SIZE_T	"%zu"	/* size_t */
@@ -199,7 +201,15 @@ typedef	unsigned long long ULONG_PTR;
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
 #endif /* HAVE_LONG_LONG */
 #endif /* SIZEOF_LONG */
+ 
+#if (SIZEOF_VOID_P == 8) && !defined(WITH_IODBC)
+#define	FORMAT_POSIROW	FORMAT_ULEN
+#else
+#define	FORMAT_POSIROW	"%u"
+#endif
+
 #endif /* WIN32 */
+
 #define	CAST_PTR(type, ptr)	(type)((LONG_PTR)(ptr))
 #define	CAST_UPTR(type, ptr)	(type)((ULONG_PTR)(ptr))
 #ifndef	SQL_IS_LEN

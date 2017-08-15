@@ -179,14 +179,14 @@ do { \
 } while (0)
 #define	QR_set_next_in_cache(self, number) \
 do { \
-	inolog("set the number to %d to read next\n", number); \
+	MYLOG(1, "set the number to " FORMAT_LEN " to read next\n", number); \
 	self->fetch_number = number; \
 } while (0)
 #define	QR_inc_next_in_cache(self) \
 do { \
-	inolog("increased the number %d", self->fetch_number); \
+	MYLOG(1, "increased the number " FORMAT_LEN, self->fetch_number); \
 	self->fetch_number++; \
-	inolog("to %d to next read\n", self->fetch_number); \
+	MYLOG(1, "to " FORMAT_LEN " to next read\n", self->fetch_number); \
 } while (0)
 
 #define QR_get_message(self)		((self)->message ? (self)->message : (self)->messageref)

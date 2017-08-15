@@ -68,7 +68,7 @@ PGAPI_GetInfo(HDBC hdbc,
 	RETCODE		result = SQL_ERROR;
 	char		odbcver[16];
 
-	mylog("%s: entering...fInfoType=%d\n", func, fInfoType);
+	MYLOG(0, "%s: entering...fInfoType=%d\n", func, fInfoType);
 
 	if (!conn)
 	{
@@ -136,7 +136,7 @@ PGAPI_GetInfo(HDBC hdbc,
 		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
 			len = sizeof(SQLUINTEGER);
 			value = SQL_CVT_BIT | SQL_CVT_INTEGER;
-mylog("SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
+MYLOG(0, "SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
 			break;
 		case SQL_CONVERT_BIGINT:
 		case SQL_CONVERT_DECIMAL:
@@ -164,7 +164,7 @@ mylog("SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
 		case SQL_CONVERT_FUNCTIONS:		/* ODBC 1.0 */
 			len = sizeof(SQLUINTEGER);
 			value = SQL_FN_CVT_CONVERT;
-mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
+MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_CORRELATION_NAME:		/* ODBC 1.0 */
@@ -1027,7 +1027,7 @@ mylog("CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 	result = SQL_SUCCESS;
 
-	mylog("%s: p='%s', len=%d, value=%d, cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
+	MYLOG(0, "%s: p='%s', len=" FORMAT_ULEN ", value=" FORMAT_ULEN ", cbMax=%d\n", func, p ? p : "<NULL>", len, value, cbInfoValueMax);
 
 	/*
 	 * NOTE, that if rgbInfoValue is NULL, then no warnings or errors
@@ -1110,7 +1110,7 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 	Int2		sqlType;
 	RETCODE		result = SQL_SUCCESS;
 
-	mylog("%s: entering...fSqlType = %d\n", func, fSqlType);
+	MYLOG(0, "%s: entering...fSqlType = %d\n", func, fSqlType);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -1156,7 +1156,7 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 if (sqlType == SQL_LONGVARBINARY)
 {
 ConnInfo	*ci = &(conn->connInfo);
-inolog("%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgType);
+MYLOG(1, "%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgType);
 }
 
 		if (fSqlType == SQL_ALL_TYPES || fSqlType == sqlType)
@@ -1166,13 +1166,13 @@ inolog("%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgTy
 			/*if (SQL_INTEGER == sqlType || SQL_TINYINT == sqlType)*/
 			if (SQL_INTEGER == sqlType)
 			{
-mylog("sqlType=%d ms_jet=%d\n", sqlType, conn->ms_jet);
+MYLOG(0, "sqlType=%d ms_jet=%d\n", sqlType, conn->ms_jet);
 				if (conn->ms_jet)
 				{
 					aunq_match = 1;
 					pgtcount = 2;
 				}
-mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
+MYLOG(0, "aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 			}
 			for (cnt = 0; cnt < pgtcount; cnt ++)
 			{
@@ -1188,7 +1188,7 @@ mylog("aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 				{
 					set_tuplefield_string(&tuple[GETTYPE_TYPE_NAME], PGTYPE_TO_NAME(conn, pgType, TRUE));
 					set_tuplefield_int2(&tuple[GETTYPE_NULLABLE], SQL_NO_NULLS);
-inolog("serial in\n");
+MYLOG(1, "serial in\n");
 				}
 				else
 				{
@@ -1256,7 +1256,7 @@ PGAPI_GetFunctions(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	ConnInfo   *ci = &(conn->connInfo);
 
-	mylog("%s: entering...%u\n", func, fFunction);
+	MYLOG(0, "%s: entering...%u\n", func, fFunction);
 
 	if (fFunction == SQL_API_ALL_FUNCTIONS)
 	{
@@ -1523,7 +1523,7 @@ simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *co
 		srclen = (SQLLEN) strlen((char *) src);
 	if (srclen <= 0)
 		return dest;
-mylog("simple in=%s(%d)\n", src, srclen);
+MYLOG(0, "simple in=%s(" FORMAT_LEN ")\n", src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	dest = malloc(2 * srclen + 1);
 	if (!dest) return NULL;
@@ -1541,7 +1541,7 @@ mylog("simple in=%s(%d)\n", src, srclen);
 		dest[outlen++] = *in;
 	}
 	dest[outlen] = '\0';
-mylog("simple output=%s(%d)\n", dest, outlen);
+MYLOG(0, "simple output=%s(%d)\n", dest, outlen);
 	return dest;
 }
 
@@ -1564,7 +1564,7 @@ adjustLikePattern(const SQLCHAR *src, int srclen, const ConnectionClass *conn)
 	/* if (srclen <= 0) */
 	if (srclen < 0)
 		return dest;
-mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
+MYLOG(0, "adjust in=%.*s(%d)\n", srclen, src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	dest = malloc(4 * srclen + 1);
 	if (!dest) return NULL;
@@ -1611,7 +1611,7 @@ mylog("adjust in=%.*s(%d)\n", srclen, src, srclen);
 		dest[outlen++] = SEARCH_PATTERN_ESCAPE;
 	}
 	dest[outlen] = '\0';
-mylog("adjust output=%s(%d)\n", dest, outlen);
+MYLOG(0, "adjust output=%s(%d)\n", dest, outlen);
 	return dest;
 }
 
@@ -1724,7 +1724,7 @@ PGAPI_Tables(HSTMT hstmt,
 	SQLLEN		cbRelname, cbRelkind, cbSchName;
 	EnvironmentClass *env;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	MYLOG(0, "%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2032,7 +2032,7 @@ retry_public_schema:
 				/* Check extra system table prefixes */
 				for (i = 0; i < nprefixes; i++)
 				{
-					mylog("table_name='%s', prefix[%d]='%s'\n", table_name, i, prefix[i]);
+					MYLOG(0, "table_name='%s', prefix[%d]='%s'\n", table_name, i, prefix[i]);
 					if (strncmp(table_name, prefix[i], strlen(prefix[i])) == 0)
 					{
 						systable = TRUE;
@@ -2080,7 +2080,7 @@ retry_public_schema:
 			 * set_tuplefield_string(&tuple[TABLES_SCHEMA_NAME], table_owner);
 			 */
 
-			mylog("%s: table_name = '%s'\n", func, table_name);
+			MYLOG(0, "%s: table_name = '%s'\n", func, table_name);
 
 			if (list_schemas || !list_some)
 				set_tuplefield_string(&tuple[TABLES_SCHEMA_NAME], GET_SCHEMA_NAME(table_owner));
@@ -2143,7 +2143,7 @@ cleanup:
 	if (htbl_stmt)
 		PGAPI_FreeStmt(htbl_stmt, SQL_DROP);
 
-	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
+	MYLOG(0, "%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
 
@@ -2241,7 +2241,7 @@ PGAPI_Columns(HSTMT hstmt,
 	const SQLCHAR *szSchemaName;
 	BOOL	setIdentity = FALSE;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	MYLOG(0, "%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2349,7 +2349,7 @@ retry_public_schema:
 	}
 	col_stmt = (StatementClass *) hcol_stmt;
 
-	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
+	MYLOG(0, "%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
 	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
@@ -2594,7 +2594,7 @@ retry_public_schema:
 		PGAPI_GetData(hcol_stmt, 13, internal_asis_type, NULL, 0, &len_needed);
 		if (len_needed > 0)
 		{
-mylog("len_needed=%d\n", len_needed);
+MYLOG(0, "len_needed=" FORMAT_LEN "\n", len_needed);
 			attdef = malloc(len_needed + 1);
 			if (!attdef)
 			{
@@ -2603,7 +2603,7 @@ mylog("len_needed=%d\n", len_needed);
 			}
 
 			PGAPI_GetData(hcol_stmt, 13, internal_asis_type, attdef, len_needed + 1, &len_needed);
-mylog(" and the data=%s\n", attdef);
+MYLOG(0, " and the data=%s\n", attdef);
 		}
 		tuple = QR_AddNew(res);
 
@@ -2755,7 +2755,7 @@ cleanup:
 		free(escColumnName);
 	if (hcol_stmt)
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-	mylog("%s: EXIT,  stmt=%p\n", func, stmt);
+	MYLOG(0, "%s: EXIT,  stmt=%p\n", func, stmt);
 	return result;
 }
 
@@ -2789,7 +2789,7 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	const char *eq_string;
 	int		result_cols;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d colType=%d scope=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType, fScope);
+	MYLOG(0, "%s: entering...stmt=%p scnm=%p len=%d colType=%d scope=%d\n", func, stmt, szTableOwner, cbTableOwner, fColType, fScope);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -2841,7 +2841,7 @@ retry_public_schema:
 	}
 	col_stmt = (StatementClass *) hcol_stmt;
 
-	mylog("%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
+	MYLOG(0, "%s: hcol_stmt = %p, col_stmt = %p\n", func, hcol_stmt, col_stmt);
 
 	if (PQExpBufferDataBroken(columns_query))
 	{
@@ -2947,7 +2947,7 @@ retry_public_schema:
 			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_NOT_PSEUDO);
-inolog("Add ctid\n");
+MYLOG(1, "Add ctid\n");
 		}
 	}
 	else
@@ -3005,7 +3005,7 @@ cleanup:
 	SC_set_current_col(stmt, -1);
 	if (hcol_stmt)
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
-	mylog("%s: EXIT,  stmt=%p\n", func, stmt);
+	MYLOG(0, "%s: EXIT,  stmt=%p\n", func, stmt);
 	return result;
 }
 
@@ -3059,7 +3059,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	OID		ioid;
 	Int4		relhasoids;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	MYLOG(0, "%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3185,7 +3185,7 @@ PGAPI_Statistics(HSTMT hstmt,
 		column_names[total_columns].pnum = field_number;
 		total_columns++;
 
-		mylog("%s: column_name = '%s'\n", func, column_name);
+		MYLOG(0, "%s: column_name = '%s'\n", func, column_name);
 
 		result = PGAPI_Fetch(hcol_stmt);
 	}
@@ -3416,7 +3416,7 @@ PGAPI_Statistics(HSTMT hstmt,
 				if (OID_ATTNUM == attnum)
 				{
 					set_tuplefield_string(&tuple[STATS_COLUMN_NAME], OID_NAME);
-					mylog("%s: column name = oid\n", func);
+					MYLOG(0, "%s: column name = oid\n", func);
 				}
 				else if (0 == attnum)
 				{
@@ -3450,12 +3450,12 @@ PGAPI_Statistics(HSTMT hstmt,
 					if (unknownf)
 					{
 						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], "UNKNOWN");
-						mylog("%s: column name = UNKNOWN\n", func);
+						MYLOG(0, "%s: column name = UNKNOWN\n", func);
 					}
 					else
 					{
 						set_tuplefield_string(&tuple[STATS_COLUMN_NAME], column_names[matchidx].col_name);
-						mylog("%s: column name = '%s'\n", func, column_names[matchidx].col_name);
+						MYLOG(0, "%s: column name = '%s'\n", func, column_names[matchidx].col_name);
 					}
 				}
 
@@ -3513,7 +3513,7 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
+	MYLOG(0, "%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 
 	return ret;
 }
@@ -3541,7 +3541,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	BOOL	search_pattern;
 	QResultClass	*res = NULL;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	/* Neither Access or Borland care about this. */
 
@@ -3658,7 +3658,7 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 	const char *eq_string;
 	char	*escSchemaName = NULL, *escTableName = NULL;
 
-	mylog("%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
+	MYLOG(0, "%s: entering...stmt=%p scnm=%p len=%d\n", func, stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -3837,7 +3837,7 @@ retry_public_schema:
 			ret = SQL_ERROR;
 			goto cleanup;
 		}
-		mylog("%s: tables_query='%s'\n", func, tables_query.data);
+		MYLOG(0, "%s: tables_query='%s'\n", func, tables_query.data);
 
 		result = PGAPI_ExecDirect(htbl_stmt, (SQLCHAR *) tables_query.data, SQL_NTS, PODBC_RDONLY);
 		if (!SQL_SUCCEEDED(result))
@@ -3887,7 +3887,7 @@ retry_public_schema:
 		set_tuplefield_int2(&tuple[PKS_KEY_SQ], (Int2) (++seq));
 		set_tuplefield_string(&tuple[PKS_PK_NAME], pkname);
 
-		mylog(">> primaryKeys: schema ='%s', pktab = '%s', attname = '%s', seq = %d\n", pkscm, pktbname, attname, seq);
+		MYLOG(0, ">> primaryKeys: schema ='%s', pktab = '%s', attname = '%s', seq = %d\n", pkscm, pktbname, attname, seq);
 
 		result = PGAPI_Fetch(htbl_stmt);
 	}
@@ -3924,7 +3924,7 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	mylog("%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
+	MYLOG(0, "%s: EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
 
@@ -4090,7 +4090,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	UInt4		relid1, relid2;
 	const char *eq_string;
 
-	mylog("%s: entering...stmt=%p\n", func, stmt);
+	MYLOG(0, "%s: entering...stmt=%p\n", func, stmt);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -4174,7 +4174,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	{
 		char    *escSchemaName;
 
-		mylog("%s: entering Foreign Key Case #2", func);
+		MYLOG(0, "%s: entering Foreign Key Case #2", func);
 		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_str(schema_needed, sizeof(schema_needed), szFkTableOwner, cbFkTableOwner, TABLE_IS_VALID(szFkTableName, cbFkTableName), conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
@@ -4352,7 +4352,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			/* Compute the number of keyparts. */
 			num_keys = (trig_nargs - 4) / 2;
 
-			mylog("Foreign Key Case#2: trig_nargs = %d, num_keys = %d\n", trig_nargs, num_keys);
+			MYLOG(0, "Foreign Key Case#2: trig_nargs = %d, num_keys = %d\n", trig_nargs, num_keys);
 
 			/* If there is a pk table specified, then check it. */
 			if (pk_table_needed && pk_table_needed[0] != '\0')
@@ -4396,7 +4396,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 					got_pkname = TRUE;
 				}
 				pkey_text = getClientColumnName(conn, relid2, pkey_ptr, &pkey_alloced);
-				mylog("%s: pkey_ptr='%s', pkey='%s'\n", func, pkey_text, pkey);
+				MYLOG(0, "%s: pkey_ptr='%s', pkey='%s'\n", func, pkey_text, pkey);
 				if (strcmp(pkey_text, pkey))
 				{
 					num_keys = 0;
@@ -4460,19 +4460,19 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 				pkey_text = getClientColumnName(conn, relid2, pkey_ptr, &pkey_alloced);
 				fkey_text = getClientColumnName(conn, relid1, fkey_ptr, &fkey_alloced);
 
-				mylog("%s: pk_table = '%s', pkey_ptr = '%s'\n", func, pk_table_fetched, pkey_text);
+				MYLOG(0, "%s: pk_table = '%s', pkey_ptr = '%s'\n", func, pk_table_fetched, pkey_text);
 				set_tuplefield_string(&tuple[FKS_PKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_SCHEM], GET_SCHEMA_NAME(schema_fetched));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_NAME], pk_table_fetched);
 				set_tuplefield_string(&tuple[FKS_PKCOLUMN_NAME], pkey_text);
 
-				mylog("%s: fk_table_needed = '%s', fkey_ptr = '%s'\n", func, fk_table_needed, fkey_text);
+				MYLOG(0, "%s: fk_table_needed = '%s', fkey_ptr = '%s'\n", func, fk_table_needed, fkey_text);
 				set_tuplefield_string(&tuple[FKS_FKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_SCHEM], GET_SCHEMA_NAME(schema_needed));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_NAME], fk_table_needed);
 				set_tuplefield_string(&tuple[FKS_FKCOLUMN_NAME], fkey_text);
 
-				mylog("%s: upd_rule_type = '%i', del_rule_type = '%i'\n, trig_name = '%s'", func, upd_rule_type, del_rule_type, trig_args);
+				MYLOG(0, "%s: upd_rule_type = '%i', del_rule_type = '%i'\n, trig_name = '%s'", func, upd_rule_type, del_rule_type, trig_args);
 				set_tuplefield_int2(&tuple[FKS_KEY_SEQ], (Int2) (k + 1));
 				set_tuplefield_int2(&tuple[FKS_UPDATE_RULE], upd_rule_type);
 				set_tuplefield_int2(&tuple[FKS_DELETE_RULE], del_rule_type);
@@ -4727,7 +4727,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			else
 				defer_type = SQL_NOT_DEFERRABLE;
 
-			mylog("Foreign Key Case#1: trig_nargs = %d, num_keys = %d\n", trig_nargs, num_keys);
+			MYLOG(0, "Foreign Key Case#1: trig_nargs = %d, num_keys = %d\n", trig_nargs, num_keys);
 
 			/* Get to first primary key */
 			pkey_ptr = trig_args;
@@ -4744,17 +4744,17 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 				pkey_text = getClientColumnName(conn, relid1, pkey_ptr, &pkey_alloced);
 				fkey_text = getClientColumnName(conn, relid2, fkey_ptr, &fkey_alloced);
 
-				mylog("pkey_ptr = '%s', fk_table = '%s', fkey_ptr = '%s'\n", pkey_text, fk_table_fetched, fkey_text);
+				MYLOG(0, "pkey_ptr = '%s', fk_table = '%s', fkey_ptr = '%s'\n", pkey_text, fk_table_fetched, fkey_text);
 
 				tuple = QR_AddNew(res);
 
-				mylog("pk_table_needed = '%s', pkey_ptr = '%s'\n", pk_table_needed, pkey_text);
+				MYLOG(0, "pk_table_needed = '%s', pkey_ptr = '%s'\n", pk_table_needed, pkey_text);
 				set_tuplefield_string(&tuple[FKS_PKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_SCHEM], GET_SCHEMA_NAME(schema_needed));
 				set_tuplefield_string(&tuple[FKS_PKTABLE_NAME], pk_table_needed);
 				set_tuplefield_string(&tuple[FKS_PKCOLUMN_NAME], pkey_text);
 
-				mylog("fk_table = '%s', fkey_ptr = '%s'\n", fk_table_fetched, fkey_text);
+				MYLOG(0, "fk_table = '%s', fkey_ptr = '%s'\n", fk_table_fetched, fkey_text);
 				set_tuplefield_string(&tuple[FKS_FKTABLE_CAT], CurrCat(conn));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_SCHEM], GET_SCHEMA_NAME(schema_fetched));
 				set_tuplefield_string(&tuple[FKS_FKTABLE_NAME], fk_table_fetched);
@@ -4762,7 +4762,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 
 				set_tuplefield_int2(&tuple[FKS_KEY_SEQ], (Int2) (k + 1));
 
-				mylog("upd_rule = %d, del_rule= %d", upd_rule_type, del_rule_type);
+				MYLOG(0, "upd_rule = %d, del_rule= %d", upd_rule_type, del_rule_type);
 				set_nullfield_int2(&tuple[FKS_UPDATE_RULE], upd_rule_type);
 				set_nullfield_int2(&tuple[FKS_DELETE_RULE], del_rule_type);
 
@@ -4771,7 +4771,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 
 				set_tuplefield_string(&tuple[FKS_TRIGGER_NAME], trig_args);
 
-				mylog(" defer_type = %d\n", defer_type);
+				MYLOG(0, " defer_type = %d\n", defer_type);
 				set_tuplefield_int2(&tuple[FKS_DEFERRABILITY], defer_type);
 
 				if (pkey_alloced)
@@ -4831,7 +4831,7 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	mylog("%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
+	MYLOG(0, "%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }
 
@@ -4927,7 +4927,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	int		ret_col = -1, ext_pos = -1, poid_pos = -1, attid_pos = -1, attname_pos = -1;
 	UInt4		poid = 0, newpoid;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -5070,12 +5070,12 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 		newpoid = 0;
 		if (poid_pos >= 0)
 			newpoid = QR_get_value_backend_int(tres, i, poid_pos, NULL);
-mylog("newpoid=%d\n", newpoid);
+MYLOG(0, "newpoid=%d\n", newpoid);
 		atttypid = NULL;
 		if (attid_pos >= 0)
 		{
 			atttypid = QR_get_value_backend_text(tres, i, attid_pos);
-mylog("atttypid=%s\n", atttypid ? atttypid : "(null)");
+MYLOG(0, "atttypid=%s\n", atttypid ? atttypid : "(null)");
 		}
 		if (poid == 0 || newpoid != poid)
 		{
@@ -5322,7 +5322,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	const char	*like_or_eq, *op_string;
 	BOOL	search_pattern;
 
-	mylog("%s: entering... scnm=%p len=%d\n", func, szProcOwner, cbProcOwner);
+	MYLOG(0, "%s: entering... scnm=%p len=%d\n", func, szProcOwner, cbProcOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -5426,7 +5426,7 @@ useracl_upd(char (*useracl)[ACLMAX], QResultClass *allures, const char *user, co
 {
 	int usercount = (int) QR_get_num_cached_tuples(allures), i, addcnt = 0;
 
-mylog("user=%s auth=%s\n", user, auth);
+MYLOG(0, "user=%s auth=%s\n", user, auth);
 	if (user[0])
 		for (i = 0; i < usercount; i++)
 		{
@@ -5441,7 +5441,7 @@ mylog("user=%s auth=%s\n", user, auth);
 		{
 			addcnt += usracl_auth(useracl[i], auth);
 		}
-	mylog("addcnt=%d\n", addcnt);
+	MYLOG(0, "addcnt=%d\n", addcnt);
 }
 
 RETCODE		SQL_API
@@ -5472,7 +5472,7 @@ PGAPI_TablePrivileges(HSTMT hstmt,
 	char		*escSchemaName = NULL, *escTableName = NULL;
 	BOOL		search_pattern;
 
-	mylog("%s: entering... scnm=%p len-%d\n", func, szTableOwner, cbTableOwner);
+	MYLOG(0, "%s: entering... scnm=%p len-%d\n", func, szTableOwner, cbTableOwner);
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 
@@ -5655,7 +5655,7 @@ retry_public_schema:
 								*delm = '\0';
 							else if (delm = strchr(uid, '}'), delm)
 								*delm = '\0';
-mylog("guid=%s\n", uid);
+MYLOG(0, "guid=%s\n", uid);
 							for (i = 0; i < usercount; i++)
 							{
 								if (strcmp(QR_get_value_backend_text(allures, i, 1), uid) == 0)
@@ -5704,7 +5704,7 @@ mylog("guid=%s\n", uid);
 					set_tuplefield_string(&tuple[TABPRIV_GRANTOR], "_SYSTEM");
 				else
 					set_tuplefield_string(&tuple[TABPRIV_GRANTOR], owner);
-				mylog("user=%s\n", user);
+				MYLOG(0, "user=%s\n", user);
 				set_tuplefield_string(&tuple[TABPRIV_GRANTEE], user);
 				switch (useracl[j][k])
 				{
@@ -5785,7 +5785,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 
 	const char *eq_string;
 
-	mylog("%s: entering...stmt=%p\n", func, stmt);
+	MYLOG(0, "%s: entering...stmt=%p\n", func, stmt);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -5804,7 +5804,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	 */
 	if (NULL != fk_table_needed)
 	{
-		mylog("%s: entering Foreign Key Case #2", func);
+		MYLOG(0, "%s: entering Foreign Key Case #2", func);
 		escTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_str(schema_needed, sizeof(schema_needed), szFkTableOwner, cbFkTableOwner, TABLE_IS_VALID(szFkTableName, cbFkTableName), conn);
 		relqual = "\n   and  conrelid = c.oid";
@@ -5974,6 +5974,6 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	mylog("%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
+	MYLOG(0, "%s(): EXIT, stmt=%p, ret=%d\n", func, stmt, ret);
 	return ret;
 }

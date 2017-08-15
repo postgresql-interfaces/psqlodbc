@@ -441,7 +441,7 @@ void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
 int			CC_send_cancel_request(const ConnectionClass *conn);
 void		CC_on_commit(ConnectionClass *conn);
-void		CC_on_abort(ConnectionClass *conn, UDWORD opt);
+void		CC_on_abort(ConnectionClass *conn, unsigned int opt);
 void		CC_on_abort_partial(ConnectionClass *conn);
 void		ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial);
 const char	*CC_get_current_schema(ConnectionClass *conn);

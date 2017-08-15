@@ -67,7 +67,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(pgres);
 
-	mylog("num_fields = %d\n", new_num_fields);
+	MYLOG(0, "num_fields = %d\n", new_num_fields);
 
 	if (self)
 	{
@@ -86,7 +86,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 		new_adtid = PQftype(pgres, lf);
 		new_adtsize = PQfsize(pgres, lf);
 
-		mylog("READING ATTTYPMOD\n");
+		MYLOG(0, "READING ATTTYPMOD\n");
 		new_atttypmod = PQfmod(pgres, lf);
 
 		/* Subtract the header length */
@@ -103,7 +103,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 		if (new_atttypmod < 0)
 			new_atttypmod = -1;
 
-		mylog("%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+		MYLOG(0, "%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
 		if (self)
 			CI_set_field_info(self, lf, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);

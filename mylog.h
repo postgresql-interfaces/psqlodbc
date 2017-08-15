@@ -33,11 +33,21 @@
 extern "C" {
 #endif
 
-DLL_DECLARE void mylog(const char *fmt,...);
-#define	inolog	if (get_mylog() > 1) mylog /* for really temporary debug */
+#ifndef	__GNUC__
+#define	__attribute__(x)
+#endif
 
-extern void qlog(char *fmt,...);
-#define	inoqlog	if (get_qlog() > 1) qlog /* for really temporary debug */
+DLL_DECLARE int mylog(const char *fmt,...) __attribute__((format(printf, 1, 2)));
+
+extern int qlog(char *fmt,...);
+
+#ifdef	__GNUC__
+#define	MYLOG(level, fmt, ...)	(level < get_mylog() ? mylog((fmt), ##__VA_ARGS__) : 0)
+#elif	defined WIN32 && _MSC_VER > 1800
+#define	MYLOG(level, fmt, ...) (level < get_mylog() ? mylog(fmt, __VA_ARGS__) : (printf || printf((fmt), __VA_ARGS__)))
+#else
+#define	MYLOG(level, ...) (level < get_mylog() ? mylog(__VA_ARGS__) : 0)
+#endif /* __GNUC__ */
 
 int	get_qlog(void);
 int	get_mylog(void);

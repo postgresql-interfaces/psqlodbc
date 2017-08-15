@@ -172,7 +172,7 @@ pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
 static SQLSMALLINT
 get_interval_type(Int4 atttypmod, const char **name)
 {
-mylog("!!! %s atttypmod=%x\n", __FUNCTION__, atttypmod);
+MYLOG(0, "!!! %s atttypmod=%x\n", __FUNCTION__, atttypmod);
 	if ((-1) == atttypmod)
 		return 0;
 	if (0 != (YEAR_BIT & atttypmod))
@@ -265,7 +265,7 @@ getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adt
 	int		p = -1, maxsize;
 	const ConnInfo	*ci = &(conn->connInfo);
 
-	mylog("%s: type=%d, atttypmod=%d, adtsize_or=%d, unknown = %d\n", __FUNCTION__, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
+	MYLOG(0, "%s: type=%d, atttypmod=%d, adtsize_or=%d, unknown = %d\n", __FUNCTION__, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
 
 	/* Assign Maximum size based on parameters */
 	switch (type)
@@ -303,20 +303,20 @@ getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adt
 	 * Static ColumnSize (i.e., the Maximum ColumnSize of the datatype) This
 	 * has nothing to do with a result set.
 	 */
-inolog("!!! atttypmod  < 0 ?\n");
+MYLOG(1, "!!! atttypmod  < 0 ?\n");
 	if (atttypmod < 0 && adtsize_or_longestlen < 0)
 		return maxsize;
 
-inolog("!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
+MYLOG(1, "!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 	p = adtsize_or_longestlen; /* longest */
 	/*
 	 * Catalog Result Sets -- use assigned column width (i.e., from
 	 * set_tuplefield_string)
 	 */
-inolog("!!! catalog_result=%d\n", handle_unknown_size_as);
+MYLOG(1, "!!! catalog_result=%d\n", handle_unknown_size_as);
 	if (UNKNOWNS_AS_LONGEST == handle_unknown_size_as)
 	{
-		mylog("%s: LONGEST: p = %d\n", __FUNCTION__, p);
+		MYLOG(0, "%s: LONGEST: p = %d\n", __FUNCTION__, p);
 		if (p > 0 &&
 		    (atttypmod < 0 || atttypmod > p))
 			return p;
@@ -370,7 +370,7 @@ getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, i
 {
 	Int4		default_decimal_digits = 6;
 
-	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
+	MYLOG(0, "%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	if (atttypmod < 0 && adtsize_or_longest < 0)
 		return default_decimal_digits;
@@ -388,7 +388,7 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 {
 	Int4	default_column_size = 28;
 
-	mylog("%s: type=%d, typmod=%d\n", __FUNCTION__, type, atttypmod);
+	MYLOG(0, "%s: type=%d, typmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	if (atttypmod > -1)
 		return (atttypmod >> 16) & 0xffff;
@@ -414,7 +414,7 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 static SQLSMALLINT
 getTimestampDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod)
 {
-	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
+	MYLOG(0, "%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 	return (atttypmod > -1 ? atttypmod : 6);
 }
 
@@ -423,7 +423,7 @@ getTimestampColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod)
 {
 	Int4	fixed, scale;
 
-	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
+	MYLOG(0, "%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	switch (type)
 	{
@@ -452,7 +452,7 @@ getIntervalDecimalDigits(OID type, int atttypmod)
 {
 	Int4	prec;
 
-	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
+	MYLOG(0, "%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	if ((atttypmod & SECOND_BIT) == 0)
 		return 0;
@@ -464,7 +464,7 @@ getIntervalColumnSize(OID type, int atttypmod)
 {
 	Int4	ttl, leading_precision = 9, scale;
 
-	mylog("%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
+	MYLOG(0, "%s: type=%d, atttypmod=%d\n", __FUNCTION__, type, atttypmod);
 
 	ttl = leading_precision;
 	switch (get_interval_type(atttypmod, NULL))
@@ -794,7 +794,7 @@ pgtype_attr_to_name(const ConnectionClass *conn, OID type, int atttypmod, BOOL a
 		case PG_TYPE_XID:
 			return "xid";
 		case PG_TYPE_INT4:
-inolog("pgtype_to_name int4\n");
+MYLOG(1, "pgtype_to_name int4\n");
 			return auto_increment ? "serial" : "int4";
 		case PG_TYPE_FLOAT4:
 			return "float4";

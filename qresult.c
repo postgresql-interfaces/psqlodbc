@@ -37,11 +37,11 @@ void
 QR_set_num_fields(QResultClass *self, int new_num_fields)
 {
 	if (!self)	return;
-	mylog("in QR_set_num_fields\n");
+	MYLOG(0, "in QR_set_num_fields\n");
 
 	CI_set_num_fields(QR_get_fields(self), new_num_fields);
 
-	mylog("exit QR_set_num_fields\n");
+	MYLOG(0, "exit QR_set_num_fields\n");
 }
 
 
@@ -132,7 +132,7 @@ void
 QR_inc_rowstart_in_cache(QResultClass *self, SQLLEN base_inc)
 {
 	if (!QR_has_valid_base(self))
-		mylog("QR_inc_rowstart_in_cache called while the cache is not ready\n");
+		MYLOG(0, "QR_inc_rowstart_in_cache called while the cache is not ready\n");
 	self->base += base_inc;
 	if (QR_synchronize_keys(self))
 		self->key_base = self->base;
@@ -170,7 +170,7 @@ QR_Constructor(void)
 {
 	QResultClass *rv;
 
-	mylog("in QR_Constructor\n");
+	MYLOG(0, "in QR_Constructor\n");
 	rv = (QResultClass *) malloc(sizeof(QResultClass));
 
 	if (rv != NULL)
@@ -239,7 +239,7 @@ QR_Constructor(void)
 		rv->deleted_keyset = NULL;
 	}
 
-	mylog("exit QR_Constructor\n");
+	MYLOG(0, "exit QR_Constructor\n");
 	return rv;
 }
 
@@ -252,7 +252,7 @@ QR_close_result(QResultClass *self, BOOL destroy)
 	BOOL	top = TRUE;
 
 	if (!self)	return;
-	mylog("QResult: in QR_close_result\n");
+	MYLOG(0, "QResult: in QR_close_result\n");
 
 	while(self)
 	{
@@ -316,13 +316,13 @@ QR_close_result(QResultClass *self, BOOL destroy)
 		top = FALSE;
 	}
 
-	mylog("QResult: exit close_result\n");
+	MYLOG(0, "QResult: exit close_result\n");
 }
 
 void
 QR_reset_for_re_execute(QResultClass *self)
 {
-	mylog("QResult: enter %s for %x\n", __FUNCTION__, self);
+	MYLOG(0, "QResult: enter %s for %p\n", __FUNCTION__, self);
 	if (!self)	return;
 	QR_close_result(self, FALSE);
 	/* reset flags etc */
@@ -335,17 +335,17 @@ QR_reset_for_re_execute(QResultClass *self)
 	self->sqlstate[0] = '\0';
 	self->messageref = NULL;
 
-	mylog("QResult: exit %s\n", __FUNCTION__);
+	MYLOG(0, "QResult: exit %s\n", __FUNCTION__);
 }
 
 void
 QR_Destructor(QResultClass *self)
 {
-	mylog("QResult: enter DESTRUCTOR\n");
+	MYLOG(0, "QResult: enter DESTRUCTOR\n");
 	if (!self)	return;
 	QR_close_result(self, TRUE);
 
-	mylog("QResult: exit DESTRUCTOR\n");
+	MYLOG(0, "QResult: exit DESTRUCTOR\n");
 }
 
 
@@ -440,7 +440,7 @@ TupleField	*QR_AddNew(QResultClass *self)
 	UInt4	num_fields;
 
 	if (!self)	return	NULL;
-inolog("QR_AddNew %dth row(%d fields) alloc=%d\n", self->num_cached_rows, QR_NumResultCols(self), self->count_backend_allocated);
+MYLOG(1, "QR_AddNew " FORMAT_ULEN "th row(%d fields) alloc=" FORMAT_LEN "\n", self->num_cached_rows, QR_NumResultCols(self), self->count_backend_allocated);
 	if (num_fields = QR_NumResultCols(self), !num_fields)	return	NULL;
 	if (self->num_fields <= 0)
 	{
@@ -476,7 +476,7 @@ QR_free_memory(QResultClass *self)
 	SQLLEN		num_backend_rows = self->num_cached_rows;
 	int		num_fields = self->num_fields;
 
-	mylog("QResult: free memory in, fcount=%d\n", num_backend_rows);
+	MYLOG(0, "QResult: free memory in, fcount=" FORMAT_LEN "\n", num_backend_rows);
 
 	if (self->backend_tuples)
 	{
@@ -574,7 +574,7 @@ QR_free_memory(QResultClass *self)
 	self->cursTuple = -1;
 	self->pstatus = 0;
 
-	mylog("QResult: free memory out\n");
+	MYLOG(0, "QResult: free memory out\n");
 }
 
 
@@ -602,7 +602,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(*pgres);
-	mylog("num_fields = %d\n", new_num_fields);
+	MYLOG(0, "num_fields = %d\n", new_num_fields);
 
 	/* according to that allocate memory */
 	QR_set_num_fields(self, new_num_fields);
@@ -633,7 +633,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		if (new_atttypmod < 0)
 			new_atttypmod = -1;
 
-		mylog("%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+		MYLOG(0, "%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
 		CI_set_field_info(QR_get_fields(self), lf, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
@@ -657,7 +657,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 					if (SQL_PARAM_OUTPUT == paramType ||
 						SQL_PARAM_INPUT_OUTPUT == paramType)
 					{
-inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(self), cidx));
+MYLOG(1, "!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(self), cidx));
 						PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(self), cidx));
 						cidx++;
 					}
@@ -672,13 +672,13 @@ inolog("!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 	if (!QR_read_tuples_from_pgres(self, pgres))
 		return FALSE;
 
-inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_total_read);
+MYLOG(1, "!!%p->cursTup=" FORMAT_LEN " total_read=" FORMAT_ULEN "\n", self, self->cursTuple, self->num_total_read);
 	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
 		self->num_total_read = self->cursTuple + 1;
 	/* EOF is 'fetched < fetch requested' */
 	if (self->num_cached_rows - num_cached_rows < self->cmd_fetch_size)
 	{
-		mylog("detect EOF %d - %d < %d\n", self->num_cached_rows, num_cached_rows, self->cmd_fetch_size);
+		MYLOG(0, "detect EOF " FORMAT_ULEN " - %d < " FORMAT_ULEN "\n", self->num_cached_rows, num_cached_rows, self->cmd_fetch_size);
 		reached_eof_now = TRUE;
 		QR_set_reached_eof(self);
 	}
@@ -688,7 +688,7 @@ inolog("!!%p->cursTup=%d total_read=%d\n", self, self->cursTuple, self->num_tota
 	if (NULL != conn)
 	{
 		/* Force a read to occur in next_tuple */
-		QR_set_next_in_cache(self, 0);
+		QR_set_next_in_cache(self, (SQLLEN) 0);
 		QR_set_rowstart_in_cache(self, 0);
 		self->key_base = 0;
 	}
@@ -736,7 +736,7 @@ QR_close(QResultClass *self)
 		else
 		{
 			BOOL		does_commit = FALSE;
-			UDWORD		flag = 0;
+			unsigned int	flag = 0;
 			char		buf[64];
 
 			flag = READ_ONLY_QUERY;
@@ -749,7 +749,7 @@ QR_close(QResultClass *self)
 			    CC_does_autocommit(conn) &&
 			    CC_cursor_count(conn) <= 1)
 			{
-				mylog("QResult: END transaction on conn=%p\n", conn);
+				MYLOG(0, "QResult: END transaction on conn=%p\n", conn);
 				if ((ROLLBACK_ON_ERROR & flag) == 0)
 				{
 					STRCAT_FIXED(buf, ";commit");
@@ -760,7 +760,7 @@ QR_close(QResultClass *self)
 					does_commit = TRUE;
 			}
 
-inolog(" !!!! %s:Case I CC_send_query %s flag=%x\n", __FUNCTION__, buf, flag);
+MYLOG(1, " !!!! %s:Case I CC_send_query %s flag=%x\n", __FUNCTION__, buf, flag);
 			res = CC_send_query(conn, buf, NULL, flag, NULL);
 			QR_Destructor(res);
 			if (does_commit)
@@ -782,7 +782,7 @@ inolog(" !!!! %s:Case I CC_send_query %s flag=%x\n", __FUNCTION__, buf, flag);
 		/* End the transaction if there are no cursors left on this conn */
 		if (CC_does_autocommit(conn) && CC_cursor_count(conn) == 0)
 		{
-			mylog("QResult: END transaction on conn=%p\n", conn);
+			MYLOG(0, "QResult: END transaction on conn=%p\n", conn);
 
 			if (!CC_commit(conn))
 			{
@@ -806,7 +806,7 @@ QR_prepare_for_tupledata(QResultClass *self)
 	BOOL	haskeyset = QR_haskeyset(self);
 	SQLULEN num_total_rows = QR_get_num_total_tuples(self);
 
-inolog("QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
+MYLOG(1, "QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
 	if (!QR_get_cursor(self))
 	{
 
@@ -815,7 +815,7 @@ inolog("QR_get_tupledata %p->num_fields=%d\n", self, self->num_fields);
 		{
 			SQLLEN	tuple_size = self->count_backend_allocated;
 
-			mylog("REALLOC: old_count = %d, size = %d\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
+			MYLOG(0, "REALLOC: old_count = " FORMAT_LEN ", size = " FORMAT_SIZE_T "\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
 			if (tuple_size < 1)
 				tuple_size = TUPLE_MALLOC_INC;
 			else
@@ -956,8 +956,8 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	ConnInfo   *ci;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 
-inolog("Oh %p->fetch_number=%d\n", self, self->fetch_number);
-inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt->currTuple, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
+MYLOG(1, "Oh %p->fetch_number=" FORMAT_LEN "\n", self, self->fetch_number);
+MYLOG(1, "in total_read=" FORMAT_ULEN " cursT=" FORMAT_LEN " currT=" FORMAT_LEN " ad=%d total=" FORMAT_ULEN " rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt->currTuple, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
 
 	num_total_rows = QR_get_num_total_tuples(self);
 	conn = QR_get_conn(self);
@@ -992,7 +992,7 @@ inolog("in total_read=%d cursT=%d currT=%d ad=%d total=%d rowsetSize=%d\n", self
 			}
 			else
 				self->cache_size = req_size;
-inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
+MYLOG(1, "cache=" FORMAT_ULEN " rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
 			SPRINTF_FIXED(movecmd,
 					 "move backward " FORMAT_ULEN " in \"%s\"",
 					 movement, QR_get_cursor(self));
@@ -1018,7 +1018,7 @@ inolog("cache=%d rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_si
 		moved = movement;
 		if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &moved) > 0)
 		{
-inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
+MYLOG(1, "moved=" FORMAT_ULEN " ? " FORMAT_ULEN "\n", moved, movement);
 			if (moved < movement)
 			{
 				if (0 <  moved)
@@ -1065,9 +1065,9 @@ inolog("moved=%d ? " FORMAT_ULEN "\n", moved, movement);
 			RETURN(-1)
 		}
 		/* return a row from cache */
-		mylog("%s: fetch_number < fcount: returning tuple %d, fcount = %d\n", func, fetch_number, num_backend_rows);
+		MYLOG(0, "%s: fetch_number < fcount: returning tuple " FORMAT_LEN ", fcount = " FORMAT_LEN "\n", func, fetch_number, num_backend_rows);
 		self->tupleField = the_tuples + (fetch_number * num_fields);
-inolog("tupleField=%p\n", self->tupleField);
+MYLOG(1, "tupleField=%p\n", self->tupleField);
 		/* move to next row */
 		QR_inc_next_in_cache(self);
 		RETURN(TRUE)
@@ -1080,7 +1080,7 @@ inolog("tupleField=%p\n", self->tupleField);
 			reached_eod = TRUE;
 		if (reached_eod)
 		{
-			mylog("next_tuple: fetch end\n");
+			MYLOG(0, "next_tuple: fetch end\n");
 			self->tupleField = NULL;
 			/* end of tuples */
 			RETURN(-1)
@@ -1097,7 +1097,7 @@ inolog("tupleField=%p\n", self->tupleField);
 
 	if (!QR_get_cursor(self))
 	{
-		mylog("%s: ALL_ROWS: done, fcount = %d, fetch_number = %d\n", func, QR_get_num_total_tuples(self), fetch_number);
+		MYLOG(0, "%s: ALL_ROWS: done, fcount = " FORMAT_ULEN ", fetch_number = " FORMAT_LEN "\n", func, QR_get_num_total_tuples(self), fetch_number);
 		self->tupleField = NULL;
 		QR_set_reached_eof(self);
 		RETURN(-1)		/* end of tuples */
@@ -1111,7 +1111,7 @@ inolog("tupleField=%p\n", self->tupleField);
 		/* not a correction */
 		self->cache_size = fetch_size;
 		/* clear obsolete tuples */
-inolog("clear obsolete %d tuples\n", num_backend_rows);
+MYLOG(1, "clear obsolete " FORMAT_LEN " tuples\n", num_backend_rows);
 		ClearCachedRows(tuple, num_fields, num_backend_rows);
 		self->dataFilled = FALSE;
 		QR_stop_movement(self);
@@ -1129,7 +1129,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 		fetch_size = (Int4) (end_tuple - num_backend_rows);
 		if (fetch_size <= 0)
 		{
-			mylog("corrupted fetch_size end_tuple=%d <= cached_rows=%d\n", end_tuple, num_backend_rows);
+			MYLOG(0, "corrupted fetch_size end_tuple=" FORMAT_LEN " <= cached_rows=" FORMAT_LEN "\n", end_tuple, num_backend_rows);
 			RETURN(-1)
 		}
 		/* and enlarge the cache size */
@@ -1147,7 +1147,7 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 			 "fetch %d in \"%s\"",
 			 fetch_size, QR_get_cursor(self));
 
-	mylog("%s: sending actual fetch (%d) query '%s'\n", func, fetch_size, fetch);
+	MYLOG(0, "%s: sending actual fetch (%d) query '%s'\n", func, fetch_size, fetch);
 	if (!boundary_adjusted)
 	{
 		QR_set_num_cached_rows(self, 0);
@@ -1172,10 +1172,10 @@ inolog("clear obsolete %d tuples\n", num_backend_rows);
 	self->tupleField = NULL;
 
 	curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
-inolog("reached_eof_now=%d\n", reached_eof_now);
+MYLOG(1, "reached_eof_now=%d\n", reached_eof_now);
 
-	mylog("_%s: PGresult: fetch_total = %d & this_fetch = %d\n", func, self->num_total_read, self->num_cached_rows);
-	mylog("_%s: PGresult: cursTuple = %d, offset = %d\n", func, self->cursTuple, offset);
+	MYLOG(0, "_%s: PGresult: fetch_total = " FORMAT_ULEN " & this_fetch = " FORMAT_ULEN "\n", func, self->num_total_read, self->num_cached_rows);
+	MYLOG(0, "_%s: PGresult: cursTuple = " FORMAT_LEN ", offset = " FORMAT_LEN "\n", func, self->cursTuple, offset);
 
 	cur_fetch = self->num_cached_rows - num_rows_in;
 	if (!ret)
@@ -1187,7 +1187,7 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 		num_backend_rows = self->num_cached_rows;
 		if (reached_eof_now)
 		{
-			mylog("%s: reached eof now\n", func);
+			MYLOG(0, "%s: reached eof now\n", func);
 			QR_set_reached_eof(self);
 			if (self->ad_count > 0 && cur_fetch < fetch_size)
 			{
@@ -1215,7 +1215,7 @@ inolog("reached_eof_now=%d\n", reached_eof_now);
 					add_size = fetch_size - cur_fetch;
 				else if (add_size < 0)
 					add_size = 0;
-inolog("will add %d added_tuples from %d and select the %dth added tuple %d\n", add_size, start_idx, offset - num_backend_rows + start_idx, cur_fetch);
+MYLOG(1, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN " and select the " FORMAT_LEN "th added tuple " FORMAT_LEN "\n", add_size, start_idx, offset - num_backend_rows + start_idx, cur_fetch);
 				if (enlargeKeyCache(self, add_size, "Out of memory while adding tuples") < 0)
 					RETURN(FALSE)
 				/* append the KeySet info first */
@@ -1238,7 +1238,7 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple %d\n", 
 		else
 		{
 			/* We are surely done here (we read 0 tuples) */
-			mylog("_%s: 'C': DONE (fcount == %d)\n", func, num_backend_rows);
+			MYLOG(0, "_%s: 'C': DONE (fcount == " FORMAT_LEN ")\n", func, num_backend_rows);
 			ret = -1;	/* end of tuples */
 		}
 	}
@@ -1293,7 +1293,7 @@ inolog("will add %d added_tuples from %d and select the %dth added tuple %d\n", 
 		for (i = 0; i < num_backend_rows; i++)
 		{
 			self->keyset[i].status &= (~CURS_NEEDS_REREAD);
-/*inolog("keyset[%d].status=%x\n", i, self->keyset[i].status);*/
+/*MYLOG(1, "keyset[%d].status=%x\n", i, self->keyset[i].status);*/
 		}
 	}
 
@@ -1301,7 +1301,7 @@ cleanup:
 	LEAVE_CONN_CS(conn);
 #undef	RETURN
 #undef	return
-inolog("%s returning %d offset=%d\n", func, ret, offset);
+MYLOG(1, "%s returning %d offset=" FORMAT_LEN "\n", func, ret, offset);
 	return ret;
 }
 
@@ -1393,7 +1393,7 @@ nextrow:
 				memcpy(buffer, value, len);
 				buffer[len] = '\0';
 
-				mylog("qresult: len=%d, buffer='%s'\n", len, buffer);
+				MYLOG(0, "qresult: len=%d, buffer='%s'\n", len, buffer);
 
 				if (field_lf >= effective_cols)
 				{
@@ -1454,7 +1454,7 @@ nextrow:
 
 	self->dataFilled = TRUE;
 	self->tupleField = self->backend_tuples + (self->fetch_number * self->num_fields);
-inolog("tupleField=%p\n", self->tupleField);
+MYLOG(1, "tupleField=%p\n", self->tupleField);
 
 	QR_set_rstatus(self, PORES_TUPLES_OK);
 

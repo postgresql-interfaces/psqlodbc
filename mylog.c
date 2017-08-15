@@ -237,13 +237,13 @@ static void MLOG_open()
 	}
 }
 
-DLL_DECLARE void
+DLL_DECLARE int
 mylog(const char *fmt,...)
 {
 	va_list		args;
 	int		gerrno;
 
-	if (!mylog_on)	return;
+	if (!mylog_on)	return 0;
 
 	gerrno = GENERAL_ERRNO;
 	ENTER_MYLOG_CS;
@@ -279,6 +279,8 @@ mylog(const char *fmt,...)
 	va_end(args);
 	LEAVE_MYLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
+
+	return 1;
 }
 static void mylog_initialize(void)
 {
@@ -297,14 +299,14 @@ static void mylog_finalize(void)
 
 
 static FILE *QLOGFP = NULL;
-void
+int
 qlog(char *fmt,...)
 {
 	va_list		args;
 	char		filebuf[80];
 	int		gerrno;
 
-	if (!qlog_on)	return;
+	if (!qlog_on)	return 0;
 
 	gerrno = GENERAL_ERRNO;
 	ENTER_QLOG_CS;
@@ -341,6 +343,8 @@ qlog(char *fmt,...)
 	va_end(args);
 	LEAVE_QLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
+
+	return 1;
 }
 static void qlog_initialize(void)
 {

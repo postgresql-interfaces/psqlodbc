@@ -57,7 +57,7 @@ set_statement_option(ConnectionClass *conn,
 			 * positioned update isn't supported so cursor concurrency is
 			 * read-only
 			 */
-			mylog("SetStmtOption(): SQL_CONCURRENCY = " FORMAT_LEN " ", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_CONCURRENCY = " FORMAT_LEN " ", vParam);
 			setval = SQL_CONCUR_READ_ONLY;
 			if (SQL_CONCUR_READ_ONLY == vParam)
 				;
@@ -79,7 +79,7 @@ set_statement_option(ConnectionClass *conn,
 			}
 			if (setval != vParam)
 				changed = TRUE;
-			mylog("-> " FORMAT_LEN "\n", setval);
+			MYLOG(0, "-> " FORMAT_LEN "\n", setval);
 			break;
 
 		case SQL_CURSOR_TYPE:
@@ -87,7 +87,7 @@ set_statement_option(ConnectionClass *conn,
 			 * if declare/fetch, then type can only be forward. otherwise,
 			 * it can only be forward or static.
 			 */
-			mylog("SetStmtOption(): SQL_CURSOR_TYPE = " FORMAT_LEN " ", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_CURSOR_TYPE = " FORMAT_LEN " ", vParam);
 			setval = SQL_CURSOR_FORWARD_ONLY;
 			if (ci->drivers.lie)
 				setval = vParam;
@@ -123,11 +123,11 @@ set_statement_option(ConnectionClass *conn,
 			}
 			if (setval != vParam)
 				changed = TRUE;
-			mylog("-> " FORMAT_LEN "\n", setval);
+			MYLOG(0, "-> " FORMAT_LEN "\n", setval);
 			break;
 
 		case SQL_KEYSET_SIZE:	/* ignored, but saved and returned	*/
-			mylog("SetStmtOption(): SQL_KEYSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_KEYSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
 
 			if (conn)
 				conn->stmtOptions.keyset_size = vParam;
@@ -143,7 +143,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_MAX_LENGTH:	/* ignored, but saved */
-			mylog("SetStmtOption(): SQL_MAX_LENGTH, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_MAX_LENGTH, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.maxLength = vParam;
 			if (stmt)
@@ -157,7 +157,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_MAX_ROWS:		/* ignored, but saved */
-			mylog("SetStmtOption(): SQL_MAX_ROWS, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_MAX_ROWS, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.maxRows = vParam;
 			if (stmt)
@@ -171,11 +171,11 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_NOSCAN:		/* ignored */
-			mylog("SetStmtOption: SQL_NOSCAN, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption: SQL_NOSCAN, vParam = " FORMAT_LEN "\n", vParam);
 			break;
 
 		case SQL_QUERY_TIMEOUT:	/* ignored */
-			mylog("SetStmtOption: SQL_QUERY_TIMEOUT, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption: SQL_QUERY_TIMEOUT, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.stmt_timeout = (SQLULEN) vParam;
 			if (stmt)
@@ -183,7 +183,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_RETRIEVE_DATA:
-			mylog("SetStmtOption(): SQL_RETRIEVE_DATA, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_RETRIEVE_DATA, vParam = " FORMAT_LEN "\n", vParam);
 			if (conn)
 				conn->stmtOptions.retrieve_data = (SQLUINTEGER) vParam;
 			if (stmt)
@@ -191,7 +191,7 @@ set_statement_option(ConnectionClass *conn,
 			break;
 
 		case SQL_ROWSET_SIZE:
-			mylog("SetStmtOption(): SQL_ROWSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
+			MYLOG(0, "SetStmtOption(): SQL_ROWSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
 
 			if (vParam < 1)
 			{
@@ -219,7 +219,7 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_USE_BOOKMARKS:
 			if (stmt)
 			{
-				mylog("USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
+				MYLOG(0, "USE_BOOKMARKS %s\n", (vParam == SQL_UB_OFF) ? "off" : ((vParam == SQL_UB_VARIABLE) ? "variable" : "fixed"));
 				setval = vParam;
 				stmt->options.use_bookmarks = (SQLUINTEGER) setval;
 			}
@@ -304,7 +304,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 	RETCODE		retval;
 	BOOL		autocomm_on;
 
-	mylog("%s: entering fOption = %d vParam = " FORMAT_LEN "\n", func, fOption, vParam);
+	MYLOG(0, "%s: entering fOption = %d vParam = " FORMAT_LEN "\n", func, fOption, vParam);
 	if (!conn)
 	{
 		CC_log_error(func, "", NULL);
@@ -368,7 +368,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == conn->autocommit_public)
 				break;
 			conn->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
-			mylog("%s: AUTOCOMMIT: transact_status=%d, vparam=" FORMAT_LEN "\n", func, conn->transact_status, vParam);
+			MYLOG(0, "%s: AUTOCOMMIT: transact_status=%d, vparam=" FORMAT_LEN "\n", func, conn->transact_status, vParam);
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			if (CC_is_in_global_trans(conn))
@@ -455,7 +455,7 @@ PGAPI_SetConnectOption(HDBC hdbc,
 					cmp = strncmp((char *) vParam, "Microsoft Jet", 13);
 					if (0 == cmp)
 					{
-						mylog("Microsoft Jet !!!!\n");
+						MYLOG(0, "Microsoft Jet !!!!\n");
 						CC_set_errornumber(conn, 0);
 						conn->ms_jet = 1;
 						return SQL_SUCCESS;
@@ -491,7 +491,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 	SQLLEN		len = sizeof(SQLINTEGER);
 	SQLRETURN	result = SQL_SUCCESS;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	if (!conn)
 	{
@@ -545,14 +545,14 @@ PGAPI_GetConnectOption(HDBC hdbc,
 #else
 		case 1209:
 #endif /* SQL_ATTR_CONNECTION_DEAD */
-			mylog("CONNECTION_DEAD status=%d", conn->status);
+			MYLOG(0, "CONNECTION_DEAD status=%d", conn->status);
 			*((SQLUINTEGER *) pvParam) = CC_not_connected(conn);
-			mylog(" val=%d\n", *((SQLUINTEGER *) pvParam));
+			MYLOG(0, " val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
 
 		case SQL_ATTR_ANSI_APP:
 			*((SQLUINTEGER *) pvParam) = CC_is_in_ansi_app(conn);
-			mylog("ANSI_APP val=%d\n", *((SQLUINTEGER *) pvParam));
+			MYLOG(0, "ANSI_APP val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
 
 			/* These options should be handled by driver manager */
@@ -615,7 +615,7 @@ PGAPI_SetStmtOption(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 	RETCODE	retval;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	/*
 	 * Though we could fake Access out by just returning SQL_SUCCESS all
@@ -648,7 +648,7 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 	SQLINTEGER	len = sizeof(SQLINTEGER);
 	Int4		bookmark;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	/*
 	 * thought we could fake Access out by just returning SQL_SUCCESS all
@@ -713,17 +713,17 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 			break;
 
 		case SQL_CONCURRENCY:	/* NOT REALLY SUPPORTED */
-			mylog("GetStmtOption(): SQL_CONCURRENCY %d\n", stmt->options.scroll_concurrency);
+			MYLOG(0, "GetStmtOption(): SQL_CONCURRENCY %d\n", stmt->options.scroll_concurrency);
 			*((SQLINTEGER *) pvParam) = stmt->options.scroll_concurrency;
 			break;
 
 		case SQL_CURSOR_TYPE:	/* PARTIAL SUPPORT */
-			mylog("GetStmtOption(): SQL_CURSOR_TYPE %d\n", stmt->options.cursor_type);
+			MYLOG(0, "GetStmtOption(): SQL_CURSOR_TYPE %d\n", stmt->options.cursor_type);
 			*((SQLINTEGER *) pvParam) = stmt->options.cursor_type;
 			break;
 
 		case SQL_KEYSET_SIZE:	/* NOT SUPPORTED, but saved */
-			mylog("GetStmtOption(): SQL_KEYSET_SIZE\n");
+			MYLOG(0, "GetStmtOption(): SQL_KEYSET_SIZE\n");
 			*((SQLLEN *) pvParam) = stmt->options.keyset_size;
 			break;
 
@@ -733,7 +733,7 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 
 		case SQL_MAX_ROWS:		/* NOT SUPPORTED, but saved */
 			*((SQLLEN *) pvParam) = stmt->options.maxRows;
-			mylog("GetSmtOption: MAX_ROWS, returning %d\n", stmt->options.maxRows);
+			MYLOG(0, "GetSmtOption: MAX_ROWS, returning " FORMAT_LEN "\n", stmt->options.maxRows);
 			break;
 
 		case SQL_NOSCAN:		/* NOT SUPPORTED */

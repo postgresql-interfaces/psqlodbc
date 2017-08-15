@@ -48,7 +48,7 @@ inolog(" alloced=%p(%d)\n", alloced, size);
 		tbsize++;
 	}
 	else
-		mylog("%s:alloc %dbyte\n", ALCERR, size);
+		MYLOG(0, "%s:alloc %dbyte\n", ALCERR, size);
 	return alloced;
 }
 void * pgdebug_calloc(size_t n, size_t size)
@@ -75,7 +75,7 @@ void * pgdebug_calloc(size_t n, size_t size)
 		tbsize++;
 	}
 	else
-		mylog("%s:calloc %dbyte\n", ALCERR, size);
+		MYLOG(0, "%s:calloc %dbyte\n", ALCERR, size);
 inolog("calloced = %p\n", alloced);
 	return alloced;
 }
@@ -84,7 +84,7 @@ void * pgdebug_realloc(void * ptr, size_t size)
 	void * alloced = realloc(ptr, size);
 	if (!alloced)
 	{
-		mylog("%s:%s %p error\n", ALCERR, __FUNCTION__, ptr);
+		MYLOG(0, "%s:%s %p error\n", ALCERR, __FUNCTION__, ptr);
 	}
 	else if (!ptr)
 	{
@@ -114,7 +114,7 @@ char * pgdebug_strdup(const char * ptr)
 	char * alloced = strdup(ptr);
 	if (!alloced)
 	{
-		mylog("%s:%s %p error\n", ALCERR, __FUNCTION__, ptr);
+		MYLOG(0, "%s:%s %p error\n", ALCERR, __FUNCTION__, ptr);
 	}
 	else
 	{
@@ -146,7 +146,7 @@ void pgdebug_free(void * ptr)
 
 	if (!ptr)
 	{
-		mylog("%s:%sing null ptr\n", ALCERR, __FUNCTION__);
+		MYLOG(0, "%s:%sing null ptr\n", ALCERR, __FUNCTION__);
 		return;
 	}
 	for (i = 0; i < tbsize; i++)
@@ -165,7 +165,7 @@ void pgdebug_free(void * ptr)
 	}
 	if (! freed)
 	{
-		mylog("%s:%sing not found ptr %p\n", ALCERR, __FUNCTION__, ptr);
+		MYLOG(0, "%s:%sing not found ptr %p\n", ALCERR, __FUNCTION__, ptr);
 		return;
 	}
 	else
@@ -187,7 +187,7 @@ static BOOL out_check(void *out, size_t len, const char *name)
 			if ((UInt4)out + len > (UInt4)(altbl[i].aladr) + altbl[i].len)
 			{
 				ret = FALSE;
-				mylog("%s:%s:out_check found memory buffer overrun %p(%d)>=%p(%d)\n", ALCERR, name, out, len, altbl[i].aladr, altbl[i].len);
+				MYLOG(0, "%s:%s:out_check found memory buffer overrun %p(%d)>=%p(%d)\n", ALCERR, name, out, len, altbl[i].aladr, altbl[i].len);
 			}
 			break;
 		}
@@ -198,7 +198,7 @@ char *pgdebug_strcpy(char *out, const char *in)
 {
 	if (!out || !in)
 	{
-		mylog("%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
 		return NULL;
 	}
 	out_check(out, strlen(in) + 1, __FUNCTION__);
@@ -208,7 +208,7 @@ char *pgdebug_strncpy(char *out, const char *in, size_t len)
 {
 	if (!out || !in)
 	{
-		mylog("%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -218,7 +218,7 @@ char *pgdebug_strncpy_null(char *out, const char *in, size_t len)
 {
 	if (!out || !in)
 	{
-		mylog("%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -229,7 +229,7 @@ void *pgdebug_memcpy(void *out, const void *in, size_t len)
 {
 	if (!out || !in)
 	{
-		mylog("%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -240,7 +240,7 @@ void *pgdebug_memset(void *out, int c, size_t len)
 {
 	if (!out)
 	{
-		mylog("%s:%s null pointer out=%p\n", ALCERR, __FUNCTION__, out);
+		MYLOG(0, "%s:%s null pointer out=%p\n", ALCERR, __FUNCTION__, out);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -253,16 +253,16 @@ void debug_memory_check(void)
 
 	if (0 == tbsize)
 	{
-		mylog("no memry leak found and max count allocated so far is %d\n", alsize);
+		MYLOG(0, "no memry leak found and max count allocated so far is %d\n", alsize);
 		free(altbl);
 		alsize = 0;
 	}
 	else
 	{
-		mylog("%s:memory leak found check count=%d alloc=%d\n", ALCERR, tbsize, alsize);
+		MYLOG(0, "%s:memory leak found check count=%d alloc=%d\n", ALCERR, tbsize, alsize);
 		for (i = 0; i < tbsize; i++)
 		{
-			mylog("%s:leak = %p(%d)\n", ALCERR, altbl[i].aladr, altbl[i].len);
+			MYLOG(0, "%s:leak = %p(%d)\n", ALCERR, altbl[i].aladr, altbl[i].len);
 		}
 	}
 }

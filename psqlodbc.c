@@ -130,7 +130,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 					else if (strnicmp(fname, "sqlservr", 8) == 0)
 						exepgm = 3;
 				}
-				mylog("exe name=%s\n", fname);
+				MYLOG(0, "exe name=%s\n", fname);
 			}
 			break;
 
@@ -138,7 +138,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 			break;
 
 		case DLL_PROCESS_DETACH:
-			mylog("DETACHING %s\n", DRIVER_FILE_NAME);
+			MYLOG(0, "DETACHING %s\n", DRIVER_FILE_NAME);
 			CleanupDelayLoadedDLLs();
 			/* my(q)log is unavailable from here */
 			finalize_global_cs();

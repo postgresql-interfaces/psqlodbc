@@ -117,7 +117,7 @@ HMODULE MODULE_load_from_psqlodbc_path(const char *module_name)
 		if (_strnicmp(szFileName, sysdir, strlen(sysdir)) != 0)
 		{
 			hmodule = LoadLibraryEx(szFileName, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-			mylog("psqlodbc path based %s loaded module=%p\n", module_name, hmodule);
+			MYLOG(0, "psqlodbc path based %s loaded module=%p\n", module_name, hmodule);
 		}
 	}
 	return hmodule;
@@ -131,7 +131,7 @@ DliErrorHook(unsigned	dliNotify,
 	HMODULE	hmodule = NULL;
 	const char* call_module = NULL;
 
-	mylog("Dli%sHook %s Notify=%d\n", (dliFailLoadLib == dliNotify || dliFailGetProc == dliNotify) ? "Error" : "Notify", NULL != pdli->szDll ? pdli->szDll : pdli->dlp.szProcName, dliNotify);
+	MYLOG(0, "Dli%sHook %s Notify=%d\n", (dliFailLoadLib == dliNotify || dliFailGetProc == dliNotify) ? "Error" : "Notify", NULL != pdli->szDll ? pdli->szDll : pdli->dlp.szProcName, dliNotify);
 	switch (dliNotify)
 	{
 		case dliNotePreLoadLibrary:
@@ -181,19 +181,19 @@ void CleanupDelayLoadedDLLs(void)
 	{
 		if (enlist_module != NULL)
 		{
-			mylog("Freeing Library %s\n", pgenlistdll);
+			MYLOG(0, "Freeing Library %s\n", pgenlistdll);
 			FreeLibrary(enlist_module);
 		}
-		mylog("%s unloading\n", pgenlistdll);
+		MYLOG(0, "%s unloading\n", pgenlistdll);
 		success = (*func)(pgenlistdll);
-		mylog("%s unloaded success=%d\n", pgenlistdll, success);
+		MYLOG(0, "%s unloaded success=%d\n", pgenlistdll, success);
 		loaded_pgenlist = FALSE;
 	}
 	if (loaded_psqlodbc)
 	{
-		mylog("%s unloading\n", psqlodbcdll);
+		MYLOG(0, "%s unloading\n", psqlodbcdll);
 		success = (*func)(psqlodbcdll);
-		mylog("%s unloaded success=%d\n", psqlodbcdll, success);
+		MYLOG(0, "%s unloaded success=%d\n", psqlodbcdll, success);
 		loaded_psqlodbc = FALSE;
 	}
 	return;

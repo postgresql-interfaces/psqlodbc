@@ -75,10 +75,10 @@ PGAPI_AllocConnect(HENV henv,
 	ConnectionClass *conn;
 	CSTR func = "PGAPI_AllocConnect";
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	conn = CC_Constructor();
-	mylog("**** %s: henv = %p, conn = %p\n", func, henv, conn);
+	MYLOG(0, "**** %s: henv = %p, conn = %p\n", func, henv, conn);
 
 	if (!conn)
 	{
@@ -121,7 +121,7 @@ PGAPI_Connect(HDBC hdbc,
 	RETCODE	ret = SQL_SUCCESS;
 	char	fchar, *tmpstr;
 
-	mylog("%s: entering..cbDSN=%hi.\n", func, cbDSN);
+	MYLOG(0, "%s: entering..cbDSN=%hi.\n", func, cbDSN);
 
 	if (!conn)
 	{
@@ -168,7 +168,7 @@ PGAPI_Connect(HDBC hdbc,
 	if (SQL_SUCCESS == ret && 2 == fchar)
 		ret = SQL_SUCCESS_WITH_INFO;
 
-	mylog("%s: returning..%d.\n", func, ret);
+	MYLOG(0, "%s: returning..%d.\n", func, ret);
 
 	return ret;
 }
@@ -185,7 +185,7 @@ PGAPI_BrowseConnect(HDBC hdbc,
 	CSTR func = "PGAPI_BrowseConnect";
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Function not implemented", func);
 	return SQL_ERROR;
@@ -200,7 +200,7 @@ PGAPI_Disconnect(HDBC hdbc)
 	CSTR func = "PGAPI_Disconnect";
 
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	if (!conn)
 	{
@@ -217,13 +217,13 @@ PGAPI_Disconnect(HDBC hdbc)
 	}
 
 	logs_on_off(-1, conn->connInfo.drivers.debug, conn->connInfo.drivers.commlog);
-	mylog("%s: about to CC_cleanup\n", func);
+	MYLOG(0, "%s: about to CC_cleanup\n", func);
 
 	/* Close the connection and free statements */
 	CC_cleanup(conn, FALSE);
 
-	mylog("%s: done CC_cleanup\n", func);
-	mylog("%s: returning...\n", func);
+	MYLOG(0, "%s: done CC_cleanup\n", func);
+	MYLOG(0, "%s: returning...\n", func);
 
 	return SQL_SUCCESS;
 }
@@ -236,8 +236,8 @@ PGAPI_FreeConnect(HDBC hdbc)
 	CSTR func = "PGAPI_FreeConnect";
 	EnvironmentClass *env;
 
-	mylog("%s: entering...\n", func);
-	mylog("**** in %s: hdbc=%p\n", func, hdbc);
+	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "**** in %s: hdbc=%p\n", func, hdbc);
 
 	if (!conn)
 	{
@@ -255,7 +255,7 @@ PGAPI_FreeConnect(HDBC hdbc)
 
 	CC_Destructor(conn);
 
-	mylog("%s: returning...\n", func);
+	MYLOG(0, "%s: returning...\n", func);
 
 	return SQL_SUCCESS;
 }
@@ -358,14 +358,14 @@ CC_Constructor()
 char
 CC_Destructor(ConnectionClass *self)
 {
-	mylog("enter CC_Destructor, self=%p\n", self);
+	MYLOG(0, "enter CC_Destructor, self=%p\n", self);
 
 	if (self->status == CONN_EXECUTING)
 		return 0;
 
 	CC_cleanup(self, FALSE);			/* cleanup socket and statements */
 
-	mylog("after CC_Cleanup\n");
+	MYLOG(0, "after CC_Cleanup\n");
 
 	/* Free up statement holders */
 	if (self->stmts)
@@ -378,7 +378,7 @@ CC_Destructor(ConnectionClass *self)
 		free(self->descs);
 		self->descs = NULL;
 	}
-	mylog("after free statement holders\n");
+	MYLOG(0, "after free statement holders\n");
 
 	NULL_THE_NAME(self->schemaIns);
 	NULL_THE_NAME(self->tableIns);
@@ -389,7 +389,7 @@ CC_Destructor(ConnectionClass *self)
 	DELETE_CONNLOCK(self);
 	free(self);
 
-	mylog("exit CC_Destructor\n");
+	MYLOG(0, "exit CC_Destructor\n");
 
 	return 1;
 }
@@ -404,7 +404,7 @@ CC_cursor_count(ConnectionClass *self)
 				count = 0;
 	QResultClass		*res;
 
-	mylog("CC_cursor_count: self=%p, num_stmts=%d\n", self, self->num_stmts);
+	MYLOG(0, "CC_cursor_count: self=%p, num_stmts=%d\n", self, self->num_stmts);
 
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
@@ -415,7 +415,7 @@ CC_cursor_count(ConnectionClass *self)
 	}
 	CONNLOCK_RELEASE(self);
 
-	mylog("CC_cursor_count: returning %d\n", count);
+	MYLOG(0, "CC_cursor_count: returning %d\n", count);
 
 	return count;
 }
@@ -464,7 +464,7 @@ CC_begin(ConnectionClass *self)
 	if (!CC_is_in_trans(self))
 	{
 		QResultClass *res = CC_send_query(self, bgncmd, NULL, 0, NULL);
-		mylog("CC_begin:  sending BEGIN!\n");
+		MYLOG(0, "CC_begin:  sending BEGIN!\n");
 
 		ret = QR_command_maybe_successful(res);
 		QR_Destructor(res);
@@ -488,7 +488,7 @@ CC_commit(ConnectionClass *self)
 		if (CC_is_in_trans(self))
 		{
 			QResultClass *res = CC_send_query(self, cmtcmd, NULL, 0, NULL);
-			mylog("CC_commit:  sending COMMIT!\n");
+			MYLOG(0, "CC_commit:  sending COMMIT!\n");
 			ret = QR_command_maybe_successful(res);
 			QR_Destructor(res);
 		}
@@ -508,7 +508,7 @@ CC_abort(ConnectionClass *self)
 	if (CC_is_in_trans(self))
 	{
 		QResultClass *res = CC_send_query(self, rbkcmd, NULL, 0, NULL);
-		mylog("CC_abort:  sending ABORT!\n");
+		MYLOG(0, "CC_abort:  sending ABORT!\n");
 		ret = QR_command_maybe_successful(res);
 		QR_Destructor(res);
 	}
@@ -526,7 +526,7 @@ CC_set_autocommit(ConnectionClass *self, BOOL on)
 	if ((on && currsts) ||
 	    (!on && !currsts))
 		return on;
-	mylog("%s: %d->%d\n", func, currsts, on);
+	MYLOG(0, "%s: %d->%d\n", func, currsts, on);
 	if (CC_is_in_trans(self))
 		CC_commit(self);
 	if (on)
@@ -654,7 +654,7 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 	if (self->status == CONN_EXECUTING)
 		return FALSE;
 
-	mylog("in CC_Cleanup, self=%p\n", self);
+	MYLOG(0, "in CC_Cleanup, self=%p\n", self);
 
 	ENTER_CONN_CS(self);
 	/* Cancel an ongoing transaction */
@@ -666,7 +666,7 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 		self->pqconn = NULL;
 	}
 
-	mylog("after PQfinish\n");
+	MYLOG(0, "after PQfinish\n");
 
 	/* Free all the stmts on this connection */
 	for (i = 0; i < self->num_stmts; i++)
@@ -744,7 +744,7 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 	}
 
 	LEAVE_CONN_CS(self);
-	mylog("exit CC_Cleanup\n");
+	MYLOG(0, "exit CC_Cleanup\n");
 	return TRUE;
 }
 
@@ -806,7 +806,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	char	   *errmsg = NULL;
 	size_t		errmsglen;
 
-	inolog("handle_pgres_error");
+	MYLOG(1, "handle_pgres_error");
 
 	if (res && pgres)
 	{
@@ -820,7 +820,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	{
 		const char *errmsg = "The connection has been lost";
 
-		mylog("%s setting error message=%s\n", __FUNCTION__, errmsg);
+		MYLOG(0, "%s setting error message=%s\n", __FUNCTION__, errmsg);
 		if (CC_get_errornumber(self) <= 0)
 			CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, comment);
 		if (res)
@@ -840,7 +840,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	if (PG_VERSION_GE(self, 9.6))
 	{
 		errseverity_nonloc = PQresultErrorField(pgres, PG_DIAG_SEVERITY_NONLOCALIZED);
-		mylog("PG_DIAG_SEVERITY_NONLOCALIZED=%s\n", errseverity_nonloc ? errseverity_nonloc : "(null)");
+		MYLOG(0, "PG_DIAG_SEVERITY_NONLOCALIZED=%s\n", errseverity_nonloc ? errseverity_nonloc : "(null)");
 	}
 	errprimary = PQresultErrorField(pgres, PG_DIAG_MESSAGE_PRIMARY);
 	if (errprimary == NULL)
@@ -864,7 +864,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 
 	if (!error_not_a_notice) /* warning, notice, log etc */
 	{
-		mylog("notice message %s\n", errmsg);
+		MYLOG(0, "notice message %s\n", errmsg);
 		if (res)
 		{
 			if (QR_command_successful(res))
@@ -875,7 +875,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	}
 
 	if (get_mylog() > 0)
-		mylog("error message=%s(%d)\n", errmsg, strlen(errmsg));
+		MYLOG(0, "error message=%s(" FORMAT_SIZE_T ")\n", errmsg, strlen(errmsg));
 
 	if (res)
 	{
@@ -963,7 +963,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* _MSC_VER */
 		);
 	qlog(vermsg);
-	mylog(vermsg);
+	MYLOG(0, "%s", vermsg);
 	qlog("Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.unknown_sizes,
@@ -998,7 +998,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		return 0;
 	}
 
-	mylog("%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
+	MYLOG(0, "%s: DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", func, ci->dsn, ci->server, ci->port, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 
 	return 1;
 }
@@ -1015,7 +1015,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 	CSTR		func = "LIBPQ_CC_connect";
 	QResultClass	*res;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	if (0 == CC_initial_log(self, func))
 		return 0;
@@ -1042,9 +1042,9 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	CSTR	func = "CC_connect";
 	char		ret, *saverr = NULL, retsend;
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
-	mylog("sslmode=%s\n", self->connInfo.sslmode);
+	MYLOG(0, "sslmode=%s\n", self->connInfo.sslmode);
 
 	ret = LIBPQ_CC_connect(self, salt_para);
 	if (ret <= 0)
@@ -1114,11 +1114,11 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	if (CC_is_in_unicode_driver(self)
 	    && (CC_is_in_ansi_app(self) || 0 < ci->bde_environment))
 		self->unicode |= CONN_DISALLOW_WCHAR;
-mylog("conn->unicode=%d Client Encoding='%s' (Code %d)\n", self->unicode, self->original_client_encoding, self->ccsc);
+MYLOG(0, "conn->unicode=%d Client Encoding='%s' (Code %d)\n", self->unicode, self->original_client_encoding, self->ccsc);
 	ret = 1;
 
 cleanup:
-	mylog("%s: returning...%d\n", func, ret);
+	MYLOG(0, "%s: returning...%d\n", func, ret);
 	if (NULL != saverr)
 	{
 		if (ret > 0 && CC_get_errornumber(self) <= 0)
@@ -1138,7 +1138,7 @@ CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 	int	i;
 	char	ret = TRUE;
 
-	mylog("CC_add_statement: self=%p, stmt=%p\n", self, stmt);
+	MYLOG(0, "CC_add_statement: self=%p, stmt=%p\n", self, stmt);
 
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
@@ -1186,7 +1186,7 @@ CC_set_error_statements(ConnectionClass *self)
 {
 	int	i;
 
-	mylog("CC_error_statements: self=%p\n", self);
+	MYLOG(0, "CC_error_statements: self=%p\n", self);
 
 	for (i = 0; i < self->num_stmts; i++)
 	{
@@ -1247,7 +1247,7 @@ int	CC_get_max_idlen(ConnectionClass *self)
 			len = self->max_identifier_length = QR_get_value_backend_int(res, 0, 0, FALSE);
 		QR_Destructor(res);
 	}
-mylog("max_identifier_length=%d\n", len);
+MYLOG(0, "max_identifier_length=%d\n", len);
 	return len < 0 ? 0 : len;
 }
 
@@ -1282,7 +1282,7 @@ static int handle_show_results(const QResultClass *res)
 		if (strcmp(QR_get_fieldname(qres, 0), TRANSACTION_ISOLATION) == 0)
 		{
 			conn->server_isolation = isolation_str_to_enum(QR_get_value_backend_text(qres, 0, 0));
-			mylog("isolation %d to be %d\n", conn->server_isolation, conn->isolation);
+			MYLOG(0, "isolation %d to be %d\n", conn->server_isolation, conn->isolation);
 			if (0 == conn->isolation)
 				conn->isolation = conn->server_isolation;
 			if (0 == conn->default_isolation)
@@ -1309,7 +1309,7 @@ SQLUINTEGER	CC_get_isolation(ConnectionClass *self)
 		isolation = self->server_isolation;
 	}
 	QR_Destructor(res);
-mylog("isolation=%d\n", isolation);
+MYLOG(0, "isolation=%d\n", isolation);
 	return isolation;
 }
 
@@ -1345,7 +1345,7 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 {
 	int			rv;
 
-	mylog("enter CC_get_error\n");
+	MYLOG(0, "enter CC_get_error\n");
 
 	CONNLOCK_ACQUIRE(self);
 
@@ -1358,7 +1358,7 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 
 	CONNLOCK_RELEASE(self);
 
-	mylog("exit CC_get_error\n");
+	MYLOG(0, "exit CC_get_error\n");
 
 	return rv;
 }
@@ -1439,7 +1439,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 						QR_set_cursor(res, NULL);
 					QR_Destructor(wres);
 					CONNLOCK_ACQUIRE(self);
-inolog(" !!!! %s:%p->permanent -> %d %p\n", __FUNCTION__, res, QR_is_permanent(res), QR_get_cursor(res));
+MYLOG(1, " !!!! %s:%p->permanent -> %d %p\n", __FUNCTION__, res, QR_is_permanent(res), QR_get_cursor(res));
 				}
 				else
 					QR_set_permanent(res);
@@ -1497,11 +1497,11 @@ void	CC_on_commit(ConnectionClass *conn)
 	CONNLOCK_RELEASE(conn);
 	conn->on_commit_in_progress = 0;
 }
-void	CC_on_abort(ConnectionClass *conn, UDWORD opt)
+void	CC_on_abort(ConnectionClass *conn, unsigned int opt)
 {
 	BOOL	set_no_trans = FALSE;
 
-mylog("CC_on_abort in opt=%x\n", opt);
+MYLOG(0, "CC_on_abort in opt=%x\n", opt);
 	CONNLOCK_ACQUIRE(conn);
 	if (0 != (opt & CONN_DEAD)) /* CONN_DEAD implies NO_TRANS also */
 		opt |= NO_TRANS;
@@ -1546,7 +1546,7 @@ mylog("CC_on_abort in opt=%x\n", opt);
 
 void	CC_on_abort_partial(ConnectionClass *conn)
 {
-mylog("CC_on_abort_partial in\n");
+MYLOG(0, "CC_on_abort_partial in\n");
 	CONNLOCK_ACQUIRE(conn);
 	ProcessRollback(conn, TRUE, TRUE);
 	CC_discard_marked_objects(conn);
@@ -1612,7 +1612,7 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 	{
 		case PER_STATEMENT_ROLLBACK:
 			GenerateSvpCommand(self, INTERNAL_ROLLBACK_OPERATION, cmd, sizeof(cmd));
-			mylog(" %s:rollback_type=%d %s\n", __FUNCTION__, rollback_type, cmd);
+			MYLOG(0, " %s:rollback_type=%d %s\n", __FUNCTION__, rollback_type, cmd);
 			pgres = PQexec(self->pqconn, cmd);
 			switch (PQresultStatus(pgres))
 			{
@@ -1630,7 +1630,7 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 		case PER_QUERY_ROLLBACK:
 			SPRINTF_FIXED(cmd, "%s TO %s;%s %s"
 				, rbkcmd, per_query_svp , rlscmd, per_query_svp);
-			mylog(" %s:query_rollback PQsendQuery %s\n", __FUNCTION__, cmd);
+			MYLOG(0, " %s:query_rollback PQsendQuery %s\n", __FUNCTION__, cmd);
 			PQsendQuery(self->pqconn, cmd);
 			ret = 1;
 			while (self->pqconn && (pgres = PQgetResult(self->pqconn)) != NULL)
@@ -1650,7 +1650,7 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 					CC_set_no_error_trans(self);
 			}
 			else
-				mylog(" %s:return error\n", __FUNCTION__);
+				MYLOG(0, " %s:return error\n", __FUNCTION__);
 			LIBPQ_update_transaction_status(self);
 			break;
 	}
@@ -1709,12 +1709,12 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	if (appendq)
 	{
-		mylog("%s_append: conn=%p, query='%s'+'%s'\n", func, self, query, appendq);
+		MYLOG(0, "%s_append: conn=%p, query='%s'+'%s'\n", func, self, query, appendq);
 		qlog("conn=%p, query='%s'+'%s'\n", self, query, appendq);
 	}
 	else
 	{
-		mylog("%s: conn=%p, query='%s'\n", func, self, query);
+		MYLOG(0, "%s: conn=%p, query='%s'\n", func, self, query);
 		qlog("conn=%p, query='%s'\n", self, query);
 	}
 
@@ -1792,7 +1792,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	/* append all these together, to avoid round-trips */
 	query_len = strlen(query);
-	mylog("%s:query_len=%u\n", __FUNCTION__, query_len);
+	MYLOG(0, "%s:query_len=" FORMAT_SIZE_T "\n", __FUNCTION__, query_len);
 
 	initPQExpBuffer(&query_buf);
 	/* issue_begin, query_rollback and prepend_savepoint are exclusive */
@@ -1828,7 +1828,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
 		goto cleanup;
 	}
-mylog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf.data, strlen(query_buf.data));
+MYLOG(1, "!!!! %s:query_buf=%s(" FORMAT_SIZE_T ")\n", __FUNCTION__, query_buf.data, strlen(query_buf.data));
 
 	/* Set up notice receiver */
 	nrarg.conn = self;
@@ -1874,7 +1874,7 @@ mylog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf.data, strlen(query_b
 				/* portal query command, no tuples returned */
 				/* read in the return message from the backend */
 				cmdbuffer = PQcmdStatus(pgres);
-				mylog("send_query: ok - 'C' - %s\n", cmdbuffer);
+				MYLOG(0, "send_query: ok - 'C' - %s\n", cmdbuffer);
 
 
 				if (query_completed)	/* allow for "show" style notices */
@@ -1891,7 +1891,7 @@ mylog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf.data, strlen(query_b
 					nrarg.res = res;
 				}
 
-				mylog("send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
+				MYLOG(0, "send_query: setting cmdbuffer = '%s'\n", cmdbuffer);
 
 				my_trim(cmdbuffer); /* get rid of trailing space */
 				if (strnicmp(cmdbuffer, bgncmd, strlen(bgncmd)) == 0)
@@ -1916,7 +1916,7 @@ mylog("!!!! %s:query_buf=%s(%d)\n", __FUNCTION__, query_buf.data, strlen(query_b
 					{
 						discard_next_savepoint = FALSE;
 						discard_next_release = TRUE;
-inolog("Discarded a SAVEPOINT result\n");
+MYLOG(1, "Discarded a SAVEPOINT result\n");
 						break; /* discard the result */
 					}
 					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
@@ -1940,7 +1940,7 @@ inolog("Discarded a SAVEPOINT result\n");
 				{
 					if (discard_next_release)
 					{
-inolog("Discarded a RELEASE result\n");
+MYLOG(1, "Discarded a RELEASE result\n");
 						discard_next_release = FALSE;
 						break; /* discard the result */
 					}
@@ -1975,7 +1975,7 @@ inolog("Discarded a RELEASE result\n");
 					QR_set_rstatus(res, PORES_COMMAND_OK);
 				QR_set_command(res, cmdbuffer);
 				query_completed = TRUE;
-				mylog("send_query: returning res = %p\n", res);
+				MYLOG(0, "send_query: returning res = %p\n", res);
 				break;
 
 			case PGRES_EMPTY_QUERY:
@@ -2013,7 +2013,7 @@ inolog("Discarded a RELEASE result\n");
 						if (stmt)
 							res->next->num_key_fields = stmt->num_key_fields;
 					}
-					mylog("send_query: 'T' no result_in: res = %p\n", res->next);
+					MYLOG(0, "send_query: 'T' no result_in: res = %p\n", res->next);
 					res = res->next;
 					nrarg.res = res;
 
@@ -2090,7 +2090,7 @@ inolog("Discarded a RELEASE result\n");
 				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected result status (send_query)", func);
 				CC_on_abort(self, CONN_DEAD);
 
-				mylog("send_query: error - %s\n", CC_get_errormsg(self));
+				MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(self));
 				ReadyToReturn = TRUE;
 				retres = NULL;
 				break;
@@ -2111,7 +2111,7 @@ cleanup:
 		PQclear(pgres);
 		pgres = NULL;
 	}
-inolog(" !!!! %s:rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d query_rollback=%d\n", __FUNCTION__, rollback_on_error, CC_is_in_trans(self), discard_next_savepoint, query_rollback);
+MYLOG(1, " !!!! %s:rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d query_rollback=%d\n", __FUNCTION__, rollback_on_error, CC_is_in_trans(self), discard_next_savepoint, query_rollback);
 	if (rollback_on_error && CC_is_in_trans(self) && !discard_next_savepoint)
 	{
 		if (query_rollback)
@@ -2186,7 +2186,7 @@ inolog(" !!!! %s:rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%
 					CC_set_errornumber(self, CONN_ERROR_IGNORED);
 					if (retres)
 						QR_set_rstatus(retres, PORES_NONFATAL_ERROR);
-inolog(" !!!! %s:ignored abort_on_conn\n", __FUNCTION__);
+MYLOG(1, " !!!! %s:ignored abort_on_conn\n", __FUNCTION__);
 				}
 				else if (retres)
 				{
@@ -2270,7 +2270,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 	Int4		intParamBufs[MAX_SEND_FUNC_ARGS];
 	Int8		int8ParamBufs[MAX_SEND_FUNC_ARGS];
 
-	mylog("send_function(): conn=%p, fn_name=%s, result_is_int=%d, nargs=%d\n", self, fn_name, result_is_int, nargs);
+	MYLOG(0, "send_function(): conn=%p, fn_name=%s, result_is_int=%d, nargs=%d\n", self, fn_name, result_is_int, nargs);
 
 	/* Finish the pending extended query first */
 #define	return DONT_CALL_RETURN_FROM_HERE???
@@ -2280,7 +2280,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 			 func_param_str[nargs]);
 	for (i = 0; i < nargs; ++i)
 	{
-		mylog("  arg[%d]: len = %d, isint = %d, integer = " FORMATI64 ", ptr = %p\n", i, args[i].len, args[i].isint, args[i].isint == 2 ? args[i].u.integer64 : args[i].u.integer, args[i].u.ptr);
+		MYLOG(0, "  arg[%d]: len = %d, isint = %d, integer = " FORMATI64 ", ptr = %p\n", i, args[i].len, args[i].isint, args[i].isint == 2 ? args[i].u.integer64 : args[i].u.integer, args[i].u.ptr);
 		/* integers are sent as binary, others as text */
 		if (args[i].isint == 2)
 		{
@@ -2311,7 +2311,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 						 paramTypes, (const char * const *) paramValues,
 						 paramLengths, paramFormats, 1);
 
-	mylog("send_function: done sending function\n");
+	MYLOG(0, "send_function: done sending function\n");
 
 	if (PQresultStatus(pgres) != PGRES_TUPLES_OK)
 	{
@@ -2327,7 +2327,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 
 	*actual_result_len = PQgetlength(pgres, 0, 0);
 
-	mylog("send_function(): got result with length %d\n", *actual_result_len);
+	MYLOG(0, "send_function(): got result with length %d\n", *actual_result_len);
 
 	if (*actual_result_len > 0)
 	{
@@ -2338,7 +2338,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 			memcpy(&int8val, value, sizeof(Int8));
 			int8val = odbc_ntoh64(int8val);
 			memcpy(result_buf, &int8val, sizeof(Int8));
-mylog("int8 result=" FORMATI64 "\n", int8val);
+MYLOG(0, "int8 result=" FORMATI64 "\n", int8val);
 		}
 		else if (result_is_int)
 		{
@@ -2376,7 +2376,7 @@ CC_send_settings(ConnectionClass *self, const char *set_query)
 	CSTR func = "CC_send_settings";
 
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	if (set_query == NULL) return TRUE;
 
@@ -2409,7 +2409,7 @@ CC_send_settings(ConnectionClass *self, const char *set_query)
 		if (!SQL_SUCCEEDED(result))
 			status = FALSE;
 
-		mylog("%s: result %d, status %d from '%s'\n", func, result, status, ptr);
+		MYLOG(0, "%s: result %d, status %d from '%s'\n", func, result, status, ptr);
 
 #ifdef	HAVE_STRTOK_R
 		ptr = strtok_r(NULL, ";", &last);
@@ -2436,7 +2436,7 @@ CC_lookup_lo(ConnectionClass *self)
 	QResultClass	*res;
 	CSTR func = "CC_lookup_lo";
 
-	mylog("%s: entering...\n", func);
+	MYLOG(0, "%s: entering...\n", func);
 
 	res = CC_send_query(self, "select oid, typbasetype from pg_type where typname = '"  PG_TYPE_LO_NAME "'",
 		NULL, READ_ONLY_QUERY, NULL);
@@ -2452,7 +2452,7 @@ CC_lookup_lo(ConnectionClass *self)
 			self->lobj_type = 0;
 	}
 	QR_Destructor(res);
-	mylog("Got the large object oid: %d\n", self->lobj_type);
+	MYLOG(0, "Got the large object oid: %d\n", self->lobj_type);
 	qlog("    [ Large Object oid = %d ]\n", self->lobj_type);
 	return;
 }
@@ -2480,7 +2480,7 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 	if (self)
 	{
 		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
-		mylog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
+		MYLOG(0, "CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		qlog("            ------------------------------------------------------------\n");
 		qlog("            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
 		qlog("            pqconn=%p, stmts=%p, lobj_type=%d\n", self->pqconn, self->stmts, self->lobj_type);
@@ -2488,7 +2488,7 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 	else
 {
 		qlog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
-		mylog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+		MYLOG(0, "INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 }
 }
 
@@ -2624,7 +2624,7 @@ LIBPQ_connect(ConnectionClass *self)
 	char		keepalive_interval_str[20];
 	char		*errmsg = NULL;
 
-	mylog("connecting to the database using %s as the server and pqopt={%s}\n", self->connInfo.server, SAFE_NAME(ci->pqopt));
+	MYLOG(0, "connecting to the database using %s as the server and pqopt={%s}\n", self->connInfo.server, SAFE_NAME(ci->pqopt));
 
 	if (NULL == (conninfoOption = PQconninfoParse(SAFE_NAME(ci->pqopt), &errmsg)))
 	{
@@ -2749,7 +2749,7 @@ LIBPQ_connect(ConnectionClass *self)
 	{
 		const char	*errmsg;
 
-		mylog("password retry\n");
+		MYLOG(0, "password retry\n");
 		errmsg = PQerrorMessage(pqconn);
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
 		PQfinish(pqconn);
@@ -2762,32 +2762,32 @@ LIBPQ_connect(ConnectionClass *self)
 	if (CONNECTION_OK != pqret)
 	{
 		const char	*errmsg;
-inolog("status=%d\n", pqret);
+MYLOG(1, "status=%d\n", pqret);
 		errmsg = PQerrorMessage(pqconn);
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
-		mylog("Could not establish connection to the database; LIBPQ returned -> %s\n", errmsg);
+		MYLOG(0, "Could not establish connection to the database; LIBPQ returned -> %s\n", errmsg);
 		goto cleanup;
 	}
 
-	mylog("libpq connection to the database established.\n");
+	MYLOG(0, "libpq connection to the database established.\n");
 	pversion = PQprotocolVersion(pqconn);
 	if (pversion < 3)
 	{
-		mylog("Protocol version %d is not supported\n", pversion);
+		MYLOG(0, "Protocol version %d is not supported\n", pversion);
 		goto cleanup;
 	}
-	mylog("protocol=%d\n", pversion);
+	MYLOG(0, "protocol=%d\n", pversion);
 
 	pversion = PQserverVersion(pqconn);
 	self->pg_version_major = pversion / 10000;
 	self->pg_version_minor = (pversion % 10000) / 100;
 	SPRINTF_FIXED(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
 
-	mylog("Server version=%s\n", self->pg_version);
+	MYLOG(0, "Server version=%s\n", self->pg_version);
 
 	if (!CC_get_username(self)[0])
 	{
-		mylog("PQuser=%s\n", PQuser(pqconn));
+		MYLOG(0, "PQuser=%s\n", PQuser(pqconn));
 		STRCPY_FIXED(self->connInfo.username, PQuser(pqconn));
 	}
 
@@ -2804,7 +2804,7 @@ cleanup:
 		self->pqconn = NULL;
 	}
 
-	mylog("%s: retuning %d\n", func, ret);
+	MYLOG(0, "%s: retuning %d\n", func, ret);
 	return ret;
 }
 
@@ -3129,7 +3129,7 @@ DLL_DECLARE int PgDtc_is_recovery_available(void *self, char *reason, int rsize)
 	nameSize = sizeof(loginUser);
 	if (GetUserNameEx(NameUserPrincipal, loginUser, &nameSize))
 	{
-		mylog("loginUser=%s\n", loginUser);
+		MYLOG(0, "loginUser=%s\n", loginUser);
 	}
 	else
 	{
@@ -3137,16 +3137,16 @@ DLL_DECLARE int PgDtc_is_recovery_available(void *self, char *reason, int rsize)
 		switch (err)
 		{
 			case ERROR_NONE_MAPPED:
-				mylog("The user name is unavailable in the specified format\n");
+				MYLOG(0, "The user name is unavailable in the specified format\n");
 				break;
 			case ERROR_NO_SUCH_DOMAIN:
-				mylog("The domain controller is unavailable to perform the lookup\n");
+				MYLOG(0, "The domain controller is unavailable to perform the lookup\n");
 				break;
 			case ERROR_MORE_DATA:
-				mylog("The buffer is too small\n");
+				MYLOG(0, "The buffer is too small\n");
 				break;
 			default:
-				mylog("GetUserNameEx error=%d\n", err);
+				MYLOG(0, "GetUserNameEx error=%d\n", err);
 				break;
 		}
 	}
@@ -3380,7 +3380,7 @@ PgDtc_isolate(void *self, DWORD option)
 		CC_cleanup(sconn, TRUE);
 		if (newconn = CC_Copy(sconn), NULL == newconn)
 			return newconn;
-		mylog("%s:newconn=%p from %p\n", __FUNCTION__, newconn, sconn);
+		MYLOG(0, "%s:newconn=%p from %p\n", __FUNCTION__, newconn, sconn);
 		CC_initialize(sconn, FALSE);
 		if (!disposingConn)
 			CC_copy_conninfo(&sconn->connInfo, &newconn->connInfo);
@@ -3400,7 +3400,7 @@ PgDtc_isolate(void *self, DWORD option)
 	sconn->asdum = NULL;
 	SYNC_AUTOCOMMIT(sconn);
 	CC_set_dtc_clear(sconn);
-	mylog("generated connection=%p with %p\n", newconn, newconn->asdum);
+	MYLOG(0, "generated connection=%p with %p\n", newconn, newconn->asdum);
 
 	return newconn;
 }

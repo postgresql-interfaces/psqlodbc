@@ -40,7 +40,7 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	RETCODE		ret;
 	CSTR func = "PGAPI_GetDiagRec";
 
-	mylog("%s entering type=%d rec=%d\n", func, HandleType, RecNumber);
+	MYLOG(0, "%s entering type=%d rec=%d\n", func, HandleType, RecNumber);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -67,7 +67,7 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 		default:
 			ret = SQL_ERROR;
 	}
-	mylog("%s exiting %d\n", func, ret);
+	MYLOG(0, "%s exiting %d\n", func, ret);
 	return ret;
 }
 
@@ -90,7 +90,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	int		rtnctype = SQL_C_CHAR;
 	CSTR func = "PGAPI_GetDiagField";
 
-	mylog("%s entering rec=%d", func, RecNumber);
+	MYLOG(0, "%s entering rec=%d", func, RecNumber);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -294,7 +294,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 							rc = QR_get_num_total_tuples(res) - res->dl_count;
 					}
 					*((SQLLEN *) DiagInfoPtr) = rc;
-inolog("rc=%d\n", rc);
+MYLOG(1, "rc=" FORMAT_LEN "\n", rc);
 					ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_ROW_COUNT:
@@ -388,7 +388,7 @@ inolog("rc=%d\n", rc);
 		if (StringLengthPtr)
 			*StringLengthPtr = (SQLSMALLINT) rtnlen;
 	}
-	mylog("%s exiting %d\n", func, ret);
+	MYLOG(0, "%s exiting %d\n", func, ret);
 	return ret;
 }
 
@@ -402,7 +402,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret = SQL_SUCCESS;
 	SQLINTEGER	len = 4;
 
-	mylog("PGAPI_GetConnectAttr %d\n", Attribute);
+	MYLOG(0, "PGAPI_GetConnectAttr %d\n", Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ASYNC_ENABLE:
@@ -712,14 +712,14 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <=0)
 	{
-inolog("%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
+MYLOG(1, "%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
 	}
 	if (RecNumber > opts->allocated)
 	{
-inolog("%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
+MYLOG(1, "%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
 		parameter_bindings_set(opts, RecNumber, TRUE);
 		/* DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
@@ -881,7 +881,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 	{
-inolog("IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+MYLOG(1, "IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
@@ -1160,7 +1160,7 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		default:if (RecNumber <= 0 || RecNumber > opts->allocated)
 			{
-inolog("APDGetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+MYLOG(1, "APDGetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
@@ -1414,7 +1414,7 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		default:if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 			{
-inolog("IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+MYLOG(1, "IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
@@ -1551,7 +1551,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	len = 0;
 
-	mylog("%s Handle=%p %d\n", func, StatementHandle, Attribute);
+	MYLOG(0, "%s Handle=%p %d\n", func, StatementHandle, Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:	/* 16 */
@@ -1654,7 +1654,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	BOOL	unsupported = FALSE;
 	int	newValue;
 
-	mylog("%s for %p: %d %p\n", func, ConnectionHandle, Attribute, Value);
+	MYLOG(0, "%s for %p: %d %p\n", func, ConnectionHandle, Attribute, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_METADATA_ID:
@@ -1663,20 +1663,20 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_ANSI_APP:
 			if (SQL_AA_FALSE != CAST_PTR(SQLINTEGER, Value))
 			{
-				mylog("the application is ansi\n");
+				MYLOG(0, "the application is ansi\n");
 				if (CC_is_in_unicode_driver(conn)) /* the driver is unicode */
 					CC_set_in_ansi_app(conn); /* but the app is ansi */
 			}
 			else
 			{
-				mylog("the application is unicode\n");
+				MYLOG(0, "the application is unicode\n");
 			}
 			/*return SQL_ERROR;*/
 			return SQL_SUCCESS;
 		case SQL_ATTR_ENLIST_IN_DTC:
 #ifdef	WIN32
 #ifdef	_HANDLE_ENLIST_IN_DTC_
-			mylog("SQL_ATTR_ENLIST_IN_DTC %p request received\n", Value);
+			MYLOG(0, "SQL_ATTR_ENLIST_IN_DTC %p request received\n", Value);
 			if (conn->connInfo.xa_opt != 0)
 			{
 				/*
@@ -1708,11 +1708,11 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 				logs_on_off(-1, conn->connInfo.drivers.debug, 0);
 				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, conn->connInfo.drivers.debug, 0);
-				mylog("debug => %d\n", conn->connInfo.drivers.debug);
+				MYLOG(0, "debug => %d\n", conn->connInfo.drivers.debug);
 			}
 			else if (newValue == 0 && conn->connInfo.drivers.debug > 0)
 			{
-				mylog("debug => %d\n", newValue);
+				MYLOG(0, "debug => %d\n", newValue);
 				logs_on_off(-1, conn->connInfo.drivers.debug, 0);
 				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, 0, 0);
@@ -1735,63 +1735,63 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, 0, 0);
 			}
-			mylog("commlog => %d\n", conn->connInfo.drivers.commlog);
+			MYLOG(0, "commlog => %d\n", conn->connInfo.drivers.commlog);
 			break;
 		case SQL_ATTR_PGOPT_PARSE:
 			conn->connInfo.drivers.parse = CAST_UPTR(SQLCHAR, Value);
 			qlog("parse => %d\n", conn->connInfo.drivers.parse);
-			mylog("parse => %d\n", conn->connInfo.drivers.parse);
+			MYLOG(0, "parse => %d\n", conn->connInfo.drivers.parse);
 			break;
 		case SQL_ATTR_PGOPT_USE_DECLAREFETCH:
 			conn->connInfo.drivers.use_declarefetch = CAST_UPTR(SQLCHAR, Value);
 			ci_updatable_cursors_set(&conn->connInfo);
 			qlog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
-			mylog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
+			MYLOG(0, "declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
 			break;
 		case SQL_ATTR_PGOPT_SERVER_SIDE_PREPARE:
 			conn->connInfo.use_server_side_prepare = CAST_UPTR(SQLCHAR, Value);
 			qlog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
-			mylog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
+			MYLOG(0, "server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			break;
 		case SQL_ATTR_PGOPT_FETCH:
 			conn->connInfo.drivers.fetch_max = CAST_PTR(SQLINTEGER, Value);
 			qlog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
-			mylog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
+			MYLOG(0, "fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			break;
 		case SQL_ATTR_PGOPT_UNKNOWNSIZES:
 			conn->connInfo.drivers.unknown_sizes = CAST_PTR(SQLINTEGER, Value);
 			qlog("unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
-			mylog("unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
+			MYLOG(0, "unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
 			break;
 		case SQL_ATTR_PGOPT_TEXTASLONGVARCHAR:
 			conn->connInfo.drivers.text_as_longvarchar = CAST_PTR(SQLINTEGER, Value);
 			qlog("text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
-			mylog("text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
+			MYLOG(0, "text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
 			break;
 		case SQL_ATTR_PGOPT_UNKNOWNSASLONGVARCHAR:
 			conn->connInfo.drivers.unknowns_as_longvarchar = CAST_PTR(SQLINTEGER, Value);
 			qlog("unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
-			mylog("unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
+			MYLOG(0, "unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
 			break;
 		case SQL_ATTR_PGOPT_BOOLSASCHAR:
 			conn->connInfo.drivers.bools_as_char = CAST_PTR(SQLINTEGER, Value);
 			qlog("bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
-			mylog("bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
+			MYLOG(0, "bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
 			break;
 		case SQL_ATTR_PGOPT_MAXVARCHARSIZE:
 			conn->connInfo.drivers.max_varchar_size = CAST_PTR(SQLINTEGER, Value);
 			qlog("max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
-			mylog("max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
+			MYLOG(0, "max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
 			break;
 		case SQL_ATTR_PGOPT_MAXLONGVARCHARSIZE:
 			conn->connInfo.drivers.max_longvarchar_size = CAST_PTR(SQLINTEGER, Value);
 			qlog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
-			mylog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
+			MYLOG(0, "max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
 			break;
 		case SQL_ATTR_PGOPT_WCSDEBUG:
 			conn->connInfo.wcs_debug = CAST_PTR(SQLINTEGER, Value);
 			qlog("wcs_debug => %d\n", conn->connInfo.wcs_debug);
-			mylog("wcs_debug => %d\n", conn->connInfo.wcs_debug);
+			MYLOG(0, "wcs_debug => %d\n", conn->connInfo.wcs_debug);
 			break;
 		default:
 			if (Attribute < 65536)
@@ -1820,7 +1820,7 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	mylog("%s h=%p rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
+	MYLOG(0, "%s h=%p rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1870,7 +1870,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	mylog("%s h=%p(%d) rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
+	MYLOG(0, "%s h=%p(%d) rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1921,7 +1921,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	mylog("%s Handle=%p %d,%u(%p)\n", func, StatementHandle, Attribute, Value, Value);
+	MYLOG(0, "%s Handle=%p %d," FORMAT_ULEN "(%p)\n", func, StatementHandle, Attribute, (SQLULEN) Value, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
@@ -1954,7 +1954,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			else
 			{
 				stmt->ard = (DescriptorClass *) Value;
-inolog("set ard=%p\n", stmt->ard);
+MYLOG(1, "set ard=%p\n", stmt->ard);
 			}
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
@@ -2034,7 +2034,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 
 	if (s->need_data_callback)
 	{
-		mylog("bulk_ope_callback in\n");
+		MYLOG(0, "bulk_ope_callback in\n");
 		s->processed++;
 		s->idx++;
 	}
@@ -2102,7 +2102,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	ConnectionClass	*conn;
 	BindInfoClass	*bookmark;
 
-	mylog("%s operation = %d\n", func, operationX);
+	MYLOG(0, "%s operation = %d\n", func, operationX);
 	s.stmt = (StatementClass *) hstmt;
 	s.operation = operationX;
 	SC_clear_error(s.stmt);

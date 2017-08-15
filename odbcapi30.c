@@ -38,7 +38,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 	RETCODE		ret;
 	ConnectionClass	*conn;
 
-	mylog("[[%s]]", func);
+	MYLOG(0, "[[%s]]", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -64,7 +64,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocDesc(InputHandle, OutputHandle);
 			LEAVE_CONN_CS(conn);
-inolog("OutputHandle=%p\n", *OutputHandle);
+MYLOG(1, "OutputHandle=%p\n", *OutputHandle);
 			break;
 		default:
 			ret = SQL_ERROR;
@@ -86,7 +86,7 @@ SQLBindParam(HSTMT StatementHandle,
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	int			BufferLength = 512;		/* Is it OK ? */
 
-	mylog("[[%s]]", func);
+	MYLOG(0, "[[%s]]", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -104,7 +104,7 @@ SQLCloseCursor(HSTMT StatementHandle)
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	mylog("[[%s]]", func);
+	MYLOG(0, "[[%s]]", func);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -137,7 +137,7 @@ SQLColAttribute(SQLHSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
-	mylog("[[%s]]", func);
+	MYLOG(0, "[[%s]]", func);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -161,7 +161,7 @@ SQLCopyDesc(SQLHDESC SourceDescHandle,
 	CSTR	func = "SQLCopyDesc";
 	RETCODE	ret;
 
-	mylog("[[%s]]\n", func);
+	MYLOG(0, "[[%s]]\n", func);
 	ret = PGAPI_CopyDesc(SourceDescHandle, TargetDescHandle);
 	return ret;
 }
@@ -174,7 +174,7 @@ SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	CSTR	func = "SQLEndTran";
 	RETCODE	ret;
 
-	mylog("[[%s]]", func);
+	MYLOG(0, "[[%s]]", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -209,7 +209,7 @@ SQLFetchScroll(HSTMT StatementHandle,
 	SQLULEN *pcRow = irdopts->rowsFetched;
 	SQLLEN	bkmarkoff = 0;
 
-	mylog("[[%s]] %d,%d\n", func, FetchOrientation, FetchOffset);
+	MYLOG(0, "[[%s]] %d," FORMAT_LEN "\n", func, FetchOrientation, FetchOffset);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -222,7 +222,7 @@ SQLFetchScroll(HSTMT StatementHandle,
 		{
 			bkmarkoff = FetchOffset;
 			FetchOffset = *((Int4 *) stmt->options.bookmark_ptr);
-mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
+MYLOG(0, "bookmark=" FORMAT_LEN " FetchOffset = " FORMAT_LEN "\n", FetchOffset, bkmarkoff);
 		}
 		else
 		{
@@ -241,7 +241,7 @@ mylog("bookmark=%u FetchOffset = %d\n", FetchOffset, bkmarkoff);
 	ret = DiscardStatementSvp(stmt,ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ret != SQL_SUCCESS)
-		mylog("%s return = %d\n", func, ret);
+		MYLOG(0, "%s return = %d\n", func, ret);
 	return ret;
 }
 
@@ -254,7 +254,7 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 	StatementClass *stmt;
 	ConnectionClass *conn = NULL;
 
-	mylog("[[%s]]", func);
+	MYLOG(0, "[[%s]]", func);
 
 	switch (HandleType)
 	{
@@ -300,7 +300,7 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE	ret;
 
-	mylog("[[SQLGetDescField]]\n");
+	MYLOG(0, "[[SQLGetDescField]]\n");
 	ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 			Value, BufferLength, StringLength);
 	return ret;
@@ -315,8 +315,8 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
-	mylog("[[SQLGetDescRec]]\n");
-	mylog("Error not implemented\n");
+	MYLOG(0, "[[SQLGetDescRec]]\n");
+	MYLOG(0, "Error not implemented\n");
 	return SQL_ERROR;
 }
 
@@ -330,7 +330,7 @@ SQLGetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	CSTR func = "SQLGetDiagField";
 	RETCODE	ret;
 
-	mylog("[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, HandleType, Handle, RecNumber, DiagIdentifier, DiagInfo, BufferLength);
+	MYLOG(0, "[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, HandleType, Handle, RecNumber, DiagIdentifier, DiagInfo, BufferLength);
 	ret = PGAPI_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier,
 				DiagInfo, BufferLength, StringLength);
 	return ret;
@@ -345,7 +345,7 @@ SQLGetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 {
 	RETCODE	ret;
 
-	mylog("[[SQLGetDiagRec]]\n");
+	MYLOG(0, "[[SQLGetDiagRec]]\n");
 	ret = PGAPI_GetDiagRec(HandleType, Handle, RecNumber, Sqlstate,
 			NativeError, MessageText, BufferLength, TextLength);
 	return ret;
@@ -361,7 +361,7 @@ SQLGetEnvAttr(HENV EnvironmentHandle,
 	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
-	mylog("[[SQLGetEnvAttr]] %d\n", Attribute);
+	MYLOG(0, "[[SQLGetEnvAttr]] %d\n", Attribute);
 	ENTER_ENV_CS(env);
 	ret = SQL_SUCCESS;
 	switch (Attribute)
@@ -395,7 +395,7 @@ SQLGetConnectAttr(HDBC ConnectionHandle,
 {
 	RETCODE	ret;
 
-	mylog("[[SQLGetConnectAttr]] %d\n", Attribute);
+	MYLOG(0, "[[SQLGetConnectAttr]] %d\n", Attribute);
 	CC_examine_global_transaction((ConnectionClass*) ConnectionHandle);
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	CC_clear_error((ConnectionClass *) ConnectionHandle);
@@ -415,7 +415,7 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "SQLGetStmtAttr";
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
-	mylog("[[%s]] Handle=%u %d\n", func, StatementHandle, Attribute);
+	MYLOG(0, "[[%s]] Handle=%p %d\n", func, StatementHandle, Attribute);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -435,7 +435,7 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
-	mylog("[[SQLSetConnectAttr]] %d\n", Attribute);
+	MYLOG(0, "[[SQLSetConnectAttr]] %d\n", Attribute);
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -453,7 +453,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	mylog("[[SQLSetDescField]] h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
+	MYLOG(0, "[[SQLSetDescField]] h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
 	return ret;
@@ -470,8 +470,8 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 {
 	CSTR func = "SQLSetDescRec";
 
-	mylog("[[%s]]\n", func);
-	mylog("Error not implemented\n");
+	MYLOG(0, "[[%s]]\n", func);
+	MYLOG(0, "Error not implemented\n");
 	return SQL_ERROR;
 }
 #endif /* UNICODE_SUPPORTXX */
@@ -485,7 +485,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
-	mylog("[[SQLSetEnvAttr]] att=%d,%u\n", Attribute, Value);
+	MYLOG(0, "[[SQLSetEnvAttr]] att=%d," FORMAT_ULEN "\n", Attribute, (SQLULEN) Value);
 	ENTER_ENV_CS(env);
 	switch (Attribute)
 	{
@@ -547,7 +547,7 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	mylog("[[%s]] Handle=%p %d,%u\n", func, StatementHandle, Attribute, Value);
+	MYLOG(0, "[[%s]] Handle=%p %d," FORMAT_ULEN "\n", func, StatementHandle, Attribute, (SQLULEN) Value);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -568,7 +568,7 @@ PGAPI_GetFunctions30(HDBC hdbc, SQLUSMALLINT fFunction, SQLUSMALLINT FAR * pfExi
 	ConnectionClass	*conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);
 
-inolog("lie=%d\n", ci->drivers.lie);
+MYLOG(1, "lie=%d\n", ci->drivers.lie);
 	CC_examine_global_transaction(conn);
 	CC_clear_error(conn);
 	if (fFunction != SQL_API_ODBC3_ALL_FUNCTIONS)
@@ -693,7 +693,7 @@ SQLBulkOperations(HSTMT hstmt, SQLSMALLINT operation)
 		return SQL_ERROR;
 
 	ENTER_STMT_CS(stmt);
-	mylog("[[%s]] Handle=%p %d\n", func, hstmt, operation);
+	MYLOG(0, "[[%s]] Handle=%p %d\n", func, hstmt, operation);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	ret = PGAPI_BulkOperations(hstmt, operation);
