@@ -132,7 +132,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 {
 	char *	utf8str;
 	int	len = 0;
-MYLOG(0, "ucs2_to_utf8 %p ilen=%d ", ucs2str, ilen);
+MYLOG(0, "ucs2_to_utf8 %p ilen=" FORMAT_LEN " ", ucs2str, ilen);
 
 	if (!ucs2str)
 	{
@@ -263,7 +263,7 @@ utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 	SQLULEN		rtn, ocount, wcode;
 	const UCHAR *str;
 
-MYLOG(1, "utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);
+MYLOG(1, "utf8_to_ucs2 ilen=" FORMAT_LEN " bufcount=" FORMAT_ULEN, ilen, bufcount);
 	if (!utf8str)
 		return 0;
 MYPRINTF(1, " string=%s\n", utf8str);
@@ -390,7 +390,7 @@ cleanup:
 	}
 	if (ocount < bufcount && ucs2str)
 		ucs2str[ocount] = 0;
-MYPRINTF(1, " ocount=%d\n", ocount);
+MYPRINTF(1, " ocount=" FORMAT_ULEN "\n", ocount);
 	return rtn;
 }
 
