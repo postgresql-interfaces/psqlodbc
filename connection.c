@@ -963,7 +963,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* _MSC_VER */
 		);
 	qlog(vermsg);
-	MYLOG(0, "%s\n", vermsg);
+	MYLOG(0, "%s", vermsg);
 	qlog("Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.unknown_sizes,

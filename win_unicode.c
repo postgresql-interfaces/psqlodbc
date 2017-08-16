@@ -266,7 +266,7 @@ utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 MYLOG(1, "utf8_to_ucs2 ilen=" FORMAT_LEN " bufcount=" FORMAT_ULEN, ilen, bufcount);
 	if (!utf8str)
 		return 0;
-MYPRINTF(1, " string=%s\n", utf8str);
+MYPRINTF(1, " string=%s", utf8str);
 
 	if (!bufcount)
 		ucs2str = NULL;
