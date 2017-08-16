@@ -248,6 +248,7 @@ typedef double SDOUBLE;
 extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
 #endif /* _MSC_VER */
 
+
 #ifndef strdup
 #define strdup _strdup
 #endif /* strdup */
@@ -632,6 +633,7 @@ enum { /* CC_conninfo_init option */
 void	CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
 void	CC_conninfo_release(ConnInfo *conninfo);
 void	CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci);
+const char *GetExeProgramName();
 #ifdef	POSIX_MULTITHREAD_SUPPORT
 #if	!defined(HAVE_ECO_THREAD_LOCKS)
 #define	POSIX_THREADMUTEX_SUPPORT

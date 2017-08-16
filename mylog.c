@@ -57,6 +57,7 @@ static char *logdir = NULL;
 void
 generate_filename(const char *dirname, const char *prefix, char *filename, size_t filenamelen)
 {
+	const char *exename = GetExeProgramName();
 #ifdef	WIN32
 	int	pid;
 
@@ -74,6 +75,8 @@ generate_filename(const char *dirname, const char *prefix, char *filename, size_
 	snprintf(filename, filenamelen, "%s%s", dirname, DIRSEPARATOR);
 	if (prefix != 0)
 		strlcat(filename, prefix, filenamelen);
+	if (exename[0])
+		snprintfcat(filename, filenamelen, "%s_", exename);
 #ifndef WIN32
 	if (ptr)
 		strlcat(filename, ptr->pw_name, filenamelen);

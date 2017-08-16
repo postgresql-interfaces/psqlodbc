@@ -2820,7 +2820,7 @@ UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 		int		doubtp;
 		int	j;
 
-		MYLOG(1, "");
+		MYLOG(1, " ");
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
 		{
 			keys.status = 0;
