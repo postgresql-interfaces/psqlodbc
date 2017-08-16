@@ -519,7 +519,7 @@ SC_init_Result(StatementClass *self)
 {
 	self->result = self->curres = NULL;
 	self->curr_param_result = 0;
-	MYLOG(0, "SC_init_Result(%p)", self);
+	MYLOG(0, "SC_init_Result(%p)\n", self);
 }
 
 void
@@ -527,7 +527,7 @@ SC_set_Result(StatementClass *self, QResultClass *res)
 {
 	if (res != self->result)
 	{
-		MYLOG(0, "SC_set_Result(%p, %p)", self, res);
+		MYLOG(0, "SC_set_Result(%p, %p)\n", self, res);
 		QR_Destructor(self->result);
 		self->result = self->curres = res;
 		if (NULL != res)
@@ -597,7 +597,7 @@ MYLOG(1, "%p->SC_set_rowstart " FORMAT_LEN "->" FORMAT_LEN "(%s) ", stmt, stmt->
 	if (res != NULL)
 	{
 		BOOL	valid = QR_has_valid_base(res);
-MYLOG(1, ":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
+MYPRINTF(1, ":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
 
 		if (valid)
 		{
@@ -616,10 +616,10 @@ MYLOG(1, ":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
 		}
 		if (!QR_get_cursor(res))
 			res->key_base = start;
-MYLOG(1, ":(%p)QR result=" FORMAT_LEN "(%s)", res, QR_get_rowstart_in_cache(res), QR_has_valid_base(res) ? "valid" : "unknown");
+MYPRINTF(1, ":(%p)QR result=" FORMAT_LEN "(%s)", res, QR_get_rowstart_in_cache(res), QR_has_valid_base(res) ? "valid" : "unknown");
 	}
 	stmt->rowset_start = start;
-MYLOG(1, ":stmt result=" FORMAT_LEN "\n", stmt->rowset_start);
+MYPRINTF(1, ":stmt result=" FORMAT_LEN "\n", stmt->rowset_start);
 }
 void
 SC_inc_rowset_start(StatementClass *stmt, SQLLEN inc)

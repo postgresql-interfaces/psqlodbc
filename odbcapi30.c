@@ -38,7 +38,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 	RETCODE		ret;
 	ConnectionClass	*conn;
 
-	MYLOG(0, "[[%s]]", func);
+	MYLOG(0, "[[%s]]\n", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -86,7 +86,7 @@ SQLBindParam(HSTMT StatementHandle,
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	int			BufferLength = 512;		/* Is it OK ? */
 
-	MYLOG(0, "[[%s]]", func);
+	MYLOG(0, "[[%s]]\n", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -104,7 +104,7 @@ SQLCloseCursor(HSTMT StatementHandle)
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	MYLOG(0, "[[%s]]", func);
+	MYLOG(0, "[[%s]]\n", func);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -137,7 +137,7 @@ SQLColAttribute(SQLHSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
-	MYLOG(0, "[[%s]]", func);
+	MYLOG(0, "[[%s]]\n", func);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -174,7 +174,7 @@ SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	CSTR	func = "SQLEndTran";
 	RETCODE	ret;
 
-	MYLOG(0, "[[%s]]", func);
+	MYLOG(0, "[[%s]]\n", func);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -254,7 +254,7 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 	StatementClass *stmt;
 	ConnectionClass *conn = NULL;
 
-	MYLOG(0, "[[%s]]", func);
+	MYLOG(0, "[[%s]]\n", func);
 
 	switch (HandleType)
 	{
@@ -300,7 +300,7 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE	ret;
 
-	MYLOG(0, "[[SQLGetDescField]]\n");
+	MYLOG(0, "[[%s]]\n", __FUNCTION__);
 	ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 			Value, BufferLength, StringLength);
 	return ret;
@@ -315,7 +315,7 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
-	MYLOG(0, "[[SQLGetDescRec]]\n");
+	MYLOG(0, "[[%s]]\n", __FUNCTION__);
 	MYLOG(0, "Error not implemented\n");
 	return SQL_ERROR;
 }
@@ -345,7 +345,7 @@ SQLGetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 {
 	RETCODE	ret;
 
-	MYLOG(0, "[[SQLGetDiagRec]]\n");
+	MYLOG(0, "[[%s]]\n", __FUNCTION__);
 	ret = PGAPI_GetDiagRec(HandleType, Handle, RecNumber, Sqlstate,
 			NativeError, MessageText, BufferLength, TextLength);
 	return ret;
@@ -361,7 +361,7 @@ SQLGetEnvAttr(HENV EnvironmentHandle,
 	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
-	MYLOG(0, "[[SQLGetEnvAttr]] %d\n", Attribute);
+	MYLOG(0, "[[%s]] %d\n", __FUNCTION__, Attribute);
 	ENTER_ENV_CS(env);
 	ret = SQL_SUCCESS;
 	switch (Attribute)
@@ -395,7 +395,7 @@ SQLGetConnectAttr(HDBC ConnectionHandle,
 {
 	RETCODE	ret;
 
-	MYLOG(0, "[[SQLGetConnectAttr]] %d\n", Attribute);
+	MYLOG(0, "[[%s]] %d\n", __FUNCTION__, Attribute);
 	CC_examine_global_transaction((ConnectionClass*) ConnectionHandle);
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	CC_clear_error((ConnectionClass *) ConnectionHandle);
@@ -435,7 +435,7 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
-	MYLOG(0, "[[SQLSetConnectAttr]] %d\n", Attribute);
+	MYLOG(0, "[[%s]] %d\n", __FUNCTION__, Attribute);
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -453,7 +453,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	MYLOG(0, "[[SQLSetDescField]] h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
+	MYLOG(0, "[[%s]] h=%p rec=%d field=%d val=%p\n", __FUNCTION__, DescriptorHandle, RecNumber, FieldIdentifier, Value);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
 	return ret;
@@ -485,7 +485,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
-	MYLOG(0, "[[SQLSetEnvAttr]] att=%d," FORMAT_ULEN "\n", Attribute, (SQLULEN) Value);
+	MYLOG(0, "[[%s]] att=%d," FORMAT_ULEN "\n", __FUNCTION__, Attribute, (SQLULEN) Value);
 	ENTER_ENV_CS(env);
 	switch (Attribute)
 	{

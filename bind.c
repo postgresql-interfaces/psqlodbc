@@ -136,7 +136,7 @@ PGAPI_BindParameter(HSTMT hstmt,
 		SC_recycle_statement(stmt);
 
 	MYLOG(0, "%s: ipar=%d, paramType=%d, fCType=%d, fSqlType=%d, cbColDef=" FORMAT_ULEN ", ibScale=%d,", func, ipar, fParamType, fCType, fSqlType, cbColDef, ibScale);
-	MYLOG(0, "rgbValue=%p(" FORMAT_LEN "), pcbValue=%p\n", rgbValue, cbValueMax, pcbValue);
+	MYPRINTF(0, "rgbValue=%p(" FORMAT_LEN "), pcbValue=%p\n", rgbValue, cbValueMax, pcbValue);
 
 	return SQL_SUCCESS;
 }
@@ -201,7 +201,7 @@ PGAPI_BindCol(HSTMT hstmt,
 					break;
 				default:
 					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK", func);
-MYLOG(1, "Bind column 0 is type %d not of type SQL_C_BOOKMARK", fCType);
+MYLOG(1, "Bind column 0 is type %d not of type SQL_C_BOOKMARK\n", fCType);
 					ret = SQL_ERROR;
 					goto cleanup;
 			}
@@ -810,7 +810,7 @@ void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
 	Int2	lf;
 
-MYLOG(1, "ARD_unbind_cols freeall=%d allocated=%d bindings=%p", freeall, self->allocated, self->bindings);
+MYLOG(1, "ARD_unbind_cols freeall=%d allocated=%d bindings=%p\n", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_column_binding(self, lf);
 	if (freeall)
@@ -825,7 +825,7 @@ void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 {
 	Int2	lf;
 
-MYLOG(1, "GDATA_unbind_cols freeall=%d allocated=%d gdata=%p", freeall, self->allocated, self->gdata);
+MYLOG(1, "GDATA_unbind_cols freeall=%d allocated=%d gdata=%p\n", freeall, self->allocated, self->gdata);
 	if (self->fdata.ttlbuf)
 	{
 		free(self->fdata.ttlbuf);

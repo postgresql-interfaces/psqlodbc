@@ -1502,7 +1502,7 @@ MYLOG(1, "2stime fr=%d\n", std_time.fr);
 				{
 					if (sscanf(vp, "%hi", &shortv) != 1)
 						break;
-					MYLOG(0, " %hi", shortv);
+					MYPRINTF(0, " %hi", shortv);
 					nval++;
 					if (nval < maxc)
 						short_array[i + 1] = shortv;
@@ -1516,7 +1516,7 @@ MYLOG(1, "2stime fr=%d\n", std_time.fr);
 					if (*vp == '\0')
 						break;
 				}
-				MYLOG(0, ") nval = %i\n", nval);
+				MYPRINTF(0, ") nval = %i\n", nval);
 				if (maxc > 0)
 					short_array[0] = nval;
 
@@ -1776,11 +1776,8 @@ MYLOG(1, "2stime fr=%d\n", std_time.fr);
 				else
 					*((UCHAR *) rgbValue + bind_row) = atoi(neut_str);
 
-				/*
-				 * MYLOG(0, "SQL_C_BIT: bind_row = %d val = %d, cb = %d,
-				 * rgb=%d\n", bind_row, atoi(neut_str), cbValueMax,
-				 * *((UCHAR *)rgbValue));
-				 */
+				 MYLOG(99, "SQL_C_BIT: bind_row = " FORMAT_POSIROW " val = %d, cb = " FORMAT_LEN ", rgb=%d\n",
+					bind_row, atoi(neut_str), cbValueMax, *((UCHAR *)rgbValue));
 				break;
 
 			case SQL_C_STINYINT:
@@ -1931,7 +1928,7 @@ MYLOG(1, "SQL_C_VARBOOKMARK value=%d\n", ival);
 				result = char2guid(neut_str, &g);
 				if (COPY_OK != result)
 				{
-					MYLOG(0, "Could not convert to SQL_C_GUID");
+					MYLOG(0, "Could not convert to SQL_C_GUID\n");
 					return	COPY_UNSUPPORTED_TYPE;
 				}
 				len = sizeof(g);
@@ -3922,7 +3919,7 @@ MYLOG(1, "C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 	 * digit is at calv[0]
 	 */
 
-MYLOG(1, " len2=%d", len);
+MYPRINTF(1, " len2=%d", len);
 
 	/* build the final output string. */
 	newlen = 0;

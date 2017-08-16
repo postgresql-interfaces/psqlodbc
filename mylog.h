@@ -38,15 +38,19 @@ extern "C" {
 #endif
 
 DLL_DECLARE int mylog(const char *fmt,...) __attribute__((format(printf, 1, 2)));
+DLL_DECLARE int myprintf(const char *fmt,...) __attribute__((format(printf, 1, 2)));
 
 extern int qlog(char *fmt,...);
 
 #ifdef	__GNUC__
 #define	MYLOG(level, fmt, ...)	(level < get_mylog() ? mylog((fmt), ##__VA_ARGS__) : 0)
+#define	MYPRINTF(level, fmt, ...) (level < get_mylog() ? myprintf((fmt), ##__VA_ARGS__) : 0)
 #elif	defined WIN32 && _MSC_VER > 1800
 #define	MYLOG(level, fmt, ...) (level < get_mylog() ? mylog(fmt, __VA_ARGS__) : (printf || printf((fmt), __VA_ARGS__)))
+#define	MYPRINTF(level, fmt, ...) (level < get_mylog() ? myprintf(fmt, __VA_ARGS__) : (printf || printf((fmt), __VA_ARGS__)))
 #else
 #define	MYLOG(level, ...) (level < get_mylog() ? mylog(__VA_ARGS__) : 0)
+#define	MYPRINTF(level, ...) (level < get_mylog() ? myprintf(__VA_ARGS__) : 0)
 #endif /* __GNUC__ */
 
 int	get_qlog(void);

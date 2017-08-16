@@ -34,7 +34,7 @@ SQLGetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
 	StartRollbackState(stmt);
@@ -55,7 +55,7 @@ SQLSetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -76,7 +76,7 @@ SQLGetConnectAttrW(HDBC hdbc,
 	CSTR func = "SQLGetConnectAttrW";
 	RETCODE	ret;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	CC_examine_global_transaction((ConnectionClass *) hdbc);
 	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	CC_clear_error((ConnectionClass *) hdbc);
@@ -96,7 +96,7 @@ SQLSetConnectAttrW(HDBC hdbc,
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -119,7 +119,7 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
         char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	if (BufferLength > 0 || SQL_NTS == BufferLength)
 	{
 		switch (FieldIdentifier)
@@ -162,7 +162,7 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 	SQLINTEGER		blen = 0, bMax,	*pcbV;
         char    *rgbV = NULL, *rgbVt;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	switch (iField)
 	{
 		case SQL_DESC_BASE_COLUMN_NAME:
@@ -231,7 +231,7 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
         SQLSMALLINT	buflen, tlen;
         char    qstr_ansi[8], *mtxt = NULL;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	buflen = 0;
         if (szErrorMsg && cbErrorMsgMax > 0)
 	{
@@ -289,7 +289,7 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
         char    *rgbD = NULL, *rgbDt;
 
-	MYLOG(0, "[%s]", func);
+	MYLOG(0, "[%s]\n", func);
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -434,7 +434,7 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
-	MYLOG(0, "[[SQLGetDescRecW]]\n");
+	MYLOG(0, "[[%s]]\n", __FUNCTION__);
 	MYLOG(0, "Error not implemented\n");
 	return SQL_ERROR;
 }

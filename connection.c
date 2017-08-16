@@ -806,7 +806,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	char	   *errmsg = NULL;
 	size_t		errmsglen;
 
-	MYLOG(1, "handle_pgres_error");
+	MYLOG(1, "handle_pgres_error\n");
 
 	if (res && pgres)
 	{
@@ -963,7 +963,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* _MSC_VER */
 		);
 	qlog(vermsg);
-	MYLOG(0, "%s", vermsg);
+	MYLOG(0, "%s\n", vermsg);
 	qlog("Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.unknown_sizes,

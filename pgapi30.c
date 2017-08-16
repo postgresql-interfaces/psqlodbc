@@ -90,7 +90,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	int		rtnctype = SQL_C_CHAR;
 	CSTR func = "PGAPI_GetDiagField";
 
-	MYLOG(0, "%s entering rec=%d", func, RecNumber);
+	MYLOG(0, "%s entering rec=%d\n", func, RecNumber);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:

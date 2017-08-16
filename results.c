@@ -688,9 +688,11 @@ MYLOG(1, "answering bookmark info\n");
 			/* otherwise same as column name -- FALL THROUGH!!! */
 
 		case SQL_DESC_NAME:
-MYLOG(1, "fi=%p", fi);
-if (fi)
-MYLOG(1, " (%s,%s)", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
+			MYLOG(1, "fi=%p (alias, name)=", fi);
+			if (fi)
+				MYPRINTF(1, "(%s,%s)\n", PRINT_NAME(fi->column_alias), PRINT_NAME(fi->column_name));
+			else
+				MYPRINTF(1, "NULL\n");
 			p = fi ? (NAME_IS_NULL(fi->column_alias) ? SAFE_NAME(fi->column_name) : GET_NAME(fi->column_alias)) : QR_get_fieldname(res, col_idx);
 
 			MYLOG(0, "%s: COLUMN_NAME = '%s'\n", func, p);
@@ -992,7 +994,7 @@ PGAPI_GetData(HSTMT hstmt,
 			case SQL_C_VARBOOKMARK:
 				break;
 			default:
-MYLOG(1, "GetData Column 0 is type %d not of type SQL_C_BOOKMARK", target_type);
+MYLOG(1, "GetData Column 0 is type %d not of type SQL_C_BOOKMARK\n", target_type);
 				SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Column 0 is not of type SQL_C_BOOKMARK", func);
 				return SQL_ERROR;
 		}
@@ -1229,6 +1231,7 @@ getNthValid(const QResultClass *res, SQLLEN sta, UWORD orientation,
 MYLOG(1, "get " FORMAT_ULEN "th Valid data from " FORMAT_LEN " to %s [dlt=%d]", nth, sta, orientation == SQL_FETCH_PRIOR ? "backward" : "forward", res->dl_count);
 	if (0 == res->dl_count)
 	{
+		MYPRINTF(1, "\n");
 		if (SQL_FETCH_PRIOR == orientation)
 		{
 			if (sta + 1 >= (SQLLEN) nth)
@@ -1261,9 +1264,10 @@ MYLOG(1, "get " FORMAT_ULEN "th Valid data from " FORMAT_LEN " to %s [dlt=%d]", 
 		{
 			*nearest = sta + 1 - nth;
 			delsta = (-1);
+			MYPRINTF(1, "deleted ");
 			for (i = res->dl_count - 1; i >=0 && *nearest <= deleted[i]; i--)
 			{
-MYLOG(1, "deleted[" FORMAT_LEN "]=" FORMAT_LEN "\n", i, deleted[i]);
+				MYPRINTF(1, "[" FORMAT_LEN "]=" FORMAT_LEN " ", i, deleted[i]);
 				if (sta >= deleted[i])
 				{
 					(*nearest)--;
@@ -1271,7 +1275,7 @@ MYLOG(1, "deleted[" FORMAT_LEN "]=" FORMAT_LEN "\n", i, deleted[i]);
 						delsta = i;
 				}
 			}
-MYLOG(1, "nearest=" FORMAT_LEN "\n", *nearest);
+			MYPRINTF(1, "nearest=" FORMAT_LEN "\n", *nearest);
 			if (*nearest < 0)
 			{
 				*nearest = -1;
@@ -1282,6 +1286,7 @@ MYLOG(1, "nearest=" FORMAT_LEN "\n", *nearest);
 		}
 		else
 		{
+			MYPRINTF(1, "\n");
 			*nearest = sta - 1 + nth;
 			delsta = res->dl_count;
 			if (!QR_once_reached_eof(res))
@@ -1312,7 +1317,7 @@ MYLOG(1, "nearest=" FORMAT_LEN "\n", *nearest);
 			if (0 == (keyset->status & (CURS_SELF_DELETING | CURS_SELF_DELETED | CURS_OTHER_DELETED)))
 			{
 				*nearest = i;
-MYLOG(1, " nearest=" FORMAT_LEN "\n", *nearest);
+MYPRINTF(1, " nearest=" FORMAT_LEN "\n", *nearest);
 				if (++count == nth)
 					return count;
 			}
@@ -1327,14 +1332,14 @@ MYLOG(1, " nearest=" FORMAT_LEN "\n", *nearest);
 			if (0 == (keyset->status & (CURS_SELF_DELETING | CURS_SELF_DELETED | CURS_OTHER_DELETED)))
 			{
 				*nearest = i;
-MYLOG(1, " nearest=" FORMAT_LEN "\n", *nearest);
+MYPRINTF(1, " nearest=" FORMAT_LEN "\n", *nearest);
 				if (++count == nth)
 					return count;
 			}
 		}
 		*nearest = num_tuples;
 	}
-MYLOG(1, " nearest not found\n");
+MYPRINTF(1, " nearest not found\n");
 	return -(SQLLEN)count;
 }
 
@@ -2752,7 +2757,7 @@ DiscardRollback(StatementClass *stmt, QResultClass *res)
 	KeySet	*keyset;
 	BOOL	kres_is_valid;
 
-MYLOG(1, "DiscardRollback");
+MYLOG(1, "DiscardRollback\n");
 	if (QR_get_cursor(res))
 	{
 		CommitAdded(res);
@@ -2815,6 +2820,7 @@ UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 		int		doubtp;
 		int	j;
 
+		MYLOG(1, "");
 		for (i = 0, doubtp = 0; i < res->rb_count; i++)
 		{
 			keys.status = 0;
@@ -2822,7 +2828,7 @@ UndoRollback(StatementClass *stmt, QResultClass *res, BOOL partial)
 			keys.offset = rollback[i].offset;
 			keys.oid = rollback[i].oid;
 			texist = tupleExists(stmt, &keys);
-MYLOG(1, "texist[%d]=%d", i, texist);
+MYPRINTF(1, "texist[%d]=%d", i, texist);
 			if (SQL_ADD == rollback[i].option)
 			{
 				if (texist)
@@ -2840,10 +2846,10 @@ MYLOG(1, "texist[%d]=%d", i, texist);
 				if (doubtp == i)
 					doubtp = i + 1;
 			}
-MYLOG(1, " doubtp=%d\n", doubtp);
+MYPRINTF(1, " (doubtp=%d)", doubtp);
 		}
 		rollbp = i;
-MYLOG(1, " doubtp=%d,rollbp=%d\n", doubtp, rollbp);
+MYPRINTF(1, " doubtp=%d,rollbp=%d\n", doubtp, rollbp);
 		do
 		{
 			rollbps = rollbp;
@@ -2944,11 +2950,11 @@ MYLOG(1, " index=" FORMAT_LEN " status=%hx", index, status);
 				continue;
 			else
 			{
-MYLOG(1, " (%u, %u)", wkey->blocknum,  wkey->offset);
+MYPRINTF(1, " (%u, %u)", wkey->blocknum,  wkey->offset);
 				wkey->blocknum = rollback[i].blocknum;
 				wkey->offset = rollback[i].offset;
 				wkey->oid = rollback[i].oid;
-MYLOG(1, "->(%u, %u)\n", wkey->blocknum, wkey->offset);
+MYPRINTF(1, "->(%u, %u)", wkey->blocknum, wkey->offset);
 				wkey->status &= ~KEYSET_INFO_PUBLIC;
 				if (SQL_DELETE == rollback[i].option)
 					wkey->status &= ~CURS_SELF_DELETING;
@@ -2974,6 +2980,7 @@ MYLOG(1, "->(%u, %u)\n", wkey->blocknum, wkey->offset);
 			}
 		}
 	}
+	MYPRINTF(1, "\n");
 	res->rb_count = rollbp;
 	if (0 == rollbp)
 	{
@@ -4786,11 +4793,11 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	else if (SC_get_IRDF(s->stmt)->rowsFetched)
 		*(SC_get_IRDF(s->stmt)->rowsFetched) = s->processed;
 	res->recent_processed_row_count = s->stmt->diag_row_count = s->processed;
-if (opts)
-{
-MYLOG(1, "processed=" FORMAT_POSIROW " ret=%d rowset=" FORMAT_LEN, s->processed, ret, opts->size_of_rowset_odbc2);
-MYLOG(1, "," FORMAT_LEN "\n", opts->size_of_rowset);
-}
+	if (opts) /* logging */
+	{
+		MYLOG(1, "processed=" FORMAT_POSIROW " ret=%d rowset=" FORMAT_LEN, s->processed, ret, opts->size_of_rowset_odbc2);
+		MYPRINTF(1, "," FORMAT_LEN "\n", opts->size_of_rowset);
+	}
 
 	return ret;
 }

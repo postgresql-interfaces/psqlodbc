@@ -613,14 +613,14 @@ MYLOG(1, "has_multi_table ntab=%d", stmt->ntab);
 					reloid = greloid;
 				else if (reloid != greloid)
 				{
-MYLOG(1, " dohhhhhh");
+MYPRINTF(1, " DOHHH i=%d %u!=%u ", i, reloid, greloid);
 					multi_table = TRUE;
 					break;
 				}
 			}
 		}
 	}
-MYLOG(1, " multi=%d\n", multi_table);
+MYPRINTF(1, " multi=%d\n", multi_table);
 	return multi_table;
 }
 /*
@@ -667,7 +667,7 @@ MYLOG(0, "updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 		else if (has_multi_table(stmt))
 			updatable = FALSE;
 	}
-MYLOG(0, "->%d\n", updatable);
+MYPRINTF(0, "->%d\n", updatable);
 	if (stmt->updatable < 0)
 		SC_set_updatable(stmt, updatable);
 	for (i = 0; i < num_fields; i++)
@@ -1352,11 +1352,11 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 					if (stmt->from_pos < 0 &&
 						(!strnicmp(pptr, "from", 4)))
 					{
-						MYLOG(0, "First ");
+						MYLOG(0, "First From\n");
 						stmt->from_pos = pptr - stmt->statement;
 					}
-
-					MYLOG(0, "FROM\n");
+					else
+						MYLOG(0, "FROM\n");
 					continue;
 				}
 			} /* in_select && unquoted && blevel == 0 */

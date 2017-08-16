@@ -1423,7 +1423,7 @@ MYLOG(1, "i=%d allocated=%d num_p=%d\n", i, apdopts->allocated, num_p);
 MYLOG(1, "i=%d", i);
 		if (apdopts->parameters[i].data_at_exec)
 		{
-MYLOG(1, " at exec buffer=%p", apdopts->parameters[i].buffer);
+MYPRINTF(1, " at exec buffer=%p", apdopts->parameters[i].buffer);
 			estmt->data_at_exec--;
 			estmt->current_exec_param = i;
 			estmt->put_data = FALSE;
@@ -1435,7 +1435,7 @@ MYLOG(1, " at exec buffer=%p", apdopts->parameters[i].buffer);
 					SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen;
 
-MYLOG(1, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
+MYPRINTF(1, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
 				}
 				else
@@ -1443,7 +1443,7 @@ MYLOG(1, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
 			}
 			break;
 		}
-MYLOG(1, "\n");
+MYPRINTF(1, "\n");
 	}
 
 	retval = SQL_NEED_DATA;

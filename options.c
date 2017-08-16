@@ -79,7 +79,7 @@ set_statement_option(ConnectionClass *conn,
 			}
 			if (setval != vParam)
 				changed = TRUE;
-			MYLOG(0, "-> " FORMAT_LEN "\n", setval);
+			MYPRINTF(0, "-> " FORMAT_LEN "\n", setval);
 			break;
 
 		case SQL_CURSOR_TYPE:
@@ -123,7 +123,7 @@ set_statement_option(ConnectionClass *conn,
 			}
 			if (setval != vParam)
 				changed = TRUE;
-			MYLOG(0, "-> " FORMAT_LEN "\n", setval);
+			MYPRINTF(0, "-> " FORMAT_LEN "\n", setval);
 			break;
 
 		case SQL_KEYSET_SIZE:	/* ignored, but saved and returned	*/
@@ -547,7 +547,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 #endif /* SQL_ATTR_CONNECTION_DEAD */
 			MYLOG(0, "CONNECTION_DEAD status=%d", conn->status);
 			*((SQLUINTEGER *) pvParam) = CC_not_connected(conn);
-			MYLOG(0, " val=%d\n", *((SQLUINTEGER *) pvParam));
+			MYPRINTF(0, " val=%d\n", *((SQLUINTEGER *) pvParam));
                         break;
 
 		case SQL_ATTR_ANSI_APP:

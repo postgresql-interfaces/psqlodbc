@@ -237,13 +237,12 @@ static void MLOG_open()
 	}
 }
 
-DLL_DECLARE int
-mylog(const char *fmt,...)
+static int
+mylog_misc(unsigned int option, const char *fmt, va_list args)
 {
-	va_list		args;
+	// va_list		args;
 	int		gerrno;
-
-	if (!mylog_on)	return 0;
+	BOOL	log_threadid = option;
 
 	gerrno = GENERAL_ERRNO;
 	ENTER_MYLOG_CS;
@@ -251,7 +250,7 @@ mylog(const char *fmt,...)
 	if (!start_time)
 		start_time = timeGetTime();
 #endif /* LOGGING_PROCESS_TIME */
-	va_start(args, fmt);
+	// va_start(args, fmt);
 
 	if (!MLOGFP)
 	{
@@ -262,6 +261,8 @@ mylog(const char *fmt,...)
 
 	if (MLOGFP)
 	{
+		if (log_threadid)
+		{
 #ifdef	WIN_MULTITHREAD_SUPPORT
 #ifdef	LOGGING_PROCESS_TIME
 		DWORD	proc_time = timeGetTime() - start_time;
@@ -273,15 +274,44 @@ mylog(const char *fmt,...)
 #if defined(POSIX_MULTITHREAD_SUPPORT)
 		fprintf(MLOGFP, "[%lu]", pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
+		}
 		vfprintf(MLOGFP, fmt, args);
 	}
 
-	va_end(args);
+	// va_end(args);
 	LEAVE_MYLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
 
 	return 1;
 }
+
+DLL_DECLARE int
+mylog(const char *fmt,...)
+{
+	int	ret = 0;
+	unsigned int option = 1;
+	va_list	args;
+
+	if (!mylog_on)	return ret;
+
+	va_start(args, fmt);
+	ret = mylog_misc(option, fmt, args);
+	va_end(args);
+	return	ret;
+}
+
+DLL_DECLARE int
+myprintf(const char *fmt,...)
+{
+	int	ret = 0;
+	va_list	args;
+
+	va_start(args, fmt);
+	ret = mylog_misc(FALSE, fmt, args); 
+	va_end(args);
+	return	ret;
+}
+
 static void mylog_initialize(void)
 {
 	INIT_MYLOG_CS;

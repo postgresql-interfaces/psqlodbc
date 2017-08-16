@@ -313,7 +313,7 @@ MYLOG(1, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	/* extra info */
 	hlen = strlen(connect_string);
 	nlen = MAX_CONNECT_STRING - hlen;
-MYLOG(1, "hlen=" FORMAT_SSIZE_T, hlen);
+MYLOG(1, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 	if (!abbrev)
 	{
 		char	protocol_and[16];

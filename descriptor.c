@@ -190,13 +190,12 @@ void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 
 static void ARDFields_free(ARDFields * self)
 {
-MYLOG(1, "ARDFields_free %p bookmark=%p", self, self->bookmark);
+MYLOG(1, "ARDFields_free %p bookmark=%p\n", self, self->bookmark);
 	if (self->bookmark)
 	{
 		free(self->bookmark);
 		self->bookmark = NULL;
 	}
-MYLOG(1, " hey");
 	/*
 	 * the memory pointed to by the bindings is not deallocated by the
 	 * driver but by the application that uses that driver, so we don't
@@ -565,13 +564,13 @@ MYLOG(1, "src=%p target=%p type=%d", src, target, srchd->desc_type);
 				targethd->desc_type = srchd->desc_type;
 			}
 			ard_src = &(src->ardf);
-MYLOG(1, " rowset_size=" FORMAT_LEN " bind_size=%d ope_ptr=%p off_ptr=%p\n",
+MYPRINTF(1, " rowset_size=" FORMAT_LEN " bind_size=%d ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
 ard_src->row_operation_ptr, ard_src->row_offset_ptr);
 			ard_tgt = &(target->ardf);
-MYLOG(1, " target=%p", ard_tgt);
+MYPRINTF(1, " target=%p", ard_tgt);
 			ARDFields_copy(ard_src, ard_tgt);
-MYLOG(1, " offset_ptr=%p\n", ard_tgt->row_offset_ptr);
+MYPRINTF(1, " offset_ptr=%p\n", ard_tgt->row_offset_ptr);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
 			if (!targethd->type_defined)

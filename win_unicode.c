@@ -132,7 +132,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 {
 	char *	utf8str;
 	int	len = 0;
-/*MYLOG(0, "ucs2_to_utf8 %p ilen=%d ", ucs2str, ilen);*/
+MYLOG(0, "ucs2_to_utf8 %p ilen=%d ", ucs2str, ilen);
 
 	if (!ucs2str)
 	{
@@ -147,7 +147,7 @@ char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lowe
 	}
 	if (ilen < 0)
 		ilen = ucs2strlen(ucs2str);
-MYLOG(0, " newlen=" FORMAT_LEN, ilen);
+MYPRINTF(0, " newlen=" FORMAT_LEN, ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
@@ -226,7 +226,7 @@ MYLOG(0, " newlen=" FORMAT_LEN, ilen);
 		if (olen)
 			*olen = len;
 	}
-MYLOG(0, " %s:olen=%d utf8str=%s\n", __FUNCTION__, len, utf8str ? utf8str : "");
+MYPRINTF(0, " %s:olen=%d utf8str=%s\n", __FUNCTION__, len, utf8str ? utf8str : "");
 	return utf8str;
 }
 
@@ -263,10 +263,10 @@ utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 	SQLULEN		rtn, ocount, wcode;
 	const UCHAR *str;
 
-/*MYLOG(0, "utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);*/
+MYLOG(1, "utf8_to_ucs2 ilen=%d bufcount=%d", ilen, bufcount);
 	if (!utf8str)
 		return 0;
-/*MYLOG(0, " string=%s\n", utf8str);*/
+MYPRINTF(1, " string=%s\n", utf8str);
 
 	if (!bufcount)
 		ucs2str = NULL;
@@ -390,7 +390,7 @@ cleanup:
 	}
 	if (ocount < bufcount && ucs2str)
 		ucs2str[ocount] = 0;
-/*MYLOG(0, " ocount=%d\n", ocount);*/
+MYPRINTF(1, " ocount=%d\n", ocount);
 	return rtn;
 }
 
@@ -539,7 +539,7 @@ SQLULEN utf8_to_ucs4_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 MYLOG(0, " %s:ilen=" FORMAT_LEN " bufcount=" FORMAT_ULEN "\n", __FUNCTION__, ilen, bufcount);
 	if (!utf8str)
 		return 0;
-/*MYLOG(0, " string=%s\n", utf8str);*/
+MYLOG(99, " string=%s\n", utf8str);
 
 	if (!bufcount)
 		ucs4str = NULL;

@@ -4174,7 +4174,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 	{
 		char    *escSchemaName;
 
-		MYLOG(0, "%s: entering Foreign Key Case #2", func);
+		MYLOG(0, "%s: entering Foreign Key Case #2\n", func);
 		escFkTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_str(schema_needed, sizeof(schema_needed), szFkTableOwner, cbFkTableOwner, TABLE_IS_VALID(szFkTableName, cbFkTableName), conn);
 		escSchemaName = simpleCatalogEscape((SQLCHAR *) schema_needed, SQL_NTS, conn);
@@ -4771,7 +4771,7 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 
 				set_tuplefield_string(&tuple[FKS_TRIGGER_NAME], trig_args);
 
-				MYLOG(0, " defer_type = %d\n", defer_type);
+				MYPRINTF(0, " defer_type = %d\n", defer_type);
 				set_tuplefield_int2(&tuple[FKS_DEFERRABILITY], defer_type);
 
 				if (pkey_alloced)
@@ -5804,7 +5804,7 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 	 */
 	if (NULL != fk_table_needed)
 	{
-		MYLOG(0, "%s: entering Foreign Key Case #2", func);
+		MYLOG(0, "%s: entering Foreign Key Case #2\n", func);
 		escTableName = simpleCatalogEscape((SQLCHAR *) fk_table_needed, SQL_NTS, conn);
 		schema_str(schema_needed, sizeof(schema_needed), szFkTableOwner, cbFkTableOwner, TABLE_IS_VALID(szFkTableName, cbFkTableName), conn);
 		relqual = "\n   and  conrelid = c.oid";
