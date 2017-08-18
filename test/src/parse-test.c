@@ -46,6 +46,17 @@ int main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/*
+	 * Test handling of True(MSACCESS)
+	 *	("a_boolean_item" = 1)  => ("a_boolean_item"='1')
+	 */
+	rc = SQLSetConnectAttr(conn, 65549, (SQLPOINTER) 1, 0);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT relname FROM pg_class where (\"relisshared\" = 1)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect 4 failed", hstmt);
+	rc = SQLSetConnectAttr(conn, 65549, (SQLPOINTER) 0, 0);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
 	/* Clean up */
 	test_disconnect();
 

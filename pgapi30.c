@@ -456,6 +456,9 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_PGOPT_MAXLONGVARCHARSIZE:
 			*((SQLINTEGER *) Value) = conn->connInfo.drivers.max_longvarchar_size;
 			break;
+		case SQL_ATTR_PGOPT_MSJET:
+			*((SQLINTEGER *) Value) = conn->ms_jet;
+			break;
 		default:
 			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value, &len, BufferLength);
 	}
@@ -1792,6 +1795,11 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			conn->connInfo.wcs_debug = CAST_PTR(SQLINTEGER, Value);
 			qlog("wcs_debug => %d\n", conn->connInfo.wcs_debug);
 			MYLOG(0, "wcs_debug => %d\n", conn->connInfo.wcs_debug);
+			break;
+		case SQL_ATTR_PGOPT_MSJET:
+			conn->ms_jet = CAST_PTR(SQLINTEGER, Value);
+			qlog("ms_jet => %d\n", conn->ms_jet);
+			MYLOG(0, "ms_jet => %d\n", conn->ms_jet);
 			break;
 		default:
 			if (Attribute < 65536)
