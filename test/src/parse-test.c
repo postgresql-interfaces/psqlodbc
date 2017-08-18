@@ -52,10 +52,21 @@ int main(int argc, char **argv)
 	 */
 	rc = SQLSetConnectAttr(conn, 65549, (SQLPOINTER) 1, 0);
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT relname FROM pg_class where (\"relisshared\" = 1)", SQL_NTS);
-	CHECK_STMT_RESULT(rc, "SQLExecDirect 4 failed", hstmt);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect for boolean = 1 for MSACCESS failed", hstmt);
 	rc = SQLSetConnectAttr(conn, 65549, (SQLPOINTER) 0, 0);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/*/
+	 *	Do the following 2 queries work in declare/fetch mode?
+	 */
+	/* Do the driver detect *for update* and suppress *Declare .. cursor for* clause? */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT id FROM \"testtab1\"for update", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect for SELECT ... FOR UPDATE failed", hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	/* Do the driver detect *select .. into* and suppress *Declare .. cursor for* clause? */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT\"id\"into\"testtab2\"from\"testtab1\"", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect for SELECT .. INTO failed", hstmt);
 
 	/* Clean up */
 	test_disconnect();
