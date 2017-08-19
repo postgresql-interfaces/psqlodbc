@@ -79,6 +79,9 @@ runtest(HSTMT hstmt, int scs)
 	 */
 	if (!scs)
 		execWithParam(hstmt, "SELECT 'escaped quote\\' here', ?::text", "param");
+	/* Some tests with '$'s in identifiers. */
+	execWithParam(hstmt, "SELECT ?::text, '1' a$1", "$ in an identifier");
+	execWithParam(hstmt, "SELECT '1'::text a$$S1,?::text,$$2 $'s in an identifier$$::text", "param");
 }
 
 int main(int argc, char **argv)

@@ -25,6 +25,12 @@ complex $dollar quotes	param
 Executing: SELECT $dollar$morecomplex $dollar quotes$dollar$, ?::text with param: param
 Result set:
 morecomplex $dollar quotes	param
+Executing: SELECT ?::text, '1' a$1 with param: $ in an identifier
+Result set:
+$ in an identifier	1
+Executing: SELECT '1'::text a$$S1,?::text,$$2 $'s in an identifier$$::text with param: param
+Result set:
+1	param	2 $'s in an identifier
 
 SET standard_conforming_strings=off
 Executing: SELECT 'foo', ?::text with param: param'quote
@@ -54,4 +60,10 @@ morecomplex $dollar quotes	param
 Executing: SELECT 'escaped quote\' here', ?::text with param: param
 Result set:
 escaped quote' here	param
+Executing: SELECT ?::text, '1' a$1 with param: $ in an identifier
+Result set:
+$ in an identifier	1
+Executing: SELECT '1'::text a$$S1,?::text,$$2 $'s in an identifier$$::text with param: param
+Result set:
+1	param	2 $'s in an identifier
 disconnecting
