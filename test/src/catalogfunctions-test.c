@@ -43,6 +43,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	SQLExecDirect(hstmt, (SQLCHAR *) "drop table if exists testtab2", SQL_NTS);
 	/* Check for SQLGetTypeInfo */
 	printf("Check for SQLTypeInfo\n");
 	rc = SQLGetTypeInfo(hstmt, SQL_VARCHAR);
