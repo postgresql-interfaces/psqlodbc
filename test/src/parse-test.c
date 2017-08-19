@@ -67,6 +67,9 @@ int main(int argc, char **argv)
 	/* Do the driver detect *select .. into* and suppress *Declare .. cursor for* clause? */
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT\"id\"into\"testtab2\"from\"testtab1\"", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect for SELECT .. INTO failed", hstmt);
+	/* INSERT INTO ... () values () => INSERT INTO ... DEFAULT VALUES */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "insert into testtab2 () values ()", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect for INSERT INTO ... () failed", hstmt);
 
 	/* Clean up */
 	test_disconnect();
