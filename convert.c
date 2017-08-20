@@ -1994,7 +1994,7 @@ typedef struct _QueryParse {
 	char		escape_in_literal, prev_token_end;
 	const	char *dollar_tag;
 	ssize_t		taglen;
-	char		token_save[64];
+	char		token_curr[64];
 	int		token_len;
 	size_t		declare_pos;
 	UInt4		flags, comment_level;
@@ -2014,7 +2014,7 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->escape_in_literal = '\0';
 	q->dollar_tag = NULL;
 	q->taglen = -1;
-	q->token_save[0] = '\0';
+	q->token_curr[0] = '\0';
 	q->token_len = 0;
 	q->prev_token_end = TRUE;
 	q->declare_pos = 0;
@@ -2476,36 +2476,41 @@ into_table_from(const char *stmt)
 	if (strnicmp(stmt, "into", 4))
 		return FALSE;
 	stmt += 4;
-	if (!isspace((UCHAR) *stmt))
-		return FALSE;
-	while (isspace((UCHAR) *(++stmt)));
+	while (isspace((UCHAR) *stmt)) stmt++;
 	switch (*stmt)
 	{
 		case '\0':
 		case ',':
 		case LITERAL_QUOTE:
+		case DOLLAR_QUOTE:
 			return FALSE;
+		case '-':
+		case '/':
+			return TRUE;
 		case IDENTIFIER_QUOTE:	/* double quoted table name ? */
 			do
 			{
-				do
-					while (*(++stmt) != IDENTIFIER_QUOTE && *stmt);
-				while (*stmt && *(++stmt) == IDENTIFIER_QUOTE);
-				while (*stmt && !isspace((UCHAR) *stmt) && *stmt != IDENTIFIER_QUOTE)
+				do {
+					++stmt;
+				} while (*stmt != IDENTIFIER_QUOTE && *stmt);
+				if (*stmt)
 					stmt++;
 			}
 			while (*stmt == IDENTIFIER_QUOTE);
 			break;
 		default:
-			while (!isspace((UCHAR) *(++stmt)));
+			while (!isspace((UCHAR) *stmt)) stmt++;
 			break;
 	}
 	if (!*stmt)
 		return FALSE;
-	while (isspace((UCHAR) *(++stmt)));
+	while (isspace((UCHAR) *stmt)) stmt++;
+	if ('/' == *stmt ||
+	    '-' == *stmt)
+		return TRUE;
 	if (strnicmp(stmt, "from", 4))
 		return FALSE;
-	return isspace((UCHAR) stmt[4]);
+	return TRUE;
 }
 
 /*----------
@@ -2519,9 +2524,9 @@ table_for_update_or_share(const char *stmt, size_t *endpos)
 {
 	const char *wstmt = stmt;
 	int	advance;
-	UInt4	flag = 0;
+	UInt4	flag = 0, zeroflag = 0;
 
-	while (isspace((UCHAR) *(++wstmt)));
+	while (isspace((UCHAR) *wstmt)) wstmt++;
 	if (!*wstmt)
 		return 0;
 	if (0 == strnicmp(wstmt, "update", advance = 6))
@@ -2531,23 +2536,27 @@ table_for_update_or_share(const char *stmt, size_t *endpos)
 	else if (0 == strnicmp(wstmt, "read", advance = 4))
 		flag |= FLGP_SELECT_FOR_READONLY;
 	else
-		return 0;
+	{
+		flag |= FLGP_SELECT_FOR_UPDATE_OR_SHARE; /* maybe */
+		return flag;
+	}
+	zeroflag = flag; /* returns flag anyway */
 	wstmt += advance;
 	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
-		return 0;
+		return zeroflag;
 	else if (0 != (flag & FLGP_SELECT_FOR_READONLY))
 	{
 		if (!isspace((UCHAR) wstmt[0]))
-			return 0;
-		while (isspace((UCHAR) *(++wstmt)));
+			return zeroflag;
+		while (isspace((UCHAR) *wstmt)) wstmt++;
 		if (!*wstmt)
-			return 0;
+			return zeroflag;
 		if (0 != strnicmp(wstmt, "only", advance = 4))
-			return 0;
+			return zeroflag;
 		wstmt += advance;
 	}
 	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
-		return 0;
+		return zeroflag;
 	*endpos = wstmt - stmt;
 	return flag;
 }
@@ -2620,7 +2629,7 @@ insert_without_target(const char *stmt, size_t *endpos)
 {
 	const char *wstmt = stmt;
 
-	while (isspace((UCHAR) *(++wstmt)));
+	while (isspace((UCHAR) *wstmt)) wstmt++;
 	if (!*wstmt)
 		return FALSE;
 	if (strnicmp(wstmt, "VALUES", 6))
@@ -2628,7 +2637,7 @@ insert_without_target(const char *stmt, size_t *endpos)
 	wstmt += 6;
 	if (!wstmt[0] || !isspace((UCHAR) wstmt[0]))
 		return FALSE;
-	while (isspace((UCHAR) *(++wstmt)));
+	while (isspace((UCHAR) *wstmt)) wstmt++;
 	if (*wstmt != '(' || *(++wstmt) != ')')
 		return FALSE;
 	wstmt++;
@@ -3258,6 +3267,110 @@ findIdentifier(const char *str, int ccsc, const char **nextdel)
 	return slen;
 }
 
+static void token_start(QueryParse *qp, char oldchar)
+{
+	qp->prev_token_end = FALSE;
+	qp->token_curr[0] = oldchar;
+	qp->token_len = 1;
+}
+static int token_finish(QueryParse *qp, char oldchar, char *finished_token)
+{
+	int ret = -1;
+	if (!qp->prev_token_end)
+	{
+		if (oldchar && qp->token_len + 1 < sizeof(qp->token_curr))
+			qp->token_curr[qp->token_len++] = oldchar;
+		qp->prev_token_end = TRUE;
+		qp->token_curr[qp->token_len] = '\0';
+		strncpy_null(finished_token, qp->token_curr, sizeof(qp->token_curr));
+MYLOG(1, "finished token=%s\n", finished_token);
+		ret = qp->token_len;
+	}
+	return ret;
+}
+
+static int token_restart(QueryParse *qp, char oldchar, char *finished_token)
+{
+	int ret = token_finish(qp, 0, finished_token);
+	if (!isspace(oldchar))
+		token_start(qp, oldchar);
+
+	return ret;
+}
+
+static int token_continue(QueryParse *qp, char oldchar)
+{
+	if (qp->prev_token_end)
+		token_start(qp, oldchar);
+	else if (qp->token_len + 1 < sizeof(qp->token_curr))
+		qp->token_curr[qp->token_len++] = oldchar;
+
+	return qp->token_len;
+}
+
+/*
+ *	ParseToken functions
+ */
+typedef struct {
+	QueryParse	*qp;
+	int		token_len;
+	BOOL		curchar_processed;
+	unsigned int	in_status;
+	char	finished_token[sizeof(((QueryParse *) NULL)->token_curr)];
+} ParseToken;
+
+static void PT_initialize(ParseToken *pt, QueryParse *qp)
+{
+	pt->qp = qp;
+	pt->token_len = -1;
+	pt->curchar_processed = FALSE;
+	pt->in_status = 0;
+	pt->finished_token[0] = '\0';
+}
+
+static int PT_token_finish(ParseToken *pt, char oldchar)
+{
+	int token_len_tmp;
+
+	if (pt->curchar_processed)
+		return pt->token_len;
+	if ((token_len_tmp = token_finish(pt->qp, oldchar, pt->finished_token)) > 0)
+	{
+		pt->token_len = token_len_tmp;
+		pt->in_status = pt->qp->in_status;
+	}
+	if (oldchar)
+		pt->curchar_processed = TRUE;
+	return pt->token_len;
+}
+
+static int PT_token_restart(ParseToken *pt, char oldchar)
+{
+	int token_len_tmp;
+	unsigned int	in_status_save;
+
+	if (pt->curchar_processed)
+		return pt->token_len;
+	in_status_save = pt->qp->in_status;
+	if ((token_len_tmp = token_restart(pt->qp, oldchar, pt->finished_token)) > 0)
+	{
+		pt->token_len = token_len_tmp;
+		pt->in_status = in_status_save;
+	}
+	pt->curchar_processed = TRUE;
+	return pt->token_len;
+}
+
+static int PT_token_continue(ParseToken *pt, char oldchar)
+{
+	if (pt->curchar_processed)
+		return pt->token_len;
+	token_continue(pt->qp, oldchar);
+	pt->curchar_processed = TRUE;
+	return pt->token_len;
+}
+#define	PT_TOKEN_IGNORE(pt)	((pt)->curchar_processed = TRUE)
+
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 {
@@ -3272,6 +3385,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	BOOL		isnull;
 	BOOL		isbinary;
 	Oid			dummy;
+	ParseToken	pts, *pt = &pts;
+
+	PT_initialize(pt, qp);
 
 	if (stmt->ntab > 0)
 		bestitem = GET_NAME(stmt->ti[0]->bestitem);
@@ -3318,7 +3434,12 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	if (ENCODE_STATUS(qp->encstr) != 0)
 	{
 		if (QP_in_idle_status(qp))
+		{
+			PT_token_restart(pt, oldchar); /* placed before QP_enter() */
 			QP_enter(qp, QP_IN_IDENT_KEYWORD);	/* identifier */
+		}
+		else if (qp->token_len > 0)
+			PT_token_continue(pt, oldchar);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
@@ -3330,11 +3451,14 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	if (QP_is_in(qp, QP_IN_IDENT_KEYWORD))	/* identifier or keyword */
 	{
 		if (isalnum((UCHAR)oldchar) ||
-		    DOLLAR_QUOTE == oldchar)
+		    DOLLAR_QUOTE == oldchar ||
+		    '_' == oldchar)
 		{
 			CVT_APPEND_CHAR(qb, oldchar);
+			PT_token_continue(pt, oldchar);
 			return SQL_SUCCESS;
 		}
+		PT_token_finish(pt, 0); /* placed before QP_exit() */
 		QP_exit(qp, QP_IN_IDENT_KEYWORD);
 	}
 
@@ -3363,17 +3487,29 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	}
 	else if (QP_is_in(qp, QP_IN_LITERAL)) /* quote check */
 	{
-		if (oldchar == qp->escape_in_literal)
-			QP_enter(qp, QP_IN_ESCAPE); /* escape in literal */
-		else if (oldchar == LITERAL_QUOTE)
+		if (oldchar == LITERAL_QUOTE)
+		{
+			PT_token_finish(pt, oldchar); /* placed before QP_exit() */
 			QP_exit(qp, QP_IN_LITERAL);
+		}
+		else
+		{
+			PT_token_continue(pt, oldchar);
+			if (oldchar == qp->escape_in_literal)
+				QP_enter(qp, QP_IN_ESCAPE); /* escape in literal */
+		}
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
 	else if (QP_is_in(qp, QP_IN_DQUOTE_IDENTIFIER)) /* double quote check */
 	{
 		if (oldchar == IDENTIFIER_QUOTE)
+		{
+			PT_token_finish(pt, oldchar); /* placed before QP_exit() */
 			QP_exit(qp, QP_IN_DQUOTE_IDENTIFIER);
+		}
+		else
+			PT_token_continue(pt, oldchar);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
@@ -3407,7 +3543,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
-	else if (!QP_in_idle_status(qp))
+
+	if (!QP_in_idle_status(qp))
 	{
 		qb->errornumber = STMT_EXEC_ERROR;
 		qb->errormsg = "logic error? not in QP_in_idle_status";
@@ -3419,7 +3556,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 * a LITREAL_QUOTE nor an IDENTIFIER_QUOTE.
 	 */
 	/* Squeeze carriage-return/linefeed pairs to linefeed only */
-	else if (lf_conv &&
+	if (lf_conv &&
 		 PG_CARRIAGE_RETURN == oldchar &&
 		 qp->opos + 1 < qp->stmt_len &&
 		 PG_LINEFEED == qp->statement[qp->opos + 1])
@@ -3429,8 +3566,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	 * Handle literals (date, time, timestamp) and ODBC scalar
 	 * functions
 	 */
-	else if (oldchar == ODBC_ESCAPE_START)
+	if (oldchar == ODBC_ESCAPE_START)
 	{
+		PT_token_finish(pt, 0);
 		if (SQL_ERROR == convert_escape(qp, qb))
 		{
 			if (0 == qb->errornumber)
@@ -3441,11 +3579,14 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			MYLOG(0, "%s convert_escape error\n", func);
 			return SQL_ERROR;
 		}
+		PT_TOKEN_IGNORE(pt);
 		return SQL_SUCCESS;
 	}
 	/* End of an escape sequence */
 	else if (oldchar == ODBC_ESCAPE_END)
 	{
+		PT_token_finish(pt, 0);
+		PT_TOKEN_IGNORE(pt);
 		return QB_end_brace(qb);
 	}
 	else if (oldchar == '@' &&
@@ -3505,6 +3646,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	{
 		if (oldchar == DOLLAR_QUOTE)
 		{
+			PT_token_finish(pt, 0);
 			qp->taglen = findTag(F_OldPtr(qp), qp->encstr.ccsc);
 			if (qp->taglen > 0)
 			{
@@ -3517,6 +3659,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		else if (oldchar == LITERAL_QUOTE)
 		{
+			PT_token_restart(pt, oldchar); /* placed before QP_enter() */
 			QP_enter(qp, QP_IN_LITERAL);
 			qp->escape_in_literal = CC_get_escape(qb->conn);
 			if (!qp->escape_in_literal)
@@ -3527,21 +3670,27 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 		else if (oldchar == IDENTIFIER_QUOTE)
 		{
+			PT_token_restart(pt, oldchar); /* placed before QP_enter() */
 			QP_enter(qp, QP_IN_DQUOTE_IDENTIFIER);
 		}
 		else if ('/' == oldchar &&
 			 '*' == F_OldPtr(qp)[1])
 		{
 			qp->comment_level++;
+			PT_token_finish(pt, 0); /* comments are excluded */
 			QP_enter(qp, QP_IN_COMMENT_BLOCK);
+			PT_TOKEN_IGNORE(pt);
 		}
 		else if ('-' == oldchar &&
 			 '-' == F_OldPtr(qp)[1])
 		{
+			PT_token_finish(pt, 0); /* comments are excluded */
 			QP_enter(qp, QP_IN_LINE_COMMENT);
+			PT_TOKEN_IGNORE(pt);
 		}
 		else if (oldchar == ';')
 		{
+			PT_token_restart(pt, 0);
 			/*
 			 * can't parse multiple statement using protocol V3.
 			 * reset the dollar number here in case it is divided
@@ -3563,7 +3712,10 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			}
 		}
 		else if (isalnum(oldchar))
+		{
+			PT_token_restart(pt, oldchar); /* placed before QP_enter() */
 			QP_enter(qp, QP_IN_IDENT_KEYWORD); /* identifier or keyword */
+		}
 		else
 		{
 			/*
@@ -3581,7 +3733,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			if (')' == oldchar &&
 			    qb->conn->ms_jet &&
 			    1 == qp->token_len &&
-			    '1' == qp->token_save[0] &&
+			    '1' == qp->token_curr[0] &&
 			    8 <= F_OldPos(qp))
 			{
 				const char *oldptr = F_OldPtr(qp);
@@ -3607,72 +3759,94 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					}
 				}
 			}
-			if (isspace((UCHAR) oldchar))
+			if (!isalnum((UCHAR) oldchar))
 			{
-				if (!qp->prev_token_end)
-				{
-					qp->prev_token_end = TRUE;
-					qp->token_save[qp->token_len] = '\0';
-					if (qp->token_len == 4)
-					{
-						if (0 != (qp->flags & FLGP_USING_CURSOR) &&
-							into_table_from(&qp->statement[qp->opos - qp->token_len]))
-						{
-							qp->flags |= FLGP_SELECT_INTO;
-							qb->flags &= ~FLGB_KEYSET_DRIVEN;
-							qp->statement_type = STMT_TYPE_CREATE;
-							remove_declare_cursor(qb, qp);
-						}
-						else if (stricmp(qp->token_save, "join") == 0)
-							check_join(stmt, F_OldPtr(qp), F_OldPos(qp));
-					}
-					else if (qp->token_len == 3)
-					{
-
-						if (0 != (qp->flags & FLGP_USING_CURSOR) &&
-							strnicmp(qp->token_save, "for", 3) == 0)
-						{
-							UInt4	flg;
-							size_t	endpos;
-
-							flg = table_for_update_or_share(F_OldPtr(qp), &endpos);
-							if (0 != (FLGP_SELECT_FOR_UPDATE_OR_SHARE & flg))
-							{
-								qp->flags |= flg;
-								remove_declare_cursor(qb, qp);
-							}
-							else
-								qp->flags |= flg;
-						}
-					}
-					else if (qp->token_len == 2)
-					{
-						size_t	endpos;
-
-						if (STMT_TYPE_INSERT == qp->statement_type &&
-							strnicmp(qp->token_save, "()", 2) == 0 &&
-							insert_without_target(F_OldPtr(qp), &endpos))
-						{
-							qb->npos -= 2;
-							CVT_APPEND_STR(qb, "DEFAULT VALUES");
-							qp->opos += endpos;
-							return SQL_SUCCESS;
-						}
-					}
-				}
+				PT_token_restart(pt, oldchar);
 			}
-			else if (qp->prev_token_end)
-			{
-				qp->prev_token_end = FALSE;
-				qp->token_save[0] = oldchar;
-				qp->token_len = 1;
-			}
-			else if (qp->token_len + 1 < sizeof(qp->token_save))
-				qp->token_save[qp->token_len++] = oldchar;
+			else
+				PT_token_continue(pt, oldchar);
 		}
+
+		if (pt->token_len > 0)
+			MYLOG(0, "token_len=%d status=%x token=%s\n", pt->token_len, pt->in_status, pt->finished_token);
+		if (!pt->curchar_processed)
+		{
+			MYLOG(0, "Forgot to process ParseToken char=%c status=%u\n", oldchar, qp->in_status);
+#ifdef	NOT_USED	/* strict check for debugging */
+			qb->errornumber = STMT_EXEC_ERROR;
+			qb->errormsg = "Forget to process ParseToken";
+			return SQL_ERROR;
+#endif /* NOT_USED */
+		}
+		switch (pt->token_len)
+		{
+			case 4:
+				if (0 != (qp->flags & FLGP_USING_CURSOR) &&
+				    into_table_from(&qp->statement[qp->opos - pt->token_len]))
+				{
+					qp->flags |= FLGP_SELECT_INTO;
+					qb->flags &= ~FLGB_KEYSET_DRIVEN;
+					qp->statement_type = STMT_TYPE_CREATE;
+					remove_declare_cursor(qb, qp);
+				}
+				else if (stricmp(pt->finished_token, "join") == 0)
+					check_join(stmt, F_OldPtr(qp), F_OldPos(qp));
+				break;
+			case 3:
+				if (0 != (qp->flags & FLGP_USING_CURSOR) &&
+				    strnicmp(pt->finished_token, "for", 3) == 0)
+				{
+					UInt4	flg;
+					size_t	endpos;
+
+					flg = table_for_update_or_share(F_OldPtr(qp), &endpos);
+					if (0 != (FLGP_SELECT_FOR_UPDATE_OR_SHARE & flg))
+					{
+						qp->flags |= flg;
+						remove_declare_cursor(qb, qp);
+					}
+					else
+						qp->flags |= flg;
+				}
+				break;
+			case 2:
+			{
+				size_t	endpos;
+
+				if (STMT_TYPE_INSERT == qp->statement_type &&
+				    strnicmp(pt->finished_token, "()", 2) == 0 &&
+				    insert_without_target(F_OldPtr(qp), &endpos))
+				{
+					qb->npos -= 2;
+					CVT_APPEND_STR(qb, "DEFAULT VALUES");
+					qp->opos += endpos;
+					return SQL_SUCCESS;
+				}
+				break;
+			}
+			case 1:
+			{
+				size_t	endpos;
+
+				if (STMT_TYPE_INSERT == qp->statement_type &&
+				    pt->finished_token[0] == '(' &&
+				    oldchar == ')' &&
+				    insert_without_target(F_OldPtr(qp)+1, &endpos))
+				{
+					qb->npos --;
+					CVT_APPEND_STR(qb, " DEFAULT VALUES");
+					qp->opos += endpos;
+					return SQL_SUCCESS;
+				}
+				break;
+			}
+		}
+
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
 	}
+	else
+		PT_token_restart(pt, oldchar);
 
 	/*
 	 * It's a '?' parameter alright
