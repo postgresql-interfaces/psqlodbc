@@ -42,14 +42,19 @@ DLL_DECLARE int myprintf(const char *fmt,...) __attribute__((format(printf, 1, 2
 
 extern int qlog(char *fmt,...);
 
+const char *po_basename(const char *path);
+
+#define	PREPEND_FMT	"%10.10s[%s]%d: "
+#define	PREPEND_ITEMS	,po_basename(__FILE__), __FUNCTION__, __LINE__
+
 #ifdef	__GNUC__
-#define	MYLOG(level, fmt, ...)	(level < get_mylog() ? mylog((fmt), ##__VA_ARGS__) : 0)
+#define	MYLOG(level, fmt, ...) (level < get_mylog() ? mylog(PREPEND_FMT fmt PREPEND_ITEMS, ##__VA_ARGS__) : 0)
 #define	MYPRINTF(level, fmt, ...) (level < get_mylog() ? myprintf((fmt), ##__VA_ARGS__) : 0)
-#elif	defined WIN32 && _MSC_VER > 1800
-#define	MYLOG(level, fmt, ...) (level < get_mylog() ? mylog(fmt, __VA_ARGS__) : (printf || printf((fmt), __VA_ARGS__)))
+#elif	defined WIN32 /* && _MSC_VER > 1800 */
+#define	MYLOG(level, fmt, ...) (level < get_mylog() ? mylog(PREPEND_FMT fmt PREPEND_ITEMS, __VA_ARGS__) : (printf || printf((fmt), __VA_ARGS__)))
 #define	MYPRINTF(level, fmt, ...) (level < get_mylog() ? myprintf(fmt, __VA_ARGS__) : (printf || printf((fmt), __VA_ARGS__)))
 #else
-#define	MYLOG(level, ...) (level < get_mylog() ? mylog(__VA_ARGS__) : 0)
+#define	MYLOG(level, ...) (level < get_mylog() ? (mylog(PREPEND_FMT PREPEND_ITEMS), myprintf(__VA_ARGS__)) : 0)
 #define	MYPRINTF(level, ...) (level < get_mylog() ? myprintf(__VA_ARGS__) : 0)
 #endif /* __GNUC__ */
 

@@ -165,6 +165,15 @@ int	get_qlog(void)
 	return qlog_on;
 }
 
+const char *po_basename(const char *path)
+{
+	char *p;
+
+	if (p = strrchr(path,  DIRSEPARATOR[0]), NULL != p)
+		return p + 1;
+	return path;
+}
+
 void
 logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 {
