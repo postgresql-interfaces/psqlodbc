@@ -1677,7 +1677,7 @@ MYLOG(1, "2stime fr=%d\n", std_time.fr);
 				neut_str = midtemp;
 			else
 			{
-				qlog("couldn't convert money type to %d\n", fCType);
+				MYLOG(0, "couldn't convert money type to %d\n", fCType);
 				return COPY_UNSUPPORTED_TYPE;
 			}
 		}
@@ -1919,7 +1919,6 @@ MYLOG(1, "SQL_C_VARBOOKMARK value=%d\n", ival);
 				else
 				{
 					MYLOG(0, "couldn't convert the type %d to SQL_C_BINARY\n", field_type);
-					qlog("couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					return COPY_UNSUPPORTED_TYPE;
 				}
 				break;
@@ -1953,7 +1952,7 @@ MYLOG(1, "SQL_C_VARBOOKMARK value=%d\n", ival);
 				break;
 
 			default:
-				qlog("conversion to the type %d isn't supported\n", fCType);
+				MYLOG(0, "conversion to the type %d isn't supported\n", fCType);
 				return COPY_UNSUPPORTED_TYPE;
 		}
 	}
@@ -5578,7 +5577,7 @@ MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " num=%s SQL_BIT=%d\n", to, from, num, SQL_BI
 					{
 						qb->errornumber = STMT_EXEC_ERROR;
 						qb->errormsg = "param not found";
-						qlog("%dth param not found for the expression %s\n", pidx + 1, mapExpr);
+						MYLOG(0, "%dth param not found for the expression %s\n", pidx + 1, mapExpr);
 						retval = SQL_ERROR;
 						break;
 					}
@@ -5589,7 +5588,7 @@ MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " num=%s SQL_BIT=%d\n", to, from, num, SQL_BI
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "internal expression error";
-					qlog("%s internal expression error %s\n", func, mapExpr);
+					MYLOG(0, "%s internal expression error %s\n", func, mapExpr);
 					retval = SQL_ERROR;
 					break;
 				}

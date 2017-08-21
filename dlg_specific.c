@@ -1047,30 +1047,29 @@ MYLOG(0, "drivername=%s\n", drivername);
 	get_Ci_Drivers(DSN, ODBC_INI, &(ci->drivers));
 	STR_TO_NAME(ci->drivers.drivername, drivername);
 
-	qlog("DSN info: DSN='%s',server='%s',port='%s',dbase='%s',user='%s',passwd='%s'\n",
+	MYLOG(1, "DSN info: DSN='%s',server='%s',port='%s',dbase='%s',user='%s',passwd='%s'\n",
 		 DSN,
 		 ci->server,
 		 ci->port,
 		 ci->database,
 		 ci->username,
 		 NAME_IS_VALID(ci->password) ? "xxxxx" : "");
-	qlog("          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
+	MYLOG(1, "          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
 		 ci->show_oid_column,
 		 ci->fake_oid_index,
 		 ci->show_system_tables);
 
-	if (get_qlog())
 	{
 #ifdef	NOT_USED
 		char	*enc = (char *) check_client_encoding(ci->conn_settings);
 
-		qlog("          conn_settings='%s', conn_encoding='%s'\n", ci->conn_settings,
+		MYLOG(1, "          conn_settings='%s', conn_encoding='%s'\n", ci->conn_settings,
 			NULL != enc ? enc : "(null)");
 		if (NULL != enc)
 			free(enc);
 #endif /* NOT_USED */
-		qlog("          translation_dll='%s',translation_option='%s'\n",
+		MYLOG(1, "          translation_dll='%s',translation_option='%s'\n",
 			ci->translation_dll,
 			ci->translation_option);
 	}

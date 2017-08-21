@@ -1782,9 +1782,9 @@ MYLOG(1, "curt=" FORMAT_LEN "\n", curt);
 
 				case COPY_RESULT_TRUNCATED:
 					SC_set_error(self, STMT_TRUNCATED, "Fetched item was truncated.", func);
-					qlog("The %dth item was truncated\n", lf + 1);
-					qlog("The buffer size = %d", opts->bindings[lf].buflen);
-					qlog(" and the value is '%s'\n", value);
+					MYLOG(1, "The %dth item was truncated\n", lf + 1);
+					MYLOG(1, "The buffer size = " FORMAT_LEN, opts->bindings[lf].buflen);
+					MYLOG(1, " and the value is '%s'\n", value);
 					result = SQL_SUCCESS_WITH_INFO;
 					break;
 
@@ -2360,16 +2360,16 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 			qlog("                 statement_type=%d, statement='%s'\n", self->statement_type, NULLCHECK(self->statement));
 			qlog("                 stmt_with_params='%s'\n", NULLCHECK(self->stmt_with_params));
 			qlog("                 data_at_exec=%d, current_exec_param=%d, put_data=%d\n", self->data_at_exec, self->current_exec_param, self->put_data);
-			qlog("                 currTuple=%d, current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
-			qlog("                 maxRows=%d, rowset_size=%d, keyset_size=%d, cursor_type=%d, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
+			qlog("                 currTuple=" FORMAT_LEN ", current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
+			qlog("                 maxRows=" FORMAT_LEN ", rowset_size=" FORMAT_LEN ", keyset_size=" FORMAT_LEN ", cursor_type=%u, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
 			qlog("                 cursor_name='%s'\n", SC_cursor_name(self));
 
 			qlog("                 ----------------QResult Info -------------------------------\n");
 
 			if (res)
 			{
-				qlog("                 fields=%p, backend_tuples=%p, tupleField=%d, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
-				qlog("                 fetch_count=%d, num_total_rows=%d, num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, NULLCHECK(QR_get_cursor(res)));
+				qlog("                 fields=%p, backend_tuples=%p, tupleField=%p, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
+				qlog("                 fetch_count=" FORMAT_LEN ", num_total_rows=" FORMAT_ULEN ", num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, NULLCHECK(QR_get_cursor(res)));
 				qlog("                 message='%s', command='%s', notice='%s'\n", NULLCHECK(QR_get_message(res)), NULLCHECK(res->command), NULLCHECK(res->notice));
 				qlog("                 status=%d\n", QR_get_rstatus(res));
 			}
@@ -2503,6 +2503,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		pstmt = stmt->processed_statements;
 		MYLOG(0, "%s execParams query=%s nParams=%d\n", __FUNCTION__, pstmt->query, nParams);
+		qlog("PQexecParams query='%s' nParams=%d\n", pstmt->query, nParams);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 nParams,
@@ -2527,6 +2528,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		/* already prepared */
 		MYLOG(0, "%s execPrepared plan=%s nParams=%d\n", __FUNCTION__, plan_name, nParams);
+		qlog("PQexecPrepared plan=%s nParams=%d\n", plan_name, nParams);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
 							   nParams,
@@ -2560,6 +2562,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			/* read in the return message from the backend */
 			cmdtag = PQcmdStatus(pgres);
 			MYLOG(0, "command response: %s\n", cmdtag);
+			qlog("\ok: %s\n", cmdtag);
 			QR_set_command(res, cmdtag);
 			if (QR_command_successful(res))
 				QR_set_rstatus(res, PORES_COMMAND_OK);
@@ -2600,6 +2603,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			CC_on_abort(conn, CONN_DEAD);
 
 			MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(conn));
+			qlog("\error: - %s\n", CC_get_errormsg(conn));
 			break;
 	}
 
@@ -2730,6 +2734,7 @@ MYLOG(0, "sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		conn->unnamed_prepared_stmt = NULL;
 
 	/* Prepare */
+	qlog("PQprepare query='%s' plan=%s num_params=%d\n", query, plan_name, num_params);
 	pgres = PQprepare(conn->pqconn, plan_name, query, num_params, paramTypes);
 	if (PQresultStatus(pgres) != PGRES_COMMAND_OK)
 	{
@@ -2808,6 +2813,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 
 	/* Describe */
 	MYLOG(0, "%s: describing plan_name=%s\n", func, plan_name);
+	qlog("\tPQdescribePrepared: plan_name=%s\n", plan_name);
 
 	pgres = PQdescribePrepared(conn->pqconn, plan_name);
 	switch (PQresultStatus(pgres))

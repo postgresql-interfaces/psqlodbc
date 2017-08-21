@@ -1720,7 +1720,6 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, 0, 0);
 			}
-			qlog("debug => %d\n", conn->connInfo.drivers.debug);
 			break;
 		case SQL_ATTR_PGOPT_COMMLOG:
 			newValue = CAST_UPTR(SQLCHAR, Value);
@@ -1729,76 +1728,63 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 				logs_on_off(-1, 0, 0);
 				conn->connInfo.drivers.commlog = newValue;
 				logs_on_off(1, 0, conn->connInfo.drivers.commlog);
-				qlog("commlog => %d\n", conn->connInfo.drivers.commlog);
+				MYLOG(0, "commlog => %d\n", conn->connInfo.drivers.commlog);
 			}
 			else if (newValue == 0 && conn->connInfo.drivers.commlog > 0)
 			{
-				qlog("commlog => %d\n", newValue);
+				MYLOG(0, "commlog => %d\n", newValue);
 				logs_on_off(-1, 0, conn->connInfo.drivers.commlog);
 				conn->connInfo.drivers.debug = newValue;
 				logs_on_off(1, 0, 0);
 			}
-			MYLOG(0, "commlog => %d\n", conn->connInfo.drivers.commlog);
 			break;
 		case SQL_ATTR_PGOPT_PARSE:
 			conn->connInfo.drivers.parse = CAST_UPTR(SQLCHAR, Value);
-			qlog("parse => %d\n", conn->connInfo.drivers.parse);
 			MYLOG(0, "parse => %d\n", conn->connInfo.drivers.parse);
 			break;
 		case SQL_ATTR_PGOPT_USE_DECLAREFETCH:
 			conn->connInfo.drivers.use_declarefetch = CAST_UPTR(SQLCHAR, Value);
 			ci_updatable_cursors_set(&conn->connInfo);
-			qlog("declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
 			MYLOG(0, "declarefetch => %d\n", conn->connInfo.drivers.use_declarefetch);
 			break;
 		case SQL_ATTR_PGOPT_SERVER_SIDE_PREPARE:
 			conn->connInfo.use_server_side_prepare = CAST_UPTR(SQLCHAR, Value);
-			qlog("server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			MYLOG(0, "server_side_prepare => %d\n", conn->connInfo.use_server_side_prepare);
 			break;
 		case SQL_ATTR_PGOPT_FETCH:
 			conn->connInfo.drivers.fetch_max = CAST_PTR(SQLINTEGER, Value);
-			qlog("fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			MYLOG(0, "fetch => %d\n", conn->connInfo.drivers.fetch_max);
 			break;
 		case SQL_ATTR_PGOPT_UNKNOWNSIZES:
 			conn->connInfo.drivers.unknown_sizes = CAST_PTR(SQLINTEGER, Value);
-			qlog("unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
 			MYLOG(0, "unknown_sizes => %d\n", conn->connInfo.drivers.unknown_sizes);
 			break;
 		case SQL_ATTR_PGOPT_TEXTASLONGVARCHAR:
 			conn->connInfo.drivers.text_as_longvarchar = CAST_PTR(SQLINTEGER, Value);
-			qlog("text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
 			MYLOG(0, "text_as_longvarchar => %d\n", conn->connInfo.drivers.text_as_longvarchar);
 			break;
 		case SQL_ATTR_PGOPT_UNKNOWNSASLONGVARCHAR:
 			conn->connInfo.drivers.unknowns_as_longvarchar = CAST_PTR(SQLINTEGER, Value);
-			qlog("unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
 			MYLOG(0, "unknowns_as_long_varchar => %d\n", conn->connInfo.drivers.unknowns_as_longvarchar);
 			break;
 		case SQL_ATTR_PGOPT_BOOLSASCHAR:
 			conn->connInfo.drivers.bools_as_char = CAST_PTR(SQLINTEGER, Value);
-			qlog("bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
 			MYLOG(0, "bools_as_char => %d\n", conn->connInfo.drivers.bools_as_char);
 			break;
 		case SQL_ATTR_PGOPT_MAXVARCHARSIZE:
 			conn->connInfo.drivers.max_varchar_size = CAST_PTR(SQLINTEGER, Value);
-			qlog("max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
 			MYLOG(0, "max_varchar_size => %d\n", conn->connInfo.drivers.max_varchar_size);
 			break;
 		case SQL_ATTR_PGOPT_MAXLONGVARCHARSIZE:
 			conn->connInfo.drivers.max_longvarchar_size = CAST_PTR(SQLINTEGER, Value);
-			qlog("max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
 			MYLOG(0, "max_longvarchar_size => %d\n", conn->connInfo.drivers.max_longvarchar_size);
 			break;
 		case SQL_ATTR_PGOPT_WCSDEBUG:
 			conn->connInfo.wcs_debug = CAST_PTR(SQLINTEGER, Value);
-			qlog("wcs_debug => %d\n", conn->connInfo.wcs_debug);
 			MYLOG(0, "wcs_debug => %d\n", conn->connInfo.wcs_debug);
 			break;
 		case SQL_ATTR_PGOPT_MSJET:
 			conn->ms_jet = CAST_PTR(SQLINTEGER, Value);
-			qlog("ms_jet => %d\n", conn->ms_jet);
 			MYLOG(0, "ms_jet => %d\n", conn->ms_jet);
 			break;
 		default:

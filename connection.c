@@ -964,15 +964,15 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		);
 	qlog(vermsg);
 	MYLOG(0, "%s", vermsg);
-	qlog("Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
+	MYLOG(1, "Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.unknown_sizes,
 		 ci->drivers.max_varchar_size,
 		 ci->drivers.max_longvarchar_size);
-	qlog("                unique_index=%d, use_declarefetch=%d\n",
+	MYLOG(1, "                unique_index=%d, use_declarefetch=%d\n",
 		 ci->drivers.unique_index,
 		 ci->drivers.use_declarefetch);
-	qlog("                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
+	MYLOG(1, "                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
 		 ci->drivers.text_as_longvarchar,
 		 ci->drivers.unknowns_as_longvarchar,
 		 ci->drivers.bools_as_char,
@@ -982,7 +982,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 	{
 		encoding = check_client_encoding(ci->conn_settings);
 		CC_set_locale_encoding(self, encoding);
-		qlog("                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
+		MYLOG(1, "                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
 			ci->drivers.extra_systable_prefixes,
 			PRINT_NAME(ci->conn_settings),
 			encoding ? encoding : "");
@@ -1710,12 +1710,10 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	if (appendq)
 	{
 		MYLOG(0, "%s_append: conn=%p, query='%s'+'%s'\n", func, self, query, appendq);
-		qlog("conn=%p, query='%s'+'%s'\n", self, query, appendq);
 	}
 	else
 	{
 		MYLOG(0, "%s: conn=%p, query='%s'\n", func, self, query);
-		qlog("conn=%p, query='%s'\n", self, query);
 	}
 
 	if (!self->pqconn)
@@ -1836,9 +1834,11 @@ MYLOG(1, "!!!! %s:query_buf=%s(" FORMAT_SIZE_T ")\n", __FUNCTION__, query_buf.da
 	nrarg.res = NULL;
 	PQsetNoticeReceiver(self->pqconn, receive_libpq_notice, &nrarg);
 
+	qlog("PQsendQuery query=%s\n", query_buf.data);
 	if (!PQsendQuery(self->pqconn, query_buf.data))
 	{
 		char *errmsg = PQerrorMessage(self->pqconn);
+		qlog("\nComunication Error: %s\n", errmsg ? errmsg : "(null)");
 		CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, func);
 		goto cleanup;
 	}
@@ -2453,7 +2453,6 @@ CC_lookup_lo(ConnectionClass *self)
 	}
 	QR_Destructor(res);
 	MYLOG(0, "Got the large object oid: %d\n", self->lobj_type);
-	qlog("    [ Large Object oid = %d ]\n", self->lobj_type);
 	return;
 }
 
@@ -2479,17 +2478,15 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 
 	if (self)
 	{
-		qlog("CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		MYLOG(0, "CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
-		qlog("            ------------------------------------------------------------\n");
-		qlog("            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
-		qlog("            pqconn=%p, stmts=%p, lobj_type=%d\n", self->pqconn, self->stmts, self->lobj_type);
+		MYLOG(1, "            ------------------------------------------------------------\n");
+		MYLOG(1, "            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
+		MYLOG(1, "            pqconn=%p, stmts=%p, lobj_type=%d\n", self->pqconn, self->stmts, self->lobj_type);
 	}
 	else
-{
-		qlog("INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+	{
 		MYLOG(0, "INVALID CONNECTION HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
-}
+	}
 }
 
 /*

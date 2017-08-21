@@ -721,7 +721,6 @@ DC_log_error(const char *func, const char *desc, const DescriptorClass *self)
 #define nullcheck(a) (a ? a : "(NULL)")
 	if (self)
 	{
-		qlog("DESCRIPTOR ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->deschd.__error_number, nullcheck(self->deschd.__error_message));
 		MYLOG(0, "DESCRIPTOR ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->deschd.__error_number, nullcheck(self->deschd.__error_message));
 	}
 }

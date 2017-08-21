@@ -2659,8 +2659,8 @@ MYLOG(0, " and the data=%s\n", attdef);
 		 *
 		 *----------
 		 */
-		qlog("%s: table='%s',field_name='%s',type=%d,name='%s'\n",
-			 func, table_name, field_name, field_type, field_type_name);
+		MYLOG(0, "table='%s',field_name='%s',type=%d,name='%s'\n",
+			 table_name, field_name, field_type, field_type_name);
 
 		/* Subtract the header length */
 		switch (field_type)

@@ -105,7 +105,6 @@ PGAPI_FreeEnv(HENV henv)
 		goto cleanup;
 	}
 
-	MYLOG(0, "    error\n");
 	ret = SQL_ERROR;
 	EN_log_error(func, "Error freeing environment", NULL);
 cleanup:
@@ -642,7 +641,7 @@ void
 EN_log_error(const char *func, char *desc, EnvironmentClass *self)
 {
 	if (self)
-		qlog("ENVIRON ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, self->errormsg);
+		MYLOG(0, "ENVIRON ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->errornumber, self->errormsg);
 	else
-		qlog("INVALID ENVIRON HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+		MYLOG(0, "INVALID ENVIRON HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 }
