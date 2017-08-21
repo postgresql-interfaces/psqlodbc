@@ -2562,7 +2562,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			/* read in the return message from the backend */
 			cmdtag = PQcmdStatus(pgres);
 			MYLOG(0, "command response: %s\n", cmdtag);
-			qlog("\ok: %s\n", cmdtag);
+			qlog("ok: %s\n", cmdtag);
 			QR_set_command(res, cmdtag);
 			if (QR_command_successful(res))
 				QR_set_rstatus(res, PORES_COMMAND_OK);
@@ -2603,7 +2603,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			CC_on_abort(conn, CONN_DEAD);
 
 			MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(conn));
-			qlog("\error: - %s\n", CC_get_errormsg(conn));
+			qlog("error: - %s\n", CC_get_errormsg(conn));
 			break;
 	}
 
