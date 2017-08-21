@@ -5578,7 +5578,7 @@ MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " num=%s SQL_BIT=%d\n", to, from, num, SQL_BI
 					{
 						qb->errornumber = STMT_EXEC_ERROR;
 						qb->errormsg = "param not found";
-						qlog("%s %dth param not found for the expression %s\n", pidx + 1, mapExpr);
+						qlog("%dth param not found for the expression %s\n", pidx + 1, mapExpr);
 						retval = SQL_ERROR;
 						break;
 					}
