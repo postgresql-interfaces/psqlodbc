@@ -2347,31 +2347,31 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 		else
 		{
 			head = "STATEMENT ERROR";
-			qlog("%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n",head, func, desc, self->__error_number, NULLCHECK(self->__error_message));
+			QLOG(0, "%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n",head, func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		}
 		MYLOG(0, "%s: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", head, func, desc, self->__error_number, NULLCHECK(self->__error_message));
 		if (SC_get_errornumber(self) > 0)
 		{
-			qlog("                 ------------------------------------------------------------\n");
-			qlog("                 hdbc=%p, stmt=%p, result=%p\n", self->hdbc, self, res);
-			qlog("                 prepare=%d, external=%d\n", self->prepare, self->external);
-			qlog("                 bindings=%p, bindings_allocated=%d\n", opts->bindings, opts->allocated);
-			qlog("                 parameters=%p, parameters_allocated=%d\n", apdopts->parameters, apdopts->allocated);
-			qlog("                 statement_type=%d, statement='%s'\n", self->statement_type, NULLCHECK(self->statement));
-			qlog("                 stmt_with_params='%s'\n", NULLCHECK(self->stmt_with_params));
-			qlog("                 data_at_exec=%d, current_exec_param=%d, put_data=%d\n", self->data_at_exec, self->current_exec_param, self->put_data);
-			qlog("                 currTuple=" FORMAT_LEN ", current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
-			qlog("                 maxRows=" FORMAT_LEN ", rowset_size=" FORMAT_LEN ", keyset_size=" FORMAT_LEN ", cursor_type=%u, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
-			qlog("                 cursor_name='%s'\n", SC_cursor_name(self));
+			QLOG(0, "                 ------------------------------------------------------------\n");
+			QLOG(0, "                 hdbc=%p, stmt=%p, result=%p\n", self->hdbc, self, res);
+			QLOG(0, "                 prepare=%d, external=%d\n", self->prepare, self->external);
+			QLOG(0, "                 bindings=%p, bindings_allocated=%d\n", opts->bindings, opts->allocated);
+			QLOG(0, "                 parameters=%p, parameters_allocated=%d\n", apdopts->parameters, apdopts->allocated);
+			QLOG(0, "                 statement_type=%d, statement='%s'\n", self->statement_type, NULLCHECK(self->statement));
+			QLOG(0, "                 stmt_with_params='%s'\n", NULLCHECK(self->stmt_with_params));
+			QLOG(0, "                 data_at_exec=%d, current_exec_param=%d, put_data=%d\n", self->data_at_exec, self->current_exec_param, self->put_data);
+			QLOG(0, "                 currTuple=" FORMAT_LEN ", current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
+			QLOG(0, "                 maxRows=" FORMAT_LEN ", rowset_size=" FORMAT_LEN ", keyset_size=" FORMAT_LEN ", cursor_type=%u, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
+			QLOG(0, "                 cursor_name='%s'\n", SC_cursor_name(self));
 
-			qlog("                 ----------------QResult Info -------------------------------\n");
+			QLOG(0, "                 ----------------QResult Info -------------------------------\n");
 
 			if (res)
 			{
-				qlog("                 fields=%p, backend_tuples=%p, tupleField=%p, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
-				qlog("                 fetch_count=" FORMAT_LEN ", num_total_rows=" FORMAT_ULEN ", num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, NULLCHECK(QR_get_cursor(res)));
-				qlog("                 message='%s', command='%s', notice='%s'\n", NULLCHECK(QR_get_message(res)), NULLCHECK(res->command), NULLCHECK(res->notice));
-				qlog("                 status=%d\n", QR_get_rstatus(res));
+				QLOG(0, "                 fields=%p, backend_tuples=%p, tupleField=%p, conn=%p\n", QR_get_fields(res), res->backend_tuples, res->tupleField, res->conn);
+				QLOG(0, "                 fetch_count=" FORMAT_LEN ", num_total_rows=" FORMAT_ULEN ", num_fields=%d, cursor='%s'\n", res->fetch_number, QR_get_num_total_tuples(res), res->num_fields, NULLCHECK(QR_get_cursor(res)));
+				QLOG(0, "                 message='%s', command='%s', notice='%s'\n", NULLCHECK(QR_get_message(res)), NULLCHECK(res->command), NULLCHECK(res->notice));
+				QLOG(0, "                 status=%d\n", QR_get_rstatus(res));
 			}
 
 			/* Log the connection error if there is one */
@@ -2380,7 +2380,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 	}
 	else
 	{
-		qlog("INVALID STATEMENT HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
+		QLOG(0, "INVALID STATEMENT HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 		MYLOG(0, "INVALID STATEMENT HANDLE ERROR: func=%s, desc='%s'\n", func, desc);
 	}
 }
@@ -2503,7 +2503,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		pstmt = stmt->processed_statements;
 		MYLOG(0, "%s execParams query=%s nParams=%d\n", __FUNCTION__, pstmt->query, nParams);
-		qlog("PQexecParams query='%s' nParams=%d\n", pstmt->query, nParams);
+		QLOG(0, "PQexecParams query='%s' nParams=%d\n", pstmt->query, nParams);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 nParams,
@@ -2528,7 +2528,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 
 		/* already prepared */
 		MYLOG(0, "%s execPrepared plan=%s nParams=%d\n", __FUNCTION__, plan_name, nParams);
-		qlog("PQexecPrepared plan=%s nParams=%d\n", plan_name, nParams);
+		QLOG(0, "PQexecPrepared plan=%s nParams=%d\n", plan_name, nParams);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
 							   nParams,
@@ -2562,7 +2562,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			/* read in the return message from the backend */
 			cmdtag = PQcmdStatus(pgres);
 			MYLOG(0, "command response: %s\n", cmdtag);
-			qlog("ok: %s\n", cmdtag);
+			QLOG(0, "ok: %s\n", cmdtag);
 			QR_set_command(res, cmdtag);
 			if (QR_command_successful(res))
 				QR_set_rstatus(res, PORES_COMMAND_OK);
@@ -2603,7 +2603,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			CC_on_abort(conn, CONN_DEAD);
 
 			MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(conn));
-			qlog("error: - %s\n", CC_get_errormsg(conn));
+			QLOG(0, "error: - %s\n", CC_get_errormsg(conn));
 			break;
 	}
 
@@ -2652,7 +2652,7 @@ ParseWithLibpq(StatementClass *stmt, const char *plan_name,
 	PGresult   *pgres = NULL;
 
 	MYLOG(0, "%s: plan_name=%s query=%s\n", func, plan_name, query);
-	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query);
+	QLOG(0, "%s: plan_name=%s query=%s\n", func, plan_name, query);
 	if (!RequestStart(stmt, conn, func))
 		return FALSE;
 
@@ -2734,7 +2734,7 @@ MYLOG(0, "sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		conn->unnamed_prepared_stmt = NULL;
 
 	/* Prepare */
-	qlog("PQprepare query='%s' plan=%s num_params=%d\n", query, plan_name, num_params);
+	QLOG(0, "PQprepare query='%s' plan=%s num_params=%d\n", query, plan_name, num_params);
 	pgres = PQprepare(conn->pqconn, plan_name, query, num_params, paramTypes);
 	if (PQresultStatus(pgres) != PGRES_COMMAND_OK)
 	{
@@ -2791,7 +2791,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	SQLSMALLINT paramType;
 
 	MYLOG(0, "%s: plan_name=%s query=%s\n", func, plan_name, query_param);
-	qlog("%s: plan_name=%s query=%s\n", func, plan_name, query_param);
+	QLOG(0, "%s: plan_name=%s query=%s\n", func, plan_name, query_param);
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
@@ -2813,7 +2813,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 
 	/* Describe */
 	MYLOG(0, "%s: describing plan_name=%s\n", func, plan_name);
-	qlog("\tPQdescribePrepared: plan_name=%s\n", plan_name);
+	QLOG(0, "\tPQdescribePrepared: plan_name=%s\n", plan_name);
 
 	pgres = PQdescribePrepared(conn->pqconn, plan_name);
 	switch (PQresultStatus(pgres))

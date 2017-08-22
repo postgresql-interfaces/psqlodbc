@@ -319,7 +319,7 @@ myprintf(const char *fmt,...)
 	va_list	args;
 
 	va_start(args, fmt);
-	ret = mylog_misc(FALSE, fmt, args); 
+	ret = mylog_misc(0, fmt, args);
 	va_end(args);
 	return	ret;
 }
@@ -341,10 +341,10 @@ static void mylog_finalize(void)
 
 
 static FILE *QLOGFP = NULL;
-int
-qlog(char *fmt,...)
+
+static int
+qlog_misc(unsigned int option, const char *fmt, va_list args)
 {
-	va_list		args;
 	char		filebuf[80];
 	int		gerrno;
 
@@ -356,7 +356,6 @@ qlog(char *fmt,...)
 	if (!start_time)
 		start_time = timeGetTime();
 #endif /* LOGGING_PROCESS_TIME */
-	va_start(args, fmt);
 
 	if (!QLOGFP)
 	{
@@ -375,19 +374,47 @@ qlog(char *fmt,...)
 
 	if (QLOGFP)
 	{
+		if (option)
+		{
 #ifdef	LOGGING_PROCESS_TIME
 		DWORD	proc_time = timeGetTime() - start_time;
 		fprintf(QLOGFP, "[%d.%03d]", proc_time / 1000, proc_time % 1000);
 #endif /* LOGGING_PROCESS_TIME */
+		}
 		vfprintf(QLOGFP, fmt, args);
 	}
 
-	va_end(args);
 	LEAVE_QLOG_CS;
 	GENERAL_ERRNO_SET(gerrno);
 
 	return 1;
 }
+int
+qlog(char *fmt,...)
+{
+	int	ret = 0;
+	unsigned int option = 1;
+	va_list	args;
+
+	if (!qlog_on)	return ret;
+
+	va_start(args, fmt);
+	ret = qlog_misc(option, fmt, args);
+	va_end(args);
+	return	ret;
+}
+int
+qprintf(char *fmt,...)
+{
+	int	ret = 0;
+	va_list	args;
+
+	va_start(args, fmt);
+	ret = qlog_misc(0, fmt, args);
+	va_end(args);
+	return	ret;
+}
+
 static void qlog_initialize(void)
 {
 	INIT_QLOG_CS;

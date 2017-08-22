@@ -157,7 +157,7 @@ PGAPI_Connect(HDBC hdbc,
 		free(tmpstr);
 	}
 
-	qlog("conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
+	QLOG(0, "conn = %p, %s(DSN='%s', UID='%s', PWD='%s')\n", conn, func, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 
 	if ((fchar = CC_connect(conn, NULL)) <= 0)
 	{
@@ -208,7 +208,7 @@ PGAPI_Disconnect(HDBC hdbc)
 		return SQL_INVALID_HANDLE;
 	}
 
-	qlog("conn=%p, %s\n", conn, func);
+	QLOG(0, "conn=%p, %s\n", conn, func);
 
 	if (conn->status == CONN_EXECUTING)
 	{
@@ -962,7 +962,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		, _MSC_VER
 #endif /* _MSC_VER */
 		);
-	qlog(vermsg);
+	QLOG(0, vermsg);
 	MYLOG(0, "%s", vermsg);
 	MYLOG(1, "Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
@@ -1578,7 +1578,7 @@ CC_from_PGresult(QResultClass *res, StatementClass *stmt,
 
 	if (!QR_from_PGresult(res, stmt, conn, cursor, pgres))
 	{
-		qlog("getting result from PGresult failed\n");
+		QLOG(0, "getting result from PGresult failed\n");
 		success = FALSE;
 		if (0 >= CC_get_errornumber(conn))
 		{
@@ -1834,11 +1834,11 @@ MYLOG(1, "!!!! %s:query_buf=%s(" FORMAT_SIZE_T ")\n", __FUNCTION__, query_buf.da
 	nrarg.res = NULL;
 	PQsetNoticeReceiver(self->pqconn, receive_libpq_notice, &nrarg);
 
-	qlog("PQsendQuery query=%s\n", query_buf.data);
+	QLOG(0, "PQsendQuery query=%s\n", query_buf.data);
 	if (!PQsendQuery(self->pqconn, query_buf.data))
 	{
 		char *errmsg = PQerrorMessage(self->pqconn);
-		qlog("\nComunication Error: %s\n", errmsg ? errmsg : "(null)");
+		QLOG(0, "\nComunication Error: %s\n", errmsg ? errmsg : "(null)");
 		CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, func);
 		goto cleanup;
 	}
