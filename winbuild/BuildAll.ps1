@@ -126,7 +126,7 @@ try {
 #
 #	build 64bit dlls
 #
-	if ($Platform -ieq "x64" -or $Platform -ieq "both") {
+	if ($recordResult -and ($Platform -ieq "x64" -or $Platform -ieq "both")) {
 		buildPlatform $configInfo "x64"
 		if ($LastExitCode -ne 0) {
 			$recordResult = $false

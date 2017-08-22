@@ -1,5 +1,7 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
+	<StopOnFirstFailure>true</StopOnFirstFailure>
+	<BuildInPararell>false</BuildInPararell>
 	<Configuration>Release</Configuration>
 	<srcPath>..\</srcPath>
     </PropertyGroup>
