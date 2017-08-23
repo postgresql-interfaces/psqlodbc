@@ -603,6 +603,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(*pgres);
 	MYLOG(0, "num_fields = %d\n", new_num_fields);
+	QLOG(0, "\tnum_fields: %d\n", new_num_fields);
 
 	/* according to that allocate memory */
 	QR_set_num_fields(self, new_num_fields);
@@ -634,6 +635,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 			new_atttypmod = -1;
 
 		MYLOG(0, "%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+		QLOG(1, "\tfieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
 		CI_set_field_info(QR_get_fields(self), lf, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
@@ -1327,6 +1329,7 @@ QR_read_tuples_from_pgres(QResultClass *self, PGresult **pgres)
 	int			rowno;
 	int			nrows;
 	int			resStatus;
+	int		numTotalRows = 0;
 
 	/* set the current row to read the fields into */
 	effective_cols = QR_NumPublicResultCols(self);
@@ -1338,6 +1341,8 @@ nextrow:
 	switch (resStatus)
 	{
 		case PGRES_TUPLES_OK:
+			QLOG(0, "\tok: - 'T' - %s\n", PQcmdStatus(*pgres));
+			break;
 		case PGRES_SINGLE_TUPLE:
 			break;
 
@@ -1351,6 +1356,7 @@ nextrow:
 	}
 
 	nrows = PQntuples(*pgres);
+	numTotalRows += nrows;
 
 	for (rowno = 0; rowno < nrows; rowno++)
 	{

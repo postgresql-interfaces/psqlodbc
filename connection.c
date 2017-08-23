@@ -45,6 +45,8 @@
 
 #include "pgapifunc.h"
 
+#define	SAFE_STR(s)	(NULL != (s) ? (s) : "(null)")
+
 #define STMT_INCREMENT 16		/* how many statement holders to allocate
 								 * at a time */
 
@@ -207,8 +209,6 @@ PGAPI_Disconnect(HDBC hdbc)
 		CC_log_error(func, "", NULL);
 		return SQL_INVALID_HANDLE;
 	}
-
-	QLOG(0, "conn=%p, %s\n", conn, func);
 
 	if (conn->status == CONN_EXECUTING)
 	{
@@ -662,6 +662,7 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 	/* even if we are in auto commit. */
 	if (self->pqconn)
 	{
+		QLOG(0, "PQfinish: %p\n", self->pqconn);
 		PQfinish(self->pqconn);
 		self->pqconn = NULL;
 	}
@@ -805,12 +806,14 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	char	   *errprimary = NULL;
 	char	   *errmsg = NULL;
 	size_t		errmsglen;
+	char	*sqlstate = NULL;
+	int	level = 0;
 
 	MYLOG(1, "handle_pgres_error\n");
 
+	sqlstate = PQresultErrorField(pgres, PG_DIAG_SQLSTATE);
 	if (res && pgres)
 	{
-		char *sqlstate = PQresultErrorField(pgres, PG_DIAG_SQLSTATE);
 		if (sqlstate)
 			STRCPY_FIXED(res->sqlstate, sqlstate);
 	}
@@ -821,6 +824,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		const char *errmsg = "The connection has been lost";
 
 		MYLOG(0, "%s setting error message=%s\n", __FUNCTION__, errmsg);
+		QLOG(0, "\t%ssetting error message=%s\n", __FUNCTION__, errmsg);
 		if (CC_get_errornumber(self) <= 0)
 			CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, comment);
 		if (res)
@@ -840,9 +844,26 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	if (PG_VERSION_GE(self, 9.6))
 	{
 		errseverity_nonloc = PQresultErrorField(pgres, PG_DIAG_SEVERITY_NONLOCALIZED);
-		MYLOG(0, "PG_DIAG_SEVERITY_NONLOCALIZED=%s\n", errseverity_nonloc ? errseverity_nonloc : "(null)");
+		MYLOG(0, "PG_DIAG_SEVERITY_NONLOCALIZED=%s\n", SAFE_STR(errseverity_nonloc));
+	}
+	if (!error_not_a_notice)
+	{
+		if (errseverity_nonloc)
+		{
+			if (stricmp(errseverity_nonloc, "NOTICE") != 0)
+				level = 1;
+		}
+		else if (errseverity)
+		{
+			if (stricmp(errseverity, "NOTICE") != 0)
+				level = 1;
+		}
 	}
 	errprimary = PQresultErrorField(pgres, PG_DIAG_MESSAGE_PRIMARY);
+	if (errseverity_nonloc)
+		QLOG(level, "\t%s(%s) %s '%s'\n", errseverity_nonloc, SAFE_STR(errseverity), SAFE_STR(sqlstate), SAFE_STR(errprimary));
+	else
+		QLOG(level, "\t(%s) %s '%s'\n", SAFE_STR(errseverity), SAFE_STR(sqlstate), SAFE_STR(errprimary));
 	if (errprimary == NULL)
 	{
 		/* Hmm. got no primary message. Check if there's a connection error */
@@ -874,8 +895,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		goto cleanup;
 	}
 
-	if (get_mylog() > 0)
-		MYLOG(0, "error message=%s(" FORMAT_SIZE_T ")\n", errmsg, strlen(errmsg));
+	MYLOG(0, "error message=%s(" FORMAT_SIZE_T ")\n", errmsg, strlen(errmsg));
 
 	if (res)
 	{
@@ -1523,6 +1543,7 @@ MYLOG(0, "CC_on_abort in opt=%x\n", opt);
 		if (conn->pqconn)
 		{
 			CONNLOCK_RELEASE(conn);
+			QLOG(0, "PQfinish: %p\n", conn->pqconn);
 			PQfinish(conn->pqconn);
 			CONNLOCK_ACQUIRE(conn);
 			conn->pqconn = NULL;
@@ -1578,7 +1599,7 @@ CC_from_PGresult(QResultClass *res, StatementClass *stmt,
 
 	if (!QR_from_PGresult(res, stmt, conn, cursor, pgres))
 	{
-		QLOG(0, "getting result from PGresult failed\n");
+		QLOG(0, "\tGetting result from PGresult failed\n");
 		success = FALSE;
 		if (0 >= CC_get_errornumber(conn))
 		{
@@ -1613,10 +1634,12 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 		case PER_STATEMENT_ROLLBACK:
 			GenerateSvpCommand(self, INTERNAL_ROLLBACK_OPERATION, cmd, sizeof(cmd));
 			MYLOG(0, " %s:rollback_type=%d %s\n", __FUNCTION__, rollback_type, cmd);
+			QLOG(0, "PQexec: %p '%s'\n", self->pqconn, cmd);
 			pgres = PQexec(self->pqconn, cmd);
 			switch (PQresultStatus(pgres))
 			{
 				case PGRES_COMMAND_OK:
+					QLOG(0, "\tok: - 'C' - %s\n", PQcmdStatus(pgres));
 				case PGRES_NONFATAL_ERROR:
 					ret = 1;
 					if (ignore_abort)
@@ -1624,6 +1647,7 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 					LIBPQ_update_transaction_status(self);
 					break;
 				default:
+					handle_pgres_error(self, pgres, __FUNCTION__, NULL, TRUE);
 					break;
 			}
 			break;
@@ -1631,26 +1655,30 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 			SPRINTF_FIXED(cmd, "%s TO %s;%s %s"
 				, rbkcmd, per_query_svp , rlscmd, per_query_svp);
 			MYLOG(0, " %s:query_rollback PQsendQuery %s\n", __FUNCTION__, cmd);
+			QLOG(0, "PQsendQuery: %p '%s'\n", self->pqconn, cmd);
 			PQsendQuery(self->pqconn, cmd);
-			ret = 1;
+			ret = 0;
 			while (self->pqconn && (pgres = PQgetResult(self->pqconn)) != NULL)
 			{
 				switch (PQresultStatus(pgres))
 				{
 					case PGRES_COMMAND_OK:
-					case PGRES_NONFATAL_ERROR:
+						QLOG(0, "\tok: - 'C' - %s\n", PQcmdTuples(pgres));
+						ret = 1;
 						break;
+					case PGRES_NONFATAL_ERROR:
+						ret = 1;
 					default:
-						ret = 0;
+						handle_pgres_error(self, pgres, __FUNCTION__, NULL, !ret);
 				}
 			}
-			if (ret)
+			if (!ret)
 			{
 				if (ignore_abort)
 					CC_set_no_error_trans(self);
+				else
+					MYLOG(0, " %s:return error\n", __FUNCTION__);
 			}
-			else
-				MYLOG(0, " %s:return error\n", __FUNCTION__);
 			LIBPQ_update_transaction_status(self);
 			break;
 	}
@@ -1834,11 +1862,11 @@ MYLOG(1, "!!!! %s:query_buf=%s(" FORMAT_SIZE_T ")\n", __FUNCTION__, query_buf.da
 	nrarg.res = NULL;
 	PQsetNoticeReceiver(self->pqconn, receive_libpq_notice, &nrarg);
 
-	QLOG(0, "PQsendQuery query=%s\n", query_buf.data);
+	QLOG(0, "PQsendQuery: %p '%s'\n", self->pqconn, query_buf.data);
 	if (!PQsendQuery(self->pqconn, query_buf.data))
 	{
 		char *errmsg = PQerrorMessage(self->pqconn);
-		QLOG(0, "\nComunication Error: %s\n", errmsg ? errmsg : "(null)");
+		QLOG(0, "\nCommunication Error: %s\n", SAFE_STR(errmsg));
 		CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, func);
 		goto cleanup;
 	}
@@ -1875,7 +1903,7 @@ MYLOG(1, "!!!! %s:query_buf=%s(" FORMAT_SIZE_T ")\n", __FUNCTION__, query_buf.da
 				/* read in the return message from the backend */
 				cmdbuffer = PQcmdStatus(pgres);
 				MYLOG(0, "send_query: ok - 'C' - %s\n", cmdbuffer);
-
+				QLOG(0, "\tok: - 'C' - %s\n", cmdbuffer);
 
 				if (query_completed)	/* allow for "show" style notices */
 				{
@@ -1996,6 +2024,7 @@ MYLOG(1, "Discarded a RELEASE result\n");
 				query_completed = TRUE;
 				break;
 			case PGRES_TUPLES_OK:
+				QLOG(0, "\tok: - 'T' - %s\n", PQcmdStatus(pgres));
 			case PGRES_SINGLE_TUPLE:
 				if (query_completed)
 				{
@@ -2088,6 +2117,7 @@ MYLOG(1, "Discarded a RELEASE result\n");
 			default:
 				/* skip the unexpected response if possible */
 				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected result status (send_query)", func);
+				handle_pgres_error(self, pgres, "send_query", res, TRUE);
 				CC_on_abort(self, CONN_DEAD);
 
 				MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(self));
@@ -2307,13 +2337,16 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 		}
 	}
 
+	QLOG(0, "PQexecParams: %p '%s' nargs=%d\n", self->pqconn, sqlbuffer, nargs);
 	pgres = PQexecParams(self->pqconn, sqlbuffer, nargs,
 						 paramTypes, (const char * const *) paramValues,
 						 paramLengths, paramFormats, 1);
 
 	MYLOG(0, "send_function: done sending function\n");
 
-	if (PQresultStatus(pgres) != PGRES_TUPLES_OK)
+	if (PQresultStatus(pgres) == PGRES_TUPLES_OK)
+		QLOG(0, "\tok: - 'T' - %s\n", PQcmdStatus(pgres));
+	else
 	{
 		handle_pgres_error(self, pgres, "send_query", NULL, TRUE);
 		goto cleanup;
@@ -2327,6 +2360,7 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 
 	*actual_result_len = PQgetlength(pgres, 0, 0);
 
+	QLOG(0, "\tgot result with length: %d\n", *actual_result_len);
 	MYLOG(0, "send_function(): got result with length %d\n", *actual_result_len);
 
 	if (*actual_result_len > 0)
@@ -2733,6 +2767,15 @@ LIBPQ_connect(ConnectionClass *self)
 	opts[cnt] = vals[cnt] = NULL;
 	/* Ok, we're all set to connect */
 
+	if (get_qlog() > 0)
+	{
+		const char **popt, **pval;
+
+		QLOG(0, "PQconnectdbParams:");
+		for (popt = opts, pval = vals; *popt; popt++, pval++)
+			QPRINTF(0, " %s='%s'", *popt, *pval);
+		QPRINTF(0, "\n"); 
+	}
 	pqconn = PQconnectdbParams(opts, vals, FALSE);
 	if (!pqconn)
 	{
@@ -2749,6 +2792,7 @@ LIBPQ_connect(ConnectionClass *self)
 		MYLOG(0, "password retry\n");
 		errmsg = PQerrorMessage(pqconn);
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
+		QLOG(0, "PQfinish: %p\n", pqconn);
 		PQfinish(pqconn);
 		self->pqconn = NULL;
 		self->connInfo.password_required = TRUE;
@@ -2797,7 +2841,10 @@ cleanup:
 	if (ret != 1)
 	{
 		if (self->pqconn)
+		{
+			QLOG(0, "PQfinish: %p\n", self->pqconn);
 			PQfinish(self->pqconn);
+		}
 		self->pqconn = NULL;
 	}
 
