@@ -30,39 +30,11 @@
 #include <libgen.h>
 #endif
 
-#ifdef	WIN32
-static	char	exename[_MAX_FNAME];
-#elif	defined MAXNAMELEN
-static	char	exename[MAXNAMELEN];
-#else
-static	char	exename[256];
-#endif
-
 static int	exepgm = 0;
 BOOL isMsAccess(void) {return 1 == exepgm;}
 BOOL isMsQuery(void) {return 2 == exepgm;}
 BOOL isSqlServr(void) {return 3 == exepgm;}
 
-const char *GetExeProgramName()
-{
-	int	init = 1;
-
-	if (init)
-	{
-		char	*p;
-
-		for (p = exename; '\0' != *p; p++)
-		{
-			if ((UCHAR) *p >= 0x80)
-			{
-				*p = '\0';	/* avoid multi bytes for safety */
-				break;
-			}
-		}
-		init = 0;
-	}
-	return exename;
-}
 
 RETCODE SQL_API SQLDummyOrdinal(void);
 
@@ -140,25 +112,20 @@ HINSTANCE s_hModule;		/* Saved module handle. */
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 {
+	const char *exename = GetExeProgramName();
+
 	switch (ul_reason_for_call)
 	{
 		case DLL_PROCESS_ATTACH:
 			s_hModule = hInst;	/* Save for dialog boxes */
 
-			{
-				char	pathname[_MAX_PATH];
 
-				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
-				{
-					_splitpath(pathname, NULL, NULL, exename, NULL);
-					if (stricmp(exename, "msaccess") == 0)
-						exepgm = 1;
-					else if (strnicmp(exename, "msqry", 5) == 0)
-						exepgm = 2;
-					else if (strnicmp(exename, "sqlservr", 8) == 0)
-						exepgm = 3;
-				}
-			}
+			if (stricmp(exename, "msaccess") == 0)
+				exepgm = 1;
+			else if (strnicmp(exename, "msqry", 5) == 0)
+				exepgm = 2;
+			else if (strnicmp(exename, "sqlservr", 8) == 0)
+				exepgm = 3;
 			initialize_global_cs();
 			MYLOG(0, "exe name=%s\n", exename);
 			break;
@@ -187,23 +154,6 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 #else							/* not WIN32 */
 
-CSTR flist[] = {"/proc/self/exe", "/proc/curproc/file", "/proc/curproc/exe" };
-static void getExeName()
-{
-	int	i;
-	char	path_name[256];
-
-	for (i = 0; i < sizeof(flist) / sizeof(flist[0]); i++)
-	{
-		if (readlink(flist[i], path_name, sizeof(path_name)) > 0)
-		{
-			/* fprintf(stderr, "i=%d pathname=%s\n", i, path_name); */
-			STRCPY_FIXED(exename, basename(path_name));
-			break;
-		}
-	}
-}
-
 #ifdef __GNUC__
 
 /* Shared library initializer and destructor, using gcc's attributes */
@@ -212,7 +162,6 @@ static void
 __attribute__((constructor))
 psqlodbc_init(void)
 {
-	getExeName();
 	initialize_global_cs();
 }
 

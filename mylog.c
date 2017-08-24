@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 
 #ifndef WIN32
@@ -103,6 +104,59 @@ generate_homefile(const char *prefix, char *filename, size_t filenamelen)
 	generate_filename(dir, prefix, filename, filenamelen);
 
 	return;
+}
+
+#ifdef  WIN32
+static  char    exename[_MAX_FNAME];
+#elif   defined MAXNAMELEN
+static  char    exename[MAXNAMELEN];
+#else
+static  char    exename[256];
+#endif
+
+const char *GetExeProgramName()
+{
+	static  int init = 1;
+
+	if (init)
+	{
+		UCHAR    *p;
+#ifdef  WIN32
+		char    pathname[_MAX_PATH];
+
+		if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
+		_splitpath(pathname, NULL, NULL, exename, NULL);
+#else
+		CSTR flist[] = {"/proc/self/exe", "/proc/curproc/file", "/proc/curproc/exe" };
+		int     i;
+		char    path_name[256];
+
+		for (i = 0; i < sizeof(flist) / sizeof(flist[0]); i++)
+		{
+			if (readlink(flist[i], path_name, sizeof(path_name)) > 0)
+			{
+				/* fprintf(stderr, "i=%d pathname=%s\n", i, path_name); */
+				STRCPY_FIXED(exename, po_basename(path_name));
+				break;
+			}
+		}
+#endif /* WIN32 */
+		for (p = (UCHAR *) exename; '\0' != *p; p++)
+		{
+			if (isalnum(*p))
+				continue;
+			switch (*p)
+			{
+				case '_':
+				case '-':
+					continue;
+			}
+			*p = '\0';      /* avoid multi bytes for safety */
+			break;
+		}
+		init = 0;
+	}
+	return exename;
 }
 
 #if defined(WIN_MULTITHREAD_SUPPORT)

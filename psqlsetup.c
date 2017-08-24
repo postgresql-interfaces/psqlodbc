@@ -60,11 +60,6 @@ CSTR	psqlodbc = "psqlodbc35w";
 CSTR	psqlodbc = "psqlodbc30a";
 #endif
 
-static	char exename[_MAX_PATH];
-const char *GetExeProgramName()
-{
-	return exename;
-}
 
 BOOL		WINAPI
 DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
@@ -75,12 +70,6 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 	{
 		case DLL_PROCESS_ATTACH:
 			s_hModule = hInst;	/* Save for dialog boxes */
-			{
-				char	pathname[_MAX_PATH];
-
-				if (GetModuleFileName(NULL, pathname, sizeof(pathname)) > 0)
-					_splitpath(pathname, NULL, NULL, exename, NULL);
-			}
 			initialize_global_cs();
 #ifdef	PG_BIN
 			if (s_hLModule = LoadLibraryEx(PG_BIN "\\libpq.dll", NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule == NULL)
