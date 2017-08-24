@@ -612,7 +612,6 @@ typedef struct
 	signed char	accessible_only;
 	signed char	ignore_round_trip_time;
 	signed char	disable_keepalive;
-	signed char	gssauth_use_gssapi;
 	signed char	wcs_debug;
 	UInt4		extra_opts;
 	Int4		keepalive_idle;

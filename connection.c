@@ -2712,10 +2712,6 @@ LIBPQ_connect(ConnectionClass *self)
 	{
 		opts[cnt] = "password";	vals[cnt++] = SAFE_NAME(ci->password);
 	}
-	if (ci->gssauth_use_gssapi)
-	{
-		opts[cnt] = "gsslib";	vals[cnt++] = "gssapi";
-	}
 	if (ci->disable_keepalive)
 	{
 		opts[cnt] = "keepalives";	vals[cnt++] = "0";

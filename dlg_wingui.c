@@ -495,7 +495,6 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
 	ci->bytea_as_longvarbinary = IsDlgButtonChecked(hdlg, DS_BYTEAASLONGVARBINARY);
 	/*ci->lower_case_identifier = IsDlgButtonChecked(hdlg, DS_LOWERCASEIDENTIFIER);*/
-	ci->gssauth_use_gssapi = IsDlgButtonChecked(hdlg, DS_GSSAUTHUSEGSSAPI);
 
 	/* OID Options */
 	ITOA_FIXED(ci->fake_oid_index, IsDlgButtonChecked(hdlg, DS_FAKEOIDINDEX));
@@ -626,7 +625,6 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_SERVERSIDEPREPARE, ci->use_server_side_prepare);
 			CheckDlgButton(hdlg, DS_BYTEAASLONGVARBINARY, ci->bytea_as_longvarbinary);
 			/*CheckDlgButton(hdlg, DS_LOWERCASEIDENTIFIER, ci->lower_case_identifier);*/
-			CheckDlgButton(hdlg, DS_GSSAUTHUSEGSSAPI, ci->gssauth_use_gssapi);
 
 			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), atoi(ci->show_oid_column));
 

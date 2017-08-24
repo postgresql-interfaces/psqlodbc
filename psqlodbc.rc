@@ -199,8 +199,6 @@ BEGIN
     PUSHBUTTON      "“K—p",IDAPPLY,128,ENDLINE_Y,50,14
     CONTROL         "bytea‚ðLO‚Æ‚µ‚Äˆµ‚¤",DS_BYTEAASLONGVARBINARY,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,85,87,10
-    /* CONTROL         "Kerberos‰ž“š‚ÉGSSAPI—˜—p",DS_GSSAUTHUSEGSSAPI,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,139,85,110,10 */
 END
 
 #define	DTC_GRP_X	10
@@ -604,8 +602,6 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,163,71,90,10
     CONTROL         "bytea as LO",DS_BYTEAASLONGVARBINARY,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,16,84,87,10
-    CONTROL         "use gssapi for GSS request",DS_GSSAUTHUSEGSSAPI,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,163,84,110,10
     GROUPBOX        "Int8 As",IDC_STATIC,5,97,256,25
     CONTROL         "default",DS_INT8_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP,12,107,40,10
