@@ -1061,6 +1061,7 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	ConnInfo *ci = &(self->connInfo);
 	CSTR	func = "CC_connect";
 	char		ret, *saverr = NULL, retsend;
+	const char	*errmsg = NULL;
 
 	MYLOG(0, "%s: entering...\n", func);
 
@@ -1086,8 +1087,9 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	/* Per Datasource settings */
 	retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
 
-	if (CC_get_errornumber(self) > 0)
-		saverr = strdup(CC_get_errormsg(self));
+	if (CC_get_errornumber(self) > 0 &&
+	    NULL != (errmsg = CC_get_errormsg(self)))
+		saverr = strdup(errmsg);
 	CC_clear_error(self);			/* clear any error */
 	CC_lookup_lo(self);			/* a hack to get the oid of
 						   our large object oid type */
