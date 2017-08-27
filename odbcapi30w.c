@@ -30,11 +30,10 @@ SQLGetStmtAttrW(SQLHSTMT hstmt,
 				SQLINTEGER	cbValueMax,
 				SQLINTEGER	*pcbValue)
 {
-	CSTR func = "SQLGetStmtAttrW";
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error((StatementClass *) hstmt);
 	StartRollbackState(stmt);
@@ -51,11 +50,10 @@ SQLSetStmtAttrW(SQLHSTMT hstmt,
 				PTR		rgbValue,
 				SQLINTEGER	cbValueMax)
 {
-	CSTR func = "SQLSetStmtAttrW";
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -73,10 +71,9 @@ SQLGetConnectAttrW(HDBC hdbc,
 				   SQLINTEGER	cbValueMax,
 				   SQLINTEGER	*pcbValue)
 {
-	CSTR func = "SQLGetConnectAttrW";
 	RETCODE	ret;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	CC_examine_global_transaction((ConnectionClass *) hdbc);
 	ENTER_CONN_CS((ConnectionClass *) hdbc);
 	CC_clear_error((ConnectionClass *) hdbc);
@@ -92,11 +89,10 @@ SQLSetConnectAttrW(HDBC hdbc,
 				   PTR		rgbValue,
 				   SQLINTEGER	cbValue)
 {
-	CSTR func = "SQLSetConnectAttrW";
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -113,13 +109,12 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 				 SQLSMALLINT FieldIdentifier, PTR Value,
 				 SQLINTEGER BufferLength)
 {
-	CSTR func = "SQLSetDescFieldW";
 	RETCODE	ret;
 	SQLLEN	vallen;
         char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (BufferLength > 0 || SQL_NTS == BufferLength)
 	{
 		switch (FieldIdentifier)
@@ -157,12 +152,11 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 				 PTR rgbValue, SQLINTEGER cbValueMax,
 				 SQLINTEGER *pcbValue)
 {
-	CSTR func = "SQLGetDescFieldW";
 	RETCODE	ret;
 	SQLINTEGER		blen = 0, bMax,	*pcbV;
         char    *rgbV = NULL, *rgbVt;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	switch (iField)
 	{
 		case SQL_DESC_BASE_COLUMN_NAME:
@@ -226,12 +220,11 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 			   SQLSMALLINT	cbErrorMsgMax,
 			   SQLSMALLINT	*pcbErrorMsg)
 {
-	CSTR func = "SQLGetDiagRecW";
 	RETCODE	ret;
         SQLSMALLINT	buflen, tlen;
         char    qstr_ansi[8], *mtxt = NULL;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	buflen = 0;
         if (szErrorMsg && cbErrorMsgMax > 0)
 	{
@@ -289,7 +282,7 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
         char    *rgbD = NULL, *rgbDt;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -363,12 +356,11 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 				 SQLSMALLINT	cbDiagInfoMax,
 				 SQLSMALLINT   *pcbDiagInfo)
 {
-	CSTR		func = "SQLGetDiagFieldW";
 	RETCODE		ret;
 	SQLSMALLINT	*rgbL, blen = 0, bMax;
 	char	   *rgbD = NULL, *rgbDt;
 
-	MYLOG(0, "[[%s]] Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", func, fHandleType,
+	MYLOG(0, "Entering Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", fHandleType,
 			handle, iRecord, fDiagField, rgbDiagInfo, cbDiagInfoMax);
 	switch (fDiagField)
 	{
@@ -434,7 +426,7 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
-	MYLOG(0, "[[%s]]\n", __FUNCTION__);
+	MYLOG(0, "Entering\n");
 	MYLOG(0, "Error not implemented\n");
 	return SQL_ERROR;
 }
@@ -448,9 +440,7 @@ SQLSetDescRecW(SQLHDESC DescriptorHandle,
 			  PTR Data, SQLLEN *StringLength,
 			  SQLLEN *Indicator)
 {
-	CSTR func = "SQLSetDescRecW";
-
-	MYLOG(0, "[[%s]]\n", func);
+	MYLOG(0, "Entering\n");
 	MYLOG(0, "Error not implemented\n");
 	return SQL_ERROR;
 }

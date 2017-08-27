@@ -43,7 +43,7 @@ SQLColumnsW(HSTMT StatementHandle,
 	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
 	ConnInfo	*ci;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -92,13 +92,12 @@ SQLConnectW(HDBC ConnectionHandle,
 			SQLWCHAR *UserName, SQLSMALLINT NameLength2,
 			SQLWCHAR *Authentication, SQLSMALLINT NameLength3)
 {
-	CSTR func = "SQLConnectW";
 	char	*svName, *usName, *auth;
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -138,7 +137,7 @@ SQLDriverConnectW(HDBC hdbc,
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -209,7 +208,7 @@ SQLBrowseConnectW(HDBC			hdbc,
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -245,8 +244,7 @@ SQLDataSourcesW(HENV EnvironmentHandle,
 				SQLWCHAR *Description, SQLSMALLINT BufferLength2,
 				SQLSMALLINT *NameLength2)
 {
-	CSTR func = "SQLDataSourcesW";
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	/*
 	return PGAPI_DataSources(EnvironmentHandle, Direction, ServerName,
 		BufferLength1, NameLength1, Description, BufferLength2,
@@ -268,7 +266,7 @@ SQLDescribeColW(HSTMT StatementHandle,
 	SQLSMALLINT	buflen, nmlen;
 	char	*clName = NULL, *clNamet = NULL;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -330,7 +328,7 @@ SQLExecDirectW(HSTMT StatementHandle,
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 	UWORD	flag = 0;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -362,7 +360,7 @@ SQLGetCursorNameW(HSTMT StatementHandle,
 	char	*crName = NULL, *crNamet;
 	SQLSMALLINT	clen, buflen;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (BufferLength > 0)
 		buflen = BufferLength * 3;
 	else
@@ -409,7 +407,6 @@ SQLGetInfoW(HDBC ConnectionHandle,
 			SQLUSMALLINT InfoType, PTR InfoValue,
 			SQLSMALLINT BufferLength, SQLSMALLINT *StringLength)
 {
-	CSTR func = "SQLGetInfoW";
 	ConnectionClass	*conn = (ConnectionClass *) ConnectionHandle;
 	RETCODE	ret;
 
@@ -417,7 +414,7 @@ SQLGetInfoW(HDBC ConnectionHandle,
 	ENTER_CONN_CS(conn);
 	CC_set_in_unicode_driver(conn);
 	CC_clear_error(conn);
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if ((ret = PGAPI_GetInfo(ConnectionHandle, InfoType, InfoValue,
 							 BufferLength, StringLength)) == SQL_ERROR)
 		CC_log_error("SQLGetInfoW", "", conn);
@@ -435,7 +432,7 @@ SQLPrepareW(HSTMT StatementHandle,
 	char	*stxt;
 	SQLLEN	slen;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -458,13 +455,12 @@ RETCODE  SQL_API
 SQLSetCursorNameW(HSTMT StatementHandle,
 				  SQLWCHAR *CursorName, SQLSMALLINT NameLength)
 {
-	CSTR func = "SQLSetCursorNameW";
 	RETCODE	ret;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	char	*crName;
 	SQLLEN	nlen;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	crName = ucs2_to_utf8(CursorName, NameLength, &nlen, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
@@ -493,7 +489,7 @@ SQLSpecialColumnsW(HSTMT StatementHandle,
 	ConnectionClass *conn;
 	BOOL lower_id;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -539,7 +535,7 @@ SQLStatisticsW(HSTMT StatementHandle,
 	ConnectionClass *conn;
 	BOOL lower_id;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -586,7 +582,7 @@ SQLTablesW(HSTMT StatementHandle,
 	BOOL lower_id;
 	UWORD	flag = 0;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -642,7 +638,7 @@ SQLColumnPrivilegesW(HSTMT			hstmt,
 	BOOL	lower_id;
 	UWORD	flag = 0;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -702,7 +698,7 @@ SQLForeignKeysW(HSTMT			hstmt,
 	ConnectionClass *conn;
 	BOOL	lower_id;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -759,7 +755,7 @@ SQLNativeSqlW(HDBC			hdbc,
 	SQLINTEGER	buflen, olen;
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 
-	MYLOG(0, "[%s}\n", func);
+	MYLOG(0, "Entering\n");
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -822,7 +818,7 @@ SQLPrimaryKeysW(HSTMT			hstmt,
 	ConnectionClass *conn;
 	BOOL	lower_id;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -872,7 +868,7 @@ SQLProcedureColumnsW(HSTMT			hstmt,
 	BOOL	lower_id;
 	UWORD	flag = 0;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	conn = SC_get_conn(stmt);
 	lower_id = SC_is_lower_case(stmt, conn);
 	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
@@ -924,7 +920,7 @@ SQLProceduresW(HSTMT		hstmt,
 	BOOL	lower_id;
 	UWORD	flag = 0;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -975,7 +971,7 @@ SQLTablePrivilegesW(HSTMT			hstmt,
 	BOOL	lower_id;
 	UWORD	flag = 0;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
@@ -1016,7 +1012,7 @@ SQLGetTypeInfoW(SQLHSTMT	StatementHandle,
 	RETCODE	ret;
 	StatementClass * stmt = (StatementClass *) StatementHandle;
 
-	MYLOG(0, "[%s]\n", func);
+	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 

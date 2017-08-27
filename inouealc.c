@@ -84,7 +84,7 @@ void * pgdebug_realloc(void * ptr, size_t size)
 	void * alloced = realloc(ptr, size);
 	if (!alloced)
 	{
-		MYLOG(0, "%s:%s %p error\n", ALCERR, __FUNCTION__, ptr);
+		MYLOG(0, "%s %p error\n", ALCERR, ptr);
 	}
 	else if (!ptr)
 	{
@@ -106,7 +106,7 @@ void * pgdebug_realloc(void * ptr, size_t size)
 		}
 	}
 
-	inolog("%s %p->%p\n", __FUNCTION__, ptr, alloced);
+	inolog("%p->%p\n", ptr, alloced);
 	return alloced;
 }
 char * pgdebug_strdup(const char * ptr)
@@ -114,7 +114,7 @@ char * pgdebug_strdup(const char * ptr)
 	char * alloced = strdup(ptr);
 	if (!alloced)
 	{
-		MYLOG(0, "%s:%s %p error\n", ALCERR, __FUNCTION__, ptr);
+		MYLOG(0, "%s %p error\n", ALCERR, ptr);
 	}
 	else
 	{
@@ -135,7 +135,7 @@ char * pgdebug_strdup(const char * ptr)
 		altbl[tbsize].len = strlen(ptr) + 1;
 		tbsize++;
 	}
-	inolog("%s %p->%p(%s)\n", __FUNCTION__, ptr, alloced, alloced);
+	inolog("%p->%p(%s)\n", ptr, alloced, alloced);
 	return alloced;
 }
 
@@ -146,7 +146,7 @@ void pgdebug_free(void * ptr)
 
 	if (!ptr)
 	{
-		MYLOG(0, "%s:%sing null ptr\n", ALCERR, __FUNCTION__);
+		MYLOG(0, "%s null ptr\n", ALCERR);
 		return;
 	}
 	for (i = 0; i < tbsize; i++)
@@ -165,11 +165,11 @@ void pgdebug_free(void * ptr)
 	}
 	if (! freed)
 	{
-		MYLOG(0, "%s:%sing not found ptr %p\n", ALCERR, __FUNCTION__, ptr);
+		MYLOG(0, "%s not found ptr %p\n", ALCERR, ptr);
 		return;
 	}
 	else
-		inolog("%sing ptr=%p\n", __FUNCTION__, ptr);
+		inolog("ptr=%p\n", ptr);
 	free(ptr);
 }
 
@@ -198,7 +198,7 @@ char *pgdebug_strcpy(char *out, const char *in)
 {
 	if (!out || !in)
 	{
-		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s null pointer out=%p,in=%p\n", ALCERR, out, in);
 		return NULL;
 	}
 	out_check(out, strlen(in) + 1, __FUNCTION__);
@@ -208,7 +208,7 @@ char *pgdebug_strncpy(char *out, const char *in, size_t len)
 {
 	if (!out || !in)
 	{
-		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s null pointer out=%p,in=%p\n", ALCERR, out, in);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -218,7 +218,7 @@ char *pgdebug_strncpy_null(char *out, const char *in, size_t len)
 {
 	if (!out || !in)
 	{
-		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s null pointer out=%p,in=%p\n", ALCERR, out, in);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -229,7 +229,7 @@ void *pgdebug_memcpy(void *out, const void *in, size_t len)
 {
 	if (!out || !in)
 	{
-		MYLOG(0, "%s:%s null pointer out=%p,in=%p\n", ALCERR, __FUNCTION__, out, in);
+		MYLOG(0, "%s null pointer out=%p,in=%p\n", ALCERR, out, in);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
@@ -240,7 +240,7 @@ void *pgdebug_memset(void *out, int c, size_t len)
 {
 	if (!out)
 	{
-		MYLOG(0, "%s:%s null pointer out=%p\n", ALCERR, __FUNCTION__, out);
+		MYLOG(0, "%s null pointer out=%p\n", ALCERR, out);
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);

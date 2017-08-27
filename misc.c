@@ -122,7 +122,7 @@ make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize)
 		length = strlen((char *) s);
 	else
 	{
-		MYLOG(0, "make_string invalid length=%d\n", len);
+		MYLOG(0, "invalid length=%d\n", len);
 		return NULL;
 	}
 	if (buf)

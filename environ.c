@@ -66,7 +66,7 @@ PGAPI_AllocEnv(HENV * phenv)
 	CSTR func = "PGAPI_AllocEnv";
 	SQLRETURN	ret = SQL_SUCCESS;
 
-	MYLOG(0, "**** in %s ** \n", func);
+	MYLOG(0, "entering\n");
 
 	/*
 	 * For systems on which none of the constructor-making
@@ -85,7 +85,7 @@ PGAPI_AllocEnv(HENV * phenv)
 		ret = SQL_ERROR;
 	}
 
-	MYLOG(0, "** exit %s: phenv = %p **\n", func, *phenv);
+	MYLOG(0, "leaving phenv=%p\n", *phenv);
 	return ret;
 }
 
@@ -97,7 +97,7 @@ PGAPI_FreeEnv(HENV henv)
 	SQLRETURN	ret = SQL_SUCCESS;
 	EnvironmentClass *env = (EnvironmentClass *) henv;
 
-	MYLOG(0, "**** in PGAPI_FreeEnv: env = %p ** \n", env);
+	MYLOG(0, "entering env=%p\n", env);
 
 	if (env && EN_Destructor(env))
 	{
@@ -189,7 +189,6 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 			   SQLSMALLINT * pcbErrorMsg,
 			   UWORD flag)
 {
-	CSTR func = "ER_ReturnError";
 	/* CC: return an error of a hstmt  */
 	PG_ErrorInfo	*error;
 	BOOL		partial_ok = ((flag & PODBC_ALLOW_PARTIAL_EXTRACT) != 0);
@@ -200,7 +199,7 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 		return SQL_NO_DATA_FOUND;
 	error = pgerror;
 	msg = error->__error_message;
-	MYLOG(0, "%s: status = %d, msg = #%s#\n", func, error->status, msg);
+	MYLOG(0, "entering status = %d, msg = #%s#\n", error->status, msg);
 	msglen = (SQLSMALLINT) strlen(msg);
 	/*
 	 *	Even though an application specifies a larger error message
@@ -280,7 +279,7 @@ PGAPI_ConnectError(HDBC hdbc,
 	BOOL	once_again = FALSE;
 	ssize_t		msglen;
 
-	MYLOG(0, "**** PGAPI_ConnectError: hdbc=%p <%d>\n", hdbc, cbErrorMsgMax);
+	MYLOG(0, "entering hdbc=%p <%d>\n", hdbc, cbErrorMsgMax);
 	if (RecNumber != 1 && RecNumber != -1)
 		return SQL_NO_DATA_FOUND;
 	if (cbErrorMsgMax < 0)
@@ -408,7 +407,7 @@ PGAPI_EnvError(HENV henv,
 	char		*msg = NULL;
 	int		status;
 
-	MYLOG(0, "**** PGAPI_EnvError: henv=%p <%d>\n", henv, cbErrorMsgMax);
+	MYLOG(0, "entering henv=%p <%d>\n", henv, cbErrorMsgMax);
 	if (RecNumber != 1 && RecNumber != -1)
 		return SQL_NO_DATA_FOUND;
 	if (cbErrorMsgMax < 0)
@@ -471,7 +470,7 @@ EN_Constructor(void)
 
 	if (WSAStartup(wVersionRequested, &wsaData))
 	{
-		MYLOG(0, "%s: WSAStartup error\n", __FUNCTION__);
+		MYLOG(0, " WSAStartup error\n");
 		return rv;
 	}
 	/* Verify that this is the minimum version of WinSock */
@@ -481,7 +480,7 @@ EN_Constructor(void)
 		;
 	else
 	{
-		MYLOG(0, "%s: WSAStartup version=(%d,%d)\n", __FUNCTION__,
+		MYLOG(0, " WSAStartup version=(%d,%d)\n",
 			LOBYTE(wsaData.wVersion), HIBYTE(wsaData.wVersion));
 		goto cleanup;
 	}
@@ -490,7 +489,7 @@ EN_Constructor(void)
 	rv = (EnvironmentClass *) malloc(sizeof(EnvironmentClass));
 	if (NULL == rv)
 	{
-		MYLOG(0, "%s: malloc error\n", __FUNCTION__);
+		MYLOG(0, " malloc error\n");
 		goto cleanup;
 	}
 	rv->errormsg = 0;
@@ -515,7 +514,7 @@ EN_Destructor(EnvironmentClass *self)
 	int		lf, nullcnt;
 	char		rv = 1;
 
-	MYLOG(0, "in EN_Destructor, self=%p\n", self);
+	MYLOG(0, "entering self=%p\n", self);
 	if (!self)
 		return 0;
 
@@ -553,7 +552,7 @@ EN_Destructor(EnvironmentClass *self)
 #ifdef WIN32
 	WSACleanup();
 #endif
-	MYLOG(0, "exit EN_Destructor: rv = %d\n", rv);
+	MYLOG(0, "leaving rv=%d\n", rv);
 #ifdef	_MEMORY_DEBUG_
 	debug_memory_check();
 #endif   /* _MEMORY_DEBUG_ */
@@ -585,7 +584,7 @@ EN_add_connection(EnvironmentClass *self, ConnectionClass *conn)
 	ConnectionClass	**newa;
 	char	ret = FALSE;
 
-	MYLOG(0, "EN_add_connection: self = %p, conn = %p\n", self, conn);
+	MYLOG(0, "entering self = %p, conn = %p\n", self, conn);
 
 	ENTER_CONNS_CS;
 	for (i = 0; i < conns_count; i++)

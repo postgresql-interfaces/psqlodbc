@@ -34,7 +34,7 @@ void	TI_Destructor(TABLE_INFO **ti, int count)
 {
 	int	i;
 
-MYLOG(1, "TI_Destructor count=%d\n", count);
+MYLOG(1, "entering count=%d\n", count);
 	if (ti)
 	{
 		for (i = 0; i < count; i++)
@@ -63,7 +63,7 @@ MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 }
 void	FI_Constructor(FIELD_INFO *self, BOOL reuse)
 {
-MYLOG(1, "FI_Constructor reuse=%d\n", reuse);
+MYLOG(1, "entering reuse=%d\n", reuse);
 	if (reuse)
 		FI_Destructor(&self, 1, FALSE);
 	memset(self, 0, sizeof(FIELD_INFO));
@@ -75,7 +75,7 @@ void	FI_Destructor(FIELD_INFO **fi, int count, BOOL freeFI)
 {
 	int	i;
 
-MYLOG(1, "FI_Destructor count=%d\n", count);
+MYLOG(1, "entering count=%d\n", count);
 	if (fi)
 	{
 		for (i = 0; i < count; i++)
@@ -190,7 +190,7 @@ void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 
 static void ARDFields_free(ARDFields * self)
 {
-MYLOG(1, "ARDFields_free %p bookmark=%p\n", self, self->bookmark);
+MYLOG(1, "entering %p bookmark=%p\n", self, self->bookmark);
 	if (self->bookmark)
 	{
 		free(self->bookmark);
@@ -336,7 +336,7 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 	int	new_num_descs;
 	DescriptorClass **descs;
 
-	MYLOG(0, "CC_add_descriptor: self=%p, desc=%p\n", self, desc);
+	MYLOG(0, "entering self=%p, desc=%p\n", self, desc);
 
 	for (i = 0; i < self->num_descs; i++)
 	{
@@ -375,7 +375,7 @@ PGAPI_AllocDesc(HDBC ConnectionHandle,
 	RETCODE	ret = SQL_SUCCESS;
 	DescriptorClass	*desc;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 	desc = (DescriptorClass *) malloc(sizeof(DescriptorClass));
 	if (desc)
@@ -402,11 +402,10 @@ PGAPI_AllocDesc(HDBC ConnectionHandle,
 RETCODE SQL_API
 PGAPI_FreeDesc(SQLHDESC DescriptorHandle)
 {
-	CSTR func = "PGAPI_FreeDesc";
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 	RETCODE	ret = SQL_SUCCESS;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 	DC_Destructor(desc);
 	if (!desc->deschd.embedded)
 	{
@@ -515,7 +514,6 @@ RETCODE	SQL_API
 PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
 			   SQLHDESC TargetDescHandle)
 {
-	CSTR func = "PGAPI_CopyDesc";
 	RETCODE ret = SQL_ERROR;
 	DescriptorClass	*src, *target;
 	DescriptorHeader	*srchd, *targethd;
@@ -523,7 +521,7 @@ PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
 	APDFields	*apd_src, *apd_tgt;
 	IPDFields	*ipd_src, *ipd_tgt;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 	src = (DescriptorClass *) SourceDescHandle;
 	target = (DescriptorClass *) TargetDescHandle;
 	srchd = &(src->deschd);
@@ -736,12 +734,11 @@ PGAPI_DescError(SQLHDESC hdesc,
 				SQLSMALLINT * pcbErrorMsg,
 				UWORD flag)
 {
-	CSTR func = "PGAPI_DescError";
 	/* CC: return an error of a hdesc  */
 	DescriptorClass *desc = (DescriptorClass *) hdesc;
 	DescriptorHeader *deschd = &(desc->deschd);
 
-	MYLOG(0, "%s RecN=%hd\n", func, RecNumber);
+	MYLOG(0, "entering RecN=%hd\n", RecNumber);
 	deschd->pgerror = DC_create_errorinfo(desc);
 	return ER_ReturnError(deschd->pgerror, RecNumber, szSqlState,
 				pfNativeError, szErrorMsg, cbErrorMsgMax,

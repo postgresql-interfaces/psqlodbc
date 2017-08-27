@@ -148,7 +148,7 @@ driver_optionsDraw(HWND hdlg, const ConnInfo *ci, int src, BOOL enable)
 	const char * drivername = NULL;
 	GLOBAL_VALUES defval;
 
-MYLOG(0, "!!!! %s;%d in\n", __FUNCTION__, src);
+MYLOG(0, "entering src=%d\n", src);
 	init_globals(&defval);
 	switch (src)
 	{
@@ -215,7 +215,7 @@ driver_options_update(HWND hdlg, ConnInfo *ci)
 {
 	GLOBAL_VALUES *comval;
 
-// MYLOG(0, "!!!! %s in\n", __FUNCTION__);
+MYLOG(2, "entering\n");
 	comval = &(ci->drivers);
 
 	comval->commlog = IsDlgButtonChecked(hdlg, DRV_COMMLOG);
@@ -306,7 +306,7 @@ global_optionsProc(HWND hdlg,
 	GLOBAL_VALUES	defval;
 
 // if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
-// MYLOG(0, "!!!! %s:%d in\n", __FUNCTION__, wMsg);
+// MYLOG(0, "entering wMsg=%d\n", wMsg);
 	init_globals(&defval);
 	switch (wMsg)
 	{
@@ -380,7 +380,7 @@ ds_options1Proc(HWND hdlg,
 	char	strbuf[128];
 
 // if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
-// MYLOG(0, "!!!! %s:%d in\n", __FUNCTION__, wMsg);
+// MYLOG(0, "entering wMsg=%d in\n", wMsg);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
@@ -454,7 +454,7 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 {
 	char		buf[128];
 
-	MYLOG(0, "%s: got ci = %p\n", __FUNCTION__, ci);
+	MYLOG(0, "entering got ci=%p\n", ci);
 
 	/* Readonly */
 	ITOA_FIXED(ci->onlyread, IsDlgButtonChecked(hdlg, DS_READONLY));
@@ -544,7 +544,7 @@ ds_options2Proc(HWND hdlg,
 	BOOL		enable;
 
 // if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
-// MYLOG(0, "!!!! %s:%d in\n", __FUNCTION__, wMsg);
+// MYLOG(0, "entering wMsg=%d in\n", wMsg);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:
@@ -697,7 +697,7 @@ ds_options3Draw(HWND hdlg, const ConnInfo *ci)
 	BOOL	enable = TRUE;
 	static BOOL defset = FALSE;
 
-MYLOG(0, "!!!! %s in\n", __FUNCTION__);
+MYLOG(0, "entering\n");
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	switch (ci->xa_opt)
 	{
@@ -743,7 +743,7 @@ ds_options3_update(HWND hdlg, ConnInfo *ci)
 	PQCONNINFOPARSEPROC	pproc = NULL;
 	PQCONNINFOFREEPROC	fproc = NULL;	
 
-	MYLOG(0, "%s: got ci = %p\n", __FUNCTION__, ci);
+	MYLOG(0, "entering got ci=%p\n", ci);
 
 	/* Datasource libpq parameters */
 	GetDlgItemText(hdlg, DS_LIBPQOPT, pqopt, sizeof(pqopt));
@@ -793,7 +793,7 @@ ds_options3Proc(HWND hdlg,
 	DWORD		cmd;
 
 if (WM_INITDIALOG == wMsg || WM_COMMAND == wMsg)
-MYLOG(0, "!!!! %s:%d in\n", __FUNCTION__, wMsg);
+MYLOG(0, "entering wMsg=%d\n", wMsg);
 	switch (wMsg)
 	{
 		case WM_INITDIALOG:

@@ -287,7 +287,7 @@ getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k)
 {
 	char	   *str;
 
-MYLOG(1, "getColInfo non-manual result\n");
+MYLOG(1, "entering non-manual result\n");
 	fi->dquote = TRUE;
 	STR_TO_NAME(fi->column_name, QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME));
 
@@ -312,7 +312,7 @@ searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 	OID			basetype;
 	const char	   *col;
 
-MYLOG(1, "searchColInfo num_cols=" FORMAT_ULEN " col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
+MYLOG(1, "entering num_cols=" FORMAT_ULEN " col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
 	if (fi->attnum < 0)
 		return FALSE;
 	for (k = 0; k < QR_get_num_cached_tuples(col_info->result); k++)
@@ -323,7 +323,7 @@ MYLOG(1, "searchColInfo num_cols=" FORMAT_ULEN " col=%s\n", QR_get_num_cached_tu
 			if (basetype = (OID) strtoul(QR_get_value_backend_text(col_info->result, k, COLUMNS_BASE_TYPEID), NULL, 10), 0 == basetype)
 				basetype = (OID) strtoul(QR_get_value_backend_text(col_info->result, k, COLUMNS_FIELD_TYPE), NULL, 10);
 			atttypmod = QR_get_value_backend_int(col_info->result, k, COLUMNS_ATTTYPMOD, NULL);
-MYLOG(1, "searchColInfo %d attnum=%d\n", k, attnum);
+MYLOG(1, "%d attnum=%d\n", k, attnum);
 			if (attnum == fi->attnum &&
 			    basetype == fi->basetype &&
 			    atttypmod == fi->typmod)
@@ -336,7 +336,7 @@ MYLOG(1, "searchColInfo %d attnum=%d\n", k, attnum);
 		else if (NAME_IS_VALID(fi->column_name))
 		{
 			col = QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME);
-MYLOG(1, "searchColInfo %d col=%s\n", k, col);
+MYLOG(1, "%d col=%s\n", k, col);
 			if (fi->dquote)
 				cmp = strcmp(col, GET_NAME(fi->column_name));
 			else
@@ -347,7 +347,7 @@ MYLOG(1, "searchColInfo %d col=%s\n", k, col);
 					STR_TO_NAME(fi->column_name, col);
 				getColInfo(col_info, fi, k);
 
-				MYLOG(0, "PARSE: searchColInfo: \n");
+				MYLOG(0, "PARSE: \n");
 				return TRUE;
 			}
 		}
@@ -594,7 +594,7 @@ static BOOL has_multi_table(const StatementClass *stmt)
 	BOOL multi_table = FALSE;
 	QResultClass	*res;
 
-MYLOG(1, "has_multi_table ntab=%d", stmt->ntab);
+MYLOG(1, "entering ntab=%d", stmt->ntab);
 	if (1 < stmt->ntab)
 		multi_table = TRUE;
 	else if (SC_has_join(stmt))
@@ -639,7 +639,7 @@ ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 	int		i, num_fields;
 	BOOL		fi_reuse, updatable, call_xxxxx;
 
-MYLOG(0, "ColAttSet in\n");
+MYLOG(0, "entering\n");
 
 	if (reloid = rti->table_oid, 0 == reloid)
 		return FALSE;
@@ -812,7 +812,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 	StatementClass	*col_stmt;
 	QResultClass	*res;
 
-	MYLOG(0, "PARSE: Getting PG_Columns for table %u(%s)\n", greloid, PRINT_NAME(wti->table_name));
+	MYLOG(0, "entering Getting PG_Columns for table %u(%s)\n", greloid, PRINT_NAME(wti->table_name));
 
 	if (NULL == conn)
 		conn = SC_get_conn(stmt);
@@ -988,7 +988,7 @@ BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt
 	TABLE_INFO	*wti = *pti;
 	COL_INFO	*coli;
 
-MYLOG(1, "getCOLIfromTI reloid=%u ti=%p\n", reloid, wti);
+MYLOG(1, "entering reloid=%u ti=%p\n", reloid, wti);
 	if (!conn)
 		conn = SC_get_conn(stmt);
 	if (!wti)	/* SQLColAttribute case */
@@ -1094,14 +1094,13 @@ MYLOG(1, "#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->ta
 	}
 	else if (!colatt && stmt)
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-MYLOG(1, "getCOLIfromTI returns %d\n", found);
+MYLOG(1, "leaving returns %d\n", found);
 	return found;
 }
 
 SQLRETURN
 SC_set_SS_columnkey(StatementClass *stmt)
 {
-	CSTR		func = "SC_set_SS_columnkey";
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	FIELD_INFO	**fi = irdflds->fi, *tfi;
 	size_t		nfields = irdflds->nfields;
@@ -1110,7 +1109,7 @@ SC_set_SS_columnkey(StatementClass *stmt)
 	BOOL		contains_key = FALSE;
 	int		i;
 
-MYLOG(1, "%s:fields=" FORMAT_SIZE_T " ntab=%d\n", func, nfields, stmt->ntab);
+MYLOG(1, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, stmt->ntab);
 	if (!fi)		return ret;
 	if (0 >= nfields)	return ret;
 	if (!has_multi_table(stmt) && 1 == stmt->ntab)
@@ -1148,14 +1147,14 @@ MYLOG(1, "%s:fields=" FORMAT_SIZE_T " ntab=%d\n", func, nfields, stmt->ntab);
 				if (oneti == tfi->ti &&
 				    strcmp(keycolnam, SAFE_NAME(tfi->column_name)) == 0)
 				{
-MYLOG(1, "%s:key %s found at %p\n", func, keycolnam, fi + i);
+MYLOG(1, "key %s found at %p\n", keycolnam, fi + i);
 					tfi->columnkey = TRUE;
 					break;
 				}
 			}
 			if (i >= nfields)
 			{
-				MYLOG(0, "%s: %s not found\n", func, keycolnam);
+				MYLOG(0, "%s not found\n", keycolnam);
 				break;
 			}
 			ret = PGAPI_Fetch(pstmt);
@@ -1166,7 +1165,7 @@ MYLOG(1, "%s:key %s found at %p\n", func, keycolnam, fi + i);
 			goto cleanup;
 		ret = SQL_SUCCESS;
 	}
-MYLOG(1, "%s: contains_key=%d\n", func, contains_key);
+MYLOG(1, "contains_key=%d\n", contains_key);
 	for (i = 0; i < nfields; i++)
 	{
 		if (tfi = fi[i], NULL == tfi)
@@ -1272,7 +1271,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 	IRDFields	*irdflds;
 	BOOL		updatable = TRUE, column_has_alias = FALSE;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 	if (SC_parsed_status(stmt) != STMT_PARSE_NONE)
 	{
@@ -2174,7 +2173,7 @@ cleanup:
 		parse = FALSE;
 	}
 
-	MYLOG(0, "done %s: parse=%d, parse_status=%d\n", func, parse, SC_parsed_status(stmt));
+	MYLOG(0, "laving parse=%d, parse_status=%d\n", parse, SC_parsed_status(stmt));
 	return parse;
 }
 

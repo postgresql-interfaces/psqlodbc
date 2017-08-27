@@ -46,7 +46,7 @@ PGAPI_Prepare(HSTMT hstmt,
 	RETCODE	retval = SQL_SUCCESS;
 	BOOL	prepared;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	/* StartRollbackState(self); */
@@ -62,30 +62,30 @@ PGAPI_Prepare(HSTMT hstmt,
 	switch (self->status)
 	{
 		case STMT_DESCRIBED:
-			MYLOG(0, "**** PGAPI_Prepare: STMT_DESCRIBED, recycle\n");
+			MYLOG(0, "**** STMT_DESCRIBED, recycle\n");
 			SC_recycle_statement(self); /* recycle the statement, but do
 										 * not remove parameter bindings */
 			break;
 
 		case STMT_FINISHED:
-			MYLOG(0, "**** PGAPI_Prepare: STMT_FINISHED, recycle\n");
+			MYLOG(0, "**** STMT_FINISHED, recycle\n");
 			SC_recycle_statement(self); /* recycle the statement, but do
 										 * not remove parameter bindings */
 			break;
 
 		case STMT_ALLOCATED:
-			MYLOG(0, "**** PGAPI_Prepare: STMT_ALLOCATED, copy\n");
+			MYLOG(0, "**** STMT_ALLOCATED, copy\n");
 			self->status = STMT_READY;
 			break;
 
 		case STMT_READY:
-			MYLOG(0, "**** PGAPI_Prepare: STMT_READY, change SQL\n");
+			MYLOG(0, "**** STMT_READY, change SQL\n");
 			if (NOT_YET_PREPARED != prepared)
 				SC_recycle_statement(self); /* recycle the statement */
 			break;
 
 		case STMT_EXECUTING:
-			MYLOG(0, "**** PGAPI_Prepare: STMT_EXECUTING, error!\n");
+			MYLOG(0, "**** STMT_EXECUTING, error!\n");
 
 			SC_set_error(self, STMT_SEQUENCE_ERROR, "PGAPI_Prepare(): The handle does not point to a statement that is ready to be executed", func);
 
@@ -130,7 +130,7 @@ PGAPI_Prepare(HSTMT hstmt,
 
 cleanup:
 #undef	return
-MYLOG(1, "SQLPrepare return=%d\n", retval);
+MYLOG(1, "leaving %d\n", retval);
 	return retval;
 }
 
@@ -147,7 +147,7 @@ PGAPI_ExecDirect(HSTMT hstmt,
 	CSTR func = "PGAPI_ExecDirect";
 	const ConnectionClass	*conn = SC_get_conn(stmt);
 
-	MYLOG(0, "%s: entering...%x\n", func, flag);
+	MYLOG(0, "entering...%x\n", flag);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
@@ -164,7 +164,7 @@ MYLOG(1, "a2\n");
 		return SQL_ERROR;
 	}
 
-	MYLOG(0, "**** %s: hstmt=%p, statement='%s'\n", func, hstmt, stmt->statement);
+	MYLOG(0, "**** hstmt=%p, statement='%s'\n", hstmt, stmt->statement);
 
 	if (0 != (flag & PODBC_WITH_HOLD))
 		SC_set_with_hold(stmt);
@@ -188,11 +188,11 @@ MYLOG(1, "a2\n");
 		return SQL_ERROR;
 	}
 
-	MYLOG(0, "%s: calling PGAPI_Execute...\n", func);
+	MYLOG(0, "calling PGAPI_Execute...\n");
 
 	result = PGAPI_Execute(hstmt, flag);
 
-	MYLOG(0, "%s: returned %hd from PGAPI_Execute\n", func, result);
+	MYLOG(0, "leaving %hd\n", result);
 	return result;
 }
 
@@ -420,7 +420,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 
 	*exec_end = FALSE;
 	conn = SC_get_conn(stmt);
-	MYLOG(0, "%s: copying statement params: trans_status=%d, len=" FORMAT_SIZE_T ", stmt='%s'\n", func, conn->transact_status, strlen(stmt->statement), stmt->statement);
+	MYLOG(0, "copying statement params: trans_status=%d, len=" FORMAT_SIZE_T ", stmt='%s'\n", conn->transact_status, strlen(stmt->statement), stmt->statement);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 #define	RETURN(code)	{ retval = code; goto cleanup; }
@@ -549,12 +549,11 @@ cleanup:
 int
 StartRollbackState(StatementClass *stmt)
 {
-	CSTR	func = "StartRollbackState";
 	int			ret;
 	ConnectionClass	*conn;
 	ConnInfo	*ci = NULL;
 
-MYLOG(1, "%s:%p->external=%d\n", func, stmt, stmt->external);
+MYLOG(1, "entering %p->external=%d\n", stmt, stmt->external);
 	conn = SC_get_conn(stmt);
 	if (conn)
 		ci = &conn->connInfo;
@@ -639,7 +638,7 @@ SetStatementSvp(StatementClass *stmt, unsigned int option)
 		ENTER_CONN_CS(conn);
 		conn->lock_CC_for_rb++;
 	}
-MYLOG(1, " !!!! %s:%p->accessed=%d opt=%u in_progress=%u prev=%u\n", __FUNCTION__, conn, CC_accessed_db(conn), option, conn->opt_in_progress, conn->opt_previous);
+MYLOG(1, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn, CC_accessed_db(conn), option, conn->opt_in_progress, conn->opt_previous);
 	conn->opt_in_progress &= option;
 	switch (stmt->statement_type)
 	{
@@ -682,7 +681,7 @@ MYLOG(1, " !!!! %s:%p->accessed=%d opt=%u in_progress=%u prev=%u\n", __FUNCTION_
 		}
 	}
 	CC_set_accessed_db(conn);
-MYLOG(1, "%s:%p->accessed=%d\n", func, conn, CC_accessed_db(conn));
+MYLOG(1, "leaving %p->accessed=%d\n", conn, CC_accessed_db(conn));
 	return ret;
 }
 
@@ -693,10 +692,10 @@ DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	BOOL	start_stmt = FALSE;
 
-MYLOG(1, "%s:%p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", func, conn, CC_accessed_db(conn),
+MYLOG(1, "entering %p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", conn, CC_accessed_db(conn),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	if (conn->lock_CC_for_rb > 0)
-		MYLOG(0, "%s:in_progress=%u previous=%d\n", func, conn->opt_in_progress, conn->opt_previous);
+		MYLOG(0, "in_progress=%u previous=%d\n", conn->opt_in_progress, conn->opt_previous);
 	switch (ret)
 	{
 		case SQL_NEED_DATA:
@@ -733,7 +732,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	}
 	else if (errorOnly)
 		return ret;
-MYLOG(1, "ret=%d\n", ret);
+MYLOG(1, "\tret=%d\n", ret);
 cleanup:
 #ifdef NOT_USED
 	if (!SC_is_prepare_statement(stmt) && ONCE_DESCRIBED == stmt->prepared)
@@ -751,10 +750,11 @@ cleanup:
 		{
 			LEAVE_CONN_CS(conn);
 			conn->lock_CC_for_rb--;
-			MYLOG(1, " %s:release conn_lock\n", __FUNCTION__);
+			MYLOG(1, " release conn_lock\n");
 		}
 		CC_start_stmt(conn);
 	}
+	MYLOG(1, "leaving %d\n", ret);
 	return ret;
 }
 
@@ -892,7 +892,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	BOOL	exec_end, recycled = FALSE, recycle = TRUE;
 	SQLSMALLINT	num_params;
 
-	MYLOG(0, "%s: entering...%x\n", func, flag);
+	MYLOG(0, "entering...%x\n", flag);
 
 	conn = SC_get_conn(stmt);
 	apdopts = SC_get_APDF(stmt);
@@ -907,13 +907,13 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		SC_recycle_statement(stmt);
 	}
 
-	MYLOG(0, "%s: clear errors...\n", func);
+	MYLOG(0, "clear errors...\n");
 
 	SC_clear_error(stmt);
 	if (!stmt->statement)
 	{
 		SC_set_error(stmt, STMT_NO_STMTSTRING, "This handle does not have a SQL statement stored in it", func);
-		MYLOG(0, "%s: problem with handle\n", func);
+		MYLOG(0, "problem with handle\n");
 		return SQL_ERROR;
 	}
 
@@ -945,7 +945,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	 */
 	else if (stmt->status == STMT_FINISHED)
 	{
-		MYLOG(0, "%s: recycling statement (should have been done by app)...\n", func);
+		MYLOG(0, "recycling statement (should have been done by app)...\n");
 /******** Is this really NEEDED ? ******/
 		SC_recycle_statement(stmt);
 		recycled = TRUE;
@@ -955,7 +955,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		(stmt->status != STMT_ALLOCATED && stmt->status != STMT_READY))
 	{
 		SC_set_error(stmt, STMT_STATUS_ERROR, "The handle does not point to a statement that is ready to be executed", func);
-		MYLOG(0, "%s: problem with statement\n", func);
+		MYLOG(0, "problem with statement\n");
 		retval = SQL_ERROR;
 		goto cleanup;
 	}
@@ -1106,7 +1106,7 @@ next_param_row:
 		goto next_param_row;
 	}
 cleanup:
-MYLOG(0, "retval=%d\n", retval);
+MYLOG(0, "leaving retval=%d\n", retval);
 	SC_setInsertedTable(stmt, retval);
 #undef	return
 	return retval;
@@ -1123,7 +1123,7 @@ PGAPI_Transact(HENV henv,
 	char		ok;
 	int			lf;
 
-	MYLOG(0, "entering %s: hdbc=%p, henv=%p\n", func, hdbc, henv);
+	MYLOG(0, "entering hdbc=%p, henv=%p\n", hdbc, henv);
 
 	if (hdbc == SQL_NULL_HDBC && henv == SQL_NULL_HENV)
 	{
@@ -1162,7 +1162,7 @@ PGAPI_Transact(HENV henv,
 	/* If manual commit and in transaction, then proceed. */
 	if (CC_loves_visible_trans(conn) && CC_is_in_trans(conn))
 	{
-		MYLOG(0, "PGAPI_Transact: sending on conn %p '%d'\n", conn, fType);
+		MYLOG(0, "sending on conn %p '%d'\n", conn, fType);
 
 		ok = (SQL_COMMIT == fType) ? CC_commit(conn) : CC_abort(conn);
 		if (!ok)
@@ -1185,7 +1185,7 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	ConnectionClass *conn;
 	RETCODE		ret = SQL_SUCCESS;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 	/* Check if this can handle canceling in the middle of a SQLPutData? */
 	if (!stmt)
@@ -1282,7 +1282,7 @@ PGAPI_NativeSql(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	RETCODE		result;
 
-	MYLOG(0, "%s: entering...cbSqlStrIn=%d\n", func, cbSqlStrIn);
+	MYLOG(0, "entering...cbSqlStrIn=%d\n", cbSqlStrIn);
 
 	ptr = (cbSqlStrIn == 0) ? "" : make_string(szSqlStrIn, cbSqlStrIn, NULL, 0);
 	if (!ptr)
@@ -1332,13 +1332,13 @@ PGAPI_ParamData(HSTMT hstmt,
 	Int2		num_p;
 	ConnectionClass	*conn = NULL;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 	conn = SC_get_conn(stmt);
 
 	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
 	apdopts = SC_get_APDF(estmt);
-	MYLOG(0, "%s: data_at_exec=%d, params_alloc=%d\n", func, estmt->data_at_exec, apdopts->allocated);
+	MYLOG(0, "\tdata_at_exec=%d, params_alloc=%d\n", estmt->data_at_exec, apdopts->allocated);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (SC_AcceptedCancelRequest(stmt))
@@ -1451,7 +1451,7 @@ MYLOG(1, "return SQL_NEED_DATA\n");
 cleanup:
 #undef	return
 	SC_setInsertedTable(stmt, retval);
-	MYLOG(0, "%s: returning %d\n", func, retval);
+	MYLOG(0, "leaving %d\n", retval);
 	return retval;
 }
 
@@ -1481,7 +1481,7 @@ PGAPI_PutData(HSTMT hstmt,
 	SQLLEN		putlen;
 	BOOL		lenset = FALSE, handling_lo = FALSE;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (SC_AcceptedCancelRequest(stmt))
@@ -1562,7 +1562,7 @@ PGAPI_PutData(HSTMT hstmt,
 
 	if (!estmt->put_data)
 	{							/* first call */
-		MYLOG(0, "PGAPI_PutData: (1) cbValue = " FORMAT_LEN "\n", cbValue);
+		MYLOG(0, "(1) cbValue = " FORMAT_LEN "\n", cbValue);
 
 		estmt->put_data = TRUE;
 
@@ -1640,7 +1640,7 @@ PGAPI_PutData(HSTMT hstmt,
 	else
 	{
 		/* calling SQLPutData more than once */
-		MYLOG(0, "PGAPI_PutData: (>1) cbValue = " FORMAT_LEN "\n", cbValue);
+		MYLOG(0, "(>1) cbValue = " FORMAT_LEN "\n", cbValue);
 
 		/* if (current_iparam->SQLType == SQL_LONGVARBINARY) */
 		if (handling_lo)

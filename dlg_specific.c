@@ -597,7 +597,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	{
 		ci->password = decode_or_remove_braces(value);
 #ifndef FORCE_PASSWORDE_DISPLAY
-		MYLOG(0, "%s: key='%s' value='xxxxxxxx'\n", __FUNCTION__, attribute);
+		MYLOG(0, "key='%s' value='xxxxxxxx'\n", attribute);
 		printed = TRUE;
 #endif
 	}
@@ -624,8 +624,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				/* ignore first part */
 			}
 			ci->rollback_on_error = atoi(ptr + 1);
-			MYLOG(0, "%s:key='%s' value='%s' rollback_on_error=%d\n",
-				__FUNCTION__, attribute, value, ci->rollback_on_error);
+			MYLOG(0, "key='%s' value='%s' rollback_on_error=%d\n",
+				attribute, value, ci->rollback_on_error);
 			printed = TRUE;
 		}
 	}
@@ -695,8 +695,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				STRCPY_FIXED(ci->sslmode, SSLMODE_DISABLE);
 				break;
 		}
-		MYLOG(0, "%s:key='%s' value='%s' set to '%s'\n",
-				__FUNCTION__, attribute, value, ci->sslmode);
+		MYLOG(0, "key='%s' value='%s' set to '%s'\n",
+				attribute, value, ci->sslmode);
 		printed = TRUE;
 	}
 	else if (stricmp(attribute, INI_ABBREVIATE) == 0)
@@ -723,8 +723,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		{
 			setExtraOptions(ci, value, hex_format);
 		}
-		MYLOG(0, "%s:key='%s' value='%s'(force_abbrev=%d bde=%d cvt_null_date=%x)\n",
-			__FUNCTION__, attribute, value, ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
+		MYLOG(0, "key='%s' value='%s'(force_abbrev=%d bde=%d cvt_null_date=%x)\n",
+			attribute, value, ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
 		printed = TRUE;
 	}
 
@@ -763,7 +763,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		found = FALSE;
 
 	if (!printed)
-		MYLOG(0, "%s: key='%s' value='%s'%s\n", __FUNCTION__, attribute,
+		MYLOG(0, "key='%s' value='%s'%s\n", attribute,
 			value, found ? NULL_STRING : " not found");
 
 	return found;
@@ -773,7 +773,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 static void
 getCiDefaults(ConnInfo *ci)
 {
-	MYLOG(0, "calling %s\n", __FUNCTION__);
+	MYLOG(0, "entering\n");
 
 	ci->drivers.debug = DEFAULT_DEBUG;
 	ci->drivers.commlog = DEFAULT_COMMLOG;
@@ -837,7 +837,7 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 
 void getDriversDefaults(const char *drivername, GLOBAL_VALUES *comval)
 {
-	MYLOG(0, "%s:%p of the driver %s\n", __FUNCTION__, comval, NULL_IF_NULL(drivername));
+	MYLOG(0, "%p of the driver %s\n", comval, NULL_IF_NULL(drivername));
 	get_Ci_Drivers(drivername, ODBCINST_INI, comval);
 	if (NULL != drivername)
 		STR_TO_NAME(comval->drivername, drivername);
@@ -846,7 +846,6 @@ void getDriversDefaults(const char *drivername, GLOBAL_VALUES *comval)
 void
 getDSNinfo(ConnInfo *ci, const char *configDrvrname)
 {
-	CSTR	func = "getDSNinfo";
 	char	   *DSN = ci->dsn;
 	char	temp[LARGE_REGISTRY_LEN];
 	const char *drivername;
@@ -855,7 +854,7 @@ getDSNinfo(ConnInfo *ci, const char *configDrvrname)
  *	If a driver keyword was present, then dont use a DSN and return.
  *	If DSN is null and no driver, then use the default datasource.
  */
-	MYLOG(0, "%s: DSN=%s driver=%s&%s\n", func, DSN,
+	MYLOG(0, "entering DSN=%s driver=%s&%s\n", DSN,
 		ci->drivername, NULL_IF_NULL(configDrvrname));
 
 	getCiDefaults(ci);
@@ -1298,12 +1297,11 @@ writeDSNinfo(const ConnInfo *ci)
 static void
 get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 {
-	CSTR	func = "get_Ci_Drivers";
 	char		temp[256];
 	BOOL	inst_position = (stricmp(filename, ODBCINST_INI) == 0);
 
 	if (0 != strcmp(ODBCINST_INI, filename))
-		MYLOG(0, "%s:setting %s position of %s(%p)\n", func, filename, section, comval);
+		MYLOG(0, "setting %s position of %s(%p)\n", filename, section, comval);
 
 	/*
 	 * It's not appropriate to handle debug or commlog here.
@@ -1685,8 +1683,7 @@ CC_conninfo_release(ConnInfo *conninfo)
 void
 CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 {
-	CSTR	func = "CC_conninfo_init";
-	MYLOG(0, "%s opt=%d\n", func, option);
+	MYLOG(0, "entering opt=%d\n", option);
 
 	if (0 != (CLEANUP_FOR_REUSE & option))
 		CC_conninfo_release(conninfo);
@@ -1751,7 +1748,7 @@ void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 	CORR_STRCPY(extra_systable_prefixes);
 	CORR_STRCPY(protocol);
 
-	MYLOG(0, "copy_globals driver=%s\n", SAFE_NAME(to->drivername));
+	MYLOG(0, "driver=%s\n", SAFE_NAME(to->drivername));
 }
 
 void	finalize_globals(GLOBAL_VALUES *glbv)

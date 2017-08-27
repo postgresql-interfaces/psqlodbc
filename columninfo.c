@@ -56,7 +56,6 @@ CI_Destructor(ColumnInfoClass *self)
 BOOL
 CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 {
-	CSTR		func = "CI_read_fields";
 	Int2		lf;
 	int			new_num_fields;
 	OID		new_adtid, new_relid = 0, new_attid = 0;
@@ -103,7 +102,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 		if (new_atttypmod < 0)
 			new_atttypmod = -1;
 
-		MYLOG(0, "%s: fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", func, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+		MYLOG(0, "fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
 		if (self)
 			CI_set_field_info(self, lf, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);

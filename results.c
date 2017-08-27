@@ -46,7 +46,7 @@ PGAPI_RowCount(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 	QResultClass *res;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 	if (!stmt)
 	{
 		SC_log_error(func, NULL_STRING, NULL);
@@ -70,7 +70,7 @@ PGAPI_RowCount(HSTMT hstmt,
 		if (res->recent_processed_row_count >= 0)
 		{
 			*pcrow = res->recent_processed_row_count;
-			MYLOG(0, "**** %s: THE ROWS: *pcrow = " FORMAT_LEN "\n", func, *pcrow);
+			MYLOG(0, "**** THE ROWS: *pcrow = " FORMAT_LEN "\n", *pcrow);
 
 			return SQL_SUCCESS;
 		}
@@ -95,7 +95,7 @@ SC_describe_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *fun
 	num_fields = SC_describe(stmt);
 	result = SC_get_Curres(stmt);
 
-	MYLOG(0, "%s: result = %p, status = %d, numcols = %d\n", func, result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
+	MYLOG(0, "entering result = %p, status = %d, numcols = %d\n", result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
 	/****if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
 	if (!QR_command_maybe_successful(result) || num_fields < 0)
 	{
@@ -150,7 +150,7 @@ PGAPI_NumResultCols(HSTMT hstmt,
 	char		parse_ok;
 	RETCODE		ret = SQL_SUCCESS;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 	if (!stmt)
 	{
 		SC_log_error(func, NULL_STRING, NULL);
@@ -171,7 +171,7 @@ PGAPI_NumResultCols(HSTMT hstmt,
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			MYLOG(0, "%s: calling parse_statement on stmt=%p\n", func, stmt);
+			MYLOG(0, "calling parse_statement on stmt=%p\n", stmt);
 			parse_statement(stmt, FALSE);
 		}
 
@@ -179,7 +179,7 @@ PGAPI_NumResultCols(HSTMT hstmt,
 		{
 			parse_ok = TRUE;
 			*pccol = SC_get_IRDF(stmt)->nfields;
-			MYLOG(0, "PARSE: %s: *pccol = %d\n", func, *pccol);
+			MYLOG(0, "PARSE: *pccol = %d\n", *pccol);
 		}
 	}
 
@@ -235,7 +235,7 @@ PGAPI_DescribeCol(HSTMT hstmt,
 	int			len = 0;
 	RETCODE		result = SQL_SUCCESS;
 
-	MYLOG(0, "%s: entering.%d..\n", func, icol);
+	MYLOG(0, "entering.%d..\n", icol);
 
 	if (!stmt)
 	{
@@ -286,11 +286,11 @@ MYLOG(1, "answering bookmark info\n");
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			MYLOG(0, "%s: calling parse_statement on stmt=%p\n", func, stmt);
+			MYLOG(0, "calling parse_statement on stmt=%p\n", stmt);
 			parse_statement(stmt, FALSE);
 		}
 
-		MYLOG(0, "PARSE: DescribeCol: icol=%d, stmt=%p, stmt->nfld=%d, stmt->fi=%p\n", icol, stmt, irdflds->nfields, irdflds->fi);
+		MYLOG(0, "PARSE: icol=%d, stmt=%p, stmt->nfld=%d, stmt->fi=%p\n", icol, stmt, irdflds->nfields, irdflds->fi);
 
 		if (SC_parsed_status(stmt) != STMT_PARSE_FATAL && irdflds->fi)
 		{
@@ -302,7 +302,7 @@ MYLOG(1, "answering bookmark info\n");
 				result = SQL_ERROR;
 				goto cleanup;
 			}
-			MYLOG(0, "DescribeCol: getting info for icol=%d\n", icol);
+			MYLOG(0, "getting info for icol=%d\n", icol);
 		}
 	}
 
@@ -377,9 +377,9 @@ MYLOG(1, "answering bookmark info\n");
 		decimal_digits = pgtype_decimal_digits(stmt, fieldtype, icol);
 	}
 
-	MYLOG(0, "describeCol: col %d fieldname = '%s'\n", icol, NULL_IF_NULL(col_name));
-	MYLOG(0, "describeCol: col %d fieldtype = %d\n", icol, fieldtype);
-	MYLOG(0, "describeCol: col %d column_size = " FORMAT_LEN "\n", icol, column_size);
+	MYLOG(0, "col %d fieldname = '%s'\n", icol, NULL_IF_NULL(col_name));
+	MYLOG(0, "col %d fieldtype = %d\n", icol, fieldtype);
+	MYLOG(0, "col %d column_size = " FORMAT_LEN "\n", icol, column_size);
 
 	result = SQL_SUCCESS;
 
@@ -412,7 +412,7 @@ MYLOG(1, "answering bookmark info\n");
 	{
 		*pfSqlType = pgtype_to_concise_type(stmt, fieldtype, icol, unknown_sizes);
 
-		MYLOG(0, "describeCol: col %d *pfSqlType = %d\n", icol, *pfSqlType);
+		MYLOG(0, "col %d *pfSqlType = %d\n", icol, *pfSqlType);
 	}
 
 	/*
@@ -425,7 +425,7 @@ MYLOG(1, "answering bookmark info\n");
 
 		*pcbColDef = column_size;
 
-		MYLOG(0, "describeCol: col %d  *pcbColDef = " FORMAT_ULEN "\n", icol, *pcbColDef);
+		MYLOG(0, "Col: col %d  *pcbColDef = " FORMAT_ULEN "\n", icol, *pcbColDef);
 	}
 
 	/*
@@ -437,7 +437,7 @@ MYLOG(1, "answering bookmark info\n");
 			decimal_digits = 0;
 
 		*pibScale = (SQLSMALLINT) decimal_digits;
-		MYLOG(0, "describeCol: col %d  *pibScale = %d\n", icol, *pibScale);
+		MYLOG(0, "col %d  *pibScale = %d\n", icol, *pibScale);
 	}
 
 	/*
@@ -450,7 +450,7 @@ MYLOG(1, "answering bookmark info\n");
 		else
 			*pfNullable = fi ? fi->nullable : pgtype_nullable(conn, fieldtype);
 
-		MYLOG(0, "describeCol: col %d  *pfNullable = %d\n", icol, *pfNullable);
+		MYLOG(0, "col %d  *pfNullable = %d\n", icol, *pfNullable);
 	}
 
 cleanup:
@@ -487,7 +487,7 @@ PGAPI_ColAttributes(HSTMT hstmt,
 	QResultClass	*res;
 	BOOL		stmt_updatable;
 
-	MYLOG(0, "%s: entering..col=%d %d len=%d.\n", func, icol, fDescType,
+	MYLOG(0, "entering..col=%d %d len=%d.\n", icol, fDescType,
 				cbDescMax);
 
 	if (!stmt)
@@ -545,7 +545,7 @@ MYLOG(1, "answering bookmark info\n");
 	{
 		if (SC_parsed_status(stmt) == STMT_PARSE_NONE)
 		{
-			MYLOG(0, "%s: calling parse_statement\n", func);
+			MYLOG(0, "calling parse_statement\n");
 			parse_statement(stmt, FALSE);
 		}
 
@@ -631,7 +631,7 @@ MYLOG(1, "answering bookmark info\n");
 		field_type = getEffectiveOid(conn, fi);
 	}
 
-	MYLOG(0, "colAttr: col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
+	MYLOG(0, "col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
 
 #ifdef SUPPRESS_LONGEST_ON_CURSORS
 	if (UNKNOWNS_AS_LONGEST == unknown_sizes)
@@ -673,7 +673,7 @@ MYLOG(1, "answering bookmark info\n");
 		case SQL_COLUMN_DISPLAY_SIZE: /* == SQL_DESC_DISPLAY_SIZE */
 			value = (USE_FI(fi, unknown_sizes) && 0 != fi->display_size) ? fi->display_size : pgtype_display_size(stmt, field_type, col_idx, unknown_sizes);
 
-			MYLOG(0, "%s: col %d, display_size= " FORMAT_LEN "\n", func, col_idx, value);
+			MYLOG(0, "col %d, display_size= " FORMAT_LEN "\n", col_idx, value);
 
 			break;
 
@@ -682,7 +682,7 @@ MYLOG(1, "answering bookmark info\n");
 			{
 				p = GET_NAME(fi->column_alias);
 
-				MYLOG(0, "%s: COLUMN_LABEL = '%s'\n", func, p);
+				MYLOG(0, "COLUMN_LABEL = '%s'\n", p);
 				break;
 			}
 			/* otherwise same as column name -- FALL THROUGH!!! */
@@ -695,7 +695,7 @@ MYLOG(1, "answering bookmark info\n");
 				MYPRINTF(1, "NULL\n");
 			p = fi ? (NAME_IS_NULL(fi->column_alias) ? SAFE_NAME(fi->column_name) : GET_NAME(fi->column_alias)) : QR_get_fieldname(res, col_idx);
 
-			MYLOG(0, "%s: COLUMN_NAME = '%s'\n", func, p);
+			MYLOG(0, "COLUMN_NAME = '%s'\n", p);
 			break;
 
 		case SQL_COLUMN_LENGTH:
@@ -704,7 +704,7 @@ MYLOG(1, "answering bookmark info\n");
 			/* if (-1 == value)  I'm not sure which is right */
 				value = 0;
 
-			MYLOG(0, "%s: col %d, column_length = " FORMAT_LEN "\n", func, col_idx, value);
+			MYLOG(0, "col %d, column_length = " FORMAT_LEN "\n", col_idx, value);
 			break;
 
 		case SQL_COLUMN_MONEY: /* == SQL_DESC_FIXED_PREC_SCALE */
@@ -722,7 +722,7 @@ MYLOG(1, "COLUMN_NULLABLE=" FORMAT_LEN "\n", value);
 
 		case SQL_COLUMN_OWNER_NAME: /* == SQL_DESC_SCHEMA_NAME */
 			p = ti ? SAFE_NAME(ti->schema_name) : NULL_STRING;
-			MYLOG(0, "%s: SCHEMA_NAME = '%s'\n", func, p);
+			MYLOG(0, "SCHEMA_NAME = '%s'\n", p);
 			break;
 
 		case SQL_COLUMN_PRECISION: /* in 2.x */
@@ -730,7 +730,7 @@ MYLOG(1, "COLUMN_NULLABLE=" FORMAT_LEN "\n", value);
 			if (value < 0)
 				value = 0;
 
-			MYLOG(0, "%s: col %d, column_size = " FORMAT_LEN "\n", func, col_idx, value);
+			MYLOG(0, "col %d, column_size = " FORMAT_LEN "\n", col_idx, value);
 			break;
 
 		case SQL_COLUMN_QUALIFIER_NAME: /* == SQL_DESC_CATALOG_NAME */
@@ -751,7 +751,7 @@ MYLOG(1, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 		case SQL_COLUMN_TABLE_NAME: /* == SQL_DESC_TABLE_NAME */
 			p = ti ? SAFE_NAME(ti->table_name) : NULL_STRING;
 
-			MYLOG(0, "%s: TABLE_NAME = '%s'\n", func, p);
+			MYLOG(0, "TABLE_NAME = '%s'\n", p);
 			break;
 
 		case SQL_COLUMN_TYPE: /* == SQL_DESC_CONCISE_TYPE */
@@ -799,25 +799,25 @@ MYLOG(1, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 
 			p = fi ? SAFE_NAME(fi->column_name) : QR_get_fieldname(res, col_idx);
 
-			MYLOG(0, "%s: BASE_COLUMN_NAME = '%s'\n", func, p);
+			MYLOG(0, "BASE_COLUMN_NAME = '%s'\n", p);
 			break;
 		case SQL_DESC_BASE_TABLE_NAME: /* the same as TABLE_NAME ok ? */
 			p = ti ? SAFE_NAME(ti->table_name) : NULL_STRING;
 
-			MYLOG(0, "%s: BASE_TABLE_NAME = '%s'\n", func, p);
+			MYLOG(0, "BASE_TABLE_NAME = '%s'\n", p);
 			break;
 		case SQL_DESC_LENGTH: /* different from SQL_COLUMN_LENGTH */
 			value = (fi && column_size > 0) ? column_size : pgtype_desclength(stmt, field_type, col_idx, unknown_sizes);
 			if (-1 == value)
 				value = 0;
 
-			MYLOG(0, "%s: col %d, desc_length = " FORMAT_LEN "\n", func, col_idx, value);
+			MYLOG(0, "col %d, desc_length = " FORMAT_LEN "\n", col_idx, value);
 			break;
 		case SQL_DESC_OCTET_LENGTH:
 			value = (USE_FI(fi, unknown_sizes) && fi->length > 0) ? fi->length : pgtype_attr_transfer_octet_length(conn, field_type, column_size, unknown_sizes);
 			if (-1 == value)
 				value = 0;
-			MYLOG(0, "%s: col %d, octet_length = " FORMAT_LEN "\n", func, col_idx, value);
+			MYLOG(0, "col %d, octet_length = " FORMAT_LEN "\n", col_idx, value);
 			break;
 		case SQL_DESC_PRECISION: /* different from SQL_COLUMN_PRECISION */
 			if (value = FI_precision(fi), value <= 0)
@@ -825,7 +825,7 @@ MYLOG(1, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 			if (value < 0)
 				value = 0;
 
-			MYLOG(0, "%s: col %d, desc_precision = " FORMAT_LEN "\n", func, col_idx, value);
+			MYLOG(0, "col %d, desc_precision = " FORMAT_LEN "\n", col_idx, value);
 			break;
 		case SQL_DESC_SCALE: /* different from SQL_COLUMN_SCALE */
 			value = pgtype_scale(stmt, field_type, col_idx);
@@ -861,7 +861,7 @@ MYLOG(1, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 					SC_set_SS_columnkey(stmt);
 				}
 				value = fi->columnkey;
-				MYLOG(0, "%s:SS_COLUMN_KEY=" FORMAT_LEN "\n", func, value);
+				MYLOG(0, "SS_COLUMN_KEY=" FORMAT_LEN "\n", value);
 				break;
 			}
 			SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER, "this request may be for MS SQL Server", func);
@@ -927,7 +927,7 @@ PGAPI_GetData(HSTMT hstmt,
 	SQLCHAR		dum_rgb[2] = "\0\0";
 #endif	/* WITH_UNIXODBC */
 
-	MYLOG(0, "%s: enter, stmt=%p icol=%d\n", func, stmt, icol);
+	MYLOG(0, "entering stmt=%p icol=%d\n", stmt, icol);
 
 	if (!stmt)
 	{
@@ -1086,7 +1086,7 @@ MYLOG(1, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMAT_LEN "\n", stm
 	field_type = QR_get_field_type(res, icol);
 	atttypmod = QR_get_atttypmod(res, icol);
 
-	MYLOG(0, "**** %s: icol = %d, target_type = %d, field_type = %d, value = '%s'\n", func, icol, target_type, field_type, NULL_IF_NULL(value));
+	MYLOG(0, "**** icol = %d, target_type = %d, field_type = %d, value = '%s'\n", icol, target_type, field_type, NULL_IF_NULL(value));
 
 	SC_set_current_col(stmt, icol);
 
@@ -1136,7 +1136,7 @@ MYLOG(1, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMAT_LEN "\n", stm
 
 cleanup:
 #undef	return
-MYLOG(1, "%s returning %d\n", __FUNCTION__, result);
+MYLOG(1, "leaving %d\n", result);
 	return result;
 }
 
@@ -1155,7 +1155,7 @@ PGAPI_Fetch(HSTMT hstmt)
 	BindInfoClass	*bookmark;
 	RETCODE		retval = SQL_SUCCESS;
 
-	MYLOG(0, "%s: stmt = %p, stmt->result= %p\n", func, stmt, stmt ? SC_get_Curres(stmt) : NULL);
+	MYLOG(0, "entering stmt = %p, stmt->result= %p\n", stmt, stmt ? SC_get_Curres(stmt) : NULL);
 
 	if (!stmt)
 	{
@@ -1428,7 +1428,7 @@ PGAPI_ExtendedFetch(HSTMT hstmt,
 	BOOL		currp_is_valid, reached_eof, useCursor;
 	SQLLEN		reqsize = rowsetSize;
 
-	MYLOG(0, "%s: stmt=%p rowsetSize=" FORMAT_LEN "\n", func, stmt, rowsetSize);
+	MYLOG(0, "entering stmt=%p rowsetSize=" FORMAT_LEN "\n", stmt, rowsetSize);
 
 	if (!stmt)
 	{
@@ -1833,7 +1833,7 @@ MYLOG(1, "num_tuples=" FORMAT_LEN "\n", num_tuples);
 	}
 	/* Physical Row advancement occurs for each row fetched below */
 
-	MYLOG(0, "PGAPI_ExtendedFetch: new currTuple = " FORMAT_LEN "\n", stmt->currTuple);
+	MYLOG(0, "new currTuple = " FORMAT_LEN "\n", stmt->currTuple);
 
 	truncated = error = FALSE;
 
@@ -1971,12 +1971,11 @@ cleanup:
 RETCODE		SQL_API
 PGAPI_MoreResults(HSTMT hstmt)
 {
-	CSTR func = "PGAPI_MoreResults";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	QResultClass	*res;
 	RETCODE		ret = SQL_SUCCESS;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 	res = SC_get_Curres(stmt);
 	if (res)
 	{
@@ -2009,7 +2008,7 @@ PGAPI_MoreResults(HSTMT hstmt)
 		PGAPI_FreeStmt(hstmt, SQL_CLOSE);
 		ret = SQL_NO_DATA_FOUND;
 	}
-	MYLOG(0, "%s: returning %d\n", func, ret);
+	MYLOG(0, "leaving %d\n", ret);
 	return ret;
 }
 
@@ -2057,7 +2056,7 @@ static void AddRollback(StatementClass *stmt, QResultClass *res, SQLLEN index, c
 
 	if (!CC_is_in_trans(conn))
 		return;
-MYLOG(1, "AddRollback " FORMAT_LEN "(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dmlcode == SQL_ADD ? "ADD" : (dmlcode == SQL_UPDATE ? "UPDATE" : (dmlcode == SQL_DELETE ? "DELETE" : "REFRESH")));
+MYLOG(1, "entering " FORMAT_LEN "(%u,%u) %s\n", index, keyset->blocknum, keyset->offset, dmlcode == SQL_ADD ? "ADD" : (dmlcode == SQL_UPDATE ? "UPDATE" : (dmlcode == SQL_DELETE ? "DELETE" : "REFRESH")));
 	if (!res->rollback)
 	{
 		res->rb_count = 0;
@@ -2119,7 +2118,7 @@ SQLLEN ReplaceCachedRows(TupleField *otuple, const TupleField *ituple, int num_f
 {
 	SQLLEN	i;
 
-MYLOG(1, "ReplaceCachedRows %p num_fields=%d num_rows=" FORMAT_LEN "\n", otuple, num_fields, num_rows);
+MYLOG(1, "entering %p num_fields=%d num_rows=" FORMAT_LEN "\n", otuple, num_fields, num_rows);
 	for (i = 0; i < num_fields * num_rows; i++, ituple++, otuple++)
 	{
 		if (otuple->value)
@@ -2145,7 +2144,7 @@ int MoveCachedRows(TupleField *otuple, TupleField *ituple, Int2 num_fields, SQLL
 {
 	int	i;
 
-MYLOG(1, "MoveCachedRows %p num_fields=%d num_rows=" FORMAT_LEN "\n", otuple, num_fields, num_rows);
+MYLOG(1, "entering %p num_fields=%d num_rows=" FORMAT_LEN "\n", otuple, num_fields, num_rows);
 	for (i = 0; i < num_fields * num_rows; i++, ituple++, otuple++)
 	{
 		if (otuple->value)
@@ -2263,7 +2262,7 @@ static void AddAdded(StatementClass *stmt, QResultClass *res, SQLLEN index, cons
 
 	if (!res)	return;
 	num_fields = res->num_fields;
-MYLOG(1, "AddAdded index=" FORMAT_LEN ", tuple=%p, num_fields=%d\n", index, tuple_added, num_fields);
+MYLOG(1, "entering index=" FORMAT_LEN ", tuple=%p, num_fields=%d\n", index, tuple_added, num_fields);
 	ad_count = res->ad_count;
 	res->ad_count++;
 	if (QR_get_cursor(res))
@@ -2309,7 +2308,7 @@ static	void RemoveAdded(QResultClass *res, SQLLEN index)
 	KeySet	*added_keyset;
 	TupleField	*added_tuples;
 
-	MYLOG(0, "RemoveAdded index=" FORMAT_LEN "\n", index);
+	MYLOG(0, "entering index=" FORMAT_LEN "\n", index);
 	if (index < 0)
 		rmidx = -index - 1;
 	else
@@ -2328,7 +2327,7 @@ static	void RemoveAdded(QResultClass *res, SQLLEN index)
 	RemoveDeleted(res, index);
 	RemoveUpdated(res, index);
 	res->ad_count--;
-	MYLOG(0, "RemoveAdded removed=1 count=%d\n", res->ad_count);
+	MYLOG(0, "removed=1 count=%d\n", res->ad_count);
 }
 
 static void
@@ -2338,7 +2337,7 @@ CommitAdded(QResultClass *res)
 	int	i;
 	UWORD	status;
 
-	MYLOG(0, "CommitAdded res=%p\n", res);
+	MYLOG(0, "entering res=%p\n", res);
 	if (!res || !res->added_keyset)	return;
 	added_keyset = res->added_keyset;
 	for (i = res->ad_count - 1; i >= 0; i--)
@@ -2377,7 +2376,7 @@ AddDeleted(QResultClass *res, SQLULEN index, const KeySet *keyset)
 	UWORD	status;
 	Int2	num_fields = res->num_fields;
 
-MYLOG(1, "AddDeleted " FORMAT_ULEN "\n", index);
+MYLOG(1, "entering " FORMAT_ULEN "\n", index);
 	dl_count = res->dl_count;
 	res->dl_count++;
 	if (!QR_get_cursor(res))
@@ -2442,7 +2441,7 @@ RemoveDeleted(QResultClass *res, SQLLEN index)
 	SQLLEN	*deleted, num_read = QR_get_num_total_read(res);
 	KeySet	*deleted_keyset;
 
-	MYLOG(0, "RemoveDeleted index=" FORMAT_LEN "\n", index);
+	MYLOG(0, "entering index=" FORMAT_LEN "\n", index);
 	if (index < 0)
 	{
 		midx = index;
@@ -2473,7 +2472,7 @@ RemoveDeleted(QResultClass *res, SQLLEN index)
 			rm_count++;
 		}
 	}
-	MYLOG(0, "RemoveDeleted removed count=%d,%d\n", rm_count, res->dl_count);
+	MYLOG(0, "removed count=%d,%d\n", rm_count, res->dl_count);
 }
 
 static void
@@ -2507,7 +2506,7 @@ CommitDeleted(QResultClass *res)
 		}
 		if (status != deleted_keyset->status)
 		{
-MYLOG(1, "!!Commit Deleted=" FORMAT_LEN "(%d)\n", *deleted, i);
+MYLOG(1, "Deleted=" FORMAT_LEN "(%d)\n", *deleted, i);
 			deleted_keyset->status = status;
 		}
 	}
@@ -2553,7 +2552,7 @@ AddUpdated(StatementClass *stmt, SQLLEN index, const KeySet *keyset, const Tuple
 	int	i;
 	UWORD	status;
 
-MYLOG(1, "AddUpdated index=" FORMAT_LEN "\n", index);
+MYLOG(1, "entering index=" FORMAT_LEN "\n", index);
 	if (!stmt)	return;
 	if (res = SC_get_Curres(stmt), !res)	return;
 	if (!keyset)	return;
@@ -2646,7 +2645,7 @@ MYLOG(1, "AddUpdated index=" FORMAT_LEN "\n", index);
 static void
 RemoveUpdated(QResultClass *res, SQLLEN index)
 {
-	MYLOG(0, "RemoveUpdated index=" FORMAT_LEN "\n", index);
+	MYLOG(0, "entering index=" FORMAT_LEN "\n", index);
 	RemoveUpdatedAfterTheKey(res, index, NULL);
 }
 
@@ -2659,7 +2658,7 @@ RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeySet *keyset)
 	SQLLEN	pidx, midx, mv_count;
 	int	i, num_fields = res->num_fields, rm_count = 0;
 
-	MYLOG(0, "RemoveUpdatedAfterTheKey " FORMAT_LEN ",(%u,%u)\n", index, keyset ? keyset->blocknum : 0, keyset ? keyset->offset : 0);
+	MYLOG(0, "entering " FORMAT_LEN ",(%u,%u)\n", index, keyset ? keyset->blocknum : 0, keyset ? keyset->offset : 0);
 	if (index < 0)
 	{
 		midx = index;
@@ -2702,7 +2701,7 @@ RemoveUpdatedAfterTheKey(QResultClass *res, SQLLEN index, const KeySet *keyset)
 			rm_count++;
 		}
 	}
-	MYLOG(0, "RemoveUpdatedAfter removed count=%d,%d\n", rm_count, res->up_count);
+	MYLOG(0, "removed count=%d,%d\n", rm_count, res->up_count);
 }
 
 static void
@@ -2712,7 +2711,7 @@ CommitUpdated(QResultClass *res)
 	int	i;
 	UWORD	status;
 
-	MYLOG(0, "CommitUpdated res=%p\n", res);
+	MYLOG(0, "entering res=%p\n", res);
 	if (!res)	return;
 	if (!QR_get_cursor(res))
 		return;
@@ -2757,7 +2756,7 @@ DiscardRollback(StatementClass *stmt, QResultClass *res)
 	KeySet	*keyset;
 	BOOL	kres_is_valid;
 
-MYLOG(1, "DiscardRollback\n");
+MYLOG(1, "entering\n");
 	if (QR_get_cursor(res))
 	{
 		CommitAdded(res);
@@ -2901,7 +2900,7 @@ MYLOG(1, "rollbp=%d\n", rollbp);
 
 	for (i = res->rb_count - 1; i >= rollbp; i--)
 	{
-MYLOG(1, "UndoRollback %d(%d)\n", i, rollback[i].option);
+MYLOG(1, "do %d(%d)\n", i, rollback[i].option);
 		index = rollback[i].index;
 		if (curs)
 		{
@@ -3026,7 +3025,7 @@ positioned_load(StatementClass *stmt, UInt4 flag, const UInt4 *oidint, const cha
 	const ssize_t	from_pos = stmt->load_from_pos;
 	const char *load_stmt = stmt->load_statement;
 
-MYLOG(1, "%s bestitem=%s bestqual=%s\n", func, SAFE_NAME(ti->bestitem), SAFE_NAME(ti->bestqual));
+MYLOG(1, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->bestitem), SAFE_NAME(ti->bestqual));
 	initPQExpBuffer(&selstr);
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (TI_has_subclass(ti))
@@ -3163,7 +3162,7 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	BOOL		use_ctid = TRUE;
 	BOOL		idx_exist = TRUE;
 
-	MYLOG(0, "positioned load fi=%p ti=%p\n", irdflds->fi, stmt->ti);
+	MYLOG(0, "entering fi=%p ti=%p\n", irdflds->fi, stmt->ti);
 	rcnt = 0;
 	if (count)
 		*count = 0;
@@ -3481,7 +3480,7 @@ static SQLLEN LoadFromKeyset_inh(StatementClass *stmt, QResultClass * res, int r
 	const char *load_stmt = stmt->load_statement;
 	const ssize_t	from_pos = stmt->load_from_pos;
 
-MYLOG(0, " %s in rows_per_fetch=%d limitrow=" FORMAT_LEN "\n", __FUNCTION__, rows_per_fetch, limitrow);
+MYLOG(0, "entering in rows_per_fetch=%d limitrow=" FORMAT_LEN "\n", rows_per_fetch, limitrow);
 	new_oid = 0;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res), rowc = 0, oid = 0;; i++, kres_ridx++)
@@ -3607,7 +3606,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	Int4		rows_per_fetch;
 	BOOL		create_from_scratch = (0 != flag);
 
-	MYLOG(0, "%s\n", func);
+	MYLOG(0, "entering\n");
 	if (!(res = SC_get_Curres(stmt)))
 	{
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_reload_needed.", func);
@@ -3702,7 +3701,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef,
 	QResultClass *res, *qres;
 	RETCODE		ret = SQL_ERROR;
 
-	MYLOG(0, "positioned new ti=%p\n", stmt->ti);
+	MYLOG(0, "entering ti=%p\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
 	{
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_newload.", func);
@@ -3881,7 +3880,7 @@ pos_update_callback(RETCODE retcode, void *para)
 
 	if (s->updyes)
 	{
-		MYLOG(0, "pos_update_callback in\n");
+		MYLOG(0, "entering\n");
 		ret = irow_update(ret, s->stmt, s->qstmt, s->global_ridx, &s->old_keyset);
 MYLOG(1, "irow_update ret=%d,%d\n", ret, SC_get_errornumber(s->qstmt));
 		if (ret != SQL_SUCCESS)
@@ -3955,7 +3954,7 @@ SC_pos_update(StatementClass *stmt,
 		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_update.", func);
 		return SQL_ERROR;
 	}
-	MYLOG(0, "POS UPDATE " FORMAT_POSIROW "+" FORMAT_LEN " fi=%p ti=%p\n", s.irow, QR_get_rowstart_in_cache(s.res), fi, s.stmt->ti);
+	MYLOG(0, "entering " FORMAT_POSIROW "+" FORMAT_LEN " fi=%p ti=%p\n", s.irow, QR_get_rowstart_in_cache(s.res), fi, s.stmt->ti);
 	if (SC_update_not_ready(stmt))
 		parse_statement(s.stmt, TRUE);	/* not preferable */
 	if (!SC_is_updatable(s.stmt))
@@ -4159,7 +4158,7 @@ SC_pos_delete(StatementClass *stmt,
 	BOOL		idx_exist = TRUE;
 	char		table_fqn[256];
 
-	MYLOG(0, "POS DELETE ti=%p\n", stmt->ti);
+	MYLOG(0, "entering ti=%p\n", stmt->ti);
 	if (!(res = SC_get_Curres(stmt)))
 	{
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_delete.", func);
@@ -4386,7 +4385,7 @@ pos_add_callback(RETCODE retcode, void *para)
 	{
 		SQLSETPOSIROW	brow_save;
 
-		MYLOG(0, "pos_add_callback in ret=%d\n", ret);
+		MYLOG(0, "entering ret=%d\n", ret);
 		brow_save = s->stmt->bind_row;
 		s->stmt->bind_row = s->irow;
 		if (QR_get_cursor(s->res))
@@ -4462,7 +4461,7 @@ SC_pos_add(StatementClass *stmt,
 	int		func_cs_count = 0;
 	char		table_fqn[256];
 
-	MYLOG(0, "POS ADD fi=%p ti=%p\n", fi, stmt->ti);
+	MYLOG(0, "entering fi=%p ti=%p\n", fi, stmt->ti);
 	s.stmt = stmt;
 	s.irow = irow;
 	if (!(s.res = SC_get_Curres(s.stmt)))
@@ -4693,7 +4692,7 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 	SQLLEN	kres_ridx, pos_ridx = 0;
 
 	ret = retcode;
-	MYLOG(0, "%s: %d in\n", func, s->need_data_callback);
+	MYLOG(0, "entering %d in\n", s->need_data_callback);
 	if (s->need_data_callback)
 	{
 		s->processed++;
@@ -4835,7 +4834,7 @@ PGAPI_SetPos(HSTMT hstmt,
 	s.opts = SC_get_ARDF(s.stmt);
 	gdata_info = SC_get_GDTI(s.stmt);
 	gdata = gdata_info->gdata;
-	MYLOG(0, "%s fOption=%d irow=" FORMAT_POSIROW " lock=%hu currt=" FORMAT_LEN "\n", func, s.fOption, s.irow, fLock, s.stmt->currTuple);
+	MYLOG(0, "entering fOption=%d irow=" FORMAT_POSIROW " lock=%hu currt=" FORMAT_LEN "\n", s.fOption, s.irow, fLock, s.stmt->currTuple);
 	if (s.stmt->options.scroll_concurrency != SQL_CONCUR_READ_ONLY)
 		;
 	else if (s.fOption != SQL_POSITION && s.fOption != SQL_REFRESH)
@@ -4902,7 +4901,7 @@ MYLOG(0, "num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allo
 		SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the row was deleted?", func);
 		ret = SQL_ERROR;
 	}
-	MYLOG(0, "%s returning %d\n", func, ret);
+	MYLOG(0, "leaving %d\n", ret);
 	return ret;
 }
 
@@ -4917,8 +4916,8 @@ PGAPI_SetScrollOptions(HSTMT hstmt,
 	CSTR func = "PGAPI_SetScrollOptions";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "%s: fConcurrency=%d crowKeyset=" FORMAT_LEN " crowRowset=%d\n",
-		  func, fConcurrency, crowKeyset, crowRowset);
+	MYLOG(0, "entering fConcurrency=%d crowKeyset=" FORMAT_LEN " crowRowset=%d\n",
+		  fConcurrency, crowKeyset, crowRowset);
 	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "SetScroll option not implemeted", func);
 
 	return SQL_ERROR;
@@ -4934,7 +4933,7 @@ PGAPI_SetCursorName(HSTMT hstmt,
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "%s: hstmt=%p, szCursor=%p, cbCursorMax=%d\n", func, hstmt, szCursor, cbCursor);
+	MYLOG(0, "entering hstmt=%p, szCursor=%p, cbCursorMax=%d\n", hstmt, szCursor, cbCursor);
 
 	if (!stmt)
 	{
@@ -4959,7 +4958,7 @@ PGAPI_GetCursorName(HSTMT hstmt,
 	size_t		len = 0;
 	RETCODE		result;
 
-	MYLOG(0, "%s: hstmt=%p, szCursor=%p, cbCursorMax=%d, pcbCursor=%p\n", func, hstmt, szCursor, cbCursorMax, pcbCursor);
+	MYLOG(0, "entering hstmt=%p, szCursor=%p, cbCursorMax=%d, pcbCursor=%p\n", hstmt, szCursor, cbCursorMax, pcbCursor);
 
 	if (!stmt)
 	{
@@ -5016,7 +5015,7 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 	TupleField	*otuple, *ituple;
 	SQLUSMALLINT	*rowStatusArray;
 
-	MYLOG(0, "%s in\n", __FUNCTION__);
+	MYLOG(0, "entering\n");
 
 	if (!(res = SC_get_Curres(stmt)))
 	{
@@ -5129,7 +5128,7 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 	opts->bookmark = NULL;
 	ret = PGAPI_ExtendedFetch(fstmt, SQL_FETCH_NEXT, 0,
 		&cRow, NULL, 0, size_of_rowset);
-	MYLOG(0, "%s cRow=" FORMAT_ULEN "\n", __FUNCTION__, cRow);
+	MYLOG(0, "cRow=" FORMAT_ULEN "\n", cRow);
 
 cleanup:
 	if (NULL != hstmt)

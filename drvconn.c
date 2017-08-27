@@ -116,7 +116,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 	int		reqs = 0;
 
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 	if (!conn)
 	{
@@ -127,13 +127,13 @@ PGAPI_DriverConnect(HDBC hdbc,
 	connStrIn = make_string(szConnStrIn, cbConnStrIn, NULL, 0);
 
 #ifdef	FORCE_PASSWORD_DISPLAY
-	MYLOG(0, "**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
+	MYLOG(0, "**** fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);
 #else
 	if (get_mylog())
 	{
 		char	*hide_str = hide_password(connStrIn);
 
-		MYLOG(0, "**** PGAPI_DriverConnect: fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, NULL_IF_NULL(hide_str));
+		MYLOG(0, "**** fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, NULL_IF_NULL(hide_str));
 		if (hide_str)
 			free(hide_str);
 	}
@@ -315,7 +315,7 @@ MYLOG(1, "before CC_connect\n");
 	}
 #endif /* FORCE_PASSWORD_DISPLAY */
 
-	MYLOG(0, "PGAPI_DriverConnect: returning %d\n", result);
+	MYLOG(0, "leaving %d\n", result);
 	return result;
 }
 
@@ -326,7 +326,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 {
 	LRESULT			dialog_result;
 
-	MYLOG(0, "dconn_DoDialog: ci = %p\n", ci);
+	MYLOG(0, "entering ci = %p\n", ci);
 
 	if (hwnd)
 	{
@@ -335,7 +335,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 		if (-1 == dialog_result)
 		{
 			int errc = GetLastError();
-			MYLOG(0, " %s:LastError=%d\n", __FUNCTION__, errc);
+			MYLOG(0, " LastError=%d\n", errc);
 		}
 		if (!dialog_result || (dialog_result == -1))
 			return SQL_NO_DATA_FOUND;
@@ -343,7 +343,7 @@ dconn_DoDialog(HWND hwnd, ConnInfo *ci)
 			return SQL_SUCCESS;
 	}
 
-	MYLOG(0, " %s:No window specified\n", __FUNCTION__);
+	MYLOG(0, " No window specified\n");
 	return SQL_ERROR;
 }
 
@@ -528,14 +528,14 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 					{
 						if (!delp)	/* error */
 						{
-							MYLOG(0, "%s closing bracket doesn't exist 1\n", __FUNCTION__);
+							MYLOG(0, "closing bracket doesn't exist 1\n");
 							ret = FALSE;
 							goto cleanup;
 						}
 						closep = strchr(delp + 1, CLOSING_BRACKET);
 						if (!closep)	/* error */
 						{
-							MYLOG(0, "%s closing bracket doesn't exist 2\n", __FUNCTION__);
+							MYLOG(0, "closing bracket doesn't exist 2\n");
 							ret = FALSE;
 							goto cleanup;
 						}
@@ -565,7 +565,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 							eoftok = TRUE;
 						break;
 					}
-MYLOG(0, "%s subsequent char to the closing bracket is %c value=%s\n", __FUNCTION__, closep[1], value);
+MYLOG(0, "subsequent char to the closing bracket is %c value=%s\n", closep[1], value);
 					ret = FALSE;
 					goto cleanup;
 				}

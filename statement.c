@@ -183,7 +183,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 	StatementClass *stmt;
 	ARDFields	*ardopts;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 
 	if (!conn)
 	{
@@ -193,7 +193,7 @@ PGAPI_AllocStmt(HDBC hdbc,
 
 	stmt = SC_Constructor(conn);
 
-	MYLOG(0, "**** PGAPI_AllocStmt: hdbc = %p, stmt = %p\n", hdbc, stmt);
+	MYLOG(0, "**** : hdbc = %p, stmt = %p\n", hdbc, stmt);
 
 	if (!stmt)
 	{
@@ -242,7 +242,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 	CSTR func = "PGAPI_FreeStmt";
 	StatementClass *stmt = (StatementClass *) hstmt;
 
-	MYLOG(0, "%s: entering...hstmt=%p, fOption=%hi\n", func, hstmt, fOption);
+	MYLOG(0, "entering...hstmt=%p, fOption=%hi\n", hstmt, fOption);
 
 	if (!stmt)
 	{
@@ -468,7 +468,7 @@ SC_Destructor(StatementClass *self)
 	CSTR func	= "SC_Destructor";
 	QResultClass	*res = SC_get_Result(self);
 
-	MYLOG(0, "SC_Destructor: self=%p, self->result=%p, self->hdbc=%p\n", self, res, self->hdbc);
+	MYLOG(0, "entering self=%p, self->result=%p, self->hdbc=%p\n", self, res, self->hdbc);
 	SC_clear_error(self);
 	if (STMT_EXECUTING == self->status)
 	{
@@ -509,7 +509,7 @@ SC_Destructor(StatementClass *self)
 	DELETE_STMT_CS(self);
 	free(self);
 
-	MYLOG(0, "SC_Destructor: EXIT\n");
+	MYLOG(0, "leaving\n");
 
 	return TRUE;
 }
@@ -519,7 +519,7 @@ SC_init_Result(StatementClass *self)
 {
 	self->result = self->curres = NULL;
 	self->curr_param_result = 0;
-	MYLOG(0, "SC_init_Result(%p)\n", self);
+	MYLOG(0, "leaving(%p)\n", self);
 }
 
 void
@@ -527,7 +527,7 @@ SC_set_Result(StatementClass *self, QResultClass *res)
 {
 	if (res != self->result)
 	{
-		MYLOG(0, "SC_set_Result(%p, %p)\n", self, res);
+		MYLOG(0, "(%p, %p)\n", self, res);
 		QR_Destructor(self->result);
 		self->result = self->curres = res;
 		if (NULL != res)
@@ -746,7 +746,7 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 	 */
 	if (self->prepare && self->status == STMT_DESCRIBED)
 	{
-		MYLOG(0, "SC_opencheck: self->prepare && self->status == STMT_DESCRIBED\n");
+		MYLOG(0, "self->prepare && self->status == STMT_DESCRIBED\n");
 		return FALSE;
 	}
 	if (res = SC_get_Curres(self), NULL != res)
@@ -803,7 +803,7 @@ SC_recycle_statement(StatementClass *self)
 	CSTR	func = "SC_recycle_statement";
 	ConnectionClass *conn;
 
-	MYLOG(0, "%s: self= %p\n", func, self);
+	MYLOG(0, "entering self=%p\n", self);
 
 	SC_clear_error(self);
 	/* This would not happen */
@@ -866,7 +866,7 @@ MYLOG(1, "SC_clear_parse_status\n");
 	SC_set_rowset_start(self, -1, FALSE);
 	SC_set_current_col(self, -1);
 	self->bind_row = 0;
-MYLOG(1, "%s statement=%p ommitted=0\n", func, self);
+MYLOG(1, "statement=%p ommitted=0\n", self);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 
 	self->__error_message = NULL;
@@ -904,7 +904,6 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		ssize_t *next_cmd, SQLSMALLINT * pcpar,
 		po_ind_t *multi_st, po_ind_t *proc_return)
 {
-	CSTR func = "SC_scanQueryAndCountParams";
 	const	char *sptr, *tstr, *tag = NULL;
 	size_t	taglen = 0;
 	char	tchar, bchar, escape_in_literal = '\0';
@@ -917,7 +916,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 	SQLSMALLINT	num_p;
 	encoded_str	encstr;
 
-	MYLOG(0, "%s: entering...\n", func);
+	MYLOG(0, "entering...\n");
 	num_p = 0;
 	if (proc_return)
 		*proc_return = 0;
@@ -1095,7 +1094,7 @@ SC_describe(StatementClass *self)
 {
 	Int4		num_fields = -1;
 	QResultClass	*res;
-	MYLOG(0, "SC_describe: status = %d\n", self->status);
+	MYLOG(0, "entering status = %d\n", self->status);
 
 	res = SC_get_Curres(self);
 	if (NULL != res)
@@ -1383,7 +1382,7 @@ StatementClass *SC_get_ancestor(StatementClass *stmt)
 {
 	StatementClass	*child = stmt, *parent;
 
-MYLOG(1, "SC_get_ancestor in stmt=%p\n", stmt);
+MYLOG(1, "entering stmt=%p\n", stmt);
 	for (child = stmt, parent = child->execute_parent; parent; child = parent, parent = child->execute_parent)
 	{
 		MYLOG(1, "parent=%p\n", parent);
@@ -1426,7 +1425,7 @@ SC_replace_error_with_res(StatementClass *self, int number, const char *message,
 	QResultClass	*self_res;
 	BOOL	repstate;
 
-MYLOG(1, "SC_set_error_from_res %p->%p check=%i\n", from_res ,self, check);
+MYLOG(1, "entering %p->%p check=%i\n", from_res ,self, check);
 	if (check)
 	{
 		if (0 == number)			return;
@@ -1471,7 +1470,7 @@ SC_error_copy(StatementClass *self, const StatementClass *from, BOOL check)
 	QResultClass	*self_res, *from_res;
 	BOOL	repstate;
 
-MYLOG(1, "SC_error_copy %p->%p check=%i\n", from ,self, check);
+MYLOG(1, "entering %p->%p check=%i\n", from ,self, check);
 	if (self == from)	return;
 	if (check)
 	{
@@ -1519,7 +1518,7 @@ SC_full_error_copy(StatementClass *self, const StatementClass *from, BOOL allres
 {
 	PG_ErrorInfo		*pgerror;
 
-MYLOG(1, "SC_full_error_copy %p->%p\n", from ,self);
+MYLOG(1, "entering %p->%p\n", from ,self);
 	if (self->__error_message)
 	{
 		free(self->__error_message);
@@ -1627,7 +1626,7 @@ SC_fetch(StatementClass *self)
 
 	/* TupleField *tupleField; */
 
-MYLOG(1, "%s statement=%p res=%p ommitted=0\n", func, self, res);
+MYLOG(1, "entering statement=%p res=%p ommitted=0\n", self, res);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 	if (!res)
 		return SQL_ERROR;
@@ -1649,7 +1648,7 @@ MYLOG(1, "%s statement=%p res=%p ommitted=0\n", func, self, res);
 			return SQL_NO_DATA_FOUND;
 		}
 
-		MYLOG(0, "**** %s: non-cursor_result\n", func);
+		MYLOG(0, "**** : non-cursor_result\n");
 		(self->currTuple)++;
 	}
 	else
@@ -1658,7 +1657,7 @@ MYLOG(1, "%s statement=%p res=%p ommitted=0\n", func, self, res);
 		retval = QR_next_tuple(res, self);
 		if (retval < 0)
 		{
-			MYLOG(0, "**** %s: end_tuples\n", func);
+			MYLOG(0, "**** : end_tuples\n");
 			if (QR_get_cursor(res) &&
 			    SQL_CURSOR_FORWARD_ONLY == self->options.cursor_type &&
 			    QR_once_reached_eof(res))
@@ -1706,7 +1705,7 @@ MYLOG(1, "SC_ pstatus[" FORMAT_LEN "]=%hx fetch_count=" FORMAT_LEN "\n", kres_ri
 
 	result = SQL_SUCCESS;
 	self->last_fetch_count++;
-MYLOG(1, "%s: stmt=%p ommitted++\n", func, self);
+MYLOG(1, "stmt=%p ommitted++\n", self);
 	self->last_fetch_count_include_ommitted++;
 
 	opts = SC_get_ARDF(self);
@@ -1852,7 +1851,7 @@ SC_execute(StatementClass *self)
 	if (CONN_EXECUTING == conn->status)
 	{
 		SC_set_error(self, STMT_SEQUENCE_ERROR, "Connection is already in use.", func);
-		MYLOG(0, "%s: problem with connection\n", func);
+		MYLOG(0, "problem with connection\n");
 		goto cleanup;
 	}
 	is_in_trans = CC_is_in_trans(conn);
@@ -2288,7 +2287,7 @@ int enqueueNeedDataCallback(StatementClass *stmt, NeedDataCallfunc func, void *d
 	stmt->callbacks[stmt->num_callbacks].data = data;
 	stmt->num_callbacks++;
 
-MYLOG(1, "enqueueNeedDataCallack stmt=%p, func=%p, count=%d\n", stmt, func, stmt->num_callbacks);
+MYLOG(1, "stmt=%p, func=%p, count=%d\n", stmt, func, stmt->num_callbacks);
 	return stmt->num_callbacks;
 }
 
@@ -2299,7 +2298,7 @@ RETCODE dequeueNeedDataCallback(RETCODE retcode, StatementClass *stmt)
 	void			*data;
 	int			i, cnt;
 
-	MYLOG(0, "dequeueNeedDataCallback ret=%d count=%d\n", retcode, stmt->num_callbacks);
+	MYLOG(0, "entering ret=%d count=%d\n", retcode, stmt->num_callbacks);
 	if (SQL_NEED_DATA == retcode)
 		return retcode;
 	if (stmt->num_callbacks <= 0)
@@ -2464,7 +2463,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 #endif /* NOT_USED */
 
 	/* 1. Bind */
-	MYLOG(0, "%s: bind stmt=%p\n", func, stmt);
+	MYLOG(0, "bind stmt=%p\n", stmt);
 	if (!build_libpq_bind_params(stmt,
 								 &nParams,
 								 &paramTypes,
@@ -2478,7 +2477,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 	}
 
 	/* 2. Execute */
-	MYLOG(0, "%s: execute stmt=%p\n", func, stmt);
+	MYLOG(0, "execute stmt=%p\n", stmt);
 	if (!SC_is_fetchcursor(stmt))
 	{
 		if (stmt->prepared == NOT_YET_PREPARED ||
@@ -2502,7 +2501,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		}
 
 		pstmt = stmt->processed_statements;
-		MYLOG(0, "%s execParams query=%s nParams=%d\n", __FUNCTION__, pstmt->query, nParams);
+		MYLOG(0, "execParams query=%s nParams=%d\n", pstmt->query, nParams);
 		QLOG(0, "PQexecParams: %p '%s' nParams=%d\n", conn->pqconn, pstmt->query, nParams);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
@@ -2527,7 +2526,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		plan_name = stmt->plan_name ? stmt->plan_name : NULL_STRING;
 
 		/* already prepared */
-		MYLOG(0, "%s execPrepared plan=%s nParams=%d\n", __FUNCTION__, plan_name, nParams);
+		MYLOG(0, "execPrepared plan=%s nParams=%d\n", plan_name, nParams);
 		QLOG(0, "PQexecPrepared: %p plan=%s nParams=%d\n", conn->pqconn, plan_name, nParams);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
@@ -2602,7 +2601,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			CC_set_error(conn, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)", func);
 			CC_on_abort(conn, CONN_DEAD);
 
-			MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(conn));
+			MYLOG(0, "PQexecxxxxxx: error - %s\n", CC_get_errormsg(conn));
 			QLOG(0, "error: - (%d) - %s\n", pgresstatus, CC_get_errormsg(conn));
 			break;
 	}
@@ -2647,11 +2646,12 @@ ParseWithLibpq(StatementClass *stmt, const char *plan_name,
 	CSTR	func = "ParseWithLibpq";
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	Int4		sta_pidx = -1, end_pidx = -1;
+	const char	*cstatus;
 	Oid		   *paramTypes = NULL;
 	BOOL		retval = FALSE;
 	PGresult   *pgres = NULL;
 
-	MYLOG(0, "%s: plan_name=%s query=%s\n", func, plan_name, query);
+	MYLOG(0, "entering plan_name=%s query=%s\n", plan_name, query);
 	if (!RequestStart(stmt, conn, func))
 		return FALSE;
 
@@ -2740,8 +2740,9 @@ MYLOG(0, "sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		handle_pgres_error(conn, pgres, "ParseWithlibpq", res, TRUE);
 		goto cleanup;
 	}
-	QLOG(0, "\tok: - 'C' - %s\n", PQcmdStatus(pgres));
-MYLOG(0, "PQprepare was successful, plan=%s\n", plan_name ? plan_name : "");
+	cstatus = PQcmdStatus(pgres);
+	QLOG(0, "\tok: - 'C' - %s\n", cstatus);
+	MYLOG(0, "\tok: - 'C' - %s\n", cstatus);
 	if (stmt->plan_name)
 		SC_set_prepared(stmt, PREPARED_PERMANENTLY);
 	else
@@ -2790,7 +2791,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	Oid			oid;
 	SQLSMALLINT paramType;
 
-	MYLOG(0, "%s: plan_name=%s query=%s\n", func, plan_name, query_param);
+	MYLOG(0, "entering plan_name=%s query=%s\n", plan_name, query_param);
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
@@ -2811,7 +2812,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 		goto cleanup;
 
 	/* Describe */
-	MYLOG(0, "%s: describing plan_name=%s\n", func, plan_name);
+	MYLOG(0, "describing plan_name=%s\n", plan_name);
 	QLOG(0, "\tPQdescribePrepared: %p plan_name=%s\n", conn->pqconn, plan_name);
 
 	pgres = PQdescribePrepared(conn->pqconn, plan_name);
@@ -2832,7 +2833,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 			CC_set_error(conn, CONNECTION_BACKEND_CRAZY, "Unexpected result from PQdescribePrepared", func);
 			CC_on_abort(conn, CONN_DEAD);
 
-			MYLOG(0, "send_query: error - %s\n", CC_get_errormsg(conn));
+			MYLOG(0, "PQdescribePrepared: error - %s\n", CC_get_errormsg(conn));
 			goto cleanup;
 	}
 
@@ -3084,10 +3085,10 @@ PG_BM	SC_Resolve_bookmark(const ARDFields *opts, Int4 idx)
 			cpylen = sizeof(pg_bm);
 		else if (*used >= 12)
 			cpylen = 12;
-		MYLOG(0, "%s used=" FORMAT_LEN " cpylen=" FORMAT_SIZE_T "\n", __FUNCTION__, *used, cpylen);
+		MYLOG(0, "used=" FORMAT_LEN " cpylen=" FORMAT_SIZE_T "\n", *used, cpylen);
 	}
 	memcpy(&pg_bm, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, idx), cpylen);
-MYLOG(0, "%s index=%d block=%d off=%d\n", __FUNCTION__, pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
+MYLOG(0, "index=%d block=%d off=%d\n", pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
 	pg_bm.index = SC_resolve_int4_bookmark(pg_bm.index);
 
 	return pg_bm;
@@ -3101,7 +3102,7 @@ int	SC_Create_bookmark(StatementClass *self, BindInfoClass *bookmark, Int4 bind_
 	size_t		cvtlen = sizeof(Int4);
 	PG_BM		pg_bm;
 
-MYLOG(0, "%s type=%d buflen=" FORMAT_LEN " buf=%p\n", __FUNCTION__, bookmark->returntype, bookmark->buflen, bookmark->buffer);
+MYLOG(0, "entering type=%d buflen=" FORMAT_LEN " buf=%p\n", bookmark->returntype, bookmark->buflen, bookmark->buffer);
 	memset(&pg_bm, 0, sizeof(pg_bm));
 	if (SQL_C_BOOKMARK == bookmark->returntype)
 		;
@@ -3123,7 +3124,7 @@ MYLOG(0, "%s type=%d buflen=" FORMAT_LEN " buf=%p\n", __FUNCTION__, bookmark->re
 			used = LENADDR_SHIFT(used, bind_row * sizeof(SQLLEN));
 		*used = cvtlen;
 	}
-MYLOG(0, "%s cvtlen=" FORMAT_SIZE_T " ix(bl,of)=%d(%d,%d)\n", __FUNCTION__, cvtlen, pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
+MYLOG(0, "leaving cvtlen=" FORMAT_SIZE_T " ix(bl,of)=%d(%d,%d)\n", cvtlen, pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
 
 	return COPY_OK;
 }

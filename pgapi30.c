@@ -38,9 +38,8 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				 SQLSMALLINT BufferLength, SQLSMALLINT *TextLength)
 {
 	RETCODE		ret;
-	CSTR func = "PGAPI_GetDiagRec";
 
-	MYLOG(0, "%s entering type=%d rec=%d\n", func, HandleType, RecNumber);
+	MYLOG(0, "entering type=%d rec=%d\n", HandleType, RecNumber);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -67,7 +66,7 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 		default:
 			ret = SQL_ERROR;
 	}
-	MYLOG(0, "%s exiting %d\n", func, ret);
+	MYLOG(0, "leaving %d\n", ret);
 	return ret;
 }
 
@@ -88,9 +87,8 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	SQLSMALLINT	pcbErrm;
 	ssize_t		rtnlen = -1;
 	int		rtnctype = SQL_C_CHAR;
-	CSTR func = "PGAPI_GetDiagField";
 
-	MYLOG(0, "%s entering rec=%d\n", func, RecNumber);
+	MYLOG(0, "entering rec=%d\n", RecNumber);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -388,7 +386,7 @@ MYLOG(1, "rc=" FORMAT_LEN "\n", rc);
 		if (StringLengthPtr)
 			*StringLengthPtr = (SQLSMALLINT) rtnlen;
 	}
-	MYLOG(0, "%s exiting %d\n", func, ret);
+	MYLOG(0, "leaving %d\n", ret);
 	return ret;
 }
 
@@ -402,7 +400,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret = SQL_SUCCESS;
 	SQLINTEGER	len = 4;
 
-	MYLOG(0, "PGAPI_GetConnectAttr %d\n", Attribute);
+	MYLOG(0, "entering %d\n", Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ASYNC_ENABLE:
@@ -683,7 +681,6 @@ static RETCODE SQL_API
 APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			SQLSMALLINT FieldIdentifier, PTR Value, SQLINTEGER BufferLength)
 {
-	CSTR		func = "APDSetField";
 	RETCODE		ret = SQL_SUCCESS;
 	APDFields	*opts = &(desc->apdf);
 	SQLSMALLINT	para_idx;
@@ -715,14 +712,14 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <=0)
 	{
-MYLOG(1, "%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
+MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
 	}
 	if (RecNumber > opts->allocated)
 	{
-MYLOG(1, "%s RecN=%d allocated=%d\n", func, RecNumber, opts->allocated);
+MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 		parameter_bindings_set(opts, RecNumber, TRUE);
 		/* DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
@@ -884,7 +881,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 	{
-MYLOG(1, "IPDSetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
@@ -1163,7 +1160,7 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		default:if (RecNumber <= 0 || RecNumber > opts->allocated)
 			{
-MYLOG(1, "APDGetField RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
@@ -1417,7 +1414,7 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		default:if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 			{
-MYLOG(1, "IPDGetField RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
@@ -1554,7 +1551,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	len = 0;
 
-	MYLOG(0, "%s Handle=%p %d\n", func, StatementHandle, Attribute);
+	MYLOG(0, "entering Handle=%p %d\n", StatementHandle, Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:	/* 16 */
@@ -1657,7 +1654,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	BOOL	unsupported = FALSE;
 	int	newValue;
 
-	MYLOG(0, "%s for %p: %d %p\n", func, ConnectionHandle, Attribute, Value);
+	MYLOG(0, "entering for %p: %d %p\n", ConnectionHandle, Attribute, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_METADATA_ID:
@@ -1814,7 +1811,7 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	MYLOG(0, "%s h=%p rec=%d field=%d blen=%d\n", func, DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
+	MYLOG(0, "entering h=%p rec=%d field=%d blen=%d\n", DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1864,7 +1861,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	MYLOG(0, "%s h=%p(%d) rec=%d field=%d val=%p,%d\n", func, DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
+	MYLOG(0, "entering h=%p(%d) rec=%d field=%d val=%p,%d\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1915,7 +1912,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	MYLOG(0, "%s Handle=%p %d," FORMAT_ULEN "(%p)\n", func, StatementHandle, Attribute, (SQLULEN) Value, Value);
+	MYLOG(0, "entering Handle=%p %d," FORMAT_ULEN "(%p)\n", StatementHandle, Attribute, (SQLULEN) Value, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
@@ -2028,7 +2025,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 
 	if (s->need_data_callback)
 	{
-		MYLOG(0, "bulk_ope_callback in\n");
+		MYLOG(0, "entering in\n");
 		s->processed++;
 		s->idx++;
 	}
@@ -2096,7 +2093,7 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	ConnectionClass	*conn;
 	BindInfoClass	*bookmark;
 
-	MYLOG(0, "%s operation = %d\n", func, operationX);
+	MYLOG(0, "entering operation = %d\n", operationX);
 	s.stmt = (StatementClass *) hstmt;
 	s.operation = operationX;
 	SC_clear_error(s.stmt);
