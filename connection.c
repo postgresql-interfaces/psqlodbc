@@ -50,7 +50,7 @@
 #define STMT_INCREMENT 16		/* how many statement holders to allocate
 								 * at a time */
 
-static void CC_lookup_lo(ConnectionClass *self);
+static SQLRETURN CC_lookup_lo(ConnectionClass *self);
 static int  CC_close_eof_cursors(ConnectionClass *self);
 
 static void LIBPQ_update_transaction_status(ConnectionClass *self);
@@ -624,14 +624,12 @@ CC_send_client_encoding(ConnectionClass *self, const char * encoding)
 	{
                 char	query[64];
 		QResultClass	*res;
-		int	errnum = CC_get_errornumber(self);
 		BOOL	cmd_success;
 
 		SPRINTF_FIXED(query, "set client_encoding to '%s'", encoding);
 		res = CC_send_query(self, query, NULL, 0, NULL);
 		cmd_success = QR_command_maybe_successful(res);
 		QR_Destructor(res);
-		CC_set_errornumber(self, errnum);
 
 		if (!cmd_success)
 			return SQL_ERROR;
@@ -1082,13 +1080,22 @@ CC_connect(ConnectionClass *self, char *salt_para)
 
 	/* Per Datasource settings */
 	retsend = CC_send_settings(self, GET_NAME(self->connInfo.conn_settings));
+	if (CONN_DOWN == self->status)
+	{
+		ret = 0;
+		goto cleanup;
+	}
 
 	if (CC_get_errornumber(self) > 0 &&
 	    NULL != (errmsg = CC_get_errormsg(self)))
 		saverr = strdup(errmsg);
 	CC_clear_error(self);			/* clear any error */
-	CC_lookup_lo(self);			/* a hack to get the oid of
-						   our large object oid type */
+
+	if (!SQL_SUCCEEDED(CC_lookup_lo(self)))	/* a hack to get the oid of our large object oid type */
+	{
+		ret = 0;
+		goto cleanup;
+	}
 
 	/*
 	 *		Multibyte handling
@@ -1096,13 +1103,13 @@ CC_connect(ConnectionClass *self, char *salt_para)
 	 *	Send 'UTF8' when required Unicode behavior, otherwise send
 	 *	locale encodings.
 	 */
+	CC_clear_error(self);
 	CC_determine_locale_encoding(self); /* determine the locale_encoding */
 #ifdef UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(self))
 	{
 		if (!SQL_SUCCEEDED(CC_send_client_encoding(self, "UTF8")))
 		{
-			CC_set_error(self, CONN_OPENDB_ERROR, "Failed to set client_encoding to UTF8", __FUNCTION__);
 			ret = 0;
 			goto cleanup;
 		}
@@ -1117,6 +1124,7 @@ CC_connect(ConnectionClass *self, char *salt_para)
 		}
 	}
 
+	CC_clear_error(self);
 	if (self->server_isolation != self->isolation)
 		if (!CC_set_transact(self, self->isolation))
 		{
@@ -1744,8 +1752,11 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	if (!self->pqconn)
 	{
-		CC_set_error(self, CONNECTION_COULD_NOT_SEND, "Could not send Query(connection dead)", func);
-		CC_on_abort(self, CONN_DEAD);
+		PQExpBufferData	pbuf = {0};
+		initPQExpBuffer(&pbuf);
+		appendPQExpBuffer(&pbuf, "The connection is down\nFailed to send '%s'", query);
+		CC_set_error(self, CONNECTION_COULD_NOT_SEND, pbuf.data, func);
+		termPQExpBuffer(&pbuf);
 		return NULL;
 	}
 
@@ -2462,16 +2473,20 @@ CC_send_settings(ConnectionClass *self, const char *set_query)
  *	If a real Large Object oid type is made part of Postgres, this function
  *	will go away and the define 'PG_TYPE_LO' will be updated.
  */
-static void
+static SQLRETURN
 CC_lookup_lo(ConnectionClass *self)
 {
+	SQLRETURN	ret = SQL_SUCCESS;
 	QResultClass	*res;
 
 	MYLOG(0, "entering...\n");
 
 	res = CC_send_query(self, "select oid, typbasetype from pg_type where typname = '"  PG_TYPE_LO_NAME "'",
 		NULL, READ_ONLY_QUERY, NULL);
-	if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
+
+	if (!QR_command_maybe_successful(res))
+		ret = SQL_ERROR;
+	else if (QR_command_maybe_successful(res) && QR_get_num_cached_tuples(res) > 0)
 	{
 		OID	basetype;
 
@@ -2484,7 +2499,7 @@ CC_lookup_lo(ConnectionClass *self)
 	}
 	QR_Destructor(res);
 	MYLOG(0, "Got the large object oid: %d\n", self->lobj_type);
-	return;
+	return ret;
 }
 
 
