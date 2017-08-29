@@ -105,7 +105,7 @@ ADD_DEFINES = $(ADD_DEFINES) /Wp64
 !ENDIF
 
 !IF "$(PG_INC)" != ""
-INC_OPT = $(INC_OPT) /I "$(PG_INC)"
+INC_OPT = $(INC_OPT) /I "$(PG_INC)" /I "$(PG_INC)\internal"
 !ENDIF
 !IF "$(ADD_INC)" != ""
 INC_OPT = $(INC_OPT) /I "$(ADD_INC)"
