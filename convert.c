@@ -4226,6 +4226,70 @@ parameter_is_with_cast(const QueryParse *qp)
 		return TRUE;
 	return FALSE;
 }
+
+#ifdef	UNICODE_SUPPORT
+enum {
+	ErrorOutConversionErrors	/* error out conversion errors */
+	, ReturnZeroLengthString	/* simply returns zero length strings */
+};
+static int convert_err_flag =
+#ifdef	WIN32
+	 ReturnZeroLengthString;
+#else
+	 ErrorOutConversionErrors;
+#endif /* WIN32 */
+
+static BOOL
+handle_lu_onvert_error(QueryBuild *qb, int flag, char *buffer, SQLLEN paralen)
+{
+	int	blen = paralen;
+
+	if (!buffer)
+		return FALSE;
+	if (get_mylog() > 0 || ReturnZeroLengthString != flag)
+	{
+		const UCHAR *buf = (UCHAR *) buffer;
+		int	i;
+		PQExpBufferData pbuf = {0};
+
+		if (SQL_NTS == blen)
+			blen = strlen(buffer);
+		initPQExpBuffer(&pbuf);
+		appendPQExpBuffer(&pbuf, "Could not convert the current data '");
+		for (i = 0; i < blen; i++)
+		{
+			if (buf[i] >= 0x80)
+				appendPQExpBuffer(&pbuf, "\\%03o", buf[i]);
+			else if ('\\' == buf[i])
+				appendPQExpBuffer(&pbuf, "\\\\");
+			else
+				appendPQExpBuffer(&pbuf, "%c", buf[i]);
+		}
+		appendPQExpBuffer(&pbuf, "' to wide chars");
+		MYLOG(0, "%s\n", pbuf.data);
+		if (ReturnZeroLengthString != flag)
+		{
+			if (qb->stmt)
+				SC_set_error(qb->stmt, STMT_EXEC_ERROR, pbuf.data, __FUNCTION__);
+			else
+				qb->errormsg = "could not convert the current data to wide chars";
+		}
+		termPQExpBuffer(&pbuf);
+
+	}
+	switch (flag)
+	{
+		case ReturnZeroLengthString:
+			if (qb->stmt)
+				SC_set_error(qb->stmt, STMT_ERROR_IN_ROW, "conversion error to wide chars occured", __FUNCTION__);
+			return TRUE;
+		default:
+			qb->errornumber = STMT_EXEC_ERROR;
+			return FALSE;
+	}
+}
+#endif /* UNICODE_SUPPORT */
+
 /*
  * Resolve one parameter.
  *
@@ -4253,7 +4317,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	SIMPLE_TIME	st;
 	struct tm	*tim;
 	SQLLEN		used;
-	char		*send_buf;
+	const char	*send_buf;
 
 	char		*buffer, *allocbuf = NULL, *lastadd = NULL;
 	OID			lobj_oid;
@@ -4500,7 +4564,8 @@ MYLOG(1, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->para
 #endif
 	}
 
-	allocbuf = send_buf = NULL;
+	allocbuf = NULL;
+	send_buf = NULL;
 	param_string[0] = '\0';
 	cbuf[0] = '\0';
 	memset(&st, 0, sizeof(st));
@@ -4519,15 +4584,18 @@ MYLOG(1, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->para
 			case SQL_C_CHAR:
 				if (!same_encoding || wcs_debug)
 				{
+					SQLLEN	paralen = used;
+
 					MYLOG(0, "locale param convert\n");
 					if ((used = bindpara_msg_to_utf8(buffer, &allocbuf, used)) < 0)
 					{
-						qb->errormsg = "Could not convert from the current locale to wide characters";
-						qb->errornumber = STMT_EXEC_ERROR;
-						retval = SQL_ERROR;
-						goto cleanup;
+						if (!handle_lu_onvert_error(qb, convert_err_flag, buffer, paralen))
+							goto cleanup;
+						send_buf = NULL_STRING;
+						used = 0;
 					}
-					send_buf = allocbuf;
+					else
+						send_buf = allocbuf;
 				}
 				break;
 			case SQL_C_WCHAR:
@@ -4538,7 +4606,6 @@ MYLOG(1, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->para
 					{
 						qb->errormsg = "Could not convert from wide characters to the current locale";
 						qb->errornumber = STMT_EXEC_ERROR;
-						retval = SQL_ERROR;
 						goto cleanup;
 					}
 					send_buf = allocbuf;
@@ -4779,7 +4846,6 @@ MYLOG(0, " C_WCHAR=%d contents=%s(" FORMAT_LEN ")\n", param_ctype, buffer, used)
 			qb->errormsg = "Unrecognized C_parameter type in copy_statement_with_parameters";
 			qb->errornumber = STMT_NOT_IMPLEMENTED_ERROR;
 			CVT_TERMINATE(qb);	/* just in case */
-			retval = SQL_ERROR;
 			goto cleanup;
 	}
 
@@ -4866,7 +4932,7 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				case PG_TYPE_FLOAT8:
 				case PG_TYPE_NUMERIC:
 					if (NULL != send_buf)
-						set_server_decimal_point(send_buf, used);
+						set_server_decimal_point((char *) send_buf, used);
 					break;
 			}
 			if (!send_buf)
@@ -4964,7 +5030,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				default:
 					qb->errormsg = "Could not convert the ctype to binary type";
 					qb->errornumber = STMT_EXEC_ERROR;
-					retval = SQL_ERROR;
 					goto cleanup;
 			}
 			if (param_pgtype == PG_TYPE_BYTEA)
@@ -4990,7 +5055,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 			{
 				qb->errormsg = "Could not convert binary other than LO type";
 				qb->errornumber = STMT_EXEC_ERROR;
-				retval = SQL_ERROR;
 				goto cleanup;
 			}
 
@@ -5008,7 +5072,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 					{
 						qb->errormsg = "Could not begin (in-line) a transaction";
 						qb->errornumber = STMT_EXEC_ERROR;
-						retval = SQL_ERROR;
 						goto cleanup;
 					}
 				}
@@ -5019,7 +5082,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldn't create (in-line) large object.";
-					retval = SQL_ERROR;
 					goto cleanup;
 				}
 
@@ -5029,7 +5091,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldn't open (in-line) large object for writing.";
-					retval = SQL_ERROR;
 					goto cleanup;
 				}
 
@@ -5038,7 +5099,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldn't write to (in-line) large object.";
-					retval = SQL_ERROR;
 					goto cleanup;
 				}
 
@@ -5051,7 +5111,6 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 					{
 						qb->errormsg = "Could not commit (in-line) a transaction";
 						qb->errornumber = STMT_EXEC_ERROR;
-						retval = SQL_ERROR;
 						goto cleanup;
 					}
 				}
@@ -5075,12 +5134,12 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 			/* must be quoted (0 or 1 is ok to use inside the quotes) */
 
 		case SQL_REAL:
-			set_server_decimal_point(send_buf, used);
+			set_server_decimal_point((char *) send_buf, used);
 			lastadd = "::float4";
 			break;
 		case SQL_FLOAT:
 		case SQL_DOUBLE:
-			set_server_decimal_point(send_buf, used);
+			set_server_decimal_point((char *) send_buf, used);
 			lastadd = "::float8";
 			break;
 		case SQL_NUMERIC:
