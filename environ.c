@@ -213,6 +213,8 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 		else
 			error->recsize = DRVMNGRDIV;
 	}
+	else if (1 == RecNumber && cbErrorMsgMax > 0)
+		error->recsize = cbErrorMsgMax - 1;
 	if (RecNumber < 0)
 	{
 		if (0 == error->errorpos)
@@ -233,7 +235,7 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 		if (partial_ok)
 			wrtlen = cbErrorMsgMax - 1;
 		else if (cbErrorMsgMax <= error->recsize)
-			wrtlen = 0;
+			wrtlen = cbErrorMsgMax - 1;
 		else
 			wrtlen = error->recsize;
 	}
@@ -255,7 +257,7 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 		strncpy_null((char *) szSqlState, error->sqlstate, 6);
 
 	MYLOG(0, "	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, pcblen, szErrorMsg);
-	if (wrtlen == 0)
+	if (wrtlen < pcblen)
 		return SQL_SUCCESS_WITH_INFO;
 	else
 		return SQL_SUCCESS;
