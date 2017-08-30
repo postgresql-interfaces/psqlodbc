@@ -41,6 +41,10 @@
 #include <stdlib.h>
 #endif /* WIN32 */
 
+#ifndef	__GNUC__
+#define	__attribute__(x)
+#endif /* __GNUC__ */
+
 #ifdef	_MEMORY_DEBUG_
 void		*pgdebug_alloc(size_t);
 void		*pgdebug_calloc(size_t, size_t);
