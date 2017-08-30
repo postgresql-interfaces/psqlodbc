@@ -2429,7 +2429,7 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 	return ret;
 }
 
-static log_params(int nParams, const Oid *paramTypes, const UCHAR * const *paramValues, const int *paramLengths, const int *paramFormats, int resultFormat)
+static void log_params(int nParams, const Oid *paramTypes, const UCHAR * const *paramValues, const int *paramLengths, const int *paramFormats, int resultFormat)
 {
 	const int	level = 1;
 	int	i, j;
