@@ -91,7 +91,9 @@ BEGIN
     PUSHBUTTON      "設定2",ID2NDPAGE,5,5,40,15
     PUSHBUTTON      "設定3",ID3RDPAGE,49,5,40,15
     CONTROL         "一般ログ出力をする(&L) (C:\\psqlodbc.log)",DRV_COMMLOG,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,24,170,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,24,167,10
+    EDITTEXT        DS_COMMLOG,337,24,13,12,ES_AUTOHSCROLL | WS_GROUP,
+                    WS_EX_TRANSPARENT
     CONTROL         "ユニ－クインデックスを使う(&I)",DRV_UNIQUEINDEX,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,129,10
     CONTROL         "ステ－トメントの構文解析を行なう(&a)",DRV_PARSE,"Button",
@@ -100,6 +102,8 @@ BEGIN
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,71,138,10
     CONTROL         "詳細ログ出力をする(C:\\mylog_xxxx.log)",DRV_DEBUG,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,69,164,10
+    EDITTEXT        DS_DEBUG,337,69,13,12,ES_AUTOHSCROLL | WS_GROUP,
+                    WS_EX_TRANSPARENT
     GROUPBOX        "未知のサイズ動作",IDC_STATIC,5,85,340,31
     CONTROL         "最大をとる",DRV_UNKNOWN_MAX,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP | WS_TABSTOP,17,98,57,10
@@ -532,7 +536,9 @@ BEGIN
     PUSHBUTTON      "Page 2",ID2NDPAGE,5,5,40,15
     PUSHBUTTON      "Page 3",ID3RDPAGE,49,5,40,15
     CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log)",DRV_COMMLOG,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,149,26,131,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,149,26,121,10
+    EDITTEXT        DS_COMMLOG,275,26,100,13,ES_AUTOHSCROLL | WS_GROUP,
+                    WS_EX_TRANSPARENT
     CONTROL         "Recognize Unique &Indexes",DRV_UNIQUEINDEX,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,110,10
     CONTROL         "P&arse Statements",DRV_PARSE,"Button",BS_AUTOCHECKBOX | 
@@ -541,6 +547,8 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,71,83,10
     CONTROL         "MyLog (C:\\mylog_xxxx.log)",DRV_DEBUG,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,149,71,112,10
+    EDITTEXT        DS_DEBUG,275,71,15,12,ES_AUTOHSCROLL | WS_GROUP,
+                    WS_EX_TRANSPARENT
     GROUPBOX        "Unknown Sizes",IDC_STATIC,5,85,277,25
     CONTROL         "Maximum",DRV_UNKNOWN_MAX,"Button",BS_AUTORADIOBUTTON | 
                     WS_GROUP | WS_TABSTOP,15,96,45,10
