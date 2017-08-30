@@ -237,7 +237,6 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 			qlog_off_count = 0;
 
 	ENTER_MYLOG_CS;
-	ENTER_QLOG_CS;
 	if (mylog_onoff)
 		mylog_on_count += cnopen;
 	else
@@ -253,18 +252,26 @@ logs_on_off(int cnopen, int mylog_onoff, int qlog_onoff)
 		mylog_on = 0;
 	else if (getGlobalDebug() > 0)
 		mylog_on = getGlobalDebug();
+	LEAVE_MYLOG_CS;
+
+	ENTER_QLOG_CS;
 	if (qlog_onoff)
 		qlog_on_count += cnopen;
 	else
 		qlog_off_count += cnopen;
 	if (qlog_on_count > 0)
-		qlog_on = 1;
+	{
+		if (qlog_onoff > qlog_on)
+			qlog_on = qlog_onoff;
+		else if (qlog_on < 1)
+			qlog_on = 1;
+	}
 	else if (qlog_off_count > 0)
 		qlog_on = 0;
 	else if (getGlobalCommlog() > 0)
 		qlog_on = getGlobalCommlog();
 	LEAVE_QLOG_CS;
-	LEAVE_MYLOG_CS;
+MYLOG(0, "mylog_on=%d qlog_on=%d\n", mylog_on, qlog_on);
 }
 
 #ifdef	WIN32

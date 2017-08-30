@@ -1720,9 +1720,9 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 			break;
 		case SQL_ATTR_PGOPT_COMMLOG:
 			newValue = CAST_UPTR(SQLCHAR, Value);
-			if (newValue > 0 && conn->connInfo.drivers.commlog <= 0)
+			if (newValue > 0)
 			{
-				logs_on_off(-1, 0, 0);
+				logs_on_off(-1, 0, conn->connInfo.drivers.commlog);
 				conn->connInfo.drivers.commlog = newValue;
 				logs_on_off(1, 0, conn->connInfo.drivers.commlog);
 				MYLOG(0, "commlog => %d\n", conn->connInfo.drivers.commlog);

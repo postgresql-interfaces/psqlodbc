@@ -2429,6 +2429,28 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 	return ret;
 }
 
+static log_params(int nParams, const Oid *paramTypes, const UCHAR * const *paramValues, const int *paramLengths, const int *paramFormats, int resultFormat)
+{
+	const int	level = 1;
+	int	i, j;
+	BOOL	isBinary;
+
+	for (i = 0; i < nParams; i++)
+	{
+		isBinary = paramFormats ? paramFormats[i] : FALSE;
+		if (!paramValues[i])
+			QLOG(level, "\t%c (null) OID=%u\n", isBinary ? 'b' : 't', paramTypes ? paramTypes[i] : 0);
+		else if (isBinary)
+		{
+			QLOG(level, "\tb '");
+			for (j = 0; j < paramLengths[i]; j++)
+				QPRINTF(level, "%02x", paramValues[i][j]);
+			QPRINTF(level, " OID=%u\n", paramTypes ? paramTypes[i] : 0);
+		}
+		else
+			QLOG(level, "\tt '%s' OID=%u\n", paramValues[i], paramTypes ? paramTypes[i] : 0);
+	}
+}
 
 static QResultClass *
 libpq_bind_and_exec(StatementClass *stmt)
@@ -2503,6 +2525,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		pstmt = stmt->processed_statements;
 		MYLOG(0, "execParams query=%s nParams=%d\n", pstmt->query, nParams);
 		QLOG(0, "PQexecParams: %p '%s' nParams=%d\n", conn->pqconn, pstmt->query, nParams);
+		log_params(nParams, paramTypes, (const UCHAR * const *) paramValues, paramLengths, paramFormats, resultFormat);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 nParams,
@@ -2528,6 +2551,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 		/* already prepared */
 		MYLOG(0, "execPrepared plan=%s nParams=%d\n", plan_name, nParams);
 		QLOG(0, "PQexecPrepared: %p plan=%s nParams=%d\n", conn->pqconn, plan_name, nParams);
+		log_params(nParams, paramTypes, (const UCHAR * const *) paramValues, paramLengths, paramFormats, resultFormat);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
 							   nParams,
