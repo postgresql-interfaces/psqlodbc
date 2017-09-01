@@ -159,7 +159,7 @@ PGAPI_Connect(HDBC hdbc,
 		free(tmpstr);
 	}
 
-	QLOG(0, "conn = %p (DSN='%s', UID='%s', PWD='%s')\n", conn, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
+	MYLOG(0, "conn = %p (DSN='%s', UID='%s', PWD='%s')\n", conn, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
 
 	if ((fchar = CC_connect(conn, NULL)) <= 0)
 	{

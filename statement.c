@@ -2757,7 +2757,7 @@ MYLOG(0, "sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 		conn->unnamed_prepared_stmt = NULL;
 
 	/* Prepare */
-	QLOG(0, "PQprepare: %p '%s' plan=%s num_params=%d\n", conn->pqconn, query, plan_name, num_params);
+	QLOG(0, "PQprepare: %p '%s' plan=%s nParams=%d\n", conn->pqconn, query, plan_name, num_params);
 	pgres = PQprepare(conn->pqconn, plan_name, query, num_params, paramTypes);
 	if (PQresultStatus(pgres) != PGRES_COMMAND_OK)
 	{
@@ -2864,6 +2864,15 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	/* Extract parameter information from the result set */
 	num_p = PQnparams(pgres);
 MYLOG(1, "num_params=%d info=%d\n", stmt->num_params, num_p);
+	if (get_qlog() > 0)
+	{
+		int	i;
+
+		QLOG(0, "\tnParams=%d", num_p);
+		for (i = 0; i < num_p; i++)
+			QPRINTF(0, " %u", PQparamtype(pgres, i));
+		QPRINTF(0, "\n");
+	}
 	num_discard_params = 0;
 	if (stmt->discard_output_params)
 		CountParameters(stmt, NULL, NULL, &num_discard_params);

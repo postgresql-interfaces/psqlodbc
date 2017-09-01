@@ -66,6 +66,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(pgres);
 
+	QLOG(0, "\tnFields: %d\n", new_num_fields);
 	MYLOG(0, "num_fields = %d\n", new_num_fields);
 
 	if (self)
@@ -102,6 +103,7 @@ CI_read_fields_from_pgres(ColumnInfoClass *self, PGresult *pgres)
 		if (new_atttypmod < 0)
 			new_atttypmod = -1;
 
+		QLOG(0, "\tfieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 		MYLOG(0, "fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
 		if (self)

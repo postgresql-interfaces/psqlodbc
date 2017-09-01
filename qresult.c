@@ -602,7 +602,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(*pgres);
 	MYLOG(0, "num_fields = %d\n", new_num_fields);
-	QLOG(0, "\tnum_fields: %d\n", new_num_fields);
+	QLOG(0, "\tnFields: %d\n", new_num_fields);
 
 	/* according to that allocate memory */
 	QR_set_num_fields(self, new_num_fields);
@@ -1373,6 +1373,7 @@ nextrow:
 			this_keyset->status = 0;
 		}
 
+		QLOG(1, "\t");
 		for (field_lf = 0; field_lf < ci_num_fields; field_lf++)
 		{
 			BOOL isnull = FALSE;
@@ -1383,6 +1384,7 @@ nextrow:
 			{
 				this_tuplefield[field_lf].len = 0;
 				this_tuplefield[field_lf].value = 0;
+				QPRINTF(1, " (null)");
 				continue;
 			}
 			else
@@ -1398,6 +1400,7 @@ nextrow:
 				memcpy(buffer, value, len);
 				buffer[len] = '\0';
 
+				QPRINTF(1, " '%s'(%d)", buffer, len);
 				MYLOG(0, "qresult: len=%d, buffer='%s'\n", len, buffer);
 
 				if (field_lf >= effective_cols)
@@ -1436,6 +1439,7 @@ nextrow:
 				}
 			}
 		}
+		QPRINTF(1, "\n");
 		self->cursTuple++;
 		if (self->num_fields > 0)
 		{
