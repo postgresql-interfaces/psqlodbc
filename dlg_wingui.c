@@ -222,11 +222,12 @@ static int
 driver_options_update(HWND hdlg, ConnInfo *ci)
 {
 	GLOBAL_VALUES *comval;
+	BOOL	bTranslated;
 
 MYLOG(2, "entering\n");
 	comval = &(ci->drivers);
 
-	comval->commlog = GetDlgItemInt(hdlg, DS_COMMLOG, NULL, FALSE);
+	(comval->commlog = GetDlgItemInt(hdlg, DS_COMMLOG, &bTranslated, FALSE)) || bTranslated || (comval->commlog = 1);
 	comval->unique_index = IsDlgButtonChecked(hdlg, DRV_UNIQUEINDEX);
 	comval->use_declarefetch = IsDlgButtonChecked(hdlg, DRV_USEDECLAREFETCH);
 
@@ -246,7 +247,9 @@ MYLOG(2, "entering\n");
 
 	comval->parse = IsDlgButtonChecked(hdlg, DRV_PARSE);
 
-	comval->debug = GetDlgItemInt(hdlg, DS_DEBUG, NULL, FALSE);
+	(comval->debug = GetDlgItemInt(hdlg, DS_DEBUG, &bTranslated, FALSE)) || bTranslated || (comval->debug = 1);
+	if (!bTranslated)
+		comval->debug = 1;
 
 	comval->fetch_max = GetDlgItemInt(hdlg, DRV_CACHE_SIZE, NULL, FALSE);
 	comval->max_varchar_size = GetDlgItemInt(hdlg, DRV_VARCHAR_SIZE, NULL, FALSE);
@@ -381,17 +384,20 @@ global_optionsProc(HWND hdlg,
 static void
 CtrlCheckButton(HWND hdlg, int nIDcheck, int nIDint)
 {
+	BOOL	bTranslated;
+
 	switch (Button_GetCheck(GetDlgItem(hdlg, nIDcheck)))
 	{
 		case BST_CHECKED:
-			if (!GetDlgItemInt(hdlg, nIDint, NULL, FALSE))
+			if (!GetDlgItemInt(hdlg, nIDint, &bTranslated, FALSE))
 			{
 				ShowWindow(GetDlgItem(hdlg, nIDint), SW_SHOW);
-				SetDlgItemInt(hdlg, nIDint, 1, FALSE);
+				if (bTranslated)
+					SetDlgItemInt(hdlg, nIDint, 1, FALSE);
 			}
 			break;
 		case BST_UNCHECKED:
-			if (GetDlgItemInt(hdlg, nIDint, NULL, FALSE))
+			if (GetDlgItemInt(hdlg, nIDint, &bTranslated, FALSE))
 			{
 				ShowWindow(GetDlgItem(hdlg, nIDint), SW_HIDE);
 				SetDlgItemInt(hdlg, nIDint, 0, FALSE);
@@ -441,8 +447,6 @@ ds_options1Proc(HWND hdlg,
 
 		case WM_COMMAND:
 			ci = (ConnInfo *) GetWindowLongPtr(hdlg, DWLP_USER);
-			CtrlCheckButton(hdlg, DRV_COMMLOG, DS_COMMLOG);
-			CtrlCheckButton(hdlg, DRV_DEBUG, DS_DEBUG);
 			switch (GET_WM_COMMAND_ID(wParam, lParam))
 			{
 				case IDOK:
@@ -474,6 +478,14 @@ ds_options1Proc(HWND hdlg,
 					DialogBoxParam(s_hModule,
 								   MAKEINTRESOURCE(DLG_OPTIONS_DS3),
 								   hdlg, ds_options3Proc, (LPARAM) ci);
+					break;
+				case DRV_COMMLOG:
+				case DS_COMMLOG:
+					CtrlCheckButton(hdlg, DRV_COMMLOG, DS_COMMLOG);
+					break;
+				case DRV_DEBUG:
+				case DS_DEBUG:
+					CtrlCheckButton(hdlg, DRV_DEBUG, DS_DEBUG);
 					break;
 			}
 	}
