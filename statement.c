@@ -1588,13 +1588,15 @@ SC_get_time(StatementClass *stmt)
 struct tm *
 SC_get_localtime(StatementClass *stmt)
 {
+#ifndef HAVE_LOCALTIME_R
 	struct tm * tim;
+#endif /* HAVE_LOCALTIME_R */
 
 	if (stmt->localtime.tm_sec < 0)
 	{
 		SC_get_time(stmt);
 #ifdef HAVE_LOCALTIME_R
-		tim = localtime_r(&stmt->stmt_time, &(stmt->localtime));
+		localtime_r(&stmt->stmt_time, &(stmt->localtime));
 #else
 		tim = localtime(&stmt->stmt_time);
 		stmt->localtime = *tim;

@@ -345,7 +345,7 @@ mylog_misc(unsigned int option, const char *fmt, va_list args)
 #endif /* LOGGING_PROCESS_TIME */
 #endif /* WIN_MULTITHREAD_SUPPORT */
 #if defined(POSIX_MULTITHREAD_SUPPORT)
-		fprintf(MLOGFP, "[%lu]", pthread_self());
+		fprintf(MLOGFP, "[%lx]", (unsigned long int) pthread_self());
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 		}
 		vfprintf(MLOGFP, fmt, args);

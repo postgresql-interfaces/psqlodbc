@@ -103,8 +103,8 @@ PGAPI_DriverConnect(HDBC hdbc,
 
 #ifdef WIN32
 	RETCODE		dialog_result;
-#endif
 	BOOL		didUI = FALSE;
+#endif
 	const char 	*lackMessage = NULL;
 	RETCODE		result;
 	char		*connStrIn = NULL;
