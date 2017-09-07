@@ -117,7 +117,11 @@ ConfigDSN(HWND hwnd,
 				(LPARAM) lpsetupdlg));
 		}
 		else if (lpsetupdlg->ci.dsn[0])
+		{
+			MYLOG(0, "about to getCiAllDefaults\n");
+			getCiAllDefaults(&lpsetupdlg->ci);
 			fSuccess = SetDSNAttributes(hwnd, lpsetupdlg, NULL);
+		}
 		else
 			fSuccess = FALSE;
 	}

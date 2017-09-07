@@ -831,6 +831,22 @@ getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 #endif /* WIN32 */
 }
 
+static Global_defset(GLOBAL_VALUES *comval)
+{
+	comval->fetch_max = FETCH_MAX;
+	comval->unique_index = DEFAULT_UNIQUEINDEX;
+	comval->unknown_sizes = DEFAULT_UNKNOWNSIZES;
+	comval->lie = DEFAULT_LIE;
+	comval->parse = DEFAULT_PARSE;
+	comval->use_declarefetch = DEFAULT_USEDECLAREFETCH;
+	comval->max_varchar_size = MAX_VARCHAR_SIZE;
+	comval->max_longvarchar_size = TEXT_FIELD_SIZE;
+	comval->text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
+	comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
+	comval->bools_as_char = DEFAULT_BOOLSASCHAR;
+	STRCPY_FIXED(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
+	STRCPY_FIXED(comval->protocol, DEFAULT_PROTOCOL);
+}
 
 static void
 get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval);
@@ -841,6 +857,13 @@ void getDriversDefaults(const char *drivername, GLOBAL_VALUES *comval)
 	get_Ci_Drivers(drivername, ODBCINST_INI, comval);
 	if (NULL != drivername)
 		STR_TO_NAME(comval->drivername, drivername);
+}
+
+void
+getCiAllDefaults(ConnInfo *ci)
+{
+	Global_defset(&(ci->drivers));
+	getCiDefaults(ci);
 }
 
 void
@@ -1309,21 +1332,7 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 	 */
 
 	if (inst_position)
-	{
-		comval->fetch_max = FETCH_MAX;
-		comval->unique_index = DEFAULT_UNIQUEINDEX;
-		comval->unknown_sizes = DEFAULT_UNKNOWNSIZES;
-		comval->lie = DEFAULT_LIE;
-		comval->parse = DEFAULT_PARSE;
-		comval->use_declarefetch = DEFAULT_USEDECLAREFETCH;
-		comval->max_varchar_size = MAX_VARCHAR_SIZE;
-		comval->max_longvarchar_size = TEXT_FIELD_SIZE;
-		comval->text_as_longvarchar = DEFAULT_TEXTASLONGVARCHAR;
-		comval->unknowns_as_longvarchar = DEFAULT_UNKNOWNSASLONGVARCHAR;
-		comval->bools_as_char = DEFAULT_BOOLSASCHAR;
-		STRCPY_FIXED(comval->extra_systable_prefixes, DEFAULT_EXTRASYSTABLEPREFIXES);
-		STRCPY_FIXED(comval->protocol, DEFAULT_PROTOCOL);
-	}
+		Global_defset(comval);
 	if (NULL == section || strcmp(section, INVALID_DRIVER) == 0)
 		return;
 	/*
