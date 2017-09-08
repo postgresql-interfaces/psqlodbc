@@ -831,7 +831,7 @@ getDriverNameFromDSN(const char *dsn, char *driver_name, int namelen)
 #endif /* WIN32 */
 }
 
-static Global_defset(GLOBAL_VALUES *comval)
+static void Global_defset(GLOBAL_VALUES *comval)
 {
 	comval->fetch_max = FETCH_MAX;
 	comval->unique_index = DEFAULT_UNIQUEINDEX;
