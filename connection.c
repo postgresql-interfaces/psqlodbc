@@ -2926,7 +2926,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 		for (i = 0, ptr = (const UCHAR *) ccs; i < length; i++, ptr++)
 		{
 			encoded_nextchar(&encstr);
-			if (ENCODE_STATUS(encstr) != 0)
+			if (MBCS_NON_ASCII(encstr))
 				continue;
 			if (ifallupper && islower(*ptr))
 			{

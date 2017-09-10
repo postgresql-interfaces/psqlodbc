@@ -1529,7 +1529,7 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
 	{
                 encoded_nextchar(&encstr);
-                if (ENCODE_STATUS(encstr) != 0)
+                if (MBCS_NON_ASCII(encstr))
                 {
                         dest[outlen++] = *in;
                         continue;
@@ -1570,7 +1570,7 @@ MYLOG(0, "entering in=%.*s(%d)\n", srclen, src, srclen);
 	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
 	{
 		encoded_nextchar(&encstr);
-		if (ENCODE_STATUS(encstr) != 0)
+		if (MBCS_NON_ASCII(encstr))
 		{
 			dest[outlen++] = *in;
 			continue;

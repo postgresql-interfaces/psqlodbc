@@ -927,7 +927,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 	for (sptr = tstr, bchar = '\0'; *sptr; sptr++)
 	{
 		tchar = encoded_nextchar(&encstr);
-		if (ENCODE_STATUS(encstr) != 0) /* multibyte char */
+		if (MBCS_NON_ASCII(encstr)) /* multibyte char */
 		{
 			if ((UCHAR) tchar >= 0x80)
 				bchar = tchar;

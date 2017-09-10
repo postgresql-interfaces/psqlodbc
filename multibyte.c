@@ -511,7 +511,7 @@ derive_locale_encoding(const char *dbencoding)
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str)
 {
 	encstr->ccsc = ccsc;
-	encstr->encstr = str;
+	encstr->encstr = (const UCHAR *) str;
 	encstr->pos = -1;
 	encstr->ccst = 0;
 }

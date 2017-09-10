@@ -60,11 +60,12 @@ extern int pg_CS_code(const char *stat_string);
 typedef struct
 {
 	int	ccsc;
-	const char *encstr;
+	const UCHAR *encstr;
 	ssize_t	pos;
 	int	ccst;
 } encoded_str;
 #define ENCODE_STATUS(enc)	((enc).ccst)
+#define MBCS_NON_ASCII(enc)	(0 != (enc).ccst || (enc).encstr[(enc).pos] >= 0x80)
 
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str);
 #define make_encoded_str(encstr, conn, str) encoded_str_constr(encstr, conn->ccsc, str)

@@ -122,7 +122,7 @@ getNextToken(
 	while (s[i] != '\0' && out < smax)
 	{
 		encoded_nextchar(&encstr);
-		if (ENCODE_STATUS(encstr) != 0)
+		if (MBCS_NON_ASCII(encstr))
 		{
 			token[out++] = s[i++];
 			continue;
@@ -175,7 +175,7 @@ getNextToken(
 			while (s[i] != '\0' && out != smax)
 			{
 				encoded_nextchar(&encstr);
-				if (ENCODE_STATUS(encstr) != 0)
+				if (MBCS_NON_ASCII(encstr))
 				{
 					token[out++] = s[i++];
 					continue;
@@ -372,7 +372,7 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 		for (ptr = name; *ptr; ptr++)
 		{
 			encoded_nextchar(&encstr);
-			if (ENCODE_STATUS(encstr) == 0)
+			if (!MBCS_NON_ASCII(encstr))
 				*ptr = tolower((UCHAR) *ptr);
 		}
 	}

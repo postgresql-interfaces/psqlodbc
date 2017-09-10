@@ -2439,7 +2439,7 @@ static RETCODE QB_append_space_to_separate_identifiers(QueryBuild *qb, const Que
 		return SQL_SUCCESS;
 	encoded_str_constr(&encstr, qb->ccsc, F_OldPtr(qp) + 1);
 	tchar = encoded_nextchar(&encstr);
-	if (ENCODE_STATUS(encstr) != 0)
+	if (MBCS_NON_ASCII(encstr))
 		add_space = TRUE;
 	else
 	{
@@ -3176,7 +3176,7 @@ findTag(const char *tag, int ccsc)
 	for (sptr = tag + 1; *sptr; sptr++)
 	{
 		tchar = encoded_nextchar(&encstr);
-		if (ENCODE_STATUS(encstr) != 0)
+		if (MBCS_NON_ASCII(encstr))
 			continue;
 		if (DOLLAR_QUOTE == tchar)
 		{
@@ -3203,7 +3203,7 @@ findIdentifier(const char *str, int ccsc, const char **nextdel)
 	for (sptr = str; *sptr; sptr++)
 	{
 		tchar = encoded_nextchar(&encstr);
-		if (ENCODE_STATUS(encstr) != 0)
+		if (MBCS_NON_ASCII(encstr))
 			continue;
 		if (sptr == str) /* the first character */
 		{
@@ -3430,7 +3430,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 	}
 	oldchar = encoded_byte_check(&qp->encstr, qp->opos);
-	if (ENCODE_STATUS(qp->encstr) != 0)
+	if (MBCS_NON_ASCII(qp->encstr))
 	{
 		if (QP_in_idle_status(qp))
 		{
@@ -5278,7 +5278,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 		retval = inner_process_tokens(qp, qb);
 		if (retval == SQL_ERROR)
 			return retval;
-		if (ENCODE_STATUS(qp->encstr) != 0)
+		if (MBCS_NON_ASCII(qp->encstr))
 			continue;
 		if (!QP_in_idle_status(qp))
 			continue;
@@ -5901,7 +5901,7 @@ convert_special_chars(QueryBuild *qb, const char *si, size_t used)
 				return FALSE;
 		}
 
-		if (ENCODE_STATUS(encstr) != 0)
+		if (MBCS_NON_ASCII(encstr))
 		{
 			qb->query_statement[qb->npos++] = tchar;
 			continue;
