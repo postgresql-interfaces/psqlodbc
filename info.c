@@ -5366,10 +5366,10 @@ PGAPI_Procedures(HSTMT hstmt,
 	op_string = gen_opestr(like_or_eq, conn);
 	initPQExpBuffer(&proc_query);
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	appendPQExpBufferStr(&proc_query, "select '' as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
-	" proname as " "PROCEDURE_NAME" ", '' as " "NUM_INPUT_PARAMS" ","
-	   " '' as " "NUM_OUTPUT_PARAMS" ", '' as " "NUM_RESULT_SETS" ","
-	   " '' as " "REMARKS" ","
+	appendPQExpBufferStr(&proc_query, "select ''::varchar as " "PROCEDURE_CAT" ", nspname as " "PROCEDURE_SCHEM" ","
+	" proname as " "PROCEDURE_NAME" ", ''::varchar as " "NUM_INPUT_PARAMS" ","
+	   " ''::varchar as " "NUM_OUTPUT_PARAMS" ", ''::varchar as " "NUM_RESULT_SETS" ","
+	   " ''::varchar as " "REMARKS" ","
 	   " case when prorettype = 0 then 1::int2 else 2::int2 end"
 	   " as "		  "PROCEDURE_TYPE" " from pg_catalog.pg_namespace,"
 	   " pg_catalog.pg_proc"
