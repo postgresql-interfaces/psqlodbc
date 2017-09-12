@@ -33,7 +33,7 @@ runtest(char *extra_conn_options)
 	 */
 	printf("Testing SQLColAttribute...\n");
 	rc = SQLExecDirect(hstmt,
-			(SQLCHAR *) "SELECT '1'::int AS intcol, 'foobar'::text AS textcol, 'unknown string' AS unknowncol, 'varchar string'::varchar as varcharcol, ''::varchar as empty_varchar_col, 'varchar-5-col'::varchar(5) as varchar5col, '5 days'::interval day to second",
+			(SQLCHAR *) "SELECT '1'::int AS intcol, 'foobar'::text AS textcol, 'varchar string'::varchar as varcharcol, ''::varchar as empty_varchar_col, 'varchar-5-col'::varchar(5) as varchar5col, '5 days'::interval day to second",
 			SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 

@@ -10,23 +10,19 @@ SQL_DESC_TYPE_NAME: int4
 SQL_DESC_OCTET_LENGTH: 32760
 SQL_DESC_TYPE_NAME: text
 
--- Column 3: unknowncol --
-SQL_DESC_OCTET_LENGTH: 56
-SQL_DESC_TYPE_NAME: unknown
-
--- Column 4: varcharcol --
+-- Column 3: varcharcol --
 SQL_DESC_OCTET_LENGTH: 100
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 5: empty_varchar_col --
+-- Column 4: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 6: varchar5col --
+-- Column 5: varchar5col --
 SQL_DESC_OCTET_LENGTH: 20
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 7: interval --
+-- Column 6: interval --
 SQL_DESC_OCTET_LENGTH: 0
 SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
@@ -42,23 +38,19 @@ SQL_DESC_TYPE_NAME: int4
 SQL_DESC_OCTET_LENGTH: 32760
 SQL_DESC_TYPE_NAME: text
 
--- Column 3: unknowncol --
-SQL_DESC_OCTET_LENGTH: 56
-SQL_DESC_TYPE_NAME: unknown
-
--- Column 4: varcharcol --
+-- Column 3: varcharcol --
 SQL_DESC_OCTET_LENGTH: 100
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 5: empty_varchar_col --
+-- Column 4: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 6: varchar5col --
+-- Column 5: varchar5col --
 SQL_DESC_OCTET_LENGTH: 20
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 7: interval --
+-- Column 6: interval --
 SQL_DESC_OCTET_LENGTH: 0
 SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
@@ -74,23 +66,19 @@ SQL_DESC_TYPE_NAME: int4
 SQL_DESC_OCTET_LENGTH: 24
 SQL_DESC_TYPE_NAME: text
 
--- Column 3: unknowncol --
-SQL_DESC_OCTET_LENGTH: 56
-SQL_DESC_TYPE_NAME: unknown
-
--- Column 4: varcharcol --
+-- Column 3: varcharcol --
 SQL_DESC_OCTET_LENGTH: 56
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 5: empty_varchar_col --
+-- Column 4: empty_varchar_col --
 SQL_DESC_OCTET_LENGTH: 100
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 6: varchar5col --
+-- Column 5: varchar5col --
 SQL_DESC_OCTET_LENGTH: 20
 SQL_DESC_TYPE_NAME: varchar
 
--- Column 7: interval --
+-- Column 6: interval --
 SQL_DESC_OCTET_LENGTH: 0
 SQL_DESC_TYPE_NAME: interval day to second
 disconnecting
