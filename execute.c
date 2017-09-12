@@ -805,7 +805,7 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	if (strnicmp(cmd, "into", len))
 		return;
 	cmd += len;
-	while (isspace((UCHAR) *(++cmd)));
+	while (isspace((UCHAR) *cmd)) cmd++;
 	if (!*cmd)
 		return;
 	NULL_THE_NAME(conn->schemaIns);
@@ -819,6 +819,18 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 		STRN_TO_NAME(conn->tableIns, token, len);
 	token = next_name_token(token, &len);
 	if (token && *token == '.')
+	{
+		token = next_name_token(token, &len);
+		if (token) {
+			if (NAME_IS_VALID(conn->tableIns))
+				MOVE_NAME(conn->schemaIns, conn->tableIns);
+			if (*token == IDENTIFIER_QUOTE)
+				STRN_TO_NAME(conn->tableIns, token + 1, len - 2);
+			else
+				STRN_TO_NAME(conn->tableIns, token, len);
+		}
+	}
+	if (token && (token = next_name_token(token, &len)) && *token == '.')
 	{
 		token = next_name_token(token, &len);
 		if (token) {

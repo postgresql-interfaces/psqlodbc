@@ -762,7 +762,7 @@ COL_INFO **coli)
 		if (!found)
 		{
 			QResultClass	*res;
-			char		token[256];
+			char		token[256], relcnv[128];
 			BOOL		tblFound = FALSE;
 
 			/*
@@ -771,7 +771,7 @@ COL_INFO **coli)
 			SPRINTF_FIXED(token,
 					 "select nspname from pg_namespace n, pg_class c"
 					 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
-					 SAFE_NAME(table_name));
+					 identifierEscape((const SQLCHAR *) SAFE_NAME(table_name), SQL_NTS, conn, relcnv, sizeof(relcnv)));
 			res = CC_send_query(conn, token, NULL, READ_ONLY_QUERY, NULL);
 			if (QR_command_maybe_successful(res))
 			{

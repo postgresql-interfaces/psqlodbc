@@ -1508,8 +1508,8 @@ PGAPI_GetFunctions(HDBC hdbc,
 }
 
 
-static char	*
-simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn)
+char *
+identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize)
 {
 	int	i, outlen;
 	const char *in;
@@ -1524,9 +1524,15 @@ simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *co
 		return dest;
 MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
-	dest = malloc(2 * srclen + 1);
+	if (NULL != buf && bufsize > 0)
+		dest = buf;
+	else
+	{
+		bufsize = 2 * srclen + 1;
+		dest = malloc(bufsize);
+	}
 	if (!dest) return NULL;
-	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
+	for (i = 0, in = (char *) src, outlen = 0; i < srclen && outlen < bufsize - 1; i++, in++)
 	{
                 encoded_nextchar(&encstr);
                 if (MBCS_NON_ASCII(encstr))
@@ -1542,6 +1548,12 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 	dest[outlen] = '\0';
 MYLOG(0, "leaving output=%s(%d)\n", dest, outlen);
 	return dest;
+}
+
+static char *
+simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn)
+{
+	return identifierEscape(src, srclen, conn, NULL, -1);
 }
 
 /*
@@ -2230,7 +2242,7 @@ PGAPI_Columns(HSTMT hstmt,
 				typmod, relhasoids;
 	OID		field_type, greloid, basetype;
 	char		not_null[MAX_INFO_STRING],
-				relhasrules[MAX_INFO_STRING], relkind[8];
+				relhasrules[MAX_INFO_STRING], relkind[8], attidentity[2];
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
 	BOOL	search_pattern = TRUE, search_by_ids, relisaview, show_oid_column, row_versioning;
 	ConnInfo   *ci;
@@ -2306,9 +2318,9 @@ retry_public_schema:
 		"t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull, "
 		"c.relhasrules, c.relkind, c.oid, pg_get_expr(d.adbin, d.adrelid), "
         "case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod, "
-        "c.relhasoids "
+        "c.relhasoids, %s "
 		"from (((pg_catalog.pg_class c "
-		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace");
+		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace", PG_VERSION_GE(conn, 10.0) ? "attidentity" : "''");
 	if (search_by_ids)
 		appendPQExpBuffer(&columns_query, " and c.oid = %u", reloid);
 	else
@@ -2495,6 +2507,14 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(hcol_stmt, 17, SQL_C_CHAR,
+					attidentity, sizeof(attidentity), NULL);
+	if (!SQL_SUCCEEDED(result))
+	{
+		SC_error_copy(stmt, col_stmt, TRUE);
+		goto cleanup;
+	}
+
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.", func);
@@ -2626,8 +2646,9 @@ MYLOG(0, " and the data=%s\n", attdef);
 				}
 			case PG_TYPE_INT4:
 			case PG_TYPE_INT8:
-				if (attdef && strnicmp(attdef, "nextval(", 8) == 0 &&
-				    not_null[0] != '0')
+				if (attidentity[0] != 0 ||
+				    (attdef && strnicmp(attdef, "nextval(", 8) == 0 &&
+				     not_null[0] != '0'))
 				{
 					auto_unique = SQL_TRUE;
 					if (!setIdentity &&

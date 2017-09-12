@@ -3617,13 +3617,34 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			if (NULL != coli)
 			{
 				int	i, num_fields = QR_NumResultCols(coli->result);
+				const char *auto_increment, *column_def;
 
 				for (i = 0; i < num_fields; i++)
 				{
-					if (*((char *)QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT)) == '1')
+					auto_increment = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT);
+					if (auto_increment && auto_increment[0] == '1')
 					{
-						CVT_APPEND_STR(qb, "curr");
-						CVT_APPEND_STR(qb, (char *)QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF) + 4);
+						column_def = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF);
+						if (NULL != column_def)
+						{
+							CVT_APPEND_STR(qb, "curr");
+							CVT_APPEND_STR(qb, column_def + 4);
+						}
+						else
+						{
+							const char *column_name = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_NAME);
+							CVT_APPEND_STR(qb, "currval('\"");
+							if (NAME_IS_VALID(conn->schemaIns))
+							{
+								CVT_SPECIAL_CHARS(qb, SAFE_NAME(conn->schemaIns), SQL_NTS);
+								CVT_APPEND_STR(qb, "\".\"");
+							}
+							CVT_SPECIAL_CHARS(qb, SAFE_NAME(conn->tableIns), SQL_NTS);
+							CVT_APPEND_STR(qb, "_");
+							if (NULL != column_name)
+								CVT_SPECIAL_CHARS(qb, column_name, SQL_NTS);
+							CVT_APPEND_STR(qb, "_seq\"'::regclass)");
+						}
 						converted = TRUE;
 						break;
 					}
