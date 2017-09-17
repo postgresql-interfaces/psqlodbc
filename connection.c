@@ -587,6 +587,7 @@ CC_determine_locale_encoding(ConnectionClass *self)
 	const char *dbencoding = PQparameterStatus(self->pqconn, "client_encoding");
 	const char *encoding;
 
+	QLOG(0, "PQparameterStatus(%p, \"client_encoding\")=%s\n", self->pqconn, SAFE_STR(dbencoding));
 	if (self->locale_encoding) /* already set */
                 return;
 	encoding = derive_locale_encoding(dbencoding);
@@ -1246,8 +1247,14 @@ CC_remove_statement(ConnectionClass *self, StatementClass *stmt)
 char CC_get_escape(const ConnectionClass *self)
 {
 	const char	   *scf;
+	static const ConnectionClass *conn = NULL;
 
 	scf = PQparameterStatus(self->pqconn, "standard_conforming_strings");
+	if (self != conn)
+	{
+		QLOG(0, "PQparameterStatus(%p, \"standard_conforming_strings\")=%s\n", self->pqconn, SAFE_STR(scf));
+		conn = self;
+	}
 	if (scf == NULL)
 	{
 		/* we're connected to a pre-8.1 server, and E'' is not supported */
@@ -2159,7 +2166,10 @@ MYLOG(1, " rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d quer
 				ignore_abort_on_conn = FALSE;
 		}
 		else if (CC_is_in_error_trans(self))
+		{
+			QLOG(0, "PQexec: %p '%s'\n", self->pqconn, rbkcmd);
 			pgres = PQexec(self->pqconn, rbkcmd);
+		}
 		/*
 		 * XXX: we don't check the result here. Should we? We're rolling back,
 		 * so it's not clear what else we can do on error. Giving an error
