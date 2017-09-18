@@ -33,8 +33,6 @@
 #include "lobj.h"
 #include "pgapifunc.h"
 
-static const char *next_name_token(const char *s, size_t *len);
-
 /*		Perform a Prepare on the SQL statement */
 RETCODE		SQL_API
 PGAPI_Prepare(HSTMT hstmt,
@@ -769,7 +767,6 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	const char *cmd = stmt->statement;
 	ConnectionClass	*conn;
 	size_t	len;
-	const char *token = NULL;
 
 	if (STMT_TYPE_INSERT != stmt->statement_type)
 		return;
@@ -811,83 +808,9 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	NULL_THE_NAME(conn->schemaIns);
 	NULL_THE_NAME(conn->tableIns);
 
-	len = 0;
-	token = next_name_token(cmd, &len);
-	if (token && *token == IDENTIFIER_QUOTE)
-		STRN_TO_NAME(conn->tableIns, token + 1, len - 2);
-	else
-		STRN_TO_NAME(conn->tableIns, token, len);
-	token = next_name_token(token, &len);
-	if (token && *token == '.')
-	{
-		token = next_name_token(token, &len);
-		if (token) {
-			if (NAME_IS_VALID(conn->tableIns))
-				MOVE_NAME(conn->schemaIns, conn->tableIns);
-			if (*token == IDENTIFIER_QUOTE)
-				STRN_TO_NAME(conn->tableIns, token + 1, len - 2);
-			else
-				STRN_TO_NAME(conn->tableIns, token, len);
-		}
-	}
-	if (token && (token = next_name_token(token, &len)) && *token == '.')
-	{
-		token = next_name_token(token, &len);
-		if (token) {
-			if (NAME_IS_VALID(conn->tableIns))
-				MOVE_NAME(conn->schemaIns, conn->tableIns);
-			if (*token == IDENTIFIER_QUOTE)
-				STRN_TO_NAME(conn->tableIns, token + 1, len - 2);
-			else
-				STRN_TO_NAME(conn->tableIns, token, len);
-		}
-	}
-
+	eatTableIdentifiers((const UCHAR *) cmd, conn->ccsc, &conn->tableIns, &conn->schemaIns);
 	if (!NAME_IS_VALID(conn->tableIns))
 		NULL_THE_NAME(conn->schemaIns);
-}
-
-/*
- * Returns the next token from a qualified or unqualified name.
- *
- * s is the previous token. On entry, *len is the length of the previous
- * token; on return, it is the length of the next one. If the token is
- * quoted, the quotes are included in the result. If no valid token is found,
- * NULL is returned.
- */
-static const char *
-next_name_token(const char *s, size_t *len)
-{
-	const char *p;
-
-	s += *len;
-	while (*s && isspace((UCHAR) *s)) ++s;
-
-	switch (*s) {
-		case '\0':
-			break;
-		case '.':
-			*len = 1;
-			return s;
-		case IDENTIFIER_QUOTE:
-			p = strchr(s + 1, IDENTIFIER_QUOTE);
-			if (p) {
-				*len = p - s + 1;
-				return s;
-			}
-			break;
-		default:
-			p = s;
-			while (*p && !isspace((UCHAR) *p) && *p != '.') ++p;
-			if (p) {
-				*len = p - s;
-				return s;
-			}
-			break;
-	}
-
-	*len = 0;
-	return NULL;
 }
 
 /*	Execute a prepared SQL statement */

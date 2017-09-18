@@ -65,6 +65,7 @@ typedef struct
 	int	ccst;
 } encoded_str;
 #define ENCODE_STATUS(enc)	((enc).ccst)
+#define ENCODE_PTR(enc)	((enc).encstr + (enc).pos)
 #define MBCS_NON_ASCII(enc)	(0 != (enc).ccst || (enc).encstr[(enc).pos] >= 0x80)
 
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str);

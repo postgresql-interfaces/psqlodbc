@@ -450,7 +450,10 @@ int             CC_discard_marked_objects(ConnectionClass *conn);
 
 int		CC_get_max_idlen(ConnectionClass *self);
 char	CC_get_escape(const ConnectionClass *self);
-char *		identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize);
+char *		identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize, BOOL double_quote);
+int		findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token);
+int		eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema);
+
 
 const		char *CurrCat(const ConnectionClass *self);
 const		char *CurrCatString(const ConnectionClass *self);

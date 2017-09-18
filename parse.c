@@ -770,8 +770,8 @@ COL_INFO **coli)
 			 */
 			SPRINTF_FIXED(token,
 					 "select nspname from pg_namespace n, pg_class c"
-					 " where c.relnamespace=n.oid and c.oid='\"%s\"'::regclass",
-					 identifierEscape((const SQLCHAR *) SAFE_NAME(table_name), SQL_NTS, conn, relcnv, sizeof(relcnv)));
+					 " where c.relnamespace=n.oid and c.oid='%s'::regclass",
+					 identifierEscape((const SQLCHAR *) SAFE_NAME(table_name), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
 			res = CC_send_query(conn, token, NULL, READ_ONLY_QUERY, NULL);
 			if (QR_command_maybe_successful(res))
 			{

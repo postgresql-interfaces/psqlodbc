@@ -1509,7 +1509,7 @@ PGAPI_GetFunctions(HDBC hdbc,
 
 
 char *
-identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize)
+identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize, BOOL double_quote)
 {
 	int	i, outlen;
 	const char *in;
@@ -1532,7 +1532,10 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 		dest = malloc(bufsize);
 	}
 	if (!dest) return NULL;
-	for (i = 0, in = (char *) src, outlen = 0; i < srclen && outlen < bufsize - 1; i++, in++)
+	outlen = 0;
+	if (double_quote)
+		dest[outlen++] = '"';
+	for (i = 0, in = (char *) src; i < srclen && outlen < bufsize - 1; i++, in++)
 	{
                 encoded_nextchar(&encstr);
                 if (MBCS_NON_ASCII(encstr))
@@ -1543,8 +1546,13 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 		if (LITERAL_QUOTE == *in ||
 		    escape_ch == *in)
 			dest[outlen++] = *in;
+		else if (double_quote &&
+			 '"' == *in)
+			dest[outlen++] = *in;
 		dest[outlen++] = *in;
 	}
+	if (double_quote)
+		dest[outlen++] = '"';
 	dest[outlen] = '\0';
 MYLOG(0, "leaving output=%s(%d)\n", dest, outlen);
 	return dest;
@@ -1553,7 +1561,7 @@ MYLOG(0, "leaving output=%s(%d)\n", dest, outlen);
 static char *
 simpleCatalogEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn)
 {
-	return identifierEscape(src, srclen, conn, NULL, -1);
+	return identifierEscape(src, srclen, conn, NULL, -1, FALSE);
 }
 
 /*

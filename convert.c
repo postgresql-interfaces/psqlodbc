@@ -3189,23 +3189,21 @@ findTag(const char *tag, int ccsc)
 	return taglen;
 }
 
-static size_t
-findIdentifier(const char *str, int ccsc, const char **nextdel)
+int
+findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 {
-	size_t	slen = 0;
+	int	slen = -1;
 	encoded_str	encstr;
-	unsigned char	tchar;
-	const char	*sptr;
+	UCHAR	tchar;
 	BOOL	dquote = FALSE;
 
-	*nextdel = NULL;
-	encoded_str_constr(&encstr, ccsc, str);
-	for (sptr = str; *sptr; sptr++)
+	*next_token = NULL;
+	encoded_str_constr(&encstr, ccsc, (const char *) str);
+	for (tchar = encoded_nextchar(&encstr); tchar; tchar = encoded_nextchar(&encstr))
 	{
-		tchar = encoded_nextchar(&encstr);
 		if (MBCS_NON_ASCII(encstr))
 			continue;
-		if (sptr == str) /* the first character */
+		if (ENCODE_PTR(encstr) == str) /* the first character */
 		{
 			if (dquote = (IDENTIFIER_QUOTE == tchar), dquote)
 				continue;
@@ -3213,7 +3211,7 @@ findIdentifier(const char *str, int ccsc, const char **nextdel)
 			{
 				slen = 0;
 				if (!isspace(tchar))
-					*nextdel = sptr;
+					*next_token = ENCODE_PTR(encstr);
 				break;
 			}
 		}
@@ -3221,14 +3219,10 @@ findIdentifier(const char *str, int ccsc, const char **nextdel)
 		{
 			if (IDENTIFIER_QUOTE == tchar)
 			{
-				if (IDENTIFIER_QUOTE == sptr[1])
-				{
-					encoded_nextchar(&encstr);
-					sptr++;
+				tchar =	encoded_nextchar(&encstr);
+				if (IDENTIFIER_QUOTE == tchar)
 					continue;
-				}
-				slen = sptr - str + 1;
-				sptr++;
+				slen = ENCODE_PTR(encstr) - str;
 				break;
 			}
 		}
@@ -3236,34 +3230,124 @@ findIdentifier(const char *str, int ccsc, const char **nextdel)
 		{
 			if (isalnum(tchar))
 				continue;
-			if (isspace(tchar))
-			{
-				slen = sptr - str;
-				break;
-			}
 			switch (tchar)
 			{
 				case '_':
-				case '$':
+				case DOLLAR_QUOTE:
 					continue;
 			}
-			slen = sptr - str;
-			*nextdel = sptr;
+			slen = ENCODE_PTR(encstr) - str;
+			if (!isspace(tchar))
+				*next_token = ENCODE_PTR(encstr);
 			break;
 		}
 	}
-	if (NULL == *nextdel)
+	if (slen < 0 && !dquote)
+		slen = ENCODE_PTR(encstr) - str;
+	if (NULL == *next_token)
 	{
-		for (; *sptr; sptr++)
+		for (; tchar; tchar = encoded_nextchar(&encstr))
 		{
-			if (!isspace((UCHAR) *sptr))
+			if (!isspace((UCHAR) tchar))
 			{
-				*nextdel = sptr;
+				*next_token = ENCODE_PTR(encstr);
 				break;
 			}
 		}
 	}
 	return slen;
+}
+
+static pgNAME lower_or_remove_dquote(pgNAME nm, const UCHAR *src, int srclen, int ccsc)
+{
+	int	i, outlen;
+	char *tc;
+	UCHAR	tchar;
+	BOOL	idQuote;
+	encoded_str	encstr;
+
+	if (nm.name)
+		tc = realloc(nm.name, srclen + 1);
+	else
+		tc = malloc(srclen + 1);
+	if (!tc)
+	{
+		NULL_THE_NAME(nm);
+		return nm;
+	}
+	nm.name = tc;
+	idQuote = (src[0] == IDENTIFIER_QUOTE);
+	encoded_str_constr(&encstr, ccsc, (const char *) src);
+	for (i = 0, tchar = encoded_nextchar(&encstr), outlen = 0; i < srclen; i++, tchar = encoded_nextchar(&encstr))
+	{
+		if (MBCS_NON_ASCII(encstr))
+		{
+			tc[outlen++] = tchar;
+			continue;
+		}
+		if (idQuote)
+		{
+			if (IDENTIFIER_QUOTE == tchar)
+			{
+				if (0 == i)
+					continue;
+				if (i == srclen - 1)
+					continue;
+				i++;
+				tchar = encoded_nextchar(&encstr);
+			}
+			tc[outlen++] = tchar;
+		}
+		else
+		{
+			tc[outlen++] = tolower(tchar);
+		}
+	}
+	tc[outlen] = '\0';
+	return nm;
+}
+
+int
+eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema)
+{
+	int	len;
+	const UCHAR *next_token;
+	const UCHAR *tstr = str;
+
+	while (isspace(*tstr)) tstr++;
+
+	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
+		return len;	/* table name doesn't exist */
+	if (table)
+	{
+		if (IDENTIFIER_QUOTE == *tstr)
+			*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
+		else
+			STRN_TO_NAME(*table, tstr, len);
+	}
+	if (!next_token || '.' != *next_token || (int) (next_token - tstr) != len)
+		return (int) (next_token - str); /* table only */
+	tstr = next_token + 1;
+	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
+		return -1;
+	if (table)
+	{
+		if (schema)
+			MOVE_NAME(*schema, *table);
+		*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
+	}
+	if (!next_token || '.' != *next_token || (int) (next_token - tstr) != len)
+		return (int) (next_token - str); /* schema.table */
+	tstr = next_token + 1;
+	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
+		return -1;
+	if (table)
+	{
+		if (schema)
+			MOVE_NAME(*schema, *table);
+		*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
+	}
+	return (int) (next_token - str); /* catalog.schema.table */
 }
 
 static void token_start(QueryParse *qp, char oldchar)
@@ -3617,37 +3701,33 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			if (NULL != coli)
 			{
 				int	i, num_fields = QR_NumResultCols(coli->result);
-				const char *auto_increment, *column_def;
+				const char *auto_increment;
 
 				for (i = 0; i < num_fields; i++)
 				{
 					auto_increment = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT);
 					if (auto_increment && auto_increment[0] == '1')
 					{
-						column_def = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF);
-						if (NULL != column_def)
+						char relcnv[128];
+						const char *column_name = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_NAME);
+
+						CVT_APPEND_STR(qb, "currval('");
+						if (NAME_IS_VALID(conn->schemaIns))
 						{
-							CVT_APPEND_STR(qb, "curr");
-							CVT_APPEND_STR(qb, column_def + 4);
+							CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) SAFE_NAME(conn->schemaIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
+							CVT_APPEND_STR(qb, ".");
 						}
-						else
-						{
-							const char *column_name = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_NAME);
-							CVT_APPEND_STR(qb, "currval('\"");
-							if (NAME_IS_VALID(conn->schemaIns))
-							{
-								CVT_SPECIAL_CHARS(qb, SAFE_NAME(conn->schemaIns), SQL_NTS);
-								CVT_APPEND_STR(qb, "\".\"");
-							}
-							CVT_SPECIAL_CHARS(qb, SAFE_NAME(conn->tableIns), SQL_NTS);
-							CVT_APPEND_STR(qb, "_");
-							if (NULL != column_name)
-								CVT_SPECIAL_CHARS(qb, column_name, SQL_NTS);
-							CVT_APPEND_STR(qb, "_seq\"'::regclass)");
-						}
-						converted = TRUE;
-						break;
+						identifierEscape((const SQLCHAR *) SAFE_NAME(conn->tableIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE);
+						/* remove the last " */
+						relcnv[strlen(relcnv) - 1] = '\0';
+						CVT_APPEND_STR(qb, relcnv);
+						CVT_APPEND_STR(qb, "_");
+						if (NULL != column_name)
+							CVT_SPECIAL_CHARS(qb, column_name, SQL_NTS);
+						CVT_APPEND_STR(qb, "_seq\"'::regclass)");
 					}
+					converted = TRUE;
+					break;
 				}
 			}
 		}
@@ -5424,7 +5504,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	if (stricmp(key, "call") == 0)
 	{
 		size_t funclen;
-		const char *nextdel;
+		const UCHAR *next_token;
 
 		if (SQL_ERROR == QB_start_brace(qb))
 		{
@@ -5436,8 +5516,8 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 			CVT_APPEND_STR(qb, "SELECT * FROM ");
 		else
 			CVT_APPEND_STR(qb, "SELECT ");
-		funclen = findIdentifier(F_OldPtr(qp), qb->ccsc, &nextdel);
-		if (nextdel && ODBC_ESCAPE_END == *nextdel)
+		funclen = findIdentifier((const UCHAR *) F_OldPtr(qp), qb->ccsc, &next_token);
+		if (next_token && ODBC_ESCAPE_END == *next_token)
 		{
 			CVT_APPEND_DATA(qb, F_OldPtr(qp), funclen);
 			CVT_APPEND_STR(qb, "()");
@@ -5447,7 +5527,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 				goto cleanup;
 			}
 			/* positioned at } */
-			qp->opos += (nextdel - F_OldPtr(qp));
+			qp->opos += ((const char *) next_token - F_OldPtr(qp));
 		}
 		else
 		{
