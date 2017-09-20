@@ -41,9 +41,24 @@
 #include <stdlib.h>
 #endif /* WIN32 */
 
-#ifndef	__GNUC__
+#ifdef  __INCLUDE_POSTGRES_FE_H__ /* currently not defined */
+/*
+ *      Unfortunately #including postgres_fe.h causes various trobles.
+ */
+#include "postgres_fe.h"
+#else /* currently */
+#if defined(__GNUC__) || defined(__IBMC__)
+#if ((__GNUC__ * 100) + __GNUC_MINOR__) >= 404
+#define PG_PRINTF_ATTRIBUTE gnu_printf
+#else
+#define PG_PRINTF_ATTRIBUTE printf
+#endif
+#define pg_attribute_printf(f,a) __attribute__((format(PG_PRINTF_ATTRIBUTE, f, a)))
+#else
 #define	__attribute__(x)
-#endif /* __GNUC__ */
+#define pg_attribute_printf(f,a)
+#endif  /* __GNUC__ || __IBMC__ */
+#endif  /* __INCLUDE_POSTGRES_FE_H__ */
 
 #ifdef	_MEMORY_DEBUG_
 void		*pgdebug_alloc(size_t);

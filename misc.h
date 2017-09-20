@@ -22,7 +22,7 @@ char	   *strncpy_null(char *dst, const char *src, ssize_t len);
 #ifndef	HAVE_STRLCAT
 size_t		strlcat(char *, const char *, size_t);
 #endif /* HAVE_STRLCAT */
-int	   snprintfcat(char *buf, size_t size, const char *format, ...) __attribute__((format(printf,3,4)));
+int	   snprintfcat(char *buf, size_t size, const char *format, ...) __attribute__((format(PG_PRINTF_ATTRIBUTE,3,4)));
 size_t	   snprintf_len(char *buf, size_t size, const char *format, ...);
 
 char	   *my_trim(char *string);

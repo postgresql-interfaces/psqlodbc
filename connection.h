@@ -9,24 +9,10 @@
 #ifndef __CONNECTION_H__
 #define __CONNECTION_H__
 
-#ifdef	__INCLUDE_POSTGRES_FE_H__ /* currently not defined */
-/*
- *	Unfortunately #including postgres_fe.h causes various trobles.
- */
-#include "postgres_fe.h"
-#else /* currently */
-#if defined(__GNUC__) || defined(__IBMC__)
-#define PG_PRINTF_ATTRIBUTE gnu_printf
-#define pg_attribute_printf(f,a) __attribute__((format(PG_PRINTF_ATTRIBUTE, f, a)))
-#else
-#define pg_attribute_printf(f,a)
-#endif	/* __GNUC__ || __IBMC__ */
-#endif	/* __INCLUDE_POSTGRES_FE_H__ */
-
+#include "psqlodbc.h"
 #include <libpq-fe.h>
 #include "pqexpbuffer.h"
 
-#include "psqlodbc.h"
 #include <time.h>
 
 #include <stdlib.h>

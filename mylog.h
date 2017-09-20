@@ -34,14 +34,14 @@ extern "C" {
 #endif
 
 #ifndef	__GNUC__
-#define	__attribute__(x)
+#define __attribute__(x)
 #endif
 
-DLL_DECLARE int mylog(const char *fmt,...) __attribute__((format(printf, 1, 2)));
-DLL_DECLARE int myprintf(const char *fmt,...) __attribute__((format(printf, 1, 2)));
+DLL_DECLARE int mylog(const char *fmt,...) __attribute__((format(PG_PRINTF_ATTRIBUTE, 1, 2)));
+DLL_DECLARE int myprintf(const char *fmt,...) __attribute__((format(PG_PRINTF_ATTRIBUTE, 1, 2)));
 
-extern int qlog(char *fmt,...) __attribute__((format(printf, 1, 2)));
-extern int qprintf(char *fmt,...) __attribute__((format(printf, 1, 2)));
+extern int qlog(char *fmt,...) __attribute__((format(PG_PRINTF_ATTRIBUTE, 1, 2)));
+extern int qprintf(char *fmt,...) __attribute__((format(PG_PRINTF_ATTRIBUTE, 1, 2)));
 
 const char *po_basename(const char *path);
 
