@@ -3169,18 +3169,16 @@ findTag(const char *tag, int ccsc)
 {
 	size_t	taglen = 0;
 	encoded_str	encstr;
-	unsigned char	tchar;
-	const char	*sptr;
+	UCHAR		tchar;
 
 	encoded_str_constr(&encstr, ccsc, tag + 1);
-	for (sptr = tag + 1; *sptr; sptr++)
+	for (tchar = encoded_nextchar(&encstr); tchar; tchar = encoded_nextchar(&encstr))
 	{
-		tchar = encoded_nextchar(&encstr);
 		if (MBCS_NON_ASCII(encstr))
 			continue;
 		if (DOLLAR_QUOTE == tchar)
 		{
-			taglen = sptr - tag + 1;
+			taglen = encstr.pos + 2;
 			break;
 		}
 		if (!isalnum(tchar))
@@ -3203,7 +3201,7 @@ findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 	{
 		if (MBCS_NON_ASCII(encstr))
 			continue;
-		if (ENCODE_PTR(encstr) == str) /* the first character */
+		if (encstr.pos == 0) /* the first character */
 		{
 			if (dquote = (IDENTIFIER_QUOTE == tchar), dquote)
 				continue;
@@ -3222,7 +3220,7 @@ findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 				tchar =	encoded_nextchar(&encstr);
 				if (IDENTIFIER_QUOTE == tchar)
 					continue;
-				slen = ENCODE_PTR(encstr) - str;
+				slen = encstr.pos;
 				break;
 			}
 		}
@@ -3236,14 +3234,14 @@ findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 				case DOLLAR_QUOTE:
 					continue;
 			}
-			slen = ENCODE_PTR(encstr) - str;
+			slen = encstr.pos;
 			if (!isspace(tchar))
 				*next_token = ENCODE_PTR(encstr);
 			break;
 		}
 	}
 	if (slen < 0 && !dquote)
-		slen = ENCODE_PTR(encstr) - str;
+		slen = encstr.pos;
 	if (NULL == *next_token)
 	{
 		for (; tchar; tchar = encoded_nextchar(&encstr))

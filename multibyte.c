@@ -519,6 +519,8 @@ int encoded_nextchar(encoded_str *encstr)
 {
 	int	chr;
 
+	if (encstr->pos >= 0 && !encstr->encstr[encstr->pos])
+		return 0;
 	chr = encstr->encstr[++encstr->pos];
 	encstr->ccst = pg_CS_stat(encstr->ccst, (unsigned int) chr, encstr->ccsc);
 	return chr;

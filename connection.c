@@ -2929,16 +2929,16 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 	if (s && (len > 0 || (len == SQL_NTS && (length = strlen(ccs)) > 0)))
 	{
 		int	i;
-		const UCHAR *ptr;
+		UCHAR tchar;
 		encoded_str encstr;
 
 		make_encoded_str(&encstr, conn, ccs);
-		for (i = 0, ptr = (const UCHAR *) ccs; i < length; i++, ptr++)
+		for (i = 0; i < length; i++)
 		{
-			encoded_nextchar(&encstr);
+			tchar = encoded_nextchar(&encstr);
 			if (MBCS_NON_ASCII(encstr))
 				continue;
-			if (ifallupper && islower(*ptr))
+			if (ifallupper && islower(tchar))
 			{
 				if (str)
 				{
@@ -2947,7 +2947,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 				}
 				break;
 			}
-			if (tolower(*ptr) != *ptr)
+			if (tolower(tchar) != tchar)
 			{
 				if (!str)
 				{
@@ -2956,7 +2956,7 @@ make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL
 					memcpy(str, s, length);
 					str[length] = '\0';
 				}
-				str[i] = tolower(*ptr);
+				str[i] = tolower(tchar);
 			}
 		}
 	}

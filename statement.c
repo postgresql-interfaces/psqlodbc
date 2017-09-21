@@ -904,7 +904,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		ssize_t *next_cmd, SQLSMALLINT * pcpar,
 		po_ind_t *multi_st, po_ind_t *proc_return)
 {
-	const	char *sptr, *tstr, *tag = NULL;
+	const	char *tstr, *tag = NULL;
 	size_t	taglen = 0;
 	char	tchar, bchar, escape_in_literal = '\0';
 	char	in_literal = FALSE, in_ident_keyword = FALSE,
@@ -924,9 +924,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		*next_cmd = -1;
 	tstr = query;
 	make_encoded_str(&encstr, conn, tstr);
-	for (sptr = tstr, bchar = '\0'; *sptr; sptr++)
+	for (bchar = '\0', tchar = encoded_nextchar(&encstr); tchar; tchar = encoded_nextchar(&encstr))
 	{
-		tchar = encoded_nextchar(&encstr);
 		if (MBCS_NON_ASCII(encstr)) /* multibyte char */
 		{
 			if ((UCHAR) tchar >= 0x80)
@@ -967,12 +966,10 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		{
 			if (tchar == DOLLAR_QUOTE)
 			{
-				if (strncmp(sptr, tag, taglen) == 0)
+				if (strncmp((const char *) ENCODE_PTR(encstr), tag, taglen) == 0)
 				{
 					in_dollar_quote = FALSE;
 					tag = NULL;
-					sptr += taglen;
-					sptr--;
 					encoded_position_shift(&encstr, taglen - 1);
 				}
 			}
@@ -998,16 +995,14 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		}
 		else if (comment_level > 0)
 		{
-			if ('/' == tchar && '*' == sptr[1])
+			if ('/' == tchar && '*' == ENCODE_PTR(encstr)[1])
 			{
-				encoded_nextchar(&encstr);
-				sptr++;
+				tchar = encoded_nextchar(&encstr);
 				comment_level++;
 			}
-			else if ('*' == tchar && '/' == sptr[1])
+			else if ('*' == tchar && '/' == ENCODE_PTR(encstr)[1])
 			{
-				encoded_nextchar(&encstr);
-				sptr++;
+				tchar = encoded_nextchar(&encstr);
 				comment_level--;
 			}
 		}
@@ -1028,16 +1023,16 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 			{
 				del_found = TRUE;
 				if (next_cmd)
-					*next_cmd = sptr - query;
+					*next_cmd = encstr.pos;
 			}
 			else if (tchar == DOLLAR_QUOTE)
 			{
-				taglen = findTag(sptr, encstr.ccsc);
+				const char *ptr = (const char *) ENCODE_PTR(encstr);
+				taglen = findTag(ptr, encstr.ccsc);
 				if (taglen > 0)
 				{
 					in_dollar_quote = TRUE;
-					tag = sptr;
-					sptr += (taglen - 1);
+					tag = ptr;
 					encoded_position_shift(&encstr, taglen - 1);
 				}
 				else
@@ -1049,7 +1044,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				escape_in_literal = CC_get_escape(conn);
 				if (!escape_in_literal)
 				{
-					if (LITERAL_EXT == sptr[-1])
+					if (LITERAL_EXT == ENCODE_PTR(encstr)[-1])
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
@@ -1057,23 +1052,21 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				in_dquote_identifier = TRUE;
 			else if ('-' == tchar)
 			{
-				if ('-' == sptr[1])
+				if ('-' == ENCODE_PTR(encstr)[1])
 				{
-					encoded_nextchar(&encstr);
-					sptr++;
+					tchar = encoded_nextchar(&encstr);
 					in_line_comment = TRUE;
 				}
 			}
 			else if ('/' == tchar)
 			{
-				if ('*' == sptr[1])
+				if ('*' == ENCODE_PTR(encstr)[1])
 				{
-					encoded_nextchar(&encstr);
-					sptr++;
+					tchar = encoded_nextchar(&encstr);
 					comment_level++;
 				}
 			}
-			if (!isspace((UCHAR) tchar))
+			if (!isspace(tchar))
 				bchar = tchar;
 		}
 	}

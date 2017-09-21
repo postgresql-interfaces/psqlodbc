@@ -1512,7 +1512,7 @@ char *
 identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize, BOOL double_quote)
 {
 	int	i, outlen;
-	const char *in;
+	UCHAR	tchar;
 	char	*dest = NULL, escape_ch = CC_get_escape(conn);
 	encoded_str	encstr;
 
@@ -1523,7 +1523,6 @@ identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn,
 	if (srclen <= 0)
 		return dest;
 MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
-	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	if (NULL != buf && bufsize > 0)
 		dest = buf;
 	else
@@ -1532,27 +1531,27 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 		dest = malloc(bufsize);
 	}
 	if (!dest) return NULL;
+	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	outlen = 0;
 	if (double_quote)
-		dest[outlen++] = '"';
-	for (i = 0, in = (char *) src; i < srclen && outlen < bufsize - 1; i++, in++)
+		dest[outlen++] = IDENTIFIER_QUOTE;
+	for (i = 0, tchar = encoded_nextchar(&encstr); i < srclen && outlen < bufsize - 1; i++, tchar = encoded_nextchar(&encstr))
 	{
-                encoded_nextchar(&encstr);
                 if (MBCS_NON_ASCII(encstr))
                 {
-                        dest[outlen++] = *in;
+                        dest[outlen++] = tchar;
                         continue;
                 }
-		if (LITERAL_QUOTE == *in ||
-		    escape_ch == *in)
-			dest[outlen++] = *in;
+		if (LITERAL_QUOTE == tchar ||
+		    escape_ch == tchar)
+			dest[outlen++] = tchar;
 		else if (double_quote &&
-			 '"' == *in)
-			dest[outlen++] = *in;
-		dest[outlen++] = *in;
+			 IDENTIFIER_QUOTE == tchar)
+			dest[outlen++] = tchar;
+		dest[outlen++] = tchar;
 	}
 	if (double_quote)
-		dest[outlen++] = '"';
+		dest[outlen++] = IDENTIFIER_QUOTE;
 	dest[outlen] = '\0';
 MYLOG(0, "leaving output=%s(%d)\n", dest, outlen);
 	return dest;
@@ -1571,7 +1570,7 @@ static char	*
 adjustLikePattern(const SQLCHAR *src, int srclen, const ConnectionClass *conn)
 {
 	int	i, outlen;
-	const char *in;
+	UCHAR	tchar;
 	char	*dest = NULL, escape_in_literal = CC_get_escape(conn);
 	BOOL	escape_in = FALSE;
 	encoded_str	encstr;
@@ -1587,17 +1586,17 @@ MYLOG(0, "entering in=%.*s(%d)\n", srclen, src, srclen);
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	dest = malloc(4 * srclen + 1);
 	if (!dest) return NULL;
-	for (i = 0, in = (char *) src, outlen = 0; i < srclen; i++, in++)
+	for (i = 0, outlen = 0; i < srclen; i++)
 	{
-		encoded_nextchar(&encstr);
+		tchar = encoded_nextchar(&encstr);
 		if (MBCS_NON_ASCII(encstr))
 		{
-			dest[outlen++] = *in;
+			dest[outlen++] = tchar;
 			continue;
 		}
 		if (escape_in)
 		{
-			switch (*in)
+			switch (tchar)
 			{
 				case '%':
 				case '_':
@@ -1609,7 +1608,7 @@ MYLOG(0, "entering in=%.*s(%d)\n", srclen, src, srclen);
 					break;
 			}
 		}
-		if (*in == SEARCH_PATTERN_ESCAPE)
+		if (tchar == SEARCH_PATTERN_ESCAPE)
 		{
 			escape_in = TRUE;
 			if (SEARCH_PATTERN_ESCAPE == escape_in_literal)
@@ -1618,10 +1617,10 @@ MYLOG(0, "entering in=%.*s(%d)\n", srclen, src, srclen);
 		else
 		{
 			escape_in = FALSE;
-			if (LITERAL_QUOTE == *in)
-				dest[outlen++] = *in;
+			if (LITERAL_QUOTE == tchar)
+				dest[outlen++] = tchar;
 		}
-		dest[outlen++] = *in;
+		dest[outlen++] = tchar;
 	}
 	if (escape_in)
 	{
