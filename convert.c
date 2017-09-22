@@ -3709,20 +3709,17 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 						char relcnv[128];
 						const char *column_name = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_NAME);
 
-						CVT_APPEND_STR(qb, "currval('");
+						CVT_APPEND_STR(qb, "currval(pg_get_serial_sequence('");
 						if (NAME_IS_VALID(conn->schemaIns))
 						{
 							CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) SAFE_NAME(conn->schemaIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
 							CVT_APPEND_STR(qb, ".");
 						}
-						identifierEscape((const SQLCHAR *) SAFE_NAME(conn->tableIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE);
-						/* remove the last " */
-						relcnv[strlen(relcnv) - 1] = '\0';
-						CVT_APPEND_STR(qb, relcnv);
-						CVT_APPEND_STR(qb, "_");
+						CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) SAFE_NAME(conn->tableIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
+						CVT_APPEND_STR(qb, "','");
 						if (NULL != column_name)
-							CVT_SPECIAL_CHARS(qb, column_name, SQL_NTS);
-						CVT_APPEND_STR(qb, "_seq\"'::regclass)");
+							CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) column_name, SQL_NTS, conn, relcnv, sizeof(relcnv), FALSE));
+						CVT_APPEND_STR(qb, "')::regclass)");
 					}
 					converted = TRUE;
 					break;
