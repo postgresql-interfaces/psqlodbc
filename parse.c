@@ -43,7 +43,7 @@
 #define COLI_INCR	16
 #define COLI_RECYCLE	128
 
-static	char	*getNextToken(int ccsc, char escape_in_literal, char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
+static const char *getNextToken(int ccsc, char escape_in_literal, const char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
 static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
 static	char	searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
 static	BOOL	getColumnsInfo(ConnectionClass *, TABLE_INFO *, OID, StatementClass *);
@@ -78,19 +78,20 @@ Int4 FI_scale(const FIELD_INFO *fi)
 	return 0;
 }
 
-static char *
+static const char *
 getNextToken(
 	int ccsc, /* client encoding */
 	char escape_ch,
-	char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
+	const char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
-	size_t		i = 0;
 	size_t		out = 0;
 	size_t		taglen;
-	char		qc, in_quote, in_dollar_quote, in_escape;
-	const	char	*tag, *tagend;
+	char		in_quote, in_dollar_quote, in_escape;
+	const	UCHAR	*tag, *tagend;
 	encoded_str	encstr;
 	char		escape_in_literal;
+	const UCHAR *tstr = (const UCHAR *) s;
+	UCHAR	tchar, qc;
 
 	if (smax <= 1)
 		return NULL;
@@ -98,13 +99,13 @@ getNextToken(
 	smax--;
 
 	/* skip leading delimiters */
-	while (isspace((UCHAR) s[i]) || s[i] == ',')
+	while (isspace(*tstr) || *tstr == ',')
 	{
-		/* MYLOG(0, "skipping '%c'\n", s[i]); */
-		i++;
+		/* MYLOG(0, "skipping '%c'\n", *tstr); */
+		tstr++;
 	}
 
-	if (s[i] == '\0')
+	if (*tstr == '\0')
 	{
 		token[0] = '\0';
 		return NULL;
@@ -117,17 +118,16 @@ getNextToken(
 	if (numeric)
 		*numeric = FALSE;
 
-	encoded_str_constr(&encstr, ccsc, &s[i]);
+	encoded_str_constr(&encstr, ccsc, (const char *) tstr);
 	/* get the next token */
-	while (s[i] != '\0' && out < smax)
+	for (tchar = encoded_nextchar(&encstr); tchar && out < smax; tstr++, tchar = encoded_nextchar(&encstr))
 	{
-		encoded_nextchar(&encstr);
 		if (MBCS_NON_ASCII(encstr))
 		{
-			token[out++] = s[i++];
+			token[out++] = tchar;
 			continue;
 		}
-		if (isspace((UCHAR) s[i]) || s[i] == ',')
+		if (isspace(tchar) || tchar == ',')
 			break;
 		/* Handle quoted stuff */
 		in_quote = in_dollar_quote = FALSE;
@@ -136,15 +136,15 @@ getNextToken(
 		escape_in_literal = '\0';
 		if (out == 0)
 		{
-			qc = s[i];
+			qc = tchar;
 			if (qc == DOLLAR_QUOTE)
 			{
 				in_quote = in_dollar_quote = TRUE;
-				tag = s + i;
+				tag = tstr;
 				taglen = 1;
-				if (tagend = strchr(s + i + 1, DOLLAR_QUOTE), NULL != tagend)
-					taglen = tagend - s - i + 1;
-				i += (taglen - 1);
+				if (tagend = (const UCHAR *) strchr((const char *) tstr + 1, DOLLAR_QUOTE), NULL != tagend)
+					taglen = tagend - tstr + 1;
+				tstr += (taglen - 1);
 				encoded_position_shift(&encstr, taglen - 1);
 				if (quote)
 					*quote = TRUE;
@@ -157,7 +157,7 @@ getNextToken(
 				escape_in_literal = escape_ch;
 				if (!escape_in_literal)
 				{
-					if (LITERAL_EXT == s[i - 1])
+					if (LITERAL_EXT == tstr[-1])
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
@@ -167,22 +167,20 @@ getNextToken(
 				if (dquote)
 					*dquote = TRUE;
 			}
-		}
-		if (in_quote)
+		} /* out == 0 */
+		if (in_quote) /* dquote, dollar_quote */
 		{
-			i++;				/* dont return the quote */
 			in_escape = FALSE;
-			while (s[i] != '\0' && out != smax)
+			for (tstr++, tchar = encoded_nextchar(&encstr); tchar != '\0' && out != smax; tstr++, tchar = encoded_nextchar(&encstr))
 			{
-				encoded_nextchar(&encstr);
 				if (MBCS_NON_ASCII(encstr))
 				{
-					token[out++] = s[i++];
+					token[out++] = tchar;
 					continue;
 				}
 				if (in_escape)
 					in_escape = FALSE;
-				else if (s[i] == qc)
+				else if (tchar == qc)
 				{
 					if (!in_dollar_quote)
 					{
@@ -191,80 +189,83 @@ getNextToken(
 						 * "", i.e a quote character that has been escaped
 						 * by doubling it.
 						 */
-						if (s[i + 1] == qc)
-							i++;
+						if (tstr[1] == qc)
+						{
+							tstr++;
+							tchar = encoded_nextchar(&encstr);
+						}
 						else
 							break;
 					}
-					else if (strncmp(s + i, tag, taglen) == 0)
+					else if (strncmp((const char *) tstr, (const char *) tag, taglen) == 0)
 					{
-						i += (taglen - 1);
-						encoded_position_shift(&encstr, taglen - 1);
+						tstr += (taglen - 1);
+						tchar = encoded_position_shift(&encstr, taglen - 1);
 						break;
 					}
-					token[out++] = s[i];
+					token[out++] = tchar;
 				}
-				else if (LITERAL_QUOTE == qc && s[i] == escape_in_literal)
+				else if (LITERAL_QUOTE == qc && tchar == escape_in_literal)
 				{
 					in_escape = TRUE;
 				}
 				else
 				{
-					token[out++] = s[i];
+					token[out++] = tchar;
 				}
-				i++;
-			}
-			if (s[i] == qc)
-				i++;
+			} /* for */
+			if (tchar == qc)
+				tstr++;
 			break;
-		}
+		} /* in_quote */
 
 		/* Check for numeric literals */
-		if (out == 0 && isdigit((UCHAR) s[i]))
+		if (out == 0 && isdigit(tchar))
 		{
 			if (numeric)
 				*numeric = TRUE;
-			token[out++] = s[i++];
-			while (isalnum((UCHAR) s[i]) || s[i] == '.')
-				token[out++] = s[i++];
+			token[out++] = tchar;
+			tstr++;
+			while ((isalnum(*tstr) || *tstr == '.') && out < smax)
+			{
+				token[out++] = *tstr;
+				tstr++;
+			}
 
 			break;
 		}
 
-		if (ispunct((UCHAR) s[i]) && s[i] != '_')
+		if (ispunct(tchar) && tchar != '_')
 		{
-			MYLOG(0, "got ispunct: s[" FORMAT_SIZE_T "] = '%c'\n", i, s[i]);
+			MYLOG(0, "got ispunct: s[] = '%c'\n", tchar);
 
 			if (out == 0)
 			{
-				token[out++] = s[i++];
-				break;
+				token[out++] = tchar;
+				tstr++;
 			}
-			else
-				break;
+			break;
 		}
 
-		if (out != smax)
-			token[out++] = s[i];
+		if (out < smax)
+			token[out++] = tchar;
+	} /* for */
 
-		i++;
-	}
-
-	/* MYLOG(0, "done -- s[%d] = '%c'\n", i, s[i]); */
+	/* MYLOG(0, "done -- s[] = '%c'\n", *tstr); */
 
 	token[out] = '\0';
 
 	/* find the delimiter  */
-	while (isspace((UCHAR) s[i]))
-		i++;
+	while (isspace(*tstr))
+		tstr++;
 
 	/* return the most priority delimiter */
-	if (s[i] == ',')
+	if (*tstr == ',')
 	{
 		if (delim)
-			*delim = s[i];
+			*delim = *tstr;
 	}
-	else if (s[i] == '\0')
+	else if (*tstr == '\0')
 	{
 		if (delim)
 			*delim = '\0';
@@ -276,10 +277,10 @@ getNextToken(
 	}
 
 	/* skip trailing blanks  */
-	while (isspace((UCHAR) s[i]))
-		i++;
+	while (isspace(*tstr))
+		tstr++;
 
-	return &s[i];
+	return (const char *) tstr;
 }
 
 static void
@@ -1212,7 +1213,7 @@ MYLOG(0, "alias ? token=%s btoken=%s\n", token, btoken);
 	return FALSE;
 }
 
-static char *insert_as_to_the_statement(char *stmt, char **pptr, char **ptr)
+static char *insert_as_to_the_statement(char *stmt, const char **pptr, const char **ptr)
 {
 	size_t	stsize = strlen(stmt), ppos = *pptr - stmt, remsize = stsize - ppos;
 	const int  ins_size = 3;
@@ -1243,8 +1244,8 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 				dquote,
 				numeric,
 				unquoted;
-	char	   *ptr,
-			   *pptr = NULL;
+	const char *ptr;
+	const char *pptr = NULL;
 	char		in_select = FALSE,
 				in_distinct = FALSE,
 				in_on = FALSE,
@@ -1305,7 +1306,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 
 	delim = '\0';
 	token[0] = '\0';
-	while (pptr = ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	while (pptr = (const char *) ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 
