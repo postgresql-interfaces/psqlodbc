@@ -980,7 +980,6 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* _MSC_VER */
 		);
 	QLOG(0, "%s", vermsg);
-	MYLOG(0, "%s", vermsg);
 	MYLOG(1, "Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.unknown_sizes,
@@ -1646,7 +1645,6 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 	{
 		case PER_STATEMENT_ROLLBACK:
 			GenerateSvpCommand(self, INTERNAL_ROLLBACK_OPERATION, cmd, sizeof(cmd));
-			MYLOG(0, " rollback_type=%d %s\n", rollback_type, cmd);
 			QLOG(0, "PQexec: %p '%s'\n", self->pqconn, cmd);
 			pgres = PQexec(self->pqconn, cmd);
 			switch (PQresultStatus(pgres))
@@ -1667,7 +1665,6 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 		case PER_QUERY_ROLLBACK:
 			SPRINTF_FIXED(cmd, "%s TO %s;%s %s"
 				, rbkcmd, per_query_svp , rlscmd, per_query_svp);
-			MYLOG(0, " query_rollback PQsendQuery %s\n", cmd);
 			QLOG(0, "PQsendQuery: %p '%s'\n", self->pqconn, cmd);
 			PQsendQuery(self->pqconn, cmd);
 			ret = 0;
@@ -1870,7 +1867,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Couldn't alloc buffer for query.", "");
 		goto cleanup;
 	}
-MYLOG(1, "query_buf=%s(" FORMAT_SIZE_T ")\n", query_buf.data, strlen(query_buf.data));
 
 	/* Set up notice receiver */
 	nrarg.conn = self;
@@ -1918,7 +1914,6 @@ MYLOG(1, "query_buf=%s(" FORMAT_SIZE_T ")\n", query_buf.data, strlen(query_buf.d
 				/* portal query command, no tuples returned */
 				/* read in the return message from the backend */
 				cmdbuffer = PQcmdStatus(pgres);
-				MYLOG(0, " ok - 'C' - %s\n", cmdbuffer);
 				QLOG(0, "\tok: - 'C' - %s\n", cmdbuffer);
 
 				if (query_completed)	/* allow for "show" style notices */
@@ -2380,7 +2375,6 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 	*actual_result_len = PQgetlength(pgres, 0, 0);
 
 	QLOG(0, "\tgot result with length: %d\n", *actual_result_len);
-	MYLOG(0, "got result with length %d\n", *actual_result_len);
 
 	if (*actual_result_len > 0)
 	{
@@ -2785,7 +2779,7 @@ LIBPQ_connect(ConnectionClass *self)
 	opts[cnt] = vals[cnt] = NULL;
 	/* Ok, we're all set to connect */
 
-	if (get_qlog() > 0)
+	if (get_qlog() > 0 || get_mylog() > 0)
 	{
 		const char **popt, **pval;
 

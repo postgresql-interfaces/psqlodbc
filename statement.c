@@ -2518,7 +2518,6 @@ libpq_bind_and_exec(StatementClass *stmt)
 		}
 
 		pstmt = stmt->processed_statements;
-		MYLOG(0, "execParams query=%s nParams=%d\n", pstmt->query, nParams);
 		QLOG(0, "PQexecParams: %p '%s' nParams=%d\n", conn->pqconn, pstmt->query, nParams);
 		log_params(nParams, paramTypes, (const UCHAR * const *) paramValues, paramLengths, paramFormats, resultFormat);
 		pgres = PQexecParams(conn->pqconn,
@@ -2544,7 +2543,6 @@ libpq_bind_and_exec(StatementClass *stmt)
 		plan_name = stmt->plan_name ? stmt->plan_name : NULL_STRING;
 
 		/* already prepared */
-		MYLOG(0, "execPrepared plan=%s nParams=%d\n", plan_name, nParams);
 		QLOG(0, "PQexecPrepared: %p plan=%s nParams=%d\n", conn->pqconn, plan_name, nParams);
 		log_params(nParams, paramTypes, (const UCHAR * const *) paramValues, paramLengths, paramFormats, resultFormat);
 		pgres = PQexecPrepared(conn->pqconn,
@@ -2579,7 +2577,6 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			/* portal query command, no tuples returned */
 			/* read in the return message from the backend */
 			cmdtag = PQcmdStatus(pgres);
-			MYLOG(0, "command response: %s\n", cmdtag);
 			QLOG(0, "\tok: - 'C' - %s\n", cmdtag);
 			QR_set_command(res, cmdtag);
 			if (QR_command_successful(res))
@@ -2620,8 +2617,7 @@ MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_res
 			CC_set_error(conn, CONNECTION_BACKEND_CRAZY, "Unexpected protocol character from backend (send_query)", func);
 			CC_on_abort(conn, CONN_DEAD);
 
-			MYLOG(0, "PQexecxxxxxx: error - %s\n", CC_get_errormsg(conn));
-			QLOG(0, "error: - (%d) - %s\n", pgresstatus, CC_get_errormsg(conn));
+			QLOG(0, "PQexecXxxx error: - (%d) - %s\n", pgresstatus, CC_get_errormsg(conn));
 			break;
 	}
 
@@ -2761,7 +2757,6 @@ MYLOG(0, "sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 	}
 	cstatus = PQcmdStatus(pgres);
 	QLOG(0, "\tok: - 'C' - %s\n", cstatus);
-	MYLOG(0, "\tok: - 'C' - %s\n", cstatus);
 	if (stmt->plan_name)
 		SC_set_prepared(stmt, PREPARED_PERMANENTLY);
 	else
@@ -2831,7 +2826,6 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 		goto cleanup;
 
 	/* Describe */
-	MYLOG(0, "describing plan_name=%s\n", plan_name);
 	QLOG(0, "\tPQdescribePrepared: %p plan_name=%s\n", conn->pqconn, plan_name);
 
 	pgres = PQdescribePrepared(conn->pqconn, plan_name);
@@ -2859,7 +2853,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	/* Extract parameter information from the result set */
 	num_p = PQnparams(pgres);
 MYLOG(1, "num_params=%d info=%d\n", stmt->num_params, num_p);
-	if (get_qlog() > 0)
+	if (get_qlog() > 0 || get_mylog() > 0)
 	{
 		int	i;
 

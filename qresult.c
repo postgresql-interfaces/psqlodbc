@@ -601,7 +601,6 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(*pgres);
-	MYLOG(0, "num_fields = %d\n", new_num_fields);
 	QLOG(0, "\tnFields: %d\n", new_num_fields);
 
 	/* according to that allocate memory */
@@ -633,8 +632,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		if (new_atttypmod < 0)
 			new_atttypmod = -1;
 
-		MYLOG(0, "fieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
-		QLOG(1, "\tfieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
+		QLOG(0, "\tfieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
 		CI_set_field_info(QR_get_fields(self), lf, new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
@@ -1401,7 +1399,6 @@ nextrow:
 				buffer[len] = '\0';
 
 				QPRINTF(1, " '%s'(%d)", buffer, len);
-				MYLOG(0, "qresult: len=%d, buffer='%s'\n", len, buffer);
 
 				if (field_lf >= effective_cols)
 				{
