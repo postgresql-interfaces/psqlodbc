@@ -1306,7 +1306,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 
 	delim = '\0';
 	token[0] = '\0';
-	while (pptr = (const char *) ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', NULL), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	while (pptr = (const char *) ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', 0), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 

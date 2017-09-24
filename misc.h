@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-char	   *strncpy_null(char *dst, const char *src, ssize_t len);
+size_t	   strncpy_null(char *dst, const char *src, ssize_t len);
 #ifndef	HAVE_STRLCAT
 size_t		strlcat(char *, const char *, size_t);
 #endif /* HAVE_STRLCAT */

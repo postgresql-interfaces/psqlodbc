@@ -75,29 +75,23 @@ my_strcpy(char *dst, ssize_t dst_len, const char *src, ssize_t src_len)
  * instead, I want it to copy up to len-1 characters and always
  * terminate the destination string.
  */
-char *
+size_t
 strncpy_null(char *dst, const char *src, ssize_t len)
 {
 	int			i;
 
-	if (NULL != dst)
+	if (NULL != dst && len > 0)
 	{
-		/* Just in case, check for special lengths */
-		if (len == SQL_NULL_DATA)
-		{
-			dst[0] = '\0';
-			return NULL;
-		}
-		else if (len == SQL_NTS)
-			len = strlen(src) + 1;
-
 		for (i = 0; src[i] && i < len - 1; i++)
 			dst[i] = src[i];
 
-		if (len > 0)
-			dst[i] = '\0';
+		dst[i] = '\0';
 	}
-	return dst;
+	else
+		return 0;
+	if (src[i])
+		return strlen(src);
+	return i;
 }
 
 
