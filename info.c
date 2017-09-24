@@ -65,7 +65,7 @@ PGAPI_GetInfo(HDBC hdbc,
 	char		tmp[MAX_INFO_STRING];
 	SQLULEN			len = 0,
 				value = 0;
-	RETCODE		result = SQL_ERROR;
+	RETCODE		ret = SQL_ERROR;
 	char		odbcver[16];
 
 	MYLOG(0, "entering...fInfoType=%d\n", fInfoType);
@@ -1025,7 +1025,7 @@ MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			goto cleanup;
 	}
 
-	result = SQL_SUCCESS;
+	ret = SQL_SUCCESS;
 
 	MYLOG(0, "p='%s', len=" FORMAT_ULEN ", value=" FORMAT_ULEN ", cbMax=%d\n", p ? p : "<NULL>", len, value, cbInfoValueMax);
 
@@ -1053,7 +1053,7 @@ MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 			if (len >= cbInfoValueMax)
 			{
-				result = SQL_SUCCESS_WITH_INFO;
+				ret = SQL_SUCCESS_WITH_INFO;
 				CC_set_error(conn, CONN_TRUNCATED, "The buffer was too small for the InfoValue.", func);
 			}
 		}
@@ -1078,7 +1078,7 @@ MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		*pcbInfoValue = (SQLSMALLINT) len;
 cleanup:
 
-	return result;
+	return ret;
 }
 
 /*
@@ -1108,7 +1108,7 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 	/* Int4 type; */
 	Int4		pgType;
 	Int2		sqlType;
-	RETCODE		result = SQL_SUCCESS;
+	RETCODE		ret = SQL_ERROR, result;
 
 	MYLOG(0, "entering...fSqlType=%d\n", fSqlType);
 
@@ -1178,7 +1178,6 @@ MYLOG(0, "aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 			{
 				if (tuple = QR_AddNew(res), NULL == tuple)
 				{
-					result = SQL_ERROR;
 					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't QR_AddNew.", func);
 					goto cleanup;
 				}
@@ -1228,6 +1227,7 @@ MYLOG(1, "serial in\n");
 			}
 		}
 	}
+	ret = SQL_SUCCESS;
 
 cleanup:
 #undef	return
@@ -1237,13 +1237,13 @@ cleanup:
 	 */
 	stmt->status = STMT_FINISHED;
 	stmt->currTuple = -1;
-	if (SQL_SUCCEEDED(result))
+	if (SQL_SUCCEEDED(ret))
 		SC_set_rowset_start(stmt, -1, FALSE);
 	else
 		SC_set_Result(stmt, NULL);
 	SC_set_current_col(stmt, -1);
 
-	return result;
+	return ret;
 }
 
 
@@ -2237,7 +2237,7 @@ PGAPI_Columns(HSTMT hstmt,
 	HSTMT		hcol_stmt = NULL;
 	StatementClass *col_stmt;
 	PQExpBufferData		columns_query = {0};
-	RETCODE		result;
+	RETCODE		ret = SQL_ERROR, result;
 	char		table_owner[MAX_INFO_STRING],
 				table_name[MAX_INFO_STRING],
 				field_name[MAX_INFO_STRING],
@@ -2355,14 +2355,12 @@ retry_public_schema:
 	if (PQExpBufferDataBroken(columns_query))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_Columns()", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	result = PGAPI_AllocStmt(conn, &hcol_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for PGAPI_Columns result.", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	col_stmt = (StatementClass *) hcol_stmt;
@@ -2756,7 +2754,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 		add_tuple_for_oid_or_xmin(tuple, ordinal, XMIN_NAME, PG_TYPE_XID, "xid", conn, table_owner, table_name, greloid, XMIN_ATTNUM, FALSE);
 		ordinal++;
 	}
-	result = SQL_SUCCESS;
+	ret = SQL_SUCCESS;
 
 cleanup:
 #undef	return
@@ -2783,7 +2781,7 @@ cleanup:
 	if (hcol_stmt)
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	MYLOG(0, "leaving stmt=%p\n", stmt);
-	return result;
+	return ret;
 }
 
 
@@ -2808,7 +2806,7 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	StatementClass *col_stmt;
 	PQExpBufferData		columns_query = {0};
 	char		*escSchemaName = NULL, *escTableName = NULL;
-	RETCODE		result = SQL_SUCCESS;
+	RETCODE		ret = SQL_ERROR, result;
 	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8];
 	BOOL		relisaview;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
@@ -2863,7 +2861,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for SQLSpecialColumns result.", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	col_stmt = (StatementClass *) hcol_stmt;
@@ -2873,14 +2870,12 @@ retry_public_schema:
 	if (PQExpBufferDataBroken(columns_query))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_SpecialColumns()", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	result = PGAPI_ExecDirect(hcol_stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_full_error_copy(stmt, col_stmt, FALSE);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 
@@ -2903,7 +2898,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 
@@ -2912,7 +2906,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	relhasoids[0] = '1';
@@ -2921,7 +2914,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, col_stmt, TRUE);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 
@@ -2934,7 +2926,6 @@ retry_public_schema:
 	if (!res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for query.", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
@@ -2957,6 +2948,7 @@ retry_public_schema:
 		/* there's no oid for views */
 		if (fColType == SQL_BEST_ROWID)
 		{
+			ret = SQL_SUCCESS;
 			goto cleanup;
 		}
 		else if (fColType == SQL_ROWVER)
@@ -2987,6 +2979,7 @@ MYLOG(1, "Add ctid\n");
 
 			if (relhasoids[0] != '1')
 			{
+				ret = SQL_SUCCESS;
 				goto cleanup;
 			}
 			tuple = QR_AddNew(res);
@@ -3017,6 +3010,7 @@ MYLOG(1, "Add ctid\n");
 			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
 		}
 	}
+	ret = SQL_SUCCESS;
 
 cleanup:
 #undef	return
@@ -3033,7 +3027,7 @@ cleanup:
 	if (hcol_stmt)
 		PGAPI_FreeStmt(hcol_stmt, SQL_DROP);
 	MYLOG(0, "leaving  stmt=%p\n", stmt);
-	return result;
+	return ret;
 }
 
 
@@ -3206,7 +3200,6 @@ PGAPI_Statistics(HSTMT hstmt,
 		if (!column_names[total_columns].col_name)
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for column name.", func);
-			result = SQL_ERROR;
 			goto cleanup;
 		}
 		column_names[total_columns].pnum = field_number;
@@ -3561,7 +3554,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	CSTR func = "PGAPI_ColumnPrivileges";
 	StatementClass	*stmt = (StatementClass *) hstmt;
 	ConnectionClass	*conn = SC_get_conn(stmt);
-	RETCODE	result = SQL_ERROR;
+	RETCODE	ret = SQL_ERROR;
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
 	const char	*like_or_eq, *op_string, *eq_string;
 	PQExpBufferData	column_query = {0};
@@ -3622,10 +3615,10 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	 */
 	extend_column_bindings(SC_get_ARDF(stmt), 8);
 	/* set up the current tuple pointer for SQLFetch */
-	result = SQL_SUCCESS;
+	ret = SQL_SUCCESS;
 cleanup:
 #undef return
-	if (!SQL_SUCCEEDED(result))
+	if (!SQL_SUCCEEDED(ret))
 		QR_Destructor(res);
 	/* set up the current tuple pointer for SQLFetch */
 	stmt->status = STMT_FINISHED;
@@ -3639,7 +3632,7 @@ cleanup:
 		free(escTableName);
 	if (escColumnName)
 		free(escColumnName);
-	return result;
+	return ret;
 }
 
 
@@ -3663,7 +3656,7 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 	QResultClass	*res;
 	ConnectionClass *conn;
 	TupleField	*tuple;
-	RETCODE		ret = SQL_SUCCESS, result;
+	RETCODE		ret = SQL_ERROR, result;
 	int			seq = 0;
 	HSTMT		htbl_stmt = NULL;
 	StatementClass *tbl_stmt;
@@ -3720,7 +3713,6 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate statement for Primary Key result.", func);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	tbl_stmt = (StatementClass *) htbl_stmt;
@@ -3742,7 +3734,6 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 		if (!pktab || pktab[0] == '\0')
 		{
 			SC_set_error(stmt, STMT_INTERNAL_ERROR, "No Table specified to PGAPI_PrimaryKeys.", func);
-			ret = SQL_ERROR;
 			goto cleanup;
 		}
 		szSchemaName = szTableOwner;
@@ -3766,7 +3757,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	result = PGAPI_BindCol(htbl_stmt, 3, internal_asis_type,
@@ -3774,7 +3764,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	result = PGAPI_BindCol(htbl_stmt, 4, internal_asis_type,
@@ -3782,7 +3771,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	result = PGAPI_BindCol(htbl_stmt, 5, internal_asis_type,
@@ -3790,7 +3778,6 @@ retry_public_schema:
 	if (!SQL_SUCCEEDED(result))
 	{
 		SC_error_copy(stmt, tbl_stmt, TRUE);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 
@@ -3861,7 +3848,6 @@ retry_public_schema:
 		if (PQExpBufferDataBroken(tables_query))
 		{
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PrimaryKeys()", func);
-			ret = SQL_ERROR;
 			goto cleanup;
 		}
 		MYLOG(0, "tables_query='%s'\n", tables_query.data);
@@ -3870,7 +3856,6 @@ retry_public_schema:
 		if (!SQL_SUCCEEDED(result))
 		{
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
-			ret = SQL_ERROR;
 			goto cleanup;
 		}
 
@@ -3922,7 +3907,6 @@ retry_public_schema:
 	if (result != SQL_NO_DATA_FOUND)
 	{
 		SC_full_error_copy(stmt, htbl_stmt, FALSE);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	ret = SQL_SUCCESS;
@@ -4948,7 +4932,7 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	SQLLEN		tcount;
 	OID			pgtype;
 	Int4		paramcount, column_size, i, j;
-	RETCODE		result;
+	RETCODE		ret = SQL_ERROR, result;
 	BOOL		search_pattern, bRetset, outpara_exist;
 	const char	*like_or_eq, *op_string, *retset;
 	int		ret_col = -1, ext_pos = -1, poid_pos = -1, attid_pos = -1, attname_pos = -1;
@@ -5027,7 +5011,6 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	if (PQExpBufferDataBroken(proc_query))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_ProcedureColumns()", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	tres = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt);
@@ -5035,14 +5018,12 @@ PGAPI_ProcedureColumns(HSTMT hstmt,
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_ProcedureColumns query error", func);
 		QR_Destructor(tres);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_ProcedureColumns result.", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
@@ -5309,6 +5290,7 @@ MYLOG(0, "atttypid=%s\n", atttypid ? atttypid : "(null)");
 			set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 		}
 	}
+	ret = SQL_SUCCESS;
 cleanup:
 #undef return
 	if (tres)
@@ -5325,7 +5307,7 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	return result;
+	return ret;
 }
 
 
@@ -5345,7 +5327,7 @@ PGAPI_Procedures(HSTMT hstmt,
 	PQExpBufferData		proc_query = {0};
 	char	*escSchemaName = NULL, *escProcName = NULL;
 	QResultClass *res;
-	RETCODE		result;
+	RETCODE		ret = SQL_ERROR, result;
 	const char	*like_or_eq, *op_string;
 	BOOL	search_pattern;
 
@@ -5389,7 +5371,6 @@ PGAPI_Procedures(HSTMT hstmt,
 	if (PQExpBufferDataBroken(proc_query))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_Procedures()", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	res = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt);
@@ -5397,11 +5378,11 @@ PGAPI_Procedures(HSTMT hstmt,
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Procedures query error", func);
 		QR_Destructor(res);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	SC_set_Result(stmt, res);
 
+	ret = SQL_SUCCESS;
 	/*
 	 * also, things need to think that this statement is finished so the
 	 * results can be retrieved.
@@ -5421,7 +5402,7 @@ cleanup:
 	SC_set_rowset_start(stmt, -1, FALSE);
 	SC_set_current_col(stmt, -1);
 
-	return result;
+	return ret;
 }
 
 
@@ -5492,7 +5473,7 @@ PGAPI_TablePrivileges(HSTMT hstmt,
 	BOOL		grpauth, sys, su;
 	char		(*useracl)[ACLMAX] = NULL, *acl, *user, *delim, *auth;
 	const char	*reln, *owner, *priv, *schnm = NULL;
-	RETCODE		result, ret = SQL_SUCCESS;
+	RETCODE		result, ret = SQL_ERROR;
 	const char	*like_or_eq, *op_string;
 	const SQLCHAR *szSchemaName;
 	SQLSMALLINT	cbSchemaName;
@@ -5579,13 +5560,11 @@ retry_public_schema:
 	if (PQExpBufferDataBroken(proc_query))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_TablePrivileges()", func);
-		result = SQL_ERROR;
 		goto cleanup;
 	}
 	if (wres = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(wres))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	tablecount = (Int4) QR_get_num_cached_tuples(wres);
@@ -5608,13 +5587,11 @@ retry_public_schema:
 	if (PQExpBufferDataBroken(proc_query))
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_TablePrivileges()", func);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	if (allures = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(allures))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_TablePrivileges query error", func);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	usercount = (Int4) QR_get_num_cached_tuples(allures);
@@ -5622,7 +5599,6 @@ retry_public_schema:
 	if (!useracl)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for user acl.", func);
-		ret = SQL_ERROR;
 		goto cleanup;
 	}
 	for (i = 0; i < tablecount; i++)
@@ -5668,7 +5644,6 @@ retry_public_schema:
 				if (PQExpBufferDataBroken(proc_query))
 				{
 					SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_TablePrivileges()", func);
-					ret = SQL_ERROR;
 					goto cleanup;
 				}
 				if (gres = CC_send_query(conn, proc_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(gres))
@@ -5762,6 +5737,8 @@ MYLOG(0, "guid=%s\n", uid);
 			}
 		}
 	}
+	ret = SQL_SUCCESS;
+
 cleanup:
 #undef	return
 	if (escSchemaName)
