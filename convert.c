@@ -1508,10 +1508,10 @@ MYLOG(1, "2stime fr=%d\n", std_time.fr);
 						short_array[i + 1] = shortv;
 
 					/* skip the current token */
-					while ((*vp != '\0') && (!isspace((UCHAR) *vp)))
+					while (IS_NOT_SPACE(*vp))
 						vp++;
 					/* and skip the space to the next token */
-					while ((*vp != '\0') && (isspace((UCHAR) *vp)))
+					while ((*vp != '\0') && (isspace(*vp)))
 						vp++;
 					if (*vp == '\0')
 						break;
@@ -2498,7 +2498,7 @@ into_table_from(const char *stmt)
 			while (*stmt == IDENTIFIER_QUOTE);
 			break;
 		default:
-			while (!isspace((UCHAR) *stmt)) stmt++;
+			while (IS_NOT_SPACE(*stmt)) stmt++;
 			break;
 	}
 	if (!*stmt)
@@ -2541,11 +2541,11 @@ table_for_update_or_share(const char *stmt, size_t *endpos)
 	}
 	zeroflag = flag; /* returns flag anyway */
 	wstmt += advance;
-	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
+	if (IS_NOT_SPACE(wstmt[0]))
 		return zeroflag;
 	else if (0 != (flag & FLGP_SELECT_FOR_READONLY))
 	{
-		if (!isspace((UCHAR) wstmt[0]))
+		if (IS_NOT_SPACE(wstmt[0]))
 			return zeroflag;
 		while (isspace((UCHAR) *wstmt)) wstmt++;
 		if (!*wstmt)
@@ -2554,7 +2554,7 @@ table_for_update_or_share(const char *stmt, size_t *endpos)
 			return zeroflag;
 		wstmt += advance;
 	}
-	if (0 != wstmt[0] && !isspace((UCHAR) wstmt[0]))
+	if (IS_NOT_SPACE(wstmt[0]))
 		return zeroflag;
 	*endpos = wstmt - stmt;
 	return flag;
@@ -2581,9 +2581,9 @@ check_join(StatementClass *stmt, const char *curptr, size_t curpos)
 		;
 	if (endpos < 0)
 		return FALSE;
-	for (stapos = endpos; stapos >= 0 && !isspace((UCHAR) *wstmt); stapos--, wstmt--)
+	for (stapos = endpos; stapos >= 0 && IS_NOT_SPACE(*wstmt); stapos--, wstmt--)
 		;
-	if (stapos < 0)
+	if (stapos < 0 || 0 == *wstmt)
 		return FALSE;
 	wstmt++;
 	switch (tokenwd = endpos - stapos)
@@ -2634,7 +2634,7 @@ insert_without_target(const char *stmt, size_t *endpos)
 	if (strnicmp(wstmt, "VALUES", 6))
 		return FALSE;
 	wstmt += 6;
-	if (!wstmt[0] || !isspace((UCHAR) wstmt[0]))
+	if (!wstmt[0] || IS_NOT_SPACE(wstmt[0]))
 		return FALSE;
 	while (isspace((UCHAR) *wstmt)) wstmt++;
 	if (*wstmt != '(' || *(++wstmt) != ')')
@@ -3208,7 +3208,7 @@ findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 			if (!isalpha(tchar))
 			{
 				slen = 0;
-				if (!isspace(tchar))
+				if (IS_NOT_SPACE(tchar))
 					*next_token = ENCODE_PTR(encstr);
 				break;
 			}
@@ -3235,7 +3235,7 @@ findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 					continue;
 			}
 			slen = encstr.pos;
-			if (!isspace(tchar))
+			if (IS_NOT_SPACE(tchar))
 				*next_token = ENCODE_PTR(encstr);
 			break;
 		}
@@ -3246,7 +3246,7 @@ findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token)
 	{
 		for (; tchar; tchar = encoded_nextchar(&encstr))
 		{
-			if (!isspace((UCHAR) tchar))
+			if (IS_NOT_SPACE((UCHAR) tchar))
 			{
 				*next_token = ENCODE_PTR(encstr);
 				break;
@@ -3373,7 +3373,7 @@ MYLOG(1, "finished token=%s\n", finished_token);
 static int token_restart(QueryParse *qp, char oldchar, char *finished_token)
 {
 	int ret = token_finish(qp, 0, finished_token);
-	if (!isspace(oldchar))
+	if (IS_NOT_SPACE(oldchar))
 		token_start(qp, oldchar);
 
 	return ret;
@@ -5434,7 +5434,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 
 		for (i = param_pos[0][0]; i <= param_pos[0][1]; i++)
 		{
-			if (!isspace((unsigned char) qb->query_statement[i]))
+			if (IS_NOT_SPACE(qb->query_statement[i]))
 			{
 				param_exist = TRUE;
 				break;
@@ -5489,7 +5489,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	}
 
 	sscanf(F_OldPtr(qp), "%32s", key);
-	while ((ucv = F_OldChar(qp)) != '\0' && (!isspace(ucv)))
+	while ((ucv = F_OldChar(qp)) != '\0' && (IS_NOT_SPACE(ucv)))
 		F_OldNext(qp);
 	while ((ucv = F_OldChar(qp)) != '\0' && isspace(ucv))
 		F_OldNext(qp);
@@ -5584,7 +5584,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		/* Separate off the func name, skipping leading and trailing whitespace */
 		i = 0;
 		while ((ucv = F_OldChar(qp)) != '\0' && ucv != '(' &&
-			   (!isspace(ucv)))
+			   (IS_NOT_SPACE(ucv)))
 		{
 			if (i < sizeof(key) - 1)
 				key[i++] = ucv;

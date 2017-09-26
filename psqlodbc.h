@@ -261,19 +261,20 @@ typedef double SDOUBLE;
 #define	FALSE	(BOOL)0
 #endif /* FALSE */
 #else
+
 #if (_MSC_VER < 1900) /* vc12 or under */
 #define POSIX_SNPRINTF_REQUIRED
 #define snprintf posix_snprintf
 extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
 #endif /* _MSC_VER */
-
-
 #ifndef strdup
 #define strdup _strdup
 #endif /* strdup */
 #define strnicmp _strnicmp
 #define stricmp _stricmp
 #endif /* WIN32 */
+
+#define IS_NOT_SPACE(c) ((c) && !isspace((UCHAR) c))
 
 #ifndef	SQL_ATTR_APP_ROW_DESC
 #define	SQL_ATTR_APP_ROW_DESC	10010

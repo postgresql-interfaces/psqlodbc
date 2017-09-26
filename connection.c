@@ -1596,15 +1596,20 @@ MYLOG(0, "entering\n");
 static BOOL
 is_setting_search_path(const char *query)
 {
-	for (query += 4; *query; query++)
+	const char *q = query;
+	if (strnicmp(q, "set", 3) != 0)
+		return FALSE;
+	q += 3;
+	while (isspace(*q)) q++;
+	for (; *q; q++)
 	{
-		if (!isspace((unsigned char) *query))
+		if (IS_NOT_SPACE(*q))
 		{
-			if (strnicmp(query, "search_path", 11) == 0)
+			if (strnicmp(q, "search_path", 11) == 0)
 				return TRUE;
-			query++;
-			while (*query && !isspace((unsigned char) *query))
-				query++;
+			q++;
+			while (IS_NOT_SPACE(*q))
+				q++;
 		}
 	}
 	return FALSE;

@@ -188,7 +188,7 @@ check_client_encoding(const pgNAME conn_settings)
 				}
 				else
 				{
-					for (sptr = cptr; *cptr && ';' != *cptr && !isspace((unsigned char) *cptr); cptr++) ;
+					for (sptr = cptr; ';' != *cptr && IS_NOT_SPACE(*cptr); cptr++) ;
 				}
 				len = cptr - sptr;
 				if (';' == *cptr)

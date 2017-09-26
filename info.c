@@ -5131,7 +5131,7 @@ MYLOG(0, "atttypid=%s\n", atttypid ? atttypid : "(null)");
 					}
 					else
 					{
-						for (delim = proargnames; *delim && !isspace((unsigned char) *delim) && ',' != *delim && '}' != *delim; delim++)
+						for (delim = proargnames; IS_NOT_SPACE(*delim) && ',' != *delim && '}' != *delim; delim++)
 							;
 					}
 					if (proargnames && '\0' == *delim) /* discard the incomplete name */
