@@ -58,14 +58,21 @@ static void LIBPQ_update_transaction_status(ConnectionClass *self);
 
 static void CC_set_error_if_not_set(ConnectionClass *self, int errornumber, const char *errormsg, const char *func)
 {
-	if (CC_get_errornumber(self) <= 0)
+	int	errornum = CC_get_errornumber(self);
+	const char *errmsg = CC_get_errormsg(self);
+
+	if (errornumber == 0)
+		return;
+	if (errornumber > 0)
 	{
-		if (CC_get_errormsg(self) == NULL)
+		if (errornum <= 0)
 			CC_set_error(self, errornumber, errormsg, func);
-		else
-			CC_set_errornumber(self, errornumber);
+		else if (!errmsg)
+			CC_set_errormsg(self, errormsg);
 	}
-	else
+	else if (errornum == 0)
+		CC_set_error(self, errornumber, errormsg, func);
+	else if (errornum < 0 && !errmsg)
 		CC_set_errormsg(self, errormsg);
 }
 
