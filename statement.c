@@ -1464,7 +1464,8 @@ SC_error_copy(StatementClass *self, const StatementClass *from, BOOL check)
 	BOOL	repstate;
 
 MYLOG(1, "entering %p->%p check=%i\n", from ,self, check);
-	if (self == from)	return;
+	if (!from)		return;	/* for safety */
+	if (self == from)	return; /* for safety */
 	if (check)
 	{
 		if (0 == from->__error_number)	/* SQL_SUCCESS */
@@ -1512,6 +1513,8 @@ SC_full_error_copy(StatementClass *self, const StatementClass *from, BOOL allres
 	PG_ErrorInfo		*pgerror;
 
 MYLOG(1, "entering %p->%p\n", from ,self);
+	if (!from)		return;	/* for safety */
+	if (self == from)	return; /* for safety */
 	if (self->__error_message)
 	{
 		free(self->__error_message);
