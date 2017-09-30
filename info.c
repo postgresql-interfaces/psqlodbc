@@ -3745,6 +3745,7 @@ retry_public_schema:
 		qend = 1;
 	for (qno = qstart; qno <= qend; qno++)
 	{
+		resetPQExpBuffer(&tables_query);
 		switch (qno)
 		{
 			case 1:
