@@ -1,7 +1,7 @@
 $configurationXmlPath=""
 $configurationTemplatePath=""
 
-function InitConfiguration($savePath)
+function InitConfiguration([string]$savePath)
 {
 	$configInfo = [xml](Get-Content $configurationTemplatePath)
 	if ($env:PROCESSOR_ARCHITECTURE -eq "x86")
@@ -16,7 +16,7 @@ function InitConfiguration($savePath)
 	return $configInfo
 }
 
-function GetConfiguration($loadPath)
+function GetConfiguration([string]$loadPath)
 {
 	$configInfo =  [xml] (Get-Content $loadPath)
 	set-variable -name xmlFormatVersion -value "0.4" -option constant
@@ -34,7 +34,7 @@ function GetConfiguration($loadPath)
 	return $configInfo
 }
 
-function LoadConfiguration($configPath, $configDir)
+function LoadConfiguration([string]$configPath, [string]$configDir)
 {
 	Write-Debug "configPath=$configPath"
 	set-variable -name configurationTemplatePath -scope 1 -value "$configDir\configuration_template.xml"
@@ -52,7 +52,7 @@ function LoadConfiguration($configPath, $configDir)
 	}
 }
 
-function SaveConfiguration($configInfo, $savePath)
+function SaveConfiguration([xml]$configInfo, [string]$savePath)
 {
 	if ("$savePath" -eq "") {
 		$savePath = $configurationXmlPath
@@ -60,7 +60,7 @@ function SaveConfiguration($configInfo, $savePath)
 	$configInfo.save($savePath)
 }
 
-function unifyNodes($node1, $node2)
+function unifyNodes([xml]$node1, [xml]$node2)
 {
     $attributes2 = $node2.get_Attributes()
     if ($attributes2.Count -gt 0)
@@ -98,7 +98,7 @@ function unifyNodes($node1, $node2)
     }
 }
 
-function getPGDir($configInfo, $Platform, $kind)
+function getPGDir([xml]$configInfo, [string]$Platform, [string]$kind)
 {
 	if ($Platform -ieq "x64") {
 		$platinfo=$configInfo.Configuration.x64
@@ -163,7 +163,7 @@ function getPGDir($configInfo, $Platform, $kind)
 	return $result
 }
 
-function GetPackageVersion($configInfo, $srcpath)
+function GetPackageVersion([xml]$configInfo, [string]$srcpath)
 {
 	$version_no = $configInfo.Configuration.version
 	if ("$version_no" -eq "") {

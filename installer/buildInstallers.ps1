@@ -49,8 +49,45 @@ function msvcrun([int]$runtime_version)
 	return $str
 }
 
-function findRuntime([int]$runtime_version, [String]$pgmvc)
+function env_vcversion_no()
 {
+	$viver = $env:VisualStudioVersion
+	if ("$viver" -ne "") {
+		if ("$viver" -match "(\d+)\.0") {
+			return [int]$matches[1]
+		}
+	}
+	return 0
+}
+
+function toolset_no_to_runtimeversion([int]$toolset_no)
+{
+	return [int] ($toolset_no / 10)
+}
+
+function runtimeversion_to_toolset_no([int]$runtime_version)
+{
+	[int]$toolset_no = $runtime_version * 10
+	if ($runtime_version -eq 14) {	# possibly be v141
+		[int]$vc_ver = 15;
+		if ((env_vcversion_no) -eq $vc_ver) {	# v141
+			$toolseto++
+		} elseif (Find-VSDir $vc_ver -ne "") {	# v141
+			$toolset_no++
+		}
+	}
+	return $toolset_no
+}
+
+function toolset_no_to_vcversion([int]$toolset_no)
+{
+	return [int] ($toolset_no / 10 + $toolset_no % 10)
+}
+
+function findRuntime([int]$toolset_no, [String]$pgmvc)
+{
+	$runtime_version = toolset_no_to_runtimeversion($toolset_no)
+	$vcversion_no = toolset_no_to_vcversion($toolset_no)
 	# where's the dll? 
 	[String]$rt_dllname = (msvcrun $runtime_version) + "${runtime_version}0.dll"
 	if ("$pgmvc" -ne "") {
@@ -68,8 +105,19 @@ function findRuntime([int]$runtime_version, [String]$pgmvc)
 	} else {
 		$pgmvc = "${env:ProgramFiles(x86)}"
 	}
-	$dllinredist = "$pgmvc\Microsoft Visual Studio ${runtime_version}.0\VC\redist\${CPUTYPE}\Microsoft.VC${runtime_version}0.CRT\${rt_dllname}"
-	if (Test-Path -Path $dllinredist) {
+	$dllinredist = ""
+	$vsdir = Find-VSDir $vcversion_no
+	if ("$vsdir" -ne "") {
+		if ($vcversion_no -gt 14) {	# VC15 ~ VC??
+			$lslist = @(Get-ChildItem "${vsdir}VC\Redist\MSVC\*\${CPUTYPE}\Microsoft.VC${toolset_no}.CRT\${rt_dllname}" -ErrorAction SilentlyContinue)
+			if ($lslist.Count -gt 0) {
+				$dllinredist = $lslist[0].FullName
+			}
+		} else {			# VC10 ~ VC14
+			$dllinredist = "${vsdir}VC\redist\${CPUTYPE}\Microsoft.VC${toolset_no}.CRT\${rt_dllname}"
+		}
+	}
+	if (("$dllinredist" -ne "") -and (Test-Path -Path $dllinredist)) {
 		return $dllinredist, ""
 	} else {
 		$messageSpec = "Please specify Configuration.$CPUTYPE.runtime_folder element of the configuration file where msvc runtime dll $rt_dllname can be found"
@@ -96,7 +144,7 @@ function findRuntime([int]$runtime_version, [String]$pgmvc)
 	return "", $rt_dllname
 }
 
-function buildInstaller($CPUTYPE)
+function buildInstaller([string]$CPUTYPE)
 {
 	$LIBPQBINDIR=getPGDir $configInfo $CPUTYPE "bin"
 	# msvc runtime psqlodbc links
@@ -110,18 +158,25 @@ function buildInstaller($CPUTYPE)
 	$pgmvc = $configInfo.Configuration.$CPUTYPE.runtime_folder
 	if (-not $ExcludeRuntime) {
 		$toolset = $configInfo.Configuration.BuildResult.PlatformToolset
-		if ($toolset -match "^v(\d+)0") {
-			$runtime_version0 = [int]$matches[1]
+		if ($toolset -match "^v(\d+)") {
+			$toolset_no0 = [int]$matches[1]
 		} else {
-			$runtime_version0 = 10
+			$toolset_no0 = 100
 		}
+		$runtime_version0 = toolset_no_to_runtimeversion($toolset_no0)
 		# where's the msvc runtime dll psqlodbc links?
 		if ($runtime_version0 -ge $ucrt_version -and $RedistUCRT) {
 			$script:wRedist=$true
 		} else {
-			$dlls=findRuntime $runtime_version0 $pgmvc
+			$dlls=findRuntime $toolset_no0 $pgmvc
 			$PODBCMSVCDLL=$dlls[0]
+			if ("$PODBCMSVCDLL" -ne "") {
+				Write-Host "psqlodbc picks $PODBCMSVCDLL"
+			}
 			$PODBCMSVCSYS=$dlls[1]
+			if ("$PODBCMSVCSYS" -ne "") {
+				Write-Host "psqlodbc picks system $PODBCMSVCSYS"
+			}
 			$PODBCMSVPDLL=$PODBCMSVCDLL.Replace((msvcrun $runtime_version0), $str_msvcp)
 			$PODBCMSVPSYS=$PODBCMSVCSYS.Replace((msvcrun $runtime_version0), $str_msvcp)
 		}
@@ -133,13 +188,23 @@ function buildInstaller($CPUTYPE)
 			} else {
 				$runtime_version1=[int]$msvclist[0]
 			}
+			if ($runtime_version1 -eq $runtime_version0) {
+				$toolset_no1 = $toolset_no0
+			} else {
+				$toolset_no1 = runtimeversion_to_toolset_no($runtime_version1)
+			}
 			if ($runtime_version1 -ge $ucrt_version -and $RedistUCRT) {
 				$script:wRedist=$true
 			} elseif ($runtime_version1 -ne $runtime_version0) {
-				$dlls=findRuntime $runtime_version1 $pgmvc
+				$dlls=findRuntime $toolset_no1 $pgmvc
 				$LIBPQMSVCDLL=$dlls[0]
+				if ("$LIBPQMSVCDLL" -ne "") {
+					Write-Host "LIBPQ picks $LIBPQMSVCDLL"
+				}
 				$LIBPQMSVCSYS=$dlls[1]
-				Write-Host "LIBPQ requires $LIBPQMSVCDLL$LIBPQMSYCSYS"
+				if ("$LIBPQMSVCSYS" -ne "") {
+					Write-Host "LIBPQ picks system $LIBPQMSVCSYS"
+				}
 			}
 		} else {
 			$script:wRedist=$true
@@ -184,7 +249,7 @@ function buildInstaller($CPUTYPE)
 		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
 	}
 
-	$PRODUCTCODE = [GUID]::NewGuid();
+	$PRODUCTCODE = [GUID]::NewGuid()
 	Write-Host "PRODUCTCODE: $PRODUCTCODE"
 
 	try {
@@ -250,7 +315,13 @@ if ($AlongWithDrivers) {
 			throw "Failed to build binaries"
 		}
 	} catch [Exception] {
-		throw $error[0]
+		if ("$_.Exception.Message" -ne "") {
+			Write-Host ("Error: " + $_.Exception.Message) -ForegroundColor Red
+		} else {
+			echo $_.Exception | Format-List -Force
+		}
+		Remove-Module Psqlodbc-config
+		return
 	} finally {
 		popd
 	} 
@@ -265,7 +336,7 @@ try {
 	if ($cpu -eq "both") {
 		buildInstaller "x86"
 		buildInstaller "x64"
-		write-host "wRedist=$wRedist"
+		Write-Host "wRedist=$wRedist"
 		try {
 			pushd "$scriptPath"
 			psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION -withRedist:$wRedist
@@ -282,7 +353,12 @@ try {
 		buildInstaller $cpu
 	}
 } catch [Exception] {
-	throw $error[0]
+	if ("$_.Exception.Message" -ne "") {
+		Write-Host ("Error: " + $_.Exception.Message) -ForegroundColor Red
+	} else {
+		echo $_.Exception | Format-List -Force
+	}
+	return
 } finally {
 	Remove-Module MSProgram-Get
 	Remove-Module Psqlodbc-config

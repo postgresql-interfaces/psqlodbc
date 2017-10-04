@@ -58,7 +58,7 @@ Param(
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="both",
 [string]$Toolset,
-[ValidateSet("", "4.0", "12.0", "14.0")]
+[ValidateSet("", "4.0", "12.0", "14.0", "15.0")]
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
@@ -66,7 +66,7 @@ Param(
 [switch]$AlongWithInstallers
 )
 
-function buildPlatform($configInfo, $Platform)
+function buildPlatform([xml]$configInfo, [string]$Platform)
 {
 	if ($Platform -ieq "x64") {
 		$platinfo=$configInfo.Configuration.x64
@@ -109,8 +109,20 @@ pushd $scriptPath
 $path_save = ${env:PATH}
 
 Import-Module ${scriptPath}\MSProgram-Get.psm1
-$msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
-Remove-Module MSProgram-Get
+try {
+	$msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+} catch [Exception] {
+	if ("$_.Exception.Message" -ne "") {
+		Write-Host $_.Exception.Message -ForegroundColor Red
+	} else {
+		echo $_.Exception | Format-List -Force
+	}
+	popd
+	Remove-Module Psqlodbc-config
+	return
+} finally {
+	Remove-Module MSProgram-Get
+}
 
 $recordResult = $true
 try {
@@ -165,7 +177,7 @@ try {
 	}
 } catch [Exception] {
 	if ("$_.Exception.Message" -ne "") {
-		write-host $_.Exception.Message -ForegroundColor Red
+		Write-Host $_.Exception.Message -ForegroundColor Red
 	} else {
 		echo $_.Exception | Format-List -Force
 	}

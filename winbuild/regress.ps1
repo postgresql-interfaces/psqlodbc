@@ -67,7 +67,7 @@ Param(
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="x64",
 [string]$Toolset,
-[ValidateSet("", "4.0", "12.0", "14.0")]
+[ValidateSet("", "4.0", "12.0", "14.0", "15.0")]
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
@@ -307,7 +307,7 @@ if ($null -eq $TestList) {
 			}
 		}
 <#		if ($i -ge $arrays[1].length) {
-			write "!! test case $l doesn't exist"
+			Write-Host "!! test case $l doesn't exist"
 			$err=$true
 		} #>
 	}
