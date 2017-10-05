@@ -181,7 +181,7 @@ function buildInstaller([string]$CPUTYPE)
 			$PODBCMSVPSYS=$PODBCMSVCSYS.Replace((msvcrun $runtime_version0), $str_msvcp)
 		}
 		# where's the runtime dll libpq links? 
-		$msvclist=& ${dumpbinexe} /imports $LIBPQBINDIR\libpq.dll | select-string -pattern "^\s*($msrun_ptn)(\d+)0\.dll" | % {$_.matches[0].Groups[2].Value}
+		$msvclist=& ${dumpbinexe} /imports $LIBPQBINDIR\libpq.dll | select-string -pattern "^\s*($msrun_ptn)(\d+)0\.dll" | % {$_.Matches.Groups[2].Value}
 		if ($msvclist -ne $Null -and $msvclist.length -gt 0) {
 			if ($msvclist.GetType().Name -eq "String") {
 				$runtime_version1=[int]$msvclist

@@ -254,7 +254,7 @@ function Find-Dumpbin([int]$CurMaxVC = 15)
 
 function dumpbinRecurs([string]$dllname, [string]$dllfolder, [array]$instarray)
 {
-	$tmem=& ${dumpbinexe} /imports "$dllfolder\${dllname}" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.matches[0].Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
+	$tmem=& ${dumpbinexe} /imports "$dllfolder\${dllname}" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.Matches.Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
 	if ($LASTEXITCODE -ne 0) {
 		throw "Failed to dumpbin ${dllfolder}\${dllname}"
 	}
