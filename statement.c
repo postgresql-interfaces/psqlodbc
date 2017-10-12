@@ -954,7 +954,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		if (in_ident_keyword)
 		{
 			if (isalnum(tchar) ||
-			    DOLLAR_QUOTE == tchar)
+			    DOLLAR_QUOTE == tchar ||
+			    '_' == tchar)
 			{
 				bchar = tchar;
 				continue;
@@ -1035,8 +1036,6 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 					tag = ptr;
 					encoded_position_shift(&encstr, taglen - 1);
 				}
-				else
-					num_p++;
 			}
 			else if (tchar == LITERAL_QUOTE)
 			{
@@ -1074,6 +1073,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		*pcpar = num_p;
 	if (multi_st)
 		*multi_st = multi;
+
+	MYLOG(0, "leaving...num_p=%d multi=%d\n", num_p, multi);
 }
 
 /*
