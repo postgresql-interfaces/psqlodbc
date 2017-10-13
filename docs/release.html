@@ -9,6 +9,24 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="10.00.0000">psqlODBC 10.00.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Fix multibyte handling of ansi driver.</li>
+<li>Handle PG 10 identity columns.</li>
+<li>For PG10 servers, we will never see "unknown" output columns.</li>
+<li>Improve @@identty handling.</li>
+Use multibyte-aware eatTableIdentifiers() instead of next_name_token().<br />
+Use identifierEscape() to escape single quotes or double quotes.
+<li>PG_PRINTF_ATTRIBUTE instead of printf in __attribute__((format(printf, .., ..))) function attribute.</li>
+<li>Review the use of encoded_nextchar().</li>
+Remove variables which work in conjunction with encstr(encoded_str) so as to avoid misleadingness.
+<li>Use pg_get_serial_sequence() to get serial sequence of identity columns or serial columns. </li>
+pg_get_serial_sequence() for identity columns became available in PG 10.
+<li>Preparation for development with VC15(VS 2017).</li>
+<li>Fix the bug that 'create table T_$001 (\81c)' fails when useServerSidePrepare is turned on.</li>
+Per report from Gregory Pruss.
+</ol><br />
 <h2><a id="09.06.0500">psqlODBC 09.06.0500 Release</a></h2>
 Changes:<br />
 <ol type="1">
