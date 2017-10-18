@@ -1,6 +1,17 @@
 
-function Find-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, [xml]$configInfo)
+function Find-MSBuild
 {
+    [CmdletBinding()]
+
+    Param([Parameter(Mandatory=$true)]
+          [ref]$VCVersion,
+          [Parameter(Mandatory=$true)]
+          [ref]$MSToolsVersion,
+          [Parameter(Mandatory=$true)]
+          [ref]$Toolset,
+          [Parameter(Mandatory=$true)]
+          [xml]$configInfo)
+
 	$msbuildexe=""
 	$VisualStudioVersion=$VCVersion.Value
 	$MSToolsVersionv=$MSToolsVersion.Value
@@ -107,7 +118,7 @@ function Find-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, [xml
 				}
 			}
 		}
-		if ($msbuildexe -eq $Null) {
+		if ("$msbuildexe" -eq "") {
 			throw "MSBuild ToolsVersion $MSToolsVersionv not Found"
 		}
 	}
@@ -148,8 +159,13 @@ function Find-MSBuild([ref]$VCVersion, [ref]$MSToolsVersion, [ref]$Toolset, [xml
 }
 
 #	find msbuild.exe for VC10 ~ VC14
-function msbfind_10_14([string]$toolsver)
+function msbfind_10_14
 {
+    [CmdletBinding()]
+
+    Param([Parameter(Mandatory=$true)]
+          [string]$toolsver)
+
 	$msbindir=""
 	$regKey="HKLM:\Software\Wow6432Node\Microsoft\MSBuild\ToolsVersions\${toolsver}"
 	if (Test-Path -path $regkey) {
@@ -165,33 +181,36 @@ function msbfind_10_14([string]$toolsver)
 				$msbindir=$msbitem.MSBuildToolsPath
 			}
 		} else {
-			return $Null
+			return ""
 		}
 	}
 	return "${msbindir}msbuild"
 }
 
 #	find msbuild.exe for VC15 ~ VC??
-function msbfind_15_xx([string]$toolsver)
+function msbfind_15_xx
 {
-	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
-		$pgmfs = "$env:ProgramFiles"
-	} else {
-		$pgmfs = "${env:ProgramFiles(x86)}"
-	}
-	$lslist = @(Get-ChildItem "$pgmfs\Microsoft Visual Studio\*\*\MSBuild\$toolsver\Bin\MSBuild.exe" -ErrorAction SilentlyContinue)
-	if ($lslist.Count -gt 0) {
-		return $lslist[0].FullName
-	}
+    [CmdletBinding()]
 
-	return $Null
+    Param([Parameter(Mandatory=$true)]
+          [string]$toolsver)
+
+	$vsdir = Find-VSDir $toolsver
+	if ("$vsdir" -eq "") {
+		return ""
+	}
+	return "${vsdir}MSBuild\$toolsver\Bin\MSBuild.exe"
 }
 
-$dumpbinexe = ""
+#$dumpbinexe = ""
 $addPath=""
 
-function Find-Dumpbin([int]$CurMaxVC = 15)
+function Find-Dumpbin
 {
+    [CmdletBinding()]
+
+    Param([int]$CurMaxVC = 15)
+
 	if ("$dumpbinexe" -ne "") {
 		if ("$addPath" -ne "") {
 			if (${env:PATH}.indexof($addPath) -lt 0) {
@@ -252,9 +271,18 @@ function Find-Dumpbin([int]$CurMaxVC = 15)
 	return $dumpbinexe
 }
 
-function dumpbinRecurs([string]$dllname, [string]$dllfolder, [array]$instarray)
+function dumpbinRecurs
 {
-	$tmem=& ${dumpbinexe} /imports "$dllfolder\${dllname}" | select-string -pattern "^\s*(\S*\.dll)" | % {$_.Matches.Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
+    [CmdletBinding()]
+
+    Param([Parameter(Mandatory=$true)]
+          [string]$dllname,
+          [Parameter(Mandatory=$true)]
+          [string]$dllfolder,
+          [Parameter(Mandatory=$true)]
+          [array]$instarray)
+
+	$tmem=& ${dumpbinexe} /imports "$dllfolder\${dllname}" | select-string -pattern "^\s*(\S*\.dll)" | foreach-object {$_.Matches.Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
 	if ($LASTEXITCODE -ne 0) {
 		throw "Failed to dumpbin ${dllfolder}\${dllname}"
 	}
@@ -282,8 +310,15 @@ function dumpbinRecurs([string]$dllname, [string]$dllfolder, [array]$instarray)
 	return $instarray
 }
 
-function Get-RelatedDlls([string]$dllname, [string]$dllfolder)
+function Get-RelatedDlls
 {
+    [CmdletBinding()]
+
+    Param([Parameter(Mandatory=$true)]
+          [string]$dllname,
+          [Parameter(Mandatory=$true)]
+          [string]$dllfolder)
+
 	Find-Dumpbin | Out-Null
 	$libpqmem=@()
 	$libpqmem=dumpbinRecurs $dllname $dllfolder $libpqmem
@@ -302,8 +337,13 @@ function env_vcversion_no()
 	return 0
 }
 
-function Find-VSDir([string]$vcversion)
+function Find-VSDir
 {
+    [CmdletBinding()]
+
+    Param([Parameter(Mandatory=$true)]
+          [string]$vcversion)
+
 	[int]$vcversion_no = [int]$vcversion
 	if ("${vcversion}" -match "^(\d+)") {
 		$vcversion_no = $matches[1]
@@ -312,11 +352,7 @@ function Find-VSDir([string]$vcversion)
 		return $env:VSINSTALLDIR
 	}
 	if ($vcversion_no -gt 14) {	# VC15 ~ VC??
-		$msbexe = msbfind_15_xx "${vcversion_no}.0"
-		if ($msbexe -eq $Null) {
-			return ""
-		}
-		return (Split-Path (Split-Path (Split-Path (Split-Path $msbexe -Parent) -Parent) -Parent) -Parent) + "\"
+		return find_vsdir_15_xx ${vcversion_no}
 	} else {	# VC10 ~ VC14
 		$comntools = [environment]::getenvironmentvariable("VS${vcversion_no}0COMNTOOLS")
 		if ("$comntools" -eq "") {
@@ -324,6 +360,47 @@ function Find-VSDir([string]$vcversion)
 		}
 		return (Split-Path (Split-Path $comntools -Parent) -Parent) + "\"
 	}
+}
+
+[bool]$vssetup_available = $true
+$vssetup = $null
+
+#	find VS dir for VC15 ~ VC??
+function find_vsdir_15_xx
+{
+    [CmdletBinding()]
+
+    Param([Parameter(Mandatory=$true)]
+          [string]$toolsver)
+
+# vssetup module is available?
+	if ($vssetup_available -and ($vsseup -eq $null)) {
+		try {
+			$vssetup = @(Get-VssetupInstance)
+		} catch [Exception] {
+			$vssetup_available = $false
+		}
+	}
+	if ($vssetup -ne $null) {
+		$toolsnum = [int]$toolsver
+		$lslist = @($vssetup | where-object { $_.InstallationVersion.Major -eq $toolsnum } | foreach-object { $_.InstallationPath })
+		if ($lslist.Count -gt 0) {
+			return $lslist[0] + "\"
+		}
+		return ""
+	}
+# vssetup module is unavailable
+	if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+		$pgmfs = "$env:ProgramFiles"
+	} else {
+		$pgmfs = "${env:ProgramFiles(x86)}"
+	}
+	$lslist = @(Get-ChildItem "$pgmfs\Microsoft Visual Studio\*\*\MSBuild\$toolsver\Bin\MSBuild.exe" -ErrorAction SilentlyContinue)
+	if ($lslist.Count -gt 0) {
+		return (Split-Path (Split-Path (Split-Path (Split-Path $lslist[0].FullName -Parent) -Parent) -Parent) -Parent) + "\"
+	}
+
+	return ""
 }
 
 Export-ModuleMember -function Find-MSBuild, Find-Dumpbin, Get-RelatedDlls, Find-VSDir
