@@ -202,7 +202,7 @@ function msbfind_15_xx
 	return "${vsdir}MSBuild\$toolsver\Bin\MSBuild.exe"
 }
 
-#$dumpbinexe = ""
+$dumpbinexe = ""
 $addPath=""
 
 function Find-Dumpbin
@@ -279,7 +279,6 @@ function dumpbinRecurs
           [string]$dllname,
           [Parameter(Mandatory=$true)]
           [string]$dllfolder,
-          [Parameter(Mandatory=$true)]
           [array]$instarray)
 
 	$tmem=& ${dumpbinexe} /imports "$dllfolder\${dllname}" | select-string -pattern "^\s*(\S*\.dll)" | foreach-object {$_.Matches.Groups[1].Value} | where-object {test-path ("${dllfolder}\" + $_)}
