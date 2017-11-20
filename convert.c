@@ -3706,6 +3706,21 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					auto_increment = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT);
 					if (auto_increment && auto_increment[0] == '1')
 					{
+						converted = TRUE;
+						break;
+					}
+				}
+				if (converted)
+				{
+				        const char *column_def = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF);
+					if (NULL != column_def &&
+					    strncmp(column_def, "nextval", 7) == 0)
+					{
+						CVT_APPEND_STR(qb, "curr");
+						CVT_APPEND_STR(qb, column_def + 4);
+					}
+					else
+					{
 						char relcnv[128];
 						const char *column_name = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_NAME);
 
@@ -3721,8 +3736,6 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) column_name, SQL_NTS, conn, relcnv, sizeof(relcnv), FALSE));
 						CVT_APPEND_STR(qb, "')::regclass)");
 					}
-					converted = TRUE;
-					break;
 				}
 			}
 		}
