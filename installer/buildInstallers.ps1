@@ -12,6 +12,8 @@
     Specify when you'd like to exclude a msvc runtime dll from the installer.
 .PARAMETER RedistUCRT
     Specify when you'd like to redistribute Visual C++ 2015(or later) Redistributable.
+.PARAMETER NoPDB
+    Specify when you'd rather not include PDB files.
 .PARAMETER BuildConfigPath
     Specify the configuration xml file name if you want to use
     the configuration file other than standard one.
@@ -34,6 +36,7 @@ Param(
 [switch]$AlongWithDrivers,
 [switch]$ExcludeRuntime,
 [switch]$RedistUCRT,
+[switch]$NoPDB,
 [string]$BuildConfigPath
 )
 
@@ -256,7 +259,7 @@ function buildInstaller([string]$CPUTYPE)
 		pushd "$scriptPath"
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
-		candle -nologo $libpqRelArgs "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dLIBPQBINDIR=$LIBPQBINDIR" "-dLIBPQMSVCDLL=$LIBPQMSVCDLL" "-dLIBPQMSVCSYS=$LIBPQMSVCSYS" "-dPODBCMSVCDLL=$PODBCMSVCDLL" "-dPODBCMSVPDLL=$PODBCMSVPDLL" "-dPODBCMSVCSYS=$PODBCMSVCSYS" "-dPODBCMSVPSYS=$PODBCMSVPSYS" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs
+		candle -nologo $libpqRelArgs "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dLIBPQBINDIR=$LIBPQBINDIR" "-dLIBPQMSVCDLL=$LIBPQMSVCDLL" "-dLIBPQMSVCSYS=$LIBPQMSVCSYS" "-dPODBCMSVCDLL=$PODBCMSVCDLL" "-dPODBCMSVPDLL=$PODBCMSVPDLL" "-dPODBCMSVCSYS=$PODBCMSVCSYS" "-dPODBCMSVPSYS=$PODBCMSVPSYS" "-dNoPDB=$NoPDB" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}

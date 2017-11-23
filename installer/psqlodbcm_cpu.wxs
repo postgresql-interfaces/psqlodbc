@@ -61,13 +61,21 @@
 
           <!-- PostgreSQL -->
           <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../$(var.ANSIFOLDER)/psqlodbc30a.dll" />
+<?if $(var.NoPDB) != True ?>
           <File Id="psqlodbc30a.pdb" Name="psqlodbc30a.pdb" Source="../$(var.ANSIFOLDER)/psqlodbc30a.pdb" />
+<?endif?>
           <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.dll" />
+<?if $(var.NoPDB) != True ?>
           <File Id="psqlodbc35w.pdb" Name="psqlodbc35w.pdb" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.pdb" />
+<?endif?>
           <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../$(var.UNICODEFOLDER)/pgenlist.dll" />
+<?if $(var.NoPDB) != True ?>
           <File Id="pgenlist.pdb" Name="pgenlist.pdb" Source="../$(var.UNICODEFOLDER)/pgenlist.pdb" />
+<?endif?>
           <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
+<?if $(var.NoPDB) != True ?>
           <File Id="pgenlista.pdb" Name="pgenlista.pdb" Source="../$(var.ANSIFOLDER)/pgenlista.pdb" />
+<?endif?>
 	<!-- MSVC Runtime -->
 <?if "$(var.PODBCMSVCDLL)" != "" ?>
           <File Source="$(var.PODBCMSVCDLL)" />
