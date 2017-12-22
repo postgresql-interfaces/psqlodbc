@@ -27,7 +27,7 @@ void * pgdebug_alloc(size_t size)
 {
 	void * alloced;
 	alloced = malloc(size);
-inolog(" alloced=%p(%d)\n", alloced, size);
+MYLOG(2, " alloced=%p(%d)\n", alloced, size);
 	if (alloced)
 	{
 		if (!alsize)
@@ -76,7 +76,7 @@ void * pgdebug_calloc(size_t n, size_t size)
 	}
 	else
 		MYLOG(0, "%s:calloc %dbyte\n", ALCERR, size);
-inolog("calloced = %p\n", alloced);
+MYLOG(2, "calloced = %p\n", alloced);
 	return alloced;
 }
 void * pgdebug_realloc(void * ptr, size_t size)
@@ -106,7 +106,7 @@ void * pgdebug_realloc(void * ptr, size_t size)
 		}
 	}
 
-	inolog("%p->%p\n", ptr, alloced);
+	MYLOG(2, "%p->%p\n", ptr, alloced);
 	return alloced;
 }
 char * pgdebug_strdup(const char * ptr)
@@ -135,7 +135,7 @@ char * pgdebug_strdup(const char * ptr)
 		altbl[tbsize].len = strlen(ptr) + 1;
 		tbsize++;
 	}
-	inolog("%p->%p(%s)\n", ptr, alloced, alloced);
+	MYLOG(2, "%p->%p(%s)\n", ptr, alloced, alloced);
 	return alloced;
 }
 
@@ -169,7 +169,7 @@ void pgdebug_free(void * ptr)
 		return;
 	}
 	else
-		inolog("ptr=%p\n", ptr);
+		MYLOG(2, "ptr=%p\n", ptr);
 	free(ptr);
 }
 
