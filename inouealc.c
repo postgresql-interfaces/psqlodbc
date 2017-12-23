@@ -27,7 +27,7 @@ void * pgdebug_alloc(size_t size)
 {
 	void * alloced;
 	alloced = malloc(size);
-MYLOG(2, " alloced=%p(%d)\n", alloced, size);
+MYLOG(2, " alloced=%p(" FORMAT_SIZE_T ")\n", alloced, size);
 	if (alloced)
 	{
 		if (!alsize)
@@ -48,7 +48,7 @@ MYLOG(2, " alloced=%p(%d)\n", alloced, size);
 		tbsize++;
 	}
 	else
-		MYLOG(0, "%s:alloc %dbyte\n", ALCERR, size);
+		MYLOG(0, "%s:alloc " FORMAT_SIZE_T "byte\n", ALCERR, size);
 	return alloced;
 }
 void * pgdebug_calloc(size_t n, size_t size)
@@ -75,22 +75,20 @@ void * pgdebug_calloc(size_t n, size_t size)
 		tbsize++;
 	}
 	else
-		MYLOG(0, "%s:calloc %dbyte\n", ALCERR, size);
+		MYLOG(0, "%s:calloc " FORMAT_SIZE_T "byte\n", ALCERR, size);
 MYLOG(2, "calloced = %p\n", alloced);
 	return alloced;
 }
 void * pgdebug_realloc(void * ptr, size_t size)
 {
-	void * alloced = realloc(ptr, size);
+	void * alloced;
+
+	if (!ptr)
+		return pgdebug_alloc(size);
+	alloced = realloc(ptr, size);
 	if (!alloced)
 	{
 		MYLOG(0, "%s %p error\n", ALCERR, ptr);
-	}
-	else if (!ptr)
-	{
-		altbl[tbsize].aladr = alloced;
-		altbl[tbsize].len = size;
-		tbsize++;
 	}
 	else /* if (alloced != ptr) */
 	{
@@ -180,14 +178,14 @@ static BOOL out_check(void *out, size_t len, const char *name)
 
 	for (i = 0; i < tbsize; i++)
 	{
-		if ((UInt4)out < (UInt4)(altbl[i].aladr))
+		if ((ULONG_PTR)out < (ULONG_PTR)(altbl[i].aladr))
 			continue;
-		if ((UInt4)out < (UInt4)(altbl[i].aladr) + altbl[i].len)
+		if ((ULONG_PTR)out < (ULONG_PTR)(altbl[i].aladr) + altbl[i].len)
 		{
-			if ((UInt4)out + len > (UInt4)(altbl[i].aladr) + altbl[i].len)
+			if ((ULONG_PTR)out + len > (ULONG_PTR)(altbl[i].aladr) + altbl[i].len)
 			{
 				ret = FALSE;
-				MYLOG(0, "%s:%s:out_check found memory buffer overrun %p(%d)>=%p(%d)\n", ALCERR, name, out, len, altbl[i].aladr, altbl[i].len);
+				MYLOG(0, "%s:%s:out_check found memory buffer overrun %p(" FORMAT_SIZE_T ")>=%p(" FORMAT_SIZE_T ")\n", ALCERR, name, out, len, altbl[i].aladr, altbl[i].len);
 			}
 			break;
 		}
@@ -222,7 +220,8 @@ char *pgdebug_strncpy_null(char *out, const char *in, size_t len)
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
-	return strncpy_null(out, in, len);
+	strncpy_null(out, in, len);
+	return out;
 }
 
 void *pgdebug_memcpy(void *out, const void *in, size_t len)
@@ -262,7 +261,7 @@ void debug_memory_check(void)
 		MYLOG(0, "%s:memory leak found check count=%d alloc=%d\n", ALCERR, tbsize, alsize);
 		for (i = 0; i < tbsize; i++)
 		{
-			MYLOG(0, "%s:leak = %p(%d)\n", ALCERR, altbl[i].aladr, altbl[i].len);
+			MYLOG(0, "%s:leak = %p(" FORMAT_SIZE_T ")\n", ALCERR, altbl[i].aladr, altbl[i].len);
 		}
 	}
 }
