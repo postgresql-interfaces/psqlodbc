@@ -874,11 +874,6 @@ MYLOG(1, "statement=%p ommitted=0\n", self);
 
 	self->lobj_fd = -1;
 
-	/*
-	 * Free any data at exec params before the statement is executed
-	 * again.  If not, then there will be a memory leak when the next
-	 * SQLParamData/SQLPutData is called.
-	 */
 	SC_free_params(self, STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY);
 	SC_initialize_stmts(self, FALSE);
 	cancelNeedDataState(self);

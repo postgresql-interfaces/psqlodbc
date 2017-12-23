@@ -971,6 +971,14 @@ next_param_row:
 		ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
 
 	/*
+	 *	Free any data at exec params before the statement is
+	 *	executed again or the next set of parameters is processed.
+	 *	If not,	then there will be a memory leak when the next
+	 *	SQLParamData/SQLPutData is called.
+	 */
+	SC_free_params(stmt, STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY);
+
+	/*
 	 * Check if statement has any data-at-execute parameters when it is
 	 * not in SC_pre_execute.
 	 */
@@ -1162,10 +1170,9 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	{
 		/* Waiting for more data from SQLParamData/SQLPutData. Cancel that. */
 		/*
-		 * Note, any previous data-at-exec buffers will be freed in the
-		 * recycle
+		 * Note, any previous data-at-exec buffers will be freed
+		 * if they call SQLExecDirect or SQLExecute again.
 		 */
-		/* if they call SQLExecDirect or SQLExecute again. */
 
 		ENTER_STMT_CS(stmt);
 		SC_clear_error(stmt);
