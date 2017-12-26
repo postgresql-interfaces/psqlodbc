@@ -303,17 +303,17 @@ getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adt
 	 * Static ColumnSize (i.e., the Maximum ColumnSize of the datatype) This
 	 * has nothing to do with a result set.
 	 */
-MYLOG(1, "!!! atttypmod  < 0 ?\n");
+MYLOG(DETAIL_LOG_LEVEL, "!!! atttypmod  < 0 ?\n");
 	if (atttypmod < 0 && adtsize_or_longestlen < 0)
 		return maxsize;
 
-MYLOG(1, "!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
+MYLOG(DETAIL_LOG_LEVEL, "!!! adtsize_or_logngest=%d\n", adtsize_or_longestlen);
 	p = adtsize_or_longestlen; /* longest */
 	/*
 	 * Catalog Result Sets -- use assigned column width (i.e., from
 	 * set_tuplefield_string)
 	 */
-MYLOG(1, "!!! catalog_result=%d\n", handle_unknown_size_as);
+MYLOG(DETAIL_LOG_LEVEL, "!!! catalog_result=%d\n", handle_unknown_size_as);
 	if (UNKNOWNS_AS_LONGEST == handle_unknown_size_as)
 	{
 		MYLOG(0, "LONGEST: p = %d\n", p);
@@ -794,7 +794,7 @@ pgtype_attr_to_name(const ConnectionClass *conn, OID type, int atttypmod, BOOL a
 		case PG_TYPE_XID:
 			return "xid";
 		case PG_TYPE_INT4:
-MYLOG(1, "pgtype_to_name int4\n");
+MYLOG(DETAIL_LOG_LEVEL, "pgtype_to_name int4\n");
 			return auto_increment ? "serial" : "int4";
 		case PG_TYPE_FLOAT4:
 			return "float4";

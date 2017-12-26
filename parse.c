@@ -288,7 +288,7 @@ getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k)
 {
 	char	   *str;
 
-MYLOG(1, "entering non-manual result\n");
+MYLOG(DETAIL_LOG_LEVEL, "entering non-manual result\n");
 	fi->dquote = TRUE;
 	STR_TO_NAME(fi->column_name, QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME));
 
@@ -313,7 +313,7 @@ searchColInfo(COL_INFO *col_info, FIELD_INFO *fi)
 	OID			basetype;
 	const char	   *col;
 
-MYLOG(1, "entering num_cols=" FORMAT_ULEN " col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
+MYLOG(DETAIL_LOG_LEVEL, "entering num_cols=" FORMAT_ULEN " col=%s\n", QR_get_num_cached_tuples(col_info->result), PRINT_NAME(fi->column_name));
 	if (fi->attnum < 0)
 		return FALSE;
 	for (k = 0; k < QR_get_num_cached_tuples(col_info->result); k++)
@@ -324,7 +324,7 @@ MYLOG(1, "entering num_cols=" FORMAT_ULEN " col=%s\n", QR_get_num_cached_tuples(
 			if (basetype = (OID) strtoul(QR_get_value_backend_text(col_info->result, k, COLUMNS_BASE_TYPEID), NULL, 10), 0 == basetype)
 				basetype = (OID) strtoul(QR_get_value_backend_text(col_info->result, k, COLUMNS_FIELD_TYPE), NULL, 10);
 			atttypmod = QR_get_value_backend_int(col_info->result, k, COLUMNS_ATTTYPMOD, NULL);
-MYLOG(1, "%d attnum=%d\n", k, attnum);
+MYLOG(DETAIL_LOG_LEVEL, "%d attnum=%d\n", k, attnum);
 			if (attnum == fi->attnum &&
 			    basetype == fi->basetype &&
 			    atttypmod == fi->typmod)
@@ -337,7 +337,7 @@ MYLOG(1, "%d attnum=%d\n", k, attnum);
 		else if (NAME_IS_VALID(fi->column_name))
 		{
 			col = QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME);
-MYLOG(1, "%d col=%s\n", k, col);
+MYLOG(DETAIL_LOG_LEVEL, "%d col=%s\n", k, col);
 			if (fi->dquote)
 				cmp = strcmp(col, GET_NAME(fi->column_name));
 			else
@@ -595,7 +595,7 @@ static BOOL has_multi_table(const StatementClass *stmt)
 	BOOL multi_table = FALSE;
 	QResultClass	*res;
 
-MYLOG(1, "entering ntab=%d", stmt->ntab);
+MYLOG(DETAIL_LOG_LEVEL, "entering ntab=%d", stmt->ntab);
 	if (1 < stmt->ntab)
 		multi_table = TRUE;
 	else if (SC_has_join(stmt))
@@ -614,14 +614,14 @@ MYLOG(1, "entering ntab=%d", stmt->ntab);
 					reloid = greloid;
 				else if (reloid != greloid)
 				{
-MYPRINTF(1, " DOHHH i=%d %u!=%u ", i, reloid, greloid);
+MYPRINTF(DETAIL_LOG_LEVEL, " DOHHH i=%d %u!=%u ", i, reloid, greloid);
 					multi_table = TRUE;
 					break;
 				}
 			}
 		}
 	}
-MYPRINTF(1, " multi=%d\n", multi_table);
+MYPRINTF(DETAIL_LOG_LEVEL, " multi=%d\n", multi_table);
 	return multi_table;
 }
 /*
@@ -944,7 +944,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 				STR_TO_NAME(wti->table_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
 		}
-MYLOG(1, "#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+MYLOG(DETAIL_LOG_LEVEL, "#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 		/*
 		 * Store the table name and the SQLColumns result
 		 * structure
@@ -968,7 +968,7 @@ MYLOG(1, "#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->ta
 			conn->ntables++;
 
 if (res && QR_get_num_cached_tuples(res) > 0)
-MYLOG(1, "oid item == %s\n", (const char *) QR_get_value_backend_text(res, 0, 3));
+MYLOG(DETAIL_LOG_LEVEL, "oid item == %s\n", (const char *) QR_get_value_backend_text(res, 0, 3));
 
 		MYLOG(0, "Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
 		/* Associate a table from the statement with a SQLColumn info */
@@ -989,7 +989,7 @@ BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt
 	TABLE_INFO	*wti = *pti;
 	COL_INFO	*coli;
 
-MYLOG(1, "entering reloid=%u ti=%p\n", reloid, wti);
+MYLOG(DETAIL_LOG_LEVEL, "entering reloid=%u ti=%p\n", reloid, wti);
 	if (!conn)
 		conn = SC_get_conn(stmt);
 	if (!wti)	/* SQLColAttribute case */
@@ -1011,7 +1011,7 @@ MYLOG(1, "entering reloid=%u ti=%p\n", reloid, wti);
 		}
 		if (!wti)
 		{
-MYLOG(1, "before increaseNtab\n");
+MYLOG(DETAIL_LOG_LEVEL, "before increaseNtab\n");
 			if (!increaseNtab(stmt, func))
 				return FALSE;
 			wti = stmt->ti[stmt->ntab - 1];
@@ -1019,7 +1019,7 @@ MYLOG(1, "before increaseNtab\n");
 		}
 		*pti = wti;
 	}
-MYLOG(1, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
+MYLOG(DETAIL_LOG_LEVEL, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 	if (0 == greloid)
 		greloid = wti->table_oid;
 	if (NULL != wti->col_info)
@@ -1084,7 +1084,7 @@ cleanup:
 				STR_TO_NAME(wti->table_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
 		}
-MYLOG(1, "#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
+MYLOG(DETAIL_LOG_LEVEL, "#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 		if (colatt /* SQLColAttribute case */
 		    && 0 == (wti->flags & TI_COLATTRIBUTE))
 		{
@@ -1095,7 +1095,7 @@ MYLOG(1, "#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->ta
 	}
 	else if (!colatt && stmt)
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
-MYLOG(1, "leaving returns %d\n", found);
+MYLOG(DETAIL_LOG_LEVEL, "leaving returns %d\n", found);
 	return found;
 }
 
@@ -1110,7 +1110,7 @@ SC_set_SS_columnkey(StatementClass *stmt)
 	BOOL		contains_key = FALSE;
 	int		i;
 
-MYLOG(1, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, stmt->ntab);
+MYLOG(DETAIL_LOG_LEVEL, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, stmt->ntab);
 	if (!fi)		return ret;
 	if (0 >= nfields)	return ret;
 	if (!has_multi_table(stmt) && 1 == stmt->ntab)
@@ -1148,7 +1148,7 @@ MYLOG(1, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, stmt->ntab);
 				if (oneti == tfi->ti &&
 				    strcmp(keycolnam, SAFE_NAME(tfi->column_name)) == 0)
 				{
-MYLOG(1, "key %s found at %p\n", keycolnam, fi + i);
+MYLOG(DETAIL_LOG_LEVEL, "key %s found at %p\n", keycolnam, fi + i);
 					tfi->columnkey = TRUE;
 					break;
 				}
@@ -1166,7 +1166,7 @@ MYLOG(1, "key %s found at %p\n", keycolnam, fi + i);
 			goto cleanup;
 		ret = SQL_SUCCESS;
 	}
-MYLOG(1, "contains_key=%d\n", contains_key);
+MYLOG(DETAIL_LOG_LEVEL, "contains_key=%d\n", contains_key);
 	for (i = 0; i < nfields; i++)
 	{
 		if (tfi = fi[i], NULL == tfi)

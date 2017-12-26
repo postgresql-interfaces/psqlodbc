@@ -174,7 +174,7 @@ SQLDriverConnectW(HDBC hdbc,
 			utf8_to_ucs2(szOut, maxlen, szConnStrOut, cbConnStrOutMax);
 		if (outlen >= cbConnStrOutMax && NULL != szConnStrOut && NULL != pcbConnStrOut)
 		{
-MYLOG(1, "cbConnstrOutMax=%d pcb=%p\n", cbConnStrOutMax, pcbConnStrOut);
+MYLOG(DETAIL_LOG_LEVEL, "cbConnstrOutMax=%d pcb=%p\n", cbConnStrOutMax, pcbConnStrOut);
 			if (SQL_SUCCESS == ret)
 			{
 				CC_set_error(conn, CONN_TRUNCATED, "the ConnStrOut is too small", func);

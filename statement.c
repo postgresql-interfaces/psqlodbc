@@ -593,11 +593,11 @@ SC_set_rowset_start(StatementClass *stmt, SQLLEN start, BOOL valid_base)
 	QResultClass	*res = SC_get_Curres(stmt);
 	SQLLEN		incr = start - stmt->rowset_start;
 
-MYLOG(1, "%p->SC_set_rowstart " FORMAT_LEN "->" FORMAT_LEN "(%s) ", stmt, stmt->rowset_start, start, valid_base ? "valid" : "unknown");
+MYLOG(DETAIL_LOG_LEVEL, "%p->SC_set_rowstart " FORMAT_LEN "->" FORMAT_LEN "(%s) ", stmt, stmt->rowset_start, start, valid_base ? "valid" : "unknown");
 	if (res != NULL)
 	{
 		BOOL	valid = QR_has_valid_base(res);
-MYPRINTF(1, ":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
+MYPRINTF(DETAIL_LOG_LEVEL, ":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
 
 		if (valid)
 		{
@@ -616,10 +616,10 @@ MYPRINTF(1, ":(%p)QR is %s", res, QR_has_valid_base(res) ? "valid" : "unknown");
 		}
 		if (!QR_get_cursor(res))
 			res->key_base = start;
-MYPRINTF(1, ":(%p)QR result=" FORMAT_LEN "(%s)", res, QR_get_rowstart_in_cache(res), QR_has_valid_base(res) ? "valid" : "unknown");
+MYPRINTF(DETAIL_LOG_LEVEL, ":(%p)QR result=" FORMAT_LEN "(%s)", res, QR_get_rowstart_in_cache(res), QR_has_valid_base(res) ? "valid" : "unknown");
 	}
 	stmt->rowset_start = start;
-MYPRINTF(1, ":stmt result=" FORMAT_LEN "\n", stmt->rowset_start);
+MYPRINTF(DETAIL_LOG_LEVEL, ":stmt result=" FORMAT_LEN "\n", stmt->rowset_start);
 }
 void
 SC_inc_rowset_start(StatementClass *stmt, SQLLEN inc)
@@ -844,7 +844,7 @@ SC_recycle_statement(StatementClass *self)
 			/* Free the parsed table/field information */
 			SC_initialize_cols_info(self, TRUE, TRUE);
 
-MYLOG(1, "SC_clear_parse_status\n");
+MYLOG(DETAIL_LOG_LEVEL, "SC_clear_parse_status\n");
 			SC_clear_parse_status(self, conn);
 			break;
 	}
@@ -866,7 +866,7 @@ MYLOG(1, "SC_clear_parse_status\n");
 	SC_set_rowset_start(self, -1, FALSE);
 	SC_set_current_col(self, -1);
 	self->bind_row = 0;
-MYLOG(1, "statement=%p ommitted=0\n", self);
+MYLOG(DETAIL_LOG_LEVEL, "statement=%p ommitted=0\n", self);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 
 	self->__error_message = NULL;
@@ -1371,10 +1371,10 @@ StatementClass *SC_get_ancestor(StatementClass *stmt)
 {
 	StatementClass	*child = stmt, *parent;
 
-MYLOG(1, "entering stmt=%p\n", stmt);
+MYLOG(DETAIL_LOG_LEVEL, "entering stmt=%p\n", stmt);
 	for (child = stmt, parent = child->execute_parent; parent; child = parent, parent = child->execute_parent)
 	{
-		MYLOG(1, "parent=%p\n", parent);
+		MYLOG(DETAIL_LOG_LEVEL, "parent=%p\n", parent);
 	}
 	return child;
 }
@@ -1414,7 +1414,7 @@ SC_replace_error_with_res(StatementClass *self, int number, const char *message,
 	QResultClass	*self_res;
 	BOOL	repstate;
 
-MYLOG(1, "entering %p->%p check=%i\n", from_res ,self, check);
+MYLOG(DETAIL_LOG_LEVEL, "entering %p->%p check=%i\n", from_res ,self, check);
 	if (check)
 	{
 		if (0 == number)			return;
@@ -1459,7 +1459,7 @@ SC_error_copy(StatementClass *self, const StatementClass *from, BOOL check)
 	QResultClass	*self_res, *from_res;
 	BOOL	repstate;
 
-MYLOG(1, "entering %p->%p check=%i\n", from ,self, check);
+MYLOG(DETAIL_LOG_LEVEL, "entering %p->%p check=%i\n", from ,self, check);
 	if (!from)		return;	/* for safety */
 	if (self == from)	return; /* for safety */
 	if (check)
@@ -1508,7 +1508,7 @@ SC_full_error_copy(StatementClass *self, const StatementClass *from, BOOL allres
 {
 	PG_ErrorInfo		*pgerror;
 
-MYLOG(1, "entering %p->%p\n", from ,self);
+MYLOG(DETAIL_LOG_LEVEL, "entering %p->%p\n", from ,self);
 	if (!from)		return;	/* for safety */
 	if (self == from)	return; /* for safety */
 	if (self->__error_message)
@@ -1620,7 +1620,7 @@ SC_fetch(StatementClass *self)
 
 	/* TupleField *tupleField; */
 
-MYLOG(1, "entering statement=%p res=%p ommitted=0\n", self, res);
+MYLOG(DETAIL_LOG_LEVEL, "entering statement=%p res=%p ommitted=0\n", self, res);
 	self->last_fetch_count = self->last_fetch_count_include_ommitted = 0;
 	if (!res)
 		return SQL_ERROR;
@@ -1674,7 +1674,7 @@ MYLOG(1, "entering statement=%p res=%p ommitted=0\n", self, res);
 		if (kres_ridx >= 0 && kres_ridx < res->num_cached_keys)
 		{
 			UWORD	pstatus = res->keyset[kres_ridx].status;
-MYLOG(1, "SC_ pstatus[" FORMAT_LEN "]=%hx fetch_count=" FORMAT_LEN "\n", kres_ridx, pstatus, self->last_fetch_count);
+MYLOG(DETAIL_LOG_LEVEL, "SC_ pstatus[" FORMAT_LEN "]=%hx fetch_count=" FORMAT_LEN "\n", kres_ridx, pstatus, self->last_fetch_count);
 			if (0 != (pstatus & (CURS_SELF_DELETING | CURS_SELF_DELETED)))
 				return SQL_SUCCESS_WITH_INFO;
 			if (SQL_ROW_DELETED != (pstatus & KEYSET_INFO_PUBLIC) &&
@@ -1699,7 +1699,7 @@ MYLOG(1, "SC_ pstatus[" FORMAT_LEN "]=%hx fetch_count=" FORMAT_LEN "\n", kres_ri
 
 	result = SQL_SUCCESS;
 	self->last_fetch_count++;
-MYLOG(1, "stmt=%p ommitted++\n", self);
+MYLOG(DETAIL_LOG_LEVEL, "stmt=%p ommitted++\n", self);
 	self->last_fetch_count_include_ommitted++;
 
 	opts = SC_get_ARDF(self);
@@ -1747,8 +1747,8 @@ MYLOG(1, "stmt=%p ommitted++\n", self);
 			else
 			{
 				SQLLEN	curt = GIdx2CacheIdx(self->currTuple, self, res);
-MYLOG(1, "%p->base=" FORMAT_LEN " curr=" FORMAT_LEN " st=" FORMAT_LEN " valid=%d\n", res, QR_get_rowstart_in_cache(res), self->currTuple, SC_get_rowset_start(self), QR_has_valid_base(res));
-MYLOG(1, "curt=" FORMAT_LEN "\n", curt);
+MYLOG(DETAIL_LOG_LEVEL, "%p->base=" FORMAT_LEN " curr=" FORMAT_LEN " st=" FORMAT_LEN " valid=%d\n", res, QR_get_rowstart_in_cache(res), self->currTuple, SC_get_rowset_start(self), QR_has_valid_base(res));
+MYLOG(DETAIL_LOG_LEVEL, "curt=" FORMAT_LEN "\n", curt);
 				value = QR_get_value_backend_row(res, curt, lf);
 			}
 
@@ -1775,9 +1775,9 @@ MYLOG(1, "curt=" FORMAT_LEN "\n", curt);
 
 				case COPY_RESULT_TRUNCATED:
 					SC_set_error(self, STMT_TRUNCATED, "Fetched item was truncated.", func);
-					MYLOG(1, "The %dth item was truncated\n", lf + 1);
-					MYLOG(1, "The buffer size = " FORMAT_LEN, opts->bindings[lf].buflen);
-					MYLOG(1, " and the value is '%s'\n", value);
+					MYLOG(DETAIL_LOG_LEVEL, "The %dth item was truncated\n", lf + 1);
+					MYLOG(DETAIL_LOG_LEVEL, "The buffer size = " FORMAT_LEN, opts->bindings[lf].buflen);
+					MYLOG(DETAIL_LOG_LEVEL, " and the value is '%s'\n", value);
 					result = SQL_SUCCESS_WITH_INFO;
 					break;
 
@@ -2100,7 +2100,7 @@ SC_execute(StatementClass *self)
 				}
 			}
 
-MYLOG(1, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
+MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
 			/*
 			 * special handling of result for keyset driven cursors.
 			 * Use the columns info of the 1st query and
@@ -2178,7 +2178,7 @@ MYLOG(1, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
  */
 #ifdef	REFCUR_SUPPORT
 
-MYLOG(1, "!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_type(res, 0));
+MYLOG(DETAIL_LOG_LEVEL, "!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_type(res, 0));
 		if (!has_out_para &&
 		    0 < QR_NumResultCols(res) &&
 		    PG_TYPE_REFCURSOR == QR_get_field_type(res, 0))
@@ -2207,7 +2207,7 @@ MYLOG(1, "!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_
 
 		self->bind_row = 0;
 		ret = SC_fetch(hstmt);
-MYLOG(1, "!!SC_fetch return =%d\n", ret);
+MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 		if (SQL_SUCCEEDED(ret))
 		{
 			APDFields	*apdopts = SC_get_APDF(self);
@@ -2281,7 +2281,7 @@ int enqueueNeedDataCallback(StatementClass *stmt, NeedDataCallfunc func, void *d
 	stmt->callbacks[stmt->num_callbacks].data = data;
 	stmt->num_callbacks++;
 
-MYLOG(1, "stmt=%p, func=%p, count=%d\n", stmt, func, stmt->num_callbacks);
+MYLOG(DETAIL_LOG_LEVEL, "stmt=%p, func=%p, count=%d\n", stmt, func, stmt->num_callbacks);
 	return stmt->num_callbacks;
 }
 
@@ -2425,7 +2425,6 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 
 static void log_params(int nParams, const Oid *paramTypes, const UCHAR * const *paramValues, const int *paramLengths, const int *paramFormats, int resultFormat)
 {
-	const int	level = 1;
 	int	i, j;
 	BOOL	isBinary;
 
@@ -2433,16 +2432,16 @@ static void log_params(int nParams, const Oid *paramTypes, const UCHAR * const *
 	{
 		isBinary = paramFormats ? paramFormats[i] : FALSE;
 		if (!paramValues[i])
-			QLOG(level, "\t%c (null) OID=%u\n", isBinary ? 'b' : 't', paramTypes ? paramTypes[i] : 0);
+			QLOG(TUPLE_LOG_LEVEL, "\t%c (null) OID=%u\n", isBinary ? 'b' : 't', paramTypes ? paramTypes[i] : 0);
 		else if (isBinary)
 		{
-			QLOG(level, "\tb '");
+			QLOG(TUPLE_LOG_LEVEL, "\tb '");
 			for (j = 0; j < paramLengths[i]; j++)
-				QPRINTF(level, "%02x", paramValues[i][j]);
-			QPRINTF(level, " OID=%u\n", paramTypes ? paramTypes[i] : 0);
+				QPRINTF(TUPLE_LOG_LEVEL, "%02x", paramValues[i][j]);
+			QPRINTF(TUPLE_LOG_LEVEL, " OID=%u\n", paramTypes ? paramTypes[i] : 0);
 		}
 		else
-			QLOG(level, "\tt '%s' OID=%u\n", paramValues[i], paramTypes ? paramTypes[i] : 0);
+			QLOG(TUPLE_LOG_LEVEL, "\tt '%s' OID=%u\n", paramValues[i], paramTypes ? paramTypes[i] : 0);
 	}
 }
 
@@ -2568,7 +2567,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 	}
 
 	/* 3. Receive results */
-MYLOG(1, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_result);
+MYLOG(DETAIL_LOG_LEVEL, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_result);
 	pgresstatus = PQresultStatus(pgres);
 	switch (pgresstatus)
 	{
@@ -2851,7 +2850,7 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 
 	/* Extract parameter information from the result set */
 	num_p = PQnparams(pgres);
-MYLOG(1, "num_params=%d info=%d\n", stmt->num_params, num_p);
+MYLOG(DETAIL_LOG_LEVEL, "num_params=%d info=%d\n", stmt->num_params, num_p);
 	if (get_qlog() > 0 || get_mylog() > 0)
 	{
 		int	i;
@@ -2918,7 +2917,7 @@ MYLOG(1, "num_params=%d info=%d\n", stmt->num_params, num_p);
 				if (SQL_PARAM_OUTPUT == paramType ||
 					SQL_PARAM_INPUT_OUTPUT == paramType)
 				{
-					MYLOG(1, "!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
+					MYLOG(DETAIL_LOG_LEVEL, "!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
 					PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(res), cidx));
 					cidx++;
 				}

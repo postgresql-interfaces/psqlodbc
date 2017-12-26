@@ -218,16 +218,18 @@ MYLOG(0, "entering src=%d\n", src);
 	return 0;
 }
 
+#define	INIT_DISP_LOGVAL	2
+
 static int
 driver_options_update(HWND hdlg, ConnInfo *ci)
 {
 	GLOBAL_VALUES *comval;
 	BOOL	bTranslated;
 
-MYLOG(2, "entering\n");
+MYLOG(3, "entering\n");
 	comval = &(ci->drivers);
 
-	(comval->commlog = GetDlgItemInt(hdlg, DS_COMMLOG, &bTranslated, FALSE)) || bTranslated || (comval->commlog = 1);
+	(comval->commlog = GetDlgItemInt(hdlg, DS_COMMLOG, &bTranslated, FALSE)) || bTranslated || (comval->commlog = INIT_DISP_LOGVAL);
 	comval->unique_index = IsDlgButtonChecked(hdlg, DRV_UNIQUEINDEX);
 	comval->use_declarefetch = IsDlgButtonChecked(hdlg, DRV_USEDECLAREFETCH);
 
@@ -247,9 +249,7 @@ MYLOG(2, "entering\n");
 
 	comval->parse = IsDlgButtonChecked(hdlg, DRV_PARSE);
 
-	(comval->debug = GetDlgItemInt(hdlg, DS_DEBUG, &bTranslated, FALSE)) || bTranslated || (comval->debug = 1);
-	if (!bTranslated)
-		comval->debug = 1;
+	(comval->debug = GetDlgItemInt(hdlg, DS_DEBUG, &bTranslated, FALSE)) || bTranslated || (comval->debug = INIT_DISP_LOGVAL);
 
 	comval->fetch_max = GetDlgItemInt(hdlg, DRV_CACHE_SIZE, NULL, FALSE);
 	comval->max_varchar_size = GetDlgItemInt(hdlg, DRV_VARCHAR_SIZE, NULL, FALSE);
@@ -393,7 +393,7 @@ CtrlCheckButton(HWND hdlg, int nIDcheck, int nIDint)
 			{
 				ShowWindow(GetDlgItem(hdlg, nIDint), SW_SHOW);
 				if (bTranslated)
-					SetDlgItemInt(hdlg, nIDint, 1, FALSE);
+					SetDlgItemInt(hdlg, nIDint, INIT_DISP_LOGVAL, FALSE);
 			}
 			break;
 		case BST_UNCHECKED:

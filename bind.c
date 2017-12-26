@@ -201,7 +201,7 @@ PGAPI_BindCol(HSTMT hstmt,
 					break;
 				default:
 					SC_set_error(stmt, STMT_PROGRAM_TYPE_OUT_OF_RANGE, "Bind column 0 is not of type SQL_C_BOOKMARK", func);
-MYLOG(1, "Bind column 0 is type %d not of type SQL_C_BOOKMARK\n", fCType);
+MYLOG(DETAIL_LOG_LEVEL, "Bind column 0 is type %d not of type SQL_C_BOOKMARK\n", fCType);
 					ret = SQL_ERROR;
 					goto cleanup;
 			}
@@ -336,7 +336,7 @@ PGAPI_DescribeParam(HSTMT hstmt,
 	}
 	if ((ipar < 1) || (ipar > num_params))
 	{
-MYLOG(1, "num_params=%d\n", stmt->num_params);
+MYLOG(DETAIL_LOG_LEVEL, "num_params=%d\n", stmt->num_params);
 		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_DescribeParam.", func);
 		return SQL_ERROR;
 	}
@@ -347,7 +347,7 @@ MYLOG(1, "num_params=%d\n", stmt->num_params);
 	if (NOT_YET_PREPARED == stmt->prepared)
 	{
 		decideHowToPrepare(stmt, FALSE);
-MYLOG(1, "howTo=%d\n", SC_get_prepare_method(stmt));
+MYLOG(DETAIL_LOG_LEVEL, "howTo=%d\n", SC_get_prepare_method(stmt));
 		switch (SC_get_prepare_method(stmt))
 		{
 			case NAMED_PARSE_REQUEST:
@@ -367,7 +367,7 @@ MYLOG(1, "howTo=%d\n", SC_get_prepare_method(stmt));
 	/* parameter markers, not bound parameters.  */
 	if (pfSqlType)
 	{
-MYLOG(1, "[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, pgtype);
+MYLOG(DETAIL_LOG_LEVEL, "[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameters[ipar].SQLType, pgtype);
 		if (ipdopts->parameters[ipar].SQLType)
 			*pfSqlType = ipdopts->parameters[ipar].SQLType;
 		else if (pgtype)
@@ -437,7 +437,7 @@ PGAPI_NumParams(HSTMT hstmt,
 		SC_set_error(stmt, STMT_EXEC_ERROR, "parameter count address is null", func);
 		return SQL_ERROR;
 	}
-MYLOG(1, "num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
+MYLOG(DETAIL_LOG_LEVEL, "num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	if (stmt->num_params >= 0)
 		*pcpar = stmt->num_params;
 	else if (!stmt->statement)
@@ -456,7 +456,7 @@ MYLOG(1, "num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 		stmt->proc_return = proc_return;
 		stmt->multi_statement = multi;
 	}
-MYLOG(1, "num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
+MYLOG(DETAIL_LOG_LEVEL, "num_params=%d,%d\n", stmt->num_params, stmt->proc_return);
 	return SQL_SUCCESS;
 }
 
@@ -799,7 +799,7 @@ void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
 	Int2	lf;
 
-MYLOG(1, "freeall=%d allocated=%d bindings=%p\n", freeall, self->allocated, self->bindings);
+MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d bindings=%p\n", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
 		reset_a_column_binding(self, lf);
 	if (freeall)
@@ -814,7 +814,7 @@ void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 {
 	Int2	lf;
 
-MYLOG(1, "freeall=%d allocated=%d gdata=%p\n", freeall, self->allocated, self->gdata);
+MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d gdata=%p\n", freeall, self->allocated, self->gdata);
 	if (self->fdata.ttlbuf)
 	{
 		free(self->fdata.ttlbuf);

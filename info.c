@@ -1156,7 +1156,7 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 if (sqlType == SQL_LONGVARBINARY)
 {
 ConnInfo	*ci = &(conn->connInfo);
-MYLOG(1, "%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgType);
+MYLOG(DETAIL_LOG_LEVEL, "%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbinary, sqlType, pgType);
 }
 
 		if (fSqlType == SQL_ALL_TYPES || fSqlType == sqlType)
@@ -1187,7 +1187,7 @@ MYLOG(0, "aunq_match=%d pgtcount=%d\n", aunq_match, pgtcount);
 				{
 					set_tuplefield_string(&tuple[GETTYPE_TYPE_NAME], PGTYPE_TO_NAME(conn, pgType, TRUE));
 					set_tuplefield_int2(&tuple[GETTYPE_NULLABLE], SQL_NO_NULLS);
-MYLOG(1, "serial in\n");
+MYLOG(DETAIL_LOG_LEVEL, "serial in\n");
 				}
 				else
 				{
@@ -2942,7 +2942,7 @@ retry_public_schema:
 			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_NOT_PSEUDO);
-MYLOG(1, "Add ctid\n");
+MYLOG(DETAIL_LOG_LEVEL, "Add ctid\n");
 		}
 	}
 	else

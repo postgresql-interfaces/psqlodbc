@@ -173,7 +173,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 #ifdef WIN32
 dialog:
 #endif
-MYLOG(1, "DriverCompletion=%d\n", fDriverCompletion);
+MYLOG(DETAIL_LOG_LEVEL, "DriverCompletion=%d\n", fDriverCompletion);
 	switch (fDriverCompletion)
 	{
 #ifdef WIN32
@@ -228,7 +228,7 @@ MYLOG(1, "DriverCompletion=%d\n", fDriverCompletion);
 	}
 	reqs = 0;
 
-MYLOG(1, "before CC_connect\n");
+MYLOG(DETAIL_LOG_LEVEL, "before CC_connect\n");
 	/* do the actual connect */
 	retval = CC_connect(conn, salt);
 	if (retval < 0)

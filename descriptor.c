@@ -34,7 +34,7 @@ void	TI_Destructor(TABLE_INFO **ti, int count)
 {
 	int	i;
 
-MYLOG(1, "entering count=%d\n", count);
+MYLOG(DETAIL_LOG_LEVEL, "entering count=%d\n", count);
 	if (ti)
 	{
 		for (i = 0; i < count; i++)
@@ -63,7 +63,7 @@ MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 }
 void	FI_Constructor(FIELD_INFO *self, BOOL reuse)
 {
-MYLOG(1, "entering reuse=%d\n", reuse);
+MYLOG(DETAIL_LOG_LEVEL, "entering reuse=%d\n", reuse);
 	if (reuse)
 		FI_Destructor(&self, 1, FALSE);
 	memset(self, 0, sizeof(FIELD_INFO));
@@ -75,7 +75,7 @@ void	FI_Destructor(FIELD_INFO **fi, int count, BOOL freeFI)
 {
 	int	i;
 
-MYLOG(1, "entering count=%d\n", count);
+MYLOG(DETAIL_LOG_LEVEL, "entering count=%d\n", count);
 	if (fi)
 	{
 		for (i = 0; i < count; i++)
@@ -190,7 +190,7 @@ void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 
 static void ARDFields_free(ARDFields * self)
 {
-MYLOG(1, "entering %p bookmark=%p\n", self, self->bookmark);
+MYLOG(DETAIL_LOG_LEVEL, "entering %p bookmark=%p\n", self, self->bookmark);
 	if (self->bookmark)
 	{
 		free(self->bookmark);
@@ -534,7 +534,7 @@ PGAPI_CopyDesc(SQLHDESC SourceDescHandle,
 	}
 	if (targethd->type_defined)
 	{
-MYLOG(1, "source type=%d -> target type=%d\n", srchd->desc_type, targethd->desc_type);
+MYLOG(DETAIL_LOG_LEVEL, "source type=%d -> target type=%d\n", srchd->desc_type, targethd->desc_type);
 		if (SQL_ATTR_IMP_ROW_DESC == targethd->desc_type)
 		{
 			MYLOG(0, "can't modify IRD\n");
@@ -556,19 +556,19 @@ MYLOG(1, "source type=%d -> target type=%d\n", srchd->desc_type, targethd->desc_
 	switch (srchd->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-MYLOG(1, "src=%p target=%p type=%d", src, target, srchd->desc_type);
+MYLOG(DETAIL_LOG_LEVEL, "src=%p target=%p type=%d", src, target, srchd->desc_type);
 			if (!targethd->type_defined)
 			{
 				targethd->desc_type = srchd->desc_type;
 			}
 			ard_src = &(src->ardf);
-MYPRINTF(1, " rowset_size=" FORMAT_LEN " bind_size=%d ope_ptr=%p off_ptr=%p\n",
+MYPRINTF(DETAIL_LOG_LEVEL, " rowset_size=" FORMAT_LEN " bind_size=%d ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
 ard_src->row_operation_ptr, ard_src->row_offset_ptr);
 			ard_tgt = &(target->ardf);
-MYPRINTF(1, " target=%p", ard_tgt);
+MYPRINTF(DETAIL_LOG_LEVEL, " target=%p", ard_tgt);
 			ARDFields_copy(ard_src, ard_tgt);
-MYPRINTF(1, " offset_ptr=%p\n", ard_tgt->row_offset_ptr);
+MYPRINTF(DETAIL_LOG_LEVEL, " offset_ptr=%p\n", ard_tgt->row_offset_ptr);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
 			if (!targethd->type_defined)

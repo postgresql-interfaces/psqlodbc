@@ -292,7 +292,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
 	UInt4		flag;
 
-MYLOG(1, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
+MYLOG(DETAIL_LOG_LEVEL, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	encode(ci->password, encoded_item, sizeof(encoded_item));
 	/* fundamental info */
 	nlen = MAX_CONNECT_STRING;
@@ -313,7 +313,7 @@ MYLOG(1, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	/* extra info */
 	hlen = strlen(connect_string);
 	nlen = MAX_CONNECT_STRING - hlen;
-MYLOG(1, "hlen=" FORMAT_SSIZE_T "\n", hlen);
+MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 	if (!abbrev)
 	{
 		char	protocol_and[16];
@@ -1054,14 +1054,14 @@ MYLOG(0, "drivername=%s\n", drivername);
 	get_Ci_Drivers(DSN, ODBC_INI, &(ci->drivers));
 	STR_TO_NAME(ci->drivers.drivername, drivername);
 
-	MYLOG(1, "DSN info: DSN='%s',server='%s',port='%s',dbase='%s',user='%s',passwd='%s'\n",
+	MYLOG(DETAIL_LOG_LEVEL, "DSN info: DSN='%s',server='%s',port='%s',dbase='%s',user='%s',passwd='%s'\n",
 		 DSN,
 		 ci->server,
 		 ci->port,
 		 ci->database,
 		 ci->username,
 		 NAME_IS_VALID(ci->password) ? "xxxxx" : "");
-	MYLOG(1, "          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
+	MYLOG(DETAIL_LOG_LEVEL, "          onlyread='%s',showoid='%s',fakeoidindex='%s',showsystable='%s'\n",
 		 ci->onlyread,
 		 ci->show_oid_column,
 		 ci->fake_oid_index,
@@ -1071,12 +1071,12 @@ MYLOG(0, "drivername=%s\n", drivername);
 #ifdef	NOT_USED
 		char	*enc = (char *) check_client_encoding(ci->conn_settings);
 
-		MYLOG(1, "          conn_settings='%s', conn_encoding='%s'\n", ci->conn_settings,
+		MYLOG(DETAIL_LOG_LEVEL, "          conn_settings='%s', conn_encoding='%s'\n", ci->conn_settings,
 			NULL != enc ? enc : "(null)");
 		if (NULL != enc)
 			free(enc);
 #endif /* NOT_USED */
-		MYLOG(1, "          translation_dll='%s',translation_option='%s'\n",
+		MYLOG(DETAIL_LOG_LEVEL, "          translation_dll='%s',translation_option='%s'\n",
 			ci->translation_dll,
 			ci->translation_option);
 	}

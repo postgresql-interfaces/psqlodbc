@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 #include "environ.h"
 #include "connection.h"
 #include "statement.h"
@@ -292,7 +293,7 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 							rc = QR_get_num_total_tuples(res) - res->dl_count;
 					}
 					*((SQLLEN *) DiagInfoPtr) = rc;
-MYLOG(1, "rc=" FORMAT_LEN "\n", rc);
+MYLOG(DETAIL_LOG_LEVEL, "rc=" FORMAT_LEN "\n", rc);
 					ret = SQL_SUCCESS;
 					break;
 				case SQL_DIAG_ROW_COUNT:
@@ -712,14 +713,14 @@ APDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <=0)
 	{
-MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
 	}
 	if (RecNumber > opts->allocated)
 	{
-MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 		parameter_bindings_set(opts, RecNumber, TRUE);
 		/* DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
@@ -881,7 +882,7 @@ IPDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 	{
-MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 		DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 				"bad parameter number");
 		return SQL_ERROR;
@@ -1160,7 +1161,7 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		default:if (RecNumber <= 0 || RecNumber > opts->allocated)
 			{
-MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
@@ -1414,7 +1415,7 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			break;
 		default:if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
 			{
-MYLOG(1, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
@@ -1945,7 +1946,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			else
 			{
 				stmt->ard = (DescriptorClass *) Value;
-MYLOG(1, "set ard=%p\n", stmt->ard);
+MYLOG(DETAIL_LOG_LEVEL, "set ard=%p\n", stmt->ard);
 			}
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */

@@ -1436,7 +1436,7 @@ MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 				 */
 				bZone = FALSE;	/* time zone stuff is unreliable */
 				timestamp2stime(value, &std_time, &bZone, &zone);
-MYLOG(1, "2stime fr=%d\n", std_time.fr);
+MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 			}
 			else
 			{
@@ -1889,7 +1889,7 @@ MYLOG(1, "2stime fr=%d\n", std_time.fr);
 				{
 					UInt4	ival = ATOI32U(neut_str);
 
-MYLOG(1, "SQL_C_VARBOOKMARK value=%d\n", ival);
+MYLOG(DETAIL_LOG_LEVEL, "SQL_C_VARBOOKMARK value=%d\n", ival);
 					if (pcbValue)
 						*pcbValueBindRow = sizeof(ival);
 					if (cbValueMax >= sizeof(ival))
@@ -2700,7 +2700,7 @@ prepareParametersNoDesc(StatementClass *stmt, BOOL fake_params, BOOL param_cast)
 	QueryParse	query_org, *qp;
 	QueryBuild	query_crt, *qb;
 
-MYLOG(1, "entering\n");
+MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 	qp = &query_org;
 	QP_initialize(qp, stmt);
 	qb = &query_crt;
@@ -2795,7 +2795,7 @@ desc_params_and_sync(StatementClass *stmt)
 	SQLSMALLINT	num_pa = 0;
 	ProcessedStmt *pstmt;
 
-MYLOG(1, "entering\n");
+MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 
 	retval = SQL_ERROR;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
@@ -2860,7 +2860,7 @@ RETCODE	prepareParameters(StatementClass *stmt, BOOL fake_params)
 			return SQL_SUCCESS;
 	}
 
-MYLOG(1, "calling prepareParameters\n");
+MYLOG(DETAIL_LOG_LEVEL, "calling prepareParameters\n");
 
 	if (prepareParametersNoDesc(stmt, fake_params, PARSE_PARAM_CAST) == SQL_ERROR)
 		return SQL_ERROR;
@@ -2886,7 +2886,7 @@ copy_statement_with_parameters(StatementClass *stmt, BOOL buildPrepareStatement)
 	ConnInfo   *ci = &(conn->connInfo);
 	const		char *bestitem = NULL;
 
-MYLOG(1, "entering prepared=%d\n", stmt->prepared);
+MYLOG(DETAIL_LOG_LEVEL, "entering prepared=%d\n", stmt->prepared);
 	if (!stmt->statement)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No statement string", func);
@@ -2947,7 +2947,7 @@ MYLOG(1, "entering prepared=%d\n", stmt->prepared);
 			qp->from_pos = stmt->from_pos;
 			qp->where_pos = stmt->where_pos;
 		}
-MYLOG(1, "type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
+MYLOG(DETAIL_LOG_LEVEL, "type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
 	}
 
 	SC_miscinfo_clear(stmt);
@@ -3364,7 +3364,7 @@ static int token_finish(QueryParse *qp, char oldchar, char *finished_token)
 		qp->prev_token_end = TRUE;
 		qp->token_curr[qp->token_len] = '\0';
 		strncpy_null(finished_token, qp->token_curr, sizeof(qp->token_curr));
-MYLOG(1, "finished token=%s\n", finished_token);
+MYLOG(DETAIL_LOG_LEVEL, "finished token=%s\n", finished_token);
 		ret = qp->token_len;
 	}
 	return ret;
@@ -4041,9 +4041,9 @@ build_libpq_bind_params(StatementClass *stmt,
 
 	qb.flags |= FLGB_BINARY_AS_POSSIBLE;
 
-	MYLOG(1, "num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
+	MYLOG(DETAIL_LOG_LEVEL, "num_params=%d proc_return=%d\n", num_params, stmt->proc_return);
 	num_p = num_params - qb.num_discard_params;
-MYLOG(1, "num_p=%d\n", num_p);
+MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
 	*nParams = 0;
 	if (num_p > 0)
@@ -4070,7 +4070,7 @@ MYLOG(1, "num_p=%d\n", num_p);
 				goto cleanup;
 			}
 
-			MYLOG(1, "%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
+			MYLOG(DETAIL_LOG_LEVEL, "%dth parameter type oid is %u\n", i, PIC_dsp_pgtype(conn, parameters[i]));
 
 			if (i < qb.proc_return)
 				continue;
@@ -4145,7 +4145,7 @@ ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform)
 	UCHAR		calv[MAX_NUMERIC_DIGITS];
 	int			precision;
 
-MYLOG(1, "C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
+MYLOG(DETAIL_LOG_LEVEL, "C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 
 	if (0 == ns->precision)
 	{
@@ -4201,7 +4201,7 @@ MYLOG(1, "C_NUMERIC [prec=%d scale=%d]", ns->precision, ns->scale);
 	 * digit is at calv[0]
 	 */
 
-MYPRINTF(1, " len2=%d", len);
+MYPRINTF(DETAIL_LOG_LEVEL, " len2=%d", len);
 
 	/* build the final output string. */
 	newlen = 0;
@@ -4232,7 +4232,7 @@ MYPRINTF(1, " len2=%d", len);
 	if (0 == len)
 		chrform[newlen++] = '0';
 	chrform[newlen] = '\0';
-MYLOG(1, " convval(2) len=%d %s\n", newlen, chrform);
+MYLOG(DETAIL_LOG_LEVEL, " convval(2) len=%d %s\n", newlen, chrform);
 }
 
 /*
@@ -4464,7 +4464,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	 */
 	param_number = ++qb->param_number;
 
-MYLOG(1, "para:%d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
+MYLOG(DETAIL_LOG_LEVEL, "para:%d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
 	apara = NULL;
 	ipara = NULL;
 	if (param_number < apdopts->allocated)
@@ -4480,7 +4480,7 @@ MYLOG(1, "para:%d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocate
 		return SQL_ERROR;
 	}
 
-MYLOG(1, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
+MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
 	if (param_number < qb->proc_return)
 	{
 		if (ipara && SQL_PARAM_OUTPUT != ipara->paramType)
@@ -6167,7 +6167,7 @@ convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 	for (i = 0; i < len; i++)
 	{
 		inc = in[i];
-		MYLOG(1, "in[" FORMAT_SIZE_T "] = %d, %c\n", i, inc, inc);
+		MYLOG(DETAIL_LOG_LEVEL, "in[" FORMAT_SIZE_T "] = %d, %c\n", i, inc, inc);
 		if (inc < 128 && (isalnum(inc) || inc == ' '))
 			out[o++] = inc;
 		else

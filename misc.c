@@ -125,9 +125,9 @@ make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize)
 		return buf;
 	}
 
-MYLOG(1, "malloc size=" FORMAT_SIZE_T "\n", length);
+MYLOG(DETAIL_LOG_LEVEL, "malloc size=" FORMAT_SIZE_T "\n", length);
 	str = malloc(length + 1);
-MYLOG(1, "str=%p\n", str);
+MYLOG(DETAIL_LOG_LEVEL, "str=%p\n", str);
 	if (!str)
 		return NULL;
 

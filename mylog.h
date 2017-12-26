@@ -66,6 +66,10 @@ const char *po_basename(const char *path);
 #define	QPRINTF(level, ...) ((level < get_qlog() ? qprintf(__VA_ARGS__) : 0), MYPRINTF(level, __VA_ARGS__))
 #endif /* __GNUC__ */
 
+#define	MIN_LOG_LEVEL	0
+#define	TUPLE_LOG_LEVEL	1
+#define	DETAIL_LOG_LEVEL	2
+
 int	get_qlog(void);
 int	get_mylog(void);
 

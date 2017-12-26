@@ -440,7 +440,7 @@ TupleField	*QR_AddNew(QResultClass *self)
 	UInt4	num_fields;
 
 	if (!self)	return	NULL;
-MYLOG(1, FORMAT_ULEN "th row(%d fields) alloc=" FORMAT_LEN "\n", self->num_cached_rows, QR_NumResultCols(self), self->count_backend_allocated);
+MYLOG(DETAIL_LOG_LEVEL, FORMAT_ULEN "th row(%d fields) alloc=" FORMAT_LEN "\n", self->num_cached_rows, QR_NumResultCols(self), self->count_backend_allocated);
 	if (num_fields = QR_NumResultCols(self), !num_fields)	return	NULL;
 	if (self->num_fields <= 0)
 	{
@@ -656,7 +656,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 					if (SQL_PARAM_OUTPUT == paramType ||
 						SQL_PARAM_INPUT_OUTPUT == paramType)
 					{
-MYLOG(1, "[%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(self), cidx));
+MYLOG(DETAIL_LOG_LEVEL, "[%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(self), cidx));
 						PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(self), cidx));
 						cidx++;
 					}
@@ -671,7 +671,7 @@ MYLOG(1, "[%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_g
 	if (!QR_read_tuples_from_pgres(self, pgres))
 		return FALSE;
 
-MYLOG(1, "!!%p->cursTup=" FORMAT_LEN " total_read=" FORMAT_ULEN "\n", self, self->cursTuple, self->num_total_read);
+MYLOG(DETAIL_LOG_LEVEL, "!!%p->cursTup=" FORMAT_LEN " total_read=" FORMAT_ULEN "\n", self, self->cursTuple, self->num_total_read);
 	if (!QR_once_reached_eof(self) && self->cursTuple >= (Int4) self->num_total_read)
 		self->num_total_read = self->cursTuple + 1;
 	/* EOF is 'fetched < fetch requested' */
@@ -759,7 +759,7 @@ QR_close(QResultClass *self)
 					does_commit = TRUE;
 			}
 
-MYLOG(1, " Case I CC_send_query %s flag=%x\n", buf, flag);
+MYLOG(DETAIL_LOG_LEVEL, " Case I CC_send_query %s flag=%x\n", buf, flag);
 			res = CC_send_query(conn, buf, NULL, flag, NULL);
 			QR_Destructor(res);
 			if (does_commit)
@@ -805,7 +805,7 @@ QR_prepare_for_tupledata(QResultClass *self)
 	BOOL	haskeyset = QR_haskeyset(self);
 	SQLULEN num_total_rows = QR_get_num_total_tuples(self);
 
-MYLOG(1, "entering %p->num_fields=%d\n", self, self->num_fields);
+MYLOG(DETAIL_LOG_LEVEL, "entering %p->num_fields=%d\n", self, self->num_fields);
 	if (!QR_get_cursor(self))
 	{
 
@@ -955,8 +955,8 @@ QR_next_tuple(QResultClass *self, StatementClass *stmt)
 	ConnInfo   *ci;
 	BOOL		reached_eof_now = FALSE, curr_eof; /* detecting EOF is pretty important */
 
-MYLOG(1, "Oh %p->fetch_number=" FORMAT_LEN "\n", self, self->fetch_number);
-MYLOG(1, "in total_read=" FORMAT_ULEN " cursT=" FORMAT_LEN " currT=" FORMAT_LEN " ad=%d total=" FORMAT_ULEN " rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt->currTuple, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
+MYLOG(DETAIL_LOG_LEVEL, "Oh %p->fetch_number=" FORMAT_LEN "\n", self, self->fetch_number);
+MYLOG(DETAIL_LOG_LEVEL, "in total_read=" FORMAT_ULEN " cursT=" FORMAT_LEN " currT=" FORMAT_LEN " ad=%d total=" FORMAT_ULEN " rowsetSize=%d\n", self->num_total_read, self->cursTuple, stmt->currTuple, self->ad_count, QR_get_num_total_tuples(self), self->rowset_size_include_ommitted);
 
 	num_total_rows = QR_get_num_total_tuples(self);
 	conn = QR_get_conn(self);
@@ -991,7 +991,7 @@ MYLOG(1, "in total_read=" FORMAT_ULEN " cursT=" FORMAT_LEN " currT=" FORMAT_LEN 
 			}
 			else
 				self->cache_size = req_size;
-MYLOG(1, "cache=" FORMAT_ULEN " rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
+MYLOG(DETAIL_LOG_LEVEL, "cache=" FORMAT_ULEN " rowset=%d movement=" FORMAT_ULEN "\n", self->cache_size, req_size, movement);
 			SPRINTF_FIXED(movecmd,
 					 "move backward " FORMAT_ULEN " in \"%s\"",
 					 movement, QR_get_cursor(self));
@@ -1017,7 +1017,7 @@ MYLOG(1, "cache=" FORMAT_ULEN " rowset=%d movement=" FORMAT_ULEN "\n", self->cac
 		moved = movement;
 		if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &moved) > 0)
 		{
-MYLOG(1, "moved=" FORMAT_ULEN " ? " FORMAT_ULEN "\n", moved, movement);
+MYLOG(DETAIL_LOG_LEVEL, "moved=" FORMAT_ULEN " ? " FORMAT_ULEN "\n", moved, movement);
 			if (moved < movement)
 			{
 				if (0 <  moved)
@@ -1066,7 +1066,7 @@ MYLOG(1, "moved=" FORMAT_ULEN " ? " FORMAT_ULEN "\n", moved, movement);
 		/* return a row from cache */
 		MYLOG(0, "fetch_number < fcount: returning tuple " FORMAT_LEN ", fcount = " FORMAT_LEN "\n", fetch_number, num_backend_rows);
 		self->tupleField = the_tuples + (fetch_number * num_fields);
-MYLOG(1, "tupleField=%p\n", self->tupleField);
+MYLOG(DETAIL_LOG_LEVEL, "tupleField=%p\n", self->tupleField);
 		/* move to next row */
 		QR_inc_next_in_cache(self);
 		RETURN(TRUE)
@@ -1110,7 +1110,7 @@ MYLOG(1, "tupleField=%p\n", self->tupleField);
 		/* not a correction */
 		self->cache_size = fetch_size;
 		/* clear obsolete tuples */
-MYLOG(1, "clear obsolete " FORMAT_LEN " tuples\n", num_backend_rows);
+MYLOG(DETAIL_LOG_LEVEL, "clear obsolete " FORMAT_LEN " tuples\n", num_backend_rows);
 		ClearCachedRows(tuple, num_fields, num_backend_rows);
 		self->dataFilled = FALSE;
 		QR_stop_movement(self);
@@ -1171,7 +1171,7 @@ MYLOG(1, "clear obsolete " FORMAT_LEN " tuples\n", num_backend_rows);
 	self->tupleField = NULL;
 
 	curr_eof = reached_eof_now = (QR_once_reached_eof(self) && self->cursTuple >= (Int4)self->num_total_read);
-MYLOG(1, "reached_eof_now=%d\n", reached_eof_now);
+MYLOG(DETAIL_LOG_LEVEL, "reached_eof_now=%d\n", reached_eof_now);
 
 	MYLOG(0, ": PGresult: fetch_total = " FORMAT_ULEN " & this_fetch = " FORMAT_ULEN "\n", self->num_total_read, self->num_cached_rows);
 	MYLOG(0, ": PGresult: cursTuple = " FORMAT_LEN ", offset = " FORMAT_LEN "\n", self->cursTuple, offset);
@@ -1214,7 +1214,7 @@ MYLOG(1, "reached_eof_now=%d\n", reached_eof_now);
 					add_size = fetch_size - cur_fetch;
 				else if (add_size < 0)
 					add_size = 0;
-MYLOG(1, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN " and select the " FORMAT_LEN "th added tuple " FORMAT_LEN "\n", add_size, start_idx, offset - num_backend_rows + start_idx, cur_fetch);
+MYLOG(DETAIL_LOG_LEVEL, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN " and select the " FORMAT_LEN "th added tuple " FORMAT_LEN "\n", add_size, start_idx, offset - num_backend_rows + start_idx, cur_fetch);
 				if (enlargeKeyCache(self, add_size, "Out of memory while adding tuples") < 0)
 					RETURN(FALSE)
 				/* append the KeySet info first */
@@ -1292,7 +1292,7 @@ MYLOG(1, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN " and select th
 		for (i = 0; i < num_backend_rows; i++)
 		{
 			self->keyset[i].status &= (~CURS_NEEDS_REREAD);
-/*MYLOG(1, "keyset[%d].status=%x\n", i, self->keyset[i].status);*/
+/*MYLOG(DETAIL_LOG_LEVEL, "keyset[%d].status=%x\n", i, self->keyset[i].status);*/
 		}
 	}
 
@@ -1300,7 +1300,7 @@ cleanup:
 	LEAVE_CONN_CS(conn);
 #undef	RETURN
 #undef	return
-MYLOG(1, "returning %d offset=" FORMAT_LEN "\n", ret, offset);
+MYLOG(DETAIL_LOG_LEVEL, "returning %d offset=" FORMAT_LEN "\n", ret, offset);
 	return ret;
 }
 
@@ -1371,7 +1371,7 @@ nextrow:
 			this_keyset->status = 0;
 		}
 
-		QLOG(1, "\t");
+		QLOG(TUPLE_LOG_LEVEL, "\t");
 		for (field_lf = 0; field_lf < ci_num_fields; field_lf++)
 		{
 			BOOL isnull = FALSE;
@@ -1382,7 +1382,7 @@ nextrow:
 			{
 				this_tuplefield[field_lf].len = 0;
 				this_tuplefield[field_lf].value = 0;
-				QPRINTF(1, " (null)");
+				QPRINTF(TUPLE_LOG_LEVEL, " (null)");
 				continue;
 			}
 			else
@@ -1398,7 +1398,7 @@ nextrow:
 				memcpy(buffer, value, len);
 				buffer[len] = '\0';
 
-				QPRINTF(1, " '%s'(%d)", buffer, len);
+				QPRINTF(TUPLE_LOG_LEVEL, " '%s'(%d)", buffer, len);
 
 				if (field_lf >= effective_cols)
 				{
@@ -1436,7 +1436,7 @@ nextrow:
 				}
 			}
 		}
-		QPRINTF(1, "\n");
+		QPRINTF(TUPLE_LOG_LEVEL, "\n");
 		self->cursTuple++;
 		if (self->num_fields > 0)
 		{
@@ -1460,7 +1460,7 @@ nextrow:
 
 	self->dataFilled = TRUE;
 	self->tupleField = self->backend_tuples + (self->fetch_number * self->num_fields);
-MYLOG(1, "tupleField=%p\n", self->tupleField);
+MYLOG(DETAIL_LOG_LEVEL, "tupleField=%p\n", self->tupleField);
 
 	QR_set_rstatus(self, PORES_TUPLES_OK);
 

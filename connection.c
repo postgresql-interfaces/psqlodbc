@@ -811,9 +811,9 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	char	   *errmsg = NULL;
 	size_t		errmsglen;
 	char	*sqlstate = NULL;
-	int	level = 0;
+	int	level = MIN_LOG_LEVEL;
 
-	MYLOG(1, "entering\n");
+	MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 
 	sqlstate = PQresultErrorField(pgres, PG_DIAG_SQLSTATE);
 	if (res && pgres)
@@ -987,15 +987,15 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* _MSC_VER */
 		);
 	QLOG(0, "%s", vermsg);
-	MYLOG(1, "Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
+	MYLOG(DETAIL_LOG_LEVEL, "Global Options: fetch=%d, unknown_sizes=%d, max_varchar_size=%d, max_longvarchar_size=%d\n",
 		 ci->drivers.fetch_max,
 		 ci->drivers.unknown_sizes,
 		 ci->drivers.max_varchar_size,
 		 ci->drivers.max_longvarchar_size);
-	MYLOG(1, "                unique_index=%d, use_declarefetch=%d\n",
+	MYLOG(DETAIL_LOG_LEVEL, "                unique_index=%d, use_declarefetch=%d\n",
 		 ci->drivers.unique_index,
 		 ci->drivers.use_declarefetch);
-	MYLOG(1, "                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
+	MYLOG(DETAIL_LOG_LEVEL, "                text_as_longvarchar=%d, unknowns_as_longvarchar=%d, bools_as_char=%d NAMEDATALEN=%d\n",
 		 ci->drivers.text_as_longvarchar,
 		 ci->drivers.unknowns_as_longvarchar,
 		 ci->drivers.bools_as_char,
@@ -1005,7 +1005,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 	{
 		encoding = check_client_encoding(ci->conn_settings);
 		CC_set_locale_encoding(self, encoding);
-		MYLOG(1, "                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
+		MYLOG(DETAIL_LOG_LEVEL, "                extra_systable_prefixes='%s', conn_settings='%s' conn_encoding='%s'\n",
 			ci->drivers.extra_systable_prefixes,
 			PRINT_NAME(ci->conn_settings),
 			encoding ? encoding : "");
@@ -1478,7 +1478,7 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 						QR_set_cursor(res, NULL);
 					QR_Destructor(wres);
 					CONNLOCK_ACQUIRE(self);
-MYLOG(1, "%p->permanent -> %d %p\n", res, QR_is_permanent(res), QR_get_cursor(res));
+MYLOG(DETAIL_LOG_LEVEL, "%p->permanent -> %d %p\n", res, QR_is_permanent(res), QR_get_cursor(res));
 				}
 				else
 					QR_set_permanent(res);
@@ -1967,7 +1967,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 					{
 						discard_next_savepoint = FALSE;
 						discard_next_release = TRUE;
-MYLOG(1, "Discarded a SAVEPOINT result\n");
+MYLOG(DETAIL_LOG_LEVEL, "Discarded a SAVEPOINT result\n");
 						break; /* discard the result */
 					}
 					if (SAVEPOINT_IN_PROGRESS == self->internal_op)
@@ -1991,7 +1991,7 @@ MYLOG(1, "Discarded a SAVEPOINT result\n");
 				{
 					if (discard_next_release)
 					{
-MYLOG(1, "Discarded a RELEASE result\n");
+MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 						discard_next_release = FALSE;
 						break; /* discard the result */
 					}
@@ -2164,7 +2164,7 @@ cleanup:
 		PQclear(pgres);
 		pgres = NULL;
 	}
-MYLOG(1, " rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d query_rollback=%d\n", rollback_on_error, CC_is_in_trans(self), discard_next_savepoint, query_rollback);
+MYLOG(DETAIL_LOG_LEVEL, " rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d query_rollback=%d\n", rollback_on_error, CC_is_in_trans(self), discard_next_savepoint, query_rollback);
 	if (rollback_on_error && CC_is_in_trans(self) && !discard_next_savepoint)
 	{
 		if (query_rollback)
@@ -2242,7 +2242,7 @@ MYLOG(1, " rollback_on_error=%d CC_is_in_trans=%d discard_next_savepoint=%d quer
 					CC_set_errornumber(self, CONN_ERROR_IGNORED);
 					if (retres)
 						QR_set_rstatus(retres, PORES_NONFATAL_ERROR);
-MYLOG(1, " ignored abort_on_conn\n");
+MYLOG(DETAIL_LOG_LEVEL, " ignored abort_on_conn\n");
 				}
 				else if (retres)
 				{
@@ -2541,9 +2541,9 @@ CC_log_error(const char *func, const char *desc, const ConnectionClass *self)
 	if (self)
 	{
 		MYLOG(0, "CONN ERROR: func=%s, desc='%s', errnum=%d, errmsg='%s'\n", func, desc, self->__error_number, NULLCHECK(self->__error_message));
-		MYLOG(1, "            ------------------------------------------------------------\n");
-		MYLOG(1, "            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
-		MYLOG(1, "            pqconn=%p, stmts=%p, lobj_type=%d\n", self->pqconn, self->stmts, self->lobj_type);
+		MYLOG(DETAIL_LOG_LEVEL, "            ------------------------------------------------------------\n");
+		MYLOG(DETAIL_LOG_LEVEL, "            henv=%p, conn=%p, status=%u, num_stmts=%d\n", self->henv, self, self->status, self->num_stmts);
+		MYLOG(DETAIL_LOG_LEVEL, "            pqconn=%p, stmts=%p, lobj_type=%d\n", self->pqconn, self->stmts, self->lobj_type);
 	}
 	else
 	{
@@ -2827,7 +2827,7 @@ LIBPQ_connect(ConnectionClass *self)
 	if (CONNECTION_OK != pqret)
 	{
 		const char	*errmsg;
-MYLOG(1, "status=%d\n", pqret);
+MYLOG(DETAIL_LOG_LEVEL, "status=%d\n", pqret);
 		errmsg = PQerrorMessage(pqconn);
 		CC_set_error(self, CONNECTION_SERVER_NOT_REACHED, errmsg, func);
 		MYLOG(0, "Could not establish connection to the database; LIBPQ returned -> %s\n", errmsg);

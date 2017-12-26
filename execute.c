@@ -128,7 +128,7 @@ PGAPI_Prepare(HSTMT hstmt,
 
 cleanup:
 #undef	return
-MYLOG(1, "leaving %d\n", retval);
+MYLOG(DETAIL_LOG_LEVEL, "leaving %d\n", retval);
 	return retval;
 }
 
@@ -155,7 +155,7 @@ PGAPI_ExecDirect(HSTMT hstmt,
 	 * execute this statement again
 	 */
 	stmt->statement = make_string(szSqlStr, cbSqlStr, NULL, 0);
-MYLOG(1, "a2\n");
+MYLOG(DETAIL_LOG_LEVEL, "a2\n");
 	if (!stmt->statement)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "No memory available to store statement", func);
@@ -430,7 +430,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	if (HowToPrepareBeforeExec(stmt, FALSE) >= allowParse)
 		prepare_before_exec = TRUE;
 
-MYLOG(1, "prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.use_server_side_prepare);
+MYLOG(DETAIL_LOG_LEVEL, "prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.use_server_side_prepare);
 	/* Create the statement with parameters substituted. */
 	retval = copy_statement_with_parameters(stmt, prepare_before_exec);
 	stmt->current_exec_param = -1;
@@ -551,7 +551,7 @@ StartRollbackState(StatementClass *stmt)
 	ConnectionClass	*conn;
 	ConnInfo	*ci = NULL;
 
-MYLOG(1, "entering %p->external=%d\n", stmt, stmt->external);
+MYLOG(DETAIL_LOG_LEVEL, "entering %p->external=%d\n", stmt, stmt->external);
 	conn = SC_get_conn(stmt);
 	if (conn)
 		ci = &conn->connInfo;
@@ -636,7 +636,7 @@ SetStatementSvp(StatementClass *stmt, unsigned int option)
 		ENTER_CONN_CS(conn);
 		conn->lock_CC_for_rb++;
 	}
-MYLOG(1, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn, CC_accessed_db(conn), option, conn->opt_in_progress, conn->opt_previous);
+MYLOG(DETAIL_LOG_LEVEL, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn, CC_accessed_db(conn), option, conn->opt_in_progress, conn->opt_previous);
 	conn->opt_in_progress &= option;
 	switch (stmt->statement_type)
 	{
@@ -679,7 +679,7 @@ MYLOG(1, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn, CC_accessed_d
 		}
 	}
 	CC_set_accessed_db(conn);
-MYLOG(1, "leaving %p->accessed=%d\n", conn, CC_accessed_db(conn));
+MYLOG(DETAIL_LOG_LEVEL, "leaving %p->accessed=%d\n", conn, CC_accessed_db(conn));
 	return ret;
 }
 
@@ -690,7 +690,7 @@ DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	BOOL	start_stmt = FALSE;
 
-MYLOG(1, "entering %p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", conn, CC_accessed_db(conn),
+MYLOG(DETAIL_LOG_LEVEL, "entering %p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", conn, CC_accessed_db(conn),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	if (conn->lock_CC_for_rb > 0)
 		MYLOG(0, "in_progress=%u previous=%d\n", conn->opt_in_progress, conn->opt_previous);
@@ -730,7 +730,7 @@ CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
 	}
 	else if (errorOnly)
 		return ret;
-MYLOG(1, "\tret=%d\n", ret);
+MYLOG(DETAIL_LOG_LEVEL, "\tret=%d\n", ret);
 cleanup:
 #ifdef NOT_USED
 	if (!SC_is_prepare_statement(stmt) && ONCE_DESCRIBED == stmt->prepared)
@@ -748,11 +748,11 @@ cleanup:
 		{
 			LEAVE_CONN_CS(conn);
 			conn->lock_CC_for_rb--;
-			MYLOG(1, " release conn_lock\n");
+			MYLOG(DETAIL_LOG_LEVEL, " release conn_lock\n");
 		}
 		CC_start_stmt(conn);
 	}
-	MYLOG(1, "leaving %d\n", ret);
+	MYLOG(DETAIL_LOG_LEVEL, "leaving %d\n", ret);
 	return ret;
 }
 
@@ -1323,7 +1323,7 @@ PGAPI_ParamData(HSTMT hstmt,
 
 	/* Done, now copy the params and then execute the statement */
 	ipdopts = SC_get_IPDF(estmt);
-MYLOG(1, "ipdopts=%p\n", ipdopts);
+MYLOG(DETAIL_LOG_LEVEL, "ipdopts=%p\n", ipdopts);
 	if (estmt->data_at_exec == 0)
 	{
 		BOOL	exec_end;
@@ -1356,16 +1356,16 @@ MYLOG(1, "ipdopts=%p\n", ipdopts);
 	num_p = estmt->num_params;
 	if (num_p < 0)
 		PGAPI_NumParams(estmt, &num_p);
-MYLOG(1, "i=%d allocated=%d num_p=%d\n", i, apdopts->allocated, num_p);
+MYLOG(DETAIL_LOG_LEVEL, "i=%d allocated=%d num_p=%d\n", i, apdopts->allocated, num_p);
 	if (num_p > apdopts->allocated)
 		num_p = apdopts->allocated;
 	/* At least 1 data at execution parameter, so Fill in the token value */
 	for (; i < num_p; i++)
 	{
-MYLOG(1, "i=%d", i);
+MYLOG(DETAIL_LOG_LEVEL, "i=%d", i);
 		if (apdopts->parameters[i].data_at_exec)
 		{
-MYPRINTF(1, " at exec buffer=%p", apdopts->parameters[i].buffer);
+MYPRINTF(DETAIL_LOG_LEVEL, " at exec buffer=%p", apdopts->parameters[i].buffer);
 			estmt->data_at_exec--;
 			estmt->current_exec_param = i;
 			estmt->put_data = FALSE;
@@ -1377,7 +1377,7 @@ MYPRINTF(1, " at exec buffer=%p", apdopts->parameters[i].buffer);
 					SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
 					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen;
 
-MYPRINTF(1, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
+MYPRINTF(DETAIL_LOG_LEVEL, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
 				}
 				else
@@ -1385,11 +1385,11 @@ MYPRINTF(1, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
 			}
 			break;
 		}
-MYPRINTF(1, "\n");
+MYPRINTF(DETAIL_LOG_LEVEL, "\n");
 	}
 
 	retval = SQL_NEED_DATA;
-MYLOG(1, "return SQL_NEED_DATA\n");
+MYLOG(DETAIL_LOG_LEVEL, "return SQL_NEED_DATA\n");
 cleanup:
 #undef	return
 	SC_setInsertedTable(stmt, retval);

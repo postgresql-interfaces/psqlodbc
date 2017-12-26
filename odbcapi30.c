@@ -63,7 +63,7 @@ SQLAllocHandle(SQLSMALLINT HandleType,
 			ENTER_CONN_CS(conn);
 			ret = PGAPI_AllocDesc(InputHandle, OutputHandle);
 			LEAVE_CONN_CS(conn);
-MYLOG(1, "OutputHandle=%p\n", *OutputHandle);
+MYLOG(DETAIL_LOG_LEVEL, "OutputHandle=%p\n", *OutputHandle);
 			break;
 		default:
 			ret = SQL_ERROR;
@@ -556,7 +556,7 @@ PGAPI_GetFunctions30(HDBC hdbc, SQLUSMALLINT fFunction, SQLUSMALLINT FAR * pfExi
 	ConnectionClass	*conn = (ConnectionClass *) hdbc;
 	ConnInfo	*ci = &(conn->connInfo);
 
-MYLOG(1, "lie=%d\n", ci->drivers.lie);
+MYLOG(DETAIL_LOG_LEVEL, "lie=%d\n", ci->drivers.lie);
 	CC_examine_global_transaction(conn);
 	CC_clear_error(conn);
 	if (fFunction != SQL_API_ODBC3_ALL_FUNCTIONS)
