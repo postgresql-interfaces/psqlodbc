@@ -9,6 +9,19 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="10.01.0000">psqlODBC 10.01.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Call Get-VSSetupInstance to detect Visual Studio installations whose version >= 15 when VSSetup module is available.</li>
+<li>Review the handling of @@IDENTITY when a column's default is nextval(a_sequence) but the column isn't a serial. Unfortunately the function pg_get_serial_sequence() doesn't work for sequences which aren't serial type.</li>
+<li>Add add an option -NoPDB to buildInstallers.ps1.</li>
+The switch option can be specified so as to exclude PDB files from the installers.
+<li>Fix a bug in pgdebug_realloc().</li>
+<li>Free any data at exec params before the statement is executed again or the next set of parameters is processed. If not, then there will be a memory leak when the next SQLParamData/SQLPutData is called.>/li>
+Per report from Mihai Giurgeanu
+<li>Review the level of MYLOG, QLOG.</li>
+Divide *level 1(detail)* log into *level 1(tuple level)* log and *level 2(detail)* log.
+</ol><br />
 <h2><a id="10.00.0000">psqlODBC 10.00.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
