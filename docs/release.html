@@ -17,7 +17,7 @@ Changes:<br />
 <li>Add add an option -NoPDB to buildInstallers.ps1.</li>
 The switch option can be specified so as to exclude PDB files from the installers.
 <li>Fix a bug in pgdebug_realloc().</li>
-<li>Free any data at exec params before the statement is executed again or the next set of parameters is processed. If not, then there will be a memory leak when the next SQLParamData/SQLPutData is called.>/li>
+<li>Free any data at exec params before the statement is executed again or the next set of parameters is processed. If not, then there will be a memory leak when the next SQLParamData/SQLPutData is called.</li>
 Per report from Mihai Giurgeanu
 <li>Review the level of MYLOG, QLOG.</li>
 Divide *level 1(detail)* log into *level 1(tuple level)* log and *level 2(detail)* log.
