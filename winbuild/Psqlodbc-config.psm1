@@ -60,7 +60,7 @@ function SaveConfiguration([xml]$configInfo, [string]$savePath)
 	$configInfo.save($savePath)
 }
 
-function unifyNodes([xml]$node1, [xml]$node2)
+function unifyNodes($node1, $node2)
 {
     $attributes2 = $node2.get_Attributes()
     if ($attributes2.Count -gt 0)
