@@ -1601,7 +1601,7 @@ is_setting_search_path(const char *query)
 		return FALSE;
 	q += 3;
 	while (isspace(*q)) q++;
-	for (; *q; q++)
+	for (; *q;)
 	{
 		if (IS_NOT_SPACE(*q))
 		{
@@ -1611,6 +1611,8 @@ is_setting_search_path(const char *query)
 			while (IS_NOT_SPACE(*q))
 				q++;
 		}
+		else
+			q++;
 	}
 	return FALSE;
 }
