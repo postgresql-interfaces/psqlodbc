@@ -98,7 +98,6 @@ EXTRA_DIST = license.txt readme.txt readme_winbuild.txt \
 	test/tests \
 	test/win.mak \
 	test/expected \
-	test/Makefile \
 	test/src
 
 MAINTAINERCLEANFILES = \
