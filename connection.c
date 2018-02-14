@@ -894,7 +894,7 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		{
 			if (QR_command_successful(res))
 				QR_set_rstatus(res, PORES_NONFATAL_ERROR); /* notice or warning */
-			QR_set_notice(res, errmsg);  /* will dup this string */
+			QR_add_notice(res, errmsg);  /* will dup this string */
 		}
 		goto cleanup;
 	}
