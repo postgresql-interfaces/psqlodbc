@@ -494,7 +494,7 @@ derive_locale_encoding(const char *dbencoding)
 	/*
 	 *	Derive the encoding from the codeset part of the current locale.
 	 */
-	loc = setlocale(LC_ALL, "");
+	loc = setlocale(LC_CTYPE, "");
 	if (loc && (ptr = strchr(loc, '.')))
 	{
 		int enc_no;
