@@ -178,7 +178,6 @@ psqlodbc_fini(void)
 BOOL
 _init(void)
 {
-	getExeName();
 	initialize_global_cs();
 	return TRUE;
 }
