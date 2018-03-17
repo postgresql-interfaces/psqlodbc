@@ -3202,6 +3202,9 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	/* old oid & tid */
 	if (idx_exist)
 	{
+		UInt4	blocknum;
+		UInt2	offset;
+
 		if (!(oidint = getOid(res, kres_ridx)))
 		{
 			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
@@ -3210,6 +3213,8 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 				return SQL_SUCCESS_WITH_INFO;
 			}
 		}
+		getTid(res, kres_ridx, &blocknum, &offset);
+		SPRINTF_FIXED(tidval, "(%u, %u)", blocknum, offset);
 	}
 	res_cols = getNumResultCols(res);
 	if (keyset) /* after or update */
