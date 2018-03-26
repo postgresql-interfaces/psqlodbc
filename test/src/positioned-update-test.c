@@ -32,6 +32,7 @@ int main(int argc, char **argv)
 	int			rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 	int			i;
+	SQLUINTEGER	cursor_type;
 	SQLINTEGER	colvalue;
 	SQLLEN		indColvalue;
 
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
 	 * Initialize a table with some test data.
 	 */
 	printf("Creating test table pos_update_test\n");
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "CREATE TEMPORARY TABLE pos_update_test(i int4, orig int4)", SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "CREATE TEMPORARY TABLE pos_update_test(i int4, orig int4 primary key)", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO pos_update_test SELECT g, g FROM generate_series(1, 10) g", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
@@ -70,6 +71,9 @@ int main(int argc, char **argv)
 
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM pos_update_test ORDER BY orig", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLGetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) &cursor_type, 0, NULL);
+	printf("exec cursor_type=%d\n", cursor_type);
 
 	for (i = 0; i < 5; i++)
 	{
@@ -99,6 +103,9 @@ int main(int argc, char **argv)
 
 	rc = SQLFetch(hstmt);
 	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
+
+	rc = SQLSetPos(hstmt, 1, SQL_REFRESH, SQL_LOCK_NO_CHANGE);
+	CHECK_STMT_RESULT(rc, "SQLSetPos REFRESH failed", hstmt);
 
 	rc = SQLSetPos(hstmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE);
 	CHECK_STMT_RESULT(rc, "SQLSetPos DELETE failed", hstmt);
@@ -136,7 +143,8 @@ int main(int argc, char **argv)
 	 *
 	 * There was a bug in the reallocation in old driver versions.
 	 */
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO pos_update_test SELECT g, g FROM generate_series(1, 5000) g", SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO pos_update_test SELECT g, g FROM generate_series(100, 5000) g", SQL_NTS);
+
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);

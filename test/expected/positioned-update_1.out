@@ -1,7 +1,7 @@
 connected
 Creating test table pos_update_test
 Opening a cursor for update, and fetching 10 rows
-exec cursor_type=3
+exec cursor_type=1
 1	1
 2	2
 3	3
@@ -11,7 +11,7 @@ exec cursor_type=3
 Updating result set
 
 Re-fetching the rows in the result set
-6	6
+NULL	NULL
 105	5
 4	4
 

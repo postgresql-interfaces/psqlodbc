@@ -4640,7 +4640,10 @@ SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 		}
 	}
 	if (tuple_reload)
-		SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
+	{
+		if (!SQL_SUCCEEDED(ret = SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0)))
+			return ret;
+	}
 	stmt->bind_row = irow;
 	ret = SC_fetch(stmt);
 	/* restore the last_fetch_count */
