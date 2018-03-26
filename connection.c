@@ -1750,6 +1750,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 			discard_next_savepoint = FALSE,
 			discard_next_release = FALSE,
 			consider_rollback;
+	BOOL	discardTheRest = FALSE;
 	int		func_cs_count = 0;
 	PQExpBufferData		query_buf = {0};
 	size_t		query_len;
@@ -1922,6 +1923,8 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	{
 		int status = PQresultStatus(pgres);
 
+		if (discardTheRest)
+			continue;
 		switch (status)
 		{
 			case PGRES_COMMAND_OK:
@@ -2088,15 +2091,16 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 						if (cursor && cursor[0])
 							QR_set_synchronize_keys(res);
 					}
-					if (!CC_from_PGresult(res, stmt, self, cursor, &pgres))
+					if (CC_from_PGresult(res, stmt, self, cursor, &pgres))
+						query_completed = TRUE;
+					else
 					{
+						aborted = TRUE;
 						if (QR_command_maybe_successful(res))
 							retres = NULL;
 						else
 							retres = cmdres;
-						aborted = TRUE;
 					}
-					query_completed = TRUE;
 				}
 				else
 				{				/* next fetch, so reuse an existing result */
@@ -2116,6 +2120,20 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 				if (res->rstatus == PORES_TUPLES_OK && res->notice)
 				{
 					QR_set_rstatus(res, PORES_NONFATAL_ERROR);
+				}
+				else if (PORES_NO_MEMORY_ERROR == QR_get_rstatus(res))
+				{
+					PGcancel *cancel;
+					char	dummy[8];
+
+					discardTheRest = TRUE;
+					if (cancel = PQgetCancel(self->pqconn))
+					{
+						PQcancel(cancel, dummy, sizeof(dummy));
+						PQfreeCancel(cancel);
+					}
+					else
+						goto cleanup;
 				}
 				break;
 			case PGRES_COPY_OUT:
