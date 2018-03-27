@@ -2404,7 +2404,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering " FORMAT_ULEN "\n", index);
 			res->dl_alloc = new_alloc;
 		}
 		/* sort deleted indexes in ascending order */
-		for (i = 0, deleted = res->deleted, deleted_keyset = res->deleted_keyset; i < dl_count; i++, deleted++, deleted_keyset += num_fields)
+		for (i = 0, deleted = res->deleted, deleted_keyset = res->deleted_keyset; i < dl_count; i++, deleted++, deleted_keyset++)
 		{
 			if (index < *deleted)
 				break;
