@@ -3040,7 +3040,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 			if (latest)
 			{
 				printfPQExpBuffer(&selstr,
-					 "%.*sfrom %s where ctid = currtid2('%s', '%s')",
+					 "%.*sfrom %s where ctid = (select currtid2('%s', '%s'))",
 					 (int) from_pos, load_stmt,
 					 quoted_table,
 					 quoted_table,
@@ -3050,7 +3050,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 				printfPQExpBuffer(&selstr, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, quoted_table, tidval);
 		}
 		else if ((flag & USE_INSERTED_TID) != 0)
-			printfPQExpBuffer(&selstr, "%.*sfrom %s where ctid = currtid(0, '(0,0)')", (int) from_pos, load_stmt, quoted_table);
+			printfPQExpBuffer(&selstr, "%.*sfrom %s where ctid = (select currtid(0, '(0,0)'))", (int) from_pos, load_stmt, quoted_table);
 		/*
 		else if (bestitem && oidint)
 		{
@@ -3074,7 +3074,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 				char table_fqn[256];
 
 				printfPQExpBuffer(&selstr,
-					 "%s where ctid = currtid2('%s', '%s')",
+					 "%s where ctid = (select currtid2('%s', '%s'))",
 					 load_stmt,
 					 ti_quote(stmt, 0, table_fqn, sizeof(table_fqn)),
 					 tidval);
@@ -3083,7 +3083,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 				printfPQExpBuffer(&selstr, "%s where ctid = '%s'", load_stmt, tidval);
 		}
 		else if ((flag & USE_INSERTED_TID) != 0)
-			printfPQExpBuffer(&selstr, "%s where ctid = currtid(0, '(0,0)')", load_stmt);
+			printfPQExpBuffer(&selstr, "%s where ctid = (select currtid(0, '(0,0)'))", load_stmt);
 		else if (bestqual)
 		{
 			andExist = FALSE;
