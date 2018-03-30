@@ -9,6 +9,30 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="10.02.0000">psqlODBC 10.02.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>It's safer to call setlocale(LC_CTYPE, "") than calling setlocale(LC_ALL, "").</li>
+Report and patch by Mario De Frutos.
+<li>Avoid replacing effective notice messages.</li>
+Report from Wolfgang Apolinarski. <br />
+Patch by Clemens Ladisch.
+<li>Handle MALLOC/REALLOC errors while fetching tuples more effectively.</li>
+Per report from Haruka Takatsuka.
+<li>Make SQLSetPos(SQL_DELETE/SQL_REFRESH) more effective.
+Because queries calling currtid(2) like<br />
+select .. from .. where ctid=currtid2(.., ..)<br />
+cause Seq Scan, their execution may be very slow.<br />
+It is better to execute queries using subqueries like<br />
+select .. from .. where ctid=(select currtid2(.., ..))<br />
+because they cause Tid Scan.<br />
+Report and changes by Tsunakawa Takayuki.
+<li>Fix a crash bug in AddDeleted().</li>
+Report and patch by Takayuki Tsunakawa.
+</ol><br />
+
+<h1>psqlODBC release notes</h1>
+<hr>
 <h2><a id="10.01.0000">psqlODBC 10.01.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
