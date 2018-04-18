@@ -631,10 +631,10 @@ SetStatementSvp(StatementClass *stmt, unsigned int option)
 	if (CC_is_in_error_trans(conn))
 		return ret;
 
-	if (0 == conn->lock_CC_for_rb)
+	if (!stmt->lock_CC_for_rb)
 	{
 		ENTER_CONN_CS(conn);
-		conn->lock_CC_for_rb++;
+		stmt->lock_CC_for_rb = TRUE;
 	}
 MYLOG(DETAIL_LOG_LEVEL, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn, CC_accessed_db(conn), option, conn->opt_in_progress, conn->opt_previous);
 	conn->opt_in_progress &= option;
@@ -692,7 +692,7 @@ DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 
 MYLOG(DETAIL_LOG_LEVEL, "entering %p->accessed=%d is_in=%d is_rb=%d is_tc=%d\n", conn, CC_accessed_db(conn),
 CC_is_in_trans(conn), SC_is_rb_stmt(stmt), SC_is_tc_stmt(stmt));
-	if (conn->lock_CC_for_rb > 0)
+	if (stmt->lock_CC_for_rb)
 		MYLOG(0, "in_progress=%u previous=%d\n", conn->opt_in_progress, conn->opt_previous);
 	switch (ret)
 	{
@@ -744,10 +744,10 @@ cleanup:
 			conn->opt_previous = conn->opt_in_progress;
 			CC_init_opt_in_progress(conn);
 		}
-		while (conn->lock_CC_for_rb > 0)
+		if (stmt->lock_CC_for_rb)
 		{
+			stmt->lock_CC_for_rb = FALSE;
 			LEAVE_CONN_CS(conn);
-			conn->lock_CC_for_rb--;
 			MYLOG(DETAIL_LOG_LEVEL, " release conn_lock\n");
 		}
 		CC_start_stmt(conn);

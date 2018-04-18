@@ -267,7 +267,7 @@ struct StatementClass_
 	po_ind_t	discard_output_params;	 /* discard output parameters on parse stage */
 	po_ind_t	cancel_info;	/* cancel information */
 	po_ind_t	ref_CC_error;	/* refer to CC_error ? */
-//	po_ind_t	lock_CC_for_rb;	/* lock CC for statement rollback ? */
+	po_ind_t	lock_CC_for_rb;	/* lock CC for statement rollback ? */
 	po_ind_t	join_info;	/* have joins ? */
 	po_ind_t	parse_method;	/* parse_statement is forced or ? */
 	po_ind_t	curr_param_result; /* current param result is set ? */

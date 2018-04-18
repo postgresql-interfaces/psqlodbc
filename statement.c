@@ -457,6 +457,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->callbacks = NULL;
 		GetDataInfoInitialize(SC_get_GDTI(rv));
 		PutDataInfoInitialize(SC_get_PDTI(rv));
+		rv->lock_CC_for_rb = FALSE;
 		INIT_STMT_CS(rv);
 	}
 	return rv;
@@ -687,6 +688,11 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 	ProcessedStmt *pstmt;
 	ProcessedStmt *next_pstmt;
 
+	if (self->lock_CC_for_rb)
+	{
+		LEAVE_CONN_CS(SC_get_conn(self));
+		self->lock_CC_for_rb = FALSE;
+	}
 	if (initializeOriginal)
 	{
 		if (self->statement)

@@ -315,7 +315,6 @@ struct ConnectionClass_
 	/* for per statement rollback */
 	char		internal_svp;		/* is set? */
 	char		internal_op;		/* operation being executed as to internal savepoint */
-	unsigned char	lock_CC_for_rb;
 	unsigned char	rbonerr;
 	unsigned char	opt_in_progress;
 	unsigned char	opt_previous;
