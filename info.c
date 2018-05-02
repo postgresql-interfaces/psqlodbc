@@ -1151,6 +1151,20 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 
 	for (i = 0, sqlType = sqlTypes[0]; sqlType; sqlType = sqlTypes[++i])
 	{
+		EnvironmentClass	*env = CC_get_env(conn);
+
+		/* Filter unsupported data types */
+		if (EN_is_odbc2(env))
+		{
+			switch (sqlType)
+			{
+				case SQL_TYPE_DATE:
+				case SQL_TYPE_TIME:
+				case SQL_TYPE_TIMESTAMP:
+					continue;
+			}
+		}
+
 		pgType = sqltype_to_pgtype(conn, sqlType);
 
 if (sqlType == SQL_LONGVARBINARY)
