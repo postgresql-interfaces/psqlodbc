@@ -73,7 +73,9 @@ ConfigDSN(HWND hwnd,
 	if (!hglbAttr)
 		return FALSE;
 	lpsetupdlg = (LPSETUPDLG) GlobalLock(hglbAttr);
-	/* Parse attribute string */
+
+	/* First of all, parse attribute string only for DSN entry */
+	CC_conninfo_init(&(lpsetupdlg->ci), INIT_GLOBALS);
 	if (lpszAttributes)
 		ParseAttributes(lpszAttributes, lpsetupdlg);
 
@@ -103,6 +105,20 @@ ConfigDSN(HWND hwnd,
 		lpsetupdlg->fNewDSN = (ODBC_ADD_DSN == fRequest);
 		lpsetupdlg->fDefault = !lstrcmpi(lpsetupdlg->ci.dsn, INI_DSN);
 
+		/* Cleanup conninfo and restore data source name */
+		CC_conninfo_init(&(lpsetupdlg->ci), CLEANUP_FOR_REUSE | INIT_GLOBALS);
+		STRCPY_FIXED(lpsetupdlg->ci.dsn, lpsetupdlg->szDSN);
+		/* Get common attributes of Data Source */
+		getDSNinfo(&(lpsetupdlg->ci), lpsetupdlg->lpszDrvr);
+		/*
+		 * Parse attribute string again
+		 *
+		 * NOTE: Values supplied in the attribute string will always
+		 *	 override settings in ODBC.INI
+		 */
+		if (lpszAttributes)
+			ParseAttributes(lpszAttributes, lpsetupdlg);
+
 		/*
 		 * Display the appropriate dialog (if parent window handle
 		 * supplied)
@@ -118,8 +134,7 @@ ConfigDSN(HWND hwnd,
 		}
 		else if (lpsetupdlg->ci.dsn[0])
 		{
-			MYLOG(0, "about to getCiAllDefaults\n");
-			getCiAllDefaults(&lpsetupdlg->ci);
+			MYLOG(0, "SetDSNAttributes\n");
 			fSuccess = SetDSNAttributes(hwnd, lpsetupdlg, NULL);
 		}
 		else
@@ -278,15 +293,6 @@ ConfigDlgProc(HWND hdlg,
 
 			SetWindowLongPtr(hdlg, DWLP_USER, lParam);
 			CenterDialog(hdlg); /* Center dialog */
-
-			/*
-			 * NOTE: Values supplied in the attribute string will always
-			 */
-			/* override settings in ODBC.INI */
-
-			init_globals(&ci->drivers);
-			/* Get the rest of the common attributes */
-			getDSNinfo(ci, lpsetupdlg->lpszDrvr);
 
 			/* Initialize dialog fields */
 			SetDlgStuff(hdlg, ci);
@@ -578,8 +584,6 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 	char		aszKey[MAXKEYLEN];
 	size_t		cbKey;
 	char		value[MAXPGPATH];
-
-	CC_conninfo_init(&(lpsetupdlg->ci), INIT_GLOBALS);
 
 	for (lpsz = lpszAttributes; *lpsz; lpsz++)
 	{
