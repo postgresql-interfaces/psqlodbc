@@ -1428,6 +1428,8 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->%p check=%i\n", from_res ,self, check);
 		    0 < self->__error_number)
 			return;
 	}
+	if (!from_res)
+		return;
 	self->__error_number = number;
 	if (!check || message)
 	{

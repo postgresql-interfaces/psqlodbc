@@ -3058,7 +3058,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 		*/
 		else
 		{
-			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
+			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find added and updating row because of the lack of oid", func);
 			goto cleanup;
 		}
 	}
@@ -3091,7 +3091,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 		}
 		else
 		{
-			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find the add and updating row because of the lack of oid", func);
+			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find added and updating row because of the lack of oid", func);
 			goto cleanup;
 		}
 		if (bestqual && oidint)
