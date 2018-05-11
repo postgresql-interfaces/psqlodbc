@@ -154,7 +154,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 #else							/* not WIN32 */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__SUNPRO_C)
 
 /* Shared library initializer and destructor, using gcc's attributes */
 
