@@ -1701,6 +1701,8 @@ allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALL
 	return stricmp(curschema, (const char *) pubstr) == 0;
 }
 
+#define TABLE_IN_RELKIND	"('r', 'v', 'm', 'f', 'p')"
+
 RETCODE		SQL_API
 PGAPI_Tables(HSTMT hstmt,
 			 const SQLCHAR * szTableQualifier, /* PV X*/
@@ -1825,6 +1827,7 @@ retry_public_schema:
 	{
 		/*
 		 * Query relations depending on what is available:
+		 * - 10  and newer versions have partition tables
 		 * - 9.3 and newer versions have materialized views
 		 * - 9.1 and newer versions have foreign tables
 		 */
@@ -1832,7 +1835,8 @@ retry_public_schema:
 				"select NULL, NULL, relkind from (select 'r' as relkind "
 				"union select 'v' "
 				"union select 'm' "
-				"union select 'f') as a");
+				"union select 'f' "
+				"union select 'p') as a");
 	}
 	else if (list_schemas)
 	{
@@ -1848,7 +1852,7 @@ retry_public_schema:
 		 */
 		appendPQExpBufferStr(&tables_query, "select relname, nspname, relkind "
 			"from pg_catalog.pg_class c, pg_catalog.pg_namespace n "
-			"where relkind in ('r', 'v', 'm', 'f')");
+			"where relkind in " TABLE_IN_RELKIND);
 	}
 
 	op_string = gen_opestr(like_or_eq, conn);
@@ -5505,7 +5509,7 @@ retry_public_schema:
 
 	if (escTableName)
 		appendPQExpBuffer(&proc_query, " relname %s'%s' and", op_string, escTableName);
-	appendPQExpBufferStr(&proc_query, " pg_namespace.oid = relnamespace and relkind in ('r', 'v') and");
+	appendPQExpBufferStr(&proc_query, " pg_namespace.oid = relnamespace and relkind in " TABLE_IN_RELKIND " and");
 	if ((!escTableName) && (!escSchemaName))
 		appendPQExpBufferStr(&proc_query, " nspname not in ('pg_catalog', 'information_schema') and");
 
