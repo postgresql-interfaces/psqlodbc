@@ -8,7 +8,7 @@
     "Clean" is available.
 .PARAMETER TestList
     Specify the list of test cases. If this parameter isn't specified(default),
-    all test cased are executed.
+    all test cases are executed.
 .PARAMETER Ansi
     Specify this switch in case of testing Ansi drivers.
 .PARAMETER DeclareFetch
@@ -17,14 +17,15 @@
     Used Visual Studio version is determined automatically unless this
     option is specified.
 .PARAMETER Platform
-    Specify build platforms, "x64"(default), "Win32" or "both" is available.
+    Specify platforms to test. "x64"(default), "Win32" or "both" is available.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
     "v110_xp", "v120", "v120_xp", "v140" or "v140_xp" is available.
 .PARAMETER MSToolsVersion
     MSBuild ToolsVersion is detemrined automatically unless this
-    option is specified.  Currently "4.0", "12.0" or "14.0" is available.
+    option is specified.  Currently "4.0", "12.0", "14.0" or "15.0" is
+    available.
 .PARAMETER Configuration
     Specify "Release"(default) or "Debug".
 .PARAMETER BuildConfigPath
@@ -72,7 +73,7 @@ Param(
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
 [string]$BuildConfigPath,
-[ValidateSet("off", "on", "all")]
+[ValidateSet("off", "on", "both")]
 [string]$DeclareFetch="on"
 )
 
@@ -215,23 +216,19 @@ function RunTest($scriptPath, $Platform, $testexes)
 			throw "`treset_db error"
 		}
 		$cnstr = @()
-		if (($DeclareFetch -eq "off") -or ($DeclareFetch -eq "all")) {
-			$cnstr += "UseDeclareFetch=0";
-		}
-		if (($DeclareFetch -eq "on") -or ($DeclareFetch -eq "all")) {
-			$cnstr += "UseDeclareFetch=1";
+		switch ($DeclareFetch) {
+			"off"	{ $cnstr += "UseDeclareFetch=0" }
+			"on"	{ $cnstr += "UseDeclareFetch=1" }
+			"both"	{ $cnstr += "UseDeclareFetch=0"
+				  $cnstr += "UseDeclareFetch=1" }
 		}
 		if ($cnstr.length -eq 0) {
 			$cnstr += $null;
 		}
-		switch ($DeclareFetch) {
-		 0 { $env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = "useDeclareFetch=" + $_ }
-		 1 { $env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = "useDeclareFetch=" + $_ }
-		}
 		for ($i = 0; $i -lt $cnstr.length; $i++)
 		{
 			$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $cnstr[$i]
-			write-host "`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
+			write-host "`n`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
 			.\runsuite $testexes --inputdir=$origdir
 		}
 	} catch [Exception] {
