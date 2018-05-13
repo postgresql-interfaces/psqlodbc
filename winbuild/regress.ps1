@@ -74,7 +74,8 @@ Param(
 [String]$Configuration="Release",
 [string]$BuildConfigPath,
 [ValidateSet("off", "on", "both")]
-[string]$DeclareFetch="on"
+[string]$DeclareFetch="on",
+[string]$SpecificDsn
 )
 
 
@@ -228,6 +229,9 @@ function RunTest($scriptPath, $Platform, $testexes)
 		for ($i = 0; $i -lt $cnstr.length; $i++)
 		{
 			$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $cnstr[$i]
+			if ("$SpecificDsn" -ne "") {
+				$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST += ";Database=contrib_regression;ConnSettings={set lc_messages='C'}"
+			}
 			write-host "`n`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
 			.\runsuite $testexes --inputdir=$origdir
 		}
@@ -346,6 +350,10 @@ if ($Ansi) {
 	$ansi_dir_part="Unicode"
 	$dllname="psqlsetup.dll"
 	$setup="psqlsetup.dll"
+}
+if ("$SpecificDsn" -ne "") {
+	Write-Host "`tSpecific DSN=$SpecificDsn"
+	$testdsn=$SpecificDsn
 }
 foreach ($pl in $pary) {
 	cd $scriptPath
