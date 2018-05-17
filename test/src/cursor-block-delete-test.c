@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "create temporary table tmptable(id int4 primary key)", SQL_NTS);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "create temporary table tmptable(id serial primary key)", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect create table failed", hstmt);
 
 	/* insert into a table */

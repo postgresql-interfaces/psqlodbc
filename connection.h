@@ -238,7 +238,12 @@ struct col_info
 	pgNAME		schema_name;
 	pgNAME		table_name;
 	OID		table_oid;
+	int		table_info;
 	time_t		acc_time;
+};
+enum {
+	TBINFO_HASOIDS	 = 1L
+	,TBINFO_HASSUBCLASS = (1L << 1)
 };
 #define free_col_info_contents(coli) \
 { \

@@ -379,6 +379,92 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 	}
 }
 
+static BOOL CheckHasOidsUsingSaved(StatementClass *stmt, TABLE_INFO *ti)
+{
+	const COL_INFO *coli;
+	int	table_info;
+	BOOL	hasoids = FALSE, hassubclass =FALSE, keyFound = FALSE;
+
+	MYLOG(DETAIL_LOG_LEVEL, "ti->col_info=%p\n", ti->col_info);
+	if (TI_checked_hasoids(ti))
+		;
+	else if (coli = ti->col_info, NULL != coli)
+	{
+		table_info = coli->table_info;
+		if (0 == (table_info & TBINFO_HASSUBCLASS))
+		{
+			TI_set_has_no_subclass(ti);
+		}
+		else
+		{
+			hassubclass = TRUE;
+			TI_set_hassubclass(ti);
+			STR_TO_NAME(ti->bestitem, TABLEOID_NAME);
+			STRX_TO_NAME(ti->bestqual, "\"" TABLEOID_NAME "\" = %u");
+		}
+		if (!hassubclass)
+		{
+			if (0 == (table_info & TBINFO_HASOIDS))
+			{
+				TI_set_has_no_oids(ti);
+			}
+			else
+			{
+				hasoids = TRUE;
+				TI_set_hasoids(ti);
+				STR_TO_NAME(ti->bestitem, OID_NAME);
+				STRX_TO_NAME(ti->bestqual, "\"" OID_NAME "\" = %u");
+			}
+		}
+		ti->table_oid = coli->table_oid;
+		if (!hasoids && !hassubclass)
+		{
+			QResultClass	*res = coli->result;
+			int	num_tuples = res ? QR_get_num_cached_tuples(res) : -1;
+
+			if (num_tuples > 0)
+			{
+				int	i;
+
+				for (i = 0; i < num_tuples; i++)
+				{
+					if (QR_get_value_backend_int(res, i, COLUMNS_AUTO_INCREMENT, NULL) != 0&&
+					    QR_get_value_backend_int(res, i, COLUMNS_FIELD_TYPE, NULL) == PG_TYPE_INT4)
+					{
+						char		query[512];
+
+						STR_TO_NAME(ti->bestitem, QR_get_value_backend_text(res, i, COLUMNS_COLUMN_NAME));
+						SPRINTF_FIXED(query, "\"%s\" = %%d", SAFE_NAME(ti->bestitem));
+						STRX_TO_NAME(ti->bestqual, query);
+						break;
+					}
+				}
+			}
+		}
+		TI_set_hasoids_checked(ti);
+	}
+	else
+		return FALSE;
+
+	stmt->num_key_fields = PG_NUM_NORMAL_KEYS;
+	if (TI_has_subclass(ti))
+		keyFound = FALSE;
+	else if (TI_has_oids(ti))
+		keyFound = TRUE;
+	else if (NAME_IS_NULL(ti->bestqual))
+	{
+		keyFound = TRUE;
+		stmt->num_key_fields--;
+	}
+	else
+		keyFound = TRUE;
+	MYLOG(DETAIL_LOG_LEVEL, "subclass=%d oids=%d bestqual=%s keyFound=%d num_key_fields=%d\n", TI_has_subclass(ti), TI_has_oids(ti), PRINT_NAME(ti->bestqual), keyFound, stmt->num_key_fields);
+
+	SC_set_checked_hasoids(stmt, keyFound);
+
+	return TRUE;
+}
+
 static BOOL CheckHasOids(StatementClass * stmt)
 {
 	QResultClass	*res;
@@ -387,11 +473,15 @@ static BOOL CheckHasOids(StatementClass * stmt)
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	TABLE_INFO	*ti;
 
+MYLOG(0, "Entering\n");
 	if (0 != SC_checked_hasoids(stmt))
 		return TRUE;
 	if (!stmt->ti || !stmt->ti[0])
 		return FALSE;
 	ti = stmt->ti[0];
+	if (CheckHasOidsUsingSaved(stmt, ti))
+		return TRUE;
+	// no longer come here??
 	SPRINTF_FIXED(query,
 			 "select relhasoids, c.oid, relhassubclass from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid",
 			 SAFE_NAME(ti->table_name), SAFE_NAME(ti->schema_name));
@@ -456,6 +546,9 @@ static BOOL CheckHasOids(StatementClass * stmt)
 	}
 	QR_Destructor(res);
 	SC_set_checked_hasoids(stmt, foundKey);
+
+	MYLOG(DETAIL_LOG_LEVEL, "subclass=%d oids=%d bestqual=%s foundKey=%d num_key_fields=%d\n", TI_has_subclass(ti), TI_has_oids(ti), PRINT_NAME(ti->bestqual), foundKey, stmt->num_key_fields);
+
 	return TRUE;
 }
 
@@ -933,6 +1026,8 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		coli->result = res;
 		if (res && QR_get_num_cached_tuples(res) > 0)
 		{
+			int num_tuples = QR_get_num_cached_tuples(res);
+
 			if (!greloid)
 				greloid = (OID) strtoul(QR_get_value_backend_text(res, 0, COLUMNS_TABLE_OID), NULL, 10);
 			if (!wti->table_oid)
@@ -943,6 +1038,14 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			if (NAME_IS_NULL(wti->table_name))
 				STR_TO_NAME(wti->table_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
+			for (int i = 0; i < num_tuples; i++)
+			{
+				if (NULL != QR_get_value_backend_text(res, 0, COLUMNS_TABLE_INFO))
+				{
+					coli->table_info = QR_get_value_backend_int(res, 0, COLUMNS_TABLE_INFO, NULL);
+					break;
+				}
+			}
 		}
 MYLOG(DETAIL_LOG_LEVEL, "#2 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table_name), wti->table_oid);
 		/*

@@ -2196,7 +2196,7 @@ cleanup:
  *	for oid or xmin
  */
 static void
-add_tuple_for_oid_or_xmin(TupleField *tuple, int ordinal, const char *colname, OID the_type, const char *typname, const ConnectionClass *conn, const char *table_owner, const char *table_name, OID greloid, int attnum, BOOL auto_increment)
+add_tuple_for_oid_or_xmin(TupleField *tuple, int ordinal, const char *colname, OID the_type, const char *typname, const ConnectionClass *conn, const char *table_owner, const char *table_name, OID greloid, int attnum, BOOL auto_increment, int table_info)
 {
 	int	sqltype;
 	const int atttypmod = -1;
@@ -2229,6 +2229,7 @@ add_tuple_for_oid_or_xmin(TupleField *tuple, int ordinal, const char *colname, O
 	set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 	set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], 0);
 	set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], -1);
+	set_tuplefield_int4(&tuple[COLUMNS_TABLE_INFO], table_info);
 }
 
 RETCODE		SQL_API
@@ -2260,7 +2261,7 @@ PGAPI_Columns(HSTMT hstmt,
 				result_cols;
 	Int4		mod_length,
 				ordinal,
-				typmod, relhasoids;
+				typmod, relhasoids, relhassubclass;
 	OID		field_type, greloid, basetype;
 	char		not_null[MAX_INFO_STRING],
 				relhasrules[MAX_INFO_STRING], relkind[8], attidentity[2];
@@ -2272,6 +2273,7 @@ PGAPI_Columns(HSTMT hstmt,
 	const char	*like_or_eq = likeop, *op_string;
 	const SQLCHAR *szSchemaName;
 	BOOL	setIdentity = FALSE;
+	int	table_info = 0;
 
 	MYLOG(0, "entering...stmt=%p scnm=%p len=%d\n", stmt, szTableOwner, cbTableOwner);
 
@@ -2339,7 +2341,7 @@ retry_public_schema:
 		"t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull, "
 		"c.relhasrules, c.relkind, c.oid, pg_get_expr(d.adbin, d.adrelid), "
         "case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod, "
-        "c.relhasoids, %s "
+        "c.relhasoids, %s, c.relhassubclass "
 		"from (((pg_catalog.pg_class c "
 		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace", PG_VERSION_GE(conn, 10.0) ? "attidentity" : "''");
 	if (search_by_ids)
@@ -2517,6 +2519,12 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	result = PGAPI_BindCol(col_stmt, 18, SQL_C_LONG,
+					&relhassubclass, sizeof(relhassubclass), NULL);
+	if (!SQL_SUCCEEDED(result))
+	{
+		goto cleanup;
+	}
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Couldn't allocate memory for PGAPI_Columns result.", func);
@@ -2567,6 +2575,7 @@ retry_public_schema:
 	QR_set_field_info_v(res, COLUMNS_TABLE_OID, "TABLE OID", PG_TYPE_OID, 4);
 	QR_set_field_info_v(res, COLUMNS_BASE_TYPEID, "BASE TYPEID", PG_TYPE_OID, 4);
 	QR_set_field_info_v(res, COLUMNS_ATTTYPMOD, "TYPMOD", PG_TYPE_INT4, 4);
+	QR_set_field_info_v(res, COLUMNS_TABLE_INFO, "TABLE INFO", PG_TYPE_INT4, 4);
 
 	ordinal = 1;
 	result = PGAPI_Fetch(col_stmt);
@@ -2578,8 +2587,12 @@ retry_public_schema:
 	 */
 	relisaview = (relkind[0] == 'v');
 
-	if (result != SQL_ERROR)
+	if (SQL_SUCCEEDED(result))
 	{
+		if (relhasoids)
+			table_info |= TBINFO_HASOIDS;
+		if (relhassubclass)
+			table_info |= TBINFO_HASSUBCLASS;
 		if (!relisaview &&
 			relhasoids &&
 			(show_oid_column ||
@@ -2599,7 +2612,7 @@ retry_public_schema:
 			}
 			else
 				typname = OID_NAME;
-			add_tuple_for_oid_or_xmin(tuple, ordinal, OID_NAME, PG_TYPE_OID, typname, conn, table_owner, table_name, greloid, OID_ATTNUM, TRUE);
+			add_tuple_for_oid_or_xmin(tuple, ordinal, OID_NAME, PG_TYPE_OID, typname, conn, table_owner, table_name, greloid, OID_ATTNUM, TRUE, table_info);
 			ordinal++;
 		}
 	}
@@ -2725,6 +2738,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 		set_tuplefield_int4(&tuple[COLUMNS_TABLE_OID], greloid);
 		set_tuplefield_int4(&tuple[COLUMNS_BASE_TYPEID], basetype);
 		set_tuplefield_int4(&tuple[COLUMNS_ATTTYPMOD], mod_length);
+		set_tuplefield_int4(&tuple[COLUMNS_TABLE_INFO], table_info);
 		ordinal++;
 
 		result = PGAPI_Fetch(col_stmt);
@@ -2748,7 +2762,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 		/* For Row Versioning fields */
 		tuple = QR_AddNew(res);
 
-		add_tuple_for_oid_or_xmin(tuple, ordinal, XMIN_NAME, PG_TYPE_XID, "xid", conn, table_owner, table_name, greloid, XMIN_ATTNUM, FALSE);
+		add_tuple_for_oid_or_xmin(tuple, ordinal, XMIN_NAME, PG_TYPE_XID, "xid", conn, table_owner, table_name, greloid, XMIN_ATTNUM, FALSE, table_info);
 		ordinal++;
 	}
 	ret = SQL_SUCCESS;

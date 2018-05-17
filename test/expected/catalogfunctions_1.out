@@ -65,6 +65,7 @@ PHYSICAL NUMBER: SMALLINT(5) digits: 0, nullable
 TABLE OID: INTEGER(10) digits: 0, nullable
 BASE TYPEID: INTEGER(10) digits: 0, nullable
 TYPMOD: INTEGER(10) digits: 0, nullable
+TABLE INFO: INTEGER(10) digits: 0, nullable
 Result set:
 contrib_regression	public	booltab	id	4	int4
 contrib_regression	public	booltab	t	-9	varchar

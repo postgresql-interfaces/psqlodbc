@@ -2374,7 +2374,6 @@ AddDeleted(QResultClass *res, SQLULEN index, const KeySet *keyset)
 	SQLLEN	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
-	Int2	num_fields = res->num_fields;
 
 MYLOG(DETAIL_LOG_LEVEL, "entering " FORMAT_ULEN "\n", index);
 	dl_count = res->dl_count;
