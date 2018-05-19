@@ -1027,6 +1027,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		if (res && QR_get_num_cached_tuples(res) > 0)
 		{
 			int num_tuples = QR_get_num_cached_tuples(res);
+			int i;
 
 			if (!greloid)
 				greloid = (OID) strtoul(QR_get_value_backend_text(res, 0, COLUMNS_TABLE_OID), NULL, 10);
@@ -1038,7 +1039,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			if (NAME_IS_NULL(wti->table_name))
 				STR_TO_NAME(wti->table_name,
 					QR_get_value_backend_text(res, 0, COLUMNS_TABLE_NAME));
-			for (int i = 0; i < num_tuples; i++)
+			for (i = 0; i < num_tuples; i++)
 			{
 				if (NULL != QR_get_value_backend_text(res, 0, COLUMNS_TABLE_INFO))
 				{

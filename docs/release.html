@@ -9,6 +9,24 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="10.03.0000">psqlODBC 10.03.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Put back the handling of lock_CC_for_rb variable.
+The variable lock_CC_for_rb should be held per connection.</li>
+Per report from Ayman Samamry.
+<li>Fix SQLGetTypeInfo() so that it filters SQL_TYPE_DATE, SQL_TYPE_TIME or SQL_TYPE_TIMESTAMP for ODBC 2.x applications.</li>
+Per report from Oleg Tonkikh.
+<li>Revise ConfigDSN() so that it handles the 4th parameter(lpszAttribues) correctly.</li>
+Per report from Haribabu Kommi.
+<li>Fix a crash bug when handling error messages.
+Also modified some error messages.</li>
+<li>Let SQLTables() or SQLTablePrivileges() show partition tables.</li>
+<li>Fix build on Solaris defined(__SUNPRO_C) using Solaris Studio</li>
+<li>Reduce DB access to pg_class or pg_index by caching relhasoids, relhassubclass etc.
+It would improve the performance of SQLSetPos() or SQLBulkOperations() very much in some cases.</li>
+Per report from Takayuki Tsunakawa.
+</ol><br />
 <h2><a id="10.02.0000">psqlODBC 10.02.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
