@@ -19,7 +19,7 @@ CPPFLAGS = @CPPFLAGS@
 ODBC_CONFIG = @ODBC_CONFIG@
 PROVE = @PROVE@
 
-LIBODBC := $(shell $(ODBC_CONFIG) --libs)
+LIBODBC = @LIBODBC@
 
 all: $(TESTBINS) runsuite reset-db
 

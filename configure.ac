@@ -95,8 +95,11 @@ if test "$ODBC_CONFIG" != ""; then
 		ODBC_LIBDIR=`${ODBC_CONFIG} --lib-prefix`
 		LDFLAGS="$LDFLAGS -L${ODBC_LIBDIR}"
 	fi
+	LIBODBC=`${ODBC_CONFIG} --libs`	# for regression test
 	AC_MSG_NOTICE([using $ODBC_INCLUDE $ODBC_LIBDIR])
+	AC_MSG_NOTICE([using $LIBODBC for regression test])
 fi
+AC_SUBST(LIBODBC)
 
 #
 # SQLCOLATTRIBUTE_SQLLEN check
