@@ -60,6 +60,7 @@ if test "$with_iodbc" != no; then
 	fi
 fi
 
+wo_odbc_config=__without_odbc_config
 if test "$with_unixodbc" != no; then
 	AC_DEFINE(WITH_UNIXODBC, 1,
             [Define to 1 to build with unixODBC support])
@@ -68,7 +69,9 @@ if test "$with_unixodbc" != no; then
 	else
 		ODBC_CONFIG=$with_unixodbc
 	fi
-	if test ! -x "${ODBC_CONFIG}/bin/odbc_config"; then
+	if test "${ODBC_CONFIG}" = "${wo_odbc_config}"; then
+		:
+	elif test ! -x "${ODBC_CONFIG}/bin/odbc_config"; then
 		if test ! -x "${ODBC_CONFIG}"; then
 			AC_MSG_ERROR([odbc_config not found (required for unixODBC build)])
 		fi
@@ -88,14 +91,22 @@ if test "$ODBC_CONFIG" != ""; then
 		# Linking libiodoc is rather problematic
 		[ODBC_LIBDIR=`${ODBC_CONFIG} --libs | sed -e "s/^\(-L\|.*[ \t]-L\)\([^ \n\r\f\t]*\).*$/-L\2/"`]
 		LDFLAGS="$LDFLAGS ${ODBC_LIBDIR}"
+		LIBODBC=`${ODBC_CONFIG} --libs`	# for regression test
+	elif test "${ODBC_CONFIG}" = "${wo_odbc_config}"; then
+		ODBC_INCLUDE=/usr/include
+		CPPFLAGS="$CPPFLAGS -I${ODBC_INCLUDE}"
+		ODBC_LIBDiR=""
+		LIBODBC="-lodbc"	# for regression test
 	else
 		ODBC_INCLUDE=`${ODBC_CONFIG} --include-prefix`
 		CPPFLAGS="$CPPFLAGS -I${ODBC_INCLUDE}"
-		# Linking libodoc is rather problematic
+		# Linking libodbc is rather problematic
 		ODBC_LIBDIR=`${ODBC_CONFIG} --lib-prefix`
-		LDFLAGS="$LDFLAGS -L${ODBC_LIBDIR}"
+		if test "${ODBC_LIBDIR}" != ""; then
+			LDFLAGS="$LDFLAGS -L${ODBC_LIBDIR}"
+		fi
+		LIBODBC=`${ODBC_CONFIG} --libs`	# for regression test
 	fi
-	LIBODBC=`${ODBC_CONFIG} --libs`	# for regression test
 	AC_MSG_NOTICE([using $ODBC_INCLUDE $ODBC_LIBDIR])
 	AC_MSG_NOTICE([using $LIBODBC for regression test])
 fi
