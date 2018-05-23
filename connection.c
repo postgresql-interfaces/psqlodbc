@@ -2127,7 +2127,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 					char	dummy[8];
 
 					discardTheRest = TRUE;
-					if (cancel = PQgetCancel(self->pqconn))
+					if (NULL != (cancel = PQgetCancel(self->pqconn)))
 					{
 						PQcancel(cancel, dummy, sizeof(dummy));
 						PQfreeCancel(cancel);

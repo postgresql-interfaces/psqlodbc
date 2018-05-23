@@ -71,7 +71,7 @@ do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
 			while (!error && lobByteSize > lobChunkSize)
 			{
 				rc = SQLPutData(hstmt, (SQLPOINTER)pParamId, lobChunkSize);
-				lobByteSize -= lobChunkSize;
+				lobByteSize -= (int) lobChunkSize;
 				error = SQL_SUCCESS != rc && SQL_SUCCESS_WITH_INFO != rc && SQL_NEED_DATA != rc;
 			}
 
@@ -116,7 +116,7 @@ do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
 	rc = SQLGetData(hstmt, 2, SQL_C_BINARY, buf, lobByteSize * 2, &ind);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
 
-	printhex(buf, ind);
+	printhex(buf, (int) ind);
 	printf("\n");
 
 	free(buf);

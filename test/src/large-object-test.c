@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 	rc = SQLGetData(hstmt, 2, SQL_C_BINARY, buf, sizeof(buf), &ind);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
 
-	printhex(buf, ind);
+	printhex(buf, (int) ind);
 	printf("\n");
 	
 	/* Clean up */
