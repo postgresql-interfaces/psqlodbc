@@ -235,6 +235,7 @@ AC_HEADER_TIME
 
 # unixODBC wants the following to get sane behavior for ODBCINT64
 AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(long int)	# for unixODBC
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_TYPES(long long)
 AC_CHECK_TYPES(signed char)

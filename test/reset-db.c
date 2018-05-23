@@ -15,9 +15,6 @@
 #define	snprintf _snprintf
 #endif
 
-#include <sql.h>
-#include <sqlext.h>
-
 #include "src/common.h"
 
 SQLHENV env;

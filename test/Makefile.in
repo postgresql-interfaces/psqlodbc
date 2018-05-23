@@ -15,7 +15,7 @@ TESTNAMES = $(patsubst exe/%-test,%, $(TESTBINS))
 # Set by autoconf
 LDFLAGS = @LDFLAGS@
 CFLAGS = @CFLAGS@
-CPPFLAGS = @CPPFLAGS@
+CPPFLAGS = @CPPFLAGS@ -I..	# config.h
 ODBC_CONFIG = @ODBC_CONFIG@
 PROVE = @PROVE@
 

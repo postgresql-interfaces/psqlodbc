@@ -4,6 +4,8 @@
 
 #ifdef WIN32
 #include <windows.h>
+#else
+#include "config.h"
 #endif
 
 #include <sql.h>
