@@ -814,7 +814,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->num_fields=%d\n", self, self->num_fields);
 		{
 			SQLLEN	tuple_size = self->count_backend_allocated;
 
-			MYLOG(0, "REALLOC: old_count = " FORMAT_LEN ", size = " FORMAT_SIZE_T "\n", tuple_size, self->num_fields * sizeof(TupleField) * tuple_size);
+			MYLOG(0, "REALLOC: old_count = " FORMAT_LEN ", size = " FORMAT_SIZE_T "\n", tuple_size, (size_t) (self->num_fields * sizeof(TupleField) * tuple_size));
 			if (tuple_size < 1)
 				tuple_size = TUPLE_MALLOC_INC;
 			else

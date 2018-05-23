@@ -562,7 +562,7 @@ MYLOG(DETAIL_LOG_LEVEL, "src=%p target=%p type=%d", src, target, srchd->desc_typ
 				targethd->desc_type = srchd->desc_type;
 			}
 			ard_src = &(src->ardf);
-MYPRINTF(DETAIL_LOG_LEVEL, " rowset_size=" FORMAT_LEN " bind_size=%d ope_ptr=%p off_ptr=%p\n",
+MYPRINTF(DETAIL_LOG_LEVEL, " rowset_size=" FORMAT_LEN " bind_size=" FORMAT_UINTEGER " ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
 ard_src->row_operation_ptr, ard_src->row_offset_ptr);
 			ard_tgt = &(target->ardf);

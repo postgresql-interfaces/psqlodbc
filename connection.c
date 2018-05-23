@@ -1321,7 +1321,7 @@ static int handle_show_results(const QResultClass *res)
 		if (strcmp(QR_get_fieldname(qres, 0), TRANSACTION_ISOLATION) == 0)
 		{
 			conn->server_isolation = isolation_str_to_enum(QR_get_value_backend_text(qres, 0, 0));
-			MYLOG(0, "isolation %d to be %d\n", conn->server_isolation, conn->isolation);
+			MYLOG(0, "isolation " FORMAT_UINTEGER " to be " FORMAT_UINTEGER "\n", conn->server_isolation, conn->isolation);
 			if (0 == conn->isolation)
 				conn->isolation = conn->server_isolation;
 			if (0 == conn->default_isolation)
@@ -1348,7 +1348,7 @@ SQLUINTEGER	CC_get_isolation(ConnectionClass *self)
 		isolation = self->server_isolation;
 	}
 	QR_Destructor(res);
-MYLOG(0, "isolation=%d\n", isolation);
+MYLOG(0, "isolation=" FORMAT_UINTEGER "\n", isolation);
 	return isolation;
 }
 

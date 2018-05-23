@@ -1224,7 +1224,7 @@ PGAPI_NativeSql(HDBC hdbc,
 	ConnectionClass *conn = (ConnectionClass *) hdbc;
 	RETCODE		result;
 
-	MYLOG(0, "entering...cbSqlStrIn=%d\n", cbSqlStrIn);
+	MYLOG(0, "entering...cbSqlStrIn=" FORMAT_INTEGER "\n", cbSqlStrIn);
 
 	ptr = (cbSqlStrIn == 0) ? "" : make_string(szSqlStrIn, cbSqlStrIn, NULL, 0);
 	if (!ptr)

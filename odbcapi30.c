@@ -353,7 +353,7 @@ SQLGetEnvAttr(HENV EnvironmentHandle,
 	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
-	MYLOG(0, "Entering %d\n", Attribute);
+	MYLOG(0, "Entering " FORMAT_INTEGER "\n", Attribute);
 	ENTER_ENV_CS(env);
 	ret = SQL_SUCCESS;
 	switch (Attribute)
@@ -387,7 +387,7 @@ SQLGetConnectAttr(HDBC ConnectionHandle,
 {
 	RETCODE	ret;
 
-	MYLOG(0, "Entering %d\n", Attribute);
+	MYLOG(0, "Entering " FORMAT_UINTEGER "\n", Attribute);
 	CC_examine_global_transaction((ConnectionClass*) ConnectionHandle);
 	ENTER_CONN_CS((ConnectionClass *) ConnectionHandle);
 	CC_clear_error((ConnectionClass *) ConnectionHandle);
@@ -406,7 +406,7 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
-	MYLOG(0, "Entering Handle=%p %d\n", StatementHandle, Attribute);
+	MYLOG(0, "Entering Handle=%p " FORMAT_INTEGER "\n", StatementHandle, Attribute);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -426,7 +426,7 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret;
 	ConnectionClass *conn = (ConnectionClass *) ConnectionHandle;
 
-	MYLOG(0, "Entering %d\n", Attribute);
+	MYLOG(0, "Entering " FORMAT_INTEGER "\n", Attribute);
 	CC_examine_global_transaction(conn);
 	ENTER_CONN_CS(conn);
 	CC_clear_error(conn);
@@ -474,7 +474,7 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 	RETCODE	ret;
 	EnvironmentClass *env = (EnvironmentClass *) EnvironmentHandle;
 
-	MYLOG(0, "Entering att=%d," FORMAT_ULEN "\n", Attribute, (SQLULEN) Value);
+	MYLOG(0, "Entering att=" FORMAT_INTEGER "," FORMAT_ULEN "\n", Attribute, (SQLULEN) Value);
 	ENTER_ENV_CS(env);
 	switch (Attribute)
 	{
@@ -535,7 +535,7 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	MYLOG(0, "Entering Handle=%p %d," FORMAT_ULEN "\n", StatementHandle, Attribute, (SQLULEN) Value);
+	MYLOG(0, "Entering Handle=%p " FORMAT_INTEGER "," FORMAT_ULEN "\n", StatementHandle, Attribute, (SQLULEN) Value);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);

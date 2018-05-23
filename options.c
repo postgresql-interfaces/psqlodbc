@@ -547,12 +547,12 @@ PGAPI_GetConnectOption(HDBC hdbc,
 #endif /* SQL_ATTR_CONNECTION_DEAD */
 			MYLOG(0, "CONNECTION_DEAD status=%d", conn->status);
 			*((SQLUINTEGER *) pvParam) = CC_not_connected(conn);
-			MYPRINTF(0, " val=%d\n", *((SQLUINTEGER *) pvParam));
+			MYPRINTF(0, " val=" FORMAT_UINTEGER "\n", *((SQLUINTEGER *) pvParam));
                         break;
 
 		case SQL_ATTR_ANSI_APP:
 			*((SQLUINTEGER *) pvParam) = CC_is_in_ansi_app(conn);
-			MYLOG(0, "ANSI_APP val=%d\n", *((SQLUINTEGER *) pvParam));
+			MYLOG(0, "ANSI_APP val=" FORMAT_UINTEGER "\n", *((SQLUINTEGER *) pvParam));
                         break;
 
 			/* These options should be handled by driver manager */
@@ -713,12 +713,12 @@ PGAPI_GetStmtOption(HSTMT hstmt,
 			break;
 
 		case SQL_CONCURRENCY:	/* NOT REALLY SUPPORTED */
-			MYLOG(0, "SQL_CONCURRENCY %d\n", stmt->options.scroll_concurrency);
+			MYLOG(0, "SQL_CONCURRENCY " FORMAT_INTEGER "\n", stmt->options.scroll_concurrency);
 			*((SQLINTEGER *) pvParam) = stmt->options.scroll_concurrency;
 			break;
 
 		case SQL_CURSOR_TYPE:	/* PARTIAL SUPPORT */
-			MYLOG(0, "SQL_CURSOR_TYPE %d\n", stmt->options.cursor_type);
+			MYLOG(0, "SQL_CURSOR_TYPE " FORMAT_INTEGER "\n", stmt->options.cursor_type);
 			*((SQLINTEGER *) pvParam) = stmt->options.cursor_type;
 			break;
 

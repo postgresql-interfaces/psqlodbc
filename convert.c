@@ -2947,7 +2947,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering prepared=%d\n", stmt->prepared);
 			qp->from_pos = stmt->from_pos;
 			qp->where_pos = stmt->where_pos;
 		}
-MYLOG(DETAIL_LOG_LEVEL, "type=%d concur=%d\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
+MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n", stmt->options.cursor_type, stmt->options.scroll_concurrency);
 	}
 
 	SC_miscinfo_clear(stmt);

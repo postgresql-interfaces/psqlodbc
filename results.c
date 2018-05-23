@@ -3751,7 +3751,7 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef,
 						appendData = TRUE;
 					else
 					{
-MYLOG(DETAIL_LOG_LEVEL, "total " FORMAT_LEN " <> backend " FORMAT_LEN " - base " FORMAT_LEN " + start " FORMAT_LEN " cursor_type=%d\n",
+MYLOG(DETAIL_LOG_LEVEL, "total " FORMAT_LEN " <> backend " FORMAT_LEN " - base " FORMAT_LEN " + start " FORMAT_LEN " cursor_type=" FORMAT_UINTEGER "\n",
 num_total_rows, num_cached_rows,
 QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_type);
 					}
@@ -3778,7 +3778,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 			}
 			if (appendData)
 			{
-MYLOG(DETAIL_LOG_LEVEL, "total " FORMAT_LEN " == backend " FORMAT_LEN " - base " FORMAT_LEN " + start " FORMAT_LEN " cursor_type=%d\n",
+MYLOG(DETAIL_LOG_LEVEL, "total " FORMAT_LEN " == backend " FORMAT_LEN " - base " FORMAT_LEN " + start " FORMAT_LEN " cursor_type=" FORMAT_UINTEGER "\n",
 num_total_rows, num_cached_rows,
 QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_type);
 				if (num_cached_rows >= res->count_backend_allocated)

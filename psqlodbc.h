@@ -154,6 +154,8 @@ typedef	UInt4	OID;
 #define SQL_FALSE FALSE
 #endif /* SQL_FALSE */
 
+#define	FORMAT_SMALLI	"%d"	/* SQLSMALLINT */
+#define	FORMAT_USMALLI	"%u"	/* SQLUSMALLINT */
 #ifdef	WIN32
 #ifndef	SSIZE_T_DEFINED
 #define	ssize_t	SSIZE_T

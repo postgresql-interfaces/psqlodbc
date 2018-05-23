@@ -537,7 +537,7 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 		printf("\n");
 		/* Check that the driver didn't write past the buffer */
 		if ((unsigned char) resultbuf[buflen] != 0xFF)
-			printf("Driver wrote byte %02X past result buffer of size %d!\n", (unsigned char) resultbuf[buflen], buflen);
+			printf("For %s Driver wrote byte %02X past result buffer of size %d!\n", sql, (unsigned char) resultbuf[buflen], buflen);
 	}
 	else
 	{

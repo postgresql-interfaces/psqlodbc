@@ -401,7 +401,7 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 	RETCODE	ret = SQL_SUCCESS;
 	SQLINTEGER	len = 4;
 
-	MYLOG(0, "entering %d\n", Attribute);
+	MYLOG(0, "entering " FORMAT_INTEGER "\n", Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ASYNC_ENABLE:
@@ -1552,7 +1552,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	SQLINTEGER	len = 0;
 
-	MYLOG(0, "entering Handle=%p %d\n", StatementHandle, Attribute);
+	MYLOG(0, "entering Handle=%p " FORMAT_INTEGER "\n", StatementHandle, Attribute);
 	switch (Attribute)
 	{
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:	/* 16 */
@@ -1655,7 +1655,7 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	BOOL	unsupported = FALSE;
 	int	newValue;
 
-	MYLOG(0, "entering for %p: %d %p\n", ConnectionHandle, Attribute, Value);
+	MYLOG(0, "entering for %p: " FORMAT_INTEGER " %p\n", ConnectionHandle, Attribute, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_METADATA_ID:
@@ -1812,7 +1812,7 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	MYLOG(0, "entering h=%p rec=%d field=%d blen=%d\n", DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
+	MYLOG(0, "entering h=%p rec=" FORMAT_SMALLI " field=" FORMAT_SMALLI " blen=" FORMAT_INTEGER "\n", DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1862,7 +1862,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	MYLOG(0, "entering h=%p(%d) rec=%d field=%d val=%p,%d\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
+	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " field=" FORMAT_SMALLI " val=%p," FORMAT_INTEGER "\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
@@ -1913,7 +1913,7 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	CSTR func = "PGAPI_SetStmtAttr";
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 
-	MYLOG(0, "entering Handle=%p %d," FORMAT_ULEN "(%p)\n", StatementHandle, Attribute, (SQLULEN) Value, Value);
+	MYLOG(0, "entering Handle=%p " FORMAT_INTEGER "," FORMAT_ULEN "(%p)\n", StatementHandle, Attribute, (SQLULEN) Value, Value);
 	switch (Attribute)
 	{
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */

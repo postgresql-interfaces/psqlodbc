@@ -1966,7 +1966,7 @@ SC_execute(StatementClass *self)
 		QueryInfo	*qryi = NULL;
 
 		qflag |= (SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency ? CREATE_KEYSET : 0);
-		MYLOG(0, "       Sending SELECT statement on stmt=%p, cursor_name='%s' qflag=%d,%d\n", self, SC_cursor_name(self), qflag, self->options.scroll_concurrency);
+		MYLOG(0, "       Sending SELECT statement on stmt=%p, cursor_name='%s' qflag=%d," FORMAT_UINTEGER "\n", self, SC_cursor_name(self), qflag, self->options.scroll_concurrency);
 
 		/* send the declare/select */
 		if (useCursor)
@@ -2363,7 +2363,7 @@ SC_log_error(const char *func, const char *desc, const StatementClass *self)
 			QLOG(level, "                 stmt_with_params='%s'\n", NULLCHECK(self->stmt_with_params));
 			QLOG(level, "                 data_at_exec=%d, current_exec_param=%d, put_data=%d\n", self->data_at_exec, self->current_exec_param, self->put_data);
 			QLOG(level, "                 currTuple=" FORMAT_LEN ", current_col=%d, lobj_fd=%d\n", self->currTuple, self->current_col, self->lobj_fd);
-			QLOG(level, "                 maxRows=" FORMAT_LEN ", rowset_size=" FORMAT_LEN ", keyset_size=" FORMAT_LEN ", cursor_type=%u, scroll_concurrency=%d\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
+			QLOG(level, "                 maxRows=" FORMAT_LEN ", rowset_size=" FORMAT_LEN ", keyset_size=" FORMAT_LEN ", cursor_type=" FORMAT_UINTEGER ", scroll_concurrency=" FORMAT_UINTEGER "\n", self->options.maxRows, rowsetSize, self->options.keyset_size, self->options.cursor_type, self->options.scroll_concurrency);
 			QLOG(level, "                 cursor_name='%s'\n", SC_cursor_name(self));
 
 			QLOG(level, "                 ----------------QResult Info -------------------------------\n");

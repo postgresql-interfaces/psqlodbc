@@ -895,7 +895,7 @@ SQLLEN	mbstoc16_lf(char16_t *c16dt, const char *c8dt, size_t n, BOOL lf_conv)
 	const char	*cdt;
 	mbstate_t	mbst = initial_state;
 
-MYLOG(0, " c16dt=%p size=%lu\n", c16dt, n);
+MYLOG(0, " c16dt=%p size=" FORMAT_SIZE_T "\n", c16dt, n);
 	for (i = 0, cdt = c8dt; i < n || (!c16dt); i++)
 	{
 		if (lf_conv && PG_LINEFEED == *cdt && i > 0 && PG_CARRIAGE_RETURN != cdt[-1])
@@ -929,7 +929,7 @@ SQLLEN	c16tombs(char *c8dt, const char16_t *c16dt, size_t n)
 	char	*cdt, c4byte[4];
 	mbstate_t	mbst = initial_state;
 
-MYLOG(0, " c8dt=%p size=%lu\n", c8dt, n);
+MYLOG(0, " c8dt=%p size=" FORMAT_SIZE_T "u\n", c8dt, n);
 	if (!c8dt)
 		n = 0;
 	for (i = 0, cdt = c8dt; c16dt[i] && (result < n || (!cdt)); i++)
