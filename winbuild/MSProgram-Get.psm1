@@ -380,8 +380,8 @@ function find_vsdir_15_xx
 			$vssetup_available = $false
 		}
 	}
+	$toolsnum = [int]$toolsver
 	if ($vssetup -ne $null) {
-		$toolsnum = [int]$toolsver
 		$lslist = @($vssetup | where-object { $_.InstallationVersion.Major -eq $toolsnum } | foreach-object { $_.InstallationPath })
 		if ($lslist.Count -gt 0) {
 			return $lslist[0] + "\"
@@ -394,7 +394,7 @@ function find_vsdir_15_xx
 	} else {
 		$pgmfs = "${env:ProgramFiles(x86)}"
 	}
-	$lslist = @(Get-ChildItem "$pgmfs\Microsoft Visual Studio\*\*\MSBuild\$toolsver\Bin\MSBuild.exe" -ErrorAction SilentlyContinue)
+	$lslist = @(Get-ChildItem "$pgmfs\Microsoft Visual Studio\*\*\MSBuild\$toolsnum.0\Bin\MSBuild.exe" -ErrorAction SilentlyContinue)
 	if ($lslist.Count -gt 0) {
 		return (Split-Path (Split-Path (Split-Path (Split-Path $lslist[0].FullName -Parent) -Parent) -Parent) -Parent) + "\"
 	}
