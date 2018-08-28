@@ -268,8 +268,9 @@ function SpecialDsn($testdsn, $testdriver)
 	}
 
 	$regProgram = "./RegisterRegdsn.exe"
-	& $regProgram "existCheck" $testdsn
-	if ($LastExitCode -eq -1) {
+	& $regProgram "check_dsn" $testdsn
+	switch ($LastExitCode) { 
+	 -1 {
 		Write-Host "`tAdding System DSN=$testdsn Driver=$testdriver"
 		$prop = input-dsninfo
 		$prop += "|Debug=0|Commlog=0|ConnSettings=set+lc_messages='C'"
@@ -277,9 +278,15 @@ function SpecialDsn($testdsn, $testdriver)
 		if ($proc.ExitCode -ne 0) {
 			throw "`tAddDsn $testdsn error"
 		}
-	}
-	elseif ($LastExitCode -ne 0) {
+		}
+	 -2 {
+		Write-Host "`tReinstalling Driver=$testdriver"
+		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "reinstall_driver $testdriver `"$dlldir`" Driver=${dllname}|Setup=${setup}"
+		}
+	 0 {}
+	 default {
 		throw "$regProgram error"
+		}
 	}
 }
 
