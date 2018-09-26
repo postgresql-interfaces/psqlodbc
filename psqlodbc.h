@@ -616,6 +616,8 @@ typedef struct
 	char		translation_dll[MEDIUM_REGISTRY_LEN];
 	char		translation_option[SMALL_REGISTRY_LEN];
 	char		password_required;
+	char		conn_settings_in_str;
+	char		pqopt_in_str;
 	pgNAME		conn_settings;
 	pgNAME		pqopt;
 	signed char	allow_keyset;

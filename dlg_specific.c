@@ -220,16 +220,16 @@ makeKeepaliveConnectString(char *target, int buflen, const ConnInfo *ci, BOOL ab
 #define OPENING_BRACKET '{'
 #define CLOSING_BRACKET '}'
 static const char *
-makeBracketConnectString(char **target, pgNAME item, const char *optname)
+makeBracketConnectString(BOOL in_str, char **target, pgNAME item, const char *optname)
 {
 	const char	*istr, *iptr;
 	char	*buf, *optr;
 	int	len;
 
-	istr = SAFE_NAME(item);
-	if (!istr[0])
+	if (!in_str)
 		return NULL_STRING;
 
+	istr = SAFE_NAME(item);
 	for (iptr = istr, len = 0; *iptr; iptr++)
 	{
 		if (CLOSING_BRACKET == *iptr)
@@ -362,7 +362,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 			,ci->show_oid_column
 			,ci->row_versioning
 			,ci->show_system_tables
-			,makeBracketConnectString(&connsetStr, ci->conn_settings, INI_CONNSETTINGS)
+			,makeBracketConnectString(ci->conn_settings_in_str, &connsetStr, ci->conn_settings, INI_CONNSETTINGS)
 			,ci->drivers.fetch_max
 			,ci->drivers.unknown_sizes
 			,ci->drivers.max_varchar_size
@@ -382,7 +382,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 			,ci->bytea_as_longvarbinary
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
-			,makeBracketConnectString(&pqoptStr, ci->pqopt, INI_PQOPT)
+			,makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, INI_PQOPT)
 			,makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, FALSE)
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			,ci->xa_opt
@@ -463,13 +463,13 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 				"%s"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				INI_ABBREVIATE "=%02x%x",
-				makeBracketConnectString(&connsetStr, ci->conn_settings, ABBR_CONNSETTINGS),
+				makeBracketConnectString(ci->conn_settings_in_str, &connsetStr, ci->conn_settings, ABBR_CONNSETTINGS),
 				ci->drivers.fetch_max,
 				ci->drivers.max_varchar_size,
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
-				makeBracketConnectString(&pqoptStr, ci->pqopt, ABBR_PQOPT),
+				makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, ABBR_PQOPT),
 				makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, TRUE),
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				makeXaOptConnectString(xaOptStr, sizeof(xaOptStr), ci, TRUE),
@@ -640,10 +640,12 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
 		/* We can use the conn_settings directly when they are enclosed with braces */
+		ci->conn_settings_in_str = TRUE;
 		ci->conn_settings = decode_or_remove_braces(value);
 	}
 	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
 	{
+		ci->pqopt_in_str = TRUE;
 		ci->pqopt = decode_or_remove_braces(value);
 	}
 	else if (stricmp(attribute, INI_UPDATABLECURSORS) == 0 || stricmp(attribute, ABBR_UPDATABLECURSORS) == 0)
