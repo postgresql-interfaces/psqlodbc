@@ -79,16 +79,16 @@ static const struct
 } mapFuncs[] = {
 /*	{ "ASCII",		 "ascii"	  }, built_in */
 	{"CHAR", "chr($*)" },
-	{"CONCAT", "textcat($*)" },
+/*	{"CONCAT",		 "concat"	  }, built_in */
 /*	{ "DIFFERENCE", "difference" }, how to ? */
 	{"INSERT", "substring($1 from 1 for $2 - 1) || $4 || substring($1 from $2 + $3)" },
 	{"LCASE", "lower($*)" },
-	{"LEFT", "ltrunc($*)" },
+/*	{"LEFT",		 "left"		  }, built_in */
 	{"%2LOCATE", "strpos($2,  $1)" },	/* 2 parameters */
 	{"%3LOCATE", "strpos(substring($2 from $3), $1) + $3 - 1" },	/* 3 parameters */
 	{"LENGTH", "char_length($*)"},
 /*	{ "LTRIM",		 "ltrim"	  }, built_in */
-	{"RIGHT", "rtrunc($*)" },
+/*	{"RIGHT",		 "right"	  }, built_in */
 	{"SPACE", "repeat(' ', $1)" },
 /*	{ "REPEAT",		 "repeat"	  }, built_in */
 /*	{ "REPLACE", "replace" }, ??? */
@@ -112,7 +112,7 @@ static const struct
 	{"LOG10", "log($*)" },
 /*	{ "MOD",		 "mod" 		  }, built_in */
 /*	{ "PI",			 "pi" 		  }, built_in */
-	{"POWER", "pow($*)" },
+/*	{"POWER", 		 "power"	  }, built_in */
 /*	{ "RADIANS",		 "radians"	  }, built_in */
 	{"%0RAND", "random()" },	/* 0 parameters */
 	{"%1RAND", "(setseed($1) * .0 + random())" },	/* 1 parameters */
