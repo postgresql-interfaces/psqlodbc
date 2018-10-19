@@ -32,6 +32,8 @@
     Specify the configuration xml file name if you want to use
     the configuration file other than standard one.
     The relative path is relative to the current directory.
+.PARAMETER ReinstallDriver
+    Reinstall the driver in any case.
 .EXAMPLE
     > .\regress
 	Build with default or automatically selected parameters
@@ -75,7 +77,8 @@ Param(
 [string]$BuildConfigPath,
 [ValidateSet("off", "on", "both")]
 [string]$DeclareFetch="on",
-[string]$SpecificDsn
+[string]$SpecificDsn,
+[switch]$ReinstallDriver
 )
 
 
@@ -267,6 +270,7 @@ function SpecialDsn($testdsn, $testdriver)
 		return "SERVER=${server}|DATABASE=${database}|PORT=${port}|UID=${uid}|PWD=${passwd}"
 	}
 
+	$reinst = $ReinstallDriver
 	$regProgram = "./RegisterRegdsn.exe"
 	& $regProgram "check_dsn" $testdsn
 	switch ($LastExitCode) { 
@@ -280,13 +284,19 @@ function SpecialDsn($testdsn, $testdriver)
 		}
 		}
 	 -2 {
-		Write-Host "`tReinstalling Driver=$testdriver"
-		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "reinstall_driver $testdriver `"$dlldir`" Driver=${dllname}|Setup=${setup}"
+		$reinst = $true
+		<# Write-Host "`tReinstalling Driver=$testdriver"
+		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "reinstall_driver $testdriver `"$dlldir`" Driver=${dllname}|Setup=${setup}" #>
 		}
 	 0 {}
 	 default {
 		throw "$regProgram error"
 		}
+	}
+	if ($reinst) {
+		Write-Host "`tReinstalling Driver=$testdriver"
+		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "reinstall_driver $testdriver `"$dlldir`" Driver=${dllname}|Setup=${setup}"
+
 	}
 }
 
