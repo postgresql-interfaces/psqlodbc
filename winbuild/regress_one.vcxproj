@@ -76,13 +76,16 @@
   <PropertyGroup Condition="'$(Platform)'!='Win32'">
     <TARGET_CPU>x64</TARGET_CPU>
   </PropertyGroup>
-  <PropertyGroup Label="UserMacros">
-    <TargetName>$(TestName)</TargetName>
-    <IntDir>test_$(TARGET_CPU)\obj\</IntDir>
-    <OutDir>test_$(TARGET_CPU)\$(SubDir)</OutDir>
-  </PropertyGroup>
 
   <Import Project="pguser.Cpp.props" />
+  <PropertyGroup>
+    <ObjbaseDir Condition="'$(ObjbaseDir)'==''">.\</ObjbaseDir>
+    <TargetName>$(TestName)</TargetName>
+    <IntDir>$(ObjbaseDir)test_$(TARGET_CPU)\obj\</IntDir>
+    <OutDir>$(ObjbaseDir)test_$(TARGET_CPU)\$(SubDir)</OutDir>
+  </PropertyGroup>
+
+  <!-- Import Project="pguser.Cpp.props" / -->
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>

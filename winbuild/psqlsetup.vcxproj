@@ -107,9 +107,11 @@
     <GenerateImportLib>false</GenerateImportLib>
   </PropertyGroup>
 
+  <Import Project="psqlodbc.Cpp.props" />
   <PropertyGroup>
-    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\psqlsetup\</IntDir>
-    <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
+    <ObjbaseDir Condition="'$(ObjbaseDir)'==''">$(srcPath)</ObjbaseDir>
+    <IntDir>$(ObjbaseDir)$(TARGET_CPU)_$(TargetType)_$(Configuration)\psqlsetup\</IntDir>
+    <OutDir>$(ObjbaseDir)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -125,7 +127,7 @@
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
 
-  <Import Project="psqlodbc.Cpp.props" />
+  <!-- Import Project="psqlodbc.Cpp.props" / -->
 
   <PropertyGroup Condition="'$(PG_BIN)'!=''">
     <ADD_DEFINES>$(ADD_DEFINES);PG_BIN="$(PG_BIN.Replace('\','\\'))"</ADD_DEFINES>

@@ -10,6 +10,10 @@
   <?endif?>
 <?endif?>
 
+<?ifndef var.INSTBASE ?>
+  <?define INSTBASE = $(var.Platform) ?>
+<?endif?>
+
 <?if $(var.Platform) = x64 ?>
   <?define PKGNAME = "psqlODBC_x64" ?>
   <?define BIT64 = "yes" ?>
@@ -32,7 +36,7 @@
   <?define ALLUSERS = "1" ?>
 <?endif?>
 
-<?define MERGEM = "$(var.Platform)\psqlodbc_$(var.Platform).msm" ?>
+<?define MERGEM = "$(var.INSTBASE)\psqlodbc_$(var.Platform).msm" ?>
 
 <!-- Product details -->
 

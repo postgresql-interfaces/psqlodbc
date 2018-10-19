@@ -10,6 +10,10 @@
   <?endif?>
 <?endif?>
 
+<?ifndef var.BINBASE ?>
+  <?define BINBASE = ".." ?>
+<?endif?>
+
 <?if $(var.Platform) = x64 ?>
   <?define ModuleName = "psqlODBC_$(var.Platform)" ?>
   <?define BIT64 = "yes" ?>
@@ -60,21 +64,21 @@
         <Component Id="psqlodbc.files" Guid="$(var.CIDPFILES)" Win64="$(var.BIT64)">
 
           <!-- PostgreSQL -->
-          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="../$(var.ANSIFOLDER)/psqlodbc30a.dll" />
+          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/psqlodbc30a.dll" />
 <?if $(var.NoPDB) != True ?>
-          <File Id="psqlodbc30a.pdb" Name="psqlodbc30a.pdb" Source="../$(var.ANSIFOLDER)/psqlodbc30a.pdb" />
+          <File Id="psqlodbc30a.pdb" Name="psqlodbc30a.pdb" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/psqlodbc30a.pdb" />
 <?endif?>
-          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.dll" />
+          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/psqlodbc35w.dll" />
 <?if $(var.NoPDB) != True ?>
-          <File Id="psqlodbc35w.pdb" Name="psqlodbc35w.pdb" Source="../$(var.UNICODEFOLDER)/psqlodbc35w.pdb" />
+          <File Id="psqlodbc35w.pdb" Name="psqlodbc35w.pdb" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/psqlodbc35w.pdb" />
 <?endif?>
-          <File Id="pgenlist.dll" Name="pgenlist.dll" Source="../$(var.UNICODEFOLDER)/pgenlist.dll" />
+          <File Id="pgenlist.dll" Name="pgenlist.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgenlist.dll" />
 <?if $(var.NoPDB) != True ?>
-          <File Id="pgenlist.pdb" Name="pgenlist.pdb" Source="../$(var.UNICODEFOLDER)/pgenlist.pdb" />
+          <File Id="pgenlist.pdb" Name="pgenlist.pdb" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgenlist.pdb" />
 <?endif?>
-          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="../$(var.ANSIFOLDER)/pgenlista.dll" />
+          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/pgenlista.dll" />
 <?if $(var.NoPDB) != True ?>
-          <File Id="pgenlista.pdb" Name="pgenlista.pdb" Source="../$(var.ANSIFOLDER)/pgenlista.pdb" />
+          <File Id="pgenlista.pdb" Name="pgenlista.pdb" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/pgenlista.pdb" />
 <?endif?>
 	<!-- MSVC Runtime -->
 <?if "$(var.PODBCMSVCDLL)" != "" ?>
@@ -172,7 +176,7 @@
 	    <![CDATA[NOT VersionNT64]]>
 	  </Condition>
 <?endif?>
-          <File Id="pgxalib.dll" Name="pgxalib.dll" Source="../$(var.UNICODEFOLDER)/pgxalib.dll" />
+          <File Id="pgxalib.dll" Name="pgxalib.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgxalib.dll" />
           <RegistryValue Id="pgxalib.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
 	</Component>
       </Directory>

@@ -147,11 +147,14 @@ function vcxfile_make($testnames, $dirnames, $vcxfile)
 	 and used by MSBuild.
     -->
     <PropertyGroup>
+	<scriptPath>.</scriptPath>
+    </PropertyGroup>
+    <PropertyGroup>
 	<Configuration>Release</Configuration>
-	<srcPath>..\test\src\</srcPath>
+	<srcPath>$(scriptPath)\..\test\src\</srcPath>
     </PropertyGroup>
     <Target Name="Build">
-        <MSBuild Projects="regress_one.vcxproj"
+        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
 	  Targets="ClCompile"
 	  Properties="TestName=common;Configuration=$(Configuration);srcPath=$(srcPath)"/>
 '@ > $vcxfile
@@ -162,28 +165,28 @@ function vcxfile_make($testnames, $dirnames, $vcxfile)
 		$testname+="-test"
 # here-string
 		@"
-        <MSBuild Projects="regress_one.vcxproj"
+        <MSBuild Projects="${scriptPath}\regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=$testname;Configuration=`$(Configuration);srcPath=`$(srcPath);SubDir=$dirname"/>
 "@ >> $vcxfile
 	}
 # here-string
 	@'
-        <MSBuild Projects="regress_one.vcxproj"
+        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=runsuite;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
-        <MSBuild Projects="regress_one.vcxproj"
+        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=RegisterRegdsn;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
-        <!-- MSBuild Projects="regress_one.vcxproj"
+        <!-- MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=ConfigDsn;Configuration=$(Configuration);srcPath=$(srcPath)..\"/-->
-        <MSBuild Projects="regress_one.vcxproj"
+        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
 	  Targets="Build"
 	  Properties="TestName=reset-db;Configuration=$(Configuration);srcPath=$(srcPath)..\"/>
     </Target>
     <Target Name="Clean">
-        <MSBuild Projects="regress_one.vcxproj"
+        <MSBuild Projects="$(scriptPath)\regress_one.vcxproj"
 	  Targets="Clean"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
     </Target>
@@ -200,10 +203,8 @@ function RunTest($scriptPath, $Platform, $testexes)
 	} else {
 		$targetdir="test_x86"
 	}
-	$revsdir="..\"
-	$origdir="${revsdir}..\test"
-
-	pushd $scriptPath\$targetdir
+	$revsdir=$scriptPath
+	$origdir="${revsdir}\..\test"
 
 	try {
 		$regdiff="regression.diffs"
@@ -224,7 +225,7 @@ function RunTest($scriptPath, $Platform, $testexes)
 				  $cnstr += "UseDeclareFetch=1" }
 		}
 		if ($cnstr.length -eq 0) {
-			$cnstr += $null;
+			$cnstr += $null
 		}
 		for ($i = 0; $i -lt $cnstr.length; $i++)
 		{
@@ -238,7 +239,6 @@ function RunTest($scriptPath, $Platform, $testexes)
 	} catch [Exception] {
 		throw $error[0]
 	} finally {
-		popd
 		$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $null
 	}
 }
@@ -294,7 +294,6 @@ $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $usingExe=$true
 $testsf="$scriptPath\..\test\tests"
 Write-Debug testsf=$testsf
-$vcxfile="$scriptPath\generated_regress.vcxproj"
 
 $arrays=testlist_make $testsf
 if ($null -eq $TestList) {
@@ -323,15 +322,21 @@ if ($null -eq $TestList) {
 		return
 	}
 }
-vcxfile_make $TESTNAMES $DIRNAMES $vcxfile
 
 Import-Module "$scriptPath\Psqlodbc-config.psm1"
 $configInfo = LoadConfiguration $BuildConfigPath $scriptPath
+$objbase = GetObjbase "$scriptPath\.."
+$pushdir = GetObjbase "$scriptPath"
+
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 $msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
 write-host "vcversion=$VCVersion toolset=$Toolset"
+
 Remove-Module MSProgram-Get
 Remove-Module Psqlodbc-config
+
+$vcxfile="$objbase\generated_regress.vcxproj"
+vcxfile_make $TESTNAMES $DIRNAMES $vcxfile
 
 if ($Platform -ieq "both") {
 	$pary = @("Win32", "x64")
@@ -364,7 +369,7 @@ if ("$SpecificDsn" -ne "") {
 }
 foreach ($pl in $pary) {
 	cd $scriptPath
-	& ${msbuildexe} ${vcxfile} /tv:$MSToolsVersion "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /Verbosity:minimal
+	& ${msbuildexe} ${vcxfile} /tv:$MSToolsVersion "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /p:scriptPath=${scriptPath} /Verbosity:minimal
 	if ($LASTEXITCODE -ne 0) {
 		throw "`nCompile error"
 	}
@@ -377,15 +382,15 @@ foreach ($pl in $pary) {
 	 "Win32" {
 			$targetdir="test_x86"
 			$bit="32-bit"
-			$dlldir="$scriptPath\..\x86_${ansi_dir_part}_Release"
+			$dlldir="$objbase\x86_${ansi_dir_part}_Release"
 		}
 	 default {
 			$targetdir="test_x64"
 			$bit="64-bit"
-			$dlldir="$scriptPath\..\x64_${ansi_dir_part}_Release"
+			$dlldir="$objbase\x64_${ansi_dir_part}_Release"
 		}
 	}
-	pushd $scriptPath\$targetdir
+	pushd $pushdir\$targetdir
 
 	$env:PSQLODBC_TEST_DSN = $testdsn
 	try {

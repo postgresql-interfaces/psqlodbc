@@ -16,6 +16,7 @@ pguser.Cpp.props
 	to the ExecutablePath property unless $(ExecutablePath) contains them.
 
 	Added library legacy_stdio_definitions.lib for vc14 or later.
+	Added ObjbaseDir property.
 ***********************************************************************************************
 -->
 
@@ -25,6 +26,9 @@ pguser.Cpp.props
     <VSInstallDir>$(VCInstallDir.Substring(0, $([MSBuild]::Subtract($(VCInstallDir.length),3))))</VSInstallDir>
     <VSIdePath>$(VSInstallDir)Common7\ide</VSIdePath>
     <ExecutablePath Condition="!$(ExecutablePath.ToLower().Contains($(VSIdePath.ToLower())))">$(VSIdePath);$(VSInstallDir)Common7\Tools;$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ObjbaseDir Condition="'$(PSQLODBC_OBJBASE)'!=''">$(PSQLODBC_OBJBASE)\</ObjbaseDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(PlatformToolset.Substring(1,1))'=='1'AND($(PlatformToolset.Substring(2,1).CompareTo('3'))>0)">
     <Link>

@@ -72,7 +72,7 @@ function runtimeversion_to_toolset_no([int]$runtime_version)
 {
 	[int]$toolset_no = $runtime_version * 10
 	if ($runtime_version -eq 14) {	# possibly be v141
-		[int]$vc_ver = 15;
+		[int]$vc_ver = 15
 		if ((env_vcversion_no) -eq $vc_ver) {	# v141
 			$toolseto++
 		} elseif (Find-VSDir $vc_ver -ne "") {	# v141
@@ -259,32 +259,34 @@ function buildInstaller([string]$CPUTYPE)
 		pushd "$scriptPath"
 
 		Write-Host ".`nBuilding psqlODBC/$SUBLOC merge module..."
-		candle -nologo $libpqRelArgs "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dLIBPQBINDIR=$LIBPQBINDIR" "-dLIBPQMSVCDLL=$LIBPQMSVCDLL" "-dLIBPQMSVCSYS=$LIBPQMSVCSYS" "-dPODBCMSVCDLL=$PODBCMSVCDLL" "-dPODBCMSVPDLL=$PODBCMSVPDLL" "-dPODBCMSVCSYS=$PODBCMSVCSYS" "-dPODBCMSVPSYS=$PODBCMSVPSYS" "-dNoPDB=$NoPDB" -o $CPUTYPE\psqlodbcm.wixobj psqlodbcm_cpu.wxs
+		$BINBASE = GetObjbase ".."
+		$INSTBASE = GetObjbase ".\$CPUTYPE" "installer\$CPUTYPE"
+		candle -nologo $libpqRelArgs "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dLIBPQBINDIR=$LIBPQBINDIR" "-dLIBPQMSVCDLL=$LIBPQMSVCDLL" "-dLIBPQMSVCSYS=$LIBPQMSVCSYS" "-dPODBCMSVCDLL=$PODBCMSVCDLL" "-dPODBCMSVPDLL=$PODBCMSVPDLL" "-dPODBCMSVCSYS=$PODBCMSVCSYS" "-dPODBCMSVPSYS=$PODBCMSVPSYS" "-dNoPDB=$NoPDB" "-dBINBASE=$BINBASE" -o $INSTBASE\psqlodbcm.wixobj psqlodbcm_cpu.wxs
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build merge module"
 		}
 
 		Write-Host ".`nLinking psqlODBC merge module..."
-		light -nologo -o $CPUTYPE\psqlodbc_$CPUTYPE.msm $CPUTYPE\psqlodbcm.wixobj
+		light -nologo -o $INSTBASE\psqlodbc_$CPUTYPE.msm $INSTBASE\psqlodbcm.wixobj
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to link merge module"
 		}
 
 		Write-Host ".`nBuilding psqlODBC installer database..."
 
-		candle -nologo "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dPRODUCTCODE=$PRODUCTCODE" -o $CPUTYPE\psqlodbc.wixobj psqlodbc_cpu.wxs
+		candle -nologo "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dPRODUCTCODE=$PRODUCTCODE" "-dINSTBASE=$INSTBASE" -o $INSTBASE\psqlodbc.wixobj psqlodbc_cpu.wxs
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build installer database"
 		}
 
 		Write-Host ".`nLinking psqlODBC installer database..."
-		light -nologo -ext WixUIExtension -cultures:en-us -o $CPUTYPE\psqlodbc_$CPUTYPE.msi $CPUTYPE\psqlodbc.wixobj
+		light -nologo -ext WixUIExtension -cultures:en-us -o $INSTBASE\psqlodbc_$CPUTYPE.msi $INSTBASE\psqlodbc.wixobj
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to link installer database"
 		}
 
 		Write-Host ".`nModifying psqlODBC installer database..."
-		cscript modify_msi.vbs $CPUTYPE\psqlodbc_$CPUTYPE.msi
+		cscript modify_msi.vbs $INSTBASE\psqlodbc_$CPUTYPE.msi
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to modify installer database"
 		}
@@ -303,6 +305,7 @@ function buildInstaller([string]$CPUTYPE)
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
 $modulePath="${scriptPath}\..\winbuild"
 Import-Module ${modulePath}\Psqlodbc-config.psm1
+
 $defaultConfigDir=$modulePath
 $configInfo = LoadConfiguration $BuildConfigPath $defaultConfigDir
 
@@ -340,6 +343,7 @@ try {
 		buildInstaller "x86"
 		buildInstaller "x64"
 		Write-Host "wRedist=$wRedist"
+		Remove-Module Psqlodbc-config
 		try {
 			pushd "$scriptPath"
 			psqlodbc-setup\buildBootstrapper.ps1 -version $VERSION -withRedist:$wRedist
@@ -354,6 +358,7 @@ try {
 	}
 	else {
 		buildInstaller $cpu
+		Remove-Module Psqlodbc-config
 	}
 } catch [Exception] {
 	if ("$_.Exception.Message" -ne "") {
@@ -364,5 +369,7 @@ try {
 	return
 } finally {
 	Remove-Module MSProgram-Get
-	Remove-Module Psqlodbc-config
+	if (Get-Module Psqlodbc-config) {
+		Remove-Module Psqlodbc-config
+	}
 }

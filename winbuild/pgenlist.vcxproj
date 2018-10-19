@@ -91,9 +91,11 @@
     <TARGET_CPU>x64</TARGET_CPU>
   </PropertyGroup>
 
+  <Import Project="psqlodbc.Cpp.props" />
   <PropertyGroup>
-    <IntDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\pgenlist\</IntDir>
-    <OutDir>$(srcPath)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
+	  <ObjbaseDir Condition="'$(ObjbaseDir)'==''">$(srcPath)</ObjbaseDir>
+	  <IntDir>$(ObjbaseDir)$(TARGET_CPU)_$(TargetType)_$(Configuration)\pgenlist\</IntDir>
+	  <OutDir>$(ObjbaseDir)$(TARGET_CPU)_$(TargetType)_$(Configuration)\</OutDir>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -109,7 +111,7 @@
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
 
-  <Import Project="psqlodbc.Cpp.props" />
+  <!-- Import Project="psqlodbc.Cpp.props" / -->
 
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

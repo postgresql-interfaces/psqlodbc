@@ -23,9 +23,12 @@
 <?if $(var.withRedist) = yes ?>
 		<PackageGroupRef Id="vcredist"/>
 <?endif ?>
-		<MsiPackage SourceFile="..\x86\psqlodbc_x86.msi"
+<?ifndef var.INSTBASE ?>
+<?define INSTBASE = ".."?>
+<?endif ?>
+		<MsiPackage SourceFile="$(var.INSTBASE)\x86\psqlodbc_x86.msi"
 			DisplayInternalUI="$(var.withUI)" />
-		<MsiPackage SourceFile="..\x64\psqlodbc_x64.msi"
+		<MsiPackage SourceFile="$(var.INSTBASE)\x64\psqlodbc_x64.msi"
 		 	DisplayInternalUI="$(var.withUI)"
 			InstallCondition="VersionNT64" />
     	</Chain>

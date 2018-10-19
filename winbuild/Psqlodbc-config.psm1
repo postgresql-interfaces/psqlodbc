@@ -39,7 +39,11 @@ function LoadConfiguration([string]$configPath, [string]$configDir)
 	Write-Debug "configPath=$configPath"
 	set-variable -name configurationTemplatePath -scope 1 -value "$configDir\configuration_template.xml"
 	if ("$configPath" -eq "") {
-		$configPath = "$configDir\configuration.xml"
+		if ("$env:PSQLODBC_WCONFIG" -eq "") {
+			$configPath = "$configDir\configuration.xml"
+		} else {
+			$configPath = $env:PSQLODBC_WCONFIG
+		}
 	}
 	set-variable -name configurationXmlPath -scope 1 -value $configPath
 	if (!(Test-Path -path $configPath))
@@ -78,7 +82,7 @@ function unifyNodes($node1, $node2)
         }
     }
     if (!$node2.get_HasChildNodes()) {
-        return;
+        return
     }
     foreach ($child2 in $node2.get_ChildNodes())
     {
@@ -175,4 +179,17 @@ function GetPackageVersion([xml]$configInfo, [string]$srcpath)
 	return $version_no
 }
 
-Export-ModuleMember -function LoadConfiguration, SaveConfiguration, unifyNodes, getPGDir, getPackageVersion -variable LIBPQ_VERSION
+function GetObjbase([string] $stdDir, [string] $addPath = "")
+{
+	if ("$env:PSQLODBC_OBJBASE" -eq "") {
+		return $stdDir
+	} else {
+		if ("$addPath" -eq "") {
+			return $env:PSQLODBC_OBJBASE
+		} else {
+			return $env:PSQLODBC_OBJBASE + "\" + $addPath
+		}
+	}
+}
+
+Export-ModuleMember -function LoadConfiguration, SaveConfiguration, unifyNodes, getPGDir, getPackageVersion, GetObjbase -variable LIBPQ_VERSION

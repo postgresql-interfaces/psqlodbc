@@ -35,16 +35,20 @@ Param(
 write-host "Building bootstrapper program`n"
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
+$modulePath="${scriptPath}\..\..\winbuild"
+Import-Module ${modulePath}\Psqlodbc-config.psm1
 if ("$version" -eq "") {
 	# $configInfo = & "$scriptPath\..\..\winbuild\configuration.ps1" "$BuildConfigPath"
-	$scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
-	$modulePath="${scriptPath}\..\..\winbuild"
-	Import-Module ${modulePath}\Psqlodbc-config.psm1
 	$defaultConfigDir=$modulePath
 	$configInfo = LoadConfiguration $BuildConfigPath $defaultConfigDir
 	$version = GetPackageVersion $configInfo "$scriptPath/../.."
-	Remove-Module Psqlodbc-config
 }
+
+$STUPBASE = GetObjbase "." "installer\psqlodbc-setup"
+$INSTBASE = GetObjbase ".." "installer"
+write-host INSTBASE=$INSTBASE
+
+Remove-Module Psqlodbc-config
 
 if ("$env:WIX" -eq "") {
 	throw "Please install WIX"
@@ -53,8 +57,9 @@ if ("$env:WIX" -eq "") {
 $wix_dir="${env:WIX}bin"
 $pgmname="psqlodbc-setup"
 $build_config="Release"
-$objdir="obj\${build_config}"
-$bindir="bin\${build_config}"
+
+$objdir="$STUPBASE\obj\${build_config}"
+$bindir="$STUPBASE\bin\${build_config}"
 
 $modules=@("Bundle.wxs")
 $wRedist="no"
@@ -73,7 +78,7 @@ if ($UI) {
 try {
 	pushd "$scriptPath"
 
-	& ${wix_dir}\candle.exe -v "-dVERSION=$version" "-dwithRedist=$wRedist" "-dwithUI=$wUI" "-dConfiguration=${build_config}" "-dOutDir=${bindir}\" -dPlatform=x86 "-dProjectDir=.\" "-dProjectExt=.wixproj" "-dProjectFileName=${pgmname}.wixproj" "-dProjectName=${pgmname}" "-dProjectPath=${pgmname}.wixproj" "-dTargetDir=${bindir}\" "-dTargetExt=.exe" "-dTargetFileName=${pgmname}.exe" "-dTargetName=${pgmname}" "-dTargetPath=${bindir}\${pgmname}.exe" -out "${objdir}\" -arch x86 -ext ${wix_dir}\WixUtilExtension.dll -ext ${wix_dir}\WixBalExtension.dll $modules
+	& ${wix_dir}\candle.exe -v "-dVERSION=$version" "-dwithRedist=$wRedist" "-dINSTBASE=$INSTBASE" "-dwithUI=$wUI" "-dConfiguration=${build_config}" "-dOutDir=${bindir}\" -dPlatform=x86 "-dProjectDir=.\" "-dProjectExt=.wixproj" "-dProjectFileName=${pgmname}.wixproj" "-dProjectName=${pgmname}" "-dProjectPath=${pgmname}.wixproj" "-dTargetDir=${bindir}\" "-dTargetExt=.exe" "-dTargetFileName=${pgmname}.exe" "-dTargetName=${pgmname}" "-dTargetPath=${bindir}\${pgmname}.exe" -out "${objdir}\" -arch x86 -ext ${wix_dir}\WixUtilExtension.dll -ext ${wix_dir}\WixBalExtension.dll $modules
 	# $candle_cmd = "& `"${wix_dir}\candle.exe`" -v `"-dVERSION=$version`" -dwithRedist=$wRedist -dwithUI=$wUI -dConfiguration=${build_config} `"-dOutDir=${bindir}\`" -dPlatform=x86 `"-dProjectDir=.\`" `"-dProjectExt=.wixproj`" `"-dProjectFileName=${pgmname}.wixproj`" -dProjectName=${pgmname} `"-dProjectPath=${pgmname}.wixproj`" -dTargetDir=${bindir}\ `"-dTargetExt=.exe`" `"-dTargetFileName=${pgmname}.exe`" -dTargetName=${pgmname} `"-dTargetPath=${bindir}\${pgmname}.exe`" -out `"${objdir}\`" -arch x86 -ext `"${wix_dir}\WixUtilExtension.dll`" -ext `"${wix_dir}\WixBalExtension.dll`" $modules"
 	#write-debug "candle_cmd = ${candle_cmd}"
 	# compile
