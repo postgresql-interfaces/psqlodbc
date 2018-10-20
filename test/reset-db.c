@@ -65,6 +65,13 @@ run_statement(char *statement)
 	char		sqlstate[20];
 
 	/*
+	 * Ignore BOM of UTF-8
+	 */
+	if ((UCHAR) statement[0] == 0xEF &&
+	    (UCHAR) statement[1] == 0xBB &&
+	    (UCHAR) statement[2] == 0xBF)
+		statement += 3;
+	/*
 	 * Skip empty lines. The server would just ignore them too, but might as
 	 * well avoid the round-trip.
 	 */
