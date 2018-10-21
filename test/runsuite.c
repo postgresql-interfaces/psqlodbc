@@ -192,33 +192,39 @@ runtest(const char *binname, const char *testname, int testno, const char *input
 }
 
 #ifdef	WIN32
-	static int	diff_call = 1, first_call = 1;
+	static int	first_call = 1;
+	static const char * exec_diffpgm;
+	struct diff_info {
+		const char *cmdname;
+		const char *cmd;
+	};
+	static const struct diff_info diffi[] = {
+		{ "diff", "diff -c --strip-trailing-cr \"%s\" \"%s\" %s" } 	// cygwin etc
+		, { "wsl", "wsl diff -c --strip-trailing-cr \"`wslpath '%s'`\" \"`wslpath '%s'`\" %s" }	// WSL
+		, { "git", "git diff --no-index -w \"%s\" \"%s\" %s" }	// git bash for Windows
+		, { "fc", "fc /N \"%s\" \"%s\" %s" }
+	};
 #endif /* WIN32 */
 
 static int
 call_diff(const char *inputdir, const char *expected_dir, const char *testname, int outputno, const char *result_dir, const char *outspec)
 {
 	char	no_str[8];
-	char	cmdline[1024];
+	char	cmdline[1024], file1[256], file2[256];
 	int	diff_rtn;
 
 	if (0 == outputno)
 		*no_str = '\0';
 	else
 		snprintf(no_str, sizeof(no_str), "_%d", outputno);
+	snprintf(file1, sizeof(file1), "%s%s%s%s.out", inputdir, expected_dir, testname, no_str);
+	snprintf(file2, sizeof(file2), "%s%s.out", result_dir, testname);
 #ifdef	WIN32
-	if (diff_call)
-		snprintf(cmdline, sizeof(cmdline),
-			 "diff -c --strip-trailing-cr %s%s%s%s.out %s%s.out %s",
-			 inputdir, expected_dir, testname, no_str, result_dir, testname, outspec);
-	else	/* use fc command instead */
-		snprintf(cmdline, sizeof(cmdline),
-			 "fc /N %s%s%s%s.out %s%s.out %s",
-			 inputdir, expected_dir, testname, no_str, result_dir, testname, outspec);
+	if (NULL == exec_diffpgm)
+		return -1;
+	snprintf(cmdline, sizeof(cmdline), exec_diffpgm, file1, file2, outspec);
 #else
-	snprintf(cmdline, sizeof(cmdline),
-			 "diff -c %s%s%s%s.out %s%s.out %s",
-			 inputdir, expected_dir, testname, no_str, result_dir, testname, outspec);
+	snprintf(cmdline, sizeof(cmdline), "diff -c %s %s %s", file1, file2, outspec);
 #endif /* WIN32 */
 	if ((diff_rtn = system(cmdline)) == -1)
 		printf("# diff failed\n");
@@ -335,21 +341,28 @@ rundiff(const char *testname, const char *inputdir)
 #ifdef	WIN32
 	if (first_call)
 	{
-		char	cmdline[1024];
+		char	cmdline[1024], file[256];
+		int	i;
 
-		/*
-		 *	test diff the same file
-		 */
-		snprintf(cmdline, sizeof(cmdline),
-			 "diff -c --strip-trailing-cr results\\%s.out results\\%s.out",
-			 testname, testname);
+		for (i = 0; i < sizeof(diffi) / sizeof(diffi[0]); i++)
+		{
+			/*
+			 *	test diff the same file
+			 */
+			snprintf(file, sizeof(file), "results\\%s.out", testname);
+			snprintf(cmdline, sizeof(cmdline), diffi[i].cmd, file, file, " > nul 2>&1");
+			/*
+			 *	If diff command exists, the system function would
+			 *	return 0.
+			 */
+			if (system(cmdline) == 0)
+			{
+				exec_diffpgm = diffi[i].cmd;
+				fprintf(stderr, "\tdiff command=%s\n", exec_diffpgm);
+				break;
+			}
+		}
 		first_call = 0;
-		/*
-		 *	If diff command exists, the system function would
-		 *	return 0.
-		 */
-		if (system(cmdline) != 0)
-			diff_call = 0;
 	}
 #endif
 	/*
