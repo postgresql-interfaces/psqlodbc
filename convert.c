@@ -79,7 +79,7 @@ static const struct
 } mapFuncs[] = {
 /*	{ "ASCII",		 "ascii"	  }, built_in */
 	{"CHAR", "chr($*)" },
-/*	{"CONCAT",		 "concat"	  }, built_in */
+	{"CONCAT", "concat($1::text, $2::text)" },
 /*	{ "DIFFERENCE", "difference" }, how to ? */
 	{"INSERT", "substring($1 from 1 for $2 - 1) || $4 || substring($1 from $2 + $3)" },
 	{"LCASE", "lower($*)" },
