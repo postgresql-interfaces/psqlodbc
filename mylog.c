@@ -304,7 +304,6 @@ static void MLOG_open()
 	}
 	if (MLOGFP)
 	{
-		setbuf(MLOGFP, NULL);
 		if (open_error)
 			fputs(errbuf, MLOGFP);
 	}
@@ -349,6 +348,7 @@ mylog_misc(unsigned int option, const char *fmt, va_list args)
 #endif /* POSIX_MULTITHREAD_SUPPORT */
 		}
 		vfprintf(MLOGFP, fmt, args);
+		fflush(MLOGFP);
 	}
 
 	// va_end(args);
@@ -427,9 +427,7 @@ qlog_misc(unsigned int option, const char *fmt, va_list args)
 			generate_homefile(QLOGFILE, filebuf, sizeof(filebuf));
 			QLOGFP = fopen(filebuf, PG_BINARY_A);
 		}
-		if (QLOGFP)
-			setbuf(QLOGFP, NULL);
-		else
+		if (!QLOGFP)
 			qlog_on = 0;
 	}
 
@@ -443,6 +441,7 @@ qlog_misc(unsigned int option, const char *fmt, va_list args)
 #endif /* LOGGING_PROCESS_TIME */
 		}
 		vfprintf(QLOGFP, fmt, args);
+		fflush(QLOGFP);
 	}
 
 	LEAVE_QLOG_CS;
