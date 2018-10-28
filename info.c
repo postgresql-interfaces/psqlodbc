@@ -2275,7 +2275,7 @@ PGAPI_Columns(HSTMT hstmt,
 	BOOL	setIdentity = FALSE;
 	int	table_info = 0;
 
-	MYLOG(0, "entering...stmt=%p scnm=%p len=%d\n", stmt, szTableOwner, cbTableOwner);
+	MYLOG(0, "entering...stmt=%p scnm=%p len=%d columnOpt=%x\n", stmt, szTableOwner, cbTableOwner, flag);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;

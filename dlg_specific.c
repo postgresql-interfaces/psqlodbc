@@ -292,6 +292,8 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
 	UInt4		flag;
 
+mylog("%s row_versioning=%s\n", __FUNCTION__, ci->row_versioning);
+
 MYLOG(DETAIL_LOG_LEVEL, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	encode(ci->password, encoded_item, sizeof(encoded_item));
 	/* fundamental info */
@@ -587,7 +589,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		STRCPY_FIXED(ci->drivername, value);
 	else if (stricmp(attribute, INI_KDESC) == 0)
 		STRCPY_FIXED(ci->desc, value);
-	else if (stricmp(attribute, INI_DATABASE) == 0)
+	else if (stricmp(attribute, INI_DATABASE) == 0 || stricmp(attribute, ABBR_DATABASE) == 0)
 		STRCPY_FIXED(ci->database, value);
 	else if (stricmp(attribute, INI_SERVER) == 0 || stricmp(attribute, SPEC_SERVER) == 0)
 		STRCPY_FIXED(ci->server, value);
@@ -1184,7 +1186,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
-								 INI_DATABASE,
+								 ABBR_DATABASE,
 								 ci->database,
 								 ODBC_INI);
 

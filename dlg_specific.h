@@ -51,6 +51,7 @@ extern "C" {
 #define INI_PORT			"Port"	/* Port on which the
 						 * Postmaster is listening */
 #define INI_DATABASE			"Database"	/* Database Name */
+#define ABBR_DATABASE			"DX"	/* Database Name */
 #define INI_UID				"UID"		/* Default User Name */
 #define INI_USERNAME			"Username"	/* Default User Name */
 #define INI_PASSWORD			"Password"	/* Default Password */
