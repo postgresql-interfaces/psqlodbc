@@ -292,7 +292,7 @@ makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
 	BOOL		abbrev = (len < 1024) || 0 < ci->force_abbrev_connstr;
 	UInt4		flag;
 
-mylog("%s row_versioning=%s\n", __FUNCTION__, ci->row_versioning);
+MYLOG(0, "%s row_versioning=%s\n", __FUNCTION__, ci->row_versioning);
 
 MYLOG(DETAIL_LOG_LEVEL, "force_abbrev=%d abbrev=%d\n", ci->force_abbrev_connstr, abbrev);
 	encode(ci->password, encoded_item, sizeof(encoded_item));
@@ -1186,7 +1186,7 @@ writeDSNinfo(const ConnInfo *ci)
 								 ODBC_INI);
 
 	SQLWritePrivateProfileString(DSN,
-								 ABBR_DATABASE,
+								 INI_DATABASE,
 								 ci->database,
 								 ODBC_INI);
 
