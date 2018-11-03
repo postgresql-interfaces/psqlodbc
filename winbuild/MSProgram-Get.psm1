@@ -40,12 +40,12 @@ function Find-MSBuild
 	}
 #	neither C++ nor SDK prompt
 	if ("$VisualStudioVersion" -eq "") {
-		if ("${env:VS120COMNTOOLS}" -ne "") { # VC12 is installed (current official)
-			$VisualStudioVersion = "12.0"
-		} elseif ((Find-VSDir 15) -ne "") {	# VC15 is installed
+		if ((Find-VSDir 15) -ne "") {	# VC15 is installed (current official)
 			$VisualStudioVersion = "15.0"
 		} elseif ("${env:VS140COMNTOOLS}" -ne "") { # VC14 is installed
 			$VisualStudioVersion = "14.0"
+		} elseif ("${env:VS120COMNTOOLS}" -ne "") { # VC12 is installed
+			$VisualStudioVersion = "12.0"
 		} elseif ("${env:VS100COMNTOOLS}" -ne "") { # VC10 is installed
 			$VisualStudioVersion = "10.0"
 		} elseif ("${env:VS110COMNTOOLS}" -ne "") { # VC11 is installed
