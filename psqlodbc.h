@@ -637,6 +637,7 @@ typedef struct
 	signed char	ignore_round_trip_time;
 	signed char	disable_keepalive;
 	signed char	wcs_debug;
+	signed char	numeric_as;
 	UInt4		extra_opts;
 	Int4		keepalive_idle;
 	Int4		keepalive_interval;

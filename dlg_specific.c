@@ -354,6 +354,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 			INI_LOWERCASEIDENTIFIER "=%d;"
 			"%s"		/* INI_PQOPT */
 			"%s"		/* INIKEEPALIVE TIME/INTERVAL */
+			INI_NUMERIC_AS "=%d;"
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			INI_XAOPT "=%d"	/* XAOPT */
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -386,6 +387,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 			,ci->lower_case_identifier
 			,makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, INI_PQOPT)
 			,makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, FALSE)
+			,ci->numeric_as
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			,ci->xa_opt
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -461,6 +463,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 				ABBR_EXTRASYSTABLEPREFIXES "=%s;"
 				"%s"		/* ABBR_PQOPT */
 				"%s"		/* ABBRKEEPALIVE TIME/INTERVAL */
+				INI_NUMERIC_AS "=%d;"
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				"%s"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -473,6 +476,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 				ci->drivers.extra_systable_prefixes,
 				makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, ABBR_PQOPT),
 				makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, TRUE),
+				ci->numeric_as,
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 				makeXaOptConnectString(xaOptStr, sizeof(xaOptStr), ci, TRUE),
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -658,6 +662,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->true_is_minus1 = atoi(value);
 	else if (stricmp(attribute, INI_INT8AS) == 0)
 		ci->int8_as = atoi(value);
+	else if (stricmp(attribute, INI_NUMERIC_AS) == 0)
+		ci->numeric_as = atoi(value);
 	else if (stricmp(attribute, INI_BYTEAASLONGVARBINARY) == 0 || stricmp(attribute, ABBR_BYTEAASLONGVARBINARY) == 0)
 		ci->bytea_as_longvarbinary = atoi(value);
 	else if (stricmp(attribute, INI_USESERVERSIDEPREPARE) == 0 || stricmp(attribute, ABBR_USESERVERSIDEPREPARE) == 0)
@@ -790,6 +796,7 @@ getCiDefaults(ConnInfo *ci)
 	ci->lf_conversion = DEFAULT_LFCONVERSION;
 	ci->true_is_minus1 = DEFAULT_TRUEISMINUS1;
 	ci->int8_as = DEFAULT_INT8AS;
+	ci->numeric_as = DEFAULT_NUMERIC_AS;
 	ci->bytea_as_longvarbinary = DEFAULT_BYTEAASLONGVARBINARY;
 	ci->use_server_side_prepare = DEFAULT_USESERVERSIDEPREPARE;
 	ci->lower_case_identifier = DEFAULT_LOWERCASEIDENTIFIER;
@@ -1018,6 +1025,9 @@ MYLOG(0, "drivername=%s\n", drivername);
 
 	if (SQLGetPrivateProfileString(DSN, INI_INT8AS, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->int8_as = atoi(temp);
+
+	if (SQLGetPrivateProfileString(DSN, INI_NUMERIC_AS, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		ci->numeric_as = atoi(temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_BYTEAASLONGVARBINARY, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		ci->bytea_as_longvarbinary = atoi(temp);
@@ -1274,6 +1284,11 @@ writeDSNinfo(const ConnInfo *ci)
 	ITOA_FIXED(temp, ci->int8_as);
 	SQLWritePrivateProfileString(DSN,
 								 INI_INT8AS,
+								 temp,
+								 ODBC_INI);
+	ITOA_FIXED(temp, ci->numeric_as);
+	SQLWritePrivateProfileString(DSN,
+								 INI_NUMERIC_AS,
 								 temp,
 								 ODBC_INI);
 	SPRINTF_FIXED(temp, "%x", getExtraOptions(ci));
@@ -1706,6 +1721,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->lf_conversion = -1;
 	conninfo->true_is_minus1 = -1;
 	conninfo->int8_as = -101;
+	conninfo->numeric_as = DEFAULT_NUMERIC_AS;
 	conninfo->bytea_as_longvarbinary = -1;
 	conninfo->use_server_side_prepare = -1;
 	conninfo->lower_case_identifier = -1;
@@ -1802,6 +1818,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(lf_conversion);
 	CORR_VALCPY(true_is_minus1);
 	CORR_VALCPY(int8_as);
+	CORR_VALCPY(numeric_as);
 	CORR_VALCPY(bytea_as_longvarbinary);
 	CORR_VALCPY(use_server_side_prepare);
 	CORR_VALCPY(lower_case_identifier);

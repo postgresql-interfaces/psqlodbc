@@ -112,6 +112,11 @@
 #define DS_LIBPQOPT			1104
 #define DS_COMMLOG			1105
 #define DS_DEBUG			1106
+#define DS_NUMERIC_AS_DEFAULT		1107
+#define DS_NUMERIC_AS_NUMERIC		1108
+#define DS_NUMERIC_AS_VARCHAR		1109
+#define DS_NUMERIC_AS_DOUBLE		1110
+#define DS_NUMERIC_AS_LONGVARCHAR	1111
 
 // Next default values for new objects
 //
@@ -119,7 +124,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1107
+#define _APS_NEXT_CONTROL_VALUE         1112
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

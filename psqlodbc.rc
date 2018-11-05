@@ -175,13 +175,24 @@ BEGIN
                     WS_TABSTOP,227,108,29,10
     LTEXT           "特別なオプション",IDC_STATIC,227,158,66,8
     EDITTEXT        DS_EXTRA_OPTIONS,227,168,35,14,ES_AUTOHSCROLL
-    GROUPBOX        "エラー時のロールバック発行",IDC_STATIC,160,128,130,25
+    GROUPBOX        "Numeric(精度指定なし) の代替定義",IDC_STATIC,5,128,160,25
+    CONTROL         "default",DS_NUMERIC_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,12,140,40,10
+//    CONTROL         "numeric",DS_NUMERIC_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | 
+//                    WS_TABSTOP,50,140,40,10
+    CONTROL         "memo",DS_NUMERIC_AS_LONGVARCHAR,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,126,140,40,10
+    CONTROL         "varchar",DS_NUMERIC_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,50,140,40,10
+    CONTROL         "double",DS_NUMERIC_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,90,140,36,10
+    GROUPBOX        "エラー時のロールバック発行",IDC_STATIC,170,128,130,25
     CONTROL         "無し",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,165,139,30,10
+                    WS_GROUP,175,139,30,10
     CONTROL         "全ｷｬﾝｾﾙ",DS_TRANSACTION_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,195,140,50,10
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,205,140,50,10
     CONTROL         "文単位",DS_STATEMENT_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,250,140,35,10
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,260,140,35,10
     GROUPBOX        "OID オプション",IDC_STATIC,5,158,206,25
     CONTROL         "カラム列表示(&C)",DS_SHOWOIDCOLUMN,"Button",
                     BS_AUTOCHECKBOX | WS_GROUP,16,169,72,10
@@ -625,6 +636,17 @@ BEGIN
                     WS_TABSTOP,227,107,29,10
     LTEXT	   "Extra Opts",IDC_STATIC,264,98,40,17
     EDITTEXT	    DS_EXTRA_OPTIONS,264,105,40,12,ES_AUTOHSCROLL
+    GROUPBOX        "Numeric(without precision) As",IDC_STATIC,5,126,160,25
+    CONTROL         "default",DS_NUMERIC_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
+                    WS_GROUP,12,138,40,10
+//    CONTROL         "numeric",DS_NUMERIC_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | 
+//                    WS_TABSTOP,50,138,40,10
+    CONTROL         "memo",DS_NUMERIC_AS_LONGVARCHAR,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,126,138,40,10
+    CONTROL         "varchar",DS_NUMERIC_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,50,138,40,10
+    CONTROL         "double",DS_NUMERIC_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | 
+                    WS_TABSTOP,90,138,36,10
     GROUPBOX        "OID Options",IDC_STATIC,5,157,296,25
     CONTROL         "Show &Column",DS_SHOWOIDCOLUMN,"Button",BS_AUTOCHECKBOX | 
                     WS_GROUP | WS_TABSTOP,13,168,67,10
@@ -642,13 +664,13 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,5,ENDLINE_Y,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,81,ENDLINE_Y,50,14
     PUSHBUTTON      "Apply",IDAPPLY,156,ENDLINE_Y,50,14
-    GROUPBOX        "Level of rollback on errors",IDC_STATIC,147,126,154,25
+    GROUPBOX        "Level of rollback on errors",IDC_STATIC,172,126,134,25
     CONTROL         "Nop",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,151,138,36,9
+                    WS_GROUP,176,138,36,9
     CONTROL         "Transaction",DS_TRANSACTION_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,186,138,57,9
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,206,138,57,9
     CONTROL         "Statement",DS_STATEMENT_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,247,138,47,9
+                    BS_AUTORADIOBUTTON | WS_TABSTOP,257,138,47,9
 END
 
 #undef	DTC_GRP_X

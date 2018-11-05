@@ -528,6 +528,18 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	else
 		ci->int8_as = SQL_VARCHAR;
 
+	/* Numeric without precision As */
+	if (IsDlgButtonChecked(hdlg, DS_NUMERIC_AS_NUMERIC))
+		ci->numeric_as = SQL_NUMERIC;
+	else if (IsDlgButtonChecked(hdlg, DS_NUMERIC_AS_DOUBLE))
+		ci->numeric_as = SQL_DOUBLE;
+	else if (IsDlgButtonChecked(hdlg, DS_NUMERIC_AS_VARCHAR))
+		ci->numeric_as = SQL_VARCHAR;
+	else if (IsDlgButtonChecked(hdlg, DS_NUMERIC_AS_LONGVARCHAR))
+		ci->numeric_as = SQL_LONGVARCHAR;
+	else
+		ci->numeric_as = DEFAULT_NUMERIC_AS;
+
 	GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
 	setExtraOptions(ci, buf, NULL);
 	ITOA_FIXED(ci->show_system_tables, IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
@@ -655,6 +667,24 @@ ds_options2Proc(HWND hdlg,
 					break;
 				default:
 					CheckDlgButton(hdlg, DS_INT8_AS_DEFAULT, 1);
+			}
+			/* Numeric As */
+			switch (ci->numeric_as)
+			{
+				case SQL_NUMERIC:
+					CheckDlgButton(hdlg, DS_NUMERIC_AS_NUMERIC, 1);
+					break;
+				case SQL_VARCHAR:
+					CheckDlgButton(hdlg, DS_NUMERIC_AS_VARCHAR, 1);
+					break;
+				case SQL_DOUBLE:
+					CheckDlgButton(hdlg, DS_NUMERIC_AS_DOUBLE, 1);
+					break;
+				case SQL_LONGVARCHAR:
+					CheckDlgButton(hdlg, DS_NUMERIC_AS_LONGVARCHAR, 1);
+					break;
+				default:
+					CheckDlgButton(hdlg, DS_NUMERIC_AS_DEFAULT, 1);
 			}
 			SPRINTF_FIXED(buf, "0x%x", getExtraOptions(ci));
 			SetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf);

@@ -387,11 +387,21 @@ static Int4	/* PostgreSQL restritiction */
 getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as)
 {
 	Int4	default_column_size = 28;
+	const ConnInfo	*ci = &(conn->connInfo);
 
 	MYLOG(0, "entering type=%d, typmod=%d\n", type, atttypmod);
 
 	if (atttypmod > -1)
 		return (atttypmod >> 16) & 0xffff;
+	switch (ci->numeric_as)
+	{
+		case SQL_VARCHAR:
+			return ci->drivers.max_varchar_size;
+		case SQL_LONGVARCHAR:
+			return ci->drivers.max_longvarchar_size;
+		case SQL_DOUBLE:
+			return PG_DOUBLE_DIGITS;
+	}
 	switch (handle_unknown_size_as)
 	{
 		case UNKNOWNS_AS_DONTKNOW:
@@ -566,6 +576,8 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 			return SQL_BIGINT;
 
 		case PG_TYPE_NUMERIC:
+			if (-1 == atttypmod && DEFAULT_NUMERIC_AS != ci->numeric_as)
+				return ci->numeric_as;
 			return SQL_NUMERIC;
 
 		case PG_TYPE_FLOAT4:
