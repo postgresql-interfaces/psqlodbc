@@ -112,9 +112,8 @@ you set this value higher than 254, Access will not let you index on varchar
 columns!<br />&nbsp;</li>
 
 <li><b>Cache Size:</b>When using
-cursors, this is the row size of the tuple cache. If not using cursors,
-this is how many tuples to allocate memory for at any given time.
-The default is 100 rows for either case.<br />&nbsp;</li>
+cursors, this is the row size of the tuple cache and the defualt is 100 rows.
+If not using cursors, this has no meaning.<br />&nbsp;</li>
 
 <li><b>Max LongVarChar:</b> The maximum
 precision of the LongVarChar type. The default is 4094 which actually
