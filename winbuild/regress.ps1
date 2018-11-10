@@ -68,7 +68,7 @@ Param(
 [switch]$Ansi,
 [string]$VCVersion,
 [ValidateSet("Win32", "x64", "both")]
-[string]$Platform="x64",
+[string]$Platform="both",
 [string]$Toolset,
 [ValidateSet("", "4.0", "12.0", "14.0", "15.0")]
 [string]$MSToolsVersion,
