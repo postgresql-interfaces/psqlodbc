@@ -2902,6 +2902,9 @@ retry_public_schema:
 			cbSchemaName = SQL_NTS;
 			goto retry_public_schema;
 		}
+
+		SC_set_error(stmt, DESC_BAD_PARAMETER_NUMBER_ERROR, "The specified table does not exist", func);
+		goto cleanup;
 	}
 
 	result = PGAPI_BindCol(col_stmt, 1, internal_asis_type,
