@@ -2346,9 +2346,11 @@ retry_public_schema:
 		"t.typname, a.attnum, a.attlen, a.atttypmod, a.attnotnull, "
 		"c.relhasrules, c.relkind, c.oid, pg_get_expr(d.adbin, d.adrelid), "
         "case t.typtype when 'd' then t.typbasetype else 0 end, t.typtypmod, "
-        "c.relhasoids, %s, c.relhassubclass "
+        "%s, %s, c.relhassubclass "
 		"from (((pg_catalog.pg_class c "
-		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace", PG_VERSION_GE(conn, 10.0) ? "attidentity" : "''");
+		"inner join pg_catalog.pg_namespace n on n.oid = c.relnamespace",
+            PG_VERSION_GE(conn, 12.0) ? "0" : "c.relhasoids",
+            PG_VERSION_GE(conn, 10.0) ? "attidentity" : "''");
 	if (search_by_ids)
 		appendPQExpBuffer(&columns_query, " and c.oid = %u", reloid);
 	else
@@ -2862,7 +2864,11 @@ retry_public_schema:
 	/*
 	 * Create the query to find out if this is a view or not...
 	 */
-	appendPQExpBufferStr(&columns_query, "select c.relhasrules, c.relkind, c.relhasoids");
+	appendPQExpBufferStr(&columns_query, "select c.relhasrules, c.relkind");
+   if (PG_VERSION_LT(conn, 12.0))
+       appendPQExpBufferStr(&columns_query, ", c.relhasoids");
+   else
+       appendPQExpBufferStr(&columns_query, ", 0 as relhasoids");
 	appendPQExpBufferStr(&columns_query, " from pg_catalog.pg_namespace u,"
 					" pg_catalog.pg_class c where "
 					"u.oid = c.relnamespace");
@@ -3251,7 +3257,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	initPQExpBuffer(&index_query);
 	printfPQExpBuffer(&index_query, "select c.relname, i.indkey, i.indisunique"
 		", i.indisclustered, a.amname, c.relhasrules, n.nspname"
-		", c.oid, d.relhasoids, %s"
+		", c.oid, %s, %s"
 		" from pg_catalog.pg_index i, pg_catalog.pg_class c,"
 		" pg_catalog.pg_class d, pg_catalog.pg_am a,"
 		" pg_catalog.pg_namespace n"
@@ -3261,6 +3267,7 @@ PGAPI_Statistics(HSTMT hstmt,
 		" and d.oid = i.indrelid"
 		" and i.indexrelid = c.oid"
 		" and c.relam = a.oid order by"
+        , PG_VERSION_LT(conn, 12.0) ? "d.relhasoids" : "0"
 		, PG_VERSION_GE(conn, 8.3) ? "i.indoption" : "0"
 		, eq_string, escTableName, eq_string, escSchemaName);
 	appendPQExpBufferStr(&index_query, " i.indisprimary desc,");

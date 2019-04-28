@@ -152,7 +152,7 @@ fi
 
 if test "$with_libpq" != yes; then
 	if test -d "$with_libpq"; then
-		PATH="$PATH:$with_libpq/bin"
+		PATH="$with_libpq/bin:$PATH"
 		CPPFLAGS="$CPPFLAGS -I$with_libpq/include -I$with_libpq/include/postgresql/internal"
 		LDFLAGS="$LDFLAGS -L$with_libpq/lib"
 	else

@@ -474,6 +474,8 @@ static BOOL CheckHasOids(StatementClass * stmt)
 	TABLE_INFO	*ti;
 
 MYLOG(0, "Entering\n");
+    if (PG_VERSION_GE(conn, 12.0))
+      return FALSE;
 	if (0 != SC_checked_hasoids(stmt))
 		return TRUE;
 	if (!stmt->ti || !stmt->ti[0])
