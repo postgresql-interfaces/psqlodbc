@@ -307,12 +307,7 @@ MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 			break;
 
 		case SQL_LIKE_ESCAPE_CLAUSE:	/* ODBC 2.0 */
-
-			/*
-			 * is there a character that escapes '%' and '_' in a LIKE
-			 * clause? not as far as I can tell
-			 */
-			p = "N";
+			p = "Y";
 			break;
 
 		case SQL_LOCK_TYPES:	/* ODBC 2.0 */
