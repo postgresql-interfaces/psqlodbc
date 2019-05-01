@@ -128,20 +128,20 @@ Result set:
 contrib_regression	public	testtab1	id	1	testtab1_pkey
 Check for SQLForeignKeys
 Result set metadata:
-pktable_cat: VARCHAR(63) digits: 0, nullable
-pktable_schem: VARCHAR(63) digits: 0, not nullable
-pktable_name: VARCHAR(63) digits: 0, not nullable
-pkcolumn_name: VARCHAR(63) digits: 0, not nullable
-fktable_cat: VARCHAR(63) digits: 0, nullable
-fktable_schem: VARCHAR(63) digits: 0, not nullable
-fktable_name: VARCHAR(63) digits: 0, not nullable
-fkcolumn_name: VARCHAR(63) digits: 0, not nullable
-key_seq: SMALLINT(5) digits: 0, nullable
-update_rule: SMALLINT(5) digits: 0, nullable
-delete_rule: SMALLINT(5) digits: 0, nullable
-fk_name: VARCHAR(63) digits: 0, not nullable
-pk_name: VARCHAR(63) digits: 0, not nullable
-deferrablity: SMALLINT(5) digits: 0, nullable
+PKTABLE_CAT: VARCHAR(63) digits: 0, nullable
+PKTABLE_SCHEM: VARCHAR(63) digits: 0, not nullable
+PKTABLE_NAME: VARCHAR(63) digits: 0, not nullable
+PKCOLUMN_NAME: VARCHAR(63) digits: 0, not nullable
+FKTABLE_CAT: VARCHAR(63) digits: 0, nullable
+FKTABLE_SCHEM: VARCHAR(63) digits: 0, not nullable
+FKTABLE_NAME: VARCHAR(63) digits: 0, not nullable
+FKCOLUMN_NAME: VARCHAR(63) digits: 0, not nullable
+KEY_SEQ: SMALLINT(5) digits: 0, nullable
+UPDATE_RULE: SMALLINT(5) digits: 0, nullable
+DELETE_RULE: SMALLINT(5) digits: 0, nullable
+FK_NAME: VARCHAR(63) digits: 0, not nullable
+PK_NAME: VARCHAR(63) digits: 0, not nullable
+DEFERRABILITY: SMALLINT(5) digits: 0, nullable
 Result set:
 contrib_regression	public	testtab1	id	contrib_regression	public	testtab_fk	id	1	3	3	testtab_fk_id_fkey	testtab1_pkey	7
 Check for SQLProcedures
