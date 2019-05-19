@@ -472,6 +472,10 @@ test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 
 	dsn_1st = ci->dsn[0];
 	ci->dsn[0] = '\0';
+	if (NAME_IS_VALID(ci->conn_settings))
+		ci->conn_settings_in_str = TRUE;
+	if (NAME_IS_VALID(ci->pqopt))
+		ci->pqopt_in_str = TRUE;
 	makeConnectString(out_conn, ci, sizeof(out_conn));
 MYLOG(0, "conn_string=%s\n", out_conn);
 #ifdef	UNICODE_SUPPORT
