@@ -5769,6 +5769,7 @@ MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " num=%s SQL_BIT=%d\n", to, from, num, SQL_BI
 		if (SQL_ERROR != retval)
 		{
 			qb->param_number = nqb.param_number;
+			qb->dollar_number = nqb.dollar_number;
 			qb->flags = nqb.flags;
 		}
 	}

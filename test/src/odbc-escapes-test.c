@@ -100,6 +100,13 @@ static void	escape_test(HSTMT hstmt)
 	bindParamString(hstmt, 2, "this is a needle in an ol' haystack");
 	executeQuery(hstmt);
 
+	/* LOCATE(SUBSTRING, SUBSTRING) */
+	prepareQuery(hstmt, "SELECT {fn LOCATE({fn SUBSTRING(?, 2, 4)}, {fn SUBSTRING(?, 3)}, 3) }");
+	/* using the same parameters */
+	bindParamString(hstmt, 1, "needle");
+	bindParamString(hstmt, 2, "this is a needle in an ol' haystack");
+	executeQuery(hstmt);
+
 	/* SPACE */
 	prepareQuery(hstmt, "SELECT 'x' || {fn SPACE(10) } || 'x'");
 	executeQuery(hstmt);

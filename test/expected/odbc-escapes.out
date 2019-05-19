@@ -14,6 +14,12 @@ Param 2: this is a needle in an ol' haystack
 Result set:
 11
 
+Query: SELECT {fn LOCATE({fn SUBSTRING(?, 2, 4)}, {fn SUBSTRING(?, 3)}, 3) }
+Param 1: needle
+Param 2: this is a needle in an ol' haystack
+Result set:
+10
+
 Query: SELECT 'x' || {fn SPACE(10) } || 'x'
 Result set:
 x          x
@@ -78,6 +84,12 @@ Param 1: needle
 Param 2: this is a needle in an ol' haystack
 Result set:
 11
+
+Query: SELECT {fn LOCATE({fn SUBSTRING(?, 2, 4)}, {fn SUBSTRING(?, 3)}, 3) }
+Param 1: needle
+Param 2: this is a needle in an ol' haystack
+Result set:
+10
 
 Query: SELECT 'x' || {fn SPACE(10) } || 'x'
 Result set:
