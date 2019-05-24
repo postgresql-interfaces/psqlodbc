@@ -9,6 +9,25 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="11.01.0000">psqlODBC 11.01.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Correct the rgbInfoValue returned by SQLGetInfo(SQL_TIMEDATE_FUNCTIONS, ..).</li>
+Pointed out by Song X. Gao.
+<li>Because the field 'relhasoids' was dropped in PG12, psqlodbc drivers would have some troubles with PG12 servers.</li>
+Report and patch by Vladimir Kokovic.
+<li>Register drivers {PostgreSQL ANSI} and {PostgreSQL Unicode} during installation on 64bit Windows so that users could use the same connection strings in both x86 and x64 environments.</li>
+Per report from Grant Shirreffs.
+<li>Correct the rgbInfoValue returned by SQLGetInfo(SQL_LIKE_ESCAPE_CLAUSE, ..).</li>
+Pointed out by Grant Shirreffs.
+<li>Fix a typo in SQLForeignKeys-ResultSet-Column. 'deferrablity' should be 'DEFERRABILITY'.</li>
+Report from Alexander Roskamp.
+<li>Correct the rgbInfoValue returned by SQLGetInfo(.., SQL_NUMERIC_FUNCTIONS(SQL_SYSTEM_FUNCTIONS or SQL_STRING_FUNCTIONS, ..).</li>
+Pointed out by Grant Shirreffs.
+<li>Bug fix: don't forget to set parameter numbers while handling escaped ODBC functions.</li>
+Report and patch by Grant Shirreiffs.
+<li>ix test_connection() in setup.c so that settings of conn_settings and pqopt option are reflected properly.</li>
+</ol><br />
 <h2><a id="11.00.0000">psqlODBC 11.00.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
