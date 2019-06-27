@@ -1237,7 +1237,7 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 			ptr = opts->parameters[para_idx].used;
 			break;
 		case SQL_DESC_COUNT:
-			ret = SQL_IS_SMALLINT;
+			rettype = SQL_IS_SMALLINT;
 			ival = opts->allocated;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
