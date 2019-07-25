@@ -1155,8 +1155,8 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 	{
 		EnvironmentClass	*env = CC_get_env(conn);
 
-		/* Filter unsupported data types */
-		if (EN_is_odbc2(env))
+		/* Filter unsupported data types when fSqlType = SQL_ALL_TYPES */
+		if (SQL_ALL_TYPES == fSqlType && EN_is_odbc2(env))
 		{
 			switch (sqlType)
 			{
