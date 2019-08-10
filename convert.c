@@ -145,6 +145,36 @@ static const struct
 	{"SECOND",	"cast(extract(second from $1) as integer)" },
 	{"WEEK",	"cast(extract(week from $1) as integer)" },
 	{"YEAR",	"cast(extract(year from $1) as integer)" },
+	// TIMESTAMPADD()
+	{"TIMESTAMPADD(SQL_TSI_YEAR", "($3+make_interval(years := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_MONTH", "($3+make_interval(months := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_WEEK", "($3+make_interval(weeks := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_DAY", "($3+make_interval(days := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_HOUR", "($3+make_interval(hours := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_MINUTE", "($3+make_interval(mins := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_SECOND", "($3+make_interval(secs := $2))" },
+	{"TIMESTAMPADD(SQL_TSI_FRAC_SECOND", "($3+make_interval(secs := $2::float / 1000000))" },
+	// TIMESTAMPDIFF()
+/* doesn't work properly?
+{"TIMESTAMPDIFF(SQL_TSI_YEAR", "cast(extract(year from ($3 - $2)) as integer)" },
+{"TIMESTAMPDIFF(SQL_TSI_MONTH", "cast(extract(month from ($3 - $2)) as integer)" },
+{"TIMESTAMPDIFF(SQL_TSI_QUARTER", "cast(extract(quarter from ($3 - $2)) as integer)" },
+{"TIMESTAMPDIFF(SQL_TSI_WEEK", "cast(extract(week from ($3 - $2)) as integer)" },
+*/
+	/*
+	{"TIMESTAMPDIFF(SQL_TSI_DAY", "cast(extract(day from ($3 - $2)) as integer)" },
+	{"TIMESTAMPDIFF(SQL_TSI_HOUR", "cast(extract(hour from ($3 - $2)) as integer)" },
+	{"TIMESTAMPDIFF(SQL_TSI_HOUR", "(extract(epoch from $3) - extract(epoch from $2)) / 3600" },
+	{"TIMESTAMPDIFF(SQL_TSI_MINUTE", "cast(extract(minute from ($3 - $2)) as integer)" },
+	{"TIMESTAMPDIFF(SQL_TSI_SECOND", "cast(extract(second from ($3 - $2)) as integer)" },
+	*/
+	{"TIMESTAMPDIFF(SQL_TSI_DAY", "cast((extract(epoch from $3) - extract(epoch from $2)) / (24*60*60) as int)" },
+	{"TIMESTAMPDIFF(SQL_TSI_HOUR", "cast((extract(epoch from $3) - extract(epoch from $2)) / 3600 as int)" },
+	{"TIMESTAMPDIFF(SQL_TSI_MINUTE", "cast((extract(epoch from $3) - extract(epoch from $2)) / 60 as int)" },
+	{"TIMESTAMPDIFF(SQL_TSI_SECOND", "cast((extract(epoch from $3) - extract(epoch from $2)) as int)" },
+	{"TIMESTAMPDIFF(SQL_TSI_FRAC_SECOND", "mod(cast(extract(second from ($3 - $2)) as numeric), 1.0) * 1000000" },
+
+/*	{ "EXTRACT",		 "extract"		  }, built_in */
 
 /*	{ "DATABASE",	 "database"   }, */
 	{"IFNULL", "coalesce($*)" },
@@ -165,7 +195,7 @@ typedef struct
 	int			fr;
 } SIMPLE_TIME;
 
-static const char *mapFunction(const char *func, int param_count);
+static const char *mapFunction(const char *func, int param_count, const char * keyword);
 static BOOL convert_money(const char *s, char *sout, size_t soutmax);
 static char parse_datetime(const char *buf, SIMPLE_TIME *st);
 size_t convert_linefeeds(const char *s, char *dst, size_t max, BOOL convlf, BOOL *changed);
@@ -5346,20 +5376,30 @@ cleanup:
 
 
 static const char *
-mapFunction(const char *func, int param_count)
+mapFunction(const char *func, int param_count, const char *keyword)
 {
 	int			i;
+	const char *p1, *p2;
 
-	for (i = 0; mapFuncs[i].odbc_name; i++)
+	for (i = 0; p1 = mapFuncs[i].odbc_name; i++)
 	{
-		if (mapFuncs[i].odbc_name[0] == '%')
+		if (p1[0] == '%')
 		{
-			if (mapFuncs[i].odbc_name[1] - '0' == param_count &&
-			    !stricmp(&mapFuncs[i].odbc_name[2], func))
+			if (p1[1] - '0' == param_count &&
+			    !stricmp(p1 + 2, func))
 				return mapFuncs[i].pgsql_name;
 		}
-		else if (!stricmp(mapFuncs[i].odbc_name, func))
+		else if (!stricmp(p1, func))
 			return mapFuncs[i].pgsql_name;
+		else if (p2 = strchr(p1, (int) '('), NULL != p2)
+		{
+			int len = (int) (p2 - mapFuncs[i].odbc_name);
+
+			if (strlen(func) == len &&
+			    !strnicmp(p1, func, len) &&
+			    !stricmp(p2 + 1, keyword))
+				return mapFuncs[i].pgsql_name;
+		}
 	}
 
 	return NULL;
@@ -5645,7 +5685,33 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		if (stricmp(key, "convert") == 0)
 			cvt_func = TRUE;
 		else
-			mapExpr = mapFunction(key, param_count);
+		{
+			char keyword[64] = "";
+
+			if (param_count > 0)
+			{
+				int i, from, to;
+				const char * p;
+
+				for (i = param_pos[0][0], p = nqb.query_statement + i; i <= param_pos[0][1] && isspace(*p); i++, p++)
+					;
+				from = i;
+				for (; i <= param_pos[0][1] && IS_NOT_SPACE(p); i++, p++)
+					;
+				to = i - 1;
+				if (to >= from)
+				{
+					int	len = to - from + 1;
+
+					if (len < sizeof(keyword))
+					{
+						memcpy(keyword, nqb.query_statement + from, len);
+						keyword[len] = '\0';
+					}
+				}
+			}
+			mapExpr = mapFunction(key, param_count, keyword);
+		}
 		if (cvt_func)
 		{
 			if (2 == param_count)
