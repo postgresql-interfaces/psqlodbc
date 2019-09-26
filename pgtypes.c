@@ -840,6 +840,14 @@ MYLOG(DETAIL_LOG_LEVEL, "pgtype_to_name int4\n");
 			return "cidr";
 		case PG_TYPE_UUID:
 			return "uuid";
+		case PG_TYPE_VOID:
+			return "void";
+		case PG_TYPE_INT2VECTOR:
+			return "int2vector";
+		case PG_TYPE_OIDVECTOR:
+			return "oidvector";
+		case PG_TYPE_ANY:
+			return "any";
 		case PG_TYPE_INTERVAL:
 			get_interval_type(atttypmod, &tname);
 			return tname;

@@ -5111,33 +5111,33 @@ MYLOG(0, "atttypid=%s\n", atttypid ? atttypid : "(null)");
 				set_tuplefield_int4(&tuple[PROCOLS_ORDINAL_POSITION], 0);
 				set_tuplefield_string(&tuple[PROCOLS_IS_NULLABLE], NULL_STRING);
 			}
+			paramcount = 0;
+			params = NULL;
 			if (proargmodes)
 			{
 				const char *p;
 
-				paramcount = 0;
 				for (p = proargmodes; *p; p++)
 				{
 					if (',' == (*p))
 						paramcount++;
 				}
 				paramcount++;
-				params = QR_get_value_backend_text(tres, i, ext_pos + 2);
+				params = QR_get_value_backend_text(tres, i, ext_pos + 2); // proallargtypes - oidarray
 				if ('{' == *proargmodes)
 					proargmodes++;
-				if ('{' == *params)
-					params++;
 			}
-			else
-			{
+			if (0 == paramcount)
 				paramcount = QR_get_value_backend_int(tres, i, 3, NULL);
-				params = QR_get_value_backend_text(tres, i, 4);
-			}
+			if (0 < paramcount && NULL == params)
+				params = QR_get_value_backend_text(tres, i, 4); // proargtypes - oidvector
 			if (proargnames)
 			{
 				if ('{' == *proargnames)
 					proargnames++;
 			}
+			if (params && '{' == *params)
+				params++;
 			/* PARAMETERS info */
 			for (j = 0; j < paramcount; j++)
 			{
