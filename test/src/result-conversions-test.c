@@ -249,10 +249,8 @@ print_sql_type(int sql_c_type, void *buf, SQLLEN strlen_or_ind, int use_time)
 				if (use_time != 0)
 				{
 					time_t  t = 0;
-					struct tm  *tim;
 
 					t = time(NULL);
-					tim = localtime(&t);
 				}
 				else
 					printf("h: %d m: %u s: %u", ts->hour, ts->minute, ts->second);

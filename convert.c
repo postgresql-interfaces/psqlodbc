@@ -5381,7 +5381,7 @@ mapFunction(const char *func, int param_count, const char *keyword)
 	int			i;
 	const char *p1, *p2;
 
-	for (i = 0; p1 = mapFuncs[i].odbc_name; i++)
+	for (i = 0; (p1 = mapFuncs[i].odbc_name) != NULL; i++)
 	{
 		if (p1[0] == '%')
 		{
