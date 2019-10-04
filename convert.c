@@ -5696,7 +5696,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 				for (i = param_pos[0][0], p = nqb.query_statement + i; i <= param_pos[0][1] && isspace(*p); i++, p++)
 					;
 				from = i;
-				for (; i <= param_pos[0][1] && IS_NOT_SPACE(p); i++, p++)
+				for (; i <= param_pos[0][1] && IS_NOT_SPACE(*p); i++, p++)
 					;
 				to = i - 1;
 				if (to >= from)
