@@ -9,6 +9,19 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="12.00.0000">psqlODBC 12.00.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Fix the bug that SQLGetDescField() for Field SQL_DESC_COUNT returns SQLINTEGER value which should be of type SQLSMALLINT.</li>
+<li>SQLGetTypeInfo() filters SQL_TYPE_DATE, SQL_TYPE_TIME and SQL_TYPE_TIMESTAMP for ODBC 2.x applications.</li>
+<li>Added support for scalar functions TIMESTAMPADD(), TIMESTAMPDIFF() and EXTRACT() functions.</li>
+<li>The macro IS_NOT_SPACE() is used for not pointers but integers.</li>
+<li>Fix a crash bug when SQLProcedureColumns() handles satisfies_hash_partition(). </li>
+The proargmodes column of satisfies_hash_partition()'s pg_proc entry is not null but the proallargtypes column is null. <br />
+Per report from James.wang.
+</ol><br />
+<h1>psqlODBC release notes</h1>
+<hr>
 <h2><a id="11.01.0000">psqlODBC 11.01.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
