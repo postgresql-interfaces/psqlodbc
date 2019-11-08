@@ -46,7 +46,7 @@ static const char *pgtypes[] =
 	"10.0.0.1", "cidr",
 	"1.234", "float4",
 	"1.23456789012", "float8",
-	"2011-01-14 16:49:18+03", "abstime",
+	// "2011-01-14 16:49:18+03", "abstime", // abstime was removed in PG12
 	"foo", "unknown",
 	"1.23", "money",
 	"08-00-2b-01-02-03", "macaddr",

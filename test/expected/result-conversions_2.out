@@ -638,8 +638,8 @@ Executed: SET lc_monetary='C'
 '1.234' (float4) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
 '1.234' (float4) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 '1.234' (float4) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
-'1.23456789012' (float8) as SQL_C_CHAR: 1.23456789012
-'1.23456789012' (float8) as SQL_C_WCHAR: 1.23456789012
+'1.23456789012' (float8) as SQL_C_CHAR: 1.2345678901199999
+'1.23456789012' (float8) as SQL_C_WCHAR: 1.2345678901199999
 '1.23456789012' (float8) as SQL_C_SSHORT: 1
 '1.23456789012' (float8) as SQL_C_USHORT: 1
 '1.23456789012' (float8) as SQL_C_SLONG: 1
@@ -657,7 +657,7 @@ Executed: SET lc_monetary='C'
 '1.23456789012' (float8) as SQL_C_VARBOOKMARK: SQLGetData failed
 07006=Received an unsupported type from Postgres.
 '1.23456789012' (float8) as SQL_C_TYPE_TIME: h: 0 m: 0 s: 0
-'1.23456789012' (float8) as SQL_C_NUMERIC: precision: 12 scale: 11 sign: 11 val: 141a99be1c0000000000000000000000
+'1.23456789012' (float8) as SQL_C_NUMERIC: precision: 17 scale: 16 sign: 16 val: 7fc46a5d54dc2b000000000000000000
 '1.23456789012' (float8) as SQL_C_GUID: SQLGetData failed
 07006=Received an unsupported type from Postgres.
 '1.23456789012' (float8) as SQL_C_INTERVAL_YEAR: interval sign: 0 unknown interval type: 0

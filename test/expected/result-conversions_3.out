@@ -263,9 +263,9 @@ Executed: SET lc_monetary='C'
 '1234567' (int4) as SQL_C_UTINYINT: 135
 '1234567' (int4) as SQL_C_SBIGINT: 1234567
 '1234567' (int4) as SQL_C_UBIGINT: 1234567
-'1234567' (int4) as SQL_C_BINARY: hex: 87D61200
+'1234567' (int4) as SQL_C_BINARY: hex: 0012D687
 '1234567' (int4) as SQL_C_BOOKMARK: 1234567
-'1234567' (int4) as SQL_C_VARBOOKMARK: hex: 87D61200
+'1234567' (int4) as SQL_C_VARBOOKMARK: hex: 0012D687
 '1234567' (int4) as SQL_C_TYPE_TIME: h: 0 m: 0 s: 0
 '1234567' (int4) as SQL_C_NUMERIC: precision: 7 scale: 0 sign: 0 val: 87d61200000000000000000000000000
 '1234567' (int4) as SQL_C_GUID: SQLGetData failed
@@ -638,8 +638,8 @@ Executed: SET lc_monetary='C'
 '1.234' (float4) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
 '1.234' (float4) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 '1.234' (float4) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
-'1.23456789012' (float8) as SQL_C_CHAR: 1.23456789012
-'1.23456789012' (float8) as SQL_C_WCHAR: 1.23456789012
+'1.23456789012' (float8) as SQL_C_CHAR: 1.2345678901199999
+'1.23456789012' (float8) as SQL_C_WCHAR: 1.2345678901199999
 '1.23456789012' (float8) as SQL_C_SSHORT: 1
 '1.23456789012' (float8) as SQL_C_USHORT: 1
 '1.23456789012' (float8) as SQL_C_SLONG: 1
@@ -657,7 +657,7 @@ Executed: SET lc_monetary='C'
 '1.23456789012' (float8) as SQL_C_VARBOOKMARK: SQLGetData failed
 07006=Received an unsupported type from Postgres.
 '1.23456789012' (float8) as SQL_C_TYPE_TIME: h: 0 m: 0 s: 0
-'1.23456789012' (float8) as SQL_C_NUMERIC: precision: 12 scale: 11 sign: 11 val: 141a99be1c0000000000000000000000
+'1.23456789012' (float8) as SQL_C_NUMERIC: precision: 17 scale: 16 sign: 16 val: 7fc46a5d54dc2b000000000000000000
 '1.23456789012' (float8) as SQL_C_GUID: SQLGetData failed
 07006=Received an unsupported type from Postgres.
 '1.23456789012' (float8) as SQL_C_INTERVAL_YEAR: interval sign: 0 unknown interval type: 0
@@ -1296,7 +1296,7 @@ Executed: SET bytea_output=hex
 'foobar' (text) as SQL_C_WCHAR: fooba (truncated)
 'foobar' (text) as SQL_C_WCHAR: foobar
 '' (text) as SQL_C_CHAR: 
-'' (text) as SQL_C_WCHAR: \FF00\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF (truncated)
+'' (text) as SQL_C_WCHAR: \  FF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF\FFFF (truncated)
 '2011-02-15 15:49:18' (timestamp) as SQL_C_CHAR: 2011-02-15 15:49:1 (truncated)
 '2011-02-15 15:49:18 BC' (timestamp) as SQL_C_CHAR: 2011-02-15 15:49:18 (truncated)
 'NaN' (float4) as SQL_C_FLOAT: nan

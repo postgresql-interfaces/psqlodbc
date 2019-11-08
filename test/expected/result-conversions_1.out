@@ -638,8 +638,8 @@ Executed: SET lc_monetary='C'
 '1.234' (float4) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
 '1.234' (float4) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 '1.234' (float4) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
-'1.23456789012' (float8) as SQL_C_CHAR: 1.2345678901199999
-'1.23456789012' (float8) as SQL_C_WCHAR: 1.2345678901199999
+'1.23456789012' (float8) as SQL_C_CHAR: 1.23456789012
+'1.23456789012' (float8) as SQL_C_WCHAR: 1.23456789012
 '1.23456789012' (float8) as SQL_C_SSHORT: 1
 '1.23456789012' (float8) as SQL_C_USHORT: 1
 '1.23456789012' (float8) as SQL_C_SLONG: 1
@@ -657,7 +657,7 @@ Executed: SET lc_monetary='C'
 '1.23456789012' (float8) as SQL_C_VARBOOKMARK: SQLGetData failed
 07006=Received an unsupported type from Postgres.
 '1.23456789012' (float8) as SQL_C_TYPE_TIME: h: 0 m: 0 s: 0
-'1.23456789012' (float8) as SQL_C_NUMERIC: precision: 17 scale: 16 sign: 16 val: 7fc46a5d54dc2b000000000000000000
+'1.23456789012' (float8) as SQL_C_NUMERIC: precision: 12 scale: 11 sign: 11 val: 141a99be1c0000000000000000000000
 '1.23456789012' (float8) as SQL_C_GUID: SQLGetData failed
 07006=Received an unsupported type from Postgres.
 '1.23456789012' (float8) as SQL_C_INTERVAL_YEAR: interval sign: 0 unknown interval type: 0
@@ -674,42 +674,6 @@ Executed: SET lc_monetary='C'
 '1.23456789012' (float8) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
 '1.23456789012' (float8) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
 '1.23456789012' (float8) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_CHAR: 2011-01-14 05:49:18
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_WCHAR: 2011-01-14 05:49:18
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_SSHORT: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_USHORT: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_SLONG: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_ULONG: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_FLOAT: 2011.000000
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_DOUBLE: 2011.000000
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_BIT: 219
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_STINYINT: -37
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_UTINYINT: 219
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_SBIGINT: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_UBIGINT: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_BINARY: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_BOOKMARK: 2011
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_VARBOOKMARK: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_TYPE_TIME: h: 5 m: 49 s: 18
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_NUMERIC: precision: 4 scale: 0 sign: 0 val: db070000000000000000000000000000
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_GUID: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_YEAR: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_MONTH: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_DAY: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_HOUR: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_MINUTE: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_SECOND: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_YEAR_TO_MONTH: interval sign: 0 year 2011 month: 1
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_DAY_TO_HOUR: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_DAY_TO_MINUTE: SQLGetData failed
-07006=Received an unsupported type from Postgres.
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_DAY_TO_SECOND: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_HOUR_TO_MINUTE: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_HOUR_TO_SECOND: interval sign: 0 unknown interval type: 0
-'2011-01-14 16:49:18+03' (abstime) as SQL_C_INTERVAL_MINUTE_TO_SECOND: interval sign: 0 unknown interval type: 0
 'foo' (unknown) as SQL_C_CHAR: foo
 'foo' (unknown) as SQL_C_WCHAR: foo
 'foo' (unknown) as SQL_C_SSHORT: 0
