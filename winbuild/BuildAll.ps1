@@ -125,6 +125,14 @@ try {
 }
 
 $recordResult = $true
+if ($Target -ne "info") {
+	$configInfo.Configuration.BuildResult.Date=""
+	$configInfo.Configuration.BuildResult.VisualStudioVersion=""
+	$configInfo.Configuration.BuildResult.PlatformToolset=""
+	$configInfo.Configuration.BuildResult.ToolsVersion=""
+	$configInfo.Configuration.BuildResult.Platform=""
+}
+
 try {
 #
 #	build 32bit dlls
@@ -149,15 +157,17 @@ try {
 #
 	$resultText="successful"
 	if ($recordResult) {
-		$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
-		$configInfo.Configuration.BuildResult.VisualStudioVersion=$VCVersion
-		$configInfo.Configuration.BuildResult.PlatformToolset=$Toolset
-		$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
-		$configInfo.Configuration.BuildResult.Platform=$Platform
-		SaveConfiguration $configInfo
+		if ($Target -ne "Clean") {
+			$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
+			$configInfo.Configuration.BuildResult.VisualStudioVersion=$VCVersion
+			$configInfo.Configuration.BuildResult.PlatformToolset=$Toolset
+			$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
+			$configInfo.Configuration.BuildResult.Platform=$Platform
+		}
 	} else {
 		$resultText="failed"
 	} 
+	SaveConfiguration $configInfo
 	Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VCVersion PlatformToolset=$Toolset Platform=$Platform $resultText`n"
 #
 #	build installers as well

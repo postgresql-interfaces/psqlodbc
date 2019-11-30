@@ -4,7 +4,7 @@ $configurationTemplatePath=""
 function InitConfiguration([string]$savePath)
 {
 	$configInfo = [xml](Get-Content $configurationTemplatePath)
-	if ($env:PROCESSOR_ARCHITECTURE -eq "x86")
+	if ($env:PROCESSOR_ARCHITECTURE -ieq "x86")
 	{
 		$x64info = $configInfo.Configuration.x64
 		$x64info.libpq.include = ""
@@ -121,13 +121,13 @@ function getPGDir([xml]$configInfo, [string]$Platform, [string]$kind)
 		return $result
 	}
 	if ($Platform -ieq "x64") {
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+		if ($env:PROCESSOR_ARCHITECTURE -ieq "x86") {
 			$pgmfs = $env:ProgramW6432
 		} else {
 			$pgmfs = $env:ProgramFiles
 		}
 	} else {
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+		if ($env:PROCESSOR_ARCHITECTURE -ieq "x86") {
 			$pgmfs = $env:ProgramFiles
 		} else {
 			$pgmfs = ${env:ProgramFiles(x86)}

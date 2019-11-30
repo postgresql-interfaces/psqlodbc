@@ -75,7 +75,7 @@ function runtimeversion_to_toolset_no([int]$runtime_version)
 		[int]$vc_ver = 15
 		if ((env_vcversion_no) -eq $vc_ver) {	# v141
 			$toolseto++
-		} elseif (Find-VSDir $vc_ver -ne "") {	# v141
+		} elseif ((Find-VSDir $vc_ver) -ne "") {	# v141
 			$toolset_no++
 		}
 	}
@@ -335,6 +335,12 @@ if ($AlongWithDrivers) {
 
 Import-Module ${scriptPath}\..\winbuild\MSProgram-Get.psm1
 try {
+	if ($configInfo.Configuration.BuildResult.Date -eq "") {
+		Write-Host "!! Driver dlls haven't been built yet !!"
+		Write-Host "!! Please build driver dlls first !!"
+		return
+	}
+
 	$dumpbinexe = Find-Dumpbin
 
 	$wRedist=$false
