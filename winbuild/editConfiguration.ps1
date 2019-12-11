@@ -8,7 +8,7 @@ if ([Threading.Thread]::CurrentThread.GetApartmentState() -eq "MTA"){
 }
 
 <#
-	Edit the configuration xnl file with WPF
+	configuration XAML with WPF
 #>
 
 Add-Type -AssemblyName presentationframework
@@ -35,6 +35,7 @@ Add-Type -AssemblyName presentationframework
             <StackPanel Orientation="Horizontal">
                 <Label Content="x86" Height="26" Name="label1" Width="43" HorizontalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" />
 		<TextBox Height="Auto" Name="versionBox1" Width="30" />
+		<TextBlock Height="Auto" Margin="30,0,0,0" x:Name="procMessage" Width="300" />
             </StackPanel>
             <StackPanel Height="78" Name="stackPanel2" Width="Auto" HorizontalAlignment="Right" Orientation="Horizontal">
                 <Label Content="libpq" Height="Auto" HorizontalContentAlignment="Center" Name="label2" VerticalContentAlignment="Center" Width="51" BorderBrush="Black" BorderThickness="1,1,0,0" />
@@ -120,7 +121,7 @@ $button_click =
 	[void] [Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')
 	$d = New-Object Windows.Forms.FolderBrowserDialog
 	if ($d.ShowDialog() -eq "OK") {
-        $lname = $sender.Name.substring(6)
+		$lname = $sender.Name.substring(6)
 		$text = $window.FindName("textBox" + $lname)
 		$text.Text = $d.SelectedPath
     }
@@ -181,7 +182,21 @@ $window.findName("textBox64vcvars").Text = $x64info.build_macros
 $buttonSave = $window.FindName("buttonSave")
 $buttonSave_clicked = $buttonSave.add_Click
 $buttonSave_clicked.Invoke({
-	$configInfo.Configuration.version = $window.findName("versionBox").Text
+	$input_version = $window.findName("versionBox").Text
+	if ($input_version -ne "") {
+		$vers = $input_version.split(".")
+		if (($vers.Length -ne 3) -or
+		    ($vers[0].Length -ne 2) -or
+		    ($vers[1].Length -ne 2) -or
+		    ($vers[2].Length -ne 4) -or
+		    (-not[int]::TryParse($vers[0], [ref]$null)) -or
+		    (-not[int]::TryParse($vers[1], [ref]$null)) -or
+		    (-not[int]::TryParse($vers[2], [ref]$null))) {
+			$window.findName("procMessage").Text = "the format of version should be xx.xx.xxxx"
+			return
+		}
+	}
+	$configInfo.Configuration.version = $input_version
 	$configInfo.Configuration.vcversion = $window.findName("vcversionBox").Text
 	$configInfo.Configuration.toolset = $window.findName("toolsetBox").Text
 	$x86info.libpq.version = $window.findName("versionBox1").Text
@@ -197,6 +212,7 @@ $buttonSave_clicked.Invoke({
 	$x64info.build_macros = $window.findName("textBox64vcvars").Text
 
 	SaveConfiguration $configInfo
+	$window.findName("procMessage").Text = "the configuration has been saved"
 })
 
 $window.ShowDialog() | out-null
