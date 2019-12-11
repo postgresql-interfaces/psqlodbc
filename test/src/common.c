@@ -96,6 +96,7 @@ test_connect_ext(char *extraparams)
 		printf("connected\n");
 	} else {
 		print_diag("SQLDriverConnect failed.", SQL_HANDLE_DBC, conn);
+		fflush(stdout);
 		exit(1);
 	}
 }
@@ -116,6 +117,7 @@ test_disconnect(void)
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("SQLDisconnect failed", SQL_HANDLE_DBC, conn);
+		fflush(stdout);
 		exit(1);
 	}
 
@@ -123,6 +125,7 @@ test_disconnect(void)
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("SQLFreeHandle failed", SQL_HANDLE_DBC, conn);
+		fflush(stdout);
 		exit(1);
 	}
 	conn = NULL;
@@ -131,6 +134,7 @@ test_disconnect(void)
 	if (!SQL_SUCCEEDED(rc))
 	{
 		print_diag("SQLFreeHandle failed", SQL_HANDLE_ENV, env);
+		fflush(stdout);
 		exit(1);
 	}
 	env = NULL;
@@ -334,6 +338,7 @@ print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols, SQLIN
 		else
 		{
 			print_diag("SQLFetch failed", SQL_HANDLE_STMT, hstmt);
+			fflush(stdout);
 			exit(1);
 		}
 	}
