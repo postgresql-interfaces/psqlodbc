@@ -27,7 +27,7 @@ Result set:
 
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_CHAR param "5 escapes: \ and '"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "5 escapes: \ and '";
+22P02=ERROR: invalid input syntax for type integer: "5 escapes: \ and '";
 Error while executing the query
 
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_SMALLINT param "32767"...
@@ -62,12 +62,12 @@ Error while executing the query
 Testing conversions with invalid values...
 Testing "SELECT 2 > ?" with SQL_C_CHAR -> SQL_INTEGER param "2, 'injected, BAD!'"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "2, 'injected, BAD!'";
+22P02=ERROR: invalid input syntax for type integer: "2, 'injected, BAD!'";
 Error while executing the query
 
 Testing "SELECT 2 > ?" with SQL_C_CHAR -> SQL_SMALLINT param "2, 'injected, BAD!'"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "2, 'injected, BAD!'";
+22P02=ERROR: invalid input syntax for type smallint: "2, 'injected, BAD!'";
 Error while executing the query
 
 Testing "SELECT 1.3 > ?" with SQL_C_CHAR -> SQL_FLOAT param "3', 'injected, BAD!', '1"...
@@ -86,12 +86,12 @@ Result set:
 
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_INTEGER param "-"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "-";
+22P02=ERROR: invalid input syntax for type integer: "-";
 Error while executing the query
 
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_INTEGER param ""...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "";
+22P02=ERROR: invalid input syntax for type integer: "";
 Error while executing the query
 
 Testing "SELECT 1-?" with SQL_C_CHAR -> SQL_SMALLINT param "-1"...
@@ -100,12 +100,12 @@ Result set:
 
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_SMALLINT param "-"...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "-";
+22P02=ERROR: invalid input syntax for type smallint: "-";
 Error while executing the query
 
 Testing "SELECT 1 > ?" with SQL_C_CHAR -> SQL_SMALLINT param ""...
 SQLExecDirect failed
-22P02=ERROR: invalid input syntax for integer: "";
+22P02=ERROR: invalid input syntax for type smallint: "";
 Error while executing the query
 
 Testing "SELECT 0-?" with SQL_C_SLONG -> SQL_INTEGER param 1234...
