@@ -2068,7 +2068,11 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 					{
 						QR_set_haskeyset(res->next);
 						if (stmt)
+						{
+							if (stmt->num_key_fields < 0) /* for safety */
+								CheckPgClassInfo(stmt);
 							res->next->num_key_fields = stmt->num_key_fields;
+						}
 					}
 					MYLOG(0, " 'T' no result_in: res = %p\n", res->next);
 					res = res->next;
@@ -2087,7 +2091,11 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 					{
 						QR_set_haskeyset(res);
 						if (stmt)
+						{
+							if (stmt->num_key_fields < 0) /* for safety */
+								CheckPgClassInfo(stmt);
 							res->num_key_fields = stmt->num_key_fields;
+						}
 						if (cursor && cursor[0])
 							QR_set_synchronize_keys(res);
 					}

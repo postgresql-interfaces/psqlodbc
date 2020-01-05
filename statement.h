@@ -542,6 +542,7 @@ RETCODE		SetStatementSvp(StatementClass *self, unsigned int option);
 RETCODE		DiscardStatementSvp(StatementClass *self, RETCODE, BOOL errorOnly);
 
 QResultClass *ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name, const char *query_p, Int2 num_params, const char *comment, QResultClass *res);
+BOOL	CheckPgClassInfo(StatementClass *);
 
 /*
  *	Macros to convert global index <-> relative index in resultset/rowset

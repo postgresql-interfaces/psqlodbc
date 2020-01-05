@@ -379,12 +379,22 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 	}
 }
 
-static BOOL CheckHasOidsUsingSaved(StatementClass *stmt, TABLE_INFO *ti)
+/*
+ *	Check relhasoids(before PG12), relhssubclass and get some relevant information.
+ */
+BOOL CheckPgClassInfo(StatementClass *stmt)
 {
 	const COL_INFO *coli;
 	int	table_info;
+	TABLE_INFO	*ti;
 	BOOL	hasoids = FALSE, hassubclass =FALSE, keyFound = FALSE;
 
+MYLOG(0, "Entering\n");
+	if (0 != SC_checked_hasoids(stmt))
+		return TRUE;
+	if (!stmt->ti || !stmt->ti[0])
+		return FALSE;
+	ti = stmt->ti[0];
 	MYLOG(DETAIL_LOG_LEVEL, "ti->col_info=%p\n", ti->col_info);
 	if (TI_checked_hasoids(ti))
 		;
@@ -461,95 +471,6 @@ static BOOL CheckHasOidsUsingSaved(StatementClass *stmt, TABLE_INFO *ti)
 	MYLOG(DETAIL_LOG_LEVEL, "subclass=%d oids=%d bestqual=%s keyFound=%d num_key_fields=%d\n", TI_has_subclass(ti), TI_has_oids(ti), PRINT_NAME(ti->bestqual), keyFound, stmt->num_key_fields);
 
 	SC_set_checked_hasoids(stmt, keyFound);
-
-	return TRUE;
-}
-
-static BOOL CheckHasOids(StatementClass * stmt)
-{
-	QResultClass	*res;
-	BOOL		hasoids = TRUE, hassubclass =FALSE, foundKey = FALSE;
-	char		query[512];
-	ConnectionClass	*conn = SC_get_conn(stmt);
-	TABLE_INFO	*ti;
-
-MYLOG(0, "Entering\n");
-    if (PG_VERSION_GE(conn, 12.0))
-      return FALSE;
-	if (0 != SC_checked_hasoids(stmt))
-		return TRUE;
-	if (!stmt->ti || !stmt->ti[0])
-		return FALSE;
-	ti = stmt->ti[0];
-	if (CheckHasOidsUsingSaved(stmt, ti))
-		return TRUE;
-	// no longer come here??
-	SPRINTF_FIXED(query,
-			 "select relhasoids, c.oid, relhassubclass from pg_class c, pg_namespace n where relname = '%s' and nspname = '%s' and c.relnamespace = n.oid",
-			 SAFE_NAME(ti->table_name), SAFE_NAME(ti->schema_name));
-	res = CC_send_query(conn, query, NULL, READ_ONLY_QUERY, NULL);
-	if (QR_command_maybe_successful(res))
-	{
-		stmt->num_key_fields = PG_NUM_NORMAL_KEYS;
-		if (1 == QR_get_num_total_tuples(res))
-		{
-			const char *value = QR_get_value_backend_text(res, 0, 0);
-			const char *value2 = QR_get_value_backend_text(res, 0, 2);
-			if (value && ('f' == *value || '0' == *value))
-			{
-				hasoids = FALSE;
-				TI_set_has_no_oids(ti);
-			}
-			else
-			{
-				TI_set_hasoids(ti);
-				foundKey = TRUE;
-				STR_TO_NAME(ti->bestitem, OID_NAME);
-				STRX_TO_NAME(ti->bestqual, "\"" OID_NAME "\" = %u");
-			}
-			if (value2 && ('f' == *value2 || '0' == *value2))
-			{
-				TI_set_has_no_subclass(ti);
-			}
-			else
-			{
-				hassubclass = TRUE;
-				TI_set_hassubclass(ti);
-				STR_TO_NAME(ti->bestitem, TABLEOID_NAME);
-				STRX_TO_NAME(ti->bestqual, "\"" TABLEOID_NAME "\" = %u");
-			}
-			TI_set_hasoids_checked(ti);
-			ti->table_oid = (OID) strtoul(QR_get_value_backend_text(res, 0, 1), NULL, 10);
-		}
-		QR_Destructor(res);
-		res = NULL;
-		if (!hasoids && !hassubclass)
-		{
-			SPRINTF_FIXED(query, "select a.attname, a.atttypid from pg_index i, pg_attribute a where indrelid=%u and indnatts=1 and indisunique and indexprs is null and indpred is null and i.indrelid = a.attrelid and a.attnum=i.indkey[0] and attnotnull and atttypid in (%d, %d)", ti->table_oid, PG_TYPE_INT4, PG_TYPE_OID);
-			res = CC_send_query(conn, query, NULL, READ_ONLY_QUERY, NULL);
-			if (QR_command_maybe_successful(res) && QR_get_num_total_tuples(res) > 0)
-			{
-				foundKey = TRUE;
-				STR_TO_NAME(ti->bestitem, QR_get_value_backend_text(res, 0, 0));
-				SPRINTF_FIXED(query, "\"%s\" = %%", SAFE_NAME(ti->bestitem));
-				if (PG_TYPE_INT4 == (OID) QR_get_value_backend_int(res, 0, 1, NULL))
-					STRCAT_FIXED(query, "d");
-				else
-					STRCAT_FIXED(query, "u");
-				STRX_TO_NAME(ti->bestqual, query);
-			}
-			else
-			{
-				/* stmt->updatable = FALSE; */
-				foundKey = TRUE;
-				stmt->num_key_fields--;
-			}
-		}
-	}
-	QR_Destructor(res);
-	SC_set_checked_hasoids(stmt, foundKey);
-
-	MYLOG(DETAIL_LOG_LEVEL, "subclass=%d oids=%d bestqual=%s foundKey=%d num_key_fields=%d\n", TI_has_subclass(ti), TI_has_oids(ti), PRINT_NAME(ti->bestqual), foundKey, stmt->num_key_fields);
 
 	return TRUE;
 }
@@ -1383,7 +1304,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 	if (SC_parsed_status(stmt) != STMT_PARSE_NONE)
 	{
 		if (check_hasoids)
-			CheckHasOids(stmt);
+			CheckPgClassInfo(stmt);
 		return TRUE;
 	}
 	nfields = 0;
@@ -2261,7 +2182,7 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 	}
 
 	if (check_hasoids && updatable)
-		CheckHasOids(stmt);
+		CheckPgClassInfo(stmt);
 	SC_set_parse_status(stmt, parse ? STMT_PARSE_COMPLETE : STMT_PARSE_INCOMPLETE);
 	for (i = 0; i < (int) irdflds->nfields; i++)
 	{
