@@ -68,8 +68,8 @@ Param 3 is an I-O parameter
 Param 4: 3.4
 Param 5 is an OUT parameter
 Result set:
-6.8	7	2017-02-24 11:34:46
-OUT params: 6.8 : 7 : 2017-02-24 11:34:46
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
 
 -- TEST using SQLExecDirect
 
@@ -139,6 +139,6 @@ Param 3 is an I-O parameter
 Param 4: 3.4
 Param 5 is an OUT parameter
 Result set:
-6.8	7	2017-02-24 11:34:46
-OUT params: 6.8 : 7 : 2017-02-24 11:34:46
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
 disconnecting
