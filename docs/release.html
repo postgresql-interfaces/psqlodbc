@@ -9,6 +9,23 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="12.01.0000">psqlODBC 12.01.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Fix result-conversions regression test.</li>
+<ol type="a">
+<li>Remove tests for abstime type because the type was removed in PG12.</li>
+<li>Update results for PG12's new floating point output format.</li>
+</ol>
+<li>Fix the bug that causes Error : A parameter cannot be found that matches parameter nameÅene'.</li>
+<ol type="a">
+<li>Check BuildResult(the result of drivers build) before building installers.</li>
+<li>Enclose the command part * Find_VSDir $vc_ver * with parentheses so that
+the subsequent * -ne "" * isn't considered to be a parameter.</li>
+</ol>
+<li>Cope with the removal of pg_class.relhasoids in PG12 correctly when retrieving updatable cursors.</li>
+</ol>
+<hr>
 <h2><a id="12.00.0000">psqlODBC 12.00.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
