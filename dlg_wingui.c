@@ -546,6 +546,7 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 
 	ITOA_FIXED(ci->row_versioning, IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
 	ci->lf_conversion = IsDlgButtonChecked(hdlg, DS_LFCONVERSION);
+	ci->optional_errors = IsDlgButtonChecked(hdlg, DS_OPTIONALERRORS);
 	ci->true_is_minus1 = IsDlgButtonChecked(hdlg, DS_TRUEISMINUS1);
 	ci->allow_keyset = IsDlgButtonChecked(hdlg, DS_UPDATABLECURSORS);
 	ci->use_server_side_prepare = IsDlgButtonChecked(hdlg, DS_SERVERSIDEPREPARE);
@@ -694,6 +695,7 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_ROWVERSIONING, atoi(ci->row_versioning));
 			CheckDlgButton(hdlg, DS_SHOWSYSTEMTABLES, atoi(ci->show_system_tables));
 			CheckDlgButton(hdlg, DS_LFCONVERSION, ci->lf_conversion);
+			CheckDlgButton(hdlg, DS_OPTIONALERRORS, ci->optional_errors);
 			CheckDlgButton(hdlg, DS_TRUEISMINUS1, ci->true_is_minus1);
 			CheckDlgButton(hdlg, DS_UPDATABLECURSORS, ci->allow_keyset);
 			CheckDlgButton(hdlg, DS_SERVERSIDEPREPARE, ci->use_server_side_prepare);

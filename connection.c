@@ -808,10 +808,23 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	char	   *errseverity;
 	char	   *errseverity_nonloc = NULL;
 	char	   *errprimary = NULL;
+
+	char	   *errdetail = NULL;
+	char	   *errhint = NULL;
+	char	   *errstatementposition = NULL;
+	char	   *errinternalquery = NULL;
+	char	   *errcontext = NULL;
+	char	   *errschemaname = NULL;
+	char	   *errtablename = NULL;
+	char	   *errcolumnname = NULL;
+	char	   *errdatatypename = NULL;
+
 	char	   *errmsg = NULL;
-	size_t		errmsglen;
 	char	*sqlstate = NULL;
 	int	level = MIN_LOG_LEVEL;
+
+	int	display_error_level = (self->connInfo).optional_errors ? 3 : 1;
+	PQExpBufferData	errbuf = {0};
 
 	MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 
@@ -877,12 +890,47 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 		if (errprimary == NULL)
 			errprimary = "no error information";
 	}
+	else if (display_error_level > 0)
+	{
+		errdetail = PQresultErrorField(pgres, PG_DIAG_MESSAGE_DETAIL);
+		errhint = PQresultErrorField(pgres, PG_DIAG_MESSAGE_HINT);
+		errstatementposition = PQresultErrorField(pgres, PG_DIAG_STATEMENT_POSITION);
+		errinternalquery = PQresultErrorField(pgres, PG_DIAG_INTERNAL_POSITION);
+		errcontext = PQresultErrorField(pgres, PG_DIAG_CONTEXT);
+		errschemaname = PQresultErrorField(pgres, PG_DIAG_SCHEMA_NAME);
+		errtablename = PQresultErrorField(pgres, PG_DIAG_TABLE_NAME);
+		errcolumnname = PQresultErrorField(pgres, PG_DIAG_COLUMN_NAME);
+		errdatatypename = PQresultErrorField(pgres, PG_DIAG_DATATYPE_NAME);
+	}
+	initPQExpBuffer(&errbuf);
 	if (errseverity && errprimary)
 	{
-		errmsglen = strlen(errseverity) + 2 + strlen(errprimary) + 1;
-		errmsg = malloc(errmsglen);
-		if (errmsg)
-			snprintf(errmsg, errmsglen, "%s: %s", errseverity, errprimary);
+		printfPQExpBuffer(&errbuf, "%s: %s", errseverity, errprimary);
+		if (display_error_level > 0 && errdetail)
+			appendPQExpBuffer(&errbuf, "\nDETAIL: %s", errdetail);
+		if (display_error_level > 1)
+		{
+			if (errhint)
+				appendPQExpBuffer(&errbuf, "\nHINT: %s", errhint);
+		}
+		if (display_error_level > 2)
+		{
+			if (errstatementposition)
+				appendPQExpBuffer(&errbuf, "\nSTATEMENT_POSITION: %s", errstatementposition);
+			if (errinternalquery)
+				appendPQExpBuffer(&errbuf, "\nINTERNAL_QUERY: %s", errinternalquery);
+			if (errcontext)
+				appendPQExpBuffer(&errbuf, "\nCONTEXT: %s", errcontext);
+			if (errschemaname)
+				appendPQExpBuffer(&errbuf, "\nSCHEMA_NAME: %s", errschemaname);
+			if (errtablename)
+				appendPQExpBuffer(&errbuf, "\nTABLE_NAME: %s", errtablename);
+			if (errcolumnname)
+				appendPQExpBuffer(&errbuf, "\nCOLUMN_NAME: %s", errcolumnname);
+			if (errdatatypename)
+				appendPQExpBuffer(&errbuf, "\nDATATYPE_NAME :%s", errdatatypename);
+		}
+		errmsg = errbuf.data;
 	}
 	if (errmsg == NULL)
 		errmsg = errprimary;
@@ -931,8 +979,8 @@ handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 	}
 
 cleanup:
-	if (errmsg != errprimary)
-		free(errmsg);
+	if (!PQExpBufferDataBroken(errbuf))
+		termPQExpBuffer(&errbuf);
 	LIBPQ_update_transaction_status(self);
 }
 

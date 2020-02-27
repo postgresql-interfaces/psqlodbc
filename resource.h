@@ -69,7 +69,7 @@
 #define IDC_OPTIONS                     1054
 #define DRV_OR_DSN                      1059
 #define DRV_DEBUG                       1060
-#define DS_DISALLOWPREMATURE            1061
+#define DS_OPTIONALERRORS		1061
 #define DS_LFCONVERSION                 1062
 #define DS_TRUEISMINUS1                 1063
 #define DS_UPDATABLECURSORS             1064

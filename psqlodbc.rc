@@ -152,6 +152,8 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,139,25,114,10
     CONTROL         "システムテ－ブルを表示(&T)",DS_SHOWSYSTEMTABLES,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,41,111,10
+    CONTROL         "補助的エラーメッセージを表示",DS_OPTIONALERRORS,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,139,41,162,10
     CONTROL         "LF <-> CR/LF 変換を行う",DS_LFCONVERSION,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,106,10
     CONTROL         "-1 を真値(True)とする",DS_TRUEISMINUS1,"Button",
@@ -611,6 +613,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,163,26,85,10
     CONTROL         "Show System &Tables",DS_SHOWSYSTEMTABLES,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,41,100,10
+    CONTROL         "Display Optional Error Message",DS_OPTIONALERRORS,"Button",                    BS_AUTOCHECKBOX | WS_TABSTOP,163,41,85,10
     CONTROL         "LF <-> CR/LF conversion",DS_LFCONVERSION,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,106,10
     CONTROL         "True is -1",DS_TRUEISMINUS1,"Button",BS_AUTOCHECKBOX | 

@@ -148,7 +148,8 @@ extern "C" {
 #define INI_TRUEISMINUS1		"TrueIsMinus1"
 #define ABBR_TRUEISMINUS1		"C6"
 #define INI_INT8AS			"BI"
-#define INI_NUMERIC_AS			"D6"
+#define INI_NUMERIC_AS			"NumericAs"
+#define ABBR_NUMERIC_AS			"D6"
 #define INI_BYTEAASLONGVARBINARY	"ByteaAsLongVarBinary"
 #define ABBR_BYTEAASLONGVARBINARY	"C7"
 #define INI_USESERVERSIDEPREPARE	"UseServerSidePrepare"
@@ -165,6 +166,8 @@ extern "C" {
 #define ABBR_KEEPALIVEINTERVAL		"D2"
 #define INI_PQOPT			"pqopt"
 #define ABBR_PQOPT			"D5"
+#define INI_OPTIONAL_ERRORS		"OptionalErrors"
+#define ABBR_OPTIONAL_ERRORS		"D7"
 #define INI_DTCLOG			"Dtclog"
 /* "PreferLibpq", abbreviated "D4", used to mean whether to prefer libpq.
  * libpq is now required
@@ -212,6 +215,7 @@ extern "C" {
 #define BIT_BYTEAASLONGVARBINARY		(1L<<24)
 #define BIT_USESERVERSIDEPREPARE		(1L<<25)
 #define BIT_LOWERCASEIDENTIFIER			(1L<<26)
+#define BIT_OPTIONALERRORS			(1L<<27)
 
 #define EFFECTIVE_BIT_COUNT			28
 
@@ -262,6 +266,7 @@ extern "C" {
 #define DEFAULT_LOWERCASEIDENTIFIER	0
 #define DEFAULT_SSLMODE			SSLMODE_DISABLE
 #define DEFAULT_NUMERIC_AS		(-101)
+#define DEFAULT_OPTIONAL_ERRORS		0
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define DEFAULT_XAOPT			1
