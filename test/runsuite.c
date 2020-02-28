@@ -200,8 +200,8 @@ runtest(const char *binname, const char *testname, int testno, const char *input
 	};
 	static const struct diff_info diffi[] = {
 		{ "diff", "diff -c --strip-trailing-cr \"%s\" \"%s\" %s" } 	// cygwin etc
-		, { "wsl", "wsl diff -c --strip-trailing-cr \"`wslpath '%s'`\" \"`wslpath '%s'`\" %s" }	// WSL
 		, { "git", "git diff --no-index -w \"%s\" \"%s\" %s" }	// git bash for Windows
+		, { "wsl", "wsl diff -c --strip-trailing-cr \"`wslpath '%s'`\" \"`wslpath '%s'`\" %s" }	// WSL
 		, { "fc", "fc /N \"%s\" \"%s\" %s" }
 	};
 #endif /* WIN32 */
