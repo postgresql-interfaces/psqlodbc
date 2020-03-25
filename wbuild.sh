@@ -3,6 +3,7 @@
 ##	Build all dlls of psqlodbc project for Windows
 ##		from WSL or cygwin
 ##
+cd $(dirname $0)
 pscript=winbuild/BuildAll.ps1
 if [ $# -gt 0 ]; then
 	if [ $1 = "/?" ]; then

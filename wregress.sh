@@ -3,6 +3,7 @@
 ##	regression test on Windows using MSBuild 
 ##		from WSL or cygwin
 ##
+cd $(dirname $0)
 pscript=winbuild/regress.ps1
 if [ $# -gt 0 ]; then
 	if [ $1 = "/?" ]; then

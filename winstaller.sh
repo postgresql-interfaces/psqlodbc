@@ -3,6 +3,7 @@
 ##	Build installers of psqlodbc project for Windows
 ##		from WSL or cygwin
 ##
+cd $(dirname $0)
 pscript=installer/buildInstallers.ps1
 if [ $# -gt 0 ]; then
 	if [ $1 = "/?" ]; then
