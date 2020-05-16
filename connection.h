@@ -484,6 +484,19 @@ enum {
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
 
 /*
+ * This is a libpq notice receiver callback, for handling incoming NOTICE
+ * messages while processing a query.
+ */
+typedef struct
+{
+	ConnectionClass *conn;
+	const char *comment;
+	QResultClass *res;
+} notice_receiver_arg;
+
+void receive_libpq_notice(void *arg, const PGresult *pgres);
+
+/*
  *	internal savepoint related
  */
 

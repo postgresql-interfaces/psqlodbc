@@ -1985,6 +1985,7 @@ PGAPI_MoreResults(HSTMT hstmt)
 	if (res)
 	{
 		SQLSMALLINT	num_p;
+		int errnum = 0, curerr;
 
 		if (stmt->multi_statement < 0)
 			PGAPI_NumParams(stmt, &num_p);
@@ -2002,6 +2003,24 @@ PGAPI_MoreResults(HSTMT hstmt)
 		stmt->diag_row_count = res->recent_processed_row_count;
 		SC_set_rowset_start(stmt, -1, FALSE);
 		stmt->currTuple = -1;
+
+		if (!QR_command_maybe_successful(res))
+		{
+			ret = SQL_ERROR;
+			errnum = STMT_EXEC_ERROR;
+		}
+		else if (NULL != QR_get_notice(res))
+		{
+			ret = SQL_SUCCESS_WITH_INFO;
+			errnum = STMT_INFO_ONLY;
+		}
+		if (0 != errnum)
+		{
+			curerr = SC_get_errornumber(stmt);
+			if (0 == curerr ||
+			    (0 > curerr && errnum > 0))
+				SC_set_errornumber(stmt, errnum);
+		}
 	}
 	else
 	{

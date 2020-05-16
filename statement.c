@@ -2453,6 +2453,23 @@ static void log_params(int nParams, const Oid *paramTypes, const UCHAR * const *
 	}
 }
 
+static
+QResultClass *add_libpq_notice_receiver(StatementClass *stmt, notice_receiver_arg *nrarg)
+{
+	QResultClass *res = NULL, *newres = NULL;
+
+	if (stmt->curr_param_result)
+		for (res = SC_get_Result(stmt); NULL != res && NULL != res->next; res = res->next);
+	if (!res)
+		newres = res = QR_Constructor();
+	nrarg->conn = SC_get_conn(stmt);
+	nrarg->comment = __FUNCTION__;
+	nrarg->res = res;
+	PQsetNoticeReceiver(nrarg->conn->pqconn, receive_libpq_notice, nrarg);
+
+	return newres;
+}
+
 static QResultClass *
 libpq_bind_and_exec(StatementClass *stmt)
 {
@@ -2470,6 +2487,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 	QResultClass *res = NULL;
 	char	   *cmdtag;
 	char	   *rowcount;
+	notice_receiver_arg	nrarg;
 
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
@@ -2526,6 +2544,8 @@ libpq_bind_and_exec(StatementClass *stmt)
 		pstmt = stmt->processed_statements;
 		QLOG(0, "PQexecParams: %p '%s' nParams=%d\n", conn->pqconn, pstmt->query, nParams);
 		log_params(nParams, paramTypes, (const UCHAR * const *) paramValues, paramLengths, paramFormats, resultFormat);
+		/* set notice receiver */
+		newres = add_libpq_notice_receiver(stmt, &nrarg);
 		pgres = PQexecParams(conn->pqconn,
 							 pstmt->query,
 							 nParams,
@@ -2551,27 +2571,20 @@ libpq_bind_and_exec(StatementClass *stmt)
 		/* already prepared */
 		QLOG(0, "PQexecPrepared: %p plan=%s nParams=%d\n", conn->pqconn, plan_name, nParams);
 		log_params(nParams, paramTypes, (const UCHAR * const *) paramValues, paramLengths, paramFormats, resultFormat);
+		/* set notice receiver */
+		newres = add_libpq_notice_receiver(stmt, &nrarg);
 		pgres = PQexecPrepared(conn->pqconn,
 							   plan_name, 	/* portal name == plan name */
 							   nParams,
 							   (const char **) paramValues, paramLengths, paramFormats,
 							   resultFormat);
 	}
-	if (stmt->curr_param_result)
+	/* reset notice receiver */
+	PQsetNoticeReceiver(conn->pqconn, receive_libpq_notice, NULL);
+	if (!(res = nrarg.res))
 	{
-		for (res = SC_get_Result(stmt); NULL != res && NULL != res->next; res = res->next) ;
-	}
-	else
-		res = NULL;
-
-	if (!res)
-	{
-		newres = res = QR_Constructor();
-		if (!res)
-		{
-			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory while allocating result set", func);
-			goto cleanup;
-		}
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory while allocating result set", func);
+		goto cleanup;
 	}
 
 	/* 3. Receive results */
