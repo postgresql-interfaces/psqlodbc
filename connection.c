@@ -2690,9 +2690,10 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 	if (!self->pqconn)
 		return;
 
+	MYLOG(DETAIL_LOG_LEVEL, "transactionStatus=%d\n", PQtransactionStatus(self->pqconn));
 	switch (PQtransactionStatus(self->pqconn))
 	{
-		case PQTRANS_IDLE:
+		case PQTRANS_IDLE:	// correspond to 'I' in ReadyForQuery message
 			if (CC_is_in_trans(self))
 			{
 				if (CC_is_in_error_trans(self))
@@ -2702,7 +2703,7 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 			}
 			break;
 
-		case PQTRANS_INTRANS:
+		case PQTRANS_INTRANS:	// correspond to 'T' in ReadyForQuery message
 			CC_set_in_trans(self);
 			if (CC_is_in_error_trans(self))
 			{
@@ -2711,17 +2712,16 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 			}
 			break;
 
-		case PQTRANS_INERROR:
+		case PQTRANS_INERROR:	// correspond to 'E' in ReadyForQuery message
 			CC_set_in_trans(self);
 			CC_set_in_error_trans(self);
 			break;
 
-		case PQTRANS_ACTIVE:
+		case PQTRANS_ACTIVE:	// no correspondence in ReadyForQuery message
 			/*
-			 * A query is still executing. It might have already aborted,
-			 * but all we know for sure is that we're in a transaction.
+			 * A query is still executing. It's not necessary to consider this status.
 			 */
-			CC_set_in_trans(self);
+			// CC_set_in_trans(self);
 			break;
 
 		default: 			/* unknown status */
