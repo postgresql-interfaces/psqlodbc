@@ -117,6 +117,8 @@
 #define DS_NUMERIC_AS_VARCHAR		1109
 #define DS_NUMERIC_AS_DOUBLE		1110
 #define DS_NUMERIC_AS_LONGVARCHAR	1111
+#define DS_ARRAY_BATCH_EXEC		1112
+#define DS_BATCH_SIZE			1113
 
 // Next default values for new objects
 //
@@ -124,7 +126,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1112
+#define _APS_NEXT_CONTROL_VALUE         1114
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

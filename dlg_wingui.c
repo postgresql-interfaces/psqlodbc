@@ -208,6 +208,16 @@ MYLOG(0, "entering src=%d\n", src);
 	SetDlgItemInt(hdlg, DRV_VARCHAR_SIZE, comval->max_varchar_size, FALSE);
 	SetDlgItemInt(hdlg, DRV_LONGVARCHAR_SIZE, comval->max_longvarchar_size, TRUE);
 	SetDlgItemText(hdlg, DRV_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes);
+	switch (src)
+	{
+		case 1:
+			ShowWindow(GetDlgItem(hdlg, DS_BATCH_SIZE), SW_SHOW);
+			SetDlgItemInt(hdlg, DS_BATCH_SIZE, ci->batch_size, FALSE);
+			break;
+		default:
+			ShowWindow(GetDlgItem(hdlg, DS_BATCH_SIZE), SW_HIDE);
+			break;
+	}
 
 	/* Driver Connection Settings */
 	EnableWindow(GetDlgItem(hdlg, DRV_CONNSETTINGS), FALSE);
@@ -257,6 +267,7 @@ MYLOG(3, "entering\n");
 																								 * SQL_NO_TOTAL */
 
 	GetDlgItemText(hdlg, DRV_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes, sizeof(comval->extra_systable_prefixes));
+	ci->batch_size = GetDlgItemInt(hdlg, DS_BATCH_SIZE, NULL, FALSE);
 
 	/* fall through */
 	return 0;

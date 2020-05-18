@@ -457,7 +457,15 @@ SC_Constructor(ConnectionClass *conn)
 		rv->callbacks = NULL;
 		GetDataInfoInitialize(SC_get_GDTI(rv));
 		PutDataInfoInitialize(SC_get_PDTI(rv));
+		rv->use_server_side_prepare = conn->connInfo.use_server_side_prepare;
 		rv->lock_CC_for_rb = FALSE;
+		// for batch execution
+		memset(&rv->stmt_deffered, 0, sizeof(rv->stmt_deffered));
+		if ((rv->batch_size = conn->connInfo.batch_size) < 1)
+			rv->batch_size = 1;
+		rv->exec_type = DIRECT_EXEC;
+		rv->count_of_deffered = 0;
+		rv->has_notice = 0;
 		INIT_STMT_CS(rv);
 	}
 	return rv;
@@ -506,6 +514,8 @@ SC_Destructor(StatementClass *self)
 	cancelNeedDataState(self);
 	if (self->callbacks)
 		free(self->callbacks);
+	if (!PQExpBufferDataBroken(self->stmt_deffered))
+		termPQExpBuffer(&self->stmt_deffered);
 
 	DELETE_STMT_CS(self);
 	free(self);
@@ -687,10 +697,12 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
 	ProcessedStmt *pstmt;
 	ProcessedStmt *next_pstmt;
+	ConnectionClass *conn = SC_get_conn(self);
 
 	if (self->lock_CC_for_rb)
 	{
-		LEAVE_CONN_CS(SC_get_conn(self));
+		if (conn)
+			LEAVE_CONN_CS(conn);
 		self->lock_CC_for_rb = FALSE;
 	}
 	if (initializeOriginal)
@@ -721,6 +733,8 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		self->join_info = 0;
 		SC_init_parse_method(self);
 		SC_init_discard_output_params(self);
+		if (conn)
+			self->use_server_side_prepare = conn->connInfo.use_server_side_prepare;
 	}
 	if (self->stmt_with_params)
 	{
@@ -732,6 +746,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		free(self->load_statement);
 		self->load_statement = NULL;
 	}
+	self->has_notice = 0;
 
 	return 0;
 }
@@ -1275,9 +1290,13 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 			if (NULL != sqlstate && strnicmp(res->sqlstate, "00", 2) == 0)
 				continue;
 			sqlstate = res->sqlstate;
+			if (!QR_command_maybe_successful(res))
+				loopend = TRUE;
+			/*
 			if ('0' != sqlstate[0] ||
 			    '1' < sqlstate[1])
 				loopend = TRUE;
+			*/
 		}
 		if (NULL != res->message)
 		{
@@ -2072,9 +2091,17 @@ SC_execute(StatementClass *self)
 		if (0 < SC_get_errornumber(self))
 			;
 		else if (was_ok)
-			SC_set_errornumber(self, STMT_OK);
+		{
+			if (self->has_notice &&
+			    0 == SC_get_errornumber(self))
+				SC_set_errornumber(self, STMT_INFO_ONLY);
+		}
 		else if (was_nonfatal)
-			SC_set_errornumber(self, STMT_INFO_ONLY);
+		{
+			self->has_notice = 1;
+			if (0 == SC_get_errornumber(self))
+				SC_set_errornumber(self, STMT_INFO_ONLY);
+		}
 		else
 			SC_set_errorinfo(self, res, 0);
 		/* set cursor before the first tuple in the list */
@@ -2465,6 +2492,7 @@ QResultClass *add_libpq_notice_receiver(StatementClass *stmt, notice_receiver_ar
 	nrarg->conn = SC_get_conn(stmt);
 	nrarg->comment = __FUNCTION__;
 	nrarg->res = res;
+	nrarg->stmt = stmt;
 	PQsetNoticeReceiver(nrarg->conn->pqconn, receive_libpq_notice, nrarg);
 
 	return newres;

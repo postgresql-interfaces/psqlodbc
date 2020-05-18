@@ -679,6 +679,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->keepalive_idle = atoi(value);
 	else if (stricmp(attribute, INI_KEEPALIVEINTERVAL) == 0 || stricmp(attribute, ABBR_KEEPALIVEINTERVAL) == 0)
 		ci->keepalive_interval = atoi(value);
+	else if (stricmp(attribute, INI_BATCHSIZE) == 0 || stricmp(attribute, ABBR_BATCHSIZE) == 0)
+		ci->batch_size = atoi(value);
 	else if (stricmp(attribute, INI_OPTIONAL_ERRORS) == 0 || stricmp(attribute, ABBR_OPTIONAL_ERRORS) == 0)
 		ci->optional_errors = atoi(value);
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
@@ -1055,6 +1057,9 @@ MYLOG(0, "drivername=%s\n", drivername);
 	if (SQLGetPrivateProfileString(DSN, INI_KEEPALIVEINTERVAL, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		if (0 == (ci->keepalive_interval = atoi(temp)))
 			ci->keepalive_interval = -1;
+	if (SQLGetPrivateProfileString(DSN, INI_BATCHSIZE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		if (0 == (ci->batch_size = atoi(temp)))
+			ci->batch_size = DEFAULT_BATCH_SIZE;
 
 	if (SQLGetPrivateProfileString(DSN, INI_SSLMODE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		STRCPY_FIXED(ci->sslmode, temp);
@@ -1339,6 +1344,11 @@ writeDSNinfo(const ConnInfo *ci)
 	ITOA_FIXED(temp, ci->keepalive_interval);
 	SQLWritePrivateProfileString(DSN,
 								 INI_KEEPALIVEINTERVAL,
+								 temp,
+								 ODBC_INI);
+	ITOA_FIXED(temp, ci->batch_size);
+	SQLWritePrivateProfileString(DSN,
+								 INI_BATCHSIZE,
 								 temp,
 								 ODBC_INI);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -1752,6 +1762,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->disable_keepalive = -1;
 	conninfo->keepalive_idle = -1;
 	conninfo->keepalive_interval = -1;
+	conninfo->batch_size = DEFAULT_BATCH_SIZE;
 	conninfo->wcs_debug = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
@@ -1851,6 +1862,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(extra_opts);
 	CORR_VALCPY(keepalive_idle);
 	CORR_VALCPY(keepalive_interval);
+	CORR_VALCPY(batch_size);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	CORR_VALCPY(xa_opt);
 #endif

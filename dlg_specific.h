@@ -168,6 +168,8 @@ extern "C" {
 #define ABBR_PQOPT			"D5"
 #define INI_OPTIONAL_ERRORS		"OptionalErrors"
 #define ABBR_OPTIONAL_ERRORS		"D7"
+#define INI_BATCHSIZE			"BatchSize"
+#define ABBR_BATCHSIZE			"D8"
 #define INI_DTCLOG			"Dtclog"
 /* "PreferLibpq", abbreviated "D4", used to mean whether to prefer libpq.
  * libpq is now required
@@ -267,6 +269,7 @@ extern "C" {
 #define DEFAULT_SSLMODE			SSLMODE_DISABLE
 #define DEFAULT_NUMERIC_AS		(-101)
 #define DEFAULT_OPTIONAL_ERRORS		0
+#define DEFAULT_BATCH_SIZE		100
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define DEFAULT_XAOPT			1

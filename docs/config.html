@@ -125,6 +125,10 @@ as System Tables. Tables that begin with "pg_" are always treated as system
 tables, even without this option. Separate each prefix with a semicolon
 (;)<br />&nbsp;</li>
 
+<li><b>Batch Size:</b>Chunk size when executing batches with arrays of
+parameters. Setting 1 to this option forces one by one execution (the
+behavior before).
+<br />&nbsp;</li>
 </ul>
 
 <h2>Advanced Options 2/3 Dialog Box</h2>
@@ -157,6 +161,8 @@ option well. See the <a "https://odbc.postgresql.org/faq.html">faq</a>
 for details on what you need to do to your database to allow for the row
 versioning feature to be used.<br />&nbsp;</li>
 
+<li><b>Display Optional Error Message:</b> Display optional(detail, hint, statement position etc) error messages.<br />&nbsp;</li>
+
 <li><b>True is -1:</b> Represent TRUE as -1 for compatibility with some applications.
 <br />&nbsp;</li>
 
@@ -168,22 +174,25 @@ versioning feature to be used.<br />&nbsp;</li>
   case, the query that is sent to the server for parsing will have the
   parameter markers replaced with the actual parameter values, or NULL literals
   if the values are not known yet.
+<br />&nbsp;</li>
 
 <li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>
+
+<li><b>Numeric As:</b> Specify the map from numeric items without precision to SQL data types. numeric(default), varchar, double  or memo(SQL_LONGVARCHAR) can be specified.<br />&nbsp;</li>
 
 <li><b>Extra Opts:</b> combination of the following bits.<br /><br>&nbsp;
 0x1: Force the output of short-length formatted connection string. Check this bit when you use MFC CDatabase class.<br />&nbsp;
 0x2: Fake MS SQL Server so that MS Access recognizes PostgreSQL's serial type as AutoNumber type.<br />&nbsp;
 0x4: Reply ANSI (not Unicode) char types for the inquiries from applications. Try to check this bit when your applications don't seem to be good at handling Unicode data.<br />&nbsp;</li>
 
-<li><b>Protocol:</b> The libpq protocol version to use.<br /><br />
+<!-- li><b>Protocol:</b> The libpq protocol version to use.<br /><br />
 This option controls two aspects of the connection, the libpq protocol version and the level of rollback on errors.
 For historical reasons the libpq protocol version is encoded as a PostgreSQL version number. The libpq protocol version used is the highest version, the given PostgreSQL server version supports.
 The level of rollback on errors is optional and is a dash separated suffix number as described below.<br /><br />
 
 <ul>
 <li><i>7.4+</i>: Use the 7.4(V3) protocol. This is currently the only supported libpq protocol and this part of the parameter is currently ignored.<br />&nbsp;</li>
-</ul></li>
+</ul></li -->
 
 <li><b>Level of rollback on errors:</b> Specifies what to rollback should an
 error occur.<br />&nbsp;

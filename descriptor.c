@@ -278,10 +278,12 @@ void InitializeEmbeddedDescriptor(DescriptorClass *self, StatementClass *stmt,
 	{
 		case SQL_ATTR_APP_ROW_DESC:
 			memset(&(self->ardf), 0, sizeof(ARDFields));
+			InitializeARDFields(&(self->ardf));
 			stmt->ard = self;
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
 			memset(&(self->apdf), 0, sizeof(APDFields));
+			InitializeAPDFields(&(self->apdf));
 			stmt->apd = self;
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:

@@ -492,6 +492,7 @@ typedef struct
 	ConnectionClass *conn;
 	const char *comment;
 	QResultClass *res;
+	StatementClass *stmt;
 } notice_receiver_arg;
 
 void receive_libpq_notice(void *arg, const PGresult *pgres);

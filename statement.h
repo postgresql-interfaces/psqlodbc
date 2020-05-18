@@ -12,6 +12,7 @@
 #include "psqlodbc.h"
 #include <time.h>
 
+#include "pqexpbuffer.h"
 #include "pgtypes.h"
 #include "bind.h"
 #include "descriptor.h"
@@ -167,6 +168,12 @@ enum
 	STMT_FETCH_NORMAL,
 	STMT_FETCH_EXTENDED
 };
+/*	Type of the 3rd parameter of Exec_with_parameters_resolved() */
+typedef enum {
+	DIRECT_EXEC,
+	DEFFERED_EXEC,
+	LAST_EXEC
+} EXEC_TYPE;
 
 #define	PG_NUM_NORMAL_KEYS	2
 
@@ -271,6 +278,7 @@ struct StatementClass_
 	po_ind_t	join_info;	/* have joins ? */
 	po_ind_t	parse_method;	/* parse_statement is forced or ? */
 	po_ind_t	curr_param_result; /* current param result is set ? */
+	po_ind_t	has_notice; /* exec result contains notice messages ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
 
@@ -291,6 +299,12 @@ struct StatementClass_
 	SQLLEN		last_fetch_count_include_ommitted;
 	time_t		stmt_time;
 	struct tm	localtime;
+	//	for batch execution
+	signed char	use_server_side_prepare;
+	int		batch_size;
+	EXEC_TYPE	exec_type;
+	int		count_of_deffered;
+	PQExpBufferData	stmt_deffered;
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
 	StatementClass	*execute_parent;

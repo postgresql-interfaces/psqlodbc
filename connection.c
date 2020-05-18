@@ -991,6 +991,8 @@ receive_libpq_notice(void *arg, const PGresult *pgres)
 	{
 		notice_receiver_arg *nrarg = (notice_receiver_arg *) arg;
 
+		if (NULL != nrarg->stmt)
+			nrarg->stmt->has_notice = 1;
 		handle_pgres_error(nrarg->conn, pgres, nrarg->comment, nrarg->res, FALSE);
 	}
 }
@@ -1924,6 +1926,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	nrarg.conn = self;
 	nrarg.comment = func;
 	nrarg.res = NULL;
+	nrarg.stmt = stmt;
 	PQsetNoticeReceiver(self->pqconn, receive_libpq_notice, &nrarg);
 
 	QLOG(0, "PQsendQuery: %p '%s'\n", self->pqconn, query_buf.data);
@@ -2077,6 +2080,8 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 				break;
 			case PGRES_NONFATAL_ERROR:
 				handle_pgres_error(self, pgres, "send_query", res, FALSE);
+				if (stmt)
+					stmt->has_notice = 1;
 				break;
 
 			case PGRES_BAD_RESPONSE:

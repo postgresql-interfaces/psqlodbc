@@ -203,7 +203,7 @@ inquireHowToPrepare(const StatementClass *stmt)
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-	if (!ci->use_server_side_prepare)
+	if (!stmt->use_server_side_prepare)
 	{
 		/* Do prepare operations by the driver itself */
 		return PREPARE_BY_THE_DRIVER;
@@ -403,18 +403,41 @@ const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
 /*
  *	The execution after all parameters were resolved.
  */
+
+#define INVALID_EXPBUFFER	PQExpBufferDataBroken(stmt->stmt_deffered)
+#define VALID_EXPBUFFER	(!PQExpBufferDataBroken(stmt->stmt_deffered))
+
 static
-RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
+void param_status_batch_update(IPDFields *ipdopts, RETCODE retval, SQLLEN target_row, int count_of_deffered)
+{
+	if (NULL != ipdopts->param_status_ptr)
+	{
+		for (int i = target_row, j = 0; i >= 0 && j <= count_of_deffered; i--)
+		{
+			if (SQL_PARAM_UNUSED != ipdopts->param_status_ptr[i])
+			{
+				ipdopts->param_status_ptr[i] = retval;
+				j++;
+			}
+		}
+	}
+}
+
+static
+RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, EXEC_TYPE exec_type, BOOL *exec_end)
 {
 	CSTR func = "Exec_with_parameters_resolved";
 	RETCODE		retval;
-	SQLLEN		end_row;
+	SQLLEN		start_row, end_row;
 	SQLINTEGER	cursor_type, scroll_concurrency;
 	ConnectionClass	*conn;
 	QResultClass	*res;
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 	BOOL		prepare_before_exec = FALSE;
+	char *stmt_with_params;
+	SQLLEN		status_row = stmt->exec_current_row;
+	int		count_of_deffered;
 
 	*exec_end = FALSE;
 	conn = SC_get_conn(stmt);
@@ -430,15 +453,33 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, BOOL *exec_end)
 	if (HowToPrepareBeforeExec(stmt, FALSE) >= allowParse)
 		prepare_before_exec = TRUE;
 
-MYLOG(DETAIL_LOG_LEVEL, "prepare_before_exec=%d srv=%d\n", prepare_before_exec, conn->connInfo.use_server_side_prepare);
+MYLOG(DETAIL_LOG_LEVEL, "prepare_before_exec=%d srv=%d\n", prepare_before_exec, stmt->use_server_side_prepare);
 	/* Create the statement with parameters substituted. */
-	retval = copy_statement_with_parameters(stmt, prepare_before_exec);
-	stmt->current_exec_param = -1;
-	if (retval != SQL_SUCCESS)
+	stmt_with_params = stmt->stmt_with_params;
+	if (LAST_EXEC == exec_type)
 	{
-		stmt->exec_current_row = -1;
-		*exec_end = TRUE;
-		RETURN(retval) /* error msg is passed from the above */
+		if (NULL != stmt_with_params)
+		{
+			free(stmt_with_params);
+			stmt_with_params = stmt->stmt_with_params = NULL;
+		}
+		if (INVALID_EXPBUFFER ||
+		    !stmt->stmt_deffered.data[0])
+			RETURN(SQL_SUCCESS);
+	}
+	else
+	{
+		retval = copy_statement_with_parameters(stmt, prepare_before_exec);
+		stmt->current_exec_param = -1;
+		if (retval != SQL_SUCCESS)
+		{
+			stmt->exec_current_row = -1;
+			*exec_end = TRUE;
+			RETURN(retval) /* error msg is passed from the above */
+		}
+		stmt_with_params = stmt->stmt_with_params;
+		if (!stmt_with_params) // Extended Protocol
+			exec_type = DIRECT_EXEC;
 	}
 
 	MYLOG(0, "   stmt_with_params = '%s'\n", stmt->stmt_with_params);
@@ -446,10 +487,80 @@ MYLOG(DETAIL_LOG_LEVEL, "prepare_before_exec=%d srv=%d\n", prepare_before_exec, 
 	/*
 	 *	The real execution.
 	 */
-MYLOG(0, "about to begin SC_execute\n");
-	retval = SC_execute(stmt);
+MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
+	ipdopts = SC_get_IPDF(stmt);
+	apdopts = SC_get_APDF(stmt);
+	if (start_row = stmt->exec_start_row, start_row < 0)
+		start_row = 0;
+	if (end_row = stmt->exec_end_row, end_row < 0)
+	{
+		end_row = (SQLINTEGER) apdopts->paramset_size - 1;
+		if (end_row < 0)
+			end_row = 0;
+	}
+	if (LAST_EXEC == exec_type &&
+	    NULL != ipdopts->param_status_ptr)
+	{
+		for (int i = end_row; i >= start_row; i--)
+		{
+			if (SQL_PARAM_UNUSED != ipdopts->param_status_ptr[i])
+			{
+				status_row = i;
+				break;
+			}
+		}
+	}
+	count_of_deffered = stmt->count_of_deffered;
+	if (DIRECT_EXEC == exec_type)
+	{
+		retval = SC_execute(stmt);
+		stmt->count_of_deffered = 0;
+	}
+	else if (DEFFERED_EXEC == exec_type &&
+		 stmt->exec_current_row < end_row &&
+		 stmt->count_of_deffered + 1 < stmt->batch_size)
+	{
+		if (INVALID_EXPBUFFER)
+			initPQExpBuffer(&stmt->stmt_deffered);
+		if (INVALID_EXPBUFFER)
+		{
+			retval = SQL_ERROR;
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory", __FUNCTION__); 
+		}
+		else
+		{
+			if (NULL != stmt_with_params)
+			{
+				if (stmt->stmt_deffered.data[0])
+					appendPQExpBuffer(&stmt->stmt_deffered, ";%s", stmt_with_params);
+				else
+					printfPQExpBuffer(&stmt->stmt_deffered, "%s", stmt_with_params);
+			}
+			if (NULL != ipdopts->param_status_ptr)
+				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS; // set without exec
+			stmt->count_of_deffered++;
+			stmt->exec_current_row++;
+			RETURN(SQL_SUCCESS);
+		}
+	}
+	else
+	{
+		if (VALID_EXPBUFFER)
+		{
+			if (NULL != stmt_with_params)
+				appendPQExpBuffer(&stmt->stmt_deffered, ";%s", stmt_with_params);
+			stmt->stmt_with_params = stmt->stmt_deffered.data;
+		}
+		retval = SC_execute(stmt);
+		stmt->stmt_with_params = stmt_with_params;
+		stmt->count_of_deffered = 0;
+		if (VALID_EXPBUFFER)
+			resetPQExpBuffer(&stmt->stmt_deffered);
+	}
 	if (retval == SQL_ERROR)
 	{
+MYLOG(0, "count_of_deffered=%d\n", count_of_deffered);
+		param_status_batch_update(ipdopts, SQL_PARAM_ERROR, stmt->exec_current_row, count_of_deffered);
 		stmt->exec_current_row = -1;
 		*exec_end = TRUE;
 		RETURN(retval)
@@ -477,21 +588,18 @@ MYLOG(0, "about to begin SC_execute\n");
 		switch (retval)
 		{
 			case SQL_SUCCESS:
-				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS;
+				ipdopts->param_status_ptr[status_row] = SQL_PARAM_SUCCESS;
 				break;
 			case SQL_SUCCESS_WITH_INFO:
-				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS_WITH_INFO;
+MYLOG(0, "count_of_deffered=%d has_notice=%d\n", count_of_deffered, stmt->has_notice);
+				param_status_batch_update(ipdopts, (count_of_deffered > 0 && !stmt->has_notice) ? SQL_PARAM_SUCCESS : SQL_PARAM_SUCCESS_WITH_INFO, status_row, count_of_deffered);
 				break;
 			default:
-				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_ERROR;
+				param_status_batch_update(ipdopts, SQL_PARAM_ERROR, status_row, count_of_deffered);
 				break;
 		}
 	}
-	if (end_row = stmt->exec_end_row, end_row < 0)
-	{
-		apdopts = SC_get_APDF(stmt);
-		end_row = (SQLINTEGER) apdopts->paramset_size - 1;
-	}
+	stmt->has_notice = 0;
 	if (stmt->exec_current_row >= end_row)
 	{
 		*exec_end = TRUE;
@@ -503,9 +611,6 @@ MYLOG(0, "about to begin SC_execute\n");
 	{
 		EnvironmentClass *env = (EnvironmentClass *) CC_get_env(conn);
 		const char *cmd = QR_get_command(res);
-		SQLLEN	start_row;
-		if (start_row = stmt->exec_start_row, start_row < 0)
-			start_row = 0;
 
 		if (retval == SQL_SUCCESS &&
 		    NULL != cmd &&
@@ -824,11 +929,12 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	APDFields	*apdopts;
 	IPDFields	*ipdopts;
 	SQLLEN		i, start_row, end_row;
-	BOOL	exec_end, recycled = FALSE, recycle = TRUE;
+	BOOL	exec_end = FALSE, recycled = FALSE, recycle = TRUE;
 	SQLSMALLINT	num_params;
 
 	MYLOG(0, "entering...%x\n", flag);
 
+	stmt->has_notice = 0;
 	conn = SC_get_conn(stmt);
 	apdopts = SC_get_APDF(stmt);
 
@@ -898,7 +1004,11 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	if (start_row = stmt->exec_start_row, start_row < 0)
 		start_row = 0;
 	if (end_row = stmt->exec_end_row, end_row < 0)
+	{
 		end_row = (SQLINTEGER) apdopts->paramset_size - 1;
+		if (end_row < 0)
+		       end_row = 0;
+	}
 	if (stmt->exec_current_row < 0)
 		stmt->exec_current_row = start_row;
 	ipdopts = SC_get_IPDF(stmt);
@@ -912,9 +1022,18 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		   parameters even in case of non-prepared statements.
 		 */
 		int	nCallParse = doNothing;
+		BOOL	maybeBatch = FALSE;
 
+		if (end_row > start_row &&
+		    SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type &&
+		    SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency &&
+		    stmt->batch_size > 1)
+			maybeBatch = TRUE;
+MYLOG(0, "prepare=%d prepared=%d  batch_size=%d start_row=" FORMAT_LEN "end_row=" FORMAT_LEN " => maybeBatch=%d\n", stmt->prepare, stmt->prepared, stmt->batch_size, start_row, end_row, maybeBatch);
 		if (NOT_YET_PREPARED == stmt->prepared)
 		{
+			if (maybeBatch)
+				stmt->use_server_side_prepare = 0;
 			switch (nCallParse = HowToPrepareBeforeExec(stmt, TRUE))
 			{
 				case shouldParse:
@@ -930,6 +1049,13 @@ MYLOG(0, "prepareParameters was %s called, prepare state:%d\n", shouldParse == n
 		{
 			SC_set_Result(stmt, NULL);
 		}
+		if (0 != (PREPARE_BY_THE_DRIVER & stmt->prepare) &&
+		    maybeBatch)
+			stmt->exec_type = DEFFERED_EXEC;
+		else
+			stmt->exec_type = DIRECT_EXEC;
+
+MYLOG(0, "prepare=%d maybeBatch=%d exec_type=%d\n", stmt->prepare, maybeBatch, stmt->exec_type);
 		if (ipdopts->param_processed_ptr)
 			*ipdopts->param_processed_ptr = 0;
 		/*
@@ -951,18 +1077,26 @@ MYLOG(0, "prepareParameters was %s called, prepare state:%d\n", shouldParse == n
 	}
 
 next_param_row:
-	if (apdopts->param_operation_ptr)
+	if (stmt->exec_current_row > end_row)
+		exec_end = TRUE;
+	else if (apdopts->param_operation_ptr)
 	{
 		while (apdopts->param_operation_ptr[stmt->exec_current_row] == SQL_PARAM_IGNORE)
 		{
 			if (stmt->exec_current_row >= end_row)
 			{
-				stmt->exec_current_row = -1;
-				retval = SQL_SUCCESS;
-				goto cleanup;
+				exec_end = TRUE;
+				break;
 			}
 			++stmt->exec_current_row;
 		}
+	}
+	if (exec_end)
+	{
+		if (DEFFERED_EXEC == stmt->exec_type )
+			retval = Exec_with_parameters_resolved(stmt, LAST_EXEC, &exec_end);
+		stmt->exec_current_row = -1;
+		goto cleanup;
 	}
 	/*
 	 *	Initialize the current row status
@@ -1042,7 +1176,7 @@ next_param_row:
 
 	if (0 != (flag & PODBC_WITH_HOLD))
 		SC_set_with_hold(stmt);
-	retval = Exec_with_parameters_resolved(stmt, &exec_end);
+	retval = Exec_with_parameters_resolved(stmt, stmt->exec_type, &exec_end);
 	if (!exec_end)
 	{
 		stmt->curr_param_result = 0;
@@ -1329,7 +1463,7 @@ MYLOG(DETAIL_LOG_LEVEL, "ipdopts=%p\n", ipdopts);
 		BOOL	exec_end;
 		UWORD	flag = SC_is_with_hold(stmt) ? PODBC_WITH_HOLD : 0;
 
-		retval = Exec_with_parameters_resolved(estmt, &exec_end);
+		retval = Exec_with_parameters_resolved(estmt, stmt->exec_type, &exec_end);
 		if (exec_end)
 		{
 			/**SC_reset_delegate(retval, stmt);**/

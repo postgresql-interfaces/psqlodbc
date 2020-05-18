@@ -458,6 +458,9 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_PGOPT_MSJET:
 			*((SQLINTEGER *) Value) = conn->ms_jet;
 			break;
+		case SQL_ATTR_PGOPT_BATCHSIZE:
+			*((SQLINTEGER *) Value) = conn->connInfo.batch_size;
+			break;
 		default:
 			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value, &len, BufferLength);
 	}
@@ -1784,6 +1787,10 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_PGOPT_MSJET:
 			conn->ms_jet = CAST_PTR(SQLINTEGER, Value);
 			MYLOG(0, "ms_jet => %d\n", conn->ms_jet);
+			break;
+		case SQL_ATTR_PGOPT_BATCHSIZE:
+			conn->connInfo.batch_size = CAST_PTR(SQLINTEGER, Value);
+			MYLOG(0, "batch size => %d\n", conn->connInfo.batch_size);
 			break;
 		default:
 			if (Attribute < 65536)
