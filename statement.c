@@ -1852,9 +1852,17 @@ SC_execute(StatementClass *self)
 	BOOL		use_extended_protocol;
 	int		func_cs_count = 0, i;
 	BOOL		useCursor, isSelectType;
+	int		errnum_sav = STMT_OK, errnum;
+	char		*errmsg_sav = NULL;
 
 	conn = SC_get_conn(self);
 	ci = &(conn->connInfo);
+
+	errnum_sav = SC_get_errornumber(self);
+	errmsg_sav = SC_get_errormsg(self);
+	if (NULL != errmsg_sav)
+		errmsg_sav = strdup(errmsg_sav);
+	SC_set_error(self, STMT_OK, NULL, __FUNCTION__);
 
 	/* Begin a transaction if one is not already in progress */
 
@@ -2286,15 +2294,26 @@ cleanup:
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
 	/* self->status = STMT_FINISHED; */
-	if (SC_get_errornumber(self) == STMT_OK)
+	errnum = SC_get_errornumber(self);
+	if (errnum_sav > STMT_OK)
+		SC_set_error(self, errnum_sav, errmsg_sav, NULL);
+	else if (errnum > STMT_OK)
+		;
+	else if (errnum_sav < STMT_OK)
+		SC_set_error(self, errnum_sav, errmsg_sav, NULL);
+	if (NULL != errmsg_sav)
+		free(errmsg_sav);
+
+	if (errnum == STMT_OK)
 		return SQL_SUCCESS;
-	else if (SC_get_errornumber(self) < STMT_OK)
+	else if (errnum < STMT_OK)
 		return SQL_SUCCESS_WITH_INFO;
 	else
 	{
-		if (!SC_get_errormsg(self) || !SC_get_errormsg(self)[0])
+		char *errmsg = SC_get_errormsg(self);
+		if (!errmsg || !errmsg[0])
 		{
-			if (STMT_NO_MEMORY_ERROR != SC_get_errornumber(self))
+			if (STMT_NO_MEMORY_ERROR != errnum)
 				SC_set_errormsg(self, "Error while executing the query");
 			SC_log_error(func, NULL, self);
 		}

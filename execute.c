@@ -1186,6 +1186,9 @@ cleanup:
 MYLOG(0, "leaving retval=%d\n", retval);
 	SC_setInsertedTable(stmt, retval);
 #undef	return
+	if (SQL_SUCCESS == retval &&
+	    STMT_OK > SC_get_errornumber(stmt))
+		retval = SQL_SUCCESS_WITH_INFO;
 	return retval;
 }
 
