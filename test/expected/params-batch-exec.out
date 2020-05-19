@@ -1,0 +1,54 @@
+connected
+one by one execution
+insert into test_batch returns 1
+row 0 status=success
+row 1 status=success_with_info
+row 2 status=success
+row 3 status=success
+row 4 status=success_with_info
+row 5 status=success
+row 6 status=success
+row 7 status=success_with_info
+row 8 status=success
+row 9 status=success
+insert into test_batch returns -1
+
+22001=ERROR: value too long for type character varying(4);
+Error while executing the query
+row 0 status=success_with_info
+row 1 status=success_with_info
+row 2 status=success_with_info
+row 3 status=success_with_info
+row 4 status=success_with_info
+row 5 status=success_with_info
+row 6 status=success_with_info
+row 7 status=error
+row 8 status=unused
+row 9 status=unused
+batch execution
+insert into test_batch returns 1
+row 0 status=success_with_info
+row 1 status=success_with_info
+row 2 status=success
+row 3 status=success
+row 4 status=success_with_info
+row 5 status=success_with_info
+row 6 status=success_with_info
+row 7 status=success_with_info
+row 8 status=success
+row 9 status=success
+insert into test_batch returns -1
+
+22001=ERROR: value too long for type character varying(4);
+Error while executing the query
+row 0 status=success_with_info
+row 1 status=success_with_info
+row 2 status=success_with_info
+row 3 status=success_with_info
+row 4 status=success_with_info
+row 5 status=success_with_info
+row 6 status=error
+row 7 status=error
+row 8 status=unused
+row 9 status=unused
+disconnecting
