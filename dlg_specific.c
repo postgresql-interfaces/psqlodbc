@@ -683,6 +683,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->batch_size = atoi(value);
 	else if (stricmp(attribute, INI_OPTIONAL_ERRORS) == 0 || stricmp(attribute, ABBR_OPTIONAL_ERRORS) == 0)
 		ci->optional_errors = atoi(value);
+	else if (stricmp(attribute, INI_IGNORETIMEOUT) == 0 || stricmp(attribute, ABBR_IGNORETIMEOUT) == 0)
+		ci->ignore_timeout = atoi(value);
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
 	{
 		switch (value[0])
@@ -1060,6 +1062,8 @@ MYLOG(0, "drivername=%s\n", drivername);
 	if (SQLGetPrivateProfileString(DSN, INI_BATCHSIZE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		if (0 == (ci->batch_size = atoi(temp)))
 			ci->batch_size = DEFAULT_BATCH_SIZE;
+	if (SQLGetPrivateProfileString(DSN, INI_IGNORETIMEOUT, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
+		ci->ignore_timeout = atoi(temp);
 
 	if (SQLGetPrivateProfileString(DSN, INI_SSLMODE, NULL_STRING, temp, sizeof(temp), ODBC_INI) > 0)
 		STRCPY_FIXED(ci->sslmode, temp);
@@ -1349,6 +1353,11 @@ writeDSNinfo(const ConnInfo *ci)
 	ITOA_FIXED(temp, ci->batch_size);
 	SQLWritePrivateProfileString(DSN,
 								 INI_BATCHSIZE,
+								 temp,
+								 ODBC_INI);
+	ITOA_FIXED(temp, ci->ignore_timeout);
+	SQLWritePrivateProfileString(DSN,
+								 INI_IGNORETIMEOUT,
 								 temp,
 								 ODBC_INI);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -1763,6 +1772,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->keepalive_idle = -1;
 	conninfo->keepalive_interval = -1;
 	conninfo->batch_size = DEFAULT_BATCH_SIZE;
+	conninfo->ignore_timeout = DEFAULT_IGNORETIMEOUT;
 	conninfo->wcs_debug = -1;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	conninfo->xa_opt = -1;
@@ -1863,6 +1873,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(keepalive_idle);
 	CORR_VALCPY(keepalive_interval);
 	CORR_VALCPY(batch_size);
+	CORR_VALCPY(ignore_timeout);
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	CORR_VALCPY(xa_opt);
 #endif

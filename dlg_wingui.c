@@ -212,10 +212,13 @@ MYLOG(0, "entering src=%d\n", src);
 	{
 		case 1:
 			ShowWindow(GetDlgItem(hdlg, DS_BATCH_SIZE), SW_SHOW);
+			ShowWindow(GetDlgItem(hdlg, DS_IGNORETIMEOUT), SW_SHOW);
 			SetDlgItemInt(hdlg, DS_BATCH_SIZE, ci->batch_size, FALSE);
+			CheckDlgButton(hdlg, DS_IGNORETIMEOUT, ci->ignore_timeout);
 			break;
 		default:
 			ShowWindow(GetDlgItem(hdlg, DS_BATCH_SIZE), SW_HIDE);
+			ShowWindow(GetDlgItem(hdlg, DS_IGNORETIMEOUT), SW_HIDE);
 			break;
 	}
 
@@ -268,6 +271,7 @@ MYLOG(3, "entering\n");
 
 	GetDlgItemText(hdlg, DRV_EXTRASYSTABLEPREFIXES, comval->extra_systable_prefixes, sizeof(comval->extra_systable_prefixes));
 	ci->batch_size = GetDlgItemInt(hdlg, DS_BATCH_SIZE, NULL, FALSE);
+	ci->ignore_timeout = IsDlgButtonChecked(hdlg, DS_IGNORETIMEOUT);
 
 	/* fall through */
 	return 0;

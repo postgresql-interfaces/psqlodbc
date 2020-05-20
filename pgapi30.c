@@ -461,6 +461,9 @@ PGAPI_GetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_PGOPT_BATCHSIZE:
 			*((SQLINTEGER *) Value) = conn->connInfo.batch_size;
 			break;
+		case SQL_ATTR_PGOPT_IGNORETIMEOUT:
+			*((SQLINTEGER *) Value) = conn->connInfo.ignore_timeout;
+			break;
 		default:
 			ret = PGAPI_GetConnectOption(ConnectionHandle, (UWORD) Attribute, Value, &len, BufferLength);
 	}
@@ -1791,6 +1794,10 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 		case SQL_ATTR_PGOPT_BATCHSIZE:
 			conn->connInfo.batch_size = CAST_PTR(SQLINTEGER, Value);
 			MYLOG(0, "batch size => %d\n", conn->connInfo.batch_size);
+			break;
+		case SQL_ATTR_PGOPT_IGNORETIMEOUT:
+			conn->connInfo.ignore_timeout = CAST_PTR(SQLINTEGER, Value);
+			MYLOG(0, "ignore_timeout => %d\n", conn->connInfo.ignore_timeout);
 			break;
 		default:
 			if (Attribute < 65536)

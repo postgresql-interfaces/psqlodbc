@@ -60,6 +60,10 @@ correctly identify a function or expression column, regardless of the complexity
 but it does not attempt to determine the data type or precision of these
 columns.<br />&nbsp;</li>
 
+<li><b>Ignore Timeout:</b>
+Ignore SQL_ATTR_QUERY_TIMEOUT set using SQLSetStmtAttr(). Some tools issue SQLSetStmtAttr(.., SQL_ATTR_QUERY_TIMEOUT, ...) internally and sometimes it's difficult for users to change the value.
+<br />&nbsp;</li>
+
 <li><b>MyLog (C:\mylog_xxxx.log):</b>
 Log debug messages to that file. This is good
 for debugging problems with the driver.<br />&nbsp;</li>

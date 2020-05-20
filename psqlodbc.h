@@ -639,6 +639,7 @@ typedef struct
 	signed char	wcs_debug;
 	signed char	numeric_as;
 	signed char	optional_errors;
+	signed char	ignore_timeout;
 	UInt4		extra_opts;
 	Int4		keepalive_idle;
 	Int4		keepalive_interval;

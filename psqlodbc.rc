@@ -97,6 +97,8 @@ BEGIN
                     WS_EX_TRANSPARENT
     CONTROL         "ユニ－クインデックスを使う(&I)",DRV_UNIQUEINDEX,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,129,10
+    CONTROL         "タイムアウト無視",DS_IGNORETIMEOUT,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,167,56,129,10
     CONTROL         "ステ－トメントの構文解析を行なう(&a)",DRV_PARSE,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,167,40,152,10
     CONTROL         "Declare～Fetchを使用する(&U)",DRV_USEDECLAREFETCH,
@@ -559,6 +561,8 @@ BEGIN
                     WS_EX_TRANSPARENT
     CONTROL         "Recognize Unique &Indexes",DRV_UNIQUEINDEX,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,15,56,110,10
+    CONTROL         "Ignore Timeout",DS_IGNORETIMEOUT,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,149,56,110,10
     CONTROL         "P&arse Statements",DRV_PARSE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,149,41,80,10
     CONTROL         "&Use Declare/Fetch",DRV_USEDECLAREFETCH,"Button",

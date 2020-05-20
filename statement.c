@@ -1854,6 +1854,7 @@ SC_execute(StatementClass *self)
 	BOOL		useCursor, isSelectType;
 	int		errnum_sav = STMT_OK, errnum;
 	char		*errmsg_sav = NULL;
+	SQLULEN		stmt_timeout;
 
 	conn = SC_get_conn(self);
 	ci = &(conn->connInfo);
@@ -1938,15 +1939,16 @@ SC_execute(StatementClass *self)
 	 * If the session query timeout setting differs from the statement one,
 	 * change it.
 	 */
-	if (conn->stmt_timeout_in_effect != self->options.stmt_timeout)
+	stmt_timeout = conn->connInfo.ignore_timeout ? 0 : self->options.stmt_timeout;
+	if (conn->stmt_timeout_in_effect != stmt_timeout)
 	{
 		char query[64];
 
 		SPRINTF_FIXED(query, "SET statement_timeout = %d",
-				 (int) self->options.stmt_timeout * 1000);
+				 (int) stmt_timeout * 1000);
 		res = CC_send_query(conn, query, NULL, 0, NULL);
 		if (QR_command_maybe_successful(res))
-			conn->stmt_timeout_in_effect = self->options.stmt_timeout;
+			conn->stmt_timeout_in_effect = stmt_timeout;
 		QR_Destructor(res);
 	}
 
