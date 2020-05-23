@@ -1,11 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common.h"
-#ifdef ODBCVER // supress warning
-#undef ODBCVER
-#endif
+/* Must come before sql.h (declared in common.h) to suppress a warning */
 #include "../../pgapifunc.h"
+
+#include "common.h"
 
 static void b_result(SQLRETURN rc, HSTMT stmt,  int repcnt, SQLUSMALLINT status[])
 {
