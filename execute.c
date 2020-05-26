@@ -410,9 +410,10 @@ const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
 static
 void param_status_batch_update(IPDFields *ipdopts, RETCODE retval, SQLLEN target_row, int count_of_deffered)
 {
+	int i, j;
 	if (NULL != ipdopts->param_status_ptr)
 	{
-		for (int i = target_row, j = 0; i >= 0 && j <= count_of_deffered; i--)
+		for (i = target_row, j = 0; i >= 0 && j <= count_of_deffered; i--)
 		{
 			if (SQL_PARAM_UNUSED != ipdopts->param_status_ptr[i])
 			{
@@ -501,7 +502,8 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 	if (LAST_EXEC == exec_type &&
 	    NULL != ipdopts->param_status_ptr)
 	{
-		for (int i = end_row; i >= start_row; i--)
+		int i;
+		for (i = end_row; i >= start_row; i--)
 		{
 			if (SQL_PARAM_UNUSED != ipdopts->param_status_ptr[i])
 			{
