@@ -606,40 +606,6 @@ static void xxxxx(StatementClass *stmt, FIELD_INFO *fi, QResultClass *res, int i
 	}
 }
 
-static BOOL has_multi_table(const StatementClass *stmt)
-{
-	BOOL multi_table = FALSE;
-	QResultClass	*res;
-
-MYLOG(DETAIL_LOG_LEVEL, "entering ntab=%d", stmt->ntab);
-	if (1 < stmt->ntab)
-		multi_table = TRUE;
-	else if (SC_has_join(stmt))
-		multi_table = TRUE;
-	else if (res = SC_get_Curres(stmt), NULL != res)
-	{
-		int	i, num_fields = QR_NumPublicResultCols(res);
-		OID	reloid = 0, greloid;
-
-		for (i = 0; i < num_fields; i++)
-		{
-			greloid = QR_get_relid(res, i);
-			if (0 != greloid)
-			{
-				if (0 == reloid)
-					reloid = greloid;
-				else if (reloid != greloid)
-				{
-MYPRINTF(DETAIL_LOG_LEVEL, " DOHHH i=%d %u!=%u ", i, reloid, greloid);
-					multi_table = TRUE;
-					break;
-				}
-			}
-		}
-	}
-MYPRINTF(DETAIL_LOG_LEVEL, " multi=%d\n", multi_table);
-	return multi_table;
-}
 /*
  *	SQLColAttribute tries to set the FIELD_INFO (using protocol 3).
  */
@@ -681,12 +647,8 @@ MYLOG(0, "updatable=%d tab=%d fields=%d", updatable, stmt->ntab, num_fields);
 	{
 		if (1 > stmt->ntab)
 			updatable = FALSE;
-		else if (has_multi_table(stmt))
-			updatable = FALSE;
 	}
 MYPRINTF(0, "->%d\n", updatable);
-	if (stmt->updatable < 0)
-		SC_set_updatable(stmt, updatable);
 	for (i = 0; i < num_fields; i++)
 	{
 		if (reloid == (OID) QR_get_relid(res, i))
@@ -739,6 +701,13 @@ MYPRINTF(0, "->%d\n", updatable);
 			wfi->flag |= FIELD_COL_ATTRIBUTE;
 		}
 	}
+	if (stmt->updatable < 0)
+	{
+		if (stmt->ntab > 1)
+			updatable = FALSE;
+		SC_set_updatable(stmt, updatable);
+	}
+
 	rti->flags |= TI_COLATTRIBUTE;
 	return TRUE;
 }
@@ -1140,7 +1109,7 @@ SC_set_SS_columnkey(StatementClass *stmt)
 MYLOG(DETAIL_LOG_LEVEL, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, stmt->ntab);
 	if (!fi)		return ret;
 	if (0 >= nfields)	return ret;
-	if (!has_multi_table(stmt) && 1 == stmt->ntab)
+	for (i = 0; i < stmt->ntab; i++)
 	{
 		TABLE_INFO	**ti = stmt->ti, *oneti;
 		ConnectionClass *conn = SC_get_conn(stmt);
@@ -1151,7 +1120,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, 
 		ret = PGAPI_AllocStmt(conn, &pstmt, 0);
 		if (!SQL_SUCCEEDED(ret))
 			return ret;
-		oneti = ti[0];
+		oneti = ti[i];
 		ret = PGAPI_PrimaryKeys(pstmt, NULL, 0, NULL, 0, NULL, 0, oneti->table_oid);
 		if (!SQL_SUCCEEDED(ret))
 			goto cleanup;
@@ -1166,6 +1135,8 @@ MYLOG(DETAIL_LOG_LEVEL, "entering fields=" FORMAT_SIZE_T " ntab=%d\n", nfields, 
 		ret = PGAPI_Fetch(pstmt);
 		while (SQL_SUCCEEDED(ret))
 		{
+			int	i;	// different from i of outer loop
+
 			for (i = 0; i < nfields; i++)
 			{
 				if (tfi = fi[i], NULL == tfi)
@@ -1298,7 +1269,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 	po_ind_t	join_info = STMT_HAS_NO_JOIN;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds;
-	BOOL		updatable = TRUE, column_has_alias = FALSE;
+	BOOL		updatable = TRUE, column_has_alias = FALSE, fupdatable;
 
 	MYLOG(0, "entering...\n");
 
@@ -2027,12 +1998,14 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 	/*
 	 * Now resolve the fields to point to column info
 	 */
-	if (updatable && 1 == stmt->ntab)
-		updatable = TI_is_updatable(stmt->ti[0]);
 	for (i = 0; i < (int) irdflds->nfields;)
 	{
 		wfi = fi[i];
-		wfi->updatable = updatable;
+		if (wfi->ti)
+			fupdatable = updatable && TI_is_updatable(wfi->ti);
+		else
+			fupdatable = FALSE;
+		wfi->updatable = fupdatable;
 		/* Dont worry about functions or quotes */
 		if (wfi->func || wfi->quote || wfi->numeric)
 		{
@@ -2136,7 +2109,7 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					MYLOG(0, "about to copy at %d\n", n + i);
 
 					getColInfo(the_ti->col_info, afi, n);
-					afi->updatable = updatable;
+					afi->updatable = fupdatable;
 
 					MYLOG(0, "done copying\n");
 				}
@@ -2192,6 +2165,11 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 			wfi->flag |= FIELD_PARSED_OK;
 	}
 
+	if (updatable)
+	{
+		if (stmt->ntab > 1)
+			updatable = FALSE;
+	}
 	SC_set_updatable(stmt, updatable);
 cleanup:
 #undef	return
