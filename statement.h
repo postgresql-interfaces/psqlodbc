@@ -447,6 +447,7 @@ enum
 #define SC_set_no_readonly(a)	((a)->execinfo &= ~(1L << 1))
 #define SC_is_readonly(a)	(((a)->execinfo & (1L << 1)) != 0)
 #define SC_execinfo_clear(a)	(((a)->execinfo = 0)
+#define	STMT_HAS_NO_JOIN	0L
 #define	STMT_HAS_OUTER_JOIN	1L
 #define	STMT_HAS_INNER_JOIN	(1L << 1)
 #define SC_has_join(a)		(0 != (a)->join_info)

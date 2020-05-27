@@ -1294,7 +1294,8 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 				nfields;
 	FIELD_INFO **fi, *wfi;
 	TABLE_INFO **ti, *wti;
-	char		parse = FALSE, maybe_join = 0;
+	char		parse = FALSE;
+	po_ind_t	join_info = STMT_HAS_NO_JOIN;
 	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds;
 	BOOL		updatable = TRUE, column_has_alias = FALSE;
@@ -1734,7 +1735,7 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 				BOOL	is_table_name, is_subquery;
 
 				in_dot = FALSE;
-				maybe_join = 0;
+				join_info = STMT_HAS_NO_JOIN;
 				if (!dquote)
 				{
 					if (token[0] == '(' ||
@@ -1813,14 +1814,14 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					stricmp(token, "OUTER") == 0 ||
 					stricmp(token, "FULL") == 0)
 				{
-					maybe_join = 1;
+					join_info = STMT_HAS_OUTER_JOIN;
 					in_table = FALSE;
 					continue;
 				}
 				else if (stricmp(token, "INNER") == 0 ||
 						 stricmp(token, "CROSS") == 0)
 				{
-					maybe_join = 2;
+					join_info = STMT_HAS_INNER_JOIN;
 					in_table = FALSE;
 					continue;
 				}
@@ -1828,20 +1829,19 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 				{
 					in_table = FALSE;
 					out_table = TRUE;
-					switch (maybe_join)
+					if (join_info == STMT_HAS_OUTER_JOIN)
 					{
-						case 1:
-							SC_set_outer_join(stmt);
-							break;
-						case 2:
-							SC_set_inner_join(stmt);
-							break;
+						SC_set_outer_join(stmt);
 					}
-					maybe_join = 0;
+					else
+					{
+						SC_set_inner_join(stmt);
+					}
+					join_info = STMT_HAS_NO_JOIN;
 					continue;
 				}
 			}
-			maybe_join = 0;
+			join_info = STMT_HAS_NO_JOIN;
 			if (in_table)
 			{
 				if (!sqlsvr_check)
