@@ -281,6 +281,7 @@ do { \
 		r; \
 		goto cleanup; \
 	} \
+	t = tmp; \
 } while (0)
 
 #ifdef	__cplusplus
