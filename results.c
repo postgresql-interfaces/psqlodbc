@@ -1828,7 +1828,12 @@ MYLOG(DETAIL_LOG_LEVEL, "num_tuples=" FORMAT_LEN "\n", num_tuples);
 		if (SQL_RD_ON == stmt->options.retrieve_data ||
 		    flag != 0)
 		{
-			SC_pos_reload_needed(stmt, reqsize, flag);
+			RETCODE ret = SC_pos_reload_needed(stmt, reqsize, flag);
+			if (!SQL_SUCCEEDED(ret))
+			{
+				result = ret;
+				goto cleanup;
+			}
 		}
 	}
 	/* Physical Row advancement occurs for each row fetched below */
@@ -3456,7 +3461,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 					{
 						SC_set_error(stmt, STMT_EXEC_ERROR, "Prepare for Data Load Error", func);
 						rcnt = -1;
-						QR_Destructor(qres);
+						SC_set_Result(stmt, qres);
 						break;
 					}
 					QR_Destructor(qres);
@@ -3471,7 +3476,8 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 				printfPQExpBuffer(&qval, "%s where ctid in (", stmt->load_statement);
 			}
 		}
-		if (0 != (res->keyset[kres_ridx].status & CURS_NEEDS_REREAD))
+		if (rcnt >= 0 &&
+		    0 != (res->keyset[kres_ridx].status & CURS_NEEDS_REREAD))
 		{
 			getTid(res, kres_ridx, &blocknum, &offset);
 			if (rowc)
@@ -3575,7 +3581,7 @@ MYLOG(0, "entering in rows_per_fetch=%d limitrow=" FORMAT_LEN "\n", rows_per_fet
 			{
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Data Load Error", __FUNCTION__);
 				rcnt = -1;
-				QR_Destructor(qres);
+				SC_set_Result(stmt, qres);
 				break;
 			}
 			QR_Destructor(qres);
@@ -3630,10 +3636,11 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	BOOL		create_from_scratch = (0 != flag);
 
 	MYLOG(0, "entering\n");
+#define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (!(res = SC_get_Curres(stmt)))
 	{
 		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in SC_pos_reload_needed.", func);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 	if (SC_update_not_ready(stmt))
 		parse_statement(stmt, TRUE);	/* not preferable */
@@ -3641,7 +3648,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	{
 		stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 		SC_set_error(stmt, STMT_INVALID_OPTION_IDENTIFIER, "the statement is read-only", func);
-		return SQL_ERROR;
+		goto cleanup;
 	}
 	rows_per_fetch = 0;
 	req_rows_size = QR_get_reqsize(res);
@@ -3669,7 +3676,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 		SQLLEN	brows = GIdx2RowIdx(limitrow, stmt);
 		if (brows > res->count_backend_allocated)
 		{
-			QR_REALLOC_return_with_error(res->backend_tuples, TupleField, sizeof(TupleField) * res->num_fields * brows, res, "pos_reload_needed failed", SQL_ERROR);
+			QR_REALLOC_gexit_with_error(res->backend_tuples, TupleField, sizeof(TupleField) * res->num_fields * brows, res, "pos_reload_needed failed", ret = SQL_ERROR);
 			res->count_backend_allocated = brows;
 		}
 		if (brows > 0)
@@ -3677,7 +3684,10 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 		QR_set_num_cached_rows(res, brows);
 		QR_set_rowstart_in_cache(res, 0);
 		if (SQL_RD_ON != stmt->options.retrieve_data)
-			return SQL_SUCCESS;
+		{
+			ret = SQL_SUCCESS;
+			goto cleanup;
+		}
 		for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt,res); i < limitrow; i++, kres_ridx++)
 		{
 			if (0 == (res->keyset[kres_ridx].status & (CURS_SELF_DELETING | CURS_SELF_DELETED | CURS_OTHER_DELETED)))
@@ -3688,12 +3698,12 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 	{
 		if (rowc = LoadFromKeyset_inh(stmt, res, rows_per_fetch, limitrow), rowc < 0)
 		{
-			return SQL_ERROR;
+			goto cleanup;
 		}
 	}
 	else if (rowc = LoadFromKeyset(stmt, res, rows_per_fetch, limitrow), rowc < 0)
 	{
-		return SQL_ERROR;
+		goto cleanup;
 	}
 	for (i = SC_get_rowset_start(stmt), kres_ridx = GIdx2KResIdx(i, stmt, res); i < limitrow; i++)
 	{
@@ -3702,7 +3712,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 			ret = SC_pos_reload(stmt, i, &qcount, 0);
 			if (SQL_ERROR == ret)
 			{
-				break;
+				goto cleanup;
 			}
 			if (SQL_ROW_DELETED == (res->keyset[kres_ridx].status & KEYSET_INFO_PUBLIC))
 			{
@@ -3711,7 +3721,11 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 			res->keyset[kres_ridx].status &= ~CURS_NEEDS_REREAD;
 		}
 	}
+	ret = SQL_SUCCESS;
 	res->dataFilled = TRUE;
+
+cleanup:
+#undef return
 	return ret;
 }
 

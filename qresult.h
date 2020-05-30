@@ -270,6 +270,18 @@ qlog("QR_REALLOC_error\n"); \
 	} \
 	t = tmp; \
 } while (0)
+#define	QR_REALLOC_gexit_with_error(t, tp, s, a, m, r) \
+do { \
+	tp *tmp; \
+	if (tmp = (tp *) realloc(t, s), NULL == tmp) \
+	{ \
+		QR_set_rstatus(a, PORES_NO_MEMORY_ERROR); \
+		QR_free_memory(a); \
+		QR_set_messageref(a, m); \
+		r; \
+		goto cleanup; \
+	} \
+} while (0)
 
 #ifdef	__cplusplus
 }
