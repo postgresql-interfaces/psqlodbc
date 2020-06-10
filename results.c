@@ -3292,7 +3292,13 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 			KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx, FALSE);
 			MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
 		}
-		ret = SQL_SUCCESS;
+		if (rcnt > 1)
+		{
+			ret = SQL_SUCCESS_WITH_INFO;
+			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "more than one row were update/deleted?", func);
+		}
+		else
+			ret = SQL_SUCCESS;
 	}
 	else
 	{
@@ -3878,8 +3884,8 @@ irow_update(RETCODE ret, StatementClass *stmt, StatementClass *ustmt, SQLULEN gl
 			}
 			else if (updcnt == 0)
 			{
-				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before updation", func);
-				ret = SQL_ERROR;
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before updates", func);
+				ret = SQL_SUCCESS_WITH_INFO;
 				if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 					SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
 			}
@@ -3949,8 +3955,14 @@ MYLOG(DETAIL_LOG_LEVEL, "irow_update ret=%d,%d\n", ret, SC_get_errornumber(s->qs
 			case SQL_SUCCESS:
 				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_UPDATED;
 				break;
+			case SQL_NO_DATA_FOUND:
+			case SQL_SUCCESS_WITH_INFO:
+				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_SUCCESS_WITH_INFO;
+				ret = SQL_SUCCESS_WITH_INFO;
+				break;
+			case SQL_ERROR:
 			default:
-				s->irdflds->rowStatusArray[s->irow] = ret;
+				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_ERROR;
 		}
 	}
 
@@ -4281,8 +4293,8 @@ SC_pos_delete(StatementClass *stmt,
 			}
 			else if (dltcnt == 0)
 			{
-				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before deletion", func);
-				ret = SQL_ERROR;
+				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the content was changed before deletes", func);
+				ret = SQL_SUCCESS_WITH_INFO;
 				if (idx_exist && stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 					SC_pos_reload(stmt, global_ridx, (UInt2 *) 0, 0);
 			}
@@ -4328,8 +4340,15 @@ MYLOG(DETAIL_LOG_LEVEL, ".status[" FORMAT_ULEN "]=%x\n", global_ridx, res->keyse
 			case SQL_SUCCESS:
 				irdflds->rowStatusArray[irow] = SQL_ROW_DELETED;
 				break;
+			case SQL_NO_DATA_FOUND:
+			case SQL_SUCCESS_WITH_INFO:
+				irdflds->rowStatusArray[irow] = SQL_ROW_DELETED; // SQL_ROW_SUCCESS_WITH_INFO;
+				ret = SQL_SUCCESS_WITH_INFO;
+				break;
+			case SQL_ERROR:
 			default:
-				irdflds->rowStatusArray[irow] = ret;
+				irdflds->rowStatusArray[irow] = SQL_ROW_ERROR;
+				break;
 		}
 	}
 
@@ -4462,8 +4481,12 @@ pos_add_callback(RETCODE retcode, void *para)
 			case SQL_SUCCESS:
 				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_ADDED;
 				break;
+			case SQL_NO_DATA_FOUND:
+			case SQL_SUCCESS_WITH_INFO:
+				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_SUCCESS_WITH_INFO;
+				break;
 			default:
-				s->irdflds->rowStatusArray[s->irow] = ret;
+				s->irdflds->rowStatusArray[s->irow] = SQL_ROW_ERROR;
 		}
 	}
 
@@ -4691,15 +4714,15 @@ SC_pos_refresh(StatementClass *stmt, SQLSETPOSIROW irow , SQLULEN global_ridx)
 	{
 		switch (ret)
 		{
-			case SQL_ERROR:
-				irdflds->rowStatusArray[irow] = SQL_ROW_ERROR;
-				break;
 			case SQL_SUCCESS:
 				irdflds->rowStatusArray[irow] = SQL_ROW_SUCCESS;
 				break;
 			case SQL_SUCCESS_WITH_INFO:
+				irdflds->rowStatusArray[irow] = SQL_ROW_SUCCESS_WITH_INFO;
+				break;
+			case SQL_ERROR:
 			default:
-				irdflds->rowStatusArray[irow] = ret;
+				irdflds->rowStatusArray[irow] = SQL_ROW_ERROR;
 				break;
 		}
 	}
