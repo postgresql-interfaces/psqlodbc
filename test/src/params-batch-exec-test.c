@@ -60,7 +60,7 @@ static SQLRETURN	BatchExecute(HDBC conn, int batch_size)
 	b_result(rc, hstmt, BATCHCNT, status);
 	SQLCloseCursor(hstmt);
 	**/
-	strncpy((LPTSTR) &strs[BATCHCNT - 3], "4-long", sizeof(strs[0]));
+	strncpy((SQLCHAR *) &strs[BATCHCNT - 3], "4-long", sizeof(strs[0]));
 	rc = SQLExecDirect(hstmt, "INSERT INTO test_batch VALUES (?, ?)"
 		" ON CONFLICT (id) DO UPDATE SET dt=EXCLUDED.dt"
 		, SQL_NTS);
