@@ -55,7 +55,7 @@ struct QResultClass_
 	ColumnInfoClass *fields;	/* the Column information */
 	ConnectionClass *conn;		/* the connection this result is using
 								 * (backend) */
-	QResultClass	*next;		/* the following result class */
+	QResultClass	*lnext;		/* the following result class */
 
 	/* Stuff for declare/fetch tuples */
 	SQLULEN		num_total_read;	/* the highest absolute position ever read in + 1 */
@@ -188,6 +188,10 @@ do { \
 	self->fetch_number++; \
 	MYLOG(1, "to " FORMAT_LEN " to next read\n", self->fetch_number); \
 } while (0)
+
+#define	QR_concat(self, a)	((self)->lnext=(a))
+#define	QR_detach(self)	((self)->lnext=NULL)
+#define	QR_nextr(self)	((self)->lnext)
 
 #define QR_get_message(self)		((self)->message ? (self)->message : (self)->messageref)
 #define QR_get_command(self)				(self->command)

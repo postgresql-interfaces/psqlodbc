@@ -1984,7 +1984,7 @@ PGAPI_MoreResults(HSTMT hstmt)
 	res = SC_get_Curres(stmt);
 	if (res)
 	{
-		res = res->next;
+		res = QR_nextr(res);
 		SC_set_Curres(stmt, res);
 	}
 	if (res)
@@ -3023,7 +3023,7 @@ ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 	{
 		if (stmt = conn->stmts[i], !stmt)
 			continue;
-		for (res = SC_get_Result(stmt); res; res = res->next)
+		for (res = SC_get_Result(stmt); res; res = QR_nextr(res))
 		{
 			if (undo)
 				UndoRollback(stmt, res, partial);
@@ -4374,7 +4374,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 		const char *cmdstr;
 		BindInfoClass	*bookmark;
 
-		tres = (ires->next ? ires->next : ires);
+		tres = (QR_nextr(ires) ? QR_nextr(ires) : ires);
 		cmdstr = QR_get_command(tres);
 		if (cmdstr &&
 			sscanf(cmdstr, "INSERT %u %d", &oid, &addcnt) == 2 &&
@@ -5171,7 +5171,7 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 	QR_set_num_cached_rows(res, size_of_rowset);
 	res->num_total_read = size_of_rowset;
 	rowStatusArray = (SC_get_IRDF(stmt))->rowStatusArray;
-	for (i = 0, qres = res; i < size_of_rowset && NULL != qres; i++, qres = qres->next)
+	for (i = 0, qres = res; i < size_of_rowset && NULL != qres; i++, qres = QR_nextr(qres))
 	{
 		if (1 == QR_get_num_cached_tuples(qres))
 		{

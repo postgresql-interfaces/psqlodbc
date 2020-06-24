@@ -1281,7 +1281,7 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 
 	looponce = (SC_get_Result(self) != res);
 	msg[0] = '\0';
-	for (loopend = FALSE; (NULL != res) && !loopend; res = res->next)
+	for (loopend = FALSE; (NULL != res) && !loopend; res = QR_nextr(res))
 	{
 		if (looponce)
 			loopend = TRUE;
@@ -2012,7 +2012,7 @@ SC_execute(StatementClass *self)
 		}
 		res = SC_get_Result(self);
 		if (self->curr_param_result && res)
-			SC_set_Result(self, res->next);
+			SC_set_Result(self, QR_nextr(res));
 		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
 		if (useCursor && QR_command_maybe_successful(res))
 		{
@@ -2032,7 +2032,7 @@ SC_execute(StatementClass *self)
 					{
 						break;
 					}
-					nres = qres->next;
+					nres = QR_nextr(qres);
 					if (nres && QR_get_notice(qres) != NULL)
 					{
 						if (QR_command_successful(nres) &&
@@ -2042,7 +2042,7 @@ SC_execute(StatementClass *self)
 						}
 						QR_add_notice(nres, QR_get_notice(qres));
 					}
-					qres->next = NULL;
+					QR_detach(qres);
 					QR_Destructor(qres);
 					qres = nres;
 
@@ -2128,7 +2128,7 @@ SC_execute(StatementClass *self)
 			QResultClass	*tres;
 
 			/* see if the query did return any result columns */
-			for (tres = res, numcols = 0; !numcols && tres; tres = tres->next)
+			for (tres = res, numcols = 0; !numcols && tres; tres = QR_nextr(tres))
 			{
 				numcols = QR_NumResultCols(tres);
 			}
@@ -2155,12 +2155,12 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res)
 			    SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency &&
 			    !useCursor)
 			{
-				if (tres = res->next, tres)
+				if (tres = QR_nextr(res), tres)
 				{
 					QR_set_fields(tres, QR_get_fields(res));
 					QR_set_fields(res,  NULL);
 					tres->num_fields = res->num_fields;
-					res->next = NULL;
+					QR_detach(res);
 					QR_Destructor(res);
 					SC_init_Result(self);
 					SC_set_Result(self, tres);
@@ -2197,13 +2197,13 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res)
 	{
 		QResultClass	*last;
 
-		for (last = SC_get_Result(self); NULL != last->next; last = last->next)
+		for (last = SC_get_Result(self); NULL != QR_nextr(last); last = QR_nextr(last))
 		{
 			if (last == res)
 				break;
 		}
 		if (last != res)
-			last->next = res;
+			QR_attach(last, res);
 		self->curr_param_result = 1;
 	}
 	if (NULL == SC_get_Curres(self))
@@ -2507,7 +2507,7 @@ QResultClass *add_libpq_notice_receiver(StatementClass *stmt, notice_receiver_ar
 	QResultClass *res = NULL, *newres = NULL;
 
 	if (stmt->curr_param_result)
-		for (res = SC_get_Result(stmt); NULL != res && NULL != res->next; res = res->next);
+		for (res = SC_get_Result(stmt); NULL != res && NULL != QR_nextr(res); res = QR_nextr(res));
 	if (!res)
 		newres = res = QR_Constructor();
 	nrarg->conn = SC_get_conn(stmt);

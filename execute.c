@@ -574,12 +574,12 @@ MYLOG(0, "count_of_deffered=%d\n", count_of_deffered);
 	{
 		QResultClass	*kres;
 
-		if (kres = res->next, kres)
+		if (kres = QR_nextr(res), kres)
 		{
 			QR_set_fields(kres, QR_get_fields(res));
 			QR_set_fields(res,  NULL);
 			kres->num_fields = res->num_fields;
-			res->next = NULL;
+			QR_detach(res);
 			SC_set_Result(stmt, kres);
 			res = kres;
 		}

@@ -102,7 +102,7 @@ QR_set_cursor(QResultClass *self, const char *name)
 		QResultClass *res;
 
 		self->cursor_name = NULL;
-		for (res = self->next; NULL != res; res = res->next)
+		for (res = QR_nextr(self); NULL != res; res = QR_nextr(res))
 		{
 			if (NULL != res->cursor_name)
 				free(res->cursor_name);
@@ -195,7 +195,7 @@ QR_Constructor(void)
 		rv->command = NULL;
 		rv->notice = NULL;
 		rv->conn = NULL;
-		rv->next = NULL;
+		QR_nextr(rv) = NULL;
 		rv->count_backend_allocated = 0;
 		rv->count_keyset_allocated = 0;
 		rv->num_total_read = 0;
@@ -239,7 +239,7 @@ QR_Constructor(void)
 		rv->deleted_keyset = NULL;
 	}
 
-	MYLOG(0, "leaving\n");
+	MYLOG(0, "leaving %p\n", rv);
 	return rv;
 }
 
@@ -305,8 +305,8 @@ QR_close_result(QResultClass *self, BOOL destroy)
 			self->notice = NULL;
 		}
 		/* Destruct the result object in the chain */
-		next = self->next;
-		self->next = NULL;
+		next = QR_nextr(self);
+		QR_detach(self);
 		if (destroy)
 			free(self);
 

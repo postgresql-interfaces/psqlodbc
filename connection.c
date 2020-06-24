@@ -1352,7 +1352,7 @@ static int handle_show_results(const QResultClass *res)
 	const QResultClass	*qres;
 	ConnectionClass		*conn = QR_get_conn(res);
 
-	for (qres = res; qres; qres = qres->next)
+	for (qres = res; qres; qres = QR_nextr(qres))
 	{
 		if (!qres->command ||
 		    stricmp(qres->command, "SHOW") != 0)
@@ -1838,7 +1838,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		{
 			cmdres = CC_send_query_append(self, appendq, qi, flag & (~(GO_INTO_TRANSACTION)), stmt, NULL);
 			if (QR_command_maybe_successful(cmdres))
-				res->next = cmdres;
+				QR_attach(res, cmdres);
 			else
 			{
 				QR_Destructor(res);
@@ -1975,15 +1975,15 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 				if (query_completed)	/* allow for "show" style notices */
 				{
-					res->next = QR_Constructor();
-					if (!res->next)
+					QR_attach(res, QR_Constructor());
+					if (!QR_nextr(res))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
 						ReadyToReturn = TRUE;
 						retres = NULL;
 						break;
 					}
-					res = res->next;
+					res = QR_nextr(res);
 					nrarg.res = res;
 				}
 
@@ -2098,8 +2098,8 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 			case PGRES_SINGLE_TUPLE:
 				if (query_completed)
 				{
-					res->next = QR_Constructor();
-					if (!res->next)
+					QR_attach(res, QR_Constructor());
+					if (!QR_nextr(res))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
 						ReadyToReturn = TRUE;
@@ -2108,16 +2108,16 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 					}
 					if (create_keyset)
 					{
-						QR_set_haskeyset(res->next);
+						QR_set_haskeyset(QR_nextr(res));
 						if (stmt)
 						{
 							if (stmt->num_key_fields < 0) /* for safety */
 								CheckPgClassInfo(stmt);
-							res->next->num_key_fields = stmt->num_key_fields;
+							QR_nextr(res)->num_key_fields = stmt->num_key_fields;
 						}
 					}
-					MYLOG(0, " 'T' no result_in: res = %p\n", res->next);
-					res = res->next;
+					MYLOG(0, " 'T' no result_in: res = %p\n", QR_nextr(res));
+					res = QR_nextr(res);
 					nrarg.res = res;
 
 					if (qi)
@@ -2191,15 +2191,15 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 			case PGRES_COPY_IN:
 				if (query_completed)
 				{
-					res->next = QR_Constructor();
-					if (!res->next)
+					QR_attach(res, QR_Constructor());
+					if (!QR_nextr(res))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
 						ReadyToReturn = TRUE;
 						retres = NULL;
 						break;
 					}
-					res = res->next;
+					res = QR_nextr(res);
 					nrarg.res = res;
 				}
 				QR_set_rstatus(res, PORES_COPY_IN);
@@ -2296,12 +2296,12 @@ MYLOG(DETAIL_LOG_LEVEL, " rollback_on_error=%d CC_is_in_trans=%d discard_next_sa
 				 *	discard results other than errors.
 				 */
 				QResultClass	*qres;
-				for (qres = retres; qres->next; qres = retres)
+				for (qres = retres; QR_nextr(qres); qres = retres)
 				{
 					if (QR_get_aborted(qres))
 						break;
-					retres = qres->next;
-					qres->next = NULL;
+					retres = QR_nextr(qres);
+					QR_detach(qres);
 					QR_Destructor(qres);
 				}
 				/*
