@@ -432,6 +432,10 @@ typedef struct IPDFields_ IPDFields;
 typedef struct col_info COL_INFO;
 typedef struct lo_arg LO_ARG;
 
+typedef struct QResultHold_struct {
+	QResultClass *first;
+	QResultClass *last;
+} QResultHold;
 
 /*	pgNAME type define */
 typedef struct

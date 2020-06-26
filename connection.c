@@ -1766,10 +1766,11 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
  * * Send appendq, read result.
  *
  */
-QResultClass *
+QResultHold
 CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt, const char *appendq)
 {
 	CSTR	func = "CC_send_query";
+	QResultHold	rhold = {0};
 	QResultClass *cmdres = NULL,
 			   *retres = NULL,
 			   *res = NULL;
@@ -1815,7 +1816,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		appendPQExpBuffer(&pbuf, "The connection is down\nFailed to send '%s'", query);
 		CC_set_error(self, CONNECTION_COULD_NOT_SEND, pbuf.data, func);
 		termPQExpBuffer(&pbuf);
-		return NULL;
+		return rhold;
 	}
 
 	ENTER_INNER_CONN_CS(self, func_cs_count);
@@ -1823,7 +1824,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	if ((NULL == query) || (query[0] == '\0'))
 	{
 		CLEANUP_FUNC_CONN_CS(func_cs_count, self);
-		return NULL;
+		return rhold;
 	}
 
 	/*
@@ -1833,20 +1834,22 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	 */
 	if (appendq && ignore_roundtrip_time)
 	{
-		res = CC_send_query_append(self, query, qi, flag, stmt, NULL);
+		QResultHold rholda;
+
+		rhold = CC_send_query_append(self, query, qi, flag, stmt, NULL);
 		if (QR_command_maybe_successful(res))
 		{
-			cmdres = CC_send_query_append(self, appendq, qi, flag & (~(GO_INTO_TRANSACTION)), stmt, NULL);
-			if (QR_command_maybe_successful(cmdres))
-				QR_attach(res, cmdres);
+			rholda = CC_send_query_append(self, appendq, qi, flag & (~(GO_INTO_TRANSACTION)), stmt, NULL);
+			if (QR_command_maybe_successful(rholda.first))
+				QR_concat(rhold.last, rholda.first);
 			else
 			{
-				QR_Destructor(res);
-				res = cmdres;
+				QR_Destructor(rhold.first);
+				rhold = rholda;
 			}
 		}
 		CLEANUP_FUNC_CONN_CS(func_cs_count, self);
-		return res;
+		return rhold;
 	}
 
 	rollback_on_error = (flag & ROLLBACK_ON_ERROR) != 0;
@@ -1975,7 +1978,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 				if (query_completed)	/* allow for "show" style notices */
 				{
-					QR_attach(res, QR_Constructor());
+					QR_concat(res, QR_Constructor());
 					if (!QR_nextr(res))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
@@ -2098,7 +2101,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 			case PGRES_SINGLE_TUPLE:
 				if (query_completed)
 				{
-					QR_attach(res, QR_Constructor());
+					QR_concat(res, QR_Constructor());
 					if (!QR_nextr(res))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
@@ -2191,7 +2194,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 			case PGRES_COPY_IN:
 				if (query_completed)
 				{
-					QR_attach(res, QR_Constructor());
+					QR_concat(res, QR_Constructor());
 					if (!QR_nextr(res))
 					{
 						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
@@ -2337,7 +2340,7 @@ MYLOG(DETAIL_LOG_LEVEL, " ignored abort_on_conn\n");
 
 	if (retres)
 		QR_set_conn(retres, self);
-	return retres;
+	return (QResultHold) {retres, res};
 }
 
 #define MAX_SEND_FUNC_ARGS	3
@@ -3092,7 +3095,7 @@ my_appendPQExpBuffer(PQExpBufferData *buf, const char *fmt, const char *s, ssize
 
 /*
  *	my_appendPQExpBuffer1 is a extension of my_appendPQExpBuffer.
- *	It can have 1 more parameter than my_aapendPQExpBuffer.
+ *	It can have 1 more parameter than my_appendPQExpBuffer.
  */
 static void
 my_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt, const char *s1, const char *s)
@@ -3578,7 +3581,7 @@ CC_set_transact(ConnectionClass *self, UInt4 isolation)
 	if (self->default_isolation == 0)
 		bShow = TRUE;
 	if (bShow)
-		res = CC_send_query_append(self, ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL, query);
+		res = CC_send_query_append(self, ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL, query).first;
 	else
 		res = CC_send_query(self, query, NULL, READ_ONLY_QUERY, NULL);
 	if (!QR_command_maybe_successful(res))

@@ -419,8 +419,8 @@ char		CC_remove_descriptor(ConnectionClass *self, DescriptorClass *desc);
 void		CC_set_error(ConnectionClass *self, int number, const char *message, const char *func);
 void		CC_set_errormsg(ConnectionClass *self, const char *message);
 char		CC_get_error(ConnectionClass *self, int *number, char **message);
-QResultClass *CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt, const char *appendq);
-#define CC_send_query(self, query, qi, flag, stmt) CC_send_query_append(self, query, qi, flag, stmt, NULL)
+QResultHold CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UDWORD flag, StatementClass *stmt, const char *appendq);
+#define CC_send_query(self, query, qi, flag, stmt) CC_send_query_append(self, query, qi, flag, stmt, NULL).first
 void		handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   const char *comment,
 				   QResultClass *res, BOOL error_not_a_notice);

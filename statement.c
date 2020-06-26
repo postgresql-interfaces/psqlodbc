@@ -378,7 +378,7 @@ SC_Constructor(ConnectionClass *conn)
 	{
 		rv->hdbc = conn;
 		rv->phstmt = NULL;
-		rv->result = NULL;
+		rv->rhold = (QResultHold) {0};
 		rv->curres = NULL;
 		rv->catalog_result = FALSE;
 		rv->prepare = NON_PREPARE_STATEMENT;
@@ -528,22 +528,49 @@ SC_Destructor(StatementClass *self)
 void
 SC_init_Result(StatementClass *self)
 {
-	self->result = self->curres = NULL;
+	self->rhold = (QResultHold) {0};
+	self->curres = NULL;
 	self->curr_param_result = 0;
 	MYLOG(0, "leaving(%p)\n", self);
 }
 
 void
-SC_set_Result(StatementClass *self, QResultClass *res)
+SC_set_Result(StatementClass *self, QResultClass *first)
 {
-	if (res != self->result)
+	if (first != self->rhold.first)
 	{
-		MYLOG(0, "(%p, %p)\n", self, res);
-		QR_Destructor(self->result);
-		self->result = self->curres = res;
-		if (NULL != res)
+		QResultClass *last = NULL, *res;
+
+		MYLOG(0, "(%p, %p)\n", self, first);
+		QR_Destructor(self->rhold.first);
+		for (res = first; res; res = QR_nextr(res))
+			last = res;
+		self->curres = first;
+		self->rhold = (QResultHold) {first, last};
+		if (NULL != first)
 			self->curr_param_result = 1;
 	}
+}
+
+void
+SC_set_ResultHold(StatementClass *self, QResultHold rhold)
+{
+	if (rhold.first != self->rhold.first)
+	{
+		MYLOG(0, "(%p, {%p, %p})\n", self, rhold.first, rhold.last);
+		QR_Destructor(self->rhold.first);
+		self->curres = rhold.first;
+		self->rhold = rhold;
+		if (NULL != rhold.first)
+			self->curr_param_result = 1;
+	}
+	else if (rhold.last != self->rhold.last)
+	{
+		self->rhold.last = rhold.last;
+		if (QR_nextr(rhold.last) != NULL)
+			SC_set_error(self, STMT_INTERNAL_ERROR, "last Result is not the last result", __FUNCTION__);
+	}
+
 }
 
 /*
@@ -1842,7 +1869,6 @@ SC_execute(StatementClass *self)
 	ConnectionClass *conn;
 	IPDFields	*ipdopts;
 	char		was_ok, was_nonfatal;
-	QResultClass	*res = NULL;
 	Int2		oldstatus,
 				numcols;
 	QueryInfo	qi;
@@ -1855,6 +1881,7 @@ SC_execute(StatementClass *self)
 	int		errnum_sav = STMT_OK, errnum;
 	char		*errmsg_sav = NULL;
 	SQLULEN		stmt_timeout;
+	QResultHold	rhold = {0};
 
 	conn = SC_get_conn(self);
 	ci = &(conn->connInfo);
@@ -1943,6 +1970,7 @@ SC_execute(StatementClass *self)
 	if (conn->stmt_timeout_in_effect != stmt_timeout)
 	{
 		char query[64];
+		QResultClass *res;
 
 		SPRINTF_FIXED(query, "SET statement_timeout = %d",
 				 (int) stmt_timeout * 1000);
@@ -1975,11 +2003,13 @@ SC_execute(StatementClass *self)
 	isSelectType = (SC_may_use_cursor(self) || self->statement_type == STMT_TYPE_PROCCALL);
 	if (use_extended_protocol)
 	{
+		QResultClass *first;
+
 		if (issue_begin)
 			CC_begin(conn);
 
-		res = libpq_bind_and_exec(self);
-		if (!res)
+		first = libpq_bind_and_exec(self);
+		if (!first)
 		{
 			if (SC_get_errornumber(self) <= 0)
 			{
@@ -1987,12 +2017,14 @@ SC_execute(StatementClass *self)
 			}
 			goto cleanup;
 		}
+		rhold = (QResultHold) {first, first};
 	}
 	else if (isSelectType)
 	{
 		char		fetch[128];
 		const char *appendq = NULL;
 		QueryInfo	*qryi = NULL;
+		QResultClass *first;
 
 		qflag |= (SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency ? CREATE_KEYSET : 0);
 		MYLOG(0, "       Sending SELECT statement on stmt=%p, cursor_name='%s' qflag=%d," FORMAT_UINTEGER "\n", self, SC_cursor_name(self), qflag, self->options.scroll_concurrency);
@@ -2010,11 +2042,12 @@ SC_execute(StatementClass *self)
 			appendq = fetch;
 			qflag &= (~READ_ONLY_QUERY); /* must be a SAVEPOINT after DECLARE */
 		}
-		res = SC_get_Result(self);
-		if (self->curr_param_result && res)
-			SC_set_Result(self, QR_nextr(res));
-		res = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
-		if (useCursor && QR_command_maybe_successful(res))
+		first = SC_get_Result(self);
+		if (self->curr_param_result && first)
+			SC_set_Result(self, QR_nextr(first));
+		rhold = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
+		first = rhold.first;	
+		if (useCursor && QR_command_maybe_successful(first))
 		{
 			/*
 			 * If we sent a DECLARE CURSOR + FETCH, throw away the result of
@@ -2026,7 +2059,7 @@ SC_execute(StatementClass *self)
 			{
 				QResultClass	*qres, *nres;
 
-				for (qres = res; qres;)
+				for (qres = first; qres;)
 				{
 					if (qres->command && strnicmp(qres->command, "fetch", 5) == 0)
 					{
@@ -2053,10 +2086,11 @@ SC_execute(StatementClass *self)
 					if (qres->num_cached_rows < qi.row_size)
 						QR_set_reached_eof(qres);
 				}
-				res = qres;
+				first = qres;
+				rhold.first = first;
 			}
-			if (res && SC_is_with_hold(self))
-				QR_set_withhold(res);
+			if (first && SC_is_with_hold(self))
+				QR_set_withhold(first);
 		}
 		MYLOG(0, "     done sending the query:\n");
 	}
@@ -2064,7 +2098,7 @@ SC_execute(StatementClass *self)
 	{
 		/* not a SELECT statement so don't use a cursor */
 		MYLOG(0, "      it's NOT a select statement: stmt=%p\n", self);
-		res = CC_send_query(conn, self->stmt_with_params, NULL, qflag, SC_get_ancestor(self));
+		rhold = CC_send_query_append(conn, self->stmt_with_params, NULL, qflag, SC_get_ancestor(self), NULL);
 	}
 
 	if (!isSelectType)
@@ -2093,10 +2127,12 @@ SC_execute(StatementClass *self)
 	LEAVE_INNER_CONN_CS(func_cs_count, conn);
 
 	/* Check the status of the result */
-	if (res)
+	if (rhold.first)
 	{
-		was_ok = QR_command_successful(res);
-		was_nonfatal = QR_command_nonfatal(res);
+		QResultClass *first = rhold.first;
+
+		was_ok = QR_command_successful(first);
+		was_nonfatal = QR_command_nonfatal(first);
 
 		if (0 < SC_get_errornumber(self))
 			;
@@ -2113,14 +2149,14 @@ SC_execute(StatementClass *self)
 				SC_set_errornumber(self, STMT_INFO_ONLY);
 		}
 		else
-			SC_set_errorinfo(self, res, 0);
+			SC_set_errorinfo(self, first, 0);
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
 		SC_set_current_col(self, -1);
 		SC_set_rowset_start(self, -1, FALSE);
 
 		/* issue "ABORT" when query aborted */
-		if (QR_get_aborted(res))
+		if (QR_get_aborted(first))
 		{
 		}
 		else
@@ -2128,7 +2164,7 @@ SC_execute(StatementClass *self)
 			QResultClass	*tres;
 
 			/* see if the query did return any result columns */
-			for (tres = res, numcols = 0; !numcols && tres; tres = QR_nextr(tres))
+			for (tres = first, numcols = 0; !numcols && tres; tres = QR_nextr(tres))
 			{
 				numcols = QR_NumResultCols(tres);
 			}
@@ -2139,13 +2175,13 @@ SC_execute(StatementClass *self)
 				extend_column_bindings(opts, numcols);
 				if (opts->bindings == NULL)
 				{
-					QR_Destructor(res);
+					QR_Destructor(first);
 					SC_set_error(self, STMT_NO_MEMORY_ERROR,"Could not get enough free memory to store the binding information", func);
 					goto cleanup;
 				}
 			}
 
-MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res);
+MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, first);
 			/*
 			 * special handling of result for keyset driven cursors.
 			 * Use the columns info of the 1st query and
@@ -2155,16 +2191,14 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res)
 			    SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency &&
 			    !useCursor)
 			{
-				if (tres = QR_nextr(res), tres)
+				if (tres = QR_nextr(first), tres)
 				{
-					QR_set_fields(tres, QR_get_fields(res));
-					QR_set_fields(res,  NULL);
-					tres->num_fields = res->num_fields;
-					QR_detach(res);
-					QR_Destructor(res);
-					SC_init_Result(self);
+					QR_set_fields(tres, QR_get_fields(first));
+					QR_set_fields(first,  NULL);
+					tres->num_fields = first->num_fields;
+					QR_detach(first);
 					SC_set_Result(self, tres);
-					res = tres;
+					rhold = self->rhold;
 				}
 			}
 		}
@@ -2192,18 +2226,12 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, res)
 
 	}
 	if (!SC_get_Result(self))
-		SC_set_Result(self, res);
+		SC_set_ResultHold(self, rhold);
 	else
 	{
-		QResultClass	*last;
-
-		for (last = SC_get_Result(self); NULL != QR_nextr(last); last = QR_nextr(last))
-		{
-			if (last == res)
-				break;
-		}
-		if (last != res)
-			QR_attach(last, res);
+		if (self->rhold.last != rhold.first)
+			QR_concat(self->rhold.last, rhold.first);
+		self->rhold.last = rhold.last;
 		self->curr_param_result = 1;
 	}
 	if (NULL == SC_get_Curres(self))
@@ -2507,7 +2535,7 @@ QResultClass *add_libpq_notice_receiver(StatementClass *stmt, notice_receiver_ar
 	QResultClass *res = NULL, *newres = NULL;
 
 	if (stmt->curr_param_result)
-		for (res = SC_get_Result(stmt); NULL != res && NULL != QR_nextr(res); res = QR_nextr(res));
+		res = stmt->rhold.last;
 	if (!res)
 		newres = res = QR_Constructor();
 	nrarg->conn = SC_get_conn(stmt);

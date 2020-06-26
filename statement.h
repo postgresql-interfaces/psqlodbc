@@ -205,8 +205,10 @@ struct StatementClass_
 {
 	ConnectionClass *hdbc;		/* pointer to ConnectionClass this
 								 * statement belongs to */
-	QResultClass *result;		/* result of the current statement */
+	QResultHold rhold;
+	// QResultClass *result;		/* result of the current statement */
 	QResultClass *curres;		/* the current result in the chain */
+	// QResultClass *lastres;		/* maybe the last result in the chain */
 	HSTMT	   *phstmt;
 	StatementOptions options;
 	StatementOptions options_orig;
@@ -322,7 +324,9 @@ struct StatementClass_
 #define SC_get_conn(a)	  ((a)->hdbc)
 void SC_init_Result(StatementClass *self);
 void SC_set_Result(StatementClass *self, QResultClass *res);
-#define SC_get_Result(a)  ((a)->result)
+void SC_set_ResultHold(StatementClass *self, QResultHold rhold);
+QResultClass *SC_get_lastres(StatementClass *stmt);
+#define SC_get_Result(a)  ((a)->rhold).first
 #define SC_set_Curres(a, b)  ((a)->curres = b)
 #define SC_get_Curres(a)  ((a)->curres)
 #define SC_get_ARD(a)  ((a)->ard)
