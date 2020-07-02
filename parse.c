@@ -613,7 +613,7 @@ static BOOL
 ColAttSet(StatementClass *stmt, TABLE_INFO *rti)
 {
 	CSTR		func = "ColAttSet";
-	QResultClass	*res = SC_get_Curres(stmt);
+	QResultClass	*res = SC_get_Parsed(stmt);
 	IRDFields	*irdflds = SC_get_IRDF(stmt);
 	COL_INFO	*col_info = NULL;
 	FIELD_INFO	**fi, *wfi;
@@ -824,7 +824,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 							   PODBC_NOT_SEARCH_PATTERN, 0, 0);
 
 	MYLOG(0, "        Past PG_Columns\n");
-	res = SC_get_Curres(col_stmt);
+	res = SC_get_Parsed(col_stmt);
 	if (SQL_SUCCEEDED(result)
 		&& res != NULL && QR_get_num_cached_tuples(res) > 0)
 	{

@@ -2839,7 +2839,9 @@ MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 	res = ParseAndDescribeWithLibpq(stmt, plan_name, pstmt->query, pstmt->num_params, "prepare_and_describe", NULL);
 	if (res == NULL)
 		goto cleanup;
-	SC_set_Result(stmt, res);
+	// SC_set_Result(stmt, res);
+	QR_Destructor(stmt->parsed);
+	stmt->parsed = res;
 	if (!QR_command_maybe_successful(res))
 	{
 		SC_set_error(stmt, STMT_EXEC_ERROR, "Error while preparing parameters", func);

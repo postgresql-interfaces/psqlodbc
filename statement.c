@@ -380,6 +380,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->phstmt = NULL;
 		rv->rhold.first = rv->rhold.last = NULL;
 		rv->curres = NULL;
+		rv->parsed = NULL;
 		rv->catalog_result = FALSE;
 		rv->prepare = NON_PREPARE_STATEMENT;
 		rv->prepared = NOT_YET_PREPARED;
@@ -418,7 +419,6 @@ SC_Constructor(ConnectionClass *conn)
 		rv->put_data = FALSE;
 		rv->ref_CC_error = FALSE;
 		rv->join_info = 0;
-		rv->curr_param_result = 0;
 		SC_init_parse_method(rv);
 
 		rv->lobj_fd = -1;
@@ -530,7 +530,6 @@ SC_init_Result(StatementClass *self)
 {
 	self->rhold.first = self->rhold.last = NULL;
 	self->curres = NULL;
-	self->curr_param_result = 0;
 	MYLOG(0, "leaving(%p)\n", self);
 }
 
@@ -542,14 +541,14 @@ SC_set_Result(StatementClass *self, QResultClass *first)
 		QResultClass *last = NULL, *res;
 
 		MYLOG(0, "(%p, %p)\n", self, first);
+		QR_Destructor(self->parsed);
+		self->parsed = NULL;
 		QR_Destructor(self->rhold.first);
 		for (res = first; res; res = QR_nextr(res))
 			last = res;
 		self->curres = first;
 		self->rhold.first = first;
 		self->rhold.last = last;
-		if (NULL != first)
-			self->curr_param_result = 1;
 	}
 }
 
@@ -559,11 +558,11 @@ SC_set_ResultHold(StatementClass *self, QResultHold rhold)
 	if (rhold.first != self->rhold.first)
 	{
 		MYLOG(0, "(%p, {%p, %p})\n", self, rhold.first, rhold.last);
+		QR_Destructor(self->parsed);
+		self->parsed = NULL;
 		QR_Destructor(self->rhold.first);
 		self->curres = rhold.first;
 		self->rhold = rhold;
-		if (NULL != rhold.first)
-			self->curr_param_result = 1;
 	}
 	else if (rhold.last != self->rhold.last)
 	{
@@ -836,7 +835,6 @@ SC_reset_result_for_rerun(StatementClass *self)
 	else
 	{
 		QR_reset_for_re_execute(res);
-		self->curr_param_result = 1;
 		SC_set_Curres(self, NULL);
 	}
 }
@@ -901,6 +899,8 @@ MYLOG(DETAIL_LOG_LEVEL, "SC_clear_parse_status\n");
 	/* Free any cursors */
 	if (SC_get_Result(self))
 		SC_set_Result(self, NULL);
+	QR_Destructor(self->parsed);
+	self->parsed = NULL;
 	self->miscinfo = 0;
 	self->execinfo = 0;
 	/* self->rbonerr = 0; Never clear the bits here */
@@ -1134,7 +1134,7 @@ SC_describe(StatementClass *self)
 	QResultClass	*res;
 	MYLOG(0, "entering status = %d\n", self->status);
 
-	res = SC_get_Curres(self);
+	res = SC_get_Parsed(self);
 	if (NULL != res)
 	{
 		num_fields = QR_NumResultCols(res);
@@ -1168,7 +1168,7 @@ MYLOG(0, "              preprocess: status = READY\n");
 				self->status = STMT_DESCRIBED;
 				break;
 		}
-		if (res = SC_get_Curres(self), NULL != res)
+		if (res = SC_get_Parsed(self), NULL != res)
 		{
 			num_fields = QR_NumResultCols(res);
 			return num_fields;
@@ -1292,6 +1292,8 @@ static PG_ErrorInfo *
 SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 {
 	QResultClass *res = SC_get_Curres(self);
+	if (!res)
+		res = SC_get_Parsed(self);
 	ConnectionClass *conn = SC_get_conn(self);
 	Int4	errornum;
 	size_t		pos;
@@ -2043,9 +2045,6 @@ SC_execute(StatementClass *self)
 			appendq = fetch;
 			qflag &= (~READ_ONLY_QUERY); /* must be a SAVEPOINT after DECLARE */
 		}
-		first = SC_get_Result(self);
-		if (self->curr_param_result && first)
-			SC_set_Result(self, QR_nextr(first));
 		rhold = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
 		first = rhold.first;	
 		if (useCursor && QR_command_maybe_successful(first))
@@ -2233,7 +2232,6 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, firs
 		if (self->rhold.last != rhold.first)
 			QR_concat(self->rhold.last, rhold.first);
 		self->rhold.last = rhold.last;
-		self->curr_param_result = 1;
 	}
 	if (NULL == SC_get_Curres(self))
 		SC_set_Curres(self, SC_get_Result(self));
@@ -2535,10 +2533,7 @@ QResultClass *add_libpq_notice_receiver(StatementClass *stmt, notice_receiver_ar
 {
 	QResultClass *res = NULL, *newres = NULL;
 
-	if (stmt->curr_param_result)
-		res = stmt->rhold.last;
-	if (!res)
-		newres = res = QR_Constructor();
+	newres = res = QR_Constructor();
 	nrarg->conn = SC_get_conn(stmt);
 	nrarg->comment = __FUNCTION__;
 	nrarg->res = res;
@@ -2666,7 +2661,7 @@ libpq_bind_and_exec(StatementClass *stmt)
 	}
 
 	/* 3. Receive results */
-MYLOG(DETAIL_LOG_LEVEL, "get_Result=%p %p %d\n", res, SC_get_Result(stmt), stmt->curr_param_result);
+MYLOG(DETAIL_LOG_LEVEL, "get_Result=%p %p\n", res, SC_get_Result(stmt));
 	pgresstatus = PQresultStatus(pgres);
 	switch (pgresstatus)
 	{

@@ -206,9 +206,8 @@ struct StatementClass_
 	ConnectionClass *hdbc;		/* pointer to ConnectionClass this
 								 * statement belongs to */
 	QResultHold rhold;
-	// QResultClass *result;		/* result of the current statement */
 	QResultClass *curres;		/* the current result in the chain */
-	// QResultClass *lastres;		/* maybe the last result in the chain */
+	QResultClass *parsed;		/* parsed result before exec */
 	HSTMT	   *phstmt;
 	StatementOptions options;
 	StatementOptions options_orig;
@@ -279,7 +278,6 @@ struct StatementClass_
 	po_ind_t	lock_CC_for_rb;	/* lock CC for statement rollback ? */
 	po_ind_t	join_info;	/* have joins ? */
 	po_ind_t	parse_method;	/* parse_statement is forced or ? */
-	po_ind_t	curr_param_result; /* current param result is set ? */
 	po_ind_t	has_notice; /* exec result contains notice messages ? */
 	pgNAME		cursor_name;
 	char		*plan_name;
@@ -329,6 +327,7 @@ QResultClass *SC_get_lastres(StatementClass *stmt);
 #define SC_get_Result(a)  ((a)->rhold).first
 #define SC_set_Curres(a, b)  ((a)->curres = b)
 #define SC_get_Curres(a)  ((a)->curres)
+#define SC_get_Parsed(a)  ((a)->parsed ? (a)->parsed : (a)->curres)
 #define SC_get_ARD(a)  ((a)->ard)
 #define SC_get_APD(a)  ((a)->apd)
 #define SC_get_IRD(a)  ((a)->ird)

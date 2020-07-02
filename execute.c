@@ -1181,7 +1181,6 @@ next_param_row:
 	retval = Exec_with_parameters_resolved(stmt, stmt->exec_type, &exec_end);
 	if (!exec_end)
 	{
-		stmt->curr_param_result = 0;
 		goto next_param_row;
 	}
 cleanup:
@@ -1474,10 +1473,6 @@ MYLOG(DETAIL_LOG_LEVEL, "ipdopts=%p\n", ipdopts);
 			/**SC_reset_delegate(retval, stmt);**/
 			retval = dequeueNeedDataCallback(retval, stmt);
 			goto cleanup;
-		}
-		else
-		{
-			stmt->curr_param_result = 0;
 		}
 
 		if (retval = PGAPI_Execute(estmt, flag), SQL_NEED_DATA != retval)
