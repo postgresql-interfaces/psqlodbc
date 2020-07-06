@@ -5743,24 +5743,61 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 				else if (add_cast)
 				{
 					const char *cast_form = NULL;
+					char	sqltype[32];
+					int	typel;
 
 					CVT_APPEND_CHAR(qb, ')');
 					from = param_pos[1][0];
 					to = param_pos[1][1];
-					if (to < from + 9)
+					typel = to - from + 1;
+					if (typel < sizeof(sqltype))
 					{
-						char	num[10];
-						memcpy(num, nqb.query_statement + from, to - from + 1);
-						num[to - from + 1] = '\0';
-MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " num=%s SQL_BIT=%d\n", to, from, num, SQL_BIT);
-						switch (atoi(num))
+						const char *type;
+
+						memcpy(sqltype, nqb.query_statement + from, typel);
+						sqltype[typel] = '\0';
+MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " SQLtype=%s SQL_BIT=%d\n", to, from, sqltype, SQL_BIT);
+						for (type = sqltype; *type && isspace(*type); type++)
+							;
+						if (strncmp(type, "SQL_", 4) == 0)
 						{
-							case SQL_BIT:
-								cast_form = "boolean";
-								break;
-							case SQL_INTEGER:
+							type += 4;
+							if (strcmp(type, "INTEGER") == 0)
 								cast_form = "int4";
-								break;
+							else if (strcmp(type, "CHAR") == 0)
+								cast_form = "varchar";
+							else if (strcmp(type, "VARCHAR") == 0)
+								cast_form = "varchar";
+							else if (strcmp(type, "LONGVARCHAR") == 0)
+								cast_form = "text";
+							else if (strcmp(type, "WCHAR") == 0)
+								cast_form = "varchar";
+							else if (strcmp(type, "WVARCHAR") == 0)
+								cast_form = "varchar";
+							else if (strcmp(type, "WLONGVARCHAR") == 0)
+								cast_form = "text";
+							else if (strcmp(type, "NUMERIC") == 0)
+								cast_form = "numeric";
+							else if (strcmp(type, "DOUBLE") == 0)
+								cast_form = "float8";
+							else if (strcmp(type, "FLOAT") == 0)
+								cast_form = "float8";
+							else if (strcmp(type, "REAL") == 0)
+								cast_form = "float4";
+							else if (strcmp(type, "BIGINT") == 0)
+								cast_form = "int8";
+							else if (strcmp(type, "DECIMAL") == 0)
+								cast_form = "numeric";
+							else if (strcmp(type, "SMALLINT") == 0)
+								cast_form = "int2";
+							else if (strcmp(type, "TYPE_DATE") == 0)
+								cast_form = "date";
+							else if (strcmp(type, "TYPE_TIME") == 0)
+								cast_form = "time";
+							else if (strcmp(type, "TYPE_TIMESTAMP") == 0)
+								cast_form = "timestamp";
+							else if (strcmp(type, "BIT") == 0)
+								cast_form = "bit";
 						}
 					}
 					if (NULL != cast_form)

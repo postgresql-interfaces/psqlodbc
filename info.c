@@ -51,6 +51,21 @@ static const SQLCHAR *pubstr = (SQLCHAR *) "public";
 static const char	*likeop = "like";
 static const char	*eqop = "=";
 
+/* group of SQL_CVT_(chars) */
+#define PG_CONVERT_CH	SQL_CVT_CHAR | SQL_CVT_VARCHAR | SQL_CVT_LONGVARCHAR
+/* group of SQL_CVT_(numbers) */
+#define PG_CONVERT_NUM	SQL_CVT_SMALLINT | SQL_CVT_INTEGER |  SQL_CVT_BIGINT | SQL_CVT_REAL | SQL_CVT_FLOAT | SQL_CVT_DOUBLE | SQL_CVT_NUMERIC | SQL_CVT_DECIMAL
+/* group of SQL_CVT_(date time) */
+#define PG_CONVERT_DT	SQL_CVT_DATE | SQL_CVT_TIME | SQL_CVT_TIMESTAMP
+/* group of SQL_CVT_(wchars) */
+#ifdef UNICODE_SUPPORT
+#define PG_CONVERT_WCH	SQL_CVT_WCHAR | SQL_CVT_WVARCHAR | SQL_CVT_WLONGVARCHAR
+#else
+#define PG_CONVERT_WCH	0
+#endif /* UNICODE_SUPPORT */
+
+const SQLLEN mask_longvarbinary = SQL_CVT_LONGVARBINARY;
+
 RETCODE		SQL_API
 PGAPI_GetInfo(HDBC hdbc,
 			  SQLUSMALLINT fInfoType,
@@ -129,34 +144,58 @@ PGAPI_GetInfo(HDBC hdbc,
 			value = SQL_CB_NON_NULL;
 			break;
 
-		case SQL_CONVERT_INTEGER:
-		case SQL_CONVERT_SMALLINT:
-		case SQL_CONVERT_TINYINT:
 		case SQL_CONVERT_BIT:
-		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
 			len = sizeof(SQLUINTEGER);
-			value = SQL_CVT_BIT | SQL_CVT_INTEGER;
+			value = ci->disable_convert_func ? 0 : SQL_CVT_BIT | SQL_CVT_INTEGER | PG_CONVERT_CH | PG_CONVERT_WCH;
 MYLOG(0, "SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
 			break;
+		case SQL_CONVERT_INTEGER:
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : SQL_CVT_BIT | PG_CONVERT_NUM | PG_CONVERT_CH | PG_CONVERT_WCH;
+			break;
+		case SQL_CONVERT_SMALLINT:
 		case SQL_CONVERT_BIGINT:
 		case SQL_CONVERT_DECIMAL:
 		case SQL_CONVERT_DOUBLE:
 		case SQL_CONVERT_FLOAT:
 		case SQL_CONVERT_NUMERIC:
 		case SQL_CONVERT_REAL:
-		case SQL_CONVERT_DATE:
-		case SQL_CONVERT_TIME:
-		case SQL_CONVERT_TIMESTAMP:
-		case SQL_CONVERT_BINARY:
-		case SQL_CONVERT_LONGVARBINARY:
-		case SQL_CONVERT_VARBINARY:		/* ODBC 1.0 */
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : PG_CONVERT_NUM | PG_CONVERT_CH | PG_CONVERT_WCH;
+			break;
 		case SQL_CONVERT_CHAR:
+		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
 		case SQL_CONVERT_LONGVARCHAR:
+			len = sizeof(SQLUINTEGER);
+			value = SQL_CVT_BIT | PG_CONVERT_NUM | PG_CONVERT_CH | PG_CONVERT_WCH;
+			break;
+		case SQL_CONVERT_DATE:
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : PG_CONVERT_CH | SQL_CVT_DATE | SQL_CVT_TIMESTAMP | PG_CONVERT_WCH;
+			break;
+		case SQL_CONVERT_TIME:
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : PG_CONVERT_CH | SQL_CVT_TIME | PG_CONVERT_WCH;
+			break;
+		case SQL_CONVERT_TIMESTAMP:
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : PG_CONVERT_CH | PG_CONVERT_DT | PG_CONVERT_WCH;
+			break;
+		case SQL_CONVERT_LONGVARBINARY:
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : SQL_CVT_LONGVARBINARY;
+			break;
 #ifdef UNICODE_SUPPORT
 		case SQL_CONVERT_WCHAR:
 		case SQL_CONVERT_WLONGVARCHAR:
 		case SQL_CONVERT_WVARCHAR:
+			len = sizeof(SQLUINTEGER);
+			value = ci->disable_convert_func ? 0 : SQL_CVT_BIT | PG_CONVERT_NUM | PG_CONVERT_DT | PG_CONVERT_WCH;
+			break;
 #endif /* UNICODE_SUPPORT */
+		case SQL_CONVERT_TINYINT:
+		case SQL_CONVERT_BINARY:
+		case SQL_CONVERT_VARBINARY:		/* ODBC 1.0 */
 			len = sizeof(SQLUINTEGER);
 			value = 0;	/* CONVERT is unavailable */
 			break;

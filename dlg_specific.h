@@ -231,6 +231,7 @@ extern "C" {
 #define	BIT_ACCESSIBLE_ONLY			(1L << 4)
 #define	BIT_IGNORE_ROUND_TRIP_TIME		(1L << 5)
 #define	BIT_DISABLE_KEEPALIVE			(1L << 6)
+#define	BIT_DISABLE_CONVERT_FUNC		(1L << 7)
 
 /*	Connection Defaults */
 #define DEFAULT_READONLY			0

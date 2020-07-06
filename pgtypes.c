@@ -618,6 +618,11 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 				return sqltype;
 #endif /* PG_INTERVAL_AS_SQL_INTERVAL */
 			return ansi_to_wtype(conn, SQL_VARCHAR);
+		case PG_TYPE_BIT:
+			if (1 == atttypmod)
+				return SQL_BIT;
+			else
+				return SQL_VARCHAR;
 
 		default:
 

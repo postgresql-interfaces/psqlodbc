@@ -30,7 +30,7 @@ static void encode(const pgNAME, char *out, int outlen);
 static pgNAME decode(const char *in);
 static pgNAME decode_or_remove_braces(const char *in);
 
-#define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY | BIT_IGNORE_ROUND_TRIP_TIME | BIT_DISABLE_KEEPALIVE)
+#define	OVR_EXTRA_BITS (BIT_FORCEABBREVCONNSTR | BIT_FAKE_MSS | BIT_BDE_ENVIRONMENT | BIT_CVT_NULL_DATE | BIT_ACCESSIBLE_ONLY | BIT_IGNORE_ROUND_TRIP_TIME | BIT_DISABLE_KEEPALIVE | BIT_DISABLE_CONVERT_FUNC)
 UInt4	getExtraOptions(const ConnInfo *ci)
 {
 	UInt4	flag = ci->extra_opts & (~OVR_EXTRA_BITS);
@@ -63,6 +63,10 @@ UInt4	getExtraOptions(const ConnInfo *ci)
 		flag |= BIT_DISABLE_KEEPALIVE;
 	else if (ci->disable_keepalive == 0)
 		flag &= (~BIT_DISABLE_KEEPALIVE);
+	if (ci->disable_convert_func > 0)
+		flag |= BIT_DISABLE_CONVERT_FUNC;
+	else if (ci->disable_convert_func == 0)
+		flag &= (~BIT_DISABLE_CONVERT_FUNC);
 
 	return flag;
 }
@@ -90,6 +94,8 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 		ci->ignore_round_trip_time = (0 != (flag & BIT_IGNORE_ROUND_TRIP_TIME));
 	if (overwrite || ci->disable_keepalive < 0)
 		ci->disable_keepalive = (0 != (flag & BIT_DISABLE_KEEPALIVE));
+	if (overwrite || ci->disable_convert_func < 0)
+		ci->disable_convert_func = (0 != (flag & BIT_DISABLE_CONVERT_FUNC));
 
 	return (ci->extra_opts = getExtraOptions(ci));
 }
@@ -143,6 +149,8 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 		ci->ignore_round_trip_time = TRUE;
 	if (0 != (aflag & BIT_DISABLE_KEEPALIVE))
 		ci->disable_keepalive = TRUE;
+	if (0 != (aflag & BIT_DISABLE_CONVERT_FUNC))
+		ci->disable_convert_func = TRUE;
 	if (0 != (dflag & BIT_FORCEABBREVCONNSTR))
 		ci->force_abbrev_connstr = FALSE;
 	if (0 != (dflag & BIT_FAKE_MSS))
@@ -155,6 +163,8 @@ UInt4	add_removeExtraOptions(ConnInfo *ci, UInt4 aflag, UInt4 dflag)
 		ci->ignore_round_trip_time = FALSE;
 	if (0 != (dflag & BIT_DISABLE_KEEPALIVE))
 		ci->disable_keepalive = FALSE;
+	if (0 != (dflag & BIT_DISABLE_CONVERT_FUNC))
+		ci->disable_convert_func = FALSE;
 
 	return (ci->extra_opts = getExtraOptions(ci));
 }
@@ -828,6 +838,7 @@ getCiDefaults(ConnInfo *ci)
 			if (strcmp(p, "1") == 0)
 				ci->wcs_debug = 1;
 	}
+	ci->disable_convert_func = 0;
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 	ci->xa_opt = DEFAULT_XAOPT;
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
@@ -1771,6 +1782,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 	conninfo->disable_keepalive = -1;
 	conninfo->keepalive_idle = -1;
 	conninfo->keepalive_interval = -1;
+	conninfo->disable_convert_func = -1;
 	conninfo->batch_size = DEFAULT_BATCH_SIZE;
 	conninfo->ignore_timeout = DEFAULT_IGNORETIMEOUT;
 	conninfo->wcs_debug = -1;
@@ -1869,6 +1881,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(accessible_only);
 	CORR_VALCPY(ignore_round_trip_time);
 	CORR_VALCPY(disable_keepalive);
+	CORR_VALCPY(disable_convert_func);
 	CORR_VALCPY(extra_opts);
 	CORR_VALCPY(keepalive_idle);
 	CORR_VALCPY(keepalive_interval);

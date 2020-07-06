@@ -640,6 +640,7 @@ typedef struct
 	signed char	accessible_only;
 	signed char	ignore_round_trip_time;
 	signed char	disable_keepalive;
+	signed char	disable_convert_func;
 	signed char	wcs_debug;
 	signed char	numeric_as;
 	signed char	optional_errors;
