@@ -17,11 +17,13 @@
     Specify when you'd like to build installers after building drivers.
 .PARAMETER Toolset
     MSBuild PlatformToolset is determined automatically unless this
-    option is specified. Currently "v100", "Windows7.1SDK", "v110",
-    "v110_xp", "v120", "v120_xp", "v140" or "v140_xp" is available.
+    option is specified. Currently "v90", "v100", "Windows7.1SDK",
+    "v110", "v110_xp", "v120", "v120_xp", "v140" , "v140_xp", "v141",
+    "v141_xp" or "v142" is available.
 .PARAMETER MSToolsVersion
-    MSBuild ToolsVersion is detemrined automatically unless this
-    option is specified.  Currently "4.0", "12.0" or "14.0" is available.
+    This option is deprecated. MSBuild ToolsVersion is detemrined
+    automatically unless this option is specified. Currently "4.0",
+    "12.0" or "14.0" is available.
 .PARAMETER Configuration
     Specify "Release"(default) or "Debug".
 .PARAMETER BuildConfigPath
@@ -58,7 +60,7 @@ Param(
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="both",
 [string]$Toolset,
-[ValidateSet("", "4.0", "12.0", "14.0", "15.0")]
+[ValidateSet("", "4.0", "12.0", "14.0")]
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
@@ -98,7 +100,7 @@ function buildPlatform([xml]$configInfo, [string]$Platform)
 		$BUILD_MACROS = $BUILD_MACROS -replace '"', '`"'
 		$macroList = iex "write-output $BUILD_MACROS"
 	}
-	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsVersion "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN $macroList
+	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN $macroList
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
@@ -110,7 +112,9 @@ $path_save = ${env:PATH}
 
 Import-Module ${scriptPath}\MSProgram-Get.psm1
 try {
-	$msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+	$rtnArray=Find-MSBuild ([ref]$VCVersion) ($MSToolsVersion) ([ref]$Toolset) $configInfo
+	$msbuildexe=$rtnArray[0]
+	$MSToolsV=$rtnArray[1]
 } catch [Exception] {
 	if ("$_.Exception.Message" -ne "") {
 		Write-Host $_.Exception.Message -ForegroundColor Red
@@ -161,14 +165,14 @@ try {
 			$configInfo.Configuration.BuildResult.Date=[string](Get-Date)
 			$configInfo.Configuration.BuildResult.VisualStudioVersion=$VCVersion
 			$configInfo.Configuration.BuildResult.PlatformToolset=$Toolset
-			$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsVersion
+			$configInfo.Configuration.BuildResult.ToolsVersion=$MSToolsV
 			$configInfo.Configuration.BuildResult.Platform=$Platform
 		}
 	} else {
 		$resultText="failed"
 	} 
 	SaveConfiguration $configInfo
-	Write-Host "ToolsVersion=$MSToolsVersion VisualStudioVersion=$VCVersion PlatformToolset=$Toolset Platform=$Platform $resultText`n"
+	Write-Host "VisualStudioVersion=$VCVersion(ToolsVersion=$MSToolsV) PlatformToolset=$Toolset Platform=$Platform $resultText`n"
 #
 #	build installers as well
 #

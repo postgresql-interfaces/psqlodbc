@@ -23,9 +23,9 @@
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
     "v110_xp", "v120", "v120_xp", "v140" or "v140_xp" is available.
 .PARAMETER MSToolsVersion
-    MSBuild ToolsVersion is detemrined automatically unless this
-    option is specified.  Currently "4.0", "12.0", "14.0" or "15.0" is
-    available.
+    This option is deprecated. MSBuild ToolsVersion is detemrined
+    automatically unless this option is specified.  Currently "4.0",
+    "12.0" or "14.0" is available.
 .PARAMETER Configuration
     Specify "Release"(default) or "Debug".
 .PARAMETER BuildConfigPath
@@ -70,7 +70,7 @@ Param(
 [ValidateSet("Win32", "x64", "both")]
 [string]$Platform="both",
 [string]$Toolset,
-[ValidateSet("", "4.0", "12.0", "14.0", "15.0")]
+[ValidateSet("", "4.0", "12.0", "14.0")]
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
@@ -339,7 +339,9 @@ $objbase = GetObjbase "$scriptPath\.."
 $pushdir = GetObjbase "$scriptPath"
 
 Import-Module ${scriptPath}\MSProgram-Get.psm1
-$msbuildexe=Find-MSBuild ([ref]$VCVersion) ([ref]$MSToolsVersion) ([ref]$Toolset) $configInfo
+$rtnArray=Find-MSBuild ([ref]$VCVersion) ($MSToolsVersion) ([ref]$Toolset) $configInfo
+$msbuildexe=$rtnArray[0]
+$MSToolsV=$rtnArray[1]
 write-host "vcversion=$VCVersion toolset=$Toolset"
 
 Remove-Module MSProgram-Get
@@ -379,7 +381,7 @@ if ("$SpecificDsn" -ne "") {
 }
 foreach ($pl in $pary) {
 	cd $scriptPath
-	& ${msbuildexe} ${vcxfile} /tv:$MSToolsVersion "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /p:scriptPath=${scriptPath} /Verbosity:minimal
+	& ${msbuildexe} ${vcxfile} /tv:$MSToolsV "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /p:scriptPath=${scriptPath} /Verbosity:minimal
 	if ($LASTEXITCODE -ne 0) {
 		throw "`nCompile error"
 	}
