@@ -378,7 +378,7 @@ SC_Constructor(ConnectionClass *conn)
 	{
 		rv->hdbc = conn;
 		rv->phstmt = NULL;
-		rv->rhold = (QResultHold) {0};
+		rv->rhold.first = rv->rhold.last = NULL;
 		rv->curres = NULL;
 		rv->catalog_result = FALSE;
 		rv->prepare = NON_PREPARE_STATEMENT;
@@ -528,7 +528,7 @@ SC_Destructor(StatementClass *self)
 void
 SC_init_Result(StatementClass *self)
 {
-	self->rhold = (QResultHold) {0};
+	self->rhold.first = self->rhold.last = NULL;
 	self->curres = NULL;
 	self->curr_param_result = 0;
 	MYLOG(0, "leaving(%p)\n", self);
@@ -546,7 +546,8 @@ SC_set_Result(StatementClass *self, QResultClass *first)
 		for (res = first; res; res = QR_nextr(res))
 			last = res;
 		self->curres = first;
-		self->rhold = (QResultHold) {first, last};
+		self->rhold.first = first;
+		self->rhold.last = last;
 		if (NULL != first)
 			self->curr_param_result = 1;
 	}
@@ -2017,7 +2018,7 @@ SC_execute(StatementClass *self)
 			}
 			goto cleanup;
 		}
-		rhold = (QResultHold) {first, first};
+		rhold.first = rhold.last = first;
 	}
 	else if (isSelectType)
 	{

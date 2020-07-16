@@ -2340,7 +2340,9 @@ MYLOG(DETAIL_LOG_LEVEL, " ignored abort_on_conn\n");
 
 	if (retres)
 		QR_set_conn(retres, self);
-	return (QResultHold) {retres, res};
+	rhold.first = retres;
+	rhold.last = res;
+	return rhold;
 }
 
 #define MAX_SEND_FUNC_ARGS	3
