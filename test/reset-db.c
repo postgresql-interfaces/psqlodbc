@@ -17,8 +17,6 @@
 
 #include "src/common.h"
 
-SQLHENV env;
-SQLHDBC conn;
 static HSTMT hstmt = SQL_NULL_HSTMT;
 
 static void
