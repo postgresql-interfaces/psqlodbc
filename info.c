@@ -2676,7 +2676,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 					if (!setIdentity &&
 					    CC_fake_mss(conn))
 					{
-						char	tmp[32];
+						char	tmp[256];
 
 						SPRINTF_FIXED(tmp, "%s identity", field_type_name);
 						set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], tmp);

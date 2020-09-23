@@ -1649,7 +1649,7 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 					int	wdt;
 					int	fr = effective_fraction(std_time.fr, &wdt);
 
-					len = SPRINTF_FIXED(midtemp, "%s.%0*d", midtemp, wdt, fr);
+					len = SPRINTFCAT_FIXED(midtemp, ".%0*d", wdt, fr);
 				}
 				break;
 
