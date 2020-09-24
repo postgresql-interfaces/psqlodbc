@@ -14,6 +14,17 @@ AC_PROG_CC
 
 AM_CONDITIONAL([GCC], [test -n "$GCC"])
 
+# All AC_CHECK_SIZEOF() or AC_CHECK_TYPES() calls were move from 4.
+# unixODBC wants the following to get sane behavior for ODBCINT64
+AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(long int)	# for unixODBC
+AC_CHECK_SIZEOF(void *)
+AC_CHECK_TYPES([long long])
+AC_CHECK_TYPES([signed char])
+AC_CHECK_TYPES([ssize_t])
+AC_TYPE_SIZE_T
+
+# Check if "-Wall" is valid
 if test -n "$GCC" && test "$ac_test_CFLAGS" != set; then
 
 	AC_MSG_CHECKING(-Wall is a valid compile option)
@@ -231,17 +242,7 @@ AC_CHECK_HEADER(libpq-fe.h,,[AC_MSG_ERROR([libpq header not found])])
 AC_HEADER_TIME
 
 
-# 4. Types
-
-# unixODBC wants the following to get sane behavior for ODBCINT64
-AC_CHECK_SIZEOF(long)
-AC_CHECK_SIZEOF(long int)	# for unixODBC
-AC_CHECK_SIZEOF(void *)
-AC_CHECK_TYPES(long long)
-AC_CHECK_TYPES(signed char)
-
-AC_CHECK_TYPES(ssize_t)
-AC_TYPE_SIZE_T
+# 4. Types(all members were moved to 0.)
 
 # 5. Structures
 
