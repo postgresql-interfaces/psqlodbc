@@ -1292,8 +1292,6 @@ static PG_ErrorInfo *
 SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 {
 	QResultClass *res = SC_get_Curres(self);
-	if (!res)
-		res = SC_get_Parsed(self);
 	ConnectionClass *conn = SC_get_conn(self);
 	Int4	errornum;
 	size_t		pos;
@@ -1303,6 +1301,8 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 	char		*ermsg = NULL, *sqlstate = NULL;
 	PG_ErrorInfo	*pgerror;
 
+	if (!res)
+		res = SC_get_Parsed(self);
 	if (self->pgerror)
 		return self->pgerror;
 	errornum = self->__error_number;
