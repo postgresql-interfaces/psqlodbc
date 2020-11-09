@@ -159,6 +159,7 @@ function buildInstaller([string]$CPUTYPE)
 	$LIBPQMSVCDLL = ""
 	$LIBPQMSVCSYS = ""
 	$pgmvc = $configInfo.Configuration.$CPUTYPE.runtime_folder
+	$runtime_list = @()
 	if (-not $ExcludeRuntime) {
 		$toolset = $configInfo.Configuration.BuildResult.PlatformToolset
 		if ($toolset -match "^v(\d+)") {
@@ -175,13 +176,21 @@ function buildInstaller([string]$CPUTYPE)
 			$PODBCMSVCDLL=$dlls[0]
 			if ("$PODBCMSVCDLL" -ne "") {
 				Write-Host "psqlodbc picks $PODBCMSVCDLL"
+				$runtime_list += $PODBCMSVCDLL
 			}
 			$PODBCMSVCSYS=$dlls[1]
 			if ("$PODBCMSVCSYS" -ne "") {
 				Write-Host "psqlodbc picks system $PODBCMSVCSYS"
+				$runtime_list += $PODBCMSVCSYS
 			}
 			$PODBCMSVPDLL=$PODBCMSVCDLL.Replace((msvcrun $runtime_version0), $str_msvcp)
+			if ("$PODBCMSVPDLL" -ne "") {
+				$runtime_list += $PODBCMSVPDLL
+			}
 			$PODBCMSVPSYS=$PODBCMSVCSYS.Replace((msvcrun $runtime_version0), $str_msvcp)
+			if ("$PODBCMSVPSYS" -ne "") {
+				$runtime_list += $PODBCMSVPSYS
+			}
 		}
 		# where's the runtime dll libpq links? 
 		$msvclist=& ${dumpbinexe} /imports $LIBPQBINDIR\libpq.dll | select-string -pattern "^\s*($msrun_ptn)(\d+)0\.dll" | % {$_.Matches.Groups[2].Value}
@@ -203,10 +212,12 @@ function buildInstaller([string]$CPUTYPE)
 				$LIBPQMSVCDLL=$dlls[0]
 				if ("$LIBPQMSVCDLL" -ne "") {
 					Write-Host "LIBPQ picks $LIBPQMSVCDLL"
+					$runtime_list += $LIBPQMSVCDLL
 				}
 				$LIBPQMSVCSYS=$dlls[1]
 				if ("$LIBPQMSVCSYS" -ne "") {
 					Write-Host "LIBPQ picks system $LIBPQMSVCSYS"
+					$runtime_list += $LIBPQMSVCSYS
 				}
 			}
 		} else {
@@ -230,7 +241,7 @@ function buildInstaller([string]$CPUTYPE)
 	$maxmem=10
 	$libpqmem=Get-RelatedDlls "libpq.dll" $LIBPQBINDIR
 	for ($i=0; $i -lt $libpqmem.length; ) {
-		if ($libpqmem[$i] -match "^($msrun_ptn)\d+0.dll") {
+		if ($runtime_list -contains $libpqmem[$i]) {
 			$libpqmem[$i]=$Null	
 		} else {
 			$i++
