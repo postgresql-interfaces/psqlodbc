@@ -9,6 +9,28 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="13.00.0000">psqlODBC 13.00.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Add support for CONVERT scalar function.</li>
+<li>Cope with the case that openssl libraries link msvc runtimes other than libraries which psqlodbc or libpq links.</li>
+<li>all AC_CHECK_SIZEOF() or AC_CHECK_TYPES() macros at earlier stage where LIBS variable isn't set yet.</li>
+These macros compile and run some programs. On some platforms(with some linker options like
+--no-as-needed in Lnux Gnu linker) the programs try to link libraries specified by LIBS variable at run time.
+There are some cases that the programs fail due to missing library which is actually not needed and AC_CHECK_SIZEOF() returns 0.
+<li>Fix a compilation error with GCC 10 due to conflicting variable names.</li>
+Patch by Paul Wise.
+<li>Remove curr_param_result property of StatementClass and separate parsed result from the exec result.</li>
+<li>Add support for development with VC16(Visual Studio 2019).</li>
+MSToolsVersion parameter of BuildAll.ps1 and of regress.ps1 are deprecated.
+<li>Hold the first and last result for parametrized SQL statements with array of parameters. </li>
+This would improve the performance of bulk inserts/updates etc.
+<li>Revise the handling of QResultClass list.</li>
+Introduce macros QR_concat(), QR_detach() and QR_next().
+<li>Correct the handling of SQL_ROW_ERROR and SQL_ROW_SUCCESS_WITH_INFO.</li>
+<li>Remove the single table restriction in SC_set_SS_columnkey.</li>
+<li>Improve error reporting abuut SC_pos_reload_needed().</li>
+</ol>
 <h2><a id="12.02.0000">psqlODBC 12.02.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
