@@ -8,6 +8,7 @@
 
 static void b_result(SQLRETURN rc, HSTMT stmt,  int repcnt, SQLUSMALLINT status[])
 {
+	int i;
 	printf("insert into test_batch returns %d\n", rc);
 	if (!SQL_SUCCEEDED(rc))
 		print_diag("", SQL_HANDLE_STMT, stmt);
@@ -15,7 +16,7 @@ static void b_result(SQLRETURN rc, HSTMT stmt,  int repcnt, SQLUSMALLINT status[
 	if (SQL_SUCCESS != rc)
 		disp_stmt_error(stmt);
 	*/
-	for (int i = 0; i < repcnt; i++)
+	for (i = 0; i < repcnt; i++)
 	{
 		printf("row %d status=%s\n", i,
 			(status[i] == SQL_PARAM_SUCCESS ? "success" :
