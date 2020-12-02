@@ -14,7 +14,7 @@ Changes:<br />
 <ol type="1">
 <li>Add support for CONVERT scalar function.</li>
 <li>Cope with the case that openssl libraries link msvc runtimes other than libraries which psqlodbc or libpq links.</li>
-<li>all AC_CHECK_SIZEOF() or AC_CHECK_TYPES() macros at earlier stage where LIBS variable isn't set yet.</li>
+<li>Call AC_CHECK_SIZEOF() or AC_CHECK_TYPES() macros at earlier stage where LIBS variable isn't set yet.</li>
 These macros compile and run some programs. On some platforms(with some linker options like
 --no-as-needed in Lnux Gnu linker) the programs try to link libraries specified by LIBS variable at run time.
 There are some cases that the programs fail due to missing library which is actually not needed and AC_CHECK_SIZEOF() returns 0.
@@ -29,7 +29,7 @@ This would improve the performance of bulk inserts/updates etc.
 Introduce macros QR_concat(), QR_detach() and QR_next().
 <li>Correct the handling of SQL_ROW_ERROR and SQL_ROW_SUCCESS_WITH_INFO.</li>
 <li>Remove the single table restriction in SC_set_SS_columnkey.</li>
-<li>Improve error reporting abuut SC_pos_reload_needed().</li>
+<li>Improve error reporting about SC_pos_reload_needed().</li>
 </ol>
 <h2><a id="12.02.0000">psqlODBC 12.02.0000 Release</a></h2>
 Changes:<br />
