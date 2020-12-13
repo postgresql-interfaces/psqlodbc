@@ -44,7 +44,6 @@ TESTBINS = exe/connect-test \
 	exe/bindcol-test \
 	exe/lfconversion-test \
 	exe/cte-test \
-	exe/deprecated-test \
 	exe/errors-test \
 	exe/error-rollback-test \
 	exe/diagnostic-test \
