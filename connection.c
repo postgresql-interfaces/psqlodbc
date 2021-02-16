@@ -3263,10 +3263,13 @@ DLL_DECLARE int PgDtc_is_recovery_available(void *self, char *reason, int rsize)
 	/*
 	 * Did we use SSL client certificate, SSPI, Kerberos or similar
 	 * authentication methods?
-	 * There seems no way to check it directly.
 	 */
 	doubtCert = FALSE;
+#ifdef HAVE_PQSSLINUSE
+	if (PQsslInUse(conn->pqconn))
+#else
 	if (PQgetssl(conn->pqconn) != NULL)
+#endif
 		doubtCert = TRUE;
 
 	nameSize = sizeof(loginUser);

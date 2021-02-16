@@ -258,6 +258,8 @@ AC_C_CONST
 AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS(strtoul strtoll strlcat mbstowcs wcstombs mbrtoc16 c16rtomb)
 
+AC_CHECK_FUNCS(PQsslInUse)
+
 if test "$enable_pthreads" = yes; then
   AC_CHECK_FUNCS(localtime_r strtok_r pthread_mutexattr_settype)
 
