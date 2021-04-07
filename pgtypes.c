@@ -877,6 +877,7 @@ Int4	/* PostgreSQL restriction */
 pgtype_attr_column_size(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as)
 {
 	const ConnInfo	*ci = &(conn->connInfo);
+MYLOG(0, "entering type=%d, atttypmod=%d, adtsize_or=%d, unknown = %d\n", type, atttypmod, adtsize_or_longest, handle_unknown_size_as);
 
 	switch (type)
 	{
@@ -1486,7 +1487,7 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 	{
 		const QResultClass	*res;
 
-		if (res = SC_get_Curres(stmt), NULL != res)
+		if (res = SC_get_ExecdOrParsed(stmt), NULL != res)
 		{
 			atttypmod = QR_get_atttypmod(res, col);
 			if (NULL != adtsize_or_longestlen)

@@ -1134,7 +1134,7 @@ SC_describe(StatementClass *self)
 	QResultClass	*res;
 	MYLOG(0, "entering status = %d\n", self->status);
 
-	res = SC_get_Parsed(self);
+	res = SC_get_ExecdOrParsed(self);
 	if (NULL != res)
 	{
 		num_fields = QR_NumResultCols(res);
@@ -1168,7 +1168,7 @@ MYLOG(0, "              preprocess: status = READY\n");
 				self->status = STMT_DESCRIBED;
 				break;
 		}
-		if (res = SC_get_Parsed(self), NULL != res)
+		if (res = SC_get_ExecdOrParsed(self), NULL != res)
 		{
 			num_fields = QR_NumResultCols(res);
 			return num_fields;
@@ -1215,7 +1215,7 @@ SC_clear_error(StatementClass *self)
 		self->pgerror = NULL;
 	}
 	self->diag_row_count = 0;
-	if (res = SC_get_Curres(self), res)
+	if (res = SC_get_ExecdOrParsed(self), res)
 	{
 		QR_set_message(res, NULL);
 		QR_set_notice(res, NULL);
@@ -1291,7 +1291,7 @@ static const struct
 static PG_ErrorInfo *
 SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 {
-	QResultClass *res = SC_get_Curres(self);
+	QResultClass *res = SC_get_ExecdOrParsed(self);
 	ConnectionClass *conn = SC_get_conn(self);
 	Int4	errornum;
 	size_t		pos;
@@ -1301,8 +1301,6 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 	char		*ermsg = NULL, *sqlstate = NULL;
 	PG_ErrorInfo	*pgerror;
 
-	if (!res)
-		res = SC_get_Parsed(self);
 	if (self->pgerror)
 		return self->pgerror;
 	errornum = self->__error_number;
@@ -1491,7 +1489,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->%p check=%i\n", from_res ,self, check);
 		ER_Destructor(self->pgerror);
 		self->pgerror = NULL;
 	}
-	self_res = SC_get_Curres(self);
+	self_res = SC_get_ExecdOrParsed(self);
 	if (!self_res) return;
 	if (self_res == from_res)	return;
 	QR_add_message(self_res, QR_get_message(from_res));
@@ -1539,8 +1537,8 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->%p check=%i\n", from ,self, check);
 		ER_Destructor(self->pgerror);
 		self->pgerror = NULL;
 	}
-	self_res = SC_get_Curres(self);
-	from_res = SC_get_Curres(from);
+	self_res = SC_get_ExecdOrParsed(self);
+	from_res = SC_get_ExecdOrParsed(from);
 	if (!self_res || !from_res)
 		return;
 	QR_add_message(self_res, QR_get_message(from_res));

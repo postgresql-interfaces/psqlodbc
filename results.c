@@ -93,7 +93,7 @@ SC_describe_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *fun
 	BOOL		exec_ok = TRUE;
 
 	num_fields = SC_describe(stmt);
-	result = SC_get_Parsed(stmt);
+	result = SC_get_ExecdOrParsed(stmt);
 
 	MYLOG(0, "entering result = %p, status = %d, numcols = %d\n", result, stmt->status, result != NULL ? QR_NumResultCols(result) : -1);
 	/****if ((!result) || ((stmt->status != STMT_FINISHED) && (stmt->status != STMT_PREMATURE))) ****/
@@ -191,7 +191,7 @@ PGAPI_NumResultCols(HSTMT hstmt,
 			goto cleanup;
 		}
 
-		result = SC_get_Parsed(stmt);
+		result = SC_get_ExecdOrParsed(stmt);
 		*pccol = QR_NumPublicResultCols(result);
 	}
 
@@ -321,7 +321,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 			goto cleanup;
 		}
 
-		res = SC_get_Parsed(stmt);
+		res = SC_get_ExecdOrParsed(stmt);
 		if (icol >= QR_NumPublicResultCols(res))
 		{
 			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in DescribeCol.", func);
@@ -333,7 +333,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 		if (icol < irdflds->nfields && irdflds->fi)
 			fi = irdflds->fi[icol];
 	}
-	res = SC_get_Parsed(stmt);
+	res = SC_get_ExecdOrParsed(stmt);
 #ifdef	SUPPRESS_LONGEST_ON_CURSORS
 	if (UNKNOWNS_AS_LONGEST == unknown_sizes)
 	{
@@ -513,7 +513,7 @@ PGAPI_ColAttributes(HSTMT hstmt,
 	 * is ignored anyway, so it may be 0.
 	 */
 
-	res = SC_get_Parsed(stmt);
+	res = SC_get_ExecdOrParsed(stmt);
 	if (0 == icol && SQL_DESC_COUNT != fDescType) /* bookmark column */
 	{
 MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
@@ -600,7 +600,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 		if (!SC_describe_ok(stmt, build_fi, col_idx, func))
 			return SQL_ERROR;
 
-		res = SC_get_Parsed(stmt);
+		res = SC_get_ExecdOrParsed(stmt);
 		cols = QR_NumPublicResultCols(res);
 
 		/*

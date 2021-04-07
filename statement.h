@@ -327,7 +327,7 @@ QResultClass *SC_get_lastres(StatementClass *stmt);
 #define SC_get_Result(a)  ((a)->rhold).first
 #define SC_set_Curres(a, b)  ((a)->curres = b)
 #define SC_get_Curres(a)  ((a)->curres)
-#define SC_get_Parsed(a)  ((a)->parsed ? (a)->parsed : (a)->curres)
+#define SC_get_ExecdOrParsed(a)  ((a)->curres ? (a)->curres : (a)->parsed)
 #define SC_get_ARD(a)  ((a)->ard)
 #define SC_get_APD(a)  ((a)->apd)
 #define SC_get_IRD(a)  ((a)->ird)
