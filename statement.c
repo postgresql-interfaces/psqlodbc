@@ -2083,7 +2083,7 @@ SC_execute(StatementClass *self)
 					 * If we received fewer rows than requested, there are no
 					 * more rows to fetch.
 					 */
-					if (qres->num_cached_rows < qi.row_size)
+					if (qres && qres->num_cached_rows < qi.row_size) /* check qres != NULL for safety */
 						QR_set_reached_eof(qres);
 				}
 				first = qres;

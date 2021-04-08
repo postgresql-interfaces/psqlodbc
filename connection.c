@@ -1837,7 +1837,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		QResultHold rholda;
 
 		rhold = CC_send_query_append(self, query, qi, flag, stmt, NULL);
-		if (QR_command_maybe_successful(res))
+		if (QR_command_maybe_successful(rhold.first))
 		{
 			rholda = CC_send_query_append(self, appendq, qi, flag & (~(GO_INTO_TRANSACTION)), stmt, NULL);
 			if (QR_command_maybe_successful(rholda.first))
