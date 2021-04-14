@@ -341,13 +341,14 @@ SQLExecute(HSTMT StatementHandle)
 
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
-	flag |= PODBC_WITH_HOLD;
+	flag |= (PODBC_RECYCLE_STATEMENT | PODBC_WITH_HOLD);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
 	{
 		StartRollbackState(stmt);
 		stmt->exec_current_row = -1;
+		//// SC_set_Result(StatementHandle, NULL);
 		ret = PGAPI_Execute(StatementHandle, flag);
 		ret = DiscardStatementSvp(stmt, ret, FALSE);
 	}

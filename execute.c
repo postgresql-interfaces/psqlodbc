@@ -934,7 +934,7 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	BOOL	exec_end = FALSE, recycled = FALSE, recycle = TRUE;
 	SQLSMALLINT	num_params;
 
-	MYLOG(0, "entering...%x\n", flag);
+	MYLOG(0, "entering...%x %p status=%d\n", flag, stmt, stmt->status);
 
 	stmt->has_notice = 0;
 	conn = SC_get_conn(stmt);
@@ -944,7 +944,8 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 	 * If the statement was previously described, just recycle the old result
 	 * set that contained just the column information.
 	 */
-	if (stmt->prepare && stmt->status == STMT_DESCRIBED)
+	if ((stmt->prepare && stmt->status == STMT_DESCRIBED) ||
+	    (stmt->status == STMT_FINISHED && 0 != (flag & PODBC_RECYCLE_STATEMENT)))
 	{
 		stmt->exec_current_row = -1;
 		SC_recycle_statement(stmt);
@@ -1184,7 +1185,7 @@ next_param_row:
 		goto next_param_row;
 	}
 cleanup:
-MYLOG(0, "leaving retval=%d\n", retval);
+MYLOG(0, "leaving %p retval=%d status=%d\n", stmt, retval, stmt->status);
 	SC_setInsertedTable(stmt, retval);
 #undef	return
 	if (SQL_SUCCESS == retval &&

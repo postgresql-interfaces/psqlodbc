@@ -2122,6 +2122,7 @@ SC_execute(StatementClass *self)
 	if (CONN_DOWN != conn->status)
 		conn->status = oldstatus;
 	self->status = STMT_FINISHED;
+MYLOG(0, "set %p STMT_FINISHED\n", self);
 	LEAVE_INNER_CONN_CS(func_cs_count, conn);
 
 	/* Check the status of the result */
@@ -3072,6 +3073,7 @@ BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
 	{
 		self->cancel_info = 0;
 		self->status = STMT_FINISHED;
+MYLOG(0, "set %p STMT_FINISHED\n", self);
 		exeSet = TRUE;
 	}
 	LEAVE_COMMON_CS;

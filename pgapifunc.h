@@ -25,6 +25,7 @@ extern "C" {
 /*	Internal flags for PGAPI_Exec... functions */
 #define	PODBC_WITH_HOLD			1L
 #define	PODBC_RDONLY			(1L << 1)
+#define	PODBC_RECYCLE_STATEMENT		(1L << 2)
 /*	Flags for the error handling */
 #define	PODBC_ALLOW_PARTIAL_EXTRACT	1L
 /* #define	PODBC_ERROR_CLEAR		(1L << 1) 	no longer used */
