@@ -111,6 +111,8 @@ Result set:
 1	@ 1 day	one day
 2	@ 10 secs	ten secs
 # of result cols: 2
+col:1 name=id type=4 len=10
+col:2 name=t type=12 len=25
 Result set:
 2	bar
 disconnecting
