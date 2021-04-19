@@ -300,6 +300,10 @@ foobar 98
 # of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 99
+SQLExecute UPDATE not found key i=0
+SQLExecute UPDATE not found key i=1
+SQLExecute UPDATE not found key i=2
+SQLExecute UPDATE key i=3 value t=foobar 3
 disconnecting
 Testing with UseServerSidePrepare=0
 connected
@@ -603,4 +607,8 @@ foobar 98
 # of result cols before SQLExecute: 1, after: 1
 Result set:
 foobar 99
+SQLExecute UPDATE not found key i=0
+SQLExecute UPDATE not found key i=1
+SQLExecute UPDATE not found key i=2
+SQLExecute UPDATE key i=3 value t=foobar 3
 disconnecting

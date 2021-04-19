@@ -35,6 +35,7 @@ run_test()
 	SQLRETURN rc;
 	HSTMT hstmt = SQL_NULL_HSTMT;
 	char param1[100];
+	int param2;
 	SQLLEN cbParam1;
 	SQLSMALLINT colcount1, colcount2;
 	SQLCHAR *sql;
@@ -95,6 +96,56 @@ run_test()
 
 		rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 		CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	}
+
+	/* Test for UPDATE returning */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "TRUNCATE TABLE tmptable", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed while truncating temp table", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO tmptable values(3,'foo')", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed while nserting temp table", hstmt);
+	/* Prepare a UPDATE statement */
+	rc = SQLPrepare(hstmt, (SQLCHAR *) "UPDATE tmptable set t=? where i=? RETURNING (t)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLPrepare for UPDATE failed", hstmt);
+	/* bind params  */
+	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
+						  SQL_C_CHAR,	/* value type */
+						  SQL_CHAR,	/* param type */
+						  20,		/* column size */
+						  0,		/* dec digits */
+						  param1,		/* param value ptr */
+						  0,		/* buffer len */
+						  &cbParam1	/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter 1 failed", hstmt);
+	rc = SQLBindParameter(hstmt, 2, SQL_PARAM_INPUT,
+						  SQL_C_SLONG,	/* value type */
+						  SQL_INTEGER,	/* param type */
+						  0,		/* column size */
+						  0,		/* dec digits */
+						  &param2,	/* param value ptr */
+						  0,		/* buffer len */
+						  NULL		/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter 2 failed", hstmt);
+	for (i = 0; i < 4;i++)
+	{
+		snprintf(param1, sizeof(param1), "foobar %d", i);
+		cbParam1 = SQL_NTS;
+		param2 = i;
+		rc = SQLExecute(hstmt);
+		if (SQL_SUCCEEDED(rc))
+		{
+			rc = SQLFetch(hstmt);
+			if (SQL_NO_DATA == rc)
+				printf("??? SQLFetch for UPDATE not found key i=%d\n", param2);
+			else if (SQL_SUCCEEDED(rc))
+				printf("SQLExecute UPDATE key i=%d value t=%s\n", param2, param1);
+			else
+				CHECK_STMT_RESULT(rc, "SQLFetch for UPDATE failed", hstmt);
+			SQLFreeStmt(hstmt, SQL_CLOSE);
+		}
+		else if (SQL_NO_DATA == rc)
+			printf("SQLExecute UPDATE not found key i=%d\n", param2);
+		else
+			CHECK_STMT_RESULT(rc, "SQLExecute UPDATE failed", hstmt);
 	}
 
 	rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
