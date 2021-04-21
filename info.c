@@ -167,7 +167,7 @@ MYLOG(0, "SQL_CONVERT_ mask=" FORMAT_ULEN "\n", value);
 		case SQL_CONVERT_VARCHAR:		/* ODBC 1.0 */
 		case SQL_CONVERT_LONGVARCHAR:
 			len = sizeof(SQLUINTEGER);
-			value = SQL_CVT_BIT | PG_CONVERT_NUM | PG_CONVERT_CH | PG_CONVERT_WCH;
+			value = ci->disable_convert_func ? 0 : SQL_CVT_BIT | PG_CONVERT_NUM | PG_CONVERT_CH | PG_CONVERT_WCH;
 			break;
 		case SQL_CONVERT_DATE:
 			len = sizeof(SQLUINTEGER);
