@@ -582,6 +582,7 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 
 	/* TCP KEEPALIVE */
 	ci->disable_keepalive = IsDlgButtonChecked(hdlg, DS_DISABLE_KEEPALIVE);
+	ci->extra_opts = getExtraOptions(ci);
 	if (ci->disable_keepalive)
 	{
 		ci->keepalive_idle = -1;

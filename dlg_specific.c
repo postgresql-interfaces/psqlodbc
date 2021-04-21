@@ -71,9 +71,9 @@ UInt4	getExtraOptions(const ConnInfo *ci)
 	return flag;
 }
 
-CSTR	hex_format = "%x";
-CSTR	dec_format = "%u";
-CSTR	octal_format = "%o";
+CSTR	hex_format = "%x%s";
+CSTR	dec_format = "%u%s";
+CSTR	octal_format = "%o%s";
 static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 {
 	if (overwrite)
@@ -101,7 +101,7 @@ static UInt4	replaceExtraOptions(ConnInfo *ci, UInt4 flag, BOOL overwrite)
 }
 BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 {
-	UInt4	flag = 0;
+	UInt4	flag = 0, cnt;
 
 	if (!format)
 	{
@@ -126,7 +126,9 @@ BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 			format = dec_format;
 	}
 
-	if (sscanf(optstr, format, &flag) < 1)
+	if (cnt = sscanf(optstr, format, &flag), cnt < 1)
+		return FALSE;
+	else if (cnt > 1)
 		return FALSE;
 	replaceExtraOptions(ci, flag, TRUE);
 	return TRUE;
