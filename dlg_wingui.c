@@ -515,6 +515,13 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 
 	MYLOG(0, "entering got ci=%p\n", ci);
 
+	/* ExtraOptions */
+	GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
+	if (!setExtraOptions(ci, buf, NULL))
+	{
+		MessageBox(hdlg, "ExtraOptions must be hex, decimal or octal", "Format error", MB_ICONEXCLAMATION | MB_OK);
+		return 1;
+	}
 	/* Readonly */
 	ITOA_FIXED(ci->onlyread, IsDlgButtonChecked(hdlg, DS_READONLY));
 
@@ -555,8 +562,6 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 	else
 		ci->numeric_as = DEFAULT_NUMERIC_AS;
 
-	GetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf, sizeof(buf));
-	setExtraOptions(ci, buf, NULL);
 	ITOA_FIXED(ci->show_system_tables, IsDlgButtonChecked(hdlg, DS_SHOWSYSTEMTABLES));
 
 	ITOA_FIXED(ci->row_versioning, IsDlgButtonChecked(hdlg, DS_ROWVERSIONING));
