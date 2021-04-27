@@ -390,19 +390,21 @@ dconn_FDriverConnectProc(
 			{
 				HWND notu = GetDlgItem(hdlg, IDC_NOTICE_USER);
 
-				SetFocus(GetDlgItem(hdlg, IDC_PASSWORD));
 				SetWindowText(notu, "  Supply password       ");
 				ShowWindow(notu, SW_SHOW);
 				SendMessage(notu, WM_CTLCOLOR, 0, 0);
 			}
-			else if (ci->database[0] == '\0')
-				;			/* default focus */
+			if (ci->database[0] == '\0')
+				SetFocus(GetDlgItem(hdlg, IDC_DATABASE));
 			else if (ci->server[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_SERVER));
 			else if (ci->port[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_PORT));
 			else if (ci->username[0] == '\0')
 				SetFocus(GetDlgItem(hdlg, IDC_USER));
+			else if (SAFE_NAME(ci->password)[0] == '\0' &&
+				 ci->password_required)
+				SetFocus(GetDlgItem(hdlg, IDC_PASSWORD));
 			break;
 
 		case WM_COMMAND:
