@@ -9,6 +9,23 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="13.01.0000">psqlODBC 13.01.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Fix a bug of CC_send_query_append() when the ignore_roundtrip_time flag is on.</li>
+<li>Add a call for SQLDescribeCol() before SQLExecute() to prepare-test.</li>
+The diff of the result was reported by Mangold Fabian and will be fixed in the later commit.
+<li>Add a *update returning* test case to insertreturning regression test.</li>
+The diff of the result was reported by Patrick Cheung and will be fixed
+in the later commit.
+<li>Let SQLDescribeCol() use parsed result when the current executed result is NULL.</li>
+This change fixes the diff of prepare-test regression test reported by Mangold Fabian.
+<li>Let SQLExecute() destroy the old result first.</li>
+This change fixes the diff of insertreturning-test regression test reported by Patrick Cheung.
+<li>Forget to apply disable_convert_func flag to VARCHAR and LONGVARCHAR.</li>
+<li>Prioritize DISABLE_KEEPALIVE checkbox over the disable_keepalive bit of ExtraOptions.</li>
+<li>Format check for ExtraOptions of setup dialog.</li>
+</ol>
 <h2><a id="13.00.0000">psqlODBC 13.00.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
