@@ -4632,7 +4632,6 @@ SC_pos_add(StatementClass *stmt,
 			goto cleanup;
 		}
 		MYLOG(0, "addstr=%s\n", addstr.data);
-		mylog("addstr=%s\n", addstr.data);
 		s.qstmt->exec_start_row = s.qstmt->exec_end_row = s.irow;
 		s.updyes = TRUE;
 		ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) addstr.data, SQL_NTS, 0);
