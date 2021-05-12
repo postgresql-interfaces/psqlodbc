@@ -52,4 +52,5 @@ TESTBINS = exe/connect-test \
 	exe/large-object-data-at-exec-test \
 	exe/odbc-escapes-test \
 	exe/wchar-char-test \
-	exe/params-batch-exec-test
+	exe/params-batch-exec-test \
+	exe/fetch-refcursors-test
