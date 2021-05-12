@@ -27,7 +27,9 @@
     automatically unless this option is specified.  Currently "4.0",
     "12.0" or "14.0" is available.
 .PARAMETER Configuration
-    Specify "Release"(default) or "Debug".
+    Specify the configuration used to build executables for the regression tests. "Release"(default) or "Debug".
+.PARAMETER DriverConfiguration
+    Specify the configuration which was used to build the driver dlls to test. "Release"(default) or "Debug".
 .PARAMETER BuildConfigPath
     Specify the configuration xml file name if you want to use
     the configuration file other than standard one.
@@ -74,6 +76,8 @@ Param(
 [string]$MSToolsVersion,
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
+[ValidateSet("Debug", "Release")]
+[String]$DriverConfiguration="Release",
 [string]$BuildConfigPath,
 [ValidateSet("off", "on", "both")]
 [string]$DeclareFetch="on",
@@ -263,7 +267,7 @@ function SpecialDsn($testdsn, $testdriver)
 			$uid = $in
 		}
 		$in = read-host -assecurestring "Password [$passwd]"
-		if ("$in" -ne "") {
+		if ($in.Length -ne 0) {
 			$ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($in)
 			$passwd = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
 		}
@@ -375,6 +379,10 @@ if ($Ansi) {
 	$dllname="psqlsetup.dll"
 	$setup="psqlsetup.dll"
 }
+if ($DriverConfiguration -ieq "Debug") {
+	$testdriver += "_debug"
+	$testdsn += "_debug"
+}
 if ("$SpecificDsn" -ne "") {
 	Write-Host "`tSpecific DSN=$SpecificDsn"
 	$testdsn=$SpecificDsn
@@ -394,12 +402,12 @@ foreach ($pl in $pary) {
 	 "Win32" {
 			$targetdir="test_x86"
 			$bit="32-bit"
-			$dlldir="$objbase\x86_${ansi_dir_part}_Release"
+			$dlldir="$objbase\x86_${ansi_dir_part}_$DriverConfiguration"
 		}
 	 default {
 			$targetdir="test_x64"
 			$bit="64-bit"
-			$dlldir="$objbase\x64_${ansi_dir_part}_Release"
+			$dlldir="$objbase\x64_${ansi_dir_part}_$DriverConfiguration"
 		}
 	}
 	pushd $pushdir\$targetdir
