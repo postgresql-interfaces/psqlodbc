@@ -645,6 +645,7 @@ typedef struct
 	signed char	numeric_as;
 	signed char	optional_errors;
 	signed char	ignore_timeout;
+	signed char	fetch_refcursors;
 	UInt4		extra_opts;
 	Int4		keepalive_idle;
 	Int4		keepalive_interval;

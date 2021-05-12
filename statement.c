@@ -2243,33 +2243,30 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, firs
 	{
 		Int2	io, out;
 		has_out_para = (CountParameters(self, NULL, &io, &out) > 0);
-/*
- *	I'm not sure if the following REFCUR_SUPPORT stuff is valuable
- *	or not.
- */
-#ifdef	REFCUR_SUPPORT
+if (ci->fetch_refcursors)
+{
 
-MYLOG(DETAIL_LOG_LEVEL, "!!! numfield=%d field_type=%u\n", QR_NumResultCols(res), QR_get_field_type(res, 0));
+MYLOG(DETAIL_LOG_LEVEL, "!!! numfield=%d field_type=%u\n", QR_NumResultCols(rhold.first), QR_get_field_type(rhold.first, 0));
 		if (!has_out_para &&
-		    0 < QR_NumResultCols(res) &&
-		    PG_TYPE_REFCURSOR == QR_get_field_type(res, 0))
+		    0 < QR_NumResultCols(rhold.first) &&
+		    PG_TYPE_REFCURSOR == QR_get_field_type(rhold.first, 0))
 		{
 			char	fetch[128];
 			int	stmt_type = self->statement_type;
 
-			STR_TO_NAME(self->cursor_name, QR_get_value_backend_text(res, 0, 0));
-			QR_Destructor(res);
+			STR_TO_NAME(self->cursor_name, QR_get_value_backend_text(rhold.first, 0, 0));
+			QR_Destructor(rhold.first);
 			SC_init_Result(self);
 			SC_set_fetchcursor(self);
 			qi.result_in = NULL;
 			qi.cursor = SC_cursor_name(self);
-			qi.cache_size = qi.row_size = ci->drivers.fetch_max;
+			qi.fetch_size = qi.row_size = ci->drivers.fetch_max;
 			SPRINTF_FIXED(fetch, "fetch " FORMAT_LEN " in \"%s\"", qi.fetch_size, SC_cursor_name(self));
-			res = CC_send_query(conn, fetch, &qi, qflag | READ_ONLY_QUERY, SC_get_ancestor(self));
-			if (NULL != res)
-				SC_set_Result(self, res);
+			rhold.first = CC_send_query(conn, fetch, &qi, qflag | READ_ONLY_QUERY, SC_get_ancestor(self));
+			if (NULL != rhold.first)
+				SC_set_Result(self, rhold.first);
 		}
-#endif	/* REFCUR_SUPPORT */
+}
 	}
 	if (has_out_para)
 	{	/* get the return value of the procedure call */

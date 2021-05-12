@@ -119,6 +119,7 @@
 #define DS_NUMERIC_AS_LONGVARCHAR	1111
 #define DS_BATCH_SIZE			1112
 #define DS_IGNORETIMEOUT		1113
+#define DS_FETCH_REFCURSORS		1114
 
 // Next default values for new objects
 //
@@ -126,7 +127,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1114
+#define _APS_NEXT_CONTROL_VALUE         1115
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

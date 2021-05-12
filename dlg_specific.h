@@ -173,6 +173,8 @@ extern "C" {
 #define INI_IGNORETIMEOUT		"IgnoreTimeout"
 #define ABBR_IGNORETIMEOUT		"D9"
 #define INI_DTCLOG			"Dtclog"
+#define INI_FETCHREFCURSORS		"FetchRefcursors"
+#define ABBR_FETCHREFCURSORS		"DA"
 /* "PreferLibpq", abbreviated "D4", used to mean whether to prefer libpq.
  * libpq is now required
 #define INI_PREFERLIBPQ			"PreferLibpq"
@@ -220,6 +222,7 @@ extern "C" {
 #define BIT_USESERVERSIDEPREPARE		(1L<<25)
 #define BIT_LOWERCASEIDENTIFIER			(1L<<26)
 #define BIT_OPTIONALERRORS			(1L<<27)
+#define BIT_FETCHREFCURSORS			(1L<<28)
 
 #define EFFECTIVE_BIT_COUNT			28
 
@@ -274,6 +277,7 @@ extern "C" {
 #define DEFAULT_OPTIONAL_ERRORS		0
 #define DEFAULT_BATCH_SIZE		100
 #define DEFAULT_IGNORETIMEOUT		0
+#define DEFAULT_FETCHREFCURSORS		0
 
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 #define DEFAULT_XAOPT			1
