@@ -52,18 +52,18 @@ static void setup_procedure()
 	test_disconnect();
 }
 
-static void refcursor_test(char* connectparams, SQLPOINTER autocommit)
+static void refcursor_test(char* connectparams, SQLUINTEGER autocommit)
 {
 	SQLRETURN	rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 	int	        num_cursor = 0;
 
-	printf("\n-- TEST using %s and SQL_ATTR_AUTOCOMMIT=%d\n", connectparams, autocommit);
+	printf("\n-- TEST using %s and SQL_ATTR_AUTOCOMMIT=%u\n", connectparams, autocommit);
 
 	test_connect_ext(connectparams);
 
 	/* Conditionally start a transaction */
-	rc = SQLSetConnectAttr(conn, SQL_ATTR_AUTOCOMMIT, autocommit, SQL_IS_UINTEGER);
+	rc = SQLSetConnectAttr(conn, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) (SQLULEN) autocommit, SQL_IS_UINTEGER);
 	CHECK_STMT_RESULT(rc, "SQLSetConnectAttr failed", hstmt);
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
