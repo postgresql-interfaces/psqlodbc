@@ -46,7 +46,7 @@ const char *get_test_dsn(void)
 
 int IsAnsi(void)
 {
-	return (strcmp(get_test_dsn(), test_dsn_ansi) == 0);
+	return (NULL != strstr(get_test_dsn(), "_ansi"));
 }
 
 void
