@@ -2268,12 +2268,22 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 					num_p = ipdopts->allocated;
 				for (i = 0, gidx = 0; i < num_p; i++)
 				{
+					int icol = gidx;
 					ipara = ipdopts->parameters + i;
 					if (ipara->paramType == SQL_PARAM_OUTPUT ||
 					    ipara->paramType == SQL_PARAM_INPUT_OUTPUT)
 					{
+						if (NAME_IS_VALID(ipara->paramName))
+						{
+							icol = QR_search_by_fieldname(rhold.first, GET_NAME(ipara->paramName));
+							if (icol < 0)
+							{
+								SC_set_error(self, STMT_EXEC_ERROR, "Named output parameter does not exist.", func);
+								break;
+							}
+						}
 						apara = apdopts->parameters + i;
-						ret = PGAPI_GetData(hstmt, gidx + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
+						ret = PGAPI_GetData(hstmt, icol + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
 						if (!SQL_SUCCEEDED(ret))
 						{
 							SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.", func);

@@ -1466,3 +1466,19 @@ MYLOG(DETAIL_LOG_LEVEL, "tupleField=%p\n", self->tupleField);
 
 	return TRUE;
 }
+
+int
+QR_search_by_fieldname(QResultClass *self, const char *name)
+{
+	int		i;
+	char	*col_name;
+
+	for (i = 0; i < QR_NumResultCols(self); i++)
+	{
+		col_name = QR_get_fieldname(self, i);
+		if (strcmp(col_name, name) == 0)
+			return i;
+	}
+
+	return -1;
+}

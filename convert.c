@@ -4512,7 +4512,7 @@ MYLOG(DETAIL_LOG_LEVEL, "para:%d(%d,%d)\n", param_number, ipdopts->allocated, ap
 		return SQL_ERROR;
 	}
 
-MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
+MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n", ipara, ipara ? PRINT_NAME(ipara->paramName) : PRINT_NULL, ipara ? ipara->paramType : -1, PG_VERSION_LT(conn, 8.1), qb->proc_return);
 	if (param_number < qb->proc_return)
 	{
 		if (ipara && SQL_PARAM_OUTPUT != ipara->paramType)
@@ -4556,6 +4556,17 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramType=%d %d proc_return=%d\n", ipara, ipar
 				}
 			}
 			return SQL_SUCCESS_WITH_INFO;
+		}
+	}
+	else
+	{
+		/* For procedures, use named notation if a parameter name is specified */
+		if (!req_bind && ipara && NAME_IS_VALID(ipara->paramName) &&
+			qp && qp->statement_type == STMT_TYPE_PROCCALL)
+		{
+			char	named_notation[COLUMN_NAME_STORAGE_LEN + 7];
+			SPRINTF_FIXED(named_notation, "\"%s\" := ", GET_NAME(ipara->paramName));
+			CVT_APPEND_STR(qb, named_notation);
 		}
 	}
 

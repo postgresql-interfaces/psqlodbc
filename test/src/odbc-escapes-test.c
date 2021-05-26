@@ -9,9 +9,18 @@
 #include "common.h"
 
 
+static void
+setParamName(HSTMT hstmt, int paramno, const char *paramname)
+{
+	SQLHDESC 	hIpd = NULL;
+
+	SQLGetStmtAttr(hstmt, SQL_ATTR_IMP_PARAM_DESC, &hIpd, 0, 0);
+	SQLSetDescField(hIpd, paramno, SQL_DESC_NAME, paramname, SQL_NTS);
+}
+
 /* bind string param as CHAR  */
 static void
-bindParamString(HSTMT hstmt, int paramno, char *str)
+bindParamString(HSTMT hstmt, int paramno, const char *paramname, char *str)
 {
 	SQLRETURN	rc;
 	static SQLLEN		cbParams[10];
@@ -26,11 +35,16 @@ bindParamString(HSTMT hstmt, int paramno, char *str)
 						  0,			/* buffer len */
 						  &cbParams[paramno]		/* StrLen_or_IndPtr */);
 	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
-	printf("Param %d: %s\n", paramno, str);
+	setParamName(hstmt, paramno, paramname);
+
+	if (paramname)
+		printf("Param %d (%s): %s\n", paramno, paramname, str);
+	else
+		printf("Param %d: %s\n", paramno, str);
 }
 
 static void
-bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen, BOOL inout)
+bindOutParamString(HSTMT hstmt, int paramno, const char *paramname, char *outbuf, int outbuflen, BOOL inout)
 {
 	SQLRETURN	rc;
 	static SQLLEN		cbParams[10];
@@ -45,7 +59,12 @@ bindOutParamString(HSTMT hstmt, int paramno, char *outbuf, int outbuflen, BOOL i
 						  outbuflen,	/* buffer len */
 						  &cbParams[paramno]		/* StrLen_or_IndPtr */);
 	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
-	printf("Param %d is an %s parameter\n", paramno, inout ? "I-O": "OUT");
+	setParamName(hstmt, paramno, paramname);
+
+	if (paramname)
+		printf("Param %d (%s) is an %s parameter\n", paramno, paramname, inout ? "I-O": "OUT");
+	else
+		printf("Param %d is an %s parameter\n", paramno, inout ? "I-O": "OUT");
 }
 
 static BOOL	execDirectMode = 0;
@@ -90,21 +109,21 @@ static void	escape_test(HSTMT hstmt)
 
 	/* CONCAT */
 	prepareQuery(hstmt, "SELECT {fn CONCAT(?, ?) }");
-	bindParamString(hstmt, 1, "foo");
-	bindParamString(hstmt, 2, "bar");
+	bindParamString(hstmt, 1, NULL, "foo");
+	bindParamString(hstmt, 2, NULL, "bar");
 	executeQuery(hstmt);
 
 	/* LOCATE */
 	prepareQuery(hstmt, "SELECT {fn LOCATE(?, ?, 2) }");
-	bindParamString(hstmt, 1, "needle");
-	bindParamString(hstmt, 2, "this is a needle in an ol' haystack");
+	bindParamString(hstmt, 1, NULL, "needle");
+	bindParamString(hstmt, 2, NULL, "this is a needle in an ol' haystack");
 	executeQuery(hstmt);
 
 	/* LOCATE(SUBSTRING, SUBSTRING) */
 	prepareQuery(hstmt, "SELECT {fn LOCATE({fn SUBSTRING(?, 2, 4)}, {fn SUBSTRING(?, 3)}, 3) }");
 	/* using the same parameters */
-	bindParamString(hstmt, 1, "needle");
-	bindParamString(hstmt, 2, "this is a needle in an ol' haystack");
+	bindParamString(hstmt, 1, NULL, "needle");
+	bindParamString(hstmt, 2, NULL, "this is a needle in an ol' haystack");
 	executeQuery(hstmt);
 
 	/* SPACE */
@@ -114,26 +133,26 @@ static void	escape_test(HSTMT hstmt)
 	/**** CALL escapes ****/
 
 	prepareQuery(hstmt, "{ call length(?) }");
-	bindParamString(hstmt, 1, "foobar");
+	bindParamString(hstmt, 1, NULL, "foobar");
 	executeQuery(hstmt);
 
 	prepareQuery(hstmt, "{ call right(?, ?) }");
-	bindParamString(hstmt, 1, "foobar");
-	bindParamString(hstmt, 2, "3");
+	bindParamString(hstmt, 1, NULL, "foobar");
+	bindParamString(hstmt, 2, NULL, "3");
 	executeQuery(hstmt);
 
 	prepareQuery(hstmt, "{ ? = call length('foo') }");
 	memset(outbuf1, 0, sizeof(outbuf1));
-	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
+	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT param: %s\n", outbuf1);
 
 	/* It's preferable to cast VARIADIC any fields */
 	prepareQuery(hstmt, "{ ? = call concat(?::text, ?::text) }");
 	memset(outbuf1, 0, sizeof(outbuf1));
-	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
-	bindParamString(hstmt, 2, "foo");
-	bindParamString(hstmt, 3, "bar");
+	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
+	bindParamString(hstmt, 2, NULL, "foo");
+	bindParamString(hstmt, 3, NULL, "bar");
 	if (variadic_test_success)
 		executeQuery(hstmt);
 	else
@@ -154,13 +173,39 @@ static void	escape_test(HSTMT hstmt)
 	/**** call procedure with out and i-o parameters ****/
 	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?, ?, ?, ?)}");
 	memset(outbuf1, 0, sizeof(outbuf1));
-	bindOutParamString(hstmt, 1, outbuf1, sizeof(outbuf1) - 1, 0);
-	bindParamString(hstmt, 2, "2017-02-23 11:34:46");
+	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
+	bindParamString(hstmt, 2, NULL, "2017-02-23 11:34:46");
 	strcpy(outbuf3, "4");
-	bindOutParamString(hstmt, 3, outbuf3, sizeof(outbuf3) - 1, 1);
-	bindParamString(hstmt, 4, "3.4");
+	bindOutParamString(hstmt, 3, NULL, outbuf3, sizeof(outbuf3) - 1, 1);
+	bindParamString(hstmt, 4, NULL, "3.4");
 	memset(outbuf5, 0, sizeof(outbuf5));
-	bindOutParamString(hstmt, 5, outbuf5, sizeof(outbuf5) - 1, 0);
+	bindOutParamString(hstmt, 5, NULL, outbuf5, sizeof(outbuf5) - 1, 0);
+	executeQuery(hstmt);
+	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
+
+	/**** call procedure parameters by name (e,a,b,c,d) ****/
+	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?, ?, ?, ?)}");
+	memset(outbuf5, 0, sizeof(outbuf5));
+	bindOutParamString(hstmt, 1, "e", outbuf5, sizeof(outbuf5) - 1, 0);
+	memset(outbuf1, 0, sizeof(outbuf1));
+	bindOutParamString(hstmt, 2, "a", outbuf1, sizeof(outbuf1) - 1, 0);
+	bindParamString(hstmt, 3, "b", "2017-02-23 11:34:46");
+	strcpy(outbuf3, "4");
+	bindOutParamString(hstmt, 4, "c", outbuf3, sizeof(outbuf3) - 1, 1);
+	bindParamString(hstmt, 5, "d", "3.4");
+	executeQuery(hstmt);
+	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
+
+	/**** call procedure parameters by name (b,c,d,e,a) ****/
+	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?, ?, ?, ?)}");
+	bindParamString(hstmt, 1, "b", "2017-02-23 11:34:46");
+	strcpy(outbuf3, "4");
+	bindOutParamString(hstmt, 2, "c", outbuf3, sizeof(outbuf3) - 1, 1);
+	bindParamString(hstmt, 3, "d", "3.4");
+	memset(outbuf5, 0, sizeof(outbuf5));
+	bindOutParamString(hstmt, 4, "e", outbuf5, sizeof(outbuf5) - 1, 0);
+	memset(outbuf1, 0, sizeof(outbuf1));
+	bindOutParamString(hstmt, 5, "a", outbuf1, sizeof(outbuf1) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
 }

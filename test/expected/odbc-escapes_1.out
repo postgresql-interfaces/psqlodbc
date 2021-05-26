@@ -71,6 +71,26 @@ Result set:
 6.7999999999999998	7	2017-02-24 11:34:46
 OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
 
+Query: {call a_b_c_d_e(?, ?, ?, ?, ?)}
+Param 1 (e) is an OUT parameter
+Param 2 (a) is an OUT parameter
+Param 3 (b): 2017-02-23 11:34:46
+Param 4 (c) is an I-O parameter
+Param 5 (d): 3.4
+Result set:
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
+
+Query: {call a_b_c_d_e(?, ?, ?, ?, ?)}
+Param 1 (b): 2017-02-23 11:34:46
+Param 2 (c) is an I-O parameter
+Param 3 (d): 3.4
+Param 4 (e) is an OUT parameter
+Param 5 (a) is an OUT parameter
+Result set:
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
+
 -- TEST using SQLExecDirect
 
 Query: SELECT {fn CONCAT(?, ?) }
@@ -138,6 +158,26 @@ Param 2: 2017-02-23 11:34:46
 Param 3 is an I-O parameter
 Param 4: 3.4
 Param 5 is an OUT parameter
+Result set:
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
+
+Query: {call a_b_c_d_e(?, ?, ?, ?, ?)}
+Param 1 (e) is an OUT parameter
+Param 2 (a) is an OUT parameter
+Param 3 (b): 2017-02-23 11:34:46
+Param 4 (c) is an I-O parameter
+Param 5 (d): 3.4
+Result set:
+6.7999999999999998	7	2017-02-24 11:34:46
+OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
+
+Query: {call a_b_c_d_e(?, ?, ?, ?, ?)}
+Param 1 (b): 2017-02-23 11:34:46
+Param 2 (c) is an I-O parameter
+Param 3 (d): 3.4
+Param 4 (e) is an OUT parameter
+Param 5 (a) is an OUT parameter
 Result set:
 6.7999999999999998	7	2017-02-24 11:34:46
 OUT params: 6.7999999999999998 : 7 : 2017-02-24 11:34:46
