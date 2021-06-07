@@ -15,7 +15,7 @@ setParamName(HSTMT hstmt, int paramno, const char *paramname)
 	SQLHDESC 	hIpd = NULL;
 
 	SQLGetStmtAttr(hstmt, SQL_ATTR_IMP_PARAM_DESC, &hIpd, 0, 0);
-	SQLSetDescField(hIpd, paramno, SQL_DESC_NAME, paramname, SQL_NTS);
+	SQLSetDescField(hIpd, paramno, SQL_DESC_NAME, (SQLPOINTER) paramname, SQL_NTS);
 }
 
 /* bind string param as CHAR  */

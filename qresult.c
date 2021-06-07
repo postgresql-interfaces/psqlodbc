@@ -1468,7 +1468,7 @@ MYLOG(DETAIL_LOG_LEVEL, "tupleField=%p\n", self->tupleField);
 }
 
 int
-QR_search_by_fieldname(QResultClass *self, const char *name)
+QR_search_by_fieldname(const QResultClass *self, const char *name)
 {
 	int		i;
 	char	*col_name;
