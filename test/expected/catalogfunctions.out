@@ -3,7 +3,7 @@ Check for SQLTypeInfo
 Result set metadata:
 TYPE_NAME: VARCHAR(128) digits: 0, nullable
 DATA_TYPE: SMALLINT(5) digits: 0, nullable
-PRECISION: INTEGER(10) digits: 0, nullable
+COLUMN_SIZE: INTEGER(10) digits: 0, nullable
 LITERAL_PREFIX: VARCHAR(128) digits: 0, nullable
 LITERAL_SUFFIX: VARCHAR(128) digits: 0, nullable
 CREATE_PARAMS: VARCHAR(128) digits: 0, nullable
@@ -11,8 +11,8 @@ NULLABLE: SMALLINT(5) digits: 0, nullable
 CASE_SENSITIVE: SMALLINT(5) digits: 0, nullable
 SEARCHABLE: SMALLINT(5) digits: 0, nullable
 UNSIGNED_ATTRIBUTE: SMALLINT(5) digits: 0, nullable
-MONEY: SMALLINT(5) digits: 0, nullable
-AUTO_INCREMENT: SMALLINT(5) digits: 0, nullable
+FIXED_PREC_SCALE: SMALLINT(5) digits: 0, nullable
+AUTO_UNIQUE_VALUE: SMALLINT(5) digits: 0, nullable
 LOCAL_TYPE_NAME: VARCHAR(128) digits: 0, nullable
 MINIMUM_SCALE: SMALLINT(5) digits: 0, nullable
 MAXIMUM_SCALE: SMALLINT(5) digits: 0, nullable
@@ -40,16 +40,16 @@ contrib_regression	public	testtab1	TABLE
 contrib_regression	public	testtab_fk	TABLE	
 Check for SQLColumns
 Result set metadata:
-TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
-TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_CAT: VARCHAR(128) digits: 0, nullable
+TABLE_SCHEM: VARCHAR(128) digits: 0, nullable
 TABLE_NAME: VARCHAR(128) digits: 0, nullable
 COLUMN_NAME: VARCHAR(128) digits: 0, nullable
 DATA_TYPE: SMALLINT(5) digits: 0, nullable
 TYPE_NAME: VARCHAR(128) digits: 0, nullable
-PRECISION: INTEGER(10) digits: 0, nullable
-LENGTH: INTEGER(10) digits: 0, nullable
-SCALE: SMALLINT(5) digits: 0, nullable
-RADIX: SMALLINT(5) digits: 0, nullable
+COLUMN_SIZE: INTEGER(10) digits: 0, nullable
+BUFFER_LENGTH: INTEGER(10) digits: 0, nullable
+DECIMAL_DIGITS: SMALLINT(5) digits: 0, nullable
+NUM_PREC_RADIX: SMALLINT(5) digits: 0, nullable
 NULLABLE: SMALLINT(5) digits: 0, nullable
 REMARKS: VARCHAR(254) digits: 0, nullable
 COLUMN_DEF: VARCHAR(254) digits: 0, nullable
@@ -93,24 +93,24 @@ SCOPE: SMALLINT(5) digits: 0, nullable
 COLUMN_NAME: VARCHAR(128) digits: 0, nullable
 DATA_TYPE: SMALLINT(5) digits: 0, nullable
 TYPE_NAME: VARCHAR(128) digits: 0, nullable
-PRECISION: INTEGER(10) digits: 0, nullable
-LENGTH: INTEGER(10) digits: 0, nullable
-SCALE: SMALLINT(5) digits: 0, nullable
+COLUMN_SIZE: INTEGER(10) digits: 0, nullable
+BUFFER_LENGTH: INTEGER(10) digits: 0, nullable
+DECIMAL_DIGITS: SMALLINT(5) digits: 0, nullable
 PSEUDO_COLUMN: SMALLINT(5) digits: 0, nullable
 Result set:
 NULL	xmin	4	xid	10	4	0	2
 Check for SQLStatistics
 Result set metadata:
-TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
-TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_CAT: VARCHAR(128) digits: 0, nullable
+TABLE_SCHEM: VARCHAR(128) digits: 0, nullable
 TABLE_NAME: VARCHAR(128) digits: 0, nullable
 NON_UNIQUE: SMALLINT(5) digits: 0, nullable
 INDEX_QUALIFIER: VARCHAR(128) digits: 0, nullable
 INDEX_NAME: VARCHAR(128) digits: 0, nullable
 TYPE: SMALLINT(5) digits: 0, nullable
-SEQ_IN_INDEX: SMALLINT(5) digits: 0, nullable
+ORDINAL_POSITION: SMALLINT(5) digits: 0, nullable
 COLUMN_NAME: VARCHAR(128) digits: 0, nullable
-COLLATION: CHAR(1) digits: 0, nullable
+ASC_OR_DESC: CHAR(1) digits: 0, nullable
 CARDINALITY: INTEGER(10) digits: 0, nullable
 PAGES: INTEGER(10) digits: 0, nullable
 FILTER_CONDITION: VARCHAR(128) digits: 0, nullable
@@ -118,8 +118,8 @@ Result set:
 contrib_regression	public	testtab1	0	public	testtab1_pkey	3	1	id	A	NULL	NULL	NULL
 Check for SQLPrimaryKeys
 Result set metadata:
-TABLE_QUALIFIER: VARCHAR(128) digits: 0, nullable
-TABLE_OWNER: VARCHAR(128) digits: 0, nullable
+TABLE_CAT: VARCHAR(128) digits: 0, nullable
+TABLE_SCHEM: VARCHAR(128) digits: 0, nullable
 TABLE_NAME: VARCHAR(128) digits: 0, nullable
 COLUMN_NAME: VARCHAR(128) digits: 0, nullable
 KEY_SEQ: SMALLINT(5) digits: 0, nullable

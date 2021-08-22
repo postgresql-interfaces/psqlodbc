@@ -46,13 +46,13 @@ ConnectionClass * const *getConnList(void);
 
 #define	EN_OV_ODBC2	1L
 #define	EN_CONN_POOLING	(1L<<1)
-#define	EN_is_odbc2(env) ((env->flag & EN_OV_ODBC2) != 0)
-#define	EN_is_odbc3(env) (env && (env->flag & EN_OV_ODBC2) == 0)
-#define EN_set_odbc2(env) (env->flag |= EN_OV_ODBC2)
-#define EN_set_odbc3(env) (env->flag &= ~EN_OV_ODBC2)
-#define	EN_is_pooling(env) (env && (env->flag & EN_CONN_POOLING) != 0)
-#define	EN_set_pooling(env) (env->flag |= EN_CONN_POOLING)
-#define	EN_unset_pooling(env) (env->flag &= ~EN_CONN_POOLING)
+#define	EN_is_odbc2(env) (((env)->flag & EN_OV_ODBC2) != 0)
+#define	EN_is_odbc3(env) ((env) && ((env)->flag & EN_OV_ODBC2) == 0)
+#define EN_set_odbc2(env) ((env)->flag |= EN_OV_ODBC2)
+#define EN_set_odbc3(env) ((env)->flag &= ~EN_OV_ODBC2)
+#define	EN_is_pooling(env) ((env) && ((env)->flag & EN_CONN_POOLING) != 0)
+#define	EN_set_pooling(env) ((env)->flag |= EN_CONN_POOLING)
+#define	EN_unset_pooling(env) ((env)->flag &= ~EN_CONN_POOLING)
 
 /* For Multi-thread */
 #if defined( WIN_MULTITHREAD_SUPPORT)

@@ -64,6 +64,8 @@ static const char	*eqop = "=";
 #define PG_CONVERT_WCH	0
 #endif /* UNICODE_SUPPORT */
 
+#define QR_set_field_info_EN(self, field_num, adtid, adtsize)  (CI_set_field_info(self->fields, field_num, catcn[field_num][is_ODBC2], adtid, adtsize, -1, 0, 0))
+
 const SQLLEN mask_longvarbinary = SQL_CVT_LONGVARBINARY;
 
 RETCODE		SQL_API
@@ -1153,6 +1155,28 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 	Int4		pgType;
 	Int2		sqlType;
 	RETCODE		ret = SQL_ERROR, result;
+	static const char *catcn[][2] = {
+		{"TYPE_NAME", "TYPE_NAME"},
+		{"DATA_TYPE", "DATA_TYPE"},
+		{"COLUMN_SIZE", "RECISION"},
+		{"LITERAL_PREFIX", "LITERAL_PREFIX"},
+		{"LITERAL_SUFFIX", "LITERAL_SUFFIX"},
+		{"CREATE_PARAMS", "CREATE_PARAMS"},
+		{"NULLABLE", "NULLABLE"},
+		{"CASE_SENSITIVE", "CASE_SENSITIVE"},
+		{"SEARCHABLE", "SEARCHABLE"},
+		{"UNSIGNED_ATTRIBUTE", "UNSIGNED_ATTRIBUTE"},
+		{"FIXED_PREC_SCALE", "MONEY"},
+		{"AUTO_UNIQUE_VALUE", "AUTO_INCREMENT"},
+		{"LOCAL_TYPE_NAME", "LOCAL_TYPE_NAME"},
+		{"MINIMUM_SCALE", "MINIMUM_SCALE"},
+		{"MAXIMUM_SCALE", "MAXIMUM_SCALE"},
+		{"SQL_DATA_TYPE", "SQL_DATA_TYPE"},
+		{"SQL_DATETIME_SUB", "SQL_DATETIME_SUB"},
+		{"NUM_PREC_RADIX", "NUM_PREC_RADIX"},
+		{"INTERVAL_PRECISION", "INTERVAL_PRECISION"} };
+	EnvironmentClass	*env;
+	BOOL is_ODBC2;
 
 	MYLOG(0, "entering...fSqlType=%d\n", fSqlType);
 
@@ -1160,6 +1184,8 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 		return result;
 
 	conn = SC_get_conn(stmt);
+	env = CC_get_env(conn);
+	is_ODBC2 = EN_is_odbc2(env);
 	if (res = QR_Constructor(), !res)
 	{
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "Error creating result.", func);
@@ -1173,30 +1199,28 @@ PGAPI_GetTypeInfo(HSTMT hstmt,
 
 	stmt->catalog_result = TRUE;
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info_v(res, 0, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 1, "DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 2, "PRECISION", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, 3, "LITERAL_PREFIX", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 4, "LITERAL_SUFFIX", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 5, "CREATE_PARAMS", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 6, "NULLABLE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 7, "CASE_SENSITIVE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 8, "SEARCHABLE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 9, "UNSIGNED_ATTRIBUTE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 10, "MONEY", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 11, "AUTO_INCREMENT", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 12, "LOCAL_TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 13, "MINIMUM_SCALE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 14, "MAXIMUM_SCALE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 15, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 16, "SQL_DATETIME_SUB", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 17, "NUM_PREC_RADIX", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, 18, "INTERVAL_PRECISION", PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 0, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 1, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 2, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, 3, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 4, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 5, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 6, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 7, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 8, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 9, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 10, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 11, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 12, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 13, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 14, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 15, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 16, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 17, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, 18, PG_TYPE_INT2, 2);
 
 	for (i = 0, sqlType = sqlTypes[0]; sqlType; sqlType = sqlTypes[++i])
 	{
-		EnvironmentClass	*env = CC_get_env(conn);
-
 		/* Filter unsupported data types when fSqlType = SQL_ALL_TYPES */
 		if (SQL_ALL_TYPES == fSqlType && EN_is_odbc2(env))
 		{
@@ -1800,6 +1824,13 @@ PGAPI_Tables(HSTMT hstmt,
 	BOOL		list_cat = FALSE, list_schemas = FALSE, list_table_types = FALSE, list_some = FALSE;
 	SQLLEN		cbRelname, cbRelkind, cbSchName;
 	EnvironmentClass *env;
+	BOOL is_ODBC2;
+	static const char *catcn[][2] = {
+		{"TABLE_CAT", "TABLE_QUALIFIER"},
+		{"TABLE_SCHEM", "TABLE_OWNER"},
+		{"TABLE_NAME", "TABLE_NAME"},
+		{"TABLE_TYPE", "TABLE_TYPE"},
+		{"REMARKS", "REMARKS"}};
 
 	MYLOG(0, "entering...stmt=%p scnm=%p len=%d\n", stmt, szTableOwner, cbTableOwner);
 
@@ -1809,6 +1840,7 @@ PGAPI_Tables(HSTMT hstmt,
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
 	env = CC_get_env(conn);
+	is_ODBC2 = EN_is_odbc2(env);
 
 	result = PGAPI_AllocStmt(conn, (HSTMT *) &tbl_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
@@ -2070,19 +2102,11 @@ retry_public_schema:
 	stmt->catalog_result = TRUE;
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	if (EN_is_odbc3(env))
-	{
-		QR_set_field_info_v(res, TABLES_CATALOG_NAME, "TABLE_CAT", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-		QR_set_field_info_v(res, TABLES_SCHEMA_NAME, "TABLE_SCHEM", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	}
-	else
-	{
-		QR_set_field_info_v(res, TABLES_CATALOG_NAME, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-		QR_set_field_info_v(res, TABLES_SCHEMA_NAME, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	}
-	QR_set_field_info_v(res, TABLES_TABLE_NAME, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, TABLES_TABLE_TYPE, "TABLE_TYPE", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, TABLES_REMARKS, "REMARKS", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
+	QR_set_field_info_EN(res, TABLES_CATALOG_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, TABLES_SCHEMA_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, TABLES_TABLE_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, TABLES_TABLE_TYPE, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, TABLES_REMARKS, PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
 
 	/* add the tuples */
 	table_name[0] = '\0';
@@ -2319,6 +2343,37 @@ PGAPI_Columns(HSTMT hstmt,
 	BOOL	setIdentity = FALSE;
 	int	table_info = 0;
 
+	static const char *catcn[][2] = {
+		{"TABLE_CAT", "TABLE_QUALIFIER"},
+		{"TABLE_SCHEM", "TABLE_OWNER"},
+		{"TABLE_NAME", "TABLE_NAME"},
+		{"COLUMN_NAME", "COLUMN_NAME"},
+		{"DATA_TYPE", "DATA_TYPE"},
+		{"TYPE_NAME", "TYPE_NAME"},
+		{"COLUMN_SIZE", "PRECISION"},
+		{"BUFFER_LENGTH", "LENGTH"},
+		{"DECIMAL_DIGITS", "SCALE"},
+		{"NUM_PREC_RADIX", "RADIX"},
+		{"NULLABLE", "NULLABLE"},
+		{"REMARKS", "REMARKS"},
+		{"COLUMN_DEF", "COLUMN_DEF"},
+		{"SQL_DATA_TYPE", "SQL_DATA_TYPE"},
+		{"SQL_DATETIME_SUB", "SQL_DATETIME_SUB"},
+		{"CHAR_OCTET_LENGTH", "CHAR_OCTET_LENGTH"},
+		{"ORDINAL_POSITION", "ORDINAL_POSITION"},
+		{"IS_NULLABLE", "IS_NULLABLE"},
+	/* User defined fields */
+		{"DISPLAY_SIZE", "DISPLAY_SIZE"},
+		{"FIELD_TYPE", "FIELD_TYPE"},
+		{"AUTO_INCREMENT", "AUTO_INCREMENT"},
+		{"PHYSICAL NUMBER", "PHYSICAL NUMBER"},
+		{"TABLE OID", "TABLE OID"},
+		{"BASE TYPEID", "BASE TYPEID"},
+		{"TYPMOD", "TYPMOD"},
+		{"TABLE INFO", "TABLE INFO"} };
+	EnvironmentClass *env;
+	BOOL is_ODBC2;
+
 	MYLOG(0, "entering...stmt=%p scnm=%p len=%d columnOpt=%x\n", stmt, szTableOwner, cbTableOwner, flag);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
@@ -2326,6 +2381,8 @@ PGAPI_Columns(HSTMT hstmt,
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+	env = CC_get_env(conn);
+	is_ODBC2 = EN_is_odbc2(env);
 #ifdef	UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(conn))
 		internal_asis_type = INTERNAL_ASIS_TYPE;
@@ -2594,34 +2651,34 @@ retry_public_schema:
 	 */
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info_v(res, COLUMNS_CATALOG_NAME, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, COLUMNS_SCHEMA_NAME, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, COLUMNS_TABLE_NAME, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, COLUMNS_COLUMN_NAME, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, COLUMNS_DATA_TYPE, "DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_TYPE_NAME, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, COLUMNS_PRECISION, "PRECISION", PG_TYPE_INT4, 4); /* COLUMN_SIZE */
-	QR_set_field_info_v(res, COLUMNS_LENGTH, "LENGTH", PG_TYPE_INT4, 4); /* BUFFER_LENGTH */
-	QR_set_field_info_v(res, COLUMNS_SCALE, "SCALE", PG_TYPE_INT2, 2); /* DECIMAL_DIGITS ***/
-	QR_set_field_info_v(res, COLUMNS_RADIX, "RADIX", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_NULLABLE, "NULLABLE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_REMARKS, "REMARKS", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
-	QR_set_field_info_v(res, COLUMNS_COLUMN_DEF, "COLUMN_DEF", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
-	QR_set_field_info_v(res, COLUMNS_SQL_DATA_TYPE, "SQL_DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_SQL_DATETIME_SUB, "SQL_DATETIME_SUB", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_CHAR_OCTET_LENGTH, "CHAR_OCTET_LENGTH", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_ORDINAL_POSITION, "ORDINAL_POSITION", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_IS_NULLABLE, "IS_NULLABLE", PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
+	QR_set_field_info_EN(res, COLUMNS_CATALOG_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, COLUMNS_SCHEMA_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, COLUMNS_TABLE_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, COLUMNS_COLUMN_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, COLUMNS_DATA_TYPE, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, COLUMNS_TYPE_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, COLUMNS_PRECISION, PG_TYPE_INT4, 4); /* COLUMN_SIZE */
+	QR_set_field_info_EN(res, COLUMNS_LENGTH, PG_TYPE_INT4, 4); /* BUFFER_LENGTH */
+	QR_set_field_info_EN(res, COLUMNS_SCALE, PG_TYPE_INT2, 2); /* DECIMAL_DIGITS ***/
+	QR_set_field_info_EN(res, COLUMNS_RADIX, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, COLUMNS_NULLABLE, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, COLUMNS_REMARKS, PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
+	QR_set_field_info_EN(res, COLUMNS_COLUMN_DEF, PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
+	QR_set_field_info_EN(res, COLUMNS_SQL_DATA_TYPE, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, COLUMNS_SQL_DATETIME_SUB, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, COLUMNS_CHAR_OCTET_LENGTH, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_ORDINAL_POSITION, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_IS_NULLABLE, PG_TYPE_VARCHAR, INFO_VARCHAR_SIZE);
 
 	/* User defined fields */
-	QR_set_field_info_v(res, COLUMNS_DISPLAY_SIZE, "DISPLAY_SIZE", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_FIELD_TYPE, "FIELD_TYPE", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_AUTO_INCREMENT, "AUTO_INCREMENT", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_PHYSICAL_NUMBER, "PHYSICAL NUMBER", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, COLUMNS_TABLE_OID, "TABLE OID", PG_TYPE_OID, 4);
-	QR_set_field_info_v(res, COLUMNS_BASE_TYPEID, "BASE TYPEID", PG_TYPE_OID, 4);
-	QR_set_field_info_v(res, COLUMNS_ATTTYPMOD, "TYPMOD", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, COLUMNS_TABLE_INFO, "TABLE INFO", PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_DISPLAY_SIZE, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_FIELD_TYPE, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_AUTO_INCREMENT, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_PHYSICAL_NUMBER, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, COLUMNS_TABLE_OID, PG_TYPE_OID, 4);
+	QR_set_field_info_EN(res, COLUMNS_BASE_TYPEID, PG_TYPE_OID, 4);
+	QR_set_field_info_EN(res, COLUMNS_ATTTYPMOD, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, COLUMNS_TABLE_INFO, PG_TYPE_INT4, 4);
 
 	ordinal = 1;
 	result = PGAPI_Fetch(col_stmt);
@@ -2872,11 +2929,25 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	const char *eq_string;
 	int		result_cols;
 
+	static const char *catcn[][2] = {
+		{"SCOPE", "SCOPE"},
+		{"COLUMN_NAME", "COLUMN_NAME"},
+		{"DATA_TYPE", "DATA_TYPE"},
+		{"TYPE_NAME", "TYPE_NAME"},
+		{"COLUMN_SIZE", "PRECISION"},
+		{"BUFFER_LENGTH", "LENGTH"},
+		{"DECIMAL_DIGITS", "SCALE"},
+		{"PSEUDO_COLUMN", "PSEUDO_COLUMN"}};
+	EnvironmentClass	*env;
+	BOOL is_ODBC2;
+
 	MYLOG(0, "entering...stmt=%p scnm=%p len=%d colType=%d scope=%d\n", stmt, szTableOwner, cbTableOwner, fColType, fScope);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
 	conn = SC_get_conn(stmt);
+	env = CC_get_env(conn);
+	is_ODBC2 = EN_is_odbc2(env);
 #ifdef	UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(conn))
 		internal_asis_type = INTERNAL_ASIS_TYPE;
@@ -2995,14 +3066,14 @@ retry_public_schema:
 	stmt->catalog_result = TRUE;
 	result_cols = NUM_OF_SPECOLS_FIELDS;
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info_v(res, 0, "SCOPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 1, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 2, "DATA_TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 3, "TYPE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, 4, "PRECISION", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, 5, "LENGTH", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, 6, "SCALE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, 7, "PSEUDO_COLUMN", PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 0, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 1, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 2, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 3, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, 4, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, 5, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, 6, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, 7, PG_TYPE_INT2, 2);
 
 	if (relisaview)
 	{
@@ -3141,6 +3212,24 @@ PGAPI_Statistics(HSTMT hstmt,
 	OID		ioid;
 	Int4		relhasoids;
 
+	static const char *catcn[][2] = {
+		{"TABLE_CAT", "TABLE_QUALIFIER"},
+		{"TABLE_SCHEM", "TABLE_OWNER"},
+		{"TABLE_NAME", "TABLE_NAME"},
+		{"NON_UNIQUE" , "NON_UNIQUE"},
+		{"INDEX_QUALIFIER", "INDEX_QUALIFIER"},
+		{"INDEX_NAME", "INDEX_NAME"},
+		{"TYPE", "TYPE"},
+		{"ORDINAL_POSITION", "SEQ_IN_INDEX"},
+		{"COLUMN_NAME", "COLUMN_NAME"},
+		{"ASC_OR_DESC", "COLLATION"},
+		{"CARDINALITY", "CARDINALITY"},
+		{"PAGES", "PAGES"},
+		{"FILTER_CONDITION", "FILTER_CONDITION"}};
+	EnvironmentClass *env;
+	BOOL is_ODBC2;
+
+
 	MYLOG(0, "entering...stmt=%p scnm=%p len=%d\n", stmt, szTableOwner, cbTableOwner);
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
@@ -3154,6 +3243,8 @@ PGAPI_Statistics(HSTMT hstmt,
 	}
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
+	env = CC_get_env(conn);
+	is_ODBC2 = EN_is_odbc2(env);
 #ifdef	UNICODE_SUPPORT
 	if (CC_is_in_unicode_driver(conn))
 		internal_asis_type = INTERNAL_ASIS_TYPE;
@@ -3178,19 +3269,19 @@ PGAPI_Statistics(HSTMT hstmt,
 	stmt->catalog_result = TRUE;
 	/* set the field names */
 	QR_set_num_fields(res, NUM_OF_STATS_FIELDS);
-	QR_set_field_info_v(res, STATS_CATALOG_NAME, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, STATS_SCHEMA_NAME, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, STATS_TABLE_NAME, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, STATS_NON_UNIQUE, "NON_UNIQUE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, STATS_INDEX_QUALIFIER, "INDEX_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, STATS_INDEX_NAME, "INDEX_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, STATS_TYPE, "TYPE", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, STATS_SEQ_IN_INDEX, "SEQ_IN_INDEX", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, STATS_COLUMN_NAME, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, STATS_COLLATION, "COLLATION", PG_TYPE_CHAR, 1);
-	QR_set_field_info_v(res, STATS_CARDINALITY, "CARDINALITY", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, STATS_PAGES, "PAGES", PG_TYPE_INT4, 4);
-	QR_set_field_info_v(res, STATS_FILTER_CONDITION, "FILTER_CONDITION", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_CATALOG_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_SCHEMA_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_TABLE_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_NON_UNIQUE, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, STATS_INDEX_QUALIFIER, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_INDEX_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_TYPE, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, STATS_SEQ_IN_INDEX, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, STATS_COLUMN_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, STATS_COLLATION, PG_TYPE_CHAR, 1);
+	QR_set_field_info_EN(res, STATS_CARDINALITY, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, STATS_PAGES, PG_TYPE_INT4, 4);
+	QR_set_field_info_EN(res, STATS_FILTER_CONDITION, PG_TYPE_VARCHAR, MAX_INFO_STRING);
 
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	szSchemaName = szTableOwner;
@@ -3724,6 +3815,15 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 	const SQLCHAR *szSchemaName;
 	const char *eq_string;
 	char	*escSchemaName = NULL, *escTableName = NULL;
+	static const char *catcn[][2] = {
+		{"TABLE_CAT", "TABLE_QUALIFIER"},
+		{"TABLE_SCHEM", "TABLE_OWNER"},
+		{"TABLE_NAME", "TABLE_NAME"},
+		{"COLUMN_NAME", "COLUMN_NAME"},
+		{"KEY_SEQ", "KEY_SEQ"},
+		{"PK_NAME", "PK_NAME"}};
+	EnvironmentClass *env;
+	BOOL is_ODBC2;
 
 	MYLOG(0, "entering...stmt=%p scnm=%p len=%d\n", stmt, szTableOwner, cbTableOwner);
 
@@ -3746,16 +3846,18 @@ PGAPI_PrimaryKeys(HSTMT hstmt,
 	extend_column_bindings(SC_get_ARDF(stmt), result_cols);
 
 	stmt->catalog_result = TRUE;
+	conn = SC_get_conn(stmt);
+	env = CC_get_env(conn);
+	is_ODBC2 = EN_is_odbc2(env);
 	/* set the field names */
 	QR_set_num_fields(res, result_cols);
-	QR_set_field_info_v(res, PKS_TABLE_CAT, "TABLE_QUALIFIER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, PKS_TABLE_SCHEM, "TABLE_OWNER", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, PKS_TABLE_NAME, "TABLE_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, PKS_COLUMN_NAME, "COLUMN_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
-	QR_set_field_info_v(res, PKS_KEY_SQ, "KEY_SEQ", PG_TYPE_INT2, 2);
-	QR_set_field_info_v(res, PKS_PK_NAME, "PK_NAME", PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, PKS_TABLE_CAT, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, PKS_TABLE_SCHEM, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, PKS_TABLE_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, PKS_COLUMN_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
+	QR_set_field_info_EN(res, PKS_KEY_SQ, PG_TYPE_INT2, 2);
+	QR_set_field_info_EN(res, PKS_PK_NAME, PG_TYPE_VARCHAR, MAX_INFO_STRING);
 
-	conn = SC_get_conn(stmt);
 	result = PGAPI_AllocStmt(conn, (HSTMT *) &tbl_stmt, 0);
 	if (!SQL_SUCCEEDED(result))
 	{
