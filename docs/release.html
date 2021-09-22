@@ -9,6 +9,27 @@
 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="13.02.0000">psqlODBC 13.02.0000 Release</a></h2>
+Changes:<br />
+<ol type="1">
+<li>Fix a bug of CC_send_query_append() when the ignore_roundtrip_time flag is onRemove a mylog() call which is a dupilicate of the preceding MYLOG() macro call.</li>
+Also direct use of mylog() should be avoided because mylog() uses lots of CPU.
+<li>Noticed that the password field on the PostgreSQL Connection</li>
+dialog is always focused when empty, even when other fields that appear
+earlier on the dialog (and in the tab order) are empty. This is only a
+minor annoyance, but it does seem like it would be contrary to the
+expectation of most users.
+I would propose separating the conditional to inform the user that the
+password is required, but still focus the first empty field.
+<li>Remove REFCUR_SUPPORT, add FetchRefcursors setting</li>
+<li>Support fetching results from multiple refcursors</li>
+Multiple result sets are returned if multiple refcursors are found
+Works with both ODBC CALL and PostgreSQL CALL syntaxes
+Query must be executed in a transaction to avoid cursors being closed
+Now works when output parameters are present.
+<li>Named parameter binding support</li>
+<li>Use ODBC 3 column names for the result set of catalog functions.</li>
+</ol>
 <h2><a id="13.01.0000">psqlODBC 13.01.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
