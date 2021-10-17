@@ -40,7 +40,7 @@ PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 {
 	RETCODE		ret;
 
-	MYLOG(0, "entering type=%d rec=%d\n", HandleType, RecNumber);
+	MYLOG(0, "entering type=%d rec=%d buffer=%d\n", HandleType, RecNumber, BufferLength);
 	switch (HandleType)
 	{
 		case SQL_HANDLE_ENV:
@@ -185,13 +185,20 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 											 0, NULL, 0);
 					break;
 				case SQL_DIAG_NUMBER:
+					ret = SQL_NO_DATA_FOUND;
+					*((SQLINTEGER *) DiagInfoPtr) = 0;
 					rtnctype = SQL_C_LONG;
-					ret = PGAPI_ConnectError(Handle, RecNumber,
-											 NULL, NULL, NULL,
-											 0, NULL, 0);
+					{
+						SQLCHAR msg[SQL_MAX_MESSAGE_LENGTH + 1];
+						ret = PGAPI_ConnectError(Handle, 1,
+											 NULL, NULL, msg,
+											 sizeof(msg), &pcbErrm, 0);
+						MYLOG(0, "pcbErrm=%d\n", pcbErrm);
+					}
 					if (SQL_SUCCEEDED(ret))
 					{
-						*((SQLINTEGER *) DiagInfoPtr) = 1;
+						*((SQLINTEGER *) DiagInfoPtr) = (pcbErrm - 1) / SQL_MAX_MESSAGE_LENGTH + 1;
+						ret = SQL_SUCCESS;
 					}
 					break;
 				case SQL_DIAG_SQLSTATE:
