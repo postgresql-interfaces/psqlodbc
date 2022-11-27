@@ -3731,7 +3731,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	op_string = gen_opestr(like_or_eq, conn);
 	eq_string = gen_opestr(eqop, conn);
 	if (escSchemaName)
-		appendPQExpBuffer(&column_query, " and table_schem %s'%s'", eq_string, escSchemaName);
+		appendPQExpBuffer(&column_query, " and table_schema %s'%s'", eq_string, escSchemaName);
 	if (escTableName)
 		appendPQExpBuffer(&column_query, " and table_name %s'%s'", eq_string, escTableName);
 	if (escColumnName)
