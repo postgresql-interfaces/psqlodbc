@@ -614,8 +614,7 @@ MYLOG(DETAIL_LOG_LEVEL, "lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLTABLES);		/* 54 */
 	if (ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLBROWSECONNECT);	/* 55 */
-	if (ci->drivers.lie)
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES);	/* 56 */
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLCOLUMNPRIVILEGES);	/* 56 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLDATASOURCES);	/* 57 */
 	if (SUPPORT_DESCRIBE_PARAM(ci) || ci->drivers.lie)
 		SQL_FUNC_ESET(pfExists, SQL_API_SQLDESCRIBEPARAM); /* 58 */

@@ -20,6 +20,9 @@
 
 #include "common.h"
 
+/* define a macro to simplify function calls */
+#define PRINT_RESULT_SERIES(hstmt, idarray, rowcount) print_result_series(hstmt, idarray, sizeof(idarray)/sizeof(idarray[0]), rowcount)
+
 int
 main(int argc, char **argv)
 {
@@ -27,6 +30,7 @@ main(int argc, char **argv)
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 	/* Cases where output is limited to relevant information only */
 	SQLSMALLINT sql_tab_privileges_ids[6] = {1, 2, 3, 4, 6, 7};
+	SQLSMALLINT sql_column_privileges_ids[6] = {1, 2, 3, 4, 7, 8};
 	SQLSMALLINT sql_column_ids[6] = {1, 2, 3, 4, 5, 6};
 	SQLSMALLINT sql_pro_column_ids[] = {1, 2, 3, 4, 5, 6, 7};
 	char		buf[1000];
@@ -79,22 +83,22 @@ main(int argc, char **argv)
 	 * to get the OID in output, and this information looks to be
 	 * enough.
 	 */
-	print_result_series(hstmt, sql_column_ids, 6, -1);
+	PRINT_RESULT_SERIES(hstmt, sql_column_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
 	/* Check for SQLColumnPrivileges */
-	//printf("Check for SQLColumnPrivileges\n");
-	//rc = SQLColumnPrivileges(hstmt,
-	//						 NULL, 0,
-	//						 (SQLCHAR *) "public", SQL_NTS,
-	//						 (SQLCHAR *) "testtab1", SQL_NTS,
-	//						 (SQLCHAR *) "id", SQL_NTS);
-	//CHECK_STMT_RESULT(rc, "SQLColumnPrivileges failed", hstmt);
-	//print_result_meta(hstmt);
-	//print_result(hstmt);
-	//rc = SQLFreeStmt(hstmt, SQL_CLOSE);
-	//CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	printf("Check for SQLColumnPrivileges\n");
+	rc = SQLColumnPrivileges(hstmt,
+							 NULL, 0,
+							 (SQLCHAR *) "public", SQL_NTS,
+							 (SQLCHAR *) "testtab1", SQL_NTS,
+							 (SQLCHAR *) "id", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLColumnPrivileges failed", hstmt);
+	print_result_meta(hstmt);
+	PRINT_RESULT_SERIES(hstmt, sql_column_privileges_ids, -1);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
 	/* Check for SQLSpecialColumns */
 	printf("Check for SQLSpecialColumns\n");
@@ -187,7 +191,7 @@ main(int argc, char **argv)
 				 (SQLCHAR *) "set_byte", SQL_NTS,
 				 NULL, 0);
 	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
-	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	PRINT_RESULT_SERIES(hstmt, sql_pro_column_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 	/*
@@ -199,7 +203,7 @@ main(int argc, char **argv)
 				 (SQLCHAR *) "getfoo", SQL_NTS,
 				 NULL, 0);
 	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
-	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	PRINT_RESULT_SERIES(hstmt, sql_pro_column_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 	/*
@@ -211,7 +215,7 @@ main(int argc, char **argv)
 				 (SQLCHAR *) "getboo", SQL_NTS,
 				 NULL, 0);
 	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
-	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	PRINT_RESULT_SERIES(hstmt, sql_pro_column_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 	/*
@@ -223,7 +227,7 @@ main(int argc, char **argv)
 				 (SQLCHAR *) "tbl_arg", SQL_NTS,
 				 NULL, 0);
 	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
-	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	PRINT_RESULT_SERIES(hstmt, sql_pro_column_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 	/*
@@ -236,7 +240,7 @@ main(int argc, char **argv)
 				 (SQLCHAR *) "set_of", SQL_NTS,
 				 NULL, 0);
 	CHECK_STMT_RESULT(rc, "SQLProcedureColumns failed", hstmt);
-	print_result_series(hstmt, sql_pro_column_ids, sizeof(sql_pro_column_ids) / sizeof(sql_pro_column_ids[0]), -1);
+	PRINT_RESULT_SERIES(hstmt, sql_pro_column_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
@@ -248,7 +252,7 @@ main(int argc, char **argv)
 							(SQLCHAR *) "testtab1", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLTablePrivileges failed", hstmt);
 	print_result_meta(hstmt);
-	print_result_series(hstmt, sql_tab_privileges_ids, 6, 5);
+	PRINT_RESULT_SERIES(hstmt, sql_tab_privileges_ids, 5);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 

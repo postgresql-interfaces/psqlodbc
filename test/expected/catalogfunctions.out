@@ -87,6 +87,21 @@ contrib_regression	public	testtab_fk	id	4	int4
 contrib_regression	public	testtab_fk	t	12	varchar
 contrib_regression	public	testview	id	4	int4
 contrib_regression	public	testview	t	12	varchar
+Check for SQLColumnPrivileges
+Result set metadata:
+table_cat: VARCHAR(63) digits: 0, nullable
+table_schem: VARCHAR(63) digits: 0, nullable
+table_name: VARCHAR(63) digits: 0, nullable
+column_name: VARCHAR(63) digits: 0, nullable
+grantor: VARCHAR(63) digits: 0, nullable
+grantee: VARCHAR(63) digits: 0, nullable
+privilege: VARCHAR(255) digits: 0, nullable
+is_grantable: VARCHAR(3) digits: 0, nullable
+Result set:
+contrib_regression	public	testtab1	id	UPDATE	YES
+contrib_regression	public	testtab1	id	SELECT	YES
+contrib_regression	public	testtab1	id	REFERENCES	YES
+contrib_regression	public	testtab1	id	INSERT	YES
 Check for SQLSpecialColumns
 Result set metadata:
 SCOPE: SMALLINT(5) digits: 0, nullable

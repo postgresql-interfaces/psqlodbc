@@ -1388,7 +1388,7 @@ PGAPI_GetFunctions(HDBC hdbc,
 
 		/* ODBC level 2 functions */
 		pfExists[SQL_API_SQLBROWSECONNECT] = FALSE;
-		pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = FALSE;
+		pfExists[SQL_API_SQLCOLUMNPRIVILEGES] = TRUE;
 		pfExists[SQL_API_SQLDATASOURCES] = FALSE;	/* only implemented by
 													 * DM */
 		if (SUPPORT_DESCRIBE_PARAM(ci))
@@ -1512,7 +1512,7 @@ PGAPI_GetFunctions(HDBC hdbc,
 					*pfExists = FALSE;
 					break;
 				case SQL_API_SQLCOLUMNPRIVILEGES:
-					*pfExists = FALSE;
+					*pfExists = TRUE;
 					break;
 				case SQL_API_SQLDATASOURCES:
 					*pfExists = FALSE;
@@ -3721,7 +3721,7 @@ PGAPI_ColumnPrivileges(HSTMT hstmt,
 	}
 	initPQExpBuffer(&column_query);
 #define	return	DONT_CALL_RETURN_FROM_HERE???
-	appendPQExpBufferStr(&column_query, "select '' as TABLE_CAT, table_schema as TABLE_SCHEM,"
+	appendPQExpBufferStr(&column_query, "select table_catalog as TABLE_CAT, table_schema as TABLE_SCHEM,"
 			" table_name, column_name, grantor, grantee,"
 			" privilege_type as PRIVILEGE, is_grantable from"
 			" information_schema.column_privileges where true");
