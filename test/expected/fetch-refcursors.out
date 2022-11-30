@@ -2,19 +2,47 @@ Creating procedure 'refproc'
 connected
 disconnecting
 
--- TEST using FetchRefcursors=0 and SQL_ATTR_AUTOCOMMIT=1
+-- TEST using FetchRefcursors=0, autocommit=1, numresults=2
 connected
 Output param num_cursor is 2
 --1 Result set:
-2	ref1	ref2
+2	<unnamed portal 1>	<unnamed portal 2>
 disconnecting
 
--- TEST using FetchRefcursors=1 and SQL_ATTR_AUTOCOMMIT=1
+-- TEST using FetchRefcursors=1, autocommit=1, numresults=2
 connected
 SQLExecute failed
 HY000=Query must be executed in a transaction when FetchRefcursors setting is enabled.
 
--- TEST using FetchRefcursors=1 and SQL_ATTR_AUTOCOMMIT=0
+-- TEST using FetchRefcursors=1, autocommit=0, numresults=0
+connected
+Output param num_cursor is 0
+--1 Result set:
+disconnecting
+
+-- TEST using FetchRefcursors=1, autocommit=0, numresults=1
+connected
+Output param num_cursor is 1
+--1 Result set:
+1	foo
+2	bar
+3	foobar
+disconnecting
+
+-- TEST using FetchRefcursors=1, autocommit=0, numresults=2
+connected
+Output param num_cursor is 2
+--1 Result set:
+1	foo
+2	bar
+3	foobar
+--2 Result set:
+foobar	3
+bar	2
+foo	1
+disconnecting
+
+-- TEST using FetchRefcursors=1, autocommit=0, numresults=3
 connected
 Output param num_cursor is 2
 --1 Result set:

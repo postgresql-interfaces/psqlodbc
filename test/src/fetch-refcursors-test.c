@@ -33,13 +33,19 @@ static void setup_procedure()
 	CHECK_CONN_RESULT(rc, "failed to allocate stmt handle", conn);
 
 	rc = SQLExecDirect(hstmt, "create or replace procedure refproc"
-			"(inout num_cursor integer, inout ref1 refcursor default 'ref1', inout ref2 refcursor default 'ref2') as "
+			"(inout num_cursor integer, inout ref1 refcursor default null, inout ref2 refcursor default null) as "
 			"$procedure$ \n"
 			"DECLARE \n"
 			"BEGIN \n"
-			"num_cursor := 2; \n"
-			"OPEN ref1 FOR SELECT id, t FROM testtab1 ORDER BY id ASC; \n"
-			"OPEN ref2 FOR SELECT t, id FROM testtab1 ORDER BY id DESC; \n"
+			"IF num_cursor > 0 THEN \n"
+			"    OPEN ref1 FOR SELECT id, t FROM testtab1 ORDER BY id ASC; \n"
+			"END IF; \n"
+			"IF num_cursor > 1 THEN \n"
+			"    OPEN ref2 FOR SELECT t, id FROM testtab1 ORDER BY id DESC; \n"
+			"END IF; \n"
+			"IF num_cursor > 2 THEN \n"
+			"    num_cursor := 2; \n"
+			"END IF; \n"
 			"END; \n"
 			"$procedure$ \n"
 			"LANGUAGE plpgsql\n"
@@ -52,13 +58,13 @@ static void setup_procedure()
 	test_disconnect();
 }
 
-static void refcursor_test(char* connectparams, SQLUINTEGER autocommit)
+static void refcursor_test(char* connectparams, SQLUINTEGER autocommit, int numresults)
 {
 	SQLRETURN	rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
-	int	        num_cursor = 0;
+	int	        num_cursor = numresults;
 
-	printf("\n-- TEST using %s and SQL_ATTR_AUTOCOMMIT=%u\n", connectparams, autocommit);
+	printf("\n-- TEST using %s, autocommit=%u, numresults=%d\n", connectparams, autocommit, numresults);
 
 	test_connect_ext(connectparams);
 
@@ -102,9 +108,12 @@ int main(int argc, char **argv)
 {
 	setup_procedure();
 
-	refcursor_test("FetchRefcursors=0", SQL_AUTOCOMMIT_ON);
-	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_ON);
-	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_OFF);
+	refcursor_test("FetchRefcursors=0", SQL_AUTOCOMMIT_ON, 2);
+	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_ON, 2);
+	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_OFF, 0);
+	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_OFF, 1);
+	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_OFF, 2);
+	refcursor_test("FetchRefcursors=1", SQL_AUTOCOMMIT_OFF, 3);
 
 	return 0;
 }

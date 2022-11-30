@@ -2304,6 +2304,7 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 		{
 			char			fetch[128];
 			QResultClass 	*last = NULL, *res;
+			BOOL			refcursor_found = FALSE;
 
 			/* Iterate the columns in the result to look for refcursors */
 			numcols = QR_NumResultCols(rhold.first);
@@ -2318,7 +2319,12 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 						break;
 					}
 
+					refcursor_found = TRUE;
 					STR_TO_NAME(self->cursor_name, QR_get_value_backend_text(rhold.first, 0, i));
+					/* Skip NULL refcursors (allows procedure to return a variable number of results) */
+					if (!SC_cursor_is_valid(self))
+						continue;
+
 					SC_set_fetchcursor(self);
 					qi.result_in = NULL;
 					qi.cursor = SC_cursor_name(self);
@@ -2339,19 +2345,23 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 							QR_concat(last, res);
 							self->multi_statement = TRUE;
 						}
+						last = res;
 						if (!QR_command_maybe_successful(res))
 						{
 							SC_set_errorinfo(self, res, 0);
-							QR_Destructor(rhold.first);
 							break;
 						}
-
-						last = res;
 					}
 				}
 			}
-			if (last)
-				QR_Destructor(rhold.first);
+			if (refcursor_found)
+			{
+				/* Discard original result */
+				if (NULL == last)
+					SC_set_Result(self, QR_Constructor());	/* return empty result */
+				else
+					QR_Destructor(rhold.first);
+			}
 		}
 	}
 cleanup:
