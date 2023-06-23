@@ -297,12 +297,31 @@ invalidate_buf(char *buf, size_t len)
  * Print result only for the selected columns.
  */
 void
-print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols, SQLINTEGER rowcount)
+print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols, SQLINTEGER rowcount, BOOL printcolnames)
 {
 	SQLRETURN rc;
 	SQLINTEGER	rowc = 0;
+	char		buf[40];
+	int			i;
 
 	printf("Result set:\n");
+
+	if (printcolnames)
+	{
+		for (i = 1; i <= numcols; i++)
+		{
+			invalidate_buf(buf, sizeof(buf));
+			rc = SQLColAttribute(hstmt, i, SQL_DESC_LABEL, buf, sizeof(buf), NULL, NULL);
+			if (!SQL_SUCCEEDED(rc))
+			{
+				print_diag("SQLColAttribute failed", SQL_HANDLE_STMT, hstmt);
+				return;
+			}
+			printf("%s%s", (i > 1) ? "\t" : "", buf);
+		}
+		printf("\n");
+	}
+
 	while (rowcount <0 || rowc < rowcount)
 	{
 		rc = SQLFetch(hstmt);
@@ -310,8 +329,6 @@ print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols, SQLIN
 			break;
 		if (rc == SQL_SUCCESS)
 		{
-			char buf[40];
-			int i;
 			SQLLEN ind;
 
 			rowc++;
@@ -348,7 +365,7 @@ print_result_series(HSTMT hstmt, SQLSMALLINT *colids, SQLSMALLINT numcols, SQLIN
  * Print result on all the columns
  */
 void
-print_result(HSTMT hstmt)
+print_result_all(HSTMT hstmt, BOOL printcolnames)
 {
 	SQLRETURN rc;
 	SQLSMALLINT numcols, i;
@@ -364,6 +381,24 @@ print_result(HSTMT hstmt)
 	colids = (SQLSMALLINT *) malloc(numcols * sizeof(SQLSMALLINT));
 	for (i = 0; i < numcols; i++)
 		colids[i] = i + 1;
-	print_result_series(hstmt, colids, numcols, -1);
+	print_result_series(hstmt, colids, numcols, -1, printcolnames);
 	free(colids);
+}
+
+/*
+ * Print result on all the columns (without column names)
+ */
+void
+print_result(HSTMT hstmt)
+{
+	print_result_all(hstmt, FALSE);
+}
+
+/*
+ * Print result on all the columns (with column names)
+ */
+void
+print_result_with_column_names(HSTMT hstmt)
+{
+	print_result_all(hstmt, TRUE);
 }

@@ -21,7 +21,7 @@
 #include "common.h"
 
 /* define a macro to simplify function calls */
-#define PRINT_RESULT_SERIES(hstmt, idarray, rowcount) print_result_series(hstmt, idarray, sizeof(idarray)/sizeof(idarray[0]), rowcount)
+#define PRINT_RESULT_SERIES(hstmt, idarray, rowcount) print_result_series(hstmt, idarray, sizeof(idarray)/sizeof(idarray[0]), rowcount, FALSE)
 
 int
 main(int argc, char **argv)

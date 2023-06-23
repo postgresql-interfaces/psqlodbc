@@ -10,8 +10,10 @@ static void print_all_results(HSTMT hstmt)
 	int rc = SQL_SUCCESS;
 	for (i = 1; rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO; i++)
 	{
-		printf("--%d ", i);
-		print_result(hstmt);
+		/*** Verify column metadata/name and row data in each result ***/
+		printf("--%d\n", i);
+		print_result_meta(hstmt);
+		print_result_with_column_names(hstmt);
 
 		rc = SQLMoreResults(hstmt);
 	}
@@ -59,6 +61,15 @@ int main(int argc, char **argv)
 	/*** Spurious semicolons ***/
 
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT 'foo', 'bar';;; SELECT 'foobar'; ", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_all_results(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*** Different column name, type and source between results for the same column index ***/
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT id, t FROM testtab1; SELECT t, 2 result FROM testtab1", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
 	print_all_results(hstmt);
 

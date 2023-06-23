@@ -44,8 +44,10 @@ extern void print_result_meta_series(HSTMT hstmt,
 extern void print_result_series(HSTMT hstmt,
 								SQLSMALLINT *colids,
 								SQLSMALLINT numcols,
-								SQLINTEGER rowcount);
+								SQLINTEGER rowcount,
+								BOOL printcolnames);
 extern void print_result_meta(HSTMT hstmt);
 extern void print_result(HSTMT hstmt);
+extern void print_result_with_column_names(HSTMT hstmt);
 extern const char *datatype_str(SQLSMALLINT datatype);
 extern const char *nullable_str(SQLSMALLINT nullable);

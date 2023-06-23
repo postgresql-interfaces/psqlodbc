@@ -630,6 +630,10 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 		ti = fi->ti;
 		field_type = getEffectiveOid(conn, fi);
 	}
+	else
+	{
+		fi = NULL;
+	}
 
 	MYLOG(0, "col %d field_type=%d fi,ti=%p,%p\n", col_idx, field_type, fi, ti);
 

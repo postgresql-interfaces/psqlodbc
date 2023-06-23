@@ -1,23 +1,86 @@
 connected
---1 Result set:
+--1
+Result set metadata:
+?column?: INTEGER(10) digits: 0, nullable
+Result set:
+?column?
 1
---2 Result set:
+--2
+Result set metadata:
+?column?: INTEGER(10) digits: 0, nullable
+Result set:
+?column?
 2
---1 Result set:
+--1
+Result set metadata:
+?column?: INTEGER(10) digits: 0, nullable
+Result set:
+?column?
 1
---2 Result set:
+--2
+Result set metadata:
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+Result set:
+?column?	?column?
 foo	bar
---3 Result set:
+--3
+Result set metadata:
+?column?: INTEGER(10) digits: 0, nullable
+Result set:
+?column?
 3
---4 Result set:
+--4
+Result set metadata:
+?column?: INTEGER(10) digits: 0, nullable
+Result set:
+?column?
 4
---1 Result set:
+--1
+Result set metadata:
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+Result set:
+?column?	?column?
 foo	bar
---2 Result set:
+--2
+Result set metadata:
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+Result set:
+?column?
 foobar
+--1
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: VARCHAR(20) digits: 0, nullable
+Result set:
+id	t
+1	foo
+2	bar
+3	foobar
+--2
+Result set metadata:
+t: VARCHAR(20) digits: 0, nullable
+result: INTEGER(10) digits: 0, nullable
+Result set:
+t	result
+foo	2
+bar	2
+foobar	2
 # of result cols: 3
---1 Result set:
+--1
+Result set metadata:
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+id: INTEGER(10) digits: 0, not nullable
+t: VARCHAR(20) digits: 0, nullable
+Result set:
+?column?	id	t
 first result set	1	foo
---2 Result set:
+--2
+Result set metadata:
+?column?: LONGVARCHAR(8190) digits: 0, nullable
+t: VARCHAR(20) digits: 0, nullable
+Result set:
+?column?	t
 second result set	bar
 disconnecting
