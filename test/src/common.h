@@ -6,6 +6,12 @@
 #include <windows.h>
 #else
 #include "config.h"
+#ifndef TRUE
+#define TRUE    (BOOL)1
+#endif /* TRUE */
+#ifndef FALSE
+#define FALSE   (BOOL)0
+#endif /* FALSE */
 #endif
 
 #include <sql.h>
