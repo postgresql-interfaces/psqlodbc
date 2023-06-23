@@ -99,14 +99,24 @@ QR_set_cursor(QResultClass *self, const char *name)
 	}
 	else
 	{
-		QResultClass *res;
-
 		self->cursor_name = NULL;
-		for (res = QR_nextr(self); NULL != res; res = QR_nextr(res))
+
+		/*
+		* The isSqlServr() check below was added because the code was freeing
+		* cursors prematurely when other results with open cursors exist. The
+		* code was originally added for a scenario using SQL Server linked
+		* servers in commit c07342d22d82ea6293d27057840babfc2ff6d750.
+		*/
+		if (isSqlServr())
 		{
-			if (NULL != res->cursor_name)
-				free(res->cursor_name);
-			res->cursor_name = NULL;
+			QResultClass *res;
+
+			for (res = QR_nextr(self); NULL != res; res = QR_nextr(res))
+			{
+				if (NULL != res->cursor_name)
+					free(res->cursor_name);
+				res->cursor_name = NULL;
+			}
 		}
 	}
 }
