@@ -253,6 +253,28 @@ typedef double SDOUBLE;
 #endif /* CALLBACK */
 #endif /* WIN32 */
 
+#ifndef __cplusplus
+
+#ifdef PG_USE_STDBOOL
+#include <stdbool.h>
+#else
+
+#ifndef bool
+typedef unsigned char bool;
+#endif
+
+#ifndef true
+#define true	((bool) 1)
+#endif
+
+#ifndef false
+#define false	((bool) 0)
+#endif
+
+#endif							/* not PG_USE_STDBOOL */
+#endif							/* not C++ */
+
+
 #ifndef WIN32
 #define stricmp strcasecmp
 #define strnicmp strncasecmp
