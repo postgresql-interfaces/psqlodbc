@@ -37,6 +37,7 @@
 #else  /* _DEBUG */
 #include <stdlib.h>
 #endif /* _DEBUG */
+#include <stdbool.h>
 #else  /* WIN32 */
 #include <stdlib.h>
 #endif /* WIN32 */
