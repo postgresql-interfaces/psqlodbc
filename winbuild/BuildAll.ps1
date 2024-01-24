@@ -37,8 +37,8 @@
     > .\BuildAll Clean
 	Clean all generated files.
 .EXAMPLE
-    > .\BuildAll -V(CVersion) 11.0
-	Build using Visual Studio 11.0 environment.
+    > .\BuildAll -V(CVersion) 12.0
+	Build using Visual Studio 12.0 environment.
 .EXAMPLE
     > .\BuildAll -P(latform) x64
 	Build only 64bit dlls.
