@@ -42,6 +42,8 @@ function Find-MSBuild
 	if ("$VisualStudioVersion" -eq "") {
 		if ((Find-VSDir 15) -ne "") {	# VC15 is installed (current official)
 			$VisualStudioVersion = "15.0"
+		} elseif ((Find-VSDir 17) -ne "") { # VC17 is installed
+			$VisualStudioVersion = "17.0"
 		} elseif ((Find-VSDir 16) -ne "") {	# VC16 is installed
 			$VisualStudioVersion = "16.0"
 		} elseif ("${env:VS140COMNTOOLS}" -ne "") { # VC14 is installed
@@ -67,6 +69,7 @@ function Find-MSBuild
 	 "14.0"	{ $toolsout = 14 }
 	 "15.0"	{ $toolsout = 15 }
 	 "16.0"	{ $toolsout = 16 }
+	 "17.0" { $toolsout = 17 }
 	 default { throw "Selected Visual Stuidio is Version ${VisualStudioVersion}. Please use VC10 or later"}
 	}
 #
@@ -149,6 +152,7 @@ function Find-MSBuild
 		 "14.0"	{$Toolsetv="v140_xp"}
 		 "15.0"	{$Toolsetv="v141_xp"}
 		 "16.0"	{$Toolsetv="v142"}
+		 "17.0" {$Toolsetv="v143"}
 		}
 	}
 #	avoid a bug of Windows7.1SDK PlatformToolset
@@ -400,7 +404,7 @@ function find_vs_installation
 	return $vsdir
 }
 
-$vsarray = @{VC15 = "2017"; VC16 = "2019"}
+$vsarray = @{VC15 = "2017"; VC16 = "2019"; VC17 = "2022";}
 #	find VS dir for VC15 ~ VC16
 function find_default_msbuild_path
 {
@@ -413,12 +417,15 @@ function find_default_msbuild_path
 	if ($vsdir -eq "")
 	{
 		$toolsnum = [int]$toolsver
-		if ($env:PROCESSOR_ARCHITECTURE -eq "x86") {
+		Write-Debug "Processor $env:PROCESSOR_ARCHITECTURE"
+		if ($env:PROCESSOR_ARCHITECTURE -eq "x86" -or $env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
 			$pgmfs = "$env:ProgramFiles"
 		} else {
 			$pgmfs = "${env:ProgramFiles(x86)}"
 		}
 		$vsverdir = $vsarray["VC$toolsnum"]
+		Write-Debug "VS Version $vsverdir"
+		Write-Debug "$pgmfs\Microsoft Visual Studio\$vsverdir\*\MSBuild\*\Bin\"
 		$lslist = @(Get-ChildItem "$pgmfs\Microsoft Visual Studio\$vsverdir\*\MSBuild\*\Bin\MSBuild.exe" -ErrorAction SilentlyContinue)
 	} else {
 		$lslist = @(Get-ChildItem "$vsdir\MSBuild\*\Bin\MSBuild.exe" -ErrorAction SilentlyContinue)
