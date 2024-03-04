@@ -1,0 +1,246 @@
+name: MSBuild
+run-name: psql ODBC CI - ${{ github.event.head_commit.message }}
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - 'REL-*'
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: .
+
+  # Configuration type to build.
+  # You can convert this to a build matrix if you need coverage of multiple configuration types.
+  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  BUILD_CONFIGURATION: Release
+
+permissions:
+  contents: read
+
+jobs:
+  build_and_test:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: "postgres/postgres.git"
+        ref: 'master'
+    - name: 'get meson'
+      run: |
+        python -m pip install meson
+        python -m pip install ninja
+    - name: Cache Postgres directory 
+      uses: actions/cache@v4
+      id: cachePostgres
+      with:
+        path: d:\postgresql
+        key: postgresql    
+    - name: Cache Postgres86 directory 
+      uses: actions/cache@v4
+      id: cachePostgres86
+      with:
+        path: d:\postgresql86
+        key: postgresql86    
+    - name: Cache GNU diffutils for Test on PostgreSQL for Windows
+      uses: actions/cache@v4
+      id: cacheDiffutilsZip
+      with:
+        path: C:\OTHERBIN\diffutils
+        key:  diffutils-2.8.7-1-bin.zip
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Cache PostgreSQL installer
+      uses: actions/cache@v4
+      id: cachePostgresInstaller
+      with:
+        path: C:\OTHERBIN\postgresql_install.exe
+        key: postgresql_installer
+    - name: Cache pkgconfiglite for Compile using msvc and meson
+      uses: actions/cache@v4
+      id: cachePkgConfigLiteZip
+      with:
+        path: C:\OTHERBIN\pkgconfiglite
+        key:  pkg-config-lite-0.28-1_bin-win32.zip
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+
+    - name: Cache winflexbison for Compile using msvc
+      uses: actions/cache@v4
+      id: cacheWinFlexBisonZip
+      with:
+        path: C:\OTHERBIN\winflexbison
+        key:  win_flex_bison-2.5.24.zip
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1    
+    - name: Download GNU diffutils for Test on PostgreSQL for Windows 
+      if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true'}}
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadDiffutilsZip
+      with:
+        retry-times: 5
+        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/2.8.7-1/diffutils-2.8.7-1-bin.zip
+
+    - name: Download pkgconfiglite for Compile using msvc and meson
+      if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true'}}
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadPkgConfigLiteZip
+      with:
+        retry-times: 5
+        url: http://downloads.sourceforge.net/project/pkgconfiglite/0.28-1/pkg-config-lite-0.28-1_bin-win32.zip
+
+    - name: Download winflexbison for Compile using msvc
+      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true'}}
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadWinFlexBisonZip
+      with:
+        retry-times: 5
+        url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-2.5.24.zip
+
+    - name: Download postgresql install from EDB
+      uses: suisei-cn/actions-download-file@v1.6.0
+      if: ${{steps.cachePostgresInstaller.outputs.cache-hit != 'true'}}
+      id: downloadPostgresInstaller
+      with:
+        retry-times: 5
+        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893
+        target: c:\OTHERBIN
+        filename: postgresql_install.exe
+
+    - name: Extract Diffuntils and add Diffuntils bin directory to the PATH for Test on PostgreSQL for Windows
+      shell: cmd
+      run: |
+        rem MKDIR creates any intermediate directories in the path, if needed.
+        mkdir                                "C:\OTHERBIN\diffutils"
+        rem 7z is provided by Github Actions
+        7z x  diffutils-2.8.7-1-bin.zip    -o"C:\OTHERBIN\diffutils"
+        copy  diffutils-2.8.7-1-bin.zip      "C:\OTHERBIN\diffutils"
+        dir                                  "C:\OTHERBIN\diffutils"
+        rem - man7.org/linux/man-pages/man1/printf.1.html
+        printf                               "C:\\OTHERBIN\\diffutils\\bin" >> %GITHUB_PATH%
+
+    - name: Extract pkgconfiglite and add pkgconfiglite bin directory to the PATH for Compile using msvc and meson
+      shell: cmd
+      run: |
+        rem MKDIR creates any intermediate directories in the path, if needed.
+        mkdir                                           "C:\OTHERBIN\pkgconfiglite"
+        rem 7z is provided by Github Actions
+        7z x  pkg-config-lite-0.28-1_bin-win32.zip    -o"C:\OTHERBIN\pkgconfiglite"
+        copy  pkg-config-lite-0.28-1_bin-win32.zip      "C:\OTHERBIN\pkgconfiglite"
+        dir                                             "C:\OTHERBIN\pkgconfiglite"
+          rem - man7.org/linux/man-pages/man1/printf.1.html
+          printf                                          "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-0.28-1\\bin" >> %GITHUB_PATH%
+
+      # Choco Install winflexbison
+      # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
+    - name: Extract winflexbison and add the winflexbison directory to the PATH for Compile using msvc
+      shell: cmd
+      run: |
+        rem MKDIR creates any intermediate directories in the path, if needed.
+        mkdir                                           "C:\OTHERBIN\winflexbison"
+        rem 7z is provided by Github Actions
+        7z x  win_flex_bison-2.5.24.zip               -o"C:\OTHERBIN\winflexbison"
+        copy  win_flex_bison-2.5.24.zip                 "C:\OTHERBIN\winflexbison"
+        dir                                             "C:\OTHERBIN\winflexbison"
+        rem - man7.org/linux/man-pages/man1/printf.1.html
+        printf                                          "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+    - name: 'setup msvc x86'
+      if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with: 
+        arch: x86
+    - name: 'build postgresx86'    
+      if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
+      run: |
+        meson setup buildx86 --prefix=d:\postgresql86
+        cd buildx86
+        ninja -v
+        ninja -v install
+    - name: 'setup msvc x64'    
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with: 
+        arch: x64
+    - name : 'build postgres x64'
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      run: |
+        meson setup build --prefix=d:\postgresql
+        cd build
+        ninja
+        ninja install
+    - name: install postgresql binary
+      shell: cmd
+      run: |
+        echo on
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server    
+    - name: start postgresql
+      shell: cmd
+      run: |
+        echo on
+        sc config "postgresql-x64-14" start= auto
+    - name: get psqlodbc
+      uses: actions/checkout@v4
+    - name: 'setup msvc for psqlodbc'
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with: 
+        arch: x86
+    - name: build psqlodbc
+      shell: powershell      
+      run: |
+        copy .github\workflows\configuration.xml winbuild
+        winbuild\BuildAll.ps1
+        installer\buildInstallers.ps1
+    - name: test psqlodbc
+      shell: powershell
+      run: |
+        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+    - name: Upload x64 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x64 Merge Module
+        path: ./installer/x64/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x64 installer package
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x64 Installer
+        path: ./installer/x64/*.msi
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x86 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x86 Merge Module
+        path: ./installer/x86/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x86 installer package
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x86 Installer
+        path: ./installer/x86/*.msi
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x64 setup
+      id: x64_setup
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x64 Setup
+        path: ./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/REL-')
+      uses: ncipollo/release-action@v1.14.0
+      id: create_release
+      with:
+        draft: false
+        prerelease: false
+        token: ${{secrets.RELEASE_TOKEN}}
+        artifacts: "./installer/x86/*.msi,./installer/x86/*.msm,./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
