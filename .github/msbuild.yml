@@ -1,0 +1,34 @@
+name: MSBuild
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: .
+
+  # Configuration type to build.
+  # You can convert this to a build matrix if you need coverage of multiple configuration types.
+  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  BUILD_CONFIGURATION: Release
+
+permissions:
+  contents: read
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: "https://github.com/postgres/postgres.git"
+    - uses: actions/setup-python@v1
+    - uses: BSFishy/meson-build@v1.0.3
+      with:
+        action: build
+        directory: build
+        
