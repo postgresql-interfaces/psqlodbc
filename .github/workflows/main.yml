@@ -26,6 +26,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: "postgres/postgres.git"
+        ref: 'master'
 
   build_windows:
     runs-on: windows-latest
