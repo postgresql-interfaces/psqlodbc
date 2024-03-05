@@ -33,10 +33,10 @@ jobs:
         python -m pip install ninja
     - name: Download GNU diffutils for Test on PostgreSQL for Windows 
       uses: suisei-cn/actions-download-file@v1.6.0
-        id: downloadDiffutilsZip
-        with:
-          retry-times: 1
-          url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/2.8.7-1/diffutils-2.8.7-1-bin.zip
+      id: downloadDiffutilsZip
+      with:
+        retry-times: 1
+        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/2.8.7-1/diffutils-2.8.7-1-bin.zip
 
     - name: Download pkgconfiglite for Compile using msvc and meson
       uses: suisei-cn/actions-download-file@v1.4.0
@@ -53,7 +53,6 @@ jobs:
         url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-2.5.24.zip
 
     - name: Extract Diffuntils and add Diffuntils bin directory to the PATH for Test on PostgreSQL for Windows
-      if: ${{ ( env.os == 'windows-latest' && env.compilerClass == 'MSYS2' && env.MSYS2testonpgWIN == 'true' ) || ( env.os == 'windows-latest' && env.compilerClass == 'msvc' ) }}
       shell: cmd
       run: |
         rem MKDIR creates any intermediate directories in the path, if needed.
