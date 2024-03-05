@@ -32,7 +32,7 @@ jobs:
         python -m pip install meson
         python -m pip install ninja
     - name: Cache GNU diffutils for Test on PostgreSQL for Windows
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cacheDiffutilsZip
       with:
         path: diffutils-2.8.7-1-bin.zip
@@ -41,7 +41,7 @@ jobs:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
 
     - name: Cache pkgconfiglite for Compile using msvc and meson
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cachePkgConfigLiteZip
       with:
         path: pkg-config-lite-0.28-1_bin-win32.zip
@@ -50,7 +50,7 @@ jobs:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
 
     - name: Cache winflexbison for Compile using msvc
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cacheWinFlexBisonZip
       with:
         path: win_flex_bison-2.5.24.zip
@@ -67,7 +67,7 @@ jobs:
 
     - name: Download pkgconfiglite for Compile using msvc and meson
       if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.4.0
+      uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadPkgConfigLiteZip
       with:
         retry-times: 1
@@ -75,7 +75,7 @@ jobs:
 
     - name: Download winflexbison for Compile using msvc
       if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.4.0
+      uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadWinFlexBisonZip
       with:
         retry-times: 1
