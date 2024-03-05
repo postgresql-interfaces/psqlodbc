@@ -25,7 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        repository: "https://github.com/postgres/postgres.git"
+        repository: "postgres/postgres.git"
 
   build_windows:
     runs-on: windows-latest
