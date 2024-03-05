@@ -91,7 +91,17 @@ jobs:
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
     - name : 'build postgres'
       run: |
-        meson setup build
+        meson setup build --prefix=c:\postgresql
         cd build
         ninja
+        ninja install
+    - name: get psqlodbc
+      uses: actions/checkout@v4
+    - name: build psqlodbc
+      shell: powershell
+      run: |
+        copy .github\workflows\configuration.xml winbuld
+        cd winbuild
+        BuildAll.ps1 -p x64
+    
         
