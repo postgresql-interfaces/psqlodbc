@@ -33,7 +33,6 @@ jobs:
         python -m pip install ninja
     - name : 'build postgres'
       run: |
-        cd postgres
         meson setup build
         cd build
         ninja
