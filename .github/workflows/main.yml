@@ -58,7 +58,7 @@ jobs:
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1    
     - name: Download GNU diffutils for Test on PostgreSQL for Windows 
-      if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true}}
+      if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadDiffutilsZip
       with:
