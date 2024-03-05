@@ -74,7 +74,7 @@ jobs:
         url: http://downloads.sourceforge.net/project/pkgconfiglite/0.28-1/pkg-config-lite-0.28-1_bin-win32.zip
 
     - name: Download winflexbison for Compile using msvc
-      if: {{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true'}}
+      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.4.0
       id: downloadWinFlexBisonZip
       with:
