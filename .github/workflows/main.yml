@@ -41,7 +41,7 @@ jobs:
       uses: actions/cache@v4
       id: cacheDiffutilsZip
       with:
-        path: diffutils-2.8.7-1-bin.zip
+        path: C:\OTHERBIN\diffutils
         key:  diffutils-2.8.7-1-bin.zip
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
@@ -50,7 +50,7 @@ jobs:
       uses: actions/cache@v4
       id: cachePkgConfigLiteZip
       with:
-        path: pkg-config-lite-0.28-1_bin-win32.zip
+        path: C:\OTHERBIN\pkgconfiglite
         key:  pkg-config-lite-0.28-1_bin-win32.zip
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
@@ -59,7 +59,7 @@ jobs:
       uses: actions/cache@v4
       id: cacheWinFlexBisonZip
       with:
-        path: win_flex_bison-2.5.24.zip
+        path: C:\OTHERBIN\winflexbison
         key:  win_flex_bison-2.5.24.zip
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1    
