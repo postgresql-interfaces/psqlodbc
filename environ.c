@@ -194,7 +194,7 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 	BOOL		partial_ok = ((flag & PODBC_ALLOW_PARTIAL_EXTRACT) != 0);
 	const char	*msg;
 	UWORD		msglen, wrtlen, pcblen;
-	UInt4		stapos,
+	UInt4		stapos;
 
 	if (!pgerror)
 		return SQL_NO_DATA_FOUND;
