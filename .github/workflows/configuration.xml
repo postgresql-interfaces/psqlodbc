@@ -3,10 +3,10 @@
   <title>
   </title>
   <x86 disabled="no">
-    <libpq version="">
-      <include>default</include>
-      <lib>default</lib>
-      <bin>default</bin>
+    <libpq version="y">
+      <include>C:\postgresql\include</include>
+      <lib>C:\postgresql\lib</lib>
+      <bin>C:\postgresql\bin</bin>
     </libpq>
     <setvcvars>
     </setvcvars>
