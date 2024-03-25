@@ -37,6 +37,12 @@ jobs:
       with:
         path: c:\postgresql
         key: postgresql    
+    - name: Cache Postgres86 directory 
+      uses: actions/cache@v4
+      id: cachePostgres86
+      with:
+        path: c:\postgresql86
+        key: postgresql86    
     - name: Cache GNU diffutils for Test on PostgreSQL for Windows
       uses: actions/cache@v4
       id: cacheDiffutilsZip
@@ -124,13 +130,23 @@ jobs:
         dir                                             "C:\OTHERBIN\winflexbison"
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
-    - name : 'build postgres'
+    - name : 'build postgres x64'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       run: |
         meson setup build --prefix=c:\postgresql
         cd build
         ninja
         ninja install
+    - name: 'buld postgres x86'
+      shell: cmd
+      if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
+      run: |
+        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
+        meson setup build --prefix=c:\postgresql86
+        cd build
+        ninja
+        ninja install    
+
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: build psqlodbc

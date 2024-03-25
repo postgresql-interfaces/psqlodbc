@@ -4,9 +4,9 @@
   </title>
   <x86 disabled="no">
     <libpq version="y">
-      <include>C:\postgresql\include</include>
-      <lib>C:\postgresql\lib</lib>
-      <bin>C:\postgresql\bin</bin>
+      <include>C:\postgresql86\include</include>
+      <lib>C:\postgresql86\lib</lib>
+      <bin>C:\postgresql86\bin</bin>
     </libpq>
     <setvcvars>
     </setvcvars>
