@@ -131,9 +131,10 @@ jobs:
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
     - name: 'build postgres x86'
+      shell: powershell
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
-        cp .github\workflows\setenvx86.ps1 .
+        copy .github\workflows\setenvx86.ps1 .
         setenvx86.ps1
         meson setup buildx86 --prefix=c:\postgresql86
         cd buildx86
