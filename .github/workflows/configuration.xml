@@ -28,19 +28,6 @@
     <runtime_folder>
     </runtime_folder>
   </x64>
-  <arm64>
-    <libpq version="y">
-      <include>C:\postgresql\include</include>
-      <lib>C:\postgresql\lib</lib>
-      <bin>C:\postgresql\bin</bin>
-    </libpq>
-    <setvcvars>
-    </setvcvars>
-    <build_macros>
-    </build_macros>
-    <runtime_folder>
-    </runtime_folder>
-  </arm64>
   <BuildResult>
     <Date>03/04/2024 10:49:13</Date>
     <VisualStudioVersion>17.0</VisualStudioVersion>
