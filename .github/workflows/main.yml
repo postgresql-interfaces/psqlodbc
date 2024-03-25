@@ -134,7 +134,8 @@ jobs:
       shell: cmd
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
-        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
+        SET PATH=%PATH%;"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\"
+        vcvars32.bat
         meson setup buildx86 --prefix=c:\postgresql86
         cd buildx86
         ninja -v
