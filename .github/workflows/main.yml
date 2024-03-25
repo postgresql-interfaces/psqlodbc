@@ -144,8 +144,8 @@ jobs:
         "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
         meson setup buildx86 --prefix=c:\postgresql86
         cd buildx86
-        ninja
-        ninja install    
+        ninja -v
+        ninja -v install    
 
     - name: get psqlodbc
       uses: actions/checkout@v4
