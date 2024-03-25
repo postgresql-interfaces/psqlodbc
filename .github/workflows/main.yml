@@ -137,13 +137,13 @@ jobs:
         cd build
         ninja
         ninja install
-    - name: 'buld postgres x86'
+    - name: 'build postgres x86'
       shell: cmd
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
         "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
-        meson setup build --prefix=c:\postgresql86
-        cd build
+        meson setup buildx86 --prefix=c:\postgresql86
+        cd buildx86
         ninja
         ninja install    
 
@@ -152,7 +152,7 @@ jobs:
     - name: build psqlodbc
       shell: powershell
       run: |
-        copy .github\workflows\configuration.xml winbuld
+        copy .github\workflows\configuration.xml winbuild
         cd winbuild
         .\BuildAll.ps1
     
