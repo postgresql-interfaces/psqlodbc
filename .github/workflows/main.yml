@@ -133,6 +133,7 @@ jobs:
     - name: 'build postgres x86'
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
+        cp .github\workflows\setenvx86.ps1 .
         setenvx86.ps1
         meson setup buildx86 --prefix=c:\postgresql86
         cd buildx86
