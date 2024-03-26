@@ -169,10 +169,7 @@ jobs:
         copy .github\workflows\configuration.xml winbuild
         cd winbuild
         .\BuildAll.ps1
-    - name: build installers
-      shell: powershell
-      run: |
-        cd installer
+        cd ..\installer
         buildInstallers.ps1
     
         
