@@ -167,11 +167,7 @@ jobs:
       shell: powershell
       run: |
         copy .github\workflows\configuration.xml winbuild
-        pushd winbuild
-        .\BuildAll.ps1
-        popd
-        pushd installer
-        buildInstallers.ps1
-        popd
+        winbuild\BuildAll.ps1
+        installer\buildInstallers.ps1
     
         
