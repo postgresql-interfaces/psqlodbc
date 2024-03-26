@@ -173,6 +173,6 @@ jobs:
       shell: powershell
       run: |
         cd installer
-        buildinstallers.ps1
+        buildInstallers.ps1
     
         
