@@ -166,7 +166,6 @@ jobs:
     - name: build psqlodbc
       shell: powershell
       run: |
-        dir d:\postgresql\lib
         copy .github\workflows\configuration.xml winbuild
         cd winbuild
         .\BuildAll.ps1
