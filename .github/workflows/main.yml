@@ -35,13 +35,13 @@ jobs:
       uses: actions/cache@v4
       id: cachePostgres
       with:
-        path: c:\postgresql
+        path: d:\postgresql
         key: postgresql    
     - name: Cache Postgres86 directory 
       uses: actions/cache@v4
       id: cachePostgres86
       with:
-        path: c:\postgresql86
+        path: d:\postgresql86
         key: postgresql86    
     - name: Cache GNU diffutils for Test on PostgreSQL for Windows
       uses: actions/cache@v4
@@ -142,14 +142,14 @@ jobs:
          }
         }
         popd
-        meson setup buildx86 --prefix=c:\postgresql86
+        meson setup buildx86 --prefix=d:\postgresql86
         cd buildx86
         ninja -v
         ninja -v install
     - name : 'build postgres x64'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       run: |
-        meson setup build --prefix=c:\postgresql
+        meson setup build --prefix=d:\postgresql
         cd build
         ninja
         ninja install
