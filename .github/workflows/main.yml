@@ -130,18 +130,13 @@ jobs:
         dir                                             "C:\OTHERBIN\winflexbison"
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
-    - name: 'build postgres x86'
-      shell: powershell
+    - name: 'setup msvc'
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with: 
+        arch: x86
+    - name: 'build postgresx86'    
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
-        pushd "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\"
-        cmd /c "vcvars32.bat&set" |
-        foreach {
-         if ($_ -match "=") {
-           $v = $_.split("="); set-item -force -path "ENV:\$($v[0])"  -value "$($v[1])"
-         }
-        }
-        popd
         meson setup buildx86 --prefix=d:\postgresql86
         cd buildx86
         ninja -v
@@ -164,7 +159,7 @@ jobs:
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: build psqlodbc
-      shell: powershell
+      shell: powershell      
       run: |
         pushd "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\"
         cmd /c "vcvars32.bat&set" |
