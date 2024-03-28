@@ -167,5 +167,26 @@ jobs:
         copy .github\workflows\configuration.xml winbuild
         winbuild\BuildAll.ps1
         installer\buildInstallers.ps1
-    
-        
+    - name: Upload x64 installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x64 Installer
+        path: ./installer/x64/*.msi
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x86 installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x86 Installer
+        path: ./installer/x86/*.msi
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x64 setup
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x64 Setup
+        path: ./installer/psqlodbc-setup/psqlodbc-setup.exe
+        retention-days: 5
+        if-no-files-found: error
+
+          
