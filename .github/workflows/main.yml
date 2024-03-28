@@ -185,7 +185,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC x64 Setup
-        path: ./installer/psqlodbc-setup/psqlodbc-setup.exe
+        path: ./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
         retention-days: 5
         if-no-files-found: error
 
