@@ -1,4 +1,5 @@
 name: MSBuild
+run-name: psql ODBC CI - ${{ github.event.head_commit.message }}
 
 on:
   push:
