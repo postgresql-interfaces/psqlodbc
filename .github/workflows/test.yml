@@ -24,11 +24,15 @@ jobs:
           fetch-depth: 1
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.3.2
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Build the driver
+      - name: Build the x64 driver
         working-directory: ./winbuild
         run: .\BuildAll.ps1 -Platform x64
+
+      - name: Build the x86 driver
+        working-directory: ./winbuild
+        run: .\BuildAll.ps1 -Platform x86
 
       - name: Setup nmake
         uses: ilammy/msvc-dev-cmd@v1
