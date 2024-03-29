@@ -161,8 +161,8 @@ jobs:
         pushd d:\postgresql
         .\bin\initdb -D data
         .\bin\pg_ctl -D data -l logfile start
-        .\bin\createuser -d postgres
-        .\bin\psql -c "alter user postgres with password 'postgres'"
+        .\bin\createuser -U runneradmin -d postgres
+        .\bin\psql -U runneradmin -c "alter user postgres with password 'postgres'"
         popd
     - name: get psqlodbc
       uses: actions/checkout@v4
