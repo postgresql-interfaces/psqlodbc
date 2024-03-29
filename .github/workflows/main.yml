@@ -147,7 +147,7 @@ jobs:
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with: 
-        arch: a
+        arch: x64
     - name : 'build postgres x64'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       run: |
