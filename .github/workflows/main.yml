@@ -3,9 +3,9 @@ run-name: psql ODBC CI - ${{ github.event.head_commit.message }}
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 env:
   # Path to the solution file relative to the root of the project.
