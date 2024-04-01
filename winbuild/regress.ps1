@@ -13,6 +13,8 @@
     Specify this switch in case of testing Ansi drivers.
 .PARAMETER DeclareFetch
     Specify Use Declare/Fetch mode. "On"(default), "off" or "both" is available.
+.PARAMETER DsnInfo
+	Specify the dsn info "SERVER=${server}|DATABASE=${database}|PORT=${port}|UID=${uid}|PWD=${passwd}"	
 .PARAMETER VCVersion
     Used Visual Studio version is determined automatically unless this
     option is specified.
@@ -23,7 +25,7 @@
     option is specified. Currently "v100", "Windows7.1SDK", "v110",
     "v110_xp", "v120", "v120_xp", "v140" or "v140_xp" is available.
 .PARAMETER MSToolsVersion
-    This option is deprecated. MSBuild ToolsVersion is detemrined
+    This option is deprecated. MSBuild ToolsVersion is determined
     automatically unless this option is specified.  Currently "4.0",
     "12.0" or "14.0" is available.
 .PARAMETER Configuration
@@ -44,7 +46,7 @@
     > .\regress Clean
 	Clean all generated files.
 .EXAMPLE
-    > .\regress -TestList connect, deprected
+    > .\regress -TestList connect, deprecated
 	Build and run connect-test and deprecated-test.
 .EXAMPLE
     > .\regress -Ansi
@@ -81,6 +83,7 @@ Param(
 [string]$BuildConfigPath,
 [ValidateSet("off", "on", "both")]
 [string]$DeclareFetch="on",
+[string]$DsnInfo,
 [string]$SpecificDsn,
 [switch]$ReinstallDriver
 )
@@ -250,7 +253,7 @@ function RunTest($scriptPath, $Platform, $testexes)
 	}
 }
 
-function SpecialDsn($testdsn, $testdriver)
+function SpecialDsn($testdsn, $testdriver, $dsninfo)
 {
 	function input-dsninfo($server="localhost", $uid="postgres", $passwd="postgres", $port="5432", $database="contrib_regression")
 	{
@@ -280,7 +283,11 @@ function SpecialDsn($testdsn, $testdriver)
 	switch ($LastExitCode) { 
 	 -1 {
 		Write-Host "`tAdding System DSN=$testdsn Driver=$testdriver"
-		$prop = input-dsninfo
+		if ($dsninfo.Length -eq 0) {
+			$prop = input-dsninfo
+		} else {
+			$prop = $dsninfo
+		}
 		$prop += "|Debug=0|Commlog=0|ConnSettings=set+lc_messages='C'"
 		$proc = Start-Process $regProgram -Verb runas -Wait -PassThru -ArgumentList "register_dsn $testdriver $testdsn $prop `"$dlldir`" Driver=${dllname}|Setup=${setup}"
 		if ($proc.ExitCode -ne 0) {
@@ -383,6 +390,10 @@ if ($DriverConfiguration -ieq "Debug") {
 	$testdriver += "_debug"
 	$testdsn += "_debug"
 }
+if ("$DsnInfo" -ne "") {
+	Write-Host "`tDsn Info=$DsnInfo"
+	$dsninfo=$DsnInfo
+}
 if ("$SpecificDsn" -ne "") {
 	Write-Host "`tSpecific DSN=$SpecificDsn"
 	$testdsn=$SpecificDsn
@@ -414,7 +425,7 @@ foreach ($pl in $pary) {
 
 	$env:PSQLODBC_TEST_DSN = $testdsn
 	try {
-		SpecialDsn $testdsn $testdriver
+		SpecialDsn $testdsn $testdriver $dsninfo
 		RunTest $scriptPath $pl $TESTEXES
 	} catch [Exception] {
 		throw $error[0]

@@ -163,6 +163,7 @@ jobs:
         .\bin\pg_ctl -D data -l logfile start
         .\bin\createuser -U runneradmin -d postgres
         .\bin\psql -U runneradmin postgres -c "alter user postgres with password 'postgres'"
+        .\bin\createdb -U runneradmin -O postgres contrib_regression
         popd
     - name: get psqlodbc
       uses: actions/checkout@v4
@@ -179,7 +180,7 @@ jobs:
     - name: test psqlodbc
       shell: powershell
       run: |
-        winbuild\regress.ps1    
+        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"   
 #    - name: Upload x64 installer
 #      uses: actions/upload-artifact@v4
 #      with:
