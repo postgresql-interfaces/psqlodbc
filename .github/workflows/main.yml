@@ -133,7 +133,7 @@ jobs:
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
     - name: 'install libxml2'
       shell: cmd
-      run: pacman -S libxml2
+      run: c:\msys64\pacman -S libxml2
     - name: 'setup msvc x86'
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
