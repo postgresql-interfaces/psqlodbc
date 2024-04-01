@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Run regressin test on Windows.
+    Run regression test on Windows.
 .DESCRIPTION
     Build test programs and run them.
 .PARAMETER Target

@@ -131,6 +131,9 @@ jobs:
         dir                                             "C:\OTHERBIN\winflexbison"
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+    - name: 'install libxml2'
+      shell: cmd
+      run: pacman -S libxml2
     - name: 'setup msvc x86'
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -180,7 +183,7 @@ jobs:
     - name: test psqlodbc
       shell: powershell
       run: |
-        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"   
+        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
 #    - name: Upload x64 installer
 #      uses: actions/upload-artifact@v4
 #      with:
