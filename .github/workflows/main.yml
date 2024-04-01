@@ -161,7 +161,7 @@ jobs:
         pushd d:\postgresql
         .\bin\initdb -D data
         .\bin\pg_ctl -D data -l logfile start
-        .\bin\createuser -U runneradmin -d postgres
+        .\bin\createuser -U runneradmin -s postgres
         .\bin\psql -U runneradmin postgres -c "alter user postgres with password 'postgres'"
         .\bin\createdb -U runneradmin -O postgres contrib_regression
         popd
