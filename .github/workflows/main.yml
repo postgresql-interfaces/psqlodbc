@@ -131,9 +131,12 @@ jobs:
         dir                                             "C:\OTHERBIN\winflexbison"
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
-    - name: 'install libxml2'
-      shell: cmd
-      run: c:\msys64\pacman -S libxml2
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2.22.0
+      with:
+        update: true
+        install: >-
+          libxml2
     - name: 'setup msvc x86'
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
