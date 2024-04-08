@@ -106,7 +106,7 @@ jobs:
       with:
         retry-times: 1
         url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893
-        name: d:\OTHER_BIN\postgresql_install.exe
+        name: c:\OTHER_BIN\postgresql_install.exe
 
     - name: Extract Diffuntils and add Diffuntils bin directory to the PATH for Test on PostgreSQL for Windows
       shell: cmd
@@ -172,7 +172,8 @@ jobs:
     - name: install postgresql binary
       shell: powershell
       run: |
-        d:\OTHER_BIN\postgresql_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --enable-components server
+        ls c:\OTHER_BIN
+        C:\OTHER_BIN\postgresql_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --enable-components server
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
