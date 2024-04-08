@@ -106,7 +106,8 @@ jobs:
       with:
         retry-times: 1
         url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893
-        name: c:\OTHER_BIN\postgresql_install.exe
+        target: c:\OTHER_BIN
+        filename: postgresql_install.exe
 
     - name: Extract Diffuntils and add Diffuntils bin directory to the PATH for Test on PostgreSQL for Windows
       shell: cmd
