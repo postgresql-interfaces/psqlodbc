@@ -145,12 +145,6 @@ jobs:
         dir                                             "C:\OTHERBIN\winflexbison"
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
-    - name: Setup MSYS2
-      uses: msys2/setup-msys2@v2.22.0
-      with:
-        update: true
-        install: >-
-          libxml2
     - name: 'setup msvc x86'
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -178,7 +172,7 @@ jobs:
     - name: install postgresql binary
       shell: powershell
       run: |
-        d:\OTHER_BIN\postgresinstall.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --enable-components server
+        d:\OTHER_BIN\postgres_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --enable-components server
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
