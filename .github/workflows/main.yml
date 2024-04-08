@@ -52,7 +52,12 @@ jobs:
         key:  diffutils-2.8.7-1-bin.zip
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
-
+    - name: Cache PostgreSQL installer
+      uses: actions/cache@v4
+      id: cachePostgresInstaller
+      with:
+        path: C:\OTHERBIN\postgres_install.exe
+        key: postgresql_installer
     - name: Cache pkgconfiglite for Compile using msvc and meson
       uses: actions/cache@v4
       id: cachePkgConfigLiteZip
@@ -93,6 +98,15 @@ jobs:
       with:
         retry-times: 1
         url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-2.5.24.zip
+
+    - name: Download postgresql install from EDB
+      uses: suisei-cn/actions-download-file@v1.6.0
+      if: ${{steps.cachePostgresInstaller.outputs.cache-hit != 'true'}}
+      id: downloadPostgresInstaller
+      with:
+        retry-times: 1
+        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893
+        name: d:\OTHER_BIN\postgresql_install.exe
 
     - name: Extract Diffuntils and add Diffuntils bin directory to the PATH for Test on PostgreSQL for Windows
       shell: cmd
@@ -161,16 +175,10 @@ jobs:
         cd build
         ninja
         ninja install
-    - name: start PostgreSQL
+    - name: install postgresql binary
       shell: powershell
       run: |
-        pushd d:\postgresql
-        .\bin\initdb -D data
-        .\bin\pg_ctl -D data -l logfile start
-        .\bin\createuser -U runneradmin -s postgres
-        .\bin\psql -U runneradmin postgres -c "alter user postgres with password 'postgres'"
-        .\bin\createdb -U runneradmin -O postgres contrib_regression
-        popd
+        d:\OTHER_BIN\postgresinstall.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --enable-components server
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
