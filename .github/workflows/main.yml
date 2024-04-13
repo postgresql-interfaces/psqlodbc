@@ -176,7 +176,7 @@ jobs:
         C:\OTHERBIN\postgresql_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --enable-components server
     - name: start postgresql
       shell: powershell
-      run: net start postgresql-x64-16
+      run: C:\Program Files\PostgreSQL\16\bin\pg_ctl.exe" runservice -N "postgresql-x64-16" -D "C:\Program Files\PostgreSQL\16\data" -w
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
