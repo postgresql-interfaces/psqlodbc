@@ -170,14 +170,11 @@ jobs:
         cd build
         ninja
         ninja install
-    - name: install postgresql binary
-      shell: powershell
-      run: |
-        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword postgres --enable-components server
     - name: start postgresql
-      shell: powershell
+      shell: cmd
       run: |
-        & "C:\Program Files\PostgreSQL\16\bin\pg_ctl.exe" -D "C:\Program Files\PostgreSQL\16\data\" -w
+        echo on
+        net start postgresql-x64-14
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
