@@ -173,7 +173,7 @@ jobs:
     - name: install postgresql binary
       shell: powershell
       run: |
-        C:\OTHERBIN\postgresql_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --prefix c:\OTHERBIN\postgresql --datadir c:\OTHERBIN\postgresql\data --enable-components server
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword postgres --prefix c:\OTHERBIN\postgresql --datadir c:\OTHERBIN\postgresql\data --enable-components server
     - name: start postgresql
       shell: powershell
       run: |
