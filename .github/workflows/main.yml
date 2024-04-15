@@ -173,11 +173,11 @@ jobs:
     - name: install postgresql binary
       shell: powershell
       run: |
-        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword postgres --prefix c:\OTHERBIN\postgresql --datadir c:\OTHERBIN\postgresql\data --enable-components server
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword postgres --enable-components server
     - name: start postgresql
       shell: powershell
       run: |
-        c:\OTHERBIN\postgresql\bin\pg_ctl.exe -D "c:\OTHERBIN\postgresql\data" -w
+        C:\Program Files\PostgreSQL\16\bin\pg_ctl.exe -D "C:\Program Files\PostgreSQL\16\data\" -w
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
