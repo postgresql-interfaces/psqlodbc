@@ -145,7 +145,7 @@ jobs:
         copy  win_flex_bison-2.5.24.zip                 "C:\OTHERBIN\winflexbison"
         dir                                             "C:\OTHERBIN\winflexbison"
         rem - man7.org/linux/man-pages/man1/printf.1.html
-        printf                                          "C:\\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+        printf                                          "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
     - name: 'setup msvc x86'
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -173,11 +173,11 @@ jobs:
     - name: install postgresql binary
       shell: powershell
       run: |
-        C:\OTHERBIN\postgresql_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --prefix D:\OTHERBIN\postgresql --datadir D:\OTHERBIN\postgresql\data --enable-components server
+        C:\OTHERBIN\postgresql_install.exe --mode=unattended --unattendedmodeui=none --superpassword postgres --prefix c:\OTHERBIN\postgresql --datadir c:\OTHERBIN\postgresql\data --enable-components server
     - name: start postgresql
       shell: powershell
       run: |
-        D:\OTHERBIN\postgresql\bin\pg_ctl.exe -D "D:\OTHERBIN\postgresql\data" -w
+        c:\OTHERBIN\postgresql\bin\pg_ctl.exe -D "c:\OTHERBIN\postgresql\data" -w
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
