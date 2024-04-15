@@ -177,7 +177,7 @@ jobs:
     - name: start postgresql
       shell: powershell
       run: |
-        D:\OTHERBIN\postgresl\bin\pg_ctl.exe -D "D:\OTHERBIN\postgreql\data" -w
+        D:\OTHERBIN\postgresql\bin\pg_ctl.exe -D "D:\OTHERBIN\postgresql\data" -w
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
