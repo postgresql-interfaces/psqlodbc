@@ -174,7 +174,7 @@ jobs:
       shell: cmd
       run: |
         echo on
-        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword postgres --enable-components server    
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server    
     - name: start postgresql
       shell: cmd
       run: |
