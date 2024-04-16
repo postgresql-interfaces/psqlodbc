@@ -56,7 +56,7 @@ jobs:
       uses: actions/cache@v4
       id: cachePostgresInstaller
       with:
-        path: C:\OTHERBIN\postgres_install.exe
+        path: C:\OTHERBIN\postgresql_install.exe
         key: postgresql_installer
     - name: Cache pkgconfiglite for Compile using msvc and meson
       uses: actions/cache@v4
@@ -170,12 +170,16 @@ jobs:
         cd build
         ninja
         ninja install
+    - name: install postgresql binary
+      shell: cmd
+      run: |
+        echo on
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword postgres --enable-components server    
     - name: start postgresql
       shell: cmd
       run: |
         echo on
         sc config "postgresql-x64-14" start= auto
-        net start postgresql-x64-14
     - name: get psqlodbc
       uses: actions/checkout@v4
     - name: 'setup msvc for psqlodbc'
