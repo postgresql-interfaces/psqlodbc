@@ -80,7 +80,7 @@ jobs:
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadDiffutilsZip
       with:
-        retry-times: 1
+        retry-times: 5
         url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/2.8.7-1/diffutils-2.8.7-1-bin.zip
 
     - name: Download pkgconfiglite for Compile using msvc and meson
@@ -88,7 +88,7 @@ jobs:
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadPkgConfigLiteZip
       with:
-        retry-times: 1
+        retry-times: 5
         url: http://downloads.sourceforge.net/project/pkgconfiglite/0.28-1/pkg-config-lite-0.28-1_bin-win32.zip
 
     - name: Download winflexbison for Compile using msvc
@@ -96,7 +96,7 @@ jobs:
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadWinFlexBisonZip
       with:
-        retry-times: 1
+        retry-times: 5
         url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-2.5.24.zip
 
     - name: Download postgresql install from EDB
@@ -104,7 +104,7 @@ jobs:
       if: ${{steps.cachePostgresInstaller.outputs.cache-hit != 'true'}}
       id: downloadPostgresInstaller
       with:
-        retry-times: 1
+        retry-times: 5
         url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893
         target: c:\OTHERBIN
         filename: postgresql_install.exe
