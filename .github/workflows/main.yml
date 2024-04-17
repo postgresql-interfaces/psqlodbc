@@ -202,14 +202,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC x64 Installer
-        path: ./installer/x64/*.msi
+        path: ./installer/x64/*.ms?
         retention-days: 5
         if-no-files-found: error
     - name: Upload x86 installer
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC x86 Installer
-        path: ./installer/x86/*.msi
+        path: ./installer/x86/*.ms?
         retention-days: 5
         if-no-files-found: error
     - name: Upload x64 setup
