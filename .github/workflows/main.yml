@@ -198,18 +198,32 @@ jobs:
       shell: powershell
       run: |
         winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
-    - name: Upload x64 installer
+    - name: Upload x64 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x64 Merge Module
+        path: ./installer/x64/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x64 installer package
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC x64 Installer
-        path: ./installer/x64/*.ms?
+        path: ./installer/x64/*.msi
         retention-days: 5
         if-no-files-found: error
-    - name: Upload x86 installer
+    - name: Upload x86 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC x86 Merge Module
+        path: ./installer/x86/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload x86 installer package
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC x86 Installer
-        path: ./installer/x86/*.ms?
+        path: ./installer/x86/*.msi
         retention-days: 5
         if-no-files-found: error
     - name: Upload x64 setup
