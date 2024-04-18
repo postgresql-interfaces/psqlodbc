@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  get_windows:
+  build_and_test:
     runs-on: windows-latest
 
     steps:
@@ -234,4 +234,12 @@ jobs:
         retention-days: 5
         if-no-files-found: error
 
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/REL_')
+      uses: ncipollo/release-action@v1.14.0
+      id: create_release
+      with:
+        draft: false
+        prerelease: false
+        artifacts: "./installer/x86/*.msi,./installer/x86/*.msm,./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
           
