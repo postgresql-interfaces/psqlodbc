@@ -241,5 +241,5 @@ jobs:
       with:
         draft: false
         prerelease: false
-        artifacts: "./installer/x86/*.msi,./installer/x86/*.msm,./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+#        artifacts: "./installer/x86/*.msi,./installer/x86/*.msm,./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
           
