@@ -18,6 +18,9 @@ env:
   # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
+  # Path to the directory where the build artifacts will be placed.
+  PSQLODBC_OBJBASE: ${{ github.workspace }}/out/default
+
 permissions:
   contents: read
 
@@ -198,6 +201,19 @@ jobs:
       shell: powershell
       run: |
         winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+    - name: build psqlodbc with UseMimalloc
+      shell: powershell      
+      run: |
+        copy .github\workflows\configuration.xml winbuild
+        winbuild\BuildAll.ps1 -UseMimalloc yes
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}/out/UseMimalloc
+    - name: test psqlodbc with UseMimalloc
+      shell: powershell
+      run: |
+        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}/out/UseMimalloc
     - name: Upload x64 merge module
       uses: actions/upload-artifact@v4
       with:
