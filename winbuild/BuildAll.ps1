@@ -30,6 +30,10 @@
     Specify the configuration xml file name if you want to use
     the configuration file other than standard one.
     The relative path is relative to the current directory.
+.PARAMETER UseMimalloc
+    Whether to use the mimalloc allocator for improved performance.
+	Requires a toolset of v141, v142 or later. Specify "yes" or
+	"no"(default).
 .EXAMPLE
     > .\BuildAll
 	Build with default or automatically selected parameters.
@@ -65,7 +69,9 @@ Param(
 [ValidateSet("Debug", "Release")]
 [String]$Configuration="Release",
 [string]$BuildConfigPath,
-[switch]$AlongWithInstallers
+[switch]$AlongWithInstallers,
+[ValidateSet("yes", "no")]
+[string]$UseMimalloc="no"
 )
 
 function buildPlatform([xml]$configInfo, [string]$Platform)
@@ -100,7 +106,25 @@ function buildPlatform([xml]$configInfo, [string]$Platform)
 		$BUILD_MACROS = $BUILD_MACROS -replace '"', '`"'
 		$macroList = iex "write-output $BUILD_MACROS"
 	}
-	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN $macroList
+
+	if ($UseMimalloc -eq "yes") {
+		switch ($VCVersion) {
+			"10.0"	{ $mimallocIdeDir = "vs2017" }
+			"11.0"	{ $mimallocIdeDir = "vs2017" }
+			"12.0"	{ $mimallocIdeDir = "vs2017" }
+			"14.0"	{ $mimallocIdeDir = "vs2017" }
+			"15.0"	{ $mimallocIdeDir = "vs2017" }
+			"16.0"	{ $mimallocIdeDir = "vs2019" }
+			"17.0"	{ $mimallocIdeDir = "vs2022" }
+			default { throw "Unable to resolve mimalloc IDE directory for VC ${VCVersion}."}
+		}
+
+		# build mimalloc dependency
+		& ${msbuildexe} ..\libs\mimalloc\ide\$mimallocIdeDir\mimalloc.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion}
+	}
+
+	# build psqlodbc
+	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN /p:MIMALLOC=$UseMimalloc $macroList
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
