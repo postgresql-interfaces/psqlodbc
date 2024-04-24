@@ -38,6 +38,8 @@
     The relative path is relative to the current directory.
 .PARAMETER ReinstallDriver
     Reinstall the driver in any case.
+.PARAMETER ExpectMimalloc
+    Specify whether usage of the mimalloc allocator is expected.
 .EXAMPLE
     > .\regress
 	Build with default or automatically selected parameters
@@ -85,7 +87,8 @@ Param(
 [string]$DeclareFetch="on",
 [string]$DsnInfo,
 [string]$SpecificDsn,
-[switch]$ReinstallDriver
+[switch]$ReinstallDriver,
+[switch]$ExpectMimalloc
 )
 
 
@@ -227,6 +230,7 @@ function RunTest($scriptPath, $Platform, $testexes)
 		if ($LASTEXITCODE -ne 0) {
 			throw "`treset_db error"
 		}
+		$env:MIMALLOC_VERBOSE = 1
 		$cnstr = @()
 		switch ($DeclareFetch) {
 			"off"	{ $cnstr += "UseDeclareFetch=0" }
@@ -244,11 +248,17 @@ function RunTest($scriptPath, $Platform, $testexes)
 				$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST += ";Database=contrib_regression;ConnSettings={set lc_messages='C'}"
 			}
 			write-host "`n`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
-			.\runsuite $testexes --inputdir=$origdir
+			.\runsuite $testexes --inputdir=$origdir 2>&1 | Tee-Object -Variable runsuiteOutput
+
+			# Check whether mimalloc ran by searching for a message printed by the MIMALLOC_VERBOSE option
+			if ($ExpectMimalloc -xor ($runsuiteOutput -match "mimalloc: process done")) {
+				throw "`tmimalloc usage was expected to be $ExpectMimalloc"
+			}
 		}
 	} catch [Exception] {
 		throw $error[0]
 	} finally {
+		$env:MIMALLOC_VERBOSE = $null
 		$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $null
 	}
 }
