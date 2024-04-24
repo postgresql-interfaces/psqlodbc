@@ -187,6 +187,8 @@ jobs:
         sc config "postgresql-x64-14" start= auto
     - name: get psqlodbc
       uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: 'setup msvc for psqlodbc'
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with: 
@@ -201,19 +203,19 @@ jobs:
       shell: powershell
       run: |
         winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
-    - name: build psqlodbc with UseMimalloc
+    - name: build psqlodbc with mimalloc
       shell: powershell      
       run: |
         copy .github\workflows\configuration.xml winbuild
-        winbuild\BuildAll.ps1 -UseMimalloc yes
+        winbuild\BuildAll.ps1 -UseMimalloc
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}/out/UseMimalloc
-    - name: test psqlodbc with UseMimalloc
+        PSQLODBC_OBJBASE: ${{ github.workspace }}/out/mimalloc
+    - name: test psqlodbc with mimalloc
       shell: powershell
       run: |
-        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ExpectMimalloc -ReinstallDriver
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}/out/UseMimalloc
+        PSQLODBC_OBJBASE: ${{ github.workspace }}/out/mimalloc
     - name: Upload x64 merge module
       uses: actions/upload-artifact@v4
       with:
