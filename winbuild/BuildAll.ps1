@@ -31,9 +31,8 @@
     the configuration file other than standard one.
     The relative path is relative to the current directory.
 .PARAMETER UseMimalloc
-    Whether to use the mimalloc allocator for improved performance.
-	Requires a toolset of v141, v142 or later. Specify "yes" or
-	"no"(default).
+    Specify whether to use the mimalloc allocator for improved performance.
+	Requires a toolset of v141, v142 or later.
 .EXAMPLE
     > .\BuildAll
 	Build with default or automatically selected parameters.
@@ -70,8 +69,7 @@ Param(
 [String]$Configuration="Release",
 [string]$BuildConfigPath,
 [switch]$AlongWithInstallers,
-[ValidateSet("yes", "no")]
-[string]$UseMimalloc="no"
+[switch]$UseMimalloc
 )
 
 function buildPlatform([xml]$configInfo, [string]$Platform)
@@ -107,7 +105,9 @@ function buildPlatform([xml]$configInfo, [string]$Platform)
 		$macroList = iex "write-output $BUILD_MACROS"
 	}
 
-	if ($UseMimalloc -eq "yes") {
+	if ($UseMimalloc) {
+		$mimallocProperty = "yes"
+
 		switch ($VCVersion) {
 			"10.0"	{ $mimallocIdeDir = "vs2017" }
 			"11.0"	{ $mimallocIdeDir = "vs2017" }
@@ -124,7 +124,7 @@ function buildPlatform([xml]$configInfo, [string]$Platform)
 	}
 
 	# build psqlodbc
-	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN /p:MIMALLOC=$UseMimalloc $macroList
+	& ${msbuildexe} ./platformbuild.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} /p:DRIVERVERSION=$DRIVERVERSION /p:PG_INC=$PG_INC /p:PG_LIB=$PG_LIB /p:PG_BIN=$PG_BIN /p:MIMALLOC=$mimallocProperty $macroList
 }
 
 $scriptPath = (Split-Path $MyInvocation.MyCommand.Path)
