@@ -210,6 +210,8 @@ function vcxfile_make($testnames, $dirnames, $vcxfile)
 
 function RunTest($scriptPath, $Platform, $testexes)
 {
+	$originalErrorActionPreference = $ErrorActionPreference
+
 	# Run regression tests
 	if ($Platform -eq "x64") {
 		$targetdir="test_x64"
@@ -230,7 +232,6 @@ function RunTest($scriptPath, $Platform, $testexes)
 		if ($LASTEXITCODE -ne 0) {
 			throw "`treset_db error"
 		}
-		$env:MIMALLOC_VERBOSE = 1
 		$cnstr = @()
 		switch ($DeclareFetch) {
 			"off"	{ $cnstr += "UseDeclareFetch=0" }
@@ -241,6 +242,9 @@ function RunTest($scriptPath, $Platform, $testexes)
 		if ($cnstr.length -eq 0) {
 			$cnstr += $null
 		}
+		# Temporarily set $ErrorActionPreference to "Continue" because MIMALLOC_VERBOSE writes to stderr
+		$ErrorActionPreference = "Continue"
+		$env:MIMALLOC_VERBOSE = 1
 		for ($i = 0; $i -lt $cnstr.length; $i++)
 		{
 			$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $cnstr[$i]
@@ -250,7 +254,7 @@ function RunTest($scriptPath, $Platform, $testexes)
 			write-host "`n`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
 			.\runsuite $testexes --inputdir=$origdir 2>&1 | Tee-Object -Variable runsuiteOutput
 
-			# Check whether mimalloc ran by searching for a message printed by the MIMALLOC_VERBOSE option
+			# Check whether mimalloc ran by searching for a verbose message from mimalloc
 			if ($ExpectMimalloc -xor ($runsuiteOutput -match "mimalloc: process done")) {
 				throw "`tmimalloc usage was expected to be $ExpectMimalloc"
 			}
@@ -258,8 +262,9 @@ function RunTest($scriptPath, $Platform, $testexes)
 	} catch [Exception] {
 		throw $error[0]
 	} finally {
-		$env:MIMALLOC_VERBOSE = $null
 		$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST = $null
+		$env:MIMALLOC_VERBOSE = $null
+		$ErrorActionPreference = $originalErrorActionPreference
 	}
 }
 
