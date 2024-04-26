@@ -24,6 +24,9 @@
 #endif
 #include "version.h"
 
+#ifdef	_MIMALLOC_
+#include <stdlib.h>
+#else /* _MIMALLOC_ */
 #ifdef	WIN32
 #ifdef	_DEBUG
 #ifndef	_MEMORY_DEBUG_
@@ -40,6 +43,11 @@
 #include <stdbool.h>
 #else  /* WIN32 */
 #include <stdlib.h>
+#endif /* WIN32 */
+#endif /* _MIMALLOC_ */
+
+#ifdef	WIN32
+#include <stdbool.h>
 #endif /* WIN32 */
 
 #ifdef  __INCLUDE_POSTGRES_FE_H__ /* currently not defined */
@@ -60,6 +68,21 @@
 #define pg_attribute_printf(f,a)
 #endif  /* __GNUC__ || __IBMC__ */
 #endif  /* __INCLUDE_POSTGRES_FE_H__ */
+
+#ifdef	_MIMALLOC_
+#include <mimalloc.h>
+#define pg_malloc	mi_malloc
+#define pg_realloc 	mi_realloc
+#define pg_calloc	mi_calloc
+#define pg_strdup	mi_strdup
+#define pg_free		mi_free
+#else  /* _MIMALLOC_ */
+#define pg_malloc	malloc
+#define pg_realloc 	realloc
+#define pg_calloc	calloc
+#define pg_strdup	_strdup
+#define pg_free		free
+#endif /* _MIMALLOC_ */
 
 #ifdef	_MEMORY_DEBUG_
 void		*pgdebug_alloc(size_t);
@@ -87,6 +110,15 @@ void		debug_memory_check(void);
 /* #define strncpy_null	pgdebug_strncpy_null */
 #define memcpy	pgdebug_memcpy
 #define memset	pgdebug_memset
+#else   /* _MEMORY_DEBUG_ */
+#ifdef	WIN32
+#undef strdup
+#endif /* WIN32 */
+#define malloc	pg_malloc
+#define realloc pg_realloc
+#define calloc	pg_calloc
+#define strdup	pg_strdup
+#define free	pg_free
 #endif   /* _MEMORY_DEBUG_ */
 
 #ifdef	WIN32
