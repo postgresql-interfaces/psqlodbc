@@ -305,4 +305,4 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "winbuild/standard/installer/x86/*.msi,winbuild/standard/installer/x86/*.msm,winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+        artifacts: "winbuild/standard/installer/x64/*.ms?,winbuild/standard/installer/x86/*.ms?,winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
