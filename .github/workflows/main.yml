@@ -184,54 +184,116 @@ jobs:
         sc config "postgresql-x64-14" start= auto
     - name: get psqlodbc
       uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: 'setup msvc for psqlodbc'
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with: 
         arch: x86
-    - name: build psqlodbc
+
+    - name: build psqlodbc standard
       shell: powershell      
       run: |
         copy .github\workflows\configuration.xml winbuild
         winbuild\BuildAll.ps1
         installer\buildInstallers.ps1
-    - name: test psqlodbc
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\standard
+    - name: test psqlodbc standard
       shell: powershell
       run: |
         winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
-    - name: Upload x64 merge module
+        standard\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
+        standard\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\standard
+
+    - name: build psqlodbc mimalloc
+      shell: powershell      
+      run: |
+        copy .github\workflows\configuration.xml winbuild
+        winbuild\BuildAll.ps1 -UseMimalloc
+        installer\buildInstallers.ps1
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\mimalloc
+    - name: test psqlodbc mimalloc
+      shell: powershell
+      run: |
+        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ExpectMimalloc
+        mimalloc\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
+        mimalloc\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\mimalloc
+
+    - name: Upload standard x64 merge module
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC x64 Merge Module
-        path: ./installer/x64/*.msm
+        name: psqlODBC Standard x64 Merge Module
+        path: winbuild/standard/installer/x64/*.msm
         retention-days: 5
         if-no-files-found: error
-    - name: Upload x64 installer package
+    - name: Upload standard x64 installer package
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC x64 Installer
-        path: ./installer/x64/*.msi
+        name: psqlODBC Standard x64 Installer
+        path: winbuild/standard/installer/x64/*.msi
         retention-days: 5
         if-no-files-found: error
-    - name: Upload x86 merge module
+    - name: Upload standard x86 merge module
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC x86 Merge Module
-        path: ./installer/x86/*.msm
+        name: psqlODBC Standard x86 Merge Module
+        path: winbuild/standard/installer/x86/*.msm
         retention-days: 5
         if-no-files-found: error
-    - name: Upload x86 installer package
+    - name: Upload standard x86 installer package
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC x86 Installer
-        path: ./installer/x86/*.msi
+        name: psqlODBC Standard x86 Installer
+        path: winbuild/standard/installer/x86/*.msi
         retention-days: 5
         if-no-files-found: error
-    - name: Upload x64 setup
-      id: x64_setup
+    - name: Upload standard x64 setup
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC x64 Setup
-        path: ./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
+        name: psqlODBC Standard x64 Setup
+        path: winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Upload mimalloc x64 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC mimalloc x64 Merge Module
+        path: winbuild/mimalloc/installer/x64/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload mimalloc x64 installer package
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC mimalloc x64 Installer
+        path: winbuild/mimalloc/installer/x64/*.msi
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload mimalloc x86 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC mimalloc x86 Merge Module
+        path: winbuild/mimalloc/installer/x86/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload mimalloc x86 installer package
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC mimalloc x86 Installer
+        path: winbuild/mimalloc/installer/x86/*.msi
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload mimalloc x64 setup
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC mimalloc x64 Setup
+        path: winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
         retention-days: 5
         if-no-files-found: error
 
@@ -243,4 +305,4 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "./installer/x86/*.msi,./installer/x86/*.msm,./installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+        artifacts: "winbuild/standard/installer/x64/*.ms?,winbuild/standard/installer/x86/*.ms?,winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
