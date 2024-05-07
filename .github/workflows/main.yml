@@ -149,8 +149,8 @@ jobs:
           printf                                          "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-0.28-1\\bin" >> %GITHUB_PATH%
 
     - name: Install Win32OpenSSL
-     shell: cmd
-     run: Win32OpenSSL-3_3_0.exe /sp /silent /dir=c:\openssl32
+      shell: cmd
+      run: Win32OpenSSL-3_3_0.exe /sp /silent /dir=c:\openssl32
 
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
