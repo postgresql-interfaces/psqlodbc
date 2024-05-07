@@ -173,7 +173,7 @@ jobs:
     - name: 'build postgresx86'    
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
-        meson setup buildx86  -Dopenssl=c:\openssl32 --prefix=d:\postgresql86
+        meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\openssl32\lib\VC\x86\MT -Dextra_include_dirs=c:\openssl32\include --prefix=d:\postgresql86
         cd buildx86
         ninja -v
         ninja -v install
