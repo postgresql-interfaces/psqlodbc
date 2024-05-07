@@ -275,7 +275,6 @@ function Find-Dumpbin
 		}
 	}
 	
-	Write-Host "Dumpbin=$dumpbinexe"
 	Set-Variable -Name dumpbinexe -Value $dumpbinexe -Scope 1
 	Set-Variable -Name addPath -Value $addPath -Scope 1
 	if ("$addPath" -ne "") {

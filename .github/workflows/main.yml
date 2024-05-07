@@ -68,7 +68,12 @@ jobs:
         key:  pkg-config-lite-0.28-1_bin-win32.zip
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
-
+    - name: Cache Win32OpenSSL32 for Win32Compile
+      uses: actions/cache@v4
+      id: cacheWin32OpenSSL-3_3
+      with:
+        path: C:\OTHERBIN\openssl32
+        key: Win32OpenSSL-3_3_0.exe
     - name: Cache winflexbison for Compile using msvc
       uses: actions/cache@v4
       id: cacheWinFlexBisonZip
@@ -84,6 +89,14 @@ jobs:
       with:
         retry-times: 5
         url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/2.8.7-1/diffutils-2.8.7-1-bin.zip
+    
+    - name: Download openssl32 for win32 compile
+      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true'}}
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadWin32OpenSSL3_3_3
+      with:
+        retry-times: 5
+        url: https://slproweb.com/download/Win32OpenSSL-3_3_0.exe
 
     - name: Download pkgconfiglite for Compile using msvc and meson
       if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true'}}
@@ -135,6 +148,10 @@ jobs:
           rem - man7.org/linux/man-pages/man1/printf.1.html
           printf                                          "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-0.28-1\\bin" >> %GITHUB_PATH%
 
+    - name: Install Win32OpenSSL
+     shell: cmd
+     run: Win32OpenSSL-3_3_0.exe /sp /silent /dir=c:\openssl32
+
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
     - name: Extract winflexbison and add the winflexbison directory to the PATH for Compile using msvc
@@ -156,10 +173,11 @@ jobs:
     - name: 'build postgresx86'    
       if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
       run: |
-        meson setup buildx86 --prefix=d:\postgresql86
+        meson setup buildx86  -Dopenssl=c:\openssl32 --prefix=d:\postgresql86
         cd buildx86
         ninja -v
         ninja -v install
+        cp c:\openssl32\*.dll d:\postgresql86\bin
     - name: 'setup msvc x64'    
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
