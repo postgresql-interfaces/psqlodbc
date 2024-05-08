@@ -2314,7 +2314,7 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 		{
 			char			fetch[128];
 			QResultClass 	*last = NULL, *res;
-BOOL			refcursor_found = FALSE;
+			BOOL			refcursor_found = FALSE;
 
 			/* Iterate the columns in the result to look for refcursors */
 			numcols = QR_NumResultCols(rhold.first);
@@ -2329,9 +2329,9 @@ BOOL			refcursor_found = FALSE;
 						break;
 					}
 
-refcursor_found = TRUE;
+					refcursor_found = TRUE;
 					STR_TO_NAME(self->cursor_name, QR_get_value_backend_text(rhold.first, 0, i));
-/* Skip NULL refcursors (allows procedure to return a variable number of results) */
+					/* Skip NULL refcursors (allows procedure to return a variable number of results) */
 					if (!SC_cursor_is_valid(self))
 						continue;
 
@@ -2359,7 +2359,6 @@ refcursor_found = TRUE;
 						if (!QR_command_maybe_successful(res))
 						{
 							SC_set_errorinfo(self, res, 0);
-							QR_Destructor(rhold.first);
 							break;
 						}
 					}
