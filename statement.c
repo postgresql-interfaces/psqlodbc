@@ -883,7 +883,7 @@ SC_recycle_statement(StatementClass *self)
 			break;
 
 		default:
-			SC_set_error(self, STMT_INTERNAL_ERROR, "An internal error occured while recycling statements", func);
+			SC_set_error(self, STMT_INTERNAL_ERROR, "An internal error occurred while recycling statements", func);
 			return FALSE;
 	}
 
@@ -1840,7 +1840,7 @@ MYLOG(DETAIL_LOG_LEVEL, "curt=" FORMAT_LEN "\n", curt);
 					break;
 
 				case COPY_INVALID_STRING_CONVERSION:    /* invalid string */
-					SC_set_error(self, STMT_STRING_CONVERSION_ERROR, "invalid string conversion occured.", func);
+					SC_set_error(self, STMT_STRING_CONVERSION_ERROR, "invalid string conversion occurred.", func);
 					result = SQL_ERROR;
 					break;
 
@@ -1986,7 +1986,7 @@ SC_execute(StatementClass *self)
 
 	if (!SC_SetExecuting(self, TRUE))
 	{
-		SC_set_error(self, STMT_OPERATION_CANCELLED, "Cancel Reuest Accepted", func);
+		SC_set_error(self, STMT_OPERATION_CANCELLED, "Cancel Request Accepted", func);
 		goto cleanup;
 	}
 	conn->status = CONN_EXECUTING;
@@ -2106,7 +2106,7 @@ SC_execute(StatementClass *self)
 	{
 		/*
 		 * We shouldn't send COMMIT. Postgres backend does the autocommit
-		 * if neccessary. (Zoltan, 04/26/2000)
+		 * if necessary. (Zoltan, 04/26/2000)
 		 */
 
 		/*
@@ -3197,7 +3197,7 @@ SC_set_errorinfo(StatementClass *self, QResultClass *res, int errkind)
 			SC_set_error_if_not_set(self, STMT_NO_MEMORY_ERROR, "memory allocation error???", __FUNCTION__);
 			break;
 		case PORES_BAD_RESPONSE:
-			SC_set_error_if_not_set(self, STMT_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);
+			SC_set_error_if_not_set(self, STMT_COMMUNICATION_ERROR, "communication error occurred", __FUNCTION__);
 			break;
 		case PORES_INTERNAL_ERROR:
 			SC_set_error_if_not_set(self, STMT_INTERNAL_ERROR, "Internal error fetching next row", __FUNCTION__);

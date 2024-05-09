@@ -59,7 +59,7 @@ struct QResultClass_
 
 	/* Stuff for declare/fetch tuples */
 	SQLULEN		num_total_read;	/* the highest absolute position ever read in + 1 */
-	SQLULEN		count_backend_allocated;/* m(re)alloced count */
+	SQLULEN		count_backend_allocated;/* m(re)allocated count */
 	SQLULEN		num_cached_rows;	/* count of tuples kept in backend_tuples member */
 	SQLLEN		fetch_number;	/* 0-based index to the tuple to read next */
 	SQLLEN		cursTuple;	/* absolute current position in the servr's cursor used to retrieve tuples from the DB */
@@ -90,7 +90,7 @@ struct QResultClass_
 	char	flags;			/* this result contains keyset etc ? */
 	po_ind_t	move_direction;	/* must move before fetching this
 						result set */
-	SQLULEN		count_keyset_allocated; /* m(re)alloced count */
+	SQLULEN		count_keyset_allocated; /* m(re)allocated count */
 	SQLULEN		num_cached_keys;	/* count of keys kept in backend_keys member */
 	KeySet		*keyset;
 	SQLLEN		key_base;	/* relative position of rowset start in the current keyset cache */

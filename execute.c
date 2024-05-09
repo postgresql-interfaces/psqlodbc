@@ -91,7 +91,7 @@ PGAPI_Prepare(HSTMT hstmt,
 			goto cleanup;
 
 		default:
-			SC_set_error(self, STMT_INTERNAL_ERROR, "An Internal Error has occured -- Unknown statement status.", func);
+			SC_set_error(self, STMT_INTERNAL_ERROR, "An Internal Error has occurred -- Unknown statement status.", func);
 			retval = SQL_ERROR;
 			goto cleanup;
 	}
@@ -1398,7 +1398,7 @@ PGAPI_NativeSql(HDBC hdbc,
 
 /*
  *	Supplies parameter data at execution time.
- *	Used in conjuction with SQLPutData.
+ *	Used in conjunction with SQLPutData.
  */
 RETCODE		SQL_API
 PGAPI_ParamData(HSTMT hstmt,

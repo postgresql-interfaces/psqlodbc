@@ -82,7 +82,7 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
  *	2:[CONN_CS] -- per psqlodbc connection lock
  *	  This lock would be held for a pretty long time while accessing
  *	  the psqlodbc connection assigned to an IAsyncPG object. You
- *	  can use the connecion safely by holding a ELOCK for the
+ *	  can use the connection safely by holding a ELOCK for the
  *	  IAsyncPG object because the assignment is ensured to be
  *	  fixed while the ELOCK is held.
  *
@@ -1039,12 +1039,12 @@ static int regkeyCheck(const char *xalibname, const char *xalibpath)
 				else
 				{
 					retcode = -1;
-					mylog("%s:SetValuEx ret=%d\n", __FUNCTION__, ret);
+					mylog("%s:SetValueEx ret=%d\n", __FUNCTION__, ret);
 				}
 				break;
 			default:
 				retcode = -1;
-				mylog("%s:QueryValuEx ret=%d\n", __FUNCTION__, ret);
+				mylog("%s:QueryValueEx ret=%d\n", __FUNCTION__, ret);
 				break;
 		}
 		::RegCloseKey(sKey);
@@ -1073,7 +1073,7 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 		res = pDtc->QueryInterface(IID_IDtcToXaHelperSinglePipe, (void **) &pHelper);
 		if (res != S_OK || !pHelper)
 		{
-			mylog("DtcToXaHelperSingelPipe get error %d\n", res);
+			mylog("DtcToXaHelperSinglePipe get error %d\n", res);
 			pHelper = NULL;
 			return SQL_ERROR;
 		}

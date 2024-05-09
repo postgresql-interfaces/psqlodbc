@@ -797,7 +797,7 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 		case SQL_DESC_NUM_PREC_RADIX:
 		default:ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
-				"invaid descriptor identifier");
+				"invalid descriptor identifier");
 	}
 	if (unbind)
 		opts->parameters[para_idx].buffer = NULL;
@@ -1275,7 +1275,7 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 		case SQL_DESC_LENGTH:
 		default:ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
-					"invalid descriptor identifer");
+					"invalid descriptor identifier");
 	}
 	switch (rettype)
 	{

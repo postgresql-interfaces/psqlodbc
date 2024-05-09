@@ -503,9 +503,9 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 		/*
 		 * Values enclosed with braces({}) can contain ; etc
 		 * We don't remove the braces here because
-		 * decode_or_remove_braces() in dlg_specifi.c
+		 * decode_or_remove_braces() in dlg_specific.c
 		 * would remove them later.
-		 * Just correct the misdetected delimter(;).
+		 * Just correct the misdetected delimiter(;).
 		 */
 		switch (*value)
 		{

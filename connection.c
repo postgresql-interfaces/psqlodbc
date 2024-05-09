@@ -1674,7 +1674,7 @@ CC_from_PGresult(QResultClass *res, StatementClass *stmt,
 					CC_set_error(conn, CONN_NO_MEMORY_ERROR, NULL, __FUNCTION__);
 					break;
 				case PORES_BAD_RESPONSE:
-					CC_set_error(conn, CONNECTION_COMMUNICATION_ERROR, "communication error occured", __FUNCTION__);
+					CC_set_error(conn, CONNECTION_COMMUNICATION_ERROR, "communication error occurred", __FUNCTION__);
 					break;
 				default:
 					CC_set_error(conn, CONN_EXEC_ERROR, QR_get_message(res), __FUNCTION__);
@@ -1829,7 +1829,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 
 	/*
 	 *	In case the round trip time can be ignored, the query
-	 *	and the appeneded query would be issued separately.
+	 *	and the appended query would be issued separately.
 	 *	Otherwise a multiple command query would be issued.
 	 */
 	if (appendq && ignore_roundtrip_time)
@@ -2091,7 +2091,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 			case PGRES_FATAL_ERROR:
 				handle_pgres_error(self, pgres, "send_query", res, TRUE);
 
-				/* We should report that an error occured. Zoltan */
+				/* We should report that an error occurred. Zoltan */
 				aborted = TRUE;
 
 				query_completed = TRUE;

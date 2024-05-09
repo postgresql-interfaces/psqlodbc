@@ -79,7 +79,7 @@ CREATE OR REPLACE FUNCTION ucase(text) RETURNS text AS '
 -- Numeric Functions
 -- +++++++++++++++++
 --
--- Built-in: ABS, ACOS, ASIN, ATAN, ATAN2, COS, COT, DEGRESS, EXP,
+-- Built-in: ABS, ACOS, ASIN, ATAN, ATAN2, COS, COT, DEGREES, EXP,
 --           FLOOR, MOD, PI, RADIANS, ROUND, SIGN, SIN, SQRT, TAN
 -- Missing: LOG (ODBC sense)
 

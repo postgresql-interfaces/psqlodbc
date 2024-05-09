@@ -109,7 +109,7 @@ Int2		pgtype_attr_scale(const ConnectionClass *conn, OID type, int atttypmod, in
 
 /*	These functions can use static numbers or result sets(col parameter) */
 Int4		pgtype_column_size(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as); /* corresponds to "precision" in ODBC 2.x */
-SQLSMALLINT	pgtype_precision(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as); /* "precsion in ODBC 3.x */
+SQLSMALLINT	pgtype_precision(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as); /* "precision in ODBC 3.x */
 /* the following size/length are of Int4 due to PG restriction */
 Int4		pgtype_display_size(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 Int4		pgtype_buffer_length(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);

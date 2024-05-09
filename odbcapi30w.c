@@ -431,7 +431,7 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 	return SQL_ERROR;
 }
 
-/*	new fucntion */
+/*	new function */
 RETCODE		SQL_API
 SQLSetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLSMALLINT Type,

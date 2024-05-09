@@ -337,7 +337,7 @@ struct ConnectionClass_
 	Int2		num_discardp;
 	char		**discardp;
 	int		num_descs;
-	SQLUINTEGER	default_isolation;	/* server's default isolation initially unkown */
+	SQLUINTEGER	default_isolation;	/* server's default isolation initially unknown */
 	DescriptorClass	**descs;
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
