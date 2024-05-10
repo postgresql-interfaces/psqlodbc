@@ -29,7 +29,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: "postgres/postgres.git"
-        ref: 'master'
+        ref: 'REL_16_STABLE'
     - name: 'get meson'
       run: |
         python -m pip install meson
@@ -74,6 +74,12 @@ jobs:
       with:
         path: C:\OTHERBIN\openssl32
         key: Win32OpenSSL-3_3_0.exe
+    - name: Cache Win32OpenSSL64 for Win64Compile
+      uses: actions/cache@v4
+      id: cacheWin64OpenSSL-3_3
+      with:
+        path: C:\OTHERBIN\openssl64
+        key: Win64OpenSSL-3_3_0.exe
     - name: Cache winflexbison for Compile using msvc
       uses: actions/cache@v4
       id: cacheWinFlexBisonZip
@@ -98,6 +104,14 @@ jobs:
         retry-times: 5
         url: https://slproweb.com/download/Win32OpenSSL-3_3_0.exe
 
+    - name: Download openssl64 for win64 compile
+      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true'}}
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadWin64OpenSSL3_3_3
+      with:
+        retry-times: 5
+        url: https://slproweb.com/download/Win64OpenSSL-3_3_0.exe
+  
     - name: Download pkgconfiglite for Compile using msvc and meson
       if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
@@ -152,6 +166,10 @@ jobs:
       shell: cmd
       run: Win32OpenSSL-3_3_0.exe /sp /silent /dir=c:\openssl32
 
+    - name: Install Win32OpenSSL
+      shell: cmd
+      run: Win64OpenSSL-3_3_0.exe /sp /silent /dir=c:\openssl64
+  
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
     - name: Extract winflexbison and add the winflexbison directory to the PATH for Compile using msvc
@@ -186,10 +204,11 @@ jobs:
     - name : 'build postgres x64'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       run: |
-        meson setup build --prefix=d:\postgresql
+        meson setup build -Dssl=openssl -Dextra_lib_dirs=c:\openssl64\lib\VC\x64\MT -Dextra_include_dirs=c:\openssl64\include --prefix=d:\postgresql
         cd build
         ninja
         ninja install
+        cp c:\openssl64\*.dll d:\postgresql\bin
     - name: install postgresql binary
       shell: cmd
       run: |

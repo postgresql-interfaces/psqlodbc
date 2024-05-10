@@ -17,9 +17,9 @@
   </x86>
   <x64>
     <libpq version="y">
-      <include>c:\Program Files\PostgreSQL\16\include</include>
-      <lib>c:\Program Files\PostgreSQL\16\lib</lib>
-      <bin>c:\Program Files\PostgreSQL\16\bin</bin>
+      <include>d:\postgresql\include</include>
+      <lib>d:\postgresql\lib</lib>
+      <bin>d:\postgresql\bin</bin>
     </libpq>
     <setvcvars>
     </setvcvars>
