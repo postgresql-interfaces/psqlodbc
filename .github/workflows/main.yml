@@ -120,7 +120,7 @@ jobs:
       id: downloadPostgresInstaller
       with:
         retry-times: 5
-        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1258893
+        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1259019
         target: c:\OTHERBIN
         filename: postgresql_install.exe
 
