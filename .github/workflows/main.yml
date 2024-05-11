@@ -69,7 +69,7 @@ jobs:
       id: cacheDiffutilsZip
       with:
         path: C:\OTHERBIN\diffutils
-        key: diffutils-${{env.DIFFUTILS_VERSION}}
+        key: diff_utils-${{env.DIFFUTILS_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Cache PostgreSQL installer
@@ -100,7 +100,7 @@ jobs:
       id: cacheWinFlexBisonZip
       with:
         path: C:\OTHERBIN\winflexbison
-        key:  win_flex_bison-${{env.WINFLEXBISON_VERSION}}
+        key: winflexbison-${{env.WINFLEXBISON_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1    
 
