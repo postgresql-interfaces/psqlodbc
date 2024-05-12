@@ -353,11 +353,25 @@ jobs:
         retention-days: 5
         if-no-files-found: error
 
-    - name: Create Release
+    - name: Create mimalloc Release
       if: startsWith(github.ref, 'refs/tags/REL-')
       uses: ncipollo/release-action@v1.14.0
-      id: create_release
+      id: create_mimalloc_release
       with:
+        tag: ${{github.ref_name}}-mimalloc
+        commit: ${{github.sha}}
+        body: A build of ${{github.ref_name}} that uses the mimalloc allocator for improved performance.
+        makeLatest: false
+        draft: false
+        prerelease: false
+        token: ${{secrets.RELEASE_TOKEN}}
+        artifacts: "winbuild/mimalloc/installer/x64/*.ms?,winbuild/mimalloc/installer/x86/*.ms?,winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+    - name: Create Standard Release
+      if: startsWith(github.ref, 'refs/tags/REL-')
+      uses: ncipollo/release-action@v1.14.0
+      id: create_standard_release
+      with:
+        makeLatest: true
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
