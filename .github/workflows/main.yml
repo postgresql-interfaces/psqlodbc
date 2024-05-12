@@ -18,6 +18,14 @@ env:
   # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
+  # Software versions. 
+  POSTGRESQL_SOURCE_TAG: 'REL_16_3'
+  POSTGRESQL_PACKAGE_FILEID: '1259019'
+  OPENSSL_VERSION: '3_3_0'
+  PKGCONFIGLITE_VERSION: '0.28-1'
+  WINFLEXBISON_VERSION: '2.5.24'
+  DIFFUTILS_VERSION: '2.8.7-1'
+
 permissions:
   contents: read
 
@@ -26,32 +34,42 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: "postgres/postgres.git"
-        ref: 'master'
-    - name: 'get meson'
-      run: |
-        python -m pip install meson
-        python -m pip install ninja
-    - name: Cache Postgres directory 
+    - name: Cache Postgres build output
       uses: actions/cache@v4
       id: cachePostgres
       with:
-        path: d:\postgresql
-        key: postgresql    
-    - name: Cache Postgres86 directory 
+        path: |
+          d:\postgresql
+          d:\postgresql86
+        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}
+
+    - name: Cache Postgres source
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
-      id: cachePostgres86
+      id: cachePostgresSource
       with:
-        path: d:\postgresql86
-        key: postgresql86    
+        path: postgresql
+        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}-source
+    - name: Get Postgres source
+      uses: actions/checkout@v4
+      if: ${{steps.cachePostgresSource.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
+      with:
+        repository: "postgres/postgres.git"
+        ref: ${{env.POSTGRESQL_SOURCE_TAG}}
+        path: postgresql
+
+    - name: 'get meson'
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      run: |
+        python -m pip install meson
+        python -m pip install ninja
+
     - name: Cache GNU diffutils for Test on PostgreSQL for Windows
       uses: actions/cache@v4
       id: cacheDiffutilsZip
       with:
         path: C:\OTHERBIN\diffutils
-        key:  diffutils-2.8.7-1-bin.zip
+        key: diff_utils-${{env.DIFFUTILS_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Cache PostgreSQL installer
@@ -59,60 +77,68 @@ jobs:
       id: cachePostgresInstaller
       with:
         path: C:\OTHERBIN\postgresql_install.exe
-        key: postgresql_installer
+        key: postgresql_installer-${{env.POSTGRESQL_PACKAGE_FILEID}}
     - name: Cache pkgconfiglite for Compile using msvc and meson
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
       id: cachePkgConfigLiteZip
       with:
         path: C:\OTHERBIN\pkgconfiglite
-        key:  pkg-config-lite-0.28-1_bin-win32.zip
+        key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Cache Win32OpenSSL32 for Win32Compile
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
-      id: cacheWin32OpenSSL-3_3
+      id: cacheWin32OpenSSL
       with:
         path: C:\OTHERBIN\openssl32
-        key: Win32OpenSSL-3_3_0.exe
+        key: Win32OpenSSL-${{env.OPENSSL_VERSION}}
     - name: Cache winflexbison for Compile using msvc
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
       id: cacheWinFlexBisonZip
       with:
         path: C:\OTHERBIN\winflexbison
-        key:  win_flex_bison-2.5.24.zip
+        key: winflexbison-${{env.WINFLEXBISON_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1    
+
     - name: Download GNU diffutils for Test on PostgreSQL for Windows 
       if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadDiffutilsZip
       with:
         retry-times: 5
-        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/2.8.7-1/diffutils-2.8.7-1-bin.zip
+        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/${{env.DIFFUTILS_VERSION}}/diffutils-${{env.DIFFUTILS_VERSION}}-bin.zip
+        filename: diffutils-bin.zip
     
     - name: Download openssl32 for win32 compile
-      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true'}}
+      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadWin32OpenSSL3_3_3
+      id: downloadWin32OpenSSL
       with:
         retry-times: 5
-        url: https://slproweb.com/download/Win32OpenSSL-3_3_0.exe
+        url: https://slproweb.com/download/Win32OpenSSL-${{env.OPENSSL_VERSION}}.exe
+        filename: Win32OpenSSL.exe
 
     - name: Download pkgconfiglite for Compile using msvc and meson
-      if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true'}}
+      if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadPkgConfigLiteZip
       with:
         retry-times: 5
-        url: http://downloads.sourceforge.net/project/pkgconfiglite/0.28-1/pkg-config-lite-0.28-1_bin-win32.zip
+        url: http://downloads.sourceforge.net/project/pkgconfiglite/${{env.PKGCONFIGLITE_VERSION}}/pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}_bin-win32.zip
+        filename: pkg-config-lite_bin-win32.zip
 
     - name: Download winflexbison for Compile using msvc
-      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true'}}
+      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
       id: downloadWinFlexBisonZip
       with:
         retry-times: 5
-        url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-2.5.24.zip
+        url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-${{env.WINFLEXBISON_VERSION}}.zip
+        filename: win_flex_bison.zip
 
     - name: Download postgresql install from EDB
       uses: suisei-cn/actions-download-file@v1.6.0
@@ -120,58 +146,69 @@ jobs:
       id: downloadPostgresInstaller
       with:
         retry-times: 5
-        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=1259019
+        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=${{env.POSTGRESQL_PACKAGE_FILEID}}
         target: c:\OTHERBIN
         filename: postgresql_install.exe
 
-    - name: Extract Diffuntils and add Diffuntils bin directory to the PATH for Test on PostgreSQL for Windows
+    - name: Extract Diffutils for Test on PostgreSQL for Windows
+      if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true'}}
       shell: cmd
       run: |
         rem MKDIR creates any intermediate directories in the path, if needed.
-        mkdir                                "C:\OTHERBIN\diffutils"
+        mkdir "C:\OTHERBIN\diffutils"
         rem 7z is provided by Github Actions
-        7z x  diffutils-2.8.7-1-bin.zip    -o"C:\OTHERBIN\diffutils"
-        copy  diffutils-2.8.7-1-bin.zip      "C:\OTHERBIN\diffutils"
-        dir                                  "C:\OTHERBIN\diffutils"
+        7z x diffutils-bin.zip -o"C:\OTHERBIN\diffutils"
+    - name: Add Diffutils bin directory to the PATH for Test on PostgreSQL for Windows
+      shell: cmd
+      run: |
         rem - man7.org/linux/man-pages/man1/printf.1.html
-        printf                               "C:\\OTHERBIN\\diffutils\\bin" >> %GITHUB_PATH%
+        printf "C:\\OTHERBIN\\diffutils\\bin" >> %GITHUB_PATH%
 
-    - name: Extract pkgconfiglite and add pkgconfiglite bin directory to the PATH for Compile using msvc and meson
+    - name: Extract pkgconfiglite for Compile using msvc and meson
+      if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       shell: cmd
       run: |
         rem MKDIR creates any intermediate directories in the path, if needed.
-        mkdir                                           "C:\OTHERBIN\pkgconfiglite"
+        mkdir "C:\OTHERBIN\pkgconfiglite"
         rem 7z is provided by Github Actions
-        7z x  pkg-config-lite-0.28-1_bin-win32.zip    -o"C:\OTHERBIN\pkgconfiglite"
-        copy  pkg-config-lite-0.28-1_bin-win32.zip      "C:\OTHERBIN\pkgconfiglite"
-        dir                                             "C:\OTHERBIN\pkgconfiglite"
-          rem - man7.org/linux/man-pages/man1/printf.1.html
-          printf                                          "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-0.28-1\\bin" >> %GITHUB_PATH%
+        7z x pkg-config-lite_bin-win32.zip -o"C:\OTHERBIN\pkgconfiglite"
+    - name: Add pkgconfiglite bin directory to the PATH for Compile using msvc and meson
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      shell: cmd
+      run: |
+        rem - man7.org/linux/man-pages/man1/printf.1.html
+        printf "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-%PKGCONFIGLITE_VERSION%\\bin" >> %GITHUB_PATH%
 
     - name: Install Win32OpenSSL
+      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       shell: cmd
-      run: Win32OpenSSL-3_3_0.exe /sp /silent /dir=c:\openssl32
+      run: Win32OpenSSL.exe /sp /silent /dir=c:\openssl32
 
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
-    - name: Extract winflexbison and add the winflexbison directory to the PATH for Compile using msvc
+    - name: Extract winflexbison for Compile using msvc
+      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       shell: cmd
       run: |
         rem MKDIR creates any intermediate directories in the path, if needed.
-        mkdir                                           "C:\OTHERBIN\winflexbison"
+        mkdir "C:\OTHERBIN\winflexbison"
         rem 7z is provided by Github Actions
-        7z x  win_flex_bison-2.5.24.zip               -o"C:\OTHERBIN\winflexbison"
-        copy  win_flex_bison-2.5.24.zip                 "C:\OTHERBIN\winflexbison"
-        dir                                             "C:\OTHERBIN\winflexbison"
+        7z x win_flex_bison.zip -o"C:\OTHERBIN\winflexbison"
+    - name: Add the winflexbison directory to the PATH for Compile using msvc
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      shell: cmd
+      run: |
         rem - man7.org/linux/man-pages/man1/printf.1.html
-        printf                                          "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+        printf "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+
     - name: 'setup msvc x86'
-      if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with: 
         arch: x86
     - name: 'build postgresx86'    
-      if: ${{steps.cachePostgres86.outputs.cache-hit != 'true'}}
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      working-directory: postgresql
       run: |
         meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\openssl32\lib\VC\x86\MT -Dextra_include_dirs=c:\openssl32\include --prefix=d:\postgresql86
         cd buildx86
@@ -185,6 +222,7 @@ jobs:
         arch: x64
     - name : 'build postgres x64'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      working-directory: postgresql
       run: |
         meson setup build --prefix=d:\postgresql
         cd build
