@@ -94,6 +94,13 @@ jobs:
       with:
         path: C:\OTHERBIN\openssl32
         key: Win32OpenSSL-${{env.OPENSSL_VERSION}}
+    - name: Cache Win64OpenSSL64 for Win64Compile
+      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+      uses: actions/cache@v4
+      id: cacheWin64OpenSSL
+      with:
+        path: C:\OTHERBIN\openssl64
+        key: Win64OpenSSL-${{env.OPENSSL_VERSION}}
     - name: Cache winflexbison for Compile using msvc
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
@@ -121,7 +128,16 @@ jobs:
         retry-times: 5
         url: https://slproweb.com/download/Win32OpenSSL-${{env.OPENSSL_VERSION}}.exe
         filename: Win32OpenSSL.exe
-
+    
+    - name: Download openssl64 for win64 compile
+      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadWin64OpenSSL
+      with:
+        retry-times: 5
+        url: https://slproweb.com/download/Win64OpenSSL-${{env.OPENSSL_VERSION}}.exe
+        filename: Win64OpenSSL.exe
+  
     - name: Download pkgconfiglite for Compile using msvc and meson
       if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
@@ -184,6 +200,11 @@ jobs:
       shell: cmd
       run: Win32OpenSSL.exe /sp /silent /dir=c:\openssl32
 
+    - name: Install Win64OpenSSL
+      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
+      shell: cmd
+      run: Win64OpenSSL.exe /sp /silent /dir=c:\openssl64
+
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
     - name: Extract winflexbison for Compile using msvc
@@ -212,7 +233,7 @@ jobs:
       run: |
         meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\openssl32\lib\VC\x86\MT -Dextra_include_dirs=c:\openssl32\include --prefix=d:\postgresql86
         cd buildx86
-        ninja -v
+        ninja -v 
         ninja -v install
         cp c:\openssl32\*.dll d:\postgresql86\bin
     - name: 'setup msvc x64'    
