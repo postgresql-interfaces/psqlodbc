@@ -560,12 +560,24 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 					free_col_info_contents(coli);
 					free(coli);
 					self->col_info[i] = NULL;
+					self->ntables--;
 				}
 				else
 					coli->acc_time = 0;
 			}
 		}
-		self->ntables = 0;
+		/* now go through the array of column info again and remove the entries that have been freed */
+		for (i = 0; i < self->ntables ; )
+		{
+			/* is this entry null */
+			if (coli = self->col_info[i], NULL == coli)
+			{
+				/* move the next entry into this space */
+				coli = self->col_info[i+1];
+			} else {
+				i++;
+			}
+		}
 		if (destroy)
 		{
 			free(self->col_info);
@@ -707,15 +719,12 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 		self->translation_handle = NULL;
 	}
 #endif
-
 	if (!keepCommunication)
 	{
 		self->status = CONN_NOT_CONNECTED;
 		self->transact_status = CONN_IN_AUTOCOMMIT;
 		self->unnamed_prepared_stmt = NULL;
-	}
-	if (!keepCommunication)
-	{
+
 		CC_conninfo_init(&(self->connInfo), CLEANUP_FOR_REUSE);
 		if (self->original_client_encoding)
 		{
