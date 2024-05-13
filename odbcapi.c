@@ -106,6 +106,7 @@ SQLColumns(HSTMT StatementHandle,
 	ConnInfo *ci = &(SC_get_conn(stmt)->connInfo);
 	UWORD	flag	= PODBC_SEARCH_PUBLIC_SCHEMA;
 
+	/* todo make this more descriptive*/
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;

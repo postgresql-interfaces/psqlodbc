@@ -5178,6 +5178,7 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 						send_buf = allocbuf;
 						used /= 2;
 					}
+					/* TODO: does nothing if alloc fails */
 					break;
 				default:
 					qb->errormsg = "Could not convert the ctype to binary type";

@@ -3000,6 +3000,7 @@ const char *CurrCatString(const ConnectionClass *conn)
  *	The SQL_NTS length is considered.
  *------
  */
+/* TODO: nothing checks for a null return */
 SQLCHAR *
 make_lstring_ifneeded(ConnectionClass *conn, const SQLCHAR *s, ssize_t len, BOOL ifallupper)
 {

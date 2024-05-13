@@ -105,7 +105,7 @@ void	TI_Create_IH(TABLE_INFO *ti)
 {
 	int	alloc = INIT_IH;
 	InheritanceClass	*ih;
-
+/* TODO doesn't check if malloc succeeds */
 	ih = (InheritanceClass *) malloc(sizeof(InheritanceClass) + (alloc - 1) * sizeof(ih->inf[0]));
 	memset(ih, 0, sizeof(InheritanceClass));
 	ih->allocated = alloc;
@@ -325,6 +325,7 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *ardopts)
 {
 	if (!ardopts->bookmark)
 	{
+		/* TODO: doesn't check if malloc succeeds */
 		ardopts->bookmark = (BindInfoClass *) malloc(sizeof(BindInfoClass));
 		memset(ardopts->bookmark, 0, sizeof(BindInfoClass));
 	}
@@ -449,7 +450,7 @@ static void ARDFields_copy(const ARDFields *src, ARDFields *target)
 	else
 	{
 		int	i;
-
+/* TODO: doesn't fail if malloc fails */
 		target->bindings = malloc(target->allocated * sizeof(BindInfoClass));
 		if (!target->bindings)
 			target->allocated = 0;
@@ -467,6 +468,7 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 	memcpy(target, src, sizeof(APDFields));
 	if (src->bookmark)
 	{
+		/* TODO doesn't fail if malloc fails */
 		target->bookmark = malloc(sizeof(ParameterInfoClass));
 		if (target->bookmark)
 			ParameterInfoClass_copy(src->bookmark, target->bookmark);
@@ -479,7 +481,7 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 	else
 	{
 		int	i;
-
+/* TODO doesn't fail if malloc fails*/
 		target->parameters = malloc(target->allocated * sizeof(ParameterInfoClass));
 		if (!target->parameters)
 			target->allocated = 0;
@@ -503,7 +505,7 @@ static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 	else
 	{
 		int	i;
-
+/* TODO doesn't fail if malloc fails */
 		target->parameters = (ParameterImplClass *) malloc(target->allocated * sizeof(ParameterImplClass));
 		if (!target->parameters)
 			target->allocated = 0;
