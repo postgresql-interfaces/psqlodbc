@@ -80,7 +80,11 @@
 #define pg_malloc	malloc
 #define pg_realloc 	realloc
 #define pg_calloc	calloc
+#ifndef WIN32
+#define pg_strdup	strdup
+#else
 #define pg_strdup	_strdup
+#endif /* WIN32 */
 #define pg_free		free
 #endif /* _MIMALLOC_ */
 
