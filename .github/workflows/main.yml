@@ -18,6 +18,10 @@ env:
   # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
+  # Workflow versions. Increment these when you make changes to a build step in the workflow and
+  # you want the step to run, but the corresponding cache is causing the step to be skipped.
+  WORKFLOW_VERSION_POSTGRESQL: '1' # for build steps related to the 'cachePostgres' cache
+
   # Software versions. 
   POSTGRESQL_SOURCE_TAG: 'REL_16_3'
   POSTGRESQL_PACKAGE_FILEID: '1259019'
@@ -41,7 +45,7 @@ jobs:
         path: |
           d:\postgresql
           d:\postgresql86
-        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}
+        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION}}
 
     - name: Cache Postgres source
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
