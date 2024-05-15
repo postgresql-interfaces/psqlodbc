@@ -45,22 +45,22 @@ jobs:
         path: |
           d:\postgresql
           d:\postgresql86
-        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION}}
+        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL}}
 
     - name: Cache Postgres source
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
       id: cachePostgresSource
       with:
-        path: postgresql
-        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}-source
+        path: postgres
+        key: postgres-source-${{env.POSTGRESQL_SOURCE_TAG}}
     - name: Get Postgres source
       uses: actions/checkout@v4
       if: ${{steps.cachePostgresSource.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       with:
         repository: "postgres/postgres.git"
         ref: ${{env.POSTGRESQL_SOURCE_TAG}}
-        path: postgresql
+        path: postgres
 
     - name: 'get meson'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
@@ -202,12 +202,12 @@ jobs:
     - name: Install Win32OpenSSL
       if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       shell: cmd
-      run: Win32OpenSSL.exe /sp /silent /dir=c:\openssl32
+      run: Win32OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl32
 
     - name: Install Win64OpenSSL
       if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       shell: cmd
-      run: Win64OpenSSL.exe /sp /silent /dir=c:\openssl64
+      run: Win64OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl64
 
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
@@ -233,13 +233,13 @@ jobs:
         arch: x86
     - name: 'build postgresx86'    
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      working-directory: postgresql
+      working-directory: postgres
       run: |
-        meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\openssl32\lib\VC\x86\MT -Dextra_include_dirs=c:\openssl32\include --prefix=d:\postgresql86
+        meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl32\lib\VC\x86\MT -Dextra_include_dirs=c:\OTHERBIN\openssl32\include --prefix=d:\postgresql86
         cd buildx86
         ninja -v 
         ninja -v install
-        cp c:\openssl32\*.dll d:\postgresql86\bin
+        cp c:\OTHERBIN\openssl32\*.dll d:\postgresql86\bin
     - name: 'setup msvc x64'    
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -247,13 +247,13 @@ jobs:
         arch: x64
     - name : 'build postgres x64'
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      working-directory: postgresql
+      working-directory: postgres
       run: |
-        meson setup build -Dssl=openssl -Dextra_lib_dirs=c:\openssl64\lib\VC\x64\MT -Dextra_include_dirs=c:\openssl64\include --prefix=d:\postgresql
+        meson setup build -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl64\lib\VC\x64\MT -Dextra_include_dirs=c:\OTHERBIN\openssl64\include --prefix=d:\postgresql
         cd build
         ninja
         ninja install
-        cp c:\openssl64\*.dll d:\postgresql\bin
+        cp c:\OTHERBIN\openssl64\*.dll d:\postgresql\bin
     - name: install postgresql binary
       shell: cmd
       run: |
@@ -267,6 +267,7 @@ jobs:
     - name: get psqlodbc
       uses: actions/checkout@v4
       with:
+        path: psqlodbc
         submodules: true
     - name: 'setup msvc for psqlodbc'
       uses: TheMrMilchmann/setup-msvc-dev@v3
@@ -275,71 +276,75 @@ jobs:
 
     - name: build psqlodbc standard
       shell: powershell      
+      working-directory: psqlodbc
       run: |
         copy .github\workflows\configuration.xml winbuild
         winbuild\BuildAll.ps1
         installer\buildInstallers.ps1
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\standard
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\standard
     - name: test psqlodbc standard
       shell: powershell
+      working-directory: psqlodbc
       run: |
         winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
         standard\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
         standard\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\standard
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\standard
 
     - name: build psqlodbc mimalloc
       shell: powershell      
+      working-directory: psqlodbc
       run: |
         copy .github\workflows\configuration.xml winbuild
         winbuild\BuildAll.ps1 -UseMimalloc
         installer\buildInstallers.ps1
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\mimalloc
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\mimalloc
     - name: test psqlodbc mimalloc
       shell: powershell
+      working-directory: psqlodbc
       run: |
         winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ExpectMimalloc
         mimalloc\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
         mimalloc\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\winbuild\mimalloc
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\mimalloc
 
     - name: Upload standard x64 merge module
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC Standard x64 Merge Module
-        path: winbuild/standard/installer/x64/*.msm
+        path: psqlodbc/winbuild/standard/installer/x64/*.msm
         retention-days: 5
         if-no-files-found: error
     - name: Upload standard x64 installer package
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC Standard x64 Installer
-        path: winbuild/standard/installer/x64/*.msi
+        path: psqlodbc/winbuild/standard/installer/x64/*.msi
         retention-days: 5
         if-no-files-found: error
     - name: Upload standard x86 merge module
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC Standard x86 Merge Module
-        path: winbuild/standard/installer/x86/*.msm
+        path: psqlodbc/winbuild/standard/installer/x86/*.msm
         retention-days: 5
         if-no-files-found: error
     - name: Upload standard x86 installer package
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC Standard x86 Installer
-        path: winbuild/standard/installer/x86/*.msi
+        path: psqlodbc/winbuild/standard/installer/x86/*.msi
         retention-days: 5
         if-no-files-found: error
     - name: Upload standard x64 setup
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC Standard x64 Setup
-        path: winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
+        path: psqlodbc/winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
         retention-days: 5
         if-no-files-found: error
 
@@ -347,35 +352,35 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC mimalloc x64 Merge Module
-        path: winbuild/mimalloc/installer/x64/*.msm
+        path: psqlodbc/winbuild/mimalloc/installer/x64/*.msm
         retention-days: 5
         if-no-files-found: error
     - name: Upload mimalloc x64 installer package
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC mimalloc x64 Installer
-        path: winbuild/mimalloc/installer/x64/*.msi
+        path: psqlodbc/winbuild/mimalloc/installer/x64/*.msi
         retention-days: 5
         if-no-files-found: error
     - name: Upload mimalloc x86 merge module
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC mimalloc x86 Merge Module
-        path: winbuild/mimalloc/installer/x86/*.msm
+        path: psqlodbc/winbuild/mimalloc/installer/x86/*.msm
         retention-days: 5
         if-no-files-found: error
     - name: Upload mimalloc x86 installer package
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC mimalloc x86 Installer
-        path: winbuild/mimalloc/installer/x86/*.msi
+        path: psqlodbc/winbuild/mimalloc/installer/x86/*.msi
         retention-days: 5
         if-no-files-found: error
     - name: Upload mimalloc x64 setup
       uses: actions/upload-artifact@v4
       with:
         name: psqlODBC mimalloc x64 Setup
-        path: winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
+        path: psqlodbc/winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
         retention-days: 5
         if-no-files-found: error
 
@@ -391,7 +396,7 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "winbuild/mimalloc/installer/x64/*.ms?,winbuild/mimalloc/installer/x86/*.ms?,winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+        artifacts: "psqlodbc/winbuild/mimalloc/installer/x64/*.ms?,psqlodbc/winbuild/mimalloc/installer/x86/*.ms?,psqlodbc/winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
     - name: Create Standard Release
       if: startsWith(github.ref, 'refs/tags/REL-')
       uses: ncipollo/release-action@v1.14.0
@@ -401,4 +406,4 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "winbuild/standard/installer/x64/*.ms?,winbuild/standard/installer/x86/*.ms?,winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+        artifacts: "psqlodbc/winbuild/standard/installer/x64/*.ms?,psqlodbc/winbuild/standard/installer/x86/*.ms?,psqlodbc/winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
