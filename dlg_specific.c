@@ -1607,7 +1607,7 @@ decode(const char *in)
 
 /*
  *	Remove braces if the input value is enclosed by braces({}).
- *	Othewise decode the input value.
+ *	Otherwise decode the input value.
  */
 static pgNAME
 decode_or_remove_braces(const char *in)

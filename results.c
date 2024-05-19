@@ -767,7 +767,7 @@ MYLOG(DETAIL_LOG_LEVEL, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 			p = pgtype_to_name(stmt, field_type, col_idx, fi && fi->auto_increment);
 			break;
 
-		case SQL_COLUMN_UNSIGNED: /* == SQL_DESC_UNSINGED */
+		case SQL_COLUMN_UNSIGNED: /* == SQL_DESC_UNSIGNED */
 			value = pgtype_unsigned(conn, field_type);
 			if (value == -1)	/* non-numeric becomes TRUE (ODBC Doc) */
 				value = SQL_TRUE;
@@ -1119,7 +1119,7 @@ MYLOG(DETAIL_LOG_LEVEL, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMA
 			break;
 
 		case COPY_INVALID_STRING_CONVERSION:    /* invalid string */
-			SC_set_error(stmt, STMT_STRING_CONVERSION_ERROR, "invalid string conversion occured.", func);
+			SC_set_error(stmt, STMT_STRING_CONVERSION_ERROR, "invalid string conversion occurred.", func);
 			result = SQL_ERROR;
 			break;
 
@@ -1407,7 +1407,7 @@ MYLOG(DETAIL_LOG_LEVEL, "RETURN_EOF\n"); \
 	return SQL_NO_DATA_FOUND; \
 }
 
-/*	This fetchs a block of data (rowset). */
+/*	This fetches a block of data (rowset). */
 RETCODE		SQL_API
 PGAPI_ExtendedFetch(HSTMT hstmt,
 					SQLUSMALLINT fFetchType,
@@ -3849,7 +3849,7 @@ QR_get_rowstart_in_cache(res), SC_get_rowset_start(stmt), stmt->options.cursor_t
 			ret = SQL_NO_DATA_FOUND;
 		else
 		{
-			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the driver cound't identify inserted rows", func);
+			SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the driver could't identify inserted rows", func);
 			ret = SQL_ERROR;
 		}
 		/* stmt->currTuple = SC_get_rowset_start(stmt) + ridx; */
@@ -4174,7 +4174,7 @@ SC_pos_update(StatementClass *stmt,
 				ret = SQL_ERROR;
 			goto cleanup;
 		}
-		/* else if (ret != SQL_SUCCESS) this is unneccesary
+		/* else if (ret != SQL_SUCCESS) this is unnecessary
 			SC_error_copy(s.stmt, s.qstmt, TRUE); */
 	}
 	else
@@ -4653,7 +4653,7 @@ SC_pos_add(StatementClass *stmt,
 				ret = SQL_ERROR;
 			goto cleanup;
 		}
-		/* else if (ret != SQL_SUCCESS) this is unneccesary
+		/* else if (ret != SQL_SUCCESS) this is unnecessary
 			SC_error_copy(s.stmt, s.qstmt, TRUE); */
 	}
 	else
@@ -4984,7 +4984,7 @@ PGAPI_SetScrollOptions(HSTMT hstmt,
 
 	MYLOG(0, "entering fConcurrency=%d crowKeyset=" FORMAT_LEN " crowRowset=%d\n",
 		  fConcurrency, crowKeyset, crowRowset);
-	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "SetScroll option not implemeted", func);
+	SC_set_error(stmt, STMT_NOT_IMPLEMENTED_ERROR, "SetScroll option not implemented", func);
 
 	return SQL_ERROR;
 }

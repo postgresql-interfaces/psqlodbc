@@ -19,7 +19,7 @@ for further details.</p>
 <pre>
 [7.3.0261]
 
-1.Handle the converion from text-like field to SQL_C_BINARY more properly.
+1.Handle the conversion from text-like field to SQL_C_BINARY more properly.
 2.Make buffer extension in SQLPutData more effective.
 3.Reply SQL_CONVERT_xxxx correctly for SQLGetInfo request.
 4.Reply DBMS_NAME, DBMS_VERSION correctly for SQLGetInfo request.
@@ -27,7 +27,7 @@ for further details.</p>
 6.Change adjustLikePattern() to take literal quote(') into account.
 7.Fix a bug in memory debug routine.
 8.Change the multibyte encoding list to match that of the current
-  offical driver.
+  official driver.
 9.Change SC_clear_error() to call CC_clear_error() also.
 10.Change the length values returned when they are unknown for
    SQLDescribeCol or SQLColAttribute requests.
@@ -40,7 +40,7 @@ for further details.</p>
   of parameters.
 4.Allow blanks in password.
 5.Add an option to force abbreviation of connection string.
-6.Fix the handling of "PROTOCOL=x.x-x" in the connction string.
+6.Fix the handling of "PROTOCOL=x.x-x" in the connection string.
 7.Fix the loadlib module of *nix.
 
 [7.3.0260]
@@ -147,7 +147,7 @@ development build.</p>
 <li>Notes: psqlODBC 08.01.0107</li><br>
 1) fix next problem with calling implicit rollback in bad time<br>
 2) detecting transaction commands into if branch which mean backend
-   successfuly done the command. add support for "start transaction"<br>
+   successfully done the command. add support for "start transaction"<br>
 3) fix bug when mylog output can't be created<br>
 4) fix problem with SQLSetPos<br>
 5) fix problem with column length in CC_mapping<br>
@@ -155,7 +155,7 @@ development build.</p>
 <br>
 <li>Notes: psqlODBC 08.01.0106</li><br>
 1) fix problem with getting long text in unicode driver<br>
-2) fix sqlstate iin case of error in statement<br>
+2) fix sqlstate in case of error in statement<br>
 3) doesn't call rollback in autocommit off or in manual transaction<br>
 4) remove obsolete parameter protocol<br>
 <br>
@@ -382,10 +382,10 @@ Diffs ignoring whitespace to version 1.30 (long / unified) <br>
 8. Avoid those notorious core dumps when logging on hitting<br>
 "null" data...<br>
 <8: thanls to Hartmut Raschick><br>
-9. Removed a static varible for thread-safety.<br>
+9. Removed a static variable for thread-safety.<br>
 10. Improve the performance of keyset-driven fetch operation.<br>
 11. Map (var)char type to SQL type more properly.<br>
-12. Change create_params for NUMERIC type to (precison, scale).<br>
+12. Change create_params for NUMERIC type to (precision, scale).<br>
 13. Add type cast to remove some compiler warnings. <br>
 <br>
 1.30 by hinoue <br>
@@ -460,7 +460,7 @@ Diffs to version 1.23 (long / unified) <br>
 Diffs ignoring whitespace to version 1.23 (long / unified) <br>
  1) Correct the return info for SQLGetInfo(.., SQL_CURSOR_COMMIT<br>
 (ROLLBACK)_BEHAVIOR) call.<br>
-2) Explictly reject the SQLBrowseConnect call. <br>
+2) Explicitly reject the SQLBrowseConnect call. <br>
  <br>
 1.23 by hinoue   <br>
 Mon Sep 15 04:25:03 2003 (8 weeks ago)<br>
@@ -502,7 +502,7 @@ Fri Jul 11 06:47:17 2003 (4 months ago)<br>
 Changed since 1.18: +3 -3 [Select for Diff] <br>
 Diffs to version 1.18 (long / unified) <br>
 Diffs ignoring whitespace to version 1.18 (long / unified) <br>
- Improve SQLGetDiagField so that an MFC appliaction reports<br>
+ Improve SQLGetDiagField so that an MFC application reports<br>
 error messages properly(bug report from Silvio Scarpati). <br>
  <br>
 1.18 by hinoue   <br>
@@ -550,7 +550,7 @@ Tue May 27 01:20:09 2003 (5 months, 2 weeks ago)<br>
 Changed since 1.12: +3 -3 [Select for Diff] <br>
 Diffs to version 1.12 (long / unified) <br>
 Diffs ignoring whitespace to version 1.12 (long / unified) <br>
- 1) Corrent the handling of bookmark in SQLBulkOperations.<br>
+ 1) Correct the handling of bookmark in SQLBulkOperations.<br>
 2) Correct the calculation of a global index in SC_pos_add.<br>
 3) Cleanup global/rowset/resultset index handling a little. <br>
  <br>

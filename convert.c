@@ -950,7 +950,7 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 #ifdef	UNICODE_SUPPORT
 	if (0 == bytea_process_kind)
 	{
-		if (get_convtype() > 0) /* coversion between the current locale is available */
+		if (get_convtype() > 0) /* conversion between the current locale is available */
 		{
 			BOOL	wcs_debug = conn->connInfo.wcs_debug;
 			BOOL	same_encoding = (conn->ccsc == pg_CS_code(conn->locale_encoding));
@@ -2001,7 +2001,7 @@ MYLOG(DETAIL_LOG_LEVEL, "SQL_C_VARBOOKMARK value=%d\n", ival);
 /*--------------------------------------------------------------------
  *	Functions/Macros to get rid of query size limit.
  *
- *	I always used the follwoing macros to convert from
+ *	I always used the following macros to convert from
  *	old_statement to new_statement.  Please improve it
  *	if you have a better way.	Hiroshi 2001/05/22
  *--------------------------------------------------------------------
@@ -4422,7 +4422,7 @@ handle_lu_onvert_error(QueryBuild *qb, int flag, char *buffer, SQLLEN paralen)
 	{
 		case ReturnZeroLengthString:
 			if (qb->stmt)
-				SC_set_error(qb->stmt, STMT_ERROR_IN_ROW, "conversion error to wide chars occured", __FUNCTION__);
+				SC_set_error(qb->stmt, STMT_ERROR_IN_ROW, "conversion error to wide chars occurred", __FUNCTION__);
 			return TRUE;
 		default:
 			qb->errornumber = STMT_EXEC_ERROR;
@@ -4725,7 +4725,7 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 	ivstruct = (SQL_INTERVAL_STRUCT *) buffer;
 	/* Convert input C type to a neutral format */
 #ifdef	UNICODE_SUPPORT
-	if (get_convtype() > 0) /* coversion between the current locale is available */
+	if (get_convtype() > 0) /* conversion between the current locale is available */
 	{
 		BOOL	wcs_debug = conn->connInfo.wcs_debug;
 		BOOL	is_utf8 = (UTF8 == conn->ccsc);

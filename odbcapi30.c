@@ -220,7 +220,7 @@ MYLOG(0, "bookmark=" FORMAT_LEN " FetchOffset = " FORMAT_LEN "\n", FetchOffset, 
 		}
 		else
 		{
-			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bookmark isn't specifed yet", func);
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Bookmark isn't specified yet", func);
 			ret = SQL_ERROR;
 		}
 	}
@@ -450,7 +450,7 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 	return ret;
 }
 
-/*	new fucntion */
+/*	new function */
 RETCODE		SQL_API
 SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLSMALLINT Type,

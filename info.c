@@ -3528,7 +3528,7 @@ PGAPI_Statistics(HSTMT hstmt,
 
 	while (SQL_SUCCEEDED(result))
 	{
-		/* If only requesting unique indexs, then just return those. */
+		/* If only requesting unique indexes, then just return those. */
 		if (fUnique == SQL_INDEX_ALL ||
 			(fUnique == SQL_INDEX_UNIQUE && atoi(isunique)))
 		{
@@ -3972,7 +3972,7 @@ retry_public_schema:
 			case 2:
 
 				/*
-				 * Simplified query to search old fashoned primary key
+				 * Simplified query to search old fashioned primary key
 				 */
 				appendPQExpBuffer(&tables_query, "select ta.attname, ia.attnum, ic.relname, n.nspname, NULL"
 					" from pg_catalog.pg_attribute ta,"
@@ -4152,7 +4152,7 @@ getClientColumnName(ConnectionClass *conn, UInt4 relid, char *serverColumnName, 
 		QR_Destructor(res);
 	}
 	continueExec = (continueExec && !bError);
-	/* restore the cleint encoding */
+	/* restore the client encoding */
 	SPRINTF_FIXED(query, "SET CLIENT_ENCODING TO '%s'", conn->original_client_encoding);
 	bError = (!QR_command_maybe_successful((res = CC_send_query(conn, query, NULL, flag, NULL))));
 	QR_Destructor(res);
@@ -5534,7 +5534,7 @@ cleanup:
 
 
 #define	ACLMAX	8
-#define ALL_PRIVILIGES "arwdRxt"
+#define ALL_PRIVILEGES "arwdRxt"
 static int
 usracl_auth(char *usracl, const char *auth)
 {
@@ -5806,7 +5806,7 @@ MYLOG(0, "guid=%s\n", uid);
 		owner = QR_get_value_backend_text(wres, i, 1);
 		schnm = QR_get_value_backend_text(wres, i, 3);
 		/* The owner has all privileges */
-		useracl_upd(useracl, allures, owner, ALL_PRIVILIGES);
+		useracl_upd(useracl, allures, owner, ALL_PRIVILEGES);
 		for (j = 0; j < usercount; j++)
 		{
 			user = QR_get_value_backend_text(allures, j, 0);
@@ -5814,7 +5814,7 @@ MYLOG(0, "guid=%s\n", uid);
 			sys = (strcmp(user, owner) == 0);
 			/* Super user has all privileges */
 			if (su)
-				useracl_upd(useracl, allures, user, ALL_PRIVILIGES);
+				useracl_upd(useracl, allures, user, ALL_PRIVILEGES);
 			for (k = 0; k < ACLMAX; k++)
 			{
 				if (!useracl[j][k])

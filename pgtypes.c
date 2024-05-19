@@ -1683,7 +1683,7 @@ pgtype_transfer_octet_length(const StatementClass *stmt, OID type, int column_si
 #endif /* NOT_USED */
 
 /*
- *	corrsponds to "min_scale" in ODBC 2.x.
+ *	corresponds to "min_scale" in ODBC 2.x.
  */
 Int2
 pgtype_min_decimal_digits(const ConnectionClass *conn, OID type)
@@ -1711,7 +1711,7 @@ pgtype_min_decimal_digits(const ConnectionClass *conn, OID type)
 }
 
 /*
- *	corrsponds to "max_scale" in ODBC 2.x.
+ *	corresponds to "max_scale" in ODBC 2.x.
  */
 Int2
 pgtype_max_decimal_digits(const ConnectionClass *conn, OID type)
@@ -1741,7 +1741,7 @@ pgtype_max_decimal_digits(const ConnectionClass *conn, OID type)
 }
 
 /*
- *	corrsponds to "scale" in ODBC 2.x.
+ *	corresponds to "scale" in ODBC 2.x.
  */
 Int2
 pgtype_decimal_digits(const StatementClass *stmt, OID type, int col)

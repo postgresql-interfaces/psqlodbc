@@ -375,7 +375,7 @@ MYLOG(DETAIL_LOG_LEVEL, "[%d].SQLType=%d .PGType=%d\n", ipar, ipdopts->parameter
 		else
 		{
 			ret = SQL_ERROR;
-			SC_set_error(stmt, STMT_EXEC_ERROR, "Unfortunatley couldn't get this paramater's info", func);
+			SC_set_error(stmt, STMT_EXEC_ERROR, "Unfortunately couldn't get this paramater's info", func);
 			goto cleanup;
 		}
 	}

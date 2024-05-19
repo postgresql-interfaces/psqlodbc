@@ -196,7 +196,7 @@ PGAC_ARG_BOOL(enable, pthreads, yes,
               [  --disable-pthreads      do not build with POSIX threads],
               [AC_DEFINE(POSIX_MULTITHREAD_SUPPORT, 1,
                          [Define to 1 to build with pthreads support (--enable-pthreads)])
-               AC_DEFINE(_REENTRANT, 1, [Define _REENTRANT for several plaforms])])
+               AC_DEFINE(_REENTRANT, 1, [Define _REENTRANT for several platforms])])
 
 
 #

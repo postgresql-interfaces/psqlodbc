@@ -922,7 +922,7 @@ SQLLEN	QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt)
 	if (!QR_command_maybe_successful(res))
 	{
 		QR_Destructor(res);
-		SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", __FUNCTION__);
+		SC_set_error(stmt, STMT_EXEC_ERROR, "move error occurred", __FUNCTION__);
 		return (-1);
 	}
 	moved = (-1);
@@ -1021,7 +1021,7 @@ MYLOG(DETAIL_LOG_LEVEL, "cache=" FORMAT_ULEN " rowset=%d movement=" FORMAT_ULEN 
 		if (!QR_command_maybe_successful(mres))
 		{
 			QR_Destructor(mres);
-			SC_set_error(stmt, STMT_EXEC_ERROR, "move error occured", func);
+			SC_set_error(stmt, STMT_EXEC_ERROR, "move error occurred", func);
 			RETURN(-1)
 		}
 		moved = movement;
@@ -1267,7 +1267,7 @@ MYLOG(DETAIL_LOG_LEVEL, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN 
 		hidx = CacheIdx2GIdx(num_backend_rows, stmt, self);
 		lkidx = GIdx2KResIdx(lidx, stmt, self);
 		hkidx = GIdx2KResIdx(hidx, stmt, self);
-		/* For simplicty, use CURS_NEEDS_REREAD bit to mark the row */
+		/* For simplicity, use CURS_NEEDS_REREAD bit to mark the row */
 		for (i = lkidx; i < hkidx; i++)
 			self->keyset[i].status |= CURS_NEEDS_REREAD;
 		/* deleted info */

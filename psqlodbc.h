@@ -720,7 +720,7 @@ typedef struct
 int	initialize_global_cs(void);
 enum { /* CC_conninfo_init option */
 	CLEANUP_FOR_REUSE	= 1L		/* reuse the info */
-	,INIT_GLOBALS		= (1L << 1) /* init globals memebers */
+	,INIT_GLOBALS		= (1L << 1) /* init globals members */
 };
 void	CC_conninfo_init(ConnInfo *conninfo, UInt4 option);
 void	CC_conninfo_release(ConnInfo *conninfo);
