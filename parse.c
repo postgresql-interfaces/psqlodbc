@@ -713,8 +713,7 @@ MYPRINTF(0, "->%d\n", updatable);
 }
 
 static BOOL
-getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name,
-COL_INFO **coli)
+getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name, COL_INFO **coli)
 {
 	int	colidx;
 	BOOL	found = FALSE;
@@ -835,12 +834,12 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 
 		MYLOG(0, "      Success\n");
 		if (greloid != 0)
-		{
+		{/* We have reloid. Try to find appropriate coli object from connection COL_INFO cache. */
 			for (k = 0; k < conn->ntables; k++)
 			{
 				tcoli = conn->col_info[k];
 				if (tcoli->table_oid == greloid)
-				{
+				{/* We found appropriate coli object, so we will use it. */
 					coli = tcoli;
 					coli_exist = TRUE;
 					break;
@@ -848,43 +847,40 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			}
 		}
 		if (!coli_exist)
-		{
+		{/* Not found, try to find unused coli or oldest (if overflow) in connection COL_INFO cache. */
 			for (k = 0; k < conn->ntables; k++)
 			{
 				tcoli = conn->col_info[k];
-				if (0 < tcoli->refcnt)
-					continue;
+				if (1 < tcoli->refcnt)
+					continue; /* This coli object is used somewhere else, skipping it. */
 				if ((0 == tcoli->table_oid &&
 				    NAME_IS_NULL(tcoli->table_name)) ||
 				    strnicmp(SAFE_NAME(tcoli->schema_name), "pg_temp_", 8) == 0)
-				{
+				{/* Found unused coli object, taking it. */
 					coli = tcoli;
 					coli_exist = TRUE;
 					break;
 				}
-				if (NULL == ccoli ||
-				    tcoli->acc_time < acctime)
-				{
+				if (NULL == ccoli || tcoli->acc_time < acctime)
+				{/* Not yet found. Alongside, searching least recently used coli object. */
 					ccoli = tcoli;
 					acctime = tcoli->acc_time;
 				}
 			}
-			if (!coli_exist &&
-			    NULL != ccoli &&
-			    conn->ntables >= COLI_RECYCLE)
-			{
+			if (!coli_exist && NULL != ccoli && conn->ntables >= COLI_RECYCLE)
+			{/* Not found unsed object. Amount of them is on limit. Taking least recently used coli object. */
 				coli_exist = TRUE;
 				coli = ccoli;
 			}
 		}
 		if (coli_exist)
-		{
+		{/* We have ready to use coli object. Cleaning it. */
 			free_col_info_contents(coli);
 		}
 		else
-		{
+		{/* We have no coli object. Must create new one. */
 			if (conn->ntables >= conn->coli_allocated)
-			{
+			{/* No place in connection COL_INFO cache table. Allocating or reallocating. */
 				Int2	new_alloc;
 				COL_INFO **col_info;
 
@@ -904,6 +900,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 				conn->coli_allocated = new_alloc;
 			}
 
+			/* Allocating new COL_INFO object. */
 			MYLOG(0, "PARSE: malloc at conn->col_info[%d]\n", conn->ntables);
 			coli = conn->col_info[conn->ntables] = (COL_INFO *) malloc(sizeof(COL_INFO));
 		}
@@ -915,6 +912,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		}
 		col_info_initialize(coli);
 
+		coli->refcnt++; /* Counting one reference to coli object from connection COL_INFO cache table. */
 		coli->result = res;
 		if (res && QR_get_num_cached_tuples(res) > 0)
 		{
@@ -969,7 +967,7 @@ MYLOG(DETAIL_LOG_LEVEL, "oid item == %s\n", (const char *) QR_get_value_backend_
 		MYLOG(0, "Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
 		/* Associate a table from the statement with a SQLColumn info */
 		found = TRUE;
-		coli->refcnt++;
+		coli->refcnt++; /* Counting another one reference to coli object from TABLE_INFO wti object. */
 		wti->col_info = coli;
 	}
 cleanup:

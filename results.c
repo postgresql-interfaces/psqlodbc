@@ -5007,6 +5007,7 @@ PGAPI_SetCursorName(HSTMT hstmt,
 		return SQL_INVALID_HANDLE;
 	}
 
+	NULL_THE_NAME(stmt->cursor_name);
 	SET_NAME_DIRECTLY(stmt->cursor_name, make_string(szCursor, cbCursor, NULL, 0));
 	return SQL_SUCCESS;
 }

@@ -3056,7 +3056,7 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 		}
 		if (SC_is_fetchcursor(stmt))
 		{
-			snprintfcat(new_statement, qb->str_alsize, 
+			snprintfcat(new_statement, qb->str_alsize,
 				"declare \"%s\"%s cursor%s for ",
 				SC_cursor_name(stmt), opt_scroll, opt_hold);
 			qb->npos = strlen(new_statement);
@@ -3159,7 +3159,7 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 					CVT_APPEND_STR(qb, bestitem);
 				}
 				CVT_APPEND_STR(qb, "\" from ");
-				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, npos - qp->from_pos - 5);
+				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, qp->stmt_len - qp->from_pos - 5);
 			}
 		}
 		npos -= qp->declare_pos;
@@ -3744,7 +3744,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				}
 				if (converted)
 				{
-				        const char *column_def = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF);
+					const char *column_def = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_DEF);
 					if (NULL != column_def &&
 					    strncmp(column_def, "nextval", 7) == 0)
 					{
@@ -3770,6 +3770,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					}
 				}
 			}
+			TI_ClearObject(pti);
 		}
 		if (!converted)
 			CVT_APPEND_STR(qb, "NULL");
