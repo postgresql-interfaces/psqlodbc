@@ -337,6 +337,11 @@ RETCODE SQL_API PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 RETCODE SQL_API PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 			SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
 			PTR Value, SQLINTEGER BufferLength, SQLINTEGER *StringLength);
+RETCODE SQL_API PGAPI_SetDescRec(SQLHDESC DescriptorHandle,
+			SQLSMALLINT RecNumber, SQLSMALLINT Type,
+			SQLSMALLINT SubType, SQLLEN Length,
+			SQLSMALLINT Precision, SQLSMALLINT Scale,
+			PTR Data, SQLLEN *StringLength, SQLLEN *Indicator);
 RETCODE SQL_API PGAPI_DescError(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 			SQLCHAR *Sqlstate, SQLINTEGER *NativeError,
 			SQLCHAR *MessageText, SQLSMALLINT BufferLength,

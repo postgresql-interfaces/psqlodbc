@@ -459,9 +459,14 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  PTR Data, SQLLEN *StringLength,
 			  SQLLEN *Indicator)
 {
-	MYLOG(0, "Entering\n");
-	MYLOG(0, "Error not implemented\n");
-	return SQL_ERROR;
+	RETCODE		ret;
+
+	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
+	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
+	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
+			SubType, Length, Precision, Scale, Data,
+			StringLength, Indicator);
+	return ret;
 }
 #endif /* UNICODE_SUPPORTXX */
 
@@ -656,10 +661,7 @@ MYLOG(DETAIL_LOG_LEVEL, "lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETSTMTATTR);	/* 1014 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETCONNECTATTR);	/* 1016 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETDESCFIELD);	/* 1017 */
-	if (ci->drivers.lie)
-	{
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLSETDESCREC); /* 1018 not implemented yet */
-	}
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETDESCREC);		/* 1018 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETENVATTR);		/* 1019 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSTMTATTR);	/* 1020 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFETCHSCROLL);	/* 1021 */

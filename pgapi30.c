@@ -565,6 +565,31 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 
 		switch (FieldIdentifier)
 		{
+			case SQL_DESC_TYPE:
+				bookmark->returntype = CAST_PTR(SQLSMALLINT, Value);
+				break;
+			case SQL_DESC_DATETIME_INTERVAL_CODE:
+				switch (bookmark->returntype)
+				{
+					case SQL_DATETIME:
+					case SQL_C_TYPE_DATE:
+					case SQL_C_TYPE_TIME:
+					case SQL_C_TYPE_TIMESTAMP:
+					switch ((LONG_PTR) Value)
+					{
+						case SQL_CODE_DATE:
+							bookmark->returntype = SQL_C_TYPE_DATE;
+							break;
+						case SQL_CODE_TIME:
+							bookmark->returntype = SQL_C_TYPE_TIME;
+							break;
+						case SQL_CODE_TIMESTAMP:
+							bookmark->returntype = SQL_C_TYPE_TIMESTAMP;
+							break;
+					}
+					break;
+				}
+				break;
 			case SQL_DESC_DATA_PTR:
 				bookmark->buffer = Value;
 				break;
@@ -573,6 +598,15 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				break;
 			case SQL_DESC_OCTET_LENGTH_PTR:
 				bookmark->used = Value;
+				break;
+			case SQL_DESC_OCTET_LENGTH:
+				bookmark->buflen = CAST_PTR(SQLLEN, Value);
+				break;
+			case SQL_DESC_PRECISION:
+				bookmark->precision = CAST_PTR(SQLSMALLINT, Value);
+				break;
+			case SQL_DESC_SCALE:
+				bookmark->scale = CAST_PTR(SQLSMALLINT, Value);
 				break;
 			default:
 				DC_set_error(desc, DESC_INVALID_COLUMN_NUMBER_ERROR, "invalid column number");
@@ -944,6 +978,20 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 		case SQL_DESC_PARAMETER_TYPE:
 			ipdopts->parameters[para_idx].paramType = CAST_PTR(SQLSMALLINT, Value);
 			break;
+		case SQL_DESC_PRECISION:
+			switch (ipdopts->parameters[para_idx].SQLType)
+			{
+				case SQL_TYPE_DATE:
+				case SQL_TYPE_TIME:
+				case SQL_TYPE_TIMESTAMP:
+				case SQL_DATETIME:
+					ipdopts->parameters[para_idx].decimal_digits = CAST_PTR(SQLSMALLINT, Value);
+					break;
+				case SQL_NUMERIC:
+					ipdopts->parameters[para_idx].precision = CAST_PTR(SQLINTEGER, Value);
+					break;
+			}
+			break;
 		case SQL_DESC_SCALE:
 			ipdopts->parameters[para_idx].decimal_digits = CAST_PTR(SQLSMALLINT, Value);
 			break;
@@ -957,6 +1005,8 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 			else
 				NULL_THE_NAME(ipdopts->parameters[para_idx].paramName);
 			break;
+		case SQL_DESC_OCTET_LENGTH:
+			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
@@ -965,8 +1015,6 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 		case SQL_DESC_LOCAL_TYPE_NAME: /* read-only */
 		case SQL_DESC_NULLABLE: /* read-only */
 		case SQL_DESC_NUM_PREC_RADIX:
-		case SQL_DESC_OCTET_LENGTH:
-		case SQL_DESC_PRECISION:
 		case SQL_DESC_ROWVER: /* read-only */
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
@@ -1501,6 +1549,9 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 				case SQL_DATETIME:
 					ival = ipdopts->parameters[para_idx].decimal_digits;
 					break;
+				case SQL_NUMERIC:
+					ival = ipdopts->parameters[para_idx].precision;
+					break;
 			}
 			break;
 		case SQL_DESC_SCALE:
@@ -1511,6 +1562,8 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 					ival = ipdopts->parameters[para_idx].decimal_digits;
 					break;
 			}
+			break;
+		case SQL_DESC_OCTET_LENGTH:
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 			rettype = SQL_IS_SMALLINT;
@@ -1524,7 +1577,6 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 		case SQL_DESC_NAME:
 		case SQL_DESC_NULLABLE: /* read-only */
 		case SQL_DESC_NUM_PREC_RADIX:
-		case SQL_DESC_OCTET_LENGTH:
 		case SQL_DESC_ROWVER: /* read-only */
 		case SQL_DESC_TYPE_NAME: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
@@ -1922,6 +1974,84 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 		DC_log_error(func, "", desc);
 	}
 	return ret;
+}
+
+/*	new function */
+RETCODE		SQL_API
+PGAPI_SetDescRec(SQLHDESC DescriptorHandle,
+				 SQLSMALLINT RecNumber, SQLSMALLINT Type,
+				 SQLSMALLINT SubType, SQLLEN Length,
+				 SQLSMALLINT Precision, SQLSMALLINT Scale,
+				 PTR Data, SQLLEN *StringLength, SQLLEN *Indicator)
+{
+	CSTR func = "PGAPI_SetDescRec";
+	RETCODE		ret = SQL_SUCCESS;
+	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
+
+	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " type=" FORMAT_SMALLI " sub=" FORMAT_SMALLI " len=" FORMAT_LEN " prec=" FORMAT_SMALLI " scale=" FORMAT_SMALLI " data=%p\n", 
+			DescriptorHandle, DC_get_desc_type(desc), RecNumber, Type, SubType, Length, Precision, Scale, Data);
+	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
+
+	/* Descriptor handle must not be an IRD handle */
+	if (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC)
+	{
+		DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER, "Invalid descriptor identifier");
+		DC_log_error(func, "", desc);
+		return SQL_ERROR;
+	}
+
+	/*
+		Set following descriptor fields:
+
+		- SQL_DESC_TYPE
+		- SQL_DESC_DATETIME_INTERVAL_CODE
+		- SQL_DESC_OCTET_LENGTH
+		- SQL_DESC_PRECISION
+		- SQL_DESC_SCALE
+		- SQL_DESC_DATA_PTR
+		- SQL_DESC_OCTET_LENGTH_PTR
+		- SQL_DESC_INDICATOR_PTR
+	*/
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, &Type, 0);
+	if (ret != SQL_SUCCESS) return ret;
+
+	/* If Type is SQL_DATETIME or SQL_INTERVAL, the value of SQL_DESC_DATETIME_INTERVAL_CODE is set to SubType. */
+	if (Type == SQL_DATETIME || Type == SQL_INTERVAL) {
+		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, &SubType, 0);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, &Length, 0);
+	if (ret != SQL_SUCCESS) return ret;
+
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, &Precision, 0);
+	if (ret != SQL_SUCCESS) return ret;
+
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, &Scale, 0);
+	if (ret != SQL_SUCCESS) return ret;
+
+	/* SQL_DESC_DATA_PTR is only for ARD or APD */
+	if (DC_get_desc_type(desc) != SQL_ATTR_IMP_PARAM_DESC)
+	{
+		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATA_PTR, &Data, 0);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	/* SQL_DESC_OCTET_LENGTH_PTR is only for ARD or APD */
+	if (DC_get_desc_type(desc) != SQL_ATTR_IMP_PARAM_DESC)
+	{
+		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH_PTR, StringLength, 0);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	/* SQL_DESC_INDICATOR_PTR is only for ARD or APD */
+	if (DC_get_desc_type(desc) != SQL_ATTR_IMP_PARAM_DESC)
+	{
+		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_INDICATOR_PTR, Indicator, 0);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	return SQL_SUCCESS;
 }
 
 /*	SQLSet(Param/Scroll/Stmt)Option -> SQLSetStmtAttr */
