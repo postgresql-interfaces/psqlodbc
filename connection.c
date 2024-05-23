@@ -552,23 +552,29 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 		COL_INFO	*coli;
 
 		for (i = 0; i < self->ntables; i++)
-		{/* Going through COL_INFO cache table and releasing coli objects. */
+		{
+			/* Going through COL_INFO cache table and releasing coli objects. */
 			if (coli = self->col_info[i], NULL != coli)
 			{
 				coli->refcnt--;
 				if (coli->refcnt <= 0)
-				{/* Last reference to coli object disappeared. Now destroying it. */
+				{
+					/* Last reference to coli object disappeared. Now destroying it. */
 					free_col_info_contents(coli);
 					free(coli);
 					self->col_info[i] = NULL;
 				}
-				else /* coli object have another reference to it, */
-					coli->acc_time = 0; /* so it will be destroyed somewhere else. */
+				else
+				{
+					/* coli object have another reference to it, so it will be destroyed somewhere else. */
+					coli->acc_time = 0;
+				}
 			}
 		}
 		self->ntables = 0; /* Now we have cleared COL_INFO cached objects table. */
 		if (destroy)
-		{/* We destroying COL_INFO cache completely. */
+		{
+			/* We destroying COL_INFO cache completely. */
 			free(self->col_info);
 			self->col_info = NULL;
 			self->coli_allocated = 0;

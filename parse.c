@@ -834,12 +834,14 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 
 		MYLOG(0, "      Success\n");
 		if (greloid != 0)
-		{/* We have reloid. Try to find appropriate coli object from connection COL_INFO cache. */
+		{
+			/* We have reloid. Try to find appropriate coli object from connection COL_INFO cache. */
 			for (k = 0; k < conn->ntables; k++)
 			{
 				tcoli = conn->col_info[k];
 				if (tcoli->table_oid == greloid)
-				{/* We found appropriate coli object, so we will use it. */
+				{
+					/* We found appropriate coli object, so we will use it. */
 					coli = tcoli;
 					coli_exist = TRUE;
 					break;
@@ -847,7 +849,8 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			}
 		}
 		if (!coli_exist)
-		{/* Not found, try to find unused coli or oldest (if overflow) in connection COL_INFO cache. */
+		{
+			/* Not found, try to find unused coli or oldest (if overflow) in connection COL_INFO cache. */
 			for (k = 0; k < conn->ntables; k++)
 			{
 				tcoli = conn->col_info[k];
@@ -856,31 +859,37 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 				if ((0 == tcoli->table_oid &&
 				    NAME_IS_NULL(tcoli->table_name)) ||
 				    strnicmp(SAFE_NAME(tcoli->schema_name), "pg_temp_", 8) == 0)
-				{/* Found unused coli object, taking it. */
+				{
+					/* Found unused coli object, taking it. */
 					coli = tcoli;
 					coli_exist = TRUE;
 					break;
 				}
 				if (NULL == ccoli || tcoli->acc_time < acctime)
-				{/* Not yet found. Alongside, searching least recently used coli object. */
+				{
+					/* Not yet found. Alongside, searching least recently used coli object. */
 					ccoli = tcoli;
 					acctime = tcoli->acc_time;
 				}
 			}
 			if (!coli_exist && NULL != ccoli && conn->ntables >= COLI_RECYCLE)
-			{/* Not found unsed object. Amount of them is on limit. Taking least recently used coli object. */
+			{
+				/* Not found unsed object. Amount of them is on limit. Taking least recently used coli object. */
 				coli_exist = TRUE;
 				coli = ccoli;
 			}
 		}
 		if (coli_exist)
-		{/* We have ready to use coli object. Cleaning it. */
+		{
+			/* We have ready to use coli object. Cleaning it. */
 			free_col_info_contents(coli);
 		}
 		else
-		{/* We have no coli object. Must create new one. */
+		{
+			/* We have no coli object. Must create a new one. */
 			if (conn->ntables >= conn->coli_allocated)
-			{/* No place in connection COL_INFO cache table. Allocating or reallocating. */
+			{
+				/* No place in connection COL_INFO cache table. Allocating or reallocating. */
 				Int2	new_alloc;
 				COL_INFO **col_info;
 

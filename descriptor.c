@@ -60,7 +60,8 @@ MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 			if (coli->refcnt <= 1 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
 				free_col_info_contents(coli); /* Now coli object is unused, and may be reused later. */
 			if (coli->refcnt <= 0)
-			{/* Last reference to coli object disappeared. Now destroying it. */
+			{
+				/* Last reference to coli object disappeared. Now destroying it. */
 				free(coli);
 				ti->col_info = NULL;
 			}
