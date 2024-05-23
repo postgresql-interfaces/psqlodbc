@@ -30,13 +30,13 @@ runTest(HSTMT hstmt)
 	intparam = 3;
 	cbParam1 = sizeof(intparam);
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
-						  SQL_INTEGER,	    /* value type                                 */
-						  SQL_INTEGER,	    /* param type                                 */
-						  0,			    /* column size (ignored for SQL_INTEGER)      */
-						  0,			    /* dec digits                                 */
-						  &intparam,	    /* param value ptr                            */
+						  SQL_INTEGER,      /* value type                                 */
+						  SQL_INTEGER,      /* param type                                 */
+						  0,                /* column size (ignored for SQL_INTEGER)      */
+						  0,                /* dec digits                                 */
+						  &intparam,        /* param value ptr                            */
 						  sizeof(intparam), /* buffer len (ignored for SQL_INTEGER)       */
-						  &cbParam1		    /* StrLen_or_IndPtr (ignored for SQL_INTEGER) */);
+						  &cbParam1         /* StrLen_or_IndPtr (ignored for SQL_INTEGER) */);
 	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
 
 	/* Execute */

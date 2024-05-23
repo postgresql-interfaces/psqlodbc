@@ -34,13 +34,13 @@ runtest(const char *query, char *bind_before, char *bind_after, int execute)
 	{
 		cbParam1 = SQL_NTS;
 		rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
-						  SQL_C_CHAR,	/* value type       */
-						  SQL_CHAR,		/* param type       */
-						  20,			/* column size      */
-						  0,			/* dec digits       */
-						  bind_before,	/* param value ptr  */
-						  0,			/* buffer len       */
-						  &cbParam1		/* StrLen_or_IndPtr */);
+						  SQL_C_CHAR,  /* value type       */
+						  SQL_CHAR,    /* param type       */
+						  20,          /* column size      */
+						  0,           /* dec digits       */
+						  bind_before, /* param value ptr  */
+						  0,           /* buffer len       */
+						  &cbParam1    /* StrLen_or_IndPtr */);
 		CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
 	}
 
@@ -53,13 +53,13 @@ runtest(const char *query, char *bind_before, char *bind_after, int execute)
 	{
 		cbParam1 = SQL_NTS;
 		rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
-						  SQL_C_CHAR,	/* value type       */
-						  SQL_CHAR,		/* param type       */
-						  20,			/* column size      */
-						  0,			/* dec digits       */
-						  bind_after,	/* param value ptr  */
-						  0,			/* buffer len       */
-						  &cbParam1		/* StrLen_or_IndPtr */);
+						  SQL_C_CHAR, /* value type       */
+						  SQL_CHAR,   /* param type       */
+						  20,         /* column size      */
+						  0,          /* dec digits       */
+						  bind_after, /* param value ptr  */
+						  0,          /* buffer len       */
+						  &cbParam1   /* StrLen_or_IndPtr */);
 		CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
 	}
 
