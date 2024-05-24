@@ -277,6 +277,11 @@ PGAPI_FreeStmt(HSTMT hstmt,
 			 * before freeing the associated cursors. Otherwise
 			 * CC_cursor_count() would get wrong results.
 			 */
+			if (stmt->parsed)
+			{
+				QR_Destructor(stmt->parsed);
+				stmt->parsed = NULL;
+			}
 			res = SC_get_Result(stmt);
 			QR_Destructor(res);
 			SC_init_Result(stmt);
@@ -494,6 +499,11 @@ SC_Destructor(StatementClass *self)
 			res->conn = NULL;	/* prevent any dbase activity */
 
 		QR_Destructor(res);
+	}
+	if (self->parsed)
+	{
+		QR_Destructor(self->parsed);
+		self->parsed = NULL;
 	}
 
 	SC_initialize_stmts(self, TRUE);
@@ -1391,7 +1401,7 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 			pgerror = pgerror_fail_safe;
 			pgerror->status = self->__error_number;
 			pgerror->errorsize = sizeof(pgerror->__error_message);
-			STRCPY_FIXED(pgerror->__error_message, ermsg); 
+			STRCPY_FIXED(pgerror->__error_message, ermsg);
 			pgerror->recsize = -1;
 		}
 		else
@@ -2047,7 +2057,7 @@ SC_execute(StatementClass *self)
 			qflag &= (~READ_ONLY_QUERY); /* must be a SAVEPOINT after DECLARE */
 		}
 		rhold = CC_send_query_append(conn, self->stmt_with_params, qryi, qflag, SC_get_ancestor(self), appendq);
-		first = rhold.first;	
+		first = rhold.first;
 		if (useCursor && QR_command_maybe_successful(first))
 		{
 			/*
@@ -2199,6 +2209,7 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, firs
 					QR_set_fields(first,  NULL);
 					tres->num_fields = first->num_fields;
 					QR_detach(first);
+					QR_Destructor(first);
 					SC_set_Result(self, tres);
 					rhold = self->rhold;
 				}

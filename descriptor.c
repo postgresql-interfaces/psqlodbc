@@ -41,24 +41,37 @@ MYLOG(DETAIL_LOG_LEVEL, "entering count=%d\n", count);
 		{
 			if (ti[i])
 			{
-				COL_INFO *coli = ti[i]->col_info;
-				if (coli)
-				{
-MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
-					coli->refcnt--;
-					if (coli->refcnt <= 0 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
-						free_col_info_contents(coli);
-				}
-				NULL_THE_NAME(ti[i]->schema_name);
-				NULL_THE_NAME(ti[i]->table_name);
-				NULL_THE_NAME(ti[i]->table_alias);
-				NULL_THE_NAME(ti[i]->bestitem);
-				NULL_THE_NAME(ti[i]->bestqual);
-				TI_Destroy_IH(ti[i]);
+				TI_ClearObject(ti[i]);
 				free(ti[i]);
 				ti[i] = NULL;
 			}
 		}
+	}
+}
+void    TI_ClearObject(TABLE_INFO *ti)
+{
+	if (ti)
+	{
+		COL_INFO *coli = ti->col_info;
+		if (coli)
+		{
+MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
+			coli->refcnt--;
+			if (coli->refcnt <= 1 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
+				free_col_info_contents(coli); /* Now coli object is unused, and may be reused later. */
+			if (coli->refcnt <= 0)
+			{
+				/* Last reference to coli object disappeared. Now destroying it. */
+				free(coli);
+				ti->col_info = NULL;
+			}
+		}
+		NULL_THE_NAME(ti->schema_name);
+		NULL_THE_NAME(ti->table_name);
+		NULL_THE_NAME(ti->table_alias);
+		NULL_THE_NAME(ti->bestitem);
+		NULL_THE_NAME(ti->bestqual);
+		TI_Destroy_IH(ti);
 	}
 }
 void	FI_Constructor(FIELD_INFO *self, BOOL reuse)

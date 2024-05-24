@@ -624,6 +624,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		STRCPY_FIXED(ci->username, value);
 	else if (stricmp(attribute, INI_PASSWORD) == 0 || stricmp(attribute, "pwd") == 0)
 	{
+		NULL_THE_NAME(ci->password);
 		ci->password = decode_or_remove_braces(value);
 #ifndef FORCE_PASSWORDE_DISPLAY
 		MYLOG(0, "key='%s' value='xxxxxxxx'\n", attribute);
@@ -669,11 +670,13 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_CONNSETTINGS) == 0 || stricmp(attribute, ABBR_CONNSETTINGS) == 0)
 	{
 		/* We can use the conn_settings directly when they are enclosed with braces */
+		NULL_THE_NAME(ci->conn_settings);
 		ci->conn_settings_in_str = TRUE;
 		ci->conn_settings = decode_or_remove_braces(value);
 	}
 	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
 	{
+		NULL_THE_NAME(ci->pqopt);
 		ci->pqopt_in_str = TRUE;
 		ci->pqopt = decode_or_remove_braces(value);
 	}

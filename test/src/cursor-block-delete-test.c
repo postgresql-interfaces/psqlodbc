@@ -20,7 +20,7 @@ static SQLRETURN delete_loop(HSTMT hstmt)
 	BOOL	use_first_last = 0;
 	int	delcnt = 0, delsav, loopcnt = 0;
 	SQLSMALLINT	orientation = SQL_FETCH_FIRST;
-	
+
 	do {
 		printf("\torientation=%d delete count=%d\n", orientation, delcnt);
 		delsav = delcnt;
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 	int		rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 	int		i, j, k;
-	int		count = TOTAL;	
+	int		count = TOTAL;
 	char		query[100];
 	SQLLEN		rowArraySize = BLOCK;
 	SQLULEN		rowsFetched;
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_CONCURRENCY, (SQLPOINTER) SQL_CONCUR_ROWVER, 0);
 	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr CONCURRENCY failed", hstmt);
 	rc = SQLSetConnectAttr(conn, SQL_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0);
-	
+
 	rc = SQLSetStmtAttr(hstmt, SQL_ATTR_CURSOR_TYPE, (SQLPOINTER) SQL_CURSOR_KEYSET_DRIVEN, 0);
 	CHECK_STMT_RESULT(rc, "SQLSetStmtAttr CURSOR_TYPE failed", hstmt);
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "select * from tmptable", SQL_NTS);
@@ -132,8 +132,8 @@ int main(int argc, char **argv)
 			rc = SQLExecDirect(hstmte, (SQLCHAR *) "savepoint yuuki", SQL_NTS);
 			CHECK_STMT_RESULT(rc, "savpoint failed", hstmte);
 		}
-	}	
-	
+	}
+
 	delete_loop(hstmt);	/* the 2nd loop */
 
 	rc = SQLExecDirect(hstmte, (SQLCHAR *) "rollback to yuuki;release yuuki", SQL_NTS);
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLEndTran failed", hstmt);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
-	
+
 	/* Clean up */
 	test_disconnect();
 
