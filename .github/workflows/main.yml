@@ -6,6 +6,7 @@ on:
     branches: [ "main" ]
     tags:
       - 'REL-*'
+      - '!REL-*-mimalloc'
   pull_request:
     branches: [ "main" ]
 
