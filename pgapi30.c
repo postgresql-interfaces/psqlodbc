@@ -1067,6 +1067,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	}
 	switch (FieldIdentifier)
 	{
+		case SQL_DESC_ALLOC_TYPE:
 		case SQL_DESC_ARRAY_SIZE:
 		case SQL_DESC_ARRAY_STATUS_PTR:
 		case SQL_DESC_BIND_OFFSET_PTR:
@@ -1074,12 +1075,15 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_COUNT:
 			break;
 		default:
-			if (RecNumber <= 0 || RecNumber > opts->allocated)
+			if (RecNumber <= 0)
 			{
 				DC_set_error(desc, DESC_INVALID_COLUMN_NUMBER_ERROR,
 					"invalid column number");
 				return SQL_ERROR;
 			}
+			/* RecNumber should be less than or equal to the number of descriptor records */
+			else if (RecNumber > opts->allocated)
+				return SQL_NO_DATA;
 	}
 	row_idx = RecNumber - 1;
 	switch (FieldIdentifier)
@@ -1214,19 +1218,24 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	len = sizeof(SQLINTEGER);
 	switch (FieldIdentifier)
 	{
+		case SQL_DESC_ALLOC_TYPE:
 		case SQL_DESC_ARRAY_SIZE:
 		case SQL_DESC_ARRAY_STATUS_PTR:
 		case SQL_DESC_BIND_OFFSET_PTR:
 		case SQL_DESC_BIND_TYPE:
 		case SQL_DESC_COUNT:
 			break;
-		default:if (RecNumber <= 0 || RecNumber > opts->allocated)
+		default:
+			if (RecNumber <= 0)
 			{
-MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
+				MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, opts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
 			}
+			/* RecNumber should be less than or equal to the number of descriptor records */
+			else if (RecNumber > opts->allocated)
+				return SQL_NO_DATA;
 	}
 	para_idx = RecNumber - 1;
 	switch (FieldIdentifier)
@@ -1361,6 +1370,7 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	SQLINTEGER	len = 0, rettype = 0;
 	PTR		ptr = NULL;
 	BOOL		bCallColAtt = FALSE;
+	BOOL		isHeader = FALSE;
 	const IRDFields	*opts = &(desc->irdf);
 
 	switch (FieldIdentifier)
@@ -1368,16 +1378,20 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_ARRAY_STATUS_PTR:
 			rettype = SQL_IS_POINTER;
 			ptr = opts->rowStatusArray;
+			isHeader = TRUE;
 			break;
 		case SQL_DESC_ROWS_PROCESSED_PTR:
 			rettype = SQL_IS_POINTER;
 			ptr = opts->rowsFetched;
+			isHeader = TRUE;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 			rettype = SQL_IS_SMALLINT;
 			ival = SQL_DESC_ALLOC_AUTO;
+			isHeader = TRUE;
 			break;
 		case SQL_DESC_COUNT: /* read-only */
+			isHeader = TRUE;
 		case SQL_DESC_AUTO_UNIQUE_VALUE: /* read-only */
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
 		case SQL_DESC_CONCISE_TYPE: /* read-only */
@@ -1418,12 +1432,25 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
 	}
+	/* RecNumber should be less than or equal to the number of descriptor records */
+	if (!isHeader && RecNumber > opts->nfields)
+		return SQL_NO_DATA;
 	if (bCallColAtt)
 	{
 		SQLSMALLINT	pcbL;
 		StatementClass	*stmt;
 
 		stmt = opts->stmt;
+		/* if statement is in the prepared or executed state but there is no open cursor, return SQL_NO_DATA */
+		if ((stmt->prepared >= PREPARED_PERMANENTLY || stmt->status == STMT_FINISHED) && NAME_IS_NULL(stmt->cursor_name))
+			return SQL_NO_DATA;
+		/* HY007: statement handle should be prepared or executed */
+		if (stmt->prepared == NOT_YET_PREPARED || SC_get_Curres(stmt) == NULL)
+		{
+			DC_set_error(desc, DESC_STATEMENT_NOT_PREPARED,
+				"associated statement is not prepared");
+			return SQL_ERROR;
+		}
 		ret = PGAPI_ColAttributes(stmt, RecNumber,
 			FieldIdentifier, Value, (SQLSMALLINT) BufferLength,
 				&pcbL, &ival);
@@ -1454,6 +1481,9 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 
 	if (StringLength)
 		*StringLength = len;
+	/* 01004: String data, right-truncated */
+	if (ret == SQL_SUCCESS_WITH_INFO)
+		DC_set_error(desc, DESC_STRING_DATA_TRUNCATED, "string data truncated");
 	return ret;
 }
 
@@ -1470,17 +1500,22 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 
 	switch (FieldIdentifier)
 	{
+		case SQL_DESC_ALLOC_TYPE:
 		case SQL_DESC_ARRAY_STATUS_PTR:
 		case SQL_DESC_ROWS_PROCESSED_PTR:
 		case SQL_DESC_COUNT:
 			break;
-		default:if (RecNumber <= 0 || RecNumber > ipdopts->allocated)
+		default:
+			if (RecNumber <= 0)
 			{
-MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
+				MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated);
 				DC_set_error(desc, DESC_BAD_PARAMETER_NUMBER_ERROR,
 					"bad parameter number");
 				return SQL_ERROR;
 			}
+			/* RecNumber should be less than or equal to the number of descriptor records */
+			else if (RecNumber > ipdopts->allocated)
+				return SQL_NO_DATA;
 	}
 	para_idx = RecNumber - 1;
 	switch (FieldIdentifier)
@@ -1569,13 +1604,32 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 			rettype = SQL_IS_SMALLINT;
 			ival = SQL_DESC_ALLOC_AUTO;
 			break;
+		case SQL_DESC_NAME:
+			rettype = SQL_NTS;
+			if (NAME_IS_NULL(ipdopts->parameters[para_idx].paramName))
+				ptr = (char *) SAFE_NAME(ipdopts->parameters[para_idx].paramName);
+			else
+				ptr = GET_NAME(ipdopts->parameters[para_idx].paramName);
+			if (ptr)
+			{
+				len = (SQLINTEGER) strlen(ptr);
+				if (Value)
+				{
+					strncpy_null((char *) Value, ptr, BufferLength);
+					if (len >= BufferLength)
+						ret = SQL_SUCCESS_WITH_INFO;
+				}
+			}
+			break;
+		case SQL_DESC_NULLABLE: /* read-only */
+			rettype = SQL_IS_SMALLINT;
+			ival = SQL_NULLABLE;
+			break;
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
 		case SQL_DESC_DATETIME_INTERVAL_PRECISION:
 		case SQL_DESC_FIXED_PREC_SCALE: /* read-only */
 		case SQL_DESC_LENGTH:
 		case SQL_DESC_LOCAL_TYPE_NAME: /* read-only */
-		case SQL_DESC_NAME:
-		case SQL_DESC_NULLABLE: /* read-only */
 		case SQL_DESC_NUM_PREC_RADIX:
 		case SQL_DESC_ROWVER: /* read-only */
 		case SQL_DESC_TYPE_NAME: /* read-only */
@@ -1599,10 +1653,15 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 			len = sizeof(SQLPOINTER);
 			*((void **)Value) = ptr;
 			break;
+		case SQL_NTS:
+			break;
 	}
 
 	if (StringLength)
 		*StringLength = len;
+	/* 01004: String data, right-truncated */
+	if (ret == SQL_SUCCESS_WITH_INFO)
+		DC_set_error(desc, DESC_STRING_DATA_TRUNCATED, "string data truncated");
 	return ret;
 }
 
@@ -2048,6 +2107,77 @@ PGAPI_SetDescRec(SQLHDESC DescriptorHandle,
 	if (DC_get_desc_type(desc) != SQL_ATTR_IMP_PARAM_DESC)
 	{
 		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_INDICATOR_PTR, Indicator, 0);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	return SQL_SUCCESS;
+}
+
+/*	new function */
+RETCODE		SQL_API
+PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
+			SQLSMALLINT RecNumber, SQLCHAR *Name,
+			SQLSMALLINT BufferLength, SQLSMALLINT *StringLength,
+			SQLSMALLINT *Type, SQLSMALLINT *SubType,
+			SQLLEN *Length, SQLSMALLINT *Precision,
+			SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
+{
+	RETCODE		ret = SQL_SUCCESS;
+	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
+
+	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, Name, BufferLength);
+	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
+
+	/*
+		Get following descriptor fields:
+
+		- SQL_DESC_TYPE
+		- SQL_DESC_DATETIME_INTERVAL_CODE
+		- SQL_DESC_OCTET_LENGTH
+		- SQL_DESC_PRECISION
+		- SQL_DESC_SCALE
+		- SQL_DESC_NULLABLE
+		- SQL_DESC_NAME
+	*/
+
+	if (Type != NULL)
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, Type, 0, NULL);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	if (SubType != NULL) {
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, SubType, 0, NULL);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	if (Length != NULL)
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, Length, 0, NULL);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	if (Precision != NULL)
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, Precision, 0, NULL);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	if (Scale != NULL)
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, Scale, 0, NULL);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	if (Nullable != NULL && (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC || DC_get_desc_type(desc) == SQL_ATTR_IMP_PARAM_DESC))
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NULLABLE, Nullable, 0, NULL);
+		if (ret != SQL_SUCCESS) return ret;
+	}
+
+	if (Name != NULL && (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC || DC_get_desc_type(desc) == SQL_ATTR_IMP_PARAM_DESC))
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NAME, Name, BufferLength, (SQLINTEGER *) StringLength);
 		if (ret != SQL_SUCCESS) return ret;
 	}
 
