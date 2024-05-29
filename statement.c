@@ -301,7 +301,9 @@ PGAPI_FreeStmt(HSTMT hstmt,
 		if (stmt->execute_parent)
 			stmt->execute_parent->execute_delegate = NULL;
 		/* Destroy the statement and free any results, cursors, etc. */
-		SC_Destructor(stmt);
+		/* if the connection was already closed return error */
+		if (SC_Destructor(stmt) == FALSE)
+			return SQL_ERROR;
 	}
 	else if (fOption == SQL_UNBIND)
 		SC_unbind_cols(stmt);
@@ -482,6 +484,7 @@ SC_Constructor(ConnectionClass *conn)
 char
 SC_Destructor(StatementClass *self)
 {
+	char cRet = TRUE;
 	CSTR func	= "SC_Destructor";
 	QResultClass	*res = SC_get_Result(self);
 
@@ -508,7 +511,13 @@ SC_Destructor(StatementClass *self)
 
 	SC_initialize_stmts(self, TRUE);
 
-        /* Free the parsed table information */
+	if(self->hdbc && !self->hdbc->pqconn)
+	{
+		SC_set_error(self, STMT_COMMUNICATION_ERROR, "connection error.", func);
+		cRet = FALSE;
+	}
+
+    /* Free the parsed table information */
 	SC_initialize_cols_info(self, FALSE, TRUE);
 
 	NULL_THE_NAME(self->cursor_name);
@@ -535,7 +544,7 @@ SC_Destructor(StatementClass *self)
 
 	MYLOG(0, "leaving\n");
 
-	return TRUE;
+	return cRet;
 }
 
 void
