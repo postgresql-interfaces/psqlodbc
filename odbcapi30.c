@@ -308,9 +308,14 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
-	MYLOG(0, "Entering\n");
-	MYLOG(0, "Error not implemented\n");
-	return SQL_ERROR;
+	RETCODE		ret;
+
+	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
+	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
+	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, Name, BufferLength,
+			StringLength, Type, SubType, Length, Precision,
+			Scale, Nullable);
+	return ret;
 }
 
 /*	new function */
@@ -459,9 +464,14 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  PTR Data, SQLLEN *StringLength,
 			  SQLLEN *Indicator)
 {
-	MYLOG(0, "Entering\n");
-	MYLOG(0, "Error not implemented\n");
-	return SQL_ERROR;
+	RETCODE		ret;
+
+	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
+	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
+	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
+			SubType, Length, Precision, Scale, Data,
+			StringLength, Indicator);
+	return ret;
 }
 #endif /* UNICODE_SUPPORTXX */
 
@@ -646,20 +656,14 @@ MYLOG(DETAIL_LOG_LEVEL, "lie=%d\n", ci->drivers.lie);
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFREEHANDLE);		/* 1006 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETCONNECTATTR);	/* 1007 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDESCFIELD);	/* 1008 */
-	if (ci->drivers.lie)
-	{
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDESCREC); /* 1009 not implemented yet */
-	}
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDESCREC);		/* 1009 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDIAGFIELD); /* 1010 minimal implementation */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETDIAGREC);		/* 1011 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETENVATTR);		/* 1012 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLGETSTMTATTR);	/* 1014 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETCONNECTATTR);	/* 1016 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETDESCFIELD);	/* 1017 */
-	if (ci->drivers.lie)
-	{
-		SQL_FUNC_ESET(pfExists, SQL_API_SQLSETDESCREC); /* 1018 not implemented yet */
-	}
+	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETDESCREC);		/* 1018 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETENVATTR);		/* 1019 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLSETSTMTATTR);	/* 1020 */
 	SQL_FUNC_ESET(pfExists, SQL_API_SQLFETCHSCROLL);	/* 1021 */
