@@ -23,7 +23,7 @@ env:
   WORKFLOW_VERSION_POSTGRESQL: '1' # for build steps related to the 'cachePostgres' cache
 
   # Software versions. 
-  POSTGRESQL_SOURCE_TAG: 'REL_17_beta2'
+  POSTGRESQL_SOURCE_TAG: 'REL_17_BETA2'
   POSTGRESQL_PACKAGE_FILEID: '1259019'
   OPENSSL_VERSION: '3_3_0'
   PKGCONFIGLITE_VERSION: '0.28-1'
