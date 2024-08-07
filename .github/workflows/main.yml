@@ -92,20 +92,15 @@ jobs:
         key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
-    - name: Cache Win32OpenSSL32 for Win32Compile
+    
+    - name: Cache OpenSSL
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
-      id: cacheWin32OpenSSL
-      with:
-        path: C:\OTHERBIN\openssl32
-        key: Win32OpenSSL-${{env.OPENSSL_VERSION}}
-    - name: Cache Win64OpenSSL64 for Win64Compile
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: actions/cache@v4
-      id: cacheWin64OpenSSL
+      id: cacheOpenSSL
       with:
         path: C:\OTHERBIN\openssl64
-        key: Win64OpenSSL-${{env.OPENSSL_VERSION}}
+        key: OpenSSL-${{env.OPENSSL_VERSION}}
+
     - name: Cache winflexbison for Compile using msvc
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: actions/cache@v4
@@ -124,24 +119,51 @@ jobs:
         retry-times: 5
         url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/${{env.DIFFUTILS_VERSION}}/diffutils-${{env.DIFFUTILS_VERSION}}-bin.zip
         filename: diffutils-bin.zip
-    
-    - name: Download openssl32 for win32 compile
-      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
+        
+    - name: Download openssl source
+      if: ${{steps.cacheOpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadWin32OpenSSL
+      id: downloadOpenSSL
       with:
         retry-times: 5
-        url: https://slproweb.com/download/Win32OpenSSL-${{env.OPENSSL_VERSION}}.exe
-        filename: Win32OpenSSL.exe
-    
-    - name: Download openssl64 for win64 compile
-      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadWin64OpenSSL
-      with:
-        retry-times: 5
-        url: https://slproweb.com/download/Win64OpenSSL-${{env.OPENSSL_VERSION}}.exe
-        filename: Win64OpenSSL.exe
+        url: https://www.openssl.org/source/openssl-${{env.OPENSSL_VERSION}}.tar.gz
+        filename: openssl-${{ env.OPENSSL_VERSION }}.tar.gz
+
+    - name: Configure OpenSSL
+      if: success()
+      run: |
+        tar xzvf openssl-${{ env.OPENSSL_VERSION }}.tar.gz
+        cd openssl-${{ env.OPENSSL_VERSION }}
+        perl Configure VC-WIN64A no-asm --prefix=C:\OTHERBIN\openssl64 no-ssl3 no-comp
+
+    - name: setup msvc 64
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with: 
+        arch: x64
+
+    - name: build openssl 64    
+      run: |
+        cd openssl-${{ env.OPENSSL_VERSION }}
+        nmake
+        mkdir c:\OTHERBIN\openssl64
+        nmake install
+
+    - name: setup msvc 86
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with: 
+        arch: x86
+       
+    - name: configure openssl 32        
+      run: |
+        cd openssl-${{ env.OPENSSL_VERSION }}
+        perl Configure VC-WIN32 no-asm --prefix=C:\OTHERBIN\openssl32 no-ssl3 no-comp
+
+    - name: build openssl 32
+      run: |
+        cd openssl-${{ env.OPENSSL_VERSION }}
+        nmake
+        mkdir c:\OTHERBIN\openssl32
+        nmake install
   
     - name: Download pkgconfiglite for Compile using msvc and meson
       if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
@@ -199,16 +221,6 @@ jobs:
       run: |
         rem - man7.org/linux/man-pages/man1/printf.1.html
         printf "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-%PKGCONFIGLITE_VERSION%\\bin" >> %GITHUB_PATH%
-
-    - name: Install Win32OpenSSL
-      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: Win32OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl32
-
-    - name: Install Win64OpenSSL
-      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: Win64OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl64
 
       # Choco Install winflexbison
       # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
