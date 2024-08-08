@@ -145,6 +145,10 @@ jobs:
       run: |
         cd openssl-${{ env.OPENSSL_VERSION }}
         nmake
+
+    - name: install openssl 64
+      run: |
+        cd openssl-${{ env.OPENSSL_VERSION }}
         mkdir c:\OTHERBIN\openssl64
         nmake install
 
@@ -163,9 +167,13 @@ jobs:
       run: |
         cd openssl-${{ env.OPENSSL_VERSION }}
         nmake
+
+    - name: install openssl 32
+      run: |
+        cd openssl-${{ env.OPENSSL_VERSION }}
         mkdir c:\OTHERBIN\openssl32
         nmake install
-  
+     
     - name: Download pkgconfiglite for Compile using msvc and meson
       if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       uses: suisei-cn/actions-download-file@v1.6.0
