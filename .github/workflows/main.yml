@@ -155,7 +155,7 @@ jobs:
     - name: Create openssl64 pkgconfig File
       shell: cmd
       run: |
-        mkdir \c:\OTHERBIN\openssl64\lib\pkgconfig
+        mkdir c:\OTHERBIN\openssl64\lib\pkgconfig
 
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo prefix=${pcfiledir}/../..
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo exec_prefix=${prefix}
