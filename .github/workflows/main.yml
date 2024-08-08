@@ -24,7 +24,7 @@ env:
   WORKFLOW_VERSION_POSTGRESQL: '1' # for build steps related to the 'cachePostgres' cache
 
   # Software versions. 
-  POSTGRESQL_SOURCE_TAG: 'REL_17_BETA2'
+  POSTGRESQL_SOURCE_TAG: 'REL_17_BETA3'
   POSTGRESQL_PACKAGE_FILEID: '1259019'
   OPENSSL_VERSION: '3.3.1'
   PKGCONFIGLITE_VERSION: '0.28-1'
@@ -257,7 +257,7 @@ jobs:
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       working-directory: postgres
       run: |
-        meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl32\lib -Dextra_include_dirs=c:\OTHERBIN\openssl32\include --prefix=d:\postgresql86
+        meson setup --wipe buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl32\lib -Dextra_include_dirs=c:\OTHERBIN\openssl32\include --prefix=d:\postgresql86
         cd buildx86
         ninja -v 
         ninja -v install
