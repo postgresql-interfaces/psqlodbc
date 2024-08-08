@@ -156,6 +156,7 @@ jobs:
     - name: configure openssl 32        
       run: |
         cd openssl-${{ env.OPENSSL_VERSION }}
+        nmake clean
         perl Configure VC-WIN32 no-asm --prefix=C:\OTHERBIN\openssl32 no-ssl3 no-comp
 
     - name: build openssl 32
