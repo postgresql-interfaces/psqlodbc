@@ -1565,18 +1565,18 @@ PGAPI_GetFunctions(HDBC hdbc,
 				case SQL_API_SQLFREEHANDLE:	/* 1006 */
 				case SQL_API_SQLGETCONNECTATTR:	/* 1007 */
 				case SQL_API_SQLGETDESCFIELD:	/* 1008 */
+				case SQL_API_SQLGETDESCREC:	/* 1009 */
 				case SQL_API_SQLGETDIAGFIELD:	/* 1010 */
 				case SQL_API_SQLGETDIAGREC:	/* 1011 */
 				case SQL_API_SQLGETENVATTR:	/* 1012 */
 				case SQL_API_SQLGETSTMTATTR:	/* 1014 */
 				case SQL_API_SQLSETCONNECTATTR:	/* 1016 */
 				case SQL_API_SQLSETDESCFIELD:	/* 1017 */
+				case SQL_API_SQLSETDESCREC:	/* 1018 */
 				case SQL_API_SQLSETENVATTR:	/* 1019 */
 				case SQL_API_SQLSETSTMTATTR:	/* 1020 */
 					*pfExists = TRUE;
 					break;
-				case SQL_API_SQLGETDESCREC:	/* 1009 */
-				case SQL_API_SQLSETDESCREC:	/* 1018 */
 				case SQL_API_SQLCOPYDESC:	/* 1004 */
 					*pfExists = FALSE;
 					break;

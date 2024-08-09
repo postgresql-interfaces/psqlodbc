@@ -60,7 +60,7 @@ SQLEndTran @85
 SQLFetchScroll @86
 SQLFreeHandle @87
 ;SQLGetDescField @88
-;SQLGetDescRec @89
+SQLGetDescRec @89
 ;SQLGetDiagField @90
 ;SQLGetDiagRec @91
 SQLGetEnvAttr @92
@@ -68,7 +68,7 @@ SQLGetEnvAttr @92
 ;SQLGetStmtAttr @94
 ;SQLSetConnectAttr @95
 ;SQLSetDescField @96
-;SQLSetDescRec @97
+SQLSetDescRec @97
 SQLSetEnvAttr @98
 ;SQLSetStmtAttr @99
 SQLBulkOperations @100

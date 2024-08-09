@@ -426,9 +426,37 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLLEN *Length, SQLSMALLINT *Precision,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
-	MYLOG(0, "Entering\n");
-	MYLOG(0, "Error not implemented\n");
-	return SQL_ERROR;
+	RETCODE		ret;
+	char		*NameA = NULL;
+	SQLSMALLINT	nlen;
+
+	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
+	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
+
+	if (BufferLength > 0)
+		NameA = malloc(BufferLength);
+
+	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, (SQLCHAR *) NameA, BufferLength,
+			&nlen, Type, SubType, Length, Precision,
+			Scale, Nullable);
+	if (SQL_SUCCEEDED(ret))
+	{
+		if (NameA && nlen <= BufferLength)
+		{
+			SQLULEN ulen = utf8_to_ucs2_lf(NameA, nlen, FALSE, Name, BufferLength, TRUE);
+			if (ulen == (SQLULEN) -1)
+				nlen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) Name, NameA, BufferLength, FALSE);
+			else
+				nlen = (SQLSMALLINT) ulen;
+			if (nlen >= BufferLength)
+				ret = SQL_SUCCESS_WITH_INFO;
+		}
+		if (StringLength)
+			*StringLength = nlen;
+	}
+	if (NameA)
+		free(NameA);
+	return ret;
 }
 
 /*	new function */
@@ -440,7 +468,28 @@ SQLSetDescRecW(SQLHDESC DescriptorHandle,
 			  PTR Data, SQLLEN *StringLength,
 			  SQLLEN *Indicator)
 {
-	MYLOG(0, "Entering\n");
-	MYLOG(0, "Error not implemented\n");
-	return SQL_ERROR;
+	RETCODE		ret;
+	SQLLEN	vallen;
+	char    *uval = NULL;
+	BOOL	val_alloced = FALSE;
+
+	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
+	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
+	
+	if (Length > 0 || SQL_NTS == Length)
+	{
+		uval = ucs2_to_utf8(Data, Length > 0 ? Length / WCLEN : Length, &vallen, FALSE);
+		val_alloced = TRUE;
+	}
+	if (!val_alloced)
+	{
+		uval = Data;
+		vallen = Length;
+	}
+	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
+			SubType, Length, Precision, Scale, uval,
+			&vallen, Indicator);
+	if (val_alloced)
+		free(uval);
+	return ret;
 }

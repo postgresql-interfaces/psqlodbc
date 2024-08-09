@@ -53,4 +53,5 @@ TESTBINS = exe/connect-test \
 	exe/odbc-escapes-test \
 	exe/wchar-char-test \
 	exe/params-batch-exec-test \
-	exe/fetch-refcursors-test
+	exe/fetch-refcursors-test \
+	exe/descrec-test
