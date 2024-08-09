@@ -161,9 +161,9 @@ jobs:
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo exec_prefix=${prefix}
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo libdir=${prefix}/lib
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo includedir=${prefix}/include
-        >> c:\OTHERBIN\openssl64lib\pkgconfig\openssl.pc echo.
-        >> c:\OTHERBIN\openssl64lib\pkgconfig\openssl.pc echo Name: openssl
-        >> c:\OTHERBIN\openssl64lib\pkgconfig\openssl.pc echo Description: openssl encryption library
+        >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo.
+        >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo Name: openssl
+        >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo Description: openssl encryption library
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo Version: ${{ env.OPENSSL_VERSION }}
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo Libs: -L${libdir} -lcrypto -lssl
         >> c:\OTHERBIN\openssl64\lib\pkgconfig\openssl.pc echo Cflags: -I${includedir}
@@ -193,15 +193,15 @@ jobs:
     - name: Create openssl32 pkgconfig File
       shell: cmd
       run: |
-        mkdir \c:\OTHERBIN\openssl32\lib\pkgconfig
+        mkdir c:\OTHERBIN\openssl32\lib\pkgconfig
 
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo prefix=${pcfiledir}/../..
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo exec_prefix=${prefix}
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo libdir=${prefix}/lib
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo includedir=${prefix}/include
-        >> c:\OTHERBIN\openssl32lib\pkgconfig\openssl.pc echo.
-        >> c:\OTHERBIN\openssl32lib\pkgconfig\openssl.pc echo Name: openssl
-        >> c:\OTHERBIN\openssl32lib\pkgconfig\openssl.pc echo Description: openssl encryption library
+        >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo.
+        >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo Name: openssl
+        >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo Description: openssl encryption library
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo Version: ${{ env.OPENSSL_VERSION }}
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo Libs: -L${libdir} -lcrypto -lssl
         >> c:\OTHERBIN\openssl32\lib\pkgconfig\openssl.pc echo Cflags: -I${includedir}
