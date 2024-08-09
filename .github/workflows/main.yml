@@ -304,7 +304,7 @@ jobs:
       if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
       working-directory: postgres
       run: |
-        meson setup build -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl64\lib -Dextra_include_dirs=c:\OTHERBIN\openssl64\include --prefix=d:\postgresql
+        meson setup --wipe build -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl64\lib -Dextra_include_dirs=c:\OTHERBIN\openssl64\include --prefix=d:\postgresql
         cd build
         ninja
         ninja install
