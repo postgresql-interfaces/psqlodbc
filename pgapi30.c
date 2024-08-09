@@ -1370,7 +1370,6 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	SQLINTEGER	len = 0, rettype = 0;
 	PTR		ptr = NULL;
 	BOOL		bCallColAtt = FALSE;
-	BOOL		isHeader = FALSE;
 	const IRDFields	*opts = &(desc->irdf);
 
 	switch (FieldIdentifier)
@@ -1378,20 +1377,16 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_ARRAY_STATUS_PTR:
 			rettype = SQL_IS_POINTER;
 			ptr = opts->rowStatusArray;
-			isHeader = TRUE;
 			break;
 		case SQL_DESC_ROWS_PROCESSED_PTR:
 			rettype = SQL_IS_POINTER;
 			ptr = opts->rowsFetched;
-			isHeader = TRUE;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 			rettype = SQL_IS_SMALLINT;
 			ival = SQL_DESC_ALLOC_AUTO;
-			isHeader = TRUE;
 			break;
 		case SQL_DESC_COUNT: /* read-only */
-			isHeader = TRUE;
 		case SQL_DESC_AUTO_UNIQUE_VALUE: /* read-only */
 		case SQL_DESC_CASE_SENSITIVE: /* read-only */
 		case SQL_DESC_CONCISE_TYPE: /* read-only */
@@ -1432,9 +1427,6 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
 	}
-	/* RecNumber should be less than or equal to the number of descriptor records */
-	if (!isHeader && RecNumber > opts->nfields)
-		return SQL_NO_DATA;
 	if (bCallColAtt)
 	{
 		SQLSMALLINT	pcbL;
@@ -1444,8 +1436,8 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		/* if statement is in the prepared or executed state but there is no open cursor, return SQL_NO_DATA */
 		if ((stmt->prepared >= PREPARED_PERMANENTLY || stmt->status == STMT_FINISHED) && NAME_IS_NULL(stmt->cursor_name))
 			return SQL_NO_DATA;
-		/* HY007: statement handle should be prepared or executed */
-		if (stmt->prepared == NOT_YET_PREPARED || SC_get_Curres(stmt) == NULL)
+		/* HY007: statement handle had not been prepared or executed */
+		if (SC_get_Curres(stmt) == NULL && stmt->prepared == NOT_YET_PREPARED)
 		{
 			DC_set_error(desc, DESC_STATEMENT_NOT_PREPARED,
 				"associated statement is not prepared");
@@ -2124,6 +2116,8 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret = SQL_SUCCESS;
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
+	SQLSMALLINT strlen, typ, subtyp, prec, scal, null;
+	SQLLEN len;
 
 	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
@@ -2142,43 +2136,52 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 
 	if (Type != NULL)
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, Type, 0, NULL);
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, &typ, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
+		*Type = typ;
 	}
 
-	if (SubType != NULL) {
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, SubType, 0, NULL);
+	if (SubType != NULL && (typ == SQL_DATETIME || typ == SQL_INTERVAL))
+	{
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, &subtyp, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
+		*SubType = subtyp;
 	}
 
 	if (Length != NULL)
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, Length, 0, NULL);
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, &len, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
+		*Length = (SQLLEN) len;
 	}
 
 	if (Precision != NULL)
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, Precision, 0, NULL);
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, &prec, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
+		*Precision = prec;
 	}
 
 	if (Scale != NULL)
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, Scale, 0, NULL);
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, &scal, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
+		*Scale = scal;
 	}
 
 	if (Nullable != NULL && (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC || DC_get_desc_type(desc) == SQL_ATTR_IMP_PARAM_DESC))
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NULLABLE, Nullable, 0, NULL);
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NULLABLE, &null, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
+		*Nullable = null;
 	}
 
 	if (Name != NULL && (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC || DC_get_desc_type(desc) == SQL_ATTR_IMP_PARAM_DESC))
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NAME, Name, BufferLength, (SQLINTEGER *) StringLength);
+		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NAME, Name, BufferLength, (SQLINTEGER *) &strlen);
 		if (ret != SQL_SUCCESS) return ret;
+		if (StringLength != NULL)
+			*StringLength = strlen;
 	}
 
 	return SQL_SUCCESS;
