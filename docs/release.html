@@ -6,9 +6,51 @@
   </HEAD>
 
   <body bgcolor="#ffffff" text="#000000" link="#ff0000" vlink="#a00000" alink="#0000ff">
-
+ 
 <h1>psqlODBC release notes</h1>
 <hr>
+<h2><a id="17.00.0000">psqlODBC 17.00.0000 Release</a></h2>
+Changes:<br />
+<li>
+  Change: Build against PostgreSQL 17 RC1 <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/44">PR #44</a>
+  Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+</li>
+
+<ol type="1">
+
+<h2><a id="16.00.0005">psqlODBC 16.00.0005 Release</a></h2>
+Changes:<br />
+<ol type="1">
+  <li>Fix: if the connection is broken when calling SQLFreeHandle, the client can't be notified <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/1">PR #1</a>
+  Author: <a href="https://github.com/apgrucza"> Adrian Grucza</a></li>
+  <li>Perf: Use mimalloc to improve performance and reduce memory allocation lock contention <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/6">PR#6</a></li>
+  <li>Add: Build and release using github actions <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/7">PR#7</a></li>
+  <li>Add: Support building against VC17 on AMD64 <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/9">PR#9</a>
+  Author: <a href="https://github.com/apgrucza"> Adrian Grucza</a></li>
+  <li>Fix: Fixed typos in all source code and documentations <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/11">PR#11</a>
+  Author <a href="https://github.com/Hunaid2000">Hunaid Sohail</a></li>
+  <li>Fix: during call SQLFreeHandle, if the connection is broken the client is not notified <a href-"https://github.com/postgresql-interfaces/psqlodbc/pull/12">PR #12</a>
+  Author: <a href="https://github.com/apgrucza"> Adrian Grucza</a></li>
+  </li>
+  <li>Fix: Key caches based on software versions <a href-"https://github.com/postgresql-interfaces/psqlodbc/pull/13">PR #13</a><
+  Author: <a href="https://github.com/apgrucza"> Adrian Grucza</a></li>
+  <li>Add: Add mimalloc release <a href-"https://github.com/postgresql-interfaces/psqlodbc/pull/14">PR #14</a>
+  Author: <a href="https://github.com/apgrucza"> Adrian Grucza</a></li>
+  <li>Fix: Use strdup on non-Windows systems <a href-"https://github.com/postgresql-interfaces/psqlodbc/pull/17">PR #17</a>
+  Author: <a href="https://github.com/apgrucza"> Adrian Grucza</a></li>
+  <li>Add: Implementation of SQLSetDescRec & SQLGetDescRec functions <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/23">PR#23</a>
+    Author <a href="https://github.com/Hunaid2000">Hunaid Sohail</a></li>
+  <li>Fix: Fix Memory leaks <a href="https://github.com/postgresql-interfaces/psqlodbc/issues/8">Issue #8</a> <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/25">PR#25</a>
+  Author: <a href="https://github.com/progmachine">Alexandr Kuznetsov</a>
+  </li>  
+  <li> Fix: SQLGetData function can return an incorrect SQLSTATE <a href="https://github.com/postgresql-interfaces/psqlodbc/issues/33">Issue #33</a> <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/35"> PR #35</a>
+  Author: <a href=""https://github.com/omeuid">Carlos García</a>
+  </li>
+  <li>
+    Change: Build against PostgreSQL 17 Beta3 <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/37">PR #37</a>
+    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+  </li>
+</ol>
 <h2><a id="16.00.0000">psqlODBC 16.00.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
@@ -27,7 +69,7 @@ Changes:<br />
 <h2><a id="13.02.0000">psqlODBC 13.02.0000 Release</a></h2>
 Changes:<br />
 <ol type="1">
-<li>Fix a bug of CC_send_query_append() when the ignore_roundtrip_time flag is onRemove a mylog() call which is a dupilicate of the preceding MYLOG() macro call.</li>
+<li>Fix a bug of CC_send_query_append() when the ignore_roundtrip_time flag is onRemove a mylog() call which is a duplicate of the preceding MYLOG() macro call.</li>
 Also direct use of mylog() should be avoided because mylog() uses lots of CPU.
 <li>Noticed that the password field on the PostgreSQL Connection</li>
 dialog is always focused when empty, even when other fields that appear
@@ -90,7 +132,7 @@ Changes:<br />
 <li>Add a new *Display Optional Error Message* option. </li>
 This option allows to
 display error messages other than primary one.
-Also add documentaition about the option and *Numeric as* option.
+Also add documentation about the option and *Numeric as* option.
 <li>Handle notice messages in libpq_bind_and_exec().</li>
 Sets and resets a notify receiver around PQexecParams() or PQexecPrepared().
 <li>Ignore PQtransactionStatus PQTRANS_ACTIVE in LIBPQ_update_transaction_status().
