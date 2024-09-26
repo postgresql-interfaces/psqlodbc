@@ -829,7 +829,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 	{
 		BOOL		coli_exist = FALSE;
 		COL_INFO	*coli = NULL, *ccoli = NULL, *tcoli;
-		int		k;
+		int		 k, tmp_refcnt = 0;
 		time_t		acctime = 0;
 
 		MYLOG(0, "      Success\n");
@@ -882,6 +882,8 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		if (coli_exist)
 		{
 			/* We have ready to use coli object. Cleaning it. */
+			tmp_refcnt = coli->refcnt; /* If we found coli with greloid, then some TABLE_INFO objects may have references to it -> save refcnt for them. */
+			tmp_refcnt--; /* Down the road we will increase refcnt again to account for the refernce from ConnectionClass object to coli object. */
 			free_col_info_contents(coli);
 		}
 		else
@@ -921,6 +923,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		}
 		col_info_initialize(coli);
 
+		coli->refcnt = tmp_refcnt;
 		coli->refcnt++; /* Counting one reference to coli object from connection COL_INFO cache table. */
 		coli->result = res;
 		if (res && QR_get_num_cached_tuples(res) > 0)
@@ -976,6 +979,17 @@ MYLOG(DETAIL_LOG_LEVEL, "oid item == %s\n", (const char *) QR_get_value_backend_
 		MYLOG(0, "Created col_info table='%s', ntables=%d\n", PRINT_NAME(wti->table_name), conn->ntables);
 		/* Associate a table from the statement with a SQLColumn info */
 		found = TRUE;
+		if (wti->col_info)
+		{
+			/* wti also has reference to COL_INFO object, so we must release it. */
+MYLOG(0, "!!!refcnt %p:%d -> %d\n", wti->col_info, wti->col_info->refcnt, wti->col_info->refcnt - 1);
+			wti->col_info->refcnt--;
+			if (wti->col_info->refcnt <= 0)
+			{
+				free_col_info_contents(wti->col_info);
+				free(wti->col_info);
+			}
+		}
 		coli->refcnt++; /* Counting another one reference to coli object from TABLE_INFO wti object. */
 		wti->col_info = coli;
 	}

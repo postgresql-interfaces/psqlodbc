@@ -556,6 +556,7 @@ CC_clear_col_info(ConnectionClass *self, BOOL destroy)
 			/* Going through COL_INFO cache table and releasing coli objects. */
 			if (coli = self->col_info[i], NULL != coli)
 			{
+				MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 				coli->refcnt--;
 				if (coli->refcnt <= 0)
 				{
