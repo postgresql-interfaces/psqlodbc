@@ -883,7 +883,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 		{
 			/* We have ready to use coli object. Cleaning it. */
 			tmp_refcnt = coli->refcnt; /* If we found coli with greloid, then some TABLE_INFO objects may have references to it -> save refcnt for them. */
-			tmp_refcnt--; /* Down the road we will increase refcnt again to account for the refernce from ConnectionClass object to coli object. */
+			tmp_refcnt--; /* Down the road we will increase refcnt again to account for the reference from ConnectionClass object to coli object. */
 			free_col_info_contents(coli);
 		}
 		else
