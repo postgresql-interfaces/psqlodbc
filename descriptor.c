@@ -705,6 +705,8 @@ static const struct
 	{ DESC_OPTION_NOT_FOR_THE_DRIVER, "HYC00", "HYC00" },
 	{ DESC_FETCH_OUT_OF_RANGE, "HY106", "S1106" },
 	{ DESC_COUNT_FIELD_INCORRECT, "07002", "07002" },
+	{ DESC_STATEMENT_NOT_PREPARED, "HY007", "S1010" },
+	{ DESC_STRING_DATA_TRUNCATED, "01004", "01004"}
 };
 
 static	PG_ErrorInfo	*DC_create_errorinfo(const DescriptorClass *self)

@@ -36,6 +36,7 @@ windows-local.mak
 /Makefile.in
 /aclocal.m4
 /autom4te.cache/
+/autom4te.cache/*
 /config/
 /config.h
 /config.h.in
@@ -43,6 +44,7 @@ windows-local.mak
 /config.status
 /configure
 /libtool
+/psqlodbca.la
 /psqlodbcw.la
 /stamp-h1
 
@@ -106,6 +108,11 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+
+# Eclipse project options
+/.project
+/.cproject
+/.settings
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

@@ -1389,7 +1389,7 @@ MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		else
 		{
 			SC_set_error(stmt, STMT_RETURN_NULL_WITHOUT_INDICATOR, "StrLen_or_IndPtr was a null pointer and NULL data was retrieved", func);
-			return	SQL_ERROR;
+			return	COPY_GENERAL_ERROR;
 		}
 	}
 
