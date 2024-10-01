@@ -58,7 +58,11 @@ void    TI_ClearObject(TABLE_INFO *ti)
 MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 			coli->refcnt--;
 			if (coli->refcnt <= 1 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
+			{
+				Int2 tmp_refcnt = coli->refcnt; /* If refcnt is still above 0, we must save it. */
 				free_col_info_contents(coli); /* Now coli object is unused, and may be reused later. */
+				coli->refcnt = tmp_refcnt;
+			}
 			if (coli->refcnt <= 0)
 			{
 				/* Last reference to coli object disappeared. Now destroying it. */
