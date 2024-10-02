@@ -140,9 +140,9 @@
     </Upgrade>
 
     <CustomAction Id='AlreadyUpdated'
-                Error="the same version of [$(var.PKGNAME)] is already installed" />
+                Error="the same version of [ProductName] is already installed" />
     <CustomAction Id='NoDowngrade'
-                Error="a new version of [$(var.PKGNAME)] is already installed" />
+                Error="a new version of [ProductName] is already installed" />
     <CustomAction Id='NoMinorUpgrade'
                 Error="REINSTALL unavailable. Major upgrade is needed." />
     <CustomAction Id='NoReinstall'
