@@ -42,7 +42,7 @@
 
   <Product
     Manufacturer="PostgreSQL Global Development Group"
-    Id="$(var.PRODUCTCODE)"
+    Id="*"
     UpgradeCode="$(var.UPGCOD)"
     Name="$(var.PKGNAME)"
     Version="$(var.VERSION)"

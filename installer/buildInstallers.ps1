@@ -263,9 +263,6 @@ function buildInstaller([string]$CPUTYPE)
 		New-Item -ItemType directory -Path $CPUTYPE | Out-Null
 	}
 
-	$PRODUCTCODE = [GUID]::NewGuid()
-	Write-Host "PRODUCTCODE: $PRODUCTCODE"
-
 	try {
 		pushd "$scriptPath"
 
@@ -285,7 +282,7 @@ function buildInstaller([string]$CPUTYPE)
 
 		Write-Host ".`nBuilding psqlODBC installer database..."
 
-		candle -nologo "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dPRODUCTCODE=$PRODUCTCODE" "-dINSTBASE=$INSTBASE" -o $INSTBASE\psqlodbc.wixobj psqlodbc_cpu.wxs
+		candle -nologo "-dPlatform=$CPUTYPE" "-dVERSION=$VERSION" "-dSUBLOC=$SUBLOC" "-dINSTBASE=$INSTBASE" -o $INSTBASE\psqlodbc.wixobj psqlodbc_cpu.wxs
 		if ($LASTEXITCODE -ne 0) {
 			throw "Failed to build installer database"
 		}
