@@ -1,22 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
-<!-- Default to x86 platform -->
-<?ifndef var.Platform ?>
-  <?define Platform = "x86" ?>
-<?else?>
-  <?if $(var.Platform) != x64 and $(var.Platform) != x86 ?>
-    <?error Invalid Platform variable ?>
-  <?endif?>
-<?endif?>
-
-<?ifndef var.INSTBASE ?>
-  <?define INSTBASE = $(var.Platform) ?>
-<?endif?>
-
-<?if $(var.Platform) = x64 ?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define Platform = "x64" ?>
   <?define PKGNAME = "psqlODBC_x64" ?>
-  <?define BIT64 = "yes" ?>
   <?define PGFOLDER = "ProgramFiles64Folder" ?>
   <?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
   <?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
@@ -24,9 +11,9 @@
   <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
   <?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
   <?define ALLUSERS = "1" ?>
-<?else?>
+<?elseif $(sys.BUILDARCH) = x86 ?>
+  <?define Platform = "x86" ?>
   <?define PKGNAME = "psqlODBC" ?>
-  <?define BIT64 = "no" ?>
   <?define PGFOLDER = "ProgramFilesFolder" ?>
   <?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
   <?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
@@ -34,6 +21,12 @@
   <?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
   <?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
   <?define ALLUSERS = "1" ?>
+<?else?>	<!-- sys.BUILDARCH -->
+  <?error Invalid build architecture ?>
+<?endif?>
+
+<?ifndef var.INSTBASE ?>
+  <?define INSTBASE = $(var.Platform) ?>
 <?endif?>
 
 <?define MERGEM = "$(var.INSTBASE)\psqlodbc_$(var.Platform).msm" ?>
@@ -55,7 +48,6 @@
       Comments="PostgreSQL ODBC Driver"
       Manufacturer="PostgreSQL Global Development Group"
       InstallerVersion="300"
-      Platform="$(var.Platform)"
       Languages="1033"
       Compressed="yes"
       SummaryCodepage="1252" />
@@ -67,13 +59,13 @@
         <Directory Id="BASEDIR" Name="psqlODBC">
           <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
             <Directory Id="BINDIR" Name="bin">
-              <Component Id="registration" Guid="$(var.CIDREG)" Win64="$(var.BIT64)">
+              <Component Id="registration" Guid="$(var.CIDREG)">
                 <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(var.PKGNAME)" Name="Version" Value="$(var.VERSION)" />
               </Component>
               <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(var.MERGEM)" />
             </Directory>
             <Directory Id="DOCSDIR" Name="docs">
-              <Component Id="docs" Guid="$(var.CIDDOC)" Win64="$(var.BIT64)">
+              <Component Id="docs" Guid="$(var.CIDDOC)">
                 <File Id="docs.README.txt" Name="README.txt" DiskId="1" Source="../docs/README.txt" KeyPath="yes" />
                 <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
                 <File Id="docs.config_opt.html" Name="config-opt.html" DiskId="1" Source="../docs/config-opt.html" />
@@ -91,7 +83,7 @@
       </Directory>
       <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
         <Directory Id="SMDir" Name="$(var.PKGNAME)">
-            <Component Id="smdir" Guid="$(var.CIDSMD)" Win64="$(var.BIT64)">
+            <Component Id="smdir" Guid="$(var.CIDSMD)">
                 <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(var.PKGNAME)\SMDir Created" Value="y" />
                 <RemoveFolder Id="SMDir" On="uninstall" />
             </Component>
