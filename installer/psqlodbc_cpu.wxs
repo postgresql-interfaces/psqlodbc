@@ -5,7 +5,6 @@
   <?define Platform = "x64" ?>
   <?define PKGNAME = "psqlODBC_x64" ?>
   <?define PGFOLDER = "ProgramFiles64Folder" ?>
-  <?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
   <?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
   <?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
   <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
@@ -15,7 +14,6 @@
   <?define Platform = "x86" ?>
   <?define PKGNAME = "psqlODBC" ?>
   <?define PGFOLDER = "ProgramFilesFolder" ?>
-  <?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
   <?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
   <?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E42E" ?>
   <?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
