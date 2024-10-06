@@ -31,7 +31,7 @@
 <?else?>
   <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?endif?>
-<?else?>	<!-- sys.BUILDARCH -->
+<?else?><!-- sys.BUILDARCH -->
   <?error Invalid build architecture ?>
 <?endif?>
 
@@ -51,165 +51,165 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
 
-		<!-- The Component Guid Generation Seed is a guid that must be used
-			 when a Component with the generate guid directive ("*") is not
-			 rooted in a standard Windows Installer directory (for example,
-			 ProgramFilesFolder or CommonFilesFolder). It is recommended
-			 that this attribute be avoided and that developers install
-			 their Components under standard directories with unique names
-			 instead (for example, "ProgramFilesFolder\Company Name Product
-			 Name Version"). It is important to note that once a directory
-			 is assigned a Component Guid Generation Seed the value must not
-			 change until (and must be changed when) the path to that
-			 directory, including itself and all parent directories, changes.
-		-->
+      <!-- The Component Guid Generation Seed is a guid that must be used
+           when a Component with the generate guid directive ("*") is not
+           rooted in a standard Windows Installer directory (for example,
+           ProgramFilesFolder or CommonFilesFolder). It is recommended
+           that this attribute be avoided and that developers install
+           their Components under standard directories with unique names
+           instead (for example, "ProgramFilesFolder\Company Name Product
+           Name Version"). It is important to note that once a directory
+           is assigned a Component Guid Generation Seed the value must
+           not change until (and must be changed when) the path to that
+           directory, including itself and all parent directories,
+           changes.
+    -->
       <Directory Id="BINDIR" Name="." ComponentGuidGenerationSeed="495CEE94-BDB9-4309-9544-D98783259CD8">
-		<!-- PostgreSQL -->
-		<Component Id="psqlodbc.psqlodbc30a.dll">
-		  <File Name="psqlodbc30a.dll" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\psqlodbc30a.dll">
-			<ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))">
-				<Property Id="CPTimeout" Value="60"/>
-			</ODBCDriver>
-			<ODBCDriver Id="Psqlodbc_11_newid_Driver_ANSI" Name="PostgreSQL ANSI">
-				<Property Id="CPTimeout" Value="60"/>
-			</ODBCDriver>
-		  </File>
-		</Component>
-		<Component Id="psqlodbc.pgenlista.dll">
-		  <File Name="pgenlista.dll" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\pgenlista.dll" />
-		</Component>
+    <!-- PostgreSQL -->
+    <Component Id="psqlodbc.psqlodbc30a.dll">
+      <File Name="psqlodbc30a.dll" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\psqlodbc30a.dll">
+      <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))">
+        <Property Id="CPTimeout" Value="60"/>
+      </ODBCDriver>
+      <ODBCDriver Id="Psqlodbc_11_newid_Driver_ANSI" Name="PostgreSQL ANSI">
+        <Property Id="CPTimeout" Value="60"/>
+      </ODBCDriver>
+      </File>
+    </Component>
+    <Component Id="psqlodbc.pgenlista.dll">
+      <File Name="pgenlista.dll" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\pgenlista.dll" />
+    </Component>
 <?if $(var.NoPDB) != True ?>
-		<Component Id="psqlodbc.psqlodbc30a.pdb">
-		  <File Name="psqlodbc30a.pdb" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\psqlodbc30a.pdb" />
-		</Component>
-		<Component Id="psqlodbc.pgenlista.pdb">
-		  <File Name="pgenlista.pdb" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\pgenlista.pdb" />
-		</Component>
+    <Component Id="psqlodbc.psqlodbc30a.pdb">
+      <File Name="psqlodbc30a.pdb" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\psqlodbc30a.pdb" />
+    </Component>
+    <Component Id="psqlodbc.pgenlista.pdb">
+      <File Name="pgenlista.pdb" Source="$(var.BINBASE)\$(var.ANSIFOLDER)\pgenlista.pdb" />
+    </Component>
 <?endif?>
-		<Component Id="psqlodbc.psqlodbc35w.dll">
-		  <File Name="psqlodbc35w.dll" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\psqlodbc35w.dll">
-			<ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(var.Platform))">
-				<Property Id="CPTimeout" Value="60"/>
-			</ODBCDriver>
-			<ODBCDriver Id="Psqlodbc_11_newid_Driver" Name="PostgreSQL Unicode">
-				<Property Id="CPTimeout" Value="60"/>
-			</ODBCDriver>
-		  </File>
-		</Component>
-		<Component Id="psqlodbc.pgenlist.dll">
-		  <File Name="pgenlist.dll" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\pgenlist.dll" />
-		</Component>
+    <Component Id="psqlodbc.psqlodbc35w.dll">
+      <File Name="psqlodbc35w.dll" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\psqlodbc35w.dll">
+      <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(var.Platform))">
+        <Property Id="CPTimeout" Value="60"/>
+      </ODBCDriver>
+      <ODBCDriver Id="Psqlodbc_11_newid_Driver" Name="PostgreSQL Unicode">
+        <Property Id="CPTimeout" Value="60"/>
+      </ODBCDriver>
+      </File>
+    </Component>
+    <Component Id="psqlodbc.pgenlist.dll">
+      <File Name="pgenlist.dll" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\pgenlist.dll" />
+    </Component>
 <?if $(var.NoPDB) != True ?>
-		<Component Id="psqlodbc.psqlodbc35w.pdb">
-		  <File Name="psqlodbc35w.pdb" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\psqlodbc35w.pdb" />
-		</Component>
-		<Component Id="psqlodbc.pgenlist.pdb">
-		  <File Name="pgenlist.pdb" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\pgenlist.pdb" />
-		</Component>
+    <Component Id="psqlodbc.psqlodbc35w.pdb">
+      <File Name="psqlodbc35w.pdb" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\psqlodbc35w.pdb" />
+    </Component>
+    <Component Id="psqlodbc.pgenlist.pdb">
+      <File Name="pgenlist.pdb" Source="$(var.BINBASE)\$(var.UNICODEFOLDER)\pgenlist.pdb" />
+    </Component>
 <?endif?>
 
-		<!-- MSVC Runtime -->
+    <!-- MSVC Runtime -->
 <?if "$(var.PODBCMSVCDLL)" != "" ?>
-		<Component Id="vcredist.vcruntime.dll.psqlodbc">
-		  <File Source="$(var.PODBCMSVCDLL)" />
-		</Component>
+    <Component Id="vcredist.vcruntime.dll.psqlodbc">
+      <File Source="$(var.PODBCMSVCDLL)" />
+    </Component>
 <?endif?>
 <?if "$(var.PODBCMSVPDLL)" != "" ?>
-		<Component Id="vcredist.msvcp.dll.psqlodbc">
-		  <File Source="$(var.PODBCMSVPDLL)" />
-		</Component>
+    <Component Id="vcredist.msvcp.dll.psqlodbc">
+      <File Source="$(var.PODBCMSVPDLL)" />
+    </Component>
 <?endif?>
 <?if "$(var.PODBCMSVCSYS)" != "" ?>
-		<Component Id="system.vcruntime.dll.psqlodbc">
-		  <File Source="$(var.SysFolder)\$(var.PODBCMSVCSYS)" />
-		</Component>
+    <Component Id="system.vcruntime.dll.psqlodbc">
+      <File Source="$(var.SysFolder)\$(var.PODBCMSVCSYS)" />
+    </Component>
 <?endif?>
 <?if "$(var.PODBCMSVPSYS)" != "" ?>
-		<Component Id="system.msvcp.dll.psqlodbc">
-		  <File Source="$(var.SysFolder)\$(var.PODBCMSVPSYS)" />
-		</Component>
+    <Component Id="system.msvcp.dll.psqlodbc">
+      <File Source="$(var.SysFolder)\$(var.PODBCMSVPSYS)" />
+    </Component>
 <?endif?>
 <?if "$(var.LIBPQMSVCDLL)" != "" ?>
-		<Component Id="vcredist.vcruntime.dll.libpq">
-		  <File Source="$(var.LIBPQMSVCDLL)" />
-		</Component>
+    <Component Id="vcredist.vcruntime.dll.libpq">
+      <File Source="$(var.LIBPQMSVCDLL)" />
+    </Component>
 <?endif?>
 <?if "$(var.LIBPQMSVCSYS)" != "" ?>
-		<Component Id="system.vcruntime.dll.libpq">
-		  <File Source="$(var.SysFolder)\$(var.LIBPQMSVCSYS)" />
-		</Component>
+    <Component Id="system.vcruntime.dll.libpq">
+      <File Source="$(var.SysFolder)\$(var.LIBPQMSVCSYS)" />
+    </Component>
 <?endif?>
 
-		<!-- libpq -->
-		<Component Id="libpq.libpq.dll">
-		  <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" />
-		</Component>
+    <!-- libpq -->
+    <Component Id="libpq.libpq.dll">
+      <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" />
+    </Component>
 <?if "$(var.LIBPQMEM0)" != "" ?>
-		<Component Id="libpq.related0.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM0)" />
-		</Component>
+    <Component Id="libpq.related0.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM0)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM1)" != "" ?>
-		<Component Id="libpq.related1.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM1)" />
-		</Component>
+    <Component Id="libpq.related1.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM1)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM2)" != "" ?>
-		<Component Id="libpq.related2.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM2)" />
-		</Component>
+    <Component Id="libpq.related2.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM2)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM3)" != "" ?>
-		<Component Id="libpq.related3.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM3)" />
-		</Component>
+    <Component Id="libpq.related3.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM3)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM4)" != "" ?>
-		<Component Id="libpq.related4.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM4)" />
-		</Component>
+    <Component Id="libpq.related4.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM4)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM5)" != "" ?>
-		<Component Id="libpq.related5.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM5)" />
-		</Component>
+    <Component Id="libpq.related5.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM5)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM6)" != "" ?>
-		<Component Id="libpq.related6.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM6)" />
-		</Component>
+    <Component Id="libpq.related6.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM6)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM7)" != "" ?>
-		<Component Id="libpq.related7.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM7)" />
-		</Component>
+    <Component Id="libpq.related7.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM7)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM8)" != "" ?>
-		<Component Id="libpq.related8.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM8)" />
-		</Component>
+    <Component Id="libpq.related8.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM8)" />
+    </Component>
 <?endif ?>
 <?if "$(var.LIBPQMEM9)" != "" ?>
-		<Component Id="libpq.related9.dll">
-		  <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM9)" />
-		</Component>
+    <Component Id="libpq.related9.dll">
+      <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM9)" />
+    </Component>
 <?endif ?>
 
-	<!--
-		MSDTC runs in 64bit mode on 64bit machines and 32bit mode on
-		32bit machines. We had better register the XA DLL on 
-		installation.
-	--> 
-		<Component Id="pgxalib.files">
-	<?if $(var.BIT64) = no ?>	<!-- On x64 OS only install from x64 package. -->
-		  <Condition>
-			<![CDATA[NOT VersionNT64]]>
-		  </Condition>
-	<?endif?>
-		  <File Name="pgxalib.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgxalib.dll" />
-		  <RegistryValue Id="pgxalib.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
-		</Component>
-	  </Directory>
+    <!-- MSDTC runs in 64bit mode on 64bit machines and 32bit mode on
+         32bit machines. We had better register the XA DLL on 
+         installation.
+    --> 
+    <Component Id="pgxalib.files">
+<?if $(var.BIT64) = no ?> <!-- On x64 OS only install from x64 package. -->
+      <Condition>
+      <![CDATA[NOT VersionNT64]]>
+      </Condition>
+<?endif?>
+      <File Name="pgxalib.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgxalib.dll" />
+      <RegistryValue Id="pgxalib.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
+    </Component>
+    </Directory>
     </Directory>
 
   </Module>
