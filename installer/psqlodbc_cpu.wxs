@@ -153,7 +153,7 @@
     <Custom Action='NoDowngrade' After='FindRelatedProducts'>NEWERFOUND AND NOT Installed</Custom>
     <Custom Action='NoReinstall' Before='ValidateProductID'>REINSTALLMODE AND NOT Installed</Custom>
     <Custom Action='NoMinorUpgrade' After='FindRelatedProducts'>UPGRADEFOUND AND REINSTALLMODE</Custom>
-    <RemoveExistingProducts After='InstallFinalize'>UPGRADEFOUND AND NOT Installed</RemoveExistingProducts>
+    <RemoveExistingProducts After='InstallInitialize'>UPGRADEFOUND AND NOT Installed</RemoveExistingProducts>
   </InstallExecuteSequence>
   </Product>
 </Wix>
