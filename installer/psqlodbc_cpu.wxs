@@ -103,7 +103,7 @@
       </Feature>
 
     </Feature>
-    <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab"/>
+    <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab" CompressionLevel="high"/>
 
 <!-- Properties -->
 
