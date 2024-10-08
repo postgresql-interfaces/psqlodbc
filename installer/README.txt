@@ -8,9 +8,7 @@ WiX may be downloaded from:
   http://wix.codeplex.com/
 
 
-Two parallel systems to build the installers are currently provided:
-
-POWERSHELL BASED
+HOW TO BUILD
 ----------
 
 Ensure that suitable binaries are in the parent directory Release build outputs
@@ -30,10 +28,5 @@ and try again.
 
 Note that these installer generators use the configuration file prepared by the
 PowerShell scripts in ..\winbuild, defaulting to ..\winbuild\configuration.xml,
-so you can't just mix them with SDK- or NMake based compilation.
+so you can't just mix them with SDK-based compilation.
 
-NMAKE BASED
------------
-
-Use the top-level file (win64.mak), per the documentation in
-docs/win32-compilation.html, to build installers using NMake.
