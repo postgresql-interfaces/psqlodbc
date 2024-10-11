@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
 <?if $(sys.BUILDARCH) = x64 ?>
   <?define Platform = "x64" ?>
@@ -24,46 +25,43 @@
 <?endif?>
 
 <?ifndef var.INSTBASE ?>
-  <?define INSTBASE = $(var.Platform) ?>
+  <?define INSTBASE = $(Platform) ?>
 <?endif?>
 
-<?define MERGEM = "$(var.INSTBASE)\psqlodbc_$(var.Platform).msm" ?>
+<?define MERGEM = "$(INSTBASE)\psqlodbc_$(Platform).msm" ?>
 
 <!-- Product details -->
 
-  <Product
+  <Package
     Manufacturer="PostgreSQL Global Development Group"
-    Id="*"
-    UpgradeCode="$(var.UPGCOD)"
-    Name="$(var.PKGNAME)"
-    Version="$(var.VERSION)"
+    UpgradeCode="$(UPGCOD)"
+    Name="$(PKGNAME)"
+    Version="$(VERSION)"
+      Codepage="1252" 
+      InstallerVersion="300"
+      Compressed="yes"
     Language="1033">
 
 <!-- Package details -->
 
-    <Package
+    <SummaryInformation
+      Codepage="1252" 
       Keywords="PostgreSQL, ODBC"
-      Comments="PostgreSQL ODBC Driver"
-      Manufacturer="PostgreSQL Global Development Group"
-      InstallerVersion="300"
-      Languages="1033"
-      Compressed="yes"
-      SummaryCodepage="1252" />
+      Comments="PostgreSQL ODBC Driver"/>
 
 <!-- Directories -->
 
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="$(var.PGFOLDER)" Name="PFiles">
+      <StandardDirectory Id="$(PGFOLDER)">
         <Directory Id="BASEDIR" Name="psqlODBC">
-          <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
+          <Directory Id="SUBLOC" Name="$(SUBLOC)">
             <Directory Id="BINDIR" Name="bin">
-              <Component Id="registration" Guid="$(var.CIDREG)">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(var.PKGNAME)" Name="Version" Value="$(var.VERSION)" />
+              <Component Id="registration" Guid="$(CIDREG)">
+                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(PKGNAME)" Name="Version" Value="$(VERSION)" />
               </Component>
-              <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(var.MERGEM)" />
+              <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(MERGEM)" />
             </Directory>
             <Directory Id="DOCSDIR" Name="docs" FileSource="../docs">
-              <Component Id="docs" Guid="$(var.CIDDOC)">
+              <Component Id="docs" Guid="$(CIDDOC)">
                 <File Name="README.txt" KeyPath="yes" />
                 <File Name="config.html" />
                 <File Name="config-opt.html" />
@@ -78,20 +76,19 @@
             </Directory>
           </Directory>
         </Directory>
-      </Directory>
-      <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
-        <Directory Id="SMDir" Name="$(var.PKGNAME)">
-            <Component Id="smdir" Guid="$(var.CIDSMD)">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(var.PKGNAME)\SMDir Created" Value="y" />
+      </StandardDirectory>
+      <StandardDirectory Id="ProgramMenuFolder">
+        <Directory Id="SMDir" Name="$(PKGNAME)">
+            <Component Id="smdir" Guid="$(CIDSMD)">
+                <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(PKGNAME)\SMDir Created" Value="y" />
                 <RemoveFolder Id="SMDir" On="uninstall" />
             </Component>
         </Directory>
-      </Directory>
-    </Directory>
+      </StandardDirectory>
 
 <!-- Features -->
 
-    <Feature Id="psqlodbc" Title="$(var.PKGNAME)" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
+    <Feature Id="psqlodbc" Title="$(PKGNAME)" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
       <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
         <ComponentRef Id="registration" />
         <MergeRef Id="psqlodbcm" />
@@ -105,14 +102,9 @@
     </Feature>
     <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab" CompressionLevel="high"/>
 
-<!-- Properties -->
-
-    <Property Id="ALLUSERS">$(var.ALLUSERS)</Property>
-    <Property Id="WIXUI_INSTALLDIR" Value="BASEDIR" />
-
 <!-- UI -->
 
-    <UIRef Id="WixUI_FeatureTree" />
+    <ui:WixUI Id="WixUI_FeatureTree" InstallDirectory="BASEDIR"/>
     <WixVariable Id="WixUILicenseRtf" Value="lgpl.rtf" />
     <WixVariable Id="WixUIDialogBmp" Value="background.bmp" />
     <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
@@ -121,5 +113,5 @@
     <MajorUpgrade
       DowngradeErrorMessage="A newer version of [ProductName] is already installed"
       Schedule="afterInstallInitialize" />
-  </Product>
+  </Package>
 </Wix>
