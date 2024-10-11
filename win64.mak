@@ -316,24 +316,13 @@ unicode-driver:
 ansi-driver:
 	$(MAKE) -f win64.mak ANSI_VERSION=yes
 
-installer: unicode-driver ansi-driver
-	cd installer && $(MAKE) -f installer.mak CFG=$(CFG)
-
-# world target builds both 32-bit and 64-bit installers in one command.
-#
-# The "setenv" command, from Microsoft SDK, is used to switch the build
-# target. However, it only changes the environment for the current shell;
-# it is reset for the next command. So we cannot just call "setenv /x64"
-# here one one line and nmake one the next one. I also tried creating a .bat
-# file with the commands, but setenv contains a "EXIT /B" which stops the
-# script from executing. But we can launch a new cmd.exe and pass the
-# commands to it in stdin.
 world:
 	cmd < <<
 setenv /x64
-$(MAKE) -f win64.mak installer CFG=$(CFG)
+$(MAKE) -f win64.mak unicode-driver ansi-driver CFG=$(CFG)
 setenv /x86
-$(MAKE) -f win64.mak installer CFG=$(CFG)
+$(MAKE) -f win64.mak unicode-driver ansi-driver CFG=$(CFG)
+>&2 echo The "world" target does not build installers anymore.
 <<
 
 clean-world:
@@ -341,4 +330,3 @@ clean-world:
 	-rd /Q /S x64_Unicode_Release x64_Unicode_Debug
 	-rd /Q /S x86_ANSI_Release x86_ANSI_Debug
 	-rd /Q /S x86_Unicode_Release x86_Unicode_Debug
-	cd installer && $(MAKE) /f installer.mak CFG=$(CFG) clean
