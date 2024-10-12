@@ -5,7 +5,6 @@
 <?if $(sys.BUILDARCH) = x64 ?>
   <?define Platform = "x64" ?>
   <?define PKGNAME = "psqlODBC_x64" ?>
-  <?define PGFOLDER = "ProgramFiles64Folder" ?>
   <?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
   <?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
   <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
@@ -14,7 +13,6 @@
 <?elseif $(sys.BUILDARCH) = x86 ?>
   <?define Platform = "x86" ?>
   <?define PKGNAME = "psqlODBC" ?>
-  <?define PGFOLDER = "ProgramFilesFolder" ?>
   <?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
   <?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E42E" ?>
   <?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
@@ -37,54 +35,54 @@
     UpgradeCode="$(UPGCOD)"
     Name="$(PKGNAME)"
     Version="$(VERSION)"
-      Codepage="1252" 
-      InstallerVersion="300"
-      Compressed="yes"
+    Codepage="1252"
+    InstallerVersion="300"
+    Compressed="yes"
     Language="1033">
 
 <!-- Package details -->
 
     <SummaryInformation
-      Codepage="1252" 
+      Codepage="1252"
       Keywords="PostgreSQL, ODBC"
-      Comments="PostgreSQL ODBC Driver"/>
+      Comments="PostgreSQL ODBC Driver" />
 
 <!-- Directories -->
 
-      <StandardDirectory Id="$(PGFOLDER)">
-        <Directory Id="BASEDIR" Name="psqlODBC">
-          <Directory Id="SUBLOC" Name="$(SUBLOC)">
-            <Directory Id="BINDIR" Name="bin">
-              <Component Id="registration" Guid="$(CIDREG)">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(PKGNAME)" Name="Version" Value="$(VERSION)" />
-              </Component>
-              <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(MERGEM)" />
-            </Directory>
-            <Directory Id="DOCSDIR" Name="docs" FileSource="../docs">
-              <Component Id="docs" Guid="$(CIDDOC)">
-                <File Name="README.txt" KeyPath="yes" />
-                <File Name="config.html" />
-                <File Name="config-opt.html" />
-                <File Name="release.html" />
-                <File Name="release-7.3.html" />
-                <File Name="unix-compilation.html" />
-                <File Name="win32-compilation.html" />
-                <File Name="editConfiguration.jpg" />
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="BASEDIR" Name="psqlODBC">
+        <Directory Id="SUBLOC" Name="$(SUBLOC)">
+          <Directory Id="BINDIR" Name="bin">
+            <Component Id="registration" Guid="$(CIDREG)">
+              <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(PKGNAME)" Name="Version" Value="$(VERSION)" />
+            </Component>
+            <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(MERGEM)" />
+          </Directory>
+          <Directory Id="DOCSDIR" Name="docs" FileSource="../docs">
+            <Component Id="docs" Guid="$(CIDDOC)">
+              <File Name="README.txt" KeyPath="yes" />
+              <File Name="config.html" />
+              <File Name="config-opt.html" />
+              <File Name="release.html" />
+              <File Name="release-7.3.html" />
+              <File Name="unix-compilation.html" />
+              <File Name="win32-compilation.html" />
+              <File Name="editConfiguration.jpg" />
 
-                <!-- <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" /> -->
-              </Component>
-            </Directory>
+              <!-- <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" /> -->
+            </Component>
           </Directory>
         </Directory>
-      </StandardDirectory>
-      <StandardDirectory Id="ProgramMenuFolder">
-        <Directory Id="SMDir" Name="$(PKGNAME)">
-            <Component Id="smdir" Guid="$(CIDSMD)">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(PKGNAME)\SMDir Created" Value="y" />
-                <RemoveFolder Id="SMDir" On="uninstall" />
-            </Component>
-        </Directory>
-      </StandardDirectory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="SMDir" Name="$(PKGNAME)">
+        <Component Id="smdir" Guid="$(CIDSMD)">
+          <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(PKGNAME)\SMDir Created" Value="y" />
+          <RemoveFolder Id="SMDir" On="uninstall" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
 
 <!-- Features -->
 
@@ -104,12 +102,13 @@
 
 <!-- UI -->
 
-    <ui:WixUI Id="WixUI_FeatureTree" InstallDirectory="BASEDIR"/>
+    <ui:WixUI Id="WixUI_FeatureTree" InstallDirectory="BASEDIR" />
     <WixVariable Id="WixUILicenseRtf" Value="lgpl.rtf" />
     <WixVariable Id="WixUIDialogBmp" Value="background.bmp" />
     <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
 
 <!-- Upgrade -->
+
     <MajorUpgrade
       DowngradeErrorMessage="A newer version of [ProductName] is already installed"
       Schedule="afterInstallInitialize" />
