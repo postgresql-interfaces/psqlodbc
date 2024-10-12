@@ -34,19 +34,16 @@ Dim record
 Set record = view.Fetch
 Dim gFile, pos
 Do While not record Is Nothing
-gFile = record.StringData(1)
-If Left(gFile, 8) = "psqlodbc" Then
-	gFile = record.StringData(3)
-	' Check if the FileName field is ShortName|LongName
-	pos = InStr(record.StringData(3), "|")
-	If pos > 0 Then
-		' Omit the ShortName part
-		gFile = Mid(record.StringData(3), pos + 1)
-		WScript.echo record.StringData(3) & " -> " & gFile
-		' And update the field
-		record.StringData(3) = gFile
-		view.Modify msiViewModifyUpdate, record
-	End If
+' Check if the FileName field is ShortName|LongName
+gFile = record.StringData(3)
+pos = InStr(gFile, "|psqlodbc")
+If (pos > 0) Then
+	' Omit the ShortName part
+	gFile = Mid(gFile, pos + 1)
+	WScript.echo record.StringData(3) & " -> " & gFile
+	' And update the field
+	record.StringData(3) = gFile
+	view.Modify msiViewModifyUpdate, record
 End If
 Set record = view.Fetch
 Loop
