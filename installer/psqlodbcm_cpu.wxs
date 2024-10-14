@@ -1,194 +1,144 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-
-<!-- Default to x86 platform -->
-<?ifndef var.Platform ?>
-  <?define Platform = "x86" ?>
-<?else?>
-  <?if $(var.Platform) != x64 and $(var.Platform) != x86 ?>
-    <?error Invalid Platform variable ?>
-  <?endif?>
-<?endif?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
 <?ifndef var.BINBASE ?>
   <?define BINBASE = ".." ?>
 <?endif?>
 
-<?if $(var.Platform) = x64 ?>
-  <?define ModuleName = "psqlODBC_$(var.Platform)" ?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define Platform = "x64" ?>
+  <?define ModuleName = "psqlODBC_x64" ?>
   <?define BIT64 = "yes" ?>
   <?define ANSIFOLDER = "x64_ANSI_Release" ?>
   <?define UNICODEFOLDER = "x64_Unicode_Release" ?>
   <?define Module_PackageId = "970B6E07-7105-4d66-80FA-9E208952FB96" ?>
-  <?define CIDPFILES = "5C9A19B5-D7C6-4bb4-BBBC-88C2A67A59B0" ?>
-  <?define CIDXFILES = "121A6C41-2B8F-463D-BA84-6BF36701428A" ?>
   <?define InstallerVersion = "300" ?>
 <?if $(env.PROCESSOR_ARCHITECTURE) = "AMD64" ?>
   <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?else?>
   <?define SysFolder = "$(env.SystemRoot)\sysnative" ?>
 <?endif?>
-<?else?>
+<?elseif $(sys.BUILDARCH) = x86 ?>
+  <?define Platform = "x86" ?>
   <?define ModuleName = "psqlODBC" ?>
   <?define BIT64 = "no" ?>
   <?define ANSIFOLDER = "x86_ANSI_Release" ?>
   <?define UNICODEFOLDER = "x86_Unicode_Release" ?>
   <?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA48" ?>
-  <?define CIDPFILES = "00A1ACE3-B7C2-41b8-A1F1-DB565990DA4E" ?>
-  <?define CIDXFILES = "49933A1E-4350-437C-B8D5-E96AA5D61139" ?>
   <?define InstallerVersion = "150" ?>
 <?if $(env.PROCESSOR_ARCHITECTURE) = "AMD64" ?>
   <?define SysFolder = "$(env.SystemRoot)\syswow64" ?>
 <?else?>
   <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?endif?>
+<?else?><!-- sys.BUILDARCH -->
+  <?error Invalid build architecture ?>
 <?endif?>
 
   <Module
-    Id="$(var.ModuleName)"
-    Version="$(var.VERSION)"
+    Id="$(ModuleName)"
+    Guid="$(Module_PackageId)"
+    Version="$(VERSION)"
+    InstallerVersion="$(InstallerVersion)"
     Language="1033">
 
-    <Package
-      Id="$(var.Module_PackageId)"
+    <SummaryInformation
       Description="PostgreSQL ODBC Driver"
       Keywords="PostgreSQL, ODBC"
       Manufacturer="PostgreSQL Global Development Group"
-      InstallerVersion="$(var.InstallerVersion)"
-      Platform="$(var.Platform)"
-      Languages="1033"
-      SummaryCodepage="1252" />
+      Codepage="1252" />
 
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="BINDIR" Name=".">
-        <Component Id="psqlodbc.files" Guid="$(var.CIDPFILES)" Win64="$(var.BIT64)">
+    <!-- Avoid WIX0267 with naked files in a merge module -->
+    <Directory Id="INSTALLFOLDER" />
 
-          <!-- PostgreSQL -->
-          <File Id="psqlodbc30a.dll" Name="psqlodbc30a.dll" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/psqlodbc30a.dll" />
-<?if $(var.NoPDB) != True ?>
-          <File Id="psqlodbc30a.pdb" Name="psqlodbc30a.pdb" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/psqlodbc30a.pdb" />
-<?endif?>
-          <File Id="psqlodbc35w.dll" Name="psqlodbc35w.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/psqlodbc35w.dll" />
-<?if $(var.NoPDB) != True ?>
-          <File Id="psqlodbc35w.pdb" Name="psqlodbc35w.pdb" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/psqlodbc35w.pdb" />
-<?endif?>
-          <File Id="pgenlist.dll" Name="pgenlist.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgenlist.dll" />
-<?if $(var.NoPDB) != True ?>
-          <File Id="pgenlist.pdb" Name="pgenlist.pdb" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgenlist.pdb" />
-<?endif?>
-          <File Id="pgenlista.dll" Name="pgenlista.dll" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/pgenlista.dll" />
-<?if $(var.NoPDB) != True ?>
-          <File Id="pgenlista.pdb" Name="pgenlista.pdb" Source="$(var.BINBASE)/$(var.ANSIFOLDER)/pgenlista.pdb" />
-<?endif?>
-	<!-- MSVC Runtime -->
-<?if "$(var.PODBCMSVCDLL)" != "" ?>
-          <File Source="$(var.PODBCMSVCDLL)" />
-<?endif?>
-<?if "$(var.PODBCMSVPDLL)" != "" ?>
-          <File Source="$(var.PODBCMSVPDLL)" />
-<?endif?>
-<?if "$(var.PODBCMSVCSYS)" != "" ?>
-          <File Source="$(var.SysFolder)\$(var.PODBCMSVCSYS)" />
-<?endif?>
-<?if "$(var.PODBCMSVPSYS)" != "" ?>
-          <File Source="$(var.SysFolder)\$(var.PODBCMSVPSYS)" />
-<?endif?>
-<?if "$(var.LIBPQMSVCDLL)" != "" ?>
-          <File Source="$(var.LIBPQMSVCDLL)" />
-<?endif?>
-<?if "$(var.LIBPQMSVCSYS)" != "" ?>
-          <File Source="$(var.SysFolder)\$(var.LIBPQMSVCSYS)" />
-<?endif?>
-
-          <File Id="libpq.dll" Name="libpq.dll" Source="$(var.LIBPQBINDIR)\libpq.dll" KeyPath="yes" />
-
-          <!-- libpq related -->
-<?if "$(var.LIBPQMEM0)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM0)" />
+    <!-- PostgreSQL -->
+    <File Name="psqlodbc30a.dll" Source="$(BINBASE)\$(ANSIFOLDER)\psqlodbc30a.dll">
+      <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(Platform))">
+        <Property Id="CPTimeout" Value="60" />
+      </ODBCDriver>
+      <ODBCDriver Id="Psqlodbc_11_newid_Driver_ANSI" Name="PostgreSQL ANSI">
+        <Property Id="CPTimeout" Value="60" />
+      </ODBCDriver>
+    </File>
+    <File Name="pgenlista.dll" Source="$(BINBASE)\$(ANSIFOLDER)\pgenlista.dll" />
+<?if $(NoPDB) != True ?>
+    <File Name="psqlodbc30a.pdb" Source="$(BINBASE)\$(ANSIFOLDER)\psqlodbc30a.pdb" />
+    <File Name="pgenlista.pdb" Source="$(BINBASE)\$(ANSIFOLDER)\pgenlista.pdb" />
 <?endif ?>
-<?if "$(var.LIBPQMEM1)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM1)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM2)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM2)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM3)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM3)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM4)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM4)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM5)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM5)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM6)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM6)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM7)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM7)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM8)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM8)" />
-<?endif ?>
-<?if "$(var.LIBPQMEM9)" != "" ?>
-          <File Source="$(var.LIBPQBINDIR)\$(var.LIBPQMEM9)" />
+    <File Name="psqlodbc35w.dll" Source="$(BINBASE)\$(UNICODEFOLDER)\psqlodbc35w.dll">
+      <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(Platform))">
+        <Property Id="CPTimeout" Value="60" />
+      </ODBCDriver>
+      <ODBCDriver Id="Psqlodbc_11_newid_Driver" Name="PostgreSQL Unicode">
+        <Property Id="CPTimeout" Value="60" />
+      </ODBCDriver>
+    </File>
+    <File Name="pgenlist.dll" Source="$(BINBASE)\$(UNICODEFOLDER)\pgenlist.dll" />
+<?if $(NoPDB) != True ?>
+    <File Name="psqlodbc35w.pdb" Source="$(BINBASE)\$(UNICODEFOLDER)\psqlodbc35w.pdb" />
+    <File Name="pgenlist.pdb" Source="$(BINBASE)\$(UNICODEFOLDER)\pgenlist.pdb" />
 <?endif ?>
 
-          <!-- Note, installing the driver properly (IE, using ODBCDriver) has
-               proven unreliable, so we install the registry keys manually
-               ourselves. On 64-bit Windows, however, we trust that ODBCDriver
-               works. Nowadays, it probably would be safe to use ODBCDriver on
-               all platforms, but no-one's gotten around to revisit this
-          -->
-<?if $(var.Platform) = x64 ?>
-          <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(var.Platform))" File="psqlodbc30a.dll" />
-          <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(var.Platform))" File="psqlodbc35w.dll" />
-          <ODBCDriver Id="Psqlodbc_11_newid_Driver_ANSI" Name="PostgreSQL ANSI" File="psqlodbc30a.dll" />
-          <ODBCDriver Id="Psqlodbc_11_newid_Driver" Name="PostgreSQL Unicode" File="psqlodbc35w.dll" />
-          <RegistryValue Id="psqlodbc30a.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="CPTimeout" Type="string" Value="60" />
-          <RegistryValue Id="psqlodbc35w.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="CPTimeout" Type="string" Value="60" />
-          <RegistryValue Id="psqlodbc30a.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI($(var.Platform))" Name="CPTimeout" Type="string" Value="60" />
-          <RegistryValue Id="psqlodbc35w.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode($(var.Platform))" Name="CPTimeout" Type="string" Value="60" />
-<?else?>
-          <RegistryValue Id="psqlodbc30a.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL ANSI" Type="string" Value="Installed" />
-          <RegistryValue Id="psqlodbc30a.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="APILevel" Type="string" Value="1" />
-          <RegistryValue Id="psqlodbc30a.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="ConnectFunctions" Type="string" Value="YYN" />
-          <RegistryValue Id="psqlodbc30a.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="Driver" Type="string" Value="[#psqlodbc30a.dll]" />
-          <RegistryValue Id="psqlodbc30a.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="DriverODBCVer" Type="string" Value="03.50" />
-          <RegistryValue Id="psqlodbc30a.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="FileUsage" Type="string" Value="0" />
-          <RegistryValue Id="psqlodbc30a.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="Setup" Type="string" Value="[#psqlodbc30a.dll]" />
-          <RegistryValue Id="psqlodbc30a.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="SQLLevel" Type="string" Value="1" />
-          <RegistryValue Id="psqlodbc30a.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="UsageCount" Type="integer" Value="1" />
-          <RegistryValue Id="psqlodbc30a.reg.10" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL ANSI" Name="CPTimeout" Type="string" Value="60" />
+    <!-- MSVC Runtime -->
+<?if "$(PODBCMSVCDLL)" != "" ?>
+    <File Source="$(PODBCMSVCDLL)" />
+<?endif ?>
+<?if "$(PODBCMSVPDLL)" != "" ?>
+    <File Source="$(PODBCMSVPDLL)" />
+<?endif ?>
+<?if "$(PODBCMSVCSYS)" != "" ?>
+    <File Source="$(SysFolder)\$(PODBCMSVCSYS)" />
+<?endif ?>
+<?if "$(PODBCMSVPSYS)" != "" ?>
+    <File Source="$(SysFolder)\$(PODBCMSVPSYS)" />
+<?endif ?>
+<?if "$(LIBPQMSVCDLL)" != "" ?>
+    <File Source="$(LIBPQMSVCDLL)" />
+<?endif ?>
+<?if "$(LIBPQMSVCSYS)" != "" ?>
+    <File Source="$(SysFolder)\$(LIBPQMSVCSYS)" />
+<?endif ?>
 
-          <RegistryValue Id="psqlodbc35w.reg.1" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" Name="PostgreSQL Unicode" Type="string" Value="Installed" />
-          <RegistryValue Id="psqlodbc35w.reg.2" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="APILevel" Type="string" Value="1" />
-          <RegistryValue Id="psqlodbc35w.reg.3" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="ConnectFunctions" Type="string" Value="YYN" />
-          <RegistryValue Id="psqlodbc35w.reg.4" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="Driver" Type="string" Value="[#psqlodbc35w.dll]" />
-          <RegistryValue Id="psqlodbc35w.reg.5" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="DriverODBCVer" Type="string" Value="03.51" />
-          <RegistryValue Id="psqlodbc35w.reg.6" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="FileUsage" Type="string" Value="0" />
-          <RegistryValue Id="psqlodbc35w.reg.7" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="Setup" Type="string" Value="[#psqlodbc35w.dll]" />
-          <RegistryValue Id="psqlodbc35w.reg.8" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="SQLLevel" Type="string" Value="1" />
-          <RegistryValue Id="psqlodbc35w.reg.9" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="UsageCount" Type="integer" Value="1" />
-          <RegistryValue Id="psqlodbc35w.reg.10" Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\PostgreSQL Unicode" Name="CPTimeout" Type="string" Value="60" />
-<?endif?>
-        </Component>
-	<!--
-		MSDTC runs in 64bit mode on 64bit machines and 32bit mode on
-		32bit machines. We had better register the XA DLL on 
-		installation.
-	--> 
-        <Component Id="pgxalib.files" Guid="$(var.CIDXFILES)" Win64="$(var.BIT64)">
-<?if $(var.BIT64) = no ?>
-	  <Condition>
-	    <![CDATA[NOT VersionNT64]]>
-	  </Condition>
-<?endif?>
-          <File Id="pgxalib.dll" Name="pgxalib.dll" Source="$(var.BINBASE)/$(var.UNICODEFOLDER)/pgxalib.dll" />
-          <RegistryValue Id="pgxalib.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
-	</Component>
-      </Directory>
-    </Directory>
+    <!-- libpq -->
+    <File Source="$(LIBPQBINDIR)\libpq.dll" />
+<?if "$(LIBPQMEM0)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM0)" />
+<?endif ?>
+<?if "$(LIBPQMEM1)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM1)" />
+<?endif ?>
+<?if "$(LIBPQMEM2)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM2)" />
+<?endif ?>
+<?if "$(LIBPQMEM3)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM3)" />
+<?endif ?>
+<?if "$(LIBPQMEM4)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM4)" />
+<?endif ?>
+<?if "$(LIBPQMEM5)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM5)" />
+<?endif ?>
+<?if "$(LIBPQMEM6)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM6)" />
+<?endif ?>
+<?if "$(LIBPQMEM7)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM7)" />
+<?endif ?>
+<?if "$(LIBPQMEM8)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM8)" />
+<?endif ?>
+<?if "$(LIBPQMEM9)" != "" ?>
+    <File Source="$(LIBPQBINDIR)\$(LIBPQMEM9)" />
+<?endif ?>
+
+    <!-- MSDTC runs in 64bit mode on 64bit machines and 32bit mode on
+         32bit machines. Install the XA DLL only from a native package.
+    -->
+    <Component Id="pgxalib.files" Condition='"$(sys.BUILDARCHSHORT)"="X64" OR NOT VersionNT64'>
+      <File Name="pgxalib.dll" Source="$(BINBASE)/$(UNICODEFOLDER)/pgxalib.dll" />
+      <RegistryValue Id="pgxalib.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
+    </Component>
 
   </Module>
 </Wix>

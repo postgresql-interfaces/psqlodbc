@@ -1,107 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
-<!-- Default to x86 platform -->
-<?ifndef var.Platform ?>
-  <?define Platform = "x86" ?>
-<?else?>
-  <?if $(var.Platform) != x64 and $(var.Platform) != x86 ?>
-    <?error Invalid Platform variable ?>
-  <?endif?>
-<?endif?>
-
-<?ifndef var.INSTBASE ?>
-  <?define INSTBASE = $(var.Platform) ?>
-<?endif?>
-
-<?if $(var.Platform) = x64 ?>
+<?if $(sys.BUILDARCH) = x64 ?>
+  <?define Platform = "x64" ?>
   <?define PKGNAME = "psqlODBC_x64" ?>
-  <?define BIT64 = "yes" ?>
-  <?define PGFOLDER = "ProgramFiles64Folder" ?>
-  <?define PRODID = "3E42F836-9204-4c42-B3C3-8680A0434875" ?>
   <?define CIDREG = "4D361F28-8F75-4c86-9A37-6C279967413D" ?>
   <?define CIDDOC = "0C745A85-4E55-4bab-BBF1-DCF51D92FCC5" ?>
   <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
   <?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
   <?define ALLUSERS = "1" ?>
-<?else?>
+<?elseif $(sys.BUILDARCH) = x86 ?>
+  <?define Platform = "x86" ?>
   <?define PKGNAME = "psqlODBC" ?>
-  <?define BIT64 = "no" ?>
-  <?define PGFOLDER = "ProgramFilesFolder" ?>
-  <?define PRODID = "838E187D-8B7A-473d-B93C-C8E970B15D2B" ?>
   <?define CIDREG = "4F0C04EB-ADCB-4fa8-B6A3-E9F74EA693F8" ?>
   <?define CIDDOC = "89DDBC52-9F0D-4846-91DC-09EECC87E42E" ?>
   <?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
   <?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
   <?define ALLUSERS = "1" ?>
+<?else?><!-- sys.BUILDARCH -->
+  <?error Invalid build architecture ?>
 <?endif?>
 
-<?define MERGEM = "$(var.INSTBASE)\psqlodbc_$(var.Platform).msm" ?>
+<?ifndef var.INSTBASE ?>
+  <?define INSTBASE = $(Platform) ?>
+<?endif?>
+
+<?define MERGEM = "$(INSTBASE)\psqlodbc_$(Platform).msm" ?>
 
 <!-- Product details -->
 
-  <Product
+  <Package
     Manufacturer="PostgreSQL Global Development Group"
-    Id="$(var.PRODUCTCODE)"
-    UpgradeCode="$(var.UPGCOD)"
-    Name="$(var.PKGNAME)"
-    Version="$(var.VERSION)"
+    UpgradeCode="$(UPGCOD)"
+    Name="$(PKGNAME)"
+    Version="$(VERSION)"
+    Codepage="1252"
+    InstallerVersion="300"
+    Compressed="yes"
     Language="1033">
 
 <!-- Package details -->
 
-    <Package
+    <SummaryInformation
+      Codepage="1252"
       Keywords="PostgreSQL, ODBC"
-      Comments="PostgreSQL ODBC Driver"
-      Manufacturer="PostgreSQL Global Development Group"
-      InstallerVersion="300"
-      Platform="$(var.Platform)"
-      Languages="1033"
-      Compressed="yes"
-      SummaryCodepage="1252" />
+      Comments="PostgreSQL ODBC Driver" />
 
 <!-- Directories -->
 
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="$(var.PGFOLDER)" Name="PFiles">
-        <Directory Id="BASEDIR" Name="psqlODBC">
-          <Directory Id="SUBLOC" Name="$(var.SUBLOC)">
-            <Directory Id="BINDIR" Name="bin">
-              <Component Id="registration" Guid="$(var.CIDREG)" Win64="$(var.BIT64)">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(var.PKGNAME)" Name="Version" Value="$(var.VERSION)" />
-              </Component>
-              <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(var.MERGEM)" />
-            </Directory>
-            <Directory Id="DOCSDIR" Name="docs">
-              <Component Id="docs" Guid="$(var.CIDDOC)" Win64="$(var.BIT64)">
-                <File Id="docs.README.txt" Name="README.txt" DiskId="1" Source="../docs/README.txt" KeyPath="yes" />
-                <File Id="docs.config.html" Name="config.html" DiskId="1" Source="../docs/config.html" />
-                <File Id="docs.config_opt.html" Name="config-opt.html" DiskId="1" Source="../docs/config-opt.html" />
-                <File Id="docs.release.html" Name="release.html" DiskId="1" Source="../docs/release.html" />
-                <File Id="docs.release_7.3.html" Name="release-7.3.html" DiskId="1" Source="../docs/release-7.3.html" />
-                <File Id="docs.unix_compilation.html" Name="unix-compilation.html" DiskId="1" Source="../docs/unix-compilation.html" />
-                <File Id="docs.win32_compilation.html" Name="win32-compilation.html" DiskId="1" Source="../docs/win32-compilation.html" />
-                <File Id="docs.editConfiguration.jpg" Name="editConfiguration.jpg" DiskId="1" Source="../docs/editConfiguration.jpg" />
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="BASEDIR" Name="psqlODBC">
+        <Directory Id="SUBLOC" Name="$(SUBLOC)">
+          <Directory Id="BINDIR" Name="bin">
+            <Component Id="registration" Guid="$(CIDREG)">
+              <RegistryValue KeyPath="yes" Type="string" Root="HKLM" Key="Software\$(PKGNAME)" Name="Version" Value="$(VERSION)" />
+            </Component>
+            <Merge Id="psqlodbcm" DiskId="1" Language="1033" SourceFile="$(MERGEM)" />
+          </Directory>
+          <Directory Id="DOCSDIR" Name="docs" FileSource="../docs">
+            <Component Id="docs" Guid="$(CIDDOC)">
+              <File Name="README.txt" KeyPath="yes" />
+              <File Name="config.html" />
+              <File Name="config-opt.html" />
+              <File Name="release.html" />
+              <File Name="release-7.3.html" />
+              <File Name="unix-compilation.html" />
+              <File Name="win32-compilation.html" />
+              <File Name="editConfiguration.jpg" />
 
-                <!-- <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" /> -->
-              </Component>
-            </Directory>
+              <!-- <Shortcut Id="docs.index.html" Directory="SMDir" Name="Documentation index" Description="psqlODBC documentation, HOWTOs and FAQs" Advertise="yes" Show="normal" /> -->
+            </Component>
           </Directory>
         </Directory>
       </Directory>
-      <Directory Id="ProgramMenuFolder" Name="." SourceName="Programs">
-        <Directory Id="SMDir" Name="$(var.PKGNAME)">
-            <Component Id="smdir" Guid="$(var.CIDSMD)" Win64="$(var.BIT64)">
-                <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(var.PKGNAME)\SMDir Created" Value="y" />
-                <RemoveFolder Id="SMDir" On="uninstall" />
-            </Component>
-        </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="SMDir" Name="$(PKGNAME)">
+        <Component Id="smdir" Guid="$(CIDSMD)">
+          <RegistryValue KeyPath="yes" Type="string" Root="HKCU" Key="Software\$(PKGNAME)\SMDir Created" Value="y" />
+          <RemoveFolder Id="SMDir" On="uninstall" />
+        </Component>
       </Directory>
-    </Directory>
+    </StandardDirectory>
 
 <!-- Features -->
 
-    <Feature Id="psqlodbc" Title="$(var.PKGNAME)" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
+    <Feature Id="psqlodbc" Title="$(PKGNAME)" Level="1" Description="psqlODBC - The PostgreSQL ODBC Driver" ConfigurableDirectory="BASEDIR" Display="expand">
       <Feature Id="binaries" Title="ODBC Driver" Level="1" Description="The ODBC driver and supporting libraries.">
         <ComponentRef Id="registration" />
         <MergeRef Id="psqlodbcm" />
@@ -113,47 +98,19 @@
       </Feature>
 
     </Feature>
-    <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab"/>
-
-<!-- Properties -->
-
-    <Property Id="ALLUSERS">$(var.ALLUSERS)</Property>
-    <Property Id="WIXUI_INSTALLDIR" Value="BASEDIR" />
+    <Media Id="1" EmbedCab="yes" Cabinet="psqlodbc.cab" CompressionLevel="high"/>
 
 <!-- UI -->
 
-     <UIRef Id="WixUI_FeatureTree" />
-     <WixVariable Id="WixUILicenseRtf" Value="lgpl.rtf" />
-     <WixVariable Id="WixUIDialogBmp" Value="background.bmp" />
-     <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+    <ui:WixUI Id="WixUI_FeatureTree" InstallDirectory="BASEDIR" />
+    <WixVariable Id="WixUILicenseRtf" Value="lgpl.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="background.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
 
 <!-- Upgrade -->
-    <Upgrade Id="$(var.UPGCOD)">
-      <UpgradeVersion OnlyDetect='yes' Property='SELFFOUND'
-      		    Minimum="$(var.VERSION)" IncludeMinimum='yes'
-      		    Maximum="$(var.VERSION)" IncludeMaximum='yes' />
-      <UpgradeVersion OnlyDetect='yes' Property='NEWERFOUND'
-      		    Minimum="$(var.VERSION)" IncludeMinimum='no' />
-      <UpgradeVersion OnlyDetect='no' Property='UPGRADEFOUND'
-                    Minimum='8.3.0' IncludeMinimum='yes'
-      		    Maximum="$(var.VERSION)" IncludeMaximum='no' />
-    </Upgrade>
 
-    <CustomAction Id='AlreadyUpdated'
-                Error="the same version of [ProductName] is already installed" />
-    <CustomAction Id='NoDowngrade'
-                Error="a new version of [ProductName] is already installed" />
-    <CustomAction Id='NoMinorUpgrade'
-                Error="REINSTALL unavailable. Major upgrade is needed." />
-    <CustomAction Id='NoReinstall'
-                Error="REINSTALL unavailable. Install the package first." />
-
-  <InstallExecuteSequence>
-    <Custom Action='AlreadyUpdated' After='FindRelatedProducts'>SELFFOUND AND NOT Installed</Custom>
-    <Custom Action='NoDowngrade' After='FindRelatedProducts'>NEWERFOUND AND NOT Installed</Custom>
-    <Custom Action='NoReinstall' Before='ValidateProductID'>REINSTALLMODE AND NOT Installed</Custom>
-    <Custom Action='NoMinorUpgrade' After='FindRelatedProducts'>UPGRADEFOUND AND REINSTALLMODE</Custom>
-    <RemoveExistingProducts After='InstallFinalize'>UPGRADEFOUND AND NOT Installed</RemoveExistingProducts>
-  </InstallExecuteSequence>
-  </Product>
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed"
+      Schedule="afterInstallInitialize" />
+  </Package>
 </Wix>
