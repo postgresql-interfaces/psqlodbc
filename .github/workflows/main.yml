@@ -275,6 +275,12 @@ jobs:
       with: 
         arch: x86
 
+    - name: Install WiX
+      shell: cmd
+      run: |
+        dotnet tool install --global wix
+        wix extension add --global WixToolset.UI.wixext
+
     - name: build psqlodbc standard
       shell: powershell      
       working-directory: psqlodbc
