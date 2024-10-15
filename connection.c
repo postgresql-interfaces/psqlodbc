@@ -1056,6 +1056,8 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 			ci->drivers.extra_systable_prefixes,
 			PRINT_NAME(ci->conn_settings),
 			encoding ? encoding : "");
+		if (encoding)
+			free(encoding);
 	}
 	if (self->status == CONN_DOWN)
 	{
