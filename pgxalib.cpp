@@ -170,8 +170,8 @@ HDBC	XAConnection::ActivateConnection(void)
 		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
 		return NULL;
 	}
-	sqlState.empty();
-	errMsg.empty();
+	sqlState.clear();
+	errMsg.clear();
 	ret = SQLDriverConnect(xaconn, NULL,
 		 (SQLCHAR *) (dsnstr + ";Username=postgres;Password=postgres;sslmode=allow").c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
 	if (SQL_SUCCEEDED(ret))
