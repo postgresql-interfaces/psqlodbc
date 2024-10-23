@@ -103,7 +103,7 @@
 		Condition="!exists('$(PG_BIN)')"/>
 	<Error
 	  Text="$(PG_BIN)\libpq.dll doesn't exist.%0D%0Aset PG_BIN properly."
-		Condition="!exists('$(PG_BIN)\llibpq.dll')"/>
+		Condition="!exists('$(PG_BIN)\libpq.dll')"/>
         <MSBuild Projects="psqlsetup.vcxproj"
 	  Targets="ReBuild"
 	  Properties="Configuration=$(Configuration);srcPath=$(srcPath)"/>
