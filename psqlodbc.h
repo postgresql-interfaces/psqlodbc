@@ -614,12 +614,11 @@ typedef struct QueryInfo_
 typedef struct
 {
         UInt4	status;
-        Int2	errorsize;
-        Int2	recsize;
-        Int2	errorpos;
+		UInt4	errsize;
+        UInt4	errpos;
+        UInt2	recsize;
         char    sqlstate[6];
-        SQLLEN	diag_row_count;
-        char    __error_message[40];
+        char    __error_message[44];
 }       PG_ErrorInfo;
 PG_ErrorInfo	*ER_Constructor(SDWORD errornumber, const char *errormsg);
 PG_ErrorInfo	*ER_Dup(const PG_ErrorInfo *from);

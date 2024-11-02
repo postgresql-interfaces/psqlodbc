@@ -1409,9 +1409,8 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 			memset(pgerror_fail_safe, 0, sizeof(*pgerror_fail_safe));
 			pgerror = pgerror_fail_safe;
 			pgerror->status = self->__error_number;
-			pgerror->errorsize = sizeof(pgerror->__error_message);
 			STRCPY_FIXED(pgerror->__error_message, ermsg);
-			pgerror->recsize = -1;
+			pgerror->errsize = strlen(pgerror->__error_message);
 		}
 		else
 			return NULL;
