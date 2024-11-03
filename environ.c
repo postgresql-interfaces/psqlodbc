@@ -21,6 +21,7 @@
 #include "statement.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "pgapifunc.h"
 #ifdef	WIN32
 #include <winsock2.h>
@@ -123,20 +124,25 @@ PG_ErrorInfo *
 ER_Constructor(SDWORD errnumber, const char *msg)
 {
 	PG_ErrorInfo	*error;
-	ssize_t		aladd, errsize;
+	size_t errsize;
+	UInt4 aladd;
 
 	if (DESC_OK == errnumber)
 		return NULL;
 	if (msg)
 	{
 		errsize = strlen(msg);
-		aladd = errsize - sizeof(error->__error_message) + 1;
-		if (aladd < 0)
+		if (errsize > UINT32_MAX)
+			errsize = UINT32_MAX;
+
+		if (errsize > sizeof(error->__error_message) - 1)
+			aladd = errsize - (sizeof(error->__error_message) - 1);
+		else
 			aladd = 0;
 	}
 	else
 	{
-		errsize = -1;
+		errsize = 0;
 		aladd = 0;
 	}
 	error = (PG_ErrorInfo *) malloc(sizeof(PG_ErrorInfo) + aladd);
@@ -144,11 +150,10 @@ ER_Constructor(SDWORD errnumber, const char *msg)
 	{
 		memset(error, 0, sizeof(PG_ErrorInfo));
 		error->status = errnumber;
-		error->errorsize = (Int2) errsize;
+		error->errsize = errsize;
 		if (errsize > 0)
 			memcpy(error->__error_message, msg, errsize);
 		error->__error_message[errsize] = '\0';
-		error->recsize = -1;
 	}
 	return error;
 }
@@ -163,13 +168,13 @@ PG_ErrorInfo *
 ER_Dup(const PG_ErrorInfo *self)
 {
 	PG_ErrorInfo	*new;
-	Int4		alsize;
+	UInt4		alsize;
 
 	if (!self)
 		return NULL;
 	alsize = sizeof(PG_ErrorInfo);
-	if (self->errorsize  > 0)
-		alsize += self->errorsize;
+	if (self->errsize > sizeof(self->__error_message) - 1)
+		alsize += self->errsize - (sizeof(self->__error_message) - 1);
 	new = (PG_ErrorInfo *) malloc(alsize);
 	if (new)
 		memcpy(new, self, alsize);
@@ -193,21 +198,20 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 	PG_ErrorInfo	*error;
 	BOOL		partial_ok = ((flag & PODBC_ALLOW_PARTIAL_EXTRACT) != 0);
 	const char	*msg;
-	UWORD		msglen, wrtlen, pcblen;
-	UInt4		stapos;
+	UInt4		stapos, msglen, wrtlen, pcblen;
 
 	if (!pgerror)
 		return SQL_NO_DATA_FOUND;
 	error = pgerror;
 	msg = error->__error_message;
 	MYLOG(0, "entering status = %d, msg = #%s#\n", error->status, msg);
-	msglen = (SQLSMALLINT) strlen(msg);
+	msglen = error->errsize;
 	/*
 	 *	Even though an application specifies a larger error message
 	 *	buffer, the driver manager changes it silently.
 	 *	Therefore we divide the error message into ...
 	 */
-	if (error->recsize < 0)
+	if (error->recsize == 0)
 	{
 		if (cbErrorMsgMax > 0)
 			error->recsize = cbErrorMsgMax - 1; /* apply the first request */
@@ -216,15 +220,12 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 	}
 	else if (1 == RecNumber && cbErrorMsgMax > 0)
 		error->recsize = cbErrorMsgMax - 1;
-	if (RecNumber < 0)
-	{
-		if (0 == error->errorpos)
-			RecNumber = 1;
-		else
-			RecNumber = 2 + (error->errorpos - 1) / error->recsize;
-	}
-	stapos = (RecNumber - 1) * error->recsize;
-	if (stapos > msglen)
+	if (RecNumber > 0)
+		stapos = (RecNumber - 1) * error->recsize;
+	else
+	 	stapos = error->errpos;
+	
+	if (stapos >= msglen)
 		return SQL_NO_DATA_FOUND;
 	pcblen = wrtlen = msglen - stapos;
 	if (pcblen > error->recsize)
@@ -257,6 +258,7 @@ ER_ReturnError(PG_ErrorInfo *pgerror,
 	if (NULL != szSqlState)
 		strncpy_null((char *) szSqlState, error->sqlstate, 6);
 
+	error->errpos = stapos + wrtlen;
 	MYLOG(0, "	     szSqlState = '%s',len=%d, szError='%s'\n", szSqlState, pcblen, szErrorMsg);
 	if (wrtlen < pcblen)
 		return SQL_SUCCESS_WITH_INFO;
