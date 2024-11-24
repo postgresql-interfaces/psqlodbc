@@ -281,12 +281,6 @@ function buildInstaller([string]$CPUTYPE)
 			throw "Failed to build installer database"
 		}
 
-		Write-Host ".`nModifying psqlODBC installer database..."
-		cscript modify_msi.vbs $INSTBASE\psqlodbc_$CPUTYPE.msi
-		if ($LASTEXITCODE -ne 0) {
-			throw "Failed to modify installer database"
-		}
-
 		Write-Host ".`nDone!`n"
 	}
 	catch [Exception] {
