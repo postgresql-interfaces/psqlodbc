@@ -10,12 +10,74 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+  <h2><a id="17.00.0003">psqlODBC 17.00.0003 Release</a></h2>
+  Changes:<br />
+  <li>
+  Chore: Remove the NMAKE build system for installers <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/65">PR #65</a>
+  Author: <a href="https://github.com/">Christian Ullrich</a>
+  </li>
+  <li>
+  Use WiX 5 by @chrullrich <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/66">PR #66</a>
+  Author: <a href="https://github.com/">Christian Ullrich</a>
+  </li>
+  <li>
+  Fix:fix small memory leak in 'CC_initial_log' function by @iobnc <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/67">PR #67</a>
+  Author: <href="https://github.com/iobnc">iobnc</href>
+  <li>
+  Fix typo failing the Rebuild target by @chrullrich <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/68">PR #68</a>
+  Author: <a href="https://github.com/">Christian Ullrich</a>
+  </li>
+  <li>
+  Correct wrong string method calls by @chrullrich <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/69">PR #69</a>
+  Author: <a href="https://github.com/">Christian Ullrich</a>
+  </li>
+  <li>
+  Fix PG_ErrorInfo and ER_ReturnError when error message is larger than 65535 bytes  <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/70">PR #70</a>
+  Author: <a href="https://github.com/r33s3n6">r33s3n6</a>
+  </li>
+  <li> 
+    Release: Update version numbers <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/77">PR #77</a>
+    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+  </li>
+  Full Changelog: <a href="https://github.com/postgresql-interfaces/psqlodbc/compare/REL-17_00_0002...REL-17_00_0003"> REL-17_00_0002...REL-17_00_0003</a><br/>
+  </ol>
+  
+<ol type="1">
+  <h2><a id="17.00.0002">psqlODBC 17.00.0002 Release</a></h2>
+  Changes:<br />
+  <li>
+    Fix: Fix MSI error messages by in  <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/58">PR #58</a>
+    Author: <a href="https://github.com/">Christian Ullrich</a>
+  </li>
+  <li> 
+    Release: Update version numbers <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/52">PR #52</a>
+    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+  </li>
+  Full Changelog: <a href="https://github.com/postgresql-interfaces/psqlodbc/compare/REL-17_00_0001...REL-17_00_0002"> REL-17_00_0001...REL-17_00_0002</a><br/>
+  </ol>
+  
+<ol type="1">
+  <h2><a id="17.00.0001">psqlODBC 17.00.0001 Release</a></h2>
+  Changes:<br />
+  <li> 
+    Release: Use REL_17_STABLE by @davecramer in <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/53">PR #53</a>
+    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+  </li>
+  <li>
+    fix:Another place where refcnt in the COL_INFO object is unfortunately erased. <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/55">PR #55</a>
+    Author: <a href="https://github.com/progmachine"> Alexandr Kuznetsov</a>
+  </li>
+  Full Changelog: <a href="https://github.com/postgresql-interfaces/psqlodbc/compare/REL-17_00_0000...REL-17_00_0001"> REL-17_00_0000...REL-17_00_0001</a><br/>  
+  </ol>
+  
+<ol type="1">
 <h2><a id="17.00.0000">psqlODBC 17.00.0000 Release</a></h2>
 Changes:<br />
 <li> 
   Release: Update version numbers <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/52">PR #52</a>
   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
 </li>
+Full Changelog: <a href="https://github.com/postgresql-interfaces/psqlodbc/compare/REL-17_00_0000...REL-16_00_0006"> REL-17_00_0000...REL-16_00_0006</a><br/>  
 </ol>
 <ol type="1">
   <h2><a id="16.00.0006">psqlODBC 16.00.0006 Release</a></h2>
@@ -29,6 +91,8 @@ Changes:<br />
     Fixes <a href="https://github.com/postgresql-interfaces/psqlodbc/issues/47"> Issue #47</a>
     Author: <a href="https://github.com/progmachine">Alexandr Kuznetsov</a>
   </li>
+  Full Changelog: <a href="https://github.com/postgresql-interfaces/psqlodbc/compare/REL-16_00_0006...REL-16_00_0005"> REL-16_00_0006...REL-16_00_0005</a><br/>  
+  </ol>
   
 <h2><a id="16.00.0005">psqlODBC 16.00.0005 Release</a></h2>
 Changes:<br />
@@ -62,6 +126,8 @@ Changes:<br />
     Change: Build against PostgreSQL 17 Beta3 <a href="https://github.com/postgresql-interfaces/psqlodbc/pull/37">PR #37</a>
     Author: <a href="https://github.com/davecramer">Dave Cramer</a>
   </li>
+  Full Changelog: <a href="https://github.com/postgresql-interfaces/psqlodbc/compare/REL-16_00_0005...REL-16_00_0000"> REL-16_00_0005...REL-16_00_0000</a><br/>
+
 </ol>
 <h2><a id="16.00.0000">psqlODBC 16.00.0000 Release</a></h2>
 Changes:<br />
