@@ -52,7 +52,8 @@
     <Directory Id="INSTALLFOLDER" />
 
     <!-- PostgreSQL -->
-    <File Name="psqlodbc30a.dll" Source="$(BINBASE)\$(ANSIFOLDER)\psqlodbc30a.dll">
+    <File Name="podbc30a.dll" Source="$(BINBASE)\$(ANSIFOLDER)\psqlodbc30a.dll">
+      <CopyFile DestinationName="psqlodbc30a.dll" />
       <ODBCDriver Id="Psqlodbc_9.0_Driver_ANSI" Name="PostgreSQL ANSI($(Platform))">
         <Property Id="CPTimeout" Value="60" />
       </ODBCDriver>
@@ -65,7 +66,8 @@
     <File Name="psqlodbc30a.pdb" Source="$(BINBASE)\$(ANSIFOLDER)\psqlodbc30a.pdb" />
     <File Name="pgenlista.pdb" Source="$(BINBASE)\$(ANSIFOLDER)\pgenlista.pdb" />
 <?endif ?>
-    <File Name="psqlodbc35w.dll" Source="$(BINBASE)\$(UNICODEFOLDER)\psqlodbc35w.dll">
+    <File Name="podbc35w.dll" Source="$(BINBASE)\$(UNICODEFOLDER)\psqlodbc35w.dll">
+      <CopyFile DestinationName="psqlodbc35w.dll" />
       <ODBCDriver Id="Psqlodbc_9.0_Driver" Name="PostgreSQL Unicode($(Platform))">
         <Property Id="CPTimeout" Value="60" />
       </ODBCDriver>
