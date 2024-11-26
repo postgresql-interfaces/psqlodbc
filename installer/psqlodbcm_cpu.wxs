@@ -13,6 +13,7 @@
   <?define UNICODEFOLDER = "x64_Unicode_Release" ?>
   <?define Module_PackageId = "970B6E07-7105-4d66-80FA-9E208952FB96" ?>
   <?define InstallerVersion = "300" ?>
+  <?define GUIDSEED = "400790AA-1377-4E65-B004-AB66FAD634B2" ?>
 <?if $(env.PROCESSOR_ARCHITECTURE) = "AMD64" ?>
   <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?else?>
@@ -26,6 +27,7 @@
   <?define UNICODEFOLDER = "x86_Unicode_Release" ?>
   <?define Module_PackageId = "ACF10866-5C01-46f0-90F0-D5618638CA48" ?>
   <?define InstallerVersion = "150" ?>
+  <?define GUIDSEED = "1B43106C-C8D7-4F21-84CF-44DBF1C1D934" ?>
 <?if $(env.PROCESSOR_ARCHITECTURE) = "AMD64" ?>
   <?define SysFolder = "$(env.SystemRoot)\syswow64" ?>
 <?else?>
@@ -49,7 +51,7 @@
       Codepage="1252" />
 
     <!-- Avoid WIX0267 with naked files in a merge module -->
-    <Directory Id="INSTALLFOLDER" />
+    <Directory Id="INSTALLFOLDER" ComponentGuidGenerationSeed="$(GUIDSEED)"/>
 
     <!-- PostgreSQL -->
     <File Name="psqlodbc30a.dll" Source="$(BINBASE)\$(ANSIFOLDER)\psqlodbc30a.dll">
