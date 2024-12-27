@@ -34,6 +34,7 @@ contrib_regression	public	booltab	TABLE
 contrib_regression	public	byteatab	TABLE	
 contrib_regression	public	intervaltable	TABLE	
 contrib_regression	public	lo_test_tab	TABLE	
+contrib_regression	public	test_special	TABLE	
 contrib_regression	public	testforeign	FOREIGN TABLE	
 contrib_regression	public	testmatview	MATVIEW	
 contrib_regression	public	testtab1	TABLE	
@@ -77,6 +78,10 @@ contrib_regression	public	intervaltable	iv	12	interval
 contrib_regression	public	intervaltable	d	12	varchar
 contrib_regression	public	lo_test_tab	id	4	int4
 contrib_regression	public	lo_test_tab	large_data	-4	lo
+contrib_regression	public	test_special	id	4	int4
+contrib_regression	public	test_special	ival	4	int4
+contrib_regression	public	test_special_pkey	id	4	int4
+contrib_regression	public	test_special_ui	ival	4	int4
 contrib_regression	public	testforeign	c1	4	int4
 contrib_regression	public	testmatview	id	4	int4
 contrib_regression	public	testmatview	t	12	varchar
