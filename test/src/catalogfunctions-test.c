@@ -105,7 +105,7 @@ main(int argc, char **argv)
 	rc = SQLSpecialColumns(hstmt, SQL_ROWVER,
 						   NULL, 0,
 						   (SQLCHAR *) "public", SQL_NTS,
-						   (SQLCHAR *) "testtab1", SQL_NTS,
+						   (SQLCHAR *) "test_special", SQL_NTS,
 						   SQL_SCOPE_SESSION,
 						   SQL_NO_NULLS);
 	CHECK_STMT_RESULT(rc, "SQLSpecialColumns failed", hstmt);

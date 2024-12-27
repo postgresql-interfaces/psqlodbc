@@ -393,6 +393,15 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 	return nCallParse;
 }
 
+/**
+ * 	Generate a name for the SVP (Savepoint) for the given
+ * 	connection.
+ *
+ * 	@param	conn	The connection.
+ * 	@param	wrk	The buffer to store the name in.
+ * 	@param	wrksize	The size of the buffer.
+ * 	@return		The name of the Savepoint.
+ */
 static
 const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
 {
@@ -651,6 +660,12 @@ cleanup:
 	return retval;
 }
 
+/**
+ * @param[in] stmt 
+ * @return
+ *		1: transaction rollback
+ *		2: statement rollback
+ */
 int
 StartRollbackState(StatementClass *stmt)
 {
@@ -665,6 +680,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->external=%d\n", stmt, stmt->external);
 
 	if (!ci || ci->rollback_on_error < 0) /* default */
 	{
+		/* server version greater than or equal to 8.0 ?*/
 		if (conn && PG_VERSION_GE(conn, 8.0))
 			ret = 2; /* statement rollback */
 		else
@@ -689,6 +705,20 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->external=%d\n", stmt, stmt->external);
 	return	ret;
 }
 
+/**
+ * @param[in] *conn
+ * @param[in] type
+ * 	INTERNAL_SAVEPOINT_OPERATION or INTERNAL_ROLLBACK_OPERATION
+ * 	if type is INTERNAL_SAVEPOINT_OPERATION and conn->internal_svp is FALSE
+ * 	then the command is "SAVEPOINT" instead of "RELEASE SAVEPOINT"
+ *  if type is INTERNAL_ROLLBACK_OPERATION and conn->internal_svp is FALSE
+ * 	then the command is "ROLLBACK" instead of "ROLLBACK TO SAVEPOINT"
+ * @param[out] *cmd
+ * 	buffer to hold command to be sent
+ * @param[in] buflen
+ * @return less than zero if an error or number of characters in command
+ * 
+ */
 int
 GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int buflen)
 {

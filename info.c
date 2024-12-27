@@ -2901,6 +2901,18 @@ cleanup:
 }
 
 
+/// @brief Return a resultset of Special Columns as per the ODBC Spec
+/// @param hstmt 
+/// @param fColType 
+/// @param szTableQualifier 
+/// @param cbTableQualifier 
+/// @param szTableOwner 
+/// @param cbTableOwner 
+/// @param szTableName 
+/// @param cbTableName 
+/// @param fScope 
+/// @param fNullable 
+/// @return 
 RETCODE		SQL_API
 PGAPI_SpecialColumns(HSTMT hstmt,
 					 SQLUSMALLINT fColType,
