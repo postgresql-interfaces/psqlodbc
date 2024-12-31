@@ -643,6 +643,12 @@ SQLRowCount(HSTMT StatementHandle,
 
 
 #ifndef	UNICODE_SUPPORTXX
+/**
+ * @param[in] StatementHandle
+ * @param[in] CursorName
+ * @param[in] NameLength
+ * @return SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, SQL_INVALID_HANDLE
+ */
 RETCODE		SQL_API
 SQLSetCursorName(HSTMT StatementHandle,
 				 SQLCHAR *CursorName, SQLSMALLINT NameLength)
@@ -681,13 +687,52 @@ SQLSetParam(HSTMT StatementHandle,
 
 
 #ifndef	UNICODE_SUPPORTXX
+/**  
+ * @brief Retrieve the optimal set of columns that uniquely identifies a row in the specified table (when IdentifierType is SQL_BEST_ROWID)
+ * The columns that are automatically updated when any value in the row is updated (when IdentifierType is SQL_ROWVER)
+
+ * @param  HSTMT StatementHandle,          // Handle to the statement
+ * @param  SQLUSMALLINT IdentifierType,    // Type of column to return
+ * @param SQLCHAR *CatalogName,          // Catalog name
+ * @param  SQLSMALLINT NameLength1,       // Length of catalog name
+ * @param SQLCHAR *SchemaName,           // Schema name
+ * @param  SQLSMALLINT NameLength2,       // Length of schema name
+ * @param SQLCHAR *TableName,            // Table name
+ * @param  SQLSMALLINT NameLength3,       // Length of table name
+ * @param SQLUSMALLINT Scope,            // Minimum required scope
+ * @param SQLUSMALLINT Nullable,        // Whether columns can be NULL
+ * @return SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, SQL_INVALID_HANDLE
+
+
+Return Values:
+SQL_SUCCESS: The function completed successfully
+SQL_SUCCESS_WITH_INFO: The function completed with information messages
+SQL_ERROR: The function failed
+SQL_INVALID_HANDLE: Invalid handle parameter
+
+Key Implementation Details:
+The function performs connection loss checking before proceeding
+Uses critical section protection (ENTER_STMT_CS/LEAVE_STMT_CS)
+
+Implements case-sensitivity handling:
+If the initial query returns empty results, it will attempt to rerun the query with adjusted case (upper/lower) based on the connection settings
+Supports transaction management through StartRollbackState and DiscardStatementSvp
+
+The function is particularly useful when:
+You need to uniquely identify rows in a table that lacks a primary key
+You need to determine which columns are automatically updated
+You're implementing optimistic concurrency control using version columns
+Note: This implementation is part of the PostgreSQL ODBC driver (psqlodbc) and includes specific handling for PostgreSQL's case-sensitivity rules and transaction management
+
+
+ 
+*/
 RETCODE		SQL_API
-SQLSpecialColumns(HSTMT StatementHandle,
-				  SQLUSMALLINT IdentifierType, SQLCHAR *CatalogName,
-				  SQLSMALLINT NameLength1, SQLCHAR *SchemaName,
-				  SQLSMALLINT NameLength2, SQLCHAR *TableName,
-				  SQLSMALLINT NameLength3, SQLUSMALLINT Scope,
-				  SQLUSMALLINT Nullable)
+SQLSpecialColumns(HSTMT StatementHandle, SQLUSMALLINT IdentifierType, 
+				  SQLCHAR *CatalogName, SQLSMALLINT NameLength1, 
+				  SQLCHAR *SchemaName, SQLSMALLINT NameLength2, 
+				  SQLCHAR *TableName, SQLSMALLINT NameLength3, 
+				  SQLUSMALLINT Scope, SQLUSMALLINT Nullable)
 {
 	CSTR func = "SQLSpecialColumns";
 	RETCODE	ret;

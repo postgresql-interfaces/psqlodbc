@@ -136,9 +136,12 @@ MYLOG(DETAIL_LOG_LEVEL, "nfields=%d\n", irdflds->nfields);
 	return exec_ok;
 }
 
-/*
+/** 
  *	This returns the number of columns associated with the database
  *	attached to "hstmt".
+ *  @param[in] hstmt handle to the statement
+ *  @param[out] pccol returns the number of columns in the result set
+ *  @return SQL_SUCCESS, SQL_ERROR, SQL_INVALID_HANDLE
  */
 RETCODE		SQL_API
 PGAPI_NumResultCols(HSTMT hstmt,
@@ -202,9 +205,19 @@ cleanup:
 
 #define	USE_FI(fi, unknown) (fi && UNKNOWNS_AS_LONGEST != unknown)
 
-/*
+/**
  *	Return information about the database column the user wants
  *	information about.
+ *  @param[in] hstmt handle to the statement
+ *  @param[in] icol column number to retrieve information about
+ *  @param[out] szColName name of the column
+ *  @param[in] cbColNameMax maximum length of the column name
+ *  @param[out] pcbColName returns the actual length of the column name
+ *  @param[out] pfSqlType type of the column
+ *  @param[out] pcbColDef returns the size of the column
+ *  @param[out] pibScale returns the scale of the column
+ *  @param[out] pfNullable returns whether the column is nullable
+ *  @return SQL_SUCCESS, SQL_ERROR, SQL_INVALID_HANDLE
  */
 RETCODE		SQL_API
 PGAPI_DescribeCol(HSTMT hstmt,
@@ -460,7 +473,17 @@ cleanup:
 
 
 
-/*		Returns result column descriptor information for a result set. */
+/** 
+ * 	Returns result column descriptor information for a result set. 
+ * @param[in] hstmt handle to the statement
+ *  @param[in] icol column number to retrieve information about
+ *  @param[in] fDescType type of descriptor information to return
+ *  @param[out] rgbDesc buffer to receive the descriptor information
+ *  @param[in] cbDescMax maximum length of the descriptor information
+ *  @param[out] pcbDesc returns the actual length of the descriptor information
+ *  @param[out] pfDesc returns the descriptor type
+ *  @return SQL_SUCCESS, SQL_ERROR, SQL_INVALID_HANDLE
+ */
 RETCODE		SQL_API
 PGAPI_ColAttributes(HSTMT hstmt,
 					SQLUSMALLINT icol,
@@ -906,7 +929,17 @@ MYLOG(DETAIL_LOG_LEVEL, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 }
 
 
-/*	Returns result data for a single column in the current row. */
+/** 	
+ * Returns the value for a single column in the current row. 
+ * 
+ * @param[in] hstmt		Statement handle
+ * @param[in] icol		Column number to retrieve
+ * @param[in] fCType	Column data type
+ * @param[out] rgbValue	Column data
+ * @param[in] cbValueMax	Maximum length of data to return
+ * @param[out] pcbValue	Actual length of data returned
+ * @return SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+*/
 RETCODE		SQL_API
 PGAPI_GetData(HSTMT hstmt,
 			  SQLUSMALLINT icol,
@@ -1145,10 +1178,11 @@ MYLOG(DETAIL_LOG_LEVEL, "leaving %d\n", result);
 }
 
 
-/*
- *		Returns data for bound columns in the current row ("hstmt->iCursor"),
- *		advances the cursor.
- */
+/**
+ *	Returns data for bound columns in the current row ("hstmt->iCursor"),
+ *	advances the cursor.
+* 	@param[in] hstmt		Statement handle
+*/
 RETCODE		SQL_API
 PGAPI_Fetch(HSTMT hstmt)
 {
@@ -1347,6 +1381,11 @@ MYPRINTF(DETAIL_LOG_LEVEL, " nearest not found\n");
 	return -(SQLLEN)count;
 }
 
+/**
+ * @param[in] self
+ * @param[out] res
+ * @return SQL_NO_DATA_FOUND if the cursor is not valid anymore
+ */
 static void
 move_cursor_position_if_needed(StatementClass *self, QResultClass *res)
 {
@@ -1407,7 +1446,17 @@ MYLOG(DETAIL_LOG_LEVEL, "RETURN_EOF\n"); \
 	return SQL_NO_DATA_FOUND; \
 }
 
-/*	This fetches a block of data (rowset). */
+/** 	
+ * This fetches a block of data (rowset). 
+ * @param[in] hstmt		Statement handle
+ * @param[in] fFetchType	SQL_FETCH_FIRST, SQL_FETCH_NEXT, SQL_FETCH_PRIOR
+ * @param[in] irow		Row number to fetch
+ * @param[out] pcrow		Number of rows fetched
+ * @param[out] rgfRowStatus	Row status
+ * @param[in] bookmark_offset	Bookmark offset
+ * @param[out] rowsetSize	Rowset size
+ * 
+ */
 RETCODE		SQL_API
 PGAPI_ExtendedFetch(HSTMT hstmt,
 					SQLUSMALLINT fFetchType,

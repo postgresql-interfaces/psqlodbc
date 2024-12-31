@@ -1695,6 +1695,19 @@ CC_from_PGresult(QResultClass *res, StatementClass *stmt,
 	return success;
 }
 
+/**
+ * @param[in] *self
+ * @param[in] rollback_type 
+ * 	PER_STATEMENT_ROLLBACK
+ * 		
+ * 	PER_QUERY_ROLLBACK
+ * 		sends ROLLBACK TO _per_query_svp_; RELEASE _per_query_svp_
+ * @param[in] ignore_abort 
+ * @return
+ * 	1: success
+ * 	0: failure
+ * 
+ */
 int
 CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort)
 {
@@ -2014,9 +2027,9 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				}
 				/*
 				 * There are 2 risks to RELEASE an internal savepoint.
-				 * One is to RELEASE the savepoint invalitated
+				 * One is to RELEASE the savepoint invalidated
 				 * due to manually issued ROLLBACK or RELEASE.
-				 * Another is to invalitate manual SAVEPOINTs unexpectedly
+				 * Another is to invalidate manual SAVEPOINTs unexpectedly
 				 * by RELEASing the internal savepoint.
 				 */
 				else if (strnicmp(cmdbuffer, svpcmd, strlen(svpcmd)) == 0)
@@ -2762,7 +2775,7 @@ LIBPQ_connect(ConnectionClass *self)
 	int			pversion;
 	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
 	PQconninfoOption	*conninfoOption = NULL, *pqopt;
-	int			i, cnt;
+	int			cnt;
 	char		login_timeout_str[20];
 	char		keepalive_idle_str[20];
 	char		keepalive_interval_str[20];
@@ -2848,8 +2861,7 @@ LIBPQ_connect(ConnectionClass *self)
 	{
 		const char *keyword, *val;
 		int j;
-
-		for (i = 0, pqopt = conninfoOption; (keyword = pqopt->keyword) != NULL; i++, pqopt++)
+		for (pqopt = conninfoOption; (keyword = pqopt->keyword) != NULL; pqopt++)
 		{
 			if ((val = pqopt->val) != NULL)
 			{

@@ -142,7 +142,20 @@ PGAPI_BindParameter(HSTMT hstmt,
 }
 
 
-/*	Associate a user-supplied buffer with a database column. */
+/** 
+ * @brief a user-supplied buffer with a database column. 
+ * @param hstmt		Statement handle
+ * @param icol		Column number (zero-based)
+ * @param fCType	Column data type
+ * @param rgbValue	Column data
+ * @param cbValueMax	Maximum column data size
+ * @param pcbValue	Actual column data size
+ * @return RETCODE
+ * 	SQL_SUCCESS
+ * 	SQL_SUCCESS_WITH_INFO
+ * 	SQL_ERROR
+ * 	SQL_INVALID_HANDLE
+*/
 RETCODE		SQL_API
 PGAPI_BindCol(HSTMT hstmt,
 			  SQLUSMALLINT icol,

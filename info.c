@@ -2901,6 +2901,20 @@ cleanup:
 }
 
 
+/**  @brief Retrieve the optimal set of columns that uniquely identifies a row in the specified table (when IdentifierType is SQL_BEST_ROWID)
+ * The columns that are automatically updated when any value in the row is updated (when IdentifierType is SQL_ROWVER)
+ * @param hstmt 
+ * @param fColType 
+ * @param szTableQualifier 
+ * @param cbTableQualifier 
+ *  @param szTableOwner 
+ *  @param cbTableOwner 
+ *  @param szTableName 
+ *  @param cbTableName 
+ *  @param fScope 
+ *  @param fNullable 
+ *  @return 
+*/
 RETCODE		SQL_API
 PGAPI_SpecialColumns(HSTMT hstmt,
 					 SQLUSMALLINT fColType,
@@ -3103,27 +3117,85 @@ MYLOG(DETAIL_LOG_LEVEL, "Add ctid\n");
 	}
 	else
 	{
-		/* use the oid value for the rowid */
+
 		if (fColType == SQL_BEST_ROWID)
 		{
 			Int2	the_type = PG_TYPE_OID;
 			int	atttypmod = -1;
 
-			if (relhasoids[0] != '1')
+			if (relhasoids[0] == '1')
 			{
-				ret = SQL_SUCCESS;
-				goto cleanup;
-			}
-			tuple = QR_AddNew(res);
+				tuple = QR_AddNew(res);
 
-			set_tuplefield_int2(&tuple[SPECOLS_SCOPE], SQL_SCOPE_SESSION);
-			set_tuplefield_string(&tuple[SPECOLS_COLUMN_NAME], OID_NAME);
-			set_tuplefield_int2(&tuple[SPECOLS_DATA_TYPE], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
-			set_tuplefield_string(&tuple[SPECOLS_TYPE_NAME], pgtype_attr_to_name(conn, the_type, atttypmod, TRUE));
-			set_tuplefield_int4(&tuple[SPECOLS_COLUMN_SIZE], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
-			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
-			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
+				set_tuplefield_int2(&tuple[SPECOLS_SCOPE], SQL_SCOPE_SESSION);
+				set_tuplefield_string(&tuple[SPECOLS_COLUMN_NAME], OID_NAME);
+				set_tuplefield_int2(&tuple[SPECOLS_DATA_TYPE], PGTYPE_ATTR_TO_CONCISE_TYPE(conn, the_type, atttypmod));
+				set_tuplefield_string(&tuple[SPECOLS_TYPE_NAME], pgtype_attr_to_name(conn, the_type, atttypmod, TRUE));
+				set_tuplefield_int4(&tuple[SPECOLS_COLUMN_SIZE], PGTYPE_ATTR_COLUMN_SIZE(conn, the_type, atttypmod));
+				set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
+				set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
+				set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
+			} else {
+				/*
+
+SELECT NULL as \"SCOPE\",
+    n.nspname AS \"SCHEMA_NAME\"",
+    c.relname AS \"TABLE_NAME\"",
+    a.attname AS \"COLUMN_NAME\"",
+	t.typname AS \"DATA_TYPE\",
+	t.typename AS \"TYPE_NAME\"",
+    i.indisunique,i.indisprimary
+FROM pg_class c
+    INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+    INNER JOIN pg_attribute a ON a.attrelid = c.oid
+	INNER JOIN pg_type t on a.atttypid = t.oid
+    LEFT JOIN pg_index i
+        ON i.indrelid = c.oid
+            AND a.attnum = ANY (i.indkey[0:(i.indnkeyatts - 1)])
+WHERE a.attnum > 0 and c.relname like 'testuktab';
+				*/			
+				initPQExpBuffer(&columns_query);
+				printfPQExpBuffer(&columns_query, "select NULL as \"SCOPE\"," 
+												  "n.nspname as \"SCHEMA_NAME\"," 
+												  "c.relname as \"TABLE_NAME\","
+												  "a.attname AS \"COLUMN_NAME\","
+												  "t.typname AS \"DATA_TYPE\","
+												  "t.typname AS \"TYPE_NAME\","
+												  "t.typlen AS \"COLUMN_SIZE\","
+												  "a.attlen AS \"BUFFER_LENGTH\","
+												  "case "
+       												"when t.typname = 'numeric' then"
+														" case when a.atttypmod > -1 then 6"
+														" else a.atttypmod::int4"
+														" end"
+													" else 0"
+													" end AS \"DECIMAL_DIGITS\","
+												  "1 AS \"PSEUDO_COLUMN\" "
+												"FROM pg_class c "
+    											"INNER JOIN pg_namespace n ON n.oid = c.relnamespace "
+    											"INNER JOIN pg_attribute a ON a.attrelid = c.oid "
+												"INNER JOIN pg_type t on a.atttypid = t.oid "
+    											"LEFT JOIN pg_index i ON i.indrelid = c.oid "
+            									"AND a.attnum = ANY (i.indkey[0:(i.indnkeyatts - 1)]) "
+												"WHERE i.indisunique and a.attnum > 0 and c.relname ='%s'" , szTableName );
+
+
+				if (szTableQualifier != NULL)												
+				appendPQExpBuffer(&columns_query, " and c.relnamespace = %s" , szSchemaName);
+
+				result = PGAPI_ExecDirect(stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
+				if (!SQL_SUCCEEDED(result))
+				{
+					/*
+					* "Couldn't execute index query (w/SQLExecDirect) in
+					* SpecialColumns";
+					*/
+					SC_full_error_copy(stmt, stmt, FALSE);
+					goto cleanup;
+				}
+				res = SC_get_Result(stmt);
+			}
+
 		}
 		else if (fColType == SQL_ROWVER)
 		{
