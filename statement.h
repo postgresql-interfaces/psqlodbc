@@ -304,7 +304,7 @@ struct StatementClass_
 	int		batch_size;
 	EXEC_TYPE	exec_type;
 	int		count_of_deffered;
-	PQExpBufferData	stmt_deffered;
+	PQExpBufferData	stmt_deferred;
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
 	StatementClass	*execute_parent;

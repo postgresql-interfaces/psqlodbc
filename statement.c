@@ -470,7 +470,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->use_server_side_prepare = conn->connInfo.use_server_side_prepare;
 		rv->lock_CC_for_rb = FALSE;
 		// for batch execution
-		memset(&rv->stmt_deffered, 0, sizeof(rv->stmt_deffered));
+		memset(&rv->stmt_deferred, 0, sizeof(rv->stmt_deferred));
 		if ((rv->batch_size = conn->connInfo.batch_size) < 1)
 			rv->batch_size = 1;
 		rv->exec_type = DIRECT_EXEC;
@@ -536,8 +536,8 @@ SC_Destructor(StatementClass *self)
 	cancelNeedDataState(self);
 	if (self->callbacks)
 		free(self->callbacks);
-	if (!PQExpBufferDataBroken(self->stmt_deffered))
-		termPQExpBuffer(&self->stmt_deffered);
+	if (!PQExpBufferDataBroken(self->stmt_deferred))
+		termPQExpBuffer(&self->stmt_deferred);
 
 	DELETE_STMT_CS(self);
 	free(self);
