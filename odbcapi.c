@@ -688,7 +688,7 @@ SQLSetParam(HSTMT StatementHandle,
 
 #ifndef	UNICODE_SUPPORTXX
 /**  
- * @brief The optimal set of columns that uniquely identifies a row in the specified table (when IdentifierType is SQL_BEST_ROWID)
+ * @brief Retrieve the optimal set of columns that uniquely identifies a row in the specified table (when IdentifierType is SQL_BEST_ROWID)
  * The columns that are automatically updated when any value in the row is updated (when IdentifierType is SQL_ROWVER)
 
  * @param  HSTMT StatementHandle,          // Handle to the statement
@@ -728,12 +728,11 @@ Note: This implementation is part of the PostgreSQL ODBC driver (psqlodbc) and i
  
 */
 RETCODE		SQL_API
-SQLSpecialColumns(HSTMT StatementHandle,
-				  SQLUSMALLINT IdentifierType, SQLCHAR *CatalogName,
-				  SQLSMALLINT NameLength1, SQLCHAR *SchemaName,
-				  SQLSMALLINT NameLength2, SQLCHAR *TableName,
-				  SQLSMALLINT NameLength3, SQLUSMALLINT Scope,
-				  SQLUSMALLINT Nullable)
+SQLSpecialColumns(HSTMT StatementHandle, SQLUSMALLINT IdentifierType, 
+				  SQLCHAR *CatalogName, SQLSMALLINT NameLength1, 
+				  SQLCHAR *SchemaName, SQLSMALLINT NameLength2, 
+				  SQLCHAR *TableName, SQLSMALLINT NameLength3, 
+				  SQLUSMALLINT Scope, SQLUSMALLINT Nullable)
 {
 	CSTR func = "SQLSpecialColumns";
 	RETCODE	ret;

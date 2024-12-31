@@ -2027,9 +2027,9 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 				}
 				/*
 				 * There are 2 risks to RELEASE an internal savepoint.
-				 * One is to RELEASE the savepoint invalitated
+				 * One is to RELEASE the savepoint invalidated
 				 * due to manually issued ROLLBACK or RELEASE.
-				 * Another is to invalitate manual SAVEPOINTs unexpectedly
+				 * Another is to invalidate manual SAVEPOINTs unexpectedly
 				 * by RELEASing the internal savepoint.
 				 */
 				else if (strnicmp(cmdbuffer, svpcmd, strlen(svpcmd)) == 0)

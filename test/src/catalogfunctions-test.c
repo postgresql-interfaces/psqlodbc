@@ -99,8 +99,8 @@ main(int argc, char **argv)
 	PRINT_RESULT_SERIES(hstmt, sql_column_privileges_ids, -1);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
-
-	/* Check for SQLSpecialColumns */
+	
+	/* Check for SQLSpecialColumns ROW VERSION*/
 	printf("Check for SQLSpecialColumns\n");
 	rc = SQLSpecialColumns(hstmt, SQL_ROWVER,
 						   NULL, 0,
@@ -109,6 +109,22 @@ main(int argc, char **argv)
 						   SQL_SCOPE_SESSION,
 						   SQL_NO_NULLS);
 	CHECK_STMT_RESULT(rc, "SQLSpecialColumns failed", hstmt);
+	 
+	print_result_meta(hstmt);
+	print_result(hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/* Check for SQLSpecialColumns BEST_ROWID */
+	printf("Check for SQLSpecialColumns\n");
+	rc = SQLSpecialColumns(hstmt, SQL_BEST_ROWID,
+						   NULL, 0,
+						   (SQLCHAR *) "public", SQL_NTS,
+						   (SQLCHAR *) "test_special", SQL_NTS,
+						   SQL_SCOPE_SESSION,
+						   SQL_NO_NULLS);
+	CHECK_STMT_RESULT(rc, "SQLSpecialColumns failed", hstmt);
+	 
 	print_result_meta(hstmt);
 	print_result(hstmt);
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
