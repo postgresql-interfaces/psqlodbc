@@ -383,7 +383,7 @@ getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, i
 	return adtsize_or_longest;
 }
 
-static Int4	/* PostgreSQL restritiction */
+static Int4	/* PostgreSQL restriction */
 getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as)
 {
 	Int4	default_column_size = 28;

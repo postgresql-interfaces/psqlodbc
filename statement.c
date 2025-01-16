@@ -800,6 +800,12 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 	return 0;
 }
 
+/** 
+ *  @brief Is the statement currently executing a transaction or cursor
+ *  @param[in] self 
+ *  @param func name of calling function
+ *  @return TRUE if statement is executing, otherwise FALSE
+ */ 
 BOOL	SC_opencheck(StatementClass *self, const char *func)
 {
 	QResultClass	*res;

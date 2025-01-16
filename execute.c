@@ -33,7 +33,14 @@
 #include "lobj.h"
 #include "pgapifunc.h"
 
-/*		Perform a Prepare on the SQL statement */
+/** 
+ * @brief Perform a Prepare on the SQL statement 
+ * 
+ * @param hstmt		Handle to the statement
+ * @param szSqlStr	SQL statement
+ * @param cbSqlStr	Length of the SQL statement
+ * 
+ */
 RETCODE		SQL_API
 PGAPI_Prepare(HSTMT hstmt,
 			  const SQLCHAR * szSqlStr,
@@ -133,7 +140,14 @@ MYLOG(DETAIL_LOG_LEVEL, "leaving %d\n", retval);
 }
 
 
-/*		Performs the equivalent of SQLPrepare, followed by SQLExecute. */
+/** 
+ * 	Performs the equivalent of SQLPrepare, followed by SQLExecute. 
+ *	@param hstmt		Handle to the statement
+ *	@param szSqlStr		SQL statement
+ *	@param cbSqlStr	Length of the SQL statement
+ *	@param flag			Flags to control the execution of the statement
+ * 
+*/
 RETCODE		SQL_API
 PGAPI_ExecDirect(HSTMT hstmt,
 				 const SQLCHAR * szSqlStr,
@@ -393,6 +407,15 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 	return nCallParse;
 }
 
+/**
+ * 	Generate a name for the SVP (Savepoint) for the given
+ * 	connection.
+ *
+ * 	@param	conn	The connection.
+ * 	@param	wrk	The buffer to store the name in.
+ * 	@param	wrksize	The size of the buffer.
+ * 	@return		The name of the Savepoint.
+ */
 static
 const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
 {
@@ -438,7 +461,7 @@ RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, EXEC_TYPE exec_type,
 	BOOL		prepare_before_exec = FALSE;
 	char *stmt_with_params;
 	SQLLEN		status_row = stmt->exec_current_row;
-	int		count_of_deffered;
+	int		count_of_deferred;
 
 	*exec_end = FALSE;
 	conn = SC_get_conn(stmt);
@@ -512,7 +535,7 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 			}
 		}
 	}
-	count_of_deffered = stmt->count_of_deffered;
+	count_of_deferred = stmt->count_of_deffered;
 	if (DIRECT_EXEC == exec_type)
 	{
 		retval = SC_execute(stmt);
@@ -561,8 +584,8 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 	}
 	if (retval == SQL_ERROR)
 	{
-MYLOG(0, "count_of_deffered=%d\n", count_of_deffered);
-		param_status_batch_update(ipdopts, SQL_PARAM_ERROR, stmt->exec_current_row, count_of_deffered);
+MYLOG(0, "count_of_deferred=%d\n", count_of_deferred);
+		param_status_batch_update(ipdopts, SQL_PARAM_ERROR, stmt->exec_current_row, count_of_deferred);
 		stmt->exec_current_row = -1;
 		*exec_end = TRUE;
 		RETURN(retval)
@@ -593,11 +616,11 @@ MYLOG(0, "count_of_deffered=%d\n", count_of_deffered);
 				ipdopts->param_status_ptr[status_row] = SQL_PARAM_SUCCESS;
 				break;
 			case SQL_SUCCESS_WITH_INFO:
-MYLOG(0, "count_of_deffered=%d has_notice=%d\n", count_of_deffered, stmt->has_notice);
-				param_status_batch_update(ipdopts, (count_of_deffered > 0 && !stmt->has_notice) ? SQL_PARAM_SUCCESS : SQL_PARAM_SUCCESS_WITH_INFO, status_row, count_of_deffered);
+MYLOG(0, "count_of_deffered=%d has_notice=%d\n", count_of_deferred, stmt->has_notice);
+				param_status_batch_update(ipdopts, (count_of_deferred > 0 && !stmt->has_notice) ? SQL_PARAM_SUCCESS : SQL_PARAM_SUCCESS_WITH_INFO, status_row, count_of_deferred);
 				break;
 			default:
-				param_status_batch_update(ipdopts, SQL_PARAM_ERROR, status_row, count_of_deffered);
+				param_status_batch_update(ipdopts, SQL_PARAM_ERROR, status_row, count_of_deferred);
 				break;
 		}
 	}
@@ -651,6 +674,12 @@ cleanup:
 	return retval;
 }
 
+/**
+ * @param[in] stmt 
+ * @return
+ *		1: transaction rollback
+ *		2: statement rollback
+ */
 int
 StartRollbackState(StatementClass *stmt)
 {
@@ -665,6 +694,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->external=%d\n", stmt, stmt->external);
 
 	if (!ci || ci->rollback_on_error < 0) /* default */
 	{
+		/* server version greater than or equal to 8.0 ?*/
 		if (conn && PG_VERSION_GE(conn, 8.0))
 			ret = 2; /* statement rollback */
 		else
@@ -689,6 +719,20 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->external=%d\n", stmt, stmt->external);
 	return	ret;
 }
 
+/**
+ * @param[in] *conn
+ * @param[in] type
+ * 	INTERNAL_SAVEPOINT_OPERATION or INTERNAL_ROLLBACK_OPERATION
+ * 	if type is INTERNAL_SAVEPOINT_OPERATION and conn->internal_svp is FALSE
+ * 	then the command is "SAVEPOINT" instead of "RELEASE SAVEPOINT"
+ *  if type is INTERNAL_ROLLBACK_OPERATION and conn->internal_svp is FALSE
+ * 	then the command is "ROLLBACK" instead of "ROLLBACK TO SAVEPOINT"
+ * @param[out] *cmd
+ * 	buffer to hold command to be sent
+ * @param[in] buflen
+ * @return less than zero if an error or number of characters in command
+ * 
+ */
 int
 GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int buflen)
 {
@@ -790,6 +834,14 @@ MYLOG(DETAIL_LOG_LEVEL, "leaving %p->accessed=%d\n", conn, CC_accessed_db(conn))
 	return ret;
 }
 
+
+/**
+ *  @brief Discards the statement savepoint
+ *  @param stmt 
+ *  @param ret 
+ *  @param errorOnly 
+ *  @return ret
+*/
 RETCODE
 DiscardStatementSvp(StatementClass *stmt, RETCODE ret, BOOL errorOnly)
 {
@@ -920,7 +972,13 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 		NULL_THE_NAME(conn->schemaIns);
 }
 
-/*	Execute a prepared SQL statement */
+/** 
+ * @brief Execute a prepared SQL statement 
+ * @param hstmt
+ * @param flag
+ * @return SQL_SUCCESS if successful
+ *  
+*/
 RETCODE		SQL_API
 PGAPI_Execute(HSTMT hstmt, UWORD flag)
 {

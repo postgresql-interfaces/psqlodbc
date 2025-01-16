@@ -190,7 +190,21 @@ SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	return ret;
 }
 
-/*	SQLExtendedFetch -> SQLFetchScroll */
+/** 	
+ * SQLExtendedFetch -> SQLFetchScroll 
+ *  SQLFetchScroll returns a specified rowset from the result set. 
+ * Rowsets can be specified by absolute or relative position or by bookmark. 
+ * SQLFetchScroll can be called only while a result set exists - that is, after a call that creates a result set and before the cursor over that result set is closed. 
+ * If any columns are bound, it returns the data in those columns. 
+ * If the application has specified a pointer to a row status array or a buffer in which to return the number of rows fetched,
+ *  SQLFetchScroll returns this information as well. 
+ * Calls to SQLFetchScroll can be mixed with calls to SQLFetch but cannot be mixed with calls to SQLExtendedFetch.
+ * 
+ * @param[in] StatementHandle
+ * @param[in] FetchOrientation
+ * @param[in] FetchOffset
+ * @return RETCODE SQL_SUCCESS if successful 
+ */
 RETCODE		SQL_API
 SQLFetchScroll(HSTMT StatementHandle,
 			   SQLSMALLINT FetchOrientation, SQLLEN FetchOffset)
