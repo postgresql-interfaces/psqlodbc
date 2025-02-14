@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -7,23 +7,18 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "winresrc.h"
-#ifndef	IDC_STATIC
-#define	IDC_STATIC (-1)
-#endif
+#include "afxres.h"
 #include "version.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Japanese resources
+// Japanese (Japan) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
-#ifdef _WIN32
 LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
 #pragma code_page(932)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -31,27 +26,17 @@ LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
 //
 
 DLG_CONFIG DIALOGEX 65, 43, 359, 219
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_VISIBLE | 
-    WS_CAPTION | WS_SYSMENU
-#ifdef UNICODE_SUPPORT
-CAPTION "PostgreSQL Unicode ODBC セットアップ"
-#else
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "PostgreSQL ANSI ODBC セットアップ"
-#endif
 FONT 9, "ＭＳ ゴシック", 0, 0, 0x1
 BEGIN
-    RTEXT           "デ－タソ－ス名:(&N)",IDC_DSNAMETEXT,2,9,63,17,NOT 
-                    WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
-    EDITTEXT        IDC_DSNAME,72,12,188,13,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
-    RTEXT           "説明:(&D)",IDC_DESCTEXT,5,31,60,16,SS_CENTERIMAGE | NOT 
-                    WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
+    RTEXT           "デ－タソ－ス名:(&N)",IDC_DSNAMETEXT,2,9,63,17,NOT WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
+    EDITTEXT        IDC_DSNAME,72,12,188,13,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
+    RTEXT           "説明:(&D)",IDC_DESCTEXT,5,31,60,16,SS_CENTERIMAGE | NOT WS_GROUP,WS_EX_TRANSPARENT | WS_EX_RIGHT
     EDITTEXT        IDC_DESC,72,32,188,13,ES_AUTOHSCROLL,WS_EX_TRANSPARENT
     RTEXT           "SSL Mode:(&L)",IDC_STATIC,16,49,49,9,NOT WS_GROUP
-    COMBOBOX        IDC_SSLMODE,72,47,90,56,CBS_DROPDOWNLIST | WS_VSCROLL | 
-                    WS_TABSTOP
-    LTEXT           "libpqライブラリload不可:SSL接続は使用できません",
-                    IDC_NOTICE_USER,165,50,190,10
+    COMBOBOX        IDC_SSLMODE,72,47,90,56,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "libpqライブラリload不可:SSL接続は使用できません",IDC_NOTICE_USER,165,50,190,10
     RTEXT           "サ－バ－名:(&S)",IDC_STATIC,17,68,48,15,NOT WS_GROUP
     EDITTEXT        IDC_SERVER,72,66,203,14,ES_AUTOHSCROLL
     RTEXT           "デ－タベ－ス名:(&b)",IDC_STATIC,5,91,60,15,NOT WS_GROUP
@@ -64,238 +49,150 @@ BEGIN
     EDITTEXT        IDC_PASSWORD,72,157,162,13,ES_PASSWORD | ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",IDOK,295,61,52,14,WS_GROUP
     PUSHBUTTON      "キャンセル",IDCANCEL,296,80,51,14
-    GROUPBOX        "オプション (高度な設定)",IDC_OPTIONS,249,119,99,59,
-                    BS_CENTER
+    GROUPBOX        "オプション (高度な設定)",IDC_OPTIONS,249,119,99,59,BS_CENTER
     PUSHBUTTON      "全体設定",IDC_DRIVER,269,155,53,15
     PUSHBUTTON      "デ－タソ－ス",IDC_DATASOURCE,269,132,53,15
     GROUPBOX        "既定の認証",IDC_STATIC,11,119,235,59
-    LTEXT           "PostgreSQL Ver7.3  Copyright (C) 1998-2006; Insight Distribution Systems",
-                    IDC_STATIC,36,186,302,9
-    LTEXT           "In the original form, Japanese patch Hiroshi-saito",
-                    IDC_STATIC,35,198,295,8
+    LTEXT           "PostgreSQL Ver7.3  Copyright (C) 1998-2006; Insight Distribution Systems",IDC_STATIC,36,186,302,9
+    LTEXT           "In the original form, Japanese patch Hiroshi-saito",IDC_STATIC,35,198,295,8
     PUSHBUTTON      "管理",IDC_MANAGEDSN,295,10,50,14
     PUSHBUTTON      "テスト",IDC_TEST,296,30,51,14
 END
 
-#define	MISC_X
-#define	MISC_Y	155
-#define	MISC_Y1	(MISC_Y+11)
-#define	MISC_Y2	(MISC_Y+28)
-#define	MISC_Y3	(MISC_Y+45)
-
-DLG_OPTIONS_DRV DIALOG DISCARDABLE  0, 0, 350, 241
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
+DLG_OPTIONS_DRV DIALOG 0, 0, 350, 241
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "高度な設定 (データソース１)"
 FONT 9, "ＭＳ ゴシック"
 BEGIN
     PUSHBUTTON      "設定2",ID2NDPAGE,5,5,40,15
     PUSHBUTTON      "設定3",ID3RDPAGE,49,5,40,15
-    CONTROL         "一般ログ出力をする(&L) (C:\\psqlodbc.log)",DRV_COMMLOG,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,24,167,10
-    EDITTEXT        DS_COMMLOG,337,24,13,12,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
-    CONTROL         "ユニ－クインデックスを使う(&I)",DRV_UNIQUEINDEX,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,56,129,10
-    CONTROL         "タイムアウト無視",DS_IGNORETIMEOUT,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,167,56,129,10
-    CONTROL         "ステ－トメントの構文解析を行なう(&a)",DRV_PARSE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,167,40,152,10
-    CONTROL         "Declare～Fetchを使用する(&U)",DRV_USEDECLAREFETCH,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,71,138,10
-    CONTROL         "詳細ログ出力をする(C:\\mylog_xxxx.log)",DRV_DEBUG,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,69,164,10
-    EDITTEXT        DS_DEBUG,337,69,13,12,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
+    CONTROL         "一般ログ出力をする(&L) (C:\\psqlodbc.log)",DRV_COMMLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,24,167,10
+    EDITTEXT        DS_COMMLOG,337,24,13,12,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
+    CONTROL         "ユニ－クインデックスを使う(&I)",DRV_UNIQUEINDEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,56,129,10
+    CONTROL         "タイムアウト無視",DS_IGNORETIMEOUT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,56,129,10
+    CONTROL         "ステ－トメントの構文解析を行なう(&a)",DRV_PARSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,40,152,10
+    CONTROL         "Declare～Fetchを使用する(&U)",DRV_USEDECLAREFETCH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,71,138,10
+    CONTROL         "詳細ログ出力をする(C:\\mylog_xxxx.log)",DRV_DEBUG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,167,69,164,10
+    EDITTEXT        DS_DEBUG,337,69,13,12,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
     GROUPBOX        "未知のサイズ動作",IDC_STATIC,5,85,340,31
-    CONTROL         "最大をとる",DRV_UNKNOWN_MAX,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,17,98,57,10
-    CONTROL         "特定しない",DRV_UNKNOWN_DONTKNOW,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,99,98,59,10
-    CONTROL         "最長をとる",DRV_UNKNOWN_LONGEST,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,173,98,60,10
+    CONTROL         "最大をとる",DRV_UNKNOWN_MAX,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,17,98,57,10
+    CONTROL         "特定しない",DRV_UNKNOWN_DONTKNOW,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,99,98,59,10
+    CONTROL         "最長をとる",DRV_UNKNOWN_LONGEST,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,173,98,60,10
     GROUPBOX        "デ－タ タイプ オプション",IDC_STATIC,5,119,340,32
-    CONTROL         "textを長文字列として扱う",DRV_TEXT_LONGVARCHAR,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,12,132,107,10
-    CONTROL         "不明を長文字列として扱う",DRV_UNKNOWNS_LONGVARCHAR,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,123,132,117,10
-    CONTROL         "CharとしてBoolsを扱う",DRV_BOOLS_CHAR,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,243,132,96,10
-    GROUPBOX        "その他",IDC_STATIC,5,MISC_Y,340,57
-    LTEXT           "最大&Varchar:",IDC_STATIC,13,MISC_Y1+1,54,8
-    EDITTEXT        DRV_VARCHAR_SIZE,70,MISC_Y1,35,12,ES_AUTOHSCROLL
-    LTEXT           "最大Lon&gVarChar:",IDC_STATIC,148,MISC_Y1+2,66,8
-    EDITTEXT        DRV_LONGVARCHAR_SIZE,219,MISC_Y1,35,12,ES_AUTOHSCROLL
-    LTEXT           "ｷｬｯｼｭｻｲｽﾞ:",IDC_STATIC,21,MISC_Y2+1,39,8
-    EDITTEXT        DRV_CACHE_SIZE,69,MISC_Y2-1,35,12,ES_AUTOHSCROLL
-    LTEXT           "ｼｽﾃﾑﾃｰﾌﾞﾙ ﾌﾟﾚﾌｨｸｽ:",IDC_STATIC,140,MISC_Y2+1,74,9
-    EDITTEXT        DRV_EXTRASYSTABLEPREFIXES,219,MISC_Y2-1,71,12,ES_AUTOHSCROLL
-    LTEXT           "バッチサイズ:",IDC_STATIC,13,MISC_Y3+1,74,9
-    EDITTEXT        DS_BATCH_SIZE,69,MISC_Y3-1,35,12,ES_AUTOHSCROLL
+    CONTROL         "textを長文字列として扱う",DRV_TEXT_LONGVARCHAR,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,12,132,107,10
+    CONTROL         "不明を長文字列として扱う",DRV_UNKNOWNS_LONGVARCHAR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,123,132,117,10
+    CONTROL         "CharとしてBoolsを扱う",DRV_BOOLS_CHAR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,243,132,96,10
+    GROUPBOX        "その他",IDC_STATIC,5,155,340,57
+    LTEXT           "最大&Varchar:",IDC_STATIC,13,167,54,8
+    EDITTEXT        DRV_VARCHAR_SIZE,70,166,35,12,ES_AUTOHSCROLL
+    LTEXT           "最大Lon&gVarChar:",IDC_STATIC,148,168,66,8
+    EDITTEXT        DRV_LONGVARCHAR_SIZE,219,166,35,12,ES_AUTOHSCROLL
+    LTEXT           "ｷｬｯｼｭｻｲｽﾞ:",IDC_STATIC,21,184,39,8
+    EDITTEXT        DRV_CACHE_SIZE,69,182,35,12,ES_AUTOHSCROLL
+    LTEXT           "ｼｽﾃﾑﾃｰﾌﾞﾙ ﾌﾟﾚﾌｨｸｽ:",IDC_STATIC,140,184,74,9
+    EDITTEXT        DRV_EXTRASYSTABLEPREFIXES,219,182,71,12,ES_AUTOHSCROLL
+    LTEXT           "バッチサイズ:",IDC_STATIC,13,201,74,9
+    EDITTEXT        DS_BATCH_SIZE,69,199,35,12,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "OK",IDOK,5,221,50,15,WS_GROUP
     PUSHBUTTON      "キャンセル",IDCANCEL,68,221,50,15
     PUSHBUTTON      "適用",IDAPPLY,132,221,50,15
     PUSHBUTTON      "デフォルト",IDDEFAULTS,295,221,50,15
 END
 
-#define	CONNSETTINGS_Y	185	// 191
-#define	KEEPALIVE_X	5
-#define	KEEPALIVE_Y	225
-#define	ENDLINE_Y	245	// 224
-
-DLG_OPTIONS_DS DIALOG DISCARDABLE  0, 0, 306, 260
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
+DLG_OPTIONS_DS DIALOG 0, 0, 306, 260
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "高度な設定 (データソース２)"
 FONT 9, "ＭＳ ゴシック"
 BEGIN
     PUSHBUTTON      "設定3",ID3RDPAGE,49,5,40,15
     PUSHBUTTON      "設定1",ID1STPAGE,5,5,40,15
-    CONTROL         "リ－ドオンリィ(&R)",DS_READONLY,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,15,26,102,10
-    CONTROL         "バ－ジョン列表示(&V)",DS_ROWVERSIONING,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,139,25,114,10
-    CONTROL         "システムテ－ブルを表示(&T)",DS_SHOWSYSTEMTABLES,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,41,111,10
-    CONTROL         "補助的エラーメッセージを表示",DS_OPTIONALERRORS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,139,41,162,10
-    CONTROL         "LF <-> CR/LF 変換を行う",DS_LFCONVERSION,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,56,106,10
-    CONTROL         "-1 を真値(True)とする",DS_TRUEISMINUS1,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,139,55,98,10
-    CONTROL         "更新可能カーソル",DS_UPDATABLECURSORS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,71,87,10
-    CONTROL         "サーバー側 Prepare(7.3以後)",DS_SERVERSIDEPREPARE,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,70,122,10
+    CONTROL         "リ－ドオンリィ(&R)",DS_READONLY,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,15,26,102,10
+    CONTROL         "バ－ジョン列表示(&V)",DS_ROWVERSIONING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,25,114,10
+    CONTROL         "システムテ－ブルを表示(&T)",DS_SHOWSYSTEMTABLES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,41,111,10
+    CONTROL         "補助的エラーメッセージを表示",DS_OPTIONALERRORS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,41,162,10
+    CONTROL         "LF <-> CR/LF 変換を行う",DS_LFCONVERSION,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,56,106,10
+    CONTROL         "-1 を真値(True)とする",DS_TRUEISMINUS1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,55,98,10
+    CONTROL         "更新可能カーソル",DS_UPDATABLECURSORS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,71,87,10
+    CONTROL         "サーバー側 Prepare(7.3以後)",DS_SERVERSIDEPREPARE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,70,122,10
     GROUPBOX        "Int8 の代替定義",IDC_STATIC,5,98,256,25
-    CONTROL         "default",DS_INT8_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,12,108,40,10
-    CONTROL         "bigint",DS_INT8_AS_BIGINT,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,55,108,35,10
-    CONTROL         "numeric",DS_INT8_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,98,108,40,10
-    CONTROL         "varchar",DS_INT8_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,141,108,40,10
-    CONTROL         "double",DS_INT8_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,184,108,40,10
-    CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,227,108,29,10
+    CONTROL         "default",DS_INT8_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,108,40,10
+    CONTROL         "bigint",DS_INT8_AS_BIGINT,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,55,108,35,10
+    CONTROL         "numeric",DS_INT8_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,98,108,40,10
+    CONTROL         "varchar",DS_INT8_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,141,108,40,10
+    CONTROL         "double",DS_INT8_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,184,108,40,10
+    CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,227,108,29,10
     LTEXT           "特別なオプション",IDC_STATIC,227,158,66,8
     EDITTEXT        DS_EXTRA_OPTIONS,227,168,35,14,ES_AUTOHSCROLL
     GROUPBOX        "Numeric(精度指定なし) の代替定義",IDC_STATIC,5,128,160,25
-    CONTROL         "default",DS_NUMERIC_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,12,140,40,10
-//    CONTROL         "numeric",DS_NUMERIC_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | 
-//                    WS_TABSTOP,50,140,40,10
-    CONTROL         "memo",DS_NUMERIC_AS_LONGVARCHAR,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,126,140,40,10
-    CONTROL         "varchar",DS_NUMERIC_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,50,140,40,10
-    CONTROL         "double",DS_NUMERIC_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,90,140,36,10
+    CONTROL         "default",DS_NUMERIC_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | WS_GROUP,12,140,40,10
+    CONTROL         "memo",DS_NUMERIC_AS_LONGVARCHAR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,126,140,40,10
+    CONTROL         "varchar",DS_NUMERIC_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,50,140,40,10
+    CONTROL         "double",DS_NUMERIC_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,90,140,36,10
     GROUPBOX        "エラー時のロールバック発行",IDC_STATIC,170,128,130,25
-    CONTROL         "無し",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,175,139,30,10
-    CONTROL         "全ｷｬﾝｾﾙ",DS_TRANSACTION_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,205,140,50,10
-    CONTROL         "文単位",DS_STATEMENT_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,260,140,35,10
+    CONTROL         "無し",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | WS_GROUP,175,139,30,10
+    CONTROL         "全ｷｬﾝｾﾙ",DS_TRANSACTION_ROLLBACK,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,205,140,50,10
+    CONTROL         "文単位",DS_STATEMENT_ROLLBACK,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,260,140,35,10
     GROUPBOX        "OID オプション",IDC_STATIC,5,158,206,25
-    CONTROL         "カラム列表示(&C)",DS_SHOWOIDCOLUMN,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP,16,169,72,10
-    CONTROL         "インデックスを装う(&I)",DS_FAKEOIDINDEX,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,107,169,95,10
-    LTEXT           "接続時   設定:(&S)",IDC_STATIC,13,CONNSETTINGS_Y+3,69,10,NOT 
-                    WS_GROUP
-    EDITTEXT        DS_CONNSETTINGS,90,CONNSETTINGS_Y,211,27,ES_MULTILINE | 
-                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT 
-                    WS_TABSTOP
-    GROUPBOX        "TCP KEEPALIVE(秒単位)",IDC_STATIC,KEEPALIVE_X,KEEPALIVE_Y-10,210,25
-    CONTROL         "利用しない",DS_DISABLE_KEEPALIVE,"Button",BS_AUTOCHECKBOX | WS_GROUP, KEEPALIVE_X+5,KEEPALIVE_Y,50,10
-    LTEXT           "待ち時間",IDC_STATIC,KEEPALIVE_X+62,KEEPALIVE_Y,35,10,NOT WS_GROUP
-    EDITTEXT        DS_KEEPALIVETIME,KEEPALIVE_X+100,KEEPALIVE_Y,30,10, ES_AUTOHSCROLL | WS_TABSTOP
-    LTEXT           "応答待時間",IDC_STATIC,KEEPALIVE_X+137,KEEPALIVE_Y,40,10,NOT WS_GROUP
-    EDITTEXT        DS_KEEPALIVEINTERVAL,KEEPALIVE_X+180,KEEPALIVE_Y,30,10, ES_AUTOHSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK",IDOK,5,ENDLINE_Y,50,14,WS_GROUP
-    PUSHBUTTON      "キャンセル",IDCANCEL,66,ENDLINE_Y,50,14
-    PUSHBUTTON      "適用",IDAPPLY,128,ENDLINE_Y,50,14
-    CONTROL         "byteaをLOとして扱う",DS_BYTEAASLONGVARBINARY,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,85,87,10
-    CONTROL         "各refcursorから結果を取得します",DS_FETCH_REFCURSORS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,85,140,10
+    CONTROL         "カラム列表示(&C)",DS_SHOWOIDCOLUMN,"Button",BS_AUTOCHECKBOX | WS_GROUP,16,169,72,10
+    CONTROL         "インデックスを装う(&I)",DS_FAKEOIDINDEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,107,169,95,10
+    LTEXT           "接続時   設定:(&S)",IDC_STATIC,13,188,69,10,NOT WS_GROUP
+    EDITTEXT        DS_CONNSETTINGS,90,185,211,27,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT WS_TABSTOP
+    GROUPBOX        "TCP KEEPALIVE(秒単位)",IDC_STATIC,5,215,210,25
+    CONTROL         "利用しない",DS_DISABLE_KEEPALIVE,"Button",BS_AUTOCHECKBOX | WS_GROUP,10,225,50,10
+    LTEXT           "待ち時間",IDC_STATIC,67,225,35,10,NOT WS_GROUP
+    EDITTEXT        DS_KEEPALIVETIME,105,225,30,10,ES_AUTOHSCROLL
+    LTEXT           "応答待時間",IDC_STATIC,142,225,40,10,NOT WS_GROUP
+    EDITTEXT        DS_KEEPALIVEINTERVAL,185,225,30,10,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,5,245,50,14,WS_GROUP
+    PUSHBUTTON      "キャンセル",IDCANCEL,66,245,50,14
+    PUSHBUTTON      "適用",IDAPPLY,128,245,50,14
+    CONTROL         "byteaをLOとして扱う",DS_BYTEAASLONGVARBINARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,15,85,87,10
+    CONTROL         "各refcursorから結果を取得します",DS_FETCH_REFCURSORS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,139,85,140,10
 END
 
-#define	DTC_GRP_X	10
-#define	DTC_GRP_Y	60
-#define	DTC_GRP_WIDTH	200
-#define	DTC_GRP_HEIGHT	100
-#define	DTC_OPT_X	(DTC_GRP_X)
-#define	DTC_OPT_Y	(DTC_GRP_Y+10)
-#define	DTC_OPT_WIDTH	180
-#define	DTC_OPT_HEIGHT	45
-#define	DTC_LOG_X	(DTC_GRP_X)
-#define	DTC_LOG_Y	(DTC_OPT_Y+60)
-#define	LIBPQOPT_Y	185
-
-DLG_OPTIONS_DS3 DIALOG DISCARDABLE  0, 0, 306, 243
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
+DLG_OPTIONS_DS3 DIALOG 0, 0, 306, 243
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "高度な設定 (データソース３)"
 FONT 9, "ＭＳ ゴシック"
 BEGIN
     PUSHBUTTON      "設定2",ID2NDPAGE,49,5,40,15
     PUSHBUTTON      "設定1",ID1STPAGE,5,5,40,15
-
-    GROUPBOX        "分散トランザクション関連設定",IDC_STATIC,DTC_GRP_X,DTC_GRP_Y,DTC_GRP_WIDTH,DTC_GRP_HEIGHT
-    GROUPBOX        "MSDTCリカバリー不可接続を許可?",IDC_STATIC,DTC_OPT_X,DTC_OPT_Y,DTC_OPT_WIDTH,DTC_OPT_HEIGHT
-    CONTROL         "する",DS_DTC_LINK_ONLY,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,DTC_OPT_X+5,DTC_OPT_Y+10,140,10
-    CONTROL         "sslmode verify-[ca|full]を拒絶",DS_DTC_SIMPLE_PRECHECK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,DTC_OPT_X+5,DTC_OPT_Y+20,140,10
-    CONTROL         "しない(最初にMSDTCからの接続性を確認)",DS_DTC_CONFIRM_RM_CONNECTION,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,DTC_OPT_X+5,DTC_OPT_Y+30,170,10
-    PUSHBUTTON      "接続テスト",IDC_TEST,DTC_OPT_X+60,DTC_OPT_Y+75,51,14
-
-    LTEXT           "libpqパラメータ:(&l)",IDC_STATIC,11,LIBPQOPT_Y+3,76,10,NOT
-                    WS_GROUP
-    EDITTEXT        DS_LIBPQOPT,90,LIBPQOPT_Y,211,27,ES_MULTILINE |
-                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT
-                    WS_TABSTOP
-
+    GROUPBOX        "分散トランザクション関連設定",IDC_STATIC,10,60,200,100
+    GROUPBOX        "MSDTCリカバリー不可接続を許可?",IDC_STATIC,10,70,180,45
+    CONTROL         "する",DS_DTC_LINK_ONLY,"Button",BS_AUTORADIOBUTTON | WS_GROUP,15,80,140,10
+    CONTROL         "sslmode verify-[ca|full]を拒絶",DS_DTC_SIMPLE_PRECHECK,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,15,90,140,10
+    CONTROL         "しない(最初にMSDTCからの接続性を確認)",DS_DTC_CONFIRM_RM_CONNECTION,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,15,100,170,10
+    PUSHBUTTON      "接続テスト",IDC_TEST,70,145,51,14
+    LTEXT           "libpqパラメータ:(&l)",IDC_STATIC,11,188,76,10,NOT WS_GROUP
+    EDITTEXT        DS_LIBPQOPT,90,185,211,27,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT WS_TABSTOP
     DEFPUSHBUTTON   "OK",IDOK,5,224,50,14,WS_GROUP
     PUSHBUTTON      "キャンセル",IDCANCEL,66,224,50,14
     PUSHBUTTON      "適用",IDAPPLY,128,224,50,14
 END
 
-
-#undef	ENDLINE_Y
-#define	ENDLINE_Y	110
-DLG_OPTIONS_GLOBAL DIALOG DISCARDABLE  0, 0, 306, 130
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
+DLG_OPTIONS_GLOBAL DIALOG 0, 0, 306, 130
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "高度な設定(全体)"
 FONT 9, "ＭＳ ゴシック"
 BEGIN
-    GROUPBOX        "コネクション前のデフォルトロギングオプション",
-                    IDC_STATIC,5,5,296,68
-    CONTROL         "一般ログ(&L) (C:\\psqlodbc_xxxx.log - コミュニケ－ションログ)",
-                    DRV_COMMLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,24,
-                    249,10
-    CONTROL         "専用ログ (C:\\mylog_xxxx.log - 詳細デバッグ出力ログ)",
-                    DRV_DEBUG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,42,
-                    220,10
+    GROUPBOX        "コネクション前のデフォルトロギングオプション",IDC_STATIC,5,5,296,68
+    CONTROL         "一般ログ(&L) (C:\\psqlodbc_xxxx.log - コミュニケ－ションログ)",DRV_COMMLOG,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,24,249,10
+    CONTROL         "専用ログ (C:\\mylog_xxxx.log - 詳細デバッグ出力ログ)",DRV_DEBUG,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,42,220,10
     RTEXT           "ロギング用フォルダ",IDC_STATIC,14,57,79,12
-    EDITTEXT        DS_LOGDIR,98,55,188,13,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
-    GROUPBOX        "MSDTCサポート", IDC_STATIC,5,75,296,27
-    CONTROL         "専用ログ(C:\\pgdtclog\\mylog_xxxx.log - デバッグ出力ログ)",
-                    DRV_DTCLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,87,260,10
-    DEFPUSHBUTTON   "保存",IDOK,5,ENDLINE_Y,50,14,WS_GROUP
-    PUSHBUTTON      "キャンセル",IDCANCEL,65,ENDLINE_Y,50,15
+    EDITTEXT        DS_LOGDIR,98,55,188,13,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
+    GROUPBOX        "MSDTCサポート",IDC_STATIC,5,75,296,27
+    CONTROL         "専用ログ(C:\\pgdtclog\\mylog_xxxx.log - デバッグ出力ログ)",DRV_DTCLOG,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,87,260,10
+    DEFPUSHBUTTON   "保存",IDOK,5,110,50,14,WS_GROUP
+    PUSHBUTTON      "キャンセル",IDCANCEL,65,110,50,15
 END
 
-DLG_DRIVER_CHANGE DIALOG DISCARDABLE  0, 0, 306, 87
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+DLG_DRIVER_CHANGE DIALOG 0, 0, 306, 87
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "ドライバ　アップ/ダウン"
 FONT 10, "Terminal"
 BEGIN
@@ -303,8 +200,7 @@ BEGIN
     PUSHBUTTON      "キャンセル",IDCANCEL,172,67,50,15
     GROUPBOX        "ドライバリスト",IDC_STATIC,5,5,296,58
     LTEXT           "ドライバを選択してください",IDC_STATIC,11,33,105,8
-    LISTBOX         IDC_DRIVER_LIST,124,19,170,33,LBS_SORT | 
-                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    LISTBOX         IDC_DRIVER_LIST,124,19,170,33,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
 
@@ -314,7 +210,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO
 BEGIN
     DLG_CONFIG, DIALOG
     BEGIN
@@ -365,19 +261,19 @@ END
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE 
 BEGIN
     "#include ""afxres.h""\r\n"
     "#include ""version.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE 
 BEGIN
     "\r\n"
     "\0"
@@ -386,15 +282,14 @@ END
 #endif    // APSTUDIO_INVOKED
 
 
-#ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION PG_DRVFILE_VERSION
- PRODUCTVERSION PG_DRVFILE_VERSION
+ FILEVERSION 17,0,0,4
+ PRODUCTVERSION 17,0,0,4
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x9L
@@ -409,30 +304,16 @@ BEGIN
     BEGIN
         BLOCK "041104e4"
         BEGIN
-#ifdef UNICODE_SUPPORT
-            VALUE "Comments", "PostgreSQL Unicode ODBC driver Japanese\0"
-#else
-            VALUE "Comments", "PostgreSQL ANSI ODBC driver Japanese\0"
-#endif
-            VALUE "CompanyName", "PostgreSQL Global Development Group\0"
-            VALUE "FileDescription", "PostgreSQL ODBC Driver (Japanese)\0"
-            VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
-#ifdef UNICODE_SUPPORT
-            VALUE "InternalName", "psqlodbc35w\0"
-#else
-            VALUE "InternalName", "psqlodbc30a\0"
-#endif
-            VALUE "LegalCopyright", "\0"
-            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftョ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
-#ifdef UNICODE_SUPPORT
-            VALUE "OriginalFilename", "psqlodbc35w.dll\0"
-#else
-            VALUE "OriginalFilename", "psqlodbc30a.dll\0"
-#endif
-            VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito\0"
-            VALUE "ProductName", "PostgreSQL\0"
-            VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
-            VALUE "SpecialBuild", "\0"
+            VALUE "Comments", "PostgreSQL ANSI ODBC driver Japanese"
+            VALUE "CompanyName", "PostgreSQL Global Development Group"
+            VALUE "FileDescription", "PostgreSQL ODBC Driver (Japanese)"
+            VALUE "FileVersion", "17.00.0004"
+            VALUE "InternalName", "psqlodbc30a"
+            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoftョ is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
+            VALUE "OriginalFilename", "psqlodbc30a.dll"
+            VALUE "PrivateBuild", "for Japanese by Hiroshi Inoue & Hiroshi Saito"
+            VALUE "ProductName", "PostgreSQL"
+            VALUE "ProductVersion", "17.00.0004"
         END
     END
     BLOCK "VarFileInfo"
@@ -441,15 +322,13 @@ BEGIN
     END
 END
 
-#endif    // !_MAC
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // String Table
 //
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE
 BEGIN
     IDS_BADDSN              "DSNエントリ－が不正です。再度チェック設定してください。."
     IDS_MSGTITLE            "DSN不正"
@@ -459,48 +338,45 @@ BEGIN
     IDS_ADVANCE_OPTION_CON1 "高度な設定（コネクション設定１）"
     IDS_ADVANCE_OPTION_DSN2 "高度な設定 (%s 設定2)"
     IDS_ADVANCE_OPTION_CON2 "高度な設定 (コネクション設定2)"
+    IDS_ADVANCE_CONNECTION  "コネクション"
     IDS_ADVANCE_OPTION_DSN3 "高度な設定 (%s 設定3)"
     IDS_ADVANCE_OPTION_CON3 "高度な設定 (コネクション設定3)"
-    IDS_ADVANCE_CONNECTION  "コネクション"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE
 BEGIN
     IDS_SSLREQUEST_PREFER   "優先"
     IDS_SSLREQUEST_ALLOW    "考慮"
     IDS_SSLREQUEST_REQUIRE  "必須"
     IDS_SSLREQUEST_DISABLE  "無効"
-    IDS_SSLREQUEST_VERIFY_CA	"必須:証明書認証"
-    IDS_SSLREQUEST_VERIFY_FULL	"必須:証明書完全認証"
+    IDS_SSLREQUEST_VERIFY_CA "必須:証明書認証"
 END
 
-#endif    // Japanese resources
+STRINGTABLE
+BEGIN
+    IDS_SSLREQUEST_VERIFY_FULL "必須:証明書完全認証"
+END
+
+#endif    // Japanese (Japan) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
 /////////////////////////////////////////////////////////////////////////////
-// English (U.S.) resources
+// English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-#ifdef _WIN32
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-DLG_CONFIG DIALOG DISCARDABLE  65, 43, 305, 142
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_VISIBLE | 
-    WS_CAPTION | WS_SYSMENU
-#ifdef UNICODE_SUPPORT
-CAPTION "PostgreSQL Unicode ODBC Driver (psqlODBC) Setup"
-#else
+DLG_CONFIG DIALOGEX 65, 43, 305, 142
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "PostgreSQL ANSI ODBC Driver (psqlODBC) Setup"
-#endif
-FONT 8, "MS Sans Serif"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     RTEXT           "&Data Source",IDC_DSNAMETEXT,3,25,50,12,NOT WS_GROUP
     EDITTEXT        IDC_DSNAME,57,24,72,12,ES_AUTOHSCROLL | WS_GROUP
@@ -509,11 +385,8 @@ BEGIN
     RTEXT           "Data&base",IDC_STATIC,15,40,38,12,NOT WS_GROUP
     EDITTEXT        IDC_DATABASE,57,39,72,12,ES_AUTOHSCROLL
     RTEXT           "SS&L Mode",IDC_STATIC,143,40,45,12,NOT WS_GROUP
-    COMBOBOX        IDC_SSLMODE,192,36,104,50,CBS_DROPDOWNLIST | WS_VSCROLL | 
-                    WS_TABSTOP
-    CTEXT           "Couldn't load libpq - SSL mode is unavailable",
-                    IDC_NOTICE_USER,53,87,200,11,SS_NOTIFY | SS_CENTERIMAGE | 
-                    WS_BORDER
+    COMBOBOX        IDC_SSLMODE,192,36,104,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CTEXT           "Couldn't load libpq - SSL mode is unavailable",IDC_NOTICE_USER,53,87,200,11,SS_NOTIFY | SS_CENTERIMAGE | WS_BORDER
     RTEXT           "&Server",IDC_STATIC,24,55,29,12,NOT WS_GROUP
     EDITTEXT        IDC_SERVER,57,54,72,12,ES_AUTOHSCROLL
     RTEXT           "&Port",IDC_STATIC,166,56,22,12
@@ -522,263 +395,160 @@ BEGIN
     EDITTEXT        IDC_USER,57,69,72,12,ES_AUTOHSCROLL
     RTEXT           "Pass&word",IDC_STATIC,154,72,34,9
     EDITTEXT        IDC_PASSWORD,192,70,72,12,ES_PASSWORD | ES_AUTOHSCROLL
-//    DEFPUSHBUTTON   "OK",IDOK,12,114,44,15,WS_GROUP
-//    PUSHBUTTON      "Cancel",IDCANCEL,66,114,44,15
-//    GROUPBOX        "Options",IDC_OPTIONS,121,101,177,35,BS_LEFT
-//    PUSHBUTTON      "Datasource",IDC_DATASOURCE,128,115,50,14
-//    PUSHBUTTON      "Global",IDC_DRIVER,184,115,50,14
-    LTEXT           "Please supply any missing information required to connect.",
-                    DRV_MSG_LABEL,12,5,249,10
-//    PUSHBUTTON      "Manage DSN",IDC_MANAGEDSN,240,115,52,14
-
-     GROUPBOX        "Options",IDC_OPTIONS,5,100,177,35,BS_LEFT
-     PUSHBUTTON      "Datasource",IDC_DATASOURCE,12,114,50,14
-     PUSHBUTTON      "Global",IDC_DRIVER,67,114,50,14
-     PUSHBUTTON      "Manage DSN",IDC_MANAGEDSN,122,114,52,14
-
-     PUSHBUTTON      "Test",IDC_TEST,254,103,44,15
-     DEFPUSHBUTTON   "OK",IDOK,203,121,44,15,WS_GROUP
-     PUSHBUTTON      "Cancel",IDCANCEL,254,121,44,15
+    LTEXT           "Please supply any missing information required to connect.",DRV_MSG_LABEL,12,5,249,10
+    GROUPBOX        "Options",IDC_OPTIONS,5,100,177,35,BS_LEFT
+    PUSHBUTTON      "Datasource",IDC_DATASOURCE,12,114,50,14
+    PUSHBUTTON      "Global",IDC_DRIVER,67,114,50,14
+    PUSHBUTTON      "Manage DSN",IDC_MANAGEDSN,122,114,52,14
+    PUSHBUTTON      "Test",IDC_TEST,254,103,44,15
+    DEFPUSHBUTTON   "OK",IDOK,203,121,44,15,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,254,121,44,15
 END
 
-#undef	MISC_Y
-#undef	MISC_Y1
-#undef	MISC_Y2
-#undef	MISC_Y3
-#define	MISC_Y	145
-#define	MISC_Y1	(MISC_Y+15)
-#define	MISC_Y2	(MISC_Y+32)
-#define	MISC_Y3	(MISC_Y+49)
-
-DLG_OPTIONS_DRV DIALOG DISCARDABLE  0, 0, 287, 231
-STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+DLG_OPTIONS_DRV DIALOGEX 0, 0, 320, 260
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Advanced Options (DataSource)"
-FONT 8, "MS Sans Serif"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
     PUSHBUTTON      "Page 2",ID2NDPAGE,5,5,40,15
     PUSHBUTTON      "Page 3",ID3RDPAGE,49,5,40,15
-    CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log)",DRV_COMMLOG,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,149,26,121,10
-    EDITTEXT        DS_COMMLOG,275,26,100,13,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
-    CONTROL         "Recognize Unique &Indexes",DRV_UNIQUEINDEX,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,56,110,10
-    CONTROL         "Ignore Timeout",DS_IGNORETIMEOUT,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,149,56,110,10
-    CONTROL         "P&arse Statements",DRV_PARSE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,149,41,80,10
-    CONTROL         "&Use Declare/Fetch",DRV_USEDECLAREFETCH,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,71,83,10
-    CONTROL         "MyLog (C:\\mylog_xxxx.log)",DRV_DEBUG,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,149,71,112,10
-    EDITTEXT        DS_DEBUG,275,71,15,12,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
-    GROUPBOX        "Unknown Sizes",IDC_STATIC,5,85,277,25
-    CONTROL         "Maximum",DRV_UNKNOWN_MAX,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP | WS_TABSTOP,15,96,45,10
-    CONTROL         "Don't Know",DRV_UNKNOWN_DONTKNOW,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,105,96,53,10
-    CONTROL         "Longest",DRV_UNKNOWN_LONGEST,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,215,95,50,10
-    GROUPBOX        "Data Type Options",IDC_STATIC,5,115,277,25
-    CONTROL         "Text as LongVarChar",DRV_TEXT_LONGVARCHAR,"Button",
-                    BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,15,125,90,10
+    CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log)",DRV_COMMLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,149,26,121,10
+    EDITTEXT        DS_COMMLOG,275,26,28,12,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
+    CONTROL         "P&arse Statements",DRV_PARSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,149,38,80,10
+    CONTROL         "Recognize Unique &Indexes",DRV_UNIQUEINDEX,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,50,110,10
+    CONTROL         "Ignore Timeout",DS_IGNORETIMEOUT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,149,50,110,10
+    CONTROL         "&Use Declare/Fetch",DRV_USEDECLAREFETCH,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,62,83,10
+    CONTROL         "MyLog (C:\\mylog_xxxx.log)",DRV_DEBUG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,149,62,112,10
+    EDITTEXT        DS_DEBUG,275,62,28,12,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
+    GROUPBOX        "Unknown Sizes",IDC_STATIC,6,76,167,21
+    CONTROL         "Maximum",DRV_UNKNOWN_MAX,"Button",BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP,12,84,49,10
+    CONTROL         "Don't Know",DRV_UNKNOWN_DONTKNOW,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,65,84,54,10
+    CONTROL         "Longest",DRV_UNKNOWN_LONGEST,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,124,84,42,10
+    GROUPBOX        "Data Type Options",IDC_STATIC,6,102,266,21
+    CONTROL         "Text as LongVarChar",DRV_TEXT_LONGVARCHAR,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,12,110,90,10
     CONTROL         "Unknowns as LongVarChar",DRV_UNKNOWNS_LONGVARCHAR,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,105,125,105,10
-    CONTROL         "Bools as Char",DRV_BOOLS_CHAR,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,215,125,67,10
-    GROUPBOX        "Miscellaneous",IDC_STATIC,5,MISC_Y,277,62
-    LTEXT           "Max &Varchar:",IDC_STATIC,13,MISC_Y1+1,54,8
-    EDITTEXT        DRV_VARCHAR_SIZE,70,MISC_Y1,35,12,ES_AUTOHSCROLL
-    LTEXT           "Max Lon&gVarChar:",IDC_STATIC,125,MISC_Y1+1,67,8
-    EDITTEXT        DRV_LONGVARCHAR_SIZE,199,MISC_Y1,35,12,ES_AUTOHSCROLL
-    LTEXT           "&Cache Size:",IDC_STATIC,14,MISC_Y2+1,52,8
-    EDITTEXT        DRV_CACHE_SIZE,69,MISC_Y2-1,35,12,ES_AUTOHSCROLL
-    LTEXT           "SysTable &Prefixes:",IDC_STATIC,126,MISC_Y2+1,61,18
-    EDITTEXT        DRV_EXTRASYSTABLEPREFIXES,199,MISC_Y2-1,71,12,ES_AUTOHSCROLL
-    LTEXT           "&Batch &Size:",IDC_STATIC,14,MISC_Y3+1,61,18
-    EDITTEXT        DS_BATCH_SIZE,69,MISC_Y3-1,35,12,ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK",IDOK,5,212,50,14,WS_GROUP
-    PUSHBUTTON      "Cancel",IDCANCEL,81,211,50,15
-    PUSHBUTTON      "Apply",IDAPPLY,156,212,50,14
-    PUSHBUTTON      "Defaults",IDDEFAULTS,232,211,50,15
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,96,110,105,10
+    CONTROL         "Bools as Char",DRV_BOOLS_CHAR,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,202,110,67,10
+    GROUPBOX        "Miscellaneous",IDC_STATIC,6,128,269,59
+    LTEXT           "Max &Varchar:",IDC_STATIC,12,140,54,8
+    EDITTEXT        DRV_VARCHAR_SIZE,69,138,35,12,ES_AUTOHSCROLL
+    LTEXT           "Max Lon&gVarChar:",IDC_STATIC,125,140,67,8
+    EDITTEXT        DRV_LONGVARCHAR_SIZE,199,138,35,12,ES_AUTOHSCROLL
+    LTEXT           "&Cache Size:",IDC_STATIC,12,156,54,8
+    EDITTEXT        DRV_CACHE_SIZE,69,154,35,12,ES_AUTOHSCROLL
+    LTEXT           "SysTable &Prefixes:",IDC_STATIC,126,156,57,8
+    EDITTEXT        DRV_EXTRASYSTABLEPREFIXES,199,154,71,12,ES_AUTOHSCROLL
+    LTEXT           "&Batch &Size:",IDC_STATIC,12,172,54,8
+    EDITTEXT        DS_BATCH_SIZE,69,170,35,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,36,239,50,14,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,102,238,50,15
+    PUSHBUTTON      "Apply",IDAPPLY,168,239,50,14
+    PUSHBUTTON      "Defaults",IDDEFAULTS,234,238,50,15
 END
 
-#undef	CONNSETTINGS_Y
-#undef	KEEPALIVE_X
-#undef	KEEPALIVE_Y
-#undef	ENDLINE_Y
-#define	CONNSETTINGS_Y	185	// 189
-#define	KEEPALIVE_X	10
-#define	KEEPALIVE_Y	225
-#define	ENDLINE_Y	245	// 222
-
-DLG_OPTIONS_DS DIALOG DISCARDABLE  0, 0, 306, 260
-STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+DLG_OPTIONS_DS DIALOGEX 0, 0, 320, 260
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Advanced Options (DataSource)"
-FONT 8, "MS Sans Serif"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
+    PUSHBUTTON      "Page 1",ID1STPAGE,5,5,40,15
     PUSHBUTTON      "Page 3",ID3RDPAGE,49,5,40,15
-    PUSHBUTTON      "Page 1",ID1STPAGE,5,5,40,15
-    CONTROL         "&Read Only",DS_READONLY,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,15,26,102,10
-    CONTROL         "Row &Versioning",DS_ROWVERSIONING,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,163,26,85,10
-    CONTROL         "Show System &Tables",DS_SHOWSYSTEMTABLES,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,41,100,10
-    CONTROL         "Display Optional Error Message",DS_OPTIONALERRORS,"Button",                    BS_AUTOCHECKBOX | WS_TABSTOP,163,41,85,10
-    CONTROL         "LF <-> CR/LF conversion",DS_LFCONVERSION,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,56,106,10
-    CONTROL         "True is -1",DS_TRUEISMINUS1,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,163,56,86,10
-    CONTROL         "Updatable Cursors",DS_UPDATABLECURSORS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,15,71,87,10
-    CONTROL         "Server side prepare",DS_SERVERSIDEPREPARE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,163,71,90,10
-    CONTROL         "bytea as LO",DS_BYTEAASLONGVARBINARY,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,16,84,87,10
-    GROUPBOX        "Int8 As",IDC_STATIC,5,97,256,25
-    CONTROL         "default",DS_INT8_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,12,107,40,10
+    CONTROL         "&Read Only",DS_READONLY,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,6,26,106,10
+    CONTROL         "Row &Versioning",DS_ROWVERSIONING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,26,126,10
+    CONTROL         "Show System &Tables",DS_SHOWSYSTEMTABLES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,39,106,10
+    CONTROL         "Display Optional Error Message",DS_OPTIONALERRORS,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,39,126,10
+    CONTROL         "LF <-> CR/LF conversion",DS_LFCONVERSION,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,52,106,10
+    CONTROL         "True is -1",DS_TRUEISMINUS1,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,52,126,10
+    CONTROL         "Updatable Cursors",DS_UPDATABLECURSORS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,64,106,10
+    CONTROL         "Server side prepare",DS_SERVERSIDEPREPARE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,64,126,10
+    CONTROL         "bytea as LO",DS_BYTEAASLONGVARBINARY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,6,76,106,10
+    GROUPBOX        "Int8 As",IDC_STATIC,6,89,254,21
+    CONTROL         "default",DS_INT8_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | WS_GROUP,11,97,40,10
     CONTROL         "Fetch result from each refcursor",DS_FETCH_REFCURSORS,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,84,122,10
-    CONTROL         "bigint",DS_INT8_AS_BIGINT,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,55,107,35,10
-    CONTROL         "numeric",DS_INT8_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,98,107,40,10
-    CONTROL         "varchar",DS_INT8_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,141,107,40,10
-    CONTROL         "double",DS_INT8_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,184,107,40,10
-    CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,227,107,29,10
-    LTEXT	   "Extra Opts",IDC_STATIC,264,98,40,17
-    EDITTEXT	    DS_EXTRA_OPTIONS,264,105,40,12,ES_AUTOHSCROLL
-    GROUPBOX        "Numeric(without precision) As",IDC_STATIC,5,126,160,25
-    CONTROL         "default",DS_NUMERIC_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,12,138,40,10
-//    CONTROL         "numeric",DS_NUMERIC_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | 
-//                    WS_TABSTOP,50,138,40,10
-    CONTROL         "memo",DS_NUMERIC_AS_LONGVARCHAR,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,126,138,40,10
-    CONTROL         "varchar",DS_NUMERIC_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,50,138,40,10
-    CONTROL         "double",DS_NUMERIC_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | 
-                    WS_TABSTOP,90,138,36,10
-    GROUPBOX        "OID Options",IDC_STATIC,5,157,296,25
-    CONTROL         "Show &Column",DS_SHOWOIDCOLUMN,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,13,168,67,10
-    CONTROL         "Fake &Index",DS_FAKEOIDINDEX,"Button",BS_AUTOCHECKBOX | 
-                    WS_GROUP | WS_TABSTOP,80,168,59,10
-    LTEXT           "Connect &Settings:",IDC_STATIC,5,CONNSETTINGS_Y,57,11
-    EDITTEXT        DS_CONNSETTINGS,90,CONNSETTINGS_Y,211,27,ES_MULTILINE | 
-                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN
-    GROUPBOX        "TCP KEEPALIVE setting (by sec)",IDC_STATIC,KEEPALIVE_X,KEEPALIVE_Y-10,210,25
-    CONTROL         "disable",DS_DISABLE_KEEPALIVE,"Button",BS_AUTOCHECKBOX | WS_GROUP, KEEPALIVE_X+5,KEEPALIVE_Y,50,10
-    LTEXT           "idle time",IDC_STATIC,KEEPALIVE_X+62,KEEPALIVE_Y,25,10,NOT WS_GROUP
-    EDITTEXT        DS_KEEPALIVETIME,KEEPALIVE_X+90,KEEPALIVE_Y,20,10, ES_AUTOHSCROLL | WS_TABSTOP
-    LTEXT           "interval",IDC_STATIC,KEEPALIVE_X+117,KEEPALIVE_Y,25,10,NOT WS_GROUP
-    EDITTEXT        DS_KEEPALIVEINTERVAL,KEEPALIVE_X+145,KEEPALIVE_Y,30,10, ES_AUTOHSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK",IDOK,5,ENDLINE_Y,50,14,WS_GROUP
-    PUSHBUTTON      "Cancel",IDCANCEL,81,ENDLINE_Y,50,14
-    PUSHBUTTON      "Apply",IDAPPLY,156,ENDLINE_Y,50,14
-    GROUPBOX        "Level of rollback on errors",IDC_STATIC,172,126,134,25
-    CONTROL         "Nop",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,176,138,36,9
-    CONTROL         "Transaction",DS_TRANSACTION_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,206,138,57,9
-    CONTROL         "Statement",DS_STATEMENT_ROLLBACK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,257,138,47,9
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,163,76,126,10
+    CONTROL         "bigint",DS_INT8_AS_BIGINT,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,55,97,35,10
+    CONTROL         "numeric",DS_INT8_AS_NUMERIC,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,94,97,40,10
+    CONTROL         "varchar",DS_INT8_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,138,97,40,10
+    CONTROL         "double",DS_INT8_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,182,97,40,10
+    CONTROL         "int4",DS_INT8_AS_INT4,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,226,97,29,10
+    LTEXT           "Extra Opts:",IDC_STATIC,6,115,41,8
+    EDITTEXT        DS_EXTRA_OPTIONS,48,114,102,12,ES_AUTOHSCROLL
+    GROUPBOX        "Numeric(without precision) As",IDC_STATIC,6,129,160,21
+    CONTROL         "default",DS_NUMERIC_AS_DEFAULT,"Button",BS_AUTORADIOBUTTON | WS_GROUP,11,137,40,10
+    CONTROL         "memo",DS_NUMERIC_AS_LONGVARCHAR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,127,137,37,10
+    CONTROL         "varchar",DS_NUMERIC_AS_VARCHAR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,51,137,40,10
+    CONTROL         "double",DS_NUMERIC_AS_DOUBLE,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,91,137,36,10
+    GROUPBOX        "OID Options",IDC_STATIC,6,153,123,21
+    CONTROL         "Show &Column",DS_SHOWOIDCOLUMN,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,11,161,67,10
+    CONTROL         "Fake &Index",DS_FAKEOIDINDEX,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,74,161,51,10
+    LTEXT           "Connect &Settings:",IDC_STATIC,6,177,59,8
+    EDITTEXT        DS_CONNSETTINGS,69,177,211,21,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN
+    GROUPBOX        "TCP KEEPALIVE setting (by sec)",IDC_STATIC,6,203,198,27
+    CONTROL         "disable",DS_DISABLE_KEEPALIVE,"Button",BS_AUTOCHECKBOX | WS_GROUP,11,214,39,10
+    LTEXT           "idle time",IDC_STATIC,58,215,30,8,NOT WS_GROUP
+    EDITTEXT        DS_KEEPALIVETIME,91,213,30,12,ES_AUTOHSCROLL
+    LTEXT           "interval",IDC_STATIC,138,215,25,8,NOT WS_GROUP
+    EDITTEXT        DS_KEEPALIVEINTERVAL,167,213,30,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,69,239,50,14,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,135,239,50,14
+    PUSHBUTTON      "Apply",IDAPPLY,201,239,50,14
+    GROUPBOX        "Level of rollback on errors",IDC_STATIC,180,129,134,21
+    CONTROL         "Nop",DS_NO_ROLLBACK,"Button",BS_AUTORADIOBUTTON | WS_GROUP,184,138,36,9
+    CONTROL         "Transaction",DS_TRANSACTION_ROLLBACK,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,214,138,57,9
+    CONTROL         "Statement",DS_STATEMENT_ROLLBACK,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,265,138,47,9
 END
 
-#undef	DTC_GRP_X
-#undef	DTC_GRP_Y
-#undef	DTC_GRP_WIDTH
-#undef	DTC_GRP_HEIGHT
-#undef	DTC_OPT_X
-#undef	DTC_OPT_Y
-#undef	DTC_OPT_WIDTH
-#undef	DTC_OPT_HEIGHT
-#undef	DTC_LOG_X
-#undef	DTC_LOG_Y
-#undef	LIBPQOPT_Y
-#define	DTC_GRP_X	10
-#define	DTC_GRP_Y	60
-#define	DTC_GRP_WIDTH	200
-#define	DTC_GRP_HEIGHT	100
-#define	DTC_OPT_X	(DTC_GRP_X)
-#define	DTC_OPT_Y	(DTC_GRP_Y+10)
-#define	DTC_OPT_WIDTH	180
-#define	DTC_OPT_HEIGHT	45
-#define	DTC_LOG_X	(DTC_GRP_X)
-#define	DTC_LOG_Y	(DTC_OPT_Y+60)
-#define	LIBPQOPT_Y	185
-
-DLG_OPTIONS_DS3 DIALOG DISCARDABLE  0, 0, 306, 243
-STYLE DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
+DLG_OPTIONS_DS3 DIALOGEX 0, 0, 320, 260
+STYLE DS_SETFONT | DS_MODALFRAME | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Advanced Options(Datasource 3)"
-FONT 8, "MS Sans Serif"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
-    PUSHBUTTON      "Page 2",ID2NDPAGE,49,5,40,15
     PUSHBUTTON      "Page 1",ID1STPAGE,5,5,40,15
-
-    GROUPBOX        "Distributed Transaction related settings",IDC_STATIC,DTC_GRP_X,DTC_GRP_Y,DTC_GRP_WIDTH,DTC_GRP_HEIGHT
-    GROUPBOX        "Allow connections unrecoverable by MSDTC?",IDC_STATIC,DTC_OPT_X,DTC_OPT_Y,DTC_OPT_WIDTH,DTC_OPT_HEIGHT
-    CONTROL         "yes",DS_DTC_LINK_ONLY,"Button",BS_AUTORADIOBUTTON | 
-                    WS_GROUP,DTC_OPT_X+5,DTC_OPT_Y+10,40,10
-    CONTROL         "rejects sslmode verify-[ca|full]",DS_DTC_SIMPLE_PRECHECK,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,DTC_OPT_X+5,DTC_OPT_Y+20,120,10
-    CONTROL         "no (confirm the connectivity from MSDTC first)",DS_DTC_CONFIRM_RM_CONNECTION,"Button",
-                    BS_AUTORADIOBUTTON | WS_TABSTOP,DTC_OPT_X+5,DTC_OPT_Y+30,170,10
-    PUSHBUTTON      "connection test",IDC_TEST,DTC_OPT_X+60,DTC_OPT_Y+75,55,14
-
-    LTEXT           "libpq parameters:(&l)",IDC_STATIC,13,LIBPQOPT_Y+3,69,10,NOT
-                    WS_GROUP
-    EDITTEXT        DS_LIBPQOPT,85,LIBPQOPT_Y,215,27,ES_MULTILINE |
-                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT
-                    WS_TABSTOP
-
-    DEFPUSHBUTTON   "OK",IDOK,5,224,50,14,WS_GROUP
-    PUSHBUTTON      "Cancel",IDCANCEL,66,224,50,14
-    PUSHBUTTON      "Apply",IDAPPLY,128,224,50,14
+    PUSHBUTTON      "Page 2",ID2NDPAGE,49,5,40,15
+    GROUPBOX        "Distributed Transaction related settings",IDC_STATIC,6,25,192,77
+    GROUPBOX        "Allow connections unrecoverable by MSDTC?",IDC_STATIC,12,35,180,45
+    CONTROL         "Yes",DS_DTC_LINK_ONLY,"Button",BS_AUTORADIOBUTTON | WS_GROUP,18,45,26,10
+    CONTROL         "Rejects sslmode verify-[ca|full]",DS_DTC_SIMPLE_PRECHECK,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,18,55,120,10
+    CONTROL         "No (confirm the connectivity from MSDTC first)",DS_DTC_CONFIRM_RM_CONNECTION,
+                    "Button",BS_AUTORADIOBUTTON | WS_TABSTOP,18,65,171,10
+    PUSHBUTTON      "Connection Test",IDC_TEST,12,83,58,14
+    LTEXT           "libpq parameters:(&l)",IDC_STATIC,6,107,69,10,NOT WS_GROUP
+    EDITTEXT        DS_LIBPQOPT,76,107,215,27,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | NOT WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,69,239,50,14,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,135,239,50,14
+    PUSHBUTTON      "Apply",IDAPPLY,201,239,50,14
 END
 
-
-DLG_OPTIONS_GLOBAL DIALOG DISCARDABLE  0, 0, 306, 110
-STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+DLG_OPTIONS_GLOBAL DIALOGEX 0, 0, 289, 97
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Global settings"
-FONT 8, "MS Sans Serif"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
-    CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log - Communications log)",
-                    DRV_COMMLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,24,
-                    263,10
-    CONTROL         "Mylog (C:\\mylog_xxxx.log - Detailed debug output)",
-                    DRV_DEBUG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,42,
-                    264,10
-    CONTROL         "MSDTC log (C:\\pgdtclog\\mylog_xxxx.log - MSDTC debug output)",
-                    DRV_DTCLOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,22,60,
-                    264,10
-    RTEXT           "Folder for logging",IDC_STATIC,17,77,69,12
-    EDITTEXT        DS_LOGDIR,98,75,188,13,ES_AUTOHSCROLL | WS_GROUP,
-                    WS_EX_TRANSPARENT
-    DEFPUSHBUTTON   "Save",IDOK,82,92,50,14,WS_GROUP
-    PUSHBUTTON      "Cancel",IDCANCEL,172,91,50,15
-    GROUPBOX        "Pre-connection/default logging options",IDC_STATIC,5,5,
-                    296,85
+    CONTROL         "Comm&Log (C:\\psqlodbc_xxxx.log - Communications log)",DRV_COMMLOG,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,14,263,10
+    CONTROL         "Mylog (C:\\mylog_xxxx.log - Detailed debug output)",DRV_DEBUG,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,26,264,10
+    CONTROL         "MSDTC log (C:\\pgdtclog\\mylog_xxxx.log - MSDTC debug output)",DRV_DTCLOG,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,38,264,10
+    RTEXT           "Folder for logging",IDC_STATIC,13,53,60,8
+    EDITTEXT        DS_LOGDIR,79,51,198,12,ES_AUTOHSCROLL | WS_GROUP,WS_EX_TRANSPARENT
+    DEFPUSHBUTTON   "Save",IDOK,86,76,50,14,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,152,75,50,15
+    GROUPBOX        "Pre-connection/default logging options",IDC_STATIC,7,5,276,64
 END
 
-DLG_DRIVER_CHANGE DIALOG DISCARDABLE  0, 0, 306, 87
-STYLE DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+DLG_DRIVER_CHANGE DIALOGEX 0, 0, 249, 87
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Driver up/downgrade"
-FONT 8, "MS Sans Serif"
+FONT 9, "Segoe UI", 400, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,82,68,50,14,WS_GROUP
-    PUSHBUTTON      "Cancel",IDCANCEL,172,67,50,15
-    GROUPBOX        "Drivers List",IDC_STATIC,5,5,296,58
-    LTEXT           "Select the driver",IDC_STATIC,31,30,73,8
-    LISTBOX         IDC_DRIVER_LIST,117,18,151,32,LBS_SORT | 
-                    LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "OK",IDOK,72,67,44,15,WS_GROUP
+    PUSHBUTTON      "Cancel",IDCANCEL,132,67,44,15
+    GROUPBOX        "Drivers List",IDC_STATIC,5,5,239,55
+    RTEXT           "Select the driver",IDC_STATIC,6,29,73,8
+    LISTBOX         IDC_DRIVER_LIST,85,17,150,34,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
 
@@ -788,7 +558,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO
 BEGIN
     DLG_CONFIG, DIALOG
     BEGIN
@@ -812,10 +582,13 @@ BEGIN
         HORZGUIDE, 136
     END
 
+    DLG_OPTIONS_DS3, DIALOG
+    BEGIN
+    END
+
     DLG_OPTIONS_GLOBAL, DIALOG
     BEGIN
         LEFTMARGIN, 5
-        RIGHTMARGIN, 301
         TOPMARGIN, 5
         BOTTOMMARGIN, 82
     END
@@ -823,7 +596,6 @@ BEGIN
     DLG_DRIVER_CHANGE, DIALOG
     BEGIN
         LEFTMARGIN, 5
-        RIGHTMARGIN, 301
         TOPMARGIN, 5
         BOTTOMMARGIN, 82
     END
@@ -831,15 +603,14 @@ END
 #endif    // APSTUDIO_INVOKED
 
 
-#ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION PG_DRVFILE_VERSION
- PRODUCTVERSION PG_DRVFILE_VERSION
+ FILEVERSION 17,0,0,4
+ PRODUCTVERSION 17,0,0,4
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x9L
@@ -854,30 +625,16 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-#ifdef UNICODE_SUPPORT
-            VALUE "Comments", "PostgreSQL Unicode ODBC driver\0"
-#else
-            VALUE "Comments", "PostgreSQL ANSI ODBC driver\0"
-#endif
-            VALUE "CompanyName", "PostgreSQL Global Development Group\0"
-            VALUE "FileDescription", "PostgreSQL ODBC Driver (English)\0"
-            VALUE "FileVersion", POSTGRES_RESOURCE_VERSION
-#ifdef UNICODE_SUPPORT
-            VALUE "InternalName", "psqlodbc35w\0"
-#else
-            VALUE "InternalName", "psqlodbc30a\0"
-#endif
-            VALUE "LegalCopyright", "Copyright \0"
-            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation.\0"
-#ifdef UNICODE_SUPPORT
-            VALUE "OriginalFilename", "psqlodbc35w.dll\0"
-#else
-            VALUE "OriginalFilename", "psqlodbc30a.dll\0"
-#endif
-            VALUE "PrivateBuild", "\0"
-            VALUE "ProductName", "PostgreSQL\0"
-            VALUE "ProductVersion", POSTGRES_RESOURCE_VERSION
-            VALUE "SpecialBuild", "\0"
+            VALUE "Comments", "PostgreSQL ANSI ODBC driver"
+            VALUE "CompanyName", "PostgreSQL Global Development Group"
+            VALUE "FileDescription", "PostgreSQL ODBC Driver (English)"
+            VALUE "FileVersion", "17.00.0004"
+            VALUE "InternalName", "psqlodbc30a"
+            VALUE "LegalCopyright", "Copyright "
+            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft? is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
+            VALUE "OriginalFilename", "psqlodbc30a.dll"
+            VALUE "ProductName", "PostgreSQL"
+            VALUE "ProductVersion", "17.00.0004"
         END
     END
     BLOCK "VarFileInfo"
@@ -886,7 +643,16 @@ BEGIN
     END
 END
 
-#endif    // !_MAC
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+DLG_CONFIG AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -894,7 +660,7 @@ END
 // String Table
 //
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE
 BEGIN
     IDS_BADDSN              "Invalid DSN entry, please recheck."
     IDS_MSGTITLE            "Invalid DSN"
@@ -903,23 +669,27 @@ BEGIN
     IDS_ADVANCE_OPTION_DSN1 "Advanced Options (%s) 1/3"
     IDS_ADVANCE_OPTION_CON1 "Advanced Options (Connection 1/3)"
     IDS_ADVANCE_OPTION_DSN2 "Advanced Options (%s) 2/3"
-    IDS_ADVANCE_OPTION_DSN3 "Advanced Options (%s) 3/3"
     IDS_ADVANCE_OPTION_CON2 "Advanced Options (Connection 2/3)"
-    IDS_ADVANCE_OPTION_CON3 "Advanced Options (Connection 3/3)"
     IDS_ADVANCE_CONNECTION  "Connection"
+    IDS_ADVANCE_OPTION_DSN3 "Advanced Options (%s) 3/3"
+    IDS_ADVANCE_OPTION_CON3 "Advanced Options (Connection 3/3)"
 END
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE
 BEGIN
     IDS_SSLREQUEST_PREFER   "prefer"
     IDS_SSLREQUEST_ALLOW    "allow"
     IDS_SSLREQUEST_REQUIRE  "require"
     IDS_SSLREQUEST_DISABLE  "disable"
-    IDS_SSLREQUEST_VERIFY_CA	    "verify-ca"
-    IDS_SSLREQUEST_VERIFY_FULL	    "verify-full"
+    IDS_SSLREQUEST_VERIFY_CA "verify-ca"
 END
 
-#endif    // English (U.S.) resources
+STRINGTABLE
+BEGIN
+    IDS_SSLREQUEST_VERIFY_FULL "verify-full"
+END
+
+#endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -933,4 +703,4 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-P
+
