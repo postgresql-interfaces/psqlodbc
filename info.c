@@ -3112,7 +3112,7 @@ retry_public_schema:
 			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_NOT_PSEUDO);
-MYLOG(DETAIL_LOG_LEVEL, "Add ctid\n");
+			MYLOG(DETAIL_LOG_LEVEL, "Add ctid\n");
 		}
 	}
 	else
@@ -3181,21 +3181,15 @@ WHERE a.attnum > 0 and c.relname like 'testuktab';
 
 
 				if (szTableQualifier != NULL)												
-				appendPQExpBuffer(&columns_query, " and c.relnamespace = %s" , szSchemaName);
+					appendPQExpBuffer(&columns_query, " and c.relnamespace = %s" , szSchemaName);
 
-				result = PGAPI_ExecDirect(stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
-				if (!SQL_SUCCEEDED(result))
+				if (res = CC_send_query(conn, columns_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
 				{
-					/*
-					* "Couldn't execute index query (w/SQLExecDirect) in
-					* SpecialColumns";
-					*/
-					SC_full_error_copy(stmt, stmt, FALSE);
+					SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Special query error", func);
 					goto cleanup;
 				}
-				res = SC_get_Result(stmt);
+				SC_set_Result(stmt, res);
 			}
-
 		}
 		else if (fColType == SQL_ROWVER)
 		{
