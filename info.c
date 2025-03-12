@@ -2993,6 +2993,7 @@ retry_public_schema:
        appendPQExpBufferStr(&columns_query, ", c.relhasoids");
    else
        appendPQExpBufferStr(&columns_query, ", 0 as relhasoids");
+
 	appendPQExpBufferStr(&columns_query, " from pg_catalog.pg_namespace u,"
 					" pg_catalog.pg_class c where "
 					"u.oid = c.relnamespace");
@@ -3042,6 +3043,7 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	// check to see if the relation has rules
 	result = PGAPI_BindCol(col_stmt, 1, internal_asis_type,
 					relhasrules, sizeof(relhasrules), NULL);
 	if (!SQL_SUCCEEDED(result))
@@ -3049,18 +3051,24 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	// bind to relkind to check if a view or not
 	result = PGAPI_BindCol(col_stmt, 2, internal_asis_type,
 					relkind, sizeof(relkind), NULL);
 	if (!SQL_SUCCEEDED(result))
 	{
 		goto cleanup;
 	}
-	relhasoids[0] = '1';
-	result = PGAPI_BindCol(col_stmt, 3, internal_asis_type,
-				relhasoids, sizeof(relhasoids), NULL);
-	if (!SQL_SUCCEEDED(result))
+
+	// check to see if the relation has oids, this is only done for versions less than 12
+	if (PG_VERSION_LT(conn, 12.0))
 	{
-		goto cleanup;
+		relhasoids[0] = '1';
+		result = PGAPI_BindCol(col_stmt, 3, internal_asis_type,
+					relhasoids, sizeof(relhasoids), NULL);
+		if (!SQL_SUCCEEDED(result))
+		{
+			goto cleanup;
+		}
 	}
 
 	result = PGAPI_Fetch(col_stmt);
@@ -3092,6 +3100,7 @@ retry_public_schema:
 	if (relisaview)
 	{
 		/* there's no oid for views */
+		// TODO: this may still work for views since we don't really have to rely on oid for best rowid
 		if (fColType == SQL_BEST_ROWID)
 		{
 			ret = SQL_SUCCESS;
