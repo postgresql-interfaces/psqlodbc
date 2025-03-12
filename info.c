@@ -2993,6 +2993,7 @@ retry_public_schema:
        appendPQExpBufferStr(&columns_query, ", c.relhasoids");
    else
        appendPQExpBufferStr(&columns_query, ", 0 as relhasoids");
+
 	appendPQExpBufferStr(&columns_query, " from pg_catalog.pg_namespace u,"
 					" pg_catalog.pg_class c where "
 					"u.oid = c.relnamespace");
@@ -3042,6 +3043,7 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	// check to see if the relation has rules
 	result = PGAPI_BindCol(col_stmt, 1, internal_asis_type,
 					relhasrules, sizeof(relhasrules), NULL);
 	if (!SQL_SUCCEEDED(result))
@@ -3049,18 +3051,24 @@ retry_public_schema:
 		goto cleanup;
 	}
 
+	// bind to relkind to check if a view or not
 	result = PGAPI_BindCol(col_stmt, 2, internal_asis_type,
 					relkind, sizeof(relkind), NULL);
 	if (!SQL_SUCCEEDED(result))
 	{
 		goto cleanup;
 	}
-	relhasoids[0] = '1';
-	result = PGAPI_BindCol(col_stmt, 3, internal_asis_type,
-				relhasoids, sizeof(relhasoids), NULL);
-	if (!SQL_SUCCEEDED(result))
+
+	// check to see if the relation has oids, this is only done for versions less than 12
+	if (PG_VERSION_LT(conn, 12.0))
 	{
-		goto cleanup;
+		relhasoids[0] = '1';
+		result = PGAPI_BindCol(col_stmt, 3, internal_asis_type,
+					relhasoids, sizeof(relhasoids), NULL);
+		if (!SQL_SUCCEEDED(result))
+		{
+			goto cleanup;
+		}
 	}
 
 	result = PGAPI_Fetch(col_stmt);
@@ -3092,6 +3100,7 @@ retry_public_schema:
 	if (relisaview)
 	{
 		/* there's no oid for views */
+		// TODO: this may still work for views since we don't really have to rely on oid for best rowid
 		if (fColType == SQL_BEST_ROWID)
 		{
 			ret = SQL_SUCCESS;
@@ -3112,7 +3121,7 @@ retry_public_schema:
 			set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
 			set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_NOT_PSEUDO);
-MYLOG(DETAIL_LOG_LEVEL, "Add ctid\n");
+			MYLOG(DETAIL_LOG_LEVEL, "Add ctid\n");
 		}
 	}
 	else
@@ -3181,21 +3190,15 @@ WHERE a.attnum > 0 and c.relname like 'testuktab';
 
 
 				if (szTableQualifier != NULL)												
-				appendPQExpBuffer(&columns_query, " and c.relnamespace = %s" , szSchemaName);
+					appendPQExpBuffer(&columns_query, " and c.relnamespace = %s" , szSchemaName);
 
-				result = PGAPI_ExecDirect(stmt, (SQLCHAR *) columns_query.data, SQL_NTS, PODBC_RDONLY);
-				if (!SQL_SUCCEEDED(result))
+				if (res = CC_send_query(conn, columns_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
 				{
-					/*
-					* "Couldn't execute index query (w/SQLExecDirect) in
-					* SpecialColumns";
-					*/
-					SC_full_error_copy(stmt, stmt, FALSE);
+					SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Special query error", func);
 					goto cleanup;
 				}
-				res = SC_get_Result(stmt);
+				SC_set_Result(stmt, res);
 			}
-
 		}
 		else if (fColType == SQL_ROWVER)
 		{

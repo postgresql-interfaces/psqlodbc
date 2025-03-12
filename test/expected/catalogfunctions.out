@@ -107,7 +107,7 @@ contrib_regression	public	testtab1	id	UPDATE	YES
 contrib_regression	public	testtab1	id	SELECT	YES
 contrib_regression	public	testtab1	id	REFERENCES	YES
 contrib_regression	public	testtab1	id	INSERT	YES
-Check for SQLSpecialColumns
+Check for SQLSpecialColumns ROWVER
 Result set metadata:
 SCOPE: SMALLINT(5) digits: 0, nullable
 COLUMN_NAME: VARCHAR(128) digits: 0, nullable
@@ -119,16 +119,16 @@ DECIMAL_DIGITS: SMALLINT(5) digits: 0, nullable
 PSEUDO_COLUMN: SMALLINT(5) digits: 0, nullable
 Result set:
 NULL	xmin	4	xid	10	4	0	2
-Check for SQLSpecialColumns
+Check for SQLSpecialColumns ROWID
 Result set metadata:
 SCOPE: LONGVARCHAR(8190) digits: 0, nullable
-SCHEMA_NAME: VARCHAR(63) digits: 0, nullable
-TABLE_NAME: VARCHAR(63) digits: 0, nullable
-COLUMN_NAME: VARCHAR(63) digits: 0, nullable
-DATA_TYPE: VARCHAR(63) digits: 0, nullable
-TYPE_NAME: VARCHAR(63) digits: 0, nullable
-COLUMN_SIZE: SMALLINT(5) digits: 0, nullable
-BUFFER_LENGTH: SMALLINT(5) digits: 0, nullable
+SCHEMA_NAME: VARCHAR(63) digits: 0, not nullable
+TABLE_NAME: VARCHAR(63) digits: 0, not nullable
+COLUMN_NAME: VARCHAR(63) digits: 0, not nullable
+DATA_TYPE: VARCHAR(63) digits: 0, not nullable
+TYPE_NAME: VARCHAR(63) digits: 0, not nullable
+COLUMN_SIZE: SMALLINT(5) digits: 0, not nullable
+BUFFER_LENGTH: SMALLINT(5) digits: 0, not nullable
 DECIMAL_DIGITS: INTEGER(10) digits: 0, nullable
 PSEUDO_COLUMN: INTEGER(10) digits: 0, nullable
 Result set:
