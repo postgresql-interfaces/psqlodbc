@@ -115,9 +115,9 @@ SQLColumns(HSTMT StatementHandle,
 	StartRollbackState(stmt);
 	if (stmt->options.metadata_id)
 		flag |= PODBC_NOT_SEARCH_PATTERN;
-	if (atoi(ci->show_oid_column))
+	if (pg_atoi(ci->show_oid_column))
 		flag |= PODBC_SHOW_OID_COLUMN;
-	if (atoi(ci->row_versioning))
+	if (pg_atoi(ci->row_versioning))
 		flag |= PODBC_ROW_VERSIONING;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;

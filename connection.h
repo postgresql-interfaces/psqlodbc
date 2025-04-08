@@ -222,11 +222,11 @@ do { \
  *		  It must be a decimal constant of the form %d.%d .
  */
 #define PG_VERSION_GT(conn, ver) \
- (SERVER_VERSION_GT(conn, (int) ver, atoi(STRING_AFTER_DOT(ver))))
+ (SERVER_VERSION_GT(conn, (int) ver, pg_atoi(STRING_AFTER_DOT(ver))))
 #define PG_VERSION_GE(conn, ver) \
- (SERVER_VERSION_GE(conn, (int) ver, atoi(STRING_AFTER_DOT(ver))))
+ (SERVER_VERSION_GE(conn, (int) ver, pg_atoi(STRING_AFTER_DOT(ver))))
 #define PG_VERSION_EQ(conn, ver) \
- (SERVER_VERSION_EQ(conn, (int) ver, atoi(STRING_AFTER_DOT(ver))))
+ (SERVER_VERSION_EQ(conn, (int) ver, pg_atoi(STRING_AFTER_DOT(ver))))
 #define PG_VERSION_LE(conn, ver) (! PG_VERSION_GT(conn, ver))
 #define PG_VERSION_LT(conn, ver) (! PG_VERSION_GE(conn, ver))
 

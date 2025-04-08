@@ -600,11 +600,11 @@ ds_options_update(HWND hdlg, ConnInfo *ci)
 		int	val;
 
 		GetDlgItemText(hdlg, DS_KEEPALIVETIME, temp, sizeof(temp));
-		if  (val = atoi(temp), 0 == val)
+		if  (val = pg_atoi(temp), 0 == val)
 			val = -1;
 		ci->keepalive_idle = val;
 		GetDlgItemText(hdlg, DS_KEEPALIVEINTERVAL, temp, sizeof(temp));
-		if  (val = atoi(temp), 0 == val)
+		if  (val = pg_atoi(temp), 0 == val)
 			val = -1;
 		ci->keepalive_interval = val;
 	}
@@ -651,7 +651,7 @@ ds_options2Proc(HWND hdlg,
 				ShowWindow(GetDlgItem(hdlg, IDAPPLY), SW_HIDE);				}
 
 			/* Readonly */
-			CheckDlgButton(hdlg, DS_READONLY, atoi(ci->onlyread));
+			CheckDlgButton(hdlg, DS_READONLY, pg_atoi(ci->onlyread));
 
 			/* Protocol */
 			enable = (ci->sslmode[0] == SSLLBYTE_DISABLE || ci->username[0] == '\0');
@@ -712,10 +712,10 @@ ds_options2Proc(HWND hdlg,
 			SPRINTF_FIXED(buf, "0x%x", getExtraOptions(ci));
 			SetDlgItemText(hdlg, DS_EXTRA_OPTIONS, buf);
 
-			CheckDlgButton(hdlg, DS_SHOWOIDCOLUMN, atoi(ci->show_oid_column));
-			CheckDlgButton(hdlg, DS_FAKEOIDINDEX, atoi(ci->fake_oid_index));
-			CheckDlgButton(hdlg, DS_ROWVERSIONING, atoi(ci->row_versioning));
-			CheckDlgButton(hdlg, DS_SHOWSYSTEMTABLES, atoi(ci->show_system_tables));
+			CheckDlgButton(hdlg, DS_SHOWOIDCOLUMN, pg_atoi(ci->show_oid_column));
+			CheckDlgButton(hdlg, DS_FAKEOIDINDEX, pg_atoi(ci->fake_oid_index));
+			CheckDlgButton(hdlg, DS_ROWVERSIONING, pg_atoi(ci->row_versioning));
+			CheckDlgButton(hdlg, DS_SHOWSYSTEMTABLES, pg_atoi(ci->show_system_tables));
 			CheckDlgButton(hdlg, DS_LFCONVERSION, ci->lf_conversion);
 			CheckDlgButton(hdlg, DS_OPTIONALERRORS, ci->optional_errors);
 			CheckDlgButton(hdlg, DS_TRUEISMINUS1, ci->true_is_minus1);
@@ -725,7 +725,7 @@ ds_options2Proc(HWND hdlg,
 			CheckDlgButton(hdlg, DS_FETCH_REFCURSORS, ci->fetch_refcursors);
 			/*CheckDlgButton(hdlg, DS_LOWERCASEIDENTIFIER, ci->lower_case_identifier);*/
 
-			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), atoi(ci->show_oid_column));
+			EnableWindow(GetDlgItem(hdlg, DS_FAKEOIDINDEX), pg_atoi(ci->show_oid_column));
 
 			/* Datasource Connection Settings */
 			SetDlgItemText(hdlg, DS_CONNSETTINGS, SAFE_NAME(ci->conn_settings));

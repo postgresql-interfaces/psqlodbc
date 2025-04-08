@@ -503,7 +503,7 @@ getGlobalDebug()
 	/* Debug is stored in the driver section */
 	SQLGetPrivateProfileString(DBMS_NAME, INI_DEBUG, "", temp, sizeof(temp), ODBCINST_INI);
 	if (temp[0])
-		globalDebug = atoi(temp);
+		globalDebug = pg_atoi(temp);
 	else
 		globalDebug = DEFAULT_DEBUG;
 
@@ -527,7 +527,7 @@ getGlobalCommlog()
 	/* Commlog is stored in the driver section */
 	SQLGetPrivateProfileString(DBMS_NAME, INI_COMMLOG, "", temp, sizeof(temp), ODBCINST_INI);
 	if (temp[0])
-		globalCommlog = atoi(temp);
+		globalCommlog = pg_atoi(temp);
 	else
 		globalCommlog = DEFAULT_COMMLOG;
 

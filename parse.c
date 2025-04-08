@@ -296,7 +296,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering non-manual result\n");
 	fi->column_size = QR_get_value_backend_int(col_info->result, k, COLUMNS_PRECISION, NULL);
 	fi->length = QR_get_value_backend_int(col_info->result, k, COLUMNS_LENGTH, NULL);
 	if (str = QR_get_value_backend_text(col_info->result, k, COLUMNS_SCALE), str)
-		fi->decimal_digits = atoi(str);
+		fi->decimal_digits = pg_atoi(str);
 	else
 		fi->decimal_digits = -1;
 	fi->nullable = QR_get_value_backend_int(col_info->result, k, COLUMNS_NULLABLE, NULL);

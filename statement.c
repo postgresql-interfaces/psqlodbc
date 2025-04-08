@@ -2750,7 +2750,7 @@ MYLOG(DETAIL_LOG_LEVEL, "get_Result=%p %p\n", res, SC_get_Result(stmt));
 			/* get rowcount */
 			rowcount = PQcmdTuples(pgres);
 			if (rowcount && rowcount[0])
-				res->recent_processed_row_count = atoi(rowcount);
+				res->recent_processed_row_count = pg_atoi(rowcount);
 			else
 				res->recent_processed_row_count = -1;
 			break;

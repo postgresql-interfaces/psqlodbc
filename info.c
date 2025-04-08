@@ -2021,7 +2021,7 @@ retry_public_schema:
 	 * some time on the query.	If treating system tables as regular
 	 * tables, then dont filter either.
 	 */
-	if ((list_schemas || !list_some) && !atoi(ci->show_system_tables) && !show_system_tables)
+	if ((list_schemas || !list_some) && !pg_atoi(ci->show_system_tables) && !show_system_tables)
 		appendPQExpBufferStr(&tables_query, " and nspname not in ('pg_catalog', 'information_schema', 'pg_toast', 'pg_temp_1')");
 
 	if (!list_some)
@@ -2119,7 +2119,7 @@ retry_public_schema:
 		 * system tables as regular tables, then no need to do this test.
 		 */
 		systable = FALSE;
-		if (!atoi(ci->show_system_tables))
+		if (!pg_atoi(ci->show_system_tables))
 		{
 			if (stricmp(table_owner, "pg_catalog") == 0 ||
 			    stricmp(table_owner, "pg_toast") == 0 ||
@@ -2756,7 +2756,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 		switch (field_type)
 		{
 			case PG_TYPE_OID:
-				if (0 != atoi(ci->fake_oid_index))
+				if (0 != pg_atoi(ci->fake_oid_index))
 				{
 					auto_unique = SQL_TRUE;
 					set_tuplefield_string(&tuple[COLUMNS_TYPE_NAME], "identity");
@@ -3569,7 +3569,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	relhasrules[0] = '0';
 	result = PGAPI_Fetch(indx_stmt);
 	/* fake index of OID */
-	if (relhasoids && relhasrules[0] != '1' && atoi(ci->show_oid_column) && atoi(ci->fake_oid_index))
+	if (relhasoids && relhasrules[0] != '1' && pg_atoi(ci->show_oid_column) && pg_atoi(ci->fake_oid_index))
 	{
 		tuple = QR_AddNew(res);
 
@@ -3605,7 +3605,7 @@ PGAPI_Statistics(HSTMT hstmt,
 	{
 		/* If only requesting unique indexes, then just return those. */
 		if (fUnique == SQL_INDEX_ALL ||
-			(fUnique == SQL_INDEX_UNIQUE && atoi(isunique)))
+			(fUnique == SQL_INDEX_UNIQUE && pg_atoi(isunique)))
 		{
 			int	colcnt, attnum;
 
@@ -3623,7 +3623,7 @@ PGAPI_Statistics(HSTMT hstmt,
 
 				/* non-unique index? */
 				if (ci->drivers.unique_index)
-					set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], (Int2) (atoi(isunique) ? FALSE : TRUE));
+					set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], (Int2) (pg_atoi(isunique) ? FALSE : TRUE));
 				else
 					set_tuplefield_int2(&tuple[STATS_NON_UNIQUE], TRUE);
 
@@ -3635,7 +3635,7 @@ PGAPI_Statistics(HSTMT hstmt,
 				 * Clustered/HASH index?
 				 */
 				set_tuplefield_int2(&tuple[STATS_TYPE], (Int2)
-							   (atoi(isclustered) ? SQL_INDEX_CLUSTERED :
+							   (pg_atoi(isclustered) ? SQL_INDEX_CLUSTERED :
 								(!strncmp(ishash, "hash", 4)) ? SQL_INDEX_HASHED : SQL_INDEX_OTHER));
 				set_tuplefield_int2(&tuple[STATS_SEQ_IN_INDEX], (Int2) i);
 
@@ -5466,7 +5466,7 @@ MYLOG(0, "atttypid=%s\n", atttypid ? atttypid : "(null)");
 			}
 			else
 			{
-				typid = atoi(atttypid);
+				typid = pg_atoi(atttypid);
 				attname = QR_get_value_backend_text(tres, i, attname_pos);
 			}
 			tuple = QR_AddNew(res);
