@@ -232,7 +232,7 @@ INT_PTR FAR WINAPI GetMsdtclog()
 	char	temp[16];
 
         SQLGetPrivateProfileString(DBMSNAME, KEY_NAME, "", temp, sizeof(temp), ODBCINST_INI);
-	dtclog = atoi(temp);
+	dtclog = (int) strtol(temp, NULL, 10);
 	return dtclog;
 }
 INT_PTR FAR WINAPI SetMsdtclog(int dtclog)
@@ -520,10 +520,10 @@ void XAConnection::parse_xa_info()
 		}
 
 		if (0 == _stricmp(keyword, KEYWORD_DTC_CHECK))
-			immediateConnection = (0 != atoi(value)); 
+			immediateConnection = (0 != (int) strtol(value, NULL, 10));
 		else if (0 == _stricmp(keyword, KEYWORD_DEBUG) ||
 			 0 == _stricmp(keyword, KEYWORD_ABDEBUG))
-			debugv = atoi(value); 
+			debugv = (int) strtol(value, NULL, 10);
 		else
 		{
 			if (keyhasbr)
