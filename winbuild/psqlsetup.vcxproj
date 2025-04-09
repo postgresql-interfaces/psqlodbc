@@ -267,6 +267,7 @@
     <ClCompile Include="$(srcPath)xalibname.c" />
     <ClCompile Include="$(srcPath)misc.c" />
     <ClCompile Include="$(srcPath)loadlib.c" />
+    <ClCompile Include="$(srcPath)secure_sscanf.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="$(srcPath)psqlodbc.rc" />

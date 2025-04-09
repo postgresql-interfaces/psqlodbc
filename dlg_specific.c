@@ -23,6 +23,8 @@
 
 #include "pgapifunc.h"
 
+#include "secure_sscanf.h"
+
 #define	NULL_IF_NULL(a) ((a) ? ((const char *)(a)) : "(null)")
 CSTR	ENTRY_TEST = " @@@ ";
 
@@ -103,6 +105,7 @@ BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 {
 	UInt4	flag = 0, cnt;
 	char	dummy[2];
+	int	status = 0;
 
 	if (!format)
 	{
@@ -127,7 +130,8 @@ BOOL	setExtraOptions(ConnInfo *ci, const char *optstr, const char *format)
 			format = dec_format;
 	}
 
-	if (cnt = sscanf(optstr, format, &flag, dummy), cnt < 1) // format error
+	if (cnt = secure_sscanf(optstr, &status, format,
+				ARG_UINT(&flag), ARG_STR(&dummy, sizeof(dummy))), cnt < 1) // format error
 		return FALSE;
 	else if (cnt > 1) // format error
 		return FALSE;
@@ -551,19 +555,20 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 {
 	int	count;
 	UInt4	flag;
+	int	status = 0;
 
 	if (strlen(value) < 2)
 	{
 		count = 3;
-		sscanf(value, "%x", &flag);
+		secure_sscanf(value, &status, "%x", ARG_UINT(&flag));
 	}
 	else
 	{
 		char	cnt[8];
 		memcpy(cnt, value, 2);
 		cnt[2] = '\0';
-		sscanf(cnt, "%x", &count);
-		sscanf(value + 2, "%x", &flag);
+		secure_sscanf(cnt, &status, "%x", ARG_UINT(&count));
+		secure_sscanf(value + 2, &status, "%x", ARG_UINT(&flag));
 	}
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);
 	ci->lf_conversion = (char)((flag & BIT_LFCONVERSION) != 0);
@@ -756,15 +761,17 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	else if (stricmp(attribute, INI_EXTRAOPTIONS) == 0)
 	{
 		UInt4	val1 = 0, val2 = 0;
+		int		status = 0;
 
 		if ('+' == value[0])
 		{
-			sscanf(value + 1, "%x-%x", &val1, &val2);
+			secure_sscanf(value + 1, &status, "%x-%x",
+				ARG_UINT(&val1), ARG_UINT(&val2));
 			add_removeExtraOptions(ci, val1, val2);
 		}
 		else if ('-' == value[0])
 		{
-			sscanf(value + 1, "%x", &val2);
+			secure_sscanf(value + 1, &status, "%x", ARG_UINT(&val2));
 			add_removeExtraOptions(ci, 0, val2);
 		}
 		else
@@ -1112,8 +1119,9 @@ MYLOG(0, "drivername=%s\n", drivername);
 					temp, sizeof(temp), ODBC_INI) > 0)
 	{
 		UInt4	val = 0;
+		int 	status = 0;
 
-		sscanf(temp, "%x", &val);
+		secure_sscanf(temp, &status, "%x", ARG_UINT(&val));
 		replaceExtraOptions(ci, val, TRUE);
 		MYLOG(0, "force_abbrev=%d bde=%d cvt_null_date=%d\n", ci->force_abbrev_connstr, ci->bde_environment, ci->cvt_null_date_string);
 	}

@@ -21,12 +21,14 @@ psqlodbca_la_SOURCES = \
 	statement.c tuple.c dlg_specific.c \
 	multibyte.c odbcapi.c descriptor.c \
 	odbcapi30.c pgapi30.c mylog.c \
+	secure_sscanf.c \
 \
 	bind.h catfunc.h columninfo.h connection.h convert.h \
 	descriptor.h dlg_specific.h environ.h unicode_support.h \
 	lobj.h misc.h multibyte.h pgapifunc.h pgtypes.h \
 	psqlodbc.h qresult.h resource.h statement.h tuple.h \
-	version.h pgenlist.h mylog.h xalibname.h
+	version.h pgenlist.h mylog.h xalibname.h \
+	secure_sscanf.h
 
 psqlodbcw_la_SOURCES = $(psqlodbca_la_SOURCES) \
 	odbcapi30w.c odbcapiw.c win_unicode.c

@@ -26,6 +26,8 @@
 #include <string.h>
 #include <limits.h>
 
+#include "secure_sscanf.h"
+
 static BOOL QR_prepare_for_tupledata(QResultClass *self);
 static BOOL QR_read_tuples_from_pgres(QResultClass *, PGresult **pgres);
 
@@ -926,7 +928,8 @@ SQLLEN	QR_move_cursor_to_last(QResultClass *self, StatementClass *stmt)
 		return (-1);
 	}
 	moved = (-1);
-	if (sscanf(res->command, "MOVE " FORMAT_ULEN, &moved) > 0)
+	int status = 0;
+	if (secure_sscanf(res->command, &status, "MOVE " FORMAT_ULEN, ARG_FORMAT_ULEN(&moved)) > 0)
 	{
 		moved++;
 		self->cursTuple += moved;
@@ -946,7 +949,7 @@ int
 QR_next_tuple(QResultClass *self, StatementClass *stmt)
 {
 	CSTR	func = "QR_next_tuple";
-	int			ret = TRUE;
+	int	ret = TRUE;
 
 	/* Speed up access */
 	SQLLEN		fetch_number = self->fetch_number, cur_fetch = 0;
@@ -1025,7 +1028,8 @@ MYLOG(DETAIL_LOG_LEVEL, "cache=" FORMAT_ULEN " rowset=%d movement=" FORMAT_ULEN 
 			RETURN(-1)
 		}
 		moved = movement;
-		if (sscanf(mres->command, "MOVE " FORMAT_ULEN, &moved) > 0)
+		int status = 0;
+		if (secure_sscanf(mres->command, &status, "MOVE " FORMAT_ULEN, ARG_FORMAT_ULEN(&moved)) > 0)
 		{
 MYLOG(DETAIL_LOG_LEVEL, "moved=" FORMAT_ULEN " ? " FORMAT_ULEN "\n", moved, movement);
 			if (moved < movement)
@@ -1421,9 +1425,11 @@ nextrow:
 						QR_set_message(self, emsg);
 						return FALSE;
 					}
+					int status = 0;
 					if (field_lf == effective_cols)
-						sscanf(buffer, "(%u,%hu)",
-							   &this_keyset->blocknum, &this_keyset->offset);
+						secure_sscanf(buffer, &status, "(%u,%hu)",
+							ARG_UINT(&this_keyset->blocknum),
+							ARG_USHORT(&this_keyset->offset));
 					else
 						this_keyset->oid = strtoul(buffer, NULL, 10);
 				}
