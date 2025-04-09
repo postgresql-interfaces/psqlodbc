@@ -279,7 +279,7 @@ jobs:
       shell: cmd
       run: |
         dotnet tool install --global wix
-        wix extension add --global WixToolset.UI.wixext/5.0.2
+        wix extension add --global WixToolset.UI.wixext/6.0.0
 
     - name: build psqlodbc standard
       shell: powershell      
