@@ -1783,7 +1783,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 
 	if (0 != (CLEANUP_FOR_REUSE & option))
 		CC_conninfo_release(conninfo);
-	memset(conninfo, 0, sizeof(ConnInfo));
+	pg_memset(conninfo, 0, sizeof(ConnInfo));
 
 	conninfo->allow_keyset = -1;
 	conninfo->lf_conversion = -1;
@@ -1818,7 +1818,7 @@ CC_conninfo_init(ConnInfo *conninfo, UInt4 option)
 
 void	init_globals(GLOBAL_VALUES *glbv)
 {
-	memset(glbv, 0, sizeof(*glbv));
+	pg_memset(glbv, 0, sizeof(*glbv));
 	glbv->debug = -1;
 	glbv->commlog = -1;
 }
@@ -1828,7 +1828,7 @@ void	init_globals(GLOBAL_VALUES *glbv)
 
 void	copy_globals(GLOBAL_VALUES *to, const GLOBAL_VALUES *from)
 {
-	memset(to, 0, sizeof(*to));
+	pg_memset(to, 0, sizeof(*to));
 	/***
 	memcpy(to, from, sizeof(GLOBAL_VALUES));
 	SET_NAME_DIRECTLY(to->drivername, NULL);
@@ -1866,7 +1866,7 @@ void	finalize_globals(GLOBAL_VALUES *glbv)
 void
 CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 {
-	memset(ci, 0,sizeof(ConnInfo));
+	pg_memset(ci, 0,sizeof(ConnInfo));
 
 	CORR_STRCPY(dsn);
 	CORR_STRCPY(desc);

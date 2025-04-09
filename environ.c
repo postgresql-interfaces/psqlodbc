@@ -148,7 +148,7 @@ ER_Constructor(SDWORD errnumber, const char *msg)
 	error = (PG_ErrorInfo *) malloc(sizeof(PG_ErrorInfo) + aladd);
 	if (error)
 	{
-		memset(error, 0, sizeof(PG_ErrorInfo));
+		pg_memset(error, 0, sizeof(PG_ErrorInfo));
 		error->status = errnumber;
 		error->errsize = errsize;
 		if (errsize > 0)

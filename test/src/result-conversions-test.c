@@ -476,7 +476,7 @@ test_conversion(const char *pgtype, const char *pgvalue, int sqltype, const char
 	if (resultbuf == NULL)
 		resultbuf = malloc(500);
 
-	memset(resultbuf, 0xFF, 500);
+	pg_memset(resultbuf, 0xFF, 500);
 
 	fixed_len = get_sql_type_size(sqltype);
 	if (fixed_len != -1)

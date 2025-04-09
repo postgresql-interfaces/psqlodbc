@@ -142,14 +142,14 @@ static void	escape_test(HSTMT hstmt)
 	executeQuery(hstmt);
 
 	prepareQuery(hstmt, "{ ? = call length('foo') }");
-	memset(outbuf1, 0, sizeof(outbuf1));
+	pg_memset(outbuf1, 0, sizeof(outbuf1));
 	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT param: %s\n", outbuf1);
 
 	/* It's preferable to cast VARIADIC any fields */
 	prepareQuery(hstmt, "{ ? = call concat(?::text, ?::text) }");
-	memset(outbuf1, 0, sizeof(outbuf1));
+	pg_memset(outbuf1, 0, sizeof(outbuf1));
 	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
 	bindParamString(hstmt, 2, NULL, "foo");
 	bindParamString(hstmt, 3, NULL, "bar");
@@ -172,22 +172,22 @@ static void	escape_test(HSTMT hstmt)
 
 	/**** call procedure with out and i-o parameters ****/
 	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?, ?, ?, ?)}");
-	memset(outbuf1, 0, sizeof(outbuf1));
+	pg_memset(outbuf1, 0, sizeof(outbuf1));
 	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
 	bindParamString(hstmt, 2, NULL, "2017-02-23 11:34:46");
 	strcpy(outbuf3, "4");
 	bindOutParamString(hstmt, 3, NULL, outbuf3, sizeof(outbuf3) - 1, 1);
 	bindParamString(hstmt, 4, NULL, "3.4");
-	memset(outbuf5, 0, sizeof(outbuf5));
+	pg_memset(outbuf5, 0, sizeof(outbuf5));
 	bindOutParamString(hstmt, 5, NULL, outbuf5, sizeof(outbuf5) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
 
 	/**** call procedure parameters by name (e,a,b,c,d) ****/
 	prepareQuery(hstmt, "{call a_b_c_d_e(?, ?, ?, ?, ?)}");
-	memset(outbuf5, 0, sizeof(outbuf5));
+	pg_memset(outbuf5, 0, sizeof(outbuf5));
 	bindOutParamString(hstmt, 1, "e", outbuf5, sizeof(outbuf5) - 1, 0);
-	memset(outbuf1, 0, sizeof(outbuf1));
+	pg_memset(outbuf1, 0, sizeof(outbuf1));
 	bindOutParamString(hstmt, 2, "a", outbuf1, sizeof(outbuf1) - 1, 0);
 	bindParamString(hstmt, 3, "b", "2017-02-23 11:34:46");
 	strcpy(outbuf3, "4");
@@ -202,9 +202,9 @@ static void	escape_test(HSTMT hstmt)
 	strcpy(outbuf3, "4");
 	bindOutParamString(hstmt, 2, "c", outbuf3, sizeof(outbuf3) - 1, 1);
 	bindParamString(hstmt, 3, "d", "3.4");
-	memset(outbuf5, 0, sizeof(outbuf5));
+	pg_memset(outbuf5, 0, sizeof(outbuf5));
 	bindOutParamString(hstmt, 4, "e", outbuf5, sizeof(outbuf5) - 1, 0);
-	memset(outbuf1, 0, sizeof(outbuf1));
+	pg_memset(outbuf1, 0, sizeof(outbuf1));
 	bindOutParamString(hstmt, 5, "a", outbuf1, sizeof(outbuf1) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);

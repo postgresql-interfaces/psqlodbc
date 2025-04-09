@@ -305,7 +305,7 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 	clear_size = sizeof(ConnectionClass);
 #endif /* WIN_MULTITHREAD_SUPPORT */
 
-	memset(rv, 0, clear_size);
+	pg_memset(rv, 0, clear_size);
 	rv->status = CONN_NOT_CONNECTED;
 	rv->transact_status = CONN_IN_AUTOCOMMIT;		/* autocommit by default */
 	rv->unnamed_prepared_stmt = NULL;
@@ -313,13 +313,13 @@ CC_initialize(ConnectionClass *rv, BOOL lockinit)
 	rv->stmts = (StatementClass **) malloc(sizeof(StatementClass *) * STMT_INCREMENT);
 	if (!rv->stmts)
 		goto cleanup;
-	memset(rv->stmts, 0, sizeof(StatementClass *) * STMT_INCREMENT);
+	pg_memset(rv->stmts, 0, sizeof(StatementClass *) * STMT_INCREMENT);
 
 	rv->num_stmts = STMT_INCREMENT;
 	rv->descs = (DescriptorClass **) malloc(sizeof(DescriptorClass *) * STMT_INCREMENT);
 	if (!rv->descs)
 		goto cleanup;
-	memset(rv->descs, 0, sizeof(DescriptorClass *) * STMT_INCREMENT);
+	pg_memset(rv->descs, 0, sizeof(DescriptorClass *) * STMT_INCREMENT);
 
 	rv->num_descs = STMT_INCREMENT;
 
@@ -1250,7 +1250,7 @@ CC_add_statement(ConnectionClass *self, StatementClass *stmt)
 		else
 		{
 			self->stmts = newstmts;
-			memset(&self->stmts[self->num_stmts], 0, sizeof(StatementClass *) * STMT_INCREMENT);
+			pg_memset(&self->stmts[self->num_stmts], 0, sizeof(StatementClass *) * STMT_INCREMENT);
 
 			stmt->hdbc = self;
 			self->stmts[self->num_stmts] = stmt;

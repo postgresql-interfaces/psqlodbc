@@ -1341,7 +1341,7 @@ PGAPI_GetFunctions(HDBC hdbc,
 
 	if (fFunction == SQL_API_ALL_FUNCTIONS)
 	{
-		memset(pfExists, 0, sizeof(pfExists[0]) * 100);
+		pg_memset(pfExists, 0, sizeof(pfExists[0]) * 100);
 
 		/* ODBC core functions */
 		pfExists[SQL_API_SQLALLOCCONNECT] = TRUE;
@@ -5805,7 +5805,7 @@ retry_public_schema:
 	}
 	for (i = 0; i < tablecount; i++)
 	{
-		memset(useracl, 0, usercount * sizeof(char[ACLMAX]));
+		pg_memset(useracl, 0, usercount * sizeof(char[ACLMAX]));
 		acl = (char *) QR_get_value_backend_text(wres, i, 2);
 		if (acl && acl[0] == '{')
 			user = acl + 1;

@@ -2368,7 +2368,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering index=" FORMAT_LEN ", tuple=%p, num_fields=%d\
 	if (added_tuples)
 	{
 		tuple = added_tuples + num_fields * ad_count;
-		memset(tuple, 0, sizeof(TupleField) * num_fields);
+		pg_memset(tuple, 0, sizeof(TupleField) * num_fields);
 		ReplaceCachedRows(tuple, tuple_added, num_fields, 1);
 	}
 }
@@ -2706,7 +2706,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering index=" FORMAT_LEN "\n", index);
 		if (updated_tuples)
 		{
 			tuple = updated_tuples + num_fields * up_count;
-			memset(tuple, 0, sizeof(TupleField) * num_fields);
+			pg_memset(tuple, 0, sizeof(TupleField) * num_fields);
 		}
 		res->up_count++;
 	}
@@ -3739,7 +3739,7 @@ SC_pos_reload_needed(StatementClass *stmt, SQLULEN req_size, UDWORD flag)
 			res->count_backend_allocated = brows;
 		}
 		if (brows > 0)
-			memset(res->backend_tuples, 0, sizeof(TupleField) * res->num_fields * brows);
+			pg_memset(res->backend_tuples, 0, sizeof(TupleField) * res->num_fields * brows);
 		QR_set_num_cached_rows(res, brows);
 		QR_set_rowstart_in_cache(res, 0);
 		if (SQL_RD_ON != stmt->options.retrieve_data)
@@ -5220,7 +5220,7 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 		SC_REALLOC_gexit_with_error(res->backend_tuples, TupleField, size_of_rowset * sizeof(TupleField) * num_fields, hstmt, "Couldn't realloc memory for backend.", (ret = SQL_ERROR));
 		res->count_backend_allocated = size_of_rowset;
 	}
-	memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
+	pg_memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
 	QR_set_num_cached_rows(res, size_of_rowset);
 	res->num_total_read = size_of_rowset;
 	rowStatusArray = (SC_get_IRDF(stmt))->rowStatusArray;

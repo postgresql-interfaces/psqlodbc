@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	/*
 	 * Test a very long error message.
 	 */
-	memset(buf, 'x', sizeof(buf) - 10);
+	pg_memset(buf, 'x', sizeof(buf) - 10);
 	sprintf(buf + sizeof(buf) - 10, "END");
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) buf, SQL_NTS);
 	print_diag("SQLExecDirect", SQL_HANDLE_STMT, hstmt);

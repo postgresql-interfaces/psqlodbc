@@ -104,25 +104,30 @@ void		debug_memory_check(void);
 #ifdef	WIN32
 #undef strdup
 #endif /* WIN32 */
-#define malloc	pgdebug_alloc
-#define realloc pgdebug_realloc
-#define calloc	pgdebug_calloc
-#define strdup	pgdebug_strdup
-#define free	pgdebug_free
-#define strcpy	pgdebug_strcpy
-#define strncpy	pgdebug_strncpy
+#define malloc	  	pgdebug_alloc
+#define realloc   	pgdebug_realloc
+#define calloc		pgdebug_calloc
+#define strdup		pgdebug_strdup
+#define free		pgdebug_free
+#define strcpy		pgdebug_strcpy
+#define strncpy		pgdebug_strncpy
 /* #define strncpy_null	pgdebug_strncpy_null */
-#define memcpy	pgdebug_memcpy
-#define memset	pgdebug_memset
+#define memcpy		pgdebug_memcpy
+#define pg_memset(dest, ch, count)	pgdebug_memset(dest, ch, count)
 #else   /* _MEMORY_DEBUG_ */
 #ifdef	WIN32
 #undef strdup
 #endif /* WIN32 */
-#define malloc	pg_malloc
-#define realloc pg_realloc
-#define calloc	pg_calloc
-#define strdup	pg_strdup
-#define free	pg_free
+#define malloc		pg_malloc
+#define realloc 	pg_realloc
+#define calloc		pg_calloc
+#define strdup		pg_strdup
+#define free		pg_free
+#ifdef WIN32
+#define pg_memset(dest, ch, count)	SecureZeroMemory(dest, count)
+#else
+#define pg_memset(dest, ch, count)	memset_s(dest, count, ch, count)
+#endif	  /* WIN32 */
 #endif   /* _MEMORY_DEBUG_ */
 
 #ifdef	WIN32

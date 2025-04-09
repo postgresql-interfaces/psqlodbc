@@ -168,7 +168,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 
 	/* initialize pg_version */
 	CC_initialize_pg_version(conn);
-	memset(salt, 0, sizeof(salt));
+	pg_memset(salt, 0, sizeof(salt));
 
 #ifdef WIN32
 dialog:

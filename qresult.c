@@ -473,7 +473,7 @@ MYLOG(DETAIL_LOG_LEVEL, FORMAT_ULEN "th row(%d fields) alloc=" FORMAT_LEN "\n", 
 
 	if (self->backend_tuples)
 	{
-		memset(self->backend_tuples + num_fields * self->num_cached_rows, 0, num_fields * sizeof(TupleField));
+		pg_memset(self->backend_tuples + num_fields * self->num_cached_rows, 0, num_fields * sizeof(TupleField));
 		self->num_cached_rows++;
 		self->ad_count++;
 	}
@@ -842,7 +842,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering %p->num_fields=%d\n", self, self->num_fields);
 			else
 				tuple_size *= 2;
 			QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * tuple_size, self, "Out of mwmory while allocating keyset", FALSE);
-			memset(&self->keyset[self->count_keyset_allocated],
+			pg_memset(&self->keyset[self->count_keyset_allocated],
 				   0,
 				   (tuple_size - self->count_keyset_allocated) * sizeof(KeySet));
 			self->count_keyset_allocated = tuple_size;
@@ -1231,7 +1231,7 @@ MYLOG(DETAIL_LOG_LEVEL, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN 
 				memcpy(self->keyset + num_backend_rows, (void *)(self->added_keyset + start_idx), sizeof(KeySet) * add_size);
 				/* and append the tuples info */
 				tuple = self->backend_tuples + num_fields * num_backend_rows;
-				memset(tuple, 0, sizeof(TupleField) * num_fields * add_size);
+				pg_memset(tuple, 0, sizeof(TupleField) * num_fields * add_size);
 				added_tuple = self->added_tuples + num_fields * start_idx;
 				ReplaceCachedRows(tuple, added_tuple, num_fields, add_size);
 				self->num_cached_rows += add_size;
