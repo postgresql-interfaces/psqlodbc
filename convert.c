@@ -235,7 +235,7 @@ static SQLLEN pg_bin2whex(const char *src, SQLWCHAR *dst, SQLLEN length);
 #elif	defined(HAVE_STRTOUL)
 #define	ATOI32U(val)	strtoul(val, NULL, 10)
 #else /* HAVE_STRTOUL */
-#define	ATOI32U	atol
+#define	ATOI32U(val)	strtol(val, NULL, 10)
 #endif /* WIN32 */
 
 /*
@@ -334,23 +334,23 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 	{
 		case '+':
 			*bZone = TRUE;
-			*zone = atoi(&rest[1]);
+			*zone = pg_atoi(&rest[1]);
 			break;
 		case '-':
 			*bZone = TRUE;
-			*zone = -atoi(&rest[1]);
+			*zone = -pg_atoi(&rest[1]);
 			break;
 		case '.':
 			if ((ptr = strchr(rest, '+')) != NULL)
 			{
 				*bZone = TRUE;
-				*zone = atoi(&ptr[1]);
+				*zone = pg_atoi(&ptr[1]);
 				*ptr = '\0';
 			}
 			else if ((ptr = strchr(rest, '-')) != NULL)
 			{
 				*bZone = TRUE;
-				*zone = -atoi(&ptr[1]);
+				*zone = -pg_atoi(&ptr[1]);
 				*ptr = '\0';
 			}
 			for (i = 1; i < 10; i++)
@@ -361,7 +361,7 @@ timestamp2stime(const char *str, SIMPLE_TIME *st, BOOL *bZone, int *zone)
 			for (; i < 10; i++)
 				rest[i] = '0';
 			rest[i] = '\0';
-			st->fr = atoi(&rest[1]);
+			st->fr = pg_atoi(&rest[1]);
 			break;
 		case 'B':
 			if (stricmp(rest, "BC") == 0)
@@ -563,7 +563,7 @@ static int getPrecisionPart(int precision, const char * precPart)
 	memcpy(fraction, precPart, cpys);
 	fraction[precision] = '\0';
 
-	return atoi(fraction);
+	return pg_atoi(fraction);
 }
 
 static BOOL
@@ -849,7 +849,7 @@ static double get_double_value(const char *str)
 #else
 		return (double) -(HUGE_VAL * HUGE_VAL);
 #endif /* INFINITY */
-	return atof(str);
+	return pg_atof(str);
 }
 
 static int char2guid(const char *str, SQLGUID *g)
@@ -1802,29 +1802,29 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 			case SQL_C_BIT:
 				len = 1;
 				if (bind_size > 0)
-					*((UCHAR *) rgbValueBindRow) = atoi(neut_str);
+					*((UCHAR *) rgbValueBindRow) = pg_atoi(neut_str);
 				else
-					*((UCHAR *) rgbValue + bind_row) = atoi(neut_str);
+					*((UCHAR *) rgbValue + bind_row) = pg_atoi(neut_str);
 
 				 MYLOG(99, "SQL_C_BIT: bind_row = " FORMAT_POSIROW " val = %d, cb = " FORMAT_LEN ", rgb=%d\n",
-					bind_row, atoi(neut_str), cbValueMax, *((UCHAR *)rgbValue));
+					bind_row, pg_atoi(neut_str), cbValueMax, *((UCHAR *)rgbValue));
 				break;
 
 			case SQL_C_STINYINT:
 			case SQL_C_TINYINT:
 				len = 1;
 				if (bind_size > 0)
-					*((SCHAR *) rgbValueBindRow) = atoi(neut_str);
+					*((SCHAR *) rgbValueBindRow) = pg_atoi(neut_str);
 				else
-					*((SCHAR *) rgbValue + bind_row) = atoi(neut_str);
+					*((SCHAR *) rgbValue + bind_row) = pg_atoi(neut_str);
 				break;
 
 			case SQL_C_UTINYINT:
 				len = 1;
 				if (bind_size > 0)
-					*((UCHAR *) rgbValueBindRow) = atoi(neut_str);
+					*((UCHAR *) rgbValueBindRow) = pg_atoi(neut_str);
 				else
-					*((UCHAR *) rgbValue + bind_row) = atoi(neut_str);
+					*((UCHAR *) rgbValue + bind_row) = pg_atoi(neut_str);
 				break;
 
 			case SQL_C_FLOAT:
@@ -1865,26 +1865,26 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 			case SQL_C_SHORT:
 				len = 2;
 				if (bind_size > 0)
-					*((SQLSMALLINT *) rgbValueBindRow) = atoi(neut_str);
+					*((SQLSMALLINT *) rgbValueBindRow) = pg_atoi(neut_str);
 				else
-					*((SQLSMALLINT *) rgbValue + bind_row) = atoi(neut_str);
+					*((SQLSMALLINT *) rgbValue + bind_row) = pg_atoi(neut_str);
 				break;
 
 			case SQL_C_USHORT:
 				len = 2;
 				if (bind_size > 0)
-					*((SQLUSMALLINT *) rgbValueBindRow) = atoi(neut_str);
+					*((SQLUSMALLINT *) rgbValueBindRow) = pg_atoi(neut_str);
 				else
-					*((SQLUSMALLINT *) rgbValue + bind_row) = atoi(neut_str);
+					*((SQLUSMALLINT *) rgbValue + bind_row) = pg_atoi(neut_str);
 				break;
 
 			case SQL_C_SLONG:
 			case SQL_C_LONG:
 				len = 4;
 				if (bind_size > 0)
-					*((SQLINTEGER *) rgbValueBindRow) = atol(neut_str);
+					*((SQLINTEGER *) rgbValueBindRow) = pg_atol(neut_str);
 				else
-					*((SQLINTEGER *) rgbValue + bind_row) = atol(neut_str);
+					*((SQLINTEGER *) rgbValue + bind_row) = pg_atol(neut_str);
 				break;
 
 			case SQL_C_ULONG:

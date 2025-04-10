@@ -69,6 +69,14 @@
 #endif  /* __GNUC__ || __IBMC__ */
 #endif  /* __INCLUDE_POSTGRES_FE_H__ */
 
+/*
+ * safe string-to-number conversions
+ */
+#define pg_atoi(val) (int) strtol(val, NULL, 10)
+#define pg_atof(val) strtod(val, NULL)
+#define pg_atol(val) strtol(val, NULL, 10)
+#define pg_atoll(val) strtoll(val, NULL, 10)
+
 #ifdef	_MIMALLOC_
 #include <mimalloc.h>
 #define pg_malloc	mi_malloc

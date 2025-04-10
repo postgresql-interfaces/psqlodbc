@@ -778,7 +778,7 @@ CC_set_translation(ConnectionClass *self)
 	if (self->connInfo.translation_dll[0] == 0)
 		return TRUE;
 
-	self->translation_option = atoi(self->connInfo.translation_option);
+	self->translation_option = pg_atoi(self->connInfo.translation_option);
 	self->translation_handle = LoadLibrary(self->connInfo.translation_dll);
 
 	if (self->translation_handle == NULL)
@@ -2082,7 +2082,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 				{
 					ptr = strrchr(cmdbuffer, ' ');
 					if (ptr)
-						res->recent_processed_row_count = atoi(ptr + 1);
+						res->recent_processed_row_count = pg_atoi(ptr + 1);
 					else
 						res->recent_processed_row_count = -1;
 					if (self->current_schema_valid &&
