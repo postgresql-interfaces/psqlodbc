@@ -27,7 +27,7 @@
 
 void	TI_Constructor(TABLE_INFO *self, const ConnectionClass *conn)
 {
-	memset(self, 0, sizeof(TABLE_INFO));
+	pg_memset(self, 0, sizeof(TABLE_INFO));
 	TI_set_updatable(self);
 }
 void	TI_Destructor(TABLE_INFO **ti, int count)
@@ -83,7 +83,7 @@ void	FI_Constructor(FIELD_INFO *self, BOOL reuse)
 MYLOG(DETAIL_LOG_LEVEL, "entering reuse=%d\n", reuse);
 	if (reuse)
 		FI_Destructor(&self, 1, FALSE);
-	memset(self, 0, sizeof(FIELD_INFO));
+	pg_memset(self, 0, sizeof(FIELD_INFO));
 	self->nullable = TRUE;
 	self->columnkey = -1;
 	self->typmod = -1;
@@ -124,7 +124,7 @@ void	TI_Create_IH(TABLE_INFO *ti)
 	InheritanceClass	*ih;
 
 	ih = (InheritanceClass *) malloc(sizeof(InheritanceClass) + (alloc - 1) * sizeof(ih->inf[0]));
-	memset(ih, 0, sizeof(InheritanceClass));
+	pg_memset(ih, 0, sizeof(InheritanceClass));
 	ih->allocated = alloc;
 	ti->ih = ih;
 }
@@ -201,7 +201,7 @@ const pgNAME	TI_Ins_IH(TABLE_INFO *ti, OID tableoid, const char *fullName)
 
 void	DC_Constructor(DescriptorClass *self, BOOL embedded, StatementClass *stmt)
 {
-	memset(self, 0, sizeof(DescriptorClass));
+	pg_memset(self, 0, sizeof(DescriptorClass));
 	self->deschd.embedded = embedded;
 }
 
@@ -294,22 +294,22 @@ void InitializeEmbeddedDescriptor(DescriptorClass *self, StatementClass *stmt,
 	switch (desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
-			memset(&(self->ardf), 0, sizeof(ARDFields));
+			pg_memset(&(self->ardf), 0, sizeof(ARDFields));
 			InitializeARDFields(&(self->ardf));
 			stmt->ard = self;
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			memset(&(self->apdf), 0, sizeof(APDFields));
+			pg_memset(&(self->apdf), 0, sizeof(APDFields));
 			InitializeAPDFields(&(self->apdf));
 			stmt->apd = self;
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:
-			memset(&(self->irdf), 0, sizeof(IRDFields));
+			pg_memset(&(self->irdf), 0, sizeof(IRDFields));
 			stmt->ird = self;
 			stmt->ird->irdf.stmt = stmt;
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			memset(&(self->ipdf), 0, sizeof(IPDFields));
+			pg_memset(&(self->ipdf), 0, sizeof(IPDFields));
 			stmt->ipd = self;
 			break;
 	}
@@ -321,7 +321,7 @@ void InitializeEmbeddedDescriptor(DescriptorClass *self, StatementClass *stmt,
 void
 InitializeARDFields(ARDFields *opt)
 {
-	memset(opt, 0, sizeof(ARDFields));
+	pg_memset(opt, 0, sizeof(ARDFields));
 	opt->size_of_rowset = 1;
 	opt->bind_size = 0;		/* default is to bind by column */
 	opt->size_of_rowset_odbc2 = 1;
@@ -332,7 +332,7 @@ InitializeARDFields(ARDFields *opt)
 void
 InitializeAPDFields(APDFields *opt)
 {
-	memset(opt, 0, sizeof(APDFields));
+	pg_memset(opt, 0, sizeof(APDFields));
 	opt->paramset_size = 1;
 	opt->param_bind_type = 0;	/* default is to bind by column */
 	opt->paramset_size_dummy = 1;	/* dummy setting */
@@ -343,7 +343,7 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *ardopts)
 	if (!ardopts->bookmark)
 	{
 		ardopts->bookmark = (BindInfoClass *) malloc(sizeof(BindInfoClass));
-		memset(ardopts->bookmark, 0, sizeof(BindInfoClass));
+		pg_memset(ardopts->bookmark, 0, sizeof(BindInfoClass));
 	}
 	return ardopts->bookmark;
 }
@@ -373,7 +373,7 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 		return FALSE;
 	self->descs = descs;
 
-	memset(&self->descs[self->num_descs], 0, sizeof(DescriptorClass *) *
+	pg_memset(&self->descs[self->num_descs], 0, sizeof(DescriptorClass *) *
 				DESC_INCREMENT);
         DC_get_conn(desc) = self;
 	self->descs[self->num_descs] = desc;
@@ -399,7 +399,7 @@ PGAPI_AllocDesc(HDBC ConnectionHandle,
 	desc = (DescriptorClass *) malloc(sizeof(DescriptorClass));
 	if (desc)
 	{
-		memset(desc, 0, sizeof(DescriptorClass));
+		pg_memset(desc, 0, sizeof(DescriptorClass));
 		DC_get_conn(desc) = conn;
 		if (CC_add_descriptor(conn, desc))
 			*DescriptorHandle = desc;

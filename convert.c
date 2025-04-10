@@ -574,7 +574,7 @@ interval2istruct(SQLSMALLINT ctype, int precision, const char *str, SQL_INTERVAL
 	BOOL	sign;
 	SQLINTERVAL	itype = interval2itype(ctype);
 
-	memset(st, 0, sizeof(SQL_INTERVAL_STRUCT));
+	pg_memset(st, 0, sizeof(SQL_INTERVAL_STRUCT));
 	if ((scnt = sscanf(str, "%d-%d", &years, &mons)) >=2)
 	{
 		if (SQL_IS_YEAR_TO_MONTH == itype)
@@ -1324,7 +1324,7 @@ copy_and_convert_field(StatementClass *stmt,
 		*pIndicatorBindRow = 0;
 	}
 
-	memset(&std_time, 0, sizeof(SIMPLE_TIME));
+	pg_memset(&std_time, 0, sizeof(SIMPLE_TIME));
 
 	MYLOG(0, "field_type = %d, fctype = %d, value = '%s', cbValueMax=" FORMAT_LEN "\n", field_type, fCType, (value == NULL) ? "<NULL>" : value, cbValueMax);
 
@@ -1359,7 +1359,7 @@ MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 				case SQL_C_DEFAULT:
 					if (rgbValueBindRow && cbValueMax >= sizeof(DATE_STRUCT))
 					{
-						memset(rgbValueBindRow, 0, cbValueMax);
+						pg_memset(rgbValueBindRow, 0, cbValueMax);
 						if (pcbValueBindRow)
 							*pcbValueBindRow = sizeof(DATE_STRUCT);
 					}
@@ -1369,7 +1369,7 @@ MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 #ifdef	UNICODE_SUPPORT
 				case SQL_C_WCHAR:
 					if (rgbValueBindRow && cbValueMax >= WCLEN)
-						memset(rgbValueBindRow, 0, WCLEN);
+						pg_memset(rgbValueBindRow, 0, WCLEN);
 					else
 						result = COPY_RESULT_TRUNCATED;
 					break;
@@ -3721,7 +3721,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		{
 			TABLE_INFO	ti, *pti = &ti;
 
-			memset(&ti, 0, sizeof(ti));
+			pg_memset(&ti, 0, sizeof(ti));
 			NAME_TO_NAME(ti.schema_name, conn->schemaIns);
 			NAME_TO_NAME(ti.table_name, conn->tableIns);
 			getCOLIfromTI(func, conn, qb->stmt, 0, &pti);
@@ -4063,7 +4063,7 @@ build_libpq_bind_params(StatementClass *stmt,
 		*paramValues = malloc(sizeof(char *) * num_params);
 		if (*paramValues == NULL)
 			goto cleanup;
-		memset(*paramValues, 0, sizeof(char *) * num_params);
+		pg_memset(*paramValues, 0, sizeof(char *) * num_params);
 		*paramLengths = malloc(sizeof(int) * num_params);
 		if (*paramLengths == NULL)
 			goto cleanup;
@@ -4332,7 +4332,7 @@ parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
 	ns->precision = nlen;
 
 	/* Convert the decimal digits to binary */
-	memset(ns->val, 0, sizeof(ns->val));
+	pg_memset(ns->val, 0, sizeof(ns->val));
 	for (dig = 0; dig < nlen; dig++)
 	{
 		UInt4 carry;
@@ -4721,7 +4721,7 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 	send_buf = NULL;
 	param_string[0] = '\0';
 	cbuf[0] = '\0';
-	memset(&st, 0, sizeof(st));
+	pg_memset(&st, 0, sizeof(st));
 
 	ivstruct = (SQL_INTERVAL_STRUCT *) buffer;
 	/* Convert input C type to a neutral format */

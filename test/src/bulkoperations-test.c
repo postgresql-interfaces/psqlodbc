@@ -52,8 +52,8 @@ int main(int argc, char **argv)
 	SQLLEN		indColvalues1[3];
 	SQLLEN		indColvalues2[3];
 
-	memset(bookmark, 0x7F, sizeof(bookmark));
-	memset(saved_bookmarks, 0xF7, sizeof(saved_bookmarks));
+	pg_memset(bookmark, 0x7F, sizeof(bookmark));
+	pg_memset(saved_bookmarks, 0xF7, sizeof(saved_bookmarks));
 
 	test_connect_ext("UpdatableCursors=1;Fetch=1");
 

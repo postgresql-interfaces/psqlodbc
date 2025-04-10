@@ -45,7 +45,7 @@ static int inst_driver(const char *driver, const char *pathIn, const char *key_v
 	WORD	cbMsg;
 	char	*psz, *pchr;
 
-	memset(szDriver, 0, sizeof(szDriver));
+	SecureZeroMemory(szDriver, sizeof(szDriver));
 	psz = szDriver;
 	strncpy(szDriver, driver, sizeof(szDriver));
 	pcnt = strlen(psz) + 1;
@@ -93,7 +93,7 @@ static int add_dsn(const char *driver, const char *dsn, const char *key_value_pa
 	char	*psz, *pchr;
 	size_t	pcnt;
 
-	memset(szDsn, 0, sizeof(szDsn));
+	SecureZeroMemory(szDsn, sizeof(szDsn));
 	psz = szDsn;
 	_snprintf(psz, sizeof(szDsn), "DSN=%s", dsn);
 	pcnt = strlen(psz) + 1;

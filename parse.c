@@ -556,7 +556,7 @@ static BOOL allocateFields(IRDFields *irdflds, size_t sizeRequested)
 		irdflds->allocated = irdflds->nfields = 0;
 		return FALSE;
 	}
-	memset(&fi[irdflds->allocated], 0, incr_size);
+	pg_memset(&fi[irdflds->allocated], 0, incr_size);
 	irdflds->fi = fi;
 	irdflds->allocated = (SQLSMALLINT) alloc_size;
 

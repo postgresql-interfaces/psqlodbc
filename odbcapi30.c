@@ -585,7 +585,7 @@ MYLOG(DETAIL_LOG_LEVEL, "lie=%d\n", ci->drivers.lie);
 	CC_clear_error(conn);
 	if (fFunction != SQL_API_ODBC3_ALL_FUNCTIONS)
 		return SQL_ERROR;
-	memset(pfExists, 0, sizeof(UWORD) * SQL_API_ODBC3_ALL_FUNCTIONS_SIZE);
+	pg_memset(pfExists, 0, sizeof(UWORD) * SQL_API_ODBC3_ALL_FUNCTIONS_SIZE);
 
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLALLOCCONNECT); 1 deprecated */
 	/* SQL_FUNC_ESET(pfExists, SQL_API_SQLALLOCENV); 2 deprecated */

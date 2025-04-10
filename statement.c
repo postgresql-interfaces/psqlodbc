@@ -343,7 +343,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 void
 InitializeStatementOptions(StatementOptions *opt)
 {
-	memset(opt, 0, sizeof(StatementOptions));
+	pg_memset(opt, 0, sizeof(StatementOptions));
 	opt->scroll_concurrency = SQL_CONCUR_READ_ONLY;
 	opt->cursor_type = SQL_CURSOR_FORWARD_ONLY;
 	opt->retrieve_data = SQL_RD_ON;
@@ -444,7 +444,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->cancel_info = 0;
 
 		/* Clear Statement Options -- defaults will be set in AllocStmt */
-		memset(&rv->options, 0, sizeof(StatementOptions));
+		pg_memset(&rv->options, 0, sizeof(StatementOptions));
 		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->ardi),
 				rv, SQL_ATTR_APP_ROW_DESC);
 		InitializeEmbeddedDescriptor((DescriptorClass *)&(rv->apdi),
@@ -470,7 +470,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->use_server_side_prepare = conn->connInfo.use_server_side_prepare;
 		rv->lock_CC_for_rb = FALSE;
 		// for batch execution
-		memset(&rv->stmt_deferred, 0, sizeof(rv->stmt_deferred));
+		pg_memset(&rv->stmt_deferred, 0, sizeof(rv->stmt_deferred));
 		if ((rv->batch_size = conn->connInfo.batch_size) < 1)
 			rv->batch_size = 1;
 		rv->exec_type = DIRECT_EXEC;
@@ -1250,7 +1250,7 @@ SC_clear_error(StatementClass *self)
 		res->sqlstate[0] = '\0';
 	}
 	self->stmt_time = 0;
-	memset(&self->localtime, 0, sizeof(self->localtime));
+	pg_memset(&self->localtime, 0, sizeof(self->localtime));
 	self->localtime.tm_sec = -1;
 	SC_unref_CC_error(self);
 }
@@ -1412,7 +1412,7 @@ SC_create_errorinfo(const StatementClass *self, PG_ErrorInfo *pgerror_fail_safe)
 	{
 		if (pgerror_fail_safe)
 		{
-			memset(pgerror_fail_safe, 0, sizeof(*pgerror_fail_safe));
+			pg_memset(pgerror_fail_safe, 0, sizeof(*pgerror_fail_safe));
 			pgerror = pgerror_fail_safe;
 			pgerror->status = self->__error_number;
 			STRCPY_FIXED(pgerror->__error_message, ermsg);
@@ -3261,7 +3261,7 @@ PG_BM	SC_Resolve_bookmark(const ARDFields *opts, Int4 idx)
 	bookmark = opts->bookmark;
 	offset = opts->row_offset_ptr ? *(opts->row_offset_ptr) : 0;
 	bind_size = opts->bind_size;
-	memset(&pg_bm, 0, sizeof(pg_bm));
+	pg_memset(&pg_bm, 0, sizeof(pg_bm));
 	if (used = bookmark->used, used != NULL)
 	{
 		used = LENADDR_SHIFT(used, offset);
@@ -3291,7 +3291,7 @@ int	SC_Create_bookmark(StatementClass *self, BindInfoClass *bookmark, Int4 bind_
 	PG_BM		pg_bm;
 
 MYLOG(0, "entering type=%d buflen=" FORMAT_LEN " buf=%p\n", bookmark->returntype, bookmark->buflen, bookmark->buffer);
-	memset(&pg_bm, 0, sizeof(pg_bm));
+	pg_memset(&pg_bm, 0, sizeof(pg_bm));
 	if (SQL_C_BOOKMARK == bookmark->returntype)
 		;
 	else if (bookmark->buflen >= sizeof(pg_bm))

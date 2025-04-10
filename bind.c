@@ -522,7 +522,7 @@ extend_parameter_bindings(APDFields *self, int num_params)
 			self->allocated = 0;
 			return;
 		}
-		memset(&new_bindings[self->allocated], 0, sizeof(ParameterInfoClass) * (num_params - self->allocated));
+		pg_memset(&new_bindings[self->allocated], 0, sizeof(ParameterInfoClass) * (num_params - self->allocated));
 
 		self->parameters = new_bindings;
 		self->allocated = num_params;
@@ -555,7 +555,7 @@ extend_iparameter_bindings(IPDFields *self, int num_params)
 			self->allocated = 0;
 			return;
 		}
-		memset(&new_bindings[self->allocated], 0,
+		pg_memset(&new_bindings[self->allocated], 0,
 			sizeof(ParameterImplClass) * (num_params - self->allocated));
 
 		self->parameters = new_bindings;
@@ -981,7 +981,7 @@ extend_putdata_info(PutDataInfo *self, int num_params, BOOL shrink)
 			self->allocated = 0;
 			return;
 		}
-		memset(&new_pdata[self->allocated], 0,
+		pg_memset(&new_pdata[self->allocated], 0,
 			sizeof(PutDataClass) * (num_params - self->allocated));
 
 		self->pdata = new_pdata;

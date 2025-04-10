@@ -256,7 +256,7 @@ enum {
 	coli->refcnt = 0; \
 	coli->acc_time = 0; \
 }
-#define col_info_initialize(coli) (memset(coli, 0, sizeof(COL_INFO)))
+#define col_info_initialize(coli) (pg_memset(coli, 0, sizeof(COL_INFO)))
 
  /* Translation DLL entry points */
 #ifdef WIN32
