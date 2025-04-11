@@ -50,6 +50,12 @@
 #include <stdbool.h>
 #endif /* WIN32 */
 
+/* For memset_s */
+#ifdef __STDC_LIB_EXT1__
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h>
+#endif /* __STDC_LIB_EXT1__ */
+
 #ifdef  __INCLUDE_POSTGRES_FE_H__ /* currently not defined */
 /*
  *      Unfortunately #including postgres_fe.h causes various trobles.
@@ -134,7 +140,11 @@ void		debug_memory_check(void);
 #ifdef WIN32
 #define pg_memset(dest, ch, count)	SecureZeroMemory(dest, count)
 #else
+#ifdef __STDC_LIB_EXT1__
 #define pg_memset(dest, ch, count)	memset_s(dest, count, ch, count)
+#else
+#define pg_memset(dest, ch, count)	memset(dest, ch, count)
+#endif /* __STDC_LIB_EXT1__ */
 #endif	  /* WIN32 */
 #endif   /* _MEMORY_DEBUG_ */
 

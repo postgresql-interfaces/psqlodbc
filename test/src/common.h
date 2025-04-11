@@ -19,10 +19,21 @@
 
 #ifdef WIN32
 #define snprintf _snprintf
+#endif /* WIN32 */
+
+/* use safe memset if available */
+#ifndef pg_memset // May already be defined by psqlodbc.h in some tests
+#ifdef WIN32
 #define pg_memset(dest, ch, count)  SecureZeroMemory(dest, count)
 #else
+#ifdef __STDC_LIB_EXT1__
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h>
 #define pg_memset(dest, ch, count)	memset_s(dest, count, ch, count)
+#endif /* __STDC_LIB_EXT1__ */
+#define pg_memset(dest, ch, count)	memset(dest, ch, count) // default to memset if functionality isn't available
 #endif /* WIN32 */
+#endif /* pg_memset */
 
 extern SQLHENV env;
 extern SQLHDBC conn;
