@@ -33,6 +33,8 @@
 #include "lobj.h"
 #include "pgapifunc.h"
 
+#include "secure_sscanf.h"
+
 /** 
  * @brief Perform a Prepare on the SQL statement 
  * 
@@ -643,11 +645,12 @@ MYLOG(0, "count_of_deffered=%d has_notice=%d\n", count_of_deferred, stmt->has_no
 		    NULL != env &&
 		    EN_is_odbc3(env))
 		{
-			int     count;
+			int	count;
+			int	status = 0;
 
-			if (sscanf(cmd , "UPDATE %d", &count) == 1)
+			if (secure_sscanf(cmd, &status, "UPDATE %d", ARG_INT(&count)) == 1)
 				;
-			else if (sscanf(cmd , "DELETE %d", &count) == 1)
+			else if (secure_sscanf(cmd, &status, "DELETE %d", ARG_INT(&count)) == 1)
 				;
 			else
 				count = -1;

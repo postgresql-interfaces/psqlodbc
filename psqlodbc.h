@@ -204,6 +204,8 @@ typedef	UInt4	OID;
 #define SQL_FALSE FALSE
 #endif /* SQL_FALSE */
 
+#include "secure_sscanf.h"
+
 #define	FORMAT_SMALLI	"%d"	/* SQLSMALLINT */
 #define	FORMAT_USMALLI	"%u"	/* SQLUSMALLINT */
 #ifdef	WIN32
@@ -220,10 +222,14 @@ typedef	UInt4	OID;
 #ifdef	_WIN64
 #define	FORMAT_LEN	"%I64d" /* SQLLEN */
 #define	FORMAT_ULEN	"%I64u" /* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_LLONG
+#define	ARG_FORMAT_ULEN	ARG_ULLONG
 #define	FORMAT_POSIROW	"%I64u"
 #else /* _WIN64 */
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_LONG
+#define	ARG_FORMAT_ULEN	ARG_ULONG
 #define	FORMAT_POSIROW	"%hu"
 #endif /* _WIN64 */
 #else /* WIN32 */
@@ -250,9 +256,13 @@ typedef	unsigned long long ULONG_PTR;
 #if defined(WITH_UNIXODBC) && defined(BUILD_LEGACY_64_BIT_MODE)
 #define FORMAT_LEN	"%d"	/* SQLLEN */
 #define FORMAT_ULEN	"%u"	/* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_INT
+#define	ARG_FORMAT_ULEN	ARG_UINT
 #else /* WITH_UNIXODBC */
 #define FORMAT_LEN	"%ld"	/* SQLLEN */
 #define FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_LONG
+#define	ARG_FORMAT_ULEN	ARG_ULONG
 #endif /* WITH_UNIXODBC */
 #else /* SIZEOF_LONG */
 #define	FORMAT_INTEGER	"%ld"	/* SQLINTEGER */
@@ -263,13 +273,19 @@ typedef	unsigned long long ULONG_PTR;
 #if (SIZEOF_VOID_P == 8) /* LLP64 */
 #define	FORMAT_LEN	"%lld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%llu"	/* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_LLONG
+#define	ARG_FORMAT_ULEN	ARG_ULLONG
 #else /* SIZEOF_VOID_P ILP32 */
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_LONG
+#define	ARG_FORMAT_ULEN	ARG_ULONG
 #endif /* SIZEOF_VOID_P */
 #else /* HAVE_LONG_LONG */
 #define	FORMAT_LEN	"%ld"	/* SQLLEN */
 #define	FORMAT_ULEN	"%lu"	/* SQLULEN */
+#define	ARG_FORMAT_LEN	ARG_LONG
+#define	ARG_FORMAT_ULEN	ARG_ULONG
 #endif /* HAVE_LONG_LONG */
 #endif /* SIZEOF_LONG */
  

@@ -268,6 +268,7 @@
     <ClCompile Include="$(srcPath)setup.c" />
     <ClCompile Include="$(srcPath)statement.c" />
     <ClCompile Include="$(srcPath)tuple.c" />
+    <ClCompile Include="$(srcPath)secure_sscanf.c" />
     <ClCompile Condition="'$(ANSI_VERSION)'=='no'" Include="$(srcPath)win_unicode.c" />
     <ClCompile Condition="'$(MSDTC)'=='yes'" Include="$(srcPath)xalibname.c" />
   </ItemGroup>
