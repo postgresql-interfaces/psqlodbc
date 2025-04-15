@@ -33,7 +33,7 @@ build_numeric_struct(SQL_NUMERIC_STRUCT *numericparam,
 	int			len;
 
 	/* parse the hex-encoded value */
-	pg_memset(numericparam, 0, sizeof(SQL_NUMERIC_STRUCT));
+	memset(numericparam, 0, sizeof(SQL_NUMERIC_STRUCT));
 
 	numericparam->sign = sign;
 	numericparam->precision = precision;

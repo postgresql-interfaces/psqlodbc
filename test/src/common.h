@@ -19,10 +19,7 @@
 
 #ifdef WIN32
 #define snprintf _snprintf
-#define pg_memset(dest, ch, count)  SecureZeroMemory(dest, count)
-#else
-#define pg_memset(dest, ch, count)	memset_s(dest, count, ch, count)
-#endif /* WIN32 */
+#endif
 
 extern SQLHENV env;
 extern SQLHDBC conn;
