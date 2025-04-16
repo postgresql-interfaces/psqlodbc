@@ -3167,8 +3167,6 @@ WHERE a.attnum > 0 and c.relname like 'testuktab';
 				*/			
 				initPQExpBuffer(&columns_query);
 				printfPQExpBuffer(&columns_query, "select NULL as \"SCOPE\"," 
-												  "n.nspname as \"SCHEMA_NAME\"," 
-												  "c.relname as \"TABLE_NAME\","
 												  "a.attname AS \"COLUMN_NAME\","
 												  "t.typname AS \"DATA_TYPE\","
 												  "t.typname AS \"TYPE_NAME\","
