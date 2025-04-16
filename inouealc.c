@@ -245,7 +245,7 @@ void *pgdebug_memset(void *out, int c, size_t len)
 		return NULL;
 	}
 	out_check(out, len, __FUNCTION__);
-	return memset_s(out, len, c, len);
+	return memset(out, c, len);
 }
 
 void debug_memory_check(void)
