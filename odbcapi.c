@@ -399,6 +399,8 @@ SQLFreeStmt(HSTMT StatementHandle,
 		if (Option == SQL_DROP)
 		{
 			conn = stmt->hdbc;
+			if (!conn || conn->status == CONN_NOT_CONNECTED)
+				return SQL_INVALID_HANDLE;
 			if (conn)
 				ENTER_CONN_CS(conn);
 		}
