@@ -291,6 +291,8 @@ PGAPI_FreeStmt(HSTMT hstmt,
 				return SQL_ERROR;		/* stmt may be executing a
 										 * transaction */
 			}
+			// remove the connection from the statement
+			stmt->hdbc = NULL;
 		}
 
 		if (stmt->execute_delegate)
