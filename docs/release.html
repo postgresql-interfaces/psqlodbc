@@ -10,6 +10,70 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+ <h2><a id="17.00.0005">psqlODBC 17.00.0005 Release</a></h2></h2>
+ Changes:<br />
+ <li>
+   Fix: Use memset if memset_s is not available <a href="https://github.com/postgresql/psqlodbc/pull/107">PR #107</a>
+   Author: <a href="https://github.com/faviansamatha">Favian (Ian) Samatha</a>
+ </li>
+ <li>
+   Feature: Safe sscanf implementation <a href="https://github.com/postgresql/psqlodbc/pull/108">PR #108</a>
+   Author: <a href="https://github.com/colin">Colin</a>
+ </li>
+ <li>
+   Fix: Don't assume output connection string has size MAX_CONNECT_STRING <a href="https://github.com/postgresql/psqlodbc/pull/106">PR #106</a>
+   Author: <a href="https://github.com/micahbaker">Micah Baker</a>
+ </li>
+ <li>
+   Security: Change memset to memset_s/SecureZeroMemory <a href="https://github.com/postgresql/psqlodbc/pull/105">PR #105</a>
+   Author: <a href="https://github.com/faviansamatha">Favian (Ian) Samatha</a>
+ </li>
+ <li>
+   Security: Replace unsafe string-to-number conversions <a href="https://github.com/postgresql/psqlodbc/pull/103">PR #103</a>
+   Author: <a href="https://github.com/faviansamatha">Favian (Ian) Samatha</a>
+ </li>
+ <li>
+   Build: Update main.yml to use wix version 6.0.0 <a href="https://github.com/postgresql/psqlodbc/pull/104">PR #104</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Fix: Fix possible use of uninitialized memory (Issue #99) <a href="https://github.com/postgresql/psqlodbc/pull/100">PR #100</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Fix: Change SpecialColumns to return correct information for unique indexes <a href="https://github.com/postgresql/psqlodbc/pull/97">PR #97</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   UI: Update the font and layouts of all dialogs to improve their look and feel <a href="https://github.com/postgresql/psqlodbc/pull/91">PR #91</a>
+   Author: <a href="https://github.com/keithw">Keith Wedinger</a>
+ </li>
+ <li>
+   Security: Update OPENSSL to 3.3.3
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Test: Test with just unique keys <a href="https://github.com/postgresql/psqlodbc/pull/87">PR #87</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Fix: Fix duplicate component codes <a href="https://github.com/postgresql/psqlodbc/pull/75">PR #75</a>
+   Author: <a href="https://github.com/christianu">Christian Ullrich</a>
+ </li>
+ <li>
+   Documentation: Add new test table for SQLSpecialColumns <a href="https://github.com/postgresql/psqlodbc/pull/85">PR #85</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Fix: Fix spelling of 'statement_deferred' <a href="https://github.com/postgresql/psqlodbc/pull/86">PR #86</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Documentation: Fix release notes to properly reflect changes <a href="https://github.com/postgresql/psqlodbc/pull/81">PR #81</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ </ol>/
+<ol type="1">
   <h2><a id="17.00.0004">psqlODBC 17.00.0004 Release</a></h2>
   Changes:<br />
   <li>
