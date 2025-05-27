@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #ifdef	WIN32
 #define	FORMAT_SIZE_T	"%Iu"
@@ -1277,6 +1278,11 @@ MYLOG(0, " return=" FORMAT_LEN "\n", l);
 SQLLEN bindcol_localize_exec(char *ldt, size_t n, BOOL lf_conv, char **wcsbuf)
 {
 	SQLLEN	l = (-2);
+
+	if (n > INT_MAX) {
+        // Handle error case
+        return -1;
+    }
 
 	get_convtype();
 	MYLOG(0, " size=" FORMAT_SIZE_T "\n", n);
