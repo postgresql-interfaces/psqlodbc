@@ -2902,6 +2902,43 @@ cleanup:
 	return ret;
 }
 
+static QResultClass *
+findPrimaryOrUnique(ConnectionClass *conn, StatementClass * stmt, const SQLCHAR * szTableName, const SQLCHAR *szTableQualifier, const SQLCHAR * szSchemaName, bool primaryOrUnique) {
+	PQExpBufferData		columns_query = {0};
+
+	initPQExpBuffer(&columns_query);
+	printfPQExpBuffer(&columns_query, "select NULL as \"SCOPE\","
+										"a.attname AS \"COLUMN_NAME\","
+										"t.typname AS \"DATA_TYPE\","
+										"t.typname AS \"TYPE_NAME\","
+										"t.typlen AS \"COLUMN_SIZE\","
+										"a.attlen AS \"BUFFER_LENGTH\","
+										"case "
+										"when t.typname = 'numeric' then"
+											" case when a.atttypmod > -1 then 6"
+											" else a.atttypmod::int4"
+											" end"
+										" else 0"
+										" end AS \"DECIMAL_DIGITS\","
+										"1 AS \"PSEUDO_COLUMN\" "
+									"FROM pg_class c "
+									"INNER JOIN pg_namespace n ON n.oid = c.relnamespace "
+									"INNER JOIN pg_attribute a ON a.attrelid = c.oid "
+									"INNER JOIN pg_type t on a.atttypid = t.oid "
+									"LEFT JOIN pg_index i ON i.indrelid = c.oid "
+									"AND a.attnum = ANY (i.indkey[0:(i.indnkeyatts - 1)]) ");
+									if (primaryOrUnique) {
+											appendPQExpBuffer(&columns_query, "WHERE i.indisprimary and a.attnum > 0 and c.relname='%s'" , szTableName );
+										} else {
+											appendPQExpBuffer(&columns_query, "WHERE i.indisunique and a.attnum > 0 and c.relname ='%s'", szTableName);
+										}
+
+
+	if (szTableQualifier != NULL)
+		appendPQExpBuffer(&columns_query, " and n.nspname = '%s'" , szSchemaName);
+
+	return CC_send_query(conn, columns_query.data, NULL, READ_ONLY_QUERY, stmt);
+}
 
 /**  @brief Retrieve the optimal set of columns that uniquely identifies a row in the specified table (when IdentifierType is SQL_BEST_ROWID)
  * The columns that are automatically updated when any value in the row is updated (when IdentifierType is SQL_ROWVER)
@@ -3146,57 +3183,25 @@ retry_public_schema:
 				set_tuplefield_int4(&tuple[SPECOLS_BUFFER_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, the_type, atttypmod));
 				set_tuplefield_int2(&tuple[SPECOLS_DECIMAL_DIGITS], PGTYPE_ATTR_DECIMAL_DIGITS(conn, the_type, atttypmod));
 				set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
-			} else {
-				/*
-
-SELECT NULL as \"SCOPE\",
-    n.nspname AS \"SCHEMA_NAME\"",
-    c.relname AS \"TABLE_NAME\"",
-    a.attname AS \"COLUMN_NAME\"",
-	t.typname AS \"DATA_TYPE\",
-	t.typename AS \"TYPE_NAME\"",
-    i.indisunique,i.indisprimary
-FROM pg_class c
-    INNER JOIN pg_namespace n ON n.oid = c.relnamespace
-    INNER JOIN pg_attribute a ON a.attrelid = c.oid
-	INNER JOIN pg_type t on a.atttypid = t.oid
-    LEFT JOIN pg_index i
-        ON i.indrelid = c.oid
-            AND a.attnum = ANY (i.indkey[0:(i.indnkeyatts - 1)])
-WHERE a.attnum > 0 and c.relname like 'testuktab';
-				*/			
-				initPQExpBuffer(&columns_query);
-				printfPQExpBuffer(&columns_query, "select NULL as \"SCOPE\"," 
-												  "a.attname AS \"COLUMN_NAME\","
-												  "t.typname AS \"DATA_TYPE\","
-												  "t.typname AS \"TYPE_NAME\","
-												  "t.typlen AS \"COLUMN_SIZE\","
-												  "a.attlen AS \"BUFFER_LENGTH\","
-												  "case "
-       												"when t.typname = 'numeric' then"
-														" case when a.atttypmod > -1 then 6"
-														" else a.atttypmod::int4"
-														" end"
-													" else 0"
-													" end AS \"DECIMAL_DIGITS\","
-												  "1 AS \"PSEUDO_COLUMN\" "
-												"FROM pg_class c "
-    											"INNER JOIN pg_namespace n ON n.oid = c.relnamespace "
-    											"INNER JOIN pg_attribute a ON a.attrelid = c.oid "
-												"INNER JOIN pg_type t on a.atttypid = t.oid "
-    											"LEFT JOIN pg_index i ON i.indrelid = c.oid "
-            									"AND a.attnum = ANY (i.indkey[0:(i.indnkeyatts - 1)]) "
-												"WHERE i.indisunique and a.attnum > 0 and c.relname ='%s'" , szTableName );
-
-
-				if (szTableQualifier != NULL)												
-					appendPQExpBuffer(&columns_query, " and c.relnamespace = %s" , szSchemaName);
-
-				if (res = CC_send_query(conn, columns_query.data, NULL, READ_ONLY_QUERY, stmt), !QR_command_maybe_successful(res))
+			} else {			
+				// look for primary first
+				res = findPrimaryOrUnique(conn, stmt, szTableName, szTableQualifier, szSchemaName, TRUE);
+				if (!QR_command_maybe_successful(res))
 				{
 					SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Special query error", func);
 					goto cleanup;
 				}
+				if (0 == QR_get_num_total_tuples(res))
+				{
+					// didn't find primary now look for uniaue
+					res = findPrimaryOrUnique(conn, stmt, szTableName, szTableName, szSchemaName, FALSE);
+					if (!QR_command_maybe_successful(res))
+					{
+						SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Special query error", func);
+						goto cleanup;
+					}
+				}
+
 				SC_set_Result(stmt, res);
 			}
 		}
