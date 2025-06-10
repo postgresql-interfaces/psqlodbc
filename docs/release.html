@@ -10,7 +10,48 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
- <h2><a id="17.00.0005">psqlODBC 17.00.0005 Release</a></h2></h2>
+ <h2><a id="17.00.0006">psqlODBC 17.00.0006 Release</a></h2>
+ Changes:<br />
+ <li>
+   Refactor: Comprehensive variable naming improvements across the codebase <a href="https://github.com/postgresql/psqlodbc/pull/125">PR #125</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Enhancement: Renamed ConnectionClass structure variables for better readability (e.g., pqconn → postgresConnection, status → connectionStatus)
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Enhancement: Improved StatementClass structure variable names for clarity (e.g., hdbc → connectionHandle, curres → currentResult)
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Enhancement: Updated QResultClass structure variables with more descriptive names (e.g., rstatus → resultStatus, num_fields → columnCount)
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Documentation: Updated inline comments to reflect new variable naming conventions
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Maintenance: Removed unnecessary prefixes from variable names (e.g., __error_message → errorMessage)
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Enhancement: Replaced abbreviations with full words for better code readability
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Maintenance: Updated all references to renamed variables throughout the codebase
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Documentation: Added comprehensive variable mapping documentation for future reference
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ </ol>
+
+<ol type="1">
+ <h2><a id="17.00.0005">psqlODBC 17.00.0005 Release</a></h2>
  Changes:<br />
  <li>
    Security: fix possible int overflow <a href="https://github.com/postgresql/psqlodbc/pull/121">PR #121</a> fixes <a href="https://github.com/postgresql/psqlodbc/issues/119">issue #119</a>
