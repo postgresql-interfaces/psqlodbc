@@ -115,15 +115,45 @@ main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/* Check for SQLSpecialColumns BEST_ROWID PRIMARY KEY in public schema */
+	printf("Check for SQLSpecialColumns primary key only public schema\n");
+	rc = SQLSpecialColumns(hstmt, SQL_BEST_ROWID,
+						   NULL, 0,
+						   (SQLCHAR *) "public", SQL_NTS,
+						   (SQLCHAR *) "test_special_primary", SQL_NTS,
+						   SQL_SCOPE_SESSION,
+						   SQL_NO_NULLS);
+	CHECK_STMT_RESULT(rc, "SQLSpecialColumns primary key public schema failed", hstmt);
+	 
+	print_result_meta(hstmt);
+	print_result(hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/* Check for SQLSpecialColumns BEST_ROWID PRIMARY KEY no schema */
+	printf("Check for SQLSpecialColumns primary key only no schema\n");
+	rc = SQLSpecialColumns(hstmt, SQL_BEST_ROWID,
+						   NULL, 0,
+						   NULL, 0,
+						   (SQLCHAR *) "test_special_primary", SQL_NTS,
+						   SQL_SCOPE_SESSION,
+						   SQL_NO_NULLS);
+	CHECK_STMT_RESULT(rc, "SQLSpecialColumns primary key no schema failed", hstmt);
+	 
+	print_result_meta(hstmt);
+	print_result(hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
 	/* Check for SQLSpecialColumns BEST_ROWID */
-	printf("Check for SQLSpecialColumns\n");
+	printf("Check for SQLSpecialColumns unique index only\n");
 	rc = SQLSpecialColumns(hstmt, SQL_BEST_ROWID,
 						   NULL, 0,
 						   (SQLCHAR *) "public", SQL_NTS,
 						   (SQLCHAR *) "test_special", SQL_NTS,
 						   SQL_SCOPE_SESSION,
 						   SQL_NO_NULLS);
-	CHECK_STMT_RESULT(rc, "SQLSpecialColumns failed", hstmt);
+	CHECK_STMT_RESULT(rc, "SQLSpecialColumns unique index public schema failed", hstmt);
 	 
 	print_result_meta(hstmt);
 	print_result(hstmt);
