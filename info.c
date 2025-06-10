@@ -2902,6 +2902,15 @@ cleanup:
 	return ret;
 }
 
+/**  @brief Retrieve the primary or unique key columns for the specified table
+ * 
+ * @param conn ConnectionClass
+ * @param stmt StatementClass
+ * @param szTableName Table name
+ * @param szTableQualifier Schema name
+ * @param szSchemaName Schema name
+ * @return QResultClass
+ */
 static QResultClass *
 findPrimaryOrUnique(ConnectionClass *conn, StatementClass * stmt, const SQLCHAR * szTableName, const SQLCHAR *szTableQualifier, const SQLCHAR * szSchemaName, bool primaryOrUnique) {
 	PQExpBufferData		columns_query = {0};
