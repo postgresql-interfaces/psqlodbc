@@ -224,7 +224,7 @@ call_diff(const char *inputdir, const char *expected_dir, const char *testname, 
 		return -1;
 	snprintf(cmdline, sizeof(cmdline), exec_diffpgm, file1, file2, outspec);
 #else
-	snprintf(cmdline, sizeof(cmdline), "diff -c %s %s %s", file1, file2, outspec);
+	snprintf(cmdline, sizeof(cmdline), "diff -C3 %s %s %s", file1, file2, outspec);
 #endif /* WIN32 */
 	if ((diff_rtn = system(cmdline)) == -1)
 		printf("# diff failed\n");
