@@ -199,9 +199,9 @@ runtest(const char *binname, const char *testname, int testno, const char *input
 		const char *cmd;
 	};
 	static const struct diff_info diffi[] = {
-		{ "diff", "diff -c --strip-trailing-cr \"%s\" \"%s\" %s" } 	// cygwin etc
+		{ "diff", "diff -u --strip-trailing-cr \"%s\" \"%s\" %s" } 	// cygwin etc
 		, { "git", "git diff --no-index -w \"%s\" \"%s\" %s" }	// git bash for Windows
-		, { "wsl", "wsl diff -c --strip-trailing-cr \"`wslpath '%s'`\" \"`wslpath '%s'`\" %s" }	// WSL
+		, { "wsl", "wsl diff -u --strip-trailing-cr \"`wslpath '%s'`\" \"`wslpath '%s'`\" %s" }	// WSL
 		, { "fc", "fc /N \"%s\" \"%s\" %s" }
 	};
 #endif /* WIN32 */
@@ -224,7 +224,7 @@ call_diff(const char *inputdir, const char *expected_dir, const char *testname, 
 		return -1;
 	snprintf(cmdline, sizeof(cmdline), exec_diffpgm, file1, file2, outspec);
 #else
-	snprintf(cmdline, sizeof(cmdline), "diff -c %s %s %s", file1, file2, outspec);
+	snprintf(cmdline, sizeof(cmdline), "diff -u %s %s %s", file1, file2, outspec);
 #endif /* WIN32 */
 	if ((diff_rtn = system(cmdline)) == -1)
 		printf("# diff failed\n");
