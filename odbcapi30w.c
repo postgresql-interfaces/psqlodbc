@@ -23,6 +23,29 @@
 #include "misc.h"
 
 
+/*
+ * SQLGetStmtAttrW
+ *
+ * Description:
+ *      This function retrieves the current setting of a statement attribute.
+ *      This is the Unicode (wide-character) version of SQLGetStmtAttr.
+ *
+ * Parameters:
+ *      hstmt - Handle to the statement
+ *      fAttribute - The attribute to retrieve (SQL_ATTR_* constant)
+ *      rgbValue - Buffer to store the attribute value
+ *      cbValueMax - Length of the rgbValue buffer in bytes
+ *      pcbValue - Pointer to store the actual length of string data
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      Unlike some other Unicode functions, this function doesn't need to perform
+ *      character set conversion since statement attributes are not string-based
+ *      or already handle Unicode conversion internally. It simply passes through
+ *      to the core implementation function PGAPI_GetStmtAttr.
+ */
 RETCODE	SQL_API
 SQLGetStmtAttrW(SQLHSTMT hstmt,
 				SQLINTEGER	fAttribute,
@@ -33,14 +56,28 @@ SQLGetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
+	/* Log function entry */
 	MYLOG(0, "Entering\n");
+
+	/* Enter critical section to ensure thread safety */
 	ENTER_STMT_CS((StatementClass *) hstmt);
+
+	/* Clear any previous errors on the statement */
 	SC_clear_error((StatementClass *) hstmt);
+
+	/* Set up savepoint for transaction safety */
 	StartRollbackState(stmt);
+
+	/* Call the core implementation function */
 	ret = PGAPI_GetStmtAttr(hstmt, fAttribute, rgbValue,
 		cbValueMax, pcbValue);
+
+	/* Handle transaction state and cleanup */
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
+
+	/* Exit critical section */
 	LEAVE_STMT_CS((StatementClass *) hstmt);
+
 	return ret;
 }
 
@@ -417,7 +454,29 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 	return ret;
 }
 
-/*	new function */
+/*
+ * SQLGetDescRecW
+ *
+ * Description:
+ *      This function retrieves the current settings or values of fields in a descriptor record.
+ *      It's the wide-character (Unicode) version of SQLGetDescRec.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based)
+ *      Name - Buffer to store the descriptor name (Unicode)
+ *      BufferLength - Length of the Name buffer in characters
+ *      StringLength - Pointer to store the actual length of the name
+ *      Type - Pointer to store the SQL data type
+ *      SubType - Pointer to store the data type subcode
+ *      Length - Pointer to store the data length
+ *      Precision - Pointer to store the numeric precision
+ *      Scale - Pointer to store the numeric scale
+ *      Nullable - Pointer to store the nullability attribute
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ */
 RETCODE		SQL_API
 SQLGetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLWCHAR *Name,
@@ -427,35 +486,50 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
 	RETCODE		ret;
-	char		*NameA = NULL;
-	SQLSMALLINT	nlen;
+	char		*NameA = NULL;  /* Temporary buffer for ANSI version of name */
+	SQLSMALLINT	nlen;          /* Length of the name string */
 
+	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 
+	/* Allocate temporary buffer for ANSI version if buffer length is provided */
 	if (BufferLength > 0)
 		NameA = malloc(BufferLength);
 
+	/* Call the core implementation with ANSI parameters */
 	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, (SQLCHAR *) NameA, BufferLength,
 			&nlen, Type, SubType, Length, Precision,
 			Scale, Nullable);
+
 	if (SQL_SUCCEEDED(ret))
 	{
+		/* Convert ANSI name to Unicode if we have a valid name and buffer */
 		if (NameA && nlen <= BufferLength)
 		{
+			/* Try UTF-8 to UCS-2 conversion first */
 			SQLULEN ulen = utf8_to_ucs2_lf(NameA, nlen, FALSE, Name, BufferLength, TRUE);
+
 			if (ulen == (SQLULEN) -1)
+				/* Fall back to locale-based conversion if UTF-8 conversion fails */
 				nlen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) Name, NameA, BufferLength, FALSE);
 			else
 				nlen = (SQLSMALLINT) ulen;
+
+			/* If the name was truncated, return success with info */
 			if (nlen >= BufferLength)
 				ret = SQL_SUCCESS_WITH_INFO;
 		}
+
+		/* Return the actual string length if the caller wants it */
 		if (StringLength)
 			*StringLength = nlen;
 	}
+
+	/* Clean up the temporary buffer */
 	if (NameA)
 		free(NameA);
+
 	return ret;
 }
 
