@@ -1010,7 +1010,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 	const ConnInfo	*ci = &self->connInfo;
 	char	*encoding, vermsg[128];
 
-	snprintf(vermsg, sizeof(vermsg), "Driver Version='%s,%s'"
+	snprintf(vermsg, sizeof(vermsg), "Driver Version='%s'"
 #ifdef	WIN32
 		" linking %d"
 #ifdef	_MT
@@ -1028,7 +1028,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 #endif /* DEBUG */
 		" library"
 #endif /* WIN32 */
-		"\n", POSTGRESDRIVERVERSION, __DATE__
+		"\n", POSTGRESDRIVERVERSION
 #ifdef	_MSC_VER
 		, _MSC_VER
 #endif /* _MSC_VER */
