@@ -1657,7 +1657,29 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	return ret;
 }
 
-/*	SQLGetStmtOption -> SQLGetStmtAttr */
+/*
+ * PGAPI_GetStmtAttr
+ *
+ * Description:
+ *      Core implementation function that retrieves the current setting of a statement attribute.
+ *      This function is called by both SQLGetStmtAttr (ANSI) and SQLGetStmtAttrW (Unicode) functions.
+ *
+ * Parameters:
+ *      StatementHandle - Handle to the statement
+ *      Attribute - The attribute to retrieve (SQL_ATTR_* constant)
+ *      Value - Buffer to store the attribute value
+ *      BufferLength - Length of the Value buffer in bytes
+ *      StringLength - Pointer to store the actual length of string data
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Implementation Strategy:
+ *      This function uses a switch statement to handle different attribute types.
+ *      Most attributes are stored directly in the statement structure or its descriptors.
+ *      For unsupported attributes, it returns an error.
+ *      For backward compatibility with ODBC 2.0, it calls PGAPI_GetStmtOption for some attributes.
+ */
 RETCODE		SQL_API
 PGAPI_GetStmtAttr(HSTMT StatementHandle,
 				  SQLINTEGER Attribute, PTR Value,
@@ -1672,50 +1694,62 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 	switch (Attribute)
 	{
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:	/* 16 */
+			/* Pointer to bookmark value */
 			*((void **) Value) = stmt->options.bookmark_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
+			/* Pointer to parameter binding offset */
 			*((SQLULEN **) Value) = SC_get_APDF(stmt)->param_offset_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
+			/* Parameter binding type */
 			*((SQLUINTEGER *) Value) = SC_get_APDF(stmt)->param_bind_type;
 			len = sizeof(SQLUINTEGER);
 			break;
 		case SQL_ATTR_PARAM_OPERATION_PTR:		/* 19 */
+			/* Pointer to parameter operation array */
 			*((SQLUSMALLINT **) Value) = SC_get_APDF(stmt)->param_operation_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAM_STATUS_PTR: /* 20 */
+			/* Pointer to parameter status array */
 			*((SQLUSMALLINT **) Value) = SC_get_IPDF(stmt)->param_status_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
+			/* Pointer to count of processed parameters */
 			*((SQLULEN **) Value) = SC_get_IPDF(stmt)->param_processed_ptr;
 			len = sizeof(SQLPOINTER);
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
+			/* Number of sets of parameters */
 			*((SQLULEN *) Value) = SC_get_APDF(stmt)->paramset_size;
 			len = sizeof(SQLUINTEGER);
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
+			/* Pointer to row binding offset */
 			*((SQLULEN **) Value) = SC_get_ARDF(stmt)->row_offset_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
+			/* Pointer to row operation array */
 			*((SQLUSMALLINT **) Value) = SC_get_ARDF(stmt)->row_operation_ptr;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_STATUS_PTR:	/* 25 */
+			/* Pointer to row status array */
 			*((SQLUSMALLINT **) Value) = SC_get_IRDF(stmt)->rowStatusArray;
 			len = 4;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
+			/* Pointer to count of fetched rows */
 			*((SQLULEN **) Value) = SC_get_IRDF(stmt)->rowsFetched;
 			len = 4;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
+			/* Number of rows to fetch */
 			*((SQLULEN *) Value) = SC_get_ARDF(stmt)->size_of_rowset;
 			len = 4;
 			break;
@@ -1723,11 +1757,13 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
 		case SQL_ATTR_IMP_ROW_DESC:		/* 10012 */
 		case SQL_ATTR_IMP_PARAM_DESC:	/* 10013 */
+			/* Descriptor handles */
 			len = 4;
 			*((HSTMT *) Value) = descHandleFromStatementHandle(StatementHandle, Attribute);
 			break;
 
 		case SQL_ATTR_CURSOR_SCROLLABLE:		/* -1 */
+			/* Whether cursor is scrollable */
 			len = 4;
 			if (SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
 				*((SQLUINTEGER *) Value) = SQL_NONSCROLLABLE;
@@ -1735,6 +1771,7 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 				*((SQLUINTEGER *) Value) = SQL_SCROLLABLE;
 			break;
 		case SQL_ATTR_CURSOR_SENSITIVITY:		/* -2 */
+			/* Cursor sensitivity to changes made by others */
 			len = 4;
 			if (SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency)
 				*((SQLUINTEGER *) Value) = SQL_INSENSITIVE;
@@ -1742,16 +1779,19 @@ PGAPI_GetStmtAttr(HSTMT StatementHandle,
 				*((SQLUINTEGER *) Value) = SQL_UNSPECIFIED;
 			break;
 		case SQL_ATTR_METADATA_ID:		/* 10014 */
+			/* Whether identifiers are quoted */
 			*((SQLUINTEGER *) Value) = stmt->options.metadata_id;
 			break;
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
+			/* Whether automatic population of IPD is supported */
 			*((SQLUINTEGER *) Value) = SQL_FALSE;
 			break;
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
-			/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
+			/* Unsupported attributes */
 			SC_set_error(stmt, DESC_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Get)", func);
 			return SQL_ERROR;
 		default:
+			/* For backward compatibility with ODBC 2.0 */
 			ret = PGAPI_GetStmtOption(StatementHandle, (SQLSMALLINT) Attribute, Value, &len, BufferLength);
 	}
 	if (ret == SQL_SUCCESS && StringLength)
@@ -1925,7 +1965,31 @@ PGAPI_SetConnectAttr(HDBC ConnectionHandle,
 	return ret;
 }
 
-/*	new function */
+/*
+ * PGAPI_GetDescField
+ *
+ * Description:
+ *      Core implementation function that retrieves the current setting or value of a single field
+ *      of a descriptor record. This function is called by both SQLGetDescField (ANSI) and 
+ *      SQLGetDescFieldW (Unicode) functions.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based, 0 for header fields)
+ *      FieldIdentifier - The field identifier (SQL_DESC_* constant)
+ *      Value - Buffer to store the field value
+ *      BufferLength - Length of the Value buffer in bytes
+ *      StringLength - Pointer to store the actual length of string data
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Implementation Strategy:
+ *      1. Cast the generic SQLHDESC handle to the internal DescriptorClass structure
+ *      2. Determine the descriptor type (ARD, APD, IRD, IPD)
+ *      3. Call the appropriate type-specific handler function
+ *      4. Handle any errors that occur during processing
+ */
 RETCODE		SQL_API
 PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 				   SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
@@ -1934,26 +1998,38 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 {
 	CSTR func = "PGAPI_GetDescField";
 	RETCODE		ret = SQL_SUCCESS;
+	/* Cast the generic ODBC handle to our internal descriptor structure */
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
+	/* Log function entry with important parameters */
 	MYLOG(0, "entering h=%p rec=" FORMAT_SMALLI " field=" FORMAT_SMALLI " blen=" FORMAT_INTEGER "\n", DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
+
+	/* Route the request to the appropriate handler based on descriptor type */
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
+			/* Application Row Descriptor - handles column bindings */
 			ret = ARDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
+			/* Application Parameter Descriptor - handles parameter bindings */
 			ret = APDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:
+			/* Implementation Row Descriptor - handles result set metadata */
 			ret = IRDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
+			/* Implementation Parameter Descriptor - handles parameter metadata */
 			ret = IPDGetField(desc, RecNumber, FieldIdentifier, Value, BufferLength, StringLength);
 			break;
-		default:ret = SQL_ERROR;
+		default:
+			/* Unknown descriptor type - return error */
+			ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INTERNAL_ERROR, "Error not implemented");
 	}
+
+	/* Handle error cases by setting appropriate error messages */
 	if (ret == SQL_ERROR)
 	{
 		if (!DC_get_errormsg(desc))
@@ -1971,12 +2047,40 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 					break;
 			}
 		}
+		/* Log the error for debugging purposes */
 		DC_log_error(func, "", desc);
 	}
 	return ret;
 }
 
-/*	new function */
+/*
+ * PGAPI_SetDescField
+ *
+ * Description:
+ *      Core implementation function that sets the value of a single field of a descriptor record.
+ *      This function is called by both SQLSetDescField (ANSI) and SQLSetDescFieldW (Unicode) functions.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based, 0 for header fields)
+ *      FieldIdentifier - The field identifier (SQL_DESC_* constant)
+ *      Value - The value to set for the field
+ *      BufferLength - Length of the Value buffer in bytes (for string data)
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Implementation Strategy:
+ *      1. Cast the generic SQLHDESC handle to the internal DescriptorClass structure
+ *      2. Determine the descriptor type (ARD, APD, IRD, IPD)
+ *      3. Call the appropriate type-specific handler function
+ *      4. Handle any errors that occur during processing
+ *
+ * Notes:
+ *      - Implementation Row Descriptor (IRD) fields are generally read-only
+ *      - Some Implementation Parameter Descriptor (IPD) fields are read-only
+ *      - Setting certain fields may affect other related fields automatically
+ */
 RETCODE		SQL_API
 PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 				   SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
@@ -1984,26 +2088,38 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 {
 	CSTR func = "PGAPI_SetDescField";
 	RETCODE		ret = SQL_SUCCESS;
+	/* Cast the generic ODBC handle to our internal descriptor structure */
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
+	/* Log function entry with important parameters */
 	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " field=" FORMAT_SMALLI " val=%p," FORMAT_INTEGER "\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
+
+	/* Route the request to the appropriate handler based on descriptor type */
 	switch (DC_get_desc_type(desc))
 	{
 		case SQL_ATTR_APP_ROW_DESC:
+			/* Application Row Descriptor - handles column bindings */
 			ret = ARDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
+			/* Application Parameter Descriptor - handles parameter bindings */
 			ret = APDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		case SQL_ATTR_IMP_ROW_DESC:
+			/* Implementation Row Descriptor - handles result set metadata (mostly read-only) */
 			ret = IRDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
+			/* Implementation Parameter Descriptor - handles parameter metadata (partially read-only) */
 			ret = IPDSetField(desc, RecNumber, FieldIdentifier, Value, BufferLength);
 			break;
-		default:ret = SQL_ERROR;
+		default:
+			/* Unknown descriptor type - return error */
+			ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INTERNAL_ERROR, "Error not implemented");
 	}
+
+	/* Handle error cases by setting appropriate error messages */
 	if (ret == SQL_ERROR)
 	{
 		if (!DC_get_errormsg(desc))
@@ -2022,6 +2138,7 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 				break;
 			}
 		}
+		/* Log the error for debugging purposes */
 		DC_log_error(func, "", desc);
 	}
 	return ret;
@@ -2105,7 +2222,35 @@ PGAPI_SetDescRec(SQLHDESC DescriptorHandle,
 	return SQL_SUCCESS;
 }
 
-/*	new function */
+/*
+ * PGAPI_GetDescRec
+ *
+ * Description:
+ *      Core implementation function that retrieves the current settings or values 
+ *      of fields in a descriptor record. This function is called by both SQLGetDescRec 
+ *      (ANSI) and SQLGetDescRecW (Unicode) functions.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based)
+ *      Name - Buffer to store the descriptor name
+ *      BufferLength - Length of the Name buffer in bytes
+ *      StringLength - Pointer to store the actual length of the name
+ *      Type - Pointer to store the SQL data type
+ *      SubType - Pointer to store the data type subcode
+ *      Length - Pointer to store the data length
+ *      Precision - Pointer to store the numeric precision
+ *      Scale - Pointer to store the numeric scale
+ *      Nullable - Pointer to store the nullability attribute
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Implementation Strategy:
+ *      This function retrieves multiple descriptor fields by making individual calls
+ *      to PGAPI_GetDescField for each requested attribute. It handles the complexity
+ *      of retrieving all the necessary descriptor information in one function call.
+ */
 RETCODE		SQL_API
 PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 			SQLSMALLINT RecNumber, SQLCHAR *Name,
@@ -2115,11 +2260,11 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 			SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 	SQLSMALLINT strlen, typ, subtyp, prec, scal, null;
 	SQLLEN len;
 
-	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, Name, BufferLength);
+	/* Log function entry with important parameters */
+	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type((DescriptorClass *) DescriptorHandle), RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 
 	/*
@@ -2134,6 +2279,7 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		- SQL_DESC_NAME
 	*/
 
+	/* Retrieve SQL data type if requested */
 	if (Type != NULL)
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, &typ, 0, NULL);
@@ -2141,6 +2287,7 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		*Type = typ;
 	}
 
+	/* For datetime and interval types, retrieve the subtype code if requested */
 	if (SubType != NULL && (typ == SQL_DATETIME || typ == SQL_INTERVAL))
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, &subtyp, 0, NULL);
@@ -2148,6 +2295,7 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		*SubType = subtyp;
 	}
 
+	/* Retrieve octet length (buffer size needed) if requested */
 	if (Length != NULL)
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, &len, 0, NULL);
@@ -2155,6 +2303,7 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		*Length = (SQLLEN) len;
 	}
 
+	/* Retrieve numeric precision if requested */
 	if (Precision != NULL)
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, &prec, 0, NULL);
@@ -2162,6 +2311,7 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		*Precision = prec;
 	}
 
+	/* Retrieve numeric scale if requested */
 	if (Scale != NULL)
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, &scal, 0, NULL);
@@ -2169,14 +2319,18 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		*Scale = scal;
 	}
 
-	if (Nullable != NULL && (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC || DC_get_desc_type(desc) == SQL_ATTR_IMP_PARAM_DESC))
+	/* Retrieve nullability information if requested (only for implementation descriptors) */
+	if (Nullable != NULL && (DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_ROW_DESC 
+		|| DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_PARAM_DESC))
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NULLABLE, &null, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
 		*Nullable = null;
 	}
 
-	if (Name != NULL && (DC_get_desc_type(desc) == SQL_ATTR_IMP_ROW_DESC || DC_get_desc_type(desc) == SQL_ATTR_IMP_PARAM_DESC))
+	/* Retrieve column/parameter name if requested (only for implementation descriptors) */
+	if (Name != NULL && (DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_ROW_DESC 
+		|| DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_PARAM_DESC))
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NAME, Name, BufferLength, (SQLINTEGER *) &strlen);
 		if (ret != SQL_SUCCESS) return ret;
