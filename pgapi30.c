@@ -2144,7 +2144,33 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	return ret;
 }
 
-/*	new function */
+/*
+ * PGAPI_SetDescRec
+ *
+ * Description:
+ *      Core implementation function that sets multiple descriptor fields with a single call.
+ *      This function is called by both SQLSetDescRec (ANSI) and SQLSetDescRecW (Unicode) functions.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based)
+ *      Type - SQL data type
+ *      SubType - Datetime or interval subcode
+ *      Length - Maximum data length
+ *      Precision - Precision of numeric types
+ *      Scale - Scale of numeric types
+ *      Data - Pointer to data buffer
+ *      StringLength - Pointer to buffer length
+ *      Indicator - Pointer to indicator variable
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Implementation Strategy:
+ *      This function sets multiple descriptor fields by making individual calls
+ *      to PGAPI_SetDescField for each field. It's a convenience function that
+ *      allows setting commonly used fields with a single function call.
+ */
 RETCODE		SQL_API
 PGAPI_SetDescRec(SQLHDESC DescriptorHandle,
 				 SQLSMALLINT RecNumber, SQLSMALLINT Type,
@@ -2341,7 +2367,28 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 	return SQL_SUCCESS;
 }
 
-/*	SQLSet(Param/Scroll/Stmt)Option -> SQLSetStmtAttr */
+/*
+ * PGAPI_SetStmtAttr
+ *
+ * Description:
+ *      Core implementation function that sets the value of a statement attribute.
+ *      This function is called by both SQLSetStmtAttr (ANSI) and SQLSetStmtAttrW (Unicode) functions.
+ *
+ * Parameters:
+ *      StatementHandle - Handle to the statement
+ *      Attribute - The attribute to set (SQL_ATTR_* constant)
+ *      Value - The value to set for the attribute
+ *      StringLength - Length of the Value buffer in bytes (for string data)
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Implementation Strategy:
+ *      This function uses a switch statement to handle different attribute types.
+ *      Most attributes are stored directly in the statement structure or its descriptors.
+ *      For unsupported attributes, it returns an error.
+ *      For backward compatibility with ODBC 2.0, it calls PGAPI_SetStmtOption for some attributes.
+ */
 RETCODE		SQL_API
 PGAPI_SetStmtAttr(HSTMT StatementHandle,
 				  SQLINTEGER Attribute, PTR Value,
@@ -2355,28 +2402,29 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 	switch (Attribute)
 	{
 		case SQL_ATTR_ENABLE_AUTO_IPD:	/* 15 */
+			/* Whether automatic population of IPD is supported */
 			if (SQL_FALSE == Value)
 				break;
 		case SQL_ATTR_CURSOR_SCROLLABLE:		/* -1 */
 		case SQL_ATTR_CURSOR_SENSITIVITY:		/* -2 */
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
+			/* Unsupported attributes */
 			SC_set_error(stmt, DESC_OPTION_NOT_FOR_THE_DRIVER, "Unsupported statement option (Set)", func);
 			return SQL_ERROR;
 		/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 		case SQL_ATTR_IMP_ROW_DESC:	/* 10012 (read-only) */
 		case SQL_ATTR_IMP_PARAM_DESC:	/* 10013 (read-only) */
-
-			/*
-			 * case SQL_ATTR_PREDICATE_PTR: case
-			 * SQL_ATTR_PREDICATE_OCTET_LENGTH_PTR:
-			 */
+			/* Read-only attributes */
 			SC_set_error(stmt, DESC_INVALID_OPTION_IDENTIFIER, "Unsupported statement option (Set)", func);
 			return SQL_ERROR;
 
 		case SQL_ATTR_METADATA_ID:		/* 10014 */
+			/* Whether identifiers are quoted */
 			stmt->options.metadata_id = CAST_UPTR(SQLUINTEGER, Value);
 			break;
 		case SQL_ATTR_APP_ROW_DESC:		/* 10010 */
+			/* Application Row Descriptor */
+			/* Application Row Descriptor */
 			if (SQL_NULL_HDESC == Value)
 			{
 				stmt->ard = &(stmt->ardi);
@@ -2384,10 +2432,11 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			else
 			{
 				stmt->ard = (DescriptorClass *) Value;
-MYLOG(DETAIL_LOG_LEVEL, "set ard=%p\n", stmt->ard);
+				MYLOG(DETAIL_LOG_LEVEL, "set ard=%p\n", stmt->ard);
 			}
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:	/* 10011 */
+			/* Application Parameter Descriptor */
 			if (SQL_NULL_HDESC == Value)
 			{
 				stmt->apd = &(stmt->apdi);
@@ -2398,42 +2447,55 @@ MYLOG(DETAIL_LOG_LEVEL, "set ard=%p\n", stmt->ard);
 			}
 			break;
 		case SQL_ATTR_FETCH_BOOKMARK_PTR:		/* 16 */
+			/* Pointer to bookmark value */
 			stmt->options.bookmark_ptr = Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_OFFSET_PTR:	/* 17 */
+			/* Pointer to parameter binding offset */
 			SC_get_APDF(stmt)->param_offset_ptr = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_PARAM_BIND_TYPE:	/* 18 */
+			/* Parameter binding type */
 			SC_get_APDF(stmt)->param_bind_type = CAST_UPTR(SQLUINTEGER, Value);
 			break;
 		case SQL_ATTR_PARAM_OPERATION_PTR:		/* 19 */
+			/* Pointer to parameter operation array */
 			SC_get_APDF(stmt)->param_operation_ptr = Value;
 			break;
 		case SQL_ATTR_PARAM_STATUS_PTR:			/* 20 */
+			/* Pointer to parameter status array */
 			SC_get_IPDF(stmt)->param_status_ptr = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_PARAMS_PROCESSED_PTR:		/* 21 */
+			/* Pointer to count of processed parameters */
 			SC_get_IPDF(stmt)->param_processed_ptr = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_PARAMSET_SIZE:	/* 22 */
+			/* Number of sets of parameters */
 			SC_get_APDF(stmt)->paramset_size = CAST_UPTR(SQLULEN, Value);
 			break;
 		case SQL_ATTR_ROW_BIND_OFFSET_PTR:		/* 23 */
+			/* Pointer to row binding offset */
 			SC_get_ARDF(stmt)->row_offset_ptr = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_ROW_OPERATION_PTR:		/* 24 */
+			/* Pointer to row operation array */
 			SC_get_ARDF(stmt)->row_operation_ptr = Value;
 			break;
 		case SQL_ATTR_ROW_STATUS_PTR:	/* 25 */
+			/* Pointer to row status array */
 			SC_get_IRDF(stmt)->rowStatusArray = (SQLUSMALLINT *) Value;
 			break;
 		case SQL_ATTR_ROWS_FETCHED_PTR: /* 26 */
+			/* Pointer to count of fetched rows */
 			SC_get_IRDF(stmt)->rowsFetched = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
+			/* Number of rows to fetch */
 			SC_get_ARDF(stmt)->size_of_rowset = CAST_UPTR(SQLULEN, Value);
 			break;
 		default:
+			/* For backward compatibility with ODBC 2.0 */
 			return PGAPI_SetStmtOption(StatementHandle, (SQLUSMALLINT) Attribute, (SQLULEN) Value);
 	}
 	return ret;

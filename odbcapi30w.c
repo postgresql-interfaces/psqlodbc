@@ -81,6 +81,28 @@ SQLGetStmtAttrW(SQLHSTMT hstmt,
 	return ret;
 }
 
+/*
+ * SQLSetStmtAttrW
+ *
+ * Description:
+ *      This function sets the current setting of a statement attribute.
+ *      This is the Unicode (wide-character) version of SQLSetStmtAttr.
+ *
+ * Parameters:
+ *      hstmt - Handle to the statement
+ *      fAttribute - The attribute to set (SQL_ATTR_* constant)
+ *      rgbValue - The value to set for the attribute
+ *      cbValueMax - Length of the rgbValue buffer in bytes (for string data)
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      Unlike some other Unicode functions, this function doesn't need to perform
+ *      character set conversion since statement attributes are not string-based
+ *      or already handle Unicode conversion internally. It simply passes through
+ *      to the core implementation function PGAPI_SetStmtAttr.
+ */
 RETCODE SQL_API
 SQLSetStmtAttrW(SQLHSTMT hstmt,
 				SQLINTEGER	fAttribute,
@@ -90,14 +112,28 @@ SQLSetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
+	/* Log function entry */
 	MYLOG(0, "Entering\n");
+
+	/* Enter critical section to ensure thread safety */
 	ENTER_STMT_CS(stmt);
+
+	/* Clear any previous errors on the statement */
 	SC_clear_error(stmt);
+
+	/* Set up savepoint for transaction safety */
 	StartRollbackState(stmt);
+
+	/* Call the core implementation function */
 	ret = PGAPI_SetStmtAttr(hstmt, fAttribute, rgbValue,
 		cbValueMax);
+
+	/* Handle transaction state and cleanup */
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
+
+	/* Exit critical section */
 	LEAVE_STMT_CS(stmt);
+
 	return ret;
 }
 
@@ -140,7 +176,27 @@ SQLSetConnectAttrW(HDBC hdbc,
 	return ret;
 }
 
-/*      new function */
+/*
+ * SQLSetDescFieldW
+ *
+ * Description:
+ *      This function sets the value of a field in a descriptor record.
+ *      This is the Unicode (wide-character) version of SQLSetDescField.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based, 0 for header fields)
+ *      FieldIdentifier - The field identifier (SQL_DESC_* constant)
+ *      Value - The value to set for the field
+ *      BufferLength - Length of the Value buffer in bytes (for string data)
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function handles Unicode to UTF-8 conversion for string fields
+ *      before calling the core implementation function PGAPI_SetDescField.
+ */
 RETCODE  SQL_API
 SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 				 SQLSMALLINT FieldIdentifier, PTR Value,
@@ -148,10 +204,13 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 {
 	RETCODE	ret;
 	SQLLEN	vallen;
-        char    *uval = NULL;
+    char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
+	/* Log function entry */
 	MYLOG(0, "Entering\n");
+
+	/* Convert Unicode strings to UTF-8 for specific string fields */
 	if (BufferLength > 0 || SQL_NTS == BufferLength)
 	{
 		switch (FieldIdentifier)
@@ -172,15 +231,22 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 			break;
 		}
 	}
+
+	/* For non-string fields or if conversion wasn't needed, use the original value */
 	if (!val_alloced)
 	{
 		uval = Value;
 		vallen = BufferLength;
 	}
+
+	/* Call the core implementation function */
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				uval, (SQLINTEGER) vallen);
+
+	/* Free the converted string if we allocated one */
 	if (val_alloced)
 		free(uval);
+
 	return ret;
 }
 
@@ -533,7 +599,32 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 	return ret;
 }
 
-/*	new function */
+/*
+ * SQLSetDescRecW
+ *
+ * Description:
+ *      This function sets multiple descriptor fields with a single call.
+ *      This is the Unicode (wide-character) version of SQLSetDescRec.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based)
+ *      Type - SQL data type
+ *      SubType - Datetime or interval subcode
+ *      Length - Maximum data length
+ *      Precision - Precision of numeric types
+ *      Scale - Scale of numeric types
+ *      Data - Pointer to data buffer (Unicode)
+ *      StringLength - Pointer to buffer length
+ *      Indicator - Pointer to indicator variable
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function handles Unicode to UTF-8 conversion for string data
+ *      before calling the core implementation function PGAPI_SetDescRec.
+ */
 RETCODE		SQL_API
 SQLSetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLSMALLINT Type,
@@ -547,23 +638,32 @@ SQLSetDescRecW(SQLHDESC DescriptorHandle,
 	char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
+	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
 	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
-	
+
+	/* Convert Unicode string to UTF-8 if needed */
 	if (Length > 0 || SQL_NTS == Length)
 	{
 		uval = ucs2_to_utf8(Data, Length > 0 ? Length / WCLEN : Length, &vallen, FALSE);
 		val_alloced = TRUE;
 	}
+
+	/* For non-string data or if conversion wasn't needed, use the original value */
 	if (!val_alloced)
 	{
 		uval = Data;
 		vallen = Length;
 	}
+
+	/* Call the core implementation function */
 	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
 			SubType, Length, Precision, Scale, uval,
 			&vallen, Indicator);
+
+	/* Free the converted string if we allocated one */
 	if (val_alloced)
 		free(uval);
+
 	return ret;
 }

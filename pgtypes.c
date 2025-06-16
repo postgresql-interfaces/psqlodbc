@@ -8,6 +8,14 @@
  *					even data types that are not directly supported can be
  *					used (it is handled as char data).
  *
+ *                  This module is responsible for mapping between PostgreSQL native 
+ *                  data types and ODBC SQL data types. It provides functions to:
+ *                  - Convert PostgreSQL types to ODBC SQL types
+ *                  - Determine appropriate buffer sizes for data transfer
+ *                  - Calculate precision and scale for numeric types
+ *                  - Handle display formatting requirements
+ *                  - Support metadata operations
+ *
  * Classes:			n/a
  *
  * API functions:	none
@@ -27,6 +35,21 @@
 #define	EXPERIMENTAL_CURRENTLY
 
 
+
+/**
+ * @function ansi_to_wtype
+ *
+ * @brief Converts ANSI SQL types to wide (Unicode) types when appropriate
+ *
+ * This function maps standard ANSI SQL types to their Unicode equivalents
+ * based on the connection settings. If Unicode support is not enabled or
+ * not allowed for the connection, the original type is returned unchanged.
+ *
+ * @param self      Pointer to the connection object
+ * @param ansitype  The ANSI SQL type to convert
+ *
+ * @return The corresponding Unicode SQL type if applicable, otherwise the original type
+ */
 SQLSMALLINT ansi_to_wtype(const ConnectionClass *self, SQLSMALLINT ansitype)
 {
 #ifndef	UNICODE_SUPPORT
@@ -50,15 +73,13 @@ SQLSMALLINT ansi_to_wtype(const ConnectionClass *self, SQLSMALLINT ansitype)
 Int4		getCharColumnSize(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 
 /*
- * these are the types we support.	all of the pgtype_ functions should
+ * These are the types we support. All of the pgtype_ functions should
  * return values for each one of these.
  * Even types not directly supported are handled as character types
  * so all types should work (points, etc.)
- */
-
-/*
- * ALL THESE TYPES ARE NO LONGER REPORTED in SQLGetTypeInfo.  Instead, all
- *	the SQL TYPES are reported and mapped to a corresponding Postgres Type
+ *
+ * Note: This historical comment is kept for reference. The actual implementation
+ * now uses SQL types reported in SQLGetTypeInfo and maps them to PostgreSQL types.
  */
 
 /*
@@ -94,7 +115,11 @@ OID pgtypes_defined[][2] = {
 */
 
 
-/*	These are NOW the SQL Types reported in SQLGetTypeInfo.  */
+/*
+ * These are the SQL Types reported in SQLGetTypeInfo.
+ * This array defines all the SQL data types that the driver supports and reports
+ * to applications through the SQLGetTypeInfo function.
+ */
 SQLSMALLINT	sqlTypes[] = {
 	SQL_BIGINT,
 	/* SQL_BINARY, -- Commented out because VarBinary is more correct. */
@@ -150,6 +175,20 @@ SQLSMALLINT	sqlTypes[] = {
 #define	ALLOWED_C_BIGINT	SQL_C_CHAR
 #endif
 
+/**
+ * @function pg_true_type
+ *
+ * @brief Determines the actual PostgreSQL type to use
+ *
+ * This function resolves the true PostgreSQL type by considering both the type
+ * and basetype parameters. It handles special cases like large objects.
+ *
+ * @param conn      Pointer to the connection object
+ * @param type      The PostgreSQL type OID
+ * @param basetype  The base type OID (for domains, etc.)
+ *
+ * @return The resolved PostgreSQL type OID to use
+ */
 OID
 pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
 {
@@ -168,6 +207,20 @@ pg_true_type(const ConnectionClass *conn, OID type, OID basetype)
 #define HOUR_BIT	(1 << 26)
 #define MINUTE_BIT	(1 << 27)
 #define SECOND_BIT	(1 << 28)
+
+/**
+ * @function get_interval_type
+ *
+ * @brief Determines the SQL interval type from PostgreSQL interval typmod
+ *
+ * This function analyzes the PostgreSQL interval type modifier (atttypmod)
+ * to determine which SQL interval type it corresponds to (year, month, day, etc.)
+ *
+ * @param atttypmod  The PostgreSQL type modifier for interval
+ * @param name       If not NULL, will be set to point to a string describing the interval type
+ *
+ * @return The corresponding SQL interval type code, or 0 if not determined
+ */
 
 static SQLSMALLINT
 get_interval_type(Int4 atttypmod, const char **name)
@@ -259,6 +312,23 @@ MYLOG(0, "entering atttypmod=%x\n", atttypmod);
 	return 0;
 }
 
+/**
+ * @function getCharColumnSizeX
+ *
+ * @brief Determines the column size for character data types
+ *
+ * This function calculates the appropriate column size for character data types
+ * based on the PostgreSQL type, type modifier, and driver configuration settings.
+ * It handles various special cases and unknown size scenarios.
+ *
+ * @param conn                   Pointer to the connection object
+ * @param type                   The PostgreSQL type OID
+ * @param atttypmod              The PostgreSQL type modifier
+ * @param adtsize_or_longestlen  The longest value length or attribute size
+ * @param handle_unknown_size_as How to handle unknown sizes (max, longest, etc.)
+ *
+ * @return The calculated column size
+ */
 static Int4
 getCharColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
@@ -365,6 +435,22 @@ MYLOG(DETAIL_LOG_LEVEL, "!!! catalog_result=%d\n", handle_unknown_size_as);
  */
 #define	UNUSED_HANDLE_UNKNOWN_SIZE_AS	(-2)
 
+/**
+ * @function getNumericDecimalDigitsX
+ *
+ * @brief Determines the decimal digits for numeric data types
+ *
+ * This function calculates the appropriate number of decimal digits for numeric types
+ * based on the PostgreSQL type modifier or other available information.
+ *
+ * @param conn                   Pointer to the connection object
+ * @param type                   The PostgreSQL type OID
+ * @param atttypmod              The PostgreSQL type modifier
+ * @param adtsize_or_longest     The longest value or attribute size
+ * @param UNUSED_handle_unknown_size_as Unused parameter (for API consistency)
+ *
+ * @return The calculated number of decimal digits
+ */
 static SQLSMALLINT
 getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int UNUSED_handle_unknown_size_as)
 {
@@ -383,6 +469,23 @@ getNumericDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod, i
 	return adtsize_or_longest;
 }
 
+/**
+ * @function getNumericColumnSizeX
+ *
+ * @brief Determines the column size for numeric data types
+ *
+ * This function calculates the appropriate column size for numeric data types
+ * based on the PostgreSQL type modifier and driver configuration settings.
+ * It handles various special cases and unknown size scenarios.
+ *
+ * @param conn                   Pointer to the connection object
+ * @param type                   The PostgreSQL type OID
+ * @param atttypmod              The PostgreSQL type modifier
+ * @param adtsize_or_longest     The longest value or attribute size
+ * @param handle_unknown_size_as How to handle unknown sizes
+ *
+ * @return The calculated column size
+ */
 static Int4	/* PostgreSQL restriction */
 getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longest, int handle_unknown_size_as)
 {
@@ -421,6 +524,20 @@ getNumericColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod, int 
 	return adtsize_or_longest;
 }
 
+/**
+ * @function getTimestampDecimalDigitsX
+ *
+ * @brief Determines the decimal digits for timestamp data types
+ *
+ * This function calculates the appropriate number of decimal digits for timestamp types
+ * based on the PostgreSQL type modifier.
+ *
+ * @param conn       Pointer to the connection object
+ * @param type       The PostgreSQL type OID
+ * @param atttypmod  The PostgreSQL type modifier
+ *
+ * @return The calculated number of decimal digits
+ */
 static SQLSMALLINT
 getTimestampDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod)
 {
@@ -428,6 +545,20 @@ getTimestampDecimalDigitsX(const ConnectionClass *conn, OID type, int atttypmod)
 	return (atttypmod > -1 ? atttypmod : 6);
 }
 
+/**
+ * @function getTimestampColumnSizeX
+ *
+ * @brief Determines the column size for timestamp data types
+ *
+ * This function calculates the appropriate column size for timestamp data types
+ * based on the PostgreSQL type and type modifier.
+ *
+ * @param conn       Pointer to the connection object
+ * @param type       The PostgreSQL type OID
+ * @param atttypmod  The PostgreSQL type modifier
+ *
+ * @return The calculated column size
+ */
 static SQLSMALLINT
 getTimestampColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod)
 {
@@ -457,6 +588,19 @@ getTimestampColumnSizeX(const ConnectionClass *conn, OID type, int atttypmod)
 	return (scale > 0) ? fixed + 1 + scale : fixed;
 }
 
+/**
+ * @function getIntervalDecimalDigits
+ *
+ * @brief Determines the decimal digits for interval data types
+ *
+ * This function calculates the appropriate number of decimal digits for interval types
+ * based on the PostgreSQL type modifier.
+ *
+ * @param type       The PostgreSQL type OID
+ * @param atttypmod  The PostgreSQL type modifier
+ *
+ * @return The calculated number of decimal digits
+ */
 static SQLSMALLINT
 getIntervalDecimalDigits(OID type, int atttypmod)
 {
@@ -469,6 +613,19 @@ getIntervalDecimalDigits(OID type, int atttypmod)
 	return (prec = atttypmod & 0xffff) == 0xffff ? 6 : prec ;
 }
 
+/**
+ * @function getIntervalColumnSize
+ *
+ * @brief Determines the column size for interval data types
+ *
+ * This function calculates the appropriate column size for interval data types
+ * based on the PostgreSQL type and type modifier.
+ *
+ * @param type       The PostgreSQL type OID
+ * @param atttypmod  The PostgreSQL type modifier
+ *
+ * @return The calculated column size
+ */
 static SQLSMALLINT
 getIntervalColumnSize(OID type, int atttypmod)
 {
@@ -513,7 +670,23 @@ getIntervalColumnSize(OID type, int atttypmod)
 	return (scale > 0) ? ttl + 1 + scale : ttl;
 }
 
-
+/**
+ * @function pgtype_attr_to_concise_type
+ *
+ * @brief Maps PostgreSQL data types to ODBC SQL data types
+ *
+ * This function is a core type mapping function that converts PostgreSQL data types
+ * to their corresponding ODBC SQL data types, considering connection settings,
+ * type modifiers, and other factors.
+ *
+ * @param conn                   Pointer to the connection object
+ * @param type                   The PostgreSQL type OID
+ * @param atttypmod              The PostgreSQL type modifier
+ * @param adtsize_or_longestlen  The longest value length or attribute size
+ * @param handle_unknown_size_as How to handle unknown sizes
+ *
+ * @return The corresponding ODBC SQL data type
+ */
 SQLSMALLINT
 pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
@@ -650,6 +823,22 @@ pgtype_attr_to_concise_type(const ConnectionClass *conn, OID type, int atttypmod
 	}
 }
 
+/**
+ * @function pgtype_attr_to_sqldesctype
+ *
+ * @brief Maps PostgreSQL data types to SQL descriptor types
+ *
+ * This function converts PostgreSQL data types to SQL descriptor types,
+ * which are used in descriptor-based ODBC functions.
+ *
+ * @param conn                   Pointer to the connection object
+ * @param type                   The PostgreSQL type OID
+ * @param atttypmod              The PostgreSQL type modifier
+ * @param adtsize_or_longestlen  The longest value length or attribute size
+ * @param handle_unknown_size_as How to handle unknown sizes
+ *
+ * @return The corresponding SQL descriptor type
+ */
 SQLSMALLINT
 pgtype_attr_to_sqldesctype(const ConnectionClass *conn, OID type, int atttypmod, int adtsize_or_longestlen, int handle_unknown_size_as)
 {
