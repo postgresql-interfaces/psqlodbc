@@ -352,11 +352,9 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 
-	/* Call the core implementation function */
 	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, Name, BufferLength,
 			StringLength, Type, SubType, Length, Precision,
 			Scale, Nullable);
@@ -478,26 +476,19 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering Handle=%p " FORMAT_INTEGER "\n", StatementHandle, Attribute);
 
-	/* Enter critical section to ensure thread safety */
 	ENTER_STMT_CS(stmt);
 
-	/* Clear any previous errors on the statement */
 	SC_clear_error(stmt);
 
-	/* Set up savepoint for transaction safety */
 	StartRollbackState(stmt);
 
-	/* Call the core implementation function */
 	ret = PGAPI_GetStmtAttr(StatementHandle, Attribute, Value,
 			BufferLength, StringLength);
 
-	/* Handle transaction state and cleanup */
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 
-	/* Exit critical section */
 	LEAVE_STMT_CS(stmt);
 
 	return ret;
@@ -550,10 +541,8 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
 
-	/* Call the core implementation function */
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
 
@@ -596,11 +585,9 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 {
 	RETCODE		ret;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
 	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
 
-	/* Call the core implementation function */
 	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
 			SubType, Length, Precision, Scale, Data,
 			StringLength, Indicator);
@@ -699,16 +686,12 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	RETCODE	ret;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering Handle=%p " FORMAT_INTEGER "," FORMAT_ULEN "\n", StatementHandle, Attribute, (SQLULEN) Value);
 
-	/* Enter critical section to ensure thread safety */
 	ENTER_STMT_CS(stmt);
 
-	/* Clear any previous errors on the statement */
 	SC_clear_error(stmt);
 
-	/* Set up savepoint for transaction safety */
 	StartRollbackState(stmt);
 
 	/* Call the core implementation function */
@@ -717,7 +700,6 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	/* Handle transaction state and cleanup */
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 
-	/* Exit critical section */
 	LEAVE_STMT_CS(stmt);
 
 	return ret;

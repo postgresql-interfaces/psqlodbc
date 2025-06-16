@@ -2001,7 +2001,6 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 	/* Cast the generic ODBC handle to our internal descriptor structure */
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "entering h=%p rec=" FORMAT_SMALLI " field=" FORMAT_SMALLI " blen=" FORMAT_INTEGER "\n", DescriptorHandle, RecNumber, FieldIdentifier, BufferLength);
 
 	/* Route the request to the appropriate handler based on descriptor type */
@@ -2047,7 +2046,6 @@ PGAPI_GetDescField(SQLHDESC DescriptorHandle,
 					break;
 			}
 		}
-		/* Log the error for debugging purposes */
 		DC_log_error(func, "", desc);
 	}
 	return ret;
@@ -2091,7 +2089,6 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 	/* Cast the generic ODBC handle to our internal descriptor structure */
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " field=" FORMAT_SMALLI " val=%p," FORMAT_INTEGER "\n", DescriptorHandle, DC_get_desc_type(desc), RecNumber, FieldIdentifier, Value, BufferLength);
 
 	/* Route the request to the appropriate handler based on descriptor type */
@@ -2138,7 +2135,6 @@ PGAPI_SetDescField(SQLHDESC DescriptorHandle,
 				break;
 			}
 		}
-		/* Log the error for debugging purposes */
 		DC_log_error(func, "", desc);
 	}
 	return ret;
@@ -2290,7 +2286,6 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
 	SQLINTEGER strlen, typ, subtyp, len, prec, scal, null;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type((DescriptorClass *) DescriptorHandle), RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 

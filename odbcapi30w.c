@@ -56,26 +56,20 @@ SQLGetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
-	/* Log function entry */
 	MYLOG(0, "Entering\n");
 
-	/* Enter critical section to ensure thread safety */
 	ENTER_STMT_CS((StatementClass *) hstmt);
 
-	/* Clear any previous errors on the statement */
 	SC_clear_error((StatementClass *) hstmt);
 
 	/* Set up savepoint for transaction safety */
 	StartRollbackState(stmt);
 
-	/* Call the core implementation function */
 	ret = PGAPI_GetStmtAttr(hstmt, fAttribute, rgbValue,
 		cbValueMax, pcbValue);
 
-	/* Handle transaction state and cleanup */
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 
-	/* Exit critical section */
 	LEAVE_STMT_CS((StatementClass *) hstmt);
 
 	return ret;
@@ -112,26 +106,20 @@ SQLSetStmtAttrW(SQLHSTMT hstmt,
 	RETCODE	ret;
 	StatementClass	*stmt = (StatementClass *) hstmt;
 
-	/* Log function entry */
 	MYLOG(0, "Entering\n");
 
-	/* Enter critical section to ensure thread safety */
 	ENTER_STMT_CS(stmt);
 
-	/* Clear any previous errors on the statement */
 	SC_clear_error(stmt);
 
 	/* Set up savepoint for transaction safety */
 	StartRollbackState(stmt);
 
-	/* Call the core implementation function */
 	ret = PGAPI_SetStmtAttr(hstmt, fAttribute, rgbValue,
 		cbValueMax);
 
-	/* Handle transaction state and cleanup */
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 
-	/* Exit critical section */
 	LEAVE_STMT_CS(stmt);
 
 	return ret;
@@ -207,7 +195,6 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
     char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
-	/* Log function entry */
 	MYLOG(0, "Entering\n");
 
 	/* Convert Unicode strings to UTF-8 for specific string fields */
@@ -239,7 +226,6 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 		vallen = BufferLength;
 	}
 
-	/* Call the core implementation function */
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				uval, (SQLINTEGER) vallen);
 
@@ -555,7 +541,6 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 	char		*NameA = NULL;  /* Temporary buffer for ANSI version of name */
 	SQLSMALLINT	nlen;          /* Length of the name string */
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 
@@ -638,7 +623,6 @@ SQLSetDescRecW(SQLHDESC DescriptorHandle,
 	char    *uval = NULL;
 	BOOL	val_alloced = FALSE;
 
-	/* Log function entry with important parameters */
 	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
 	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
 
