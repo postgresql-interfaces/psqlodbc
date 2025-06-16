@@ -2286,8 +2286,9 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 			SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
 	RETCODE		ret = SQL_SUCCESS;
-	SQLSMALLINT strlen, typ, subtyp, prec, scal, null;
-	SQLLEN len;
+
+	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
+	SQLINTEGER strlen, typ, subtyp, len, prec, scal, null;
 
 	/* Log function entry with important parameters */
 	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type((DescriptorClass *) DescriptorHandle), RecNumber, Name, BufferLength);
