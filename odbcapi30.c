@@ -313,7 +313,35 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 	return ret;
 }
 
-/*	new function */
+/*
+ * SQLGetDescRec
+ *
+ * Description:
+ *      This function retrieves the current settings or values of fields in a descriptor record.
+ *      It's the ANSI version of the function that works with descriptor records.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based)
+ *      Name - Buffer to store the descriptor name (ANSI)
+ *      BufferLength - Length of the Name buffer in bytes
+ *      StringLength - Pointer to store the actual length of the name
+ *      Type - Pointer to store the SQL data type
+ *      SubType - Pointer to store the data type subcode
+ *      Length - Pointer to store the data length
+ *      Precision - Pointer to store the numeric precision
+ *      Scale - Pointer to store the numeric scale
+ *      Nullable - Pointer to store the nullability attribute
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function is a thin wrapper around PGAPI_GetDescRec, which contains
+ *      the actual implementation. Unlike the wide-character version (SQLGetDescRecW),
+ *      this function doesn't need to perform character set conversion since it
+ *      works directly with ANSI strings.
+ */
 RETCODE		SQL_API
 SQLGetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLCHAR *Name,
@@ -326,9 +354,11 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 
 	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
+
 	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, Name, BufferLength,
 			StringLength, Type, SubType, Length, Precision,
 			Scale, Nullable);
+
 	return ret;
 }
 
@@ -416,7 +446,28 @@ SQLGetConnectAttr(HDBC ConnectionHandle,
 	return ret;
 }
 
-/*	SQLGetStmtOption -> SQLGetStmtAttr */
+/*
+ * SQLGetStmtAttr
+ *
+ * Description:
+ *      This function retrieves the current setting of a statement attribute.
+ *      This is the ANSI version of the function.
+ *
+ * Parameters:
+ *      StatementHandle - Handle to the statement
+ *      Attribute - The attribute to retrieve (SQL_ATTR_* constant)
+ *      Value - Buffer to store the attribute value
+ *      BufferLength - Length of the Value buffer in bytes
+ *      StringLength - Pointer to store the actual length of string data
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function replaces the deprecated SQLGetStmtOption function.
+ *      It provides thread-safe access to statement attributes by using
+ *      critical sections to protect shared resources.
+ */
 RETCODE		SQL_API
 SQLGetStmtAttr(HSTMT StatementHandle,
 			   SQLINTEGER Attribute, PTR Value,
@@ -426,13 +477,20 @@ SQLGetStmtAttr(HSTMT StatementHandle,
 	StatementClass	*stmt = (StatementClass *) StatementHandle;
 
 	MYLOG(0, "Entering Handle=%p " FORMAT_INTEGER "\n", StatementHandle, Attribute);
+
 	ENTER_STMT_CS(stmt);
+
 	SC_clear_error(stmt);
+
 	StartRollbackState(stmt);
+
 	ret = PGAPI_GetStmtAttr(StatementHandle, Attribute, Value,
 			BufferLength, StringLength);
-	ret = DiscardStatementSvp(stmt,ret, FALSE);
+
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+
 	LEAVE_STMT_CS(stmt);
+
 	return ret;
 }
 
@@ -455,7 +513,27 @@ SQLSetConnectAttr(HDBC ConnectionHandle,
 	return ret;
 }
 
-/*	new function */
+/*
+ * SQLSetDescField
+ *
+ * Description:
+ *      This function sets the value of a field in a descriptor record.
+ *      This is the ANSI version of the function.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based, 0 for header fields)
+ *      FieldIdentifier - The field identifier (SQL_DESC_* constant)
+ *      Value - The value to set for the field
+ *      BufferLength - Length of the Value buffer in bytes (for string data)
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function simply passes through to the core implementation function
+ *      PGAPI_SetDescField without any additional processing.
+ */
 RETCODE		SQL_API
 SQLSetDescField(SQLHDESC DescriptorHandle,
 				SQLSMALLINT RecNumber, SQLSMALLINT FieldIdentifier,
@@ -464,12 +542,39 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 	RETCODE		ret;
 
 	MYLOG(0, "Entering h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
+
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
+
 	return ret;
 }
 
-/*	new function */
+/*
+ * SQLSetDescRec
+ *
+ * Description:
+ *      This function sets multiple descriptor fields with a single call.
+ *      This is the ANSI version of the function.
+ *
+ * Parameters:
+ *      DescriptorHandle - Handle to the descriptor
+ *      RecNumber - The descriptor record number (1-based)
+ *      Type - SQL data type
+ *      SubType - Datetime or interval subcode
+ *      Length - Maximum data length
+ *      Precision - Precision of numeric types
+ *      Scale - Scale of numeric types
+ *      Data - Pointer to data buffer
+ *      StringLength - Pointer to buffer length
+ *      Indicator - Pointer to indicator variable
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function provides a more efficient way to set multiple descriptor
+ *      fields that are commonly used together.
+ */
 RETCODE		SQL_API
 SQLSetDescRec(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT RecNumber, SQLSMALLINT Type,
@@ -482,9 +587,11 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 
 	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
 	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
+
 	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
 			SubType, Length, Precision, Scale, Data,
 			StringLength, Indicator);
+
 	return ret;
 }
 #endif /* UNICODE_SUPPORTXX */
@@ -550,7 +657,27 @@ SQLSetEnvAttr(HENV EnvironmentHandle,
 }
 
 #ifndef	UNICODE_SUPPORTXX
-/*	SQLSet(Param/Scroll/Stmt)Option -> SQLSetStmtAttr */
+/*
+ * SQLSetStmtAttr
+ *
+ * Description:
+ *      This function sets the current setting of a statement attribute.
+ *      This is the ANSI version of the function.
+ *
+ * Parameters:
+ *      StatementHandle - Handle to the statement
+ *      Attribute - The attribute to set (SQL_ATTR_* constant)
+ *      Value - The value to set for the attribute
+ *      StringLength - Length of the Value buffer in bytes (for string data)
+ *
+ * Returns:
+ *      SQL_SUCCESS, SQL_SUCCESS_WITH_INFO, SQL_ERROR, or SQL_INVALID_HANDLE
+ *
+ * Comments:
+ *      This function replaces the deprecated SQLSetStmtOption function.
+ *      It provides thread-safe access to statement attributes by using
+ *      critical sections to protect shared resources.
+ */
 RETCODE		SQL_API
 SQLSetStmtAttr(HSTMT StatementHandle,
 			   SQLINTEGER Attribute, PTR Value,
@@ -560,12 +687,21 @@ SQLSetStmtAttr(HSTMT StatementHandle,
 	RETCODE	ret;
 
 	MYLOG(0, "Entering Handle=%p " FORMAT_INTEGER "," FORMAT_ULEN "\n", StatementHandle, Attribute, (SQLULEN) Value);
+
 	ENTER_STMT_CS(stmt);
+
 	SC_clear_error(stmt);
+
 	StartRollbackState(stmt);
+
+	/* Call the core implementation function */
 	ret = PGAPI_SetStmtAttr(StatementHandle, Attribute, Value, StringLength);
-	ret = DiscardStatementSvp(stmt,ret, FALSE);
+
+	/* Handle transaction state and cleanup */
+	ret = DiscardStatementSvp(stmt, ret, FALSE);
+
 	LEAVE_STMT_CS(stmt);
+
 	return ret;
 }
 #endif /* UNICODE_SUPPORTXX */
