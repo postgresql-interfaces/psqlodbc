@@ -264,7 +264,7 @@ jobs:
       shell: cmd
       run: |
         echo on
-        sc config "postgresql-x64-14" start= auto
+        sc config "postgresql-x64-17" start= auto
     - name: get psqlodbc
       uses: actions/checkout@v4
       with:
