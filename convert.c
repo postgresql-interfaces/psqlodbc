@@ -1064,12 +1064,12 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 		 */
 		len_for_wcs_term = 1;
 	}
-	if (changed || needbuflen > cbValueMax)
+	if (changed || needbuflen + len_for_wcs_term > cbValueMax)
 	{
-		if (needbuflen > (SQLLEN) pgdc->ttlbuflen)
+		if (needbuflen + len_for_wcs_term > (SQLLEN) pgdc->ttlbuflen)
 		{
 			pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen + len_for_wcs_term);
-			pgdc->ttlbuflen = needbuflen;
+			pgdc->ttlbuflen = needbuflen + len_for_wcs_term;
 		}
 
 		already_processed = FALSE;
