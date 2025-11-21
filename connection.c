@@ -1094,7 +1094,29 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 
 	if (ret = LIBPQ_connect(self), ret <= 0)
 		return ret;
-	res = CC_send_query(self, "SET DateStyle = 'ISO';SET extra_float_digits = 2;" ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL);
+		
+	/* Check current DateStyle first */
+	res = CC_send_query(self, "SHOW DateStyle;", NULL, READ_ONLY_QUERY, NULL);
+	if (QR_command_maybe_successful(res))
+	{
+
+		if (res->command && (stricmp(res->command, "SHOW") == 0) 
+			&& (strcmp(QR_get_fieldname(res, 0), "DateStyle") == 0)){
+			const char * datestyle = QR_get_value_backend_text(res, 0, 0);
+			/* Only set DateStyle if it's not already ISO */
+			if (datestyle && (strncmp(datestyle, "ISO", 3) != 0))
+			{
+				QR_Destructor(res);
+				res = CC_send_query(self, "SET DateStyle = 'ISO';" ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL);
+			}
+			else
+			{
+				QR_Destructor(res);
+				res = CC_send_query(self, ISOLATION_SHOW_QUERY, NULL, READ_ONLY_QUERY, NULL);
+			}
+		}
+	}
+	
 	if (QR_command_maybe_successful(res))
 	{
 		handle_show_results(res);
