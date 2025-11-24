@@ -1094,7 +1094,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 
 	if (ret = LIBPQ_connect(self), ret <= 0)
 		return ret;
-		
+
 	/* Check current DateStyle first */
 	res = CC_send_query(self, "SHOW DateStyle;", NULL, READ_ONLY_QUERY, NULL);
 	if (QR_command_maybe_successful(res))
@@ -1116,7 +1116,7 @@ LIBPQ_CC_connect(ConnectionClass *self, char *salt_para)
 			}
 		}
 	}
-	
+
 	if (QR_command_maybe_successful(res))
 	{
 		handle_show_results(res);

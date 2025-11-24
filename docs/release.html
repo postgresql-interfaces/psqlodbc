@@ -10,12 +10,32 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
- <h2><a id="17.00.0006">psqlODBC 17.00.0006 Release</a></h2>
+ <h2><a id="17.00.0007">psqlODBC 17.00.0007 Release</a></h2>
  Changes:<br />
  <li>
+   Fix: GetDescRec on big-endian architectures <a href="https://github.com/postgresql/psqlodbc/pull/130">PR #130</a>
+   Author: <a href="https://github.com/df7cb">Christoph Berg</a>
+ </li>
+ <li>
+   Refactor: use operator(pg_catalog.operator) to fully qualify the operator <a href="https://github.com/postgresql/psqlodbc/pull/139">PR #139</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Fix: Make sure the null terminator len_for_wcs_term is included in the decision to realloc <a href="https://github.com/postgresql/psqlodbc/pull/144">PR #145</a>
+   Author: <a href="https://github.com/markmaker">Mark Maker</a>
+ </li>
+ <li>
+   Refactor: check the datestyle before setting it, if it is different than ISO change it, otherwise leave it as is <a href="https://github.com/postgresql/psqlodbc/pull/144">PR #144</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+
+ <h2><a id="17.00.0006">psqlODBC 17.00.0006 Release</a></h2>
+ Changes:<br />
+  <li>
    Refactor: Comprehensive variable naming improvements across the codebase <a href="https://github.com/postgresql/psqlodbc/pull/125">PR #125</a>
    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
  </li>
+
  <li>
    Enhancement: Renamed ConnectionClass structure variables for better readability (e.g., pqconn → postgresConnection, status → connectionStatus)
    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
