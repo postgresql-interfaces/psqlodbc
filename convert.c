@@ -2424,6 +2424,7 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
 #define CVT_APPEND_BINARY(qb, buf, used)					\
 	do {													\
 		size_t	newlimit;									\
+		SQLLEN	result;										\
 															\
 		newlimit = (qb)->npos;								\
 		if (qb->flags & FLGB_HEX_BIN_FORMAT)				\
@@ -2431,9 +2432,20 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
 		else												\
 			newlimit += 5 * used;							\
 		ENLARGE_NEWSTATEMENT(qb, newlimit);					\
-		(qb)->npos += convert_to_pgbinary(buf,				\
-										  &qb->query_statement[(qb)->npos], \
-										  used, qb);		\
+		result = convert_to_pgbinary(buf,					\
+									 &qb->query_statement[(qb)->npos], \
+									 used, qb);				\
+		if (result == -1) {									\
+			if (qb->stmt)									\
+				SC_set_error(qb->stmt, STMT_EXEC_ERROR,		\
+							"Binary conversion failed", __func__); \
+			else {											\
+				qb->errormsg = "Binary conversion failed";	\
+				qb->errornumber = STMT_EXEC_ERROR;			\
+			}												\
+			break;											\
+		}													\
+		(qb)->npos += result;								\
 	} while (0)
 
 /*----------
@@ -6313,6 +6325,7 @@ convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 	char	escape_in_literal = CC_get_escape(qb->conn);
 	BOOL	esc_double = (qb->param_mode != RPM_BUILDING_BIND_REQUEST &&
 						  0 != escape_in_literal);
+	SQLLEN hex;
 
 	/* use hex format for 9.0 or later servers */
 	if (0 != (qb->flags & FLGB_HEX_BIN_FORMAT))
@@ -6321,7 +6334,9 @@ convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb)
 			out[o++] = escape_in_literal;
 		out[o++] = '\\';
 		out[o++] = 'x';
-		o += pg_bin2hex(in, out + o, len);
+		hex = pg_bin2hex(in, out + o, len);
+		if (hex == -1) return hex;
+		o += hex;
 		return o;
 	}
 	for (i = 0; i < len; i++)
