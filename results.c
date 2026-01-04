@@ -2691,7 +2691,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering index=" FORMAT_LEN "\n", index);
 		res->updated_keyset[upd_idx].status = status;
 		if (res->updated_tuples)
 		{
-			tuple = res->added_tuples + num_fields * upd_add_idx;
+			tuple = res->updated_tuples + num_fields * upd_idx;
 			ClearCachedRows(tuple, num_fields, 1);
 		}
 	}
