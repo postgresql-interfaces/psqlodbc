@@ -1,0 +1,8 @@
+connected
+Setting SQL_ATTR_ASYNC_ENABLE = SQL_ASYNC_ENABLE_ON
+ok, got SQL_ERROR as expected
+Setting SQL_ATTR_ASYNC_ENABLE = SQL_ASYNC_ENABLE_OFF
+ok
+Getting SQL_ATTR_ASYNC_ENABLE
+async_enable: SQL_ASYNC_ENABLE_OFF
+disconnecting
