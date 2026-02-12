@@ -1069,7 +1069,7 @@ MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 
 		default:
 			/* unrecognized key */
-			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "Unrecognized key passed to PGAPI_GetInfo.", NULL);
+			CC_set_error(conn, CONN_INVALID_INFO_TYPE, "Unrecognized key passed to PGAPI_GetInfo.", NULL);
 			goto cleanup;
 	}
 

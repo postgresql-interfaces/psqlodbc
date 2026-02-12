@@ -68,7 +68,7 @@ typedef enum
 #define CONN_UNABLE_TO_LOAD_DLL						212
 #define CONN_ILLEGAL_TRANSACT_STATE					213
 #define CONN_VALUE_OUT_OF_RANGE						214
-
+#define CONN_INVALID_INFO_TYPE						215
 #define CONN_OPTION_NOT_FOR_THE_DRIVER					216
 #define CONN_EXEC_ERROR							217
 
