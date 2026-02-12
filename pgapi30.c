@@ -2401,12 +2401,17 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			/* Whether automatic population of IPD is supported */
 			if (SQL_FALSE == Value)
 				break;
-		case SQL_ATTR_CURSOR_SCROLLABLE:		/* -1 */
 		case SQL_ATTR_CURSOR_SENSITIVITY:		/* -2 */
 		case SQL_ATTR_AUTO_IPD:	/* 10001 */
 			/* Unsupported attributes */
 			SC_set_error(stmt, DESC_OPTION_NOT_FOR_THE_DRIVER, "Unsupported statement option (Set)", func);
 			return SQL_ERROR;
+		case SQL_ATTR_CURSOR_SCROLLABLE:		/* -1 */
+			if ((SQLUINTEGER)(SQLULEN)Value == SQL_SCROLLABLE)
+				ret = PGAPI_SetStmtOption(StatementHandle, SQL_CURSOR_TYPE, SQL_CURSOR_STATIC);
+			else
+				ret = PGAPI_SetStmtOption(StatementHandle, SQL_CURSOR_TYPE, SQL_CURSOR_FORWARD_ONLY);
+			return ret;
 		/* case SQL_ATTR_ROW_BIND_TYPE: ** == SQL_BIND_TYPE(ODBC2.0) */
 		case SQL_ATTR_IMP_ROW_DESC:	/* 10012 (read-only) */
 		case SQL_ATTR_IMP_PARAM_DESC:	/* 10013 (read-only) */

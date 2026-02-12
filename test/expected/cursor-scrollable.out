@@ -1,0 +1,14 @@
+connected
+Setting SQL_ATTR_CURSOR_SCROLLABLE = SQL_SCROLLABLE
+ok
+cursor_type after SQL_SCROLLABLE: SQL_CURSOR_STATIC
+scrollable: SQL_SCROLLABLE
+Setting SQL_ATTR_CURSOR_SCROLLABLE = SQL_NONSCROLLABLE
+ok
+cursor_type after SQL_NONSCROLLABLE: SQL_CURSOR_FORWARD_ONLY
+scrollable: SQL_NONSCROLLABLE
+Testing scrollable cursor with SQL_FETCH_FIRST
+row: row1
+row: row2
+after SQL_FETCH_FIRST: row1
+disconnecting
