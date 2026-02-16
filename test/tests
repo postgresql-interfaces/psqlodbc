@@ -29,9 +29,11 @@ TESTBINS = exe/connect-test \
 	exe/boolsaschar-test \
 	exe/cvtnulldate-test \
 	exe/alter-test \
+	exe/async-enable-test \
 	exe/quotes-test \
 	exe/cursors-test \
 	exe/cursor-movement-test \
+	exe/cursor-scrollable-test \
 	exe/cursor-commit-test \
 	exe/cursor-name-test \
 	exe/cursor-block-delete-test \
@@ -51,6 +53,7 @@ TESTBINS = exe/connect-test \
 	exe/large-object-test \
 	exe/large-object-data-at-exec-test \
 	exe/odbc-escapes-test \
+	exe/odbc-conformance-test \
 	exe/wchar-char-test \
 	exe/params-batch-exec-test \
 	exe/fetch-refcursors-test \

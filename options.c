@@ -41,8 +41,14 @@ set_statement_option(ConnectionClass *conn,
 		ci = &(SC_get_conn(stmt)->connInfo);
 	switch (fOption)
 	{
-		case SQL_ASYNC_ENABLE:	/* ignored */
-			break;
+		case SQL_ASYNC_ENABLE:
+			if (vParam == SQL_ASYNC_ENABLE_ON) {
+				if (stmt)
+					SC_set_error(stmt, STMT_OPTION_NOT_FOR_THE_DRIVER,
+								 "Asynchronous execution is not supported", func);
+				return SQL_ERROR;
+			}
+			break;  /* SQL_ASYNC_ENABLE_OFF is a no-op, which is correct */
 
 		case SQL_BIND_TYPE:
 			/* now support multi-column and multi-row binding */

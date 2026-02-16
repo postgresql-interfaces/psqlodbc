@@ -1,0 +1,6 @@
+connected
+Testing SQLGetInfo with invalid info type 99999
+SQLSTATE: HY096
+Testing SQLSetConnectAttr with invalid attribute 99999
+SQLSTATE: HY092
+disconnecting

@@ -375,6 +375,12 @@ PGAPI_ConnectError(HDBC hdbc,
 			case CONN_VALUE_OUT_OF_RANGE:
 				pg_sqlstate_set(env, szSqlState, "HY019", "22003");
 				break;
+			case CONN_INVALID_INFO_TYPE:
+				pg_sqlstate_set(env, szSqlState, "HY096", "S1096");
+				break;
+			case CONN_OPTION_NOT_FOR_THE_DRIVER:
+				pg_sqlstate_set(env, szSqlState, "HY092", "S1092");
+				break;
 			case CONNECTION_COULD_NOT_SEND:
 			case CONNECTION_COULD_NOT_RECEIVE:
 			case CONNECTION_COMMUNICATION_ERROR:
