@@ -11,268 +11,209 @@ on:
     branches: [ "main" ]
 
 env:
-  # Path to the solution file relative to the root of the project.
-  SOLUTION_FILE_PATH: .
-
-  # Configuration type to build.
-  # You can convert this to a build matrix if you need coverage of multiple configuration types.
-  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
-  # Workflow versions. Increment these when you make changes to a build step in the workflow and
-  # you want the step to run, but the corresponding cache is causing the step to be skipped.
-  WORKFLOW_VERSION_POSTGRESQL: '1' # for build steps related to the 'cachePostgres' cache
+  # PostgreSQL x64 prebuilt binaries (development headers, libs, and DLLs).
+  POSTGRESQL_X64_BINARIES_FILEID: '1260042' # PG 17.9 Windows x64 from EDB
+  POSTGRESQL_X64_BINARIES_VERSION: '17.9'
 
-  # Software versions. 
-  POSTGRESQL_SOURCE_TAG: 'REL_18_STABLE'
-  POSTGRESQL_PACKAGE_FILEID: '1259019'
-  OPENSSL_VERSION: '3_3_5'
-  PKGCONFIGLITE_VERSION: '0.28-1'
+  # PostgreSQL x86 client library (built from source -- only libpq, NOT the full server).
+  # No official prebuilt x86 PostgreSQL binaries exist since PG 11.
+  POSTGRESQL_SOURCE_TAG: 'REL_17_STABLE'
   WINFLEXBISON_VERSION: '2.5.24'
+  WORKFLOW_VERSION_X86_CLIENT: '1' # increment to invalidate cache
+
+  # PostgreSQL x64 test server (EDB installer).
+  POSTGRESQL_PACKAGE_FILEID: '1259019'
+
+  # Test utilities.
   DIFFUTILS_VERSION: '2.8.7-1'
 
 permissions:
   contents: read
 
 jobs:
-  build_and_test:
+  build-and-test:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [standard, mimalloc]
 
     steps:
-    - name: Cache Postgres build output
+    # ===================================================================
+    # PostgreSQL x64 development files (prebuilt binaries)
+    # ===================================================================
+    - name: Cache PostgreSQL x64 binaries
       uses: actions/cache@v4
-      id: cachePostgres
+      id: cachePgx64
       with:
-        path: |
-          d:\postgresql
-          d:\postgresql86
-        key: postgresql-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL}}
+        path: d:\postgresql
+        key: pg-x64-binaries-${{env.POSTGRESQL_X64_BINARIES_VERSION}}
 
-    - name: Cache Postgres source
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
+    - name: Download PostgreSQL x64 binaries
+      if: steps.cachePgx64.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        $url = "https://sbp.enterprisedb.com/getfile.jsp?fileid=$env:POSTGRESQL_X64_BINARIES_FILEID"
+        Write-Host "Downloading PostgreSQL x64 binaries..."
+        Invoke-WebRequest -Uri $url -OutFile pg-x64.zip
+        Expand-Archive pg-x64.zip -DestinationPath d:\pg-x64-tmp
+        Move-Item d:\pg-x64-tmp\pgsql d:\postgresql
+        Remove-Item pg-x64.zip, d:\pg-x64-tmp -Recurse -ErrorAction SilentlyContinue
+
+    # ===================================================================
+    # PostgreSQL x86 client library (minimal build from source)
+    #
+    # Only the libpq client library is needed to compile and test the
+    # x86 ODBC driver. The test SERVER is always x64.
+    # SSL is not required for CI tests (localhost connections).
+    # ===================================================================
+    - name: Cache PostgreSQL x86 client library
       uses: actions/cache@v4
-      id: cachePostgresSource
+      id: cachePgx86
+      with:
+        path: d:\postgresql86
+        key: pg-x86-client-${{env.POSTGRESQL_SOURCE_TAG}}-${{env.WORKFLOW_VERSION_X86_CLIENT}}
+
+    - name: Cache PostgreSQL source
+      if: steps.cachePgx86.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cachePgSource
       with:
         path: postgres
-        key: postgres-source-${{env.POSTGRESQL_SOURCE_TAG}}
-    - name: Get Postgres source
+        key: pg-source-${{env.POSTGRESQL_SOURCE_TAG}}
+    - name: Get PostgreSQL source
+      if: steps.cachePgx86.outputs.cache-hit != 'true' && steps.cachePgSource.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
-      if: ${{steps.cachePostgresSource.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
       with:
         repository: "postgres/postgres.git"
         ref: ${{env.POSTGRESQL_SOURCE_TAG}}
         path: postgres
 
-    - name: 'get meson'
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      run: |
-        python -m pip install meson
-        python -m pip install ninja
+    - name: Install meson and ninja
+      if: steps.cachePgx86.outputs.cache-hit != 'true'
+      run: python -m pip install meson ninja
 
-    - name: Cache GNU diffutils for Test on PostgreSQL for Windows
+    - name: Cache winflexbison
+      if: steps.cachePgx86.outputs.cache-hit != 'true'
       uses: actions/cache@v4
-      id: cacheDiffutilsZip
-      with:
-        path: C:\OTHERBIN\diffutils
-        key: diff_utils-${{env.DIFFUTILS_VERSION}}
-      env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
-    - name: Cache PostgreSQL installer
-      uses: actions/cache@v4
-      id: cachePostgresInstaller
-      with:
-        path: C:\OTHERBIN\postgresql_install.exe
-        key: postgresql_installer-${{env.POSTGRESQL_PACKAGE_FILEID}}
-    - name: Cache pkgconfiglite for Compile using msvc and meson
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: actions/cache@v4
-      id: cachePkgConfigLiteZip
-      with:
-        path: C:\OTHERBIN\pkgconfiglite
-        key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
-      env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
-    - name: Cache Win32OpenSSL32 for Win32Compile
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: actions/cache@v4
-      id: cacheWin32OpenSSL
-      with:
-        path: C:\OTHERBIN\openssl32
-        key: Win32OpenSSL-${{env.OPENSSL_VERSION}}
-    - name: Cache Win64OpenSSL64 for Win64Compile
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: actions/cache@v4
-      id: cacheWin64OpenSSL
-      with:
-        path: C:\OTHERBIN\openssl64
-        key: Win64OpenSSL-${{env.OPENSSL_VERSION}}
-    - name: Cache winflexbison for Compile using msvc
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: actions/cache@v4
-      id: cacheWinFlexBisonZip
+      id: cacheWinFlexBison
       with:
         path: C:\OTHERBIN\winflexbison
         key: winflexbison-${{env.WINFLEXBISON_VERSION}}
       env:
-        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1    
-
-    - name: Download GNU diffutils for Test on PostgreSQL for Windows 
-      if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true'}}
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download winflexbison
+      if: steps.cachePgx86.outputs.cache-hit != 'true' && steps.cacheWinFlexBison.outputs.cache-hit != 'true'
       uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadDiffutilsZip
-      with:
-        retry-times: 5
-        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/${{env.DIFFUTILS_VERSION}}/diffutils-${{env.DIFFUTILS_VERSION}}-bin.zip
-        filename: diffutils-bin.zip
-    
-    - name: Download openssl32 for win32 compile
-      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadWin32OpenSSL
-      with:
-        retry-times: 5
-        url: https://slproweb.com/download/Win32OpenSSL-${{env.OPENSSL_VERSION}}.exe
-        filename: Win32OpenSSL.exe
-    
-    - name: Download openssl64 for win64 compile
-      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadWin64OpenSSL
-      with:
-        retry-times: 5
-        url: https://slproweb.com/download/Win64OpenSSL-${{env.OPENSSL_VERSION}}.exe
-        filename: Win64OpenSSL.exe
-  
-    - name: Download pkgconfiglite for Compile using msvc and meson
-      if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadPkgConfigLiteZip
-      with:
-        retry-times: 5
-        url: http://downloads.sourceforge.net/project/pkgconfiglite/${{env.PKGCONFIGLITE_VERSION}}/pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}_bin-win32.zip
-        filename: pkg-config-lite_bin-win32.zip
-
-    - name: Download winflexbison for Compile using msvc
-      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: suisei-cn/actions-download-file@v1.6.0
-      id: downloadWinFlexBisonZip
+      id: downloadWinFlexBison
       with:
         retry-times: 5
         url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-${{env.WINFLEXBISON_VERSION}}.zip
         filename: win_flex_bison.zip
+    - name: Extract winflexbison
+      if: steps.cachePgx86.outputs.cache-hit != 'true' && steps.cacheWinFlexBison.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\winflexbison"
+        7z x win_flex_bison.zip -o"C:\OTHERBIN\winflexbison"
+    - name: Add winflexbison to PATH
+      if: steps.cachePgx86.outputs.cache-hit != 'true'
+      shell: cmd
+      run: printf "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
 
-    - name: Download postgresql install from EDB
+    - name: Setup MSVC x86 for libpq build
+      if: steps.cachePgx86.outputs.cache-hit != 'true'
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: x86
+    - name: Build PostgreSQL x86 client library
+      if: steps.cachePgx86.outputs.cache-hit != 'true'
+      working-directory: postgres
+      shell: pwsh
+      run: |
+        # Headers are architecture-independent; reuse from the prebuilt x64 binaries.
+        New-Item -ItemType Directory -Path d:\postgresql86 -Force
+        Copy-Item -Recurse d:\postgresql\include d:\postgresql86\include
+
+        # Configure a minimal build (no SSL needed for CI localhost tests).
+        meson setup buildx86 --prefix=d:\postgresql86
+
+        # Build only the libpq client library (and its dependencies).
+        # This is much faster than building the full PostgreSQL server.
+        meson compile -C buildx86 src/interfaces/libpq/libpq:shared_library
+
+        # Install only the files needed for compiling the x86 ODBC driver.
+        New-Item -ItemType Directory -Path d:\postgresql86\lib, d:\postgresql86\bin -Force
+        Get-ChildItem buildx86 -Recurse -Filter "libpq.lib" | Copy-Item -Destination d:\postgresql86\lib\
+        Get-ChildItem buildx86 -Recurse -Filter "libpq.dll" | Copy-Item -Destination d:\postgresql86\bin\
+
+    # ===================================================================
+    # Common test dependencies
+    # ===================================================================
+    - name: Cache GNU diffutils
+      uses: actions/cache@v4
+      id: cacheDiffutils
+      with:
+        path: C:\OTHERBIN\diffutils
+        key: diffutils-${{env.DIFFUTILS_VERSION}}
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download GNU diffutils
+      if: steps.cacheDiffutils.outputs.cache-hit != 'true'
       uses: suisei-cn/actions-download-file@v1.6.0
-      if: ${{steps.cachePostgresInstaller.outputs.cache-hit != 'true'}}
-      id: downloadPostgresInstaller
+      id: downloadDiffutils
+      with:
+        retry-times: 5
+        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/${{env.DIFFUTILS_VERSION}}/diffutils-${{env.DIFFUTILS_VERSION}}-bin.zip
+        filename: diffutils-bin.zip
+    - name: Extract GNU diffutils
+      if: steps.cacheDiffutils.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\diffutils"
+        7z x diffutils-bin.zip -o"C:\OTHERBIN\diffutils"
+    - name: Add diffutils to PATH
+      shell: cmd
+      run: printf "C:\\OTHERBIN\\diffutils\\bin" >> %GITHUB_PATH%
+
+    # ===================================================================
+    # PostgreSQL x64 test server
+    # ===================================================================
+    - name: Cache PostgreSQL installer
+      uses: actions/cache@v4
+      id: cacheInstaller
+      with:
+        path: C:\OTHERBIN\postgresql_install.exe
+        key: pg-installer-${{env.POSTGRESQL_PACKAGE_FILEID}}
+    - name: Download PostgreSQL installer
+      if: steps.cacheInstaller.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadInstaller
       with:
         retry-times: 5
         url: https://sbp.enterprisedb.com/getfile.jsp?fileid=${{env.POSTGRESQL_PACKAGE_FILEID}}
         target: c:\OTHERBIN
         filename: postgresql_install.exe
-
-    - name: Extract Diffutils for Test on PostgreSQL for Windows
-      if: ${{steps.cacheDiffutilsZip.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: |
-        rem MKDIR creates any intermediate directories in the path, if needed.
-        mkdir "C:\OTHERBIN\diffutils"
-        rem 7z is provided by Github Actions
-        7z x diffutils-bin.zip -o"C:\OTHERBIN\diffutils"
-    - name: Add Diffutils bin directory to the PATH for Test on PostgreSQL for Windows
-      shell: cmd
-      run: |
-        rem - man7.org/linux/man-pages/man1/printf.1.html
-        printf "C:\\OTHERBIN\\diffutils\\bin" >> %GITHUB_PATH%
-
-    - name: Extract pkgconfiglite for Compile using msvc and meson
-      if: ${{steps.cachePkgConfigLiteZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: |
-        rem MKDIR creates any intermediate directories in the path, if needed.
-        mkdir "C:\OTHERBIN\pkgconfiglite"
-        rem 7z is provided by Github Actions
-        7z x pkg-config-lite_bin-win32.zip -o"C:\OTHERBIN\pkgconfiglite"
-    - name: Add pkgconfiglite bin directory to the PATH for Compile using msvc and meson
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: |
-        rem - man7.org/linux/man-pages/man1/printf.1.html
-        printf "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-%PKGCONFIGLITE_VERSION%\\bin" >> %GITHUB_PATH%
-
-    - name: Install Win32OpenSSL
-      if: ${{steps.cacheWin32OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: Win32OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl32
-
-    - name: Install Win64OpenSSL
-      if: ${{steps.cacheWin64OpenSSL.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: Win64OpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl64
-
-      # Choco Install winflexbison
-      # BUT the "crazy-max/ghaction-chocolatey@v2" "install pkgconfiglite" file download often times-out
-    - name: Extract winflexbison for Compile using msvc
-      if: ${{steps.cacheWinFlexBisonZip.outputs.cache-hit != 'true' && steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: |
-        rem MKDIR creates any intermediate directories in the path, if needed.
-        mkdir "C:\OTHERBIN\winflexbison"
-        rem 7z is provided by Github Actions
-        7z x win_flex_bison.zip -o"C:\OTHERBIN\winflexbison"
-    - name: Add the winflexbison directory to the PATH for Compile using msvc
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      shell: cmd
-      run: |
-        rem - man7.org/linux/man-pages/man1/printf.1.html
-        printf "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
-
-    - name: 'setup msvc x86'
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: TheMrMilchmann/setup-msvc-dev@v3
-      with: 
-        arch: x86
-    - name: 'build postgresx86'    
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      working-directory: postgres
-      run: |
-        meson setup buildx86 -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl32\lib\VC\x86\MT -Dextra_include_dirs=c:\OTHERBIN\openssl32\include --prefix=d:\postgresql86
-        cd buildx86
-        ninja -v 
-        ninja -v install
-        cp c:\OTHERBIN\openssl32\*.dll d:\postgresql86\bin
-    - name: 'setup msvc x64'    
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      uses: TheMrMilchmann/setup-msvc-dev@v3
-      with: 
-        arch: x64
-    - name : 'build postgres x64'
-      if: ${{steps.cachePostgres.outputs.cache-hit != 'true'}}
-      working-directory: postgres
-      run: |
-        meson setup build -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl64\lib\VC\x64\MT -Dextra_include_dirs=c:\OTHERBIN\openssl64\include --prefix=d:\postgresql
-        cd build
-        ninja
-        ninja install
-        cp c:\OTHERBIN\openssl64\*.dll d:\postgresql\bin
-    - name: install postgresql binary
+    - name: Install and start PostgreSQL server
       shell: cmd
       run: |
         echo on
-        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server    
-    - name: start postgresql
-      shell: cmd
-      run: |
-        echo on
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server
         sc config "postgresql-x64-17" start= auto
-    - name: get psqlodbc
+
+    # ===================================================================
+    # Build and test psqlodbc
+    # ===================================================================
+    - name: Checkout psqlodbc
       uses: actions/checkout@v4
       with:
         path: psqlodbc
         submodules: true
-    - name: 'setup msvc for psqlodbc'
+    - name: Setup MSVC for psqlodbc
       uses: TheMrMilchmann/setup-msvc-dev@v3
-      with: 
+      with:
         arch: x86
 
     - name: Install WiX
@@ -281,118 +222,87 @@ jobs:
         dotnet tool install --global wix
         wix extension add --global WixToolset.UI.wixext/6.0.0
 
-    - name: build psqlodbc standard
-      shell: powershell      
-      working-directory: psqlodbc
-      run: |
-        copy .github\workflows\configuration.xml winbuild
-        winbuild\BuildAll.ps1
-        installer\buildInstallers.ps1
-      env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\standard
-    - name: test psqlodbc standard
+    - name: Build psqlodbc ${{matrix.variant}}
       shell: powershell
       working-directory: psqlodbc
       run: |
-        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
-        standard\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
-        standard\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
-      env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\standard
-
-    - name: build psqlodbc mimalloc
-      shell: powershell      
-      working-directory: psqlodbc
-      run: |
         copy .github\workflows\configuration.xml winbuild
-        winbuild\BuildAll.ps1 -UseMimalloc
+        if ('${{matrix.variant}}' -eq 'mimalloc') {
+          winbuild\BuildAll.ps1 -UseMimalloc
+        } else {
+          winbuild\BuildAll.ps1
+        }
         installer\buildInstallers.ps1
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\mimalloc
-    - name: test psqlodbc mimalloc
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\${{matrix.variant}}
+    - name: Test psqlodbc ${{matrix.variant}}
       shell: powershell
       working-directory: psqlodbc
       run: |
-        winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ExpectMimalloc
-        mimalloc\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
-        mimalloc\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
+        if ('${{matrix.variant}}' -eq 'mimalloc') {
+          winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ExpectMimalloc
+        } else {
+          winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+        }
+        ${{matrix.variant}}\test_x86\RegisterRegdsn.exe uninstall_driver postgres_devw
+        ${{matrix.variant}}\test_x64\RegisterRegdsn.exe uninstall_driver postgres_devw
       env:
-        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\mimalloc
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\${{matrix.variant}}
 
-    - name: Upload standard x64 merge module
+    # ===================================================================
+    # Upload artifacts
+    # ===================================================================
+    - name: Upload ${{matrix.variant}} x64 merge module
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC Standard x64 Merge Module
-        path: psqlodbc/winbuild/standard/installer/x64/*.msm
+        name: psqlODBC ${{matrix.variant}} x64 Merge Module
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/x64/*.msm
         retention-days: 5
         if-no-files-found: error
-    - name: Upload standard x64 installer package
+    - name: Upload ${{matrix.variant}} x64 installer package
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC Standard x64 Installer
-        path: psqlodbc/winbuild/standard/installer/x64/*.msi
+        name: psqlODBC ${{matrix.variant}} x64 Installer
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/x64/*.msi
         retention-days: 5
         if-no-files-found: error
-    - name: Upload standard x86 merge module
+    - name: Upload ${{matrix.variant}} x86 merge module
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC Standard x86 Merge Module
-        path: psqlodbc/winbuild/standard/installer/x86/*.msm
+        name: psqlODBC ${{matrix.variant}} x86 Merge Module
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/x86/*.msm
         retention-days: 5
         if-no-files-found: error
-    - name: Upload standard x86 installer package
+    - name: Upload ${{matrix.variant}} x86 installer package
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC Standard x86 Installer
-        path: psqlodbc/winbuild/standard/installer/x86/*.msi
+        name: psqlODBC ${{matrix.variant}} x86 Installer
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/x86/*.msi
         retention-days: 5
         if-no-files-found: error
-    - name: Upload standard x64 setup
+    - name: Upload ${{matrix.variant}} x64 setup
       uses: actions/upload-artifact@v4
       with:
-        name: psqlODBC Standard x64 Setup
-        path: psqlodbc/winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
+        name: psqlODBC ${{matrix.variant}} x64 Setup
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
         retention-days: 5
         if-no-files-found: error
 
-    - name: Upload mimalloc x64 merge module
-      uses: actions/upload-artifact@v4
+  # ===================================================================
+  # Release (only on version tags)
+  # ===================================================================
+  release:
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/REL-')
+    runs-on: windows-latest
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
       with:
-        name: psqlODBC mimalloc x64 Merge Module
-        path: psqlodbc/winbuild/mimalloc/installer/x64/*.msm
-        retention-days: 5
-        if-no-files-found: error
-    - name: Upload mimalloc x64 installer package
-      uses: actions/upload-artifact@v4
-      with:
-        name: psqlODBC mimalloc x64 Installer
-        path: psqlodbc/winbuild/mimalloc/installer/x64/*.msi
-        retention-days: 5
-        if-no-files-found: error
-    - name: Upload mimalloc x86 merge module
-      uses: actions/upload-artifact@v4
-      with:
-        name: psqlODBC mimalloc x86 Merge Module
-        path: psqlodbc/winbuild/mimalloc/installer/x86/*.msm
-        retention-days: 5
-        if-no-files-found: error
-    - name: Upload mimalloc x86 installer package
-      uses: actions/upload-artifact@v4
-      with:
-        name: psqlODBC mimalloc x86 Installer
-        path: psqlodbc/winbuild/mimalloc/installer/x86/*.msi
-        retention-days: 5
-        if-no-files-found: error
-    - name: Upload mimalloc x64 setup
-      uses: actions/upload-artifact@v4
-      with:
-        name: psqlODBC mimalloc x64 Setup
-        path: psqlodbc/winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe
-        retention-days: 5
-        if-no-files-found: error
+        path: artifacts
 
     - name: Create mimalloc Release
-      if: startsWith(github.ref, 'refs/tags/REL-')
       uses: ncipollo/release-action@v1.14.0
       id: create_mimalloc_release
       with:
@@ -403,9 +313,8 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "psqlodbc/winbuild/mimalloc/installer/x64/*.ms?,psqlodbc/winbuild/mimalloc/installer/x86/*.ms?,psqlodbc/winbuild/mimalloc/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+        artifacts: "artifacts/psqlODBC mimalloc*/**/*"
     - name: Create Standard Release
-      if: startsWith(github.ref, 'refs/tags/REL-')
       uses: ncipollo/release-action@v1.14.0
       id: create_standard_release
       with:
@@ -413,4 +322,4 @@ jobs:
         draft: false
         prerelease: false
         token: ${{secrets.RELEASE_TOKEN}}
-        artifacts: "psqlodbc/winbuild/standard/installer/x64/*.ms?,psqlodbc/winbuild/standard/installer/x86/*.ms?,psqlodbc/winbuild/standard/installer/psqlodbc-setup/bin/Release/psqlodbc-setup.exe"
+        artifacts: "artifacts/psqlODBC standard*/**/*"
