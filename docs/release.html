@@ -10,6 +10,26 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+ <h2><a id="17.00.0008">psqlODBC 17.00.0008 Release</a></h2>
+ Changes:<br />
+ <li>
+   Security: Update OpenSSL to version 3.3.6 (CVE-2025-15467) <a href="https://github.com/postgresql/psqlodbc/issues/158">issue #158</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+ <li>
+   Fix: Fixes for issue #153 <a href="https://github.com/postgresql/psqlodbc/pull/155">PR #155</a>
+   Author: <a href="https://github.com/fdcastel">F.D.Castel</a>
+ </li>
+ <li>
+   Fix: Bug causing out-of-bounds memory access in AddUpdated when updating cached row status <a href="https://github.com/postgresql/psqlodbc/pull/151">PR #151</a>
+   Author: <a href="https://github.com/yashwanthchandolu">Yashwanth Chandolu</a>
+ </li>
+ <li>
+   Fix: Check for errors in convert_to_pgbinary instead of ignoring return value of -1 from pg_bin2hex <a href="https://github.com/postgresql/psqlodbc/pull/150">PR #150</a>
+   Author: <a href="https://github.com/davecramer">Dave Cramer</a>
+ </li>
+</ol>
+<ol type="1">
  <h2><a id="17.00.0007">psqlODBC 17.00.0007 Release</a></h2>
  Changes:<br />
  <li>
@@ -28,7 +48,8 @@
    Refactor: check the datestyle before setting it, if it is different than ISO change it, otherwise leave it as is <a href="https://github.com/postgresql/psqlodbc/pull/144">PR #144</a>
    Author: <a href="https://github.com/davecramer">Dave Cramer</a>
  </li>
-
+</ol>
+<ol type="1">
  <h2><a id="17.00.0006">psqlODBC 17.00.0006 Release</a></h2>
  Changes:<br />
   <li>
