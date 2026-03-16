@@ -33,9 +33,9 @@ installcheck: all odbc.ini reset-db runsuite
 # If the perl 'prove' test running utility is available, use it. It produces
 # nice output. But otherwise just run the plain suite, it's usable as is too.
 ifdef PROVE
-	prove -e ./runsuite $(TESTNAMES) :: --inputdir=$(origdir)
+	prove -e ./runsuite $(TESTNAMES) :: --inputdir=$(origdir) $(if $(server_version),--server-version=$(server_version))
 else
-	./runsuite $(TESTNAMES) --inputdir=$(origdir)
+	./runsuite $(TESTNAMES) --inputdir=$(origdir) $(if $(server_version),--server-version=$(server_version))
 endif
 
 override CFLAGS += -Wno-pointer-sign $(CFLAGS_ADD)

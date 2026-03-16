@@ -27,8 +27,8 @@
 #define strdup _strdup
 #endif
 
-static int rundiff(const char *testname, const char *inputdir);
-static int runtest(const char *binname, const char *testname, int testno, const char *inputdir);
+static int rundiff(const char *testname, const char *inputdir, int server_version);
+static int runtest(const char *binname, const char *testname, int testno, const char *inputdir, int server_version);
 
 static char *slurpfile(const char *filename, size_t *len);
 
@@ -109,16 +109,24 @@ int main(int argc, char **argv)
 	int			failures;
 	const char	*inputdir = ".";
 	int		sub_count = 1;
+	int		server_version = 0;
 
 	if (argc < 2)
 	{
 		printf("Usage: runsuite <test binary> ...\n");
 		exit(1);
 	}
-	if (strncmp(argv[argc - 1], "--inputdir=", 11) == 0)
+	/* Parse trailing options */
+	while (argc - sub_count >= 2)
 	{
+		const char *arg = argv[argc - sub_count];
+		if (strncmp(arg, "--inputdir=", 11) == 0)
+			inputdir = arg + 11;
+		else if (strncmp(arg, "--server-version=", 17) == 0)
+			server_version = atoi(arg + 17);
+		else
+			break;
 		sub_count++;
-		inputdir = argv[argc - 1] + 11;
 	}
 	numtests = argc - sub_count;
 
@@ -132,7 +140,7 @@ int main(int argc, char **argv)
 	for (i = 1, j = 1; i <= numtests; i++, j++)
 	{
 		parse_argument(argv[j], testname, binname);
-		if (runtest(binname, testname, i, inputdir) != 0)
+		if (runtest(binname, testname, i, inputdir, server_version) != 0)
 			failures++;
 	}
 
@@ -141,7 +149,7 @@ int main(int argc, char **argv)
 
 /* Return 0 on success, 1 on failure */
 static int
-runtest(const char *binname, const char *testname, int testno, const char *inputdir)
+runtest(const char *binname, const char *testname, int testno, const char *inputdir, int server_version)
 {
 	char		cmdline[1024];
 	int			rc;
@@ -170,7 +178,7 @@ runtest(const char *binname, const char *testname, int testno, const char *input
 #endif
 	rc = system(cmdline);
 
-	diff = rundiff(testname, inputdir);
+	diff = rundiff(testname, inputdir, server_version);
 	if (rc != 0)
 	{
 		printf("not ok %d - %s test returned %d\n", testno, testname, rc);
@@ -233,9 +241,10 @@ call_diff(const char *inputdir, const char *expected_dir, const char *testname, 
 }
 
 static int
-rundiff(const char *testname, const char *inputdir)
+rundiff(const char *testname, const char *inputdir, int server_version)
 {
 	char		filename[1024];
+	char		ver_expected_dir[64];
 	int		outputno, no_spec;
 	char	   *result = NULL;
 	size_t		result_len;
@@ -250,6 +259,20 @@ rundiff(const char *testname, const char *inputdir)
 	int		i, j;
 	const char	CR = '\r', LF = '\n';
 	char		se, sr;
+	const char	*dirs[2];
+	int		num_dirs = 0;
+
+	/* Build list of expected directories to check (version-specific first) */
+	if (server_version > 0)
+	{
+#ifdef	WIN32
+		snprintf(ver_expected_dir, sizeof(ver_expected_dir), "\\expected\\v%d\\", server_version);
+#else
+		snprintf(ver_expected_dir, sizeof(ver_expected_dir), "/expected/v%d/", server_version);
+#endif
+		dirs[num_dirs++] = ver_expected_dir;
+	}
+	dirs[num_dirs++] = expected_dir;
 
 	snprintf(filename, sizeof(filename), "%s%s.out", result_dir, testname);
 	result = slurpfile(filename, &result_len);
@@ -259,74 +282,82 @@ rundiff(const char *testname, const char *inputdir)
 	{
 		char	   *expected;
 		size_t		expected_len;
+		int		d;
+		int		found = 0;
 
-		if (outputno == 0)
-			snprintf(filename, sizeof(filename), "%s%s%s.out", inputdir, expected_dir, testname);
-		else
-			snprintf(filename, sizeof(filename), "%s%s%s_%d.out", inputdir, expected_dir, testname, outputno);
-		expected = slurpfile(filename, &expected_len);
-		if (expected == NULL)
+		/* Try each expected directory (version-specific first) */
+		for (d = 0; d < num_dirs; d++)
 		{
 			if (outputno == 0)
-				bailout("could not open file %s: %s\n", filename, strerror(ENOENT));
-			break;
-		}
-
-		if (expected_len == result_len &&
-			memcmp(expected, result, expected_len) == 0)
-		{
-			/* The files are equal. */
-			free(result);
-			free(expected);
-			return 0;
-		}
-		/* Ignore the difference between CR LF, LF and CR line break */
-		for (i = 0, j = 0, se = sr = '\0'; i < expected_len && j < result_len;
-				se = expected[i], sr = result[j], i++, j++)
-		{
-			if (expected[i] == result[j])
+				snprintf(filename, sizeof(filename), "%s%s%s.out", inputdir, dirs[d], testname);
+			else
+				snprintf(filename, sizeof(filename), "%s%s%s_%d.out", inputdir, dirs[d], testname, outputno);
+			expected = slurpfile(filename, &expected_len);
+			if (expected == NULL)
 				continue;
-			if (result[j] == LF)
+			found = 1;
+
+			if (expected_len == result_len &&
+				memcmp(expected, result, expected_len) == 0)
 			{
-				if (expected[i] == CR)
+				free(result);
+				free(expected);
+				return 0;
+			}
+			/* Ignore the difference between CR LF, LF and CR line break */
+			for (i = 0, j = 0, se = sr = '\0'; i < expected_len && j < result_len;
+					se = expected[i], sr = result[j], i++, j++)
+			{
+				if (expected[i] == result[j])
+					continue;
+				if (result[j] == LF)
 				{
-					i++;
-					if (expected[i] != LF)
+					if (expected[i] == CR)
+					{
+						i++;
+						if (expected[i] != LF)
+							i--;
+						continue;
+					}
+					else if (sr == CR && se == CR)
+					{
 						i--;
-					continue;
+						continue;
+					}
 				}
-				else if (sr == CR && se == CR)
+				else if (expected[i] == LF)
 				{
-					i--;
-					continue;
-				}
-			}
-			else if (expected[i] == LF)
-			{
-				if (result[j] == CR)
-				{
-					j++;
-					if (result[j] != LF)
+					if (result[j] == CR)
+					{
+						j++;
+						if (result[j] != LF)
+							j--;
+						continue;
+					}
+					else if (sr == CR && se == CR)
+					{
 						j--;
-					continue;
+						continue;
+					}
 				}
-				else if (sr == CR && se == CR)
-				{
-					j--;
-					continue;
-				}
+				break;
 			}
-			break;
-		}
-		if (i >= expected_len && j >= result_len)
-		{
-			/* The files are equal. */
-			free(result);
+			if (i >= expected_len && j >= result_len)
+			{
+				free(result);
+				free(expected);
+				return 0;
+			}
+
 			free(expected);
-			return 0;
 		}
 
-		free(expected);
+		if (!found)
+		{
+			if (outputno == 0)
+				bailout("could not open file %s%s%s.out: %s\n", inputdir, dirs[num_dirs - 1], testname, strerror(ENOENT));
+			break;
+		}
 
 		outputno++;
 	}
@@ -370,41 +401,53 @@ rundiff(const char *testname, const char *inputdir)
 	 * diff.
 	 */
 	no_spec = 0;
-	if (outputno > 1)
 	{
+		const char	*best_dir = dirs[num_dirs - 1];
 		const char	*tmpdiff = "tmpdiff.diffs";
 		char	outfmt[32];
-		int	fd, file_size;
+		int	fd, file_size, d;
 		struct stat stbuf;
 		int	min_size = -1;
 
 		snprintf(outfmt, sizeof(outfmt), "> %s", tmpdiff);
 		for (i = 0; i < outputno; i++)
 		{
-			call_diff(inputdir, expected_dir, testname, i, result_dir, outfmt);
-			if ((fd = open(tmpdiff, O_RDONLY)) < 0)
-				break;
-			if (fstat(fd, &stbuf) == -1)
-				break;
-			if (file_size = stbuf.st_size, file_size == 0)
+			for (d = 0; d < num_dirs; d++)
 			{
-				min_size = 0;
-				no_spec = i;
+				call_diff(inputdir, dirs[d], testname, i, result_dir, outfmt);
+				if ((fd = open(tmpdiff, O_RDONLY)) < 0)
+					continue;
+				if (fstat(fd, &stbuf) == -1)
+				{
+					close(fd);
+					continue;
+				}
+				if (file_size = stbuf.st_size, file_size == 0)
+				{
+					min_size = 0;
+					no_spec = i;
+					best_dir = dirs[d];
+				}
+				else if (min_size < 0)
+				{
+					min_size = file_size;
+					no_spec = i;
+					best_dir = dirs[d];
+				}
+				else if (file_size < min_size)
+				{
+					no_spec = i;
+					min_size = file_size;
+					best_dir = dirs[d];
+				}
+				close(fd);
 			}
-			else if (min_size < 0)
-				min_size = file_size;
-			else if (file_size < min_size)
-			{
-				no_spec = i;
-				min_size = file_size;
-			}
-			close(fd);
 		}
 		remove(tmpdiff);
 		if (min_size == 0)
 			return 0;
+		diff_rtn = call_diff(inputdir, best_dir, testname, no_spec, result_dir, ">> regression.diffs");
 	}
-	diff_rtn = call_diff(inputdir, expected_dir, testname, no_spec, result_dir, ">> regression.diffs");
 
 	return diff_rtn;
 }

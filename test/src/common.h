@@ -57,3 +57,10 @@ extern void print_result(HSTMT hstmt);
 extern void print_result_with_column_names(HSTMT hstmt);
 extern const char *datatype_str(SQLSMALLINT datatype);
 extern const char *nullable_str(SQLSMALLINT nullable);
+extern int server_version_cmp(SQLHDBC hconn, int major, int minor);
+
+#define server_version_lt(hconn, major, minor) (server_version_cmp(hconn, major, minor) < 0)
+#define server_version_gt(hconn, major, minor) (server_version_cmp(hconn, major, minor) > 0)
+#define server_version_ge(hconn, major, minor) (server_version_cmp(hconn, major, minor) >= 0)
+#define server_version_le(hconn, major, minor) (server_version_cmp(hconn, major, minor) <= 0)
+#define server_version_eq(hconn, major, minor) (server_version_cmp(hconn, major, minor) == 0)
