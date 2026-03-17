@@ -1,0 +1,58 @@
+Test for rollback protocol 0
+connected
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for type integer: "fail1";
+Error while executing the query
+Rolling back with SQLEndTran
+Executing query that will succeed
+Result set:
+1
+disconnecting
+Test for rollback protocol 1
+connected
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for type integer: "fail1";
+Error while executing the query
+Executing query that will succeed
+Result set:
+1
+disconnecting
+Test for rollback protocol 2
+connected
+Executing query that will succeed
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for type integer: "fail-1";
+Error while executing the query
+Executing query that will succeed
+Executing query that will succeed
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for type integer: "fail-1";
+Error while executing the query
+Executing query that will fail
+Failed to execute statement
+22P02=ERROR: invalid input syntax for type integer: "fail-1";
+Error while executing the query
+Executing query that will succeed
+Executing procedure call that will fail
+Failed to execute procedure call
+42883=ERROR: function invalidfunction() does not exist
+DETAIL: There is no function of that name.;
+Error while executing the query
+Executing query that will succeed
+Executing query that will succeed
+Result set:
+1
+2
+3
+4
+5
+6
+7
+disconnecting

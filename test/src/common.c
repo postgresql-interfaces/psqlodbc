@@ -402,3 +402,25 @@ print_result_with_column_names(HSTMT hstmt)
 {
 	print_result_all(hstmt, TRUE);
 }
+
+/*
+ * Check server version against a major.minor version.
+ * Returns: -1 if server < given version, 0 if equal, 1 if server > given version.
+ * Returns -2 on error.
+ */
+int
+server_version_cmp(SQLHDBC hconn, int major, int minor)
+{
+	char	ver[32];
+	int		srv_major = 0, srv_minor = 0;
+
+	if (!SQL_SUCCEEDED(SQLGetInfo(hconn, SQL_DBMS_VER, ver, sizeof(ver), NULL)))
+		return -2;
+	if (sscanf(ver, "%d.%d", &srv_major, &srv_minor) < 2)
+		return -2;
+	if (srv_major != major)
+		return (srv_major > major) ? 1 : -1;
+	if (srv_minor != minor)
+		return (srv_minor > minor) ? 1 : -1;
+	return 0;
+}

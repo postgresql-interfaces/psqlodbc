@@ -99,7 +99,9 @@ int main(int argc, char **argv)
 	}
 
 	runtest(hstmt, 1);
-	runtest(hstmt, 0);
+	if (server_version_lt(conn, 19, 0)) {
+		runtest(hstmt, 0);	
+	}
 
 	/* Clean up */
 	test_disconnect();
