@@ -28,9 +28,11 @@ AC_CHECK_SIZEOF([bool], [],
 #include <stdbool.h>
 #endif])
 
+AC_CHECK_HEADER_STDBOOL()
+
 dnl We use <stdbool.h> if we have it and it declares type bool as having
 dnl size 1.  Otherwise, c.h will fall back to declaring bool as unsigned char.
-if test "$ac_cv_header_stdbool_h" = yes -a "$ac_cv_sizeof_bool" = 1; then
+if test "$ac_cv_header_stdbool_h" = yes && test "$ac_cv_sizeof_bool" = 1; then
   AC_DEFINE([PG_USE_STDBOOL], 1,
             [Define to 1 to use <stdbool.h> to define type bool.])
 fi
