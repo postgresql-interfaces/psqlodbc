@@ -1,0 +1,100 @@
+name: Linux Build
+run-name: psql ODBC Linux CI - ${{ github.event.head_commit.message }}
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Debian (Ubuntu)
+          - os: ubuntu-latest
+            name: Red Hat (Fedora)
+            container: fedora:latest
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container || '' }}
+
+    steps:
+    - name: Install dependencies (Debian)
+      if: matrix.container == ''
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential autoconf automake libtool \
+          libpq-dev unixodbc-dev unixodbc \
+          postgresql postgresql-client
+        if ! command -v odbc_config >/dev/null 2>&1; then
+          sudo tee /usr/local/bin/odbc_config > /dev/null <<'EOF'
+        #!/bin/sh
+        case $1 in
+        	--include-prefix) echo "/usr/include" ;;
+        	--lib-prefix) echo "/usr/lib" ;;
+        	--libs) echo "-lodbc" ;;
+        	*) echo "$0: unknown argument '$1'"; exit 1 ;;
+        esac
+        EOF
+          sudo chmod +x /usr/local/bin/odbc_config
+        fi
+
+    - name: Install dependencies (Fedora)
+      if: matrix.container == 'fedora:latest'
+      run: |
+        dnf install -y \
+          gcc make autoconf automake libtool \
+          libpq-devel unixODBC-devel postgresql-server postgresql \
+          diffutils git
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Bootstrap
+      run: autoreconf -fi
+
+    - name: Configure
+      run: |
+        PG_CONFIG=$(find /usr -name pg_config -type f 2>/dev/null | head -1)
+        if [ -n "$PG_CONFIG" ]; then
+          export PATH="$(dirname $PG_CONFIG):$PATH"
+        fi
+        ./configure
+
+    - name: Build
+      run: make -j$(nproc)
+
+    - name: Start PostgreSQL (Debian)
+      if: matrix.container == ''
+      run: |
+        sudo mkdir -p /var/run/postgresql
+        sudo chown postgres:postgres /var/run/postgresql
+        sudo pg_ctlcluster $(pg_lsclusters -h | head -1 | awk '{print $1, $2}') start
+        sudo -u postgres createuser -s runner
+        sudo -u postgres createdb contrib_regression
+
+    - name: Start PostgreSQL (Fedora)
+      if: matrix.container == 'fedora:latest'
+      run: |
+        mkdir -p /var/lib/pgsql/data /var/run/postgresql
+        chown postgres:postgres /var/lib/pgsql/data /var/run/postgresql
+        su postgres -c 'initdb -D /var/lib/pgsql/data' || { echo "initdb failed"; exit 1; }
+        su postgres -c "sed -i 's/^logging_collector = on/logging_collector = off/' /var/lib/pgsql/data/postgresql.conf"
+        su postgres -c 'pg_ctl -D /var/lib/pgsql/data -l /tmp/pg.log -t 30 start' || { cat /tmp/pg.log; exit 1; }
+        su postgres -c 'createuser -s root'
+        createdb contrib_regression
+
+    - name: Test
+      run: |
+        cd test
+        make installcheck
