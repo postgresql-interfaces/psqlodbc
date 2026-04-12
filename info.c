@@ -4055,7 +4055,11 @@ retry_public_schema:
 					" AND ta.attnum operator(pg_catalog.=) i.indkey[ia.attnum-1]"
 					" AND (NOT ta.attisdropped)"
 					" AND (NOT ia.attisdropped)"
-					" AND ic.oid operator(pg_catalog.=) i.indexrelid"
+					" AND ic.oid operator(pg_catalog.=) i.indexrelid");
+				if (PG_VERSION_GE(conn, 11.0))
+					appendPQExpBufferStr(&tables_query,
+					" AND ia.attnum operator(pg_catalog.<=) i.indnkeyatts");
+				appendPQExpBufferStr(&tables_query,
 					" order by ia.attnum");
 				break;
 			case 2:
@@ -4075,8 +4079,12 @@ retry_public_schema:
 					" AND ta.attrelid operator(pg_catalog.=) i.indrelid"
 					" AND ta.attnum operator(pg_catalog.=) i.indkey[ia.attnum-1]"
 					" AND (NOT ta.attisdropped)"
-					" AND (NOT ia.attisdropped)"
-					" order by ia.attnum", eq_string, escTableName, eq_string, pkscm);
+					" AND (NOT ia.attisdropped)", eq_string, escTableName, eq_string, pkscm);
+				if (PG_VERSION_GE(conn, 11.0))
+					appendPQExpBufferStr(&tables_query,
+					" AND ia.attnum operator(pg_catalog.<=) i.indnkeyatts");
+				appendPQExpBufferStr(&tables_query,
+					" order by ia.attnum");
 				break;
 		}
 		if (PQExpBufferDataBroken(tables_query))

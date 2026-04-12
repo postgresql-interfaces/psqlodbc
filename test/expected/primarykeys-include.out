@@ -1,0 +1,6 @@
+connected
+Check SQLPrimaryKeys with INCLUDE columns
+Result set:
+contrib_regression	public	pk_include_test	a	1	pk_include_test_pkey
+contrib_regression	public	pk_include_test	b	2	pk_include_test_pkey
+disconnecting
