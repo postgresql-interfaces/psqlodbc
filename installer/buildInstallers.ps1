@@ -46,6 +46,9 @@ Param(
 [String]$str_msvcp="msvcp"
 [String]$msrun_ptn="msvcr|vcruntime"
 
+# Accept WiX v7 OSMF EULA
+wix eula accept wix7 2>$null
+
 function msvcrun([int]$runtime_version)
 {
 	[String]$str = if ($runtime_version -lt $ucrt_version) {$str_msvcr} else {$str_vcrun}
