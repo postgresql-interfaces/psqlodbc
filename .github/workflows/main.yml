@@ -322,8 +322,7 @@ jobs:
     - name: Install WiX
       shell: cmd
       run: |
-        dotnet tool install --global wix
-        wix eula accept wix7
+        dotnet tool install --global wix --version "6.*"
         wix extension add --global WixToolset.UI.wixext/6.0.0
 
     - name: Build psqlodbc ${{matrix.variant}}
