@@ -16,7 +16,7 @@ env:
 
   # PostgreSQL build from source.
   POSTGRESQL_SOURCE_TAG: 'REL_18_STABLE'
-  OPENSSL_VERSION: '3_5_5'
+  OPENSSL_VERSION: '3_5_6'
   PKGCONFIGLITE_VERSION: '0.28-1'
   WINFLEXBISON_VERSION: '2.5.24'
   WORKFLOW_VERSION_POSTGRESQL: '1' # increment to invalidate cache
@@ -322,7 +322,7 @@ jobs:
     - name: Install WiX
       shell: cmd
       run: |
-        dotnet tool install --global wix
+        dotnet tool install --global wix --version "6.*"
         wix extension add --global WixToolset.UI.wixext/6.0.0
 
     - name: Build psqlodbc ${{matrix.variant}}
