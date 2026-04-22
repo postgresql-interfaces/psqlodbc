@@ -571,6 +571,8 @@ static int getPrecisionPart(int precision, const char * precPart)
 	if (cpys > fracs)
 		cpys = fracs;
 	memcpy(fraction, precPart, cpys);
+	if (precision > fracs)
+		precision = fracs;
 	fraction[precision] = '\0';
 
 	return pg_atoi(fraction);

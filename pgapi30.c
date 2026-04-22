@@ -658,12 +658,15 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			opts->bindings[row_idx].used = Value;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
+			unbind = FALSE;
 			opts->bindings[row_idx].buflen = CAST_PTR(SQLLEN, Value);
 			break;
 		case SQL_DESC_PRECISION:
+			unbind = FALSE;
 			opts->bindings[row_idx].precision = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_SCALE:
+			unbind = FALSE;
 			opts->bindings[row_idx].scale = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */

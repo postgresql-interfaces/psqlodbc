@@ -58,4 +58,5 @@ TESTBINS = exe/connect-test \
 	exe/params-batch-exec-test \
 	exe/fetch-refcursors-test \
 	exe/descrec-test \
-	exe/primarykeys-include-test
+	exe/primarykeys-include-test \
+	exe/interval-overflow-test

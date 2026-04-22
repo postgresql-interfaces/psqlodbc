@@ -1,0 +1,7 @@
+connected
+Test 1: default precision
+hour=1 min=2 sec=3 frac=123456
+Test 2: precision=20 via ARD
+hour=1 min=2 sec=3 frac=123456000
+ok
+disconnecting
