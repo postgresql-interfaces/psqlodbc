@@ -1,0 +1,4 @@
+truncated percent: ok
+one hex digit: ok
+non-hex escape: ok
+valid percent escape: ok
