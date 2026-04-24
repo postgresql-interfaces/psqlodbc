@@ -196,6 +196,8 @@ check_client_encoding(const pgNAME conn_settings)
 				step++;
 				break;
 		}
+		if ('\0' == *cptr)
+			break;
 	}
 	if (!sptr)
 		return NULL;
