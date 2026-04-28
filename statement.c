@@ -229,7 +229,14 @@ PGAPI_AllocStmt(HDBC hdbc,
 		InitializeARDFields(&stmt->ardi.ardf);
 	}
 	ardopts = SC_get_ARDF(stmt);
-	ARD_AllocBookmark(ardopts);
+	if (!ARD_AllocBookmark(ardopts))
+	{
+		CC_set_error(conn, CONN_STMT_ALLOC_ERROR, "No more memory to allocate a further SQL-statement", func);
+		CC_remove_statement(conn, stmt);
+		SC_Destructor(stmt);
+		*phstmt = SQL_NULL_HSTMT;
+		return SQL_ERROR;
+	}
 
 	/* Save the handle for later */
 	stmt->phstmt = phstmt;

@@ -563,6 +563,12 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	{
 		BindInfoClass	*bookmark = ARD_AllocBookmark(opts);
 
+		if (!bookmark)
+		{
+			DC_set_error(desc, DESC_NO_MEMORY_ERROR, "Could not allocate memory for bookmark descriptor");
+			return SQL_ERROR;
+		}
+
 		switch (FieldIdentifier)
 		{
 			case SQL_DESC_TYPE:
