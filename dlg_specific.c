@@ -1572,6 +1572,7 @@ conv_from_hex(const char *s)
 				y = 0,
 				val;
 
+	/* Callers must ensure that s[1] and s[2] are hex digits. */
 	for (i = 1; i <= 2; i++)
 	{
 		if (s[i] >= 'a' && s[i] <= 'f')
@@ -1585,6 +1586,15 @@ conv_from_hex(const char *s)
 	}
 
 	return y;
+}
+
+static BOOL
+is_valid_percent_encoding(const char *s, size_t len)
+{
+	if (len < 3)
+		return FALSE;
+	return isxdigit((unsigned char) s[1]) &&
+		isxdigit((unsigned char) s[2]);
 }
 
 static pgNAME
@@ -1609,9 +1619,14 @@ decode(const char *in)
 			outs[o++] = ' ';
 		else if (inc == '%')
 		{
-			snprintf(&outs[o], ilen + 1 - o, "%c", conv_from_hex(&in[i]));
-			o++;
-			i += 2;
+			if (is_valid_percent_encoding(&in[i], ilen - i))
+			{
+				snprintf(&outs[o], ilen + 1 - o, "%c", conv_from_hex(&in[i]));
+				o++;
+				i += 2;
+			}
+			else
+				outs[o++] = inc;
 		}
 		else
 			outs[o++] = inc;

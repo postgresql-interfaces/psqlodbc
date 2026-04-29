@@ -60,4 +60,5 @@ TESTBINS = exe/connect-test \
 	exe/descrec-test \
 	exe/primarykeys-include-test \
 	exe/interval-overflow-test \
-	exe/conn-settings-test
+	exe/conn-settings-test \
+	exe/percent-decode-test
