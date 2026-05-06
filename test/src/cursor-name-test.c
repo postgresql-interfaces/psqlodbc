@@ -11,6 +11,9 @@ int main(int argc, char **argv)
 	HSTMT hstmt2 = SQL_NULL_HSTMT;
 	char cursornamebuf[20];
 	SQLSMALLINT cursornamelen;
+	SQLUSMALLINT maxcursorlen;
+	char *longcursorname;
+	SQLCHAR sqlstate[6];
 	char buf[40];
 	SQLLEN ind;
 
@@ -47,6 +50,38 @@ int main(int argc, char **argv)
 	/* Per the ODBC spec, the cursor name should begin with SQL_CUR */
 	cursornamebuf[strlen("SQL_CUR")] = '\0';
 	printf("cursor name prefix: %s\n", cursornamebuf);
+
+	rc = SQLGetInfo(conn, SQL_MAX_CURSOR_NAME_LEN, &maxcursorlen, sizeof(maxcursorlen), NULL);
+	CHECK_CONN_RESULT(rc, "SQLGetInfo SQL_MAX_CURSOR_NAME_LEN failed", conn);
+	printf("max cursor name length: %u\n", maxcursorlen);
+
+	longcursorname = malloc(maxcursorlen + 2);
+	if (!longcursorname)
+	{
+		printf("out of memory\n");
+		exit(1);
+	}
+	memset(longcursorname, 'c', maxcursorlen + 1);
+	longcursorname[maxcursorlen + 1] = '\0';
+	rc = SQLSetCursorName(hstmt, (SQLCHAR *) longcursorname, SQL_NTS);
+	if (SQL_SUCCEEDED(rc))
+	{
+		printf("BUG: accepted cursor name longer than SQL_MAX_CURSOR_NAME_LEN\n");
+		free(longcursorname);
+		exit(1);
+	}
+	rc = SQLGetDiagRec(SQL_HANDLE_STMT, hstmt, 1, sqlstate, NULL, NULL, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetDiagRec failed", hstmt);
+	if (strcmp((char *) sqlstate, "34000") != 0)
+	{
+		printf("unexpected SQLSTATE for long cursor name: %s\n", sqlstate);
+		free(longcursorname);
+		exit(1);
+	}
+	printf("long cursor name SQLSTATE: %s\n", sqlstate);
+	printf("long cursor name rejected\n");
+	free(longcursorname);
+	SQLFreeStmt(hstmt, SQL_CLOSE);
 
 	/* Use a custom name */
 	rc = SQLSetCursorName(hstmt, (SQLCHAR *) "my_test_cursor", SQL_NTS);

@@ -5055,6 +5055,7 @@ PGAPI_SetCursorName(HSTMT hstmt,
 {
 	CSTR func = "PGAPI_SetCursorName";
 	StatementClass *stmt = (StatementClass *) hstmt;
+	char	   *cursor_name;
 
 	MYLOG(0, "entering hstmt=%p, szCursor=%p, cbCursorMax=%d\n", hstmt, szCursor, cbCursor);
 
@@ -5064,8 +5065,21 @@ PGAPI_SetCursorName(HSTMT hstmt,
 		return SQL_INVALID_HANDLE;
 	}
 
+	cursor_name = make_string(szCursor, cbCursor, NULL, 0);
+	if (!cursor_name)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "No memory available to store cursor name", func);
+		return SQL_ERROR;
+	}
+	if (strlen(cursor_name) > MAX_CURSOR_LEN)
+	{
+		free(cursor_name);
+		SC_set_error(stmt, STMT_INVALID_CURSOR_NAME, "Cursor name exceeds SQL_MAX_CURSOR_NAME_LEN", func);
+		return SQL_ERROR;
+	}
+
 	NULL_THE_NAME(stmt->cursor_name);
-	SET_NAME_DIRECTLY(stmt->cursor_name, make_string(szCursor, cbCursor, NULL, 0));
+	SET_NAME_DIRECTLY(stmt->cursor_name, cursor_name);
 	return SQL_SUCCESS;
 }
 

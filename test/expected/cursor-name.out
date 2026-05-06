@@ -1,3 +1,6 @@
 connected
 cursor name prefix: SQL_CUR
+max cursor name length: 32
+long cursor name SQLSTATE: 34000
+long cursor name rejected
 disconnecting
