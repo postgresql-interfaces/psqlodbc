@@ -2964,8 +2964,16 @@ MYLOG(DETAIL_LOG_LEVEL, "status=%d\n", pqret);
 
 	pversion = PQserverVersion(pqconn);
 	self->pg_version_major = pversion / 10000;
-	self->pg_version_minor = (pversion % 10000) / 100;
-	SPRINTF_FIXED(self->pg_version, "%d.%d.%d",  self->pg_version_major, self->pg_version_minor, pversion % 100);
+	if (self->pg_version_major >= 10)
+	{
+		self->pg_version_minor = pversion % 10000;
+		SPRINTF_FIXED(self->pg_version, "%d.%d.0", self->pg_version_major, self->pg_version_minor);
+	}
+	else
+	{
+		self->pg_version_minor = (pversion % 10000) / 100;
+		SPRINTF_FIXED(self->pg_version, "%d.%d.%d", self->pg_version_major, self->pg_version_minor, pversion % 100);
+	}
 
 	MYLOG(0, "Server version=%s\n", self->pg_version);
 
