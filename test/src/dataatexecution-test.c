@@ -15,6 +15,10 @@ int main(int argc, char **argv)
 	SQLLEN str_ind_array[2];
 	SQLUSMALLINT status_array[2];
 	SQLULEN nprocessed = 0;
+	SQLCHAR sqlstate[6];
+	SQLCHAR message[256];
+	SQLINTEGER nativeerror;
+	SQLSMALLINT textlen;
 	int i;
 
 	test_connect();
@@ -186,6 +190,57 @@ int main(int argc, char **argv)
 	}
 	if (rc != SQL_NO_DATA)
 		CHECK_STMT_RESULT(rc, "SQLMoreResults failed", hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/****
+	 * Reject invalid negative lengths in SQLPutData.  Only ODBC sentinel
+	 * values such as SQL_NULL_DATA, SQL_DEFAULT_PARAM, and SQL_NTS are
+	 * valid negative values.
+	 */
+
+	cbParam1 = SQL_DATA_AT_EXEC;
+	rc = SQLPrepare(hstmt, (SQLCHAR *) "SELECT id FROM byteatab WHERE t = ?", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
+
+	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
+						  SQL_C_BINARY,	/* value type */
+						  SQL_VARBINARY, /* param type */
+						  3,			/* column size */
+						  0,			/* dec digits */
+						  (void *) 1,	/* param value ptr. For a data-at-exec
+										 * param, this is "parameter id" */
+						  0,			/* buffer len */
+						  &cbParam1		/* StrLen_or_IndPtr */);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
+
+	rc = SQLExecute(hstmt);
+	if (rc != SQL_NEED_DATA)
+		CHECK_STMT_RESULT(rc, "SQLExecute failed", hstmt);
+
+	paramid = 0;
+	rc = SQLParamData(hstmt, &paramid);
+	if (rc != SQL_NEED_DATA || paramid != (void *) 1)
+	{
+		printf("SQLParamData didn't request the invalid-length parameter\n");
+		exit(1);
+	}
+
+	rc = SQLPutData(hstmt, "bad", -10);
+	if (rc != SQL_ERROR)
+	{
+		printf("SQLPutData accepted an invalid negative length\n");
+		exit(1);
+	}
+	rc = SQLGetDiagRec(SQL_HANDLE_STMT, hstmt, 1, sqlstate, &nativeerror,
+					   message, sizeof(message), &textlen);
+	if (!SQL_SUCCEEDED(rc) || strcmp((char *) sqlstate, "HY090") != 0)
+	{
+		printf("SQLPutData returned unexpected SQLSTATE: %s\n", SQL_SUCCEEDED(rc) ? (char *) sqlstate : "<none>");
+		exit(1);
+	}
+	printf("Invalid SQLPutData length rejected\n");
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);

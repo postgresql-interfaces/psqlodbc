@@ -8,4 +8,5 @@ Fetching result sets for array bound (2 results expected)
 4
 2: Result set:
 5
+Invalid SQLPutData length rejected
 disconnecting
