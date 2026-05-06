@@ -220,6 +220,12 @@ MYLOG(DETAIL_LOG_LEVEL, "Bind column 0 is type %d not of type SQL_C_BOOKMARK\n",
 			}
 
 			bookmark = ARD_AllocBookmark(opts);
+			if (!bookmark)
+			{
+				SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for bookmark binding.", func);
+				ret = SQL_ERROR;
+				goto cleanup;
+			}
 			bookmark->buffer = rgbValue;
 			bookmark->used =
 			bookmark->indicator = pcbValue;

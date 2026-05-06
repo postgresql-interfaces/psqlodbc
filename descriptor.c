@@ -343,6 +343,8 @@ BindInfoClass	*ARD_AllocBookmark(ARDFields *ardopts)
 	if (!ardopts->bookmark)
 	{
 		ardopts->bookmark = (BindInfoClass *) malloc(sizeof(BindInfoClass));
+		if (!ardopts->bookmark)
+			return NULL;
 		pg_memset(ardopts->bookmark, 0, sizeof(BindInfoClass));
 	}
 	return ardopts->bookmark;

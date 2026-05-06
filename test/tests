@@ -38,6 +38,7 @@ TESTBINS = exe/connect-test \
 	exe/cursor-name-test \
 	exe/cursor-block-delete-test \
 	exe/bookmark-test \
+	exe/ard-bookmark-oom-test \
 	exe/declare-fetch-commit-test \
 	exe/declare-fetch-block-test \
 	exe/positioned-update-test \
