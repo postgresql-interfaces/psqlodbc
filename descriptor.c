@@ -384,6 +384,29 @@ char CC_add_descriptor(ConnectionClass *self, DescriptorClass *desc)
 	return TRUE;
 }
 
+static void
+CC_detach_descriptor(ConnectionClass *conn, const DescriptorClass *desc)
+{
+	int	i;
+
+	if (!conn || !desc)
+		return;
+
+	CONNLOCK_ACQUIRE(conn);
+	for (i = 0; i < conn->num_stmts; i++)
+	{
+		StatementClass	*stmt = conn->stmts[i];
+
+		if (!stmt)
+			continue;
+		if (stmt->ard == desc)
+			stmt->ard = &(stmt->ardi);
+		if (stmt->apd == desc)
+			stmt->apd = &(stmt->apdi);
+	}
+	CONNLOCK_RELEASE(conn);
+}
+
 /*
  *	This API allocates a Application descriptor.
  */
@@ -424,14 +447,17 @@ RETCODE SQL_API
 PGAPI_FreeDesc(SQLHDESC DescriptorHandle)
 {
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
+	const char	embedded = desc->deschd.embedded;
+	ConnectionClass	*conn = DC_get_conn(desc);
 	RETCODE	ret = SQL_SUCCESS;
 
 	MYLOG(0, "entering...\n");
+	if (!embedded)
+		CC_detach_descriptor(conn, desc);
 	DC_Destructor(desc);
-	if (!desc->deschd.embedded)
+	if (!embedded)
 	{
 		int	i;
-		ConnectionClass	*conn = DC_get_conn(desc);
 
 		for (i = 0; i < conn->num_descs; i++)
 		{
