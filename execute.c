@@ -1673,8 +1673,14 @@ PGAPI_PutData(HSTMT hstmt,
 	}
 	if (!lenset)
 	{
-		if (cbValue < 0)
+		if (cbValue == SQL_NULL_DATA || cbValue == SQL_DEFAULT_PARAM)
 			putlen = cbValue;
+		else if (cbValue < 0)
+		{
+			SC_set_error(stmt, STMT_INVALID_STRING_OR_BUFFER_LENGTH, "Invalid string or buffer length", func);
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		else
 #ifdef	UNICODE_SUPPORT
 		if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY || ctype == SQL_C_WCHAR)
@@ -1791,6 +1797,12 @@ PGAPI_PutData(HSTMT hstmt,
 		}
 		else
 		{
+			if (*current_pdata->EXEC_used < 0)
+			{
+				SC_set_error(stmt, STMT_ATTEMPT_TO_CONCATENATE_NULL_VALUE, "Cannot append data after a null or default parameter indicator", func);
+				retval = SQL_ERROR;
+				goto cleanup;
+			}
 			old_pos = *current_pdata->EXEC_used;
 			if (putlen > 0)
 			{
