@@ -1673,8 +1673,14 @@ PGAPI_PutData(HSTMT hstmt,
 	}
 	if (!lenset)
 	{
-		if (cbValue < 0)
+		if (cbValue == SQL_NULL_DATA || cbValue == SQL_DEFAULT_PARAM)
 			putlen = cbValue;
+		else if (cbValue < 0)
+		{
+			SC_set_error(stmt, STMT_INVALID_ARGUMENT_NO, "Invalid string or buffer length", func);
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		else
 #ifdef	UNICODE_SUPPORT
 		if (ctype == SQL_C_CHAR || ctype == SQL_C_BINARY || ctype == SQL_C_WCHAR)
@@ -1714,7 +1720,7 @@ PGAPI_PutData(HSTMT hstmt,
 
 		*current_pdata->EXEC_used = putlen;
 
-		if (cbValue == SQL_NULL_DATA)
+		if (cbValue == SQL_NULL_DATA || cbValue == SQL_DEFAULT_PARAM)
 		{
 			retval = SQL_SUCCESS;
 			goto cleanup;
@@ -1779,6 +1785,13 @@ PGAPI_PutData(HSTMT hstmt,
 	{
 		/* calling SQLPutData more than once */
 		MYLOG(0, "(>1) cbValue = " FORMAT_LEN "\n", cbValue);
+
+		if (*current_pdata->EXEC_used < 0)
+		{
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Cannot append data after a null or default parameter indicator", func);
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 
 		/* if (current_iparam->SQLType == SQL_LONGVARBINARY) */
 		if (handling_lo)
