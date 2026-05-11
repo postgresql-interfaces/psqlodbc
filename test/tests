@@ -19,6 +19,7 @@ TESTBINS = exe/connect-test \
 	exe/prepare-test \
 	exe/premature-test \
 	exe/params-test \
+	exe/leading-literal-numparams-test \
 	exe/param-conversions-test \
 	exe/parse-test \
 	exe/identity-test \
