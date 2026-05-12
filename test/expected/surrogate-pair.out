@@ -1,0 +1,5 @@
+connected
+preparing SQL text ending with a dangling high surrogate
+SQLPrepareW returned without reading past the supplied length
+disconnecting
+ok
