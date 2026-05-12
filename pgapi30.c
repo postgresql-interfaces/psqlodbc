@@ -2211,28 +2211,28 @@ PGAPI_SetDescRec(SQLHDESC DescriptorHandle,
 		- SQL_DESC_OCTET_LENGTH_PTR
 		- SQL_DESC_INDICATOR_PTR
 	*/
-	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, &Type, 0);
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, (PTR) (LONG_PTR) Type, 0);
 	if (ret != SQL_SUCCESS) return ret;
 
 	/* If Type is SQL_DATETIME or SQL_INTERVAL, the value of SQL_DESC_DATETIME_INTERVAL_CODE is set to SubType. */
 	if (Type == SQL_DATETIME || Type == SQL_INTERVAL) {
-		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, &SubType, 0);
+		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATETIME_INTERVAL_CODE, (PTR) (LONG_PTR) SubType, 0);
 		if (ret != SQL_SUCCESS) return ret;
 	}
 
-	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, &Length, 0);
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, (PTR) (LONG_PTR) Length, 0);
 	if (ret != SQL_SUCCESS) return ret;
 
-	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, &Precision, 0);
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_PRECISION, (PTR) (LONG_PTR) Precision, 0);
 	if (ret != SQL_SUCCESS) return ret;
 
-	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, &Scale, 0);
+	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_SCALE, (PTR) (LONG_PTR) Scale, 0);
 	if (ret != SQL_SUCCESS) return ret;
 
 	/* SQL_DESC_DATA_PTR is only for ARD or APD */
 	if (DC_get_desc_type(desc) != SQL_ATTR_IMP_PARAM_DESC)
 	{
-		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATA_PTR, &Data, 0);
+		ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, SQL_DESC_DATA_PTR, Data, 0);
 		if (ret != SQL_SUCCESS) return ret;
 	}
 
