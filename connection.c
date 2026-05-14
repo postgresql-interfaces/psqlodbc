@@ -2786,6 +2786,34 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 
 #define        PROTOCOL3_OPTS_MAX      30
 
+static BOOL
+is_sensitive_conninfo_param(const char *keyword)
+{
+	static const char * const sensitive_keywords[] = {
+		/*
+		 * Keep certificate and CRL paths visible for SSL diagnostics.
+		 * Redact only secrets or files that can contain them.
+		 */
+		"password",
+		"passfile",
+		"sslpassword",
+		"sslkey",
+		NULL
+	};
+	const char * const *sensitive_keyword;
+
+	if (keyword == NULL)
+		return FALSE;
+
+	for (sensitive_keyword = sensitive_keywords; *sensitive_keyword != NULL;
+		 sensitive_keyword++)
+	{
+		if (stricmp(keyword, *sensitive_keyword) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
@@ -2803,7 +2831,8 @@ LIBPQ_connect(ConnectionClass *self)
 	char		keepalive_interval_str[20];
 	char		*errmsg = NULL;
 
-	MYLOG(0, "connecting to the database using %s as the server and pqopt={%s}\n", self->connInfo.server, SAFE_NAME(ci->pqopt));
+	MYLOG(0, "connecting to the database using %s as the server and pqopt={%s}\n",
+		self->connInfo.server, NAME_IS_VALID(ci->pqopt) ? "xxxxx" : "");
 
 	if (NULL == (conninfoOption = PQconninfoParse(SAFE_NAME(ci->pqopt), &errmsg)))
 	{
@@ -2916,7 +2945,12 @@ LIBPQ_connect(ConnectionClass *self)
 
 		QLOG(0, "PQconnectdbParams:");
 		for (popt = opts, pval = vals; *popt; popt++, pval++)
-			QPRINTF(0, " %s='%s'", *popt, *pval);
+		{
+			if (is_sensitive_conninfo_param(*popt))
+				QPRINTF(0, " %s='xxxxx'", *popt);
+			else
+				QPRINTF(0, " %s='%s'", *popt, *pval);
+		}
 		QPRINTF(0, "\n");
 	}
 	pqconn = PQconnectdbParams(opts, vals, FALSE);
