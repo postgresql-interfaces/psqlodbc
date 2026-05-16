@@ -1,7 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "common.h"
+
+static void
+test_setdescrec_ard_binding(void)
+{
+	SQLRETURN rc;
+	HSTMT hstmt = SQL_NULL_HSTMT;
+	SQLHDESC hDesc = SQL_NULL_HDESC;
+	char value[16] = "";
+	SQLLEN ind = 0;
+
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
+		exit(1);
+	}
+
+	rc = SQLGetStmtAttr(hstmt, SQL_ATTR_APP_ROW_DESC, &hDesc, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetStmtAttr failed", hstmt);
+
+	rc = SQLSetDescRec(hDesc, 1, SQL_C_CHAR, 0, sizeof(value), 0, 0,
+					   value, &ind, &ind);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("SQLSetDescRec failed", SQL_HANDLE_DESC, hDesc);
+		exit(1);
+	}
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT 42", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLFetch(hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
+
+	printf("\n-- SQLSetDescRec ARD binding --\n");
+	printf("VALUE: %s\n", value);
+	printf("INDICATOR: %ld\n", (long) ind);
+
+	if (strcmp(value, "42") != 0 || ind != 2)
+	{
+		printf("SQLSetDescRec ARD binding mismatch\n");
+		exit(1);
+	}
+
+	rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFreeHandle failed", hstmt);
+}
 
 int main(int argc, char **argv)
 {
@@ -63,6 +111,11 @@ int main(int argc, char **argv)
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFreeHandle failed", hstmt);
+
+	test_setdescrec_ard_binding();
 
 	/* Clean up */
 	test_disconnect();
