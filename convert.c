@@ -3852,7 +3852,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qp->escape_in_literal = CC_get_escape(qb->conn);
 			if (!qp->escape_in_literal)
 			{
-				if (LITERAL_EXT == F_OldPtr(qp)[-1])
+				if (qp->opos > 0 &&
+				    LITERAL_EXT == F_OldPtr(qp)[-1])
 					qp->escape_in_literal = ESCAPE_IN_LITERAL;
 			}
 		}

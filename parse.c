@@ -157,7 +157,8 @@ getNextToken(
 				escape_in_literal = escape_ch;
 				if (!escape_in_literal)
 				{
-					if (LITERAL_EXT == tstr[-1])
+					if (tstr > (const UCHAR *) s &&
+					    LITERAL_EXT == tstr[-1])
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}

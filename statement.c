@@ -1122,7 +1122,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				escape_in_literal = CC_get_escape(conn);
 				if (!escape_in_literal)
 				{
-					if (LITERAL_EXT == ENCODE_PTR(encstr)[-1])
+					if (encstr.pos > 0 &&
+					    LITERAL_EXT == ENCODE_PTR(encstr)[-1])
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
