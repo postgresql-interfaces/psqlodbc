@@ -183,7 +183,9 @@ MYPRINTF(0, " newlen=" FORMAT_LEN, ilen);
 				len += sizeof(byte2code);
 			}
 			/* surrogate pair check for non ucs-2 code */
-			else if (surrog1_bits == (*wstr & surrog_check))
+			else if (surrog1_bits == (*wstr & surrog_check) &&
+				 i + 1 < ilen &&
+				 surrog2_bits == (wstr[1] & surrog_check))
 			{
 				surrd1 = (*wstr & ~surrog_check) + surrogate_adjust;
 				wstr++;
