@@ -1779,6 +1779,8 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 					default:
 						handle_pgres_error(self, pgres, __FUNCTION__, NULL, !ret);
 				}
+				PQclear(pgres);
+				pgres = NULL;
 			}
 			if (!ret)
 			{
