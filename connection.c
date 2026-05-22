@@ -681,28 +681,37 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 
 	MYLOG(0, "after PQfinish\n");
 
-	/* Free all the stmts on this connection */
+	/* Detach all the stmts on this connection */
 	for (i = 0; i < self->num_stmts; i++)
 	{
 		stmt = self->stmts[i];
 		if (stmt)
 		{
+			QResultClass	*res;
+
 			stmt->hdbc = NULL;	/* prevent any more dbase interactions */
 
-			SC_Destructor(stmt);
+			/*
+			 * NULL out the conn pointer in results so they don't
+			 * try to use the dead connection. The statement itself
+			 * is NOT freed here — it will be freed later when the
+			 * Driver Manager calls SQLFreeStmt(SQL_DROP).
+			 */
+			for (res = SC_get_Result(stmt); res; res = QR_nextr(res))
+				res->conn = NULL;
+			if (stmt->parsed)
+				stmt->parsed->conn = NULL;
 
 			self->stmts[i] = NULL;
 		}
 	}
-	/* Free all the descs on this connection */
+	/* Detach all the descs on this connection */
 	for (i = 0; i < self->num_descs; i++)
 	{
 		desc = self->descs[i];
 		if (desc)
 		{
 			DC_get_conn(desc) = NULL;	/* prevent any more dbase interactions */
-			DC_Destructor(desc);
-			free(desc);
 			self->descs[i] = NULL;
 		}
 	}
