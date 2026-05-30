@@ -46,6 +46,7 @@
 #include "pgapifunc.h"
 
 #define	SAFE_STR(s)	(NULL != (s) ? (s) : "(null)")
+#define	REDACTED_CONNINFO_VALUE	"xxxxx"
 
 #define STMT_INCREMENT 16		/* how many statement holders to allocate
 								 * at a time */
@@ -166,7 +167,7 @@ PGAPI_Connect(HDBC hdbc,
 		free(tmpstr);
 	}
 
-	MYLOG(0, "conn = %p (DSN='%s', UID='%s', PWD='%s')\n", conn, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
+	MYLOG(0, "conn = %p (DSN='%s', UID='%s', PWD='%s')\n", conn, ci->dsn, ci->username, NAME_IS_VALID(ci->password) ? REDACTED_CONNINFO_VALUE : "");
 
 	if ((fchar = CC_connect(conn, NULL)) <= 0)
 	{
@@ -1070,7 +1071,7 @@ static char CC_initial_log(ConnectionClass *self, const char *func)
 		return 0;
 	}
 
-	MYLOG(0, "DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", ci->dsn, ci->server, ci->port, ci->database, ci->username, NAME_IS_VALID(ci->password) ? "xxxxx" : "");
+	MYLOG(0, "DSN = '%s', server = '%s', port = '%s', database = '%s', username = '%s', password='%s'\n", ci->dsn, ci->server, ci->port, ci->database, ci->username, NAME_IS_VALID(ci->password) ? REDACTED_CONNINFO_VALUE : "");
 
 	return 1;
 }
@@ -2786,6 +2787,132 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 
 #define        PROTOCOL3_OPTS_MAX      30
 
+static BOOL
+is_sensitive_conninfo_param(const char *keyword)
+{
+	static const char * const sensitive_keywords[] = {
+		/*
+		 * Keep certificate and CRL paths visible for SSL diagnostics.
+		 * Redact only secrets or files that can contain them.
+		 */
+		"password",
+		"passfile",
+		"sslpassword",
+		"sslkey",
+		NULL
+	};
+	const char * const *sensitive_keyword;
+
+	if (keyword == NULL)
+		return FALSE;
+
+	for (sensitive_keyword = sensitive_keywords; *sensitive_keyword != NULL;
+		 sensitive_keyword++)
+	{
+		if (stricmp(keyword, *sensitive_keyword) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+/*
+ * Best-effort: log a libpq conninfo string with sensitive values redacted.
+ * Uses MYPRINTF so the caller must already have opened the line with MYLOG.
+ * The per-keyword PQconnectdbParams trace below provides the authoritative
+ * diagnostic view — this routine only needs to handle the common cases.
+ */
+static void
+log_redacted_pqopt(const char *conninfo)
+{
+	const char *p = conninfo;
+	BOOL	first = TRUE;
+
+	if (NULL == p || '\0' == p[0])
+		return;
+
+	while (*p)
+	{
+		const char *keystart, *keyend;
+		const char *valstart, *valend;
+		BOOL	is_sensitive;
+		size_t	klen;
+		char	kbuf[32];
+
+		/* Skip whitespace between pairs */
+		while (*p == ' ' || *p == '\t')
+			p++;
+		if (!*p)
+			break;
+
+		/* Find '=' separator */
+		keystart = p;
+		while (*p && *p != '=')
+			p++;
+		if (!*p)
+			break;
+		keyend = p;
+		/* Trim trailing whitespace from keyword */
+		while (keyend > keystart && (keyend[-1] == ' ' || keyend[-1] == '\t'))
+			keyend--;
+		p++; /* skip '=' */
+		/* Skip leading whitespace after '=' */
+		while (*p == ' ' || *p == '\t')
+			p++;
+
+		/* Find value end */
+		if (*p == '\'')
+		{
+			p++; /* skip opening quote */
+			valstart = p;
+			while (*p)
+			{
+				if (*p == '\'')
+				{
+					if (p[1] == '\'')
+						p += 2; /* escaped quote '' */
+					else
+						break; /* closing quote */
+				}
+				else
+				{
+					p++;
+				}
+			}
+			valend = p;
+			if (*p == '\'')
+				p++; /* skip closing quote */
+		}
+		else
+		{
+			valstart = p;
+			while (*p && *p != ' ' && *p != '\t')
+				p++;
+			valend = p;
+		}
+
+		/* Check if keyword is sensitive */
+		klen = (size_t)(keyend - keystart);
+		if (klen < sizeof(kbuf))
+		{
+			memcpy(kbuf, keystart, klen);
+			kbuf[klen] = '\0';
+			is_sensitive = is_sensitive_conninfo_param(kbuf);
+		}
+		else
+		{
+			is_sensitive = FALSE;
+		}
+
+		if (is_sensitive)
+			MYPRINTF(0, "%s%s=" REDACTED_CONNINFO_VALUE, first ? "" : " ", kbuf);
+		else
+			MYPRINTF(0, "%s%.*s=%.*s", first ? "" : " ",
+				 (int)klen, keystart,
+				 (int)(valend - valstart), valstart);
+		first = FALSE;
+	}
+}
+
 static int
 LIBPQ_connect(ConnectionClass *self)
 {
@@ -2802,10 +2929,19 @@ LIBPQ_connect(ConnectionClass *self)
 	char		keepalive_idle_str[20];
 	char		keepalive_interval_str[20];
 	char		*errmsg = NULL;
+	const	char	*pqopt_str = SAFE_NAME(ci->pqopt);
 
-	MYLOG(0, "connecting to the database using %s as the server and pqopt={%s}\n", self->connInfo.server, SAFE_NAME(ci->pqopt));
+	if (pqopt_str[0] != '\0')
+	{
+		MYLOG(0, "connecting to the database using %s as the server and pqopt={", self->connInfo.server);
+		log_redacted_pqopt(pqopt_str);
+		MYPRINTF(0, "}\n");
+	}
+	else
+		MYLOG(0, "connecting to the database using %s as the server and pqopt={}\n",
+			self->connInfo.server);
 
-	if (NULL == (conninfoOption = PQconninfoParse(SAFE_NAME(ci->pqopt), &errmsg)))
+	if (NULL == (conninfoOption = PQconninfoParse(pqopt_str, &errmsg)))
 	{
 		char emsg[200];
 
@@ -2916,7 +3052,12 @@ LIBPQ_connect(ConnectionClass *self)
 
 		QLOG(0, "PQconnectdbParams:");
 		for (popt = opts, pval = vals; *popt; popt++, pval++)
-			QPRINTF(0, " %s='%s'", *popt, *pval);
+		{
+			if (is_sensitive_conninfo_param(*popt))
+				QPRINTF(0, " %s='%s'", *popt, REDACTED_CONNINFO_VALUE);
+			else
+				QPRINTF(0, " %s='%s'", *popt, *pval);
+		}
 		QPRINTF(0, "\n");
 	}
 	pqconn = PQconnectdbParams(opts, vals, FALSE);
