@@ -652,7 +652,7 @@ typedef struct QueryInfo_
 /*	Used to save the error information */
 typedef struct
 {
-        UInt4	status;
+        Int4	status;		/* statement warnings are negative */
 		UInt4	errsize;
         UInt4	errpos;
         UInt2	recsize;
