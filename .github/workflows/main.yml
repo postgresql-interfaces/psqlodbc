@@ -305,6 +305,8 @@ jobs:
         echo on
         C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server
         sc config "postgresql-x64-17" start= auto
+        sc start "postgresql-x64-17"
+        timeout /t 5 /nobreak
 
     # -----------------------------------------------------------------
     # Build and test psqlodbc
