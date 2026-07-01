@@ -306,7 +306,7 @@ jobs:
         C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server
         sc config "postgresql-x64-17" start= auto
         sc start "postgresql-x64-17"
-        timeout /t 5 /nobreak
+        ping -n 6 127.0.0.1 >nul
 
     # -----------------------------------------------------------------
     # Build and test psqlodbc
