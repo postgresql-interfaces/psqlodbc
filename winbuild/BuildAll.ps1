@@ -116,6 +116,7 @@ function buildPlatform([xml]$configInfo, [string]$Platform)
 			"15.0"	{ $mimallocIdeDir = "vs2017" }
 			"16.0"	{ $mimallocIdeDir = "vs2019" }
 			"17.0"	{ $mimallocIdeDir = "vs2022" }
+			"18.0"	{ $mimallocIdeDir = "vs2022" }
 			default { throw "Unable to resolve mimalloc IDE directory for VC ${VCVersion}."}
 		}
 

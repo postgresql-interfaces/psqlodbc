@@ -70,6 +70,7 @@ function Find-MSBuild
 	 "15.0"	{ $toolsout = 15 }
 	 "16.0"	{ $toolsout = 16 }
 	 "17.0" { $toolsout = 17 }
+	 "18.0" { $toolsout = 18 }
 	 default { throw "Selected Visual Studio is Version ${VisualStudioVersion}. Please use VC10 or later"}
 	}
 #
@@ -154,6 +155,7 @@ function Find-MSBuild
 		 "15.0"	{$Toolsetv="v141_xp"}
 		 "16.0"	{$Toolsetv="v142"}
 		 "17.0" {$Toolsetv="v143"}
+		 "18.0" {$Toolsetv="v145"}
 		}
 	}
 #	avoid a bug of Windows7.1SDK PlatformToolset
