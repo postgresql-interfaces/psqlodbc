@@ -10,6 +10,61 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+ <h2><a id="18.00.0002">psqlODBC 18.00.0002 Release</a></h2>
+ Changes:<br />
+ <li>
+  Use signed type for error status (#193)
+ </li>
+ <li>
+  Redact sensitive connection parameters in driver logs
+ </li>
+ <li>
+  Fix double-free / heap corruption during SQLDisconnect cleanup (#189, #190)
+ </li>
+ <li>
+  Clear PGresults from per-query rollback (#188)
+ </li>
+ <li>
+  Validate UTF-16 surrogate pairs before combining (#187)
+ </li>
+ <li>
+  Pass SQLSetDescRec field values correctly (#186)
+ </li>
+ <li>
+  Avoid reading before leading string literals (#185)
+ </li>
+ <li>
+  Detach freed app descriptors from statements (#183)
+ </li>
+ <li>
+  Reject invalid SQLPutData lengths (#182)
+ </li>
+ <li>
+  Reject overlong cursor names (#178)
+ </li>
+ <li>
+  Fix version reporting (#181)
+ </li>
+ <li>
+  Handle ARD bookmark allocation failure (#179)
+ </li>
+ <li>
+  Validate percent escapes before decoding (#175)
+ </li>
+ <li>
+  Avoid reading past conn_settings end (#176)
+ </li>
+ <li>
+  Fix stack buffer overflow in getPrecisionPart() (#173, #174)
+ </li>
+ <li>
+  Fix SQLPrimaryKeys to exclude INCLUDE columns from results (#171)
+ </li>
+ <li>
+  Use openssl 3.5.5 (#169)
+ </li>
+</ol>
+<ol type="1">
  <h2><a id="18.00.0001">psqlODBC 18.00.0001 Release</a></h2>
  Changes:<br />
  <li>
