@@ -317,5 +317,59 @@ myConn = "ODBC;DRIVER={PostgreSQL Unicode};" & serverConn & _<br>
 </ul>
 <p>Please refer to a <a href="config-opt.html">keyword list</a> for details. </p>
 
+<h2>Special characters and escaping in connection strings</h2>
+
+<p>A value that contains characters with a special meaning
+(<code>;</code>, <code>=</code>, spaces or braces) must be escaped.
+It is important to understand that a connection string is processed by
+<b>two independent parsers</b>, each with its own escaping rules.</p>
+
+<h3>1. The psqlODBC connection string</h3>
+
+<p>The driver splits the keyword string on <code>;</code> (the attribute
+delimiter) and on the first <code>=</code> of each attribute. To include one
+of these characters, or a space, in a value, use one of the following:</p>
+
+<ul>
+<li><b>Braces:</b> enclose the whole value in <code>{ }</code>. A braced
+value may contain <code>;</code>, <code>=</code> and spaces. For example
+<b>PWD={my;odd=pass word}</b>. To include a literal closing brace
+<code>}</code> inside a braced value, double it as <code>}}</code>.
+<br />&nbsp;</li>
+
+<li><b>Percent-encoding:</b> outside of braces the value is URL-decoded, so a
+space can be written as <code>+</code> or <code>%20</code>, and an arbitrary
+byte as <code>%<i>XX</i></code> (two hex digits). For example
+<b>PWD=pass+word</b> or <b>PWD=pass%20word</b>.
+<br />&nbsp;</li>
+</ul>
+
+<p>A backslash (<code>\</code>) has <b>no special meaning</b> in the
+psqlODBC connection string itself; it is passed through literally.</p>
+
+<h3>2. The Libpq parameters (pqopt) value</h3>
+
+<p>The <b>Libpq parameters</b> option (see Advanced Options 3/3 above) is
+passed on to libpq and parsed by it as a <a
+href="https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING">conninfo
+string</a>, which has its own, different rules. Within this value libpq
+separates parameters by spaces, so to include a space (or other special
+character) in a libpq parameter value you use libpq's escaping:</p>
+
+<ul>
+<li><b>Backslash:</b> <code>\</code> escapes the following character, e.g.
+<b>sslcert=C:\ my\ folder\ cert</b>.
+<br />&nbsp;</li>
+<li><b>Single quotes:</b> enclose the value in <code>' '</code>, e.g.
+<b>sslcert='C:\my folder\cert'</b>. A literal single quote or backslash
+inside quotes is written as <code>\'</code> and <code>\\</code>.
+<br />&nbsp;</li>
+</ul>
+
+<p>This is why, in the VBA example above, the libpq paths inside the
+<code>D5={...}</code> braces use backslashes: the braces are consumed by the
+psqlODBC parser (layer 1), and the contents are then handed to libpq
+(layer 2). The two layers can therefore both apply to the same value.</p>
+
 </body>
 </html>
