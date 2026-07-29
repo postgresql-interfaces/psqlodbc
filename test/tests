@@ -65,5 +65,6 @@ TESTBINS = exe/connect-test \
 	exe/interval-overflow-test \
 	exe/conn-settings-test \
 	exe/percent-decode-test \
+	exe/connstring-escape-test \
 	exe/dbms-version-test \
 	exe/surrogate-pair-test

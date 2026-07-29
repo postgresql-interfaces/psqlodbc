@@ -1,0 +1,3 @@
+braces protect semicolon: ok
+libpq backslash escape: ok
+libpq single-quote quoting: ok
