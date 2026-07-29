@@ -82,7 +82,7 @@ jobs:
       id: cacheWinFlexBison
       with:
         path: C:\OTHERBIN\winflexbison
-        key: winflexbison-${{env.WINFLEXBISON_VERSION}}
+        key: winflexbison-dworkspace-${{env.WINFLEXBISON_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download winflexbison
@@ -110,7 +110,7 @@ jobs:
       id: cachePkgConfigLite
       with:
         path: C:\OTHERBIN\pkgconfiglite
-        key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
+        key: pkg-config-lite-dworkspace-${{env.PKGCONFIGLITE_VERSION}}-win32
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download pkgconfiglite
@@ -261,7 +261,7 @@ jobs:
       id: cacheDiffutils
       with:
         path: C:\OTHERBIN\diffutils
-        key: diffutils-${{env.DIFFUTILS_VERSION}}
+        key: diffutils-dworkspace-${{env.DIFFUTILS_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download GNU diffutils
@@ -290,7 +290,7 @@ jobs:
       id: cacheInstaller
       with:
         path: C:\OTHERBIN\postgresql_install.exe
-        key: pg-installer-${{env.POSTGRESQL_PACKAGE_FILEID}}
+        key: pg-installer-dworkspace-${{env.POSTGRESQL_PACKAGE_FILEID}}
     - name: Download PostgreSQL installer
       if: steps.cacheInstaller.outputs.cache-hit != 'true'
       uses: suisei-cn/actions-download-file@v1.6.0
@@ -451,7 +451,7 @@ jobs:
       id: cacheWinFlexBison
       with:
         path: C:\OTHERBIN\winflexbison
-        key: winflexbison-${{env.WINFLEXBISON_VERSION}}
+        key: winflexbison-cworkspace-${{env.WINFLEXBISON_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download winflexbison
@@ -479,7 +479,7 @@ jobs:
       id: cachePkgConfigLite
       with:
         path: C:\OTHERBIN\pkgconfiglite
-        key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
+        key: pkg-config-lite-cworkspace-${{env.PKGCONFIGLITE_VERSION}}-win32
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download pkgconfiglite
@@ -613,7 +613,7 @@ jobs:
       id: cacheDiffutilsArm
       with:
         path: C:\OTHERBIN\diffutils
-        key: diffutils-${{env.DIFFUTILS_VERSION}}
+        key: diffutils-cworkspace-${{env.DIFFUTILS_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download GNU diffutils
@@ -644,7 +644,7 @@ jobs:
       id: cacheInstallerArm
       with:
         path: C:\OTHERBIN\postgresql_install.exe
-        key: pg-installer-${{env.POSTGRESQL_PACKAGE_FILEID}}
+        key: pg-installer-cworkspace-${{env.POSTGRESQL_PACKAGE_FILEID}}
     - name: Download PostgreSQL installer
       if: steps.cacheInstallerArm.outputs.cache-hit != 'true'
       uses: suisei-cn/actions-download-file@v1.6.0
