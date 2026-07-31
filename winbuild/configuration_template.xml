@@ -21,6 +21,16 @@
     <build_macros></build_macros>
     <runtime_folder></runtime_folder>
   </x64>
+  <arm64>
+    <libpq version="">
+      <include>default</include>
+      <lib>default</lib>
+      <bin>default</bin>
+    </libpq>
+    <setvcvars></setvcvars>
+    <build_macros></build_macros>
+    <runtime_folder></runtime_folder>
+  </arm64>
   <BuildResult>
     <Date></Date>
     <VisualStudioVersion></VisualStudioVersion>

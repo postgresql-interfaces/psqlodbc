@@ -16,6 +16,10 @@ psqlodbc.Cpp.props
       <WarnLvl>Level3</WarnLvl>
       <DSpcWarn>4018</DSpcWarn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='ARM64'">
+      <WarnLvl>Level3</WarnLvl>
+      <DSpcWarn>4018</DSpcWarn>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(DRIVERVERSION)'!=''" >
     <ADD_DEFINES>$(ADD_DEFINES);POSTGRESDRIVERVERSION="$(DRIVERVERSION)"</ADD_DEFINES>
     <RSC_DEFINES>$(RSC_DEFINES);PG_DRVFILE_VERSION=$(DRIVERVERSION.substring(0, 2)),$(DRIVERVERSION.substring(3,2)),$(DRIVERVERSION.substring(6, 2)),$(DRIVERVERSION.substring(8, 2));POSTGRES_RESOURCE_VERSION=\"$(DRIVERVERSION)\"</RSC_DEFINES>
@@ -73,6 +77,42 @@ psqlodbc.Cpp.props
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>$(WarnLvl)</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PrecompiledHeaderFile />
+      <DisableSpecificWarnings>$(DSpcWarn)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>$(srcPath)$(TargetName).def</ModuleDefinitionFile>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>$(WarnLvl)</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PrecompiledHeaderFile />
+      <DisableSpecificWarnings>$(DSpcWarn)</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ModuleDefinitionFile>$(srcPath)$(TargetName).def</ModuleDefinitionFile>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
       <WarningLevel>$(WarnLvl)</WarningLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

@@ -73,7 +73,7 @@ Param(
 [string[]]$TestList,
 [switch]$Ansi,
 [string]$VCVersion,
-[ValidateSet("Win32", "x64", "both")]
+[ValidateSet("Win32", "x64", "ARM64", "both")]
 [string]$Platform="both",
 [string]$Toolset,
 [ValidateSet("", "4.0", "12.0", "14.0")]
@@ -215,6 +215,8 @@ function RunTest($scriptPath, $Platform, $testexes)
 	# Run regression tests
 	if ($Platform -eq "x64") {
 		$targetdir="test_x64"
+	} elseif ($Platform -eq "ARM64") {
+		$targetdir="test_arm64"
 	} else {
 		$targetdir="test_x86"
 	}
@@ -429,6 +431,11 @@ foreach ($pl in $pary) {
 			$targetdir="test_x86"
 			$bit="32-bit"
 			$dlldir="$objbase\x86_${ansi_dir_part}_$DriverConfiguration"
+		}
+	 "ARM64" {
+			$targetdir="test_arm64"
+			$bit="ARM64"
+			$dlldir="$objbase\arm64_${ansi_dir_part}_$DriverConfiguration"
 		}
 	 default {
 			$targetdir="test_x64"

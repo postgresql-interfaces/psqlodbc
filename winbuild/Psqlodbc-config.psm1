@@ -106,6 +106,8 @@ function getPGDir([xml]$configInfo, [string]$Platform, [string]$kind)
 {
 	if ($Platform -ieq "x64") {
 		$platinfo=$configInfo.Configuration.x64
+	} elseif ($Platform -ieq "ARM64") {
+		$platinfo=$configInfo.Configuration.arm64
 	} else {
 		$platinfo=$configInfo.Configuration.x86
 	}
@@ -120,7 +122,7 @@ function getPGDir([xml]$configInfo, [string]$Platform, [string]$kind)
 	if ($result -ne "default") {
 		return $result
 	}
-	if ($Platform -ieq "x64") {
+	if ($Platform -ieq "x64" -or $Platform -ieq "ARM64") {
 		if ($env:PROCESSOR_ARCHITECTURE -ieq "x86") {
 			$pgmfs = $env:ProgramW6432
 		} else {

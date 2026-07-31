@@ -17,6 +17,7 @@ env:
   # PostgreSQL build from source.
   POSTGRESQL_SOURCE_TAG: 'REL_18_STABLE'
   OPENSSL_VERSION: '3_5_7'
+  WORKFLOW_VERSION_POSTGRESQL_ARM64: '1' # increment to invalidate the arm64 cache
   PKGCONFIGLITE_VERSION: '0.28-1'
   WINFLEXBISON_VERSION: '2.5.24'
   WORKFLOW_VERSION_POSTGRESQL: '1' # increment to invalidate cache
@@ -81,7 +82,7 @@ jobs:
       id: cacheWinFlexBison
       with:
         path: C:\OTHERBIN\winflexbison
-        key: winflexbison-${{env.WINFLEXBISON_VERSION}}
+        key: winflexbison-dworkspace-${{env.WINFLEXBISON_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download winflexbison
@@ -109,7 +110,7 @@ jobs:
       id: cachePkgConfigLite
       with:
         path: C:\OTHERBIN\pkgconfiglite
-        key: pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}-win32
+        key: pkg-config-lite-dworkspace-${{env.PKGCONFIGLITE_VERSION}}-win32
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download pkgconfiglite
@@ -260,7 +261,7 @@ jobs:
       id: cacheDiffutils
       with:
         path: C:\OTHERBIN\diffutils
-        key: diffutils-${{env.DIFFUTILS_VERSION}}
+        key: diffutils-dworkspace-${{env.DIFFUTILS_VERSION}}
       env:
         SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
     - name: Download GNU diffutils
@@ -289,7 +290,7 @@ jobs:
       id: cacheInstaller
       with:
         path: C:\OTHERBIN\postgresql_install.exe
-        key: pg-installer-${{env.POSTGRESQL_PACKAGE_FILEID}}
+        key: pg-installer-dworkspace-${{env.POSTGRESQL_PACKAGE_FILEID}}
     - name: Download PostgreSQL installer
       if: steps.cacheInstaller.outputs.cache-hit != 'true'
       uses: suisei-cn/actions-download-file@v1.6.0
@@ -394,10 +395,347 @@ jobs:
         if-no-files-found: error
 
   # =====================================================================
+  # Build PostgreSQL arm64 (libpq only, from source) for Windows on Arm
+  #
+  # The windows-11-arm image has no prebuilt arm64 PostgreSQL, so libpq is
+  # built from source natively (OpenSSL comes from the slproweb prebuilt
+  # arm64 installer, same as the x86/x64 jobs). Only libpq is built:
+  # the full server does not build for aarch64 (PostgreSQL's msvc_gendef.pl
+  # rejects the arch when generating postgres.def), and the driver only needs
+  # libpq. The regression test server is a separate x64 EDB install (run under
+  # emulation) in the build-and-test job. windows-11-arm has no D: drive, so
+  # outputs live under C:. Results are cached so subsequent runs skip this job.
+  # =====================================================================
+  build-postgres-arm:
+    runs-on: windows-11-arm
+
+    steps:
+    - name: Cache libpq arm64 build output
+      uses: actions/cache@v4
+      id: cachePostgres
+      with:
+        path: C:\postgresql_arm64
+        key: postgresql-arm64-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL_ARM64}}
+
+    # -----------------------------------------------------------------
+    # Source code
+    # -----------------------------------------------------------------
+    - name: Cache PostgreSQL source
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cachePgSource
+      with:
+        path: postgres
+        # Distinct from the x64 job's pg-source key: that cache contains an
+        # x64-configured meson build/ dir with absolute D: paths, which breaks
+        # a C:-based arm64 reconfigure.
+        key: pg-source-arm64-${{env.POSTGRESQL_SOURCE_TAG}}
+    - name: Get PostgreSQL source
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cachePgSource.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: "postgres/postgres.git"
+        ref: ${{env.POSTGRESQL_SOURCE_TAG}}
+        path: postgres
+
+    # -----------------------------------------------------------------
+    # Build tools
+    # -----------------------------------------------------------------
+    - name: Install meson and ninja
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      run: python -m pip install meson ninja
+
+    - name: Cache winflexbison
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cacheWinFlexBison
+      with:
+        path: C:\OTHERBIN\winflexbison
+        key: winflexbison-cworkspace-${{env.WINFLEXBISON_VERSION}}
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download winflexbison
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cacheWinFlexBison.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadWinFlexBison
+      with:
+        retry-times: 5
+        url: https://sourceforge.net/projects/winflexbison/files/win_flex_bison-${{env.WINFLEXBISON_VERSION}}.zip
+        filename: win_flex_bison.zip
+    - name: Extract winflexbison
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cacheWinFlexBison.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\winflexbison"
+        7z x win_flex_bison.zip -o"C:\OTHERBIN\winflexbison"
+    - name: Add winflexbison to PATH
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      shell: cmd
+      run: printf "C:\OTHERBIN\\winflexbison" >> %GITHUB_PATH%
+
+    - name: Cache pkgconfiglite
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cachePkgConfigLite
+      with:
+        path: C:\OTHERBIN\pkgconfiglite
+        key: pkg-config-lite-cworkspace-${{env.PKGCONFIGLITE_VERSION}}-win32
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download pkgconfiglite
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cachePkgConfigLite.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadPkgConfigLite
+      with:
+        retry-times: 5
+        url: http://downloads.sourceforge.net/project/pkgconfiglite/${{env.PKGCONFIGLITE_VERSION}}/pkg-config-lite-${{env.PKGCONFIGLITE_VERSION}}_bin-win32.zip
+        filename: pkg-config-lite_bin-win32.zip
+    - name: Extract pkgconfiglite
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cachePkgConfigLite.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\pkgconfiglite"
+        7z x pkg-config-lite_bin-win32.zip -o"C:\OTHERBIN\pkgconfiglite"
+    - name: Add pkgconfiglite to PATH
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      shell: cmd
+      run: printf "C:\\OTHERBIN\\pkgconfiglite\\pkg-config-lite-%PKGCONFIGLITE_VERSION%\\bin" >> %GITHUB_PATH%
+
+    # -----------------------------------------------------------------
+    # OpenSSL arm64 (prebuilt slproweb installer; required for release
+    # installers). Mirrors the x86/x64 jobs: download the silent Inno
+    # Setup installer and install it. Cached so a libpq-cache miss does
+    # not force a re-download.
+    # -----------------------------------------------------------------
+    - name: Cache Win64ARM OpenSSL
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      id: cacheWin64ARMOpenSSL
+      with:
+        path: C:\OTHERBIN\openssl_arm64
+        key: Win64ARMOpenSSL-${{env.OPENSSL_VERSION}}
+    - name: Download Win64ARM OpenSSL
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cacheWin64ARMOpenSSL.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      id: downloadWin64ARMOpenSSL
+      with:
+        retry-times: 5
+        url: https://slproweb.com/download/Win64ARMOpenSSL-${{env.OPENSSL_VERSION}}.exe
+        filename: Win64ARMOpenSSL.exe
+    - name: Install Win64ARM OpenSSL
+      if: steps.cachePostgres.outputs.cache-hit != 'true' && steps.cacheWin64ARMOpenSSL.outputs.cache-hit != 'true'
+      shell: cmd
+      run: Win64ARMOpenSSL.exe /sp /silent /dir=c:\OTHERBIN\openssl_arm64
+
+    # -----------------------------------------------------------------
+    # Build libpq arm64 only (with SSL).
+    #
+    # Building only the libpq client library avoids the full-server build,
+    # which fails for aarch64 (postgres.def generation). This mirrors the
+    # x86 libpq-only build in the x64 job. A minimal libpq SDK (lib + dll +
+    # the client headers psqlodbc needs) is assembled under C:\postgresql_arm64.
+    # -----------------------------------------------------------------
+    - name: Setup MSVC arm64
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: arm64
+    - name: Build libpq arm64
+      if: steps.cachePostgres.outputs.cache-hit != 'true'
+      working-directory: postgres
+      shell: pwsh
+      run: |
+        # Always configure a clean arm64 build dir (never reuse a stale or
+        # cross-arch meson configuration).
+        if (Test-Path build) { Remove-Item -Recurse -Force build }
+        meson setup build -Dssl=openssl -Dextra_lib_dirs=c:\OTHERBIN\openssl_arm64\lib\VC\arm64\MT -Dextra_include_dirs=c:\OTHERBIN\openssl_arm64\include --prefix=C:\postgresql_arm64
+
+        # Build only the libpq client library (and its dependencies).
+        meson compile -C build src/interfaces/libpq/libpq:shared_library
+
+        # Assemble a minimal libpq SDK layout at C:\postgresql_arm64.
+        New-Item -ItemType Directory -Force -Path C:\postgresql_arm64\lib, C:\postgresql_arm64\bin, C:\postgresql_arm64\include | Out-Null
+        Get-ChildItem build -Recurse -Filter "libpq.lib" | Copy-Item -Destination C:\postgresql_arm64\lib\
+        Get-ChildItem build -Recurse -Filter "libpq.dll" | Copy-Item -Destination C:\postgresql_arm64\bin\
+
+        # Headers: reproduce a PostgreSQL install-style include layout so the
+        # driver builds. psqlodbc includes <libpq-fe.h>, "pqexpbuffer.h" and
+        # "postgres_fe.h"; the last pulls in the full server header tree
+        # (c.h, pg_config*.h, ...). Client headers go in include\, server
+        # headers in include\server\ (on psqlodbc's PG_INC/server include path).
+        $inc = "C:\postgresql_arm64\include"
+        New-Item -ItemType Directory -Force -Path "$inc\server" | Out-Null
+        Copy-Item src\interfaces\libpq\libpq-fe.h, src\interfaces\libpq\libpq-events.h, src\interfaces\libpq\pqexpbuffer.h $inc
+        Copy-Item src\include\postgres_ext.h $inc
+        # Full server header tree: static source headers plus the meson-generated
+        # pg_config.h / pg_config_os.h (emitted together in build\src\include).
+        # (PostgreSQL 18 has no pg_config_ext.h.)
+        Copy-Item -Recurse -Force src\include\* "$inc\server"
+        $gen = (Get-ChildItem build -Recurse -Filter pg_config.h | Select-Object -First 1).Directory.FullName
+        Copy-Item -Recurse -Force "$gen\*" "$inc\server"
+
+        # OpenSSL runtime DLLs alongside libpq (needed at load time and by the installer).
+        # The slproweb installer places the DLLs at the install root (like x86/x64).
+        Copy-Item c:\OTHERBIN\openssl_arm64\*.dll C:\postgresql_arm64\bin\
+
+  # =====================================================================
+  # Build and test psqlodbc arm64 (standard and mimalloc, in parallel)
+  #
+  # Runs natively on windows-11-arm. The regression tests run against a
+  # from-source arm64 PostgreSQL server started below.
+  # =====================================================================
+  build-and-test-arm:
+    needs: build-postgres-arm
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        # mimalloc is omitted on arm64: the vendored mimalloc submodule's VS
+        # project (libs/mimalloc/ide/vs2022/mimalloc.vcxproj) declares no ARM64
+        # configuration, so mimalloc-static.lib can't be built for arm64. Left
+        # as a follow-up (submodule bump or CMake build); mimalloc remains
+        # enabled for x86/x64.
+        variant: [standard]
+
+    steps:
+    - name: Restore libpq arm64 build from cache
+      uses: actions/cache/restore@v4
+      with:
+        path: C:\postgresql_arm64
+        key: postgresql-arm64-${{env.POSTGRESQL_SOURCE_TAG}}_openssl-${{env.OPENSSL_VERSION}}_pkgconfiglite-${{env.PKGCONFIGLITE_VERSION}}_winflexbison-${{env.WINFLEXBISON_VERSION}}_workflow-${{env.WORKFLOW_VERSION_POSTGRESQL_ARM64}}
+        fail-on-cache-miss: true
+
+    # -----------------------------------------------------------------
+    # Test dependencies
+    # -----------------------------------------------------------------
+    - name: Cache GNU diffutils
+      uses: actions/cache@v4
+      id: cacheDiffutilsArm
+      with:
+        path: C:\OTHERBIN\diffutils
+        key: diffutils-cworkspace-${{env.DIFFUTILS_VERSION}}
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+    - name: Download GNU diffutils
+      if: steps.cacheDiffutilsArm.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      with:
+        retry-times: 5
+        url: https://zenlayer.dl.sourceforge.net/project/gnuwin32/diffutils/${{env.DIFFUTILS_VERSION}}/diffutils-${{env.DIFFUTILS_VERSION}}-bin.zip
+        filename: diffutils-bin.zip
+    - name: Extract GNU diffutils
+      if: steps.cacheDiffutilsArm.outputs.cache-hit != 'true'
+      shell: cmd
+      run: |
+        mkdir "C:\OTHERBIN\diffutils"
+        7z x diffutils-bin.zip -o"C:\OTHERBIN\diffutils"
+    - name: Add diffutils to PATH
+      shell: cmd
+      run: printf "C:\\OTHERBIN\\diffutils\\bin" >> %GITHUB_PATH%
+
+    # -----------------------------------------------------------------
+    # PostgreSQL test server: the x64 EDB installer, run under Windows-on-Arm
+    # x64 emulation. The driver connects over localhost TCP, so the server's
+    # architecture is irrelevant. The regression harness (reset-db) creates
+    # the contrib_regression database itself, so no createdb here.
+    # -----------------------------------------------------------------
+    - name: Cache PostgreSQL installer
+      uses: actions/cache@v4
+      id: cacheInstallerArm
+      with:
+        path: C:\OTHERBIN\postgresql_install.exe
+        key: pg-installer-cworkspace-${{env.POSTGRESQL_PACKAGE_FILEID}}
+    - name: Download PostgreSQL installer
+      if: steps.cacheInstallerArm.outputs.cache-hit != 'true'
+      uses: suisei-cn/actions-download-file@v1.6.0
+      with:
+        retry-times: 5
+        url: https://sbp.enterprisedb.com/getfile.jsp?fileid=${{env.POSTGRESQL_PACKAGE_FILEID}}
+        target: c:\OTHERBIN
+        filename: postgresql_install.exe
+    - name: Install and start PostgreSQL server
+      shell: cmd
+      run: |
+        echo on
+        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server
+        sc config "postgresql-x64-17" start= auto
+        sc start "postgresql-x64-17"
+        ping -n 6 127.0.0.1 >nul
+
+    # Put the arm64 libpq (and its OpenSSL DLLs) ahead of the emulated x64
+    # server's bin so the arm64 driver loads the matching arm64 libpq at runtime.
+    - name: Add arm64 libpq to PATH
+      shell: cmd
+      run: echo C:\postgresql_arm64\bin>> %GITHUB_PATH%
+
+    # -----------------------------------------------------------------
+    # Build and test psqlodbc
+    # -----------------------------------------------------------------
+    - name: Checkout psqlodbc
+      uses: actions/checkout@v4
+      with:
+        path: psqlodbc
+        submodules: true
+    - name: Setup MSVC arm64 for psqlodbc
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: arm64
+
+    - name: Install WiX
+      shell: cmd
+      run: |
+        dotnet tool install --global wix --version "6.*"
+        wix extension add --global WixToolset.UI.wixext/6.0.0
+
+    - name: Build psqlodbc ${{matrix.variant}}
+      shell: powershell
+      working-directory: psqlodbc
+      run: |
+        copy .github\workflows\configuration.xml winbuild
+        if ('${{matrix.variant}}' -eq 'mimalloc') {
+          winbuild\BuildAll.ps1 -Platform ARM64 -UseMimalloc
+        } else {
+          winbuild\BuildAll.ps1 -Platform ARM64
+        }
+        installer\buildInstallers.ps1 -cpu arm64
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\${{matrix.variant}}
+    - name: Test psqlodbc ${{matrix.variant}}
+      shell: powershell
+      working-directory: psqlodbc
+      run: |
+        if ('${{matrix.variant}}' -eq 'mimalloc') {
+          winbuild\regress.ps1 -Platform ARM64 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ExpectMimalloc
+        } else {
+          winbuild\regress.ps1 -Platform ARM64 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+        }
+        ${{matrix.variant}}\test_arm64\RegisterRegdsn.exe uninstall_driver postgres_devw
+      env:
+        PSQLODBC_OBJBASE: ${{ github.workspace }}\psqlodbc\winbuild\${{matrix.variant}}
+
+    # -----------------------------------------------------------------
+    # Upload artifacts (named to match the release job's glob patterns)
+    # -----------------------------------------------------------------
+    - name: Upload ${{matrix.variant}} arm64 merge module
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC ${{matrix.variant}} arm64 Merge Module
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/arm64/*.msm
+        retention-days: 5
+        if-no-files-found: error
+    - name: Upload ${{matrix.variant}} arm64 installer package
+      uses: actions/upload-artifact@v4
+      with:
+        name: psqlODBC ${{matrix.variant}} arm64 Installer
+        path: psqlodbc/winbuild/${{matrix.variant}}/installer/arm64/*.msi
+        retention-days: 5
+        if-no-files-found: error
+
+  # =====================================================================
   # Release (only on version tags)
   # =====================================================================
   release:
-    needs: build-and-test
+    needs: [build-and-test, build-and-test-arm]
     if: startsWith(github.ref, 'refs/tags/REL-')
     runs-on: windows-latest
 

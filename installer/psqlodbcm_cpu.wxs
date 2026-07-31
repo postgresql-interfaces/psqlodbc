@@ -33,6 +33,20 @@
 <?else?>
   <?define SysFolder = "$(env.SystemRoot)\system32" ?>
 <?endif?>
+<?elseif $(sys.BUILDARCH) = arm64 ?>
+  <?define Platform = "arm64" ?>
+  <?define ModuleName = "psqlODBC_arm64" ?>
+  <?define BIT64 = "yes" ?>
+  <?define ANSIFOLDER = "arm64_ANSI_Release" ?>
+  <?define UNICODEFOLDER = "arm64_Unicode_Release" ?>
+  <?define Module_PackageId = "CEEFE64C-C79E-46E7-BDF8-F5DD89F9ACCA" ?>
+  <?define InstallerVersion = "500" ?>
+  <?define GUIDSEED = "3D4A96A3-7270-4BF5-81B5-3C8E66CE75CB" ?>
+<?if $(env.PROCESSOR_ARCHITECTURE) = "ARM64" ?>
+  <?define SysFolder = "$(env.SystemRoot)\system32" ?>
+<?else?>
+  <?define SysFolder = "$(env.SystemRoot)\sysnative" ?>
+<?endif?>
 <?else?><!-- sys.BUILDARCH -->
   <?error Invalid build architecture ?>
 <?endif?>
@@ -139,7 +153,7 @@
     <!-- MSDTC runs in 64bit mode on 64bit machines and 32bit mode on
          32bit machines. Install the XA DLL only from a native package.
     -->
-    <Component Id="pgxalib.files" Condition='"$(sys.BUILDARCHSHORT)"="X64" OR NOT VersionNT64'>
+    <Component Id="pgxalib.files" Condition='"$(sys.BUILDARCHSHORT)"="X64" OR "$(sys.BUILDARCHSHORT)"="A64" OR NOT VersionNT64'>
       <File Name="pgxalib.dll" Source="$(BINBASE)/$(UNICODEFOLDER)/pgxalib.dll" />
       <RegistryValue Id="pgxalib.reg.1" Root="HKLM" Key="SOFTWARE\Microsoft\MSDTC\XADLL" Name="pgxalib.dll" Type="string" Value="[#pgxalib.dll]" />
     </Component>

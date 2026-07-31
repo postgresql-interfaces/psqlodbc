@@ -10,6 +10,7 @@
   <?define CIDSMD = "{E6410EE8-96DC-4d84-8D07-94F8093BF3EF}" ?>
   <?define UPGCOD = "BBD29DF5-89F6-4b8b-BDC9-C3EA3A4AFDBB" ?>
   <?define ALLUSERS = "1" ?>
+  <?define PKGINSTVER = "300" ?>
 <?elseif $(sys.BUILDARCH) = x86 ?>
   <?define Platform = "x86" ?>
   <?define PKGNAME = "psqlODBC" ?>
@@ -18,6 +19,16 @@
   <?define CIDSMD = "{22288E09-B3B6-4181-907F-676099C20125}" ?>
   <?define UPGCOD = "24BCA538-75A2-4a7f-B236-C99EFC2145DE" ?>
   <?define ALLUSERS = "1" ?>
+  <?define PKGINSTVER = "300" ?>
+<?elseif $(sys.BUILDARCH) = arm64 ?>
+  <?define Platform = "arm64" ?>
+  <?define PKGNAME = "psqlODBC_arm64" ?>
+  <?define CIDREG = "EC6364F6-47BE-4528-9073-F029B20C9CB7" ?>
+  <?define CIDDOC = "8C1CC0E6-D52F-4B06-AE87-C5E79A0D26AF" ?>
+  <?define CIDSMD = "{2F309CCB-4518-4945-8681-C241F400233B}" ?>
+  <?define UPGCOD = "4E58DF25-04DA-4DCC-B919-35BFDAFCBA32" ?>
+  <?define ALLUSERS = "1" ?>
+  <?define PKGINSTVER = "500" ?>
 <?else?><!-- sys.BUILDARCH -->
   <?error Invalid build architecture ?>
 <?endif?>
@@ -36,7 +47,7 @@
     Name="$(PKGNAME)"
     Version="$(VERSION)"
     Codepage="1252"
-    InstallerVersion="300"
+    InstallerVersion="$(PKGINSTVER)"
     Compressed="yes"
     Language="1033">
 

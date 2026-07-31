@@ -31,7 +31,7 @@
 #	build 32bit and/or 64bit installers
 #
 Param(
-[ValidateSet("x86", "x64", "both")]
+[ValidateSet("x86", "x64", "arm64", "both")]
 [string]$cpu="both",
 [switch]$AlongWithDrivers,
 [switch]$ExcludeRuntime,
@@ -131,9 +131,9 @@ function findRuntime([int]$toolset_no, [String]$pgmvc)
 				$pgmvc = "${env:SystemRoot}\syswow64"
 			}
 		} else {
-			if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") {
+			if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64" -or $env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
 				$pgmvc = "${env:SystemRoot}\system32"
-			} elseif ($env:PROCESSOR_ARCHITEW6432 -eq "AMD64") {
+			} elseif ($env:PROCESSOR_ARCHITEW6432 -eq "AMD64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
 				$pgmvc = "${env:SystemRoot}\sysnative"
 			} else {
 				throw "${messageSpec}`n$dllinredist doesn't exist unfortunately"
