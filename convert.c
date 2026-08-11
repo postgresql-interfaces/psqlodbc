@@ -1448,8 +1448,30 @@ MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 		case PG_TYPE_DATE:
 			{
 				int status = 0;
-				secure_sscanf(value, &status, "%4d-%2d-%2d",
-				ARG_INT(&std_time.y), ARG_INT(&std_time.m), ARG_INT(&std_time.d));
+
+				/*
+				 * Unhandled, "infinity"/"-infinity" fail the sscanf
+				 * below and std_time is later filled with today's
+				 * date.  Mirror the PG_TYPE_TIMESTAMP handling below.
+				 */
+				std_time.infinity = 0;
+				if (strnicmp(value, INFINITY_STRING, 8) == 0)
+				{
+					std_time.infinity = 1;
+					std_time.y = 9999;
+					std_time.m = 12;
+					std_time.d = 31;
+				}
+				else if (strnicmp(value, MINFINITY_STRING, 9) == 0)
+				{
+					std_time.infinity = -1;
+					std_time.y = 1;
+					std_time.m = 1;
+					std_time.d = 1;
+				}
+				else
+					secure_sscanf(value, &status, "%4d-%2d-%2d",
+					ARG_INT(&std_time.y), ARG_INT(&std_time.m), ARG_INT(&std_time.d));
 			}		
 			break;
 
