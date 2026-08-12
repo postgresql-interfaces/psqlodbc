@@ -44,6 +44,8 @@ function Find-MSBuild
 			$VisualStudioVersion = "15.0"
 		} elseif ((Find-VSDir 16) -ne "") {	# VC16 is installed
 			$VisualStudioVersion = "16.0"
+		} elseif ((Find-VSDir 18) -ne "") { #VC 18 is installed
+			$VisualStudioVersion = "18.0"
 		} elseif ((Find-VSDir 17) -ne "") { #VC 17 is installed
 			$VisualStudioVersion = "17.0"
 		} elseif ("${env:VS140COMNTOOLS}" -ne "") { # VC14 is installed
@@ -226,7 +228,7 @@ function Find-Dumpbin
 {
     [CmdletBinding()]
 
-    Param([int]$CurMaxVC = 16)
+    Param([int]$CurMaxVC = 18)
 
 	if ("$dumpbinexe" -ne "") {
 		if ("$addPath" -ne "") {
@@ -406,7 +408,7 @@ function find_vs_installation
 	return $vsdir
 }
 
-$vsarray = @{VC15 = "2017"; VC16 = "2019"; VC17 = "2022"}
+$vsarray = @{VC15 = "2017"; VC16 = "2019"; VC17 = "2022"; VC18 = "18"}
 #	find VS dir for VC15 ~ VC??
 function find_default_msbuild_path
 {

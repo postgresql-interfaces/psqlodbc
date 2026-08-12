@@ -89,7 +89,11 @@ DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 					if (s_hLModule = LoadLibraryEx(dllPath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH), s_hLModule == NULL)
 					{
 						MYLOG(0, "libpq in the folder %s%s couldn't be loaded\n", drive, dir);
+#ifdef PG_BIN
 						SPRINTF_FIXED(message, "libpq in neither %s nor %s%s could be loaded", PG_BIN, drive, dir);
+#else
+						SPRINTF_FIXED(message, "libpq in %s%s couldn't be loaded", drive, dir);
+#endif
 					}
 				}
 #ifdef	PG_BIN
