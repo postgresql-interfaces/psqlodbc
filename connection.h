@@ -437,6 +437,7 @@ void		ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial);
 const char	*CC_get_current_schema(ConnectionClass *conn);
 int             CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *plan);
 int             CC_discard_marked_objects(ConnectionClass *conn);
+void		CC_abort_copy(ConnectionClass *self);
 
 int		CC_get_max_idlen(ConnectionClass *self);
 char	CC_get_escape(const ConnectionClass *self);

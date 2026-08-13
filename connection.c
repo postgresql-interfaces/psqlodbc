@@ -1809,6 +1809,46 @@ CC_internal_rollback(ConnectionClass *self, int rollback_type, BOOL ignore_abort
 }
 
 /*
+ * Get the connection out of the COPY sub-protocol it was just put into, so
+ * that it stays usable after we reject the statement.  Without this the
+ * connection is stuck: libpq keeps reporting the same COPY status and the
+ * server keeps waiting on the stream.
+ */
+void
+CC_abort_copy(ConnectionClass *self)
+{
+	PGresult	*pgres;
+	PGcancel	*cancel;
+	char		errbuf[256];
+	char		*copybuf = NULL;
+
+	if (!self->pqconn)
+		return;
+
+	/*
+	 * Ends copy-in by failing the COPY, so no half-finished data is left
+	 * behind.  It reports an error instead if we're copying out, which is
+	 * the one case where we can't just say we're done: the server is
+	 * streaming at us, so cancel it and swallow whatever is in flight.
+	 */
+	if (PQputCopyEnd(self->pqconn, NULL) < 0)
+	{
+		/* Without the cancel we'd pull the whole table over the wire. */
+		if (NULL != (cancel = PQgetCancel(self->pqconn)))
+		{
+			PQcancel(cancel, errbuf, sizeof(errbuf));
+			PQfreeCancel(cancel);
+		}
+		while (PQgetCopyData(self->pqconn, &copybuf, 0) >= 0)
+			PQfreemem(copybuf);
+	}
+
+	/* Consume the results the aborted COPY leaves behind. */
+	while ((pgres = PQgetResult(self->pqconn)) != NULL)
+		PQclear(pgres);
+}
+
+/*
  *	The "result_in" is only used by QR_next_tuple() to fetch another group of rows into
  *	the same existing QResultClass (this occurs when the tuple cache is depleted and
  *	needs to be re-filled).
@@ -2247,26 +2287,16 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 				}
 				break;
 			case PGRES_COPY_OUT:
-				/* XXX: We used to read from stdin here. Does that make any sense? */
 			case PGRES_COPY_IN:
-				if (query_completed)
-				{
-					QR_concat(res, QR_Constructor());
-					if (!QR_nextr(res))
-					{
-						CC_set_error(self, CONNECTION_COULD_NOT_RECEIVE, "Could not create result info in send_query.", func);
-						ReadyToReturn = TRUE;
-						retres = NULL;
-						break;
-					}
-					res = QR_nextr(res);
-					nrarg.res = res;
-				}
-				QR_set_rstatus(res, PORES_COPY_IN);
-				ReadyToReturn = TRUE;
-				retres = cmdres;
-				break;
 			case PGRES_COPY_BOTH:
+				CC_abort_copy(self);
+				CC_set_error(self, CONN_NOT_IMPLEMENTED_ERROR, "COPY ... FROM STDIN / TO STDOUT is not supported in ODBC", func);
+				QR_set_rstatus(res, PORES_FATAL_ERROR);
+
+				MYLOG(0, " error - %s\n", CC_get_errormsg(self));
+				ReadyToReturn = TRUE;
+				retres = NULL;
+				goto cleanup;
 			default:
 				/* skip the unexpected response if possible */
 				CC_set_error(self, CONNECTION_BACKEND_CRAZY, "Unexpected result status (send_query)", func);
