@@ -60,6 +60,14 @@ int main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/* Check 'infinity'/'-infinity' date */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT 'infinity'::date, '-infinity'::date", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
 	/* Clean up */
 	test_disconnect();
 
