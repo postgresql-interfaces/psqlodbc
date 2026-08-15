@@ -2250,6 +2250,14 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, firs
 			 * SQL_SUCCESS_WITH_INFO;
 			 */
 		}
+		else if (CONN_NOT_IMPLEMENTED_ERROR == CC_get_errornumber(conn))
+		{
+			/*
+			 * Keep the "optional feature not implemented" SQLSTATE (HYC00).
+			 * Only the number: the message already lives on the connection.
+			 */
+			SC_set_errornumber(self, STMT_NOT_IMPLEMENTED_ERROR);
+		}
 		else
 		{
 			SC_set_error(self, STMT_EXEC_ERROR, CC_get_errormsg(conn), func);
@@ -2780,6 +2788,12 @@ MYLOG(DETAIL_LOG_LEVEL, "get_Result=%p %p\n", res, SC_get_Result(stmt));
 		case PGRES_COPY_OUT:
 		case PGRES_COPY_IN:
 		case PGRES_COPY_BOTH:
+			CC_abort_copy(conn);
+			QR_set_rstatus(res, PORES_FATAL_ERROR);
+			CC_set_error(conn, CONN_NOT_IMPLEMENTED_ERROR, "COPY ... FROM STDIN / TO STDOUT is not supported in ODBC", func);
+
+			QLOG(0, "PQexecXxxx error: - (%d) - %s\n", pgresstatus, CC_get_errormsg(conn));
+			break;
 		default:
 			/* skip the unexpected response if possible */
 			QR_set_rstatus(res, PORES_BAD_RESPONSE);
@@ -3217,6 +3231,17 @@ SC_set_errorinfo(StatementClass *self, QResultClass *res, int errkind)
 	if (CC_not_connected(conn))
 	{
 		SC_set_error_if_not_set(self, STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__);
+		return;
+	}
+
+	if (CONN_NOT_IMPLEMENTED_ERROR == CC_get_errornumber(conn))
+	{
+		/*
+		 * Keep the "optional feature not implemented" SQLSTATE (HYC00).
+		 * Only the number: the message already lives on the connection.
+		 */
+		if (0 == SC_get_errornumber(self))
+			SC_set_errornumber(self, STMT_NOT_IMPLEMENTED_ERROR);
 		return;
 	}
 
