@@ -1,0 +1,8 @@
+connected
+Case 1: syntax error must roll back only the statement
+  expected error, SQLSTATE=42601
+  rows visible after syntax error: 1
+Case 2: execution-time error rolls back only the statement
+  expected error, SQLSTATE=42P01
+  rows visible after exec-time error: 2
+disconnecting

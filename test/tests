@@ -50,6 +50,7 @@ TESTBINS = exe/connect-test \
 	exe/cte-test \
 	exe/errors-test \
 	exe/error-rollback-test \
+	exe/rollback-syntax-error-test \
 	exe/diagnostic-test \
 	exe/numeric-test \
 	exe/large-object-test \
