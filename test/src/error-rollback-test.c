@@ -141,6 +141,145 @@ error_rollback_print(void)
 	print_result(hstmt);
 }
 
+/*
+ * Helpers for the error-class matrix below.
+ *
+ * The existing tests above cover just one error class (invalid integer input,
+ * 22P02) via SQLExecDirect.  With statement rollback (Protocol=7.4-2) the
+ * driver used to bundle "SAVEPOINT ...; <statement>" into a single simple-
+ * query string, which fails as a unit at parse time on grammar errors -- so
+ * a *syntax error* (42601) would silently roll back the whole transaction
+ * instead of just the offending statement (issue #203).  The matrix below
+ * exercises three error classes across ExecDirect and Prepare/Execute, and
+ * asserts (via a marker row) that earlier work in the transaction survives.
+ *
+ * Errors always surface at SQLExecute time (not SQLPrepare) for the paths
+ * this driver takes, so we only print the SQLSTATE, not where it fired.
+ */
+
+/* Extract the first SQLSTATE from a statement handle. */
+static void
+get_state(HSTMT s, char *out, size_t outlen)
+{
+	SQLCHAR		state[6] = {0};
+	SQLINTEGER	native;
+	SQLCHAR		msg[256];
+	SQLSMALLINT	len;
+
+	SQLGetDiagRec(SQL_HANDLE_STMT, s, 1, state,
+				  &native, msg, sizeof(msg), &len);
+	snprintf(out, outlen, "%s", (char *) state);
+}
+
+/* Run a statement expected to fail; print its SQLSTATE.  A different
+ * SQLSTATE, or unexpected success, is flagged inline so `diff` catches it. */
+static void
+expect_fail(HSTMT s, int use_prepare, const char *label,
+			const char *sql, const char *want_state)
+{
+	SQLRETURN	rc;
+	char		state[8] = {0};
+
+	if (use_prepare)
+	{
+		rc = SQLPrepare(s, (SQLCHAR *) sql, SQL_NTS);
+		if (SQL_SUCCEEDED(rc))
+			rc = SQLExecute(s);
+	}
+	else
+		rc = SQLExecDirect(s, (SQLCHAR *) sql, SQL_NTS);
+
+	if (SQL_SUCCEEDED(rc))
+	{
+		printf("%s: UNEXPECTED SUCCESS\n", label);
+		SQLFreeStmt(s, SQL_CLOSE);
+		return;
+	}
+	get_state(s, state, sizeof(state));
+	printf("%s: SQLSTATE=%s", label, state);
+	if (strcmp(state, want_state) != 0)
+		printf(" [MISMATCH want=%s]", want_state);
+	SQLFreeStmt(s, SQL_CLOSE);
+}
+
+/* After a failed statement, verify the marker row inserted earlier in the
+ * same transaction is still visible (statement-level rollback worked) and
+ * that the transaction is still usable. */
+static void
+check_survival(HSTMT s)
+{
+	SQLRETURN	rc;
+	SQLCHAR		buf[32];
+	SQLLEN		ind;
+
+	rc = SQLExecDirect(s, (SQLCHAR *)
+					   "SELECT count(*) FROM errortab WHERE i=100",
+					   SQL_NTS);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		printf(", marker=<count query failed>, tx=ABORTED\n");
+		SQLFreeStmt(s, SQL_CLOSE);
+		return;
+	}
+	if (SQLFetch(s) != SQL_SUCCESS)
+	{
+		printf(", marker=<fetch failed>\n");
+		SQLFreeStmt(s, SQL_CLOSE);
+		return;
+	}
+	SQLGetData(s, 1, SQL_C_CHAR, buf, sizeof(buf), &ind);
+	printf(", marker=%s", (char *) buf);
+	SQLFreeStmt(s, SQL_CLOSE);
+
+	rc = SQLExecDirect(s, (SQLCHAR *) "SELECT 1", SQL_NTS);
+	printf(", tx=%s\n", SQL_SUCCEEDED(rc) ? "alive" : "ABORTED");
+	SQLFreeStmt(s, SQL_CLOSE);
+}
+
+/* Run one case: insert marker row, fail the given statement, then verify
+ * the marker row survives.  Each case rolls back at the end so the next
+ * case starts clean. */
+static void
+run_case(int use_prepare, const char *label,
+		 const char *sql, const char *want_state)
+{
+	SQLRETURN	rc;
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *)
+					   "INSERT INTO errortab VALUES (100)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "marker insert failed", hstmt);
+	SQLFreeStmt(hstmt, SQL_CLOSE);
+
+	expect_fail(hstmt, use_prepare, label, sql, want_state);
+	check_survival(hstmt);
+
+	rc = SQLEndTran(SQL_HANDLE_DBC, conn, SQL_ROLLBACK);
+	CHECK_STMT_RESULT(rc, "SQLEndTran (case) failed", hstmt);
+}
+
+/* One matrix run: three error classes x two execution paths. */
+static void
+run_matrix(const char *options, const char *header)
+{
+	printf("%s\n", header);
+	error_rollback_init((char *) options);
+
+	run_case(0, "  ExecDirect syntax    ",
+			 "INSERT INTO errortab VALUS (1)", "42601");
+	run_case(1, "  Prepare    syntax    ",
+			 "INSERT INTO errortab VALUS (1)", "42601");
+	run_case(0, "  ExecDirect undef-rel ",
+			 "INSERT INTO no_such_tbl VALUES (1)", "42P01");
+	run_case(1, "  Prepare    undef-rel ",
+			 "INSERT INTO no_such_tbl VALUES (1)", "42P01");
+	run_case(0, "  ExecDirect bad-value ",
+			 "INSERT INTO errortab VALUES ('nope')", "22P02");
+	run_case(1, "  Prepare    bad-value ",
+			 "INSERT INTO errortab VALUES ('nope')", "22P02");
+
+	error_rollback_clean();
+}
+
 int
 main(int argc, char **argv)
 {
@@ -225,6 +364,24 @@ main(int argc, char **argv)
 
 	/* Clean up */
 	error_rollback_clean();
+
+	/*
+	 * Error-class matrix under Protocol=7.4-2.
+	 *
+	 * Each case inserts a marker row, then runs a statement expected to fail
+	 * with a particular SQLSTATE, then asserts the marker row is still there
+	 * (statement rollback worked) and the transaction is still usable.
+	 *
+	 * The syntax-error (42601) rows are the ones that broke pre-issue-#203
+	 * fix: on ExecDirect+SSP=0, Prepare+SSP=0 and ExecDirect+SSP=1 the whole
+	 * transaction was silently aborted, so the marker row disappeared.
+	 * The other classes and Prepare+SSP=1 have always worked; they're
+	 * included as regression guards.
+	 */
+	run_matrix("Protocol=7.4-2;UseServerSidePrepare=0",
+			   "Test for rollback protocol 2 error-class matrix (SSP=0)");
+	run_matrix("Protocol=7.4-2;UseServerSidePrepare=1",
+			   "Test for rollback protocol 2 error-class matrix (SSP=1)");
 
 	return 0;
 }

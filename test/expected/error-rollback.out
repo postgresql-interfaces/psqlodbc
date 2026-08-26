@@ -55,3 +55,21 @@ Result set:
 6
 7
 disconnecting
+Test for rollback protocol 2 error-class matrix (SSP=0)
+connected
+  ExecDirect syntax    : SQLSTATE=42601, marker=1, tx=alive
+  Prepare    syntax    : SQLSTATE=42601, marker=1, tx=alive
+  ExecDirect undef-rel : SQLSTATE=42P01, marker=1, tx=alive
+  Prepare    undef-rel : SQLSTATE=42P01, marker=1, tx=alive
+  ExecDirect bad-value : SQLSTATE=22P02, marker=1, tx=alive
+  Prepare    bad-value : SQLSTATE=22P02, marker=1, tx=alive
+disconnecting
+Test for rollback protocol 2 error-class matrix (SSP=1)
+connected
+  ExecDirect syntax    : SQLSTATE=42601, marker=1, tx=alive
+  Prepare    syntax    : SQLSTATE=42601, marker=1, tx=alive
+  ExecDirect undef-rel : SQLSTATE=42P01, marker=1, tx=alive
+  Prepare    undef-rel : SQLSTATE=42P01, marker=1, tx=alive
+  ExecDirect bad-value : SQLSTATE=22P02, marker=1, tx=alive
+  Prepare    bad-value : SQLSTATE=22P02, marker=1, tx=alive
+disconnecting
