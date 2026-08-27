@@ -16,7 +16,7 @@ env:
 
   # PostgreSQL build from source.
   POSTGRESQL_SOURCE_TAG: 'REL_18_STABLE'
-  OPENSSL_VERSION: '3_5_7'
+  OPENSSL_VERSION: '3_5_8'
   WORKFLOW_VERSION_POSTGRESQL_ARM64: '1' # increment to invalidate the arm64 cache
   PKGCONFIGLITE_VERSION: '0.28-1'
   WINFLEXBISON_VERSION: '2.5.24'
