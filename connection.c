@@ -1875,7 +1875,7 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		create_keyset = ((flag & CREATE_KEYSET) != 0),
 		issue_begin = ((flag & GO_INTO_TRANSACTION) != 0 && !CC_is_in_trans(self)),
 		rollback_on_error, query_rollback, end_with_commit,
-		read_only, prepend_savepoint = FALSE,
+		read_only,
 		ignore_roundtrip_time = ((self->connInfo.extra_opts & BIT_IGNORE_ROUND_TRIP_TIME) != 0);
 
 	char		*ptr;
@@ -1979,16 +1979,12 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		}
 	}
 
-	/* prepend internal savepoint command ? */
-	if (PREPEND_IN_PROGRESS == self->internal_op)
-		prepend_savepoint = TRUE;
-
 	/* append all these together, to avoid round-trips */
 	query_len = strlen(query);
 	MYLOG(0, "query_len=" FORMAT_SIZE_T "\n", query_len);
 
 	initPQExpBuffer(&query_buf);
-	/* issue_begin, query_rollback and prepend_savepoint are exclusive */
+	/* issue_begin and query_rollback are exclusive */
 	if (issue_begin)
 	{
 		appendPQExpBuffer(&query_buf, "%s;", bgncmd);
@@ -1998,14 +1994,6 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	{
 		appendPQExpBuffer(&query_buf, "%s %s;", svpcmd, per_query_svp);
 		discard_next_savepoint = TRUE;
-	}
-	else if (prepend_savepoint)
-	{
-		char   	prepend_cmd[128];
-
-		GenerateSvpCommand(self, INTERNAL_SAVEPOINT_OPERATION, prepend_cmd, sizeof(prepend_cmd));
-		appendPQExpBuffer(&query_buf, "%s;", prepend_cmd);
-		self->internal_op = SAVEPOINT_IN_PROGRESS;
 	}
 	appendPQExpBufferStr(&query_buf, query);
 	if (appendq)

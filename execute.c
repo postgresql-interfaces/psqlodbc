@@ -812,12 +812,19 @@ MYLOG(DETAIL_LOG_LEVEL, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn
 		}
 		if (need_savep)
 		{
-			if (0 != (option & SVPOPT_REDUCE_ROUNDTRIP))
-			{
-				conn->internal_op = PREPEND_IN_PROGRESS;
-				CC_set_accessed_db(conn);
-				return ret;
-			}
+			/*
+			 * Establish the internal savepoint with its own round-trip
+			 * instead of prepending it to the user's statement.  Bundling
+			 * "SAVEPOINT ...; <statement>" into a single simple-query string
+			 * means a statement that fails at parse time (e.g. a syntax
+			 * error) takes the SAVEPOINT down with it: the SAVEPOINT never
+			 * executes, so statement-level rollback has no savepoint to roll
+			 * back to and the whole transaction is discarded, silently losing
+			 * work done earlier in the transaction (issue #203).  Sending the
+			 * SAVEPOINT separately guarantees it is in place before the
+			 * statement is parsed, at the cost of one extra round-trip per
+			 * rolled-back statement.
+			 */
 			GenerateSvpCommand(conn, INTERNAL_SAVEPOINT_OPERATION, cmd, sizeof(cmd));
 			conn->internal_op = SAVEPOINT_IN_PROGRESS;
 			res = CC_send_query(conn, cmd, NULL, 0, NULL);

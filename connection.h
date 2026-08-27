@@ -521,7 +521,6 @@ int	GenerateSvpCommand(ConnectionClass *conn, int type, char *cmd, int bufsize);
 /*      Operations in progress */
 enum {
         SAVEPOINT_IN_PROGRESS = 1
-        ,PREPEND_IN_PROGRESS
 };
 /*      StatementSvp entry option */
 enum {
