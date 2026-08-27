@@ -3,3 +3,5 @@ EXPORTS
 EnlistInDtc
 DtcOnDisconnect
 IsolateDtcConn
+GetTransactionObject
+ReleaseTransactionObject
