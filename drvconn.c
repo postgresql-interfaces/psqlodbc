@@ -39,33 +39,6 @@
 
 #define	NULL_IF_NULL(a) (a ? a : "(NULL)")
 
-/*
- * Mask the password in a connection string before it is written to the log,
- * so that debug logs (MyLog/CommLog) can be shared without leaking the
- * database credentials.  Matches the PWD keyword case-insensitively.
- */
-static char * hide_password(const char *str)
-{
-	char *outstr, *pwdp;
-
-	if (!str)	return NULL;
-	outstr = strdup(str);
-	if (!outstr) return NULL;
-	for (pwdp = outstr; *pwdp; pwdp++)
-	{
-		if (strnicmp(pwdp, "PWD=", 4) == 0)
-			break;
-	}
-	if (*pwdp)
-	{
-		char	*p;
-
-		for (p=pwdp + 4; *p && *p != ';'; p++)
-			*p = 'x';
-	}
-	return outstr;
-}
-
 /* prototypes */
 static BOOL dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci);
 static BOOL dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);

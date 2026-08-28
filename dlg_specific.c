@@ -687,9 +687,19 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	}
 	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
 	{
+		char	*hide_str = hide_password(value);
+
 		NULL_THE_NAME(ci->pqopt);
 		ci->pqopt_in_str = TRUE;
 		ci->pqopt = decode_or_remove_braces(value);
+		/*
+		 * A pqopt value can embed a libpq 'password=...', so log a copy
+		 * with the password masked and skip the generic logging below.
+		 */
+		MYLOG(0, "key='%s' value='%s'\n", attribute, hide_str ? hide_str : "");
+		if (hide_str)
+			free(hide_str);
+		printed = TRUE;
 	}
 	else if (stricmp(attribute, INI_UPDATABLECURSORS) == 0 || stricmp(attribute, ABBR_UPDATABLECURSORS) == 0)
 		ci->allow_keyset = pg_atoi(value);

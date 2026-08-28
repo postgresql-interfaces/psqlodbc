@@ -312,3 +312,59 @@ quote_table(const pgNAME schema, const pgNAME table, char *buf, int buf_size)
 
 	return buf;
 }
+
+/*
+ * Return a malloc'd copy of a connection string with any password value
+ * masked, so that debug logs (MyLog/CommLog) can be shared without leaking
+ * the database credentials.  Both keywords are matched case-insensitively:
+ *
+ *   PWD=       the ODBC password attribute; its value runs to the next ';'
+ *   password=  the libpq password keyword, e.g. inside a pqopt={...} value;
+ *              its value is whitespace-delimited (or single-quoted) and ends
+ *              at the closing brace of the pqopt block.
+ *
+ * The caller is responsible for free()ing the returned string.
+ */
+char *
+hide_password(const char *str)
+{
+	char	*outstr, *p;
+
+	if (!str)
+		return NULL;
+	outstr = strdup(str);
+	if (!outstr)
+		return NULL;
+	for (p = outstr; *p; )
+	{
+		if (strnicmp(p, "PWD=", 4) == 0)
+		{
+			for (p += 4; *p && *p != ';'; p++)
+				*p = 'x';
+		}
+		else if (strnicmp(p, "password=", 9) == 0)
+		{
+			p += 9;
+			if (*p == '\'')		/* libpq single-quoted value */
+			{
+				for (p++; *p && *p != '\''; p++)
+				{
+					if (*p == '\\' && p[1])
+						*p++ = 'x';
+					*p = 'x';
+				}
+				if (*p == '\'')
+					p++;
+			}
+			else
+			{
+				for (; *p && *p != ';' && *p != '}' &&
+				       *p != ' ' && *p != '\t'; p++)
+					*p = 'x';
+			}
+		}
+		else
+			p++;
+	}
+	return outstr;
+}
