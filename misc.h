@@ -98,6 +98,12 @@ FUNCTION_BEGIN_MACRO \
 FUNCTION_END_MACRO
 
 
+/*
+ * Return a malloc'd copy of a connection string with password values masked,
+ * for safe logging.  The caller must free() the result.
+ */
+char *hide_password(const char *str);
+
 #ifdef __cplusplus
 }
 #endif

@@ -37,29 +37,7 @@
 
 #include "dlg_specific.h"
 
-#define	FORCE_PASSWORD_DISPLAY
 #define	NULL_IF_NULL(a) (a ? a : "(NULL)")
-
-#ifndef FORCE_PASSWORD_DISPLAY
-static char * hide_password(const char *str)
-{
-	char *outstr, *pwdp;
-
-	if (!str)	return NULL;
-	outstr = strdup(str);
-	if (!outstr) return NULL;
-	if (pwdp = strstr(outstr, "PWD="), !pwdp)
-		pwdp = strstr(outstr, "pwd=");
-	if (pwdp)
-	{
-		char	*p;
-
-		for (p=pwdp + 4; *p && *p != ';'; p++)
-			*p = 'x';
-	}
-	return outstr;
-}
-#endif
 
 /* prototypes */
 static BOOL dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci);
@@ -308,8 +286,8 @@ MYLOG(DETAIL_LOG_LEVEL, "before CC_connect\n");
 		char	*hide_str = NULL;
 
 		if (cbConnStrOutMax > 0)
-			hide_str = hide_password(szConnStrOut);
-		MYLOG(0, "szConnStrOut = '%s' len=%d,%d\n", NULL_IF_NULL(hide_str), len, cbConnStrOutMax);
+			hide_str = hide_password((char *) szConnStrOut);
+		MYLOG(0, "szConnStrOut = '%s' len=" FORMAT_SSIZE_T ",%d\n", NULL_IF_NULL(hide_str), len, cbConnStrOutMax);
 		if (hide_str)
 			free(hide_str);
 	}
