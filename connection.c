@@ -1956,7 +1956,17 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 	consider_rollback = (issue_begin || (CC_is_in_trans(self) && !CC_is_in_error_trans(self)) || strnicmp(query, "begin", 5) == 0);
 	if (rollback_on_error)
 		rollback_on_error = consider_rollback;
-	query_rollback = (rollback_on_error && !end_with_commit && PG_VERSION_GE(self, 8.0));
+	/*
+	 * rollback-on-error level 0 (Protocol=7.4-0) means the user has asked
+	 * for no automatic savepoint handling -- typically because the server
+	 * has no SAVEPOINT support (e.g. QuestDB, Materialize).  In that case we
+	 * must not wrap internal queries such as the DEALLOCATE issued when a
+	 * prepared statement is freed in "SAVEPOINT _per_query_svp_; ...;
+	 * RELEASE _per_query_svp_", or the SAVEPOINT is rejected and aborts the
+	 * whole transaction. (issue #208)
+	 */
+	query_rollback = (rollback_on_error && !end_with_commit && PG_VERSION_GE(self, 8.0)
+					  && self->connInfo.rollback_on_error != 0);
 	if (!query_rollback && consider_rollback && !end_with_commit)
 	{
 		if (stmt)
