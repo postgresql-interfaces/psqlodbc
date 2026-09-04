@@ -1305,7 +1305,7 @@ static const struct
 	{ STMT_ROW_OUT_OF_RANGE, "HY107", "S1107" },
 	{ STMT_OPERATION_CANCELLED, "HY008", "S1008" },
 	{ STMT_INVALID_CURSOR_POSITION, "HY109", "S1109" },
-	{ STMT_VALUE_OUT_OF_RANGE, "HY019", "22003" },
+	{ STMT_VALUE_OUT_OF_RANGE, "22003", "22003" },
 	{ STMT_OPERATION_INVALID, "HY011", "S1011" },
 	{ STMT_PROGRAM_TYPE_OUT_OF_RANGE, "?????", "?????" },
 	{ STMT_BAD_ERROR, "08S01", "08S01" }, /* communication link failure */
@@ -1869,6 +1869,11 @@ MYLOG(DETAIL_LOG_LEVEL, "curt=" FORMAT_LEN "\n", curt);
 
 				case COPY_INVALID_STRING_CONVERSION:    /* invalid string */
 					SC_set_error(self, STMT_STRING_CONVERSION_ERROR, "invalid string conversion occurred.", func);
+					result = SQL_ERROR;
+					break;
+
+				case COPY_RESULT_OVERFLOW:
+					SC_set_error(self, STMT_VALUE_OUT_OF_RANGE, "Numeric value out of range", func);
 					result = SQL_ERROR;
 					break;
 

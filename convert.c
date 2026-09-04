@@ -38,6 +38,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 #include "statement.h"
 #include "qresult.h"
 #include "bind.h"
@@ -275,6 +276,33 @@ static unsigned ODBCINT64 ATOI64U(const char *val)
 
 static void ResolveNumericParam(const SQL_NUMERIC_STRUCT *ns, char *chrform);
 static void parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow);
+
+#ifdef	WIN32
+#define	PODBC_STRTOI64(v)	_strtoi64((v), NULL, 10)
+#else
+#define	PODBC_STRTOI64(v)	strtoll((v), NULL, 10)
+#endif
+
+/*
+ * Parse an integer string and report whether it lies outside the inclusive
+ * range [minval, maxval] or overflows the int64 domain itself.  This lets the
+ * integer SQL_C_* conversions raise 22003 (numeric value out of range)
+ * instead of silently storing the wrapped low bits.  (issue #207)
+ * The parsed value is returned in *out regardless, for the in-range case.
+ */
+static BOOL
+int_value_out_of_range(const char *val, SQLBIGINT minval, SQLBIGINT maxval,
+					   SQLBIGINT *out)
+{
+	SQLBIGINT	v;
+
+	errno = 0;
+	v = PODBC_STRTOI64(val);
+	*out = v;
+	if (errno == ERANGE)
+		return TRUE;
+	return (v < minval || v > maxval);
+}
 
 /*
  *	TIMESTAMP <-----> SIMPLE_TIME
@@ -1870,18 +1898,36 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 			case SQL_C_STINYINT:
 			case SQL_C_TINYINT:
 				len = 1;
-				if (bind_size > 0)
-					*((SCHAR *) rgbValueBindRow) = pg_atoi(neut_str);
-				else
-					*((SCHAR *) rgbValue + bind_row) = pg_atoi(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					if (int_value_out_of_range(neut_str, SCHAR_MIN, SCHAR_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SCHAR *) rgbValueBindRow) = (SCHAR) i64;
+					else
+						*((SCHAR *) rgbValue + bind_row) = (SCHAR) i64;
+				}
 				break;
 
 			case SQL_C_UTINYINT:
 				len = 1;
-				if (bind_size > 0)
-					*((UCHAR *) rgbValueBindRow) = pg_atoi(neut_str);
-				else
-					*((UCHAR *) rgbValue + bind_row) = pg_atoi(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					if (int_value_out_of_range(neut_str, 0, UCHAR_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((UCHAR *) rgbValueBindRow) = (UCHAR) i64;
+					else
+						*((UCHAR *) rgbValue + bind_row) = (UCHAR) i64;
+				}
 				break;
 
 			case SQL_C_FLOAT:
@@ -1921,52 +1967,113 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 			case SQL_C_SSHORT:
 			case SQL_C_SHORT:
 				len = 2;
-				if (bind_size > 0)
-					*((SQLSMALLINT *) rgbValueBindRow) = pg_atoi(neut_str);
-				else
-					*((SQLSMALLINT *) rgbValue + bind_row) = pg_atoi(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					if (int_value_out_of_range(neut_str, SHRT_MIN, SHRT_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SQLSMALLINT *) rgbValueBindRow) = (SQLSMALLINT) i64;
+					else
+						*((SQLSMALLINT *) rgbValue + bind_row) = (SQLSMALLINT) i64;
+				}
 				break;
 
 			case SQL_C_USHORT:
 				len = 2;
-				if (bind_size > 0)
-					*((SQLUSMALLINT *) rgbValueBindRow) = pg_atoi(neut_str);
-				else
-					*((SQLUSMALLINT *) rgbValue + bind_row) = pg_atoi(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					if (int_value_out_of_range(neut_str, 0, USHRT_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SQLUSMALLINT *) rgbValueBindRow) = (SQLUSMALLINT) i64;
+					else
+						*((SQLUSMALLINT *) rgbValue + bind_row) = (SQLUSMALLINT) i64;
+				}
 				break;
 
 			case SQL_C_SLONG:
 			case SQL_C_LONG:
 				len = 4;
-				if (bind_size > 0)
-					*((SQLINTEGER *) rgbValueBindRow) = pg_atol(neut_str);
-				else
-					*((SQLINTEGER *) rgbValue + bind_row) = pg_atol(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					if (int_value_out_of_range(neut_str, INT_MIN, INT_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SQLINTEGER *) rgbValueBindRow) = (SQLINTEGER) i64;
+					else
+						*((SQLINTEGER *) rgbValue + bind_row) = (SQLINTEGER) i64;
+				}
 				break;
 
 			case SQL_C_ULONG:
 				len = 4;
-				if (bind_size > 0)
-					*((SQLUINTEGER *) rgbValueBindRow) = ATOI32U(neut_str);
-				else
-					*((SQLUINTEGER *) rgbValue + bind_row) = ATOI32U(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					if (int_value_out_of_range(neut_str, 0, UINT_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SQLUINTEGER *) rgbValueBindRow) = (SQLUINTEGER) i64;
+					else
+						*((SQLUINTEGER *) rgbValue + bind_row) = (SQLUINTEGER) i64;
+				}
 				break;
 
 #ifdef ODBCINT64
 			case SQL_C_SBIGINT:
 				len = 8;
-				if (bind_size > 0)
-					*((SQLBIGINT *) rgbValueBindRow) = ATOI64(neut_str);
-				else
-					*((SQLBIGINT *) rgbValue + bind_row) = ATOI64(neut_str);
+				{
+					SQLBIGINT	i64;
+
+					/* range args are the int64 domain; this only trips on ERANGE */
+					if (int_value_out_of_range(neut_str, LLONG_MIN, LLONG_MAX, &i64))
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SQLBIGINT *) rgbValueBindRow) = i64;
+					else
+						*((SQLBIGINT *) rgbValue + bind_row) = i64;
+				}
 				break;
 
 			case SQL_C_UBIGINT:
 				len = 8;
-				if (bind_size > 0)
-					*((SQLUBIGINT *) rgbValueBindRow) = ATOI64U(neut_str);
-				else
-					*((SQLUBIGINT *) rgbValue + bind_row) = ATOI64U(neut_str);
+				{
+					SQLUBIGINT	u64;
+					const char	*p = neut_str;
+
+					while (*p == ' ' || *p == '\t')
+						p++;
+					errno = 0;
+					u64 = ATOI64U(neut_str);
+					/* strtoull() silently wraps a negative value; reject it */
+					if (errno == ERANGE || *p == '-')
+					{
+						result = COPY_RESULT_OVERFLOW;
+						break;
+					}
+					if (bind_size > 0)
+						*((SQLUBIGINT *) rgbValueBindRow) = u64;
+					else
+						*((SQLUBIGINT *) rgbValue + bind_row) = u64;
+				}
 				break;
 
 #endif /* ODBCINT64 */

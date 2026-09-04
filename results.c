@@ -1158,6 +1158,11 @@ MYLOG(DETAIL_LOG_LEVEL, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMA
 			result = SQL_ERROR;
 			break;
 
+		case COPY_RESULT_OVERFLOW:
+			SC_set_error(stmt, STMT_VALUE_OUT_OF_RANGE, "Numeric value out of range", func);
+			result = SQL_ERROR;
+			break;
+
 		case COPY_GENERAL_ERROR:		/* error msg already filled in */
 			result = SQL_ERROR;
 			break;
