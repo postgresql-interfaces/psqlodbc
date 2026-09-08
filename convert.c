@@ -2151,8 +2151,12 @@ MYLOG(DETAIL_LOG_LEVEL, "SQL_C_VARBOOKMARK value=%d\n", ival);
 		}
 	}
 
-	/* store the length of what was copied, if there's a place for it */
-	if (pcbValue)
+	/*
+	 * Store the length of what was copied, if there's a place for it.
+	 * On an out-of-range overflow the data buffer is left untouched, so
+	 * leave the length/indicator untouched too (issue #207).
+	 */
+	if (pcbValue && result != COPY_RESULT_OVERFLOW)
 		*pcbValueBindRow = len;
 
 	if (result == COPY_OK && stmt->current_col >= 0)
