@@ -10,6 +10,39 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+ <h2><a id="18.00.0003">psqlODBC 18.00.0003 Release</a></h2>
+ Changes:<br />
+ <li>
+  Report SQLSTATE 22003 for out-of-range integer conversions instead of silently returning the wrapped low bits (#207, #210, #211)
+ </li>
+ <li>
+  Fix statement-level rollback (Protocol=7.4-2) discarding the whole transaction on a syntax error (#203, #204)
+ </li>
+ <li>
+  Don't wrap internal queries in a savepoint at rollback-on-error level 0 (Protocol=7.4-0), which lost transactions on servers without SAVEPOINT support (#208, #209)
+ </li>
+ <li>
+  Redact the database password (ODBC PWD and libpq pqopt password) in debug logs (#206)
+ </li>
+ <li>
+  Fix hang on COPY ... FROM STDIN / TO STDOUT: report it as unsupported and keep the connection usable (#202)
+ </li>
+ <li>
+  Fix 'infinity'/'-infinity' dates silently returned as today's date (#199)
+ </li>
+ <li>
+  Document connection string escaping rules (#140, #197)
+ </li>
+ <li>
+  Resolve Visual Studio 2026 (v18) build issues and circular dependencies (#201)
+ </li>
+ <li>
+  Add Windows on Arm (ARM64) CI build and regression testing (#196)
+ </li>
+ <li>
+  Build Windows OpenSSL 3.5.8 in CI (#205)
+ </li>
+ <hr>
  <h2><a id="18.00.0002">psqlODBC 18.00.0002 Release</a></h2>
  Changes:<br />
  <li>
