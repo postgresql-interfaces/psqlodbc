@@ -16,6 +16,7 @@ TESTBINS = exe/connect-test \
 	exe/getresult-test \
 	exe/colattribute-test \
 	exe/result-conversions-test \
+	exe/result-conversions-endianness-test \
 	exe/prepare-test \
 	exe/premature-test \
 	exe/params-test \
