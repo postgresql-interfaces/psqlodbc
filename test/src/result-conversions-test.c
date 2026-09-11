@@ -118,6 +118,37 @@ static const struct
 	{ 0, NULL }
 };
 
+/*
+ * Conversions whose output is not portable across platforms or server
+ * versions.  These are NOT run as part of the matrix below; they live in
+ * result-conversions-endianness-test.c instead, so that this test's
+ * expected output needs no big-endian / pre-PG12 variants:
+ *
+ * - int4 as SQL_C_BINARY / SQL_C_VARBOOKMARK: the driver memcpy()s a
+ *   host-order UInt4 into the buffer, so the hex dump depends on the
+ *   machine's endianness.
+ * - float8 as SQL_C_CHAR / SQL_C_WCHAR / SQL_C_NUMERIC: PG12 changed the
+ *   default float output format, so the rendered digits depend on the
+ *   server version.
+ *
+ * Note: SQL_C_VARBOOKMARK and SQL_C_BINARY are the same numeric C type
+ * code, so this has to compare the type name strings, not the codes.
+ */
+static int
+nonportable_conversion(const char *pgtype, const char *sqltypestr)
+{
+	if (strcmp(pgtype, "int4") == 0 &&
+		(strcmp(sqltypestr, "SQL_C_BINARY") == 0 ||
+		 strcmp(sqltypestr, "SQL_C_VARBOOKMARK") == 0))
+		return 1;
+	if (strcmp(pgtype, "float8") == 0 &&
+		(strcmp(sqltypestr, "SQL_C_CHAR") == 0 ||
+		 strcmp(sqltypestr, "SQL_C_WCHAR") == 0 ||
+		 strcmp(sqltypestr, "SQL_C_NUMERIC") == 0))
+		return 1;
+	return 0;
+}
+
 static HSTMT hstmt = SQL_NULL_HSTMT;
 
 void
@@ -605,6 +636,9 @@ int main(int argc, char **argv)
 			int sqltype = sqltypes[sqltype_i].sqltype;
 			const char *sqltypestr = sqltypes[sqltype_i].str;
 
+			if (nonportable_conversion(pgtype, sqltypestr))
+				continue;
+
 			test_conversion(pgtype, value, sqltype, sqltypestr, 100, 0);
 		}
 	}
@@ -653,7 +687,12 @@ int main(int argc, char **argv)
 	test_conversion("text", "foobar", SQL_C_WCHAR, "SQL_C_WCHAR", 14, 0);
 
 	test_conversion("text", "", SQL_C_CHAR, "SQL_C_CHAR", 1, 0);
-	test_conversion("text", "", SQL_C_WCHAR, "SQL_C_WCHAR", 1, 0);
+	/*
+	 * The SQL_C_WCHAR variant of this truncation test moved to
+	 * result-conversions-endianness-test.c: it prints the SQLWCHAR units of
+	 * a 0xFF-filled buffer, whose byte order depends on the machine's
+	 * endianness ("\FF00" vs "\  FF" for the first unit).
+	 */
 
 	test_conversion("timestamp", "2011-02-15 15:49:18", SQL_C_CHAR, "SQL_C_CHAR", 19, 0);
 
