@@ -21,6 +21,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 #ifndef WIN32
 #include <ctype.h>
@@ -1246,6 +1247,7 @@ MYLOG(DETAIL_LOG_LEVEL, "%d sqltype=%d -> pgtype=%d\n", ci->bytea_as_longvarbina
 		if (fSqlType == SQL_ALL_TYPES || fSqlType == sqlType)
 		{
 			int	pgtcount = 1, aunq_match = -1, cnt;
+			Int4	column_size;
 
 			/*if (SQL_INTEGER == sqlType || SQL_TINYINT == sqlType)*/
 			if (SQL_INTEGER == sqlType)
@@ -1290,7 +1292,16 @@ MYLOG(DETAIL_LOG_LEVEL, "serial in\n");
 				set_tuplefield_null(&tuple[GETTYPE_LOCAL_TYPE_NAME]);
 
 				/* These values can be NULL */
-				set_nullfield_int4(&tuple[GETTYPE_COLUMN_SIZE], PGTYPE_COLUMN_SIZE(conn, pgType));
+				column_size = PGTYPE_COLUMN_SIZE(conn, pgType);
+				/*
+				 * COLUMN_SIZE is the maximum column size, so SQL_NO_TOTAL
+				 * (a length/indicator value) is not valid here; applications
+				 * such as MSDASQL bind it as SQL_C_ULONG, where -4 fails
+				 * with 22003.  Report the largest representable size.
+				 */
+				if (SQL_NO_TOTAL == column_size)
+					column_size = INT_MAX;
+				set_nullfield_int4(&tuple[GETTYPE_COLUMN_SIZE], column_size);
 				set_nullfield_string(&tuple[GETTYPE_LITERAL_PREFIX], pgtype_literal_prefix(conn, pgType));
 				set_nullfield_string(&tuple[GETTYPE_LITERAL_SUFFIX], pgtype_literal_suffix(conn, pgType));
 				set_nullfield_string(&tuple[GETTYPE_CREATE_PARAMS], pgtype_create_params(conn, pgType));
