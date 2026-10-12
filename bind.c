@@ -16,6 +16,7 @@
 /* #include <stdlib.h> */
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include "bind.h"
 #include "misc.h"
 
@@ -56,6 +57,17 @@ PGAPI_BindParameter(HSTMT hstmt,
 		return SQL_INVALID_HANDLE;
 	}
 	SC_clear_error(stmt);
+
+	/*
+	 * The APD, IPD and put-data counts are SQLSMALLINT, like SQLNumParams
+	 * and SQL_DESC_COUNT, so a larger parameter number would wrap the count
+	 * negative and the next binding would write before the bindings array.
+	 */
+	if (ipar < 1 || ipar > SHRT_MAX)
+	{
+		SC_set_error(stmt, STMT_BAD_PARAMETER_NUMBER_ERROR, "Invalid parameter number for PGAPI_BindParameter.", func);
+		return SQL_ERROR;
+	}
 
 	apdopts = SC_get_APDF(stmt);
 	if (apdopts->allocated < ipar)

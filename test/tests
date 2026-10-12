@@ -67,6 +67,7 @@ TESTBINS = exe/connect-test \
 	exe/interval-overflow-test \
 	exe/int-overflow-test \
 	exe/typeinfo-column-size-test \
+	exe/param-count-limit-test \
 	exe/conn-settings-test \
 	exe/percent-decode-test \
 	exe/connstring-escape-test \

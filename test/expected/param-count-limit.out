@@ -1,0 +1,12 @@
+connected
+APD SQL_DESC_COUNT=-1: error SQLSTATE=07009
+APD bind 1 after SQL_DESC_COUNT=-1: ok
+IPD SQL_DESC_COUNT=-1: error SQLSTATE=07009
+IPD bind 1 after SQL_DESC_COUNT=-1: ok
+bind 0: error SQLSTATE=07009
+32767 params, bind 32767: ok
+32767 params, execute: ok
+32767 params, result 1
+32768 params, bind 32768: error SQLSTATE=07009
+32769 params, bind 32768: error SQLSTATE=07009
+disconnecting
