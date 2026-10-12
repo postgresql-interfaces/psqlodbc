@@ -4760,7 +4760,7 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 	}
 	if (qb->param_mode == RPM_BUILDING_PREPARE_STATEMENT)
 	{
-		char	pnum[16];
+		char	pnum[32];
 
 		qb->dollar_number++;
 		if (ipara &&

@@ -72,4 +72,5 @@ TESTBINS = exe/connect-test \
 	exe/percent-decode-test \
 	exe/connstring-escape-test \
 	exe/dbms-version-test \
-	exe/surrogate-pair-test
+	exe/surrogate-pair-test \
+	exe/many-params-test
