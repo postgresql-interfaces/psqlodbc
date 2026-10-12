@@ -10,6 +10,21 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+ <h2><a id="18.00.0005">psqlODBC 18.00.0005 Release</a></h2>
+ Changes:<br />
+ <li>
+  Fix heap memory corruption when an application binds more than 32767 parameters on one statement: SQLBindParameter now rejects parameter numbers outside 1..32767 with SQLSTATE 07009 (GHSA-cmfx-rm3r-p2jr)
+ </li>
+ <li>
+  Fix the placeholder cast being truncated from parameter 1000 on, which failed with type "timestam" does not exist (#221)
+ </li>
+ <li>
+  Report the largest column size instead of SQL_NO_TOTAL (-4) as COLUMN_SIZE for bytea in SQLGetTypeInfo, which broke bytea parameters through MSDASQL (#215, #218)
+ </li>
+ <li>
+  Build Windows OpenSSL 3.5.9 in CI (#219)
+ </li>
+ <hr>
  <h2><a id="18.00.0004">psqlODBC 18.00.0004 Release</a></h2>
  Changes:<br />
  <li>
