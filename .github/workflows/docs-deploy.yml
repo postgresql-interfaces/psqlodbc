@@ -1,4 +1,29 @@
-name: Deploy Website
+name: docs deploy
+
+# Builds the website with docs.yml and, on main, deploys it to
+# https://odbc.postgresql.org/. Start it after a release:
+#
+#   gh workflow run docs-deploy.yml -R postgresql-interfaces/psqlodbc --ref main
+#
+# The deploy uploads the site to the S3 bucket under a new prefix
+# site/<branch>/<yyyymmddThhmmssZ>-<commit>/ and then sets the CloudFront
+# KeyValueStore key to <branch>/<yyyymmddThhmmssZ>-<commit>. The CloudFront
+# function adds the site/ folder in front of the key value. Earlier deploys
+# stay in the bucket. To roll back, set the key to the value of an earlier
+# deploy. A run on another branch builds the site and stops there.
+#
+# The workflow reads these repository variables:
+#
+#   SITE_AWS_ROLE_ARN        the IAM role that the workflow assumes through
+#                            GitHub OIDC
+#   SITE_AWS_REGION          the AWS region of that role
+#   SITE_S3_BUCKET           the bucket that holds the site
+#   SITE_CLOUDFRONT_KVS_ARN  the CloudFront KeyValueStore that holds the key
+#   SITE_CLOUDFRONT_KVS_KEY  the key whose value names the deploy that
+#                            CloudFront serves
+#
+# /backups/ is in neither repository, so CloudFront serves it from outside the
+# site/ folder and the deploy does not upload it.
 
 on:
   workflow_dispatch:
@@ -6,11 +31,66 @@ on:
 permissions:
   contents: read
 
+# A newly queued run cancels a pending run in the same group, so only main
+# runs, which deploy, share the site group.
+concurrency:
+  group: >-
+    ${{ github.ref == 'refs/heads/main' && 'site'
+    || format('docs-deploy-{0}', github.ref) }}
+  cancel-in-progress: false
+
 jobs:
+  build:
+    uses: ./.github/workflows/docs.yml
+
   deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
-      # Placeholder so that GitHub registers the workflow and it can be started
-      # on another branch. The real deploy replaces this.
-      - name: Placeholder
-        run: "false"
+      - name: Download artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: ./public
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.SITE_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.SITE_AWS_REGION }}
+
+      # Each deploy goes to a new prefix, so the files of an earlier deploy are
+      # never overwritten and the key can be set back to its prefix.
+      - name: Compute the S3 prefix
+        id: prefix
+        # language=bash
+        run: |
+          branch=$(tr -c 'A-Za-z0-9._\n-' '-' <<< "${GITHUB_REF_NAME}")
+          prefix="${branch}/$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::12}"
+          echo "Deploying to prefix ${prefix}"
+          echo "prefix=${prefix}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload the site to S3
+        env:
+          BUCKET: ${{ vars.SITE_S3_BUCKET }}
+          PREFIX: ${{ steps.prefix.outputs.prefix }}
+        run: >-
+          aws s3 sync ./public "s3://${BUCKET}/site/${PREFIX}/"
+          --no-follow-symlinks --only-show-errors
+
+      # The CloudFront function adds the site/ folder in front of the key value.
+      - name: Point CloudFront at the new prefix
+        env:
+          KVS_ARN: ${{ vars.SITE_CLOUDFRONT_KVS_ARN }}
+          KVS_KEY: ${{ vars.SITE_CLOUDFRONT_KVS_KEY }}
+          PREFIX: ${{ steps.prefix.outputs.prefix }}
+        # language=bash
+        run: |
+          etag=$(aws cloudfront-keyvaluestore describe-key-value-store \
+            --kvs-arn "${KVS_ARN}" --query ETag --output text)
+          aws cloudfront-keyvaluestore put-key --kvs-arn "${KVS_ARN}" \
+            --key "${KVS_KEY}" --value "${PREFIX}" --if-match "${etag}"
