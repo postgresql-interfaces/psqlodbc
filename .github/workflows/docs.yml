@@ -1,0 +1,51 @@
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Lint the workflows
+        if: github.event_name == 'pull_request'
+        run: >-
+          docker run --rm -v "${PWD}:/repo" -w /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          .github/workflows/docs.yml .github/workflows/docs-deploy.yml
+
+      # The site pages live in psqlodbc-www on git.postgresql.org. Its docs/
+      # directory is replaced by docs/ from this repository.
+      - name: Build
+        # language=bash
+        run: |
+          www="${RUNNER_TEMP}/psqlodbc-www"
+          git clone --depth 1 https://git.postgresql.org/git/psqlodbc-www.git "${www}"
+          echo "psqlodbc-www at $(git -C "${www}" rev-parse HEAD)"
+          mkdir public
+          git -C "${www}" archive HEAD -- . ':(exclude)docs' | tar -x -C public
+          git archive HEAD docs | tar -x -C public
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site
+          path: ./public
+          retention-days: 7
