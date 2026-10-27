@@ -552,7 +552,7 @@ PGAPI_GetConnectOption(HDBC hdbc,
 		case 1209:
 #endif /* SQL_ATTR_CONNECTION_DEAD */
 			MYLOG(0, "CONNECTION_DEAD status=%d", conn->status);
-			*((SQLUINTEGER *) pvParam) = CC_not_connected(conn);
+			*((SQLUINTEGER *) pvParam) = CC_connection_dead(conn);
 			MYPRINTF(0, " val=" FORMAT_UINTEGER "\n", *((SQLUINTEGER *) pvParam));
                         break;
 

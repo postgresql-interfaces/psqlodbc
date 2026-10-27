@@ -2033,6 +2033,8 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		char *errmsg = PQerrorMessage(self->pqconn);
 		QLOG(0, "\nCommunication Error: %s\n", SAFE_STR(errmsg));
 		CC_set_error(self, CONNECTION_COMMUNICATION_ERROR, errmsg, func);
+		if (PQstatus(self->pqconn) == CONNECTION_BAD)
+			CC_on_abort(self, CONN_DEAD); /* give up the connection */
 		goto cleanup;
 	}
 	PQsetSingleRowMode(self->pqconn);
