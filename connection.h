@@ -80,6 +80,14 @@ typedef enum
 
 /* not connected yet || already disconnected */
 #define	CC_not_connected(x)	(!(x) || CONN_DOWN == (x)->status || CONN_NOT_CONNECTED == (x)->status)
+/*
+ * Answer for SQL_ATTR_CONNECTION_DEAD.  libpq's view is consulted too, so
+ * a socket that libpq has already given up on is reported dead even if no
+ * code path has called CC_on_abort() yet; applications such as
+ * System.Data.Odbc only reconnect when this reports SQL_CD_TRUE.
+ * PQstatus(NULL) is CONNECTION_BAD.
+ */
+#define	CC_connection_dead(x)	(CC_not_connected(x) || CONNECTION_BAD == PQstatus((x)->pqconn))
 
 /* AutoCommit functions */
 #define CC_is_in_autocommit(x)		(x->transact_status & CONN_IN_AUTOCOMMIT)
