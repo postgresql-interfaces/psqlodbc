@@ -44,7 +44,7 @@
   Log files are created with default permissions at a predictable path and follow symbolic links (CVE-2026-120066, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-wj7r-6pj3-62g8">GHSA-wj7r-6pj3-62g8</a>, CVSS 3.1 5.3 Medium)
  </li>
  <li>
-  Stack buffer overflow copying ctid and oid values for updatable cursors (CVE-2026-120067, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-3r96-h2q4-6pxh">GHSA-3r96-h2q4-6pxh</a>, CVSS 3.1 5.9 Medium)
+  Stack buffer overflow when reading the keyset (ctid/oid) columns of an updatable cursor (CVE-2026-120067, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-3r96-h2q4-6pxh">GHSA-3r96-h2q4-6pxh</a>, CVSS 3.1 5.9 Medium)
  </li>
  The release also contains these hardening changes. They have no demonstrated attack path and no CVE.<br />
  <li>
