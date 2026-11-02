@@ -1708,7 +1708,8 @@ CC_from_PGresult(QResultClass *res, StatementClass *stmt,
 	{
 		QLOG(0, "\tGetting result from PGresult failed\n");
 		success = FALSE;
-		if (0 >= CC_get_errornumber(conn))
+		/* conn is NULL when QR_next_tuple() fetches the next block */
+		if (NULL != conn && 0 >= CC_get_errornumber(conn))
 		{
 			switch (QR_get_rstatus(res))
 			{
@@ -2062,7 +2063,11 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 		int status = PQresultStatus(pgres);
 
 		if (discardTheRest)
+		{
+			PQclear(pgres);
+			pgres = NULL;
 			continue;
+		}
 		switch (status)
 		{
 			case PGRES_COMMAND_OK:
@@ -2244,6 +2249,12 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 					else
 					{
 						aborted = TRUE;
+						/*
+						 * In single-row mode the rest of the rows and the
+						 * final PGRES_TUPLES_OK would be read into res again,
+						 * replacing the error with a successful result.
+						 */
+						discardTheRest = TRUE;
 						if (QR_command_maybe_successful(res))
 							retres = NULL;
 						else
@@ -2261,6 +2272,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Discarded a RELEASE result\n");
 					if (!CC_from_PGresult(res, stmt, NULL, cursor, &pgres))
 					{
 						retres = NULL;
+						discardTheRest = TRUE;
 						break;
 					}
 					retres = cmdres;

@@ -1404,7 +1404,15 @@ nextrow:
 				len = PQgetlength(*pgres, rowno, field_lf);
 				value = PQgetvalue(*pgres, rowno, field_lf);
 				if (field_lf >= effective_cols)
+				{
+					if (len < 0 || len >= (int) sizeof(tidoidbuf))
+					{
+						QR_set_rstatus(self, PORES_FATAL_ERROR);
+						QR_set_message(self, "Oversized keyset (ctid/oid) field from server");
+						return FALSE;
+					}
 					buffer = tidoidbuf;
+				}
 				else
 				{
 					QR_MALLOC_return_with_error(buffer, char, len + 1, self, "Out of memory in allocating item buffer.", FALSE);
