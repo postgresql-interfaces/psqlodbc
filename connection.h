@@ -425,7 +425,7 @@ void		handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   const char *comment,
 				   QResultClass *res, BOOL error_not_a_notice);
 void		CC_clear_error(ConnectionClass *self);
-int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
+int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, Int4 result_buf_len, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
 char		CC_send_settings(ConnectionClass *self, const char *set_query);
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);

@@ -502,6 +502,13 @@ static  void column_bindings_set(ARDFields *opts, int cols, BOOL maxset)
 {
 	int	i;
 
+	/*
+	 * A negative count (a negative SQL_DESC_COUNT from the application)
+	 * would make the loop below walk to negative indexes and store a
+	 * negative allocated count. Ignore it.
+	 */
+	if (cols < 0)
+		return;
 	if (cols == opts->allocated)
 		return;
 	if (cols > opts->allocated)

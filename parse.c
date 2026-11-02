@@ -381,6 +381,33 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 }
 
 /*
+ * Copy src to dst, writing each occurrence of dup twice. Return FALSE and
+ * leave dst empty when the result and its terminator do not fit in dstsize
+ * bytes.
+ */
+static BOOL
+copy_doubling(char *dst, size_t dstsize, const char *src, char dup)
+{
+	size_t	si, di = 0;
+
+	for (si = 0; src[si] != '\0'; si++)
+	{
+		size_t	need = (src[si] == dup) ? 2 : 1;
+
+		if (di + need >= dstsize)
+		{
+			dst[0] = '\0';
+			return FALSE;
+		}
+		if (src[si] == dup)
+			dst[di++] = dup;
+		dst[di++] = src[si];
+	}
+	dst[di] = '\0';
+	return TRUE;
+}
+
+/*
  *	Check relhasoids(before PG12), relhssubclass and get some relevant information.
  */
 BOOL CheckPgClassInfo(StatementClass *stmt)
@@ -443,9 +470,33 @@ MYLOG(0, "Entering\n");
 					    QR_get_value_backend_int(res, i, COLUMNS_FIELD_TYPE, NULL) == PG_TYPE_INT4)
 					{
 						char		query[512];
+						char		quoted[256];
+						char		pctsafe[2 * 256];
+						const char	*colname;
 
-						STR_TO_NAME(ti->bestitem, QR_get_value_backend_text(res, i, COLUMNS_COLUMN_NAME));
-						SPRINTF_FIXED(query, "\"%s\" = %%d", SAFE_NAME(ti->bestitem));
+						/*
+						 * The column name comes from the server. The
+						 * driver places bestitem between double quotes in
+						 * its keyset and positioned-update queries, so
+						 * bestitem holds the name with each '"' doubled.
+						 * bestqual is used as a printf-style format string
+						 * (appendPQExpBuffer(&buf, bestqual, oid)), so its
+						 * copy of the name also has each '%' doubled. A
+						 * name too long for these buffers is not used as
+						 * the row identifier.
+						 */
+						colname = QR_get_value_backend_text(res, i,
+											COLUMNS_COLUMN_NAME);
+						if (NULL == colname ||
+							!copy_doubling(quoted, sizeof(quoted),
+										   colname, IDENTIFIER_QUOTE) ||
+							!copy_doubling(pctsafe, sizeof(pctsafe),
+										   quoted, '%') ||
+							strlen(pctsafe) + sizeof("\"\" = %d") >
+								sizeof(query))
+							continue;
+						STR_TO_NAME(ti->bestitem, quoted);
+						SPRINTF_FIXED(query, "\"%s\" = %%d", pctsafe);
 						STRX_TO_NAME(ti->bestqual, query);
 						break;
 					}

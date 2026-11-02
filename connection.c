@@ -2484,7 +2484,7 @@ Int8 odbc_ntoh64(Int8 n64)
 
 
 int
-CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *args, int nargs)
+CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, Int4 result_buf_len, int *actual_result_len, int result_is_int, LO_ARG *args, int nargs)
 {
 	int			i;
 	int			ret = FALSE;
@@ -2566,6 +2566,15 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, i
 		if (result_is_int == 2)
 		{
 			Int8 int8val;
+			/*
+			 * The reply length is server-controlled; never read more
+			 * than the server sent, and never write past result_buf.
+			 */
+			if (*actual_result_len < (int) sizeof(Int8))
+			{
+				CC_set_errormsg(self, "short int8 result from large_object function");
+				goto cleanup;
+			}
 			memcpy(&int8val, value, sizeof(Int8));
 			int8val = odbc_ntoh64(int8val);
 			memcpy(result_buf, &int8val, sizeof(Int8));
@@ -2574,12 +2583,28 @@ MYLOG(0, "int8 result=" FORMATI64 "\n", int8val);
 		else if (result_is_int)
 		{
 			Int4 int4val;
+			if (*actual_result_len < (int) sizeof(Int4))
+			{
+				CC_set_errormsg(self, "short int4 result from large_object function");
+				goto cleanup;
+			}
 			memcpy(&int4val, value, sizeof(Int4));
 			int4val = ntohl(int4val);
 			memcpy(result_buf, &int4val, sizeof(Int4));
 		}
 		else
-			memcpy(result_buf, value, *actual_result_len);
+		{
+			/*
+			 * Clamp the copy to the caller's buffer. The server
+			 * controls *actual_result_len, so without this a large
+			 * reply overflows result_buf. The clamped length is what
+			 * the caller sees, so a short read is reported as usual.
+			 */
+			if (*actual_result_len > result_buf_len)
+				*actual_result_len = result_buf_len;
+			if (*actual_result_len > 0)
+				memcpy(result_buf, value, *actual_result_len);
+		}
 	}
 
 	ret = TRUE;

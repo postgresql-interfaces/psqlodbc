@@ -499,7 +499,7 @@ PGAPI_ColAttributes(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 	IRDFields	*irdflds;
 	OID		field_type = 0;
-	Int2		col_idx;
+	int		col_idx;	/* must be signed: icol - 1 can be negative */
 	ConnectionClass	*conn;
 	ConnInfo	*ci;
 	int		column_size, unknown_sizes;
@@ -590,7 +590,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 
 		if (SC_parsed_status(stmt) != STMT_PARSE_FATAL && irdflds->fi)
 		{
-			if (col_idx >= cols)
+			if (col_idx < 0 || col_idx >= cols)
 			{
 				SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.", func);
 				return SQL_ERROR;
@@ -640,7 +640,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 			return SQL_SUCCESS;
 		}
 
-		if (col_idx >= cols)
+		if (col_idx < 0 || col_idx >= cols)
 		{
 			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.", func);
 			return SQL_ERROR;
@@ -4990,7 +4990,21 @@ PGAPI_SetPos(HSTMT hstmt,
 	}
 	else
 	{
-		if (SQL_ADD != s.fOption && s.irow > s.stmt->last_fetch_count)
+		/*
+		 * irow indexes the bound rowset buffers and the row-status array.
+		 * For SQL_ADD it must not exceed the rowset size, and for the other
+		 * options not the fetched row count; otherwise later code reads and
+		 * writes those application arrays out of bounds.
+		 */
+		if (SQL_ADD == s.fOption)
+		{
+			if (s.irow > rowsetSize)
+			{
+				SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range", func);
+				return SQL_ERROR;
+			}
+		}
+		else if (s.irow > s.stmt->last_fetch_count)
 		{
 			SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range", func);
 			return SQL_ERROR;
@@ -5247,7 +5261,14 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 		SC_REALLOC_gexit_with_error(res->backend_tuples, TupleField, size_of_rowset * sizeof(TupleField) * num_fields, hstmt, "Couldn't realloc memory for backend.", (ret = SQL_ERROR));
 		res->count_backend_allocated = size_of_rowset;
 	}
-	pg_memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
+	/*
+	 * cached_rows comes from the server reply (one row per ctid is
+	 * expected). If it exceeds the rowset, the subtraction wraps and the
+	 * memset runs off the buffer, so only clear the trailing rows when
+	 * there are any.
+	 */
+	if (size_of_rowset > cached_rows)
+		pg_memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
 	QR_set_num_cached_rows(res, size_of_rowset);
 	res->num_total_read = size_of_rowset;
 	rowStatusArray = (SC_get_IRDF(stmt))->rowStatusArray;

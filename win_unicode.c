@@ -833,8 +833,12 @@ MYLOG(0, " inmsg=%p buflen=%d\n", inmsg, buflen);
 		outmsg = NULL;
 	outlen = mbstowcs((wchar_t *) outmsg, inmsg, buflen);
 #endif /* WIN32 */
-	if (outmsg && outlen >= buflen)
+	if (outmsg && buflen > 0 && outlen >= buflen)
 	{
+		/*
+		 * buflen > 0 guards the index: a caller probing the length with a
+		 * non-NULL buffer and buflen 0 would otherwise write outmsg[-1].
+		 */
 		outmsg[buflen - 1] = 0;
 		MYLOG(0, " out=%dchars truncated to %d\n", outlen, buflen - 1);
 	}

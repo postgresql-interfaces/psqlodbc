@@ -2426,7 +2426,7 @@ do { \
 	size_t	c = 0; \
 	while ((qp)->statement[qp->opos] != '\0' && (qp)->statement[qp->opos] != ch) \
 	{ \
-		if (c >= maxsize) \
+		if (c + 1 >= maxsize) \
 			break; \
 		buf[c++] = (qp)->statement[qp->opos++];	\
 	} \
@@ -2453,7 +2453,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *usebinary,
 				Oid *pgType);
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
-	size_t *output_count, SQLLEN param_pos[][2]);
+	size_t *output_count, SQLLEN param_pos[][2], size_t param_pos_count);
 static size_t
 convert_to_pgbinary(const char *in, char *out, size_t len, QueryBuild *qb);
 static BOOL convert_special_chars(QueryBuild *qb, const char *si, size_t used);
@@ -5606,7 +5606,7 @@ mapFunction(const char *func, int param_count, const char *keyword)
  */
 static int
 processParameters(QueryParse *qp, QueryBuild *qb,
-		size_t *output_count, SQLLEN param_pos[][2])
+		size_t *output_count, SQLLEN param_pos[][2], size_t param_pos_count)
 {
 	int retval, innerParenthesis, param_count;
 	BOOL stop;
@@ -5632,6 +5632,12 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 			case ',':
 				if (1 == innerParenthesis)
 				{
+					if ((size_t) (param_count + 1) >= param_pos_count)
+					{
+						qb->errornumber = STMT_EXEC_ERROR;
+						qb->errormsg = "too many parameters in the escape function call";
+						return SQL_ERROR;
+					}
 					param_pos[param_count][1] = F_NewPos(qb) - 2;
 					param_count++;
 					param_pos[param_count][0] = F_NewPos(qb);
@@ -5651,6 +5657,12 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 				innerParenthesis--;
 				if (0 == innerParenthesis)
 				{
+					if ((size_t) (param_count + 1) >= param_pos_count)
+					{
+						qb->errornumber = STMT_EXEC_ERROR;
+						qb->errormsg = "too many parameters in the escape function call";
+						return SQL_ERROR;
+					}
 					param_pos[param_count][1] = F_NewPos(qb) - 2;
 					param_count++;
 					param_pos[param_count][0] =
@@ -5861,7 +5873,14 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 
 		QB_initialize_copy(&nqb, qb, 1024);
 		nqb_is_valid = TRUE;
-		if (retval = processParameters(qp, &nqb, &param_consumed, param_pos), retval == SQL_ERROR)
+		/*
+		 * Initialize every row. A '$k' reference in the mapping expression
+		 * for an argument that was not supplied must see -1 here, not a
+		 * stale or uninitialized offset that would copy arbitrary bytes.
+		 */
+		for (i = 0; i < (int) (sizeof(param_pos) / sizeof(param_pos[0])); i++)
+			param_pos[i][0] = param_pos[i][1] = -1;
+		if (retval = processParameters(qp, &nqb, &param_consumed, param_pos, sizeof(param_pos) / sizeof(param_pos[0])), retval == SQL_ERROR)
 		{
 			qb->errornumber = nqb.errornumber;
 			qb->errormsg = nqb.errormsg;
@@ -6236,7 +6255,8 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
 
 	if (max == 0)
 		max = 0xffffffff;
-	*changed = FALSE;
+	if (changed)			/* some callers do not want this */
+		*changed = FALSE;
 	for (i = 0; si[i] && out < max - 1; i++)
 	{
 		if (convlf && si[i] == '\n')
@@ -6250,7 +6270,8 @@ convert_linefeeds(const char *si, char *dst, size_t max, BOOL convlf, BOOL *chan
 					out++;
 				continue;
 			}
-			*changed = TRUE;
+			if (changed)
+				*changed = TRUE;
 
 			if (dst)
 			{
@@ -6387,6 +6408,14 @@ convert_from_pgbinary(const char *value, char *rgbValue, SQLLEN cbValueMax)
 			}
 			else
 			{
+				/*
+				 * An octal escape needs three digits after the backslash
+				 * (value[i+1..i+3]). A truncated escape at the end of a
+				 * server-supplied bytea would make conv_from_octal read
+				 * past the terminator.
+				 */
+				if (i + 3 >= ilen)
+					break;
 				if (rgbValue)
 					rgbValue[o] = conv_from_octal(&value[i]);
 				o++;

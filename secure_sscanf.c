@@ -147,6 +147,13 @@ parse_arg(int *pError, const char *pFmt, const char *pInputString, va_list *args
     uWidth = lRet;
     if (uWidth > 0) {
         useTrim = 1;
+        /*
+         * trimCurr is MAX_STRING_OUTPUT bytes and strncpy pads to uWidth, so
+         * a format width at or above that size overflows the stack buffer
+         * regardless of the input length. Clamp it.
+         */
+        if (uWidth >= MAX_STRING_OUTPUT)
+            uWidth = MAX_STRING_OUTPUT - 1;
         strncpy(trimCurr, pCurrent, uWidth);
         trimCurr[uWidth] = '\0';
         pParse = trimCurr;

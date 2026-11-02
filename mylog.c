@@ -27,6 +27,8 @@
 #ifndef WIN32
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #define	GENERAL_ERRNO		(errno)
@@ -52,6 +54,43 @@
 #define PG_BINARY_A			"a"
 #endif /* WIN32 */
 
+
+/*
+ * Open a log file for appending. The default log directory is world-writable
+ * (/tmp) and the file name is predictable, so another local user can create
+ * the path first. O_NOFOLLOW refuses a symlink. An existing file is used only
+ * if it is a regular file owned by this user, and its mode is set to 0600, so
+ * other users cannot read the query text and connection metadata in the log.
+ * Returning NULL makes the caller fall back to the home directory.
+ */
+static FILE *
+logfile_fopen(const char *filename)
+{
+#ifndef WIN32
+	struct stat	st;
+	FILE	   *fp;
+	int			fd = open(filename,
+						  O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW,
+						  S_IRUSR | S_IWUSR);
+
+	if (fd < 0)
+		return NULL;
+	if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) ||
+		st.st_uid != geteuid() ||
+		((st.st_mode & (S_IRWXG | S_IRWXO)) != 0 &&
+		 fchmod(fd, S_IRUSR | S_IWUSR) != 0))
+	{
+		close(fd);
+		return NULL;
+	}
+	fp = fdopen(fd, PG_BINARY_A);
+	if (fp == NULL)
+		close(fd);
+	return fp;
+#else
+	return fopen(filename, PG_BINARY_A);
+#endif /* WIN32 */
+}
 
 static char *logdir = NULL;
 
@@ -294,7 +333,7 @@ static void MLOG_open()
 	if (MLOGFP) return;
 
 	generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf, sizeof(filebuf));
-	MLOGFP = fopen(filebuf, PG_BINARY_A);
+	MLOGFP = logfile_fopen(filebuf);
 	if (!MLOGFP)
 	{
 		int lasterror = GENERAL_ERRNO;
@@ -302,7 +341,7 @@ static void MLOG_open()
 		open_error = TRUE;
 		SPRINTF_FIXED(errbuf, "%s open error %d\n", filebuf, lasterror);
 		generate_homefile(MYLOGFILE, filebuf, sizeof(filebuf));
-		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		MLOGFP = logfile_fopen(filebuf);
 	}
 	if (MLOGFP)
 	{
@@ -423,11 +462,11 @@ qlog_misc(unsigned int option, const char *fmt, va_list args)
 	if (!QLOGFP)
 	{
 		generate_filename(logdir ? logdir : QLOGDIR, QLOGFILE, filebuf, sizeof(filebuf));
-		QLOGFP = fopen(filebuf, PG_BINARY_A);
+		QLOGFP = logfile_fopen(filebuf);
 		if (!QLOGFP)
 		{
 			generate_homefile(QLOGFILE, filebuf, sizeof(filebuf));
-			QLOGFP = fopen(filebuf, PG_BINARY_A);
+			QLOGFP = logfile_fopen(filebuf);
 		}
 		if (!QLOGFP)
 			qlog_on = 0;

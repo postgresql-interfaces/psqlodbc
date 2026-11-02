@@ -1622,32 +1622,47 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 		dest = buf;
 	else
 	{
-		bufsize = 2 * srclen + 1;
+		/*
+		 * Worst case: two output bytes per input byte (a doubled quote or
+		 * escape), the optional opening and closing quote, and the NUL.
+		 */
+		bufsize = 2 * (size_t) srclen + 4;
 		dest = malloc(bufsize);
 	}
 	if (!dest) return NULL;
 	encoded_str_constr(&encstr, conn->ccsc, (char *) src);
 	outlen = 0;
-	if (double_quote)
-		dest[outlen++] = IDENTIFIER_QUOTE;
-	for (i = 0, tchar = encoded_nextchar(&encstr); i < srclen && outlen < bufsize - 1; i++, tchar = encoded_nextchar(&encstr))
 	{
-                if (MBCS_NON_ASCII(encstr))
-                {
-                        dest[outlen++] = tchar;
-                        continue;
-                }
-		if (LITERAL_QUOTE == tchar ||
-		    escape_ch == tchar)
+		/*
+		 * Every write below is bounded by bufsize, including the closing
+		 * quote and the NUL after the loop. With a caller-supplied buffer
+		 * this truncates an over-long identifier instead of overflowing.
+		 */
+		size_t	reserve = (double_quote ? 1u : 0u) + 1u;	/* closing quote + NUL */
+
+		if (double_quote && (size_t) outlen + reserve < bufsize)
+			dest[outlen++] = IDENTIFIER_QUOTE;
+		for (i = 0, tchar = encoded_nextchar(&encstr);
+			 i < srclen && (size_t) outlen + 2 + reserve <= bufsize;
+			 i++, tchar = encoded_nextchar(&encstr))
+		{
+			if (MBCS_NON_ASCII(encstr))
+			{
+				dest[outlen++] = tchar;
+				continue;
+			}
+			if (LITERAL_QUOTE == tchar ||
+			    escape_ch == tchar)
+				dest[outlen++] = tchar;
+			else if (double_quote &&
+				 IDENTIFIER_QUOTE == tchar)
+				dest[outlen++] = tchar;
 			dest[outlen++] = tchar;
-		else if (double_quote &&
-			 IDENTIFIER_QUOTE == tchar)
-			dest[outlen++] = tchar;
-		dest[outlen++] = tchar;
+		}
+		if (double_quote)
+			dest[outlen++] = IDENTIFIER_QUOTE;
+		dest[outlen] = '\0';
 	}
-	if (double_quote)
-		dest[outlen++] = IDENTIFIER_QUOTE;
-	dest[outlen] = '\0';
 MYLOG(0, "leaving output=%s(%d)\n", dest, outlen);
 	return dest;
 }
@@ -2343,9 +2358,15 @@ PGAPI_Columns(HSTMT hstmt,
 	Int4		mod_length,
 				ordinal,
 				typmod, relhasoids, relhassubclass;
-	OID		field_type, greloid, basetype;
+	OID		field_type, greloid = 0, basetype;
 	char		not_null[MAX_INFO_STRING],
-				relhasrules[MAX_INFO_STRING], relkind[8], attidentity[2];
+				/*
+				 * relkind and greloid are filled by a fetch below; keep
+				 * them defined when that fetch returns no row, so the
+				 * relisaview test and any row-versioning tuple do not read
+				 * uninitialized stack.
+				 */
+				relhasrules[MAX_INFO_STRING], relkind[8] = "", attidentity[2];
 	char	*escSchemaName = NULL, *escTableName = NULL, *escColumnName = NULL;
 	BOOL	search_pattern = TRUE, search_by_ids, relisaview, show_oid_column, row_versioning;
 	ConnInfo   *ci;
@@ -2923,8 +2944,14 @@ cleanup:
  * @return QResultClass
  */
 static QResultClass *
-findPrimaryOrUnique(ConnectionClass *conn, StatementClass * stmt, const SQLCHAR * szTableName, const SQLCHAR *szTableQualifier, const SQLCHAR * szSchemaName, bool primaryOrUnique) {
+findPrimaryOrUnique(ConnectionClass *conn, StatementClass * stmt, const char *escTableName, const char *escSchemaName, bool primaryOrUnique) {
 	PQExpBufferData		columns_query = {0};
+
+	/*
+	 * escTableName and escSchemaName are already literal-escaped by the
+	 * caller (simpleCatalogEscape). Splicing the raw ODBC arguments here
+	 * instead would let an application-supplied name inject SQL.
+	 */
 
 	initPQExpBuffer(&columns_query);
 	printfPQExpBuffer(&columns_query, "select NULL as \"SCOPE\","
@@ -2948,14 +2975,14 @@ findPrimaryOrUnique(ConnectionClass *conn, StatementClass * stmt, const SQLCHAR 
 									"LEFT JOIN pg_index i ON i.indrelid = c.oid "
 									"AND a.attnum = ANY (i.indkey[0:(i.indnkeyatts - 1)]) ");
 									if (primaryOrUnique) {
-											appendPQExpBuffer(&columns_query, "WHERE i.indisprimary and a.attnum > 0 and c.relname='%s'" , szTableName );
+											appendPQExpBuffer(&columns_query, "WHERE i.indisprimary and a.attnum > 0 and c.relname='%s'" , escTableName ? escTableName : "" );
 										} else {
-											appendPQExpBuffer(&columns_query, "WHERE i.indisunique and a.attnum > 0 and c.relname ='%s'", szTableName);
+											appendPQExpBuffer(&columns_query, "WHERE i.indisunique and a.attnum > 0 and c.relname ='%s'", escTableName ? escTableName : "");
 										}
 
 
-	if (szTableQualifier != NULL)
-		appendPQExpBuffer(&columns_query, " and n.nspname = '%s'" , szSchemaName);
+	if (escSchemaName != NULL && escSchemaName[0] != '\0')
+		appendPQExpBuffer(&columns_query, " and n.nspname = '%s'" , escSchemaName);
 
 	return CC_send_query(conn, columns_query.data, NULL, READ_ONLY_QUERY, stmt);
 }
@@ -2995,7 +3022,13 @@ PGAPI_SpecialColumns(HSTMT hstmt,
 	PQExpBufferData		columns_query = {0};
 	char		*escSchemaName = NULL, *escTableName = NULL;
 	RETCODE		ret = SQL_ERROR, result;
-	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8];
+	/*
+	 * relhasoids is only filled from the server on PostgreSQL before 12.
+	 * On 12 and later it stays at this default, so initialize it to "no
+	 * oids" rather than leaving the later test reading an uninitialized
+	 * byte.
+	 */
+	char		relhasrules[MAX_INFO_STRING], relkind[8], relhasoids[8] = "0";
 	BOOL		relisaview;
 	SQLSMALLINT	internal_asis_type = SQL_C_CHAR, cbSchemaName;
 	const SQLCHAR	*szSchemaName;
@@ -3205,7 +3238,7 @@ retry_public_schema:
 				set_tuplefield_int2(&tuple[SPECOLS_PSEUDO_COLUMN], SQL_PC_PSEUDO);
 			} else {			
 				// look for primary first
-				res = findPrimaryOrUnique(conn, stmt, szTableName, szTableQualifier, szSchemaName, TRUE);
+				res = findPrimaryOrUnique(conn, stmt, escTableName, escSchemaName, TRUE);
 				if (!QR_command_maybe_successful(res))
 				{
 					SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Special query error", func);
@@ -3214,7 +3247,7 @@ retry_public_schema:
 				if (0 == QR_get_num_total_tuples(res))
 				{
 					// didn't find primary now look for uniaue
-					res = findPrimaryOrUnique(conn, stmt, szTableName, szTableName, szSchemaName, FALSE);
+					res = findPrimaryOrUnique(conn, stmt, escTableName, escSchemaName, FALSE);
 					if (!QR_command_maybe_successful(res))
 					{
 						SC_set_error(stmt, STMT_EXEC_ERROR, "PGAPI_Special query error", func);
@@ -3636,6 +3669,13 @@ PGAPI_Statistics(HSTMT hstmt,
 
 			/* add a row in this table for each field in the index */
 			colcnt = fields_vector[0];
+			/*
+			 * colcnt comes from a server-supplied int2vector. fields_vector
+			 * and indopt_vector hold INDEX_KEYS_STORAGE_COUNT entries (plus
+			 * element 0), so a larger count would read past them.
+			 */
+			if (colcnt > INDEX_KEYS_STORAGE_COUNT)
+				colcnt = INDEX_KEYS_STORAGE_COUNT;
 			for (i = 1; i <= colcnt; i++)
 			{
 				tuple = QR_AddNew(res);

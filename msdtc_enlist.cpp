@@ -1151,7 +1151,7 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 						if (!confirmingLink)
 						{
 							confirmingLink = true;
-							strcat(dtcname, ";" KEYWORD_DTC_CHECK "=0");
+							strncat(dtcname, ";" KEYWORD_DTC_CHECK "=0", sizeof(dtcname) - strlen(dtcname) - 1);
 							continue;
 						}
 					default:

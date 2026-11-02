@@ -27,7 +27,7 @@ odbc_lo_creat(ConnectionClass *conn, int mode)
 	argv[0].len = 4;
 	argv[0].u.integer = mode;
 
-	if (!CC_send_function(conn, "lo_creat", &retval, &result_len, 1, argv, 1))
+	if (!CC_send_function(conn, "lo_creat", &retval, sizeof(retval), &result_len, 1, argv, 1))
 		return 0;				/* invalid oid */
 	else
 		return (OID) retval;
@@ -49,7 +49,7 @@ odbc_lo_open(ConnectionClass *conn, int lobjId, int mode)
 	argv[1].len = 4;
 	argv[1].u.integer = mode;
 
-	if (!CC_send_function(conn, "lo_open", &fd, &result_len, 1, argv, 2))
+	if (!CC_send_function(conn, "lo_open", &fd, sizeof(fd), &result_len, 1, argv, 2))
 		return -1;
 
 	if (fd >= 0 && odbc_lo_lseek64(conn, fd, 0L, SEEK_SET) < 0)
@@ -70,7 +70,7 @@ odbc_lo_close(ConnectionClass *conn, int fd)
 	argv[0].len = 4;
 	argv[0].u.integer = fd;
 
-	if (!CC_send_function(conn, "lo_close", &retval, &result_len, 1, argv, 1))
+	if (!CC_send_function(conn, "lo_close", &retval, sizeof(retval), &result_len, 1, argv, 1))
 		return -1;
 	else
 		return retval;
@@ -91,7 +91,7 @@ odbc_lo_read(ConnectionClass *conn, int fd, char *buf, Int4 len)
 	argv[1].len = 4;
 	argv[1].u.integer = len;
 
-	if (!CC_send_function(conn, "loread", (int *) buf, &result_len, 0, argv, 2))
+	if (!CC_send_function(conn, "loread", (int *) buf, len, &result_len, 0, argv, 2))
 		return -1;
 	else
 		return result_len;
@@ -116,7 +116,7 @@ odbc_lo_write(ConnectionClass *conn, int fd, char *buf, Int4 len)
 	argv[1].len = len;
 	argv[1].u.ptr = (char *) buf;
 
-	if (!CC_send_function(conn, "lowrite", &retval, &result_len, 1, argv, 2))
+	if (!CC_send_function(conn, "lowrite", &retval, sizeof(retval), &result_len, 1, argv, 2))
 		return -1;
 	else
 		return retval;
@@ -143,7 +143,7 @@ odbc_lo_lseek(ConnectionClass *conn, int fd, int offset, Int4 whence)
 	argv[2].u.integer = whence;
 
 	/* We use lo_lseek64 */
-	if (!CC_send_function(conn, "lo_lseek", &retval, &result_len, 1, argv, 3))
+	if (!CC_send_function(conn, "lo_lseek", &retval, sizeof(retval), &result_len, 1, argv, 3))
 		return -1;
 	else
 		return retval;
@@ -161,7 +161,7 @@ odbc_lo_tell(ConnectionClass *conn, int fd)
 	argv[0].u.integer = fd;
 
 	/* We use lo_tell64 */
-	if (!CC_send_function(conn, "lo_tell", &retval, &result_len, 1, argv, 1))
+	if (!CC_send_function(conn, "lo_tell", &retval, sizeof(retval), &result_len, 1, argv, 1))
 		return -1;
 	else
 		return retval;
@@ -199,7 +199,7 @@ odbc_lo_lseek64(ConnectionClass *conn, int fd, Int8 offset, Int4 whence)
 	argv[2].len = 4;
 	argv[2].u.integer = whence;
 
-	if (!CC_send_function(conn, "lo_lseek64", &retval, &result_len, 2, argv, 3))
+	if (!CC_send_function(conn, "lo_lseek64", &retval, sizeof(retval), &result_len, 2, argv, 3))
 		return -1;
 	else
 		return retval;
@@ -220,7 +220,7 @@ odbc_lo_tell64(ConnectionClass *conn, int fd)
 	argv[0].len = 4;
 	argv[0].u.integer = fd;
 
-	if (!CC_send_function(conn, "lo_tell64", &retval, &result_len, 2, argv, 1))
+	if (!CC_send_function(conn, "lo_tell64", &retval, sizeof(retval), &result_len, 2, argv, 1))
 		return -1;
 	else
 		return retval;

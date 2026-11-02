@@ -615,6 +615,22 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 	new_num_fields = PQnfields(*pgres);
 	QLOG(0, "\tnFields: %d\n", new_num_fields);
 
+	/*
+	 * When this result object is reused to read a later FETCH of the same
+	 * cursor, the tuple cache was already sized for the column count of the
+	 * first result. A (malicious or buggy) server that answers a later
+	 * FETCH with a different column count would make the tuple writer use a
+	 * mismatched stride and overrun the cache. A cursor's column set does
+	 * not change across fetches, so reject a change here.
+	 */
+	if (self->count_backend_allocated > 0 &&
+		new_num_fields != (int) QR_NumResultCols(self))
+	{
+		QR_set_rstatus(self, PORES_FATAL_ERROR);
+		QR_set_message(self, "backend result column count changed across fetches");
+		return FALSE;
+	}
+
 	/* according to that allocate memory */
 	QR_set_num_fields(self, new_num_fields);
 	if (NULL == QR_get_fields(self)->coli_array)
@@ -651,7 +667,20 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		QR_set_rstatus(self, PORES_FIELDS_OK);
 		self->num_fields = CI_get_num_fields(QR_get_fields(self));
 		if (QR_haskeyset(self))
+		{
+			/*
+			 * num_fields is unsigned; a keyset reply with fewer columns
+			 * than the key fields would wrap it and later reads would run
+			 * far past the row buffer.
+			 */
+			if (self->num_fields < self->num_key_fields)
+			{
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
+				QR_set_message(self, "backend result has fewer columns than key fields");
+				return FALSE;
+			}
 			self->num_fields -= self->num_key_fields;
+		}
 		if (stmt && conn)
 		{
 			num_io_params = CountParameters(stmt, NULL, &dummy1, &dummy2);

@@ -619,35 +619,23 @@ SQLSetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLLEN *Indicator)
 {
 	RETCODE		ret;
-	SQLLEN	vallen;
-	char    *uval = NULL;
-	BOOL	val_alloced = FALSE;
 
 	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
 	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
 
-	/* Convert Unicode string to UTF-8 if needed */
-	if (Length > 0 || SQL_NTS == Length)
-	{
-		uval = ucs2_to_utf8(Data, Length > 0 ? Length / WCLEN : Length, &vallen, FALSE);
-		val_alloced = TRUE;
-	}
-
-	/* For non-string data or if conversion wasn't needed, use the original value */
-	if (!val_alloced)
-	{
-		uval = Data;
-		vallen = Length;
-	}
-
-	/* Call the core implementation function */
+	/*
+	 * Data is a deferred pointer to a bound buffer owned by the application;
+	 * PGAPI_SetDescRec stores it (and StringLength) to be dereferenced later
+	 * at fetch or execute time. The previous code converted Data into a
+	 * freshly malloc'd buffer and freed it before returning, and passed the
+	 * address of a local for the length, so the stored pointers dangled.
+	 * Pass the application's pointers through unchanged, as the ANSI entry
+	 * point does; the bound buffer's encoding is interpreted by its C type
+	 * at use time, not re-encoded here.
+	 */
 	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
-			SubType, Length, Precision, Scale, uval,
-			&vallen, Indicator);
-
-	/* Free the converted string if we allocated one */
-	if (val_alloced)
-		free(uval);
+			SubType, Length, Precision, Scale, Data,
+			StringLength, Indicator);
 
 	return ret;
 }

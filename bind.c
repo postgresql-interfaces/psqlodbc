@@ -248,6 +248,19 @@ MYLOG(DETAIL_LOG_LEVEL, "Bind column 0 is type %d not of type SQL_C_BOOKMARK\n",
 	}
 
 	/*
+	 * The binding counts are SQLSMALLINT. A column number above SHRT_MAX
+	 * would wrap the allocated count negative, and a later extend copy loop
+	 * bounded by that count would run past the array. PGAPI_BindParameter
+	 * has the same guard for parameter numbers.
+	 */
+	if (icol > SHRT_MAX)
+	{
+		SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number for PGAPI_BindCol.", func);
+		ret = SQL_ERROR;
+		goto cleanup;
+	}
+
+	/*
 	 * Allocate enough bindings if not already done. Most likely,
 	 * execution of a statement would have setup the necessary bindings.
 	 * But some apps call BindCol before any statement is executed.
@@ -802,7 +815,11 @@ reset_a_column_binding(ARDFields *self, int icol)
 
 	MYLOG(0, "entering ... self=%p, bindings_allocated=%d, icol=%d\n", self, self->allocated, icol);
 
-	if (icol > self->allocated)
+	/*
+	 * icol 0 is the bookmark; a negative value (from a negative
+	 * SQL_DESC_COUNT) would index before the bindings array.
+	 */
+	if (icol < 0 || icol > self->allocated)
 		return;
 
 	/* use zero based col numbers from here out */
