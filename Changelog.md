@@ -4,14 +4,14 @@ Release notes for psqlODBC, converted from docs/release.html and docs/release-7.
 
 ## 18.00.0006
 
-This release fixes the following vulnerabilities. All releases before 18.00.0006 are affected.
+This release fixes the following vulnerabilities. All releases before 18.00.0006 are affected unless an entry gives a narrower range.
 
 - Large-object read overflows the application buffer (CVE-2026-120057, [GHSA-qhmr-5339-q33r](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-qhmr-5339-q33r), CVSS 3.1 7.5 High)
 - Row cache overflow when a later FETCH changes the column count (CVE-2026-120058, [GHSA-6rmx-9q62-4w6m](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-6rmx-9q62-4w6m), CVSS 3.1 7.5 High)
 - Driver uses a server-supplied column name as a format string (CVE-2026-120059, [GHSA-44rq-72jh-x2h8](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-44rq-72jh-x2h8), CVSS 3.1 6.8 Medium)
 - Driver does not validate server-supplied counts and lengths (CVE-2026-120060, [GHSA-4mfx-cfxx-c877](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4mfx-cfxx-c877), CVSS 3.1 5.9 Medium)
 - ODBC escape parser stack buffer overflow (CVE-2026-120061, [GHSA-hfm6-qfx8-v4xq](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-hfm6-qfx8-v4xq), CVSS 3.1 7.5 High)
-- SQL injection through SQLSpecialColumns table and schema names (CVE-2026-120062, [GHSA-gg8f-fx3w-rj33](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-gg8f-fx3w-rj33), CVSS 3.1 7.5 High)
+- SQL injection through SQLSpecialColumns table and schema names. Affects 17.00.0006 through 18.00.0005 (CVE-2026-120062, [GHSA-gg8f-fx3w-rj33](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-gg8f-fx3w-rj33), CVSS 3.1 7.5 High)
 - Stack buffer overflow when quoting long schema and table names (CVE-2026-120063, [GHSA-285r-84w3-xcxv](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-285r-84w3-xcxv), CVSS 3.1 5.9 Medium)
 - Driver does not validate column numbers and row indexes in binding and descriptor functions (CVE-2026-120064, [GHSA-7pq2-q7mj-ph8c](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-7pq2-q7mj-ph8c), CVSS 3.1 7.5 High)
 - Driver does not escape a server-supplied column name in its updatable-cursor queries (CVE-2026-120065, [GHSA-9cg8-r57h-h6jj](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-9cg8-r57h-h6jj), CVSS 3.1 7.1 High)
