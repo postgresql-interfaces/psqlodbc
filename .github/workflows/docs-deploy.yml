@@ -14,9 +14,6 @@ name: Deploy Website
 # start the deploy again. A run on any other branch fails with an error before
 # it builds the site.
 #
-# /backups/ is not in the repository. It can live in the bucket, because the
-# deploy never deletes it, or CloudFront can serve it from another origin.
-#
 # The workflow reads these repository variables:
 #
 #   SITE_AWS_ROLE_ARN                the IAM role that the workflow assumes
@@ -24,7 +21,7 @@ name: Deploy Website
 #   SITE_AWS_REGION                  the AWS region of that role
 #   SITE_S3_BUCKET                   the bucket that holds the site. The deploy
 #                                    deletes anything in it that is not part of
-#                                    the site, except /backups/
+#                                    the site
 #   SITE_CLOUDFRONT_DISTRIBUTION_ID  the CloudFront distribution that serves
 #                                    the bucket
 
@@ -103,7 +100,6 @@ jobs:
             "s3://${BUCKET}/" \
             --delete \
             --exclude deploy-info.json \
-            --exclude 'backups/*' \
             --no-follow-symlinks \
             --no-progress
 
