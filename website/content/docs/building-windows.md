@@ -5,221 +5,153 @@ aliases:
   - /docs/win32-compilation.html
 ---
 
-This page describes how to build the PostgreSQL ODBC Driver on Windows. There are three methods to build: from command line using nmake makefiles, from Powershell using MSBuild files, and from Visual Studio IDE.
+psqlODBC is built on Windows with the PowerShell scripts in `winbuild\` and `installer\`, which drive MSBuild and WiX. The official releases are built this way, by the [MSBuild workflow](https://github.com/postgresql-interfaces/psqlodbc/blob/main/.github/workflows/main.yml) in the repository.
+
+| Script | What it does |
+| --- | --- |
+| `winbuild\editConfiguration.ps1` | Opens a window for editing the build configuration, `winbuild\configuration.xml` |
+| `winbuild\BuildAll.ps1` | Builds the drivers |
+| `winbuild\regress.ps1` | Builds the regression tests and runs them against the drivers you built |
+| `installer\buildInstallers.ps1` | Builds the `.msi` installers and merge modules |
+
+Each script has a batch file of the same name at the top of the source tree, such as `BuildAll.bat`, for use from Command Prompt.
+
+## Requirements
+
+- **Visual Studio 2015 or later, up to Visual Studio 2026**, with the "Desktop development with C++" workload. Install the MSVC build tools for each platform you build: x86 and x64, and ARM64 for ARM64 builds. The build tools without the IDE are enough.
+- **libpq for each platform:** the headers (`include`), the import library (`lib`) and the DLLs (`bin`). The PostgreSQL installers for Windows include 64-bit libpq. For x86 and ARM64 you build libpq from the PostgreSQL source; the release workflow builds it with Meson, with OpenSSL for SSL support.
+- **WiX 6 with the UI extension**, to build installers:
+
+  ```powershell
+  dotnet tool install --global wix --version "6.*"
+  wix extension add --global WixToolset.UI.wixext/6.0.0
+  ```
+
+- **The `mimalloc` submodule**, to build with the mimalloc allocator. Clone with `git clone --recurse-submodules`, or run `git submodule update --init` in an existing clone.
+- **For the regression tests:** a running PostgreSQL server, and GNU `diff` on `PATH`, for example from [GnuWin32 DiffUtils](https://gnuwin32.sourceforge.net/packages/diffutils.htm), which the release workflow uses.
+
+PowerShell must be allowed to run local scripts. If `Get-ExecutionPolicy` reports `Restricted` or `AllSigned`, run:
+
+```powershell
+Set-ExecutionPolicy RemoteSigned
+```
+
+## Configuring the build
+
+The scripts read the location of libpq for each platform from `winbuild\configuration.xml`. To create or edit it, run:
+
+```powershell
+.\winbuild\editConfiguration.ps1
+```
+
+or copy `winbuild\configuration_template.xml` to `winbuild\configuration.xml` and edit it by hand. For example:
+
+```xml
+<Configuration version="" formatVersion="0.4" vcversion="" toolset="">
+  <x86 disabled="no">
+    <libpq version="y">
+      <include>D:\postgresql86\include</include>
+      <lib>D:\postgresql86\lib</lib>
+      <bin>D:\postgresql86\bin</bin>
+    </libpq>
+  </x86>
+  <x64>
+    <libpq version="y">
+      <include>D:\postgresql\include</include>
+      <lib>D:\postgresql\lib</lib>
+      <bin>D:\postgresql\bin</bin>
+    </libpq>
+  </x64>
+  <arm64>
+    <libpq version="y">
+      <include>C:\postgresql_arm64\include</include>
+      <lib>C:\postgresql_arm64\lib</lib>
+      <bin>C:\postgresql_arm64\bin</bin>
+    </libpq>
+  </arm64>
+</Configuration>
+```
+
+Leave `vcversion` and `toolset` empty to use the newest Visual Studio installed. After each build, `BuildAll.ps1` records the Visual Studio version and toolset it used in the `BuildResult` element of this file.
+
+## Building the drivers
+
+```powershell
+.\winbuild\BuildAll.ps1
+```
+
+builds the Release drivers for x86 and x64. The parameters are:
+
+| Parameter | Values | Default |
+| --- | --- | --- |
+| `-Platform` | `Win32`, `x64`, `ARM64`, or `both` for Win32 and x64. ARM64 is built only when you ask for it. | `both` |
+| `-Configuration` | `Release` or `Debug` | `Release` |
+| `-Target` | `Build`, `Rebuild` or `Clean` | `Build` |
+| `-VCVersion` | The Visual Studio version, from `14.0` (Visual Studio 2015) to `18.0` (Visual Studio 2026) | the newest installed |
+| `-Toolset` | The MSBuild platform toolset, such as `v143` | chosen from the Visual Studio version |
+| `-UseMimalloc` | Build with the mimalloc allocator. Needs the `v141` toolset or later, and isn't available for ARM64. | off |
+| `-AlongWithInstallers` | Build the installers after the drivers | off |
+| `-BuildConfigPath` | A configuration file other than `winbuild\configuration.xml` | |
+
+For example, to build the ARM64 drivers:
+
+```powershell
+.\winbuild\BuildAll.ps1 -Platform ARM64
+```
+
+Each platform, driver type and configuration gets its own output directory, named `<cpu>_<type>_<configuration>`, for example `x64_Unicode_Release` or `arm64_ANSI_Debug`. The directories are created at the top of the source tree, or under the directory in the `PSQLODBC_OBJBASE` environment variable if it is set. Each holds:
+
+| File | What it is |
+| --- | --- |
+| `psqlodbc35w.dll` | the Unicode driver (in the `Unicode` directories) |
+| `psqlodbc30a.dll` | the ANSI driver (in the `ANSI` directories) |
+| `pgenlist.dll`, `pgenlista.dll` | MSDTC support for the Unicode and the ANSI driver |
+| `pgxalib.dll` | the MSDTC XA library, built with the Unicode driver and used by both |
 
-The following 3rd party software are required for the build:
+## Running the regression tests
 
-- Microsoft Windows SDK 7.0 (or later), or Microsoft Visual Studio C++ 2005 Edition (or later). Other compilers may work but have not been tested. Download the latest version from [Microsoft's download page](http://www.microsoft.com/downloads/)
-- PostgreSQL Client library (libpq.dll) and headers. Download the latest version from the [PostgreSQL Binaries Download page](http://www.enterprisedb.com/products-services-training/pgbindownload/).
-- WiX Toolset. Required for building the installer. Download the latest version from the [WiX Toolset website](http://wixtoolset.org/)
+```powershell
+.\winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password"
+```
 
-## Building with Powershell and MSBuild
+builds the test programs and runs them against the drivers that `BuildAll.ps1` built, with no installer needed. The first run registers a test driver and a System DSN, which asks for administrator rights. Without `-DsnInfo`, the script prompts for the server, port, database, user and password.
 
-      Using Powershell and MSBuild is recommended. 
-      In fact the binaries of official release are built using this mothod.
+| Parameter | Values | Default |
+| --- | --- | --- |
+| `-Platform` | `Win32`, `x64`, `ARM64` or `both` | `both` |
+| `-Ansi` | Test the ANSI drivers instead of the Unicode drivers | off |
+| `-DeclareFetch` | Run with Use Declare/Fetch `on`, `off` or `both` | `on` |
+| `-TestList` | Run only these tests, named without `-test`, for example `-TestList connect, select` | all tests |
+| `-ReinstallDriver` | Register the test driver again | off |
 
-      Currently 4 Windows Powershell scripts are provided for developers.
+The test programs and results go in `winbuild\test_x86`, `winbuild\test_x64` or `winbuild\test_arm64`. Differences from the expected output are written to `regression.diffs` there.
 
-      winbuild/BuildAll.ps1          - build all dlls for psqlodbc drivers using
-                       MSBuild.
-      winbuild/editConfiguration.ps1 - a GUI tool to set Build environment
-      winbuild/regress.ps1           - build regression test programs and run
-      installer/buildInstallers.ps1  - build installers(.msi and setup.exe)
+## Building the installers
 
-      Use Powershell console or Command Prompt to invoke scripts:
+```powershell
+.\installer\buildInstallers.ps1
+```
 
-      For example, to build the driver:
+builds `psqlodbc_x86.msi` and `psqlodbc_x64.msi`, with the matching merge modules (`.msm`), into `installer\x86` and `installer\x64`, or under `PSQLODBC_OBJBASE` if it is set. When it builds both, it also builds the `psqlodbc-setup.exe` bootstrapper. Use `-cpu x86`, `-cpu x64` or `-cpu arm64` to build one platform.
 
-      C:\psqlodbc\winbuild\> (Powershell) ./BuildAll.ps1 <options>
-     
-        or you can use the same functionality from Command Prompt using Windows
-        helper batch at the parent folder (..\). See ..\readme_winbuild.txt.
-     
-      C:\psqlodbc\> (Command Prompt) .\BuildAll.bat <options>
+The installers bundle libpq and the DLLs it depends on, such as the OpenSSL libraries, from the libpq `bin` directory in the configuration, together with the Visual C++ runtime. `-ExcludeRuntime` leaves out the Visual C++ runtime, `-RedistUCRT` bundles the Visual C++ Redistributable, and `-NoPDB` leaves out the debug symbol files. See `installer\README.txt` for more.
 
-      1. Please start a powershell console and set the ExecutionPolicy of
-         Powershell to RemoteSigned or Unrestricted.
+## Building with NMAKE
 
-         You can get the ExecutionPolicy by typing
+`win64.mak` builds the drivers from a Visual Studio Developer Command Prompt, without the PowerShell scripts. It builds for the architecture of the prompt, despite its name. It does not build installers.
 
-        Get-ExecutionPolicy
+```bat
+nmake /f win64.mak
+nmake /f win64.mak ANSI_VERSION=yes
+nmake /f win64.mak world
+```
 
-         When the ExecutionPolicy is "Restricted" or "AllSigned" then type e.g.
+The first builds the Unicode driver and the second the ANSI driver. `world` builds both drivers for x64 and for x86, but it switches architecture with the `setenv` command of the Windows SDK 7.1 command prompt, which Visual Studio's Developer Command Prompt doesn't have. The defaults are in `windows-defaults.mak`. To change them, create `windows-local.mak` in the same directory, or set them on the command line:
 
-        Set-ExecutionPolicy RemoteSigned
-
-         To see details about ExecutionPolicy, type
-
-        Get-Help about_Execution_Policies
-
-      2. You have to install one of the following.
-
-       . Visual Studio 2015 non-Express edtion or Express 2015 for Windows
-        Desktop
-       . Visual Studio 2013 non-Express edtion or Express 2013 for Windows
-        Desktop
-       . Visual Studio 2012 non-Express edtion or Express 2012 for Windows
-        Desktop
-       . Full Microsoft Visual C++ 2010
-       . Windows SDK 7.1
-
-         You have to include x64 development tools (bin, lib, include) as
-         well as x86 ones for the installation.
-
-         You can install multiple versions of VC++ and use them.
-         You can easily switch by specifying VCVersion parameter.
-
-      3. Setup Build environment
-
-         Please type
-
-        .\editConfiguration(.ps1)
-
-         and edit the setting of your environment especially the folders
-         you placed libpq related include/lib/bin files.
-
-         
-
-      4. Build
-
-         Please type
-
-        .\BuildAll(.ps1)
-
-         to invoke build operations.
-
-         If you installed both VC10 and VC12 and you'd like to compile
-         under VC10 environment, type
-
-            .\BuildAll(.ps1) -V(CVersion) 10.0
-
-         or set the value 10.0 to vcversion using ./editConfiguration.
-
-         To see details about the use of BuildAll, type
-
-        Get-Help .\BuildAll(.ps1) [-Detailed | -Examples | -Full]
-
-      5. Outputs of Build
-
-         The build can produce output in up to four directories for each of
-         the debug and release configurations:
-
-         - x64_Unicode_Release     the Unicode driver, 64-bit
-         - x86_ANSI_Release        the ANSI driver, 64-bit
-         - x86_Unicode_Release     the ANSI driver, 32-bit
-         - x86_ANSI_Release        the Unicode driver, 32-bit
-
-         For debug builds (-Configuration Debug) the directories are named with
-         Debug instead of Release but otherwise the same.
-
-         pgxalib.dll is only built for the multibyte/unicode version, as it is
-         the same for both unicode and ansi drivers.
-      
-      6. How to use drivers.
-
-         You can't use psqlodbc drivers at once you build the drivers.
-         Usually you have to install drivers using installers made by
-         installer/buildInstallers.ps1. buildInstallers.ps1 bundles
-         libpq and related libraries like ssleay32, libeay32 from the
-         PostgreSQL bin directory and MSVC runtime libraries compiled with.
-
-         However, it is painful for developers to build binaries, build
-         installers and install each time the source files are changed. 
-         It is recommended to use a special installation-less driver
-         (postgres_devw) registered by regress.ps1
-
-      7. Regression test in place
-
-         After BuildAll(.ps1), please type
-
-        .\regress(.ps1)
-
-         You have to neither install nor copy binaries.
-         By default, build 32-bit binaries from test sources and run the tests.
-         If you'd like to test 64-bit version, please type
-
-        .\regress(.ps1) -p(latform) x64
-
-         Please note the outputs(obj, exe etc) generated by build operations and
-         results of tests are placed in the directory winbuild/test_x86(test_x64
-         in case of 64-bit).
-
-      8. Installer
-         
-         To build the .msi installer file:
-
-         C:\psqlodbc\installer\> (Powershell) ./buildInstallers.ps1 <options>
-            or
-         C:\psqlodbc\> (Command Prompt) .\buildInstallers.bat <options>
-
-         By default, buildInstallers.ps1 builds bootstrapper program
-         psqlodbc-setup.exe together.
-
-         See ../installer/readme.txt in the source directory for details.
-
-    Troubleshooting:
-
-         Some documentation on dealing with Windows SDK installation issues
-         can be found on the related pg_build_win page:
-         https://github.com/2ndQuadrant/pg_build_win#troubleshooting
-
-## Building with nmake.exe
-
-Use NMAKE.exe to build the driver for the currently active target:\
-\
-`C:\psqlodbc\> nmake /f win64.mak <options>`\
-
-
-Despite the name, win64.mak is used to build both 32-bit and 64-bit binaries. With the Microsoft Windows SDK Command Prompt, you can switch between 32-bit and 64-bit target architectures with `setenv /x86` and `setenv /x64` commands. If using a Visual Studio Command Prompt you can start the x86 or x64 versions from the Start menu, or run `vcvarsall.bat` with appropriate options to switch architectures.
-
-To build the .msi installer file:\
-\
-`C:\psqlodbc\> nmake /f win64.mak installer`\
-\
-The resulting installer file goes to installer/x64 or installer/x86 directory.
-
-To build both 32-bit and 64-bit versions in one command:\
-\
-`C:\psqlodbc\> nmake /f win64.mak world`\
-
-
-The following build options may be used, either on the command line, or by creating a file called "windows-local.mak".
-
-|              |                                                          |
-|--------------|----------------------------------------------------------|
-| Variable     | Values                                                   |
-| CFG          | Release(default), or Debug                               |
-| PG_INC       | \$(PROGRAMFILES)\PostgreSQL\9.3\include                  |
-| PG_LIB       | \$(PROGRAMFILES)\PostgreSQL\9.3\lib                      |
-| SSL_INC      | C:\OpenSSL-Win32\include                                 |
-| SSL_LIB      | C:\OpenSSL-Win32\lib                                     |
-| ANSI_VERSION | no (If set to "yes", output dll name to psqlodbc30a.dll) |
-| MSDTC        | yes                                                      |
-
-1.  UNICODE is the default (psqlodbc35w.dll), unless ANSI_VERSION is selected (psqlodbc30a.dll)
-2.  libpq.dll is mandatory.
-3.  If MSDTC == Yes, "pgxalib.dll" is created.
-4.  If MSDTC is enabled, ANSI_VERSION also creates "pgenlista.dll", or UNICODE creates "pgenlist.dll".
-
-## IDE Method
-
-A Microsoft Visual Studio project file (and workspace) is included in the source tree.
-
-**psqlodbc.dsp** can be used with Microsoft Visual C++ 6.0.
-
-**psqlodbc.proj** and **psqlodbc.sln** can be used with Microsoft Visual C++ 2005 Edition (including the Express edition which can be downloaded free of charge from <http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/default.aspx>)
-
-Preparation before the build:
-
-1.  The Windows distribution of PostgreSQL will install the required headers and libraries into C:\Program Files\PostgreSQL\9.2
-2.  OpenSSL should be installed into C:\OpenSSL (OpenSSL binaries can be downloaded from <http://www.slproweb.com/products/Win32OpenSSL.html>)
-
-If you want to change the installation arrangement, it is necessary to edit the project settings.
-
-Note:
-
-The default build settings will create the following driver:
-
-1.  UNICODE support.
-2.  libpq is mandatory.
-3.  The driver filename is "psqlodbc35w.dll".
+| Variable | Values | Default |
+| --- | --- | --- |
+| `CFG` | `Release` or `Debug` | `Release` |
+| `PG_INC` | The libpq `include` directory | `$(PROGRAMFILES)\PostgreSQL\9.6\include` |
+| `PG_LIB` | The libpq `lib` directory | `$(PROGRAMFILES)\PostgreSQL\9.6\lib` |
+| `ANSI_VERSION` | `yes` builds the ANSI driver, `psqlodbc30a.dll`, instead of the Unicode driver, `psqlodbc35w.dll` | `no` |
+| `MSDTC` | `no` leaves out MSDTC support | `yes` |
