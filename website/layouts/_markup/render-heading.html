@@ -1,0 +1,14 @@
+{{- /* A level-1 heading that repeats the page title, such as the one at the top of
+     Changelog.md, is dropped because the layout already shows the title. Other
+     headings render as in Hextra. */ -}}
+{{- if and (eq .Level 1) (eq (.Text | plainify) .Page.Title) -}}
+{{- else -}}
+<h{{ .Level }} data-hextra-search-id="{{ .Anchor | safeURL }}" {{- with .Attributes.class }} class="{{ . }}" {{- end }}>
+  {{- .Text | safeHTML -}}
+  {{- if gt .Level 1 -}}
+    <span class="hx:absolute hx:-mt-20" id="{{ .Anchor | safeURL }}"></span>
+    <a href="#{{ .Anchor | safeURL }}" class="subheading-anchor" aria-label="{{ (T "permalinkLabel") | default "Permalink for this section" }}"></a>
+  {{- end -}}
+</h{{ .Level }}>
+{{- /* Drop trailing newlines */ -}}
+{{- end -}}
