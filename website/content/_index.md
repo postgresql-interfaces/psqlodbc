@@ -64,11 +64,7 @@ However we have moved the project to [GitHub psqlODBC](https://github.com/postgr
 
 We will continue to monitor the pgsql-odbc mailing list however it's preferable to use GitHub.
 
-You can browse the source code at the psqlODBC git repository at [postgresql-interfaces/psqlodbc](https://github.com/postgresql-interfaces/psqlodbc). The source for this website is at the [psqlodbc-www](http://git.postgresql.org/gitweb/?p=psqlodbc-www.git)
-
-git repository
-
-A backup of the old CVS repository can be found [here](/backups/psqlodbc-cvs.tar.bz2).
+You can browse the source code at the psqlODBC git repository at [postgresql-interfaces/psqlodbc](https://github.com/postgresql-interfaces/psqlodbc). The source for this website is in the [website](https://github.com/postgresql-interfaces/psqlodbc/tree/main/website) directory of that repository.
 
 ------------------------------------------------------------------------
 
