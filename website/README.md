@@ -19,3 +19,7 @@ hugo --minify      # builds the site into public/
 - The images and `.reg` files come from `docs/`, which the Windows installer and the source tarball also ship.
 
 Pages that moved keep their old addresses through `aliases` in their front matter, so a link such as `/docs/config.html` redirects to `/docs/configuration/`.
+
+## Releasing
+
+Merging to `main` does not publish the site. [RELEASING.md](RELEASING.md) describes how to release it to https://odbc.postgresql.org/.

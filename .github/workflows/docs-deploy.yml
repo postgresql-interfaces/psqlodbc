@@ -1,18 +1,8 @@
 name: Deploy Website
 
-# Builds the website with docs.yml and deploys it to https://odbc.postgresql.org/.
-# The deploy runs only from the www-release branch. After a release, update
-# www-release to the commit to deploy and start the deploy on it:
-#
-#   gh workflow run docs-deploy.yml -R postgresql-interfaces/psqlodbc --ref www-release
-#
-# The deploy uploads the site to the root of the S3 bucket, then deletes the
-# files in the bucket that are no longer in the site, then uploads
-# /deploy-info.json with metadata about the deployment, and then invalidates
-# the CloudFront cache. Each deploy replaces the previous one and no earlier
-# version is kept. To roll back, set www-release back to an earlier commit and
-# start the deploy again. A run on any other branch fails with an error before
-# it builds the site.
+# Builds the website with docs.yml and deploys it to https://odbc.postgresql.org/,
+# only from the www-release branch. website/RELEASING.md describes how to
+# release, roll back, and what each step below does.
 #
 # The workflow reads these repository variables:
 #
