@@ -74,4 +74,5 @@ TESTBINS = exe/connect-test \
 	exe/dbms-version-test \
 	exe/surrogate-pair-test \
 	exe/many-params-test \
-	exe/keyset-overflow-test
+	exe/keyset-overflow-test \
+	exe/columns-sizes-test

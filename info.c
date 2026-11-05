@@ -2328,6 +2328,21 @@ add_tuple_for_oid_or_xmin(TupleField *tuple, int ordinal, const char *colname, O
 	set_tuplefield_int4(&tuple[COLUMNS_TABLE_INFO], table_info);
 }
 
+/*
+ * Set COLUMN_SIZE, BUFFER_LENGTH or CHAR_OCTET_LENGTH in a SQLColumns row.
+ * These are sizes, so SQL_NO_TOTAL (a length/indicator value) is not valid
+ * there, and applications such as MSDASQL bind them as SQL_C_ULONG, where a
+ * negative value fails with 22003.  -1 means the size does not apply to the
+ * type and becomes NULL; SQL_NO_TOTAL becomes the largest representable size.
+ */
+static void
+set_columns_size(TupleField *field, Int4 size)
+{
+	if (SQL_NO_TOTAL == size)
+		size = INT_MAX;
+	set_nullfield_int4(field, size);
+}
+
 RETCODE		SQL_API
 PGAPI_Columns(HSTMT hstmt,
 			  const SQLCHAR * szTableQualifier, /* OA X*/
@@ -2847,8 +2862,8 @@ MYLOG(0, " and the data=%s\n", attdef);
 				if (mod_length >= 4)
 					mod_length -= 4;
 		}
-		set_tuplefield_int4(&tuple[COLUMNS_PRECISION], PGTYPE_ATTR_COLUMN_SIZE(conn, field_type, mod_length));
-		set_tuplefield_int4(&tuple[COLUMNS_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, field_type, mod_length));
+		set_columns_size(&tuple[COLUMNS_PRECISION], PGTYPE_ATTR_COLUMN_SIZE(conn, field_type, mod_length));
+		set_columns_size(&tuple[COLUMNS_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, field_type, mod_length));
 		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], PGTYPE_ATTR_DISPLAY_SIZE(conn, field_type, mod_length));
 		set_nullfield_int2(&tuple[COLUMNS_SCALE], PGTYPE_ATTR_DECIMAL_DIGITS(conn, field_type, mod_length));
 
@@ -2866,7 +2881,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 			set_tuplefield_string(&tuple[COLUMNS_COLUMN_DEF], attdef);
 		set_tuplefield_int2(&tuple[COLUMNS_SQL_DATA_TYPE], concise_type);
 		set_nullfield_int2(&tuple[COLUMNS_SQL_DATETIME_SUB], pgtype_attr_to_datetime_sub(conn, field_type, mod_length));
-		set_tuplefield_int4(&tuple[COLUMNS_CHAR_OCTET_LENGTH], PGTYPE_ATTR_TRANSFER_OCTET_LENGTH(conn, field_type, mod_length));
+		set_columns_size(&tuple[COLUMNS_CHAR_OCTET_LENGTH], PGTYPE_ATTR_TRANSFER_OCTET_LENGTH(conn, field_type, mod_length));
 		set_tuplefield_int4(&tuple[COLUMNS_ORDINAL_POSITION], ordinal);
 		set_tuplefield_null(&tuple[COLUMNS_IS_NULLABLE]);
 		set_tuplefield_int4(&tuple[COLUMNS_FIELD_TYPE], field_type);
