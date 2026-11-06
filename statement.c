@@ -1317,7 +1317,8 @@ static const struct
 	{ STMT_COUNT_FIELD_INCORRECT, "07002", "07002" },
 	{ STMT_INVALID_NULL_ARG, "HY009", "S1009" },
 	{ STMT_NO_RESPONSE, "08S01", "08S01" },
-	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" }
+	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" },
+	{ STMT_STRING_CONVERSION_ERROR, "22018", "22005" } /* invalid character value for cast specification */
 };
 
 static PG_ErrorInfo *
