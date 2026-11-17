@@ -449,6 +449,65 @@ void param_status_batch_update(IPDFields *ipdopts, RETCODE retval, SQLLEN target
 	}
 }
 
+/*
+ *	Add one parameter row's statement text to the deferred batch.
+ *
+ *	The rows of an INSERT that ends with a single VALUES tuple fold into one
+ *	multi-row INSERT, which the server parses and plans once instead of once
+ *	per row. Any other statement, and any row whose text does not repeat the
+ *	first row's text up to the tuple, becomes a statement of its own,
+ *	separated from the row before it by ';'.
+ *
+ *	The caller has checked that the buffer is usable.
+ */
+static void
+append_deferred_row(StatementClass *stmt, const char *stmt_with_params)
+{
+	PQExpBuffer	buf = &stmt->stmt_deferred;
+
+	if (!buf->data[0])
+	{
+		if (stmt->values_tuple_pos >= 0)
+		{
+			/*
+			 * Keep the text through the end of the tuple only. What
+			 * follows is white space and at most the ';' that ends the
+			 * statement, and the folded INSERT is the whole query.
+			 */
+			appendBinaryPQExpBuffer(buf, stmt_with_params,
+						(size_t) stmt->values_tuple_end);
+			stmt->deferred_fold_pos = stmt->values_tuple_pos;
+		}
+		else
+		{
+			appendPQExpBufferStr(buf, stmt_with_params);
+			stmt->deferred_fold_pos = -1;
+		}
+		return;
+	}
+
+	if (stmt->deferred_fold_pos >= 0 &&
+	    stmt->values_tuple_pos == stmt->deferred_fold_pos &&
+	    memcmp(buf->data, stmt_with_params,
+		   (size_t) stmt->deferred_fold_pos) == 0)
+	{
+		appendPQExpBufferChar(buf, ',');
+		appendBinaryPQExpBuffer(buf,
+					stmt_with_params + stmt->values_tuple_pos,
+					(size_t) (stmt->values_tuple_end -
+						  stmt->values_tuple_pos));
+		return;
+	}
+
+	/*
+	 * This row belongs to another statement, so it and every row behind it
+	 * in this batch stands on its own.
+	 */
+	stmt->deferred_fold_pos = -1;
+	appendPQExpBufferChar(buf, ';');
+	appendPQExpBufferStr(buf, stmt_with_params);
+}
+
 static
 RETCODE	Exec_with_parameters_resolved(StatementClass *stmt, EXEC_TYPE exec_type, BOOL *exec_end)
 {
@@ -557,12 +616,7 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 		else
 		{
 			if (NULL != stmt_with_params)
-			{
-				if (stmt->stmt_deferred.data[0])
-					appendPQExpBuffer(&stmt->stmt_deferred, ";%s", stmt_with_params);
-				else
-					printfPQExpBuffer(&stmt->stmt_deferred, "%s", stmt_with_params);
-			}
+				append_deferred_row(stmt, stmt_with_params);
 			if (NULL != ipdopts->param_status_ptr)
 				ipdopts->param_status_ptr[stmt->exec_current_row] = SQL_PARAM_SUCCESS; // set without exec
 			stmt->count_of_deffered++;
@@ -575,14 +629,17 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 		if (VALID_EXPBUFFER)
 		{
 			if (NULL != stmt_with_params)
-				appendPQExpBuffer(&stmt->stmt_deferred, ";%s", stmt_with_params);
+				append_deferred_row(stmt, stmt_with_params);
 			stmt->stmt_with_params = stmt->stmt_deferred.data;
 		}
 		retval = SC_execute(stmt);
 		stmt->stmt_with_params = stmt_with_params;
 		stmt->count_of_deffered = 0;
 		if (VALID_EXPBUFFER)
+		{
 			resetPQExpBuffer(&stmt->stmt_deferred);
+			stmt->deferred_fold_pos = -1;
+		}
 	}
 	if (retval == SQL_ERROR)
 	{

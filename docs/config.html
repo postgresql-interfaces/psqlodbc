@@ -132,6 +132,13 @@ tables, even without this option. Separate each prefix with a semicolon
 <li><b>Batch Size:</b>Chunk size when executing batches with arrays of
 parameters. Setting 1 to this option forces one by one execution (the
 behavior before).
+The rows of a chunk go to the server as one query. Where the statement is
+an INSERT that ends with a single VALUES tuple, they become one INSERT
+carrying one tuple per row, which the server parses and plans once for the
+whole chunk. A trigger declared FOR EACH STATEMENT then fires once per
+chunk rather than once per row, and SQLRowCount reports the rows of the
+last chunk. Any other statement, including an INSERT with an ON CONFLICT
+or RETURNING clause, goes as one statement per row.
 <br />&nbsp;</li>
 </ul>
 

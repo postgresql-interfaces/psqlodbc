@@ -482,6 +482,9 @@ SC_Constructor(ConnectionClass *conn)
 			rv->batch_size = 1;
 		rv->exec_type = DIRECT_EXEC;
 		rv->count_of_deffered = 0;
+		rv->deferred_fold_pos = -1;
+		rv->values_tuple_pos = -1;
+		rv->values_tuple_end = -1;
 		rv->has_notice = 0;
 		INIT_STMT_CS(rv);
 	}
