@@ -60,6 +60,7 @@ TESTBINS = exe/connect-test \
 	exe/odbc-conformance-test \
 	exe/wchar-char-test \
 	exe/params-batch-exec-test \
+	exe/insert-batch-fold-test \
 	exe/fetch-refcursors-test \
 	exe/descrec-test \
 	exe/descriptors-free-test \

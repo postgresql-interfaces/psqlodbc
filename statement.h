@@ -284,6 +284,15 @@ struct StatementClass_
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
+	/*
+	 * Where the VALUES tuple of an INSERT sits in stmt_with_params:
+	 * values_tuple_pos is the offset of its '(' and values_tuple_end the
+	 * offset one past its ')'. The parameter rows of such a statement fold
+	 * into one multi-row INSERT. Both are -1 for every other statement,
+	 * and copy_statement_with_parameters() decides which it is.
+	 */
+	ssize_t		values_tuple_pos;
+	ssize_t		values_tuple_end;
 	SQLLEN		exec_start_row;
 	SQLLEN		exec_end_row;
 	SQLLEN		exec_current_row;
@@ -305,6 +314,12 @@ struct StatementClass_
 	EXEC_TYPE	exec_type;
 	int		count_of_deffered;
 	PQExpBufferData	stmt_deferred;
+	/*
+	 * Offset of the VALUES tuple's '(' in stmt_deferred while the deferred
+	 * rows are folding into one multi-row INSERT, and -1 while they are
+	 * separate statements joined by ';'.
+	 */
+	ssize_t		deferred_fold_pos;
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
 	StatementClass	*execute_parent;
