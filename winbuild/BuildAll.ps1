@@ -122,8 +122,9 @@ function buildPlatform([xml]$configInfo, [string]$Platform)
 			default { throw "Unable to resolve mimalloc IDE directory for VC ${VCVersion}."}
 		}
 
-		# build mimalloc dependency
-		& ${msbuildexe} ..\libs\mimalloc\ide\$mimallocIdeDir\mimalloc.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion}
+		# build mimalloc dependency, without the assembler listings that
+		# mimalloc.props turns off
+		& ${msbuildexe} ..\libs\mimalloc\ide\$mimallocIdeDir\mimalloc.vcxproj /tv:$MSToolsV "/p:Platform=$Platform;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$target /p:VisualStudioVersion=${VCVersion} "/p:ForceImportBeforeCppTargets=$scriptPath\mimalloc.props"
 	}
 
 	# build psqlodbc
