@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Imported into the mimalloc build through ForceImportBeforeCppTargets,
+	after mimalloc's own project settings, by BuildAll.ps1 -UseMimalloc.
+
+	mimalloc's project asks for an assembler listing of every source file
+	(/FAs).  MSVC 14.52 fails to write the listing of stats.c ("C1083:
+	Cannot open compiler generated file: 'stats.asm': Invalid argument"),
+	and the driver does not use the listings, so turn them off.
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<AssemblerOutput>NoListing</AssemblerOutput>
+		</ClCompile>
+	</ItemDefinitionGroup>
+</Project>
