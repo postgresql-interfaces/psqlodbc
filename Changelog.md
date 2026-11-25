@@ -2,7 +2,27 @@
 
 Release notes for psqlODBC, converted from docs/release.html and docs/release-7.3.html.
 
-## Unreleased
+## 18.00.0007
+
+This release fixes the following vulnerabilities. All releases before 18.00.0007 are affected unless an entry gives a narrower range.
+
+- Driver sends application memory to the server or returns it to the caller (CVE-2026-136499, [GHSA-2mrr-c82q-wc22](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-2mrr-c82q-wc22), CVSS 3.1 5.9 Medium)
+- SQL injection with BIG5 aliases and the JOHAB, EUC_TW, EUC_CN and EUC_KR client encodings (CVE-2026-136500, [GHSA-2rjm-67gc-54r4](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-2rjm-67gc-54r4), CVSS 3.1 8.1 High)
+- Positioned writes go to another user's table through name and case matching (CVE-2026-136501, [GHSA-38cc-jj5v-wrg6](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-38cc-jj5v-wrg6), CVSS 3.1 7.1 High)
+- SQL injection and redirected writes because the driver reads SQL text differently from the server (CVE-2026-136502, [GHSA-4392-6j85-5q2q](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4392-6j85-5q2q), CVSS 3.1 8.1 High)
+- Use after free, double free and out-of-bounds writes in result and transaction clean-up (CVE-2026-136503, [GHSA-48v4-hjc5-hx8w](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-48v4-hjc5-hx8w), CVSS 3.1 7.5 High)
+- Debug log records the database password in clear text (CVE-2026-136504, [GHSA-4cgj-r3wg-3rj2](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4cgj-r3wg-3rj2), CVSS 3.1 5.0 Medium)
+- Unchecked sizes and counters overflow driver buffers (CVE-2026-136505, [GHSA-4g4f-phc4-3qh7](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4g4f-phc4-3qh7), CVSS 3.1 7.5 High)
+- SQL injection through names the driver puts into its own queries (CVE-2026-136506, [GHSA-63r4-gjcj-f69v](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-63r4-gjcj-f69v), CVSS 3.1 7.5 High)
+- Connection string injection in SQLDriverConnect and the MSDTC XA open string (CVE-2026-136507, [GHSA-7638-f7xp-wv22](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-7638-f7xp-wv22), CVSS 3.1 8.1 High)
+- MSDTC connections drop the connection's TLS and channel binding settings (CVE-2026-136508, [GHSA-8q3q-86gx-g68g](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-8q3q-86gx-g68g), CVSS 3.1 6.8 Medium)
+- Driver does not check that server replies match the queries it sent (CVE-2026-136509, [GHSA-98mx-57hv-xjpr](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-98mx-57hv-xjpr), CVSS 3.1 7.5 High)
+- Statement after an abandoned parameter array sends the abandoned batch's rows instead of its own. Affects 12.02.0000 through 18.00.0006 (CVE-2026-136510, [GHSA-9j2v-p4pj-f4wj](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-9j2v-p4pj-f4wj), CVSS 3.1 4.8 Medium)
+- An SSLmode value written with capitals or braces connects without TLS (CVE-2026-136511, [GHSA-9vpf-qm3q-xh5x](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-9vpf-qm3q-xh5x), CVSS 3.1 6.8 Medium)
+- Buffer overflows when a converted value does not fit the application's buffer (CVE-2026-136512, [GHSA-c66p-8p63-p7mr](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-c66p-8p63-p7mr), CVSS 3.1 7.5 High)
+- Another local user can redirect log files (incomplete fix for CVE-2026-120066) (CVE-2026-136513, [GHSA-g5jq-mpgp-mq7q](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-g5jq-mpgp-mq7q), CVSS 3.1 3.6 Low)
+- Another database user can crash applications by changing a table they own (CVE-2026-136514, [GHSA-hcmw-j9px-6v23](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-hcmw-j9px-6v23), CVSS 3.1 6.5 Medium)
+- Memory corruption and crashes when the driver rewrites statements for cursors and escapes (CVE-2026-136515, [GHSA-pw7w-x92p-r3q2](https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-pw7w-x92p-r3q2), CVSS 3.1 7.5 High)
 
 Behavior changes:
 
