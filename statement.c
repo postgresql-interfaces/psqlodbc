@@ -176,6 +176,7 @@ static const struct
 static QResultClass *libpq_bind_and_exec(StatementClass *stmt);
 static void SC_set_errorinfo(StatementClass *self, QResultClass *res, int errkind);
 static void SC_set_error_if_not_set(StatementClass *self, int errornumber, const char *errmsg, const char *func);
+static void SC_abandon_lo(StatementClass *self);
 
 
 RETCODE		SQL_API
@@ -293,6 +294,7 @@ PGAPI_FreeStmt(HSTMT hstmt,
 			res = SC_get_Result(stmt);
 			QR_Destructor(res);
 			SC_init_Result(stmt);
+			SC_abandon_lo(stmt);
 			if (!CC_remove_statement(conn, stmt))
 			{
 				SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Statement is currently executing a transaction.", func);
@@ -473,6 +475,7 @@ SC_Constructor(ConnectionClass *conn)
 		rv->stmt_time = 0;
 		rv->execute_delegate = NULL;
 		rv->execute_parent = NULL;
+		rv->delegate_executing = FALSE;
 		rv->allocated_callbacks = 0;
 		rv->num_callbacks = 0;
 		rv->callbacks = NULL;
@@ -964,6 +967,28 @@ SC_finish_catalog_names(StatementClass *self, RETCODE ret,
 }
 
 /*
+ * Free the list of processed statements (the SQL fragments built by
+ * prepareParametersNoDesc()) of the statement.
+ */
+void
+SC_free_processed_statements(StatementClass *self)
+{
+	ProcessedStmt *pstmt;
+	ProcessedStmt *next_pstmt;
+
+	pstmt = self->processed_statements;
+	while (pstmt)
+	{
+		if (pstmt->query)
+			free(pstmt->query);
+		next_pstmt = pstmt->next;
+		free(pstmt);
+		pstmt = next_pstmt;
+	}
+	self->processed_statements = NULL;
+}
+
+/*
  * Initialize stmt_with_params and load_statement member pointer
  * deallocating corresponding prepared plan. Also initialize
  * statement member pointer if specified.
@@ -971,8 +996,6 @@ SC_finish_catalog_names(StatementClass *self, RETCODE ret,
 RETCODE
 SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 {
-	ProcessedStmt *pstmt;
-	ProcessedStmt *next_pstmt;
 	ConnectionClass *conn = SC_get_conn(self);
 
 	if (self->lock_CC_for_rb)
@@ -990,16 +1013,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 		}
 		SC_clear_described_ctype(self);
 
-		pstmt = self->processed_statements;
-		while (pstmt)
-		{
-			if (pstmt->query)
-				free(pstmt->query);
-			next_pstmt = pstmt->next;
-			free(pstmt);
-			pstmt = next_pstmt;
-		}
-		self->processed_statements = NULL;
+		SC_free_processed_statements(self);
 
 		/*
 		 * The parsed table/field information (ti, parse_status,
@@ -1129,6 +1143,34 @@ SC_reset_result_for_rerun(StatementClass *self)
 }
 
 /*
+ *	Give up the large object the statement is reading or writing.
+ *	convert_lo() (and PGAPI_PutData()) begin an in-line transaction
+ *	for it in autocommit mode and end that transaction only after the
+ *	last piece has been read (or SQLParamData() is called). If the
+ *	application abandons the statement before that, end the transaction
+ *	here in the same way, otherwise the connection stays in a transaction
+ *	nobody commits. Don't lo_close() the descriptor: the COMMIT closes it
+ *	and, if another statement has ended the transaction in the meantime,
+ *	it is already gone.
+ */
+static void
+SC_abandon_lo(StatementClass *self)
+{
+	ConnectionClass *conn = SC_get_conn(self);
+
+	if (self->lobj_fd < 0)
+		return;
+	MYLOG(0, "self=%p lobj_fd=%d\n", self, self->lobj_fd);
+	self->lobj_fd = -1;
+	if (!conn)
+		return;
+
+	/* commit transaction if needed */
+	if (!conn->connInfo.drivers.use_declarefetch && CC_does_autocommit(conn))
+		CC_commit(conn);
+}
+
+/*
  *	Called from SQLPrepare if STMT_PREMATURE, or
  *	from SQLExecute if STMT_FINISHED, or
  *	from SQLFreeStmt(SQL_CLOSE)
@@ -1218,7 +1260,7 @@ MYLOG(DETAIL_LOG_LEVEL, "statement=%p ommitted=0\n", self);
 	self->__error_message = NULL;
 	self->__error_number = 0;
 
-	self->lobj_fd = -1;
+	SC_abandon_lo(self);
 
 	SC_free_params(self, STMT_FREE_PARAMS_DATA_AT_EXEC_ONLY);
 	SC_initialize_stmts(self, FALSE);
@@ -1598,7 +1640,14 @@ static const struct
 	{ STMT_COUNT_FIELD_INCORRECT, "07002", "07002" },
 	{ STMT_INVALID_NULL_ARG, "HY009", "S1009" },
 	{ STMT_NO_RESPONSE, "08S01", "08S01" },
-	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" }
+	{ STMT_COMMUNICATION_ERROR, "08S01", "08S01" },
+	/*
+	 * The table is indexed by the error number, so every number up to the
+	 * last one needs an entry. HY000 is what a number past the end of the
+	 * table falls back to.
+	 */
+	{ STMT_STRING_CONVERSION_ERROR, "HY000", "S1000" },
+	{ STMT_INVALID_BUFFER_LENGTH, "HY090", "S1090" }
 };
 
 static PG_ErrorInfo *
@@ -2021,8 +2070,13 @@ MYLOG(DETAIL_LOG_LEVEL, "entering statement=%p res=%p ommitted=0\n", self, res);
 			MYLOG(0, "**** : end_tuples\n");
 			if (QR_get_cursor(res) &&
 			    SQL_CURSOR_FORWARD_ONLY == self->options.cursor_type &&
-			    QR_once_reached_eof(res))
-				QR_close(res);
+			    QR_once_reached_eof(res) &&
+			    !QR_close(res))
+			{
+				/* closing the cursor also ended the transaction, and that failed */
+				SC_set_errorinfo(self, res, 1);
+				return SQL_ERROR;
+			}
 			return SQL_NO_DATA_FOUND;
 		}
 		else if (retval > 0)
@@ -2079,11 +2133,18 @@ MYLOG(DETAIL_LOG_LEVEL, "stmt=%p ommitted++\n", self);
 	if ((bookmark = opts->bookmark) && bookmark->buffer)
 	{
 		SC_set_current_col(self, -1);
-		SC_Create_bookmark(self, bookmark, self->bind_row, self->currTuple, keyset);
+		if (COPY_RESULT_TRUNCATED ==
+			SC_Create_bookmark(self, bookmark, self->bind_row,
+							   self->currTuple, keyset))
+		{
+			SC_set_error(self, STMT_TRUNCATED,
+						 "Fetched bookmark was truncated.", func);
+			result = SQL_SUCCESS_WITH_INFO;
+		}
 	}
 
 	if (self->options.retrieve_data == SQL_RD_OFF)		/* data isn't required */
-		return SQL_SUCCESS;
+		return result;
 	/* The following adjustment would be needed after SQLMoreResults() */
 	if (opts->allocated < num_cols)
 		extend_column_bindings(opts, num_cols);
@@ -2192,7 +2253,7 @@ SC_execute(StatementClass *self)
 	QueryInfo	qi;
 	ConnInfo   *ci;
 	unsigned int	qflag = 0;
-	BOOL		is_in_trans, issue_begin, has_out_para;
+	BOOL		is_in_trans, issue_begin, has_out_para, commit_failed = FALSE;
 	BOOL		use_extended_protocol;
 	int		func_cs_count = 0, i;
 	BOOL		useCursor, isSelectType;
@@ -2248,7 +2309,12 @@ SC_execute(StatementClass *self)
 		if (STMT_TYPE_START == self->statement_type &&
 		    CC_does_autocommit(conn))
 		{
-			CC_commit(conn);
+			if (!CC_commit(conn))
+			{
+				/* the work of the open transaction is gone */
+				SC_set_error(self, STMT_EXEC_ERROR, "Could not commit the open transaction", func);
+				goto cleanup;
+			}
 			is_in_trans = CC_is_in_trans(conn);
 		}
 	}
@@ -2294,7 +2360,19 @@ SC_execute(StatementClass *self)
 				 (int) stmt_timeout * 1000);
 		res = CC_send_query(conn, query, NULL, 0, NULL);
 		if (QR_command_maybe_successful(res))
+		{
+			/*
+			 * SET is transactional. When it is issued inside a
+			 * transaction, a ROLLBACK brings back the value the
+			 * session had before, so remember it (see CC_on_abort()).
+			 */
+			if (CC_is_in_trans(conn) && !conn->stmt_timeout_set_in_trans)
+			{
+				conn->stmt_timeout_before_trans = conn->stmt_timeout_in_effect;
+				conn->stmt_timeout_set_in_trans = 1;
+			}
 			conn->stmt_timeout_in_effect = stmt_timeout;
+		}
 		QR_Destructor(res);
 	}
 
@@ -2437,8 +2515,9 @@ SC_execute(StatementClass *self)
 		{
 			if (!is_in_trans)
 				CC_set_in_manual_trans(conn);
-			if (self->external && CC_does_autocommit(conn))
-				CC_commit(conn);
+			if (self->external && CC_does_autocommit(conn) &&
+			    !CC_commit(conn))
+				commit_failed = TRUE;
 		}
 	}
 
@@ -2472,6 +2551,13 @@ MYLOG(0, "set %p STMT_FINISHED\n", self);
 		}
 		else
 			SC_set_errorinfo(self, first, 0);
+		/*
+		 * The statement succeeded, but committing it did not (a deferred
+		 * constraint, say), so its work is gone.
+		 */
+		if (commit_failed &&
+		    (STMT_OK == SC_get_errornumber(self) || STMT_INFO_ONLY == SC_get_errornumber(self)))
+			SC_set_error(self, STMT_EXEC_ERROR, "Could not commit the statement's transaction", func);
 		/*
 		 * The statement failed and left the transaction aborted, and it is
 		 * a transaction this statement opened: the application is in
@@ -2934,12 +3020,21 @@ RequestStart(StatementClass *stmt, ConnectionClass *conn, const char *func)
 	if (NULL == conn->pqconn)
         {
 		SC_set_error(stmt, STMT_COMMUNICATION_ERROR, "The connection has been lost", __FUNCTION__);
-		return SQL_ERROR;
+		return FALSE;
 	}
-	if (CC_started_rbpoint(conn))
-		return TRUE;
 	if (SC_is_readonly(stmt))
 		svpopt |= SVPOPT_RDONLY;
+	if (CC_started_rbpoint(conn))
+	{
+		/*
+		 * The rollback point of this call is already set, but still
+		 * record what kind of query follows it, so that a call which
+		 * read first and writes now is not remembered as read-only
+		 * (see CC_send_query_append).
+		 */
+		conn->opt_in_progress &= svpopt;
+		return TRUE;
+	}
 	if (SQL_ERROR == SetStatementSvp(stmt, svpopt))
 	{
 		char	emsg[128];
@@ -3246,17 +3341,11 @@ ParseWithLibpq(StatementClass *stmt, const char *plan_name,
 			SC_param_next(stmt, &pidx, NULL, NULL);
 			if (pidx > end_pidx)
 				break;
-			else if (pidx < end_pidx)
-			{
-				if (0 == num_params)
-					sta_pidx = pidx;
-				num_params++;
-			}
-			else
-			{
-				num_params++;
+			if (0 == num_params)
+				sta_pidx = pidx;
+			num_params++;
+			if (pidx == end_pidx)
 				break;
-			}
 		}
 MYLOG(0, "sta_pidx=%d end_pidx=%d num_p=%d\n", sta_pidx, end_pidx, num_params);
 	}
@@ -3540,9 +3629,26 @@ BOOL	SC_IsExecuting(const StatementClass *self)
 	LEAVE_COMMON_CS;
 	return ret;
 }
+/*
+ * Whether this statement, or a delegate executing on its behalf, is
+ * executing a query. For a thread that does not hold the statement lock
+ * this is the only safe form of the question: following
+ * execute_delegate needs the statement lock, which the executing thread
+ * holds. See delegate_executing in statement.h.
+ */
+BOOL	SC_ExecutionInProgress(const StatementClass *self)
+{
+	BOOL	ret;
+	ENTER_COMMON_CS; /* short time blocking */
+	ret = (STMT_EXECUTING == self->status || self->delegate_executing);
+	LEAVE_COMMON_CS;
+	return ret;
+}
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
 {
 	BOOL	exeSet = FALSE;
+	StatementClass	*parent;
+
 	ENTER_COMMON_CS; /* short time blocking */
 	if (on)
 	{
@@ -3558,6 +3664,17 @@ BOOL	SC_SetExecuting(StatementClass *self, BOOL on)
 		self->status = STMT_FINISHED;
 MYLOG(0, "set %p STMT_FINISHED\n", self);
 		exeSet = TRUE;
+	}
+	if (exeSet)
+	{
+		/*
+		 * PGAPI_Cancel() is given the handle the application holds,
+		 * which when self is a delegate is a statement further up the
+		 * execute_parent chain, so each statement on the chain must
+		 * show the execution. See delegate_executing in statement.h.
+		 */
+		for (parent = self->execute_parent; parent; parent = parent->execute_parent)
+			parent->delegate_executing = on;
 	}
 	LEAVE_COMMON_CS;
 	return exeSet;
@@ -3667,6 +3784,8 @@ SC_set_errorinfo(StatementClass *self, QResultClass *res, int errkind)
  *	Now the driver offers more verbose bookmarks which contain KeySet informations
  *	(CTID (+ OID)). Though they consume 12bytes(row number + CTID) or 16bytes
  *	(row number + CTID + OID), they are useful in declare/fetch mode.
+ *	A fixed-length bookmark (SQL_C_BOOKMARK) is the 4-byte row number, and
+ *	that is the distance between two rows of a column-wise bound array.
  */
 
 PG_BM	SC_Resolve_bookmark(const ARDFields *opts, Int4 idx)
@@ -3682,19 +3801,29 @@ PG_BM	SC_Resolve_bookmark(const ARDFields *opts, Int4 idx)
 	offset = opts->row_offset_ptr ? *(opts->row_offset_ptr) : 0;
 	bind_size = opts->bind_size;
 	pg_memset(&pg_bm, 0, sizeof(pg_bm));
-	if (used = bookmark->used, used != NULL)
+	/*
+	 * A SQL_C_BOOKMARK buffer holds 4 bytes, whatever the indicator says.
+	 * A SQL_C_VARBOOKMARK buffer holds at most buflen bytes; the indicator
+	 * is signed, so a negative one (SQL_NULL_DATA, SQL_NTS) must not
+	 * compare as a large length.
+	 */
+	if (SQL_C_BOOKMARK != bookmark->returntype &&
+	    (used = bookmark->used, used != NULL))
 	{
 		used = LENADDR_SHIFT(used, offset);
 		if (bind_size > 0)
 			used = LENADDR_SHIFT(used, idx * bind_size);
 		else
 			used = LENADDR_SHIFT(used, idx * sizeof(SQLLEN));
-		if (*used >= sizeof(pg_bm))
+		if (*used >= (SQLLEN) sizeof(pg_bm))
 			cpylen = sizeof(pg_bm);
 		else if (*used >= 12)
 			cpylen = 12;
 		MYLOG(0, "used=" FORMAT_LEN " cpylen=" FORMAT_SIZE_T "\n", *used, cpylen);
 	}
+	if (SQL_C_VARBOOKMARK == bookmark->returntype &&
+	    bookmark->buflen < (SQLLEN) cpylen)
+		cpylen = bookmark->buflen > 0 ? (size_t) bookmark->buflen : 0;
 	memcpy(&pg_bm, CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, idx), cpylen);
 MYLOG(0, "index=%d block=%d off=%d\n", pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
 	pg_bm.index = SC_resolve_int4_bookmark(pg_bm.index);
@@ -3708,20 +3837,31 @@ int	SC_Create_bookmark(StatementClass *self, BindInfoClass *bookmark, Int4 bind_
 	SQLUINTEGER	bind_size = opts->bind_size;
 	SQLULEN		offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
 	size_t		cvtlen = sizeof(Int4);
+	size_t		copylen;
 	PG_BM		pg_bm;
 
 MYLOG(0, "entering type=%d buflen=" FORMAT_LEN " buf=%p\n", bookmark->returntype, bookmark->buflen, bookmark->buffer);
 	pg_memset(&pg_bm, 0, sizeof(pg_bm));
 	if (SQL_C_BOOKMARK == bookmark->returntype)
 		;
-	else if (bookmark->buflen >= sizeof(pg_bm))
+	else if (bookmark->buflen >= (SQLLEN) sizeof(pg_bm))
 		cvtlen = sizeof(pg_bm);
 	else if (bookmark->buflen >= 12)
 		cvtlen = 12;
 	pg_bm.index = SC_make_int4_bookmark(currTuple);
 	if (keyset)
 		pg_bm.keys  = *keyset;
-	memcpy(CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, bind_row), &pg_bm, cvtlen);
+	/*
+	 * A SQL_C_VARBOOKMARK buffer shorter than the 4-byte bookmark gets
+	 * buflen bytes of it; the indicator still reports the whole length.
+	 * PGAPI_BindCol refuses a negative buflen.
+	 */
+	copylen = cvtlen;
+	if (SQL_C_VARBOOKMARK == bookmark->returntype &&
+	    bookmark->buflen < (SQLLEN) cvtlen)
+		copylen = bookmark->buflen > 0 ? (size_t) bookmark->buflen : 0;
+	memcpy(CALC_BOOKMARK_ADDR(bookmark, offset, bind_size, bind_row), &pg_bm,
+		   copylen);
 	if (bookmark->used)
 	{
 		SQLLEN *used = LENADDR_SHIFT(bookmark->used, offset);
@@ -3734,5 +3874,5 @@ MYLOG(0, "entering type=%d buflen=" FORMAT_LEN " buf=%p\n", bookmark->returntype
 	}
 MYLOG(0, "leaving cvtlen=" FORMAT_SIZE_T " ix(bl,of)=%d(%d,%d)\n", cvtlen, pg_bm.index, pg_bm.keys.blocknum, pg_bm.keys.offset);
 
-	return COPY_OK;
+	return copylen < cvtlen ? COPY_RESULT_TRUNCATED : COPY_OK;
 }

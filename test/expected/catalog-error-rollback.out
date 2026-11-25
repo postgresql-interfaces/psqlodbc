@@ -1,0 +1,10 @@
+connected
+SQLSpecialColumns existing table: succeeded, committed rows: 1 2 3
+SQLProcedures rejected name: SQLSTATE=HY000, committed rows: 1 2 3
+SQLSpecialColumns missing table: SQLSTATE=07009, committed rows: 1 2 3
+SQLTables rejected name: SQLSTATE=HY000, committed rows: 1 2 3
+SQLColumns rejected name: SQLSTATE=HY000, committed rows: 1 2 3
+SQLStatistics rejected name: SQLSTATE=HY000, committed rows: 1 2 3
+SQLPrimaryKeys rejected name: SQLSTATE=HY000, committed rows: 1 2 3
+SQLSpecialColumns rejected name: SQLSTATE=HY000, committed rows: 1 2 3
+disconnecting

@@ -295,7 +295,6 @@ QR_close_result(QResultClass *self, BOOL destroy)
 {
 	ConnectionClass	*conn;
 	QResultClass *res, *next;
-	BOOL	top = TRUE;
 
 	if (!self)	return;
 	MYLOG(0, "entering\n");
@@ -333,11 +332,9 @@ QR_close_result(QResultClass *self, BOOL destroy)
 	{
 		/*
 		 * Should have been freed in the close() but just in case...
-		 * QR_set_cursor clears the cursor name of all the chained results too,
-		 * so we only need to do this for the first result in the chain.
+		 * Each result in the chain may own a cursor of its own.
 		 */
-		if (top)
-			QR_set_cursor(self, NULL);
+		QR_set_cursor(self, NULL);
 
 		/* Free up column info */
 		if (destroy)
@@ -372,7 +369,6 @@ QR_close_result(QResultClass *self, BOOL destroy)
 		/* Repeat for the next result in the chain */
 		self = next;
 		destroy = TRUE; /* always destroy chained results */
-		top = FALSE;
 	}
 
 	MYLOG(0, "leaving\n");
@@ -415,6 +411,35 @@ QR_set_command(QResultClass *self, const char *msg)
 		free(self->command);
 
 	self->command = msg ? strdup(msg) : NULL;
+}
+
+/*
+ * Did any result of a reply end its transaction with ROLLBACK, as the
+ * server answers a COMMIT of a transaction that had already failed?
+ */
+BOOL
+QR_command_rolled_back(const QResultClass *self)
+{
+	for (; self; self = QR_nextr(self))
+	{
+		if (self->command && strnicmp(self->command, "ROLLBACK", 8) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+/* Did every result of a reply succeed? */
+BOOL
+QR_chain_maybe_successful(const QResultClass *self)
+{
+	if (!self)
+		return FALSE;
+	for (; self; self = QR_nextr(self))
+	{
+		if (!QR_command_maybe_successful(self))
+			return FALSE;
+	}
+	return TRUE;
 }
 
 
@@ -887,13 +912,27 @@ QR_close(QResultClass *self)
 		{
 			BOOL		does_commit = FALSE;
 			unsigned int	flag = 0;
-			char		buf[64];
+			char		*buf;
+			size_t		buflen;
 
 			flag = READ_ONLY_QUERY;
 			if (QR_needs_survival_check(self))
 				flag |= (ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN);
 
-			SPRINTF_FIXED(buf, "close \"%s\"", QR_get_cursor(self));
+			/*
+			 * A refcursor's name comes from the server and has no length
+			 * limit; a truncated name would make the close fail and abort
+			 * the transaction.
+			 */
+			buflen = strlen(QR_get_cursor(self)) + sizeof("close \"\";commit");
+			if (NULL == (buf = malloc(buflen)))
+			{
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
+				QR_set_message(self, "Out of memory closing the cursor.");
+				QR_on_close_cursor(self);
+				return FALSE;
+			}
+			snprintf(buf, buflen, "close \"%s\"", QR_get_cursor(self));
 			/* End the transaction if there are no cursors left on this conn */
 			if (CC_is_in_trans(conn) &&
 			    CC_does_autocommit(conn) &&
@@ -902,7 +941,7 @@ QR_close(QResultClass *self)
 				MYLOG(0, "End transaction on conn=%p\n", conn);
 				if ((ROLLBACK_ON_ERROR & flag) == 0)
 				{
-					STRCAT_FIXED(buf, ";commit");
+					strlcat(buf, ";commit", buflen);
 					flag |= END_WITH_COMMIT;
 					QR_set_cursor(self, NULL);
 				}
@@ -912,6 +951,17 @@ QR_close(QResultClass *self)
 
 MYLOG(DETAIL_LOG_LEVEL, " Case I CC_send_query %s flag=%x\n", buf, flag);
 			res = CC_send_query(conn, buf, NULL, flag, NULL);
+			free(buf);
+			/* the commit appended above ends the application's transaction */
+			if ((flag & END_WITH_COMMIT) != 0 &&
+			    (!QR_chain_maybe_successful(res) || QR_command_rolled_back(res)))
+			{
+				/* on the connection too: most callers of QR_close() drop the result */
+				CC_set_error(conn, CONN_EXEC_ERROR, "Could not commit the transaction while closing a cursor", __FUNCTION__);
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
+				QR_set_message(self, "Error ending transaction on autocommit.");
+				ret = FALSE;
+			}
 			QR_Destructor(res);
 			if (does_commit)
 			{
@@ -1403,8 +1453,12 @@ MYLOG(DETAIL_LOG_LEVEL, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN 
 				/* and append the tuples info */
 				tuple = self->backend_tuples + num_fields * num_backend_rows;
 				pg_memset(tuple, 0, sizeof(TupleField) * num_fields * add_size);
-				added_tuple = self->added_tuples + num_fields * start_idx;
-				ReplaceCachedRows(tuple, added_tuple, num_fields, add_size);
+				/* a keyset-driven cursor keeps no added_tuples; its rows are reloaded by key */
+				if (self->added_tuples)
+				{
+					added_tuple = self->added_tuples + num_fields * start_idx;
+					ReplaceCachedRows(tuple, added_tuple, num_fields, add_size);
+				}
 				self->num_cached_rows += add_size;
 				self->num_cached_keys += add_size;
 				num_backend_rows = self->num_cached_rows;

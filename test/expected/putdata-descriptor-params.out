@@ -1,0 +1,12 @@
+connected
+SELECT 'got ' || ?::text, data for parameter 1
+SQLExecute: SQL_NEED_DATA
+SQLParamData: SQL_NEED_DATA
+SQLPutData succeeded
+result: got abc
+SELECT 'got ' || ?::text || ?::text, data for parameter 2
+SQLExecute: SQL_NEED_DATA
+SQLParamData: SQL_NEED_DATA
+SQLPutData succeeded
+result: got xabc
+disconnecting

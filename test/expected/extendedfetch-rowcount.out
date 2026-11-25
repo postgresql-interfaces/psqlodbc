@@ -1,0 +1,26 @@
+connected
+SELECT id FROM generate_series(1, 10) AS id
+next: SQLExtendedFetch returned 0, rows in page: 3
+    1
+    2
+    3
+next: SQLExtendedFetch returned 0, rows in page: 3
+    4
+    5
+    6
+prev: SQLExtendedFetch returned 0, rows in page: 3
+    1
+    2
+    3
+WITH ids AS (SELECT generate_series(1, 10) AS id) SELECT id FROM ids
+next: SQLExtendedFetch returned 0, rows in page: 3
+    1
+    2
+    3
+next: SQLExtendedFetch returned 0, rows in page: 3
+    4
+    5
+    6
+prev: SQLExtendedFetch returned -1, rows in page: 0
+HY106=The fetch type for PGAPI_ExtendedFetch isn't allowed with ForwardOnly cursor.
+disconnecting

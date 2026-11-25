@@ -71,6 +71,7 @@ typedef enum
 #define CONN_INVALID_INFO_TYPE						215
 #define CONN_OPTION_NOT_FOR_THE_DRIVER					216
 #define CONN_EXEC_ERROR							217
+#define CONN_INVALID_BUFFER_LENGTH					218
 
 /* Conn_status defines */
 #define CONN_IN_AUTOCOMMIT		1L
@@ -343,6 +344,9 @@ struct ConnectionClass_
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
 	SQLULEN		stmt_timeout_in_effect;
+	SQLULEN		stmt_timeout_before_trans;	/* what a ROLLBACK restores */
+	char		stmt_timeout_set_in_trans;	/* SET statement_timeout was
+						 * issued in the current transaction */
 	UInt4		name_serial;	/* last number handed out by CC_get_name_serial() */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
@@ -431,7 +435,7 @@ int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_b
 char		CC_send_settings(ConnectionClass *self, const char *set_query);
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
-int			CC_send_cancel_request(const ConnectionClass *conn);
+int			CC_send_cancel_request(ConnectionClass *conn);
 void		CC_on_commit(ConnectionClass *conn);
 void		CC_on_abort(ConnectionClass *conn, unsigned int opt);
 void		CC_on_abort_partial(ConnectionClass *conn);
@@ -444,6 +448,8 @@ void		CC_abort_copy(ConnectionClass *self);
 
 int		CC_get_max_idlen(ConnectionClass *self);
 char	CC_get_escape(const ConnectionClass *self);
+BOOL	CC_can_write_literal_extension(const ConnectionClass *self);
+const char *CC_literal_prefix(const ConnectionClass *self);
 char *		identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize, BOOL double_quote);
 /*
  * A buffer that holds the identifierEscape() output of any name the
@@ -493,6 +499,8 @@ enum {
 /* CC_on_abort options */
 #define	NO_TRANS		1L
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
+/* the session's statement_timeout is unknown, SC_execute() must SET it */
+#define	STMT_TIMEOUT_UNKNOWN	((SQLULEN) -1)
 
 /*
  * This is a libpq notice receiver callback, for handling incoming NOTICE

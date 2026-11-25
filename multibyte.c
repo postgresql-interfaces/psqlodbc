@@ -479,6 +479,7 @@ derive_locale_encoding(const char *dbencoding)
 	int	acp;
 #else
 	const char *loc, *ptr;
+	char	locbuf[128];
 #endif /* WIN32 */
 
 	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc) /* environmnt variable */
@@ -542,9 +543,24 @@ derive_locale_encoding(const char *dbencoding)
 #else
 	/*
 	 *	Derive the encoding from the codeset part of the current locale.
+	 *	Don't call setlocale(LC_CTYPE, ""): that changes the locale of
+	 *	the whole process and races with other threads.  Query the
+	 *	application's locale instead and copy it at once; if it names no
+	 *	codeset (e.g. "C", the default when the application never set a
+	 *	locale), look at the environment variables setlocale() would use.
 	 */
-	loc = setlocale(LC_CTYPE, "");
-	if (loc && (ptr = strchr(loc, '.')))
+	locbuf[0] = '\0';
+	if ((loc = setlocale(LC_CTYPE, NULL)) != NULL)
+		strncpy_null(locbuf, loc, sizeof(locbuf));
+	if (NULL == strchr(locbuf, '.'))
+	{
+		if (((loc = getenv("LC_ALL")) != NULL && loc[0]) ||
+			((loc = getenv("LC_CTYPE")) != NULL && loc[0]) ||
+			((loc = getenv("LANG")) != NULL && loc[0]))
+			strncpy_null(locbuf, loc, sizeof(locbuf));
+	}
+	loc = locbuf;
+	if ((ptr = strchr(loc, '.')) != NULL)
 	{
 		int enc_no;
 

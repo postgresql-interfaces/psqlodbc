@@ -293,8 +293,15 @@ SQLDescribeColW(HSTMT StatementHandle,
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
+	/*
+	 * The buffer length and the returned length of PGAPI_DescribeCol are
+	 * SQLSMALLINT, so the scratch buffer never holds more than SHRT_MAX
+	 * bytes; a longer name from the server is truncated.
+	 */
 	buflen = 0;
-	if (BufferLength > 0)
+	if (BufferLength > SHRT_MAX / 3)
+		buflen = SHRT_MAX;
+	else if (BufferLength > 0)
 		buflen = BufferLength * 3;
 	else if (NameLength)
 		buflen = 32;
@@ -303,7 +310,7 @@ SQLDescribeColW(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	for (;; buflen = nmlen + 1, clNamet = realloc(clName, buflen))
+	for (;; buflen = (nmlen < SHRT_MAX ? nmlen + 1 : SHRT_MAX), clNamet = realloc(clName, buflen))
 	{
 		if (!clNamet)
 		{
@@ -316,15 +323,24 @@ SQLDescribeColW(HSTMT StatementHandle,
 								(SQLCHAR *) clName, buflen,
 								&nmlen, DataType, ColumnSize,
 			DecimalDigits, Nullable);
-		if (SQL_SUCCESS_WITH_INFO != ret || nmlen < buflen)
+		if (SQL_SUCCESS_WITH_INFO != ret || (nmlen >= 0 && nmlen < buflen) || buflen >= SHRT_MAX)
 			break;
 	}
 	if (SQL_SUCCEEDED(ret))
 	{
-		SQLLEN	nmcount = nmlen;
+		SQLLEN	nmcount;
 
-		if (nmlen < buflen)
-			nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
+		if (nmlen < 0 || nmlen >= buflen)
+			nmlen = buflen - 1;
+		nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
+		if (nmcount < 0)	/* not valid UTF-8 */
+		{
+			nmcount = 0;
+			if (ColumnName && BufferLength > 0)
+				ColumnName[0] = 0;
+		}
+		else if (nmcount > SHRT_MAX)
+			nmcount = SHRT_MAX;
 		/* BufferLength counts the terminator, so an exact fit is cut too */
 		if (SQL_SUCCESS == ret && BufferLength > 0 && nmcount >= BufferLength)
 		{

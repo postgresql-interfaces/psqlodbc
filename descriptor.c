@@ -547,6 +547,12 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 static void ParameterImplClass_copy(const ParameterImplClass *src, ParameterImplClass *target)
 {
 	memcpy(target, src, sizeof(ParameterImplClass));
+	/*
+	 * The parameter name is allocated, and each descriptor frees its own.
+	 * The target must get a copy of the string, not of the pointer.
+	 */
+	INIT_NAME(target->paramName);
+	NAME_TO_NAME(target->paramName, src->paramName);
 }
 static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 {
@@ -566,6 +572,36 @@ static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 		for (i = 0; i < target->allocated; i++)
 			ParameterImplClass_copy(&src->parameters[i], &target->parameters[i]);
 	}
+}
+
+/* Is an explicit descriptor attached to a statement as its ARD or APD? */
+static BOOL
+desc_attached_as_app_desc(const DescriptorClass *desc)
+{
+	ConnectionClass	*conn = DC_get_conn(desc);
+	int		i;
+	BOOL		found = FALSE;
+
+	if (!conn)
+		return FALSE;
+	/*
+	 * CC_add_statement() reallocs this array under the connection lock, so
+	 * a scan without it can read the array it replaced. SQLCopyDesc on an
+	 * explicit descriptor reaches here holding no statement lock either.
+	 */
+	CONNLOCK_ACQUIRE(conn);
+	for (i = 0; i < conn->num_stmts; i++)
+	{
+		const StatementClass *stmt = conn->stmts[i];
+
+		if (stmt && (stmt->ard == desc || stmt->apd == desc))
+		{
+			found = TRUE;
+			break;
+		}
+	}
+	CONNLOCK_RELEASE(conn);
+	return found;
 }
 
 RETCODE	SQL_API
@@ -608,17 +644,29 @@ MYLOG(DETAIL_LOG_LEVEL, "source type=%d -> target type=%d\n", srchd->desc_type, 
 				return ret;
 			}
 		}
-		DC_Destructor(target);
 	}
+	/*
+	 * An explicit descriptor in use as a statement's ARD or APD must keep
+	 * that layout, typed or not.
+	 */
+	if (!targethd->embedded &&
+	    SQL_ATTR_APP_ROW_DESC != srchd->desc_type &&
+	    SQL_ATTR_APP_PARAM_DESC != srchd->desc_type &&
+	    desc_attached_as_app_desc(target))
+	{
+		MYLOG(0, "target is in use as an application descriptor\n");
+		DC_set_error(target, DESC_EXEC_ERROR, "the target descriptor is in use as an application descriptor");
+		return ret;
+	}
+	if (targethd->type_defined)
+		DC_Destructor(target);
 	ret = SQL_SUCCESS;
 	switch (srchd->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
 MYLOG(DETAIL_LOG_LEVEL, "src=%p target=%p type=%d", src, target, srchd->desc_type);
-			if (!targethd->type_defined)
-			{
-				targethd->desc_type = srchd->desc_type;
-			}
+			/* the type always follows the contents */
+			targethd->desc_type = srchd->desc_type;
 			ard_src = &(src->ardf);
 MYPRINTF(DETAIL_LOG_LEVEL, " rowset_size=" FORMAT_LEN " bind_size=" FORMAT_UINTEGER " ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
@@ -629,19 +677,15 @@ MYPRINTF(DETAIL_LOG_LEVEL, " target=%p", ard_tgt);
 MYPRINTF(DETAIL_LOG_LEVEL, " offset_ptr=%p\n", ard_tgt->row_offset_ptr);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			if (!targethd->type_defined)
-			{
-				targethd->desc_type = srchd->desc_type;
-			}
+			/* the type always follows the contents */
+			targethd->desc_type = srchd->desc_type;
 			apd_src = &(src->apdf);
 			apd_tgt = &(target->apdf);
 			APDFields_copy(apd_src, apd_tgt);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			if (!targethd->type_defined)
-			{
-				targethd->desc_type = srchd->desc_type;
-			}
+			/* the type always follows the contents */
+			targethd->desc_type = srchd->desc_type;
 			ipd_src = &(src->ipdf);
 			ipd_tgt = &(target->ipdf);
 			IPDFields_copy(ipd_src, ipd_tgt);

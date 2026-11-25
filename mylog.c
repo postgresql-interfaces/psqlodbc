@@ -185,7 +185,7 @@ const char *GetExeProgramName()
 
 		for (i = 0; i < sizeof(flist) / sizeof(flist[0]); i++)
 		{
-			ssize_t len = readlink(flist[i], path_name, sizeof(path_name));
+			ssize_t len = readlink(flist[i], path_name, sizeof(path_name) - 1);
 			if (len > 0)
 			{
 				path_name[len] = '\0';

@@ -227,7 +227,12 @@ get_interval_type(Int4 atttypmod, const char **name)
 {
 MYLOG(0, "entering atttypmod=%x\n", atttypmod);
 	if ((-1) == atttypmod)
+	{
+		/* no field restriction: a plain interval */
+		if (name)
+			*name = "interval";
 		return 0;
+	}
 	if (0 != (YEAR_BIT & atttypmod))
 	{
 		if (0 != (MONTH_BIT & atttypmod))

@@ -22,8 +22,11 @@ env:
   WINFLEXBISON_VERSION: '2.5.24'
   WORKFLOW_VERSION_POSTGRESQL: '1' # increment to invalidate cache
 
-  # PostgreSQL x64 test server (EDB installer).
-  POSTGRESQL_PACKAGE_FILEID: '1259019'
+  # PostgreSQL x64 test server (EDB installer): fileid 1260665 is
+  # postgresql-17.12-1-windows-x64.exe.  Keep POSTGRESQL_SERVER_MAJOR in step:
+  # the test jobs fail if the server reports another major version.
+  POSTGRESQL_PACKAGE_FILEID: '1260665'
+  POSTGRESQL_SERVER_MAJOR: '17'
 
   # Test utilities.
   DIFFUTILS_VERSION: '2.8.7-1'
@@ -301,13 +304,19 @@ jobs:
         target: c:\OTHERBIN
         filename: postgresql_install.exe
     - name: Install and start PostgreSQL server
-      shell: cmd
+      shell: powershell
       run: |
-        echo on
-        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server
-        sc config "postgresql-x64-17" start= auto
-        sc start "postgresql-x64-17"
-        ping -n 6 127.0.0.1 >nul
+        # Some runner images ship a PostgreSQL of their own (windows-latest has
+        # 17.x as a disabled postgresql-x64-17 service).  The EDB installer
+        # would upgrade that installation in place and keep its data directory
+        # and password, so keep it stopped, hide it from the installer and
+        # install the test server as a separate instance.
+        Get-Service postgresql* -ErrorAction SilentlyContinue | ForEach-Object { Stop-Service $_.Name -Force; Set-Service $_.Name -StartupType Disabled }
+        Remove-Item "HKLM:\SOFTWARE\PostgreSQL\Installations\postgresql-x64-*" -Recurse -ErrorAction SilentlyContinue
+        Remove-Item "HKLM:\SOFTWARE\PostgreSQL\Services\postgresql-x64-*" -Recurse -ErrorAction SilentlyContinue
+        $installer = Start-Process C:\OTHERBIN\postgresql_install.exe -Wait -PassThru -ArgumentList '--mode unattended --unattendedmodeui none --superpassword password --enable-components server --prefix C:\pgsql-ci --datadir C:\pgsql-ci\data --servicename postgresql-ci --serverport 5432'
+        if ($installer.ExitCode -ne 0) { Get-Content "$env:TEMP\install-postgresql.log" -Tail 40; throw "PostgreSQL installer exited with $($installer.ExitCode)" }
+        Get-Service postgresql* | Format-Table -AutoSize Name, Status, StartType | Out-String -Width 200
 
     # -----------------------------------------------------------------
     # Build and test psqlodbc
@@ -346,10 +355,10 @@ jobs:
       working-directory: psqlodbc
       run: |
         # Compare against test/expected/v<major> where the server has one.
-        $psql = (Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\psql.exe" | Select-Object -First 1).FullName
+        $psql = "C:\pgsql-ci\bin\psql.exe"
         $env:PGPASSWORD = 'password'
         $serverVersion = [int][math]::Floor([int](& $psql -h localhost -U postgres -d postgres -Atc "show server_version_num") / 10000)
-        if ($serverVersion -le 0) { throw "could not read the server version" }
+        if ($serverVersion -ne ${{env.POSTGRESQL_SERVER_MAJOR}}) { throw "expected a PostgreSQL ${{env.POSTGRESQL_SERVER_MAJOR}} server, found $serverVersion" }
         Write-Output "PostgreSQL server major version $serverVersion"
         if ('${{matrix.variant}}' -eq 'mimalloc') {
           winbuild\regress.ps1 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ServerVersion $serverVersion -ExpectMimalloc
@@ -668,13 +677,19 @@ jobs:
         target: c:\OTHERBIN
         filename: postgresql_install.exe
     - name: Install and start PostgreSQL server
-      shell: cmd
+      shell: powershell
       run: |
-        echo on
-        C:\OTHERBIN\postgresql_install.exe --mode unattended --unattendedmodeui none --superpassword password --enable-components server
-        sc config "postgresql-x64-17" start= auto
-        sc start "postgresql-x64-17"
-        ping -n 6 127.0.0.1 >nul
+        # Some runner images ship a PostgreSQL of their own (windows-latest has
+        # 17.x as a disabled postgresql-x64-17 service).  The EDB installer
+        # would upgrade that installation in place and keep its data directory
+        # and password, so keep it stopped, hide it from the installer and
+        # install the test server as a separate instance.
+        Get-Service postgresql* -ErrorAction SilentlyContinue | ForEach-Object { Stop-Service $_.Name -Force; Set-Service $_.Name -StartupType Disabled }
+        Remove-Item "HKLM:\SOFTWARE\PostgreSQL\Installations\postgresql-x64-*" -Recurse -ErrorAction SilentlyContinue
+        Remove-Item "HKLM:\SOFTWARE\PostgreSQL\Services\postgresql-x64-*" -Recurse -ErrorAction SilentlyContinue
+        $installer = Start-Process C:\OTHERBIN\postgresql_install.exe -Wait -PassThru -ArgumentList '--mode unattended --unattendedmodeui none --superpassword password --enable-components server --prefix C:\pgsql-ci --datadir C:\pgsql-ci\data --servicename postgresql-ci --serverport 5432'
+        if ($installer.ExitCode -ne 0) { Get-Content "$env:TEMP\install-postgresql.log" -Tail 40; throw "PostgreSQL installer exited with $($installer.ExitCode)" }
+        Get-Service postgresql* | Format-Table -AutoSize Name, Status, StartType | Out-String -Width 200
 
     # Put the arm64 libpq (and its OpenSSL DLLs) ahead of the emulated x64
     # server's bin so the arm64 driver loads the matching arm64 libpq at runtime.
@@ -719,10 +734,10 @@ jobs:
       working-directory: psqlodbc
       run: |
         # Compare against test/expected/v<major> where the server has one.
-        $psql = (Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\psql.exe" | Select-Object -First 1).FullName
+        $psql = "C:\pgsql-ci\bin\psql.exe"
         $env:PGPASSWORD = 'password'
         $serverVersion = [int][math]::Floor([int](& $psql -h localhost -U postgres -d postgres -Atc "show server_version_num") / 10000)
-        if ($serverVersion -le 0) { throw "could not read the server version" }
+        if ($serverVersion -ne ${{env.POSTGRESQL_SERVER_MAJOR}}) { throw "expected a PostgreSQL ${{env.POSTGRESQL_SERVER_MAJOR}} server, found $serverVersion" }
         Write-Output "PostgreSQL server major version $serverVersion"
         if ('${{matrix.variant}}' -eq 'mimalloc') {
           winbuild\regress.ps1 -Platform ARM64 -DsnInfo "SERVER=localhost|DATABASE=contrib_regression|PORT=5432|UID=postgres|PWD=password" -ServerVersion $serverVersion -ExpectMimalloc

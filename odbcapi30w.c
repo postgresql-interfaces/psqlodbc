@@ -16,6 +16,7 @@
 #include "unicode_support.h"
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #include "pgapifunc.h"
 #include "connection.h"
@@ -226,8 +227,10 @@ SQLSetDescFieldW(SQLHDESC DescriptorHandle, SQLSMALLINT RecNumber,
 		vallen = BufferLength;
 	}
 
+	DescLockHandle(DescriptorHandle, NULL);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				uval, (SQLINTEGER) vallen);
+	DescUnlockHandle(DescriptorHandle, NULL);
 
 	/* Free the converted string if we allocated one */
 	if (val_alloced)
@@ -270,7 +273,9 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 					break;
 				}
 				rgbV = rgbVt;
+				DescLockHandle(hdesc, NULL);
 				ret = PGAPI_GetDescField(hdesc, iRecord, iField, rgbV, bMax, pcbV);
+				DescUnlockHandle(hdesc, NULL);
 				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
 					break;
 			}
@@ -293,11 +298,62 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 			rgbV = rgbValue;
 			bMax = cbValueMax;
 			pcbV = pcbValue;
+			DescLockHandle(hdesc, NULL);
 			ret = PGAPI_GetDescField(hdesc, iRecord, iField, rgbV, bMax, pcbV);
+			DescUnlockHandle(hdesc, NULL);
 			break;
 	}
 
 	return ret;
+}
+
+/*
+ * PGAPI_GetDiagRec() and PGAPI_GetDiagField() divide a long message text
+ * into pieces by byte count (see ER_ReturnError()), so the piece returned
+ * in a buffer of bufsize bytes may begin or end in the middle of a UTF-8
+ * character, which utf8_to_ucs2_lf() rejects as a whole when errcheck is
+ * TRUE.  Skip such partial characters at both ends of the piece: a
+ * character that straddles two pieces is dropped, not the whole piece.
+ */
+static const char *
+skip_partial_utf8(const char *str, SQLSMALLINT *len, SQLSMALLINT bufsize)
+{
+	const UCHAR *s = (const UCHAR *) str;
+	SQLSMALLINT	n = *len, i, clen;
+	BOOL		cut = FALSE;
+
+	/* the buffer holds at most bufsize - 1 bytes and the terminator */
+	if (n >= bufsize - 1)
+	{
+		n = bufsize - 1;
+		cut = TRUE;		/* the end of the piece was cut by the byte count */
+	}
+	if (n < 0)
+		n = 0;
+	/* the rest of a character which began in the previous piece */
+	for (i = 0; i < n && i < 3 && 0x80 == (s[i] & 0xc0); i++)
+		;
+	s += i;
+	n -= i;
+	/* a character which continues in the next piece */
+	for (i = n - 1; cut && i >= 0 && i >= n - 3; i--)
+	{
+		if (0x80 == (s[i] & 0xc0))
+			continue;
+		if (0xf0 == (s[i] & 0xf8))
+			clen = 4;
+		else if (0xe0 == (s[i] & 0xf0))
+			clen = 3;
+		else if (0xc0 == (s[i] & 0xe0))
+			clen = 2;
+		else
+			clen = 1;
+		if (i + clen > n)
+			n = i;
+		break;
+	}
+	*len = n;
+	return (const char *) s;
 }
 
 RETCODE SQL_API
@@ -316,20 +372,26 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 
 	MYLOG(0, "Entering\n");
 	buflen = 0;
+	tlen = 0;
         if (szErrorMsg && cbErrorMsgMax > 0)
 	{
+                if (NULL == (mtxt = malloc(cbErrorMsgMax)))
+			return SQL_ERROR;
 		buflen = cbErrorMsgMax;
-                mtxt = malloc(buflen);
 	}
+	DiagLockHandle(fHandleType, handle);
 	ret = PGAPI_GetDiagRec(fHandleType, handle, iRecord, (SQLCHAR *) qstr_ansi,
 						   pfNativeError, (SQLCHAR *) mtxt, buflen, &tlen);
+	DiagUnlockHandle(fHandleType, handle);
 	if (SQL_SUCCEEDED(ret))
 	{
 		if (szSqlState)
 			utf8_to_ucs2(qstr_ansi, -1, szSqlState, 6);
 		if (mtxt && tlen <= cbErrorMsgMax)
 		{
-			SQLULEN ulen = utf8_to_ucs2_lf(mtxt, tlen, FALSE, szErrorMsg, cbErrorMsgMax, TRUE);
+			SQLSMALLINT	wlen = tlen;
+			const char *whole = skip_partial_utf8(mtxt, &wlen, buflen);
+			SQLULEN ulen = utf8_to_ucs2_lf(whole, wlen, FALSE, szErrorMsg, cbErrorMsgMax, TRUE);
 			if (ulen == (SQLULEN) -1)
 				tlen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) szErrorMsg, mtxt, cbErrorMsgMax, FALSE);
 			else
@@ -396,10 +458,25 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 		case SQL_DESC_TABLE_NAME:
 		case SQL_DESC_TYPE_NAME:
 		case SQL_COLUMN_NAME:
-			bMax = cbCharAttrMax * 3 / WCLEN;
-			rgbD = malloc(bMax);
+			/*
+			 * The buffer length and the returned length of
+			 * PGAPI_ColAttributes are SQLSMALLINT, so the scratch buffer
+			 * never holds more than SHRT_MAX bytes; a longer name from
+			 * the server is truncated.
+			 */
+			if (cbCharAttrMax < 0)
+			{
+				SC_set_error(stmt, STMT_INVALID_BUFFER_LENGTH, "Invalid string or buffer length", func);
+				ret = SQL_ERROR;
+				break;
+			}
+			if (cbCharAttrMax < SHRT_MAX / 3)
+				bMax = cbCharAttrMax * 3 / WCLEN;
+			else
+				bMax = SHRT_MAX;
+			rgbD = malloc(bMax > 0 ? bMax : 1);
 			rgbL = &blen;
-			for (rgbDt = rgbD;; bMax = blen + 1, rgbDt = realloc(rgbD, bMax))
+			for (rgbDt = rgbD;; bMax = (blen < SHRT_MAX ? blen + 1 : SHRT_MAX), rgbDt = realloc(rgbD, bMax))
 			{
 				if (!rgbDt)
 				{
@@ -407,14 +484,26 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 					break;
 				}
 				rgbD = rgbDt;
+				blen = 0;
 				ret = PGAPI_ColAttributes(hstmt, iCol, iField, rgbD,
 					bMax, rgbL, pNumAttr);
-				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
+				if (SQL_SUCCESS_WITH_INFO != ret || (blen >= 0 && blen < bMax) || bMax >= SHRT_MAX)
 					break;
 			}
 			if (SQL_SUCCEEDED(ret))
 			{
+				if (blen < 0 || blen >= bMax)
+					blen = (bMax > 0) ? bMax - 1 : 0;
 				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
+				if (blen < 0)	/* not valid UTF-8 */
+				{
+					blen = 0;
+					if (pCharAttr && cbCharAttrMax >= (SQLSMALLINT) WCLEN)
+						*((SQLWCHAR *) pCharAttr) = 0;
+				}
+				/* the length is returned in bytes and must fit in a SQLSMALLINT */
+				if (blen > SHRT_MAX / WCLEN)
+					blen = SHRT_MAX / WCLEN;
 				/* in characters: an odd byte count holds whole ones only */
 				if (SQL_SUCCESS == ret && blen >= cbCharAttrMax / WCLEN)
 				{
@@ -465,11 +554,23 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 		case SQL_DIAG_SERVER_NAME:
 		case SQL_DIAG_SQLSTATE:
 		case SQL_DIAG_SUBCLASS_ORIGIN:
-			bMax = cbDiagInfoMax * 3 / WCLEN + 1;
+			if (cbDiagInfoMax < 0)
+				return SQL_ERROR;
+			/*
+			 * The length of a record is returned in bytes in a
+			 * SQLSMALLINT, so keep the record that ER_ReturnError
+			 * adopts from this request small enough for blen * WCLEN
+			 * to fit; this also keeps bMax from wrapping. The rest of a
+			 * longer message comes back as the following records.
+			 */
+			if (cbDiagInfoMax < SHRT_MAX / 3)
+				bMax = cbDiagInfoMax * 3 / WCLEN + 1;
+			else
+				bMax = SHRT_MAX / WCLEN;
 			if (rgbD = malloc(bMax), !rgbD)
 				return SQL_ERROR;
 			rgbL = &blen;
-			for (rgbDt = rgbD;; bMax = blen + 1, rgbDt = realloc(rgbD, bMax))
+			for (rgbDt = rgbD;; bMax = (blen < SHRT_MAX ? blen + 1 : SHRT_MAX), rgbDt = realloc(rgbD, bMax))
 			{
 				if (!rgbDt)
 				{
@@ -477,21 +578,41 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 					return SQL_ERROR;
 				}
 				rgbD = rgbDt;
+				blen = 0;
+				DiagLockHandle(fHandleType, handle);
 				ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
 					bMax, rgbL);
-				if (SQL_SUCCESS_WITH_INFO != ret || blen < bMax)
+				DiagUnlockHandle(fHandleType, handle);
+				if (SQL_SUCCESS_WITH_INFO != ret || (blen >= 0 && blen < bMax) || bMax >= SHRT_MAX)
 					break;
 			}
 			if (SQL_SUCCEEDED(ret))
 			{
-				SQLULEN ulen = (SQLSMALLINT) utf8_to_ucs2_lf(rgbD, blen, FALSE, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, TRUE);
+				SQLULEN		ulen;
+				SQLSMALLINT	wlen;
+				const char *whole;
+
+				if (blen < 0 || blen >= bMax)
+					blen = bMax - 1;
+				wlen = blen;
+				whole = skip_partial_utf8(rgbD, &wlen, bMax);
+				ulen = utf8_to_ucs2_lf(whole, wlen, FALSE, (SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, TRUE);
 				if (ulen == (SQLULEN) -1)
 					blen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) rgbDiagInfo, rgbD, cbDiagInfoMax / WCLEN, FALSE);
 				else
 				{
 					ucs2_terminate_output((SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, ulen);
-					blen = (SQLSMALLINT) ulen;
+					blen = (SQLSMALLINT) (ulen > SHRT_MAX ? SHRT_MAX : ulen);
 				}
+				if (blen < 0)	/* neither UTF-8 nor the locale encoding */
+				{
+					blen = 0;
+					if (rgbDiagInfo && cbDiagInfoMax >= (SQLSMALLINT) WCLEN)
+						*((SQLWCHAR *) rgbDiagInfo) = 0;
+				}
+				/* the length is returned in bytes and must fit in a SQLSMALLINT */
+				if (blen > SHRT_MAX / WCLEN)
+					blen = SHRT_MAX / WCLEN;
 				/* in characters: an odd byte count holds whole ones only */
 				if (SQL_SUCCESS == ret && blen >= cbDiagInfoMax / WCLEN)
 					ret = SQL_SUCCESS_WITH_INFO;
@@ -507,8 +628,10 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 			rgbD = rgbDiagInfo;
 			bMax = cbDiagInfoMax;
 			rgbL = pcbDiagInfo;
+			DiagLockHandle(fHandleType, handle);
 			ret = PGAPI_GetDiagField(fHandleType, handle, iRecord, fDiagField, rgbD,
 				bMax, rgbL);
+			DiagUnlockHandle(fHandleType, handle);
 			break;
 	}
 
@@ -547,28 +670,46 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 			  SQLSMALLINT *Scale, SQLSMALLINT *Nullable)
 {
 	RETCODE		ret;
-	char		*NameA = NULL;  /* Temporary buffer for ANSI version of name */
-	SQLSMALLINT	nlen;          /* Length of the name string */
+	char		*NameA = NULL;  /* Temporary buffer for the UTF-8 version of name */
+	SQLSMALLINT	nlen = 0;      /* Length of the name string */
+	SQLSMALLINT	buflen = 0;    /* Size of NameA in bytes */
 
 	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 
-	/* Allocate temporary buffer for ANSI version if buffer length is provided */
-	if (BufferLength > 0)
-		NameA = malloc(BufferLength);
+	/*
+	 * Allocate a temporary buffer for the UTF-8 version of the name. A
+	 * UCS-2 character takes up to 3 bytes in UTF-8.
+	 */
+	if (Name && BufferLength > 0)
+	{
+		buflen = (BufferLength < SHRT_MAX / 3) ? BufferLength * 3 : SHRT_MAX;
+		if (NULL == (NameA = malloc(buflen)))
+		{
+			DC_set_error((DescriptorClass *) DescriptorHandle, DESC_NO_MEMORY_ERROR, "Could not allocate memory for the name");
+			return SQL_ERROR;
+		}
+		NameA[0] = '\0';
+	}
 
-	/* Call the core implementation with ANSI parameters */
-	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, (SQLCHAR *) NameA, BufferLength,
+	/* Call the core implementation with UTF-8 parameters */
+	DescLockHandle(DescriptorHandle, NULL);
+	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, (SQLCHAR *) NameA, buflen,
 			&nlen, Type, SubType, Length, Precision,
 			Scale, Nullable);
 
 	if (SQL_SUCCEEDED(ret))
 	{
-		/* Convert ANSI name to Unicode if we have a valid name and buffer */
-		if (NameA && nlen <= BufferLength)
+		/* Convert the name to Unicode; NameA holds at most buflen - 1 bytes */
+		if (NameA)
 		{
+			SQLULEN	ulen;
+
+			if (nlen < 0 || nlen >= buflen)
+				nlen = (SQLSMALLINT) strlen(NameA);
+
 			/* Try UTF-8 to UCS-2 conversion first */
-			SQLULEN ulen = utf8_to_ucs2_lf(NameA, nlen, FALSE, Name, BufferLength, TRUE);
+			ulen = utf8_to_ucs2_lf(NameA, nlen, FALSE, Name, BufferLength, TRUE);
 
 			if (ulen == (SQLULEN) -1)
 				/* Fall back to locale-based conversion if UTF-8 conversion fails */
@@ -578,16 +719,59 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 				ucs2_terminate_output(Name, BufferLength, ulen);
 				nlen = (SQLSMALLINT) ulen;
 			}
+			if (nlen < 0)	/* neither UTF-8 nor the locale encoding */
+			{
+				nlen = 0;
+				Name[0] = 0;
+			}
 
 			/* If the name was truncated, return success with info */
 			if (nlen >= BufferLength)
 				ret = SQL_SUCCESS_WITH_INFO;
 		}
 
+		else if (StringLength && nlen > 0)
+		{
+			/*
+			 * No buffer was given, so the call converted no character
+			 * and nlen is still the name's length in UTF-8 bytes. The
+			 * caller asking
+			 * how long the name is must be told in characters, as the
+			 * call with a buffer reports, or it sizes that buffer in the
+			 * wrong unit. Fetch the name into a buffer of our own to
+			 * count them.
+			 */
+			char	*cntbuf = malloc((size_t) nlen + 1);
+
+			if (cntbuf)
+			{
+				SQLSMALLINT	cntlen = 0;
+
+				if (SQL_SUCCEEDED(PGAPI_GetDescRec(DescriptorHandle,
+								RecNumber, (SQLCHAR *) cntbuf,
+								(SQLSMALLINT) (nlen + 1), &cntlen,
+								NULL, NULL, NULL, NULL, NULL, NULL)))
+				{
+					SQLULEN	ulen = utf8_to_ucs2_lf(cntbuf, cntlen, FALSE,
+												   NULL, 0, TRUE);
+
+					if (ulen != (SQLULEN) -1)
+						nlen = (SQLSMALLINT) ulen;
+				}
+				free(cntbuf);
+			}
+		}
+
 		/* Return the actual string length if the caller wants it */
 		if (StringLength)
 			*StringLength = nlen;
 	}
+	/*
+	 * Held until here: the character-counting call above reaches the
+	 * statement that owns an IRD, which is what this lock protects from a
+	 * concurrent SQLFreeStmt.
+	 */
+	DescUnlockHandle(DescriptorHandle, NULL);
 
 	/* Clean up the temporary buffer */
 	if (NameA)
@@ -645,9 +829,11 @@ SQLSetDescRecW(SQLHDESC DescriptorHandle,
 	 * point does; the bound buffer's encoding is interpreted by its C type
 	 * at use time, not re-encoded here.
 	 */
+	DescLockHandle(DescriptorHandle, NULL);
 	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
 			SubType, Length, Precision, Scale, Data,
 			StringLength, Indicator);
+	DescUnlockHandle(DescriptorHandle, NULL);
 
 	return ret;
 }

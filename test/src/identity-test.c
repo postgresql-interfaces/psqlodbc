@@ -97,6 +97,7 @@ test_no_identity_col(void)
 int main(int argc, char **argv)
 {
 	SQLRETURN	rc;
+	SQLSMALLINT	colcount;
 	char	server_version[32], v10 = 0;
 
 	test_connect();
@@ -167,6 +168,29 @@ int main(int argc, char **argv)
 		"SELECT * FROM tmptable4");
 
 	test_no_identity_col();
+
+	/*
+	 * The character following @@IDENTITY used to be dropped by the rewrite,
+	 * gluing the two commands together. Describe before executing, as that
+	 * is the path which split the rewritten query into commands.
+	 */
+	rc = SQLPrepare(hstmt, (SQLCHAR *) "SELECT @@IDENTITY;SELECT @@IDENTITY AS second", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLPrepare failed", hstmt);
+
+	rc = SQLNumResultCols(hstmt, &colcount);
+	CHECK_STMT_RESULT(rc, "SQLNumResultCols failed", hstmt);
+	printf("# of result cols: %d\n", colcount);
+
+	rc = SQLExecute(hstmt);
+	CHECK_STMT_RESULT(rc, "SQLExecute failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLMoreResults(hstmt);
+	CHECK_STMT_RESULT(rc, "SQLMoreResults failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
 	/* Clean up */
 	test_disconnect();

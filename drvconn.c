@@ -104,7 +104,22 @@ PGAPI_DriverConnect(HDBC hdbc,
 		return SQL_INVALID_HANDLE;
 	}
 
+	if (cbConnStrOutMax < 0)
+	{
+		CC_set_error(conn, CONN_INVALID_BUFFER_LENGTH, "Invalid string or buffer length", func);
+		return SQL_ERROR;
+	}
 	connStrIn = make_string(szConnStrIn, cbConnStrIn, NULL, 0);
+	if (NULL == connStrIn)
+	{
+		if (NULL == szConnStrIn)
+			CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "No connection string", func);
+		else if (cbConnStrIn < 0 && SQL_NTS != cbConnStrIn)
+			CC_set_error(conn, CONN_INVALID_BUFFER_LENGTH, "Invalid string or buffer length", func);
+		else
+			CC_set_error(conn, CONN_NO_MEMORY_ERROR, "Could not allocate memory for the connection string", func);
+		return SQL_ERROR;
+	}
 
 #ifdef	FORCE_PASSWORD_DISPLAY
 	MYLOG(0, "**** fDriverCompletion=%d, connStrIn='%s'\n", fDriverCompletion, connStrIn);

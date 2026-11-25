@@ -119,9 +119,20 @@ make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize)
 		MYLOG(0, "invalid length=" FORMAT_INTEGER "\n", len);
 		return NULL;
 	}
+	/*
+	 * A counted string need not be null terminated, so copy exactly
+	 * length bytes and terminate the copy ourselves instead of using
+	 * strncpy_null(), which would read s[length] and beyond.
+	 */
 	if (buf)
 	{
-		strncpy_null(buf, (char *) s, bufsize > length ? length + 1 : bufsize);
+		if (bufsize > 0)
+		{
+			if (length >= bufsize)
+				length = bufsize - 1;	/* truncated */
+			memcpy(buf, s, length);
+			buf[length] = '\0';
+		}
 		return buf;
 	}
 
@@ -131,7 +142,8 @@ MYLOG(DETAIL_LOG_LEVEL, "str=%p\n", str);
 	if (!str)
 		return NULL;
 
-	strncpy_null(str, (char *) s, length + 1);
+	memcpy(str, s, length);
+	str[length] = '\0';
 	return str;
 }
 

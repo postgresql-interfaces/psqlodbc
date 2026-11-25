@@ -41,6 +41,13 @@ Result set:
 
 OUT param: 3
 
+Query: { ? = call length(?) }
+Param 1 is an OUT parameter
+Param 2: foobar
+Result set:
+
+OUT param: 6
+
 Query: { ? = call concat(?::text, ?::text) }
 Param 1 is an OUT parameter
 Param 2: foo
@@ -135,6 +142,13 @@ Param 1 is an OUT parameter
 Result set:
 
 OUT param: 3
+
+Query: { ? = call length(?) }
+Param 1 is an OUT parameter
+Param 2: foobar
+Result set:
+
+OUT param: 6
 
 Query: { ? = call concat(?::text, ?::text) }
 Param 1 is an OUT parameter

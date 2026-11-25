@@ -1088,6 +1088,12 @@ MYLOG(0, "CONVERT_FUNCTIONS=" FORMAT_ULEN "\n", value);
 		/* char/binary data */
 		len = strlen(p);
 
+		if (rgbInfoValue && cbInfoValueMax < 0)
+		{
+			CC_set_error(conn, CONN_INVALID_BUFFER_LENGTH, "Invalid string or buffer length", func);
+			ret = SQL_ERROR;
+			goto cleanup;
+		}
 		if (rgbInfoValue)
 		{
 #ifdef	UNICODE_SUPPORT
@@ -1619,7 +1625,7 @@ identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn,
 		srclen = (SQLLEN) strlen((char *) src);
 	if (srclen <= 0)
 		return dest;
-MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
+MYLOG(0, "entering in=%.*s(" FORMAT_LEN ")\n", (int) srclen, src, srclen);
 	if (NULL != buf && bufsize > 0)
 		dest = buf;
 	else
@@ -1644,10 +1650,13 @@ MYLOG(0, "entering in=%s(" FORMAT_LEN ")\n", src, srclen);
 
 		if (double_quote && (size_t) outlen + reserve < bufsize)
 			dest[outlen++] = IDENTIFIER_QUOTE;
-		for (i = 0, tchar = encoded_nextchar(&encstr);
-			 i < srclen && (size_t) outlen + 2 + reserve <= bufsize;
-			 i++, tchar = encoded_nextchar(&encstr))
+		/*
+		 * src may be a counted string without a terminator, so fetch
+		 * the next byte only after checking i < srclen.
+		 */
+		for (i = 0; i < srclen && (size_t) outlen + 2 + reserve <= bufsize; i++)
 		{
+			tchar = encoded_nextchar(&encstr);
 			if (MBCS_NON_ASCII(encstr))
 			{
 				dest[outlen++] = tchar;
@@ -1773,7 +1782,7 @@ CSTR	eq_op_ext =	"operator(pg_catalog.=) E";
 
 static const char *gen_opestr(const char *orig_opestr, const ConnectionClass * conn)
 {
-	BOOL	addE = (0 != CC_get_escape(conn) && PG_VERSION_GE(conn, 8.1));
+	BOOL	addE = ('\0' != CC_literal_prefix(conn)[0]);
 
 	if (0 == strcmp(orig_opestr, eqop))
 		return (addE ? eq_op_ext : eq_op_sp);
@@ -1800,6 +1809,13 @@ allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALL
 	else
 		schemalen = cbSchemaName;
 
+	/*
+	 * Already retrying with "public": a user named "Public" would match
+	 * it again and loop for ever.
+	 */
+	if (schemalen == strlen((const char *) pubstr) &&
+	    strnicmp((char *) szSchemaName, (const char *) pubstr, schemalen) == 0)
+		return FALSE;
 	if (schemalen != userlen)
 		return FALSE;
 	if (strnicmp((char *) szSchemaName, user, userlen) != 0)
@@ -1810,6 +1826,25 @@ allow_public_schema(ConnectionClass *conn, const SQLCHAR *szSchemaName, SQLSMALL
 		return FALSE;
 
 	return stricmp(curschema, (const char *) pubstr) == 0;
+}
+
+/*
+ *	The catalog functions below read the reply to their internal query
+ *	through bindings by column position. A fetch fills only the bindings
+ *	of the columns the reply has, so a (malicious or buggy) server that
+ *	answers with fewer columns would leave the other bound variables
+ *	uninitialized. Check that cat_stmt's result has at least num_cols
+ *	columns before anything is bound or read from it.
+ */
+static BOOL
+catalog_result_has_columns(StatementClass *stmt, StatementClass *cat_stmt, int num_cols, const char *func)
+{
+	QResultClass	*res = SC_get_Result(cat_stmt);
+
+	if (res && QR_NumPublicResultCols(res) >= num_cols)
+		return TRUE;
+	SC_set_error(stmt, STMT_EXEC_ERROR, "Unexpected number of columns in the reply to a catalog query", func);
+	return FALSE;
 }
 
 #define TABLE_IN_RELKIND	"('r', 'v', 'm', 'f', 'p')"
@@ -2092,6 +2127,8 @@ retry_public_schema:
 		SC_full_error_copy(stmt, tbl_stmt, FALSE);
 		goto cleanup;
 	}
+	if (!catalog_result_has_columns(stmt, tbl_stmt, 3, func))
+		goto cleanup;
 
 	/* If not found */
 	if ((res = SC_get_Result(tbl_stmt)) &&
@@ -2101,6 +2138,7 @@ retry_public_schema:
 		{
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
+			termPQExpBuffer(&tables_query);
 			goto retry_public_schema;
 		}
 	}
@@ -2555,6 +2593,9 @@ retry_public_schema:
 		SC_full_error_copy(stmt, col_stmt, FALSE);
 		goto cleanup;
 	}
+	/* columns 1 to 18 are bound or read by position below */
+	if (!catalog_result_has_columns(stmt, col_stmt, 18, func))
+		goto cleanup;
 
 	/* If not found */
 	if ((flag & PODBC_SEARCH_PUBLIC_SCHEMA) != 0 &&
@@ -2568,6 +2609,7 @@ retry_public_schema:
 			col_stmt = NULL;
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
+			termPQExpBuffer(&columns_query);
 			goto retry_public_schema;
 		}
 	}
@@ -2799,7 +2841,16 @@ retry_public_schema:
 		}
 		attdef = NULL;
 		PGAPI_SetPos(col_stmt, 1, SQL_POSITION, 0);
-		PGAPI_GetData(col_stmt, 13, internal_asis_type, NULL, 0, &len_needed);
+		/*
+		 * len_needed is only set when GetData succeeds; don't size the
+		 * allocation or read attdef after a failed call.
+		 */
+		result = PGAPI_GetData(col_stmt, 13, internal_asis_type, NULL, 0, &len_needed);
+		if (!SQL_SUCCEEDED(result))
+		{
+			SC_full_error_copy(stmt, col_stmt, FALSE);
+			goto cleanup;
+		}
 		if (len_needed > 0)
 		{
 MYLOG(0, "len_needed=" FORMAT_LEN "\n", len_needed);
@@ -2810,7 +2861,13 @@ MYLOG(0, "len_needed=" FORMAT_LEN "\n", len_needed);
 				goto cleanup;
 			}
 
-			PGAPI_GetData(col_stmt, 13, internal_asis_type, attdef, len_needed + 1, &len_needed);
+			result = PGAPI_GetData(col_stmt, 13, internal_asis_type, attdef, len_needed + 1, &len_needed);
+			if (!SQL_SUCCEEDED(result))
+			{
+				free(attdef);
+				SC_full_error_copy(stmt, col_stmt, FALSE);
+				goto cleanup;
+			}
 MYLOG(0, " and the data=%s\n", attdef);
 		}
 		tuple = QR_AddNew(res);
@@ -3166,6 +3223,8 @@ retry_public_schema:
 		SC_full_error_copy(stmt, col_stmt, FALSE);
 		goto cleanup;
 	}
+	if (!catalog_result_has_columns(stmt, col_stmt, 3, func))
+		goto cleanup;
 
 	/* If not found */
 	if ((res = SC_get_Result(col_stmt)) &&
@@ -3177,6 +3236,7 @@ retry_public_schema:
 			col_stmt = NULL;
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
+			termPQExpBuffer(&columns_query);
 			goto retry_public_schema;
 		}
 
@@ -3611,6 +3671,8 @@ PGAPI_Statistics(HSTMT hstmt,
 		SC_full_error_copy(stmt, indx_stmt, FALSE);
 		goto cleanup;
 	}
+	if (!catalog_result_has_columns(stmt, indx_stmt, 10, func))
+		goto cleanup;
 
 	/* bind the index name column */
 	result = PGAPI_BindCol(indx_stmt, 1, internal_asis_type,
@@ -4263,6 +4325,8 @@ retry_public_schema:
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
 			goto cleanup;
 		}
+		if (!catalog_result_has_columns(stmt, tbl_stmt, 5, func))
+			goto cleanup;
 
 		result = PGAPI_Fetch(tbl_stmt);
 		if (result != SQL_NO_DATA_FOUND)
@@ -4277,6 +4341,8 @@ retry_public_schema:
 		{
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
+			/* the label is above the initPQExpBuffer of this buffer */
+			termPQExpBuffer(&tables_query);
 			goto retry_public_schema;
 		}
 	}
@@ -4680,6 +4746,8 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 			SC_full_error_copy(stmt, tbl_stmt, FALSE);
 			goto cleanup;
 		}
+		if (!catalog_result_has_columns(stmt, tbl_stmt, 11, func))
+			goto cleanup;
 
 		result = PGAPI_BindCol(tbl_stmt, 1, SQL_C_BINARY,
 							   trig_args, sizeof(trig_args) - 1, &trig_args_len);
@@ -5006,6 +5074,8 @@ PGAPI_ForeignKeys_old(HSTMT hstmt,
 		{
 			goto cleanup;
 		}
+		if (!catalog_result_has_columns(stmt, tbl_stmt, 11, func))
+			goto cleanup;
 
 		result = PGAPI_BindCol(tbl_stmt, 1, SQL_C_BINARY,
 							   trig_args, sizeof(trig_args) - 1, &trig_args_len);
@@ -6037,6 +6107,7 @@ retry_public_schema:
 			wres = NULL;
 			szSchemaName = pubstr;
 			cbSchemaName = SQL_NTS;
+			termPQExpBuffer(&proc_query);
 			goto retry_public_schema;
 		}
 	}
@@ -6330,7 +6401,8 @@ PGAPI_ForeignKeys_new(HSTMT hstmt,
 			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_ForeignKeys.", func);
 			goto cleanup;
 		}
-		SPRINTF_FIXED(catName, "'%s'::name", escCatName);
+		SPRINTF_FIXED(catName, "%s'%s'::name",
+					  CC_literal_prefix(conn), escCatName);
 		free(escCatName);
 	}
 	STRCPY_FIXED(scmName1, "n2.nspname");

@@ -52,13 +52,38 @@ void	shortterm_common_unlock(void)
 	LEAVE_COMMON_CS;
 }
 
-int	getConnCount(void)
+/*
+ * Return a malloc'd copy of the list of the connections of the environment
+ * env, and set *count to their number. EN_add_connection() may move the
+ * global list meanwhile, so the copy is taken under conns_cs and is used
+ * without it. Return NULL, with *count 0, when the environment has no
+ * connection, and NULL, with *count -1, when memory runs out.
+ */
+ConnectionClass **
+EN_get_connections(const EnvironmentClass *env, int *count)
 {
-	return conns_count;
-}
-ConnectionClass * const *getConnList(void)
-{
-	return conns;
+	ConnectionClass **list = NULL;
+	int		i, n = 0;
+
+	ENTER_CONNS_CS;
+	for (i = 0; i < conns_count; i++)
+		if (conns[i] && CC_get_env(conns[i]) == env)
+			n++;
+	if (n > 0)
+	{
+		if (NULL == (list = malloc(n * sizeof(ConnectionClass *))))
+			n = -1;
+		else
+		{
+			n = 0;
+			for (i = 0; i < conns_count; i++)
+				if (conns[i] && CC_get_env(conns[i]) == env)
+					list[n++] = conns[i];
+		}
+	}
+	LEAVE_CONNS_CS;
+	*count = n;
+	return list;
 }
 
 RETCODE		SQL_API
@@ -306,7 +331,17 @@ PGAPI_ConnectError(HDBC hdbc,
 	msglen = strlen(msg);
 	if (NULL != pcbErrorMsg)
 	{
-		*pcbErrorMsg = (SQLSMALLINT) msglen;
+		/*
+		 *	The message comes from the server and may be longer than an
+		 *	SQLSMALLINT can hold. Clamp the reported length instead of
+		 *	letting it wrap, and leave room for the "+ 1" of a caller
+		 *	that sizes its buffer from the value (as ER_ReturnError
+		 *	never reports more than cbErrorMsgMax - 1 either).
+		 */
+		if (msglen < INT16_MAX)
+			*pcbErrorMsg = (SQLSMALLINT) msglen;
+		else
+			*pcbErrorMsg = INT16_MAX - 1;
 		if (cbErrorMsgMax == 0)
 			once_again = TRUE;
 		else if (msglen >= cbErrorMsgMax)
@@ -314,6 +349,7 @@ PGAPI_ConnectError(HDBC hdbc,
 	}
 	if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
 		strncpy_null((char *) szErrorMsg, msg, cbErrorMsgMax);
+	free(msg);	/* CC_get_error's copy */
 	if (NULL != pfNativeError)
 		*pfNativeError = status;
 
@@ -378,6 +414,9 @@ PGAPI_ConnectError(HDBC hdbc,
 			case CONN_INVALID_INFO_TYPE:
 				pg_sqlstate_set(env, szSqlState, "HY096", "S1096");
 				break;
+			case CONN_INVALID_BUFFER_LENGTH:
+				pg_sqlstate_set(env, szSqlState, "HY090", "S1090");
+				break;
 			case CONN_OPTION_NOT_FOR_THE_DRIVER:
 				pg_sqlstate_set(env, szSqlState, "HY092", "S1092");
 				break;
@@ -439,7 +478,15 @@ PGAPI_EnvError(HENV henv,
 	MYLOG(0, "EN_get_error: status = %d, msg = #%s#\n", status, msg);
 
 	if (NULL != pcbErrorMsg)
-		*pcbErrorMsg = (SQLSMALLINT) strlen(msg);
+	{
+		size_t		msglen = strlen(msg);
+
+		/* same clamp as in PGAPI_ConnectError */
+		if (msglen < INT16_MAX)
+			*pcbErrorMsg = (SQLSMALLINT) msglen;
+		else
+			*pcbErrorMsg = INT16_MAX - 1;
+	}
 	if ((NULL != szErrorMsg) && (cbErrorMsgMax > 0))
 		strncpy_null((char *) szErrorMsg, msg, cbErrorMsgMax);
 	if (NULL != pfNativeError)
@@ -633,17 +680,20 @@ char
 EN_remove_connection(EnvironmentClass *self, ConnectionClass *conn)
 {
 	int			i;
+	char		ret = FALSE;
 
+	/* the whole scan: EN_add_connection() may move the list meanwhile */
+	ENTER_CONNS_CS;
 	for (i = 0; i < conns_count; i++)
 		if (conns[i] == conn && conns[i]->status != CONN_EXECUTING)
 		{
-			ENTER_CONNS_CS;
 			conns[i] = NULL;
-			LEAVE_CONNS_CS;
-			return TRUE;
+			ret = TRUE;
+			break;
 		}
+	LEAVE_CONNS_CS;
 
-	return FALSE;
+	return ret;
 }
 
 

@@ -1167,7 +1167,7 @@ SQLExtendedFetch(HSTMT hstmt,
 	StartRollbackState(stmt);
 #ifdef WITH_UNIXODBC
 	{
-		SQLULEN	retrieved;
+		SQLULEN	retrieved = 0;
 
 		ret = PGAPI_ExtendedFetch(hstmt, fFetchType, irow, &retrieved, rgfRowStatus, 0, SC_get_ARDF(stmt)->size_of_rowset_odbc2);
 		if (pcrow)
