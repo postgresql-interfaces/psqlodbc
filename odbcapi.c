@@ -121,18 +121,39 @@ SQLColumns(HSTMT StatementHandle,
 		flag |= PODBC_ROW_VERSIONING;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{CatalogName, NameLength1, TRUE},
+			{SchemaName, NameLength2},
+			{TableName, NameLength3},
+			{ColumnName, NameLength4}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Columns(StatementHandle,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				flag, 0, 0);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_Columns(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 				clName, NameLength4, flag, 0, 0);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -757,18 +778,37 @@ SQLSpecialColumns(HSTMT StatementHandle, SQLUSMALLINT IdentifierType,
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{CatalogName, NameLength1, TRUE},
+			{SchemaName, NameLength2},
+			{TableName, NameLength3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				Scope, Nullable);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType, ctName,
 			NameLength1, scName, NameLength2, tbName, NameLength3,
 							Scope, Nullable);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -823,18 +863,37 @@ SQLStatistics(HSTMT StatementHandle,
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{CatalogName, NameLength1, TRUE},
+			{SchemaName, NameLength2},
+			{TableName, NameLength3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Statistics(StatementHandle,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				Unique, Reserved);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_Statistics(StatementHandle, ctName, NameLength1,
 				 scName, NameLength2, tbName, NameLength3,
 				 Unique, Reserved);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -892,18 +951,37 @@ SQLTables(HSTMT StatementHandle,
 		flag |= PODBC_NOT_SEARCH_PATTERN;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{CatalogName, NameLength1, TRUE},
+			{SchemaName, NameLength2},
+			{TableName, NameLength3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Tables(StatementHandle,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				TableType, NameLength4, flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_Tables(StatementHandle, ctName, NameLength1,
 				scName, NameLength2, tbName, NameLength3,
 					TableType, NameLength4, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt =NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, CatalogName, NameLength1, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -967,18 +1045,39 @@ SQLColumnPrivileges(HSTMT hstmt,
 		flag |= PODBC_NOT_SEARCH_PATTERN;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{szCatalogName, cbCatalogName, TRUE},
+			{szSchemaName, cbSchemaName},
+			{szTableName, cbTableName},
+			{szColumnName, cbColumnName}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_ColumnPrivileges(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_ColumnPrivileges(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, tbName, cbTableName,
 						clName, cbColumnName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL, *newCl = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -1115,20 +1214,44 @@ SQLForeignKeys(HSTMT hstmt,
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{szPkCatalogName, cbPkCatalogName, TRUE},
+			{szPkSchemaName, cbPkSchemaName},
+			{szPkTableName, cbPkTableName},
+			{szFkCatalogName, cbFkCatalogName, TRUE},
+			{szFkSchemaName, cbFkSchemaName},
+			{szFkTableName, cbFkTableName}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_ForeignKeys(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				(SQLCHAR *) names[4].name, (SQLSMALLINT) names[4].len,
+				(SQLCHAR *) names[5].name, (SQLSMALLINT) names[5].len);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_ForeignKeys(hstmt, pkctName, cbPkCatalogName,
 			pkscName, cbPkSchemaName, pktbName, cbPkTableName,
 			fkctName, cbFkCatalogName, fkscName, cbFkSchemaName,
 			fktbName, cbFkTableName);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newPkct = NULL, *newPksc = NULL, *newPktb = NULL,
 			*newFkct = NULL, *newFksc = NULL, *newFktb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newPkct = make_lstring_ifneeded(conn, szPkCatalogName, cbPkCatalogName, ifallupper), NULL != newPkct)
 		{
 			pkctName = newPkct;
@@ -1272,17 +1395,36 @@ SQLPrimaryKeys(HSTMT hstmt,
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{szCatalogName, cbCatalogName, TRUE},
+			{szSchemaName, cbSchemaName},
+			{szTableName, cbTableName}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_PrimaryKeys(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				0);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_PrimaryKeys(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName, 0);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -1344,18 +1486,39 @@ SQLProcedureColumns(HSTMT hstmt,
 		flag |= PODBC_NOT_SEARCH_PATTERN;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{szCatalogName, cbCatalogName, TRUE},
+			{szSchemaName, cbSchemaName},
+			{szProcName, cbProcName},
+			{szColumnName, cbColumnName}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_ProcedureColumns(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_ProcedureColumns(hstmt, ctName, cbCatalogName,
 				scName, cbSchemaName, prName, cbProcName,
 					clName, cbColumnName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newPr = NULL, *newCl = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -1423,18 +1586,37 @@ SQLProcedures(HSTMT hstmt,
 		flag |= PODBC_NOT_SEARCH_PATTERN;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{szCatalogName, cbCatalogName, TRUE},
+			{szSchemaName, cbSchemaName},
+			{szProcName, cbProcName}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Procedures(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_Procedures(hstmt, ctName, cbCatalogName,
 					 scName, cbSchemaName, prName,
 					 cbProcName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newPr = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;
@@ -1518,17 +1700,36 @@ SQLTablePrivileges(HSTMT hstmt,
 		flag |= PODBC_NOT_SEARCH_PATTERN;
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (SC_is_lower_case(stmt, SC_get_conn(stmt)))
+	{
+		/* the name arguments are identifiers */
+		CatalogNameArg names[] = {
+			{szCatalogName, cbCatalogName, TRUE},
+			{szSchemaName, cbSchemaName},
+			{szTableName, cbTableName}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_TablePrivileges(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	else
 		ret = PGAPI_TablePrivileges(hstmt, ctName, cbCatalogName,
 			scName, cbSchemaName, tbName, cbTableName, flag);
-	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt))
+	if (SQL_SUCCESS == ret && theResultIsEmpty(stmt) &&
+	    !SC_is_lower_case(stmt, SC_get_conn(stmt)))
 	{
 		BOOL	ifallupper = TRUE, reexec = FALSE;
 		SQLCHAR *newCt = NULL, *newSc = NULL, *newTb = NULL;
 		ConnectionClass *conn = SC_get_conn(stmt);
 
-		if (SC_is_lower_case(stmt, conn)) /* case-insensitive identifier */
-			ifallupper = FALSE;
 		if (newCt = make_lstring_ifneeded(conn, szCatalogName, cbCatalogName, ifallupper), NULL != newCt)
 		{
 			ctName = newCt;

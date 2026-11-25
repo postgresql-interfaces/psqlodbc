@@ -58,6 +58,8 @@ extern void print_result_with_column_names(HSTMT hstmt);
 extern const char *datatype_str(SQLSMALLINT datatype);
 extern const char *nullable_str(SQLSMALLINT nullable);
 extern int server_version_cmp(SQLHDBC hconn, int major, int minor);
+extern BOOL test_create_latin1_db(const char *dbname);
+extern void test_drop_db(const char *dbname);
 
 #define server_version_lt(hconn, major, minor) (server_version_cmp(hconn, major, minor) < 0)
 #define server_version_gt(hconn, major, minor) (server_version_cmp(hconn, major, minor) > 0)

@@ -1,0 +1,6 @@
+connected
+catalog name: ""
+SQLForeignKeys succeeded
+Result set:
+	public	testtab1	id		public	testtab_fk	id	1	3	3	testtab_fk_id_fkey	testtab1_pkey	7
+disconnecting

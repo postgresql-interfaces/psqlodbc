@@ -21,6 +21,9 @@ int main(int argc, char **argv)
 	SQLRETURN rc;
 	SQLINTEGER intparam;
 	char	byteaparam[] = { 'f', 'o', 'o', '\n', '\\', 'b', 'a', 'r', '\0' };
+	SQL_DATE_STRUCT dateparam = { 2011, 4, 22 };
+	SQL_TIME_STRUCT timeparam = { 1, 23, 45 };
+	SQL_TIMESTAMP_STRUCT tsparam = { 2011, 4, 22, 1, 23, 45, 0 };
 
 	/*
 	 * let's not confuse the output with LF conversions. There's a separate
@@ -105,6 +108,18 @@ int main(int argc, char **argv)
 	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_TIMESTAMP, "{ts '2011-04-22 01:23:45'}");
 	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_TIME, "{t '01:23:45'}");
 	TEST_CONVERT("SELECT ?", SQL_C_CHAR, SQL_DATE, "{d '2011-04-22'}");
+
+	/*
+	 * ODBC defines no conversion from the date/time C types to the numeric
+	 * SQL types. These must fail with an error, not crash the driver.
+	 */
+	printf("\nTesting unsupported datetime to numeric conversions\n");
+	TEST_CONVERT("SELECT ?", SQL_C_TYPE_TIMESTAMP, SQL_INTEGER, &tsparam);
+	TEST_CONVERT("SELECT ?", SQL_C_TYPE_TIMESTAMP, SQL_SMALLINT, &tsparam);
+	TEST_CONVERT("SELECT ?", SQL_C_TYPE_DATE, SQL_INTEGER, &dateparam);
+	TEST_CONVERT("SELECT ?", SQL_C_TYPE_TIME, SQL_SMALLINT, &timeparam);
+	TEST_CONVERT("SELECT ?", SQL_C_TYPE_TIMESTAMP, SQL_REAL, &tsparam);
+	TEST_CONVERT("SELECT ?", SQL_C_TYPE_TIMESTAMP, SQL_DOUBLE, &tsparam);
 
 	/* Clean up */
 	test_disconnect();

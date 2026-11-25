@@ -88,6 +88,12 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	SQLSMALLINT	pcbErrm;
 	ssize_t		rtnlen = -1;
 	int		rtnctype = SQL_C_CHAR;
+	/*
+	 * The handle's error function always writes the 5 bytes of a SQLSTATE
+	 * and a NUL, so it gets this buffer, and DiagInfoPtr gets as much of it
+	 * as BufferLength allows.
+	 */
+	char		sqlstate[SQL_SQLSTATE_SIZE + 1] = "";
 
 	MYLOG(0, "entering rec=%d\n", RecNumber);
 	switch (HandleType)
@@ -132,10 +138,12 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_SQLSTATE:
 					rtnlen = 5;
 					ret = PGAPI_EnvError(Handle, RecNumber,
-										 DiagInfoPtr, NULL, NULL,
+										 (SQLCHAR *) sqlstate, NULL, NULL,
 										 0, NULL, 0);
 					if (SQL_SUCCESS_WITH_INFO == ret)
 						ret = SQL_SUCCESS;
+					if (SQL_SUCCESS == ret)
+						strncpy_null((char *) DiagInfoPtr, sqlstate, BufferLength);
 					break;
 				case SQL_DIAG_RETURNCODE: /* driver manager returns */
 					break;
@@ -204,10 +212,12 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_SQLSTATE:
 					rtnlen = 5;
 					ret = PGAPI_ConnectError(Handle, RecNumber,
-											 DiagInfoPtr, NULL, NULL,
+											 (SQLCHAR *) sqlstate, NULL, NULL,
 											 0, NULL, 0);
 					if (SQL_SUCCESS_WITH_INFO == ret)
 						ret = SQL_SUCCESS;
+					if (SQL_SUCCESS == ret)
+						strncpy_null((char *) DiagInfoPtr, sqlstate, BufferLength);
 					break;
 				case SQL_DIAG_RETURNCODE: /* driver manager returns */
 					break;
@@ -279,10 +289,12 @@ PGAPI_GetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 				case SQL_DIAG_SQLSTATE:
 					rtnlen = 5;
 					ret = PGAPI_StmtError(Handle, RecNumber,
-										  DiagInfoPtr, NULL, NULL,
+										  (SQLCHAR *) sqlstate, NULL, NULL,
 										  0, NULL, 0);
 					if (SQL_SUCCESS_WITH_INFO == ret)
 						ret = SQL_SUCCESS;
+					if (SQL_SUCCESS == ret)
+						strncpy_null((char *) DiagInfoPtr, sqlstate, BufferLength);
 					break;
 				case SQL_DIAG_CURSOR_ROW_COUNT:
 					rtnctype = SQL_C_LONG;
@@ -356,10 +368,12 @@ MYLOG(DETAIL_LOG_LEVEL, "rc=" FORMAT_LEN "\n", rc);
 				case SQL_DIAG_SQLSTATE:
 					rtnlen = 5;
 					ret = PGAPI_DescError(Handle, RecNumber,
-										  DiagInfoPtr, NULL, NULL,
+										  (SQLCHAR *) sqlstate, NULL, NULL,
 										  0, NULL, 0);
 					if (SQL_SUCCESS_WITH_INFO == ret)
 						ret = SQL_SUCCESS;
+					if (SQL_SUCCESS == ret)
+						strncpy_null((char *) DiagInfoPtr, sqlstate, BufferLength);
 					break;
 				case SQL_DIAG_RETURNCODE: /* driver manager returns */
 					break;
@@ -388,7 +402,7 @@ MYLOG(DETAIL_LOG_LEVEL, "rc=" FORMAT_LEN "\n", rc);
 		{
 			if (SQL_SUCCESS == ret)
 				ret = SQL_SUCCESS_WITH_INFO;
-			if (BufferLength > 0)
+			if (BufferLength > 0 && NULL != DiagInfoPtr)
 				((char *) DiagInfoPtr) [BufferLength - 1] = '\0';
 		}
 		if (StringLengthPtr)
@@ -540,6 +554,16 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 	switch (FieldIdentifier)
 	{
 		case SQL_DESC_ARRAY_SIZE:
+			/*
+			 * The fetch and SQLSetPos loops assume a rowset of at least
+			 * one row, as SQL_ROWSET_SIZE already enforces.
+			 */
+			if (CAST_PTR(SQLLEN, Value) < 1)
+			{
+				opts->size_of_rowset = 1;
+				DC_set_error(desc, DESC_OPTION_VALUE_CHANGED, "Requested value changed.");
+				return SQL_SUCCESS_WITH_INFO;
+			}
 			opts->size_of_rowset = CAST_UPTR(SQLULEN, Value);
 			return ret;
 		case SQL_DESC_ARRAY_STATUS_PTR:
@@ -699,6 +723,13 @@ static  void parameter_bindings_set(APDFields *opts, int params, BOOL maxset)
 {
 	int	i;
 
+	/*
+	 * A negative count (SQL_DESC_COUNT from 32768 to 65535, narrowed to
+	 * SQLSMALLINT) would make the loop below walk to negative indexes and
+	 * store a negative allocated count. Ignore it, as for the ARD.
+	 */
+	if (params < 0)
+		return;
 	if (params == opts->allocated)
 		return;
 	if (params > opts->allocated)
@@ -722,6 +753,13 @@ static  void parameter_ibindings_set(IPDFields *opts, int params, BOOL maxset)
 {
 	int	i;
 
+	/*
+	 * A negative count (SQL_DESC_COUNT from 32768 to 65535, narrowed to
+	 * SQLSMALLINT) would make the loop below walk to negative indexes and
+	 * store a negative allocated count. Ignore it, as for the ARD.
+	 */
+	if (params < 0)
+		return;
 	if (params == opts->allocated)
 		return;
 	if (params > opts->allocated)
@@ -986,7 +1024,13 @@ MYLOG(DETAIL_LOG_LEVEL, "RecN=%d allocated=%d\n", RecNumber, ipdopts->allocated)
 			ipdopts->parameters[para_idx].SQLType = CAST_PTR(SQLSMALLINT, Value);
 			break;
 		case SQL_DESC_NAME:
-			if (Value)
+			/*
+			 * BufferLength is the byte length of the string and the
+			 * string isn't necessarily NUL-terminated unless SQL_NTS.
+			 */
+			if (Value && BufferLength > 0)
+				STRN_TO_NAME(ipdopts->parameters[para_idx].paramName, Value, BufferLength);
+			else if (Value)
 				STR_TO_NAME(ipdopts->parameters[para_idx].paramName, Value);
 			else
 				NULL_THE_NAME(ipdopts->parameters[para_idx].paramName);
@@ -2508,8 +2552,15 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			SC_get_IRDF(stmt)->rowsFetched = (SQLULEN *) Value;
 			break;
 		case SQL_ATTR_ROW_ARRAY_SIZE:	/* 27 */
-			/* Number of rows to fetch */
-			SC_get_ARDF(stmt)->size_of_rowset = CAST_UPTR(SQLULEN, Value);
+			/* Number of rows to fetch; at least one, as for SQL_ROWSET_SIZE */
+			if (CAST_PTR(SQLLEN, Value) < 1)
+			{
+				SC_get_ARDF(stmt)->size_of_rowset = 1;
+				SC_set_error(stmt, STMT_OPTION_VALUE_CHANGED, "Requested value changed.", func);
+				ret = SQL_SUCCESS_WITH_INFO;
+			}
+			else
+				SC_get_ARDF(stmt)->size_of_rowset = CAST_UPTR(SQLULEN, Value);
 			break;
 		default:
 			/* For backward compatibility with ODBC 2.0 */
@@ -2610,12 +2661,18 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	RETCODE		ret;
 	ConnectionClass	*conn;
 	BindInfoClass	*bookmark;
+	QResultClass	*res;
 
 	MYLOG(0, "entering operation = %d\n", operationX);
 	s.stmt = (StatementClass *) hstmt;
 	s.operation = operationX;
 	SC_clear_error(s.stmt);
 	s.opts = SC_get_ARDF(s.stmt);
+	if ((res = SC_get_Curres(s.stmt)) && QR_is_cursor_lost(res))
+	{
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor was closed by the end of the transaction.", func);
+		return SQL_ERROR;
+	}
 
 	s.auto_commit_needed = FALSE;
 	if (SQL_FETCH_BY_BOOKMARK != s.operation)

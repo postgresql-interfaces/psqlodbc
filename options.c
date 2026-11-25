@@ -199,7 +199,8 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_ROWSET_SIZE:
 			MYLOG(0, "SQL_ROWSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
 
-			if (vParam < 1)
+			/* vParam is unsigned; a negative size arrives as a huge one */
+			if ((SQLLEN) vParam < 1)
 			{
 				vParam = 1;
 				changed = TRUE;
@@ -594,6 +595,8 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) pvParam , BufferLength / WCLEN);
 				len *= WCLEN;
+				/* an odd byte count holds whole characters only */
+				BufferLength -= BufferLength % WCLEN;
 			}
 			else
 #endif /* UNICODE_SUPPORT */

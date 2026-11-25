@@ -208,12 +208,24 @@ static void	escape_test(HSTMT hstmt)
 	bindOutParamString(hstmt, 5, "a", outbuf1, sizeof(outbuf1) - 1, 0);
 	executeQuery(hstmt);
 	printf("OUT params: %s : %s : %s\n", outbuf1, outbuf3, outbuf5);
+
+	/**** escapes inside a comment must be left alone ****/
+	/*
+	 * A comment beginning with slash-asterisk-slash is not a complete
+	 * comment. Taken for one, the rest of the comment is processed as
+	 * SQL and the {fn / } below becomes a closing asterisk-slash. The
+	 * server must see the statement unchanged, so the result has one
+	 * column.
+	 */
+	prepareQuery(hstmt, "SELECT 'one' /*/ *{fn / } , 'comment text became SQL' --*/");
+	executeQuery(hstmt);
 }
 
 int main(int argc, char **argv)
 {
 	SQLRETURN	rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
+	SQLSMALLINT	colcount;
 
 	test_connect();
 
@@ -245,6 +257,28 @@ int main(int argc, char **argv)
 	execDirectMode = 1;
 	printf("\n-- TEST using SQLExecDirect\n");
 	escape_test(hstmt);
+
+	/*
+	 * A '{ ? = call ...}' statement which is described before it is
+	 * executed, without the application binding the return value
+	 * parameter. Describing the statement makes the driver set up the
+	 * IPD by itself; executing it must not touch the (empty) APD.
+	 */
+	printf("\n-- TEST unbound return value parameter\n");
+	rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFreeHandle failed", hstmt);
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
+		exit(1);
+	}
+	execDirectMode = 0;
+	prepareQuery(hstmt, "{ ? = call length('foo') }");
+	rc = SQLNumResultCols(hstmt, &colcount);
+	CHECK_STMT_RESULT(rc, "SQLNumResultCols failed", hstmt);
+	printf("%d result columns\n", colcount);
+	executeQuery(hstmt);
 
 	/* Clean up */
 	test_disconnect();

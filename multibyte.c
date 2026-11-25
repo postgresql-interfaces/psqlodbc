@@ -11,6 +11,7 @@
 #include "multibyte.h"
 #include "misc.h"
 #include "connection.h"
+#include "statement.h"
 #include "pgapifunc.h"
 #include <string.h>
 #include <ctype.h>
@@ -89,8 +90,18 @@ static pg_CS CS_Alias[] =
 int
 pg_CS_code(const char *characterset_string)
 {
-	int i, c = -1;
+	int i, c = -1, enc_no;
 
+	/*
+	 *	The server accepts many spellings of an encoding name (WIN950,
+	 *	Windows950 and big-5 for BIG5, Shift_JIS for SJIS, ...).  Let
+	 *	libpq map the name to the official one, as derive_locale_encoding()
+	 *	does, so that the driver scans the text the same way the server
+	 *	does.  Otherwise an alias falls through to OTHER and a multibyte
+	 *	encoding is scanned as single-byte.
+	 */
+	if ((enc_no = pg_char_to_encoding(characterset_string)) >= 0)
+		characterset_string = pg_encoding_to_char(enc_no);
 	for(i = 0; CS_Table[i].code != OTHER; i++)
 	{
 		if (0 == stricmp(characterset_string, CS_Table[i].name))
@@ -116,32 +127,33 @@ pg_CS_code(const char *characterset_string)
 }
 
 char *
-check_client_encoding(const pgNAME conn_settings)
+check_client_encoding(const ConnectionClass *conn, const pgNAME conn_settings)
 {
-	const char *cptr, *sptr = NULL;
+	const char *cptr, *sptr = NULL, *cmd_end = NULL;
 	char   *rptr;
-	BOOL	allowed_cmd = TRUE, in_quote = FALSE;
+	BOOL	allowed_cmd = TRUE;
 	int	step = 0;
 	size_t	len = 0;
+	ssize_t	next_cmd;
 
 	if (NAME_IS_NULL(conn_settings))
 		return NULL;
 	for (cptr = SAFE_NAME(conn_settings); *cptr; cptr++)
 	{
-		if (in_quote)
+		/*
+		 * Find the end of each command as CC_send_settings() does, so that
+		 * a semicolon inside a literal, a quoted identifier, a dollar quote
+		 * or a comment does not start a new command.
+		 */
+		if (NULL == cmd_end || cptr > cmd_end)
 		{
-			if (LITERAL_QUOTE == *cptr)
-			{
-				in_quote = FALSE;
-				continue;
-			}
-		}
-		if (';' == *cptr)
-		{
+			SC_scanQueryAndCountParams(cptr, conn, &next_cmd, NULL, NULL, NULL);
+			cmd_end = (next_cmd >= 0 ? cptr + next_cmd : cptr + strlen(cptr));
 			allowed_cmd = TRUE;
 			step = 0;
-			continue;
 		}
+		if (cptr == cmd_end)
+			continue;
 		if (!allowed_cmd)
 			continue;
 		if (isspace((unsigned char) *cptr))
@@ -237,6 +249,25 @@ pg_mb_maxlen(int characterset_code)
 	}
 }
 
+/*
+ * Most lead byte rules below follow the server's pg_*_mblen().  A byte is
+ * taken as a trail byte only if it lies in the encoding's trail range
+ * (at least never below 0x40, or never below 0x80 for the EUC family),
+ * so that a quote, an escape or a parameter marker following a lead byte
+ * is still seen as itself and gets escaped.  The server's verifier
+ * rejects such a sequence anyway.
+ */
+#define	MB_TRAIL_40(c)	((c) >= 0x40 && (c) != 0x7f && (c) <= 0xfe)
+#define	MB_TRAIL_80(c)	((c) >= 0x80 && (c) <= 0xfe)
+/*
+ * JOHAB's hanja and symbol rows take a trail byte from 0x31 to 0x7e or
+ * 0x91 to 0xfe, so its range starts lower than any other encoding's here.
+ * It takes 0x3b, 0x3d and 0x3f, which are ';', '=' and '?': reading one of
+ * those as itself would end the character early and have the rest of the
+ * statement scanned as SQL.
+ */
+#define	MB_TRAIL_JOHAB(c)	((c) >= 0x31 && (c) != 0x7f && (c) <= 0xfe)
+
 static int
 pg_CS_stat(int stat,unsigned int character,int characterset_code)
 {
@@ -279,7 +310,7 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 				else if (stat < 2 &&
 					character >= 0xf0 && character <= 0xfc)
 					stat = 2;
-				else if (stat == 2)
+				else if (stat == 2 && MB_TRAIL_40(character))
 					stat = 1;
 				else
 					stat = 0;
@@ -289,11 +320,11 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			case SJIS:
 			{
 				if (stat < 2 &&
-					character > 0x80 &&
-					!(character > 0x9f &&
-					character < 0xe0))
+					character >= 0x80 &&
+					!(character >= 0xa1 &&
+					character <= 0xdf))	/* half-width katakana */
 					stat = 2;
-				else if (stat == 2)
+				else if (stat == 2 && MB_TRAIL_40(character))
 					stat = 1;
 				else
 					stat = 0;
@@ -301,36 +332,15 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			break;
 /* Chinese Big5 Support. */
 		case BIG5:
-			{
-				if (stat < 2 &&
-					character > 0xA0)
-					stat = 2;
-				else if (stat == 2)
-					stat = 1;
-				else
-					stat = 0;
-			}
-			break;
 /* Chinese GBK Support. */
 		case GBK:
-			{
-				if (stat < 2 &&
-					character > 0x7F)
-					stat = 2;
-				else if (stat == 2)
-					stat = 1;
-				else
-					stat = 0;
-			}
-			break;
-
 /* Korian UHC Support. */
 		case UHC:
 			{
 				if (stat < 2 &&
 					character > 0x7F)
 					stat = 2;
-				else if (stat == 2)
+				else if (stat == 2 && MB_TRAIL_40(character))
 					stat = 1;
 				else
 					stat = 0;
@@ -354,23 +364,39 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 					(character == 0x8e ||
 					character > 0xa0))	/* Half Katakana HighByte & Kanji HighByte */
 					stat = 2;
-				else if (stat == 2)
+				else if (stat == 2 && MB_TRAIL_80(character))
 					stat = 1;
 				else
 					stat = 0;
 			}
 			break;
 
-/* EUC_CN, EUC_KR, JOHAB Support */
+/* EUC_CN, EUC_KR Support */
 		case EUC_CN:
 		case EUC_KR:
-		case JOHAB:
 			{
 				if (stat < 2 &&
-					character > 0xa0)
+					character > 0x7f)	/* the server takes any byte >= 0x80 as a lead byte */
 					stat = 2;
-				else if (stat == 2)
+				else if (stat == 2 && MB_TRAIL_80(character))
 					stat = 1;
+				else
+					stat = 0;
+			}
+			break;
+/* Korean JOHAB Support. Same length rule as the server's pg_johab_mblen(). */
+		case JOHAB:
+			/* 0x8f is 3 byte */
+			/* 0x80-0xff otherwise is 2 byte (Hangul lead bytes start at 0x84) */
+			{
+				if (stat < 2 &&
+					character == 0x8f)
+					stat = 3;
+				else if (stat < 2 &&
+					character > 0x7f)
+					stat = 2;
+				else if (stat >= 2 && MB_TRAIL_JOHAB(character))
+					stat--;
 				else
 					stat = 0;
 			}
@@ -383,11 +409,13 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 				else if (stat == 4 &&
 					character > 0xa0)
 					stat = 3;
-				else if ((stat == 3 ||
-					stat < 2) &&
+				else if (stat == 3 &&
 					character > 0xa0)
 					stat = 2;
-				else if (stat == 2)
+				else if (stat < 2 &&
+					character > 0x7f)	/* the server takes any byte >= 0x80 as a lead byte */
+					stat = 2;
+				else if (stat == 2 && MB_TRAIL_80(character))
 					stat = 1;
 				else
 					stat = 0;
@@ -395,22 +423,36 @@ pg_CS_stat(int stat,unsigned int character,int characterset_code)
 			break;
 			/*Chinese GB18030 support.Added by Bill Huang <bhuang@redhat.com> <bill_huanghb@ybb.ne.jp>*/
 		case GB18030:
+			/*
+			 * 2 byte: lead 0x81-0xfe, trail 0x40-0x7e or 0x80-0xfe.
+			 * 4 byte: lead, 0x30-0x39, 0x81-0xfe, 0x30-0x39.
+			 * stat 4 and 3 count the 3rd and 4th bytes of a 4 byte char.
+			 */
 			{
-				if (stat < 2 && character > 0x80)
+				if (stat < 2 && character > 0x7f)
 					stat = 2;
 				else if (stat == 2)
 				{
 					if (character >= 0x30 && character <= 0x39)
+						stat = 4;
+					else if (MB_TRAIL_40(character))
+						stat = 1;
+					else
+						stat = 0;
+				}
+				else if (stat == 4)
+				{
+					if (MB_TRAIL_80(character))
 						stat = 3;
 					else
-						stat = 1;
+						stat = 0;
 				}
 				else if (stat == 3)
 				{
 					if (character >= 0x30 && character <= 0x39)
 						stat = 1;
 					else
-						stat = 3;
+						stat = 0;
 				}
 				else
 					stat = 0;
@@ -442,10 +484,15 @@ derive_locale_encoding(const char *dbencoding)
 	if (wenc = getenv("PGCLIENTENCODING"), NULL != wenc) /* environmnt variable */
 		return wenc;
 #ifdef	WIN32
+	/*
+	 *	dbencoding may be NULL when the server didn't report its
+	 *	client_encoding (PQparameterStatus() returns NULL then).
+	 *	_stricmp()/_strnicmp() abort on a NULL argument.
+	 */
 	acp = GetACP();
 	if (acp >= 1251 && acp <= 1258)
 	{
-		if (stricmp(dbencoding, "SQL_ASCII") == 0)
+		if (dbencoding && stricmp(dbencoding, "SQL_ASCII") == 0)
 			return wenc;
 	}
 	switch (acp)
@@ -472,7 +519,7 @@ derive_locale_encoding(const char *dbencoding)
 			wenc = "WIN1256";
 			break;
 		case 1252:
-			if (strnicmp(dbencoding, "LATIN", 5) == 0)
+			if (dbencoding && strnicmp(dbencoding, "LATIN", 5) == 0)
 				break;
 			wenc = "WIN1252";
 			break;
@@ -508,6 +555,18 @@ derive_locale_encoding(const char *dbencoding)
 	}
 #endif /* WIN32 */
 	return wenc;
+}
+
+/*
+ *	The character set code corresponding to the current locale, i.e.
+ *	the encoding of the strings passed through the ANSI entry points.
+ */
+int
+derive_locale_encoding_code(void)
+{
+	const char *wenc = derive_locale_encoding(NULL_STRING);
+
+	return wenc ? pg_CS_code(wenc) : SQL_ASCII;
 }
 
 void encoded_str_constr(encoded_str *encstr, int ccsc, const char *str)

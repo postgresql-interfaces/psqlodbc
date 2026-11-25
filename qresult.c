@@ -53,6 +53,39 @@ QR_set_position(QResultClass *self, SQLLEN pos)
 	self->tupleField = self->backend_tuples + ((QR_get_rowstart_in_cache(self) + pos) * self->num_fields);
 }
 
+/*
+ *	Return the value of a field of a row in the tuple cache, or NULL when
+ *	the result has no such field. The server decides how many columns a
+ *	reply has: a reply with rows but no columns has no tuple storage at
+ *	all, and a reply with fewer columns than the caller expects has no
+ *	storage for the missing ones. Neither may be read.
+ *
+ *	tupleno is a cache index, which callers compute from the cursor
+ *	position with GIdx2CacheIdx() and which is negative when the position
+ *	lies before the rows now cached. Only the rows counted by
+ *	num_cached_rows hold values; the ones allocated beyond that count do
+ *	not, so a row outside the count has no field to return either.
+ */
+void *
+QR_get_value_backend_row(const QResultClass *self, SQLLEN tupleno, int fieldno)
+{
+	if (NULL == self->backend_tuples ||
+	    fieldno < 0 || fieldno >= (int) self->num_fields ||
+	    tupleno < 0 || (SQLULEN) tupleno >= self->num_cached_rows)
+		return NULL;
+	return self->backend_tuples[tupleno * self->num_fields + fieldno].value;
+}
+
+int
+QR_get_value_backend_int(const QResultClass *self, SQLLEN tupleno, int fieldno, BOOL *isNull)
+{
+	const char *value = QR_get_value_backend_row(self, tupleno, fieldno);
+
+	if (isNull)
+		*isNull = (NULL == value);
+	return value ? pg_atoi(value) : 0;
+}
+
 
 void
 QR_set_cache_size(QResultClass *self, SQLLEN cache_size)
@@ -232,6 +265,7 @@ QR_Constructor(void)
 		rv->move_direction = 0;
 		rv->keyset = NULL;
 		rv->reload_count = 0;
+		rv->reload_serial = 0;
 		rv->rb_alloc = 0;
 		rv->rb_count = 0;
 		rv->dataFilled = FALSE;
@@ -260,30 +294,43 @@ void
 QR_close_result(QResultClass *self, BOOL destroy)
 {
 	ConnectionClass	*conn;
-	QResultClass *next;
+	QResultClass *res, *next;
 	BOOL	top = TRUE;
 
 	if (!self)	return;
 	MYLOG(0, "entering\n");
 
-	while(self)
+	/*
+	 * First close the cursors and release the cached rows of the whole
+	 * chain.  This may talk to the server (close "cursor", DEALLOCATE of
+	 * a keyset plan), and a reply which ends the transaction or the
+	 * connection makes CC_on_commit()/CC_on_abort() walk the first result
+	 * of every statement of the connection.  The statement still points
+	 * to the head of this chain, so every result of the chain must stay
+	 * allocated until every round trip is over.
+	 */
+	for (res = self; res; res = QR_nextr(res))
 	{
 		/*
 		 * If conn is defined, then we may have used "backend_tuples", so in
 		 * case we need to, free it up.  Also, close the cursor.
 		 */
-		if ((conn = QR_get_conn(self)) && conn->pqconn)
+		if ((conn = QR_get_conn(res)) && conn->pqconn)
 		{
-			if (CC_is_in_trans(conn) || QR_is_withhold(self))
+			if (CC_is_in_trans(conn) || QR_is_withhold(res))
 			{
-				if (!QR_close(self))	/* close the cursor if there is one */
+				if (!QR_close(res))	/* close the cursor if there is one */
 				{
 				}
 			}
 		}
 
-		QR_free_memory(self);		/* safe to call anyway */
+		QR_free_memory(res);		/* safe to call anyway */
+	}
 
+	/* Free the results of the chain. This loop must not talk to the server. */
+	while(self)
+	{
 		/*
 		 * Should have been freed in the close() but just in case...
 		 * QR_set_cursor clears the cursor name of all the chained results too,
@@ -487,6 +534,7 @@ QR_free_memory(QResultClass *self)
 {
 	SQLLEN		num_backend_rows = self->num_cached_rows;
 	int		num_fields = self->num_fields;
+	ConnectionClass	*conn = NULL;
 
 	MYLOG(0, "entering fcount=" FORMAT_LEN "\n", num_backend_rows);
 
@@ -501,30 +549,19 @@ QR_free_memory(QResultClass *self)
 	}
 	if (self->keyset)
 	{
-		ConnectionClass	*conn = QR_get_conn(self);
-
 		free(self->keyset);
 		self->keyset = NULL;
 		self->count_keyset_allocated = 0;
-		if (self->reload_count > 0 && conn && conn->pqconn)
-		{
-			char	plannm[32];
-
-			SPRINTF_FIXED(plannm, "_KEYSET_%p", self);
-			if (CC_is_in_error_trans(conn))
-			{
-				CC_mark_a_object_to_discard(conn, 's',plannm);
-			}
-			else
-			{
-				QResultClass	*res;
-				char		cmd[64];
-
-				SPRINTF_FIXED(cmd, "DEALLOCATE \"%s\"", plannm);
-				res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
-				QR_Destructor(res);
-			}
-		}
+		/*
+		 * The keyset plan is deallocated at the end of this function,
+		 * once the result is completely reset. This result is usually
+		 * still attached to its statement and processing the reply of
+		 * CC_send_query() may call ProcessRollback() (via CC_on_commit()
+		 * or CC_on_abort()) which must not find the rollback info and
+		 * the row counts still describing the arrays freed here.
+		 */
+		if (self->reload_count > 0)
+			conn = QR_get_conn(self);
 		self->reload_count = 0;
 	}
 	if (self->rollback)
@@ -586,9 +623,53 @@ QR_free_memory(QResultClass *self)
 	self->cursTuple = -1;
 	self->pstatus = 0;
 
+	if (conn && conn->pqconn)
+	{
+		char	plannm[32];
+
+		SPRINTF_FIXED(plannm, "_KEYSET_%u", self->reload_serial);
+		if (CC_is_in_error_trans(conn))
+		{
+			CC_mark_a_object_to_discard(conn, 's',plannm);
+		}
+		else
+		{
+			QResultClass	*res;
+			char		cmd[64];
+
+			SPRINTF_FIXED(cmd, "DEALLOCATE \"%s\"", plannm);
+			res = CC_send_query(conn, cmd, NULL, IGNORE_ABORT_ON_CONN | ROLLBACK_ON_ERROR, NULL);
+			QR_Destructor(res);
+		}
+	}
+
 	MYLOG(0, "leaving\n");
 }
 
+
+/*
+ * The atttypmod that a result's column info keeps for a column of type
+ * adtid whose typmod the server reported as atttypmod: the typmod without
+ * its 4-byte header, or -1 when that is negative. The typmod of the
+ * date and time types listed here has no header.
+ */
+static Int4
+column_info_atttypmod(OID adtid, Int4 atttypmod)
+{
+	switch (adtid)
+	{
+		case PG_TYPE_DATETIME:
+		case PG_TYPE_TIMESTAMP_NO_TMZONE:
+		case PG_TYPE_TIME:
+		case PG_TYPE_TIME_WITH_TMZONE:
+			break;
+		default:
+			atttypmod -= 4;
+	}
+	if (atttypmod < 0)
+		atttypmod = -1;
+	return atttypmod;
+}
 
 BOOL
 QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn, const char *cursor, PGresult **pgres)
@@ -611,6 +692,23 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		/* First, get column information */
 		QR_set_conn(self, conn);
 
+	/*
+	 * Name the cursor on the result before anything below can fail. The
+	 * server has declared it already, and QR_close() closes a cursor only
+	 * for a result that carries its name; a result that failed before
+	 * being given the name leaves the cursor open until the transaction
+	 * ends, and the next statement that declares the same name is refused
+	 * with 42P03. Rolling back to the statement's SAVEPOINT hides that,
+	 * so it shows only with Protocol=7.4-0, which does not roll back.
+	 *
+	 * Only a result without a cursor is named here, which merely stores
+	 * the name. The call at the end of this function handles a result that
+	 * is reused for a different cursor, where dropping the old name also
+	 * resets the tuple counter that reading the rows below maintains.
+	 */
+	if (NULL != cursor && NULL == QR_get_cursor(self))
+		QR_set_cursor(self, cursor);
+
 	/* at first read in the number of fields that are in the query */
 	new_num_fields = PQnfields(*pgres);
 	QLOG(0, "\tnFields: %d\n", new_num_fields);
@@ -630,6 +728,39 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		QR_set_message(self, "backend result column count changed across fetches");
 		return FALSE;
 	}
+	/*
+	 * Nor do the column types: the application sized its buffers for the
+	 * types it was told, and SQL_C_DEFAULT conversions follow these.
+	 * Compare with the descriptions below before they are replaced.
+	 */
+	if (self->count_backend_allocated > 0)
+	{
+		for (lf = 0; lf < new_num_fields; lf++)
+		{
+			new_adtid = (OID) PQftype(*pgres, lf);
+			new_atttypmod = column_info_atttypmod(new_adtid, (Int4) PQfmod(*pgres, lf));
+			if (new_adtid != CI_get_oid(QR_get_fields(self), lf) ||
+			    new_atttypmod != CI_get_atttypmod(QR_get_fields(self), lf))
+			{
+				QR_set_rstatus(self, PORES_FATAL_ERROR);
+				QR_set_message(self, "backend result column types changed across fetches");
+				return FALSE;
+			}
+		}
+	}
+
+	/*
+	 * num_fields is unsigned; a keyset reply with fewer columns than the
+	 * key fields would wrap it and later reads would run far past the row
+	 * buffer. Check the column count itself, before the per-column loop
+	 * below: a reply without any column never enters that loop.
+	 */
+	if (QR_haskeyset(self) && new_num_fields < (int) self->num_key_fields)
+	{
+		QR_set_rstatus(self, PORES_FATAL_ERROR);
+		QR_set_message(self, "backend result has fewer columns than key fields");
+		return FALSE;
+	}
 
 	/* according to that allocate memory */
 	QR_set_num_fields(self, new_num_fields);
@@ -644,21 +775,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		new_attid = PQftablecol(*pgres, lf);
 		new_adtid = (OID) PQftype(*pgres, lf);
 		new_adtsize = (Int2) PQfsize(*pgres, lf);
-		new_atttypmod = (Int4) PQfmod(*pgres, lf);
-
-		/* Subtract the header length */
-		switch (new_adtid)
-		{
-			case PG_TYPE_DATETIME:
-			case PG_TYPE_TIMESTAMP_NO_TMZONE:
-			case PG_TYPE_TIME:
-			case PG_TYPE_TIME_WITH_TMZONE:
-				break;
-			default:
-				new_atttypmod -= 4;
-		}
-		if (new_atttypmod < 0)
-			new_atttypmod = -1;
+		new_atttypmod = column_info_atttypmod(new_adtid, (Int4) PQfmod(*pgres, lf));
 
 		QLOG(0, "\tfieldname='%s', adtid=%d, adtsize=%d, atttypmod=%d (rel,att)=(%d,%d)\n", new_field_name, new_adtid, new_adtsize, new_atttypmod, new_relid, new_attid);
 
@@ -667,20 +784,7 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 		QR_set_rstatus(self, PORES_FIELDS_OK);
 		self->num_fields = CI_get_num_fields(QR_get_fields(self));
 		if (QR_haskeyset(self))
-		{
-			/*
-			 * num_fields is unsigned; a keyset reply with fewer columns
-			 * than the key fields would wrap it and later reads would run
-			 * far past the row buffer.
-			 */
-			if (self->num_fields < self->num_key_fields)
-			{
-				QR_set_rstatus(self, PORES_FATAL_ERROR);
-				QR_set_message(self, "backend result has fewer columns than key fields");
-				return FALSE;
-			}
 			self->num_fields -= self->num_key_fields;
-		}
 		if (stmt && conn)
 		{
 			num_io_params = CountParameters(stmt, NULL, &dummy1, &dummy2);
@@ -694,8 +798,14 @@ QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn
 					if (i < stmt->proc_return)
 						ipdopts->parameters[i].paramType = SQL_PARAM_OUTPUT;
 					paramType =ipdopts->parameters[i].paramType;
-					if (SQL_PARAM_OUTPUT == paramType ||
-						SQL_PARAM_INPUT_OUTPUT == paramType)
+					/*
+					 * The server may return fewer columns than the
+					 * statement has output parameters; don't read
+					 * column types past the end of the field array.
+					 */
+					if ((SQL_PARAM_OUTPUT == paramType ||
+						 SQL_PARAM_INPUT_OUTPUT == paramType) &&
+						cidx < CI_get_num_fields(QR_get_fields(self)))
 					{
 MYLOG(DETAIL_LOG_LEVEL, "[%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(self), cidx));
 						PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(self), cidx));
@@ -805,6 +915,13 @@ MYLOG(DETAIL_LOG_LEVEL, " Case I CC_send_query %s flag=%x\n", buf, flag);
 			QR_Destructor(res);
 			if (does_commit)
 			{
+				/*
+				 * The cursor is closed at this point. Forget its name before
+				 * CC_commit(), whose CC_close_eof_cursors() would
+				 * otherwise find this result still holding a cursor
+				 * and call QR_close() for it again, without end.
+				 */
+				QR_set_cursor(self, NULL);
 				if (!CC_commit(conn))
 				{
 					QR_set_rstatus(self, PORES_FATAL_ERROR);
@@ -844,40 +961,42 @@ static BOOL
 QR_prepare_for_tupledata(QResultClass *self)
 {
 	BOOL	haskeyset = QR_haskeyset(self);
-	SQLULEN num_total_rows = QR_get_num_total_tuples(self);
 
 MYLOG(DETAIL_LOG_LEVEL, "entering %p->num_fields=%d\n", self, self->num_fields);
-	if (!QR_get_cursor(self))
+	/*
+	 * The next tuple is stored at index num_cached_rows (and its key at
+	 * num_cached_keys), whether or not the result has a cursor. Check
+	 * those write indexes, not num_total_read: when the cursor is closed
+	 * while rows are still cached the two differ, and a server may also
+	 * answer a FETCH with more rows than were requested and sized for.
+	 */
+	if (self->num_fields > 0 &&
+	    self->num_cached_rows >= self->count_backend_allocated)
 	{
+		SQLLEN	tuple_size = self->count_backend_allocated;
 
-		if (self->num_fields > 0 &&
-		    num_total_rows >= self->count_backend_allocated)
-		{
-			SQLLEN	tuple_size = self->count_backend_allocated;
+		MYLOG(0, "REALLOC: old_count = " FORMAT_LEN ", size = " FORMAT_SIZE_T "\n", tuple_size, (size_t) (self->num_fields * sizeof(TupleField) * tuple_size));
+		if (tuple_size < 1)
+			tuple_size = TUPLE_MALLOC_INC;
+		else
+			tuple_size *= 2;
+		QR_REALLOC_return_with_error(self->backend_tuples, TupleField, tuple_size * self->num_fields * sizeof(TupleField), self, "Out of memory while reading tuples.", FALSE);
+		self->count_backend_allocated = tuple_size;
+	}
+	if (haskeyset &&
+	    self->num_cached_keys >= self->count_keyset_allocated)
+	{
+		SQLLEN	tuple_size = self->count_keyset_allocated;
 
-			MYLOG(0, "REALLOC: old_count = " FORMAT_LEN ", size = " FORMAT_SIZE_T "\n", tuple_size, (size_t) (self->num_fields * sizeof(TupleField) * tuple_size));
-			if (tuple_size < 1)
-				tuple_size = TUPLE_MALLOC_INC;
-			else
-				tuple_size *= 2;
-			QR_REALLOC_return_with_error(self->backend_tuples, TupleField, tuple_size * self->num_fields * sizeof(TupleField), self, "Out of memory while reading tuples.", FALSE);
-			self->count_backend_allocated = tuple_size;
-		}
-		if (haskeyset &&
-		    self->num_cached_keys >= self->count_keyset_allocated)
-		{
-			SQLLEN	tuple_size = self->count_keyset_allocated;
-
-			if (tuple_size < 1)
-				tuple_size = TUPLE_MALLOC_INC;
-			else
-				tuple_size *= 2;
-			QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * tuple_size, self, "Out of mwmory while allocating keyset", FALSE);
-			pg_memset(&self->keyset[self->count_keyset_allocated],
-				   0,
-				   (tuple_size - self->count_keyset_allocated) * sizeof(KeySet));
-			self->count_keyset_allocated = tuple_size;
-		}
+		if (tuple_size < 1)
+			tuple_size = TUPLE_MALLOC_INC;
+		else
+			tuple_size *= 2;
+		QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * tuple_size, self, "Out of mwmory while allocating keyset", FALSE);
+		pg_memset(&self->keyset[self->count_keyset_allocated],
+			   0,
+			   (tuple_size - self->count_keyset_allocated) * sizeof(KeySet));
+		self->count_keyset_allocated = tuple_size;
 	}
 	return TRUE;
 }
@@ -914,6 +1033,8 @@ static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *m
 	alloc = self->count_keyset_allocated;
 	if (QR_haskeyset(self) && ((alloc_req = (Int4)self->num_cached_keys + add_size) > alloc || !self->keyset))
 	{
+		size_t	old_alloc = self->keyset ? alloc : 0;
+
 		if (1 > alloc)
 		{
 			if (curs)
@@ -930,6 +1051,8 @@ static SQLLEN enlargeKeyCache(QResultClass *self, SQLLEN add_size, const char *m
 		}
 		self->count_keyset_allocated = 0;
 		QR_REALLOC_return_with_error(self->keyset, KeySet, sizeof(KeySet) * alloc, self, message, -1);
+		/* clear the new entries, as QR_prepare_for_tupledata() does */
+		pg_memset(&self->keyset[old_alloc], 0, (alloc - old_alloc) * sizeof(KeySet));
 		self->count_keyset_allocated = alloc;
 	}
 	return alloc;
@@ -1081,6 +1204,21 @@ MYLOG(DETAIL_LOG_LEVEL, "moved=" FORMAT_ULEN " ? " FORMAT_ULEN "\n", moved, move
 					}
 				}
 			}
+		}
+		/*
+		 * The count in the MOVE tag must leave the wanted row among the
+		 * rows the following fetch returns, otherwise the cache offset
+		 * computed below is negative and tupleField would point in front
+		 * of the row cache. An honest server answers a backward move with
+		 * too small a count when the cursor's query has a volatile filter
+		 * (the rows no longer match on the backward scan); a hostile
+		 * server can report any count.
+		 */
+		if (QR_is_moving_backward(self) ? moved < self->move_offset : moved > self->move_offset)
+		{
+			QR_Destructor(mres);
+			SC_set_error(stmt, STMT_EXEC_ERROR, "the cursor moved an unexpected number of rows", func);
+			RETURN(FALSE)
 		}
 		/* ... by the following call */
 		QR_set_rowstart_in_cache(self, -1);
@@ -1317,7 +1455,7 @@ MYLOG(DETAIL_LOG_LEVEL, "will add " FORMAT_LEN " added_tuples from " FORMAT_LEN 
 				}
 			}
 		}
-		for (i = self->up_count - 1; i >= 0; i--)
+		for (i = (SQLLEN) self->up_count - 1; i >= 0; i--)
 		{
 			if (hidx > updated[i] &&
 			    lidx <= updated[i])
@@ -1411,7 +1549,8 @@ nextrow:
 		{
 			/* this_keyset = self->keyset + self->cursTuple + 1; */
 			this_keyset = self->keyset + self->num_cached_keys;
-			this_keyset->status = 0;
+			/* the oid is only set below when the query has an oid column */
+			pg_memset(this_keyset, 0, sizeof(KeySet));
 		}
 
 		QLOG(TUPLE_LOG_LEVEL, "\t");
@@ -1423,8 +1562,29 @@ nextrow:
 
 			if (isnull)
 			{
-				this_tuplefield[field_lf].len = 0;
-				this_tuplefield[field_lf].value = 0;
+				if (field_lf >= effective_cols)
+				{
+					/*
+					 * Key columns (ctid, oid) have no slot in the row
+					 * cache; clear the key instead of writing past the
+					 * end of the row.
+					 */
+					if (NULL != this_keyset)
+					{
+						if (field_lf == effective_cols)
+						{
+							this_keyset->blocknum = 0;
+							this_keyset->offset = 0;
+						}
+						else
+							this_keyset->oid = 0;
+					}
+				}
+				else
+				{
+					this_tuplefield[field_lf].len = 0;
+					this_tuplefield[field_lf].value = 0;
+				}
 				QPRINTF(TUPLE_LOG_LEVEL, " (null)");
 				continue;
 			}

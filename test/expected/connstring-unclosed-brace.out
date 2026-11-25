@@ -1,0 +1,5 @@
+closed: connected, application_name=[]
+unclosed: rejected
+08001=Connection string parse error
+unclosed after escaped brace: rejected
+08001=Connection string parse error

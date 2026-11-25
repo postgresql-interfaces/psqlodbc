@@ -277,7 +277,8 @@ SQLGetDescFieldW(SQLHDESC hdesc, SQLSMALLINT iRecord, SQLSMALLINT iField,
 			if (SQL_SUCCEEDED(ret))
 			{
 				blen = (SQLINTEGER) utf8_to_ucs2(rgbV, blen, (SQLWCHAR *) rgbValue, cbValueMax / WCLEN);
-				if (SQL_SUCCESS == ret && blen * WCLEN >= cbValueMax)
+				/* in characters: an odd byte count holds whole ones only */
+				if (SQL_SUCCESS == ret && blen >= cbValueMax / WCLEN)
 				{
 					ret = SQL_SUCCESS_WITH_INFO;
 					DC_set_error(hdesc, STMT_TRUNCATED, "The buffer was too small for the rgbDesc.");
@@ -332,7 +333,10 @@ SQLGetDiagRecW(SQLSMALLINT fHandleType,
 			if (ulen == (SQLULEN) -1)
 				tlen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) szErrorMsg, mtxt, cbErrorMsgMax, FALSE);
 			else
+			{
+				ucs2_terminate_output(szErrorMsg, cbErrorMsgMax, ulen);
 				tlen = (SQLSMALLINT) ulen;
+			}
 			if (tlen >= cbErrorMsgMax)
 				ret = SQL_SUCCESS_WITH_INFO;
 			else if (tlen < 0)
@@ -411,7 +415,8 @@ SQLColAttributeW(SQLHSTMT	hstmt,
 			if (SQL_SUCCEEDED(ret))
 			{
 				blen = (SQLSMALLINT) utf8_to_ucs2(rgbD, blen, (SQLWCHAR *) pCharAttr, cbCharAttrMax / WCLEN);
-				if (SQL_SUCCESS == ret && blen * WCLEN >= cbCharAttrMax)
+				/* in characters: an odd byte count holds whole ones only */
+				if (SQL_SUCCESS == ret && blen >= cbCharAttrMax / WCLEN)
 				{
 					ret = SQL_SUCCESS_WITH_INFO;
 					SC_set_error(stmt, STMT_TRUNCATED, "The buffer was too small for the pCharAttr.", func);
@@ -483,8 +488,12 @@ SQLGetDiagFieldW(SQLSMALLINT	fHandleType,
 				if (ulen == (SQLULEN) -1)
 					blen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) rgbDiagInfo, rgbD, cbDiagInfoMax / WCLEN, FALSE);
 				else
+				{
+					ucs2_terminate_output((SQLWCHAR *) rgbDiagInfo, cbDiagInfoMax / WCLEN, ulen);
 					blen = (SQLSMALLINT) ulen;
-				if (SQL_SUCCESS == ret && blen * WCLEN >= cbDiagInfoMax)
+				}
+				/* in characters: an odd byte count holds whole ones only */
+				if (SQL_SUCCESS == ret && blen >= cbDiagInfoMax / WCLEN)
 					ret = SQL_SUCCESS_WITH_INFO;
 				if (pcbDiagInfo)
 				{
@@ -565,7 +574,10 @@ SQLGetDescRecW(SQLHDESC DescriptorHandle,
 				/* Fall back to locale-based conversion if UTF-8 conversion fails */
 				nlen = (SQLSMALLINT) locale_to_sqlwchar((SQLWCHAR *) Name, NameA, BufferLength, FALSE);
 			else
+			{
+				ucs2_terminate_output(Name, BufferLength, ulen);
 				nlen = (SQLSMALLINT) ulen;
+			}
 
 			/* If the name was truncated, return success with info */
 			if (nlen >= BufferLength)

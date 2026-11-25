@@ -20,9 +20,12 @@ printhex(unsigned char *b, int len)
 /*
  * Insert a large object to table, using a data-at-exec param. Then read it
  * back and print.
+ *
+ * 'ctype' is the C type the parameter is bound and sent with. For
+ * SQL_C_CHAR, 'lobData' holds the data as a hexadecimal string.
  */
 static void
-do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
+do_test(HSTMT hstmt, int testno, SQLSMALLINT ctype, int lobByteSize, char *lobData)
 {
 	char		sql[200];
 	int			rc;
@@ -31,7 +34,8 @@ do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
 	SQLLEN		ind;
 
 	/**** Insert a Large Object */
-	printf("inserting large object with len %d...\n", lobByteSize);
+	printf("inserting large object with len %d as %s...\n", lobByteSize,
+		   ctype == SQL_C_CHAR ? "SQL_C_CHAR" : "SQL_C_BINARY");
 	snprintf(sql, sizeof(sql),
 			 "INSERT INTO lo_test_tab VALUES (%d, ?)", testno);
 	rc = SQLPrepare(hstmt, (SQLCHAR *) sql, SQL_NTS);
@@ -40,7 +44,7 @@ do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
 	/* bind LO param as a data at execution parameter */
 	cbParam1 = SQL_DATA_AT_EXEC;
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT,
-						  SQL_C_BINARY,	/* value type */
+						  ctype,		/* value type */
 						  SQL_LONGVARBINARY,	/* param type */
 						  0,			/* column size */
 						  0,			/* dec digits */
@@ -112,8 +116,8 @@ do_test(HSTMT hstmt, int testno, int lobByteSize, char *lobData)
 	rc = SQLFetch(hstmt);
 	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
 
-	buf = malloc(lobByteSize * 2);
-	rc = SQLGetData(hstmt, 2, SQL_C_BINARY, buf, lobByteSize * 2, &ind);
+	buf = malloc(lobByteSize * 2 + 1);
+	rc = SQLGetData(hstmt, 2, SQL_C_BINARY, buf, lobByteSize * 2 + 1, &ind);
 	CHECK_STMT_RESULT(rc, "SQLGetData failed", hstmt);
 
 	printhex(buf, (int) ind);
@@ -132,6 +136,7 @@ main(int argc, char **argv)
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 	char		param1[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 	char		param2[100];
+	char		param3[] = "48656C6C6F2C20776F726C6421";	/* "Hello, world!" */
 	int			i;
 
 	test_connect();
@@ -143,13 +148,20 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	do_test(hstmt, 101, sizeof(param1), param1);
+	do_test(hstmt, 101, SQL_C_BINARY, sizeof(param1), param1);
 
 	for (i = 0; i < sizeof(param2); i++)
 	{
 		param2[i] = i % 200;
 	}
-	do_test(hstmt, 102, sizeof(param2), param2);
+	do_test(hstmt, 102, SQL_C_BINARY, sizeof(param2), param2);
+
+	/*
+	 * Send the data as a hexadecimal string. SQLPutData() decodes it into
+	 * the large object, and the final SQLParamData() call then has no
+	 * buffer left to convert, which the driver must allow for.
+	 */
+	do_test(hstmt, 103, SQL_C_CHAR, (int) strlen(param3), param3);
 
 	/* Clean up */
 	test_disconnect();

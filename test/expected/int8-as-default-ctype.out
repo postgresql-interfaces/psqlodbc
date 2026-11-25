@@ -1,0 +1,6 @@
+connected
+SELECT 42::int8: reported as INTEGER, buffer length 4
+ok value 42, length 4, bytes behind the SQLINTEGER: untouched
+SELECT 4294967297::int8: reported as INTEGER, buffer length 4
+error SQLSTATE=22003, bytes behind the SQLINTEGER: untouched
+disconnecting

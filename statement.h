@@ -252,7 +252,7 @@ struct StatementClass_
 	ProcessedStmt *processed_statements;
 
 	TABLE_INFO	**ti;
-	Int2		ntab;
+	Int4		ntab;
 	Int2		num_key_fields;
 	Int2		statement_type; /* According to the defines above */
 	Int2		num_params;
@@ -280,7 +280,16 @@ struct StatementClass_
 	po_ind_t	parse_method;	/* parse_statement is forced or ? */
 	po_ind_t	has_notice; /* exec result contains notice messages ? */
 	pgNAME		cursor_name;
+	/*
+	 * The default C type of each result column as SQLDescribeCol or
+	 * SQLColAttribute reported it, 0 where neither did. An SQL_C_DEFAULT
+	 * binding was sized for that type, so a fetch of a column whose
+	 * default C type differs must not convert into it.
+	 */
+	SQLSMALLINT	*described_ctype;
+	int		described_ctype_count;
 	char		*plan_name;
+	UInt4		name_serial;	/* names _PLANn and SQL_CURn; see CC_get_name_serial() */
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
@@ -504,6 +513,23 @@ BOOL		SC_opencheck(StatementClass *self, const char *func);
 RETCODE		SC_initialize_and_recycle(StatementClass *self);
 void		SC_initialize_cols_info(StatementClass *self, BOOL DCdestroy, BOOL parseReset);
 void		SC_reset_result_for_rerun(StatementClass *self);
+void		SC_set_described_ctype(StatementClass *self, int col, SQLSMALLINT ctype);
+SQLSMALLINT	SC_get_described_ctype(const StatementClass *self, int col);
+void		SC_clear_described_ctype(StatementClass *self);
+/*
+ * A name argument of a catalog function. The function sets name, len and
+ * catalog; SC_fold_catalog_names() sets the other members.
+ */
+typedef struct
+{
+	const SQLCHAR	*name;		/* the name to search for */
+	SQLLEN		len;		/* its length in bytes, or SQL_NTS */
+	BOOL		catalog;	/* a catalog name, which is not searched for */
+	SQLCHAR		*allocated;	/* the buffer of name, if not the argument's */
+	BOOL		unfoldable;	/* an identifier the driver can't fold */
+} CatalogNameArg;
+BOOL		SC_fold_catalog_names(StatementClass *self, CatalogNameArg *names, int nnames);
+RETCODE		SC_finish_catalog_names(StatementClass *self, RETCODE ret, CatalogNameArg *names, int nnames);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
 char		parse_sqlsvr(StatementClass *stmt);
@@ -574,8 +600,8 @@ BOOL	CheckPgClassInfo(StatementClass *);
 /* a relative index in a rowset to the global index */
 #define	RowIdx2GIdx(ridx, stmt)	(ridx + (stmt)->rowset_start)
 /* a relative index in a resultset to the global index */
-#define	CacheIdx2GIdx(ridx, stmt, res)	(ridx - (res)->base + (stmt)->rowset_start)
-#define	KResIdx2GIdx(ridx, stmt, res)	(ridx - (res)->key_base + (stmt)->rowset_start)
+#define	CacheIdx2GIdx(ridx, stmt, res)	(ridx + (QR_has_valid_base(res) ? ((stmt)->rowset_start - (res)->base) : 0))
+#define	KResIdx2GIdx(ridx, stmt, res)	(ridx + (QR_has_valid_base(res) ? ((stmt)->rowset_start - (res)->key_base) : 0))
 
 #define	BOOKMARK_SHIFT	1
 #define	SC_make_int4_bookmark(b)	((b < 0) ? (b) : (b + BOOKMARK_SHIFT))

@@ -1,0 +1,21 @@
+connected
+-- fetch, then add
+fetched: 1 note 1
+added and committed: buy milk
+deleted: buy milk
+adding note 7 failed
+23505=ERROR: duplicate key value violates unique constraint "bulkadd_notes_note_key"
+DETAIL: Key (note)=(note 7) already exists.;
+Error while executing the query
+rolled back
+fetched by bookmark: 101 buy milk
+-- add before the first fetch
+added and committed: buy milk
+deleted: buy milk
+adding note 7 failed
+23505=ERROR: duplicate key value violates unique constraint "bulkadd_notes_note_key"
+DETAIL: Key (note)=(note 7) already exists.;
+Error while executing the query
+rolled back
+fetched by bookmark: 101 buy milk
+disconnecting

@@ -100,6 +100,38 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
 	/*
+	 * After one COPY of a query string ends, the server starts the next,
+	 * so the driver must end each of them and keep the connection.
+	 */
+	printf("Testing two COPY FROM STDIN in one SQLExecDirect...\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "COPY testtab1 FROM STDIN; COPY testtab1 FROM STDIN", SQL_NTS);
+	if (!SQL_SUCCEEDED(rc))
+		print_diag("", SQL_HANDLE_STMT, hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	printf("Testing two COPY TO STDOUT in one SQLExecDirect...\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "COPY (SELECT 1) TO STDOUT; COPY (SELECT 1) TO STDOUT", SQL_NTS);
+	if (!SQL_SUCCEEDED(rc))
+		print_diag("", SQL_HANDLE_STMT, hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*
+	 * A rejected COPY must not leave anything behind on the statement
+	 * handle. An empty statement, which yields no result at all, is just
+	 * an error, like on a fresh handle.
+	 */
+	printf("Testing an empty statement after a rejected COPY...\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "", SQL_NTS);
+	printf("%s\n", SQL_SUCCEEDED(rc) ? "succeeded unexpectedly" : "failed as expected");
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*
 	 * Same with SQLPrepare/SQLExecute. The statement itself parses fine, so
 	 * the rejection only happens once the server reports copy-in at execute
 	 * time.
@@ -118,7 +150,10 @@ int main(int argc, char **argv)
 
 	/*
 	 * A COPY naming a column called "stdin" is a perfectly ordinary
-	 * file-based COPY and must not be caught by the check above.
+	 * file-based COPY and must not be caught by the check above. The
+	 * server refuses its relative path on every platform, which shows
+	 * that the driver passed the statement on: the driver's own refusal
+	 * is HYC00.
 	 */
 	printf("Testing that a column named stdin is not mistaken for COPY FROM STDIN...\n");
 	rc = SQLExecDirect(hstmt, (SQLCHAR *) "CREATE TEMPORARY TABLE copy_stdin_col (stdin text, id int)", SQL_NTS);
@@ -127,8 +162,18 @@ int main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
-	rc = SQLExecDirect(hstmt, (SQLCHAR *) "COPY copy_stdin_col (stdin, id) TO '/dev/null'", SQL_NTS);
-	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "COPY copy_stdin_col (stdin, id) TO 'copy_stdin_col.out'", SQL_NTS);
+	if (SQL_SUCCEEDED(rc))
+		printf("COPY to a relative path succeeded\n");
+	else
+		print_diag("", SQL_HANDLE_STMT, hstmt);
+
+	/*
+	 * With Protocol=7.4-0 the driver leaves the transaction that error
+	 * aborted; end it, so the check below tests the connection.
+	 */
+	rc = SQLEndTran(SQL_HANDLE_DBC, conn, SQL_ROLLBACK);
+	CHECK_CONN_RESULT(rc, "SQLEndTran failed", conn);
 
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);

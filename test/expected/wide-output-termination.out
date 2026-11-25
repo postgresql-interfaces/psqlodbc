@@ -1,0 +1,18 @@
+connected
+SQLDescribeColW, 9 characters: whole string, SQL_SUCCESS, whole length reported
+SQLDescribeColW, 8 characters: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLDescribeColW, 4 characters: lost 5, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLColAttributeW, 18 bytes: whole string, SQL_SUCCESS, whole length reported
+SQLColAttributeW, 16 bytes: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLColAttributeW, 9 bytes: lost 5, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLGetCursorNameW, 9 characters: whole string, SQL_SUCCESS, whole length reported
+SQLGetCursorNameW, 8 characters: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLNativeSqlW, 9 characters: whole string, SQL_SUCCESS, whole length reported
+SQLNativeSqlW, 8 characters: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLGetInfoW(SQL_DBMS_NAME), 22 bytes: whole string, SQL_SUCCESS, whole length reported
+SQLGetInfoW(SQL_DBMS_NAME), 20 bytes: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLGetInfoW(SQL_DBMS_NAME), 7 bytes: lost 8, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLGetConnectAttrW(SQL_ATTR_CURRENT_CATALOG), room for the terminator: whole string, SQL_SUCCESS, whole length reported
+SQLGetConnectAttrW(SQL_ATTR_CURRENT_CATALOG), an exact fit: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+SQLGetConnectAttrW(SQL_ATTR_CURRENT_CATALOG), an odd byte count: lost 1, SQL_SUCCESS_WITH_INFO, whole length reported
+disconnecting

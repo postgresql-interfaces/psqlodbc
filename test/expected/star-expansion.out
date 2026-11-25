@@ -1,0 +1,11 @@
+connected
+two tables: fetched 4 rows
+star over 33000 columns: execute failed
+
+54011=ERROR: target lists can have at most 1664 entries;
+Error while executing the query
+32770 listed columns: execute failed
+
+54011=ERROR: target lists can have at most 1664 entries;
+Error while executing the query
+disconnecting

@@ -1,0 +1,6 @@
+connected
+statement 1 (testtab1 named 32767 times): 1 result columns
+statement 2 (SELECT id FROM testtab1): 1 result columns
+freed statement 2
+freed statement 1
+disconnecting

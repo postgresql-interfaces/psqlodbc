@@ -1,0 +1,5 @@
+connected
+7000 ids, SQLNumResultCols: 1 column(s)
+7000 ids, SQLExecute: 10 row(s)
+32769 ids, SQLNumResultCols: error SQLSTATE=HY000
+disconnecting

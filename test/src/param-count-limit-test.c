@@ -1,9 +1,10 @@
 /*
  * Test the limits on parameter numbers and descriptor counts.  The driver
  * keeps parameter binding counts in SQLSMALLINT, so SQLBindParameter with a
- * parameter number above 32767, or SQL_DESC_COUNT set negative, used to
- * wrap the count negative and make the next binding write zeros before the
- * start of the bindings array.
+ * parameter number above 32767, or SQL_DESC_COUNT set negative (or to a
+ * value such as 32768 or 65535 that is negative as SQLSMALLINT), must be
+ * refused: stored, it wraps the count negative and makes the next binding
+ * write zeros before the start of the bindings array.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,9 +86,13 @@ run_with_params(int nparams)
 	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
 }
 
-/* Set SQL_DESC_COUNT of the statement's APD or IPD to -1, then bind */
+/*
+ * Set SQL_DESC_COUNT of the statement's APD or IPD to count, then bind.
+ * The driver manager may reject -1 itself, but 32768 and 65535 reach the
+ * driver and are negative once truncated to SQLSMALLINT.
+ */
 static void
-negative_desc_count(SQLINTEGER desc_attr, const char *desc_name)
+negative_desc_count(SQLINTEGER desc_attr, const char *desc_name, SQLLEN count)
 {
 	SQLRETURN	rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
@@ -101,13 +106,13 @@ negative_desc_count(SQLINTEGER desc_attr, const char *desc_name)
 	rc = SQLGetStmtAttr(hstmt, desc_attr, &hdesc, 0, NULL);
 	CHECK_STMT_RESULT(rc, "SQLGetStmtAttr failed", hstmt);
 
-	rc = SQLSetDescField(hdesc, 0, SQL_DESC_COUNT, (SQLPOINTER) (SQLLEN) -1, 0);
-	snprintf(what, sizeof(what), "%s SQL_DESC_COUNT=-1", desc_name);
+	rc = SQLSetDescField(hdesc, 0, SQL_DESC_COUNT, (SQLPOINTER) count, 0);
+	snprintf(what, sizeof(what), "%s SQL_DESC_COUNT=%ld", desc_name, (long) count);
 	print_state(what, rc, SQL_HANDLE_DESC, hdesc);
 
 	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_SLONG,
 						  SQL_INTEGER, 0, 0, &one, 0, NULL);
-	snprintf(what, sizeof(what), "%s bind 1 after SQL_DESC_COUNT=-1", desc_name);
+	snprintf(what, sizeof(what), "%s bind 1 after SQL_DESC_COUNT=%ld", desc_name, (long) count);
 	print_state(what, rc, SQL_HANDLE_STMT, hstmt);
 
 	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
@@ -122,8 +127,12 @@ main(int argc, char **argv)
 
 	test_connect();
 
-	negative_desc_count(SQL_ATTR_APP_PARAM_DESC, "APD");
-	negative_desc_count(SQL_ATTR_IMP_PARAM_DESC, "IPD");
+	negative_desc_count(SQL_ATTR_APP_PARAM_DESC, "APD", -1);
+	negative_desc_count(SQL_ATTR_IMP_PARAM_DESC, "IPD", -1);
+	negative_desc_count(SQL_ATTR_APP_PARAM_DESC, "APD", 32768);
+	negative_desc_count(SQL_ATTR_IMP_PARAM_DESC, "IPD", 32768);
+	negative_desc_count(SQL_ATTR_APP_PARAM_DESC, "APD", 65535);
+	negative_desc_count(SQL_ATTR_IMP_PARAM_DESC, "IPD", 65535);
 
 	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
 	CHECK_CONN_RESULT(rc, "SQLAllocHandle failed", conn);

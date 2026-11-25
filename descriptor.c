@@ -57,18 +57,21 @@ void    TI_ClearObject(TABLE_INFO *ti)
 		{
 MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 			coli->refcnt--;
-			if (coli->refcnt <= 1 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
-			{
-				Int2 tmp_refcnt = coli->refcnt; /* If refcnt is still above 0, we must save it. */
-				free_col_info_contents(coli); /* Now coli object is unused, and may be reused later. */
-				coli->refcnt = tmp_refcnt;
-			}
+			/*
+			 * While coli object is in the connection COL_INFO cache table, the
+			 * cache holds its own reference to it, so refcnt cannot reach 0 here.
+			 * Once CC_clear_col_info() has released that reference (and set
+			 * acc_time to 0), every remaining reference belongs to some other
+			 * TABLE_INFO object, which may still use the contents. So the
+			 * contents must be freed only together with the object itself.
+			 */
 			if (coli->refcnt <= 0)
 			{
 				/* Last reference to coli object disappeared. Now destroying it. */
+				free_col_info_contents(coli);
 				free(coli);
-				ti->col_info = NULL;
 			}
+			ti->col_info = NULL;
 		}
 		NULL_THE_NAME(ti->schema_name);
 		NULL_THE_NAME(ti->table_name);
@@ -425,6 +428,11 @@ PGAPI_AllocDesc(HDBC ConnectionHandle,
 	if (desc)
 	{
 		pg_memset(desc, 0, sizeof(DescriptorClass));
+		/*
+		 * An explicit descriptor is used as an ARD or an APD, which share a
+		 * layout, so a rowset or parameter set size of 0 must not be left.
+		 */
+		InitializeARDFields(&(desc->ardf));
 		DC_get_conn(desc) = conn;
 		if (CC_add_descriptor(conn, desc))
 			*DescriptorHandle = desc;

@@ -1,0 +1,14 @@
+connected
+
+executed DROP VIEW IF EXISTS no_such_relation
+freed the first cursor
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: VARCHAR(20) digits: 0, nullable
+
+executed DROP TABLE IF EXISTS no_such_relation
+freed the first cursor
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: VARCHAR(20) digits: 0, nullable
+disconnecting

@@ -414,6 +414,18 @@ rundiff(const char *testname, const char *inputdir, int server_version)
 		{
 			for (d = 0; d < num_dirs; d++)
 			{
+				/*
+				 * Diff only against expected files that exist.  A missing
+				 * one (most tests have none in the version directory) makes
+				 * diff write nothing to tmpdiff, which would otherwise be
+				 * taken as "no difference" and pass the test.
+				 */
+				if (0 == i)
+					snprintf(filename, sizeof(filename), "%s%s%s.out", inputdir, dirs[d], testname);
+				else
+					snprintf(filename, sizeof(filename), "%s%s%s_%d.out", inputdir, dirs[d], testname, i);
+				if (stat(filename, &stbuf) != 0)
+					continue;
 				call_diff(inputdir, dirs[d], testname, i, result_dir, outfmt);
 				if ((fd = open(tmpdiff, O_RDONLY)) < 0)
 					continue;

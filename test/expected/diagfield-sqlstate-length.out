@@ -1,0 +1,6 @@
+connected
+SELECT 1/0 failed
+buffer of 6 bytes: "22012", whole length 5, bytes after the buffer untouched
+buffer of 4 bytes: "220", whole length 5, bytes after the buffer untouched
+buffer of 1 bytes: "", whole length 5, bytes after the buffer untouched
+disconnecting

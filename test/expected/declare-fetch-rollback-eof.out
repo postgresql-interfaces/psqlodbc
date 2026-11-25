@@ -1,0 +1,10 @@
+connected
+fetch 101 rows before the error
+failing query: SQLSTATE=22012
+fetched 150 of 150 rows
+then SQL_NO_DATA
+fetch 5 rows before the error
+failing query: SQLSTATE=22012
+fetched 5 of 150 rows
+then the fetch failed: SQLSTATE=07005
+disconnecting

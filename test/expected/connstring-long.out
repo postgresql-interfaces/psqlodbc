@@ -1,0 +1,3 @@
+short: connected, application_name=[]
+more than 32767 bytes: connected, application_name=[]
+more than 65535 bytes: connected, application_name=[]

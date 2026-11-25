@@ -233,7 +233,7 @@ do { \
 /*	This is used to store cached table information in the connection */
 struct col_info
 {
-	Int2		refcnt;
+	Int4		refcnt;
 	QResultClass	*result;
 	pgNAME		schema_name;
 	pgNAME		table_name;
@@ -294,8 +294,8 @@ struct ConnectionClass_
 	Int2		ncursors;
 	PGconn	   *pqconn;
 	Int4		lobj_type;
-	Int2		coli_allocated;
-	Int2		ntables;
+	Int4		coli_allocated;
+	Int4		ntables;
 	COL_INFO	**col_info;
 	long		translation_option;
 	HINSTANCE	translation_handle;
@@ -317,6 +317,7 @@ struct ConnectionClass_
 						 * really NULL, while FALSE means it's
 						 * unknown */
 	unsigned char	on_commit_in_progress;
+	unsigned char	rollback_in_progress;	/* ProcessRollback() is walking the rollback logs */
 	/* for per statement rollback */
 	char		internal_svp;		/* is set? */
 	char		internal_op;		/* operation being executed as to internal savepoint */
@@ -342,6 +343,7 @@ struct ConnectionClass_
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
 	SQLULEN		stmt_timeout_in_effect;
+	UInt4		name_serial;	/* last number handed out by CC_get_name_serial() */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 	CRITICAL_SECTION	slock;
@@ -437,13 +439,22 @@ void		ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial);
 const char	*CC_get_current_schema(ConnectionClass *conn);
 int             CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *plan);
 int             CC_discard_marked_objects(ConnectionClass *conn);
+UInt4		CC_get_name_serial(ConnectionClass *conn);
 void		CC_abort_copy(ConnectionClass *self);
 
 int		CC_get_max_idlen(ConnectionClass *self);
 char	CC_get_escape(const ConnectionClass *self);
 char *		identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize, BOOL double_quote);
+/*
+ * A buffer that holds the identifierEscape() output of any name the
+ * server accepts unchanged: every byte doubled, the two quotes and the
+ * NUL. See identifierEscape_fits().
+ */
+#define	ESCAPED_NAME_BUFSIZE	(2 * NAMESTORAGELEN + 4)
+BOOL		identifierEscape_fits(const char *src, size_t bufsize);
 int		findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token);
-int		eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema);
+int		eatTableIdentifiers(const UCHAR *str, const ConnectionClass *conn, pgNAME *table, pgNAME *schema);
+BOOL		CC_cannot_fold_identifier(const ConnectionClass *self, const char *name, size_t len);
 
 
 const		char *CurrCat(const ConnectionClass *self);
@@ -460,10 +471,9 @@ char	*schema_strcat1(char *buf, int buflen, const char *fmt, const char *s1,
 				const char *s,
 				const SQLCHAR *, int, ConnectionClass *conn);
 
-void	schema_appendPQExpBuffer(PQExpBufferData *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
-		BOOL table_is_valid, ConnectionClass *conn);
-void	schema_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt, const char *s1, const char *s,
-				BOOL table_is_valid, ConnectionClass *conn);
+void	schema_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt,
+			const char *s1, const char *curschema_cond, const char *s,
+			BOOL table_is_valid);
 
 void	CC_examine_global_transaction(ConnectionClass *self);
 

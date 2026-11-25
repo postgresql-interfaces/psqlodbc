@@ -787,17 +787,14 @@ static void set_server_decimal_point(char *num, SQLLEN len)
 
 	if ('.' == current_decimal_point)
 		return;
-	i = 0;
-	for (str = num; '\0' != *str; str++)
+	/* 'num' need not be null-terminated when a length is given */
+	for (i = 0, str = num; (len == SQL_NTS || i < len) && '\0' != *str; i++, str++)
 	{
 		if (*str == current_decimal_point)
 		{
 			*str = '.';
 			break;
 		}
-
-		if (len != SQL_NTS && i++ >= len)
-			break;
 	}
 }
 
@@ -840,7 +837,23 @@ copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, int atttyp
 	return copy_and_convert_field(stmt, field_type, atttypmod, value,
 		bic->returntype, bic->precision,
 		(PTR) (bic->buffer + offset), bic->buflen,
-		LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset));
+		LENADDR_SHIFT(bic->used, offset), LENADDR_SHIFT(bic->indicator, offset),
+		SC_get_described_ctype(stmt, col));
+}
+
+/*
+ * The C type that SQL_C_DEFAULT stands for with a column of this type.
+ */
+SQLSMALLINT
+default_ctype(const ConnectionClass *conn, OID type, int atttypmod)
+{
+	SQLSMALLINT	ctype = pgtype_attr_to_ctype(conn, type, atttypmod);
+
+#ifdef	UNICODE_SUPPORT
+	if (ctype == SQL_C_WCHAR && CC_default_is_c(conn))
+		ctype = SQL_C_CHAR;
+#endif /* UNICODE_SUPPORT */
+	return ctype;
 }
 
 /*
@@ -872,7 +885,13 @@ valid_int_literal(const char *str, SQLLEN len, BOOL *negative)
 	if (i == len || !(str[i] >= '0' && str[i] <= '9'))
 		return FALSE;
 
-	for (; str[i] && (len == SQL_NTS || i < len); i++)
+	/*
+	 * With an explicit length, every one of the 'len' bytes must be a
+	 * digit. In particular an embedded NUL byte must not end the check:
+	 * the whole 'len' bytes are copied into the query, which is then sent
+	 * as a C string, so anything after the NUL would be silently dropped.
+	 */
+	for (; (len == SQL_NTS) ? (str[i] != '\0') : (i < len); i++)
 	{
 		if (!(str[i] >= '0' && str[i] <= '9'))
 			return FALSE;
@@ -973,13 +992,13 @@ get_adjust_len(SQLSMALLINT fCType, SQLLEN len)
 
 static int
 setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
-	int *needbuflen_return, GetDataClass * const pgdc, const char *neut_str,
+	SQLLEN *needbuflen_return, GetDataClass * const pgdc, const char *neut_str,
 	const OID field_type, const SQLSMALLINT fCType,
 	const SQLLEN cbValueMax, const ConnectionClass * const conn)
 {
 	SQLLEN len = (-2);
 	const char *ptr = NULL;
-	int	needbuflen = 0;
+	SQLLEN	needbuflen = 0;	/* SQLLEN: values can exceed 2 GiB */
 	int	result = COPY_OK;
 
 	BOOL	lf_conv = conn->connInfo.lf_conversion;
@@ -990,7 +1009,7 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 
 #ifdef	UNICODE_SUPPORT
 	char	*allocbuf = NULL;
-	int	unicode_count = -1;
+	SQLLEN	unicode_count = -1;
 	BOOL	localize_needed = FALSE;
 	BOOL	hybrid = FALSE;
 #endif /* UNICODE_SUPPORT */
@@ -1046,7 +1065,19 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 		}
 		else	/* normally */
 		{
-			unicode_count = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, FALSE);
+			/*
+			 * errcheck must be TRUE for the test below to see anything:
+			 * with it FALSE the conversion reports an invalid lead byte
+			 * as a count of 0, and the value would reach the application
+			 * as an empty string with SQL_SUCCESS.
+			 */
+			unicode_count = utf8_to_ucs2_lf(neut_str, SQL_NTS, lf_conv, NULL, 0, TRUE);
+			/* (SQLULEN) -1 on an invalid lead byte */
+			if (unicode_count < 0)
+			{
+				result = COPY_INVALID_STRING_CONVERSION;
+				goto cleanup;
+			}
 		}
 		len = WCLEN * unicode_count;
 		already_processed = changed = TRUE;
@@ -1098,7 +1129,14 @@ setup_getdataclass(SQLLEN * const length_return, const char ** const ptr_return,
 	{
 		if (needbuflen + len_for_wcs_term > (SQLLEN) pgdc->ttlbuflen)
 		{
-			pgdc->ttlbuf = realloc(pgdc->ttlbuf, needbuflen + len_for_wcs_term);
+			char	*newbuf = realloc(pgdc->ttlbuf, needbuflen + len_for_wcs_term);
+
+			if (!newbuf)
+			{
+				result = COPY_GENERAL_ERROR;
+				goto cleanup;
+			}
+			pgdc->ttlbuf = newbuf;
 			pgdc->ttlbuflen = needbuflen + len_for_wcs_term;
 		}
 
@@ -1193,7 +1231,8 @@ convert_text_field_to_sql_c(GetDataInfo * const gdata, const int current_col,
 	int	result = COPY_OK;
 	SQLLEN	len = (-2);
 	GetDataClass *pgdc;
-	int	copy_len = 0, needbuflen = 0, i;
+	SQLLEN	copy_len = 0, needbuflen = 0;
+	int	i;
 	const char	*ptr;
 
 	MYLOG(0, "field_type=%u type=%d\n", field_type, fCType);
@@ -1289,7 +1328,7 @@ convert_text_field_to_sql_c(GetDataInfo * const gdata, const int current_col,
 	else
 #endif /* UNICODE_SUPPORT */
 	if (SQL_C_BINARY == fCType)
-		MYLOG(0, "    SQL_C_BINARY, default: len = " FORMAT_LEN ", cbValueMax = " FORMAT_LEN ", rgbValueBindRow = '%.*s'\n", len, cbValueMax, copy_len, rgbValueBindRow);
+		MYLOG(0, "    SQL_C_BINARY, default: len = " FORMAT_LEN ", cbValueMax = " FORMAT_LEN ", rgbValueBindRow = '%.*s'\n", len, cbValueMax, (int) copy_len, rgbValueBindRow);
 	else
 		MYLOG(0, "    SQL_C_CHAR, default: len = " FORMAT_LEN ", cbValueMax = " FORMAT_LEN ", rgbValueBindRow = '%s'\n", len, cbValueMax, rgbValueBindRow);
 
@@ -1306,7 +1345,8 @@ copy_and_convert_field(StatementClass *stmt,
 		void *valuei,
 		SQLSMALLINT fCType, int precision,
 		PTR rgbValue, SQLLEN cbValueMax,
-		SQLLEN *pcbValue, SQLLEN *pIndicator)
+		SQLLEN *pcbValue, SQLLEN *pIndicator,
+		SQLSMALLINT described_ctype)
 {
 	CSTR func = "copy_and_convert_field";
 	const char *value = valuei;
@@ -1597,9 +1637,14 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 			}
 			break;
 
-			/* This is for internal use by SQLStatistics() */
+			/*
+			 * This is for internal use by SQLStatistics() only, which
+			 * binds indkey/indoption with INTERNAL_INT2VECTOR_TYPE.  For
+			 * any other fCType (including SQL_C_DEFAULT, which resolves to
+			 * SQL_C_CHAR) int2vector is ordinary character data.
+			 */
 		case PG_TYPE_INT2VECTOR:
-			if (SQL_C_DEFAULT == fCType)
+			if (INTERNAL_INT2VECTOR_TYPE == fCType)
 			{
 				int	i, nval, maxc;
 				const char *vp;
@@ -1670,14 +1715,26 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 	/* Change default into something useable */
 	if (fCType == SQL_C_DEFAULT)
 	{
-		fCType = pgtype_attr_to_ctype(conn, field_type, atttypmod);
-#ifdef	UNICODE_SUPPORT
-		if (fCType == SQL_C_WCHAR
-		    && CC_default_is_c(conn))
-			fCType = SQL_C_CHAR;
-#endif
+		fCType = default_ctype(conn, field_type, atttypmod);
 
 		MYLOG(0, ", SQL_C_DEFAULT: fCType = %d\n", fCType);
+
+		/*
+		 * The fixed-length C types are stored below without looking at
+		 * cbValueMax, which ODBC lets the application leave at 0 for
+		 * them. An application that binds SQL_C_DEFAULT sized its buffer
+		 * for the type it was told at describe time, and the fetched
+		 * column need not have that type: the server may report another
+		 * one in the reply to Execute, or the table may have been altered
+		 * before the query text is sent. So the C type must be the one
+		 * that type stood for.
+		 */
+		if (0 != described_ctype && described_ctype != fCType)
+		{
+			MYLOG(0, "fCType %d differs from the described C type %d\n", fCType, described_ctype);
+			SC_set_error(stmt, STMT_RESTRICTED_DATA_TYPE_ERROR, "The data type of the column changed after it was described.", func);
+			return COPY_GENERAL_ERROR;
+		}
 	}
 
 	text_bin_handling = FALSE;
@@ -2245,7 +2302,9 @@ enum {
  * RPM_FAKE_PARAMS
  *      The query is going to be sent to the server only to be able to
  *      Describe the result set. Parameter markers are replaced with NULL
- *      literals if we don't know their real values yet.
+ *      literals, cast to the bound SQL type. The application's parameter
+ *      buffers are never read in this mode: they are deferred until
+ *      SQLExecute, so they don't need to hold anything yet.
  *
  * RPM_BUILDING_PREPARE_STATEMENT
  *      Building a query suitable for PREPARE statement, or server-side Parse.
@@ -2285,6 +2344,7 @@ typedef struct _QueryBuild {
 	Int2	num_discard_params;
 	Int2	proc_return;
 	Int2	brace_level;
+	Int2	nest_level;	/* depth of nested {fn ...( )} being converted */
 	char	parenthesize_the_first;
 	APDFields *apdopts;
 	IPDFields *ipdopts;
@@ -2302,6 +2362,12 @@ typedef struct _QueryBuild {
 }	QueryBuild;
 
 #define INIT_MIN_ALLOC	4096
+/*
+ * convert_escape() recurses once for every {fn ...( )} escape nested in
+ * the argument list of another, with well over 1kB of stack per level.
+ * Refuse to go deeper than this rather than run off the end of the stack.
+ */
+#define MAX_ESCAPE_NEST_LEVEL	64
 static ssize_t
 QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ResolveParamMode param_mode)
 {
@@ -2320,6 +2386,7 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ResolveParamMod
 	qb->num_output_params = 0;
 	qb->num_discard_params = 0;
 	qb->brace_level = 0;
+	qb->nest_level = 0;
 	qb->parenthesize_the_first = FALSE;
 
 	/* Copy options from statement */
@@ -2371,6 +2438,7 @@ static int
 QB_initialize_copy(QueryBuild *qb_to, const QueryBuild *qb_from, UInt4 size)
 {
 	memcpy(qb_to, qb_from, sizeof(QueryBuild));
+	qb_to->nest_level++;
 
 	if ((qb_to->query_statement = malloc(size)) == NULL)
 	{
@@ -2421,18 +2489,68 @@ QB_Destructor(QueryBuild *qb)
 
 #define F_OldPos(qp) (qp)->opos
 
-#define F_ExtractOldTo(qp, buf, ch, maxsize) \
+/*
+ * Copy the body of an escape sequence, up to the ch that ends it, to buf.
+ * As in inner_process_tokens(), a ch inside a quoted literal or as a trail
+ * byte of a multibyte character belongs to the body and does not end it.
+ * Returns the number of bytes copied, or -1 when ch is not found or the
+ * body does not fit in buf.
+ */
+static ssize_t
+extract_escape_body(const QueryParse *qp, const QueryBuild *qb, char *buf, char ch, size_t maxsize)
+{
+	size_t		c = 0;
+	int		tchar;
+	encoded_str	encstr;
+	char		escape_in_literal = '\0';
+	BOOL		in_literal = FALSE, in_escape = FALSE;
+
+	encoded_str_constr(&encstr, qb->ccsc, F_OldPtr(qp));
+	while ((tchar = encoded_nextchar(&encstr)) != '\0')
+	{
+		if (in_escape)
+			in_escape = FALSE;
+		else if (MBCS_NON_ASCII(encstr))
+			;
+		else if (in_literal)
+		{
+			if (tchar == LITERAL_QUOTE)
+				in_literal = FALSE;
+			else if (tchar == escape_in_literal)
+				in_escape = TRUE;
+		}
+		else if (tchar == LITERAL_QUOTE)
+		{
+			in_literal = TRUE;
+			escape_in_literal = CC_get_escape(qb->conn);
+			/*
+			 * The byte before the quote decides this, and for the
+			 * first byte of the body it is in the statement, not in
+			 * buf: read the statement, which holds the same bytes.
+			 */
+			if (!escape_in_literal &&
+			    isEscapeStringStart(qp->statement, qp->opos + c))
+				escape_in_literal = ESCAPE_IN_LITERAL;
+		}
+		else if (tchar == ch)
+			break;
+		if (c + 1 >= maxsize)
+			return -1;
+		buf[c++] = tchar;
+	}
+	if (tchar == '\0')
+		return -1;
+	buf[c] = '\0';
+
+	return c;
+}
+
+#define F_ExtractOldTo(qp, qb, buf, ch, maxsize) \
 do { \
-	size_t	c = 0; \
-	while ((qp)->statement[qp->opos] != '\0' && (qp)->statement[qp->opos] != ch) \
-	{ \
-		if (c + 1 >= maxsize) \
-			break; \
-		buf[c++] = (qp)->statement[qp->opos++];	\
-	} \
-	if ((qp)->statement[qp->opos] == '\0')	\
+	ssize_t	c = extract_escape_body(qp, qb, buf, ch, maxsize); \
+	if (c < 0) \
 		{retval = SQL_ERROR; goto cleanup;} \
-	buf[c] = '\0'; \
+	(qp)->opos += c; \
 } while (0)
 
 #define F_NewChar(qb) (qb->query_statement[(qb)->npos])
@@ -2938,7 +3056,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 	retval = SQL_ERROR;
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
-		SPRINTF_FIXED(plan_name, "_PLAN%p", stmt);
+		SPRINTF_FIXED(plan_name, "_PLAN%u", stmt->name_serial);
 	else
 		plan_name[0] = '\0';
 
@@ -3149,7 +3267,18 @@ MYLOG(DETAIL_LOG_LEVEL, "entering prepared=%d\n", stmt->prepared);
 			if (stmt->options.cursor_type == SQL_CURSOR_KEYSET_DRIVEN)
 				stmt->options.cursor_type = SQL_CURSOR_STATIC;
 		}
-		else if (!stmt->updatable)
+		/*
+		 * The keyset query copies the text behind FROM up to the
+		 * where clause or the end of the statement. The parser may
+		 * record from_pos at a later FROM than the one naming the
+		 * table, e.g. for "select a, from t select b from", so
+		 * treat the statement as not updatable unless that range
+		 * exists.
+		 */
+		else if (!stmt->updatable ||
+				 stmt->from_pos + 4 > qp->stmt_len ||
+				 (stmt->where_pos >= 0 &&
+				  stmt->where_pos < stmt->from_pos + 4))
 		{
 			stmt->options.scroll_concurrency = SQL_CONCUR_READ_ONLY;
 			stmt->options.cursor_type = SQL_CURSOR_STATIC;
@@ -3168,7 +3297,7 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 	{
 		char	curname[32];
 
-		SPRINTF_FIXED(curname, "SQL_CUR%p", stmt);
+		SPRINTF_FIXED(curname, "SQL_CUR%u", stmt->name_serial);
 		STRX_TO_NAME(stmt->cursor_name, curname);
 	}
 	if (stmt->stmt_with_params)
@@ -3197,7 +3326,7 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 		/* Nothing to do here. It will be prepared before execution. */
 		char		plan_name[32];
 		if (NAMED_PARSE_REQUEST == SC_get_prepare_method(stmt))
-			SPRINTF_FIXED(plan_name, "_PLAN%p", stmt);
+			SPRINTF_FIXED(plan_name, "_PLAN%u", stmt->name_serial);
 		else
 			plan_name[0] = '\0';
 
@@ -3339,7 +3468,20 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 					CVT_APPEND_STR(qb, bestitem);
 				}
 				CVT_APPEND_STR(qb, "\" from ");
-				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, qp->stmt_len - qp->from_pos - 5);
+				/*
+				 * from_pos was found by parse_statement() in this
+				 * statement text, but never let a stale or bogus
+				 * offset turn into a negative length here. Skip only
+				 * the four letters of FROM: the byte after it can be
+				 * part of the table name, as in FROM"t".
+				 */
+				if (qp->from_pos + 4 > qp->stmt_len)
+				{
+					SC_set_error(stmt, STMT_INTERNAL_ERROR, "The position of FROM is beyond the end of the statement", func);
+					QB_Destructor(qb);
+					return SQL_ERROR;
+				}
+				CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 4, qp->stmt_len - qp->from_pos - 4);
 			}
 		}
 		npos -= qp->declare_pos;
@@ -3393,10 +3535,35 @@ findTag(const char *tag, int ccsc)
 			taglen = encstr.pos + 2;
 			break;
 		}
-		if (!isalnum(tchar))
+		/* same rule as the server: [A-Za-z\200-\377_][A-Za-z\200-\377_0-9]* */
+		if (!isalnum(tchar) && '_' != tchar)
+			break;
+		if (0 == encstr.pos && isdigit(tchar))
 			break;
 	}
 	return taglen;
+}
+
+/*
+ *	Is the quote at str[pos] the start of an escape string constant E'...'?
+ *	As in the server's lexer the prefix may be written in either case but
+ *	must start a token: in LIKE'...' or ELSE'...' the E is the last letter
+ *	of a keyword and the literal is an ordinary one.
+ */
+BOOL
+isEscapeStringStart(const char *str, size_t pos)
+{
+	UCHAR	prev;
+
+	if (pos < 1 || LITERAL_EXT != toupper((UCHAR) str[pos - 1]))
+		return FALSE;
+	if (pos < 2)
+		return TRUE;
+	/* letters, digits, '_', '$' and non-ASCII bytes continue an identifier */
+	prev = (UCHAR) str[pos - 2];
+	if (prev >= 0x80 || '_' == prev || DOLLAR_QUOTE == prev || isalnum(prev))
+		return FALSE;
+	return TRUE;
 }
 
 int
@@ -3510,17 +3677,29 @@ static pgNAME lower_or_remove_dquote(pgNAME nm, const UCHAR *src, int srclen, in
 		}
 		else
 		{
-			tc[outlen++] = tolower(tchar);
+			tc[outlen++] = IDENT_TOLOWER(tchar);
 		}
 	}
 	tc[outlen] = '\0';
 	return nm;
 }
 
+/* TRUE if the identifier at src, of len bytes, is unquoted and conn can't fold it */
+#define CANNOT_FOLD(conn, src, len) \
+	(IDENTIFIER_QUOTE != (src)[0] && \
+	 CC_cannot_fold_identifier(conn, (const char *) (src), len))
+
+/*
+ * Every part of the name must be folded the way the server folds it.
+ * If one part can't be, table and schema are both left unresolved, since
+ * a table name without its schema resolves in the current schema.
+ */
 int
-eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema)
+eatTableIdentifiers(const UCHAR *str, const ConnectionClass *conn, pgNAME *table, pgNAME *schema)
 {
-	int	len;
+	int	len, rv;
+	int	ccsc = conn->ccsc;
+	BOOL	unresolved = FALSE;
 	const UCHAR *next_token;
 	const UCHAR *tstr = str;
 
@@ -3528,18 +3707,23 @@ eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema)
 
 	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
 		return len;	/* table name doesn't exist */
+	if (CANNOT_FOLD(conn, tstr, len))
+		unresolved = TRUE;
 	if (table)
-	{
-		if (IDENTIFIER_QUOTE == *tstr)
-			*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
-		else
-			STRN_TO_NAME(*table, tstr, len);
-	}
+		*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
 	if (!next_token || '.' != *next_token || (int) (next_token - tstr) != len)
-		return (int) (next_token - str); /* table only */
+	{
+		rv = (int) (next_token - str); /* table only */
+		goto done;
+	}
 	tstr = next_token + 1;
 	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
-		return -1;
+	{
+		rv = -1;
+		goto done;
+	}
+	if (CANNOT_FOLD(conn, tstr, len))
+		unresolved = TRUE;
 	if (table)
 	{
 		if (schema)
@@ -3547,17 +3731,34 @@ eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema)
 		*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
 	}
 	if (!next_token || '.' != *next_token || (int) (next_token - tstr) != len)
-		return (int) (next_token - str); /* schema.table */
+	{
+		rv = (int) (next_token - str); /* schema.table */
+		goto done;
+	}
 	tstr = next_token + 1;
 	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
-		return -1;
+	{
+		rv = -1;
+		goto done;
+	}
+	if (CANNOT_FOLD(conn, tstr, len))
+		unresolved = TRUE;
 	if (table)
 	{
 		if (schema)
 			MOVE_NAME(*schema, *table);
 		*table = lower_or_remove_dquote(*table, tstr, len, ccsc);
 	}
-	return (int) (next_token - str); /* catalog.schema.table */
+	rv = (int) (next_token - str); /* catalog.schema.table */
+done:
+	if (unresolved)
+	{
+		if (table)
+			NULL_THE_NAME(*table);
+		if (schema)
+			NULL_THE_NAME(*schema);
+	}
+	return rv;
 }
 
 static void token_start(QueryParse *qp, char oldchar)
@@ -3679,6 +3880,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	BOOL		isbinary;
 	Oid			dummy;
 	ParseToken	pts, *pt = &pts;
+	BOOL		comment_opened = FALSE;
 
 	PT_initialize(pt, qp);
 
@@ -3689,6 +3891,18 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	{
 		qb->errornumber = STMT_SEQUENCE_ERROR;
 		qb->errormsg = "Function call for inner_process_tokens sequence error";
+		return SQL_ERROR;
+	}
+	/*
+	 * The text behind from_pos and where_pos is copied into the keyset
+	 * queries as it is, so the positions found by parse.c must not lie
+	 * inside a literal, a quoted identifier or a comment.
+	 */
+	if ((qp->from_pos == opos || qp->where_pos == opos) &&
+	    !QP_in_idle_status(qp))
+	{
+		qb->errornumber = STMT_EXEC_ERROR;
+		qb->errormsg = "The FROM or WHERE clause position is inside a literal or a comment";
 		return SQL_ERROR;
 	}
 	if (qp->from_pos == opos)
@@ -3720,12 +3934,18 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				CVT_APPEND_STR(qb, bestitem);
 			}
 			CVT_APPEND_STR(qb, "\" from ");
-			CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 5, qp->where_pos - qp->from_pos - 5);
+			CVT_APPEND_DATA(qb, qp->statement + qp->from_pos + 4, qp->where_pos - qp->from_pos - 4);
 		}
 	}
 	oldchar = encoded_byte_check(&qp->encstr, qp->opos);
 	if (MBCS_NON_ASCII(qp->encstr))
 	{
+		/*
+		 * A backslash escape takes the next character, multibyte or not.
+		 * Left set, it would take the next ASCII byte instead, which can
+		 * be the quote that ends the literal.
+		 */
+		QP_exit(qp, QP_IN_ESCAPE);
 		if (QP_in_idle_status(qp))
 		{
 			PT_token_restart(pt, oldchar); /* placed before QP_enter() */
@@ -3831,7 +4051,8 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 	}
 	else if (QP_is_in(qp, QP_IN_LINE_COMMENT)) /* line comment check */
 	{
-		if (PG_LINEFEED == oldchar)
+		/* as in the server, a carriage return also ends the comment */
+		if (PG_LINEFEED == oldchar || PG_CARRIAGE_RETURN == oldchar)
 			QP_exit(qp, QP_IN_LINE_COMMENT);
 		CVT_APPEND_CHAR(qb, oldchar);
 		return SQL_SUCCESS;
@@ -3910,10 +4131,11 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			NULL_THE_NAME(ti.table_name);
 			if (NULL != coli)
 			{
-				int	i, num_fields = QR_NumResultCols(coli->result);
+				/* the SQLColumns result holds one row per column of the table */
+				int	i, num_tuples = QR_get_num_cached_tuples(coli->result);
 				const char *auto_increment;
 
-				for (i = 0; i < num_fields; i++)
+				for (i = 0; i < num_tuples; i++)
 				{
 					auto_increment = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_AUTO_INCREMENT);
 					if (auto_increment && auto_increment[0] == '1')
@@ -3933,20 +4155,43 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					}
 					else
 					{
-						char relcnv[128];
+						char relcnv[ESCAPED_NAME_BUFSIZE];
 						const char *column_name = (const char *) QR_get_value_backend_text(coli->result, i, COLUMNS_COLUMN_NAME);
+						const char *escaped;
 
-						CVT_APPEND_STR(qb, "currval(pg_get_serial_sequence('");
-						if (NAME_IS_VALID(conn->schemaIns))
+						/*
+						 * A name whose escape may not fit relcnv would be
+						 * cut short and could name another sequence, so
+						 * such a name gets NULL, as an unknown one does.
+						 */
+						if ((NAME_IS_VALID(conn->schemaIns) &&
+						     !identifierEscape_fits(SAFE_NAME(conn->schemaIns), sizeof(relcnv))) ||
+						    !identifierEscape_fits(SAFE_NAME(conn->tableIns), sizeof(relcnv)) ||
+						    (NULL != column_name &&
+						     !identifierEscape_fits(column_name, sizeof(relcnv))))
+							converted = FALSE;
+						else
 						{
-							CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) SAFE_NAME(conn->schemaIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
-							CVT_APPEND_STR(qb, ".");
+							/*
+							 * identifierEscape() returns NULL for a NULL or
+							 * empty name (the column name comes from the
+							 * server), so never hand its result to
+							 * CVT_APPEND_STR() unchecked.
+							 */
+							CVT_APPEND_STR(qb, "currval(pg_get_serial_sequence('");
+							if (NAME_IS_VALID(conn->schemaIns))
+							{
+								if (NULL != (escaped = identifierEscape((const SQLCHAR *) SAFE_NAME(conn->schemaIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE)))
+									CVT_APPEND_STR(qb, escaped);
+								CVT_APPEND_STR(qb, ".");
+							}
+							if (NULL != (escaped = identifierEscape((const SQLCHAR *) SAFE_NAME(conn->tableIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE)))
+								CVT_APPEND_STR(qb, escaped);
+							CVT_APPEND_STR(qb, "','");
+							if (NULL != (escaped = identifierEscape((const SQLCHAR *) column_name, SQL_NTS, conn, relcnv, sizeof(relcnv), FALSE)))
+								CVT_APPEND_STR(qb, escaped);
+							CVT_APPEND_STR(qb, "')::regclass)");
 						}
-						CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) SAFE_NAME(conn->tableIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
-						CVT_APPEND_STR(qb, "','");
-						if (NULL != column_name)
-							CVT_APPEND_STR(qb, identifierEscape((const SQLCHAR *) column_name, SQL_NTS, conn, relcnv, sizeof(relcnv), FALSE));
-						CVT_APPEND_STR(qb, "')::regclass)");
 					}
 				}
 			}
@@ -3985,8 +4230,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			qp->escape_in_literal = CC_get_escape(qb->conn);
 			if (!qp->escape_in_literal)
 			{
-				if (qp->opos > 0 &&
-				    LITERAL_EXT == F_OldPtr(qp)[-1])
+				if (isEscapeStringStart(qp->statement, qp->opos))
 					qp->escape_in_literal = ESCAPE_IN_LITERAL;
 			}
 		}
@@ -4002,6 +4246,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			PT_token_finish(pt, 0); /* comments are excluded */
 			QP_enter(qp, QP_IN_COMMENT_BLOCK);
 			PT_TOKEN_IGNORE(pt);
+			comment_opened = TRUE;
 		}
 		else if ('-' == oldchar &&
 			 '-' == F_OldPtr(qp)[1])
@@ -4033,8 +4278,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 				}
 			}
 		}
-		else if (isalnum(oldchar))
+		else if (isalnum(oldchar) || '_' == oldchar)
 		{
+			/* an identifier also starts with '_': see SC_scanQueryAndCountParams() */
 			PT_token_restart(pt, oldchar); /* placed before QP_enter() */
 			QP_enter(qp, QP_IN_IDENT_KEYWORD); /* identifier or keyword */
 		}
@@ -4165,6 +4411,20 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 		}
 
 		CVT_APPEND_CHAR(qb, oldchar);
+		if (comment_opened)
+		{
+			/*
+			 * Consume the '*' of the opening slash-asterisk too, so
+			 * that it can't be taken for the start of a closing
+			 * asterisk-slash as well (otherwise the rest of a comment
+			 * beginning with slash-asterisk-slash would be processed
+			 * as SQL). This is done here rather than in the branch
+			 * above because the finished token handling addresses
+			 * the statement relative to qp->opos.
+			 */
+			F_OldNext(qp);
+			CVT_APPEND_CHAR(qb, F_OldChar(qp));
+		}
 		return SQL_SUCCESS;
 	}
 	else
@@ -4427,7 +4687,8 @@ MYPRINTF(DETAIL_LOG_LEVEL, " len2=%d", len);
 		i = ns->scale;
 	for (; i >= ns->scale; i--)
 	{
-		if (i >= len)
+		/* a negative scale means trailing zeros, below calv[0] */
+		if (i >= len || i < 0)
 			chrform[newlen++] = '0';
 		else
 			chrform[newlen++] = calv[i] + '0';
@@ -4500,7 +4761,8 @@ parse_to_numeric_struct(const char *wv, SQL_NUMERIC_STRUCT *ns, BOOL *overflow)
 					break;
 				else
 				{
-					ns->scale--;
+					if (ns->scale > SCHAR_MIN)
+						ns->scale--;
 					*overflow = TRUE;
 					continue;
 				}
@@ -4614,6 +4876,29 @@ handle_lu_onvert_error(QueryBuild *qb, int flag, char *buffer, SQLLEN paralen)
 #endif /* UNICODE_SUPPORT */
 
 /*
+ * Whether a character buffer of ctype has a terminator in its first len
+ * bytes. Text never holds one, so a terminator there means the value is
+ * shorter than len says.
+ */
+static BOOL
+terminator_within(SQLSMALLINT ctype, const char *buffer, SQLLEN len)
+{
+	if (SQL_C_CHAR == ctype)
+		return NULL != memchr(buffer, '\0', (size_t) len);
+#ifdef	UNICODE_SUPPORT
+	if (SQL_C_WCHAR == ctype)
+	{
+		SQLLEN	i;
+
+		for (i = 0; i < len / WCLEN; i++)
+			if (0 == ((const SQLWCHAR *) buffer)[i])
+				return TRUE;
+	}
+#endif /* UNICODE_SUPPORT */
+	return FALSE;
+}
+
+/*
  * Resolve one parameter.
  *
  * *isnull is set to TRUE if it was NULL.
@@ -4632,7 +4917,11 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	PutDataInfo *pdata = qb->pdata;
 
 	int			param_number;
-	char		param_string[150],
+	/*
+	 * Big enough for the longest SQL_C_NUMERIC: a sign, MAX_NUMERIC_DIGITS
+	 * digits, 128 trailing zeros for a scale of -128, and the terminator.
+	 */
+	char		param_string[1 + MAX_NUMERIC_DIGITS + 128 + 1],
 				tmp[256];
 	char		cbuf[PG_NUMERIC_MAX_PRECISION * 2]; /* seems big enough to handle the data in this function */
 	OID			param_pgtype;
@@ -4675,7 +4964,20 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 		qb->proc_return = qb->stmt->proc_return;
 	/*
 	 * It's a '?' parameter alright
+	 *
+	 * param_number (0-based) and dollar_number (1-based) are Int2, like
+	 * the SQLSMALLINT parameter counts, so a statement can have at most
+	 * SHRT_MAX markers. Beyond that dollar_number and then param_number
+	 * wrap negative; a negative param_number passes the "< allocated"
+	 * checks below and indexes before the APD/IPD arrays.
 	 */
+	if (qb->param_number >= SHRT_MAX - 1)
+	{
+		qb->errormsg = "Too many parameter markers in the statement";
+		qb->errornumber = STMT_COUNT_FIELD_INCORRECT;
+		CVT_TERMINATE(qb);	/* just in case */
+		return SQL_ERROR;
+	}
 	param_number = ++qb->param_number;
 
 MYLOG(DETAIL_LOG_LEVEL, "para:%d(%d,%d)\n", param_number, ipdopts->allocated, apdopts->allocated);
@@ -4746,15 +5048,35 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 		if (!req_bind && ipara && NAME_IS_VALID(ipara->paramName) &&
 			qp && qp->statement_type == STMT_TYPE_PROCCALL)
 		{
-			char	named_notation[COLUMN_NAME_STORAGE_LEN + 7];
-			SPRINTF_FIXED(named_notation, "\"%s\" := ", GET_NAME(ipara->paramName));
-			CVT_APPEND_STR(qb, named_notation);
+			/*
+			 * The parameter name, quoted with any " doubled, then " := ".
+			 * Only " is doubled: see SC_pos_update().
+			 */
+			char	qname[2 * COLUMN_NAME_STORAGE_LEN + 4];
+			pgNAME	no_schema = { NULL };
+			const char *name = quote_table(no_schema, ipara->paramName, qname, sizeof(qname));
+
+			CVT_APPEND_STR(qb, name);
+			CVT_APPEND_STR(qb, " := ");
 		}
 	}
 
-	if ((!apara || !ipara) && qb->param_mode == RPM_FAKE_PARAMS)
+	if (qb->param_mode == RPM_FAKE_PARAMS)
 	{
+		/*
+		 * The statement is only being described. The application's
+		 * parameter buffers are deferred: they need not hold a value (or
+		 * a valid length) before SQLExecute, so don't look at them.
+		 * Cast the NULL to the type of the literal the execution writes
+		 * for the bound SQL type (see sqltype_to_literal_pgcast()), so
+		 * that the described result has the column types of the executed
+		 * one without depending on the parameter value.
+		 */
 		CVT_APPEND_STR(qb, "NULL");
+		if (ipara &&
+		    SQL_PARAM_OUTPUT != ipara->paramType &&
+		    !parameter_is_with_cast(qp))
+			CVT_APPEND_STR(qb, sqltype_to_literal_pgcast(ipara->SQLType));
 		qb->flags |= FLGB_INACCURATE_RESULT;
 		return SQL_SUCCESS;
 	}
@@ -4806,7 +5128,17 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 			else
 				buffer += current_row * apara->buflen;
 		}
-		if (apara->used || apara->indicator)
+		/*
+		 * An output-only parameter has no input value, and its
+		 * length/indicator is set by the call; before it, it may hold
+		 * anything.
+		 */
+		if (SQL_PARAM_OUTPUT == ipara->paramType)
+		{
+			used = SQL_NULL_DATA;
+			bSetUsed = TRUE;
+		}
+		else if (apara->used || apara->indicator)
 		{
 			SQLULEN	p_offset;
 
@@ -4872,18 +5204,24 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 	 */
 	if (!buffer)
 	{
-		if (qb->param_mode == RPM_FAKE_PARAMS)
-		{
-			CVT_APPEND_STR(qb, "NULL");
-			qb->flags |= FLGB_INACCURATE_RESULT;
-			return SQL_SUCCESS;
-		}
-		else if (!handling_large_object)
+		if (!handling_large_object)
 		{
 			/* shouldn't happen */
 			qb->errormsg = "unexpected NULL parameter value";
 			qb->errornumber = STMT_EXEC_ERROR;
 			return SQL_ERROR;
+		}
+		else
+		{
+			/*
+			 * SQLPutData() has already converted the data and written
+			 * it to the large object, whatever the bound C type was.
+			 * Only the oid of the large object is sent here, so the
+			 * conversions for the bound C type must not look at the
+			 * (NULL) buffer.
+			 */
+			param_ctype = SQL_C_BINARY;
+			param_sqltype = SQL_LONGVARBINARY;
 		}
 	}
 
@@ -4896,6 +5234,36 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 		    && CC_default_is_c(conn))
 			param_ctype =SQL_C_CHAR;
 #endif
+	}
+
+	/*
+	 * SQLSetPos() and SQLBulkOperations() bind the application's column
+	 * buffers as the parameters of an internal statement (whose
+	 * execute_parent is the application's statement). The length buffer of
+	 * such a column holds what the last fetch stored there, which is the
+	 * untruncated length if the value didn't fit. Never read more than the
+	 * column buffer holds.
+	 *
+	 * A length larger than the buffer means the buffer holds only part of
+	 * the value, since a value the application writes cannot be longer
+	 * than its own buffer. So does a terminator within the length of a
+	 * character value: a value as long as the buffer comes back from the
+	 * fetch cut by one character, to make room for the terminator, with
+	 * the buffer's length as its length. Refuse both: sending the part
+	 * would replace the stored value with a truncated one and report
+	 * success. To write the other columns of such a row, the application
+	 * marks this one SQL_COLUMN_IGNORE.
+	 */
+	if (!apara->data_at_exec &&
+	    qb->stmt && qb->stmt->execute_parent &&
+	    0 == ctype_length(param_ctype) &&
+	    (used > apara->buflen ||
+	     (used > 0 && NULL != buffer &&
+	      terminator_within(param_ctype, buffer, used))))
+	{
+		qb->errormsg = "the bound buffer holds only part of the column value";
+		qb->errornumber = STMT_EXEC_ERROR;
+		return SQL_ERROR;
 	}
 
 	allocbuf = NULL;
@@ -5196,9 +5564,10 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 	     PG_TYPE_TIMESTAMP_NO_TMZONE == param_pgtype) &&
 	    NULL != send_buf &&
 	    (
-		(SQL_C_CHAR == param_ctype && '\0' == send_buf[0])
+		(SQL_C_CHAR == param_ctype && (0 == used || '\0' == send_buf[0]))
 #ifdef	UNICODE_SUPPORT
-		|| (SQL_C_WCHAR ==param_ctype && '\0' == send_buf[0] && '\0' == send_buf[1])
+		/* SQL_C_WCHAR data has already been converted to a narrow string */
+		|| (SQL_C_WCHAR == param_ctype && '\0' == send_buf[0])
 #endif /* UNICODE_SUPPORT */
 	    ))
 	{
@@ -5255,8 +5624,14 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 					 * FIXME: This actually matches anything that begins
 					 * with -1, like "-1234" or "-1foobar". Is that
 					 * intentional?
+					 *
+					 * send_buf need not be null-terminated when 'used'
+					 * gives its length, so only look at the second byte
+					 * when there is one.
 					 */
-					if (NULL != send_buf && '-' == send_buf[0] && '1' == send_buf[1])
+					if (NULL != send_buf &&
+					    (SQL_NTS == used || used >= 2) &&
+					    '-' == send_buf[0] && '1' == send_buf[1])
 					{
 						send_buf = "1";
 						used = 1;
@@ -5356,9 +5731,8 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 					allocbuf = malloc(used / 2 + 1);
 					if (allocbuf)
 					{
-						pg_hex2bin(send_buf, allocbuf, used);
+						used = pg_hex2bin(send_buf, allocbuf, used);
 						send_buf = allocbuf;
-						used /= 2;
 					}
 					break;
 				default:
@@ -5428,7 +5802,11 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 					goto cleanup;
 				}
 
-				write_result = odbc_lo_write(conn, lobj_fd, buffer, (Int4) used);
+				/*
+				 * Write the converted value: 'used' is the length of
+				 * send_buf, not of the application's buffer.
+				 */
+				write_result = odbc_lo_write(conn, lobj_fd, (char *) send_buf, (Int4) used);
 				if (write_result < 0)
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
@@ -5468,12 +5846,14 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 			/* must be quoted (0 or 1 is ok to use inside the quotes) */
 
 		case SQL_REAL:
-			set_server_decimal_point((char *) send_buf, used);
+			if (NULL != send_buf)
+				set_server_decimal_point((char *) send_buf, used);
 			lastadd = "::float4";
 			break;
 		case SQL_FLOAT:
 		case SQL_DOUBLE:
-			set_server_decimal_point((char *) send_buf, used);
+			if (NULL != send_buf)
+				set_server_decimal_point((char *) send_buf, used);
 			lastadd = "::float8";
 			break;
 		case SQL_NUMERIC:
@@ -5487,9 +5867,13 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 		 *
 		 * If it's a negative number, we have to wrap it in parens. Otherwise
 		 * a query like "SELECT 0-?" would turn into "SELECT 0--123".
+		 *
+		 * send_buf is still NULL here if the C type was a date/time type
+		 * (the value is only in 'st'); the check after the switch rejects
+		 * that, so don't look at the string before then.
 		 */
 		case SQL_INTEGER:
-			if (valid_int_literal(send_buf, used, &negative))
+			if (NULL != send_buf && valid_int_literal(send_buf, used, &negative))
 			{
 				need_quotes = FALSE;
 				add_parens = negative;
@@ -5505,7 +5889,7 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 			}
 			break;
 		case SQL_SMALLINT:
-			if (valid_int_literal(send_buf, used, &negative))
+			if (NULL != send_buf && valid_int_literal(send_buf, used, &negative))
 			{
 				need_quotes = FALSE;
 				add_parens = negative;
@@ -5610,6 +5994,7 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 {
 	int retval, innerParenthesis, param_count;
 	BOOL stop;
+	SQLLEN	param_end;
 
 	/* begin with outer '(' */
 	innerParenthesis = 0;
@@ -5638,7 +6023,19 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 						qb->errormsg = "too many parameters in the escape function call";
 						return SQL_ERROR;
 					}
-					param_pos[param_count][1] = F_NewPos(qb) - 2;
+					/*
+					 * The parameter ends just before the separator that
+					 * was appended to qb. A discarded output parameter
+					 * (see ResolveOneParam) leaves qb without text for it
+					 * and removes the separator next to it, so the end
+					 * computed this way may lie before the start; record
+					 * such a parameter as empty rather than with a negative
+					 * length.
+					 */
+					param_end = F_NewPos(qb) - 2;
+					if (param_end < param_pos[param_count][0] - 1)
+						param_end = param_pos[param_count][0] - 1;
+					param_pos[param_count][1] = param_end;
 					param_count++;
 					param_pos[param_count][0] = F_NewPos(qb);
 					param_pos[param_count][1] = -1;
@@ -5663,7 +6060,10 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 						qb->errormsg = "too many parameters in the escape function call";
 						return SQL_ERROR;
 					}
-					param_pos[param_count][1] = F_NewPos(qb) - 2;
+					param_end = F_NewPos(qb) - 2;	/* see the ',' case */
+					if (param_end < param_pos[param_count][0] - 1)
+						param_end = param_pos[param_count][0] - 1;
+					param_pos[param_count][1] = param_end;
 					param_count++;
 					param_pos[param_count][0] =
 					param_pos[param_count][1] = -1;
@@ -5685,6 +6085,17 @@ processParameters(QueryParse *qp, QueryBuild *qb,
 		MYLOG(0, "closing ) not found %d\n", innerParenthesis);
 		qb->errornumber = STMT_EXEC_ERROR;
 		qb->errormsg = "processParameters closing ) not found";
+		return SQL_ERROR;
+	}
+	else if (!stop)
+	{
+		/*
+		 * The caller continues from the current position, which must be
+		 * the closing } and not the end of the statement (or beyond it).
+		 */
+		MYLOG(0, "closing } not found\n");
+		qb->errornumber = STMT_EXEC_ERROR;
+		qb->errormsg = "processParameters closing } not found";
 		return SQL_ERROR;
 	}
 	else if (1 == param_count) /* the 1 parameter is really valid ? */
@@ -5735,6 +6146,13 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	/* '?=' to accept return values exists ? */
 	if (F_OldChar(qp) == '?')
 	{
+		/* the same limit as in ResolveOneParam() */
+		if (qb->param_number >= SHRT_MAX - 1)
+		{
+			qb->errormsg = "Too many parameter markers in the statement";
+			qb->errornumber = STMT_COUNT_FIELD_INCORRECT;
+			return SQL_ERROR;
+		}
 		qb->param_number++;
 		qb->proc_return = 1;
 		if (qb->stmt)
@@ -5795,7 +6213,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	else if (stricmp(key, "d") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		F_ExtractOldTo(qp, qb, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
 		prtlen = SPRINTF_FIXED(buf, "%s::date", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
@@ -5803,7 +6221,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	else if (stricmp(key, "t") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		F_ExtractOldTo(qp, qb, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
 		prtlen = SPRINTF_FIXED(buf, "%s::time", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
@@ -5811,7 +6229,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	else if (stricmp(key, "ts") == 0)
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		F_ExtractOldTo(qp, qb, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
 		prtlen = SPRINTF_FIXED(buf, "%s::timestamp", buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
@@ -5828,7 +6246,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 	else if (stricmp(key, "escape") == 0) /* like escape syntax support for 7.1+ servers */
 	{
 		/* Literal; return the escape part adding type cast */
-		F_ExtractOldTo(qp, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
+		F_ExtractOldTo(qp, qb, buf_small, ODBC_ESCAPE_END, sizeof(buf_small));
 		prtlen = SPRINTF_FIXED(buf, "%s %s", key, buf_small);
 		CVT_APPEND_DATA(qb, buf, prtlen);
 		retval = QB_append_space_to_separate_identifiers(qb, qp);
@@ -5841,6 +6259,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		size_t	param_consumed;
 		SQLLEN	param_pos[16][2];
 		BOOL	cvt_func = FALSE;
+		size_t	declare_pos;
 
 		/* Separate off the func name, skipping leading and trailing whitespace */
 		i = 0;
@@ -5871,6 +6290,13 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		 * Aceto 2002-01-29
 		 */
 
+		if (qb->nest_level >= MAX_ESCAPE_NEST_LEVEL)
+		{
+			qb->errornumber = STMT_EXEC_ERROR;
+			qb->errormsg = "escape sequences are nested too deeply";
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		QB_initialize_copy(&nqb, qb, 1024);
 		nqb_is_valid = TRUE;
 		/*
@@ -5880,7 +6306,20 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 		 */
 		for (i = 0; i < (int) (sizeof(param_pos) / sizeof(param_pos[0])); i++)
 			param_pos[i][0] = param_pos[i][1] = -1;
-		if (retval = processParameters(qp, &nqb, &param_consumed, param_pos, sizeof(param_pos) / sizeof(param_pos[0])), retval == SQL_ERROR)
+		/*
+		 * The arguments are converted into nqb, but the "declare ... cursor
+		 * for " prefix that remove_declare_cursor() strips lives in qb at
+		 * declare_pos. Hide the position while the arguments are processed,
+		 * so that a FOR UPDATE, ';' or INTO ... FROM found among them only
+		 * clears FLGP_USING_CURSOR, and strip the prefix from qb afterwards.
+		 */
+		declare_pos = qp->declare_pos;
+		qp->declare_pos = 0;
+		retval = processParameters(qp, &nqb, &param_consumed, param_pos, sizeof(param_pos) / sizeof(param_pos[0]));
+		qp->declare_pos = declare_pos;
+		if (0 == (qp->flags & FLGP_USING_CURSOR))
+			remove_declare_cursor(qb, qp);
+		if (retval == SQL_ERROR)
 		{
 			qb->errornumber = nqb.errornumber;
 			qb->errormsg = nqb.errormsg;
@@ -5936,6 +6375,13 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 
 				from = param_pos[0][0];
 				to = param_pos[0][1];
+				if (to < from)
+				{
+					qb->errornumber = STMT_EXEC_ERROR;
+					qb->errormsg = "the first argument of convert is missing";
+					retval = SQL_ERROR;
+					goto cleanup;
+				}
 				for (pptr = nqb.query_statement + from; *pptr && isspace((unsigned char) *pptr); pptr++)
 					;
 				if (LITERAL_QUOTE == *pptr)
@@ -6346,6 +6792,7 @@ convert_special_chars(QueryBuild *qb, const char *si, size_t used)
 		}
 		if (convlf &&	/* CR/LF -> LF */
 		    PG_CARRIAGE_RETURN == tchar &&
+		    i + 1 < max &&	/* si need not be null-terminated */
 		    PG_LINEFEED == si[i + 1])
 			continue;
 		else if (double_special && /* double special chars ? */
@@ -6609,7 +7056,8 @@ pg_hex2bin(const char *src, char *dst, SQLLEN length)
 		HByte = !HByte;
 	}
 	*dst_wk = '\0';
-	return length;
+	/* the input may end early at a NUL: report what was really written */
+	return dst_wk - dst;
 }
 
 /*-------
@@ -6642,6 +7090,7 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 	ConnInfo   *ci = &(conn->connInfo);
 	GetDataInfo	*gdata_info = SC_get_GDTI(stmt);
 	int			factor;
+	Int4		toread;
 
 	oid = ATOI32U(value);
 	if (0 == oid)
@@ -6715,10 +7164,11 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		return COPY_GENERAL_ERROR;
 	}
 
+	toread = (Int4) (factor > 1 ? (cbValueMax - 1) / factor : cbValueMax);
 	if (0 >= cbValueMax)
 		retval = 0;
 	else
-		retval = (Int8) odbc_lo_read(conn, stmt->lobj_fd, (char *) rgbValue, (Int4) (factor > 1 ? (cbValueMax - 1) / factor : cbValueMax));
+		retval = (Int8) odbc_lo_read(conn, stmt->lobj_fd, (char *) rgbValue, toread);
 	if (retval < 0)
 	{
 		odbc_lo_close(conn, stmt->lobj_fd);
@@ -6739,7 +7189,24 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		return COPY_GENERAL_ERROR;
 	}
 
-	if (factor > 1)
+	/*
+	 * A short read means the large object has ended, whatever size
+	 * lo_tell64 reported, and a read longer than that size means the
+	 * size is wrong: the size and the data come from two separate
+	 * server replies, and only the bytes actually stored in rgbValue
+	 * may be reported to the application. Without the second case
+	 * data_left64 goes negative and the next call reports a negative
+	 * length.
+	 */
+	if (cbValueMax > 0 && (retval < toread || retval > left64))
+	{
+		left64 = retval;
+		if (gdata_blob)
+			gdata_blob->data_left64 = left64;
+	}
+
+	/* pg_bin2hex() always writes a terminator: there must be room for it */
+	if (factor > 1 && cbValueMax > 0)
 		pg_bin2hex((char *) rgbValue, (char *) rgbValue, retval);
 	if (retval < left64)
 		result = COPY_RESULT_TRUNCATED;
@@ -6748,8 +7215,18 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 
 	if (pcbValue)
 	{
-		Int8	leftbytes = left64 * factor;
-		*pcbValue = left64 < 0 ? SQL_NO_TOTAL : (leftbytes == (SQLLEN) leftbytes ? leftbytes : /* exceeds SQLLEN limit */ SQL_NO_TOTAL);
+		/*
+		 * left64 is the size the server reported; don't let the
+		 * product overflow into a negative length.
+		 */
+		if (left64 < 0 || left64 > LLONG_MAX / factor)
+			*pcbValue = SQL_NO_TOTAL;
+		else
+		{
+			Int8	leftbytes = left64 * factor;
+
+			*pcbValue = (leftbytes == (SQLLEN) leftbytes ? leftbytes : /* exceeds SQLLEN limit */ SQL_NO_TOTAL);
+		}
 	}
 
 	if (gdata_blob && gdata_blob->data_left64 > 0)

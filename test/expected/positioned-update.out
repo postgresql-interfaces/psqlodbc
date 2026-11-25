@@ -27,5 +27,24 @@ Result set:
 9	9
 10	10
 
+Positioned delete on a quoted table name beginning with a comma
+1	1
+Querying both tables again
+Result set:
+2	2
+3	3
+Result set:
+9
+
+Opening a cursor for update with FROM ONLY, and fetching 1 row
+7	7
+
+Updating result set
+refused
+
+Querying the table again
+Result set:
+7	7
+
 Opening a cursor for update, and fetching 5000 rows
 disconnecting

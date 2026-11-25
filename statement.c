@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "pgapifunc.h"
 
@@ -394,6 +395,7 @@ SC_Constructor(ConnectionClass *conn)
 	if (rv)
 	{
 		rv->hdbc = conn;
+		rv->name_serial = CC_get_name_serial(conn);
 		rv->phstmt = NULL;
 		rv->rhold.first = rv->rhold.last = NULL;
 		rv->curres = NULL;
@@ -440,6 +442,8 @@ SC_Constructor(ConnectionClass *conn)
 
 		rv->lobj_fd = -1;
 		INIT_NAME(rv->cursor_name);
+		rv->described_ctype = NULL;
+		rv->described_ctype_count = 0;
 
 		/* Parse Stuff */
 		rv->ti = NULL;
@@ -589,7 +593,7 @@ SC_set_ResultHold(StatementClass *self, QResultHold rhold)
 	else if (rhold.last != self->rhold.last)
 	{
 		self->rhold.last = rhold.last;
-		if (QR_nextr(rhold.last) != NULL)
+		if (rhold.last != NULL && QR_nextr(rhold.last) != NULL)
 			SC_set_error(self, STMT_INTERNAL_ERROR, "last Result is not the last result", __FUNCTION__);
 	}
 
@@ -737,6 +741,229 @@ SC_set_prepared(StatementClass *stmt, int prepared)
 }
 
 /*
+ * Record the default C type that SQLDescribeCol or SQLColAttribute
+ * reported for result column col (0-based). If the array can't grow, the
+ * column stays unrecorded and its fetches are not checked.
+ */
+void
+SC_set_described_ctype(StatementClass *self, int col, SQLSMALLINT ctype)
+{
+	if (col < 0)
+		return;
+	if (col >= self->described_ctype_count)
+	{
+		int		newcount = col + 1;
+		SQLSMALLINT *newarr = realloc(self->described_ctype, newcount * sizeof(SQLSMALLINT));
+
+		if (!newarr)
+			return;
+		memset(newarr + self->described_ctype_count, 0,
+			   (newcount - self->described_ctype_count) * sizeof(SQLSMALLINT));
+		self->described_ctype = newarr;
+		self->described_ctype_count = newcount;
+	}
+	self->described_ctype[col] = ctype;
+}
+
+/* The default C type recorded for column col, or 0 if none was */
+SQLSMALLINT
+SC_get_described_ctype(const StatementClass *self, int col)
+{
+	if (col < 0 || col >= self->described_ctype_count)
+		return 0;
+	return self->described_ctype[col];
+}
+
+/*
+ * Forget the default C types recorded by SC_set_described_ctype(). They
+ * describe the columns of one result of one statement text, so they must
+ * be forgotten when the text changes and when the statement moves to its
+ * next result. A fetch from that result would be refused if its column
+ * had another default C type than the same column number of the result
+ * described.
+ */
+void
+SC_clear_described_ctype(StatementClass *self)
+{
+	if (self->described_ctype)
+	{
+		free(self->described_ctype);
+		self->described_ctype = NULL;
+	}
+	self->described_ctype_count = 0;
+}
+
+/*
+ * If the catalog function argument name, of len bytes, is a quoted
+ * identifier, return the offset of the text between its quotes and set
+ * *inner_len to the length of that text. Return -1 otherwise. Blanks
+ * before and after the quotes are not part of the identifier. Neither a
+ * blank nor a double quote is a byte of a multibyte character in any
+ * client encoding, so the bytes are compared one by one.
+ */
+static ssize_t
+quoted_identifier_arg(const SQLCHAR *name, size_t len, size_t *inner_len)
+{
+	size_t	start = 0, end = len;
+
+	while (start < end && ' ' == name[start])
+		start++;
+	while (end > start && ' ' == name[end - 1])
+		end--;
+	if (end - start < 3 ||
+	    IDENTIFIER_QUOTE != name[start] ||
+	    IDENTIFIER_QUOTE != name[end - 1])
+		return -1;
+	*inner_len = end - start - 2;
+	return (ssize_t) (start + 1);
+}
+
+/*
+ * Replace the name arguments of a catalog function with the names to
+ * search for. That only changes them when the arguments are identifiers
+ * (SC_is_lower_case()):
+ *
+ * - With SQL_ATTR_METADATA_ID on, a name in double quotes is searched
+ *   for as written between the quotes, as ODBC defines for identifier
+ *   arguments. A doubled quote between them stands for one quote.
+ * - Any other name is folded to lower case, as the server folds an
+ *   unquoted identifier. A name the driver can't fold that way
+ *   (CC_cannot_fold_identifier()) is left as given and, unless it is
+ *   a catalog name, marked unfoldable.
+ *
+ * A name whose length does not fit SQLSMALLINT is marked unfoldable
+ * whatever the arguments are, because the callers pass the length on as
+ * a SQLSMALLINT: a length above SHRT_MAX would wrap negative and be read
+ * as an absent argument, which for SQLTables means every table instead
+ * of the one named. The Unicode entry points measure the length of the
+ * UTF-8 form, which holds up to four bytes per character, so it can
+ * exceed SHRT_MAX for an argument length that fits it. No identifier is
+ * that long.
+ *
+ * Return FALSE, with the error set, when out of memory. The caller must
+ * call SC_finish_catalog_names() in either case.
+ */
+BOOL
+SC_fold_catalog_names(StatementClass *self, CatalogNameArg *names, int nnames)
+{
+	CSTR	func = "SC_fold_catalog_names";
+	ConnectionClass *conn = SC_get_conn(self);
+	int		i;
+
+	for (i = 0; i < nnames; i++)
+	{
+		if (NULL != names[i].name && names[i].len > SHRT_MAX &&
+		    !names[i].catalog)
+			names[i].unfoldable = TRUE;
+	}
+	if (!SC_is_lower_case(self, conn))
+		return TRUE;
+	for (i = 0; i < nnames; i++)
+	{
+		const SQLCHAR *name = names[i].name;
+		size_t	len, inner_len, j, outlen;
+		ssize_t	inner;
+
+		if (NULL == name)
+			continue;
+		if (SQL_NTS == names[i].len)
+			len = strlen((const char *) name);
+		else if (names[i].len > 0)
+			len = (size_t) names[i].len;
+		else
+			continue;
+		if (self->options.metadata_id &&
+		    (inner = quoted_identifier_arg(name, len, &inner_len)) >= 0)
+		{
+			SQLCHAR *exact = malloc(inner_len + 1);
+
+			if (!exact)
+			{
+				SC_set_error(self, STMT_NO_MEMORY_ERROR, "Out of memory for a catalog function's name argument.", func);
+				return FALSE;
+			}
+			for (j = 0, outlen = 0; j < inner_len; j++)
+			{
+				exact[outlen++] = name[inner + j];
+				if (IDENTIFIER_QUOTE == name[inner + j] &&
+				    j + 1 < inner_len &&
+				    IDENTIFIER_QUOTE == name[inner + j + 1])
+					j++;
+			}
+			exact[outlen] = '\0';
+			names[i].allocated = exact;
+			names[i].name = exact;
+			/* null-terminated, so SQL_NTS, for the reason given below */
+			names[i].len = SQL_NTS;
+		}
+		else if (CC_cannot_fold_identifier(conn, (const char *) name, len))
+		{
+			/*
+			 * The rows found belong to the other names: the catalog
+			 * functions do not search for a catalog name, so one the
+			 * driver can't fold selects none of them.
+			 */
+			if (!names[i].catalog)
+				names[i].unfoldable = TRUE;
+		}
+		else
+		{
+			/* NULL when the name has no upper case letter to fold */
+			SQLCHAR *folded = make_lstring_ifneeded(conn, name, (ssize_t) len, FALSE);
+
+			if (folded)
+			{
+				names[i].allocated = folded;
+				names[i].name = folded;
+				/*
+				 * The folded copy is null-terminated, so leave the length
+				 * as SQL_NTS. Storing the measured one would be narrowed
+				 * to SQLSMALLINT by the callers, and a name longer than
+				 * SHRT_MAX would wrap negative and be read as absent,
+				 * which for SQLTables means every table instead of none.
+				 */
+				names[i].len = SQL_NTS;
+			}
+		}
+	}
+	return TRUE;
+}
+
+/*
+ * Called by a catalog function after its search with the names from
+ * SC_fold_catalog_names(), with the search's return code, which it
+ * returns. The rows found for a name marked unfoldable belong to another
+ * table or procedure, so remove the rows of the result then and keep its
+ * columns: the application fetches SQL_NO_DATA. Free what
+ * SC_fold_catalog_names() allocated.
+ */
+RETCODE
+SC_finish_catalog_names(StatementClass *self, RETCODE ret,
+						CatalogNameArg *names, int nnames)
+{
+	QResultClass	*res = SC_get_Result(self);
+	BOOL	unfoldable = FALSE;
+	int		i;
+
+	for (i = 0; i < nnames; i++)
+	{
+		if (names[i].unfoldable)
+			unfoldable = TRUE;
+		if (names[i].allocated)
+		{
+			free(names[i].allocated);
+			names[i].allocated = NULL;
+		}
+	}
+	if (unfoldable && SQL_SUCCEEDED(ret) && NULL != res)
+	{
+		QR_free_memory(res);
+		QR_set_reached_eof(res);
+	}
+	return ret;
+}
+
+/*
  * Initialize stmt_with_params and load_statement member pointer
  * deallocating corresponding prepared plan. Also initialize
  * statement member pointer if specified.
@@ -761,6 +988,7 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 			free(self->statement);
 			self->statement = NULL;
 		}
+		SC_clear_described_ctype(self);
 
 		pstmt = self->processed_statements;
 		while (pstmt)
@@ -772,6 +1000,18 @@ SC_initialize_stmts(StatementClass *self, BOOL initializeOriginal)
 			pstmt = next_pstmt;
 		}
 		self->processed_statements = NULL;
+
+		/*
+		 * The parsed table/field information (ti, parse_status,
+		 * updatable, from_pos, where_pos) describes the statement
+		 * freed above. SC_recycle_statement() doesn't always free it
+		 * (not for STMT_ALLOCATED, nor for STMT_READY in PGAPI_Prepare),
+		 * so free it here together with the statement it belongs to.
+		 * Otherwise the offsets would be applied to the next statement
+		 * text in copy_statement_with_parameters().
+		 */
+		SC_initialize_cols_info(self, TRUE, TRUE);
+		self->from_pos = self->where_pos = -1;
 
 		self->prepare = NON_PREPARE_STATEMENT;
 		SC_set_prepared(self, NOT_YET_PREPARED);
@@ -840,6 +1080,27 @@ BOOL	SC_opencheck(StatementClass *self, const char *func)
 RETCODE
 SC_initialize_and_recycle(StatementClass *self)
 {
+	/*
+	 * Free the results, and with them their cursors, before
+	 * SC_initialize_stmts() frees the parsed table info. Closing a
+	 * cursor talks to the server, and so does the DEALLOCATE of the
+	 * statement's plan in SC_set_prepared(). A reply that ends the
+	 * transaction starts rollback processing, which reads the table
+	 * info of every statement whose result has rollback entries. Only
+	 * the statuses in which SC_recycle_statement() frees the results
+	 * are handled here.
+	 */
+	switch (self->status)
+	{
+		case STMT_READY:
+		case STMT_DESCRIBED:
+		case STMT_FINISHED:
+			if (SC_get_conn(self) && SC_get_Result(self))
+				SC_set_Result(self, NULL);
+			break;
+		default:
+			break;
+	}
 	SC_initialize_stmts(self, TRUE);
 	if (!SC_recycle_statement(self))
 		return SQL_ERROR;
@@ -915,6 +1176,14 @@ SC_recycle_statement(StatementClass *self)
 			return FALSE;
 	}
 
+	/*
+	 * Free any cursors before the parsed table/field information.
+	 * Closing a cursor talks to the server and the reply may start
+	 * rollback processing, which still needs this statement's table info.
+	 */
+	if (SC_get_Result(self))
+		SC_set_Result(self, NULL);
+
 	switch (self->prepared)
 	{
 		case NOT_YET_PREPARED:
@@ -927,9 +1196,6 @@ MYLOG(DETAIL_LOG_LEVEL, "SC_clear_parse_status\n");
 			break;
 	}
 
-	/* Free any cursors */
-	if (SC_get_Result(self))
-		SC_set_Result(self, NULL);
 	QR_Destructor(self->parsed);
 	self->parsed = NULL;
 	self->miscinfo = 0;
@@ -1014,6 +1280,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				;
 			else
 				in_ident_keyword = TRUE;
+			/* an escape takes a multibyte character too */
+			in_escape = FALSE;
 
 			continue;
 		}
@@ -1066,7 +1334,8 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 		}
 		else if (in_line_comment)
 		{
-			if (PG_LINEFEED == tchar)
+			/* as in the server, a carriage return also ends the comment */
+			if (PG_LINEFEED == tchar || PG_CARRIAGE_RETURN == tchar)
 				in_line_comment = FALSE;
 		}
 		else if (comment_level > 0)
@@ -1082,8 +1351,16 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				comment_level--;
 			}
 		}
-		else if (isalnum(tchar))
+		else if (isalnum(tchar) || '_' == tchar)
+		{
+			/*
+			 * An identifier also starts with '_'. In _$$ the server
+			 * reads one identifier; taken for a dollar quote, the $$
+			 * would make the rest of the literals here SQL and the
+			 * rest of the SQL literals.
+			 */
 			in_ident_keyword = TRUE;
+		}
 		else
 		{
 			if (tchar == '?')
@@ -1093,7 +1370,12 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 					if (proc_return)
 						*proc_return = 1;
 				}
-				num_p++;
+				/*
+				 * Don't wrap the SQLSMALLINT count negative. The query
+				 * builder refuses more than SHRT_MAX markers anyway.
+				 */
+				if (num_p < SHRT_MAX)
+					num_p++;
 			}
 			else if (tchar == ';')
 			{
@@ -1118,8 +1400,7 @@ SC_scanQueryAndCountParams(const char *query, const ConnectionClass *conn,
 				escape_in_literal = CC_get_escape(conn);
 				if (!escape_in_literal)
 				{
-					if (encstr.pos > 0 &&
-					    LITERAL_EXT == ENCODE_PTR(encstr)[-1])
+					if (isEscapeStringStart((const char *) encstr.encstr, encstr.pos))
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
@@ -2122,6 +2403,12 @@ SC_execute(StatementClass *self)
 				}
 				first = qres;
 				rhold.first = first;
+				/*
+				 * No FETCH result: the whole chain, rhold.last
+				 * included, has been destroyed above.
+				 */
+				if (NULL == first)
+					rhold.last = NULL;
 			}
 			if (first && SC_is_with_hold(self))
 				QR_set_withhold(first);
@@ -2185,6 +2472,27 @@ MYLOG(0, "set %p STMT_FINISHED\n", self);
 		}
 		else
 			SC_set_errorinfo(self, first, 0);
+		/*
+		 * The statement failed and left the transaction aborted, and it is
+		 * a transaction this statement opened: the application is in
+		 * autocommit and had none. End it, or every later statement on the
+		 * connection fails with 25P02 and the application cannot clear it,
+		 * since SQLEndTran is a no-op while the connection is in
+		 * autocommit without a manual transaction.
+		 *
+		 * A cursor is the reason a statement in autocommit opens a
+		 * transaction at all, and a statement that failed has none, so
+		 * ending it here keeps no result alive. With rollback_on_error at
+		 * 1 or 2 the driver has already undone the error through its
+		 * SAVEPOINT and the transaction is not aborted, so this is reached
+		 * only with Protocol=7.4-0.
+		 */
+		if (self->external &&
+		    !is_in_trans &&
+		    CC_does_autocommit(conn) &&
+		    CC_is_in_error_trans(conn) &&
+		    0 < SC_get_errornumber(self))
+			CC_abort(conn);
 		/* set cursor before the first tuple in the list */
 		self->currTuple = -1;
 		SC_set_current_col(self, -1);
@@ -2221,20 +2529,32 @@ MYLOG(DETAIL_LOG_LEVEL, "!!%p->miscinfo=%x res=%p\n", self, self->miscinfo, firs
 			 * special handling of result for keyset driven cursors.
 			 * Use the columns info of the 1st query and
 			 * user the keyset info of the 2nd query.
+			 *
+			 * Only rhold is adjusted here. The result must be
+			 * installed in the statement in one place, the one that
+			 * installs every other result. Installing it here too
+			 * appends rhold to itself, which links the chain into a
+			 * cycle when the server returns more than two results.
+			 *
+			 * The 2nd query selects the key columns only, so its result
+			 * has no data columns and therefore no tuple cache. A 2nd
+			 * result which does have data columns already owns a tuple
+			 * cache sized for its own num_fields and must not take over
+			 * the num_fields of the 1st result; leave the chain as
+			 * received in that case.
 			 */
 			if (SQL_CURSOR_KEYSET_DRIVEN == self->options.cursor_type &&
 			    SQL_CONCUR_READ_ONLY != self->options.scroll_concurrency &&
 			    !useCursor)
 			{
-				if (tres = QR_nextr(first), tres)
+				if (tres = QR_nextr(first), tres && 0 == tres->num_fields)
 				{
 					QR_set_fields(tres, QR_get_fields(first));
 					QR_set_fields(first,  NULL);
 					tres->num_fields = first->num_fields;
 					QR_detach(first);
 					QR_Destructor(first);
-					SC_set_Result(self, tres);
-					rhold = self->rhold;
+					rhold.first = tres;
 				}
 			}
 		}
@@ -2302,12 +2622,23 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 				ARDFields	*ardopts = SC_get_ARDF(self);
 				const ParameterInfoClass	*apara;
 				const ParameterImplClass	*ipara;
+				SQLSMALLINT	ctype;
 				int	save_bind_size = ardopts->bind_size, gidx, num_p;
 
 				ardopts->bind_size = apdopts->param_bind_type;
 				num_p = self->num_params;
 				if (ipdopts->allocated < num_p)
 					num_p = ipdopts->allocated;
+				/*
+				 * The IPD is extended by the driver itself when the
+				 * statement is described (the return value of a
+				 * '{ ? = call ...}' is marked as an output parameter
+				 * there), whereas the APD is only extended by
+				 * SQLBindParameter(). Don't read APD records which
+				 * the application never bound.
+				 */
+				if (apdopts->allocated < num_p)
+					num_p = apdopts->allocated;
 				for (i = 0, gidx = 0; i < num_p; i++)
 				{
 					int icol = gidx;
@@ -2325,7 +2656,31 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 							}
 						}
 						apara = apdopts->parameters + i;
-						ret = PGAPI_GetData(hstmt, icol + 1, apara->CType, apara->buffer + offset, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
+						if (NULL == apara->buffer && NULL == apara->used)
+						{	/* the application discards this output value */
+							gidx++;
+							continue;
+						}
+						/*
+						 * The buffer was sized for the parameter's SQL type,
+						 * not for whatever type the result column has, so
+						 * resolve SQL_C_DEFAULT from the former, the way
+						 * ResolveOneParam() does for input. That includes
+						 * taking SQL_C_CHAR for SQL_C_WCHAR where
+						 * CC_default_is_c(): input and output must agree on
+						 * the C type of the one buffer.
+						 */
+						ctype = apara->CType;
+						if (SQL_C_DEFAULT == ctype)
+						{
+							ctype = sqltype_to_default_ctype(conn, ipara->SQLType);
+#ifdef	UNICODE_SUPPORT
+							if (SQL_C_WCHAR == ctype && CC_default_is_c(conn))
+								ctype = SQL_C_CHAR;
+#endif /* UNICODE_SUPPORT */
+						}
+						ret = PGAPI_GetData(hstmt, icol + 1, ctype,
+							apara->buffer ? apara->buffer + offset : NULL, apara->buflen, apara->used ? LENADDR_SHIFT(apara->used, offset) : NULL);
 						if (!SQL_SUCCEEDED(ret))
 						{
 							SC_set_error(self, STMT_EXEC_ERROR, "GetData to Procedure return failed.", func);
@@ -2366,6 +2721,17 @@ MYLOG(DETAIL_LOG_LEVEL, "!!SC_fetch return =%d\n", ret);
 					/* Skip NULL refcursors (allows procedure to return a variable number of results) */
 					if (!SC_cursor_is_valid(self))
 						continue;
+					/*
+					 * The name is written between double quotes below.
+					 * A refused name must not stay on the statement: the
+					 * next execution would declare its cursor under it.
+					 */
+					if (strchr(SC_cursor_name(self), '"'))
+					{
+						NULL_THE_NAME(self->cursor_name);
+						SC_set_error(self, STMT_INVALID_CURSOR_NAME, "Refcursor name must not contain a double quote", func);
+						break;
+					}
 
 					SC_set_fetchcursor(self);
 					qi.result_in = NULL;
@@ -2997,6 +3363,20 @@ ParseAndDescribeWithLibpq(StatementClass *stmt, const char *plan_name,
 	if (!RequestStart(stmt, conn, func))
 		return NULL;
 
+	/*
+	 * stmt->num_params and stmt->proc_return are still unknown (-1) when
+	 * the statement is prepared by the driver itself
+	 * (UseServerSidePrepare=0) and is described before it is executed.
+	 * Both are used below to walk the parameters the server describes,
+	 * so count them first.
+	 */
+	if (stmt->num_params < 0)
+	{
+		SQLSMALLINT	nparams;
+
+		PGAPI_NumParams(stmt, &nparams);
+	}
+
 	if (!res)
 		res = QR_Constructor();
 	if (!res)
@@ -3104,8 +3484,14 @@ MYLOG(DETAIL_LOG_LEVEL, "num_params=%d info=%d\n", stmt->num_params, num_p);
 				if (i < stmt->proc_return)
 					ipdopts->parameters[i].paramType = SQL_PARAM_OUTPUT;
 				paramType =ipdopts->parameters[i].paramType;
-				if (SQL_PARAM_OUTPUT == paramType ||
-					SQL_PARAM_INPUT_OUTPUT == paramType)
+				/*
+				 * The server may describe fewer columns than the
+				 * statement has output parameters; don't read column
+				 * types past the end of the field array.
+				 */
+				if ((SQL_PARAM_OUTPUT == paramType ||
+					 SQL_PARAM_INPUT_OUTPUT == paramType) &&
+					cidx < CI_get_num_fields(QR_get_fields(res)))
 				{
 					MYLOG(DETAIL_LOG_LEVEL, "!![%d].PGType %u->%u\n", i, PIC_get_pgtype(ipdopts->parameters[i]), CI_get_oid(QR_get_fields(res), cidx));
 					PIC_set_pgtype(ipdopts->parameters[i], CI_get_oid(QR_get_fields(res), cidx));

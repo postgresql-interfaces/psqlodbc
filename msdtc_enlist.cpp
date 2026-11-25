@@ -1099,6 +1099,11 @@ RETCODE static EnlistInDtc_1pipe(void *conn, ITransaction *pTra, ITransactionDis
 /*mylog("dllname=%s dsn=%s\n", xalibname, conn->connInfo.dsn); res = 0;*/
 	char	dtcname[1024];
 	PgDtc_create_connect_string(conn, dtcname, sizeof(dtcname));
+	if ('\0' == dtcname[0])
+	{
+		PgDtc_set_error(conn, "enlistment error:the connection settings don't fit in the XA open string", func);
+		return SQL_ERROR;
+	}
 
 	bool	confirmedRegkey = false, confirmingLink = false, xarmerr = false;
 	char	error_header[64];

@@ -36,12 +36,13 @@
 #include "pgapifunc.h"
 
 #include "dlg_specific.h"
+#include "multibyte.h"
 
 #define	NULL_IF_NULL(a) (a ? a : "(NULL)")
 
 /* prototypes */
-static BOOL dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci);
-static BOOL dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci);
+static BOOL dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci, int ccsc);
+static BOOL dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci, int ccsc);
 
 #ifdef WIN32
 LRESULT CALLBACK dconn_FDriverConnectProc(HWND hdlg, UINT wMsg, WPARAM wParam, LPARAM lParam);
@@ -92,6 +93,7 @@ PGAPI_DriverConnect(HDBC hdbc,
 	ssize_t		len = 0;
 	SQLSMALLINT	lenStrout;
 	int		reqs = 0;
+	int		ccsc;
 
 
 	MYLOG(0, "entering...\n");
@@ -119,10 +121,19 @@ PGAPI_DriverConnect(HDBC hdbc,
 
 	ci = &(conn->connInfo);
 
+	/*
+	 * The encoding of the connect string: UTF-8 when it came through
+	 * the Unicode entry point, otherwise that of the locale (the same
+	 * one CC_connect() sends as client_encoding).
+	 */
+	ccsc = CC_is_in_unicode_driver(conn) ? UTF8 : derive_locale_encoding_code();
+
 	/* First parse the connect string and get the name of DSN or Driver */
-	if (!dconn_get_DSN_or_Driver(connStrIn, ci))
+	if (!dconn_get_DSN_or_Driver(connStrIn, ci, ccsc))
 	{
 		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
+		if (connStrIn)
+			free(connStrIn);
 		return SQL_ERROR;
 	}
 	/*
@@ -132,9 +143,11 @@ PGAPI_DriverConnect(HDBC hdbc,
 	 */
 	getDSNinfo(ci, NULL);
 	/* Parse the connect string and fill in conninfo for this hdbc. */
-	if (!dconn_get_connect_attributes(connStrIn, ci))
+	if (!dconn_get_connect_attributes(connStrIn, ci, ccsc))
 	{
 		CC_set_error(conn, CONN_OPENDB_ERROR, "Connection string parse error", func);
+		if (connStrIn)
+			free(connStrIn);
 		return SQL_ERROR;
 	}
 	logs_on_off(1, ci->drivers.debug, ci->drivers.commlog);
@@ -244,7 +257,7 @@ MYLOG(DETAIL_LOG_LEVEL, "before CC_connect\n");
 	lenStrout = cbConnStrOutMax;
 	if (conn->ms_jet && lenStrout > 255)
 		lenStrout = 255;
-	makeConnectString(connStrOut, ci, lenStrout);
+	makeConnectString(connStrOut, ci, lenStrout, ccsc);
 	len = strlen(connStrOut);
 
 	if (szConnStrOut)
@@ -422,9 +435,44 @@ dconn_FDriverConnectProc(
 #define	OPENING_BRACKET		'{'
 #define	CLOSING_BRACKET		'}'
 
+/*
+ *	Find the next closing bracket in str, which must start at a character
+ *	boundary, and return NULL if there is none.
+ *
+ *	A multibyte lead byte followed by 0x7d ('}') can't be read safely, so
+ *	*ambiguous is set and NULL returned for it. In SJIS, BIG5, GBK, GB18030
+ *	and JOHAB the pair is one character, and an application that escapes
+ *	by character leaves its 0x7d undoubled; an application that escapes by
+ *	byte doubles it. Read either way, the other kind of application can
+ *	end the value early, and the rest of it is parsed as further keywords.
+ */
+static const char *
+find_closing_bracket(const char *str, int ccsc, BOOL *ambiguous)
+{
+	encoded_str	encstr;
+	UCHAR		tchar;
+
+	encoded_str_constr(&encstr, ccsc, str);
+	for (tchar = encoded_nextchar(&encstr); tchar; tchar = encoded_nextchar(&encstr))
+	{
+		if (MBCS_NON_ASCII(encstr))
+		{
+			if (CLOSING_BRACKET == tchar)
+			{
+				*ambiguous = TRUE;
+				return NULL;
+			}
+			continue;
+		}
+		if (CLOSING_BRACKET == tchar)
+			return (const char *) ENCODE_PTR(encstr);
+	}
+	return NULL;
+}
+
 typedef	BOOL (*copyfunc)(ConnInfo *, const char *attribute, const char *value);
 static BOOL
-dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
+dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci, int ccsc)
 {
 	BOOL	ret = TRUE;
 	char	*our_connect_string;
@@ -433,6 +481,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 			*value,
 			*termp;
 	BOOL	eoftok;
+	BOOL	ambiguous = FALSE;
 	char	*equals, *delp;
 	char	*strtok_arg;
 #ifdef	HAVE_STRTOK_R
@@ -497,13 +546,17 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 					break;
 				}
 				/* Where's a corresponding closing bracket? */
-				closep = strchr(value, CLOSING_BRACKET);
+				closep = find_closing_bracket(value, ccsc, &ambiguous);
+				if (ambiguous)
+					goto ambiguous_brace;
 				if (NULL != closep &&
 				    closep[1] == '\0')
 				break;
 
-				for (valuen = value; valuen < termp; closep = strchr(valuen, CLOSING_BRACKET))
+				for (valuen = value; valuen < termp; closep = find_closing_bracket(valuen, ccsc, &ambiguous))
 				{
+					if (ambiguous)
+						goto ambiguous_brace;
 					if (NULL == closep)
 					{
 						if (!delp)	/* error */
@@ -512,7 +565,9 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 							ret = FALSE;
 							goto cleanup;
 						}
-						closep = strchr(delp + 1, CLOSING_BRACKET);
+						closep = find_closing_bracket(delp + 1, ccsc, &ambiguous);
+						if (ambiguous)
+							goto ambiguous_brace;
 						if (!closep)	/* error */
 						{
 							MYLOG(0, "closing bracket doesn't exist 2\n");
@@ -525,8 +580,19 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 					if (CLOSING_BRACKET == closep[1])
 					{
 						valuen = closep + 2;
-						if (valuen >= termp)
-							break;
+						/*
+						 * The string ends right after an escaped
+						 * brace, so the value is never closed.
+						 * Don't break out here: the tokenizer would
+						 * resume inside the value and parse it again
+						 * as attribute=value pairs.
+						 */
+						if (valuen >= termp)	/* error */
+						{
+							MYLOG(0, "closing bracket doesn't exist 3\n");
+							ret = FALSE;
+							goto cleanup;
+						}
 						else if (valuen == delp)
 						{
 							*delp = ATTRIBUTE_DELIMITER;
@@ -545,7 +611,7 @@ dconn_get_attributes(copyfunc func, const char *connect_string, ConnInfo *ci)
 							eoftok = TRUE;
 						break;
 					}
-MYLOG(0, "subsequent char to the closing bracket is %c value=%s\n", closep[1], value);
+MYLOG(0, "subsequent char to the closing bracket is %c\n", closep[1]);
 					ret = FALSE;
 					goto cleanup;
 				}
@@ -555,7 +621,11 @@ MYLOG(0, "subsequent char to the closing bracket is %c value=%s\n", closep[1], v
 		(*func)(ci, attribute, value);
 
 	}
+	goto cleanup;
 
+ambiguous_brace:
+	MYLOG(0, "a multibyte lead byte precedes a closing bracket\n");
+	ret = FALSE;
 cleanup:
 	free(our_connect_string);
 
@@ -563,14 +633,14 @@ cleanup:
 }
 
 static BOOL
-dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci)
+dconn_get_DSN_or_Driver(const char *connect_string, ConnInfo *ci, int ccsc)
 {
 	CC_conninfo_init(ci, INIT_GLOBALS);
-	return dconn_get_attributes(get_DSN_or_Driver, connect_string, ci);
+	return dconn_get_attributes(get_DSN_or_Driver, connect_string, ci, ccsc);
 }
 
 static BOOL
-dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci)
+dconn_get_connect_attributes(const char *connect_string, ConnInfo *ci, int ccsc)
 {
-	return dconn_get_attributes(copyConnAttributes, connect_string, ci);
+	return dconn_get_attributes(copyConnAttributes, connect_string, ci, ccsc);
 }

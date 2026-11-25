@@ -4,6 +4,7 @@ oversized ctid: execute failed
 
 HY000=Oversized keyset (ctid/oid) field from server;
 Error while executing the query
+null ctid: fetched 100 rows
 disconnecting
 connected
 declare/fetch real ctid: fetched 3 rows
@@ -11,4 +12,5 @@ declare/fetch oversized ctid: fetch failed after 1 rows
 
 HY000=Oversized keyset (ctid/oid) field from server;
 Error while fetching the next result
+declare/fetch null ctid: fetched 100 rows
 disconnecting

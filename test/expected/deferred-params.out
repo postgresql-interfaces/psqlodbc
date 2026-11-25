@@ -1,0 +1,14 @@
+Testing with UseServerSidePrepare=1
+connected
+# of result cols: 2
+column 1: id INTEGER
+Result set:
+2	bar
+disconnecting
+Testing with UseServerSidePrepare=0
+connected
+# of result cols: 2
+column 1: id INTEGER
+Result set:
+2	bar
+disconnecting

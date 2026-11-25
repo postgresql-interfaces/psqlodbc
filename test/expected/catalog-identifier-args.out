@@ -1,0 +1,141 @@
+connected
+disconnecting
+connected
+With SQL_ATTR_METADATA_ID on
+SQLTables(Items): items
+SQLTables("Items"): Items
+SQLColumns(Items): item_id
+SQLColumns("Items"): Item_Id
+SQLPrimaryKeys(Items): item_id
+SQLPrimaryKeys("Items"): Item_Id
+SQLSpecialColumns(Items): item_id
+SQLSpecialColumns("Items"): Item_Id
+SQLStatistics(Items): item_id
+SQLStatistics("Items"): Item_Id
+SQLForeignKeys(Items): lower_ref
+SQLForeignKeys("Items"): mixed_ref
+SQLTablePrivileges(Items): items
+SQLTablePrivileges("Items"): Items
+SQLColumnPrivileges(Items): item_id
+SQLColumnPrivileges("Items"): Item_Id
+SQLProcedures(Calc): calc
+SQLProcedures("Calc"): Calc
+SQLTablesW(Items): items
+SQLTablesW("Items"): Items
+SQLColumnsW(Items): item_id
+SQLColumnsW("Items"): Item_Id
+SQLPrimaryKeysW(Items): item_id
+SQLPrimaryKeysW("Items"): Item_Id
+SQLSpecialColumnsW(Items): item_id
+SQLSpecialColumnsW("Items"): Item_Id
+SQLStatisticsW(Items): item_id
+SQLStatisticsW("Items"): Item_Id
+SQLForeignKeysW(Items): lower_ref
+SQLForeignKeysW("Items"): mixed_ref
+SQLTablePrivilegesW(Items): items
+SQLTablePrivilegesW("Items"): Items
+SQLColumnPrivilegesW(Items): item_id
+SQLColumnPrivilegesW("Items"): Item_Id
+SQLProceduresW(Calc): calc
+SQLProceduresW("Calc"): Calc
+SQLTables(  "Items" ): Items
+SQLTables("Wei""rd"): Wei"rd
+disconnecting
+connected
+With LowerCaseIdentifier=1
+SQLTables(Items): items
+SQLColumns(Items): item_id
+SQLPrimaryKeys(Items): item_id
+SQLSpecialColumns(Items): item_id
+SQLStatistics(Items): item_id
+SQLForeignKeys(Items): lower_ref
+SQLTablePrivileges(Items): items
+SQLColumnPrivileges(Items): item_id
+SQLProcedures(Calc): calc
+SQLProcedureColumns(Calc): lower_arg
+SQLTablesW(Items): items
+SQLColumnsW(Items): item_id
+SQLPrimaryKeysW(Items): item_id
+SQLSpecialColumnsW(Items): item_id
+SQLStatisticsW(Items): item_id
+SQLForeignKeysW(Items): lower_ref
+SQLTablePrivilegesW(Items): items
+SQLColumnPrivilegesW(Items): item_id
+SQLProceduresW(Calc): calc
+SQLProcedureColumnsW(Calc): lower_arg
+disconnecting
+connected
+disconnecting
+
+In a LATIN1 database
+connected
+disconnecting
+connected
+disconnecting
+connected
+With SQL_ATTR_METADATA_ID on
+SQLTables(État): no rows
+SQLTables("État"): État
+SQLColumns(État): no rows
+SQLColumns("État"): Item_Id
+SQLPrimaryKeys(État): no rows
+SQLPrimaryKeys("État"): Item_Id
+SQLSpecialColumns(État): no rows
+SQLSpecialColumns("État"): Item_Id
+SQLStatistics(État): no rows
+SQLStatistics("État"): Item_Id
+SQLForeignKeys(État): no rows
+SQLForeignKeys("État"): mixed_ref
+SQLTablePrivileges(État): no rows
+SQLTablePrivileges("État"): État
+SQLColumnPrivileges(État): no rows
+SQLColumnPrivileges("État"): Item_Id
+SQLProcedures(Écart): no rows
+SQLProcedures("Écart"): Écart
+SQLTablesW(État): no rows
+SQLTablesW("État"): État
+SQLColumnsW(État): no rows
+SQLColumnsW("État"): Item_Id
+SQLPrimaryKeysW(État): no rows
+SQLPrimaryKeysW("État"): Item_Id
+SQLSpecialColumnsW(État): no rows
+SQLSpecialColumnsW("État"): Item_Id
+SQLStatisticsW(État): no rows
+SQLStatisticsW("État"): Item_Id
+SQLForeignKeysW(État): no rows
+SQLForeignKeysW("État"): mixed_ref
+SQLTablePrivilegesW(État): no rows
+SQLTablePrivilegesW("État"): État
+SQLColumnPrivilegesW(État): no rows
+SQLColumnPrivilegesW("État"): Item_Id
+SQLProceduresW(Écart): no rows
+SQLProceduresW("Écart"): Écart
+disconnecting
+connected
+With LowerCaseIdentifier=1
+SQLTables(État): no rows
+SQLColumns(État): no rows
+SQLPrimaryKeys(État): no rows
+SQLSpecialColumns(État): no rows
+SQLStatistics(État): no rows
+SQLForeignKeys(État): no rows
+SQLTablePrivileges(État): no rows
+SQLColumnPrivileges(État): no rows
+SQLProcedures(Écart): no rows
+SQLProcedureColumns(Écart): no rows
+SQLTablesW(État): no rows
+SQLColumnsW(État): no rows
+SQLPrimaryKeysW(État): no rows
+SQLSpecialColumnsW(État): no rows
+SQLStatisticsW(État): no rows
+SQLForeignKeysW(État): no rows
+SQLTablePrivilegesW(État): no rows
+SQLColumnPrivilegesW(État): no rows
+SQLProceduresW(Écart): no rows
+SQLProcedureColumnsW(Écart): no rows
+disconnecting
+connected
+SQLTables(catalog Café, Orders): orders
+disconnecting
+connected
+disconnecting

@@ -1,0 +1,21 @@
+connected
+disconnecting
+connected
+tables named état or État: 2
+INSERT INTO État (note) VALUES ('row'): @@IDENTITY = NULL
+INSERT INTO Ville (note) VALUES ('row'): @@IDENTITY = 1
+SELECT note FROM État
+Result set metadata:
+note: LONGVARCHAR(8190) digits: 0, nullable
+SELECT note FROM Ville
+Result set metadata:
+note: LONGVARCHAR(8190) digits: 0, nullable
+SQLColumns(État), METADATA_ID on: no rows
+SQLColumns(ÉTAT), METADATA_ID off: no rows
+SQLColumnsW(État), METADATA_ID on: no rows
+SQLColumns(Ville), METADATA_ID on: note is text
+SQLColumns(VILLE), METADATA_ID off: note is text
+SQLColumnsW(Ville), METADATA_ID on: note is text
+disconnecting
+connected
+disconnecting

@@ -847,7 +847,7 @@ reset_a_column_binding(ARDFields *self, int icol)
 
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
-	Int2	lf;
+	int	lf;	/* not Int2: allocated can be SHRT_MAX */
 
 MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d bindings=%p\n", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
@@ -862,7 +862,7 @@ MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d bindings=%p\n", freeall, self->
 }
 void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 {
-	Int2	lf;
+	int	lf;	/* not Int2: allocated can be SHRT_MAX */
 
 MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d gdata=%p\n", freeall, self->allocated, self->gdata);
 	if (self->fdata.ttlbuf)
@@ -1062,7 +1062,7 @@ void SC_param_next(const StatementClass *stmt, int *param_number, ParameterInfoC
 	IPDFields	*ipdopts = SC_get_IPDF(stmt);
 
 	if (*param_number < 0)
-		next = stmt->proc_return;
+		next = stmt->proc_return < 0 ? 0 : stmt->proc_return; /* -1 means unknown */
 	else
 		next = *param_number + 1;
 	if (stmt->discard_output_params)

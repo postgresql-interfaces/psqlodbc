@@ -22,7 +22,8 @@ enum {
 char	*ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL tolower);
 SQLULEN	utf8_to_ucs2_lf(const char * utf8str, SQLLEN ilen, BOOL lfconv, SQLWCHAR *ucs2str, SQLULEN buflen, BOOL errcheck);
 int	get_convtype(void);
-#define	utf8_to_ucs2(utf8str, ilen, ucs2str, buflen) utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str, buflen, FALSE)
+SQLULEN	utf8_to_ucs2(const char *utf8str, SQLLEN ilen, SQLWCHAR *ucs2str, SQLULEN bufcount);
+void	ucs2_terminate_output(SQLWCHAR *ucs2str, SQLULEN bufcount, SQLULEN count);
 
 SQLLEN bindcol_hybrid_estimate(const char *ldt, BOOL lf_conv, char **wcsbuf);
 SQLLEN bindcol_hybrid_exec(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_conv, char **wcsbuf);

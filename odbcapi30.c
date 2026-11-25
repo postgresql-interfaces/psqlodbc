@@ -548,13 +548,16 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 
 	return ret;
 }
+#endif /* UNICODE_SUPPORTXX */
 
 /*
  * SQLSetDescRec
  *
  * Description:
  *      This function sets multiple descriptor fields with a single call.
- *      This is the ANSI version of the function.
+ *      It takes no strings, so ODBC defines no Unicode form of it, and the
+ *      driver manager calls it for the ANSI and the Unicode driver alike.
+ *      Both drivers must therefore define it.
  *
  * Parameters:
  *      DescriptorHandle - Handle to the descriptor
@@ -594,7 +597,6 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 
 	return ret;
 }
-#endif /* UNICODE_SUPPORTXX */
 
 /*	new function */
 RETCODE		SQL_API
