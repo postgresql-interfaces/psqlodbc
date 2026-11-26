@@ -97,6 +97,7 @@ TESTBINS = exe/connect-test \
 	exe/colinfo-refcnt-test \
 	exe/colinfo-shared-test \
 	exe/columns-rowversioning-test \
+	exe/columns-sizes-test \
 	exe/connstring-long-test \
 	exe/connstring-mbcs-test \
 	exe/connstring-unclosed-brace-test \
