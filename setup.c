@@ -25,6 +25,9 @@
 #include  "resource.h"
 #include  "pgapifunc.h"
 #include  "dlg_specific.h"
+#ifndef	PSQLSETUP_EXPORTS
+#include  "multibyte.h"
+#endif	/* PSQLSETUP_EXPORTS */
 #include  "win_setup.h"
 
 
@@ -476,8 +479,32 @@ test_connection(HANDLE hwnd, ConnInfo *ci, BOOL withDTC)
 		ci->conn_settings_in_str = TRUE;
 	if (NAME_IS_VALID(ci->pqopt))
 		ci->pqopt_in_str = TRUE;
-	makeConnectString(out_conn, ci, sizeof(out_conn));
-MYLOG(0, "conn_string=%s\n", out_conn);
+	/*
+	 * setup.c is built into the setup DLL and into the driver DLL, which
+	 * the installer registers as its own setup DLL. Only the setup DLL
+	 * ignores the encoding argument (see dlg_specific.c); the driver DLL
+	 * needs the ANSI code page's encoding to step over double-byte
+	 * characters whose trail byte is '}'.
+	 */
+#ifdef	PSQLSETUP_EXPORTS
+	makeConnectString(out_conn, ci, sizeof(out_conn), 0);
+#else
+	makeConnectString(out_conn, ci, sizeof(out_conn), derive_locale_encoding_code());
+#endif	/* PSQLSETUP_EXPORTS */
+	/*
+	 * The string holds PWD= and, since pqopt_in_str is set above, any
+	 * password= or sslpassword= inside pqopt. Log a masked copy, as
+	 * PGAPI_DriverConnect() does with the same string. The test for the
+	 * log keeps the copy from being made when it would be thrown away.
+	 */
+	if (get_mylog())
+	{
+		char	*hide_str = hide_password(out_conn);
+
+		MYLOG(0, "conn_string=%s\n", hide_str ? hide_str : "");
+		if (hide_str)
+			free(hide_str);
+	}
 #ifdef	UNICODE_SUPPORT
 	MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, out_conn, -1, wout_conn, sizeof(wout_conn) / sizeof(wout_conn[0]));
 	conn_str = wout_conn;
@@ -586,7 +613,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 	LPCSTR		lpsz;
 	LPCSTR		lpszStart;
 	char		aszKey[MAXKEYLEN];
-	size_t		cbKey;
+	size_t		cbKey, cbValue;
 	char		value[MAXPGPATH];
 
 	for (lpsz = lpszAttributes; *lpsz; lpsz++)
@@ -603,23 +630,43 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			else if (*lpsz == '=')
 				break;			/* Valid key found */
 		}
-		/* Determine the key's index in the key table (-1 if not found) */
+		/*
+		 * Skip a pair whose key or value does not fit.  Keeping it means
+		 * leaving aszKey as it is, which gives the value to the previous
+		 * key, and copying a value of MAXPGPATH bytes or more without its
+		 * NUL.  Truncating is no better: a cut password or host is
+		 * silently wrong.
+		 */
 		cbKey = lpsz - lpszStart;
-		if (cbKey < sizeof(aszKey))
+		if (cbKey >= sizeof(aszKey))
 		{
-			memcpy(aszKey, lpszStart, cbKey);
-			aszKey[cbKey] = '\0';
+			MYLOG(0, "skipping an attribute whose key is " FORMAT_SIZE_T " bytes long\n", cbKey);
+			for (; *lpsz; lpsz++)
+				;
+			continue;
 		}
+		memcpy(aszKey, lpszStart, cbKey);
+		aszKey[cbKey] = '\0';
 
 		/* Locate end of key value */
 		lpszStart = ++lpsz;
 		for (; *lpsz; lpsz++)
 			;
+		cbValue = lpsz - lpszStart;
+		if (cbValue >= sizeof(value))
+		{
+			MYLOG(0, "skipping aszKey='%s': its value is " FORMAT_SIZE_T " bytes long\n", aszKey, cbValue);
+			continue;
+		}
 
 		/* lpsetupdlg->aAttr[iElement].fSupplied = TRUE; */
-		memcpy(value, lpszStart, MIN(lpsz - lpszStart + 1, MAXPGPATH));
+		memcpy(value, lpszStart, cbValue + 1);
 
-		MYLOG(0, "aszKey='%s', value='%s'\n", aszKey, value);
+		/*
+		 * Not the value: it may be a password.  copyConnAttributes() logs
+		 * the values that are safe to log.
+		 */
+		MYLOG(0, "aszKey='%s'\n", aszKey);
 
 		/* Copy the appropriate value to the conninfo  */
 		copyConnAttributes(&lpsetupdlg->ci, aszKey, value);

@@ -12,11 +12,24 @@ Testing COPY TO STDOUT with SQLExecDirect...
 
 HYC00=Error while executing the query;
 COPY ... FROM STDIN / TO STDOUT is not supported in ODBC
+Testing two COPY FROM STDIN in one SQLExecDirect...
+
+HYC00=Error while executing the query;
+COPY ... FROM STDIN / TO STDOUT is not supported in ODBC
+Testing two COPY TO STDOUT in one SQLExecDirect...
+
+HYC00=Error while executing the query;
+COPY ... FROM STDIN / TO STDOUT is not supported in ODBC
+Testing an empty statement after a rejected COPY...
+failed as expected
 Testing COPY FROM STDIN with SQLPrepare/SQLExecute...
 
 HYC00=Error while executing the query;
 COPY ... FROM STDIN / TO STDOUT is not supported in ODBC
 Testing that a column named stdin is not mistaken for COPY FROM STDIN...
+
+42602=ERROR: relative path not allowed for COPY to file;
+Error while executing the query
 Testing that the connection still works after a rejected COPY...
 Result set:
 1

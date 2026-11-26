@@ -1,0 +1,11 @@
+connected
+read 150 rows, now on 'item 150'
+filing the tag failed
+23505=ERROR: duplicate key value violates unique constraint "addtest_tags_pkey"
+DETAIL: Key (tag)=(1) already exists.;
+Error while executing the query
+next row
+07005=The cursor was closed by the end of the transaction.
+adding a row
+07005=The cursor was closed by the end of the transaction.
+disconnecting

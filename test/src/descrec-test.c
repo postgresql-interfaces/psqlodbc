@@ -51,6 +51,70 @@ test_setdescrec_ard_binding(void)
 	CHECK_STMT_RESULT(rc, "SQLFreeHandle failed", hstmt);
 }
 
+/*
+ * The length fields are SQLLEN in ODBC. Start each variable with every bit
+ * set, so that a driver writing only four bytes of it shows up as a wrong
+ * value here, and not just as stack corruption a build may not detect.
+ */
+static void
+print_len_field(const char *label, SQLHDESC hDesc, SQLSMALLINT field)
+{
+	SQLRETURN	rc;
+	SQLLEN		v = -1;
+
+	rc = SQLGetDescField(hDesc, 1, field, &v, sizeof(v), NULL);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("SQLGetDescField failed", SQL_HANDLE_DESC, hDesc);
+		exit(1);
+	}
+	printf("%s: %lld\n", label, (long long) v);
+}
+
+static void
+test_len_field_width(void)
+{
+	SQLRETURN	rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
+	SQLHDESC	hDesc;
+	char		col[16], param[16] = "1";
+	SQLLEN		colind = 0, paramind = SQL_NTS;
+
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	if (!SQL_SUCCEEDED(rc))
+	{
+		print_diag("failed to allocate stmt handle", SQL_HANDLE_DBC, conn);
+		exit(1);
+	}
+
+	rc = SQLBindCol(hstmt, 1, SQL_C_CHAR, col, sizeof(col), &colind);
+	CHECK_STMT_RESULT(rc, "SQLBindCol failed", hstmt);
+	rc = SQLBindParameter(hstmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_INTEGER,
+						  0, 0, param, sizeof(param), &paramind);
+	CHECK_STMT_RESULT(rc, "SQLBindParameter failed", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT ?::int4", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	printf("\n-- length fields as SQLLEN --\n");
+	rc = SQLGetStmtAttr(hstmt, SQL_ATTR_APP_ROW_DESC, &hDesc, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetStmtAttr failed", hstmt);
+	print_len_field("ARD SQL_DESC_OCTET_LENGTH", hDesc, SQL_DESC_OCTET_LENGTH);
+	rc = SQLGetStmtAttr(hstmt, SQL_ATTR_APP_PARAM_DESC, &hDesc, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetStmtAttr failed", hstmt);
+	print_len_field("APD SQL_DESC_OCTET_LENGTH", hDesc, SQL_DESC_OCTET_LENGTH);
+	rc = SQLGetStmtAttr(hstmt, SQL_ATTR_IMP_PARAM_DESC, &hDesc, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetStmtAttr failed", hstmt);
+	print_len_field("IPD SQL_DESC_OCTET_LENGTH", hDesc, SQL_DESC_OCTET_LENGTH);
+	rc = SQLGetStmtAttr(hstmt, SQL_ATTR_IMP_ROW_DESC, &hDesc, 0, NULL);
+	CHECK_STMT_RESULT(rc, "SQLGetStmtAttr failed", hstmt);
+	print_len_field("IRD SQL_DESC_OCTET_LENGTH", hDesc, SQL_DESC_OCTET_LENGTH);
+	print_len_field("IRD SQL_DESC_LENGTH", hDesc, SQL_DESC_LENGTH);
+	print_len_field("IRD SQL_DESC_DISPLAY_SIZE", hDesc, SQL_DESC_DISPLAY_SIZE);
+
+	rc = SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFreeHandle failed", hstmt);
+}
+
 int main(int argc, char **argv)
 {
 	SQLRETURN rc;
@@ -116,6 +180,7 @@ int main(int argc, char **argv)
 	CHECK_STMT_RESULT(rc, "SQLFreeHandle failed", hstmt);
 
 	test_setdescrec_ard_binding();
+	test_len_field_width();
 
 	/* Clean up */
 	test_disconnect();

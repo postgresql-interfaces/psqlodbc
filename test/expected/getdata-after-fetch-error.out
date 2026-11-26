@@ -1,0 +1,13 @@
+connected
+id 1: qty 10
+id 2: qty 20
+id 3: qty 30
+fetch failed
+22003=Numeric value out of range
+notes[0] = "note 5", note_len[0] = 6
+notes[1] = "", note_len[1] = 0
+notes[2] = "", note_len[2] = 0
+qty_get[0] = 99999999999, qty_get_len[0] = 8
+qty_get[1] = 0, qty_get_len[1] = 0
+qty_get[2] = 0, qty_get_len[2] = 0
+disconnecting

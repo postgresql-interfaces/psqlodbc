@@ -1,0 +1,17 @@
+connected
+SELECT id, d FROM stale_parse_tab WHERE nosuchcolumn = 1: execute failed
+42703=ERROR: column "nosuchcolumn" does not exist;
+Error while executing the query
+SELECT 1: fetched 1 rows
+SELECT id, d FROM stale_parse_tab WHERE d > {dt '2026-01-01'}: execute failed
+HY000=ODBC escape convert error
+SELECT 1: fetched 1 rows
+SELECT id, d FROM stale_parse_tab WHERE d > {dt '2026-01-01'} (prepared): execute failed
+HY000=ODBC escape convert error
+SELECT nosuch (prepared): describe failed
+42703=ERROR: column "nosuch" does not exist;
+No query has been executed with that handle
+SELECT nosuch (prepared): execute failed
+42703=ERROR: column "nosuch" does not exist;
+Error while executing the query
+disconnecting

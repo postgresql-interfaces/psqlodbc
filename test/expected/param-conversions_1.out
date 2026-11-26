@@ -156,4 +156,30 @@ Testing "SELECT ?" with SQL_C_CHAR -> SQL_DATE param "{d '2011-04-22'}"...
 Result set:
 2011-04-22
 
+
+Testing unsupported datetime to numeric conversions
+Testing "SELECT ?" with SQL_C_TYPE_TIMESTAMP -> SQL_INTEGER param...
+SQLExecDirect failed
+HY000=Could not convert parameter ctype to sqltype
+
+Testing "SELECT ?" with SQL_C_TYPE_TIMESTAMP -> SQL_SMALLINT param...
+SQLExecDirect failed
+HY000=Could not convert parameter ctype to sqltype
+
+Testing "SELECT ?" with SQL_C_TYPE_DATE -> SQL_INTEGER param...
+SQLExecDirect failed
+HY000=Could not convert parameter ctype to sqltype
+
+Testing "SELECT ?" with SQL_C_TYPE_TIME -> SQL_SMALLINT param...
+SQLExecDirect failed
+HY000=Could not convert parameter ctype to sqltype
+
+Testing "SELECT ?" with SQL_C_TYPE_TIMESTAMP -> SQL_REAL param...
+SQLExecDirect failed
+HY000=Could not convert parameter ctype to sqltype
+
+Testing "SELECT ?" with SQL_C_TYPE_TIMESTAMP -> SQL_DOUBLE param...
+SQLExecDirect failed
+HY000=Could not convert parameter ctype to sqltype
+
 disconnecting

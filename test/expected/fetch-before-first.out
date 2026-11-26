@@ -1,0 +1,9 @@
+connected
+SQLFetchScroll(SQL_FETCH_ABSOLUTE, 1): ids 1 2 3
+SQLSetPos(1, SQL_DELETE): ok
+SQLFetchScroll(SQL_FETCH_ABSOLUTE, 0): no data
+SQLFetchScroll(SQL_FETCH_RELATIVE, 0): ids 2 3 4
+SQLFetchScroll(SQL_FETCH_FIRST, 0): ids 2 3 4
+SQLFetchScroll(SQL_FETCH_RELATIVE, -3): no data
+SQLFetchScroll(SQL_FETCH_RELATIVE, 0): ids 2 3 4
+disconnecting

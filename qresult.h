@@ -48,6 +48,7 @@ enum
 	FQR_REACHED_EOF = (1L << 1)	/* reached eof */
 	,FQR_HAS_VALID_BASE = (1L << 2)
 	,FQR_NEEDS_SURVIVAL_CHECK = (1L << 3) /* check if the cursor is open */
+	,FQR_CURSOR_LOST = (1L << 4)	/* the cursor was closed before all rows were cached */
 };
 
 struct QResultClass_
@@ -95,20 +96,21 @@ struct QResultClass_
 	KeySet		*keyset;
 	SQLLEN		key_base;	/* relative position of rowset start in the current keyset cache */
 	UInt2		reload_count;
-	UInt2		rb_alloc;	/* count of allocated rollback info */
-	UInt2		rb_count;	/* count of rollback info */
+	UInt4		reload_serial;	/* names the _KEYSET_n plan while reload_count > 0 */
+	UInt4		rb_alloc;	/* count of allocated rollback info */
+	UInt4		rb_count;	/* count of rollback info */
 	char		dataFilled;	/* Cache is filled with data ? */
 	Rollback	*rollback;
 	UInt4		ad_alloc;	/* count of allocated added info */
 	UInt4		ad_count;	/* count of newly added rows */
 	KeySet		*added_keyset;	/* added keyset info */
 	TupleField	*added_tuples;	/* added data by myself */
-	UInt2		dl_alloc;	/* count of allocated deleted info */
-	UInt2		dl_count;	/* count of deleted info */
+	UInt4		dl_alloc;	/* count of allocated deleted info */
+	UInt4		dl_count;	/* count of deleted info */
 	SQLLEN		*deleted;	/* deleted index info */
 	KeySet		*deleted_keyset;	/* deleted keyset info */
-	UInt2		up_alloc;	/* count of allocated updated info */
-	UInt2		up_count;	/* count of updated info */
+	UInt4		up_alloc;	/* count of allocated updated info */
+	UInt4		up_count;	/* count of updated info */
 	SQLLEN		*updated;	/* updated index info */
 	KeySet		*updated_keyset;	/* uddated keyset info */
 	TupleField	*updated_tuples;	/* uddated data by myself */
@@ -130,9 +132,9 @@ enum {
 
 /*	These functions are for retrieving data from the qresult */
 #define QR_get_value_backend(self, fieldno)	(self->tupleField[fieldno].value)
-#define QR_get_value_backend_row(self, tupleno, fieldno) ((self->backend_tuples + (tupleno * self->num_fields))[fieldno].value)
+void	*QR_get_value_backend_row(const QResultClass *self, SQLLEN tupleno, int fieldno);
 #define QR_get_value_backend_text(self, tupleno, fieldno) QR_get_value_backend_row(self, tupleno, fieldno)
-#define QR_get_value_backend_int(self, tupleno, fieldno, isNull) pg_atoi(QR_get_value_backend_row(self, tupleno, fieldno))
+int	QR_get_value_backend_int(const QResultClass *self, SQLLEN tupleno, int fieldno, BOOL *isNull);
 
 /*	These functions are used by both manual and backend results */
 #define QR_NumResultCols(self)		(CI_get_num_fields(self->fields))
@@ -171,6 +173,7 @@ enum {
 #define QR_set_no_valid_base(self)	(self->pstatus &= ~FQR_HAS_VALID_BASE)
 #define QR_set_survival_check(self)	(self->pstatus |= FQR_NEEDS_SURVIVAL_CHECK)
 #define QR_set_no_survival_check(self)	(self->pstatus &= ~FQR_NEEDS_SURVIVAL_CHECK)
+#define QR_set_cursor_lost(self)	(self->pstatus |= FQR_CURSOR_LOST)
 #define	QR_inc_num_cache(self) \
 do { \
 	self->num_cached_rows++; \
@@ -204,6 +207,7 @@ do { \
 #define QR_once_reached_eof(self)	((self->pstatus & FQR_REACHED_EOF) != 0)
 #define	QR_has_valid_base(self)		(0 != (self->pstatus & FQR_HAS_VALID_BASE))
 #define	QR_needs_survival_check(self)		(0 != (self->pstatus & FQR_NEEDS_SURVIVAL_CHECK))
+#define	QR_is_cursor_lost(self)		(0 != (self->pstatus & FQR_CURSOR_LOST))
 
 #define QR_aborted(self)		(!self || self->aborted)
 #define QR_get_reqsize(self)		(self->rowset_size_include_ommitted)
@@ -231,6 +235,8 @@ void		QR_reset_for_re_execute(QResultClass *self);
 BOOL		QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn, const char *cursor, PGresult **pgres);
 void		QR_free_memory(QResultClass *self);
 void		QR_set_command(QResultClass *self, const char *msg);
+BOOL		QR_command_rolled_back(const QResultClass *self);
+BOOL		QR_chain_maybe_successful(const QResultClass *self);
 void		QR_set_message(QResultClass *self, const char *msg);
 void		QR_add_message(QResultClass *self, const char *msg);
 void		QR_set_notice(QResultClass *self, const char *msg);

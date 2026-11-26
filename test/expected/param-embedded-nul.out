@@ -1,0 +1,18 @@
+connected
+
+alice selects document "1"
+Result set:
+1	alice
+
+alice selects document "1\0"
+Result set:
+1	alice
+disconnecting
+connected
+
+alice deletes document "1\0"
+
+documents left
+Result set:
+1	bob
+disconnecting

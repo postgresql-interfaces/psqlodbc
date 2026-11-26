@@ -87,6 +87,27 @@ PGAPI_RowCount(HSTMT hstmt,
 	return SQL_SUCCESS;
 }
 
+/*
+ * A parsed description of a table column (one with a ti; the parser types
+ * constants and expressions itself) comes from the catalog at parse time. Once the
+ * statement has been executed, the column may have another type (the table
+ * was altered, or the server reported something else), and buffers sized
+ * from the parsed type would not fit the data. Drop such a description so
+ * that the caller falls back to the executed result's.
+ */
+static FIELD_INFO *
+fi_if_still_valid(StatementClass *stmt, FIELD_INFO *fi, int col_idx)
+{
+	QResultClass	*res = SC_get_Curres(stmt);
+
+	if (fi && fi->ti && res && col_idx >= 0 &&
+	    col_idx < QR_NumPublicResultCols(res) &&
+	    0 != (fi->flag & FIELD_PARSED_OK) &&
+	    FI_type(fi) != QR_get_field_type(res, col_idx))
+		fi->flag &= ~FIELD_PARSED_OK;
+	return fi;
+}
+
 static BOOL
 SC_describe_ok(StatementClass *stmt, BOOL build_fi, int col_idx, const char *func)
 {
@@ -321,6 +342,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 		}
 	}
 
+	fi = fi_if_still_valid(stmt, fi, icol);
 	if (!FI_is_applicable(fi))
 	{
 		/*
@@ -360,8 +382,13 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 #endif /* SUPPRESS_LONGEST_ON_CURSORS */
 	/* handle constants */
 	if (res &&
+	    icol < QR_NumPublicResultCols(res) &&
 	    -2 == QR_get_fieldsize(res, icol))
 		unknown_sizes = UNKNOWNS_AS_LONGEST;
+	/* what an SQL_C_DEFAULT binding of this column is sized for */
+	if (res && icol < QR_NumPublicResultCols(res))
+		SC_set_described_ctype(stmt, icol,
+			default_ctype(conn, QR_get_field_type(res, icol), QR_get_atttypmod(res, icol)));
 
 	if (FI_is_applicable(fi))
 	{
@@ -404,7 +431,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 	len = col_name ? (int) strlen(col_name) : 0;
 
 	if (pcbColName)
-		*pcbColName = len;
+		*pcbColName = (SQLSMALLINT) (len > SHRT_MAX ? SHRT_MAX : len);	/* the name comes from the server */
 
 	if (szColName && cbColNameMax > 0)
 	{
@@ -499,7 +526,7 @@ PGAPI_ColAttributes(HSTMT hstmt,
 	StatementClass *stmt = (StatementClass *) hstmt;
 	IRDFields	*irdflds;
 	OID		field_type = 0;
-	Int2		col_idx;
+	int		col_idx;	/* must be signed: icol - 1 can be negative */
 	ConnectionClass	*conn;
 	ConnInfo	*ci;
 	int		column_size, unknown_sizes;
@@ -590,7 +617,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 
 		if (SC_parsed_status(stmt) != STMT_PARSE_FATAL && irdflds->fi)
 		{
-			if (col_idx >= cols)
+			if (col_idx < 0 || col_idx >= cols)
 			{
 				SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.", func);
 				return SQL_ERROR;
@@ -599,7 +626,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 	}
 
 	if (col_idx < irdflds->nfields && irdflds->fi)
-		fi = irdflds->fi[col_idx];
+		fi = fi_if_still_valid(stmt, irdflds->fi[col_idx], col_idx);
 	if (FI_is_applicable(fi))
 		field_type = getEffectiveOid(conn, fi);
 	else
@@ -640,7 +667,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 			return SQL_SUCCESS;
 		}
 
-		if (col_idx >= cols)
+		if (col_idx < 0 || col_idx >= cols)
 		{
 			SC_set_error(stmt, STMT_INVALID_COLUMN_NUMBER_ERROR, "Invalid column number in ColAttributes.", func);
 			return SQL_ERROR;
@@ -673,8 +700,13 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 #endif /* SUPPRESS_LONGEST_ON_CURSORS */
 	/* handle constants */
 	if (res &&
+	    col_idx < QR_NumPublicResultCols(res) &&
 	    -2 == QR_get_fieldsize(res, col_idx))
 		unknown_sizes = UNKNOWNS_AS_LONGEST;
+	/* what an SQL_C_DEFAULT binding of this column is sized for */
+	if (res && col_idx >= 0 && col_idx < QR_NumPublicResultCols(res))
+		SC_set_described_ctype(stmt, col_idx,
+			default_ctype(conn, QR_get_field_type(res, col_idx), QR_get_atttypmod(res, col_idx)));
 
 	column_size = (USE_FI(fi, unknown_sizes) && fi->column_size > 0) ? fi->column_size : pgtype_column_size(stmt, field_type, col_idx, unknown_sizes);
 	switch (fDescType)
@@ -918,7 +950,7 @@ MYLOG(DETAIL_LOG_LEVEL, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 		}
 
 		if (pcbDesc)
-			*pcbDesc = (SQLSMALLINT) len;
+			*pcbDesc = (SQLSMALLINT) (len > SHRT_MAX ? SHRT_MAX : len);	/* names come from the server */
 	}
 	else
 	{
@@ -953,7 +985,7 @@ PGAPI_GetData(HSTMT hstmt,
 	CSTR func = "PGAPI_GetData";
 	QResultClass *res;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	UInt2		num_cols;
+	int		num_cols;
 	SQLLEN		num_rows;
 	OID		field_type;
 	int		atttypmod;
@@ -962,9 +994,21 @@ PGAPI_GetData(HSTMT hstmt,
 	char		get_bookmark = FALSE;
 	SQLSMALLINT	target_type;
 	int		precision = -1;
-#ifdef	WITH_UNIXODBC
-	SQLCHAR		dum_rgb[2] = "\0\0";
-#endif	/* WITH_UNIXODBC */
+	/*
+	 * Stands in for a NULL rgbValue. cbValueMax is then set to 0, which
+	 * keeps the variable-length C types out of it, but the fixed-length
+	 * C types are stored in full whatever cbValueMax says, so it must
+	 * be large enough (and aligned) for the largest of them.
+	 */
+	union
+	{
+		SQL_INTERVAL_STRUCT	interval;
+		SQL_NUMERIC_STRUCT	numeric;
+		TIMESTAMP_STRUCT	timestamp;
+		SQLGUID			guid;
+		SQLBIGINT		bigint;
+		SQLDOUBLE		dbl;
+	}		dum_rgb;
 
 	MYLOG(0, "entering stmt=%p icol=%d\n", stmt, icol);
 
@@ -987,13 +1031,22 @@ PGAPI_GetData(HSTMT hstmt,
 		return SQL_ERROR;
 	}
 
-#ifdef	WITH_UNIXODBC
-	if (NULL == rgbValue) /* unixODBC allows rgbValue is NULL? */
+	if (res && QR_is_cursor_lost(res))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor was closed by the end of the transaction.", func);
+		return SQL_ERROR;
+	}
+
+	/*
+	 * unixODBC allows rgbValue is NULL? SC_execute() also calls us with
+	 * the application's output parameter binding as is, on any platform.
+	 */
+	if (NULL == rgbValue)
 	{
 		cbValueMax = 0;
-		rgbValue = dum_rgb; /* to avoid a crash */
+		pg_memset(&dum_rgb, 0, sizeof(dum_rgb));
+		rgbValue = &dum_rgb; /* to avoid a crash */
 	}
-#endif	/* WITH_UNIXODBC */
 	if (SQL_ARD_TYPE == fCType)
 	{
 		ARDFields	*opts;
@@ -1099,12 +1152,14 @@ MYLOG(DETAIL_LOG_LEVEL, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMA
 	if (get_bookmark)
 	{
 		BOOL	contents_get = FALSE;
+		Int4	bookmark = SC_make_int4_bookmark(stmt->currTuple);
 
 		if (rgbValue)
 		{
-			if (SQL_C_BOOKMARK == target_type || sizeof(UInt4) <= cbValueMax)
+			/* cbValueMax is signed: a negative one must not pass as large */
+			if (SQL_C_BOOKMARK == target_type ||
+				(SQLLEN) sizeof(UInt4) <= cbValueMax)
 			{
-				Int4 bookmark = SC_make_int4_bookmark(stmt->currTuple);
 				contents_get = TRUE;
 				memcpy(rgbValue, &bookmark, sizeof(bookmark));
 			}
@@ -1130,7 +1185,8 @@ MYLOG(DETAIL_LOG_LEVEL, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMA
 	SC_set_current_col(stmt, icol);
 
 	result = copy_and_convert_field(stmt, field_type, atttypmod, value,
-			target_type, precision, rgbValue, cbValueMax, pcbValue, pcbValue);
+			target_type, precision, rgbValue, cbValueMax, pcbValue, pcbValue,
+			SC_get_described_ctype(stmt, icol));
 
 	switch (result)
 	{
@@ -1236,6 +1292,12 @@ PGAPI_Fetch(HSTMT hstmt)
 		return SQL_ERROR;
 	}
 
+	if (QR_is_cursor_lost(res))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor was closed by the end of the transaction.", func);
+		return SQL_ERROR;
+	}
+
 	if (opts->bindings == NULL)
 	{
 		if (!SC_may_fetch_rows(stmt))
@@ -1310,7 +1372,7 @@ MYLOG(DETAIL_LOG_LEVEL, "get " FORMAT_ULEN "th Valid data from " FORMAT_LEN " to
 			*nearest = sta + 1 - nth;
 			delsta = (-1);
 			MYPRINTF(DETAIL_LOG_LEVEL, "deleted ");
-			for (i = res->dl_count - 1; i >=0 && *nearest <= deleted[i]; i--)
+			for (i = (SQLLEN) res->dl_count - 1; i >=0 && *nearest <= deleted[i]; i--)
 			{
 				MYPRINTF(DETAIL_LOG_LEVEL, "[" FORMAT_LEN "]=" FORMAT_LEN " ", i, deleted[i]);
 				if (sta >= deleted[i])
@@ -1534,6 +1596,12 @@ PGAPI_ExtendedFetch(HSTMT hstmt,
 	if (stmt->status != STMT_FINISHED)
 	{
 		SC_set_error(stmt, STMT_STATUS_ERROR, "ExtendedFetch can only be called after the successful execution on a SQL statement", func);
+		return SQL_ERROR;
+	}
+
+	if (QR_is_cursor_lost(res))
+	{
+		SC_set_error(stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor was closed by the end of the transaction.", func);
 		return SQL_ERROR;
 	}
 
@@ -1785,6 +1853,20 @@ MYLOG(DETAIL_LOG_LEVEL, "num_tuples=" FORMAT_LEN "\n", num_tuples);
 				}
 				bidx = num_tuples - 1 - res->ad_count - bidx;
 			}
+			/*
+			 * The bookmark is the application's value. getNthValid()
+			 * starts at this row and reads its entry of the keyset, so
+			 * the row must be one of the result's. num_tuples is INT_MAX
+			 * while the number of rows is not known.
+			 */
+			if (bidx < 0)
+			{
+				EXTFETCH_RETURN_BOF(stmt, res)
+			}
+			if (bidx >= num_tuples)
+			{
+				EXTFETCH_RETURN_EOF(stmt, res)
+			}
 
 			rowset_start = bidx;
 			if (bookmark_offset >= 0)
@@ -1846,7 +1928,8 @@ MYLOG(DETAIL_LOG_LEVEL, "num_tuples=" FORMAT_LEN "\n", num_tuples);
 		else
 		{	/* overlap with beginning of result set,
 			 * so get first rowset */
-			SC_set_rowset_start(stmt, 0, TRUE);
+			rowset_start = 0;
+			SC_set_rowset_start(stmt, rowset_start, TRUE);
 		}
 		should_set_rowset_start = FALSE;
 	}
@@ -1995,9 +2078,6 @@ MYLOG(DETAIL_LOG_LEVEL, "just skipping deleted row " FORMAT_LEN "\n", currp);
 	*/
 	stmt->last_fetch_count_include_ommitted = fc_io;
 
-	/* Reset next binding row */
-	stmt->bind_row = 0;
-
 	/* Move the cursor position to the first row in the result set. */
 	stmt->currTuple = RowIdx2GIdx(0, stmt);
 
@@ -2024,6 +2104,12 @@ MYLOG(DETAIL_LOG_LEVEL, "pcrow=" FORMAT_LEN "\n", i);
 
 cleanup:
 #undef	return
+	/*
+	 * Reset next binding row. This must happen on the error exits too:
+	 * a later SQLGetData() converts into the application's buffer at
+	 * this offset, which would be the row that failed to convert.
+	 */
+	stmt->bind_row = 0;
 	return result;
 }
 
@@ -2046,6 +2132,7 @@ PGAPI_MoreResults(HSTMT hstmt)
 	{
 		res = QR_nextr(res);
 		SC_set_Curres(stmt, res);
+		SC_clear_described_ctype(stmt);
 	}
 	if (res)
 	{
@@ -2119,16 +2206,30 @@ static void KeySetSet(const TupleField *tuple, int num_fields, int num_key_field
 	int status = 0;
 	if (statusInit)
 		keyset->status = 0;
-	secure_sscanf(tuple[num_fields - num_key_fields].value, &status, "(%u,%hu)",
-		ARG_UINT(&(keyset->blocknum)), ARG_USHORT(&(keyset->offset)));
+	/*
+	 * The key columns come from the server and may be NULL or malformed
+	 * (e.g. a view with its own "ctid" column). Store (0,0), which is
+	 * the "no key" value, instead of leaving the fields untouched.
+	 */
+	if (2 != secure_sscanf(tuple[num_fields - num_key_fields].value, &status, "(%u,%hu)",
+		ARG_UINT(&(keyset->blocknum)), ARG_USHORT(&(keyset->offset))))
+	{
+		keyset->blocknum = 0;
+		keyset->offset = 0;
+	}
 	if (num_key_fields > 1)
 	{
 		const char *oval = tuple[num_fields - 1].value;
+		int	cnt = 0;
 
-		if ('-' == oval[0])
-			secure_sscanf(oval, &status, "%d", ARG_INT(&(keyset->oid)));
+		if (NULL == oval)
+			;
+		else if ('-' == oval[0])
+			cnt = secure_sscanf(oval, &status, "%d", ARG_INT(&(keyset->oid)));
 		else
-			secure_sscanf(oval, &status, "%u", ARG_UINT(&(keyset->oid)));
+			cnt = secure_sscanf(oval, &status, "%u", ARG_UINT(&(keyset->oid)));
+		if (1 != cnt)
+			keyset->oid = 0;
 	}
 	else
 		keyset->oid = 0;
@@ -2160,6 +2261,9 @@ MYLOG(DETAIL_LOG_LEVEL, "entering " FORMAT_LEN "(%u,%u) %s\n", index, keyset->bl
 			res->rb_alloc *= 2;
 			if (rollback = realloc(res->rollback, sizeof(Rollback) * res->rb_alloc), !rollback)
 			{
+				/* drop the log rather than keep a pointer to reallocate again */
+				free(res->rollback);
+				res->rollback = NULL;
 				res->rb_alloc = res->rb_count = 0;
 				return;
 			}
@@ -2261,11 +2365,29 @@ ti_quote(StatementClass *stmt, OID tableoid, char *buf, int buf_size)
 		return SAFE_NAME(rNAME);
 	else
 	{
-		char	query[200];
+		char	query[600];
 		QResultClass	*res;
 		char	*ret = "";
 
-		SPRINTF_FIXED(query, "select relname, nspname from pg_class c, pg_namespace n where c.oid=%u and c.relnamespace=n.oid", tableoid);
+		/*
+		 * tableoid was read from the fetched row. Accept it only when
+		 * it names the cursor's table or one of its descendants, so a
+		 * row from elsewhere can't steer a positioned UPDATE/DELETE to
+		 * another table.
+		 */
+		if (0 != ti->table_oid)
+			SPRINTF_FIXED(query,
+				"with recursive t(oid) as (select %u::pg_catalog.oid union"
+				" select i.inhrelid from pg_catalog.pg_inherits i, t"
+				" where i.inhparent operator(pg_catalog.=) t.oid)"
+				" select c.relname, n.nspname"
+				" from pg_catalog.pg_class c, pg_catalog.pg_namespace n, t"
+				" where c.oid operator(pg_catalog.=) %u"
+				" and c.oid operator(pg_catalog.=) t.oid"
+				" and c.relnamespace operator(pg_catalog.=) n.oid",
+				ti->table_oid, tableoid);
+		else
+			SPRINTF_FIXED(query, "select relname, nspname from pg_catalog.pg_class c, pg_catalog.pg_namespace n where c.oid operator(pg_catalog.=) %u and c.relnamespace operator(pg_catalog.=) n.oid", tableoid);
 		res = CC_send_query(SC_get_conn(stmt), query, NULL, READ_ONLY_QUERY, stmt);
 		if (QR_command_maybe_successful(res) &&
 		    QR_get_num_cached_tuples(res) == 1)
@@ -2296,7 +2418,7 @@ static BOOL	tupleExists(StatementClass *stmt, const KeySet *keyset)
 			 "select 1 from %s where ctid = '(%u,%u)'",
 			 ti_quote(stmt, keyset->oid, table_fqn, sizeof(table_fqn)),
 			 keyset->blocknum, keyset->offset);
-	if (NULL != bestqual && 0 != keyset->oid && !TI_has_subclass(ti))
+	if (NULL != bestqual && 0 != keyset->oid)
 	{
 		appendPQExpBuffer(&selstr, " and ");
 		appendPQExpBuffer(&selstr, bestqual, keyset->oid);
@@ -2334,7 +2456,23 @@ static BOOL enlargeAdded(QResultClass *res, UInt4 number, const StatementClass *
 		return TRUE;
 	QR_REALLOC_return_with_error(res->added_keyset, KeySet, sizeof(KeySet) * alloc, res, "enlargeAdded failed", FALSE);
 	if (SQL_CURSOR_KEYSET_DRIVEN != stmt->options.cursor_type)
+	{
+		/*
+		 * ad_alloc counts the rows of added_keyset, which this function
+		 * allocates for every cursor type, while added_tuples is left
+		 * NULL for a keyset-driven one. So the slots this allocation
+		 * adds start at 0 whenever added_tuples was NULL, whatever
+		 * ad_alloc says.
+		 */
+		size_t	old_alloc = res->added_tuples ? res->ad_alloc : 0;
+
 		QR_REALLOC_return_with_error(res->added_tuples, TupleField, sizeof(TupleField) * num_fields * alloc, res, "enlargeAdded failed 2", FALSE);
+		/*
+		 * Clear the new slots so that ClearCachedRows() never sees
+		 * a garbage value pointer in a row that was not stored yet.
+		 */
+		pg_memset(res->added_tuples + num_fields * old_alloc, 0, sizeof(TupleField) * num_fields * (alloc - old_alloc));
+	}
 	res->ad_alloc = alloc;
 	return TRUE;
 }
@@ -2362,7 +2500,12 @@ MYLOG(DETAIL_LOG_LEVEL, "entering index=" FORMAT_LEN ", tuple=%p, num_fields=%d\
 		keys.status |= CURS_SELF_ADDED;
 	AddRollback(stmt, res, index, &keys, SQL_ADD);
 
-	if (!QR_get_cursor(res))
+	/*
+	 * Once added_keyset/added_tuples exist they are walked and freed
+	 * by ad_count, so keep storing rows even if a rollback has closed
+	 * the cursor since.
+	 */
+	if (!QR_get_cursor(res) && 0 == res->ad_alloc)
 		return;
 	if (ad_count > 0 && 0 == res->ad_alloc)
 		return;
@@ -2401,13 +2544,16 @@ static	void RemoveAdded(QResultClass *res, SQLLEN index)
 	if (rmidx >= res->ad_count)
 		return;
 	added_keyset = res->added_keyset + rmidx;
-	added_tuples = res->added_tuples + num_fields * rmidx;
-	ClearCachedRows(added_tuples, num_fields, 1);
+	/* a keyset-driven cursor keeps no added_tuples (see enlargeAdded) */
+	added_tuples = res->added_tuples ? res->added_tuples + num_fields * rmidx : NULL;
+	if (added_tuples)
+		ClearCachedRows(added_tuples, num_fields, 1);
 	mv_count = res->ad_count - rmidx - 1;
 	if (mv_count > 0)
 	{
 		memmove(added_keyset, added_keyset + 1, mv_count * sizeof(KeySet));
-		memmove(added_tuples, added_tuples + num_fields, mv_count * num_fields * sizeof(TupleField));
+		if (added_tuples)
+			memmove(added_tuples, added_tuples + num_fields, mv_count * num_fields * sizeof(TupleField));
 	}
 	RemoveDeleted(res, index);
 	RemoveUpdated(res, index);
@@ -2455,7 +2601,7 @@ static int
 AddDeleted(QResultClass *res, SQLULEN index, const KeySet *keyset)
 {
 	int	i;
-	Int2	dl_count, new_alloc;
+	UInt4	dl_count, new_alloc;
 	SQLLEN	*deleted;
 	KeySet	*deleted_keyset;
 	UWORD	status;
@@ -2463,7 +2609,8 @@ AddDeleted(QResultClass *res, SQLULEN index, const KeySet *keyset)
 MYLOG(DETAIL_LOG_LEVEL, "entering " FORMAT_ULEN "\n", index);
 	dl_count = res->dl_count;
 	res->dl_count++;
-	if (!QR_get_cursor(res))
+	/* likewise deleted/deleted_keyset are walked by dl_count once they exist */
+	if (!QR_get_cursor(res) && !res->deleted)
 		return TRUE;
 	if (!res->deleted)
 	{
@@ -2599,7 +2746,7 @@ MYLOG(DETAIL_LOG_LEVEL, "Deleted=" FORMAT_LEN "(%d)\n", *deleted, i);
 static BOOL
 enlargeUpdated(QResultClass *res, Int4 number, const StatementClass *stmt)
 {
-	Int2	alloc;
+	UInt4	alloc;
 
 	alloc = res->up_alloc;
 	if (0 == alloc)
@@ -2629,7 +2776,7 @@ AddUpdated(StatementClass *stmt, SQLLEN index, const KeySet *keyset, const Tuple
 	KeySet	*updated_keyset;
 	TupleField	*updated_tuples = NULL,  *tuple;
 	/* SQLLEN	res_ridx; */
-	UInt2	up_count;
+	UInt4	up_count;
 	BOOL	is_in_trans;
 	SQLLEN	upd_idx, upd_add_idx;
 	Int2	num_fields;
@@ -2663,7 +2810,7 @@ MYLOG(DETAIL_LOG_LEVEL, "entering index=" FORMAT_LEN "\n", index);
 		status |= CURS_SELF_UPDATING;
 	else
 	{
-		for (i = up_count - 1; i >= 0; i--)
+		for (i = (SQLLEN) up_count - 1; i >= 0; i--)
 		{
 			if (updated[i] == index)
 				break;
@@ -2803,7 +2950,7 @@ CommitUpdated(QResultClass *res)
 		return;
 	if (updated_keyset = res->updated_keyset, !updated_keyset)
 		return;
-	for (i = res->up_count - 1; i >= 0; i--)
+	for (i = (SQLLEN) res->up_count - 1; i >= 0; i--)
 	{
 		status = updated_keyset[i].status;
 		if (0 != (status & CURS_SELF_UPDATING))
@@ -2982,7 +3129,7 @@ MYLOG(DETAIL_LOG_LEVEL, "update[%d].index=%d\n", j, rollback[j].index);
 	}
 MYLOG(DETAIL_LOG_LEVEL, "rollbp=%d\n", rollbp);
 
-	for (i = res->rb_count - 1; i >= rollbp; i--)
+	for (i = (SQLLEN) res->rb_count - 1; i >= rollbp; i--)
 	{
 MYLOG(DETAIL_LOG_LEVEL, "do %d(%d)\n", i, rollback[i].option);
 		index = rollback[i].index;
@@ -3052,7 +3199,12 @@ MYPRINTF(DETAIL_LOG_LEVEL, "->(%u, %u)", wkey->blocknum, wkey->offset);
 					SPRINTF_FIXED(tidval,
 							 "(%u,%u)", wkey->blocknum, wkey->offset);
 					qres = positioned_load(stmt, 0, &oid, tidval);
+					/*
+					 * The reloaded row is moved into the cache of res,
+					 * so its column count must match.
+					 */
 					if (QR_command_maybe_successful(qres) &&
+					    QR_NumResultCols(qres) == QR_NumResultCols(res) &&
 					    QR_get_num_cached_tuples(qres) == 1)
 					{
 						MoveCachedRows(res->backend_tuples + num_fields * ridx, qres->backend_tuples, num_fields, 1);
@@ -3080,6 +3232,15 @@ ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 	StatementClass	*stmt;
 	QResultClass	*res;
 
+	/*
+	 * UndoRollback() sends queries of its own. The transaction status
+	 * of their replies may bring us back here via CC_on_commit() or
+	 * CC_on_abort() while the outer call is still walking res->rollback,
+	 * in which case the nested call would free the log under its feet.
+	 */
+	if (conn->rollback_in_progress)
+		return;
+	conn->rollback_in_progress = 1;
 	for (i = 0; i < conn->num_stmts; i++)
 	{
 		if (stmt = conn->stmts[i], !stmt)
@@ -3092,6 +3253,7 @@ ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial)
 				DiscardRollback(stmt, res);
 		}
 	}
+	conn->rollback_in_progress = 0;
 }
 
 
@@ -3114,7 +3276,11 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (TI_has_subclass(ti))
 	{
-		OID	tableoid = *oidint;
+		/*
+		 * irow_insert() passes no oid when the server returned 0 for
+		 * tableoid; ti_quote() then names the table of the statement.
+		 */
+		OID	tableoid = oidint ? *oidint : 0;
 		char	table_fqn[256];
 		const char	*quoted_table;
 
@@ -3123,12 +3289,18 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 		{
 			if (latest)
 			{
+				/* currtid2() takes the quoted name as a string literal */
+				char	*lit_table = identifierEscape((const SQLCHAR *) quoted_table, SQL_NTS, SC_get_conn(stmt), NULL, -1, FALSE);
+
 				printfPQExpBuffer(&selstr,
-					 "%.*sfrom %s where ctid = (select currtid2('%s', '%s'))",
+					 "%.*sfrom %s where ctid = (select currtid2(%s'%s', '%s'))",
 					 (int) from_pos, load_stmt,
 					 quoted_table,
-					 quoted_table,
+					 CC_literal_prefix(SC_get_conn(stmt)),
+					 lit_table ? lit_table : "",
 					 tidval);
+				if (lit_table)
+					free(lit_table);
 			}
 			else
 				printfPQExpBuffer(&selstr, "%.*sfrom %s where ctid = '%s'", (int) from_pos, load_stmt, quoted_table, tidval);
@@ -3145,6 +3317,16 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find added and updating row because of the lack of oid", func);
 			goto cleanup;
 		}
+		/*
+		 * The scan of the table includes its children and each of
+		 * them has its own row at this ctid. tableoid is the other
+		 * half of the key.
+		 */
+		if (bestqual && 0 != tableoid)
+		{
+			appendPQExpBufferStr(&selstr, " and ");
+			appendPQExpBuffer(&selstr, bestqual, tableoid);
+		}
 	}
 	else
 	{
@@ -3156,12 +3338,17 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 			if (latest)
 			{
 				char table_fqn[256];
+				/* currtid2() takes the quoted name as a string literal */
+				char	*lit_table = identifierEscape((const SQLCHAR *) ti_quote(stmt, 0, table_fqn, sizeof(table_fqn)), SQL_NTS, SC_get_conn(stmt), NULL, -1, FALSE);
 
 				printfPQExpBuffer(&selstr,
-					 "%s where ctid = (select currtid2('%s', '%s'))",
+					 "%s where ctid = (select currtid2(%s'%s', '%s'))",
 					 load_stmt,
-					 ti_quote(stmt, 0, table_fqn, sizeof(table_fqn)),
+					 CC_literal_prefix(SC_get_conn(stmt)),
+					 lit_table ? lit_table : "",
 					 tidval);
+				if (lit_table)
+					free(lit_table);
 			}
 			else
 				printfPQExpBuffer(&selstr, "%s where ctid = '%s'", load_stmt, tidval);
@@ -3219,7 +3406,7 @@ BOOL QR_get_last_bookmark(const QResultClass *res, Int4 index, KeySet *keyset)
 	}
 	if (res->up_count > 0 && res->updated)
 	{
-		for (i = res->up_count - 1; i >= 0; i--)
+		for (i = (SQLLEN) res->up_count - 1; i >= 0; i--)
 		{
 			if (res->updated[i] == index)
 			{
@@ -3259,7 +3446,8 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
 	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
-		if (NULL == keyset || keyset->offset == 0)
+		/* the keys in a bookmark are only trusted in declare/fetch mode; otherwise all keys are cached */
+		if (NULL == keyset || keyset->offset == 0 || !QR_get_cursor(res))
 		{
 			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target keys are out of the rowset", func);
 			return SQL_ERROR;
@@ -3322,6 +3510,17 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 		ret = SQL_ERROR;
 		SC_replace_error_with_res(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "positioned_load failed", qres, TRUE);
 	}
+	else if (QR_NumResultCols(qres) != QR_NumResultCols(res))
+	{
+		/*
+		 * The reloaded row is moved into the cache of res and its key
+		 * columns are read relative to its column count, so a (malicious
+		 * or buggy) server answering with a different column set would
+		 * make both run out of bounds.
+		 */
+		ret = SQL_ERROR;
+		SC_set_error(stmt, STMT_EXEC_ERROR, "the reloaded row has a different number of columns", func);
+	}
 	else if (rcnt = (UInt2) QR_get_num_cached_tuples(qres), rcnt == 1)
 	{
 		SQLLEN		res_ridx;
@@ -3348,7 +3547,8 @@ SC_pos_reload_with_key(StatementClass *stmt, SQLULEN global_ridx, UInt2 *count, 
 			QR_set_position(qres, 0);
 			tuple_new = qres->tupleField;
 			if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
-				strcmp(tuple_new[qres->num_fields - res->num_key_fields].value, tidval))
+				(NULL == tuple_new[qres->num_fields - res->num_key_fields].value ||
+				 strcmp(tuple_new[qres->num_fields - res->num_key_fields].value, tidval)))
 				res->keyset[kres_ridx].status |= SQL_ROW_UPDATED;
 			KeySetSet(tuple_new, qres->num_fields, res->num_key_fields, res->keyset + kres_ridx, FALSE);
 			MoveCachedRows(tuple_old, tuple_new, effective_fields, 1);
@@ -3429,7 +3629,9 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 				goto cleanup;
 			}
 			qres = CC_send_query(conn, qval.data, NULL, CREATE_KEYSET | READ_ONLY_QUERY, stmt);
-			if (QR_command_maybe_successful(qres))
+			/* the rows are moved into the cache of res, so the column counts must match */
+			if (QR_command_maybe_successful(qres) &&
+			    qres->num_fields == res->num_fields)
 			{
 				SQLLEN		j, k, l;
 				Int2		m;
@@ -3498,7 +3700,8 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 						keys_per_fetch = rows_per_fetch;
 					if (!keys_per_fetch)
 						keys_per_fetch = 2;
-					SPRINTF_FIXED(planname, "_KEYSET_%p", res);
+					res->reload_serial = CC_get_name_serial(conn);
+					SPRINTF_FIXED(planname, "_KEYSET_%u", res->reload_serial);
 					printfPQExpBuffer(&qval, "PREPARE \"%s\"", planname);
 					for (j = 0; j < keys_per_fetch; j++)
 					{
@@ -3536,7 +3739,7 @@ static SQLLEN LoadFromKeyset(StatementClass *stmt, QResultClass * res, int rows_
 			}
 			if (res->reload_count > 0)
 			{
-				printfPQExpBuffer(&qval, "EXECUTE \"_KEYSET_%p\"(", res);
+				printfPQExpBuffer(&qval, "EXECUTE \"_KEYSET_%u\"(", res->reload_serial);
 			}
 			else
 			{
@@ -3615,6 +3818,14 @@ MYLOG(0, "entering in rows_per_fetch=%d limitrow=" FORMAT_LEN "\n", rows_per_fet
 				UInt2		off;
 				OID		tbloid;
 
+				/* the rows are moved into the cache of res, so the column counts must match */
+				if (qres->num_fields != res->num_fields)
+				{
+					SC_set_error(stmt, STMT_EXEC_ERROR, "Data Load Error", __FUNCTION__);
+					rcnt = -1;
+					QR_Destructor(qres);
+					break;
+				}
 				for (j = 0; j < QR_get_num_total_read(qres); j++)
 				{
 					tbloid = getOid(qres, j);
@@ -3823,6 +4034,11 @@ SC_pos_newload(StatementClass *stmt, const UInt4 *oidint, BOOL tidRef,
 	if (!qres || !QR_command_maybe_successful(qres))
 	{
 		SC_set_error(stmt, STMT_ERROR_TAKEN_FROM_BACKEND, "positioned_load in pos_newload failed", func);
+	}
+	else if (QR_NumResultCols(qres) != QR_NumResultCols(res))
+	{
+		/* the loaded row is moved into the cache of res, so the column counts must match */
+		SC_set_error(stmt, STMT_EXEC_ERROR, "the loaded row has a different number of columns", func);
 	}
 	else
 	{
@@ -4077,7 +4293,8 @@ SC_pos_update(StatementClass *stmt,
 	kres_ridx = GIdx2KResIdx(s.global_ridx, s.stmt, s.res);
 	if (kres_ridx < 0 || kres_ridx >= s.res->num_cached_keys)
 	{
-		if (NULL == keyset || keyset->offset == 0)
+		/* the keys in a bookmark are only trusted in declare/fetch mode; otherwise all keys are cached */
+		if (NULL == keyset || keyset->offset == 0 || !QR_get_cursor(s.res))
 		{
 			SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "the target keys are out of the rowset", func);
 			return SQL_ERROR;
@@ -4088,7 +4305,16 @@ SC_pos_update(StatementClass *stmt,
 	{
 		if (!(oid = getOid(s.res, kres_ridx)))
 		{
-			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+			/*
+			 * An oid and a tableoid are never 0, so a 0 means the row's
+			 * key is gone and bestqual cannot identify the row: without
+			 * it the statement would match by ctid alone, which on a
+			 * table with children is another table's row. A bestitem
+			 * that names a key column is left alone, since 0 is a value
+			 * such a column can hold.
+			 */
+			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME) ||
+			    !strcmp(SAFE_NAME(stmt->ti[0]->bestitem), TABLEOID_NAME))
 			{
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
 				return SQL_ERROR;
@@ -4113,7 +4339,23 @@ SC_pos_update(StatementClass *stmt,
 			 "update %s set", ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)));
 
 	num_cols = s.irdflds->nfields;
+	/*
+	 * nfields is the parser's count, taken from the connection's cached
+	 * column info, which goes stale when another session alters the
+	 * table; the bindings array is sized from the columns the server
+	 * actually returned. Never index the result or the bindings past
+	 * their own size.
+	 */
+	if (num_cols > getNumResultCols(s.res))
+		num_cols = getNumResultCols(s.res);
+	if (num_cols > opts->allocated)
+		num_cols = opts->allocated;
 	offset = opts->row_offset_ptr ? *opts->row_offset_ptr : 0;
+	/*
+	 * fi[i] is NULL for a result column the parser did not see and
+	 * ColAttSet() did not fill, e.g. an expression after '*' once the
+	 * table gained a column; such a column is not updatable.
+	 */
 	for (i = upd_cols = 0; i < num_cols; i++)
 	{
 		if (used = bindings[i].used, used != NULL)
@@ -4124,14 +4366,24 @@ SC_pos_update(StatementClass *stmt,
 			else
 				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN));
 			MYLOG(0, "%d used=" FORMAT_LEN ",%p\n", i, *used, used);
-			if (*used != SQL_IGNORE && fi[i]->updatable)
+			if (*used != SQL_IGNORE && NULL != fi[i] && fi[i]->updatable)
 			{
+				/*
+				 * The name as stored in the catalog, quoted with any "
+				 * doubled. identifierEscape() is for a name inside a
+				 * string literal: it also doubles ', which here would
+				 * name another column.
+				 */
+				char	qcol[2 * NAMESTORAGELEN + 4];
+				pgNAME	no_schema = { NULL };
+				const char *col = quote_table(no_schema, fi[i]->column_name, qcol, sizeof(qcol));
+
 				if (upd_cols)
 					appendPQExpBuffer(&updstr,
-								 ", \"%s\" = ?", GET_NAME(fi[i]->column_name));
+								 ", %s = ?", col);
 				else
 					appendPQExpBuffer(&updstr,
-								 " \"%s\" = ?", GET_NAME(fi[i]->column_name));
+								 " %s = ?", col);
 				upd_cols++;
 			}
 		}
@@ -4176,6 +4428,8 @@ SC_pos_update(StatementClass *stmt,
 			goto cleanup;
 		}
 		s.qstmt = (StatementClass *) hstmt;
+		/* the application's SQL_ATTR_QUERY_TIMEOUT applies to the UPDATE too */
+		s.qstmt->options.stmt_timeout = s.stmt->options.stmt_timeout;
 		apdopts = SC_get_APDF(s.qstmt);
 		apdopts->param_bind_type = opts->bind_size;
 		apdopts->param_offset_ptr = opts->row_offset_ptr;
@@ -4192,7 +4446,7 @@ SC_pos_update(StatementClass *stmt,
 				else
 					used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN));
 				MYLOG(0, "%d used=" FORMAT_LEN "\n", i, *used);
-				if (*used != SQL_IGNORE && fi[i]->updatable)
+				if (*used != SQL_IGNORE && NULL != fi[i] && fi[i]->updatable)
 				{
 					/* fieldtype = QR_get_field_type(s.res, i); */
 					fieldtype = getEffectiveOid(conn, fi[i]);
@@ -4286,7 +4540,8 @@ SC_pos_delete(StatementClass *stmt,
 	kres_ridx = GIdx2KResIdx(global_ridx, stmt, res);
 	if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 	{
-		if (NULL == keyset || keyset->offset == 0)
+		/* the keys in a bookmark are only trusted in declare/fetch mode; otherwise all keys are cached */
+		if (NULL == keyset || keyset->offset == 0 || !QR_get_cursor(res))
 		{
 			SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target keys are out of the rowset", func);
 			return SQL_ERROR;
@@ -4300,7 +4555,10 @@ SC_pos_delete(StatementClass *stmt,
 	{
 		if (!(oid = getOid(res, kres_ridx)))
 		{
-			if (bestitem && !strcmp(bestitem, OID_NAME))
+			/* the reason is given in SC_pos_update() */
+			if (bestitem &&
+			    (!strcmp(bestitem, OID_NAME) ||
+			     !strcmp(bestitem, TABLEOID_NAME)))
 			{
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
 				return SQL_ERROR;
@@ -4320,7 +4578,7 @@ SC_pos_delete(StatementClass *stmt,
 	printfPQExpBuffer(&dltstr,
 			 "delete from %s where ctid = '(%u, %u)'",
 			 ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)), blocknum, offset);
-	if (bestqual && !TI_has_subclass(ti))
+	if (bestqual)
 	{
 		appendPQExpBuffer(&dltstr, " and ");
 		appendPQExpBuffer(&dltstr, bestqual, oid);
@@ -4449,7 +4707,7 @@ irow_insert(RETCODE ret, StatementClass *stmt, StatementClass *istmt,
 			RETCODE	qret;
 			const char * tidval = NULL;
 			char	tidv[32];
-			KeySet	keys;
+			KeySet	keys = {0};
 
 			if (NULL != tres->backend_tuples &&
 			    1 == QR_get_num_cached_tuples(tres))
@@ -4605,6 +4863,11 @@ SC_pos_add(StatementClass *stmt,
 	}
 	s.irdflds = SC_get_IRDF(s.stmt);
 	num_cols = s.irdflds->nfields;
+	/* the parsed count may be stale, see SC_pos_update() */
+	if (num_cols > getNumResultCols(s.res))
+		num_cols = getNumResultCols(s.res);
+	if (num_cols > opts->allocated)
+		num_cols = opts->allocated;
 	conn = SC_get_conn(s.stmt);
 
 	if (PGAPI_AllocStmt(conn, &hstmt, 0) != SQL_SUCCESS)
@@ -4622,6 +4885,8 @@ SC_pos_add(StatementClass *stmt,
 	else
 		offset = 0;
 	s.qstmt = (StatementClass *) hstmt;
+	/* the application's SQL_ATTR_QUERY_TIMEOUT applies to the INSERT too */
+	s.qstmt->options.stmt_timeout = s.stmt->options.stmt_timeout;
 	apdopts = SC_get_APDF(s.qstmt);
 	apdopts->param_bind_type = opts->bind_size;
 	apdopts->param_offset_ptr = opts->row_offset_ptr;
@@ -4630,6 +4895,7 @@ SC_pos_add(StatementClass *stmt,
 	ci = &(conn->connInfo);
 	unknown_sizes = ci->drivers.unknown_sizes;
 	extend_iparameter_bindings(ipdopts, num_cols);
+	/* fi[i] may be NULL, see SC_pos_update() */
 	for (i = add_cols = 0; i < num_cols; i++)
 	{
 		if (used = bindings[i].used, used != NULL)
@@ -4640,16 +4906,21 @@ SC_pos_add(StatementClass *stmt,
 			else
 				used = LENADDR_SHIFT(used, s.irow * sizeof(SQLLEN));
 			MYLOG(0, "%d used=" FORMAT_LEN "\n", i, *used);
-			if (*used != SQL_IGNORE && fi[i]->updatable)
+			if (*used != SQL_IGNORE && NULL != fi[i] && fi[i]->updatable)
 			{
+				/* quoted as in SC_pos_update() */
+				char	qcol[2 * NAMESTORAGELEN + 4];
+				pgNAME	no_schema = { NULL };
+				const char *col = quote_table(no_schema, fi[i]->column_name, qcol, sizeof(qcol));
+
 				/* fieldtype = QR_get_field_type(s.res, i); */
 				fieldtype = getEffectiveOid(conn, fi[i]);
 				if (add_cols)
 					appendPQExpBuffer(&addstr,
-								 ", \"%s\"", GET_NAME(fi[i]->column_name));
+								 ", %s", col);
 				else
 					appendPQExpBuffer(&addstr,
-								 "\"%s\"", GET_NAME(fi[i]->column_name));
+								 "%s", col);
 				PIC_set_pgtype(ipdopts->parameters[add_cols], fieldtype);
 				PGAPI_BindParameter(hstmt,
 					(SQLUSMALLINT) ++add_cols,
@@ -4907,8 +5178,14 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			s->nrow++;
 	}
 	conn = SC_get_conn(s->stmt);
-	if (s->auto_commit_needed)
-		CC_set_autocommit(conn, TRUE);
+	if (s->auto_commit_needed &&
+	    !CC_set_autocommit(conn, TRUE) &&
+	    SQL_ERROR != ret)
+	{
+		/* the rows are gone with the transaction */
+		SC_set_error(s->stmt, STMT_EXEC_ERROR, "Could not commit the positioned operation", __FUNCTION__);
+		ret = SQL_ERROR;
+	}
 	if (s->irow > 0)
 	{
 		if (SQL_ADD != s->fOption && s->ridx >= 0) /* for SQLGetData */
@@ -4976,6 +5253,11 @@ PGAPI_SetPos(HSTMT hstmt,
 		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "Null statement result in PGAPI_SetPos.", func);
 		return SQL_ERROR;
 	}
+	if (QR_is_cursor_lost(s.res))
+	{
+		SC_set_error(s.stmt, STMT_INVALID_CURSOR_STATE_ERROR, "The cursor was closed by the end of the transaction.", func);
+		return SQL_ERROR;
+	}
 
 	rowsetSize = (s.stmt->transition_status == STMT_TRANSITION_EXTENDED_FETCH ? s.opts->size_of_rowset_odbc2 : s.opts->size_of_rowset);
 	if (s.irow == 0) /* bulk operation */
@@ -4990,7 +5272,21 @@ PGAPI_SetPos(HSTMT hstmt,
 	}
 	else
 	{
-		if (SQL_ADD != s.fOption && s.irow > s.stmt->last_fetch_count)
+		/*
+		 * irow indexes the bound rowset buffers and the row-status array.
+		 * For SQL_ADD it must not exceed the rowset size, and for the other
+		 * options not the fetched row count; otherwise later code reads and
+		 * writes those application arrays out of bounds.
+		 */
+		if (SQL_ADD == s.fOption)
+		{
+			if (s.irow > rowsetSize)
+			{
+				SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range", func);
+				return SQL_ERROR;
+			}
+		}
+		else if (s.irow > s.stmt->last_fetch_count)
 		{
 			SC_set_error(s.stmt, STMT_ROW_OUT_OF_RANGE, "Row value out of range", func);
 			return SQL_ERROR;
@@ -5013,7 +5309,28 @@ MYLOG(0, "num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allo
 		case SQL_DELETE:
 		case SQL_ADD:
 			if (s.auto_commit_needed = CC_does_autocommit(conn), s.auto_commit_needed)
-				CC_set_autocommit(conn, FALSE);
+			{
+				/*
+				 * Switching autocommit off commits the open transaction.
+				 * When that fails the transaction's work is gone, so the
+				 * positioned write must not go on against the cursor it
+				 * left behind; the callback checks the way back in the
+				 * same way.
+				 *
+				 * CC_set_autocommit() changes the mode whether or not the
+				 * commit succeeded, and returning here skips the callback
+				 * that would switch it back, so put the connection into
+				 * the mode the application believes it is in before
+				 * leaving.
+				 */
+				if (!CC_set_autocommit(conn, FALSE))
+				{
+					CC_set_autocommit(conn, TRUE);
+					s.auto_commit_needed = FALSE;
+					SC_set_error(s.stmt, STMT_EXEC_ERROR, "Could not commit before the positioned operation", func);
+					return SQL_ERROR;
+				}
+			}
 			break;
 		case SQL_POSITION:
 			break;
@@ -5080,6 +5397,16 @@ PGAPI_SetCursorName(HSTMT hstmt,
 	{
 		free(cursor_name);
 		SC_set_error(stmt, STMT_INVALID_CURSOR_NAME, "Cursor name exceeds SQL_MAX_CURSOR_NAME_LEN", func);
+		return SQL_ERROR;
+	}
+	/*
+	 * The name is written between double quotes in DECLARE, FETCH, MOVE
+	 * and CLOSE, so it must not contain one.
+	 */
+	if (strchr(cursor_name, '"'))
+	{
+		free(cursor_name);
+		SC_set_error(stmt, STMT_INVALID_CURSOR_NAME, "Cursor name must not contain a double quote", func);
 		return SQL_ERROR;
 	}
 
@@ -5151,8 +5478,9 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 	ARDFields	*opts = SC_get_ARDF(stmt);
 	SQLHDESC	hdesc;
 	APDFields	*apdf;
-	const int	tidbuflen = 20;
-	char 		*tidbuf = NULL, *query = NULL;
+	const int	tidbuflen = 20, oidbuflen = 12;
+	char 		*tidbuf = NULL, *oidbuf = NULL, *query = NULL;
+	CSTR		oidqual = " and \"" TABLEOID_NAME "\" = ?";
 	int		i, lodlen;
 	BindInfoClass	*bookmark_orig = opts->bookmark;
 	TupleField	*otuple, *ituple;
@@ -5178,8 +5506,13 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", __FUNCTION__);
 		return ret;
 	}
+	/* the application's SQL_ATTR_QUERY_TIMEOUT applies to the SELECT too */
+	((StatementClass *) hstmt)->options.stmt_timeout = stmt->options.stmt_timeout;
 	size_of_rowset = opts->size_of_rowset;
 	SC_MALLOC_gexit_with_error(tidbuf, char, size_of_rowset * tidbuflen, stmt, "Couldn't allocate memory for tidbuf bind.", (ret = SQL_ERROR));
+	/* the children of the table have their own rows at the same ctids */
+	if (TI_has_subclass(stmt->ti[0]))
+		SC_MALLOC_gexit_with_error(oidbuf, char, size_of_rowset * oidbuflen, stmt, "Couldn't allocate memory for oidbuf bind.", (ret = SQL_ERROR));
 	for (i = 0; i < size_of_rowset; i++)
 	{
 		PG_BM	pg_bm;
@@ -5192,7 +5525,8 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 		kres_ridx = GIdx2KResIdx(bidx, stmt, res);
 		if (kres_ridx < 0 || kres_ridx >= res->num_cached_keys)
 		{
-			if (pg_bm.keys.offset > 0)
+			/* the keys in a bookmark are only trusted in declare/fetch mode */
+			if (pg_bm.keys.offset > 0 && QR_get_cursor(res))
 			{
 				QR_get_last_bookmark(res, bidx, &pg_bm.keys);
 				blocknum = pg_bm.keys.blocknum;
@@ -5202,6 +5536,7 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 			else
 			{
 				SC_set_error(stmt, STMT_ROW_OUT_OF_RANGE, "the target rows is out of the rowset", __FUNCTION__);
+				ret = SQL_ERROR;
 				goto cleanup;
 			}
 		}
@@ -5218,23 +5553,35 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 		}
 		snprintf(tidbuf + i * tidbuflen, tidbuflen, "(%u,%u)", blocknum, offset);
 		MYLOG(0, "!!!! tidbuf=%s\n", tidbuf + i * tidbuflen);
+		if (NULL != oidbuf)
+			snprintf(oidbuf + i * oidbuflen, oidbuflen, "%u", oidint);
 	}
 	if (!SQL_SUCCEEDED(PGAPI_BindParameter(hstmt, 1, SQL_PARAM_INPUT,
 			SQL_C_CHAR, SQL_CHAR, tidbuflen, 0,
 			tidbuf, tidbuflen, NULL)))
-		goto cleanup;
+		goto internal_error;
+	if (NULL != oidbuf &&
+	    !SQL_SUCCEEDED(PGAPI_BindParameter(hstmt, 2, SQL_PARAM_INPUT,
+			SQL_C_CHAR, SQL_CHAR, oidbuflen, 0,
+			oidbuf, oidbuflen, NULL)))
+		goto internal_error;
 	apdf = SC_get_APDF((StatementClass *) hstmt);
 	apdf->paramset_size = size_of_rowset;
 	if (!SQL_SUCCEEDED(PGAPI_GetStmtAttr(stmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) &hdesc, SQL_IS_POINTER, NULL)))
-		goto cleanup;
+		goto internal_error;
 	if (!SQL_SUCCEEDED(PGAPI_SetStmtAttr(hstmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) hdesc, SQL_IS_POINTER)))
-		goto cleanup;
+		goto internal_error;
 
 	lodlen = strlen(stmt->load_statement) + 15;
+	if (NULL != oidbuf)
+		lodlen += strlen(oidqual);
 	SC_MALLOC_gexit_with_error(query, char, lodlen, stmt, "Couldn't allocate memory for query buf.", (ret = SQL_ERROR));
-	snprintf(query, lodlen, "%s where ctid=?", stmt->load_statement);
+	snprintf(query, lodlen, "%s where ctid=?%s", stmt->load_statement, NULL != oidbuf ? oidqual : "");
 	if (!SQL_SUCCEEDED(ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) query, SQL_NTS, PODBC_RDONLY)))
+	{
+		SC_error_copy(stmt, (StatementClass *) hstmt, TRUE);
 		goto cleanup;
+	}
 	/*
 	 * Combine multiple results into one
 	 */
@@ -5247,12 +5594,33 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 		SC_REALLOC_gexit_with_error(res->backend_tuples, TupleField, size_of_rowset * sizeof(TupleField) * num_fields, hstmt, "Couldn't realloc memory for backend.", (ret = SQL_ERROR));
 		res->count_backend_allocated = size_of_rowset;
 	}
-	pg_memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
+	/*
+	 * cached_rows comes from the server reply (one row per ctid is
+	 * expected). If it exceeds the rowset, the subtraction wraps and the
+	 * memset runs off the buffer, so only clear the trailing rows when
+	 * there are any.
+	 */
+	if (size_of_rowset > cached_rows)
+		pg_memset(res->backend_tuples + num_fields * cached_rows, 0, (size_of_rowset - cached_rows) * num_fields * sizeof(TupleField));
 	QR_set_num_cached_rows(res, size_of_rowset);
 	res->num_total_read = size_of_rowset;
 	rowStatusArray = (SC_get_IRDF(stmt))->rowStatusArray;
 	for (i = 0, qres = res; i < size_of_rowset && NULL != qres; i++, qres = QR_nextr(qres))
 	{
+		/*
+		 * Each result of the batched reply is a separate object with a
+		 * cache sized for its own column count, but its row is moved
+		 * into the first result num_fields at a time. A (malicious or
+		 * buggy) server answering the statements with different column
+		 * counts would make the move run off the smaller cache, so
+		 * reject such a reply.
+		 */
+		if (QR_NumResultCols(qres) != num_fields)
+		{
+			SC_set_error(stmt, STMT_EXEC_ERROR, "the results of fetch by bookmark differ in their number of columns", __FUNCTION__);
+			ret = SQL_ERROR;
+			goto cleanup;
+		}
 		if (1 == QR_get_num_cached_tuples(qres))
 		{
 			otuple = res->backend_tuples + i * num_fields;
@@ -5272,7 +5640,14 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 	ret = PGAPI_ExtendedFetch(fstmt, SQL_FETCH_NEXT, 0,
 		&cRow, NULL, 0, size_of_rowset);
 	MYLOG(0, "cRow=" FORMAT_ULEN "\n", cRow);
+	goto cleanup;
 
+internal_error:
+	/* a step on the internal statement failed: don't report success */
+	SC_error_copy(stmt, (StatementClass *) hstmt, TRUE);
+	if (0 == SC_get_errornumber(stmt))
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, "could not set up the fetch by bookmark", __FUNCTION__);
+	ret = SQL_ERROR;
 cleanup:
 	if (NULL != hstmt)
 	{
@@ -5282,6 +5657,8 @@ cleanup:
 	opts->bookmark = bookmark_orig;
 	if (NULL != tidbuf)
 		free(tidbuf);
+	if (NULL != oidbuf)
+		free(oidbuf);
 	if (NULL != query)
 		free(query);
 

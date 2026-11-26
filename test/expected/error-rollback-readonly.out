@@ -1,0 +1,26 @@
+connected
+Transaction 1: insert, failing insert, insert
+  insert 1: ok
+  insert -1: SQLSTATE=23514
+  insert 2: ok
+  committed rows: 1 2
+Transaction 2: insert, SQLProcedureColumns, failing insert, insert
+  insert 1: ok
+  SQLProcedureColumns: ok
+  insert -1: SQLSTATE=23514
+  insert 2: ok
+  committed rows: 1 2
+Transaction 3: insert, fetch, SQLSetPos update, failing insert, insert
+  insert 1: ok
+  fetch: 1
+  SQLSetPos update to 5: ok
+  insert -1: SQLSTATE=23514
+  insert 2: ok
+  committed rows: 2 5
+Transaction 4: insert, fetch, failing SQLBulkOperations add, insert
+  insert 1: ok
+  fetch: 1
+  SQLBulkOperations add -1: SQLSTATE=23514
+  insert 2: ok
+  committed rows: 1 2
+disconnecting

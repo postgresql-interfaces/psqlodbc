@@ -40,6 +40,10 @@
     Reinstall the driver in any case.
 .PARAMETER ExpectMimalloc
     Specify whether usage of the mimalloc allocator is expected.
+.PARAMETER ServerVersion
+    Specify the major version of the PostgreSQL server under test, e.g. 19.
+    Expected output files in test\expected\v<ServerVersion> are then
+    preferred, as with "make installcheck server_version=<ServerVersion>".
 .EXAMPLE
     > .\regress
 	Build with default or automatically selected parameters
@@ -88,7 +92,9 @@ Param(
 [string]$DsnInfo,
 [string]$SpecificDsn,
 [switch]$ReinstallDriver,
-[switch]$ExpectMimalloc
+[switch]$ExpectMimalloc,
+[ValidateRange(0, 999)]
+[int]$ServerVersion=0
 )
 
 
@@ -254,7 +260,17 @@ function RunTest($scriptPath, $Platform, $testexes)
 				$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST += ";Database=contrib_regression;ConnSettings={set lc_messages='C'}"
 			}
 			write-host "`n`tSetting by env variable:$env:COMMON_CONNECTION_STRING_FOR_REGRESSION_TEST"
-			.\runsuite $testexes --inputdir=$origdir 2>&1 | Tee-Object -Variable runsuiteOutput
+			$runsuiteArgs = @("--inputdir=$origdir")
+			if ($ServerVersion -gt 0) {
+				$runsuiteArgs += "--server-version=$ServerVersion"
+			}
+			.\runsuite $testexes @runsuiteArgs 2>&1 | Tee-Object -Variable runsuiteOutput
+			# runsuite exits with the number of failed tests
+			$failed = $LASTEXITCODE
+			if ($failed -ne 0) {
+				write-host "`n`t$failed test(s) failed"
+				$script:testFailures += $failed
+			}
 
 			# Check whether mimalloc ran by searching for a verbose message from mimalloc
 			if ($ExpectMimalloc -xor ($runsuiteOutput -match "mimalloc: process done")) {
@@ -415,6 +431,9 @@ if ("$SpecificDsn" -ne "") {
 	Write-Host "`tSpecific DSN=$SpecificDsn"
 	$testdsn=$SpecificDsn
 }
+# RunTest adds up the failed tests of every run, so that all platforms
+# are tested before the script reports the failures
+$script:testFailures = 0
 foreach ($pl in $pary) {
 	cd $scriptPath
 	& ${msbuildexe} ${vcxfile} /tv:$MSToolsV "/p:Platform=$pl;Configuration=$Configuration;PlatformToolset=${Toolset}" /t:$vcx_target /p:VisualStudioVersion=${VCVersion} /p:scriptPath=${scriptPath} /Verbosity:minimal
@@ -455,4 +474,7 @@ foreach ($pl in $pary) {
 		popd
 		$env:PSQLODBC_TEST_DSN = $null
 	}
+}
+if ($script:testFailures -gt 0) {
+	throw "`n$($script:testFailures) regression test(s) failed"
 }

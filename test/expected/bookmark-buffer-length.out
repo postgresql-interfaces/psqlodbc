@@ -1,0 +1,5 @@
+connected
+BufferLength 16: SQL_SUCCESS, indicator 16, bytes after the buffer untouched
+BufferLength 2: SQL_SUCCESS_WITH_INFO 01004, indicator 4, bytes after the buffer untouched
+BufferLength 0: SQL_SUCCESS_WITH_INFO 01004, indicator 4, bytes after the buffer untouched
+disconnecting

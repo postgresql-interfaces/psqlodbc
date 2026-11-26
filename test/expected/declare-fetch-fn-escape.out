@@ -1,0 +1,18 @@
+connected
+
+Query: SELECT {fn ucase((SELECT t FROM testtab1 WHERE id = 1 FOR UPDATE))}
+Result set:
+FOO
+
+Query: SELECT {fn ucase((SELECT t FROM testtab1 WHERE id = 1 AND t IS NOT NULL AND id IS NOT NULL FOR UPDATE))}
+Result set:
+FOO
+
+Query: SELECT {fn concat('a'; 'b')}
+SQLExecDirect failed
+HY000=param not found
+
+Query: SELECT {fn concat(into t from x)}
+SQLExecDirect failed
+HY000=param not found
+disconnecting

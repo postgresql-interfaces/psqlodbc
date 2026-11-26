@@ -1,0 +1,9 @@
+connected
+SQLTables: curr'schema / quote_tab
+SQLColumns: quote_tab / id, quote_tab / t
+SQLPrimaryKeys: quote_tab / id
+SQLSpecialColumns: id / int4
+SQLStatistics: quote_tab / id
+SQLTablePrivileges: curr'schema / quote_tab
+SQLProcedures: curr'schema / quote_fn
+disconnecting

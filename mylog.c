@@ -27,6 +27,8 @@
 #ifndef WIN32
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 #define	GENERAL_ERRNO		(errno)
@@ -52,6 +54,43 @@
 #define PG_BINARY_A			"a"
 #endif /* WIN32 */
 
+
+/*
+ * Open a log file for appending. The default log directory is world-writable
+ * (/tmp) and the file name is predictable, so another local user can create
+ * the path first. O_NOFOLLOW refuses a symlink. An existing file is used only
+ * if it is a regular file owned by this user, and its mode is set to 0600, so
+ * other users cannot read the query text and connection metadata in the log.
+ * Returning NULL makes the caller fall back to the home directory.
+ */
+static FILE *
+logfile_fopen(const char *filename)
+{
+#ifndef WIN32
+	struct stat	st;
+	FILE	   *fp;
+	int			fd = open(filename,
+						  O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW,
+						  S_IRUSR | S_IWUSR);
+
+	if (fd < 0)
+		return NULL;
+	if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) ||
+		st.st_uid != geteuid() ||
+		((st.st_mode & (S_IRWXG | S_IRWXO)) != 0 &&
+		 fchmod(fd, S_IRUSR | S_IWUSR) != 0))
+	{
+		close(fd);
+		return NULL;
+	}
+	fp = fdopen(fd, PG_BINARY_A);
+	if (fp == NULL)
+		close(fd);
+	return fp;
+#else
+	return fopen(filename, PG_BINARY_A);
+#endif /* WIN32 */
+}
 
 static char *logdir = NULL;
 
@@ -99,7 +138,20 @@ generate_homefile(const char *prefix, char *filename, size_t filenamelen)
 	if (ptr=getenv("HOMEPATH"), NULL != ptr)
 		strlcat(dir, ptr, filenamelen);
 #else
-	STRCPY_FIXED(dir, "~");
+	/*
+	 * open() does not expand "~": it names an entry of the current working
+	 * directory, which another local user may be able to create. Use the
+	 * absolute home directory of the user logfile_fopen() checks ownership
+	 * against, or give up.
+	 */
+	struct passwd *pw = getpwuid(geteuid());
+
+	if (NULL == pw || NULL == pw->pw_dir || '/' != pw->pw_dir[0])
+	{
+		filename[0] = '\0';
+		return;
+	}
+	STRCPY_FIXED(dir, pw->pw_dir);
 #endif /* WIN32 */
 	generate_filename(dir, prefix, filename, filenamelen);
 
@@ -133,7 +185,7 @@ const char *GetExeProgramName()
 
 		for (i = 0; i < sizeof(flist) / sizeof(flist[0]); i++)
 		{
-			ssize_t len = readlink(flist[i], path_name, sizeof(path_name));
+			ssize_t len = readlink(flist[i], path_name, sizeof(path_name) - 1);
 			if (len > 0)
 			{
 				path_name[len] = '\0';
@@ -288,13 +340,13 @@ static FILE *MLOGFP = NULL;
 
 static void MLOG_open()
 {
-	char		filebuf[80], errbuf[160];
+	char		filebuf[PATH_MAX], errbuf[PATH_MAX + 32];
 	BOOL		open_error = FALSE;
 
 	if (MLOGFP) return;
 
 	generate_filename(logdir ? logdir : MYLOGDIR, MYLOGFILE, filebuf, sizeof(filebuf));
-	MLOGFP = fopen(filebuf, PG_BINARY_A);
+	MLOGFP = logfile_fopen(filebuf);
 	if (!MLOGFP)
 	{
 		int lasterror = GENERAL_ERRNO;
@@ -302,7 +354,7 @@ static void MLOG_open()
 		open_error = TRUE;
 		SPRINTF_FIXED(errbuf, "%s open error %d\n", filebuf, lasterror);
 		generate_homefile(MYLOGFILE, filebuf, sizeof(filebuf));
-		MLOGFP = fopen(filebuf, PG_BINARY_A);
+		MLOGFP = logfile_fopen(filebuf);
 	}
 	if (MLOGFP)
 	{
@@ -408,7 +460,7 @@ static FILE *QLOGFP = NULL;
 static int
 qlog_misc(unsigned int option, const char *fmt, va_list args)
 {
-	char		filebuf[80];
+	char		filebuf[PATH_MAX];
 	int		gerrno;
 
 	if (!qlog_on)	return 0;
@@ -423,11 +475,11 @@ qlog_misc(unsigned int option, const char *fmt, va_list args)
 	if (!QLOGFP)
 	{
 		generate_filename(logdir ? logdir : QLOGDIR, QLOGFILE, filebuf, sizeof(filebuf));
-		QLOGFP = fopen(filebuf, PG_BINARY_A);
+		QLOGFP = logfile_fopen(filebuf);
 		if (!QLOGFP)
 		{
 			generate_homefile(QLOGFILE, filebuf, sizeof(filebuf));
-			QLOGFP = fopen(filebuf, PG_BINARY_A);
+			QLOGFP = logfile_fopen(filebuf);
 		}
 		if (!QLOGFP)
 			qlog_on = 0;

@@ -139,6 +139,82 @@ int main(int argc, char **argv)
 	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
 	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
 
+	/*
+	 * A quoted table name beginning with ',' or ';' is a name, not a
+	 * delimiter. A statement parser that takes it for a delimiter sends the
+	 * positioned DELETE to the table the schema name resolves to (here: the
+	 * temporary table pos_update_test) instead of the table selected from.
+	 */
+	printf("\nPositioned delete on a quoted table name beginning with a comma\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "CREATE SCHEMA pos_update_test", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "CREATE TABLE pos_update_test.\",delim\"(i int4, orig int4 primary key)", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "INSERT INTO pos_update_test.\",delim\" SELECT g, g FROM generate_series(1, 3) g", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM \"pos_update_test\".\",delim\" ORDER BY orig", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	rc = SQLFetch(hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
+	printCurrentRow(hstmt);
+	rc = SQLSetPos(hstmt, 1, SQL_DELETE, SQL_LOCK_NO_CHANGE);
+	CHECK_STMT_RESULT(rc, "SQLSetPos DELETE failed", hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	printf("Querying both tables again\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM pos_update_test.\",delim\" ORDER BY orig", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT count(*) FROM pos_update_test", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "DROP SCHEMA pos_update_test CASCADE", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	/*
+	 * The table reference may be preceded by ONLY. The driver must not
+	 * take "only" for the table name. The positioned statements don't
+	 * carry ONLY, so such a cursor is read-only and the update is refused.
+	 */
+	printf("\nOpening a cursor for update with FROM ONLY, and fetching 1 row\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM ONLY pos_update_test WHERE orig = 7", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+
+	rc = SQLFetch(hstmt);
+	CHECK_STMT_RESULT(rc, "SQLFetch failed", hstmt);
+	printCurrentRow(hstmt);
+
+	printf("\nUpdating result set\n");
+	colvalue += 50;
+	rc = SQLSetPos(hstmt, 1, SQL_UPDATE, SQL_LOCK_NO_CHANGE);
+	if (SQL_SUCCEEDED(rc))
+	{
+		printf("SQLSetPos UPDATE with FROM ONLY succeeded on a read-only cursor\n");
+		exit(1);
+	}
+	printf("refused\n");
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
+	printf("\nQuerying the table again\n");
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) "SELECT * FROM pos_update_test WHERE orig = 7", SQL_NTS);
+	CHECK_STMT_RESULT(rc, "SQLExecDirect failed", hstmt);
+	print_result(hstmt);
+
+	rc = SQLFreeStmt(hstmt, SQL_CLOSE);
+	CHECK_STMT_RESULT(rc, "SQLFreeStmt failed", hstmt);
+
 	/*** Check that the code can deal with large keysets correctly.
 	 *
 	 * There was a bug in the reallocation in old driver versions.

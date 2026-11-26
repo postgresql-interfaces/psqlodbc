@@ -216,6 +216,7 @@
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </ImpLib>
     <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <DelayLoadDLLs>XOLEHLP.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalDependencies>xolehlp.lib;$(DriverName).lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -235,6 +236,7 @@
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </ImpLib>
     <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <DelayLoadDLLs>XOLEHLP.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalDependencies>xolehlp.lib;$(Drivername).lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -281,6 +283,7 @@
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
     </ImpLib>
     <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <DelayLoadDLLs>XOLEHLP.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <AdditionalDependencies>xolehlp.lib;$(Drivername).lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

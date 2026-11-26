@@ -1,0 +1,8 @@
+connected
+quoted table: cursor_type=1
+quoted table: fetched 1 one
+quoted table: refreshed
+quoted child table: cursor_type=1
+quoted child table: fetched 1 one
+quoted child table: refreshed
+disconnecting

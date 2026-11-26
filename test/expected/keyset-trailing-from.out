@@ -1,0 +1,14 @@
+connected
+blank after the last FROM: "select id, from keyset_from_tab select id from "
+execute failed
+42601=ERROR: syntax error at or near "from";
+Error while executing the query
+FROM is the last word: "select id, from keyset_from_tab select id from"
+execute failed
+42601=ERROR: syntax error at or near "from";
+Error while executing the query
+WHERE before the last FROM: "select id, from keyset_from_tab where 1=1 select id from x"
+execute failed
+42601=ERROR: syntax error at or near "from";
+Error while executing the query
+disconnecting

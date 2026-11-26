@@ -71,6 +71,7 @@ typedef enum
 #define CONN_INVALID_INFO_TYPE						215
 #define CONN_OPTION_NOT_FOR_THE_DRIVER					216
 #define CONN_EXEC_ERROR							217
+#define CONN_INVALID_BUFFER_LENGTH					218
 
 /* Conn_status defines */
 #define CONN_IN_AUTOCOMMIT		1L
@@ -241,7 +242,7 @@ do { \
 /*	This is used to store cached table information in the connection */
 struct col_info
 {
-	Int2		refcnt;
+	Int4		refcnt;
 	QResultClass	*result;
 	pgNAME		schema_name;
 	pgNAME		table_name;
@@ -302,8 +303,8 @@ struct ConnectionClass_
 	Int2		ncursors;
 	PGconn	   *pqconn;
 	Int4		lobj_type;
-	Int2		coli_allocated;
-	Int2		ntables;
+	Int4		coli_allocated;
+	Int4		ntables;
 	COL_INFO	**col_info;
 	long		translation_option;
 	HINSTANCE	translation_handle;
@@ -325,6 +326,7 @@ struct ConnectionClass_
 						 * really NULL, while FALSE means it's
 						 * unknown */
 	unsigned char	on_commit_in_progress;
+	unsigned char	rollback_in_progress;	/* ProcessRollback() is walking the rollback logs */
 	/* for per statement rollback */
 	char		internal_svp;		/* is set? */
 	char		internal_op;		/* operation being executed as to internal savepoint */
@@ -350,6 +352,10 @@ struct ConnectionClass_
 	pgNAME		schemaIns;
 	pgNAME		tableIns;
 	SQLULEN		stmt_timeout_in_effect;
+	SQLULEN		stmt_timeout_before_trans;	/* what a ROLLBACK restores */
+	char		stmt_timeout_set_in_trans;	/* SET statement_timeout was
+						 * issued in the current transaction */
+	UInt4		name_serial;	/* last number handed out by CC_get_name_serial() */
 #if defined(WIN_MULTITHREAD_SUPPORT)
 	CRITICAL_SECTION	cs;
 	CRITICAL_SECTION	slock;
@@ -433,11 +439,11 @@ void		handle_pgres_error(ConnectionClass *self, const PGresult *pgres,
 				   const char *comment,
 				   QResultClass *res, BOOL error_not_a_notice);
 void		CC_clear_error(ConnectionClass *self);
-int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
+int		CC_send_function(ConnectionClass *conn, const char *fn_name, void *result_buf, Int4 result_buf_len, int *actual_result_len, int result_is_int, LO_ARG *argv, int nargs);
 char		CC_send_settings(ConnectionClass *self, const char *set_query);
 void		CC_initialize_pg_version(ConnectionClass *conn);
 void		CC_log_error(const char *func, const char *desc, const ConnectionClass *self);
-int			CC_send_cancel_request(const ConnectionClass *conn);
+int			CC_send_cancel_request(ConnectionClass *conn);
 void		CC_on_commit(ConnectionClass *conn);
 void		CC_on_abort(ConnectionClass *conn, unsigned int opt);
 void		CC_on_abort_partial(ConnectionClass *conn);
@@ -445,13 +451,24 @@ void		ProcessRollback(ConnectionClass *conn, BOOL undo, BOOL partial);
 const char	*CC_get_current_schema(ConnectionClass *conn);
 int             CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *plan);
 int             CC_discard_marked_objects(ConnectionClass *conn);
+UInt4		CC_get_name_serial(ConnectionClass *conn);
 void		CC_abort_copy(ConnectionClass *self);
 
 int		CC_get_max_idlen(ConnectionClass *self);
 char	CC_get_escape(const ConnectionClass *self);
+BOOL	CC_can_write_literal_extension(const ConnectionClass *self);
+const char *CC_literal_prefix(const ConnectionClass *self);
 char *		identifierEscape(const SQLCHAR *src, SQLLEN srclen, const ConnectionClass *conn, char *buf, size_t bufsize, BOOL double_quote);
+/*
+ * A buffer that holds the identifierEscape() output of any name the
+ * server accepts unchanged: every byte doubled, the two quotes and the
+ * NUL. See identifierEscape_fits().
+ */
+#define	ESCAPED_NAME_BUFSIZE	(2 * NAMESTORAGELEN + 4)
+BOOL		identifierEscape_fits(const char *src, size_t bufsize);
 int		findIdentifier(const UCHAR *str, int ccsc, const UCHAR **next_token);
-int		eatTableIdentifiers(const UCHAR *str, int ccsc, pgNAME *table, pgNAME *schema);
+int		eatTableIdentifiers(const UCHAR *str, const ConnectionClass *conn, pgNAME *table, pgNAME *schema);
+BOOL		CC_cannot_fold_identifier(const ConnectionClass *self, const char *name, size_t len);
 
 
 const		char *CurrCat(const ConnectionClass *self);
@@ -468,10 +485,9 @@ char	*schema_strcat1(char *buf, int buflen, const char *fmt, const char *s1,
 				const char *s,
 				const SQLCHAR *, int, ConnectionClass *conn);
 
-void	schema_appendPQExpBuffer(PQExpBufferData *buf, const char *fmt, const SQLCHAR *s, SQLLEN len,
-		BOOL table_is_valid, ConnectionClass *conn);
-void	schema_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt, const char *s1, const char *s,
-				BOOL table_is_valid, ConnectionClass *conn);
+void	schema_appendPQExpBuffer1(PQExpBufferData *buf, const char *fmt,
+			const char *s1, const char *curschema_cond, const char *s,
+			BOOL table_is_valid);
 
 void	CC_examine_global_transaction(ConnectionClass *self);
 
@@ -491,6 +507,8 @@ enum {
 /* CC_on_abort options */
 #define	NO_TRANS		1L
 #define	CONN_DEAD		(1L << 1) /* connection is no longer valid */
+/* the session's statement_timeout is unknown, SC_execute() must SET it */
+#define	STMT_TIMEOUT_UNKNOWN	((SQLULEN) -1)
 
 /*
  * This is a libpq notice receiver callback, for handling incoming NOTICE

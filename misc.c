@@ -119,9 +119,20 @@ make_string(const SQLCHAR *s, SQLINTEGER len, char *buf, size_t bufsize)
 		MYLOG(0, "invalid length=" FORMAT_INTEGER "\n", len);
 		return NULL;
 	}
+	/*
+	 * A counted string need not be null terminated, so copy exactly
+	 * length bytes and terminate the copy ourselves instead of using
+	 * strncpy_null(), which would read s[length] and beyond.
+	 */
 	if (buf)
 	{
-		strncpy_null(buf, (char *) s, bufsize > length ? length + 1 : bufsize);
+		if (bufsize > 0)
+		{
+			if (length >= bufsize)
+				length = bufsize - 1;	/* truncated */
+			memcpy(buf, s, length);
+			buf[length] = '\0';
+		}
 		return buf;
 	}
 
@@ -131,7 +142,8 @@ MYLOG(DETAIL_LOG_LEVEL, "str=%p\n", str);
 	if (!str)
 		return NULL;
 
-	strncpy_null(str, (char *) s, length + 1);
+	memcpy(str, s, length);
+	str[length] = '\0';
 	return str;
 }
 
@@ -275,22 +287,99 @@ strlcat(char *dst, const char *src, size_t size)
 }
 #endif /* HAVE_STRLCAT */
 
+#ifndef	WIN32
+/*
+ * Case-insensitive comparisons behind the stricmp()/strnicmp() macros.
+ *
+ * strcasecmp() and strncasecmp() fold case according to LC_CTYPE, which
+ * the driver sets from the environment (see derive_locale_encoding()).
+ * In Turkish and Azeri locales 'I' and 'i' are different letters for
+ * them, so the SQL keywords and ODBC function names the driver looks up,
+ * e.g. "IFNULL" against "ifnull", would not match.  Like PostgreSQL's
+ * pg_strcasecmp(), fold ASCII letters independently of the locale and
+ * leave only characters with the high bit set to it.
+ */
+int
+pg_strnicmp(const char *s1, const char *s2, size_t n)
+{
+	for (; n > 0; n--)
+	{
+		UCHAR	ch1 = (UCHAR) *s1++;
+		UCHAR	ch2 = (UCHAR) *s2++;
+
+		if (ch1 != ch2)
+		{
+			if (ch1 >= 'A' && ch1 <= 'Z')
+				ch1 += 'a' - 'A';
+			else if (ch1 >= 0x80 && isupper(ch1))
+				ch1 = tolower(ch1);
+
+			if (ch2 >= 'A' && ch2 <= 'Z')
+				ch2 += 'a' - 'A';
+			else if (ch2 >= 0x80 && isupper(ch2))
+				ch2 = tolower(ch2);
+
+			if (ch1 != ch2)
+				return (int) ch1 - (int) ch2;
+		}
+		if (ch1 == 0)
+			break;
+	}
+	return 0;
+}
+
+int
+pg_stricmp(const char *s1, const char *s2)
+{
+	return pg_strnicmp(s1, s2, (size_t) -1);
+}
+#endif /* WIN32 */
+
 
 /*
  * Proprly quote and escape a possibly schema-qualified table name.
  */
+/* The length of name in double quotes, with each " in it doubled */
+static size_t
+quoted_name_length(const char *name)
+{
+	size_t	len = 2;
+
+	for (; *name != '\0'; name++)
+		len += ('"' == *name) ? 2 : 1;
+	return len;
+}
+
 char *
 quote_table(const pgNAME schema, const pgNAME table, char *buf, int buf_size)
 {
 	const char *ptr;
+	size_t		need;
 	int			i;
+
+	/*
+	 * Each name in double quotes with any " doubled, the '.' between
+	 * them and the NUL. A name cut to fit could be another relation or
+	 * column, so names that may not fit give the empty string instead:
+	 * the statement the driver builds around it then fails with a syntax
+	 * error rather than naming another object.
+	 */
+	need = quoted_name_length(SAFE_NAME(table)) + 1;
+	if (NAME_IS_VALID(schema))
+		need += quoted_name_length(SAFE_NAME(schema)) + 1;
+	if (buf_size <= 0 || need > (size_t) buf_size)
+	{
+		if (buf_size > 0)
+			buf[0] = '\0';
+		return buf;
+	}
 
 	i = 0;
 
 	if (NAME_IS_VALID(schema))
 	{
 		buf[i++] = '"';
-		for (ptr = SAFE_NAME(schema); *ptr != '\0' && i < buf_size - 6; ptr++)
+		for (ptr = SAFE_NAME(schema); *ptr != '\0'; ptr++)
 		{
 			buf[i++] = *ptr;
 			if (*ptr == '"')
@@ -301,7 +390,7 @@ quote_table(const pgNAME schema, const pgNAME table, char *buf, int buf_size)
 	}
 
 	buf[i++] = '"';
-	for (ptr = SAFE_NAME(table); *ptr != '\0' && i < buf_size - 3; ptr++)
+	for (ptr = SAFE_NAME(table); *ptr != '\0'; ptr++)
 	{
 		buf[i++] = *ptr;
 		if (*ptr == '"')
@@ -314,21 +403,160 @@ quote_table(const pgNAME schema, const pgNAME table, char *buf, int buf_size)
 }
 
 /*
- * Return a malloc'd copy of a connection string with any password value
- * masked, so that debug logs (MyLog/CommLog) can be shared without leaking
- * the database credentials.  Both keywords are matched case-insensitively:
- *
- *   PWD=       the ODBC password attribute; its value runs to the next ';'
- *   password=  the libpq password keyword, e.g. inside a pqopt={...} value;
- *              its value is whitespace-delimited (or single-quoted) and ends
- *              at the closing brace of the pqopt block.
+ * Return TRUE if the value of the libpq connection keyword is a secret, or
+ * names a file that can hold one. libpq marks the passwords it knows of in
+ * PQconninfoOption.dispchar; this list also serves where a keyword is
+ * matched without libpq's description of it. Certificate and CRL paths stay
+ * visible for SSL diagnostics.
+ */
+BOOL
+is_sensitive_conninfo_param(const char *keyword)
+{
+	return is_sensitive_conninfo_keyword(keyword, keyword ? strlen(keyword) : 0);
+}
+
+/* is_sensitive_conninfo_param() for a keyword of len bytes */
+BOOL
+is_sensitive_conninfo_keyword(const char *keyword, size_t len)
+{
+	static const char * const sensitive_keywords[] = {
+		"password",
+		"passfile",
+		"sslpassword",
+		"sslkey",
+		"oauth_client_secret",
+		NULL
+	};
+	const char * const *sensitive_keyword;
+
+	if (keyword == NULL)
+		return FALSE;
+	for (sensitive_keyword = sensitive_keywords; *sensitive_keyword != NULL;
+		 sensitive_keyword++)
+	{
+		if (strlen(*sensitive_keyword) == len &&
+			strnicmp(keyword, *sensitive_keyword, len) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+/*
+ * Replace with 'x' the secret values in the libpq connection string from p
+ * to end, following libpq's rules: a keyword, optional white space, '=',
+ * optional white space, and a value that ends at white space or, when it
+ * starts with a single quote, at the next unescaped one. A backslash
+ * escapes the next character in both kinds of value. What doesn't parse
+ * as that is masked from there to end, since libpq may still read part of
+ * it as a value.
+ */
+static void
+mask_conninfo_secrets(char *p, const char *end)
+{
+	while (p < end)
+	{
+		const char *keyword;
+		size_t		keylen;
+		BOOL		secret;
+
+		while (p < end && isspace((unsigned char) *p))
+			p++;
+		if (p >= end)
+			break;
+		keyword = p;
+		while (p < end && '=' != *p && !isspace((unsigned char) *p))
+			p++;
+		keylen = p - keyword;
+		while (p < end && isspace((unsigned char) *p))
+			p++;
+		if (p >= end || '=' != *p)
+		{
+			for (; p < end; p++)
+				*p = 'x';
+			break;
+		}
+		p++;
+		while (p < end && isspace((unsigned char) *p))
+			p++;
+		secret = is_sensitive_conninfo_keyword(keyword, keylen);
+		if (p < end && '\'' == *p)
+		{
+			for (p++; p < end && '\'' != *p; p++)
+			{
+				if ('\\' == *p && p + 1 < end)
+				{
+					if (secret)
+						*p = 'x';
+					p++;
+				}
+				if (secret)
+					*p = 'x';
+			}
+			if (p < end)
+				p++;			/* the closing quote */
+		}
+		else
+		{
+			for (; p < end && !isspace((unsigned char) *p); p++)
+			{
+				if ('\\' == *p && p + 1 < end)
+				{
+					if (secret)
+						*p = 'x';
+					p++;
+				}
+				if (secret)
+					*p = 'x';
+			}
+		}
+	}
+}
+
+/*
+ * The end of the value of a connection string attribute that starts at
+ * value: the '}' that closes it, where "}}" stands for one '}', when it
+ * starts with '{', otherwise the next ';' or the end of the string. A
+ * braced value without a closing brace ends at the end of the string.
+ */
+static char *
+attribute_value_end(char *value)
+{
+	char	   *p;
+
+	if ('{' != *value)
+	{
+		for (p = value; *p && ';' != *p; p++)
+			;
+		return p;
+	}
+	for (p = value + 1; *p; p++)
+	{
+		if ('}' == *p)
+		{
+			if ('}' == p[1])
+				p++;
+			else
+				return p;
+		}
+	}
+	return p;
+}
+
+/*
+ * Return a malloc'd copy of a connection string with its secrets masked,
+ * so that the debug logs (MyLog and CommLog) can be shared without the
+ * database credentials. The string is read by the driver's rules for
+ * attributes: "keyword=value" pairs separated by ';', where a value that
+ * starts with '{' runs to its closing '}' and "}}" stands for one '}'.
+ * The whole value of PWD and Password is masked, and the secrets libpq
+ * reads in the value of pqopt (see mask_conninfo_secrets()).
  *
  * The caller is responsible for free()ing the returned string.
  */
 char *
 hide_password(const char *str)
 {
-	char	*outstr, *p;
+	char	   *outstr, *p;
 
 	if (!str)
 		return NULL;
@@ -337,34 +565,66 @@ hide_password(const char *str)
 		return NULL;
 	for (p = outstr; *p; )
 	{
-		if (strnicmp(p, "PWD=", 4) == 0)
+		char	   *keyword = p, *value, *end;
+		size_t		keylen;
+
+		while (*p && '=' != *p && ';' != *p)
+			p++;
+		if ('=' != *p)
 		{
-			for (p += 4; *p && *p != ';'; p++)
+			/* an attribute without a value */
+			if (*p)
+				p++;
+			continue;
+		}
+		keylen = p - keyword;
+		value = p + 1;
+		end = attribute_value_end(value);
+		if ((keylen == 3 && strnicmp(keyword, "PWD", 3) == 0) ||
+			(keylen == 8 && strnicmp(keyword, "Password", 8) == 0))
+		{
+			for (p = value; p < end; p++)
 				*p = 'x';
 		}
-		else if (strnicmp(p, "password=", 9) == 0)
+		else if ((keylen == 5 && strnicmp(keyword, "pqopt", 5) == 0) ||
+				 (keylen == 2 && strnicmp(keyword, "D5", 2) == 0))
 		{
-			p += 9;
-			if (*p == '\'')		/* libpq single-quoted value */
-			{
-				for (p++; *p && *p != '\''; p++)
-				{
-					if (*p == '\\' && p[1])
-						*p++ = 'x';
-					*p = 'x';
-				}
-				if (*p == '\'')
-					p++;
-			}
+			if ('{' == *value)
+				mask_conninfo_secrets(value + 1, end);
 			else
-			{
-				for (; *p && *p != ';' && *p != '}' &&
-				       *p != ' ' && *p != '\t'; p++)
-					*p = 'x';
-			}
+				mask_conninfo_secrets(value, end);
 		}
-		else
+		/* past the closing brace, then to the next attribute */
+		p = end;
+		if ('}' == *p)
+			p++;
+		while (*p && ';' != *p)
+			p++;
+		if (*p)
 			p++;
 	}
+	return outstr;
+}
+
+/*
+ * Return a malloc'd copy of the value of a pqopt attribute, braced or not,
+ * with the secrets libpq reads in it masked (see mask_conninfo_secrets()).
+ *
+ * The caller is responsible for free()ing the returned string.
+ */
+char *
+hide_conninfo_secrets(const char *value)
+{
+	char	   *outstr;
+
+	if (!value)
+		return NULL;
+	outstr = strdup(value);
+	if (!outstr)
+		return NULL;
+	if ('{' == outstr[0])
+		mask_conninfo_secrets(outstr + 1, attribute_value_end(outstr));
+	else
+		mask_conninfo_secrets(outstr, outstr + strlen(outstr));
 	return outstr;
 }

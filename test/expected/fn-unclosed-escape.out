@@ -1,0 +1,46 @@
+connected
+
+-- TEST using SQLExecute after SQLPrepare
+
+Query: SELECT {fn UCASE({fn LCASE({fn UCASE('a')})})}
+Result set:
+A
+
+Query: SELECT {fn UCASE('a')}
+Result set:
+A
+
+Query: SELECT {fn UCASE('a')
+Execute failed
+HY000=processParameters closing } not found
+
+Query: SELECT {fn UCASE({fn LCASE('a')}
+Execute failed
+HY000=processParameters closing ) not found
+
+Query: SELECT {fn a() {fn b() {fn c()
+Execute failed
+HY000=processParameters closing } not found
+
+-- TEST using SQLExecDirect
+
+Query: SELECT {fn UCASE({fn LCASE({fn UCASE('a')})})}
+Result set:
+A
+
+Query: SELECT {fn UCASE('a')}
+Result set:
+A
+
+Query: SELECT {fn UCASE('a')
+Execute failed
+HY000=processParameters closing } not found
+
+Query: SELECT {fn UCASE({fn LCASE('a')}
+Execute failed
+HY000=processParameters closing ) not found
+
+Query: SELECT {fn a() {fn b() {fn c()
+Execute failed
+HY000=processParameters closing } not found
+disconnecting

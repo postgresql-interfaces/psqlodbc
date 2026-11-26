@@ -1,0 +1,7 @@
+connected
+smallint param: described type 4
+smallint param: default fetch gives 5
+double param: described type 6
+double param: default fetch gives 1.25
+bigint param: default fetch gives 5000000000
+disconnecting

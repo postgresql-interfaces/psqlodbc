@@ -1,0 +1,10 @@
+{{- /* The driver version, read from the AC_INIT line of configure.ac, which
+     hugo.yaml mounts into assets. The build fails when the line cannot be
+     parsed, so the homepage cannot silently show no version. */ -}}
+{{- $conf := resources.Get "configure.ac" -}}
+{{- $m := findRESubmatch `AC_INIT\(psqlodbc,\s*([0-9.]+)` $conf.Content 1 -}}
+{{- with $m -}}
+{{- index (index . 0) 1 -}}
+{{- else -}}
+{{- errorf "driver-version: no AC_INIT version found in configure.ac" -}}
+{{- end -}}
