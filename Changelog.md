@@ -42,6 +42,10 @@ Behavior changes:
 - SQLGetDiagRecW and SQLGetDiagFieldW no longer lose a piece of a long error message when the piece is cut inside a multibyte UTF-8 character. The partial character at either end of the piece is dropped instead, so a character that straddles two pieces is missing from both, where before the whole piece came back empty (SQLGetDiagFieldW) or as `Error: SqlState=...` (SQLGetDiagRecW).
 - SQLGetDescField, SQLSetDescField, SQLGetDescRec, SQLSetDescRec, SQLCopyDesc and SQLFreeHandle(SQL_HANDLE_DESC) on a statement's implicit descriptors (the ARD, APD, IRD and IPD returned by SQLGetStmtAttr) now take that statement's lock, so they wait while another thread is in a call on the statement; SQLCopyDesc between two statements' descriptors takes both locks. Explicit descriptors from SQLAllocHandle(SQL_HANDLE_DESC) are not locked: an application must not change one while a statement it is attached to is in a call on another thread.
 
+Fixes:
+
+- SQLNumResultCols, SQLDescribeCol and SQLColAttribute on a prepared statement that the server cannot describe, such as one that names a table that does not exist, no longer lose memory on every call after the first. Each such call lost the copy of the statement that the call before it made ([#243](https://github.com/postgresql-interfaces/psqlodbc/issues/243)).
+
 ## 18.00.0007
 
 This release fixes the following vulnerabilities. All releases before 18.00.0007 are affected unless an entry gives a narrower range.

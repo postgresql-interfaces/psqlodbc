@@ -62,6 +62,7 @@ TESTBINS = exe/connect-test \
 	exe/rollback-syntax-error-test \
 	exe/diagnostic-test \
 	exe/numeric-test \
+	exe/numresultcols-describe-fail-test \
 	exe/large-object-test \
 	exe/large-object-data-at-exec-test \
 	exe/odbc-escapes-test \
