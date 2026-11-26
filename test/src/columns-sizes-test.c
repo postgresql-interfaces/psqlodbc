@@ -1,6 +1,6 @@
 /*
- * Test that SQLColumns never returns a negative COLUMN_SIZE, BUFFER_LENGTH or
- * CHAR_OCTET_LENGTH.  MSDASQL binds them as SQL_C_ULONG, where a negative
+ * Test that SQLColumns never returns a negative COLUMN_SIZE, BUFFER_LENGTH,
+ * CHAR_OCTET_LENGTH or DISPLAY_SIZE.  MSDASQL binds them as SQL_C_ULONG, where a negative
  * value fails with 22003 (issue #228).  CHAR_OCTET_LENGTH is NULL for types
  * that are not character or binary, and SQL_NO_TOTAL is reported as INT_MAX.
  *
@@ -32,8 +32,8 @@ int main(int argc, char **argv)
 	SQLRETURN	rc;
 	HSTMT		hstmt = SQL_NULL_HSTMT;
 	SQLCHAR		name[129];
-	SQLLEN		nameInd, sizeInd, lengthInd, octetInd;
-	SQLUINTEGER	size, length, octet;
+	SQLLEN		nameInd, sizeInd, lengthInd, octetInd, displayInd;
+	SQLUINTEGER	size, length, octet, display;
 	int			exact;
 
 	/* boolean is reported as a character type with BoolsAsChar=1 */
@@ -58,6 +58,8 @@ int main(int argc, char **argv)
 	SQLBindCol(hstmt, 7, SQL_C_ULONG, &size, 0, &sizeInd);
 	SQLBindCol(hstmt, 8, SQL_C_ULONG, &length, 0, &lengthInd);
 	SQLBindCol(hstmt, 16, SQL_C_ULONG, &octet, 0, &octetInd);
+	/* DISPLAY_SIZE, a driver-specific column behind IS_NULLABLE */
+	SQLBindCol(hstmt, 19, SQL_C_ULONG, &display, 0, &displayInd);
 
 	while ((rc = SQLFetch(hstmt)) != SQL_NO_DATA)
 	{
@@ -72,6 +74,7 @@ int main(int argc, char **argv)
 		show_size("COLUMN_SIZE", size, sizeInd, exact);
 		show_size("BUFFER_LENGTH", length, lengthInd, exact);
 		show_size("CHAR_OCTET_LENGTH", octet, octetInd, exact);
+		show_size("DISPLAY_SIZE", display, displayInd, exact);
 		printf("\n");
 	}
 

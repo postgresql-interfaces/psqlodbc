@@ -2384,11 +2384,12 @@ add_tuple_for_oid_or_xmin(TupleField *tuple, int ordinal, const char *colname, O
 }
 
 /*
- * Set COLUMN_SIZE, BUFFER_LENGTH or CHAR_OCTET_LENGTH in a SQLColumns row.
- * These are sizes, so SQL_NO_TOTAL (a length/indicator value) is not valid
- * there, and applications such as MSDASQL bind them as SQL_C_ULONG, where a
- * negative value fails with 22003.  -1 means the size does not apply to the
- * type and becomes NULL; SQL_NO_TOTAL becomes the largest representable size.
+ * Set COLUMN_SIZE, BUFFER_LENGTH, CHAR_OCTET_LENGTH or DISPLAY_SIZE in a
+ * SQLColumns row.  These are sizes, so SQL_NO_TOTAL (a length/indicator
+ * value) is not valid there, and applications such as MSDASQL bind them as
+ * SQL_C_ULONG, where a negative value fails with 22003.  -1 means the size
+ * does not apply to the type and becomes NULL; SQL_NO_TOTAL becomes the
+ * largest representable size.
  */
 static void
 set_columns_size(TupleField *field, Int4 size)
@@ -2958,7 +2959,7 @@ MYLOG(0, " and the data=%s\n", attdef);
 		}
 		set_columns_size(&tuple[COLUMNS_PRECISION], PGTYPE_ATTR_COLUMN_SIZE(conn, field_type, mod_length));
 		set_columns_size(&tuple[COLUMNS_LENGTH], PGTYPE_ATTR_BUFFER_LENGTH(conn, field_type, mod_length));
-		set_tuplefield_int4(&tuple[COLUMNS_DISPLAY_SIZE], PGTYPE_ATTR_DISPLAY_SIZE(conn, field_type, mod_length));
+		set_columns_size(&tuple[COLUMNS_DISPLAY_SIZE], PGTYPE_ATTR_DISPLAY_SIZE(conn, field_type, mod_length));
 		set_nullfield_int2(&tuple[COLUMNS_SCALE], PGTYPE_ATTR_DECIMAL_DIGITS(conn, field_type, mod_length));
 
 		sqltype = PGTYPE_ATTR_TO_CONCISE_TYPE(conn, field_type, mod_length);
