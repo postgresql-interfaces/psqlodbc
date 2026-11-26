@@ -424,3 +424,70 @@ server_version_cmp(SQLHDBC hconn, int major, int minor)
 		return (srv_minor > minor) ? 1 : -1;
 	return 0;
 }
+
+/* LATIN1 locale names on macOS and the BSDs, then on glibc */
+static const char *const latin1_locales[] = {
+	"fr_FR.ISO8859-1",
+	"en_US.ISO8859-1",
+	"fr_FR.iso88591",
+	"en_US.iso88591",
+	NULL
+};
+
+/*
+ * Create the database dbname with the encoding LATIN1, on a connection of
+ * its own, with the first of latin1_locales that the server accepts. In
+ * such a database the server folds the accented letters of an unquoted
+ * name. Return FALSE, with a reason printed, when the server accepts none
+ * of the locales.
+ */
+BOOL
+test_create_latin1_db(const char *dbname)
+{
+	SQLRETURN	rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
+	char		sql[256];
+	int			i;
+	BOOL		created = FALSE;
+
+	test_connect();
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	CHECK_CONN_RESULT(rc, "failed to allocate stmt handle", conn);
+	snprintf(sql, sizeof(sql), "DROP DATABASE IF EXISTS %s", dbname);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
+	CHECK_STMT_RESULT(rc, sql, hstmt);
+	SQLFreeStmt(hstmt, SQL_CLOSE);
+	for (i = 0; latin1_locales[i] && !created; i++)
+	{
+		snprintf(sql, sizeof(sql),
+				 "CREATE DATABASE %s ENCODING 'LATIN1' "
+				 "LC_COLLATE '%s' LC_CTYPE '%s' TEMPLATE template0",
+				 dbname, latin1_locales[i], latin1_locales[i]);
+		rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
+		created = SQL_SUCCEEDED(rc);
+		SQLFreeStmt(hstmt, SQL_CLOSE);
+	}
+	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+	test_disconnect();
+	if (!created)
+		printf("Skipped, the server can't create a LATIN1 database\n");
+	return created;
+}
+
+/* Drop the database dbname, on a connection of its own */
+void
+test_drop_db(const char *dbname)
+{
+	SQLRETURN	rc;
+	HSTMT		hstmt = SQL_NULL_HSTMT;
+	char		sql[256];
+
+	test_connect();
+	rc = SQLAllocHandle(SQL_HANDLE_STMT, conn, &hstmt);
+	CHECK_CONN_RESULT(rc, "failed to allocate stmt handle", conn);
+	snprintf(sql, sizeof(sql), "DROP DATABASE %s", dbname);
+	rc = SQLExecDirect(hstmt, (SQLCHAR *) sql, SQL_NTS);
+	CHECK_STMT_RESULT(rc, sql, hstmt);
+	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+	test_disconnect();
+}

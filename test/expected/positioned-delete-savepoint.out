@@ -1,0 +1,5 @@
+connected
+deleted id=1
+rolled back to the savepoint
+first row is id=1
+disconnecting

@@ -1,0 +1,9 @@
+connected
+value "-1": stored
+value "-": rejected
+22P02=ERROR: invalid input syntax for type boolean: "-";
+Error while executing the query
+value "-": rejected
+22P02=ERROR: invalid input syntax for type boolean: "-";
+Error while executing the query
+disconnecting

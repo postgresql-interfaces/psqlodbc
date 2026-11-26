@@ -1,0 +1,9 @@
+connected
+Result set:
+in transaction
+SQLDescribeCol failed
+42P01=ERROR: relation "nosuchtable_parse_cte" does not exist;
+No query has been executed with that handle
+Result set:
+still usable
+disconnecting

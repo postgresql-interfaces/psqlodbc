@@ -1,0 +1,7 @@
+connected
+table with child: SQLSetPos(SQL_ADD) succeeded
+view after swap: SQLSetPos(SQL_ADD) succeeded
+Result set:
+sample
+second
+disconnecting

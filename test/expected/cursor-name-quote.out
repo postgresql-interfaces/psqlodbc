@@ -1,0 +1,6 @@
+connected
+SQLSetCursorName refused the name
+34000=Cursor name must not contain a double quote
+the query ran
+rows left after the rollback: 0
+disconnecting

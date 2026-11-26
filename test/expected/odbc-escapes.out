@@ -41,6 +41,13 @@ Result set:
 
 OUT param: 3
 
+Query: { ? = call length(?) }
+Param 1 is an OUT parameter
+Param 2: foobar
+Result set:
+
+OUT param: 6
+
 Query: { ? = call concat(?::text, ?::text) }
 Param 1 is an OUT parameter
 Param 2: foo
@@ -90,6 +97,10 @@ Param 5 (a) is an OUT parameter
 Result set:
 6.8	7	2017-02-24 11:34:46
 OUT params: 6.8 : 7 : 2017-02-24 11:34:46
+
+Query: SELECT 'one' /*/ *{fn / } , 'comment text became SQL' --*/
+Result set:
+one
 
 -- TEST using SQLExecDirect
 
@@ -132,6 +143,13 @@ Result set:
 
 OUT param: 3
 
+Query: { ? = call length(?) }
+Param 1 is an OUT parameter
+Param 2: foobar
+Result set:
+
+OUT param: 6
+
 Query: { ? = call concat(?::text, ?::text) }
 Param 1 is an OUT parameter
 Param 2: foo
@@ -181,4 +199,15 @@ Param 5 (a) is an OUT parameter
 Result set:
 6.8	7	2017-02-24 11:34:46
 OUT params: 6.8 : 7 : 2017-02-24 11:34:46
+
+Query: SELECT 'one' /*/ *{fn / } , 'comment text became SQL' --*/
+Result set:
+one
+
+-- TEST unbound return value parameter
+
+Query: { ? = call length('foo') }
+1 result columns
+Result set:
+
 disconnecting

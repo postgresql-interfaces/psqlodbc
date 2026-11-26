@@ -1,0 +1,4 @@
+target_session_attrs=any: connected
+application_name: pqopt_many
+work_mem: 4MB
+target_session_attrs=read-only: refused

@@ -102,7 +102,7 @@
 ALWAYS_INLINE char *
 skip_spaces(const char *pInputString)
 {
-    while (isspace(*pInputString)) {
+    while (isspace((unsigned char) *pInputString)) {
         ++pInputString;
     }
 
@@ -147,6 +147,13 @@ parse_arg(int *pError, const char *pFmt, const char *pInputString, va_list *args
     uWidth = lRet;
     if (uWidth > 0) {
         useTrim = 1;
+        /*
+         * trimCurr is MAX_STRING_OUTPUT bytes and strncpy pads to uWidth, so
+         * a format width at or above that size overflows the stack buffer
+         * regardless of the input length. Clamp it.
+         */
+        if (uWidth >= MAX_STRING_OUTPUT)
+            uWidth = MAX_STRING_OUTPUT - 1;
         strncpy(trimCurr, pCurrent, uWidth);
         trimCurr[uWidth] = '\0';
         pParse = trimCurr;
@@ -529,9 +536,18 @@ parse_arg(int *pError, const char *pFmt, const char *pInputString, va_list *args
                 }
 
                 if (cbSize) {
-                    memset(pOutput, '\0', useTrim ? uWidth : cbSize);
+                    /*
+                     * Clear the whole destination, not just uWidth bytes:
+                     * a token of uWidth characters or more would otherwise
+                     * fill the cleared bytes and leave the string
+                     * unterminated, and a width larger than the buffer
+                     * would make the memset itself overrun it. At most
+                     * cbSize - 1 bytes are stored below, so the result is
+                     * always NUL terminated.
+                     */
+                    memset(pOutput, '\0', cbSize);
                     cbSize--;
-                    while (pCurrent[0] != '\0' && !isspace(pCurrent[0]) && cbSize != 0 && (useTrim ? uWidth-- > 0 : 1)) {
+                    while (pCurrent[0] != '\0' && !isspace((unsigned char) pCurrent[0]) && cbSize != 0 && (useTrim ? uWidth-- > 0 : 1)) {
                         #ifdef _MSC_VER
                             *((char*)pOutput)++ = *pCurrent++;
                         #else
@@ -542,7 +558,7 @@ parse_arg(int *pError, const char *pFmt, const char *pInputString, va_list *args
 
                     if (cbSize == 0) {
                         /* Truncated ... Should this condition be propogated ? */
-                        while (pCurrent[0] != '\0' && !isspace(pCurrent[0]))
+                        while (pCurrent[0] != '\0' && !isspace((unsigned char) pCurrent[0]))
                             pCurrent++;
                     }
                 }
@@ -604,7 +620,7 @@ secure_sscanf(const char *pInputString, int *pStatus, const char *pFmt, ... )
             ++pFmt;
             pInputString = tmp;
 
-        } else if (isspace(pFmt[0])) {
+        } else if (isspace((unsigned char) pFmt[0])) {
             ++pFmt;
             pInputString = skip_spaces(pInputString);
         } else if (pFmt[0] == pInputString[0]) {

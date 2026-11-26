@@ -1,0 +1,14 @@
+connected
+Result set:
+1
+2
+3
+SAVEPOINT a; RELEASE a
+ok
+Result set:
+1
+2
+3
+SAVEPOINT a; ROLLBACK TO a
+ok
+disconnecting

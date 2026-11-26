@@ -1,0 +1,14 @@
+connected
+Updating through a cursor with an unparsed expression column
+3 columns
+column 1: id
+column 2: entry
+column 3: now
+fetched: 1	one
+SQLSetPos UPDATE succeeded
+SQLSetPos ADD succeeded
+Querying the table again
+Result set:
+1	two
+2	three
+disconnecting

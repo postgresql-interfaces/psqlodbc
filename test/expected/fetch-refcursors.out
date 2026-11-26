@@ -54,3 +54,12 @@ foobar	3
 bar	2
 foo	1
 disconnecting
+
+-- TEST closing a statement with refcursor results after a commit
+connected
+--1 Result set:
+1	foo
+2	bar
+3	foobar
+rows committed: 1
+disconnecting

@@ -1,0 +1,12 @@
+connected
+
+-- name "who", SQL_NTS
+SQL_DESC_NAME: who
+Result set:
+hello bob
+
+-- name "who", first 3 bytes of unterminated "who=bob"
+SQL_DESC_NAME: who
+Result set:
+hello bob
+disconnecting

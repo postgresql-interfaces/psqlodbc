@@ -10,6 +10,112 @@
 <h1>psqlODBC release notes</h1>
 <hr>
 <ol type="1">
+ <h2><a id="18.00.0007">psqlODBC 18.00.0007 Release</a></h2>
+ This release fixes the following vulnerabilities. All releases before 18.00.0007 are affected unless an entry gives a narrower range.<br />
+ Changes:<br />
+ <li>
+  Driver sends application memory to the server or returns it to the caller (CVE-2026-136499, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-2mrr-c82q-wc22">GHSA-2mrr-c82q-wc22</a>, CVSS 3.1 5.9 Medium)
+ </li>
+ <li>
+  SQL injection with BIG5 aliases and the JOHAB, EUC_TW, EUC_CN and EUC_KR client encodings (CVE-2026-136500, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-2rjm-67gc-54r4">GHSA-2rjm-67gc-54r4</a>, CVSS 3.1 8.1 High)
+ </li>
+ <li>
+  Positioned writes go to another user's table through name and case matching (CVE-2026-136501, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-38cc-jj5v-wrg6">GHSA-38cc-jj5v-wrg6</a>, CVSS 3.1 7.1 High)
+ </li>
+ <li>
+  SQL injection and redirected writes because the driver reads SQL text differently from the server (CVE-2026-136502, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4392-6j85-5q2q">GHSA-4392-6j85-5q2q</a>, CVSS 3.1 8.1 High)
+ </li>
+ <li>
+  Use after free, double free and out-of-bounds writes in result and transaction clean-up (CVE-2026-136503, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-48v4-hjc5-hx8w">GHSA-48v4-hjc5-hx8w</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Debug log records the database password in clear text (CVE-2026-136504, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4cgj-r3wg-3rj2">GHSA-4cgj-r3wg-3rj2</a>, CVSS 3.1 5.0 Medium)
+ </li>
+ <li>
+  Unchecked sizes and counters overflow driver buffers (CVE-2026-136505, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4g4f-phc4-3qh7">GHSA-4g4f-phc4-3qh7</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  SQL injection through names the driver puts into its own queries (CVE-2026-136506, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-63r4-gjcj-f69v">GHSA-63r4-gjcj-f69v</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Connection string injection in SQLDriverConnect and the MSDTC XA open string (CVE-2026-136507, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-7638-f7xp-wv22">GHSA-7638-f7xp-wv22</a>, CVSS 3.1 8.1 High)
+ </li>
+ <li>
+  MSDTC connections drop the connection's TLS and channel binding settings (CVE-2026-136508, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-8q3q-86gx-g68g">GHSA-8q3q-86gx-g68g</a>, CVSS 3.1 6.8 Medium)
+ </li>
+ <li>
+  Driver does not check that server replies match the queries it sent (CVE-2026-136509, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-98mx-57hv-xjpr">GHSA-98mx-57hv-xjpr</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Statement after an abandoned parameter array sends the abandoned batch's rows instead of its own. Affects 12.02.0000 through 18.00.0006 (CVE-2026-136510, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-9j2v-p4pj-f4wj">GHSA-9j2v-p4pj-f4wj</a>, CVSS 3.1 4.8 Medium)
+ </li>
+ <li>
+  An SSLmode value written with capitals or braces connects without TLS (CVE-2026-136511, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-9vpf-qm3q-xh5x">GHSA-9vpf-qm3q-xh5x</a>, CVSS 3.1 6.8 Medium)
+ </li>
+ <li>
+  Buffer overflows when a converted value does not fit the application's buffer (CVE-2026-136512, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-c66p-8p63-p7mr">GHSA-c66p-8p63-p7mr</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Another local user can redirect log files (incomplete fix for CVE-2026-120066) (CVE-2026-136513, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-g5jq-mpgp-mq7q">GHSA-g5jq-mpgp-mq7q</a>, CVSS 3.1 3.6 Low)
+ </li>
+ <li>
+  Another database user can crash applications by changing a table they own (CVE-2026-136514, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-hcmw-j9px-6v23">GHSA-hcmw-j9px-6v23</a>, CVSS 3.1 6.5 Medium)
+ </li>
+ <li>
+  Memory corruption and crashes when the driver rewrites statements for cursors and escapes (CVE-2026-136515, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-pw7w-x92p-r3q2">GHSA-pw7w-x92p-r3q2</a>, CVSS 3.1 7.5 High)
+ </li>
+ This release also changes driver behaviour that an application can see. The <a href="https://odbc.postgresql.org/changelog/">changelog</a> lists those changes.<br />
+ <hr>
+ <h2><a id="18.00.0006">psqlODBC 18.00.0006 Release</a></h2>
+ This release fixes the following vulnerabilities. All releases before 18.00.0006 are affected unless an entry gives a narrower range.<br />
+ Changes:<br />
+ <li>
+  Large-object read overflows the application buffer (CVE-2026-120057, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-qhmr-5339-q33r">GHSA-qhmr-5339-q33r</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Row cache overflow when a later FETCH changes the column count (CVE-2026-120058, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-6rmx-9q62-4w6m">GHSA-6rmx-9q62-4w6m</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Driver uses a server-supplied column name as a format string (CVE-2026-120059, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-44rq-72jh-x2h8">GHSA-44rq-72jh-x2h8</a>, CVSS 3.1 6.8 Medium)
+ </li>
+ <li>
+  Driver does not validate server-supplied counts and lengths (CVE-2026-120060, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-4mfx-cfxx-c877">GHSA-4mfx-cfxx-c877</a>, CVSS 3.1 5.9 Medium)
+ </li>
+ <li>
+  ODBC escape parser stack buffer overflow (CVE-2026-120061, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-hfm6-qfx8-v4xq">GHSA-hfm6-qfx8-v4xq</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  SQL injection through SQLSpecialColumns table and schema names. Affects 17.00.0006 through 18.00.0005 (CVE-2026-120062, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-gg8f-fx3w-rj33">GHSA-gg8f-fx3w-rj33</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Stack buffer overflow when quoting long schema and table names (CVE-2026-120063, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-285r-84w3-xcxv">GHSA-285r-84w3-xcxv</a>, CVSS 3.1 5.9 Medium)
+ </li>
+ <li>
+  Driver does not validate column numbers and row indexes in binding and descriptor functions (CVE-2026-120064, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-7pq2-q7mj-ph8c">GHSA-7pq2-q7mj-ph8c</a>, CVSS 3.1 7.5 High)
+ </li>
+ <li>
+  Driver does not escape a server-supplied column name in its updatable-cursor queries (CVE-2026-120065, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-9cg8-r57h-h6jj">GHSA-9cg8-r57h-h6jj</a>, CVSS 3.1 7.1 High)
+ </li>
+ <li>
+  Log files are created with default permissions at a predictable path and follow symbolic links (CVE-2026-120066, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-wj7r-6pj3-62g8">GHSA-wj7r-6pj3-62g8</a>, CVSS 3.1 5.3 Medium)
+ </li>
+ <li>
+  Stack buffer overflow when reading the keyset (ctid/oid) columns of an updatable cursor (CVE-2026-120067, <a href="https://github.com/postgresql-interfaces/psqlodbc/security/advisories/GHSA-3r96-h2q4-6pxh">GHSA-3r96-h2q4-6pxh</a>, CVSS 3.1 5.9 Medium)
+ </li>
+ The release also contains these hardening changes. They have no demonstrated attack path and no CVE.<br />
+ <li>
+  SQLSetDescRecW stored a freed buffer and the address of a local variable as deferred bound data. ODBC defines no Unicode form of SQLSetDescRec, and driver managers call only SQLSetDescRec, so only an application that calls the driver's SQLSetDescRecW export directly reaches it. It now stores the application's pointers, as SQLSetDescRec does.
+ </li>
+ <li>
+  SQLColumns returned uninitialized relkind and table OID values when the table query returned no rows.
+ </li>
+ <li>
+  convert_linefeeds could dereference a NULL pointer in one build configuration.
+ </li>
+ <li>
+  secure_sscanf limits an over-wide %Ns width, msgtowstr checks for a zero buffer length, and the MSDTC connect-string append is bounded.
+ </li>
+ <hr>
  <h2><a id="18.00.0005">psqlODBC 18.00.0005 Release</a></h2>
  Changes:<br />
  <li>

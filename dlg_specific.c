@@ -20,6 +20,9 @@
 #include <ctype.h>
 #include "dlg_specific.h"
 #include "misc.h"
+#ifndef	PSQLSETUP_EXPORTS
+#include "multibyte.h"
+#endif
 
 #include "pgapifunc.h"
 
@@ -28,7 +31,6 @@
 #define	NULL_IF_NULL(a) ((a) ? ((const char *)(a)) : "(null)")
 CSTR	ENTRY_TEST = " @@@ ";
 
-static void encode(const pgNAME, char *out, int outlen);
 static pgNAME decode(const char *in);
 static pgNAME decode_or_remove_braces(const char *in);
 
@@ -204,6 +206,10 @@ abbrev_sslmode(const char *sslmode, char *abbrevmode, size_t abbrevsize)
 						strncpy_null(abbrevmode, sslmode, abbrevsize);
 			}
 			break;
+		default:
+			/* keep an unrecognized value as it is */
+			strncpy_null(abbrevmode, sslmode, abbrevsize);
+			break;
 	}
 	return abbrevmode;
 }
@@ -236,34 +242,83 @@ makeKeepaliveConnectString(char *target, int buflen, const ConnInfo *ci, BOOL ab
 
 #define OPENING_BRACKET '{'
 #define CLOSING_BRACKET '}'
-static const char *
-makeBracketConnectString(BOOL in_str, char **target, pgNAME item, const char *optname)
+
+/*
+ * Copy in to out (when out isn't NULL) doubling the closing brackets but
+ * not the trailing bytes of multibyte characters which happen to be 0x7d
+ * ('}'), as in SJIS, BIG5 or GBK, and return the length of the result.
+ */
+#ifdef	PSQLSETUP_EXPORTS
+/*
+ * The setup DLL is built without multibyte.c. Its strings are in the ANSI
+ * code page, which is also the encoding the driver derives for them.
+ */
+static size_t
+double_closing_brackets(char *out, const char *in, int ccsc)
 {
-	const char	*istr, *iptr;
+	size_t	len = 0;
+	BOOL	trail = FALSE;
+
+	for (; *in; in++)
+	{
+		if (trail)
+			trail = FALSE;
+		else if (IsDBCSLeadByte((BYTE) *in))
+			trail = TRUE;
+		else if (CLOSING_BRACKET == *in)
+		{
+			if (out)
+				out[len] = *in;
+			len++;
+		}
+		if (out)
+			out[len] = *in;
+		len++;
+	}
+	return len;
+}
+#else
+static size_t
+double_closing_brackets(char *out, const char *in, int ccsc)
+{
+	size_t	len = 0;
+	encoded_str	encstr;
+	UCHAR		tchar;
+
+	encoded_str_constr(&encstr, ccsc, in);
+	for (tchar = encoded_nextchar(&encstr); tchar; tchar = encoded_nextchar(&encstr))
+	{
+		if (CLOSING_BRACKET == tchar && !MBCS_NON_ASCII(encstr))
+		{
+			if (out)
+				out[len] = tchar;
+			len++;
+		}
+		if (out)
+			out[len] = tchar;
+		len++;
+	}
+	return len;
+}
+#endif	/* PSQLSETUP_EXPORTS */
+
+static const char *
+makeBracketConnectString(BOOL in_str, char **target, pgNAME item, const char *optname, int ccsc)
+{
+	const char	*istr;
 	char	*buf, *optr;
-	int	len;
+	size_t	len;
 
 	if (!in_str)
 		return NULL_STRING;
 
 	istr = SAFE_NAME(item);
-	for (iptr = istr, len = 0; *iptr; iptr++)
-	{
-		if (CLOSING_BRACKET == *iptr)
-			len++;
-		len++;
-	}
-	len += 30;
+	len = double_closing_brackets(NULL, istr, ccsc) + 30;
 	if (buf = (char *) malloc(len), buf == NULL)
 		return NULL_STRING;
 	snprintf(buf, len, "%s=%c", optname, OPENING_BRACKET);
 	optr = strchr(buf, '\0');
-	for (iptr = istr; *iptr; iptr++)
-	{
-		if (CLOSING_BRACKET == *iptr)
-			*(optr++) = *iptr;
-		*(optr++) = *iptr;
-	}
+	optr += double_closing_brackets(optr, istr, ccsc);
 	*(optr++) = CLOSING_BRACKET;
 	*(optr++) = ';';
 	*optr = '\0';
@@ -294,7 +349,7 @@ makeXaOptConnectString(char *target, int buflen, const ConnInfo *ci, BOOL abbrev
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 
 void
-makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len)
+makeConnectString(char *connect_string, const ConnInfo *ci, UWORD len, int ccsc)
 {
 	char		got_dsn = (ci->dsn[0] != '\0');
 	char		encoded_item[LARGE_REGISTRY_LEN];
@@ -390,7 +445,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 			,ci->show_oid_column
 			,ci->row_versioning
 			,ci->show_system_tables
-			,makeBracketConnectString(ci->conn_settings_in_str, &connsetStr, ci->conn_settings, INI_CONNSETTINGS)
+			,makeBracketConnectString(ci->conn_settings_in_str, &connsetStr, ci->conn_settings, INI_CONNSETTINGS, ccsc)
 			,ci->drivers.fetch_max
 			,ci->drivers.unknown_sizes
 			,ci->drivers.max_varchar_size
@@ -410,7 +465,7 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 			,ci->bytea_as_longvarbinary
 			,ci->use_server_side_prepare
 			,ci->lower_case_identifier
-			,makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, INI_PQOPT)
+			,makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, INI_PQOPT, ccsc)
 			,makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, FALSE)
 			,ci->numeric_as
 			,ci->optional_errors
@@ -499,13 +554,13 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 				"%s"
 #endif /* _HANDLE_ENLIST_IN_DTC_ */
 				INI_ABBREVIATE "=%02x%x",
-				makeBracketConnectString(ci->conn_settings_in_str, &connsetStr, ci->conn_settings, ABBR_CONNSETTINGS),
+				makeBracketConnectString(ci->conn_settings_in_str, &connsetStr, ci->conn_settings, ABBR_CONNSETTINGS, ccsc),
 				ci->drivers.fetch_max,
 				ci->drivers.max_varchar_size,
 				ci->drivers.max_longvarchar_size,
 				ci->int8_as,
 				ci->drivers.extra_systable_prefixes,
-				makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, ABBR_PQOPT),
+				makeBracketConnectString(ci->pqopt_in_str, &pqoptStr, ci->pqopt, ABBR_PQOPT, ccsc),
 				makeKeepaliveConnectString(keepaliveStr, sizeof(keepaliveStr), ci, TRUE),
 				ci->numeric_as,
 #ifdef	_HANDLE_ENLIST_IN_DTC_
@@ -553,14 +608,20 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 static void
 unfoldCXAttribute(ConnInfo *ci, const char *value)
 {
-	int	count;
-	UInt4	flag;
+	int	count = 0;
+	UInt4	flag = 0;
 	int	status = 0;
 
+	/*
+	 * secure_sscanf() leaves its arguments untouched when the string
+	 * holds no field to parse. Leave the options alone when the flag
+	 * word is missing instead of applying an indeterminate value.
+	 */
 	if (strlen(value) < 2)
 	{
 		count = 3;
-		secure_sscanf(value, &status, "%x", ARG_UINT(&flag));
+		if (secure_sscanf(value, &status, "%x", ARG_UINT(&flag)) < 1)
+			return;
 	}
 	else
 	{
@@ -568,7 +629,8 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		memcpy(cnt, value, 2);
 		cnt[2] = '\0';
 		secure_sscanf(cnt, &status, "%x", ARG_UINT(&count));
-		secure_sscanf(value + 2, &status, "%x", ARG_UINT(&flag));
+		if (secure_sscanf(value + 2, &status, "%x", ARG_UINT(&flag)) < 1)
+			return;
 	}
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);
 	ci->lf_conversion = (char)((flag & BIT_LFCONVERSION) != 0);
@@ -687,7 +749,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	}
 	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
 	{
-		char	*hide_str = hide_password(value);
+		char	*hide_str = get_mylog() ?
+			hide_conninfo_secrets(value) : NULL;
 
 		NULL_THE_NAME(ci->pqopt);
 		ci->pqopt_in_str = TRUE;
@@ -729,7 +792,11 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 		ci->ignore_timeout = pg_atoi(value);
 	else if (stricmp(attribute, INI_SSLMODE) == 0 || stricmp(attribute, ABBR_SSLMODE) == 0)
 	{
-		switch (value[0])
+		/* The value may be enclosed with braces or percent-encoded */
+		pgNAME	sslmode = decode_or_remove_braces(value);
+		const char *mode = SAFE_NAME(sslmode);
+
+		switch (tolower((UCHAR) mode[0]))
 		{
 			case SSLLBYTE_ALLOW:
 				STRCPY_FIXED(ci->sslmode, SSLMODE_ALLOW);
@@ -741,7 +808,7 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 				STRCPY_FIXED(ci->sslmode, SSLMODE_REQUIRE);
 				break;
 			case SSLLBYTE_VERIFY:
-				switch (value[1])
+				switch (tolower((UCHAR) mode[1]))
 				{
 					case 'f':
 						STRCPY_FIXED(ci->sslmode, SSLMODE_VERIFY_FULL);
@@ -750,14 +817,27 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 						STRCPY_FIXED(ci->sslmode, SSLMODE_VERIFY_CA);
 						break;
 					default:
-						STRCPY_FIXED(ci->sslmode, value);
+						if (stricmp(mode, SSLMODE_VERIFY_FULL) == 0)
+							STRCPY_FIXED(ci->sslmode, SSLMODE_VERIFY_FULL);
+						else if (stricmp(mode, SSLMODE_VERIFY_CA) == 0)
+							STRCPY_FIXED(ci->sslmode, SSLMODE_VERIFY_CA);
+						else
+							STRCPY_FIXED(ci->sslmode, mode);
 				}
 				break;
 			case SSLLBYTE_DISABLE:
-			default:
+			case '\0':
 				STRCPY_FIXED(ci->sslmode, SSLMODE_DISABLE);
 				break;
+			default:
+				/*
+				 * Never silently fall back to disable: an unknown
+				 * value is passed on so that libpq rejects it.
+				 */
+				STRCPY_FIXED(ci->sslmode, mode);
+				break;
 		}
+		NULL_THE_NAME(sslmode);
 		MYLOG(0, "key='%s' value='%s' set to '%s'\n",
 				attribute, value, ci->sslmode);
 		printed = TRUE;
@@ -1044,7 +1124,7 @@ MYLOG(0, "drivername=%s\n", drivername);
 		 */
 		for (ptr = (UCHAR *) temp, pspace = TRUE, nspcnt = 0; *ptr; ptr++)
 		{
-			if (isspace(*ptr))
+			if (isspace((UCHAR) *ptr))
 				pspace = TRUE;
 			else
 			{
@@ -1537,7 +1617,7 @@ get_Ci_Drivers(const char *section, const char *filename, GLOBAL_VALUES *comval)
 	}
 }
 
-static void
+void
 encode(const pgNAME in, char *out, int outlen)
 {
 	size_t i, ilen, o = 0;
@@ -1555,7 +1635,7 @@ encode(const pgNAME in, char *out, int outlen)
 		inc = ins[i];
 		if (inc == '+')
 		{
-			if (o + 2 >= outlen)
+			if (o + 3 >= outlen)	/* the escape and the terminating NUL */
 				break;
 			snprintf(&out[o], outlen - o, "%%2B");
 			o += 3;
@@ -1564,9 +1644,9 @@ encode(const pgNAME in, char *out, int outlen)
 			out[o++] = '+';
 		else if (!isalnum((unsigned char) inc))
 		{
-			if (o + 2 >= outlen)
+			if (o + 3 >= outlen)	/* the escape and the terminating NUL */
 				break;
-			snprintf(&out[o], outlen - o, "%%%02x", inc);
+			snprintf(&out[o], outlen - o, "%%%02x", (unsigned char) inc);
 			o += 3;
 		}
 		else
@@ -1924,7 +2004,10 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_STRCPY(translation_dll);
 	CORR_STRCPY(translation_option);
 	CORR_VALCPY(password_required);
+	CORR_VALCPY(conn_settings_in_str);
+	CORR_VALCPY(pqopt_in_str);
 	NAME_TO_NAME(ci->conn_settings, sci->conn_settings);
+	NAME_TO_NAME(ci->pqopt, sci->pqopt);
 	CORR_VALCPY(allow_keyset);
 	CORR_VALCPY(updatable_cursors);
 	CORR_VALCPY(lf_conversion);
@@ -1944,6 +2027,7 @@ CC_copy_conninfo(ConnInfo *ci, const ConnInfo *sci)
 	CORR_VALCPY(ignore_round_trip_time);
 	CORR_VALCPY(disable_keepalive);
 	CORR_VALCPY(disable_convert_func);
+	CORR_VALCPY(wcs_debug);
 	CORR_VALCPY(extra_opts);
 	CORR_VALCPY(keepalive_idle);
 	CORR_VALCPY(keepalive_interval);

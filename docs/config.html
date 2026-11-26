@@ -183,8 +183,12 @@ versioning feature to be used.<br />&nbsp;</li>
   SQLDescribeCol() or SQLNumResultCols() before SQLExecute(), the driver will
   send a Parse request to the server even if this option is disabled. In that
   case, the query that is sent to the server for parsing will have the
-  parameter markers replaced with the actual parameter values, or NULL literals
-  if the values are not known yet.
+  parameter markers replaced with NULL literals, cast to the parameters'
+  bound SQL types. The parameter values are not read until SQLExecute(), as
+  ODBC allows the application to set them as late as that. A statement whose
+  result type depends on a parameter written directly after a type name, such
+  as <code>select date ?</code>, can therefore not be described before it is
+  executed.
 <br />&nbsp;</li>
 
 <li><b>Int8 As:</b> Define what datatype to report int8 columns as.<br />&nbsp;</li>

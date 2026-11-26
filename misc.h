@@ -103,6 +103,9 @@ FUNCTION_END_MACRO
  * for safe logging.  The caller must free() the result.
  */
 char *hide_password(const char *str);
+char *hide_conninfo_secrets(const char *value);
+BOOL is_sensitive_conninfo_param(const char *keyword);
+BOOL is_sensitive_conninfo_keyword(const char *keyword, size_t len);
 
 #ifdef __cplusplus
 }

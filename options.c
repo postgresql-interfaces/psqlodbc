@@ -199,7 +199,8 @@ set_statement_option(ConnectionClass *conn,
 		case SQL_ROWSET_SIZE:
 			MYLOG(0, "SQL_ROWSET_SIZE, vParam = " FORMAT_LEN "\n", vParam);
 
-			if (vParam < 1)
+			/* vParam is unsigned; a negative size arrives as a huge one */
+			if ((SQLLEN) vParam < 1)
 			{
 				vParam = 1;
 				changed = TRUE;
@@ -373,9 +374,17 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				break;
 			else if (!autocomm_on && SQL_AUTOCOMMIT_OFF == conn->autocommit_public)
 				break;
-			conn->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
 			MYLOG(0, "AUTOCOMMIT: transact_status=%d, vparam=" FORMAT_LEN "\n", conn->transact_status, vParam);
 
+			/*
+			 * Every exit below this point reports the attribute as
+			 * unchanged, so autocommit_public is assigned only once they
+			 * are passed. Assigning it first made the tests above take a
+			 * retry for a change already made and return SQL_SUCCESS
+			 * without ever switching the mode, so SQLGetConnectAttr,
+			 * which reads this field, reported a mode the driver was not
+			 * in.
+			 */
 #ifdef	_HANDLE_ENLIST_IN_DTC_
 			if (CC_is_in_global_trans(conn))
 			{
@@ -383,7 +392,26 @@ PGAPI_SetConnectOption(HDBC hdbc,
 				return SQL_ERROR;
 			}
 #endif	/* _HANDLE_ENLIST_IN_DTC_ */
-			CC_set_autocommit(conn, autocomm_on);
+			/*
+			 * Turning autocommit on commits the open transaction. As in
+			 * PGAPI_Transact(), that cannot be done once the driver has
+			 * given the connection up, so don't report that it was.
+			 */
+			if (autocomm_on && CONN_DOWN == conn->status)
+			{
+				CC_set_error(conn, CONNECTION_COMMUNICATION_ERROR, "Could not commit, the connection was lost", func);
+				return SQL_ERROR;
+			}
+			/*
+			 * CC_set_autocommit() changes the mode whether or not the
+			 * commit it sends succeeds, so the mode holds the requested
+			 * value even where it reports the failure. Record it either
+			 * way, or an application that reads SQL_ATTR_AUTOCOMMIT back
+			 * after the error is told the mode is the one it left.
+			 */
+			conn->autocommit_public = (autocomm_on ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF);
+			if (!CC_set_autocommit(conn, autocomm_on))
+				return SQL_ERROR;
 			break;
 
 		case SQL_CURRENT_QUALIFIER:		/* ignored */
@@ -416,7 +444,10 @@ PGAPI_SetConnectOption(HDBC hdbc,
 			if (CC_is_in_trans(conn))
 			{
 				if (CC_does_autocommit(conn) && !CC_is_in_error_trans(conn))
-					CC_commit(conn);
+				{
+					if (!CC_commit(conn))
+						return SQL_ERROR;
+				}
 				else
 				{
 					CC_set_error(conn, CONN_TRANSACT_IN_PROGRES, "Cannot switch isolation level while a transaction is in progress", func);
@@ -587,6 +618,11 @@ PGAPI_GetConnectOption(HDBC hdbc,
 		/* char/binary data */
 		len = strlen(p);
 
+		if (pvParam && BufferLength < 0)
+		{
+			CC_set_error(conn, CONN_INVALID_BUFFER_LENGTH, "Invalid string or buffer length", func);
+			return SQL_ERROR;
+		}
 		if (pvParam)
 		{
 #ifdef  UNICODE_SUPPORT
@@ -594,6 +630,8 @@ PGAPI_GetConnectOption(HDBC hdbc,
 			{
 				len = utf8_to_ucs2(p, len, (SQLWCHAR *) pvParam , BufferLength / WCLEN);
 				len *= WCLEN;
+				/* an odd byte count holds whole characters only */
+				BufferLength -= BufferLength % WCLEN;
 			}
 			else
 #endif /* UNICODE_SUPPORT */

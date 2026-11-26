@@ -1,0 +1,20 @@
+
+The application switches search_path with SET
+connected
+user of tenant_a sees order 1: order of tenant_a
+user of tenant_b sees order 1: order of tenant_b
+user of tenant_b sets its note to: set by tenant_b after SET (SQLSetPos returned SQL_SUCCESS)
+Result set:
+tenant_a.orders	1	order of tenant_a
+tenant_b.orders	1	set by tenant_b after SET
+disconnecting
+
+The application switches search_path with set_config()
+connected
+user of tenant_a sees order 1: order of tenant_a
+user of tenant_b sees order 1: order of tenant_b
+user of tenant_b sets its note to: set by tenant_b after set_config() (SQLSetPos returned SQL_SUCCESS)
+Result set:
+tenant_a.orders	1	order of tenant_a
+tenant_b.orders	1	set by tenant_b after set_config()
+disconnecting

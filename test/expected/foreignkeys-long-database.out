@@ -1,0 +1,18 @@
+connected
+disconnecting
+connected
+disconnecting
+connected
+disconnecting
+Database setting of 103 bytes, 143 escaped
+connected
+fk_child.parent_id references fk_parent, PKTABLE_CAT is the database name
+1 foreign key rows
+disconnecting
+Database setting of 255 bytes, 447 escaped
+connected
+fk_child.parent_id references fk_parent, PKTABLE_CAT is the database name
+1 foreign key rows
+disconnecting
+connected
+disconnecting

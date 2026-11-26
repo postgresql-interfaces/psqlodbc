@@ -1,0 +1,12 @@
+connected
+SELECT e'it\'s?' AS a, ?::text AS b
+  a = [it's?], b = [P]
+SELECT 'x' LIKE'it\' AS a, ?::text AS b
+  a = [0], b = [P]
+SELECT /*/ ? */ 'c' AS a, ?::text AS b
+  a = [c], b = [P]
+SELECT $_$ ? $_$ AS a, ?::text AS b
+  a = [ ? ], b = [P]
+SELECT 'c' AS a -- ?^ , ?::text AS b
+  a = [c], b = [P]
+disconnecting

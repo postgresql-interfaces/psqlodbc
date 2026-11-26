@@ -1,0 +1,16 @@
+connected
+batch 1: bad SQLPutData length in row 1
+batch failed
+HY024=Invalid string or buffer length
+INSERT INTO job_log VALUES ('batch 1 failed'): SQL_SUCCESS
+batch 2: bad SQLPutData length in row 3
+batch failed
+HY024=Invalid string or buffer length
+INSERT INTO job_log VALUES ('batch 2 failed'): SQL_SUCCESS
+SELECT id FROM messages ORDER BY id
+Result set:
+SELECT outcome FROM job_log ORDER BY outcome
+Result set:
+batch 1 failed
+batch 2 failed
+disconnecting

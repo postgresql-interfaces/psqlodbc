@@ -1,0 +1,7 @@
+connected
+bound: ref 41414141-4242-4343 ref_ind 16 total 42 (ind 4) stamp 2024-01-15 (ind 16)
+discarded: total 42 (ind 4) stamp 2024-01-15 (ind 16)
+indicator only: ref_ind 16 total 42 (ind 4) stamp 2024-01-15 (ind 16)
+discarded NULL: total 0 (ind 4) stamp 2024-01-15 (ind 16)
+indicator only NULL: ref_ind -1 total 0 (ind 4) stamp 2024-01-15 (ind 16)
+disconnecting

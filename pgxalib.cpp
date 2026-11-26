@@ -127,6 +127,7 @@ void XAConnection::Reset()
 		SQLDisconnect(xaconn);
 		mylog("Freeing HANDLE_DBC\n");
 		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
+		xaconn = NULL;
 	}
 }
 
@@ -162,30 +163,17 @@ HDBC	XAConnection::ActivateConnection(void)
 	SQLGetDiagRec(SQL_HANDLE_DBC, xaconn,
 			1, sqlstate, NULL, errmsg,
 			sizeof(errmsg), NULL);
-	mylog("first SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
+	mylog("SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
+	/*
+	 * Keep sqlState and errMsg: xa_recover() reads AuthenticationError()
+	 * from them. Never retry with other credentials; the connection
+	 * uses only the ones in the open string.
+	 */
 	sqlState = (char *) sqlstate;
 	errMsg = (char *) errmsg;
-	if (!AuthenticationError())
-	{
-		SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
-		return NULL;
-	}
-	sqlState.clear();
-	errMsg.clear();
-	ret = SQLDriverConnect(xaconn, NULL,
-		 (SQLCHAR *) (dsnstr + ";Username=postgres;Password=postgres;sslmode=allow").c_str(), SQL_NTS, NULL, SQL_NULL_DATA, NULL, SQL_DRIVER_COMPLETE);
-	if (SQL_SUCCEEDED(ret))
-	{
-		mylog("second SQLDriverConnect success\n");
-		return xaconn;
-	}
-
-	SQLGetDiagRec(SQL_HANDLE_DBC, xaconn,
-			1, sqlstate, NULL, errmsg,
-			sizeof(errmsg), NULL);
-	mylog("second SQLDriverConnect return=%d sqlstate=%s error=%s\n", ret, sqlstate, errmsg);
-	sqlState = (char *) sqlstate;
-	errMsg = (char *) errmsg;
+	/* xaconn doubles as the "connected" flag; never keep a freed handle */
+	SQLFreeHandle(SQL_HANDLE_DBC, xaconn);
+	xaconn = NULL;
 	return NULL;
 }
 
@@ -428,16 +416,21 @@ static int	TextToXid(XID &xid, const char *rtext)
 
 	slen = (int) strlen(rtext);
 	sptr = (char *)strchr(rtext, '-');
-	if (sptr)
-	{
-		glen = (int) (sptr - rtext);
-		blen = slen - glen - 1;
-	}
-	else
-	{
-		glen = slen;
-		blen = 0;
-	}
+	if (!sptr)	/* not a name made by XidToText() */
+		return -1;
+	glen = (int) (sptr - rtext);
+	blen = slen - glen - 1;
+	/*
+	 * The name comes from the server. It must fit in xid.data and
+	 * XidToText() never produces odd lengths.
+	 */
+	if (glen > 2 * MAXGTRIDSIZE || blen > 2 * MAXBQUALSIZE ||
+	    0 != glen % 2 || 0 != blen % 2)
+		return -1;
+	/* and holds only the hex digits it writes, around the one '-' */
+	if (strspn(rtext, "0123456789abcdefABCDEF") != (size_t) glen ||
+	    strspn(sptr + 1, "0123456789abcdefABCDEF") != (size_t) blen)
+		return -1;
 	xid.gtrid_length = glen / 2;
 	xid.bqual_length = blen / 2;
 	pg_hex2bin((const UCHAR *) rtext, (UCHAR *) &xid.data[0], glen);
@@ -464,7 +457,7 @@ static	bool bImmediateConnectDefault = false;
 void XAConnection::parse_xa_info()
 {
 	const char	*cstr, *pstr, *pnstr;
-	char		keyword[64], value[64];
+	string		keyword, value;
 	bool		keyhasbr, valhasbr;
 	int		debugv = -1;
 
@@ -480,7 +473,7 @@ void XAConnection::parse_xa_info()
 		{
 			keyhasbr = true;
 			if (pnstr = strchr(pstr, (int) CHAR_CLOSING_BRACE), NULL != pnstr)
-				strncpy_s(keyword, sizeof(keyword), pstr + 1, pnstr - pstr - 1);
+				keyword.assign(pstr + 1, pnstr - pstr - 1);
 			else
 				break;
 			pstr = pnstr + 1;
@@ -490,7 +483,7 @@ void XAConnection::parse_xa_info()
 		else
 		{
 			if (pnstr = strchr(pstr, (int) CHAR_EQUAL), NULL != pnstr)
-				strncpy_s(keyword, sizeof(keyword), pstr, pnstr - pstr);
+				keyword.assign(pstr, pnstr - pstr);
 			else
 				break;
 			pstr = pnstr;
@@ -500,7 +493,7 @@ void XAConnection::parse_xa_info()
 		{
 			valhasbr = true;
 			if (pnstr = strchr(pstr, (int) CHAR_CLOSING_BRACE), NULL != pnstr)
-				strncpy_s(value, sizeof(value), pstr + 1, pnstr - pstr - 1);
+				value.assign(pstr + 1, pnstr - pstr - 1);
 			else
 				break;
 			pstr = pnstr + 1;
@@ -509,21 +502,21 @@ void XAConnection::parse_xa_info()
 		{
 			if (pnstr = strchr(pstr, (int) CHAR_SEMI_COLON), NULL != pnstr)
 			{
-				strncpy_s(value, sizeof(value), pstr, pnstr - pstr);
+				value.assign(pstr, pnstr - pstr);
 				pstr = pnstr;
 			}
 			else
 			{
-				strcpy(value, pstr);
+				value = pstr;
 				pstr = strchr(pstr, '\0');
 			}
 		}
 
-		if (0 == _stricmp(keyword, KEYWORD_DTC_CHECK))
-			immediateConnection = (0 != (int) strtol(value, NULL, 10));
-		else if (0 == _stricmp(keyword, KEYWORD_DEBUG) ||
-			 0 == _stricmp(keyword, KEYWORD_ABDEBUG))
-			debugv = (int) strtol(value, NULL, 10);
+		if (0 == _stricmp(keyword.c_str(), KEYWORD_DTC_CHECK))
+			immediateConnection = (0 != (int) strtol(value.c_str(), NULL, 10));
+		else if (0 == _stricmp(keyword.c_str(), KEYWORD_DEBUG) ||
+			 0 == _stricmp(keyword.c_str(), KEYWORD_ABDEBUG))
+			debugv = (int) strtol(value.c_str(), NULL, 10);
 		else
 		{
 			if (keyhasbr)
@@ -561,7 +554,11 @@ EXTERN_C static int __cdecl xa_open(char *xa_info, int rmid, long flags)
 	int	xartn = XA_OK;
 	bool	bActivateConnection = bImmediateConnectDefault;
 
-	mylog("xa_open %s rmid=%d flags=%ld\n", xa_info, rmid, flags);
+	/*
+	 * xa_info is the open string of PgDtc_create_connect_string(), with the
+	 * password in it, so don't log it.
+	 */
+	mylog("xa_open rmid=%d flags=%ld\n", rmid, flags);
 	MLOCK_ACQUIRE;
 	init_crit.xatab.insert(pair<int, XAConnection>(rmid, XAConnection(xa_info)));
 	MLOCK_RELEASE;
@@ -571,14 +568,14 @@ EXTERN_C static int __cdecl xa_open(char *xa_info, int rmid, long flags)
 		xartn = XAER_RMERR;
 	else if (p->second.GetImmediateConnection())
 	{
-		mylog("xa_open calls ActivateConnection %s\n", p->second.GetDsnstr().c_str());
+		mylog("xa_open calls ActivateConnection rmid=%d\n", rmid);
 		if (p->second.ActivateConnection())
 			xartn = XA_OK;
 		else
 			xartn = XAER_RMERR;
 	}
 
-	mylog("xa_open %s rmid=%d returning %d\n", xa_info, rmid, xartn);
+	mylog("xa_open rmid=%d returning %d\n", rmid, xartn);
 	return	xartn;
 }
 EXTERN_C static int __cdecl xa_close(char *xa_info, int rmid, long flags)
@@ -758,9 +755,15 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 		HSTMT	stmt;
 		RETCODE	ret;
 		char	buf[512];
+		SQLLEN	ind;
 
 		vec.clear();
-		SQLAllocHandle(SQL_HANDLE_STMT, conn, &stmt);
+		ret = SQLAllocHandle(SQL_HANDLE_STMT, conn, &stmt);
+		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+		{
+			pos = -1;
+			goto onExit;
+		}
 		ret = SQLExecDirect(stmt, (SQLCHAR *) "select gid from pg_prepared_xacts", SQL_NTS);
 		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
 		{
@@ -768,22 +771,41 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 			pos = -1;
 			goto onExit;
 		}
-		SQLBindCol(stmt, 1, SQL_C_CHAR, buf, sizeof(buf), NULL);
-		ret = SQLFetch(stmt);
-		while (SQL_NO_DATA_FOUND != ret)
+		/*
+		 * Take a row only when SQLFetch() succeeded and gave a gid.  A NULL
+		 * gid or a reply without the column leaves buf as it was, and a
+		 * fetch that fails, for example once the connection is lost, fails
+		 * again on every call, so the loop must stop on any return other
+		 * than success, not only on SQL_NO_DATA.
+		 */
+		SQLBindCol(stmt, 1, SQL_C_CHAR, buf, sizeof(buf), &ind);
+		for (;;)
 		{
-			vec.push_back(buf);
+			ind = SQL_NULL_DATA;	/* left as is if the reply has no column */
 			ret = SQLFetch(stmt);
+			if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+				break;
+			if (SQL_NULL_DATA != ind)
+				vec.push_back(buf);
 		}
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		if (SQL_NO_DATA_FOUND != ret)
+		{
+			vec.clear();
+			pos = -1;
+			goto onExit;
+		}
 		pos = 0;
 	}
 	rcount = (int) vec.size();
-	rmcode = rcount - pos;
-	if (rmcode > count)
-		rmcode = count;
-	for (int i = 0; i < rmcode; i++, pos++)
-		TextToXid(xids[i], vec[pos].c_str());
+	/* skip the names that are not XIDs of ours */
+	for (rmcode = 0; rmcode < count && pos < rcount; pos++)
+	{
+		if (TextToXid(xids[rmcode], vec[pos].c_str()) >= 0)
+			rmcode++;
+		else
+			mylog("xa_recover ignores gid %s\n", vec[pos].c_str());
+	}
 
 	if ((flags & TMENDRSCAN) != 0)
 	{

@@ -1,0 +1,12 @@
+connected
+Check for SQLSpecialColumns primary key no schema
+Result set:
+NULL	id	int4	int4	4	4	0	1
+Check for SQLSpecialColumns unique index no schema
+Result set:
+NULL	id	int4	int4	4	4	0	1
+NULL	ival	int4	int4	4	4	0	1
+Check for SQLSpecialColumns primary key other schema
+Result set:
+NULL	ival	int4	int4	4	4	0	1
+disconnecting

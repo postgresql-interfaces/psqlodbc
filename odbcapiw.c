@@ -21,6 +21,7 @@
 #include "unicode_support.h"
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #include "pgapifunc.h"
 #include "connection.h"
@@ -39,7 +40,6 @@ SQLColumnsW(HSTMT StatementHandle,
 	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
 	ConnectionClass *conn;
-	BOOL	lower_id;
 	UWORD	flag = PODBC_SEARCH_PUBLIC_SCHEMA;
 	ConnInfo	*ci;
 
@@ -49,11 +49,10 @@ SQLColumnsW(HSTMT StatementHandle,
 
 	conn = SC_get_conn(stmt);
 	ci = &(conn->connInfo);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
-	clName = ucs2_to_utf8(ColumnName, NameLength4, &nmlen4, lower_id);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, FALSE);
+	clName = ucs2_to_utf8(ColumnName, NameLength4, &nmlen4, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -66,12 +65,26 @@ SQLColumnsW(HSTMT StatementHandle,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_Columns(StatementHandle,
-							(SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-							(SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-							(SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-							(SQLCHAR *) clName, (SQLSMALLINT) nmlen4,
-							flag, 0, 0);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3},
+			{(const SQLCHAR *) clName, nmlen4}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Columns(StatementHandle,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				flag, 0, 0);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -105,10 +118,15 @@ SQLConnectW(HDBC ConnectionHandle,
 	svName = ucs2_to_utf8(ServerName, NameLength1, &nmlen1, FALSE);
 	usName = ucs2_to_utf8(UserName, NameLength2, &nmlen2, FALSE);
 	auth = ucs2_to_utf8(Authentication, NameLength3, &nmlen3, FALSE);
+	/*
+	 * The converted strings are NUL-terminated and their UTF-8 length
+	 * need not fit in a SQLSMALLINT, so pass SQL_NTS rather than a
+	 * narrowed length.
+	 */
 	ret = PGAPI_Connect(ConnectionHandle,
-						(SQLCHAR *) svName, (SQLSMALLINT) nmlen1,
-						(SQLCHAR *) usName, (SQLSMALLINT) nmlen2,
-						(SQLCHAR *) auth, (SQLSMALLINT) nmlen3);
+						(SQLCHAR *) svName, SQL_NTS,
+						(SQLCHAR *) usName, SQL_NTS,
+						(SQLCHAR *) auth, SQL_NTS);
 	LEAVE_CONN_CS(conn);
 	if (svName)
 		free(svName);
@@ -160,8 +178,13 @@ SQLDriverConnectW(HDBC hdbc,
 	}
 	else if (pcbConnStrOut)
 		pCSO = &olen;
+	/*
+	 * szIn is NUL-terminated and its UTF-8 length need not fit in a
+	 * SQLSMALLINT; a narrowed length would cut the connection string
+	 * and change how the rest of it is parsed, so pass SQL_NTS.
+	 */
 	ret = PGAPI_DriverConnect(hdbc, hwnd,
-							  (SQLCHAR *) szIn, (SQLSMALLINT) inlen,
+							  (SQLCHAR *) szIn, SQL_NTS,
 							  (SQLCHAR *) szOut, maxlen,
 							  pCSO, fDriverCompletion);
 	if (ret != SQL_ERROR && NULL != pCSO)
@@ -217,7 +240,7 @@ SQLBrowseConnectW(HDBC			hdbc,
 	obuflen = cbConnStrOutMax + 1;
 	szOut = malloc(obuflen);
 	if (szOut)
-		ret = PGAPI_BrowseConnect(hdbc, (SQLCHAR *) szIn, (SQLSMALLINT) inlen,
+		ret = PGAPI_BrowseConnect(hdbc, (SQLCHAR *) szIn, SQL_NTS,
 								  (SQLCHAR *) szOut, cbConnStrOutMax, &olen);
 	else
 	{
@@ -270,8 +293,15 @@ SQLDescribeColW(HSTMT StatementHandle,
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
+	/*
+	 * The buffer length and the returned length of PGAPI_DescribeCol are
+	 * SQLSMALLINT, so the scratch buffer never holds more than SHRT_MAX
+	 * bytes; a longer name from the server is truncated.
+	 */
 	buflen = 0;
-	if (BufferLength > 0)
+	if (BufferLength > SHRT_MAX / 3)
+		buflen = SHRT_MAX;
+	else if (BufferLength > 0)
 		buflen = BufferLength * 3;
 	else if (NameLength)
 		buflen = 32;
@@ -280,7 +310,7 @@ SQLDescribeColW(HSTMT StatementHandle,
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
-	for (;; buflen = nmlen + 1, clNamet = realloc(clName, buflen))
+	for (;; buflen = (nmlen < SHRT_MAX ? nmlen + 1 : SHRT_MAX), clNamet = realloc(clName, buflen))
 	{
 		if (!clNamet)
 		{
@@ -293,16 +323,26 @@ SQLDescribeColW(HSTMT StatementHandle,
 								(SQLCHAR *) clName, buflen,
 								&nmlen, DataType, ColumnSize,
 			DecimalDigits, Nullable);
-		if (SQL_SUCCESS_WITH_INFO != ret || nmlen < buflen)
+		if (SQL_SUCCESS_WITH_INFO != ret || (nmlen >= 0 && nmlen < buflen) || buflen >= SHRT_MAX)
 			break;
 	}
 	if (SQL_SUCCEEDED(ret))
 	{
-		SQLLEN	nmcount = nmlen;
+		SQLLEN	nmcount;
 
-		if (nmlen < buflen)
-			nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
-		if (SQL_SUCCESS == ret && BufferLength > 0 && nmcount > BufferLength)
+		if (nmlen < 0 || nmlen >= buflen)
+			nmlen = buflen - 1;
+		nmcount = utf8_to_ucs2(clName, nmlen, ColumnName, BufferLength);
+		if (nmcount < 0)	/* not valid UTF-8 */
+		{
+			nmcount = 0;
+			if (ColumnName && BufferLength > 0)
+				ColumnName[0] = 0;
+		}
+		else if (nmcount > SHRT_MAX)
+			nmcount = SHRT_MAX;
+		/* BufferLength counts the terminator, so an exact fit is cut too */
+		if (SQL_SUCCESS == ret && BufferLength > 0 && nmcount >= BufferLength)
 		{
 			ret = SQL_SUCCESS_WITH_INFO;
 			SC_set_error(stmt, STMT_TRUNCATED, "Column name too large", func);
@@ -339,6 +379,12 @@ SQLExecDirectW(HSTMT StatementHandle,
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (stxt && slen > INT_MAX)
+	{
+		/* the UTF-8 text no longer fits the SQLINTEGER length below */
+		SC_set_error(stmt, STMT_INVALID_ARGUMENT_NO, "Statement text is too long", func);
+		ret = SQL_ERROR;
+	}
 	else
 		ret = PGAPI_ExecDirect(StatementHandle,
 							   (SQLCHAR *) stxt, (SQLINTEGER) slen, flag);
@@ -388,7 +434,8 @@ SQLGetCursorNameW(HSTMT StatementHandle,
 
 		if (clen < buflen)
 			nmcount = utf8_to_ucs2(crName, clen, CursorName, BufferLength);
-		if (SQL_SUCCESS == ret && nmcount > BufferLength)
+		/* BufferLength counts the terminator, so an exact fit is cut too */
+		if (SQL_SUCCESS == ret && nmcount >= BufferLength)
 		{
 			ret = SQL_SUCCESS_WITH_INFO;
 			SC_set_error(stmt, STMT_TRUNCATED, "Cursor name too large", func);
@@ -442,6 +489,12 @@ SQLPrepareW(HSTMT StatementHandle,
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
+	else if (stxt && slen > INT_MAX)
+	{
+		/* the UTF-8 text no longer fits the SQLINTEGER length below */
+		SC_set_error(stmt, STMT_INVALID_ARGUMENT_NO, "Statement text is too long", func);
+		ret = SQL_ERROR;
+	}
 	else
 		ret = PGAPI_Prepare(StatementHandle, (SQLCHAR *) stxt, (SQLINTEGER) slen);
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
@@ -486,29 +539,38 @@ SQLSpecialColumnsW(HSTMT StatementHandle,
 	char	*ctName, *scName, *tbName;
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
-	ConnectionClass *conn;
-	BOOL lower_id;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType,
-								   (SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-								   (SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-								   (SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-								   Scope, Nullable);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_SpecialColumns(StatementHandle, IdentifierType,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				Scope, Nullable);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -532,29 +594,38 @@ SQLStatisticsW(HSTMT StatementHandle,
 	char	*ctName, *scName, *tbName;
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
-	ConnectionClass *conn;
-	BOOL lower_id;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_Statistics(StatementHandle,
-							   (SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-							   (SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-							   (SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-							   Unique, Reserved);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Statistics(StatementHandle,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				Unique, Reserved);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -578,19 +649,15 @@ SQLTablesW(HSTMT StatementHandle,
 	char	*ctName, *scName, *tbName, *tbType;
 	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) StatementHandle;
-	ConnectionClass *conn;
-	BOOL lower_id;
 	UWORD	flag = 0;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, lower_id);
+	ctName = ucs2_to_utf8(CatalogName, NameLength1, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(SchemaName, NameLength2, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(TableName, NameLength3, &nmlen3, FALSE);
 	tbType = ucs2_to_utf8(TableType, NameLength4, &nmlen4, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
@@ -600,11 +667,24 @@ SQLTablesW(HSTMT StatementHandle,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_Tables(StatementHandle,
-						   (SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-						   (SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-						   (SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-						   (SQLCHAR *) tbType, (SQLSMALLINT) nmlen4, flag);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Tables(StatementHandle,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) tbType, (SQLSMALLINT) nmlen4, flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -634,20 +714,16 @@ SQLColumnPrivilegesW(HSTMT			hstmt,
 	char	*ctName, *scName, *tbName, *clName;
 	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass *conn;
-	BOOL	lower_id;
 	UWORD	flag = 0;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
-	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, lower_id);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, FALSE);
+	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -656,12 +732,26 @@ SQLColumnPrivilegesW(HSTMT			hstmt,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_ColumnPrivileges(hstmt,
-									 (SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-									 (SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-									 (SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-									 (SQLCHAR *) clName, (SQLSMALLINT) nmlen4,
-									 flag);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3},
+			{(const SQLCHAR *) clName, nmlen4}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_ColumnPrivileges(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -695,34 +785,46 @@ SQLForeignKeysW(HSTMT			hstmt,
 	char	*ctName, *scName, *tbName, *fkctName, *fkscName, *fktbName;
 	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4, nmlen5, nmlen6;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass *conn;
-	BOOL	lower_id;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(szPkCatalogName, cbPkCatalogName, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(szPkSchemaName, cbPkSchemaName, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(szPkTableName, cbPkTableName, &nmlen3, lower_id);
-	fkctName = ucs2_to_utf8(szFkCatalogName, cbFkCatalogName, &nmlen4, lower_id);
-	fkscName = ucs2_to_utf8(szFkSchemaName, cbFkSchemaName, &nmlen5, lower_id);
-	fktbName = ucs2_to_utf8(szFkTableName, cbFkTableName, &nmlen6, lower_id);
+	ctName = ucs2_to_utf8(szPkCatalogName, cbPkCatalogName, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(szPkSchemaName, cbPkSchemaName, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(szPkTableName, cbPkTableName, &nmlen3, FALSE);
+	fkctName = ucs2_to_utf8(szFkCatalogName, cbFkCatalogName, &nmlen4, FALSE);
+	fkscName = ucs2_to_utf8(szFkSchemaName, cbFkSchemaName, &nmlen5, FALSE);
+	fktbName = ucs2_to_utf8(szFkTableName, cbFkTableName, &nmlen6, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_ForeignKeys(hstmt,
-								(SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-								(SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-								(SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-								(SQLCHAR *) fkctName, (SQLSMALLINT) nmlen4,
-								(SQLCHAR *) fkscName, (SQLSMALLINT) nmlen5,
-								(SQLCHAR *) fktbName, (SQLSMALLINT) nmlen6);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3},
+			{(const SQLCHAR *) fkctName, nmlen4, TRUE},
+			{(const SQLCHAR *) fkscName, nmlen5},
+			{(const SQLCHAR *) fktbName, nmlen6}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_ForeignKeys(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				(SQLCHAR *) names[4].name, (SQLSMALLINT) names[4].len,
+				(SQLCHAR *) names[5].name, (SQLSMALLINT) names[5].len);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -761,6 +863,14 @@ SQLNativeSqlW(HDBC			hdbc,
 	CC_clear_error(conn);
 	CC_set_in_unicode_driver(conn);
 	szIn = ucs2_to_utf8(szSqlStrIn, cbSqlStrIn, &slen, FALSE);
+	if (szIn && slen > INT_MAX)
+	{
+		/* the UTF-8 text no longer fits the SQLINTEGER length below */
+		CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "Sql string too long", func);
+		free(szIn);
+		LEAVE_CONN_CS(conn);
+		return SQL_ERROR;
+	}
 	buflen = 3 * cbSqlStrMax;
 	if (buflen > 0)
 		szOutt = malloc(buflen);
@@ -786,7 +896,8 @@ SQLNativeSqlW(HDBC			hdbc,
 
 		if (olen < buflen)
 			szcount = utf8_to_ucs2(szOut, olen, szSqlStr, cbSqlStrMax);
-		if (SQL_SUCCESS == ret && szcount > cbSqlStrMax)
+		/* cbSqlStrMax counts the terminator, so an exact fit is cut too */
+		if (SQL_SUCCESS == ret && szcount >= cbSqlStrMax)
 		{
 			ConnectionClass	*conn = (ConnectionClass *) hdbc;
 
@@ -815,28 +926,38 @@ SQLPrimaryKeysW(HSTMT			hstmt,
 	char	*ctName, *scName, *tbName;
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass *conn;
-	BOOL	lower_id;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_PrimaryKeys(hstmt,
-								(SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-								(SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-								(SQLCHAR *) tbName, (SQLSMALLINT) nmlen3, 0);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_PrimaryKeys(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				0);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -864,17 +985,13 @@ SQLProcedureColumnsW(HSTMT			hstmt,
 	char	*ctName, *scName, *prName, *clName;
 	SQLLEN	nmlen1, nmlen2, nmlen3, nmlen4;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass *conn;
-	BOOL	lower_id;
 	UWORD	flag = 0;
 
 	MYLOG(0, "Entering\n");
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
-	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, lower_id);
-	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, lower_id);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, FALSE);
+	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, FALSE);
+	clName = ucs2_to_utf8(szColumnName, cbColumnName, &nmlen4, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -883,12 +1000,26 @@ SQLProcedureColumnsW(HSTMT			hstmt,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_ProcedureColumns(hstmt,
-									 (SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-									 (SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-									 (SQLCHAR *) prName, (SQLSMALLINT) nmlen3,
-									 (SQLCHAR *) clName, (SQLSMALLINT) nmlen4,
-									 flag);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) prName, nmlen3},
+			{(const SQLCHAR *) clName, nmlen4}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_ProcedureColumns(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				(SQLCHAR *) names[3].name, (SQLSMALLINT) names[3].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -916,19 +1047,15 @@ SQLProceduresW(HSTMT		hstmt,
 	char	*ctName, *scName, *prName;
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass *conn;
-	BOOL	lower_id;
 	UWORD	flag = 0;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
-	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, lower_id);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, FALSE);
+	prName = ucs2_to_utf8(szProcName, cbProcName, &nmlen3, FALSE);
 	ENTER_STMT_CS(stmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -937,11 +1064,24 @@ SQLProceduresW(HSTMT		hstmt,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_Procedures(hstmt,
-							   (SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-							   (SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-							   (SQLCHAR *) prName, (SQLSMALLINT) nmlen3,
-							   flag);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) prName, nmlen3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_Procedures(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS(stmt);
 	if (ctName)
@@ -967,19 +1107,15 @@ SQLTablePrivilegesW(HSTMT			hstmt,
 	char	*ctName, *scName, *tbName;
 	SQLLEN	nmlen1, nmlen2, nmlen3;
 	StatementClass *stmt = (StatementClass *) hstmt;
-	ConnectionClass *conn;
-	BOOL	lower_id;
 	UWORD	flag = 0;
 
 	MYLOG(0, "Entering\n");
 	if (SC_connection_lost_check(stmt, __FUNCTION__))
 		return SQL_ERROR;
 
-	conn = SC_get_conn(stmt);
-	lower_id = SC_is_lower_case(stmt, conn);
-	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, lower_id);
-	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, lower_id);
-	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, lower_id);
+	ctName = ucs2_to_utf8(szCatalogName, cbCatalogName, &nmlen1, FALSE);
+	scName = ucs2_to_utf8(szSchemaName, cbSchemaName, &nmlen2, FALSE);
+	tbName = ucs2_to_utf8(szTableName, cbTableName, &nmlen3, FALSE);
 	ENTER_STMT_CS((StatementClass *) hstmt);
 	SC_clear_error(stmt);
 	StartRollbackState(stmt);
@@ -988,11 +1124,24 @@ SQLTablePrivilegesW(HSTMT			hstmt,
 	if (SC_opencheck(stmt, func))
 		ret = SQL_ERROR;
 	else
-		ret = PGAPI_TablePrivileges(hstmt,
-									(SQLCHAR *) ctName, (SQLSMALLINT) nmlen1,
-									(SQLCHAR *) scName, (SQLSMALLINT) nmlen2,
-									(SQLCHAR *) tbName, (SQLSMALLINT) nmlen3,
-									flag);
+	{
+		CatalogNameArg names[] = {
+			{(const SQLCHAR *) ctName, nmlen1, TRUE},
+			{(const SQLCHAR *) scName, nmlen2},
+			{(const SQLCHAR *) tbName, nmlen3}
+		};
+		const int	nnames = sizeof(names) / sizeof(names[0]);
+
+		if (SC_fold_catalog_names(stmt, names, nnames))
+			ret = PGAPI_TablePrivileges(hstmt,
+				(SQLCHAR *) names[0].name, (SQLSMALLINT) names[0].len,
+				(SQLCHAR *) names[1].name, (SQLSMALLINT) names[1].len,
+				(SQLCHAR *) names[2].name, (SQLSMALLINT) names[2].len,
+				flag);
+		else
+			ret = SQL_ERROR;
+		ret = SC_finish_catalog_names(stmt, ret, names, nnames);
+	}
 	ret = DiscardStatementSvp(stmt, ret, FALSE);
 	LEAVE_STMT_CS((StatementClass *) hstmt);
 	if (ctName)

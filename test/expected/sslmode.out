@@ -1,0 +1,12 @@
+SSLmode=require: require, ok
+SSLmode=verify-ca: verify-ca, ok
+SSLmode=verify-full: verify-full, ok
+SSLmode=vf: verify-full, ok
+SSLmode=disable: disable, ok
+SSLmode={require}: require, ok
+SSLmode={verify-full}: verify-full, ok
+SSLmode=Require: require, ok
+SSLmode=VERIFY-CA: verify-ca, ok
+SSLmode=Verify-Full: verify-full, ok
+SSLmode=bogus: refused, ok
+SSLmode=yes: refused, ok

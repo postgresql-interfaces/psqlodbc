@@ -14,4 +14,24 @@ Result set:
 1
 Result set:
 1	space in table name
+# of rows inserted: 1
+Result set:
+1
+Result set:
+1	unquoted mixed case
+Result set metadata:
+id: INTEGER(10) digits: 0, not nullable
+t: LONGVARCHAR(8190) digits: 0, nullable
+# of rows inserted: 1
+Result set:
+1
+Result set:
+1	case-sensitive name
+Result set:
+NULL
+# of result cols: 1
+Result set:
+NULL
+Result set:
+NULL
 disconnecting

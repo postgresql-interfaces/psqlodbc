@@ -1,0 +1,14 @@
+connected
+Case 1: partitioned table, the INSERT after the delete succeeds
+  order 1 deleted with SQLSetPos
+  note 8 inserted
+  orders left after commit: 2
+Case 2: plain table, the INSERT after the delete fails
+  order 1 deleted with SQLSetPos
+  note 7 refused, SQLSTATE=23505
+  orders left after commit: 2
+Case 3: partitioned table, the INSERT after the delete fails
+  order 1 deleted with SQLSetPos
+  note 7 refused, SQLSTATE=23505
+  orders left after commit: 2
+disconnecting

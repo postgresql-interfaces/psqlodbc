@@ -1,0 +1,13 @@
+connected
+Creating test tables acct and acct$items
+Opening a cursor on acct$items for update
+Updating the row through the cursor
+
+Querying acct$items
+Result set:
+101	acct$items
+
+Querying acct
+Result set:
+1	acct
+disconnecting

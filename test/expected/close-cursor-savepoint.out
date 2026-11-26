@@ -1,0 +1,9 @@
+connected
+Failed to execute statement
+22012=ERROR: division by zero;
+Error while executing the query
+closed the cursor
+rolled back to the savepoint
+Result set:
+the transaction is usable again
+disconnecting

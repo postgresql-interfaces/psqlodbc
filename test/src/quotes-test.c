@@ -70,18 +70,25 @@ runtest(HSTMT hstmt, int scs)
 	 */
 	execWithParam(hstmt, "SELECT 'doubled '' quotes', ?::text", "param");
 	execWithParam(hstmt, "SELECT E'escaped quote\\' here', ?::text", "param");
+	execWithParam(hstmt, "SELECT e'escaped quote\\' here', ?::text", "param");
 	execWithParam(hstmt, "SELECT $$dollar quoted string$$, ?::text", "param");
 	execWithParam(hstmt, "SELECT $xx$complex $dollar quotes$xx$, ?::text", "param");
 	execWithParam(hstmt, "SELECT $dollar$morecomplex $dollar quotes$dollar$, ?::text", "param");
+	execWithParam(hstmt, "SELECT $a_b$under?score {fn x$a_b }$a_b$, ?::text", "param");
 	/*
 	 * With standards_conforming_strings off, also test backslash escaping
 	 * without the E'' syntax.
 	 */
 	if (!scs)
 		execWithParam(hstmt, "SELECT 'escaped quote\\' here', ?::text", "param");
+	/* A keyword ending in E is not the E'' prefix. */
+	if (scs)
+		execWithParam(hstmt, "SELECT CASE WHEN true THEN 'a\\' ELSE'b\\' END, ?::text", "param");
 	/* Some tests with '$'s in identifiers. */
 	execWithParam(hstmt, "SELECT ?::text, '1' a$1", "$ in an identifier");
 	execWithParam(hstmt, "SELECT '1'::text a$$S1,?::text,$$2 $'s in an identifier$$::text", "param");
+	/* An identifier can also start with '_', so _$$ is no dollar quote. */
+	execWithParam(hstmt, "SELECT '1'::text _$$, '$$ ?'::text, ?::text", "param");
 }
 
 int main(int argc, char **argv)
