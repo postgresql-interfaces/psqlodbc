@@ -1,0 +1,4 @@
+connected
+described as INTEGER
+fetch failed, SQLSTATE=07006, bytes after the SQLINTEGER: untouched
+disconnecting

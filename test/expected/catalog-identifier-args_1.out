@@ -1,0 +1,73 @@
+connected
+disconnecting
+connected
+With SQL_ATTR_METADATA_ID on
+SQLTables(Items): items
+SQLTables("Items"): Items
+SQLColumns(Items): item_id
+SQLColumns("Items"): Item_Id
+SQLPrimaryKeys(Items): item_id
+SQLPrimaryKeys("Items"): Item_Id
+SQLSpecialColumns(Items): item_id
+SQLSpecialColumns("Items"): Item_Id
+SQLStatistics(Items): item_id
+SQLStatistics("Items"): Item_Id
+SQLForeignKeys(Items): lower_ref
+SQLForeignKeys("Items"): mixed_ref
+SQLTablePrivileges(Items): items
+SQLTablePrivileges("Items"): Items
+SQLColumnPrivileges(Items): item_id
+SQLColumnPrivileges("Items"): Item_Id
+SQLProcedures(Calc): calc
+SQLProcedures("Calc"): Calc
+SQLTablesW(Items): items
+SQLTablesW("Items"): Items
+SQLColumnsW(Items): item_id
+SQLColumnsW("Items"): Item_Id
+SQLPrimaryKeysW(Items): item_id
+SQLPrimaryKeysW("Items"): Item_Id
+SQLSpecialColumnsW(Items): item_id
+SQLSpecialColumnsW("Items"): Item_Id
+SQLStatisticsW(Items): item_id
+SQLStatisticsW("Items"): Item_Id
+SQLForeignKeysW(Items): lower_ref
+SQLForeignKeysW("Items"): mixed_ref
+SQLTablePrivilegesW(Items): items
+SQLTablePrivilegesW("Items"): Items
+SQLColumnPrivilegesW(Items): item_id
+SQLColumnPrivilegesW("Items"): Item_Id
+SQLProceduresW(Calc): calc
+SQLProceduresW("Calc"): Calc
+SQLTables(  "Items" ): Items
+SQLTables("Wei""rd"): Wei"rd
+disconnecting
+connected
+With LowerCaseIdentifier=1
+SQLTables(Items): items
+SQLColumns(Items): item_id
+SQLPrimaryKeys(Items): item_id
+SQLSpecialColumns(Items): item_id
+SQLStatistics(Items): item_id
+SQLForeignKeys(Items): lower_ref
+SQLTablePrivileges(Items): items
+SQLColumnPrivileges(Items): item_id
+SQLProcedures(Calc): calc
+SQLProcedureColumns(Calc): lower_arg
+SQLTablesW(Items): items
+SQLColumnsW(Items): item_id
+SQLPrimaryKeysW(Items): item_id
+SQLSpecialColumnsW(Items): item_id
+SQLStatisticsW(Items): item_id
+SQLForeignKeysW(Items): lower_ref
+SQLTablePrivilegesW(Items): items
+SQLColumnPrivilegesW(Items): item_id
+SQLProceduresW(Calc): calc
+SQLProcedureColumnsW(Calc): lower_arg
+disconnecting
+connected
+disconnecting
+
+In a LATIN1 database
+connected
+disconnecting
+Skipped, the server can't create a LATIN1 database

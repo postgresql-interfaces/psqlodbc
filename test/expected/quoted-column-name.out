@@ -1,0 +1,22 @@
+connected
+SELECT id, "o'brien" FROM quoted_col ORDER BY id
+fetched 1 one
+SQLSetPos(SQL_UPDATE) succeeded
+SQLBulkOperations(SQL_ADD) succeeded
+Result set:
+1	updated
+2	added
+SELECT id, "we""ird" FROM dquoted_col ORDER BY id
+fetched 1 one
+SQLSetPos(SQL_UPDATE) succeeded
+SQLBulkOperations(SQL_ADD) succeeded
+Result set:
+1	updated
+2	added
+named parameter p'x succeeded
+Result set:
+got hello
+named parameter p"x succeeded
+Result set:
+got hello
+disconnecting

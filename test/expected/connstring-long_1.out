@@ -1,0 +1,5 @@
+short: connected, application_name=[]
+more than 32767 bytes: SQLDriverConnectW failed
+HY090=[Microsoft][ODBC Driver Manager] Invalid string or buffer length
+more than 65535 bytes: SQLDriverConnectW failed
+HY090=[Microsoft][ODBC Driver Manager] Invalid string or buffer length

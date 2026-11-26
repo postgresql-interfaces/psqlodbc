@@ -17,6 +17,12 @@ cascade:
   The official PostgreSQL ODBC driver
 {{< /hextra/hero-subtitle >}}
 
+<div class="hx:mt-4">
+
+Current release: [{{< driver-version >}}](/changelog/)
+
+</div>
+
 <div class="hx:mt-6 hx:mb-6">
 {{< hextra/hero-button text="Documentation" link="docs" >}}
 {{< hextra/hero-button text="Download" link="https://www.postgresql.org/ftp/odbc/releases/" style="background: none; color: inherit; border: 1px solid;" >}}

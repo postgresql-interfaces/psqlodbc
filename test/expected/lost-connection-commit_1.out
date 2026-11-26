@@ -1,0 +1,9 @@
+connected
+killing connection...
+SQLFreeHandle: succeeded
+SQLEndTran(SQL_COMMIT) failed
+57P01=FATAL: terminating connection due to administrator command
+SQLSetConnectAttr(SQL_AUTOCOMMIT_ON) failed
+08S01=Could not commit, the connection was lost
+SQLEndTran(SQL_ROLLBACK) succeeded
+disconnecting

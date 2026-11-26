@@ -1,0 +1,12 @@
+connected
+fetched: 1 "a value", length 30
+SQLSetPos UPDATE with the truncated column failed
+HY000=the bound buffer holds only part of the column value
+SQLSetPos UPDATE with the column ignored succeeded
+fetched: 10 "exactly", length 8
+SQLSetPos UPDATE with the exactly full column failed
+HY000=the bound buffer holds only part of the column value
+Result set:
+3	a value longer than the buffer
+10	exactly8
+disconnecting

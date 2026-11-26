@@ -34,6 +34,7 @@
 #include "pgtypes.h"
 #include "pgapifunc.h"
 #include "catfunc.h"
+#include "convert.h"
 
 #include "multibyte.h"
 #include "misc.h"
@@ -43,7 +44,7 @@
 #define COLI_INCR	16
 #define COLI_RECYCLE	128
 
-static const char *getNextToken(int ccsc, char escape_in_literal, const char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
+static const char *getNextToken(int ccsc, char escape_in_literal, const char *start, const char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric);
 static	void	getColInfo(COL_INFO *col_info, FIELD_INFO *fi, int k);
 static	char	searchColInfo(COL_INFO *col_info, FIELD_INFO *fi);
 static	BOOL	getColumnsInfo(ConnectionClass *, TABLE_INFO *, OID, StatementClass *);
@@ -78,10 +79,54 @@ Int4 FI_scale(const FIELD_INFO *fi)
 	return 0;
 }
 
+/*
+ * Skip white space and SQL comments ("--" to the end of the line and
+ * block comments, which nest) the way the backend and convert.c do.
+ * Otherwise the text of a comment would be tokenized as SQL, and an
+ * unpaired quote in it would turn the following literal inside out.
+ */
+static const UCHAR *
+skip_blanks_and_comments(const UCHAR *tstr)
+{
+	int	level;
+
+	for (;;)
+	{
+		if (isspace((UCHAR) *tstr))
+			tstr++;
+		else if ('-' == tstr[0] && '-' == tstr[1])
+		{
+			while (*tstr && PG_LINEFEED != *tstr && PG_CARRIAGE_RETURN != *tstr)
+				tstr++;
+		}
+		else if ('/' == tstr[0] && '*' == tstr[1])
+		{
+			for (level = 1, tstr += 2; *tstr && level > 0;)
+			{
+				if ('/' == tstr[0] && '*' == tstr[1])
+				{
+					level++;
+					tstr += 2;
+				}
+				else if ('*' == tstr[0] && '/' == tstr[1])
+				{
+					level--;
+					tstr += 2;
+				}
+				else
+					tstr++;
+			}
+		}
+		else
+			return tstr;
+	}
+}
+
 static const char *
 getNextToken(
 	int ccsc, /* client encoding */
 	char escape_ch,
+	const char *start, /* beginning of the statement that s points into */
 	const char *s, char *token, int smax, char *delim, char *quote, char *dquote, char *numeric)
 {
 	size_t		out = 0;
@@ -99,7 +144,7 @@ getNextToken(
 	smax--;
 
 	/* skip leading delimiters */
-	while (isspace(*tstr) || *tstr == ',')
+	while (tstr = skip_blanks_and_comments(tstr), *tstr == ',')
 	{
 		/* MYLOG(0, "skipping '%c'\n", *tstr); */
 		tstr++;
@@ -157,8 +202,7 @@ getNextToken(
 				escape_in_literal = escape_ch;
 				if (!escape_in_literal)
 				{
-					if (tstr > (const UCHAR *) s &&
-					    LITERAL_EXT == tstr[-1])
+					if (isEscapeStringStart(start, tstr - (const UCHAR *) start))
 						escape_in_literal = ESCAPE_IN_LITERAL;
 				}
 			}
@@ -172,11 +216,19 @@ getNextToken(
 		if (in_quote) /* dquote, dollar_quote */
 		{
 			in_escape = FALSE;
-			for (tstr++, tchar = encoded_nextchar(&encstr); tchar != '\0' && out != smax; tstr++, tchar = encoded_nextchar(&encstr))
+			/*
+			 * Scan up to the closing quote even after the token buffer
+			 * is full (the token is then truncated), so that the rest
+			 * of the literal is never taken for SQL text.
+			 */
+			for (tstr++, tchar = encoded_nextchar(&encstr); tchar != '\0'; tstr++, tchar = encoded_nextchar(&encstr))
 			{
 				if (MBCS_NON_ASCII(encstr))
 				{
-					token[out++] = tchar;
+					/* an escape takes a multibyte character too */
+					in_escape = FALSE;
+					if (out < smax)
+						token[out++] = tchar;
 					continue;
 				}
 				if (in_escape)
@@ -204,13 +256,14 @@ getNextToken(
 						tchar = encoded_position_shift(&encstr, taglen - 1);
 						break;
 					}
-					token[out++] = tchar;
+					if (out < smax)
+						token[out++] = tchar;
 				}
 				else if (LITERAL_QUOTE == qc && tchar == escape_in_literal)
 				{
 					in_escape = TRUE;
 				}
-				else
+				else if (out < smax)
 				{
 					token[out++] = tchar;
 				}
@@ -236,7 +289,12 @@ getNextToken(
 			break;
 		}
 
-		if (ispunct(tchar) && tchar != '_')
+		/*
+		 * '$' may appear inside an identifier (though not at its start),
+		 * so it continues a word that has already begun.
+		 */
+		if (ispunct(tchar) && tchar != '_' &&
+		    !(tchar == DOLLAR_QUOTE && out > 0))
 		{
 			MYLOG(0, "got ispunct: s[] = '%c'\n", tchar);
 
@@ -257,8 +315,7 @@ getNextToken(
 	token[out] = '\0';
 
 	/* find the delimiter  */
-	while (isspace(*tstr))
-		tstr++;
+	tstr = skip_blanks_and_comments(tstr);
 
 	/* return the most priority delimiter */
 	if (*tstr == ',')
@@ -278,8 +335,7 @@ getNextToken(
 	}
 
 	/* skip trailing blanks  */
-	while (isspace(*tstr))
-		tstr++;
+	tstr = skip_blanks_and_comments(tstr);
 
 	return (const char *) tstr;
 }
@@ -339,10 +395,11 @@ MYLOG(DETAIL_LOG_LEVEL, "%d attnum=%d\n", k, attnum);
 		{
 			col = QR_get_value_backend_text(col_info->result, k, COLUMNS_COLUMN_NAME);
 MYLOG(DETAIL_LOG_LEVEL, "%d col=%s\n", k, col);
-			if (fi->dquote)
-				cmp = strcmp(col, GET_NAME(fi->column_name));
-			else
-				cmp = stricmp(col, GET_NAME(fi->column_name));
+			/*
+			 * The parser already folded an unquoted name to lower
+			 * case, as the server does, so always compare exactly.
+			 */
+			cmp = strcmp(col, GET_NAME(fi->column_name));
 			if (!cmp)
 			{
 				if (!fi->dquote)
@@ -360,14 +417,21 @@ MYLOG(DETAIL_LOG_LEVEL, "%d col=%s\n", k, col);
 
 /*
  *	lower the unquoted name
+ *
+ * Return FALSE when the server folds the unquoted name in a way the driver
+ * can't (see CC_cannot_fold_identifier()). The name is then not the one
+ * the server uses, and the statement must not be resolved with it.
  */
 static
-void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
+BOOL lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 {
 	if (!dquote)
 	{
 		char		*ptr;
 		encoded_str	encstr;
+
+		if (CC_cannot_fold_identifier(conn, name, strlen(name)))
+			return FALSE;
 		make_encoded_str(&encstr, conn, name);
 
 		/* lower case table name */
@@ -375,9 +439,10 @@ void lower_the_name(char *name, ConnectionClass *conn, BOOL dquote)
 		{
 			encoded_nextchar(&encstr);
 			if (!MBCS_NON_ASCII(encstr))
-				*ptr = tolower((UCHAR) *ptr);
+				*ptr = IDENT_TOLOWER(*ptr);
 		}
 	}
+	return TRUE;
 }
 
 /*
@@ -438,7 +503,7 @@ MYLOG(0, "Entering\n");
 			hassubclass = TRUE;
 			TI_set_hassubclass(ti);
 			STR_TO_NAME(ti->bestitem, TABLEOID_NAME);
-			STRX_TO_NAME(ti->bestqual, "\"" TABLEOID_NAME "\" = %u");
+			STRX_TO_NAME(ti->bestqual, "\"" TABLEOID_NAME "\" operator(pg_catalog.=) %u");
 		}
 		if (!hassubclass)
 		{
@@ -451,7 +516,7 @@ MYLOG(0, "Entering\n");
 				hasoids = TRUE;
 				TI_set_hasoids(ti);
 				STR_TO_NAME(ti->bestitem, OID_NAME);
-				STRX_TO_NAME(ti->bestqual, "\"" OID_NAME "\" = %u");
+				STRX_TO_NAME(ti->bestqual, "\"" OID_NAME "\" operator(pg_catalog.=) %u");
 			}
 		}
 		ti->table_oid = coli->table_oid;
@@ -573,7 +638,28 @@ void SC_initialize_cols_info(StatementClass *stmt, BOOL DCdestroy, BOOL parseRes
 	/* Free the parsed table information */
 	if (stmt->ti)
 	{
+		FIELD_INFO	**fi = irdflds->fi;
+		int		i;
+
+		/*
+		 * The field information (including already retired ones which
+		 * may be revived later by SC_describe_ok()) must not keep
+		 * pointing at the TABLE_INFOs freed here.
+		 */
+		ConnectionClass	*conn = SC_get_conn(stmt);
+		int		entered = 0;
+
+		for (i = 0; fi && i < (int) irdflds->allocated; i++)
+		{
+			if (fi[i])
+				fi[i]->ti = NULL;
+		}
+		/* the refcnt of the connection's column info, see getCOLIfromTI() */
+		if (conn)
+			ENTER_INNER_CONN_CS(conn, entered);
 		TI_Destructor(stmt->ti, stmt->ntab);
+		if (conn)
+			CLEANUP_FUNC_CONN_CS(entered, conn);
 		free(stmt->ti);
 		stmt->ti = NULL;
 	}
@@ -610,7 +696,7 @@ static BOOL allocateFields(IRDFields *irdflds, size_t sizeRequested)
 	}
 	pg_memset(&fi[irdflds->allocated], 0, incr_size);
 	irdflds->fi = fi;
-	irdflds->allocated = (SQLSMALLINT) alloc_size;
+	irdflds->allocated = (UInt4) alloc_size;
 
 	return TRUE;
 }
@@ -737,8 +823,13 @@ MYPRINTF(0, "->%d\n", updatable);
 			{
 				if (attid > 0)
 				{
+					/*
+					 * getColumnsInfo() may replace rti->col_info
+					 * (and free the old object), so search the
+					 * current one, not the pointer saved above.
+					 */
 					if (getColumnsInfo(NULL, rti, reloid, stmt) &&
-					    searchColInfo(col_info, wfi))
+					    searchColInfo(col_info = rti->col_info, wfi))
 					{
 						STR_TO_NAME(wfi->column_alias, QR_get_fieldname(res, i));
 						wfi->basetype = QR_get_field_type(res, i);
@@ -765,7 +856,7 @@ MYPRINTF(0, "->%d\n", updatable);
 }
 
 static BOOL
-getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name, COL_INFO **coli)
+getCOLIfromTable(ConnectionClass *conn, StatementClass *stmt, pgNAME *schema_name, pgNAME table_name, COL_INFO **coli)
 {
 	int	colidx;
 	BOOL	found = FALSE;
@@ -775,60 +866,66 @@ getCOLIfromTable(ConnectionClass *conn, pgNAME *schema_name, pgNAME table_name, 
 		return TRUE;
 	if (NAME_IS_NULL(*schema_name))
 	{
-		const char *curschema = CC_get_current_schema(conn);
-		/*
-		 * Though current_schema() doesn't have
-		 * much sense in PostgreSQL, we first
-		 * check the current_schema() when no
-		 * explicit schema name is specified.
-		 */
-		if (curschema)
-		{
-			for (colidx = 0; colidx < conn->ntables; colidx++)
-			{
-				if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
-					!stricmp(SAFE_NAME(conn->col_info[colidx]->schema_name), curschema))
-				{
-					MYLOG(0, "FOUND col_info table='%s' current schema='%s'\n", PRINT_NAME(table_name), curschema);
-					found = TRUE;
-					STR_TO_NAME(*schema_name, curschema);
-					break;
-				}
-			}
-		}
-		if (!found)
-		{
-			QResultClass	*res;
-			char		token[256], relcnv[128];
-			BOOL		tblFound = FALSE;
+		QResultClass	*res;
+		char		token[128 + ESCAPED_NAME_BUFSIZE];
+		char		relcnv[ESCAPED_NAME_BUFSIZE];
+		const char	*escaped;
+		BOOL		tblFound = FALSE;
 
+		/*
+		 * Let the server resolve the unqualified name. The cached
+		 * current_schema() is no substitute for that: it goes stale
+		 * whenever search_path changes in a way the driver doesn't
+		 * notice (set_config(), a prepared SET, RESET, DISCARD,
+		 * ROLLBACK, ...) and it never accounts for pg_temp, so a
+		 * schema taken from it could send the positioned UPDATE/
+		 * DELETE/INSERT to a same-named table in another schema.
+		 */
+		if (!identifierEscape_fits(SAFE_NAME(table_name), sizeof(relcnv)))
+			return FALSE;
+		/* NULL for an empty name, which names no relation */
+		escaped = identifierEscape((const SQLCHAR *) SAFE_NAME(table_name), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE);
+		if (NULL == escaped)
+			return FALSE;
+		SPRINTF_FIXED(token,
+				 "select nspname from pg_namespace n, pg_class c"
+				 " where c.relnamespace=n.oid and c.oid=%s'%s'::regclass",
+				 CC_literal_prefix(conn), escaped);
+		/*
+		 * The statement and ROLLBACK_ON_ERROR give this probe a savepoint
+		 * of its own. Without them a name that is not a relation the role
+		 * can see, a misspelling included, makes the server's error abort
+		 * the transaction the application has open, and every statement
+		 * after it fails with 25P02. With rollback on error off
+		 * (Protocol=7.4-0) there is no savepoint, and the error aborts
+		 * the transaction.
+		 */
+		res = CC_send_query(conn, token, NULL,
+							READ_ONLY_QUERY | ROLLBACK_ON_ERROR, stmt);
+		if (QR_command_maybe_successful(res))
+		{
 			/*
-			 * We also have to check as follows.
+			 * The row count alone does not guarantee a column:
+			 * a reply with rows but no columns has no tuple
+			 * storage, so check the column count before reading.
 			 */
-			SPRINTF_FIXED(token,
-					 "select nspname from pg_namespace n, pg_class c"
-					 " where c.relnamespace=n.oid and c.oid='%s'::regclass",
-					 identifierEscape((const SQLCHAR *) SAFE_NAME(table_name), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE));
-			res = CC_send_query(conn, token, NULL, READ_ONLY_QUERY, NULL);
-			if (QR_command_maybe_successful(res))
+			if (QR_get_num_total_tuples(res) == 1 &&
+			    QR_NumResultCols(res) >= 1)
 			{
-				if (QR_get_num_total_tuples(res) == 1)
-				{
-					tblFound = TRUE;
-					STR_TO_NAME(*schema_name, QR_get_value_backend_text(res, 0, 0));
-				}
+				tblFound = TRUE;
+				STR_TO_NAME(*schema_name, QR_get_value_backend_text(res, 0, 0));
 			}
-			QR_Destructor(res);
-			if (!tblFound)
-				return FALSE;
 		}
+		QR_Destructor(res);
+		if (!tblFound)
+			return FALSE;
 	}
-	if (!found && NAME_IS_VALID(*schema_name))
+	if (NAME_IS_VALID(*schema_name))
 	{
 		for (colidx = 0; colidx < conn->ntables; colidx++)
 		{
-			if (!NAMEICMP(conn->col_info[colidx]->table_name, table_name) &&
-			    !NAMEICMP(conn->col_info[colidx]->schema_name, *schema_name))
+			if (!NAMECMP(conn->col_info[colidx]->table_name, table_name) &&
+			    !NAMECMP(conn->col_info[colidx]->schema_name, *schema_name))
 			{
 				MYLOG(0, "FOUND col_info table='%s' schema='%s'\n", PRINT_NAME(table_name), PRINT_NAME(*schema_name));
 				found = TRUE;
@@ -944,7 +1041,7 @@ getColumnsInfo(ConnectionClass *conn, TABLE_INFO *wti, OID greloid, StatementCla
 			if (conn->ntables >= conn->coli_allocated)
 			{
 				/* No place in connection COL_INFO cache table. Allocating or reallocating. */
-				Int2	new_alloc;
+				Int4	new_alloc;
 				COL_INFO **col_info;
 
 				new_alloc = conn->coli_allocated * 2;
@@ -1057,6 +1154,7 @@ BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt
 	OID	greloid = reloid;
 	TABLE_INFO	*wti = *pti;
 	COL_INFO	*coli;
+	int		entered = 0;
 
 MYLOG(DETAIL_LOG_LEVEL, "entering reloid=%u ti=%p\n", reloid, wti);
 	if (!conn)
@@ -1088,6 +1186,13 @@ MYLOG(DETAIL_LOG_LEVEL, "before increaseNtab\n");
 		}
 		*pti = wti;
 	}
+	/*
+	 * The column info cache (conn->col_info, ntables and the refcnt of
+	 * each entry) belongs to the connection, and statements of other
+	 * threads look up, add, recycle and free its entries. It is read and
+	 * changed only under the connection lock, up to the return.
+	 */
+	ENTER_INNER_CONN_CS(conn, entered);
 MYLOG(DETAIL_LOG_LEVEL, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 	if (0 == greloid)
 		greloid = wti->table_oid;
@@ -1114,7 +1219,7 @@ MYLOG(DETAIL_LOG_LEVEL, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col
 	}
 	else
 	{
-		if (!getCOLIfromTable(conn, &wti->schema_name, wti->table_name, &coli))
+		if (!getCOLIfromTable(conn, stmt, &wti->schema_name, wti->table_name, &coli))
 		{
 			if (stmt)
 			{
@@ -1122,7 +1227,7 @@ MYLOG(DETAIL_LOG_LEVEL, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
 				SC_reset_updatable(stmt);
 			}
-			return FALSE;
+			goto leave;
 		}
 		else if (NULL != coli)
 		{
@@ -1164,6 +1269,8 @@ MYLOG(DETAIL_LOG_LEVEL, "#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table
 	}
 	else if (!colatt && stmt)
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+leave:
+	CLEANUP_FUNC_CONN_CS(entered, conn);
 MYLOG(DETAIL_LOG_LEVEL, "leaving returns %d\n", found);
 	return found;
 }
@@ -1343,6 +1450,8 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 	ConnectionClass *conn = SC_get_conn(stmt);
 	IRDFields	*irdflds;
 	BOOL		updatable = TRUE, column_has_alias = FALSE, fupdatable;
+	/* a table or column name that lower_the_name() can't fold */
+	BOOL		unresolved_name = FALSE;
 
 	MYLOG(0, "entering...\n");
 
@@ -1378,7 +1487,7 @@ parse_the_statement(StatementClass *stmt, BOOL check_hasoids, BOOL sqlsvr_check)
 
 	delim = '\0';
 	token[0] = '\0';
-	while (pptr = (const char *) ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', 0), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
+	while (pptr = (const char *) ptr, (delim != ',') ? STRCPY_FIXED(btoken, token) : (btoken[0] = '\0', 0), (ptr = getNextToken(conn->ccsc, CC_get_escape(conn), stmt->statement, pptr, token, sizeof(token), &delim, &quote, &dquote, &numeric)) != NULL)
 	{
 		unquoted = !(quote || dquote);
 
@@ -1522,11 +1631,12 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					if (NULL != wfi)
 						STRX_TO_NAME(wfi->column_alias, token);
 					news = insert_as_to_the_statement(stmt->statement, &pptr, &ptr);
-					if (news != stmt->statement)
-					{
-						free(stmt->statement);
+					/*
+					 * realloc() frees the old block when it moves it and keeps
+					 * it when it fails, so the old pointer is never freed here.
+					 */
+					if (NULL != news)
 						stmt->statement = news;
-					}
 				}
 			}
 			if (in_expr || in_func)
@@ -1646,6 +1756,8 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 				else if (NULL != wfi)
 				{
 					STRX_TO_NAME(wfi->column_name, token);
+					if (!lower_the_name(GET_NAME(wfi->column_name), conn, dquote))
+						unresolved_name = TRUE;
 					NULL_THE_NAME(wfi->before_dot);
 				}
 				if (NULL != wfi)
@@ -1676,6 +1788,10 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					}
 					MOVE_NAME(wfi->before_dot, wfi->column_name);
 					STRX_TO_NAME(wfi->column_name, token);
+					if (!lower_the_name(GET_NAME(wfi->column_name), conn, dquote))
+						unresolved_name = TRUE;
+					/* dquote tells about the column name, not its qualifier */
+					wfi->dquote = dquote;
 				}
 
 				if (delim == ',')
@@ -1721,7 +1837,7 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 				continue;
 			}
 
-			if (token[0] == '.')
+			if (unquoted && token[0] == '.')
 			{
 				in_dot = TRUE;
 				MYLOG(0, "got dot\n");
@@ -1729,7 +1845,7 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 			}
 
 			in_dot = FALSE;
-			if (!stricmp(token, "as"))
+			if (unquoted && !stricmp(token, "as"))
 			{
 				in_as = TRUE;
 				MYLOG(0, "got AS\n");
@@ -1756,9 +1872,13 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 			}
 		} /* in_select end */
 
+		/*
+		 * Delimiters and keywords are only recognized outside quotes;
+		 * a quoted identifier may well start with ';' or ','.
+		 */
 		if (in_from || in_where)
 		{
-			if (token[0] == ';') /* end of the first command */
+			if (unquoted && token[0] == ';') /* end of the first command */
 			{
 				in_select = in_from = in_where = in_table = FALSE;
 				break;
@@ -1766,13 +1886,12 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 		}
 		if (in_from)
 		{
-			switch (token[0])
+			if ('\0' == token[0])
+				continue;
+			if (unquoted && ',' == token[0])
 			{
-				case '\0':
-					continue;
-				case ',':
-					out_table = TRUE;
-					continue;
+				out_table = TRUE;
+				continue;
 			}
 			if (out_table && !in_table) /* new table */
 			{
@@ -1785,6 +1904,18 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					if (token[0] == '(' ||
 					    token[0] == ')')
 						continue;
+					/*
+					 * ONLY and LATERAL are reserved words which may
+					 * precede a table reference; they are not its name.
+					 * The positioned statements don't carry ONLY, so
+					 * such a cursor stays read-only.
+					 */
+					if (stricmp(token, "only") == 0 ||
+					    stricmp(token, "lateral") == 0)
+					{
+						updatable = FALSE;
+						continue;
+					}
 				}
 
 				if (sqlsvr_check)
@@ -1820,7 +1951,8 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					if (is_table_name)
 					{
 						STRX_TO_NAME(wti->table_name, token);
-						lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+						if (!lower_the_name(GET_NAME(wti->table_name), conn, dquote))
+							unresolved_name = TRUE;
 						MYLOG(0, "got table = '%s'\n", PRINT_NAME(wti->table_name));
 					}
 					else
@@ -1892,16 +2024,22 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 					wti = ti[stmt->ntab - 1];
 				if (in_dot)
 				{
-					if (NULL != wfi)
+					/*
+					 * wti is NULL with sqlsvr_check. wfi is NULL when the
+					 * select list is empty, and the table still needs its
+					 * schema then.
+					 */
+					if (NULL != wti)
 					{
 						MOVE_NAME(wti->schema_name, wti->table_name);
 						STRX_TO_NAME(wti->table_name, token);
-						lower_the_name(GET_NAME(wti->table_name), conn, dquote);
+						if (!lower_the_name(GET_NAME(wti->table_name), conn, dquote))
+							unresolved_name = TRUE;
 					}
 					in_dot = FALSE;
 					continue;
 				}
-				if (strcmp(token, ".") == 0)
+				if (unquoted && strcmp(token, ".") == 0)
 				{
 					in_dot = TRUE;
 					continue;
@@ -2024,7 +2162,11 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 
 	MYLOG(0, "--------------------------------------------\n");
 	MYLOG(0, "nfld=%d, ntab=%d\n", irdflds->nfields, stmt->ntab);
-	if (0 == stmt->ntab)
+	/*
+	 * A name the server folds differently can be another table or column,
+	 * so the parse must not look any table up.
+	 */
+	if (0 == stmt->ntab || unresolved_name)
 	{
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
 		goto cleanup;
@@ -2087,11 +2229,11 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 			continue;
 		}
 
-		/* Stars get expanded to all fields in the table */
-		else if (SAFE_NAME(wfi->column_name)[0] == '*')
+		/* Stars get expanded to all fields in the table; "*..." is a column */
+		else if (!wfi->dquote && SAFE_NAME(wfi->column_name)[0] == '*')
 		{
 			char		do_all_tables;
-			Int2			total_cols,
+			int			total_cols,
 						cols,
 						increased_cols;
 
@@ -2101,13 +2243,13 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 
 			if (wfi->ti)		/* The star represents only the qualified
 								 * table */
-				total_cols = (Int2) QR_get_num_cached_tuples(wfi->ti->col_info->result);
+				total_cols = (int) QR_get_num_cached_tuples(wfi->ti->col_info->result);
 
 			else
 			{	/* The star represents all tables */
 				/* Calculate the total number of columns after expansion */
 				for (k = 0; k < stmt->ntab; k++)
-					total_cols += (Int2) QR_get_num_cached_tuples(ti[k]->col_info->result);
+					total_cols += (int) QR_get_num_cached_tuples(ti[k]->col_info->result);
 			}
 			increased_cols = total_cols - 1;
 
@@ -2154,7 +2296,7 @@ MYLOG(0, "blevel=%d btoken=%s in_dot=%d in_field=%d tbname=%s\n", blevel, btoken
 			{
 				TABLE_INFO *the_ti = do_all_tables ? ti[k] : fi[i]->ti;
 
-				cols = (Int2) QR_get_num_cached_tuples(the_ti->col_info->result);
+				cols = (int) QR_get_num_cached_tuples(the_ti->col_info->result);
 
 				for (n = 0; n < cols; n++)
 				{

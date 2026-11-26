@@ -1,0 +1,29 @@
+connected
+SQLColumns hr_priv.payroll
+Result set:
+hr_priv	payroll	employee
+hr_priv	payroll	salary
+SQLColumns public.no_such_table
+Result set:
+SQLColumns hr_priv.payroll, column xmin
+Result set:
+disconnecting
+connected
+SQLColumns hr_priv.payroll
+Result set:
+hr_priv	payroll	employee
+hr_priv	payroll	salary
+hr_priv	payroll	xmin
+SQLColumns public.no_such_table
+Result set:
+disconnecting
+connected
+SQLColumns hr_priv.payroll, column xmin
+Result set:
+hr_priv	payroll	xmin
+SQLColumns public.no_such_table, column xmin
+Result set:
+SQLColumns hr_priv.payroll, column salary
+Result set:
+hr_priv	payroll	salary
+disconnecting

@@ -1,0 +1,29 @@
+connected
+
+-- Header --
+SQL_DESC_COUNT: 2 (length 2)
+
+-- Column 1 --
+SQL_DESC_CONCISE_TYPE: 4 (length 2)
+SQL_DESC_FIXED_PREC_SCALE: 0 (length 2)
+SQL_DESC_NULLABLE: 1 (length 2)
+SQL_DESC_PRECISION: 0 (length 2)
+SQL_DESC_SCALE: 0 (length 2)
+SQL_DESC_SEARCHABLE: 2 (length 2)
+SQL_DESC_TYPE: 4 (length 2)
+SQL_DESC_UNNAMED: 0 (length 2)
+SQL_DESC_UNSIGNED: 0 (length 2)
+SQL_DESC_UPDATABLE: 0 (length 2)
+
+-- Column 2 --
+SQL_DESC_CONCISE_TYPE: -1 (length 2)
+SQL_DESC_FIXED_PREC_SCALE: 0 (length 2)
+SQL_DESC_NULLABLE: 1 (length 2)
+SQL_DESC_PRECISION: 0 (length 2)
+SQL_DESC_SCALE: 0 (length 2)
+SQL_DESC_SEARCHABLE: 3 (length 2)
+SQL_DESC_TYPE: -1 (length 2)
+SQL_DESC_UNNAMED: 0 (length 2)
+SQL_DESC_UNSIGNED: 1 (length 2)
+SQL_DESC_UPDATABLE: 0 (length 2)
+disconnecting

@@ -1,0 +1,3 @@
+character-escaped lead byte before 0x7d: refused, Connection string parse error
+byte-escaped lead byte before 0x7d: refused, Connection string parse error
+Skipped the values read back, the database encoding is SQL_ASCII

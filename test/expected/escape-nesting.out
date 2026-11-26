@@ -1,0 +1,11 @@
+connected
+10 nested escapes
+Result set:
+1
+50000 escapes side by side
+Result set:
+50000
+50000 nested escapes
+SQLExecDirect failed
+HY000=escape sequences are nested too deeply
+disconnecting

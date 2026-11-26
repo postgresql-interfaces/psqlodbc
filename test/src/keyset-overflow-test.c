@@ -5,6 +5,9 @@
  * A view can have a column of its own named ctid. Selecting from it with an
  * updatable cursor makes the driver append "ctid" to the query, so the view
  * column comes back where the driver expects a tuple identifier.
+ *
+ * Also test that a NULL in that column is not stored in the row cache, which
+ * has no slot for the keyset columns.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,6 +75,12 @@ create_objects(void)
 		"SELECT id, CASE id WHEN 2 THEN repeat('x', 200) ELSE '(0,1)' END AS ctid "
 		"FROM keyset_overflow_tab", SQL_NTS);
 	CHECK_STMT_RESULT(rc, "CREATE VIEW failed", hstmt);
+	/* A NULL ctid; 100 rows fill the first row cache allocation exactly */
+	rc = SQLExecDirect(hstmt, (SQLCHAR *)
+		"CREATE TEMPORARY VIEW keyset_null_view AS "
+		"SELECT g AS id, NULL::tid AS ctid FROM generate_series(1, 100) g",
+		SQL_NTS);
+	CHECK_STMT_RESULT(rc, "CREATE VIEW failed", hstmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
 }
 
@@ -84,6 +93,7 @@ int main(int argc, char **argv)
 	hstmt = updatable_stmt(SQL_CURSOR_KEYSET_DRIVEN);
 	run_query(hstmt, "real ctid", "SELECT id FROM keyset_overflow_tab");
 	run_query(hstmt, "oversized ctid", "SELECT id FROM keyset_overflow_view");
+	run_query(hstmt, "null ctid", "SELECT id FROM keyset_null_view");
 	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
 	test_disconnect();
 
@@ -93,6 +103,7 @@ int main(int argc, char **argv)
 	hstmt = updatable_stmt(SQL_CURSOR_STATIC);
 	run_query(hstmt, "declare/fetch real ctid", "SELECT id FROM keyset_overflow_tab");
 	run_query(hstmt, "declare/fetch oversized ctid", "SELECT id FROM keyset_overflow_view");
+	run_query(hstmt, "declare/fetch null ctid", "SELECT id FROM keyset_null_view");
 	SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
 	test_disconnect();
 

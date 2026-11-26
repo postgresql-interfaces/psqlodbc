@@ -230,6 +230,19 @@ MYLOG(DETAIL_LOG_LEVEL, "Bind column 0 is type %d not of type SQL_C_BOOKMARK\n",
 					ret = SQL_ERROR;
 					goto cleanup;
 			}
+			/*
+			 * A SQL_C_VARBOOKMARK buffer length is also the row stride of
+			 * column-wise binding, so a negative one would write rows
+			 * before the buffer.
+			 */
+			if (SQL_C_VARBOOKMARK == fCType && cbValueMax < 0)
+			{
+				SC_set_error(stmt, STMT_INVALID_BUFFER_LENGTH,
+							 "Invalid buffer length for the bookmark column",
+							 func);
+				ret = SQL_ERROR;
+				goto cleanup;
+			}
 
 			bookmark = ARD_AllocBookmark(opts);
 			if (!bookmark)
@@ -524,6 +537,16 @@ create_empty_bindings(int num_columns)
 		new_bindings[i].buffer = NULL;
 		new_bindings[i].used =
 		new_bindings[i].indicator = NULL;
+		/*
+		 * SQL_C_DEFAULT is the initial SQL_DESC_TYPE of an ARD record.
+		 * Give every field a value here: they are read back by
+		 * SQLGetDescField/SQLGetDescRec and used as the conversion
+		 * target by SQLGetData(SQL_ARD_TYPE) and SQLFetch.
+		 */
+		new_bindings[i].returntype = SQL_C_DEFAULT;
+		new_bindings[i].precision = 0;
+		new_bindings[i].scale = 0;
+		new_bindings[i].dummy_data = 0;
 	}
 
 	return new_bindings;
@@ -847,7 +870,7 @@ reset_a_column_binding(ARDFields *self, int icol)
 
 void	ARD_unbind_cols(ARDFields *self, BOOL freeall)
 {
-	Int2	lf;
+	int	lf;	/* not Int2: allocated can be SHRT_MAX */
 
 MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d bindings=%p\n", freeall, self->allocated, self->bindings);
 	for (lf = 1; lf <= self->allocated; lf++)
@@ -862,7 +885,7 @@ MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d bindings=%p\n", freeall, self->
 }
 void	GDATA_unbind_cols(GetDataInfo *self, BOOL freeall)
 {
-	Int2	lf;
+	int	lf;	/* not Int2: allocated can be SHRT_MAX */
 
 MYLOG(DETAIL_LOG_LEVEL, "freeall=%d allocated=%d gdata=%p\n", freeall, self->allocated, self->gdata);
 	if (self->fdata.ttlbuf)
@@ -1062,7 +1085,7 @@ void SC_param_next(const StatementClass *stmt, int *param_number, ParameterInfoC
 	IPDFields	*ipdopts = SC_get_IPDF(stmt);
 
 	if (*param_number < 0)
-		next = stmt->proc_return;
+		next = stmt->proc_return < 0 ? 0 : stmt->proc_return; /* -1 means unknown */
 	else
 		next = *param_number + 1;
 	if (stmt->discard_output_params)

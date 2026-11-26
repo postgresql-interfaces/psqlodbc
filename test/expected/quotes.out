@@ -16,6 +16,9 @@ doubled ' quotes	param
 Executing: SELECT E'escaped quote\' here', ?::text with param: param
 Result set:
 escaped quote' here	param
+Executing: SELECT e'escaped quote\' here', ?::text with param: param
+Result set:
+escaped quote' here	param
 Executing: SELECT $$dollar quoted string$$, ?::text with param: param
 Result set:
 dollar quoted string	param
@@ -25,12 +28,21 @@ complex $dollar quotes	param
 Executing: SELECT $dollar$morecomplex $dollar quotes$dollar$, ?::text with param: param
 Result set:
 morecomplex $dollar quotes	param
+Executing: SELECT $a_b$under?score {fn x$a_b }$a_b$, ?::text with param: param
+Result set:
+under?score {fn x$a_b }	param
+Executing: SELECT CASE WHEN true THEN 'a\' ELSE'b\' END, ?::text with param: param
+Result set:
+a\	param
 Executing: SELECT ?::text, '1' a$1 with param: $ in an identifier
 Result set:
 $ in an identifier	1
 Executing: SELECT '1'::text a$$S1,?::text,$$2 $'s in an identifier$$::text with param: param
 Result set:
 1	param	2 $'s in an identifier
+Executing: SELECT '1'::text _$$, '$$ ?'::text, ?::text with param: param
+Result set:
+1	$$ ?	param
 
 SET standard_conforming_strings=off
 Executing: SELECT 'foo', ?::text with param: param'quote
@@ -48,6 +60,9 @@ doubled ' quotes	param
 Executing: SELECT E'escaped quote\' here', ?::text with param: param
 Result set:
 escaped quote' here	param
+Executing: SELECT e'escaped quote\' here', ?::text with param: param
+Result set:
+escaped quote' here	param
 Executing: SELECT $$dollar quoted string$$, ?::text with param: param
 Result set:
 dollar quoted string	param
@@ -57,6 +72,9 @@ complex $dollar quotes	param
 Executing: SELECT $dollar$morecomplex $dollar quotes$dollar$, ?::text with param: param
 Result set:
 morecomplex $dollar quotes	param
+Executing: SELECT $a_b$under?score {fn x$a_b }$a_b$, ?::text with param: param
+Result set:
+under?score {fn x$a_b }	param
 Executing: SELECT 'escaped quote\' here', ?::text with param: param
 Result set:
 escaped quote' here	param
@@ -66,4 +84,7 @@ $ in an identifier	1
 Executing: SELECT '1'::text a$$S1,?::text,$$2 $'s in an identifier$$::text with param: param
 Result set:
 1	param	2 $'s in an identifier
+Executing: SELECT '1'::text _$$, '$$ ?'::text, ?::text with param: param
+Result set:
+1	$$ ?	param
 disconnecting

@@ -32,6 +32,7 @@ SQLEndTran @85
 SQLFetchScroll @86
 SQLFreeHandle @87
 SQLGetEnvAttr @92
+SQLSetDescRec @97
 SQLSetEnvAttr @98
 SQLBulkOperations @100
 

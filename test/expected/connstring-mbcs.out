@@ -1,0 +1,4 @@
+character-escaped lead byte before 0x7d: refused, Connection string parse error
+byte-escaped lead byte before 0x7d: refused, Connection string parse error
+multibyte character in a braced value: ok
+lead byte before 0x7d in a value without braces: ok

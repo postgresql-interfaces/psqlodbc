@@ -227,7 +227,12 @@ get_interval_type(Int4 atttypmod, const char **name)
 {
 MYLOG(0, "entering atttypmod=%x\n", atttypmod);
 	if ((-1) == atttypmod)
+	{
+		/* no field restriction: a plain interval */
+		if (name)
+			*name = "interval";
 		return 0;
+	}
 	if (0 != (YEAR_BIT & atttypmod))
 	{
 		if (0 != (MONTH_BIT & atttypmod))
@@ -900,11 +905,22 @@ pgtype_attr_to_ctype(const ConnectionClass *conn, OID type, int atttypmod)
 
 	switch (type)
 	{
+			/*
+			 * When the "Int8 As" / "Numeric As" options change the SQL
+			 * type reported by pgtype_attr_to_concise_type(), the default
+			 * C type must follow it; otherwise SQL_C_DEFAULT stores a
+			 * different (possibly larger) C type than the one the
+			 * application sized its buffer for.
+			 */
 		case PG_TYPE_INT8:
+			if (ci->int8_as != 0)
+				return sqltype_to_default_ctype(conn, ci->int8_as);
 			if (!conn->ms_jet)
 				return ALLOWED_C_BIGINT;
 			return SQL_C_CHAR;
 		case PG_TYPE_NUMERIC:
+			if (-1 == atttypmod && DEFAULT_NUMERIC_AS != ci->numeric_as)
+				return sqltype_to_default_ctype(conn, ci->numeric_as);
 			return SQL_C_CHAR;
 		case PG_TYPE_INT2:
 			return SQL_C_SSHORT;
@@ -1250,9 +1266,10 @@ pgtype_attr_buffer_length(const ConnectionClass *conn, OID type, int atttypmod, 
 			return 4; /* sizeof(SQLINTEGER) */
 
 		case PG_TYPE_INT8:
-			if (SQL_C_CHAR == pgtype_attr_to_ctype(conn, type, atttypmod))
-				return 20;			/* signed: 19 digits + sign */
-			return 8; /* sizeof(SQLSBININT) */
+			dsize = ctype_length(pgtype_attr_to_ctype(conn, type, atttypmod));
+			if (dsize <= 0)
+				return 20;			/* as text, signed: 19 digits + sign */
+			return dsize;
 
 		case PG_TYPE_NUMERIC:
 			dsize = getNumericColumnSizeX(conn, type, atttypmod, adtsize_or_longestlen, handle_unknown_size_as);
@@ -1540,6 +1557,61 @@ sqltype_to_pgcast(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 	return pgCast;
 }
 
+/*
+ * The cast a literal parameter carries when the statement is executed
+ * with the parameter values written into the query text. The described
+ * result of a statement must have the column types of the executed one:
+ * copy_and_convert_field() refuses an SQL_C_DEFAULT fetch of a column
+ * whose type is not the one it was described with, because the
+ * application sized its buffer for the described type. So a description
+ * built from fake parameters (see ResolveOneParam()) must cast each NULL
+ * to the type of the literal ResolveOneParam() writes at execution:
+ *
+ * - The date, time, timestamp, float4 and float8 literals carry these
+ *   casts there too.
+ * - An SQL_INTEGER or SQL_SMALLINT value is written without quotes or a
+ *   cast and the server reads it as int4. (A value the driver does not
+ *   recognize as an integer literal is written as '...'::int4 or
+ *   '...'::smallint instead, and the server refuses it.)
+ * - A literal of any other type is written in quotes without a cast, and
+ *   the column comes back as unknown or text, which is also the type of
+ *   a bare NULL.
+ */
+const char *
+sqltype_to_literal_pgcast(SQLSMALLINT fSqlType)
+{
+	const char *pgCast = NULL_STRING;
+
+	switch (fSqlType)
+	{
+		case SQL_TYPE_DATE:
+		case SQL_DATE:
+			pgCast = "::date";
+			break;
+		case SQL_TIME:
+		case SQL_TYPE_TIME:
+			pgCast = "::time";
+			break;
+		case SQL_TIMESTAMP:
+		case SQL_TYPE_TIMESTAMP:
+			pgCast = "::timestamp";
+			break;
+		case SQL_REAL:
+			pgCast = "::float4";
+			break;
+		case SQL_FLOAT:
+		case SQL_DOUBLE:
+			pgCast = "::float8";
+			break;
+		case SQL_INTEGER:
+		case SQL_SMALLINT:
+			pgCast = "::int4";
+			break;
+	}
+
+	return pgCast;
+}
+
 OID
 sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType)
 {
@@ -1676,7 +1748,13 @@ getAtttypmodEtc(const StatementClass *stmt, int col, int *adtsize_or_longestlen)
 	{
 		const QResultClass	*res;
 
-		if (res = SC_get_ExecdOrParsed(stmt), NULL != res)
+		/*
+		 * col may come from the driver's own parse of the statement,
+		 * whose field count can exceed the number of columns the
+		 * server returned.
+		 */
+		if (res = SC_get_ExecdOrParsed(stmt), NULL != res &&
+		    col < QR_NumResultCols(res))
 		{
 			atttypmod = QR_get_atttypmod(res, col);
 			if (NULL != adtsize_or_longestlen)

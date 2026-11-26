@@ -97,4 +97,8 @@ jobs:
     - name: Test
       run: |
         cd test
-        make installcheck
+        # Compare against test/expected/v<major> where the server has one.
+        server_version=$(( $(psql -At -d contrib_regression -c 'show server_version_num') / 10000 ))
+        [ "$server_version" -gt 0 ] || { echo "could not read the server version"; exit 1; }
+        echo "PostgreSQL server major version $server_version"
+        make installcheck server_version=$server_version || { cat regression.diffs; exit 1; }

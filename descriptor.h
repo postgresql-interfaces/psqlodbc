@@ -153,7 +153,7 @@ struct IRDFields_
 	SQLULEN		*rowsFetched;
 	SQLUSMALLINT	*rowStatusArray;
 	UInt4		nfields;
-	SQLSMALLINT	allocated;
+	UInt4		allocated;
 	FIELD_INFO	**fi;
 };
 

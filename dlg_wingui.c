@@ -123,7 +123,9 @@ GetDlgStuff(HWND hdlg, ConnInfo *ci)
 	STR_TO_NAME(ci->password, medium_buf);
 	GetDlgItemText(hdlg, IDC_PORT, ci->port, sizeof(ci->port));
 	sslposition = (int)(DWORD)SendMessage(GetDlgItem(hdlg, IDC_SSLMODE), CB_GETCURSEL, 0L, 0L);
-	STRCPY_FIXED(ci->sslmode, modetab[sslposition].modestr);
+	/* CB_ERR (-1) without a selected item: keep the current mode */
+	if (sslposition >= 0 && sslposition < (int) (sizeof(modetab) / sizeof(modetab[0])))
+		STRCPY_FIXED(ci->sslmode, modetab[sslposition].modestr);
 }
 
 static void

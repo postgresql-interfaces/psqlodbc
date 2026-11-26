@@ -1,0 +1,16 @@
+connected
+SELECT id, t FROM"keyset_from"
+cursor_type=1
+fetched 1 one
+SQLSetPos(SQL_UPDATE) succeeded
+Result set:
+1	updated
+2	two
+SELECT id, t FROM"keyset_from" WHERE id > 0 ORDER BY id
+cursor_type=1
+fetched 1 updated
+SQLSetPos(SQL_UPDATE) succeeded
+Result set:
+1	updated again
+2	two
+disconnecting

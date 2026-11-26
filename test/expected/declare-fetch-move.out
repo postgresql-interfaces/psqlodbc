@@ -1,0 +1,8 @@
+connected
+table: first row 1
+table: last row 300
+volatile view: first row 1
+volatile view: SQLFetchScroll LAST failed
+
+HY000=the cursor moved an unexpected number of rows
+disconnecting

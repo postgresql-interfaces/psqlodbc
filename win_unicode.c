@@ -132,7 +132,7 @@ SQLULEN	ucs2strlen(const SQLWCHAR *ucs2str)
 char *ucs2_to_utf8(const SQLWCHAR *ucs2str, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
-	int	len = 0;
+	SQLLEN	len = 0;
 MYLOG(0, "%p ilen=" FORMAT_LEN " ", ucs2str, ilen);
 
 	if (!ucs2str)
@@ -152,7 +152,7 @@ MYPRINTF(0, " newlen=" FORMAT_LEN, ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
-		int	i = 0;
+		SQLLEN	i = 0;
 		UInt2	byte2code;
 		Int4	byte4code, surrd1, surrd2;
 		const SQLWCHAR	*wstr;
@@ -164,7 +164,7 @@ MYPRINTF(0, " newlen=" FORMAT_LEN, ilen);
 			else if (0 == (*wstr & 0xffffff80)) /* ASCII */
 			{
 				if (lower_identifier)
-					utf8str[len++] = (char) tolower(*wstr);
+					utf8str[len++] = (char) IDENT_TOLOWER(*wstr);
 				else
 					utf8str[len++] = (char) *wstr;
 			}
@@ -229,7 +229,8 @@ MYPRINTF(0, " newlen=" FORMAT_LEN, ilen);
 		if (olen)
 			*olen = len;
 	}
-MYPRINTF(0, " olen=%d utf8str=%s\n", len, utf8str ? utf8str : "");
+/* the length only: the string may be a connection string or a password */
+MYPRINTF(0, " olen=" FORMAT_LEN "\n", len);
 	return utf8str;
 }
 
@@ -253,6 +254,8 @@ MYPRINTF(0, " olen=%d utf8str=%s\n", len, utf8str ? utf8str : "");
  * ucs2str		- output buffer
  * bufcount		- size of output buffer
  * errcheck		- if TRUE, check for invalidly encoded input characters
+ *			  (without it, an incomplete sequence at the end of the input
+ *			  ends the conversion; bytes beyond ilen are never read)
  *
  * Returns the number of SQLWCHARs copied to output buffer. If the output
  * buffer is too small, the output is truncated. The output string is
@@ -262,14 +265,14 @@ SQLULEN
 utf8_to_ucs2_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				SQLWCHAR *ucs2str, SQLULEN bufcount, BOOL errcheck)
 {
-	int			i;
+	SQLLEN		i;
 	SQLULEN		rtn, ocount, wcode;
 	const UCHAR *str;
 
 MYLOG(DETAIL_LOG_LEVEL, "ilen=" FORMAT_LEN " bufcount=" FORMAT_ULEN, ilen, bufcount);
 	if (!utf8str)
 		return 0;
-MYPRINTF(DETAIL_LOG_LEVEL, " string=%s", utf8str);
+/* not the string: it may be an output connection string */
 
 	if (!bufcount)
 		ucs2str = NULL;
@@ -301,10 +304,15 @@ MYPRINTF(DETAIL_LOG_LEVEL, " string=%s", utf8str);
 		}
 		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */
 		{
+			if (i + 4 > ilen)	/* incomplete sequence at the end */
+			{
+				if (errcheck)
+					ocount = (SQLULEN) -1;
+				goto cleanup;
+			}
 			if (errcheck)
 			{
-				if (i + 4 > ilen ||
-				    0 == (str[1] & 0x80) ||
+				if (0 == (str[1] & 0x80) ||
 				    0 == (str[2] & 0x80) ||
 				    0 == (str[3] & 0x80))
 				{
@@ -335,10 +343,15 @@ MYPRINTF(DETAIL_LOG_LEVEL, " string=%s", utf8str);
 		}
 		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */
 		{
+			if (i + 3 > ilen)	/* incomplete sequence at the end */
+			{
+				if (errcheck)
+					ocount = (SQLULEN) -1;
+				goto cleanup;
+			}
 			if (errcheck)
 			{
-				if (i + 3 > ilen ||
-				    0 == (str[1] & 0x80) ||
+				if (0 == (str[1] & 0x80) ||
 				    0 == (str[2] & 0x80))
 				{
 					ocount = (SQLULEN) -1;
@@ -358,10 +371,15 @@ MYPRINTF(DETAIL_LOG_LEVEL, " string=%s", utf8str);
 		}
 		else if (0xc0 == (*str & 0xe0)) /* 2 byte code */
 		{
+			if (i + 2 > ilen)	/* incomplete sequence at the end */
+			{
+				if (errcheck)
+					ocount = (SQLULEN) -1;
+				goto cleanup;
+			}
 			if (errcheck)
 			{
-				if (i + 2 > ilen ||
-				    0 == (str[1] & 0x80))
+				if (0 == (str[1] & 0x80))
 				{
 					ocount = (SQLULEN) -1;
 					goto cleanup;
@@ -397,6 +415,47 @@ MYPRINTF(DETAIL_LOG_LEVEL, " ocount=" FORMAT_ULEN "\n", ocount);
 	return rtn;
 }
 
+/*
+ * Terminate a string that utf8_to_ucs2_lf() wrote to an application's
+ * buffer of bufcount SQLWCHARs, where count is the length it returned.
+ *
+ * utf8_to_ucs2_lf() terminates a string only when it is shorter than the
+ * buffer, because the data conversions call it with a buffer that holds
+ * exactly the characters. The output strings of the API are read up to
+ * their terminator, so one that fills the buffer or is cut must end with
+ * one, and gives up its last character for it. The first half of a
+ * surrogate pair is not left at the end.
+ */
+void
+ucs2_terminate_output(SQLWCHAR *ucs2str, SQLULEN bufcount, SQLULEN count)
+{
+	SQLULEN		last;
+
+	if (!ucs2str || 0 == bufcount || (SQLULEN) -1 == count ||
+	    count < bufcount)
+		return;
+	last = bufcount - 1;
+	if (last > 0 && 0xd800 == (ucs2str[last - 1] & 0xfc00))
+		last--;
+	ucs2str[last] = 0;
+}
+
+/*
+ * Convert a string to an application's buffer of bufcount SQLWCHARs and
+ * terminate it there, see ucs2_terminate_output(). Return the length of
+ * the whole string.
+ */
+SQLULEN
+utf8_to_ucs2(const char *utf8str, SQLLEN ilen, SQLWCHAR *ucs2str,
+			 SQLULEN bufcount)
+{
+	SQLULEN		count = utf8_to_ucs2_lf(utf8str, ilen, FALSE, ucs2str,
+										bufcount, FALSE);
+
+	ucs2_terminate_output(ucs2str, bufcount, count);
+	return count;
+}
+
 
 #ifdef	__WCS_ISO10646__
 
@@ -423,7 +482,7 @@ static
 char *ucs4_to_utf8(const UInt4 *ucs4str, SQLLEN ilen, SQLLEN *olen, BOOL lower_identifier)
 {
 	char *	utf8str;
-	int	len = 0;
+	SQLLEN	len = 0;
 MYLOG(0, " %p ilen=" FORMAT_LEN "\n", ucs4str, ilen);
 
 	if (!ucs4str)
@@ -443,7 +502,7 @@ MYLOG(0, " newlen=" FORMAT_LEN "\n", ilen);
 	utf8str = (char *) malloc(ilen * 4 + 1);
 	if (utf8str)
 	{
-		int	i;
+		SQLLEN	i;
 		UInt2	byte2code;
 		Int4	byte4code;
 		const UInt4 *wstr;
@@ -455,7 +514,7 @@ MYLOG(0, " newlen=" FORMAT_LEN "\n", ilen);
 			else if (0 == (*wstr & 0xffffff80)) /* ASCII */
 			{
 				if (lower_identifier)
-					utf8str[len++] = (char) tolower(*wstr);
+					utf8str[len++] = (char) IDENT_TOLOWER(*wstr);
 				else
 					utf8str[len++] = (char) *wstr;
 			}
@@ -513,7 +572,8 @@ MYLOG(0, " newlen=" FORMAT_LEN "\n", ilen);
 		if (olen)
 			*olen = len;
 	}
-MYLOG(0, " olen=%d %s\n", len, utf8str ? utf8str : "");
+/* the length only: the string may be a connection string or a password */
+MYLOG(0, " olen=" FORMAT_LEN "\n", len);
 	return utf8str;
 }
 
@@ -526,6 +586,8 @@ MYLOG(0, " olen=%d %s\n", len, utf8str ? utf8str : "");
  * ucs4str		- output buffer
  * bufcount		- size of output buffer
  * errcheck		- if TRUE, check for invalidly encoded input characters
+ *			  (without it, an incomplete sequence at the end of the input
+ *			  ends the conversion; bytes beyond ilen are never read)
  *
  * Returns the number of UInt4s copied to output buffer. If the output
  * buffer is too small, the output is truncated. The output string is
@@ -535,14 +597,14 @@ static
 SQLULEN utf8_to_ucs4_lf(const char *utf8str, SQLLEN ilen, BOOL lfconv,
 				UInt4 *ucs4str, SQLULEN bufcount, BOOL errcheck)
 {
-	int			i;
+	SQLLEN		i;
 	SQLULEN		rtn, ocount, wcode;
 	const UCHAR *str;
 
 MYLOG(0, " ilen=" FORMAT_LEN " bufcount=" FORMAT_ULEN "\n", ilen, bufcount);
 	if (!utf8str)
 		return 0;
-MYLOG(99, " string=%s\n", utf8str);
+/* not the string: it may be an output connection string */
 
 	if (!bufcount)
 		ucs4str = NULL;
@@ -574,10 +636,15 @@ MYLOG(99, " string=%s\n", utf8str);
 		}
 		else if (0xf0 == (*str & 0xf8)) /* 4 byte code */
 		{
+			if (i + 4 > ilen)	/* incomplete sequence at the end */
+			{
+				if (errcheck)
+					ocount = (SQLULEN) -1;
+				goto cleanup;
+			}
 			if (errcheck)
 			{
-				if (i + 4 > ilen ||
-				    0 == (str[1] & 0x80) ||
+				if (0 == (str[1] & 0x80) ||
 				    0 == (str[2] & 0x80) ||
 				    0 == (str[3] & 0x80))
 				{
@@ -599,10 +666,15 @@ MYLOG(99, " string=%s\n", utf8str);
 		}
 		else if (0xe0 == (*str & 0xf0)) /* 3 byte code */
 		{
+			if (i + 3 > ilen)	/* incomplete sequence at the end */
+			{
+				if (errcheck)
+					ocount = (SQLULEN) -1;
+				goto cleanup;
+			}
 			if (errcheck)
 			{
-				if (i + 3 > ilen ||
-				    0 == (str[1] & 0x80) ||
+				if (0 == (str[1] & 0x80) ||
 				    0 == (str[2] & 0x80))
 				{
 					ocount = (SQLULEN) -1;
@@ -622,10 +694,15 @@ MYLOG(99, " string=%s\n", utf8str);
 		}
 		else if (0xc0 == (*str & 0xe0)) /* 2 byte code */
 		{
+			if (i + 2 > ilen)	/* incomplete sequence at the end */
+			{
+				if (errcheck)
+					ocount = (SQLULEN) -1;
+				goto cleanup;
+			}
 			if (errcheck)
 			{
-				if (i + 2 > ilen ||
-				    0 == (str[1] & 0x80))
+				if (0 == (str[1] & 0x80))
 				{
 					ocount = (SQLULEN) -1;
 					goto cleanup;
@@ -910,6 +987,9 @@ MYLOG(0, " c16dt=%p size=" FORMAT_SIZE_T "\n", c16dt, n);
 			if (c16dt)
 				c16dt[i] = PG_CARRIAGE_RETURN;
 			i++;
+			/* the CR may have taken the last slot */
+			if (c16dt && i >= n)
+				break;
 		}
 		brtn = mbrtoc16(c16dt ? c16dt + i : NULL, cdt, 4, &mbst);
 		if (0 == brtn)
@@ -921,7 +1001,7 @@ MYLOG(0, " c16dt=%p size=" FORMAT_SIZE_T "\n", c16dt, n);
 			continue;
 		cdt += brtn;
 	}
-	if (c16dt && i >= n)
+	if (c16dt && n > 0 && i >= n)
 		c16dt[n - 1] = 0;
 
 	return i;
@@ -1152,16 +1232,19 @@ SQLLEN bindcol_hybrid_estimate(const char *ldt, BOOL lf_conv, char **wcsbuf)
 				if (changed)
 				{
 					l += (len - strlen(ldt));
-					*wcsbuf = (char *) malloc(len + 1);
+					if (NULL == (*wcsbuf = (char *) malloc(len + 1)))
+						return -1;
 					convert_linefeeds(ldt, *wcsbuf, len + 1, TRUE, NULL);
 				}
 			}
 		}
 		else
 		{
-			int	count = strlen(ldt);
+			size_t	count = strlen(ldt);
 
 			utf32 = (unsigned int *) malloc((count + 1) * sizeof(unsigned int));
+			if (NULL == utf32)
+				return -1;
 			if ((l = msgtowstr(ldt, (wchar_t *) utf32, count + 1)) >= 0)
 			{
 				l = ucs4_to_ucs2_lf(utf32, -1, NULL, 0, lf_conv);
@@ -1206,10 +1289,12 @@ SQLLEN bindcol_hybrid_exec(SQLWCHAR *utf16, const char *ldt, size_t n, BOOL lf_c
 		}
 		else
 		{
-			int	count = strlen(ldt);
+			size_t	count = strlen(ldt);
 
 			utf32 = (unsigned int *) malloc((count + 1) * sizeof(unsigned int));
-			if ((l = msgtowstr(ldt, (wchar_t *) utf32, count + 1)) >= 0)
+			if (NULL == utf32)
+				l = -1;
+			else if ((l = msgtowstr(ldt, (wchar_t *) utf32, count + 1)) >= 0)
 			{
 				l = ucs4_to_ucs2_lf(utf32, -1, utf16, n, lf_conv);
 			}
@@ -1253,8 +1338,15 @@ SQLLEN bindcol_localize_estimate(const char *utf8dt, BOOL lf_conv, char **wcsbuf
 	{
 		wchar_t	*wcsalc = NULL;
 
+		/*
+		 * The count is -1 for invalid UTF-8. The buffer would then hold
+		 * no terminator, and wstrtomsg() would read past it.
+		 */
 		l = utf8_to_wcs_lf(utf8dt, -1, lf_conv, NULL, 0, FALSE);
-		wcsalc = (wchar_t *) malloc(sizeof(wchar_t) * (l + 1));
+		if (l < 0)
+			return l;
+		if (NULL == (wcsalc = (wchar_t *) malloc(sizeof(wchar_t) * (l + 1))))
+			return -1;
 		convalc = (char *) wcsalc;
 		l = utf8_to_wcs_lf(utf8dt, -1, lf_conv, wcsalc, l + 1, FALSE);
 		l = wstrtomsg(wcsalc, NULL, 0);
@@ -1265,8 +1357,12 @@ SQLLEN bindcol_localize_estimate(const char *utf8dt, BOOL lf_conv, char **wcsbuf
 	{
 		SQLWCHAR	*wcsalc = NULL;
 
+		/* see the __WCS_ISO10646__ case above */
 		l = utf8_to_ucs2_lf(utf8dt, -1, lf_conv, (SQLWCHAR *) NULL, 0, FALSE);
-		wcsalc = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (l + 1));
+		if (l < 0)
+			return l;
+		if (NULL == (wcsalc = (SQLWCHAR *) malloc(sizeof(SQLWCHAR) * (l + 1))))
+			return -1;
 		convalc = (char *) wcsalc;
 		l = utf8_to_ucs2_lf(utf8dt, -1, lf_conv, wcsalc, l + 1, FALSE);
 		l = c16tombs(NULL, (char16_t *) wcsalc, 0);

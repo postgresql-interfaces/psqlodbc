@@ -1,0 +1,11 @@
+connected
+Check SQLPrimaryKeys without any index
+Result set:
+Check SQLPrimaryKeys with <table>_pkey index on another table
+Result set:
+Check SQLPrimaryKeys with non-unique <table>_pkey index
+Result set:
+Check SQLPrimaryKeys with unique <table>_pkey index
+Result set:
+contrib_regression	public	pk_fallback_test	id	1	pk_fallback_test_pkey
+disconnecting

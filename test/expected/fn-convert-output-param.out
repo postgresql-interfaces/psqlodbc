@@ -1,0 +1,7 @@
+connected
+{? = call char_length('four')}
+output parameter = 4
+SELECT {fn convert(?, SQL_INTEGER)}
+SQLExecDirect failed
+HY000=the first argument of convert is missing
+disconnecting

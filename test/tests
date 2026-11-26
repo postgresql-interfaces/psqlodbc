@@ -18,6 +18,7 @@ TESTBINS = exe/connect-test \
 	exe/result-conversions-test \
 	exe/result-conversions-endianness-test \
 	exe/prepare-test \
+	exe/describe-before-execute-test \
 	exe/premature-test \
 	exe/params-test \
 	exe/leading-literal-numparams-test \
@@ -28,11 +29,18 @@ TESTBINS = exe/connect-test \
 	exe/arraybinding-test \
 	exe/insertreturning-test \
 	exe/dataatexecution-test \
+	exe/setpos-putdata-error-test \
 	exe/boolsaschar-test \
 	exe/cvtnulldate-test \
 	exe/alter-test \
 	exe/async-enable-test \
 	exe/quotes-test \
+	exe/quoted-column-name-test \
+	exe/foreignkeys-empty-database-test \
+	exe/foreignkeys-long-database-test \
+	exe/refcursor-name-reuse-test \
+	exe/escape-multibyte-test \
+	exe/keyset-from-quote-test \
 	exe/cursors-test \
 	exe/cursor-movement-test \
 	exe/cursor-scrollable-test \
@@ -60,6 +68,8 @@ TESTBINS = exe/connect-test \
 	exe/odbc-conformance-test \
 	exe/wchar-char-test \
 	exe/params-batch-exec-test \
+	exe/params-batch-putdata-error-test \
+	exe/lost-connection-commit-test \
 	exe/fetch-refcursors-test \
 	exe/descrec-test \
 	exe/descriptors-free-test \
@@ -75,4 +85,87 @@ TESTBINS = exe/connect-test \
 	exe/surrogate-pair-test \
 	exe/many-params-test \
 	exe/keyset-overflow-test \
-	exe/columns-sizes-test
+	exe/procedurecolumns-error-test \
+	exe/size-limits-test \
+	exe/getdata-after-fetch-error-test \
+	exe/bindcol-count-limit-test \
+	exe/bookmark-oid-test \
+	exe/bookmark-buffer-length-test \
+	exe/close-cursor-savepoint-test \
+	exe/colattribute-stale-cache-test \
+	exe/colinfo-refcnt-test \
+	exe/colinfo-shared-test \
+	exe/columns-rowversioning-test \
+	exe/columns-sizes-test \
+	exe/connstring-long-test \
+	exe/connstring-mbcs-test \
+	exe/connstring-unclosed-brace-test \
+	exe/declare-fetch-add-after-error-test \
+	exe/declare-fetch-fn-escape-test \
+	exe/declare-fetch-move-test \
+	exe/declare-fetch-rollback-eof-test \
+	exe/declare-fetch-savepoint-test \
+	exe/discard-output-param-test \
+	exe/dollar-identifier-test \
+	exe/escape-nesting-test \
+	exe/fn-convert-output-param-test \
+	exe/fn-unclosed-escape-test \
+	exe/int8-as-default-ctype-test \
+	exe/ident-fold-single-byte-test \
+	exe/catalog-identifier-args-test \
+	exe/catalog-name-length-test \
+	exe/catalog-current-schema-quote-test \
+	exe/putdata-descriptor-params-test \
+	exe/param-marker-lexer-test \
+	exe/cursor-name-quote-test \
+	exe/tables-null-type-test \
+	exe/diagfield-sqlstate-length-test \
+	exe/copydesc-param-name-test \
+	exe/fetch-bookmark-range-test \
+	exe/many-cursor-updates-test \
+	exe/wide-output-termination-test \
+	exe/log-secrets-redacted-test \
+	exe/default-ctype-altered-test \
+	exe/default-ctype-more-results-test \
+	exe/keyset-multistmt-test \
+	exe/keyset-trailing-from-test \
+	exe/many-bulk-adds-test \
+	exe/param-embedded-nul-test \
+	exe/param-marker-limit-test \
+	exe/parse-case-test \
+	exe/parse-cte-transaction-test \
+	exe/positioned-delete-savepoint-test \
+	exe/primarykeys-fallback-test \
+	exe/refresh-quoted-name-test \
+	exe/row-array-size-test \
+	exe/search-path-update-test \
+	exe/setpos-extra-column-test \
+	exe/setpos-truncated-value-test \
+	exe/output-param-default-ctype-test \
+	exe/specialcolumns-schema-test \
+	exe/sslmode-test \
+	exe/stale-parse-test \
+	exe/star-expansion-test \
+	exe/subclass-tableoid-test \
+	exe/param-negative-length-test \
+	exe/ird-smallint-fields-test \
+	exe/bool-param-length-test \
+	exe/param-name-length-test \
+	exe/commit-failure-test \
+	exe/large-object-open-error-test \
+	exe/positioned-delete-rollback-test \
+	exe/query-timeout-test \
+	exe/inheritance-keyset-test \
+	exe/bulk-bookmark-declare-fetch-test \
+	exe/bulkadd-before-fetch-test \
+	exe/fetch-before-first-test \
+	exe/getdata-binary-nodata-test \
+	exe/interval-type-name-test \
+	exe/extendedfetch-rowcount-test \
+	exe/pqopt-many-test \
+	exe/catalog-error-rollback-test \
+	exe/error-rollback-readonly-test \
+	exe/deferred-params-test \
+	exe/diag-threads-test \
+	exe/diagnostic-w-test \
+	exe/desc-threads-test

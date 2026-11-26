@@ -1,0 +1,8 @@
+connected
+SQL_ATTR_ROW_ARRAY_SIZE 0: rc=error, row array size 1
+SQL_ATTR_ROW_ARRAY_SIZE -1: rc=error, row array size 1
+SQL_ATTR_ROW_ARRAY_SIZE 2: rc=SQL_SUCCESS, row array size 2
+ARD SQL_DESC_ARRAY_SIZE 0: rc=SQL_SUCCESS_WITH_INFO, row array size 1
+APD SQL_DESC_COUNT 40000, then a parameter: 2
+SQL_C_NUMERIC 123 with scale -2: 12300
+disconnecting

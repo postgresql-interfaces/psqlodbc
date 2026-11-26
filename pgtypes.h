@@ -65,6 +65,8 @@
 #define PG_TYPE_VOID			2278
 #define PG_TYPE_UUID			2950
 #define INTERNAL_ASIS_TYPE		(-9999)
+/* int2vector -> short array, for internal use by SQLStatistics() only */
+#define INTERNAL_INT2VECTOR_TYPE	(-9998)
 
 #define TYPE_MAY_BE_ARRAY(type) ((type) == PG_TYPE_XMLARRAY || ((type) >= 1000 && (type) <= 1041))
 /* extern Int4 pgtypes_defined[]; */
@@ -87,6 +89,7 @@ OID		pg_true_type(const ConnectionClass *, OID, OID);
 OID		sqltype_to_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 OID		sqltype_to_bind_pgtype(const ConnectionClass *conn, SQLSMALLINT fSqlType);
 const char	*sqltype_to_pgcast(const ConnectionClass *conn, SQLSMALLINT fSqlType);
+const char	*sqltype_to_literal_pgcast(SQLSMALLINT fSqlType);
 
 SQLSMALLINT	pgtype_to_concise_type(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);
 SQLSMALLINT	pgtype_to_sqldesctype(const StatementClass *stmt, OID type, int col, int handle_unknown_size_as);

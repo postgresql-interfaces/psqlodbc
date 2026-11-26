@@ -74,7 +74,8 @@ extern int encoded_nextchar(encoded_str *encstr);
 extern ssize_t encoded_position_shift(encoded_str *encstr, size_t shift);
 extern int encoded_byte_check(encoded_str *encstr, size_t abspos);
 /* #define check_client_encoding(X) pg_CS_name(pg_CS_code(X)) */
-char *check_client_encoding(const pgNAME sql_string);
+char *check_client_encoding(const ConnectionClass *conn, const pgNAME conn_settings);
 const char *derive_locale_encoding(const char *dbencoding);
+int derive_locale_encoding_code(void);
 int pg_mb_maxlen(int characterset_code);
 #endif /* __MULTIBUYTE_H__ */

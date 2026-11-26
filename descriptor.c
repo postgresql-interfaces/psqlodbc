@@ -57,18 +57,21 @@ void    TI_ClearObject(TABLE_INFO *ti)
 		{
 MYLOG(0, "!!!refcnt %p:%d -> %d\n", coli, coli->refcnt, coli->refcnt - 1);
 			coli->refcnt--;
-			if (coli->refcnt <= 1 && 0 == coli->acc_time) /* acc_time == 0 means the table is dropped */
-			{
-				Int2 tmp_refcnt = coli->refcnt; /* If refcnt is still above 0, we must save it. */
-				free_col_info_contents(coli); /* Now coli object is unused, and may be reused later. */
-				coli->refcnt = tmp_refcnt;
-			}
+			/*
+			 * While coli object is in the connection COL_INFO cache table, the
+			 * cache holds its own reference to it, so refcnt cannot reach 0 here.
+			 * Once CC_clear_col_info() has released that reference (and set
+			 * acc_time to 0), every remaining reference belongs to some other
+			 * TABLE_INFO object, which may still use the contents. So the
+			 * contents must be freed only together with the object itself.
+			 */
 			if (coli->refcnt <= 0)
 			{
 				/* Last reference to coli object disappeared. Now destroying it. */
+				free_col_info_contents(coli);
 				free(coli);
-				ti->col_info = NULL;
 			}
+			ti->col_info = NULL;
 		}
 		NULL_THE_NAME(ti->schema_name);
 		NULL_THE_NAME(ti->table_name);
@@ -425,6 +428,11 @@ PGAPI_AllocDesc(HDBC ConnectionHandle,
 	if (desc)
 	{
 		pg_memset(desc, 0, sizeof(DescriptorClass));
+		/*
+		 * An explicit descriptor is used as an ARD or an APD, which share a
+		 * layout, so a rowset or parameter set size of 0 must not be left.
+		 */
+		InitializeARDFields(&(desc->ardf));
 		DC_get_conn(desc) = conn;
 		if (CC_add_descriptor(conn, desc))
 			*DescriptorHandle = desc;
@@ -539,6 +547,12 @@ static void APDFields_copy(const APDFields *src, APDFields *target)
 static void ParameterImplClass_copy(const ParameterImplClass *src, ParameterImplClass *target)
 {
 	memcpy(target, src, sizeof(ParameterImplClass));
+	/*
+	 * The parameter name is allocated, and each descriptor frees its own.
+	 * The target must get a copy of the string, not of the pointer.
+	 */
+	INIT_NAME(target->paramName);
+	NAME_TO_NAME(target->paramName, src->paramName);
 }
 static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 {
@@ -558,6 +572,36 @@ static void IPDFields_copy(const IPDFields *src, IPDFields *target)
 		for (i = 0; i < target->allocated; i++)
 			ParameterImplClass_copy(&src->parameters[i], &target->parameters[i]);
 	}
+}
+
+/* Is an explicit descriptor attached to a statement as its ARD or APD? */
+static BOOL
+desc_attached_as_app_desc(const DescriptorClass *desc)
+{
+	ConnectionClass	*conn = DC_get_conn(desc);
+	int		i;
+	BOOL		found = FALSE;
+
+	if (!conn)
+		return FALSE;
+	/*
+	 * CC_add_statement() reallocs this array under the connection lock, so
+	 * a scan without it can read the array it replaced. SQLCopyDesc on an
+	 * explicit descriptor reaches here holding no statement lock either.
+	 */
+	CONNLOCK_ACQUIRE(conn);
+	for (i = 0; i < conn->num_stmts; i++)
+	{
+		const StatementClass *stmt = conn->stmts[i];
+
+		if (stmt && (stmt->ard == desc || stmt->apd == desc))
+		{
+			found = TRUE;
+			break;
+		}
+	}
+	CONNLOCK_RELEASE(conn);
+	return found;
 }
 
 RETCODE	SQL_API
@@ -600,17 +644,29 @@ MYLOG(DETAIL_LOG_LEVEL, "source type=%d -> target type=%d\n", srchd->desc_type, 
 				return ret;
 			}
 		}
-		DC_Destructor(target);
 	}
+	/*
+	 * An explicit descriptor in use as a statement's ARD or APD must keep
+	 * that layout, typed or not.
+	 */
+	if (!targethd->embedded &&
+	    SQL_ATTR_APP_ROW_DESC != srchd->desc_type &&
+	    SQL_ATTR_APP_PARAM_DESC != srchd->desc_type &&
+	    desc_attached_as_app_desc(target))
+	{
+		MYLOG(0, "target is in use as an application descriptor\n");
+		DC_set_error(target, DESC_EXEC_ERROR, "the target descriptor is in use as an application descriptor");
+		return ret;
+	}
+	if (targethd->type_defined)
+		DC_Destructor(target);
 	ret = SQL_SUCCESS;
 	switch (srchd->desc_type)
 	{
 		case SQL_ATTR_APP_ROW_DESC:
 MYLOG(DETAIL_LOG_LEVEL, "src=%p target=%p type=%d", src, target, srchd->desc_type);
-			if (!targethd->type_defined)
-			{
-				targethd->desc_type = srchd->desc_type;
-			}
+			/* the type always follows the contents */
+			targethd->desc_type = srchd->desc_type;
 			ard_src = &(src->ardf);
 MYPRINTF(DETAIL_LOG_LEVEL, " rowset_size=" FORMAT_LEN " bind_size=" FORMAT_UINTEGER " ope_ptr=%p off_ptr=%p\n",
 ard_src->size_of_rowset, ard_src->bind_size,
@@ -621,19 +677,15 @@ MYPRINTF(DETAIL_LOG_LEVEL, " target=%p", ard_tgt);
 MYPRINTF(DETAIL_LOG_LEVEL, " offset_ptr=%p\n", ard_tgt->row_offset_ptr);
 			break;
 		case SQL_ATTR_APP_PARAM_DESC:
-			if (!targethd->type_defined)
-			{
-				targethd->desc_type = srchd->desc_type;
-			}
+			/* the type always follows the contents */
+			targethd->desc_type = srchd->desc_type;
 			apd_src = &(src->apdf);
 			apd_tgt = &(target->apdf);
 			APDFields_copy(apd_src, apd_tgt);
 			break;
 		case SQL_ATTR_IMP_PARAM_DESC:
-			if (!targethd->type_defined)
-			{
-				targethd->desc_type = srchd->desc_type;
-			}
+			/* the type always follows the contents */
+			targethd->desc_type = srchd->desc_type;
 			ipd_src = &(src->ipdf);
 			ipd_tgt = &(target->ipdf);
 			IPDFields_copy(ipd_src, ipd_tgt);

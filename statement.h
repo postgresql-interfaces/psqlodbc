@@ -98,6 +98,7 @@ enum {
 	,STMT_NO_RESPONSE
 	,STMT_COMMUNICATION_ERROR
 	,STMT_STRING_CONVERSION_ERROR
+	,STMT_INVALID_BUFFER_LENGTH
 };
 
 /* statement types */
@@ -252,7 +253,7 @@ struct StatementClass_
 	ProcessedStmt *processed_statements;
 
 	TABLE_INFO	**ti;
-	Int2		ntab;
+	Int4		ntab;
 	Int2		num_key_fields;
 	Int2		statement_type; /* According to the defines above */
 	Int2		num_params;
@@ -280,7 +281,16 @@ struct StatementClass_
 	po_ind_t	parse_method;	/* parse_statement is forced or ? */
 	po_ind_t	has_notice; /* exec result contains notice messages ? */
 	pgNAME		cursor_name;
+	/*
+	 * The default C type of each result column as SQLDescribeCol or
+	 * SQLColAttribute reported it, 0 where neither did. An SQL_C_DEFAULT
+	 * binding was sized for that type, so a fetch of a column whose
+	 * default C type differs must not convert into it.
+	 */
+	SQLSMALLINT	*described_ctype;
+	int		described_ctype_count;
 	char		*plan_name;
+	UInt4		name_serial;	/* names _PLANn and SQL_CURn; see CC_get_name_serial() */
 
 	char		*stmt_with_params;	/* statement after parameter
 							 * substitution */
@@ -308,6 +318,15 @@ struct StatementClass_
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
 	StatementClass	*execute_parent;
+	/*
+	 * TRUE while a statement in the execute_delegate chain under this
+	 * one is STMT_EXECUTING. Written by SC_SetExecuting() and read by
+	 * PGAPI_Cancel() under the common lock: the canceling thread cannot
+	 * take the statement lock or follow execute_delegate (the executing
+	 * thread owns both), and this statement's own status does not show
+	 * a delegate's execution.
+	 */
+	char		delegate_executing;
 	UInt2		allocated_callbacks;
 	UInt2		num_callbacks;
 	NeedDataCallback	*callbacks;
@@ -484,7 +503,8 @@ enum
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_STMT_CS(x)	DeleteCriticalSection(&((x)->cs))
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
-#define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs),0)
+/* recursive where available, like the connection's, so re-entry can't deadlock */
+#define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
 #define ENTER_STMT_CS(x)	pthread_mutex_lock(&((x)->cs))
 #define TRY_ENTER_STMT_CS(x)	(0 == pthread_mutex_trylock(&((x)->cs)))
 #define LEAVE_STMT_CS(x)	pthread_mutex_unlock(&((x)->cs))
@@ -504,6 +524,23 @@ BOOL		SC_opencheck(StatementClass *self, const char *func);
 RETCODE		SC_initialize_and_recycle(StatementClass *self);
 void		SC_initialize_cols_info(StatementClass *self, BOOL DCdestroy, BOOL parseReset);
 void		SC_reset_result_for_rerun(StatementClass *self);
+void		SC_set_described_ctype(StatementClass *self, int col, SQLSMALLINT ctype);
+SQLSMALLINT	SC_get_described_ctype(const StatementClass *self, int col);
+void		SC_clear_described_ctype(StatementClass *self);
+/*
+ * A name argument of a catalog function. The function sets name, len and
+ * catalog; SC_fold_catalog_names() sets the other members.
+ */
+typedef struct
+{
+	const SQLCHAR	*name;		/* the name to search for */
+	SQLLEN		len;		/* its length in bytes, or SQL_NTS */
+	BOOL		catalog;	/* a catalog name, which is not searched for */
+	SQLCHAR		*allocated;	/* the buffer of name, if not the argument's */
+	BOOL		unfoldable;	/* an identifier the driver can't fold */
+} CatalogNameArg;
+BOOL		SC_fold_catalog_names(StatementClass *self, CatalogNameArg *names, int nnames);
+RETCODE		SC_finish_catalog_names(StatementClass *self, RETCODE ret, CatalogNameArg *names, int nnames);
 int		statement_type(const char *statement);
 char		parse_statement(StatementClass *stmt, BOOL);
 char		parse_sqlsvr(StatementClass *stmt);
@@ -522,6 +559,7 @@ void		SC_set_prepared(StatementClass *self, int);
 void		SC_set_planname(StatementClass *self, const char *plan_name);
 void		SC_set_rowset_start(StatementClass *self, SQLLEN, BOOL);
 void		SC_inc_rowset_start(StatementClass *self, SQLLEN);
+void		SC_free_processed_statements(StatementClass *self);
 RETCODE		SC_initialize_stmts(StatementClass *self, BOOL);
 RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);
@@ -546,6 +584,7 @@ void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,
 			po_ind_t *multi, po_ind_t *proc_return);
 
 BOOL	SC_IsExecuting(const StatementClass *self);
+BOOL	SC_ExecutionInProgress(const StatementClass *self);
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on);
 BOOL	SC_SetCancelRequest(StatementClass *self);
 BOOL	SC_AcceptedCancelRequest(const StatementClass *self);
@@ -574,8 +613,8 @@ BOOL	CheckPgClassInfo(StatementClass *);
 /* a relative index in a rowset to the global index */
 #define	RowIdx2GIdx(ridx, stmt)	(ridx + (stmt)->rowset_start)
 /* a relative index in a resultset to the global index */
-#define	CacheIdx2GIdx(ridx, stmt, res)	(ridx - (res)->base + (stmt)->rowset_start)
-#define	KResIdx2GIdx(ridx, stmt, res)	(ridx - (res)->key_base + (stmt)->rowset_start)
+#define	CacheIdx2GIdx(ridx, stmt, res)	(ridx + (QR_has_valid_base(res) ? ((stmt)->rowset_start - (res)->base) : 0))
+#define	KResIdx2GIdx(ridx, stmt, res)	(ridx + (QR_has_valid_base(res) ? ((stmt)->rowset_start - (res)->key_base) : 0))
 
 #define	BOOKMARK_SHIFT	1
 #define	SC_make_int4_bookmark(b)	((b < 0) ? (b) : (b + BOOKMARK_SHIFT))

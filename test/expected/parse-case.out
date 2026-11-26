@@ -1,0 +1,29 @@
+connected
+SELECT reading FROM parse_case_tab
+Result set metadata:
+reading: GUID(37) digits: 0, nullable
+SELECT READING FROM parse_case_tab
+Result set metadata:
+reading: GUID(37) digits: 0, nullable
+SELECT parse_case_tab.Reading FROM parse_case_tab
+Result set metadata:
+reading: GUID(37) digits: 0, nullable
+SELECT "parse_case_tab".READING FROM parse_case_tab
+Result set metadata:
+reading: GUID(37) digits: 0, nullable
+SELECT t.reading FROM parse_case_tab t
+Result set metadata:
+reading: GUID(37) digits: 0, nullable
+SELECT "reading" FROM parse_case_tab
+Result set metadata:
+reading: GUID(37) digits: 0, nullable
+SELECT "READING" FROM parse_case_tab
+Result set metadata:
+READING: SMALLINT(5) digits: 0, nullable
+SELECT parse_case_tab."READING" FROM parse_case_tab
+Result set metadata:
+READING: SMALLINT(5) digits: 0, nullable
+SELECT T."READING" FROM parse_case_tab T
+Result set metadata:
+READING: SMALLINT(5) digits: 0, nullable
+disconnecting

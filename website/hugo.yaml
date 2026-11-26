@@ -17,6 +17,10 @@ module:
     # repository.
     - source: ../Changelog.md
       target: content/changelog.md
+    # The homepage shows the version from configure.ac, so a release that
+    # bumps it updates the homepage on the next deploy.
+    - source: ../configure.ac
+      target: assets/configure.ac
     # Files from docs/, which the installer and the source tarball also ship.
     - source: ../docs
       target: static/images

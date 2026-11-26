@@ -1,0 +1,5 @@
+connected
+single statement: fetched 5 rows
+select and update: fetched 5 rows
+after the update: fetched 5 rows
+disconnecting

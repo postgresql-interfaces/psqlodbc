@@ -29,11 +29,14 @@ int	copy_and_convert_field(StatementClass *stmt,
 			OID field_type, int atttypmod,
 			void *value,
 			SQLSMALLINT fCType, int precision,
-			PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue, SQLLEN *pIndicator);
+			PTR rgbValue, SQLLEN cbValueMax, SQLLEN *pcbValue, SQLLEN *pIndicator,
+			SQLSMALLINT described_ctype);
+SQLSMALLINT	default_ctype(const ConnectionClass *conn, OID type, int atttypmod);
 
 int		copy_statement_with_parameters(StatementClass *stmt, BOOL);
 SQLLEN		pg_hex2bin(const char *in, char *out, SQLLEN len);
 size_t		findTag(const char *str, int ccsc);
+BOOL		isEscapeStringStart(const char *str, size_t pos);
 
 BOOL build_libpq_bind_params(StatementClass *stmt,
 						int *nParams, OID **paramTypes,

@@ -138,7 +138,20 @@ generate_homefile(const char *prefix, char *filename, size_t filenamelen)
 	if (ptr=getenv("HOMEPATH"), NULL != ptr)
 		strlcat(dir, ptr, filenamelen);
 #else
-	STRCPY_FIXED(dir, "~");
+	/*
+	 * open() does not expand "~": it names an entry of the current working
+	 * directory, which another local user may be able to create. Use the
+	 * absolute home directory of the user logfile_fopen() checks ownership
+	 * against, or give up.
+	 */
+	struct passwd *pw = getpwuid(geteuid());
+
+	if (NULL == pw || NULL == pw->pw_dir || '/' != pw->pw_dir[0])
+	{
+		filename[0] = '\0';
+		return;
+	}
+	STRCPY_FIXED(dir, pw->pw_dir);
 #endif /* WIN32 */
 	generate_filename(dir, prefix, filename, filenamelen);
 
@@ -172,7 +185,7 @@ const char *GetExeProgramName()
 
 		for (i = 0; i < sizeof(flist) / sizeof(flist[0]); i++)
 		{
-			ssize_t len = readlink(flist[i], path_name, sizeof(path_name));
+			ssize_t len = readlink(flist[i], path_name, sizeof(path_name) - 1);
 			if (len > 0)
 			{
 				path_name[len] = '\0';
@@ -327,7 +340,7 @@ static FILE *MLOGFP = NULL;
 
 static void MLOG_open()
 {
-	char		filebuf[80], errbuf[160];
+	char		filebuf[PATH_MAX], errbuf[PATH_MAX + 32];
 	BOOL		open_error = FALSE;
 
 	if (MLOGFP) return;
@@ -447,7 +460,7 @@ static FILE *QLOGFP = NULL;
 static int
 qlog_misc(unsigned int option, const char *fmt, va_list args)
 {
-	char		filebuf[80];
+	char		filebuf[PATH_MAX];
 	int		gerrno;
 
 	if (!qlog_on)	return 0;

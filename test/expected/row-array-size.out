@@ -1,0 +1,27 @@
+connected
+SQLSetStmtAttr(SQL_ATTR_ROW_ARRAY_SIZE, 0) returned 1
+warning:
+01S02=Requested value changed.
+after 0: row array size 1
+fetched 1 row(s)
+row 0: status 0
+SQLSetStmtAttr(SQL_ATTR_ROW_ARRAY_SIZE, 2) returned 0
+after 2: row array size 2
+SQLSetStmtAttr(SQL_ATTR_ROW_ARRAY_SIZE, -1) returned 1
+warning:
+01S02=Requested value changed.
+after -1: row array size 1
+fetched 1 row(s)
+row 0: status 0
+SQLSetDescField(SQL_DESC_ARRAY_SIZE, 2) returned 0
+after ARD 2: row array size 2
+SQLSetDescField(SQL_DESC_ARRAY_SIZE, 0) returned 1
+warning:
+01S02=Requested value changed.
+after ARD 0: row array size 1
+fetched 1 row(s)
+row 0: status 0
+explicit ARD: row array size 1
+fetched 1 row(s)
+row 0: status 0
+disconnecting

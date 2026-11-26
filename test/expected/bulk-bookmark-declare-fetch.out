@@ -1,0 +1,6 @@
+connected
+edit row 2, then delete by the bookmark of row 301 (id 301): SQL_SUCCESS, changed rows: 2=edited, 301=DELETED
+edit row 1, then delete by the bookmark of row 301 (id 301): SQL_SUCCESS, changed rows: 1=edited, 301=DELETED
+edit row 2, then update by the bookmark of row 301 (id 301): SQL_SUCCESS, changed rows: 2=edited, 301=updated by bookmark
+edit row 1, then update by the bookmark of row 301 (id 301): SQL_SUCCESS, changed rows: 1=edited, 301=updated by bookmark
+disconnecting

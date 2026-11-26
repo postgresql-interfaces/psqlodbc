@@ -352,8 +352,15 @@ typedef unsigned char bool;
 
 
 #ifndef WIN32
-#define stricmp strcasecmp
-#define strnicmp strncasecmp
+/*
+ * Not strcasecmp()/strncasecmp(): they fold case according to LC_CTYPE,
+ * which the driver sets from the environment, and in e.g. Turkish locales
+ * 'I' and 'i' are not a case pair for them.  See misc.c.
+ */
+#define stricmp pg_stricmp
+#define strnicmp pg_strnicmp
+extern int pg_stricmp(const char *s1, const char *s2);
+extern int pg_strnicmp(const char *s1, const char *s2, size_t n);
 #ifndef TRUE
 #define	TRUE	(BOOL)1
 #endif /* TRUE */
@@ -375,6 +382,13 @@ extern int posix_snprintf(char *buf, size_t size, const char *format, ...);
 #endif /* WIN32 */
 
 #define IS_NOT_SPACE(c) ((c) && !isspace((UCHAR) c))
+/*
+ *	Lower-case an ASCII letter the way the server's downcase_identifier()
+ *	does for 7-bit characters.  Unlike tolower() this does not depend on
+ *	LC_CTYPE (e.g. in Turkish locales tolower('I') is not 'i'), so the
+ *	driver and the server agree on which object an unquoted name denotes.
+ */
+#define IDENT_TOLOWER(c) (((c) >= 'A' && (c) <= 'Z') ? (c) + ('a' - 'A') : (c))
 
 #ifndef	SQL_ATTR_APP_ROW_DESC
 #define	SQL_ATTR_APP_ROW_DESC	10010

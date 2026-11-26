@@ -1,0 +1,10 @@
+connected
+refcursor with a quoted name was refused
+
+34000=Refcursor name must not contain a double quote
+Result set:
+second query
+injected tables found:
+Result set:
+0
+disconnecting

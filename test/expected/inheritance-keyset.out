@@ -1,0 +1,29 @@
+connected
+Opening a keyset-driven cursor on the parent's rows
+row 1: 1	p1
+row 2: 2	p2
+row 3: 3	p3
+
+Another session updates row 1 and deletes row 2
+
+Re-fetching the rows of the cursor
+row 3: 3	p3
+row 2: deleted
+row 1: 1	p1 updated (updated)
+
+Deleting row 3 through the cursor
+row 3: 3	p3
+row 3: no data
+
+Fetching rows 1 and 2 by bookmark
+row 1: 1	p1 updated
+row 2: NULL	NULL
+
+Querying the tables again
+Result set:
+inh_parent	(0,4)	1	p1 updated
+inh_child	(0,1)	11	c1
+inh_child	(0,2)	12	c2
+inh_child	(0,3)	13	c3
+inh_child	(0,4)	14	c4
+disconnecting

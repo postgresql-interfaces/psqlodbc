@@ -1,0 +1,18 @@
+connected
+bind column 32766: ok
+bind column 32766, unbind: ok
+bind column 32766, free statement: ok
+bind column 32767: ok
+bind column 32767, unbind: ok
+bind column 32767, free statement: ok
+bind column 32768: error SQLSTATE=07009
+bind column 32768, free statement: ok
+ARD SQL_DESC_COUNT=32766: ok
+ARD SQL_DESC_COUNT=32766, unbind: ok
+ARD SQL_DESC_COUNT=32766, free statement: ok
+ARD SQL_DESC_COUNT=32767: ok
+ARD SQL_DESC_COUNT=32767, unbind: ok
+ARD SQL_DESC_COUNT=32767, free statement: ok
+bind column 32767, ARD SQL_DESC_COUNT=1, unbind: ok
+bind column 32767, ARD SQL_DESC_COUNT=1, free statement: ok
+disconnecting

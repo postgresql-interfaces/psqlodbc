@@ -165,6 +165,13 @@ PGAPI_ExecDirect(HSTMT hstmt,
 
 	if (result = SC_initialize_and_recycle(stmt), SQL_SUCCESS != result)
 		return result;
+	/*
+	 * A new statement starts at the first parameter row, as in
+	 * SQLExecute(). It must not continue a parameter-array execution that
+	 * was given up half-way, or PGAPI_Execute() takes it for the tail of
+	 * that batch and sends the batch's rows instead of this statement.
+	 */
+	stmt->exec_current_row = -1;
 
 	/*
 	 * keep a copy of the un-parametrized statement, in case they try to
@@ -421,7 +428,12 @@ int HowToPrepareBeforeExec(StatementClass *stmt, BOOL checkOnly)
 static
 const char *GetSvpName(const ConnectionClass *conn, char *wrk, int wrksize)
 {
-	snprintf(wrk, wrksize, "_EXEC_SVP_%p", conn);
+	/*
+	 * Savepoint names are private to the connection, so a fixed name is
+	 * enough.  Don't put the address of conn in it: it would go to the
+	 * server.
+	 */
+	strncpy_null(wrk, "_EXEC_SVP", wrksize);
 	return wrk;
 }
 
@@ -558,8 +570,13 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 		{
 			if (NULL != stmt_with_params)
 			{
+				/*
+				 * Put a line feed in front of the separator so that a
+				 * trailing -- comment of the previous statement can't
+				 * swallow the ';' and the next statement.
+				 */
 				if (stmt->stmt_deferred.data[0])
-					appendPQExpBuffer(&stmt->stmt_deferred, ";%s", stmt_with_params);
+					appendPQExpBuffer(&stmt->stmt_deferred, "\n;%s", stmt_with_params);
 				else
 					printfPQExpBuffer(&stmt->stmt_deferred, "%s", stmt_with_params);
 			}
@@ -575,7 +592,7 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 		if (VALID_EXPBUFFER)
 		{
 			if (NULL != stmt_with_params)
-				appendPQExpBuffer(&stmt->stmt_deferred, ";%s", stmt_with_params);
+				appendPQExpBuffer(&stmt->stmt_deferred, "\n;%s", stmt_with_params);
 			stmt->stmt_with_params = stmt->stmt_deferred.data;
 		}
 		retval = SC_execute(stmt);
@@ -592,23 +609,13 @@ MYLOG(0, "count_of_deferred=%d\n", count_of_deferred);
 		*exec_end = TRUE;
 		RETURN(retval)
 	}
+	/*
+	 * The result of a keyset driven cursor (columns info of the 1st
+	 * query, keyset of the 2nd) has already been arranged by
+	 * SC_execute(); a second pass here would take any further result
+	 * for the keyset and drop the real one.
+	 */
 	res = SC_get_Result(stmt);
-	/* special handling of result for keyset driven cursors */
-	if (SQL_CURSOR_KEYSET_DRIVEN == stmt->options.cursor_type &&
-	    SQL_CONCUR_READ_ONLY != stmt->options.scroll_concurrency)
-	{
-		QResultClass	*kres;
-
-		if (kres = QR_nextr(res), kres)
-		{
-			QR_set_fields(kres, QR_get_fields(res));
-			QR_set_fields(res,  NULL);
-			kres->num_fields = res->num_fields;
-			QR_detach(res);
-			SC_set_Result(stmt, kres);
-			res = kres;
-		}
-	}
 	ipdopts = SC_get_IPDF(stmt);
 	if (ipdopts->param_status_ptr)
 	{
@@ -785,6 +792,18 @@ SetStatementSvp(StatementClass *stmt, unsigned int option)
 	if (CC_is_in_error_trans(conn))
 		return ret;
 
+	/*
+	 * Statements the driver allocates for its own queries (the catalog
+	 * functions, the column info of updatable cursors) never pass through
+	 * StartRollbackState(), which only the SQL* entry points call on the
+	 * application's statement.  Give them the rollback mode of the
+	 * connection here, otherwise no SAVEPOINT is set in front of their
+	 * query and DiscardStatementSvp() can only roll back the whole
+	 * transaction when the call fails.
+	 */
+	if (!stmt->external && !SC_is_rb_stmt(stmt) && !SC_is_tc_stmt(stmt))
+		StartRollbackState(stmt);
+
 	if (!stmt->lock_CC_for_rb)
 	{
 		ENTER_CONN_CS(conn);
@@ -798,8 +817,16 @@ MYLOG(DETAIL_LOG_LEVEL, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn
 		case STMT_TYPE_TRANSACTION:
 			return ret;
 	}
-	/* If rbpoint is not yet started and the previous statement was not read-only */
-	if (!CC_started_rbpoint(conn) && 0 == (conn->opt_previous & SVPOPT_RDONLY))
+	/*
+	 * Every statement that reaches here needs a SAVEPOINT of its own,
+	 * including one whose predecessor only read: skipping it on the
+	 * grounds that the savepoint set before the read is still good
+	 * leaves the rbpoint unmarked as started, and an error then rolls
+	 * back the whole transaction. That shortcut holds only where every
+	 * write has been recorded as a started rbpoint, which the driver
+	 * does not guarantee. The new savepoint sends one more round trip.
+	 */
+	if (!CC_started_rbpoint(conn))
 	{
 		BOOL	need_savep = FALSE;
 
@@ -977,7 +1004,7 @@ SC_setInsertedTable(StatementClass *stmt, RETCODE retval)
 	NULL_THE_NAME(conn->schemaIns);
 	NULL_THE_NAME(conn->tableIns);
 
-	eatTableIdentifiers((const UCHAR *) cmd, conn->ccsc, &conn->tableIns, &conn->schemaIns);
+	eatTableIdentifiers((const UCHAR *) cmd, conn, &conn->tableIns, &conn->schemaIns);
 	if (!NAME_IS_VALID(conn->tableIns))
 		NULL_THE_NAME(conn->schemaIns);
 }
@@ -1095,6 +1122,17 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		int	nCallParse = doNothing;
 		BOOL	maybeBatch = FALSE;
 
+		/*
+		 * Discard the statements a batch execution left queued when it
+		 * was given up in SQLParamData/SQLPutData, by SQLCancel, or by a
+		 * parameter conversion that failed on a later row. Only the path
+		 * that sends the queue empties it, so without this they would go
+		 * to the server ahead of this execution's own rows.
+		 */
+		if (VALID_EXPBUFFER)
+			resetPQExpBuffer(&stmt->stmt_deferred);
+		stmt->count_of_deffered = 0;
+
 		if (end_row > start_row &&
 		    SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type &&
 		    SQL_CONCUR_READ_ONLY == stmt->options.scroll_concurrency &&
@@ -1209,6 +1247,13 @@ next_param_row:
 			SQLLEN	   *pcVal = apdopts->parameters[i].used;
 
 			apdopts->parameters[i].data_at_exec = FALSE;
+			/*
+			 * The length/indicator of an output-only parameter is set by
+			 * the call; before it, it may hold anything.
+			 */
+			if (i < ipdopts->allocated &&
+			    SQL_PARAM_OUTPUT == ipdopts->parameters[i].paramType)
+				pcVal = NULL;
 			if (pcVal)
 			{
 				if (bind_size > 0)
@@ -1287,17 +1332,32 @@ PGAPI_Transact(HENV henv,
 	 */
 	if (hdbc == SQL_NULL_HDBC && henv != SQL_NULL_HENV)
 	{
-		ConnectionClass * const *conns = getConnList();
-		const int	conn_count = getConnCount();
+		/*
+		 * A copy of the list: the lock that protects it is not held across
+		 * the round trips of the commits.
+		 */
+		int		conn_count;
+		ConnectionClass **conns = EN_get_connections((EnvironmentClass *) henv, &conn_count);
+		RETCODE	ret = SQL_SUCCESS;
+
+		if (conn_count < 0)
+		{
+			EnvironmentClass *env = (EnvironmentClass *) henv;
+
+			env->errornumber = ENV_ALLOC_ERROR;
+			env->errormsg = "Couldn't allocate memory for the list of connections.";
+			return SQL_ERROR;
+		}
 		for (lf = 0; lf < conn_count; lf++)
 		{
-			conn = conns[lf];
-
-			if (conn && CC_get_env(conn) == henv)
-				if (PGAPI_Transact(henv, (HDBC) conn, fType) != SQL_SUCCESS)
-					return SQL_ERROR;
+			if (PGAPI_Transact(henv, (HDBC) conns[lf], fType) != SQL_SUCCESS)
+			{
+				ret = SQL_ERROR;
+				break;
+			}
 		}
-		return SQL_SUCCESS;
+		free(conns);
+		return ret;
 	}
 
 	conn = (ConnectionClass *) hdbc;
@@ -1306,6 +1366,21 @@ PGAPI_Transact(HENV henv,
 	    fType != SQL_ROLLBACK)
 	{
 		CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "PGAPI_Transact can only be called with SQL_COMMIT or SQL_ROLLBACK as parameter", func);
+		return SQL_ERROR;
+	}
+
+	/*
+	 * When the driver gave the connection up, CC_on_abort(CONN_DEAD) has
+	 * already cleared the in-transaction flag, so the test below would take
+	 * a discarded transaction for one without work to commit, and report
+	 * success for work the server rolled back. A commit on a connection in
+	 * this state fails instead. SQL_ROLLBACK is left alone, because the
+	 * server has indeed rolled the transaction back.
+	 */
+	if (SQL_COMMIT == fType && CONN_DOWN == conn->status)
+	{
+		CC_set_error(conn, CONNECTION_COMMUNICATION_ERROR, "Could not commit, the connection was lost", func);
+		CC_log_error(func, "", conn);
 		return SQL_ERROR;
 	}
 
@@ -1327,6 +1402,27 @@ PGAPI_Transact(HENV henv,
 }
 
 
+/*
+ *	Abandon the data-at-execution operation in progress on stmt.
+ *	The callbacks which SQLSetPos/SQLBulkOperations queued on stmt are
+ *	run with SQL_ERROR, as PGAPI_ParamData does when the execution fails:
+ *	they drop their internal statement and restore the autocommit mode.
+ *	Otherwise they would stay queued and be run by the next operation
+ *	on stmt, against an internal statement which was never executed.
+ */
+static void
+cancel_data_at_exec(StatementClass *stmt)
+{
+	StatementClass *estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
+
+	estmt->data_at_exec = -1;
+	estmt->current_exec_param = -1;
+	estmt->put_data = FALSE;
+	dequeueNeedDataCallback(SQL_ERROR, stmt);
+	cancelNeedDataState(stmt);
+}
+
+
 RETCODE		SQL_API
 PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 {
@@ -1345,11 +1441,6 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	}
 	conn = SC_get_conn(stmt);
 
-	if (stmt->execute_delegate)
-		estmt = stmt->execute_delegate;
-	else
-		estmt = stmt;
-
 	/*
 	 * SQLCancel works differently depending on what the statement is
 	 * currently doing:
@@ -1367,12 +1458,26 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	 *    -> in ODBC version 2.0, same as SQLFreeStmt(SQL_CLOSE). In version
 	 *       3.5, it has no effect.
 	 *
-	 * XXX: Checking for these conditions is racy. For example, we might
-	 * see that the statement is waiting for SQLParamdata/SQLPutData, but
-	 * before we acquire the lock on the statement, another thread has
-	 * supplied the data and started executing. In that case, we'll block
-	 * on the lock until the execution finishes.
+	 * The function running in another thread holds the statement lock, and
+	 * it may free execute_delegate, so the delegate is read only under the
+	 * lock. If the lock is taken, another thread is in a call on this
+	 * statement. Whether that call is an execution shows in the fields
+	 * SC_SetExecuting() writes under the common lock: the status of this
+	 * statement, and delegate_executing when the executing statement is a
+	 * delegate. A call that is not an execution (SQLGetDiagRec() takes the
+	 * lock too) must not lead to a cancel request, which the server
+	 * applies to whatever query the connection is running, and so could
+	 * kill another statement's query.
 	 */
+	if (!TRY_ENTER_STMT_CS(stmt))
+	{
+		if (!SC_ExecutionInProgress(stmt))
+			return SQL_SUCCESS;
+		if (!CC_send_cancel_request(conn))
+			return SQL_ERROR;
+		return SQL_SUCCESS;
+	}
+	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
 	if (estmt->data_at_exec >= 0)
 	{
 		/* Waiting for more data from SQLParamData/SQLPutData. Cancel that. */
@@ -1380,35 +1485,15 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 		 * Note, any previous data-at-exec buffers will be freed
 		 * if they call SQLExecDirect or SQLExecute again.
 		 */
-
-		ENTER_STMT_CS(stmt);
 		SC_clear_error(stmt);
-		estmt->data_at_exec = -1;
-		estmt->current_exec_param = -1;
-		estmt->put_data = FALSE;
-		cancelNeedDataState(estmt);
-		LEAVE_STMT_CS(stmt);
-		return ret;
+		cancel_data_at_exec(stmt);
 	}
-	else if (estmt->status == STMT_EXECUTING)
-	{
-		/*
-		 * Busy executing in a different thread. Send a cancel request to
-		 * the server.
-		 */
-		if (!CC_send_cancel_request(conn))
-			return SQL_ERROR;
-		else
-			return SQL_SUCCESS;
-	}
-	else
-	{
-		/*
-		 * The statement is not executing, and it's not waiting for params
-		 * either. Looks like it's not doing anything.
-		 */
-		return SQL_SUCCESS;
-	}
+	/*
+	 * Otherwise the statement is not executing, and it's not waiting for
+	 * params either. Looks like it's not doing anything.
+	 */
+	LEAVE_STMT_CS(stmt);
+	return ret;
 }
 
 
@@ -1489,16 +1574,21 @@ PGAPI_ParamData(HSTMT hstmt,
 	apdopts = SC_get_APDF(estmt);
 	MYLOG(0, "\tdata_at_exec=%d, params_alloc=%d\n", estmt->data_at_exec, apdopts->allocated);
 
+	/*
+	 * No parameter is pending, so this call has none to abandon: return
+	 * without going through cleanup, which would cancel an operation on
+	 * stmt.
+	 */
+	if (estmt->data_at_exec < 0)
+	{
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No execution-time parameters for this statement", func);
+		return SQL_ERROR;
+	}
+
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (SC_AcceptedCancelRequest(stmt))
 	{
 		SC_set_error(stmt, STMT_OPERATION_CANCELLED, "Cancel the statement, sorry", func);
-		retval = SQL_ERROR;
-		goto cleanup;
-	}
-	if (estmt->data_at_exec < 0)
-	{
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "No execution-time parameters for this statement", func);
 		retval = SQL_ERROR;
 		goto cleanup;
 	}
@@ -1578,7 +1668,22 @@ MYPRINTF(DETAIL_LOG_LEVEL, " at exec buffer=%p", apdopts->parameters[i].buffer);
 				if (stmt->execute_delegate)
 				{
 					SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen;
+					SQLLEN	perrow = apdopts->param_bind_type;
+
+					if (perrow <= 0)
+					{
+						/*
+						 * column-wise binding: the rows of a fixed-length
+						 * C type are sizeof(type) apart, BufferLength
+						 * only counts for character and binary data.
+						 */
+						Int2	ctype = apdopts->parameters[i].CType;
+
+						if (SQL_C_DEFAULT == ctype && i < ipdopts->allocated)
+							ctype = sqltype_to_default_ctype(conn, ipdopts->parameters[i].SQLType);
+						if (perrow = ctype_length(ctype), perrow <= 0)
+							perrow = apdopts->parameters[i].buflen;
+					}
 
 MYPRINTF(DETAIL_LOG_LEVEL, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
@@ -1595,6 +1700,15 @@ MYPRINTF(DETAIL_LOG_LEVEL, "\n");
 MYLOG(DETAIL_LOG_LEVEL, "return SQL_NEED_DATA\n");
 cleanup:
 #undef	return
+	/*
+	 * SQLParamData failed: the driver manager leaves the need-data state,
+	 * so the operation can't be continued. Finish it as failed instead of
+	 * leaving its callbacks queued with autocommit off. When the final
+	 * execution failed, the callbacks have run already and this only
+	 * resets the data-at-execution state.
+	 */
+	if (SQL_ERROR == retval)
+		cancel_data_at_exec(stmt);
 	SC_setInsertedTable(stmt, retval);
 	MYLOG(0, "leaving %d\n", retval);
 	return retval;
@@ -1628,6 +1742,13 @@ PGAPI_PutData(HSTMT hstmt,
 
 	MYLOG(0, "entering...\n");
 
+	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
+	if (estmt->current_exec_param < 0)
+	{
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Previous call was not SQLPutData or SQLParamData", func);
+		return SQL_ERROR;
+	}
+
 #define	return	DONT_CALL_RETURN_FROM_HERE???
 	if (SC_AcceptedCancelRequest(stmt))
 	{
@@ -1636,19 +1757,35 @@ PGAPI_PutData(HSTMT hstmt,
 		goto cleanup;
 	}
 
-	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
 	apdopts = SC_get_APDF(estmt);
-	if (estmt->current_exec_param < 0)
+	/*
+	 * PGAPI_ParamData() chooses current_exec_param within the APD.
+	 * SQLBindParameter makes room for a parameter in the APD, the IPD and
+	 * the put-data array together, but setting descriptor fields makes
+	 * room in that one descriptor only. So the IPD and the put-data array
+	 * must be brought up to the APD's size here, and the parameter must
+	 * be inside all three before any of them is indexed. An array that
+	 * could not be allocated has a size of 0.
+	 */
+	ipdopts = SC_get_IPDF(estmt);
+	pdata = SC_get_PDTI(estmt);
+	if (estmt->current_exec_param >= apdopts->allocated)
 	{
-		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Previous call was not SQLPutData or SQLParamData", func);
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "The parameter SQLParamData asked for is not in the APD any more", func);
 		retval = SQL_ERROR;
 		goto cleanup;
 	}
-
+	extend_iparameter_bindings(ipdopts, apdopts->allocated);
+	extend_putdata_info(pdata, apdopts->allocated, FALSE);
+	if (estmt->current_exec_param >= ipdopts->allocated ||
+	    estmt->current_exec_param >= pdata->allocated)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (0)", func);
+		retval = SQL_ERROR;
+		goto cleanup;
+	}
 	current_param = &(apdopts->parameters[estmt->current_exec_param]);
-	ipdopts = SC_get_IPDF(estmt);
 	current_iparam = &(ipdopts->parameters[estmt->current_exec_param]);
-	pdata = SC_get_PDTI(estmt);
 	current_pdata = &(pdata->pdata[estmt->current_exec_param]);
 	ctype = current_param->CType;
 
@@ -1705,9 +1842,8 @@ PGAPI_PutData(HSTMT hstmt,
 		allocbuf = malloc(putlen / 2 + 1);
 		if (allocbuf)
 		{
-			pg_hex2bin(rgbValue, allocbuf, putlen);
+			putlen = pg_hex2bin(rgbValue, allocbuf, putlen);
 			putbuf = allocbuf;
-			putlen /= 2;
 		}
 	}
 
@@ -1793,6 +1929,13 @@ PGAPI_PutData(HSTMT hstmt,
 		/* calling SQLPutData more than once */
 		MYLOG(0, "(>1) cbValue = " FORMAT_LEN "\n", cbValue);
 
+		/* SQLBindParameter on this parameter frees what was put so far */
+		if (!current_pdata->EXEC_used)
+		{
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "The parameter was bound again after SQLPutData had data for it", func);
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		if (*current_pdata->EXEC_used < 0)
 		{
 			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Cannot append data after a null or default parameter indicator", func);
@@ -1837,12 +1980,13 @@ PGAPI_PutData(HSTMT hstmt,
 				*current_pdata->EXEC_used = used;
 				current_pdata->EXEC_buffer = buffer;
 			}
-			else
+			else if (putlen < 0)
 			{
 				SC_set_error(stmt, STMT_INTERNAL_ERROR, "bad cbValue", func);
 				retval = SQL_ERROR;
 				goto cleanup;
 			}
+			/* a piece of length 0 is valid and appends no byte */
 		}
 	}
 
@@ -1851,6 +1995,13 @@ cleanup:
 #undef	return
 	if (allocbuf)
 		free(allocbuf);
+	/*
+	 * SQLPutData failed: the driver manager leaves the need-data state,
+	 * so the application can't go on with SQLParamData. Finish the
+	 * operation as failed instead of leaving it behind.
+	 */
+	if (SQL_ERROR == retval)
+		cancel_data_at_exec(stmt);
 
 	return retval;
 }
