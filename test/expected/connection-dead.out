@@ -1,0 +1,7 @@
+connected
+connection dead before termination: 0
+first query failed as expected
+connection dead after first failure: 1
+second query failed as expected
+connection dead after second failure: 1
+disconnecting

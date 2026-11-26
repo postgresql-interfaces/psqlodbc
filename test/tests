@@ -98,6 +98,7 @@ TESTBINS = exe/connect-test \
 	exe/colinfo-shared-test \
 	exe/columns-rowversioning-test \
 	exe/columns-sizes-test \
+	exe/connection-dead-test \
 	exe/connstring-long-test \
 	exe/connstring-mbcs-test \
 	exe/connstring-unclosed-brace-test \
