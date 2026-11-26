@@ -2396,8 +2396,6 @@ typedef struct _QueryBuild {
 }	QueryBuild;
 
 #define INIT_MIN_ALLOC	4096
-/* the largest query message the server takes */
-#define MAX_CONVERTED_STATEMENT_SIZE	((size_t) 0x40000000)
 /*
  * convert_escape() recurses once for every {fn ...( )} escape nested in
  * the argument list of another, with well over 1kB of stack per level.

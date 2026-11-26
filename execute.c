@@ -618,7 +618,10 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 	}
 	else if (DEFFERED_EXEC == exec_type &&
 		 stmt->exec_current_row < end_row &&
-		 stmt->count_of_deffered + 1 < stmt->batch_size)
+		 stmt->count_of_deffered + 1 < stmt->batch_size &&
+		 stmt->stmt_deferred.len + (stmt_with_params ?
+			strlen(stmt_with_params) + 2 : 0) <
+		 MAX_CONVERTED_STATEMENT_SIZE)
 	{
 		if (INVALID_EXPBUFFER)
 			initPQExpBuffer(&stmt->stmt_deferred);
@@ -640,14 +643,34 @@ MYLOG(0, "about to begin SC_execute exec_type=%d\n", exec_type);
 	}
 	else
 	{
-		if (VALID_EXPBUFFER)
+		retval = SQL_SUCCESS;
+		if (VALID_EXPBUFFER && NULL != stmt_with_params &&
+		    stmt->stmt_deferred.data[0] &&
+		    stmt->stmt_deferred.len + strlen(stmt_with_params) + 2 >=
+		    MAX_CONVERTED_STATEMENT_SIZE)
 		{
-			if (NULL != stmt_with_params)
-				append_deferred_row(stmt, stmt_with_params);
+			/*
+			 * The queued statements and this row's together would pass
+			 * the largest query message the server takes. Send the
+			 * queue on its own, and this row after it.
+			 */
 			stmt->stmt_with_params = stmt->stmt_deferred.data;
+			retval = SC_execute(stmt);
+			stmt->stmt_with_params = stmt_with_params;
+			resetPQExpBuffer(&stmt->stmt_deferred);
+			stmt->deferred_fold_pos = -1;
 		}
-		retval = SC_execute(stmt);
-		stmt->stmt_with_params = stmt_with_params;
+		if (SQL_ERROR != retval)
+		{
+			if (VALID_EXPBUFFER)
+			{
+				if (NULL != stmt_with_params)
+					append_deferred_row(stmt, stmt_with_params);
+				stmt->stmt_with_params = stmt->stmt_deferred.data;
+			}
+			retval = SC_execute(stmt);
+			stmt->stmt_with_params = stmt_with_params;
+		}
 		stmt->count_of_deffered = 0;
 		if (VALID_EXPBUFFER)
 		{
@@ -1184,7 +1207,10 @@ PGAPI_Execute(HSTMT hstmt, UWORD flag)
 		 * to the server ahead of this execution's own rows.
 		 */
 		if (VALID_EXPBUFFER)
+		{
 			resetPQExpBuffer(&stmt->stmt_deferred);
+			stmt->deferred_fold_pos = -1;
+		}
 		stmt->count_of_deffered = 0;
 
 		if (end_row > start_row &&
