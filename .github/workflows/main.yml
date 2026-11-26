@@ -48,11 +48,8 @@ env:
   #   1260723  postgresql-18.7-2-windows-x64.exe
   #   1260726  postgresql-17.12-2-windows-x64.exe
   #   1260729  postgresql-16.16-2-windows-x64.exe
-  #
-  # The id below is postgresql-17.12-1-windows-x64.exe, the build before
-  # 17.12-2, and the page no longer lists it.
-  POSTGRESQL_PACKAGE_FILEID: '1260665'
-  POSTGRESQL_SERVER_MAJOR: '17'
+  POSTGRESQL_PACKAGE_FILEID: '1260762'
+  POSTGRESQL_SERVER_MAJOR: '19'
 
   # Test utilities.
   DIFFUTILS_VERSION: '2.8.7-1'
