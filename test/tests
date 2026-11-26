@@ -69,6 +69,7 @@ TESTBINS = exe/connect-test \
 	exe/wchar-char-test \
 	exe/params-batch-exec-test \
 	exe/params-batch-putdata-error-test \
+	exe/insert-batch-fold-test \
 	exe/lost-connection-commit-test \
 	exe/fetch-refcursors-test \
 	exe/descrec-test \
@@ -96,6 +97,7 @@ TESTBINS = exe/connect-test \
 	exe/colinfo-refcnt-test \
 	exe/colinfo-shared-test \
 	exe/columns-rowversioning-test \
+	exe/columns-sizes-test \
 	exe/connection-dead-test \
 	exe/connstring-long-test \
 	exe/connstring-mbcs-test \

@@ -22,6 +22,9 @@ extern "C" {
 #define COPY_GENERAL_ERROR						4
 #define COPY_NO_DATA_FOUND						5
 #define COPY_INVALID_STRING_CONVERSION				6
+
+/* the largest query message the server takes */
+#define MAX_CONVERTED_STATEMENT_SIZE	((size_t) 0x40000000)
 #define COPY_RESULT_OVERFLOW					7
 
 int	copy_and_convert_field_bindinfo(StatementClass *stmt, OID field_type, int atttypmod, void *value, int col);
