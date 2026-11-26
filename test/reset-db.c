@@ -16,6 +16,7 @@
 #endif
 
 #include "src/common.h"
+#include "server_version_file.h"
 
 static HSTMT hstmt = SQL_NULL_HSTMT;
 
@@ -95,6 +96,54 @@ run_statement(char *statement)
 	(void) SQLFreeStmt(hstmt, SQL_CLOSE);
 }
 
+/*
+ * Write the server's major version where runsuite reads it, so that
+ * "make installcheck" uses the expected files under expected/v<major>/
+ * without the caller passing the version in. runsuite links no ODBC
+ * library of its own, so it cannot ask the server itself.
+ */
+static void
+write_server_version(const char *path)
+{
+	SQLRETURN	ret;
+	SQLCHAR		buf[32];
+	SQLLEN		ind;
+	long		num;
+	FILE	   *f;
+
+	ret = SQLExecDirect(hstmt, (SQLCHAR *) "SHOW server_version_num", SQL_NTS);
+	if (!SQL_SUCCEEDED(ret) || !SQL_SUCCEEDED(SQLFetch(hstmt)))
+	{
+		printf("could not read server_version_num\n");
+		exit(1);
+	}
+	ret = SQLGetData(hstmt, 1, SQL_C_CHAR, buf, sizeof(buf), &ind);
+	if (!SQL_SUCCEEDED(ret) || SQL_NULL_DATA == ind)
+	{
+		printf("server_version_num has no value\n");
+		exit(1);
+	}
+	(void) SQLFreeStmt(hstmt, SQL_CLOSE);
+
+	num = strtol((char *) buf, NULL, 10);
+	if (num < 70000)
+	{
+		printf("server_version_num %ld is not a version\n", num);
+		exit(1);
+	}
+	printf("PostgreSQL server major version %ld\n", num / 10000);
+
+	f = fopen(path, "w");
+	if (f == NULL)
+	{
+		printf("could not write %s, so the tests compare against the "
+			   "expected files that carry no version\n", path);
+		return;
+	}
+	fprintf(f, "%ld\n", num / 10000);
+	fclose(f);
+}
+
 int main(int argc, char **argv)
 {
 	char		line[500], dsn[100];
@@ -110,6 +159,8 @@ int main(int argc, char **argv)
 
 	snprintf(dsn, sizeof(dsn), "DSN=%s;Database=contrib_regression", get_test_dsn());
 	connect_to_db(dsn);
+
+	write_server_version(SERVER_VERSION_FILE);
 
 	printf("Running initialization script...\n");
 	while (fgets(line, sizeof(line), stdin) != NULL)

@@ -17,6 +17,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "server_version_file.h"
+
 #ifdef WIN32
 #include <io.h>
 #define open _open
@@ -29,6 +31,7 @@
 
 static int rundiff(const char *testname, const char *inputdir, int server_version);
 static int runtest(const char *binname, const char *testname, int testno, const char *inputdir, int server_version);
+static int read_server_version(void);
 
 static char *slurpfile(const char *filename, size_t *len);
 
@@ -129,6 +132,14 @@ int main(int argc, char **argv)
 		sub_count++;
 	}
 	numtests = argc - sub_count;
+
+	/*
+	 * Without --server-version, take the version reset-db recorded, so
+	 * that the expected files under expected/v<major>/ are used whatever
+	 * server the suite runs against.
+	 */
+	if (server_version == 0)
+		server_version = read_server_version();
 
 	printf("TAP version 13\n");
 	printf("1..%d\n", numtests);
@@ -238,6 +249,25 @@ call_diff(const char *inputdir, const char *expected_dir, const char *testname, 
 		printf("# diff failed\n");
 
 	return diff_rtn;
+}
+
+/*
+ * The server's major version as reset-db recorded it, or 0 when the file
+ * is absent, which leaves the expected files that carry no version.
+ */
+static int
+read_server_version(void)
+{
+	char	   *contents;
+	size_t		len;
+	int			version;
+
+	contents = slurpfile(SERVER_VERSION_FILE, &len);
+	if (contents == NULL)
+		return 0;
+	version = atoi(contents);
+	free(contents);
+	return version > 0 ? version : 0;
 }
 
 static int
