@@ -284,6 +284,10 @@ RETCODE SQL_API PGAPI_SetScrollOptions(
 					   SQLLEN crowKeyset,
 					   SQLUSMALLINT crowRowset);
 
+void DescLockHandle(SQLHDESC hdesc, SQLHDESC hdesc2);
+void DescUnlockHandle(SQLHDESC hdesc, SQLHDESC hdesc2);
+void DiagLockHandle(SQLSMALLINT HandleType, SQLHANDLE Handle);
+void DiagUnlockHandle(SQLSMALLINT HandleType, SQLHANDLE Handle);
 RETCODE SQL_API PGAPI_GetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 		SQLSMALLINT RecNumber, SQLCHAR *Sqlstate,
 		SQLINTEGER *NativeError, SQLCHAR *MessageText,

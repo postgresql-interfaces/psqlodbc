@@ -92,7 +92,7 @@ skip_blanks_and_comments(const UCHAR *tstr)
 
 	for (;;)
 	{
-		if (isspace(*tstr))
+		if (isspace((UCHAR) *tstr))
 			tstr++;
 		else if ('-' == tstr[0] && '-' == tstr[1])
 		{
@@ -646,12 +646,20 @@ void SC_initialize_cols_info(StatementClass *stmt, BOOL DCdestroy, BOOL parseRes
 		 * may be revived later by SC_describe_ok()) must not keep
 		 * pointing at the TABLE_INFOs freed here.
 		 */
+		ConnectionClass	*conn = SC_get_conn(stmt);
+		int		entered = 0;
+
 		for (i = 0; fi && i < (int) irdflds->allocated; i++)
 		{
 			if (fi[i])
 				fi[i]->ti = NULL;
 		}
+		/* the refcnt of the connection's column info, see getCOLIfromTI() */
+		if (conn)
+			ENTER_INNER_CONN_CS(conn, entered);
 		TI_Destructor(stmt->ti, stmt->ntab);
+		if (conn)
+			CLEANUP_FUNC_CONN_CS(entered, conn);
 		free(stmt->ti);
 		stmt->ti = NULL;
 	}
@@ -881,8 +889,8 @@ getCOLIfromTable(ConnectionClass *conn, StatementClass *stmt, pgNAME *schema_nam
 			return FALSE;
 		SPRINTF_FIXED(token,
 				 "select nspname from pg_namespace n, pg_class c"
-				 " where c.relnamespace=n.oid and c.oid='%s'::regclass",
-				 escaped);
+				 " where c.relnamespace=n.oid and c.oid=%s'%s'::regclass",
+				 CC_literal_prefix(conn), escaped);
 		/*
 		 * The statement and ROLLBACK_ON_ERROR give this probe a savepoint
 		 * of its own. Without them a name that is not a relation the role
@@ -1146,6 +1154,7 @@ BOOL getCOLIfromTI(const char *func, ConnectionClass *conn, StatementClass *stmt
 	OID	greloid = reloid;
 	TABLE_INFO	*wti = *pti;
 	COL_INFO	*coli;
+	int		entered = 0;
 
 MYLOG(DETAIL_LOG_LEVEL, "entering reloid=%u ti=%p\n", reloid, wti);
 	if (!conn)
@@ -1177,6 +1186,13 @@ MYLOG(DETAIL_LOG_LEVEL, "before increaseNtab\n");
 		}
 		*pti = wti;
 	}
+	/*
+	 * The column info cache (conn->col_info, ntables and the refcnt of
+	 * each entry) belongs to the connection, and statements of other
+	 * threads look up, add, recycle and free its entries. It is read and
+	 * changed only under the connection lock, up to the return.
+	 */
+	ENTER_INNER_CONN_CS(conn, entered);
 MYLOG(DETAIL_LOG_LEVEL, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col_info);
 	if (0 == greloid)
 		greloid = wti->table_oid;
@@ -1211,7 +1227,7 @@ MYLOG(DETAIL_LOG_LEVEL, "fi=%p greloid=%d col_info=%p\n", wti, greloid, wti->col
 				SC_set_error(stmt, STMT_EXEC_ERROR, "Table not found", func);
 				SC_reset_updatable(stmt);
 			}
-			return FALSE;
+			goto leave;
 		}
 		else if (NULL != coli)
 		{
@@ -1253,6 +1269,8 @@ MYLOG(DETAIL_LOG_LEVEL, "#1 %p->table_name=%s(%u)\n", wti, PRINT_NAME(wti->table
 	}
 	else if (!colatt && stmt)
 		SC_set_parse_status(stmt, STMT_PARSE_FATAL);
+leave:
+	CLEANUP_FUNC_CONN_CS(entered, conn);
 MYLOG(DETAIL_LOG_LEVEL, "leaving returns %d\n", found);
 	return found;
 }

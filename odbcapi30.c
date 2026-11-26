@@ -157,7 +157,9 @@ SQLCopyDesc(SQLHDESC SourceDescHandle,
 	RETCODE	ret;
 
 	MYLOG(0, "Entering\n");
+	DescLockHandle(SourceDescHandle, TargetDescHandle);
 	ret = PGAPI_CopyDesc(SourceDescHandle, TargetDescHandle);
+	DescUnlockHandle(SourceDescHandle, TargetDescHandle);
 	return ret;
 }
 
@@ -288,7 +290,16 @@ SQLFreeHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
 
 			break;
 		case SQL_HANDLE_DESC:
-			ret = PGAPI_FreeDesc(Handle);
+			{
+				/* an explicit descriptor is freed, an implicit one is not */
+				BOOL	embedded = Handle && DC_get_embedded((DescriptorClass *) Handle);
+
+				if (embedded)
+					DescLockHandle(Handle, NULL);
+				ret = PGAPI_FreeDesc(Handle);
+				if (embedded)
+					DescUnlockHandle(Handle, NULL);
+			}
 			break;
 		default:
 			ret = SQL_ERROR;
@@ -308,8 +319,10 @@ SQLGetDescField(SQLHDESC DescriptorHandle,
 	RETCODE	ret;
 
 	MYLOG(0, "Entering\n");
+	DescLockHandle(DescriptorHandle, NULL);
 	ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 			Value, BufferLength, StringLength);
+	DescUnlockHandle(DescriptorHandle, NULL);
 	return ret;
 }
 
@@ -355,9 +368,11 @@ SQLGetDescRec(SQLHDESC DescriptorHandle,
 	MYLOG(0, "Entering h=%p rec=%d name=%p blen=%d\n", DescriptorHandle, RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
 
+	DescLockHandle(DescriptorHandle, NULL);
 	ret = PGAPI_GetDescRec(DescriptorHandle, RecNumber, Name, BufferLength,
 			StringLength, Type, SubType, Length, Precision,
 			Scale, Nullable);
+	DescUnlockHandle(DescriptorHandle, NULL);
 
 	return ret;
 }
@@ -372,8 +387,10 @@ SQLGetDiagField(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	RETCODE	ret;
 
 	MYLOG(0, "Entering Handle=(%u,%p) Rec=%d Id=%d info=(%p,%d)\n", HandleType, Handle, RecNumber, DiagIdentifier, DiagInfo, BufferLength);
+	DiagLockHandle(HandleType, Handle);
 	ret = PGAPI_GetDiagField(HandleType, Handle, RecNumber, DiagIdentifier,
 				DiagInfo, BufferLength, StringLength);
+	DiagUnlockHandle(HandleType, Handle);
 	return ret;
 }
 
@@ -387,8 +404,10 @@ SQLGetDiagRec(SQLSMALLINT HandleType, SQLHANDLE Handle,
 	RETCODE	ret;
 
 	MYLOG(0, "Entering\n");
+	DiagLockHandle(HandleType, Handle);
 	ret = PGAPI_GetDiagRec(HandleType, Handle, RecNumber, Sqlstate,
 			NativeError, MessageText, BufferLength, TextLength);
+	DiagUnlockHandle(HandleType, Handle);
 	return ret;
 }
 #endif /* UNICODE_SUPPORTXX */
@@ -543,8 +562,10 @@ SQLSetDescField(SQLHDESC DescriptorHandle,
 
 	MYLOG(0, "Entering h=%p rec=%d field=%d val=%p\n", DescriptorHandle, RecNumber, FieldIdentifier, Value);
 
+	DescLockHandle(DescriptorHandle, NULL);
 	ret = PGAPI_SetDescField(DescriptorHandle, RecNumber, FieldIdentifier,
 				Value, BufferLength);
+	DescUnlockHandle(DescriptorHandle, NULL);
 
 	return ret;
 }
@@ -591,9 +612,11 @@ SQLSetDescRec(SQLHDESC DescriptorHandle,
 	MYLOG(0, "Entering h=%p rec=%d type=%d sub=%d len=" FORMAT_LEN " prec=%d scale=%d data=%p\n", DescriptorHandle, RecNumber, Type, SubType, Length, Precision, Scale, Data);
 	MYLOG(0, "str=%p ind=%p\n", StringLength, Indicator);
 
+	DescLockHandle(DescriptorHandle, NULL);
 	ret = PGAPI_SetDescRec(DescriptorHandle, RecNumber, Type,
 			SubType, Length, Precision, Scale, Data,
 			StringLength, Indicator);
+	DescUnlockHandle(DescriptorHandle, NULL);
 
 	return ret;
 }

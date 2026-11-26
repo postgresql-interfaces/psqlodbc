@@ -1,0 +1,21 @@
+connected
+-- SET statement_timeout = 1s inside a transaction, then ROLLBACK
+timeout 1 before rollback: cancelled with SQLSTATE 57014
+timeout 1 after rollback: cancelled with SQLSTATE 57014
+SHOW statement_timeout: Result set:
+1s
+-- SET statement_timeout = 0 inside a transaction, then ROLLBACK
+no timeout after rollback: not cancelled
+SHOW statement_timeout: Result set:
+0
+-- SET statement_timeout = 1s after a SAVEPOINT, then ROLLBACK TO it
+SHOW statement_timeout: Result set:
+1s
+timeout 1 after rollback to savepoint: cancelled with SQLSTATE 57014
+SHOW statement_timeout: Result set:
+1s
+-- SET statement_timeout = 1s inside a transaction, then COMMIT
+no timeout after commit: not cancelled
+SHOW statement_timeout: Result set:
+0
+disconnecting

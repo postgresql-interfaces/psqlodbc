@@ -370,6 +370,15 @@ CC_Destructor(ConnectionClass *self)
 	if (self->status == CONN_EXECUTING)
 		return 0;
 
+#ifdef	_HANDLE_ENLIST_IN_DTC_
+	/*
+	 * SQLDisconnect detaches the connection from its MSDTC enlistment.  Make
+	 * sure that no enlistment keeps a pointer to the connection freed below.
+	 */
+	if (NULL != self->asdum)
+		CALL_DtcOnDisconnect(self);
+#endif /* _HANDLE_ENLIST_IN_DTC_ */
+
 	CC_cleanup(self, FALSE);			/* cleanup socket and statements */
 
 	MYLOG(0, "after CC_Cleanup\n");
@@ -416,9 +425,13 @@ CC_cursor_count(ConnectionClass *self)
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
-		stmt = self->stmts[i];
-		if (stmt && (res = SC_get_Result(stmt)) && QR_get_cursor(res))
-			count++;
+		if (stmt = self->stmts[i], NULL == stmt)
+			continue;
+		for (res = SC_get_Result(stmt); res; res = QR_nextr(res))
+		{
+			if (QR_get_cursor(res))
+				count++;
+		}
 	}
 	CONNLOCK_RELEASE(self);
 
@@ -497,6 +510,17 @@ CC_commit(ConnectionClass *self)
 			QResultClass *res = CC_send_query(self, cmtcmd, NULL, 0, NULL);
 			MYLOG(0, "  sending COMMIT!\n");
 			ret = QR_command_maybe_successful(res);
+			/*
+			 * COMMIT of a transaction that had already failed succeeds
+			 * with the tag ROLLBACK: the work is gone all the same.
+			 */
+			if (ret && QR_command_rolled_back(res))
+			{
+				CC_set_error(self, CONN_EXEC_ERROR, "The transaction had failed and was rolled back instead of committed", __FUNCTION__);
+				ret = FALSE;
+			}
+			else if (!ret && 0 == CC_get_errornumber(self))
+				CC_set_error(self, CONN_EXEC_ERROR, "Could not commit the transaction", __FUNCTION__);
 			QR_Destructor(res);
 		}
 	}
@@ -523,24 +547,29 @@ CC_abort(ConnectionClass *self)
 	return ret;
 }
 
-/* This is called by SQLSetConnectOption etc also */
+/*
+ * This is called by SQLSetConnectOption etc also.
+ * Returns FALSE if the open transaction could not be committed; the mode
+ * is changed all the same, as the transaction is gone either way.
+ */
 char
 CC_set_autocommit(ConnectionClass *self, BOOL on)
 {
 	BOOL currsts = CC_is_in_autocommit(self);
+	char	ret = TRUE;
 
 	if ((on && currsts) ||
 	    (!on && !currsts))
-		return on;
+		return ret;
 	MYLOG(0, " %d->%d\n", currsts, on);
 	if (CC_is_in_trans(self))
-		CC_commit(self);
+		ret = CC_commit(self);
 	if (on)
 		self->transact_status |= CONN_IN_AUTOCOMMIT;
 	else
 		self->transact_status &= ~CONN_IN_AUTOCOMMIT;
 
-	return on;
+	return ret;
 }
 
 /* Clear cached table info */
@@ -699,11 +728,22 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 	/* Cancel an ongoing transaction */
 	/* We are always in the middle of a transaction, */
 	/* even if we are in auto commit. */
-	if (self->pqconn)
 	{
-		QLOG(0, "PQfinish: %p\n", self->pqconn);
-		PQfinish(self->pqconn);
+		PGconn	   *pqconn;
+
+		/*
+		 * CC_send_cancel_request() reads pqconn under CONNLOCK from another
+		 * thread, so it is cleared under that lock before it is finished.
+		 */
+		CONNLOCK_ACQUIRE(self);
+		pqconn = self->pqconn;
 		self->pqconn = NULL;
+		CONNLOCK_RELEASE(self);
+		if (pqconn)
+		{
+			QLOG(0, "PQfinish: %p\n", pqconn);
+			PQfinish(pqconn);
+		}
 	}
 
 	MYLOG(0, "after PQfinish\n");
@@ -757,6 +797,9 @@ CC_cleanup(ConnectionClass *self, BOOL keepCommunication)
 		self->status = CONN_NOT_CONNECTED;
 		self->transact_status = CONN_IN_AUTOCOMMIT;
 		self->unnamed_prepared_stmt = NULL;
+		/* a new session starts without the timeout the old one had */
+		self->stmt_timeout_in_effect = 0;
+		self->stmt_timeout_set_in_trans = 0;
 	}
 	if (!keepCommunication)
 	{
@@ -1402,13 +1445,58 @@ char CC_get_escape(const ConnectionClass *self)
 	}
 	if (scf == NULL)
 	{
-		/* we're connected to a pre-8.1 server, and E'' is not supported */
-		return '\0';
+		/*
+		 * A pre-8.2 server, which is before the setting was reported, or a
+		 * server or proxy that doesn't report it. Either may treat a
+		 * backslash in a literal as an escape, so double it: a value the
+		 * driver leaves undoubled can end the literal and have the rest of
+		 * it read as SQL. A doubled backslash is right whatever the
+		 * setting is as long as the literal carries the E prefix, which
+		 * CC_can_write_literal_extension() decides.
+		 */
+		return ESCAPE_IN_LITERAL;
 	}
 	if (strcmp(scf, "on") != 0)
 		return ESCAPE_IN_LITERAL;
 	else
 		return '\0';
+}
+
+/*
+ * Return TRUE when a literal this connection sends may carry the E prefix,
+ * which keeps a doubled backslash in it standing for one backslash
+ * whatever standard_conforming_strings is set to.
+ *
+ * The server has taken E'' since 8.1. A server that reports no version at
+ * all leaves pg_version_major 0, and that is not one of those older
+ * servers: every real one reports its version, while something that
+ * reports neither the version nor standard_conforming_strings is a proxy
+ * in front of a server new enough to have both. Writing the prefix there
+ * is what keeps the doubled backslash from reaching the table as two.
+ */
+BOOL
+CC_can_write_literal_extension(const ConnectionClass *self)
+{
+	return PG_VERSION_GE(self, 8.1) || 0 == self->pg_version_major;
+}
+
+/*
+ * The prefix a literal needs when the driver has doubled the backslashes
+ * inside it: "E", under which a doubled backslash stands for one backslash
+ * whatever standard_conforming_strings is set to. Empty when the driver
+ * leaves backslashes alone, and when the server cannot take the prefix.
+ *
+ * Every literal built from identifierEscape() or simpleCatalogEscape()
+ * carries this, since those double the backslash whenever
+ * CC_get_escape() asks for it. gen_opestr() writes the prefix into the
+ * catalog operators for the same reason.
+ */
+const char *
+CC_literal_prefix(const ConnectionClass *self)
+{
+	if (0 != CC_get_escape(self) && CC_can_write_literal_extension(self))
+		return "E";
+	return NULL_STRING;
 }
 
 
@@ -1535,10 +1623,14 @@ CC_get_error(ConnectionClass *self, int *number, char **message)
 
 	CONNLOCK_ACQUIRE(self);
 
+	/*
+	 * Hand back a copy: another thread may replace and free the message
+	 * as soon as the lock is released. The caller frees it.
+	 */
 	if (CC_get_errornumber(self))
 	{
 		*number = CC_get_errornumber(self);
-		*message = CC_get_errormsg(self);
+		*message = CC_get_errormsg(self) ? strdup(CC_get_errormsg(self)) : NULL;
 	}
 	rv = (CC_get_errornumber(self) != 0);
 
@@ -1563,17 +1655,18 @@ static int CC_close_eof_cursors(ConnectionClass *self)
 	{
 		if (stmt = self->stmts[i], NULL == stmt)
 			continue;
-		if (res = SC_get_Result(stmt), NULL == res)
-			continue;
-		if (NULL != QR_get_cursor(res) &&
-		    QR_is_withhold(res) &&
-		    QR_once_reached_eof(res))
+		for (res = SC_get_Result(stmt); res; res = QR_nextr(res))
 		{
-			if (QR_get_num_cached_tuples(res) >= QR_get_num_total_tuples(res) ||
-				SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
+			if (NULL != QR_get_cursor(res) &&
+			    QR_is_withhold(res) &&
+			    QR_once_reached_eof(res))
 			{
-				QR_close(res);
-				ccount++;
+				if (QR_get_num_cached_tuples(res) >= QR_get_num_total_tuples(res) ||
+					SQL_CURSOR_FORWARD_ONLY == stmt->options.cursor_type)
+				{
+					QR_close(res);
+					ccount++;
+				}
 			}
 		}
 	}
@@ -1617,10 +1710,17 @@ static void CC_clear_cursors(ConnectionClass *self, BOOL on_abort)
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
-		stmt = self->stmts[i];
-		if (stmt && (res = SC_get_Result(stmt)) &&
-			 (NULL != QR_get_cursor(res)))
+		if (stmt = self->stmts[i], NULL == stmt)
+			continue;
+		/*
+		 * Every result in the chain may own a cursor of its own
+		 * (e.g. one per refcursor with FetchRefcursors), so walk
+		 * the whole chain, not just the first result.
+		 */
+		for (res = SC_get_Result(stmt); res; res = QR_nextr(res))
 		{
+			if (NULL == QR_get_cursor(res))
+				continue;
 			/*
 			 * non-holdable cursors are automatically closed
 			 * at commit time.
@@ -1675,12 +1775,14 @@ static void CC_mark_cursors_doubtful(ConnectionClass *self)
 	CONNLOCK_ACQUIRE(self);
 	for (i = 0; i < self->num_stmts; i++)
 	{
-		stmt = self->stmts[i];
-		if (NULL != stmt &&
-		    NULL != (res = SC_get_Result(stmt)) &&
-		    NULL != QR_get_cursor(res) &&
-		    !QR_is_permanent(res))
-			QR_set_survival_check(res);
+		if (stmt = self->stmts[i], NULL == stmt)
+			continue;
+		for (res = SC_get_Result(stmt); res; res = QR_nextr(res))
+		{
+			if (NULL != QR_get_cursor(res) &&
+			    !QR_is_permanent(res))
+				QR_set_survival_check(res);
+		}
 	}
 	CONNLOCK_RELEASE(self);
 }
@@ -1695,6 +1797,20 @@ void	CC_on_commit(ConnectionClass *conn)
 	{
 		CC_set_no_trans(conn);
 		CC_set_no_manual_trans(conn);
+	}
+	/*
+	 * A SET statement_timeout issued inside the transaction is undone by
+	 * a ROLLBACK and kept by a COMMIT, and this is reached for both:
+	 * every clean transition to idle comes here, including the one
+	 * CC_abort() relies on. There is no way to tell them apart from
+	 * here, so the server-side value must be treated as unknown. Any
+	 * guess can disagree with the server, and SC_execute() skips the SET
+	 * a statement needs whenever its timeout equals the wrong guess.
+	 */
+	if (conn->stmt_timeout_set_in_trans)
+	{
+		conn->stmt_timeout_in_effect = STMT_TIMEOUT_UNKNOWN;
+		conn->stmt_timeout_set_in_trans = 0;
 	}
 	CC_svp_init(conn);
 	CC_start_stmt(conn);
@@ -1727,6 +1843,12 @@ MYLOG(0, "entering opt=%x\n", opt);
 			CC_set_no_trans(conn);
 			CC_set_no_manual_trans(conn);
 			set_no_trans = TRUE;
+			/* the ROLLBACK also undid SET statement_timeout */
+			if (conn->stmt_timeout_set_in_trans)
+			{
+				conn->stmt_timeout_in_effect = conn->stmt_timeout_before_trans;
+				conn->stmt_timeout_set_in_trans = 0;
+			}
 		}
 	}
 	CC_svp_init(conn);
@@ -1737,11 +1859,17 @@ MYLOG(0, "entering opt=%x\n", opt);
 		conn->status = CONN_DOWN;
 		if (conn->pqconn)
 		{
-			CONNLOCK_RELEASE(conn);
-			QLOG(0, "PQfinish: %p\n", conn->pqconn);
-			PQfinish(conn->pqconn);
-			CONNLOCK_ACQUIRE(conn);
+			/*
+			 * Cleared before it is finished, under CONNLOCK, which
+			 * CC_send_cancel_request() holds while it reads pqconn.
+			 */
+			PGconn	   *pqconn = conn->pqconn;
+
 			conn->pqconn = NULL;
+			CONNLOCK_RELEASE(conn);
+			QLOG(0, "PQfinish: %p\n", pqconn);
+			PQfinish(pqconn);
+			CONNLOCK_ACQUIRE(conn);
 		}
 	}
 	else if (set_no_trans)
@@ -1764,6 +1892,13 @@ void	CC_on_abort_partial(ConnectionClass *conn)
 {
 MYLOG(0, "entering\n");
 	CONNLOCK_ACQUIRE(conn);
+	/*
+	 * ROLLBACK TO SAVEPOINT undoes SET statement_timeout when the SET
+	 * came after the savepoint. We don't know, so have SC_execute()
+	 * issue it again.
+	 */
+	if (conn->stmt_timeout_set_in_trans)
+		conn->stmt_timeout_in_effect = STMT_TIMEOUT_UNKNOWN;
 	ProcessRollback(conn, TRUE, TRUE);
 	CC_discard_marked_objects(conn);
 	CONNLOCK_RELEASE(conn);
@@ -1776,7 +1911,7 @@ is_setting_search_path(const char *query)
 	if (strnicmp(q, "set", 3) != 0)
 		return FALSE;
 	q += 3;
-	while (isspace(*q)) q++;
+	while (isspace((UCHAR) *q)) q++;
 	for (; *q;)
 	{
 		if (IS_NOT_SPACE(*q))
@@ -2117,6 +2252,19 @@ CC_send_query_append(ConnectionClass *self, const char *query, QueryInfo *qi, UD
 					SC_set_error(stmt, STMT_INTERNAL_ERROR, "internal savepoint error", func);
 					goto cleanup;
 				}
+			}
+			else
+			{
+				/*
+				 * The rollback point of this call is already set, but
+				 * still record what kind of query follows it. A call
+				 * that reads first and writes afterwards (e.g. a
+				 * positioned DELETE/UPDATE on a partitioned table looks
+				 * up the child table's name before writing) must not be
+				 * remembered as read-only, or the next call skips its
+				 * SAVEPOINT and a failure there rolls the write back.
+				 */
+				self->opt_in_progress &= svpopt;
 			}
 		}
 	}
@@ -2748,6 +2896,17 @@ CC_send_function(ConnectionClass *self, const char *fn_name, void *result_buf, I
 
 	QLOG(0, "\tgot result with length: %d\n", *actual_result_len);
 
+	/*
+	 * An integer result must be present. PQgetlength() is 0 for a NULL
+	 * or empty reply, which would otherwise skip the copy below and leave
+	 * the caller's result_buf unset while reporting success.
+	 */
+	if (result_is_int && *actual_result_len <= 0)
+	{
+		CC_set_errormsg(self, "null result from large_object function");
+		goto cleanup;
+	}
+
 	if (*actual_result_len > 0)
 	{
 		char *value = PQgetvalue(pgres, 0, 0);
@@ -2993,7 +3152,8 @@ int	CC_mark_a_object_to_discard(ConnectionClass *conn, int type, const char *pla
 int	CC_discard_marked_objects(ConnectionClass *conn)
 {
 	QResultClass *res;
-	char	*pname, cmd[64];
+	char	*pname, *cmd;
+	size_t	cmdlen;
 
 	if (conn->num_discardp <= 0)
 		return 0;
@@ -3006,12 +3166,21 @@ int	CC_discard_marked_objects(ConnectionClass *conn)
 		 * send and free the same entry again.
 		 */
 		pname = conn->discardp[--conn->num_discardp];
-		if ('s' == pname[0])
-			SPRINTF_FIXED(cmd, "DEALLOCATE \"%s\"", pname + 1);
-		else
-			SPRINTF_FIXED(cmd, "CLOSE \"%s\"", pname + 1);
+		/* a refcursor's name comes from the server and has no length limit */
+		cmdlen = strlen(pname + 1) + sizeof("DEALLOCATE \"\"");
+		cmd = malloc(cmdlen);
+		if (cmd)
+		{
+			if ('s' == pname[0])
+				snprintf(cmd, cmdlen, "DEALLOCATE \"%s\"", pname + 1);
+			else
+				snprintf(cmd, cmdlen, "CLOSE \"%s\"", pname + 1);
+		}
 		free(pname);
+		if (!cmd)
+			continue;
 		res = CC_send_query(conn, cmd, NULL, ROLLBACK_ON_ERROR | IGNORE_ABORT_ON_CONN | READ_ONLY_QUERY, NULL);
+		free(cmd);
 		QR_Destructor(res);
 	}
 
@@ -3063,7 +3232,8 @@ LIBPQ_update_transaction_status(ConnectionClass *self)
 	}
 }
 
-#define        PROTOCOL3_OPTS_MAX      30
+/* the most keywords LIBPQ_connect() sets itself, before the pqopt ones */
+#define        PROTOCOL3_FIXED_OPTS    16
 
 /*
  * Return TRUE if the value of the libpq keyword is a secret. options is
@@ -3122,7 +3292,8 @@ LIBPQ_connect(ConnectionClass *self)
 	void	   *pqconn = NULL;
 	int			pqret;
 	int			pversion;
-	const	char	*opts[PROTOCOL3_OPTS_MAX], *vals[PROTOCOL3_OPTS_MAX];
+	const	char	**opts = NULL, **vals = NULL;
+	size_t		nopts;
 	PQconninfoOption	*conninfoOption = NULL, *pqopt;
 	int			cnt;
 	char		login_timeout_str[20];
@@ -3148,7 +3319,23 @@ LIBPQ_connect(ConnectionClass *self)
 	}
 	if (pqopt_str[0] != '\0')
 		log_pqopt_options(conninfoOption);
-	/* Build arrays of keywords & values, for PQconnectDBParams */
+	/*
+	 * Build arrays of keywords & values, for PQconnectDBParams.  Size them
+	 * for every keyword pqopt sets, so that none of them is dropped.
+	 */
+	nopts = PROTOCOL3_FIXED_OPTS + 1;
+	for (pqopt = conninfoOption; pqopt->keyword != NULL; pqopt++)
+	{
+		if (pqopt->val != NULL)
+			nopts++;
+	}
+	opts = (const char **) malloc(nopts * sizeof(*opts));
+	vals = (const char **) malloc(nopts * sizeof(*vals));
+	if (NULL == opts || NULL == vals)
+	{
+		CC_set_error(self, CONN_NO_MEMORY_ERROR, "Could not allocate memory for the connection parameters", func);
+		goto cleanup;
+	}
 	cnt = 0;
 	if (ci->server[0])
 	{
@@ -3225,14 +3412,15 @@ LIBPQ_connect(ConnectionClass *self)
 					{
 						char emsg[100];
 
+						/* the same value again: already in the arrays */
 						if (vals[j] != NULL && strcmp(vals[j], val) == 0)
-							continue;
+							break;
 						SPRINTF_FIXED(emsg, "%s parameter in pqopt option conflicts with other ordinary option", keyword);
 						CC_set_error(self, CONN_OPENDB_ERROR, emsg, func);
 						goto cleanup;
 					}
 				}
-				if (j >= cnt && cnt < PROTOCOL3_OPTS_MAX - 1)
+				if (j >= cnt && (size_t) cnt < nopts - 1)
 				{
 					opts[cnt] = keyword; vals[cnt++] = val;
 				}
@@ -3324,7 +3512,9 @@ MYLOG(DETAIL_LOG_LEVEL, "status=%d\n", pqret);
 
 cleanup:
 	if (errmsg != NULL)
-		free(errmsg);
+		PQfreemem(errmsg);	/* libpq's allocation, not the driver's */
+	free(opts);
+	free(vals);
 	PQconninfoFree(conninfoOption);
 	if (ret != 1)
 	{
@@ -3341,17 +3531,25 @@ cleanup:
 }
 
 int
-CC_send_cancel_request(const ConnectionClass *conn)
+CC_send_cancel_request(ConnectionClass *conn)
 {
 	int	ret = 0;
 	char	errbuf[256];
-	void	*cancel;
+	void	*cancel = NULL;
 
-	/* Check we have an open connection */
-	if (!conn || !conn->pqconn)
+	if (!conn)
 		return FALSE;
-
-	cancel = PQgetCancel(conn->pqconn);
+	/*
+	 * SQLCancel runs in another thread than the call it cancels, which may
+	 * finish pqconn meanwhile. CC_on_abort() and CC_cleanup() clear pqconn
+	 * under CONNLOCK before they finish it, so it is read under that lock.
+	 * PQgetCancel() copies what the cancel request needs, so the request
+	 * itself is sent without the lock.
+	 */
+	CONNLOCK_ACQUIRE(conn);
+	if (conn->pqconn)
+		cancel = PQgetCancel(conn->pqconn);
+	CONNLOCK_RELEASE(conn);
 	if (!cancel)
 		return FALSE;
 	ret = PQcancel(cancel, errbuf, sizeof(errbuf));

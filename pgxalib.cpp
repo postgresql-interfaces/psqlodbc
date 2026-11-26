@@ -427,6 +427,10 @@ static int	TextToXid(XID &xid, const char *rtext)
 	if (glen > 2 * MAXGTRIDSIZE || blen > 2 * MAXBQUALSIZE ||
 	    0 != glen % 2 || 0 != blen % 2)
 		return -1;
+	/* and holds only the hex digits it writes, around the one '-' */
+	if (strspn(rtext, "0123456789abcdefABCDEF") != (size_t) glen ||
+	    strspn(sptr + 1, "0123456789abcdefABCDEF") != (size_t) blen)
+		return -1;
 	xid.gtrid_length = glen / 2;
 	xid.bqual_length = blen / 2;
 	pg_hex2bin((const UCHAR *) rtext, (UCHAR *) &xid.data[0], glen);
@@ -751,9 +755,15 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 		HSTMT	stmt;
 		RETCODE	ret;
 		char	buf[512];
+		SQLLEN	ind;
 
 		vec.clear();
-		SQLAllocHandle(SQL_HANDLE_STMT, conn, &stmt);
+		ret = SQLAllocHandle(SQL_HANDLE_STMT, conn, &stmt);
+		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+		{
+			pos = -1;
+			goto onExit;
+		}
 		ret = SQLExecDirect(stmt, (SQLCHAR *) "select gid from pg_prepared_xacts", SQL_NTS);
 		if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
 		{
@@ -761,14 +771,30 @@ EXTERN_C static int __cdecl xa_recover(XID *xids, long count, int rmid, long fla
 			pos = -1;
 			goto onExit;
 		}
-		SQLBindCol(stmt, 1, SQL_C_CHAR, buf, sizeof(buf), NULL);
-		ret = SQLFetch(stmt);
-		while (SQL_NO_DATA_FOUND != ret)
+		/*
+		 * Take a row only when SQLFetch() succeeded and gave a gid.  A NULL
+		 * gid or a reply without the column leaves buf as it was, and a
+		 * fetch that fails, for example once the connection is lost, fails
+		 * again on every call, so the loop must stop on any return other
+		 * than success, not only on SQL_NO_DATA.
+		 */
+		SQLBindCol(stmt, 1, SQL_C_CHAR, buf, sizeof(buf), &ind);
+		for (;;)
 		{
-			vec.push_back(buf);
+			ind = SQL_NULL_DATA;	/* left as is if the reply has no column */
 			ret = SQLFetch(stmt);
+			if (SQL_SUCCESS != ret && SQL_SUCCESS_WITH_INFO != ret)
+				break;
+			if (SQL_NULL_DATA != ind)
+				vec.push_back(buf);
 		}
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		if (SQL_NO_DATA_FOUND != ret)
+		{
+			vec.clear();
+			pos = -1;
+			goto onExit;
+		}
 		pos = 0;
 	}
 	rcount = (int) vec.size();

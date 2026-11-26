@@ -1,0 +1,12 @@
+connected
+SQL_C_CHAR -> SQL_INTEGER
+length 3: 123
+length -3: 123
+length -10: SQLExecDirect failed
+HY024=Invalid string or buffer length
+SQL_C_BINARY -> SQL_VARBINARY
+length 3: 010203
+length -1: NULL
+length -4: SQLExecDirect failed
+HY024=Invalid string or buffer length
+disconnecting

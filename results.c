@@ -431,7 +431,7 @@ MYLOG(DETAIL_LOG_LEVEL, "answering bookmark info\n");
 	len = col_name ? (int) strlen(col_name) : 0;
 
 	if (pcbColName)
-		*pcbColName = len;
+		*pcbColName = (SQLSMALLINT) (len > SHRT_MAX ? SHRT_MAX : len);	/* the name comes from the server */
 
 	if (szColName && cbColNameMax > 0)
 	{
@@ -950,7 +950,7 @@ MYLOG(DETAIL_LOG_LEVEL, "COLUMN_SCALE=" FORMAT_LEN "\n", value);
 		}
 
 		if (pcbDesc)
-			*pcbDesc = (SQLSMALLINT) len;
+			*pcbDesc = (SQLSMALLINT) (len > SHRT_MAX ? SHRT_MAX : len);	/* names come from the server */
 	}
 	else
 	{
@@ -1152,12 +1152,14 @@ MYLOG(DETAIL_LOG_LEVEL, "currT=" FORMAT_LEN " base=" FORMAT_LEN " rowset=" FORMA
 	if (get_bookmark)
 	{
 		BOOL	contents_get = FALSE;
+		Int4	bookmark = SC_make_int4_bookmark(stmt->currTuple);
 
 		if (rgbValue)
 		{
-			if (SQL_C_BOOKMARK == target_type || sizeof(UInt4) <= cbValueMax)
+			/* cbValueMax is signed: a negative one must not pass as large */
+			if (SQL_C_BOOKMARK == target_type ||
+				(SQLLEN) sizeof(UInt4) <= cbValueMax)
 			{
-				Int4 bookmark = SC_make_int4_bookmark(stmt->currTuple);
 				contents_get = TRUE;
 				memcpy(rgbValue, &bookmark, sizeof(bookmark));
 			}
@@ -1926,7 +1928,8 @@ MYLOG(DETAIL_LOG_LEVEL, "num_tuples=" FORMAT_LEN "\n", num_tuples);
 		else
 		{	/* overlap with beginning of result set,
 			 * so get first rowset */
-			SC_set_rowset_start(stmt, 0, TRUE);
+			rowset_start = 0;
+			SC_set_rowset_start(stmt, rowset_start, TRUE);
 		}
 		should_set_rowset_start = FALSE;
 	}
@@ -2362,11 +2365,29 @@ ti_quote(StatementClass *stmt, OID tableoid, char *buf, int buf_size)
 		return SAFE_NAME(rNAME);
 	else
 	{
-		char	query[200];
+		char	query[600];
 		QResultClass	*res;
 		char	*ret = "";
 
-		SPRINTF_FIXED(query, "select relname, nspname from pg_catalog.pg_class c, pg_catalog.pg_namespace n where c.oid operator(pg_catalog.=) %u and c.relnamespace operator(pg_catalog.=) n.oid", tableoid);
+		/*
+		 * tableoid was read from the fetched row. Accept it only when
+		 * it names the cursor's table or one of its descendants, so a
+		 * row from elsewhere can't steer a positioned UPDATE/DELETE to
+		 * another table.
+		 */
+		if (0 != ti->table_oid)
+			SPRINTF_FIXED(query,
+				"with recursive t(oid) as (select %u::pg_catalog.oid union"
+				" select i.inhrelid from pg_catalog.pg_inherits i, t"
+				" where i.inhparent operator(pg_catalog.=) t.oid)"
+				" select c.relname, n.nspname"
+				" from pg_catalog.pg_class c, pg_catalog.pg_namespace n, t"
+				" where c.oid operator(pg_catalog.=) %u"
+				" and c.oid operator(pg_catalog.=) t.oid"
+				" and c.relnamespace operator(pg_catalog.=) n.oid",
+				ti->table_oid, tableoid);
+		else
+			SPRINTF_FIXED(query, "select relname, nspname from pg_catalog.pg_class c, pg_catalog.pg_namespace n where c.oid operator(pg_catalog.=) %u and c.relnamespace operator(pg_catalog.=) n.oid", tableoid);
 		res = CC_send_query(SC_get_conn(stmt), query, NULL, READ_ONLY_QUERY, stmt);
 		if (QR_command_maybe_successful(res) &&
 		    QR_get_num_cached_tuples(res) == 1)
@@ -2397,7 +2418,7 @@ static BOOL	tupleExists(StatementClass *stmt, const KeySet *keyset)
 			 "select 1 from %s where ctid = '(%u,%u)'",
 			 ti_quote(stmt, keyset->oid, table_fqn, sizeof(table_fqn)),
 			 keyset->blocknum, keyset->offset);
-	if (NULL != bestqual && 0 != keyset->oid && !TI_has_subclass(ti))
+	if (NULL != bestqual && 0 != keyset->oid)
 	{
 		appendPQExpBuffer(&selstr, " and ");
 		appendPQExpBuffer(&selstr, bestqual, keyset->oid);
@@ -2523,13 +2544,16 @@ static	void RemoveAdded(QResultClass *res, SQLLEN index)
 	if (rmidx >= res->ad_count)
 		return;
 	added_keyset = res->added_keyset + rmidx;
-	added_tuples = res->added_tuples + num_fields * rmidx;
-	ClearCachedRows(added_tuples, num_fields, 1);
+	/* a keyset-driven cursor keeps no added_tuples (see enlargeAdded) */
+	added_tuples = res->added_tuples ? res->added_tuples + num_fields * rmidx : NULL;
+	if (added_tuples)
+		ClearCachedRows(added_tuples, num_fields, 1);
 	mv_count = res->ad_count - rmidx - 1;
 	if (mv_count > 0)
 	{
 		memmove(added_keyset, added_keyset + 1, mv_count * sizeof(KeySet));
-		memmove(added_tuples, added_tuples + num_fields, mv_count * num_fields * sizeof(TupleField));
+		if (added_tuples)
+			memmove(added_tuples, added_tuples + num_fields, mv_count * num_fields * sizeof(TupleField));
 	}
 	RemoveDeleted(res, index);
 	RemoveUpdated(res, index);
@@ -3269,9 +3293,10 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 				char	*lit_table = identifierEscape((const SQLCHAR *) quoted_table, SQL_NTS, SC_get_conn(stmt), NULL, -1, FALSE);
 
 				printfPQExpBuffer(&selstr,
-					 "%.*sfrom %s where ctid = (select currtid2('%s', '%s'))",
+					 "%.*sfrom %s where ctid = (select currtid2(%s'%s', '%s'))",
 					 (int) from_pos, load_stmt,
 					 quoted_table,
+					 CC_literal_prefix(SC_get_conn(stmt)),
 					 lit_table ? lit_table : "",
 					 tidval);
 				if (lit_table)
@@ -3292,6 +3317,16 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 			SC_set_error(stmt,STMT_INTERNAL_ERROR, "can't find added and updating row because of the lack of oid", func);
 			goto cleanup;
 		}
+		/*
+		 * The scan of the table includes its children and each of
+		 * them has its own row at this ctid. tableoid is the other
+		 * half of the key.
+		 */
+		if (bestqual && 0 != tableoid)
+		{
+			appendPQExpBufferStr(&selstr, " and ");
+			appendPQExpBuffer(&selstr, bestqual, tableoid);
+		}
 	}
 	else
 	{
@@ -3307,8 +3342,9 @@ MYLOG(DETAIL_LOG_LEVEL, "entering bestitem=%s bestqual=%s\n", SAFE_NAME(ti->best
 				char	*lit_table = identifierEscape((const SQLCHAR *) ti_quote(stmt, 0, table_fqn, sizeof(table_fqn)), SQL_NTS, SC_get_conn(stmt), NULL, -1, FALSE);
 
 				printfPQExpBuffer(&selstr,
-					 "%s where ctid = (select currtid2('%s', '%s'))",
+					 "%s where ctid = (select currtid2(%s'%s', '%s'))",
 					 load_stmt,
+					 CC_literal_prefix(SC_get_conn(stmt)),
 					 lit_table ? lit_table : "",
 					 tidval);
 				if (lit_table)
@@ -4269,7 +4305,16 @@ SC_pos_update(StatementClass *stmt,
 	{
 		if (!(oid = getOid(s.res, kres_ridx)))
 		{
-			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME))
+			/*
+			 * An oid and a tableoid are never 0, so a 0 means the row's
+			 * key is gone and bestqual cannot identify the row: without
+			 * it the statement would match by ctid alone, which on a
+			 * table with children is another table's row. A bestitem
+			 * that names a key column is left alone, since 0 is a value
+			 * such a column can hold.
+			 */
+			if (!strcmp(SAFE_NAME(stmt->ti[0]->bestitem), OID_NAME) ||
+			    !strcmp(SAFE_NAME(stmt->ti[0]->bestitem), TABLEOID_NAME))
 			{
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
 				return SQL_ERROR;
@@ -4383,6 +4428,8 @@ SC_pos_update(StatementClass *stmt,
 			goto cleanup;
 		}
 		s.qstmt = (StatementClass *) hstmt;
+		/* the application's SQL_ATTR_QUERY_TIMEOUT applies to the UPDATE too */
+		s.qstmt->options.stmt_timeout = s.stmt->options.stmt_timeout;
 		apdopts = SC_get_APDF(s.qstmt);
 		apdopts->param_bind_type = opts->bind_size;
 		apdopts->param_offset_ptr = opts->row_offset_ptr;
@@ -4508,7 +4555,10 @@ SC_pos_delete(StatementClass *stmt,
 	{
 		if (!(oid = getOid(res, kres_ridx)))
 		{
-			if (bestitem && !strcmp(bestitem, OID_NAME))
+			/* the reason is given in SC_pos_update() */
+			if (bestitem &&
+			    (!strcmp(bestitem, OID_NAME) ||
+			     !strcmp(bestitem, TABLEOID_NAME)))
 			{
 				SC_set_error(stmt, STMT_ROW_VERSION_CHANGED, "the row was already deleted ?", func);
 				return SQL_ERROR;
@@ -4528,7 +4578,7 @@ SC_pos_delete(StatementClass *stmt,
 	printfPQExpBuffer(&dltstr,
 			 "delete from %s where ctid = '(%u, %u)'",
 			 ti_quote(stmt, oid, table_fqn, sizeof(table_fqn)), blocknum, offset);
-	if (bestqual && !TI_has_subclass(ti))
+	if (bestqual)
 	{
 		appendPQExpBuffer(&dltstr, " and ");
 		appendPQExpBuffer(&dltstr, bestqual, oid);
@@ -4835,6 +4885,8 @@ SC_pos_add(StatementClass *stmt,
 	else
 		offset = 0;
 	s.qstmt = (StatementClass *) hstmt;
+	/* the application's SQL_ATTR_QUERY_TIMEOUT applies to the INSERT too */
+	s.qstmt->options.stmt_timeout = s.stmt->options.stmt_timeout;
 	apdopts = SC_get_APDF(s.qstmt);
 	apdopts->param_bind_type = opts->bind_size;
 	apdopts->param_offset_ptr = opts->row_offset_ptr;
@@ -5126,8 +5178,14 @@ RETCODE spos_callback(RETCODE retcode, void *para)
 			s->nrow++;
 	}
 	conn = SC_get_conn(s->stmt);
-	if (s->auto_commit_needed)
-		CC_set_autocommit(conn, TRUE);
+	if (s->auto_commit_needed &&
+	    !CC_set_autocommit(conn, TRUE) &&
+	    SQL_ERROR != ret)
+	{
+		/* the rows are gone with the transaction */
+		SC_set_error(s->stmt, STMT_EXEC_ERROR, "Could not commit the positioned operation", __FUNCTION__);
+		ret = SQL_ERROR;
+	}
 	if (s->irow > 0)
 	{
 		if (SQL_ADD != s->fOption && s->ridx >= 0) /* for SQLGetData */
@@ -5251,7 +5309,28 @@ MYLOG(0, "num_cols=%d gdatainfo=%d\n", QR_NumPublicResultCols(s.res), gdata_allo
 		case SQL_DELETE:
 		case SQL_ADD:
 			if (s.auto_commit_needed = CC_does_autocommit(conn), s.auto_commit_needed)
-				CC_set_autocommit(conn, FALSE);
+			{
+				/*
+				 * Switching autocommit off commits the open transaction.
+				 * When that fails the transaction's work is gone, so the
+				 * positioned write must not go on against the cursor it
+				 * left behind; the callback checks the way back in the
+				 * same way.
+				 *
+				 * CC_set_autocommit() changes the mode whether or not the
+				 * commit succeeded, and returning here skips the callback
+				 * that would switch it back, so put the connection into
+				 * the mode the application believes it is in before
+				 * leaving.
+				 */
+				if (!CC_set_autocommit(conn, FALSE))
+				{
+					CC_set_autocommit(conn, TRUE);
+					s.auto_commit_needed = FALSE;
+					SC_set_error(s.stmt, STMT_EXEC_ERROR, "Could not commit before the positioned operation", func);
+					return SQL_ERROR;
+				}
+			}
 			break;
 		case SQL_POSITION:
 			break;
@@ -5399,8 +5478,9 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 	ARDFields	*opts = SC_get_ARDF(stmt);
 	SQLHDESC	hdesc;
 	APDFields	*apdf;
-	const int	tidbuflen = 20;
-	char 		*tidbuf = NULL, *query = NULL;
+	const int	tidbuflen = 20, oidbuflen = 12;
+	char 		*tidbuf = NULL, *oidbuf = NULL, *query = NULL;
+	CSTR		oidqual = " and \"" TABLEOID_NAME "\" = ?";
 	int		i, lodlen;
 	BindInfoClass	*bookmark_orig = opts->bookmark;
 	TupleField	*otuple, *ituple;
@@ -5426,8 +5506,13 @@ SC_fetch_by_bookmark(StatementClass *stmt)
 		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "internal AllocStmt error", __FUNCTION__);
 		return ret;
 	}
+	/* the application's SQL_ATTR_QUERY_TIMEOUT applies to the SELECT too */
+	((StatementClass *) hstmt)->options.stmt_timeout = stmt->options.stmt_timeout;
 	size_of_rowset = opts->size_of_rowset;
 	SC_MALLOC_gexit_with_error(tidbuf, char, size_of_rowset * tidbuflen, stmt, "Couldn't allocate memory for tidbuf bind.", (ret = SQL_ERROR));
+	/* the children of the table have their own rows at the same ctids */
+	if (TI_has_subclass(stmt->ti[0]))
+		SC_MALLOC_gexit_with_error(oidbuf, char, size_of_rowset * oidbuflen, stmt, "Couldn't allocate memory for oidbuf bind.", (ret = SQL_ERROR));
 	for (i = 0; i < size_of_rowset; i++)
 	{
 		PG_BM	pg_bm;
@@ -5468,23 +5553,35 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 		}
 		snprintf(tidbuf + i * tidbuflen, tidbuflen, "(%u,%u)", blocknum, offset);
 		MYLOG(0, "!!!! tidbuf=%s\n", tidbuf + i * tidbuflen);
+		if (NULL != oidbuf)
+			snprintf(oidbuf + i * oidbuflen, oidbuflen, "%u", oidint);
 	}
 	if (!SQL_SUCCEEDED(PGAPI_BindParameter(hstmt, 1, SQL_PARAM_INPUT,
 			SQL_C_CHAR, SQL_CHAR, tidbuflen, 0,
 			tidbuf, tidbuflen, NULL)))
-		goto cleanup;
+		goto internal_error;
+	if (NULL != oidbuf &&
+	    !SQL_SUCCEEDED(PGAPI_BindParameter(hstmt, 2, SQL_PARAM_INPUT,
+			SQL_C_CHAR, SQL_CHAR, oidbuflen, 0,
+			oidbuf, oidbuflen, NULL)))
+		goto internal_error;
 	apdf = SC_get_APDF((StatementClass *) hstmt);
 	apdf->paramset_size = size_of_rowset;
 	if (!SQL_SUCCEEDED(PGAPI_GetStmtAttr(stmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) &hdesc, SQL_IS_POINTER, NULL)))
-		goto cleanup;
+		goto internal_error;
 	if (!SQL_SUCCEEDED(PGAPI_SetStmtAttr(hstmt, SQL_ATTR_APP_ROW_DESC, (SQLPOINTER) hdesc, SQL_IS_POINTER)))
-		goto cleanup;
+		goto internal_error;
 
 	lodlen = strlen(stmt->load_statement) + 15;
+	if (NULL != oidbuf)
+		lodlen += strlen(oidqual);
 	SC_MALLOC_gexit_with_error(query, char, lodlen, stmt, "Couldn't allocate memory for query buf.", (ret = SQL_ERROR));
-	snprintf(query, lodlen, "%s where ctid=?", stmt->load_statement);
+	snprintf(query, lodlen, "%s where ctid=?%s", stmt->load_statement, NULL != oidbuf ? oidqual : "");
 	if (!SQL_SUCCEEDED(ret = PGAPI_ExecDirect(hstmt, (SQLCHAR *) query, SQL_NTS, PODBC_RDONLY)))
+	{
+		SC_error_copy(stmt, (StatementClass *) hstmt, TRUE);
 		goto cleanup;
+	}
 	/*
 	 * Combine multiple results into one
 	 */
@@ -5543,7 +5640,14 @@ MYLOG(0, "i=%d bidx=" FORMAT_LEN " cached=" FORMAT_ULEN "\n", i, bidx, res->num_
 	ret = PGAPI_ExtendedFetch(fstmt, SQL_FETCH_NEXT, 0,
 		&cRow, NULL, 0, size_of_rowset);
 	MYLOG(0, "cRow=" FORMAT_ULEN "\n", cRow);
+	goto cleanup;
 
+internal_error:
+	/* a step on the internal statement failed: don't report success */
+	SC_error_copy(stmt, (StatementClass *) hstmt, TRUE);
+	if (0 == SC_get_errornumber(stmt))
+		SC_set_error(stmt, STMT_INTERNAL_ERROR, "could not set up the fetch by bookmark", __FUNCTION__);
+	ret = SQL_ERROR;
 cleanup:
 	if (NULL != hstmt)
 	{
@@ -5553,6 +5657,8 @@ cleanup:
 	opts->bookmark = bookmark_orig;
 	if (NULL != tidbuf)
 		free(tidbuf);
+	if (NULL != oidbuf)
+		free(oidbuf);
 	if (NULL != query)
 		free(query);
 

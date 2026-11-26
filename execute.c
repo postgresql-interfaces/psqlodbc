@@ -792,6 +792,18 @@ SetStatementSvp(StatementClass *stmt, unsigned int option)
 	if (CC_is_in_error_trans(conn))
 		return ret;
 
+	/*
+	 * Statements the driver allocates for its own queries (the catalog
+	 * functions, the column info of updatable cursors) never pass through
+	 * StartRollbackState(), which only the SQL* entry points call on the
+	 * application's statement.  Give them the rollback mode of the
+	 * connection here, otherwise no SAVEPOINT is set in front of their
+	 * query and DiscardStatementSvp() can only roll back the whole
+	 * transaction when the call fails.
+	 */
+	if (!stmt->external && !SC_is_rb_stmt(stmt) && !SC_is_tc_stmt(stmt))
+		StartRollbackState(stmt);
+
 	if (!stmt->lock_CC_for_rb)
 	{
 		ENTER_CONN_CS(conn);
@@ -805,8 +817,16 @@ MYLOG(DETAIL_LOG_LEVEL, " %p->accessed=%d opt=%u in_progress=%u prev=%u\n", conn
 		case STMT_TYPE_TRANSACTION:
 			return ret;
 	}
-	/* If rbpoint is not yet started and the previous statement was not read-only */
-	if (!CC_started_rbpoint(conn) && 0 == (conn->opt_previous & SVPOPT_RDONLY))
+	/*
+	 * Every statement that reaches here needs a SAVEPOINT of its own,
+	 * including one whose predecessor only read: skipping it on the
+	 * grounds that the savepoint set before the read is still good
+	 * leaves the rbpoint unmarked as started, and an error then rolls
+	 * back the whole transaction. That shortcut holds only where every
+	 * write has been recorded as a started rbpoint, which the driver
+	 * does not guarantee. The new savepoint sends one more round trip.
+	 */
+	if (!CC_started_rbpoint(conn))
 	{
 		BOOL	need_savep = FALSE;
 
@@ -1312,17 +1332,32 @@ PGAPI_Transact(HENV henv,
 	 */
 	if (hdbc == SQL_NULL_HDBC && henv != SQL_NULL_HENV)
 	{
-		ConnectionClass * const *conns = getConnList();
-		const int	conn_count = getConnCount();
+		/*
+		 * A copy of the list: the lock that protects it is not held across
+		 * the round trips of the commits.
+		 */
+		int		conn_count;
+		ConnectionClass **conns = EN_get_connections((EnvironmentClass *) henv, &conn_count);
+		RETCODE	ret = SQL_SUCCESS;
+
+		if (conn_count < 0)
+		{
+			EnvironmentClass *env = (EnvironmentClass *) henv;
+
+			env->errornumber = ENV_ALLOC_ERROR;
+			env->errormsg = "Couldn't allocate memory for the list of connections.";
+			return SQL_ERROR;
+		}
 		for (lf = 0; lf < conn_count; lf++)
 		{
-			conn = conns[lf];
-
-			if (conn && CC_get_env(conn) == henv)
-				if (PGAPI_Transact(henv, (HDBC) conn, fType) != SQL_SUCCESS)
-					return SQL_ERROR;
+			if (PGAPI_Transact(henv, (HDBC) conns[lf], fType) != SQL_SUCCESS)
+			{
+				ret = SQL_ERROR;
+				break;
+			}
 		}
-		return SQL_SUCCESS;
+		free(conns);
+		return ret;
 	}
 
 	conn = (ConnectionClass *) hdbc;
@@ -1331,6 +1366,21 @@ PGAPI_Transact(HENV henv,
 	    fType != SQL_ROLLBACK)
 	{
 		CC_set_error(conn, CONN_INVALID_ARGUMENT_NO, "PGAPI_Transact can only be called with SQL_COMMIT or SQL_ROLLBACK as parameter", func);
+		return SQL_ERROR;
+	}
+
+	/*
+	 * When the driver gave the connection up, CC_on_abort(CONN_DEAD) has
+	 * already cleared the in-transaction flag, so the test below would take
+	 * a discarded transaction for one without work to commit, and report
+	 * success for work the server rolled back. A commit on a connection in
+	 * this state fails instead. SQL_ROLLBACK is left alone, because the
+	 * server has indeed rolled the transaction back.
+	 */
+	if (SQL_COMMIT == fType && CONN_DOWN == conn->status)
+	{
+		CC_set_error(conn, CONNECTION_COMMUNICATION_ERROR, "Could not commit, the connection was lost", func);
+		CC_log_error(func, "", conn);
 		return SQL_ERROR;
 	}
 
@@ -1391,11 +1441,6 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	}
 	conn = SC_get_conn(stmt);
 
-	if (stmt->execute_delegate)
-		estmt = stmt->execute_delegate;
-	else
-		estmt = stmt;
-
 	/*
 	 * SQLCancel works differently depending on what the statement is
 	 * currently doing:
@@ -1413,12 +1458,26 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 	 *    -> in ODBC version 2.0, same as SQLFreeStmt(SQL_CLOSE). In version
 	 *       3.5, it has no effect.
 	 *
-	 * XXX: Checking for these conditions is racy. For example, we might
-	 * see that the statement is waiting for SQLParamdata/SQLPutData, but
-	 * before we acquire the lock on the statement, another thread has
-	 * supplied the data and started executing. In that case, we'll block
-	 * on the lock until the execution finishes.
+	 * The function running in another thread holds the statement lock, and
+	 * it may free execute_delegate, so the delegate is read only under the
+	 * lock. If the lock is taken, another thread is in a call on this
+	 * statement. Whether that call is an execution shows in the fields
+	 * SC_SetExecuting() writes under the common lock: the status of this
+	 * statement, and delegate_executing when the executing statement is a
+	 * delegate. A call that is not an execution (SQLGetDiagRec() takes the
+	 * lock too) must not lead to a cancel request, which the server
+	 * applies to whatever query the connection is running, and so could
+	 * kill another statement's query.
 	 */
+	if (!TRY_ENTER_STMT_CS(stmt))
+	{
+		if (!SC_ExecutionInProgress(stmt))
+			return SQL_SUCCESS;
+		if (!CC_send_cancel_request(conn))
+			return SQL_ERROR;
+		return SQL_SUCCESS;
+	}
+	estmt = stmt->execute_delegate ? stmt->execute_delegate : stmt;
 	if (estmt->data_at_exec >= 0)
 	{
 		/* Waiting for more data from SQLParamData/SQLPutData. Cancel that. */
@@ -1426,32 +1485,15 @@ PGAPI_Cancel(HSTMT hstmt)		/* Statement to cancel. */
 		 * Note, any previous data-at-exec buffers will be freed
 		 * if they call SQLExecDirect or SQLExecute again.
 		 */
-
-		ENTER_STMT_CS(stmt);
 		SC_clear_error(stmt);
 		cancel_data_at_exec(stmt);
-		LEAVE_STMT_CS(stmt);
-		return ret;
 	}
-	else if (estmt->status == STMT_EXECUTING)
-	{
-		/*
-		 * Busy executing in a different thread. Send a cancel request to
-		 * the server.
-		 */
-		if (!CC_send_cancel_request(conn))
-			return SQL_ERROR;
-		else
-			return SQL_SUCCESS;
-	}
-	else
-	{
-		/*
-		 * The statement is not executing, and it's not waiting for params
-		 * either. Looks like it's not doing anything.
-		 */
-		return SQL_SUCCESS;
-	}
+	/*
+	 * Otherwise the statement is not executing, and it's not waiting for
+	 * params either. Looks like it's not doing anything.
+	 */
+	LEAVE_STMT_CS(stmt);
+	return ret;
 }
 
 
@@ -1533,8 +1575,9 @@ PGAPI_ParamData(HSTMT hstmt,
 	MYLOG(0, "\tdata_at_exec=%d, params_alloc=%d\n", estmt->data_at_exec, apdopts->allocated);
 
 	/*
-	 * Nothing is pending, so there is nothing to abandon: return without
-	 * going through cleanup, which would cancel an operation on stmt.
+	 * No parameter is pending, so this call has none to abandon: return
+	 * without going through cleanup, which would cancel an operation on
+	 * stmt.
 	 */
 	if (estmt->data_at_exec < 0)
 	{
@@ -1625,7 +1668,22 @@ MYPRINTF(DETAIL_LOG_LEVEL, " at exec buffer=%p", apdopts->parameters[i].buffer);
 				if (stmt->execute_delegate)
 				{
 					SQLULEN	offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
-					SQLLEN	perrow = apdopts->param_bind_type > 0 ? apdopts->param_bind_type : apdopts->parameters[i].buflen;
+					SQLLEN	perrow = apdopts->param_bind_type;
+
+					if (perrow <= 0)
+					{
+						/*
+						 * column-wise binding: the rows of a fixed-length
+						 * C type are sizeof(type) apart, BufferLength
+						 * only counts for character and binary data.
+						 */
+						Int2	ctype = apdopts->parameters[i].CType;
+
+						if (SQL_C_DEFAULT == ctype && i < ipdopts->allocated)
+							ctype = sqltype_to_default_ctype(conn, ipdopts->parameters[i].SQLType);
+						if (perrow = ctype_length(ctype), perrow <= 0)
+							perrow = apdopts->parameters[i].buflen;
+					}
 
 MYPRINTF(DETAIL_LOG_LEVEL, " offset=" FORMAT_LEN " perrow=" FORMAT_LEN, offset, perrow);
 					*prgbValue = apdopts->parameters[i].buffer + offset + estmt->exec_current_row * perrow;
@@ -1700,10 +1758,34 @@ PGAPI_PutData(HSTMT hstmt,
 	}
 
 	apdopts = SC_get_APDF(estmt);
-	current_param = &(apdopts->parameters[estmt->current_exec_param]);
+	/*
+	 * PGAPI_ParamData() chooses current_exec_param within the APD.
+	 * SQLBindParameter makes room for a parameter in the APD, the IPD and
+	 * the put-data array together, but setting descriptor fields makes
+	 * room in that one descriptor only. So the IPD and the put-data array
+	 * must be brought up to the APD's size here, and the parameter must
+	 * be inside all three before any of them is indexed. An array that
+	 * could not be allocated has a size of 0.
+	 */
 	ipdopts = SC_get_IPDF(estmt);
-	current_iparam = &(ipdopts->parameters[estmt->current_exec_param]);
 	pdata = SC_get_PDTI(estmt);
+	if (estmt->current_exec_param >= apdopts->allocated)
+	{
+		SC_set_error(stmt, STMT_SEQUENCE_ERROR, "The parameter SQLParamData asked for is not in the APD any more", func);
+		retval = SQL_ERROR;
+		goto cleanup;
+	}
+	extend_iparameter_bindings(ipdopts, apdopts->allocated);
+	extend_putdata_info(pdata, apdopts->allocated, FALSE);
+	if (estmt->current_exec_param >= ipdopts->allocated ||
+	    estmt->current_exec_param >= pdata->allocated)
+	{
+		SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Out of memory in PGAPI_PutData (0)", func);
+		retval = SQL_ERROR;
+		goto cleanup;
+	}
+	current_param = &(apdopts->parameters[estmt->current_exec_param]);
+	current_iparam = &(ipdopts->parameters[estmt->current_exec_param]);
 	current_pdata = &(pdata->pdata[estmt->current_exec_param]);
 	ctype = current_param->CType;
 
@@ -1847,6 +1929,13 @@ PGAPI_PutData(HSTMT hstmt,
 		/* calling SQLPutData more than once */
 		MYLOG(0, "(>1) cbValue = " FORMAT_LEN "\n", cbValue);
 
+		/* SQLBindParameter on this parameter frees what was put so far */
+		if (!current_pdata->EXEC_used)
+		{
+			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "The parameter was bound again after SQLPutData had data for it", func);
+			retval = SQL_ERROR;
+			goto cleanup;
+		}
 		if (*current_pdata->EXEC_used < 0)
 		{
 			SC_set_error(stmt, STMT_SEQUENCE_ERROR, "Cannot append data after a null or default parameter indicator", func);
@@ -1897,7 +1986,7 @@ PGAPI_PutData(HSTMT hstmt,
 				retval = SQL_ERROR;
 				goto cleanup;
 			}
-			/* a piece of length 0 is valid and adds nothing */
+			/* a piece of length 0 is valid and appends no byte */
 		}
 	}
 

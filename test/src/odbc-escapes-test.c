@@ -147,6 +147,13 @@ static void	escape_test(HSTMT hstmt)
 	executeQuery(hstmt);
 	printf("OUT param: %s\n", outbuf1);
 
+	prepareQuery(hstmt, "{ ? = call length(?) }");
+	memset(outbuf1, 0, sizeof(outbuf1));
+	bindOutParamString(hstmt, 1, NULL, outbuf1, sizeof(outbuf1) - 1, 0);
+	bindParamString(hstmt, 2, NULL, "foobar");
+	executeQuery(hstmt);
+	printf("OUT param: %s\n", outbuf1);
+
 	/* It's preferable to cast VARIADIC any fields */
 	prepareQuery(hstmt, "{ ? = call concat(?::text, ?::text) }");
 	memset(outbuf1, 0, sizeof(outbuf1));

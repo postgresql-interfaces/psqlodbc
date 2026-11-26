@@ -613,7 +613,7 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 	LPCSTR		lpsz;
 	LPCSTR		lpszStart;
 	char		aszKey[MAXKEYLEN];
-	size_t		cbKey;
+	size_t		cbKey, cbValue;
 	char		value[MAXPGPATH];
 
 	for (lpsz = lpszAttributes; *lpsz; lpsz++)
@@ -630,21 +630,37 @@ ParseAttributes(LPCSTR lpszAttributes, LPSETUPDLG lpsetupdlg)
 			else if (*lpsz == '=')
 				break;			/* Valid key found */
 		}
-		/* Determine the key's index in the key table (-1 if not found) */
+		/*
+		 * Skip a pair whose key or value does not fit.  Keeping it means
+		 * leaving aszKey as it is, which gives the value to the previous
+		 * key, and copying a value of MAXPGPATH bytes or more without its
+		 * NUL.  Truncating is no better: a cut password or host is
+		 * silently wrong.
+		 */
 		cbKey = lpsz - lpszStart;
-		if (cbKey < sizeof(aszKey))
+		if (cbKey >= sizeof(aszKey))
 		{
-			memcpy(aszKey, lpszStart, cbKey);
-			aszKey[cbKey] = '\0';
+			MYLOG(0, "skipping an attribute whose key is " FORMAT_SIZE_T " bytes long\n", cbKey);
+			for (; *lpsz; lpsz++)
+				;
+			continue;
 		}
+		memcpy(aszKey, lpszStart, cbKey);
+		aszKey[cbKey] = '\0';
 
 		/* Locate end of key value */
 		lpszStart = ++lpsz;
 		for (; *lpsz; lpsz++)
 			;
+		cbValue = lpsz - lpszStart;
+		if (cbValue >= sizeof(value))
+		{
+			MYLOG(0, "skipping aszKey='%s': its value is " FORMAT_SIZE_T " bytes long\n", aszKey, cbValue);
+			continue;
+		}
 
 		/* lpsetupdlg->aAttr[iElement].fSupplied = TRUE; */
-		memcpy(value, lpszStart, MIN(lpsz - lpszStart + 1, MAXPGPATH));
+		memcpy(value, lpszStart, cbValue + 1);
 
 		/*
 		 * Not the value: it may be a password.  copyConnAttributes() logs

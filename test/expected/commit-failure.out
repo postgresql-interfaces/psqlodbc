@@ -1,0 +1,9 @@
+connected
+SQLEndTran with a deferred violation: reported an error
+autocommit on with a deferred violation: reported an error
+rows in commitfail_c: 0
+disconnecting
+connected
+failing statement: reported an error
+SQLEndTran of a failed transaction: reported an error
+disconnecting

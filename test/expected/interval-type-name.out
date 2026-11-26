@@ -1,0 +1,10 @@
+connected
+plain_interval: SQL_DESC_TYPE_NAME: interval (length 8)
+plain_interval: SQL_DESC_LOCAL_TYPE_NAME: interval (length 8)
+interval_day: SQL_DESC_TYPE_NAME: interval day (length 12)
+interval_day: SQL_DESC_LOCAL_TYPE_NAME: interval day (length 12)
+interval_year_to_month: SQL_DESC_TYPE_NAME: interval year to month (length 22)
+interval_year_to_month: SQL_DESC_LOCAL_TYPE_NAME: interval year to month (length 22)
+interval_second: SQL_DESC_TYPE_NAME: interval second (length 15)
+interval_second: SQL_DESC_LOCAL_TYPE_NAME: interval second (length 15)
+disconnecting

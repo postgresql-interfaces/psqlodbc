@@ -608,14 +608,20 @@ MYLOG(DETAIL_LOG_LEVEL, "hlen=" FORMAT_SSIZE_T "\n", hlen);
 static void
 unfoldCXAttribute(ConnInfo *ci, const char *value)
 {
-	int	count;
-	UInt4	flag;
+	int	count = 0;
+	UInt4	flag = 0;
 	int	status = 0;
 
+	/*
+	 * secure_sscanf() leaves its arguments untouched when the string
+	 * holds no field to parse. Leave the options alone when the flag
+	 * word is missing instead of applying an indeterminate value.
+	 */
 	if (strlen(value) < 2)
 	{
 		count = 3;
-		secure_sscanf(value, &status, "%x", ARG_UINT(&flag));
+		if (secure_sscanf(value, &status, "%x", ARG_UINT(&flag)) < 1)
+			return;
 	}
 	else
 	{
@@ -623,7 +629,8 @@ unfoldCXAttribute(ConnInfo *ci, const char *value)
 		memcpy(cnt, value, 2);
 		cnt[2] = '\0';
 		secure_sscanf(cnt, &status, "%x", ARG_UINT(&count));
-		secure_sscanf(value + 2, &status, "%x", ARG_UINT(&flag));
+		if (secure_sscanf(value + 2, &status, "%x", ARG_UINT(&flag)) < 1)
+			return;
 	}
 	ci->allow_keyset = (char)((flag & BIT_UPDATABLECURSORS) != 0);
 	ci->lf_conversion = (char)((flag & BIT_LFCONVERSION) != 0);
@@ -742,7 +749,8 @@ copyConnAttributes(ConnInfo *ci, const char *attribute, const char *value)
 	}
 	else if (stricmp(attribute, INI_PQOPT) == 0 || stricmp(attribute, ABBR_PQOPT) == 0)
 	{
-		char	*hide_str = hide_conninfo_secrets(value);
+		char	*hide_str = get_mylog() ?
+			hide_conninfo_secrets(value) : NULL;
 
 		NULL_THE_NAME(ci->pqopt);
 		ci->pqopt_in_str = TRUE;
@@ -1116,7 +1124,7 @@ MYLOG(0, "drivername=%s\n", drivername);
 		 */
 		for (ptr = (UCHAR *) temp, pspace = TRUE, nspcnt = 0; *ptr; ptr++)
 		{
-			if (isspace(*ptr))
+			if (isspace((UCHAR) *ptr))
 				pspace = TRUE;
 			else
 			{

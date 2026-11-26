@@ -987,6 +987,9 @@ MYLOG(0, " c16dt=%p size=" FORMAT_SIZE_T "\n", c16dt, n);
 			if (c16dt)
 				c16dt[i] = PG_CARRIAGE_RETURN;
 			i++;
+			/* the CR may have taken the last slot */
+			if (c16dt && i >= n)
+				break;
 		}
 		brtn = mbrtoc16(c16dt ? c16dt + i : NULL, cdt, 4, &mbst);
 		if (0 == brtn)
@@ -998,7 +1001,7 @@ MYLOG(0, " c16dt=%p size=" FORMAT_SIZE_T "\n", c16dt, n);
 			continue;
 		cdt += brtn;
 	}
-	if (c16dt && i >= n)
+	if (c16dt && n > 0 && i >= n)
 		c16dt[n - 1] = 0;
 
 	return i;

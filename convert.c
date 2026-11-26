@@ -1457,7 +1457,7 @@ MYLOG(0, "null_cvt_date_string=%d\n", conn->connInfo.cvt_null_date_string);
 				case SQL_C_DEFAULT:
 					if (rgbValueBindRow && cbValueMax >= sizeof(DATE_STRUCT))
 					{
-						pg_memset(rgbValueBindRow, 0, cbValueMax);
+						pg_memset(rgbValueBindRow, 0, sizeof(DATE_STRUCT));
 						if (pcbValueBindRow)
 							*pcbValueBindRow = sizeof(DATE_STRUCT);
 					}
@@ -1671,7 +1671,7 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 					while (IS_NOT_SPACE(*vp))
 						vp++;
 					/* and skip the space to the next token */
-					while ((*vp != '\0') && (isspace(*vp)))
+					while ((*vp != '\0') && (isspace((UCHAR) *vp)))
 						vp++;
 					if (*vp == '\0')
 						break;
@@ -1684,6 +1684,9 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 				len = (nval + 1) * sizeof(short);
 				if (pcbValue)
 					*pcbValueBindRow = len;
+				/* no piecewise retrieval here: the column is done either way */
+				if (cbValueMax > 0 && stmt->current_col >= 0)
+					gdata->gdata[stmt->current_col].data_left = 0;
 
 				if (len <= cbValueMax)
 					return COPY_OK; /* dont go any further or the data will be
@@ -1833,6 +1836,8 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 		if (pre_convert)
 			neut_str = midtemp;
 		result = convert_text_field_to_sql_c(gdata, stmt->current_col, neut_str, field_type, fCType, rgbValueBindRow, cbValueMax, conn, &len);
+		if (COPY_GENERAL_ERROR == result)
+			SC_set_error(stmt, STMT_NO_MEMORY_ERROR, "Could not allocate memory for the field value", func);
 	}
 	else
 	{
@@ -2141,15 +2146,11 @@ MYLOG(DETAIL_LOG_LEVEL, "2stime fr=%d\n", std_time.fr);
 					UInt4	ival = ATOI32U(neut_str);
 
 MYLOG(DETAIL_LOG_LEVEL, "SQL_C_VARBOOKMARK value=%d\n", ival);
-					if (pcbValue)
-						*pcbValueBindRow = sizeof(ival);
-					if (cbValueMax >= sizeof(ival))
-					{
-						memcpy(rgbValueBindRow, &ival, sizeof(ival));
-						return COPY_OK;
-					}
+					len = sizeof(ival);
+					if (cbValueMax >= len)
+						memcpy(rgbValueBindRow, &ival, len);
 					else
-						return COPY_RESULT_TRUNCATED;
+						result = COPY_RESULT_TRUNCATED;
 				}
 				else if (PG_TYPE_UUID == field_type)
 				{
@@ -2157,21 +2158,27 @@ MYLOG(DETAIL_LOG_LEVEL, "SQL_C_VARBOOKMARK value=%d\n", ival);
 
 					if (COPY_OK != rtn)
 						return rtn;
-					if (pcbValue)
-						*pcbValueBindRow = sizeof(g);
-					if (cbValueMax >= sizeof(g))
-					{
-						memcpy(rgbValueBindRow, &g, sizeof(g));
-						return COPY_OK;
-					}
+					len = sizeof(g);
+					if (cbValueMax >= len)
+						memcpy(rgbValueBindRow, &g, len);
 					else
-						return COPY_RESULT_TRUNCATED;
+						result = COPY_RESULT_TRUNCATED;
 				}
 				else
 				{
 					MYLOG(0, "couldn't convert the type %d to SQL_C_BINARY\n", field_type);
 					return COPY_UNSUPPORTED_TYPE;
 				}
+				/*
+				 * These values are stored whole or not at all, so a
+				 * SQLGetData() whose buffer was too small is done with
+				 * the column as well (COPY_OK is handled below); otherwise
+				 * every later call would return the value again and never
+				 * SQL_NO_DATA.  A call with cbValueMax == 0 just asks for
+				 * the length, as in setup_getdataclass().
+				 */
+				if (COPY_RESULT_TRUNCATED == result && cbValueMax > 0 && stmt->current_col >= 0)
+					gdata->gdata[stmt->current_col].data_left = 0;
 				break;
 			case SQL_C_GUID:
 
@@ -2362,6 +2369,8 @@ typedef struct _QueryBuild {
 }	QueryBuild;
 
 #define INIT_MIN_ALLOC	4096
+/* the largest query message the server takes */
+#define MAX_CONVERTED_STATEMENT_SIZE	((size_t) 0x40000000)
 /*
  * convert_escape() recurses once for every {fn ...( )} escape nested in
  * the argument list of another, with well over 1kB of stack per level.
@@ -2408,7 +2417,7 @@ QB_initialize(QueryBuild *qb, size_t size, StatementClass *stmt, ResolveParamMod
 		qb->flags |= FLGB_CONVERT_LF;
 	qb->ccsc = qb->conn->ccsc;
 	if (CC_get_escape(qb->conn) &&
-	    PG_VERSION_GE(qb->conn, 8.1))
+	    CC_can_write_literal_extension(qb->conn))
 		qb->flags |= FLGB_LITERAL_EXTENSION;
 	if (PG_VERSION_GE(qb->conn, 9.0))
 		qb->flags |= FLGB_HEX_BIN_FORMAT;
@@ -2584,13 +2593,24 @@ static ssize_t
 enlarge_query_statement(QueryBuild *qb, size_t newsize)
 {
 	size_t	newalsize = INIT_MIN_ALLOC;
+	char	*newbuf = NULL;
 	CSTR func = "enlarge_statement";
 
-	while (newalsize <= newsize)
-		newalsize *= 2;
-	if (!(qb->query_statement = realloc(qb->query_statement, newalsize)))
+	/*
+	 * The server takes no query message over 1GB, and nested escapes such
+	 * as {fn insert(...)} that use an argument twice double the converted
+	 * text at every level, so a short statement could otherwise ask for
+	 * any amount of memory.
+	 */
+	if (newsize < MAX_CONVERTED_STATEMENT_SIZE)
 	{
-		qb->str_alsize = 0;
+		while (newalsize <= newsize)
+			newalsize *= 2;
+		newbuf = realloc(qb->query_statement, newalsize);
+	}
+	if (NULL == newbuf)
+	{
+		/* qb->query_statement is still allocated, and freed with qb */
 		if (qb->stmt)
 		{
 			SC_set_error(qb->stmt, STMT_EXEC_ERROR, "Query buffer allocate error in copy_statement_with_parameters", func);
@@ -2602,6 +2622,7 @@ enlarge_query_statement(QueryBuild *qb, size_t newsize)
 		}
 		return 0;
 	}
+	qb->query_statement = newbuf;
 	qb->str_alsize = newalsize;
 	return newalsize;
 }
@@ -3068,6 +3089,11 @@ MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 	SC_scanQueryAndCountParams(orgquery, conn, &endp1, &num_p1, &multi, NULL);
 	SC_scanQueryAndCountParams(srvquery, conn, &endp2, NULL, NULL, NULL);
 	MYLOG(0, "parsed for the first command length=" FORMAT_SSIZE_T "(" FORMAT_SSIZE_T ") num_p=%d\n", endp2, endp1, num_p1);
+	/*
+	 * Discard the list built by a previous (not completed) prepare attempt
+	 * of this statement, otherwise it would be lost.
+	 */
+	SC_free_processed_statements(stmt);
 	pstmt = buildProcessedStmt(srvquery,
 							   endp2 < 0 ? SQL_NTS : endp2,
 							   fake_params ? 0 : num_p1);
@@ -3079,6 +3105,16 @@ MYLOG(DETAIL_LOG_LEVEL, "entering\n");
 	stmt->processed_statements = last_pstmt = pstmt;
 	while (multi > 0)
 	{
+		/*
+		 * The original query has another command, so the converted
+		 * one must have one too. Otherwise srvquery would not advance
+		 * and the rest of it would be copied once per remaining command.
+		 */
+		if (endp2 < 0)
+		{
+			SC_set_error(stmt, STMT_INTERNAL_ERROR, "The converted query has fewer commands than the original one", func);
+			goto cleanup;
+		}
 		orgquery += (endp1 + 1);
 		srvquery += (endp2 + 1);
 		num_pa += num_p1;
@@ -3408,7 +3444,7 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 
 		if (npos = F_NewPos(qb) - 1, npos >= 0)
 			ptr = F_NewPtr(qb) - 1;
-		for (; npos >= 0 && isspace(*ptr); npos--, ptr--) ;
+		for (; npos >= 0 && isspace((UCHAR) *ptr); npos--, ptr--) ;
 		if (npos >= 0 && semi_colon == *ptr)
 		{
 			qb->npos = npos;
@@ -3703,7 +3739,7 @@ eatTableIdentifiers(const UCHAR *str, const ConnectionClass *conn, pgNAME *table
 	const UCHAR *next_token;
 	const UCHAR *tstr = str;
 
-	while (isspace(*tstr)) tstr++;
+	while (isspace((UCHAR) *tstr)) tstr++;
 
 	if ((len = findIdentifier(tstr, ccsc, &next_token)) <= 0)
 		return len;	/* table name doesn't exist */
@@ -4178,7 +4214,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							 * server), so never hand its result to
 							 * CVT_APPEND_STR() unchecked.
 							 */
-							CVT_APPEND_STR(qb, "currval(pg_get_serial_sequence('");
+							CVT_APPEND_STR(qb, "currval(pg_get_serial_sequence(");
+							CVT_APPEND_STR(qb, CC_literal_prefix(conn));
+							CVT_APPEND_STR(qb, "'");
 							if (NAME_IS_VALID(conn->schemaIns))
 							{
 								if (NULL != (escaped = identifierEscape((const SQLCHAR *) SAFE_NAME(conn->schemaIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE)))
@@ -4187,7 +4225,9 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 							}
 							if (NULL != (escaped = identifierEscape((const SQLCHAR *) SAFE_NAME(conn->tableIns), SQL_NTS, conn, relcnv, sizeof(relcnv), TRUE)))
 								CVT_APPEND_STR(qb, escaped);
-							CVT_APPEND_STR(qb, "','");
+							CVT_APPEND_STR(qb, "',");
+							CVT_APPEND_STR(qb, CC_literal_prefix(conn));
+							CVT_APPEND_STR(qb, "'");
 							if (NULL != (escaped = identifierEscape((const SQLCHAR *) column_name, SQL_NTS, conn, relcnv, sizeof(relcnv), FALSE)))
 								CVT_APPEND_STR(qb, escaped);
 							CVT_APPEND_STR(qb, "')::regclass)");
@@ -4195,11 +4235,19 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 					}
 				}
 			}
-			TI_ClearObject(pti);
+			{
+				int		entered = 0;
+
+				/* the refcnt of the connection's column info */
+				ENTER_INNER_CONN_CS(conn, entered);
+				TI_ClearObject(pti);
+				CLEANUP_FUNC_CONN_CS(entered, conn);
+			}
 		}
 		if (!converted)
 			CVT_APPEND_STR(qb, "NULL");
-		qp->opos += 10;
+		/* skip the rest of @@identity; the caller's loop steps over its last character */
+		qp->opos += 9;
 		return SQL_SUCCESS;
 	}
 
@@ -4463,12 +4511,13 @@ build_libpq_bind_params(StatementClass *stmt,
 	CSTR func = "build_libpq_bind_params";
 	QueryBuild	qb;
 	SQLSMALLINT	num_p;
-	int			i, num_params;
+	int			i, num_params, pno = 0;
 	ConnectionClass	*conn = SC_get_conn(stmt);
 	BOOL		ret = FALSE, discard_output;
 	RETCODE		retval;
 	const		IPDFields *ipdopts = SC_get_IPDF(stmt);
 
+	*nParams = 0;
 	*paramTypes = NULL;
 	*paramValues = NULL;
 	*paramLengths = NULL;
@@ -4519,11 +4568,9 @@ build_libpq_bind_params(StatementClass *stmt,
 	num_p = num_params - qb.num_discard_params;
 MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 	discard_output = (0 != (qb.flags & FLGB_DISCARD_OUTPUT));
-	*nParams = 0;
 	if (num_p > 0)
 	{
 		ParameterImplClass	*parameters = ipdopts->parameters;
-		int	pno;
 
 		BOOL	isnull;
 		BOOL	isbinary;
@@ -4533,7 +4580,7 @@ MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 		/*
 		 * Now build the parameter values.
 		 */
-		for (i = 0, pno = 0; i < stmt->num_params; i++)
+		for (i = 0; i < stmt->num_params; i++)
 		{
 			qb.npos = 0;
 			retval = ResolveOneParam(&qb, NULL, &isnull, &isbinary, &pgType);
@@ -4561,6 +4608,8 @@ MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 			}
 			if (!isnull)
 			{
+				if (qb.npos > INT_MAX)
+					goto cleanup;
 				val_copy = malloc(qb.npos + 1);
 				if (!val_copy)
 					goto cleanup;
@@ -4569,8 +4618,6 @@ MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 
 				(*paramTypes)[pno] = pgType;
 				(*paramValues)[pno] = val_copy;
-				if (qb.npos > INT_MAX)
-					goto cleanup;
 				(*paramLengths)[pno] = (int) qb.npos;
 			}
 			else
@@ -4585,7 +4632,6 @@ MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 
 			pno++;
 		}
-		*nParams = pno;
 	}
 
 	/* result format is text */
@@ -4595,6 +4641,12 @@ MYLOG(DETAIL_LOG_LEVEL, "num_p=%d\n", num_p);
 
 cleanup:
 	QB_Destructor(&qb);
+	/*
+	 * The caller frees the first *nParams entries of *paramValues, so
+	 * report the entries filled so far even when we bail out of the
+	 * loop above; otherwise the copies made before the error leak.
+	 */
+	*nParams = pno;
 
 	return ret;
 }
@@ -4802,12 +4854,12 @@ parameter_is_with_cast(const QueryParse *qp)
 	const char *str = F_OldPtr(qp);
 
 	if ('?' != *str)	return FALSE;
-	while (isspace(*(++str))) ;
+	while (isspace((UCHAR) *(++str))) ;
 	if (strncmp(str, "::", 2) == 0)
 		return TRUE;
 	if (strnicmp(str, "as", 2) != 0)
 		return FALSE;
-	if (isspace(str[2]))
+	if (isspace((UCHAR) str[2]))
 		return TRUE;
 	return FALSE;
 }
@@ -4817,12 +4869,14 @@ enum {
 	ErrorOutConversionErrors	/* error out conversion errors */
 	, ReturnZeroLengthString	/* simply returns zero length strings */
 };
-static int convert_err_flag =
-#ifdef	WIN32
-	 ReturnZeroLengthString;
-#else
-	 ErrorOutConversionErrors;
-#endif /* WIN32 */
+/*
+ * A character parameter that cannot be converted from the ANSI code page is
+ * an error on every platform.  Returning a zero-length string instead runs
+ * the statement with a 01S01 warning, and the server then compares or
+ * stores '' in place of the value the application checked, so this flag
+ * stays at ErrorOutConversionErrors.
+ */
+static int convert_err_flag = ErrorOutConversionErrors;
 
 static BOOL
 handle_lu_onvert_error(QueryBuild *qb, int flag, char *buffer, SQLLEN paralen)
@@ -4931,7 +4985,7 @@ ResolveOneParam(QueryBuild *qb, QueryParse *qp, BOOL *isnull, BOOL *isbinary,
 	SQLLEN		used;
 	const char	*send_buf;
 
-	char		*buffer, *allocbuf = NULL, *lastadd = NULL;
+	char		*buffer, *allocbuf = NULL, *binbuf, *lastadd = NULL;
 	OID			lobj_oid;
 	int			lobj_fd;
 	SQLULEN		offset = apdopts->param_offset_ptr ? *apdopts->param_offset_ptr : 0;
@@ -5102,6 +5156,37 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 	 * those cases.
 	 */
 
+	param_ctype = apara->CType;
+	param_sqltype = ipara->SQLType;
+	param_pgtype = PIC_dsp_pgtype(qb->conn, *ipara);
+
+	/* XXX: should we use param_pgtype here instead? */
+	*pgType = sqltype_to_bind_pgtype(conn, param_sqltype);
+
+	if (0 == param_sqltype) /* calling SQLSetStmtAttr(.., SQL_ATTR_APP_PARAM_DES, an ARD of another statement) may cause this */
+	{
+		if (0 != param_pgtype)
+		{
+			param_sqltype = pgtype_attr_to_concise_type(conn, param_pgtype, PG_ATP_UNSET, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
+			MYLOG(0, "convert from pgtype(%u) to sqltype(%d)\n", param_pgtype, param_sqltype);
+		}
+	}
+
+	/*
+	 * replace DEFAULT with something we can use. This must be done before
+	 * the address of the current row is computed below, which needs the
+	 * length of the real C type for column-wise bound arrays.
+	 */
+	if (param_ctype == SQL_C_DEFAULT)
+	{
+		param_ctype = sqltype_to_default_ctype(conn, param_sqltype);
+#ifdef	UNICODE_SUPPORT
+		if (param_ctype == SQL_C_WCHAR
+		    && CC_default_is_c(conn))
+			param_ctype =SQL_C_CHAR;
+#endif
+	}
+
 	/* Assign correct buffers based on data at exec param or not */
 	if (apara->data_at_exec)
 	{
@@ -5123,7 +5208,7 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 		{
 			if (bind_size > 0)
 				buffer += (bind_size * current_row);
-			else if (ctypelen = ctype_length(apara->CType), ctypelen > 0)
+			else if (ctypelen = ctype_length(param_ctype), ctypelen > 0)
 				buffer += current_row * ctypelen;
 			else
 				buffer += current_row * apara->buflen;
@@ -5168,22 +5253,6 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 		return SQL_SUCCESS;
 	} */
 
-	param_ctype = apara->CType;
-	param_sqltype = ipara->SQLType;
-	param_pgtype = PIC_dsp_pgtype(qb->conn, *ipara);
-
-	/* XXX: should we use param_pgtype here instead? */
-	*pgType = sqltype_to_bind_pgtype(conn, param_sqltype);
-
-	if (0 == param_sqltype) /* calling SQLSetStmtAttr(.., SQL_ATTR_APP_PARAM_DES, an ARD of another statement) may cause this */
-	{
-		if (0 != param_pgtype)
-		{
-			param_sqltype = pgtype_attr_to_concise_type(conn, param_pgtype, PG_ATP_UNSET, PG_ADT_UNSET, PG_UNKNOWNS_UNSET);
-			MYLOG(0, "convert from pgtype(%u) to sqltype(%d)\n", param_pgtype, param_sqltype);
-		}
-	}
-
 	MYLOG(0, "from(fcType)=%d, to(fSqlType)=%d(%u), *pgType=%u\n",
 		  param_ctype, param_sqltype, param_pgtype, *pgType);
 
@@ -5225,17 +5294,6 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 		}
 	}
 
-	/* replace DEFAULT with something we can use */
-	if (param_ctype == SQL_C_DEFAULT)
-	{
-		param_ctype = sqltype_to_default_ctype(conn, param_sqltype);
-#ifdef	UNICODE_SUPPORT
-		if (param_ctype == SQL_C_WCHAR
-		    && CC_default_is_c(conn))
-			param_ctype =SQL_C_CHAR;
-#endif
-	}
-
 	/*
 	 * SQLSetPos() and SQLBulkOperations() bind the application's column
 	 * buffers as the parameters of an internal statement (whose
@@ -5264,6 +5322,30 @@ MYLOG(DETAIL_LOG_LEVEL, "ipara=%p paramName=%s paramType=%d %d proc_return=%d\n"
 		qb->errormsg = "the bound buffer holds only part of the column value";
 		qb->errornumber = STMT_EXEC_ERROR;
 		return SQL_ERROR;
+	}
+
+	/*
+	 * For character and binary C types 'used' is the byte count of the
+	 * value or SQL_NTS from here on. Reject other negative values
+	 * (SQL_NO_TOTAL, SQL_COLUMN_IGNORE, ...) as SQLPutData does instead
+	 * of using them as a length. Data-at-exec lengths are only recognized
+	 * at execution time, so when faking parameters treat them as unknown
+	 * values.
+	 */
+	switch (param_ctype)
+	{
+		case SQL_C_CHAR:
+		case SQL_C_BINARY:
+#ifdef	UNICODE_SUPPORT
+		case SQL_C_WCHAR:
+#endif /* UNICODE_SUPPORT */
+			if (used < 0 && used != SQL_NTS)
+			{
+				qb->errormsg = "Invalid string or buffer length";
+				qb->errornumber = STMT_INVALID_ARGUMENT_NO;
+				return SQL_ERROR;
+			}
+			break;
 	}
 
 	allocbuf = NULL;
@@ -5728,12 +5810,24 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 							used = strlen(send_buf);
 							break;
 					}
-					allocbuf = malloc(used / 2 + 1);
-					if (allocbuf)
+					binbuf = malloc(used / 2 + 1);
+					if (!binbuf)
 					{
-						used = pg_hex2bin(send_buf, allocbuf, used);
-						send_buf = allocbuf;
+						qb->errormsg = "Could not allocate memory for the binary parameter";
+						qb->errornumber = STMT_NO_MEMORY_ERROR;
+						goto cleanup;
 					}
+					used = pg_hex2bin(send_buf, binbuf, used);
+					/*
+					 * send_buf may be the converted copy owned by
+					 * allocbuf (SQL_C_WCHAR, or SQL_C_CHAR in a locale
+					 * whose encoding differs from the connection's);
+					 * release it before allocbuf takes over the
+					 * decoded buffer.
+					 */
+					if (allocbuf)
+						free(allocbuf);
+					send_buf = allocbuf = binbuf;
 					break;
 				default:
 					qb->errormsg = "Could not convert the ctype to binary type";
@@ -5790,6 +5884,9 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldn't create (in-line) large object.";
+					/* don't leave the (aborted) in-line transaction behind */
+					if (!is_in_trans_at_entry)
+						CC_abort(conn);
 					goto cleanup;
 				}
 
@@ -5799,6 +5896,8 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldn't open (in-line) large object for writing.";
+					if (!is_in_trans_at_entry)
+						CC_abort(conn);
 					goto cleanup;
 				}
 
@@ -5811,6 +5910,8 @@ MYLOG(0, "cvt_null_date_string=%d pgtype=%d send_buf=%p\n", conn->connInfo.cvt_n
 				{
 					qb->errornumber = STMT_EXEC_ERROR;
 					qb->errormsg = "Couldn't write to (in-line) large object.";
+					if (!is_in_trans_at_entry)
+						CC_abort(conn);
 					goto cleanup;
 				}
 
@@ -6347,7 +6448,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 				int i, from, to;
 				const char * p;
 
-				for (i = param_pos[0][0], p = nqb.query_statement + i; i <= param_pos[0][1] && isspace(*p); i++, p++)
+				for (i = param_pos[0][0], p = nqb.query_statement + i; i <= param_pos[0][1] && isspace((UCHAR) *p); i++, p++)
 					;
 				from = i;
 				for (; i <= param_pos[0][1] && IS_NOT_SPACE(*p); i++, p++)
@@ -6416,7 +6517,7 @@ convert_escape(QueryParse *qp, QueryBuild *qb)
 						memcpy(sqltype, nqb.query_statement + from, typel);
 						sqltype[typel] = '\0';
 MYLOG(0, FORMAT_LEN "-" FORMAT_LEN " SQLtype=%s SQL_BIT=%d\n", to, from, sqltype, SQL_BIT);
-						for (type = sqltype; *type && isspace(*type); type++)
+						for (type = sqltype; *type && isspace((UCHAR) *type); type++)
 							;
 						if (strncmp(type, "SQL_", 4) == 0)
 						{
@@ -6619,6 +6720,7 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 	int			nf;
 	int			status = 0;
 	BOOL	bZone;	int	zone;
+	BOOL	year_first;
 
 	y = m = d = hh = mm = ss = 0;
 	st->fr = 0;
@@ -6640,7 +6742,9 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 	bZone = FALSE;
 	if (timestamp2stime(buf, st, &bZone, &zone))
 		return TRUE;
-	if (buf[4] == '-')			/* year first */
+	/* don't look at buf[4] unless the string is at least that long */
+	year_first = (strlen(buf) > 4 && buf[4] == '-');
+	if (year_first)
 		nf = secure_sscanf(buf, &status, "%4d-%2d-%2d %2d:%2d:%2d",
 				ARG_INT(&y), ARG_INT(&m), ARG_INT(&d),
 				ARG_INT(&hh), ARG_INT(&mm), ARG_INT(&ss));
@@ -6661,7 +6765,7 @@ parse_datetime(const char *buf, SIMPLE_TIME *st)
 		return TRUE;
 	}
 
-	if (buf[4] == '-')			/* year first */
+	if (year_first)
 		nf = secure_sscanf(buf, &status, "%4d-%2d-%2d",
 				ARG_INT(&y), ARG_INT(&m), ARG_INT(&d));
 	else
@@ -7138,6 +7242,15 @@ convert_lo(StatementClass *stmt, const void *value, SQLSMALLINT fCType, PTR rgbV
 		stmt->lobj_fd = odbc_lo_open(conn, oid, INV_READ);
 		if (stmt->lobj_fd < 0)
 		{
+			/*
+			 * The failed lo_open has aborted the transaction.  In
+			 * autocommit mode it is the driver's own (begun above or
+			 * for the cursor), not the application's, so end it here;
+			 * otherwise every later query on this connection fails
+			 * with 25P02 and SQLEndTran can't get rid of it.
+			 */
+			if (CC_does_autocommit(conn))
+				CC_abort(conn);
 			SC_set_error(stmt, STMT_EXEC_ERROR, "Couldnt open large object for reading.", func);
 			return COPY_GENERAL_ERROR;
 		}

@@ -41,8 +41,7 @@ char		EN_get_error(EnvironmentClass *self, int *number, char **message);
 char		EN_add_connection(EnvironmentClass *self, ConnectionClass *conn);
 char		EN_remove_connection(EnvironmentClass *self, ConnectionClass *conn);
 void		EN_log_error(const char *func, char *desc, EnvironmentClass *self);
-int	getConnCount(void);
-ConnectionClass * const *getConnList(void);
+ConnectionClass **EN_get_connections(const EnvironmentClass *env, int *count);
 
 #define	EN_OV_ODBC2	1L
 #define	EN_CONN_POOLING	(1L<<1)

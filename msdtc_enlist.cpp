@@ -714,6 +714,34 @@ HRESULT IAsyncPG::ReleaseConnection(void)
 	{
 		isolateXAConn(true, false);
 	}
+	else if (!isolated && !done && dtcconn)
+	{
+		/*
+		 * The session was lost (the connection is no longer CONN_CONNECTED),
+		 * and the application is about to free the connection.  Detach it,
+		 * or AbortRequest, PrepareRequest and SetDone would use the freed
+		 * ConnectionClass.  Without a connection AbortRequest skips the local
+		 * rollback, which the server has already done, and PrepareExec fails
+		 * with E_UNEXPECTED, so the global transaction aborts.
+		 *
+		 * Don't isolate a dead connection instead: getLockedXAConn() would
+		 * reconnect the copy, and a one-phase commit on the new session would
+		 * report success for work that was lost with the old one.
+		 */
+		SLOCK_RELEASE();
+		ELOCK_ACQUIRE();
+		LIFELOCK_ACQUIRE;
+		SLOCK_ACQUIRE();
+		if (!isolated && !done && dtcconn)
+		{
+			mylog("%p->ReleaseConnection detaches the lost connection %p\n", this, dtcconn);
+			PgDtc_set_async(dtcconn, NULL);
+			dtcconn = NULL;
+		}
+		SLOCK_RELEASE();
+		LIFELOCK_RELEASE;
+		ELOCK_RELEASE();
+	}
 	else
 		SLOCK_RELEASE();
 	mylog("%p->ReleaseConnection exit\n", this);
@@ -1299,9 +1327,20 @@ EXTERN_C RETCODE EnlistInDtc(void *conn, void *pTra, int method)
 		PgDtc_set_property(conn, enlisted, (void *) 0);
 		return SQL_SUCCESS;
 	}
+	/*
+	 * End the local transaction here, before anything is enlisted, and
+	 * refuse to enlist when that fails. PgDtc_set_async() switches
+	 * autocommit off once the enlistment is made, which would commit a
+	 * transaction still open then, and it cannot report a failed commit.
+	 */
 	if (CONN_IS_IN_TRANS(conn))
 	{
-		PgDtc_one_phase_operation(conn, SHUTDOWN_LOCAL_TRANSACTION);
+		if (!PgDtc_one_phase_operation(conn, SHUTDOWN_LOCAL_TRANSACTION) ||
+			CONN_IS_IN_TRANS(conn))
+		{
+			PgDtc_set_error(conn, "enlistment error:could not end the local transaction", __FUNCTION__);
+			return SQL_ERROR;
+		}
 	}
 	HRESULT	hres;
 	pDtc = getITransactionDispenser(OLE_TM_FLAG_NODEMANDSTART, &hres);

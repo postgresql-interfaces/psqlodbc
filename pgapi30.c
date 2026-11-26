@@ -19,6 +19,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 
 
 #include "environ.h"
@@ -30,6 +33,130 @@
 #include "loadlib.h"
 #include "dlg_specific.h"
 
+
+/*
+ * SQLGetDiagRec and SQLGetDiagField read the errors a statement or a
+ * connection holds, which a call running on another thread may clear,
+ * free or replace.  Take the handle's lock around them, as the other
+ * entry points do, but without clearing its errors.  Environment and
+ * descriptor handles are not locked here.
+ */
+void
+DiagLockHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
+{
+	if (NULL == Handle)
+		return;
+	switch (HandleType)
+	{
+		case SQL_HANDLE_DBC:
+			ENTER_CONN_CS((ConnectionClass *) Handle);
+			break;
+		case SQL_HANDLE_STMT:
+			ENTER_STMT_CS((StatementClass *) Handle);
+			break;
+	}
+}
+
+void
+DiagUnlockHandle(SQLSMALLINT HandleType, SQLHANDLE Handle)
+{
+	if (NULL == Handle)
+		return;
+	switch (HandleType)
+	{
+		case SQL_HANDLE_DBC:
+			LEAVE_CONN_CS((ConnectionClass *) Handle);
+			break;
+		case SQL_HANDLE_STMT:
+			LEAVE_STMT_CS((StatementClass *) Handle);
+			break;
+	}
+}
+
+/*
+ * The statement an implicit descriptor (the ARD, APD, IRD or IPD that
+ * the driver allocates with a statement) belongs to, or NULL for an
+ * explicit descriptor, which may be attached to any number of statements.
+ */
+static StatementClass *
+desc_owner_stmt(SQLHDESC hdesc)
+{
+	DescriptorClass	*desc = (DescriptorClass *) hdesc;
+	char	   *p = (char *) desc;
+
+	if (NULL == desc || !DC_get_embedded(desc))
+		return NULL;
+	switch (desc->deschd.desc_type)
+	{
+		case SQL_ATTR_APP_ROW_DESC:
+			return (StatementClass *) (p - offsetof(StatementClass, ardi));
+		case SQL_ATTR_APP_PARAM_DESC:
+			return (StatementClass *) (p - offsetof(StatementClass, apdi));
+		case SQL_ATTR_IMP_ROW_DESC:
+			return (StatementClass *) (p - offsetof(StatementClass, irdi));
+		case SQL_ATTR_IMP_PARAM_DESC:
+			return (StatementClass *) (p - offsetof(StatementClass, ipdi));
+	}
+	return NULL;
+}
+
+/* the owners of one or two descriptors, distinct, in address order */
+static void
+desc_owners(SQLHDESC a, SQLHDESC b, StatementClass **first, StatementClass **second)
+{
+	StatementClass	*s1 = desc_owner_stmt(a), *s2 = desc_owner_stmt(b);
+
+	if (s1 == s2)
+		s2 = NULL;
+	if (NULL == s1)
+	{
+		s1 = s2;
+		s2 = NULL;
+	}
+	else if (NULL != s2 && (uintptr_t) s2 < (uintptr_t) s1)
+	{
+		StatementClass	*t = s1;
+
+		s1 = s2;
+		s2 = t;
+	}
+	*first = s1;
+	*second = s2;
+}
+
+/*
+ * The descriptor exports change a statement's bindings, which a call on
+ * that statement running on another thread (SQLFetch, SQLExecute) may be
+ * reading.  For an implicit descriptor, take its statement's lock around
+ * them.  An explicit descriptor is not locked: it has no single owner,
+ * and the application must not change it while a statement it is
+ * attached to is in a call on another thread.  hdesc2 is the second
+ * descriptor of SQLCopyDesc, or NULL; two statements are locked in
+ * address order.
+ */
+void
+DescLockHandle(SQLHDESC hdesc, SQLHDESC hdesc2)
+{
+	StatementClass	*s1, *s2;
+
+	desc_owners(hdesc, hdesc2, &s1, &s2);
+	if (s1)
+		ENTER_STMT_CS(s1);
+	if (s2)
+		ENTER_STMT_CS(s2);
+}
+
+void
+DescUnlockHandle(SQLHDESC hdesc, SQLHDESC hdesc2)
+{
+	StatementClass	*s1, *s2;
+
+	desc_owners(hdesc, hdesc2, &s1, &s2);
+	if (s2)
+		LEAVE_STMT_CS(s2);
+	if (s1)
+		LEAVE_STMT_CS(s1);
+}
 
 /*	SQLError -> SQLDiagRec */
 RETCODE		SQL_API
@@ -637,6 +764,19 @@ ARDSetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 				bookmark->used = Value;
 				break;
 			case SQL_DESC_OCTET_LENGTH:
+				/*
+				 * For SQL_C_VARBOOKMARK this is also the row stride of
+				 * column-wise binding, so a negative one would write
+				 * rows before the buffer. PGAPI_BindCol refuses it, and
+				 * this way in must refuse it too.
+				 */
+				if (CAST_PTR(SQLLEN, Value) < 0)
+				{
+					DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
+								 "invalid descriptor octet length");
+					ret = SQL_ERROR;
+					break;
+				}
 				bookmark->buflen = CAST_PTR(SQLLEN, Value);
 				break;
 			case SQL_DESC_PRECISION:
@@ -1214,6 +1354,7 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ival = opts->allocated;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
+			rettype = SQL_IS_LEN;
 			ival = opts->bindings[row_idx].buflen;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
@@ -1240,9 +1381,14 @@ ARDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
+			return ret;
 	}
 	switch (rettype)
 	{
+		case SQL_IS_LEN:
+			len = sizeof(SQLLEN);
+			*((SQLLEN *) Value) = ival;
+			break;
 		case 0:
 		case SQL_IS_INTEGER:
 			len = sizeof(SQLINTEGER);
@@ -1360,6 +1506,7 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ptr = opts->parameters[para_idx].indicator;
 			break;
 		case SQL_DESC_OCTET_LENGTH:
+			rettype = SQL_IS_LEN;
 			ival = opts->parameters[para_idx].buflen;
 			break;
 		case SQL_DESC_OCTET_LENGTH_PTR:
@@ -1393,6 +1540,7 @@ APDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		default:ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 					"invalid descriptor identifier");
+			return ret;
 	}
 	switch (rettype)
 	{
@@ -1446,18 +1594,12 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			rettype = SQL_IS_SMALLINT;
 			ival = SQL_DESC_ALLOC_AUTO;
 			break;
+		/* SQLSMALLINT fields */
 		case SQL_DESC_COUNT: /* read-only */
-		case SQL_DESC_AUTO_UNIQUE_VALUE: /* read-only */
-		case SQL_DESC_CASE_SENSITIVE: /* read-only */
 		case SQL_DESC_CONCISE_TYPE: /* read-only */
 		case SQL_DESC_DATETIME_INTERVAL_CODE: /* read-only */
-		case SQL_DESC_DATETIME_INTERVAL_PRECISION: /* read-only */
-		case SQL_DESC_DISPLAY_SIZE: /* read-only */
 		case SQL_DESC_FIXED_PREC_SCALE: /* read-only */
-		case SQL_DESC_LENGTH: /* read-only */
 		case SQL_DESC_NULLABLE: /* read-only */
-		case SQL_DESC_NUM_PREC_RADIX: /* read-only */
-		case SQL_DESC_OCTET_LENGTH: /* read-only */
 		case SQL_DESC_PRECISION: /* read-only */
 		case SQL_DESC_ROWVER: /* read-only */
 		case SQL_DESC_SCALE: /* read-only */
@@ -1466,6 +1608,21 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_DESC_UNNAMED: /* read-only */
 		case SQL_DESC_UNSIGNED: /* read-only */
 		case SQL_DESC_UPDATABLE: /* read-only */
+			rettype = SQL_IS_SMALLINT;
+			bCallColAtt = TRUE;
+			break;
+		/* pointer-sized fields: SQLULEN for LENGTH, SQLLEN for the rest */
+		case SQL_DESC_DISPLAY_SIZE: /* read-only */
+		case SQL_DESC_LENGTH: /* read-only */
+		case SQL_DESC_OCTET_LENGTH: /* read-only */
+			rettype = SQL_IS_LEN;
+			bCallColAtt = TRUE;
+			break;
+		/* SQLINTEGER fields */
+		case SQL_DESC_AUTO_UNIQUE_VALUE: /* read-only */
+		case SQL_DESC_CASE_SENSITIVE: /* read-only */
+		case SQL_DESC_DATETIME_INTERVAL_PRECISION: /* read-only */
+		case SQL_DESC_NUM_PREC_RADIX: /* read-only */
 			bCallColAtt = TRUE;
 			break;
 		case SQL_DESC_BASE_COLUMN_NAME: /* read-only */
@@ -1486,6 +1643,7 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
+			return ret;
 	}
 	if (bCallColAtt)
 	{
@@ -1504,7 +1662,8 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			return SQL_ERROR;
 		}
 		ret = PGAPI_ColAttributes(stmt, RecNumber,
-			FieldIdentifier, Value, (SQLSMALLINT) BufferLength,
+			FieldIdentifier, Value,
+			BufferLength > SHRT_MAX ? SHRT_MAX : (SQLSMALLINT) BufferLength,
 				&pcbL, &ival);
 		len = pcbL;
 	}
@@ -1522,6 +1681,10 @@ IRDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		case SQL_IS_SMALLINT:
 			len = sizeof(SQLSMALLINT);
 			*((SQLSMALLINT *) Value) = (SQLSMALLINT) ival;
+			break;
+		case SQL_IS_LEN:
+			len = sizeof(SQLLEN);
+			*((SQLLEN *) Value) = (SQLLEN) ival;
 			break;
 		case SQL_IS_POINTER:
 			len = sizeof(SQLPOINTER);
@@ -1651,6 +1814,7 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 			}
 			break;
 		case SQL_DESC_OCTET_LENGTH:
+			rettype = SQL_IS_LEN;
 			break;
 		case SQL_DESC_ALLOC_TYPE: /* read-only */
 			rettype = SQL_IS_SMALLINT;
@@ -1689,9 +1853,14 @@ IPDGetField(DescriptorClass *desc, SQLSMALLINT RecNumber,
 		default:ret = SQL_ERROR;
 			DC_set_error(desc, DESC_INVALID_DESCRIPTOR_IDENTIFIER,
 				"invalid descriptor identifier");
+			return ret;
 	}
 	switch (rettype)
 	{
+		case SQL_IS_LEN:
+			len = sizeof(SQLLEN);
+			*((SQLLEN *) Value) = ival;
+			break;
 		case 0:
 		case SQL_IS_INTEGER:
 			len = sizeof(SQLINTEGER);
@@ -2344,7 +2513,9 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 	RETCODE		ret = SQL_SUCCESS;
 
 	DescriptorClass *desc = (DescriptorClass *) DescriptorHandle;
-	SQLINTEGER strlen, typ, subtyp, len, prec, scal, null;
+	SQLINTEGER strlen;
+	SQLLEN		len = 0;
+	SQLSMALLINT typ = 0, subtyp, prec, scal, null;
 
 	MYLOG(0, "entering h=%p(%d) rec=" FORMAT_SMALLI " name=%p blen=" FORMAT_SMALLI "\n", DescriptorHandle, DC_get_desc_type((DescriptorClass *) DescriptorHandle), RecNumber, Name, BufferLength);
 	MYLOG(0, "str=%p type=%p sub=%p len=%p prec=%p scale=%p null=%p\n", StringLength, Type, SubType, Length, Precision, Scale, Nullable);
@@ -2361,12 +2532,13 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 		- SQL_DESC_NAME
 	*/
 
-	/* Retrieve SQL data type if requested */
-	if (Type != NULL)
+	/* Retrieve SQL data type if requested (the subtype needs it too) */
+	if (Type != NULL || SubType != NULL)
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_TYPE, &typ, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
-		*Type = typ;
+		if (Type != NULL)
+			*Type = typ;
 	}
 
 	/* For datetime and interval types, retrieve the subtype code if requested */
@@ -2382,7 +2554,7 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 	{
 		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_OCTET_LENGTH, &len, 0, NULL);
 		if (ret != SQL_SUCCESS) return ret;
-		*Length = (SQLLEN) len;
+		*Length = len;
 	}
 
 	/* Retrieve numeric precision if requested */
@@ -2411,13 +2583,27 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
 	}
 
 	/* Retrieve column/parameter name if requested (only for implementation descriptors) */
-	if (Name != NULL && (DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_ROW_DESC 
-		|| DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_PARAM_DESC))
+	if (DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_ROW_DESC
+		|| DC_get_desc_type((DescriptorClass *) DescriptorHandle) == SQL_ATTR_IMP_PARAM_DESC)
 	{
-		ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NAME, Name, BufferLength, (SQLINTEGER *) &strlen);
-		if (ret != SQL_SUCCESS) return ret;
+		if (Name != NULL || StringLength != NULL)
+		{
+			strlen = 0;
+			ret = PGAPI_GetDescField(DescriptorHandle, RecNumber, SQL_DESC_NAME, Name, Name ? BufferLength : 0, &strlen);
+			if (!SQL_SUCCEEDED(ret)) return ret;
+			/* the full length is reported even when the name was truncated */
+			if (StringLength != NULL)
+				*StringLength = (SQLSMALLINT) strlen;
+			return ret;
+		}
+	}
+	else
+	{
+		/* application descriptors have no name */
+		if (Name != NULL && BufferLength > 0)
+			Name[0] = '\0';
 		if (StringLength != NULL)
-			*StringLength = strlen;
+			*StringLength = 0;
 	}
 
 	return SQL_SUCCESS;
@@ -2445,6 +2631,35 @@ PGAPI_GetDescRec(SQLHDESC DescriptorHandle,
  *      For unsupported attributes, it returns an error.
  *      For backward compatibility with ODBC 2.0, it calls PGAPI_SetStmtOption for some attributes.
  */
+/*
+ * An application descriptor attached by SQLSetStmtAttr must be laid out
+ * as one: an explicit descriptor that SQLCopyDesc made an IRD or IPD
+ * holds different fields, and another statement's implicit descriptor
+ * goes away with that statement.
+ */
+static BOOL
+app_desc_usable(StatementClass *stmt, DescriptorClass *desc, DescriptorClass *own, const char *func)
+{
+	if (desc == own)
+		return TRUE;
+	/*
+	 * The driver's own statements borrow the application statement's
+	 * implicit ARD for the length of one call (SC_fetch_by_bookmark) and
+	 * detach it before they are dropped.
+	 */
+	if (!stmt->external)
+		return TRUE;
+	if (DC_get_embedded(desc) ||
+	    (desc->deschd.type_defined &&
+	     SQL_ATTR_APP_ROW_DESC != desc->deschd.desc_type &&
+	     SQL_ATTR_APP_PARAM_DESC != desc->deschd.desc_type))
+	{
+		SC_set_error(stmt, STMT_INVALID_ARGUMENT_NO, "the descriptor can't be used as an application descriptor", func);
+		return FALSE;
+	}
+	return TRUE;
+}
+
 RETCODE		SQL_API
 PGAPI_SetStmtAttr(HSTMT StatementHandle,
 				  SQLINTEGER Attribute, PTR Value,
@@ -2490,6 +2705,8 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			{
 				stmt->ard = &(stmt->ardi);
 			}
+			else if (!app_desc_usable(stmt, (DescriptorClass *) Value, &(stmt->ardi), func))
+				return SQL_ERROR;
 			else
 			{
 				stmt->ard = (DescriptorClass *) Value;
@@ -2502,6 +2719,8 @@ PGAPI_SetStmtAttr(HSTMT StatementHandle,
 			{
 				stmt->apd = &(stmt->apdi);
 			}
+			else if (!app_desc_usable(stmt, (DescriptorClass *) Value, &(stmt->apdi), func))
+				return SQL_ERROR;
 			else
 			{
 				stmt->apd = (DescriptorClass *) Value;
@@ -2609,7 +2828,7 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 		if (SQL_ADD != s->operation)
 		{
 			pg_bm = SC_Resolve_bookmark(s->opts, s->idx);
-			QR_get_last_bookmark(res, s->idx, &pg_bm.keys);
+			QR_get_last_bookmark(res, pg_bm.index, &pg_bm.keys);
 			global_idx = pg_bm.index;
 		}
 		/* Note opts->row_operation_ptr is ignored */
@@ -2642,8 +2861,14 @@ RETCODE	bulk_ope_callback(RETCODE retcode, void *para)
 		s->processed++;
 	}
 	conn = SC_get_conn(s->stmt);
-	if (s->auto_commit_needed)
-		CC_set_autocommit(conn, TRUE);
+	if (s->auto_commit_needed &&
+	    !CC_set_autocommit(conn, TRUE) &&
+	    SQL_ERROR != ret)
+	{
+		/* the rows are gone with the transaction */
+		SC_set_error(s->stmt, STMT_EXEC_ERROR, "Could not commit the bulk operation", __FUNCTION__);
+		ret = SQL_ERROR;
+	}
 	irdflds = SC_get_IRDF(s->stmt);
 	if (irdflds->rowsFetched)
 		*(irdflds->rowsFetched) = s->processed;
@@ -2679,7 +2904,20 @@ PGAPI_BulkOperations(HSTMT hstmt, SQLSMALLINT operationX)
 	{
 		conn = SC_get_conn(s.stmt);
 		if (s.auto_commit_needed = (char) CC_does_autocommit(conn), s.auto_commit_needed)
-			CC_set_autocommit(conn, FALSE);
+		{
+			/*
+			 * see PGAPI_SetPos(): a failed commit takes the work with it,
+			 * and the mode changes either way, so switch it back before
+			 * leaving without the callback that would have done it
+			 */
+			if (!CC_set_autocommit(conn, FALSE))
+			{
+				CC_set_autocommit(conn, TRUE);
+				s.auto_commit_needed = FALSE;
+				SC_set_error(s.stmt, STMT_EXEC_ERROR, "Could not commit before the bulk operation", func);
+				return SQL_ERROR;
+			}
+		}
 	}
 	if (SQL_ADD != s.operation)
 	{

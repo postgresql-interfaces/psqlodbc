@@ -98,6 +98,7 @@ enum {
 	,STMT_NO_RESPONSE
 	,STMT_COMMUNICATION_ERROR
 	,STMT_STRING_CONVERSION_ERROR
+	,STMT_INVALID_BUFFER_LENGTH
 };
 
 /* statement types */
@@ -317,6 +318,15 @@ struct StatementClass_
 	/* SQL_NEED_DATA Callback list */
 	StatementClass	*execute_delegate;
 	StatementClass	*execute_parent;
+	/*
+	 * TRUE while a statement in the execute_delegate chain under this
+	 * one is STMT_EXECUTING. Written by SC_SetExecuting() and read by
+	 * PGAPI_Cancel() under the common lock: the canceling thread cannot
+	 * take the statement lock or follow execute_delegate (the executing
+	 * thread owns both), and this statement's own status does not show
+	 * a delegate's execution.
+	 */
+	char		delegate_executing;
 	UInt2		allocated_callbacks;
 	UInt2		num_callbacks;
 	NeedDataCallback	*callbacks;
@@ -493,7 +503,8 @@ enum
 #define LEAVE_STMT_CS(x)	LeaveCriticalSection(&((x)->cs))
 #define DELETE_STMT_CS(x)	DeleteCriticalSection(&((x)->cs))
 #elif defined(POSIX_THREADMUTEX_SUPPORT)
-#define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs),0)
+/* recursive where available, like the connection's, so re-entry can't deadlock */
+#define INIT_STMT_CS(x)		pthread_mutex_init(&((x)->cs), getMutexAttr())
 #define ENTER_STMT_CS(x)	pthread_mutex_lock(&((x)->cs))
 #define TRY_ENTER_STMT_CS(x)	(0 == pthread_mutex_trylock(&((x)->cs)))
 #define LEAVE_STMT_CS(x)	pthread_mutex_unlock(&((x)->cs))
@@ -548,6 +559,7 @@ void		SC_set_prepared(StatementClass *self, int);
 void		SC_set_planname(StatementClass *self, const char *plan_name);
 void		SC_set_rowset_start(StatementClass *self, SQLLEN, BOOL);
 void		SC_inc_rowset_start(StatementClass *self, SQLLEN);
+void		SC_free_processed_statements(StatementClass *self);
 RETCODE		SC_initialize_stmts(StatementClass *self, BOOL);
 RETCODE		SC_execute(StatementClass *self);
 RETCODE		SC_fetch(StatementClass *self);
@@ -572,6 +584,7 @@ void		SC_scanQueryAndCountParams(const char *, const ConnectionClass *,
 			po_ind_t *multi, po_ind_t *proc_return);
 
 BOOL	SC_IsExecuting(const StatementClass *self);
+BOOL	SC_ExecutionInProgress(const StatementClass *self);
 BOOL	SC_SetExecuting(StatementClass *self, BOOL on);
 BOOL	SC_SetCancelRequest(StatementClass *self);
 BOOL	SC_AcceptedCancelRequest(const StatementClass *self);

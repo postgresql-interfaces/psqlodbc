@@ -18,6 +18,7 @@ TESTBINS = exe/connect-test \
 	exe/result-conversions-test \
 	exe/result-conversions-endianness-test \
 	exe/prepare-test \
+	exe/describe-before-execute-test \
 	exe/premature-test \
 	exe/params-test \
 	exe/leading-literal-numparams-test \
@@ -68,6 +69,7 @@ TESTBINS = exe/connect-test \
 	exe/wchar-char-test \
 	exe/params-batch-exec-test \
 	exe/params-batch-putdata-error-test \
+	exe/lost-connection-commit-test \
 	exe/fetch-refcursors-test \
 	exe/descrec-test \
 	exe/descriptors-free-test \
@@ -88,6 +90,7 @@ TESTBINS = exe/connect-test \
 	exe/getdata-after-fetch-error-test \
 	exe/bindcol-count-limit-test \
 	exe/bookmark-oid-test \
+	exe/bookmark-buffer-length-test \
 	exe/close-cursor-savepoint-test \
 	exe/colattribute-stale-cache-test \
 	exe/colinfo-refcnt-test \
@@ -111,12 +114,14 @@ TESTBINS = exe/connect-test \
 	exe/catalog-identifier-args-test \
 	exe/catalog-name-length-test \
 	exe/catalog-current-schema-quote-test \
+	exe/putdata-descriptor-params-test \
 	exe/param-marker-lexer-test \
 	exe/cursor-name-quote-test \
-	exe/many-cursor-updates-test \
 	exe/tables-null-type-test \
 	exe/diagfield-sqlstate-length-test \
+	exe/copydesc-param-name-test \
 	exe/fetch-bookmark-range-test \
+	exe/many-cursor-updates-test \
 	exe/wide-output-termination-test \
 	exe/log-secrets-redacted-test \
 	exe/default-ctype-altered-test \
@@ -141,8 +146,25 @@ TESTBINS = exe/connect-test \
 	exe/stale-parse-test \
 	exe/star-expansion-test \
 	exe/subclass-tableoid-test \
+	exe/param-negative-length-test \
+	exe/ird-smallint-fields-test \
 	exe/bool-param-length-test \
 	exe/param-name-length-test \
+	exe/commit-failure-test \
+	exe/large-object-open-error-test \
+	exe/positioned-delete-rollback-test \
+	exe/query-timeout-test \
+	exe/inheritance-keyset-test \
+	exe/bulk-bookmark-declare-fetch-test \
 	exe/bulkadd-before-fetch-test \
+	exe/fetch-before-first-test \
+	exe/getdata-binary-nodata-test \
+	exe/interval-type-name-test \
+	exe/extendedfetch-rowcount-test \
+	exe/pqopt-many-test \
+	exe/catalog-error-rollback-test \
+	exe/error-rollback-readonly-test \
 	exe/deferred-params-test \
-	exe/describe-before-execute-test
+	exe/diag-threads-test \
+	exe/diagnostic-w-test \
+	exe/desc-threads-test

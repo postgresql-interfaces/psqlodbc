@@ -235,6 +235,8 @@ void		QR_reset_for_re_execute(QResultClass *self);
 BOOL		QR_from_PGresult(QResultClass *self, StatementClass *stmt, ConnectionClass *conn, const char *cursor, PGresult **pgres);
 void		QR_free_memory(QResultClass *self);
 void		QR_set_command(QResultClass *self, const char *msg);
+BOOL		QR_command_rolled_back(const QResultClass *self);
+BOOL		QR_chain_maybe_successful(const QResultClass *self);
 void		QR_set_message(QResultClass *self, const char *msg);
 void		QR_add_message(QResultClass *self, const char *msg);
 void		QR_set_notice(QResultClass *self, const char *msg);
