@@ -7,8 +7,19 @@ on:
     tags:
       - 'REL-*'
       - '!REL-*-mimalloc'
+    # Skip the Windows build when a push changes only documentation. GitHub
+    # does not evaluate path filters for tag pushes, so a REL-* tag always
+    # builds, whatever it changes.
+    paths-ignore:
+      - 'website/**'
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - 'website/**'
+      - 'docs/**'
+      - '**.md'
   workflow_dispatch:
 
 env:
