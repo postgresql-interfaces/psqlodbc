@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     'exe/refresh-quoted-name-test'
+relocations:     []
+...

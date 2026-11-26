@@ -2260,7 +2260,30 @@ typedef struct _QueryParse {
 	size_t		declare_pos;
 	UInt4		flags, comment_level;
 	encoded_str	encstr;
+	int		paren_level;	/* ( ) depth outside quotes and comments */
+	int		values_state;
+	ssize_t		values_tuple_pos;
+	ssize_t		values_tuple_end;
 }	QueryParse;
+
+/*
+ * How far the scan has come in recognizing an INSERT whose parameter rows
+ * can fold into one multi-row INSERT, and where that statement's single
+ * VALUES tuple lands in the generated text. VST_TUPLE_DONE at the end of
+ * the scan is what allows the fold.
+ *
+ * Text behind the tuple refuses the fold. An ON CONFLICT DO UPDATE clause
+ * needs one row per command, because the server rejects a command whose
+ * VALUES names the same key twice, and a RETURNING clause gives the caller
+ * one result row per command.
+ */
+enum {
+	VST_BEFORE_VALUES = 0	/* no VALUES keyword at paren level 0 yet */
+	, VST_AFTER_VALUES	/* VALUES read, its '(' not reached */
+	, VST_IN_TUPLE		/* inside the tuple */
+	, VST_TUPLE_DONE	/* the tuple is closed and ends the statement */
+	, VST_NO_FOLD		/* the statement cannot fold */
+};
 
 static void
 QP_initialize(QueryParse *q, const StatementClass *stmt)
@@ -2281,6 +2304,10 @@ QP_initialize(QueryParse *q, const StatementClass *stmt)
 	q->declare_pos = 0;
 	q->flags = 0;
 	q->comment_level = 0;
+	q->paren_level = 0;
+	q->values_state = VST_BEFORE_VALUES;
+	q->values_tuple_pos = -1;
+	q->values_tuple_end = -1;
 	make_encoded_str(&q->encstr, SC_get_conn(stmt), q->statement);
 }
 
@@ -2369,8 +2396,6 @@ typedef struct _QueryBuild {
 }	QueryBuild;
 
 #define INIT_MIN_ALLOC	4096
-/* the largest query message the server takes */
-#define MAX_CONVERTED_STATEMENT_SIZE	((size_t) 0x40000000)
 /*
  * convert_escape() recurses once for every {fn ...( )} escape nested in
  * the argument list of another, with well over 1kB of stack per level.
@@ -2994,6 +3019,26 @@ insert_without_target(const char *stmt, size_t *endpos)
 		|| ';' == wstmt[0];
 }
 
+/*
+ *	Check if the character at the scan position is the ';' that ends the
+ *	statement, with only white space behind it. A ';' that separates two
+ *	statements is not one of these.
+ */
+static BOOL
+at_final_semicolon(const QueryParse *qp)
+{
+	const char *ptr;
+
+	if (';' != qp->statement[qp->opos])
+		return FALSE;
+	for (ptr = qp->statement + qp->opos + 1; *ptr; ptr++)
+	{
+		if (IS_NOT_SPACE(*ptr))
+			return FALSE;
+	}
+	return TRUE;
+}
+
 static ProcessedStmt *
 buildProcessedStmt(const char *srvquery, ssize_t endp, int num_params)
 {
@@ -3258,6 +3303,14 @@ MYLOG(DETAIL_LOG_LEVEL, "entering prepared=%d\n", stmt->prepared);
 		SC_set_error(stmt, STMT_INTERNAL_ERROR, "No statement string", func);
 		return SQL_ERROR;
 	}
+
+	/*
+	 * Every return below this point leaves the tuple undefined unless the
+	 * scan has found one, so that a caller can never read the offsets of
+	 * the statement built by an earlier call.
+	 */
+	stmt->values_tuple_pos = -1;
+	stmt->values_tuple_end = -1;
 
 	qp = &query_org;
 	QP_initialize(qp, stmt);
@@ -3533,6 +3586,16 @@ MYLOG(DETAIL_LOG_LEVEL, "type=" FORMAT_UINTEGER " concur=" FORMAT_UINTEGER "\n",
 	}
 
 	stmt->stmt_with_params = qb->query_statement;
+	/*
+	 * A translation DLL rewrites the text in place after the scan recorded
+	 * the offsets, so the tuple it found may no longer be there.
+	 */
+	if (VST_TUPLE_DONE == qp->values_state &&
+	    NULL == conn->DriverToDataSource)
+	{
+		stmt->values_tuple_pos = qp->values_tuple_pos;
+		stmt->values_tuple_end = qp->values_tuple_end;
+	}
 	retval = SQL_SUCCESS;
 cleanup:
 	return retval;
@@ -3900,6 +3963,66 @@ static int PT_token_continue(ParseToken *pt, char oldchar)
 	return pt->token_len;
 }
 #define	PT_TOKEN_IGNORE(pt)	((pt)->curchar_processed = TRUE)
+
+/*
+ *	Follow an INSERT ... VALUES (...) statement through the scan, so that
+ *	Exec_with_parameters_resolved() can fold the parameter rows of one into
+ *	a single multi-row INSERT. Called once per character of the statement
+ *	text that is not a parameter marker, with qb->npos at the position
+ *	oldchar is about to take in the generated text.
+ *
+ *	Only characters of the statement text arrive here, so a parenthesis in
+ *	a parameter value or in the expansion of an ODBC escape cannot move
+ *	paren_level.
+ */
+static void
+track_values_tuple(QueryParse *qp, const QueryBuild *qb,
+		   const ParseToken *pt, char oldchar)
+{
+	if (STMT_TYPE_INSERT != qp->statement_type ||
+	    VST_NO_FOLD == qp->values_state)
+		return;
+
+	if (VST_BEFORE_VALUES == qp->values_state &&
+	    0 == qp->paren_level &&
+	    6 == pt->token_len &&
+	    QP_IN_IDENT_KEYWORD == pt->in_status &&
+	    stricmp(pt->finished_token, "values") == 0)
+		qp->values_state = VST_AFTER_VALUES;
+
+	switch (oldchar)
+	{
+		case '(':
+			if (VST_AFTER_VALUES == qp->values_state &&
+			    0 == qp->paren_level)
+			{
+				qp->values_tuple_pos = qb->npos;
+				qp->values_state = VST_IN_TUPLE;
+			}
+			qp->paren_level++;
+			break;
+		case ')':
+			qp->paren_level--;
+			if (VST_IN_TUPLE == qp->values_state &&
+			    0 == qp->paren_level)
+			{
+				qp->values_tuple_end = qb->npos + 1;
+				qp->values_state = VST_TUPLE_DONE;
+			}
+			break;
+		default:
+			/*
+			 * A ';' that ends the statement is dropped along with the
+			 * white space around it when the rows fold, so it leaves
+			 * the statement foldable.
+			 */
+			if (VST_TUPLE_DONE == qp->values_state &&
+			    IS_NOT_SPACE(oldchar) &&
+			    !at_final_semicolon(qp))
+				qp->values_state = VST_NO_FOLD;
+			break;
+	}
+}
 
 static int
 inner_process_tokens(QueryParse *qp, QueryBuild *qb)
@@ -4458,6 +4581,7 @@ inner_process_tokens(QueryParse *qp, QueryBuild *qb)
 			}
 		}
 
+		track_values_tuple(qp, qb, pt, oldchar);
 		CVT_APPEND_CHAR(qb, oldchar);
 		if (comment_opened)
 		{

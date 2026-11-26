@@ -1,0 +1,110 @@
+connected
+
+executing "INSERT INTO test_fold VALUES (?, ?)" for 6 rows
+rows processed=6, SQLRowCount=3
+row 0 status=success
+row 1 status=success
+row 2 status=success
+row 3 status=success
+row 4 status=success
+row 5 status=success
+Result set:
+2
+Result set:
+1	one
+2	two
+3	three
+4	four
+5	five
+6	six
+
+executing "INSERT INTO test_fold (id, dt) VALUES (?, ?) ;" for 6 rows
+rows processed=6, SQLRowCount=3
+row 0 status=success
+row 1 status=success
+row 2 status=success
+row 3 status=success
+row 4 status=success
+row 5 status=success
+Result set:
+2
+Result set:
+1	one
+2	two
+3	three
+4	four
+5	five
+6	six
+
+executing "INSERT INTO test_fold VALUES (?, upper(?))" for 6 rows
+rows processed=6, SQLRowCount=3
+row 0 status=success
+row 1 status=success
+row 2 status=success
+row 3 status=success
+row 4 status=success
+row 5 status=success
+Result set:
+2
+Result set:
+1	ONE
+2	TWO
+3	THREE
+4	FOUR
+5	FIVE
+6	SIX
+
+executing "INSERT INTO test_fold VALUES (?, ?)" for 6 rows, row 3 null
+rows processed=6, SQLRowCount=3
+row 0 status=success
+row 1 status=success
+row 2 status=success
+row 3 status=success
+row 4 status=success
+row 5 status=success
+Result set:
+2
+Result set:
+1	one
+2	two
+3	three
+4	NULL
+5	five
+6	six
+
+executing "INSERT INTO test_fold VALUES (?, ?) ON CONFLICT (id) DO NOTHING" for 6 rows
+rows processed=6, SQLRowCount=1
+row 0 status=success
+row 1 status=success
+row 2 status=success
+row 3 status=success
+row 4 status=success
+row 5 status=success
+Result set:
+6
+Result set:
+1	one
+2	two
+3	three
+4	four
+5	five
+6	six
+
+executing "INSERT INTO test_fold SELECT ?, ?" for 6 rows
+rows processed=6, SQLRowCount=1
+row 0 status=success
+row 1 status=success
+row 2 status=success
+row 3 status=success
+row 4 status=success
+row 5 status=success
+Result set:
+6
+Result set:
+1	one
+2	two
+3	three
+4	four
+5	five
+6	six
+disconnecting
