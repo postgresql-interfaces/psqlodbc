@@ -33,9 +33,24 @@ env:
   WINFLEXBISON_VERSION: '2.5.24'
   WORKFLOW_VERSION_POSTGRESQL: '1' # increment to invalidate cache
 
-  # PostgreSQL x64 test server (EDB installer): fileid 1260665 is
-  # postgresql-17.12-1-windows-x64.exe.  Keep POSTGRESQL_SERVER_MAJOR in step:
-  # the test jobs fail if the server reports another major version.
+  # PostgreSQL x64 test server, from the EDB installer that
+  # https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+  # offers in its "Windows x86-64" column.  Keep POSTGRESQL_SERVER_MAJOR in
+  # step: the test jobs fail if the server reports another major version.
+  #
+  # EDB gives each installer a fileid rather than a URL carrying its
+  # version, and a re-issued build takes a new one, so the id has to be read
+  # off that page again for every server this workflow moves to. The
+  # checksum column beside it names the file, which is how to tell which
+  # build an id belongs to. As read on 2026-11-26:
+  #
+  #   1260762  postgresql-19.0-2-windows-x64.exe
+  #   1260723  postgresql-18.7-2-windows-x64.exe
+  #   1260726  postgresql-17.12-2-windows-x64.exe
+  #   1260729  postgresql-16.16-2-windows-x64.exe
+  #
+  # The id below is postgresql-17.12-1-windows-x64.exe, the build before
+  # 17.12-2, and the page no longer lists it.
   POSTGRESQL_PACKAGE_FILEID: '1260665'
   POSTGRESQL_SERVER_MAJOR: '17'
 
